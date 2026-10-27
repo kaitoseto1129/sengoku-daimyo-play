@@ -139,7 +139,7 @@ for (const k of ['skyMotion', 'skyBirds']) Object.defineProperty(S, k, { get: ()
 export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent) || TIER.weak
   || (typeof window !== 'undefined' && (/\btight\b/.test(String(window.__autoplay || '')) || /[?&]tight=1/.test(location.search))));
 // 計算の軽い作り：iPhone と Android。Android の高性能タブレット（Xiaomi Pad 8 など）は記憶は足りるが、JS の速さはパソコンの半分ほどで
-//   乱戦がずっとカクカクした（Lancers 10/26）。記憶の作り（骨の人数・束・兵の密度）は変えず、iPhone と同じ「考えと骨と小さな置き物のコマ分け」だけを使う。
+//   乱戦がずっとカクカクした（Lancers 10/26）。兵の密度を保ち、iPhone と同じ骨の人数上限と「考えと骨と小さな置き物のコマ分け」を使う。
 //   ?lean=0 で切って比べる（Android だけ。iPhone は MEM_TIGHT のまま）。
 export let CPU_LEAN = MEM_TIGHT || (ANDROID &&
   !(typeof location !== 'undefined' && /[?&]lean=0/.test(location.search)));

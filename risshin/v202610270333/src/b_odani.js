@@ -628,26 +628,55 @@ const FORTS = [
   { id: 'gessho', name: '月所丸', x: 18, z: -218, h: 0, flag: null },
 ];
 // 屋敷の平場：斜面を削って平らにする（大野木屋敷・赤尾屋敷）。高さは中心の元の高さ
-const VILLAGE = [[-104, 167, .1], [-130, 174, -.2], [-75, 170, .1], [-143, 158, -.1]];
+// 西の家は畦道から離す。回した壁と道の幅が重ならない位置（家の細かな配置は推定）。
+const VILLAGE = [[-104, 167, .1], [-130, 168, -.2], [-75, 170, .1], [-143, 158, -.1]];
 // 清水谷の寺・屋敷と西麓の町屋は、長浜市『史跡小谷城跡保存管理計画書』を参照。
 // https://www.city.nagahama.lg.jp/cmsfiles/contents/0000000/285/20140523-151329.pdf
 // 城下は以前の攻撃で焼かれている。残った里の者が遠巻きに様子を見る場とし、賑わう市は置かない。
-// 人数・立ち位置・避難の道筋は遊びの補い。尾根へ登らず、谷口から西の平野へ抜ける。
+// 人数・立ち位置・避難の道筋は遊びの補い。尾根へ登らず、谷口から西の平野側へ退く。
 // 村の戸口と田の北の畦を通り、南西の虎御前山の本陣へは向かわない。
-const PEOPLE_EXIT = [[-119, 178], [-142, 178], [-176, 178]];
+// 地面の端ぎりぎりでは三メートル先の足場を選べない。田の北に余白のある畦を残す。
+const PEOPLE_EXIT = [[-119, 174], [-142, 174], [-170, 174]];
 const PEOPLE_PATHS = [
-  [[TERA.x + 4, TERA.z + 18], [-114, 148], [-117, 163], ...PEOPLE_EXIT],
-  [[-113, 151], [-117, 163], ...PEOPLE_EXIT],
-  [[VILLAGE[0][0] + 7, VILLAGE[0][1] + 8], [-113, 178], ...PEOPLE_EXIT],
+  // 堂の南西の庭から見守る。東の谷道の兵へ寄らず、堂の西から南へ退く。
+  // 福寿丸の東裾と西の民家の間を通り、家の北の畦へ合流する（道筋は推定）。
+  [[TERA.x - 10, TERA.z + 12], [-132, 130], [-128, 143], [-117, 163], ...PEOPLE_EXIT],
+  // 町屋の焼け跡を望む西の肩。谷口の軍道から離れ、寺の退き道へ合流する。
+  [[-126, 151], [-117, 163], ...PEOPLE_EXIT],
+  [[VILLAGE[0][0] + 7, VILLAGE[0][1] + 8], [-113, 174], ...PEOPLE_EXIT],
+  // 西の残存民家の家族。東の谷口へ折り返さず、家の西から南西の畦へ退く（推定）。
+  // 福寿丸へ登らず、田の北側を通って共通の里道の西端へ出る。
+  [[VILLAGE[3][0] - 8, VILLAGE[3][1] + 6], [-158, 174], PEOPLE_EXIT.at(-1)],
 ];
+// 民が火や兵をよける肩まで草木を空ける。地面に描く細い里道とは幅を分ける。
+// 幅は避難判定と共用し、草木の配置時だけ折れ線を調べる。
+const PEOPLE_RETREAT_WIDTH = 6;
+function clearPeopleWay(x, z) {
+  if (x < -178 || x > -90 || z < 116 || z > 181) return false;
+  for (const path of PEOPLE_PATHS) {
+    if (alongLine(path, x, z).d <= PEOPLE_RETREAT_WIDTH + .5) return true;
+  }
+  return false;
+}
 const PEOPLE_KINDS = [
   ['monk', 'monk', 'woman', 'child'],
   ['townsman', 'merchant', 'woman', 'child', 'elder'],
   ['farmer', 'farmer', 'woman', 'child', 'elder'],
+  ['farmer', 'woman', 'child'],
 ];
+// 西の家族はそのまま西端へ。ほかの三組は東側から順に畦で待ち、退避の途中で東へ戻さない。
+const PEOPLE_WAIT_OFFSETS = [6, 16, 26, 0];
 const PEOPLE_BANDS = PEOPLE_PATHS.map((p, i) => ({
+  // 寺の僧と身を寄せた母子も、町人・百姓と同じく遠巻きに見守ってから逃げる。
   x: p[0][0], z: p[0][1], kinds: PEOPLE_KINDS[i], mode: 'watch',
-  route: p.slice(1).map(([x, z]) => ({ x, z })),
+  // 尾根上の両軍の重心ではなく、庭・町屋・村から見える清水谷の軍道を見守る。
+  watchAt: { x: SHIMIZU[i === 0 ? 1 : 0][0], z: SHIMIZU[i === 0 ? 1 : 0][1] },
+  // 庭や畦に散った見物人は、まず里道の起点へ合流してから角を曲がる。
+  // 家族の人数分だけ待つ区間を離す。共通の直線上の角は省き、待つ場所を通り過ぎて戻らない。
+  route: p.flatMap(([x, z], j) => i < 3 && j === p.length - 2 ? []
+    : [{ x: x + (j === p.length - 1 ? PEOPLE_WAIT_OFFSETS[i] : 0), z }]),
+  // 包囲の外へ出たとは断定せず、里道の先で待つ。火や兵が迫れば共通の仕組みで再び退く。
+  routeEnd: 'wait',
 }));
 const TERR = [{ ...TORAGOZEN, r: 20 }, ...VILLAGE.map(([x, z]) => ({ x, z, r: 6 })), { x: ONOGI.x, z: ONOGI.z, r: 12 }, { x: AKAO.x, z: AKAO.z, r: 12 }, ...FORTS.map((f) => ({ x: f.x, z: f.z, r: 9, f })),
   // 清水谷の居館・家臣の屋敷・寺も、斜面を削った平場に建てる（谷の高さのまま。家の下に高い白い台を立てない）
@@ -1394,7 +1423,37 @@ const odani = {
   // 小谷の常設井楼だけ、通し柱を垂直にして横木の木口を交互に出す。
   lookoutLogFrame: true,
   // 共通の民の仕組みで描く。兵の名簿・兵数・戦功には加えない。
-  civilianCrowd: { bands: PEOPLE_BANDS },
+  civilianCrowd: {
+    bands: PEOPLE_BANDS, safeFlee: true, routeArrival: 1.2,
+    evacuateAfterBattle: true, // 決着後も火や兵が残る里道で、家族の避難と見張りを続ける。
+    distantArmies: true, // 谷口の控え兵も見て退く。軽い兵を戦う兵へ増やさない。
+    sightThreats: true, // 尾根や塀の裏の兵で見物をやめず、見える兵と間近の足音に反応する。
+    sightFires: true, // 堂や民家に隠れた遠い火では騒がず、見える炎と近い熱で退く。
+    rememberSoldierCombat: true, watchPlayerCombat: true, // 見回りの合間の斬撃・発砲も覚えて退く。
+    neighborAlarmRadius: 10, // 近くの里道で逃げ出した隣人を見ても、家族ごと危険から退く。
+    // 残存民家・谷の堂・付属小屋の壁越しには兵を追わない。建物と同じ位置・向き・壁高。
+    sightBuildings: [
+      ...VILLAGE.map(([x, z, rot]) => ({ x, z, hw: 3, hd: 2.25, c: Math.cos(rot), s: Math.sin(rot), h: 2.6 })),
+      { x: TERA.x, z: TERA.z, hw: 4.5, hd: 3.5, c: Math.cos(Math.PI / 2 + .2), s: Math.sin(Math.PI / 2 + .2), h: 3.8 },
+      { x: TERA.x + 2, z: TERA.z - 12, hw: 3, hd: 2, c: Math.cos(.2), s: Math.sin(.2), h: 2.6 },
+    ],
+    watchDistance: 34, // 見物を始める距離を保ち、兵が近づいたら家族ごと里道へ退く。
+    watchTrackDistance: 90, // 遠巻きのまま、谷道を進む兵を目で追う。近づいて見直しには行かない。
+    // 退避後に兵や火が迫っても、西尾根の砦や南の田へ迷い込まず里道の肩へ退く。
+    retreatPaths: PEOPLE_PATHS, retreatWidth: PEOPLE_RETREAT_WIDTH,
+    // 七つの共用の人形を里の七種に割り当て、町人・商人も近くで同じ身なりを保つ。
+    modelKinds: [...new Set(PEOPLE_KINDS.flat())],
+    keepTogether: true, // 安全な里道では大人が子・年寄りを待ち、家族を置き去りにしない。
+    escortPace: true, // 安全な道では、そばの子や年寄りの歩調で付き添う。
+    // 組の中でも立ち位置を分ける。幅のある畦からはみ出さない間隔。
+    startSpacing: 1.4, waitSpacing: 1.8, waitBesidePath: true,
+    moveSpacing: 1, // 合流する寺・町屋・村の者も、歩く途中で互いの体をすり抜けない。
+    // 篝火の小さな炎では騒がず、通常の燃え広がる火からは退く。
+    fireSize: 1,
+    fireRadiusScale: .8, // 炎の広がる幅も避ける。配置・逃げ始め・里道の検査で共用する。
+    // 退避後も谷口と西麓の里に留める。北の山腹や南の田・虎御前山へ戻さない。
+    bounds: { minX: -178, maxX: -90, minZ: 116, maxZ: 179 },
+  },
   // 番兵と槍を合わせる間は先の坂へ誘わない。退路と道へ戻る案内は残す。
   guideMarker: (rt) => rt.flags.retreatOn ? 'retreat' : rt.flags.step === 0 ? 'hide'
     : rt.flags.step === 1 && rt.flags.valleyFighting && !rt.flags.guideReturning && !rt.flags.guideBlocked ? ''
@@ -1684,7 +1743,7 @@ const odani = {
         c.setRGB(0.35 + soil * 0.07, 0.34 + soil * 0.01, 0.23 + soil * 0.04);
       }
     },
-    clear: (x, z) => odaniExtraClear(x, z) || (Math.abs(x) < ridgeHW(z) + (x < 0 && z > -70 && z < 175 ? 6 : 22) && z < 174 + SOUTH_SHIFT && z > -192)
+    clear: (x, z) => clearPeopleWay(x, z) || odaniExtraClear(x, z) || (Math.abs(x) < ridgeHW(z) + (x < 0 && z > -70 && z < 175 ? 6 : 22) && z < 174 + SOUTH_SHIFT && z > -192)
       || (x < -14 && x > -125 && z > CLIMB_UP[1][1] - 16 && z < 170
         && (alongLine(SHIMIZU, x, z).d < 7 || alongLine(CLIMB_UP, x, z).d < 14))
       || Math.hypot(x - KYOKAN.x, z - KYOKAN.z) < 22 || Math.hypot(x - AKAO.x, z - AKAO.z) < 17 || Math.hypot(x - ONOGI.x, z - ONOGI.z) < 17 || FORTS.some((f) => Math.hypot(x - f.x, z - f.z) < 13),
@@ -2154,6 +2213,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
         }
       });
       rt.scene.add(umatsunagi(W, KYOKAN.x - 18, KYOKAN.z - 12, 1.4, 6), valleyTimber(W, KYOKAN.x - 17, KYOKAN.z + 12, 0.4));
+      // 過年の焼損跡に今も燃える火は置かない。民は兵や当夜の火が迫った時に避難する。
       const ruins = new THREE.InstancedMesh(ruinGeo, new THREE.MeshLambertMaterial({ color: 0x302a23 }), ruinMatrices.length);
       for (let i = 0; i < ruinMatrices.length; i++) ruins.setMatrixAt(i, ruinMatrices[i]);
       ruins.instanceMatrix.needsUpdate = true;
@@ -3119,7 +3179,9 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
           rt.say('組頭', `あと${Math.max(0, Math.ceil(35 - F.awayT))}秒で持ち場を失う！　京極丸へ戻れ！`, 5);
         }
         if (F.awayT > 35) { this.lose(rt); return; }
-        if (enemies === 0 && repelled && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 40) && heldMouths) F.holdT += dt;
+        // 反撃の組や口の押さえ手が遅れても、京極丸に敵がいなければ四十秒で保ち始める（一戦を四〜七分に）。
+        const late = rt.t - F.stepT > 40;
+        if (enemies === 0 && (repelled || late) && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 40) && (heldMouths || late)) F.holdT += dt;
         else F.holdT = Math.max(0, F.holdT - dt * 2);   // 一人崩れただけで初めからにしない
         if (F.holdT >= 5 && !F.restCalled) {
           F.restCalled = true;
@@ -3256,11 +3318,18 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
   // 屋敷の庭では守りへ詰める。狭い虎口を通る間だけ、遠い敵を追わない。
   // 反撃を待つ相手と実際の打ち手の選び方は、共通の頭とそろえる。
+  // 同じ所で八秒止まったまま打ち合う時（土塁の袋で上の敵と突き合う等）は、打ち合いをやめて抜け出す。
+  if (F.step === 2) {
+    const st = b.odaniStuck || (b.odaniStuck = { x: u.pos.x, z: u.pos.z, t: b.t, esc: null, escT: 0 });
+    if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > .6) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
+  }
+  const stuckFight = F.step === 2 && b.odaniStuck && (b.t - b.odaniStuck.t > 8 || b.t < b.odaniStuck.escT);
   const entering = F.step === 2 && F.onoDone && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z);
   let e = strikeTarget(b, entering ? 3 : 12);
   if (e && inKyoLookout(b, e) && Math.abs(e.pos.y - u.pos.y) > 1.8) e = null;
   // 九十九折りの上下の段の敵は、届いて見えても切岸の向こう。突き続けて足を止めない。
-  if (e && (Math.abs(e.pos.y - u.pos.y) > 1.6 || earthBetween(u.pos, e.pos))) e = null;   // 食い違い土塁の向こうも同じ
+  if (e && (Math.abs(e.pos.y - u.pos.y) > 1.6 || earthBetween(u.pos, e.pos) || b.army.wallBetween(u.pos, -1, e.pos, false))) e = null;
+  if (stuckFight) e = null;   // 食い違い土塁や塀の向こうも同じ
   // 京極丸の中では、外へ退いた敵を追って持ち場を離れない。
   if ((F.step === 2 && F.onoDone && !entering || F.step === 3 && !F.komaAttack) &&
       e && !F.C.kuruwa.kyogoku.test(e.pos.x, e.pos.z)) e = null;
@@ -3283,6 +3352,24 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     return;
   }
   if (F.step === 2) {
+    // 土塁と屋敷の間の袋へ入って五秒動けない時は、一番遠くまで歩ける向きへ三メートル抜ける（人が身をよじって出るのと同じ）。
+    const st = b.odaniStuck;
+    if (st.esc && b.t < st.escT) { goTo(p, inp, st.esc.x, st.esc.z, .3); return; }
+    if (b.t - st.t > 5 && p.canStep) {
+      let best = null, far = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = k * Math.PI / 8;
+        let ok = 0, px = u.pos.x, pz = u.pos.z;
+        for (let n = 1; n <= 12; n++) {
+          const x = u.pos.x + Math.sin(a) * n * .3, z = u.pos.z + Math.cos(a) * n * .3;
+          if (!p.canStep(px, pz, x, z, u.pos.y) || b.army.wallBetween({ x: px, z: pz }, -1, { x, z }, false)) break;
+          ok = n; px = x; pz = z;
+        }
+        if (ok > far) { far = ok; best = { x: px, z: pz }; }
+      }
+      st.t = b.t;
+      if (best) { st.esc = best; st.escT = b.t + 2.5; goTo(p, inp, best.x, best.z, .3); return; }
+    }
     if (!F.onoDone) {
       goTo(p, inp, F.trailPoint.x, F.trailPoint.z, .3, true); return;
     }

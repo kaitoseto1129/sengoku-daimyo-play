@@ -205,17 +205,22 @@ function* makeCoarseGeo(g, cell, minTri, C) {
   const pos = g.attributes.position, n = pos.count, idx = g.index ? g.index.array : null;
   const triN = idx ? idx.length / 3 : n / 3;
   if (triN > minTri && !g.morphAttributes.position && !(g.groups && g.groups.length > 1)) {
+    // 升の鍵は数（文字の鍵は一頂点ごとに捨てる物を作り、四倍遅くで一コマ一ミリ秒を使い切っていた）。升の並び・合わせ方は元のまま
     const map = new Map(), rep = [], remap = new Int32Array(n), sum = [];
+    const flat = !pos.isInterleavedBufferAttribute && !pos.normalized && pos.itemSize === 3 ? pos.array : null;
     for (let i = 0; i < n; i++) {
-      if (i % 128 === 0) yield;
-      const k = Math.round(pos.getX(i) / cell) + ',' + Math.round(pos.getY(i) / cell) + ',' + Math.round(pos.getZ(i) / cell);
+      if (i % 512 === 0) yield;
+      const x = flat ? flat[i * 3] : pos.getX(i), y = flat ? flat[i * 3 + 1] : pos.getY(i), z = flat ? flat[i * 3 + 2] : pos.getZ(i);
+      const ix = Math.round(x / cell), iy = Math.round(y / cell), iz = Math.round(z / cell);
+      const k = ix > -32768 && ix < 32767 && iy > -32768 && iy < 32767 && iz > -32768 && iz < 32767
+        ? (ix + 32768) * 4294967296 + (iy + 32768) * 65536 + (iz + 32768) : ix + ',' + iy + ',' + iz;
       let j = map.get(k);
-      if (j === undefined) { j = rep.length; map.set(k, j); rep.push(i); sum.push([0, 0, 0, 0]); }
-      remap[i] = j; const q = sum[j]; q[0] += pos.getX(i); q[1] += pos.getY(i); q[2] += pos.getZ(i); q[3]++;
+      if (j === undefined) { j = rep.length; map.set(k, j); rep.push(i); sum.push(0, 0, 0, 0); }
+      remap[i] = j; const q = j * 4; sum[q] += x; sum[q + 1] += y; sum[q + 2] += z; sum[q + 3]++;
     }
     const tri = [];
     for (let t = 0; t < triN; t++) {
-      if (t % 128 === 0) yield;
+      if (t % 512 === 0) yield;
       const a = remap[idx ? idx[t * 3] : t * 3], b = remap[idx ? idx[t * 3 + 1] : t * 3 + 1], c = remap[idx ? idx[t * 3 + 2] : t * 3 + 2];
       if (a !== b && b !== c && a !== c) tri.push(a, b, c);
     }
@@ -224,10 +229,10 @@ function* makeCoarseGeo(g, cell, minTri, C) {
       for (const name in g.attributes) {
         const at = g.attributes[name], sz = at.itemSize, arr = new at.array.constructor(rep.length * sz);   // 8 bit の色などは型を保つ
         for (let j = 0; j < rep.length; j++) {
-          if (j % 128 === 0) yield;
+          if (j % 512 === 0) yield;
           for (let k = 0; k < sz; k++) arr[j * sz + k] = at.array[rep[j] * sz + k];
         }
-        if (name === 'position') for (let j = 0; j < rep.length; j++) { if (j % 128 === 0) yield; const q = sum[j]; arr[j * 3] = q[0] / q[3]; arr[j * 3 + 1] = q[1] / q[3]; arr[j * 3 + 2] = q[2] / q[3]; }
+        if (name === 'position') for (let j = 0; j < rep.length; j++) { if (j % 512 === 0) yield; const q = j * 4; arr[j * 3] = sum[q] / sum[q + 3]; arr[j * 3 + 1] = sum[q + 1] / sum[q + 3]; arr[j * 3 + 2] = sum[q + 2] / sum[q + 3]; }
         out.setAttribute(name, new THREE.BufferAttribute(arr, sz, at.normalized));
       }
       out.setIndex(tri);

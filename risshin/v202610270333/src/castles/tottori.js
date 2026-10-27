@@ -57,18 +57,18 @@ export const TOTTORI_SEATS = [
 // 全棟の戸口は南。位置・規模・用途・葺き方は天正九年の因幡として推定。
 // 主殿は入母屋、小祠は切妻。他の長屋・番所・空蔵は低い板葺きと板戸の作り。
 export const TOTTORI_HOUSES = [
-  { seat: 'sanjo', name: '山上の主殿', x: 10, z: -176, w: 9, d: 6, residence: true },
-  { seat: 'sanjo', name: '山上の長屋', x: -4, z: -171, w: 8, d: 4 },
+  { seat: 'sanjo', name: '山上の主殿', x: 10, z: -176, w: 9, d: 6, kind: 'goten', residence: true },
+  { seat: 'sanjo', name: '山上の長屋', x: -4, z: -171, w: 8, d: 4, kind: 'nagaya' },
   { seat: 'sanjo', name: '山上の空蔵', x: 24, z: -177, w: 5, d: 4, kind: 'kura' },
   { seat: 'sanjo', name: '山上の小祠', x: -4, z: -181, w: 3, d: 3, kind: 'shrine' },
-  { seat: 'obi', name: '山道の番所', x: -12, z: -126, w: 5, d: 4 },
-  { seat: 'kido', name: '木戸の詰所', x: -10, z: -93, w: 6, d: 4 },
-  { seat: 'east', name: '東の長屋', x: 45, z: -102, w: 7, d: 4 },
+  { seat: 'obi', name: '山道の番所', x: -12, z: -126, w: 5, d: 4, kind: 'bansho' },
+  { seat: 'kido', name: '木戸の詰所', x: -10, z: -93, w: 6, d: 4, kind: 'bansho' },
+  { seat: 'east', name: '東の長屋', x: 45, z: -102, w: 7, d: 4, kind: 'nagaya' },
   ...['maruyama', 'karigane', 'hidenaga', 'kuridani', 'engoji', 'hamasaka'].map(id => {
     const k = TOTTORI_SEATS.find(s => s.id === id);
-    return { seat: id, name: `${k.name}の番所`, x: k.x - k.w + 6, z: k.z - 4, w: 5, d: 4 };
+    return { seat: id, name: `${k.name}の番所`, x: k.x - k.w + 6, z: k.z - 4, w: 5, d: 4, kind: 'bansho' };
   }),
-  { seat: 'taiko', name: '本陣の控えの間', x: 167, z: -153, w: 7, d: 4 },
+  { seat: 'taiko', name: '本陣の控えの間', x: 167, z: -153, w: 7, d: 4, kind: 'tamari' },
 ];
 // 道を避けた北の堀切と東斜面の竪堀。種類・位置・深さは推定。
 export const TOTTORI_DITCHES = [

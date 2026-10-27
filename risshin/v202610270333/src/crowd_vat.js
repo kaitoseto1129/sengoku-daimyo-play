@@ -6,7 +6,7 @@
 //   近く（8m の内）・本人・武将・騎馬・一騎打ちの者は今の骨入りのまま。指物と足もとの影は軽い兵の束がそのまま描く。
 import * as THREE from 'three';
 import { MEM_TIGHT } from './settings.js';
-import { HUM, SRC, ALLB, humanLook, isSohei, qualityKeeper, realNear } from './humans_shared.js';
+import { HUM, SRC, ALLB, humanLook, isSohei, qualityKeeper, skinOpponent, realNear } from './humans_shared.js';
 import { crowdGeometry } from './humans_crowd_geometry.js';
 import { nearArmorParts } from './humans_dress.js';
 import { lookParts, Unit, buildModel, DEATH_END } from './units.js';
@@ -554,6 +554,33 @@ function setOn(u, on, keepHand = false) {
     try { lastArmy?.animate(u, 0, true); } catch (e) { /* 置き直せなくても次のコマで直る */ }
   }
 }
+// 枠を超えた近景も、中景と同じ全身の形と焼いた動きで描く。
+function prepareVat(u) {
+  const key = rigKey(u);
+  let R = rigs.get(key);
+  if (!R) { R = { key, src: u, u: null, clips: [], done: false, failed: false }; rigs.set(key, R); }
+  if (!R.done) return false;
+  if (!R.wd) { R.wd = SRC.anims.walk.duration; R.rd = SRC.anims.run.duration; }
+  const L = lookOf(u), W = L ? wpnOf(u) : null;
+  if (!L || L.gen > COLUP.gen || (u.wpn && !W)) return false;
+  u.vatL = L; u.vatW = W; u.vatR = R;
+  return true;
+}
+function showVat(u) {
+  if (!u.vat) u.vat = { lx: u.pos.x, lz: u.pos.z, sp: 0, phase: 0, clip: -1, fade: 1, rowA: 0, rowB: 0, fromRow: 0, out0: 0, out1: 0, outW: 0, seed: ((u.id || 1) * 0.6180339) % 1, strideK: 0 };
+  if (!u.vat.strideK) { const s = ((u.id || 1) * 0.6180339) % 1; u.vat.strideK = 0.9 + ((s * 17.3) % 1) * 0.2; }
+  if (!u.vatOn) { u.vat.lx = u.pos.x; u.vat.lz = u.pos.z; u.vat.clip = -1; u.vat.fade = 1; }
+  setOn(u, true);
+}
+export function vatOverflow(u) {
+  if (!VAT.on || !HUM.ready || !SRC || isNoRender() || !eligible(u) || !prepareVat(u)) return false;
+  // 近景へ戻る待ちの兵は、既にこのコマの描画表に入っている。
+  if (!u.vatOn) list.push(u);
+  u.vatWant = true;
+  showVat(u);
+  VAT.stat.units = list.length;
+  return true;
+}
 export function vatSelect(rt, dt) {
   if (!VAT.on || !HUM.ready || !SRC || isNoRender()) return;
   const t0 = performance.now();
@@ -568,7 +595,7 @@ export function vatSelect(rt, dt) {
   BUILD.left = dt === 0 ? 24 : 1;
   for (const u of army.units) {
     if (u.bakeRig) continue;
-    const ok = eligible(u) && (u.alive && !u.dying || u.vatOn);
+    const ok = !skinOpponent(rt.player?.u, u) && eligible(u) && (u.alive && !u.dying || u.vatOn);
     let want = false, hold = false;
     if (ok) {
       const d = Math.hypot(u.pos.x - cx, u.pos.z - cz);
@@ -577,26 +604,10 @@ export function vatSelect(rt, dt) {
       // 近づいて骨の人へ替わる間は、人が出来て描かれるまで VAT のまま（画面で消えない）
       if (!want && u.vatOn && d < lo && u.alive && !u.dying) hold = true;
     }
-    if (want || hold) {
-      const key = rigKey(u);
-      let R = rigs.get(key);
-      if (!R) { R = { key, src: u, u: null, clips: [], done: false, failed: false }; rigs.set(key, R); }
-      if (!R.done) { want = hold = false; }
-      else {
-        if (!R.wd) { R.wd = SRC.anims.walk.duration; R.rd = SRC.anims.run.duration; }
-        const L = lookOf(u), W = L ? wpnOf(u) : null;
-        if (!L || L.gen > COLUP.gen || (u.wpn && !W)) want = hold = false;
-        else { u.vatL = L; u.vatW = W; u.vatR = R; }
-      }
-    }
+    if ((want || hold) && !prepareVat(u)) want = hold = false;
     u.vatWant = want;
-    if (want || hold) {
-      if (!u.vat) u.vat = { lx: u.pos.x, lz: u.pos.z, sp: 0, phase: 0, clip: -1, fade: 1, rowA: 0, rowB: 0, fromRow: 0, out0: 0, out1: 0, outW: 0, seed: ((u.id || 1) * 0.6180339) % 1, strideK: 0 };
-      if (!u.vat.strideK) { const s = ((u.id || 1) * 0.6180339) % 1; u.vat.strideK = 0.9 + ((s * 17.3) % 1) * 0.2; }
-      if (!u.vatOn) { u.vat.lx = u.pos.x; u.vat.lz = u.pos.z; u.vat.clip = -1; u.vat.fade = 1; }
-      setOn(u, true);
-      list.push(u);
-    } else if (u.vatOn) setOn(u, false);
+    if (want || hold) { showVat(u); list.push(u); }
+    else if (u.vatOn) setOn(u, false);
   }
   // 焼く（支度の間 dt=0 は大きく、戦の間は一コマ数ミリ秒まで）。焼く・姿の形・近い形の仕事は一コマに一つだけ
   let pending = false;

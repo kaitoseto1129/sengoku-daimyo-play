@@ -2250,9 +2250,9 @@ const kanegasaki = {
     finalizeKitBatch(rt,rim);
     // 配置・用途は推定。板葺き。入れる建物は共通の戸口・床・和の部屋を使う。
     // 高画質の番所は既存の切妻板葺き・連子窓を使う。大きな入母屋と明かり障子は補わない。
-    const house=(x,z,w,d,name,kind) => goten(rt,x,z,{w,d,name,kind,profile:'mitsukuri',tile:false,naka:true,door:1,doorX:0,team:0,noTarget:true,...({earth:0x998365,fieldFort:true,weatheredBoards:true,boardRoofColors:KG_ROOF_COLORS})});
+    const house=(x,z,w,d,name,kind) => goten(rt,x,z,{w,d,name,kind,profile:'kanegasaki',tile:false,naka:true,door:1,doorX:0,team:0,noTarget:true,earth:0x998365,fieldFort:true,weatheredBoards:true,boardRoofColors:KG_ROOF_COLORS});
     house(CASTLE.x+3,CASTLE.z-4,6,4,'主郭の詰所','goten');
-    house(KAZ2.x+(7),-150,4,3,'焼米出土地の番所','nagaya');
+    house(KAZ2.x+7,-150,4,3,'焼米出土地の番所','bansho');
     house(TEZUTSU.x,TEZUTSU.z-4,5,3,'天筒山の長屋','nagaya');
     const homes = makeSimpleBatch();
     const sacks = [];
@@ -2276,8 +2276,8 @@ const kanegasaki = {
       mesh.position.y -= gap + 0.015; mesh.updateMatrix();
       sacks.push(mesh.geometry.applyMatrix4(mesh.matrix)); sackMaterial = mesh.material;
     };
-    // 木造の兵糧小屋。土蔵や瓦屋根を補わず、外観だけにする。
-    hut(W,KAZ2.x-5,-150,4,3,0,{ita:true,boardRoof:true,boardGables:true,boardRoofColors:KG_ROOF_COLORS,weatheredBoards:true,groundedHome:true,minka:false,wall:0x66513b,batch:homes});
+    // 木造・切妻板葺きの兵糧小屋も床と戸口をつなぐ。荷は壁際へ寄せる。
+    house(KAZ2.x-5,-150,4,3,'焼米出土地の兵糧小屋','kura');
     if (true) {
       // 小さな板葺き屋敷を段ごとにまとめ、土橋と木戸の正面を空ける。
       // 朝倉の城を占領した後の備えなので、旗は織田木瓜。近代の天守を置かない。

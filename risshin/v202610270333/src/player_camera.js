@@ -332,7 +332,8 @@ export class PlayerCamera {
     // 足場・櫓のような格子の物は、真ん中の一本の線だけだと隙間を抜けてしまうので、カメラの四隅寄りにも線を引いて一番手前で止める（隅は 3 コマに一度）
     // 腰より低い柵・横木・石垣の縁は当たりにしない（細い物で寄ったり離れたりしない）。部屋の中は全部を当たりにする
     this.camLowY = inRoom ? null : u.pos.y + 1.15;
-    let hit = this.camBlockHit(target, want, true);
+    // 三人称の即時判定は最後の位置に一本残す。ここは建物の箱と接触済みの面で寄せる。
+    let hit = this.camBlockHit(target, want, e >= .5);
     const movedView = Math.abs(angleDiff(this.camCornYaw ?? this.yaw, this.yaw)) > 0.12 || Math.abs((this.camCornPitch ?? this.pitch) - this.pitch) > 0.12;
     this.camCornT = movedView ? 0 : ((this.camCornT || 0) + 1) % 3;
     if (this.camCornT === 0) {
@@ -653,6 +654,18 @@ export class PlayerCamera {
     }
     this.clearWallView(camera.position, look);
     this.clearCameraBody(camera);
+    // 肩よけ・戦ごとの補正で動いた最後の位置を、待ち行列へ回さず近くの面で測る。
+    // 判定は従来どおり一コマ二本まで。低い壁も、実際の視点への線を塞ぐ時は止める。
+    if (e < .5) {
+      const lowY = this.camLowY;
+      this.camLowY = null;
+      const h = this.camBlockHit(target, camera.position, true);
+      this.camLowY = lowY;
+      if (h !== null) {
+        camera.position.lerpVectors(target, camera.position, Math.max(0, h - .25 / Math.max(.25, target.distanceTo(camera.position))));
+        this.camPos.copy(camera.position);
+      }
+    }
     camera.lookAt(look);
     // 合戦では視点補正の後にも本人の足を画面内へ戻し、下端に余白を残す。
     // 位置は動かさず見下ろす角度だけ補い、壁の内側へカメラを押し出さない。

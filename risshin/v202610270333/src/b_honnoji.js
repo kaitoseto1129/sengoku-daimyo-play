@@ -2176,7 +2176,7 @@ function honnoReturnLabel(rt) {
 // 守る段（表門・本堂・御殿・二条の西の門）は、近い敵がいれば一番近い一人へピンと▼。いなければ持ち場へピン。
 // 退く段（本堂へ・御殿へ・裏門へ・北の口へ）は、今まで通りの道の印（戸口と曲がり角）を使う。
 // 二条の守り：持ち場で支える秒と、退く下知までの秒（戦全体を四〜七分に収める）。
-const HOLD_NEED = 40, HOLD_END = 70;
+const HOLD_NEED = 30, HOLD_END = 50;   // 御所の門は五十秒（囲まれて倒れる前に北の口へ）
 const HON_DEFEND = new Set([2, 3, 5, 7]);
 const honDefending = (rt) => !rt.G.lord && !rt.flags.ending && !rt.over && (rt.flags.step === 4 || rt.flags.step < 3 && HON_DEFEND.has(rt.flags.hp));
 const honFoeOk = (u) => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ;

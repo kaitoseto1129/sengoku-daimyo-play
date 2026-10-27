@@ -1513,6 +1513,11 @@ function moribeFord(rt) {
         bankUV.push(x * .45, z * .45);
         const k = j / 3, grain = .95 + .05 * Math.sin(x * 2.7 + j);
         bankColor.setRGB((.24 + k * .12) * grain, (.22 + k * .1) * grain, (.16 + k * .05) * grain);
+        // 川底と同じ砂色を両岸へつなぎ、水際で渡り道が途切れて見えないようにする。
+        const ford = Math.max(0, Math.min(1, (6 - Math.abs(x - START2.x)) / 1.5));
+        bankColor.r += (.46 * grain - bankColor.r) * ford;
+        bankColor.g += (.43 * grain - bankColor.g) * ford;
+        bankColor.b += (.28 * grain - bankColor.b) * ford;
         bankColors.push(bankColor.r, bankColor.g, bankColor.b, j === 3 ? 0 : .7);
         if (i < 110 && j < 3) {
           const a = start + i * 4 + j;
@@ -2638,8 +2643,8 @@ const moribe = {
     W.stampTrail([[-46, 14], [-18, 8], [14, -2], [49, -15]], 9, 60);
     W.stampTrail([[-40, -37], [-12, -32], [25, -39], [61, -51]], 8, 58);
     // 渡り口から北岸へ続く踏み場。水の上に模様を置かず、両岸の草と泥へつなぐ。
-    W.stampTrail([[40, 123], [40, 104]], 3.2, 130);
-    W.stampTrail([[40, 73], [38, 65], [29, 45]], 3.2, 130);
+    W.stampTrail([[40, 123], [40, 98]], 3.2, 130);
+    W.stampTrail([[40, 79], [38, 65], [29, 45]], 3.2, 130);
     moribeFord(rt);
     moribeNearBodies(rt);
     // 落馬した瞬間の描画用の高さを空馬へ引き継ぐと、坂の判定に阻まれて宙で止まる。
@@ -3203,17 +3208,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 傷のない受け止めも本人の▼だけで示し、空振りと区別する。
       const blocked = src?.isPlayer && t && t.team !== src.team && rest[0]?.out?.res === 'block';
       if (blocked) {
-        t.moribeBlockUntil = rt.t + .65;
+        t.moribeBlockUntil = rt.t + 1.2;
         // 直前の命中を残すと、次の一撃が防がれても縦に伸びたままになる。
         t.moribeHitUntil = 0;
       }
       if (src?.isPlayer && t?.team !== src.team && t.hp < hp) {
-        rt.flags.struckTarget = t; rt.flags.struckUntil = rt.t + 2.4;
+        rt.flags.struckTarget = t; rt.flags.struckUntil = rt.t + 3;
         // ▼の中で今回削った分だけを残し、続く一撃でも減りを見届けられるようにする。
         t.moribeHitHp = hp;
-        t.moribeDamageUntil = rt.t + 2.4;
-        // 連打の合間にも命中を見届けられる余韻を残す。
-        if (!blocked) { t.moribeHitUntil = rt.t + 2.4; t.moribeBlockUntil = 0; }
+        t.moribeDamageUntil = rt.t + 3;
+        // 判断の合間にも命中を残す。続けて当てると同じ本人の印が伸び直す。
+        if (!blocked) { t.moribeHitUntil = rt.t + 3; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {

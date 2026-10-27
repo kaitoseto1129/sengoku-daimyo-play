@@ -5,6 +5,7 @@ import { SOLIDS } from './props.js';
 import { S } from './settings.js';
 import { personGeo, tintMat } from './town_crowd.js';
 import { sfx } from './audio.js';
+import { ARMY_P } from './world.js';
 
 const NAMES = { farmer: '百姓', porter: '人夫', merchant: '商人', monk: '僧' };
 const COLORS = { farmer: 0x62533e, porter: 0x484b3b, merchant: 0x3e4754, monk: 0x2e2925 };
@@ -216,10 +217,41 @@ function civilianSightClear(rt, a, b, eye, targetEye) {
     : solidPathClear(a, b);
 }
 
-function pathClear(rt, a, b, crowd = false) {
+function pathClear(rt, a, b, crowd = false, escaping = false, placing = false) {
   if (rt.army.wallBetween(a, 0, b) || rt.army.wallBetween(a, 1, b)) return false;
   if (crowd && rt.def.civilianCrowd?.continuousEscapeSolids
     && !solidPathClear(a, b, null, null, rt.def.civilianCrowd?.escapeSolidMargin ?? 0.3)) return false;
+  // 小谷の里道では、行き先だけでなくそこまでの区間も兵から離す。
+  if (crowd && rt.def.civilianCrowd?.safeFlee && !placing) {
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const ground = rt.world.heightAt(a.x, a.z), dy = rt.world.heightAt(b.x, b.z) - ground;
+    const len2 = dx * dx + dz * dz + dy * dy;
+    const distant = rt.warCrowd;
+    for (let i = 0; i < rt.army.units.length + (distant?.distantCount || 0); i++) {
+      const u = rt.army.units[i];
+      if (u && !soldier(u, rt)) continue;
+      const pos = u ? u.pos : distant.distant[i - rt.army.units.length];
+      // 逃げ始める距離とそろえ、別の斬り合いへ近づく里道も避ける。
+      const walkRadius = rt.def.civilianCrowd.watchDistance ?? 14;
+      const radius = escaping ? (u && (civilianCombatActive(rt, u) || u.target?.alive) ? Math.max(40, walkRadius) : walkRadius) : 12;
+      const radius2 = radius * radius;
+      // 坂の途中で最も近づく所を比高も含めて探す。平面だけでは、坂上の兵へ寄る道を見落とす。
+      const t = len2 ? Math.max(0, Math.min(1, ((pos.x - a.x) * dx + (pos.z - a.z) * dz + (pos.y - ground) * dy) / len2)) : 0;
+      const sx = pos.x - a.x - dx * t, sz = pos.z - a.z - dz * t;
+      if (sx * sx + sz * sz >= radius2) continue;
+      // 切岸の上の兵で、谷底の里道を塞がない。
+      const px = a.x + dx * t, pz = a.z + dz * t;
+      const sy = pos.y - rt.world.heightAt(px, pz);
+      // 既に兵が迫っている時は、今より離れる退き方を妨げない。
+      const startX = pos.x - a.x, startZ = pos.z - a.z;
+      const startY = pos.y - ground;
+      const distance2 = sx * sx + sz * sz + sy * sy;
+      if (distance2 < Math.min(radius2, startX * startX + startZ * startZ + startY * startY) - 0.001
+        // 見物と同じく、塀や尾根で見えない兵だけでは里道を塞がない。
+        // 道の途中から見える兵と、十二メートル以内の足音は避ける。
+        && crowdNoticesSoldier(rt, px, pz, pos, Math.sqrt(distance2), (a.sc ?? 1) * 1.5)) return false;
+    }
+  }
   const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.6));
   // 墨俣の畦は体の幅も陸に収まる道だけ使う。中心だけ通れる川岸へ走らせない。
   const bankMargin = crowd ? rt.def.civilianCrowd?.escapeBankMargin ?? 0 : 0;
@@ -233,13 +265,26 @@ function pathClear(rt, a, b, crowd = false) {
     const t = i / n, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
     // 外周の村・城下へも逃げられるよう、民の指定範囲を使う。
     if (crowd ? !lightOpen(rt, x, z) : !openGround(rt, x, z)) return false;
+    // 小谷では避難の途中も里道とその肩に留める。角の先が見えても田や屋敷跡を横切らない。
+    if (crowd && rt.def.civilianCrowd?.safeFlee && !onRetreatPath(rt, x, z)) return false;
+    // 配置時の合流点は既に燃えていることもある。足場の炎は配置側で除く。
+    if (crowd && rt.def.civilianCrowd?.safeFlee && !placing) {
+      for (const f of rt.world.fires || []) {
+        if (f.lit === false || f.size < (rt.def.civilianCrowd.fireSize ?? 2)) continue;
+        // 炎の幅と比高を含め、足元へ迫った火から離れる歩みは許す。
+        const radius = escaping ? Math.min(22, crowdFireDistance(rt, a.x, a.z, f)) : 5;
+        const distance = crowdFireDistance(rt, x, z, f);
+        if (distance < radius - 0.001 && (!escaping
+          || crowdNoticesFire(rt, x, z, f, distance, (a.sc ?? 1) * 1.5))) return false;
+      }
+    }
     const y = rt.world.heightAt(x, z);
     if (bankMargin) for (let side = -1; side <= 1; side += 2) {
       const bankX = x + sideX * side, bankZ = z + sideZ * side;
       if (!rt.world.walkable(bankX, bankZ) || rt.world.inWaterAt(bankX, bankZ)
         || Math.abs(rt.world.heightAt(bankX, bankZ) - y) > 0.45) return false;
     }
-    if (crowd) for (const f of rt.world.fires || []) if (f.lit !== false && f.size >= (rt.def.civilianCrowd?.fireSize ?? 2)) {
+    if (crowd && !rt.def.civilianCrowd?.safeFlee) for (const f of rt.world.fires || []) if (f.lit !== false && f.size >= (rt.def.civilianCrowd?.fireSize ?? 2)) {
       const radius = civilianFireRadius(rt, f, fireClearance);
       if (Math.hypot(x - f.x, z - f.z) < radius
         && !(rt.def.civilianCrowd?.escapeCheckInterval
@@ -419,7 +464,25 @@ function lightOpen(rt, x, z) {
   const b = rt.def.civilianCrowd?.bounds;
   const margin = rt.def.civilianCrowd?.escapeSolidMargin ?? 0.3;
   if ((b ? x < b.minX + 2 || x > b.maxX - 2 || z < b.minZ + 2 || z > b.maxZ - 2 : Math.abs(x) > w.half - 2 || Math.abs(z) > w.half - 2) || !w.walkable(x, z) || w.inWaterAt(x, z)) return false;
-  for (const s of SOLIDS) if (x > s.x0 - margin && x < s.x1 + margin && z > s.z0 - margin && z < s.z1 + margin) return false;
+  const precise = rt.def.civilianCrowd?.safeFlee;
+  const broadMargin = precise ? Math.max(margin, 0.45) : margin;
+  for (const s of SOLIDS) {
+    if (x <= s.x0 - broadMargin || x >= s.x1 + broadMargin || z <= s.z0 - broadMargin || z >= s.z1 + broadMargin) continue;
+    if (!precise) return false;
+    // 小谷の回した民家・斜めの柵では、外接する四角の空いた角を里道として通せる。
+    // 兵と同じ置き物の形を使い、壁から三十センチ離す。形や座標の入れ物は足さない。
+    if (s.k === 'r') {
+      const dx = x - s.x, dz = z - s.z;
+      if (Math.abs(dx * s.c - dz * s.s) < s.hw + 0.3
+        && Math.abs(dx * s.s + dz * s.c) < s.hd + 0.3) return false;
+    } else if (s.k === 'c') {
+      if ((x - s.x) ** 2 + (z - s.z) ** 2 < (s.r + 0.3) ** 2) return false;
+    } else if (s.k === 's') {
+      const dx = s.bx - s.ax, dz = s.bz - s.az;
+      const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / (dx * dx + dz * dz || 1)));
+      if ((x - s.ax - dx * t) ** 2 + (z - s.az - dz * t) ** 2 < (s.r + 0.3) ** 2) return false;
+    } else return false;
+  }
   return true;
 }
 
@@ -589,6 +652,150 @@ function formationBlocks(shape, distance, center, x, z, r, from, retreat) {
   return false;
 }
 
+// 敗走の足元は描画側と同じ種・速さ・向きで求める。倒れた兵は追いかけてこない。
+// 小谷の既存の見回りだけで呼び、行列と座標は使い回す。
+function distantRoutPoint(army, i, p, matrix) {
+  const info = army.body.geometry.getAttribute('aInfo');
+  const info2 = army.body.geometry.getAttribute('aInfo2');
+  const sd = info.getX(i), kind = info.getY(i), s2 = info2.getY(i), U = army.U;
+  const time = Math.max(0, U.uRoutT.value - sd * 1.6);
+  const fallAt = 1.2 + s2 * 50;
+  if (s2 <= .1 && time >= fallAt + .5) return false;
+  if (time < .001 || kind === 6) return true;
+  const T = U.uAT.value + sd * 97;
+  const lookEdge = Math.max(0, Math.min(1, (Math.sin(T * .045 + sd * 20) - .88) / .12));
+  let look = .2 * Math.sin(T * .07) * Math.sin(T * .031 + sd * 9)
+    + .6 * lookEdge * lookEdge * (3 - 2 * lookEdge) * (sd > .5 ? 1 : -1);
+  look += U.uIdle.value * .16 * Math.sin(T * (.3 + s2 * .25) + sd * 23);
+  const far = Math.max(0, Math.min(1, (Math.hypot(p.x - ARMY_P.value.x, p.z - ARMY_P.value.y) - 36) / 24));
+  const yaw = U.uTurn.value * Math.PI + Math.PI + (s2 - .5) * 1.7
+    + look * .15 * far * far * (3 - 2 * far);
+  const distance = (s2 <= .1 ? Math.min(time, fallAt) : time) * (3 + sd * 2.2) * (kind === 5 ? 2 : 1);
+  matrix.fromArray(army.base, i * 16);
+  p.set(Math.sin(yaw) * distance, 0, Math.cos(yaw) * distance)
+    .applyMatrix4(matrix).add(army.off).applyMatrix4(army.mesh.matrixWorld);
+  return true;
+}
+
+// 小谷の控えの列も民から見える兵。描画の間引きとは別に、残る兵の足元を拾う。
+// 初回と既存の見回りだけ更新し、座標の入れ物は使い回す。
+function scanDistant(rt, C) {
+  C.distantCount = 0;
+  const cfg = rt.def.civilianCrowd;
+  if (!cfg?.distantArmies) return;
+  C.distant ??= [];
+  C.distantPoint ??= new THREE.Vector3();
+  C.distantMatrix ??= new THREE.Matrix4();
+  const p = C.distantPoint, bounds = cfg.bounds;
+  for (const army of rt.world.armies || []) {
+    // 敗走しても民へ迫る兵は残す。描画を終えた隊を元の整列位置へ戻さない。
+    if (!army.mesh.visible || !army.base || army.rout && army.routHide && army.U.uRoutT.value > army.routHide) continue;
+    army.mesh.updateWorldMatrix(true, false);
+    for (let i = 0; i < army.n; i++) {
+      if (army.taken[i]) continue;
+      const k = i * 16;
+      p.set(army.base[k + 12], army.base[k + 13], army.base[k + 14]).add(army.off).applyMatrix4(army.mesh.matrixWorld);
+      if (army.rout && !distantRoutPoint(army, i, p, C.distantMatrix)) continue;
+      // 民の里道から遠い列は、以後の歩幅ごとの検査へ持ち込まない。
+      if (bounds && (p.x < bounds.minX - 42 || p.x > bounds.maxX + 42 || p.z < bounds.minZ - 42 || p.z > bounds.maxZ + 42)) continue;
+      const q = C.distant[C.distantCount] ?? (C.distant[C.distantCount] = { x: 0, y: 0, z: 0 });
+      q.x = p.x; q.z = p.z; q.y = rt.world.heightAt(p.x, p.z);
+      C.distantCount++;
+    }
+  }
+}
+
+function crowdDistance(rt, x, z, threat, y) {
+  // 小谷の谷と曲輪は高さも離れている。ほかの戦の判定は従来通り。
+  const dy = rt.def.civilianCrowd?.safeFlee ? (y ?? rt.world.heightAt(threat.x, threat.z)) - rt.world.heightAt(x, z) : 0;
+  return Math.hypot(threat.x - x, threat.z - z, dy);
+}
+
+// 小谷では火の中心でなく炎の縁から間合いを取る。大火ほど早く退き、燃える幅を横切らない。
+// 炎の内側では負の距離も残し、足元まで燃えた時も外へ離れる一歩を許す。
+function crowdFireDistance(rt, x, z, fire) {
+  // 屋根や櫓の火は地面に下ろさず、描いている炎の高さから熱の間合いを測る。
+  // 避難時に覚えた火は、その時の高さを y に残している。
+  return crowdDistance(rt, x, z, fire, fire.base ?? fire.y) - fire.size * (rt.def.civilianCrowd?.fireRadiusScale ?? 0);
+}
+
+// 家族の危険を比べる時と次の一歩でも、炎の縁からの距離を引き継ぐ。
+function crowdThreatDistance(rt, x, z, threat) {
+  return rt.def.civilianCrowd?.safeFlee && threat.size > 0
+    ? crowdFireDistance(rt, x, z, threat) : crowdDistance(rt, x, z, threat, threat.y);
+}
+
+// 見物と避難で同じ視線を使う。座標は初期化時に用意し、見回りで使い回す。
+function crowdCanSee(rt, x, z, p, eyeHeight = 1.5, targetHeight = 1.5) {
+  const origin = rt.warCrowd.sight;
+  origin.x = x; origin.z = z; origin.y = rt.world.heightAt(x, z);
+  if (rt.army.wallBetween(origin, 0, p) || rt.army.wallBetween(origin, 1, p)) return false;
+  const eye = origin.y + eyeHeight;
+  const steps = Math.max(1, Math.ceil(Math.hypot(p.x - x, p.z - z) / 4));
+  const rise = (p.y ?? rt.world.heightAt(p.x, p.z)) + targetHeight - eye;
+  // 村の民家は壊せる塀とは別の当たり。回した壁の内側を視線が通る時だけ遮る。
+  // 四棟の寸法を使い回し、屋根越しに見える高い尾根の兵までは隠さない。
+  for (const b of rt.def.civilianCrowd?.sightBuildings || []) {
+    const lx = (x - b.x) * b.c - (z - b.z) * b.s;
+    const lz = (x - b.x) * b.s + (z - b.z) * b.c;
+    const dx = (p.x - x) * b.c - (p.z - z) * b.s;
+    const dz = (p.x - x) * b.s + (p.z - z) * b.c;
+    let enter = 0, exit = 1;
+    for (let axis = 0; axis < 2; axis++) {
+      const start = axis ? lz : lx, delta = axis ? dz : dx, half = axis ? b.hd : b.hw;
+      if (Math.abs(delta) < 0.000001) {
+        if (Math.abs(start) > half) { exit = -1; break; }
+      } else {
+        const a = (-half - start) / delta, c = (half - start) / delta;
+        enter = Math.max(enter, Math.min(a, c)); exit = Math.min(exit, Math.max(a, c));
+      }
+      if (enter > exit) break;
+    }
+    if (enter > exit) continue;
+    const base = rt.world.heightAt(b.x, b.z), y0 = eye + rise * enter, y1 = eye + rise * exit;
+    if (Math.min(y0, y1) < base + b.h && Math.max(y0, y1) > base) return false;
+  }
+  for (let j = 1; j < steps; j++) {
+    const t = j / steps;
+    if (rt.world.heightAt(x + (p.x - x) * t, z + (p.z - z) * t) > eye + rise * t) return false;
+  }
+  return true;
+}
+
+function crowdNoticesSoldier(rt, x, z, p, distance, eyeHeight = 1.5) {
+  // 小谷の尾根や塀の向こうの兵には反応しない。十二メートル以内は足音でも気づく。
+  // 子の見物と避難で同じ目線を使い、大人だけに見える塀越しの兵で騒がない。
+  return !rt.def.civilianCrowd?.sightThreats || distance < 12 || crowdCanSee(rt, x, z, p, eyeHeight);
+}
+
+function crowdNoticesFire(rt, x, z, fire, distance, eyeHeight) {
+  // 小谷の堂・民家・尾根に隠れた遠い火では騒がず、近い火の熱にはすぐ退く。
+  if (!rt.def.civilianCrowd?.sightFires || distance < 12) return true;
+  // 高い所で燃える炎も、その見える高さで調べる。見回り用の座標を使い回す。
+  const p = rt.warCrowd.fireSight;
+  p.x = fire.x; p.z = fire.z;
+  p.y = (fire.base ?? rt.world.heightAt(fire.x, fire.z)) + fire.size * .65;
+  return crowdCanSee(rt, x, z, p, eyeHeight, 0);
+}
+
+function nearSoldier(rt, x, z, r, eyeHeight = 1.5) {
+  if (!rt.def.civilianCrowd?.safeFlee) return nearSoldierOther(rt, x, z, r, typeof eyeHeight === 'object' ? eyeHeight : null);
+  if (typeof eyeHeight === 'object') eyeHeight = (eyeHeight.sc ?? 1) * 1.5;
+  for (const u of rt.army.units) if (soldier(u, rt) && Math.abs(u.pos.x - x) < r && Math.abs(u.pos.z - z) < r) {
+    const d = crowdDistance(rt, x, z, u.pos, u.pos.y);
+    if (d < r && crowdNoticesSoldier(rt, x, z, u.pos, d, eyeHeight)) return true;
+  }
+  const C = rt.warCrowd;
+  for (let i = 0; i < (C?.distantCount || 0); i++) {
+    const p = C.distant[i];
+    if (Math.abs(p.x - x) < r && Math.abs(p.z - z) < r) {
+      const d = crowdDistance(rt, x, z, p, p.y);
+      if (d < r && crowdNoticesSoldier(rt, x, z, p, d, eyeHeight)) return true;
+    }
+  }
+  return false;
+}
+
 function crowdCornerPassed(w, a, route) {
   const p = route[a.routeIndex], q = route[a.routeIndex + 1];
   if (!q) return false;
@@ -666,7 +873,7 @@ function crowdStride(C, a, x, z, step) {
   return stride;
 }
 
-function nearSoldier(rt, x, z, r, from = null) {
+function nearSoldierOther(rt, x, z, r, from = null) {
   if (rt.def.civilianCrowd?.avoidDistantTroops) {
     for (const u of rt.army.units) if (soldier(u, rt) && Math.hypot(u.pos.x - x, u.pos.z - z) < r) return true;
     return !!distantTroopNear(rt, x, z, Math.min(r, rt.def.civilianCrowd?.distantWatchDistance ?? 14));
@@ -717,6 +924,7 @@ const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647
 
 function addBand(rt, C, x, z, kinds, mode, face, route = null, routeEnd = null, watchAt = null,
   targetClearance = rt.def.civilianCrowd?.watchTargetClearance) {
+  if (rt.def.civilianCrowd?.safeFlee) return addBandOdani(rt, C, x, z, kinds, mode, face, route, routeEnd, watchAt);
   // 墨俣の畦道は全経路を確認し、他の戦の生活道の配置も保つ。
   if (!rt.def.civilianCrowd?.requireFullRouteAccess) return addBandDefault(rt, C, x, z, kinds, mode, face, route, routeEnd, watchAt);
   // 墨俣の座標の組と、他の戦の座標付きの道を、初めに同じ形へそろえる。
@@ -827,6 +1035,116 @@ function addBand(rt, C, x, z, kinds, mode, face, route = null, routeEnd = null, 
   }
 }
 
+function addBandOdani(rt, C, x, z, kinds, mode, face, route = null, routeEnd = null, watchAt = null) {
+  const g = { home: { x, z }, mode, route, routeEnd, state: mode === 'inside' ? 'inside' : 'watch', agents: [], calm: 0, from: { x, z } };
+  let fleeFrom = null;
+  for (const [i, kind] of kinds.entries()) {
+    if (C.agents.length >= CAP) break;
+    const eyeHeight = (kind === 'child' ? 0.64 : kind === 'elder' ? 0.93 : 1) * 1.5;
+    let px = x, pz = z, found = false, fallback = null, routeIndex = 0;
+    const localWatch = rt.def.civilianCrowd?.safeFlee && route && mode === 'watch';
+    const watchDistance = rt.def.civilianCrowd?.watchDistance ?? 34;
+    const startSpacing = rt.def.civilianCrowd?.startSpacing ?? 0;
+    for (let k = 0; k < (startSpacing > 0 ? 12 : 6); k++) {
+      const a = i * 2.4 + k, r = 0.9 + i * 0.55 + k * 0.3;
+      const tx = x + Math.cos(a) * r, tz = z + Math.sin(a) * r;
+      if (!lightOpen(rt, tx, tz) || !localWatch && route && mode === 'watch' && nearSoldier(rt, tx, tz, watchDistance)) continue;
+      // 小谷の庭や畦で別の組とも体を重ねない。候補探しは戦の初めだけ。
+      if (startSpacing > 0 && (C.agents.some((b) => Math.hypot(tx - b.x, tz - b.z) < startSpacing)
+        || g.agents.some((b) => Math.hypot(tx - b.x, tz - b.z) < startSpacing))) continue;
+      if (rt.def.civilianCrowd?.safeFlee) {
+        // 小谷の寺庭・畦の肩でも、里道まで段差を横切らず戻れる所に立つ。
+        const probe = { x: tx, z: tz, sc: eyeHeight / 1.5 };
+        // 初めから兵が迫っていても、在所の民を消さずに避難へ移す。
+        // 予備の位置も建物・水路・段差・火を避け、里道へつながる所だけ残す。
+        if ((rt.world.fires || []).some((f) => f.lit !== false && f.size >= (rt.def.civilianCrowd.fireSize ?? 2)
+          && crowdFireDistance(rt, tx, tz, f) < 5) || !pathClear(rt, probe, g.home, true, false, true)) continue;
+        // 見物には近すぎる兵も予備位置の危険として残し、民を配置から落とさない。
+        const threat = dangerNear(rt, tx, tz, 40, localWatch ? watchDistance : 14, 22, eyeHeight);
+        if (threat) {
+          if (localWatch && !fallback && !nearSoldier(rt, tx, tz, 2)) { probe.threat = threat; fallback = probe; }
+          continue;
+        }
+        if (route && mode === 'watch' && nearSoldier(rt, tx, tz, watchDistance, eyeHeight) || !pathClear(rt, probe, g.home, true)) continue;
+      }
+      px = tx; pz = tz; found = true; break;
+    }
+    // 安全な見物場所がなければ、家族を残して組ごと直ちに避難を始める。
+    if (!found && fallback) { px = fallback.x; pz = fallback.z; found = true; fleeFrom ??= fallback.threat; }
+    // 戸口や庭が燃えている時は、既に里道へ退いた者として置く。
+    // 指定された畦だけを探し、家・田・砦へ散らさない。探索は配置時だけ。
+    if (!found && localWatch) {
+      for (let j = 1; j < route.length && !found; j++) {
+        const from = route[j - 1], to = route[j];
+        const dx = to.x - from.x, dz = to.z - from.z, len = Math.hypot(dx, dz);
+        const steps = Math.max(1, Math.ceil(len / 3));
+        for (let k = 1; k <= steps * 3 && !found; k++) {
+          const t = Math.ceil(k / 3) / steps, side = ((k - 1) % 3 - 1) * Math.max(1.4, startSpacing);
+          const probe = { x: from.x + dx * t - dz * side / (len || 1),
+            z: from.z + dz * t + dx * side / (len || 1), sc: eyeHeight / 1.5 };
+          if (!lightOpen(rt, probe.x, probe.z)
+            || C.agents.some((b) => Math.hypot(probe.x - b.x, probe.z - b.z) < Math.max(1.4, startSpacing))
+            || g.agents.some((b) => Math.hypot(probe.x - b.x, probe.z - b.z) < Math.max(1.4, startSpacing))
+            || dangerNear(rt, probe.x, probe.z, 40, watchDistance, 22, eyeHeight)
+            || !pathClear(rt, probe, to, true, true)) continue;
+          px = probe.x; pz = probe.z; routeIndex = j; found = true;
+          // 元の庭へ戻らず、この先の角から家族と避難を続ける。
+          fleeFrom ??= dangerNear(rt, x, z, 40, watchDistance, 22, eyeHeight) || g.home;
+        }
+      }
+    }
+    if (!found) continue;
+    const cols = CROWD[kind];
+    const spacing = rt.def.civilianCrowd?.waitSpacing ?? 0;
+    const end = route?.[route.length - 1];
+    // 退避先の立ち位置は初めに作り、道の途中の角は全員で共有する。
+    let waitPoint = end && routeEnd === 'wait' && spacing > 0
+      ? { x: end.x + Math.floor(i / 3) * spacing, z: end.z + (i % 3 - 1) * spacing } : null;
+    // 畦の端が水路・家・段差なら、同じ終点へ全員を集めず最後の里道に待ち場所を探す。
+    // 別の家族の予約も避ける。配置時だけ調べ、毎コマの道探しは増やさない。
+    if (waitPoint && rt.def.civilianCrowd?.safeFlee) {
+      const prev = route[Math.max(0, route.length - 2)];
+      const dx = prev.x - end.x, dz = prev.z - end.z, len = Math.hypot(dx, dz);
+      // 小谷では畦の肩に一列で待ち、後から逃げてくる家族の通り道を空ける。
+      // 最後の道の向きに合わせる。立ち位置を作るのは配置時だけ。
+      if (rt.def.civilianCrowd.waitBesidePath && len > 0) {
+        waitPoint = { x: end.x + (dx * i - dz) * spacing / len,
+          z: end.z + (dz * i + dx) * spacing / len };
+      }
+      const free = (p) => {
+        for (const list of [C.agents, g.agents]) for (const b of list) {
+          if (b.waitPoint && Math.hypot(p.x - b.waitPoint.x, p.z - b.waitPoint.z) < spacing - 0.001) return false;
+        }
+        // 待つ場所の予約は地形だけで決める。一時的な兵や火で全員を同じ終点へ戻さない。
+        // 実際に向かう時は通常の避難判定で兵・火を避け、安全になるまで手前で待つ。
+        return pathClear(rt, end, p, true, true, true);
+      };
+      if (!free(waitPoint)) {
+        waitPoint = end;
+        // 道の幅の中で三列に分け、家族を追い越して元の庭へは戻さない。
+        // 終点の近くだけで足りなければ、最後の里道の長さまで待ち場所を探す。
+        for (let k = 0; k < 3 * (Math.floor(len / spacing) + 1); k++) {
+          const back = Math.floor(k / 3) * spacing, side = (k % 3 - 1) * spacing;
+          if (!len || back > len) break;
+          const p = { x: end.x + (dx * back - dz * side) / len, z: end.z + (dz * back + dx * side) / len };
+          if (free(p)) { waitPoint = p; break; }
+        }
+      }
+    }
+    const heading = mode === 'watch' && watchAt ? Math.atan2(watchAt.x - px, watchAt.z - pz) : face;
+    g.agents.push({
+      kind, g, x: px, z: pz, h: heading + (rnd() - 0.5) * 0.5, col: new THREE.Color(cols[i % cols.length]),
+      sc: kind === 'child' ? 0.64 : kind === 'elder' ? 0.93 : 0.95 + rnd() * 0.08, ph: rnd() * 6,
+      spd: (kind === 'child' ? 2.6 : kind === 'elder' ? 1.9 : 3.0) + rnd() * 0.5,
+      tx: px, tz: pz, wpT: 0, ran: 0, routeIndex, waitPoint, waitForFamily: false, model: null, out: mode !== 'inside', idle: rnd() * 6,
+    });
+  }
+  if (g.agents.length) {
+    C.bands.push(g); C.agents.push(...g.agents);
+    if (fleeFrom) startFlee(rt, C, g, fleeFrom);
+  }
+}
+
 function addBandDefault(rt, C, x, z, kinds, mode, face, route = null, routeEnd = null, watchAt = null) {
   const g = { home: { x, z }, mode, route, routeEnd, state: mode === 'inside' ? 'inside' : 'watch', agents: [], calm: 0, from: { x, z }, threat: null };
   const crowd = rt.def.civilianCrowd;
@@ -924,7 +1242,8 @@ function addBandDefault(rt, C, x, z, kinds, mode, face, route = null, routeEnd =
 function crowdInit(rt) {
   const key = rt.def.key || '', mtn = MOUNTAIN.has(key), town = TOWN.has(key);
   seed = 7 + key.length * 131;
-  const C = rt.warCrowd = { agents: [], bands: [], pool: [], scan: 0, poolT: 0, screamT: -99, barked: false, playerAttackUntil: -1, mtn, center: battleCenter(rt) };
+  const C = rt.warCrowd = { agents: [], bands: [], pool: [], scan: 0, poolT: 0, screamT: -99, barked: false, playerAttackUntil: -1, mtn, center: battleCenter(rt), sight: { x: 0, y: 0, z: 0 }, fireSight: { x: 0, y: 0, z: 0 } };
+  scanDistant(rt, C);
   const ctr = rt.def.civilianCrowd?.watchAt ?? C.center, half = rt.world.half;
   // 土地ごとの在所・堂と逃げ道が指定された戦は、兵の中心から民を散らさない。
   const bands = rt.civilianBands ?? rt.def.civilianCrowd?.bands;
@@ -1014,8 +1333,19 @@ function crowdInit(rt) {
 function startFlee(rt, C, g, from, x = g.home.x, z = g.home.z, alarmAt = rt.t) {
   g.state = 'flee'; g.from.x = from.x; g.from.z = from.z; g.calm = 0; g.threat = from;
   g.fledAt = alarmAt;
+  g.dangerActive = true;
+  // 谷底と曲輪の兵の比高を、逃げる向きの判定まで引き継ぐ。
+  if (rt.def.civilianCrowd?.safeFlee) {
+    g.from.y = from.base ?? from.y ?? rt.world.heightAt(from.x, from.z);
+    g.from.size = from.size ?? 0;
+  }
   for (const a of g.agents) { a.out = true; a.ran = 0; a.wpT = rnd() * 0.3; }
-  // 町外れへ見物場所をずらした組も、今いる道端から悲鳴を上げる。
+  if (rt.def.civilianCrowd?.safeFlee) {
+    // 里道の先で再び逃げる時は、元の寺庭ではなく今いる場所から声を出す。
+    x = 0; z = 0;
+    for (const a of g.agents) { x += a.x; z += a.z; }
+    x /= g.agents.length; z /= g.agents.length;
+  }
   const cam = rt.camera.position, d = Math.hypot(cam.x - x, cam.z - z);
   if (d < 90 && rt.t - C.screamT > 6) {
     C.screamT = rt.t;
@@ -1027,6 +1357,7 @@ function startFlee(rt, C, g, from, x = g.home.x, z = g.home.z, alarmAt = rt.t) {
 }
 
 function dangerNear(rt, x, z, rFight, rWalk, rFire, eye = 1.4) {
+  if (rt.def.civilianCrowd?.safeFlee) return dangerNearOdani(rt, x, z, rFight, rWalk, rFire, typeof eye === 'number' ? eye : 1.5);
   if (!rt.def.civilianCrowd?.individualDanger) return dangerNearDefault(rt, x, z, rFight, rWalk, rFire, eye === true);
   // 土地ごとに決めた見物の間合いを、逃走・合流の判定にもそろえる。
   // 家の中に籠もる人の判定（十二メートル）は変えない。
@@ -1059,6 +1390,31 @@ function dangerNear(rt, x, z, rFight, rWalk, rFire, eye = 1.4) {
     const d = Math.hypot(f.x - x, f.z - z);
     if (d < civilianFireRadius(rt, f, rFire) && d < bd
       && (!watching || dangerVisible(rt, x, z, f, d, eye, civilianFireEye(rt, f)))) { bd = d; best = f; }
+  }
+  return best;
+}
+
+function dangerNearOdani(rt, x, z, rFight, rWalk, rFire, eyeHeight = 1.5) {
+  let best = null, bd = 1e9;
+  const heightGap = rt.def.civilianCrowd?.soldierHeightClearance;
+  const ground = heightGap == null ? 0 : rt.world.heightAt(x, z);
+  for (const u of rt.army.units) {
+    if (!soldier(u, rt)) continue;
+    const dx = u.pos.x - x, dz = u.pos.z - z;
+    if (Math.abs(dx) > rFight || Math.abs(dz) > rFight) continue;
+    const d = crowdDistance(rt, x, z, u.pos, u.pos.y), hot = civilianCombatActive(rt, u) || u.target?.alive;
+    if ((hot && d < rFight || d < rWalk) && d < bd && crowdNoticesSoldier(rt, x, z, u.pos, d, eyeHeight)) { bd = d; best = u.pos; }
+  }
+  const C = rt.warCrowd;
+  for (let i = 0; i < (C?.distantCount || 0); i++) {
+    const p = C.distant[i];
+    if (Math.abs(p.x - x) >= rWalk || Math.abs(p.z - z) >= rWalk) continue;
+    const d = crowdDistance(rt, x, z, p, p.y);
+    if (d < rWalk && d < bd && crowdNoticesSoldier(rt, x, z, p, d, eyeHeight)) { bd = d; best = p; }
+  }
+  for (const f of rt.world.fires || []) if (f.lit !== false && f.size >= (rt.def.civilianCrowd?.fireSize ?? 2)) {
+    const d = crowdFireDistance(rt, x, z, f);
+    if (d < rFire && d < bd && crowdNoticesFire(rt, x, z, f, d, eyeHeight)) { bd = d; best = f; }
   }
   return best;
 }
@@ -1098,56 +1454,158 @@ function dangerNearDefault(rt, x, z, rFight, rWalk, rFire, watchFire = false) {
   return best;
 }
 
-function crowdExitClear(rt, g, end) {
-  if (dangerNear(rt, end.x, end.z, 40, 14, 26)) return false;
-  const last = g.route.length - 1, corner = g.route[last - 1];
-  // まだ最後の角へ来ていない家族には角からの道も必要。
-  // 全員が通り過ぎた角の後ろに火が来ても、前へ逃げる道まで塞がない。
-  if (!rt.def.civilianCrowd?.checkRouteExitApproach || g.agents.some((a) => a.out && a.routeIndex < last)) {
-    if (!pathClear(rt, corner, end, true) || nearSoldier(rt, end.x, end.z, 12, corner)) return false;
+// 曲がった里道では直線の間隔だけで家族の遅れを測らない。
+// 道中は最後の畦でも共通の終点までの残りを比べる。
+// 各人の待ち場所までで比べると、手前で待つ子や年寄りの遅れを短く数えてしまう。
+// 自分の待ち場所に着いた者は残りを零にし、迎えに戻らせない。
+// 見回りの時だけ計算し、座標の入れ物は作らない。
+function familyRouteRemaining(a, route) {
+  if (a.routeIndex >= route.length) return 0;
+  const point = route[a.routeIndex];
+  let distance = Math.hypot(a.x - point.x, a.z - point.z);
+  if (a.routeIndex > 0) {
+    const prev = route[a.routeIndex - 1];
+    // 待ち場所は畦の肩へずれるが、進みは里道の向きで測る。
+    // 斜めの線で測ると、横へよけた家族を再び遅れと取り違える。
+    const end = route[a.routeIndex];
+    const dx = end.x - prev.x, dz = end.z - prev.z;
+    const length = Math.hypot(dx, dz);
+    // 畦の肩へよけた子を、道に沿って遅れた子と取り違えない。
+    // 角の手前までの進みを道へ写し、横によけた距離は家族の間隔に含めない。
+    if (length > 0) distance = Math.max(0, Math.min(length,
+      ((point.x - a.x) * dx + (point.z - a.z) * dz) / length));
   }
-  for (const a of g.agents) {
-    if (!a.out || a.routeIndex < last) continue;
-    if (!pathClear(rt, a, end, true) || nearSoldier(rt, end.x, end.z, 12, a)) return false;
+  for (let i = a.routeIndex + 1; i < route.length; i++) {
+    distance += Math.hypot(route[i].x - route[i - 1].x, route[i].z - route[i - 1].z);
   }
-  return true;
-}
-
-function redirectCrowdExit(rt, g) {
-  if (!g.exitOptions || g.state !== 'flee') return;
-  const last = g.route.length - 1, end = g.route[last];
-  // 退き口そのものが静かでも、途中を兵や火が塞いだら同じ南端の脇道へ。
-  if (rt.def.civilianCrowd?.checkRouteExitApproach ? crowdExitClear(rt, g, end)
-    : !dangerNear(rt, end.x, end.z, 40, 14, 26)) return;
-  for (const next of g.exitOptions) {
-    if (next === end || !crowdExitClear(rt, g, next)) continue;
-    g.route[last] = next;
-    for (const a of g.agents) if (a.out && a.routeIndex >= last) {
-      a.routeIndex = last; a.wpT = 0; a.safeT = 0;
-    }
-    return;
-  }
-}
-
-// 道を逃げる隣人の声でも戸口から退く。既に逃げている組同士で警戒を更新し合わない。
-function fleeingNeighbor(rt, C, g) {
-  const radius = rt.def.civilianCrowd?.neighborAlarmRadius;
-  if (!radius || g.state === 'flee') return null;
-  const heightGap = rt.def.civilianCrowd?.soldierHeightClearance;
-  for (const b of C.agents) {
-    if (b.g === g || !b.out || b.g.state !== 'flee') continue;
-    for (const a of g.agents) {
-      if (Math.hypot(a.x - b.x, a.z - b.z) >= radius) continue;
-      // 頭上の曲輪や別の尾根から、麓の家々へ直接知らせを飛ばさない。
-      if (heightGap != null && Math.abs(rt.world.heightAt(a.x, a.z) - rt.world.heightAt(b.x, b.z)) > heightGap) continue;
-      // 隣人そのものを脅威にせず、その人が逃げてきた兵や火の側から離れる。
-      return b.g.threat || b.g.from;
-    }
-  }
-  return null;
+  return distance;
 }
 
 function crowdScan(rt, C) {
+  if (!rt.def.civilianCrowd?.safeFlee) return crowdScanOther(rt, C);
+  scanDistant(rt, C);
+  for (const g of C.bands) {
+    if (g.state === 'gone') continue;
+    // 危険が迫れば付き添いの歩調を解き、全員が自分の速さで退く。
+    if (rt.def.civilianCrowd?.escortPace) for (const a of g.agents) a.escortSpeed = 0;
+    if (g.state !== 'flee' || !rt.def.civilianCrowd?.keepTogether) {
+      for (const a of g.agents) a.waitForFamily = false;
+    }
+    let cx = 0, cz = 0;
+    for (const a of g.agents) { cx += a.x; cz += a.z; }
+    cx /= g.agents.length; cz /= g.agents.length;
+    const inside = g.state === 'inside';
+    // 見物中は配置時と同じ間合いを保つ。里道の後の再避難も、十分離れるまで見物へ戻さない。
+    // 小谷では退避の途中も見物と同じ間合いを保ち、里道の終点で兵のそばに居直らない。
+    const walkRadius = inside ? 12 : rt.def.civilianCrowd?.safeFlee || g.state === 'watch' || !g.route
+      ? (rt.def.civilianCrowd?.watchDistance ?? 14) : 14;
+    // 小谷の家族の中心は、家の壁や里道の角の向こうになることがある。
+    // 架空の中心から兵を見つけず、下で実際にいる一人ずつの場所から気づく。
+    let dn = rt.def.civilianCrowd?.safeFlee ? null
+      : dangerNear(rt, cx, cz, inside ? 34 : 40, walkRadius, inside ? 26 : 22);
+    if (rt.def.civilianCrowd?.safeFlee) {
+      // 退避中に列が伸びても、遅れた子や年寄りのそばの兵・火を見落とさない。
+      // 危険に最も近い一人を基準にし、組全体で退く。
+      let closest = Infinity;
+      for (const a of g.agents) {
+        if (!a.out && !inside) continue;
+        // 小谷の退避中は、選んだ先へ後から兵や火が入った時も道を選び直す。
+        // 既存の見回りで短い区間だけ調べ、毎コマの検査や入れ物は増やさない。
+        if (a.out && g.state === 'flee' && Math.hypot(a.tx - a.x, a.tz - a.z) > 0.05) {
+          C.wp.x = a.tx; C.wp.z = a.tz;
+          if (!pathClear(rt, a, C.wp, true, true)) { a.tx = a.x; a.tz = a.z; a.wpT = 0; }
+        }
+        const threat = dangerNear(rt, a.x, a.z, inside ? 34 : 40, walkRadius, inside ? 26 : 22, a.sc * 1.5);
+        if (!threat) continue;
+        const d = crowdThreatDistance(rt, a.x, a.z, threat);
+        if (d < closest) { closest = d; dn = threat; }
+      }
+    }
+    if (!dn) dn = fleeingNeighbor(rt, C, g);
+    if (rt.def.civilianCrowd?.safeFlee) {
+      // 消えた火や去った兵の跡を避け続けず、安全になった里道へ進み直す。
+      // 振り返る向きは残し、危険が今もあるかだけを既存の見回りで更新する。
+      if (g.dangerActive && !dn) for (const a of g.agents) a.wpT = 0;
+      g.dangerActive = !!dn;
+    }
+    if (dn) {
+      // 家族を待つ間に兵や火が来たら、待機を解いて全員で退く。
+      for (const a of g.agents) a.waitForFamily = false;
+      if (g.state !== 'flee') startFlee(rt, C, g, dn);
+      else {
+        g.from.x = dn.x; g.from.z = dn.z; g.threat = dn;
+        if (rt.def.civilianCrowd?.safeFlee) {
+          g.from.y = dn.base ?? dn.y ?? rt.world.heightAt(dn.x, dn.z);
+          g.from.size = dn.size ?? 0;
+        }
+        // 小谷では見回りで危険を見つけたら、古い向きへ走り続けず次の一歩を選び直す。
+        if (rt.def.civilianCrowd?.safeFlee) for (const a of g.agents) a.wpT = 0;
+      }
+      g.calm = 0; continue;
+    }
+    const watchRange = rt.def.civilianCrowd?.watchTrackDistance;
+    if (watchRange && g.state === 'watch') {
+      // 小谷の寺庭・町屋の肩・村の畦では、各人から最も近くに見える兵を追う。
+      // 架空の家族の中心で一人を選ぶと、本人のそばを通る別の兵を見落とす。
+      // 子や年寄りの背丈と、民家・堂・尾根による遮りも本人の場所で調べる。
+      // 既存の見回りだけで向きを変え、見物のために軍道へ近づかせない。
+      for (const a of g.agents) {
+        if (!a.out) continue;
+        const eyeHeight = a.sc * 1.5;
+        let target = null, range = watchRange;
+        for (let i = 0; i < rt.army.units.length + C.distantCount; i++) {
+          const u = rt.army.units[i];
+          if (u && !soldier(u, rt)) continue;
+          const p = u ? u.pos : C.distant[i - rt.army.units.length];
+          // 遠い兵は高さや視線を調べる前に外す。座標の入れ物は増やさない。
+          if (Math.abs(p.x - a.x) >= range || Math.abs(p.z - a.z) >= range) continue;
+          const d = crowdDistance(rt, a.x, a.z, p, p.y);
+          if (d >= range || !crowdCanSee(rt, a.x, a.z, p, eyeHeight)) continue;
+          target = p; range = d;
+        }
+        if (target) a.h = Math.atan2(target.x - a.x, target.z - a.z);
+      }
+    }
+    if (rt.def.civilianCrowd?.keepTogether && g.state === 'flee') {
+      // 安全な里道では、先行した大人が遅い子・年寄りを待つ。危険が来たら全員逃げる。
+      for (const a of g.agents) {
+        if (!a.out || a.kind === 'child' || a.kind === 'elder') continue;
+        // 六メートル離れたら待ち、三メートルまで戻ってから一緒に進む。
+        // 同じ境目で走る・止まるを繰り返さず、待つ間は家族を振り返る。
+        const familyDistance = a.waitForFamily ? 3 : 6;
+        a.waitForFamily = false;
+        const remaining = g.route ? familyRouteRemaining(a, g.route) : 0;
+        for (const b of g.agents) {
+          if (!b.out || b.kind !== 'child' && b.kind !== 'elder') continue;
+          // 寺から家の裏へ曲がる所も、道に沿って六メートル先行したら待つ。
+          // 終点で横へ並ぶ家族を、遅れた者と取り違えない。
+          const gap = g.route ? familyRouteRemaining(b, g.route) - remaining : Math.hypot(a.x - b.x, a.z - b.z);
+          // 小谷の里道では、近くの子や年寄りと歩調を合わせる。
+          // 大人が六メートル先へ走っては止まる動きを減らす。既に待ち場所へ着いた者には合わせない。
+          if (rt.def.civilianCrowd?.escortPace && gap >= -3 && gap < familyDistance
+            && (g.route ? b.routeIndex < g.route.length : Math.hypot(a.x - b.x, a.z - b.z) < 6)) {
+            a.escortSpeed = Math.min(a.escortSpeed || a.spd, b.spd);
+          }
+          if (gap < familyDistance) continue;
+          // 畦の終点から再び退く時も、危険から遠くへ先行した大人が家族を待つ。
+          const ahead = g.route || crowdDistance(rt, a.x, a.z, g.from, g.from.y) > crowdDistance(rt, b.x, b.z, g.from, g.from.y);
+          if (ahead) { a.waitForFamily = true; a.h = Math.atan2(b.x - a.x, b.z - a.z); break; }
+        }
+      }
+    }
+    if (g.state === 'flee' && !g.route && ++g.calm > 6 && g.agents.every((a) => !a.out
+      || (rt.def.civilianCrowd?.safeFlee || a.ran > 22) && !a.waitForFamily)) {
+      // 小谷では全員の周りから兵・火が去って静かになれば、安全な畦で振り返る。
+      // 再避難の距離が短くても、二十二メートル走ろうとして里道の端へ走り続けない。
+      // ほかの戦は、従来どおり十分な距離を走ってから見物へ戻る。
+      g.state = 'watch';
+      for (const a of g.agents) { a.tx = a.x; a.tz = a.z; a.h = Math.atan2(g.from.x - a.x, g.from.z - a.z) + (rnd() - 0.5) * 0.4; }
+    }
+  }
+}
+
+function crowdScanOther(rt, C) {
+  scanDistant(rt, C);
   for (const g of C.bands) {
     if (g.state === 'gone') continue;
     redirectCrowdExit(rt, g);
@@ -1252,9 +1710,102 @@ function rejoinEscapeRoute(rt, a, route) {
   }
 }
 
+// 指定路を歩き終えた後も、土地ごとの里道とその肩を退き先にする。
+function onRetreatPath(rt, x, z) {
+  const paths = rt.def.civilianCrowd?.retreatPaths;
+  if (!paths) return true;
+  const width = rt.def.civilianCrowd.retreatWidth ?? 6;
+  for (const path of paths) for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const sx = x - a[0] - dx * t, sz = z - a[1] - dz * t;
+    if (sx * sx + sz * sz <= width * width) return true;
+  }
+  return false;
+}
+
+// 見回りの合間に火が点いたり広がった時も、実際の一歩で炎へ近づかない。
+// 小谷の里道だけで使い、火から離れる歩みは許す。座標の入れ物は作らない。
+function crowdFireStepClear(rt, a, x, z) {
+  const cfg = rt.def.civilianCrowd;
+  if (!cfg?.safeFlee) return true;
+  const dx = x - a.x, dz = z - a.z;
+  let ground, dy, len2;
+  for (const f of rt.world.fires || []) {
+    if (f.lit === false || f.size < (cfg.fireSize ?? 2)) continue;
+    if (ground === undefined) {
+      ground = rt.world.heightAt(a.x, a.z);
+      dy = rt.world.heightAt(x, z) - ground;
+      len2 = dx * dx + dz * dz + dy * dy;
+    }
+    // 処理が遅れて一歩が長くなっても、終点の手前の炎を飛び越さない。
+    // 坂の比高と炎の幅を含め、歩く区間で最も火に近づく所を調べる。
+    const fx = f.x - a.x, fz = f.z - a.z;
+    const fy = (f.base ?? f.y ?? rt.world.heightAt(f.x, f.z)) - ground;
+    const t = len2 ? Math.max(0, Math.min(1, (fx * dx + fz * dz + fy * dy) / len2)) : 0;
+    const distance = Math.hypot(fx - dx * t, fz - dz * t, fy - dy * t)
+      - f.size * (cfg.fireRadiusScale ?? 0);
+    const before = crowdFireDistance(rt, a.x, a.z, f);
+    // 一歩の確認も道選びと同じ目線で行う。近い熱は遮蔽物があっても避ける。
+    if (distance < Math.min(22, before) - 0.001
+      && crowdNoticesFire(rt, a.x + dx * t, a.z + dz * t, f, distance, a.sc * 1.5)) return false;
+  }
+  return true;
+}
+
+// 小谷では、見回りの合間に里道へ入った兵も実際の一歩で避ける。
+// 軽い控え兵も見回りで拾った足元を使い、逃げる途中ですり抜けない。
+// 二メートル以内へ踏み込まず、既に近い兵から離れる歩みは許す。
+// 遠い兵は平面だけで外し、座標の入れ物や道探しを毎コマ増やさない。
+function crowdSoldierStepClear(rt, a, x, z) {
+  if (!rt.def.civilianCrowd?.safeFlee) return true;
+  const dx = x - a.x, dz = z - a.z;
+  const reach = Math.hypot(dx, dz) + 2;
+  const C = rt.warCrowd;
+  let ground, dy, len2;
+  for (let i = 0; i < rt.army.units.length + (C?.distantCount || 0); i++) {
+    const u = rt.army.units[i];
+    if (u && !soldier(u, rt)) continue;
+    const p = u ? u.pos : C.distant[i - rt.army.units.length];
+    const bx = p.x - a.x, bz = p.z - a.z;
+    if (Math.abs(bx) > reach || Math.abs(bz) > reach) continue;
+    if (ground === undefined) {
+      ground = rt.world.heightAt(a.x, a.z);
+      dy = rt.world.heightAt(x, z) - ground;
+      len2 = dx * dx + dz * dz + dy * dy;
+    }
+    // 尾根の上の兵は、比高のある谷の里道を塞がない。
+    const by = p.y - ground, start2 = bx * bx + bz * bz + by * by;
+    const t = len2 ? Math.max(0, Math.min(1, (bx * dx + bz * dz + by * dy) / len2)) : 0;
+    const sx = bx - dx * t, sz = bz - dz * t, sy = by - dy * t;
+    if (sx * sx + sz * sz + sy * sy < Math.min(4, start2) - 0.000001) return false;
+  }
+  return true;
+}
+
+// 里道の合流でも、先を歩く子や別の家族をすり抜けない。
+// 区間の最短距離を使い、既に近い者同士は離れる一歩を許す。入れ物は作らない。
+function crowdStepClear(C, a, x, z, spacing) {
+  if (!spacing) return true;
+  const dx = x - a.x, dz = z - a.z, len2 = dx * dx + dz * dz;
+  const reach2 = (Math.sqrt(len2) + spacing) ** 2;
+  for (const b of C.agents) {
+    if (b === a || !b.out) continue;
+    const bx = b.x - a.x, bz = b.z - a.z;
+    const start2 = bx * bx + bz * bz;
+    const radius2 = Math.min(spacing * spacing, start2);
+    if (start2 > reach2) continue;
+    const t = len2 ? Math.max(0, Math.min(1, (bx * dx + bz * dz) / len2)) : 0;
+    const sx = bx - dx * t, sz = bz - dz * t;
+    if (sx * sx + sz * sz < radius2 - 0.000001) return false;
+  }
+  return true;
+}
+
 // 逃げる先を三メートル先に一つ選ぶ。危険から離れ、山では谷へ下る。
 function fleeStep(rt, C, a) {
-  if (!rt.def.civilianCrowd?.individualEscape) return fleeStepDefault(rt, C, a);
+  if (rt.def.civilianCrowd?.safeFlee) return fleeStepOdani(rt, C, a);
+  if (!rt.def.civilianCrowd?.individualEscape) return fleeStepOther(rt, C, a);
   const g = a.g, w = rt.world;
   const escapeCheck = rt.def.civilianCrowd?.escapeCheckInterval;
   // 組の端にいる本人に近い危険を使う。組の反対側の兵へ背を向け、目の前の火へ走らない。
@@ -1369,11 +1920,118 @@ function fleeStep(rt, C, a) {
   a.tx = bx; a.tz = bz;
 }
 
-// 他の戦は、町・寺の生活道と備の外縁を使う既存の退き方を保つ。
-function fleeStepDefault(rt, C, a) {
+// 小谷の谷と西麓では、比高と里道に沿って家族を避難させる。
+function fleeStepOdani(rt, C, a) {
   const g = a.g, w = rt.world;
-  const away = Math.atan2(a.x - g.from.x, a.z - g.from.z), h0 = w.heightAt(a.x, a.z);
-  const route = g.route;
+  const safe = rt.def.civilianCrowd?.safeFlee;
+  // 里道で列が伸びた家族は、一人ずつ今いる場所の兵・火から退く。
+  // 子の右に火が迫っても、大人の左の兵を基準に火へ向かわない。
+  // 道を選び直す時だけ調べ、座標の入れ物は既存の危険を使う。
+  const threat = safe ? dangerNear(rt, a.x, a.z, 40,
+    rt.def.civilianCrowd.watchDistance ?? 14, 22, a.sc * 1.5) : null;
+  const from = threat ?? g.from;
+  const away = Math.atan2(a.x - from.x, a.z - from.z), h0 = w.heightAt(a.x, a.z);
+  let route = g.route;
+  if (route) {
+    const arrival = rt.def.civilianCrowd?.routeArrival ?? 4;
+    while (a.routeIndex < route.length) {
+      const last = a.waitPoint && a.routeIndex === route.length - 1;
+      const point = last ? a.waitPoint : route[a.routeIndex];
+      // 待つ位置だけは近くまで歩く。道の角を曲がる判定は狭めない。
+      if (Math.hypot(point.x - a.x, point.z - a.z) >= (last ? Math.min(arrival, 0.35) : arrival)) break;
+      // 小谷の堂や民家の角では、壁越しに近いだけの目印を通過済みにしない。
+      // 兵・火は次の一歩で避け、ここでは里道・壁・段差がつながるかだけ確かめる。
+      if (safe && !pathClear(rt, a, point, true, false, true)) break;
+      a.routeIndex++;
+    }
+    if (safe && a.routeIndex < route.length - 1) {
+      const point = route[a.routeIndex];
+      const next = a.waitPoint && a.routeIndex === route.length - 2 ? a.waitPoint : route[a.routeIndex + 1];
+      // 庭や畦から退いた後、兵や火で塞がれた合流点へ引き返さない。
+      // 次の角まで全区間を通れる時だけ合流し直す。家・水路・切岸は横切らない。
+      if (!pathClear(rt, a, point, true, true) && pathClear(rt, a, next, true, true)) a.routeIndex++;
+    }
+    if (a.routeIndex === route.length) {
+      a.tx = a.x; a.tz = a.z;
+      if (g.routeEnd === 'wait') {
+        if (safe) {
+          const watchDistance = rt.def.civilianCrowd?.watchDistance ?? 14;
+          // 先に着いた者だけが危険を避ける。遅れた子や年寄りの里道は消さない。
+          if (dangerNear(rt, a.x, a.z, 40, watchDistance, 22, a.sc * 1.5)) route = null;
+          else {
+            // 西麓の畦へ着いた者は、逃げてきた谷の方を振り返って待つ。
+            a.h = Math.atan2(g.from.x - a.x, g.from.z - a.z);
+            if (g.agents.every((b) => b.routeIndex === route.length && !dangerNear(rt, b.x, b.z, 40, watchDistance, 22, b.sc * 1.5))) { g.route = null; g.state = 'watch'; }
+            return;
+          }
+        } else {
+          // 包囲された輪中などでは、退避の終点で消さずに残す。危険が迫れば再び逃げる。
+          if (dangerNear(rt, a.x, a.z, 12, 8, 10)) g.route = null;
+          else if (g.agents.every((b) => b.routeIndex === route.length)) { g.route = null; g.state = 'watch'; }
+        }
+      } else { a.out = false; if (g.agents.every((b) => !b.out)) g.state = 'gone'; }
+      if (route) return;
+    }
+  }
+  const goal = route && a.waitPoint && a.routeIndex === route.length - 1 ? a.waitPoint : route?.[a.routeIndex];
+  const heading = goal ? Math.atan2(goal.x - a.x, goal.z - a.z) : away;
+  // 危険が去った里道では、古い兵や火の位置より次の角へ近づく歩みを選ぶ。
+  const following = safe && goal && !threat;
+  const goalDistance = following ? Math.hypot(goal.x - a.x, goal.z - a.z) : 0;
+  // 小谷では里道の終点から再び逃げる時にも、水路・急斜面・兵・火の確認を続ける。
+  const careful = !!goal || safe;
+  const fromD = crowdThreatDistance(rt, a.x, a.z, from);
+  let bx = a.x, bz = a.z, bs = -1e9;
+  const usual = goal ? 18 : 9;
+  for (let i = 0; i < usual + (safe ? 32 : 0); i++) {
+    // 避難路が危険なら、まず危険から離れてから道へ戻る。
+    if ((i === 9 || i === usual || i === usual + 16) && bs > -1e9) break;
+    // 三メートル先が畦の端や建物で塞がる時だけ、短い一歩を全方向から探す。
+    // 寺庭の角や退避先でも足止めせず、里道・段差・兵・火の検査は同じく通す。
+    const short = i >= usual;
+    // 一メートル先も塞がる角だけ、三十五センチの歩幅で抜ける向きを探す。
+    // 広い道では追加の探索をせず、既存の形・材質と座標の入れ物を使う。
+    const small = i >= usual + 16;
+    const j = short ? (i - usual) % 16 : i % 9;
+    const turn = j === 0 ? 0 : Math.ceil(j / 2) * (short ? Math.PI / 8 : 0.35) * (j % 2 ? 1 : -1);
+    // 狭い畦の曲がり角では、目印を飛び越して田や家の側へ切り込まない。
+    const stride = short ? (small ? 0.35 : 1) : 3;
+    // 短い歩幅の探し直しでも、近くの曲がり角や畦の待つ位置を通り過ぎない。
+    const step = safe && goal && (short || i < 9) ? Math.min(stride, Math.hypot(goal.x - a.x, goal.z - a.z)) : stride;
+    // 狭い所の短い一歩は向きを揺らさず、同じ隙間を毎回確かめられるようにする。
+    const h = (following || i < 9 && !short ? heading : away) + turn + (short ? 0 : (rnd() - 0.5) * 0.2), x = a.x + Math.sin(h) * step, z = a.z + Math.cos(h) * step;
+    // 塀・柵・建物の角を抜けない（途中の一点と塀の当たりも見る）。
+    if (!lightOpen(rt, x, z) || !lightOpen(rt, (a.x + x) / 2, (a.z + z) / 2)) continue;
+    // 最初の避難から再避難まで、里道の肩を越える候補は先に外す。
+    if (safe && (!onRetreatPath(rt, x, z) || !onRetreatPath(rt, (a.x + x) / 2, (a.z + z) / 2))) continue;
+    if (!crowdStepClear(C, a, x, z, rt.def.civilianCrowd?.moveSpacing)) continue;
+    C.wp.x = x; C.wp.z = z;
+    if (rt.army.wallBetween(a, -1, C.wp)) continue;
+    // 指定路でも水路・急な岸・兵・火を横切らない。途中も細かく調べる。
+    if (careful && (!pathClear(rt, a, C.wp, true, safe) || !safe && nearSoldier(rt, x, z, 12))) continue;
+    const dy = w.heightAt(x, z) - h0;
+    if (Math.abs(dy) > 2.2) continue;
+    // 道を優先しても、近い兵や火へ向かう曲がり角は選ばない。
+    if (careful && ((!safe || threat) && fromD < 40 && crowdThreatDistance(rt, x, z, from) < fromD - 0.2 || !safe && dangerNear(rt, x, z, 12, 8, 10))) continue;
+    // 短い歩幅でも退き先への進みを比べ、狭い合流点で逆戻りを繰り返さない。
+    const s = (following ? goalDistance - Math.hypot(goal.x - x, goal.z - z)
+      : Math.cos(turn) * 2 + (goal ? Math.cos(h - away) : 0)) - (C.mtn ? dy * 1.2 : Math.abs(dy) * 0.3);
+    if (s > bs) { bs = s; bx = x; bz = z; }
+  }
+  a.tx = bx; a.tz = bz;
+}
+
+function fleeStepOther(rt, C, a) {
+  const g = a.g, w = rt.world;
+  const safe = rt.def.civilianCrowd?.safeFlee;
+  // 里道で列が伸びた家族は、一人ずつ今いる場所の兵・火から退く。
+  // 子の右に火が迫っても、大人の左の兵を基準に火へ向かわない。
+  // 道を選び直す時だけ調べ、座標の入れ物は既存の危険を使う。
+  const threat = safe ? dangerNear(rt, a.x, a.z, 40,
+    rt.def.civilianCrowd.watchDistance ?? 14, 22, a.sc * 1.5) : null;
+  const from = threat ?? g.from;
+  const away = Math.atan2(a.x - from.x, a.z - from.z), h0 = w.heightAt(a.x, a.z);
+  let route = g.route;
   if (route) {
     const familyGap = rt.def.civilianCrowd?.familyWaitDistance;
     let finalArrival = 4;
@@ -1448,6 +2106,9 @@ function fleeStepDefault(rt, C, a) {
     const h = (i < 9 || i >= 18 || routeOnly ? heading : away) + turn + (rnd() - 0.5) * 0.2, x = a.x + Math.sin(h) * stride, z = a.z + Math.cos(h) * stride;
     // 塀・柵・建物の角を抜けない（途中の一点と塀の当たりも見る）。
     if (!lightOpen(rt, x, z) || !lightOpen(rt, (a.x + x) / 2, (a.z + z) / 2)) continue;
+    // 最初の避難から再避難まで、里道の肩を越える候補は先に外す。
+    if (safe && (!onRetreatPath(rt, x, z) || !onRetreatPath(rt, (a.x + x) / 2, (a.z + z) / 2))) continue;
+    if (!crowdStepClear(C, a, x, z, rt.def.civilianCrowd?.moveSpacing)) continue;
     C.wp.x = x; C.wp.z = z;
     if (rt.army.wallBetween(a, -1, C.wp)) continue;
     // 指定路でも水路・急な岸・兵・火を横切らない。途中も細かく調べる。
@@ -1526,6 +2187,7 @@ function crowdTick(rt, dt) {
   C.scan -= dt;
   if (evacuating && C.scan <= 0) { C.scan = rt.def.civilianCrowd?.dangerCheckInterval ?? 0.8; crowdScan(rt, C); }
   const cam = rt.camera.position, still = S.reduceMotion, half = rt.world.half;
+  const modelKinds = rt.def.civilianCrowd?.modelKinds;
   // 近い人を本物の形へ（0.3 秒ごと）。
   C.poolT -= dt;
   if (C.poolT <= 0) {
@@ -1533,7 +2195,7 @@ function crowdTick(rt, dt) {
     for (const P of C.pool) if (P.a && (!P.a.out || Math.hypot(P.a.x - cam.x, P.a.z - cam.z) > NEAR + 4)) { P.a.model = null; P.a = null; P.mesh.visible = false; }
     for (const a of C.agents) {
       if (a.model || !a.out || Math.hypot(a.x - cam.x, a.z - cam.z) > NEAR) continue;
-      const P = C.pool.find((p) => !p.a && p.kind === a.kind) || (!rt.def.civilianCrowd?.strictNearKinds
+      const P = C.pool.find((p) => !p.a && p.kind === a.kind) || (!modelKinds && !rt.def.civilianCrowd?.strictNearKinds
         && (a.kind === 'merchant' || a.kind === 'townsman' || a.kind === 'elder') ? C.pool.find((p) => !p.a && p.kind === 'farmer') : null);
       if (P) {
         P.a = a; a.model = P;
@@ -1564,25 +2226,39 @@ function crowdTick(rt, dt) {
           }
         }
       }
-      if (a.wpT <= 0 || Math.hypot(a.tx - a.x, a.tz - a.z) < 0.3) { a.wpT = rt.def.civilianCrowd?.escapeCheckInterval ?? 0.6; fleeStep(rt, C, a); }
+      const safeFlee = rt.def.civilianCrowd?.safeFlee;
+      const remaining = Math.hypot(a.tx - a.x, a.tz - a.z);
+      // 小谷の狭い里道で足止めされた時は、見回りか次の探し直しを待つ。
+      // 行き先が足元のままだと、兵・火・段差を調べる道探しが毎コマ繰り返される。
+      // 家族を待つ間も探索を休め、危険が迫れば見回りが待機を解いてすぐ退かせる。
+      if ((!safeFlee || !a.waitForFamily) && (a.wpT <= 0 || remaining < 0.3 && (!safeFlee || remaining > 0.05))) {
+        a.wpT = rt.def.civilianCrowd?.escapeCheckInterval ?? 0.6; fleeStep(rt, C, a);
+      }
       const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
-      if (d > 0.05) {
-        const step = Math.min(d, (a.escapeSpeed ?? a.spd) * dt);
+      if (d > 0.05 && !a.waitForFamily) {
+        const step = Math.min(d, (a.escapeSpeed ?? (a.escortSpeed || a.spd)) * dt);
         const st = rt.def.civilianCrowd?.keepCivilianSpacing ? crowdStride(C, a, a.tx, a.tz, step) : step;
         if (st < step) a.wpT = Math.min(a.wpT, 0.15);
         const x = a.x + dx / d * st, z = a.z + dz / d * st;
-        // 探索の後で火がついたり道が塞がれても、そのまま踏み込まない。
+        // 道を選んだ後に別の組が合流しても、追い越す時に体を重ねない。
         C.wp.x = x; C.wp.z = z;
-        if (!escapePeopleClear(rt, a, C.wp)
-          || rt.def.civilianCrowd?.escapeCheckInterval && (!pathClear(rt, a, C.wp, true) || !escapeDangerClear(rt, a, C.wp))) {
-          a.tx = a.x; a.tz = a.z; a.wpT = 0;
-        } else {
+        if (escapePeopleClear(rt, a, C.wp)
+          && (!rt.def.civilianCrowd?.escapeCheckInterval || pathClear(rt, a, C.wp, true) && escapeDangerClear(rt, a, C.wp))
+          && crowdStepClear(C, a, x, z, rt.def.civilianCrowd?.moveSpacing)
+          && crowdSoldierStepClear(rt, a, x, z)
+          && crowdFireStepClear(rt, a, x, z)) {
           a.x = x; a.z = z; a.ran += st; travelled = st; moving = st > 0.001;
           a.h = Math.atan2(dx, dz);
+        } else {
+          // 小谷の合流で詰まった時や兵・火が迫った時は、古い行き先への歩みを止める。
+          // 短い一歩の残りで毎コマ道を探さず、間を置いて空いた畦を選び直す。
+          a.tx = a.x; a.tz = a.z;
+          a.wpT = safeFlee ? Math.min(a.wpT, 0.2) : 0;
         }
       }
-      // 戦場の端まで逃げきったら消える。
-      if (!g.route && (Math.abs(a.x) > half - 3 || Math.abs(a.z) > half - 3)) { a.out = false; if (g.agents.every((b) => !b.out)) g.state = 'gone'; }
+      // 畦で待つ民は再避難でも残す。包囲の外へ出た扱いで家族を消さない。
+      // 場外へ逃がす組だけ、戦場の端まで逃げきったら消える。
+      if (!g.route && g.routeEnd !== 'wait' && (Math.abs(a.x) > half - 3 || Math.abs(a.z) > half - 3)) { a.out = false; if (g.agents.every((b) => !b.out)) g.state = 'gone'; }
     } else if (!still) a.idle += dt;
     // 曲がり角や合流直前の短い一歩でも、全速の足踏みをさせない。
     // 子は背丈に合う短い歩幅で刻み、近景と遠景で同じ歩調を使う。
@@ -1647,3 +2323,64 @@ function crowdDispose(rt) {
   for (const P of C.pool) rt.scene.remove(P.mesh);
   rt.warCrowd = null;
 }
+
+
+
+
+
+function crowdExitClear(rt, g, end) {
+  if (dangerNear(rt, end.x, end.z, 40, 14, 26)) return false;
+  const last = g.route.length - 1, corner = g.route[last - 1];
+  // まだ最後の角へ来ていない家族には角からの道も必要。
+  // 全員が通り過ぎた角の後ろに火が来ても、前へ逃げる道まで塞がない。
+  if (!rt.def.civilianCrowd?.checkRouteExitApproach || g.agents.some((a) => a.out && a.routeIndex < last)) {
+    if (!pathClear(rt, corner, end, true) || nearSoldier(rt, end.x, end.z, 12, corner)) return false;
+  }
+  for (const a of g.agents) {
+    if (!a.out || a.routeIndex < last) continue;
+    if (!pathClear(rt, a, end, true) || nearSoldier(rt, end.x, end.z, 12, a)) return false;
+  }
+  return true;
+}
+
+function redirectCrowdExit(rt, g) {
+  if (!g.exitOptions || g.state !== 'flee') return;
+  const last = g.route.length - 1, end = g.route[last];
+  // 退き口そのものが静かでも、途中を兵や火が塞いだら同じ南端の脇道へ。
+  if (rt.def.civilianCrowd?.checkRouteExitApproach ? crowdExitClear(rt, g, end)
+    : !dangerNear(rt, end.x, end.z, 40, 14, 26)) return;
+  for (const next of g.exitOptions) {
+    if (next === end || !crowdExitClear(rt, g, next)) continue;
+    g.route[last] = next;
+    for (const a of g.agents) if (a.out && a.routeIndex >= last) {
+      a.routeIndex = last; a.wpT = 0; a.safeT = 0;
+    }
+    return;
+  }
+}
+
+function fleeingNeighbor(rt, C, g) {
+  const radius = rt.def.civilianCrowd?.neighborAlarmRadius;
+  if (!radius || g.state === 'flee') return null;
+  const heightGap = rt.def.civilianCrowd?.soldierHeightClearance;
+  for (const b of C.agents) {
+    if (b.g === g || !b.out || b.g.state !== 'flee') continue;
+    for (const a of g.agents) {
+      if (Math.hypot(a.x - b.x, a.z - b.z) >= radius) continue;
+      // 頭上の曲輪や別の尾根から、麓の家々へ直接知らせを飛ばさない。
+      if (heightGap != null && Math.abs(rt.world.heightAt(a.x, a.z) - rt.world.heightAt(b.x, b.z)) > heightGap) continue;
+      if (rt.def.civilianCrowd?.safeFlee && !crowdCanSee(rt, a.x, a.z,
+        b, a.sc * 1.5, b.sc * 1.5)) continue;
+      // 隣人そのものを脅威にせず、その人が逃げてきた兵や火の側から離れる。
+      return b.g.threat || b.g.from;
+    }
+  }
+  return null;
+}
+
+
+
+
+
+
+

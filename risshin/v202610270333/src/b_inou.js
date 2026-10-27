@@ -11,6 +11,7 @@ import { useTerrain } from './asset_manifest.js';
 import * as THREE from 'three';
 import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe } from './props.js';
 import { woodTex, thatchTex } from './nature.js';
+import { INOU_KACCHU } from './kacchu_data.js';
 import { sfx, musicAccent, musicTension } from './audio.js';
 import { enemyFlagKinds } from './textures.js';
 import { victoryMoment, brushWord } from './victory_moment.js';
@@ -35,6 +36,23 @@ const VILLAGE = [[-12, -66, 0.2], [16, -72, -0.3], [-22, -78, 0.5], [30, -62, 0.
 const PATHS = [{ pts: [[0, 320], [0, 60], [0, 20], [0, -40], [0, -100], [12, -320]], w: 6 }];
 for (const x of [-96, -72, -48, -24, 24, 48, 72, 96]) PATHS.push({ pts: [[x, -120], [x, 120]], w: 2.4 });
 for (const z of [-120, -100, -80, -60, -40, -20, 0, 20, 40, 60, 80, 100, 120]) PATHS.push({ pts: [[-112, z], [112, z]], w: 2.4 });
+// 里の生活道。西は庄内川の手前、東は用水の西岸を南へ抜ける。
+const WEST_ESCAPE = [{ x: -36, z: -72 }, { x: -36, z: -100 }, { x: -72, z: -100 }, { x: -124, z: -100 }];
+const EAST_ESCAPE = [{ x: 48, z: -56 }, { x: 48, z: -40 }, { x: 60, z: -40 }, { x: 60, z: 120 }, { x: 60, z: 156 }];
+PATHS.push({ pts: [[-30, -72], ...WEST_ESCAPE.map(p => [p.x, p.z])], w: 2.4 },
+  { pts: [[36, -56], ...EAST_ESCAPE.map(p => [p.x, p.z])], w: 2.4 });
+// 名塚砦の存在は史実だが、家々・民の居所と生活道の細部は遊びのための推定。
+// 参考：https://nagoya-eiketsu.jp/contents/shiseki/437/
+// 城下や寺の位置は断定しない。僧・商人・町人は里を通る旅の者として置く。
+const PEOPLE_BANDS = [
+  { x: -48, z: -100, kinds: ['farmer', 'farmer', 'woman', 'child', 'elder'],
+    watchAt: { x: -24, z: -46 }, route: WEST_ESCAPE.slice(2) },
+  { x: 48, z: -60, kinds: ['farmer', 'townsman', 'merchant', 'monk'],
+    watchAt: { x: 0, z: -38 }, route: EAST_ESCAPE },
+  // 西の家の脇と東の家の南側。軒を横切らず、それぞれの生活道へ出る。
+  { x: -30, z: -72, kinds: ['farmer', 'woman', 'child'], mode: 'inside', route: WEST_ESCAPE },
+  { x: 36, z: -56, kinds: ['woman', 'child', 'elder'], mode: 'inside', route: EAST_ESCAPE },
+];
 function paddy(x, z) {
   if (Math.abs(x) > 112 || Math.abs(z) > 120 || Math.abs(x) < 3) return 0;
   if (Math.abs(x) < 38 && z > -86 && z < -52) return 0; // 集落の庭と畑
@@ -66,7 +84,9 @@ function prepareMarch(g) {
 // 指物は敵が縦長、味方が横広。旗の本数や材質を増やさず形でも区別する。
 // 信勝方は朱の具足に黄土の鎧下、旗は朱染め（world.armyFlagKinds）。織田の藍と黒から一目で分ける（テスターの声 10/26）。
 const SHIBA = { armor: 0xa8381f, hatColor: 0xa8381f, lace: 0xb07a3a, cloth: 0x8a6a42, flag: 'kari', flagShape: 1 };
-const HAYA = { armor: 0xa23a22, hatColor: 0xa23a22, lace: 0xa8743a, cloth: 0x80623e, flag: 'sujikai', flagShape: 1 };
+// 林の当日の旗は未確認。丹羽の筋違いを借りず、織田家中の隊旗による復元とする。
+// 林だけ朱染めを直接指定し、味方の織田の旗まで朱に替えない。
+const HAYA = { armor: 0xa23a22, hatColor: 0xa23a22, lace: 0xa8743a, cloth: 0x80623e, flag: 'aka_oda', flagShape: 1 };
 const ODA = { hatColor: 0x121110, lace: 0x334f70, cloth: 0x293b51, flag: 'oda', flagShape: 2 };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
@@ -394,6 +414,22 @@ function spawnNazuka(rt) {
 
 const inou = {
   missionStyle: 'lesson', // 共通の印・ピン・カメラの型（field_signs・mission_pin・hud_map・player が読む。戦の名で分けない）
+  // 民は共通の描画専用の仕組みで扱い、兵数・戦功には含めない。
+  civilianCrowd: {
+    bands: PEOPLE_BANDS,
+    nearKinds: ['farmer', 'townsman', 'merchant', 'woman', 'child', 'monk', 'elder'],
+    strictNearKinds: true,
+    watchPlacementDistance: 12, followWatchEscape: true,
+    checkWatchEscape: true, checkWatchEscapeSoldiers: true, checkWatchDanger: true,
+    doorPlacementDistance: 6, checkDoorEscape: true,
+    avoidLightArmies: true, avoidClashes: true, scanIndividuals: true,
+    watchPlayerCombat: true, rememberSoldierCombat: true,
+    retreatFromSoldiers: true, recheckEscapeStep: true,
+    followRouteWhenCalm: true, allowSafeRouteDetour: true,
+    passRouteCorners: true, checkFullEscapeCorner: true, safeRouteExit: true,
+    keepFamiliesTogether: true, familyWaitDistance: 6, familyFollowPath: true,
+    keepCivilianSpacing: true,
+  },
   scriptedLessons: true, // 共通の手ほどきを重ねず、この戦の順番で出す
   noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（kaito 10/24「動かない味方と敵は一切排除」）
   teach: true,           // 操作を教える戦（battle.js の teachOn）。ほかの戦は操作のやり方を出さない
@@ -584,6 +620,7 @@ const inou = {
   },
   world: {
     seed: 1556,
+    namedKacchu: INOU_KACCHU,
     groundHalf: 320,
     moveLim: 312,
     mountainScale: 0.13,
@@ -614,7 +651,7 @@ const inou = {
     treeDensity: (x, z) => (Math.abs(x) > 118 || Math.abs(z) > 132 ? 1 : 0),
     groves: [{ x: -52, z: -76, r: 9, n: 10 }, { x: 52, z: -88, r: 12, n: 14 }, { x: -80, z: 88, r: 10, n: 10 }],
     fleeOut: (x, z, team) => team === 1 && z < -138,
-    armyFlagKinds: { kari: 'aka_kari', sujikai: 'aka_sujikai' }, // 紋はそのまま、染めだけ朱
+    armyFlagKinds: { kari: 'aka_kari' }, // 紋はそのまま、染めだけ朱。林は隊の指定で朱染めにする。
 
   },
 
@@ -641,7 +678,7 @@ const inou = {
       if (enemy) { u.target = enemy; u.watch = null; u.moveTo = null; u.settled = false; }
     };
     F.step = 0; F.ek = 0; F.ak = 0;
-    enemyFlagKinds.add('aka_kari'); enemyFlagKinds.add('aka_sujikai'); // 置き幟にも敵の赤い縁
+    enemyFlagKinds.add('aka_kari'); enemyFlagKinds.add('aka_oda'); // 置き幟にも敵の赤い縁
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
     F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
@@ -713,10 +750,11 @@ const inou = {
     // ---- 陣と旗 ----
     fieldLife(rt);
     // 信長方の本陣：幕だけで空にしない。奥に床几と軍配、地図の机と使いの者（jinCamp と camp_life）、篝火、馬つなぎ、馬印と旗竿（kaito 10/22 稲生 8）。
-    rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda', people: false }));
+    rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda', people: false, noUma: true }));
     for (const [x, z] of [[NOBU.x - 21, NOBU.z + 6], [NOBU.x - 11, NOBU.z + 6]]) rt.scene.add(kagaribi(W, x, z));
     rt.scene.add(umatsunagi(W, NOBU.x - 16, NOBU.z + 11, 0, 7));
-    rt.scene.add(umajirushi(W, NOBU.x - 9, NOBU.z - 3, 0));
+    // 稲生での馬印は未確認。徳川を連想する金扇や後年の唐傘を固定せず、既存の隊旗を目印にする。
+    rt.scene.add(nobori(W, NOBU.x - 9, NOBU.z - 3, 'oda', 5));
     rt.scene.add(hatazao(W, NOBU.x - 23, NOBU.z - 2, Math.PI / 2, 5, 'oda'));
     for (const [x, z, k] of [[NOBU.x - 12, NOBU.z - 6, 'oda'], [NOBU.x - 12, NOBU.z + 6, 'oda'], [NOBU.x + 10, NOBU.z - 24, 'tsuru'], [NAZUKA.x, NAZUKA.z - 4, 'oda']]) rt.scene.add(nobori(W, x, z, k, 5));
     // 小集落は北の本隊と柴田勢の間。大きな砦や城は置かない。

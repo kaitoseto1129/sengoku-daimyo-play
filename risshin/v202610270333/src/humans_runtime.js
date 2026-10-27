@@ -3,7 +3,7 @@ import { MHHAND, handGeo } from './humans_hands.js';
 import * as THREE from 'three';
 import { GRIME, bodyMaterial, fpArmMat, CLOTH_W } from './humans_materials.js';
 import { WIND_STATE, WET, ARMY_P, ARMY_REAL_P, ARMY_REAL_R } from './world.js';
-import { HUM, SRC, HEAD, isNamed, isSohei, humanLook, preparationFrame, qualityKeeper, humanPool, humanBuilding, SKIN_MAX, HSTAT, fits, attachBody, humanPoolKey, pinHumanGeometries, ALLB, restMatrix, XB, humanInv, memTight, borrowHuman, shapesReady, realNear, SKIN_OUT, HUM_Q, HUM_T, SKIN_IN, v0, MIDDLE_MAX } from './humans_shared.js';
+import { HUM, SRC, HEAD, isNamed, isSohei, humanLook, preparationFrame, qualityKeeper, skinOpponent, humanPool, humanBuilding, SKIN_MAX, HSTAT, fits, attachBody, humanPoolKey, pinHumanGeometries, ALLB, restMatrix, XB, humanInv, memTight, borrowHuman, shapesReady, realNear, SKIN_OUT, HUM_Q, HUM_T, SKIN_IN, v0, MIDDLE_MAX } from './humans_shared.js';
 import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuman, humanSelection, humanCaches, farSpHid, farSp, farSpNow, evictHidden, humanTurn, _pv } from './humans_lifecycle.js';
 import { preStep, preparationUnits, DM_KEEP, shareHumanSkeleton, cacheHumanSkeleton, crowdGeometry, humanGeoMaps } from './humans_crowd_geometry.js';
 import { UNIT_MAT, lookParts, GENERALS, DEATH_END } from './units.js';
@@ -30,7 +30,7 @@ import { horsesOn, detachReal, horseWanted, horseCandidates, updateHorses } from
 import { HR } from './humans_horse_model.js';
 import { placeHorseExtras } from './humans_horse_animate.js';
 import { combatThinking, thinkingPhase } from './army_budget.js';
-import { VAT, vatSelect } from './crowd_vat.js';
+import { VAT, vatSelect, vatOverflow } from './crowd_vat.js';
 import { nearSurfaceMaterial, nearSurfaceBlood } from './humans_near_surface.js';
 
 let faceWarmUnits = null;
@@ -699,7 +699,8 @@ function updateHumans(rt, dt) {
       }
     }
     // 鐙・手綱は乗り手の骨が動いた後で置く
-    for (const [h, u] of horses) if (h.userData.horse.real && h.userData.horse.real.on) placeHorseExtras(h, u);
+    //   画面の外（乗り手の囲み 6m の球が視野に掛からない）の馬の手綱・鐙は置き直さない。画面に入ったコマで置く（10/27）
+    for (const [h, u] of horses) if (h.userData.horse.real && h.userData.horse.real.on && !(u && u.offscreen && !u.isPlayer && !window.__apx?.notack0)) placeHorseExtras(h, u);
   }
   if (player && ++evictTick % 60 === 0) evictHidden(army, player);
   HSTAT.ms = performance.now() - frameT0;
@@ -733,7 +734,9 @@ function humansStep(rt, dt, army, cam) {
   // 高の戦別指定は、甲冑を一体にまとめる距離にもそろえる。人数・骨・攻撃は元のまま。
   const player = rt.player && rt.player.u;
   const want = humanWanted, pick = humanSelection, cp = cam.position, cq = cam.quaternion;
-  let changed = pick.army !== army || pick.quality !== S.quality || pick.count !== army.units.length;
+  let changed = pick.army !== army || pick.quality !== S.quality || pick.count !== army.units.length ||
+    pick.target !== player?.target || pick.swingTarget !== player?.swing?.target ||
+    pick.atkTarget !== player?.atk?.target || pick.bindTarget !== player?.bind?.o;
   // 生死・退場だけを照合する。距離と画面の判定は下の選び直しにまとめる。
   for (let i = 0; i < army.units.length; i++) {
     const u = army.units[i], state = (u.alive ? 1 : 0) | (u.gone ? 2 : 0) | (u.dying ? 4 : 0);
@@ -745,10 +748,12 @@ function humansStep(rt, dt, army, cam) {
     Math.abs(cq.x * pick.qx + cq.y * pick.qy + cq.z * pick.qz + cq.w * pick.qw) <= humanTurn ||
     pick.fov !== cam.fov || pick.aspect !== cam.aspect || pick.zoom !== cam.zoom || pick.lowMem !== S.lowMem;
   HSTAT.selectionFrames++;
-  // 候補の選び直しだけ二コマに一度。選んだ兵の骨は従来どおり動かし、視点・生死の変更は即座に反映する。
+  // 候補の選び直しだけ二コマに一度。視点・生死・主人公の交戦相手の変更は即座に反映する。
   if ((frameNo & 1) === 0 || changed || moved || dt === 0) {
     HSTAT.selectionScans++;
     pick.army = army; pick.quality = S.quality; pick.count = army.units.length; pick.lowMem = S.lowMem;
+    pick.target = player?.target; pick.swingTarget = player?.swing?.target;
+    pick.atkTarget = player?.atk?.target; pick.bindTarget = player?.bind?.o;
     pick.x = cp.x; pick.y = cp.y; pick.z = cp.z;
     pick.qx = cq.x; pick.qy = cq.y; pick.qz = cq.z; pick.qw = cq.w;
     pick.fov = cam.fov; pick.aspect = cam.aspect; pick.zoom = cam.zoom;
@@ -760,12 +765,13 @@ function humansStep(rt, dt, army, cam) {
       if (u.gone || !u.mesh || u.type === 'dummy' || u.vatWant) continue;
       const d = Math.hypot(u.pos.x - cx, u.pos.z - cz);
       const pd = player ? Math.hypot(u.pos.x - player.pos.x, u.pos.z - player.pos.z) : d;
-      const required = u.isPlayer || qualityKeeper(u) && d < Math.max(60, Q.far ?? HUM.far) || (MEM_TIGHT
+      const opponent = skinOpponent(player, u);
+      const required = opponent || u.isPlayer || qualityKeeper(u) && d < Math.max(60, Q.far ?? HUM.far) || (MEM_TIGHT
         ? d <= (u.human && humans.has(u.human) ? SKIN_OUT : SKIN_IN)
         : Math.min(d, pd) <= realNear());
       const named = u.name || u.isSub || u.look && (isNamed(u.look) || u.type === 'busho');   // 武将（名の無い侍大将も）
       // 遠景の一般兵は既存の一括描画へ返す。騎馬と武将の姿は残す。
-      if (u.alive && u.qualityTier === 2 && !named && !u.mounted && !u.isStandard && !u.perch && !u.naka && !u.climb) continue;
+      if (!opponent && u.alive && u.qualityTier === 2 && !named && !u.mounted && !u.isStandard && !u.perch && !u.naka && !u.climb) continue;
       // 六十メートルの外だけ、画質に応じた範囲で武将を残す。
       const lim = u.isPlayer ? 1e9 : named ? (Math.max(60, Q.far ?? HUM.far)) : Q.near;
       if (!required && d >= lim) continue;
@@ -775,7 +781,7 @@ function humansStep(rt, dt, army, cam) {
       _sph.center.set(u.pos.x, u.pos.y + 1.2, u.pos.z);
       const vis = u.isPlayer || _fr.intersectsSphere(_sph);
       // 見えない一般兵へ骨の貸出枠を渡さず、目の前の兵に使う。
-      if (TIER.weak && !vis && !qualityKeeper(u)) continue;
+      if (TIER.weak && !vis && !opponent && !qualityKeeper(u)) continue;
       // 画面の中を先に。今もう人の者は少し優先（境目で入れ替わりが続かないように）
       // 画面の真ん中に近い者ほど先に（大軍に近づいた時、目の前の最前列から本物に替わる）。横の端の者は後回し
       let cen = 0;
@@ -789,6 +795,8 @@ function humansStep(rt, dt, army, cam) {
       // 作る順は本人と目の前の兵を先に取る。
       if (false && named && !u.isPlayer && u.alive) pr = d * (1 + 0.7 * cen) + (vis ? 0 : 30);
       if (required && !u.isPlayer) pr -= u.alive ? 1e6 : 5e5;
+      // 携帯は距離だけで枠を割り当てる。交戦相手は一番先に確保する。
+      if (CPU_LEAN) pr = u.isPlayer ? -1e9 : opponent ? -1e8 : d;
       let entry;
       if (cand.length < humanCandidatePool.length) { entry = humanCandidatePool[cand.length]; cand.push(entry); }
       else {
@@ -800,15 +808,17 @@ function humansStep(rt, dt, army, cam) {
     }
     cand.sort((a, b) => a.d - b.d);
     want.clear();
-    // 遠い人を先に戻して近景へ枠を渡す。亡骸も含め、本物の描画は250人まで。
-    //   iPhone（WebContent の上限 2GB）は骨入りの人を 84 人まで（一人 3〜4MB。乱戦で 30m の内の全員が人になり 140 人を越えて落ちていた。10/19）。
-    //   兵そのものは束の形で全員描くので、見える兵の数と密度は変わらない。近い者・画面の真ん中の者から人にする
-    const capAll = MEM_TIGHT ? SKIN_MAX : memTight() ? 64 : 250;   // 10/19 深夜：84 では墨俣・森部で GPU process が 620MB を越えて落ちた（一人 約 2.8MB）。64 に
+    // 携帯の一般兵は近い順に四十人まで（弱い端末は十二人）。本人と武将は従来どおり別枠。
+    // 枠を超えた兵は焼いた全身の動きへ渡し、兵の数と乱戦の密度を保つ。
+    const capAll = CPU_LEAN ? SKIN_MAX : 250;
     let crowdN = 0;
     for (const c of cand) {
       if (want.size >= 250) break;
       if (qualityKeeper(c.u)) { want.set(c.u, c); continue; }
-      if (crowdN >= capAll) continue;
+      if (crowdN >= capAll) {
+        if (CPU_LEAN) vatOverflow(c.u);
+        continue;
+      }
       if (MEM_TIGHT ? c.required : c.required || crowdN < Q.max) { want.set(c.u, c); crowdN++; }
     }
     // 作る順（本人と目の前を優先）は保ち、材質だけは距離順の上限を付ける。

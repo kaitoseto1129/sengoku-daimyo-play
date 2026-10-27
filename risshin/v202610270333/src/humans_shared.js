@@ -18,6 +18,9 @@ const humanBuilding = new Set();
 const humanPoolKeys = new WeakMap();
 // 本人と武将は一般兵の貸出枠・簡略化から外す。
 const qualityKeeper = u => !!(u && (u.isPlayer || u.type === 'busho' || u.look && (u.look.hero || u.look.officer || isNamed(u.look))));
+// 主人公の狙い・振り・鍔迫り合いの相手は、焼いた動きへ渡さない。
+const skinOpponent = (player, u) => !!(player && u && u.alive &&
+  (player.target === u || player.swing?.target === u || player.atk?.target === u || player.bind?.o === u));
 function humanPoolKey(u) {
   const L = u.look || {};
   let key = humanPoolKeys.get(L);
@@ -598,4 +601,4 @@ if (typeof window !== 'undefined') window.__crowdDbg = () => ({ shapes: crowdSha
 const HSTAT = { made: 0, driven: 0, ms: 0, want: 0, makeMs: 0, makeN: 0, makeMax: 0, selectionFrames: 0, selectionScans: 0, borrowN: 0, crowdHit: 0, crowdMade: 0, shapeMade: 0 };
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-export { memTight, SKIN_MAX, MIDDLE_MAX, SKIN_IN, SKIN_OUT, humanPool, humanBuilding, qualityKeeper, humanPoolKey, pinHumanGeometries, borrowHuman, realNear, HUM_BUDGET_EARLY_SEC, HUM, HUM_T, HUM_Q, q0, v0, v1, v2, v3, m0, m1, SRC, HEAD, preparationFrame, gc, PART, prepBody, _fq, curlFingers, prepHead, prepHeadMH, restMatrix, attachBody, limbFit, fits, isSohei, isNamed, humanLook, shapesReady, XB, kusaPlates, plateOf, ALLB, crowdGeos, humanInv, humanBoneMap, crowdShapes, HSTAT, smooth };
+export { memTight, SKIN_MAX, MIDDLE_MAX, SKIN_IN, SKIN_OUT, humanPool, humanBuilding, qualityKeeper, skinOpponent, humanPoolKey, pinHumanGeometries, borrowHuman, realNear, HUM_BUDGET_EARLY_SEC, HUM, HUM_T, HUM_Q, q0, v0, v1, v2, v3, m0, m1, SRC, HEAD, preparationFrame, gc, PART, prepBody, _fq, curlFingers, prepHead, prepHeadMH, restMatrix, attachBody, limbFit, fits, isSohei, isNamed, humanLook, shapesReady, XB, kusaPlates, plateOf, ALLB, crowdGeos, humanInv, humanBoneMap, crowdShapes, HSTAT, smooth };

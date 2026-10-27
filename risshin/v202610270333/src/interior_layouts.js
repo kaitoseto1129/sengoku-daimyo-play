@@ -93,6 +93,19 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       else for (const x of [-hw + .9, hw - .9]) props.push({ part: 'bedding', x, z: -hd + 1, w: .75, d: 1.5, h: .12 });
     }
     props.push({ part: 'storage', x: hw - .65, z: -hd + .65, w: .7, d: .6, h: .6 });
+  } else if (profile === 'tottori' && ['kura', 'bansho', 'nagaya', 'tamari'].includes(kind)) {
+    // 個別の室内図は不明。空蔵・番所・長屋・本陣の控えを用途で分けた推定復元。
+    const cut = hd - Math.min(1, d * .25), tatami = kind === 'tamari';
+    room(kind === 'kura' ? '空の板倉' : kind === 'bansho' ? '番の控え' : tatami ? '下知を受ける座敷' : '兵の休む板間', -hw, hw, -hd, cut, tatami ? 'tatami' : 'boards');
+    room(tatami ? '入口の板間' : '入口の土間', -hw, hw, cut, hd, tatami ? 'boards' : 'earth');
+    cross(cut, -hw + .1, hw - .1, entryX, tatami);
+    if (tatami) {
+      portals[portals.length - 1].kind = 'shoji';
+      for (const v of walls) v.kind = 'shoji';
+    }
+    // 飢えた城の蔵に米俵や炊事道具を置かず、戸口から奥まで中央を空ける。
+    if (kind === 'bansho' || tatami) props.push({ part: 'desk', x: -hw + .8, z: -hd + .65, w: 1.1, d: .6, h: .4 });
+    if (kind === 'nagaya') for (const x of [-hw + .9, hw - .9]) props.push({ part: 'bedding', x, z: -hd + 1, w: .75, d: 1.5, h: .12 });
   } else if (profile === 'takato' && ['bansho', 'kura', 'nagaya'].includes(kind)) {
     // 番所を寝室、兵糧蔵を問屋にしない。入口と奥の板間を板戸で分ける。
     const cut = hd - Math.min(1.1, d * .25);
@@ -407,9 +420,9 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     }
     cross(entry, -hw + .1, hw - .1, entryX, true, entryW);
     // 屋形の縁側から広間へは明かり障子、奥の座敷との境は襖。
-    if (['mikatagahara', 'iwamura', 'takato', 'inabayama'].includes(profile)) {
+    if (['mikatagahara', 'iwamura', 'takato', 'inabayama', 'tottori'].includes(profile)) {
       portals[portals.length - 1].kind = 'shoji';
-      if (['takato', 'inabayama'].includes(profile)) for (const v of walls) if (v.az === entry && v.bz === entry) v.kind = 'shoji';
+      if (['takato', 'inabayama', 'tottori'].includes(profile)) for (const v of walls) if (v.az === entry && v.bz === entry) v.kind = 'shoji';
     }
     prop('alcove', hw - 1.4, -hd + .55);
     prop('desk', -hw + .85, -hd + 1.15);
@@ -489,6 +502,17 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     cross(cut, -hw, hw - hall, 0);
     prop('altar', 0, -hd + .75);
     prop('stove', -hw + .7, hd - .65);
+  } else if (profile === 'kanegasaki' && ['bansho', 'kura', 'nagaya'].includes(kind)) {
+    // 金ヶ崎の小屋は用途別の推定復元。中央の戸と通り道の両側へ荷・寝具を収める。
+    const cut = hd - Math.min(.9, d * .3), sleeping = kind === 'nagaya', storage = kind === 'kura';
+    room(sleeping ? '兵の寝る間' : storage ? '兵糧を置く間' : '番兵の控え', -hw, hw, -hd, cut, 'boards');
+    room('入口の土間', -hw, hw, cut, hd, 'earth');
+    cross(cut, -hw + .1, hw - .1, entryX, sleeping);
+    for (const sign of [-1, 1]) {
+      const width = sleeping ? .75 : .65, depth = sleeping ? 1.5 : .5;
+      props.push({ part: sleeping ? 'bedding' : storage ? 'storage' : sign < 0 ? 'ammo' : 'chest',
+        x: sign * (hw - .2 - width / 2), z: -hd + .2 + depth / 2, w: width, d: depth, h: sleeping ? .12 : .65 });
+    }
   } else if (kind === 'nagaya') {
     const cut = hd - Math.min(1.4, d * .3);
     room('兵の寝る間', -hw, hw, -hd, cut, 'boards');
@@ -561,7 +585,7 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
   // 指定の山城の室内は推定復元。土の曲輪に平屋の館を置き、中央を戦える広さに残す。
   if (profile && profile !== 'council' && profile !== 'nodafukushima' && kind === 'goten') {
     // 木ノ芽峠の陣城も板床の詰所。狭い奥の襖口に床の間を置かない。
-    const military = profile === 'odani_kyogoku' || profile === 'mitsukuri' || profile === 'kinome' || profile === 'usayama';
+    const military = profile === 'odani_kyogoku' || profile === 'mitsukuri' || profile === 'kinome' || profile === 'usayama' || profile === 'kanegasaki';
     rooms[0].raised = !military;
     rooms[0].y = military ? 0 : .16;
     rooms[0].name = military ? '控えの間' : '奥の座敷';

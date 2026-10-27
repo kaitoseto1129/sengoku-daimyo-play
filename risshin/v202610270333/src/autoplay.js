@@ -427,10 +427,10 @@ async function playOne(game, i, r, progress, started = false, firstInou = false,
       workMs: (() => {
         const a = parts.update.map((ms, i) => ms + parts.render[i]).sort((x, y) => x - y);
         const at = (p) => a.length ? a[Math.min(a.length - 1, Math.floor(a.length * p))] : null;
-        return { metric: 'js-render-v1', n: a.length, median: at(0.5), p95: at(0.95) };
+        return { metric: 'js-render-v1', n: a.length, median: at(0.5), p95: at(0.95), p99: at(0.99), over30: a.length ? +(a.filter((x) => x > 30).length / a.length).toFixed(3) : null };
       })(),
       prof: profSum(dts, parts),
-      ab: abKeys.length ? { keys: abKeys, on: { n: abA.length, median: pct(abA, 0.5), p95: pct(abA, 0.95), p99: pct(abA, 0.99), js: pct(abU, 0.5) }, off: { n: abB.length, median: pct(abB, 0.5), p95: pct(abB, 0.95), p99: pct(abB, 0.99), js: pct(abV, 0.5) }, win: abWin } : undefined,
+      ab: abKeys.length ? { keys: abKeys, on: { n: abA.length, median: pct(abA, 0.5), p95: pct(abA, 0.95), p99: pct(abA, 0.99), js: pct(abU, 0.5), js95: pct(abU, 0.95) }, off: { n: abB.length, median: pct(abB, 0.5), p95: pct(abB, 0.95), p99: pct(abB, 0.99), js: pct(abV, 0.5), js95: pct(abV, 0.95) }, win: abWin } : undefined,
       // 重いコマ上位6つの内訳（update・render・人・軍。外＝その他：絵の組み立て・掃除・他の輪）
       top: dts.map((d, i) => [d, i]).sort((x, y) => y[0] - x[0]).slice(0, 6).map(([d, i]) => { const g = (k) => Math.round(parts[k][i] || 0); return { ms: Math.round(d), up: g('update'), rd: g('render'), hum: g('humans'), army: g('army'), hud: g('hud'), out: Math.round(d - (parts.update[i] || 0) - (parts.render[i] || 0)) }; }),
       hp: Math.round(b.player.u.hp), resScale: game.perf ? game.perf().res : null, quality: S.quality, calls: lastCalls, tris: lastTris,
@@ -478,7 +478,7 @@ function frameSummary(dts, ends, sec) {
   const measuredSec = dts.reduce((sum, ms) => sum + ms, 0) / 1000;
   const all = stats(dts, measuredSec);
   return {
-    frameMs: { median: all.median, p95: all.p95, p99: all.p99, max: all.max },
+    frameMs: { median: all.median, p95: all.p95, p99: all.p99, max: all.max, over30: dts.length ? +(dts.filter((x) => x > 30).length / dts.length).toFixed(3) : null },
     measuredSec, hitch: all.hitch, stalls: all.stalls,
     worst60: { startSec: Math.max(0, bestEnd - width), sec: width, complete: sec >= 60,
       ...stats(dts.slice(bestLeft, bestRight), width) },

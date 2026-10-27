@@ -1693,7 +1693,7 @@ function buildInside(rt, I) {
     // 小祠は座敷の竿縁天井にせず、梁と桁を見せる推定の納まり。
     || S.quality === 'high' && I.profile === 'inabayama' && I.kind === 'shrine'
     || I.profile === 'echizen_ikko' && I.kind === 'bansho'
-    || ['nodafukushima', 'usayama', 'iga', 'takato'].includes(I.profile) && ['kura', 'bansho', 'nagaya'].includes(I.kind)
+    || ['nodafukushima', 'usayama', 'iga', 'takato', 'tottori'].includes(I.profile) && ['kura', 'bansho', 'nagaya'].includes(I.kind)
     || I.profile === 'iwamura_' + I.kind && ['kura', 'bansho', 'nagaya'].includes(I.kind);
   const WOOD = 0x6a5038, DARK = 0x3a2a1c, WALL = I.sgOverhead ? 0x817967 : goten ? 0xb8ab90 : 0xa89a80, FLOOR = 0x8a6a48, BOARD = I.sgOverhead ? 0x514b3d : 0x6a5238;
   for (let k = 0; k < Ls.length; k++) {
@@ -2564,7 +2564,8 @@ function buildInside(rt, I) {
     }
     // 梁（天井の下の横木。階段の口の上は通さない）と、桁（長い向きの太い横木）
     // 御殿・堂は梁を天井の上に隠す（書院造）。櫓・天守と、天井を張らない建物だけ梁と桁を見せる
-    const showBeams = !goten || I.open || plainCeiling || (I.profile === 'anegawa' && I.kind === 'nagaya');
+    const showBeams = !goten || I.open || plainCeiling || (I.profile === 'anegawa' && I.kind === 'nagaya')
+      || (I.profile === 'kanegasaki' && ['bansho', 'kura', 'nagaya'].includes(I.kind));
     // 稲葉山の用屋は壁の柱筋へ梁を載せる。等間隔の別割りで柱間へ浮かせない。
     const inabaBeamFrame = inabaBoards && plainCeiling;
     const beamBays = Math.max(2, Math.round(lv.w / 1.9));

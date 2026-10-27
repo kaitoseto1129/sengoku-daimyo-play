@@ -3,6 +3,13 @@
 // [名、鉢、立物、胴の色、威、胴の作り、陣羽織、面頬、家紋、写真の番号]。
 export const KACCHU = {};
 for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of [
+  // 稲生の参戦者。所用具足・立物・個人紋は未確認。筋兜と毛引威の復元で補う。
+  // 佐久間大学は信盛と、佐々孫介は成政と、黒田半平は官兵衛と取り違えない。
+  ["佐久間大学", "suji", "none", 0x22241e, 0x334f70, "kebiki", 0, 0, "none", ""],
+  ["佐々孫介", "suji", "none", 0x22241e, 0x334f70, "kebiki", 0, 0, "none", ""],
+  ["黒田半平", "suji", "none", 0x22241e, 0x334f70, "kebiki", 0, 0, "none", ""],
+  ["林美作守", "suji", "none", 0x834031, 0x8b503b, "kebiki", 0, 0, "none", ""],
+  ["宮井勘兵衛", "suji", "none", 0x88432f, 0x96583d, "kebiki", 0, 0, "none", ""],
   // 建勲神社伝来の伝信長所用・紺糸威胴丸を参考にした復元案。刀根坂での着用は未確認。
   // 京都国立博物館「紺糸威胴丸 兜・大袖付」：https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
   ["織田信長", "suji", "kuwa", 0x1c1a1a, 0x2e4468, "kebiki", 0, 0, "oda", ""],
@@ -767,3 +774,17 @@ export const NODAFUKUSHIMA_KACCHU = {
   "前田利家": { ...KACCHU["前田利家"], bowl: "suji", crest: "none", doStyle: "kebiki",
     armor: 0x22241e, helm: 0x22241e, haori: 0, menpo: 0, fur: 0, lac: "kuro", ref: "" },
 };
+
+// 稲生（弘治二年）の専用復元。利家の金鯰尾・金具足を若年期へ遡らせない。
+// 東京国立博物館の利家所用具足は安土桃山時代：
+// https://www.tnm.jp/uploads/r_press/FAX_336.pdf
+// 当日の具足・立物・陣羽織は未確認。共通の筋兜・毛引威を使い、豪傑の得物と動きは保つ。
+export const INOU_KACCHU = {};
+for (const name of ["織田信長", "柴田勝家", "森可成", "前田利家",
+  "佐久間大学", "佐々孫介", "黒田半平", "林美作守", "宮井勘兵衛"]) {
+  const base = KACCHU[name], enemy = ["柴田勝家", "林美作守", "宮井勘兵衛"].includes(name);
+  INOU_KACCHU[name] = { ...base, bowl: "suji", crest: "none", doStyle: "kebiki",
+    armor: enemy ? 0x88432f : 0x22241e, helm: enemy ? 0x88432f : 0x22241e,
+    lace: enemy ? 0x96583d : 0x334f70, odo: enemy ? 0x96583d : 0x334f70,
+    haori: 0, menpo: 0, fur: 0, horo: 0, lac: enemy ? "shu" : "kuro", ref: "" };
+}
