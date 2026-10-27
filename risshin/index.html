@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610261715 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610261731 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610261715/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610261715/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610261715/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610261715/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610261731/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610261731/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610261731/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610261731/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -99,9 +99,9 @@ button { font-family: var(--ui); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outline-offset: 2px; }
 
 /* ---------- HUD ---------- */
-#hud { position: fixed; inset: 0; pointer-events: none; font-size: max(12px, calc(13px * var(--text-scale, 1))); }
+#hud { position: fixed; inset: 0; pointer-events: none; font-size: max(12px, calc(13px * var(--text-scale, 1))); clip-path: inset(env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)); }
 #hud[hidden] { display: none !important; }
-.tl { position: absolute; left: 20px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 240px; display: grid; gap: 6px; }
+.tl { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); top: calc(16px + env(safe-area-inset-top, 0px)); width: 240px; display: grid; gap: 6px; }
 .who { font-family: var(--display); font-size: max(12px, calc(17px * var(--text-scale, 1))); letter-spacing: .04em; text-shadow: 0 1px 3px #000; }
 .who small { font-family: var(--ui); font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); margin-left: 6px; letter-spacing: .08em; }
 .bar { display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 8px; font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-dim); letter-spacing: .1em; }
@@ -114,7 +114,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 
 /* grid の暗黙の列は既定で auto（＝中身の最小幅を確保しようとする）。長い任務の字が 250px を超えると、
    列ごと右へはみ出す（Grid blowout）。minmax(0, 1fr) で列の最小幅を 0 にし、中の要素側で折り返す */
-.tr { position: absolute; right: 20px; top: calc(16px + env(safe-area-inset-top, 0px)); width: 250px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; justify-items: end; }
+.tr { position: absolute; right: calc(20px + env(safe-area-inset-right, 0px)); top: calc(16px + env(safe-area-inset-top, 0px)); width: 250px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; justify-items: end; }
 #objectives { background: linear-gradient(90deg, transparent, rgba(10,9,7,.64) 18%); padding: 10px 12px 10px 28px; width: 100%; box-sizing: border-box; text-align: right; min-width: 0; overflow-wrap: break-word; }
 #objectives h4 { margin: 0 0 6px; font-family: var(--display); font-size: max(12px, calc(14px * var(--text-scale, 1))); font-weight: 600; letter-spacing: .12em; color: var(--kin); }
 #objectives li { list-style: none; margin: 3px 0; font-size: max(12px, calc(12.5px * var(--text-scale, 1))); line-height: 1.45; color: var(--washi); }
@@ -514,7 +514,7 @@ body:has(#intro:not([hidden])) #tc { visibility: hidden; pointer-events: none; }
 .plaque small { font-size: max(12px, calc(12px * var(--text-scale, 1))); color: var(--washi-faint); }
 .next { width: 210px; }
 /* 左下：名と体力・気力・士気（太めのゲージ） */
-.bl { position: absolute; left: 20px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 300px; display: grid; gap: 5px; padding: 10px 14px 12px; background: linear-gradient(90deg, var(--lacquer), rgba(14,11,8,.35)); box-shadow: inset 0 0 0 1px rgba(194,162,90,.22); }
+.bl { position: absolute; left: calc(20px + env(safe-area-inset-left, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 300px; display: grid; gap: 5px; padding: 10px 14px 12px; background: linear-gradient(90deg, var(--lacquer), rgba(14,11,8,.35)); box-shadow: inset 0 0 0 1px rgba(194,162,90,.22); }
 .bl .who { font-size: max(12px, calc(18px * var(--text-scale, 1))); margin-bottom: 2px; }
 .bl .bar { grid-template-columns: 34px 1fr 60px; }
 .bl .bar i { height: 10px; border: 1px solid rgba(0,0,0,.8); box-shadow: inset 0 0 0 1px rgba(236,228,210,.12); background: rgba(0,0,0,.55); }
@@ -1807,7 +1807,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202610261715/screens.css">
+<link rel="stylesheet" href="./v202610261731/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1955,5 +1955,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610261715/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202610261731/src/main.js').catch((error) => window.__bootFail(error));
 </script>
