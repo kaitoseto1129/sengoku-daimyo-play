@@ -1810,7 +1810,7 @@ const takato_siege = {
       // 三百秒で本丸へ届かなければ、信忠の本隊が塀を越えて攻め入る（信長公記：信忠自ら塀際へ）。門は破れ、曲輪は次々に落ちる。
       if (F.step >= 1 && !F.honFell && rt.t - F.stepT >= 300 && !F.allIn) {
         F.allIn = true;
-        for (const g of Object.values(F.gates)) if (g.struct.alive && !g.opened) g.struct.hp = 0;
+        for (const g of Object.values(F.gates)) if (g.struct.alive && !g.opened) { g.struct.hp = 0; g.breached = true; g._openNow(true); g.struct.alive = false; }
         rt.say('使番', '信忠様の本隊が塀を越えたぞ！　本丸へ攻め入れ！', 4);
         if (!F.sanFell) this.onZoneFall(rt, 'san');
         if (!F.niFell) this.onZoneFall(rt, 'ni');

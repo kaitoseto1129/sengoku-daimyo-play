@@ -672,7 +672,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の今川兵をたおせ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '▼の敵をたおせ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -695,10 +695,11 @@ const okehazama = {
         const filter = F.nearSignFilter || (F.nearSignFilter = (u) => readyUnit(u) &&
           Math.abs(u.pos.y - p.u.pos.y) < 3 && !rt.army.wallBetween(p.u.pos, p.u.team, u.pos) &&
           !rt.army.terrainBlocks(p.u.pos, u.pos));
-        const near = rt.army.nearestEnemy(p.u, 14, filter);
+        // 視線を空けられる範囲で最寄りを選び、奥の任務兵だけを追わせない。
+        const near = rt.army.nearestEnemy(p.u, 32, filter);
         const old = F.nearSignEnemy;
         const distance = (u) => Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z);
-        F.nearSignEnemy = filter(old) && distance(old) < 16 && (!near || distance(old) <= distance(near) + 2) ? old : near;
+        F.nearSignEnemy = filter(old) && distance(old) < 34 && (!near || distance(old) <= distance(near) + 2) ? old : near;
       }
       if (readyUnit(F.nearSignEnemy)) return F.nearSignEnemy;
     }
@@ -790,7 +791,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['織田の組に集まれ', '織田の組に集まれ', '雨がやむまで待て', '▼の今川兵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['味方と集まれ', '味方と集まれ', '雨がやむまで待て', '▼の敵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -922,6 +923,7 @@ const okehazama = {
       enemy.okeBlockUntil = rt.t + .7;
   },
   autoTargetCamera: true, // 攻撃を押した相手を倒すまで狙う（稲生と同じ）。
+  steadyMeleeCamera: true, // 稲生と同じ視点を保ち、敵の選び直しで進む先を振り回さない。
   keepTaskLabel: true, // 近い敵を選んでも、組の下知と雨上がりを待つ任務を残す。
   keepDestinationTask: true, // 旗の場所の案内で、見張りを迎え撃つ下知を消さない。
   keepWaitOrderLabel: true, // 旗から少し離れても、接敵中の下知を移動の札で消さない。
@@ -1172,6 +1174,7 @@ const okehazama = {
   singleSoldierLOD: true,
   // カメラの周囲という理由だけで槍を消さない。実際に視線を塞ぐ柄だけを避ける。
   nearLongWeaponRadius: 0,
+  nearSpearBatchRadius: 10, // 視線から避けた味方の槍を、別の描画の束に残さない。
   keepPlayerWeapon: true,
   // 持ち主から離れた落ち槍も拾う。坂や馬上で視線を横切る間だけ避ける。
   nearGroundSpearRadius: 10,

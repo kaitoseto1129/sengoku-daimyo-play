@@ -49,7 +49,7 @@ function build(rt, root) {
   // 稲生は縁を細くし、遠くでも赤い面を残す。
   if (rt.def.missionStyle) tri.setAttribute('position', new THREE.Float32BufferAttribute([-.17,.28,0, .17,.28,0, 0,0,0, -.145,.26,.001, .145,.26,.001, 0,.03,.001], 3));
   const colors = [];
-  // 稲生・桶狭間は傷で中身が減っても赤い縁を残し、別の所属に見せない。
+  // 稲生・桶狭間・森部は傷で中身が減っても赤い縁を残し、別の所属に見せない。
   // 白縁は実際に届く一人だけに使う。
   for (const color of [compact ? 0xffffff : ['lesson', 'raid', 'ford'].includes(rt.def.missionStyle) ? 0xb82a1a : 0x14120f, !!rt.def.missionStyle ? 0xff342e : 0xff634d]) {
     const c = new THREE.Color(color);
@@ -312,7 +312,7 @@ export function fieldSignsTick(rt, root) {
     const near = foe && (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 < nearRadius * nearRadius;
     u._fsNearOn = near;
     // 桶狭間は実際に描く▼の先端まで壁を調べる。低い別の点で所属の印だけ消さない。
-    const signY = raid ? u.mounted ? headY(u) + .12 : u.pos.y + inouSignHeight(u) : headY(u);
+    const signY = raid || ford ? u.pos.y + inouSignHeight(u) : headY(u);
     if (near) {
       // 壁だけを五分の一秒ごとに調べる。画面端や霧による出入りを混ぜない。
       if (u._fsNearAt == null || rt.t < u._fsNearAt - .2 || rt.t >= u._fsNearAt) {
@@ -359,7 +359,7 @@ export function fieldSignsTick(rt, root) {
     // 桶狭間も見通しと同じ頭上へ固定し、笠に埋もれさせない。頭の揺れは追わない。
     if (raid) headPos.y = signY;
     // 森部は密集しても笠に埋まらない高さを保つ。
-    if (ford && !u.mounted) headPos.y = u.pos.y + (u.bodyHeight || 1.72) + .18;
+    if (ford) headPos.y = signY;
     // 稲生は共通の見通しとピンの投影に高さをそろえる。
     if (lesson) headPos.y = u.pos.y + inouSignHeight(u);
     if (lesson || raid || ford) {
@@ -404,11 +404,12 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((raid ? u.okeHitUntil : lesson ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は一撃ごとに伸びて戻る。削れた面は別に保ち、連打を同じ形に張り付かせない。
+    // 森部は命中を三秒残し、一撃ごとに伸びて戻る。削れた面は別に保ち、連打を同じ形に張り付かせない。
     // 稲生・桶狭間は命中直後の形を保ち、間合いの横広がりと区別できる。
     const hit = foe && special
+      // 森部は連打の合間に戻し、同じ敵へ続けて当てた時の伸びを残す。
       ? ford ? Math.min(1, Math.max(0, hitLeft / .6)) *
-          (.3 + .7 * Math.min(1, Math.max(0, (hitLeft - 1.8) / .4)))
+          (.3 + .7 * Math.min(1, Math.max(0, (hitLeft - 2.4) / .4)))
         : lesson ? Math.min(1, Math.max(0, hitLeft / .6)) *
           (.55 + .45 * Math.min(1, Math.max(0, (hitLeft - 1.8) / .6)))
         // 桶狭間は三秒のうち最後の六分の一だけ戻し、連打の合間にも命中を残す。
@@ -447,8 +448,13 @@ export function fieldSignsTick(rt, root) {
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部は遠い印を頭ほどに収め、近づくほど滑らかに広げる。討つ武将は一段大きく残す。
     const moribeNear = ford ? Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22)) : 0;
+    // 一般兵は目当ての選び直しで大きさを変えず、討つ武将だけ一段大きくする。
     const moribeLimit = (u === commander ? 1 : .6) + 1.2 * moribeNear;
-    const k = Math.min(ford ? moribeLimit : lesson ? inouLimit : raid ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (lesson || ford ? pixels : width) * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34)) *
+    // 携帯でも近い敵の所属印は十四画素を保つ。遠方へは滑らかに実寸へ戻す。
+    const moribePixelScale = -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
+    const moribeMinPixels = ford ? 14 * moribeNear : 0;
+    const k = Math.max(moribeMinPixels * moribePixelScale,
+      Math.min(ford ? moribeLimit : lesson ? inouLimit : raid ? (u === missionEnemy || u === commander ? 1.6 : 1.1) : u === commander ? 32 : 3, (lesson || ford ? pixels : width) * moribePixelScale)) *
       (ford || lesson ? 1 : 1 + (pulse > 0 ? 1.2 * pulse : reachable && !raid ? .55 : 0));
     dummy.position.copy(headPos);
     dummy.quaternion.copy(q);
@@ -469,11 +475,12 @@ export function fieldSignsTick(rt, root) {
     // 追う相手の選び直しで膨らませず、本人との距離で大きさを保つ。
     const okeLimit = u === commander ? .9 + .5 * okeNear : .65 + .75 * okeClosing;
     // 携帯では実寸の上限だけだと目前の敵でも数画素に潰れる。
-    // 四十歩までの見える本人は最低十四画素を保ち、遠方へは滑らかに実寸へ戻す。
+    // 奥は小さく、目前は読みやすい幅を保ち、遠方へは滑らかに実寸へ戻す。
     const okePixelScale = -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
     // どの敵も本人との接近に応じて育つ。目当ての切り替えで縮めず、届く一人だけ横へ開く。
     const okeMinPixels = (14 + 10 * okeClosing) * Math.max(0, Math.min(1, (55 - Math.sqrt(meD2)) / 15));
-    const okeScale = raid ? Math.max(okeMinPixels * okePixelScale, Math.min(okeLimit, okePixels * okePixelScale)) : k;
+    // 最低の画素数にも実寸の上限を掛け、奥の印が手前の頭を覆わないようにする。
+    const okeScale = raid ? Math.min(okeLimit, Math.max(okeMinPixels * okePixelScale, okePixels * okePixelScale)) : k;
     // 防がれた接触は縦に潰す。傷を与えた時の縦の伸び・赤の減りとは分ける。
     // 森部も、受け止められた本人の▼だけを短く潰す。空振りとは区別する。
     const blocked = special && !(hit > 0) && (ford ? u.moribeBlockUntil : lesson ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
@@ -500,7 +507,7 @@ export function fieldSignsTick(rt, root) {
     // 森部は届く一人だけ横へ開き、命中の縦の伸びは控えめにして隣の頭を覆わない。
     // 命中・防がれた直後も横幅を保ち、縦に潰れる形を命中の伸びと区別する。
     // 森部は接近に応じて徐々に開き、命中の拡大は隣の頭を覆わない幅に収める。
-    // 森部は届く瞬間に幅を倍以上に開く。近づくだけの変化と明確に分ける。
+    // 森部は届く瞬間に横幅を開き、隣の頭を覆わない幅に収める。
     // 命中では縦にも伸びる。空振りでは伸びず、防がれた時は縦に潰れる。
     dummy.scale.set(raid ? okeScale * Math.max(reachable ? 2.8 : okeApproach, pulse > 0 ? 1 + 1.8 * pulse : 0) : ford ? k * Math.max(reachable || blocked || pulse > 0 ? 1.7 : moribeApproach, 1 + .7 * pulse) : lesson ? k * Math.max(inouWidth, blocked || pulse > 0 ? 2.6 : 0) : k * (1 + .5 * pulse),
       raid || ford || lesson ? (raid ? okeScale : k) * (blocked ? .55 : 1 + (lesson ? .8 : 1) * pulse) : k, raid ? okeScale : k);

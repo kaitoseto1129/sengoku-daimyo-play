@@ -90,6 +90,7 @@ function ruleOf(anchor, inner) {
   r.cls2 = new Set(); const tk = { ids: r.ids, cls: r.cls2, attrs: r.attrs, tags: r.tags }; tokens(anchor + ' ' + inner, tk); r.struct = tk.struct || false;
   r.bare = /(^|[\s>+~,(])\[/.test(anchor + ' ' + inner);   // 要素名・id・クラスの無い [属性] だけの選び方
   rules.set(key, r); list.push(r); STAT.rules++;
+  indexRule(r);
   return r;
 }
 function test(el, r) {
@@ -164,18 +165,27 @@ function observe() {
   observer.observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeOldValue: true, attributeFilter: [...attrNames] });
 }
 const dirty = new Set();
+// 決まりを id・クラス・要素名・[属性] ごとに引けるようにしておく（変わった要素ごとに全部の決まりを総当たりしない。
+//   稲生の乱戦で札の書き換えのたびに総当たりし、四倍遅くで一コマ一ミリ秒ほど食っていた。10/27）。当たる決まりは前と同じ
+const byId = new Map(), byCls = new Map(), byTag = new Map(), byBare = new Map();
+function addTo(m, k, r) { let a = m.get(k); if (!a) m.set(k, a = []); a.push(r); }
+function indexRule(r) {
+  for (const x of r.ids) addTo(byId, x, r);
+  for (const x of r.cls2) addTo(byCls, x, r);
+  for (const x of r.tags) addTo(byTag, x, r);
+  if (r.bare) for (const x of r.attrs) addTo(byBare, x, r);
+}
+function markAll(rs) { if (rs) for (let i = 0; i < rs.length; i++) dirty.add(rs[i]); }
 // 変わった要素 el（属性 attr が old から変わった。attr が無ければ足し引きされた要素）に関わる決まりへ印を付ける
 function touchEl(el, attr, old) {
-  const id = el.id, cl = el.classList, tag = el.localName;
-  for (const r of list) {
-    if (dirty.has(r)) continue;
-    let hit = !!(id && r.ids.has(id)) || (attr === 'id' && !!old && r.ids.has(old));
-    if (!hit) for (const c of cl) if (r.cls2.has(c)) { hit = true; break; }
-    if (!hit && attr === 'class' && old) for (const c of old.split(/\s+/)) if (c && r.cls2.has(c)) { hit = true; break; }
-    if (!hit && r.tags.has(tag) && (!attr || attr === 'class' || r.attrs.has(attr))) hit = true;
-    if (!hit && attr && r.bare && r.attrs.has(attr)) hit = true;
-    if (hit) dirty.add(r);
-  }
+  const id = el.id, cl = el.classList;
+  if (id) markAll(byId.get(id));
+  if (attr === 'id' && old) markAll(byId.get(old));
+  if (cl) for (let i = 0; i < cl.length; i++) markAll(byCls.get(cl[i]));
+  if (attr === 'class' && old) for (const c of old.split(/\s+/)) if (c) markAll(byCls.get(c));
+  const tr = byTag.get(el.localName);
+  if (tr) for (let i = 0; i < tr.length; i++) { const r = tr[i]; if (!attr || attr === 'class' || r.attrs.has(attr)) dirty.add(r); }
+  if (attr) markAll(byBare.get(attr));
 }
 function touchTree(n) {
   if (n.nodeType !== 1) return;

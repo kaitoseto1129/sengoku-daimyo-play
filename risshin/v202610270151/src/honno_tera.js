@@ -820,7 +820,7 @@ function heat(rt, T, P, warmth, elapsed) {
   // 28歩ほどの渡り廊下を通常の速さで抜ける約9秒は、体力の約18％。
   // 初めの8秒は毎秒2％まで。居続けると、12秒かけて毎秒3.5％まで増す。
   const rate = 0.02 + 0.015 * Math.min(1, Math.max(0, T.heatExposure - 8) / 12);
-  const damage = Math.min(P.hp, P.maxHp * rate * warmth * elapsed);
+  const damage = Math.min(P.hp, P.maxHp * rate * warmth * elapsed * (rt.def.playerTaken ?? 1));   // 敵の傷と同じ倍率（def.playerTaken）
   P.hp = Math.max(0, P.hp - damage);
   if (damage > 0) {
     rt.stats.taken += damage;
@@ -885,7 +885,7 @@ function addSlidingDoors(rt, T) {
     if (pick) it.label = pick.want ? '戸を閉める' : '戸を開ける';
     // 閉じた戸へ歩いて当たれば、自分で開けて通る（「戸を開ける」の札を探させない。Simple is the best）
     const v = P.vel;
-    if (pick && !pick.want && bd < 1 && v && Math.hypot(v.x, v.z) > 0.4) {
+    if (pick && !pick.want && bd < 1.2 && (v && Math.hypot(v.x, v.z) > 0.4 || rt.player.blockedWalkT > 0.25)) {
       pick.want = 1; solidOff(pick); T.sliding.add(pick);
       rt.army.play('wood', { x: pick.x, z: pick.z }, 0.35);
     }

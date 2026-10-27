@@ -524,6 +524,44 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     return rbd.call(this, camera, scene, geometry, material, object, group);
   };
 }
+// 一つの材質を、骨のある人と無い形・束（Instanced・Batched）と一つの形・色の四つ組と三つ組で使い回すと、three は描く物が替わるたびに
+//   描き方を選び直す（getParameters と鍵の文字列づくり・値の送り直し）。稲生の乱戦で一秒に二百回余り、影の深さの材質でも起きていた（10/27 測り）。
+//   物の作りごとに「元の材質を親にした写し」（Object.create。色・絵・透け・needsUpdate は元のまま届く）で描き、選び直しを無くす。見た目は同じ
+{
+  const rbd = renderer.renderBufferDirect;
+  const VAR = new WeakMap();
+  let varId = 1e7;
+  const variantKey = (o, g) => {
+    const a = g.attributes, m = g.morphAttributes;
+    return (o.isInstancedMesh ? 1 : 0) | (o.isSkinnedMesh ? 2 : 0) | (o.isBatchedMesh ? 4 : 0) | (a.color && a.color.itemSize === 4 ? 8 : 0) |
+      (o.isInstancedMesh && o.instanceColor ? 16 : 0) | (a.tangent ? 32 : 0) | (m.normal ? 64 : 0) | (m.color ? 128 : 0) | ((m.position ? m.position.length : 0) << 8);
+  };
+  const variantOf = (mat, o, g) => {
+    if (!mat || mat.isShaderMaterial || !g) return mat;
+    const k = variantKey(o, g);
+    let e = VAR.get(mat);
+    if (!e) { VAR.set(mat, { k, v: null }); return mat; }
+    if (e.k === k) return mat;
+    if (!e.v) {
+      e.v = new Map();
+      // 元を捨てる時は写しの描き方も返す
+      mat.addEventListener('dispose', () => { for (const v of e.v.values()) v.dispatchEvent({ type: 'dispose' }); e.v.clear(); VAR.delete(mat); });
+    }
+    let v = e.v.get(k);
+    if (!v) {
+      v = Object.create(mat);
+      Object.defineProperty(v, 'id', { value: varId++ });
+      v._listeners = {};
+      v.__variantOf = mat;
+      e.v.set(k, v);
+    }
+    return v;
+  };
+  renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+    if (!window.__apx?.novar) material = variantOf(material, object, geometry);
+    return rbd.call(this, camera, scene, geometry, material, object, group);
+  };
+}
 // 不透明な物は、同じ描き方（シェーダー）ごとに並べて描く（切り替えるたびに光・カメラの値を送り直す手間を減らす）。
 //   three は材質の番号順に並べるので、同じシェーダーの材質（人ごとの顔・兵の材質など）が間に挟まって何度も切り替わっていた
 if (!/[?&]nosort\b/.test(location.search)) {
@@ -1904,7 +1942,7 @@ const game = {
         };
         // 展開中の文字列・画像・形を重ねない。一種類ずつ終え、画面へ戻してから次を読む。
         const assetJobs = [['人', 'mhbody', loadHumans], ['具足', 'domaru', loadDomaru], ['武器', 'weapons', loadWeapons], ['城', 'cgt', loadCgt], ['兜', 'kabuto', loadKabuto], ['弓', 'yumi', loadYumi], ['馬', 'horse', loadHorse], ['道具', 'props_ext', loadPropsExt], ['建物', 'bldg', loadBldg], ['模様', 'tex_people', loadPeopleDetail], ['声', 'voice', loadWarSpeech]]
-          .filter(([, name]) => (!firstBattle || ['mhbody', 'domaru', 'weapons', 'kabuto'].includes(name)) && assetsForBattle(BATTLES[i].id).includes(name));
+          .filter(([, name]) => assetsForBattle(BATTLES[i].id).includes(name));
         let assetsDone = 0;
         for (const [key, , load] of assetJobs) {
           if (my !== this.startSeq) return;
@@ -1940,11 +1978,11 @@ const game = {
         stage('近くの兵の姿を整えています', 'warm');
         await preparationFrame();
         const tH = performance.now(), cap = 400;
-        const warmCurrent = () => my === this.startSeq && performance.now() - tH < 30000;
-        if (!firstBattle) await primeHorses(b, warmCurrent);
+        const warmCurrent = () => my === this.startSeq;
+        await primeHorses(b, warmCurrent);
         if (my !== this.startSeq) { b.dispose(); return; }
         ldPart('warm', 1, 4);
-        b.horseLoadPending = firstBattle;
+        b.horseLoadPending = false;
         // 携帯は顔の支度と同じ24人まで。残りは開戦後の小分け作成へ回す。
         // 戦中は updateHumans が制限を外すので、兵の人数・密度・画質は変えない。
         b.humanPreparationCap = firstBattle ? 4 : MEM_TIGHT ? 16 : 24;
@@ -1989,23 +2027,17 @@ const game = {
           renderer.initTexture(b.army.smokeTex);
           if (b.army._rain) renderer.initTexture(b.army._rain.dots.material.map);
           battleShadow();
-          if (firstBattle) {
-            // 初めに使う戦場の描き方だけ。傷・倒れ・遠い姿の総当たりを待たない。
-            singlePassLow(b.scene);
-            if (renderer.compileAsync) await renderer.compileAsync(b.scene, camera);
-            else renderer.compile(b.scene, camera);
-          } else {
-            const { prepareBattlePrograms } = await import('./battle_programs.js');
-            // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
-            const current = () => my === this.startSeq;
-            LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
-              offscreen: useFinish(), shadow: battleShadow,
-              uploadTextures: async (scene, materials) => {
-                singlePassLow(scene);
-                return paceTextureUploads(scene, current, materials);
-              },
-            });
-          }
+          const { prepareBattlePrograms } = await import('./battle_programs.js');
+          // 初戦も隠れた姿・倒れ・具足・馬具まで用意し、完了するまで開戦しない。
+          // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
+          const current = () => my === this.startSeq;
+          LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
+            offscreen: useFinish(), shadow: battleShadow,
+            uploadTextures: async (scene, materials) => {
+              singlePassLow(scene);
+              return paceTextureUploads(scene, current, materials);
+            },
+          });
         }
       } catch (e) {
         // 絵の支度に失敗しても戦を始める。止まった同じ支度をもう一度待たない。
@@ -2048,21 +2080,7 @@ const game = {
       console.info('読み込みの時間（千分の一歩秒）', JSON.stringify(LT));
       if (!tool && !isNorender()) ldLearn({ defs: LT.defs, assets: LT.assets, build: LT.buildOnly, warm: LT.humansWarm, compile: LT.compile, first: LT.first });
       const readingBegan = performance.now();
-      // 初めての戦は札を早く出すため支度を省いている。心得を読んでいる間（3D は描かない）に、馬・倒れ・具足・束の描き方を組んでおく。
-      //   乱戦の途中で 40 余りが組まれ、そのたびに止まっていた（10/26）。長くても 6 秒で打ち切り、残りは戦の中で組む。
-      let latePrep = null;
-      if (firstBattle && !tool && !isNorender()) {
-        const deadline = performance.now() + 6000;
-        const late = () => my === this.startSeq && this.battle === b && performance.now() < deadline;
-        latePrep = (async () => {
-          await Promise.race([loadHorse(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
-          if (!late()) return;
-          const { prepareBattlePrograms } = await import('./battle_programs.js');
-          LT.programsLate = await prepareBattlePrograms(renderer, b, camera, late, { offscreen: useFinish(), shadow: battleShadow });
-        })().catch((e) => { LT.programsLateError = String(e?.message || e); });
-      }
       await reader.wait();
-      if (latePrep) await latePrep;
       b.startTiming.readingMs = Math.round(performance.now() - readingBegan);
       reader.dispose();
       if (this.loadingReader === reader) this.loadingReader = null;
@@ -2086,8 +2104,6 @@ const game = {
         sfx('horagai', 0.6);
       };
       sfx('taiko', 0.8);
-      // 馬の形は動けるようになってから、既存の小分け更新に任せる。
-      if (firstBattle) b.defer(12000, () => { if (this.battle === b && my === this.startSeq) b.horseLoadPending = false; });
       // 砦の戦（def.gungi のある戦）だけ、開戦の前に軍議の画面を一度だけ挟む（ほかの戦・画面の流れは変えない）
       // 全軍の攻め口と布陣は総大将が決める。足軽大将も預かった一手の下知に従う。
       const canGungi = !!this.G.lord;

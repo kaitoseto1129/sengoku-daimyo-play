@@ -3119,7 +3119,9 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
           rt.say('組頭', `あと${Math.max(0, Math.ceil(35 - F.awayT))}秒で持ち場を失う！　京極丸へ戻れ！`, 5);
         }
         if (F.awayT > 35) { this.lose(rt); return; }
-        if (enemies === 0 && repelled && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 40) && heldMouths) F.holdT += dt;
+        // 反撃の組や口の押さえ手が遅れても、京極丸に敵がいなければ四十秒で保ち始める（一戦を四〜七分に）。
+        const late = rt.t - F.stepT > 40;
+        if (enemies === 0 && (repelled || late) && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 40) && (heldMouths || late)) F.holdT += dt;
         else F.holdT = Math.max(0, F.holdT - dt * 2);   // 一人崩れただけで初めからにしない
         if (F.holdT >= 5 && !F.restCalled) {
           F.restCalled = true;
@@ -3256,11 +3258,18 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
   // 屋敷の庭では守りへ詰める。狭い虎口を通る間だけ、遠い敵を追わない。
   // 反撃を待つ相手と実際の打ち手の選び方は、共通の頭とそろえる。
+  // 同じ所で八秒止まったまま打ち合う時（土塁の袋で上の敵と突き合う等）は、打ち合いをやめて抜け出す。
+  if (F.step === 2) {
+    const st = b.odaniStuck || (b.odaniStuck = { x: u.pos.x, z: u.pos.z, t: b.t, esc: null, escT: 0 });
+    if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > .6) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
+  }
+  const stuckFight = F.step === 2 && b.odaniStuck && (b.t - b.odaniStuck.t > 8 || b.t < b.odaniStuck.escT);
   const entering = F.step === 2 && F.onoDone && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z);
   let e = strikeTarget(b, entering ? 3 : 12);
   if (e && inKyoLookout(b, e) && Math.abs(e.pos.y - u.pos.y) > 1.8) e = null;
   // 九十九折りの上下の段の敵は、届いて見えても切岸の向こう。突き続けて足を止めない。
-  if (e && (Math.abs(e.pos.y - u.pos.y) > 1.6 || earthBetween(u.pos, e.pos))) e = null;   // 食い違い土塁の向こうも同じ
+  if (e && (Math.abs(e.pos.y - u.pos.y) > 1.6 || earthBetween(u.pos, e.pos) || b.army.wallBetween(u.pos, -1, e.pos, false))) e = null;
+  if (stuckFight) e = null;   // 食い違い土塁や塀の向こうも同じ
   // 京極丸の中では、外へ退いた敵を追って持ち場を離れない。
   if ((F.step === 2 && F.onoDone && !entering || F.step === 3 && !F.komaAttack) &&
       e && !F.C.kuruwa.kyogoku.test(e.pos.x, e.pos.z)) e = null;
@@ -3283,6 +3292,24 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     return;
   }
   if (F.step === 2) {
+    // 土塁と屋敷の間の袋へ入って五秒動けない時は、一番遠くまで歩ける向きへ三メートル抜ける（人が身をよじって出るのと同じ）。
+    const st = b.odaniStuck;
+    if (st.esc && b.t < st.escT) { goTo(p, inp, st.esc.x, st.esc.z, .3); return; }
+    if (b.t - st.t > 5 && p.canStep) {
+      let best = null, far = 0;
+      for (let k = 0; k < 16; k++) {
+        const a = k * Math.PI / 8;
+        let ok = 0, px = u.pos.x, pz = u.pos.z;
+        for (let n = 1; n <= 12; n++) {
+          const x = u.pos.x + Math.sin(a) * n * .3, z = u.pos.z + Math.cos(a) * n * .3;
+          if (!p.canStep(px, pz, x, z, u.pos.y) || b.army.wallBetween({ x: px, z: pz }, -1, { x, z }, false)) break;
+          ok = n; px = x; pz = z;
+        }
+        if (ok > far) { far = ok; best = { x: px, z: pz }; }
+      }
+      st.t = b.t;
+      if (best) { st.esc = best; st.escT = b.t + 2.5; goTo(p, inp, best.x, best.z, .3); return; }
+    }
     if (!F.onoDone) {
       goTo(p, inp, F.trailPoint.x, F.trailPoint.z, .3, true); return;
     }

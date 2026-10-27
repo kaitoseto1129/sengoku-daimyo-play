@@ -872,14 +872,14 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     // 集合前は穴だけ、輪の縁に入った瞬間にチェックへ替える。
     // 接近で円を満たすと雨待ちの進みと紛らわしいため、満たさない。
     cue.firstChild.style.display = joined ? 'none' : '';
-    cue.children[1].style.display = joined && (!waiting || want.progress >= 1 || rt.t - pinAt.arrivalAt < 1.2) ? '' : 'none';
+    cue.children[1].style.display = joined && (!waiting || want.progress >= 1) ? '' : 'none';
     cue.firstChild.setAttribute('stroke-dasharray', '1');
     cue.firstChild.setAttribute('stroke-dashoffset', '0');
     const progress = waiting ? Math.max(0, Math.min(1, want.progress)) : 0;
     // 満ちる扇は重ねず、残りを減らす目盛りと砂時計にそろえる。
     cue.lastChild.style.display = 'none';
-    // 待機の意味は砂時計で示し、残り時間は外周の目盛りにそろえる。
-    el._waitHourglass.style.display = waiting && progress < 1 && rt.t - pinAt.arrivalAt >= .8 ? '' : 'none';
+    // 待ち始めから砂時計を出し、到着のチェックと重ねない。
+    el._waitHourglass.style.display = waiting && progress < 1 ? '' : 'none';
     // 目盛りだけでなく砂そのものを減らし、残りと終わりが同じ印で分かるようにする。
     // 一秒の間にも進みが見える。部品は作り直さず、百分の一進んだ時だけ更新する。
     const sand = Math.round(progress * 100);
@@ -902,7 +902,10 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
           path.setAttribute('stroke-linecap', 'butt');
         }
       }
-      if (dial._sand !== sand) {
+      // 一秒ぶんずつ欠ける目盛りを同じ円に刻む。数字を足さず、残る待ちを数えられる。
+      const seconds = Math.max(1, Math.min(60, Math.round(want.waitDuration || 10)));
+      if (dial._seconds !== seconds || dial._sand !== sand) {
+        dial._seconds = seconds;
         dial._sand = sand;
         dial.children[1].setAttribute('stroke-dasharray', `${100 - sand} 100`);
       }
