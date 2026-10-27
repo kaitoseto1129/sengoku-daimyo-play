@@ -3,7 +3,7 @@
 //   ?bot&only=nagashinojo,castle のように戦の鍵を並べると、その戦だけを遊ぶ（鍵：okehazama moribe sunomata nagashinojo tobinosu shitaragahara suwahara anegawa sekigahara sanadamaru castle dojo town mikatagahara）
 //   ?bot&k=2 は何回目か（日本地図の筋書きを回ごとに替える）
 //   ?bot&persona=chu&n=2 は五人のテストプレイヤーの一人として遊ぶ（性格は下の PERSONAS。tools/players.sh が順に回す）
-import { newGame, fillRoster, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, setScenario } from './state.js';
+import { newGame, fillRoster, RANKS, BATTLES, SCENARIOS, SCENARIO_ORDER, setScenario, usePre } from './state.js';
 import { Auditor } from './audit.js';
 import { touchFrame, touchInput, isTouch } from './touch.js';
 import { S } from './settings.js';
@@ -967,9 +967,13 @@ export async function run(game) {
     const n = RANKS[G.rank].squad;
     if (n) fillRoster(G, n - (i >= 2 ? Math.round(n / 3) : 0), i >= 2 ? Math.round(n / 3) : 0);
     log(`${['桶狭間', '森部', '墨俣'][i]}を遊んでいます…`);
-    const r = await playOne(game, i, G, aud);
+    // 尾張統一戦が先頭に入っても、桶狭間を稲生の番号で始めない。
+    game.G = G;
+    const battleIndex = BATTLES.findIndex((bt) => bt.id === OKE[i]);
+    if (battleIndex < 0) continue;
+    const r = await playOne(game, battleIndex, G, aud);
     // 城下も測る（戦のあとの G で）
-    if (i < 2 && want('town')) await scanTown(game, G, i, aud, '桶狭間編');
+    if (i < 2 && want('town')) await scanTown(game, G, battleIndex, aud, '桶狭間編');
     reports.push(r);
     log(`${r.battle}：${r.time}秒・戦功${r.merit}・任務${r.main === true ? '達成' : '失敗'}・組${r.squad}・不具合${r.errors.length}件`);
   }
@@ -1837,6 +1841,8 @@ function fromAudit(aud, c) {
 // 遊べる戦の一覧（筋書きごと。信長で出陣・日本地図の城攻め・稽古場も）
 function listPlayable() {
   const L = [];
+  // 新しく始める試走には、保存中の戦の並びを持ち込まない。
+  usePre(null);
   // 織田家編（筋書きの鍵 oda）ができていれば、それを主に遊ぶ
   if (SCENARIOS.oda) {
     setScenario('oda');
@@ -2088,9 +2094,13 @@ async function playPersona(game, spec, aud, c) {
     if (!spec.cont) {
       const G = spec.kind === 'lord' ? lordGame(spec.scn) : newGame(spec.kind === 'camp' ? pick(['藤吉', '弥五郎', '小六']) : 'bot', 'normal', spec.scn);
       G.practice = spec.kind !== 'camp';
+      game.G = G;
+      // 保存を替えると尾張統一戦の有無で番号がずれるため、鍵で引き直す。
+      spec.i = BATTLES.findIndex((bt) => bt.id === spec.id);
+      if (spec.i < 0) throw new Error('指定した戦が見つからない');
       if (spec.kind === 'battle') { G.rank = spec.rank; G.aijirushi = 'maru'; if (G.rank >= 2) G.owned.push('katana'); }
       if (spec.kind === 'camp') { G.aijirushi = G.aijirushi || 'maru'; if (spec.i > 0) { G.rank = Math.min(3, Math.ceil(spec.i / 2)); if (G.rank >= 2) G.owned.push('katana'); } }
-      game.G = G; G.battle = spec.i;
+      G.battle = spec.i;
       game.story(spec.i);
     }
     // 組を持たない足軽は、支度の札を挟まず読み込みへ進む。

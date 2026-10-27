@@ -1,6 +1,6 @@
 // Player の手のうち「視界（壁・旗・味方の透け・一人称の隠し・見る向き）」（player.js から分けた。中身は同じ。Player.prototype へ戻すのは player.js の終わり）
 import * as THREE from 'three';
-import { RIDE } from './units.js';
+import { RIDE, angleDiff } from './units.js';
 import { POST, edgeDark, speedStreaks } from './post.js';
 import { sfx, setScene } from './audio.js';
 import { S, saveSettings, reduceMotion } from './settings.js';
@@ -377,7 +377,11 @@ export class PlayerView {
     // ---- 視点 ----
     if (this.rt.def.autoTargetCamera && Math.abs(input.dx) + Math.abs(input.dy) > .5) {
       this.yaw += this.camYawOff || 0; this.camYawOff = 0;
-      this.cameraTarget = null; this.cameraTargetReleased = true;
+      // 狙いは倒すまで保つ。自分で大きく見回して相手が視野の外へ出た時だけ外す。
+      const t = this.cameraTarget;
+      if (!t || Math.abs(angleDiff(this.yaw, Math.atan2(t.pos.x - this.u.pos.x, t.pos.z - this.u.pos.z))) > 1.1) {
+        this.cameraTarget = null; this.cameraTargetReleased = true;
+      }
     }
     const inv = S.invertY ? -1 : 1;
     // マウスの平滑化
@@ -793,7 +797,9 @@ export class PlayerView {
         }
       }
       const near = this.flagBlocksView(o.pos, 5, cam);
-      if (near || this.flagObstructs(o.flag, cam, flagRadius)) {
+      // 自分の背の小旗は肩越しでは透かさない。乱戦で自分を見分ける目印にする（一人称だけ透かす）。
+      const ownFlag = o === this.u && (D.key === 'inou' || D.key === 'okehazama') && !(this.fpK > .3);
+      if (!ownFlag && (near || this.flagObstructs(o.flag, cam, flagRadius))) {
         this.fadeNearFlag(o.flag);
         if (o.flag && o.human?.root.visible) this.fadeNearFlag(o.human.parts?.pole);
       }
@@ -1046,14 +1052,36 @@ export class PlayerView {
       o.team !== this.u.team && o.type !== 'dummy' && Math.abs(o.pos.y - this.u.pos.y) < 3;
   }
 
+  // 攻撃を押した時の狙い：今の相手が近く前にいれば保ち、いなければ画面の前の一番近い敵。
+  pickStrikeTarget() {
+    const u = this.u, cy = this.yaw + (this.camYawOff || 0), cur = this.cameraTarget;
+    const off = (o) => Math.abs(angleDiff(cy, Math.atan2(o.pos.x - u.pos.x, o.pos.z - u.pos.z)));
+    if (this.cameraTargetValid(cur) && Math.hypot(cur.pos.x - u.pos.x, cur.pos.z - u.pos.z) < 8 && off(cur) < 1.4) return cur;
+    let best = null, bs = Infinity;
+    for (const o of this.rt.army.units) {
+      if (!this.cameraTargetValid(o)) continue;
+      const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+      if (d > 7) continue;
+      const a = off(o);
+      if (a > 1.3) continue;
+      // 任務の▼の相手と、今届く相手を先に選ぶ。
+      const score = d + a * 2.5 - (o === this.rt.army.missionMarkedEnemy || o === this.rangeCueTarget ? 2 : 0);
+      if (score < bs && this.lockVisible(o) && !this.allyBetween(o)) { bs = score; best = o; }
+    }
+    if (best) { this.cameraTarget = best; this.cameraTargetReleased = false; this.cameraTargetT = .5; }
+    return best || (this.cameraTargetValid(cur) ? cur : null);
+  }
+
   updateCameraTarget(dt) {
+    if (this.rt.def.steadyMeleeCamera) { this.cameraTarget = null; return; }
     if (!this.rt.def.autoTargetCamera) return;
     if (!this.u.alive || this.rt.over) { this.cameraTarget = null; return; }
     this.cameraTargetT = (this.cameraTargetT || 0) - dt;
     if (this.cameraTargetT > 0 && this.cameraTargetValid(this.cameraTarget)) return;
     this.cameraTargetT = .2;
     const u = this.u, previous = this.cameraTarget;
-    if (this.cameraTargetValid(previous) && Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < 30 && this.lockVisible(previous)) return;
+    // 狙った相手は倒れるか遠く離れるまで保つ。味方の陰に一瞬入っても乗り換えない。
+    if (this.cameraTargetValid(previous) && Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < 20) return;
     this.cameraTarget = null;
     if (this.cameraTargetReleased) return;
     // 最初は大きい▼の本人。倒れた後は、実際に最も近い敵へ渡す。

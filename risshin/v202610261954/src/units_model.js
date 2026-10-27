@@ -479,10 +479,12 @@ function unitFill(strength, focus) {
       // 暗い床や柱の前でも、黒い具足の手足を読める散乱光を残す。
       reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.065)) * vec3(0.7, 0.76, 0.85) * (0.38 + 0.65 * fillFace + 0.12 * fillRim) * fillNear;
       // 逆光の袖や脚も暗い柱から離して読む。面の色を残し、線の形は増やさない。
-      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.78, 0.84, 0.95) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear;
+      // 縁の照りは夜と暗い空の時だけ。昼（既定の 0.35）は付けない：輪郭に青白い縁がちらつき、本の写真の黒漆に見えない（10/27）
+      float rimK = smoothstep(0.4, 0.85, clamp(${strength}, 0.0, 1.0));
+      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.78, 0.84, 0.95) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear * rimK;
       // 森の陰でも袖・兜・脚の縁に空の照り返しを残す。追加の形や光源は作らない。
       // 面の色と霧・遮蔽は保ち、近い兵だけに同じ補光を使う。
-      totalEmissiveRadiance += vec3(0.12, 0.14, 0.17) * smoothstep(0.45, 0.9, fillEdge) * fillNear;
+      totalEmissiveRadiance += vec3(0.12, 0.14, 0.17) * smoothstep(0.45, 0.9, fillEdge) * fillNear * rimK;
     }
     #include <aomap_fragment>`;
 }
@@ -1272,7 +1274,7 @@ function hatParts(look, parts, hi, fallen = false) {
     const fit = 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
     if (!hi) {
       // 遠くの軽い形：なだらかな円錐と縁
-      const prof = [[0.0, 0.19], [0.07, 0.163], [0.16, 0.105], [0.25, 0.037], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r * 0.91 * fit, y));
+      const prof = [[0.0, 0.25], [0.07, 0.195], [0.16, 0.122], [0.25, 0.043], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r * 0.91 * fit, y));
       // 中景へ切り替わる時にも笠の縁が十二角へ跳ねない。共用する形だけを細かくする。
       parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 20, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: 0x3e2a1e, mk2: MK.wood }));
       parts.push(P(at(new THREE.TorusGeometry(0.282 * fit, 0.011, 3, 20), 0, hy - 0.008, 0, Math.PI / 2), 0x1c1914, { mk: MK.lac }));
@@ -1282,7 +1284,7 @@ function hatParts(look, parts, hi, fallen = false) {
     // 黒漆の艶、擦れた所（縁・頂・欠け）から下塗りが出る（塗り陣笠は朱の下塗り、安い笠は紙と竹の茶）。前に小さく家紋（家ごとに金か朱）、顎紐
     const R = 0.3003 * fit;
     // 戦国の陣笠は頂の立った円錐（資料の雑兵の笠）：頂を上げ、縁へ真っ直ぐ下ろす（平たい皿にしない）
-    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * 0.91 * fit, y + 0.042 * Math.max(0, 1 - r / 0.3)]);
+    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * 0.91 * fit, y + 0.1 * Math.max(0, 1 - r / 0.3)]);   // 本の陣笠は頂のとがった円錐（10/27 頂を上げた）
     const yAt = (r) => { for (let i = 1; i < prof.length; i++) if (r <= prof[i][0]) { const [ra, ya] = prof[i - 1], [rb, yb] = prof[i]; return ya + (yb - ya) * (r - ra) / (rb - ra); } return prof[prof.length - 1][1]; };
     // 回す点は下から上の順に並べる（上から上の順だと面が下を向き、上から見えるのは裏の茶色だった）
     const kasa = new THREE.LatheGeometry(prof.slice().reverse().map(([r, y]) => new THREE.Vector2(r, y)), 48, Math.PI, Math.PI * 2);

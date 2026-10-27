@@ -11,7 +11,8 @@ import { useTerrain } from './asset_manifest.js';
 import * as THREE from 'three';
 import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe } from './props.js';
 import { woodTex, thatchTex } from './nature.js';
-import { sfx, musicAccent } from './audio.js';
+import { sfx, musicAccent, musicTension } from './audio.js';
+import { enemyFlagKinds } from './textures.js';
 import { victoryMoment, brushWord } from './victory_moment.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
@@ -19,6 +20,7 @@ import { clash } from './b_sekigahara.js';
 import { demSample } from './dem.js';
 import { S as SETTINGS } from './settings.js';
 import { usesTouchControls } from './touch.js';
+import { timeslipField } from './timeslip_field.js';
 
 // 六百四十メートル四方。会戦は中央の百五十メートルほどへ詰める（配置は設計の復元）。
 const RIVER = [[-148, -320], [-144, -120], [-152, 20], [-142, 160], [-150, 320]];
@@ -62,8 +64,9 @@ function prepareMarch(g) {
 // 彩度の低い茶は人の甲冑の色替えで無視されるため、弁柄の赤みを残す。
 // 笠にも同じ漆色を通す。旗を読めない近さでも、黒漆の味方と弁柄の敵を見分ける。
 // 指物は敵が縦長、味方が横広。旗の本数や材質を増やさず形でも区別する。
-const SHIBA = { armor: 0x88432f, hatColor: 0x88432f, lace: 0x96583d, cloth: 0x715044, flag: 'kari', flagShape: 1 };
-const HAYA = { armor: 0x834031, hatColor: 0x834031, lace: 0x8b503b, cloth: 0x68483e, flag: 'sujikai', flagShape: 1 };
+// 信勝方は朱の具足に黄土の鎧下、旗は朱染め（world.armyFlagKinds）。織田の藍と黒から一目で分ける（テスターの声 10/26）。
+const SHIBA = { armor: 0xa8381f, hatColor: 0xa8381f, lace: 0xb07a3a, cloth: 0x8a6a42, flag: 'kari', flagShape: 1 };
+const HAYA = { armor: 0xa23a22, hatColor: 0xa23a22, lace: 0xa8743a, cloth: 0x80623e, flag: 'sujikai', flagShape: 1 };
 const ODA = { hatColor: 0x121110, lace: 0x334f70, cloth: 0x293b51, flag: 'oda', flagShape: 2 };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const gone = (g) => !g || g.count === 0 || g.routed;
@@ -328,6 +331,32 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   return pin;
 }
 
+// 守る判定と同じ二十メートル。形は一度だけ作り、残り時間は描く面の数で示す。
+function holdRingTick(rt) {
+  const F = rt.flags, active = !F.ending && F.step === 1 && F.training < 11;
+  if (!active) { if (F.holdRing) F.holdRing.visible = false; return; }
+  if (!F.holdRing) {
+    const vertices = [], segments = 96, at = F.holdPoint;
+    for (let i = 0; i < segments; i++) {
+      const a = i / segments * Math.PI * 2, b = (i + 1) / segments * Math.PI * 2;
+      for (const [angle, radius] of [[a,19.7],[a,20],[b,20],[a,19.7],[b,20],[b,19.7]]) {
+        const x = at.x + Math.sin(angle) * radius, z = at.z - Math.cos(angle) * radius;
+        vertices.push(x, rt.world.heightAt(x, z) + .08, z);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const material = new THREE.MeshBasicMaterial({ color: 0xffe6a0, side: THREE.DoubleSide, transparent: true, opacity: .85, depthWrite: false, fog: false });
+    const ring = F.holdRing = new THREE.Mesh(geometry, material);
+    ring.renderOrder = 3; rt.scene.add(ring);
+    rt.cleanupTasks?.add(() => { rt.scene.remove(ring); geometry.dispose(); material.dispose(); });
+  }
+  const ring = F.holdRing, p = rt.player.u.pos;
+  ring.visible = true;
+  ring.material.color.setHex(Math.hypot(p.x - F.holdPoint.x, p.z - F.holdPoint.z) <= 20 ? 0xffe6a0 : 0xff6347);
+  ring.geometry.setDrawRange(0, Math.ceil(96 * Math.max(0, 1 - F.holdElapsed / 20)) * 6);
+}
+
 // 柴田勢と佐久間勢は、柴田が動く時に初めて置く。待つ間に立ち並ぶ兵を作らない（kaito 10/24「動かない味方と敵は一切排除」）。
 function spawnShiba(rt) {
   const F = rt.flags, W = rt.world;
@@ -337,7 +366,7 @@ function spawnShiba(rt) {
   F.shiba1 = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の長槍隊', anchor: { ...S0 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 12, noRout: true, formation: 'yari', dmgMult: 0.85, defMult: 1.2, morale: 95 },
     dress([{ type: 'ashigaru', n: 22, o: { spear: 'nagae' } }], SHIBA));   // 湧く数を抑える（iPhone 12 で耐える段に落ちた。テストプレイの声 10/24）。前列の密度は保つ
   F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家の徒歩武者', anchor: { x: 0, z: S0.z - 9 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 10, noRout: true, formation: 'line', dmgMult: 0.85, defMult: 1.2, morale: 98 },
-    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true, flagScale: 2.2 } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'ashigaru', n: 18 }], SHIBA));
+    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true, flagScale: 2.2 } }, { type: 'samurai', n: 1, o: { name: '宮井勘兵衛' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14 }], SHIBA));   // 刀で飛び込む武者を混ぜる（人数は同じ・テスターの声 10/26「同じ敵ばかり」）
   F.shibaU = F.shibaG.units.find((u) => u.type === 'busho');
   F.shibaU.maxHp *= 1.4; F.shibaU.hp = F.shibaU.maxHp;
   // 勝家を殴り続けても、共通の深手による単独離脱を起こさない。
@@ -383,6 +412,7 @@ const inou = {
   keepTaskLabel: true,
   keepGuardTaskLabel: true,
   autoTargetCamera: true,
+  steadyMeleeCamera: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
   nearAllyWholeOcclusion: true,
@@ -403,7 +433,7 @@ const inou = {
   hideGuideSteps: true,
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
-  missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', 'おいすぎるな'],
+  missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', '深追いするな'],
   missionHeading(rt) {
     const F = rt.flags;
     if (F.step === 0 || F.step === 2 || F.step === 3) return `${this.missionEnemyLabel(rt)}を たおせ`;
@@ -539,6 +569,19 @@ const inou = {
   spawn: { x: NOBU.x + 4, z: NOBU.z + 5, heading: Math.PI },
   lordSpawn: { x: NOBU.x, z: NOBU.z, heading: Math.PI },
   lordAt: { x: NOBU.x, z: NOBU.z, r: 20, why: '信長の旗本（稲生原の南）' },
+  // 身の回りの当時の場（timeslip_field.js）。弘治二年八月二十四日は今の九月末。
+  // 乾いた土の街道と畦、穂の出た丈の高い草（尾花が混じる）、土埃。名塚には前日に急ぎ築いた砦の逆茂木（竹束は鉄砲の後の物なので置かない）。
+  timeslip: {
+    wet: 0, dust: 0.85, trample: 0.2, debris: 1, arrows: 0.6,
+    grass: 0xa4a066, grassTints: [0xffffff, 0xe8dca8, 0xc8d098], grassH: 1.15, tallGrass: 0.9,
+    flagColors: [0xe6dfcc, 0x24211e, 0x7a4a36],
+    fights: [[SHIBA0.x, SHIBA0.z, 38], [HAYA0.x, HAYA0.z, 30], [HAYA1.x, HAYA1.z, 26], [FLANK.x, FLANK.z, 22]],
+    sets: [
+      { k: 'sakamogi', x: NAZUKA.x - 6, z: NAZUKA.z - 9, rot: Math.PI, len: 7 },
+      { k: 'sakamogi', x: NAZUKA.x + 3, z: NAZUKA.z - 10, rot: Math.PI - 0.15, len: 6 },
+      { k: 'nobori', x: NOBU.x - 6, z: NOBU.z - 10, dx: 4, dz: 0, n: 4, kind: 'oda', h: 5 },
+    ],
+  },
   world: {
     seed: 1556,
     groundHalf: 320,
@@ -571,11 +614,13 @@ const inou = {
     treeDensity: (x, z) => (Math.abs(x) > 118 || Math.abs(z) > 132 ? 1 : 0),
     groves: [{ x: -52, z: -76, r: 9, n: 10 }, { x: 52, z: -88, r: 12, n: 14 }, { x: -80, z: 88, r: 10, n: 10 }],
     fleeOut: (x, z, team) => team === 1 && z < -138,
+    armyFlagKinds: { kari: 'aka_kari', sujikai: 'aka_sujikai' }, // 紋はそのまま、染めだけ朱
 
   },
 
   setup(rt) {
     const W = rt.world;
+    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const F = rt.flags;
     const lord = !!rt.G.lord;
     const thinkNow = rt.army.thinkNow;
@@ -596,6 +641,7 @@ const inou = {
       if (enemy) { u.target = enemy; u.watch = null; u.moveTo = null; u.settled = false; }
     };
     F.step = 0; F.ek = 0; F.ak = 0;
+    enemyFlagKinds.add('aka_kari'); enemyFlagKinds.add('aka_sujikai'); // 置き幟にも敵の赤い縁
     F.goalPin = { x: 0, z: 0, r: 7, hide: 7 };
     F.fieldSigns = [{ label: '', unit: null }, { label: '', unit: null }]; // 味方は印なし・追う相手は字なしの赤い▼（kaito 10/23）
     // ---- 信長方：直属の槍隊・少ない家臣団・若い前田利家・佐久間勢 ----
@@ -626,9 +672,9 @@ const inou = {
       const swing = P.u.swing, assist = P.assistImpact, result = strike0(...a);
       if (!a[2] && !a[3] && (P.u.swing !== swing || P.assistImpact && P.assistImpact !== assist)) {
         F.strikeN++;
-        P.cameraTargetReleased = false;
-        const target = P.rangeCueTarget || rt.army.missionMarkedEnemy;
-        if (P.cameraTargetValid(target)) P.cameraTarget = target;
+        // 狙いは player_view.js の pickStrikeTarget が決める。無い時だけ届く相手を使う。
+        const target = P.rangeCueTarget;
+        if (!P.cameraTargetValid(P.cameraTarget) && P.cameraTargetValid(target)) { P.cameraTarget = target; P.cameraTargetReleased = false; }
       }
       return result;
     };
@@ -638,7 +684,7 @@ const inou = {
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       if (t && src?.isPlayer && t.team !== src.team) {
-        if (P.cameraTargetValid(t)) { P.cameraTarget = t; P.cameraTargetReleased = false; }
+        if (!P.cameraTargetValid(P.cameraTarget) && P.cameraTargetValid(t)) { P.cameraTarget = t; P.cameraTargetReleased = false; }
         if (rest[0]?.out?.res === 'block' && t.alive) {
           t.inouBlockUntil = rt.t + .7;
           t.inouHitUntil = 0;
@@ -675,10 +721,10 @@ const inou = {
     for (const [x, z, r] of VILLAGE) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
     for (const [x, z] of [[-18, -60], [22, -80]]) rt.scene.add(tawara(W, x, z, 0, 3));
     // 柴田の旗
-    for (const [x, z] of [[SHIBA0.x + 6, SHIBA0.z - 10], [SHIBA0.x + 6, SHIBA0.z + 10], [SHIBA0.x + 24, SHIBA0.z - 4]]) rt.scene.add(nobori(W, x, z, 'kari', 5.5));
+    for (const [x, z] of [[SHIBA0.x + 6, SHIBA0.z - 10], [SHIBA0.x + 6, SHIBA0.z + 10], [SHIBA0.x + 24, SHIBA0.z - 4]]) rt.scene.add(nobori(W, x, z, 'aka_kari', 5.5));
 
     // 立って待つだけの軽い合戦・遠くの止まった列は置かない（kaito 10/24「動かない味方と敵は一切排除」）。会戦は柴田が動く時に組み合った形で出す。
-    rt.scene.add(nobori(W, 18, -56, 'kari', 5));
+    rt.scene.add(nobori(W, 18, -56, 'aka_kari', 5));
     for (const g of [...F.friends, F.nobuGroup, ...rt.squadGroups]) prepareMarch(g);
 
     rt.world.setTime('day');
@@ -829,7 +875,8 @@ const inou = {
     // 殿は柴田と入れ替わりに北へ退き、戦場から消える。
     for (const g of F.rear) if (!gone(g)) { g.order = 'retreat'; g.aggro = 0; g.dest = { x: g.anchor.x, z: -110 }; g.onArrive = (q) => vanish(rt, q); }
     // 長槍も立ち止まらず、味方の列まで寄せてから斬り合う。
-    F.shiba1.order = 'move'; F.shiba1.dest = { x: 0, z: 2 }; F.shiba1.onArrive = (g) => { g.order = 'attack'; g.seekRange = 80; };
+    // 着いたら槍衾（穂先をそろえて構える）。十秒ごとに声を合わせて四秒だけ突き出る（update の槍衾の拍）。
+    F.shiba1.order = 'move'; F.shiba1.dest = { x: 0, z: 2 }; F.shiba1.onArrive = (g) => { g.order = 'yari'; g.seekRange = 80; F.wallAt = rt.t + 6; F.wallOut = false; };
     F.shibaG.order = 'move'; F.shibaG.dest = { x: 0, z: 30 };
     F.shibaBow.order = 'move'; F.shibaBow.dest = { x: 0, z: 14 };
     F.shibaBow.onArrive = advanceOnArrival;
@@ -855,14 +902,20 @@ const inou = {
       dress([{ type: 'busho', n: 1, o: { name: '林美作守', invuln: true, horse: true, flagScale: 2.2, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 8 }], HAYA));
     F.hayaU = F.hayaG.leader;
     F.hayaU.dmg *= 0.5; F.hayaU.noTarget = true;
-    F.hayaCenter = enemyGroup(rt, { faction: 'nobukatsu', name: '林の中央の備', anchor: { x: -10, z: -12 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 6, width: 7, noAI: true, noRout: true, morale: 75, formation: 'yari', dmgMult: 0.55 },
-      dress([{ type: 'ashigaru', n: 8 }], HAYA));
+    // 林の新手：同じ八人の備を、左（西）の畦から鬨の声と共に横から駆け込ませる。三人は刀で飛び込む武者。
+    F.hayaCenter = enemyGroup(rt, { faction: 'nobukatsu', name: '林の中央の備', anchor: { x: -78, z: 4 }, facing: Math.PI / 2, fleeDir: { x: 0, z: -1 }, aggro: 6, width: 7, noAI: true, noRout: true, morale: 80, formation: 'line', dmgMult: 0.55 },
+      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 5 }], HAYA));
     F.haya = [F.hayaG, F.hayaCenter];
-    for (const g of F.haya) {
-      prepareMarch(g);
-      g.order = 'move'; g.dest = { x: g.anchor.x, z: 24 }; g.speed = 1.6;
-      g.onArrive = advanceOnArrival;
-    }
+    for (const g of F.haya) prepareMarch(g);
+    F.hayaG.order = 'move'; F.hayaG.dest = { x: F.hayaG.anchor.x, z: 24 }; F.hayaG.speed = 1.6;
+    F.hayaG.onArrive = advanceOnArrival;
+    const sg = F.hayaCenter, left = F.mori && !gone(F.mori) ? F.mori.center() : { x: -20, z: 14 };
+    sg.order = 'move'; sg.speed = 3.6; sg.fire = true; sg.dest = { x: left.x - 4, z: left.z };
+    sg.onArrive = (g) => { F.surgeHit = rt.t; advanceOnArrival(g); };
+    rt.army.play('toki', sg.anchor, 1.3); rt.after(0.6, () => sfx('taiko', 0.9));
+    rt.after(1.2, () => rt.say('足軽', '左から新手じゃ！', 3));
+    // 大将の登場：鼓動の太鼓と張った笛。名前は姿が近づいた時に一度だけ大きく出す（update）。
+    musicTension(14); F.bossAt = rt.t;
     F.kuroda = allyGroup(rt, { name: '黒田半平', anchor: { x: -18, z: 46 }, facing: Math.PI, width: 6, aggro: 8, noAI: true, noRout: true, order: 'move' },
       dress([{ type: 'samurai', n: 1, o: { name: '黒田半平', invuln: true, keep: true } }, { type: 'ashigaru', n: 3 }], ODA));
     prepareMarch(F.kuroda);
@@ -905,7 +958,7 @@ const inou = {
       if (rt.player.hasKatana) lesson(rt, 'switch');
       else if (F.lesson) lessonEnd(rt, F.lesson);
     });
-    rt.after(30, () => {
+    rt.after(22, () => {
       if (F.lesson) lessonEnd(rt, F.lesson);
       F.step = 3; F.stepT = rt.t; F.training = 17;
       rt.setPhase('hayashi');
@@ -939,7 +992,13 @@ const inou = {
     F.hayaG.onArrive = (g) => vanish(rt, g); F.hayaG.speed = 1.8;
     F.hayaG.aggro = 1; F.hayaG.fire = false;
     lesson(rt, 'chain');
-    rt.after(9, () => {
+  },
+
+  // 討死後の進行は段の時計で管理し、討死の通知や予約の有無に依存させない。
+  aftermathTick(rt) {
+    const F = rt.flags, elapsed = rt.t - F.stepT;
+    if (F.step !== 4) return;
+    if (elapsed >= 9 && !F.centerOpen) {
       F.centerOpen = true;
       const g = F.hayaCenter;
       g.morale = Math.max(0, g.morale - 30); g.aggro = 1; g.fire = false;
@@ -953,16 +1012,16 @@ const inou = {
       F.kuroda.focus = null; F.kuroda.order = 'attack'; F.kuroda.seekRange = 35;
       F.nobuGroup.focus = null; F.nobuGroup.order = 'attack'; F.nobuGroup.seekRange = 30;
       F.front.push('B', 0.6);
-    });
-    rt.after(21, () => {
+    }
+    if (elapsed >= 21 && !F.mainBroken) {
       F.mainBroken = true; F.training = 18;
       F.front.rout('B', { hideAfter: 40 });
       for (const g of F.haya) { g.noRout = false; }
       lesson(rt, 'pursuit');
       rt.obj('main', '味方と追撃し、柴田の槍隊には近づきすぎない', 'main');
       rt.award((t) => { t.special = { label: '稲生原で部隊の崩れを連ねた', pts: 18 }; }, '林の備から中央を崩した');
-    });
-    rt.after(32, () => this.shibaRetreat(rt));
+    }
+    if (elapsed >= 32) this.shibaRetreat(rt);
   },
 
   // 段十九。弓、武者、しんがりの長槍。勝家は最後まで槍隊のそばに残る。
@@ -1020,6 +1079,7 @@ const inou = {
   update(rt, dt) {
     const F = rt.flags;
     const p = rt.player.u.pos;
+    holdRingTick(rt);
     if (F.ending) return;
     fieldDustTick(rt);
     KIT.backTick(rt);
@@ -1130,6 +1190,7 @@ const inou = {
         if (near && !F.flankSuccess) g.morale = Math.max(g.morale, 88);
       }
     }
+    this.enemyBeat(rt, dt);
     // 側面へ回る間は、組頭の命令どおり動いた人を離脱扱いにしない。
     const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
     if (!rt.G.lord && F.step >= 1 && F.step < 5 && !F.strayed && F.training !== 11 && F.training !== 12) {
@@ -1142,7 +1203,7 @@ const inou = {
       if (F.training >= 11 || Math.hypot(p.x - F.holdPoint.x, p.z - F.holdPoint.z) <= 20) F.holdElapsed += dt;
       const elapsed = F.holdElapsed;
       if (elapsed > 6 && F.training < 10) F.training = 10;
-      if (elapsed > 24 && F.training < 11) {
+      if (elapsed > 20 && F.training < 11) {
         F.training = 11; lesson(rt, 'side');
         rt.marker('flank', FLANK, '右の畦道', { guideRadius: 8 });
         rt.obj('main', '味方が正面を押さえる間に、右の畦へ回ろう', 'main');
@@ -1151,7 +1212,7 @@ const inou = {
       }
       // ピン（右の畦）に着いたら、時を待たずに横からの攻めへ進む（行き先と判定を合わせる）。
       if (F.training === 11 && !F.flankReached && Math.hypot(p.x - FLANK.x, p.z - FLANK.z) < 8) F.flankReached = true;
-      if ((elapsed > 42 || F.flankReached && elapsed > 26) && F.training < 12) {
+      if ((elapsed > 36 || F.flankReached && elapsed > 24) && F.training < 12) {
         F.training = 12; lesson(rt, 'flank');
         F.flankHp = F.shiba1.units.reduce((n, u) => n + Math.max(0, u.hp), 0);
       }
@@ -1169,28 +1230,30 @@ const inou = {
         }
         F.flankHp = hp;
       }
-      if (elapsed > 48 && !F.miyaiDuel) {
+      if (elapsed > 42 && !F.miyaiDuel) {
         F.miyaiDuel = true;
         F.miyaiU.noTarget = false; F.miyaiU.onWound = () => {};
         F.inu.order = 'attack'; F.inu.focus = F.miyaiU;
       }
-      if (elapsed > 66 && F.training < 13) this.hayaCome(rt);
-      if (elapsed > 86 && !F.leftBack) {
+      if (elapsed > 56 && F.training < 13) this.hayaCome(rt);
+      // 左の崩れ：横から来た林の新手が森の手に当たると、時を待たずに崩れる。
+      if ((elapsed > 76 || F.surgeHit && rt.t - F.surgeHit > 5 && elapsed > 64) && !F.leftBack) {
         F.leftBack = true;
+        if (F.mori && !gone(F.mori)) rt.army.play('unitBreak', F.mori.center(), 1);
         F.mori.morale = Math.max(25, F.mori.morale - 30);
         F.mori.order = 'retreat'; F.mori.dest = { x: -24, z: 52 };
         F.mori.onArrive = advanceOnArrival;
         F.front.push('A', 0.5);
         rt.say('足軽', '左が崩れた！中央の脇が空くぞ！', 4);
       }
-      if (elapsed > 98 && !F.centerBack) {
+      if (elapsed > 86 && !F.centerBack) {
         F.centerBack = true;
         F.hata.morale = Math.max(30, F.hata.morale - 20);
         F.hata.order = 'retreat'; F.hata.dest = { x: 0, z: 56 };
         F.hata.onArrive = advanceOnArrival;
         rt.say('組頭 源八', '中央も下がる！列を切らすな！', 4);
       }
-      if (elapsed > 112) this.daionjo(rt);
+      if (elapsed > 98) this.daionjo(rt);
     }
     // 宮井がほかの者に討たれても、段を止めない（全員が打ち合うので、利家より先に倒れる事がある）。
     if (F.miyaiU && !F.miyaiFell && !F.miyaiU.alive && F.step < 5) { F.miyaiFell = true; F.inu.focus = null; }
@@ -1212,8 +1275,12 @@ const inou = {
       if (F.hayaU.alive && elapsed > 55 && nobu?.alive && Math.hypot(nobu.pos.x - F.hayaU.pos.x, nobu.pos.z - F.hayaU.pos.z) < 4) {
         F.hayaU.hp = 0; rt.army.kill(F.hayaU, nobu);
       }
+      // 信長が届かない時も、斬り合う黒田が八十秒で討つ（山場を長く引き延ばさない）。
+      const kuro = F.kuroda?.units[0];
+      if (F.step === 3 && F.hayaU.alive && elapsed > 80) { F.hayaU.invuln = false; F.hayaU.hp = 0; rt.army.kill(F.hayaU, kuro?.alive ? kuro : nobu?.alive ? nobu : null); }
       if (!F.hayaU.alive) this.hayaFell(rt);
     }
+    if (F.step === 4) this.aftermathTick(rt);
     if (F.step === 5) {
       const elapsed = rt.t - F.stepT;
       // 近くの追い手を一秒に一度だけ見る。止める時間を区切り、またまとまって退く。
@@ -1236,10 +1303,64 @@ const inou = {
         F.lastWithdraw = true;
         F.shibaG.order = 'retreat'; F.shibaG.dest = F.retreatWarrior;
       }
-      // 追い手に絡まれて下がり切れない時も、七十秒で退き終えた扱いにする（止まったまま終わらない戦にしない）。
-      if (F.lastWithdraw && (F.shibaU.pos.z < -105 || elapsed > 70) && (F.shiba1.count === 0 || F.shiba1.center().z < -88 || elapsed > 60)) {
+      // 追い手に絡まれて下がり切れない時も、五十秒で退き終えた扱いにする（止まったまま終わらない戦にしない）。
+      if (elapsed >= 50 || F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88)) {
         F.commanderRetired = true;
         this.win(rt);
+      }
+    }
+  },
+
+  // 敵の兵種ごとの動き（テスターの声 10/26「同じ敵を斬り続けるだけ」）。字や印は足さず、動きと声だけ。
+  //   長槍の足軽：槍衾で構え、十秒ごとに声を合わせて四秒だけ突き出る。
+  //   刀の武者：間合いの少し外から踏み込んで一気に詰める。
+  //   林美作守：姿が近づいた時に名前を一度だけ大きく出す。
+  enemyBeat(rt, dt) {
+    const F = rt.flags;
+    const g = F.shiba1;
+    if (F.step === 1 && g && !gone(g) && !F.flankSuccess && F.wallAt && rt.t > F.wallAt && (g.order === 'yari' || g.order === 'attack')) {
+      F.wallOut = !F.wallOut;
+      g.order = F.wallOut ? 'attack' : 'yari';
+      F.wallAt = rt.t + (F.wallOut ? 4 : 10);
+      if (F.wallOut) rt.army.play('eshout', g.center(), 1);
+    }
+    if (F.step >= 1 && F.step < 5 && !(F.leapScan > rt.t)) {
+      F.leapScan = rt.t + 0.3;
+      for (const q of [F.shibaG, F.hayaCenter]) {
+        if (!q || gone(q)) continue;
+        for (const u of q.units) {
+          const t = u.target;
+          if (u.type !== 'samurai' || u.name || u.leap || !fighting(u) || u.noTarget || !t || !fighting(t) || u.leapCd > rt.t || u.swing || u.atk || u.stagger > 0) continue;
+          const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z, d = Math.hypot(dx, dz);
+          if (d < 2.8 || d > 6.5) continue;
+          u.leap = { x: dx / d, z: dz / d, v: (d - 1.5) / 0.3, t: 0.3 };
+          u.leapCd = rt.t + 5 + (u.id % 3);
+          u.heading = Math.atan2(dx, dz);
+          rt.army.play('eshout', u.pos, 0.6);
+        }
+      }
+    }
+    for (const q of [F.shibaG, F.hayaCenter]) {
+      if (!q) continue;
+      for (const u of q.units) {
+        const L = u.leap;
+        if (!L) continue;
+        const k = Math.min(dt, L.t);
+        if (fighting(u)) { u.pos.x += L.x * L.v * k; u.pos.z += L.z * L.v * k; }
+        L.t -= dt;
+        if (L.t <= 0) { u.leap = null; u.cd = Math.min(u.cd || 0, 0.1); }
+      }
+    }
+    // 林美作守の名：姿が正面四十メートル内に見えた時か、現れて十五秒で、一度だけ。
+    const h = F.hayaU;
+    if (h && F.bossAt && !F.bossNamed && h.alive) {
+      const p = rt.player.u.pos, dx = h.pos.x - p.x, dz = h.pos.z - p.z;
+      const off = Math.abs(((Math.atan2(dx, dz) - rt.player.yaw) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+      if (Math.hypot(dx, dz) < 40 && off < 0.7 || rt.t - F.bossAt > 15) {
+        F.bossNamed = true;
+        brushWord(rt, '林美作守', { introduction: true, hold: 2.4 });
+        sfx('taiko', 1); rt.after(0.35, () => sfx('taiko', 0.9));
+        rt.army.play('eshout', h.pos, 1.2);
       }
     }
   },

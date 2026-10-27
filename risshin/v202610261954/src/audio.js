@@ -247,6 +247,8 @@ const WAR_SCORES = {
   battle: { span: 6.4, notes: [[0, 0, 76, 0.5, 0.055], [0.8, 0, 76, 0.4, 0.04], [1.6, 0, 76, 0.5, 0.055], [1.9, 0, 76, 0.35, 0.035], [2.4, 1, 587.3, 0.7, 0.015], [3.2, 0, 76, 0.5, 0.055], [3.2, 1, 523.3, 0.5, 0.013], [3.8, 1, 440, 0.9, 0.014], [4, 0, 76, 0.4, 0.04], [4.8, 0, 76, 0.5, 0.055], [5.1, 0, 76, 0.35, 0.035], [5.4, 1, 392, 0.8, 0.012]] },
   climax: { span: 4.8, notes: [[0, 0, 80, 0.45, 0.075], [0.4, 0, 80, 0.35, 0.045], [0.8, 0, 80, 0.45, 0.07], [1, 0, 80, 0.3, 0.045], [1.2, 1, 587.3, 0.5, 0.018], [1.6, 0, 80, 0.45, 0.075], [1.8, 1, 698.5, 0.45, 0.016], [2, 0, 80, 0.35, 0.045], [2.4, 0, 80, 0.45, 0.07], [2.4, 1, 784, 0.7, 0.018], [2.6, 0, 80, 0.3, 0.045], [3.2, 0, 80, 0.45, 0.075], [3.4, 1, 659.3, 0.5, 0.016], [3.6, 0, 80, 0.35, 0.045], [4, 0, 68, 0.6, 0.08], [4, 1, 587.3, 0.7, 0.016]] },
   victory: { span: 4, once: true, notes: [[0, 0, 76, 0.5, 0.07], [0.5, 0, 76, 0.5, 0.07], [1, 0, 76, 0.5, 0.07], [1.35, 0, 76, 0.4, 0.06], [1.6, 0, 76, 0.4, 0.06], [1.8, 0, 76, 0.35, 0.06], [1.95, 0, 76, 0.35, 0.06], [2.1, 0, 76, 0.35, 0.065], [2.4, 0, 60, 1.2, 0.1], [2.4, 1, 587.3, 1.4, 0.016]] },
+  // 敵の大将が現れる時：低い太鼓の鼓動と、細く張った笛（稲生の林美作守など）。musicTension で数秒だけ。
+  tension: { span: 2.4, notes: [[0, 0, 56, 0.7, 0.085], [0, 1, 293.7, 2.2, 0.011], [0.3, 0, 56, 0.45, 0.05], [1.2, 0, 56, 0.7, 0.085], [1.2, 1, 277.2, 1.1, 0.011], [1.5, 0, 56, 0.45, 0.05], [2, 3, 110, 0.4, 0.03]] },
   defeat: { span: 6, once: true, notes: [[0, 0, 58, 0.8, 0.055], [1, 1, 587.3, 0.8, 0.015], [2, 1, 440, 0.9, 0.014], [3.2, 0, 52, 1, 0.05]] },
 };
 const warMusic = { name: null, bus: null, timer: null, next: 0, index: 0, change: null, hold: 0, accentUntil: 0 };
@@ -320,6 +322,12 @@ function warNote(note, t) {
 }
 // 上がる時は二秒、下がる時は七秒待ち、境目で曲を行き来させない。
 // 討ち取りの瞬間だけ、許可済みの太鼓を一打重ねる。音源数の上限も既存のまま。
+// 敵の大将の登場：sec 秒だけ張り詰めた節にし、その後は戦の熱さに合わせて戻す。
+export function musicTension(sec = 10) {
+  if (!ctx || !music || quiet || S.volume <= 0 || S.volMusic <= 0) return;
+  warMusic.tenseUntil = ctx.currentTime + sec;
+  playMusic('tension');
+}
 export function musicAccent() {
   if (!ctx || !warMusic.name || WAR_SCORES[warMusic.name].once || quiet || S.volume <= 0 || S.volMusic <= 0) return;
   const now = ctx.currentTime;
@@ -331,6 +339,7 @@ export function musicAccent() {
 function warMusicMood(dt, o) {
   const name = warMusic.name;
   if (!name || WAR_SCORES[name].once || quiet || o.aftermath) return;
+  if (name === 'tension' && ctx.currentTime < (warMusic.tenseUntil || 0)) return;
   const heat = Math.max(o.heat || 0, crowdLv);
   const rush = Math.max(o.march || 0, scene.approach || 0);
   const accent = ctx.currentTime < warMusic.accentUntil;
@@ -344,7 +353,7 @@ function warMusicMood(dt, o) {
   if (target === name) { warMusic.change = null; warMusic.hold = 0; return; }
   if (warMusic.change !== target) { warMusic.change = target; warMusic.hold = 0; }
   warMusic.hold += dt;
-  const rising = target === 'climax' || (target === 'battle' && name === 'prebattle');
+  const rising = target === 'climax' || name === 'tension' || (target === 'battle' && name === 'prebattle');
   if (warMusic.hold >= (rising ? 2 : 7)) playMusic(target);
 }
 

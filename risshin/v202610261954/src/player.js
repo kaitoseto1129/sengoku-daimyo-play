@@ -439,7 +439,8 @@ export function playerLook(G, stepOverride) {
     armor: ar.armor ?? bl.armor, lace: ar.lace ?? bl.lace, trim: ar.trim || 0, sode: bl.sode || step >= 2, hat,
     // 本人だけは身分によらず、少し高い無地の金旗を背負う。
     flag: 'player_gold', pole: true, flagScale: 1.25, flagShape: 0,
-    hatColor: 0xb58a32,
+    // 本の足軽の陣笠：弁柄の漆（黄色い菅笠に見せない。本人の見分けは背の金の旗）
+    hatColor: 0x6a2c1e,
     uma,
     weapon: 'spear', weaponExtra: wItem.reach || 0,
     haori: STEP_HAORI[step] || (G.equip.coat ? 0x8e2f1f : 0),

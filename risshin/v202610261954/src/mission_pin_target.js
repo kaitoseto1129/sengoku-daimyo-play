@@ -1,6 +1,6 @@
 // 任務の行き先と目当ての敵を決める所（mission_pin.js から分けた。中身は同じ。描くのは mission_pin.js）
 //   target(rt)：今の行き先 { x, z, r, unit, ... }。markedEnemy(rt)：戦が指した相手。updateEnemyTarget：目当ての一人の白ふちの▼
-import { VIEW } from './viewport.js';
+import { VIEW, safeInsets } from './viewport.js';
 import { currentObjective, missionWaitReached, missionFollowTarget } from './mission_guide.js';
 import { cameraWallBlocked, inouSignVisible, inouSignHeight } from './battle_sight.js';
 import * as THREE from 'three';
@@ -132,7 +132,8 @@ export function updateEnemyTarget(rt, allowed = true) {
   goalPoint.set(u.pos.x, u.pos.y + head, u.pos.z).project(rt.camera);
   let x = (goalPoint.x + 1) * W / 2, y = (1 - goalPoint.y) * H / 2;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= 32 && x <= W - 32 && y >= 80 && y <= H - 24;
+  const sa = safeInsets();
+  const onScreen = goalPoint.z >= -1 && goalPoint.z <= 1 && x >= sa.left + 40 && x <= W - sa.right - 40 && y >= sa.top + 80 && y <= H - sa.bottom - 24;
   const visible = onScreen && !cameraWallBlocked(rt, rt.camera.position, u.pos, rt.camera.position.y, u.pos.y + head) &&
     !rects.some(r => x + 32 > r.left && x - 32 < r.right && y + 8 > r.top && y - 72 < r.bottom);
   if (!enemyTarget) {
@@ -168,8 +169,8 @@ export function updateEnemyTarget(rt, allowed = true) {
     const right = -gx * Math.cos(yaw) + gz * Math.sin(yaw);
     const forward = gx * Math.sin(yaw) + gz * Math.cos(yaw);
     enemyTarget._direction.style.transform = `rotate(${Math.atan2(-forward, right)}rad)`;
-    x = right >= 0 ? W - 48 : 48;
-    const top = 96, bottom = H - 64, preferred = H * (forward < 0 ? .65 : .4);
+    x = right >= 0 ? W - sa.right - 48 : sa.left + 48;
+    const top = sa.top + 96, bottom = H - sa.bottom - 80, preferred = Math.max(top, Math.min(bottom, H * (forward < 0 ? .65 : .4)));
     let best = Infinity, found = false;
     for (let i = 0; i <= 16; i++) {
       const cy = i === 0 ? preferred : top + (bottom - top) * (i - 1) / 15;

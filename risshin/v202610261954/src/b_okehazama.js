@@ -22,6 +22,7 @@ import { cryCaption } from './battle_cries.js';
 import { rescueTarget, retreatRequired } from './battle_danger.js';
 import { cloneRoomNearMaterial } from './player.js';
 import { localPoint } from './army_local_way.js';
+import { timeslipField } from './timeslip_field.js';
 
 // ======================================================================
 // 第1戦　桶狭間
@@ -915,6 +916,7 @@ const okehazama = {
     if (result === 'block' && enemy?.alive && enemy.team !== rt.player.u.team)
       enemy.okeBlockUntil = rt.t + .7;
   },
+  autoTargetCamera: true, // 攻撃を押した相手を倒すまで狙う（稲生と同じ）。
   keepTaskLabel: true, // 近い敵を選んでも、組の下知と雨上がりを待つ任務を残す。
   keepDestinationTask: true, // 旗の場所の案内で、見張りを迎え撃つ下知を消さない。
   keepWaitOrderLabel: true, // 旗から少し離れても、接敵中の下知を移動の札で消さない。
@@ -1139,6 +1141,15 @@ const okehazama = {
   introText: 'まず、黄色い矢印の味方の隊長に近づこう。自分の頭上は白い◆。',
   prelude: false,   // 奇襲の戦は溜めない（prelude.js）
   // 組頭の旗のすぐ後ろから出る。谷の行軍と本陣の位置は保つ。
+  // 身の回りの当時の場（timeslip_field.js）。永禄三年五月十九日は今の六月半ば・梅雨。
+  // 昼の急な大雨（『信長公記』の石氷・楠の倒木）で、谷の道はぬかるみ、水たまりと折れた枝が散る。
+  // 田楽狭間へ攻め上る道筋ほど、倒れた槍・今川方の旗・脱げた陣笠が多い。
+  timeslip: {
+    wet: 1, dust: 0.15, trample: 0.35, debris: 1.1, arrows: 0.4, branches: 0.07,
+    grass: 0x86a258, grassTints: [0xffffff, 0xeef2d4, 0xd8e0b0], grassH: 1.05, tallGrass: 1,
+    flagColors: [0xe8e4d8, 0x1e1c1a, 0x8a2a22],
+    fights: [...[[-12, -30], [-8, -46], [18, -80], [18, -100], [HONJIN.x, HONJIN.z]].map(([x, z]) => [fieldX(x, z), fieldZ(x, z), 34]), [fieldX(-44, -10), fieldZ(-44, -10), 24]],
+  },
   spawn: { ...fieldPoint(-12, -25), heading: Math.PI + FIELD_TURN },
   lordSpawn: { ...fieldPoint(-44, 8), heading: Math.PI + FIELD_TURN },
   lordAt: { ...fieldPoint(-44, 2), r: 16, why: '谷の馬廻の後ろ（接近路の細かな位置は推定）' },
@@ -1515,6 +1526,7 @@ const okehazama = {
   },
   setup(rt) {
     // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
+    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const meritHit = rt.army.hooks.onMeritHit;
     rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
       if (source?.isPlayer && target.team !== source.team && amount > 0) target.okeHitUntil = rt.t + 3;

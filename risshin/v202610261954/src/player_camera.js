@@ -114,13 +114,14 @@ export class PlayerCamera {
     const escortPerson = this.rt.def.escortGuideTarget?.(this.rt);
     const guardPerson = escortPerson?.alive ? escortPerson : this.rt.def.guardTarget?.(this.rt);
     const guardDistance = guardPerson?.alive ? Math.hypot(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z) : Infinity;
-    const guardFrame = S.autoCam && guardDistance < (escortPerson?.alive ? 36 : 10) && !this.aiming && !this.lock && !this.cine &&
+    const steady = !!this.rt.def.steadyMeleeCamera;
+    const guardFrame = !steady && S.autoCam && guardDistance < (escortPerson?.alive ? 36 : 10) && !this.aiming && !this.lock && !this.cine &&
       !this.camShot && !this.overHold && !this.rt.over && !this.rt.game?.photo && !NAKA.cur && !this.fpWanted() &&
       (this.lookIdle || 0) > .7 && !this.rt.army.wallBetween(u.pos, u.team, guardPerson.pos);
     this.guardFrameK = (this.guardFrameK || 0) + ((guardFrame ? 1 : 0) - (this.guardFrameK || 0)) * Math.min(1, dt * (reduceMotion() ? 30 : 3));
     let offWant = 0;
     // 手で見回していない時は、近い相手を肩越しの中央へ穏やかに収める。
-    if (selfFrame && !this.rt.def.autoTargetCamera && S.autoCam && !reduceMotion() && this.closeFoeYaw != null &&
+    if (!steady && selfFrame && !this.rt.def.autoTargetCamera && S.autoCam && !reduceMotion() && this.closeFoeYaw != null &&
         !this.lock && !this.aiming && !this.rt.choice && (this.lookIdle || 0) > .8) {
       const focus = this.rt.army.missionMarkedEnemy;
       const focusNear = focus?.alive && Math.hypot(focus.pos.x - u.pos.x, focus.pos.z - u.pos.z) < 7;
@@ -130,7 +131,7 @@ export class PlayerCamera {
     }
     if (guardFrame && guardDistance > .8) offWant = angleDiff(this.yaw, Math.atan2(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z));
     // 戸口のある狭い戦場では、壁越しの集団の平均でなく通れる側の一人を中央へ収める。
-    const closeFightFrame = S.autoCam && this.rt.def.routeDestinationSight && this.closeFoeYaw != null &&
+    const closeFightFrame = !steady && S.autoCam && this.rt.def.routeDestinationSight && this.closeFoeYaw != null &&
       !this.lock && !this.aiming && !this.cine && !this.camShot && !this.overHold &&
       !this.rt.over && !this.rt.choice && !this.rt.game?.photo && !this.fpWanted() && (this.lookIdle || 0) > .7;
     // 道案内中は遠い目的地でなく、次に通る戸口や曲がり角を画面へ収める。
@@ -142,7 +143,7 @@ export class PlayerCamera {
     const followAlly = this.rt.def.missionFollowAlly?.(this.rt);
     const flagTravel = isTouch && VIEW.h <= 500 && (route?.marker?.guideFlag || waitingPlace) && route.pos &&
       !this.rt.def.footFlagGuides && Math.hypot(route.pos.x - u.pos.x, route.pos.z - u.pos.z) > (route.marker.guideRadius || 8);
-    const routeFrame = !this.cameraTarget && S.autoCam && !S.reduceGuidance && !reduceMotion() && (escape || route?.marker &&
+    const routeFrame = !steady && !this.cameraTarget && S.autoCam && !S.reduceGuidance && !reduceMotion() && (escape || route?.marker &&
       (followAlly || flagTravel || this.rt.def.routeGuidePriority?.(this.rt) || route.marker.entrance || route.marker.guideArea === 'move')) &&
       !this.lock && !this.aiming && !this.cine && !this.camShot && !this.overHold &&
       !this.rt.over && !this.rt.choice && !this.rt.game?.photo && !this.fpWanted() &&
@@ -179,7 +180,7 @@ export class PlayerCamera {
     if (routePoint && Math.hypot(routePoint.x - u.pos.x, routePoint.z - u.pos.z) > 1.2) {
       offWant = angleDiff(this.yaw, Math.atan2(routePoint.x - u.pos.x, routePoint.z - u.pos.z));
     }
-    const targetFrame = selfFrame && S.autoCam && !reduceMotion() && this.cameraTarget &&
+    const targetFrame = !steady && selfFrame && S.autoCam && !reduceMotion() && this.cameraTarget &&
       !this.aiming && !this.lock && !this.rt.choice && (this.lookIdle || 0) > .7;
     if (targetFrame) {
       const p = this.cameraTarget.pos, distance = Math.hypot(p.x - u.pos.x, p.z - u.pos.z);
@@ -190,6 +191,7 @@ export class PlayerCamera {
     // 狙う・狙い定め・一人称では狙いと画面がずれないよう、すぐ戻す
     const cameraTurn = angleDiff(this.camYawOff || 0, offWant) * Math.min(1, dt * (this.lookIdle < 0.7 || this.aiming || this.lock || this.fpK > 0.3 ? 12 : 1.4));
     this.camYawOff = (this.camYawOff || 0) + (this.rt.def.autoTargetCamera ? Math.max(-dt * .45, Math.min(dt * .45, cameraTurn)) : cameraTurn);
+    if (steady) this.camYawOff = 0;
     const cyaw = this.yaw + this.camYawOff;
     this.frameK = (this.frameK || 0) + (((this.foeNear || 99) < 4.5 && !this.mounted && !reduceMotion() ? 1 : 0) - (this.frameK || 0)) * Math.min(1, dt * 2);
     // 横持ちの肩越しだけ見下ろしを抑え、地面で画面が埋まるのを防ぐ。

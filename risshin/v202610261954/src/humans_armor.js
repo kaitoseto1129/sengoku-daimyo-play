@@ -8,11 +8,6 @@ import { S as SETTINGS } from './settings.js';
 function armorMaterial(opts) {
   if (!SETTINGS.simpleMaterials) return new THREE.MeshStandardMaterial(opts);
   const { roughness, metalness, envMapIntensity, normalMap, normalScale, ...rest } = opts;
-  // 金物（前立の鍍金）：軽い光でも色の付いた強い照りを出し、地の色は沈める。灰色の照りのままだと黄土の板に見える
-  if ((metalness ?? 0) >= 0.85 && rest.color != null) {
-    const c = new THREE.Color(rest.color);
-    return new THREE.MeshPhongMaterial({ ...rest, color: c.clone().multiplyScalar(0.6), shininess: 60, specular: c.multiplyScalar(1.1) });
-  }
   return new THREE.MeshPhongMaterial({ ...rest, shininess: 18, specular: 0x333333 });
 }
 import { prepHand } from './humans_hands.js';
@@ -373,8 +368,7 @@ function crestMats() {
   if (!CREST_MAT) {
     const S = THREE.DoubleSide;
     CREST_MAT = {
-      // 本の写真の前立は鍍金の真鍮：明るい金で艶が強い（くすんだ黄土の板に見せない）
-      gold: armorMaterial({ color: 0xd9b45a, metalness: 0.92, roughness: 0.2, envMapIntensity: 1.4, side: S }),
+      gold: armorMaterial({ color: 0xc29a48, metalness: 0.85, roughness: 0.3, side: S }),
       black: armorMaterial({ color: 0x14110f, metalness: 0.1, roughness: 0.3, side: S }),
       red: armorMaterial({ color: 0x8e2416, metalness: 0.05, roughness: 0.35, side: S }),
     };
@@ -388,8 +382,7 @@ function crestGeo(kind) {
   const named = namedCrestGeometry(kind);
   if (named) return [named];
   if (CREST_GEO.has(kind)) return CREST_GEO.get(kind);
-  // 縁に細い面取り：板の縁で光が切り替わり、打ち出した金物の厚みに見える（形は種類ごとに一つだけ作って使い回す）
-  const flat = (pts, d = 0.004) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: d, bevelEnabled: true, bevelThickness: 0.0016, bevelSize: 0.0014, bevelSegments: 1, curveSegments: 4 }); g.translate(0, 0, -d / 2); return g; };
+  const flat = (pts, d = 0.004) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: d, bevelEnabled: false, curveSegments: 4 }); g.translate(0, 0, -d / 2); return g; };
   // 刃：二次の曲線を芯に、幅 w0→w1 で細る板（sd で左右）
   const blade = (sd, p1, p2, w0, w1) => {
     const L = [], R = [];
@@ -448,12 +441,7 @@ function crestGeo(kind) {
   }
   // 材質ごとに一つの形にまとめる
   const by = {};
-  for (const [g, k] of parts) {
-    for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a);
-    // 金の板は鉢の丸みに沿って左右へ少し反らせる：平らな一枚だと一色の黄土に見え、本の鍍金の照り返しが出ない（点の数は同じ）
-    if (k !== 'black') { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, p.getZ(i) - 1.1 * x * x); } }
-    (by[k] = by[k] || []).push(g);
-  }
+  for (const [g, k] of parts) { for (const a of Object.keys(g.attributes)) if (a !== 'position' && a !== 'normal') g.deleteAttribute(a); (by[k] = by[k] || []).push(g); }
   const out = Object.entries(by).map(([k, gs]) => { const g = mergeGeometries(gs); g.computeVertexNormals(); g.computeBoundingSphere(); return [g, k]; });
   CREST_GEO.set(kind, out);
   return out;
@@ -716,7 +704,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         float okeM = smoothstep(0.215, 0.19, abs(q.x)) * smoothstep(0.955, 0.985, q.y) * smoothstep(1.40, 1.37, q.y) * (1.0 - vDmGlove.x) * (gl_FrontFacing ? 1.0 : 0.0);
         if (okeM > 0.0) {
           float pv = (q.y - 0.97) / 0.055, t = fract(pv), row = floor(pv);
-          vec3 base = uArmAmt > 0.5 ? uArm * 0.7 : vec3(0.085, 0.056, 0.036);
+          vec3 base = uArmAmt > 0.5 ? uArm * 0.8 : vec3(0.19, 0.105, 0.055);   // 本の桶側胴の茶の漆（黒く沈ませない）
           base *= 0.9 + 0.2 * fract(sin(row * 12.9898 + 4.1) * 43758.5453);
           float shade = mix(0.28, 1.0, smoothstep(0.0, 0.2, t)) * (1.0 + 0.8 * smoothstep(0.82, 0.94, t) * (1.0 - smoothstep(0.94, 1.0, t)));
           vec2 rv = vec2(fract(atan(q.x, q.z) * 4.2) - 0.5, (t - 0.88) * 2.2);
@@ -733,6 +721,17 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
           dmLacq = mix(dmLacq, 1.0 - monA, okeM); dmCloth *= 1.0 - okeM; dmLeather *= 1.0 - okeM;
           dmGold = mix(dmGold, monA, okeM);
           dmH = mix(dmH, (smoothstep(0.0, 0.18, t) - 0.5) * 0.12, okeM);
+        }
+        // 脚：本の足軽は佩楯・臑当でなく、紺と生成りの縞の股引に、生成りの脚絆（膝下）。手は除く
+        float legM = (1.0 - smoothstep(0.66, 0.7, q.y)) * smoothstep(0.1, 0.13, q.y) * (1.0 - vDmGlove.x) * (gl_FrontFacing ? 1.0 : 0.0);
+        if (legM > 0.0) {
+          float kya = 1.0 - smoothstep(0.4, 0.43, q.y);
+          float st = step(0.5, fract((q.x * 0.8 + q.z * 0.6) * 38.0));
+          vec3 hakama = mix(vec3(0.42, 0.38, 0.3), vec3(0.035, 0.045, 0.085), st);
+          vec3 kyahan = vec3(0.36, 0.32, 0.25) * (1.0 - 0.35 * step(0.82, fract(q.y * 28.0)));
+          vec3 lc = mix(hakama, kyahan, kya) * (0.85 + 0.3 * smoothstep(-0.1, 0.1, dmH));
+          diffuseColor.rgb = mix(diffuseColor.rgb, lc, legM);
+          dmCloth = mix(dmCloth, 1.0, legM); dmLacq *= 1.0 - legM; dmGold *= 1.0 - legM; dmLeather *= 1.0 - legM;
         }
       }` : ''}
       }`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>

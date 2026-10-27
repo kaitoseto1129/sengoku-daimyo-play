@@ -81,7 +81,7 @@ export const INABAYAMA_PLAN = {
   mon: 'saito',   // 曲輪の内に立てる幟の紋（castle_plan の autoKuruwaLife）
   name: '稲葉山城', type: 'yama',
   // 大将の居場所（kaito 10/2）：天守・二重櫓の無い土の城。本丸の主殿の奥の間に斎藤龍興（戸口は南の縁側）
-  lordSeat: { kind: 'goten', profile: 'inabayama', oku: 0.42, at: [HON.x + 2, HON.z - 6], w: 11, d: 6.5, rot: 0, door: 1, name: '主殿', where: '主殿の奥の間', earth: 0x786653 },   // 本の CG の戦国前期の城：白い漆喰でなく土壁の茶
+  lordSeat: { kind: 'goten', profile: 'inabayama', oku: 0.42, at: [HON.x + 2, HON.z - 6], w: 11, d: 6.5, rot: 0, door: 1, name: '主殿', where: '主殿の奥の間', earth: 0x786653, boardRoof: true },   // 本の CG の戦国前期の城：白い漆喰でなく土壁の茶
   kuruwa: [
     // 主郭の広さ・外形は推定。建物を縁の内に収め、西の虎口と東の小曲輪の口を空ける
     { id: 'hon', name: '本丸', poly: rect(HON.x, HON.z - 2, 40, 36), level: (bf) => bf(HON.x, HON.z), wall: 'saku', dorui: 1.3 },

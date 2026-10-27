@@ -49,7 +49,7 @@ export class PlayerRanged {
   }
   // 当て寄せの相手：近い順のうち、間に味方のいない者（照準の相手が入っていればそれを先に）
   assistPick(list) {
-    const want = this.lock || this.aimed;
+    const want = this.lock || this.cameraTarget || this.aimed;
     if (want) for (const h of list) if (h.u === want && !this.allyBetween(h.u)) return h.u;
     for (const h of list) if (!this.allyBetween(h.u)) return h.u;
     return null;

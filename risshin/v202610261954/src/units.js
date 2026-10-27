@@ -582,8 +582,11 @@ export class Army {
     look.flagBoost = u.team === 0 ? fieldLook.allyFlagBoost || 0 : 0;
     // 稲生の敵味方は具足の色でも示す。形・武器・強さはそのまま。
     if (fieldLook.battleKey === 'inou' && !look.kosode && !look.sohei && u.type !== 'porter' && u.type !== 'dummy') {
-      look.sideArmor = u.team === 0 ? u.type === 'player' || u.type === 'busho' ? 0x1766d4 : 0x526b85 : u.type === 'busho' && u.name ? 0xd52e35 : 0xb87979;
+      // 味方は織田の藍と黒、敵（信勝方）は朱。桃色に見えず、離れても色相で分かるように（テスターの声 10/26）。
+      look.sideArmor = u.team === 0 ? u.type === 'player' || u.type === 'busho' ? 0x1766d4 : 0x3f5f88 : u.type === 'busho' && u.name ? 0xc8261c : 0xa8381f;
       look.armor = look.helm = look.hatColor = look.sideArmor;
+      // 本人だけ笠と兜を金にし、背の金の小旗とそろえて乱戦でも一目で分かるようにする。
+      if (u.type === 'player') look.helm = look.hatColor = 0xd9a63a;
     }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
@@ -1531,8 +1534,8 @@ export class Army {
           if (!f) continue;
           f.visible = dist < 110 && !u.group?.hideFlags;
           const target = this.missionMarkedEnemy;
-          // 桶狭間では本人を見分ける無地の金旗を消さず、周りの旗だけ薄くする。
-          const keepSelfFlag = this.world.def.battleKey === 'okehazama' && u.isPlayer && f === u.flag;
+          // 桶狭間・稲生では本人を見分ける無地の金旗を消さず、周りの旗だけ薄くする。
+          const keepSelfFlag = (this.world.def.battleKey === 'okehazama' || this.world.def.battleKey === 'inou') && u.isPlayer && f === u.flag;
           const fade = !keepSelfFlag && f.visible && (u.camD < 9 && flagBlocksView(f, cam, this.playerUnit?.pos) ||
             target?.alive && u !== target && u.camD < 28 && flagBlocksView(f, cam, target.pos, 0));
           fadeViewFlag(f, !!fade);

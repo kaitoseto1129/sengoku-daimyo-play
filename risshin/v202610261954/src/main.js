@@ -30,6 +30,7 @@ import { NAKA } from './naka.js';
 import { deploymentView } from './deployment_view.js';
 import { setRenderer, FLAG_MOON } from './world.js';
 import { installGrade } from './grade.js';
+import { installCompileDefer } from './compile_defer.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -528,6 +529,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 installGrade(renderer);
+// 戦の途中で初めて出る描き方は、裏で組み上がってから描く（走ると一コマ止まる。compile_defer.js）
+installCompileDefer(renderer, (sc) => { try { return !!game.battle && sc === game.battle.scene && !game.starting && game.battle.t > 0.3; } catch (e) { return false; } });
 setRenderer(renderer); window.__renderer = renderer;
 const camera = new THREE.PerspectiveCamera(Math.min(S.fov, 54), 1, 0.1, 150);
 // 戦の途中に作った人の材質は、描く前に絵の仕組みを作り始める（humans.js が呼ぶ。もう作ってある材質だけなら何もしない）

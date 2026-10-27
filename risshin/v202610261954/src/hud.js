@@ -48,7 +48,7 @@ export class Hud {
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i {
         grid-column:1 / -1; grid-row:2; width:100% !important; min-width:32px;
         height:28px !important; border:2px solid #fff3df; padding:0;
-        background:repeating-linear-gradient(135deg,#514a3f 0 3px,#14120f 3px 6px) !important;
+        background:#0c0b0a !important;
         position:relative; mask:none !important; -webkit-mask:none !important; box-sizing:border-box;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp > span,
@@ -58,7 +58,7 @@ export class Hud {
         background:repeating-linear-gradient(to right,transparent 0 calc(25% - 2px),#14120f calc(25% - 2px) 25%);
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp i strong {
-        position:absolute; inset:0; display:block; width:100%; height:100%; background:#fff3df;
+        position:absolute; inset:0; display:block; width:100%; height:100%; background:#46c25a;
         transform:scaleX(var(--hp-ratio,1)); transform-origin:left center;
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp em {
@@ -68,8 +68,9 @@ export class Hud {
       }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep { outline:2px solid #fff3df; }
       html:root body #hud.field-clean.field-clean .bl #h-hp.hp.deep i strong {
-        background:#a33124;
-      }`;
+        background:#e8432e;
+      }
+      /* 命の棒は暗い地に緑の塗り。三割を切ると赤（数字の行も残す）。 */`;
       // ↑ 戦の画面は動きを減らす設定が無くても点滅させない（命の棒・狙われた時の縁・囲まれた時の縁・丸の光り。kaito 10/23「チカチカがほんとにやだ」）。
       document.head.appendChild(css);
     }

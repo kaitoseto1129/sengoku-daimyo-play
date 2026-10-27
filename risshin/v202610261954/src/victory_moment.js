@@ -15,22 +15,49 @@ transition:opacity .35s ease-out,transform .55s cubic-bezier(.2,.9,.3,1.15)}
 .vic-word.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .vic-word.big{font-size:min(36vh,200px);line-height:1}
 .vic-word.kill{font-size:min(12vh,68px);line-height:1.1}
+.vic-word.introduction{width:30vw;max-width:30vw;top:18%;font-size:min(5.5vw,46px);line-height:1.1;text-align:center;letter-spacing:.04em;transform:translate(-50%,-50%);transition:opacity .35s ease-out;-webkit-text-stroke:1px #14120f}
 .vic-word.still{transition:none}`;
   document.head.appendChild(st);
 }
 
 // 大きな筆文字を一度だけ出して引く（大きな出来事の見出し。字はこれだけ）。
-export function brushWord(rt, text, { big = false, hold = 2.2 } = {}) {
+export function brushWord(rt, text, { big = false, introduction = false, hold = 2.2 } = {}) {
   ensureStyle();
   const e = document.createElement('div');
-  e.className = 'vic-word ' + (big ? 'big' : 'kill') + (reduceMotion() ? ' still' : '');
+  e.className = 'vic-word ' + (introduction ? 'introduction' : big ? 'big' : 'kill') + (reduceMotion() ? ' still' : '');
   e.setAttribute('aria-hidden', 'true');
   e.textContent = text;
   document.body.appendChild(e);
-  requestAnimationFrame(() => requestAnimationFrame(() => e.classList.add('on')));
+  // 登場名は上の空いた所へ。本人の姿と、人数・任務・命の札を避ける。
+  let frame = 0;
+  const columns = [.5, .34, .66], empty = [];
+  const place = () => {
+    if (introduction && e.isConnected) {
+      const w = innerWidth * .3, h = e.offsetHeight || 50;
+      const rects = rt.hud?.hudRects?.() || empty;
+      const person = rt.flags.hayaU && rt.hud?.measurePersonFrame?.(rt.flags.hayaU, rt);
+      let best = Infinity, bx = innerWidth / 2, by = innerHeight * .18;
+      for (let y = h / 2 + 8; y <= innerHeight * .32; y += 8) for (const fraction of columns) {
+        const x = innerWidth * fraction;
+        let overlap = Math.abs(x - innerWidth / 2) * .001;
+        for (let i = 0; i <= rects.length; i++) {
+          const r = i === rects.length ? person : rects[i];
+          if (!r) continue;
+          overlap += Math.max(0, Math.min(x + w / 2 + 8, r.right) - Math.max(x - w / 2 - 8, r.left)) *
+            Math.max(0, Math.min(y + h / 2 + 8, r.bottom) - Math.max(y - h / 2 - 8, r.top));
+        }
+        if (overlap < best) { best = overlap; bx = x; by = y; }
+      }
+      e.style.left = `${bx}px`; e.style.top = `${by}px`;
+      // 空きがない間は重ねず、同じ一度の登場時間内で空きを待つ。
+      e.style.visibility = best < 1 ? 'visible' : 'hidden';
+      if (e.isConnected) frame = requestAnimationFrame(place);
+    }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => { place(); e.classList.add('on'); }));
   const t1 = setTimeout(() => e.classList.remove('on'), hold * 1000);
-  const t2 = setTimeout(() => e.remove(), hold * 1000 + 600);
-  rt.cleanupTasks?.add(() => { clearTimeout(t1); clearTimeout(t2); e.remove(); });
+  const t2 = setTimeout(() => { cancelAnimationFrame(frame); e.remove(); }, hold * 1000 + 600);
+  rt.cleanupTasks?.add(() => { clearTimeout(t1); clearTimeout(t2); cancelAnimationFrame(frame); e.remove(); });
 }
 
 // 近くの味方の多い向きへ肩越しのカメラを向ける。見上げず、少し見下ろす。

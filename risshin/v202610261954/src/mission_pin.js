@@ -2,7 +2,7 @@
 //   戦の定義の missionPin(rt) が { x, z, r } を返す間だけ立てる（r＝着いたとみなす半径。定義の判定と同じ値を返す）。
 //   待つ場所は着いても残す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
-import { VIEW } from './viewport.js';
+import { VIEW, safeInsets } from './viewport.js';
 import { missionWaitReached } from './mission_guide.js';
 import { groundAt } from './floors.js';
 import { cameraWallBlocked, inouSignVisible, inouSignHeight } from './battle_sight.js';
@@ -804,7 +804,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   el._label.style.left = '0';
   el._work = null; el.classList.remove('fire-action');
   const W = VIEW.w, H = VIEW.h;
-  const outside = hidden || x < 48 || x > W - 48 || y < 64 || y > H - 24 || !inouPinFree(x, y, rects);
+  const sa = safeInsets();
+  const outside = hidden || x < sa.left + 48 || x > W - sa.right - 48 || y < sa.top + 64 || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects);
   const raid = rt.def.missionStyle === 'raid';
   const joined = raid && want.area && want.arrived;
   // 画面の端でも穴のある同じピンにする。白い矢印を別の目印に見せない。
@@ -906,13 +907,13 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     const dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
     if (Math.hypot(dx, dy) < .001) { el.hidden = true; return; }
     const side = Math.abs(dx) / Math.max(1, W / 2 - 92) >= Math.abs(dy) / Math.max(1, H / 2 - 86);
-    const baseX = side ? dx >= 0 ? W - 92 : 92 : W / 2;
+    const baseX = side ? dx >= 0 ? W - sa.right - 92 : sa.left + 92 : W / 2;
     const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - 68 : 104;
     let found = false;
     for (let i = 0; i <= 40; i++) {
       const offset = Math.ceil(i / 2) * 18 * (i % 2 ? 1 : -1);
       x = baseX + (side ? 0 : offset); y = baseY + (side ? offset : 0);
-      if (x < 48 || x > W - 48 || y < 64 || y > H - 24 || !inouPinFree(x, y, rects)) continue;
+      if (x < sa.left + 48 || x > W - sa.right - 48 || y < sa.top + 64 || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects)) continue;
       found = true; break;
     }
     if (!found) { el.hidden = true; return; }

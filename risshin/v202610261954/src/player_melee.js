@@ -141,11 +141,17 @@ export class PlayerMelee {
     // 頭上で回す一撃（spin）は、周りに三人以上いる時だけ autoMeleeKind が選ぶ。
     const u = this.u;
     const army = this.rt.army;
+    const steady = !!this.rt.def.steadyMeleeCamera, shakeK = steady ? .2 : 1;
     if (this.assistImpact && !assisted) return;
-    if (!impact && !assisted && kind !== 'butt' && kind !== 'spin' && !this.mounted && (S.aimAssist || isTouch)) {
+    // 押した時に前の一番近い敵を狙いに決め、倒すまでその相手へ向き直る。
+    const focus = !impact && !assisted && !this.mounted && this.rt.def.autoTargetCamera && this.weapon !== 'gun' && this.weapon !== 'bow' ? this.pickStrikeTarget() : null;
+    if (!impact && !assisted && kind !== 'butt' && kind !== 'spin' && !this.mounted && (S.aimAssist || isTouch || focus)) {
       const reach = this.meleeReach(kind), half = this.meleeHalf(kind), clear = this.meleeFenceClear(reach), over = this.weapon === 'spear';
+      // 刃の前に敵がいれば今まで通りその敵を突く。いない時だけ狙いの相手へ向き直る。
       if (!army.enemiesInArc(u.pos, u.heading, reach, half, u.team, over, true, clear, this.lock).length) {
-        const target = this.meleeAssistTarget(kind, u.heading), stepTo = this.meleeAssistStep;
+        const focusTurn = focus && Math.hypot(focus.pos.x - u.pos.x, focus.pos.z - u.pos.z) < reach + 1.5 && !this.allyBetween(focus);
+        if (focusTurn) this.meleeAssistStep = isTouch ? 0.9 : 0.35;
+        const target = focusTurn ? focus : this.meleeAssistTarget(kind, u.heading), stepTo = this.meleeAssistStep;
         if (target) {
           const dx = target.pos.x - u.pos.x, dz = target.pos.z - u.pos.z, d = Math.hypot(dx, dz) || 1, h = Math.atan2(dx, dz);
           this.assist = { h, t: 0.65 };
@@ -309,7 +315,7 @@ export class PlayerMelee {
         army.burst(best.px, y, best.pz, thick ? 3 : 7, 'wood', -fx * 0.6, -fz * 0.6);
         sfx(thick ? 'thud' : 'crack', thick ? 0.9 : 1.1); sfx('wood', 0.7);
         if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, thick ? 0.06 : 0.05));
-        this.addShake(thick ? 0.08 : 0.05);
+        this.addShake((thick ? 0.08 : 0.05) * shakeK);
         if (thick && !this.thickHint) { this.thickHint = true; this.rt.hud.flash(`太い門や塀は、${this.weapon === 'sword' ? '刀' : '槍'}では少ししか傷まない`, 'dim'); }
       } else if (kind !== 'spin' && kind !== 'butt') {
         swing.res = 'miss';
@@ -317,7 +323,7 @@ export class PlayerMelee {
         const big = kind === 'charged' || kind === 'slam' || kind === 'kara' || kind === 'sweep';
         this.cd += big ? 0.22 : 0.1;
         if (!this.mounted && !(this.lunge && this.lunge.t > 0)) { const st = big ? 0.3 : 0.15; this.lunge = { x: Math.sin(heading) * st, z: Math.cos(heading) * st, t: 0.12 }; }
-        if (!reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
+        if (!steady && !reduceMotion() && S.shake) this.recoilPitch(big ? 0.012 : 0.005);
       }
     }
     if (hits.some(h => h.res === 'hit' || h.res === 'armor' || h.res === 'block')) {
@@ -338,10 +344,10 @@ export class PlayerMelee {
       if (hits.some(h => h.hurt)) sfx('playerCut', killed ? 1.1 : heavy ? 1 : 0.85);
       else if (heavy) { sfx('thud', 0.7); if (counter || kind === 'charged') this.rt.game.slowmo = Math.max(this.rt.game.slowmo || 0, counter && this.counterPerfect ? 0.4 : 0.18); }
       if (counter) this.counterPerfect = false;
-      if (kind === 'slash') { sfx('slash', 0.6); if (!reduceMotion()) this.yaw += (this.slashN % 2 ? 1 : -1) * 0.012; }
-      else if ((kind === 'thrust' || kind === 'charged') && !reduceMotion()) this.recoilPitch(0.006);   // 穂先が入る時、前へわずかに引かれる
+      if (kind === 'slash') { sfx('slash', 0.6); if (!steady && !reduceMotion()) this.yaw += (this.slashN % 2 ? 1 : -1) * 0.012; }
+      else if ((kind === 'thrust' || kind === 'charged') && !steady && !reduceMotion()) this.recoilPitch(0.006);   // 穂先が入る時、前へわずかに引かれる
       // 薙ぎが当たると、重い柄が体に食い込む手応え：少し長い止めと、下へ沈む揺れ
-      if (kind === 'sweep') { this.addShake(0.08); if (!reduceMotion()) this.recoilPitch(0.015); }
+      if (kind === 'sweep') { this.addShake(0.08 * shakeK); if (!steady && !reduceMotion()) this.recoilPitch(0.015); }
       if (hits.some((h) => h.u.type === 'samurai' || h.u.type === 'busho' || h.u.type === 'cavalry')) sfx('clank', heavy ? 1.3 : 0.9);
       // 一打につき最大十八粒。既存の形・材質・配列の枠を使い回す。
       let burstBudget = 18;
@@ -378,15 +384,15 @@ export class PlayerMelee {
           army.burst(t.pos.x, t.pos.y + 0.08, t.pos.z, 2, 'dust', nx, nz, t.pos.y, true);
         }
       }
-      this.addShake(killed ? 0.16 : heavy ? 0.12 : wide ? 0.09 : 0.06);
-      if (hurtCount >= 2) this.addShake(Math.min(0.06, hurtCount * 0.015));
+      this.addShake((killed ? 0.16 : heavy ? 0.12 : wide ? 0.09 : 0.06) * shakeK);
+      if (hurtCount >= 2) this.addShake(Math.min(0.06, hurtCount * 0.015) * shakeK);
       // 馬上の一撃は馬の勢いが乗って重い：長めに止まり、低い音、突かれた者は馬の進む向きへ大きく突き飛ばされ、腕に返る衝撃で馬が少し落ちる
       const mh = this.mounted ? Math.min(1, Math.abs(this.hspd) / 10) : 0;
       if (mh > 0.3 && (kind === 'thrust' || kind === 'charged' || kind === 'sweep' || kind === 'slash')) {
         if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, 0.06));
         sfx('thud', 0.5 + 0.5 * mh);
-        this.addShake(0.06 + 0.08 * mh);
-        if (!reduceMotion()) { this.fovKick = Math.min(this.fovKick || 0, -1.5 * mh); this.pitch -= 0.012 * mh; }
+        this.addShake((0.06 + 0.08 * mh) * shakeK);
+        if (!steady && !reduceMotion()) { this.fovKick = Math.min(this.fovKick || 0, -1.5 * mh); this.pitch -= 0.012 * mh; }
         const fx = Math.sin(this.u.heading), fz = Math.cos(this.u.heading);
         for (const h of hits) if (h.u.alive && h.u.push && !h.u.isStruct) { h.u.push.x += fx * 4 * mh; h.u.push.z += fz * 4 * mh; h.u.stagger = Math.max(h.u.stagger || 0, 1.0); }
         this.hspd *= 1 - 0.08 * mh;
@@ -396,10 +402,10 @@ export class PlayerMelee {
         this.cd += 0.18;
         if (!reduceMotion()) this.rt.game.hitstop = Math.min(0.07, Math.max(this.rt.game.hitstop || 0, 0.04));
         if (!this.mounted) this.lunge = { x: -Math.sin(heading) * 0.22, z: -Math.cos(heading) * 0.22, t: 0.12 };
-        this.addShake(0.05);
+        this.addShake(0.05 * shakeK);
       }
       // 当たった刹那、目線が相手へわずかに吸い寄せられて戻る（重いほど深く。首の振られ＝camPush とは別）
-      else if (!reduceMotion() && S.shake) this.camLean = { x: Math.sin(heading), z: Math.cos(heading), k: heavy ? 0.32 : blade ? 0.16 : 0.12, t: 0, dur: heavy ? 0.34 : 0.22 };
+      else if (!steady && !reduceMotion() && S.shake) this.camLean = { x: Math.sin(heading), z: Math.cos(heading), k: heavy ? 0.32 : blade ? 0.16 : 0.12, t: 0, dur: heavy ? 0.34 : 0.22 };
       if (hits.some((h) => h.res === 'hit' || h.res === 'armor')) {
         this.hitChain = (this.hitChain || 0) + 1; this.comboHitT = 1.6;
         if (this.hitChain >= 2) this.rt.hud.combo(this.hitChain);

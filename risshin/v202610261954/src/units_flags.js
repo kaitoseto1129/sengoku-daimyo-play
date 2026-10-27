@@ -111,7 +111,7 @@ function flagMaterial(kind, boost = 0, enemy = false) {
   if (flagMatCache.has(key)) return flagMatCache.get(key);
   if (kind === 'player_gold') {
     // 無地・つや消し。近景の布への交換も避け、しわ・破れ・点滅を付けない。
-    const m = new THREE.MeshLambertMaterial({ color: 0xe6ac28, emissive: 0x382307, side: THREE.DoubleSide });
+    const m = new THREE.MeshLambertMaterial({ color: 0xf2b824, emissive: 0x5a3a06, side: THREE.DoubleSide });
     m.userData.nearFlag = true;
     flagMatCache.set(key, m);
     return m;

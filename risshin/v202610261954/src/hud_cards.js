@@ -403,10 +403,13 @@ body.rm #hud #h-prog.pg-changing { animation:none; }
 #hud.ending #h-prog, #hud:has(#bigmap:not([hidden])) #h-prog { visibility:hidden; }
 /* 稲生は右上に短い任務を一行だけ置く。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog {
- top:calc(12px + env(safe-area-inset-top, 0px)); width:max-content; max-width:calc(100% - 32px); padding:4px 8px;
+ right:calc(16px + env(safe-area-inset-right, 0px));
+ top:calc(12px + env(safe-area-inset-top, 0px)); width:max-content;
+ max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding:4px 8px;
+ animation:none; transform:none;
 }
 html:root body #hud:has(#h-prog[data-battle="inou"]) #h-prog :is(.pg-st span,.pg-next) {
- white-space:nowrap !important; overflow:visible; text-overflow:clip; overflow-wrap:normal; word-break:keep-all;
+ max-width:100%; white-space:normal !important; overflow:visible; text-overflow:clip; overflow-wrap:anywhere;
 }
 /* 稲生は小地図と任務の補足を出さず、本人の▼と一行の任務に絞る。 */
 html:root body #hud:has(#h-prog[data-battle="inou"]) :is(#minimap,#maphint,.pg-next,.pg-context) { display:none !important; }

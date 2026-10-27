@@ -264,7 +264,9 @@ function evictHidden(army, player) {
   if (tight) {
     hid.sort((a, b) => (a.human.hidAt || 0) - (b.human.hidAt || 0));   // 長く隠れた順
     while (dropN < hid.length && (hid.length - dropN > hardCap || now - (hid[dropN].human.hidAt || 0) > keepMs)) dropN++;
-  } else if (hid.length > cap) {
+  } else if (hid.length > cap + ((window.__apx && window.__apx.evictslack) ?? 16)) {   // x_evictslack0：実機で切って比べる
+    // 一人ずつ捨てると、そのたびに場面ぜんぶの素材を集め直して一コマ止まる（走って人を追い越すと毎秒起きた。Lancers 10/26）。
+    //   十六人たまってからまとめて枠まで捨てる
     const d2 = (u) => (u.pos.x - player.pos.x) ** 2 + (u.pos.z - player.pos.z) ** 2;
     hid.sort((a, b) => d2(b) - d2(a));
     dropN = hid.length - cap;

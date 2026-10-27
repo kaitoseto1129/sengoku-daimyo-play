@@ -1885,6 +1885,17 @@ function buildInabaMountain(rt) {
       col = mix(col, stone * vec3(0.83, 0.80, 0.75), ibRock);
       float ibTrail = texture2D(inabaTrail, ibMap).r * smoothstep(0.55, 0.72, abs(gN.y));
       col = mix(col, dirt * vec3(0.92, 0.83, 0.72), ibTrail * 0.94);
+      // 本の CG（春日山・岡崎・躑躅ヶ崎）：山上の曲輪の平らな所は白っぽい砂利。切岸・土塁の斜面は草と土のまま（絵と面は増やさない）
+      float ibFine0 = dot(texture2D(tDirt, ibUv * 1.7).rgb, vec3(0.3, 0.5, 0.2));
+      vec2 ibCLo = ibUv - vec2(-62.0, -140.0), ibCHi = vec2(34.0, -84.0) - ibUv;
+      float ibInCourt = smoothstep(0.0, 2.0, min(min(ibCLo.x, ibCLo.y), min(ibCHi.x, ibCHi.y)));
+      float ibCourt = ibInCourt * smoothstep(0.78, 0.96, abs(gN.y)) * smoothstep(284.0, 288.0, vInabaPoint.y) * (1.0 - ibRock);
+      // 曲輪の縁の切岸・土塁は草に覆われた土（本の CG の緑の土手）
+      float ibBank = ibInCourt * (1.0 - smoothstep(0.78, 0.92, abs(gN.y))) * smoothstep(268.0, 276.0, vInabaPoint.y);
+      col = mix(col, grass * vec3(1.05, 1.15, 0.8) * (0.85 + ibFine0 * 0.3), ibBank * 0.85);
+      vec3 ibGravel = vec3(0.6, 0.58, 0.53) * (0.78 + dot(texture2D(tStone, ibUv * 0.9).rgb, vec3(0.333)) * 0.5);
+      ibGravel = mix(ibGravel, dirt * vec3(0.95, 0.88, 0.76), ibWear.r * 0.6 + ibTrail * 0.4);
+      col = mix(col, ibGravel, ibCourt * 0.92);
       // 土の細粒と乾湿の斑を別の大きさで重ねる。面は増やさず、遠くの粒は薄める。
       vec3 ibGrain = texture2D(tDirt, ibUv * 1.7).rgb;
       float ibFine = dot(ibGrain, vec3(0.3, 0.5, 0.2));
@@ -3488,11 +3499,12 @@ const inabayama = {
     // 主殿（板葺きの木造。天守・二重櫓は置かない）と、物見の櫓（木造）
     // 主殿は縄張り（castles/inabayama.js の lordSeat）から castle_plan.js が建てる：中に入れて、奥の間に龍興（kaito 10/2）
     // 山頂の曲輪：主殿のほかに、遠侍（板葺きの御殿）・兵糧蔵・長屋を構えて、御殿と蔵と詰所のある城らしくする（kaito 10/2 の見回り）
-    goten(rt, HON.x + 12, HON.z + 6, { w: 7, d: 5, tile: false, team: 1, name: '遠侍', fieldFort: true, weatheredBoards: true, kind: 'tamari', hp: 600, naka: true, profile: 'inabayama', noTarget: true });
+    const BOOK_BOARDS = [0xb8a688, 0xa89678, 0xc4b292, 0xae9c7e];   // 本の CG の白茶けた板（黒く沈ませない）
+    goten(rt, HON.x + 12, HON.z + 6, { w: 7, d: 5, tile: false, team: 1, name: '遠侍', fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS, kind: 'tamari', hp: 600, naka: true, profile: 'inabayama', noTarget: true });
     // 主殿と遠侍・館の厚い檜皮屋根は残し、実務の小屋は浅い切妻板葺きと縦板壁にする。
     // 既存の部品の指定だけを使い、室内の床・戸口と建物の位置は保つ。
     // 本の CG（春日山・岡崎・躑躅ヶ崎）の曲輪の建物：板葺きに縦板の古びた壁。白い漆喰は使わない
-    const serviceLook = high ? { fieldFort: true, weatheredBoards: true } : {};
+    const serviceLook = high ? { fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS } : {};
     // 裏道の肩と床下が重ならないよう、蔵と中の俵を本丸の奥へ三歩寄せる。
     const riceStore = goten(rt, HON.x - 12, HON.z - 9, { w: 5, d: 4, tile: false, team: 1, name: '兵糧蔵', kind: 'kura', ...serviceLook, oku: 0, naka: true, profile: 'inabayama', noTarget: true });
     const rice = tawara(W, HON.x - 10.7, HON.z - 10.1, 0, 3);
@@ -3502,7 +3514,7 @@ const inabayama = {
     goten(rt, NI.x - 5, NI.z + 2, { w: 5, d: 4, tile: false, team: 1, name: '二の丸の番所', kind: 'bansho', ...serviceLook, naka: true, profile: 'inabayama', noTarget: true });
     goten(rt, MATSU.x + 6, MATSU.z - 5, { w: 4, d: 3, tile: false, team: 1, name: '小さな祠', kind: 'shrine', naka: true, profile: 'inabayama', noTarget: true });
     goten(rt, DEMARU.x - 6, DEMARU.z + 3, { w: 5, d: 4, tile: false, team: 1, name: '出丸の番所', kind: 'bansho', ...serviceLook, naka: true, profile: 'inabayama', noTarget: true });
-    goten(rt, YAKATA.x - 2, YAKATA.z - 5, { w: 12, d: 7, tile: false, team: 1, name: '斎藤の山麓館', fieldFort: true, weatheredBoards: true, naka: true, profile: 'inabayama', noTarget: true });
+    goten(rt, YAKATA.x - 2, YAKATA.z - 5, { w: 12, d: 7, tile: false, team: 1, name: '斎藤の山麓館', fieldFort: true, weatheredBoards: true, boardRoofColors: BOOK_BOARDS, naka: true, profile: 'inabayama', noTarget: true });
     const lifeBatch = makeKitBatch();
     // 厩を尾根に沿って向け、長い屋根を平場へ収めながら東側の通り道を空ける。
     const stable = kuruwaBldg(W, 'umaya', UMAYA.x - (high ? 7 : 8), UMAYA.z, high ? Math.PI / 2 : 0, { batch: lifeBatch, ita: high, boardRoof: high });

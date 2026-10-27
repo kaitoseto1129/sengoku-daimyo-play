@@ -23,6 +23,7 @@ import { demBlend, demSample } from './dem.js';
 import { drawGroundAt } from './render_camera.js';
 import { clash } from './b_sekigahara.js';
 import { battleEvent, EVENT_COMMANDER_ADVANCE, EVENT_UNIT_BREAK, EVENT_COMMANDER_KILLED, EVENT_REINFORCEMENT, EVENT_RETREAT } from './battle_events.js';
+import { timeslipField } from './timeslip_field.js';
 
 // ======================================================================
 // 第2戦　森部
@@ -1606,6 +1607,14 @@ const moribe = {
   battleVoices: { lines: { enemy: {
     ambient: ['織田勢が川を渡ったぞ。槍をそろえよ', '長井様と日比野様の旗を守れ', '城へ退く道を塞がせるな'],
   } } },
+  // 身の回りの当時の場（timeslip_field.js）。永禄四年五月十四日は今の六月末・梅雨の雨。
+  // 楡俣川を渡った岸はぬかるみ、岸には葦が茂る。槍を合わせた森部の野ほど、倒れた槍と斎藤方の旗が多い。
+  timeslip: {
+    wet: 0.9, dust: 0.1, trample: 0.3, debris: 1, arrows: 0.5, reeds: 0.9,
+    grass: 0x93a862, grassTints: [0xffffff, 0xeef2d4, 0xd8e0b0], grassH: 1.2, tallGrass: 0.85,
+    flagColors: [0xe2ded2, 0x2a2826, 0x3a4a6a],
+    fights: [[FRONT2.x, FRONT2.z, 36], [ASSEMBLY2.x, ASSEMBLY2.z, 26], [POINT2.x, POINT2.z, 22], [YAKUSHI2.x, YAKUSHI2.z, 24]],
+  },
   spawn: { x: START2.x, z: START2.z, heading: Math.PI },
   // 信長で遊ぶ時は前へ出た所から始め、後方からの長い行軍で任務を止めない。
   lordSpawn: { x: POINT2.x + 4, z: POINT2.z + 4, heading: Math.PI },
@@ -1753,6 +1762,7 @@ const moribe = {
     // https://www.town.anpachi.lg.jp/0000000392.html
     // 当時の姿と戦場での配置は復元。近代の石碑は置かない。
     moribeBuildings(rt);
+    timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     moribeSoil(rt);
     rt.flags.yakushiReconstruction = true;
     const W = rt.world;
@@ -3172,9 +3182,11 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
     previous.team !== u.team && Math.abs(previous.pos.y - u.pos.y) < 3 &&
     Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < (p.weapon === 'sword' ? 1.9 : 2.8) &&
     !b.army.wallBetween(u.pos, -1, previous.pos) &&
+    (F.stage !== 'contact' || F.vBroken || previous.group === F.V) &&
     (F.stage !== 'hold' || Math.hypot(previous.pos.x - FRONT2.x, previous.pos.z - FRONT2.z) < 38);
   const e = attacker || (keep ? previous : null) || b.army.nearestEnemy(u, F.stage === 'hold' || F.stage === 'press' ? 40 : 14,
     (o) => !o.noTarget && !o.fleeing && !o.invuln && o.type !== 'dummy' &&
+      (F.stage !== 'contact' || F.vBroken || o.group === F.V) &&
       Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
       (F.stage !== 'hold' || Math.hypot(o.pos.x - FRONT2.x, o.pos.z - FRONT2.z) < 38));
   if (e) {
@@ -3203,11 +3215,15 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   let q = FRONT2;
-  if (F.stage === 'contact' && !gone(F.V)) q = F.V.center();
-  if (F.stage === 'press') { const g = F.opposition.find((g) => !gone(g)); if (g) q = g.center(); }
+  // 隊の平均位置には敵がいないことがある。頭上の印と同じ、任務に残る本人へ詰める。
+  // 傷兵や逃げる兵を含む中心で止まり、十四歩の探索外の先手を待ち続けない。
+  if (F.stage === 'contact' && !F.vBroken || F.stage === 'press') {
+    const foe = moribeNearestFoe(b);
+    if (foe) q = foe.pos;
+  }
   // 次の敵へ向かう間は組も連れて行く。前の戦場に残った組を迎えに戻る往復を防ぐ。
   if (sq && sq.order !== 'follow' && sq.order !== 'move' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 5; }
-  goTo(p, inp, q.x, q.z, 4);
+  goTo(p, inp, q.x, q.z, F.stage === 'contact' && !F.vBroken || F.stage === 'press' ? 2 : 4);
 };
 moribe.canSkip = () => '';   // 雨中の布陣から槍の会戦まで、同じ時計で進める。
 moribe.rts = true;

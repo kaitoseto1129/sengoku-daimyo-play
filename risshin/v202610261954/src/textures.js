@@ -626,6 +626,9 @@ export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
     return;
   }
   if (kind.startsWith('yose_') && !kind.startsWith('yose_takeda_')) kind = kind.slice(5);
+  // aka_〇〇：紋はそのまま、染めだけ朱にする（稲生の信勝方など、同じ家中の敵味方を旗の色で分ける戦の指定）。
+  let dye = null;
+  if (kind.startsWith('aka_')) { kind = kind.slice(4); dye = '#a8321f'; }
   if (kind.startsWith('yose_takeda_')) {
     const bg = kind.endsWith('black') ? '#191713' : kind.endsWith('orange') ? '#c56a26' : '#b72f21';
     ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
@@ -645,8 +648,8 @@ export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
   ctx.fillRect(0, 0, w, h);
   const lettering = kind === 'namu' || kind === 'ikko' || kind === 'onri' || kind === 'furin' || kind === 'sakakibara';
   // 上下の広い染めで色を残し、紋の周りは従来の明暗を保つ。字の旗は字の両脇だけを染める。
-  if (dyed && FLAG_DYE[kind] && !smallHachisuka) {
-    ctx.fillStyle = FLAG_DYE[kind];
+  if (dyed && (dye || FLAG_DYE[kind]) && !smallHachisuka) {
+    ctx.fillStyle = dye || FLAG_DYE[kind];
     if (lettering) {
       ctx.fillRect(0, 0, w * 0.13, h);
       ctx.fillRect(w * 0.87, 0, w * 0.13, h);
