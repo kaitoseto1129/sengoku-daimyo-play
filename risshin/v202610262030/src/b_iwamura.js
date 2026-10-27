@@ -499,6 +499,105 @@ function buildIwamuraLife(rt) {
   rt.scene.add(dou(W, -198, 138, 6, 4));
 }
 
+// 水晶山の設営道具。所在・数は推定。写真の木組みと同じく、竹・縄・割板を見せる。
+// 柵際の両翼と兵糧所の脇だけに寄せ、中央の迎撃・東口・本陣南口には置かない。
+function buildSuishozanTools(rt) {
+  const W = rt.world, originY = W.heightAt(0, 30);
+  const near = [], far = [], color = new THREE.Color();
+  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pose = new THREE.Object3D();
+  const add = (base, x, y, z, sx, sy, sz, tint, rx = 0, ry = 0, rz = 0, detail = false) => {
+    pose.position.set(x, y - originY, z - 30);
+    pose.rotation.set(rx, ry, rz); pose.scale.set(sx, sy, sz); pose.updateMatrix();
+    const geo = base.clone().applyMatrix4(pose.matrix);
+    color.setHex(tint);
+    const colors = new Float32Array(geo.attributes.position.count * 3);
+    for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    near.push(geo);
+    if (!detail) far.push(geo);
+  };
+  // 一本ずつ節のある青竹を束ねる。置楯と柵の背後に収め、開口を狭めない。
+  // 揃えすぎない切り口と、二か所の藁縄。太い丸太の壁にはしない。
+  for (const [cx, cz] of [[-53, 7], [-50, 9], [50, 9], [53, 7]]) {
+    const y = W.heightAt(cx, cz);
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 5; i++) {
+      const x = cx + (i - 2) * .14 + (row % 2) * .065, z = cz + (row - 1) * .14;
+      const h = 1.75 + ((i * 3 + row * 2) % 5) * .065;
+      add(cylinder, x, y + h / 2, z, .065, h, .065, (i + row) % 3 ? 0x73764b : 0x8c8658);
+      for (let n = 1; n < 5; n++)
+        add(cylinder, x, y + n * .35, z, .073, .026, .073, 0xa19a69, 0, 0, 0, true);
+      // 断面の暗い芯を上面だけに置く。
+      add(cylinder, x, y + h + .002, z, .042, .006, .042, 0x464435, 0, 0, 0, true);
+    }
+    for (const h of [.48, 1.25]) {
+      for (const dz of [-.23, .23])
+        add(box, cx, y + h, cz + dz, .84, .055, .045, 0x99815c);
+      for (const dx of [-.42, .42])
+        add(box, cx + dx, y + h, cz, .045, .055, .5, 0x99815c);
+      add(box, cx + .22, y + h - .1, cz + .26, .035, .24, .035, 0x99815c, 0, 0, .2, true);
+    }
+    // 束を立て掛けた控え杭。陣内に長い突起を出さない。
+    add(cylinder, cx, y + .65, cz + .45, .055, 1.4, .055, 0x65513a, -.22);
+  }
+  // 後方の炊事場。消し炭の竈と蓋付きの釜、桶、薪。夜討ち前の火を増やさない。
+  const cx = -22, cz = 53, y = W.heightAt(cx, cz);
+  add(cylinder, cx, y + .14, cz, .62, .28, .62, 0x554a3b);
+  add(cylinder, cx, y + .3, cz, .4, .05, .4, 0x24221e);
+  add(cylinder, cx, y + .51, cz, .36, .4, .36, 0x373832);
+  add(cylinder, cx, y + .73, cz, .41, .05, .41, 0x716047);
+  add(box, cx, y + .79, cz, .42, .07, .075, 0x8a7756, 0, .4, 0, true);
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    add(box, cx + Math.cos(a) * .51, y + .18, cz + Math.sin(a) * .51,
+      .21, .22 + i % 2 * .04, .24, i % 2 ? 0x716a59 : 0x807766, 0, a, 0, true);
+  }
+  for (const dx of [-1.5, -2.15]) {
+    const by = W.heightAt(cx + dx, cz + .7);
+    add(cylinder, cx + dx, by + .24, cz + .7, .24, .48, .24, 0x867253);
+    add(cylinder, cx + dx, by + .485, cz + .7, .19, .008, .19, 0x373b30, 0, 0, 0, true);
+    for (const h of [.1, .37]) {
+      const hoop = new THREE.TorusGeometry(.242, .018, 3, 8);
+      add(hoop, cx + dx, by + h, cz + .7, 1, 1, 1, 0x4e493e, Math.PI / 2, 0, 0, true);
+      hoop.dispose();
+    }
+  }
+  for (let i = 0; i < 9; i++) {
+    const x = -25 + i % 3 * .17, z = 55.5, h = Math.floor(i / 3) * .15;
+    add(cylinder, x, W.heightAt(x, z) + .1 + h, z, .075, 1.25 - i % 2 * .13, .075,
+      i % 2 ? 0x776148 : 0x60503c, Math.PI / 2, .12);
+  }
+  // 補修小屋の壁へ寄せた予備の割板と短い梯子。戸口と井楼の登り口は空ける。
+  for (const side of [-1, 1]) {
+    const x = side * 40.2, z = 28, h = W.heightAt(x, z);
+    for (let i = 0; i < 4; i++)
+      add(box, x, h + .85, z - 1 + i * .23, .08, 1.9 + i % 2 * .2, .2,
+        i % 2 ? 0x84755c : 0x6e624f, 0, 0, side * -.23);
+    for (const dz of [-.28, .28])
+      add(cylinder, x - side * .6, h + 1.1, z + 1.5 + dz, .042, 2.25, .042, 0x95815f, 0, 0, side * -.18);
+    for (let i = 0; i < 6; i++)
+      add(box, x - side * (.8 - i * .065), h + .2 + i * .36, z + 1.5, .06, .055, .64, 0x807052, 0, 0, 0, true);
+  }
+  // 全道具を一材質・一描画へまとめる。遠くでは節・箍・梯子の桟を省く。
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const lod = new THREE.LOD(); lod.position.set(0, originY, 30);
+  lod.userData.noFreeze = true; // 共通の静止物結合から外し、遠近の切り替えを保つ。
+  for (const [parts, distance] of [[near, 0], [far, 85]]) {
+    const mesh = new THREE.Mesh(mergeGeometries(parts), material);
+    mesh.receiveShadow = true; lod.addLevel(mesh, distance, .12);
+  }
+  lod.addLevel(new THREE.Group(), 180, .12);
+  rt.scene.add(lod);
+  W.terrain.geometry.addEventListener('dispose', () => {
+    lod.removeFromParent();
+    for (const level of lod.levels) if (level.object.isMesh) level.object.geometry.dispose();
+    material.dispose();
+  });
+  for (const g of near) g.dispose();
+  cylinder.dispose(); box.dispose();
+}
+
 // 信長公記巻八・水精山の夜襲、城の参照表。河尻・毛利・浅野・猿荻の迎撃は史料。
 // 攻め口・曲輪別の兵数は補完。城内の個々の守将は不明なので名を作らない。
 const JIN = [
@@ -928,6 +1027,7 @@ const iwamura = {
     for (const g of Object.values(F.castleC.gateObjs)) { g.open(); g.struct.opened = true; }
     const lifeStart = rt.scene.children.length;
     buildIwamuraLife(rt);
+    buildSuishozanTools(rt);
     this.mountainScene(rt, lifeStart);
     campGround(W);
     // ---- 水晶山の陣：柵（中央に一つの口）、陣幕、小屋 ----

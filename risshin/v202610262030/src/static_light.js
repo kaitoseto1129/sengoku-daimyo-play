@@ -54,30 +54,39 @@ export class StaticLight {
   }
   *prepare() {
     const w = this.world, scene = new THREE.Scene();
-    const bounds = new THREE.Box3(), part = new THREE.Box3();
+    const bounds = new THREE.Box3(), part = new THREE.Box3(), instanceBox = new THREE.Box3();
+    const instanceMatrix = new THREE.Matrix4();
     const meshes = [], instances = [], originals = new Map();
     let complete = false;
     try {
       // 視点による株の詰め替え・遠景の葉への交換を焼いた影へ持ち込まない。
-      for (const group of w.cullList || []) for (const source of group.orig) originals.set(source.m, source.mat);
-      w.scene.updateMatrixWorld(true);
+      for (const group of w.cullList || []) for (const source of group.orig) {
+        yield;
+        originals.set(source.m, source.mat);
+      }
+      // 開戦前は兵の自前の行列更新も済ませ、姿の支度へ未更新を持ち越さない。
+      // 遊んでいる間の焼き直しだけ、固定物を親から順に更新する。
+      if (!this.ready) w.scene.updateMatrixWorld(true);
+      else w.scene.updateWorldMatrix(true, false);
       const visit = o => {
         const d = o.userData;
         if (!o.visible && !originals.has(o)) return true;
         if (o._armyUnit || o.isSkinnedMesh || o.isBone || d?.flag || d?.armyBatch || d?.unitShadowBatch ||
             o.name === 'unitBatch' || o.material?.userData?.armyU || o.isPoints || o.isSprite) return true;
+        if (this.ready || originals.has(o)) o.updateWorldMatrix(false, false);
         if (o.isMesh && (o.castShadow || o._sceneryCastShadow) && o !== w.terrain) {
           const original = originals.get(o);
           const count = original ? original.length / 16 : o.count;
           const m = o.isInstancedMesh ? new THREE.InstancedMesh(o.geometry, o.material, count) : new THREE.Mesh(o.geometry, o.material);
           if (o.isInstancedMesh) {
+            instances.push(m);
             m.instanceMatrix.array.set(original || o.instanceMatrix.array.subarray(0, count * 16));
-            m.instanceMatrix.needsUpdate = true; m.count = count; instances.push(m);
+            m.instanceMatrix.needsUpdate = true;
           }
           m.matrixAutoUpdate = false; m.matrix.copy(o.matrixWorld);
           m.castShadow = true; m.frustumCulled = false;
           scene.add(m); meshes.push(o);
-          part.setFromObject(m); bounds.union(part);
+          return m;
         }
         return false;
       };
@@ -89,7 +98,26 @@ export class StaticLight {
           const at = nodes.length - 1, o = nodes[at];
           if (indices[at] < 0) {
             yield;
-            moving[at] = visit(o); indices[at] = 0;
+            const mesh = visit(o);
+            moving[at] = mesh === true; indices[at] = 0;
+            if (mesh && mesh !== true) {
+              if (o.isInstancedMesh) {
+                const data = mesh.instanceMatrix.array;
+                if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+                // 株の多い一束も、囲みの計算を三十二株ずつに分ける。
+                // 囲みと行列の入れ物は株ごとに作らない。
+                const box = mesh.boundingBox = new THREE.Box3();
+                for (let i = 0; i < mesh.count; i++) {
+                  if (i % 32 === 0) yield;
+                  const offset = i * 16;
+                  instanceMatrix.fromArray(data, offset);
+                  instanceBox.copy(o.geometry.boundingBox).applyMatrix4(instanceMatrix);
+                  box.union(instanceBox);
+                }
+                part.copy(box).applyMatrix4(mesh.matrix);
+              } else part.setFromObject(mesh);
+              bounds.union(part);
+            }
           }
           if (moving[at] !== true && indices[at] < o.children.length) {
             nodes.push(o.children[indices[at]++]); indices.push(-1); moving.push(false);

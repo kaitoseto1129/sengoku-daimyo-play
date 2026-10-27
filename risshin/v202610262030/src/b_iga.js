@@ -61,9 +61,103 @@ const PEOPLE_BANDS = PEOPLE_PATHS.map((path, i) => ({
   route: path.slice(1).map(([x, z]) => ({ x, z })), routeEnd: 'wait',
 }));
 function peopleClearing(x, z) {
+  if (igaFieldClearing(x, z)) return true;
   for (const [hx, hz] of PEOPLE_HOMES) if (Math.abs(x - hx) < 10 && Math.abs(z - hz) < 10) return true;
   for (const path of PEOPLE_PATHS) if (distToPolyline(x, z, path) < 4) return true;
   return false;
+}
+// 村道の西に小さな刈田を二枚。避難する道と山城の曲輪には掛けない。
+const IGA_FIELDS = [[78, 120], [98, 146]];
+const igaFieldClearing = (x, z) => IGA_FIELDS.some(([cx, cz]) => Math.abs(x - cx) < 9 && Math.abs(z - cz) < 7);
+
+// 写真の井楼の丸太・貫・縄掛けを、包囲陣の小道具へ使う。
+// 攻城櫓や石垣を足す復元ではない。中央の迎撃場と四方の寄せ口は従来のまま。
+function igaCampDetails(rt) {
+  const W = rt.world;
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const hoop = new THREE.TorusGeometry(1, 0.055, 3, 10);
+  const pot = new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, Math.PI * 0.27, Math.PI * 0.73);
+  const matrix = new THREE.Matrix4(), pos = new THREE.Vector3(), scale = new THREE.Vector3();
+  const rotation = new THREE.Quaternion(), euler = new THREE.Euler();
+  const color = new THREE.Color();
+  const wood = 0x65503a, bamboo = 0x777047, rope = 0x8c7955, iron = 0x302c28;
+  // 一か所を一束へ焼き込み、遠くでは細い節・縄・刈株を省く。毎コマの処理は増やさない。
+  function site(cx, cz, build) {
+    const near = [], far = [], y = W.heightAt(cx, cz);
+    function part(base, x, h, z, sx, sy, sz, tint, rx = 0, ry = 0, rz = 0, fine = false) {
+      const g = base.clone();
+      pos.set(x, h, z); scale.set(sx, sy, sz); euler.set(rx, ry, rz); rotation.setFromEuler(euler);
+      matrix.compose(pos, rotation, scale); g.applyMatrix4(matrix);
+      color.setHex(tint);
+      const colors = new Float32Array(g.attributes.position.count * 3);
+      for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      near.push(g); if (!fine) far.push(g);
+    }
+    const ground = (x, z) => W.heightAt(cx + x, cz + z) - y;
+    build(part, ground);
+    const lod = new THREE.LOD(); lod.position.set(cx, y, cz);
+    for (const [pieces, distance] of [[near, 0], [far, 55]]) {
+      if (!pieces.length) continue;
+      const mesh = new THREE.Mesh(mergeGeometries(pieces), mat);
+      mesh.receiveShadow = true; mesh.updateMatrix(); mesh.matrixAutoUpdate = false;
+      lod.addLevel(mesh, distance);
+    }
+    lod.addLevel(new THREE.Group(), 145);
+    for (const g of near) g.dispose();
+    rt.scene.add(lod);
+  }
+  // 小屋の外壁側の備え。竹の切り口・節・二か所の縄を近くで見せる。
+  for (const [cx, cz] of [[-28, 30], [32, 60]]) site(cx, cz, (part, ground) => {
+    for (let bundle = 0; bundle < 3; bundle++) {
+      const x = (bundle - 1) * 0.85, z = bundle % 2 * 0.2, h = ground(x, z);
+      for (let j = 0; j < 7; j++) {
+        const a = j * 2.4, dx = x + Math.cos(a) * 0.22, dz = z + Math.sin(a) * 0.22;
+        const height = 1.9 + (j % 3) * 0.13;
+        part(pole, dx, h + height / 2, dz, 0.085, height, 0.085, j % 2 ? bamboo : 0x8c8055);
+        for (const level of [0.3, 1, 1.65]) part(pole, dx, h + level, dz, 0.095, 0.045, 0.095, 0x9b9063, 0, 0, 0, true);
+      }
+      for (const level of [0.55, 1.45]) part(hoop, x, h + level, z, 0.34, 0.34, 0.34, rope, Math.PI / 2, 0, 0, true);
+    }
+    // 薪棚は丸太二本と横木。細い割薪を地面へ散らさず積む。
+    for (const x of [-1.25, 1.25]) part(pole, x, ground(x, 1.8) + 0.7, 1.8, 0.09, 1.4, 0.09, wood);
+    part(pole, 0, ground(0, 1.8) + 1.25, 1.8, 0.075, 2.8, 0.075, wood, 0, 0, Math.PI / 2);
+    for (let j = 0; j < 14; j++) {
+      const x = (j % 7 - 3) * 0.3, h = ground(x, 2.1) + 0.18 + Math.floor(j / 7) * 0.2;
+      part(pole, x, h, 2.1, 0.11, 1.1, 0.1, j % 2 ? wood : 0x847052, Math.PI / 2, j * 0.025);
+    }
+  });
+  // 既存の焚き火を炊事場にする。火・光・煙の発生数は増やさない。
+  for (const [cx, cz] of [[-4, 44], [14, 40]]) site(cx, cz, (part, ground) => {
+    for (const side of [-1, 1]) {
+      part(pole, side * 0.72, 0.83, 0, 0.055, 1.75, 0.055, wood, 0, 0, side * 0.12);
+    }
+    part(pole, 0, 1.6, 0, 0.05, 1.8, 0.05, wood, 0, 0, Math.PI / 2);
+    part(pot, 0, 0.76, 0, 0.43, 0.42, 0.43, iron);
+    part(hoop, 0, 1.1, 0, 0.27, 0.35, 0.27, iron, 0, 0, 0, true);
+    part(pole, 0, 1.44, 0, 0.018, 0.32, 0.018, iron, 0, 0, 0, true);
+    // 水桶の板と二段の箍。火の周囲の通り道へ張り出さない。
+    const h = ground(0.95, 0.7);
+    part(pole, 0.95, h + 0.25, 0.7, 0.27, 0.5, 0.27, wood);
+    for (const level of [0.1, 0.4]) part(hoop, 0.95, h + level, 0.7, 0.28, 0.28, 0.28, rope, Math.PI / 2, 0, 0, true);
+  });
+  for (const [cx, cz] of IGA_FIELDS) site(cx, cz, (part, ground) => {
+    // 一枚の平板を斜面へ浮かせず、小区画の四隅を地表へ沿わせる。
+    for (let row = 0; row < 7; row++) for (let col = 0; col < 10; col++) {
+      const x = (col - 4.5) * 1.5, z = (row - 3) * 1.5;
+      const g = new THREE.PlaneGeometry(1.48, 1.42); g.rotateX(-Math.PI / 2);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, ground(x + p.getX(i), z + p.getZ(i)) + 0.025);
+      g.computeVertexNormals();
+      part(g, x, 0, z, 1, 1, 1, (row + col) % 3 ? 0x66543c : 0x746044); g.dispose();
+      for (let stalk = 0; stalk < 3; stalk++) {
+        const dx = x + (stalk - 1) * 0.35, dz = z + Math.sin(col * 3 + row + stalk) * 0.3;
+        part(pole, dx, ground(dx, dz) + 0.12, dz, 0.035, 0.24, 0.035, 0x998251, 0, 0, 0.12, true);
+      }
+    }
+  });
+  pole.dispose(); hoop.dispose(); pot.dispose();
 }
 function igaVillage(rt) {
   const W = rt.world;
@@ -1458,6 +1552,7 @@ const iga = {
     rt.scene.add(tawara(W, -26, 34, 0.3, 6), tawara(W, 26, 66, -0.2, 5));
     for (const [x, z] of [[-10, 20], [10, 20], [-34, 30], [34, 34]]) rt.scene.add(igaNobori(W, x, z, NIWA.flag, 6));
     for (const [x, z] of [[-4, 44], [14, 40]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
+    igaCampDetails(rt);
     // ---- 比自山城：主郭→北の尾根曲輪→堀切→北外郭、主郭→堀切→東の脇曲輪（一本道でない）。南の大手だけ手組みの木戸 ----
     // 山腹の囲いは低い透ける木柵。斜面を登る板塀が黒い太鼓橋のように見えないようにする。
     // 曲輪の輪郭・虎口・当たりは保ち、既存の杭と横木を静止物の束へまとめる。

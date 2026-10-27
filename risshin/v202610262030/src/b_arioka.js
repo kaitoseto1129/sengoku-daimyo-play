@@ -382,6 +382,71 @@ function refineAriRider(u) {
 }
 
 // 金の反復模様を使わず、細波と斜めから見た空の映り込みを重ねる。
+// 包囲が長引いた西の陣の炊事場。写真の平楯の板と横桟、清洲の裏方小屋を
+// 構造の手本にする。位置と道具は推定。出撃路から南へ三十五メートル離す。
+// 火は既存の焚き火を使い、木・藁・鉄を各一束へまとめる。更新処理は持たない。
+function ariCookCamp(rt) {
+  const W = rt.world, x = CAMP.x - 30, z = GATE.z + 35;
+  const wood = [], straw = [], iron = [];
+  const box = (parts, px, py, pz, w, h, d, tilt = 0) => {
+    const g = ARI_BOX.toNonIndexed(); g.scale(w, h, d); g.rotateX(tilt);
+    g.translate(x + px, W.heightAt(x + px, z + pz) + py, z + pz); parts.push(g);
+  };
+  // 火の西側だけを板楯で風除けにする。東と南北は開き、陣幕に火を寄せない。
+  for (let i = 0; i < 8; i++) {
+    const pz = -1.45 + i * .41;
+    box(wood, -2.3, .8, pz, .065, 1.55 - (i % 3) * .035, .395);
+  }
+  for (const py of [.38, 1.2]) box(wood, -2.37, py, 0, .12, .11, 3.5);
+  for (const pz of [-1.55, 1.55]) box(wood, -2.42, .82, pz, .15, 1.85, .15);
+  // 丸い釜は厚い縁と空洞を残し、焚き火の上に三脚で吊る。
+  const y = W.heightAt(x, z), up = new THREE.Vector3(0, 1, 0);
+  const beam = (ax, ay, az, bx, by, bz, width, parts) => {
+    const dir = new THREE.Vector3(bx - ax, by - ay, bz - az);
+    const g = ARI_BOX.toNonIndexed(); g.scale(width, dir.length(), width);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir.normalize()));
+    g.translate(x + (ax + bx) / 2, (ay + by) / 2, z + (az + bz) / 2); parts.push(g);
+  };
+  for (let i = 0; i < 3; i++) {
+    const a = i * Math.PI * 2 / 3, px = Math.cos(a), pz = Math.sin(a);
+    beam(px, W.heightAt(x + px, z + pz) - .05, pz, 0, y + 2.2, 0, .095, wood);
+  }
+  beam(0, y + 1.4, 0, 0, y + 2.12, 0, .025, iron);
+  const pot = new THREE.LatheGeometry([
+    new THREE.Vector2(0, .66), new THREE.Vector2(.24, .67),
+    new THREE.Vector2(.43, .84), new THREE.Vector2(.44, 1.12),
+    new THREE.Vector2(.49, 1.14), new THREE.Vector2(.49, 1.19),
+    new THREE.Vector2(.40, 1.19), new THREE.Vector2(.38, .87),
+    new THREE.Vector2(.2, .74), new THREE.Vector2(0, .74),
+  ], 12).toNonIndexed(); pot.translate(x, y, z); iron.push(pot);
+  for (const side of [-1, 1]) beam(side * .43, y + 1.13, 0, 0, y + 1.5, 0, .03, iron);
+  // 火の北側の小さな薪棚と苫葺きの覆い。地形へ各脚を下ろし、通りには出さない。
+  const roofY = Math.max(...[-1.7, 1.7].flatMap(px => [-4.8, -3].map(pz => W.heightAt(x + px, z + pz)))) + 2;
+  for (const px of [-1.7, 1.7]) for (const pz of [-4.8, -3])
+    beam(px, W.heightAt(x + px, z + pz) - .1, pz, px, roofY, pz, .12, wood);
+  for (const pz of [-4.8, -3]) beam(-1.9, roofY, pz, 1.9, roofY, pz, .14, wood);
+  for (let i = 0; i < 12; i++) {
+    const g = ARI_BOX.toNonIndexed(); g.scale(.315, .09, 2.25); g.rotateX(.13);
+    g.translate(x - 1.8 + i * .327, roofY + .08, z - 3.9); straw.push(g);
+  }
+  for (const pz of [-4.5, -3.3]) beam(-2, roofY + .15, pz, 2, roofY + .15, pz, .07, wood);
+  for (let i = 0; i < 15; i++) {
+    const row = Math.floor(i / 5), col = i % 5;
+    box(wood, -1.1 + col * .23, .14 + row * .18, -3.9 + (i % 3) * .09, .19, .17, 1.3 - (i % 3) * .12);
+  }
+  const mats = [ARI_WOOD, new THREE.MeshLambertMaterial({ color: 0x877955 }),
+    new THREE.MeshLambertMaterial({ color: 0x34332e })];
+  [wood, straw, iron].forEach((parts, i) => {
+    const mesh = new THREE.Mesh(mergeGeometries(parts), mats[i]);
+    mesh.receiveShadow = true; rt.scene.add(mesh); parts.forEach(g => g.dispose());
+  });
+  // 道具の範囲だけを塞ぐ。戦闘の前線・土橋・控えの隊の通り道には触れない。
+  solidRect(x - 2.35, z, .3, 3.5, 0);
+  solidRect(x, z - 3.9, 3.5, 1.8, 0);
+  solidCircle(x, z, .65);
+  W.addSmokeColumn(x, y + 1.23, z, { size: .22 });
+}
+
 function ariWaterMat(W) {
   const mat = new THREE.MeshBasicMaterial({ color: 0x354740, transparent: true, opacity: .78, depthWrite: false });
   mat.onBeforeCompile = sh => {
@@ -1979,6 +2044,7 @@ const arioka = {
     // ---- 陣と大軍（軽い作り） ----
     rt.scene.add(tawara(W, CAMP.x - 14, CAMP.z + 6, 0.3, 6));
     ariWorks(rt, CAMP.x - 14, CAMP.z - 2, Math.PI / 2);
+    ariCookCamp(rt);
     for (const [x, z, k] of [[CAMP.x - 14, CAMP.z - 10, 'takigawa'], [CAMP.x + 20, CAMP.z - 10, 'takigawa'], [CAMP.x - 30, GATE.z + 40, 'takigawa']]) rt.scene.add(nobori(W, x, z, k, 6));
     // 織田の本陣（この口の攻め手 滝川一益）と、本丸の城将 荒木久左衛門の陣所（村重は尼崎へ移っている）
     F.honjin = camp(rt, { x: CAMP.x, z: CAMP.z + 4, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, general: { name: '滝川一益' }, guard: 15, reserve: 0, runTo: { x: GATE.x - 20, z: GATE.z } });

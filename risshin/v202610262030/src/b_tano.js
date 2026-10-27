@@ -539,6 +539,103 @@ function tanoWoods(rt) {
   rt.scene.add(bark, rocks);
 }
 
+// 本の井楼・走り櫓の丸太の組み方、清洲の板塀を、山里の小さな物へ読み替える。
+// 位置・工作物は推定。逃れる武田に常設の本陣や攻城櫓を足さない。
+// 全て設営時にまとめる静物。兵・当たり・毎コマの処理は増やさない。
+function tanoFieldLife(rt) {
+  const W = rt.world, shape = new THREE.Object3D();
+  const up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const timber = [], boards = [], bamboo = [], cord = [], earth = [];
+  const put = (list, x, y, z, sx, sy, sz, angle = 0) => {
+    shape.position.set(x, y, z); shape.rotation.set(0, angle, 0);
+    shape.scale.set(sx, sy, sz); shape.updateMatrix(); list.push(shape.matrix.clone());
+  };
+  const pole = (list, x, y, z, bx, by, bz, r) => {
+    dir.set(bx - x, by - y, bz - z);
+    const length = dir.length();
+    shape.position.set((x + bx) / 2, (y + by) / 2, (z + bz) / 2);
+    shape.quaternion.setFromUnitVectors(up, dir.multiplyScalar(1 / length));
+    shape.scale.set(r, length, r); shape.updateMatrix(); list.push(shape.matrix.clone());
+  };
+  // 道脇の作業小屋に片流れの荷庇。丸太の横木は柱から少し突き出す。
+  // 柱の脚を一つずつ接地し、斜面に平たい台座を貼らない。
+  for (const [cx, cz] of [[-112, -16], [-22, -17]]) {
+    const top = Math.max(W.heightAt(cx - 1.4, cz), W.heightAt(cx + 1.4, cz)) + 2;
+    for (const side of [-1, 1]) {
+      const x = cx + side * 1.4, y = W.heightAt(x, cz);
+      pole(timber, x, y - .12, cz, x, top + .2, cz, .085);
+      pole(timber, x, top, cz + .25, x, top + .4, cz - 1.75, .065);
+      for (const dy of [-.07, .02, .11])
+        pole(cord, x - .12, top + dy, cz, x + .12, top + dy, cz, .018);
+    }
+    pole(timber, cx - 1.7, top, cz, cx + 1.7, top, cz, .095);
+    for (let i = 0; i < 13; i++) {
+      const x = cx - 1.5 + i * .25;
+      // 不ぞろいな割板。奥側を持ち上げた庇の勾配に合わせる。
+      shape.position.set(x, top + .23, cz - .75);
+      shape.rotation.set(Math.atan(.2), 0, 0); shape.scale.set(.235, .045, 2.05 + (i % 3) * .06);
+      shape.updateMatrix(); boards.push(shape.matrix.clone());
+    }
+    // 炊具の薪と竹束は道の外、軒下に寄せる。
+    for (let bundle = 0; bundle < 2; bundle++) {
+      const x = cx + bundle * .9 - .45, z = cz - .6, y = W.heightAt(x, z);
+      for (let k = 0; k < 9; k++) {
+        const dx = (k % 3 - 1) * .12, dz = (Math.floor(k / 3) - 1) * .12;
+        pole(bamboo, x + dx, y, z + dz, x + dx + .16, y + 1.45 + (k % 2) * .12, z + dz, .052);
+      }
+      for (const h of [.35, 1.05]) for (const side of [-1, 1]) {
+        pole(cord, x - .21, y + h, z + side * .22, x + .28, y + h, z + side * .22, .02);
+        pole(cord, x + side * .24, y + h, z - .22, x + side * .24, y + h, z + .22, .02);
+      }
+    }
+  }
+  // 村の細道と民家の間にだけ早春の小畑。谷道・川・屋敷の乱戦は空ける。
+  // 畝は短い土塊で地面へなじませ、田植え前の里に夏の稲を並べない。
+  for (const [cx, cz] of [[98, -45], [138, -45]]) {
+    for (let row = 0; row < 5; row++) for (let k = 0; k < 10; k++) {
+      const x = cx - 3.8 + k * .8, z = cz - 1.8 + row * .85;
+      put(earth, x, W.heightAt(x, z) + .025, z, .88, .13 + (k % 3) * .018, .34, .025 * Math.sin(k));
+    }
+    // 畑の背だけ低い粗朶柵。横木の高さも地面に沿わせる。
+    for (let k = 0; k < 9; k++) {
+      const x = cx - 4 + k, z = cz - 2.6, y = W.heightAt(x, z);
+      pole(timber, x, y - .1, z, x + .06, y + .85 + (k % 3) * .06, z, .038);
+      if (k < 8) for (const h of [.3, .65])
+        pole(bamboo, x, y + h, z, x + 1, W.heightAt(x + 1, z) + h, z, .026);
+    }
+  }
+  // 追手の荷置き場に一枚だけ布の風除け。大本陣の四面囲いにはしない。
+  const clothPos = [], clothColor = [], cx = -102, cz = -11;
+  for (let i = 0; i <= 3; i++) {
+    const x = cx - 3 + i * 2, y = W.heightAt(x, cz);
+    pole(timber, x, y - .1, cz, x, y + 2.2, cz, .055);
+  }
+  for (let i = 0; i < 30; i++) {
+    const points = [];
+    for (const x of [cx - 3 + i * .2, cx - 3 + (i + 1) * .2]) {
+      const y = W.heightAt(x, cz), fold = Math.sin((x - cx) * Math.PI * 3);
+      points.push([x, y + .25 + .035 * fold, cz + .09 * fold], [x, y + 2.02 - .06 * Math.sin((x - cx) * Math.PI) ** 2, cz]);
+    }
+    const shade = .72 + .045 * Math.sin(i * 1.8);
+    for (const k of [0, 2, 1, 1, 2, 3]) {
+      clothPos.push(...points[k]); clothColor.push(shade, shade * .93, shade * .77);
+    }
+  }
+  const cloth = new THREE.BufferGeometry();
+  cloth.setAttribute('position', new THREE.Float32BufferAttribute(clothPos, 3));
+  cloth.setAttribute('color', new THREE.Float32BufferAttribute(clothColor, 3)); cloth.computeVertexNormals();
+  rt.scene.add(new THREE.Mesh(cloth, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  // 五つの共有描画へまとめる。動かない物には影の追加描画も毎コマの更新も不要。
+  const round = new THREE.CylinderGeometry(1, 1, 1, 5), box = new THREE.BoxGeometry(1, 1, 1);
+  for (const [list, geometry, color] of [[timber, round, 0x61503b], [boards, box, 0x79664a], [bamboo, round, 0x87805a], [cord, round, 0xada080], [earth, box, 0x5e4e38]]) {
+    const mesh = new THREE.InstancedMesh(geometry, new THREE.MeshLambertMaterial({ color }), list.length);
+    for (let i = 0; i < list.length; i++) mesh.setMatrixAt(i, list[i]);
+    mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); rt.scene.add(mesh);
+  }
+  // 炊煙は里の一軒だけ。既存の粒の入れ物を使い、午前の谷を濃煙で覆わない。
+  W.addSmokeColumn(86, W.heightAt(86, -47) + 3.6, -47, { size: .35 });
+}
+
 // 荷を運んだ二筋と足で擦れた道端。高さ・通行・戦う間合いは変えない。
 function tanoRoadWear(rt) {
   const points = [], colors = [];
@@ -1107,6 +1204,7 @@ const tano = {
     W.groundU.tBank.value = W.groundU.tDirt.value;
     tanoWoods(rt);
     tanoRoadWear(rt);
+    tanoFieldLife(rt);
     // 突きのたびに下向きの傾きが積もるのを、この戦の肩越し視点だけで止める。
     // 自分で見回している間と、狙い・大将の目はそのまま使える。
     const player = rt.player, normalCamera = player.updateCamera;

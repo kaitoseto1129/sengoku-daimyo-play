@@ -30,6 +30,7 @@ import { NAKA } from './naka.js';
 import { deploymentView } from './deployment_view.js';
 import { setRenderer, FLAG_MOON } from './world.js';
 import { installGrade } from './grade.js';
+import { installCompileDefer } from './compile_defer.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -292,6 +293,14 @@ function resumeReload(g, fn, args, recreate = false) {
   } catch (e) { return false; }
   if (g.G) save(g.G);   // 練習（G.practice）は save が何もしないので、続きの印の G だけで戻す
   window.__memReloading = true;
+  // 次の画面を作る前に、古い戦と共有素材を含む描画領域を返す。
+  // 頁の破棄任せだと、新しい支度と古い描画器の記憶が重なる。
+  const release = (fn) => { try { fn(); } catch (e) { console.error('読み込み直す前の片付けで失敗しました', e); } };
+  release(() => g.stopBattle());
+  release(() => g.freeTitle());
+  cancelAnimationFrame(loopFrame);
+  release(() => g.renderer.dispose());
+  release(() => g.renderer.forceContextLoss());
   g.paused = true;
   const card = document.createElement('div');
   card.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#14110d;color:#f1e6cf;font-size:18px;letter-spacing:.1em';
@@ -528,6 +537,8 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 installGrade(renderer);
+// 戦の途中で初めて出る描き方は、裏で組み上がってから描く（走ると一コマ止まる。compile_defer.js）
+installCompileDefer(renderer, (sc) => { try { return !!game.battle && sc === game.battle.scene && !game.starting && game.battle.t > 0.3; } catch (e) { return false; } });
 setRenderer(renderer); window.__renderer = renderer;
 const camera = new THREE.PerspectiveCamera(Math.min(S.fov, 54), 1, 0.1, 150);
 // 戦の途中に作った人の材質は、描く前に絵の仕組みを作り始める（humans.js が呼ぶ。もう作ってある材質だけなら何もしない）
@@ -2749,6 +2760,7 @@ let capAcc = 0, bgAcc = 0, waitingLast = false, loopBattle = null;
 // 一刻みが既に重い（24ms 超）時は刻まず一回で進め（戦の時が少しゆっくりになるが、画面は止まらない）、軽い時も二回まで。
 let stepMs = 0;
 function loop() {
+  if (window.__memReloading) return;
   loopFrame = requestAnimationFrame(loop);
   // 確かめ用：開戦から10秒、1コマの重さを window.__startFrames に記す（重いコマを探す道具。遊びには使わない）
   const _pf0 = window.__startFrames ? performance.now() : 0;

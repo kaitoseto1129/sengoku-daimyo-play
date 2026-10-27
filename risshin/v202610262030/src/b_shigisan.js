@@ -1094,6 +1094,108 @@ function ridgeEquipment(rt) {
   put(new THREE.ConeGeometry(1, 1, 4), STEP_MAT, heads);
 }
 
+// 夜攻めの備え。物の種類は本の野戦兵器・清洲の裏方小屋を参考にした推定配置。
+// 道・戸口・戦う中央を空け、小屋の裏と郭の端だけに置く。当たりも実兵も増やさない。
+function siegeStores(rt) {
+  const W = rt.world;
+  const box = ROOM_BOX, pole = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const ring = new THREE.TorusGeometry(1, .035, 3, 8);
+  const pot = new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: woodTex() });
+  const pose = new THREE.Object3D(), color = new THREE.Color();
+  let bambooKit = null;
+  // 一地点一束で描き、遠くは竹束の輪郭と屋根だけ。細い縄・節・薪は近くでだけ送る。
+  const site = (x, z, kind) => {
+    const y = W.heightAt(x, z), coarse = [], detail = [];
+    if (kind === 'bamboo' && bambooKit) {
+      const copy = bambooKit.clone(); copy.position.set(x, y, z); rt.scene.add(copy); return;
+    }
+    const footAt = (dx, dz) => W.heightAt(x + dx, z + dz) - y;
+    const add = (parts, geo, tint, px, py, pz, sx, sy, sz, rx = 0, ry = 0, rz = 0) => {
+      const g = geo.clone();
+      pose.position.set(px, py, pz); pose.scale.set(sx, sy, sz); pose.rotation.set(rx, ry, rz);
+      pose.updateMatrix(); g.applyMatrix4(pose.matrix);
+      const a = new Float32Array(g.attributes.position.count * 3); color.setHex(tint);
+      for (let i = 0; i < a.length; i += 3) { a[i] = color.r; a[i + 1] = color.g; a[i + 2] = color.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
+    };
+    if (kind === 'bamboo') {
+      // 二束だけの控え。黄色一色の壁でなく、切口・節・二か所の縄で束ねた青竹にする。
+      for (let b = 0; b < 2; b++) {
+        const bx = b * .86 - .43, h = 1.65 + b * .16;
+        add(coarse, pole, 0x696747, bx, h / 2, 0, .38, h, .38);
+        for (let i = 0; i < 8; i++) {
+          const a = i * Math.PI / 4, px = bx + Math.cos(a) * .34, pz = Math.sin(a) * .34;
+          const ph = h + (i % 3 - 1) * .045;
+          add(detail, pole, i % 2 ? 0x8a8854 : 0x657044, px, ph / 2, pz, .075, ph, .075);
+          add(detail, pole, 0xb5a477, px, ph + .008, pz, .067, .018, .067);
+          for (const yy of [.36, .86, 1.35]) add(detail, pole, 0x9a9764, px, yy, pz, .083, .028, .083);
+        }
+        for (const yy of [.5, 1.18]) add(detail, ring, 0x51432f, bx, yy, 0, .44, .44, .44, Math.PI / 2);
+      }
+    } else if (kind === 'shelter') {
+      // 幕囲いの脇の板葺き陣小屋。南は開け、兵糧と運搬具を雨露から守る。
+      const rise = Math.max(0, ...[-1.7, 1.7].flatMap(dx => [-1.1, 1.1].map(dz => footAt(dx, dz))));
+      for (const dx of [-1.7, 1.7]) for (const dz of [-1.1, 1.1]) {
+        const foot = footAt(dx, dz);
+        add(coarse, pole, 0x60503b, dx, (foot + rise + 2.35) / 2, dz, .085, rise + 2.35 - foot, .085);
+      }
+      for (const dz of [-1.1, 1.1]) add(coarse, box, 0x69563c, 0, rise + 2.28, dz, 3.9, .13, .13);
+      for (const side of [-1, 1]) {
+        add(coarse, box, 0x726451, 0, rise + 2.57, side * .66, 4.1, .10, 1.48, side * .3);
+        for (let i = 0; i < 10; i++) add(detail, box, i % 2 ? 0x83755f : 0x625844,
+          -1.85 + i * .41, rise + 2.63, side * .66, .032, .035, 1.48, side * .3);
+        add(detail, pole, 0x574a37, 0, rise + 2.74, side * .68, .055, 4.25, .055, 0, 0, Math.PI / 2);
+      }
+      for (let i = 0; i < 7; i++) {
+        const px = -1.53 + i * .51, foot = footAt(px, -1.1), top = rise + 2.15;
+        add(detail, box, i % 2 ? 0x6e604a : 0x81745b, px, (foot + top) / 2, -1.1, .49, top - foot, .055);
+      }
+      // 縄を掛けた木箱と担ぎ棒。戦国の山道なので車輪付き攻城具は置かない。
+      for (let i = 0; i < 3; i++) {
+        const px = -.9 + i * .75, foot = footAt(px, -.45);
+        add(coarse, box, 0x79684c, px, foot + .3, -.45, .67, .6, .75);
+        for (const dx of [-.22, .22]) add(detail, box, 0x4e4231, px + dx, foot + .31, -.45, .035, .63, .79);
+      }
+      for (const dx of [-1.3, 1.3]) {
+        const foot = footAt(dx, .5), top = rise + .12;
+        add(detail, box, 0x514430, dx, (foot + top) / 2, .5, .12, top - foot, .65);
+      }
+      for (let i = 0; i < 3; i++) add(detail, pole, 0x887149, .2, rise + .17 + i * .1, .5, .045, 3.6, .045, 0, 0, Math.PI / 2);
+    } else {
+      // 既存の焚火の上に鍋。灯り・炎・煙の仕組みは共用し、照明は増やさない。
+      for (const dx of [-.75, .75]) {
+        const foot = footAt(dx, 0);
+        add(coarse, pole, 0x60503c, dx, (foot + 1.64) / 2, 0, .055, 1.64 - foot, .055);
+      }
+      add(coarse, pole, 0x60503c, 0, 1.62, 0, .06, 1.8, .06, 0, 0, Math.PI / 2);
+      add(detail, pole, 0x39362e, 0, 1.27, 0, .023, .65, .023);
+      add(coarse, pot, 0x302e28, 0, .94, 0, .43, .43, .43);
+      add(detail, ring, 0x4b4638, 0, .94, 0, .43, .43, .43, Math.PI / 2);
+      for (let i = 0; i < 5; i++) add(detail, pole, 0x67533c, 1.25, footAt(1.25, -.3) + .08 + Math.floor(i / 3) * .14,
+        -.5 + (i % 3) * .17, .07, .9, .07, 0, 0, Math.PI / 2);
+    }
+    const root = new THREE.Group(); root.position.set(x, y, z);
+    const put = (parts) => {
+      const mesh = new THREE.Mesh(mergeGeometries(parts), mat); mesh.receiveShadow = true;
+      for (const g of parts) g.dispose();
+      return mesh;
+    };
+    const silhouette = put(coarse), fine = put(detail);
+    const near = new THREE.Mesh(mergeGeometries([silhouette.geometry, fine.geometry]), mat);
+    near.receiveShadow = true; fine.geometry.dispose();
+    const lod = new THREE.LOD(); lod.userData.noMerge = true; lod.addLevel(near, 0);
+    lod.addLevel(new THREE.Mesh(silhouette.geometry, mat), 48);
+    lod.addLevel(new THREE.Group(), 125); root.add(lod); rt.scene.add(root);
+    if (kind === 'bamboo') bambooKit = root;
+  };
+  for (const [x, z] of [[14, GATE.z - 10], [16, GATE.z - 2], [RIDGE1.x - 10, RIDGE1.z - 3], [RIDGE3.x - 8, RIDGE3.z]]) site(x, z, 'bamboo');
+  site(-26, 140, 'shelter');
+  site(-20, 124, 'cook');
+  W.addSmokeColumn(-20, W.heightAt(-20, 124) + 1, 124, { size: .4 });
+  pole.dispose(); ring.dispose(); pot.dispose();
+}
+
 // この山だけ地面の格子を細分する。歩行も描く三角形の面へ合わせる。
 // 草・土・岩の共通材質と属性は再利用し、準備時に一度だけ組み直す。
 function ridgeTerrain(W) {
@@ -2066,6 +2168,7 @@ const shigisan = {
     for (const m of Object.values(F.jinRoster[0])) m.army.noWake = false;
     for (const a of W.armies || []) if (a.team === undefined) { a.team = 0; a.noWake = false; a.jinkeiGuard = true; }
     for (const [x, z] of [[-20, 124], [20, 126]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
+    siegeStores(rt);
 
     // 物見の床だけでなく地上の脚組も、近い視点の見通しに含める。
     // 当たり・床・梯子は保ち、この戦の櫓にだけ範囲を持たせる。

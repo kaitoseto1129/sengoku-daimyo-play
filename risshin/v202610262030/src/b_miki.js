@@ -4,6 +4,8 @@ import { fireGlow } from './fire_glow.js';
 import { rosterPlan, rosterBuild } from './jinkei_roster.js';
 import { nobori, hut, yagura, tawara, takataba, jinmaku, dorui, umatsunagi, hyoro, village, kabukimon, makeSimpleBatch, pushSimpleBatch, finalizeSimpleBatch, palisade, castleBoardFence, hatazao, jindaiko, solidCircle, solidRect, solidSeg, SOLIDS } from './props.js';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { nabe, paintGeo } from './props.js';
 import { bodyGeometry } from './units_model.js';
 import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 import { dirtTex, mudTex, leafTex } from './nature.js';
@@ -24,6 +26,98 @@ import { camp } from './b_mid.js';
 import { makeKakoi, advanceDay, campWear, kakoiEvent } from './kakoi.js';
 
 const MIKI = { x: 70, z: 30 };
+// 写真の裏方小屋・井楼の足元。道具は陣内の後ろへ寄せ、門と荷駄道には置かない。
+// 近景の小物は結合し、遠景には既存の俵を残す。支度時だけ形を作る。
+function mikiCampStores(rt) {
+  const W = rt.world, material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const hoop = new THREE.TorusGeometry(1, .035, 3, 10);
+  const pose = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3();
+  const parts = [];
+  const piece = (shape, x, y, z, sx, sy, sz, color, rot = 0) => {
+    pose.position.set(x, y, z); pose.rotation.set(0, rot, 0); pose.scale.set(sx, sy, sz); pose.updateMatrix();
+    parts.push(paintGeo(shape, color).applyMatrix4(pose.matrix));
+  };
+  const beam = (ax, ay, az, bx, by, bz, radius, color) => {
+    dir.set(bx - ax, by - ay, bz - az);
+    pose.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    pose.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+    pose.scale.set(radius, dir.length(), radius); pose.updateMatrix();
+    parts.push(paintGeo(cylinder, color).applyMatrix4(pose.matrix));
+  };
+  // 薪の木口、予備の竿、縄の輪、桶の板と箍。小物の形は二つの陣で使い回す。
+  for (let row = 0; row < 3; row++) for (let j = 0; j < 5 - row; j++) {
+    const x = -1.25 + j * .17 + row * .085, y = .12 + row * .14;
+    beam(x, y, -.8, x + .04, y + .03, .35 + (j % 2) * .14, .085, j % 2 ? 0x67513b : 0x847057);
+  }
+  for (let i = 0; i < 5; i++) beam(-1.7 + i * .13, .1, -.9,
+    -1.6 + i * .13, .52, -3.7 + (i % 2) * .2, .035, 0x9d8c62);
+  piece(box, -.5, .11, -1.6, 1.4, .16, .7, 0x69513a);
+  for (let i = 0; i < 8; i++) piece(box, -.5 + i * .17, .22, -1.6, .14, .07, .72, 0xa18c61);
+  for (let i = 0; i < 3; i++) {
+    const g = paintGeo(hoop, 0x8b7b56); g.rotateX(Math.PI / 2);
+    g.scale(.29 + i * .025, 1, .29 + i * .025); g.translate(-.45, .28 + i * .035, -1.6); parts.push(g);
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = i * Math.PI / 6;
+    piece(box, .7 + Math.sin(a) * .27, .28, -1.6 + Math.cos(a) * .27,
+      .13, .5, .055, i % 2 ? 0x8c7654 : 0x786042, a);
+  }
+  for (const y of [.12, .42]) {
+    const g = paintGeo(hoop, 0x484336); g.rotateX(Math.PI / 2);
+    g.scale(.29, 1, .29); g.translate(.7, y, -1.6); parts.push(g);
+  }
+  const geometry = mergeGeometries(parts); parts.forEach(g => g.dispose());
+  cylinder.dispose(); box.dispose(); hoop.dispose();
+  const pot = nabe(W, 0, 0, { fire: false }); pot.position.set(1.3, 0, .3);
+  for (const [x, z] of [[HIRATA.x - 3, HIRATA.z - 9], [HONJIN.x - 7, HONJIN.z - 13]]) {
+    const lod = new THREE.LOD(), near = new THREE.Group();
+    const stores = new THREE.Mesh(geometry, material); stores.receiveShadow = true;
+    near.add(stores, pot.clone()); lod.addLevel(near, 0); lod.addLevel(new THREE.Group(), 65);
+    lod.position.set(x, W.heightAt(x, z), z); rt.scene.add(lod);
+    // 炎上ではなく炊事の細い煙。既存の風・煙の共有枠へ二本だけ入れる。
+    W.addSmokeColumn(x + 1.3, W.heightAt(x, z) + .15, z + .3, { size: .22 });
+    const f = W.addFire(x + 1.3, z + .3, { h: .08, size: .16, lightRadius: 2, smoke: false });
+    W.batchFireFlames(f.flame, f.inner);
+  }
+}
+
+// 刈田の縁に残る株と稲束。田の中央・畦・街道を空け、戦う兵の数も密度も保つ。
+function mikiHarvest(rt) {
+  const W = rt.world, material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const stalk = new THREE.CylinderGeometry(.018, .027, 1, 3);
+  const parts = [], pose = new THREE.Object3D();
+  for (const [cx, cz, w, d] of HARVEST_FIELDS) {
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 24; i++) {
+      const x = cx - w / 2 + 3 + (w - 6) * i / 23, z = cz - d / 2 + 3 + row * .65;
+      if (ROADS.some(pts => pts.some((p, j) => j && lineDistance(x, z, ...pts[j - 1], ...p) < 5))) continue;
+      for (let k = 0; k < 3; k++) {
+        const h = .16 + .035 * ((i + row + k) % 4);
+        pose.position.set(x + k * .065 - cx, W.heightAt(x, z) - W.heightAt(cx, cz) + h / 2, z - cz);
+        pose.rotation.set(.12 * k, i, .1 * row); pose.scale.set(1, h, 1); pose.updateMatrix();
+        parts.push(paintGeo(stalk, (i + k) % 2 ? 0x8c8053 : 0xafa06d).applyMatrix4(pose.matrix));
+      }
+    }
+    // 天日干しの小さな束。大きな藁山を作らず、田の隅に三束だけ置く。
+    for (let bundle = 0; bundle < 3; bundle++) {
+      const x = cx + w / 2 - 4 - bundle * 1.2, z = cz + d / 2 - 4;
+      if (ROADS.some(pts => pts.some((p, j) => j && lineDistance(x, z, ...pts[j - 1], ...p) < 5))) continue;
+      for (let k = 0; k < 9; k++) {
+        const a = k * Math.PI * 2 / 9;
+        pose.position.set(x - cx + Math.sin(a) * .14, W.heightAt(x, z) - W.heightAt(cx, cz) + .42, z - cz + Math.cos(a) * .14);
+        pose.rotation.set(Math.cos(a) * .26, 0, -Math.sin(a) * .26);
+        pose.scale.set(2, .85, 2); pose.updateMatrix();
+        parts.push(paintGeo(stalk, k % 2 ? 0xa49765 : 0x85754b).applyMatrix4(pose.matrix));
+      }
+    }
+    const geometry = mergeGeometries(parts); parts.forEach(g => g.dispose()); parts.length = 0;
+    const lod = new THREE.LOD(), mesh = new THREE.Mesh(geometry, material); mesh.receiveShadow = true;
+    lod.addLevel(mesh, 0); lod.addLevel(new THREE.Group(), 85);
+    lod.position.set(cx, W.heightAt(cx, cz), cz); rt.scene.add(lod);
+  }
+  stalk.dispose();
+}
 // 三木だけの見た目の補修。川床・浅瀬・兵の道は変えない。
 function mikiScenery(W) {
   // 出陣札で時間が止まっている間も、山の霞を夜の空へ合わせる。
@@ -1517,7 +1611,9 @@ const miki = {
     for (const s of hirataWalls) { s.noTarget = true; s.wall = true; }
     mikiFortHut(W, HIRATA.x - 5, HIRATA.z - 4, 6, 4, 0, { ita: true, batch });
     // 井楼は柵内の奥へ据え、門前の打ち合いと肩越しの視界から横木を離す。
-    mikiLookout(rt, HIRATA.x + 8, HIRATA.z - 3, { logFrame: true, height: 8.8, boarded: false, mon: 'oda', team: 0 });
+    mikiLookout(rt, HIRATA.x + 8, HIRATA.z - 3, { logFrame: true, height: 8.8, boarded: true,
+      fieldFrame: true, barkPosts: true, fieldDetail: true, fieldLashings: true,
+      crossLashings: true, fieldBraces: true, mon: 'oda', team: 0 });
     rt.scene.add(mikiGate(W, HIRATA.x, HIRATA.z + HIRATA.r, 6));
     for (const [x, z] of [[HIRATA.x - 6, HIRATA.z + 8], [HIRATA.x + 6, HIRATA.z + 8]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
     for (const wall of hirataWalls) dorui(W, wall.seg, wall.nx, wall.nz, { h: .7, w: 2, capEnds: true, closeBack: true, batch });
@@ -1646,6 +1742,8 @@ const miki = {
     mikiFortHut(W, HONJIN.x + 9, HONJIN.z - 7, 6, 4, 0, { ita: true, batch: honjinHouses });
     finalizeSimpleBatch(rt, honjinHouses);
     rt.scene.add(mikiGate(W, HONJIN.x, HONJIN.z + 20, 8));
+    mikiCampStores(rt);
+    mikiHarvest(rt);
     mikiFireStands(rt);
     mikiKidoLight(rt, 0);
     // 円い柵の弦から、梯子の足と一歩手前まで離す。

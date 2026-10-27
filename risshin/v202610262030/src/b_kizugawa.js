@@ -935,6 +935,93 @@ function addDeckStores(g, cx, hw, mastZ) {
   }
   mesh.castShadow = mesh.receiveShadow = true; g.add(mesh);
 }
+// 本の木盾・竹束・縄掛けを船具へ応用した補完。自船の右舷だけに置く。
+// 大筒の射界・接舷口・水桶・中央の甲板へは張り出さない。供船には細部を複製しない。
+function addDeckBulwark(g, cx, hw) {
+  const R = rigParts(), M = shipMats(), D = R.dummy;
+  if (!R.wovenMat) {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
+    const c = canvas.getContext('2d');
+    c.fillStyle = '#a39167'; c.fillRect(0, 0, 128, 128);
+    // 藁の撚りと縦の経糸。下端ほど濡れて暗く、四隅の縄は絵に含める。
+    for (let y = 0; y < 128; y += 3) {
+      c.fillStyle = y % 9 ? '#b3a077' : '#88764f'; c.fillRect(0, y, 128, 1);
+    }
+    for (let x = 4; x < 128; x += 12) {
+      c.fillStyle = '#6d6044'; c.fillRect(x, 0, 1, 128);
+      c.fillStyle = '#c5b48d';
+      for (let y = 0; y < 128; y += 12) c.fillRect(x, y, 2, 6);
+    }
+    const wet = c.createLinearGradient(0, 70, 0, 128);
+    wet.addColorStop(0, 'rgba(37,34,24,0)'); wet.addColorStop(1, 'rgba(37,34,24,.48)');
+    c.fillStyle = wet; c.fillRect(0, 70, 128, 58);
+    c.strokeStyle = '#d0b98d'; c.lineWidth = 3;
+    for (const x of [9, 119]) {
+      c.beginPath(); c.moveTo(x, 0); c.lineTo(x, 26); c.lineTo(x - 5, 32);
+      c.moveTo(x, 26); c.lineTo(x + 5, 32); c.stroke();
+    }
+    const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+    R.wovenMat = shipHaze(new THREE.MeshStandardMaterial({ map, roughness: 1, side: THREE.DoubleSide }));
+    R.wovenGeo = new THREE.PlaneGeometry(1, 1, 4, 1);
+    const p = R.wovenGeo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setZ(i, .035 * Math.cos(p.getX(i) * Math.PI * 4));
+    R.wovenGeo.computeVertexNormals();
+  }
+  const mats = new THREE.InstancedMesh(R.wovenGeo, R.wovenMat, 4);
+  const bamboo = new THREE.InstancedMesh(R.pole, M.rope, 28);
+  const ties = new THREE.InstancedMesh(R.sailTie, M.rope, 8);
+  const color = new THREE.Color();
+  for (let i = 0; i < 4; i++) {
+    const z = -10 + i * 6;
+    D.position.set(cx + hw - .17, DECK.y + .66, z);
+    D.rotation.set(0, -Math.PI / 2, 0); D.scale.set(2.6, .95, 1);
+    D.updateMatrix(); mats.setMatrixAt(i, D.matrix);
+    // 七本の竹を束ね、切り口が分かる五角柱にする。幅は舷から半歩以内。
+    for (let j = 0; j < 7; j++) {
+      const a = j * Math.PI / 3;
+      const dx = j === 6 ? 0 : Math.cos(a) * .12;
+      const dz = j === 6 ? 0 : Math.sin(a) * .12;
+      D.position.set(cx + hw - .38 + dx, DECK.y + .68, z + 1.7 + dz);
+      D.rotation.set(0, j * .7, .045); D.scale.set(.84, 1.25 + (j % 3) * .06, .84);
+      D.updateMatrix(); bamboo.setMatrixAt(i * 7 + j, D.matrix);
+      bamboo.setColorAt(i * 7 + j, color.setHex(j % 2 ? 0xaaa17c : 0x8b9470));
+    }
+    for (let j = 0; j < 2; j++) {
+      D.position.set(cx + hw - .38, DECK.y + .3 + j * .72, z + 1.7);
+      D.rotation.set(Math.PI / 2, 0, 0); D.scale.set(.21, .21, .3);
+      D.updateMatrix(); ties.setMatrixAt(i * 2 + j, D.matrix);
+    }
+  }
+  mats.receiveShadow = bamboo.receiveShadow = ties.receiveShadow = true;
+  g.add(mats, bamboo, ties);
+}
+// 冬の河口は背の低い枯れ葦。河道を避け、水際にだけ疎らに置く（岸の植生は推定）。
+// 三枚の葉を一株にした形を共有。透過・影・風の更新を持たず、遠岸を一回で描く。
+function addEstuaryReeds(scene) {
+  const R = rigParts(), D = R.dummy;
+  if (!R.reedGeo) {
+    const v = [];
+    for (let i = 0; i < 3; i++) {
+      const a = i * Math.PI * 2 / 3, x = Math.cos(a), z = Math.sin(a);
+      v.push(-z * .09, 0, x * .09, z * .09, 0, -x * .09, x * .45, 1.1 + i * .2, z * .45);
+    }
+    R.reedGeo = new THREE.BufferGeometry();
+    R.reedGeo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    R.reedGeo.computeVertexNormals();
+    R.reedMat = shipHaze(new THREE.MeshStandardMaterial({ color: 0x968868, roughness: 1, side: THREE.DoubleSide }));
+  }
+  const reeds = new THREE.InstancedMesh(R.reedGeo, R.reedMat, 192);
+  let n = 0;
+  for (let i = 0; i < 192; i++) {
+    const x = 222 + (i % 8) * 3.6 + Math.sin(i * 4.7) * 1.8;
+    const z = -320 + Math.floor(i / 8) * 27 + Math.cos(i * 2.3) * 9;
+    const y = height(x, z);
+    if (y < .12 || y > 2.1) continue;
+    D.position.set(x, y - .04, z); D.rotation.set(0, i * 2.4, 0);
+    D.scale.setScalar(.65 + (i % 5) * .16); D.updateMatrix(); reeds.setMatrixAt(n++, D.matrix);
+  }
+  reeds.count = n; scene.add(reeds);
+}
 // 船梁から水際へ下りる太い肋材。箱形船腹の折れに沿わせ、艪とは直交する縦の並びにする。
 function addHullRibs(g, cx, hw, z0, z1, top, bottom, left = true, right = true) {
   const R = rigParts(), D = R.dummy, count = 12;
@@ -1589,6 +1676,8 @@ function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
   }
   addBowGun(g, cx, z0 - 4.5, DECK.y + 1.25, -Math.PI / 2);
   for (const m of g.children) { m.castShadow = true; m.receiveShadow = true; }
+  // 小さな編み目や縄まで影の描画を増やさない。
+  if (high && castle) addDeckBulwark(g, cx, hw0);
   // 舷と船体を画面中央の透かしへ入れると、近い楯板が四角く消えて海が露出する。
   // 視点は船内へ収めるので板は残す。帆柱の遮り判定と布の透かしは従来どおり。
   // この船の不透明な材質だけを準備時に分け、同じ材質の部品で共有する。
@@ -2830,6 +2919,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       bank.computeVertexNormals();
       const shore = new THREE.Mesh(bank, coast); shore.receiveShadow = true; rt.scene.add(shore);
     }
+    addEstuaryReeds(rt.scene);
     // ---- 供の大安宅船（自船と合わせて九鬼の大船六艘。形と動きだけの軽い船） ----
     F.escorts = [[38, -42], [76, -84], [-40, 56], [-2, 98], [36, 140]].map(([x, z]) => {
       const m = atakeLite(W); addCrew(m, 2.5, 18, true); m.position.set(x, 0, z); m.rotation.y = -Math.PI / 4; rt.scene.add(m);

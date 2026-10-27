@@ -331,6 +331,32 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   return pin;
 }
 
+// 守る判定と同じ二十メートル。形は一度だけ作り、残り時間は描く面の数で示す。
+function holdRingTick(rt) {
+  const F = rt.flags, active = !F.ending && F.step === 1 && F.training < 11;
+  if (!active) { if (F.holdRing) F.holdRing.visible = false; return; }
+  if (!F.holdRing) {
+    const vertices = [], segments = 96, at = F.holdPoint;
+    for (let i = 0; i < segments; i++) {
+      const a = i / segments * Math.PI * 2, b = (i + 1) / segments * Math.PI * 2;
+      for (const [angle, radius] of [[a,19.7],[a,20],[b,20],[a,19.7],[b,20],[b,19.7]]) {
+        const x = at.x + Math.sin(angle) * radius, z = at.z - Math.cos(angle) * radius;
+        vertices.push(x, rt.world.heightAt(x, z) + .08, z);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const material = new THREE.MeshBasicMaterial({ color: 0xffe6a0, side: THREE.DoubleSide, transparent: true, opacity: .85, depthWrite: false, fog: false });
+    const ring = F.holdRing = new THREE.Mesh(geometry, material);
+    ring.renderOrder = 3; rt.scene.add(ring);
+    rt.cleanupTasks?.add(() => { rt.scene.remove(ring); geometry.dispose(); material.dispose(); });
+  }
+  const ring = F.holdRing, p = rt.player.u.pos;
+  ring.visible = true;
+  ring.material.color.setHex(Math.hypot(p.x - F.holdPoint.x, p.z - F.holdPoint.z) <= 20 ? 0xffe6a0 : 0xff6347);
+  ring.geometry.setDrawRange(0, Math.ceil(96 * Math.max(0, 1 - F.holdElapsed / 20)) * 6);
+}
+
 // 柴田勢と佐久間勢は、柴田が動く時に初めて置く。待つ間に立ち並ぶ兵を作らない（kaito 10/24「動かない味方と敵は一切排除」）。
 function spawnShiba(rt) {
   const F = rt.flags, W = rt.world;
@@ -386,6 +412,7 @@ const inou = {
   keepTaskLabel: true,
   keepGuardTaskLabel: true,
   autoTargetCamera: true,
+  steadyMeleeCamera: true,
   keepDestinationTask: true,
   immediateTaskChanges: true,
   nearAllyWholeOcclusion: true,
@@ -965,7 +992,13 @@ const inou = {
     F.hayaG.onArrive = (g) => vanish(rt, g); F.hayaG.speed = 1.8;
     F.hayaG.aggro = 1; F.hayaG.fire = false;
     lesson(rt, 'chain');
-    rt.after(9, () => {
+  },
+
+  // 討死後の進行は段の時計で管理し、討死の通知や予約の有無に依存させない。
+  aftermathTick(rt) {
+    const F = rt.flags, elapsed = rt.t - F.stepT;
+    if (F.step !== 4) return;
+    if (elapsed >= 9 && !F.centerOpen) {
       F.centerOpen = true;
       const g = F.hayaCenter;
       g.morale = Math.max(0, g.morale - 30); g.aggro = 1; g.fire = false;
@@ -979,16 +1012,16 @@ const inou = {
       F.kuroda.focus = null; F.kuroda.order = 'attack'; F.kuroda.seekRange = 35;
       F.nobuGroup.focus = null; F.nobuGroup.order = 'attack'; F.nobuGroup.seekRange = 30;
       F.front.push('B', 0.6);
-    });
-    rt.after(21, () => {
+    }
+    if (elapsed >= 21 && !F.mainBroken) {
       F.mainBroken = true; F.training = 18;
       F.front.rout('B', { hideAfter: 40 });
       for (const g of F.haya) { g.noRout = false; }
       lesson(rt, 'pursuit');
       rt.obj('main', '味方と追撃し、柴田の槍隊には近づきすぎない', 'main');
       rt.award((t) => { t.special = { label: '稲生原で部隊の崩れを連ねた', pts: 18 }; }, '林の備から中央を崩した');
-    });
-    rt.after(32, () => this.shibaRetreat(rt));
+    }
+    if (elapsed >= 32) this.shibaRetreat(rt);
   },
 
   // 段十九。弓、武者、しんがりの長槍。勝家は最後まで槍隊のそばに残る。
@@ -1046,6 +1079,7 @@ const inou = {
   update(rt, dt) {
     const F = rt.flags;
     const p = rt.player.u.pos;
+    holdRingTick(rt);
     if (F.ending) return;
     fieldDustTick(rt);
     KIT.backTick(rt);
@@ -1243,9 +1277,10 @@ const inou = {
       }
       // 信長が届かない時も、斬り合う黒田が八十秒で討つ（山場を長く引き延ばさない）。
       const kuro = F.kuroda?.units[0];
-      if (F.hayaU.alive && elapsed > 80) { F.hayaU.invuln = false; F.hayaU.hp = 0; rt.army.kill(F.hayaU, kuro?.alive ? kuro : nobu?.alive ? nobu : null); }
+      if (F.step === 3 && F.hayaU.alive && elapsed > 80) { F.hayaU.invuln = false; F.hayaU.hp = 0; rt.army.kill(F.hayaU, kuro?.alive ? kuro : nobu?.alive ? nobu : null); }
       if (!F.hayaU.alive) this.hayaFell(rt);
     }
+    if (F.step === 4) this.aftermathTick(rt);
     if (F.step === 5) {
       const elapsed = rt.t - F.stepT;
       // 近くの追い手を一秒に一度だけ見る。止める時間を区切り、またまとまって退く。
@@ -1269,7 +1304,7 @@ const inou = {
         F.shibaG.order = 'retreat'; F.shibaG.dest = F.retreatWarrior;
       }
       // 追い手に絡まれて下がり切れない時も、五十秒で退き終えた扱いにする（止まったまま終わらない戦にしない）。
-      if (F.lastWithdraw && (F.shibaU.pos.z < -105 || elapsed > 50) && (F.shiba1.count === 0 || F.shiba1.center().z < -88 || elapsed > 45)) {
+      if (elapsed >= 50 || F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88)) {
         F.commanderRetired = true;
         this.win(rt);
       }
@@ -1323,7 +1358,7 @@ const inou = {
       const off = Math.abs(((Math.atan2(dx, dz) - rt.player.yaw) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
       if (Math.hypot(dx, dz) < 40 && off < 0.7 || rt.t - F.bossAt > 15) {
         F.bossNamed = true;
-        brushWord(rt, '林美作守', { big: true, hold: 2.4 });
+        brushWord(rt, '林美作守', { introduction: true, hold: 2.4 });
         sfx('taiko', 1); rt.after(0.35, () => sfx('taiko', 0.9));
         rt.army.play('eshout', h.pos, 1.2);
       }

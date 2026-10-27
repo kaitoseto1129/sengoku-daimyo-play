@@ -911,12 +911,13 @@ function humansStep(rt, dt, army, cam) {
     if (h.geoFar && !qualityKeeper(u) && !named) setFar(h, c.dist > Math.min(15, detailNear) && (TIER.weak || (u.qualityTier != null ? u.qualityTier > 0 : c.dist > detailNear - (h.lodFar ? 1 : 0) && c.dist > Math.min(HUM.lod, detailNear))));
     if (!qualityKeeper(u)) {
       const detailed = c.surfaceDetail && !h.lodFar;
-      // 泥・血・濡れの近い表面は細部を描く近くの兵だけ（遠くは元の材質のまま束ね、描く回数を増やさない）
-      if (h.parts.armor) h.parts.armor.material = detailed ? nearSurfaceMaterial(nearCrowdMat(Math.floor(((h.seed || 0) * 11.3) % 1 * 4))) : UNIT_MAT;
+      // 組み立て時と同じ表面処理を共用し、開戦直後に遠方用の別の描き方へ切り替えない。
+      // 泥・血・濡れは表面処理の距離判定で近くだけに残す（遠方は元の色、兵の数と密度は同じ）。
+      if (h.parts.armor) h.parts.armor.material = nearSurfaceMaterial(detailed ? nearCrowdMat(Math.floor(((h.seed || 0) * 11.3) % 1 * 4)) : UNIT_MAT);
       const helmet = h.parts.kabuto;
-      if (helmet && helmet.userData.surfaceBase) helmet.material = detailed ? nearSurfaceMaterial(helmet.userData.surfaceFine, 'kabuto') : helmet.userData.surfaceBase;
+      if (helmet && helmet.userData.surfaceBase) helmet.material = nearSurfaceMaterial(detailed ? helmet.userData.surfaceFine : helmet.userData.surfaceBase, 'kabuto');
       const armor = h.parts.domaru;
-      if (armor && armor.userData.surfaceBase) armor.material = detailed ? nearSurfaceMaterial(armor.userData.surfaceFine, 'domaru') : armor.userData.surfaceBase;
+      if (armor && armor.userData.surfaceBase) armor.material = nearSurfaceMaterial(detailed ? armor.userData.surfaceFine : armor.userData.surfaceBase, 'domaru');
     }
     if (!u.alive) h.deadAge = (h.deadAge || 0) + dt; else h.still = false;
     if (u.death?.aid) h.still = false;

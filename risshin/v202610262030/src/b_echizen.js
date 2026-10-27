@@ -2,6 +2,7 @@
 // 縮めた二砦・敵だけ弱い傷・時刻による救済・本陣への斬り込みは重ねない。
 import { kinome, kinomeCourtLevel } from './b_kinome.js';
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { dirtTex } from './nature.js';
 import { KINOME_PLAN, KINOME_ROADS, ROAD, EXIT_KANNON, EXIT_KINOME } from './castles/kinome.js';
 import { distToPolyline } from './world.js';
@@ -677,6 +678,160 @@ echizen.world = {
   },
 };
 
+// 写真の丸太組・板囲い・縄掛けを、小さな仕寄りの陣具に使う。
+// 城の共有部品は変えず、本道と郭の中央には何も置かない。配置は推定。
+function passCampScenery(rt) {
+  const W = rt.world, sites = [];
+  const roadDistance = (x, z) => {
+    let d = Infinity;
+    for (const path of ECHIZEN_PATHS) d = Math.min(d, distToPolyline(x, z, path));
+    return d;
+  };
+  const proposed = [[-80, -554, .2], [36, -128, -.3], [-30, -3, .1], [-26, 182, -.2]];
+  // 麓の荷解き場は、急坂と川を避けて道肩の平らな所を二つだけ探す。
+  for (const z of [-805, -733]) {
+    for (const x of [13, -13, 18, -18]) {
+      if (roadDistance(x, z) < 10) continue;
+      const y = W.heightAt(x, z);
+      if (Math.abs(W.heightAt(x + 4, z) - y) > .7 ||
+          Math.abs(W.heightAt(x - 4, z) - y) > .7 ||
+          Math.abs(W.heightAt(x, z + 4) - y) > .7 ||
+          Math.abs(W.heightAt(x, z - 4) - y) > .7) continue;
+      proposed.push([x, z, x > 0 ? -.4 : .4]); break;
+    }
+  }
+  for (const [x, z, rot] of proposed) {
+    if (roadDistance(x, z) < 9 || NAKA.list.some(I => {
+      const lv = I.levels[0];
+      return Math.abs(x - I.x) < lv.w / 2 + 6 && Math.abs(z - I.z) < lv.d / 2 + 6;
+    })) continue;
+    sites.push({ x, z, rot, y: W.heightAt(x, z) });
+  }
+  if (!sites.length) return;
+  const core = [], detail = [], dummy = new THREE.Object3D(), color = new THREE.Color();
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const ring = new THREE.TorusGeometry(1, .045, 3, 8);
+  const place = (list, source, tint, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) => {
+    const g = source.clone().toNonIndexed();
+    dummy.position.set(x, y, z); dummy.scale.set(sx, sy, sz); dummy.rotation.set(rx, ry, rz);
+    dummy.updateMatrix(); g.applyMatrix4(dummy.matrix);
+    color.setHex(tint);
+    const a = new Float32Array(g.attributes.position.count * 3);
+    for (let i = 0; i < a.length; i += 3) { a[i] = color.r; a[i + 1] = color.g; a[i + 2] = color.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3)); list.push(g);
+  };
+  // 開いた片流れの陣小屋。雨を落とす板屋根と、裏の葦簀だけにする。
+  for (const x of [-1.5, 1.5]) for (const z of [-1.2, 1.2]) {
+    const h = z < 0 ? 2.1 : 1.65;
+    place(core, pole, 0x554534, x, h / 2 - .12, z, .085, h + .24, .085);
+    place(detail, ring, 0x8c7955, x, h - .2, z, .11, .11, .11, Math.PI / 2);
+  }
+  for (let i = 0; i < 9; i++) {
+    place(core, box, i % 3 ? 0x635440 : 0x78674e, -1.6 + i * .4, 1.94, 0,
+      .405, .055, 2.85, .185);
+    place(detail, box, 0x443a2d, -1.6 + i * .4, 1.96, 0, .025, .018, 2.8, .185);
+  }
+  place(core, box, 0x777052, 0, .8, 1.2, 3, 1.4, .045);
+  for (let i = 0; i < 20; i++)
+    place(detail, pole, i % 2 ? 0x92845c : 0x6c6847, -1.43 + i * .15, .8, 1.23, .025, 1.42, .025);
+  // 道へ張り出さない短い陣幕。裾を落とし、折れと縫い目を形で残す。
+  const cloth = new THREE.PlaneGeometry(4.2, 1.25, 12, 3), p = cloth.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    p.setXYZ(i, x, y - .1 * Math.cos(x * 1.5), .08 * Math.sin(x * 8) + .07 * Math.sin(x * 2 + y));
+  }
+  cloth.computeVertexNormals();
+  place(core, cloth, 0xb5ad8d, .3, 1, 3, 1, 1, 1);
+  for (const x of [-1.8, .3, 2.4]) {
+    place(core, pole, 0x5c503a, x, .85, 3, .045, 1.9, .045);
+    place(detail, box, 0x776c51, x, 1, 2.96, .018, 1.12, .012);
+  }
+  // 字や断定できない家紋を描かず、風下へ折れた生成りの小旗を一本。
+  place(core, pole, 0x706047, -2.8, 1.7, 2, .036, 3.7, .036);
+  place(core, box, 0x706047, -2.42, 3.25, 2, .85, .035, .035);
+  const flag = new THREE.PlaneGeometry(.72, 1.5, 4, 5), fp = flag.attributes.position;
+  for (let i = 0; i < fp.count; i++) fp.setZ(i, .1 * Math.sin(fp.getY(i) * 6) + .12 * fp.getX(i));
+  flag.computeVertexNormals();
+  place(core, flag, 0xbdb59a, -2.42, 2.5, 2, 1, 1, 1);
+  // 竹束の予備。竹の節・切り口・二段の縄は近い時だけ描く。
+  for (let b = 0; b < 2; b++) {
+    const bx = 2.5 + b * .75;
+    place(core, pole, 0x777553, bx, .88, 1, .28, 1.8, .28, 0, 0, -.08);
+    for (let j = 0; j < 7; j++) {
+      const a = j * Math.PI * 2 / 7, x = bx + Math.cos(a) * .25, z = 1 + Math.sin(a) * .25;
+      place(detail, pole, j % 2 ? 0x999269 : 0x73764d, x, .88, z, .055, 1.8 - j % 3 * .06, .055);
+      for (const y of [.4, 1.05, 1.65]) place(detail, pole, 0xa19a71, x, y, z, .06, .035, .06);
+      place(detail, pole, 0xb7a47b, x, 1.79 - j % 3 * .06, z, .038, .012, .038);
+    }
+    for (const y of [.48, 1.3]) place(detail, ring, 0x746044, bx, y, 1, .32, .32, .32, Math.PI / 2);
+  }
+  // 雨除けの下の炊事釜と薪。風雨なので野外の大きな炎や土埃は足さない。
+  place(core, pole, 0x292a25, -.6, .33, .3, .3, .45, .3);
+  place(detail, ring, 0x48483c, -.6, .57, .3, .31, .31, .31, Math.PI / 2);
+  for (let i = 0; i < 8; i++)
+    place(detail, pole, i % 2 ? 0x534334 : 0x746046, .6 + i % 4 * .17, .1 + Math.floor(i / 4) * .15, .6,
+      .075, .85, .075, Math.PI / 2, i * .12);
+  for (let i = 0; i < 3; i++) {
+    place(core, pole, 0x978363, .2 + i * .55, .3, -.7, .24, .55, .24, 0, 0, Math.PI / 2);
+    for (const x of [-.15, .15]) place(detail, ring, 0x6c6047, .2 + i * .55 + x, .3, -.7, .245, .245, .245, 0, Math.PI / 2);
+  }
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const meshes = [];
+  for (const [parts, far] of [[core, 140], [detail, 48]]) {
+    const geo = mergeGeometries(parts), mesh = new THREE.InstancedMesh(geo, mat, sites.length);
+    for (let i = 0; i < sites.length; i++) {
+      const s = sites[i];
+      dummy.position.set(s.x, s.y, s.z); dummy.rotation.set(0, s.rot, 0); dummy.scale.setScalar(1);
+      dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true; mesh.receiveShadow = true;
+    W.viewCull([mesh], 0, far, false); rt.scene.add(mesh); meshes.push(mesh);
+    for (const g of parts) g.dispose();
+  }
+  for (const g of [box, pole, ring, cloth, flag]) g.dispose();
+  // 雨除けの釜から細く流れる炊煙。全地点で一束、各三粒だけ。
+  // 時刻は描く時に渡し、毎コマの作り直しや粒ごとの計算はしない。
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext('2d'), gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gradient.addColorStop(0, 'rgba(220,220,210,0.5)'); gradient.addColorStop(1, 'rgba(220,220,210,0)');
+  ctx.fillStyle = gradient; ctx.fillRect(0, 0, 32, 32);
+  const smokeTex = new THREE.CanvasTexture(canvas), smokeGeo = new THREE.BufferGeometry();
+  const positions = [], phases = [];
+  for (const s of sites) for (let i = 0; i < 3; i++) {
+    positions.push(s.x - .6 * Math.cos(s.rot) + .3 * Math.sin(s.rot), s.y + .6,
+      s.z + .6 * Math.sin(s.rot) + .3 * Math.cos(s.rot));
+    phases.push(i / 3 + sites.indexOf(s) * .17);
+  }
+  smokeGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  smokeGeo.setAttribute('passPhase', new THREE.Float32BufferAttribute(phases, 1));
+  const smokeMat = new THREE.PointsMaterial({ map: smokeTex, color: 0xa7a89c, size: .8,
+    transparent: true, opacity: .18, depthWrite: false });
+  const clock = { value: 0 };
+  smokeMat.onBeforeCompile = shader => {
+    shader.uniforms.passTime = clock;
+    shader.vertexShader = 'uniform float passTime; attribute float passPhase; varying float passSmokeAlpha;\n' +
+      shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        float age = fract(passTime * 0.24 + passPhase);
+        transformed += vec3(age * 2.8, age * 1.35, -age * 1.2);
+        passSmokeAlpha = sin(age * 3.14159);`).replace('#include <project_vertex>', `#include <project_vertex>
+        passSmokeAlpha *= 1.0 - smoothstep(36.0, 55.0, length(mvPosition.xyz));`);
+    shader.fragmentShader = 'varying float passSmokeAlpha;\n' + shader.fragmentShader.replace(
+      '#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= passSmokeAlpha;');
+  };
+  const smoke = new THREE.Points(smokeGeo, smokeMat);
+  smokeGeo.computeBoundingSphere(); smokeGeo.boundingSphere.radius += 4;
+  smoke.onBeforeRender = () => { clock.value = rt.t; };
+  rt.scene.add(smoke);
+  const dispose = rt.dispose;
+  rt.dispose = function (...args) {
+    rt.scene.remove(smoke); smokeGeo.dispose(); smokeMat.dispose(); smokeTex.dispose();
+    for (const m of meshes) { rt.scene.remove(m); m.geometry.dispose(); m.dispose(); }
+    mat.dispose();
+    return dispose.apply(this, args);
+  };
+}
+
 echizen.setup = function (rt) {
   // 資料本の足軽：黒褐色の貸し胴と草摺、赤茶の漆の陣笠。金色の総具足にはしない。
   // 既存の陣笠・桶側胴・素懸威を共用し、兵・形・材質の種類を増やさない。
@@ -949,6 +1104,7 @@ echizen.setup = function (rt) {
     return after.call(this, seconds, fn);
   };
   try { kinome.setup.call(this, rt); } finally { rt.after = after; }
+  passCampScenery(rt);
 
   const opening = rt.flags.ake.pos;
   rt.flags.passOpeningPost = { x: opening.x, z: opening.z };

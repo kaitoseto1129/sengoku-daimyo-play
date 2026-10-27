@@ -19,7 +19,7 @@ let tkDem = null;
 useTerrain('dem_takato', (data) => { tkDem = data; HEIGHT_DEM = null; HEIGHT_FN = null; ROAD_SEGMENTS = null; BRIDGE_SEGMENTS = null; });
 import { heightOf, inPoly, buildCastlePlan, makeLordKeep } from './castle_plan.js';
 import { horiboriHeight, kabukiGate, goten, castleMat } from './castle_parts.js';
-import { palisade, nobori, makeKitBatch, finalizeKitBatch, village, solidCircle, solidRect, tawara, lumber, hatazao } from './props.js';
+import { palisade, nobori, makeKitBatch, finalizeKitBatch, village, solidCircle, solidRect, tawara, lumber, hatazao, jinmaku, kagaribiBatch } from './props.js';
 import { S as SETTINGS } from './settings.js';
 import { reset as flReset, groundAt } from './floors.js';
 import { localClear } from './army_local_way.js';
@@ -475,6 +475,113 @@ function takatoLeanTo(rt) {
   const mesh = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
   mesh.castShadow = mesh.receiveShadow = true; mesh.userData.camBlock = true; rt.scene.add(mesh);
   parts.forEach(g => g.dispose()); unit.dispose();
+}
+
+// 東の寄せの後方だけに、仮の幕と仕寄り道具を寄せる。当日の配置を断定しない推定復元。
+// 本の野戦兵器の丸太・縄・板楯を参考にする。大手道・乱戦・里の避難路には掛けない。
+function takatoSiegeStores(rt) {
+  rt.scene.add(jinmaku(rt.world, 138, -44, 12, 8, 6, { mon: 'oda' }));
+  for (const [x, z] of [[133, -38], [143, -38]])
+    rt.scene.add(nobori(rt.world, x, z, 'oda', 4.8));
+
+  // 板、丸太、竹、縄を同じ頂点色の材質へまとめる。細部は近い時だけ描く。
+  const coarse = [], fine = [], unit = new THREE.BoxGeometry(1, 1, 1);
+  const cylinder = new THREE.CylinderGeometry(1, 1, 1, 6);
+  const ring = new THREE.TorusGeometry(1, .045, 3, 10);
+  const tone = new THREE.Color(), direction = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const across = new THREE.Vector3(1, 0, 0);
+  const turn = new THREE.Quaternion(), matrix = new THREE.Matrix4();
+  const at = new THREE.Vector3(), size = new THREE.Vector3();
+  const put = (source, parts, color) => {
+    const g = source.clone().applyMatrix4(matrix), p = g.attributes.position;
+    const colors = new Float32Array(p.count * 3); tone.setHex(color);
+    for (let i = 0; i < p.count; i++) tone.toArray(colors, i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(g);
+  };
+  const box = (x, y, z, w, h, d, color, pitch = 0, parts = coarse) => {
+    at.set(x, y, z); size.set(w, h, d); turn.setFromAxisAngle(across, pitch);
+    matrix.compose(at, turn, size);
+    // 屋根は左右に傾ける。下へ沈む妻板や厚い瓦屋根は付けない。
+    put(unit, parts, color);
+  };
+  const log = (ax, ay, az, bx, by, bz, r, color, parts = coarse) => {
+    direction.set(bx - ax, by - ay, bz - az);
+    size.set(r, direction.length(), r); turn.setFromUnitVectors(up, direction.normalize());
+    at.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    matrix.compose(at, turn, size); put(cylinder, parts, color);
+  };
+  // 柱はそれぞれ接地し、屋根だけ水平な棟へ揃える。開いた南側から資材が見える。
+  const sx = 153, sz = -44, sy = rt.world.heightAt(sx, sz);
+  for (const dx of [-3.4, 3.4]) for (const dz of [-2, 2]) {
+    const x = sx + dx, z = sz + dz, y = rt.world.heightAt(x, z);
+    log(x, y - .1, z, x, sy + 2.5, z, .095, 0x62503c);
+    solidCircle(x, z, .12);
+  }
+  for (const dz of [-2, 2]) log(sx - 3.7, sy + 2.45, sz + dz, sx + 3.7, sy + 2.45, sz + dz, .09, 0x594833);
+  log(sx - 3.8, sy + 3.12, sz, sx + 3.8, sy + 3.12, sz, .1, 0x6e5940);
+  for (const sign of [-1, 1]) {
+    log(sx - 3.4, sy + 2.45, sz + sign * 2, sx - 3.4, sy + 3.12, sz, .065, 0x6e5940);
+    log(sx + 3.4, sy + 2.45, sz + sign * 2, sx + 3.4, sy + 3.12, sz, .065, 0x6e5940);
+    for (let i = 0; i < 18; i++) {
+      // 板目と色むらを輪郭に残す。雨で黒くなった軒先は短い二枚の重ね葺き。
+      const x = sx - 3.8 + (i + .5) * 7.6 / 18;
+      for (let row = 0; row < 2; row++) {
+        const z = sz + sign * (.58 + row * 1.05);
+        box(x, sy + 3.12 - row * .34 - .18, z, .415, .06, 1.23,
+          [0x857257, 0x756248, 0x938067][(i + row) % 3], sign * .31);
+      }
+    }
+  }
+  // 写真の横木組みを小屋の裏へ。斜めの控えを残し、壁で囲わない。
+  for (const y of [sy + .65, sy + 1.65])
+    log(sx - 3.5, y, sz - 2, sx + 3.5, y, sz - 2, .07, 0x65513b);
+  log(sx - 3.4, sy + .3, sz - 2, sx + 3.4, sy + 2.4, sz - 2, .06, 0x736047);
+
+  // 出番待ちの竹束三基。筒の端・節・三段の縄を近景にだけ残す。
+  for (let b = 0; b < 3; b++) {
+    const x = 150 + b * 1.45, z = -43, y = rt.world.heightAt(x, z);
+    for (let k = 0; k < 11; k++) {
+      const a = k * Math.PI * 2 / 11, px = x + Math.cos(a) * .38, pz = z + Math.sin(a) * .38;
+      const top = y + 2.1 + (k % 3) * .055;
+      log(px, y + .12, pz, px, top, pz, .064, k % 3 ? 0x858052 : 0xa39b66);
+      for (const h of [.45, 1.2, 1.87]) log(px, y + h, pz, px, y + h + .035, pz, .071, 0xaaa16b, fine);
+    }
+    for (const h of [.35, 1.05, 1.8]) {
+      at.set(x, y + h, z); size.setScalar(.46); turn.setFromAxisAngle(across, Math.PI / 2);
+      matrix.compose(at, turn, size); put(ring, fine, 0xb39b70);
+    }
+    solidRect(x, z, .95, .95, 0);
+  }
+  // 立て掛けた板楯と地面に伏せた梯子。攻城用の行天橋や移動櫓を架空に増設しない。
+  for (let i = 0; i < 3; i++) {
+    const x = 150 + i * 1.4, z = -46, y = rt.world.heightAt(x, z);
+    for (let p = 0; p < 3; p++) box(x + (p - 1) * .32, y + 1, z, .305, 1.85, .065, 0xa38a62, -.12);
+    for (const h of [.45, 1.4]) box(x, y + h, z + .14, 1, .08, .1, 0x5b4832);
+  }
+  const ladderY = (x, z) => rt.world.heightAt(x, z) + .1;
+  for (const dz of [-.38, .38])
+    log(143, ladderY(143, -34 + dz), -34 + dz, 149, ladderY(149, -34 + dz), -34 + dz, .055, 0x88704d);
+  for (let i = 0; i < 13; i++) {
+    const x = 143.2 + i * .45;
+    log(x, ladderY(x, -34.4), -34.4, x, ladderY(x, -33.6), -33.6, .04, 0x9d8058);
+  }
+
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  for (const [parts, near] of [[coarse, false], [fine, true]]) {
+    const mesh = new THREE.Mesh(mergeGeometries(parts), mat);
+    mesh.receiveShadow = true; mesh.userData.camBlock = !near;
+    if (near) {
+      const lod = new THREE.LOD(); lod.position.set(sx, sy, sz);
+      mesh.geometry.translate(-sx, -sy, -sz);
+      lod.addLevel(mesh, 0); lod.addLevel(new THREE.Object3D(), 45); rt.scene.add(lod);
+    } else rt.scene.add(mesh);
+    for (const g of parts) g.dispose();
+  }
+  unit.dispose(); cylinder.dispose(); ring.dispose();
+  // 明け方の控えの篝を一基。煙は小屋の脇から一筋だけ、既存の遠近切替で描く。
+  rt.scene.add(kagaribiBatch(rt.world, [[145, -39]]));
+  rt.world.addFire(145, -39, { h: 1.3, size: .35, smoke: false, lightRadius: 2 });
+  rt.world.addSmokeColumn(145, rt.world.heightAt(145, -39) + 1.6, -39, { size: .35 });
 }
 
 // 早春の北側の窪みに残る雪。天気は復元で、当日の降雪とはしない。
@@ -1051,6 +1158,7 @@ const takato_siege = {
     F.earthMat = takatoWallMaterial();
     if (C.seat?.building) takatoEarthWalls(C.seat.building, F.earthMat);
     takatoLife(rt);
+    takatoSiegeStores(rt);
     takatoSpring(rt);
     takatoGround(rt);
     F.coldBreath = takatoBreath(rt);

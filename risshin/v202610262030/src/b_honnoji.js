@@ -76,6 +76,86 @@ function courtClashGround(rt) {
   rt.army.seedClashGround(-37, 50);
   rt.army.seedClashGround(-14, 50, true);
 }
+
+// 清洲の写真の粗い木組み・板囲いを、京の寺の軒仕事へ置き換える。
+// 配置は推定。長期の攻城用の井楼・移動盾や田畑は洛中の急襲へ持ち込まない。
+// 門の六歩の口、庭、回廊、避難路は空け、軒と築地の際だけに生活の道具を置く。
+function honnoLife(rt) {
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const hoop = new THREE.TorusGeometry(1, 0.035, 3, 12);
+  const water = new THREE.CylinderGeometry(1, 1, 0.02, 12);
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const pose = new THREE.Object3D(), color = new THREE.Color();
+  // 全部で四つの描画。形と色は準備時に焼き込み、灯・影・毎コマの更新を増やさない。
+  for (const [x, z, yaw, kind] of [
+    [-32.6, 59, 0, 'gate'], [-32.6, 96, 0, 'kitchen'],
+    [-77, 44, Math.PI / 2, 'store'], [69, -63, 0, 'gate'],
+  ]) {
+    const parts = [];
+    const part = (base, px, py, pz, sx, sy, sz, tint, rx = 0, ry = 0, rz = 0) => {
+      const g = base.clone();
+      pose.position.set(px, py, pz); pose.rotation.set(rx, ry, rz); pose.scale.set(sx, sy, sz); pose.updateMatrix();
+      g.applyMatrix4(pose.matrix);
+      const colors = new Float32Array(g.attributes.position.count * 3);
+      color.setHex(tint);
+      for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(g);
+    };
+    const bucket = (bx, bz, wet) => {
+      // 桶は空洞。側板の隙間と二本の箍を近くで見せ、水面は低く沈める。
+      for (let i = 0; i < 12; i++) {
+        const a = i * Math.PI / 6;
+        part(box, bx + Math.sin(a) * .24, .28, bz + Math.cos(a) * .24,
+          .12, .5, .035, i % 3 ? 0x88704b : 0x9b825b, 0, a);
+      }
+      for (const h of [.12, .43]) part(hoop, bx, h, bz, .263, .263, .263, 0x4e4930, Math.PI / 2);
+      part(water, bx, wet ? .32 : .055, bz, .218, 1, .218, wet ? 0x475c60 : 0x665237);
+      part(box, bx, .65, bz, .58, .045, .06, 0x80643f);
+      for (const side of [-1, 1]) part(box, bx + side * .25, .49, bz, .045, .34, .05, 0x80643f);
+    };
+    bucket(-.18, -.85, true); bucket(-.3, .08, kind !== 'store');
+    // 無地の板柄杓。火事の前から使っていた道具で、戦闘用の遮蔽物にはしない。
+    part(pole, -.18, .62, -.85, .028, 1.12, .028, 0xa08b61, 0, 0, -.36);
+    part(water, .04, 1.13, -.85, .09, 5, .09, 0x8c754e);
+    if (kind === 'gate') {
+      // 塀際の控えの草履。庭の中央に散らして足元を埋めない。
+      for (let i = 0; i < 4; i++) {
+        const bz = .85 + Math.floor(i / 2) * .4, bx = -.2 - (i % 2) * .23;
+        part(box, bx, .04, bz, .16, .055, .3, 0x9e8b5d, 0, .18);
+        part(pole, bx, .085, bz, .014, .17, .014, 0x645136, Math.PI / 2, 0, .45);
+      }
+    } else {
+      // 薪は木口と樹皮を描き分け、横積みの竹は節と縄を付ける。
+      for (let i = 0; i < 9; i++) {
+        const px = -.18 - (i % 3) * .16, py = .13 + Math.floor(i / 3) * .15;
+        part(pole, px, py, 1.05, .08, 1.3, .08, i % 2 ? 0x66503a : 0x4d3e2c, Math.PI / 2);
+        part(water, px, py, .39, .066, 1, .066, 0xad9265, Math.PI / 2);
+      }
+      for (let i = 0; i < 5; i++) {
+        const px = -.15 - (i % 3) * .12, py = .13 + Math.floor(i / 3) * .12;
+        part(pole, px, py, 2.6, .048, 1.5, .048, i % 2 ? 0x7c7949 : 0x9a9160, Math.PI / 2);
+        for (let j = 0; j < 4; j++) part(pole, px, py, 2 + j * .36, .057, .035, .057, 0xb0a573, Math.PI / 2);
+      }
+      for (const bz of [2.12, 3.05]) part(hoop, -.26, .18, bz, .23, .18, .23, 0x69563b);
+      // 一間だけの低い透かし垣。丸太の横桟と縄掛けを写真の木組みに寄せる。
+      for (const bz of [.5, 3.5]) {
+        part(pole, .03, .65, bz, .065, 1.3, .065, 0x57452f);
+        for (const h of [.38, .95]) part(hoop, .03, h, bz, .085, .085, .085, 0x9a845c, 0, Math.PI / 2);
+      }
+      for (const h of [.38, .95]) part(pole, .03, h, 2, .045, 3.25, .045, 0x776344, Math.PI / 2);
+      for (let i = 0; i < 13; i++) part(pole, .06, .6, .55 + i * .24, .018, 1.04, .018, i % 2 ? 0x8b8155 : 0x726c45);
+    }
+    const geometry = mergeGeometries(parts, false);
+    for (const g of parts) g.dispose();
+    // 一地点一個のまとまりを距離で落とす。遠くの小道具の描画は送らない。
+    const mesh = new THREE.InstancedMesh(geometry, mat, 1);
+    pose.position.set(x, rt.world.heightAt(x, z), z); pose.rotation.set(0, yaw, 0); pose.scale.setScalar(1); pose.updateMatrix();
+    mesh.setMatrixAt(0, pose.matrix); mesh.receiveShadow = true;
+    mesh.computeBoundingSphere(); rt.scene.add(mesh); rt.world.viewCull([mesh], 0, 36, false);
+  }
+  box.dispose(); pole.dispose(); hoop.dispose(); water.dispose();
+}
 const NIJO = { x: 54, z: -54, h: 17 };      // 二条御所
 const HONNO_GATE = GATES.main;      // 本能寺の東の門
 const NIJO_GATE = { x: NIJO.x - NIJO.h, z: NIJO.z };          // 二条御所の西の門
@@ -3315,7 +3395,7 @@ const honnoji = {
     rt.scene.add(kido(W, TERA.x0 - 7, 36, 0), kido(W, TERA.x0 - 7, 96, 0), kido(W, -27, 78, Math.PI / 2), kido(W, -27, 104, Math.PI / 2), kido(W, TERA.x0 - 13, 66, 0), kido(W, -10, 90, Math.PI / 2));
     rt.scene.add(well(W, TERA.x0 - 14, 44), well(W, TERA.x0 - 16, 90), well(W, -24, 96), well(W, -30, 20));
     // ---- 本能寺の境内（築地・門・伽藍・中のある建物）と二条御所 ----
-    F.T = buildTera(rt); cleanTemple(rt); courtGarden(rt);
+    F.T = buildTera(rt); cleanTemple(rt); courtGarden(rt); honnoLife(rt);
     rt.army.doorVia = (u, to) => honnoDoor(rt, u, to);
     F.leaves = templeGateWood(rt, openLeaves(W, GATES.main.x, GATES.main.z, GATES.main.w)); rt.scene.add(F.leaves);
     F.gSide = smallGate(rt, GATES.side, 900);
@@ -3338,7 +3418,7 @@ const honnoji = {
     // ---- 外周を封じる明智の大軍（軽い作り）。築地の外の通りを埋める ----
     F.aHost = buildSonae(rt, [HONNO_ATTACK]);
     honnoRing(rt);
-    F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0x3a3a5a }, guard: 15, reserve: 0, runTo: { x: -86, z: 100 } });
+    F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', armor: 0x2a2a30, general: { name: '明智光秀', hat: 'kabuto_m', haori: 0 }, guard: 15, reserve: 0, runTo: { x: -86, z: 100 } });
     for (const [x, z] of [[-24, 40], [-24, 62], [TERA.x0 - 5, 50], [TERA.x0 - 5, 95], [-60, 112], [-40, TERA.z0 - 8]]) honnoTorch(rt, x, z);
     for (const [x, z] of [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
     if (F.ehon.general?.mounted) rt.army.setMounted(F.ehon.general, false);
@@ -3837,7 +3917,7 @@ const honnoji = {
     rt.banner('二条御所', '妙覚寺の信忠は、二条の新御所に移って明智を待つ');
     // 門番のすぐ後ろに控える。御所の奥へ固まると、傷を負った本人が門前で孤立する。
     F.tada = allyGroup(rt, { fixed: true, name: '織田信忠の手', anchor: { x: NIJO_GATE.x + 10, z: NIJO_GATE.z - 6 }, facing: -Math.PI / 2, width: 5, aggro: 4, noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '織田信忠', hat: 'kabuto_m', haori: 0x7a1d14, horse: false } }, { type: 'samurai', n: 1, o: { name: '村井貞勝', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '織田信忠', hat: 'kabuto_m', haori: 0, horse: false } }, { type: 'samurai', n: 1, o: { name: '村井貞勝', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ODA));
     F.tada.defMult = 1;
     F.tadaU = F.tada.units[0];
     F.tadaU.maxHp = F.tadaU.hp = 75; F.tadaU.dmg = 13; F.tadaU.isOfficer = false; F.tadaU.isLord = false;
@@ -4432,7 +4512,7 @@ Object.assign(honnoji, {
     // 蛸薬師通りの路地：井戸と木戸を少し（門前の密な町割り）
     rt.scene.add(well(W, -22, 44), well(W, -8, 62), kido(W, -27, 54, Math.PI / 2));
     // 両方の遊び方で同じ塀・門・居室を使う。
-    F.T = buildTera(rt); cleanTemple(rt); courtGarden(rt); rt.army.doorVia = (u, to) => honnoDoor(rt, u, to); F.fire = F.T.fire; F.dm0 = W.distMul || 1;
+    F.T = buildTera(rt); cleanTemple(rt); courtGarden(rt); honnoLife(rt); rt.army.doorVia = (u, to) => honnoDoor(rt, u, to); F.fire = F.T.fire; F.dm0 = W.distMul || 1;
     F.gE = smallGate(rt, GATES.main, 1500);
     F.gN = smallGate(rt, GATES.side, 900);
     const wallBatch = makeKitBatch();
@@ -4457,7 +4537,7 @@ Object.assign(honnoji, {
     F.ran = F.kosho.units[0]; F.bo = F.kosho.units[1]; F.riki = F.kosho.units[2];
     // 供のわずかな者（槍と弓。自分の組として付いて来る）
     rt.makeSquad({ x: L_START.x - 2, z: L_START.z + 4 }, Math.PI / 2, [{ kind: 'spear', n: 12 }, { kind: 'bow', n: 8 }]);
-    F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', general: { name: '明智光秀' }, guard: 15, reserve: 0 });
+    F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', general: { name: '明智光秀', haori: 0 }, guard: 15, reserve: 0 });
     if (F.ehon?.general?.mounted) rt.army.setMounted(F.ehon.general, false);
     applyLook(rt, HONNO_DAWN);
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。

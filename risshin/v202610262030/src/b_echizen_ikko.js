@@ -1084,6 +1084,117 @@ function templeStore(world, x, z, rot) {
   store.userData.flammable = true;
   return store;
 }
+// 写真の井楼・裏方小屋と同じ、丸太・割板・縄で組んだ荷置き場。
+// 寸法と置き場所は補完。遠くでは小屋と荷の輪郭だけ、近くでは板目・縄・桶の内側を見せる。
+let fieldSupplyGeo, fieldSupplyMats;
+function fieldSupplies(rt, x, z, shelter = false) {
+  if (!fieldSupplyGeo) {
+    fieldSupplyGeo = [new THREE.BoxGeometry(1, 1, 1),
+      new THREE.CylinderGeometry(1, 1, 1, 8), new THREE.TorusGeometry(1, .035, 3, 12)];
+    fieldSupplyMats = [
+      new THREE.MeshLambertMaterial({ color: 0x78634b, map: woodTex() }),
+      new THREE.MeshLambertMaterial({ color: 0xa99672, map: fieldBoardTex() }),
+      new THREE.MeshLambertMaterial({ color: 0x9b8863 }),
+      new THREE.MeshLambertMaterial({ color: 0x38382e }),
+    ];
+  }
+  const W = rt.world, y0 = W.heightAt(x, z), near = new THREE.Group(), far = new THREE.Group();
+  const rows = new Map(), coarse = new Map(), dummy = new THREE.Object3D();
+  const up = new THREE.Vector3(0, 1, 0), direction = new THREE.Vector3();
+  const ground = (px, pz) => W.heightAt(x + px, z + pz) - y0;
+  const save = (geo, mat, distant) => {
+    dummy.updateMatrix();
+    const key = geo * 4 + mat;
+    if (distant !== 2) {
+      if (!rows.has(key)) rows.set(key, []);
+      rows.get(key).push(dummy.matrix.clone());
+    }
+    if (distant) {
+      if (!coarse.has(key)) coarse.set(key, []);
+      coarse.get(key).push(dummy.matrix.clone());
+    }
+  };
+  const box = (mat, px, py, pz, w, h, d, tilt = 0, distant = false) => {
+    dummy.position.set(px, py, pz); dummy.rotation.set(tilt, 0, 0);
+    dummy.scale.set(w, h, d); save(0, mat, distant);
+  };
+  const pole = (mat, ax, ay, az, bx, by, bz, radius, distant = false) => {
+    direction.set(bx - ax, by - ay, bz - az);
+    const length = direction.length();
+    dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+    dummy.quaternion.setFromUnitVectors(up, direction.normalize());
+    dummy.scale.set(radius, length, radius); save(1, mat, distant);
+  };
+  const hoop = (px, py, pz, radius, horizontal = true) => {
+    dummy.position.set(px, py, pz); dummy.rotation.set(horizontal ? Math.PI / 2 : 0, 0, 0);
+    dummy.scale.setScalar(radius); save(2, 2, false);
+  };
+  if (shelter) {
+    // 背の低い片流れ。幕の裏へ納め、陣の中央と大将の退路は空ける。
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const bottom = ground(sx * 1.35, sz * .85) - .12;
+      pole(0, sx * 1.35, bottom, sz * .85, sx * 1.35, 1.9 - sz * .18, sz * .85, .065, true);
+      for (const dy of [-.035, 0, .035]) hoop(sx * 1.35, 1.72 + dy - sz * .18, sz * .85, .09);
+    }
+    for (const sz of [-1, 1]) pole(0, -1.55, 1.9 - sz * .18, sz * .85,
+      1.55, 1.9 - sz * .18, sz * .85, .075, true);
+    // 遠景専用の一枚屋根は近景へ重ねない。
+    for (let i = 0; i < 12; i++) box(0, (i - 5.5) * .27, 1.98, 0, .258, .065, 2.3, .21);
+    box(0, 0, 1.98, 0, 3.25, .065, 2.3, .21, 2);
+    for (const pz of [-.66, .66]) box(0, 0, 1.98 - pz * .21 + .065, pz, 3.4, .065, .07);
+    // 裏の筋交いと横木。正面を開け、布の天幕に見える細い脚だけの形を避ける。
+    pole(0, -1.35, .3, -.85, 1.35, 1.95, -.85, .04, true);
+    pole(0, -1.35, 1, -.85, 1.35, 1, -.85, .05, true);
+    for (let i = 0; i < 9; i++) box(0, (i - 4) * .3, ground((i - 4) * .3, 0) + .025,
+      0, .28, .04, 1.45);
+  }
+  // 薪は小さな三角積み。断面を明るくし、帯で縛った棒の塊にしない。
+  for (let tier = 0; tier < 3; tier++) for (let i = 0; i < 4 - tier; i++) {
+    const px = -.7 + (i - (3 - tier) / 2) * .2, pz = -.12;
+    const py = ground(px, pz) + .14 + tier * .17;
+    pole(0, px, py, pz - .58, px, py, pz + .58, .095, true);
+    pole(1, px, py, pz - .589, px, py, pz - .575, .083);
+    pole(1, px, py, pz + .575, px, py, pz + .589, .083);
+  }
+  // 水桶は底・箍・十二枚の側板で開口を残す。黒い円板を水面にしない。
+  for (let n = 0; n < 2; n++) {
+    const px = .65 + n * .65, pz = n ? .45 : -.25, bottom = ground(px, pz) + .04;
+    pole(0, px, bottom, pz, px, bottom + .05, pz, .255);
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      dummy.position.set(px + Math.cos(a) * .25, bottom + .24, pz + Math.sin(a) * .25);
+      dummy.rotation.set(0, -a, 0); dummy.scale.set(.035, .46, .126); save(0, 0, false);
+    }
+    for (const dy of [.08, .37]) hoop(px, bottom + dy, pz, .272);
+    // 遠くでは蓋付きの荷として閉じ、近くの開いた桶と切り替える。
+    dummy.position.set(px, bottom + .23, pz); dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(.27, .46, .27); save(1, 0, 2);
+    if (!n) {
+      pole(3, px, bottom + .12, pz, px, bottom + .135, pz, .23);
+      pole(0, px - .3, bottom + .51, pz, px + .3, bottom + .51, pz, .025);
+    } else box(0, px, bottom + .51, pz, .54, .045, .48, .16);
+  }
+  // 門攻め用の予備縄。毎コマ動かさず、交差した巻きと端だけを描く。
+  for (let i = 0; i < 4; i++) hoop(.4, ground(.4, 1.05) + .035 + i * .022, 1.05, .23 - i * .025);
+  pole(2, .55, ground(.55, 1.12) + .04, 1.12, .95, ground(.95, 1.3) + .04, 1.3, .013);
+  const bake = (lists, group) => {
+    const color = new THREE.Color();
+    for (const [key, matrices] of lists) {
+      if (!matrices.length) continue;
+      const mesh = new THREE.InstancedMesh(fieldSupplyGeo[Math.floor(key / 4)], fieldSupplyMats[key % 4], matrices.length);
+      matrices.forEach((matrix, i) => {
+        mesh.setMatrixAt(i, matrix); color.setScalar(.83 + (i * 7 % 6) * .035); mesh.setColorAt(i, color);
+      });
+      // 小物は影の再描画を増やさず、月光と既存の篝火を受ける。
+      mesh.receiveShadow = true; group.add(mesh);
+    }
+  };
+  bake(rows, near); bake(coarse, far);
+  const lod = new THREE.LOD();
+  lod.position.set(x, y0, z); lod.addLevel(near, 0); lod.addLevel(far, 32, .15);
+  // 夜霧の向こうは省く。切り替えには幅を持たせ、境界でちらつかせない。
+  lod.addLevel(new THREE.Group(), 85, .15); rt.scene.add(lod);
+}
 // 寄せ手の控えの両翼だけを備える。参道・谷道と里の避難路を横切らない。
 // 滝川勢の紋は兵と同じ物。寺の衆徒へ本願寺の紋を借りない。
 function fieldCamp(rt) {
@@ -1105,6 +1216,7 @@ function fieldCamp(rt) {
     flag.scale.y = 1;
     rt.scene.add(flag);
   }
+  fieldSupplies(rt, cx - 7, cz - 10, true);
 }
 // 道の横傾きを削り、切岸と土塁の口も歩ける地面にそろえる。
 // 同じ高さの目安を全ての道に使い、分かれ道で段差を作らない。
@@ -2756,6 +2868,8 @@ const echizen_ikko = {
     rt.scene.add(templeLookout(W, MONOMI_R.x, MONOMI_R.z));
     rt.scene.add(templeLookout(W, MONOMI_L.x, MONOMI_L.z));
     fieldCamp(rt);
+    // 東の倉脇に消火と炊事の備え。堂の戸口・鐘楼・参道から離れた二歩四方だけを使う。
+    fieldSupplies(rt, 15, -38);
     F.shoroStruct = rt.army.addStruct({ x: SHORO_POS.x, z: SHORO_POS.z, r: 2, solidR: 2, hp: 90, maxHp: 90, armor: 0, team: templeTeam, name: '鐘楼', moraleOnBurn: 'small', flammable: true });
     const bellTower = templeBellTower(W, SHORO_POS.x, SHORO_POS.z);
     rt.scene.add(bellTower);

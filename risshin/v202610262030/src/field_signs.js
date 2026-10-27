@@ -73,6 +73,9 @@ function build(rt, root) {
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\nif (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }')
         .replace('#include <color_vertex>', '#include <color_vertex>\nvSignA = (signTone < 0.5 ? 0.55 : 1.0) * signFade;\nif (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);');
+      if (rt.def.missionStyle === 'lesson') shader.vertexShader = shader.vertexShader.replace(
+        '#include <project_vertex>',
+        'if (signTone > 16.0) vColor = position.z > 0.0 ? (mod(signTone, 8.0) > 1.5 ? vec3(1.0, 0.55, 0.35) : vec3(1.0, 0.06, 0.02)) : vec3(0.007, 0.006, 0.005);\n#include <project_vertex>');
       shader.fragmentShader = 'varying float vSignA;\n' + shader.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * vSignA );');
       if (rt.def.missionStyle) {
         // 赤の高さが命の残り。小さな赤い点へ縮めず、黒い空きが増える▼にする。
@@ -83,7 +86,7 @@ function build(rt, root) {
         // 森部も同じ赤い▼の縁だけ替え、届く本人と命中を伝える。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
           rt.def.missionStyle === 'ford' ? 'if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : (mod(signTone, 8.0) > 3.5 ? vec3(1.0, 0.75, 0.35) : vec3(1.0));' :
-          rt.def.missionStyle === 'lesson' ? 'if (mod(signTone, 8.0) > 3.5) vColor = vec3(1.0, 0.06, 0.02); else if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
+          rt.def.missionStyle === 'lesson' ? 'if (mod(signTone, 8.0) > 3.5) vColor = vec3(1.0, 0.06, 0.02); else if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.55, 0.35) : vec3(1.0);' :
           'if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? (mod(signTone, 8.0) > 3.5 ? vec3(1.0, 0.45, 0.25) : vec3(1.0, 0.06, 0.02)) : (mod(signTone, 8.0) > 3.5 && mod(signTone, 8.0) < 5.5 ? vec3(1.0, 0.45, 0.25) : vec3(1.0));');
         if (rt.def.missionStyle) {
           // 色の値に足した８で近さを分ける。命中の色だけでは遮蔽を避けない。
@@ -156,6 +159,14 @@ function build(rt, root) {
   // 透明な親枠を画面いっぱいに広げない。札を隠した時に命や任務との重なりとして残さない。
   // 名は頭上の投影位置に置き、実際の札との重なりは下の判定で避ける。
   box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;overflow:visible';
+  const edges = [];
+  if (rt.def.missionStyle === 'lesson') for (let i = 0; i < BARS; i++) {
+    const e = document.createElement('div');
+    e.setAttribute('aria-hidden', 'true');
+    e.style.cssText = 'position:fixed;width:26px;height:26px;pointer-events:none;z-index:8;color:#ff6350';
+    e.innerHTML = '<svg viewBox="-13 -13 26 26" width="26" height="26"><path d="M10 0L-7 -7L-4 0L-7 7Z" fill="currentColor" stroke="#14120f" stroke-width="3" stroke-linejoin="round"/></svg>';
+    e.hidden = true; box.appendChild(e); edges.push(e);
+  }
   const labels = [];
   for (let i = 0; i < NAMES; i++) {
     const e = document.createElement('div');
@@ -166,7 +177,7 @@ function build(rt, root) {
   (root || document.body).appendChild(box);
   const s = { marks, allies, bars, glow, box, labels, gens: [], at: -1, nearby: [], nearbyAt: -1,
     signPool: Array.from({ length: !!rt.def.missionStyle ? CAP : 0 }, () => ({ matrix: new THREE.Matrix4() })),
-    signCandidates: [] };
+    signCandidates: [], edges };
   const clean = () => {
     rt.scene.remove(marks, allies, bars, glow);
     glowGeo.dispose(); glowMat.dispose(); glow.dispose?.();
@@ -198,6 +209,31 @@ function drawOrderedSigns(s) {
   return n;
 }
 
+// 隊長が画面外へ出た時だけ、同じ朱の小さな矢印を端に置く。字と距離の札は増やさない。
+function commanderEdgesTick(rt, s, hide) {
+  for (const edge of s.edges) edge.hidden = true;
+  if (hide || rt.over || !s.edges.length) return;
+  const cam = rt.camera, me = rt.player.u, w = innerWidth, h = innerHeight;
+  let n = 0;
+  for (const u of rt.army.units) {
+    if (!general(u) || u.team === me.team || !u.alive || u.gone || u.dying || u.downed || u.woundOut || u.noTarget || u.fleeing) continue;
+    v.set(u.pos.x, u.pos.y + inouSignHeight(u), u.pos.z).applyMatrix4(cam.matrixWorldInverse);
+    const behind = v.z >= 0;
+    const dx = v.x * cam.projectionMatrix.elements[0], dy = -v.y * cam.projectionMatrix.elements[5];
+    headPos.copy(v).applyMatrix4(cam.projectionMatrix);
+    if (!behind && headPos.z >= -1 && headPos.z <= 1 && Math.abs(headPos.x) <= 1 && Math.abs(headPos.y) <= 1) continue;
+    const x = dx, y = behind ? Math.max(.5, Math.abs(dy)) : Math.abs(dx) + Math.abs(dy) < .01 ? 1 : dy;
+    const k = Math.min((w / 2 - 24) / Math.max(.001, Math.abs(x)), (h / 2 - 48) / Math.max(.001, Math.abs(y)));
+    const distance = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+    const edge = s.edges[n++], size = .65 + .35 / (1 + distance / 30);
+    edge.hidden = false;
+    edge.style.left = `${w / 2 + x * k - 13}px`; edge.style.top = `${h / 2 + y * k - 13}px`;
+    edge.style.transform = `rotate(${Math.atan2(y, x)}rad) scale(${size})`;
+    edge.style.opacity = `${.55 + .45 / (1 + distance / 50)}`;
+    if (n === s.edges.length) break;
+  }
+}
+
 export function fieldSignsTick(rt, root) {
   if (!rt?.army || !rt.scene || !rt.camera || rt.def.noFieldSigns) return;
   const s = STATE.get(rt) || build(rt, root);
@@ -222,6 +258,7 @@ export function fieldSignsTick(rt, root) {
   const ford = rt.def.missionStyle === 'ford';
   const commander = rt.def.commanderSignTarget?.(rt) || rt.def.commanderTarget?.(rt) || null;
   const lesson = rt.def.missionStyle === 'lesson';
+  commanderEdgesTick(rt, s, hide);
   // 白縁は実際に届く本人だけに使う。追う相手の選択だけでは変えない。
   const practiceGroup = lesson ? rt.def.enemyTriangleGroup?.(rt) : null;
   const raid = rt.def.missionStyle === 'raid';
@@ -269,7 +306,7 @@ export function fieldSignsTick(rt, root) {
     const defeated = special && (!u.alive || u.dying || u.hp <= 0 || u.downed || u.woundOut || u.rearWound) &&
       (defeatUntil || 0) > rt.t && u._inouSignY != null;
     // 退く敵も所属は変わらない。生きた本人の▼を追撃中に消さない。
-    if (lesson && !defeated && (u.hp <= 0 || u.mesh?.visible === false || u.camHidden)) continue;
+    if (lesson && !defeated && (u.hp <= 0 || !general(u) && (u.mesh?.visible === false || u.camHidden))) continue;
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
@@ -316,7 +353,7 @@ export function fieldSignsTick(rt, root) {
       if (!u._fsNearSeen) continue;
     }
     // 体力の横棒だけを遠くに残さず、同じ本人の▼と揃える。
-    if (lesson && !defeated && !near && (foe || general(u)) && !inouSignVisible(rt, u)) continue;
+    if (lesson && !defeated && !near && !general(u) && foe && !inouSignVisible(rt, u)) continue;
     if (!ford && !lesson && u === commander && u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
     if (quietSigns && !(u === commander && rt.def.foeMarkVisible?.(rt, u)) && (!s.nearby.includes(u) || !u._nearSignOn || meD2 > (foe ? 100 : 36) || u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden)) continue;
@@ -328,7 +365,7 @@ export function fieldSignsTick(rt, root) {
     }
     // 大きな目標の▼が出ている間は、同じ頭上に通常の印を重ねない。
     if (!lesson && u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown || u === marked && !raid && !lesson && !ford) continue;
-    if (lesson && !defeated && !near && (u.mesh?.visible === false || u.camHidden)) continue;
+    if (lesson && !defeated && !near && !general(u) && (u.mesh?.visible === false || u.camHidden)) continue;
     // 近い味方の丸は上で描いたので、遠い味方へ印を増やさない。
     if ((ford || lesson || rt.def.missionStyle === 'raid') && !foe) continue;
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
@@ -388,7 +425,7 @@ export function fieldSignsTick(rt, root) {
     // 森部は追う一人を一段大きく保つ。周囲の所属印も残し、白縁は届く時だけ。
     const pixels = ford ? (u === commander ? 42 : u === missionEnemy || u === reachableTarget || u.moribeHitUntil > rt.t || u.moribeBlockUntil > rt.t ? 32 : 14 + 6 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 18))) : !lesson && !raid && marked && u !== marked && foe ? 9 :
       // 稲生は遠い兵を小さくし、手前の別人の頭へかぶせない。
-      lesson ? (u === commander ? 30 : u === missionEnemy ? 28 : 14 + 8 * Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / 20))) :
+      lesson ? (general(u) ? 36 : u === commander ? 30 : u === missionEnemy ? 28 : 14 + 8 * Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / 20))) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
       // 実際に届いた一人だけ、さらに白縁・幅広へ替える。
       // 遠方の読みやすさと任務の一人の大きさを保ち、近くでは接近に応じた拡大も残す。
@@ -438,7 +475,7 @@ export function fieldSignsTick(rt, root) {
     // 稲生の目当ては距離に応じて滑らかに大きくし、近さの境目で急に変えない。
     // 目当ての読みやすい幅は残し、実寸の上限で遠い印の膨らみを抑える。
     const inouNear = lesson ? Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / 20)) : 0;
-    const inouLimit = (inouFocus || u === commander ? .9 : .6) + .7 * inouNear;
+    const inouLimit = lesson && general(u) ? Infinity : (inouFocus || u === commander ? .9 : .6) + .7 * inouNear;
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部は遠い印を頭ほどに収め、近づくほど滑らかに広げる。討つ武将は一段大きく残す。
     const moribeNear = ford ? Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22)) : 0;
@@ -469,7 +506,7 @@ export function fieldSignsTick(rt, root) {
     const blocked = special && !(hit > 0) && (ford ? u.moribeBlockUntil : lesson ? u.inouBlockUntil : u.okeBlockUntil) > rt.t;
     // 届くまでの接近で▼が徐々に開く。届いた時の幅広い形とは区別する。
     // 白縁と大きな横幅は実際に届く一人だけ。命中は縦の伸びで返す。
-    const inouWidth = lesson && reachable ? 2.6 : lesson && u === missionEnemy
+    const inouWidth = lesson && reachable ? 2.6 : lesson && general(u) ? 1 : lesson && u === missionEnemy
       ? .65 + Math.max(0, Math.min(1, 1 - (Math.sqrt(meD2) - reachHot) / 12)) : 1;
     // 桶狭間は遠くで細く、接近するほど開く。刃の間合いへの接近も同じ幅へ反映する。
     // 実際に攻撃が届く本人だけ最大の幅にし、位置・高さは動かさない。
@@ -527,7 +564,7 @@ export function fieldSignsTick(rt, root) {
       // 選択・命中・受け止めでは白縁を付けず、届くという意味を保つ。
       // 敵が振りかぶっても、届く予告と自分の命中の反応を金縁で隠さない。
       // 桶狭間は近距離の境を越えても▼を隠さない。壁の見通しは上で確認済み。
-      const tone = lesson ? (near ? 8 : 0) + (defeated ? 4 : reachable ? 2 : 1) : ford ? (near ? 8 : 0) + (defeated ? 1 : hit > 0 ? 4 : reachable || blocked ? 2 : 1) : raid ? 8 + (defeated ? 1 : hit > 0 ? reachable ? 6 : 4 : reachable ? 2 : 1) : justHit ? 3 : hot ? 2 : 1;
+      const tone = lesson ? (general(u) ? 24 : near ? 8 : 0) + (defeated ? 4 : reachable ? 2 : 1) : ford ? (near ? 8 : 0) + (defeated ? 1 : hit > 0 ? 4 : reachable || blocked ? 2 : 1) : raid ? 8 + (defeated ? 1 : hit > 0 ? reachable ? 6 : 4 : reachable ? 2 : 1) : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
@@ -541,6 +578,7 @@ export function fieldSignsTick(rt, root) {
         // 届く本人・命中直後・桶狭間で追う本人を、遠い兵の印で覆わせない。
         // 桶狭間は届く本人、命中した本人の順で、遠い任務の敵より上に描く。
         c.hot = ford ? hit > .3 || defeated ? 5 : hot || blocked ? 3 : hit > 0 ? 2 : u === commander || u === missionEnemy ? 1 : 0 : lesson ? reachable && !defeated ? 6 : hit > 0 || defeated ? 5 : blocked ? 4 : u === missionEnemy ? 3 : practiceEnemy ? 2 : 0 : raid ? reachable && !defeated ? 6 : hit > 0 || defeated ? 5 : hot ? 4 : justHit ? 3 : meD2 < 25 * 25 ? u === missionEnemy ? 2 : 1 : 0 : hot;
+        if (lesson && general(u)) c.hot = 7;
         c.distance = Math.sqrt(meD2); c.tone = tone; c.fade = 1;
         v.copy(headPos).project(cam);
         // 画面外の兵は端へ寄せず、選択枠も使わない。

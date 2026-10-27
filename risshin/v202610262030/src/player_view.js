@@ -1073,6 +1073,7 @@ export class PlayerView {
   }
 
   updateCameraTarget(dt) {
+    if (this.rt.def.steadyMeleeCamera) { this.cameraTarget = null; return; }
     if (!this.rt.def.autoTargetCamera) return;
     if (!this.u.alive || this.rt.over) { this.cameraTarget = null; return; }
     this.cameraTargetT = (this.cameraTargetT || 0) - dt;

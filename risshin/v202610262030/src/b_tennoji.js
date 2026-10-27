@@ -418,6 +418,120 @@ function fortSoldiers(rt) {
   };
 }
 
+// 写真の粗木・板囲い・縄締めを、付城の備蓄と村の縁へ補う。細部と位置は推定。
+// 門前、土橋、救援・出撃・避難の道には置かず、兵と戦列は変えない。
+function fortFieldLife(rt) {
+  const W = rt.world, scenery = [];
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const pole = new THREE.CylinderGeometry(1, 1, 1, 5);
+  const ring = new THREE.TorusGeometry(1, .035, 3, 8);
+  const bowl = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
+  const up = new THREE.Vector3(0, 1, 0), direction = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  // 三か所の小さな束。離れると縄・節・板の隙間を省いた一枚ずつの形へ戻す。
+  for (const [cx, cz, kind] of [[-9.5, -58.5, 'cook'], [19, -70, 'stores'], [-83, 61, 'farm']]) {
+    const lod = new THREE.LOD(), base = W.heightAt(cx, cz);
+    lod.position.set(cx, base, cz);
+    for (const coarse of [false, true]) {
+      const pieces = [];
+      const add = (source, x, y, z, sx, sy, sz, color, turn = null) => {
+        const g = source.clone(); g.scale(sx, sy, sz);
+        if (turn) g.applyQuaternion(turn);
+        g.translate(x, y, z);
+        const p = g.attributes.position, colors = new Float32Array(p.count * 3), tint = new THREE.Color(color);
+        for (let i = 0; i < p.count; i++) {
+          const stain = .67 + .33 * Math.min(1, Math.max(0, p.getY(i) / .7));
+          colors[i * 3] = tint.r * stain; colors[i * 3 + 1] = tint.g * stain; colors[i * 3 + 2] = tint.b * stain;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); pieces.push(g);
+      };
+      const timber = (ax, ay, az, bx, by, bz, radius, color = 0x66523b) => {
+        direction.set(bx - ax, by - ay, bz - az);
+        const length = direction.length(); rotation.setFromUnitVectors(up, direction.normalize());
+        add(pole, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, radius, length, radius, color, rotation);
+      };
+      const hoop = (x, y, z, radius) => {
+        // 縄は水平に二周。竹一本ごとに材質や描画を増やさない。
+        rotation.setFromAxisAngle(direction.set(1, 0, 0), Math.PI / 2);
+        add(ring, x, y, z, radius, radius, 1, 0x998266, rotation);
+      };
+      const bundle = (x, z, h) => {
+        const foot = W.heightAt(cx + x, cz + z) - base;
+        if (coarse) add(pole, x, foot + h / 2, z, .36, h, .36, 0x7b8051);
+        else {
+          for (let i = 0; i < 13; i++) {
+            const a = i * 2.4, r = i ? .08 * Math.sqrt(i) : 0;
+            const px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r, top = h - (i % 4) * .055;
+            timber(px, foot, pz, px + .035, foot + top, pz, .054, i % 3 ? 0x777e4e : 0x9a945f);
+            for (let j = 1; j < 5; j++) add(pole, px, foot + j * .34, pz, .062, .028, .062, 0x999263);
+          }
+          hoop(x, foot + .48, z, .37); hoop(x, foot + 1.25, z, .37);
+        }
+      };
+      if (kind === 'stores') {
+        // 東長屋の背面と柵の間。立てた予備竹束と、板盾を重ねた普請材。
+        for (const z of [-1.1, -.25, .6]) bundle(0, z, 1.85);
+        for (let i = 0; i < (coarse ? 1 : 5); i++) {
+          add(box, -1, .12 + i * .075, -.4, 1.05, coarse ? .38 : .06, 2.4, i % 2 ? 0x746047 : 0x887052);
+        }
+        if (!coarse) for (const z of [-1.2, .4]) add(box, -1, .52, z, 1.08, .07, .11, 0x4e4131);
+      } else if (kind === 'cook') {
+        // 既存の焚き火を寄せた炊事場。釜・薪・風除けだけで、昼の光源は増やさない。
+        for (const x of [-.65, .65]) timber(x, 0, -.45, x * .55, 1.65, -.45, .065);
+        timber(-.6, 1.4, -.45, .6, 1.4, -.45, .055);
+        timber(0, .85, -.45, 0, 1.4, -.45, .022, 0x37332d);
+        rotation.setFromAxisAngle(direction.set(1, 0, 0), Math.PI);
+        add(bowl, 0, .85, -.45, .43, .38, .43, 0x35332d, rotation);
+        if (!coarse) {
+          hoop(0, .84, -.45, .43);
+          for (let i = 0; i < 7; i++) timber(.6 + i % 3 * .16, .1 + Math.floor(i / 3) * .14, .35,
+            .7 + i % 3 * .16, .12 + Math.floor(i / 3) * .14, 1.15, .075, 0x66513b);
+        }
+        // 低い葦簀の風除け。門側の見通しは塞がず、小屋側にだけ寄せる。
+        add(box, -1.1, .52, -.2, .06, 1.05, 2.2, 0x918360);
+        if (!coarse) {
+          for (let i = 0; i < 22; i++) timber(-1.06, .05, -1.25 + i * .1, -1.06, 1.06, -1.25 + i * .1, .018, 0xb0a17a);
+          for (const y of [.3, .8]) add(box, -1.02, y, -.2, .035, .025, 2.2, 0x5e5037);
+        }
+      } else {
+        // 集落の南端、畦の外の作業場。田を埋めず、畦道と民の逃げ道を空ける。
+        for (const x of [-2.6, 2.6]) {
+          const foot = W.heightAt(cx + x, cz - 1) - base;
+          timber(x, foot, -1, x, foot + 2.3, -1, .11);
+        }
+        timber(-2.8, 2.05, -1, 2.8, 2.05, -1, .09);
+        add(box, 0, .18, -.4, 2.4, .28, 1.4, 0x9b8a61);
+        if (!coarse) {
+          for (let i = 0; i < 9; i++) timber(-1.1 + i * .27, .35, -1, -1.1 + i * .27, .35, .2, .028, 0xc0ae7b);
+          for (const x of [-.8, .8]) add(box, x, .36, -.4, .045, .025, 1.45, 0x6e5b3e);
+          // 使いかけの低い柴垣。街道を横断する連続した壁にはしない。
+          for (let i = 0; i < 11; i++) timber(-3, 0, -.8 + i * .24, -3.04, .85 + i % 3 * .08, -.8 + i * .24, .035);
+          for (const y of [.3, .65]) timber(-3, y, -1, -3, y, 1.8, .028);
+        }
+      }
+      const mesh = new THREE.Mesh(mergeGeometries(pieces), material);
+      mesh.receiveShadow = true; // 小物の影を携帯の影地図へ追加しない。
+      lod.addLevel(mesh, coarse ? 42 : 0);
+      for (const g of pieces) g.dispose();
+    }
+    rt.scene.add(lod); scenery.push(lod);
+  }
+  box.dispose(); pole.dispose(); ring.dispose(); bowl.dispose();
+  // 炊煙は既存の煙の共有枠へ一本だけ。硝煙と違う細い淡煙で、戦列を覆わない。
+  const smoke = W.addSmokeColumn(-9.5, W.heightAt(-9.5, -58.95) + .7, -58.95, { size: .32 });
+  const dispose = W.dispose;
+  W.dispose = function () {
+    W.removeSmokeColumn(smoke);
+    for (const lod of scenery) {
+      rt.scene.remove(lod);
+      for (const level of lod.levels) level.object.geometry.dispose();
+    }
+    material.dispose();
+    dispose.call(this);
+  };
+}
+
 // 板葺きの仮設小屋。外壁と戸口の寸法を共通室内（0_naibu）へ渡す。
 // 室内の近接時の処理が、購入済みの城の板床・和の部屋の部品を使う。
 function fortHouses(rt) {
@@ -1616,7 +1730,8 @@ const tennoji = {
     rt.scene.add(fortGate(W, T_GATE.x, T_GATE.z, 6.4, true), fortGate(W, T_HONGATE.x, T_HONGATE.z, 4.8));
     // 外曲輪：兵舎（長屋）・兵糧の俵・焚き火。主郭：明智の本陣（陣幕）と陣屋
     F.houses = fortHouses(rt);
-    rt.scene.add(tawara(W, -10, -63, 0.4, 6), tawara(W, 10, -73, -0.3, 5), campfire(W, -7, -58), campfire(W, 8, -56));
+    fortFieldLife(rt);
+    rt.scene.add(tawara(W, -10, -63, 0.4, 6), tawara(W, 10, -73, -0.3, 5), campfire(W, -9.5, -58.95), campfire(W, 8, -56));
     rt.scene.add(jinmaku(W, 7, -70, 5, 2, 3), shogi(W, 5, -71, 0, { gunbai: true }),
       hatazao(W, -10, -74, 0, 4, 'akechi'));
     // 旗：門の左右・主郭・櫓の脇（織田と明智の幟）

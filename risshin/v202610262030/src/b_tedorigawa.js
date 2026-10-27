@@ -121,6 +121,122 @@ function riverVillage(rt) {
   rt.scene.add(home, other, dou(W, 118, 76, 8, 6, Math.PI, { h: 2.8 }));
 }
 
+// 雨夜の在所と陣の裏方。写真の皮付き丸太・板囲いを小さな炊事場へ置き換える。
+// 建物の復元ではない。村の避難路と両本陣の口を避け、四か所の脇だけに置く。
+function riverStores(rt) {
+  const W = rt.world, tint = new THREE.Color();
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const up = new THREE.Vector3(0, 1, 0), direction = new THREE.Vector3();
+  const rotation = new THREE.Quaternion();
+  const makeKit = kitchen => {
+    const parts = [], outline = [];
+    const add = (geo, hex, coarse = false, farOnly = false) => {
+      const g = geo.index ? geo.toNonIndexed() : geo;
+      if (g !== geo) geo.dispose();
+      const p = g.attributes.position, colors = new Float32Array(p.count * 3);
+      // 足元の泥と、木地・藁の微かな濃淡。乱数や毎コマの染め直しは使わない。
+      for (let i = 0; i < p.count; i++) {
+        const grain = Math.sin(p.getX(i) * 19 + p.getZ(i) * 31) * .045;
+        tint.setHex(hex).multiplyScalar((p.getY(i) < .18 ? .68 : .94) + grain);
+        colors.set([tint.r, tint.g, tint.b], i * 3);
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      if (coarse) outline.push(g.clone());
+      if (farOnly) g.dispose();
+      else parts.push(g);
+    };
+    const box = (x, y, z, w, h, d, color, coarse = false, farOnly = false) => {
+      const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); add(g, color, coarse, farOnly);
+    };
+    const pole = (ax, ay, az, bx, by, bz, r, color, coarse = false) => {
+      direction.set(bx - ax, by - ay, bz - az);
+      const g = new THREE.CylinderGeometry(r * .86, r, direction.length(), 5);
+      rotation.setFromUnitVectors(up, direction.normalize()); g.applyQuaternion(rotation);
+      g.translate((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2); add(g, color, coarse);
+    };
+    // 薪は切り口を暗い樹皮から分ける。小さな山一つを四か所で使い回す。
+    for (let row = 0; row < 3; row++) for (let i = 0; i < 4 - row; i++) {
+      const x = -.65 + (i - (3 - row) / 2) * .23, y = .14 + row * .2;
+      pole(x, y, .25, x, y, 1.35, .12, 0x4b4031);
+      const end = new THREE.CircleGeometry(.094, 5);
+      end.translate(x, y, 1.355); add(end, 0x9c8862);
+    }
+    box(-.65, .32, .8, 1, .6, 1.15, 0x594b35, true, true);
+    // 水桶の板と二本の箍。中を塗り潰さず、雨水の暗い面を口より下へ置く。
+    for (let i = 0; i < 10; i++) {
+      const a = i * Math.PI / 5;
+      const stave = new THREE.BoxGeometry(.17, .62, .055);
+      stave.translate(0, .34, .28); stave.rotateY(a); stave.translate(.7, 0, .9);
+      add(stave, i % 3 ? 0x7b6b50 : 0x988262);
+    }
+    for (const y of [.15, .51]) {
+      const band = new THREE.TorusGeometry(.29, .022, 3, 10);
+      band.rotateX(Math.PI / 2); band.translate(.7, y, .9); add(band, 0x403a2d);
+    }
+    const water = new THREE.CircleGeometry(.25, 10);
+    water.rotateX(-Math.PI / 2); water.translate(.7, .43, .9); add(water, 0x343d39);
+    if (kitchen) {
+      // 背の低い片流れの陣小屋。四本柱と板の風除けで、幕の本陣と見分ける。
+      for (const x of [-1.6, 1.6]) for (const z of [-1.1, 1.45]) {
+        const top = z < 0 ? 2.65 : 2.15;
+        pole(x, 0, z, x, top, z, .075, 0x66543c, true);
+      }
+      for (const z of [-1.1, 1.45])
+        pole(-1.75, z < 0 ? 2.65 : 2.15, z, 1.75, z < 0 ? 2.65 : 2.15, z, .075, 0x806b4b);
+      for (let i = 0; i < 12; i++) {
+        box(-1.5 + i * .27, .77, 1.48, .25, 1.5, .055, i % 3 ? 0x756347 : 0x8d7957);
+      }
+      const roof = new THREE.BoxGeometry(3.8, .14, 3.05);
+      roof.rotateX(Math.atan2(.5, 2.55)); roof.translate(0, 2.41, .17);
+      add(roof, 0x827553, true);
+      // 藁屋根を押さえる細い竹。遠くでは屋根の外形だけにする。
+      for (const x of [-1.45, -.48, .48, 1.45])
+        pole(x, 2.76, -1.32, x, 2.17, 1.65, .025, 0x514c32);
+      // 石の竈と掛けた鉄鍋。大雨の中なので新しい裸火や乾いた土埃は足さない。
+      for (const x of [-.46, .46]) box(x, .2, -.62, .32, .4, .6, 0x58584e);
+      const pot = new THREE.LatheGeometry([
+        new THREE.Vector2(.06, 0), new THREE.Vector2(.38, .08),
+        new THREE.Vector2(.44, .38), new THREE.Vector2(.41, .44),
+        new THREE.Vector2(.36, .42), new THREE.Vector2(.32, .12),
+      ], 10);
+      pot.translate(0, .28, -.62); add(pot, 0x302f2a);
+      const handle = new THREE.TorusGeometry(.38, .024, 3, 10, Math.PI);
+      handle.translate(0, .69, -.62); add(handle, 0x454239);
+    } else {
+      // 刈田から取り込んだ藁。収穫期の補完で、雨中に稲を干す架け方にはしない。
+      for (const x of [-1.25, 0, 1.25]) {
+        const stack = new THREE.CylinderGeometry(.34, .6, 1.35, 7);
+        stack.translate(x, .71, -1.1); add(stack, 0x92805a, true);
+        const cap = new THREE.ConeGeometry(.49, .65, 7);
+        cap.translate(x, 1.65, -1.1); add(cap, 0x9c8960, true);
+        for (const y of [.43, 1.03]) {
+          const tie = new THREE.TorusGeometry(y < .5 ? .53 : .41, .025, 3, 7);
+          tie.rotateX(Math.PI / 2); tie.translate(x, y, -1.1); add(tie, 0x5b5036);
+        }
+      }
+    }
+    const near = mergeGeometries(parts), far = mergeGeometries(outline);
+    parts.forEach(g => g.dispose()); outline.forEach(g => g.dispose());
+    return { near, far };
+  };
+  const village = makeKit(false), kitchen = makeKit(true);
+  for (const [x, z, angle, kit] of [
+    [-121, -71, .12, village], [-145, -95, -.2, village],
+    [48, 113, Math.PI, kitchen], [78, -218, 0, kitchen],
+  ]) {
+    const lod = new THREE.LOD(), near = new THREE.Mesh(kit.near, material);
+    const far = new THREE.Mesh(kit.far, material);
+    near.receiveShadow = far.receiveShadow = true;
+    lod.addLevel(near, 0); lod.addLevel(far, 42); lod.addLevel(new THREE.Group(), 110);
+    // 平らな台を敷かず、四隅の低い側へ合わせ、柱と薪が宙に出ないよう土へ沈める。
+    let ground = Infinity;
+    for (const sx of [-1.9, 1.9]) for (const sz of [-1.5, 1.7])
+      ground = Math.min(ground, W.heightAt(x + sx, z + sz));
+    lod.position.set(x, ground, z); lod.rotation.y = angle; rt.scene.add(lod);
+    if (kit === kitchen) solidRect(x, z, 3.8, 3.4);
+  }
+}
+
 // 写真の野戦道具を参考にした仮設の備え。手取川での設置位置は復元ではなく補完。
 // 城や攻城用の台車は置かず、払いかけの北岸と両本陣の脇だけに据える。
 function riverFieldworks(rt) {
@@ -1654,6 +1770,7 @@ const tedorigawa = {
     F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, general: { name: '上杉謙信' }, guard: 25, reserve: 0, runTo: { x: 0, z: -150 } });
     riverCampShelters(rt, [F.honjin, F.ehon], rt.scene.children.slice(campStart));
     riverFieldworks(rt);
+    riverStores(rt);
 
     // 幕の口でなく敵の側を守る。雨中の旗本は槍と侍を主にする。
     for (const c of [F.honjin, F.ehon]) {

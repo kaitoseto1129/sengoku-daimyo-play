@@ -549,6 +549,74 @@ function tottoriLookout(W, x, z, team = 0, boarded = false, height = 8.8) {
   return yagura(W, x, z, true
     ? { team, mon: team ? 'mori' : 'oda', boarded, logFrame: true, crossLashings: true, height } : {});
 }
+// 写真の丸太・板・縄の備えを、長囲いの持ち場の両端に集める推定復元。
+// 中央の乱戦・岸への往復路には置かず、細部は近い陣だけ。更新処理と光源は増やさない。
+function tottoriCampTools(rt) {
+  const W = rt.world, pieces = [[], [], [], []];
+  const pose = new THREE.Object3D(), color = new THREE.Color();
+  const wood = 0x766044, bamboo = 0x8b8753, rope = 0xafa080, iron = 0x302c27;
+  const add = (kind, x, y, z, sx, sy, sz, col, rx = 0, ry = 0, rz = 0) => {
+    pose.position.set(x, y, z); pose.rotation.set(rx, ry, rz); pose.scale.set(sx, sy, sz);
+    pose.updateMatrix(); pieces[kind].push({ matrix: pose.matrix.clone(), col });
+  };
+  // 七本の竹を束ねた備蓄。節と二か所の縄で、一本の緑の柱に見せない。
+  for (const [x, z] of [[-24, 37], [-22.8, 37.3], [48, 29], [49.2, 29.3]]) {
+    const y = W.heightAt(x, z);
+    for (let j = 0; j < 7; j++) {
+      const a = j * Math.PI / 3, r = j === 6 ? 0 : .19;
+      const bx = x + Math.cos(a) * r, bz = z + Math.sin(a) * r, h = 1.85 + (j % 3) * .09;
+      add(1, bx, y + h / 2, bz, .095, h, .095, j % 2 ? bamboo : 0x777849);
+      for (let k = 1; k < 5; k++) add(1, bx, y + k * .37, bz, .105, .035, .105, 0x686b40);
+    }
+    for (const h of [.45, 1.42]) add(2, x, y + h, z, .3, .3, .65, rope, Math.PI / 2);
+  }
+  // 板盾を控えの脇へ立て掛ける。写真二枚目の木幌の板面と横桟を参考に、車は付けない。
+  for (const [x, z] of [[-26, 40], [46, 35]]) {
+    const y = W.heightAt(x, z);
+    for (let k = 0; k < 3; k++) {
+      const bx = x + k * 1.18;
+      for (let j = 0; j < 4; j++) add(0, bx + (j - 1.5) * .25, y + .94, z,
+        .24, 1.85, .065, j % 2 ? 0x867350 : 0x79674a, -.12);
+      for (const h of [.4, 1.4]) add(0, bx, y + h, z + .08 - (h - .94) * .12,
+        1.04, .09, .09, wood);
+      add(1, bx, y + .55, z + .42, .055, 1.2, .055, wood, -.65);
+    }
+    // 盾の後ろに積んだ短い薪。全て同じ六角柱で端面の形を保つ。
+    for (let j = 0; j < 9; j++) add(1, x + (j % 3) * .21, y + .13 + Math.floor(j / 3) * .18,
+      z + 1, .1, 1.3 - (j % 2) * .15, .1, j % 2 ? wood : 0x5b4b36, Math.PI / 2);
+  }
+  // 既存の焚火を炊事場へ。黒い釜と口縁、吊り縄、二股の支柱と横木。
+  // 火・煙は既存の二基を使い、飢えた城内には炊事場や米を置かない。
+  for (const [x, z] of [[-10, 30], [20, 34]]) {
+    const y = W.heightAt(x, z);
+    for (const side of [-1, 1]) {
+      const bx = x + side * .85, ground = W.heightAt(bx, z);
+      add(1, bx, ground + .9, z, .06, 1.8, .06, wood);
+      add(1, bx - side * .07, ground + 1.7, z, .035, .4, .035, wood, 0, 0, side * .45);
+    }
+    add(1, x, y + 1.72, z, .055, 2, .055, wood, 0, 0, Math.PI / 2);
+    add(1, x, y + 1.3, z, .018, .8, .018, rope);
+    add(3, x, y + .85, z, .42, .4, .42, iron);
+    add(1, x, y + .8, z, .41, .015, .41, 0x24231e);
+    add(2, x, y + .85, z, .42, .42, .7, iron, Math.PI / 2);
+    for (const side of [-1, 1]) add(1, x + side * .32, y + .95, z,
+      .022, .3, .022, iron, 0, 0, side * .45);
+    // 火から離した水桶。細板の胴と二つの箍、上面は暗い水色。
+    const bx = x + 1.9, bz = z + .6, by = W.heightAt(bx, bz);
+    add(1, bx, by + .28, bz, .29, .55, .29, wood);
+    add(1, bx, by + .56, bz, .25, .015, .25, 0x373c35);
+    for (const h of [.12, .44]) add(2, bx, by + h, bz, .29, .29, .7, iron, Math.PI / 2);
+  }
+  const shapes = [new THREE.BoxGeometry(1, 1, 1), new THREE.CylinderGeometry(1, 1, 1, 6),
+    new THREE.TorusGeometry(1, .06, 3, 10), new THREE.SphereGeometry(1, 8, 4, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)];
+  const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  pieces.forEach((parts, kind) => {
+    const mesh = new THREE.InstancedMesh(shapes[kind], material, parts.length);
+    parts.forEach((part, i) => { mesh.setMatrixAt(i, part.matrix); mesh.setColorAt(i, color.setHex(part.col)); });
+    // 小物の影は受けるだけ。四束にまとめ、遠方の山城へ細部を複製しない。
+    mesh.receiveShadow = true; mesh.computeBoundingSphere(); rt.scene.add(mesh);
+  });
+}
 // 曲輪の奥に低い物置を添え、屋敷一棟だけが広い空地に立つ並びを避ける。
 // 細かな位置は推定。道・屋敷・民のいる木戸内には増やさず、板小屋を既存の束へ結合する。
 function tottoriOutbuildings(W, batch) {
@@ -1864,15 +1932,6 @@ const tottori = {
     ]) noT(wallLine(rt, pts, { team: 0, hp: 1e9, name: '柵', segLen: 8 }));
     rt.scene.add(kabukimon(W, TAIKO.x, south, TAIKO.gateW, 0), kabukimon(W, east, TAIKO.z, TAIKO.eastGateW, Math.PI / 2));
     for (const k of TAIKO_LOOKOUTS) rt.scene.add(tottoriLookout(W, k.x, k.z, 0, true));
-    // 寸法不明の天守台には推定の札を置く。作るのは準備時の一枚だけ。
-    const board = document.createElement('canvas'); board.width = 512; board.height = 96;
-    const ink = board.getContext('2d');
-    ink.fillStyle = '#ded0a9'; ink.fillRect(0, 0, 512, 96);
-    ink.fillStyle = '#302719'; ink.font = 'bold 32px serif'; ink.textAlign = 'center';
-    ink.fillText(nw.name, 256, 60);
-    const map = new THREE.CanvasTexture(board); map.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 1.2), new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }));
-    sign.position.set(nw.x + 4, W.heightAt(nw.x + 4, nw.z + 5) + 1.7, nw.z + 5); rt.scene.add(sign);
     rt.scene.add(hyoro(W, TAIKO.x - 8, TAIKO.z + 10, 0.4), umatsunagi(W, TAIKO.x + 10, TAIKO.z - 8, 0.3, 8));
     if (true) {
       // 兵糧は寄せ手の陣にだけ置く。空腹の城内へ米俵を増やさない。
@@ -1905,6 +1964,7 @@ const tottori = {
       W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 18, lightColor: 0xff8a3a, lightStrength: 1.6, lightDecay: 0 });
     }
     for (const [x, z] of [[-10, 30], [20, 34]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z, { lightRadius: 18, lightColor: 0xff8a3a, lightStrength: 1.6, lightDecay: 0 }); }
+    tottoriCampTools(rt);
     // 舟の護衛と控えは始めから岸に置く。名のある城将を前線の番兵へ重ねない。
     F.guard = enemyGroup(rt, { fixed: true, historicalOrders: true, faction: 'mori', name: '舟の番', anchor: { x: -52, z: -20 }, facing: Math.PI / 2, width: 5, formation: 'line', aggro: 12, morale: 85, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1, o: BANK_SAMURAI }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 2 }], KIKKAWA));

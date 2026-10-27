@@ -491,6 +491,85 @@ function saikaSettlement(rt) {
     box(x, y + .45, z, 1.1, .9, .85, 0, 0, 0x79664d);
     for (const dz of [-.3, .3]) box(x, y + .93, z + dz, 1.15, .07, .09);
   }
+  // 本の野戦兵器の横木と結び縄に寄せた、竹束補修用の備蓄と炊事場。
+  // 当日の設備を断定するものではなく景観の補完。陣幕の南の小屋脇に限り、
+  // 中央の帰路・川上下の寄せ・兵の枠は変えない。静物は既存の結合形へ収める。
+  const bamboo = new THREE.CylinderGeometry(.065, .075, 1, 6);
+  const bale = new THREE.CylinderGeometry(.35, .35, 1.05, 10);
+  const cord = new THREE.TorusGeometry(1, .018, 3, 10);
+  const stone = new THREE.IcosahedronGeometry(1, 0);
+  const pot = new THREE.LatheGeometry([
+    [0, 0], [.24, 0], [.39, .12], [.42, .36], [.32, .53], [.34, .58],
+    [.29, .58], [.27, .51], [.35, .35], [.32, .14], [0, .07],
+  ].map(([r, y]) => new THREE.Vector2(r, y)), 10);
+  const storePart = (shape, x, y, z, sx, sy, sz, rx, ry, color) => {
+    const g = shape.clone(); g.scale(sx, sy, sz); g.rotateX(rx); g.rotateY(ry);
+    g.translate(x, y, z); gateParts.push(paintGeo(g, color)); g.dispose();
+  };
+  // 覆いの下で桟木に載せる。竹の木口・節・外側の縄を残す。
+  const by = W.heightAt(82.65, 32);
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 4 - row; col++) {
+    const x = 82.65 + (col - (3 - row) / 2) * .17, y = by + .9 + row * .14;
+    storePart(bamboo, x, y, 32, 1, 4.3, 1, Math.PI / 2, 0,
+      [0x8c895b, 0x72794f, 0xa49a69][col % 3]);
+    for (const dz of [-1.65, -.65, .55, 1.6])
+      storePart(cord, x, y, 32 + dz, .078, .078, .7, 0, 0, 0xb0a27a);
+  }
+  for (const dz of [-1.3, 1.3])
+    storePart(cord, 82.65, by + 1.02, 32 + dz, .41, .32, 1, 0, 0, 0x64553b);
+  // 俵は二段だけ。編み目を大量の線にせず、胴縄と締めた両端で形を見せる。
+  const fy = Math.max(W.heightAt(89, 32.5), W.heightAt(91, 32.5));
+  for (const dz of [-.45, .45]) box(90, fy + .12, 32.5 + dz, 3.3, .18, .16);
+  for (let i = 0; i < 5; i++) {
+    const x = i < 3 ? 89 + i : 89.5 + (i - 3), y = fy + .56 + (i < 3 ? 0 : .62);
+    storePart(bale, x, y, 32.5, 1, 1, 1, Math.PI / 2, 0,
+      i % 2 ? 0x998452 : 0xae9963);
+    for (const dz of [-.48, -.25, .25, .48])
+      storePart(cord, x, y, 32.5 + dz, .355, .355, 1, 0, 0, 0x675b3d);
+    for (const dz of [-.535, .535]) {
+      box(x, y, 32.5 + dz, .61, .045, .028, 0, 0, 0x716341);
+      box(x, y, 32.5 + dz, .045, .61, .028, 0, 0, 0x716341);
+    }
+  }
+  // 昼の焚き口は薪と熾火を低く囲う。光源や大きな炎を増やさない。
+  const cx = 88, cz = 36, cy = W.heightAt(cx, cz);
+  for (let i = 0; i < 7; i++) {
+    const a = i * Math.PI * 2 / 7;
+    storePart(stone, cx + Math.cos(a) * .6, cy + .14, cz + Math.sin(a) * .6,
+      .25, .17, .23, i, a, i % 2 ? 0x726d5d : 0x635c4d);
+  }
+  for (let i = 0; i < 3; i++) {
+    box(cx + (i - 1) * .18, cy + .12, cz, .13, .13, .8, (i - 1) * .25, 0, 0x342a22);
+    box(cx + (i - 1) * .14, cy + .2, cz + .1, .08, .035, .25, 0, 0, 0x9a4d29);
+  }
+  storePart(pot, cx, cy + .29, cz, 1, 1, 1, 0, 0, 0x36332d);
+  for (const dx of [-.48, .48]) box(cx + dx, cy + .95, cz, .08, 1.9, .08);
+  box(cx, cy + 1.9, cz, 1.3, .09, .09);
+  box(cx, cy + 1.38, cz, .025, .94, .025, 0, 0, 0x4a4234);
+  storePart(cord, cx, cy + .91, cz, .22, .18, 1, 0, 0, 0x464139);
+  for (const g of [bamboo, bale, cord, stone, pot]) g.dispose();
+  // 薄い炊煙六粒だけを一回で描く。時間は既存の値を読むだけで、毎コマ物を作らない。
+  const smokeGeo = new THREE.BufferGeometry(), smokePos = [], smokeSeed = [];
+  for (let i = 0; i < 6; i++) { smokePos.push(cx, cy + .45, cz); smokeSeed.push(i / 6); }
+  smokeGeo.setAttribute('position', new THREE.Float32BufferAttribute(smokePos, 3));
+  smokeGeo.setAttribute('cookSeed', new THREE.Float32BufferAttribute(smokeSeed, 1));
+  smokeGeo.computeBoundingSphere(); smokeGeo.boundingSphere.radius = 6;
+  const smokeMat = new THREE.PointsMaterial({ color: 0xaaa99b, size: 1.35,
+    transparent: true, opacity: .12, depthWrite: false });
+  smokeMat.onBeforeCompile = sh => {
+    sh.uniforms.cookTime = { get value() { return SETTINGS.reduceMotion ? 0 : W.time || 0; } };
+    sh.vertexShader = 'uniform float cookTime; attribute float cookSeed; varying float cookLife;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        cookLife = fract(cookTime * .085 + cookSeed);
+        transformed += vec3(cookLife * cookLife * 2.4, cookLife * 3.3,
+          sin(cookLife * 5.0 + cookSeed * 9.0) * cookLife * .35);`);
+    sh.fragmentShader = 'varying float cookLife;\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 puff = gl_PointCoord * 2.0 - 1.0;
+        diffuseColor.a *= max(0.0, 1.0 - dot(puff, puff)) * sin(cookLife * 3.141593);
+        if (diffuseColor.a < .003) discard;`);
+  };
+  rt.scene.add(new THREE.Points(smokeGeo, smokeMat));
   for (const side of [1, -1]) {
     const z0 = side * 156, x0 = -55, x1 = -118, za = z0 - 12, zb = z0 + 12;
     const edge = [[x0, za], [x1, za], [x1, zb], [x0, zb]];

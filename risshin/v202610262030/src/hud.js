@@ -218,6 +218,20 @@ export class Hud {
     }, true);
   }
 
+  // 火をつける建物は、屋根の上に同じ火の形を付ける。字の札は増やさない。
+  drawFireSign(g, x, y) {
+    g.save(); g.translate(x, y); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(0, -32);
+    g.bezierCurveTo(3, -20, 16, -18, 14, -7);
+    g.bezierCurveTo(12, 7, -14, 7, -14, -7);
+    g.bezierCurveTo(-14, -16, -6, -20, -7, -25);
+    g.lineTo(-3, -20); g.closePath();
+    g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
+    g.fillStyle = '#fff3ba'; g.fill();
+    g.beginPath(); g.moveTo(0, -13); g.quadraticCurveTo(9, 0, 0, 0); g.quadraticCurveTo(-7, 0, 0, -13);
+    g.fillStyle = '#14120f'; g.fill(); g.restore();
+  }
+
   // 更新処理は本流の最新版に金ヶ崎の退却見出しの優先を合わせる。
 
 

@@ -3182,9 +3182,11 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
     previous.team !== u.team && Math.abs(previous.pos.y - u.pos.y) < 3 &&
     Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < (p.weapon === 'sword' ? 1.9 : 2.8) &&
     !b.army.wallBetween(u.pos, -1, previous.pos) &&
+    (F.stage !== 'contact' || F.vBroken || previous.group === F.V) &&
     (F.stage !== 'hold' || Math.hypot(previous.pos.x - FRONT2.x, previous.pos.z - FRONT2.z) < 38);
   const e = attacker || (keep ? previous : null) || b.army.nearestEnemy(u, F.stage === 'hold' || F.stage === 'press' ? 40 : 14,
     (o) => !o.noTarget && !o.fleeing && !o.invuln && o.type !== 'dummy' &&
+      (F.stage !== 'contact' || F.vBroken || o.group === F.V) &&
       Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
       (F.stage !== 'hold' || Math.hypot(o.pos.x - FRONT2.x, o.pos.z - FRONT2.z) < 38));
   if (e) {
@@ -3213,11 +3215,15 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   let q = FRONT2;
-  if (F.stage === 'contact' && !gone(F.V)) q = F.V.center();
-  if (F.stage === 'press') { const g = F.opposition.find((g) => !gone(g)); if (g) q = g.center(); }
+  // 隊の平均位置には敵がいないことがある。頭上の印と同じ、任務に残る本人へ詰める。
+  // 傷兵や逃げる兵を含む中心で止まり、十四歩の探索外の先手を待ち続けない。
+  if (F.stage === 'contact' && !F.vBroken || F.stage === 'press') {
+    const foe = moribeNearestFoe(b);
+    if (foe) q = foe.pos;
+  }
   // 次の敵へ向かう間は組も連れて行く。前の戦場に残った組を迎えに戻る往復を防ぐ。
   if (sq && sq.order !== 'follow' && sq.order !== 'move' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 5; }
-  goTo(p, inp, q.x, q.z, 4);
+  goTo(p, inp, q.x, q.z, F.stage === 'contact' && !F.vBroken || F.stage === 'press' ? 2 : 4);
 };
 moribe.canSkip = () => '';   // 雨中の布陣から槍の会戦まで、同じ時計で進める。
 moribe.rts = true;
