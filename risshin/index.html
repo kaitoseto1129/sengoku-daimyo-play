@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610270624 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610270640 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610270624/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610270624/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610270624/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610270624/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610270640/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610270640/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610270640/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610270640/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -548,8 +548,8 @@ body:has(#intro:not([hidden])) #tc { visibility: hidden; pointer-events: none; }
 #armybar .clock { display: none; }
 #hud.gb-open #armybar .clock { display: block; }
 #armybar .clock small { display: block; font-family: var(--ui); font-weight: 500; font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .2em; color: var(--washi-faint); margin-top: -2px; }
-/* 右上：年月日・季節・天気・刻 */
-#dateline { white-space: nowrap; font-family: var(--display); font-size: max(12px, calc(12.5px * var(--text-scale, 1))); letter-spacing: .08em; color: #efe3c2; text-shadow: 0 1px 3px #000; text-align: right; }
+/* 日付は開戦の札に残し、戦の最中は任務の一行を空ける。 */
+#hud #dateline { display: none !important; }
 #objectives { background: var(--lacquer); box-shadow: inset 0 0 0 1px rgba(194,162,90,.28); padding: 10px 14px 10px 16px; }
 #objectives h4 { border-bottom: 1px solid var(--gold-line); padding-bottom: 5px; }
 #minimap { border: 2px solid rgba(194,162,90,.55); box-shadow: 0 0 0 1px #000, 0 0 0 5px rgba(14,11,8,.7), 0 0 0 6px rgba(194,162,90,.3); }
@@ -1807,7 +1807,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202610270624/screens.css">
+<link rel="stylesheet" href="./v202610270640/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1955,5 +1955,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610270624/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202610270640/src/main.js').catch((error) => window.__bootFail(error));
 </script>
