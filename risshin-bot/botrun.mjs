@@ -105,7 +105,9 @@ if (BRIEF) {
     const errors = rs.reduce((acc, r) => acc + (r.errors ? r.errors.length : 0), 0);
     const avgTime = Math.round(rs.reduce((x, r) => x + r.time, 0) / rs.length);
     const stack = rs.reduce((acc, r) => acc + (r.stackN || 0), 0), stackMax = Math.max(0, ...rs.map((r) => r.stackMax || 0));
-    console.log(`${battle} ${avgTime} ${wins}/${rs.length} ${falls} ${errors} 重なり止まり${stack} 重なり最大${stackMax}`);
+    const idleAvg = Math.round(100 * rs.reduce((x, r) => x + (r.idleAvg || 0), 0) / rs.length), idleMax = Math.round(100 * Math.max(0, ...rs.map((r) => r.idleMax || 0)));
+    console.log(`${battle} ${avgTime} ${wins}/${rs.length} ${falls} ${errors} 重なり止まり${stack} 重なり最大${stackMax} 動かない敵${idleAvg}% 最大${idleMax}%`);
+    if (process.env.IDLE_SCENES) for (const r of rs) for (const sc of (r.idleScenes || [])) console.log(`  ${sc}`);
   }
   await sleep(1200);
   process.exit(0);

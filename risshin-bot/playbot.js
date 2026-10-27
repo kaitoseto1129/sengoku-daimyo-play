@@ -14,6 +14,7 @@ import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
 import { retreatDodge } from './bot_retreat.js';
 import { stackWatch } from './bot_stack.js';
+import { idleWatch } from './bot_idle.js';
 
 const Q = new URLSearchParams(location.search);
 const ONLY = Q.get('only') ? new Set(Q.get('only').split(',')) : null;
@@ -829,6 +830,7 @@ async function playOne(game, i, G, aud, o = {}) {
       brain(b, inp);
       const t0 = performance.now();
       b.update(dt, inp);
+      if (!b.player) break;   // 勝ち負けが決まって戦が片付いた（battle.js が update の中で stopBattle する）
       ms += performance.now() - t0; frames++;
       if (aud) aud.tick(dt);
       // 一時停止の札も一度測る
@@ -847,6 +849,7 @@ async function playOne(game, i, G, aud, o = {}) {
       if (!openingWait(game) && Math.hypot(u.x - lastPos.x, u.z - lastPos.z) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
       if (idle > 8) { rep.stuck.push(`${Math.round(t)}秒：前へ進めない（${Math.round(u.x)}, ${Math.round(u.z)}・段 ${b.phase || '―'}）`); idle = -30; }
       stackWatch(b, rep);
+      idleWatch(b, rep);
       lastPos = { x: u.x, z: u.z };
       if (frames % 200 === 0) await new Promise((r) => setTimeout(r, 0));
     }
@@ -2356,6 +2359,7 @@ async function playPersona(game, spec, aud, c) {
         if (pad.tap(bt, '止める')) { await wait(500); aud.scanDom(`${name}・一時停止`); const rs = [...document.querySelectorAll('#pause button')].find((x) => /再開|戻る|続け/.test(x.textContent)); if (rs) pad.tap(rs, '再開'); else { game.paused = false; document.getElementById('pause').hidden = true; c.add('pause-noresume', '一時停止の札に「再開」の釦が見つからない', '#pause の中', 2); } await wait(300); game.paused = false; document.getElementById('pause').hidden = true; }
       }
       allyTick();
+      idleWatch(b, rep);
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
       const mo = b.objectives.filter((q) => q.kind === 'main').map((q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
@@ -2508,7 +2512,7 @@ async function runPersona(game, key) {
     let r;
     try { r = await playPersona(game, spec, aud, c); } catch (e) { r = { battle: spec.name, key: spec.id, errors: [String(e && e.stack || e).split('\n').slice(0, 3).join(' ')], stuck: [], waits: [], flow: [], named: [], time: 0, merit: 0, main: false, squad: '—', down: false, shots: [] }; if (game.battle) game.stopBattle(); }
     reports.push(r);
-    say(`${spec.name}：${r.time}秒・任務${r.main === true ? '達成' : '失敗'}${r.down ? '・倒れた' : ''}・重なり止まり${r.stackN || 0}・重なり最大${r.stackMax || 0}`);
+    say(`${spec.name}：${r.time}秒・任務${r.main === true ? '達成' : '失敗'}${r.down ? '・倒れた' : ''}・重なり止まり${r.stackN || 0}・重なり最大${r.stackMax || 0}・動かない敵${Math.round((r.idleAvg || 0) * 100)}%`);
     partial();
   }
   if (game.battle) game.stopBattle();
