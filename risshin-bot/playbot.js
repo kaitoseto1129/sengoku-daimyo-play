@@ -1316,9 +1316,12 @@ class TouchPad {
     }
     // 取る：押し続ける物（inp.k）は押したまま、一度だけの物（inp.e）は叩く
     const use = btn('use');
+    // 長押しの作業（放火・杭抜きなど）は「取る」の丸を隠し、任務の欄の作業札を長押しする（人の指と同じ所）
+    const work = inp.k.has('KeyE') && !this.shown(use) ? q('#prompt button[data-work]') : null;
     if (inp.k.has('KeyE') && this.shown(use)) this.down('use', use, '取る');
+    else if (work && this.shown(work)) this.down('work', work, '長押しの作業');
     else {
-      this.up('use');
+      this.up('use'); this.up('work');
       if (inp.e.has('KeyE')) { if (this.shown(use)) this.tap(use, '取る'); else if (this.shown(q('#prompt'))) this.tap(q('#prompt'), '取る（札）'); }
     }
     // 号令
