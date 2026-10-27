@@ -1,0 +1,62 @@
+[
+  {
+    "name": "mhbody",
+    "optimized": true,
+    "before": 1714720,
+    "after": 1209292
+  },
+  {
+    "name": "mhhead",
+    "optimized": false,
+    "before": 868768,
+    "after": 868768
+  },
+  {
+    "name": "mhhand",
+    "optimized": false,
+    "before": 89732,
+    "after": 89732
+  },
+  {
+    "name": "soldier",
+    "optimized": true,
+    "before": 2160468,
+    "after": 1559132
+  },
+  {
+    "name": "head",
+    "optimized": true,
+    "before": 404976,
+    "after": 402160
+  },
+  {
+    "name": "domaru",
+    "optimized": false,
+    "before": 3484476,
+    "after": 3484476
+  },
+  {
+    "name": "kabuto",
+    "optimized": false,
+    "before": 503308,
+    "after": 503308
+  },
+  {
+    "name": "menpo",
+    "optimized": true,
+    "before": 61044,
+    "after": 61048
+  },
+  {
+    "name": "horse",
+    "optimized": true,
+    "before": 3058452,
+    "after": 1749980
+  },
+  {
+    "name": "yoroi",
+    "optimized": true,
+    "before": 1276548,
+    "after": 1275812
+  }
+]
