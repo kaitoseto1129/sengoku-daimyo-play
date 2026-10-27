@@ -832,6 +832,8 @@ async function playOne(game, i, G, aud, o = {}) {
       b.update(dt, inp);
       if (!b.player) break;   // 勝ち負けが決まって戦が片付いた（battle.js が update の中で stopBattle する）
       ms += performance.now() - t0; frames++;
+      // 終幕の片付けで本人が外れたコマは、そこで見届けを終える（姉川で「null の u」が毎回出た。10/28）
+      if (!b.player) break;
       if (aud) aud.tick(dt);
       // 一時停止の札も一度測る
       if (aud && !paused1 && t > 30) { paused1 = true; game.noLock = true; press('Escape'); await wait(400); aud.scanDom(`${name}・一時停止`); await aud.tryButtons(document.getElementById('pause'), `${name}・一時停止`); press('Escape'); await wait(200); game.paused = false; document.getElementById('pause').hidden = true; }
