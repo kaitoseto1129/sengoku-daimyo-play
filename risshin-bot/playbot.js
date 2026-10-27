@@ -2149,7 +2149,7 @@ async function playPersona(game, spec, aud, c) {
   }
   rep.loadMs = Math.round(performance.now() - tClick);
   const b = game.battle;
-  if (!b || b === previousBattle || !document.getElementById('loading').hidden) { rep.errors.push('新しい戦の読み込みが終わらなかった'); return rep; }
+  if (!b || b === previousBattle || !document.getElementById('loading').hidden) { rep.errors.push('新しい戦の読み込みが終わらなかった' + (game.lastError ? '（' + String(game.lastError).split('\n').slice(0, 2).join(' ').slice(0, 200) + '）' : '')); return rep; }
   await wait(300);
   // 見渡し中は本番の入力が消される。飛ばす釦を押し、見渡しを閉じてから戦を進める。
   if (game.deployment) {
