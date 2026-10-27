@@ -347,6 +347,17 @@ export function installCanvasAstc(renderer, force = false) {
       d.set.call(this, v);
     },
   });
+  // 圧縮済みの絵を clone すると、形式（ASTC）と mipmaps は写るが「圧縮の印」（isCompressedTexture）は写らない。
+  // ASTC の形式のまま canvas として送られ、WebGL が Type error で絵を捨てていた（10/27 実機：金ヶ崎・墨俣・姉川）。写しにも印を付ける
+  const copy = P.copy;
+  P.copy = function (source) {
+    copy.call(this, source);
+    if (source && Object.prototype.hasOwnProperty.call(source, 'isCompressedTexture') && source.isCompressedTexture && !Object.getPrototypeOf(this).isCompressedTexture) {
+      this.isCompressedTexture = true;
+      for (const k of ['astcBusy', 'astcReady', 'astcAgain', 'astcCanvas']) delete this.userData[k];   // 元の符号化の途中の印・JSON で壊れた canvas は持ち越さない
+    }
+    return this;
+  };
   ASTC_RT.on = true;
   return true;
 }

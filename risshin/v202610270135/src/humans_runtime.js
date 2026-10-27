@@ -699,7 +699,8 @@ function updateHumans(rt, dt) {
       }
     }
     // 鐙・手綱は乗り手の骨が動いた後で置く
-    for (const [h, u] of horses) if (h.userData.horse.real && h.userData.horse.real.on) placeHorseExtras(h, u);
+    //   画面の外（乗り手の囲み 6m の球が視野に掛からない）の馬の手綱・鐙は置き直さない。画面に入ったコマで置く（10/27）
+    for (const [h, u] of horses) if (h.userData.horse.real && h.userData.horse.real.on && !(u && u.offscreen && !u.isPlayer && !window.__apx?.notack0)) placeHorseExtras(h, u);
   }
   if (player && ++evictTick % 60 === 0) evictHidden(army, player);
   HSTAT.ms = performance.now() - frameT0;

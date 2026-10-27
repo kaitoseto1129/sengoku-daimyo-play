@@ -130,23 +130,18 @@ function ldBegin(keys, battle = '') {
   stage('戦いの準備をしています', keys[0]);
   ldIv = setInterval(ldTick, 150);
 }
-// 工程内は所要時間の見込みで進め、実際に終わった分が多ければそちらを使う。
+// 円を工程ごとに等分し、工程内は実際の完了数と控えめな時間の見込みで進める。
 // 遅い端末でも後戻りせず、完了前に満ち切らない。戦が始まったら更新は止める。
 function ldTick() {
   const P = ldPlan;
   if (!P || $('loading').hidden) return;
-  let total = 0, done = 0;
-  for (let i = 0; i < P.est.length; i++) {
-    total += P.est[i];
-    if (i < P.cur) done += P.est[i];
-  }
   const current = P.est[P.cur] || 0;
   const elapsed = Math.max(0, performance.now() - P.t);
-  // 覚えた所要時間で九割まで進む。見込みを超えた分はゆっくり進め、工程の完了を待つ。
+  // 一つの長い工程で円全体を満たさない。残りの工程の分は必ず空けておく。
   const ratio = current ? elapsed / current : 0;
-  const estimated = ratio <= 1 ? .9 * ratio : .9 + .08 * (ratio - 1) / ratio;
+  const estimated = .85 * ratio / (1 + ratio);
   const within = Math.max(P.part, estimated);
-  P.progress = Math.max(P.progress, Math.min(.98, (done + current * within) / Math.max(1, total)));
+  P.progress = Math.max(P.progress, Math.min(.98, (Math.max(0, P.cur) + within) / Math.max(1, P.keys.length)));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');
   if (left) left.textContent = '';
@@ -526,6 +521,44 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const rbd = renderer.renderBufferDirect;
   renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
     if (object.isInstancedMesh && object.count === 0) return;
+    return rbd.call(this, camera, scene, geometry, material, object, group);
+  };
+}
+// 一つの材質を、骨のある人と無い形・束（Instanced・Batched）と一つの形・色の四つ組と三つ組で使い回すと、three は描く物が替わるたびに
+//   描き方を選び直す（getParameters と鍵の文字列づくり・値の送り直し）。稲生の乱戦で一秒に二百回余り、影の深さの材質でも起きていた（10/27 測り）。
+//   物の作りごとに「元の材質を親にした写し」（Object.create。色・絵・透け・needsUpdate は元のまま届く）で描き、選び直しを無くす。見た目は同じ
+{
+  const rbd = renderer.renderBufferDirect;
+  const VAR = new WeakMap();
+  let varId = 1e7;
+  const variantKey = (o, g) => {
+    const a = g.attributes, m = g.morphAttributes;
+    return (o.isInstancedMesh ? 1 : 0) | (o.isSkinnedMesh ? 2 : 0) | (o.isBatchedMesh ? 4 : 0) | (a.color && a.color.itemSize === 4 ? 8 : 0) |
+      (o.isInstancedMesh && o.instanceColor ? 16 : 0) | (a.tangent ? 32 : 0) | (m.normal ? 64 : 0) | (m.color ? 128 : 0) | ((m.position ? m.position.length : 0) << 8);
+  };
+  const variantOf = (mat, o, g) => {
+    if (!mat || mat.isShaderMaterial || !g) return mat;
+    const k = variantKey(o, g);
+    let e = VAR.get(mat);
+    if (!e) { VAR.set(mat, { k, v: null }); return mat; }
+    if (e.k === k) return mat;
+    if (!e.v) {
+      e.v = new Map();
+      // 元を捨てる時は写しの描き方も返す
+      mat.addEventListener('dispose', () => { for (const v of e.v.values()) v.dispatchEvent({ type: 'dispose' }); e.v.clear(); VAR.delete(mat); });
+    }
+    let v = e.v.get(k);
+    if (!v) {
+      v = Object.create(mat);
+      Object.defineProperty(v, 'id', { value: varId++ });
+      v._listeners = {};
+      v.__variantOf = mat;
+      e.v.set(k, v);
+    }
+    return v;
+  };
+  renderer.renderBufferDirect = function (camera, scene, geometry, material, object, group) {
+    if (!window.__apx?.novar) material = variantOf(material, object, geometry);
     return rbd.call(this, camera, scene, geometry, material, object, group);
   };
 }

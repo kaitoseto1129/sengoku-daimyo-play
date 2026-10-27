@@ -668,6 +668,15 @@ takato.botBrain = (rt, inp, helpers) => {
         }
       }
     }
+    // 刃の届く所まで追いつかれたら、背を向けて斬られ続けず、向き直って突き返す。
+    if (foe) {
+      const gap0 = Math.hypot(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z);
+      if (gap0 <= (p.weapon === 'sword' ? 1.8 : 2.8)) {
+        p.yaw = Math.atan2(foe.pos.x - p.u.pos.x, foe.pos.z - p.u.pos.z);
+        helpers.patientStrike(p, inp, foe, gap0, true);
+        return;
+      }
+    }
     // 城兵が近い間こそ退く。敵が離れるまで応戦を優先すると、印があっても退けない。
     if (!foe && p.treatmentReady) inp.k.add('KeyE');
     // 着いた後は足を止め、最後の被弾から六秒たつのを待つ。歩き続けると布を巻けない。

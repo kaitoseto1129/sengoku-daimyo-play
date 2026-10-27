@@ -1074,7 +1074,7 @@ const tonezaka = {
   timeslip: {
     wet: 1, dust: 0.05, trample: 0.4, debris: 1.2, arrows: 0.35, branches: 0.05,
     grass: 0x748a4c, grassTints: [0xffffff, 0xe0e6c0, 0xc8d0a0], grassH: 1.05, tallGrass: 0.9,
-    flagColors: [0xe8e4d8, 0x1e1c1a, 0x30405a], hazeColor: 0x4a5258,
+    flagColors: [0xe8e4d8, 0x1e1c1a, 0x30405a], hazeColor: 0x4a5258, mudOpacity: 0.3, pools: 0,   // 夜の月明かりでは泥と水たまりが黒い穴に見える。薄い踏み跡だけ
     fights: [...ROAD.map(([x, z]) => [x, z, 22]), ...CHASE_ROAD.map(([x, z]) => [x, z, 18])],
   },
   world: {
