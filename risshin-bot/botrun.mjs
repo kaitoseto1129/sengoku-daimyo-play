@@ -95,7 +95,7 @@ const done = runs.filter((r) => r.ok);
 const names = [...new Set(done.flatMap((r) => r.data.battles.map((b) => b.battle)))];
 const avg = (a) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : 0);
 
-// --brief：戦ごと一行「id 秒数 勝ち負け 倒れた回数 エラーの数」を出力
+// --brief：戦ごと一行「id 秒数 勝ち負け 倒れた回数 エラーの数 重なり止まり（隊が一点に重なって止まった数） 重なり最大」を出力
 if (BRIEF) {
   for (const battle of names) {
     const rs = done.map((r) => r.data.battles.find((b) => b.battle === battle)).filter(Boolean);
@@ -104,7 +104,8 @@ if (BRIEF) {
     const falls = rs.filter((r) => r.down).length;
     const errors = rs.reduce((acc, r) => acc + (r.errors ? r.errors.length : 0), 0);
     const avgTime = Math.round(rs.reduce((x, r) => x + r.time, 0) / rs.length);
-    console.log(`${battle} ${avgTime} ${wins}/${rs.length} ${falls} ${errors}`);
+    const stack = rs.reduce((acc, r) => acc + (r.stackN || 0), 0), stackMax = Math.max(0, ...rs.map((r) => r.stackMax || 0));
+    console.log(`${battle} ${avgTime} ${wins}/${rs.length} ${falls} ${errors} 重なり止まり${stack} 重なり最大${stackMax}`);
   }
   await sleep(1200);
   process.exit(0);
