@@ -1082,7 +1082,8 @@ const okawachi = {
       const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
       roadFires.push([(a[0] + b[0]) / 2 - dz / len * 1.8, (a[1] + b[1]) / 2 + dx / len * 1.8]);
     }
-    for (const [x, z] of [...roadFires, [-18, MAE_C.z], [18, MAE_C.z], [-6, GATE.z - 3], [6, GATE.z - 3]]) {
+    // 城方の篝火：搦手口の曲輪の塀の内にも焚き、夕暮れの城の輪郭と屋根を火で浮かせる（10/28）。
+    for (const [x, z] of [...roadFires, [-18, MAE_C.z], [18, MAE_C.z], [-6, GATE.z - 3], [6, GATE.z - 3], [-14, GATE.z - 7], [14, GATE.z - 7], [-10, -96], [10, -96]]) {
       rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7 });
     }
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完）。表には出さない
@@ -2408,7 +2409,8 @@ function okSlopeDetail(W) {
     }
   }
   rocks.count = count; rocks.instanceMatrix.needsUpdate = true;
-  rocks.receiveShadow = true; W.scene.add(rocks);
+  // 10/28：十二面体の灰色の岩は、坂の下から見ると斜面に浮いた四角い塊に見えた。道肩には低木の房だけを残す。
+  rocks.receiveShadow = true; rocks.visible = false;
   shrubs.count = shrubCount; shrubs.instanceMatrix.needsUpdate = true;
   shrubs.receiveShadow = true; W.scene.add(shrubs);
 }

@@ -635,7 +635,31 @@ KACCHU["佐久間信盛"].flag = "sakuma";
 KACCHU["本多忠勝"].juzu = true;
 KACCHU["榊原康政"].fur = 0xe4dfcc;
 for (const name of ["羽柴秀吉", "豊臣秀吉"]) KACCHU[name].fur = 0x6d5440;
-KACCHU["武田信玄"].fur = 0xe4dfcc;
+// 調べの表（reports/ref/generals/armor_research.md、10/27 夜）の詳しい50人を上から入れる（一つ目の十人）。
+//   確かさが「推し量り」の人は家と立場からの復元案。立物は伝わらない人には付けない（創作しない）
+const ARMOR_RESEARCH_1 = {
+  "武田勝頼": { crest: "none", lace: 0xa8281c, odo: 0xa8281c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },
+  "徳川家康": { lace: 0x1c1a1a, odo: 0x1c1a1a, suneateColor: 0x151312 },
+  "柴田勝家": { lace: 0x6a4026, odo: 0x6a4026, suneateColor: 0x2c241c },
+  "羽柴秀吉": { lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", haidateGold: true },
+  "明智光秀": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "前田利家": { goldKozane: true, lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", suneateColor: 0xc9a24a, suneateGold: true },
+  "黒田官兵衛": { lace: 0x1a1a1a, odo: 0x1a1a1a, suneateColor: 0x151312 },
+  "山県昌景": { crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, suneateCloth: 0x8e1f16 },
+  "馬場信春": { crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
+  "内藤昌豊": { crest: "none", lace: 0x6a4026, odo: 0x6a4026 },
+};
+for (const [n, v] of Object.entries(ARMOR_RESEARCH_1)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
+// 信玄（kaito の手本 reports/ref/generals/takeda_shingen.webp を物差しに。絵は貼らない）：諏訪法性の兜（白熊・金の鍬形と獅子）、
+//   朱の威の袖と草摺、金の瓦佩楯、朱の家地に金の篠の脛当。手本は後の世の写しの具足で、伝来品そのものではない（復元案）
+Object.assign(KACCHU["武田信玄"], { hat: "kabuto_suwa", crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0xb02a1c,
+  haidateGold: true, suneateColor: 0xc9a24a, suneateGold: true, suneateCloth: 0x9a241a, doNishiki: 0x5f8676 });
+// 謙信（手本 uesugi_kenshin.png を物差しに）：紺の糸の威に朱と白の段、金の小さな前立（飯綱）、黒漆の脛当。復元案
+Object.assign(KACCHU["上杉謙信"], { crest: "kenshin_izuna", lace: 0x1a2238, odo: 0x1a2238, doStyle: "kebiki",
+  doLaceBands: [[1.02, 0x1a2238], [1.1, 0xb02a1c], [1.15, 0xe6e0d0], [1.22, 0xb02a1c], [1.32, 0x1a2238], [Infinity, 0xb02a1c]],
+  sodeLaceBands: [[1.2, 0x1a2238], [1.27, 0xb02a1c], [1.31, 0xe6e0d0], [1.35, 0xb02a1c], [Infinity, 0x1a2238]],
+  kusazuriBands: [0xb02a1c, 0xe6e0d0, 0xb02a1c, 0x1a2238, 0x1a2238],
+  suneateColor: 0x111012, suneateCloth: 0x1a2238 });
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];

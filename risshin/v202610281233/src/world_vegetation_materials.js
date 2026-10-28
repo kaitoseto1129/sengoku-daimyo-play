@@ -164,7 +164,7 @@ function grassLit(sh, fade = true, dryTips = true) {
     {
       float gy = vMapUv.y, gl = dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15));
       diffuseColor.rgb = mix(diffuseColor.rgb, gl * vec3(1.12, 1.02, 0.75), smoothstep(0.65, 0.98, gy) * ${dryTips ? '0.18' : '0.0'});
-      diffuseColor.rgb *= mix(${dryTips ? '0.6' : '0.72'}, 1.0, smoothstep(0.0, 0.4, gy));
+      diffuseColor.rgb *= mix(${dryTips ? '0.42' : '0.72'}, 1.0, smoothstep(0.0, 0.5, gy));
     }
     #endif`);
   sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
@@ -176,7 +176,7 @@ function grassLit(sh, fade = true, dryTips = true) {
       float tipK = smoothstep(0.1, 0.9, vMapUv.y);
       float back = pow(max(dot(normalize(-vViewPosition), directionalLights[0].direction), 0.0), 3.0);
       // directLight は日差しの最後の値（影と雲の影が掛かった色）。影の中の葉は光らない
-      reflectedLight.directDiffuse += diffuseColor.rgb * directLight.color * back * tipK * 0.3;
+      reflectedLight.directDiffuse += diffuseColor.rgb * directLight.color * back * tipK * 0.1;
       // 根元は株の中の陰：空の光も日差しも届きにくい
       float rootK = smoothstep(0.0, 0.45, vMapUv.y);
       // 薄い葉は空の光を裏からも受ける（日陰の草が真っ黒に沈まないように）

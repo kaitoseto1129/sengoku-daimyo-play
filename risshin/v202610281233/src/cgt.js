@@ -17,6 +17,7 @@ const waiting = [];
 const off = () => typeof window !== 'undefined' && (window.__norender === true || (typeof location !== 'undefined' && /[?&]norender/.test(location.search)));
 // 使ってよい時（低でなく、描く時）
 export const cgtOn = () => !off();
+const liveMat = (i) => { const mt = LIB.mats[i], d = mt.map.userData.dec; if (d) { mt.map.userData.dec = null; d(); } return mt; };
 const partName = name => LIB?.aliases[name] || name;
 export const cgtHas = name => !!LIB?.parts[partName(name)];
 // 和の部屋の収録名。cgtParts・cgtKitGroup・KitBatch.add で同じ名前が使える。
@@ -37,9 +38,10 @@ async function open(bytes) {
   // 携帯では画像の展開用領域を重ねない。解像度・材質の順序はそのまま保つ。
   const mats = [];
   for (const m of head.mats) {
-    const bmp = await createImageBitmap(new Blob([bytes.subarray(base + m.o, base + m.o + m.l)], { type: 'image/jpeg' }));
-    const map = new THREE.Texture(bmp);
-    map.flipY = false; map.wrapS = map.wrapT = THREE.RepeatWrapping; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; map.needsUpdate = true;
+    // 絵は使う部品が現れた時に開く（liveMat）。戦で使わない六十枚を毎回展開しない。
+    const map = new THREE.Texture();
+    map.userData.dec = () => createImageBitmap(new Blob([bytes.subarray(base + m.o, base + m.o + m.l)], { type: 'image/jpeg' })).then((bmp) => { map.image = bmp; map.needsUpdate = true; }, () => {});
+    map.flipY = false; map.wrapS = map.wrapT = THREE.RepeatWrapping; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4;
     const solid = /^(Stone|Stone_Dark|Gravel|IshigakiHei)$/.test(m.n);
     const mt = new THREE.MeshLambertMaterial({ map, side: solid ? THREE.FrontSide : THREE.DoubleSide });
     if (/^Stone|^Gravel/.test(m.n)) mt.color.setScalar(1.5);   // 石の絵は暗い（実物の灰色の石に近づける）
@@ -104,7 +106,7 @@ export function cgtParts(name) {
     geo.setAttribute('uv', new THREE.BufferAttribute(U, 2));
     geo.setIndex(new THREE.BufferAttribute(Iq.slice(), 1));
     geo.computeBoundingSphere();
-    return { geo, mat: LIB.mats[p.m], m: p.m };
+    return { geo, mat: liveMat(p.m), m: p.m };
   });
   LIB.cache.set(name, r);
   return r;
@@ -114,7 +116,7 @@ const BASIC = new Map();
 function basicMat(m, tint) {
   const k = m + ':' + tint;
   let b = BASIC.get(k);
-  if (!b) { b = new THREE.MeshBasicMaterial({ map: LIB.mats[m].map, color: new THREE.Color(tint, tint, tint), side: THREE.DoubleSide }); BASIC.set(k, b); }
+  if (!b) { b = new THREE.MeshBasicMaterial({ map: liveMat(m).map, color: new THREE.Color(tint, tint, tint), side: THREE.DoubleSide }); BASIC.set(k, b); }
   return b;
 }
 // 部品を一つ、Group にして返す（室内の部品を差し替える用。形は使い回し、材質は光に当たらない物）。読めていなければ null
@@ -158,7 +160,7 @@ export class KitBatch {
       const geo = mergeGeometries(list, false);
       if (!geo) continue;
       geo.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geo, o.basic ? basicMat(m, o.tint ?? 0.7) : LIB.mats[m]);
+      const mesh = new THREE.Mesh(geo, o.basic ? basicMat(m, o.tint ?? 0.7) : liveMat(m));
       mesh.castShadow = o.shadow !== false; mesh.receiveShadow = true; mesh.userData.camBlock = o.camBlock ?? true; mesh.userData.ext = true;
       grp.add(mesh);
       for (const g of list) g.dispose();

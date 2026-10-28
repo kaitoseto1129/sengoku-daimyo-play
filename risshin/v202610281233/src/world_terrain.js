@@ -89,7 +89,7 @@ export class WorldTerrain {
     // 手前の山肌が画面中央の四角い範囲で消え、空の色が露出する。
     mat.userData.camNearSolid = true;
     // 道肩の湿乾差・草の斑・濡れた踏み溝は、それぞれの指定に合う描き方を使う。
-    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}`;
+    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}|${(this.def.dirtTint || []).join(',')}`;
     // 通行の跡を持つ戦は無地の泥を使う。窪みと足形を残す指定の戦だけ従来の絵へ戻す。
     this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear' && !this.def.mudImprints) }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: { value: this.wearTex }, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color }, tCastle: { value: castleMaskBlank() }, uCastle: { value: new THREE.Vector4(0, 0, 0, 0) } };
     if (SETTINGS.quality !== 'high') {
@@ -143,6 +143,7 @@ export class WorldTerrain {
           grass *= mix(vec3(1.02, 0.94, 0.78), vec3(1.18, 0.9, 0.65), smoothstep(0.35, 0.75, macro2));
           ` : ''}
           vec3 dirt = mix(texture2D(tDirt, wuv * ${SETTINGS.quality === 'high' ? '0.46' : '0.23'}).rgb, texture2D(tDirt, ruv * ${SETTINGS.quality === 'high' ? '0.22' : '0.11'} + 0.57).rgb, mixK * 0.6) * mix(0.85, 1.12, macro2);
+          ${this.def.dirtTint ? `dirt *= vec3(${this.def.dirtTint.map((v) => Number(v).toFixed(3)).join(', ')});   // dirtTint：戦ごとの土の色（稲生は砂色でなく黒みの土。10/28）` : ''}
           ${this.def.patchyGround || this.def.roadsideGrass ? `
           // 広い裸地にも湿乾差をつなぐ。既存の大小の斑だけを使い、絵の読み出しは増やさない。
           float dampSoil = smoothstep(0.38, 0.68, macro) * (1.0 - smoothstep(0.35, 0.72, macro2));

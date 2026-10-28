@@ -79,7 +79,7 @@ function loadHumans() {
 // ・人形は腕を下ろして立っているので、骨をその姿に合わせた「着せる時の立ち姿」を作り、そこからの動きで甲冑を動かす
 // crowd：侍・騎馬武者・武将（兵）にも着せる（人形の兜と顔は描かず、兵ごとの兜と顔を付ける）
 // hiCap：細かい形（胴丸hi 約2.8万面・兜hi 約1.6万面）を同時に出す人数の上限（カメラに近い順。名のある武将と本人は数えず必ず細かい形）
-const DOMARU = { on: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40, hiNear: 3.5, midNear: 8, loanNear: 3, kbNear: 4 };
+const DOMARU = { on: true, kebiki: true, ready: false, failed: false, near: 17, crowd: true, hiCap: 40, hiNear: 3.5, midNear: 8, loanNear: 3, kbNear: 4 };
 let DM = null;
 let dmLoading = null;
 function loadDomaru() {
@@ -158,6 +158,7 @@ function loadDomaru() {
 // ・形：assets/kabuto_lite/kabuto.glb（tools/kabuto_watt.mjs でワット館の兜のスキャンの鍬形を外し、約1万6千面と約3千面に減らした物。10/28 までは tools/kabuto.mjs のコペンハーゲンの兜）。src/asset_kabuto.js に base64 で入れてある
 // ・作者表記（CC BY 4.0）：This work is based on "Samurai helmet" by The Watt Institution（ワット館の兜。docs/CREDITS.md）
 // ・形の座標：錣の裾が y=0、鉢の軸が x=z=0、前が +z、1 = 1m。頭の骨（Head）の立ち姿の位置から KB_FIT だけずらしてかぶせる
+// on：ワット館の兜のスキャンをかぶせる
 const KABUTO = { on: true, ready: false, failed: false };
 const KB_FIT = { y: -0.03, z: 0.012, s: 1.04 };
 let KB = null;
@@ -571,9 +572,10 @@ function dressKabuto(h) {
 // 人と具足の素材は、出陣や姿の見本で必要になった時だけ読む。
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
 // 小袖・僧衣は衣そのものが胴と腕を描く。名将でも鎧の経路へ送って中の体を隠さない。
-function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real || isNamed(look)); }
+// 胴丸のスキャンは主人公だけの甲冑（kaito 10/27 夜「あの甲冑は主人公オンリー」）。名のある武将は kacchu_data.js のそれぞれの具足、侍も胴丸のスキャンを着ない
+function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real); }
 // 近い一般兵は全員スキャンの具足。遠景は dressCrowd の元の姿を使う。
-const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look);
+const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look) && !isNamed(look) && (look.tier ?? 0) < 1;
 // 着せる時の骨の立ち姿（人の根元の座標）の逆行列。腕と脚の骨は人形の腕・脚の向きへ回し、どの骨も人形の関節の位置へ
 function domaruInverses() {
   if (DM.inv) return DM.inv;
@@ -639,9 +641,10 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   const okeMon = oke && look.mon ? (monDecal(look.mon, 0xc9a24a) || {}).material?.map || null : null;
   // 本の御貸具足の胴は明るい革・茶の漆。足軽の胴の色（貸し具足の革色）が明るい時はその色で桶側の板を塗る（黒い胴に沈ませない。同じ足軽は一つの材質）
   const okeLight = oke && !tint && look.armor != null && new THREE.Color(look.armor).getHSL({}).l > 0.3 ? new THREE.Color(look.armor) : null;
-  const okeC = okeLight ? `vec3(${[okeLight.r, okeLight.g, okeLight.b].map((v) => (v * 0.85).toFixed(4)).join(', ')})` : 'vec3(0.19, 0.105, 0.055)';
+  const okeC = okeLight ? `vec3(${[okeLight.r, okeLight.g, okeLight.b].map((v) => (v * 0.68).toFixed(4)).join(', ')})` : 'vec3(0.19, 0.105, 0.055)';
   // 毛引威の人（名のある武将は kacchu_data.js の胴の作り、ほかの侍は侍大将より上）：黒漆の胴を、美術館の本物の毛引威の写真（CC0）でその人の威の色に描き替える
-  const nk = namedKacchu(look), kebiki = !oke && (nk ? nk.doStyle === 'kebiki' : (look.tier || 0) >= 2 && (look.doStyle || 'kebiki') === 'kebiki');
+  // 写真の毛引の段を重ねるか（DOMARU.kebiki）
+  const nk = namedKacchu(look), kebiki = DOMARU.kebiki && !oke && (nk ? nk.doStyle === 'kebiki' : (look.tier || 0) >= 2 && (look.doStyle || 'kebiki') === 'kebiki');
   const kk = k + (oke ? '|oke' + (okeMon ? ':' + look.mon : '') + (okeLight ? ':' + okeLight.getHex() : '') : '') + (kebiki ? '|kb' : '');
   if (dmMats.has(kk)) return dmMats.get(kk);
   // 両面で描き、裏（甲冑の内側）は暗く塗る：腕を上げた時の脇など、スキャンに写っていない所が、抜けずに暗い隙間に見える
@@ -854,7 +857,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
           float rivet = 1.0 - smoothstep(0.07, 0.12, length(rv));
           // 本の御貸具足の胴：茶の漆の上に、擦れた金の斑（金箔押しの剥げ）
           float gm = smoothstep(0.5, 0.82, dmVn(q * 26.0) * 0.65 + dmVn(q * 70.0 + 2.3) * 0.35);
-          vec3 col = mix(base, vec3(0.4, 0.29, 0.13), gm * 0.65) * shade + vec3(0.07, 0.05, 0.032) * rivet;
+          vec3 col = mix(base, vec3(0.3, 0.22, 0.1), gm * 0.3) * shade + vec3(0.07, 0.05, 0.032) * rivet;
           col = mix(col, vec3(0.12, 0.07, 0.038), smoothstep(0.95, 1.0, t) * 0.55);
           float monA = 0.0;
           #ifdef OKE_MON
@@ -864,7 +867,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
           #endif
           diffuseColor.rgb = mix(diffuseColor.rgb, col, okeM);
           dmLacq = mix(dmLacq, 1.0 - monA, okeM); dmCloth *= 1.0 - okeM; dmLeather *= 1.0 - okeM;
-          dmGold = mix(dmGold, max(monA, gm * 0.6), okeM);
+          dmGold = mix(dmGold, max(monA, gm * 0.2), okeM);   // 金の剥げは控えめに（金色の玩具に見えた。10/28）
           dmH = mix(dmH, (smoothstep(0.0, 0.18, t) - 0.5) * 0.12, okeM);
         }
         // 腕：本の足軽は大袖の漆でなく、紺の布の籠手（腕・袖の所の漆を紺の布に。手は除く）
