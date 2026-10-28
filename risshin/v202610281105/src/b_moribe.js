@@ -1415,6 +1415,30 @@ const MORIBE_DEM_OPTIONS = { scale: 1, xyScale: 1 };
 const moribeHeight = (x, z, b) => (moribeDem ? demBlend(moribeDem, x, z, b + moribeDatum, MORIBE_DEM_OPTIONS, b + moribeDatum - 3) - moribeDatum : b);
 
 // 森部だけの浅瀬。粗い地形の岸に引かれて埋もれた川面を、渡る帯でそろえる。
+// 五月の美濃の田の畦（あぜ）。田の区画（paddy の 22×18 の格子）の境へ低い土の畝を通す（茶色の平らな野に見えていた。10/28）。
+// 高さ三十センチほどで当たりは持たない。道・薬師堂・人の通り道・川べりは空ける。形は一つを使い回して一度に描く。
+const AZE_GRASS = new THREE.Color(0x5f6e3e);
+function moribeAze(rt) {
+  const W = rt.world, segs = [];
+  const skip = (x, z) => distToPolyline(x, z, ROAD2) < 4 || Math.hypot(x - YAKUSHI2.x, z - YAKUSHI2.z) < 14 ||
+    peoplePathDistance(x, z) < 2.5 || z > nireZ(x) - 20 || Math.abs(x - 50) < 18;
+  for (let x = -110; x <= 110; x += 22) for (let z = -150; z <= 66; z += 4) if (!skip(x, z + 2)) segs.push([x, z + 2, 0]);
+  for (let z = -144; z <= 66; z += 18) for (let x = -110; x <= 110; x += 4) if (!skip(x + 2, z)) segs.push([x + 2, z, 1]);
+  // 丸い土の畝（横から見て蒲鉾形）。半分を土に埋め、黒い板の帯に見せない。
+  const geo = new THREE.CylinderGeometry(.62, .62, 4.4, 9, 1).rotateX(Math.PI / 2).scale(1, .32, 1);
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), segs.length);
+  const m = new THREE.Object3D(), col = new THREE.Color();
+  segs.forEach(([x, z, along], i) => {
+    m.position.set(x, W.heightAt(x, z) - .02, z); m.rotation.set(Math.sin(x * 2.1 + z) * .03, (along ? Math.PI / 2 : 0) + Math.sin(x + z * 1.7) * .025, 0);
+    m.scale.set(1 + Math.sin(x * 1.3 + z) * .15, .8 + Math.sin(x * .9 - z * 1.1) * .2, 1); m.updateMatrix(); mesh.setMatrixAt(i, m.matrix);
+    mesh.setColorAt(i, col.setHex(0x6b5d44).lerp(AZE_GRASS, .15 + (Math.sin(x * .7 + z * .9) + 1) * .2));
+  });
+  mesh.receiveShadow = true; mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  rt.scene.add(mesh);
+  const dispose = rt.dispose;
+  rt.dispose = function () { mesh.geometry.dispose(); mesh.material.dispose(); return dispose.call(this); };
+}
+
 function moribeFord(rt) {
   const W = rt.world, st = W.def.streams[1], pa = st.mesh.geometry.attributes.position;
   for (let i = 0; i < st.surface.length; i += 3) {
@@ -2661,6 +2685,7 @@ const moribe = {
     W.stampTrail([[40, 123], [40, 98]], 3.2, 130);
     W.stampTrail([[40, 79], [38, 65], [29, 45]], 3.2, 130);
     moribeFord(rt);
+    moribeAze(rt);
     moribeNearBodies(rt);
     // 落馬した瞬間の描画用の高さを空馬へ引き継ぐと、坂の判定に阻まれて宙で止まる。
     // 森部の野を逃げる空馬だけ、進路を調べる前に足元へ戻す。捕らえた馬は共通のまま。

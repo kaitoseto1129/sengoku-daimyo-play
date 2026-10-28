@@ -294,6 +294,8 @@ function idleLife(h, B, dt, wIdle, st) {
       h.model.position.y += 0.018 * up;
     }
   }
+  // 見本は毎回同じ立ち姿（重心の移しや持ち直しの揺れを入れない）
+  if (h.u.portrait) return;
   // 片足へ重心：休める足の膝がゆるみ、腰がそちらへ落ち、肩は逆へ傾く
   I.lean += (I.leanT - I.lean) * Math.min(1, dt * 1.2);
   const l = I.lean * k;

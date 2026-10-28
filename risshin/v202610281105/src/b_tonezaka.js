@@ -96,6 +96,14 @@ const LOCAL_CHASE = [[-6, -150], [24, -160], [62, -148], [94, -128], [120, -104]
 const CHASE_ROAD = LOCAL_CHASE.map(([x, z]) => xz(x, z));
 const STREET = at(62, -148), TOWN = at(120, -104), INNER = at(132, -80);
 // 街道の曲がりにかかる家を西へ寄せ、奥への通りを空ける。家の当たりと火は同じ場所を使う。
+// 人夫の背の荷（俵を縄で背負子に括った形）。形と材質は全員で共用する。
+let porterLoadGeo = null, porterLoadMat = null;
+const PORTER_LOAD = () => porterLoadGeo ||= (() => {
+  const a = new THREE.CylinderGeometry(.2, .2, .62, 8); a.rotateZ(Math.PI / 2); a.translate(0, 1.42, -.26);
+  const b = new THREE.BoxGeometry(.5, .08, .36); b.translate(0, 1.16, -.24);
+  const g = mergeGeometries([a.toNonIndexed(), b.toNonIndexed()]); a.dispose(); b.dispose(); return g;
+})();
+const PORTER_MAT = () => porterLoadMat ||= new THREE.MeshStandardMaterial({ color: 0x8a7550, roughness: 1 });
 const TOWN_HOUSES = [[96, -108], [130, -120], [102, -78], [148, -96]].map(([x, z]) => xz(x, z));
 // 家の足元だけを均す。街道と山腹の起伏は残し、高い束の上に民家を浮かせない。
 const HOME_PADS = [[-30, 70, 6, 4], [96, -108, 7, 5], [130, -120, 7, 5], [102, -78, 7, 5], [148, -96, 7, 5], [80, -102, 12, 10]];
@@ -1714,6 +1722,21 @@ const tonezaka = {
       order: 'hold', formation: 'yari', yariRanks: 3, aggro: 8, morale: 65, fleeDir: { ...EAST } }, dress([A(6), S(2)], ASA));
     F.hurtG = foe('道脇を退く朝倉の兵', at(-8, -48), [A(4)], 2);
     for (const u of F.hurtG.units) { u.hp = Math.min(u.hp, u.maxHp * 0.25); u.dmg = 0; u.yariOpenUntil = 1e9; }
+    // 荷を担いで峠へ退く朝倉の人夫（資料との差 10/28：退く軍の小者・陣夫が道に一人もいなかった）。戦わない荷運びの兵として置く。
+    // 道を北へ歩き続け、追い手が三十五歩まで寄れば荷を担いだまま走って逃げる（立ち尽くさない）。人数と場所は推定。
+    F.porters = [[3, -14], [-2, -96]].map(([lx, lz], i) => {
+      const g = enemyGroup(rt, { fixed: true, faction: 'asakura', name: '荷を担いで退く人夫', anchor: at(lx, lz), facing: TURN + Math.PI,
+        formation: 'column', colW: 2, speed: 0.95, aggro: 0, civ: true, noRout: true, arriveNoncombat: true, fleeDir: { ...NORTHWEST } },
+        // 荷運びの型（porter）は骨の人に替わらず霧の手前で隠れるので、得物を持たない足軽の体に荷を背負わせる
+        [{ type: 'ashigaru', n: 5 - i, o: { flag: null, weapon: 'none', kosode: 1, kosodeCol: [0x5a4a36, 0x4b4434, 0x625240][i % 3], cloth: 0x4a3e2e, hat: 'none', armor: 0x3a342a } }]);
+      for (const u of g.units) {
+        u.noTarget = true; u.dmg = 0; u.civ = true;
+        const load = new THREE.Mesh(PORTER_LOAD(), PORTER_MAT()); u.mesh.add(load);
+      }
+      g.order = 'path'; g.path = LOCAL_ROAD.filter(([, z]) => z < lz - 6).map(([x, z]) => xz(x, z)); g.pathIdx = 0;
+      g.fleePath = g.path.slice();
+      return g;
+    });
     retreat(F.hurtG);
     // 義景は峠の向こうへ退く本隊の内。静止した陣幕・床几は置かない。
     F.yoshikage = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '朝倉義景と旗本', anchor: at(-4, -200), facing: Math.PI + TURN,
@@ -2028,6 +2051,12 @@ const tonezaka = {
     rt.finish({ failureReason: why || 'この組では追い討ちを続けられぬ' }, 8);
   },
   update(rt, dt) {
+    // 退く人夫は追い手が寄ると走って逃げる（戦わない。士気を落として既存の逃げ足に任せる）
+    for (const g of rt.flags.porters || []) {
+      if (g.portersFled) continue;
+      const c = g.center?.();
+      if (c && Math.hypot(c.x - rt.player.u.pos.x, c.z - rt.player.u.pos.z) < 35) { g.portersFled = true; g.noRout = false; g.morale = 0; }
+    }
     const F = rt.flags;
     if (F.journey) {
       if (F.ending || !rt.player.u.alive || rt.over) { F.journey.close(); F.journey = null; return; }

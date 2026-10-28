@@ -2125,7 +2125,8 @@ const kanegasaki = {
     },
     // 狭路と最後の退き道も、肩越しの視点が枝葉へ入り込まない幅を空ける。
     // 山腹の林は残し、設営時に木を置く範囲だけを絞る。
-    clear: (x, z) => (Math.abs(x) < 70 && z > -90 && z < 80) ||
+    // 麓の低い所だけ空け、城山の斜面（高さ6より上）には若葉の林を残す（山肌が坊主に見えた。10/28）
+    clear: (x, z) => (Math.abs(x) < 70 && z > -90 && z < 80 && (z > -40 || height(x, z) < 6)) ||
       (z >= 80 && distToPolyline(x, z, RETREAT_ROAD) < 20) || Math.hypot(x - 24, z + 150) < 22,
     clearGroves: true, // 指定した林の木も、退き道と川岸を空ける。
     nearTreeFadeRadius: 5.5, // 振り返る視点の直前へ入る幹を早めに透かす。
@@ -2156,9 +2157,10 @@ const kanegasaki = {
     trees: 460,
     branchFoliage: true, foldedNeedleCards: true, unevenCrowns: true, nearCedarBranches: true,
     tufts: 4200,
-    treeDensity: (x, z) => (Math.hypot(x - NAKAIKEMI.x, z - NAKAIKEMI.z) < NAKAIKEMI.r + 6 ? 0.08 : Math.abs(x) < 60 && z > -90 && z < 90 ? 0.2 :
+    treeDensity: (x, z) => (Math.hypot(x - NAKAIKEMI.x, z - NAKAIKEMI.z) < NAKAIKEMI.r + 6 ? 0.08 : Math.abs(x) < 60 && z > -90 && z < 90 && (z > -40 || height(x, z) < 6) ? 0.2 :
       0.55 + 0.45 * Math.sin(x * 0.055 + z * 0.028) * Math.sin(z * 0.073 - x * 0.021)),
-    groves: [{ x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 }],
+    // 城山の南の斜面の若葉の雑木（麓から山と城を見上げた時に坊主山にしない。10/28）
+    groves: [{ x: -34, z: -76, r: 12, n: 16 }, { x: 28, z: -78, r: 12, n: 16 }, { x: -4, z: -96, r: 14, n: 18 }, { x: -48, z: -108, r: 12, n: 14 }, { x: 40, z: -112, r: 12, n: 14 }, { x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 }],
     // 崩れた追手は北の峠道か東の寄せ口へ。東の兵を海まで走らせない。
     fleeOut: (x, z, team) => team === 1 && (z < -130 || (x > 90 && z > -40 && z < 4)),
   },

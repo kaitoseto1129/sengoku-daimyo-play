@@ -438,9 +438,10 @@ class HieiHallGaran extends Garan {
         const part = stoneStepGeo(stoneW - .018, .2, stride * 1.5, k * 7 + n);
         // 色は実際の石ごとに決める。頂点の横位置で区切ると、一つの石の中に
         // 隣の石の色が入り、目地をずらしても長い板の縞に見えてしまう。
-        const tone = .78 + .32 * (.5 + .5 * Math.sin(k * 3.7 + n * 5.3));
+        // 石ごとの明暗を大きく（同じ灰色の箱の積み重ねに見えた。10/28）
+        const tone = .6 + .55 * (.5 + .5 * Math.sin(k * 3.7 + n * 5.3)) * (.75 + .25 * Math.sin(k * 1.3 + n * 2.9));
         const colors = part.attributes.color;
-        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .23 * tone, .22 * tone, .19 * tone);
+        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .25 * tone, .225 * tone, .18 * tone);
         part.translate(x, 0, .008 * Math.sin(k * 2 + n));
         stones.push(part);
         // 石ごとに一枚の天端を保つ。頂点ごとに高さを拾うと、法面の境で
@@ -462,7 +463,7 @@ class HieiHallGaran extends Garan {
         p.setXYZ(i, x + .006 * Math.sin(x * 9 + k), y + .006 * Math.sin(x * 21 + z * 13 + k), z + .006 * Math.cos(x * 13 + k));
         const edge = Math.abs(x) > w * .32;
         // 端の石を全面緑にせず、段ごとに途切れる薄い苔にする。
-        const moss = edge ? Math.max(0, grain - .65) * .8 : 0;
+        const moss = edge ? Math.max(0, grain - .65) * .8 : Math.max(0, grain - .82) * .5;   // 中の石にも薄い苔を少し
         // 頂点色は線形の値。灰色をそのまま入れると、画面では白い板になる。
         const shade = (normals.getY(i) > .5 ? 1 : .66) * (.9 + grain * .16);
         c.setXYZ(i, (c.getX(i) - moss * .15) * shade,
@@ -3312,7 +3313,15 @@ const hiei_mtn = {
         rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '根本中堂の前へ。味方と道を開け'));
         // 根本中堂の前を押さえたところで一戦を終える。西塔・横川まで続けると遊んで八分を越え、打ち切られていた（10/27）。
         //   西塔の鐘（bellSaito）・p6・p7 は残す。
-        if (guardedRoad(rt, P.court)) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
+        // 押さえても、離れて動かない数人の物見が十歩内に残って終わらない事があった（10/28 bot 480 秒で失敗）。
+        //   押さえて一分たてば、残る守り手は崩れて退く
+        F.courtT ??= rt.t;
+        if (rt.t - F.courtT > 60 && !F.courtRouted) {
+          F.courtRouted = true;
+          for (const g of F.foes) if (!gone(g) && g.units.some((q) => q.alive && Math.hypot(q.pos.x - P.court.x, q.pos.z - P.court.z) < 16)) { g.noRout = false; g.morale = 0; }
+          rt.say('明智光秀', '堂の前の守りが崩れたぞ！　逃げる者は追うな', 3);
+        }
+        if (guardedRoad(rt, P.court) || (F.courtRouted && rt.t - F.courtT > 75)) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
       }
       if (F.bell2) {
         rt.objProgress('main', rallyProgress(rt, P.westGate, 12, '西の道の入口', '組と西の山道の印へ'));

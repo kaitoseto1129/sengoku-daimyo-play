@@ -1392,6 +1392,7 @@ export function timberBox(g, w, h, d, x, y, z, color) {
   }
   const mesh = new THREE.Mesh(shapes.get(key), mat(color, 'villageWood'));
   cacheUsers.push(new WeakRef(mesh)); mesh.position.set(x, y, z); g.add(mesh);
+  return mesh;   // 木目を替える呼び手が受け取る（返さず森部が13秒で落ちた。10/28）
 }
 // 小堂の外周丸柱。建具と同じ木地を使い、柱頭・柱脚の絞りでも木目を縦へ通す。
 // 回転体の既定の縦座標は輪の番号なので、実際の高さへ直して木目の伸び縮みを避ける。
@@ -4565,6 +4566,8 @@ function mirroredPanelInstances(kind, count) {
   });
 }
 // 二本の溝は戸の中心（前後各四センチ）に合わせる。左右へ引いた戸の下にも敷居を続ける。
+
+// 二本の溝は戸の中心（前後各四センチ）に合わせる。左右へ引いた戸の下にも敷居を続ける。
 export function slidingDoorTrack(w, h, window = false, wallOffset = 0, entry = false) {
   // 明かり障子は窓の内側で重ねる。引き込み用の長い敷居を隣の柱まで突き出させない。
   // 横材の木口は戸当たりの内面で止める。縦枠と同じ見込みのまま
@@ -5685,7 +5688,8 @@ function villageFurnishLayout(layout, h = 2.7, { partitions = true, dim = false 
           board.rotation.y = Math.PI / 2;
         }
       }
-    } else if (p.part === 'offering' && layout.profile !== 'hieizan') {
+    } else if (p.part === 'offering' && layout.profile !== 'hieizan'
+        && !(village && layout.kind === 'hondo')) {
       // 御影堂の脇卓は供物まで含めて配置の高さに収める。
       // 脚も卓の幅に合わせ、内陣の通路へ張り出させない。
       const top = nodaJoinery ? p.h - .18 : p.h;
@@ -5766,7 +5770,14 @@ function villageFurnishLayout(layout, h = 2.7, { partitions = true, dim = false 
         if (i) timberBox(part, p.w, lid / 2, .002, 0, bodyTop + lid / 4,
           -p.d / 2 + i * depth, 0x493022);
       }
-      // 手前の掛金と背の蝶番は外寸の内側へ収め、歩く場所へ突起を出さない。
+      // 胴は蓋から二センチ引っ込む。金具の下へ受け木を挟み、
+      // 掛金と蝶番の下半分を宙へ浮かせない推定の納まり。蓋には受け木を重ねない。
+      // 受け木・金具とも元の外寸へ納め、既存の木材と箱を共用する。
+      timberBox(part, .045, .06, .014, 0, bodyTop - .03,
+        p.d / 2 - .013, 0x493022);
+      for (const x of [-p.w * .3, p.w * .3])
+        timberBox(part, .07, .035, .014, x, bodyTop - .0175,
+          -p.d / 2 + .013, 0x493022);
       box(part, .045, .09, .006, 0, bodyTop - .015, p.d / 2 - .003, 0x39362e);
       for (const x of [-p.w * .3, p.w * .3])
         box(part, .07, .07, .006, x, bodyTop, -p.d / 2 + .003, 0x39362e);
@@ -5810,6 +5821,26 @@ function villageFurnishLayout(layout, h = 2.7, { partitions = true, dim = false 
         timberBox(part, .035, .045, (legZ - legHalf) * 2, x, .11, 0, 0x59412b);
       }
       timberBox(part, (legX - legHalf) * 2, .04, .035, 0, .11, -legZ, 0x59412b);
+      // 経机の幕板・貫は脚へ突き付けるだけにせず、短い枘と込栓で留める推定の仕口。
+      // 枘を脚の内側へ十八ミリ納め、直交する幕板とは上下にずらす。
+      // 脚の外寸と通路は変えず、箱の原形・木材の束を共用する。
+      const tenon = .018;
+      for (const x of [-legX, legX]) for (const z of [-legZ, legZ]) {
+        const sx = Math.sign(x), sz = Math.sign(z);
+        timberBox(part, tenon, .022, .018,
+          x - sx * (legHalf - tenon / 2), apronY + .018, z, 0x493022);
+        timberBox(part, .018, .022, tenon,
+          x, apronY - .018, z - sz * (legHalf - tenon / 2), 0x493022);
+        // 込栓は表面の飾りにせず、脚と枘を横断し、両端だけ一ミリ見せる。
+        timberBox(part, .008, .008, legHalf * 2 + .002,
+          x - sx * .018, apronY + .018, z, 0x95704a);
+        timberBox(part, legHalf * 2 + .002, .008, .008,
+          x, apronY - .018, z - sz * .018, 0x95704a);
+        timberBox(part, .018, .022, tenon,
+          x, .11, z - sz * (legHalf - tenon / 2), 0x59412b);
+        timberBox(part, legHalf * 2 + .002, .008, .008,
+          x, .11, z - sz * .018, 0x95704a);
+      }
       // 開いた折本の表紙は両端の紙へ沿わせる。全幅の厚板で谷折りの下を埋めない。
       // 左右の表紙の外端を天板へ接し、中央の紙も同じ高さで机へ載せる。
       // 共通の箱・材質で作り、経机の静止した束へまとめる。
@@ -8171,7 +8202,8 @@ function mainLayoutProps(layout, h = 2.7, { partitions = true, dim = false, lamp
   const hieiKuri = layout.profile === 'hieizan' && layout.kind === 'kuri';
   const hieiTatamiFloor = hieiSobo || hieiKuri;
   const founder = layout.profile === 'honnoji_soshido';
-  const templeAltar = founder || layout.profile === 'honnoji_kodo' || layout.profile === 'inabayama' && layout.kind === 'hondo' || hiei || layout.profile === 'echizen_ikko' || layout.profile === 'iwamura_hondo' || layout.profile === 'takato' && layout.kind === 'hondo';
+  // 有岡の堂も本流の共通調度で須弥壇を組み、家庭用仏壇へ置き換えない。
+  const templeAltar = layout.profile === 'arioka' && layout.kind === 'temple' || founder || layout.profile === 'honnoji_kodo' || layout.profile === 'inabayama' && layout.kind === 'hondo' || hiei || layout.profile === 'echizen_ikko' || layout.profile === 'iwamura_hondo' || layout.profile === 'takato' && layout.kind === 'hondo';
   const japanese = !!layout.profile && cgtOn() && cgtHas('naibu_tatami_floor_modular_a');
   const purchased = cgtOn() && cgtHas('Floor_Tatami') && !cgtHas('tatami_floor_modular_a');
   const inabaHigh = layout.profile === 'inabayama' && S.quality === 'high';
@@ -14118,15 +14150,21 @@ export function furnishLayout(layout, h = 2.7, { partitions = true, dim = false,
       // 棚板は側板と背板の内面で止める。板を突き通すと外側の面が重なり、
       // 棚の側面・背面がちらつくため、既存の外寸の内側で木口を納める。
       for (const y of [.035, p.h * .48, p.h - .025]) {
-        // 棚板も奥行きを三枚に割り、木目を左右の受け桟へ渡す。
-        // 目地は二ミリ。箱と木肌は共用し、室内の生成時だけ棚ごと束ねる。
+        // 棚板は三枚の相じゃくり。上面の二ミリの目地の裏にも板を残し、
+        // 経巻の下から下段へ光が抜けないようにする推定復元。
+        // 上下の掛かりは厚みの半分ずつ。外寸・受け桟・巻物の高さは保つ。
         const depth = p.d - .035;
         for (let i = 0; i < 3; i++) {
-          const back = -p.d / 2 + .035 + depth * i / 3 + (i ? .001 : 0);
-          const front = -p.d / 2 + .035 + depth * (i + 1) / 3 - (i < 2 ? .001 : 0);
-          const board = box(part, front - back, .035, backW,
-            0, y, (back + front) / 2, 0x795b3b, 'floorWood');
-          board.rotation.y = Math.PI / 2;
+          const back = -p.d / 2 + .035 + depth * i / 3;
+          const front = -p.d / 2 + .035 + depth * (i + 1) / 3;
+          for (const upper of [false, true]) {
+            // 裏の継ぎ目は表から一センチずらし、板端を互いに掛ける。
+            const a = back + (i ? upper ? .001 : .01 : 0);
+            const b = front + (i < 2 ? upper ? -.001 : .01 : 0);
+            const board = box(part, b - a, .0175, backW,
+              0, y + (upper ? .00875 : -.00875), (a + b) / 2, 0x795b3b, 'floorWood');
+            board.rotation.y = Math.PI / 2;
+          }
         }
         // 棚板を側板へ突き付けるだけにせず、下面を左右の受け桟で支える推定復元。
         // 最下段は床との隙間に収め、上の段と同じ桟を床へ突き抜かせない。

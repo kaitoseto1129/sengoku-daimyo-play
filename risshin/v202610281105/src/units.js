@@ -1912,9 +1912,19 @@ export class Army {
           const m = u.mesh;
           if (!m || !m.visible || u.imp) continue;
           const e = m.matrixWorld.elements, d2 = (e[12] - cx) ** 2 + (e[13] - cy) ** 2 + (e[14] - cz) ** 2;
-          if (d2 < 81) { u._hiD2 = d2; NL.push(u); }
+          if (d2 < 81) {
+            // 必要なのは近い三人だけ。密集しても全員を並べ替えず、三枠を使い回す。
+            // 同じ距離なら元の順を保ち、細かく描く人と兵の密度は変えない。
+            u._hiD2 = d2;
+            let at = NL.length;
+            while (at > 0 && NL[at - 1]._hiD2 > d2) at--;
+            if (at < 3) {
+              const last = Math.min(NL.length, 2);
+              for (let i = last; i > at; i--) NL[i] = NL[i - 1];
+              NL[at] = u;
+            }
+          }
         }
-        if (NL.length > 3) NL.sort((a, b) => a._hiD2 - b._hiD2);
         for (let i = 0; i < NL.length && i < 3; i++) NL[i]._hiOK = true;
       }
       B.hiOK = true;
