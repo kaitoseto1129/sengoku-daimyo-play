@@ -699,6 +699,27 @@ const ARMOR_RESEARCH_3 = {
   "真田幸村": { crest: "honda_shika", kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },
 };
 for (const [n, v] of Object.entries(ARMOR_RESEARCH_3)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
+// 黒漆・黒糸の武将を色を変えずに見分ける（10/28）：伝わる変わり兜の形（藤堂の唐冠形・官兵衛の合子形に近い桃形）と、
+//   伝わらない人は鉢の地（黒漆・錆地・地鉄）・吹返の仕上げ（漆・革・金）・面頬の形の差で。形と材質は既存の物を使い回す
+const SABI = 0x5a3c28, JIGANE = 0x4a4a48;
+const BLACK_SPLIT = {
+  "明智光秀": { bowl: "suji", fuki: "kin", menpoStyle: "full", kusazuriBands: [0x2e3a5a, 0x1c1a1a, 0x2e3a5a, 0x1c1a1a, 0x2e3a5a] },
+  "黒田官兵衛": { bowl: "momonari", lac: "sabi", helm: SABI, fuki: "kawa" },
+  "黒田如水": { bowl: "momonari", lac: "sabi", helm: SABI, fuki: "kawa" },
+  "馬場信春": { bowl: "momonari", lac: "natural", helm: JIGANE, fuki: "lac", shikoroRows: 3 },
+  "酒井忠次": { bowl: "zunari", fuki: "kawa", menpoStyle: "full", kusazuriBands: Array(5).fill(0x6a4428) },
+  "浅井長政": { bowl: "suji", fuki: "kin", sujiPlates: 62, kusazuriBands: Array(5).fill(0x34466e) },
+  "藤堂高虎": { bowl: "tokan", fuki: "kawa" },
+  // 白い頭巾（関ヶ原の吉継）：白い布で包んだ丸い頭
+  "大谷吉継": { bowl: "zunari", lac: "natural", helm: 0xd8d2c4, fuki: "lac", menpoStyle: "full" },
+  "吉川元春": { bowl: "zunari", lac: "sabi", helm: SABI, fuki: "kin" },
+  "立花道雪": { bowl: "momonari", fuki: "kawa", shikoroRows: 3 },
+  "北条氏政": { bowl: "zunari", fuki: "kin" },
+  "真田昌幸": { bowl: "suji", lac: "sabi", helm: SABI, fuki: "kawa" },
+  "小早川隆景": { fuki: "kin", shikoroRows: 3 },
+  "毛利輝元": { lac: "natural", helm: JIGANE, fuki: "lac" },
+};
+for (const [n, v] of Object.entries(BLACK_SPLIT)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
 // 草摺の威：汎用の色々の段（紺・茶・白）だと誰も同じに見えるので、その人の威の色で五段を威す（黒糸の人も黒の糸目が出る）
 for (const R of [ARMOR_RESEARCH_1, ARMOR_RESEARCH_2, ARMOR_RESEARCH_3]) for (const n of Object.keys(R)) {
   const k = KACCHU[n]; if (!k || k.kusazuriBands || k.kusazuriColor != null || k.goldKozane) continue;
