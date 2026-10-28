@@ -1815,7 +1815,8 @@ const shigisan = {
   // 身の回りの当時の場（timeslip_field.js）。天正五年十月十日は今の十一月半ば・晩秋の山城の夜。
   // 尾根道と曲輪は乾いた土に落ち葉と折れ枝、枯れた尾花。門前と曲輪の口ほど倒れた槍・矢・松永方の旗が散る。切岸と石垣の面には置かない。
   timeslip: {
-    wet: 0, dust: 0.35, trample: 0.3, debris: 1, arrows: 0.8, branches: 0.08,
+    // 折れ枝は坂で長い枝が宙に浮き、葉の塊と合わせて緑の金槌に見えた。置かない。
+    wet: 0, dust: 0.35, trample: 0.3, debris: 1, arrows: 0.8, branches: 0,
     grass: 0x8c7e52, grassTints: [0xffffff, 0xe4d0a0, 0xc8b48a], grassH: 0.95, tallGrass: 0.6,
     flagColors: [0xe4ded0, 0x22201c, 0x4a5a3a],
     fights: [[GATE.x, GATE.z + 8, 30], [TOWER_POST.x, TOWER_POST.z, 22], [RIDGE1.x, RIDGE1.z, 26], [TOP.x, TOP.z, 30]],
@@ -1983,7 +1984,17 @@ const shigisan = {
       sh.fragmentShader = sh.fragmentShader.replace('diffuseColor.rgb *= col;', `
         float warmPatch = smoothstep(0.02, 0.16, col.r - col.g);
         vec3 nightSoil = vec3(dot(col, vec3(0.3, 0.55, 0.15))) * vec3(0.84, 0.78, 0.66);
-        col = mix(col, nightSoil, warmPatch * 0.35);
+        col = mix(col, nightSoil, warmPatch * 0.45);
+        // 尾根の斜面は百を超える曲輪の段。一枚の黄土にせず、等高の段ごとに
+        // 縁の暗い切岸と、上の枯れ草の平場を描く（形と当たりは変えない）。踏み跡の道には描かない。
+        float sgSlope = smoothstep(0.995, 0.95, gN.y) * (1.0 - smoothstep(0.5, 0.42, gN.y));
+        float sgStep = fract(vWP.y / 2.4 + (macro2 - 0.5) * 0.35);
+        float sgLip = smoothstep(0.80, 0.93, sgStep) * (1.0 - smoothstep(0.96, 1.0, sgStep));
+        float sgShelf = 1.0 - smoothstep(0.0, 0.32, sgStep);
+        float sgOn = sgSlope * (1.0 - clamp(wear * 1.2, 0.0, 1.0));
+        vec3 sgGrass = vec3(dot(col, vec3(0.3, 0.55, 0.15))) * vec3(0.80, 0.84, 0.66);
+        col = mix(col, sgGrass, sgOn * (0.35 + sgShelf * 0.35));
+        col *= 1.0 - sgOn * sgLip * 0.6;
         diffuseColor.rgb *= col;`);
     };
     // 地面は透かさず、空・星と草木を深さで遮る。近い切岸は共通のカメラ退避で避ける。

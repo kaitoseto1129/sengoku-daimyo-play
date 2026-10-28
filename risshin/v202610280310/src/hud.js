@@ -1711,6 +1711,8 @@ export class Hud {
     // iPhone 横の 60px ほどの小さな丸の小地図は、一秒に五回で足りる（大きな地図を開いている時と、パソコンは十回）
     if (periodic & 1) { this.mmT = this.mmTiny && !this.bigmap ? 0.2 : 0.1; if (mmOn) this.drawMap($('minimap'), rt, this.mmRange || 60, true); if (this.bigmap) { this.fitBigmap(rt); this.drawMap($('bigmap'), rt, this.bigRange || 170, false); } }
   }
+
+
 }
 
 import { HudUnits } from './hud_units.js';

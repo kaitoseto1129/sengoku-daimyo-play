@@ -104,6 +104,18 @@ const PORTER_LOAD = () => porterLoadGeo ||= (() => {
   const g = mergeGeometries([a.toNonIndexed(), b.toNonIndexed()]); a.dispose(); b.dispose(); return g;
 })();
 const PORTER_MAT = () => porterLoadMat ||= new THREE.MeshStandardMaterial({ color: 0x8a7550, roughness: 1 });
+// 退く人夫・足軽が落とした陣笠（浅い円錐を傾けて地に転がす）。準備時に一つの形へ合わせ、毎コマ作らない。
+function droppedKasa(rt, spots) {
+  const W = rt.world, parts = [];
+  for (const [lx, lz, r] of spots) {
+    const p = at(lx, lz), g = new THREE.ConeGeometry(0.36, 0.15, 12, 1, true);
+    g.rotateZ(0.25 + (r % 1) * 0.9); g.rotateY(r); g.translate(p.x, W.heightAt(p.x, p.z) + 0.1, p.z);
+    parts.push(g);
+  }
+  const m = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshLambertMaterial({ color: 0x2a2219, side: THREE.DoubleSide }));
+  for (const g of parts) g.dispose();
+  m.receiveShadow = true; rt.scene.add(m);
+}
 const TOWN_HOUSES = [[96, -108], [130, -120], [102, -78], [148, -96]].map(([x, z]) => xz(x, z));
 // 家の足元だけを均す。街道と山腹の起伏は残し、高い束の上に民家を浮かせない。
 const HOME_PADS = [[-30, 70, 6, 4], [96, -108, 7, 5], [130, -120, 7, 5], [102, -78, 7, 5], [148, -96, 7, 5], [80, -102, 12, 10]];
@@ -1152,7 +1164,10 @@ const tonezaka = {
     },
     // 葉が画面の上へ抜ける背の高い竹藪を置かず、枝葉のある雑木の林縁にする。
     noBamboo: true,
-    groves: [{ ...at(30, 40), r: 12, n: 16, kind: 'broad' }, { ...at(-34, -60), r: 12, n: 16, kind: 'broad' }],
+    // 刀根坂の峠の両脇は杉の森（街道の口は開ける）。
+    groves: [{ ...at(30, 40), r: 12, n: 16, kind: 'broad' }, { ...at(-34, -60), r: 12, n: 16, kind: 'broad' },
+      { ...at(-30, -150), r: 11, n: 14, kind: 'sugi' }, { ...at(16, -186), r: 8, n: 12, kind: 'sugi' },
+      { ...at(-28, -125), r: 9, n: 10, kind: 'sugi' }, { ...at(22, -128), r: 9, n: 10, kind: 'sugi' }],
     fleeOut: (x, z, team) => team === 1 && along(x, z) < -235,
   },
 
@@ -1163,7 +1178,10 @@ const tonezaka = {
     // 退く朝倉勢が道に捨てた荷駄（荷車・俵・樽・箱）と、倒れた荷駄馬（資料との差 10/28：退く軍の見た目）
     wayLitter(rt, LOCAL_ROAD.filter(([, z]) => z < 150 && z > -175).map(([x, z]) => xz(x, z)), { seed: 1573, step: 15, off: 5.4, clear: 3.6 });
     wayLitter(rt, CHASE_ROAD.slice(0, 4), { seed: 813, step: 18, off: 5.6, clear: 3.8, kinds: ['cart', 'sack', 'barrel', 'sack'] });
-    fallenHorses(rt, [[-14, 96, 0.5], [9, 22, -0.4], [14, -66, 2.6], [-12, -118, 0.2]].map(([x, z, r]) => [...xz(x, z), r]));
+    // 一頭目は持ち場から十数歩先の道脇に倒し、こぼれた俵と脱げた笠を添える（見える所に荷駄の崩れを）。
+    fallenHorses(rt, [[-17, 73, 0.5], [9, 22, -0.4], [14, -66, 2.6], [-12, -118, 0.2]].map(([x, z, r]) => [...xz(x, z), r]));
+    for (const [x, z, r, n] of [[-15, 68, 0.3, 3], [2, 70, -0.6, 2]]) { const p = at(x, z); rt.scene.add(tawara(W, p.x, p.z, r + TURN, n)); }
+    droppedKasa(rt, [[-12, 70, 0.4], [-4, 76, 2.1], [1, 66, 4.0], [-14, 79, 5.2]]);
     // 夜の遠い山腹は霧の色まで薄れる。空も低い所を同じ霞へつなぎ、
     // 地面の外周や描画距離の切れ目を黒い空との大きな角に見せない。
     // 見上げても霞を残し、急な山の稜線のすぐ上だけ黒い天井へ戻さない。
@@ -1724,7 +1742,8 @@ const tonezaka = {
     for (const u of F.hurtG.units) { u.hp = Math.min(u.hp, u.maxHp * 0.25); u.dmg = 0; u.yariOpenUntil = 1e9; }
     // 荷を担いで峠へ退く朝倉の人夫（資料との差 10/28：退く軍の小者・陣夫が道に一人もいなかった）。戦わない荷運びの兵として置く。
     // 道を北へ歩き続け、追い手が三十五歩まで寄れば荷を担いだまま走って逃げる（立ち尽くさない）。人数と場所は推定。
-    F.porters = [[3, -14], [-2, -96]].map(([lx, lz], i) => {
+    // 一組目は持ち場の二十歩ほど先から荷を担いで峠へ退く（始めから見える）。
+    F.porters = [[-9, 64], [-2, -96]].map(([lx, lz], i) => {
       const g = enemyGroup(rt, { fixed: true, faction: 'asakura', name: '荷を担いで退く人夫', anchor: at(lx, lz), facing: TURN + Math.PI,
         formation: 'column', colW: 2, speed: 0.95, aggro: 0, civ: true, noRout: true, arriveNoncombat: true, fleeDir: { ...NORTHWEST } },
         // 荷運びの型（porter）は骨の人に替わらず霧の手前で隠れるので、得物を持たない足軽の体に荷を背負わせる

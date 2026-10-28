@@ -864,7 +864,7 @@ const okawachi = {
   // 身の回りの当時の場（timeslip_field.js）。永禄十二年九月八日は今の十月半ば・囲みの夜の雨。
   // 城の南の野と搦手の坂道はぬかるみ、水たまりと轍。穂の垂れた秋草。夜討ちで斬り合った柵の口と門前ほど、倒れた槍・矢・北畠方の旗が散る。切岸には置かない。
   timeslip: {
-    wet: 0.85, dust: 0.05, trample: 0.3, debris: 1, arrows: 0.7,
+    wet: 0.85, dust: 0.05, trample: 0.3, debris: 1, arrows: 0.7, pools: 0,   // 坂の上の平たい水たまりは、斜面から浮く灰色の板に見える。泥と轍だけ
     grass: 0x8e9458, grassTints: [0xffffff, 0xe6dcac, 0xccc690], grassH: 1.1, tallGrass: 0.8,
     flagColors: [0xe4e0d4, 0x1e1c1a, 0x5a2c2a],
     fights: () => [[FRONT.x, FRONT.z, 30], [SOUTH_BLOCK.x, SOUTH_BLOCK.z, 26], [NEAR.kara.x, NEAR.kara.z, 26], [CAMP_LINE.x, CAMP_LINE.z, 18]],
@@ -1083,7 +1083,9 @@ const okawachi = {
       roadFires.push([(a[0] + b[0]) / 2 - dz / len * 1.8, (a[1] + b[1]) / 2 + dx / len * 1.8]);
     }
     // 城方の篝火：搦手口の曲輪の塀の内にも焚き、夕暮れの城の輪郭と屋根を火で浮かせる（10/28）。
-    for (const [x, z] of [...roadFires, [-18, MAE_C.z], [18, MAE_C.z], [-6, GATE.z - 3], [6, GATE.z - 3], [-14, GATE.z - 7], [14, GATE.z - 7], [-10, -96], [10, -96]]) {
+    // 本丸の館の前と、木戸の内の二棟の脇・西ノ丸の東の縁にも篝火。坂の下から城の屋根を照らす（位置は推定）。
+    const castleFires = [[-5, -73], [6, -78], [-8, HON_C.z + 6], [8, HON_C.z + 6], [NISHI_C.x + 10, NISHI_C.z + 6]];
+    for (const [x, z] of [...roadFires, [-18, MAE_C.z], [18, MAE_C.z], [-6, GATE.z - 3], [6, GATE.z - 3], [-14, GATE.z - 7], [14, GATE.z - 7], [-10, -96], [10, -96], ...castleFires]) {
       rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7 });
     }
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完）。表には出さない
@@ -1134,8 +1136,9 @@ const okawachi = {
     for (const [i, [x, z, w, d, r]] of homes.entries()) {
       // 写真の長屋は長手の軒下に戸口が並ぶ。八歩以上の長屋に閉じた板戸を配る。
       // 既存の壁・当たりは保ち、下屋の軒より下へ納める。
+      // 本丸の木戸のすぐ内の二棟は、坂の下から塀越しに屋根が見える高さにする（推定）。
       const home = hut(W, x, z, w, d, r, high
-        ? { ...roofs, boardRoofColors: OK_ROOF_COLORS[i % OK_ROOF_COLORS.length], nagayaDoors: d >= 8 }
+        ? { ...roofs, h: i < 2 ? 4.4 : roofs.h, boardRoofColors: OK_ROOF_COLORS[i % OK_ROOF_COLORS.length], nagayaDoors: d >= 8 }
         : roofs);
       if (home) rt.scene.add(home);
     }

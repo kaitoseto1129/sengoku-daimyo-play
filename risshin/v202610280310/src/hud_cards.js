@@ -388,13 +388,21 @@ html:root body #hud #h-prog .opening-controls-help[hidden] { display:none !impor
 #hud #h-prog .pg-pct { color:#f3e6c4; font-variant-numeric:tabular-nums; }
 #hud #h-prog .pg-dir { display:inline-block; font-style:normal; font-weight:700; font-size:22px; line-height:1; color:#fff3ba; text-shadow:0 1px 2px #000; }
 @media (max-height:500px) {
- #hud #h-prog { max-width:min(360px, 44vw); }
- #hud #h-prog .pg-st span, #hud #h-prog .pg-next { max-width:100%; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
+ #hud #h-prog { max-width:calc(100% - 112px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+ #hud #h-prog .pg-st { min-width:0; }
+ #hud #h-prog .pg-st span, #hud #h-prog .pg-next { min-width:0; max-width:100%; white-space:normal !important; overflow:visible; overflow-wrap:anywhere; }
  #hud #h-prog .pg-time { font-size:max(15px, calc(15px * var(--text-scale, 1))); }
 }
 
 /* 共通の行動札は右上に固定し、携帯横でも一行を大きく読む。 */
 #hud.field-clean #h-prog .pg-st span { font-size:max(24px, calc(24px * var(--text-scale, 1))); }
+/* 任務の文は増やさず、携帯横では一行の幅に合わせる。 */
+@media (max-height:500px) {
+ html:root body #hud #h-prog .pg-st span {
+  font-size:min(max(24px, calc(24px * var(--text-scale, 1))), calc((100vw - 160px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / var(--mission-chars, 24)));
+  white-space:nowrap !important;
+ }
+}
 /* 切り替えの一度だけ、同じ一行を光らせる。 */
 @keyframes mission-change { 0%,100% { transform:scale(1); background:#14120f; } 35% { transform:scale(1.08); background:#675224; } }
 #hud #h-prog.pg-changing { transform-origin:top right; animation:mission-change .8s ease-out 1; }
@@ -506,6 +514,10 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     stEl.style.alignItems = talkSign ? 'center' : '';
     // 相手の名前から一続きの一行にする。赤い▼は敵の頭上だけに置く。
     setText(stEl.lastChild, headline);
+    if (this.progFitHeadline !== headline) {
+      this.progFitHeadline = headline;
+      el.style.setProperty('--mission-chars', String(Math.max(1, headline.length + 2)));
+    }
     stEl.lastChild.classList.toggle('foe-task', def.missionStyle === 'raid' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。
     const status = def.missionStatus?.(rt, taskLine);

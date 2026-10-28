@@ -2072,8 +2072,9 @@ const tottori = {
     rt.say('組頭', '川面の灯りを見よ。米舟二艘を焼くぞ。まず、わしらの列へ', 5);
     rt.marker('hide', centerOf(F.hide), '川岸の組', { group: F.hide, guideAlways: true });
     // 川上の舟へ視点を向け、最初から川面の舟と岸の組を見渡せるようにする。
+    // 舟より少し川下（西）へ向け、北西に高まる対岸の山肌で画面の右半分をふさがない。二艘の舟は右寄りに入る。
     const first = F.boats[1].m.position, player = rt.player;
-    player.yaw = player.u.heading = Math.atan2(first.x - player.u.pos.x, first.z - player.u.pos.z);
+    player.yaw = player.u.heading = Math.atan2(first.x - 6 - player.u.pos.x, first.z + 6 - player.u.pos.z);
     this.openDay(rt);
     if (F.oldWound) rt.after(2, () => { if (!rt.over) rt.say('組頭', '古傷には布を巻いた。今夜は十分に動けるぞ', 3); });
     groundTottoriPosts(rt);

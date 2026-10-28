@@ -1,5 +1,5 @@
 // 戦場の頭上の印（全戦。kaito 10/23 稲生 40・41・46）
-//   共通の敵は赤い三角、味方は旗。頭の上に固定し、近くの兵を覆わない。
+//   共通の敵は刀、味方は旗。頭の上に固定し、近くの兵を覆わない。
 //   武将：今の行動に関係する一人の名と体力の棒
 //   形と材質は戦ごとに一度だけ作り、毎コマ new しない。
 import * as THREE from 'three';
@@ -42,8 +42,11 @@ function outlinedSign(points, tone) {
 }
 
 function build(rt, root) {
-  // 敵は下向きの三角、味方は旗。形と材質は全員で使い回す。
-  const tri = outlinedSign([[0,0],[.17,.34],[-.17,.34]], 0xff342e);
+  // 共通の敵は刀、味方は旗。序盤三戦の命中表示は専用の形を保つ。
+  const swordSigns = !['lesson', 'raid', 'ford'].includes(rt.def.missionStyle);
+  const tri = outlinedSign(swordSigns
+    ? [[-.04,0],[.04,0],[.04,.08],[.17,.08],[.17,.14],[.055,.14],[.055,.27],[0,.34],[-.055,.27],[-.055,.14],[-.17,.14],[-.17,.08],[-.04,.08]]
+    : [[0,0],[.17,.34],[-.17,.34]], 0xff342e);
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
   // 稲生・桶狭間・森部は旗や兵との奥行きも保つ。奥の▼を手前の味方へ透かさない。
   // 頭上の固定位置と遠方の大きさの上限を保ち、手前の別人へ印を移さない。
@@ -113,6 +116,7 @@ function build(rt, root) {
             ? 'diffuseColor.rgb = vSignLevel.y <= mix(0.03, 0.26, vSignLoss) ? vec3(1.0, 0.9, 0.8) : vec3(0.035, 0.008, 0.005);'
             : 'diffuseColor.rgb = vSignLevel.y <= mix(0.03, 0.26, vSignLoss) ? vec3(1.0, 0.9, 0.8) : (vSignLevel.z > 0.0 ? vec3(0.22, 0.008, 0.004) : vec3(0.007, 0.006, 0.005));');
       }
+      if (swordSigns) shader.fragmentShader = shader.fragmentShader.replace('mix(0.03, 0.26, vSignLevel.z)', 'mix(0.03, 0.34, vSignLevel.z)');
     };
   }
   const marks = new THREE.InstancedMesh(tri, triMat, CAP);
@@ -294,7 +298,7 @@ export function fieldSignsTick(rt, root) {
     // 追う相手が替わっても、命中した本人の▼を残す。
     const meD2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
     // 近くの味方は丸。既存の描画の束と行列を使い、人数や戦い方は変えない。
-    if (special && !foe) {
+    if (!foe) {
       // 味方は近い二人の旗だけ。集合先の大きな案内と区別する。
       if (a >= Math.min(2, rt.def.nearbyAllySignLimit ?? 2) || meD2 > 36 || u.fleeing || u.mesh?.visible === false || u.camHidden) continue;
       v.set(u.pos.x, headY(u) + .12, u.pos.z).applyMatrix4(cam.matrixWorldInverse);
@@ -303,9 +307,9 @@ export function fieldSignsTick(rt, root) {
         u._allySignSeen = sightScreenUnit(rt, u); u._allySignAt = rt.t + .2;
       }
       if (!u._allySignSeen) continue;
-      const size = 14 * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
+      const size = 20 * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
       dummy.position.set(u.pos.x, headY(u) + .12, u.pos.z);
-      dummy.quaternion.copy(q); dummy.scale.setScalar(Math.min(1.2, size)); dummy.updateMatrix();
+      dummy.quaternion.copy(q); dummy.scale.setScalar(Math.min(2, size)); dummy.updateMatrix();
       s.allies.setMatrixAt(a++, dummy.matrix);
       continue;
     }
@@ -401,7 +405,7 @@ export function fieldSignsTick(rt, root) {
     // 一般兵は同じ大きさ。届く本人と命中した本人だけを強調し、遠い一人を必須の敵に見せない。
     // 森部の一般兵は同じ基準幅。選び直しや命中の時間切れで大きさを跳ねさせない。
     // 森部は武将も同じ基準。大きさの違いを「届く」と取り違えさせない。
-    const pixels = ford ? 12 + 4 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 18)) : !lesson && !raid && marked && u !== marked && foe ? 9 :
+    const pixels = !special && foe ? (u === readyEnemy ? 28 : u === focusEnemy ? 26 : 22) : ford ? 12 + 4 * Math.max(0, Math.min(1, (36 - Math.sqrt(meD2)) / 18)) :
       // 稲生は遠い兵を小さくし、手前の別人の頭へかぶせない。
       lesson ? (general(u) ? 36 : u === commander ? 30 : u === missionEnemy ? 28 : 14 + 8 * Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / 20))) :
       // 目当てと近い敵の読みやすさを保ち、近づくほど同じ▼を滑らかに大きくする。
@@ -539,8 +543,7 @@ export function fieldSignsTick(rt, root) {
         dummy.scale.y = ford || lesson ? k * (still ? .25 : Math.min(1, (defeatUntil - rt.t) / 1)) : okeScale * (still ? 1 : closing);
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
-    // 目当て以外の敵も同じ赤い▼を保つ。選択の切り替わりで縮めたり薄めたりしない。
-    if (!lesson && !ford && !raid && marked && foe && u !== marked) dummy.scale.multiplyScalar(.55);
+    // 目当て以外も刀の形を読める大きさに保つ。
     // 森部は上で決めた間合い・命中の形を保つ。選び直しで同じ大きさへ潰さない。
     // ほかの戦は目当ての一人だけ大きくし、周囲は小さい所属印にそろえる。
     if (special && foe && !ford) {

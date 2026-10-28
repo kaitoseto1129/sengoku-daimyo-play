@@ -142,7 +142,10 @@ export class HudWork {
         g.lineTo(-1, -4); g.closePath();
         g.strokeStyle = '#18150f'; g.lineWidth = 4; g.stroke();
         g.fillStyle = '#ffe6a0'; g.fill(); g.restore();
-      } else this.drawOffscreenDirection(g, rt, p, true);
+      } else {
+        const edge = this.drawOffscreenDirection(g, rt, p, true);
+        if (edge) this.placeEdgeOrder(edge.x, edge.y);
+      }
       setClass(this.root, 'travel-guide', true);
       return true;
     }

@@ -9,7 +9,7 @@ import { useTerrain } from './asset_manifest.js';
 // 地形は国土地理院の標高（asset_dem_inou.js）。今の堤は高すぎるので、高さを丸めて昔の平らな野に寄せる。
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe, hasa, solidCircle } from './props.js';
+import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe, hasa, solidCircle, palisade, dorui, yagura, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { woodTex, thatchTex } from './nature.js';
 import { INOU_KACCHU } from './kacchu_data.js';
 import { sfx, musicAccent, musicTension } from './audio.js';
@@ -277,6 +277,97 @@ function inouNio(rt) {
     solidCircle(x, z, 1.05 * sc);
   });
   for (const mesh of [a, b]) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); mesh.castShadow = mesh.receiveShadow = true; rt.scene.add(mesh); }
+}
+
+// 持ち場の足もとの刈田（10/28「手前の道と野が砂色の一枚」）：本陣の前、二十歩の内に刈り株の藁色の筋と土の筋を交互に、
+// 区画の縁（畦道）には草を被った低い畦を。地面に沿う薄い帯と刈り株の束を、形一つ・材質一つずつにまとめる（当たり無し）。
+const NEAR_FIELDS = [[-23, 21, -3.5, 51], [3.5, 21, 23, 63]];
+function inouNearField(rt) {
+  const W = rt.world, pos = [], col = [], c = new THREE.Color();
+  const tri = (x, z, y) => { pos.push(x, W.heightAt(x, z) + y, z); col.push(c.r, c.g, c.b); };
+  const quad = (x0, z0, x1, z1, y) => { tri(x0, z0, y); tri(x0, z1, y); tri(x1, z1, y); tri(x0, z0, y); tri(x1, z1, y); tri(x1, z0, y); };
+  const onAze = (z) => Math.abs(z - Math.round(z / 20) * 20) < 1.4;
+  for (const [ax, az, bx, bz] of NEAR_FIELDS) {
+    // 刈り株の列（藁色）と株間の土を 0.4m ずつ。色の差は小さく（板の段に見せない）、列は東西に通す
+    for (let z = az; z < bz - .01; z += .4) {
+      if (onAze(z + .2)) continue;
+      const row = Math.round((z - az) / .4) % 2;
+      for (let x = ax; x < bx - .01; x += 2) {
+        const k = .84 + .1 * Math.abs(Math.sin(x * 1.3 + z * .7)) + .08 * Math.sin(x * .23 + z * .19);
+        c.setHex(row ? 0x8a7650 : 0x7b6a49).multiplyScalar(k);
+        quad(x, z, Math.min(bx, x + 2), z + .4, .07);
+      }
+    }
+    // 畦：区画の縁に草を被った低い土手（幅 1.2m）。肩を少し下げて丸みを付ける
+    for (let z = Math.ceil(az / 20) * 20; z <= bz; z += 20) for (let x = ax; x < bx - .01; x += 2) {
+      c.setHex(0x55602f); quad(x, z - .35, Math.min(bx, x + 2), z + .35, .2);
+      c.setHex(0x4a4a2a); quad(x, z - .7, Math.min(bx, x + 2), z - .35, .1); quad(x, z + .35, Math.min(bx, x + 2), z + .7, .1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  ground.receiveShadow = true;
+  // 刈り株：列の上に短い株の束（十字の二枚）を。一つの InstancedMesh で描く
+  const stub = new THREE.PlaneGeometry(.14, .16); stub.translate(0, .08, 0);
+  const cross = stub.clone().rotateY(Math.PI / 2);
+  const tuft = mergeTufts(stub, cross);
+  const spots = [];
+  for (const [ax, az, bx, bz] of NEAR_FIELDS) for (let z = az + .6; z < bz; z += .8) {
+    if (onAze(z)) continue;
+    for (let x = ax + .4; x < bx; x += .9) spots.push([x + .3 * Math.sin(z * 3.1 + x), z + .1 * Math.cos(x * 2.3)]);
+  }
+  const stubs = new THREE.InstancedMesh(tuft, new THREE.MeshLambertMaterial({ color: 0xa08a5c }), spots.length);
+  const m = new THREE.Object3D();
+  spots.forEach(([x, z], i) => { m.position.set(x, W.heightAt(x, z), z); m.rotation.set(0, x * 1.7 + z, 0); m.scale.setScalar(.8 + .4 * Math.abs(Math.sin(x * 2.1 + z))); m.updateMatrix(); stubs.setMatrixAt(i, m.matrix); });
+  stubs.instanceMatrix.needsUpdate = true; stubs.computeBoundingSphere();
+  // 稲叢を左右に一つずつ（列の外、兵の通り道の脇）
+  const nio = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.05, 1.25, 9), new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0xb19a62, roughness: 1 }));
+  const top = new THREE.Mesh(new THREE.ConeGeometry(1.2, .95, 9), new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0x8d7a4c, roughness: 1 }));
+  body.position.y = .62; top.position.y = 1.7;
+  for (const [x, z] of [[-16, 33], [17, 27]]) {
+    const n = new THREE.Group(); n.add(body.clone(), top.clone());
+    n.position.set(x, W.heightAt(x, z) - .05, z); n.rotation.y = x; nio.add(n); solidCircle(x, z, 1.05);
+  }
+  nio.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  rt.scene.add(ground, stubs, nio);
+  const dispose = rt.dispose;
+  rt.dispose = function () { geo.dispose(); ground.material.dispose(); tuft.dispose(); stubs.material.dispose(); return dispose.call(this); };
+}
+// 名塚の砦（前日に佐久間が急ぎ築いた）を野の北西の遠くに：土塁と丸太の柵の囲い、東の口、井楼一つと織田の幟。
+// 戦う帯と逃げ道から離れた遠景なので当たりは持たせず、柵と土塁は一つの束で描く。形と位置は遊びの推定。
+const NAZUKA_FORT = { x: -92, z: -68, r: 11 };
+function inouNazukaFort(rt) {
+  const W = rt.world, q = NAZUKA_FORT, batch = makeSimpleBatch(), n = 16;
+  const ways = PATHS.map((p) => p.pts);
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2, am = (a0 + a1) / 2;
+    // 口は東（本陣の側）。畦道が通る所も柵を切る
+    if (i === n / 4) continue;
+    if (ways.some((pts) => distToPolyline(q.x + Math.sin(am) * q.r, q.z + Math.cos(am) * q.r, pts) < 2)) continue;
+    const seg = [q.x + Math.sin(a0) * q.r, q.z + Math.cos(a0) * q.r, q.x + Math.sin(a1) * q.r, q.z + Math.cos(a1) * q.r];
+    dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: .8, w: 2, capEnds: true, closeBack: true, batch });
+    palisade(W, seg, { h: 2.6, batch });
+  }
+  finalizeSimpleBatch(rt, batch);
+  rt.scene.add(yagura(W, q.x - 3, q.z - 2, { logFrame: true, kind: 'ro', height: 8, boarded: true }));
+  for (const [x, z] of [[q.x + 12, q.z - 4], [q.x + 12, q.z + 4], [q.x - 6, q.z + 8]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
+}
+function mergeTufts(a, b) {
+  const g = new THREE.BufferGeometry(), pa = a.attributes.position.array, pb = b.attributes.position.array;
+  const ia = a.index.array, ib = b.index.array, na = pa.length / 3;
+  g.setAttribute('position', new THREE.Float32BufferAttribute([...pa, ...pb], 3));
+  // 裏面も同じ向きの三角で持つ（両面描きでは裏の法線が下を向いて黒くなるため）
+  const idx = [...ia, ...Array.from(ib, (i) => i + na)];
+  for (let i = 0, n = idx.length; i < n; i += 3) idx.push(idx[i], idx[i + 2], idx[i + 1]);
+  g.setIndex(idx);
+  // 法線は上向きにそろえる（裏から見ても黒い四角にせず、地面と同じ明るさで光る）
+  const nrm = new Float32Array(pa.length + pb.length); for (let i = 1; i < nrm.length; i += 3) nrm[i] = 1;
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); a.dispose(); b.dispose();
+  return g;
 }
 
 function fieldDustTick(rt) {
@@ -700,7 +791,10 @@ const inou = {
     // 屋敷林は北の集落の脇だけ（霧の際の野の縁に立てた林は、白く透けた影として空に浮いた。10/28）。
     groves: [{ x: -52, z: -76, r: 9, n: 10 }, { x: 52, z: -88, r: 12, n: 14 },
       // 野の中の屋敷林を、霧で透けない近さ（戦う場から六十m内）に三つ。戦う帯・逃げ道・小荷駄の道は外す。
-      { x: -56, z: 36, r: 6, n: 6 }, { x: -58, z: -20, r: 6, n: 6 }, { x: 36, z: 74, r: 6, n: 6 }],
+      { x: -56, z: 36, r: 6, n: 6 }, { x: -58, z: -20, r: 6, n: 6 }, { x: 36, z: 74, r: 6, n: 6 },
+      // 百姓家の裏と脇の屋敷林（家の北へ横長に。軒と生活道は空ける）
+      { x: -14, z: -73.5, r: 4, n: 6, sx: 1.4, sz: .7 }, { x: 10, z: -77, r: 3.5, n: 5, sx: 1.3, sz: .6 }, { x: 22, z: -75, r: 2.2, n: 3 },
+      { x: -19, z: -84, r: 3, n: 4, sx: 1.3, sz: .5 }, { x: 32, z: -68, r: 3.5, n: 5, sx: 1.2, sz: .6 }],
     fleeOut: (x, z, team) => team === 1 && z < -138,
     armyFlagKinds: { kari: 'aka_kari' }, // 紋はそのまま、染めだけ朱。林は隊の指定で朱染めにする。
 
@@ -814,6 +908,8 @@ const inou = {
       if (W.timeKey === 'day') W.applyLook(W.lookOf('day')); }
     // 本陣の裏の小荷駄：俵と薪を担いだ小者が、陣と街道の間を行き来する（kaito 10/28 の割合。前線には出さない）。
     inouNio(rt);
+    inouNearField(rt);
+    inouNazukaFort(rt);
     // 刈田の稲架：戦う帯と逃げ道を避けた野の東西の縁に。稲を掛けて干す（九月末の尾張の野）。
     for (const [x, z, r] of [[80, -12, 0], [82, 40, 0.05], [-80, 10, 0], [-82, 58, -0.05], [86, 92, 0.1], [-86, -36, 0]]) rt.scene.add(hasa(W, x, z, r, 9));
     porterTrain(rt, [[NOBU.x - 14, NOBU.z + 14], [NOBU.x - 6, NOBU.z + 28], [0, NOBU.z + 48], [0, NOBU.z + 76]], 6, { name: '信長方の小荷駄' });

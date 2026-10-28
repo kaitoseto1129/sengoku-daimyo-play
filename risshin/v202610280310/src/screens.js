@@ -581,11 +581,19 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     dialog.setAttribute('aria-labelledby', 'title-controls-heading');
     dialog.innerHTML = `<h2 id="title-controls-heading">操作のしかた</h2><small>説明の続きは、この中を下へ送ると読めます</small><div class="controls-reading" tabindex="0">${isTouch ? touchKeysHtml() : `<p>前：${esc(K('forward'))}　後ろ：${esc(K('back'))}<br>左：${esc(K('left'))}　右：${esc(K('right'))}</p><p>${esc(K('run'))}を押しながら移動すると走ります。</p><p>マウスを動かして見回す。左ボタンで攻撃（やりでつく・刀で切る）。</p><p>弓・鉄砲も攻撃を一度押すと放ちます。</p>`}<p class="note">稲生（いのう）は最初の実戦。移動から一つずつ覚えます。練習だけなら「練習・ほかの戦い」へ。</p><p class="note">鍵盤・手持ち操作器の割り当ては「設定」で確認できます。</p><details><summary>手持ち操作器の操作</summary>${keysHtml(true)}</details></div><button type="button" class="btn">操作を閉じて題へ戻る</button>`;
     scr.appendChild(dialog);
-    dialog.addEventListener('keydown', (e) => e.stopPropagation());
+    const reading = dialog.querySelector('.controls-reading');
+    dialog.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      // 読む欄では空白・決定で続きを送り、閉じる釦を勝手に押さない。
+      if (e.target === reading && (e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown' || e.key === 'PageUp')) {
+        e.preventDefault();
+        if (!e.repeat) reading.scrollBy({ top: Math.max(44, reading.clientHeight - 32) * (e.shiftKey || e.key === 'PageUp' ? -1 : 1), behavior: 'instant' });
+      }
+    });
     dialog.querySelector('button').onclick = () => dialog.close();
     dialog.addEventListener('close', () => { dialog.remove(); opener.focus({ preventScroll: true }); }, { once: true });
     dialog.showModal();
-    dialog.querySelector('button').focus({ preventScroll: true });
+    reading.focus({ preventScroll: true });
   };
   $('b-words').onclick = () => openGlossary();
   // 名を決める札の固定帯だけ、下に余白を取る。

@@ -300,10 +300,16 @@ export class HudTeamSigns {
   drawAllySign(g, x, y, label = false) { return false; }
 
 
-  // 敵の所属と戦闘相手は、字を添えず同じ赤い▼で示す。
+  // 敵の所属と戦闘相手は刀。味方の旗と形でも分ける。
   drawEnemySign(g, x, y) {
     g.save(); g.lineJoin = 'round'; g.beginPath();
-    g.moveTo(x - 14, y - 30); g.lineTo(x + 14, y - 30); g.lineTo(x, y - 6); g.closePath();
+    g.moveTo(x, y - 40); g.lineTo(x + 5, y - 33);
+    g.lineTo(x + 5, y - 18); g.lineTo(x + 14, y - 18);
+    g.lineTo(x + 14, y - 12); g.lineTo(x + 4, y - 12);
+    g.lineTo(x + 4, y - 3); g.lineTo(x - 4, y - 3);
+    g.lineTo(x - 4, y - 12); g.lineTo(x - 14, y - 12);
+    g.lineTo(x - 14, y - 18); g.lineTo(x - 5, y - 18);
+    g.lineTo(x - 5, y - 33); g.closePath();
     g.strokeStyle = '#14120f'; g.lineWidth = 5; g.stroke();
     g.fillStyle = '#ff342e'; g.fill(); g.restore();
   }

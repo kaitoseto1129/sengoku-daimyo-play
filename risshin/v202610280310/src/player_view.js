@@ -29,15 +29,15 @@ export class PlayerView {
       end.copy(f).addScaledVector(r, col * .4 * side).addScaledVector(up, row * (2 / 3) * top);
       // 軒や壁が少し離れていても、画面を覆う手前の家として拾う。
       end.normalize().multiplyScalar(8).add(pos);
-      // 束ねた門・開いた扉も、指定した戦では壁と同じく視界の遮りに数える。
+      // 束ねた門・開いた扉も、壁と同じく視界の遮りに数える。
       // 既存の箱を使い、画面の中央を外れた柱や戸板も肩位置の選び直しへ渡す。
-      if (cameraWallBlocked(rt, pos, end) || rt.def.cameraVolumeView &&
+      if (cameraWallBlocked(rt, pos, end) ||
           (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) {
         // 細い柱一本でも、目の前の中央を塞ぐ時は肩位置を選び直す。
         // 遠い壁は従来どおり画面全体の占有率で判断する。
         near.copy(pos).lerp(end, .375);
         const central = row === 0 && col === 0 && (cameraWallBlocked(rt, pos, near) ||
-          rt.def.cameraVolumeView && (rt.world.cameraBlockFraction?.(pos, near) ?? null) !== null);
+          (rt.world.cameraBlockFraction?.(pos, near) ?? null) !== null);
         blocked += central ? 6 : 1;
       }
     }
@@ -46,14 +46,28 @@ export class PlayerView {
 
   clearWallView(pos, look) {
     const rt = this.rt, u = this.u;
-    if (!S.autoCam || !u.alive || rt.over || rt.choice || rt.game?.photo ||
+    if (!u.alive || rt.over || rt.choice || rt.game?.photo ||
         this.aiming || this.cine || this.camShot || this.overHold || this.fpWanted() ||
-        this.mounted || NAKA.cur || (this.lookIdle || 0) < .7) { this.wallViewAt = -1; return; }
+        this.mounted || NAKA.cur) { this.wallViewAt = -1; return; }
     const eye = this.wallViewEye || (this.wallViewEye = new THREE.Vector3());
     const candidate = this.wallViewCandidate || (this.wallViewCandidate = new THREE.Vector3());
     const offset = this.wallViewOffset || (this.wallViewOffset = new THREE.Vector3());
     const view = this.wallViewLook || (this.wallViewLook = new THREE.Vector3());
+    const direction = this.wallViewDirection || (this.wallViewDirection = new THREE.Vector3());
+    const candidateLook = this.wallViewCandidateLook || (this.wallViewCandidateLook = new THREE.Vector3());
+    const manual = !S.autoCam || (this.lookIdle || 0) < .7;
+    direction.copy(look).sub(pos);
     eye.set(u.pos.x, u.pos.y + 1.6, u.pos.z);
+    // 見回している間も壁の中へ入れない。手動の向きはそのまま保つ。
+    if (cameraWallBlocked(rt, eye, pos)) {
+      candidate.copy(pos);
+      for (let i = 1; i <= 12; i++) {
+        pos.copy(candidate).lerp(eye, Math.min(1, (i + .5) / 12));
+        if (!cameraWallBlocked(rt, eye, pos)) break;
+      }
+      if (manual) look.copy(pos).add(direction);
+      this.wallViewAt = -1;
+    }
     // 再検査は四回／秒。点・形・材質を毎コマ作らない。
     if (!(this.wallViewAt > rt.t && this.wallViewAt <= rt.t + .25) ||
         Math.hypot(u.pos.x - this.wallViewX, u.pos.z - this.wallViewZ) > .4) {
@@ -67,25 +81,32 @@ export class PlayerView {
         let moveX = u.vel?.x || 0, moveZ = u.vel?.z || 0;
         if (Math.hypot(moveX, moveZ) < .2 && way) { moveX = way.x - eye.x; moveZ = way.z - eye.z; }
         const d = Math.hypot(moveX, moveZ);
-        if (d > .2) {
+        if (d > .2 && S.autoCam && (this.lookIdle || 0) >= .7) {
           candidate.set(eye.x + moveX / d * Math.min(6, d), eye.y, eye.z + moveZ / d * Math.min(6, d));
           if (!cameraWallBlocked(rt, eye, candidate)) look.copy(candidate);
         }
         const length = Math.hypot(look.x - eye.x, look.z - eye.z) || 1;
         const dx = (look.x - eye.x) / length, dz = (look.z - eye.z) / length;
         // 引ける場所から試し、左右の肩、最後に本人の目元を使う。壁は越えない。
-        for (let i = 0; i < 13; i++) {
+        for (let i = 0; i < 21; i++) {
           const distance = i < 3 ? 4.2 : i < 6 ? 3 : i < 9 ? 1.5 : i < 12 ? .6 : 0;
           const side = i === 12 || i % 3 === 0 ? 0 : i % 3 === 1 ? .7 : -.7;
           candidate.set(eye.x - dx * distance + dz * side, eye.y + .1, eye.z - dz * distance - dx * side);
+          // 両肩が壁に近い時は、本人の周りの通れる側も探す。
+          if (i >= 13) {
+            const angle = Math.atan2(dx, dz) + (i - 13) * Math.PI / 4;
+            candidate.set(eye.x - Math.sin(angle) * 2.4, eye.y + .25, eye.z - Math.cos(angle) * 2.4);
+          }
           rt.def.clampCamera?.(rt, candidate);
           if (candidate.y < cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 ||
               cameraWallBlocked(rt, eye, candidate) || (rt.world.cameraBlockFraction?.(eye, candidate) ?? null) !== null) continue;
           // 戦ごとの肩位置の条件を、最後の壁よけでも守る。
           if (rt.def.cameraBodyClear?.(rt, candidate) === false) continue;
-          const blocked = this.wallViewBlocked(candidate, look);
+          candidateLook.copy(manual ? candidate : look);
+          if (manual) candidateLook.add(direction);
+          const blocked = this.wallViewBlocked(candidate, candidateLook);
           if (blocked >= best) continue;
-          best = blocked; offset.copy(candidate).sub(eye); view.copy(look).sub(eye); this.wallViewActive = true;
+          best = blocked; offset.copy(candidate).sub(eye); view.copy(candidateLook).sub(eye); this.wallViewActive = true;
           if (blocked <= 5) break;
         }
       }
@@ -96,7 +117,9 @@ export class PlayerView {
       if (candidate.y >= cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 &&
           rt.def.cameraBodyClear?.(rt, candidate) !== false &&
           !cameraWallBlocked(rt, eye, candidate) && (rt.world.cameraBlockFraction?.(eye, candidate) ?? null) === null) {
-        pos.copy(candidate); look.copy(eye).add(view);
+        pos.copy(candidate);
+        if (manual) look.copy(pos).add(direction);
+        else look.copy(eye).add(view);
       }
     }
   }

@@ -953,7 +953,7 @@ html body #hud #intro[data-battle="tottori"]:has(#intro-go) > .card.card {
 #screen dialog.title-controls[open] { height:min(560px, calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); display:flex; flex-direction:column; gap:8px; }
 #screen dialog.title-controls::backdrop { background:rgba(0,0,0,.8); }
 #screen dialog.title-controls h2 { margin:0; font-size:22px; flex:none; }
-#screen dialog.title-controls .controls-reading { flex:1 1 auto; min-height:0; scrollbar-gutter:stable; border-block:1px solid var(--kin); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
+#screen dialog.title-controls .controls-reading { flex:1 1 auto; min-height:0; scrollbar-gutter:stable; scrollbar-width:auto; border-block:1px solid var(--kin); overflow-y:scroll; overscroll-behavior:contain; touch-action:pan-y; padding-bottom:24px; }
 #screen dialog.title-controls .btn { flex:none; min-height:48px; }
 /* 支度は裏で続け、読んでいる札を支度完了で消さない。 */
 #loading #ld-story.reading {

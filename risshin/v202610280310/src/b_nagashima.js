@@ -231,9 +231,10 @@ function bankReeds(rt) {
   }
   const geo = mergeGeometries([stem, head, ...leaves], false);
   stem.dispose(); head.dispose(); for (const leaf of leaves) leaf.dispose();
-  const reeds = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), 96);
+  // 手前の岸の水際にも葦を連ねる（資料との差：岸が橙の一枚）。中央の着岸口と左右の作業場は空ける。
+  const reeds = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), 160);
   const at = new THREE.Object3D(), color = new THREE.Color();
-  for (let i = 0; i < 96; i++) {
+  for (let i = 0; i < 160; i++) {
     const side = i % 2 ? 1 : -1, band = Math.floor((i % 48) / 2);
     let z = -1 + (band % 12) * 1.9 + Math.sin(i * 2.3) * .3;
     const bank = z < 8 ? 12 + (8 - z) * .2 : 12 + (z - 8) * .125;
@@ -244,9 +245,15 @@ function bankReeds(rt) {
       const middle = CH_Z + (x > 0 ? -x * .02 : 0);
       z = middle + RIVER_STREAMS[0].w + .8 + Math.sin(i * 3.7) * .3;
     }
+    if (i >= 96) {
+      const k = i - 96, n = Math.floor(k / 2) * 1.05 + Math.sin(k * 1.7) * .35;
+      x = side * (n < 15 ? 6 + n : 16 + n);
+      z = BANK_Z + 1.2 + Math.abs(Math.sin(k * 2.9)) * 2.2;
+    }
     at.position.set(x, drawGroundAt(rt.world, x, z) - .04, z);
     at.rotation.set(.06 * Math.sin(i), i * 2.4, .12 * Math.cos(i));
     at.scale.set(1, .75 + .2 * (1 + Math.sin(i * 3.1)), 1);
+    if (i >= 96) at.scale.set(1.5, 1.7 + .5 * Math.sin(i * 1.3), 1.5);   // 柵の内の堤の草むらは膝から腰の高さ
     at.updateMatrix(); reeds.setMatrixAt(i, at.matrix);
     // 秋の枯れ穂と灰緑を株ごとに混ぜる。新しい材質は作らない。
     color.setHex(i % 3 ? 0x847c58 : 0x6d7955); reeds.setColorAt(i, color);
@@ -1636,11 +1643,11 @@ const nagashima = {
   // 身の回りの当時の場（timeslip_field.js）。天正二年九月の長島は今の十月。輪中の岸はぬかるみ、葦が茂る。
   // 岸の柵の前に一揆の矢と捨てた笠、竹槍。水の上と堤の法には置かない。
   timeslip: {
-    wet: 0.85, dust: 0.05, trample: 0.3, debris: 1.1, arrows: 1, reeds: 1,
+    wet: 0.85, dust: 0.05, trample: 0.2, debris: 1.6, arrows: 1, reeds: 1,
     grass: 0x98a05e, grassTints: [0xffffff, 0xe6e6bc, 0xccd0a0], grassH: 1.2, tallGrass: 0.9,
     flagColors: [0xe6dfcc, 0x24211e, 0x713d30],
     maxSlope: 0.22,
-    fights: [[0, BANK_Z, 36], [24, BANK_Z, 24], [-24, BANK_Z, 24]],
+    fights: [[0, BANK_Z, 16], [24, BANK_Z, 12], [-24, BANK_Z, 12]],   // 踏み荒らしは柵の作業場だけ。堤の草を残す
   },
   world: {
     seed: 1574,
@@ -1693,7 +1700,16 @@ const nagashima = {
     height,
     tint(x, z, h, c) {
       // 葦の生えた川べりと、島の泥
-      if (z < 35 && z > -48 && Math.abs(x) < 145) c.lerp({ r: 0.43, g: 0.38, b: 0.27 }, 0.7);
+      if (z < 35 && z > -48 && Math.abs(x) < 145) {
+        c.lerp({ r: 0.43, g: 0.38, b: 0.27 }, 0.7);
+        // 手前の輪中の堤（岸から二十歩ほど）は枯れかけの草の斑。人の通る中央の泥道は土のまま。
+        if (z > BANK_Z - 2 && z < BANK_Z + 22) {
+          const patch = .5 + .5 * Math.sin(x * .41 + Math.sin(z * .23) * 2.2) * Math.cos(z * .37 - x * .11);
+          const road = Math.max(0, Math.min(1, (Math.abs(x) - 3) / 4));
+          const fade = Math.min(1, (z - BANK_Z + 2) / 3, (BANK_Z + 22 - z) / 6);
+          c.lerp({ r: 0.36, g: 0.38, b: 0.24 }, (.25 + .45 * patch) * road * fade);
+        }
+      }
     },
     clear: (x, z) => (Math.abs(x) < 145 && z > -140 && z < 50),
     get streams() { return TOWN_STREAMS; },
@@ -1735,7 +1751,7 @@ const nagashima = {
     W.groundU.tDirt.value = dirtTex(true, true);
     W.groundU.tMud.value = mudTex(true);
     // 秋の河口の岸を白い雪原にしない。土の濃淡を残し、空の反射を抑える。
-    W.terrain.material.color.setHex(0xb8a585);
+    W.terrain.material.color.setHex(0xaaa286);   // 橙の一枚に見えないよう、赤みを抜いた湿った土
     W.terrain.material.envMapIntensity = .15;
     deltaSkyline(W);
     F.wadeX = rt.player.u.pos.x; F.wadeZ = rt.player.u.pos.z; F.wadeDist = 0; F.wadeSide = 1;
@@ -1932,7 +1948,7 @@ const nagashima = {
     // ---- 願証寺の寺内町（中江の砦とは別の、宗教の中心。本堂・門・門徒屋敷・倉・船着場。大天守は無い） ----
     // 願証寺の室内図は不明。輪中の寺として、外陣と内陣・僧坊の座敷を推定する。
     F.teranaka = new Garan(rt);
-    F.teranaka.build({ id: 'gansho_hondo', name: '願証寺の本堂', kind: 'hondo', x: GANSHO.x, z: GANSHO.z, w: 11, d: 8, enterable: true });
+    F.teranaka.build({ id: 'gansho_hondo', name: '願証寺の本堂', kind: 'hondo', x: GANSHO.x, z: GANSHO.z, w: 11, d: 8, h: 4.6, enterable: true });   // 柱を高くし、対岸から大屋根が柵の上に見えるように
     rt.scene.add(romon(W, GANSHO.x, GANSHO.z + 11, 5.2, 0));
     rt.scene.add(village(W, GANSHO.x - 48, GANSHO.z + 2, { n: 6, r: 10, rot: 0.2, seed: 15748 }));
     // 輪中の門徒の家並み（資料との差 10/28）：寺の西の輪中に在所を二つ。人の歩く道（PEOPLE_PATHS）からは外す。

@@ -124,7 +124,7 @@ const INABAYAMA_PLAN = { ...INABAYAMA_BASE_PLAN, exactGapEdges: true,
 };
 let KARA_GRADES = [];
 // 列の脇で避けても切岸へ落ちない肩と、山肌へ戻す幅。この戦の裏道だけに使う。
-const KARA_SHOULDER = 4.4, KARA_BLEND = 22;
+const KARA_SHOULDER = 4.4, KARA_BLEND = 16;   // 10/28 夜：22→16。水手道の肩を広く均すと、山上の西が幅広い平らな台に見えた
 // 戻り値と区間は使い回す。道の左右を水平にし、横向きの貼り付きも防ぐ。
 const KARA_SAMPLE = { y: 0, d: Infinity, grade: 0, dx: 0, dz: 0, leg: -1 };
 function karaSample(x, z) {
@@ -1026,11 +1026,11 @@ function inabaSallyWait(rt, showSeconds = false) {
   const F = rt.flags;
   if (rt.t - F.stepT < 16 && !gone(F.ote)) return showSeconds
     ? `敵が動くまであと${Math.ceil(16 - (rt.t - F.stepT))}秒。坂へ追うな`
-    : 'さくの内で並ぼう。坂の敵を待とう';
+    : 'さくの中で敵を待て';
   if (gone(F.ote) && !F.ote2.sent) {
     const left = Math.max(0, Math.ceil(F.ote2Due - rt.t));
     return showSeconds ? left > 0 ? `新手が動くまであと${left}秒。坂へ追うな` : '新手が坂を下りてくる。坂へ追うな'
-      : 'さくの内で並ぼう。次の敵を待とう';
+      : 'さくの中で次の敵を待て';
   }
   return '';
 }
@@ -1312,7 +1312,7 @@ function gradeCastleHomes(terrain) {
 }
 // 金華山の比高約300mを縮めない。山麓館を基準に、本丸の下地との差を初回だけ求める。
 // 高い肩を山頂側へ戻し、裾は従来と同じ z=28 で終える。町・館・川は持ち上げない。
-const LIFT = { x: HON.x, z: HON.z, tx: HON.x, tz: -90, w: 68, R: 118, rise: null };
+const LIFT = { x: HON.x, z: HON.z, tx: HON.x, tz: -90, w: 32, R: 150, rise: null };   // 10/28 夜：頂の平らな幅を 136m→64m に。縄張図の細い尾根へ（裾の長さ R は保つ）
 // 尾根に残す物：曲輪（縁から 3m）・道（中心から 6m）・山上の持ち場（5m）。そこから外へ約 40 度で下がる。
 const RIDGE_SPOTS = [...HON_MAMORI, KIDO_MAMORI, UPPER_GUN_MAMORI, NI_MAMORI, KOSHI_MAMORI, TOWER, HON_GATE_OUT, IRI, NAKA, NIMON, OTE];
 function polyDistance(x, z, poly) {
@@ -1326,13 +1326,15 @@ function polyDistance(x, z, poly) {
   }
   return inside ? 0 : d;
 }
+const RIDGE_ROADS = [TOP_ROAD, NI_ROAD];
 function ridgeDrop(x, z) {
   let d = Infinity;
   for (const k of INABAYAMA_PLAN.kuruwa) d = Math.min(d, polyDistance(x, z, k.poly) - 3);
-  for (const pts of INABA_PATHS) d = Math.min(d, distToPolyline(x, z, pts) - 6);
+  // 山上の通り道（主郭の内の道と二の丸への道）だけを尾根に残す。登り道（七曲り・百曲り・水手道）は尾根の外の斜面を下げた地面に沿って登る。
+  for (const pts of RIDGE_ROADS) d = Math.min(d, distToPolyline(x, z, pts) - 4.5);
   for (const p of RIDGE_SPOTS) d = Math.min(d, Math.hypot(x - p.x, z - p.z) - 5);
   if (d <= 0) return 0;
-  return 0.85 * (d < 4 ? d * d / 8 : d - 2);
+  return 1.3 * (d < 4 ? d * d / 8 : d - 2);
 }
 function liftedBase(x, z) {
   if (LIFT.rise == null) LIFT.rise = 300 + base(YAKATA.x, YAKATA.z) - base(HON.x, HON.z);
@@ -1346,11 +1348,11 @@ function liftedBase(x, z) {
     lift += LIFT.rise * 0.03 * Math.sin(x * 0.09 + z * 0.025) * Math.sin(Math.PI * Math.min(1, r * 1.6));
   }
   // 山上を幅 130m の平らな台にせず、中井均氏の山上部縄張図のように、曲輪と道の通る細い尾根だけを残す（10/28）。
-  // 曲輪・道・持ち場から離れた所だけを下げる（上げる所は無い）。頂から 45m より下の山腹は今のまま。
-  if (lift > LIFT.rise * 0.8) {
+  // 曲輪・道・持ち場から離れた所だけを下げる（上げる所は無い）。頂から約 135m 下までの山上部を尾根と道の段にし、その下の山腹は今のまま（10/28 夜：幅 140m の頂を細い尾根に）。
+  if (lift > LIFT.rise * 0.55) {
     const ridge = LIFT.rise - ridgeDrop(x, z);
     if (ridge < lift) {
-      const k = Math.min(1, (lift / LIFT.rise - 0.8) / 0.1), w = k * k * (3 - 2 * k);
+      const k = Math.min(1, (lift / LIFT.rise - 0.55) / 0.13), w = k * k * (3 - 2 * k);
       lift -= (lift - ridge) * w;
     }
   }
@@ -3461,6 +3463,11 @@ function installInabaPresentation(rt) {
     this.framePlayerCamera(camera);
     camera.getWorldDirection(forward);
     safe.copy(camera.position); look.copy(safe).add(forward);
+    // この戦の山肌補正で位置を変えた後にも、共通の壁よけを通す。
+    // 見回し中の軒先も含め、画面の三分の二を目安に空く肩位置へ戻す。
+    this.clearWallView(camera.position, look);
+    camera.lookAt(look); camera.updateMatrixWorld();
+    this.camPos.copy(camera.position);
   };
   rt.dispose = function () {
     W.addFire = addFire;
@@ -3838,9 +3845,9 @@ const inabayama = {
     const F = rt.flags;
     if (F.retreatMarked) return '退き口の印へ';
     if (F.step === 1 && F.townSoundWait) return '町の出口の印へ';
-    if (F.step === 1 && F.lit < NEED) return rt.G.lord && F.townTarget && !gone(F.townTarget) ? '印の守兵へ' : '火の印の家へ';
+    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵をたおせ' : '家の前で火をつける';
     if (F.step === 1 && F.lit >= NEED) return F.townTarget && !gone(F.townTarget) ? '印の守兵へ' : '味方の旗へ';
-    if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? 'さくの内で敵を迎えよう' : 'さくの旗へ';
+    if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? inabaSallyWait(rt) || 'さくの中の敵をたおせ' : 'さくの旗へ';
     if (inabaWoodGateWait(rt)) return '木戸前で仲間と並ぼう';
     if (F.step === 3) return F.karaGuideMarked
       ? F.karaGuide?.returning ? '道の中央へ' : F.karaGuide?.fighting ? '近い守兵へ' : '道の印へ'
@@ -3903,7 +3910,7 @@ const inabayama = {
   // 列や建物の当たりを残し、組の脇の空いた所から始める。
   // 稲生の標準（kaito 10/23）：小地図・足元の輪・浮かぶ字の札を出さず、行き先のピン・敵の頭上の▼・右上の任務一行に絞る。
   noControlsHelp: true,   // 操作の字は尾張の戦で覚える。この戦では出さない
-  missionStyle: 'field',   // 共通の頭上印を刀でなく稲生と同じ赤い▼に・ピンを判定地点に固定（field_signs・mission_pin）
+  missionStyle: 'field',   // 敵は共通の刀、味方は旗。ピンは判定地点に固定する。
   noPlayerFoot: true,
   noFieldMap: true,
   hideArmyPeek: true,
@@ -3947,18 +3954,18 @@ const inabayama = {
       || F.step === 4 && !F.sig)) return 'まず「竹束を据える」を長押し';
     // 放火後も守兵がいる間は、その印へ案内する。
     if (F.step === 1 && F.lit >= NEED) return '印の守兵を仲間と追い払おう';
-    if (F.step === 1 && rt.G.lord) return '町の敵を払い、火付けの足軽を守ろう';
+    if (F.step === 1 && rt.G.lord) return '家の敵をたおせ';
     // 最後の合図は、信長で遊ぶ時も本人が火を付ける。
     if ((F.step === 1 && F.lit < NEED && !rt.G.lord) || (F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
       return fire ? `「${it.label}」を${F.step === 1 ? '押そう' : '長押し'}`
-        : F.step === 1 ? `火の印の家へ（${F.lit}／${NEED}軒）`
+        : F.step === 1 ? '家の前で火をつける'
         : inabaSignalDetour(rt) ? '建物の外の道を回って、小屋の印へ' : '火の印の小屋へ';
     }
     // 集合・新手待ち・交戦の下知を、畳んだ任務でも区別する。
-    if (F.step === 2 && F.karaWaiting) return '敵は退いた。さくの内で仲間と列をそろえよう';
-    if (F.step === 2) return !F.holdArrived ? 'さくの旗へ。仲間と並ぼう'
-      : inabaSallyWait(rt) || 'さくの内で、仲間と城の敵を押し返そう';
+    if (F.step === 2 && F.karaWaiting) return 'さくの中で仲間を待て';
+    if (F.step === 2) return !F.holdArrived ? 'さくの旗へ進め'
+      : inabaSallyWait(rt) || 'さくの中の敵をたおせ';
     // 遠い先頭の状況より、自分の足元の道と守兵を案内する。
     if (F.step === 3 && F.karaGuideMarked) {
       const q = F.karaGuide;
@@ -3993,8 +4000,8 @@ const inabayama = {
     return text;
   },
   treatmentHouses(rt) { return rt.flags.houses; },
-  waitOrderLabel: (rt, reached) => reached ? inabaSallyWait(rt) || 'さくの内で、仲間と城の敵を押し返そう' : 'さくの旗へ。仲間と並ぼう',
-  waitTravelLabel: () => 'さくの旗へ。仲間と並ぼう',
+  waitOrderLabel: (rt, reached) => reached ? inabaSallyWait(rt) || 'さくの中の敵をたおせ' : 'さくの旗へ進め',
+  waitTravelLabel: () => 'さくの旗へ進め',
   // 案内だけに使う持ち場。兵の人数・動き・勝敗の判定は変えない。
   defenseLine(rt) {
     const F = rt.flags;
