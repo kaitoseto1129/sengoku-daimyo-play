@@ -215,6 +215,7 @@ function pool(scene, geo, mat, cap, o = {}) {
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3();
 const _mud = new THREE.Color(0x4e4234);
 const _n = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _qy = new THREE.Quaternion(), _c = new THREE.Color();
+const _lean = new THREE.Vector3(1, 0, 0);
 
 // 道のそばか・道の向き（轍を道に沿わせる）
 function nearPath(paths, x, z) {
@@ -288,7 +289,8 @@ export function timeslipField(rt) {
     return mesh.count++;
   }
   function putGround(mesh, x, z, rot, sx, sz, lift) {
-    if (!mesh || overlapsCastleGround(W, x, z, Math.hypot(sx, sz) * 0.5)) return;
+    // 普請中の土の砦は足跡を残す。砂利を敷いた城では従来どおり除く。
+    if (!mesh || !ts.workGround && overlapsCastleGround(W, x, z, Math.hypot(sx, sz) * 0.5)) return;
     put(mesh, lay(x, z, rot, sx, 1, sz, lift));
   }
   // 川からの近さ（水の上は 0 未満。岸の葦に使う）
@@ -365,7 +367,11 @@ export function timeslipField(rt) {
           if (r(40 + g) > want * 0.8) continue;
           const gx = (i + r(43 + g)) * CELL, gz = (j + r(46 + g)) * CELL;
           const s = 0.7 + r(49 + g) * 0.9;
-          _m.compose(_p.set(gx, W.heightAt(gx, gz) - 0.05, gz), _q.setFromAxisAngle(_up, r(52 + g) * 6.28), _s.set(s, s * (0.8 + r(55 + g) * 0.6) * (ts.grassH ?? 1), s));
+          // 踏まれた所は低く傾いた株にする。同じ草の形と株数を使う。
+          const crushed = ts.crushedGrass ? fightNear(gx, gz) * .65 : 0;
+          _q.setFromAxisAngle(_up, r(52 + g) * 6.28);
+          if (crushed > 0) _q.multiply(_qy.setFromAxisAngle(_lean, crushed * .9));
+          _m.compose(_p.set(gx, W.heightAt(gx, gz) - 0.05, gz), _q, _s.set(s, s * (0.8 + r(55 + g) * 0.6) * (ts.grassH ?? 1) * (1 - crushed * .65), s));
           const n = put(P.grass, _m);
           if (n >= 0) P.grass.setColorAt(n, _c.copy(grassColors[Math.floor(r(58 + g) * grassColors.length) % grassColors.length]));
         }

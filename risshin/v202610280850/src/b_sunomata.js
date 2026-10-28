@@ -2610,7 +2610,12 @@ const sunomata = {
   // 岸には葦、刈り残しの草は穂が枯れ色。長良川の川面（x 56 から）には置かない。
   timeslip: {
     wet: 0.45, dust: 0.3, trample: 0.35, debris: 0.9, arrows: 0.8, reeds: 1,
-    grass: 0x9a9a5e, grassTints: [0xffffff, 0xe6dcae, 0xcfd0a0], grassH: 1.1, tallGrass: 0.8,
+    // 普請場は砂利の曲輪とは違い、運搬の轍と守兵の踏み跡を残す。
+    workGround: true, crushedGrass: true, mudColor: 0x75654c, mudOpacity: .38,
+    pools: .35, grassH: .75,
+    paths: [{ pts: [[0, 24], [0, 5], [6, -10]], w: 3 },
+      { pts: [[-13, 7], [-6, 7], [6, -10]], w: 2.2 }],
+    grass: 0x9a9a5e, grassTints: [0xffffff, 0xe6dcae, 0xcfd0a0], tallGrass: 0.8,
     flagColors: [0xe2ded2, 0x2a2826, 0x3a4a6a],
     fights: [[0, -FORT - 12, 30], [-FORT - 12, 0, 30], [0, -FORT, 16], [-FORT, 0, 16]],
     skip: (x, z) => x > 56,
@@ -2739,6 +2744,7 @@ const sunomata = {
   world: {
     // 共通の膝・腰・胸の踏ん張りを使い、柵を押す兵の装備の重さを見せる。
     infantryWeight: true,
+    closeBattleWeight: true, contactBraceObstacles: true, rearSpearSupport: true,
     // 葉房と裸地を共通部品で描く。兵の数・地形の当たりは変えない。
     branchFoliage: true, foldedNeedleCards: true, patchyGround: true,
     // 土塊の升の境に陰を付けず、窪みも踏まれた泥へ薄く残す。

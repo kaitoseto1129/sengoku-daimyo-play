@@ -54,12 +54,13 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
       sh.uniforms.uNearSoil = m.userData.nearSoil;
       sh.uniforms.uNearGrime = GRIME; sh.uniforms.uNearWet = WET; sh.uniforms.uNearBlood = blood;
       sh.vertexShader = 'varying vec3 vNearP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vNearP = position;');
-      sh.fragmentShader = 'varying vec3 vNearP;\nuniform sampler2D uNearSoil;\nuniform float uNearGrime, uNearWet, uNearBlood;\nfloat nearMud, nearBlood, nearWater, nearMetal;\n' + sh.fragmentShader;
+      sh.fragmentShader = 'varying vec3 vNearP;\nuniform sampler2D uNearSoil;\nuniform float uNearGrime, uNearWet, uNearBlood;\nfloat nearMud, nearBlood, nearWater, nearMetal, nearLac;\n' + sh.fragmentShader;
       const masks = kind === 'unit' ? `
         int code = int(floor(vMtl + 0.001));
         int second = code / 8, first = code - second * 8;
         int surface = txA.r > 0.5 ? second : first;
         nearMetal = surface == 3 || surface == 4 ? 1.0 : 0.0;
+        nearLac = surface == 1 ? 1.0 : 0.0;
         float cord = surface == 0 && (first == 1 || second == 1 || first == 3 || second == 3) ? 1.0 : 0.0;
         float plate = surface == 1 || surface == 3 ? 1.0 : 0.0;
         // 本の小札の横段と白・紺の縅。元の色と模様を生かし、糸だけに明暗を足す。
@@ -69,7 +70,7 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
         : `nearMetal = ${kind === 'domaru' ? 'dmGold' : 'smoothstep(0.18, 0.5, diffuseColor.r) * smoothstep(0.08, 0.25, diffuseColor.g)'};
            float skin = 0.0;`;
       sh.fragmentShader = sh.fragmentShader.replace('nearAmount = 1.0 - smoothstep(100.0, 144.0, dot(vViewPosition, vViewPosition));', `nearAmount = 1.0 - smoothstep(100.0, 144.0, dot(vViewPosition, vViewPosition));
-        nearMud = 0.0; nearBlood = 0.0; nearWater = 0.0; nearMetal = 0.0;
+        nearMud = 0.0; nearBlood = 0.0; nearWater = 0.0; nearMetal = 0.0; nearLac = 0.0;
         if (nearAmount > 0.0) {
           vec3 stain = texture2D(uNearSoil, vNearP.xy * vec2(1.7, 1.3) + vNearP.z * 0.37).rgb;
           ${masks}
@@ -85,12 +86,14 @@ export function nearSurfaceMaterial(base, kind = 'unit') {
       if (m.isMeshStandardMaterial) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `
           roughnessFactor = mix(roughnessFactor, 0.28, nearMetal * nearAmount * 0.35);
+          // 漆の面は布と光を分け、縅の糸と段の輪郭を照りで読ませる。
+          roughnessFactor = mix(roughnessFactor, 0.42, nearLac * nearAmount * 0.55);
           roughnessFactor = mix(roughnessFactor, 0.9, nearMud);
           roughnessFactor = mix(roughnessFactor, 0.38, nearWater * (1.0 - nearMud) * 0.5);
           #include <normal_fragment_begin>`);
       } else if (m.isMeshPhongMaterial) {
         sh.fragmentShader = sh.fragmentShader.replace('#include <lights_phong_fragment>', `#include <lights_phong_fragment>
-          material.specularColor *= 1.0 + nearMetal * nearAmount * 0.4 + nearWater * 0.15;
+          material.specularColor *= 1.0 + (nearMetal * 0.4 + nearLac * 0.3) * nearAmount + nearWater * 0.15;
           material.specularColor *= 1.0 - nearMud * 0.7 - nearBlood * 0.25;`);
       }
     } else {

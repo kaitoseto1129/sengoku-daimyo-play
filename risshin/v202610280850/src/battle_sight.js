@@ -159,22 +159,22 @@ function solidGrid(solids, frame) {
   }
   return G;
 }
-function wallCuts(w, a, p, ay, by) {
+function wallCuts(w, a, p, ay, by, curtains = false) {
   if (w.struct && !w.struct.alive) return false;
   // 窓と戸口は既存の壁の切れ目を通す。上下の階の壁も視線の高さで判定する。
-  if (w.k === 's' && w.naka != null) {
+  if (w.k === 's' && (w.naka != null || curtains && w.cameraCurtain)) {
     const ex = w.bx - w.ax, ez = w.bz - w.az, len = Math.hypot(ex, ez);
     if (len < 0.001) return false;
     const c = ex / len, sn = ez / len, mx = (w.ax + w.bx) / 2, mz = (w.az + w.bz) / 2;
     const ax = a.x - mx, az = a.z - mz, bx = p.x - mx, bz = p.z - mz;
-    return boxCuts(ax * c + az * sn, -ax * sn + az * c, bx * c + bz * sn, -bx * sn + bz * c, len / 2, w.r, ay, by, w.yBot, w.yTop);
+    return boxCuts(ax * c + az * sn, -ax * sn + az * c, bx * c + bz * sn, -bx * sn + bz * c, len / 2, w.r, ay, by, w.cameraCurtain ? w.cameraBottom : w.yBot, w.cameraCurtain ? w.cameraTop : w.yTop);
   }
   if (w.k !== 'r') return false;
   if (w.yTop != null && Math.min(ay, by) > w.yTop || w.yBot != null && Math.max(ay, by) < w.yBot) return false;
   const ax = a.x - w.x, az = a.z - w.z, bx = p.x - w.x, bz = p.z - w.z;
   return boxCuts(ax * w.c - az * w.s, ax * w.s + az * w.c, bx * w.c - bz * w.s, bx * w.s + bz * w.c, w.hw, w.hd, ay, by, w.yBot, w.yTop);
 }
-export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
+export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true, curtains = false) {
   if (custom && rt.def?.sightBlocked?.(rt, a, p, ay, by)) return true;
   const solids = rt.army.solids;
   if (!solids || !solids.length) return false;
@@ -182,8 +182,8 @@ export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
   const x0 = Math.floor(Math.min(a.x, p.x) / SG_CELL), x1 = Math.floor(Math.max(a.x, p.x) / SG_CELL);
   const z0 = Math.floor(Math.min(a.z, p.z) / SG_CELL), z1 = Math.floor(Math.max(a.z, p.z) / SG_CELL);
   if (!SIGHT_DBG.full && (x1 - x0 + 1) * (z1 - z0 + 1) <= 36) {
-    for (let i = G.n; i < solids.length; i++) if (wallCuts(solids[i], a, p, ay, by)) return true;
-    for (const w of G.rest) if (wallCuts(w, a, p, ay, by)) return true;
+    for (let i = G.n; i < solids.length; i++) if (wallCuts(solids[i], a, p, ay, by, curtains)) return true;
+    for (const w of G.rest) if (wallCuts(w, a, p, ay, by, curtains)) return true;
     const stamp = ++solidStamp;
     for (let i = x0; i <= x1; i++) for (let j = z0; j <= z1; j++) {
       const list = G.map.get(i * 65536 + j);
@@ -192,7 +192,7 @@ export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
         const w = list[q];
         if (w._sightStamp === stamp) continue;
         w._sightStamp = stamp;
-        if (wallCuts(w, a, p, ay, by)) return true;
+        if (wallCuts(w, a, p, ay, by, curtains)) return true;
       }
     }
     return false;
@@ -200,12 +200,12 @@ export function cameraWallBlocked(rt, a, p, ay = a.y, by = p.y, custom = true) {
   for (const w of solids) {
     if (w.struct && !w.struct.alive) continue;
     // 窓と戸口は既存の壁の切れ目を通す。上下の階の壁も視線の高さで判定する。
-    if (w.k === 's' && w.naka != null) {
+    if (w.k === 's' && (w.naka != null || curtains && w.cameraCurtain)) {
       const ex = w.bx - w.ax, ez = w.bz - w.az, len = Math.hypot(ex, ez);
       if (len < 0.001) continue;
       const c = ex / len, sn = ez / len, mx = (w.ax + w.bx) / 2, mz = (w.az + w.bz) / 2;
       const ax = a.x - mx, az = a.z - mz, bx = p.x - mx, bz = p.z - mz;
-      if (boxCuts(ax * c + az * sn, -ax * sn + az * c, bx * c + bz * sn, -bx * sn + bz * c, len / 2, w.r, ay, by, w.yBot, w.yTop)) return true;
+      if (boxCuts(ax * c + az * sn, -ax * sn + az * c, bx * c + bz * sn, -bx * sn + bz * c, len / 2, w.r, ay, by, w.cameraCurtain ? w.cameraBottom : w.yBot, w.cameraCurtain ? w.cameraTop : w.yTop)) return true;
       continue;
     }
     if (w.k !== 'r') continue;

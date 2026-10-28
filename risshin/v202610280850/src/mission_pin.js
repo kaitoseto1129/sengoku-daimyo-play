@@ -887,6 +887,12 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     svg.innerHTML = '<g fill="none"><ellipse rx="29" ry="9" stroke="#14120f" stroke-width="9"/><ellipse rx="29" ry="9" stroke="#fff3ba" stroke-width="4"/></g><path d="M-15-5H3V-13L18 0L3 13V5H-15Z" fill="#fff3ba" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
     el.appendChild(svg); el._simplePin = svg;
     el._simpleRing = svg.firstChild; el._routeEdge = svg.lastChild;
+    const word = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    word.textContent = 'こっち';
+    word.setAttribute('x', '0'); word.setAttribute('y', '42');
+    word.setAttribute('text-anchor', 'middle');
+    word.style.cssText = 'font:bold 16px sans-serif;fill:#fff3ba;stroke:#14120f;stroke-width:5px;paint-order:stroke;stroke-linejoin:round';
+    svg.appendChild(word); el._routeWord = word;
   }
   el._label.hidden = true;
   // 稲生は見せ場の黒帯の間も、残りの敵へのピンを消さない（テスター 10/25「倒せが残るのに場所が分からない」）。
@@ -945,11 +951,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     // 通り口の旗には向きを添える。足あとや相手の印は重ねない。
     el._routeEdge.style.display = want.route || outside ? '' : 'none';
   }
+  el._routeWord.style.display = el._routeEdge.style.display !== 'none' && goalLabelRoom(rt.hud) ? '' : 'none';
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
-  // 味方への集合は本流の長い矢印を保ち、先端を集合地点に合わせる。
+  // 集合先も同じ矢印。下向きの先端を集合地点に合わせる。
   if (want.allyGather && !outside) {
-    el._routeEdge.setAttribute('d', 'M-9-64H9V-34H23L0-10L-23-34H-9Z');
-    el._routeEdge.removeAttribute('transform');
+    el._routeEdge.setAttribute('transform', 'translate(0 -18) rotate(90)');
   }
   el._simpleRing.lastChild.setAttribute('stroke', want.arrived ? '#e4f2cb' : '#fff3ba');
   // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
@@ -1069,7 +1075,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   el._outlines[1].setAttribute('stroke', '#fff3ba');
   el._targetBadge.setAttribute('d', '');
   el._lines.style.display = stem || outline ? '' : 'none';
-  rt.hud.missionPinLabelShown = false;
+  rt.hud.missionPinLabelShown = el._routeWord.style.display !== 'none';
   el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
   el.hidden = false;
   rt.hud.missionPinOutside = outside && !docked;

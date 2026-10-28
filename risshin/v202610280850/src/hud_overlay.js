@@ -369,13 +369,33 @@ export class HudOverlay {
     }
     if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive && !rt.player.camShot && !this.bigmap &&
         rt.def.drawMissionMarks?.(g, rt, this)) this.ovBlank = false;
-    // 人を白い線で囲まない（テストプレイの声 10/24「白く囲む表示に違和感」）。相手は頭上の▼だけで示す。
+    // 任務が選んだ一人だけを囲み、赤い所属印の多い乱戦でも目当てを保つ。
+    this.battleSignEnemy = null; this.enemyFrameShown = false;
+    const enemy = rt.army.missionMarkedEnemy;
+    if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive &&
+        !rt.player.camShot && !this.bigmap && enemy?.alive && sightScreenUnit(rt, enemy)) {
+      const frame = this.measurePersonFrame(enemy, rt);
+      if (frame && frame.bottom > 0 && frame.top < H && frame.right > 0 && frame.left < W) {
+        this.drawPersonOutline(g, frame);
+        this.battleSignEnemy = enemy; this.enemyFrameShown = true; this.ovBlank = false;
+        // 命・任務と合わせて三枚まで。既存の札を避け、本人の近くへ置く。
+        let cards = 1 + Number(!!this.prog && !this.prog.hidden);
+        for (const item of this.notices.picks) {
+          if (item.id !== 'objectives' || item.el.classList.contains('expand')) cards++;
+        }
+        if (cards < 3) {
+          const spot = this.enemyOrderSpot(frame, 68, 28, 20);
+          g.save(); g.fillStyle = '#14120f'; g.fillRect(spot.x, spot.y, 68, 28);
+          g.font = 'bold 18px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillStyle = '#fff3df'; g.fillText('この敵', spot.x + 34, spot.y + 14); g.restore();
+        }
+      }
+    }
     // 本人の足元は兵が重なっても見える白い輪。行き先の旗とは形を分ける。
     if (this.drawPlayerSign(g, rt)) this.ovBlank = false;
     // 案内役は共通ピンの頭上の人型一つ。体の輪郭を別の人型に見せない。
     // 行き先は共通のピンに任せ、持ち場の輪や味方の旗を重ねて描かない。
     // 敵は頭上の赤い▼、武将の名と体力は field_signs.js。
-    this.battleSignEnemy = null; this.enemyFrameShown = false;
   }
 
   // 兵の頭上の体力（近くの兵だけ）

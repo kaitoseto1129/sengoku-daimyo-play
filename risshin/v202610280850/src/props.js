@@ -656,8 +656,10 @@ function fencePostGeo(x, y, z, top, rad, seed) {
     const t = p.getY(j) > .1 ? 1 : p.getY(j) < -.1 ? 0 : Math.min(.8, .8 / h);
     const a = Math.atan2(p.getZ(j), p.getX(j));
     const r = rad * (1.08 - t * .18) * (1 + Math.sin(a * 3 + seed) * .08);
-    p.setXYZ(j, x + (top[0] - x) * t + p.getX(j) * r,
-      y - .35 + h * t, z + (top[2] - z) * t + p.getZ(j) * r);
+    // 節の間で曲がる生木。既存の中段だけを動かし、先端と縄の位置は保つ。
+    const bow = Math.sin(t * Math.PI) * rad * .6;
+    p.setXYZ(j, x + (top[0] - x) * t + p.getX(j) * r + Math.sin(seed) * bow,
+      y - .35 + h * t, z + (top[2] - z) * t + p.getZ(j) * r + Math.cos(seed) * bow);
     // 周囲を一枚の巨大な木目で包まず、幹の太さに合わせて細い縦目を出す。
     uv.setXY(j, uv.getX(j) * Math.PI * rad + seed, t * h / 2);
   }
@@ -733,7 +735,8 @@ export function palisade(world, seg, o = {}) {
     last.p[0] += tx * (len - last.u); last.p[2] += tz * (len - last.u); last.u = len;
     for (let q = 1; q < anchors.length; q++) {
       const a = anchors[q - 1].p, b = anchors[q].p;
-      parts.push(paintWorn(logGeo(a, b, .07, .06, 5), vary(0x76695a, k + q), Math.min(a[1], b[1]) - hy, H));
+      const thickness = .052 + h01(sd + q, k + 7) * .035;
+      parts.push(paintWorn(logGeo(a, b, thickness, thickness * .82, 5), vary(0x76695a, k + q), Math.min(a[1], b[1]) - hy, H));
     }
     // 画質「低」：縄の結びは上と下の横木だけ、四角の輪で（柵の三角の半分ほどが縄の輪だった）
     const lowTie = false;
@@ -914,7 +917,13 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
     if (len <= 0.5) continue;
     const inset = Math.min(0.6, len * 0.1);
     const t = inset / len;
-    solidSeg(ax + (bx - ax) * t, az + (bz - az) * t, bx - (bx - ax) * t, bz - (bz - az) * t, 0.12);
+    const wall = solidSeg(ax + (bx - ax) * t, az + (bz - az) * t, bx - (bx - ax) * t, bz - (bz - az) * t, 0.12);
+    // 布の高さは視点よけだけで使い、兵の通行・見通しの判定は変えない。
+    wall.cameraCurtain = true;
+    const ya = world.heightAt(ax, az), yb = world.heightAt(bx, bz);
+    const ym = world.heightAt((ax + bx) / 2, (az + bz) / 2);
+    wall.cameraBottom = Math.min(ya, yb, ym) - .15;
+    wall.cameraTop = Math.max(ya, yb, ym) + 2.3;
   }
   for (const [ax, az, bx, bz] of sides) {
     const len = Math.hypot(bx - ax, bz - az);

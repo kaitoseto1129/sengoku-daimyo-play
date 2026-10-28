@@ -346,6 +346,7 @@ export class HudCards {
   //   字が変わる時だけ書く（setText）。毎コマ作らない。
   progress(rt) {
     const def = rt.def, root = this.root;
+    root.classList.toggle('mission-one-line', !!def.missionSingleLine);
     if (def.town || def.dojo) {
       this.progChangeUntil = 0;
       if (this.prog) { this.prog.hidden = true; this.prog.classList.remove('pg-changing'); root.classList.remove('prog-on'); }
@@ -359,6 +360,10 @@ export class HudCards {
       const st = document.createElement('style');
       st.textContent = `
 #hud.prog-on .tl .plaque { display:none; }
+/* 一行の下知を使う戦は、古い任務本文と教えの札を同時に積まない。選択と操作は残す。 */
+html:root body #hud.mission-one-line #battle-notices:not(.choosing) #objectives#objectives:not(.expand) :is(#obj-list,#tutorial,.obj-cue) { display:none !important; }
+html:root body #hud.mission-one-line #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(:has(.battle-action:not([hidden]))) { display:none !important; }
+#hud.mission-one-line #h-prog { padding:4px 8px; font-size:max(16px, calc(16px * var(--text-scale, 1))); }
 #hud #h-prog { position:absolute; right:calc(16px + env(safe-area-inset-right, 0px)); top:calc(14px + env(safe-area-inset-top, 0px)); box-sizing:border-box; width:max-content; max-width:calc(100% - 32px); padding:8px 12px; background:#14120f; border-right:3px solid var(--kin); color:#fff3df; font-size:max(20px, calc(20px * var(--text-scale, 1))); line-height:1.4; text-align:right; pointer-events:none; }
 #hud #h-prog .pg-st b { display:none; }
 #hud #h-prog .pg-st span { font-weight:700; }

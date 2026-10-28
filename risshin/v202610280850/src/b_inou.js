@@ -584,16 +584,16 @@ const inou = {
   hideGuideSteps: true,
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.training === 11 || rt.flags.training === 12 ? 'flank' : rt.flags.step === 0 ? rt.flags.chase ? 'chase' : null : 'holdFlag',
   // 任務は短い一行。兵・隊長・待つ場所を区別し、頭上の▼と呼び方をそろえる。
-  missions: ['▼の てきを たおせ', '▼の てきを たおせ', 'ここを まもれ', '▼の てきを たおせ', '味方と すすめ', '深追いするな'],
+  missions: ['この敵を たおせ', 'この敵を たおせ', 'ここを まもれ', 'この敵を たおせ', '味方と すすめ', '深追いするな'],
   missionHeading(rt) {
     const F = rt.flags;
     // 読めない人名を手掛かりにさせず、頭上の▼と役目で呼ぶ。
-    if (F.step === 0 && F.training < 8) return '▼の敵をたおせ';
+    if (F.step === 0 && F.training < 8) return 'この敵をたおせ';
     if (F.step === 0 && F.training === 8 && !fighting(F.hayaLead)) return 'その場で待て';   // 小戦に勝ち、敵が退く間の一拍（「耐えろ」は戦うのか待つのか迷わせた。bot 10/28）
-    if (F.step === 0 || F.step === 2 || F.step === 3) return fighting(this.missionSignTarget(rt)) ? '▼の敵をたおせ' : '味方と進め';
+    if (F.step === 0 || F.step === 2 || F.step === 3) return fighting(this.missionSignTarget(rt)) ? 'この敵をたおせ' : '味方と進め';
     if (F.step === 1) {
-      if (F.training === 11 && !F.flankReached) return '▼の敵をたおせ';
-      if (F.training === 12 && !gone(F.shiba1)) return F.flankSuccess ? 'ここをまもれ' : '▼の敵をたおせ';
+      if (F.training === 11 && !F.flankReached) return 'この敵をたおせ';
+      if (F.training === 12 && !gone(F.shiba1)) return F.flankSuccess ? 'ここをまもれ' : 'この敵をたおせ';
       return 'ここを まもれ';
     }
     return this.missions[this.missionOf(rt)];

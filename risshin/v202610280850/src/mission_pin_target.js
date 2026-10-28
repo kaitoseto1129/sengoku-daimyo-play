@@ -163,7 +163,11 @@ export function updateEnemyTarget(rt, allowed = true) {
   const life = Math.max(0, Math.min(1, u.hp / (u.maxHp || 1)));
   enemyTarget._life.setAttribute('y', String(55 - 49 * life));
   enemyTarget._life.setAttribute('height', String(49 * life));
-  // 人物を囲まず、頭上も画面端も同じ大きな▼を一つだけ出す。
+  // 印の先端を頭上へ保ったまま縮め、顔・槍先を覆わない。形と命の面積は同じ。
+  enemyTarget._symbol.style.transformOrigin = '28px 55px';
+  enemyTarget._symbol.style.transform = 'scale(.6)';
+  enemyTarget._direction.style.transformOrigin = 'center';
+  enemyTarget._direction.style.top = '-8px';
   enemyTarget._frame.hidden = true;
   if (!visible) {
     // 回り道の案内中は、壁越しの相手への直線矢印を重ねない。

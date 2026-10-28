@@ -728,12 +728,22 @@ export const ArmyAnim = {
       u.meleeDrive = (u.meleeDrive || 0) + (drive * weight - (u.meleeDrive || 0)) * k;
       u.meleeTurn = (u.meleeTurn || 0) + (turn * weight - (u.meleeTurn || 0)) * k;
       const c = u.meleeCoil, d = u.meleeDrive;
+      // 刃の届く相手を待つ間も、膝を伸ばして整列しない。
+      // 攻撃の間隔・間合いは変えず、本人の相手と実際の距離で構えを深くする。
+      const ready = !action && u.target?.alive && !u.target.isStruct
+        ? clamp01((u.reach + 2 - this.distTo(u, u.target)) / 2) * weight : 0;
       // 身長や利き足の違いを腰と膝に渡す。攻防の拍子は相手と本人の技に従う。
       const stance = 0.78 + ((u.id * 0.381966) % 1) * 0.44;
       u.body.rotation.x += (-0.1 * c + 0.18 * d) * stance;
       u.body.rotation.y += u.meleeTurn;
       u.body.position.y -= (0.04 * c + 0.055 * d) * stance;
+      u.body.position.y -= ready * .045 * stance;
+      u.body.rotation.x += ready * .06;
       if (u.shinL && u.shinR) {
+        u.legL.rotation.x -= ready * .14 * stance;
+        u.shinL.rotation.x += ready * .25;
+        u.legR.rotation.x += ready * .09;
+        u.shinR.rotation.x += ready * .16 * stance;
         u.legL.rotation.x -= 0.08 * c + 0.2 * d;
         u.shinL.rotation.x += (0.12 * c + 0.34 * d) * stance;
         u.legR.rotation.x -= 0.16 * c - 0.06 * d;

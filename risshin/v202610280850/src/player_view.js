@@ -7,9 +7,12 @@ import { S, saveSettings, reduceMotion } from './settings.js';
 import { isTouch } from './touch.js';
 import { setFpCut, setFpArm } from './humans.js';
 import { NAKA, nakaCamClamp } from './naka.js';
-import { cameraWallBlocked, inouSignHeight } from './battle_sight.js';
+import { cameraWallBlocked as sightWallBlocked, inouSignHeight } from './battle_sight.js';
 import { flagBlocksView as flagMeshBlocksView } from './units_flags.js';
 import { _fpS, hideCameraEnemy, hideFirstPersonWeapon, _cT, _cW, _cLk, _WORLD_UP, _downRotation, _downGoalRotation, _PF_OFFSETS, _cUP, camBlockSphere, camBlockWorld, camBlockVisible, CAM_NEAR_PROJECTION, CAM_NEAR_FOOT, CAM_NEAR_SCREEN_CUT, CAM_NEAR_CLEAR_DEPTH, CAM_NEAR_FADE, camNearMesh, camGrid, camBlockRaycast, cameraGroundAt, terrainSideClear, terrainCameraClamp } from './player.js';
+
+// 幕も視点だけは遮る。敵の発見や攻撃の見通しは従来のまま。
+const cameraWallBlocked = (rt, a, b) => sightWallBlocked(rt, a, b, a.y, b.y, true, true);
 
 export class PlayerView {
 
