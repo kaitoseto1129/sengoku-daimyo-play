@@ -13,7 +13,7 @@ import { HISTORICAL_GENERALS } from './b_historical_generals.js';
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { nobori, tawara, hut, dou, dorui, kabukimon, solidSeg, koshisaku,
+import { nobori, tawara, hut, dou, dorui, kabukimon, solidSeg, koshisaku, jinmaku,
   yagura, bobosaku, tateNarabi, takataba, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { addRamp } from './floors.js';
 import { S as SETTINGS } from './settings.js';
@@ -484,8 +484,8 @@ function anegawaRiver(rt) {
     if (!cut) kept.push(ix[i], ix[i + 1], ix[i + 2]);
   }
   terrain.setIndex(kept);
-  const positions = [], colors = [], uv = [], wetness = [], cover = [], indices = [], water = [], waterColors = [], waterFlow = [], wi = [];
-  const color = new THREE.Color(), mudColor = new THREE.Color(0x766850), nx = 280, nz = 80;
+  const positions = [], colors = [], uv = [], wetness = [], cover = [], indices = [], water = [], waterColors = [], waterFlow = [], wi = [], waterOff = [];
+  const color = new THREE.Color(), deepColor = new THREE.Color(), mudColor = new THREE.Color(0x7a6c52), nx = 280, nz = 80;
   for (let i = 0; i <= nx; i++) {
     const x = -420 + i * 3, center = aneCenter(x);
     for (let j = 0; j <= nz; j++) {
@@ -509,10 +509,12 @@ function anegawaRiver(rt) {
       const off = j / 2 - 1, shallow = Math.pow(Math.abs(off), 3);
       water.push(x, level(x), center + off * aneWidth(x));
       // 真夏の渇水の姉川：深い青でなく、砂利の底が透ける緑灰。岸寄りほど川床の色（10/28）
-      color.setHex(0x46685f).lerp(mudColor, shallow * 0.45);
-      // 岸から岸まで同じ明暗を並べず、川面の場所ごとに弱い斑を付ける。
-      const surfaceZ = center + off * aneWidth(x);
-      const streak = 0.98 + Math.sin(x * 0.31 + surfaceZ * 0.53) * Math.sin(x * 0.17 - surfaceZ * 0.37) * 0.02;
+      // 深さの色：主流は暗い青緑、岸へ寄るほど川床の砂利色が透ける。瀬（浅い所）と淵（深い所）を流れに沿って交互に（10/28）
+      const riffle = 0.5 + 0.5 * Math.sin(x * 0.043 + Math.sin(x * 0.011) * 2.0);
+      // 横の色の差は頂点で持たず、岸からの割合（aneOff）で画素ごとに塗る。三角の継ぎ目に斜めの縞を出さない。
+      color.setHex(0x33544f).lerp(deepColor.setHex(0x5a7566), riffle * 0.45);
+      const streak = 0.97 + Math.sin(x * 0.31) * Math.sin(x * 0.17) * 0.03;
+      waterOff.push(off);
       waterColors.push(color.r * streak, color.g * streak, color.b * streak);
       waterFlow.push(-1 / flowLength, -slope / flowLength);
       if (i < nx && j < 4) {
@@ -534,20 +536,26 @@ function anegawaRiver(rt) {
   // 画素番号の正弦波は細い平行線になる。作る時だけ乱数で土粒を散らす。
   let soilSeed = 157028;
   const soilRandom = () => { soilSeed = soilSeed * 16807 % 2147483647; return soilSeed / 2147483647; };
+  // 石の間の砂は暗めの灰褐色。白い一枚の砂に見せない（10/28）。
   for (let i = 0; i < pixels.data.length; i += 4) {
-    const v = 220 + Math.floor(soilRandom() * 35);
-    pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = v; pixels.data[i + 3] = 255;
+    const v = 150 + Math.floor(soilRandom() * 45);
+    pixels.data[i] = v; pixels.data[i + 1] = v - 6; pixels.data[i + 2] = v - 16; pixels.data[i + 3] = 255;
   }
   ctx.putImageData(pixels, 0, 0);
-  for (let i = 0; i < 150; i++) {
+  // 川原の玉石：灰・青灰・赤茶・黄土の大小を混ぜ、影の縁と照りを付ける。
+  const STONE = ['#a19d93', '#8b8a84', '#9c8a70', '#b3a587', '#77736a', '#c2bcae'];
+  for (let i = 0; i < 260; i++) {
     const x = soilRandom() * 128, y = soilRandom() * 128;
-    const r = 1.2 + soilRandom() * 2.2;
+    const r = i % 9 === 0 ? 4 + soilRandom() * 3 : 1.1 + soilRandom() * 2.4, a = soilRandom() * 3.14;
+    const tone = STONE[Math.floor(soilRandom() * STONE.length)];
     // 繰り返す絵の縁にも同じ石を置き、継ぎ目を出さない。
     for (let ox = -128; ox <= 128; ox += 128) for (let oy = -128; oy <= 128; oy += 128) {
-      ctx.fillStyle = i % 3 ? '#a9a9a3' : '#c3c0b6';
-      ctx.beginPath(); ctx.ellipse(x + ox, y + oy, r, r * 0.7, i * 0.8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#e0dfd5';
-      ctx.beginPath(); ctx.ellipse(x + ox - 0.4, y + oy - 0.5, r * 0.55, r * 0.3, i * 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#5a554c';
+      ctx.beginPath(); ctx.ellipse(x + ox + 0.5, y + oy + 0.7, r * 1.08, r * 0.78, a, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = tone;
+      ctx.beginPath(); ctx.ellipse(x + ox, y + oy, r, r * 0.7, a, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(240,236,224,0.45)';
+      ctx.beginPath(); ctx.ellipse(x + ox - r * 0.25, y + oy - r * 0.25, r * 0.45, r * 0.25, a, 0, Math.PI * 2); ctx.fill();
     }
   }
   const soilTex = new THREE.CanvasTexture(canvas); soilTex.wrapS = soilTex.wrapT = THREE.RepeatWrapping;
@@ -569,7 +577,11 @@ function anegawaRiver(rt) {
         float anePatch = texture2D(tAneMacro, vAneBank.xz * 0.09).r;
         float aneTuft = smoothstep(0.42, 0.67, anePatch) * (1.0 - vAneWet) * (1.0 - aneTrod);
         // 草の島と裸地を色だけでも読み分け、遠くへ続く砂一色を崩す。
-        diffuseColor.rgb *= mix(vec3(1.0), vec3(0.65, 0.83, 0.48), aneTuft * 0.65);
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(0.5, 0.66, 0.32), aneTuft * 0.8);
+        // 葦の茂みの根元：枯れた茎の黄土と若い葉の緑が細かく混ざる斑（10/28）
+        float aneReed = smoothstep(0.55, 0.75, anePatch) * (1.0 - aneTrod) * smoothstep(0.1, 0.5, vAneWet + 0.3);
+        float aneStem = texture2D(tAneMacro, vAneBank.xz * vec2(1.7, 0.6)).r;
+        diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.22, 0.27, 0.1), vec3(0.42, 0.36, 0.2), smoothstep(0.4, 0.65, aneStem)), aneReed * 0.7);
         float aneDamp = clamp(vAneWet * (0.55 + anePatch * 0.65) + aneTrod * 0.45, 0.0, 1.0);
         // 共通の泥の絵にある足跡と土塊を使い、砂利の白さを斑に崩す。
         vec3 aneMud = texture2D(tAneMud, vAneBank.xz * 0.26).rgb;
@@ -596,16 +608,22 @@ function anegawaRiver(rt) {
   wg.setAttribute('position', new THREE.Float32BufferAttribute(water, 3));
   wg.setAttribute('color', new THREE.Float32BufferAttribute(waterColors, 3));
   wg.setAttribute('waterFlow', new THREE.Float32BufferAttribute(waterFlow, 2));
+  wg.setAttribute('aneOff', new THREE.Float32BufferAttribute(waterOff, 1));
   wg.setIndex(wi); wg.computeVertexNormals();
   st.mesh.geometry.dispose(); st.mesh.geometry = wg;
+  // 共通の水面の補修は一列二頂点の帯を前提に岸と主流を交互に塗り、五列の姉川では斜めの緑の縞になった（10/28）。
+  // 深さ・浅瀬・水際の泡はこの戦の材質で塗るので、共通の補修は掛けない。
+  st.mesh.userData.waterSurfaceReady = true;
   // 濁った水が川床と浸かった脚を隠す。携帯でも砂と水面を見分けられる。
   st.mesh.material.opacity = 1; st.mesh.material.depthWrite = true;
   // 朝の白い空で水色を覆わない。低画質の空の加算も同じ強さに抑える。
   const waterMat = st.mesh.material, waterCompile = waterMat.onBeforeCompile;
-  waterMat.roughness = 1; waterMat.envMapIntensity = 0.03;   // 空の映りが川に平行な明るい縞になった（10/28）。濁った夏の水は照りを抑える
+  waterMat.roughness = 0.32; waterMat.envMapIntensity = 0.5;   // 空の映りが川に平行な明るい縞になった（10/28）。濁った夏の水は照りを抑える
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
     waterCompile.call(this, sh, renderer);
+    sh.vertexShader = 'attribute float aneOff; varying float vAneOff;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vAneOff = aneOff;');
+    sh.fragmentShader = 'varying float vAneOff;\n' + sh.fragmentShader;
     sh.fragmentShader = sh.fragmentShader.replace('reflectedLight.indirectDiffuse += uWaterSky *',
       'reflectedLight.indirectDiffuse += uWaterSky * 0.2 *')
       // 周期的な横線は残さず、二つの速さで流れる細長い斑へ替える。
@@ -613,7 +631,14 @@ function anegawaRiver(rt) {
         `float aneFlowPatch = texture2D(tMacro, vec2(streamAlong * 0.19 - uTime * 0.05, streamAcross * 0.43)).r;
          float aneFineFlow = texture2D(tMacro, vec2(streamAlong * 0.37 - uTime * 0.08, streamAcross * 0.91) + vec2(0.31, 0.67)).r;
          float streamLines = (aneFlowPatch * 0.65 + aneFineFlow * 0.35 - 0.5) * 2.0;`)
-      .replace('streamLines * streamNear * 0.065', 'streamLines * streamNear * 0.015');   // 川に平行な明るい縞が板の筋に見えた（10/28）。流れの斑は薄く残す
+      .replace('streamLines * streamNear * 0.065', 'streamLines * streamNear * 0.015')
+      // 深さの色：主流の暗い青緑から、岸寄りの浅瀬は砂利の川床が透ける黄土へ。水際は細く白く泡立つ（10/28）
+      .replace('diffuseColor.rgb *= 1.0 + streamLines', `float aneShallow = pow(clamp(abs(vAneOff), 0.0, 1.0), 1.6);
+         float aneBedSpot = texture2D(tMacro, vWPw.xz * 0.21 + 0.4).r;
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.24, 0.2, 0.12) * mix(0.75, 1.2, aneBedSpot), aneShallow * 0.85);
+         float aneFoam = smoothstep(0.86, 0.97, abs(vAneOff)) * smoothstep(0.45, 0.7, texture2D(tMacro, vWPw.xz * 0.6 - vec2(uTime * 0.04, 0.0)).r);
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.56, 0.52), aneFoam * 0.35);
+         diffuseColor.rgb *= 1.0 + streamLines`);   // 川に平行な明るい縞が板の筋に見えた（10/28）。流れの斑は薄く残す
   };
   waterMat.customProgramCacheKey = () => `${waterKey}|aneWater`;
   waterMat.needsUpdate = true;
@@ -1084,8 +1109,12 @@ function anegawaFieldWorks(rt) {
   for (const m of shields) m.geometry.dispose();
   // 据え竹束は四基だけ。近くは細竹を密に詰め、遠くは共通の粗い形へ戻す。
   for (const [x, z, rot] of [[HQ.x - 14, HQ.z + 4, -Math.PI / 2],
-    [HQ.x + 14, HQ.z + 4, Math.PI / 2], [48, 30, Math.PI], [64, 30, Math.PI]])
+    [HQ.x + 14, HQ.z + 4, Math.PI / 2], [48, 30, Math.PI], [64, 30, Math.PI],
+    // 森の先手の持ち場の川前にも二基。正面の通り道（POST の前）は空け、左右の岸の上に据える（10/28）
+    [POST.x - 15, 16, Math.PI - 0.15], [POST.x + 9, 16, Math.PI + 0.2]])
     rt.scene.add(takataba(W, x, z, rot, { fieldBundle: true, fieldTrestle: true }));
+  // 森の先手の陣所：持ち場の左後ろに小さな陣幕。口は後ろ（南）へ開け、川前の隊列と通り道には掛けない（10/28）
+  rt.scene.add(jinmaku(W, POST.x - 30, POST.z + 12, 10, 6, 4, { mon: 'oda' }));
   // 屋根のない四本柱の組上げ井楼。遠景は横木を半数にした共有形に切り替わる。
   for (const [x, z, mon, team] of [[HQ.x - 20, HQ.z + 9, 'oda', 0],
     [MITAMURA.x + 12, MITAMURA.z + 6, 'asakura', 1]])

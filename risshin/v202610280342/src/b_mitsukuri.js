@@ -2547,6 +2547,9 @@ const mitsukuri = {
     lowNightExposure: 0.45, // 携帯の夜だけの増感を抑え、火の暖色と月の陰を残す。
     autumn: true,     // 旧暦九月：枯れ色の草と色づく木
     muddy: 0.15,
+    // 雨上がりの曲輪と道は濡れて黒ずんだ赤土。日の下で砂浜や雪のような白っぽい一枚にしない（10/28）。
+    dirtTint: [0.7, 0.58, 0.47],
+    muddyCastleFloor: 0.9,
     softPathSoil: true, // 道と草、湿った土の境を格子ごとに切らずにつなぐ。
     softEarthCrust: true, // 土塊の升の境で高さと陰が飛び、四角い敷石に見えるのを防ぐ。
     sparseEarthCrust: true, subtleMudRelief: true, // 乾いた山道は小さな土塊をまばらに残す。
@@ -3251,6 +3254,12 @@ const mitsukuri = {
       // 板葺きの蔵脇には修理用の丸太と巻いた幟。任務の松明置き場と中央の道は空ける。
       rt.scene.add(lumber(W, 14, -57, Math.PI / 2), hatazao(W, -17, -52, Math.PI / 2, 5, 'rokkaku'));
       rt.scene.add(mitsukuriStores(W, 17, -52));
+      // 三の郭・二の丸の段ごとに、隅へ小さな板葺きの小屋と短い柵を詰める（配置は推定）。
+      // 口・木戸・郭の真ん中の道は空け、当たりは付けない。
+      for (const [x, z, w, d] of [[-16.5, -47, 3, 2.4], [16, -61, 3.2, 2.6], [12.5, -70, 3.4, 2.6], [-12, -89, 3, 2.4]])
+        mitsukuriHut(W, x, z, w, d, { h: 2, wall: 0x6f624e, ita: true,
+          boardRoof: true, boardRoofColors: [0x6e6555, 0x645a4a, 0x786b56], batch: farBatch });
+      rt.scene.add(mitsukuriSaku(W, [[-20, -51, -13.5, -51], [13, -57, 20, -57], [9, -66, 16, -66], [-15, -81, -9, -81]], 1.6, false));
     }
     // 和田山城は遠景の小城。守りの置き方は推定で、箕作の乱戦に兵を足さない。
     mitsukuriHut(W, WADA.x, WADA.z + 4, 6, 4, { h: 2.6, wall: 0x7a6a50, ita: true, batch: farBatch });

@@ -2247,9 +2247,15 @@ const moribe = {
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     let pos = null, r = 6, hide = 6;
-    // 黄色いピンは移動先だけ。見えない敵にも付けると渡河・集合の印と混同する。
+    // 開戦後は同じ先手の一人まで案内し、刃が届いたら本人の▼へ渡す。
     if (F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
-      return null;
+      const p = rt.player, enemy = this.missionSignTarget(rt);
+      if (!enemy || p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return null;
+      q.unit = enemy; q.enemy = true;
+      q.x = enemy.pos.x; q.z = enemy.pos.z;
+      q.y = drawGroundAt(rt.world, q.x, q.z);
+      q.r = q.hide = 0;
+      return q;
     }
     if (!F.signal) {
       if (F.pointDone) return null;

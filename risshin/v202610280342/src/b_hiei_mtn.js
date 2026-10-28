@@ -591,6 +591,15 @@ class HieiHallGaran extends Garan {
       for (const g of geometry) this.add(rec, kind, g);
       return;
     }
+    // 山の上の坊の板屋根は、檜皮の焦げ茶にそろえる（10/28）。白い板の屋根は遠目に平たい箱の蓋に見えた。
+    // 坂本の里坊は板葺きのまま。材質は伽藍の既存の束を使い、描く回数は増やさない。
+    if (kind === 'ita' && rec.dist !== 'sakamoto') kind = 'bark';
+    // 遠くの谷の軽い坊も、灰色の板屋根を檜皮の焦げ茶へ。持ち場から見える屋根が平たい灰の蓋にならない。
+    const roofColor = kind === 'plain' && rec.lite && geometry.attributes.color;
+    if (roofColor && Math.abs(roofColor.getX(0) - .28) < .001 && Math.abs(roofColor.getZ(0) - .26) < .001) {
+      const tone = .85 + .3 * ((rec.x * 7 + rec.z * 3) % 1 + 1) % 1;
+      for (let i = 0; i < roofColor.count; i++) roofColor.setXYZ(i, .17 * tone, .095 * tone, .055 * tone);
+    }
     // 中門の下は土の参道を残す。法面まで一枚の石で覆うと、
     // 地形に沿わせても灰色の大きな帯になる。柱・屋根・通行は保つ。
     if (rec.kind === 'chumon' && kind === 'wood') {
@@ -651,7 +660,8 @@ class HieiHallGaran extends Garan {
   }
   build(b) {
     // 現在の比叡山にも、堂の内陣・僧坊の座敷と動く建具を適用する。
-    const r = super.build({ ...b, profile: 'hieizan' });
+    // 小さな堂（常行堂・法華堂・戒壇院・中腹の小堂など）は檜皮葺き。中堂・講堂の大屋根は瓦のまま（10/28）。
+    const r = super.build({ ...b, profile: 'hieizan', roof: b.roof || (b.kind === 'do' ? 'bark' : undefined) });
     if (r.kind === 'chumon' && r.cameraParts?.[0]) {
       // 中門の軒は柱より左右に二・二、前後に一・六メートル張り出す。
       // 小さい共通の箱の外へ出た軒裏に、視点が入り込むのを防ぐ。

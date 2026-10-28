@@ -76,10 +76,10 @@ function build(rt, root) {
           rt.def.missionStyle === 'lesson' ? 'if (mod(signTone, 8.0) > 3.5) vColor = vec3(1.0, 0.06, 0.02); else if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.55, 0.35) : vec3(1.0);' :
           // 桶狭間は届いても赤い▼を保つ。横幅と明るい中身で間合いを返す。
           'if (mod(signTone, 8.0) == 2.0 || mod(signTone, 8.0) == 6.0) vColor = position.z > 0.0 ? vec3(1.0, 0.42, 0.20) : vec3(0.7, 0.015, 0.008);');
-        if (rt.def.missionStyle !== 'raid' && rt.def.missionStyle !== 'ford') {
+        if (rt.def.missionStyle !== 'raid') {
           // 色の値に足した８で近さを分ける。命中の色だけでは遮蔽を避けない。
-          // 桶狭間は実際の奥行きで描き、奥の▼を手前の旗や別人へ透かさない。
-          // 印の位置は本人の頭上を保つ。
+          // 森部も近い本人の所属・命中を笠や旗で隠さない。壁は描画前の見通しで除く。
+          // 遠い▼は奥行きを保ち、印の先端は本人の頭上から動かさない。
           shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>',
             '#include <project_vertex>\nif (signTone > 8.5) gl_Position.z = -0.99 * gl_Position.w;');
         }
@@ -461,9 +461,9 @@ export function fieldSignsTick(rt, root) {
     const moribeNear = ford ? Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22)) : 0;
     // 一般兵は目当ての選び直しで大きさを変えず、討つ武将だけ一段大きくする。
     const moribeLimit = (u === commander ? .9 : .6) + .45 * moribeNear;
-    // 所属印は近くでも十画素を下限に抑え、届く一人の横幅と命中の縦伸びを見分ける。
+    // 近い所属印は十六画素、命中した本人は二十四画素を保ち、赤の減りを読めるようにする。
     const moribePixelScale = -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
-    const moribeMinPixels = ford ? 10 * moribeNear : 0;
+    const moribeMinPixels = ford ? Math.max(16 * moribeNear, 24 * pulse) : 0;
     // 稲生の近い敵も携帯で読める幅を保ち、印のない味方と見分けられるようにする。
     // 遠い本人も三角と読める幅を残す。接近の途中で印だけ数画素に潰さない。
     // 七十歩以遠へは滑らかに戻し、近い相手の白縁・命中の伸びと分ける。

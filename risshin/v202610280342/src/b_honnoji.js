@@ -435,7 +435,9 @@ const PATROL_ROOM_PATHS = [-54, -62, -67, -70.6].map((x) => [
   [x, 89], [x, 86.6], [x, 82.2], ...PATROL_PATH.slice(1),
 ]);
 // 足軽は表門の内側から見回る。回廊の遠回りで、最初の寄せ手とすれ違わせない。
-const PATROL_START = { x: PT.start.x, z: PT.start.z };
+// 始まりは回廊の東の表庭（屋根の外）。廊下の中では視点が柱と梁に囲まれ、黒い額縁に見えた（10/28）。
+// 背の側も庭なので、肩越しの視点が外から境内と表門の方を見渡す。道案内は道の途中から合流する（pathGuide）。
+const PATROL_START = { x: -39, z: 60, heading: 2.8 };
 // 開いた表門を抜けた少人数が、門の内側の持ち場へ寄せる。
 // 外の備えから先鋒を替える。塀・宿坊・回廊の柱を横切らず、三〜七歩でぶつかる。
 const PATROL_SKIRMISH = [[GATES.main.x - 2, GATES.main.z], [PT.gateIn.x, PT.gateIn.z], [-40, 50]];
@@ -3211,7 +3213,7 @@ const honnoji = {
   // 本堂から御殿、二条の守備と退却は専用の道を使う。離れた味方への共通の退避で持ち場を離れない。
   botEvacuating: (rt) => !rt.G.lord && ((rt.flags.hp >= 4 && rt.flags.hp <= 8) || (rt.flags.step >= 3 && rt.flags.step <= 5)),
   prelude: false,   // 静かな寺に突然の襲撃：溜めない（prelude.js）
-  spawn: { x: PATROL_START.x, z: PATROL_START.z, heading: Math.PI / 2 },
+  spawn: { x: PATROL_START.x, z: PATROL_START.z, heading: PATROL_START.heading },
   maxFramedFov: 60, // 10/28 始まりの廊下で視点が壁に寄り画角が百度まで広がって、柱と梁が額縁に見えた。広げる上限を六十度に。
   noHorse: true,   // 本能寺の変だけは馬に乗れない（kaito 10/2。寺の中で戦う）
   cornerEnemyGuide: true, // 敵の四隅と刀の印で、戸口の旗と見分ける。

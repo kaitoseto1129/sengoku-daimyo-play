@@ -1403,6 +1403,91 @@ function addOdaniView(rt) {
   }
 }
 
+// 清水谷の東の斜面（持ち場から右手に見上げる山肌）。灰色の一枚に見えないよう、
+// 下草と岩、切岸の段と柵、上に板葺きの番所を置く。形と材質は一度だけ作り、束で描く。
+function addOdaniEastSlope(rt, boardHut, scenery) {
+  const W = rt.world, pose = new THREE.Object3D(), color = new THREE.Color();
+  let seed = 15738;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  // 持ち場から谷の奥を向いた前と右（x,z）。位置はこの二つの向きで決める。
+  const ox = MOUTH.x + .5, oz = MOUTH.z + 7, fx = .89, fz = -.46, rx = .46, rz = .89;
+  const at = (d, s) => [ox + fx * d + rx * s, oz + fz * d + rz * s];
+  const keep = (x, z) => {
+    if (alongLine(SHIMIZU, x, z).d < 4.5) return false;
+    for (const [hx, hz] of YASHIKI) if (Math.hypot(x - hx, z - hz) < 8) return false;
+    return Math.hypot(x - KYOKAN.x, z - KYOKAN.z) > 17;
+  };
+  const tuft = new THREE.ConeGeometry(1, 1, 5); tuft.translate(0, .5, 0);
+  const bush = new THREE.IcosahedronGeometry(1, 0);
+  const rock = new THREE.DodecahedronGeometry(1, 0);
+  const sets = [{ geo: tuft, list: [] }, { geo: bush, list: [] }, { geo: rock, list: [] }];
+  const put = (k, x, z, y, sx, sy, sz, ry, c) => {
+    pose.position.set(x, W.heightAt(x, z) + y, z); pose.scale.set(sx, sy, sz);
+    pose.rotation.set((rnd() - .5) * .3, ry, (rnd() - .5) * .3); pose.updateMatrix();
+    sets[k].list.push([pose.matrix.clone(), c]);
+  };
+  // 入った向きは場面で変わる。谷の東の山肌をぐるりと埋め、谷底の道と屋敷の庭は空ける。
+  for (let i = 0; i < 560; i++) {
+    const a = -1.6 + rnd() * 3.8, d = 5 + rnd() * 40, x = ox + Math.cos(a) * d, z = oz + Math.sin(a) * d;
+    if (!keep(x, z)) continue;
+    const r = rnd();
+    if (r < .62) {
+      // 下草：細い円錐を寄せて株にする。夜の暗い緑と枯れた黄土を混ぜる。
+      const g = rnd(), c = rnd() < .3 ? 0x7d7148 : 0x4c5a36;
+      for (let j = 0; j < 3; j++) put(0, x + (rnd() - .5) * .9, z + (rnd() - .5) * .9, -.05,
+        .08 + g * .06, .3 + g * .45, .08 + g * .06, rnd() * 6, c);
+    } else if (r < .85) {
+      // 低い灌木：つぶした塊を斜面に沈める。
+      const k = .35 + rnd() * .55;
+      put(1, x, z, k * .25, k * 1.2, k * .7, k, rnd() * 6, rnd() < .5 ? 0x34422a : 0x2e3a26);
+    } else {
+      // 岩：半分を土に埋め、苔の色を混ぜる。
+      const k = .45 + rnd() * 1.1;
+      put(2, x, z, -k * .25, k * 1.3, k * .8, k, rnd() * 6, rnd() < .4 ? 0x5a6048 : 0x6a655a);
+    }
+  }
+  for (const b of sets) {
+    const mesh = new THREE.InstancedMesh(b.geo, new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), b.list.length);
+    b.list.forEach(([m, c], i) => { mesh.setMatrixAt(i, m); mesh.setColorAt(i, color.setHex(c)); });
+    mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    mesh.computeBoundingSphere(); mesh.castShadow = false; mesh.receiveShadow = false;
+    rt.scene.add(mesh); W.viewCull([mesh], 0, 90, false);
+  }
+  // 切岸の段：斜面の等高線に沿って土の段を三つ。段ごとに杭の柵を立てる。
+  const contour = (x, z) => {
+    const gx = W.heightAt(x + 1, z) - W.heightAt(x - 1, z), gz = W.heightAt(x, z + 1) - W.heightAt(x, z - 1);
+    const l = Math.hypot(gx, gz) || 1;
+    return { tx: -gz / l, tz: gx / l, nx: -gx / l, nz: -gz / l };
+  };
+  // 東（谷の奥へ向いた右手）と南東（谷口を向いた前）の二つの山肌に段を刻む。
+  const steps = [[18, 0, 14], [23, 2, 16], [28, 4, 14], [33, 6, 12]].map(([d, s, l]) => [...at(d, s), l]);
+  for (const d of [26, 32, 38]) steps.push([ox + .6 * d, oz + .8 * d, 14]);
+  for (const [cx, cz, len] of steps) {
+    if (!keep(cx, cz)) continue;
+    const c = contour(cx, cz);
+    const seg = [cx - c.tx * len / 2, cz - c.tz * len / 2, cx + c.tx * len / 2, cz + c.tz * len / 2];
+    const earth = dorui(W, seg, c.nx, c.nz, { batch: scenery, w: 1.6, h: .6, surfaceOnly: true, bareSoil: true, capEnds: true });
+    if (!earth.isBatchedPart) rt.scene.add(earth);
+    const fence = palisade(W, seg, { batch: scenery, h: 1.8 });
+    if (fence && !fence.isBatchedPart) rt.scene.add(fence);
+  }
+  // 段の上の番所：板葺きの屋根を斜面の向きにそろえる。
+  // 谷道の東の縁：道に沿う土の段と柵、その奥の番所。持ち場の右手すぐに見える所。
+  const ux = .24, uz = -.97, vx = .97, vz = .24, near = (f, r) => [ox + ux * f + vx * r, oz + uz * f + vz * r];
+  for (const [f0, f1, r] of [[3, 17, 6.5], [6, 22, 14.5]]) {
+    const [ax, az] = near(f0, r), [ex, ez] = near(f1, r), seg = [ax, az, ex, ez];
+    const earth = dorui(W, seg, vx, vz, { batch: scenery, w: 1.4, h: .55, surfaceOnly: true, bareSoil: true, capEnds: true });
+    if (!earth.isBatchedPart) rt.scene.add(earth);
+    const fence = palisade(W, seg, { batch: scenery, h: 1.7 });
+    if (fence && !fence.isBatchedPart) rt.scene.add(fence);
+  }
+  for (const [bx, bz] of [near(10, 10.5), at(37, 6), [ox + .6 * 43, oz + .8 * 43]]) {
+    if (!keep(bx, bz)) continue;
+    const c = contour(bx, bz);
+    boardHut(W, bx, bz, 4.6, 3.4, Math.atan2(c.tx, c.tz));
+  }
+}
+
 // 夜襲の後方に残る普請と炊事の道具。配置・調度は推定で、谷道と兵の控えを避ける。
 // 本の野戦兵器の丸太・板・縄の組み方に寄せ、移動櫓を急な山道へ持ち込まない。
 function addOdaniSiegeLife(rt, scenery) {
@@ -2560,6 +2645,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       W.addFire(f.x + 2, f.z + 5, { torch: true, h: 1.4 });
     }
     addOdaniSiegeLife(rt, scenery);
+    addOdaniEastSlope(rt, boardHut, scenery);
     finalizeSimpleBatch(rt, scenery);
     // 城の石・塀・石段の同じ形の束も、草木と同じ仕組みで画面の外を描かない。
     // 動く遠景の兵や実兵を作る前に登録する。行列と判定の箱はここで一度だけ用意する。

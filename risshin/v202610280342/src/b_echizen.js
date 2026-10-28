@@ -1620,9 +1620,10 @@ echizen.setup = function (rt) {
       part.faded = faded;
       // 目を遮る屋根と柱だけ薄くし、点々の幕を戦場へ重ねない。
       // 視点が離れたら全て戻す。材質の再作成・再コンパイルはしない。
+      // 薄く残すと、内側から見た竹束や屋根が霧の中の透けた建物の絵として二重に重なる。遮る間は描かない。
       for (const mat of part.materials) {
-        mat.userData.passVisibility.value = faded ? .06 : 1;
-        mat.depthWrite = !faded;
+        mat.userData.passVisibility.value = 1;
+        mat.visible = !faded;
       }
     }
   };
