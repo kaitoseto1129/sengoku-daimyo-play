@@ -47,6 +47,8 @@ export { FORM_JA } from './units_group.js';
 export { TYPES, GENERALS, SKIN_TONES, FACTION, RIDE, seatLegs, horseStyleFor, buildHorse, FLAG_T, IMP, buildModel, Group, Unit };
 export { HOUSE_NAME, SWING, STAIN_PLANE, STAIN_TEX, roundDot, PCOL, erf, segHit, TOFF, clamp01, SW_POSE, SW_HASSO, SW_JODAN, lerpPose, RELOAD, GUN_POSE, BOW_POSE, _nk, _dUp, _dN, _dQ, _dI };
 
+// 稲生の信勝方の足軽の漆（弁柄・鉄錆・赤茶）。赤みは残して黒漆と藍の味方と見分ける（彩度の低い茶は色替えで無視されるため）。
+const INOU_FOE_LACQUER = [0x8e3a26, 0x7e3a24, 0x87452a];
 const TOFF = typeof location !== 'undefined' && /[?&]toff\b/.test(location.search);   // 試し：緊迫の仕組みを切る
 let TATAKE_GEO = null;
 const NO_OBR = THREE.Object3D.prototype.onBeforeRender;   // 部品ごとの描く前の仕掛けが無い印   // 竹束の形（giveTatake で一度だけ作る）
@@ -595,7 +597,7 @@ export class Army {
     // 稲生の敵味方は具足の色でも示す。形・武器・強さはそのまま。
     if (fieldLook.battleKey === 'inou' && !look.kosode && !look.sohei && u.type !== 'porter' && u.type !== 'dummy') {
       // 味方は織田の藍と黒、敵（信勝方）は朱。桃色に見えず、離れても色相で分かるように（テスターの声 10/26）。
-      look.sideArmor = u.team === 0 ? u.type === 'player' || u.type === 'busho' ? 0x1766d4 : 0x3f5f88 : u.type === 'busho' && u.name ? 0xc8261c : 0x8e3a26;   // 足軽は朱でなく弁柄（赤錆の漆）。一様な朱の赤備えに見せない（10/28 資料との差）
+      look.sideArmor = u.team === 0 ? u.type === 'player' || u.type === 'busho' ? 0x1766d4 : 0x3f5f88 : u.type === 'busho' && u.name ? 0xc8261c : INOU_FOE_LACQUER[(Math.imul(u.id ^ 77, 2654435761) >>> 0) % INOU_FOE_LACQUER.length];   // 足軽は朱でなく弁柄・鉄錆・赤茶の漆を混ぜる。一様な朱の赤備えに見せない（10/28 資料との差）
       look.armor = look.helm = look.hatColor = look.sideArmor;
       // 本人だけ笠と兜を金にし、背の金の小旗とそろえて乱戦でも一目で分かるようにする。
       if (u.type === 'player') look.helm = look.hatColor = 0xd9a63a;
@@ -1910,9 +1912,19 @@ export class Army {
           const m = u.mesh;
           if (!m || !m.visible || u.imp) continue;
           const e = m.matrixWorld.elements, d2 = (e[12] - cx) ** 2 + (e[13] - cy) ** 2 + (e[14] - cz) ** 2;
-          if (d2 < 81) { u._hiD2 = d2; NL.push(u); }
+          if (d2 < 81) {
+            // 必要なのは近い三人だけ。密集しても全員を並べ替えず、三枠を使い回す。
+            // 同じ距離なら元の順を保ち、細かく描く人と兵の密度は変えない。
+            u._hiD2 = d2;
+            let at = NL.length;
+            while (at > 0 && NL[at - 1]._hiD2 > d2) at--;
+            if (at < 3) {
+              const last = Math.min(NL.length, 2);
+              for (let i = last; i > at; i--) NL[i] = NL[i - 1];
+              NL[at] = u;
+            }
+          }
         }
-        if (NL.length > 3) NL.sort((a, b) => a._hiD2 - b._hiD2);
         for (let i = 0; i < NL.length && i < 3; i++) NL[i]._hiOK = true;
       }
       B.hiOK = true;

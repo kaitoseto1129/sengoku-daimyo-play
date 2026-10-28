@@ -123,11 +123,14 @@ export function mocapStep(h, u, w, dt, wIdle, wWalk, wRun, sp, engaged, fallen) 
     aw.setEffectiveWeight(wWalk * M.kw * (1 - M.ka)); ar.setEffectiveWeight(wRun * M.kw * (1 - M.ka));
   }
   // 待つ間（中景の焼きの人 h.vatRig には混ぜない：焼いた待ちの一周と長さが合わない）
+  // 武将の見本（u.portrait）は始めから待つ間の混ぜ方にする（録った待ちだけで立たせたり一コマで止めたりすると前へ倒れて見えた）
   const iw = off || h.vatRig || u.uma ? 0 : engaged ? 0.4 : 0.85;
-  M.ki += (iw - M.ki) * s;
+  M.ki += (iw - M.ki) * (u.portrait ? 1 : s);
   if (M.ki < 0.002 && !iw) M.ki = 0;
   const ia = M.ki > 0 || M.act[M.idle] ? act(h, M.idle) : null;
-  if (ia) ia.setEffectiveWeight(wIdle * M.ki * (1 - M.ka));
+  if (ia) {
+    ia.setEffectiveWeight(wIdle * M.ki * (1 - M.ka));
+  }
   OUT.ki = M.ki; OUT.ka = M.ka; OUT.kw = M.kw;
   h.mcAtk = M.one === 'cut' || M.one === 'cut2' || M.one === 'thrust' ? M.ka : 0;
   h.mcHit = M.one === 'stagger' ? M.ka : 0;

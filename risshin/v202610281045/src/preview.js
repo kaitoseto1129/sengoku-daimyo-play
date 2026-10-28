@@ -110,7 +110,7 @@ export class Preview {
         this.holder.rotation.y += this.spin ?? 0.012;
         if (this.horse) animateHorse(this.horse, 1 / 60, 0);
       }
-      if (this.hu && this.hu.human) { this.hu.pos = this.hu.mesh.position; stepHuman(this.hu, 1 / 60); }
+      if (this.hu && this.hu.human && !this.hu.portrait) { this.hu.pos = this.hu.mesh.position; stepHuman(this.hu, 1 / 60); }
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(loop);
     };
@@ -122,7 +122,7 @@ export class Preview {
     this.hu = null;
     if (!(HUM.ready && HUM.on && DOMARU.ready && KABUTO.ready)) return false;
     try {
-      u.pos = m.position; u.alive = true; u.heading = 0; u.moving = 0; u.forceSpd = 0; u.wpnKind = u.look && u.look.weapon;
+      u.pos = m.position; u.alive = true; u.heading = 0; u.moving = 0; u.forceSpd = 0; u.wpnKind = u.look && u.look.weapon; u.portrait = true;
       if (!showHuman(u)) return false;
       for (let i = 0; i < 20; i++) { u.pos = u.mesh.position; stepHuman(u, 1 / 30); }
       u.human?.root?.traverse((q) => { if (q.isMesh) { q.castShadow = true; q.receiveShadow = true; } });
@@ -172,7 +172,7 @@ export class Preview {
     await loadHumans(); await loadDomaru(); await loadKabuto();
     return Math.round(performance.now() - t0);
   }
-  setGeneral(nm) {
+  setGeneral(nm, heading = 0.75) {
     const gd = GENERALS[nm];
     if (!this.renderer || !gd) return;
     this.holder.clear();
@@ -186,7 +186,7 @@ export class Preview {
     this.camera.position.set(0, 1.75, 5.8);
     this.camera.lookAt(0, 1.45, 0);
     // 骨の入った人は、顔と胸がこちらを向く向きに立たせる（待つ構えは体を少しひねるので、向きで正面へ戻す）
-    if (this.humanize(u, m)) { this.holder.rotation.y = 0; u.heading = 0.55; m.rotation.y = u.heading; this.camera.position.set(0, 1.5, 4.4); this.camera.lookAt(0, 1.22, 0); }
+    if (this.humanize(u, m)) { this.holder.rotation.y = 0; u.heading = heading; m.rotation.y = u.heading; this.camera.position.set(0, 1.5, 4.4); this.camera.lookAt(0, 1.22, 0); }
   }
 
   dispose() {

@@ -1590,8 +1590,9 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       y = Math.max(y, world.heightAt(x + lx * c + lz * s, z - lx * s + lz * c));
     }
   }
-  if (o.interior?.profile === 'iga') {
-    // 入れる伊賀の建物は、四隅の間の盛り上がりも測る。
+  if (o.interior?.profile === 'iga'
+      || SETTINGS.quality === 'high' && o.interior?.profile === 'shitaragahara') {
+    // 入れる伊賀の建物と設楽原の民家は、四隅の間の盛り上がりも測る。
     // 戸口を含む床全体を同じ高さへ上げ、地面が板間や敷居を突き抜けるのを防ぐ。
     // 外壁・室内・入口の段は下の共通の y を使う。設営時だけ調べる。
     const c = Math.cos(rot), s = Math.sin(rot);

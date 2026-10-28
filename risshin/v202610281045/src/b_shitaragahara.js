@@ -1151,7 +1151,8 @@ const shitaragahara = {
   noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（稲生の標準。kaito 10/24「動かない味方と敵は一切排除」）
   noControlsHelp: true, // 操作の字（なぞって動く・つく）は出さない（操作は尾張の戦で覚える。kaito 10/20）
   enemyTriangleSigns: true, // 敵は頭上の赤い▼で示す（刀の印は使わない。稲生の標準）
-  playerTaken: 0.75, // 柵の口へ来る武田の侍は三太刀で命を八割削っていた（bot 10/26 に二度倒れた）。傷を四分の三に
+  playerRegen: 0.02, // 稲生の標準：斬り合いの合間は命が少しずつ戻る（bot が柵の口で倒れる回が半分あった 10/28）
+  playerTaken: 0.5, // 柵の口へ来る武田の侍は三太刀で命を八割削っていた（bot 10/26 に二度倒れた）。傷を四分の三に
   spawn: { x: OUTER_POST_X, z: SB.gates[0] + 4.5, heading: Math.PI / 2 },
   moveLim: 740, // 南北の虎口・両本陣・東の退路を、歩ける場にも収める
   taisho: { a: { name: '織田信長', use: true }, b: { name: '武田勝頼', def: true } },

@@ -9,7 +9,7 @@ import { useTerrain } from './asset_manifest.js';
 // 地形は国土地理院の標高（asset_dem_inou.js）。今の堤は高すぎるので、高さを丸めて昔の平らな野に寄せる。
 // ======================================================================
 import * as THREE from 'three';
-import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe } from './props.js';
+import { nobori, jinCamp, hut, tawara, kagaribi, umatsunagi, umajirushi, hatazao, takataba, dou, nabe, hasa, solidCircle } from './props.js';
 import { woodTex, thatchTex } from './nature.js';
 import { INOU_KACCHU } from './kacchu_data.js';
 import { sfx, musicAccent, musicTension } from './audio.js';
@@ -23,6 +23,7 @@ import { S as SETTINGS } from './settings.js';
 import { usesTouchControls } from './touch.js';
 import { timeslipField } from './timeslip_field.js';
 import { inouSignHeight } from './battle_sight.js';
+import { distToPolyline } from './world.js';
 import { porterTrain } from './porters.js';
 
 // 六百四十メートル四方。会戦は中央の百五十メートルほどへ詰める（配置は設計の復元）。
@@ -35,7 +36,7 @@ const HAYA0 = { x: -24, z: -46 };
 const HAYA1 = { x: -24, z: 20 };
 const VILLAGE = [[-12, -66, 0.2], [16, -72, -0.3], [-22, -78, 0.5], [30, -62, 0.1]];
 // 土の街道と、田を区切る畦は同じ座標を描画と歩みに使う。
-const PATHS = [{ pts: [[0, 320], [0, 60], [0, 20], [0, -40], [0, -100], [12, -320]], w: 6 }];
+const PATHS = [{ pts: [[0, 320], [0, 60], [0, 20], [0, -40], [0, -100], [12, -320]], w: 4 }];   // 村の街道は二間ほど（10/28：六歩の幅で道の両脇まで土に見えた）
 for (const x of [-96, -72, -48, -24, 24, 48, 72, 96]) PATHS.push({ pts: [[x, -120], [x, 120]], w: 2.4 });
 for (const z of [-120, -100, -80, -60, -40, -20, 0, 20, 40, 60, 80, 100, 120]) PATHS.push({ pts: [[-112, z], [112, z]], w: 2.4 });
 // 里の生活道。西は庄内川の手前、東は用水の西岸を南へ抜ける。
@@ -55,6 +56,15 @@ const PEOPLE_BANDS = [
   { x: -30, z: -72, kinds: ['farmer', 'woman', 'child'], mode: 'inside', route: WEST_ESCAPE },
   { x: 36, z: -56, kinds: ['woman', 'child', 'elder'], mode: 'inside', route: EAST_ESCAPE },
 ];
+// 刈田の畦（10/28 資料との差「中央の野が乾いた土ばかり」）：田の区画の縁に低い土の畦を盛り、田の中は刈り株の色にする。
+// 区画は paddy() と同じ 24×20m。畦は幅 1.2m・高さ 0.22m。兵の足を止めない低さ。
+function azeAt(x, z) {
+  if (Math.abs(x) > 112 || Math.abs(z) > 120 || Math.abs(x) < 3) return -1;
+  if (Math.abs(x) < 38 && z > -86 && z < -52) return -1;
+  if (Math.hypot(x - NAZUKA.x, z - NAZUKA.z) < 12) return -1;
+  const ex = Math.abs(x - Math.round(x / 24) * 24), ez = Math.abs(z - Math.round(z / 20) * 20);
+  return Math.min(ex, ez);
+}
 function paddy(x, z) {
   if (Math.abs(x) > 112 || Math.abs(z) > 120 || Math.abs(x) < 3) return 0;
   if (Math.abs(x) < 38 && z > -86 && z < -52) return 0; // 集落の庭と畑
@@ -107,6 +117,8 @@ function height(x, z) {
   if (d < 30) h -= 1.4 * (1 - d / 30);
   h += 0.25 * gauss(x, z, NAZUKA.x, NAZUKA.z, 160);
   if (dem) h += (Math.min(9.5, demSample(dem, x, z)) - 7) * 0.12;
+  const a = azeAt(x, z);
+  if (a >= 0 && a < 0.9) { const k = 1 - a / 0.9; h += 0.22 * k * k * (3 - 2 * k); }
   return h;
 }
 
@@ -232,6 +244,39 @@ function fieldLife(rt) {
   const dust = new THREE.Points(geo, mat);
   dust.frustumCulled = false; dust.renderOrder = 1; rt.scene.add(dust);
   rt.flags.fieldDust = { mesh: dust, next: 0 };
+}
+
+// 刈田の稲叢（にお）：刈った稲を円く積み、藁の笠をかぶせた山。区画の中ほどに一つ二つ。
+// 戦う帯・道・逃げ道・本陣の周りは空ける。形と材質は二つだけを共用し、InstancedMesh 一本ずつで描く（10/28）。
+function inouNio(rt) {
+  const W = rt.world;
+  const fights = [[SHIBA0.x, SHIBA0.z, 24], [HAYA0.x, HAYA0.z, 20], [HAYA1.x, HAYA1.z, 18], [FLANK.x, FLANK.z, 16], [NOBU.x - 8, NOBU.z + 6, 22], [NAZUKA.x, NAZUKA.z, 16]];
+  const ways = [...PATHS.map((p) => p.pts), WEST_ESCAPE.map((p) => [p.x, p.z]), EAST_ESCAPE.map((p) => [p.x, p.z])];
+  const spots = [];
+  for (let cx = -108; cx <= 108; cx += 24) for (let cz = -110; cz <= 110; cz += 20) {
+    for (let k = 0; k < 2; k++) {
+      const hsh = Math.sin(cx * 12.9898 + cz * 78.233 + k * 37.7) * 43758.5453, f = hsh - Math.floor(hsh);
+      if (f > 0.55) continue;
+      const x = cx + (f - 0.27) * 22, z = cz + (((f * 7.13) % 1) - 0.5) * 12;
+      if (azeAt(x, z) < 2.5) continue;
+      if (fights.some(([fx, fz, r]) => Math.hypot(x - fx, z - fz) < r)) continue;
+      if (ways.some((pts) => distToPolyline(x, z, pts) < 7)) continue;
+      spots.push([x, z, 0.85 + f * 0.5]);
+    }
+  }
+  if (!spots.length) return;
+  const straw = new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0xb19a62, roughness: 1 });
+  const cap = new THREE.MeshStandardMaterial({ map: thatchTex(), color: 0x8d7a4c, roughness: 1 });
+  const body = new THREE.CylinderGeometry(0.95, 1.1, 1.3, 9); body.translate(0, 0.65, 0);
+  const top = new THREE.ConeGeometry(1.25, 1.0, 9); top.translate(0, 1.75, 0);
+  const a = new THREE.InstancedMesh(body, straw, spots.length), b = new THREE.InstancedMesh(top, cap, spots.length);
+  const m = new THREE.Object3D();
+  spots.forEach(([x, z, sc], i) => {
+    m.position.set(x, W.heightAt(x, z) - 0.05, z); m.rotation.set(0, sc * 5, 0); m.scale.set(sc, sc * (0.9 + (sc % 0.2)), sc); m.updateMatrix();
+    a.setMatrixAt(i, m.matrix); b.setMatrixAt(i, m.matrix);
+    solidCircle(x, z, 1.05 * sc);
+  });
+  for (const mesh of [a, b]) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); mesh.castShadow = mesh.receiveShadow = true; rt.scene.add(mesh); }
 }
 
 function fieldDustTick(rt) {
@@ -627,10 +672,19 @@ const inou = {
     tint(x, z, h, c) {
       let d = Infinity;
       for (let i = 0; i < RIVER.length - 1; i++) { const [ax, az] = RIVER[i], [bx, bz] = RIVER[i + 1]; if (z >= az && z <= bz) d = Math.abs(x - (ax + (bx - ax) * (z - az) / (bz - az))); }
-      if (d < 14) { const k = 1 - d / 14; c.setRGB(c.r * (1 - 0.45 * k) + 0.26 * k, c.g * (1 - 0.45 * k) + 0.25 * k, c.b * (1 - 0.45 * k) + 0.2 * k); }
+      if (d < 14) { const k = 1 - d / 14; c.setRGB(c.r * (1 - 0.45 * k) + 0.26 * k, c.g * (1 - 0.45 * k) + 0.25 * k, c.b * (1 - 0.45 * k) + 0.2 * k); return; }
+      // 刈田：田の中は刈り株の枯れ色（区画ごとに刈った日の違いで少し揺らす）、畦は草の緑。
+      const a = azeAt(x, z);
+      if (a < 0) return;
+      if (a < 1.1) { const k = 0.55 * (1 - a / 1.1); c.setRGB(c.r * (1 - k) + 0.16 * k, c.g * (1 - k) + 0.22 * k, c.b * (1 - k) + 0.09 * k); return; }
+      const cell = Math.sin(Math.round(x / 24) * 12.9898 + Math.round(z / 20) * 78.233) * 43758.5453;
+      const v = 0.85 + 0.3 * (cell - Math.floor(cell)), row = 0.92 + 0.08 * Math.sin(x * 3.1);
+      // 稲生「原」：刈り残しの草と刈り株の混ざる秋の野。区画ごとに草の濃さを変え、乾いた土一色にしない。
+      const k = 0.7, gr = 0.5 + 0.5 * (cell - Math.floor(cell));
+      c.setRGB(c.r * (1 - k) + (0.27 + 0.08 * (1 - gr)) * v * k, c.g * (1 - k) + (0.31 + 0.02 * gr) * v * row * k, c.b * (1 - k) + 0.13 * v * k);
     },
     clear: (x, z) => Math.abs(x) < 116 && Math.abs(z) < 126,
-    fieldStage: 'ripe',   // 秋の田。水浸しにせず、田の中だけ既存の足場補正で少し遅くする。
+    fieldStage: 'stubble',   // 九月末の刈田（10/28）。水浸しにせず、田の中だけ既存の足場補正で少し遅くする。
     paddy,
     streams: [{ pts: RIVER, w: 3, depth: 0.45 },
       { pts: [[72, -130], [72, -40], [72, 20], [96, 20], [96, 140]], w: 0.7, depth: 0.2 }],
@@ -747,6 +801,9 @@ const inou = {
     // ---- 陣と旗 ----
     fieldLife(rt);
     // 本陣の裏の小荷駄：俵と薪を担いだ小者が、陣と街道の間を行き来する（kaito 10/28 の割合。前線には出さない）。
+    inouNio(rt);
+    // 刈田の稲架：戦う帯と逃げ道を避けた野の東西の縁に。稲を掛けて干す（九月末の尾張の野）。
+    for (const [x, z, r] of [[80, -12, 0], [82, 40, 0.05], [-80, 10, 0], [-82, 58, -0.05], [86, 92, 0.1], [-86, -36, 0]]) rt.scene.add(hasa(W, x, z, r, 9));
     porterTrain(rt, [[NOBU.x - 14, NOBU.z + 14], [NOBU.x - 6, NOBU.z + 28], [0, NOBU.z + 48], [0, NOBU.z + 76]], 6, { name: '信長方の小荷駄' });
     // 信長方の本陣：幕だけで空にしない。奥に床几と軍配、地図の机と使いの者（jinCamp と camp_life）、篝火、馬つなぎ、馬印と旗竿（kaito 10/22 稲生 8）。
     rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda', people: false, noUma: true }));

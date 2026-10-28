@@ -1860,8 +1860,8 @@ const saika = {
   // 身の回りの当時の場（timeslip_field.js）。天正五年二月は今の三月半ば・早春。
   // 小雑賀川の岸はぬかるみ、去年の枯れ葦と芽吹いた草が混じる。渡り口ほど踏み荒らされ、倒れた槍と雑賀方の旗が多い。
   timeslip: {
-    wet: 0.6, dust: 0.15, trample: 0.3, debris: 1, arrows: 0.25, reeds: 0.85,
-    grassLift: 0.18, grass: 0xd2c48e, grassTints: [0xffffff, 0xe8dcb0, 0xb8cc8c], grassH: 1.0, tallGrass: 0.6,
+    wet: 0.6, dust: 0.15, trample: 0.3, debris: 1, arrows: 0.25, reeds: 1.3, // 早春の川岸は枯れ葦が密に残る（資料との差 10/28：0.85 から）
+    grassLift: 0.18, grass: 0xd2c48e, grassTints: [0xffffff, 0xe8dcb0, 0xb8cc8c], grassH: 1.2, tallGrass: 0.6,
     flagColors: [0xe6dfcc, 0x24211e, 0x713a30],
     fights: [[SHORE.x, SHORE.z, 26], [EAST_MOUTH.x, EAST_MOUTH.z, 22], [WEST_MOUTH.x - 10, WEST_MOUTH.z, 24], [COVER.x, COVER.z, 16]],
   },
@@ -2615,14 +2615,14 @@ const saika = {
       return g;
     });
     F.reserve = enemyGroup(rt, { faction: 'saika', fixed: true, name: '柵を守る雑賀衆', anchor: { x: -57, z: 0 }, facing: EAST, formation: 'yari', width: 10,
-      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '雑賀の組頭', flagScale: 2.2, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 18 }], SAIKA));
+      order: 'hold', guard: true, guardSight: 20, guardLeash: 5, aggro: 10, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '雑賀の組頭', flagScale: 2.2, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 15 }, { type: 'gun', n: 3 }], SAIKA));
     F.saikaBoss = F.reserve.units[0];
     // 地元の小組は、川上・川下を渡った東岸の道に初めからいる。開始後に兵を足さない。
     F.skirmish = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川べりの雑賀衆', anchor: { x: -9, z: 32 }, facing: Math.PI,
       formation: 'yari', order: 'hold', aggro: 10, fleeDir: { x: 0, z: 1 } }, dress([{ type: 'ashigaru', n: 8 }], SAIKA));
     F.flanks = [48, -48, 64, -64].map((z) => enemyGroup(rt, { faction: 'saika', fixed: true, name: z > 0 ? '川下の雑賀衆' : '川上の雑賀衆',
       anchor: { x: -9, z }, facing: z > 0 ? Math.PI : 0, formation: 'yari', order: 'hold', aggro: 10,
-      fleeDir: { x: 0, z: z > 0 ? 1 : -1 } }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'gun', n: 1 }], SAIKA)));
+      fleeDir: { x: 0, z: z > 0 ? 1 : -1 } }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], SAIKA)));
     // かつて戦闘中に足していた二十人も準備時に置き、人数と道筋を保つ。
     F.bankRelief = [80, -80, 96, -96].map((z) => {
       const g = enemyGroup(rt, { faction: 'saika', fixed: true, name: z > 0 ? '川下の寄せの控え' : '川上の寄せの控え',

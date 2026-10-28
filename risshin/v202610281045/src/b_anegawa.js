@@ -319,9 +319,11 @@ function aneBankColor(x, z, color) {
   // 水際の濡れた砂は暗く、乾いた岸と草地へなだらかにつなぐ。
   const wet = 1 - aneSmooth((d - w) / 2.5);
   // 水際の暗い縁から明るい砂利へ。青緑の川面と、黄土の岸を明度と色で分ける。
-  return color.setRGB(0.53 - shore * 0.16 - grass * 0.08 - wet * 0.27 + fleck,
-    0.44 - shore * 0.13 + grass * 0.03 - wet * 0.23 + fleck,
-    0.30 - shore * 0.09 - grass * 0.03 - wet * 0.15 + fleck);
+  // 川原の玉石の大小の斑（白い一枚に見せない。10/28）
+  const cobble = (Math.sin(x * 1.9 + z * 2.3) * Math.sin(x * 2.7 - z * 1.6) + Math.sin(x * 0.61 - z * 0.83) * 0.6) * 0.035;
+  return color.setRGB(0.49 - shore * 0.16 - grass * 0.08 - wet * 0.27 + fleck + cobble,
+    0.42 - shore * 0.13 + grass * 0.03 - wet * 0.23 + fleck + cobble * 0.9,
+    0.31 - shore * 0.09 - grass * 0.03 - wet * 0.15 + fleck + cobble * 0.8);
 }
 // 矩形の短冊を避け、根元から細まり、先が曲がる葉を同じ二面で作る。
 function aneGrassBlade(width, height) {
@@ -510,7 +512,7 @@ function anegawaRiver(rt) {
       color.setHex(0x46685f).lerp(mudColor, shallow * 0.45);
       // 岸から岸まで同じ明暗を並べず、川面の場所ごとに弱い斑を付ける。
       const surfaceZ = center + off * aneWidth(x);
-      const streak = 0.97 + Math.sin(x * 0.31 + surfaceZ * 0.53) * Math.sin(x * 0.17 - surfaceZ * 0.37) * 0.06;
+      const streak = 0.98 + Math.sin(x * 0.31 + surfaceZ * 0.53) * Math.sin(x * 0.17 - surfaceZ * 0.37) * 0.02;
       waterColors.push(color.r * streak, color.g * streak, color.b * streak);
       waterFlow.push(-1 / flowLength, -slope / flowLength);
       if (i < nx && j < 4) {
@@ -600,7 +602,7 @@ function anegawaRiver(rt) {
   st.mesh.material.opacity = 1; st.mesh.material.depthWrite = true;
   // 朝の白い空で水色を覆わない。低画質の空の加算も同じ強さに抑える。
   const waterMat = st.mesh.material, waterCompile = waterMat.onBeforeCompile;
-  waterMat.roughness = 0.82; waterMat.envMapIntensity = 0.12;
+  waterMat.roughness = 1; waterMat.envMapIntensity = 0.03;   // 空の映りが川に平行な明るい縞になった（10/28）。濁った夏の水は照りを抑える
   const waterKey = waterMat.customProgramCacheKey();
   waterMat.onBeforeCompile = function (sh, renderer) {
     waterCompile.call(this, sh, renderer);
@@ -611,7 +613,7 @@ function anegawaRiver(rt) {
         `float aneFlowPatch = texture2D(tMacro, vec2(streamAlong * 0.19 - uTime * 0.05, streamAcross * 0.43)).r;
          float aneFineFlow = texture2D(tMacro, vec2(streamAlong * 0.37 - uTime * 0.08, streamAcross * 0.91) + vec2(0.31, 0.67)).r;
          float streamLines = (aneFlowPatch * 0.65 + aneFineFlow * 0.35 - 0.5) * 2.0;`)
-      .replace('streamLines * streamNear * 0.065', 'streamLines * streamNear * 0.045');
+      .replace('streamLines * streamNear * 0.065', 'streamLines * streamNear * 0.015');   // 川に平行な明るい縞が板の筋に見えた（10/28）。流れの斑は薄く残す
   };
   waterMat.customProgramCacheKey = () => `${waterKey}|aneWater`;
   waterMat.needsUpdate = true;
@@ -2725,7 +2727,8 @@ const anegawa = {
       // 近くの草は土と枯れ草の斑を残し、遠い緑一色へつながない。
       const patch = 0.5 + 0.5 * Math.sin(x * 0.17 + Math.sin(z * 0.13)) * Math.cos(z * 0.21);
       const near = 1 - aneSmooth((Math.abs(z) - 60) / 120);
-      c.multiplyScalar(1.02 + patch * 0.22);
+      // 真夏の野は白く飛ばさず、濃い夏草と乾いた土の斑に（10/28：白っぽい一枚に見えた）
+      c.multiplyScalar(0.86 + patch * 0.2);
       c.r += near * patch * 0.025; c.b += near * patch * 0.012;
       const cut = yokoyamaCutDepth(x, z) / 1.8;
       if (cut > 0) {

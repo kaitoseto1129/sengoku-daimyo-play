@@ -32,6 +32,7 @@ import { buildCastlePlan, inPoly } from './castle_plan.js';
 import { kido, goten } from './castle_parts.js';
 import { reset as flReset, addDeck, groundAt } from './floors.js';
 import { timeslipField } from './timeslip_field.js';
+import { ishidoro } from './gap_scene.js';
 import { nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
 import { makeSiegeZones, ZONE_STATE, zoneWord, siegeFighter } from './siege_zones.js';
@@ -2329,8 +2330,8 @@ const echizen_ikko = {
     flagColors: [0xece8dc, 0x24221e, 0xd9b23a],
     fights: [[GATE_SOMON.x, GATE_SOMON.z, 26], [OUTER_POS.x, OUTER_POS.z, 22], [GATE_SANMON.x, GATE_SANMON.z, 24], [INNER_POS.x, INNER_POS.z, 22], [OKU_POS.x, OKU_POS.z, 20]],
   },
-  playerRegen: 0.015,   // 斬り合いの合間は命が少しずつ戻る
-  playerTaken: 0.5,   // 狭い惣門の前で四方から突かれ、二分で倒れていた（bot 10/26）。人数と斬り合いは減らさない
+  playerRegen: 0.025,   // 10/28：近くで止まった敵が構え直す直しの後、山門の前で囲まれて倒れる回が増えた   // 斬り合いの合間は命が少しずつ戻る
+  playerTaken: 0.42,   // 狭い惣門の前で四方から突かれ、二分で倒れていた（bot 10/26）。人数と斬り合いは減らさない
   get spawn() { return mode() === 'defend' ? { x: 0, z: 10, heading: Math.PI } : { x: VILLAGE.x, z: VILLAGE.z - 2, heading: 0 }; },
   world: {
     seed: 15750,
@@ -2442,6 +2443,12 @@ const echizen_ikko = {
     const F = rt.flags;
     rt.def.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 堂の板の間・台の上は床に隠れる
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・夏草（def.timeslip）
+    // 参道の両脇の石灯籠（資料との差 10/28：山寺の参道に灯籠が無かった）。夜討ちの夜は寺が火を入れている。位置は推定。
+    {
+      const spots = [];
+      for (const z of [-104, -74, -58, -34, -16, 10]) for (const side of [-1, 1]) spots.push([side * 3.6, z, 0]);
+      ishidoro(rt, spots, { lit: true });
+    }
     const hudRoot = rt.hud.root;
     hudRoot.dataset.echizenIkko = '';
     // 坂を埋める白い矢の列を残さない。この戦の外れ矢だけ短時間・少数に限る。

@@ -2633,7 +2633,7 @@ const kizugawa = {
     }
   },
   // 東の船べりから離し、最初の持ち場へ向く。肩越しの視点を引く余地を残す。
-  playerTaken: 0.4, // 狭い甲板で乗り込みの足軽に囲まれ、守り切る前に倒れていた（bot 10/26 に四度）。傷を半分に
+  playerTaken: 0.3, // 10/28 旗艦の乗り込みで囲まれて倒れる事が五戦に二度あった（0.4→0.3）。// 狭い甲板で乗り込みの足軽に囲まれ、守り切る前に倒れていた（bot 10/26 に四度）。傷を半分に
   playerRegen: 0.03, // 打ち合いの合間（四秒当たらない間）はゆっくり命が戻る
   spawn: { x: 0, z: -4, heading: -Math.atan2(3, 4) },
   world: {
@@ -2834,6 +2834,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 共通の判定を包むのはこの戦の軍だけ。他の戦の壁には影響させない。
     const wallBetween = rt.army.wallBetween;
     rt.army.wallBetween = function (from, team, to, over, clear) {
+      // 高さの違う舟と甲板の間では、船べり越しの槍の突き（over）を通さない。
+      // 舟の乗員が甲板の本人を一方的に突き続け、本人からは届かなかった（bot 10/28）。乗り込んでから斬り合う。
+      if (over && Math.abs((from.y ?? DECK.y) - (to.y ?? DECK.y)) > 0.6) over = false;
       return cabinDeckBlocked(from, to) || wallBetween.call(this, from, team, to, over, clear);
     };
     F.deckFallPoint = { x: 0, y: DECK.y, z: 0 };

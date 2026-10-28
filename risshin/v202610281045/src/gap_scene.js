@@ -86,3 +86,37 @@ export function fallenHorses(rt, spots) {
   rt.scene.add(mesh);
   return mesh;
 }
+
+// 石灯籠（笠・火袋・中台・竿・基礎）を一つの形にして、置く数だけ並べる。spots：[[x, z, 向き], ...]
+// 当たりは細い円（足を引っかけない）。o.lit：火袋の窓を灯す（夜の寺）
+let TORO_GEO = null;
+export function ishidoro(rt, spots, o = {}) {
+  if (!spots.length) return null;
+  const W = rt.world;
+  if (!TORO_GEO) {
+    const parts = [];
+    const box = (w, h, d, y) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, y, 0); parts.push(g); };
+    box(.62, .22, .62, .11);                 // 基礎
+    const pole = new THREE.CylinderGeometry(.13, .15, .95, 8); pole.translate(0, .22 + .475, 0); parts.push(pole);   // 竿
+    box(.5, .16, .5, 1.25);                  // 中台
+    box(.36, .36, .36, 1.51);                // 火袋
+    const kasa = new THREE.ConeGeometry(.52, .32, 4); kasa.rotateY(Math.PI / 4); kasa.translate(0, 1.85, 0); parts.push(kasa);  // 笠
+    const hoju = new THREE.SphereGeometry(.08, 8, 6); hoju.translate(0, 2.07, 0); parts.push(hoju);   // 宝珠
+    TORO_GEO = mergeGeometries(parts.map((g) => g.toNonIndexed()));
+    for (const g of parts) g.dispose();
+    TORO_GEO.computeVertexNormals();
+  }
+  const mat = new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: .95 });
+  const mesh = new THREE.InstancedMesh(TORO_GEO, mat, spots.length);
+  const m = new THREE.Object3D();
+  spots.forEach(([x, z, r = 0], i) => { m.position.set(x, W.heightAt(x, z) - .04, z); m.rotation.set(0, r, 0); m.updateMatrix(); mesh.setMatrixAt(i, m.matrix); });
+  mesh.castShadow = mesh.receiveShadow = true;
+  rt.scene.add(mesh);
+  if (o.lit) {
+    // 火袋の灯り：小さな光る板（光源は足さない。重さを増やさない）
+    const glow = new THREE.InstancedMesh(new THREE.BoxGeometry(.2, .2, .38), new THREE.MeshBasicMaterial({ color: 0xffb35a }), spots.length);
+    spots.forEach(([x, z, r = 0], i) => { m.position.set(x, W.heightAt(x, z) - .04 + 1.51, z); m.rotation.set(0, r, 0); m.updateMatrix(); glow.setMatrixAt(i, m.matrix); });
+    rt.scene.add(glow);
+  }
+  return mesh;
+}

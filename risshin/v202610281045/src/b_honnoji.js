@@ -3212,6 +3212,7 @@ const honnoji = {
   botEvacuating: (rt) => !rt.G.lord && ((rt.flags.hp >= 4 && rt.flags.hp <= 8) || (rt.flags.step >= 3 && rt.flags.step <= 5)),
   prelude: false,   // 静かな寺に突然の襲撃：溜めない（prelude.js）
   spawn: { x: PATROL_START.x, z: PATROL_START.z, heading: Math.PI / 2 },
+  maxFramedFov: 60, // 10/28 始まりの廊下で視点が壁に寄り画角が百度まで広がって、柱と梁が額縁に見えた。広げる上限を六十度に。
   noHorse: true,   // 本能寺の変だけは馬に乗れない（kaito 10/2。寺の中で戦う）
   cornerEnemyGuide: true, // 敵の四隅と刀の印で、戸口の旗と見分ける。
   playerFootSignOnly: true, // 自分は白い足元の輪、狙う敵は頭上の矢印で見分ける。

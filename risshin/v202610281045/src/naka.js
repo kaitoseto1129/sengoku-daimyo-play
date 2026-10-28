@@ -1179,7 +1179,7 @@ if (S.quality === 'high' && I.profile === 'nodafukushima') {
       const entry = I.doors?.find(d => d.entry && d.lv === lv);
       const frame = lv.entryFrame = {
         z: ds * (hd - .37), span: Math.min(lv.w - .2, I.door.w * 2),
-        h: I.door.h ?? Math.min(lv.h - .3, 2), postH: lv.h, sill: entry?.sill ?? .028,
+        h: I.door.h ?? Math.min(lv.h - .3, 2), postH: lv.h - .16, tieH: .08, sill: entry?.sill ?? .028,
       };
       // 玄関の敷居は外壁より内側。床の仕上げも同じ四辺で切り、
       // 畳表・畳縁で板戸の溝を埋めない。内装を作る時だけ使う。
@@ -1187,6 +1187,12 @@ if (S.quality === 'high' && I.profile === 'nodafukushima') {
         z0: frame.z - .2, z1: frame.z + .2 };
       nodaLintelSolids(I, I.door.lx - frame.span / 2, I.door.lx + frame.span / 2,
         frame.z, lv.y + frame.h, [[-.2, -.085], [-.015, .015], [.085, .2]]);
+      // 内側の柱頭を横木で結ぶ推定復元。柱を天井板へ突き通さず、
+      // 両柱の外面まで掛けた横木を天井の格縁より下へ納める。
+      // 引き戸の鴨居・二本の溝と通り幅は保ち、絵と同じ木だけを受ける。
+      seg(I, I.door.lx - frame.span / 2 + .12, frame.z,
+        I.door.lx + frame.span / 2 - .12, frame.z,
+        lv.y + frame.postH, lv.y + frame.postH + frame.tieH, .2);
       for (const side of [-1, 1]) {
         const x = I.door.lx + side * (frame.span / 2 + .04);
         seg(I, x, frame.z - .2, x, frame.z + .2,
@@ -2411,6 +2417,13 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
           timber(0, -dd / 2 + (i + .5) * dd / 3, ww, dd / 3 - .002, bodyTop, p.h);
           if (i) timber(0, -dd / 2 + i * dd / 3, ww, .002, bodyTop, bodyTop + lid / 2);
         }
+        // 金具の受け木も描く寸法だけ受け、経箱全体の当たりを広げない。
+        timber(0, dd / 2 - .013, .045, .014, bodyTop - .06, bodyTop);
+        timber(0, dd / 2 - .003, .045, .006, bodyTop - .06, bodyTop + .03);
+        for (const x of [-ww * .3, ww * .3]) {
+          timber(x, -dd / 2 + .013, .07, .014, bodyTop - .035, bodyTop);
+          timber(x, -dd / 2 + .003, .07, .006, bodyTop - .035, bodyTop + .035);
+        }
       } else if (!p.solids && !templeAltar && !iwamuraRack && !(S.quality === 'high' && I.profile === 'shitaragahara' && I.kind === 'hondo' && p.part === 'altar')) {
         seg(I, x0, z0, x1, z0, lv.y - .4, top, .04);
         seg(I, x0, z1, x1, z1, lv.y - .4, top, .04);
@@ -2625,6 +2638,32 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
           });
         }
       }
+    if (S.quality === 'high' && I.profile === 'shitaragahara' && I.kind === 'minka') {
+      // 民家の灯明台も設営時に当たりを持たせる。座敷の畳上へ置く位置を描画と共用する。
+      const room = lv.layout.rooms.find(r => r.floor === 'tatami');
+      const lamp = lv.villageLamp = { x: hw - .6,
+        z: room ? (room.z0 + room.z1) / 2 : -ds * (hd - .6),
+        floorY: (room?.y || 0) + (room ? .06 : 0) };
+      const base = lv.y + lamp.floorY;
+      const part = (w, d, bottom, top) => {
+        const radius = Math.min(w, d) / 2;
+        const dx = w / 2 - radius, dz = d / 2 - radius;
+        seg(I, lamp.x - dx, lamp.z - dz, lamp.x + dx, lamp.z + dz,
+          base + bottom, base + top, radius).bodyOverlap = true;
+        (lv.handObstacles || (lv.handObstacles = [])).push({
+          x0: lamp.x - w / 2, x1: lamp.x + w / 2,
+          z0: lamp.z - d / 2, z1: lamp.z + d / 2,
+          y0: base + bottom, y1: base + top,
+        });
+      };
+      // 足木の間や皿の下は空け、台全体を床から続く見えない壁にしない。
+      part(.24, .05, 0, .025);
+      part(.05, .24, .025, .05);
+      part(.045, .045, .05, .4);
+      part(.18, .18, .4, .45);
+      part(.15, .15, .45, .468);
+      part(.156, .156, .462, .48);
+    }
     // 灯明台は描き始める前に位置と当たりを決め、近づいた時も同じ座標を使う。
     // 台の下全体を壁にせず、足板・支柱・受け皿の高さだけで体と武器を止める。
     if (I.profile === 'iga') {
@@ -3773,7 +3812,7 @@ function buildInside(rt, I) {
     }
     // 玄関の板戸も二本の溝を持つ敷居・鴨居で受ける。開いた戸は壁の前へ滑る。
     if (lv.entryFrame) {
-      const { z, span, h: dh, postH, sill } = lv.entryFrame;
+      const { z, span, h: dh, postH, tieH, sill } = lv.entryFrame;
       // 動く戸と同じ高さの敷居を使う。御影堂の畳の上でも溝を埋めない。
       // 戸の中心は受け材の中心から前後五センチ。幅七センチの溝を上下に刻む。
       box(I.door.lx, y + sill / 2, z, span, sill, .4, DARK);
@@ -3782,8 +3821,9 @@ function buildInside(rt, I) {
         box(I.door.lx, y + sill + .006, z + (a + b) / 2, span, .012, b - a, DARK);
         box(I.door.lx, y + dh + .006, z + (a + b) / 2, span, .012, b - a, DARK);
       }
-      // 玄関の竪枠は鴨居で途切れさせず、柱として天井まで通す。
-      // 戸の引き込み先の外で木組みを受け、当たりも同じ高さへ揃える。
+      // 玄関の竪枠は鴨居で途切れさせず、柱頭の横木で結ぶ。
+      // 戸の引き込み先の外で受け、天井板と柱の木口を重ねない。
+      box(I.door.lx, y + postH + tieH / 2, z, span + .16, tieH, .4, DARK);
       for (const side of [-1, 1]) {
         const x = I.door.lx + side * (span / 2 + .04);
         box(x, y + (sill + postH) / 2, z, .08, postH - sill, .4, DARK);
@@ -6336,6 +6376,15 @@ if (nodaJoinery) {
           // 境の回縁は内陣側で一度だけ描く。
           if (backRail) entryTimber(cx, rimY, z0, cw + .08, .08, .08, DARK);
           entryTimber(cx, rimY, z1, cw + .08, .08, .08, DARK);
+          // 回縁の隅も木口の突き付けだけにせず、左右の材から横木へ短枘を差す推定の納まり。
+          // 内陣境の横木は両室で共用するため、枘は二十五ミリで止めて向かいの枘と離す。
+          // 込栓は横木の下面から枘を通し、天井板や通路へ材を張り出させない。
+          // 格縁と同じ箱・木材を使い、室内を組む時だけ静止した束へ加える。
+          for (const x of [x0, x1]) for (const [edge, side] of [[railBack, -1], [railFront, 1]]) {
+            const z = edge + side * .0125;
+            entryTimber(x, rimY + .0125, z, .035, .035, .025, DARK);
+            entryTimber(x, rimY - .005, z, .01, .07, .01, 0x95704a);
+          }
           // 格縁は交点で同じ下面を二重に描かず、直交する木を格間ごとに納める。
           // 回縁の内側まで木口を受け、隣の部屋との境にも重ねない。設営時に既存の束へまとめる。
           const gridBack = z0 + .04, gridFront = z1 - .04;
@@ -10283,9 +10332,9 @@ if (nodaJoinery) {
       let lx = (q === 0 ? 1 : -1) * (hw - 0.6), lz = -sgS * (hd - 0.6) * (q === 0 ? 1 : 0.2), ly = 1.08;
       if (villageHome) {
         // 民家の推定復元。紙の火袋を持つ背の高い灯具でなく、壁際の低い灯台と油皿。
-        lz = parlor ? (parlor.z0 + parlor.z1) / 2 : -ds * (hd - .6);
+        lx = lv.villageLamp.x; lz = lv.villageLamp.z;
         // 畳は六センチ厚。台座・油皿・灯芯と焼き込みの光を一緒に持ち上げる。
-        const floorY = (parlor?.y || 0) + (parlor ? .06 : 0);
+        const floorY = lv.villageLamp.floorY;
         ly = floorY + .51;
         // 灯台の足は角板の塊でなく、二本の足木を十字に組む推定の造り。
         // 上下へ分けて面を重ねず、支柱の木口は足木の上面と皿受けの下面へ納める。
@@ -13916,14 +13965,26 @@ function villageBuildOuter(rt) {
     const rise = y - gy, n = I.approach.steps || Math.max(3, Math.round(rise / .28));
     const home = I.kind === 'minka', width = I.door.w + .3;
     const local = new THREE.Group();
+    // 木段の受けは段の下端の高さで揃えず、それぞれの地面まで下ろす。
+    // 四隅の低い所へ根入れし、斜面でも横から支えの下が浮かないようにする。
+    // 踏板の下面で止め、歩行面・段数・戸口の高さは変えない。
+    const support = (x, z, w, d, top) => {
+      let bottom = Infinity;
+      for (const dx of [-w / 2, w / 2]) for (const dz of [-d / 2, d / 2]) {
+        const [wx, wz] = I.P(x + dx, z + dz);
+        bottom = Math.min(bottom, rt.world.heightAt(wx, wz) - .04);
+      }
+      if (top > bottom)
+        timberBox(local, w, top - bottom, d, x, (top + bottom) / 2, z, 0x3e2e22);
+    };
     for (let j = 0; j < n; j++) {
       const top = gy + rise * (j + 1) / n;
       const z = ds * (hd + pad + len * (1 - (j + 1) / n) + len / n / 2);
       // 民家の木段は踏板と二本の受け、小堂は石の段。足場の段数と上面を共用する。
       if (home) {
         timberBox(local, width, .055, len / n + .02, I.door.lx, top - .0275, z, 0x56432f);
-        for (const side of [-1, 1]) timberBox(local, .1, Math.max(.055, top - gy), len / n,
-          I.door.lx + side * (width / 2 - .1), (top + gy) / 2 - .0275, z, 0x3e2e22);
+        for (const side of [-1, 1]) support(I.door.lx + side * (width / 2 - .1),
+          z, .1, len / n, top - .055);
       } else {
         const height = Math.max(.04, top - gy);
         // 石も共通の箱・材質にまとめ、毎コマは作らない。
@@ -13933,9 +13994,14 @@ function villageBuildOuter(rt) {
       }
     }
     if (home) {
-      const depth = pad + .4;
+      const depth = pad + .4, z = ds * (hd + pad / 2 - .1);
       timberBox(local, width + .1, .06, depth, I.door.lx, y - .03,
-        ds * (hd + pad / 2 - .1), 0x56432f);
+        z, 0x56432f);
+      // 踊り場も薄い板だけを浮かせず、左右の受け材で支える推定の納まり。
+      // 木段と同じ形・材質で静止した束へまとめ、毎コマの処理は増やさない。
+      // 最上段の受けと木口を突き合わせ、踏板の重なり分まで二重にしない。
+      for (const side of [-1, 1]) support(I.door.lx + side * (width / 2 - .1),
+        z - ds * .05, .1, depth - .1, y - .06);
     }
     local.position.set(I.x, 0, I.z); local.rotation.y = I.rot; group.add(local);
   }

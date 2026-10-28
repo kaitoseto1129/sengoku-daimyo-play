@@ -62,8 +62,8 @@ export const KINOME_PLAN = {
     { id: 'kannon', name: '観音丸城', poly: rectPoly(-30, 2, -120, -90), level: lv(-14, -105, 1.6), wall: 'palisade', gapAt: [[GATE_KANNON.x, GATE_KANNON.z], EXIT_KANNON], capacity: 40, fallbackTo: null, defenseValue: 0.35 },
     // ---- 木ノ芽峠城（一揆の中核。十数の郭を木戸内・副郭・主郭の三段で表す）----
     { id: 'kinome_sou', name: '木ノ芽峠城・木戸内の郭', poly: rectPoly(-14, 14, -30, -6), level: lv(0, -18, 2.4), wall: 'palisade', gapAt: [[GATE_KINOME.x, GATE_KINOME.z], EXIT_KINOME], capacity: 60, fallbackTo: 'kinome_fuku', defenseValue: 0.5 },
-    { id: 'kinome_fuku', name: '木ノ芽峠城・副郭', poly: rectPoly(-12, 12, -4, 18), level: lv(0, 7, 3.6), wall: 'palisade', gapAt: [[0, -4], [0, 18]], capacity: 40, fallbackTo: 'kinome_hon', defenseValue: 0.55 },
-    { id: 'kinome_hon', name: '木ノ芽峠城・主郭（本陣）', poly: rectPoly(-10, 10, 20, 42), level: lv(0, 31, 5.2), wall: 'palisade', gapAt: [[0, 20]], capacity: 50, fallbackTo: null, defenseValue: 0.75 },
+    { id: 'kinome_fuku', name: '木ノ芽峠城・副郭', poly: rectPoly(-12, 12, -4, 18), level: lv(0, 7, 4.8), wall: 'palisade', gapAt: [[0, -4], [0, 18]], capacity: 40, fallbackTo: 'kinome_hon', defenseValue: 0.55 },
+    { id: 'kinome_hon', name: '木ノ芽峠城・主郭（本陣）', poly: rectPoly(-10, 10, 20, 42), level: lv(0, 31, 7.0), wall: 'palisade', gapAt: [[0, 20]], capacity: 50, fallbackTo: null, defenseValue: 0.75 },
     // ---- 西光寺丸城（木ノ芽峠城の東。南の尾根を堀切で守る）----
     { id: 'saikoji_mae', name: '西光寺丸城・前郭', poly: rectPoly(14, 47.6, 8, 30), level: lv(26, 19, 3.2), wall: 'palisade', gapAt: [[GATE_SAIKOJI.x, GATE_SAIKOJI.z], EXIT_SAIKOJI], capacity: 30, fallbackTo: 'saikoji_hon', defenseValue: 0.5 },
     { id: 'saikoji_hon', name: '西光寺丸城・本郭', poly: rectPoly(20, 44, 34, 49.14), level: lv(26, 19, 9.2), wall: 'palisade', gapAt: [[32, 34]], capacity: 30, fallbackTo: null, defenseValue: 0.65 },

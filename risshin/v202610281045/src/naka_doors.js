@@ -588,7 +588,11 @@ function addNakaDoorsHiei(I, lv, y0, y1) {
         header(Math.abs(offset) + .22, doorZ - offset / 2, .055, .115);
     }
     (I.doors || (I.doors = [])).push(d); DOORS.push(d);
-    if (temple && !p.exterior) { d.open = d.want = 1; if (!otherSolid) solidOff(d); }
+    // 戸と当たりを作り終えてから内陣を開く。表の板戸と明かり障子は閉じて始める。
+    // 設楽原の内陣境は閉じた格子戸から始め、共通の「開ける」で横へ引く。
+    // 外陣から格子越しに本尊を拝め、開けた時だけ内陣へ進める推定のしつらえ。
+    // 戸ごとの当たりも下の pose で閉じた位置へそろえる。
+    if (temple && !p.exterior && !villageTrack) { d.open = d.want = 1; if (!otherSolid) solidOff(d); }
     if (otherSolid) pose(d);
 
 }
@@ -3712,147 +3716,16 @@ function windowShift(d, j) {
   return d.villageTrack && d.windowLeaf === 1 ? (j ? -1 : 0) : (j ? 0 : 1);
 }
 
-function villageInDoorway(d, o) {
-  if (d.tracked) return villageHieiInDoorway(d, o);
-  if (d.villageTrack && d.window && (o.pos.y + 1.65 <= d.y || o.pos.y >= d.y + d.h)) return false;
-  const dx = o.pos.x - d.I.x, dz = o.pos.z - d.I.z;
-  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
-  return Math.abs(lz - d.lz) < .35 && Math.abs(lx - d.lx) < d.W / 2 + .1 && Math.abs(o.pos.y - d.lv.y) < 1.2;
-}
+
+
 
 // 設楽原の板戸・襖・格子戸・明かり障子は、引き込み先の人も挟まない。
 // 二枚の戸が次の位置まで掃く範囲を調べる。座標や当たりは毎コマ作り直さない。
-function sweptDoorway(d, o, next) {
-  if (!o.alive) return false;
-  // 兵ごとの背丈と肩幅を使う。固定の体格では、大柄な兵の頭や肩へ戸が入り、
-  // 小柄な兵からは離れていても止まってしまう。設楽原以外の開閉は従来どおり。
-  const bodyHeight = d.villageTrack ? (o.bodyHeight ?? 1.65) : 1.65;
-  const bodyRadius = d.villageTrack ? (o.bodyRadius ?? .3) : .3;
-  const trackReach = d.villageTrack ? bodyRadius + (d.kind === 'koshiHikite' ? .035 : .03) : .35;
-  // 設楽原の低い土間・戸前の段・跳躍中も、床からの距離でなく戸と体の重なりで受ける。
-  // 足が床から一・二メートル離れただけで、まだ触れている戸を動かさない。
-  if (d.villageTrack) {
-    if (o.pos.y + bodyHeight <= d.y || o.pos.y >= d.y + d.h) return false;
-  } else if (Math.abs(o.pos.y - d.lv.y) >= 1.2) return false;
-  const dx = o.pos.x - d.I.x, dz = o.pos.z - d.I.z;
-  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
-  const from = d.open * d.open * (3 - 2 * d.open), to = next * next * (3 - 2 * next);
-  if (d.window) {
-    // 明かり障子は選ばれた一枚の行程だけ調べる。相方の溝へ反応させず、
-    // 左右どちらを引く時も、腰壁の上から身を寄せた人を挟まない。
-    const j = d.villageTrack ? d.windowLeaf : 0, side = j ? 1 : -1;
-    if (o.pos.y + bodyHeight <= d.y || o.pos.y >= d.y + d.h || Math.abs(lz - (d.lz + side * .04)) >= trackReach) return false;
-    const inset = d.villageTrack ? .0075 : 0;
-    const a = d.lx + side * (d.W / 4 - inset) + windowShift(d, j) * from * d.travel;
-    const b = d.lx + side * (d.W / 4 - inset) + windowShift(d, j) * to * d.travel;
-    if ((b - a) * (lx - a) <= 0) return false;
-    const reach = d.villageTrack ? bodyRadius : .315;
-    return lx > Math.min(a, b) - d.W / 4 - inset - reach && lx < Math.max(a, b) + d.W / 4 + inset + reach;
-  }
-  for (let j = 0; j < 2; j++) {
-    const side = j ? 1 : -1;
-    if (Math.abs(lz - (d.lz + side * .04)) >= trackReach) continue;
-    const a = d.lx + side * d.W * (.25 + from / 2);
-    const b = d.lx + side * d.W * (.25 + to / 2);
-    // 戸から離れる向きなら動かす。閉じた戸へ近づいて開ける操作を妨げない。
-    if ((b - a) * (lx - a) <= 0) continue;
-    const reach = d.villageTrack ? bodyRadius + .015 : .315;
-    if (lx > Math.min(a, b) - d.W / 4 - reach && lx < Math.max(a, b) + d.W / 4 + reach) return true;
-  }
-  return false;
-}
-function villageHieiInDoorway(d, o) {
-  const I = d.frame || d.I, dx = o.pos.x - I.x, dz = o.pos.z - I.z;
-  const lx = dx * I.c - dz * I.s, lz = dx * I.s + dz * I.c;
-  return Math.abs(lz - d.lz) < .35 && Math.abs(lx - d.lx) < d.W / 2 + .1 && atDoorHeight(d, o);
-}
+
+
 
 // 正面戸の外から来る兵も含めて調べる。兵の配列をそのまま使い、毎コマ入れ物を作らない。
-function villageDoorReachable(d, u, x = d.x, z = d.z, target = d.y + d.h / 2, leaf = null) {
-  const px = u.pos.x, pz = u.pos.z, dx = x - px, dz = z - pz;
-  // 設楽原の引手は、近さを測る時と同じ手の高さから届くかを調べる。
-  // 目の高さから斜めに下ろすと、手前の腰壁や横框の上を越して
-  // 奥の戸へ札が出てしまう。既存の木枠・柱の当たりをそのまま使う。
-  const eye = u.pos.y + (d.villageTrack ? .85 : 1.2);
-  for (const wall of INTERIOR_WALLS) {
-    // 引手を探す時は触れる一枚だけを除く。引違いで重なった相方は残し、
-    // 手前の板や紙を突き抜けて奥の引手へ操作札を出さない。
-    // 戸口中央への自動開閉の判断では、従来どおり二枚を除く。
-    if (wall === d.solid && (!leaf || leaf === d.solid)
-      || wall === d.otherSolid && (!leaf || leaf === d.otherSolid)) continue;
-    // 触れる一枚の引手は、その戸自身の木枠でも遮らない。重なった相方の框は残す。
-    if (wall.doorLeaf && (wall.doorLeaf === d.solid || wall.doorLeaf === d.otherSolid)
-      && (!leaf || wall.doorLeaf === leaf)) continue;
-    if (d.villageTrack) {
-      // 壁の芯だけでなく厚みも調べる。斜めから柱の脇をかすめても、
-      // 木の中を通して裏の引手へ触れない。壁端は丸い当たりに合わせる。
-      const wx = wall.bx - wall.ax, wz = wall.bz - wall.az;
-      const length = Math.hypot(wx, wz), radius = wall.r || 0;
-      // 来迎柱などは始点と終点が同じ丸柱。線の長さがなくても省かず、
-      // 仮の軸で高さを調べ、下の端円で柱の太さを判定する。
-      const pole = length < .000001;
-      const tx = pole ? 1 : wx / length, tz = pole ? 0 : wz / length;
-      const along = (px - wall.ax) * tx + (pz - wall.az) * tz;
-      const across = (px - wall.ax) * -tz + (pz - wall.az) * tx;
-      const da = dx * tx + dz * tz, db = dx * -tz + dz * tx;
-      let lo = .001, hi = .999;
-      if (Math.abs(da) < .000001) {
-        if (along < 0 || along > length) lo = 1;
-      } else {
-        const a = -along / da, b = (length - along) / da;
-        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
-      }
-      if (Math.abs(db) < .000001) {
-        if (Math.abs(across) > radius) lo = 1;
-      } else {
-        const a = (-radius - across) / db, b = (radius - across) / db;
-        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
-      }
-      const dy = target - eye;
-      if (Math.abs(dy) < .000001) {
-        if (eye <= wall.yBot || eye >= wall.yTop) continue;
-      } else {
-        const a = (wall.yBot - eye) / dy, b = (wall.yTop - eye) / dy;
-        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
-      }
-      if (lo < hi) return false;
-      // 両端の円も調べ、壁の線分の先を回り込む手だけを通す。
-      const rayLength2 = dx * dx + dz * dz;
-      for (let end = 0; end < (pole ? 1 : 2); end++) {
-        const ex = (end ? wall.bx : wall.ax) - px, ez = (end ? wall.bz : wall.az) - pz;
-        // 引手の真下から手を伸ばす時も、丸柱や枠の丸い端を省かない。
-        // 水平の長さがない手の軌跡は、柱の断面と上下の範囲で調べる。
-        if (rayLength2 <= .000001) {
-          if (ex * ex + ez * ez < radius * radius
-            && Math.max(eye, target) > wall.yBot && Math.min(eye, target) < wall.yTop) return false;
-          continue;
-        }
-        const center = (ex * dx + ez * dz) / rayLength2;
-        const distance2 = ex * ex + ez * ez - center * center * rayLength2;
-        if (distance2 >= radius * radius) continue;
-        const reach = Math.sqrt((radius * radius - distance2) / rayLength2);
-        let a = Math.max(.001, center - reach), b = Math.min(.999, center + reach);
-        if (Math.abs(dy) >= .000001) {
-          const c = (wall.yBot - eye) / dy, e = (wall.yTop - eye) / dy;
-          a = Math.max(a, Math.min(c, e)); b = Math.min(b, Math.max(c, e));
-        }
-        if (a < b) return false;
-      }
-      continue;
-    }
-    const wx = wall.bx - wall.ax, wz = wall.bz - wall.az;
-    const cross = dx * wz - dz * wx;
-    const ax = wall.ax - px, az = wall.az - pz;
-    if (Math.abs(cross) < .000001) continue;
-    const t = (ax * wz - az * wx) / cross;
-    const s = (ax * dz - az * dx) / cross;
-    const margin = (wall.r || 0) / Math.max(.01, Math.hypot(wx, wz));
-    if (t <= .001 || t >= .999 || s < -margin || s > 1 + margin) continue;
-    const y = eye + (target - eye) * t;
-    if (y > wall.yBot && y < wall.yTop) return false;
-  }
-  return true;
-}
+
 
 function igaReverseFace(d) {
   return (d.exterior || d.window) && d.trackSide < 0 && (d.kind === 'itado' || d.kind === 'shoji');
@@ -3986,91 +3859,13 @@ function igaDoorReachable(d, u, targetX, targetZ, targetY) {
 
 // 設楽原の指掛けは戸の中央ではなく八十五センチまで。格子戸だけ中央の金具を使う。
 // 遊び手・住人・兵で同じ高さを参照し、低い横木の上から戸を操作しない。
-function villageGripHeight(d) {
-  return d.y + (d.kind === 'koshiHikite' ? d.h / 2 : Math.min(.85, d.h / 2));
-}
+
 
 // 自動で開くのは通行用の戸口の正面だけ。明かり障子は札で操作する。
 // 壁際にいる兵が、壁の向こうや横へ引き込んだ戸へ反応するのも防ぐ。
-function walkDoorReachable(d, u) {
-  if (d.window) return false;
-  // 段の下や床下から、平面上で近いだけの戸を開けない。
-  // 操作札と同じ手の高さ・届く距離を使い、戸口の正面へ来てから開く。
-  if (d.villageTrack) {
-    // 設楽原の建具は立って手を掛ける。倒れ中・登り中・騎乗中の者が
-    // 戸前に残した移動の判定だけで、板戸や襖を押し開けない。
-    if (u.downed || u.climb || u.mounted) return false;
-    const gripY = villageGripHeight(d);
-    if (Math.hypot(d.x - u.pos.x, d.z - u.pos.z, gripY - u.pos.y - .85) >= 1.5) return false;
-  }
-  const dx = u.pos.x - d.I.x, dz = u.pos.z - d.I.z;
-  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
-  return Math.abs(lx - d.lx) < d.W / 2 && Math.abs(lz - d.lz) < .8
-    && villageDoorReachable(d, u, d.x, d.z, d.villageTrack ? villageGripHeight(d) : d.y + d.h / 2);
-}
 
-function villageNearest(rt) {
-  const u = rt.player && rt.player.u;
-  if (!u || !u.alive || rt.player.mounted) return null;
-  // 森部は戸口の出入りと同じ条件で手を使う。倒れている間や登っている間、
-  // 選択中・終戦後には、窓や内陣の格子戸を遠隔で動かさない。
-  const handsBusy = u.downed || u.climb || rt.over || rt.choice;
-  if (handsBusy) return null;
-  if (pickT === rt.t) return pick?.I.disabled ? null : pick;
-  pickT = rt.t; pick = null;
-  let bd = 1.5;
-  for (const d of DOORS) {
-if (d.tracked) {
-    if (d.I.disabled) continue;
-    if (d.I.id + 1 !== u.naka && !((d.entry || d.window) && !u.naka)) continue;
-    // 明かり障子の基準は腰壁の上。僧坊の床高も加わるので、外の地面からは
-    // 足元との差が一・二メートルを超えていた。窓は下の三次元の手掛け距離で
-    // 判定し、腰壁・窓枠越しの遮りも従来どおり調べる。通常の戸は階を区別する。
-    if (!d.window && Math.abs(u.pos.y - d.y) > 1.2) continue;
-    const dist = doorDistance(d, u.pos, true);
-    if (dist < bd) { bd = dist; pick = d; pickPoint.x = d.touch.x; pickPoint.z = d.touch.z; }
 
-} else {
-    if (d.I.disabled || (!d.exterior && d.I.id + 1 !== u.naka)) continue;
-    // 出入りの札と同じく、倒れ中や登り中は引手の札も出さない。
-    // 自動で開ける場合も上の判定を共用し、手動だけを止めて抜け道を残さない。
-    if (d.villageTrack && (u.downed || u.climb || u.mounted)) continue;
-    // 設楽原は下の段からも実際に届く引手を選ぶ。手の高さ・距離・遮りは下で調べる。
-    if (!d.villageTrack && Math.abs(u.pos.y - d.lv.y) > 1.2) continue;
-    if (d.villageTrack) {
-      // 札は空いた戸口でなく、滑った戸の召し合わせ側の引手へ出す。
-      // 窓は選んだ一枚が相方へ重なる。左右の引手を調べ、壁を挟まない近い方を使う。
-      const e = d.open * d.open * (3 - 2 * d.open);
-      // 設楽原の戸は実寸で組み、引手の端からの距離と高さは伸縮しない。
-      // 召し合わせの重なり三センチを差し引き、動く戸の引手と札の参照点を揃える。
-      // 窓も半幅の戸へ一・五センチ足し、中心を七・五ミリ寄せるため同じ差し引きになる。
-      const inset = d.kind === 'fusumaPlain' ? .13 : d.kind === 'koshiHikite' ? .09 : .02;
-      const gripX = inset - .015;
-      const gripY = villageGripHeight(d);
-      // 段や床下からも平面上の距離だけで戸を選べていた。
-      // 手の高さから引手までの実距離を使い、届く戸だけに札を出す。
-      const handY = u.pos.y + .85;
-      for (let j = 0; j < 2; j++) {
-        const side = j ? 1 : -1;
-        const shift = d.window ? windowShift(d, j) : side;
-        const lx = d.lx + shift * e * d.travel + side * gripX;
-        const lz = d.lz + side * .04;
-        const x = d.I.x + lx * d.I.c + lz * d.I.s;
-        const z = d.I.z - lx * d.I.s + lz * d.I.c;
-        const dist = Math.hypot(x - u.pos.x, z - u.pos.z, gripY - handY);
-        if (dist < bd && villageDoorReachable(d, u, x, z, gripY, j ? d.otherSolid : d.solid)) {
-          bd = dist; pick = d; pickLeaf = j; pickPoint.x = x; pickPoint.z = z;
-        }
-      }
-    } else {
-      const dist = Math.hypot(d.x - u.pos.x, d.z - u.pos.z);
-      if (dist < bd) { bd = dist; pick = d; pickPoint.x = d.x; pickPoint.z = d.z; }
-    }
 
-}
-  }
-  return pick;
-}
 
 // 遊び手と室内の兵で、同じ引手の位置・高さ・壁よけを使う。
 // 開いた戸の引手も追い、座標の箱は設営時の物を使い回す。
@@ -4124,100 +3919,7 @@ function igaNearest(rt) {
   return pick;
 }
 
-function villageNakaDoorTick(rt, dt, flagged) {
-  const moribe = false;
-  if (!DOORS.length) return;
-  if (rt.addInteract && !rt._nakaDoors) {
-    rt._nakaDoors = true;
-    rt.addInteract('naka_to', () => { const d = villageNearest(rt); return d && !(d.want && rt.def.doorCloseOK?.(rt) === false) ? pickPoint : null; }, '開ける', () => {
-      const d = villageNearest(rt);
-      if (d) {
-        // 途中で引く戸を入れ替えると瞬間に位置が変わる。全閉から開く時だけ選ぶ。
-        if (d.villageTrack && d.window && d.open === 0 && !d.want) d.windowLeaf = pickLeaf;
-        setWant(rt, d, d.want ? 0 : 1);
-      }
-    }, { r: 1.5, prio: -3 });
-    const it = rt.interacts[rt.interacts.length - 1];
-    Object.defineProperty(it, 'label', { get: () => (villageNearest(rt) && villageNearest(rt).want ? '閉める' : '開ける'), configurable: true });
-  }
-  // 中の兵は戸口へ来たら自分で開ける。設楽原の遊び手は引手の札で横へ引く。
-  autoT -= dt;
-  if (autoT <= 0) {
-    autoT = .2;
-    const u = rt.player && rt.player.u;
-    if (u && u.alive && (rt.player.blockedWalkT || 0) >= .5) {
-      // 板戸・襖・障子・格子戸は、体で押しただけでは滑らせない。
-      // 閉めた直後に歩行の詰まりで開き直すのも防ぐ。住人と兵の開閉は下で扱う。
-      const d = villageNearest(rt);
-      if (d?.tracked) {
-        if (!d.window && !d.want && doorDistance(d, u.pos) < 1.1) setWant(rt, d, 1);
-      } else if (d && !d.villageTrack && !d.want
-        && Math.hypot(d.x - u.pos.x, d.z - u.pos.z) < 1.1) setWant(rt, d, 1);
-    }
-    for (const o of flagged) {
-      if (o.isPlayer || !o.alive || !o.naka) continue;
-      const I = DOORS.find((d) => d.I.id + 1 === o.naka)?.I;
-      if (!I || I.disabled || !I.doors) continue;
-      for (const d of I.doors) if (!d.window && !d.want && (d.tracked ? doorDistance(d, o.pos) : Math.hypot(d.x - o.pos.x, d.z - o.pos.z)) < 1.2 && Math.abs(o.pos.y - d.lv.y) < 1.2
-        && (!d.villageTrack || walkDoorReachable(d, o))) setWant(rt, d, 1);
-    }
-    // 外の住人や兵も、戸口まで来れば板戸を開けて入れる。
-    // 室内の名簿だけでは入口の外側にいる者が抜けるため、通行用の外戸だけを補う。
-    if (rt.army) for (const d of DOORS) {
-      if (!d.villageTrack || !d.exterior || d.window || d.want || d.I.disabled) continue;
-      for (const o of rt.army.units) {
-        if (o.isPlayer || !o.alive || o.isStruct || o.mounted || o.naka) continue;
-        if (Math.hypot(d.x - o.pos.x, d.z - o.pos.z) < 1.2 && walkDoorReachable(d, o)) {
-          setWant(rt, d, 1); break;
-        }
-      }
-    }
-    for (const d of DOORS) if (!d.I.disabled && d.entry && !d.want) {
-      for (const o of rt.army?.units || []) {
-        if (o.isPlayer || !o.alive || Math.abs(o.pos.y - d.y) > 1.2) continue;
-        if (doorDistance(d, o.pos) < 1.2) { setWant(rt, d, 1); break; }
-      }
-    }
-  }
-  for (const d of moving) {
-    // 焼失した建物は共通の片付け済み。閉まりかけの戸の当たりを戻さない。
-    if (d.I.disabled) { moving.delete(d); continue; }
-    // 閉め始めに空いていても、滑る途中で人が入ったら開き直す。
-    // 閉め切った後の判定では戸が体を横切るため、形と当たりを動かす前に止める。
-    if (d.tracked && !d.want && doorwayOccupied(rt, d)) { setWant(rt, d, 1); continue; }
-    const next = Math.max(0, Math.min(1, d.open + (d.want ? 1 : -1) * dt * 2.6));
-    if (d.otherSolid || d.villageTrack && d.window) {
-      // 開く時も壁際へ退いた人の手前で待つ。人が離れれば同じ操作のまま再開する。
-      const u = rt.player && rt.player.u;
-      if ((u && sweptDoorway(d, u, next)) || flagged.some((o) => o.naka === d.I.id + 1 && sweptDoorway(d, o, next))) continue;
-      // 外戸の引き込み先も外の兵・住人を挟まない。既存の兵と戸を調べ、毎コマ配列を作らない。
-      if (d.villageTrack && d.exterior && rt.army) {
-        let blocked = false;
-        for (const o of rt.army.units) {
-          if (o.isPlayer || o.isStruct || o.naka) continue;
-          if (sweptDoorway(d, o, next)) { blocked = true; break; }
-        }
-        if (blocked) continue;
-      }
-    }
-    if (d.tracked && leafSweepOccupied(rt, d, next)) continue;
-    d.open = next;
-    pose(d);
-    if (d.open !== d.want) continue;
-    if (d.want && d.tracked) solidOff(d);
-    if (!d.want && !d.villageTrack) {
-      // 閉め切った時に戸口に人が立っていれば、開けたままにして待つ
-      // 設楽原は直前の掃引判定で、動く戸の範囲だけを確かめ済み。
-      // 窓全体でも止めると、動かない右戸の前にいるだけで左の障子を閉め切れない。
-      // 開度だけを戻して見た目・当たりと食い違わせず、二本の溝の位置を保つ。
-      const u = rt.player && rt.player.u;
-      if (moribe ? moribeDoorwayOccupied(rt, d, flagged, 0)
-        : (u && moribeInDoorway(d, u)) || flagged.some((o) => o.alive && o.naka === d.I.id + 1 && moribeInDoorway(d, o))) { d.open = .02; continue; }
-      if (d.saved) Object.assign(d.solid, d.saved);
-    }
-    moving.delete(d);
-  }
-}
+
 
 
 
@@ -4556,6 +4258,334 @@ function moribeAddNakaDoors(I, lv, y0, y1) {
     moribePose(d);
   }
 }
+
+function villageInDoorway(d, o) {
+  if (d.tracked) return villageHieiInDoorway(d, o);
+  if (d.villageTrack && d.window && (o.pos.y + 1.65 <= d.y || o.pos.y >= d.y + d.h)) return false;
+  const dx = o.pos.x - d.I.x, dz = o.pos.z - d.I.z;
+  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
+  return Math.abs(lz - d.lz) < .35 && Math.abs(lx - d.lx) < d.W / 2 + .1 && Math.abs(o.pos.y - d.lv.y) < 1.2;
+}
+
+// 設楽原の板戸・襖・格子戸・明かり障子は、引き込み先の人も挟まない。
+// 二枚の戸が次の位置まで掃く範囲を調べる。座標や当たりは毎コマ作り直さない。
+function sweptDoorway(d, o, next) {
+  if (!o.alive) return false;
+  // 兵ごとの背丈と肩幅を使う。固定の体格では、大柄な兵の頭や肩へ戸が入り、
+  // 小柄な兵からは離れていても止まってしまう。設楽原以外の開閉は従来どおり。
+  const bodyHeight = d.villageTrack ? (o.bodyHeight ?? 1.65) : 1.65;
+  const bodyRadius = d.villageTrack ? (o.bodyRadius ?? .3) : .3;
+  const trackReach = d.villageTrack ? bodyRadius + (d.kind === 'koshiHikite' ? .035 : .03) : .35;
+  // 設楽原の低い土間・戸前の段・跳躍中も、床からの距離でなく戸と体の重なりで受ける。
+  // 足が床から一・二メートル離れただけで、まだ触れている戸を動かさない。
+  if (d.villageTrack) {
+    if (o.pos.y + bodyHeight <= d.y || o.pos.y >= d.y + d.h) return false;
+  } else if (Math.abs(o.pos.y - d.lv.y) >= 1.2) return false;
+  const dx = o.pos.x - d.I.x, dz = o.pos.z - d.I.z;
+  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
+  const from = d.open * d.open * (3 - 2 * d.open), to = next * next * (3 - 2 * next);
+  if (d.window) {
+    // 明かり障子は選ばれた一枚の行程だけ調べる。相方の溝へ反応させず、
+    // 左右どちらを引く時も、腰壁の上から身を寄せた人を挟まない。
+    const j = d.villageTrack ? d.windowLeaf : 0, side = j ? 1 : -1;
+    if (o.pos.y + bodyHeight <= d.y || o.pos.y >= d.y + d.h || Math.abs(lz - (d.lz + side * .04)) >= trackReach) return false;
+    const inset = d.villageTrack ? .0075 : 0;
+    const a = d.lx + side * (d.W / 4 - inset) + windowShift(d, j) * from * d.travel;
+    const b = d.lx + side * (d.W / 4 - inset) + windowShift(d, j) * to * d.travel;
+    if ((b - a) * (lx - a) <= 0) return false;
+    const reach = d.villageTrack ? bodyRadius : .315;
+    return lx > Math.min(a, b) - d.W / 4 - inset - reach && lx < Math.max(a, b) + d.W / 4 + inset + reach;
+  }
+  for (let j = 0; j < 2; j++) {
+    const side = j ? 1 : -1;
+    if (Math.abs(lz - (d.lz + side * .04)) >= trackReach) continue;
+    const a = d.lx + side * d.W * (.25 + from / 2);
+    const b = d.lx + side * d.W * (.25 + to / 2);
+    // 戸から離れる向きなら動かす。閉じた戸へ近づいて開ける操作を妨げない。
+    if ((b - a) * (lx - a) <= 0) continue;
+    const reach = d.villageTrack ? bodyRadius + .015 : .315;
+    if (lx > Math.min(a, b) - d.W / 4 - reach && lx < Math.max(a, b) + d.W / 4 + reach) return true;
+  }
+  return false;
+}
+function villageHieiInDoorway(d, o) {
+  const I = d.frame || d.I, dx = o.pos.x - I.x, dz = o.pos.z - I.z;
+  const lx = dx * I.c - dz * I.s, lz = dx * I.s + dz * I.c;
+  return Math.abs(lz - d.lz) < .35 && Math.abs(lx - d.lx) < d.W / 2 + .1 && atDoorHeight(d, o);
+}
+
+// 正面戸の外から来る兵も含めて調べる。兵の配列をそのまま使い、毎コマ入れ物を作らない。
+function villageDoorReachable(d, u, x = d.x, z = d.z, target = d.y + d.h / 2, leaf = null) {
+  const px = u.pos.x, pz = u.pos.z, dx = x - px, dz = z - pz;
+  // 設楽原の引手は、近さを測る時と同じ手の高さから届くかを調べる。
+  // 目の高さから斜めに下ろすと、手前の腰壁や横框の上を越して
+  // 奥の戸へ札が出てしまう。既存の木枠・柱の当たりをそのまま使う。
+  const eye = u.pos.y + (d.villageTrack ? .85 : 1.2);
+  for (const wall of INTERIOR_WALLS) {
+    // 引手を探す時は触れる一枚だけを除く。引違いで重なった相方は残し、
+    // 手前の板や紙を突き抜けて奥の引手へ操作札を出さない。
+    // 戸口中央への自動開閉の判断では、従来どおり二枚を除く。
+    if (wall === d.solid && (!leaf || leaf === d.solid)
+      || wall === d.otherSolid && (!leaf || leaf === d.otherSolid)) continue;
+    // 触れる一枚の引手は、その戸自身の木枠でも遮らない。重なった相方の框は残す。
+    if (wall.doorLeaf && (wall.doorLeaf === d.solid || wall.doorLeaf === d.otherSolid)
+      && (!leaf || wall.doorLeaf === leaf)) continue;
+    if (d.villageTrack) {
+      // 壁の芯だけでなく厚みも調べる。斜めから柱の脇をかすめても、
+      // 木の中を通して裏の引手へ触れない。壁端は丸い当たりに合わせる。
+      const wx = wall.bx - wall.ax, wz = wall.bz - wall.az;
+      const length = Math.hypot(wx, wz), radius = wall.r || 0;
+      // 来迎柱などは始点と終点が同じ丸柱。線の長さがなくても省かず、
+      // 仮の軸で高さを調べ、下の端円で柱の太さを判定する。
+      const pole = length < .000001;
+      const tx = pole ? 1 : wx / length, tz = pole ? 0 : wz / length;
+      const along = (px - wall.ax) * tx + (pz - wall.az) * tz;
+      const across = (px - wall.ax) * -tz + (pz - wall.az) * tx;
+      const da = dx * tx + dz * tz, db = dx * -tz + dz * tx;
+      let lo = .001, hi = .999;
+      if (Math.abs(da) < .000001) {
+        if (along < 0 || along > length) lo = 1;
+      } else {
+        const a = -along / da, b = (length - along) / da;
+        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
+      }
+      if (Math.abs(db) < .000001) {
+        if (Math.abs(across) > radius) lo = 1;
+      } else {
+        const a = (-radius - across) / db, b = (radius - across) / db;
+        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
+      }
+      const dy = target - eye;
+      if (Math.abs(dy) < .000001) {
+        if (eye <= wall.yBot || eye >= wall.yTop) continue;
+      } else {
+        const a = (wall.yBot - eye) / dy, b = (wall.yTop - eye) / dy;
+        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
+      }
+      if (lo < hi) return false;
+      // 両端の円も調べ、壁の線分の先を回り込む手だけを通す。
+      const rayLength2 = dx * dx + dz * dz;
+      for (let end = 0; end < (pole ? 1 : 2); end++) {
+        const ex = (end ? wall.bx : wall.ax) - px, ez = (end ? wall.bz : wall.az) - pz;
+        // 引手の真下から手を伸ばす時も、丸柱や枠の丸い端を省かない。
+        // 水平の長さがない手の軌跡は、柱の断面と上下の範囲で調べる。
+        if (rayLength2 <= .000001) {
+          if (ex * ex + ez * ez < radius * radius
+            && Math.max(eye, target) > wall.yBot && Math.min(eye, target) < wall.yTop) return false;
+          continue;
+        }
+        const center = (ex * dx + ez * dz) / rayLength2;
+        const distance2 = ex * ex + ez * ez - center * center * rayLength2;
+        if (distance2 >= radius * radius) continue;
+        const reach = Math.sqrt((radius * radius - distance2) / rayLength2);
+        let a = Math.max(.001, center - reach), b = Math.min(.999, center + reach);
+        if (Math.abs(dy) >= .000001) {
+          const c = (wall.yBot - eye) / dy, e = (wall.yTop - eye) / dy;
+          a = Math.max(a, Math.min(c, e)); b = Math.min(b, Math.max(c, e));
+        }
+        if (a < b) return false;
+      }
+      continue;
+    }
+    const wx = wall.bx - wall.ax, wz = wall.bz - wall.az;
+    const cross = dx * wz - dz * wx;
+    const ax = wall.ax - px, az = wall.az - pz;
+    if (Math.abs(cross) < .000001) continue;
+    const t = (ax * wz - az * wx) / cross;
+    const s = (ax * dz - az * dx) / cross;
+    const margin = (wall.r || 0) / Math.max(.01, Math.hypot(wx, wz));
+    if (t <= .001 || t >= .999 || s < -margin || s > 1 + margin) continue;
+    const y = eye + (target - eye) * t;
+    if (y > wall.yBot && y < wall.yTop) return false;
+  }
+  return true;
+}
+
+// 設楽原の指掛けは戸の中央ではなく八十五センチまで。格子戸だけ中央の金具を使う。
+// 遊び手・住人・兵で同じ高さを参照し、低い横木の上から戸を操作しない。
+function villageGripHeight(d) {
+  return d.y + (d.kind === 'koshiHikite' ? d.h / 2 : Math.min(.85, d.h / 2));
+}
+
+// 自動で開くのは通行用の戸口の正面だけ。明かり障子は札で操作する。
+// 壁際にいる兵が、壁の向こうや横へ引き込んだ戸へ反応するのも防ぐ。
+function walkDoorReachable(d, u) {
+  if (d.window) return false;
+  // 段の下や床下から、平面上で近いだけの戸を開けない。
+  // 操作札と同じ手の高さ・届く距離を使い、戸口の正面へ来てから開く。
+  if (d.villageTrack) {
+    // 設楽原の建具は立って手を掛ける。倒れ中・登り中・騎乗中の者が
+    // 戸前に残した移動の判定だけで、板戸や襖を押し開けない。
+    if (u.downed || u.climb || u.mounted) return false;
+    const gripY = villageGripHeight(d);
+    if (Math.hypot(d.x - u.pos.x, d.z - u.pos.z, gripY - u.pos.y - .85) >= 1.5) return false;
+  }
+  const dx = u.pos.x - d.I.x, dz = u.pos.z - d.I.z;
+  const lx = dx * d.I.c - dz * d.I.s, lz = dx * d.I.s + dz * d.I.c;
+  return Math.abs(lx - d.lx) < d.W / 2 && Math.abs(lz - d.lz) < .8
+    && villageDoorReachable(d, u, d.x, d.z, d.villageTrack ? villageGripHeight(d) : d.y + d.h / 2);
+}
+
+function villageNearest(rt) {
+  const u = rt.player && rt.player.u;
+  if (!u || !u.alive || rt.player.mounted) return null;
+  // 森部は戸口の出入りと同じ条件で手を使う。倒れている間や登っている間、
+  // 選択中・終戦後には、窓や内陣の格子戸を遠隔で動かさない。
+  const handsBusy = u.downed || u.climb || rt.over || rt.choice;
+  if (handsBusy) return null;
+  if (pickT === rt.t) return pick?.I.disabled ? null : pick;
+  pickT = rt.t; pick = null;
+  let bd = 1.5;
+  for (const d of DOORS) {
+if (d.tracked) {
+    if (d.I.disabled) continue;
+    if (d.I.id + 1 !== u.naka && !((d.entry || d.window) && !u.naka)) continue;
+    // 明かり障子の基準は腰壁の上。僧坊の床高も加わるので、外の地面からは
+    // 足元との差が一・二メートルを超えていた。窓は下の三次元の手掛け距離で
+    // 判定し、腰壁・窓枠越しの遮りも従来どおり調べる。通常の戸は階を区別する。
+    if (!d.window && Math.abs(u.pos.y - d.y) > 1.2) continue;
+    const dist = doorDistance(d, u.pos, true);
+    if (dist < bd) { bd = dist; pick = d; pickPoint.x = d.touch.x; pickPoint.z = d.touch.z; }
+
+} else {
+    if (d.I.disabled || (!d.exterior && d.I.id + 1 !== u.naka)) continue;
+    // 別の民家・堂の中から外戸を選ばない。外と、その戸の建物の中だけで引手を探す。
+    if (d.villageTrack && u.naka && d.I.id + 1 !== u.naka) continue;
+    // 出入りの札と同じく、倒れ中や登り中は引手の札も出さない。
+    // 自動で開ける場合も上の判定を共用し、手動だけを止めて抜け道を残さない。
+    if (d.villageTrack && (u.downed || u.climb || u.mounted)) continue;
+    // 設楽原は下の段からも実際に届く引手を選ぶ。手の高さ・距離・遮りは下で調べる。
+    if (!d.villageTrack && Math.abs(u.pos.y - d.lv.y) > 1.2) continue;
+    if (d.villageTrack) {
+      // 札は空いた戸口でなく、滑った戸の召し合わせ側の引手へ出す。
+      // 窓は選んだ一枚が相方へ重なる。左右の引手を調べ、壁を挟まない近い方を使う。
+      const e = d.open * d.open * (3 - 2 * d.open);
+      // 設楽原の戸は実寸で組み、引手の端からの距離と高さは伸縮しない。
+      // 召し合わせの重なり三センチを差し引き、動く戸の引手と札の参照点を揃える。
+      // 窓も半幅の戸へ一・五センチ足し、中心を七・五ミリ寄せるため同じ差し引きになる。
+      const inset = d.kind === 'fusumaPlain' ? .13 : d.kind === 'koshiHikite' ? .09 : .02;
+      const gripX = inset - .015;
+      const gripY = villageGripHeight(d);
+      // 段や床下からも平面上の距離だけで戸を選べていた。
+      // 手の高さから引手までの実距離を使い、届く戸だけに札を出す。
+      const handY = u.pos.y + .85;
+      for (let j = 0; j < 2; j++) {
+        const side = j ? 1 : -1;
+        const shift = d.window ? windowShift(d, j) : side;
+        const lx = d.lx + shift * e * d.travel + side * gripX;
+        const lz = d.lz + side * .04;
+        const x = d.I.x + lx * d.I.c + lz * d.I.s;
+        const z = d.I.z - lx * d.I.s + lz * d.I.c;
+        const dist = Math.hypot(x - u.pos.x, z - u.pos.z, gripY - handY);
+        if (dist < bd && villageDoorReachable(d, u, x, z, gripY, j ? d.otherSolid : d.solid)) {
+          bd = dist; pick = d; pickLeaf = j; pickPoint.x = x; pickPoint.z = z;
+        }
+      }
+    } else {
+      const dist = Math.hypot(d.x - u.pos.x, d.z - u.pos.z);
+      if (dist < bd) { bd = dist; pick = d; pickPoint.x = d.x; pickPoint.z = d.z; }
+    }
+
+}
+  }
+  return pick;
+}
+
+function villageNakaDoorTick(rt, dt, flagged) {
+  const moribe = false;
+  if (!DOORS.length) return;
+  if (rt.addInteract && !rt._nakaDoors) {
+    rt._nakaDoors = true;
+    rt.addInteract('naka_to', () => { const d = villageNearest(rt); return d && !(d.want && rt.def.doorCloseOK?.(rt) === false) ? pickPoint : null; }, '開ける', () => {
+      const d = villageNearest(rt);
+      if (d) {
+        // 途中で引く戸を入れ替えると瞬間に位置が変わる。全閉から開く時だけ選ぶ。
+        if (d.villageTrack && d.window && d.open === 0 && !d.want) d.windowLeaf = pickLeaf;
+        setWant(rt, d, d.want ? 0 : 1);
+      }
+    }, { r: 1.5, prio: -3 });
+    const it = rt.interacts[rt.interacts.length - 1];
+    Object.defineProperty(it, 'label', { get: () => (villageNearest(rt) && villageNearest(rt).want ? '閉める' : '開ける'), configurable: true });
+  }
+  // 中の兵は戸口へ来たら自分で開ける。設楽原の遊び手は引手の札で横へ引く。
+  autoT -= dt;
+  if (autoT <= 0) {
+    autoT = .2;
+    const u = rt.player && rt.player.u;
+    if (u && u.alive && (rt.player.blockedWalkT || 0) >= .5) {
+      // 板戸・襖・障子・格子戸は、体で押しただけでは滑らせない。
+      // 閉めた直後に歩行の詰まりで開き直すのも防ぐ。住人と兵の開閉は下で扱う。
+      const d = villageNearest(rt);
+      if (d?.tracked) {
+        if (!d.window && !d.want && doorDistance(d, u.pos) < 1.1) setWant(rt, d, 1);
+      } else if (d && !d.villageTrack && !d.want
+        && Math.hypot(d.x - u.pos.x, d.z - u.pos.z) < 1.1) setWant(rt, d, 1);
+    }
+    for (const o of flagged) {
+      if (o.isPlayer || !o.alive || !o.naka) continue;
+      const I = DOORS.find((d) => d.I.id + 1 === o.naka)?.I;
+      if (!I || I.disabled || !I.doors) continue;
+      for (const d of I.doors) if (!d.window && !d.want && (d.tracked ? doorDistance(d, o.pos) : Math.hypot(d.x - o.pos.x, d.z - o.pos.z)) < 1.2 && Math.abs(o.pos.y - d.lv.y) < 1.2
+        && (!d.villageTrack || walkDoorReachable(d, o))) setWant(rt, d, 1);
+    }
+    // 外の住人や兵も、戸口まで来れば板戸を開けて入れる。
+    // 室内の名簿だけでは入口の外側にいる者が抜けるため、通行用の外戸だけを補う。
+    if (rt.army) for (const d of DOORS) {
+      if (!d.villageTrack || !d.exterior || d.window || d.want || d.I.disabled) continue;
+      for (const o of rt.army.units) {
+        if (o.isPlayer || !o.alive || o.isStruct || o.mounted || o.naka) continue;
+        if (Math.hypot(d.x - o.pos.x, d.z - o.pos.z) < 1.2 && walkDoorReachable(d, o)) {
+          setWant(rt, d, 1); break;
+        }
+      }
+    }
+    for (const d of DOORS) if (!d.I.disabled && d.entry && !d.want) {
+      for (const o of rt.army?.units || []) {
+        if (o.isPlayer || !o.alive || Math.abs(o.pos.y - d.y) > 1.2) continue;
+        if (doorDistance(d, o.pos) < 1.2) { setWant(rt, d, 1); break; }
+      }
+    }
+  }
+  for (const d of moving) {
+    // 焼失した建物は共通の片付け済み。閉まりかけの戸の当たりを戻さない。
+    if (d.I.disabled) { moving.delete(d); continue; }
+    // 閉め始めに空いていても、滑る途中で人が入ったら開き直す。
+    // 閉め切った後の判定では戸が体を横切るため、形と当たりを動かす前に止める。
+    if (d.tracked && !d.want && doorwayOccupied(rt, d)) { setWant(rt, d, 1); continue; }
+    const next = Math.max(0, Math.min(1, d.open + (d.want ? 1 : -1) * dt * 2.6));
+    if (d.otherSolid || d.villageTrack && d.window) {
+      // 開く時も壁際へ退いた人の手前で待つ。人が離れれば同じ操作のまま再開する。
+      const u = rt.player && rt.player.u;
+      if ((u && sweptDoorway(d, u, next)) || flagged.some((o) => o.naka === d.I.id + 1 && sweptDoorway(d, o, next))) continue;
+      // 外戸の引き込み先も外の兵・住人を挟まない。既存の兵と戸を調べ、毎コマ配列を作らない。
+      if (d.villageTrack && d.exterior && rt.army) {
+        let blocked = false;
+        for (const o of rt.army.units) {
+          if (o.isPlayer || o.isStruct || o.naka) continue;
+          if (sweptDoorway(d, o, next)) { blocked = true; break; }
+        }
+        if (blocked) continue;
+      }
+    }
+    if (d.tracked && leafSweepOccupied(rt, d, next)) continue;
+    d.open = next;
+    pose(d);
+    if (d.open !== d.want) continue;
+    if (d.want && d.tracked) solidOff(d);
+    if (!d.want && !d.villageTrack) {
+      // 閉め切った時に戸口に人が立っていれば、開けたままにして待つ
+      // 設楽原は直前の掃引判定で、動く戸の範囲だけを確かめ済み。
+      // 窓全体でも止めると、動かない右戸の前にいるだけで左の障子を閉め切れない。
+      // 開度だけを戻して見た目・当たりと食い違わせず、二本の溝の位置を保つ。
+      const u = rt.player && rt.player.u;
+      if (moribe ? moribeDoorwayOccupied(rt, d, flagged, 0)
+        : (u && moribeInDoorway(d, u)) || flagged.some((o) => o.alive && o.naka === d.I.id + 1 && moribeInDoorway(d, o))) { d.open = .02; continue; }
+      if (d.saved) Object.assign(d.solid, d.saved);
+    }
+    moving.delete(d);
+  }
+}
+
 
 function addAnegawaDoors(I, lv, y0, y1) {
   if (SKIP.includes(I.kind) || I.open || I.profile === 'yagura') return;

@@ -728,7 +728,8 @@ export class PlayerCamera {
       fit = Math.max(fit, Math.abs(_cQ.y) / (-_cQ.z * (i ? .78 : .62)),
         (Math.abs(_cQ.x) + .45 * scale) / (-_cQ.z * camera.aspect * .86));
     }
-    const framedFov = Math.min(100, Math.atan(fit * camera.zoom) * 360 / Math.PI);
+    // def.maxFramedFov：狭い廊下で広角にすると柱と梁が額縁になる戦（本能寺）だけ、広げる上限を下げる。
+    const framedFov = Math.min(this.rt.def.maxFramedFov ?? 100, Math.atan(fit * camera.zoom) * 360 / Math.PI);
     if (framedFov > camera.fov) {
       camera.fov = framedFov;
       camera.updateProjectionMatrix();
