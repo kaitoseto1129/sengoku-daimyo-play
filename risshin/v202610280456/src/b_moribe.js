@@ -2247,11 +2247,12 @@ const moribe = {
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     let pos = null, r = 6, hide = 6;
-    // 開戦後は同じ先手の一人まで案内し、刃が届いたら本人の▼へ渡す。
+    // 先手の中心の空地でなく、頭上の▼と同じ生きた一人へ導く。
+    // 姿が見えれば共通の描画側でピンを畳み、刃が届いたら本人の▼へ渡す。
     if (F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
       const p = rt.player, enemy = this.missionSignTarget(rt);
       if (!enemy || p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return null;
-      q.unit = enemy; q.enemy = true;
+      q.unit = enemy; q.enemy = true; q.approach = true;
       q.x = enemy.pos.x; q.z = enemy.pos.z;
       q.y = drawGroundAt(rt.world, q.x, q.z);
       q.r = q.hide = 0;

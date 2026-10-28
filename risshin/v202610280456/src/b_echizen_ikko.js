@@ -2102,7 +2102,9 @@ const echizen_ikko = {
     pin.unit = enemy && !route && !defend ? enemy : null;
     pin.enemy = !!pin.unit; pin.route = route;
     pin.r = pin.hide = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
-    pin.waiting = pin.defend = defend && !route;
+    pin.waiting = defend && !route;
+    // 山の斜面や堂の向こうへ囲みを透かさず、持ち場は一つの印で示す。
+    pin.defend = false;
     pin.arrived = pin.waiting && Math.hypot(p.x - goal.x, p.z - goal.z) < pin.r;
     pin.silent = true; pin.name = ''; pin.approach = false; pin.arrow = false;
     return pin;
@@ -2184,7 +2186,7 @@ const echizen_ikko = {
   introSides: { a: '滝川一益の手', b: '大滝寺の守り' },
   introText: (rt) => rt.flags.mode === 'defend'
     ? '本堂の持ち場へ進もう。寄せてくる織田勢を押し返し、寺を守ろう。'
-    : '竹束は竹を束ねた盾。後ろについて味方と進もう。門の前では木づちの札を長押し。外堂・本堂・奥の院を順に押さえ、奥山道を味方三人と守ろう。夜と霧は遊びの補いです。',
+    : '竹束は竹を束ねた盾。後ろについて味方と進もう。門の前では木づちの札を長押し。外堂から山門へ進み、本堂を味方と押さえよう。奥の院と山道は別の組に任せます。夜と霧は遊びの補いです。',
   spacedCombatCues: true, // 戸口の振り向き札は照準の上へ寄せる。
   reserveCombatCues: true, // 道の印を間合いの札と重ねない。
   clearTravelGuide: true, // 携帯でも道の矢印と到着の輪を案内札で隠さない。
@@ -3623,17 +3625,20 @@ const echizen_ikko = {
         }
         if (F.gezanFell || F.step === 1 && F.strategy === 'fire') this.burn(rt, 'gezan', F.gezanKuraStruct);
         if (F.step >= 3) this.burn(rt, 'hondo', F.hondoStruct);
-        const fighting = F.attackers.some((b) => b !== F.reserve && b.real && b.real.count && !b.real.routed);
-        const reserveReady = !F.generalRetired && F.reserveSent && rt.t - F.reserveSentAt < 60 || !F.generalRetired && (F.reserve.cmd.id !== 'hold' || F.reserveSent) && F.reserve.real && !F.reserve.real.routed && F.reserve.real.units.some((u) => u !== F.reserve.taishoU && u.alive && !u.fleeing && !u.woundOut);
-        if (!fighting && !reserveReady && !rt.squad.some((u) => u.alive && !u.fleeing && !u.woundOut)) {
-          // 先手が崩れても、陣所に控える後備えがまだ立っていれば前へ出す。始まって一分半で負けにしない。
-          if (!F.reserveSent && !F.generalRetired && !F.reserve.real?.routed && (F.reserve.aliveNominal?.() > 0 ||
-              F.reserve.real?.units.some((u) => u !== F.reserve.taishoU && u.alive && !u.fleeing && !u.woundOut))) {
-            F.reserveSent = true; F.reserveSentAt = rt.t; if (F.reserve.real) F.reserve.real.stay = false;
-            setRoute(F.reserve, GATE_ENTRY_ROUTES[F.step >= 2 ? 1 : 0]);
-            templeSay(rt, '伝令', '先手が崩れた。後備え、前へ出よ！', 3);
-          }
-          // 先手が崩れただけでは負けにしない。時の打ち切り（同じ段で五分）だけで退き陣にする。
+        // 鉄砲や自分の組の一人が残る間も、槍の先手が薄くなれば既存の後備えを送る。
+        // 全滅を待つと麓からの到着が間に合わず、本人だけが堂で囲まれる。
+        let spears = 0;
+        for (const b of F.attackers) {
+          if (b === F.reserve || b.kind !== 'ashigaru') continue;
+          for (const u of b.real?.units || []) if (siegeFighter(u)) spears++;
+        }
+        if (F.step <= 2 && P.z > -150 && spears <= 12 && !F.reserveSent &&
+            !F.generalRetired && !F.reserve.real?.routed &&
+            F.reserve.real?.units.some((u) => u !== F.reserve.taishoU && siegeFighter(u))) {
+          F.reserveSent = true; F.reserveSentAt = rt.t; F.reserve.real.stay = false;
+          F.reserve._routeGate = (F.step === 1 ? F.gateSomon : F.gateSanmon).struct;
+          setRoute(F.reserve, F.step === 1 ? SANDO.slice(0, 5) : SANDO, true);
+          templeSay(rt, '伝令', '先手が手薄じゃ。後備え、前へ出よ！', 3);
         }
         const zones = F.SZ.byId;
         const near = (at, r) => Math.hypot(P.x - at.x, P.z - at.z) < r;

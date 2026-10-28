@@ -65,6 +65,8 @@ const KG_CIVILIAN_BANDS = [
   { x: 66, z: 40, kinds: ['townsman', 'merchant', 'woman', 'child', 'elder'], route: kgPeopleRoute(0) },
   { x: -58, z: 52, kinds: ['farmer', 'farmer', 'woman', 'child', 'elder'], route: kgPeopleRoute(1) },
   { x: 24, z: -92, kinds: ['monk', 'monk', 'woman', 'farmer'], route: kgPeopleRoute(2) },
+  // 一の備の西で荷駄を捨てた小者。荷車の脇から西の浅瀬へ逃げる（持ち場から見える）。
+  { x: -11, z: -45, kinds: ['farmer', 'farmer', 'elder'], route: [[-20, -40], [-30, -24], [-38, -10], [-50, 0], [-50, 36], [-82, 46], [-116, 46], [-166, 46]].map(([x, z]) => ({ x, z })) },
 ];
 // 殿の三つの備（持ち場）と、そこで向く向き（北 = Math.PI）
 // 一の備は登城道の肩より十二歩南の緩い麓。札を追って急斜面へ登らせない。
@@ -275,7 +277,14 @@ function retreatGroundDetail(rt) {
         w /= max(0.001, w.x + w.y + w.z);
         vec3 grass = texture2D(tGrass, p.xz * 0.23).rgb;
         vec3 mud = texture2D(tMud, p.xz * 0.23).rgb;
-        float kgPatch = mix(0.85, 1.12, texture2D(tMacro, p.xz * 0.023 + 0.37).r);
+        // 一枚の茶にしない：大きな斑で草の生えた所と踏んだ土を混ぜる。
+        float kgGreen = smoothstep(0.38, 0.62, texture2D(tMacro, p.xz * 0.0125 + 0.11).r) * smoothstep(0.55, 0.85, n.y);
+        float kgBare = smoothstep(0.55, 0.75, texture2D(tMacro, p.xz * 0.019 + 0.63).r);
+        w = mix(w, vec3(0.85, 0.15, w.z), kgGreen * (1.0 - w.z));
+        w = mix(w, vec3(0.1, 0.9, w.z), kgBare * (1.0 - kgGreen) * (1.0 - w.z) * 0.8);
+        w /= max(0.001, w.x + w.y + w.z);
+        float kgPatch = mix(0.7, 1.18, texture2D(tMacro, p.xz * 0.023 + 0.37).r)
+          * mix(0.86, 1.08, texture2D(tMacro, p.xz * 0.071 + 0.19).r);
         diffuseColor.rgb *= (grass * w.x + soil * w.y + mud * w.z)
           * kgPatch * (1.0 - uWet * 0.18);
       `);
@@ -424,6 +433,61 @@ function retreatWayside(rt) {
   cluster(47,61,false);
   cluster(-57,57,false);
   for(const geo of [box,pole,bowl,ring]) geo.dispose();
+}
+
+// 一の備の西に捨てた荷車と、雑木の下草。設営時に一束ずつ作り、毎コマは触らない。
+// 槍の組の場（x -6〜26）と道は空ける。当たりは足さない。
+function retreatBaggage(rt, addSacks) {
+  const W = rt.world, resources = rt.flags.sceneryResources;
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  const box = new THREE.BoxGeometry(1, 1, 1), rim = new THREE.TorusGeometry(1, 0.09, 4, 14).rotateY(Math.PI / 2);
+  const place = new THREE.Object3D(), parts = [];
+  // 荷車：片輪が外れて傾いた大八車。cx,cz は荷台の中ほど。
+  const cx = -7, cz = -40, ry = 0.7;
+  let y0 = -1e9; for (const [dx, dz] of [[-1, -1.5], [1, -1.5], [-1, 1.5], [1, 1.5], [0, 0]]) y0 = Math.max(y0, W.heightAt(cx + dx, cz + dz));
+  const cart = new THREE.Group(); cart.position.set(cx, y0 - 0.12, cz); cart.rotation.set(0.12, ry, 0); cart.updateMatrixWorld();
+  const part = (shape, x, y, z, w, h, d, hex, rx = 0, rz = 0) => {
+    place.position.set(x, y, z); place.rotation.set(rx, 0, rz); place.scale.set(w, h, d); place.updateMatrix();
+    const geo = shape.index ? shape.toNonIndexed() : shape.clone();
+    retreatSurface(geo, hex); geo.applyMatrix4(place.matrix); geo.applyMatrix4(cart.matrixWorld); parts.push(geo);
+  };
+  const wood = 0x6a5539, pale = 0x8c7656;
+  for (let j = 0; j < 6; j++) part(box, 0, 0.62, -1 + j * 0.4, 1.3, 0.06, 0.36, j % 2 ? wood : pale);
+  for (const x of [-0.62, 0.62]) part(box, x, 0.6, 0.5, 0.08, 0.1, 3.4, wood);
+  // 車輪は輪と輻。片輪は外れて脇に倒れている。
+  for (const [x, y, rz] of [[0.75, 0.52, 0], [-1.45, 0.05, 1.45]]) {
+    part(rim, x, y, 0.1, 0.5, 0.5, 0.5, 0x4f4030, 0, rz);
+    for (const a of [0, Math.PI / 2]) part(box, x, y, 0.1, 0.05, 0.92, 0.06, 0x5a4a36, a, rz);
+  }
+  part(box, 0, 0.52, 0.1, 1.6, 0.07, 0.07, 0x3f3428);
+  // 荷台の葛籠と、こぼれた筵
+  part(box, 0.15, 0.9, -0.5, 0.7, 0.5, 0.55, 0x6e5a3e);
+  part(box, -0.2, 0.86, 0.3, 0.6, 0.42, 0.5, 0x7b6646);
+  part(box, -1.2, 0.03, -0.2, 1.1, 0.04, 0.8, 0x9a8a62);
+  const geo = mergeGeometries(parts); for (const g of parts) g.dispose();
+  geo.translate(0, -0.05, 0); geo.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geo, material); mesh.castShadow = mesh.receiveShadow = true;
+  rt.scene.add(mesh); resources.push(geo, material);
+  addSacks(cx - 2.4, cz + 1.4, 1.1, 2); addSacks(cx + 2, cz - 1.8, -0.4, 1);
+  // 下草：若葉の低い藪。雑木の根もとと持ち場の左の手前に。
+  const bushGeo = retreatSurface(rockTuftShape(true));
+  const bushes = new THREE.InstancedMesh(bushGeo, material, 90);
+  const color = new THREE.Color(); let n = 0;
+  const tones = [0x5d6a33, 0x4e5a2b, 0x6b7440, 0x56602f];
+  for (const [bx, bz, r, k] of [[-20, -46, 7, 30], [-16, -27, 4, 14], [24, -60, 5, 18], [-12, -48, 3, 10], [-26, -34, 4, 12]]) {
+    for (let j = 0; j < k && n < 90; j++) {
+      const a = j * 2.39996 + bx, d = r * Math.sqrt((j + 0.5) / k);
+      const x = bx + Math.cos(a) * d, z = bz + Math.sin(a) * d;
+      if (x > -7 && x < 27 && z > -46 && z < -18) continue;
+      const sz = 1.1 + 0.6 * ((j * 7) % 5) / 4;
+      place.position.set(x, W.heightAt(x, z) - 0.03, z); place.rotation.set(0, a, 0.1 * Math.sin(j));
+      place.scale.set(sz * 1.2, sz * 1.1, sz * 1.2); place.updateMatrix();
+      bushes.setMatrixAt(n, place.matrix); bushes.setColorAt(n++, color.setHex(tones[j % 4]));
+    }
+  }
+  bushes.count = n; bushes.receiveShadow = true; bushes.computeBoundingSphere();
+  rt.scene.add(bushes); resources.push(bushGeo, bushes);
+  box.dispose(); rim.dispose();
 }
 
 // 主郭の長屋の庇。写真の板屋根と独立柱を、金ヶ崎の小さな詰所に合わせて縮める。
@@ -2160,7 +2224,9 @@ const kanegasaki = {
     treeDensity: (x, z) => (Math.hypot(x - NAKAIKEMI.x, z - NAKAIKEMI.z) < NAKAIKEMI.r + 6 ? 0.08 : Math.abs(x) < 60 && z > -90 && z < 90 && (z > -40 || height(x, z) < 6) ? 0.2 :
       0.55 + 0.45 * Math.sin(x * 0.055 + z * 0.028) * Math.sin(z * 0.073 - x * 0.021)),
     // 城山の南の斜面の若葉の雑木（麓から山と城を見上げた時に坊主山にしない。10/28）
-    groves: [{ x: -34, z: -76, r: 12, n: 16 }, { x: 28, z: -78, r: 12, n: 16 }, { x: -4, z: -96, r: 14, n: 18 }, { x: -48, z: -108, r: 12, n: 14 }, { x: 40, z: -112, r: 12, n: 14 }, { x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 }],
+    groves: [{ x: -34, z: -76, r: 12, n: 16 }, { x: 28, z: -78, r: 12, n: 16 }, { x: -4, z: -96, r: 14, n: 18 }, { x: -48, z: -108, r: 12, n: 14 }, { x: 40, z: -112, r: 12, n: 14 }, { x: -40, z: -20, r: 12, n: 18 }, { x: 50, z: 50, r: 12, n: 16 }, { x: -50, z: 70, r: 10, n: 14 }, { x: -52, z: 98, r: 10, n: 22 }, { x: 10, z: 112, r: 10, n: 20 },
+      // 一の備の左右の若葉の雑木（持ち場の手前と脇に見える。槍の組の場は空ける）
+      { x: -20, z: -46, r: 6, n: 7, kind: 'broad' }, { x: -16, z: -27, r: 3, n: 3, kind: 'broad' }, { x: 24, z: -60, r: 5, n: 6, kind: 'broad' }],
     // 崩れた追手は北の峠道か東の寄せ口へ。東の兵を海まで走らせない。
     fleeOut: (x, z, team) => team === 1 && (z < -130 || (x > 90 && z > -40 && z < 4)),
   },
@@ -2441,6 +2507,7 @@ const kanegasaki = {
       groundedHome:true, ...({boardRoof:true,boardRoofColors:KG_ROOF_COLORS,weatheredBoards:true}), batch:homes });
     finalizeSimpleBatch(rt, homes);
     retreatWayside(rt);
+    retreatBaggage(rt, addSacks);
     // 退く道の乱れ：崩れた俵、倒れた旗、捨てた荷
     for (const [x, z, r, n2] of [[2, 40, 0.8, 2], [-14, 78, -0.6, 3], [-30, 116, 1.2, 2], [-44, 138, 0.3, 1]]) addSacks(x + 3, z, r, n2);
     for (const [x, z, r] of [[-4, 52, 0.4], [-20, 92, -1.1], [-36, 124, 2.2]]) retreatDroppedFlag(rt, x, z, r);

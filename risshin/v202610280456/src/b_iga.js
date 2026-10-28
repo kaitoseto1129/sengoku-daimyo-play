@@ -1484,6 +1484,7 @@ const iga = {
     autumn: true,
     slopeForest: 0.7, // 木を増やさず、山腹に既存の林床・樹冠の斑を使う。大手の踏み跡は残る。
     muddy: 0.25,
+    muddyCastleFloor: 0.9, // 曲輪の平場は白っぽい砂利にせず湿った土に。
     softEarthCrust: true, stableSlopeGrain: true, // 土塊の升目と、斜面の法線で伸びる縞を残さない。
     subtleMudRelief: true, sparseEarthCrust: true, // 円い窪みを一面に並べず、踏まれた泥と土塊の斑に限る。
     variedMarch: true, strideLimit: 1.1, // 山道の歩調をばらし、逃げ足でも腿と膝を振り上げすぎない。移動速度は保つ。
@@ -1614,7 +1615,8 @@ const iga = {
     // 陣の輪郭は準備時に作る。大手・東西・裏の寄せ口を空け、夜討ちの筋を塞がない。
     for (const seg of [[-38, 12, -10, 12], [10, 12, 38, 12], [-38, 26, -38, 42], [-38, 56, -38, 80],
       [38, 12, 38, 18], [38, 32, 38, 42], [38, 56, 38, 80], [-22, 80, -10, 80], [10, 80, 38, 80]]) {
-      rt.scene.add(palisade(W, seg, { h: 1.7, solid: true }));
+      // 低く透ける杭柵を地面に沿わせる。厚い柵が陣の北の高まりを越えて、太い線の太鼓橋に見えていた（10/28）。
+      rt.scene.add(palisade(W, seg, { h: 1.3, solid: true, openFence: true, lightFence: true, terrainRails: true, noBrace: true }));
     }
     for (const x of [-35, 35]) rt.scene.add(jinmaku(W, x, 66, 4, 10, 4, { mon: 'sujikai', solid: false }));
     // 携帯でも光の枠は共通の二つのまま。寄せ口を横切る実兵の姿と空き地を照らす。

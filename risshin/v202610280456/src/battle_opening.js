@@ -25,7 +25,7 @@ const GOALS = {
   nagashima: '岸と水路を守り、囲みを保つ',
   shitaragahara: '柵を守り、合図で敵を退ける',
   echizen: '味方と二つの木戸を開き、木の芽峠城の奥を守る',
-  echizen_ikko: '奥へ進み、奥山道を九十秒守る',
+  echizen_ikko: '味方と門を破り、本堂を押さえる',
   iwamura: '夜討ちを防ぎ、城の麓で味方と合流する',
   tennoji: '砦を守り、救援と共に囲みを破る',
   saika: '杭を外して川を渡り、退く合図で戻って東岸を守る',

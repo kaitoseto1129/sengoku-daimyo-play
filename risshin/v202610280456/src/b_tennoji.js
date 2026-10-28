@@ -1077,9 +1077,10 @@ function fortHouses(rt) {
     if (detailed) for (const side of [-1, 1]) for (const zz of [-d / 3, d / 3]) {
       for (const t of [.3, .72]) {
         const g = stone.clone();
-        g.scale(.23 + t * .07, .11, .19); g.rotateY(zz + side);
+        // 小さく平たい川石。大きな白い塊が屋根に浮かないよう、板へ伏せる。
+        g.scale(.14 + t * .04, .05, .12); g.rotateY(zz + side);
         g.rotateZ(-side * angle);
-        g.translate(x + side * half * t, roofY + rise * (1 - t) + .28, z + zz);
+        g.translate(x + side * half * t, roofY + rise * (1 - t) + .22, z + zz);
         stones.push(g);
       }
     }
@@ -1170,7 +1171,7 @@ function fortHouses(rt) {
     for (const g of bag) g.dispose();
   }
   if (stones.length) {
-    const mesh = new THREE.Mesh(mergeGeometries(stones), houseMaterial({ color: 0x77746b }));
+    const mesh = new THREE.Mesh(mergeGeometries(stones), houseMaterial({ color: 0x55524b }));
     mesh.castShadow = mesh.receiveShadow = true; rt.scene.add(mesh);
     for (const g of stones) g.dispose();
   }

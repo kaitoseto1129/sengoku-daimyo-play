@@ -1270,7 +1270,8 @@ const tedorigawa = {
       F.step === 0 ? F.shibaU?.pos : F.step === 1 ? NORTH_POST : SOUTH;
     if (!at) return null;
     const hold = F.step !== 3;
-    q.unit = u; q.enemy = !!u; q.defend = hold && !u;
+    // 持ち場の範囲を画面上の太い破線の輪で囲まない（10/28 白い太線が川原を横切って見えた）。行き先は小旗と足元の印で示す。
+    q.unit = u; q.enemy = !!u; q.defend = false;
     q.waiting = hold && !u; q.always = hold && !u; q.silent = true;
     q.x = u ? u.pos.x : at.x; q.z = u ? u.pos.z : at.z;
     q.r = q.hide = u ? 2 : F.dp?.on && C ? C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;

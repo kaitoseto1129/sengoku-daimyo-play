@@ -1505,7 +1505,10 @@ const okehazama = {
       h += 9 * gauss(x, z, HONJIN.x - 58, HONJIN.z - 6, 900) + 10 * gauss(x, z, HONJIN.x + 60, HONJIN.z + 4, 1000);
       const d = distToPolyline(x, z, P1);
       h -= 4 * Math.exp(-(d * d) / 300);
-      return okeHeight(this._okeDem, wx, wz, h);
+      // 谷の両側の丘（高さ二十〜三十歩）。実測の起伏の上へ足し、木の生えた丘が谷を囲む。馬の道・攻め口の原は空ける。
+      const hills = 24 * gauss(x, z, -86, -44, 750) + 22 * gauss(x, z, 66, -26, 700)
+        + 26 * gauss(x, z, -72, -102, 700) + 24 * gauss(x, z, 62, -110, 600);
+      return okeHeight(this._okeDem, wx, wz, h) + hills;
     },
     clear: (wx, wz) => {
       const x = localX(wx, wz), z = localZ(wx, wz);
@@ -1538,7 +1541,8 @@ const okehazama = {
       const ez = Math.min(((fz % 16) + 16) % 16, 16 - ((fz % 16) + 16) % 16);
       return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.9) / 0.6, (1 - valley) * 6));
     },
-    groves: [{ ...fieldPoint(132, 96), r: 10, n: 22 }, { ...fieldPoint(112, 124), r: 8, n: 16 }, { ...fieldPoint(-60, -70), r: 16, n: 26 }, { ...fieldPoint(55, -20), r: 18, n: 30 }, { ...fieldPoint(-50, 20), r: 14, n: 18 }, { ...fieldPoint(HONJIN.x - 58, HONJIN.z - 6), r: 16, n: 30 }, { ...fieldPoint(HONJIN.x + 62, HONJIN.z + 6), r: 16, n: 30 }],
+    groves: [{ ...fieldPoint(132, 96), r: 10, n: 22 }, { ...fieldPoint(112, 124), r: 8, n: 16 }, { ...fieldPoint(-60, -70), r: 16, n: 26 }, { ...fieldPoint(55, -20), r: 18, n: 30 }, { ...fieldPoint(-50, 20), r: 14, n: 18 }, { ...fieldPoint(HONJIN.x - 58, HONJIN.z - 6), r: 16, n: 30 }, { ...fieldPoint(HONJIN.x + 62, HONJIN.z + 6), r: 16, n: 30 },
+      { ...fieldPoint(-86, -44), r: 16, n: 26, kind: 'broad' }, { ...fieldPoint(66, -26), r: 12, n: 18, kind: 'broad' }, { ...fieldPoint(-72, -102), r: 15, n: 26 }, { ...fieldPoint(62, -110), r: 13, n: 22, kind: 'broad' }],
     // 本陣のまわりは踏み荒らされて泥（雨の後）
     tint(wx, wz, h, c) {
       const x = localX(wx, wz), z = localZ(wx, wz);
@@ -1549,6 +1553,8 @@ const okehazama = {
   setup(rt) {
     // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
+    // 豪雨のぬかるみが空を映して鈍く照るよう、地面の映りだけを強める（材質は一つのまま）。
+    rt.world.terrain.material.envMapIntensity = 0.95;
     const meritHit = rt.army.hooks.onMeritHit;
     rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
       if (source?.isPlayer && target.team !== source.team && amount > 0) target.okeHitUntil = rt.t + 3;

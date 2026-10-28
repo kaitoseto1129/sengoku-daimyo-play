@@ -1837,6 +1837,63 @@ function nodaMoat(rt, m, q) {
   rt.dispose = function () { for (const item of [geo, mat, tex, bg, bm, gg, gm]) item.dispose(); return dispose.call(this); };
 }
 
+// 淀川の岸：共通の灰色の平たい川石（岸に浮いて見えた）を外し、水際に葦の群れを立てる。
+// 浅瀬の口は空ける。葦は一束の InstancedMesh、形と材質は一つ。毎コマは触らない。
+function nodaRiverBanks(rt) {
+  const W = rt.world, scene = rt.scene;
+  for (const st of W.def.streams) {
+    const rock = st.rockMesh;
+    if (rock?.parent) { rock.parent.remove(rock); rock.geometry.dispose(); rock.material.dispose(); }
+    st.rockMesh = null;
+  }
+  for (const mesh of scene.children.slice()) {
+    if (!mesh.isInstancedMesh || mesh.geometry?.type !== 'DodecahedronGeometry' || mesh.material?.color?.getHex() !== 0x68695b) continue;
+    scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
+  }
+  const reedGeo = new THREE.BufferGeometry(), blade = [];
+  // 細い葉を六枚、先を外へしならせる。
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.05, ca = Math.cos(a), sa = Math.sin(a), lean = 0.18 + (k % 3) * 0.08, h = 1 + (k % 2) * 0.35;
+    const w = 0.035;
+    blade.push(-w * sa, 0, w * ca, w * sa, 0, -w * ca, ca * lean, h, sa * lean);
+  }
+  reedGeo.setAttribute('position', new THREE.Float32BufferAttribute(blade, 3));
+  reedGeo.computeVertexNormals();
+  const normals = reedGeo.attributes.normal;
+  for (let i = 0; i < normals.count; i++) normals.setXYZ(i, 0, 1, 0);
+  const reedMat = new THREE.MeshLambertMaterial({ color: 0x8a8550, side: THREE.DoubleSide });
+  const max = 900, reeds = new THREE.InstancedMesh(reedGeo, reedMat, max);
+  const pose = new THREE.Object3D(), color = new THREE.Color();
+  const tones = [0x9a9258, 0x7f7c46, 0xa89c62, 0x6f7040];
+  let n = 0;
+  for (const st of W.def.streams) {
+    const pts = st.pts;
+    for (let i = 0; i + 1 < pts.length && n < max; i++) {
+      const [ax, az] = pts[i], [bx, bz] = pts[i + 1], len = Math.hypot(bx - ax, bz - az);
+      const nx = -(bz - az) / len, nz = (bx - ax) / len;
+      for (let d = 0; d < len && n < max; d += 0.9) {
+        const t = d / len, cx = ax + (bx - ax) * t, cz = az + (bz - az) * t;
+        if ((st.fords || []).some((f) => Math.abs(cx - f.x) < f.w)) continue;
+        for (const side of [-1, 1]) {
+          const j = (i * 131 + d * 7 + side * 3) | 0, r = Math.sin(j * 12.9898) * 43758.5453, q = r - Math.floor(r);
+          if (q < 0.3) continue;
+          const off = st.w * 0.5 + 0.2 + q * 1.6, x = cx + nx * off * side + Math.sin(j) * 0.3, z = cz + nz * off * side;
+          if (W.inWaterAt?.(x, z) && q < 0.6) continue;
+          const sc = 0.9 + q * 0.9;
+          pose.position.set(x, W.heightAt(x, z) - 0.05, z); pose.rotation.set(0, j * 2.4, 0.08 * Math.sin(j));
+          pose.scale.set(sc, sc * (1.2 + q * 0.6), sc); pose.updateMatrix();
+          reeds.setMatrixAt(n, pose.matrix); reeds.setColorAt(n++, color.setHex(tones[j & 3]));
+          if (n >= max) break;
+        }
+      }
+    }
+  }
+  reeds.count = n; reeds.receiveShadow = true; reeds.computeBoundingSphere();
+  scene.add(reeds);
+  const dispose = rt.dispose.bind(rt);
+  rt.dispose = () => { dispose(); reedGeo.dispose(); reedMat.dispose(); };
+}
+
 // 川石と足元の水際は、この戦の場面だけで組み立てる。形・配列は最初に確保する。
 function installNodaWater(rt) {
   const W = rt.world, scene = rt.scene, dummy = new THREE.Object3D(), owned = [];
@@ -2496,6 +2553,7 @@ const nodafukushima = {
     }
     installDayCuts(rt);
     installNodaWater(rt);
+    nodaRiverBanks(rt);
     // この戦の夜空だけ調整する。白い粒が雪のように見えない大きさと数へ。
     // 既存の形と材質を使い、ほかの戦の星には持ち越さない。
     if (W.stars) {

@@ -73,7 +73,7 @@ function build(rt, root) {
         // 森部は届く本人だけ白縁。振りかぶりでは色を替えず、敵は同じ赤を保つ。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);',
           rt.def.missionStyle === 'ford' ? 'if (mod(signTone, 8.0) == 2.0) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
-          rt.def.missionStyle === 'lesson' ? 'if (mod(signTone, 8.0) > 3.5) vColor = vec3(1.0, 0.06, 0.02); else if (mod(signTone, 8.0) > 1.5) vColor = position.z > 0.0 ? vec3(1.0, 0.55, 0.35) : vec3(1.0);' :
+          rt.def.missionStyle === 'lesson' ? 'if (mod(signTone, 8.0) == 2.0) vColor = position.z > 0.0 ? vec3(1.0, 0.06, 0.02) : vec3(1.0);' :
           // 桶狭間は届いても赤い▼を保つ。横幅と明るい中身で間合いを返す。
           'if (mod(signTone, 8.0) == 2.0 || mod(signTone, 8.0) == 6.0) vColor = position.z > 0.0 ? vec3(1.0, 0.42, 0.20) : vec3(0.7, 0.015, 0.008);');
         if (rt.def.missionStyle !== 'raid') {
@@ -291,7 +291,7 @@ export function fieldSignsTick(rt, root) {
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
     const playerDistance = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-    if (playerDistance > (foe ? ford || raid ? 170 * 170 : 14 * 14 : 6 * 6) && u !== focusEnemy) continue;
+    if (playerDistance > (foe ? ford || raid ? 170 * 170 : lesson ? FOE_R * FOE_R : 14 * 14 : 6 * 6) && u !== focusEnemy) continue;
     if (!foe && rt.missionGuide?.marker?.guideTalk && rt.missionGuide.marker.guidePerson?.() === u) continue;
     // 稲生も見える敵全員に▼を残す。目当て以外を味方に見せない。
     // 追う本人は大きさ、攻撃が届く本人は白縁で区別する。
@@ -334,6 +334,8 @@ export function fieldSignsTick(rt, root) {
       if (!u._fsNearSeen) continue;
     }
     // 体力の横棒だけを遠くに残さず、同じ本人の▼と揃える。
+    // 森部は近くても姿を描いていない本人へ▼を浮かべない。見失った相手へはピンが導く。
+    if (ford && !defeated && !inouSignVisible(rt, u)) continue;
     if (lesson && !defeated && !near && !general(u) && foe && !inouSignVisible(rt, u)) continue;
     if (!ford && !lesson && !raid && u === commander && u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown) continue;
     if (general(u) && (u === commander && d2 < 180 * 180 || d2 < GEN_R * GEN_R || d2 < GEN_R * GEN_R * 1.3 && s.bound?.includes(u)) && !u.woundOut) { u._fsD = d2; gens.push(u); }
@@ -557,6 +559,13 @@ export function fieldSignsTick(rt, root) {
         const height = 12 + 6 * closing;
         dummy.scale.x = (hit > 0 || defeated ? Math.max(width, 32) : width) * screenScale / .34;
         dummy.scale.y = height * (defeated ? still ? .25 : Math.max(0, Math.min(1, (defeatUntil - rt.t) / .8)) : blocked ? .55 : 1 + pulse) * screenScale / .28;
+      } else if (lesson) {
+        // 選ばれただけでは大きくしない。接近・届く横幅・命中の縦伸びを最後まで保つ。
+        const closing = Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / Math.max(1, 30 - reachHot)));
+        const width = reachable ? 42 : 12 + 14 * closing;
+        const height = 12 + 8 * closing;
+        dummy.scale.x = Math.max(width, hit > 0 || defeated || blocked ? 32 : 0) * screenScale / .34;
+        dummy.scale.y = height * (defeated ? still ? .25 : Math.max(0, Math.min(1, (defeatUntil - rt.t) / 1)) : blocked ? .55 : 1 + 1.6 * pulse) * screenScale / .28;
       } else if (u === focusEnemy && !defeated || ford && (hit > 0 || defeated)) {
         dummy.scale.x = Math.max(34, Math.min(42, dummy.scale.x * .34 / screenScale)) * screenScale / .34;
         // 討ち取りは横幅だけを保ち、既存の縦に閉じる動きは止めない。
@@ -621,8 +630,8 @@ export function fieldSignsTick(rt, root) {
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
-  // 森部・桶狭間は全員の所属印を残し、届く本人・命中した本人を最後に描く。
-  if (special) n = drawOrderedSigns(s, ford || raid);
+  // 序盤三戦は全員の所属印を残し、届く本人・命中した本人を最後に描く。
+  if (special) n = drawOrderedSigns(s, ford || raid || lesson);
   for (let i = 0; i < hotN && n < CAP; i++, n++) {
     s.marks.setMatrixAt(n, hotM[i]);
     s.marks.geometry.attributes.signLife.setX(n, hotLife[i]);

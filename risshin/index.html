@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202610280342 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202610280456 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202610280342/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610280342/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610280342/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610280342/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202610280456/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202610280456/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202610280456/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202610280456/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -806,7 +806,7 @@ body:has(#hud.photo) #overlay { display: none; }
 .roster .rr[data-who]:hover { background: rgba(236,228,210,.04); }
 /* 時間の予測や区切りを重ねず、終わった工程を一つの円で示す。 */
 #loading .ldmon { width:72px; height:72px; margin:0 auto 16px; border:0; border-radius:50%; background:conic-gradient(var(--kin) var(--ld-progress, 0%), var(--sumi-3) 0); box-shadow:0 0 0 1px var(--washi-faint); animation:none; position:relative; }
-#loading .ldmon::after { content:none; }
+#loading .ldmon::after { content:''; position:absolute; inset:0; border-radius:50%; background:repeating-conic-gradient(transparent 0deg calc(360deg / var(--ld-stages, 6) - 3deg), var(--sumi-3) calc(360deg / var(--ld-stages, 6) - 3deg) calc(360deg / var(--ld-stages, 6))); }
 #loading .ldbar, #loading #ld-steps, #loading #ld-left { display:none; }
 #loading.first-battle #tip, #loading.first-battle #ld-stage > [role="status"] { display:none; }
 /* 停止時は円と準備中の見出しを消し、既存の戻る・やり直すだけを残す。 */
@@ -1807,7 +1807,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202610280342/screens.css">
+<link rel="stylesheet" href="./v202610280456/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1956,5 +1956,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202610280342/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202610280456/src/main.js').catch((error) => window.__bootFail(error));
 </script>

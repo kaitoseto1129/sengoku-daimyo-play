@@ -15,7 +15,7 @@ import { rosterPlan, rosterBuild } from './jinkei_roster.js';
 // ③退く武田勢を、城の麓まで追う
 // 向き：北（-z）の山の上に岩村城。南（+z）の水晶山に信忠の陣
 // ======================================================================
-import { nobori, campfire, tawara, village, ishigaki, solidCircle, lumber, hatazao, koshisaku, tateNarabi, takataba, hut } from './props.js';
+import { nobori, campfire, tawara, village, ishigaki, solidCircle, lumber, hatazao, koshisaku, tateNarabi, takataba, hut, jinmaku } from './props.js';
 import { timeslipField } from './timeslip_field.js';
 import { S as SETTINGS } from './settings.js';
 import { RANKS } from './state.js';
@@ -1260,6 +1260,18 @@ const iwamura = {
         rt.scene.add(tateNarabi(W, ax, 1.5, bx, 1.5, { fieldPairs: true }));
     }
     rt.scene.add(tawara(W, -18, 30, 0.3, 6));
+    // 柵の内の両脇に寝起きの陣小屋の群れ（持ち場から見える。どの画質でも同じ低い板葺き）。位置と数は推定。
+    // 中央の口・東の迂回の道（z14）・篝火の持ち場・物見は空ける。西の群れは陣幕で囲い、南を口にする。
+    rt.scene.add(jinmaku(W, -34, 13, 17, 13, 6, { mon: 'oda' }));
+    for (const [x, z, r] of [[-30, 10, .06], [-38, 15, -.08], [-27, 25, .1], [20.5, 1.4, .04], [26.5, -1.4, -.06], [32, 4, .08], [38, 8, -.05]])
+      rt.scene.add(hut(W, x, z, 5, 3.4, r, { h: 2, wall: 0x7d6a50, minka: false, thatchTies: true, groundedHome: true }));
+    // 柵の裏に立てかけた竹束。射線と口は塞がない。
+    for (const [x, z, r] of [[-24, 0.5, .05], [-21.6, 0.7, 0], [17.5, -2.6, 0], [-34, 2.4, .1], [36, 2.2, -.1]]) rt.scene.add(takataba(W, x, z, r));
+    // 城山の曲輪の南面に低い野面の石垣（段の影が麓から見える）。範囲は推定。
+    for (const seg of [[[8, -160], [14, -174]], [[28, -181], [44, -187]], [[-22, -208], [-2, -207]]]) {
+      const pts = seg.map(([x, z]) => castlePoint(x, z));
+      rt.scene.add(ishigaki(W, pts, { kind: 'nozura', topY: Math.max(...pts.map(([x, z]) => W.heightAt(x, z))) + .3, minH: 1.2, maxH: 2.2, out: -1, noKit: true }));
+    }
     // 陣の番所も両翼の仮小屋と同じ低い切妻へ。建物の形は推定復元。
     // 梁・鴨居・板戸へ室内高をそろえて渡し、天井下地を屋根裏へ納める。
     const [watchX, watchZ, watchW, watchD] = CAMP_SERVICE_HOUSES[0];

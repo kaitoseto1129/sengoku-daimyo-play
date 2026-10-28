@@ -883,6 +883,9 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 渡河も到着前後で同じピンを使う。待機中に画面端の矢印へ戻さない。
   const ford = rt.def.missionStyle === 'ford' && (want.crossing || want.waiting && !want.guardArea);
   const raid = rt.def.missionStyle === 'raid' || ford;
+  // 敵を見失った時も行き先のピンを保ち、味方の横に浮かぶ矢印へ替えない。
+  const enemyPin = rt.def.missionStyle === 'lesson' && want.unit?.team !== undefined && want.unit.team !== rt.player.u.team;
+  const destinationPin = raid || enemyPin;
   const joined = raid && (want.area || ford) && want.arrived;
   // 桶狭間は下のピンを回して使う。他の戦の矢印だけをここに残す。
   el._routeEdge.setAttribute('d', 'M-15-5H3V-13L18 0L3 13V5H-15Z');
@@ -909,7 +912,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 自分の輪と混ぜず、移動先は画面の内外とも同じ矢印で示す。
   const travelArrow = !raid && !want.arrived && !defend;
   el._simpleRing.style.display = (outside && !docked || raid || travelArrow) ? 'none' : '';
-  el._routeEdge.style.display = !raid && (travelArrow || outside && !docked) || want.allyGather ? '' : 'none';
+  el._routeEdge.style.display = !destinationPin && (travelArrow || outside && !docked) || want.allyGather ? '' : 'none';
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
   // 味方への集合は本流の長い矢印を保ち、先端を集合地点に合わせる。
   if (want.allyGather && !outside) {
@@ -920,7 +923,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 待機は任務の下で円に起こす。地面の薄い輪と区別し、残る時間を読める大きさにする。
   el._simpleRing.setAttribute('transform', raid ? 'translate(0 -30) scale(.72 2.3)' : docked ? 'scale(1 3.2)' : '');
   // 集合先は先端までつながったピン一本。丸と短い軸を離して描かない。
-  if (raid && !el._destinationStem) {
+  if (destinationPin && !el._destinationStem) {
     const stem = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     const path = 'M0 0C-6-12-27-23-27-40A27 27 0 1 1 27-40C27-23 6-12 0 0Z';
     stem.innerHTML = `<path d="${path}" fill="#14120f" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="${path}" fill="none" stroke="#fff3ba" stroke-width="4" stroke-linejoin="round"/>`;
@@ -928,7 +931,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   if (el._destinationStem) {
     // 待つ間も同じピンの穴で時計を動かし、別の兵の印へ替わったように見せない。
-    el._destinationStem.style.display = raid ? '' : 'none';
+    el._destinationStem.style.display = destinationPin ? '' : 'none';
     el._destinationStem.setAttribute('transform', '');
     el._destinationStem.lastChild.setAttribute('stroke', want.enemy ? '#ff342e' : joined ? '#e4f2cb' : '#fff3ba');
   }
@@ -1017,19 +1020,19 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     const dy = -(gx * Math.sin(yaw) + gz * Math.cos(yaw));
     if (Math.hypot(dx, dy) < .001) { el.hidden = true; return; }
     const side = Math.abs(dx) / Math.max(1, W / 2 - 92) >= Math.abs(dy) / Math.max(1, H / 2 - 86);
-    const baseX = side ? dx >= 0 ? W - sa.right - 92 : sa.left + 92 : W / 2;
+    const baseX = side ? dx >= 0 ? W - sa.right - (enemyPin ? 36 : 92) : sa.left + (enemyPin ? 36 : 92) : W / 2;
     const baseY = defend ? H * .5 : side ? H / 2 : dy >= 0 ? H - 68 : 104;
     let found = false;
     for (let i = 0; i <= 40; i++) {
       const offset = Math.ceil(i / 2) * 18 * (i % 2 ? 1 : -1);
       x = baseX + (side ? 0 : offset); y = baseY + (side ? offset : 0);
-      if (x < sa.left + 48 || x > W - sa.right - 48 || y < sa.top + 64 || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects)) continue;
+      if (x < sa.left + (enemyPin ? 32 : 48) || x > W - sa.right - (enemyPin ? 32 : 48) || y < sa.top + 64 || y > H - sa.bottom - 24 || !inouPinFree(x, y, rects)) continue;
       found = true; break;
     }
     if (!found) { el.hidden = true; return; }
     el._routeEdge.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI})`);
     // 画面外でも同じピンを回すだけ。丸い別の印へ切り替えない。
-    if (raid) el._destinationStem.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) translate(0 40)`);
+    if (destinationPin) el._destinationStem.setAttribute('transform', `rotate(${Math.atan2(dy, dx) * 180 / Math.PI - 90}) translate(0 40)`);
   }
   // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
   let outline = '';

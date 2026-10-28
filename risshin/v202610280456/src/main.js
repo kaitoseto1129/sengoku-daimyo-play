@@ -133,7 +133,7 @@ function ldBegin(keys, battle = '') {
   stage('戦いの準備をしています', keys[0]);
   ldIv = setInterval(ldTick, 150);
 }
-// 円は工程の所要時間で分け、工程内は実際の完了数と時間の見込みで進める。
+// 円は工程ごとに等分する。長い組立てだけで円全体が満ちないようにする。
 // 遅い端末でも後戻りせず、完了前に満ち切らない。戦が始まったら更新は止める。
 function ldTick() {
   const P = ldPlan;
@@ -142,9 +142,9 @@ function ldTick() {
   const elapsed = Math.max(0, performance.now() - P.t);
   // 一つの長い工程で円全体を満たさない。残りの工程の分は必ず空けておく。
   const ratio = current ? elapsed / current : 0;
-  const estimated = Math.min(.9, ratio * .9);
+  const estimated = .9 * ratio / (1 + ratio);
   const within = Math.max(P.part, estimated);
-  P.progress = Math.max(P.progress, Math.min(.98, (P.done + current * within) / Math.max(1, P.total)));
+  P.progress = Math.max(P.progress, Math.min(.98, (Math.max(0, P.cur) + within) / P.keys.length));
   $('loading').style.setProperty('--ld-progress', `${P.progress * 100}%`);
   const left = $('ld-left');
   if (left) left.textContent = '';

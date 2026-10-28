@@ -296,23 +296,25 @@ function trailClear(rt, path, from, to) {
   return roadClear(rt.army, rt.player.u, from, to);
 }
 
-// 道の角を一つずつ進める案内（行き先のピンは次の角）。角に近づくか、次の角の方が近くなったら先へ。後戻りはしない。
+// 道の角を一つずつ進める。近さだけで切岸や塀の向こうの角へ飛ばさない。
 function wayTrail(rt, path, idx) {
-  const F = rt.flags, p = rt.player.u.pos;
-  F.guideReturning = false; F.guideBlocked = false;
+  const p = rt.player.u.pos;
+  if (rt.flags.guideReturning) return trailAhead(rt, path, idx);
   idx = Math.max(1, Math.min(idx, path.length - 1));
   while (idx < path.length - 1) {
     const d = Math.hypot(p.x - path[idx][0], p.z - path[idx][1]);
     const seg = Math.hypot(path[idx + 1][0] - path[idx][0], path[idx + 1][1] - path[idx][1]);
     const dn = Math.hypot(p.x - path[idx + 1][0], p.z - path[idx + 1][1]);
     // 先の角の方が近くても、段の上下違い（九十九折りの隣の道）や道の縁の向こうなら飛ばさない。
-    const nx = path[idx + 1][0], nz = path[idx + 1][1], skip = d < 8 && dn < seg && Math.abs(rt.world.heightAt(nx, nz) - p.y) < 2.5 && !rt.army.wallBetween(p, -1, { x: nx, z: nz }, false);
+    const nx = path[idx + 1][0], nz = path[idx + 1][1];
+    ROAD_TEST.x = nx; ROAD_TEST.z = nz;
+    const skip = d < 8 && dn < seg && Math.abs(rt.world.heightAt(nx, nz) - p.y) < 2.5;
     // 登り口（九十九折りの上の端）は味方が溜まる所。角を踏まずに、近づいたら次の角（虎口の折れ）へ向かう。
     const reach = path[idx] === CLIMB_UP[2] ? 7 : 3;
-    if (d < reach && Math.abs(rt.world.heightAt(path[idx][0], path[idx][1]) - p.y) < 3 || skip) idx++; else break;
+    if ((d < reach && Math.abs(rt.world.heightAt(path[idx][0], path[idx][1]) - p.y) < 3 || skip) && trailClear(rt, path, p, ROAD_TEST)) idx++; else break;
   }
-  F.trailPoint.x = path[idx][0]; F.trailPoint.z = path[idx][1];
-  return idx;
+  // 遠い角は十二メートル以内の歩ける途中点に切り、通れなければ来た足跡へ戻す。
+  return trailAhead(rt, path, idx);
 }
 // 遠い角へ一直線に登らせず、通れる道の合流点と十二メートル先を示す。
 // 合戦中は半秒ごとに呼び、座標の入れ物は使い回す。
@@ -1712,7 +1714,10 @@ const odani = {
     if (F.retreatOn) pos = F.retreatPoint;
     else if (F.guideReturning || F.guideBlocked) pos = F.trailPoint;
     else if (defending) {
-      pos = KC; pin.waiting = true; pin.r = 5;   // 守りの囲み線（画面に重ねる線）は塀越しに浮くので出さない。ピン一本で示す
+      // 館の向こうへ守りの印を直に置かず、通れる道を経て広場へ戻す。
+      pos = roadWay(rt.army, rt.player.u, KC);
+      pin.waiting = pos === KC; pin.route = !pin.waiting; pin.r = pin.waiting ? 5 : .5;
+      if (!pin.waiting && Math.hypot(pos.x - p.x, pos.z - p.z) < .6) return null;
     } else {
       const enemy = odaniNearestFoe(rt);
       if (enemy) {

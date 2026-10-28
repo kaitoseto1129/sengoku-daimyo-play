@@ -248,6 +248,8 @@ const inouSignCache = new WeakMap();
 export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.1, (u.bodyHeight || 1.72) + .38);
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing && rt.def.missionStyle !== 'lesson' || u.camHidden || u.mesh?.visible === false) return false;
+  // 森部では、立体の姿をまだ借りていない兵へ印だけを残さない。
+  if (rt.def.missionStyle === 'ford' && !u.vatOn && !u.human?.root?.visible) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
   // 兵の姿を描く距離まで所属の印を残す。印だけ先に消して味方に見せない。
   const range = Math.min(170, rt.world.vis ?? 170, fog?.far ?? 170);
@@ -262,7 +264,9 @@ export function inouSignVisible(rt, u) {
       (cam.x - c.x) ** 2 + (cam.y - c.y) ** 2 + (cam.z - c.z) ** 2 > .25 ||
       (p.x - c.ux) ** 2 + (p.z - c.uz) ** 2 > .25) {
     c.rt = rt; c.t = rt.t; c.x = cam.x; c.y = cam.y; c.z = cam.z; c.ux = p.x; c.uz = p.z;
-    c.seen = !cameraWallBlocked(rt, cam, p, cam.y, p.y + inouSignHeight(u));
+    c.seen = rt.def.missionStyle === 'ford'
+      ? sightPoint(rt, p, 170, true)
+      : !cameraWallBlocked(rt, cam, p, cam.y, p.y + inouSignHeight(u));
   }
   c.on = c.seen;
   return c.seen;
