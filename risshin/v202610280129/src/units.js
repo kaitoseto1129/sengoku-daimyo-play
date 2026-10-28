@@ -40,6 +40,7 @@ import { ArmyAnim } from './army_anim.js';
 import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
 import { aliveGuard } from './army_alive.js';
+import { reservedModel, reservedHorse } from './army_reserve.js';
 export { MK, UNIT_MAT, UNIT_WET, haoriFold, HORSE_HOOK, poseArms, SPEARS, spearSpec, arrowGeometry, makeWeapon, setBowDraw, kickSpear, ENEMY_HORSE, COATS, coatOf, animateHorse, soheiLook, headEnvelope, katoGeometry } from './units_model.js';
 export { weaponMesh, LOD, IDLE } from './units_flags.js';
 export { lookParts } from './units_look.js';
@@ -504,7 +505,9 @@ export class Army {
     cavalryRole(u, g, o, horoCav);
     // 見た目の組み合わせ（一人ずつ変えるが、形の数が増えすぎないよう六通りに束ねる）
     const detail85 = true && !u.isPlayer && !gen.face && u.type !== 'dummy';
-    const vi = detail85 ? (Math.imul(u.id ^ 193, 1597334677) >>> 0) % 6 : u.id % 6;
+    // 顔のある名将は名で決める（支度で作り置いた姿と、出る時の姿をそろえる。army_reserve.js）
+    let nh = 0; if (!detail85 && gen.face) for (const ch of o.name) nh = (Math.imul(nh, 31) + ch.charCodeAt(0)) >>> 0;
+    const vi = detail85 ? (Math.imul(u.id ^ 193, 1597334677) >>> 0) % 6 : gen.face ? nh % 6 : u.id % 6;
     // 装備とは別の個体差。作る時だけ求め、形・材質・描く束は増やさない。
     const physique = (salt) => (Math.imul(u.id ^ salt, 1597334677) >>> 0) / 4294967296;
     // 画質「低」（携帯）：顔と着物のずれを減らし、同じ形の兵を増やす（形ごとに一つずつ描く回数が、兵の数に比べて多すぎるので）
@@ -547,7 +550,7 @@ export class Army {
       face: o.face ?? (gen.face ? 'g:' + o.name.replace(/^.* /, '') : ((lowQ ? vi : detail85 ? vi + 6 * (Math.floor(u.id / 6) % 2) : u.id) * 7) % 12),
       // 鎧下・袴の色：藍・茶・鼠・黒
       //   同じ色でも人ごとに明るさと色あいを ±6% ずらす（褪せた藍・柿渋寄り・生成り寄り。形の数が増えすぎないよう三通り）
-      cloth: (this.world.def.allyCloth && u.team === 0 && u.type === 'ashigaru' && !u.name ? this.world.def.allyCloth[u.id % this.world.def.allyCloth.length] : o.cloth) ?? clothVar((loanArmor ? [0x293e58, 0x304763, 0x25384f, 0x344b64, 0x293e58, 0x304763] : fac.cloth || [0x2b2622, 0x262c3a, 0x3a2e24, 0x34342e, 0x262c3a, 0x2b2622])[vi], lowQ ? 0 : Math.floor(u.id / 6) % 5),
+      cloth: (this.world.def.allyCloth && u.team === 0 && u.type === 'ashigaru' && !u.name ? this.world.def.allyCloth[u.id % this.world.def.allyCloth.length] : o.cloth) ?? clothVar((loanArmor ? [0x293e58, 0x304763, 0x25384f, 0x344b64, 0x293e58, 0x304763] : fac.cloth || [0x2b2622, 0x262c3a, 0x3a2e24, 0x34342e, 0x262c3a, 0x2b2622])[vi], lowQ ? 0 : Math.floor((gen.face && !detail85 ? nh : u.id) / 6) % 5),
       saya: u.type === 'samurai' || u.type === 'busho' || u.type === 'cavalry' || o.saya,
       menpo: o.menpo ?? (gen.armor ? gen.menpo || 0 : (u.type === 'busho' && vi % 2 === 0 ? 0x6a1c14 : u.type === 'samurai' && u.id % 2 === 0 ? 0x1c1a18 : 0)),
       menpoStyle: o.menpoStyle ?? gen.menpoStyle ?? (u.type === 'busho' ? 'hanbo' : 'full'),
@@ -631,7 +634,8 @@ export class Army {
       find: for (const cloth of shades) for (let f = 0; f < 12; f++) { const alt = { ...look, cloth, face: (look.face + f) % 12 }; if (modelBuilt(alt)) { built = alt; break find; } }
     }
     const _bm0 = performance.now();
-    buildModel(u, built);
+    // 後から出る名のある武将は、支度で作り置いた軽い形を使う（army_reserve.js）
+    if (!reservedModel(this, u, built, buildModel)) buildModel(u, built);
     if (built !== look) u.look = finalLook(look);
     this._bmMs += performance.now() - _bm0;
     if (u.flag && fieldLook.unitFlagMaterial) u.flag.material = fieldLook.unitFlagMaterial(u.flag.material);
@@ -660,7 +664,7 @@ export class Army {
     if (o.horse) {
       const baseStyle = o.horseStyle || hst();
       const style = redRider ? takedaHorseStyle(baseStyle) : baseStyle;
-      this.setMounted(u, true, buildHorse(fieldLook.horseCoat ? fieldLook.horseCoat(style, u.id) : style));
+      this.setMounted(u, true, reservedHorse(this, u, () => buildHorse(fieldLook.horseCoat ? fieldLook.horseCoat(style, u.id) : style)));
     }
     if (redRider && u.mounted) takedaRiderFinish(u);
     if (u.type === 'porter') {
@@ -711,9 +715,14 @@ export class Army {
   selectShadows(focus) {
     if (this.shadowNext > this.time) return;
     this.shadowNext = this.time + 1;
+    // 影はカメラの前の近くだけ（kaito 10/27③）。後ろ 4m より向こうの兵は影を描かない（影の箱も前へ寄せてある。world_update.js）
+    const ce = this.world.cullCam?.matrixWorld.elements;
+    let fx = 0, fz = 0;
+    if (ce) { const l = Math.hypot(ce[8], ce[10]) || 1; fx = -ce[8] / l; fz = -ce[10] / l; }
     for (const u of this.units) {
-      const distance2 = focus ? (u.mesh.position.x - focus.x) ** 2 + (u.mesh.position.z - focus.z) ** 2 : Infinity;
-      u.shadowSelected = !!u.isPlayer || distance2 < this.shadowDist * this.shadowDist;
+      const dx = focus ? u.mesh.position.x - focus.x : 0, dz = focus ? u.mesh.position.z - focus.z : 0;
+      const distance2 = focus ? dx * dx + dz * dz : Infinity;
+      u.shadowSelected = !!u.isPlayer || (distance2 < this.shadowDist * this.shadowDist && dx * fx + dz * fz > -4);
       const on = u.shadowSelected && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
       if (u.shSet && u.shOn === on && !on) continue;
       u.shOn = on; u.shSet = true;

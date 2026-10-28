@@ -1,4 +1,5 @@
 import { encounterTick, encounterDispose } from './battle_encounter.js';
+import { reserveLater } from './army_reserve.js';
 import { simpleControls } from './simple_controls.js';
 import { retryTick, offerRetry, disposeRetry } from './battle_retry.js';
 import { noteHeard, relayNotice, roughPeople } from './notice_source.js';
@@ -821,6 +822,7 @@ export class Battle {
     blap('misc');
     try { def.setup(this); } finally { this._issuingOrders = false; }
     blap('setup');
+    reserveLater(this); blap('reserve');   // 後から出る名のある武将を作り置く（army_reserve.js）
     this.buildCouriers(wdef);
     this.taisho = taishoInit(this);   // 両軍の総大将（taisho.js）
     this.environmentSound = new BattleEnvironment(this);

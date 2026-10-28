@@ -132,7 +132,8 @@ function faceJobs(rt, present = false) {
   const jobs = new Map();
   const add = (key, L, full) => { if (!jobs.has(key)) jobs.set(key, [key, L, full]); };
   const skins = new Set(SKIN_TONES), monks = new Set([false]);
-  for (const u of rt.army.units) {
+  // 後から出る名のある武将の作り置き（army_reserve.js）の顔も、今いる者と同じく作る
+  for (const u of [...rt.army.units, ...(rt.army.reserveUnits || [])]) {
     const L = u.look;
     if (!L || u.type === 'dummy') continue;
     const named = isNamed(L);

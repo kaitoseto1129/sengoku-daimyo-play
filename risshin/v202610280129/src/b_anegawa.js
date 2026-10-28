@@ -3910,6 +3910,14 @@ anegawa.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '浅井の寄せ�
 anegawa.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) anegawa.charge(rt); };
 // 美濃三人衆は東の備えの同じ手に置く。森・佐久間への共通追加を防ぐ。
 anegawa.famous = HISTORICAL_GENERALS.anegawa.filter((e) => e.team !== 0);
+// 戦の途中で出る名のある武将（磯野・柴田・美濃三人衆）は、支度で作り置いて出る時は置くだけ（army_reserve.js）。姿は出す時と同じ指定
+anegawa.reserve = [
+  { team: 1, faction: 'azai', type: 'busho', o: { ...AZAI, name: '磯野員昌', horse: true, hat: 'kabuto_r', haori: 0x4a3a22 } },
+  { team: 0, faction: 'oda', type: 'samurai', o: { name: '柴田勝家', invuln: true, horse: true, hat: 'kabuto_b', haori: 0x3a2a1c } },
+  { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '稲葉一鉄', invuln: true, horse: true, hat: 'kabuto_w', haori: 0x3a3022 } },
+  { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '氏家卜全', invuln: true } },
+  { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '安藤守就', invuln: true } },
+];
 anegawa.sides = { a: { name: '織田・徳川軍', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'azai' } };
 // 一隊の敗走を全軍の崩れと呼ばず、追撃の下知は森の声に任せる。
 anegawa.battleVoices = { lines: { ally: {

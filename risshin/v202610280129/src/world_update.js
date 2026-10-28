@@ -237,8 +237,12 @@ export class WorldUpdate {
       this.updateFootWaves(dt);
     }
     // 影の範囲をプレイヤー周辺に追従
-    this.sun.position.copy(focus).add(this.sunOffset);
-    this.sun.target.position.copy(focus);
+    //   影の箱はカメラの向きへ 7m 寄せる（後ろの見えない所に影の画素を使わず、前の近くを細かく。kaito 10/27③）
+    const ce = this.cullCam?.matrixWorld.elements;
+    let ax = 0, az = 0;
+    if (ce) { const l = Math.hypot(ce[8], ce[10]) || 1; ax = -ce[8] / l * 7; az = -ce[10] / l * 7; }
+    this.sun.target.position.set(focus.x + ax, focus.y, focus.z + az);
+    this.sun.position.copy(this.sun.target.position).add(this.sunOffset);
     // 雨量を緩やかに変化
     this.rainLevel += (this.targetRain - this.rainLevel) * Math.min(1, dt * 0.4);
     const r = this.rainLevel;

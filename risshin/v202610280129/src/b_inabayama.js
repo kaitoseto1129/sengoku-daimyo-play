@@ -2609,6 +2609,11 @@ function buildInabaMountain(rt) {
       ibTrail *= smoothstep(0.55, 0.72, abs(gN.y)) * (1.0 - castleCover * 0.7);
       col = mix(col, dirt * vec3(0.92, 0.83, 0.72), ibTrail * 0.94);
       diffuseColor.rgb *= col;`);
+    // 井口の町から金華山の山頂（比高約300m）が霧で消え、山城の戦なのに城山が画面に無かった（10/28）。
+    // 高い所（標高20m〜110m で次第に）の山肌だけ、霧の見通しの外でも霞んだ山影として残す。兵・建物・低い地面の霧は変えない。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace(
+      'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );',
+      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
   };
   mat.addEventListener('dispose', () => trail.dispose());
 
