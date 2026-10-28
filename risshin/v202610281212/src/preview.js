@@ -172,7 +172,7 @@ export class Preview {
     await loadHumans(); await loadDomaru(); await loadKabuto();
     return Math.round(performance.now() - t0);
   }
-  setGeneral(nm, heading = 0.75) {
+  setGeneral(nm, heading = 0.55) {
     const gd = GENERALS[nm];
     if (!this.renderer || !gd) return;
     this.holder.clear();

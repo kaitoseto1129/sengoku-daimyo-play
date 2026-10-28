@@ -575,6 +575,12 @@ function injectStyle() {
 .j3-ban.min.hq .j3-flag { width: 22px; height: 22px; box-shadow: 0 0 0 2px #d4ab52, 0 0 0 3px rgba(0,0,0,.6); }
 .j3-ban.min.tr .j3-flag { width: 11px; height: 11px; }
 .j3-ban.min .j3-plate, .j3-ban.min .j3-tag, .j3-ban.min .j3-hq { display: none; }
+.j3-ban.quiet { opacity: .5; filter: saturate(.55); }
+.j3-ban.quiet:hover, .j3-ban.quiet:focus-visible { opacity: 1; filter: none; }
+.j3-ban.goal .j3-flag { animation: j3goal 1.6s ease-in-out infinite; }
+@keyframes j3goal { 50% { box-shadow: 0 0 0 3px #ff6a4a, 0 0 0 5px rgba(20,16,12,.8), 0 0 20px 6px rgba(255,106,74,.6); } }
+@media (prefers-reduced-motion: reduce) { .j3-ban.goal .j3-flag { animation: none; } }
+body.rm .j3-ban.goal .j3-flag { animation: none; }
 .j3-ban.min .j3-flag i { width: calc(100% - 3px); height: calc(100% - 3px); }
 .j3-ban.min .j3-pole { height: 5px; }
 .j3-ban.min.tgt .j3-flag { box-shadow: 0 0 0 2px #ff6a4a, 0 0 0 3px rgba(20,16,12,.7); }
@@ -992,7 +998,8 @@ export function mount3D(api) {
       e.el.style.display = '';
       e.el.style.zIndex = '1500';
       e.el.style.setProperty('--fs', fs.toFixed(0) + 'px');
-      e.el.style.opacity = String(clamp((cam.d - 170) / 140, 0, 1));
+      // ほかの家の名は薄く。自分の家だけをはっきり。
+      e.el.style.opacity = String(clamp((cam.d - 170) / 140, 0, 1) * (a.id === P ? 1 : .4));
       e.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`;
     }
     for (const [id, e] of clanEls) if (!seen.has(id)) e.el.style.display = 'none';
@@ -1001,7 +1008,7 @@ export function mount3D(api) {
   const paint = (force) => {
     const sel = api.sel();
     const oSig = JSON.stringify(J.own);
-    const sig = [season(), sel ? sel.id : -1, J.turn, (J.moves || []).length, J.threats.length, oSig.length, hashStr(oSig)].join('|');
+    const sig = [season(), sel ? sel.id : -1, goalId, J.turn, (J.moves || []).length, J.threats.length, oSig.length, hashStr(oSig)].join('|');
     if (!force && sig === texSig) return;
     texSig = sig;
     const T = terrain();
@@ -1070,7 +1077,8 @@ export function mount3D(api) {
       const from = api.attackable(c); if (!from || (sel && sel === c)) continue;
       g.setLineDash([3 * K, 2.2 * K]);
       road(from, c, 3 * K / 2 + 1.4, 'rgba(20,16,12,0.55)', 0.08, 0.84);
-      road(from, c, 1.8 * K / 2 + 0.3, 'rgba(255,112,80,0.98)', 0.08, 0.84);
+      // 目標の城への道だけを濃く。ほかの攻め口は薄く（一度に線を並べない）
+      road(from, c, 1.8 * K / 2 + 0.3, goalId == null || c.id === goalId ? 'rgba(255,112,80,0.98)' : 'rgba(255,112,80,0.4)', 0.08, 0.84);
       g.setLineDash([]);
       const f = curve(from, c), [x1, z1] = f(0.84), [x0, z0] = f(0.78);
       const ang = Math.atan2(tz(z1) - tz(z0), tx(x1) - tx(x0)), hs = 4 * K / 2 + 2.5;
@@ -1095,10 +1103,11 @@ export function mount3D(api) {
       g.beginPath(); g.moveTo(hs, 0); g.lineTo(-hs * 0.7, hs * 0.75); g.lineTo(-hs * 0.7, -hs * 0.75); g.closePath(); g.fill(); g.stroke();
       g.restore();
     };
-    for (const m of J.moves || []) arrow(m, m.threat ? '#d0472e' : rgba(m.clan, 1, -0.15), 3 * K / 2, !m.won && !m.threat);
+    // ほかの家どうしの動きは薄い細線。自分に向く攻め（朱）と自分の家の動きだけを濃く。
+    for (const m of J.moves || []) { const mineMove = m.threat || m.clan === P; arrow(m, m.threat ? '#d0472e' : rgba(m.clan, mineMove ? 1 : .3, -0.15), (mineMove ? 3 : 2) * K / 2, !m.won && !m.threat); }
     // 攻められる城（朱の破線の輪）・選んだ城（金の輪）
     const ring = (c, r, col, w, dash) => { g.setLineDash(dash || []); g.lineWidth = w; g.strokeStyle = col; g.beginPath(); g.arc(tx(c.c), tz(c.r), r * K, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); };
-    for (const c of D.castles) if (api.attackable(c)) { ring(c, 7.5, 'rgba(20,16,12,0.55)', 4 * K / 2 + 1); ring(c, 7.5, '#e0513a', 2.4 * K / 2, [5 * K / 2, 3.5 * K / 2]); }
+    for (const c of D.castles) if (api.attackable(c)) { const on = goalId == null || c.id === goalId; ring(c, 7.5, on ? 'rgba(20,16,12,0.55)' : 'rgba(20,16,12,0.25)', 4 * K / 2 + 1); ring(c, 7.5, on ? '#e0513a' : 'rgba(224,81,58,0.4)', 2.4 * K / 2, [5 * K / 2, 3.5 * K / 2]); }
     if (sel) {
       const from = api.attackable(sel);
       if (from) arrow({ from: from.id, to: sel.id }, '#e0513a', 4.2 * K / 2, false);
@@ -1215,7 +1224,9 @@ export function mount3D(api) {
       const fh = ANCH[gr], pw = nm.length * (gr === 'hq' ? 15 : 13) + 52;
       const bw = Math.max(44, pw), bx = x - bw / 2, by = y - fh, bh = fh + 22;
       // 遠目（はじめの見え方も）では家の名と旗だけ。城の名と兵の数は、寄った時・選んだ城・攻め寄せられた城・目標の城だけ
-      let min = c.id !== goalId && ((veryFar && rank < 7) || (far && rank < 3) || (far && gr === 'tr' && rank < 5) || (mid && rank < 8));
+      // 初めは今の行き先（目標の城）と自分の城・選んだ城・攻め寄せられた城だけを立て、ほかの家の城は小さな丸で控えめに（テスター 10/27「印・家名・線が一度に並んで分かりにくい」）
+      const quiet = J.own[c.id] !== P && c.id !== goalId && c !== sel;
+      let min = quiet || c.id !== goalId && ((veryFar && rank < 7) || (far && rank < 3) || (far && gr === 'tr' && rank < 5) || (mid && rank < 8));
       if (!min && boxes.some((b) => bx < b[0] + b[2] && bx + bw > b[0] && by < b[1] + b[3] && by + bh > b[1])) min = rank < 7;
       if (touchLayout) {
         // 小さな旗も押せる範囲は四十四画素。優先する城から八画素あける。
@@ -1233,7 +1244,7 @@ export function mount3D(api) {
       const mine = J.own[c.id] === P;
       const th = mine && J.threats.some((t) => t.to === c.id);
       const fell = J.fallen[c.id] === J.turn && J.turn > 0;
-      const cls = `j3-ban${gr ? ' ' + gr : ''}${mine ? ' me' : ''}${tgt ? ' tgt' : ''}${c === sel ? ' sel' : ''}${min ? ' min' : ''}`;
+      const cls = `j3-ban${gr ? ' ' + gr : ''}${mine ? ' me' : ''}${tgt ? ' tgt' : ''}${c === sel ? ' sel' : ''}${min ? ' min' : ''}${quiet ? ' quiet' : ''}${c.id === goalId ? ' goal' : ''}`;
       if (cls !== s.cls) { s.el.className = cls; s.cls = cls; }
       const tag = th ? '<em class="j3-tag">急</em>' : fell ? `<em class="j3-tag fell${mine ? ' mine' : ''}">落</em>` : tgt ? '<em class="j3-tag atk">攻</em>' : mine && api.danger(c) >= 2 ? '<em class="j3-tag kiki">危</em>' : '';
       const troops = api.troops(c);

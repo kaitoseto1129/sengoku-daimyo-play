@@ -2349,7 +2349,7 @@ const tennoji = {
     // ---- 砦を囲む本願寺勢 ----
     // 南の囲みは門へ進む道の始点から出す。初戦までの余分な三十メートルを省く。
     F.ringA = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name: '囲みの門徒', anchor: { x: -8, z: -20 }, facing: fortFacing(-8, -20), order: 'hold', aggro: 16, width: 18, morale: 80, fleeDir: { x: -0.3, z: -1 }, dmgMult: 0.75 },
-      dress([{ type: 'samurai', n: 1, o: { name: '南の囲みの侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 10 }], IKKO));
+      dress([{ type: 'samurai', n: 1, o: { name: '南の囲みの侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 2 }], IKKO));
     // 公記巻九（四）は大坂方の鉄砲戦を記す。所属も本願寺にそろえ、雑賀衆とは断定しない。
     F.gunA = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name: '本願寺の鉄砲', anchor: { x: 20, z: -6 }, facing: fortFacing(20, -6), order: 'hold', aggro: 40, width: 14, morale: 90, fleeDir: { x: 0.3, z: -1 }, dmgMult: 1 },
       dress([{ type: 'samurai', n: 1, o: { name: '本願寺の鉄砲頭' } }, { type: 'gun', n: 6 }], SAIKA));
@@ -2782,7 +2782,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       return g;
     };
     // 本隊と本願寺の鉄砲衆は一度に構える。本隊の後ろには門徒の大軍（軽い作り）
-    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
+    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 9 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
     mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 6 }, { type: 'ashigaru', n: 4 }], SAIKA));
     F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }], IKKO));
     F.kidoG = [];

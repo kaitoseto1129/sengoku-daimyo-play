@@ -1992,12 +1992,12 @@ function hatParts(look, parts, hi, fallen = false) {
         parts.push(P(at(ball(0.013, 0.013, 0.01), Math.sin(a) * 0.058, 1.79 + Math.cos(a) * 0.052, 0.198), gold, { mk: MK.gold }));
       }
     }
-    const N = hi ? 40 : 16;
-    // 毛は鉢の横から後ろにだけ植える（顔の横へ白く垂れて、頭巾のように見えないよう）
+    const N = hi ? 56 : 18;
+    // 毛は鉢の横から後ろへ植え、肩の上まで大きく広がって垂れる（信玄の手本の白熊。顔の前へは出さない）
     for (let i = 0; i < N; i++) {
-      const a = Math.PI * 0.85 + (i / (N - 1)) * Math.PI * 0.3;
-      const len = 0.46 + ((i * 7) % 5) * 0.06 + (Math.abs(a - Math.PI) < 0.5 ? 0.12 : 0);
-      const hair = new THREE.ConeGeometry(0.05, len, hi ? 5 : 3, 1, true);
+      const a = Math.PI * 0.6 + (i / (N - 1)) * Math.PI * 0.8;
+      const len = 0.5 + ((i * 7) % 5) * 0.06 + (Math.abs(a - Math.PI) < 0.5 ? 0.12 : 0);
+      const hair = new THREE.ConeGeometry(0.06, len, hi ? 5 : 3, 1, true);
       // 錣の外側に沿って背へ垂らす（根元は錣の外、毛先は少し外へ）
       hair.translate(0, -len / 2, 0); hair.rotateX(-0.14 - ((i * 3) % 4) * 0.03); hair.rotateY(a);
       parts.push(P(at(hair, Math.sin(a) * 0.25, 1.76, Math.cos(a) * 0.25), 0xe8e4da, { reg: 'fur', dirt: 0.2 }));
@@ -4244,7 +4244,9 @@ function thighGeometry(o, hi, part) {
   const solidHaidate = S.quality === 'high' && o.crest === 'takigawa_buffalo' && T >= 1;
   // 一益の黒い家地を、先に作った別の武将の威色で共用しない。
   const ac = o.goldKozane ? 0x1c1a1a : o.armor || 0x2a2622;
-  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac;
+  // 金の瓦佩楯（信玄の手本：金の小札を並べた佩楯）。kacchu_data の haidateGold
+  const hGold = !!o.haidateGold;
+  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac + (hGold ? '|hg' : '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.9, 0.7, 0.5, 0.35][T];
   const b = BUILD[T];
@@ -4283,7 +4285,7 @@ function thighGeometry(o, hi, part) {
       edging.computeVertexNormals();
       for (const g of [inside, edging]) P_.push(P(at(g, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'cloth' }));
     }
-    P_.push(P(at(outer, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'haidate', c2: ac, mk2: MK.lac }));
+    P_.push(P(at(outer, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'haidate', c2: hGold ? 0xc9a24a : ac, mk2: hGold ? MK.gold : MK.lac }));
   }
   // 足軽の佩楯：腿の前を覆う布に、小さな漆の板を縫い付けた物（膝の上まで）。腿の丸みに沿う
   if (hd0) P_.push(P(at(arcCyl(0.112 * b, 0.104 * b, 0.27, 5, Math.PI * 0.82, 0.12), 0, -0.2, 0.014, 0.07), cloth, { reg: 'haidate', c2: o.armor || 0x2a2622, mk2: MK.lac }));
@@ -4307,9 +4309,11 @@ function shinGeometry(o, hi, part) {
   const named = typeof o.face === 'string' && o.face.startsWith('g:');
   // 金の胴でも臑は黒漆。朱など暗い漆の胴はその色、紐は威の色にそろえる。
   const ac = named && new THREE.Color(o.armor || 0x1c1a1a).getHSL({}).l > 0.18 ? 0x1c1a1a : o.armor || 0x1c1a1a;
-  const lc = named ? o.lace || 0x202b3d : 0x202b3d;
+  const lc = named ? o.suneateCloth ?? o.lace ?? 0x202b3d : 0x202b3d;
+  // 脛当の篠と立挙の色（kacchu_data の suneateColor・suneateGold。信玄の金の篠、謙信の黒漆など）
+  const sc = named && o.suneateColor != null ? o.suneateColor : null, sGold = named && !!o.suneateGold;
   const shinTies = S.quality === 'high' && !!o.shinTies;
-  const k = 'shin' + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
+  const k = 'shin' + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + sc + (sGold ? 'g' : '') + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.95, 0.8, 0.6, 0.45][T];
   const b = BUILD[T];
@@ -4339,7 +4343,7 @@ function shinGeometry(o, hi, part) {
     }
   } else if (T >= 1) {
     // 侍：篠臑当（縦の鉄の篠を鎖でつなぐ）。侍大将から膝に立挙
-    P_.push(P(at(arcCyl(0.078 * b, 0.062 * b, 0.26, hi ? 8 : 4, Math.PI * 1.05, 0), 0, -0.14, -0.006), lc, { mk: MK.cloth, reg: 'shino', c2: named ? ac : 0x2e3236, mk2: named ? MK.lac : MK.iron, flipV: false }));
+    P_.push(P(at(arcCyl(0.078 * b, 0.062 * b, 0.26, hi ? 8 : 4, Math.PI * 1.05, 0), 0, -0.14, -0.006), lc, { mk: MK.cloth, reg: 'shino', c2: sc ?? (named ? ac : 0x2e3236), mk2: sGold ? MK.gold : named ? MK.lac : MK.iron, flipV: false }));
     if (hi || shinTies) for (const y of [-0.015, -0.265]) {
       const radius = (y > -0.1 ? 0.078 : 0.062) * b;
       P_.push(P(at(new THREE.TorusGeometry(radius, 0.0045, 4, 12), 0, y, -0.006, Math.PI / 2), lc, { mk: MK.cloth, reg: 'cord' }));
@@ -4354,7 +4358,7 @@ function shinGeometry(o, hi, part) {
         }
       }
     }
-    if (T >= 2) P_.push(P(at(arcCyl(0.085 * b, 0.08 * b, 0.08, hi ? 6 : 3, Math.PI * 0.8, 0), 0, 0.03, 0.01, -0.15), ac, { mk: MK.lac, reg: 'lacq' }));
+    if (T >= 2) P_.push(P(at(arcCyl(0.085 * b, 0.08 * b, 0.08, hi ? 6 : 3, Math.PI * 0.8, 0), 0, 0.03, 0.01, -0.15), sc ?? ac, { mk: sGold ? MK.gold : MK.lac, reg: 'lacq' }));
   }
   // 足袋と草鞋：甲のふくらみ、踵、親指の股、藁の底、結んだ紐
   // 足軽の足袋は、白っぽいと運動靴のように浮くので、履き古した紺・茶の暗い色に（人ごとに）

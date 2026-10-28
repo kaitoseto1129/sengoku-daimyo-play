@@ -404,7 +404,7 @@ function ditherMat(m, lv, cut = null) {
 
 const BODY_LOOK = [
   { armor: 0xa27b50, lace: 0x6b5a3a, sode: false },
-  { armor: 0x1d1d1f, lace: 0x34507a, sode: true },
+  { armor: 0x1d1d1f, lace: 0x5a4630, sode: true },
   { armor: 0x1d1d1f, lace: 0xa8321f, sode: true },
 ];
 
@@ -465,13 +465,13 @@ export function horseStyle(step, coat, kind) {
     coat: step >= 7 ? 0xd9d4c6 : coat ?? (step >= 5 ? 0x2a1d14 : 0x5a3a24),
     mane: step >= 7 ? 0xbdb6a6 : bay ? 0x100c0a : 0x3a2214,
     points: step >= 7 ? 0 : bay ? 1 : 0,
-    tack: step >= 6 ? 0xc9a24a : step >= 3 ? 0xb8342a : 0x6a2a1c,
+    tack: 0x3a2418,
     saddle: 0x111010,
     rim: step >= 6 ? 0xc9a24a : 0,
-    cushion: step >= 4 ? 0x7a1a14 : 0x2a2c3a,
+    cushion: step >= 4 ? 0x7a1a14 : 0x3a2a1c,
     aori: step >= 3 ? 0x3a2a1c : 0x4a3a26,
     // 房：足軽大将は紺、侍大将から朱、上は金
-    tassels: step >= 6 ? 0xc9a24a : step >= 4 ? 0xb8342a : 0x1f2a4a,
+    tassels: step >= 6 ? 0xc9a24a : step >= 4 ? 0xb8342a : 0x6a2a1c,
     big: step >= 5 ? 1 : 0,
     armor: step >= 9 ? 0xc9a24a : step >= 8 ? 0x8a6a1e : 0,
   };

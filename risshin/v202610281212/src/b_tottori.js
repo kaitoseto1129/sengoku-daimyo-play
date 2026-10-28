@@ -1695,7 +1695,7 @@ const tottori = {
     reachableSpearGrip: true, // 近い徒歩兵の握りも肩から届く位置へ寄せ、腕を伸ばし切った構えを避ける。
     variedMarch: true, noGroundArrows: true,
     longHoro: 'round', // 使番の母衣は既存の丸い竹籠と布を使う。背から赤い板を垂らさない。
-    allyCloth: [0x778da8, 0x9a765b, 0xb0a181, 0x657b82],
+    allyCloth: [0x6a5a48, 0x9a765b, 0xb0a181, 0x7a6a52],
     muddy: 0.35, slopeForest: 0.6, cliffRock: 0.18, tuftTint: 0x514b32,
     patchyGround: true, // 土の絵・遠い草・足元の株を同じ群落へそろえる。
     softEarthCrust: true, // 土塊の陰を升の縁で消し、岸の地面に四角い敷石を並べない。
