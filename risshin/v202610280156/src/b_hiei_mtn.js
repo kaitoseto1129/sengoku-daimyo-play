@@ -243,6 +243,38 @@ function hieiRoadGround(W) {
   };
 }
 
+// 本坂の両脇の斜面を杉林の林床にする（10/28）。上から貼った草と土の絵は急な面で縦に伸び、
+// 黄土色の汚れに見えた。三方向から世界の座標で貼り、落ち葉の茶・杉の赤い枯れ葉・羊歯と笹の下草・苔を斑に置く。
+// 既存の絵（tMacro）だけを読み、面・描く回数・材質は増やさない。踏み跡（wear）の上と遠い山肌は元のまま。
+function hieiSugiFloor(mat) {
+  const compile = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+  mat.onBeforeCompile = (sh, renderer) => {
+    compile.call(mat, sh, renderer);
+    sh.fragmentShader = sh.fragmentShader.replace('col *= mix(0.94, 1.3, macro);', `{
+      vec3 sw = pow(mix(abs(normalize(vWN)), abs(gN), 0.6), vec3(4.0)); sw /= (sw.x + sw.y + sw.z);
+      #define SFT(sc, off) (texture2D(tMacro, vWP.zy * (sc) + (off)).r * sw.x + texture2D(tMacro, vWP.xy * (sc) + (off)).r * sw.z + texture2D(tMacro, vWP.xz * (sc) + (off)).r * sw.y)
+      float s1 = SFT(0.11, 0.21), s2 = SFT(0.37, 0.57), s3 = SFT(1.45, 0.09);
+      // 林床：濡れた黒土と、赤茶の杉の枯れ葉の吹き溜まり
+      vec3 litter = mix(vec3(0.10, 0.072, 0.048), vec3(0.24, 0.13, 0.065), smoothstep(0.38, 0.7, s2 * 0.6 + s3 * 0.4));
+      litter *= mix(0.78, 1.15, s3);
+      // 羊歯と笹の下草：大きな斑の中に細かな葉の明暗
+      float fern = smoothstep(0.5, 0.66, s1 * 0.65 + s2 * 0.35) * (1.0 - smoothstep(0.62, 0.9, slopeGrade));
+      vec3 fernC = mix(vec3(0.07, 0.11, 0.04), vec3(0.17, 0.23, 0.08), smoothstep(0.35, 0.75, s3));
+      litter = mix(litter, fernC, fern * mix(0.55, 0.95, s3));
+      // 根と石の際の苔
+      float sMoss = smoothstep(0.6, 0.72, s2) * (1.0 - fern);
+      litter = mix(litter, vec3(0.13, 0.17, 0.06), sMoss * 0.6);
+      float sfK = smoothstep(0.02, 0.12, slopeGrade) * (1.0 - smoothstep(0.2, 0.75, wear))
+        * (1.0 - smoothstep(60.0, 140.0, soilViewDistance)) * (1.0 - surfaceWater);
+      col = mix(col, litter, sfK * 0.88);
+      #undef SFT
+    }
+    col *= mix(0.94, 1.3, macro);`);
+  };
+  mat.customProgramCacheKey = () => key.call(mat) + '|hieiSugiFloor';
+  mat.needsUpdate = true;
+}
+
 // 粗い遠景の端を戦場の境へ寄せる。坂本の切り土を遠景の面で覆わない。
 // 設営時だけ頂点を動かし、足場・兵・面数・材質は変えない。
 function hieiFarBoundary(W) {
@@ -440,8 +472,12 @@ class HieiHallGaran extends Garan {
         // 隣の石の色が入り、目地をずらしても長い板の縞に見えてしまう。
         // 石ごとの明暗を大きく（同じ灰色の箱の積み重ねに見えた。10/28）
         const tone = .6 + .55 * (.5 + .5 * Math.sin(k * 3.7 + n * 5.3)) * (.75 + .25 * Math.sin(k * 1.3 + n * 2.9));
+        // 自然石：石ごとに花崗岩の灰・錆びた茶・青みの灰を混ぜ、形も少し回して大小を付ける（10/28）。
+        const hue = .5 + .5 * Math.sin(k * 5.1 + n * 3.3), warm = Math.max(0, hue - .45) * .9, cool = Math.max(0, .35 - hue) * .7;
         const colors = part.attributes.color;
-        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .25 * tone, .225 * tone, .18 * tone);
+        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .34 * tone * (1 + warm * .35 - cool * .12), .31 * tone * (1 + warm * .1), .26 * tone * (1 - warm * .2 + cool * .18));
+        part.scale(1, 1, .82 + .18 * (.5 + .5 * Math.sin(k * 4.3 + n * 7.9)));
+        part.rotateY(.07 * Math.sin(k * 6.1 + n * 2.3));
         part.translate(x, 0, .008 * Math.sin(k * 2 + n));
         stones.push(part);
         // 石ごとに一枚の天端を保つ。頂点ごとに高さを拾うと、法面の境で
@@ -460,15 +496,18 @@ class HieiHallGaran extends Garan {
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
         const grain = .5 + .5 * Math.sin(x * 17 + z * 11 + k);
-        p.setXYZ(i, x + .006 * Math.sin(x * 9 + k), y + .006 * Math.sin(x * 21 + z * 13 + k), z + .006 * Math.cos(x * 13 + k));
-        const edge = Math.abs(x) > w * .32;
-        // 端の石を全面緑にせず、段ごとに途切れる薄い苔にする。
-        const moss = edge ? Math.max(0, grain - .65) * .8 : Math.max(0, grain - .82) * .5;   // 中の石にも薄い苔を少し
+        // 輪郭を数センチずつ欠き、箱の直線を崩す。同じ座標は同じだけ動かし、継ぎ目を裂かない。
+        p.setXYZ(i, x + .035 * Math.sin(x * 9.3 + z * 13.1 + k), y + .006 * Math.sin(x * 21 + z * 13 + k), z + .04 * Math.cos(x * 12.7 - z * 7.3 + k));
+        const edge = Math.abs(x) > w * .32, top = normals.getY(i) > .5;
+        // 端の石は苔が厚く、中の石は目地と縁だけ。側面の上の縁に苔、下は湿った土で暗く。
+        const moss = (edge ? Math.max(0, grain - .4) * 1.3 : Math.max(0, grain - .6) * 1.0) * (top ? .8 : y > 0 ? 1.2 : .4);
+        const lichen = top ? Math.max(0, Math.sin(x * 31 + z * 23 + k * 1.9) - .75) * 1.2 : 0;   // 白っぽい地衣の点
         // 頂点色は線形の値。灰色をそのまま入れると、画面では白い板になる。
-        const shade = (normals.getY(i) > .5 ? 1 : .66) * (.9 + grain * .16);
-        c.setXYZ(i, (c.getX(i) - moss * .15) * shade,
-          (c.getY(i) - moss * .025) * shade,
-          (c.getZ(i) - moss * .18) * shade);
+        const shade = (top ? 1 : y > 0 ? .7 : .45) * (.86 + grain * .22);
+        const m = Math.min(.85, moss);
+        c.setXYZ(i, (c.getX(i) * (1 - m) + .07 * m + lichen * .1) * shade,
+          (c.getY(i) * (1 - m) + .1 * m + lichen * .1) * shade,
+          (c.getZ(i) * (1 - m) + .035 * m + lichen * .08) * shade);
       }
       // 各石の上り側の高さを天端に使い、前後を地面へ沿わせて斜めの板にしない。
       // 横断方向の傾きは残す。石の底は地中へ埋め、天端を足場にも渡す。
@@ -494,7 +533,8 @@ class HieiHallGaran extends Garan {
         // 前後を同じ天端にし、坂に沿って曲がった薄板にしない。
         // 高い側は土へ埋め、低い側の出も十六センチまでに抑える。
         const tread = treads[stone].y + (x - treads[stone].x) * treads[stone].slope;
-        p.setXYZ(i, wx, top ? tread : Math.min(y, tread) - .18, wz);
+        // 天端の角を少し落とし、石ごとに傾きと丸みを付ける（歩く高さは数センチの内）。
+        p.setXYZ(i, wx, top ? tread - .03 * (.5 + .5 * Math.sin(x * 19 + z * 17 + k * 1.3)) : Math.min(y, tread) - .18, wz);
         uv.setXY(i, wx, wz);
       }
       g.computeVertexNormals();
@@ -2474,6 +2514,7 @@ const hiei_mtn = {
     };
     // 地面を網目に抜かず、共通の視点の退避で斜面を避ける。この戦の材質だけ。
     W.terrain.material.userData.camNearSolid = true;
+    hieiSugiFloor(W.terrain.material);
     hieiSpeech(rt);
     monkSoldiers(rt);
     hieiFallenHats(rt);

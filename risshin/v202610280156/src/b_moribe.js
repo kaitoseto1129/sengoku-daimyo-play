@@ -1478,25 +1478,26 @@ function moribeFord(rt) {
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       // 砂底と固定した小石を明瞭にし、泳ぐ川でなく歩ける浅い帯として見せる。
-      vec3 fordSand = mix(vec3(0.38, 0.35, 0.25), vec3(0.56, 0.51, 0.36), fordGrain);   // 濡れた砂の暗さ（白く光る板に見えていた。10/28）
-      fordSand = mix(fordSand, vec3(0.30, 0.34, 0.29), fordPebble * (0.45 + fordGrain * 0.35));   // 小石は斑に（同じ並びの格子に見えないよう）
+      vec3 fordSand = mix(vec3(0.075, 0.08, 0.065), vec3(0.15, 0.145, 0.11), fordGrain);   // 濡れた砂の暗さ（色は線形の値。0.4 でも白く光る板に見えていた。10/28）
+      fordSand = mix(fordSand, vec3(0.055, 0.065, 0.06), fordPebble * (0.45 + fordGrain * 0.35));   // 小石は斑に（同じ並びの格子に見えないよう）
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
       // 浅瀬も水の色を保つ。両岸の細い白波を既存の川面へ描き、終点を土と分ける。
       float fordShore = smoothstep(${(NIRE_WIDTH2 - FORD_FOOT).toFixed(1)}, ${NIRE_WIDTH2.toFixed(1)}, abs(vWPw.z - ${NIREMATA2.toFixed(1)}));
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.76, 0.85, 0.82),
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.3, 0.36, 0.34),
         max(fordRipple * mix(0.12, 0.55, fordRim), fordShore * (0.2 + fordGrain * 0.15)) * fordBand);
     `).replace('#include <emissivemap_fragment>', `
       #include <emissivemap_fragment>
       // 発光の変数を作った後で足す。携帯の軽い材質でも浅瀬を描けるようにする。
-      totalEmissiveRadiance += fordSand * fordBand * 0.06;
+      totalEmissiveRadiance += fordSand * fordBand * 0.015;
     `).replace('#include <opaque_fragment>', `
       // 空の白い反射で砂底を隠さない。流れと岸の波を残し、渡れる帯だけ底を見せる。
       // 帯の外は青緑へ落とし、空の反射が浅瀬と同じ白さになるのを抑える。
       outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.48, 0.65, 0.66), 0.65 * (1.0 - fordBand));
-      outgoingLight = mix(outgoingLight, mix(fordSand * 0.85, vec3(0.76, 0.85, 0.82),
-        fordRipple * mix(0.04, 0.28, fordRim)),
-        fordBand * (1.0 - fordShore * 0.35) * 0.9);
+      // 浅瀬も上に薄い水を残す（砂の白い板に見せない。10/27）。
+      outgoingLight = mix(outgoingLight * vec3(0.55, 0.68, 0.68), mix(fordSand * 0.9, vec3(0.26, 0.31, 0.30),
+        fordRipple * mix(0.03, 0.22, fordRim)),
+        fordBand * (1.0 - fordShore * 0.35) * 0.72);
       #include <opaque_fragment>
     `);
   };
@@ -1517,9 +1518,19 @@ function moribeFord(rt) {
   // 両岸の石。出陣時だけ作り、形と材質を使い回す。
   const stoneGeo = new THREE.SphereGeometry(1, 7, 5);
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x827b69, roughness: 1 });
-  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, 12);
+  const STONES2 = 22;
+  const stones = new THREE.InstancedMesh(stoneGeo, stoneMat, STONES2);
   const at = new THREE.Object3D();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < STONES2; i++) {
+    // 浅瀬の外の流れに顔を出す石（12〜）。浅瀬の帯と歩く筋は空ける。
+    if (i >= 12) {
+      const k = i - 12, side = k % 2 ? 1 : -1;
+      const x = START2.x + side * (7.5 + (k >> 1) * 2.6 + Math.sin(k * 3.7) * .8);
+      const z = nireZ(x) + Math.sin(k * 5.3) * (NIRE_WIDTH2 - 2.2);
+      at.position.set(x, .02, z); at.rotation.set(0, k * 2.3, 0);
+      at.scale.set(.35 + (k % 3) * .14, .14 + (k % 2) * .06, .28 + (k % 4) * .05);
+      at.updateMatrix(); stones.setMatrixAt(i, at.matrix); continue;
+    }
     // 四個は浅瀬の両脇で水面から少し顔を出す。中央を空け、飛び石の列にしない。
     // 岸にあった石を使い、入口から川底の浅さを読めるようにする（チャッピー 0116 の案）。
     const inWater = i >= 8;
@@ -1578,6 +1589,10 @@ function moribeFord(rt) {
     const angle = i * 2.4, dx = Math.cos(angle), dz = Math.sin(angle), h = .34 + i * .065;
     reedPos.push(-dz * .025, 0, dx * .025, dz * .025, 0, -dx * .025, dx * .23, h, dz * .23);
     reedColors.push(.25, .3, .12, .25, .3, .12, .5, .52, .24);
+    // 葦の背の高い茎（細い三角を一本）。株の中から一・五メートルほど立てる。
+    const ha = angle + 1.2, hx = Math.cos(ha) * .12, hz = Math.sin(ha) * .12, hh = 1.1 + i * .12;
+    reedPos.push(hx - dz * .018, 0, hz + dx * .018, hx + dz * .018, 0, hz - dx * .018, hx * 2.2, hh, hz * 2.2);
+    reedColors.push(.22, .26, .11, .22, .26, .11, .55, .5, .3);
   }
   const reedGeo = new THREE.BufferGeometry();
   reedGeo.setAttribute('position', new THREE.Float32BufferAttribute(reedPos, 3));
@@ -2620,7 +2635,9 @@ const moribe = {
       if (Math.abs(x) < 120 && (Math.floor(x / 22) + Math.floor(z / 18)) % 3 === 0 && Math.abs(x - 50) > 18) c.setRGB(c.r * 0.9 + 0.03, c.g * 0.95 + 0.02, c.b * 0.8);
       if (z < LINE2 && z > LINE2 - 1.5 && Math.abs(x) < 110) c.setRGB(0.38, 0.33, 0.22);
       // 川べりの泥と踏み跡：水ぎわから土手の上まで濃い土の色
-      { const dz = Math.abs(z - nireZ(x)); if (dz > 8 && dz < 18 && x < NAGARA2 - 40) { const k = 1 - Math.abs(dz - 13) / 5; c.setRGB(c.r + (0.33 - c.r) * k, c.g + (0.29 - c.g) * k, c.b + (0.2 - c.b) * k); } }
+      { const dz = Math.abs(z - nireZ(x)); if (dz > 8 && dz < 18 && x < NAGARA2 - 40) { const k = 1 - Math.abs(dz - 13) / 5; c.setRGB(c.r + (0.27 - c.r) * k, c.g + (0.24 - c.g) * k, c.b + (0.17 - c.b) * k); }
+        // 川床は濡れた暗い泥。浅い水を透かして明るい地面が白い板に見えていた（10/27）。
+        if (dz <= 9 && x < NAGARA2 - 40) { const k = Math.min(1, (9.5 - dz) / 2); c.setRGB(c.r + (0.2 - c.r) * k, c.g + (0.19 - c.g) * k, c.b + (0.15 - c.b) * k); } }
     },
     clear: (x, z) => peoplePathDistance(x, z) < 5 || (Math.abs(x) < 160 && Math.abs(z - nireZ(x)) < 30) || (Math.abs(x) < 42 && z > -100 && z < 130) || Math.hypot(x - 52, z - 112) < 22 || Math.hypot(x - 45, z - 70) < 12 || Math.hypot(x + 126, z + 30) < 34,
     // 五月の田：水を張り、苗を植えたばかり（畦を残す）

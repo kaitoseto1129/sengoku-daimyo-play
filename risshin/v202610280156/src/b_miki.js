@@ -844,6 +844,53 @@ function mikiHasa(rt) {
   const dispose = rt.dispose;
   rt.dispose = function () { for (const g of [posts, rails, sheaf]) { g.geometry.dispose(); g.material.dispose(); } return dispose.call(this); };
 }
+// 持ち場から西を見た奥の付城（平田と同じ造り：土塁・柵・井楼・番所と蔵）。持ち場の外なので当たりは持たせず、
+// 一つの束で描く。形と位置は遊びの復元。
+const FAR_FORTS = [{ x: -212, z: -54, r: 13 }, { x: -224, z: -12, r: 12 }];
+function mikiFarFort(rt, q) {
+  const W = rt.world, batch = makeSimpleBatch(), n = 14;
+  for (let i = 0; i < n; i++) {
+    const a0 = i / n * Math.PI * 2, a1 = (i + 1) / n * Math.PI * 2;
+    // 口は東（持ち場の側）へ一間だけ開ける
+    if (i === Math.round(n / 4)) continue;
+    const seg = [q.x + Math.sin(a0) * q.r, q.z + Math.cos(a0) * q.r, q.x + Math.sin(a1) * q.r, q.z + Math.cos(a1) * q.r];
+    const am = (a0 + a1) / 2;
+    palisade(W, seg, { h: 2.4, batch });
+    dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: .9, w: 2, capEnds: true, closeBack: true, batch });
+  }
+  for (const [x, z, w, d] of [[-6, -2, 7, 4], [5, 4, 6, 4], [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
+  mikiFinishBatch(rt, batch);
+  const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: 9, boarded: true });
+  rt.scene.add(tower, jinmaku(W, q.x - 4, q.z - 7, 5, 4, 3, { mon: 'oda' }));
+  for (const [x, z] of [[q.x + 11, q.z - 6], [q.x + 11, q.z + 6], [q.x - 8, q.z + 10]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
+}
+// 南の斜面の刈田：藁色の刈り跡の筋と黒い畦。地面に沿う薄い帯を一枚にまとめる（当たり無し）。
+const SLOPE_FIELDS = [[-128, -14, 30, 22], [-162, -12, 28, 24], [-190, 16, 30, 20], [-145, 14, 34, 20]];
+function mikiSlopeFields(rt) {
+  const W = rt.world, pos = [], col = [], c = new THREE.Color();
+  const nearRoad = (x, z) => ROADS.some(pts => pts.some((p, j) => j && lineDistance(x, z, ...pts[j - 1], ...p) < 4));
+  for (const [cx, cz, w, d] of SLOPE_FIELDS) {
+    const nx = Math.round(w / 2), nz = Math.round(d / .7);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const x0 = cx - w / 2 + w * i / nx, x1 = cx - w / 2 + w * (i + 1) / nx;
+      const z0 = cz - d / 2 + d * j / nz, z1 = cz - d / 2 + d * (j + 1) / nz;
+      if (W.inWaterAt((x0 + x1) / 2, (z0 + z1) / 2) || nearRoad((x0 + x1) / 2, (z0 + z1) / 2)) continue;
+      // 端の一列は畦（暗い土）。中は刈り株の列と土の筋を交互に
+      const edge = j === 0 || j === nz - 1 || i === 0 || i === nx - 1;
+      c.setHex(edge ? 0x4e4330 : j % 2 ? 0xb39c62 : 0x7d6a45).multiplyScalar(.92 + .08 * Math.sin(i * 1.7 + j * .9));
+      for (const [x, z] of [[x0, z0], [x0, z1], [x1, z1], [x0, z0], [x1, z1], [x1, z0]]) { pos.push(x, W.heightAt(x, z) + (edge ? .09 : .05), z); col.push(c.r, c.g, c.b); }
+    }
+  }
+  if (!pos.length) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
+  mesh.receiveShadow = true; rt.scene.add(mesh);
+  const dispose = rt.dispose;
+  rt.dispose = function () { geo.dispose(); mesh.material.dispose(); return dispose.call(this); };
+}
 function fieldBank(x, z) {
   const edge = fieldEdge(x, z);
   return Math.max(0, Math.min(1, edge / .5, (2 - edge) / .5));
@@ -1815,6 +1862,8 @@ const miki = {
     rt.scene.add(mikiGate(W, HONJIN.x, HONJIN.z + 20, 8));
     mikiCampStores(rt);
     mikiHarvest(rt);
+    for (const q of FAR_FORTS) mikiFarFort(rt, q);
+    mikiSlopeFields(rt);
     mikiFireStands(rt);
     mikiKidoLight(rt, 0);
     // 円い柵の弦から、梯子の足と一歩手前まで離す。

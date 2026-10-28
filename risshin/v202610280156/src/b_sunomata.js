@@ -999,7 +999,8 @@ function sunoWorkyard(rt) {
     const pos = g.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setY(i, W.heightAt(pos.getX(i), pos.getZ(i)) + (list ? .03 : .025));
     g.computeVertexNormals();
-    if (list) { list.push(g.toNonIndexed()); g.dispose(); } else put(g, hex);
+    // 地面の色は地形の陰と土の模様を通して暗く見える。同じ値の平らな板は日なたで白く浮くので、踏み土の濃さと赤みへ寄せる。
+    if (list) { list.push(g.toNonIndexed()); g.dispose(); } else { const c = new THREE.Color(hex); put(g, c.setRGB(c.r * .5, c.g * .34, c.b * .22).getHex()); }
   };
   // 柵の根元の土は既存の杭と同じ束。こちらはその外に薄い陰を添える。
   for (const seg of rt.flags.segs) {

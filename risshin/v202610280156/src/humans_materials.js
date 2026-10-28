@@ -144,17 +144,17 @@ vec3 clothBump(vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float fd) {
         fold = smoothstep(0.15, 0.85, fold);
         // 膝裏と足首のたるみ：横に寄る皺（布が曲がる所に溜まる）
         float bunch = smoothstep(0.1, 0.0, abs(bp.z - 0.47)) + 0.8 * smoothstep(0.09, 0.0, abs(bp.z - 0.12));
-        fold = mix(fold, 0.5 + 0.5 * sin(bp.z * 260.0 + vn3(bp * 30.0) * 5.0), clamp(bunch, 0.0, 1.0) * 0.7);
+        fold = mix(fold, 0.5 + 0.22 * sin(bp.z * 120.0 + vn3(bp * 30.0) * 5.0), clamp(bunch, 0.0, 1.0) * 0.6);
         clothFold = skinA ? 0.0 : fold;
         clothSoil = 0.0;
         float grain = vn3(bp * 180.0);
         vec3 col = cA * clamp(0.82 + (lumA - 0.3) * 0.35, 0.7, 1.08);
         // 麻の織り目と糸のむら（写真の模様）。肌は肌の模様
         pdC = skinA ? (pdTri(uPD, bp * 9.0, vBN).r - 0.5) * 0.5 : pdTri(uPD, bp * 14.0, vBN).g - 0.5;
-        col *= 1.0 + pdC * 0.5;
+        col *= 1.0 + pdC * (pA == 3 ? 0.22 : 0.5);   // 脚の布は織り目の白黒を弱め、落ち着いた生成りの無地に近づける
         if (!skinA) {
           col *= 0.86 + fade * 0.26;
-          col *= 0.8 + fold * 0.28;
+          col *= pA == 3 ? 0.9 + fold * 0.12 : 0.8 + fold * 0.28;
           col *= 0.94 + grain * 0.1;
           // 色あせ：肩と背の上（日の当たる所）は白っぽく
           col = mix(col, vec3(dot(col, vec3(0.33))) * 1.25 + vec3(0.02, 0.018, 0.012), smoothstep(1.25, 1.5, bp.z) * 0.18 * fade);

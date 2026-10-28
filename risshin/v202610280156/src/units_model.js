@@ -4386,8 +4386,8 @@ function shinGeometry(o, hi, part) {
   if (part === 'leg' || part === 'coveredLeg') { /* 脛だけ */ } else if (hi) {
     P_.push(P(at(ball(0.044, 0.036, 0.1, 10, 6), 0, -0.318, 0.06), tabi, { reg: 'cloth', dirt: 1 }));
     P_.push(P(at(ball(0.038, 0.035, 0.04, 8, 6), 0, -0.316, -0.02), tabi, { reg: 'cloth', dirt: 1 }));
-    P_.push(P(at(ball(0.017, 0.016, 0.025, 6, 4), 0.022, -0.33, 0.15), tabi, { reg: 'cloth', dirt: 1 }));
-    P_.push(P(at(new THREE.BoxGeometry(0.003, 0.018, 0.035), 0.008, -0.33, 0.16), 0x2a2620, { reg: 'cloth', dirt: 1 }));
+    // 足袋の先は指を分けず一つにまとめる（先の丸い一塊。親指の股の溝は付けない）
+    P_.push(P(at(ball(0.034, 0.024, 0.032, 8, 5), 0, -0.328, 0.145), tabi, { reg: 'cloth', dirt: 1 }));
     // 藁の底：足の形の小判（角の立った板にしない）。前は指が少しはみ出す長さ、縁は編んだ藁の厚み
     { const sole = new THREE.CylinderGeometry(1, 1, 0.014, 14); sole.scale(0.047, 1, 0.112); P_.push(P(at(sole, 0, -0.353, 0.045), 0x7a6a46, { mk: MK.straw, reg: 'straw', dirt: 1 })); }
     P_.push(P(at(new THREE.TorusGeometry(0.046, 0.005, 4, 10, Math.PI), 0, -0.342, 0.09, 0, Math.PI / 2, 0), 0x857752, { mk: MK.straw, reg: 'cord', dirt: 1 }));
@@ -4490,8 +4490,10 @@ function prepareRider(u) {
 // 本人の籠手（前腕と手甲）：一人称で目の前に来るので、丸みのある前腕の形（肘の下の膨らみ・手首へ細く・断面はやや平たい）に、
 //   布の手甲の袋を縫い、侍は鎖を編んで篠（細い鉄の板）を五本、足軽は篠を三本外に当てる。紐は細い焦茶
 //   座標は armGeometry と同じ（肘 y -0.27・手首 -0.5、+x×sd が外、-z が腕の甲の側）
+// 籠手の布：威糸の色のまま鎖の明るい絵に掛けると白く光るので、黒漆に近い暗さへ落とす（照りを抑える）
+const kuroKote = (c) => new THREE.Color(c).multiplyScalar(0.28).getHex();
 function heroKote(o, sd, part) {
-  const T = o.tier || 0, b = BUILD[T], cloth = o.cloth || 0x2b2622, kc = T >= 2 ? (o.lace || cloth) : cloth;
+  const T = o.tier || 0, b = BUILD[T], cloth = o.cloth || 0x2b2622, kc = T >= 2 ? kuroKote(o.lace || cloth) : cloth;
   const k = 'hkote|' + sd + '|' + T + '|' + kc + '|' + (o.armor || 0) + '|' + part;
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.8, 0.55, 0.4, 0.3][T];
@@ -4533,7 +4535,7 @@ function armGeometry(o, sd, kote, hi, part) {
   // 黒漆の仕上げは一般的な籠手による復元で、本人の所用品の特定ではない。
   // https://www.meihaku.jp/curator-tweet/curator-tweet-kogusoku-kote/
   const fullKote = S.quality === 'high' && o.crest === 'takigawa_buffalo' && T >= 1;
-  const kc = T >= 2 ? (o.lace || cloth) : cloth;
+  const kc = T >= 2 ? kuroKote(o.lace || cloth) : cloth;
   // 別の武将の威色や鉄地の部品を、一益の黒い家地・黒漆へ混ぜない。
   const handArmor = o.goldKozane ? 0x1c1a1a : o.armor || 0x1c1a1a;
   const k = 'arm' + (o.detail85 ? '個体|' : '') + skin + '|' + cloth + '|' + sd + '|' + (kote ? 1 : 0) + '|' + T + '|' + (hi ? 1 : 0) + (part || '') + (T === 0 && kote ? '|' + (o.armor || 0) : '') + (fullKote ? '|黒漆籠手|' + kc + '|' + (o.armor || 0x1c1a1a) : '') + (T >= 2 && kote ? '|' + handArmor + '|' + kc : '');

@@ -155,13 +155,34 @@ function staticFaceGroups(indices, position, grid, cellSize = 0, normalStep = 0)
     // 材質全体の囲みでは、長い城壁の裏面まで近景として残る。
     // 面の束自身の囲みを一度だけ作り、柵と城の見えない面を判定する。
     group.sphere = group.box.getBoundingSphere(new THREE.Sphere());
-    group.terrainHidden = false;
-    group.indices = Uint32Array.from(group.indices);
     group.sine = Math.sqrt(Math.max(0, 1 - group.cosine * group.cosine));
     group.coneSine = Math.sqrt(Math.max(0, 1 - group.coneCosine * group.coneCosine));
   }
-  return Array.from(groups.values());
+  return compactFaceGroups(Array.from(groups.values()));
 }
+
+// 面の束を数の並び（型付きの配列）へ詰める。設楽原の柵は束が三十七万ほどあり、束ごとの物（囲み・球・向き・索引の配列）で
+//   JS の記憶を 300MB 近く使い、iPhone の WebContent が戦の途中で落ちていた（10/28）。判定の値と索引は同じ
+const FG = { min: 0, max: 3, c: 6, r: 9, sign: 10, sine: 11, cone: 12, n: 13, plane: 16, spread: 17, o: 18, off: 21, nmin: 22, nmax: 25, K: 28 };
+function compactFaceGroups(list) {
+  const n = list.length, F = new Float32Array(n * FG.K), start = new Uint32Array(n + 1), axis = new Uint8Array(n);
+  let total = 0; for (const g of list) total += g.indices.length;
+  const idx = new Uint32Array(total);
+  for (let i = 0, at = 0; i < n; i++) {
+    const g = list[i], o = i * FG.K;
+    F[o] = g.box.min.x; F[o + 1] = g.box.min.y; F[o + 2] = g.box.min.z; F[o + 3] = g.box.max.x; F[o + 4] = g.box.max.y; F[o + 5] = g.box.max.z;
+    F[o + 6] = g.sphere.center.x; F[o + 7] = g.sphere.center.y; F[o + 8] = g.sphere.center.z; F[o + 9] = g.sphere.radius;
+    F[o + 10] = g.sign; F[o + 11] = g.sine; F[o + 12] = g.coneSine; F[o + 13] = g.normal.x; F[o + 14] = g.normal.y; F[o + 15] = g.normal.z;
+    F[o + 16] = g.planeMin; F[o + 17] = g.spread; F[o + 18] = g.origin.x; F[o + 19] = g.origin.y; F[o + 20] = g.origin.z; F[o + 21] = g.faceOffset;
+    for (let k = 0; k < 3; k++) { F[o + 22 + k] = g.normalMin[k]; F[o + 25 + k] = g.normalMax[k]; }
+    axis[i] = g.axis; start[i] = at; idx.set(g.indices, at); at += g.indices.length;
+  }
+  start[n] = total;
+  return { n, F, start, idx, axis, pass: new Int8Array(n).fill(-1), hid: new Uint8Array(n) };
+}
+const _fgBox = new THREE.Box3(), _fgSphere = new THREE.Sphere();
+function fgBox(G, i) { const F = G.F, o = i * FG.K; _fgBox.min.set(F[o], F[o + 1], F[o + 2]); _fgBox.max.set(F[o + 3], F[o + 4], F[o + 5]); return _fgBox; }
+function fgSphere(G, i) { const F = G.F, o = i * FG.K; _fgSphere.center.set(F[o + 6], F[o + 7], F[o + 8]); _fgSphere.radius = F[o + 9]; return _fgSphere; }
 
 // 小谷の城：区画を消しても、同じ材質は一回で描く。破壊後は既存の窓口で元の形へ戻す。
 function materialShape(mesh, world, entries, parts) {
@@ -285,55 +306,50 @@ function materialShape(mesh, world, entries, parts) {
     dirty = false;
     let n = 0, changed = false;
     const write = (list) => { for (let k = 0; k < list.length; k++, n++) if (indices[n] !== list[k]) { indices[n] = list[k]; changed = true; } };
+    const writeRange = (list, from, to) => { for (let k = from; k < to; k++, n++) if (indices[n] !== list[k]) { indices[n] = list[k]; changed = true; } };
     const put = (j, pass) => {
       const r = ranges[j], chosen = r.far === 2 ? r.distant : r.far ? r.light : r.full;
       if (!faceCull || r.changed) {
         if ((onM[j] ? (onS[j] ? 1 : 0) : 2) === pass) write(chosen);
         return;
       }
-      const groups = faceCache.get(chosen);
+      const G = faceCache.get(chosen), F = G.F;
       const perspective = lastCamera?.isPerspectiveCamera;
-      for (const group of groups) {
+      for (let gi = 0; gi < G.n; gi++) {
         // 画面だけ・両方・影だけの三巡で、同じ面の判定を繰り返さない。
         // 画面の区画は最初の巡回、影だけの区画は最後の巡回で一度だけ選ぶ。
         if (pass === 0 || !onM[j]) {
-          const center = group.sphere.center;
-          const dx = lastPos.x - center.x, dy = lastPos.y - center.y, dz = lastPos.z - center.z;
+          const o = gi * FG.K, ax = G.axis[gi];
+          const dx = lastPos.x - F[o + 6], dy = lastPos.y - F[o + 7], dz = lastPos.z - F[o + 8];
           const distance = perspective ? Math.hypot(dx, dy, dz) : 1;
           // 囲みは格子への寄せと半メートルの視点移動を含む。
-          const margin = perspective ? group.sphere.radius : 0.02;
-          const component = perspective ? (group.axis === 0 ? dx : group.axis === 1 ? dy : dz) : -lastDir.getComponent(group.axis);
-          const cone = perspective ? group.normal.x * dx + group.normal.y * dy + group.normal.z * dz : -group.normal.dot(lastDir);
-          // 平行な壁では、囲みの半径を丸ごと余裕にすると裏の面まで残る。
-          // 基準面からの位置と法線の差の上限で、全三角が確実に裏になる束だけを外す。
-          // 区画で選ぶ戦は視点の行列が変わるたびに詰め直すため、
-          // 半メートルの移動の余裕は不要。薄い柵や壁の裏まで送らない。
-          // 格子へ寄せた後の面で作った基準面と、法線の広がりは保つ。
-          const plane = group.normal.dot(lastPos) - group.planeMin;
-          const allowance = group.spread * (distance + margin) + (faceCell ? 0.002 : 0.6);
-          const fx = lastPos.x - group.origin.x, fy = lastPos.y - group.origin.y, fz = lastPos.z - group.origin.z;
-          const faceUpper = group.faceOffset + fx * (fx >= 0 ? group.normalMax[0] : group.normalMin[0])
-            + fy * (fy >= 0 ? group.normalMax[1] : group.normalMin[1])
-            + fz * (fz >= 0 ? group.normalMax[2] : group.normalMin[2]);
-          const main = onM[j] && !group.terrainHidden && (!faceCell || mainFrustum.intersectsBox(group.box)) && component * group.sign >= -group.sine * distance - margin && cone >= -group.coneSine * distance - margin && (!perspective || plane >= -allowance && faceUpper >= -(faceCell ? 0.002 : 0.6));
-          // 平行光の影だけ、深度材質が元々描かない向きの面を送らない。
-          // 法線の広がりと余裕を残すため、斜面の影や輪郭は削らない。
-          const facing = -group.normal.dot(shadowDirection);
-          // 小谷の石と設楽原の丸太は、影でも実際の法線の上下限を使う。
-          // 円錐の余裕だけでは、光と平行に近い裏面まで一緒に送っていた。
-          // 束を増やさず、全ての面が影の材質の裏にある時だけ外す。
+          const margin = perspective ? F[o + 9] : 0.02;
+          const nx = F[o + 13], ny = F[o + 14], nz = F[o + 15];
+          const component = perspective ? (ax === 0 ? dx : ax === 1 ? dy : dz) : -lastDir.getComponent(ax);
+          const cone = perspective ? nx * dx + ny * dy + nz * dz : -(nx * lastDir.x + ny * lastDir.y + nz * lastDir.z);
+          // 基準面からの位置と法線の差の上限で、全三角が確実に裏になる束だけを外す（薄い柵や壁の裏まで送らない）。
+          const plane = nx * lastPos.x + ny * lastPos.y + nz * lastPos.z - F[o + 16];
+          const allowance = F[o + 17] * (distance + margin) + (faceCell ? 0.002 : 0.6);
+          const fx = lastPos.x - F[o + 18], fy = lastPos.y - F[o + 19], fz = lastPos.z - F[o + 20];
+          const faceUpper = F[o + 21] + fx * (fx >= 0 ? F[o + 25] : F[o + 22])
+            + fy * (fy >= 0 ? F[o + 26] : F[o + 23])
+            + fz * (fz >= 0 ? F[o + 27] : F[o + 24]);
+          const sine = F[o + 11], coneSine = F[o + 12];
+          const main = onM[j] && !G.hid[gi] && (!faceCell || mainFrustum.intersectsBox(fgBox(G, gi))) && component * F[o + 10] >= -sine * distance - margin && cone >= -coneSine * distance - margin && (!perspective || plane >= -allowance && faceUpper >= -(faceCell ? 0.002 : 0.6));
+          // 平行光の影だけ、深度材質が元々描かない向きの面を送らない。影でも実際の法線の上下限を使う。
+          const facing = -(nx * shadowDirection.x + ny * shadowDirection.y + nz * shadowDirection.z);
           const sx = -shadowDirection.x, sy = -shadowDirection.y, sz = -shadowDirection.z;
-          const shadowMin = sx * (sx >= 0 ? group.normalMin[0] : group.normalMax[0])
-            + sy * (sy >= 0 ? group.normalMin[1] : group.normalMax[1])
-            + sz * (sz >= 0 ? group.normalMin[2] : group.normalMax[2]);
-          const shadowMax = sx * (sx >= 0 ? group.normalMax[0] : group.normalMin[0])
-            + sy * (sy >= 0 ? group.normalMax[1] : group.normalMin[1])
-            + sz * (sz >= 0 ? group.normalMax[2] : group.normalMin[2]);
-          const shadow = onS[j] && (!faceCell || shadowFrustum.intersectsBox(group.box)) && (!parallelShadow || shadowSide === THREE.DoubleSide ||
-            (shadowSide === THREE.BackSide ? facing <= group.coneSine + 0.02 && shadowMin <= 0.02 : facing >= -group.coneSine - 0.02 && shadowMax >= -0.02));
-          group.drawPass = main ? (shadow ? 1 : 0) : shadow ? 2 : -1;
+          const shadowMin = sx * (sx >= 0 ? F[o + 22] : F[o + 25])
+            + sy * (sy >= 0 ? F[o + 23] : F[o + 26])
+            + sz * (sz >= 0 ? F[o + 24] : F[o + 27]);
+          const shadowMax = sx * (sx >= 0 ? F[o + 25] : F[o + 22])
+            + sy * (sy >= 0 ? F[o + 26] : F[o + 23])
+            + sz * (sz >= 0 ? F[o + 27] : F[o + 24]);
+          const shadow = onS[j] && (!faceCell || shadowFrustum.intersectsBox(fgBox(G, gi))) && (!parallelShadow || shadowSide === THREE.DoubleSide ||
+            (shadowSide === THREE.BackSide ? facing <= coneSine + 0.02 && shadowMin <= 0.02 : facing >= -coneSine - 0.02 && shadowMax >= -0.02));
+          G.pass[gi] = main ? (shadow ? 1 : 0) : shadow ? 2 : -1;
         }
-        if (group.drawPass === pass) write(group.indices);
+        if (G.pass[gi] === pass) writeRange(G.idx, G.start[gi], G.start[gi + 1]);
       }
     };
     for (let j = 0; j < ranges.length; j++) if (onM[j]) put(j, 0);
@@ -396,8 +412,9 @@ function materialShape(mesh, world, entries, parts) {
       // 影の範囲は別に保つ。視点を替えた時だけ調べ、詰め直しの三巡で使い回す。
       if (on && faceCull && !r.changed && world.def.staticTerrainCull) {
         const chosen = r.far === 2 ? r.distant : r.far ? r.light : r.full;
-        for (const group of faceCache.get(chosen)) group.terrainHidden = !!camera.isPerspectiveCamera
-          && mainFrustum.intersectsBox(group.box) && world.terrainHidden(cameraPos.x, cameraPos.y, cameraPos.z, group.sphere, group.box);
+        const G = faceCache.get(chosen);
+        for (let gi = 0; gi < G.n; gi++) G.hid[gi] = camera.isPerspectiveCamera
+          && mainFrustum.intersectsBox(fgBox(G, gi)) && world.terrainHidden(cameraPos.x, cameraPos.y, cameraPos.z, fgSphere(G, gi), fgBox(G, gi)) ? 1 : 0;
       }
     }
     if (dirty) pack();

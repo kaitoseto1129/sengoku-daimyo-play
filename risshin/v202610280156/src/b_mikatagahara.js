@@ -20,6 +20,7 @@ import { S as SETTINGS } from './settings.js';
 import { goten } from './castle_parts.js';
 import { tabaGeo } from './taketaba.js';
 import { timeslipField } from './timeslip_field.js';
+import { leafTex } from './nature.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -91,6 +92,51 @@ function fallenSpear(army, u) {
   w.position.y = Math.max(w.position.y, support + 0.018);
 }
 // 本人へ寄せる先頭は四人。退き口では三人に絞り、後続が同時に刃を重ねない。
+// 持ち場の手前の両脇に、人の胸ほどの霜枯れの芒の群れ。肩越しの視点の左右に穂を入れ、前の槍列と敵は空ける。
+// 形と材質は一度だけ作って使い回し、一つの束で描く。視点のすぐ前の株は縮めて自分の姿を隠さない。
+let mikataSusukiGeo, mikataSusukiMat;
+function mikataForeSusuki(rt) {
+  const W = rt.world;
+  if (!mikataSusukiGeo) {
+    const parts = [];
+    for (let k = 0; k < 3; k++) {
+      const g = new THREE.PlaneGeometry(1.5, 1.7);
+      const p = g.attributes.position;
+      // 根元を寄せ、穂先を開いて垂らす。
+      for (let q = 0; q < p.count; q++) if (p.getY(q) < 0) p.setX(q, p.getX(q) * .4);
+      g.translate(0, .85, 0); g.rotateY(k * Math.PI / 3); parts.push(g);
+    }
+    mikataSusukiGeo = mergeGeometries(parts);
+    for (const g of parts) g.dispose();
+    mikataSusukiMat = new THREE.MeshStandardMaterial({ map: leafTex('susuki'), color: 0x9b8969, alphaTest: .4, side: THREE.DoubleSide, roughness: .9, envMapIntensity: .4 });
+    mikataSusukiMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+        transformed *= smoothstep(2.0, 4.5, distance(cameraPosition.xz, instanceMatrix[3].xz));
+        #endif`);
+    };
+    mikataSusukiMat.customProgramCacheKey = () => 'mikataSusuki';
+  }
+  const spots = [];
+  const sx = HIRATE_POST.x, sz = HIRATE_POST.z + 6;
+  for (const side of [-1, 1]) for (let i = 0; i < 16; i++) {
+    const a = h01m(i, side, 1), b = h01m(i, side, 2);
+    spots.push([sx + side * (5 + a * 7), sz + 3 - b * 12, h01m(i, side, 3)]);
+  }
+  const mesh = new THREE.InstancedMesh(mikataSusukiGeo, mikataSusukiMat, spots.length);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  spots.forEach(([x, z, r], i) => {
+    const s = .85 + r * .5;
+    m.compose(v.set(x, W.heightAt(x, z) - .05, z), q.setFromAxisAngle(up, r * 6.28), sc.set(s, s * (.9 + r * .35), s));
+    mesh.setMatrixAt(i, m);
+  });
+  mesh.receiveShadow = true;
+  rt.scene.add(mesh);
+}
+function h01m(i, j, n) {
+  const t = Math.sin(i * 127.1 + j * 311.7 + n * 74.7) * 43758.5453;
+  return t - Math.floor(t);
+}
 function mikataCombatSpace(army, u) {
   const p = army.playerUnit, front = army.mikataFront;
   if (!front || !p?.alive || u.team === p.team || u.isStruct || u.noTarget) return null;
@@ -1059,6 +1105,7 @@ const mikatagahara = {
   // 槍を合わせた台地の前と、浜松へ崩れて退く坂ほど、倒れた槍・徳川方の旗・脱げた陣笠が多い。
   timeslip: {
     wet: 0, dust: 0.75, trample: 0.3, debris: 1.2, arrows: 0.7,
+    mudOpacity: 0, // 乾いた赤土に、透けた楕円の泥の跡を浮かせない。
     // 三方ヶ原の霜枯れの芒は人の胸ほど。株を背高く・多めにし、のっぺりした野にしない（10/28）
     grass: 0xa08a5c, grassTints: [0xffffff, 0xe0cfa4, 0xc6b48a], grassH: 1.55, tallGrass: 1.4, grassCap: 520,
     flagColors: [0xece6d6, 0xd9b23a, 0x9a2a20],
@@ -1193,6 +1240,7 @@ const mikatagahara = {
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・霜枯れの草（def.timeslip）
+    mikataForeSusuki(rt);
     // 薄暮の残照がある空に、大粒の白点を敷き詰めない。この戦の星だけを控える。
     if (W.stars) {
       W.stars.geometry.setDrawRange(0, 240);
@@ -1513,7 +1561,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     // 配下は身分に応じた人数。足軽に自分の指揮する組を与えない。
     const n = RANKS[rt.G.rank].squad || 0;
     if (n) rt.makeSquad({ x: 260 / 16 + 3, z: LINE_Z + 8 }, Math.PI, [{ kind: 'spear', n }]);
-    for (const [x, z, k] of [[260 / 16 - 4, LINE_Z + 6, 'oda'], [260 / 16 + 4, LINE_Z + 6, 'oda'], [-125 / 16, LINE_Z + 4, 'tokugawa'], [150 / 16, LINE_Z + 6, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
+    // 織田の幟は持ち場の後ろ（南）へ。始めの肩越しの視点の前で、近い旗が透けて立たないようにする。
+    for (const [x, z, k] of [[260 / 16 - 4, LINE_Z + 19, 'oda'], [260 / 16 + 4, LINE_Z + 19, 'oda'], [-125 / 16, LINE_Z + 4, 'tokugawa'], [150 / 16, LINE_Z + 19, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     // 図の各段を保つ。後詰めは段の間へ収め、本陣のさらに北へ伸ばさない。
     // 小幡の横位置は図の西側からの推定。徳川の八隊は同じ前線に並べる。
     const fb = (o, layout) => {

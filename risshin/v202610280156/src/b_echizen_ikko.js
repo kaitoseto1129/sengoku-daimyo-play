@@ -2449,6 +2449,48 @@ const echizen_ikko = {
       for (const z of [-104, -74, -58, -34, -16, 10]) for (const side of [-1, 1]) spots.push([side * 3.6, z, 0]);
       ishidoro(rt, spots, { lit: true });
     }
+    // 麓から惣門と本堂の大屋根を見せる遠見の影（10/28）。見通しは八十メートルに抑えるので、
+    // 遠い間だけ同じ向きの手前へ縮めて置き、篝火に照らされた軒と黒い屋根の形で山上の寺を示す。近づけば本物に任せる。
+    {
+      const roofMat = new THREE.MeshBasicMaterial({ color: 0x06080a, fog: false });
+      const wallMat = new THREE.MeshBasicMaterial({ color: 0x2a1a10, fog: false });
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xffa24a, fog: false });
+      const roofGeo = new THREE.ConeGeometry(1, 1, 4, 1); roofGeo.rotateY(Math.PI / 4);
+      const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+      const part = (g, geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); g.add(m); };
+      const fars = [];
+      const far = (x, z, build) => {
+        const g = new THREE.Group(); build(g); g.visible = false; rt.scene.add(g);
+        fars.push({ g, real: new THREE.Vector3(x, W.heightAt(x, z), z) });
+      };
+      // 本堂（寄棟の大屋根・灯明の戸口）。実寸より一回り大きく、遠くでも形が読めるように。
+      far(-11, 6, (g) => {
+        part(g, boxGeo, wallMat, 16, 4, 11, 0, 2.6, 0);
+        part(g, roofGeo, roofMat, 15.6, 6.4, 11.4, 0, 7.6, 0);
+        part(g, boxGeo, roofMat, 9.5, .8, 1, 0, 10.2, 0);
+        for (const dx of [-5, 0, 5]) part(g, boxGeo, glowMat, 1, 1.6, .3, dx, 1.8, -5.7);
+      });
+      // 惣門（二本の柱と切妻の屋根・両脇の篝火）。
+      far(GATE_SOMON.x, GATE_SOMON.z, (g) => {
+        for (const dx of [-2.6, 2.6]) part(g, boxGeo, wallMat, .5, 4.2, .5, dx, 2.1, 0);
+        part(g, roofGeo, roofMat, 5.4, 1.8, 2.6, 0, 5, 0);
+        part(g, boxGeo, roofMat, 7, .35, 2.4, 0, 4.2, 0);
+        for (const dx of [-4.5, 4.5]) part(g, boxGeo, glowMat, .9, .9, .9, dx, 1.6, -4);
+      });
+      F.templeFar = (cam) => {
+        for (const f of fars) {
+          const dx = f.real.x - cam.position.x, dy = f.real.y - cam.position.y, dz = f.real.z - cam.position.z;
+          const d = Math.hypot(dx, dy, dz);
+          f.g.visible = d > 78;
+          if (!f.g.visible) continue;
+          const k = Math.min(1, 120 / d);
+          f.g.position.set(cam.position.x + dx * k, cam.position.y + dy * k, cam.position.z + dz * k);
+          f.g.scale.setScalar(k);
+        }
+      };
+      const disposeFar = rt.dispose.bind(rt);
+      rt.dispose = () => { roofGeo.dispose(); boxGeo.dispose(); roofMat.dispose(); wallMat.dispose(); glowMat.dispose(); disposeFar(); };
+    }
     const hudRoot = rt.hud.root;
     hudRoot.dataset.echizenIkko = '';
     // 坂を埋める白い矢の列を残さない。この戦の外れ矢だけ短時間・少数に限る。
@@ -2632,6 +2674,16 @@ const echizen_ikko = {
         camera.getWorldDirection(tabaCameraDirection);
         const depth = Math.max(2, tabaCameraLook.copy(tabaCameraEye).sub(camera.position).dot(tabaCameraDirection) + 3);
         tabaCameraLook.copy(camera.position).addScaledVector(tabaCameraDirection, depth);
+      }
+      // 惣門までの登りでは、肩越しの視点を目の高さへ下げる。上から本人の頭を見下ろすと、
+      // 山腹の惣門と本堂の屋根が画面の上へ外れていた（10/28）。後の補正が本人の目線へ向け直す。
+      if (playing) {
+        const P = rt.player.u.pos;
+        const k = Math.max(0, Math.min(1, (GATE_SOMON.z - 6 - P.z) / 10));
+        if (k > 0 && !nakaRoomAt(P.x, P.z, P.y)) {
+          const low = Math.max(tabaCameraEye.y - .1, drawGroundAt(W, camera.position.x, camera.position.z) + .9);
+          if (low < camera.position.y) { camera.position.y += (low - camera.position.y) * k * .85; camera.updateMatrixWorld(); }
+        }
       }
       // 直接切り替えた視点も、堂の屋根や竹束の向こうから本人を映さない。
       // いつもの肩越し視点と同じ体積判定を使い、堂と兵は動かさない。
@@ -3416,6 +3468,7 @@ const echizen_ikko = {
   update(rt, dt) {
     const F = rt.flags, W = rt.world;
     F.treePlayer.value.copy(rt.player.u.pos);
+    if (F.templeFar && rt.camera) F.templeFar(rt.camera);
     // 月光の青と補光を抑え、夏の土を雪のように白く照らさない。光源や影は増やさない。
     W.sun.color.setHex(0xc2c9d4);
     W.sun.intensity = Math.max(W.sun.intensity, .5);

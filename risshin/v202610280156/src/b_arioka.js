@@ -1452,6 +1452,7 @@ const arioka = {
     movingHiddenBones: true, // 体の中心が画面外でも、動いた兵の骨を今の位置へそろえる。
     denseTabaBundles: true, // 高画質の竹束は細竹の束にし、太い黒い杭に見せない。
     winter: true,
+    dirtTint: [0.4, 0.38, 0.38],   // 霜の夜の凍てた土は暗い。木戸の外と惣構えの内が、昼のような白い砂の一枚に見えていた（10/28）
     naturalArrowRain: true, // 矢の落ち先を大きな黒い点や影にせず、夜の地面へなじませる。
     arrowRainPerBow: 1, // 少ない弓兵から数十本の補助矢を増やさず、実際の射手に合わせる。
     softEarthCrust: true, // 土塊の升目で陰を切らず、木戸前を敷石に見せない。
