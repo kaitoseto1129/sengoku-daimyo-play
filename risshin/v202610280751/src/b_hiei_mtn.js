@@ -456,10 +456,10 @@ class HieiHallGaran extends Garan {
       // 形は既存の欠け石を使い、設営時に同じ材質の一つの描画へまとめる。
       const stones = [], treads = [], count = Math.max(2, Math.ceil(w / .75));
       let vertices = 0;
-      const stepW = w * (.96 + j * .03), unitW = stepW / count;
+      const stepW = w * (.99 + j * .007), unitW = stepW / count;
       for (let n = 0; n < count; n++) {
         // 中の目地だけをずらす。両端は道幅を保ち、縦に通った格子を崩す。
-        const edge = n => -stepW / 2 + n * unitW + (n > 0 && n < count ? unitW * .24 * Math.sin(k * 2.3 + n * 1.7) : 0);
+        const edge = n => -stepW / 2 + n * unitW + (n > 0 && n < count ? unitW * .06 * Math.sin(k * 2.3 + n * 1.7) : 0);
         const x0 = edge(n), x1 = edge(n + 1), stoneW = x1 - x0, x = (x0 + x1) / 2;
         const left = this.W.heightAt(q.x + x0 * cs, q.z - x0 * sn);
         const right = this.W.heightAt(q.x + x1 * cs, q.z - x1 * sn);
@@ -467,17 +467,18 @@ class HieiHallGaran extends Garan {
         if (Math.abs(right - left) > stoneW * .65) continue;
         // 欠けとずれを含めても隣の段へ届く奥行きにする。
         // 間隔と同じ奥行きでは石の縁の欠けが全段に横溝を作り、梯子に見える。
-        const part = stoneStepGeo(stoneW - .018, .2, stride * 1.5, k * 7 + n);
+        // 坂の変わり目でも上下の踏石を重ね、奥行きの縮みで土の横溝を開けない。
+        const part = stoneStepGeo(stoneW - .008, .2, Math.max(.4, stride) * 1.6, k * 7 + n);
         // 色は実際の石ごとに決める。頂点の横位置で区切ると、一つの石の中に
         // 隣の石の色が入り、目地をずらしても長い板の縞に見えてしまう。
-        // 石ごとの明暗を大きく（同じ灰色の箱の積み重ねに見えた。10/28）
-        const tone = .6 + .55 * (.5 + .5 * Math.sin(k * 3.7 + n * 5.3)) * (.75 + .25 * Math.sin(k * 1.3 + n * 2.9));
+        // 石の違いは残し、明暗が交互の格子に見えるほどの差は付けない。
+        const tone = .84 + .2 * (.5 + .5 * Math.sin(k * 3.7 + n * 5.3)) * (.75 + .25 * Math.sin(k * 1.3 + n * 2.9));
         // 自然石：石ごとに花崗岩の灰・錆びた茶・青みの灰を混ぜ、形も少し回して大小を付ける（10/28）。
         const hue = .5 + .5 * Math.sin(k * 5.1 + n * 3.3), warm = Math.max(0, hue - .45) * .9, cool = Math.max(0, .35 - hue) * .7;
         const colors = part.attributes.color;
         for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .34 * tone * (1 + warm * .35 - cool * .12), .31 * tone * (1 + warm * .1), .26 * tone * (1 - warm * .2 + cool * .18));
-        part.scale(1, 1, .82 + .18 * (.5 + .5 * Math.sin(k * 4.3 + n * 7.9)));
-        part.rotateY(.07 * Math.sin(k * 6.1 + n * 2.3));
+        part.scale(1, 1, .98 + .02 * (.5 + .5 * Math.sin(k * 4.3 + n * 7.9)));
+        part.rotateY(.018 * Math.sin(k * 6.1 + n * 2.3));
         part.translate(x, 0, .008 * Math.sin(k * 2 + n));
         stones.push(part);
         // 石ごとに一枚の天端を保つ。頂点ごとに高さを拾うと、法面の境で
@@ -497,7 +498,7 @@ class HieiHallGaran extends Garan {
         const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
         const grain = .5 + .5 * Math.sin(x * 17 + z * 11 + k);
         // 輪郭を数センチずつ欠き、箱の直線を崩す。同じ座標は同じだけ動かし、継ぎ目を裂かない。
-        p.setXYZ(i, x + .035 * Math.sin(x * 9.3 + z * 13.1 + k), y + .006 * Math.sin(x * 21 + z * 13 + k), z + .04 * Math.cos(x * 12.7 - z * 7.3 + k));
+        p.setXYZ(i, x + .008 * Math.sin(x * 9.3 + z * 13.1 + k), y + .006 * Math.sin(x * 21 + z * 13 + k), z + .01 * Math.cos(x * 12.7 - z * 7.3 + k));
         const edge = Math.abs(x) > w * .32, top = normals.getY(i) > .5;
         // 端の石は苔が厚く、中の石は目地と縁だけ。側面の上の縁に苔、下は湿った土で暗く。
         const moss = (edge ? Math.max(0, grain - .4) * 1.3 : Math.max(0, grain - .6) * 1.0) * (top ? .8 : y > 0 ? 1.2 : .4);
@@ -2071,10 +2072,31 @@ const hiei_mtn = {
     if (F.ending) return 3;
     if (F.dangerAt !== undefined || F.woundTask) return 4;
     if (F.exitMarked || F._gHold || F.guideReturn?.active) return 0;
-    if (hieiNearest(rt)) return 1;
+    // 同じ画面の印と札から何度呼ばれても、道の検査は四分の一秒に一度。
+    if (F.missionProbeAt === undefined || rt.t >= F.missionProbeAt) {
+      F.missionProbeAt = rt.t + .25;
+      const enemy = hieiNearest(rt), me = rt.player.u;
+      // 建物や法面の向こうの敵は、本道の行き先と取り違えさせない。
+      F.missionEnemy = enemy && Math.abs(enemy.pos.y - me.pos.y) < 2
+        && rt.world.onRoad(enemy.pos.x, enemy.pos.z)
+        && !nakaRoomAt(enemy.pos.x, enemy.pos.z, enemy.pos.y)
+        && roadClear(rt.army, me, me.pos, enemy.pos) ? enemy : null;
+    }
+    if (hieiReady(F.missionEnemy)) return 1;
     return near(rt.player.u, hieiPost(rt), hieiPostRadius(F)) ? 2 : 0;
   },
-  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  missionHeading(rt) {
+    const stage = this.missionOf(rt), F = rt.flags;
+    if (stage === 1) return '道の敵を退け';
+    if (stage !== 0) return this.missions[stage];
+    if (F.exitMarked) return '戸口から道へ';
+    if (F._gHold || F.guideReturn?.active) return '本道へ戻れ';
+    if (F.step <= 1) return F.hiyoDone ? '本坂へ進め' : '鳥居へ進め';
+    if (F.step === 2) return '石段へ進め';
+    if (F.step === 3) return '山門へ登れ';
+    if (F.step === 4) return F.bell2 ? '西塔へ進め' : '中堂へ進め';
+    return F.step === 5 ? '釈迦堂へ進め' : '横川へ進め';
+  },
   // 総大将は足さず、声を担当する既存の僧兵頭を示す。退いた瞬間に印を外す。
   commanderSignTarget(rt) {
     const F = rt.flags;

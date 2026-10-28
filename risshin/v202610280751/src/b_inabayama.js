@@ -3666,6 +3666,7 @@ const inabayama = {
   // 民は描画専用。兵の名簿・人数・当たり・戦功には入れない（war_people.js）。
   civilianCrowd: {
     bounds: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, bands: CIVILIAN_BANDS,
+    openCache: 0.3,   // 民の逃げ道の地面の調べを 30cm の格子で使い回す（war_people.js lightOpen。戦の計算の七割を占めていた）
     // 決着後の終幕でも町の火は残る。家に残る者の警戒と南への避難を続ける。
     evacuateAfterBattle: true,
     // 家や踏み跡と同じ描画面へ足を据える。通行・兵の警戒に使う地形は保つ。

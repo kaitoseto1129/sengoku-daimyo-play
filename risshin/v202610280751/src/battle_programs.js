@@ -198,10 +198,11 @@ export async function prepareBattlePrograms(renderer, battle, camera, current = 
     if (uploadTextures) stats.textures = await uploadTextures(battle.scene, materials);
     stats.uploadMs = Math.round(performance.now() - tUp);
     if (!current()) return stats;
+    // 端末が完了を返さない時も、確認の時計と見本を支度へ残さない。
     const tCompile = performance.now();
-    const complete = await onTarget(() => compileBattleSlice(renderer, battle.scene, camera, battle.scene, current, Infinity));
-    if (!complete) return stats;
+    const complete = await onTarget(() => compileBattleSlice(renderer, battle.scene, camera, battle.scene, current, 8000));
     stats.compileMs = Math.round(performance.now() - tCompile);
+    if (!complete) { stats.failed++; return stats; }
     if (!current() || renderer.getContext().isContextLost()) return stats;
     // 空の煙・火花・土埃も一度は描く。借りた形の描画範囲は必ず元へ戻す。
     for (const o of group.children) {

@@ -429,8 +429,10 @@ export class WorldFire {
 
 
   // 支度の見本にも本番と同じ火の照明を足す。最初の描画で全材質を作り直さない。
+  // 昼に始まり途中で夜になる戦（大河内・岩村・有岡など）も、篝火があれば支度で足しておく。
+  // 昼の間は照りの強さが 0 なので見た目は変わらず、夜になった瞬間に全部の材質を作り直して数秒止まるのを防ぐ（10/28 大河内 5.5 秒）。
   prepareFireMaterial(o) {
-    if (this.fireFill && (this.timeKey === 'night' || this.def.dayFireFill) && this.fires.length) fireFillObject(o);
+    if (this.fireFill && this.fires.length) fireFillObject(o);
   }
 
 

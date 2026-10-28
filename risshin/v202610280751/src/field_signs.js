@@ -218,7 +218,7 @@ export function fieldSignsTick(rt, root) {
   const hide = photo || rt.hud?.introWaiting;
   // 稲生・森部は名を任務の一行に集める。空の親枠も隠し、命や任務の札に重ねない。
   // 討つ武将の名だけは乱戦でも見失わないよう、▼の上に一枚出す（テスター 10/27。名は kaito が許した字）。
-  const hideNames = !!hide;
+  const hideNames = !!hide || rt.def.missionStyle === 'ford';
   if (s.box.hidden !== hideNames) s.box.hidden = hideNames;
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
@@ -466,8 +466,8 @@ export function fieldSignsTick(rt, root) {
     // 一般兵は目当ての選び直しで大きさを変えず、討つ武将だけ一段大きくする。
     const moribeLimit = (u === commander ? .9 : .6) + .45 * moribeNear;
     // 近い所属印は十六画素、命中した本人は二十四画素を保ち、赤の減りを読めるようにする。
-    const moribePixelScale = -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
-    const moribeMinPixels = ford ? Math.max(16 * moribeNear, 24 * pulse) : 0;
+    const moribePixelScale = -v.z * 2 / (VIEW.h * cam.projectionMatrix.elements[5] * .34);
+    const moribeMinPixels = ford ? Math.max(16 * moribeNear, reachable ? 20 : 0, 24 * pulse) : 0;
     // 稲生の近い敵も携帯で読める幅を保ち、印のない味方と見分けられるようにする。
     // 遠い本人も三角と読める幅を残す。接近の途中で印だけ数画素に潰さない。
     // 七十歩以遠へは滑らかに戻し、近い相手の白縁・命中の伸びと分ける。

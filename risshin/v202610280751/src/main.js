@@ -2108,8 +2108,8 @@ const game = {
           if (b.army._rain) renderer.initTexture(b.army._rain.dots.material.map);
           battleShadow();
           const { prepareBattlePrograms } = await import('./battle_programs.js');
-          // 初戦も隠れた姿・倒れ・具足・馬具まで用意し、完了するまで開戦しない。
-          // 時間切れで戦中へ残さない。姿をまとめて組み立て、完了を一度だけ待つ。
+          // 初戦も隠れた姿・倒れ・具足・馬具まで用意する。
+          // 姿をまとめて組み立て、完了を一度だけ待つ。端末が完了を返さない時は待ちを片付ける。
           const current = () => my === this.startSeq;
           LT.programs = await prepareBattlePrograms(renderer, b, camera, current, {
             offscreen: useFinish(), shadow: battleShadow,

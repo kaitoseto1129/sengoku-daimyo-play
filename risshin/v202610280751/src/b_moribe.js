@@ -55,8 +55,7 @@ const atFordBank = (p, world, foot = 0) => p.z < nireZ(p.x) &&
 // ピンへ近づいただけでは水中で終えない。ピンのある対岸へ足が着いた瞬間にそろえる。
 // 体の中心ではなく踏み出した足が岸へ着いた時に完了し、足元のピンまで来ても歩かせ続けない。
 // 岸の明るい砂（川面の描き方の fordShore：中心から 7.5〜8.6）に足が掛かれば着いた事にする。ピンの一歩手前で止まると渡り終えられなかった（10/26 bot が八分立ち止まった）。
-const playerAtFord = (p, world) => atFordBank(p, world, FORD_FOOT) ||
-  p.z < nireZ(p.x) && Math.hypot(p.x - POINT2.x, p.z - POINT2.z) <= FORD_R;
+const playerAtFord = (p, world) => atFordBank(p, world, FORD_FOOT);
 const FRONT2 = { x: 4, z: 20 };
 const ASSEMBLY2 = { x: 14, z: 10 };
 const RETREAT2 = { x: 24, z: 48 };
@@ -1511,8 +1510,8 @@ function moribeFord(rt) {
   for (let i = 0; i < 96 && !atFordBank(bank, W, FORD_FOOT); i++) {
     bank.z -= .25; bank.y = W.heightAt(bank.x, bank.z);
   }
-  // ピンの手前の縁と岸の到着線をそろえる。中心まで歩き直させない。
-  POINT2.z = bank.z - FORD_R; POINT2.y = drawGroundAt(W, POINT2.x, POINT2.z);
+  // ピンの刺さる場所そのものを到着線へそろえる。岸の奥へ歩かせない。
+  POINT2.z = bank.z; POINT2.y = drawGroundAt(W, POINT2.x, POINT2.z);
   st.mesh.geometry.computeVertexNormals();
   st.mesh.geometry.computeBoundingSphere();
   // 両岸の石。出陣時だけ作り、形と材質を使い回す。
@@ -2243,7 +2242,7 @@ const moribe = {
     const F = rt.flags, q = F.moribePin;
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
-    q.unit = null; q.enemy = false;
+    q.unit = null; q.enemy = false; q.approach = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     let pos = null, r = 6, hide = 6;
@@ -2269,7 +2268,7 @@ const moribe = {
       // 上陸は満杯、仲間待ちは扇形。到着前の歩みと待ち時間を混ぜない。
       q.progress = q.arrived ? q.waiting ? this.missionWaitProgress(rt) || 0 : 1 :
         // 横へずれても岸へ渡った分を示す。到着前は満杯にしない。
-        Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z - FORD_R)));
+        Math.max(0, Math.min(.98, (START2.z - rt.player.u.pos.z) / (START2.z - POINT2.z)));
       // 渡河後も対岸の同じ地点。仲間の頭へ移して敵の▼と混同させず、後続の兵を追って川へ戻らせない。
     } else if (F.stage === 'hold') {
       // 守る地点と終わるまでの進みを、到着後も同じピン一本に残す。

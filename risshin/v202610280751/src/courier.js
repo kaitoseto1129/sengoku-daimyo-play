@@ -116,7 +116,8 @@ function place(rt, c, moving, dt) {
   m.rotation.y += d * Math.min(1, dt * 8);
   c.u.heading = m.rotation.y; c.u.moving = moving ? c.speed : 0;
   c.u.gone = false;
-  animateHorse(c.h, dt, moving ? c.speed : 0);
+  // 画面の外の使番の馬は脚を動かさない（見えない所は動かさない。kaito 10/19・10/28）。見えた次のコマから続きを動かす
+  if (!c.u.offscreen) animateHorse(c.h, dt, moving ? c.speed : 0);
   const seat = c.h.userData.horse?.seat;
   if (seat && c.u.seat) { c.u.seat.matrix.copy(seat).multiply(RIDE.fit); c.u.seat.matrixWorldNeedsUpdate = true; }
   if (moving && Math.random() < dt * 3) w.puff(m.position.x, m.position.z, 2);

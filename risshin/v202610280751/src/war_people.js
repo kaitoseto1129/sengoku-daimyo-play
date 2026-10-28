@@ -553,7 +553,20 @@ function crowdSolidAt(s, x, z) {
   return true;
 }
 
+// 町の民の逃げ道探しは、同じ辺りの地面を何百回も調べる（稲葉山では戦の計算の七割）。
+// def.civilianCrowd.openCache（格子の幅 m）を書いた戦だけ、その格子の真ん中の答えを 1.5 秒使い回す。
+// 地面・水・家の当たりは動かないので、見える動きは変えずに調べる回数だけを減らす（kaito 10/28「見えない計算は粗く」）。
 function lightOpen(rt, x, z) {
+  const cell = rt.def.civilianCrowd?.openCache;
+  if (!cell) return lightOpenAt(rt, x, z);
+  let K = rt._openCache;
+  if (!K || K.t > rt.t || rt.t - K.t > 1.5 || K.m.size > 60000) K = rt._openCache = { t: rt.t || 0, m: new Map() };
+  const ix = Math.round(x / cell), iz = Math.round(z / cell), key = ix * 100003 + iz;
+  let v = K.m.get(key);
+  if (v === undefined) { v = lightOpenAt(rt, ix * cell, iz * cell); K.m.set(key, v); }
+  return v;
+}
+function lightOpenAt(rt, x, z) {
   const w = rt.world;
   const b = rt.def.civilianCrowd?.bounds;
   const margin = rt.def.civilianCrowd?.escapeSolidMargin ?? 0.3;
