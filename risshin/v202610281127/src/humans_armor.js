@@ -719,6 +719,17 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         dmCloth = mix(dmCloth, 1.0 - plate, glove);
         dmLeather *= 1.0 - glove; dmGold *= 1.0 - glove; dmLacq *= 1.0 - glove;
         diffuseColor.rgb *= 1.0 - uWet * 0.25 * dmCloth;
+        // 足：スキャンは素足に紐だけ。肌色の所を紺の足袋に、足の裏の厚みは藁の草鞋に（素足で戦に立たない。10/28）
+        {
+          float footM = 1.0 - smoothstep(0.09, 0.13, vDmP.y);
+          vec3 fc0 = diffuseColor.rgb;
+          float skinF = footM * smoothstep(0.02, 0.08, fc0.r - fc0.b) * smoothstep(0.05, 0.14, fc0.r);
+          float fl = dot(fc0, vec3(0.3, 0.59, 0.11));
+          vec3 tabi = vec3(0.022, 0.024, 0.032) * (0.8 + 0.6 * fl);
+          vec3 waraji = vec3(0.3, 0.24, 0.14) * (0.7 + 0.8 * fl);
+          diffuseColor.rgb = mix(fc0, mix(tabi, waraji, 1.0 - smoothstep(0.012, 0.026, vDmP.y)), skinF);
+          dmCloth = max(dmCloth, skinF); dmLacq *= 1.0 - skinF; dmGold *= 1.0 - skinF;
+        }
         // 絵の細かな起伏：ぼかした明るさとの差。小札の段の影・縅の目・金具の縁が、後で凹凸になる（絵の段にそろう）
         float lb = min(dot(texture2D(map, vMapUv, 2.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
         dmH = clamp(l - lb, -0.25, 0.25);
@@ -733,10 +744,12 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
           if (rowM > 0.0 && uKbOn > 0.5) {
             // 写真の三段を胴のまわりに巻く（一段 3.4cm、横 512 画素で 27cm）。糸の所はその人の威の色、札の頭は漆の色のまま明るさだけ写真から
             vec3 kq = texture2D(uKb, vec2(atan(vDmP.x, vDmP.z + 0.03) * 0.625, vDmP.y / uKbH)).rgb;
-            float kl = kq.r * 1.275;
-            // 色々威（スキャンの段）：白糸の段は、その人の威の色を生成りへ寄せた薄い糸。ほかの段はその人の威の色
-            vec3 laceK = mix(uLace, mix(uLace, vec3(0.8, 0.77, 0.7), 0.5), kq.b * uKbIro);
-            vec3 kc = mix(diffuseColor.rgb * (0.55 + 0.75 * kl), laceK * kl * 1.1, kq.g);
+            // 写真の明るさは 1 を超えない所で頭打ちにし、白く飛んだ縞（照りの映り込みの焼き込み）を本の写真の落ち着いた明るさへ（10/28）
+            float kl = min(1.0, kq.r * 1.275);
+            kl = kl * (0.8 - 0.25 * smoothstep(0.7, 1.0, kl));
+            // 色々威（スキャンの段）：白糸の段は、その人の威の色を生成り（少し古びた）へ寄せた薄い糸。ほかの段はその人の威の色
+            vec3 laceK = mix(uLace, mix(uLace, vec3(0.6, 0.56, 0.47), 0.5), kq.b * uKbIro);
+            vec3 kc = mix(diffuseColor.rgb * (0.6 + 0.5 * kl), laceK * (0.35 + 0.75 * kl), kq.g);
             diffuseColor.rgb = mix(diffuseColor.rgb, kc, rowM);
             dmCloth = max(dmCloth, kq.g * rowM); dmLacq *= 1.0 - kq.g * rowM;
           } else

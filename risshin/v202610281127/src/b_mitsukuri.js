@@ -2442,6 +2442,9 @@ const mitsukuri = {
     }
   },
   jinkei: MITSUKURI_JIN,
+  // 10/28：坂の矢と鉄砲で開始一分に命が三割まで減り、深手のまま郭を取れずに攻め止めになった（bot 5回に4敗）。受ける傷を七割、休む間は少し戻す。
+  playerTaken: 0.7,
+  playerRegen: 0.012,
   noTaisho: true, // 城将一人の討死で即勝ち・討ち取りの副任務を出さない。
   noWake: true,   // 城の部隊だけを本物へ替え、遠景の兵は重ねない。
   nobiki: true,   // 攻め止めの合図も、札と同じ法螺貝と退き太鼓にそろえる。
@@ -2529,6 +2532,7 @@ const mitsukuri = {
     fights: [[OPEN_PT[0], OPEN_PT[1] - 6, 24], [TORCH[2].x, TORCH[2].z, 20], [0, -75, 22], [-45, -95, 24]],
   },
   world: {
+    allyTaken: 0.7,   // 10/28：郭ごとの制圧に要る味方が城兵の新手に削られ、二の丸・本丸の手前で攻め止めになった（bot 6回に4敗）。寄せ手の傷みを七割に
     nearAllyFadeRadius: 1.1, // 兵の更新側も描画直前の全身よけへそろえる。
     blockedHint: () => '急な崖は通れない。二の丸から本丸へは西の道と石段を通れ',
     seed: 1568,
@@ -2878,6 +2882,8 @@ const mitsukuri = {
       // 切岸は既に地面にある。別の格子の薄い土を重ねると、交差した面が白い破れに見える。
       terrainBanks: true,
       kuruwa: MITSUKURI_PLAN.kuruwa.map((k) => ({ ...k,
+        // 雨上がりの山城の平場は濡れた土。城の白い砂利の平場にしない（10/28 雪のように白く見えた）。
+        floor: false,
         // 塀の名に「木戸」を含めると、門の案内が短い塀まで打たせてしまう。
         ...(k.id === 'ni' ? { name: '二の丸' } : {}),
         wallOpt: { ...k.wallOpt, mound: false, material: fenceWood, groundBoards: true,

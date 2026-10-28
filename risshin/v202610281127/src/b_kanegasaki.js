@@ -2085,7 +2085,7 @@ const kanegasaki = {
       }
       return cover;
     },
-    allyCloth: [0x2a384a, 0x30394a, 0x38372f, 0x293541, 0x383d3c, 0x30323b],
+    allyCloth: [0x3a3024, 0x33302a, 0x38372f, 0x3a2e24, 0x383d3c, 0x2e2a26],
     grassSlopeMax: 0.55, // 切岸へ草の房を横向きに浮かせない。
     muddy: 0.25,
     water: { x: -820, x2: -120, level: -2.2 },

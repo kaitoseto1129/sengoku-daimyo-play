@@ -128,6 +128,15 @@ function masuExit(p) {
   if (fromGate < -MASU.hs + 2.5 && Math.hypot(p.x - MASU.cx, p.z - MASU.cz) > 1.5) return MASU_MID;
   return Math.hypot(p.x - MASU.face[0], p.z - MASU.face[1]) > 1.5 && Math.hypot(p.x - MASU.ix, p.z - MASU.iz) > 2 ? MASU.face : MASU.out;
 }
+// 道の角のうち、平たい距離と高さの違いで一番近い角の番号。
+function nearWay(rt, path, c, y) {
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < path.length; i++) {
+    const q = path[i], d = Math.hypot(q[0] - c.x, q[1] - c.z) + Math.abs(rt.world.heightAt(q[0], q[1]) - y) * 4;
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
 // 門前（半径 r）に着いている羽柴方の人数（掛矢の打ち手）。
 function gateCrew(rt, x, z, r) {
   let n = 0;
@@ -158,7 +167,7 @@ function earthBetween(a, b) {
   for (const s of KUICHIGAI) {
     // 実際の当たりは裾1.5m＋歩兵の半幅0.45mの丸い端。
     // 四角く広げると端を回れる道を塞ぎ、1.6mだけでは体が土へ押し戻される。
-    const pad = 1.95, dx = b.x - a.x, dz = b.z - a.z;
+    const pad = 1.65, dx = b.x - a.x, dz = b.z - a.z;
     const x0 = Math.min(s[0], s[2]) - pad, x1 = Math.max(s[0], s[2]) + pad;
     const z0 = Math.min(s[1], s[3]) - pad, z1 = Math.max(s[1], s[3]) + pad;
     let lo = 0, hi = 1;
@@ -298,7 +307,9 @@ function wayTrail(rt, path, idx) {
     const dn = Math.hypot(p.x - path[idx + 1][0], p.z - path[idx + 1][1]);
     // 先の角の方が近くても、段の上下違い（九十九折りの隣の道）や道の縁の向こうなら飛ばさない。
     const nx = path[idx + 1][0], nz = path[idx + 1][1], skip = d < 8 && dn < seg && Math.abs(rt.world.heightAt(nx, nz) - p.y) < 2.5 && !rt.army.wallBetween(p, -1, { x: nx, z: nz }, false);
-    if (d < 3 && Math.abs(rt.world.heightAt(path[idx][0], path[idx][1]) - p.y) < 3 || skip) idx++; else break;
+    // 登り口（九十九折りの上の端）は味方が溜まる所。角を踏まずに、近づいたら次の角（虎口の折れ）へ向かう。
+    const reach = path[idx] === CLIMB_UP[2] ? 7 : 3;
+    if (d < reach && Math.abs(rt.world.heightAt(path[idx][0], path[idx][1]) - p.y) < 3 || skip) idx++; else break;
   }
   F.trailPoint.x = path[idx][0]; F.trailPoint.z = path[idx][1];
   return idx;
@@ -590,6 +601,16 @@ function valleyEncounter(rt) {
     if ((d2 < 25 || sightPoint(rt, u.pos)) && roadClear(rt.army, rt.player.u, p, u.pos)) return true;
   }
   return false;
+}
+// 斬り合いで道から外れて屋敷の段や帯曲輪へ上がった時は、まず今の角の前後の道へ戻る（段の縁を越えて直進しない）。
+const BOT_ROAD = { x: 0, z: 0, s: 0, d: 0 };
+function botBackToRoad(b, p, inp, u, goTo, path, idx) {
+  if (!idx) return false;
+  roadPoint(path, u.pos, BOT_ROAD, null, null, Math.max(1, idx - 2), idx);
+  if (!(BOT_ROAD.d > 5)) return false;
+  const q = BOT_ROAD;   // 道の真上の点へまっすぐ（尾根用の迂回は使わない）
+  goTo(p, inp, q.x, q.z, .5, true);
+  return true;
 }
 // bot が土塁や塀の袋で五秒動けない時は、一番遠くまで歩ける向きへ三メートル抜ける（人が身をよじって出るのと同じ）。
 function odaniBotEscape(b, p, inp, u, goTo) {
@@ -1259,7 +1280,12 @@ function addTrailRails(rt) {
     const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), nx = -dz / len, nz = dx / len;
     for (const s of [-1, 1]) rails.push([[a[0] + nx * off * s, a[1] + nz * off * s], [b[0] + nx * off * s, b[1] + nz * off * s], nx * s, nz * s]);
   };
-  leg([CLIMB_UP[1][0] + (CLIMB_UP[2][0] - CLIMB_UP[1][0]) * .08, CLIMB_UP[1][1] + (CLIMB_UP[2][1] - CLIMB_UP[1][1]) * .08], [CLIMB_UP[2][0] - 2, CLIMB_UP[2][1] - 3], 3.2);
+  leg([CLIMB_UP[1][0] + (CLIMB_UP[2][0] - CLIMB_UP[1][0]) * .3, CLIMB_UP[1][1] + (CLIMB_UP[2][1] - CLIMB_UP[1][1]) * .3], [CLIMB_UP[2][0] - 2, CLIMB_UP[2][1] - 3], 3.2);
+  // 登り口（水の手の上の段）の南の縁。一段下の帯曲輪へ落ちない。
+  rails.push([[BELOW.x - 8, BELOW.z + 3.8], [BELOW.x + 1.5, BELOW.z + 1.3], .26, -.97], [[BELOW.x + 1.5, BELOW.z + 1.3], [-29.2, BELOW.z + 1.3], 0, -1]);
+  // 大堀切の縁（南北の肩と西の端）。深さ十メートルの堀底へ落ちると上がれない。土橋（真ん中）だけ空ける。
+  { const z0 = OHORIKIRI.z - OHORIKIRI.w / 2 - .6, z1 = OHORIKIRI.z + OHORIKIRI.w / 2 + .6, x1 = OHORIKIRI.len / 2 + 1;
+    rails.push([[-x1, z0], [-2.75, z0], 0, -1], [[2.75, z0], [x1, z0], 0, -1], [[-x1, z1], [-2.75, z1], 0, 1], [[2.75, z1], [x1, z1], 0, 1], [[-x1, z0], [-x1, z1], -1, 0], [[x1, z0], [x1, z1], 1, 0]); }
   // 堀切の土橋（大堀切・京極丸と小丸・中丸と京極丸・小丸と山王丸）
   for (const [z, w] of [[OHORIKIRI.z, OHORIKIRI.w], [GATE_KYO_KOMA.z, 4.4], [GATE_NAKA_KYO.z, 4.4], [(KOM.z0 + SANNO.z1) / 2, 4.4]]) {
     for (const s of [-1, 1]) rails.push([[2.75 * s, z - w / 2 - .3], [2.75 * s, z + w / 2 + .3], s, 0]);
@@ -2463,7 +2489,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
           if (!g.isBatchedPart) rt.scene.add(g);
         }
         // 絵の裾は中心から1.5メートル。元の細い芯だけでなく、土の中への入り込みを止める。
-        Object.assign(solidSeg(ax, az, bx, bz, 1.5), { missileH: 1.8, missileType: 'dust' });
+        Object.assign(solidSeg(ax, az, bx, bz, 1.2), { missileH: 1.8, missileType: "dust" });   // 折れの道は人ひとり半（狭いが、押し合いで抜けられる）
       }
       finalizeSimpleBatch(rt, kb);
       F.nests = [];
@@ -2832,9 +2858,9 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
     for (const g of F.oda) {
       const c = g.center(), u = g.units.find(battleReady);
       if (!u) continue;
-      roadPoint(ONO_WEST_ENTRY, c, ROUTE_FROM, rt.army, u);
       g.odaniPlayerPause = false; g.order = 'path'; g.path = ONO_WEST_ENTRY;
-      g.pathIdx = Number.isFinite(ROUTE_FROM.d) ? Math.ceil(ROUTE_FROM.s) : 0;
+      // 九十九折りの隣の段の角を選ばない（高さの違う角は遠いとみなす）。次の角から歩く。
+      g.pathIdx = Math.min(ONO_WEST_ENTRY.length - 1, nearWay(rt, ONO_WEST_ENTRY, c, u.pos.y) + 1);
       g.aggro = 4; g.speed = 3; g.formation = 'column';
       g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 40; gg.formation = 'yari'; gg.anchor = { x: KC.x, z: KC.z }; };
     }
@@ -3106,7 +3132,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       const task = rt.objectives.find((o) => o.id === 'main');
       if (task?.text !== text) nextObj(rt, text);
     }
-    if (left <= 1 && rt.t - F.honT > 15 || rt.t - F.honT > 50) { if (!F.fallen) (F.trig ||= []).push(left <= 1 ? 'fall:player' : 'fall:time'); this.castleFall(rt); }
+    if (left <= 1 && rt.t - F.honT > 15 || rt.t - F.honT > 45) { if (!F.fallen) (F.trig ||= []).push(left <= 1 ? 'fall:player' : 'fall:time'); this.castleFall(rt); }
   },
 
   // 落城：本丸の旗が倒れ、御殿から火。長政は赤尾屋敷へ退く（最期は後日の知らせで）。
@@ -3181,10 +3207,11 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       // 番兵と槍を合わせる時は近くの先手も止まり、攻め手を一人残して次の角へ進まない。
       // 遅れている列はそのまま合流させる。退き口が出た時も、近い列を先へ送らない。
       const waitFight = ahead && distance < 16 && (F.retreatOn || rt.botRest || F.step === 1 && F.valleyFighting);
-      if (g.order === 'path' && !g.odaniPlayerPause && (waitFight || ahead && distance > 16)) {
+      // 九十九折りの上の段と虎口へ向かう間（二の段）は待たない。狭い一本道で止まると、後ろの本人の道を塞ぐ。
+      if (g.order === 'path' && F.step === 1 && !g.odaniPlayerPause && (waitFight || ahead && distance > 16)) {
         // 道順と先頭の位置を保って待つ。持ち場を直線に戻すと後列が切岸へ出てしまう。
         g.odaniMarchSpeed = g.speed; g.speed = 0; g.odaniPlayerPause = true;
-      } else if (g.odaniPlayerPause && (g.order !== 'path' || !waitFight && (!ahead || distance < 12))) {
+      } else if (g.odaniPlayerPause && (F.step !== 1 || g.order !== 'path' || !waitFight && (!ahead || distance < 12))) {
         g.speed = g.odaniMarchSpeed; g.odaniPlayerPause = false;
       }
       if (g.odaniPlayerPause) g.pressureWait = 0;
@@ -3313,7 +3340,9 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
     }
     // 手当てでも傷は残る。同じ傷だけで三十二秒ごとに十メートル戻さない。
     const hurtAgain = F.retreatHp === undefined || u.hp < F.retreatHp - 1;
-    if (F.step >= 1 && (u.hp < u.maxHp * .6 && hurtAgain || bleeding) && !F.retreatOn && rt.t >= (F.retreatNext || 0)) {
+    // 登り口から虎口の折れの間は退き口を出さない（後ろは味方で詰まり、退けば段から落ちる。押し抜けるしかない所）。
+    const pressGate = F.step === 2 && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) && (Math.hypot(u.pos.x - BELOW.x, u.pos.z - BELOW.z) < 18 || Math.hypot(u.pos.x - GATE_WEST.x, u.pos.z - GATE_WEST.z) < 18);
+    if (F.step >= 1 && !pressGate && (u.hp < u.maxHp * .6 && hurtAgain || bleeding) && !F.retreatOn && rt.t >= (F.retreatNext || 0)) {
       F.retreatNext = rt.t + .5;
       // 屋敷を取った後も、南木戸から出て西木戸へ向かった道を戻る。
       // 登り口の道へ切り替えると、庭の塀越しに退き口を探してしまう。
@@ -3517,7 +3546,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       // 三組の番兵を退けた後だけ合流を待つ。後続が遅れても八秒で取りつく。
       F.belowWait = d < 16 && guards === 0 && joined < 3 && F.patrolWave === AMBUSH_IDS.length ? (F.belowWait || 0) + dt : 0;
       // 一戦を四〜七分に：谷で二分二十秒を過ぎたら、先に登り口へ着いた先手で取りつく。
-      if (F.belowWait >= 8 && F.patrolWave === AMBUSH_IDS.length || rt.t > 120) { (F.trig ||= []).push(rt.t > 120 && F.belowWait < 8 ? 'assault:time' : 'assault:player'); rt.say('羽柴秀吉', '後続は待たぬ！　今いる者で取りつくぞ！', 3.5); this.assault(rt); }
+      if (F.belowWait >= 8 && F.patrolWave === AMBUSH_IDS.length || rt.t > 110) { (F.trig ||= []).push(rt.t > 110 && F.belowWait < 8 ? 'assault:time' : 'assault:player'); rt.say('羽柴秀吉', '後続は待たぬ！　今いる者で取りつくぞ！', 3.5); this.assault(rt); }
       else if (d < 16 && guards === 0 && joined >= 3 && F.patrolWave === 3) { (F.trig ||= []).push('assault:player'); this.assault(rt); }
       else if (d < 16 && updateHud) rt.objProgress('main', guards > 0 ? '登り口の見張りを、先手と退けよ' : F.patrolWave < AMBUSH_IDS.length ? '味方と列を揃え、登り口の次の番兵に備えよ' : `ここで先手と合流。あと${Math.max(0, Math.ceil(8 - F.belowWait))}秒で攻める`);
     }
@@ -3551,7 +3580,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       // 木戸は、門前に着いた味方（本人を含む）の掛矢で傷む。誰も着かないまま七十五秒を過ぎた時だけ、後ろの組が打つ（後押し）。
       if (gate?.alive && !gate.opened && gate.hp > 0) {
         const at = gateCrew(rt, GATE_WEST.x, GATE_WEST.z, 7);
-        if (at || rt.t - F.stepT > 40) rt.army.damage(gate, (at ? 3 + Math.min(5, at) : 6) * dt, null, { kind: 'gateWork' });
+        if (at || rt.t - F.stepT > 35) rt.army.damage(gate, (at ? 3 + Math.min(5, at) : 6) * dt, null, { kind: 'gateWork' });
       }
       const outerOpen = !gate || gate.opened || gate.hp <= 0;
       // 一の門を破ると枡形の広場。正面の二の門は閉じ、三方の塀の上から石と矢、門兵の槍が待つ。二の門も掛矢で破る。
@@ -3587,7 +3616,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       }
       if (outerOpen && inner?.alive && !inner.opened && inner.hp > 0) {
         const at = gateCrew(rt, MASU.ix, MASU.iz, 6);
-        if (at || rt.t - F.outerOpenT > 30) rt.army.damage(inner, (at ? 4 + Math.min(6, at) : 8) * dt, null, { kind: 'gateWork' });
+        if (at || rt.t - F.outerOpenT > 25) rt.army.damage(inner, (at ? 4 + Math.min(6, at) : 8) * dt, null, { kind: 'gateWork' });
       }
       const breached = outerOpen && (!inner || inner.opened || inner.hp <= 0);
       F.masuClosed = !breached;
@@ -3664,7 +3693,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
       }
       // 一戦を四〜七分に：木戸が破れて七十秒を過ぎたら、曲輪に残る守りは崩れて退く（奇襲が効いた）。
       if (breached && !F.breachT) F.breachT = rt.t;
-      if (F.captureT < 10 && F.breachT && rt.t - F.breachT > 35) {
+      if (F.captureT < 10 && F.breachT && rt.t - F.breachT > 30) {
         (F.trig ||= []).push('cut:time');
         for (const u of rt.army.units) if (u.team === 1 && battleReady(u) && F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z)) {
           u.moraleFleeDir = { x: 0, z: 1 }; u.fleeing = true; u.fleeT = rt.army.time; u.target = null; u.aiT = 0;
@@ -3720,7 +3749,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
           rt.say('羽柴小一郎', '南北の口は押さえた！　ここで息を整えよ。次は北の小丸じゃ', 4);
         }
         // 京極丸を保てば、本丸の長政と小丸の久政は断たれる。この組の任務はここまで（一戦を四〜七分に）。
-        if (F.holdT >= KYO_HOLD || rt.t - F.stepT > 45) { (F.trig ||= []).push(F.holdT >= KYO_HOLD ? 'koma:player' : 'koma:time'); this.attackKoma(rt); }
+        if (F.holdT >= KYO_HOLD || rt.t - F.stepT > 40) { (F.trig ||= []).push(F.holdT >= KYO_HOLD ? 'koma:player' : 'koma:time'); this.attackKoma(rt); }
       } else if (F.honAttack) {
         this.honTick(rt, dt, updateHud);
       } else if (!F.komaDown) {
@@ -3747,7 +3776,7 @@ html body #hud[data-odani].field-clean:not(.ending) :is(#subtitle,#battle-messag
           if (!F.retreatOn && task?.text !== text) nextObj(rt, text);
           rt.objProgress('main', !inKoma ? F.guideReturning ? '来た道の角の印へ戻れ。そこから北木戸へ進め' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : '秀吉と道の印から北木戸を抜け、小丸へ進め' : enemies > 0 ? '小丸の内の敵を味方と退けよ。外へ追うな' : friends < 4 ? `小丸の味方 ${friends}／4人。列を待て` : `小丸を守る ${Math.min(6, Math.floor(F.captureT))}／6秒`);
         }
-        if (F.captureT >= 6 || F.komaAttackT && rt.t - F.komaAttackT > 40) { (F.trig ||= []).push(F.captureT >= 6 ? 'komaFall:player' : 'komaFall:time'); this.komaFall(rt); }
+        if (F.captureT >= 6 || F.komaAttackT && rt.t - F.komaAttackT > 35) { (F.trig ||= []).push(F.captureT >= 6 ? 'komaFall:player' : 'komaFall:time'); this.komaFall(rt); }
       }
     }
     // 小丸が落ちた後は、大手の本隊も本丸へ迫っている。羽柴の組が討ち減っても攻めは退かない。
@@ -3839,7 +3868,8 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 傷は自然回復しない。短く退いて手当てを試し、全快を待たず任務へ戻る。
   const canTreat = p.treatmentLeft > 0 && !(p.treatmentNext > b.t) && !p.mounted &&
     (u.hp < u.maxHp * .6 || u.wounds?.bleed > .0001);
-  if (F.step < 4 && canTreat && !b.botRest && !(b.botRestNext > b.t)) {
+  const pressGate = F.step === 2 && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) && (Math.hypot(u.pos.x - BELOW.x, u.pos.z - BELOW.z) < 18 || Math.hypot(u.pos.x - GATE_WEST.x, u.pos.z - GATE_WEST.z) < 18);
+  if (F.step < 4 && canTreat && !pressGate && !b.botRest && !(b.botRestNext > b.t)) {
     b.botRest = true; b.botRestUntil = b.t + 12;
   }
   if (b.botRest && (F.step >= 4 || b.t >= b.botRestUntil || !canTreat)) {
@@ -3884,6 +3914,9 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 京極丸を破った後に南の中丸・大堀切の方へ流れたら、敵を追わず京極丸へ戻る（持ち場は京極丸）。
   const kyoHome = (F.step === 2 && F.onoDone && !F.masuClosed && (F.westGate?.struct?.opened || F.westGate?.struct?.hp <= 0) || F.step === 3 && !F.komaAttack) &&
     !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) && u.pos.z > KYO.z1 - 2;
+  // 横矢の座（南の弓の座）と食い違い土塁の角の袋。二秒詰まったら斬り合いをやめ、一度北西の広い所へ出直す。
+  if (F.step === 2 && Math.hypot(u.pos.x - YOKOYA[1].x - 1.5, u.pos.z - YOKOYA[1].z + 1) < 3 && b.odaniStuck && b.t - b.odaniStuck.t > 2) b.odaniOut = b.t + 2.5;
+  if (b.odaniOut > b.t) { inp.guardHold = false; goTo(p, inp, BELOW.x + 4, BELOW.z - 4.5, .5, true); return; }
   // 枡形の広場に残った時は、二の門の前から門を抜けて出る（京極丸・小丸・本丸のどこへ向かう時も）。
   if ((F.step === 2 && !F.masuClosed || F.step === 3) && inMasu(u.pos.x, u.pos.z)) {
     const [x, z] = masuExit(u.pos);
@@ -3900,6 +3933,8 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 谷道と九十九折りでは近い敵だけを突く（遠くを追って斜面から落ちない）。
   let e = strikeTarget(b, entering ? 3 : F.step <= 1 ? 6 : 12);
   if (e && inKyoLookout(b, e) && Math.abs(e.pos.y - u.pos.y) > 1.8) e = null;
+  // 横矢の座・隠し銃座の射手は土塁と板の陰。追って突きに行かず、折れの道を押し抜ける。
+  if (e && ((F.yokoya || []).some((y) => y.g === e.group) || (F.nests || []).some((n) => n.g === e.group))) e = null;
   // 九十九折りの上下の段の敵は、届いて見えても切岸の向こう。突き続けて足を止めない。
   if (e && (Math.abs(e.pos.y - u.pos.y) > 1.6 || earthBetween(u.pos, e.pos) || b.army.wallBetween(u.pos, -1, e.pos, false))) e = null;
   if (stuckFight) e = null;   // 食い違い土塁や塀の向こうも同じ
@@ -3921,6 +3956,7 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.step <= 1) {
     if (F.step === 0) { const a = F.hideU.pos; goTo(p, inp, a.x + 3, a.z + 3, 3); return; }
     // 角の一メートル手前では次の坂が通れない。人と同じ足元の印まで進む。
+    if (botBackToRoad(b, p, inp, u, goTo, VALLEY_ROUTE, F.climbGuideIdx)) return;
     goTo(p, inp, F.trailPoint.x, F.trailPoint.z, .3, true);
     return;
   }
@@ -3956,6 +3992,7 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     }
     // 人に示す印と同じ道を通る。斬り合いで戻っても、塀の向こうの古い角へ直進しない。
     if (!F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) || inMasu(u.pos.x, u.pos.z)) {
+      if (!inMasu(u.pos.x, u.pos.z) && botBackToRoad(b, p, inp, u, goTo, ONO_WEST_ENTRY, F.kyoTrailIdx)) return;
       goTo(p, inp, F.trailPoint.x, F.trailPoint.z, .3, true); return;
     }
     // 人と同じ印をたどる。壊れた門や、散った組の古い中心へは戻らない。

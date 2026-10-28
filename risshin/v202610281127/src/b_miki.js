@@ -1399,7 +1399,7 @@ const miki = {
     // 城域と東の付城を地面の内に収める。共通地形の頂点数は増やさない。
     seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 2.8, nightFill: .48, fogFar: 420,
     // 夜明け前：東の空の下だけが白み、天頂はまだ紺。月でなく東の低い薄明かりから照らす（真夜中の空に見えていた。10/28）
-    nightLight: { sky: 0x2c3650, top: 0x101a30, glow: 0x9a7a86, glowK: 0.42, sunPos: [130, 22, -40] },
+    nightLight: { sky: 0x2c3650, top: 0x101a30, glow: 0x9a7a86, glowK: 0.42, sunPos: [130, 22, -40], vis: 240 },   // 白み始めの空で、奥の付城の井楼と篝火の並びまで見通す（10/28）
     // 既存の丸い炎を使い、門前に三角の札のような火を立てない。
     roundedFire: true,
     // 松明の暖色を粗い地形の頂点から広げず、火の届く足元だけへ描く。
@@ -1704,7 +1704,7 @@ const miki = {
       mikiFortHut(W, q.x - 6, q.z, 6, 4, 0, { ita: true, batch, interior: { name: '付城の番所', kind: 'bansho', profile: 'miki', team: 0 } });
       mikiFortHut(W, q.x + 6, q.z + 2, 5, 4, 0, { ita: true, batch, interior: { name: '付城の兵糧蔵', kind: 'kura', profile: 'miki', team: 0 } });
       rt.scene.add(jinmaku(W, q.x, q.z - 3, 5, 5, 3, { mon: 'oda' }));
-      monomi(rt, q.x + 6, q.z - 6, { logFrame: true, height: 6.6, boarded: false, mon: 'oda', team: 0 });
+      monomi(rt, q.x + 6, q.z - 6, { logFrame: true, height: 8.8, boarded: true, mon: 'oda', team: 0 });
       rt.scene.add(tawara(W, q.x - 6, q.z + 3, 0, 4));
       rt.scene.add(nobori(W, q.x - 4, q.z + 7, 'oda', 6));
     }
