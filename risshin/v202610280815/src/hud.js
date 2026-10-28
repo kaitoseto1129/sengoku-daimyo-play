@@ -524,7 +524,7 @@ export class Hud {
     setWidth(morEl.querySelector('b'), mor);
     const plainMorale = !!rt.def.missionStyle;
     setText(morEl.querySelector('span'), plainMorale ? 'やる気' : '士気');
-    setText(morEl.querySelector('em'), '');
+    setText(morEl.querySelector('em'), plainMorale ? mor >= 75 ? 'やる気十分' : mor >= 50 ? '落ち着いている' : mor >= 30 ? 'こわがっている' : '逃げ出しそう' : moraleWord(mor));
     setClass(morEl, 'low', mor < 40);
     if (mor < 40 && !this.moraleHelp && !rt.over) { this.moraleHelp = true; this.notices.push('組が動揺している。号令が届いても動きが鈍ることがある', 85, 5); }
     // 馬の体力と息（馬に乗れる身分から）
@@ -534,12 +534,12 @@ export class Hud {
     setHidden(hEl, !horseNote); setHidden(bEl, !p.canRide || !p.mounted);
     if (p.canRide) {
       const away = !p.mounted && p.loose && (p.loose.mode === 'fled' || p.loose.mode === 'flee');
-      setText(hEl.querySelector('span'), '');
+      setText(hEl.querySelector('span'), p.horseName);
       setWidth(hEl.querySelector('b'), Math.max(0, p.horseHp / p.horseMax * 100));
-      setText(hEl.querySelector('em'), ''); // 字は出さない（kaito 10/23）
+      setText(hEl.querySelector('em'), p.mounted ? p.horseHp < p.horseMax * 0.3 ? '深手' : p.horseHp < p.horseMax ? '手傷' : '' : away ? '逃げた・呼べない' : '待っている');
       setClass(hEl, 'low', p.horseHp < p.horseMax * 0.3);
       setWidth(bEl.querySelector('b'), Math.max(0, p.breath / p.maxBreath * 100));
-      setText(bEl.querySelector('em'), '');
+      setText(bEl.querySelector('em'), p.horse?.userData.horse?.exhausted ? '疲れ・並足だけ' : p.breathRest || p.breath <= 5 ? '息切れ・並足で休む' : p.breath < p.maxBreath * 0.25 ? '息が残り少ない' : p.horseHp < p.horseMax * 0.5 ? '傷で足が鈍い' : '落ち着いている');
       setClass(bEl, 'low', p.breathRest || p.breath < p.maxBreath * 0.25);
     }
     // 戦功と次の身分
