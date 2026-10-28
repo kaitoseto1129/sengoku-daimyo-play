@@ -3628,8 +3628,8 @@ function honGateStep(rt, enemy) {
   return (enemy._inaGate = p.x < HON_GATE_OUT.x + 1.5 ? HON_GATE_OUT : HON_INNER);
 }
 const inabayama = {
-  // 壁や屋根を切り抜かず、共通の衝突回避で視点を建物の手前へ寄せる。
-  nearFade: false,
+  // 共通の壁よけで視点を離し、残る手前の壁と軒だけ描画時に透かす。
+  nearFade: true,
   jinkei: INABAYAMA_JIN,
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
@@ -3845,7 +3845,7 @@ const inabayama = {
     const F = rt.flags;
     if (F.retreatMarked) return '退き口の印へ';
     if (F.step === 1 && F.townSoundWait) return '町の出口の印へ';
-    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵をたおせ' : '家の前で火をつける';
+    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵をたおせ' : '火の印の家へ';
     if (F.step === 1 && F.lit >= NEED) return F.townTarget && !gone(F.townTarget) ? '印の守兵へ' : '味方の旗へ';
     if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? inabaSallyWait(rt) || 'さくの中の敵をたおせ' : 'さくの旗へ';
     if (inabaWoodGateWait(rt)) return '木戸前で仲間と並ぼう';
@@ -3934,7 +3934,7 @@ const inabayama = {
     text = text.replace(/藤吉郎の旗/g, '旗の人').replace(/鹿垣/g, 'さく').replace(/城兵/g, '城の敵').replace(/下知/g, '話');
     if (F.ending) return '任務は達成。仲間と持ち場を守ろう';
     if (F.retreatMarked || F.regroup && F.step !== 3) return text;
-    if (F.step === 0) return it?.id === 'talk' ? '「話す」を押そう' : '藤吉郎の旗へ近づこう';
+    if (F.step === 0) return 'この人と話す';
     // 全ての守兵が退いた後は、新手待ちや交戦の案内で出口への下知を隠さない。
     if (F.step === 1 && F.townSoundWait) return '町の出口で仲間と並ぼう。合図の後、翌日の囲みへ';
     // 新手を待つ間は、敵のいない印や竹束を置く操作へ呼ばない。
@@ -3959,7 +3959,7 @@ const inabayama = {
     if ((F.step === 1 && F.lit < NEED && !rt.G.lord) || (F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
       return fire ? `「${it.label}」を${F.step === 1 ? '押そう' : '長押し'}`
-        : F.step === 1 ? '家の前で火をつける'
+        : F.step === 1 ? '火の印の家へ'
         : inabaSignalDetour(rt) ? '建物の外の道を回って、小屋の印へ' : '火の印の小屋へ';
     }
     // 集合・新手待ち・交戦の下知を、畳んだ任務でも区別する。

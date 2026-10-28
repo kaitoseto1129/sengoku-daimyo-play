@@ -31,12 +31,15 @@ export class PlayerView {
       end.normalize().multiplyScalar(8).add(pos);
       // 束ねた門・開いた扉も、壁と同じく視界の遮りに数える。
       // 既存の箱を使い、画面の中央を外れた柱や戸板も肩位置の選び直しへ渡す。
-      if (cameraWallBlocked(rt, pos, end) ||
+      near.copy(pos).lerp(end, .375);
+      const cliff = rt.world.heightAt(near.x, near.z) > near.y - .2 ||
+        rt.world.heightAt(end.x, end.z) > end.y - .2;
+      if (cliff || cameraWallBlocked(rt, pos, end) ||
           (rt.world.cameraBlockFraction?.(pos, end) ?? null) !== null) {
         // 細い柱一本でも、目の前の中央を塞ぐ時は肩位置を選び直す。
         // 遠い壁は従来どおり画面全体の占有率で判断する。
         near.copy(pos).lerp(end, .375);
-        const central = row === 0 && col === 0 && (cameraWallBlocked(rt, pos, near) ||
+        const central = row === 0 && col === 0 && (cliff || cameraWallBlocked(rt, pos, near) ||
           (rt.world.cameraBlockFraction?.(pos, near) ?? null) !== null);
         blocked += central ? 6 : 1;
       }
@@ -98,7 +101,8 @@ export class PlayerView {
             candidate.set(eye.x - Math.sin(angle) * 2.4, eye.y + .25, eye.z - Math.cos(angle) * 2.4);
           }
           rt.def.clampCamera?.(rt, candidate);
-          if (candidate.y < cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 ||
+          if (!terrainSideClear(rt.world, candidate.x, candidate.y, candidate.z) ||
+              candidate.y < cameraGroundAt(rt.world, candidate.x, candidate.z) + .65 ||
               cameraWallBlocked(rt, eye, candidate) || (rt.world.cameraBlockFraction?.(eye, candidate) ?? null) !== null) continue;
           // 戦ごとの肩位置の条件を、最後の壁よけでも守る。
           if (rt.def.cameraBodyClear?.(rt, candidate) === false) continue;
@@ -770,10 +774,10 @@ export class PlayerView {
         if (o.look?.standard && this.flagObstructs(o.standardFlag, cam, flagRadius)) this.fadeNearFlag(o.wpn);
         continue;
       }
-      // 肩越しを横切る長柄を描く間だけ避ける。稲生の戦う敵の得物は残し、構えを読めるようにする。
+      // 肩越しを横切る長柄を描く間だけ避ける。稲生・森部の敵の得物は残し、構えを読めるようにする。
       const longRadius = this.rt.def.nearLongWeaponRadius || 0;
       const closeLong = longRadius && o !== this.u && o.pos.distanceToSquared(cam.position) < longRadius * longRadius
-        && (D.missionStyle !== 'lesson' || o.team === this.u.team || !o.alive || o.dying || o.downed || o.woundOut || o.rearWound);
+        && (D.missionStyle !== 'lesson' && D.missionStyle !== 'ford' || o.team === this.u.team || !o.alive || o.dying || o.downed || o.woundOut || o.rearWound);
       if (closeLong) {
         if ((o.wpnKind || o.lookWeapon) === 'spear' || o.look?.standard) this.hideNearFlag(o.wpn);
         if ((o.wpnKind || o.lookWeapon) === 'spear') this.hideNearFlag(o.dropped);
@@ -865,7 +869,7 @@ export class PlayerView {
         _fpS.set(goal.x, goal.y ?? this.rt.world.heightAt(goal.x, goal.z), goal.z);
         blocksGoal = flagMeshBlocksView(o.wpn, cam.position, _fpS, .35);
       }
-      if (!(D.missionStyle === 'raid' && o.team !== this.u.team && o.alive && !o.dying) && (!closeSpear || (D.hideBlockingCloseSpears ?? true)) && !(o === this.u && this.rt.def.keepPlayerWeapon) && (o.wpnKind || o.lookWeapon) === 'spear' && o.wpn?.visible
+      if (!((D.missionStyle === 'raid' || D.missionStyle === 'ford') && o.team !== this.u.team && o.alive && !o.dying) && (!closeSpear || (D.hideBlockingCloseSpears ?? true)) && !(o === this.u && this.rt.def.keepPlayerWeapon) && (o.wpnKind || o.lookWeapon) === 'spear' && o.wpn?.visible
         && (flagMeshBlocksView(o.wpn, cam.position, this.u.pos)
           || (o.wpn.userData.flex?.on && (flagMeshBlocksView(o.wpn.userData.flex.a, cam.position, this.u.pos)
             || flagMeshBlocksView(o.wpn.userData.flex.b, cam.position, this.u.pos))) || blocksGoal)) this.hideNearFlag(o.wpn);

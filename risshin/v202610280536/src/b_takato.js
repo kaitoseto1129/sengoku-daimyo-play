@@ -10,7 +10,7 @@ import { ROAD_OTE } from './castles/takato.js';
 import { clearFoot } from './cover_guide.js';
 import { localClear } from './army_local_way.js';
 import { dirtTex } from './nature.js';
-import { nobori } from './props.js';
+import { nobori, hut } from './props.js';
 import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
 import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
@@ -806,6 +806,8 @@ takato.world.slopingNeedleBoughs = true;
 takato.world.cedarBoughs = true;
 // 天正十年三月二日は新暦の三月下旬・信濃の雪解け。曲輪の平場を白い砂利（雪の一枚に見えた）でなく、湿って黒ずんだ土に。
 takato.world.muddyCastleFloor = 0.7;
+// 曇りの雪解けの水たまりが白い板に光らないよう、映りを落とす。
+takato.timeslip = { ...takato.timeslip, poolDim: .45 };
 takato.world.cedarBoughPitch = .65;
 takato.world.cedarBoughWidth = 1.2;
 // 葉だけ枝張りを戻す。幹の寸法・位置と矢玉の当たりは変えない。
@@ -872,7 +874,37 @@ takato.world.tint = (x, z, h, c) => {
   const shade = .91 + .09 * Math.sin(x * .19 + z * .07) * Math.cos(z * .23)
     + .035 * Math.sin(x * .73 - z * .51);
   c.multiplyScalar(shade);
+  // 残雪を真っ白な一面にしない：雪の所は小さな斑だけ残し、ほかは湿って黒ずんだ泥と土の斑に。
+  const light = (c.r + c.g + c.b) / 3;
+  const spot = .5 + .5 * Math.sin(x * .21 + Math.sin(z * .13) * 2.1) * Math.cos(z * .19 - x * .07);
+  const wet = .5 + .5 * Math.sin(x * .11 - Math.cos(z * .09) * 1.7) * Math.sin(z * .13 + x * .04);
+  const snow = Math.min(1, Math.max(0, (light - .45) / .15)) * Math.min(1, Math.max(0, (spot - .7) / .12));
+  c.multiplyScalar(.55 / Math.max(1, light / .42));
+  const mud = Math.min(1, Math.max(0, (wet - .45) / .3)) * .75;
+  c.setRGB(c.r + (.11 - c.r) * mud, c.g + (.085 - c.g) * mud, c.b + (.062 - c.b) * mud);
+  c.setRGB(c.r + (.46 - c.r) * snow, c.g + (.47 - c.g) * snow, c.b + (.48 - c.b) * snow);
 };
+
+// 堀の内の平場（城の地面）を、泥と残雪の斑にする。共通の式の後ろへ一行足すだけで、材質は一つのまま。
+function takatoCastleMud(rt) {
+  const mat = rt.world.terrain.material, compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+  mat.onBeforeCompile = function (shader, renderer) {
+    compile.call(this, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('castleCover = max(floorK, bankK);', `castleCover = max(floorK, bankK);
+              float tkN = texture2D(tMacro, vWP.xz * 0.045 + 0.31).r, tkN2 = texture2D(tMacro, vWP.xz * 0.13 + 0.77).r;
+              vec3 tkFloor = mix(vec3(0.25, 0.2, 0.15), vec3(0.15, 0.12, 0.09), smoothstep(0.42, 0.25, tkN) * 0.8) * mix(0.82, 1.12, tkN2);
+              tkFloor = mix(tkFloor, vec3(0.6, 0.61, 0.6) * mix(0.9, 1.0, tkN2), smoothstep(0.7, 0.78, tkN + tkN2 * 0.3 - 0.15) * 0.8);
+              col = mix(col, tkFloor * castleUntint, floorK * 0.9);`);
+  };
+  mat.customProgramCacheKey = () => key + '|高遠の泥と残雪';
+  mat.needsUpdate = true;
+}
+
+// 二ノ丸の板葺きの小屋（詰所の向かい）。門と門を結ぶ道・戸口は空ける。位置は推定。
+function takatoNinomaruHouses(rt) {
+  for (const [x, z, w, d, r] of [[7, -26, 7, 4, .02], [-8, -27, 6, 4, -.03], [8, 27, 6, 4, .04]])
+    rt.scene.add(hut(rt.world, x, z, w, d, r, { h: 2.2, wall: 0x7a6650, minka: false, groundedHome: true }));
+}
 
 // 一隊の敗走や玉込めを、列を離れて追えという下知にしない。
 // 高遠だけの声に替え、撤収・本丸確保後と史実の会話は元のまま通す。
@@ -907,6 +939,8 @@ takato.setup = function (rt) {
   const bark = rt.bark;
   rt.bark = function (text, warn) { return bark.call(this, takatoAssaultVoice(this, text), warn); };
   baseSetup.call(this, rt);
+  takatoCastleMud(rt);
+  takatoNinomaruHouses(rt);
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。
   // 既存の共有画像だけを切り替え、残雪・踏み荒れ・血と地形の当たりは保つ。
   rt.world.groundU.tDirt.value = rt.world.groundU.tBank.value = dirtTex(true);

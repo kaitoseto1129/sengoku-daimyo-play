@@ -22,7 +22,9 @@ function make() {
   const style = document.createElement('style');
   style.textContent = '#hud.photo :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud.ending :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#bigmap:not([hidden])) :is(#mission-goal,#mission-flag-frame,#mission-target-lines),#hud:has(#cine.on) :is(#mission-goal:not(.cine-keep),#mission-flag-frame,#mission-target-lines){display:none}' +
     '#hud.field-clean:has(#mission-goal.fire-action:not([hidden])) #prompt{display:none!important}' +
-    // 守備の任務は残し、会話の操作札が出る間だけ右上の重複を畳む。
+    // 命・任務・操作の三枚に収め、押せる間は小地図と兵力の札を畳む。
+    '#hud:has(#mission-goal:is(.fire-action,.talk-action):not([hidden])) :is(#armybar,#minimap,#maphint,.field-names){display:none!important}' +
+    // 会話の操作札が出る間だけ右上の重複を畳む。
     '#hud:has(#mission-goal.talk-action:not([hidden])) #h-prog{display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
     '#mission-goal .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
@@ -170,16 +172,19 @@ export function updateMissionPin(rt) {
   drawMissionPin(rt);
 }
 function drawMissionPin(rt) {
-  if (rt.missionJoinRing) rt.missionJoinRing.visible = false;
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   updatePlayerFoot(rt);
   const destination = pinGuideOn(rt) ? target(rt) : null;
+  if (destination?.guardBoundary) drawJoinGround(rt, destination,
+    !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player.u.alive &&
+    !rt.hud.root.classList.contains('photo') && !rt.hud.root.classList.contains('ending') &&
+    !rt.hud.bigmap && !rt.player.camShot && !rt.hud.root.querySelector('#cine.on'));
   rt.hud.missionDefenseShown = !!destination?.defend;
   const navMe = rt.player?.u?.pos;
   // 移動中は行き先、到着後は敵。同時に別の場所を指さない。
   const moving = destination && navMe && !destination.enemy && (!destination.unit || destination.unit.team === rt.player.u.team) &&
     Math.hypot(destination.x - navMe.x, destination.z - navMe.z) > (destination.r ?? 6);
-  const taskFirst = destination && (destination.defend || destination.fire || destination.treatment || destination.dodge ||
+  const taskFirst = destination && (destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
     destination.unit?.team === rt.player.u.team);
   // 森部は共通の頭上▼で間合い・命中まで示す。別の大きな▼と「敵」の札で覆わない。
   const enemyMarked = updateEnemyTarget(rt, rt.def.missionStyle !== 'ford' && (!moving || destination?.route) && !taskFirst);
@@ -206,7 +211,7 @@ function drawMissionPin(rt) {
     return;
   }
   // 倒す相手の札がある時は移動の印を重ねない。側面への命令は地面の矢印を優先する。
-  if (!want || enemyMarked && !(inouEnemy && want.approach) && (want.enemy || want.unit?.team !== undefined && want.unit.team !== rt.player.u.team) || !want.always && !want.arrow && !inouEnemy && !rt.def.routeGuidePriority?.(rt) && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
+  if (!want || enemyMarked && !(inouEnemy && want.approach) && (want.enemy || want.unit?.team !== undefined && want.unit.team !== rt.player.u.team) || !want.always && !want.arrow && !want.route && !inouEnemy && !rt.def.routeGuidePriority?.(rt) && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && closeEnemy?.alive && !closeEnemy.gone && !closeEnemy.fleeing &&
       Math.hypot(closeEnemy.pos.x - rt.player.u.pos.x, closeEnemy.pos.z - rt.player.u.pos.z) < 4.5 && !rt.holdPct) {
     if (pin) { if (pin._hud && pin._hud.workHoldId === pin._work) pin._hud.workHoldId = null; pin.hidden = true; }
     return;
@@ -214,7 +219,7 @@ function drawMissionPin(rt) {
   if (!pin) pin = make();
   const marker = want.marker || rt.missionGuide?.marker;
   const talk = !!want.unit && !!marker?.guideTalk;
-  const simplePin = !talk && !want.defend && (rt.def.missionStyle === 'ford' && (want.crossing || want.waiting && !want.guardArea) || want.allyGather || want.route || rt.def.missionStyle === 'lesson' || rt.def.missionStyle === 'raid' || inouEnemy || !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide);
+  const simplePin = !talk && !want.defend && (want.flagDestination || rt.def.missionStyle === 'ford' && (want.crossing || want.waiting && !want.guardArea) || want.allyGather || want.route || rt.def.missionStyle === 'lesson' || rt.def.missionStyle === 'raid' || inouEnemy || !want.unit && !want.area && !want.waiting && !want.fire && !want.gate && !want.footRing && !want.defend && !want.treatment && !want.passage && !want.marker?.waitAction && !want.marker?.waitGuide && !rt.missionGuide?.marker?.waitAction && !rt.missionGuide?.marker?.waitGuide);
   pin.querySelector('svg').style.display = simplePin ? 'none' : '';
   if (pin._simplePin) pin._simplePin.style.display = simplePin ? '' : 'none';
   pin.classList.toggle('defend-location', !!want.defend);
@@ -249,7 +254,7 @@ function drawMissionPin(rt) {
   }
   const waiting = want.treatment || (want.waiting ?? (!want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea))));
   const arrived = want.treatment ? d <= (want.r ?? 3) : waiting ? (want.arrived ?? missionWaitReached(rt)) === true : !!want.arrived;
-  // 同じ集合地点へ着いた瞬間を記録し、地面の囲みを一拍だけ残す。
+  // 同じ集合地点へ着いた瞬間を記録し、到着表示を保つ。
   if (changed || U.arrived !== arrived) { U.arrivalAt = arrived ? rt.t : undefined; U.arrived = arrived; }
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。
   // 近接戦では頭上の▼に任せ、自分の体に行き先のピンを重ねない。
@@ -282,8 +287,11 @@ function drawMissionPin(rt) {
   else if (inouEnemy) goalPoint.set(want.x, groundAt(rt.world, want.x, want.z, me.y) + .08, want.z);
   else if (want.allyGather || groundPerson) goalPoint.set(U.x, U.y + .08, U.z);
   else if (want.unit) goalPoint.set(want.unit.pos.x, want.unit.pos.y + (want.unit.mounted ? 3.3 : 2.1), want.unit.pos.z);
-  // 火付けは柱の上でなく、実際に立てる足場へ印を置く。
-  else if (want.fire) goalPoint.set(U.x, U.y + .08, U.z);
+  // 一軒だけの戸口の上へ炎を付け、地面の輪は実際の足場へ残す。
+  else if (want.fire) {
+    const door = typeof marker?.pos === 'function' ? marker.pos() : marker?.pos;
+    goalPoint.set(door?.x ?? U.x, (door?.y ?? U.y) + 2.7, door?.z ?? U.z);
+  }
   else if (want.defend && want.defensePoint) {
     const post = want.defensePoint;
     goalPoint.set(post.x, groundAt(rt.world, post.x, post.z, me.y) + 1.65, post.z);
@@ -680,7 +688,7 @@ function drawMissionPin(rt) {
   label.style.top = '72px'; label.style.left = '50%';
   pin._guardSign.style.display = 'none';
   // 守備はその場所・本人のそばへ、火付けは押せる札へまとめる。
-  const text = want.defend ? '' : talking ? '話す' : rt.def.missionStyle !== 'lesson' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
+  const text = want.defend ? '' : talking ? 'この人と話す' : rt.def.missionStyle !== 'lesson' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
   if (pin._words.textContent !== text) pin._words.textContent = text;
   pin.classList.toggle('fire-action', working && !talking);
   pin.classList.toggle('talk-action', talking);
@@ -756,8 +764,11 @@ function drawMissionPin(rt) {
   }
   // 会話相手は遠くでも太い明暗の縁で囲む。中は塗らず姿を残す。
   if (talkFrame && !outside) {
-    const left = talkFrame.left - 6, top = talkFrame.top;
-    outlinePath = `M${left.toFixed(1)} ${top.toFixed(1)}h${(talkFrame.right - left + 6).toFixed(1)}v${(talkFrame.bottom - top + 3).toFixed(1)}h${(-(talkFrame.right - left + 6)).toFixed(1)}Z`;
+    const cx = talkFrame.cx, cy = (talkFrame.top + talkFrame.bottom) / 2;
+    const rx = Math.max(18, (talkFrame.right - talkFrame.left) / 2 + 8);
+    const ry = Math.max(28, (talkFrame.bottom - talkFrame.top) / 2 + 6);
+    outlinePath = `M${cx - rx} ${cy}a${rx} ${ry} 0 1 0 ${rx * 2} 0a${rx} ${ry} 0 1 0 ${-rx * 2} 0`;
+
   }
   let badgePath = '';
   // 到着前後とも同じ実旗を囲む。兵に遮られても輪と縁は画面の手前に残す。
@@ -814,6 +825,9 @@ function drawMissionPin(rt) {
   pin._targetBadge.setAttribute('d', badgePath);
   for (const path of pin._links) path.setAttribute('d', linkPath);
   for (const path of pin._outlines) path.setAttribute('d', outlinePath);
+  pin._outlines[0].setAttribute('stroke-width', talkFrame ? '10' : '4.5');
+  pin._outlines[1].setAttribute('stroke-width', talkFrame ? '5' : '2.2');
+  for (const path of pin._outlines) path.setAttribute('stroke-opacity', talkFrame ? '1' : '.85');
   pin._outlines[0].setAttribute('fill', 'none');
   pin._lines.style.display = linkPath || outlinePath || badgePath ? '' : 'none';
   // 丸めず小数一桁で置き、地面に固定する。
@@ -841,6 +855,9 @@ function drawJoinGround(rt, want, visible) {
         depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     ring.frustumCulled = false;
     rt.scene.add(ring);
+    rt.cleanupTasks?.add(() => {
+      rt.scene.remove(ring); ring.geometry.dispose(); ring.material.dispose();
+    });
   }
   if (!ring) return;
   ring.visible = visible;
@@ -858,7 +875,7 @@ function drawJoinGround(rt, want, visible) {
     positions.needsUpdate = true;
     ring.userData.x = want.x; ring.userData.z = want.z; ring.userData.r = want.r; ring.userData.arrived = !!want.arrived;
   }
-  ring.material.color.setHex(want.arrived ? 0xa8ef80 : 0xffe28a);
+  ring.material.color.setHex(want.guardBoundary ? 0xffffff : want.arrived ? 0xa8ef80 : 0xffe28a);
 }
 
 function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
@@ -883,6 +900,16 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   // 渡河も到着前後で同じピンを使う。待機中に画面端の矢印へ戻さない。
   const ford = rt.def.missionStyle === 'ford' && (want.crossing || want.waiting && !want.guardArea);
   const raid = rt.def.missionStyle === 'raid' || ford;
+  // 行き先は旗。戦う相手の刀と、画面内外とも形で区別する。
+  const flagDestination = want.flagDestination || !raid && rt.def.missionStyle !== 'lesson';
+  if (flagDestination && !el._destinationFlag) {
+    const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    flag.setAttribute('d', 'M-5 0V-55H30L20-42L30-29H-5');
+    flag.setAttribute('fill', '#fff3ba'); flag.setAttribute('stroke', '#14120f');
+    flag.setAttribute('stroke-width', '5'); flag.setAttribute('stroke-linejoin', 'round');
+    el._simplePin.appendChild(flag); el._destinationFlag = flag;
+  }
+  if (el._destinationFlag) el._destinationFlag.style.display = flagDestination ? '' : 'none';
   // 敵を見失った時も行き先のピンを保ち、味方の横に浮かぶ矢印へ替えない。
   const enemyPin = rt.def.missionStyle === 'lesson' && want.unit?.team !== undefined && want.unit.team !== rt.player.u.team;
   const destinationPin = raid || enemyPin;
@@ -913,6 +940,11 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   const travelArrow = !raid && !want.arrived && !defend;
   el._simpleRing.style.display = (outside && !docked || raid || travelArrow) ? 'none' : '';
   el._routeEdge.style.display = !destinationPin && (travelArrow || outside && !docked) || want.allyGather ? '' : 'none';
+  if (flagDestination) {
+    el._simpleRing.style.display = 'none';
+    // 通り口の旗には向きを添える。足あとや相手の印は重ねない。
+    el._routeEdge.style.display = want.route || outside ? '' : 'none';
+  }
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
   // 味方への集合は本流の長い矢印を保ち、先端を集合地点に合わせる。
   if (want.allyGather && !outside) {
@@ -940,13 +972,9 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     const cue = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     cue.innerHTML = '<ellipse rx="22" ry="6.8" fill="none" stroke="#fff3ba" stroke-width="2" pathLength="1"/><path d="M-8 0L-2 5L9-6" fill="none" stroke="#e4f2cb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path fill="#fff3ba" transform="scale(1 .31)"/>';
     el._simplePin.appendChild(cue); el._joinCue = cue;
-    // 残る待ち時間を外周で示す。入れ物は一度だけ作る。
+    // 同じピンの穴を残り時間の円グラフにする。針は重ねない。
     const dial = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    dial.innerHTML = '<path fill="none" stroke="#514a37" stroke-width="8" stroke-linecap="round"/><path fill="none" stroke="#fff3ba" stroke-width="8" stroke-linecap="round"/><path fill="none" stroke="#14120f" stroke-width="3"/>';
-    // 同じ穴の中で針が残る弧の端を指す。形は初回だけ作る。
-    const hand = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    hand.innerHTML = '<path d="M0 0V-17" stroke="#14120f" stroke-width="6"/><path d="M0 0V-17" stroke="#fff3ba" stroke-width="2.5"/>';
-    dial.insertBefore(hand, dial.lastChild);
+    dial.innerHTML = '<circle r="21" fill="#514a37"/><path fill="#fff3ba"/><path fill="none" stroke="#14120f" stroke-width="2"/>';
     el._simplePin.appendChild(dial); el._waitDial = dial;
 
   }
@@ -954,13 +982,12 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     const cue = el._joinCue;
     cue.setAttribute('transform', raid ? 'translate(0 -40) scale(1 3.2)' : docked ? 'scale(1 3.2)' : '');
     cue.style.display = raid && (want.area || ford) && (!outside || docked) ? '' : 'none';
-    // 接近は穴の縁が閉じる動き、待つ時間は外周と砂で分ける。
+    // 接近は穴の縁が閉じる動き、待つ時間は減る円で分ける。
     // 縁が閉じ切る所を実際の合流判定にそろえ、中心を踏ませない。
     cue.firstChild.style.display = joined ? 'none' : '';
-    // 到着した瞬間はチェックを一拍残し、集合できたことを先に返す。
-    const justJoined = joined && rt.t - pinAt.arrivalAt < ARRIVAL_CUE_SECONDS;
+    // 到着済みの形は同じピンの中へ残す。
     cue.children[1].style.display = joined ? '' : 'none';
-    // 待機中も到着済みの形をピンの先端側へ残し、時計の針と重ねない。
+    // 待機中も到着済みの形をピンの先端側へ残し、残り時間の円と重ねない。
     // 雨待ちの最初から時計を出すので、到着の形も最初から先端へ小さく寄せる（せっかちの bot 10/28）。
     cue.children[1].setAttribute('transform', waiting && want.progress < 1 ? 'translate(0 10) scale(.6 .3)' : '');
     cue.firstChild.setAttribute('stroke-dasharray', '1');
@@ -977,35 +1004,22 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     dial.style.display = waiting && progress < 1 ? '' : 'none';
     dial.setAttribute('transform', 'translate(0 -40)');
     if (waiting) {
-      // 残る時間を一本の円で減らす。秒の境でも止まらず、雨上がりに空になる。
-      if (!dial._clockReady) {
-        dial._clockReady = true;
-        for (let i = 0; i < 2; i++) {
-          const path = dial.children[i];
-          path.setAttribute('d', 'M0-20A20 20 0 1 1 0 20A20 20 0 1 1 0-20');
-          path.setAttribute('pathLength', '100');
-          path.setAttribute('stroke-linecap', 'butt');
-        }
-      }
-      // 残る弧と針を同じ向きに減らし、止まって待つ間も進みを見せる。
-      dial.children[2].setAttribute('transform', `rotate(${(1 - progress) * 360})`);
-      // 一秒ぶんずつ欠ける目盛りを同じ円に刻む。数字を足さず、残る待ちを数えられる。
-      const seconds = Math.max(1, Math.min(60, Math.round(want.waitDuration || 10)));
-      if (dial._seconds !== seconds || dial._sand !== sand) {
-        dial._seconds = seconds;
-        dial._sand = sand;
-        dial.children[1].setAttribute('stroke-dasharray', `${100 - sand} 100`);
-      }
-      // 円は末尾から減る。刻みも残った弧の内側だけに保つ。
+      // 残る扇形を一方向に減らす。一秒の目盛りも同じ穴の中に刻む。
       const duration = Math.max(1, Math.min(60, Math.round(want.waitDuration || 10)));
+      if (dial._sand !== sand) {
+        dial._sand = sand;
+        const remaining = 1 - progress, angle = remaining * Math.PI * 2;
+        const path = remaining >= .9999 ? 'M0-21A21 21 0 1 1 0 21A21 21 0 1 1 0-21Z' :
+          `M0 0L0-21A21 21 0 ${remaining > .5 ? 1 : 0} 1 ${Math.sin(angle) * 21} ${-Math.cos(angle) * 21}Z`;
+        dial.children[1].setAttribute('d', path);
+      }
       const elapsed = Math.floor(progress * duration);
       if (dial._duration !== duration || dial._elapsed !== elapsed) {
         dial._duration = duration; dial._elapsed = elapsed;
         let ticks = '';
         for (let i = 1; i < duration - elapsed; i++) {
           const angle = i * Math.PI * 2 / duration;
-          const sx = Math.sin(angle), sy = -Math.cos(angle);
-          ticks += `M${sx * 16} ${sy * 16}L${sx * 24} ${sy * 24}`;
+          ticks += `M0 0L${Math.sin(angle) * 21} ${-Math.cos(angle) * 21}`;
         }
         dial.lastChild.setAttribute('d', ticks);
       }
@@ -1036,12 +1050,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   }
   // ついて行く組の旗は一つだけ囲む。行き先の輪は実際の移動先に残す。
   let outline = '';
-  // 集合先はピン一本。到着はピン内のチェック、待ちは同じ穴の目盛りで返す。
-  // 到着後は地面の輪を畳み、もう輪の中心へ歩く必要がないことを返す。
-  const arrival = joined && rt.t - pinAt.arrivalAt < ARRIVAL_CUE_SECONDS;
-  if (raid && !ford) drawJoinGround(rt, want, !!want.area && !docked && (!joined || arrival) &&
-    !rt.hud.root.classList.contains('photo') && !rt.hud.root.classList.contains('ending') &&
-    !rt.hud.bigmap && !rt.player.camShot && !rt.hud.root.querySelector('#cine.on'));
+  // 集合はピン一本。地面の輪を重ねず、穴が閉じたら到着の形へ替える。
   if (rt.def.missionStyle === 'lesson' && want.marker?.group) {
     const group = want.marker.group;
     const flag = rt.hud.goalFlagBounds(rt, want.marker, group.anchor);

@@ -756,6 +756,13 @@ function saikaSettlement(rt) {
   for (const z of [-48, 48]) hut(W, -76, z, 4.5, 16, 0,
     { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true, nagayaDoors: true,
       h: 2.2, minka: false, batch });
+  // 番所の奥に二階の高い町屋の並び。東岸の持ち場から板塀越しに屋根の連なりが見える（位置・高さは推定）。
+  // 中央の渡り道（奥行き±10）と長屋の脇は空け、退く道を塞がない。
+  for (const [i, z] of [-38, -26, -14, 14, 26, 38].entries()) {
+    hut(W, -88 - (i % 2) * 3, z, 7, 5.5, EAST,
+      { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
+        wall: i % 3 ? 0x7e7464 : 0xb0a58d, h: 4.3 + (i % 3) * .3, minka: false, batch });
+  }
   // 佐久間の陣幕の脇に兵糧の覆いと普請材。中央の帰路・旗本の持ち場を空ける。
   hut(W, 88, 25, 4, 10, EAST,
     { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true, nagayaDoors: true,
@@ -2075,6 +2082,16 @@ const saika = {
   setup(rt) {
     const F = rt.flags, W = rt.world;
     timeslipField(rt);   // 身の回りのぬかるんだ岸・枯れ葦・倒れた槍と旗（def.timeslip）
+    // 遠くの木の葉の板は日に白く透けた絵に見える。遠景の板だけ色を沈め、近くの松と同じ緑へ寄せる。
+    {
+      const darkened = new Map();
+      rt.scene.traverse((m) => {
+        const far = m.userData?.farFoliage;
+        if (!far?.isInstancedMesh || !far.userData.treeFoliage || Array.isArray(far.material)) return;
+        if (!darkened.has(far.material)) { const c = far.material.clone(); c.color.setRGB(.66, .72, .58); darkened.set(far.material, c); }
+        far.material = darkened.get(far.material);
+      });
+    }
     if (SETTINGS.quality === 'high') saikaFieldBanks(rt);
     if (SETTINGS.quality === 'high' && W.farLand) {
       // 市公開の雑賀衆ガイドが示す西の砂州を、戦場外の地面の色にもつなぐ。
@@ -2236,8 +2253,9 @@ const saika = {
       const offset = high ? Math.sin(clump * 7) * .7 + Math.cos(i * 2.4) * .4 : Math.sin(i * 7) * .7;
       const x = cx + side * (13.2 + offset);
       const shoot = springReeds && i % 8 === 0;
+      // 葦は人の背を越える丈（二メートル前後）。岸の向こうを塞がない程度に揃えず伸ばす。
       const h = (high ? .65 + (Math.sin(i * 11) + 1) * .4 : .8 + (Math.sin(i * 11) + 1) * .45)
-        * (shoot ? .32 : 1);
+        * (shoot ? .32 : 1.9);
       // 描く川岸へ根元を差し込む。春の新芽も地面の上へ浮かせない。
       reedPose.position.set(x, drawGroundAt(W, x, z) + h * .48, z);
       reedPose.scale.set(1, h, 1);

@@ -597,6 +597,26 @@ function hieiPathDistance(x, z, hostPad = 0) {
   for (const path of REAR_HIEI_PATHS) distance = Math.min(distance, distToPolyline(x, z, path));
   return distance - hostPad;
 }
+// 坂本の通りの両側に詰めた町屋（門前町の家並みの推定復元）。兵・民・軍勢の通り道と
+// 田・既存の家の庭を避けた所だけに建てる。当たりは付けず、兵の道筋は変えない。
+const STREET_HOMES = (() => {
+  const out = [], paths = [...ALL_PATHS, NORTH_ROAD, LAKE_LINK, BYPASS_ROAD, ...CIVILIAN_PATHS,
+    [[AZAI_VANGUARD_WAIT.x, AZAI_VANGUARD_WAIT.z], [AZAI_VANGUARD_FRONT.x, AZAI_VANGUARD_FRONT.z]]];
+  const homes = [...TOWN_HOMES, ...CIVILIAN_HOMES, [CIVILIAN_TEMPLE.x, CIVILIAN_TEMPLE.z]];
+  const posts = [TOWN, TOWN_POST, NOBUHARU_POST, AOCHI_POST];
+  const free = (x, z) => paths.every(p => distToPolyline(x, z, p) > 6.5) &&
+    distToPolyline(x, z, LAKE_ROAD) > LAKE_ROAD_HALF_WIDTH + 6 && hieiPathDistance(x, z, HIEI_HOST_PAD) > 2 &&
+    homes.every(([hx, hz]) => Math.hypot(x - hx, z - hz) > 8.5) && posts.every(q => Math.hypot(x - q.x, z - q.z) > 10) &&
+    TOWN_FIELDS.every(([cx, cz, w, d]) => Math.abs(x - cx) > w / 2 + 5 || Math.abs(z - cz) > d / 2 + 5) &&
+    out.every(([hx, hz]) => Math.hypot(x - hx, z - hz) > 8.5);
+  // 北から来る街道の両側（棟を通りに沿わせる）と、西へ折れる道の両側。
+  for (const off of [11, 19]) for (let z = -4; z >= -84; z -= 8) for (const side of [-1, 1]) {
+    const x = 24 + side * off - (z + 20) * .06;
+    if (free(x, z)) out.push([x, z, Math.PI / 2]);
+  }
+  for (let x = 10; x >= -50; x -= 8) for (const z of [-29, -11]) if (free(x, z)) out.push([x, z, 0]);
+  return out;
+})();
 // 二十四日の移陣は十八秒の終幕内に見せ切る。四十秒では坂本に本隊が残ったまま終わる。
 // 移動時間だけを縮め、兵数・三筋の行き先・戦闘中の歩みは保つ。
 const HIEI_MOVE_SECONDS = 16;
@@ -2081,7 +2101,7 @@ const shiga = {
         });
         if (road) c.setRGB(.36 + patch * .035, .30 + patch * .025, .21);
         else if (garden) c.setRGB(.24 + patch * .035, .22 + patch * .025, .14);
-        else if (townPaddy(x, z)) c.setRGB(.36 + patch * .035, .32 + patch * .025, .20);
+        else if (townPaddy(x, z)) c.setRGB(.5 + patch * .04, .42 + patch * .03, .24);   // 刈田は藁色
         else c.setRGB(.33 + patch * .13, .36 + patch * .06, .22 + patch * .05);
       }
       // 町の着色範囲より北でも街道の踏み土を続ける。陣中で草地へ途切れさせない。
@@ -2156,7 +2176,7 @@ const shiga = {
     F.step = 0; F.ek = 0; F.ak = 0; F.rescued = true; // この戦では致命傷から立ち上がる救済を使わない。
     // ---- 坂本の町（湖べりの町屋） ----
     // 戸口で待つ家族と同じ在所を建て、家の東から湖側へ逃げる道を残す。
-    const houses = [...TOWN_HOMES, ...CIVILIAN_HOMES];
+    const houses = [...TOWN_HOMES, ...CIVILIAN_HOMES, ...STREET_HOMES];
     let houseWallMat = null, houseRoofMat = null;
     const cameraHomes = [], cameraBlock = W.cameraBlockFraction;
     // 屋根は通れる門の口とは別の体積で避ける。面の判定を待つ間も
@@ -2166,7 +2186,8 @@ const shiga = {
       w: width / 2 + 1.6, d: 2.1, bottom: 3.25, h: 4.9,
     });
     for (const [x, z, r] of houses) {
-      const house = hut(W, x, z, 7, 5, r, { wall: 0x7b6448, groundedHome: true });
+      const street = STREET_HOMES.some(h => h[0] === x && h[1] === z);
+      const house = hut(W, x, z, street ? 6.5 : 7, street ? 4.5 : 5, r, { wall: 0x7b6448, groundedHome: true, ...(street ? { solid: false } : {}) });
       // 湖側の在所も町屋と同じ壁として扱い、家族のいる家へ視点を入れない。
       cameraHomes.push({ x, z, y: house.position.y, c: Math.cos(r), s: Math.sin(r) });
       // 壁は近景・遠景の入れ物の下にある。両方へ同じ材質を渡す。

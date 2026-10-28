@@ -164,7 +164,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       origin.top = this.swipeY - 80; origin.bottom = this.swipeY + 48;
     }
     this.scan -= dt;
-    if (this.scan > 0) return;
+    if (this.scan > 0 && !this.followPerson) return;
     this.scan = 0.1;
     const W = VIEW.w, H = VIEW.h;
     const guide = rt.missionGuide;
@@ -178,6 +178,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       return;
     }
     const person = marker?.guidePerson?.();
+    this.followPerson = !!person?.alive;
     const p = person?.alive ? person.pos : marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
     const interact = person?.alive && marker.guideTalk && rt.nearestInteract();
     const interactPos = interact && (typeof interact.pos === 'function' ? interact.pos() : interact.pos);
@@ -202,7 +203,7 @@ body:has(#hud.opening #battle-opening.opening-linked) #tc .stick { visibility:hi
       (atGuardPlace ? rt.player.guard ? 'そのまま ふせごう' :
       S.guardToggle ? '右押しで かまえよう' : '右押しを 長くおそう' : '輪に入ろう');
     const guardShown = rt.plainOps ? rt.plainOps(guardInstruction) : guardInstruction;
-    this.text.textContent = marker?.guideTalk ? 'この人に近づく' : guardPlace ? guardShown : taskText(rt, objective?.text || openingGoal(rt));
+    this.text.textContent = marker?.guideTalk ? 'この人と話す' : guardPlace ? guardShown : taskText(rt, objective?.text || openingGoal(rt));
     if (waitFlag && !atWaitFlag) this.text.textContent = rt.def.openingLinkedLabel || 'あの旗へ';
     const arrow = this.label.firstElementChild;
     arrow.hidden = !p;

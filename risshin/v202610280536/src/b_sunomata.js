@@ -2236,6 +2236,7 @@ const sunomata = {
   hideMissionDots: true,
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,
+  focusEnemySignOnly: true,
   noDodgeCard: true,
   hideGuideSteps: true, // 右上は一行だけ。「あと何歩」を足さない。
   noPlayerFoot: true, // 自分の足元の白い輪は出さない（稲生と同じ。ちらつきの元）。
@@ -2244,7 +2245,7 @@ const sunomata = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || !!rt.flags.won || /討ち取|討死|勝|崩れ|守りきった|砦を残した/.test(t),
-  missions: ['ここを守れ', 'この敵をたおせ', '敵の大将をたおせ'],
+  missions: ['旗をまもれ', 'この敵をたおせ', '敵の大将をたおせ'],
   // 毎回いまの戦場から決める。討った・退けた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     if (sunomata.commanderTarget(rt)) return 2;
@@ -2267,10 +2268,12 @@ const sunomata = {
     const q = F.sunoPin || (F.sunoPin = { x: 0, z: 0, r: 5, hide: 5 });
     const me = rt.player.u.pos, stage = sunomata.missionOf(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
+    q.flagDestination = true; q.guardBoundary = false;
     if (stage === 0) {
       const p = sunoPostPoint(rt);
       q.x = p.x; q.z = p.z; q.r = q.hide = 5;
       q.waiting = true; q.arrived = Math.hypot(me.x - p.x, me.z - p.z) < 5;
+      q.guardBoundary = true;
       return q;
     }
     const u = stage === 2 ? sunomata.commanderTarget(rt) : sunoNearestFoe(rt);
@@ -2303,7 +2306,7 @@ const sunomata = {
     q.route = route.blocked; q.enemy = !route.blocked; q.unit = route.blocked ? null : u;
     return q;
   },
-  routeFootsteps: true,
+  routeFootsteps: false,
   // 砦にいる本人を使う。名の確かでない敵将や、台本外の寄せは増やさない。
   taisho: { a: { name: '木下藤吉郎', use: true }, b: null },
   noTaishoRaid: true,

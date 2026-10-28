@@ -503,7 +503,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       const pos = action && (typeof action.pos === 'function' ? action.pos() : action.pos);
       const ready = action && !action.hold && /話す|話を聞く/.test(action.label) && pos &&
         Math.hypot(pos.x - talkPerson.pos.x, pos.z - talkPerson.pos.z) < 1;
-      headline = ready ? '話す' : '矢印の人へ';
+      headline = 'この人と話す';
     }
     if (stEl.firstChild._talkSign !== talkSign) {
       stEl.firstChild._talkSign = talkSign;

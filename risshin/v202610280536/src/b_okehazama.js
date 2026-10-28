@@ -1557,7 +1557,13 @@ const okehazama = {
     rt.world.terrain.material.envMapIntensity = 0.95;
     const meritHit = rt.army.hooks.onMeritHit;
     rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
-      if (source?.isPlayer && target.team !== source.team && amount > 0) target.okeHitUntil = rt.t + 3;
+      if (source?.isPlayer && target.team !== source.team && amount > 0) {
+        target.okeHitHp = target.hp + amount;
+        target.okeDamageUntil = rt.t + 2.4;
+        // 一撃ごとに伸び直し、削れた面は次の判断まで残す。
+        target.okeHitUntil = rt.t + .9;
+        target.okeBlockUntil = 0;
+      }
       meritHit?.call(this, target, source, kind, amount);
     };
     // 矢へ甲冑の拡大を重ねない。距離で縮尺が替わる甲冑の部品は避け、

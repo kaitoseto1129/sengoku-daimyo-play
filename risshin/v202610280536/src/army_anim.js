@@ -978,9 +978,9 @@ export const ArmyAnim = {
       // 石突きの溜め：柄を前へ滑らせ、手元を体の前へ引き寄せる
       else if (a.kind === 'butt') { ext = 0.15 * k; slide = Math.min(slide, 0.5 * k); }
       else {
-        // 初陣の敵は突く前に手元を引き、穂先を少し起こす。待機の構えと区別する。
+        // 初陣・森部の敵は突く前に手元を引き、穂先を少し起こす。待機の構えと区別する。
         // 攻撃の時刻・射程は保ち、既存の手と槍のばねだけを動かす。
-        const warning = this.world.def.missionStyle === 'lesson' && !u.isPlayer && !u.mounted && a.target?.isPlayer
+        const warning = (this.world.def.missionStyle === 'lesson' || this.world.def.missionStyle === 'ford') && !u.isPlayer && !u.mounted && a.target?.isPlayer
           ? Math.sqrt(k) : 0;
         ext = -0.35 * k * big - .16 * warning;
         rx -= .22 * warning;

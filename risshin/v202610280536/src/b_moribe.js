@@ -1478,7 +1478,7 @@ function moribeFord(rt) {
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       // 砂底と固定した小石を明瞭にし、泳ぐ川でなく歩ける浅い帯として見せる。
-      vec3 fordSand = mix(vec3(0.075, 0.08, 0.065), vec3(0.15, 0.145, 0.11), fordGrain);   // 濡れた砂の暗さ（色は線形の値。0.4 でも白く光る板に見えていた。10/28）
+      vec3 fordSand = mix(vec3(0.12, 0.115, 0.08), vec3(0.22, 0.20, 0.14), fordGrain);   // 濡れた砂の明暗を残し、青緑の深い流れから浅い帯を分ける。
       fordSand = mix(fordSand, vec3(0.055, 0.065, 0.06), fordPebble * (0.45 + fordGrain * 0.35));   // 小石は斑に（同じ並びの格子に見えないよう）
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
       // 濡れた砂底の明るさを保ち、暗い流れの中に渡れる帯を残す。
@@ -1497,7 +1497,7 @@ function moribeFord(rt) {
       // 浅瀬も上に薄い水を残す（砂の白い板に見せない。10/27）。
       outgoingLight = mix(outgoingLight * vec3(0.55, 0.68, 0.68), mix(fordSand * 0.9, vec3(0.26, 0.31, 0.30),
         fordRipple * mix(0.03, 0.22, fordRim)),
-        fordBand * (1.0 - fordShore * 0.35) * 0.72);
+        fordBand * (1.0 - fordShore * 0.35) * 0.86);
       #include <opaque_fragment>
     `);
   };
@@ -3258,7 +3258,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 削れた面を一拍保ち、携帯でも攻撃後の赤の減りを見届けられるようにする。
         t.moribeDamageUntil = rt.t + 3.2;
         // 命中の形を保ってから戻す。空振りや受け止めでは伸ばさない。
-        if (!blocked) { t.moribeHitUntil = rt.t + 2.8; t.moribeBlockUntil = 0; }
+        if (!blocked) { t.moribeHitUntil = rt.t + .8; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 2.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {
@@ -3289,7 +3289,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.flags.R3 = allyGroup(rt, { name: '右手の備', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 1 }]);
     rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true } }]);
     // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
-    rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 30, z: 48 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 26 }, { type: 'bow', n: 4 }, { type: 'samurai', n: 2 }]);
+    // 渡り口の正面に同じ先手を寄せ、印だけを追って野を歩く時間を短くする。
+    rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 40, z: 60 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 26 }, { type: 'bow', n: 4 }, { type: 'samurai', n: 2 }]);
     rt.flags.vanguardHealth = rt.flags.V.units.reduce((sum, u) => sum + u.hp, 0);
     // 日比野下野守の備え（足立六兵衛を含む）
     rt.flags.M = enemyGroup(rt, { faction: 'saito', name: '日比野の備', fixed: true, anchor: { x: -14, z: -30 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, width: 8, noRout: false, formation: 'yari', yariRanks: 3 },
@@ -3446,7 +3447,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 重複する後方軍勢は足さない。備え表の控えは上の遠景と開戦時の実兵へ結ぶ。
     // 序盤から川向こうの敵が見える。射かける音は実際の弓兵に任せる。
     for (const [x, z] of [[20, 54], [42, 52], [30, 48]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
-    rt.after(4, () => {
+    rt.after(1, () => {
       const V = rt.flags.V;
       if (gone(V)) return;
       V.speed = 2.1;   // 雨の畦を先手が北岸へ寄せてくる。
