@@ -1522,9 +1522,9 @@ export class Army {
           if (!u._fogSee) hide = true;
         }
         // 霧の手前で、骨の人・焼いた動き（VAT）にまだ替わっていない兵は部品だけの平たい姿になるので、替わるまで描かない（flat_rule.js。kaito 10/28）
-        if (!hide && FLAT.on && cd >= 10 && cd < FLAT.far && !u.vatOn && !u.vatWant && !u.efuda && !u.imp && !(u.human && u.human.root.visible)) hide = true;
         // 有岡では近い味方を描画直前に透かす。ここで消すと透かす対象からも外れてしまう。
         if (this.world.def && this.world.def.nearAllyFadeRadius && P && u.team === P.team) hide = false;
+        if (!hide && FLAT.on && cd >= 10 && cd < FLAT.far && !u.vatOn && !u.vatWant && !u.efuda && !u.imp && !(u.human && u.human.root.visible)) hide = true;
         u.camHidden = hide;
         u.mesh.visible = !hide;
         // 得物はカメラのすぐ前（体ごと消す 2.2m）まで見せる。隠すと手だけが宙を握って見える（鉄砲・弓・刀は近くても隠さない）

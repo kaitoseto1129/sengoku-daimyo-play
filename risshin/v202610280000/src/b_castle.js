@@ -34,7 +34,7 @@ import { S, S as SETTINGS } from './settings.js';
 import { makeSiegeZones } from './siege_zones.js';
 import { makeCastleGuard } from './castle_guard.js';
 import { isGifuCastle, gifuTower, gifuResidence, gifuRiver } from './gifu_castle.js';
-import { addTaba as tbAddTaba, placeTaba as tbPlaceTaba, patchGunCover, tickTabas as tbTickTabas, wantEntries as tbWantEntries } from './taketaba.js';
+import { addTaba as tbAddTaba, placeTaba as tbPlaceTaba, patchGunCover, tickTabas as tbTickTabas, wantEntries as tbWantEntries, tabaHighlight } from './taketaba.js';
 import { prepareSiegeWorks, buildSiegeWorks, beginSiegeWorks, tickSiegeWorks, siegeWorkEntries } from './siege_works.js';
 import { tatamiTiles } from './interior_parts.js';
 // 指の端末は、丸に出る字（「打つ」「押して歩く」など、を・と の後の動き）で言う
@@ -3009,7 +3009,8 @@ export function castleBattle(info) {
       go(F.vans[0], -14, yoseZ + 3); go(F.vans[1], 14, yoseZ + 3); go(F.vans[2], 3, yoseZ + 7);
       go(F.gun, 3, yoseZ + 2, 1.1); go(F.ram, 3, yoseZ + 9);
       rt.zone('yose', 3, yoseZ, 8);
-      rt.marker('yose', { x: 3, z: yoseZ }, '寄せ場', { h: 2.5 });
+      // まだ竹束を押していない間は、行き先のピンを押す竹束に付ける（押せば寄せ場へ移る）
+      rt.marker('yose', () => F.tabaGoal ? { x: F.tabaGoal.x, z: F.tabaGoal.z } : { x: 3, z: yoseZ }, '寄せ場', { h: 2.5 });
     },
     // 門破り
     breach(rt) {
@@ -3368,6 +3369,17 @@ export function castleBattle(info) {
       if (F.step === 1) {
         const d = Math.hypot(pu.pos.x - 3, pu.pos.z - yoseZ);
         const carry = F.tabas.some((tb) => tb.carrier === 'player');
+        // 押せる竹束（自分の側・組に付いていない・据えていない）のうち一番近い物を光らせ、ピンもそこへ
+        let free = null;
+        if (!carry && !works.active) {
+          let bd = 45;
+          for (const tb of F.tabas) {
+            if (tb.team !== pu.team || tb.van || tb.carrier || tb.fixed) continue;
+            const dd = Math.hypot(tb.x - pu.pos.x, tb.z - pu.pos.z);
+            if (dd < bd) { bd = dd; free = tb; }
+          }
+        }
+        F.tabaGoal = free; tabaHighlight(rt, free);
         rt.objProgress('main', works.active ? '堀埋めの組を守れ。自分も柴と土を入れられる' : `寄せ場まであと約 ${Math.max(0, Math.round((d - 8) / 1.8))}間${carry ? '' : '・竹束を押していない'}`);
         const el = rt.t - F.stepT;
         if (d < 8 && (el > 20 || carry) && !works.active) {
@@ -3376,7 +3388,7 @@ export function castleBattle(info) {
           if (works.ready) this.breach(rt);
         }
         if (works.active && works.ready) this.breach(rt);
-      }
+      } else if (F.tabaLit || F.tabaGoal) { F.tabaGoal = null; tabaHighlight(rt, null); }
       // 城の内の声：破られていない門の奥から、ときどき鬨の声と下知が聞こえる
       if (F.step >= 1 && F.step < 3 && rt.t > (F.jouT || 0)) {
         F.jouT = rt.t + 13 + Math.random() * 10;

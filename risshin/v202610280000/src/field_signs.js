@@ -213,7 +213,8 @@ export function fieldSignsTick(rt, root) {
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
   // 稲生・森部は名を任務の一行に集める。空の親枠も隠し、命や任務の札に重ねない。
-  const hideNames = !!hide || rt.def.key === 'inou' || rt.def.key === 'moribe' || rt.def.missionStyle === 'raid';
+  // 討つ武将の名だけは乱戦でも見失わないよう、▼の上に一枚出す（テスター 10/27。名は kaito が許した字）。
+  const hideNames = !!hide;
   if (s.box.hidden !== hideNames) s.box.hidden = hideNames;
   // 間合い内の相手・狙う相手・すぐ近くの敵を先に示す。攻撃の判定は変えない。
   const reachableTarget = rt.player.inRange && rt.player.rangeCueTarget?.alive ? rt.player.rangeCueTarget : null;
@@ -681,7 +682,18 @@ export function fieldSignsTick(rt, root) {
   s.bars.count = b; s.bars.instanceMatrix.needsUpdate = true; if (s.bars.instanceColor) s.bars.instanceColor.needsUpdate = true;
   // 稲生・森部の討つ名は右上の一行だけ。頭上には赤い▼を残す。
   if (ford || lesson || raid) {
-    for (const e of s.labels) if (!e.hidden) e.hidden = true;
+    for (let i = 1; i < s.labels.length; i++) if (!s.labels[i].hidden) s.labels[i].hidden = true;
+    const e = s.labels[0], u = commander;
+    let on = false;
+    if (u && u.name && u.alive && !u.dying && !u.gone && !u.fleeing) {
+      // 壁の向こうは五分の一秒ごとに確かめる（兵や旗では消さない。名札は字なので奥行きに負けない）
+      if (u._fsNameAt == null || rt.t >= u._fsNameAt || rt.t < u._fsNameAt - .25) { u._fsNameSeen = !cameraWallBlocked(rt, P, u.pos, P.y, u.pos.y + inouSignHeight(u)); u._fsNameAt = rt.t + .25; }
+      v.set(u.pos.x, u.pos.y + inouSignHeight(u) + .5, u.pos.z).project(cam);
+      if (u._fsNameSeen && v.z < 1 && Math.abs(v.x) < .96 && Math.abs(v.y) < .94) on = true;
+    }
+    if (!on) { if (!e.hidden) e.hidden = true; return; }
+    const d = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+    placeName(e, u, v, d, me, 30);
     return;
   }
   // 武将の名は今の相手・合流する隊だけ。命と任務を先に数え、残る一枠を使う。
@@ -719,7 +731,7 @@ export function fieldSignsTick(rt, root) {
   for (let i = 0; i < NAMES; i++) {
     const e = s.labels[i], u = bound[i];
     // 案内中の人物名は足元につながる共通ピンに任せ、二枚にしない。
-    if (!u || u !== chosen || u === person || cards >= 3) { if (!e.hidden) e.hidden = true; continue; }
+    if (!u || u !== chosen || u === person || cards >= 3 && u !== commander) { if (!e.hidden) e.hidden = true; continue; }
     const k = Math.min(2.2, Math.max(1, Math.sqrt(u._fsD) / 22));
     v.set(u.pos.x, headY(u) + (u === commander ? .12 : 0.5 * k), u.pos.z).project(cam);
     // 遠くても名が大きな▼と重ならないよう、画面上で間を空ける。
@@ -730,12 +742,19 @@ export function fieldSignsTick(rt, root) {
     if (rects.some((r) => x + half > r.left && x - half < r.right && y > r.top && y - 24 < r.bottom)) {
       if (!e.hidden) e.hidden = true; continue;
     }
-    if (e._n !== u.name) { e._n = u.name; e.textContent = u.name; }
-    const col = u.team === me.team ? '#f3dc9a' : '#ffc4b4';
-    if (e._c !== col) { e._c = col; e.style.color = col; }
-    if (e.hidden) e.hidden = false;
-    // 動かすのは transform だけ。同じ所なら書かない（10/24）
-    const tf = `translate(${Math.round((v.x + 1) / 2 * W)}px,${Math.round((1 - v.y) / 2 * H)}px) translate(-50%,-100%)`;
-    if (e._t !== tf) { e._t = tf; e.style.transform = tf; }
+    placeName(e, u, v, Math.sqrt(u._fsD || 0), me, 0);
   }
+}
+
+// 名札を投影した所へ置く。遠いと小さく、近いと大きく（字の大きさは 12〜17 点の間）。動かすのは transform だけ。
+function placeName(e, u, v, d, me, lift) {
+  const W = innerWidth, H = innerHeight;
+  if (e._n !== u.name) { e._n = u.name; e.textContent = u.name; }
+  const col = u.team === me.team ? '#f3dc9a' : '#ffc4b4';
+  if (e._c !== col) { e._c = col; e.style.color = col; }
+  if (e.hidden) e.hidden = false;
+  const k = Math.max(.86, Math.min(1.2, 1.25 - d / 110));
+  // 同じ所なら書かない（10/24）
+  const tf = `translate(${Math.round((v.x + 1) / 2 * W)}px,${Math.round((1 - v.y) / 2 * H - lift)}px) translate(-50%,-100%) scale(${k.toFixed(2)})`;
+  if (e._t !== tf) { e._t = tf; e.style.transform = tf; e.style.transformOrigin = '50% 100%'; }
 }

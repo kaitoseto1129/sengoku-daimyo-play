@@ -420,6 +420,21 @@ function drawMissionPin(rt) {
     // 集合前は境界だけ。囲まれた兵を選ぶ印に見せず、到着した時だけ面を返す。
     pin._area.setAttribute('fill', 'none');
     pin._area.setAttribute('fill-opacity', '.12');
+    // 守る時が決まっている時は、輪が残りの時で欠けていく（字を使わずに「いつまで」を見せる）。
+    // 下地の暗い輪は一周のまま、明るい輪だけが減る。残りが少ないと朱へ。
+    const left = want.defend && Number.isFinite(want.holdLeft) ? want.holdLeft : null;
+    if (left != null) {
+      pin._area.setAttribute('pathLength', '100');
+      pin._area.setAttribute('stroke-dasharray', `${(left * 100).toFixed(1)} 200`);
+      pin._area.setAttribute('stroke-width', '4.5');
+      pin._area.setAttribute('stroke-opacity', '1');
+      pin._area.setAttribute('stroke', left < .25 ? '#ff8a5c' : arrived ? '#e4f2cb' : '#fff3ba');
+      pin._areaBack.setAttribute('stroke-width', '7');
+    } else if (pin._area.hasAttribute('pathLength')) {
+      pin._area.removeAttribute('pathLength');
+      pin._area.setAttribute('stroke-opacity', '.8');
+      pin._areaBack.setAttribute('stroke-width', '4.5');
+    }
   }
   // 桶狭間はピンの先端を到着判定の地面に刺す。兵の頭上を指す矢印に替えない。
   // 森部の到着後は行き先の旗を畳み、同じ印の中に待つ進みを出す。

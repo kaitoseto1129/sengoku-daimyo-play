@@ -128,7 +128,7 @@ export function flagMoonlight(sh, night = FLAG_MOON) {
   sh.fragmentShader = 'uniform float uFlagMoon;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
     'outgoingLight += diffuseColor.rgb * vec3(0.55, 0.7, 0.95) * uFlagMoon * 0.08;\n#include <opaque_fragment>');
 }
-const TUFT_AUTUMN = new THREE.Color(0.5, 0.44, 0.27);   // 秋の草むらの枯れ色
+const TUFT_AUTUMN = new THREE.Color(0.4, 0.35, 0.21);   // 秋の草むらの枯れ色
 // 近い草と遠い草で同じ群落を使う。場所だけで決まり、歩いても斑が動かない。
 function tuftClumpAt(x, z) {
   return 0.5 + 0.5 * Math.sin(x * 0.18 + Math.sin(z * 0.11) * 2.4)

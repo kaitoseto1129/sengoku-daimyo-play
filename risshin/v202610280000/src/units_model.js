@@ -1992,12 +1992,12 @@ function hatParts(look, parts, hi, fallen = false) {
         parts.push(P(at(ball(0.013, 0.013, 0.01), Math.sin(a) * 0.058, 1.79 + Math.cos(a) * 0.052, 0.198), gold, { mk: MK.gold }));
       }
     }
-    const N = hi ? 40 : 16;
-    // 毛は鉢の横から後ろにだけ植える（顔の横へ白く垂れて、頭巾のように見えないよう）
+    const N = hi ? 56 : 18;
+    // 毛は鉢の横から後ろへ植え、肩の上まで大きく広がって垂れる（信玄の手本の白熊。顔の前へは出さない）
     for (let i = 0; i < N; i++) {
-      const a = Math.PI * 0.85 + (i / (N - 1)) * Math.PI * 0.3;
-      const len = 0.46 + ((i * 7) % 5) * 0.06 + (Math.abs(a - Math.PI) < 0.5 ? 0.12 : 0);
-      const hair = new THREE.ConeGeometry(0.05, len, hi ? 5 : 3, 1, true);
+      const a = Math.PI * 0.6 + (i / (N - 1)) * Math.PI * 0.8;
+      const len = 0.5 + ((i * 7) % 5) * 0.06 + (Math.abs(a - Math.PI) < 0.5 ? 0.12 : 0);
+      const hair = new THREE.ConeGeometry(0.06, len, hi ? 5 : 3, 1, true);
       // 錣の外側に沿って背へ垂らす（根元は錣の外、毛先は少し外へ）
       hair.translate(0, -len / 2, 0); hair.rotateX(-0.14 - ((i * 3) % 4) * 0.03); hair.rotateY(a);
       parts.push(P(at(hair, Math.sin(a) * 0.25, 1.76, Math.cos(a) * 0.25), 0xe8e4da, { reg: 'fur', dirt: 0.2 }));
@@ -2409,8 +2409,8 @@ function bodyGeometry(key, o, hi, grp) {
   const partKeys = {
     base: [under],
     // 雑賀の堀の金小札・胴丸・脇板・緒を、同色の別形式の具足と混ぜない。
-    torso: [armor, lace, kozaneMk, under, doStyle, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo],
-    hips: [kusazuriColor, lace, kusazuriMat, doStyle, !!o.domaru, o.kusazuriHishinui, o.kusazuriMimiito, !!o.yurugi, !!o.kusazuriSugake, o.kusazuriLaceRows, o.kusazuriFur, o.doLaceBands, o.takedaRed, !!o.goldKozane, o.kusazuriCount, o.kusazuriLength, !!o.honkozane, !!o.kusazuriStepped, takigawaKusazuri],
+    torso: [armor, lace, kozaneMk, under, doStyle, o.doNishiki, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo],
+    hips: [kusazuriColor, lace, kusazuriMat, doStyle, !!o.domaru, o.kusazuriBands, o.kusazuriHishinui, o.kusazuriMimiito, !!o.yurugi, !!o.kusazuriSugake, o.kusazuriLaceRows, o.kusazuriFur, o.doLaceBands, o.takedaRed, !!o.goldKozane, o.kusazuriCount, o.kusazuriLength, !!o.honkozane, !!o.kusazuriStepped, takigawaKusazuri],
     sodeP: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
     sodeN: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
     head: [o.face === 'player', under, o.detail85, o.hat, o.hatColor, o.hachi, o.helm, o.bowl, o.lace, o.mon, o.tenugui, o.kasaDrape !== false, o.vi || 0, o.menpo, o.menpoStyle, o.sujiPlates, o.shikoroRows, o.fukigaeshiRows, o.shikoroStyle, o.shikoroLace, !!o.doubleShikoro, !!o.momonariHagi, o.bowlHeight, !!o.tehenHole, !!o.honkozane, o.shinodare === false, o.fukigaeshiBadge === false, !!o.helmetCord, S.quality === 'high' && o.crest === 'takigawa_buffalo'],
@@ -2459,6 +2459,15 @@ function bodyGeometry(key, o, hi, grp) {
   else {
     const smooth = doStyle === 'hotoke' || doStyle === 'katahada';
     parts.push(P(cuirass(r0, hi ? 28 : 12, smooth ? 0 : doStyle === 'okegawa' ? 5 : 6, hi, o.doOpening, o.honkozane, o.backOpening, rightOpening, domaruOpening), armor, { mk: kozaneMk, reg: smooth ? 'lacq' : doStyle, c2: smooth ? armor : doStyle === 'okegawa' ? 0x4a2a1a : lace, c2Bands: o.doLaceBands, mk2: smooth || doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
+    // 胸の錦（doNishiki：信玄の手本の、胸板の下の錦の布張り）：胴の前に布を張る。色と金の織りの斑
+    if (o.doNishiki != null) {
+      const rAtN = (y) => { for (let q = 1; q < DO_PROF.length; q++) { const [ra, ya] = DO_PROF[q - 1], [rb, yb] = DO_PROF[q]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return DO_PROF[DO_PROF.length - 1][0]; };
+      const pr = []; for (let q = 0; q <= 6; q++) { const y = 1.1 + q * 0.035; pr.push(new THREE.Vector2(rAtN(y) * r0 + 0.007, y)); }
+      const nis = new THREE.LatheGeometry(pr, hi ? 14 : 5, -Math.PI * 0.3, Math.PI * 0.6);
+      parts.push(P(nis, o.doNishiki, { reg: 'haidate', c2: 0xc9a24a, mk2: MK.gold }));
+      // 縁の金の覆輪
+      for (const y of [1.1, 1.31]) parts.push(P(new THREE.LatheGeometry([new THREE.Vector2(rAtN(y) * r0 + 0.008, y - 0.005), new THREE.Vector2(rAtN(y) * r0 + 0.008, y + 0.005)], hi ? 14 : 5, -Math.PI * 0.3, Math.PI * 0.6), 0xc9a24a, { mk: MK.gold, reg: 'lacq' }));
+    }
   }
   if (o.doOpening === 'right' || o.doOpening === 'nimai') {
     // 合わせ目の内側に下地、外側に締め紐。既存の胴へ結合し、形と材質を使い回す。
@@ -2859,6 +2868,17 @@ function bodyGeometry(key, o, hi, grp) {
           P(edging, armor, { mk: MK.lac, reg: 'lacq' }));
       }
       parts.push(P(kz, kusazuriColor, { mk: kusazuriMat, reg: kreg, c2: lace, mk2: MK.cloth, rv: krv, ru: [0, 0.2] }));
+      // 段ごとの威の色（kusazuriBands：下の段から五つ。謙信の紺に朱と白の段など）：各段の下半分に糸の帯を重ねる
+      if (kprof && o.kusazuriBands) {
+        const H = (KY1 - KY0) / 5;
+        for (let j = 0; j < 5; j++) {
+          const col = o.kusazuriBands[j]; if (col == null) continue;
+          const ya = KY0 + j * H + H * 0.12, yb = KY0 + j * H + H * 0.62;
+          const band = new THREE.LatheGeometry([new THREE.Vector2(kr(ya) + 0.0075, ya), new THREE.Vector2(kr(yb) + 0.0075, yb)], hi ? 7 : 3, a + Math.PI - L / 2, L);
+          band.scale(1, 1, 0.86);
+          parts.push(P(band, col, { mk: MK.cloth, reg: 'cord' }));
+        }
+      }
       if (takigawaKusazuri) {
         // 大滝寺の一益：五段分の模様には含まれない、草摺の裾板の菱縫を補う。
         // 福井市立郷土歴史博物館「甲冑の美」の草摺の補強・装飾の解説を参考にする。
@@ -4244,7 +4264,9 @@ function thighGeometry(o, hi, part) {
   const solidHaidate = S.quality === 'high' && o.crest === 'takigawa_buffalo' && T >= 1;
   // 一益の黒い家地を、先に作った別の武将の威色で共用しない。
   const ac = o.goldKozane ? 0x1c1a1a : o.armor || 0x2a2622;
-  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac;
+  // 金の瓦佩楯（信玄の手本：金の小札を並べた佩楯）。kacchu_data の haidateGold
+  const hGold = !!o.haidateGold;
+  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac + (hGold ? '|hg' : '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.9, 0.7, 0.5, 0.35][T];
   const b = BUILD[T];
@@ -4283,7 +4305,7 @@ function thighGeometry(o, hi, part) {
       edging.computeVertexNormals();
       for (const g of [inside, edging]) P_.push(P(at(g, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'cloth' }));
     }
-    P_.push(P(at(outer, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'haidate', c2: ac, mk2: MK.lac }));
+    P_.push(P(at(outer, 0, -0.15, 0.012, 0.06), haidateCloth, { reg: 'haidate', c2: hGold ? 0xc9a24a : ac, mk2: hGold ? MK.gold : MK.lac }));
   }
   // 足軽の佩楯：腿の前を覆う布に、小さな漆の板を縫い付けた物（膝の上まで）。腿の丸みに沿う
   if (hd0) P_.push(P(at(arcCyl(0.112 * b, 0.104 * b, 0.27, 5, Math.PI * 0.82, 0.12), 0, -0.2, 0.014, 0.07), cloth, { reg: 'haidate', c2: o.armor || 0x2a2622, mk2: MK.lac }));
@@ -4307,9 +4329,11 @@ function shinGeometry(o, hi, part) {
   const named = typeof o.face === 'string' && o.face.startsWith('g:');
   // 金の胴でも臑は黒漆。朱など暗い漆の胴はその色、紐は威の色にそろえる。
   const ac = named && new THREE.Color(o.armor || 0x1c1a1a).getHSL({}).l > 0.18 ? 0x1c1a1a : o.armor || 0x1c1a1a;
-  const lc = named ? o.lace || 0x202b3d : 0x202b3d;
+  const lc = named ? o.suneateCloth ?? o.lace ?? 0x202b3d : 0x202b3d;
+  // 脛当の篠と立挙の色（kacchu_data の suneateColor・suneateGold。信玄の金の篠、謙信の黒漆など）
+  const sc = named && o.suneateColor != null ? o.suneateColor : null, sGold = named && !!o.suneateGold;
   const shinTies = S.quality === 'high' && !!o.shinTies;
-  const k = 'shin' + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
+  const k = 'shin' + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + sc + (sGold ? 'g' : '') + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.95, 0.8, 0.6, 0.45][T];
   const b = BUILD[T];
@@ -4339,7 +4363,7 @@ function shinGeometry(o, hi, part) {
     }
   } else if (T >= 1) {
     // 侍：篠臑当（縦の鉄の篠を鎖でつなぐ）。侍大将から膝に立挙
-    P_.push(P(at(arcCyl(0.078 * b, 0.062 * b, 0.26, hi ? 8 : 4, Math.PI * 1.05, 0), 0, -0.14, -0.006), lc, { mk: MK.cloth, reg: 'shino', c2: named ? ac : 0x2e3236, mk2: named ? MK.lac : MK.iron, flipV: false }));
+    P_.push(P(at(arcCyl(0.078 * b, 0.062 * b, 0.26, hi ? 8 : 4, Math.PI * 1.05, 0), 0, -0.14, -0.006), lc, { mk: MK.cloth, reg: 'shino', c2: sc ?? (named ? ac : 0x2e3236), mk2: sGold ? MK.gold : named ? MK.lac : MK.iron, flipV: false }));
     if (hi || shinTies) for (const y of [-0.015, -0.265]) {
       const radius = (y > -0.1 ? 0.078 : 0.062) * b;
       P_.push(P(at(new THREE.TorusGeometry(radius, 0.0045, 4, 12), 0, y, -0.006, Math.PI / 2), lc, { mk: MK.cloth, reg: 'cord' }));
@@ -4354,7 +4378,7 @@ function shinGeometry(o, hi, part) {
         }
       }
     }
-    if (T >= 2) P_.push(P(at(arcCyl(0.085 * b, 0.08 * b, 0.08, hi ? 6 : 3, Math.PI * 0.8, 0), 0, 0.03, 0.01, -0.15), ac, { mk: MK.lac, reg: 'lacq' }));
+    if (T >= 2) P_.push(P(at(arcCyl(0.085 * b, 0.08 * b, 0.08, hi ? 6 : 3, Math.PI * 0.8, 0), 0, 0.03, 0.01, -0.15), sc ?? ac, { mk: sGold ? MK.gold : MK.lac, reg: 'lacq' }));
   }
   // 足袋と草鞋：甲のふくらみ、踵、親指の股、藁の底、結んだ紐
   // 足軽の足袋は、白っぽいと運動靴のように浮くので、履き古した紺・茶の暗い色に（人ごとに）

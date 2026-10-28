@@ -680,7 +680,7 @@ export class WorldVegetation {
       lean = Math.max(GS * 0.04 - x, Math.min(GS * 0.96 - x, lean));
       // 縮小しても面が残る葉幅。針金状の輪郭ではなく、折り目のある葉として見せる。
       const wdt = GS * (0.014 + GR() * 0.01) * (basal ? 1.25 : 1);
-      const v = 205 + GR() * 35, dry = GR() < 0.16;
+      const v = 165 + GR() * 40, dry = GR() < 0.16;
       // 葉ごとに少し色をずらす（黄みの葉・青みの葉・枯れ葉）。全体の色は置く所で掛ける
       const cr = dry ? 1.08 : 0.96 + GR() * 0.08, cb = dry ? 0.78 : 0.9 + GR() * 0.08;
       // 緑と枯れ色は株の色で付ける。絵まで暗い緑にすると、掛け合わせで炭のように黒くなる。
@@ -799,7 +799,7 @@ export class WorldVegetation {
       for (const st of this.def.streams || []) if (distToPolyline(x, z, st.pts) < st.w * 1.2) inStream = true;
       if (inStream) continue;
       dummy.position.set(x, this.heightAt(x, z) - 0.1, z);
-      const s = (0.45 + Math.pow(R(), 1.5) * 1.0) * (0.7 + clump * 0.6);
+      const s = (0.32 + Math.pow(R(), 1.6) * 1.25) * (0.7 + clump * 0.6);
       dummy.scale.set(s * (0.8 + R() * 0.4), s * (0.7 + R() * 0.9), s * (0.8 + R() * 0.4));
       if (this.def.tuftHeight) dummy.scale.y *= this.def.tuftHeight(x, z);
       dummy.rotation.set((R() - 0.5) * 0.45, R() * 6.28, (R() - 0.5) * 0.45);
@@ -815,7 +815,7 @@ export class WorldVegetation {
       tc.setRGB(0.25 + fk * 0.13 + R() * 0.08, 0.35 + fk * 0.05 + R() * 0.09, 0.14 + fk * 0.03 + R() * 0.05);
       // 夏の田舎の草：鮮やかな緑を少し灰と土の色に寄せ、ところどころ土色のまだら
       { const gl = (tc.r + tc.g + tc.b) / 3; tc.setRGB(tc.r * 0.82 + gl * 0.18, tc.g * 0.82 + gl * 0.18, tc.b * 0.82 + gl * 0.18); if (R() < 0.08) tc.lerp(TUFT_AUTUMN, 0.45); }
-      if (R() < 0.1 + fk * 0.12 + (this.def.autumn ? 0.2 : 0)) tc.setRGB(0.52 + R() * 0.1, 0.47 + R() * 0.08, 0.28);
+      if (R() < 0.1 + fk * 0.12 + (this.def.autumn ? 0.2 : 0)) tc.setRGB(0.38 + R() * 0.08, 0.34 + R() * 0.07, 0.2);
       // 季節の色：秋は枯れ色に寄せ、初夏（def.young）は若葉の明るい緑に
       if (this.def.roundNeedles) tc.lerp(TUFT_AUTUMN, .15 + .3 * (.5 + .5 * Math.sin(x * .71 - z * 1.3)));
       if (this.def.autumn) tc.lerp(TUFT_AUTUMN, 0.3);
@@ -1023,7 +1023,7 @@ export class WorldVegetation {
         if (this.def.scatterNearGrass) {
           this.nearOff.push([RN() * G * 2, RN() * G * 2, 0.5 + Math.pow(RN(), 1.4) * 1.05, RN() * 6.28]);
           col.setRGB(0.24 + RN() * 0.1, 0.33 + RN() * 0.1, 0.12 + RN() * 0.05);
-          if (RN() < 0.12) col.setRGB(0.5 + RN() * 0.1, 0.46 + RN() * 0.08, 0.28);
+          if (RN() < 0.12) col.setRGB(0.38 + RN() * 0.08, 0.34 + RN() * 0.07, 0.2);
           if (this.def.autumn) col.lerp(TUFT_AUTUMN, 0.3);
           else if (this.def.young) col.setRGB(col.r * 0.92, col.g * 1.12, col.b * 0.95);
           this.nearGrass.setColorAt(i, col);
@@ -1038,7 +1038,7 @@ export class WorldVegetation {
         const sc = patchSize * (i % 5 === 0 ? 1.35 : 0.55 + RN() * 0.45);
         this.nearOff.push([patchX + Math.cos(angle) * radius, patchZ + Math.sin(angle) * radius, sc, RN() * 6.28]);
         col.setRGB(0.24 + RN() * 0.1, 0.33 + RN() * 0.1, 0.12 + RN() * 0.05);
-        if (patchDry) col.setRGB(0.5 + RN() * 0.1, 0.46 + RN() * 0.08, 0.28);
+        if (patchDry) col.setRGB(0.38 + RN() * 0.08, 0.34 + RN() * 0.07, 0.2);
         if (this.def.autumn) col.lerp(TUFT_AUTUMN, 0.3);
         else if (this.def.young) col.setRGB(col.r * 0.92, col.g * 1.12, col.b * 0.95);
         this.nearGrass.setColorAt(i, col);

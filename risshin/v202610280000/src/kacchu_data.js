@@ -635,7 +635,85 @@ KACCHU["佐久間信盛"].flag = "sakuma";
 KACCHU["本多忠勝"].juzu = true;
 KACCHU["榊原康政"].fur = 0xe4dfcc;
 for (const name of ["羽柴秀吉", "豊臣秀吉"]) KACCHU[name].fur = 0x6d5440;
-KACCHU["武田信玄"].fur = 0xe4dfcc;
+// 調べの表（reports/ref/generals/armor_research.md、10/27 夜）の詳しい50人を上から入れる（一つ目の十人）。
+//   確かさが「推し量り」の人は家と立場からの復元案。立物は伝わらない人には付けない（創作しない）
+const ARMOR_RESEARCH_1 = {
+  "武田勝頼": { crest: "none", lace: 0xa8281c, odo: 0xa8281c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },
+  "徳川家康": { lace: 0x1c1a1a, odo: 0x1c1a1a, suneateColor: 0x151312 },
+  "柴田勝家": { lace: 0x6a4026, odo: 0x6a4026, suneateColor: 0x2c241c },
+  "羽柴秀吉": { lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", haidateGold: true },
+  "明智光秀": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "前田利家": { goldKozane: true, lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", suneateColor: 0xc9a24a, suneateGold: true },
+  "黒田官兵衛": { lace: 0x1a1a1a, odo: 0x1a1a1a, suneateColor: 0x151312 },
+  "山県昌景": { crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, suneateCloth: 0x8e1f16 },
+  "馬場信春": { crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
+  "内藤昌豊": { crest: "none", lace: 0x6a4026, odo: 0x6a4026 },
+};
+for (const [n, v] of Object.entries(ARMOR_RESEARCH_1)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
+// 二つ目の十人
+const ARMOR_RESEARCH_2 = {
+  "本多忠勝": { lace: 0x1c1a1a, odo: 0x1c1a1a, doStyle: "sugake" },
+  "榊原康政": { lace: 0x232c40, odo: 0x232c40 },
+  "酒井忠次": { crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
+  // 色々威の胴丸（肖像）：段ごとに紺・紅・白・萌黄・紅・紫。金覆輪の筋兜
+  "島津義弘": { crest: "none", doStyle: "kebiki", lace: 0x1f2638, odo: 0x1f2638,
+    doLaceBands: [[1.05, 0x1f2638], [1.13, 0xb02a1c], [1.2, 0xe6e0d0], [1.28, 0x2a5a3a], [1.36, 0xb02a1c], [Infinity, 0x703d78]],
+    kusazuriBands: [0xb02a1c, 0xe6e0d0, 0x2a5a3a, 0xb02a1c, 0x1f2638] },
+  "浅井長政": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "朝倉義景": { crest: "none", doStyle: "kebiki", lace: 0x1f2638, odo: 0x1f2638 },
+  // 黒漆五枚胴（仙台胴）：威の無い黒漆。弦月の前立
+  "伊達政宗": { lace: 0x16191b, odo: 0x16191b, kusazuriColor: 0x16191b, suneateColor: 0x16191b },
+  "石田三成": { crest: "none", lace: 0x4a3020, odo: 0x4a3020 },
+  "藤堂高虎": { bowl: "suji", crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
+  "大谷吉継": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "今川義元": { lace: 0x9e241b, odo: 0x9e241b },
+};
+for (const [n, v] of Object.entries(ARMOR_RESEARCH_2)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
+// 三つ目から五つ目の十人（詳しい50人の残り）
+const ARMOR_RESEARCH_3 = {
+  "真田信繁": { kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },
+  "木下藤吉郎": { crest: "none", lace: 0x4a3020, odo: 0x4a3020 },
+  "豊臣秀吉": { lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", haidateGold: true },
+  "北条氏政": { bowl: "zunari", crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "毛利輝元": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "島津義久": { crest: "none", doStyle: "kebiki", lace: 0x1f2638, odo: 0x1f2638,
+    doLaceBands: [[1.05, 0x1f2638], [1.13, 0xe6e0d0], [1.2, 0xb02a1c], [1.28, 0x1f2638], [1.36, 0xe6e0d0], [Infinity, 0xb02a1c]],
+    kusazuriBands: [0xe6e0d0, 0xb02a1c, 0x1f2638, 0xe6e0d0, 0xb02a1c] },
+  "長宗我部元親": { crest: "none", lace: 0x4a3020, odo: 0x4a3020 },
+  "佐竹義重": { crest: "moon", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "蒲生氏郷": { lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "福島正則": { crest: "none" },
+  "真田昌幸": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "上杉景勝": { crest: "sun", lace: 0x5a2e6a, odo: 0x5a2e6a },
+  "直江兼続": { crest: "none", lace: 0x5a9aa0, odo: 0x5a9aa0, goldKozane: true },
+  "小早川隆景": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "吉川元春": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "立花道雪": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "北条氏康": { bowl: "zunari", crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "毛利元就": { crest: "none" },
+  "最上義光": { bowl: "suji", crest: "none", lace: 0x2a2a2c, odo: 0x2a2a2c },
+  "加藤清正": { bowl: "eboshi" },
+  "黒田長政": { crest: "bull", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "細川忠興": { lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "黒田如水": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  "真田幸村": { crest: "honda_shika", kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },
+};
+for (const [n, v] of Object.entries(ARMOR_RESEARCH_3)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
+// 草摺の威：汎用の色々の段（紺・茶・白）だと誰も同じに見えるので、その人の威の色で五段を威す（黒糸の人も黒の糸目が出る）
+for (const R of [ARMOR_RESEARCH_1, ARMOR_RESEARCH_2, ARMOR_RESEARCH_3]) for (const n of Object.keys(R)) {
+  const k = KACCHU[n]; if (!k || k.kusazuriBands || k.kusazuriColor != null || k.goldKozane) continue;
+  k.kusazuriBands = Array(5).fill(k.lace);
+}
+// 信玄（kaito の手本 reports/ref/generals/takeda_shingen.webp を物差しに。絵は貼らない）：諏訪法性の兜（白熊・金の鍬形と獅子）、
+//   朱の威の袖と草摺、金の瓦佩楯、朱の家地に金の篠の脛当。手本は後の世の写しの具足で、伝来品そのものではない（復元案）
+Object.assign(KACCHU["武田信玄"], { hat: "kabuto_suwa", crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0xb02a1c,
+  haidateGold: true, suneateColor: 0xc9a24a, suneateGold: true, suneateCloth: 0x9a241a, doNishiki: 0x5f8676 });
+// 謙信（手本 uesugi_kenshin.png を物差しに）：紺の糸の威に朱と白の段、金の小さな前立（飯綱）、黒漆の脛当。復元案
+Object.assign(KACCHU["上杉謙信"], { crest: "kenshin_izuna", lace: 0x1a2238, odo: 0x1a2238, doStyle: "kebiki",
+  doLaceBands: [[1.02, 0x1a2238], [1.1, 0xb02a1c], [1.15, 0xe6e0d0], [1.22, 0xb02a1c], [1.32, 0x1a2238], [Infinity, 0xb02a1c]],
+  sodeLaceBands: [[1.2, 0x1a2238], [1.27, 0xb02a1c], [1.31, 0xe6e0d0], [1.35, 0xb02a1c], [Infinity, 0x1a2238]],
+  kusazuriBands: [0xb02a1c, 0xe6e0d0, 0xb02a1c, 0x1a2238, 0x1a2238],
+  suneateColor: 0x111012, suneateCloth: 0x1a2238 });
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];

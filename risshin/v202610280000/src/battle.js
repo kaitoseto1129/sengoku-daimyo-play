@@ -636,7 +636,7 @@ export class Battle {
       onFlankHit: (g) => this.onFlankHit(g),
       onRout: (g) => this.onRout(g),
       onFlee: (u) => this.onFlee(u),
-      onPlayerLanded: () => { this.hud.hitMarker(); if (!S.reduceMotion) this.game.hitstop = Math.max(this.game.hitstop || 0, 0.04); },
+      onPlayerLanded: () => { this.hud.hitMarker(); if (!S.reduceMotion) this.game.hitstop = Math.max(this.game.hitstop || 0, 0.055); },
       onWaver: (g) => {
         generalSituation(this, g.team === this.player.u.team ? 'breaking' : 'pushing', g.anchor);
         const extraB = g.team === 0 ? null : (foeTongue(this, 'waver') || []).concat([pickLine(this, 'breaking', 'enemy', monOf(this))].filter(Boolean));

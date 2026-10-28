@@ -573,6 +573,9 @@ const inou = {
     if (F.step === 1 && /まもれ/.test(this.missionHeading(rt))) {
       const pin = pinPoint(rt, F.holdPoint || NOBU, 20, 0);
       pin.always = true; pin.defend = true; pin.waiting = true;
+      // 守る輪は残りの時で欠けていく（初めは二十秒で右へ回る段、横を崩した後は九十八秒で大音声）。
+      const e = F.holdElapsed || 0, end = F.training < 11 ? 20 : 98, from = F.training < 11 ? 0 : Math.min(e, F.holdLeftFrom ??= e);
+      pin.holdLeft = Math.max(0, Math.min(1, (end - e) / Math.max(1, end - from)));
       return pin;
     }
     let enemy = this.missionSignTarget(rt);
@@ -642,6 +645,7 @@ const inou = {
   // 乾いた土の街道と畦、穂の出た丈の高い草（尾花が混じる）、土埃。名塚には前日に急ぎ築いた砦の逆茂木（竹束は鉄砲の後の物なので置かない）。
   timeslip: {
     wet: 0, dust: 0.85, trample: 0.2, debris: 1, arrows: 0.6,
+    mudColor: 0x75684c, mudOpacity: 0.2,   // 踏み跡は砂色でなく黒みの土（10/28 道と野が砂色の一枚に見えた）
     grass: 0xa4a066, grassTints: [0xffffff, 0xe8dca8, 0xc8d098], grassH: 1.15, tallGrass: 0.9,
     flagColors: [0xe6dfcc, 0x24211e, 0x7a4a36],
     fights: [[SHIBA0.x, SHIBA0.z, 38], [HAYA0.x, HAYA0.z, 30], [HAYA1.x, HAYA1.z, 26], [FLANK.x, FLANK.z, 22]],
@@ -690,10 +694,11 @@ const inou = {
       { pts: [[72, -130], [72, -40], [72, 20], [96, 20], [96, 140]], w: 0.7, depth: 0.2 }],
     trees: 220,
     tufts: 2800,
-    treeDensity: (x, z) => (Math.abs(x) > 118 || Math.abs(z) > 132 ? 1 : 0),
-    groves: [{ x: -52, z: -76, r: 9, n: 10 }, { x: 52, z: -88, r: 12, n: 14 }, { x: -80, z: 88, r: 10, n: 10 },
-      // 尾張の平野の屋敷林と鎮守の杜。戦う帯（中央）と逃げ道を外し、野の縁に点々と。
-      { x: 104, z: 44, r: 10, n: 12 }, { x: -104, z: -24, r: 9, n: 10 }, { x: 96, z: -108, r: 8, n: 9 }, { x: -60, z: 128, r: 9, n: 10 }],
+    // 霧（約120m）の際に立つ木は白く透けた影になって空に浮いた（10/28）。霧の向こうの林は置かず、屋敷林を野の中の手前に置く。
+    treeDensity: () => 0,
+    dirtTint: [0.78, 0.74, 0.66],   // 踏まれた所の土は尾張の黒みの土（砂浜のような明るい砂色にしない）
+    // 屋敷林は北の集落の脇だけ（霧の際の野の縁に立てた林は、白く透けた影として空に浮いた。10/28）。
+    groves: [{ x: -52, z: -76, r: 9, n: 10 }, { x: 52, z: -88, r: 12, n: 14 }],
     fleeOut: (x, z, team) => team === 1 && z < -138,
     armyFlagKinds: { kari: 'aka_kari' }, // 紋はそのまま、染めだけ朱。林は隊の指定で朱染めにする。
 
@@ -800,6 +805,11 @@ const inou = {
 
     // ---- 陣と旗 ----
     fieldLife(rt);
+    // 霞の色：近くを優先する霧（約九十m）で、林が空色の白い影として空に浮いた（10/28）。
+    // 尾張の野の昼の霞を、空色でなく緑がかった灰に。遠い林は暗い青緑の影に沈み、白く透けない。
+    { const lookOf = W.lookOf;
+      W.lookOf = function (key) { const L = lookOf.call(this, key); if (key === 'day') L.fog.setHex(0x8c9a8e); return L; };
+      if (W.timeKey === 'day') W.applyLook(W.lookOf('day')); }
     // 本陣の裏の小荷駄：俵と薪を担いだ小者が、陣と街道の間を行き来する（kaito 10/28 の割合。前線には出さない）。
     inouNio(rt);
     // 刈田の稲架：戦う帯と逃げ道を避けた野の東西の縁に。稲を掛けて干す（九月末の尾張の野）。

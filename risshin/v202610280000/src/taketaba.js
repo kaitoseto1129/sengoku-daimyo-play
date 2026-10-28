@@ -163,6 +163,19 @@ export function tabaMat() {
 
 function tabas(rt) { return rt.flags.tabas || (rt.flags.tabas = []); }
 
+// 押してほしい竹束を金色にほのかに光らせる（字の案内の代わり。テスター 10/27「竹束を押す事が分からない」）。
+// 光る材質は一つを使い回し、毎コマ new しない。tb に null を渡すと元へ戻す。
+let TABA_LIT = null;
+const setTabaMat = (tb, mat) => tb.m.traverse((o) => { if (o.isMesh) o.material = mat; });
+export function tabaHighlight(rt, tb) {
+  const F = rt.flags;
+  if (F.tabaLit && F.tabaLit !== tb) { setTabaMat(F.tabaLit, tabaMat()); F.tabaLit = null; }
+  if (!tb) return;
+  if (!TABA_LIT) { TABA_LIT = tabaMat().clone(); TABA_LIT.emissive = new THREE.Color(0xffc24a); }
+  if (F.tabaLit !== tb) { setTabaMat(tb, TABA_LIT); F.tabaLit = tb; }
+  TABA_LIT.emissiveIntensity = S.reduceMotion ? .55 : .45 + .3 * Math.sin(rt.t * 4.2);
+}
+
 // 竹束を一つ置く（team の側の楯。o.van があれば、その組の前について動く）
 export function addTaba(rt, x, z, team = 0, o = {}) {
   const cart = o.cart ?? !!o.van;

@@ -428,8 +428,14 @@ export const ArmyCombat = {
     }
     // 自分の攻撃が当たった手応え（怯みは連続しない）
     if (src && src.isPlayer && !t.isPlayer) {
-      if (!(t.lastStagT > this.time - 1.4)) { t.stagger = Math.max(t.stagger || 0, 0.28); t.lastStagT = this.time; }
+      // よろけは一秒に一度まで（続けて当てても固め続けない）。当たった相手は目に見えて半歩崩れる長さに
+      if (!(t.lastStagT > this.time - 1)) { t.stagger = Math.max(t.stagger || 0, 0.34); t.lastStagT = this.time; }
       if (this.hooks.onPlayerLanded) this.hooks.onPlayerLanded(t, amount);
+    }
+    // 自分の突き・斬りは、甲冑でなくても当たった所に小さな火花を一つ（当たった手応えを目で。柄や小札の当たり）
+    if (src && src.isPlayer && melee && z.res !== 'armor' && kind !== 'slam' && kind !== 'butt' && amount > 0) {
+      const dx = src.pos.x - t.pos.x, dz = src.pos.z - t.pos.z, dl = Math.hypot(dx, dz) || 1;
+      this.spark(t.pos.x + dx / dl * .3, this.partY(t, z.part), t.pos.z + dz / dl * .3, 2);
     }
     if (z.res === 'armor') this.armorSpark(t, src, z.part, kind);
     else if (t.type === 'dummy' || t.maxHp > 9000) { this.burst(t.pos.x, this.partY(t, z.part), t.pos.z, 4, t.type === 'dummy' ? 'wood' : 'cloth', 0, 0, t.pos.y); this.play(kind === 'gun' ? 'bulletHit' : 'hit', t.pos, 0.7); }   // 藁人形・稽古の相手は血を出さない
