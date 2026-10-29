@@ -675,7 +675,7 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '今川勢をたおせ';
+    return enemy && enemy === rt.flags.yoshimoto ? '今川義元をたおせ' : '敵をたおせ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -793,7 +793,7 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['織田軍に集まれ', '織田軍に集まれ', '雨がやむまで待て', '今川勢をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
+  missions: ['味方と集まれ', '味方と集まれ', '雨がやむまで待て', '敵をたおせ', '今川義元をたおせ', 'にげる敵を追え', '味方と集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -849,15 +849,23 @@ const okehazama = {
     const F = rt.flags;
     if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
-    // 集合済みの待機に行き先や時計を残さず、雨と任務の一行で待つ場面を示す。
+    // 集合後も同じピンを保ち、穴が満ちる円の満ち具合だけで待ち終わりを示す。
     // 敵は本人の頭上の赤い▼だけ。地面や画面端へ大きな赤いピンを浮かべない。
-    if (timedWait || F.scoutFighting && rt.phase !== 'assault') return null;
+    if (!timedWait && F.scoutFighting && rt.phase !== 'assault') return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
     pin.waitDuration = rt.phase === 'brief' ? DEPART_WAIT : RAIN_WAIT;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
+    if (timedWait) {
+      const pos = rt.phase === 'wait' ? F.waitPos : this.squadFlagPosition(rt);
+      if (!pos) return null;
+      pin.x = pos.x; pin.z = pos.z; pin.r = JOIN_RADIUS; pin.hide = 0;
+      pin.area = true; pin.arrived = true; pin.waiting = true; pin.always = true;
+      pin.progress = this.missionWaitProgress(rt);
+      return pin;
+    }
     // 戦う相手は頭上の赤い▼。移動先が本陣の入口の時だけ地面へピンを立てる。
     if (rt.phase === 'assault' && !F.victory) {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
@@ -1208,7 +1216,7 @@ const okehazama = {
   enemySignOnly: true,
   enemySwordSign: true,
   nearbyTeamSignScale: .7, // 近い兵の刀印も、笠の上で読める大きさにそろえる。
-  meleeHitFeedback: true,
+  meleeHitFeedback: false, // 命中は本人の赤い▼の伸びと赤の減りだけで返す。
   compactApproachGuide: true,
   compactTreatmentSign: true,
   floorArrowMaxPixels: 48,
@@ -1359,11 +1367,12 @@ const okehazama = {
     enemyArrowWarnings: true,
     // 雨空の強い散乱光でも、草の房だけが黄色く光らないよう地面の緑へ寄せる。
     tuftTint: 0x67794f,
-    // 白い冠が草のように並ばない、小さな雨の跳ね。
-    rainSplashScale: 0.4,
+    // 足もとで弾ける雨の跳ね。ぬかるみに白い冠が開いて見える大きさ。
+    rainSplashScale: 0.8,
     // 雨中の色と遠景の霞だけを調整し、遠い兵の細部を描く範囲は広げない。
     rainFogLift: 12,
-    rainOpacity: 0.18,
+    // 斜めの雨の筋が、曇り空と森の前ではっきり読める濃さ。
+    rainOpacity: 0.42,
     // 坂の岩を土へ埋め、黒い穴に見える削った頂と板状の接地影を避ける。
     // 岩と根元の草は、既存の丸い岩・曲がる葉を設営時に使い回す。
     groundedSlopeRocks: true,
@@ -1502,7 +1511,8 @@ const okehazama = {
     lightning: true,
     // 北を上にした位置図で東は正の x。公記の楠が東へ倒れた記述から西風を復元。
     // 接近路の曲がりに風を合わせず、織田の背から今川の顔へ吹きつける。
-    rainDir: [1, 0],
+    // 長さ二で吹き付けを強め、筋を大きく斜めに倒す（向きは東のまま）。
+    rainDir: [2.2, 0],
     // 谷あいの小川と、東の谷の村の水路（要件：竹林・小川・水路・村）
     waterSlow: true,   // 川を渡る間は遅く、馬はもっと遅い（terrain_tags.js の water。10/2）
     streams: [{ pts: [[-70, -150], [-52, -96], [-60, -40], [-80, 20]].map(fieldPathPoint), w: 1.8, depth: 0.9 }, { pts: [[100, 80], [124, 108], [150, 140]].map(fieldPathPoint), w: 1.6, depth: 0.8 }],
@@ -1588,7 +1598,7 @@ const okehazama = {
     // 濡れた土の下地を褐色へ。既存の草・泥・踏み跡の絵と凹凸はそのまま使う。
     rt.world.terrain.material.color.setHex(0xc4b69d);
     // 空の照り返しで濡れ土の色を消さず、草・踏み跡の濃淡を残す。
-    rt.world.terrain.material.envMapIntensity = 0.2;
+    rt.world.terrain.material.envMapIntensity = 0.5;
     // 浅い泥の窪みは共通の照り抑えから外れるため、曇天を白く映しやすい。
     // この戦の裸地だけ上限を設ける。田の水・草・既存の土粒と踏み跡は残す。
     const soilMaterial = rt.world.terrain.material;
@@ -1598,13 +1608,15 @@ const okehazama = {
       soilCompile.call(this, shader, renderer);
       shader.fragmentShader = shader.fragmentShader
         .replace('roughnessFactor = mix(roughnessFactor, 0.26, pool);',
-          'roughnessFactor = mix(roughnessFactor, 0.52, pool);')
+          `roughnessFactor = mix(roughnessFactor, 0.3, pool);
+          // 雨の間は泥と裸の土に水の膜を張り、曇り空を鈍く照り返させる。
+          roughnessFactor = mix(roughnessFactor, 0.36, clamp(w.z + w.y * 0.5, 0.0, 1.0) * uWet * 0.75);`)
         .replace('reflectedLight.directSpecular *= 1.0 - wat * 0.6;', `
           reflectedLight.directSpecular *= 1.0 - wat * 0.6;
           float okeBareSoil = clamp(w.y + w.z, 0.0, 1.0) * (1.0 - wat);
           reflectedLight.indirectSpecular = mix(reflectedLight.indirectSpecular,
-            min(reflectedLight.indirectSpecular, diffuseColor.rgb * 0.10 + vec3(0.002)), okeBareSoil);
-          reflectedLight.directSpecular *= 1.0 - okeBareSoil * 0.45;
+            min(reflectedLight.indirectSpecular, diffuseColor.rgb * 0.38 + vec3(0.012)), okeBareSoil);
+          reflectedLight.directSpecular *= 1.0 - okeBareSoil * 0.15;
         `);
     };
     soilMaterial.customProgramCacheKey = () => soilKey + '|okeWetSoil';
@@ -1913,10 +1925,27 @@ const okehazama = {
     rainWorld.splashLine = rainWorld.splashLine.subarray(0, 160 * 18);
     rainWorld.splashPts.geometry.setAttribute('position', new THREE.BufferAttribute(rainWorld.splashLine, 3).setUsage(THREE.DynamicDrawUsage));
     rainWorld.splashPts.geometry.setDrawRange(0, 160 * 6);
-    rainWorld.splashPts.material.opacity = 0.22;
-    // 手前の太い板状の雨は使わず、一画素の細い線だけにする。
-    rainWorld.nearRain = rainWorld.nearRain.subarray(0, 0);
-    rainWorld.rainNear.geometry.setDrawRange(0, 0);
+    rainWorld.splashPts.material.opacity = 0.55;
+    rainWorld.rain.material.color.setHex(0xdde4e8);
+    // 手前の板状の雨筋は二十四本だけ使い、幅を広げて目の前を斜めに打つ豪雨に見せる。
+    // 既存の板の両端を中心から開くだけで、入れ物は増やさない。
+    rainWorld.nearRain = rainWorld.nearRain.subarray(0, 24 * 4);
+    const nearRainUpdate = rainWorld.updateNearRain;
+    rainWorld.updateNearRain = function (dt, r, wdx, wdz) {
+      nearRainUpdate.call(this, dt, r, wdx, wdz);
+      const M = this.rainNear;
+      if (!M.visible) return;
+      M.material.uniforms.op.value = Math.min(0.42, r * 0.42);
+      const arr = M.geometry.attributes.position.array, n = M.geometry.drawRange.count / 6;
+      for (let i = 0; i < n; i++) {
+        const o = i * 18;
+        for (const [a, b] of [[0, 3], [15, 6]]) for (let k = 0; k < 3; k++) {
+          const m = (arr[o + a + k] + arr[o + b + k]) * 0.5, h = (arr[o + b + k] - arr[o + a + k]) * 2.5;
+          arr[o + a + k] = m - h; arr[o + b + k] = m + h;
+        }
+        for (let k = 0; k < 3; k++) { arr[o + 9 + k] = arr[o + k]; arr[o + 12 + k] = arr[o + 6 + k]; }
+      }
+    };
     // 初陣の打撃・同時に打ち込む人数は共通設定を保つ。倒れた後の救済は使わない。
     rt.firstFights = false; rt.flags.rescued = true;
     // 忍んで寄せる間は太鼓で進めと促さない。かかれの合図で解く。
@@ -2235,7 +2264,7 @@ const okehazama = {
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
-    rt.obj('col', '織田軍に集まれ', 'main');
+    rt.obj('col', '味方と集まれ', 'main');
     rt.marker('genpachi', rt.flags.marchGoal, '組の集合場所', { guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
   },
   update(rt, dt) {
@@ -2499,7 +2528,7 @@ const okehazama = {
     // 待ち始めから雨脚を弱め、満ちるピンと雨上がりを同じ進みにする。
     const rainLeft = 1 - this.missionWaitProgress(rt);
     rt.world.setRainTarget(rainLeft);
-    // ピンの残る円が空になると雨がやむ。到着の形を一息見せ、仲間の動きへ渡す。
+    // ピンの円が満ちると雨がやむ。満ちた形を一息見せ、仲間の動きへ渡す。
     if (rt.t >= F.waitReadyAt && !F.clear) {
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after'); rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;

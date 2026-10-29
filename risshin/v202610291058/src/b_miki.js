@@ -123,6 +123,30 @@ function mikiHarvest(rt) {
   }
   stalk.dispose();
 }
+// 持ち場の道の足もとに散る藁くず・小石。平らな泥に細かな凸凹を足す（当たり無し・一つに合わせる）。
+function mikiRoadLitter(rt) {
+  const W = rt.world, sp = miki.spawn, pose = new THREE.Object3D(), parts = [];
+  const straw = new THREE.BoxGeometry(.34, .012, .018), stone = new THREE.IcosahedronGeometry(.07, 0);
+  let seed = 7919; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 520; i++) {
+    const a = rnd() * Math.PI * 2, r = 3 + Math.sqrt(rnd()) * 38, x = sp.x + Math.cos(a) * r, z = sp.z + Math.sin(a) * r;
+    if (roadBlend(x, z) < .5) continue;
+    const y = W.heightAt(x, z);
+    if (i % 3) {
+      pose.position.set(x, y + .012, z); pose.rotation.set(0, rnd() * 6.28, 0); pose.scale.set(.6 + rnd(), 1, 1);
+      pose.updateMatrix(); parts.push(paintGeo(straw, [0xb59f64, 0x9a8650, 0xc2ad72][i % 3]).applyMatrix4(pose.matrix));
+    } else {
+      const sc = .5 + rnd() * 1.1;
+      pose.position.set(x, y + .02 * sc, z); pose.rotation.set(rnd() * 3, rnd() * 3, 0); pose.scale.set(sc, sc * .6, sc);
+      pose.updateMatrix(); parts.push(paintGeo(stone, [0x6b6358, 0x4e463c, 0x7d7466][i % 3]).applyMatrix4(pose.matrix));
+    }
+  }
+  if (!parts.length) return;
+  const geometry = mergeGeometries(parts); parts.forEach(g => g.dispose());
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true })); mesh.receiveShadow = true;
+  const lod = new THREE.LOD(); lod.addLevel(mesh, 0); lod.addLevel(new THREE.Group(), 70); rt.scene.add(lod);
+  straw.dispose(); stone.dispose();
+}
 // 三木だけの見た目の補修。川床・浅瀬・兵の道は変えない。
 function mikiScenery(W) {
   // 出陣札で時間が止まっている間も、山の霞を夜の空へ合わせる。
@@ -1239,7 +1263,8 @@ const miki = {
     if (rt.over || F.ending || !rt.player.u.alive) return null;
     const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5 });
     const stage = this.missionOf(rt);
-    let at = stage === 0 ? this.spawn : stage === 2 ? GATE : OMURA;
+    // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
+    let at = stage === 0 ? this.spearAt(F.guard) || this.spawn : stage === 2 ? GATE : OMURA;
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
     // 守る間は着いても持ち場のピンを残す。同じ槍組がここへ歩いて集まる。
     if (stage === 1 || stage === 4) {
@@ -1250,7 +1275,7 @@ const miki = {
     // 柵を挟む時は既存の曲がり角を使い、残敵へ直進して壁で止まらない。
     if (F.routeAt && (stage === 3 || rt.army.wallBetween(me, -1, at))) {
       at = F.routeAt; q.route = true; q.waiting = false; q.unit = null; q.enemy = false;
-    } else if (stage === 1 && F.roadTurn >= 0 && rt.army.wallBetween(me, -1, at)) {
+    } else if (stage <= 1 && F.roadTurn >= 0 && rt.army.wallBetween(me, -1, at)) {
       at = ASSEMBLY_TURNS[F.roadTurn]; q.route = true; q.unit = null; q.enemy = false;
     }
     q.x = at.x; q.z = at.z; q.r = q.hide = q.route ? 3 : q.enemy ? 2.5 : stage === 5 ? OMURA.r : 5;
@@ -1376,7 +1401,7 @@ const miki = {
   guardGuideAllowed: () => false,
   guardLabel: (rt, guard) => guard.name ? `${guard.name}を守れ` : '傷ついた味方を守れ',
   introSides: { b: '別所の兵と荷の護衛' },
-  introText: 'まず「西の槍組」の印へ進もう。味方と共に、敵の荷の護衛を退けよう。次は平田の木戸を守り、合図が来たら大村へ移ろう。自分が無事でも、味方の持ち場を失うと負けになる。任務の札で味方の残る人数を見よう。',
+  introText: 'まず「西の槍組」の印へ進もう。味方と共に、敵の荷の護衛を退けよう。次は平田の木戸を守り、合図が来たら大村へ移ろう。自分が無事でも、味方の持ち場を失うと負けになる。',
   // 包囲内の城下・寺の民は城下の退避所に留まり、包囲外の百姓だけが西へ逃げる。
   civilianCrowd: { bounds: { minX: -245, maxX: 100, minZ: -235, maxZ: 335 }, bands: PEOPLE_BANDS, fireSize: 1 },
   // 合図は任務の単語から推測せず、実際に下知が変わった時だけ鳴らす。
@@ -1529,7 +1554,7 @@ const miki = {
     // 低画質の徒歩の脚を蹴り上げすぎず、列の全員が同じ姿で跳ねるのも避ける。
     strideLimit: .6, variedMarch: true,
     // 既存の六組の貸し具足と、前後列の腰・膝の踏ん張りを使う。戦う人数と強さは保つ。
-    variedInfantry: true, variedLoanArmor: true, infantryWeight: true, contactDust: true,
+    variedInfantry: true, variedLoanArmor: true, variedHeadgear: true, infantryWeight: true, contactDust: true,
     // 既存の足合わせと後列の構えを使い、坂で足を浮かせず、前列の頭越しに槍を送る。
     meleeGroundedFeet: true, rearSpearSupport: true,
     // 三木の川肩の乱戦だけ、笠と胴が重なる前に既存の押し合いで間を取る。
@@ -1674,6 +1699,9 @@ const miki = {
     // 距離だけで脇の列まで消さず、坂の高低も含めて肩越しの細い範囲を調べる。
     // 共通の後処理で元へ戻り、探索の範囲と兵の当たりは変えない。
     const player = rt.player;
+    // 遮ると判定された旗だけ、竿も含めて描く間避ける。
+    // 半透明の白い四角を空に残さず、描画後は既存の仕組みで元へ戻す。
+    player.fadeNearFlag = function (flag) { this.hideNearFlag(flag); };
     player.nearAllyVisit = (u) => {
       const cam = player.nearAllyCam;
       if (!cam || u === player.u || !u.alive || u.isStruct) return;
@@ -1921,6 +1949,7 @@ const miki = {
     rt.scene.add(mikiGate(W, HONJIN.x, HONJIN.z + 20, 8));
     mikiCampStores(rt);
     mikiHarvest(rt);
+    mikiRoadLitter(rt);
     for (const q of FAR_FORTS) mikiFarFort(rt, q);
     mikiSlopeFields(rt);
     mikiFireStands(rt);
@@ -3080,8 +3109,12 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.guardHold = false;
   // 接敵が終わったら狙いを解き、退路の向きを敵へ引き戻させない。
   if (p.lock) inp.e.add('KeyQ');
-  // 下知待ちは開始地点の道で待つ。北の槍組へ直進すると道を外れる。
-  if (!F.step) { goTo(p, inp, b.def.spawn.x, b.def.spawn.z, 1); return; }
+  // 集合の印と同じ列へ進む。柵を挟む時は既存の南の曲がり角をたどる。
+  if (!F.step) {
+    const pin = miki.missionPin(b);
+    if (pin) goTo(p, inp, pin.x, pin.z, pin.r);
+    return;
+  }
   if (F.step === 2) {
     // 画面と同じ曲がり角をたどる。南に残った槍組の後ろで待ち続けない。
     if (F.routeAt && (F.routeIndex || 0) < 4 && miki.guideMarker(b) === 'route') {

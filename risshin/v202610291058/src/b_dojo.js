@@ -2,6 +2,8 @@
 import { gauss, enemyGroup } from './bhelp.js';
 import { palisade, nobori } from './props.js';
 
+const practiceEnemyAlive = u => u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
+
 // ======================================================================
 // 稽古場（腕試し）：押し寄せる敵を何人討てるか
 // ======================================================================
@@ -9,20 +11,30 @@ export const dojo = {
   dojo: true,
   missionStyle: 'practice',
   missionSingleLine: true,
+  hideGuideSteps: true,
+  noPlayerFoot: true,
+  noFieldMap: true,
+  hideArmyPeek: true,
+  nearbyAllySignLimit: 0,
   keepTaskLabel: true,
-  missionHeading: () => '敵を倒せ',
+  missionHeading: () => '▼の敵をたおせ',
+  missionSignTarget(rt) { this.missionPin(rt); return practiceEnemyAlive(rt.flags.guideEnemy) ? rt.flags.guideEnemy : null; },
+  enemyTriangleSigns: true,
+  hideArmyPeek: true,
+  noFieldMap: true,
+  noPlayerFoot: true,
   speechAllowed: () => false,
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u;
     if (!F.guideAt || rt.t >= F.guideAt) {
       F.guideAt = rt.t + .25;
-      if (!F.guideEnemy?.alive || F.guideEnemy.dying || F.guideEnemy.gone)
+      if (!practiceEnemyAlive(F.guideEnemy))
         F.guideEnemy = rt.army.nearestEnemy(me, 90);
     }
     const u = F.guideEnemy;
-    if (!u?.alive || u.dying || u.gone || Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) < 5) return null;
-    const pin = F.guidePin || (F.guidePin = { x: 0, z: 0, r: 3 });
-    pin.x = u.pos.x; pin.z = u.pos.z;
+    if (!practiceEnemyAlive(u)) return null;
+    const pin = F.guidePin || (F.guidePin = { x: 0, z: 0, r: 5, enemy: true, unit: null });
+    pin.x = u.pos.x; pin.z = u.pos.z; pin.unit = u;
     return pin;
   },
   trackerIndex: 0,
@@ -48,6 +60,12 @@ export const dojo = {
     for (const [x, z] of [[-10, 36], [10, 36], [0, -38]]) rt.scene.add(nobori(W, x, z, 'oda', 5));
     // 乗馬は試せるようにする（canRide）が、常に騎乗の本物の馬を出し続けると重い。待たせておき、Rで乗れるように（kaito 10/1）
     if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
+    // 最初の相手へ通じる正面を空ける。馬は柵のそばで待たせる。
+    const p = rt.player;
+    if (p.loose && p.horse) {
+      p.loose.x = 24; p.loose.z = 24; p.loose.mode = 'wait'; p.loose.spd = 0;
+      p.horse.position.set(24, W.heightAt(24, 24), 24);
+    }
     rt.flags.wave = 0; rt.flags.kills = 0;
     rt.obj('dojo', '敵を倒せ', 'main');
     // 稽古の最初から正面に一人。隠し配置や出現待ちで相手を探させない。

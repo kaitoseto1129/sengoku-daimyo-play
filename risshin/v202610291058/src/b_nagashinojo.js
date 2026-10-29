@@ -6,7 +6,7 @@ const realArmyRange = () => 60;
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { distToPolyline, nearHideRequest, ARMY_REAL_P, ARMY_REAL_R, ARMY_REAL_NEAR } from './world.js';
-import { stumps, nobori, hut, kabukimon, tawara, jinCamp, village, tobiraLeaf, bobosaku, takataba, tateNarabi, yagura } from './props.js';
+import { stumps, nobori, hut, kabukimon, tawara, jinCamp, village, tobiraLeaf, bobosaku, takataba, tateNarabi, yagura, solidRect } from './props.js';
 import { woodTex } from './nature.js';
 import { flagTexture } from './textures.js';
 import { horseStyleFor } from './units_model.js';
@@ -18,6 +18,7 @@ import { K, S as SETTINGS } from './settings.js';
 import { camp } from './b_mid.js';
 import { carryLadder, startClimb, updateLadders, resetLadders, ladderAlive } from './siege_ladder.js';
 import { monomi } from './castle_parts.js';
+import { tabaGeo, tabaMat } from './taketaba.js';
 import { reset as flReset } from './floors.js';
 
 // ---------------- 大軍の見せ方（どの戦でも使う小さな道具。battles.js からは nagashinojo.kit で使う） ----------------
@@ -624,6 +625,57 @@ function gateDoors(world, x, z, w) {
   return grp;
 }
 
+// ---------------- 塀の外の眺め（寄せ手の竹束と旗の列・崖の岩） ----------------
+// 竹束は一つの InstancedMesh で（当たりは一つずつ）
+const ROCK_GEO = new THREE.IcosahedronGeometry(1, 0);
+const ROCK_MAT = new THREE.MeshStandardMaterial({ color: 0x6b6458, roughness: 0.95, metalness: 0, flatShading: true });
+function siegeLayers(rt) {
+  const W = rt.world, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const rr = (k) => { const t = Math.sin(k * 12.9898) * 43758.5453; return t - Math.floor(t); };
+  // 竹束は塀の外の坂の肩（塀から十数メートル）に、二つ組みで間を空けて二列。寄せ手は間を抜けて塀へ上る
+  const pts = [];
+  for (const [z0, off] of [[-37, 0], [-41.5, 3.2]]) {
+    for (let x = W_X - 2 + off; x < E_X + 2; x += 6.4) {
+      for (const dx of [0, 2]) {
+        const xx = x + dx;
+        if (Math.abs(xx - GATE.x) < 7) continue;   // 大手道は空ける
+        pts.push([xx, z0 + (rr(xx * 3.1 + z0) - 0.5) * 0.8, (rr(xx + z0 * 7) - 0.5) * 0.3]);
+      }
+    }
+  }
+  const taba = new THREE.InstancedMesh(tabaGeo(false, false, false, false, false), tabaMat(), pts.length);
+  pts.forEach(([x, z, r], i) => {
+    e.set(0, r + Math.PI, 0); q.setFromEuler(e);
+    taba.setMatrixAt(i, m4.compose(v.set(x, W.heightAt(x, z), z), q, sc.set(1, 1, 1)));
+    Object.assign(solidRect(x, z, 1.9, 0.6, r), { missileH: 1.7, missileType: 'wood' });
+  });
+  taba.castShadow = true; taba.receiveShadow = true;
+  rt.scene.add(taba);
+  // 竹束の後ろに寄せ手の旗の列（花菱・風林火山・赤備え）。塀越しに旗の頭が並んで見える
+  const kinds = ['takeda', 'furin', 'takeda', 'akazonae'];
+  let n = 0;
+  for (let x = W_X + 1; x <= E_X; x += 4) {
+    if (Math.abs(x - GATE.x) < 6) continue;
+    rt.scene.add(nobori(W, x + (rr(x) - 0.5) * 1.5, -46 - rr(x + 5) * 3, kinds[n++ % kinds.length], 8));
+  }
+  // 崖：西の寒狭川へ、北の坂へ落ちる急な所に岩を出す（足もとの落ち込みが分かるように）
+  const rocks = [];
+  for (let k = 0; k < 900 && rocks.length < 90; k++) {
+    const x = -75 + rr(k * 1.7) * 150, z = -80 + rr(k * 2.3 + 9) * 150;
+    if (insideCastle(x, z, 4)) continue;
+    const sl = Math.abs(W.heightAt(x + 1.5, z) - W.heightAt(x - 1.5, z)) + Math.abs(W.heightAt(x, z + 1.5) - W.heightAt(x, z - 1.5));
+    if (sl < 3.2 || Math.abs(x + 4) < 9 && z < -24) continue;   // 大手道の筋は空ける
+    rocks.push([x, z, 0.8 + rr(k * 5.1) * 1.8, k]);
+  }
+  const rk = new THREE.InstancedMesh(ROCK_GEO, ROCK_MAT, rocks.length);
+  rocks.forEach(([x, z, s, k], i) => {
+    e.set(rr(k + 1) * 3, rr(k + 2) * 6, rr(k + 3) * 3); q.setFromEuler(e);
+    rk.setMatrixAt(i, m4.compose(v.set(x, W.heightAt(x, z) - s * 0.25, z), q, sc.set(s * 1.4, s * 0.8, s)));
+  });
+  rk.castShadow = true; rk.receiveShadow = true;
+  rt.scene.add(rk);
+}
+
 // ---------------- 塀の破れ目と寄せ手の動き ----------------
 // 塀の区画の外向き（城の中心から離れる向き）
 function outward(s) {
@@ -835,7 +887,9 @@ export const nagashinojo = {
     const face = (x, z) => Math.atan2(MID.x - x, MID.z - z);
     const TD = ARMOR.takeda, AK = ARMOR.akazonae;
     // 北の原：城を囲む寄せ手の列（前に鉄砲と槍の備）
-    F.siege = [DA(-40, -118, 70, 12, 380, 0, TD, 'takeda', 71, 'mixed'), DA(35, -116, 70, 12, 360, 0, TD, 'furin', 72, 'spear')];
+    // 霧（約九十メートル）の手前に置き、塀際から坂の下の寄せ手の列が見えるようにする
+    F.siege = [DA(-40, -99, 70, 12, 380, 0, TD, 'takeda', 71, 'mixed'), DA(35, -97, 70, 12, 360, 0, TD, 'furin', 72, 'spear')];
+    siegeLayers(rt);
     // 医王寺山の勝頼の本陣と、その前と脇の備（赤備えの騎馬は赤）
     // 見に行けば勝頼と旗本がいる（籠城で wake は止めてあるので、本物の兵で置く。後ろの控えは軽い兵）
     F.kCamp = camp(rt, { x: -30, z: -162, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: TD, general: { name: '武田勝頼' }, noUma: high, tate: !high, contour: high, depth: true, guard: 15, reserve: 260, runTo: { x: -30, z: -125 } });

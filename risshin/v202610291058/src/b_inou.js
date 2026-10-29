@@ -311,15 +311,24 @@ function inouNearField(rt) {
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 }));
   ground.receiveShadow = true;
   // 刈り株：列の上に短い株の束（十字の二枚）を。一つの InstancedMesh で描く
-  const stub = new THREE.PlaneGeometry(.14, .16); stub.translate(0, .08, 0);
-  const cross = stub.clone().rotateY(Math.PI / 2);
-  const tuft = mergeTufts(stub, cross);
+  // 細い刈り株の穂先（平らな四角の札に見せない）：六本の細い三角を放射状に少し傾けた一つの形
+  const tuft = new THREE.BufferGeometry(), tp = [], tc = [], tn = [];
+  for (let k = 0; k < 6; k++) {
+    const a = k * 1.047 + .3 * k, lean = .06 + .05 * (k % 3), h = .17 + .05 * ((k * 5) % 3), w = .012;
+    const ox = Math.sin(a) * .035, oz = Math.cos(a) * .035, cx = Math.cos(a) * w, cz = -Math.sin(a) * w;
+    tp.push(ox - cx, 0, oz - cz, ox + cx, 0, oz + cz, ox + Math.sin(a) * lean, h, oz + Math.cos(a) * lean);
+    const c = k % 2 ? [.62, .53, .33] : [.72, .62, .4];
+    for (let v = 0; v < 3; v++) { tc.push(...(v === 2 ? c.map((q) => q * 1.1) : c.map((q) => q * .7))); tn.push(0, 1, 0); }
+  }
+  tuft.setAttribute('position', new THREE.Float32BufferAttribute(tp, 3));
+  tuft.setAttribute('color', new THREE.Float32BufferAttribute(tc, 3));
+  tuft.setAttribute('normal', new THREE.Float32BufferAttribute(tn, 3));
   const spots = [];
   for (const [ax, az, bx, bz] of NEAR_FIELDS) for (let z = az + .6; z < bz; z += .8) {
     if (onAze(z)) continue;
     for (let x = ax + .4; x < bx; x += .9) spots.push([x + .3 * Math.sin(z * 3.1 + x), z + .1 * Math.cos(x * 2.3)]);
   }
-  const stubs = new THREE.InstancedMesh(tuft, new THREE.MeshLambertMaterial({ color: 0xa08a5c }), spots.length);
+  const stubs = new THREE.InstancedMesh(tuft, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), spots.length);
   const m = new THREE.Object3D();
   spots.forEach(([x, z], i) => { m.position.set(x, W.heightAt(x, z), z); m.rotation.set(0, x * 1.7 + z, 0); m.scale.setScalar(.8 + .4 * Math.abs(Math.sin(x * 2.1 + z))); m.updateMatrix(); stubs.setMatrixAt(i, m.matrix); });
   stubs.instanceMatrix.needsUpdate = true; stubs.computeBoundingSphere();
@@ -486,6 +495,7 @@ function pinPoint(rt, pos, radius, hide, unit = null, name = '') {
   pin.x = pos.x; pin.z = pos.z; pin.r = radius; pin.hide = hide;
   pin.unit = unit; pin.name = name; pin.enemy = !!unit && unit.team !== rt.player.u.team;
   pin.defend = false; pin.waiting = false; pin.marker = null;
+  pin.followUnit = null;
   pin.approach = false; pin.silent = true; pin.arrow = false; pin.always = false;
   return pin;
 }
@@ -576,6 +586,7 @@ const inou = {
   nearSpearFade: false, // 槍だけを縮めて透かさず、持ち主と同じ形を保つ。
   missionPinCaption: '',
   noPlayerFoot: true, // 白黒の足元の輪を消し、行き先のピンと敵の▼に絞る。
+  nearbyAllySignLimit: 0, // 味方に別の印を足さず、敵全員の赤い▼で見分ける。
   noFieldMap: true, // 行き先のピンと敵本人の▼に絞る。
   hideGuideSteps: true,
   missionSingleLine: true,
@@ -684,7 +695,14 @@ const inou = {
       pin.approach = true;
       return pin;
     }
-    if (F.step === 0 || F.step === 3) return null;
+    if (F.step === 0 || F.step === 3) {
+      if (/味方と/.test(this.missionHeading(rt)) && fighting(F.genU)) {
+        const pin = pinPoint(rt, F.genU.pos, 3, 0);
+        pin.followUnit = F.genU;
+        return pin;
+      }
+      return null;
+    }
     if (F.step === 1) {
       if (F.training === 11 && !F.flankReached) {
         return pinPoint(rt, FLANK, 8);
@@ -698,10 +716,17 @@ const inou = {
       const group = F.advanceGuide?.group;
       if (!group || gone(group)) return null;
       const pin = pinPoint(rt, group.order === 'move' && group.dest ? group.dest : group.anchor, 3, 0);
+      // 同じ組の案内役を保ち、倒れた時だけ引き継ぐ。
+      if (!fighting(F.advanceGuide.unit)) F.advanceGuide.unit = group.units.find(u => fighting(u) && !u.isPlayer);
+      pin.followUnit = F.advanceGuide.unit;
       pin.always = true; pin.marker = F.advanceGuide;
       return pin;
     }
-    if (F.step === 2) return pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
+    if (F.step === 2) {
+      const pin = pinPoint(rt, F.nobuU?.alive ? F.nobuU.pos : NOBU, 10);
+      pin.followUnit = fighting(F.nobuU) ? F.nobuU : null;
+      return pin;
+    }
     return null;
   },
   // 周りの味方が今なにをしているか（左上の進みの札の一行。kaito 10/22 稲生 2）
@@ -912,6 +937,9 @@ const inou = {
     inouNazukaFort(rt);
     // 刈田の稲架：戦う帯と逃げ道を避けた野の東西の縁に。稲を掛けて干す（九月末の尾張の野）。
     for (const [x, z, r] of [[80, -12, 0], [82, 40, 0.05], [-80, 10, 0], [-82, 58, -0.05], [86, 92, 0.1], [-86, -36, 0]]) rt.scene.add(hasa(W, x, z, r, 9));
+    // 持ち場の前の刈田にも、道の両脇に二十歩ほど先へ縦に一基ずつ（持ち場から稲架が見えなかった。10/28）。
+    // 戦う帯（本陣の前・早川・柴田の横）と道からは離す。
+    for (const [x, z, r] of [[-8, 32, Math.PI / 2 + .04], [9, 30, Math.PI / 2 - .05]]) rt.scene.add(hasa(W, x, z, r, 8));
     porterTrain(rt, [[NOBU.x - 14, NOBU.z + 14], [NOBU.x - 6, NOBU.z + 28], [0, NOBU.z + 48], [0, NOBU.z + 76]], 6, { name: '信長方の小荷駄' });
     // 信長方の本陣：幕だけで空にしない。奥に床几と軍配、地図の机と使いの者（jinCamp と camp_life）、篝火、馬つなぎ、馬印と旗竿（kaito 10/22 稲生 8）。
     rt.scene.add(jinCamp(W, NOBU.x - 16, NOBU.z, { w: 12, d: 9, gap: 4, mon: 'oda', people: false, noUma: true }));

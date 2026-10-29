@@ -1,6 +1,7 @@
 // 画面の知らせ用の見通し。戦う兵の判断や保存には触れない。
 import { weatherSight, weatherSees } from './weather_gameplay.js';
 import { smokeDepth } from './wind_smoke.js';
+import { VIEW } from './viewport.js';
 const cache = new WeakMap();
 function cross(ax, az, bx, bz) { return ax * bz - az * bx; }
 function cuts(a, b, x0, z0, x1, z1) {
@@ -249,12 +250,23 @@ export const inouSignHeight = (u) => u.mounted ? 3.17 : Math.max(2.1, (u.bodyHei
 export function inouSignVisible(rt, u) {
   if (!u?.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.fleeing && rt.def.missionStyle !== 'lesson' && rt.def.missionStyle !== 'ford' || u.camHidden || u.mesh?.visible === false) return false;
   // 兵の描画方式を切り替えても所属は変わらない。基本の姿にも同じ▼を残す。
-  // 森部の簡易な兵にも所属を残す。骨の人型を借り替える瞬間に▼だけ消さない。
-  if (rt.def.missionStyle === 'ford' && !u.vatOn && !u.efuda && !u.human?.root?.visible && !u.body?.visible) return false;
+  // 森部は実際の立体の全身と印を一組にする。部品や絵札だけでは頭上印を出さず、行き先のピンを保つ。
+  if (rt.def.missionStyle === 'ford' && !u.vatOn && !u.human?.root?.visible) return false;
   const p = u.pos, cam = rt.camera.position, fog = rt.scene.fog;
   // 兵の姿を描く距離まで所属の印を残す。印だけ先に消して味方に見せない。
   const range = Math.min(170, rt.world.vis ?? 170, fog?.far ?? 170);
   let c = inouSignCache.get(u);
+  if (rt.def.missionStyle === 'ford') {
+    // 頭上だけ見えても、姿を見つけた事にはしない。遠い▼の列の代わりにピンで本人へ導く。
+    // 画面上の体の高さを使い、携帯でも兵を見分けられる所で同じ本人の▼へ渡す。
+    const e = rt.camera.matrixWorldInverse.elements;
+    const depth = -(e[2] * p.x + e[6] * (p.y + .9) + e[10] * p.z + e[14]);
+    const height = (u.bodyHeight || 1.72) * VIEW.h * rt.camera.projectionMatrix.elements[5] / (2 * Math.max(.01, depth));
+    if (depth <= 0 || height < (c?.rt === rt && c.on ? 16 : 20) || !sightScreenUnit(rt, u)) {
+      if (c) c.on = false;
+      return false;
+    }
+  }
   const radius = range + (c?.rt === rt && c.on ? 3 : 0);
   if ((p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 >= radius * radius) {
     if (c) c.on = false;
@@ -265,10 +277,13 @@ export function inouSignVisible(rt, u) {
       (cam.x - c.x) ** 2 + (cam.y - c.y) ** 2 + (cam.z - c.z) ** 2 > .25 ||
       (p.x - c.ux) ** 2 + (p.z - c.uz) ** 2 > .25) {
     c.rt = rt; c.t = rt.t; c.x = cam.x; c.y = cam.y; c.z = cam.z; c.ux = p.x; c.uz = p.z;
-    // 頭上の同じ点で確かめる。近い兵は所属を保ち、遠方は霧の見通しも守る。
-    c.seen = rt.def.missionStyle === 'ford' && (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 > 22 * 22
-      ? sightPoint(rt, p, 170, true, inouSignHeight(u))
-      : !cameraWallBlocked(rt, cam, p, cam.y, p.y + inouSignHeight(u));
+    // 森部は頭上だけでなく胴が見える相手へ。土手の向こうに▼だけ浮かせない。
+    // 体の見通しは使い回し、近くは壁、遠くは地形も胴の高さで調べる。
+    const height = rt.def.missionStyle === 'ford' ? u.mounted ? 2 : 1.2 : inouSignHeight(u);
+    c.seen = (rt.def.missionStyle !== 'ford' || sightScreenUnit(rt, u)) &&
+      (rt.def.missionStyle === 'ford' && (p.x - cam.x) ** 2 + (p.z - cam.z) ** 2 > 22 * 22
+      ? sightPoint(rt, p, 170, true, height)
+      : !cameraWallBlocked(rt, cam, p, cam.y, p.y + height));
   }
   c.on = c.seen;
   return c.seen;

@@ -70,14 +70,15 @@ export class StaticLight {
       else w.scene.updateWorldMatrix(true, false);
       const visit = o => {
         const d = o.userData;
-        if (!o.visible && !originals.has(o)) return true;
+        if (!o.visible && !originals.has(o) && !d?.materialViewHidden) return true;
         if (o._armyUnit || o.isSkinnedMesh || o.isBone || d?.flag || d?.armyBatch || d?.unitShadowBatch ||
             o.name === 'unitBatch' || o.material?.userData?.armyU || o.isPoints || o.isSprite) return true;
         if (this.ready || originals.has(o)) o.updateWorldMatrix(false, false);
         if (o.isMesh && (o.castShadow || o._sceneryCastShadow) && o !== w.terrain) {
           const original = originals.get(o);
           const count = original ? original.length / 16 : o.count;
-          const m = o.isInstancedMesh ? new THREE.InstancedMesh(o.geometry, o.material, count) : new THREE.Mesh(o.geometry, o.material);
+          const geometry = d?.staticShadowGeometry || o.geometry;
+          const m = o.isInstancedMesh ? new THREE.InstancedMesh(geometry, o.material, count) : new THREE.Mesh(geometry, o.material);
           if (o.isInstancedMesh) {
             instances.push(m);
             m.instanceMatrix.array.set(original || o.instanceMatrix.array.subarray(0, count * 16));
@@ -238,7 +239,8 @@ export class StaticLight {
     shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
       vec2 staticUV = vWP.xz / (uStaticHalf * 2.0) + 0.5;
       vec2 staticShade = mix(vec2(1.0), texture2D(tStaticLight, clamp(staticUV, 0.0, 1.0)).rg, uStaticReady);
-      outgoingLight *= staticShade.x * staticShade.y;
+      // 固定物の影で空からの返りまで消さず、入口と足場の暗部を残す。
+      outgoingLight *= mix(1.0, staticShade.x, 0.65) * staticShade.y;
       #include <opaque_fragment>`);
   }
   dispose() { this.pending?.work.return(); this.pending = null; this.target?.dispose(); this.target = null; this.uniforms.tStaticLight.value = null; this.uniforms.uStaticReady.value = 0; this.ready = false; }

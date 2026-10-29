@@ -4,7 +4,8 @@ import { kinome, kinomeCourtLevel } from './b_kinome.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { dirtTex } from './nature.js';
-import { KINOME_PLAN, KINOME_ROADS, ROAD, EXIT_KANNON, EXIT_KINOME } from './castles/kinome.js';
+import { KINOME_PLAN, KINOME_ROADS, ROAD, EXIT_KANNON, EXIT_KINOME, GATE_KANNON } from './castles/kinome.js';
+import { sakamogi } from './props.js';
 import { distToPolyline } from './world.js';
 import { distToSeg } from './units.js';
 import { addDeck, groundAt } from './floors.js';
@@ -560,6 +561,19 @@ echizen.timeslip = {
     return out;
   },
 };
+// 峠口（観音丸の木戸の前）。寄せ手の来る道の向きと、道に直角の向き。配置は推定。
+const ENTRY = (() => {
+  const i = ROAD.findIndex(p => Math.hypot(p[0] - GATE_KANNON.x, p[1] - GATE_KANNON.z) < 1);
+  const a = ROAD[Math.max(0, i - 1)], len = Math.hypot(a[0] - GATE_KANNON.x, a[1] - GATE_KANNON.z) || 1;
+  const dx = (a[0] - GATE_KANNON.x) / len, dz = (a[1] - GATE_KANNON.z) / len;
+  return { dx, dz, at: (d, o) => [GATE_KANNON.x + dx * d + dz * o, GATE_KANNON.z + dz * d - dx * o] };
+})();
+// 道の両脇の杉。林の共有の形を使い、道の上には置かない。
+const ENTRY_CEDARS = [[14, 15], [14, -15], [26, 19], [26, -19], [38, 15], [38, -16]].map(([d, o]) => {
+  const [x, z] = ENTRY.at(d, o);
+  return { x, z, r: 3, n: 3, kind: 'sugi' };
+});
+
 echizen.world = {
   ...kinome.world,
   muddy: 0.45,   // 雨の峠道はぬかるむ（10/28）
@@ -569,6 +583,7 @@ echizen.world = {
   paths: ECHIZEN_PATHS,
   // 逃げる細道を木で塞がず、里の家や谷川の当たりはそのまま読む。
   clear: (x, z) => kinome.world.clear(x, z) || peoplePathDistance(x, z) < 4,
+  groves: [...(kinome.world.groves || []), ...ENTRY_CEDARS],
   compactScenery: true,
   infantryWeight: true,
   noHaori: true,
@@ -700,6 +715,58 @@ echizen.world = {
 
 // 写真の丸太組・板囲い・縄掛けを、小さな仕寄りの陣具に使う。
 // 城の共有部品は変えず、本道と郭の中央には何も置かない。配置は推定。
+// 木戸の前に逆茂木の列（道の幅だけ開ける）と、踏まれた道のぬかるみの照り。
+// 逆茂木は飾りで、当たりと兵の数は変えない。水たまりは一つの形にまとめて一回で描く。
+function passEntranceScenery(rt) {
+  const W = rt.world, rot = Math.atan2(ENTRY.dx, ENTRY.dz), added = [];
+  for (const [d, o, len] of [[10, 7.5, 5], [10, 12.8, 5], [10, -7.5, 5], [10, -12.8, 5], [17, 9, 4.5], [17, -9, 4.5]]) {
+    const [x, z] = ENTRY.at(d, o), m = sakamogi(W, x, z, rot, len);
+    rt.scene.add(m); added.push(m);
+  }
+  const parts = [], R = (k) => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  for (let k = 0; k < 11; k++) {
+    const d = 2.5 + k * 2.9 + R(k) * 1.2, o = (R(k + 20) - .5) * (k % 3 ? 3.2 : 6);
+    const [cx, cz] = ENTRY.at(d, o), sx = 1.3 + R(k + 40) * 1.5, sz = .7 + R(k + 60) * .9, yaw = R(k + 80) * 3;
+    const g = new THREE.CircleGeometry(1, 16), P = g.attributes.position;
+    const edge = new Float32Array(P.count); edge.fill(1, 1);
+    const f1 = 1 + (k % 3), f2 = 3 + (k % 2), cs = Math.cos(yaw), sn = Math.sin(yaw);
+    for (let i = 0; i < P.count; i++) {
+      const lx = P.getX(i), ly = P.getY(i), a = Math.atan2(ly, lx);
+      const m = i ? 1 + Math.sin(a * f1 + k) * .22 + Math.sin(a * f2 + k * 2) * .1 : 0;
+      const px = lx * m * sx, pz = -ly * m * sz;   // 上から見て表になる向きへ
+      const x = cx + px * cs - pz * sn, z = cz + px * sn + pz * cs;
+      P.setXYZ(i, x, drawGroundAt(W, x, z) + .03, z);
+    }
+    g.setAttribute('puddleEdge', new THREE.BufferAttribute(edge, 1));
+    g.deleteAttribute('uv'); g.computeVertexNormals(); parts.push(g);
+  }
+  const geo = mergeGeometries(parts); for (const g of parts) g.dispose();
+  // 法線は上向きにそろえ、空と雨雲を鈍く映す。縁は泥色へ移して透かす。
+  const n = geo.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
+  const mat = new THREE.MeshPhongMaterial({ color: 0x59605d, emissive: 0x30353a, shininess: 80, specular: 0x9aa3a0,
+    transparent: true, opacity: .8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float puddleEdge; varying float vPuddleEdge;\n' + sh.vertexShader
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vPuddleEdge = puddleEdge;');
+    sh.fragmentShader = 'varying float vPuddleEdge;\n' + sh.fragmentShader
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float mudEdge = smoothstep(0.45, 0.9, vPuddleEdge);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.24, 0.17), mudEdge);
+        diffuseColor.a *= 1.0 - smoothstep(0.7, 1.0, vPuddleEdge);`)
+      .replace('#include <specularmap_fragment>', '#include <specularmap_fragment>\n specularStrength *= 1.0 - mudEdge;');
+  };
+  const pools = new THREE.Mesh(geo, mat);
+  pools.name = 'passEntryPools';
+  pools.receiveShadow = true; pools.renderOrder = 1;
+  rt.scene.add(pools);
+  const dispose = rt.dispose;
+  rt.dispose = function (...args) {
+    rt.scene.remove(pools); geo.dispose(); mat.dispose();
+    for (const m of added) rt.scene.remove(m);
+    return dispose.apply(this, args);
+  };
+}
+
 function passCampScenery(rt) {
   const W = rt.world, sites = [];
   const roadDistance = (x, z) => {
@@ -1127,6 +1194,7 @@ echizen.setup = function (rt) {
   // 木戸を打つ手の釦は一語だけ。「掛矢で観音丸城の木戸を打つ」の長い札が画面に残っていた（10/28）。
   { const add = rt.addInteract; rt.addInteract = function (id, pos, label, fn, o) { if (typeof label === 'string' && label.startsWith('掛矢で')) label = '打つ'; return add.call(this, id, pos, label, fn, o); }; }
   passCampScenery(rt);
+  passEntranceScenery(rt);
   // 身の回りの当時の場（timeslip_field.js）。板の間・台の上は床に隠れるので置かない。
   { const W = rt.world; echizen.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25; }
   timeslipField(rt);

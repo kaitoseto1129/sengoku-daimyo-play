@@ -347,6 +347,7 @@ export class HudCards {
   progress(rt) {
     const def = rt.def, root = this.root;
     root.classList.toggle('mission-one-line', !!def.missionSingleLine);
+    root.classList.toggle('practice-battle', !!def.dojo && !!def.missionSingleLine);
     if (def.town || def.dojo && !def.missionSingleLine) {
       this.progChangeUntil = 0;
       if (this.prog) { this.prog.hidden = true; this.prog.classList.remove('pg-changing'); root.classList.remove('prog-on'); }
@@ -360,6 +361,8 @@ export class HudCards {
       const st = document.createElement('style');
       st.textContent = `
 #hud.prog-on .tl .plaque { display:none; }
+/* 練習も相手の▼と任務一行だけにし、開始の題や被弾の文章を重ねない。 */
+#hud.practice-battle :is(#banner,#subtitle) { display:none !important; }
 /* 一行の下知を使う戦は、古い任務本文と教えの札を同時に積まない。選択と操作は残す。 */
 html:root body #hud.mission-one-line #battle-notices:not(.choosing) #objectives#objectives:not(.expand) :is(#obj-list,#tutorial,.obj-cue) { display:none !important; }
 html:root body #hud.mission-one-line #battle-notices:not(.choosing) #objectives#objectives:not(.expand):not(:has(.battle-action:not([hidden]))) { display:none !important; }
@@ -477,7 +480,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const yaw = rt.player.yaw + (rt.player.camYawOff || 0), p = rt.player.u.pos;
     let headline = def.missionHeading?.(rt) || missionCaption(rt, def.missionTaskFirst ? task || title : title || task) || '味方の旗へ進め';
     // 任務の一行へ実際の攻撃操作を収める。別の札や知らせは増やさない。
-    if (!def.missionSignTarget && def.missionStyle !== 'ford' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
+    if (!def.missionSingleLine && !def.missionSignTarget && def.missionStyle !== 'ford' && /^(?:近くの|この)?敵を\s*(?:たおせ|倒せ)$/.test(headline)) {
       const player = rt.player;
       const enemy = (player.inRange && player.rangeCueTarget?.alive ? player.rangeCueTarget : null) ||
         this.approachGuideEnemy || this.attackGuideEnemy || this.aimGuideEnemy ||
@@ -505,6 +508,11 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       // 森部の一般兵は誰を攻撃してもよい。一人ずつ指定された任務に見せない。
       if (!def.missionStyle && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
     }
+    if (attacking && this.enemySignOffscreen && this.missionEnemyShown) headline = '矢印の先へ進め';
+    // 攻撃の任務でも、本人が見えるまでは同じ一行で移動を案内する。
+    else if (attacking && pinGuideOn(rt) && def.missionStyle !== 'ford' && def.missionStyle !== 'practice' &&
+        (enemy || missionTarget(rt)) && !(this.missionEnemyShown && !this.enemySignOffscreen))
+      headline = 'やじるしへすすめ';
     // 共通の会話相手を矢印で示し、実際に届く距離で文を切り替える。
     const talkGuide = rt.missionGuide;
     const talkPerson = talkGuide?.objective === currentObjective(rt) && talkGuide.marker?.guideTalk && talkGuide.marker.guidePerson?.();
@@ -514,7 +522,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
       const pos = action && (typeof action.pos === 'function' ? action.pos() : action.pos);
       const ready = action && !action.hold && /話す|話を聞く/.test(action.label) && pos &&
         Math.hypot(pos.x - talkPerson.pos.x, pos.z - talkPerson.pos.z) < 1;
-      headline = 'この人と話す';
+      headline = ready ? '「話す」を押そう' : '近づいて話す';
     }
     if (stEl.firstChild._talkSign !== talkSign) {
       stEl.firstChild._talkSign = talkSign;
@@ -544,7 +552,7 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     const point = approach ? destination : enemyOutside ? enemy.pos : destination;
     const steps = point && (approach || enemyOutside || !destination?.enemy && !destination?.unit && !destination?.fire)
       ? Math.ceil(Math.max(0, Math.hypot(point.x - me.x, point.z - me.z) - (approach ? .5 : enemyOutside ? 0 : destination.r ?? 6)) / .75) : 0;
-    const routeSteps = steps > 0 && (approach || enemyOutside || !this.missionEnemyShown && !def.hideGuideSteps);
+    const routeSteps = steps > 0 && !def.missionSingleLine && (approach || enemyOutside || !this.missionEnemyShown && !def.hideGuideSteps);
     nextEl.classList.toggle('route-steps', routeSteps);
     if (routeSteps) { setText(nextEl, `${approach ? '通れる口まで ' : ''}あと${steps}歩`); nextEl.hidden = false; }
     // 必要な号令だけ、今の任務の直下で一度押せるようにする。

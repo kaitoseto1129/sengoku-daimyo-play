@@ -128,6 +128,18 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
           cells[Math.floor(child.y / 8) * columns + Math.floor(child.x / 8)].children.push(child);
         }
         for (const cell of cells) cell.childCoarse = cell.children.some(child => child.reduce);
+        // 二升の画面端選別を保ち、四升の平坦部だけは中間の粗い面へまとめる。
+        // 境界の全頂点を残すため、隣の切岸との継ぎ目も動かさない。
+        if (clipSize === 2) {
+          for (const cell of cells) cell.middle = [];
+          for (const middle of terrainPatches(position, source, widthSegments, heightSegments, 4)) {
+            const cell = cells[Math.floor(middle.y / 8) * columns + Math.floor(middle.x / 8)];
+            middle.far = false;
+            cell.middle.push(middle);
+            for (const child of cell.children) if (child.x >= middle.x && child.x < middle.x + 4
+              && child.y >= middle.y && child.y < middle.y + 4) child.middle = middle;
+          }
+        }
       }
     } else {
       const groups = new Map();
@@ -147,6 +159,7 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
     if (backfaceCull) for (const cell of cells) {
       terrainFaceBounds(cell, position);
       if (cell.children) for (const child of cell.children) terrainFaceBounds(child, position);
+      if (cell.middle) for (const middle of cell.middle) terrainFaceBounds(middle, position);
     }
     // 足場と地形の遮蔽判定は常に元の全ての面を読む。
     geometry.userData.terrainViewIndex = source.array;
@@ -181,8 +194,19 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
       const far = camera.isPerspectiveCamera && cell.error <= 0.08 && distance2 > (cell.far ? 75 * 75 : 85 * 85);
       if (on !== cell.on || far !== cell.far) { cell.on = on; cell.far = far; changed = true; }
       if (on && !far && cell.children) {
-        const fullyInside = inside(box);
-        const whole = !cullFaces && !cell.childCoarse && fullyInside;
+        let middleCoarse = false;
+        if (cell.middle) for (const middle of cell.middle) {
+          middle.box.clampPoint(cameraPoint, nearest);
+          // 画面内に丸ごと入る遠い平坦部だけ。画面端は従来の二升で選ぶ。
+          const reduce = camera.isPerspectiveCamera && middle.coarse.length > 0
+            && middle.coarse.length < middle.indices.length && middle.error <= 0.08
+            && cameraPoint.distanceToSquared(nearest) > (middle.far ? 75 * 75 : 85 * 85)
+            && inside(box.copy(middle.box).expandByScalar(0.1));
+          if (reduce !== middle.far) { middle.far = reduce; changed = true; }
+          middleCoarse ||= reduce;
+        }
+        const fullyInside = inside(box.copy(cell.box).expandByScalar(0.1));
+        const whole = !cullFaces && !cell.childCoarse && !middleCoarse && fullyInside;
         if (whole !== cell.whole) { cell.whole = whole; changed = true; }
         if (!whole) for (const child of cell.children) {
           box.copy(child.box).expandByScalar(0.1);
@@ -203,7 +227,10 @@ export function terrainView(mesh, cellSize = 64, scene = null, clipSize = 0, bac
     let count = 0;
     for (const cell of cells) if (cell.on) {
       if (!cell.far && cell.children && !cell.whole) {
-        for (const child of cell.children) if (child.on) {
+        if (cell.middle) for (const middle of cell.middle) if (middle.far) {
+          count = terrainPackFaces(middle, packed.array, count, cameraPoint, cullFaces);
+        }
+        for (const child of cell.children) if (child.on && !child.middle?.far) {
           count = terrainPackFaces(child, packed.array, count, cameraPoint, cullFaces);
         }
         continue;

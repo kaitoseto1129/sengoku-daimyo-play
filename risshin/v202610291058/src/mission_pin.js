@@ -3,6 +3,7 @@
 //   待つ場所は着いても残す。印と投影用の点は一つを使い回す。
 import * as THREE from 'three';
 import { VIEW, safeInsets } from './viewport.js';
+import { updateFollowGuide } from './mission_follow.js';
 import { missionWaitReached } from './mission_guide.js';
 import { groundAt } from './floors.js';
 import { cameraWallBlocked, inouSignVisible, inouSignHeight, sightScreenUnit } from './battle_sight.js';
@@ -175,6 +176,7 @@ function drawMissionPin(rt) {
   // 行き先の矢印は一本。画面外では方向と名前を同じ印に添える。
   updatePlayerFoot(rt);
   const destination = pinGuideOn(rt) ? target(rt) : null;
+  const following = updateFollowGuide(rt, destination);
   if (destination?.guardBoundary) drawJoinGround(rt, destination,
     !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player.u.alive &&
     !rt.hud.root.classList.contains('photo') && !rt.hud.root.classList.contains('ending') &&
@@ -184,7 +186,7 @@ function drawMissionPin(rt) {
   // 移動中は行き先、到着後は敵。同時に別の場所を指さない。
   const moving = destination && navMe && !destination.enemy && (!destination.unit || destination.unit.team === rt.player.u.team) &&
     Math.hypot(destination.x - navMe.x, destination.z - navMe.z) > (destination.r ?? 6);
-  const taskFirst = destination && (destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
+  const taskFirst = following || destination && (destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
     destination.unit?.team === rt.player.u.team);
   // 森部は共通の頭上▼で間合い・命中まで示す。別の大きな▼と「敵」の札で覆わない。
   const enemyMarked = updateEnemyTarget(rt, rt.def.missionStyle !== 'ford' && (!moving || destination?.route) && !taskFirst);
@@ -192,6 +194,7 @@ function drawMissionPin(rt) {
   rt.hud.missionPinOutside = false;
   rt.hud.missionFlagFrame = null;
   if (pin) pin._lines.style.display = 'none';
+  if (following) { if (pin) pin.hidden = true; return; }
   // 森部は描画面のピン一本で示す。旗と到着のチェックを同じ場所へ重ねない。
   if (rt.def.missionStyle === 'ford') { if (pin) pin.hidden = true; return; }
   const want = pinGuideOn(rt) && !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player?.u?.alive ? target(rt) : null;
@@ -201,12 +204,13 @@ function drawMissionPin(rt) {
     return;
   }
   const closeEnemy = rt.missionGuide?.closeEnemy;
-  // 稲生は本人の▼が画面に見えない間だけピンを使う。
-  const inouEnemy = (rt.def.missionStyle === 'lesson' || rt.def.missionStyle === 'raid') && want?.unit && want.unit.team !== rt.player.u.team;
+  // 稲生・道場は本人の▼が画面に見えない間だけピンを使う（桶狭間の敵は上で除く）。
+  const inouEnemy = (rt.def.missionStyle === 'lesson' || rt.def.missionStyle === 'raid' || rt.def.dojo) && want?.unit && want.unit.team !== rt.player.u.team;
   // ▼の見え方は下の共通の高さ・画面端・任務との重なりで一度だけ判定する。
   // 稲生は頭上の▼を見失った時だけ、同じ本人へ既存の行き先ピンを出す。
   // 頭上へ戻った時は上の判定で畳み、別の兵へ印を重ねない。
-  if (want?.enemy || (want?.unit && want.unit.team !== rt.player.u.team)) {
+  // 稲生・桶狭間・道場は本人の▼と行き先ピン、それ以外は共通の刀に任せる。
+  if (!inouEnemy && rt.def.missionStyle !== 'lesson' && rt.def.missionStyle !== 'raid' && (want?.enemy || (want?.unit && want.unit.team !== rt.player.u.team))) {
     if (pin) pin.hidden = true;
     return;
   }
@@ -693,7 +697,7 @@ function drawMissionPin(rt) {
   label.style.top = '72px'; label.style.left = '50%';
   pin._guardSign.style.display = 'none';
   // 守備はその場所・本人のそばへ、火付けは押せる札へまとめる。
-  const text = want.defend ? '' : talking ? 'この人と話す' : rt.def.missionStyle !== 'lesson' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
+  const text = want.defend ? '' : talking ? '話す' : rt.def.missionStyle !== 'lesson' && working ? action.hold ? '火をつける（長押し）' : '火をつける' : '';
   if (pin._words.textContent !== text) pin._words.textContent = text;
   pin.classList.toggle('fire-action', working && !talking);
   pin.classList.toggle('talk-action', talking);
@@ -827,6 +831,7 @@ function drawMissionPin(rt) {
     }
 
   }
+  if (want.fire && !working) linkPath = fireApproachPath(rt, want, rects);
   pin._targetBadge.setAttribute('d', badgePath);
   for (const path of pin._links) path.setAttribute('d', linkPath);
   for (const path of pin._outlines) path.setAttribute('d', outlinePath);
@@ -925,6 +930,12 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   const enemyPin = rt.def.missionStyle === 'lesson' && want.unit?.team !== undefined && want.unit.team !== rt.player.u.team;
   const destinationPin = raid || enemyPin;
   const joined = raid && (want.area || ford) && want.arrived;
+  // 対岸の先端を固定したまま、遠いピンを小さく、歩いて近づくほど大きくする。
+  // 画面端と到着後の時計は読みやすい一定の大きさに戻す。
+  const pinScale = ford && !outside && !want.arrived
+    ? Math.max(.45, Math.min(1, 18 / Math.max(1, Math.hypot(want.x - rt.player.u.pos.x, want.z - rt.player.u.pos.z)))) : 1;
+  el._simplePin.style.transformOrigin = '0 0';
+  el._simplePin.style.transform = `scale(${pinScale})`;
   // 桶狭間は下のピンを回して使う。他の戦の矢印だけをここに残す。
   el._routeEdge.setAttribute('d', 'M-15-5H3V-13L18 0L3 13V5H-15Z');
   el._routeEdge.setAttribute('fill-rule', 'evenodd');
@@ -1140,6 +1151,38 @@ function updatePlayerFoot(rt) {
     rt.hud.hudRects().some(r => x + 24 > r.left && x - 24 < r.right && y + 12 > r.top && y - 12 < r.bottom);
   if (playerFoot.hidden) return;
   playerFoot.style.transform = `translate(${(x - 24).toFixed(1)}px,${(y - 12).toFixed(1)}px)`;
+}
+// 戸口の炎と足場を一本で結ぶ。画面外と札の上には線を描かない。
+const approachPoint = new THREE.Vector3();
+function fireApproachPath(rt, want, rects) {
+  const p = rt.player.u.pos, dx = want.x - p.x, dz = want.z - p.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < 1) return '';
+  const length = Math.min(distance, 36), count = 12;
+  let path = '', joined = false, lastX = 0, lastY = 0, tipX = 0, tipY = 0, tipAngle = 0, arrow = false;
+  for (let i = 0; i <= count; i++) {
+    const t = (1 + (length - 1) * i / count) / distance;
+    const x = p.x + dx * t, z = p.z + dz * t;
+    approachPoint.set(x, groundAt(rt.world, x, z, p.y) + .12, z);
+    approachPoint.project(rt.camera);
+    const sx = (approachPoint.x + 1) * VIEW.w / 2, sy = (1 - approachPoint.y) * VIEW.h / 2;
+    let clear = approachPoint.z >= -1 && approachPoint.z <= 1 &&
+      sx > 32 && sx < VIEW.w - 32 && sy > 80 && sy < VIEW.h - 24;
+    if (clear) for (const r of rects) {
+      if (sx > r.left - 8 && sx < r.right + 8 && sy > r.top - 8 && sy < r.bottom + 8) { clear = false; break; }
+    }
+    if (!clear) { joined = false; continue; }
+    if (joined && Math.hypot(sx - lastX, sy - lastY) > 4) {
+      tipX = sx; tipY = sy; tipAngle = Math.atan2(sy - lastY, sx - lastX); arrow = true;
+    }
+    path += `${joined ? 'L' : 'M'}${sx.toFixed(1)} ${sy.toFixed(1)}`; joined = true;
+    lastX = sx; lastY = sy;
+  }
+  if (arrow) {
+    const ux = Math.cos(tipAngle), uy = Math.sin(tipAngle);
+    path += `M${tipX - ux * 12 - uy * 7} ${tipY - uy * 12 + ux * 7}L${tipX} ${tipY}L${tipX - ux * 12 + uy * 7} ${tipY - uy * 12 - ux * 7}`;
+  }
+  return path;
 }
 const areaPoint = new THREE.Vector3();
 const areaEnd = new THREE.Vector3();

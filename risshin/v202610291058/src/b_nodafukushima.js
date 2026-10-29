@@ -1846,10 +1846,19 @@ function nodaRiverBanks(rt) {
     if (rock?.parent) { rock.parent.remove(rock); rock.geometry.dispose(); rock.material.dispose(); }
     st.rockMesh = null;
   }
+  const bankStone = (o) => o?.isInstancedMesh && o.geometry?.type === 'DodecahedronGeometry' && o.material?.color?.getHex() === 0x68695b;
   for (const mesh of scene.children.slice()) {
-    if (!mesh.isInstancedMesh || mesh.geometry?.type !== 'DodecahedronGeometry' || mesh.material?.color?.getHex() !== 0x68695b) continue;
+    if (!bankStone(mesh)) continue;
     scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
   }
+  // 共通の岸の石は、兵が初めて動いた時（開戦の後）に足される。設営時に外すだけでは堤に残った（10/28）。
+  // 後から足される時も、この戦の場面には入れない。足す時だけ調べ、毎コマは触らない。
+  const sceneAdd = W.scene.add;
+  W.scene.add = function (...items) {
+    if (!items.some(bankStone)) return sceneAdd.apply(this, items);
+    for (const o of items) if (bankStone(o)) { o.geometry.dispose(); o.material.dispose(); }
+    return sceneAdd.apply(this, items.filter((o) => !bankStone(o)));
+  };
   const reedGeo = new THREE.BufferGeometry(), blade = [];
   // 細い葉を六枚、先を外へしならせる。
   for (let k = 0; k < 6; k++) {

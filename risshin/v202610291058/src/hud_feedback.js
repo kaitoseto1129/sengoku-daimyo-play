@@ -8,7 +8,7 @@ import { taskText } from "./mission_guide.js";
 import { battleDialogueMuted } from './speech_clean.js';
 
 // 戦の画面では、知らせ・見出し・連撃の字を出さない（kaito 10/23「無駄なものが多すぎる」）。
-const fieldScreen = (rt) => !!rt?.def && !rt.def.town && !rt.def.dojo;
+const fieldScreen = (rt) => !!rt?.def && !rt.def.town && (!rt.def.dojo || rt.def.missionSingleLine);
 
 export class HudFeedback {
 
@@ -210,6 +210,7 @@ export class HudFeedback {
 
   // 討ち取った印
   killMark() {
+    if (fieldScreen(this.rt)) return;
     if (!this.rt?.def.dojo) return;
     if (!this.killHelp) { this.killHelp = true; this.notices.push('稽古相手を倒した', 30, 4); }
     const el = $('killmark');
@@ -222,7 +223,7 @@ export class HudFeedback {
 
   // 討った場所に小さく戦功を浮かべる
   floatText(pos, text, neg) {
-    if (this.rt && !this.rt.def.town && !this.rt.def.dojo) return;
+    if (fieldScreen(this.rt)) return;
     if (!S.floatMerit || !pos) return;
     this.floats = this.floats || [];
     const el = document.createElement('div');
@@ -257,6 +258,8 @@ export class HudFeedback {
     const hit = word === '槍' ? '槍で突かれた' : word === '鉄砲' ? '鉄砲で撃たれた' : word === '矢' ? '矢を受けた' : '一撃を受けた';
     const retreat = this.rt?.def.damageRetreatNeeded?.(this.rt) ?? true;
     if (this.rt && retreat) this.rt.retreatUntil = Math.max(this.rt.retreatUntil || 0, this.rt.t + 3);
+    // 被弾は縁の赤みと命の棒で返す。任務と競合する退避の文を重ねない。
+    if (fieldScreen(this.rt)) return;
     const action = retreat ? this.rt?.def.damageRetreatText || '味方の後ろへ下がれ' : word === '矢' || word === '鉄砲' ? '物陰で矢玉を避けよ' : '敵へ向いて構えよ';
     this.notices.push((visible ? direction + 'から' : '') + hit + '。' + action, 85, 3);
   }

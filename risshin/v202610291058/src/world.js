@@ -76,6 +76,7 @@ export class World {
         if (!cam?.isPerspectiveCamera) {
           // 上から見る地図へ替えた時は、直前の画面外判定を持ち越さない。
           if ((this.def.armyViewCull ?? true) && this.armyView?.active) { this.detailCam = cam; this.lodTick(0, true); }
+          if (this.materialDrawPreparers) for (const prepare of this.materialDrawPreparers) prepare(r, sc, cam);
           return;
         }
         // 早送り・一時停止の後も、最初の一枚から今の視点で遠景を選ぶ。
@@ -106,6 +107,9 @@ export class World {
         // 固定物は焼いた地面の影で保ち、動く影の描き込みへ入れない。
         const shadowFocus = this.lastFocus || this.sun.target.position;
         shadowRange(sc, shadowFocus.x, shadowFocus.z, this.shadowWalk, 0);
+        // 非表示の束も場面側から選び直す。転送前に索引をそろえ、空の束は描かず、
+        // 視点が戻った束は同じ一枚で復帰させる。物自身の描画直前では復帰できない。
+        if (this.materialDrawPreparers) for (const prepare of this.materialDrawPreparers) prepare(r, sc, cam);
         this.armyBatch.draw(r, cam, this.armies, this.clashes);
       };
       const after = scene.onAfterRender;

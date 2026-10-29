@@ -156,10 +156,13 @@ export class HudMap {
     }
     // 小地図は自分と任務の相手が主役。隊の代表だけを最大四つ残す。
     if (rotate) {
-      const enemy = rt.army.missionMarkedEnemy || markedEnemy(rt);
+      const destination = missionTarget(rt);
+      const routeFirst = destination && !destination.enemy && (!destination.unit || destination.unit.team === p.team);
+      const enemy = routeFirst ? null : rt.army.missionMarkedEnemy || markedEnemy(rt);
       const placed = this._compactMapMarks || (this._compactMapMarks = []);
       let count = 0, allies = 0, enemies = 0;
       for (const grp of rt.army.groups) {
+        if (tiny) break; // 携帯の小地図は自分と今の行き先だけ。
         if (!grp.count || grp.routed || grp.name === 'player') continue;
         const foe = grp.team !== p.team;
         if (foe ? enemies >= 2 : allies >= 2) continue;
@@ -167,8 +170,8 @@ export class HudMap {
         if (!sightRef(rt, grp, c)) continue;
         const q = tr(c.x, c.z), x = q[0], y = q[1];
         if (Math.hypot(x - Sz / 2, y - Sz / 2) < 15 * px || Math.hypot(x - Sz / 2, y - Sz / 2) > Sz / 2 - 9 * px) continue;
-        if (enemy) {
-          const e = tr(enemy.pos.x, enemy.pos.z);
+        if (enemy || destination) {
+          const e = tr((enemy?.pos || destination).x, (enemy?.pos || destination).z);
           if (Math.hypot(x - e[0], y - e[1]) < 17 * px) continue;
         }
         let overlap = false;
@@ -184,13 +187,13 @@ export class HudMap {
         if (foe) enemies++; else allies++;
       }
       // 行き先は旗。味方の四角・敵の三角とは形を変える。
-      const destination = missionTarget(rt);
-      if (destination && !destination.enemy && !destination.unit && (!enemy || destination.route || destination.guardBoundary)) {
+      if (routeFirst) {
         const q = tr(destination.x, destination.z);
         const dx = q[0] - Sz / 2, dy = q[1] - Sz / 2, length = Math.hypot(dx, dy);
-        const scale = Math.min(1, (Sz / 2 - 15 * px) / Math.max(1, length));
-        const x = Sz / 2 + dx * scale, y = Sz / 2 + dy * scale;
-        g.save(); g.translate(x, y); g.scale(px, px);
+        const distance = Math.max(22 * px, Math.min(Sz / 2 - 16 * px, length));
+        const scale = distance / Math.max(.01, length);
+        const x = Sz / 2 + dx * scale, y = Sz / 2 + (length > .01 ? dy * scale : -distance);
+        g.save(); g.translate(x, y); g.scale(px * 1.15, px * 1.15);
         g.beginPath(); g.moveTo(-3, 8); g.lineTo(-3, -9); g.lineTo(9, -9);
         g.lineTo(5, -4); g.lineTo(9, 0); g.lineTo(-3, 0);
         g.strokeStyle = C.ink; g.lineWidth = 4; g.stroke();
@@ -199,17 +202,16 @@ export class HudMap {
       if (enemy && (rt.def.mapCommanderAlways || inouSignVisible(rt, enemy))) {
         const q = tr(enemy.pos.x, enemy.pos.z);
         let dx = q[0] - Sz / 2, dy = q[1] - Sz / 2;
-        const length = Math.hypot(dx, dy), distance = Math.max(18 * px, Math.min(Sz / 2 - 10 * px, length));
+        const length = Math.hypot(dx, dy), distance = Math.max(23 * px, Math.min(Sz / 2 - 13 * px, length));
         dx = length > .01 ? dx / length : 0; dy = length > .01 ? dy / length : -1;
-        const x = Sz / 2 + dx * distance, y = Sz / 2 + dy * distance, r = 7 * px;
-        g.beginPath(); g.moveTo(q[0], q[1]); g.lineTo(x, y); g.strokeStyle = C.enemy; g.lineWidth = 1.5 * px; g.stroke();
+        const x = Sz / 2 + dx * distance, y = Sz / 2 + dy * distance, r = 8 * px;
         g.beginPath(); g.moveTo(x, y - r); g.lineTo(x + r, y + r); g.lineTo(x - r, y + r); g.closePath();
         g.strokeStyle = C.ink; g.lineWidth = 4 * px; g.stroke();
         g.strokeStyle = '#fff'; g.lineWidth = 2 * px; g.stroke(); g.fillStyle = C.enemy; g.fill();
       }
       g.save(); g.translate(Sz / 2, Sz / 2);
       g.rotate(yaw - p.heading);
-      g.beginPath(); g.moveTo(0, -8 * px); g.lineTo(6 * px, 6 * px); g.lineTo(0, 3 * px); g.lineTo(-6 * px, 6 * px); g.closePath();
+      g.beginPath(); g.moveTo(0, -11 * px); g.lineTo(8 * px, 8 * px); g.lineTo(0, 4 * px); g.lineTo(-8 * px, 8 * px); g.closePath();
       g.strokeStyle = C.ink; g.lineWidth = 3 * px; g.stroke(); g.fillStyle = '#fff'; g.fill(); g.restore();
       g.restore();
       g.beginPath(); g.arc(Sz / 2, Sz / 2, Sz / 2 - px, 0, Math.PI * 2);

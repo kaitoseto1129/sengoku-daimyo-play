@@ -187,6 +187,8 @@ function fgSphere(G, i) { const F = G.F, o = i * FG.K; _fgSphere.center.set(F[o 
 // 小谷の城：区画を消しても、同じ材質は一回で描く。破壊後は既存の窓口で元の形へ戻す。
 function materialShape(mesh, world, entries, parts) {
   const hi = mesh.geometry, lo = new THREE.BufferGeometry();
+  // 焼き直す影には画面の区画選別を持ち込まない。破壊後も元の形の更新を共有する。
+  mesh.userData.staticShadowGeometry = hi;
   // 書き換える位置と法線だけ複製する。色・木目などは近景と共有し、
   // 直後に置き換える索引も複製しない。城全体の支度で写しを重ねない。
   for (const [name, attribute] of Object.entries(hi.attributes))
@@ -266,7 +268,10 @@ function materialShape(mesh, world, entries, parts) {
   // 面数ゼロの描画も一回に数えられるので、画面にも影にも不要な束は送らない。
   const drawVisibility = () => {
     // 影の範囲はこの後に決まるため、影を落とす束は空でも残す。
-    if (beforeDraw) mesh.visible = mainN > 0 || mesh.castShadow;
+    if (beforeDraw) {
+      mesh.visible = mainN > 0 || mesh.castShadow;
+      mesh.userData.materialViewHidden = !mesh.visible;
+    }
   };
   // 壊れた一区画だけ元の形へ戻す。残る城の区画の省略と遠景の形は保つ。
   mesh.userData.refreshMaterialPart = (id) => {

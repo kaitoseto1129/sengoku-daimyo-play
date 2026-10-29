@@ -550,7 +550,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
       </nav>
     </div>
     <div id="new-confirm"></div>
-    <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">練習・ほかの戦い</h3><p class="note">稲生（いのう）で、移動と攻撃を一つずつ覚えます。保存した本編は進みません。</p><div class="row"><button class="btn small" id="b-words">用語集を開く</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}</div><p class="note">本編とは別に遊べます。戦功・身分・物語の進みには反映しません。会った武将は共通の図鑑に残ります。稽古場の最高と、稽古場で得た実績も全保存記録共通です。</p><div class="row"><button class="btn primary" id="b-dojo">操作を練習する（稲生）</button>${onSamurai ? '<button class="btn small" id="b-samurai">戦を選ぶ</button>' : ''}${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
+    <section class="tt-panel" id="tt-alt" hidden aria-labelledby="tt-alt-h"><h3 class="tt-ph" id="tt-alt-h">練習・ほかの戦い</h3><p class="note">稲生（いのう）で、移動と攻撃を一つずつ覚えます。保存した本編は進みません。</p><div class="row"><button class="btn small" id="b-words">用語集を開く</button>${mapOn ? '<button class="btn small" id="b-japan">天下の地図へ</button>' : ''}</div><p class="note">本編の手柄・役職・物語の進みは変わりません。会った武将は共通の図鑑に残ります。練習の最高記録と、練習で得た実績は、どの保存記録でも共通です。</p><div class="row"><button class="btn primary" id="b-dojo">操作を練習する（稲生）</button>${onSamurai ? '<button class="btn small" id="b-samurai">戦を選ぶ</button>' : ''}${onJapan && !mapOn ? '<button class="btn small" id="b-japan">日本地図を試す</button>' : ''}${location.hash === '#mvp' ? '<button class="btn small" id="b-rojotest">籠城の試し（開発用）</button>' : ''}</div>${onJapan && !mapOn ? '<p class="note">日本地図は、本編で足軽大将になるか、筋書きを終えると、城下から本編の続きとして進められます。</p>' : ''}</section>
     <div id="samurai-pick"></div>
     <section class="tt-panel" id="tt-data" hidden aria-labelledby="tt-data-h"><h3 class="tt-ph" id="tt-data-h">保存記録</h3><p class="note">空き枠を押してから、出陣の釦で始めます。<br>保存はこの閲覧画面だけに残ります。別の端末や閲覧画面へは保存文字列か保存保存文書で移します。<br>城下で自動保存します。保存文字列は城下で保存した時の控えです。進行・図鑑・実績・稽古の記録が入ります。端末の設定と戦の途中の状態は含みません。</p>
     <div class="field" style="max-width:none"><label id="lb-slot">保存の枠</label><div class="slots" role="group" aria-labelledby="lb-slot">${slots.map((g, i) => `<button class="slotcard ${i === S.slot ? 'on' : ''}" data-slot="${i}" aria-pressed="${i === S.slot}"><b>枠 ${i + 1}</b><small>${readings[i].bad ? '！ 読めない記録。保存文字列から再開してください' : g ? `${esc(g.name)}・${esc(RANKS[g.rank].name)}<br>${esc(nextOf(g))}<br>累計戦功 ${g.merit || 0}` : '空き'}</small>${g && (g.grades || []).some(Boolean) ? `<span class="sl-g" aria-label="戦ごとの評定">${lineOf(g).map((b, j) => (g.grades[j] ? `<i class="g-${esc(g.grades[j])}" title="${esc(b.name)}">${esc(g.grades[j])}</i>` : '')).join('')}</span>` : ''}</button>`).join('')}</div></div>
@@ -596,7 +596,6 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     dialog.showModal();
     reading.focus({ preventScroll: true });
   };
-  $('b-words').onclick = () => openGlossary();
   // 名を決める札の固定帯だけ、下に余白を取る。
   {
     const wrap = scr.querySelector('.wrap'), ta = scr.querySelector('.title-act'), na = scr.querySelector('.ng-act');
@@ -781,6 +780,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   $('b-set').onclick = remember('b-set', onSettings);
   bindFullPurchase();
   if ($('b-records')) $('b-records').onclick = remember('b-records', onRecords);
+  $('b-words').onclick = () => openGlossary();
   $('b-dojo').onclick = onPractice;
   // 開発用（#mvp の時だけ出る）：束16 籠城の日の画面の試し
   if ($('b-rojotest')) $('b-rojotest').onclick = () => { sfx('ui'); window.__game.testRojo(); };

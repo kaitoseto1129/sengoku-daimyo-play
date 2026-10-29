@@ -28,7 +28,7 @@ import { camp } from './b_mid.js';
 import { placeGroup, placePlayer } from './b_opening.js';
 import { pressureTick } from './battle_pressure.js';
 import { timeslipField } from './timeslip_field.js';
-import { demDetail } from './dem.js';
+import { demDetail, demSample } from './dem.js';
 import { yamaLift } from './yamalift.js';
 import { distToPolyline, WIND_STATE } from './world.js';
 import { drawGroundAt, guardDrawCamera } from './render_camera.js';
@@ -37,7 +37,8 @@ import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 // 実測地形（国土地理院 標高タイル下ごしらえ）：金華山の本当の尾根・谷の形に混ぜる（城の部品の位置はそのまま）。
 // いつも使う（quality-upgrade-plan 束2。DEM_ON の分かれはやめた）。最初の画面を軽くするため遅れて読む（他の戦と同じやり方）
 let DEM = null;
-useTerrain('dem_inabayama', (data) => { DEM = data; });
+// 読めた時・外れた時は、前に作った高さの覚えを捨てて作り直す（実測の無い高さが残らないように）
+useTerrain('dem_inabayama', (data) => { DEM = data; DEM_MT.ring = null; CASTLE_HEIGHT = null; BENCHED = null; LIFT.rise = null; });
 import { reset as flReset, addRamp } from './floors.js';
 import { monomi, goten, horiboriHeight } from './castle_parts.js';
 import { heightOf, inPoly, buildCastlePlan, garrisonKuruwa, makeLordKeep } from './castle_plan.js';
@@ -1226,7 +1227,30 @@ function proceduralBase(x, z) {
 // 既定は上の proceduralBase。setInabayamaBase(fn) を呼べば、以後の height() がそちらを使う
 let baseOverride = null;
 export function setInabayamaBase(fn) { baseOverride = fn; CASTLE_HEIGHT = null; BENCHED = null; LIFT.rise = null; }
-const DEM_DETAIL = { xy: 1.5, ox: HON.x, oz: HON.z, win: 40, scale: 0.3 };
+// 実測の金華山（国土地理院 DEM5A）を山の形の既定にする（10/28）。ゲームの 1 は実の 2.6m（山の裾 R=150 が実の約 400m＝格子の端に届く）。
+// 実測の山頂（格子の (-20,10)m）を本丸に合わせる。山頂から同じ距離の輪の平均より高い所（尾根）は山を太らせ、低い所（谷）は削る。
+// 掛けるのは手書きの山の持ち上げ（yamaLift）に対してだけ＝裾の町・川は持ち上げない。山上の曲輪と道の段（上 45%）は縄張りのまま。
+const DEM_MT = { xy: 2.6, px: -20, pz: 10, k: 0.005, lo: 0.6, hi: 1.2, ring: null };
+const DEM_DETAIL = { xy: DEM_MT.xy, ox: HON.x - DEM_MT.px / DEM_MT.xy, oz: HON.z - DEM_MT.pz / DEM_MT.xy, win: 40, scale: 0.3 };
+function demRing(d) {
+  const lim = d.range || (d.n - 1) / 2 * d.step, s = new Float64Array(120), c = new Float64Array(120);
+  for (let z = -lim; z <= lim; z += 5) for (let x = -lim; x <= lim; x += 5) {
+    const i = Math.round(Math.hypot(x - DEM_MT.px, z - DEM_MT.pz) / 5);
+    if (i < 120) { s[i] += demSample(d, x, z); c[i]++; }
+  }
+  return Array.from(s, (v, i) => (c[i] ? v / c[i] : 0));
+}
+function demShape(x, z) {
+  if (!DEM) return 1;
+  const M = DEM_MT, lim = DEM.range || (DEM.n - 1) / 2 * DEM.step;
+  const sx = (x - HON.x) * M.xy + M.px, sz = (z - HON.z) * M.xy + M.pz;
+  const e = lim - Math.max(Math.abs(sx), Math.abs(sz));
+  if (e <= 0) return 1;
+  if (!M.ring) M.ring = demRing(DEM);
+  const r = Math.hypot(sx - M.px, sz - M.pz) / 5, i = Math.min(118, Math.floor(r)), t = r - i;
+  const a = (demSample(DEM, sx, sz) - (M.ring[i] * (1 - t) + M.ring[i + 1] * t)) * Math.min(1, e / 60);
+  return Math.max(M.lo, Math.min(M.hi, 1 + a * M.k));
+}
 function base(x, z) {
   const b = (baseOverride || proceduralBase)(x, z);
   // 実測の尾根・谷の凹凸だけを足す（DEM の原点＝本丸に合わせる。前は原点がずれて、道の途中に山頂が出ていた）
@@ -1340,6 +1364,9 @@ function liftedBase(x, z) {
   if (LIFT.rise == null) LIFT.rise = 300 + base(YAKATA.x, YAKATA.z) - base(HON.x, HON.z);
   let lift = yamaLift(x, z, LIFT);
   if (lift > 0) {
+    // 実測の尾根と谷（上 45% の山上部へは薄めて、縄張りの段はそのまま）
+    const u = lift / LIFT.rise, w = u < 0.55 ? 1 : Math.max(0, 1 - (u - 0.55) / 0.2);
+    if (w > 0) lift *= 1 + (demShape(x, z) - 1) * w;
     const r = lift / LIFT.rise;
     // 裾は町へ向かって緩く寝かせる（一直線の崖の壁にしない）。裾の長さを東西で揺らし、尾根と谷の出入りを付ける
     const toe = 0.15 * (0.75 + 0.3 * Math.sin(x * 0.043 + 0.7) + 0.15 * Math.sin(x * 0.11 + 2.1));
@@ -2530,7 +2557,10 @@ function inabaTreeDensity(x, z) {
   const y = height(x, z);
   const slope = Math.max(Math.abs(height(x + 1, z) - y), Math.abs(height(x - 1, z) - y),
     Math.abs(height(x, z + 1) - y), Math.abs(height(x, z - 1) - y));
-  if (slope >= 1.2) return 0;
+  // 町から見上げる南の山すそ（z -30〜28）は、急な崖の間の岩棚にも林を残す。最初の画面で岩肌と樹冠が交じって見える（10/28 点付け）。
+  const foot = z > -30 && x > -36 && x < 96 ? Math.min(1, (z + 30) / 24) : 0;
+  if (slope >= 1.2 + foot * 0.6) return 0;
+  if (foot > 0 && slope > 0.35) return (0.18 + 0.32 * foot) * Math.min(1, (1.8 - slope) / 0.5);
   const edge = Math.max(Math.abs(x) / 108, Math.abs(z + 62) / 100);
   const t = Math.max(0, Math.min(1, (edge - 0.85) / 0.35));
   const density = 0.035 + (1 - inabaRockBand(x, z)) * 0.04 + 0.60 * t * t * (3 - 2 * t);
@@ -2605,6 +2635,12 @@ function buildInabaMountain(rt) {
         smoothstep(0.02, 0.14, vInabaRock) * smoothstep(0.18, 0.5, ibSlope));
       // 曲輪の切岸・土塁は本の CG の草の土手を残す（城の地面の効きの分だけ岩肌を引く）
       ibRock *= 1.0 - castleCover;
+      // 遠くの崖が一枚の灰の板に見えないよう、チャートの層の筋・岩の濃淡・岩棚の笹の斑を重ねる。
+      float ibN = sin(vWP.x * 0.21 + vWP.z * 0.13) * sin(vWP.z * 0.17 - vWP.x * 0.07 + vWP.y * 0.09);
+      float ibLayer = smoothstep(0.6, 0.95, abs(sin(vWP.y * 0.8 + vWP.x * 0.11 + ibN * 1.6)));
+      ibStone *= mix(0.62, 1.04, macro) * (1.0 - ibLayer * 0.34) * (0.88 + ibN * 0.14);
+      float ibScrub = smoothstep(0.1, 0.55, ibN + macro2 * 0.6 - 0.2) * smoothstep(0.9, 0.35, ibSlope);
+      ibStone = mix(ibStone, grass * vec3(0.5, 0.58, 0.4), ibScrub * 0.8);
       col = mix(col, ibStone, ibRock);
       float ibTrail = texture2D(inabaTrail, (vWP.xz + ${W.half.toFixed(1)}) / ${(W.half * 2).toFixed(1)}).r;
       // 上から描いた道の帯を縦の切岸へ引き延ばさない。歩ける坂の土色は残す。
@@ -2613,9 +2649,11 @@ function buildInabaMountain(rt) {
       diffuseColor.rgb *= col;`);
     // 井口の町から金華山の山頂（比高約300m）が霧で消え、山城の戦なのに城山が画面に無かった（10/28）。
     // 高い所（標高20m〜110m で次第に）の山肌だけ、霧の見通しの外でも霞んだ山影として残す。兵・建物・低い地面の霧は変えない。
+    // 町（z>30）から見上げる金華山の南の斜面（z<60・地面から一・五メートルより上）は霧を六割五分まで薄め、チャートの岩肌と林の色を見せる（10/28）。
+    // 南の崖は日の陰で黒い壁に見えた（10/28 点付け：山を明るく）。山すそから上の山肌だけを最大五割五分明るくする。
     sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace(
       'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );',
-      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
+      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  fogFactor = min(fogFactor, mix(1.0, 0.65, (1.0 - smoothstep(60.0, 90.0, vWP.z)) * smoothstep(1.5, 10.0, vWP.y)));\n  gl_FragColor.rgb *= 1.0 + 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
   };
   mat.addEventListener('dispose', () => trail.dispose());
 
@@ -3919,7 +3957,8 @@ const inabayama = {
   enemyTriangleSigns: true,
   missionPinCaption: '',
   keepTaskLabel: true,
-  spawn: { x: 44, z: 112, heading: Math.atan2(28 - 44, 104 - 112) },
+  // 藤吉郎（28,104）と金華山の間を向いて立つ。両方が最初の画面に入る（10/28）。
+  spawn: { x: 44, z: 112, heading: Math.atan2(-0.65, -0.76) },
   // 身の回りの当時の場（timeslip_field.js）。公記の強風は放火の日の記事で、八月十五日の開城日の天候ではない。
   // 井口の城下の往来は乾いて踏まれ、焼き払いの土埃が流れる。辻と木戸ほど倒れた槍・矢・斎藤方の旗が多い。
   // 置くのは城下（z 26 より南）だけ。家と寺の床、山の上の曲輪には置かない。
@@ -3935,7 +3974,7 @@ const inabayama = {
     text = text.replace(/藤吉郎の旗/g, '旗の人').replace(/鹿垣/g, 'さく').replace(/城兵/g, '城の敵').replace(/下知/g, '話');
     if (F.ending) return '任務は達成。仲間と持ち場を守ろう';
     if (F.retreatMarked || F.regroup && F.step !== 3) return text;
-    if (F.step === 0) return 'この人と話す';
+    if (F.step === 0) return it?.id === 'talk' ? '「話す」を押そう' : '近づいて話す';
     // 全ての守兵が退いた後は、新手待ちや交戦の案内で出口への下知を隠さない。
     if (F.step === 1 && F.townSoundWait) return '町の出口で仲間と並ぼう。合図の後、翌日の囲みへ';
     // 新手を待つ間は、敵のいない印や竹束を置く操作へ呼ばない。
@@ -3959,7 +3998,7 @@ const inabayama = {
     // 最後の合図は、信長で遊ぶ時も本人が火を付ける。
     if ((F.step === 1 && F.lit < NEED && !rt.G.lord) || (F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
-      return fire ? `「${it.label}」を${F.step === 1 ? '押そう' : '長押し'}`
+      return fire ? `「${it.label}」を${it.hold ? '長押し' : '押そう'}`
         : F.step === 1 ? '火の印の家へ'
         : inabaSignalDetour(rt) ? '建物の外の道を回って、小屋の印へ' : '火の印の小屋へ';
     }
@@ -4888,7 +4927,7 @@ const inabayama = {
       rt.after(2.5, () => this.burnStart(rt));
     };
     // 藤吉郎の周りは手の兵が囲み、輪（8m）の縁で人垣に止められる。話せる間合いを人垣の外まで広げる（10/28 bot が 8 分止まった）。
-    // 指の端末では「話す」の丸も札も出ない（攻撃の丸だけ）。近づけば update で話が始まる。
+    // 人垣の外まで届く共通の「話す」釦から、本人の意思で話を聞く。
     rt.addInteract('talk', () => F.kinoU.alive ? F.kinoU.pos : null, '話す', F.talkKino, { r: 12, prio: 10 });
     buildBattleJin(rt);
   },
@@ -5151,6 +5190,18 @@ const inabayama = {
       let row = 0;
       for (const q of rt.squadGroups || []) placeGroup(rt, q, 4 + row++ * 3, SHIKA_Z + 12);
       buildShikaMaterials(rt);
+      if (!F.shikaEntryMarks) {
+        F.shikaEntryMarks = true;
+        for (const i of SHIKA_GAPS) for (const end of [0, 1]) {
+          const x = SHIKA_X0 + (i + end) * SHIKA_W;
+          const z = SHIKA_Z + Math.sin(i + end) * 1.2;
+          for (const [mat, radius, height] of [[SHIKA_EDGE_DARK, .2, 2.4], [SHIKA_EDGE_GOLD, .14, 2.1]]) {
+            const post = new THREE.Mesh(SHIKA_GEO, mat);
+            post.position.set(x, W.heightAt(x, z) + 1.2, z);
+            post.scale.set(radius, height, radius); rt.scene.add(post);
+          }
+        }
+      }
       // 翌日の持ち場に着いてから、藤吉郎の組で備えの合図を出す。
       const readyCall = inabaGroupCall(rt, F.kino, 'sig_hajime', 0.8);
       F.oteReadyCall = readyCall;
@@ -5787,9 +5838,6 @@ const inabayama = {
   },
 
   update(rt, dt) {
-    { const F = rt.flags, k = F.kinoU, u = rt.player?.u;
-      // 指の端末で押す丸が無いため、藤吉郎の人垣の外（12m）まで来たら話を聞いた事にする（10/28）。
-      if (F.step === 0 && !F.joinedKino && F.talkKino && k?.alive && u?.alive && Math.hypot(k.pos.x - u.pos.x, k.pos.z - u.pos.z) < 12) F.talkKino(); }
     const F = rt.flags;
     if (F.torches) {
       if (F.step === 1 && !F.ending && !rt.over && rt.player.u.alive) F.torches.update();

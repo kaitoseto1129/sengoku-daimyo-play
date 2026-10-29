@@ -48,7 +48,18 @@ Object.assign(takato, {
   missionHeading(rt) {
     if (rt.over || rt.flags.ending) return rt.tracker.main ? '本丸を守り抜いた' : '味方と退け';
     if (roomExit(rt)) return '戸口へ戻れ';
-    if (rt.flags.retreatTo) return '味方の後ろへ';
+    // 一行の下知にも到着後の行動を通す。下がれのままでは手当てへ移れない。
+    if (rt.flags.retreatTo) {
+      const p = rt.player, q = rt.flags.retreatTo;
+      if (p.treating) return '手当てを続けよ';
+      if (p.treatmentReady) return '手当てを三秒長押し';
+      if (Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) < 1.5 &&
+          !rt.flags.closeFoe?.alive) {
+        if (needsShelter(rt)) return 'ここで手当ての支度';
+        return '構えを解いて休め';
+      }
+      return '味方の後ろへ';
+    }
     return this.missions[this.missionOf(rt)];
   },
   commanderTarget(rt) {
@@ -801,6 +812,8 @@ takato.world.brokenNeedleTiers = true;
 // 松・雑木も透ける枝房へ替える。幹と矢玉の当たり、本数は保つ。
 takato.world.branchFoliage = true;
 takato.world.foldedNeedleCards = true;
+// 横向きにそろった松の葉房の縁も崩す。既存の共用形の設定だけを使う。
+takato.world.raggedPineCrowns = true;
 // 縦に立った細い葉房を、幹から外へ垂れる枝先にする。形と材質は全株で共有する。
 takato.world.slopingNeedleBoughs = false; // 10/28：垂れた平たい房が棕櫚の葉の板に見えた
 // 横から薄い棚になる杉の房を起こす。既存の少ない葉房を全株で共有する。

@@ -1970,7 +1970,7 @@ const odani = {
     mergeStaticBatches: true,
     lowMaterialBatch: true,
     distantMaterialBatch: true, // 高でも見えない城の区画を外し、遠い凹凸だけ簡略化する。
-    staticBatchBeforeDraw: false, // 10/28：真では束が転送前の準備で0面のまま隠れ、柵・塀・建物が描かれなかった（設楽原と同じ）。元の説明：城の索引も地面と同じく転送前にそろえ、柱や壁の欠けを防ぐ。
+    staticBatchBeforeDraw: true, // 場面側で非表示の束も準備し、見えない城を省き、視点が戻れば同じ一枚で復帰する。
     staticBackfaceCull: true, // 城の裏向きの面は送らず、影と壊れる木組みは保つ。
     staticFaceCell: 2, // 長い塀や石垣の画面外を二メートル区画で外す。材質ごとの一回描画は保つ。
     staticFaceNormalStep: 0.0625, // 石と丸太の向きを細かく分け、裏面判定の余分な余裕を減らす。

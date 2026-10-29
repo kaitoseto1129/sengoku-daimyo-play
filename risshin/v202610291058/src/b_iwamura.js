@@ -1307,6 +1307,25 @@ const iwamura = {
       const pts = seg.map(([x, z]) => castlePoint(x, z));
       rt.scene.add(ishigaki(W, pts, { kind: 'nozura', topY: Math.max(...pts.map(([x, z]) => W.heightAt(x, z))) + .3, minH: 1.2, maxH: 2.2, out: -1, noKit: true }));
     }
+    // 城山の南の切岸に段の野面石垣を三段（水晶山の持ち場から霧越しに段が見える。10/28）。高さの等高線に沿わせる。範囲と段の数は推定。
+    // 霧の中で白く浮かないよう、苔と夕陰で沈んだ石の色にする（材質は三段で一つを共用）。
+    const shadeStone = new Map();
+    for (const h of [22, 44, 68]) {
+      const pts = [];
+      for (let x = -66; x <= 42; x += 9) {
+        let lo = -175, hi = -95;   // 南（+z）ほど低い。高さ h の所を二分で探す
+        for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2; if (W.heightAt(x, m) > h) lo = m; else hi = m; }
+        pts.push([x, (lo + hi) / 2 + 0.6]);
+      }
+      const wall = ishigaki(W, pts, { kind: 'nozura', top: 0.3, minH: 4, out: 1, big: 1.8, noKit: true });
+      wall.traverse((o) => {
+        if (!o.material || Array.isArray(o.material)) return;
+        let m = shadeStone.get(o.material);
+        if (!m) { m = o.material.clone(); m.color.multiplyScalar(0.5); shadeStone.set(o.material, m); }
+        o.material = m;
+      });
+      rt.scene.add(wall);
+    }
     // 陣の番所も両翼の仮小屋と同じ低い切妻へ。建物の形は推定復元。
     // 梁・鴨居・板戸へ室内高をそろえて渡し、天井下地を屋根裏へ納める。
     const [watchX, watchZ, watchW, watchD] = CAMP_SERVICE_HOUSES[0];
@@ -2498,7 +2517,8 @@ const iwamura = {
         vec2 iwaUV = (vWP.xz + vec2(240.0, 140.0)) / 360.0;
         float iwaRoadEdge = smoothstep(0.0, 0.026667, iwaUV.x) * (1.0 - smoothstep(0.973333, 1.0, iwaUV.x))
           * smoothstep(0.0, 0.026667, iwaUV.y) * (1.0 - smoothstep(0.973333, 1.0, iwaUV.y));
-        vec3 iwaTrack = texture2D(iwaRoad, iwaUV).rgb * iwaRoadEdge;
+        // 道の絵は真上から貼るので、急な切岸では縦に引き伸ばされ、大きな弧に見える。坂では消す。
+        vec3 iwaTrack = texture2D(iwaRoad, iwaUV).rgb * iwaRoadEdge * (1.0 - smoothstep(0.35, 0.8, slopeK));
         float iwaWay = iwaTrack.r;
         // 陣の土色・夜の明るさの範囲は保ち、在所には道だけを足す。
         vec2 iwaFieldUV = (vWP.xz + vec2(120.0, 140.0)) / 240.0;
@@ -2620,7 +2640,9 @@ iwamura.force = (rt) => {
   for (const g of F.rearGroups || []) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) b++;
   return { a, a0: F.forceA0 || 1, b, b0: F.forceB0 || 1 };
 };
-iwamura.sides = { a: { name: '織田勢（水晶山）', mon: 'oda' }, b: { name: '武田勢（夜討ち）', mon: 'takeda' } };
+// 戦の中の人数の札は紋と数だけ（軍の名の字は出さない。kaito 10/23）。開戦の札の名は introSides、台詞の敵味方は foeNames で分ける。
+iwamura.sides = { a: { name: '', mon: 'oda' }, b: { name: '', mon: 'takeda' } };
+iwamura.foeNames = ['武田', '秋山', '大島', '座光寺'];
 // 座光寺は開城後に捕らえられる。夜襲隊へ名付きの討取り相手を追加しない。
 iwamura.famous = [];
 iwamura.date = (rt) => `天正三年十一月十日　冬・${rt.world.nightAmount() >= 0.5 ? '夜' : '夕暮れ'}`;

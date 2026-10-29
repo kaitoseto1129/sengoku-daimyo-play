@@ -1479,16 +1479,19 @@ const shitaragahara = {
           if (p.x <= 28.0 || p.x >= 58.0) return 0.0;
           vec2 cell = floor(p / vec2(11.0, 16.0));
           if (mod(cell.x + cell.y, 2.0) > 0.5) return 0.0;
-          vec2 shift = vec2(sin(cell.y * 2.3 + cell.x), sin(cell.x * 1.7 - cell.y)) * 1.3;
-          vec2 size = vec2(3.0, 4.5) + vec2(sin(cell.y * 1.3), sin(cell.x + cell.y * 2.1)) * 1.1;
-          vec2 q = (mod(p, vec2(11.0, 16.0)) - vec2(5.5, 8.0) - shift) / size;
-          float a = sin(cell.x * 1.9 + cell.y * 0.8) * 0.65;
-          q = mat2(cos(a), -sin(a), sin(a), cos(a)) * q;
-          float rim = length(q) + sin(q.x * 4.0 + cell.y * 1.7) * 0.16
-            + sin(q.y * 5.0 + cell.x * 2.3) * 0.12;
-          return (1.0 - smoothstep(0.55, 1.1, rim))
-            * smoothstep(28.0, 29.5, p.x) * (1.0 - smoothstep(56.5, 58.0, p.x))
-            * ${W.field.wet ? '1.0' : '0.0'};
+          // 田一枚ごとに水を張り、縁の畦だけを残す（歩みの遅れる田の範囲と同じ升）。
+          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
+          float wob = sin(p.y * 0.9 + cell.x * 2.0) * 0.12 + sin(p.x * 1.3 + cell.y) * 0.1;
+          float edge = min(min(e.x, e.y), min(p.x - 28.0, 58.0 - p.x)) + wob;
+          return smoothstep(0.8, 1.4, edge) * ${W.field.wet ? '1.0' : '0.0'};
+        }
+        // 田の升の縁の畦。水の無い升も同じ畦で囲み、田の並びを見せる。
+        float shAze(vec2 p) {
+          if (p.x <= 27.0 || p.x >= 59.0) return 0.0;
+          vec2 m = mod(p, vec2(11.0, 16.0)), e = min(m, vec2(11.0, 16.0) - m);
+          float wob = sin(p.y * 0.9 + floor(p.x / 11.0) * 2.0) * 0.12 + sin(p.x * 1.3 + floor(p.y / 16.0)) * 0.1;
+          float edge = min(min(e.x, e.y), min(abs(p.x - 28.0), abs(58.0 - p.x))) + wob;
+          return 1.0 - smoothstep(0.35, 0.8, edge);
         }
       ` + sh.fragmentShader
         .replace('vec2 wuv = vWP.xz;', 'vec2 wuv = vWP.xz; float shPaddyWater = shPuddle(wuv);')
@@ -1569,6 +1572,9 @@ const shitaragahara = {
         float shPatch = macro2;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.23, 0.27, 0.115), shRidge * shEdge * (0.3 + shPatch * 0.3));
         diffuseColor.rgb *= 1.0 - shDrain * shEdge * 0.24;
+        // 田の畦：草の生えた細い土手。
+        float shAzeK = shAze(vWP.xz);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.33, 0.15) * (0.85 + macro2 * 0.3), shAzeK * 0.8);
       `).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // 色だけの足跡を浅い窪みにする。画面内の微分で、追加の絵の読みを省く。
         // 遠い川岸まで周期的な法線を足すと、平場が波打つ布のように見える。
@@ -1586,6 +1592,13 @@ const shitaragahara = {
         // 柵の影でも土の形を残す。低では空堀にも青い照り返しを足さない。
         reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.10
           ${lowPuddles ? '' : '+ vec3(0.025, 0.028, 0.025) * shWater'};
+        // 田の水面：朝の空の薄い灰を映す。低い角度ほど明るく、泥の穴に見せない。
+        float shPaddySky = shPuddle(vWP.xz);
+        if (shPaddySky > 0.001) {
+          float shGraze = 1.0 - clamp(normalize(cameraPosition - vWP).y, 0.0, 1.0);
+          float shRipple = 0.85 + 0.15 * sin(vWP.x * 1.9 + vWP.z * 0.7 + sin(vWP.z * 0.5) * 2.0);
+          reflectedLight.indirectDiffuse += vec3(0.30, 0.31, 0.29) * shPaddySky * (0.25 + shGraze * shGraze * 0.6) * shRipple;
+        }
       `);
     };
     groundMat.customProgramCacheKey = () => groundKey() + '_設楽原の踏み荒らし_' + lowPuddles;
@@ -1654,6 +1667,14 @@ const shitaragahara = {
       // 九列の岸と水深で仕上げた面。開戦時に共通の二列の川へ戻さない。
       // 岸の石と草も下で配置するので、共通の岸飾りを川中へ重ねない。
       st.mesh.userData.waterSurfaceReady = true;
+      // 共通の川石は艶のある丸石で、朝の空を映して柵の向こうに白い丸い塊として浮いていた。
+      // 濡れた暗い石の色にし、照りを消して半ば川床へ沈める。形と数は変えない。
+      if (st.rockMesh) {
+        const rm = st.rockMesh.material;
+        rm.color.setHex(0x3f3a31); rm.roughness = 0.95; rm.metalness = 0;
+        if ('envMapIntensity' in rm) rm.envMapIntensity = 0.05;
+        st.rockMesh.position.y -= 0.12;
+      }
     }
     // 少ない草を広い戦場へ均等に撒かず、柵の足元と追い道の脇へ寄せる。
     // 短く曲がる葉と材質を全株で共有し、開戦時だけ並べる。
@@ -1693,18 +1714,8 @@ const shitaragahara = {
     grassMesh.receiveShadow = true;   // 10/24：草は作らない
     // 株数と並びは保ち、画面に入る草だけ同じ束へ詰める。
     W.viewCull([grassMesh], 0, Infinity, false);
-    // 川中の石に加え、岸にも低い丸石を一括で置く。浅瀬の通り道は空ける。
+    // 連吾川の岸の丸石は、柵の向こうで白い丸い塊に見えていた。岸には置かず、追い道の脇だけに散らす。
     const banks = [];
-    for (let i = 1; i < RENGO.length; i++) {
-      const a = RENGO[i - 1], b = RENGO[i], length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const nx = -(b[1] - a[1]) / length, nz = (b[0] - a[0]) / length;
-      for (let d = 6; d < length; d += 16) for (const side of [-1, 1]) {
-        const t = d / length, off = side * (5.3 + 0.4 * Math.sin(d));
-        const x = a[0] + (b[0] - a[0]) * t + nx * off, z = a[1] + (b[1] - a[1]) * t + nz * off;
-        if (SB.gates.some((gate) => Math.abs(z - gate - 4.5) < 9)) continue;
-        banks.push([x, z, 0.35 + 0.15 * (1 + Math.sin(d + i))]);
-      }
-    }
     // 追い道の脇にも同じ石を散らす。道の中央と田は空ける。
     for (let i = 0; i < 72; i++) {
       const z = 24 - i * 5, x = 100 + (0.5 + 0.5 * Math.sin(i * 2.399)) * 165;

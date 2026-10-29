@@ -43,14 +43,14 @@ function outlinedSign(points, tone) {
 
 function build(rt, root) {
   // 共通の敵は刀、味方は旗。序盤三戦の命中表示は専用の形を保つ。
-  const swordSigns = !['lesson', 'raid', 'ford', 'practice'].includes(rt.def.missionStyle);
+  const swordSigns = !rt.def.dojo && !['lesson', 'raid', 'ford', 'practice'].includes(rt.def.missionStyle);
   const tri = outlinedSign(swordSigns
     ? [[-.04,0],[.04,0],[.04,.08],[.17,.08],[.17,.14],[.055,.14],[.055,.27],[0,.34],[-.055,.27],[-.055,.14],[-.17,.14],[-.17,.08],[-.04,.08]]
     : [[0,0],[.17,.34],[-.17,.34]], 0xa8452c);
   const triMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false, depthWrite: false });
   // 稲生・桶狭間・森部は旗や兵との奥行きも保つ。奥の▼を手前の味方へ透かさない。
   // 頭上の固定位置と遠方の大きさの上限を保ち、手前の別人へ印を移さない。
-  triMat.depthTest = ['lesson', 'raid', 'ford', 'practice'].includes(rt.def.missionStyle);
+  triMat.depthTest = rt.def.dojo || ['lesson', 'raid', 'ford', 'practice'].includes(rt.def.missionStyle);
   if (rt.def.missionStyle) {
     tri.setAttribute('signLife', new THREE.InstancedBufferAttribute(new Float32Array(CAP).fill(1), 1));
     // signTone：0＝遠い敵（薄い）、1＝ふつう、2＝槍の届く敵（同じ赤い▼のまま、縁を白・中を濃い赤に。別の印に見せない）
@@ -213,7 +213,7 @@ export function fieldSignsTick(rt, root) {
   if (!rt?.army || !rt.scene || !rt.camera || rt.def.noFieldSigns) return;
   const s = STATE.get(rt) || build(rt, root);
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
-  const quietSigns = !rt.def.missionStyle;
+  const quietSigns = !rt.def.missionStyle && !rt.def.dojo;
   const photo = root?.classList?.contains('photo') || rt.player.camShot;
   const hide = photo || rt.hud?.introWaiting;
   // 稲生・森部は名を任務の一行に集める。空の親枠も隠し、命や任務の札に重ねない。
@@ -288,13 +288,15 @@ export function fieldSignsTick(rt, root) {
     // 退く敵も所属は変わらない。生きた本人の▼を追撃中に消さない。
     // 近くの兵の形が省略されても所属の▼を先に消さない。遠方の見通しは下で調べる。
     if (lesson && !defeated && u.hp <= 0) continue;
-    if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone && !((lesson || ford) && defeated) || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
+    if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone && !(special && defeated) || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    // 大きな案内が受け持つ戦では所属印を重ねず、一人の矢印へ絞る。
+    if (foe && (lesson || rt.hud.missionEnemyShown)) continue;
     // 一人を追う戦では周囲へ刀を並べず、今の相手の頭上印に絞る。
     if (foe && rt.def.focusEnemySignOnly && (u !== focusEnemy || !rt.hud.missionEnemyShown)) continue;
     const playerDistance = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-    if (playerDistance > (foe ? ford || raid ? 170 * 170 : lesson ? (u._fsOn ? FOE_OUT * FOE_OUT : FOE_R * FOE_R) : 14 * 14 : 6 * 6) && u !== focusEnemy && !defeated) continue;
+    if (playerDistance > (foe ? ford || raid ? 170 * 170 : lesson ? (u._fsOn ? FOE_OUT * FOE_OUT : FOE_R * FOE_R) : rt.def.dojo ? FOE_R * FOE_R : 14 * 14 : 6 * 6) && u !== focusEnemy && !defeated) continue;
     if (!foe && rt.missionGuide?.marker?.guideTalk && rt.missionGuide.marker.guidePerson?.() === u) continue;
     // 稲生も見える敵全員に▼を残す。目当て以外を味方に見せない。
     // 追う本人は大きさ、攻撃が届く本人は白縁で区別する。
@@ -352,7 +354,7 @@ export function fieldSignsTick(rt, root) {
       if (!u._focusSignSeen) continue;
     }
     // 大きな目標の▼が出ている間は、同じ頭上に通常の印を重ねない。
-    if (u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown || u === marked && !raid && !lesson && !ford) continue;
+    if (u === rt.army.missionMarkedEnemy && rt.hud.missionEnemyShown || u === marked && !raid && !lesson && !ford && !rt.def.dojo) continue;
     if (lesson && !defeated && !near && !general(u) && (u.mesh?.visible === false || u.camHidden)) continue;
     // 近い味方の丸は上で描いたので、遠い味方へ印を増やさない。
     if ((ford || lesson || rt.def.missionStyle === 'raid') && !foe) continue;
@@ -425,10 +427,10 @@ export function fieldSignsTick(rt, root) {
     // 頭上の先端は固定し、既存の形・材質・描画の束をそのまま使う。
     // 稲生は命中の形を少し保ってから戻す。連打の合間にも当たった本人が分かる。
     const hitLeft = ((raid ? u.okeHitUntil : lesson ? u.inouHitUntil : u.moribeHitUntil) || 0) - rt.t;
-    // 森部は一振りの間に伸びて戻す。赤の削れ跡は別に残す。
+    // 森部は攻撃後も命中の形を保つ。赤の削れ跡は別に残す。
     // 稲生・桶狭間は命中直後の形を保ち、間合いの横広がりと区別できる。
     const hit = foe && special
-      // 森部は〇・八秒の一伸びにし、最後の〇・四秒で戻す。
+      // 森部は次の操作を選ぶ間も一伸びを保ち、最後の〇・四秒で戻す。
       ? ford ? Math.min(1, Math.max(0, hitLeft / .4))
         : lesson ? Math.min(1, Math.max(0, hitLeft / .7))
         // 桶狭間も一振りごとに伸びて戻す。削れた面は別に残す。
@@ -467,11 +469,12 @@ export function fieldSignsTick(rt, root) {
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部は遠い印を頭ほどに収め、近づくほど滑らかに広げる。討つ武将は一段大きく残す。
     const moribeNear = ford ? Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22)) : 0;
-    // 一般兵は目当ての選び直しで大きさを変えず、討つ武将だけ一段大きくする。
-    const moribeLimit = (u === commander ? .9 : .6) + .45 * moribeNear;
-    // 近い所属印は十六画素、命中した本人は二十四画素を保ち、赤の減りを読めるようにする。
+    // 最寄りの目当ては同じ▼を一回り大きくする。届く時の白縁・横広がりとは分ける。
+    const moribeFocus = ford && u === missionEnemy;
+    const moribeLimit = (u === commander ? .9 : moribeFocus ? .8 : .6) + .45 * moribeNear;
+    // 近い所属印は二十画素、目当てと届く本人は二十四画素、命中した本人は二十八画素を保つ。
     const moribePixelScale = -v.z * 2 / (VIEW.h * cam.projectionMatrix.elements[5] * .34);
-    const moribeMinPixels = ford ? Math.max(20 * moribeNear, reachable ? 24 : 0, 28 * pulse) : 0;
+    const moribeMinPixels = ford ? Math.max((moribeFocus ? 24 : 20) * moribeNear, reachable ? 24 : 0, 28 * pulse) : 0;
     // 稲生の近い敵も携帯で読める幅を保ち、印のない味方と見分けられるようにする。
     // 遠い本人も三角と読める幅を残す。接近の途中で印だけ数画素に潰さない。
     // 七十歩以遠へは滑らかに戻し、近い相手の白縁・命中の伸びと分ける。
@@ -571,7 +574,8 @@ export function fieldSignsTick(rt, root) {
         const width = reachable ? 42 : 12 + 14 * closing;
         const height = 12 + 6 * closing;
         // 命中で相手が押し戻されても、届いた時より印を細くしない。
-        dummy.scale.x = (hit > 0 || defeated ? Math.max(width, 42) : width) * screenScale / .34;
+        // 受け止めでも届いた本人の幅を保ち、縦に潰れる反応を読めるようにする。
+        dummy.scale.x = (hit > 0 || defeated || blocked ? Math.max(width, 42) : width) * screenScale / .34;
         dummy.scale.y = height * (defeated ? still ? .25 : Math.max(0, Math.min(1, (defeatUntil - rt.t) / .8)) : blocked ? .55 : 1 + 1.6 * pulse) * screenScale / .28;
       } else if (lesson) {
         // 傷と討ち取りは、次の敵を選んでも当たった本人の印に残す。
@@ -594,8 +598,15 @@ export function fieldSignsTick(rt, root) {
     // 幅広は届く本人、縦の一伸びは命中。残る赤の減りは既存の中身で示す。
     if (ford) {
       const screenScale = -v.z * 2 / (VIEW.h * cam.projectionMatrix.elements[5]);
+      // 手前は描画方式によらず読める幅を保ち、隣の兵を覆わない上限も守る。
+      const close = Math.max(0, Math.min(1, (30 - Math.sqrt(meD2)) / 20));
+      const width = reachable ? 30 : hit > 0 || defeated ? 26 : 12 + 8 * close;
+      dummy.scale.x = Math.max(dummy.scale.x, width * close * screenScale / .34);
+      // 届く横幅と命中の縦伸びを最後の上限で潰さない。先端は頭上に固定する。
       dummy.scale.x = Math.min(dummy.scale.x, (reachable ? 38 : hit > 0 || defeated ? 30 : 22) * screenScale / .34);
-      dummy.scale.y = Math.min(dummy.scale.y, (hit > 0 ? 32 : 24) * screenScale / .28);
+      // 命中の縦伸びを残し、目前でも笠の上に収める。
+      const height = 12 + 6 * close;
+      dummy.scale.y = Math.min(dummy.scale.y, Math.min(hit > 0 ? 32 : 24, height * (1 + 1.6 * pulse)) * screenScale / .28);
     }
     // 拡大を重ねず、印の先端を本人の頭上に保つ。
     dummy.updateMatrix();
@@ -613,7 +624,8 @@ export function fieldSignsTick(rt, root) {
       // 選択・命中・受け止めでは白縁を付けず、届くという意味を保つ。
       // 敵が振りかぶっても、届く予告と自分の命中の反応を金縁で隠さない。
       // 桶狭間は近距離の境を越えても▼を隠さない。壁の見通しは上で確認済み。
-      // 森部は所属の赤と暗い縁を保つ。届く本人は横幅、命中は削れた面で示す。
+      // 森部も実際に届く本人だけ白縁にする。既存の材質の分岐へ正しい値を渡す。
+      // ほかの敵は所属の赤と暗い縁を保ち、命中は削れた面と縦の伸びで示す。
       const tone = lesson ? (general(u) ? 24 : near ? 8 : 0) + (defeated ? 4 : reachable ? 2 : 1) : ford ? (near ? 8 : 0) + (reachable && !defeated ? 2 : 1) : raid ? 8 + (defeated ? 1 : hit > 0 ? reachable ? 6 : 4 : reachable ? 2 : 1) : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];

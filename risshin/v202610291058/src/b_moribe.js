@@ -1480,7 +1480,7 @@ function moribeFord(rt) {
       // 青い流れの中に砂底の帯を通し、入口から出口まで歩ける浅さを見せる。
       // 隣の流れは元の川色のまま。新しい形や描画は増やさない。
       // 砂底と固定した小石を明瞭にし、泳ぐ川でなく歩ける浅い帯として見せる。
-      vec3 fordSand = mix(vec3(0.14, 0.12, 0.075), vec3(0.24, 0.21, 0.14), fordGrain);
+      vec3 fordSand = mix(vec3(0.27, 0.24, 0.15), vec3(0.40, 0.36, 0.24), fordGrain);
       // 砂底は岸と同じ暖色。小石の濃さを斑にし、格子状の深い穴に見せない。
       fordSand = mix(fordSand, vec3(0.09, 0.085, 0.065), fordPebble * (0.3 + fordGrain * 0.2));
       diffuseColor.rgb = mix(diffuseColor.rgb, fordSand, fordBand * 0.95);
@@ -2248,26 +2248,23 @@ const moribe = {
   },
   // 任務の到着判定と同じ位置・半径。入れ物と既存の隊の中心を使い回す。
   missionPin(rt) {
-    const F = rt.flags, q = F.moribePin;
+    const F = rt.flags, q = F.moribePin, p = rt.player;
     if (!q || F.ending || rt.over) return null;
     // 人を追う印と地面の小旗を区別し、段が変わったら追う相手を消す。
-    q.unit = null; q.enemy = false; q.approach = false;
+    q.unit = null; q.enemy = false; q.approach = false; q.gatherArea = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
     let pos = null, r = 6, hide = 6;
-    // 上陸と開戦が同時でも、岸の完了を一拍見せてから敵へ渡す。
-    if (F.signal && F.pointReached && rt.t - F.fordArrivedAt < .8) {
-      q.x = POINT2.x; q.y = POINT2.y; q.z = POINT2.z;
-      q.r = q.hide = 0; q.arrived = true; q.crossing = true; q.progress = 1;
-      return q;
-    }
+    // 開戦したら渡河のピンを残さず、頭上の▼へ切り替える。
     // 先手の中心の空地でなく、頭上の▼と同じ生きた一人へ導く。
     // 本人と▼が見えたらピンを畳む。まだ描いていない時や画面外では同じ一本を保つ。
     if (F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
-      const p = rt.player, enemy = this.missionSignTarget(rt);
-      if (!enemy || p.inRange && moribeFoeReady(p.rangeCueTarget, p)) return null;
+      const enemy = this.missionSignTarget(rt);
+      // 間合いにいても画面外なら行き先を残す。見える本人の▼へ渡す時だけ消す。
+      if (!enemy) return null;
       // 姿と頭上の▼が見えたら、地面の黄色いピンは消す。
-      if (inouSignVisible(rt, enemy) && sightScreenUnit(rt, enemy)) return null;
+      if (Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) <= 40 &&
+          inouSignVisible(rt, enemy) && sightScreenUnit(rt, enemy)) return null;
       const distance = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
       const remaining = Math.max(0, distance - (p.weapon === 'sword' ? 1.9 : 2.8));
       if (F.pinApproachKey !== enemy) {
@@ -2284,9 +2281,9 @@ const moribe = {
     if (!F.signal) {
       if (F.pointDone) return null;
       pos = POINT2; r = FORD_R; hide = 0;
-      // 同じ岸のピンに上陸の印を一拍残してから待機の時計へ替える。
+      // 上陸したら同じ地点の待機へ替え、追う必要のないチェック印を挟まない。
       q.arrived = !!(F.pointReached || F.pointInside || playerAtFord(rt.player.u.pos, rt.world));
-      q.waiting = q.arrived && rt.t - (F.fordArrivedAt ?? rt.t) >= .8;
+      q.waiting = q.arrived;
       q.crossing = !q.waiting;
       q.waitDuration = q.arrived ? Math.max(1, (F.fordWaitEnd ?? rt.t + 8) - (F.fordArrivedAt ?? rt.t)) : 0;
       // 上陸は満杯、仲間待ちは扇形。到着前の歩みと待ち時間を混ぜない。
@@ -2299,14 +2296,17 @@ const moribe = {
       // 守備は動く仲間を追わせず、到着判定と同じ固定地点一本へ集める。
       pos = F.linePoint; r = hide = F.lineReturning || !F.lineReached ? 18 : 24;
       q.guardArea = true;
+      q.gatherArea = true;
       q.waitDuration = 100;
       q.waiting = true; q.arrived = !F.lineReturning;
       q.progress = this.missionWaitProgress(rt) || 0;
     } else if (F.squadGuide) {
       pos = F.squadGuide.pos; r = hide = 16;
+      q.gatherArea = true;
     } else if (F.stage === 'assemble') {
       pos = F.gatherUnit ? F.gatherUnit.pos : F.asm;
       r = hide = F.gatherUnit ? 6 : 12;
+      q.gatherArea = true;
       // 集結地点へ着いたら歩き直させず、同じピンの中で帰着を待つ。
       q.waiting = !F.gatherUnit;
       q.arrived = q.waiting && Math.hypot(rt.player.u.pos.x - pos.x, rt.player.u.pos.z - pos.z) < r;
@@ -2315,6 +2315,7 @@ const moribe = {
       if (!F.lineReturning) return null;
       pos = F.linePoint;
       r = hide = 18;
+      q.gatherArea = true;
     } else if (!gone(F.V)) {
       // 「斎藤の先手を崩す」の間は、その先手の真ん中へ。味方の旗を指すと、どれが先手か分からない（初めての人の迷い）。
       pos = fightingCenter(F.V); r = 6; hide = 8;
@@ -2700,7 +2701,11 @@ const moribe = {
     // 雨を吸った下葉は灰緑、踏まれた帯は低く泥色へ。遠景と足元で同じ分布を使う。
     tuftHeight(x, z) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
-      return (.38 + Math.pow(tuftClumpAt(x, z), 2) * 1.05) * (1 - front * .28);
+      // 渡り口から先手までの踏み場は低い草にし、▼の下の胴と武器を見せる。
+      const approach = Math.max(0, 1 - Math.abs(x - START2.x) / 12)
+        * Math.max(0, Math.min(1, (z - 30) / 12, (100 - z) / 12));
+      // 会戦帯では膝より低くし、赤い▼の下の胴と踏み込みを草に埋めない。
+      return (.38 + Math.pow(tuftClumpAt(x, z), 2) * 1.05) * (1 - front * .78) * (1 - approach * .8);
     },
     tuftColor(x, z, color) {
       const front = Math.max(0, 1 - Math.abs(x - 8) / 65) * Math.max(0, 1 - Math.abs(z - 12) / 75);
@@ -3285,7 +3290,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 削れた面を一拍保ち、携帯でも攻撃後の赤の減りを見届けられるようにする。
         t.moribeDamageUntil = rt.t + 3.2;
         // 命中の形を保ってから戻す。空振りや受け止めでは伸ばさない。
-        if (!blocked) { t.moribeHitUntil = rt.t + .8; t.moribeBlockUntil = 0; }
+        if (!blocked) { t.moribeHitUntil = rt.t + 1.8; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 2.8;
         // 命を減らした本人だけがよろめく。空振りや味方には反応を付けない。
         if (t.alive && !blocked) {

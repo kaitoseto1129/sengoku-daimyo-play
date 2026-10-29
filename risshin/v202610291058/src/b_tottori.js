@@ -663,6 +663,60 @@ function tottoriLanding(rt, W) {
     rt.scene.add(kobune(x, y + .05, z, rot, len));
   }
 }
+// 久松山の西の斜面（川岸から見上げる面）に、段の平場と板小屋・柵を重ねる。月明かりで段の影が読める明るさの土と板。
+// 段の数・位置は推定の補景。見た目だけで当たりも兵の配置も足さず、形と材質は三つの束にまとめる。
+// 手前の栗谷側の付城には羽柴方の陣幕と兵糧の俵を置く。
+function hisamatsuTerraces(rt, W) {
+  const R = new THREE.Object3D(), pads = [], tops = [], walls = [], wood = [], lamps = [];
+  const put = (list, x, y, z, sx, sy, sz, ry, rz = 0) => list.push([x, y, z, sx, sy, sz, ry, rz]);
+  for (const [li, L] of [18, 32, 46, 60].entries()) {
+    for (let z = -44 - li * 3; z > -122; z -= 10 + li % 2 * 2) {
+      let x0 = null;
+      for (let x = -75; x < 10; x += 0.5) if (W.heightAt(x, z) >= L) { x0 = x; break; }
+      if (x0 === null || roadDistance(x0, z) < 5) continue;
+      const gx = W.heightAt(x0 + 1, z) - W.heightAt(x0 - 1, z), gz = W.heightAt(x0, z + 1) - W.heightAt(x0, z - 1);
+      const gl = Math.hypot(gx, gz) || 1, ox = -gx / gl, oz = -gz / gl, ry = Math.atan2(-oz, ox);
+      // 外へ張り出す平場と、下の切岸まで届く土の面。
+      // 平場の半分は山へ埋め、外へは二歩半だけ張り出す。切岸の面は下の斜面へ潜るまで伸ばす。
+      const cx = x0, cz = z, foot = W.heightAt(x0 + ox * 3, z + oz * 3);
+      const depth = Math.max(1.2, Math.min(8, L - foot + 1));
+      put(pads, cx, L - 0.3 - depth / 2, cz, 5, depth, 8.5, ry);
+      put(tops, cx, L - 0.15, cz, 5.2, 0.3, 8.7, ry);
+      // 板小屋は段の三つに二つ。山側へ寄せ、片流れの板屋根を外へ下げる。
+      if ((li + Math.round(z)) % 3 !== 0) {
+        const hx = x0 - ox * 0.6, hz = z - oz * 0.6;
+        put(walls, hx, L + 1, hz, 2.6, 2, 4.2, ry);
+        put(wood, hx + ox * 0.2, L + 2.25, hz + oz * 0.2, 3.4, 0.12, 4.8, ry, -0.32);
+        // 外を向く戸口の隙から漏れる灯り。夜の山肌で段の並びを読ませる。
+        put(lamps, hx + ox * 1.32, L + 0.9, hz + oz * 1.32, 0.05, 1.1, 0.5, ry);
+      }
+      // 段の縁の柵：杭と二本の横木。
+      const ex = x0 + ox * 2.35, ez = z + oz * 2.35, tx = -oz, tz = ox;
+      for (let k = -4; k <= 4; k += 1.33) put(wood, ex + tx * k, L + 0.7, ez + tz * k, 0.13, 1.4, 0.13, ry);
+      for (const yy of [0.55, 1.15]) put(wood, ex, L + yy, ez, 0.07, 0.08, 8.2, ry);
+    }
+  }
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  for (const [list, mat] of [[pads, new THREE.MeshLambertMaterial({ color: 0x4e4436, emissive: 0x0b0c10 })], [tops, new THREE.MeshLambertMaterial({ color: 0x8a7a62, emissive: 0x15171d })], [walls, new THREE.MeshLambertMaterial({ color: 0xa89878, emissive: 0x1b1c22 })],
+    [wood, new THREE.MeshLambertMaterial({ color: 0x5e4f3e, emissive: 0x101116 })], [lamps, new THREE.MeshBasicMaterial({ color: 0xffa04a })]]) {
+    if (!list.length) continue;
+    const mesh = new THREE.InstancedMesh(box, mat, list.length);
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i]; R.position.set(q[0], q[1], q[2]); R.rotation.set(0, q[6], q[7]); R.scale.set(q[3], q[4], q[5]); R.updateMatrix(); mesh.setMatrixAt(i, R.matrix);
+    }
+    mesh.castShadow = mesh.receiveShadow = true; mesh.computeBoundingSphere(); rt.scene.add(mesh);
+  }
+  // 手前の付城の平場：道と番所を避けた所に陣幕を一張り、脇へ兵糧の俵を二山。
+  const k = BANK_FORT;
+  for (const [x, z] of [[k.x + 6, k.z + 2], [k.x + 4, k.z - 4], [k.x - 2, k.z + 3]]) {
+    let ok = true;
+    for (const dx of [-5, 0, 5]) for (const dz of [-4, 0, 4]) if (roadDistance(x + dx, z + dz) < 3 || seatEdge(k, x + dx, z + dz) > -0.5) ok = false;
+    if (!ok) continue;
+    rt.scene.add(jinmaku(W, x, z, 8, 6, 4, { mon: 'oda', contour: true }));
+    for (const [tx, tz, r] of [[x - 5.5, z + 1, 0.3], [x + 5.5, z - 1, -0.2]]) if (roadDistance(tx, tz) > 2.5) rt.scene.add(tawara(W, tx, tz, r, 6));
+    break;
+  }
+}
 // 曲輪の奥に低い物置を添え、屋敷一棟だけが広い空地に立つ並びを避ける。
 // 細かな位置は推定。道・屋敷・民のいる木戸内には増やさず、板小屋を既存の束へ結合する。
 function tottoriOutbuildings(W, batch) {
@@ -2004,6 +2058,7 @@ const tottori = {
     for (const k of TAIKO_LOOKOUTS) rt.scene.add(tottoriLookout(W, k.x, k.z, 0, true));
     rt.scene.add(hyoro(W, TAIKO.x - 8, TAIKO.z + 10, 0.4), umatsunagi(W, TAIKO.x + 10, TAIKO.z - 8, 0.3, 8));
     taikoBarracks(rt, W);
+    hisamatsuTerraces(rt, W);
     if (true) {
       // 兵糧は寄せ手の陣にだけ置く。空腹の城内へ米俵を増やさない。
       rt.scene.add(hatazao(W, TAIKO.x + 20, TAIKO.z + 12, 0, 5, 'oda'),
@@ -2097,9 +2152,10 @@ const tottori = {
     rt.say('組頭', '川面の灯りを見よ。米舟二艘を焼くぞ。まず、わしらの列へ', 5);
     rt.marker('hide', centerOf(F.hide), '川岸の組', { group: F.hide, guideAlways: true });
     // 川上の舟へ視点を向け、最初から川面の舟と岸の組を見渡せるようにする。
-    // 舟より少し川下（西）へ向け、北西に高まる対岸の山肌で画面の右半分をふさがない。二艘の舟は右寄りに入る。
+    // 舟より少し川下（西）へ向け、北西に高まる対岸の山肌で画面の右半分をふさがない。
+    // ただし右の端には久松山の西の斜面（段の平場・板小屋・灯り）を入れる。舟は左寄りに入る。
     const first = F.boats[1].m.position, player = rt.player;
-    player.yaw = player.u.heading = Math.atan2(first.x - 6 - player.u.pos.x, first.z + 6 - player.u.pos.z);
+    player.yaw = player.u.heading = Math.atan2(first.x - player.u.pos.x, first.z - player.u.pos.z) - 0.45;
     this.openDay(rt);
     if (F.oldWound) rt.after(2, () => { if (!rt.over) rt.say('組頭', '古傷には布を巻いた。今夜は十分に動けるぞ', 3); });
     groundTottoriPosts(rt);

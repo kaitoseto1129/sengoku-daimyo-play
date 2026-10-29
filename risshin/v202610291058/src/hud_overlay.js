@@ -103,8 +103,11 @@ export class HudOverlay {
     const base = this.guardPinBase || (this.guardPinBase = {
       points: Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 })), projection: {},
     });
-    if (base.world !== rt.world || base.x !== pin.x || base.z !== pin.z || base.r !== pin.r) {
+    if (base.world !== rt.world || base.r !== pin.r ||
+        (base.x !== pin.x || base.z !== pin.z) &&
+        (!pin.gatherArea || rt.t < base.at || rt.t - base.at >= .2 || (base.x - pin.x) ** 2 + (base.z - pin.z) ** 2 > 4)) {
       base.world = rt.world; base.x = pin.x; base.z = pin.z; base.r = pin.r;
+      base.at = rt.t;
       for (let i = 0; i <= 32; i++) {
         const p = base.points[i], angle = i / 32 * Math.PI * 2;
         p.x = pin.x + Math.cos(angle) * pin.r; p.z = pin.z + Math.sin(angle) * pin.r;
@@ -237,6 +240,8 @@ export class HudOverlay {
     g.save(); g.lineJoin = 'round';
     if (on) {
       if (rt.def.missionStyle === 'ford' && !enemy && !landmark) {
+        // ピンの根元を実際の合流半径まで広げ、誰の所へどこまで寄るかを形で示す。
+        if (pinTarget.gatherArea && pinTarget.r > 0) this.drawBattleGuardPinBase(g, rt, pinTarget);
         this.drawBattleGoalSign(g, rt, at.x, at.y, landmark, pinTarget);
       } else {
         g.beginPath(); g.ellipse(at.x, at.y, enemy ? 29 : 38, enemy ? 12 : 16, 0, 0, Math.PI * 2);
@@ -342,7 +347,8 @@ export class HudOverlay {
     // 任務が選んだ一人だけを囲み、赤い所属印の多い乱戦でも目当てを保つ。
     this.battleSignEnemy = null; this.enemyFrameShown = false;
     const enemy = rt.army.missionMarkedEnemy;
-    if (!rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive &&
+    // 桶狭間は頭上の赤い▼だけ。白い囲みを別の攻撃対象に見せない。
+    if (rt.def.missionStyle !== 'raid' && !rt.over && !rt.choice && !this.introWaiting && rt.player.u.alive &&
         !rt.player.camShot && !this.bigmap && enemy?.alive && sightScreenUnit(rt, enemy)) {
       const frame = this.measurePersonFrame(enemy, rt);
       if (frame && frame.bottom > 0 && frame.top < H && frame.right > 0 && frame.left < W) {

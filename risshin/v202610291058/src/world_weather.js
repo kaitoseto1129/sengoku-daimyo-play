@@ -273,12 +273,12 @@ export class WorldWeather {
     // 日差しと遠景の霞は保ち、近い具足の受光面・木戸の陰との明暗差を出す。
     const cover = this.skyMat.uniforms.cover.value;
     const scatter = THREE.MathUtils.smoothstep(Math.max(cover, rain), 0.35, 0.85);
-    const dayFill = (0.28 + 0.54 * scatter) * (this.def.overcastFillScale ?? 1);
+    const dayFill = (0.48 + 0.34 * scatter) * (this.def.overcastFillScale ?? 1);
     // 夜の指定と雨・夕暮れの見やすさは保ち、移ろいの間も連続して変える。
-    this.nightFill.intensity = dayFill * (1 - k) + (this.def.nightFill ?? 0.62) * k + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
+    this.nightFill.intensity = dayFill * (1 - k) + (this.def.nightFill ?? 0.85) * k + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
     // 夜の下向きの面は土からの弱い返りだけ。月の冷色と火の暖色を分ける。
     this.nightFill.color.setRGB(0.75 - 0.30 * k, 0.82 - 0.29 * k, 0.93 - 0.25 * k).lerp(this.hemi.color, 0.3 * (1 - k));
-    this.nightFill.groundColor.setRGB(0.28 - 0.16 * k, 0.25 - 0.12 * k, 0.21 - 0.05 * k);
+    this.nightFill.groundColor.setRGB(0.42 - 0.18 * k, 0.38 - 0.16 * k, 0.32 - 0.10 * k);
     // 晴天は締まった影、低い日・曇天・雨は柔らかい縁。影の枚数は増やさない。
     const height = Math.max(0, this.skyMat.uniforms.sunDir.value.y);
     this.sun.shadow.radius = 1 + cover * 0.8 + rain * 0.55 + (1 - height) * 0.3;
