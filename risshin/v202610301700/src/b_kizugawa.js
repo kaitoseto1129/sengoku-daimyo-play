@@ -616,7 +616,7 @@ function shipTex() {
   deck.wrapS = deck.wrapT = THREE.ClampToEdgeWrapping;
   // 同じ長さ・間隔の縞にせず、切れた白波と暗い谷を散らす。端の九枚を描いて継ぎ目を消す。
   const sea = mk(512, 512, (g, w, h) => {
-    g.fillStyle = '#365f69'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#2c4852'; g.fillRect(0, 0, w, h); // 10/30：水色の平らな板に見えた。深い灰青へ
     for (let i = 0; i < 118; i++) {
       const x = (i * 137.53) % w, y = (i * 83.71) % h, len = 12 + (i * 31) % 77;
       for (let sx = -w; sx <= w; sx += w) for (let sy = -h; sy <= h; sy += h) {
@@ -1283,7 +1283,7 @@ function seaMaterial(rt) {
   }
   const env = new THREE.CubeTexture(faces); env.colorSpace = THREE.SRGBColorSpace; env.needsUpdate = true;
   const mat = new THREE.MeshStandardMaterial({ map: shipTex().sea, roughness: 0.32, metalness: 0,
-    envMap: env, envMapIntensity: 0.65 });
+    envMap: env, envMapIntensity: 0.38 });
   const U = { waterTime: { value: 0 }, waterWind: { value: new THREE.Vector2(WIND_STATE.dirX, WIND_STATE.dirZ) } };
   rt.flags.waterU = U;
   mat.onBeforeCompile = shader => {
@@ -1313,10 +1313,13 @@ function seaMaterial(rt) {
         + sin(waterP.y * 0.31 + waterP.x * 0.19) * 2.3;
       float ripplePhase = waterP.y * 2.73 - waterP.x * 1.21 - waterTime * 1.9
         + sin(waterP.x * 0.57 + waterP.y * 0.23) * 1.7;
-      float swell = cos(swellPhase) * 0.045 / (1.0 + fwidth(swellPhase) * 2.0);
+      float swell = cos(swellPhase) * 0.06 / (1.0 + fwidth(swellPhase) * 2.0);
+      // 10/30：平らな板に見えた。十数メートルの長いうねりを足し、背の側を暗く・風上の面を明るく塗り分ける。
+      float bigPhase = waterP.x * 0.17 + waterP.y * 0.06 - waterTime * 0.55 + sin(waterP.y * 0.045 + waterP.x * 0.02) * 1.6;
+      float big = cos(bigPhase) * 0.085 / (1.0 + fwidth(bigPhase) * 2.0);
       float ripple = cos(ripplePhase) * 0.028 / (1.0 + fwidth(ripplePhase) * 2.0);
       float crossWave = cos(waterP.x * 0.53 - waterP.y * 0.67 + waterTime * 0.8) * 0.022;
-      vec2 slope = waterWind * (swell + ripple * 0.35 + crossWave)
+      vec2 slope = waterWind * (swell + big + ripple * 0.35 + crossWave)
         + vec2(-waterWind.y, waterWind.x) * (ripple - swell * 0.3 - crossWave * 0.6);
       normal = normalize(mat3(viewMatrix) * vec3(-slope.x, 1.0, -slope.y));
       // 風の筋：うねりの山に沿って切れ切れの白い筋と、風の当たる広い面の照り・凪いだ暗い面。
@@ -1326,7 +1329,10 @@ function seaMaterial(rt) {
       float crest = smoothstep(0.84, 0.98, cos(swellPhase)) * breakUp * streakFade;
       float slick = sin(waterP.x * 0.011 + waterP.y * 0.017 + sin(waterP.y * 0.006) * 3.0) * sin(waterP.y * 0.013 - waterP.x * 0.008);
       diffuseColor.rgb *= 0.9 + 0.2 * smoothstep(-0.6, 0.6, slick);
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.85, 0.84), crest * 0.45);
+      diffuseColor.rgb *= 0.6 + 0.55 * (0.5 + 0.5 * sin(bigPhase)) * (0.8 + 0.4 * smoothstep(-0.5, 0.5, sin(swellPhase * 0.5)));
+      // 10/30：うねりの山の白が、手前で長く曲がった一筆の線に見えた。波の絵の細かな筋で切れ切れの泡にし、薄くする。
+      float speck = smoothstep(0.3, 0.55, texture2D(map, waterP * 0.045 + 0.13).g);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.8, 0.8), crest * 0.3 * speck);
     `);
     // 照り：風の当たる面だけ水面を滑らかにし、日の筋を細かく切って光らせる。
     shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
@@ -1337,13 +1343,14 @@ function seaMaterial(rt) {
     // 船と同じ霧の式を使う。海だけ青く残して、沖の船を白い切り絵にしない。
     // 共通の霧は雲の時計と見通しを分けて読み、高さと日の向きもそろえる。
   };
-  mat.customProgramCacheKey = () => 'kizugawa-water-6';
+  mat.customProgramCacheKey = () => 'kizugawa-water-9';
   const dispose = rt.dispose;
   rt.dispose = function () { env.dispose(); mat.dispose(); this.flags.sea.geometry.dispose(); this.flags.foam.dispose(); this.flags.foam.material.dispose(); dispose.call(this); };
   return mat;
 }
 
 // 舷の両側の細かな飛沫と、進んだ後ろの航跡。同じ一回の描画を使う。
+const _wakeTint = new THREE.Color();
 function updateSeaFoam(rt, t) {
   const F = rt.flags, D = rigParts().dummy;
   let n = 0;
@@ -1359,16 +1366,29 @@ function updateSeaFoam(rt, t) {
       D.position.set(x + lx * cs, .12 + pulse * .15, z - lx * sn);
       D.rotation.set(-Math.PI / 2, 0, a);
       D.scale.set(.45 + pulse, h.length * .82, 1);
-      D.updateMatrix(); F.foam.setMatrixAt(n++, D.matrix);
+      D.updateMatrix(); F.foam.setMatrixAt(n, D.matrix); F.foam.setColorAt(n++, _wakeTint.setScalar(1));
     }
-    if (distance > .015 && !S.reduceMotion) {
-      const ux = dx / distance, uz = dz / distance, trail = Math.min(18, 5 + distance * 35);
-      D.position.set(x - ux * (half + trail * .5), .32, z - uz * (half + trail * .5));
-      D.rotation.set(-Math.PI / 2, 0, Math.atan2(ux, uz));
-      D.scale.set(h.hw * .9, trail, 1); D.updateMatrix(); F.foam.setMatrixAt(n++, D.matrix);
+    if (distance > .015 && !S.reduceMotion && n < F.foam.instanceMatrix.count - 8) {
+      // 10/30：航跡が白い一筆に見えた。艫の泡は四つに切って後ろほど広く・暗く（薄れる）し、両舷へ開く八の字の筋を足す。
+      const ux = dx / distance, uz = dz / distance, trail = Math.min(18, 5 + distance * 35), seg = trail / 4, a2 = Math.atan2(ux, uz);
+      for (let k = 0; k < 4; k++) {
+        const back = half + seg * (k + .5), wob = Math.sin(t * .9 + k * 1.7 + x * .05) * .25 * k;
+        D.position.set(x - ux * back + uz * wob, .3 - k * .02, z - uz * back - ux * wob);
+        D.rotation.set(-Math.PI / 2, 0, a2 + Math.sin(k * 2.3 + t * .4) * .08);
+        D.scale.set(h.hw * (.7 + k * .55), seg * 1.15, 1); D.updateMatrix(); F.foam.setMatrixAt(n, D.matrix);
+        F.foam.setColorAt(n++, _wakeTint.setScalar(1 - k * .24));
+      }
+      for (const sd of [-1, 1]) {
+        const ang = a2 + sd * .36, len = trail * .9, ox = Math.sin(ang), oz = Math.cos(ang);
+        D.position.set(x - ux * half * .6 - ox * len * .5, .28, z - uz * half * .6 - oz * len * .5);
+        D.rotation.set(-Math.PI / 2, 0, ang);
+        D.scale.set(.5, len, 1); D.updateMatrix(); F.foam.setMatrixAt(n, D.matrix);
+        F.foam.setColorAt(n++, _wakeTint.setScalar(.55));
+      }
     }
   }
   F.foam.count = n; F.foam.instanceMatrix.needsUpdate = true;
+  if (F.foam.instanceColor) F.foam.instanceColor.needsUpdate = true;
 }
 function animateRig(g, t, rowing) {
   const r = g.userData.rowing, R = rigParts(), D = R.dummy;
@@ -3186,8 +3206,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       // 胴が板に触れた瞬間だけ、甲冑の音へ船板の響きを重ねる。
       if (impact && !u.death.impactPending) this.play('stepWood', u.mesh.position, 0.55);
     };
-    const ringGeo = new THREE.RingGeometry(0.8, 0.84, 20);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xc0d5d7, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
+    // 10/30：落ちた所の波紋が、細い白線の一筆の弧に見えた。幅を持たせ、泡の点の絵で切れ切れにする。
+    const ringGeo = new THREE.RingGeometry(0.6, 0.92, 24);
+    const ringMat = new THREE.MeshBasicMaterial({ map: rigParts().foamMat.map, color: 0xc0d5d7, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
     const boardGeo = new THREE.BoxGeometry(0.3, 0.055, 1.1);
     F.seaRemainsNext = 0;
     F.seaRemains = Array.from({ length: 24 }, () => {
@@ -3243,8 +3264,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       u.color.value.setHex([0x293f38, 0x465a56, 0x637471][layer]);
     }
     // 波がしらと舷の飛沫は一つの描画にまとめ、準備した形を使い回す。
-    const foam = new THREE.InstancedMesh(rigParts().foam, new THREE.MeshBasicMaterial({ map: rigParts().foamMat.map, color: 0xc2d4d0, transparent: true, opacity: 0.24, depthWrite: false }), 220); // 航跡を描いた白い帯にしない（手本の屏風・写真の淡い泡）
+    const foam = new THREE.InstancedMesh(rigParts().foam, new THREE.MeshBasicMaterial({ map: rigParts().foamMat.map, color: 0xc2d4d0, transparent: true, opacity: 0.24, depthWrite: false }), 420); // 航跡を描いた白い帯にしない（手本の屏風・写真の淡い泡）
     foam.instanceMatrix.setUsage(THREE.DynamicDrawUsage); foam.frustumCulled = false;
+    for (let i = 0; i < 420; i++) foam.setColorAt(i, _wakeTint.setScalar(1)); // 航跡の後ろほど薄れる色を一つの描画で
     foam.count = 0; F.foam = foam; rt.scene.add(foam);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5), new THREE.MeshBasicMaterial({ color: 0xffcc66 }));
     const splash = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 7), new THREE.MeshBasicMaterial({ color: 0xc5e1df }));

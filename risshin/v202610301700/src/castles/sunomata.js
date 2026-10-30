@@ -96,6 +96,29 @@ export const SHED_ROADS = SHEDS.map((p) => {
 });
 export const SUNOMATA_PATHS = [ROAD3, ROAD3N, KISHI_ROAD, TIMBER_SHORE_ROAD, VILLAGE_ROAD, CAMP_ROAD, SOUTHWEST_CAMP_ROAD, WEST_YOSE_ROAD, NORTH_YOSE_ROAD, NORTH_CAMP_ROAD, EAST_CAMP_ROAD, [[0, 24], [0, 10], [-5.5, -.5]], ...SHED_ROADS];
 
+// 川から砦の内へ水を引いた溝（10/30）。東の柵の結いかけの所で土塁を切り、柵の内の東半分まで浅い水を通す。
+// 柵の内の低い目から土塁に隠れずに水面が見えるように。水深は膝より浅く、兵は歩いて越せる（当たりは増やさない）。
+// 川の中洲に急ぎで結った砦の水の手を表す遊びの補いで、当時の普請の復元ではない。
+export const MIZUHIKI = [[6, -6.8], [19, -7.5], [28, -10], [42, -12], [56, -12.5], [64, -13]];
+const mizuDist = (x, z) => {
+  let best = Infinity;
+  for (let i = 0; i < MIZUHIKI.length - 1; i++) {
+    const [ax, az] = MIZUHIKI[i], [bx, bz] = MIZUHIKI[i + 1], dx = bx - ax, dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  }
+  return best;
+};
+// 溝の奥は材木の筏を寄せる船入（幅七メートルほどの浅い溜まり）。柵の内の東、持ち場から南東を見た正面に水面が開く。
+export const MIZUHIKI_POOL = [[8.5, -5.5], [15.5, -6.5]];
+const poolDist = (x, z) => {
+  const [[ax, az], [bx, bz]] = MIZUHIKI_POOL, dx = bx - ax, dz = bz - az;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(x - ax - dx * t, z - az - dz * t);
+};
+// 水面からの近さ（溝と船入のどちらにも同じ物差し：0 で水の芯、2.5 ほどで岸の外）。草や株を水の上に置かないために使う
+export const mizuhikiDist = (x, z) => Math.min(mizuDist(x, z), poolDist(x, z) - 1.4);
+
 // 歩く地面に盛り土を含める。南門は盛らず、普請中の北の口も越せる緩い土塁。
 export function sunomataGround(x, z, h) {
   const d = Math.max(Math.abs(x), Math.abs(z));
@@ -106,7 +129,9 @@ export function sunomataGround(x, z, h) {
     const lin = Math.max(0, Math.min(1, (d - FORT + 2.6) / 2.2, (FORT + 3.2 - d) / 2.6));
     const bank = lin * lin * (3 - 2 * lin);
     const mouth = z > FORT - 2 ? Math.max(0, Math.min(1, (Math.abs(x) - 3.5) / 1.5)) : 1;
-    h += 1.2 * bank * mouth;
+    // 水を引いた溝の所は土塁を切る（切れ目の肩は 2.4m で元の高さへ戻す）
+    const cut = x > 10 && x < 26 ? Math.max(0, Math.min(1, (mizuDist(x, z) - 1.6) / 2.4)) : 1;
+    h += 1.2 * bank * mouth * cut;
     // 北の内側：普請で掘り上げた土を土塁の裾へ寄せた草の段（高さ 0.45m・幅およそ 4m、斜面は緩く）。
     // 北の持ち場から南を向いても、手前に草の生えた土の段が入る（10/29）。
     if (z < 0 && z > -FORT) {

@@ -510,10 +510,16 @@ function ariSiegeFront(rt) {
   // 楯は篝火の照り返しで橙の玩具に見えないよう、この戦だけ色を古びた灰茶の木へ沈める（材質は一つを使い回す。10/29）。
   let tateMat = null;
   for (const [x, z0, z1] of [[-27, 7.6, 14], [-27, -14, -7.6], [-33, 7.6, 12], [-33, -12, -7.6]]) {
-    const t = tateNarabi(W, gx + x, gz + z0, gx + x, gz + z1, { fieldPairs: true });
+    // 陣の木地の板（無紋・裾の泥）。裏から見ても黒い板の切り抜きでなく、夜の篝火を受けた古い木に見せる（10/29 差の表）。
+    const t = tateNarabi(W, gx + x, gz + z0, gx + x, gz + z1, { fieldPairs: true, fieldTimber: true });
     if (!t) continue;
     if (t.isMesh && t.material && !Array.isArray(t.material)) {
-      if (!tateMat) { const src = t.material; tateMat = src.clone(); tateMat.onBeforeCompile = src.onBeforeCompile; tateMat.customProgramCacheKey = src.customProgramCacheKey; tateMat.color.multiply(new THREE.Color(0xa49a8c)); }
+      if (!tateMat) {
+        const src = t.material; tateMat = src.clone(); tateMat.onBeforeCompile = src.onBeforeCompile; tateMat.customProgramCacheKey = src.customProgramCacheKey;
+        tateMat.color.multiply(new THREE.Color(0x8c8173));
+        // 月の陰の裏面が真っ黒に抜けないよう、周りの篝火の照り返しをごく弱く足す（光る縁にはしない）。
+        if (tateMat.emissive) tateMat.emissive.setHex(0x0d0a07);
+      }
       t.material = tateMat;
     }
     rt.scene.add(t);
@@ -1654,6 +1660,7 @@ const arioka = {
     clear: (x, z) => (Math.abs(x) < SOKAKU_X + 5 && z > SOKAKU_N - 15 && z < WALL_Z + 15) ||
       (x > CAMP.x - 30 && x < GATE.x && Math.abs(z - GATE.z) < 45),
     trees: 220,
+    detailedBoardShields: true,   // 置楯に木口の縁・裏の持ち手・傷を付け、黒い板一枚に見せない（10/29 差の表）
     nearCedarBranches: true, // 高画質でも杉を木全体の交差板へ替えず、共有する枝房を残す。
     clearGroves: true, // 追加の林も町の空地・通り・川岸を空け、家並みに大きな木を重ねない。
     tufts: 2600,

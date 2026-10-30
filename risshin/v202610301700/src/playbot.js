@@ -13,6 +13,7 @@ import { lordGame, lordList } from './lord.js';
 import { depthBot } from './b_depth.js';
 import { botInput as fake } from './bot_input.js';
 import { retreatDodge } from './bot_retreat.js';
+import { stageNow } from './stages.js';
 import { stackWatch } from './bot_stack.js';
 import { idleWatch } from './bot_idle.js';
 
@@ -418,7 +419,7 @@ export function brain(b, inp) {
   // 前の退路の棒は次の判断へ持ち越さない。判断を休むコマでは保つ。
   inp.axis = null;
   // 倒れた時の読み直しのため、三秒ごとの足跡（時・段・位置・体力・最後の傷・上様の位置）を十四だけ残す。
-  if (!(b._trT > b.t)) { const u = b.player.u, lh = b.player.lastHit; b._trT = b.t + 3; (b._trace || (b._trace = [])).push(`${Math.round(b.t)}:${b.flags.hp ?? b.flags.step ?? ''}:${u.pos.x.toFixed(0)},${u.pos.z.toFixed(0)},${u.pos.y.toFixed(0)}:${Math.round(u.hp)}:${lh?.kind || ''}${b.flags.nb ? `|N${b.flags.nb.pos.x.toFixed(0)},${b.flags.nb.pos.z.toFixed(0)}${b.flags.nb.target ? 't' : ''}${b.flags.nbSt || ''}${b.flags.mv || ''}` : ''}`); if (b._trace.length > 14) b._trace.shift(); }
+  if (!(b._trT > b.t)) { const u = b.player.u, lh = b.player.lastHit; b._trT = b.t + 3; (b._trace || (b._trace = [])).push(`${Math.round(b.t)}:${b.flags.hp ?? b.flags.step ?? ''}:${u.pos.x.toFixed(0)},${u.pos.z.toFixed(0)},${u.pos.y.toFixed(0)}:${Math.round(u.hp)}:${lh?.kind || ''}${b.flags.nb ? `|N${b.flags.nb.pos.x.toFixed(0)},${b.flags.nb.pos.z.toFixed(0)}${b.flags.nb.target ? 't' : ''}${b.flags.nbSt || ''}${b.flags.mv || ''}` : ''}${b.def.botDbg ? '|' + b.def.botDbg(b) : ''}`); if (b._trace.length > 14) b._trace.shift(); }
   b.botCovering = false;
   b.botFollowingTaba = false;
   // 決着後も追手は動く。退却中は操作を止めず、殿の後ろへ離れる。
@@ -1327,7 +1328,13 @@ class TouchPad {
     else if (work && this.shown(work)) this.down('work', work, '長押しの作業');
     else {
       this.up('use'); this.up('work');
-      if (inp.e.has('KeyE')) { if (this.shown(use)) this.tap(use, '取る'); else if (this.shown(q('#prompt'))) this.tap(q('#prompt'), '取る（札）'); }
+      if (inp.e.has('KeyE')) {
+        // 指の端末では「取る」の丸も #prompt も隠れ、話す相手は印の「話す」札で押す（人の指と同じ所）。
+        const talk = q('#mission-goal.talk-action:not([hidden]) .goal-label');
+        if (this.shown(use)) this.tap(use, '取る');
+        else if (talk && this.shown(talk) && talk.getClientRects().length) this.tap(talk, '話す（印の札）');
+        else if (this.shown(q('#prompt'))) this.tap(q('#prompt'), '取る（札）');
+      }
     }
     // 号令
     for (const [k, id] of [['KeyC', 'attack'], ['KeyZ', 'follow'], ['KeyX', 'hold'], ['KeyN', 'retreat']]) if (inp.e.has(k)) this.cmd(id, b);
@@ -2354,6 +2361,8 @@ async function playPersona(game, spec, aud, c) {
       // 写真：困った事を見つけた時・山場・歴史好きの見回し
       if (c.shotQ.length) { const it = c.shotQ.shift(); if (!it.shot) { it.shot = await shot(game, it.title); } }
       if (c.wantShot) { const l = c.wantShot; c.wantShot = null; const f = await shot(game, l); if (f) rep.shots.push({ label: l, file: f }); }
+      // 写真を待つ間に戦が終わって片付くと b.army が無くなる。片付いた戦はここで抜ける（10/30 金ヶ崎で bot が落ちた）。
+      if (game.battle !== b || !b.army) break;
       if (!midShot && (t > cap * 0.45 || (b.army.nearestEnemy(P, 12) && t > 40))) { midShot = true; const f = await shot(game, `${name}・山場`); if (f) rep.shots.push({ label: '山場', file: f }); }
       if (!paused1 && t > 25) {
         paused1 = true;
@@ -2365,6 +2374,7 @@ async function playPersona(game, spec, aud, c) {
       stackWatch(b, rep, (m) => c.add(`stack:${spec.id}`, '隊が一点に重なって動かない', m, 2, { cat: '辻褄', shot: true, fix: '兵の行き先が同じ一点になっていないか・押し合いが効いているかを見る（bot_stack.js）' }));
       const mo = b.objectives.filter((q) => q.kind === 'main').map((q) => q.text + (q.state ? `〔${q.state === 'done' ? '済' : '失'}〕` : '')).join('／');
       if (mo !== lastMain) { lastMain = mo; if (rep.flow.length < 14) rep.flow.push(`${Math.round(b.t)}s ${mo || '（任務なし）'}`); }
+      { const sg = stageNow(b); const sk = sg ? `${sg.i + 1}/${sg.n}` : ''; if (sk && sk !== rep.stgLast) { rep.stgLast = sk; (rep.stg ||= []).push(`${Math.round(b.t)}s 段${sk}`); } }
       const up = P.pos;
       // 札に指を遮られた時は操作の問題として記録済み。地形に阻まれた歩みと取り違えない。
       if (!openingWait(game) && !game.paused && (!touch || pad.move) && dist(up, lastPos) < 0.02 && inp.k.has('KeyW')) idle += dt; else idle = 0;
@@ -2388,6 +2398,7 @@ async function playPersona(game, spec, aud, c) {
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
   rep.merit = b.tracker.total();
   rep.main = b.tracker.main;
+  { const tg = b.tracker.tegara || { zako: 0, named: 0, boss: false }; const sg = stageNow(b); (rep.stg ||= []).push(`終 段${sg ? sg.i + 1 + '/' + sg.n : '—'}・手柄 雑${tg.zako}・名${tg.named}・大将${tg.boss ? 1 : 0}＝${tg.zako + tg.named * 3 + (tg.boss || b.tracker.main === true ? 20 : 0)}点`); }
   rep.squad = b.squad.length ? `${b.squad.filter((s) => s.alive).length}/${b.squad.length}` : '—';
   rep.down = !!(b.result && b.result.down) || !P.alive;
   rep.hurt = Object.entries(hurt).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');

@@ -1587,7 +1587,7 @@ function fortGate(world, x, z, w, watch = false) {
     inverse.setPosition(px, baseY, pz); inverse.invert();
     volumes.push({ inverse, box: new THREE.Box3(new THREE.Vector3(...min), new THREE.Vector3(...max)) });
   };
-  if (watch) volume(x, z, 0, [-w / 2 - 1.1, 3.2, -2.4], [w / 2 + 1.1, 6.1, 1.4]);
+  if (watch) volume(x, z, 0, [-w / 2 - 1.3, 3.2, -2.95], [w / 2 + 1.3, 6.4, 1.95]);
   // 主郭の低い門にも屋根がある。面の検査の順番待ちでも、軒や棟を突き抜けない。
   // 冠木門の反りに合わせて分け、屋根の下の空間は視点が通れるままにする。
   else {
@@ -1725,17 +1725,25 @@ function fortGate(world, x, z, w, watch = false) {
             box(side * (w / 2 + .32), 5.59, -.5, .13, .6, .13);
             box(side * (w / 2 + .32), 5.4, -.5, .13, .12, 2.65);
           }
-          // 棟から軒へ流す古板。近くは継ぎ目と色むら、遠くは同じ灰茶の面にまとめる。
-          const n = coarse ? 1 : Math.ceil((w + 1.8) / .36), step = (w + 1.8) / n;
-          for (let i = 0; i < n; i++) box(-(w + 1.8) / 2 + (i + .5) * step,
-            5.6 + (coarse ? 0 : i % 3 * .007), -.5 + side * .83,
-            step - (coarse ? 0 : .008), .12, 1.85, side * .4,
-            coarse ? 0x797264 : [0x797264, 0x827968, 0x6e685d][i % 3]);
-        } else box(0, 5.6, -.5 + side * .83, w + 1.8, .12, 1.85, side * .4);
-        if (!coarse) for (let i = 0; i <= 8; i++)
-          box(-(w + 1.8) / 2 + i * (w + 1.8) / 8, 5.68, -.5 + side * .83, .07, .08, 1.9, side * .4);
+          // 瓦葺きの屋根。軒を壁から一・二メートル張り出し、黒い箱の上に板が載っただけに見せない（10/29 差の表）。
+          // 平瓦の面は色むらの帯、丸瓦は二十八センチごとの筋、軒先に軒瓦の列、軒の下に垂木を並べる。
+          const RW = w + 2.4, n = coarse ? 1 : Math.ceil(RW / .56), step = RW / n;
+          for (let i = 0; i < n; i++) box(-RW / 2 + (i + .5) * step,
+            5.49 + (coarse ? 0 : i % 3 * .006), -.5 + side * 1.18,
+            step - (coarse ? 0 : .006), .12, 2.6, side * .4,
+            coarse ? 0x4a4843 : [0x4a4843, 0x534f49, 0x423f3b][i % 3]);
+          if (!coarse) {
+            for (let px = -RW / 2 + .14; px < RW / 2; px += .28)
+              box(px, 5.56, -.5 + side * 1.18, .11, .09, 2.62, side * .4, (Math.round(px * 7) % 3) ? 0x3d3b37 : 0x45423d);
+            box(0, 4.97, -.5 + side * 2.38, RW + .1, .15, .17, 0, 0x37352f);
+            for (let px = -RW / 2 + .15; px < RW / 2; px += .3)
+              box(px, 5.13, -.5 + side * 1.78, .07, .08, 1.15, side * .4, 0x3b3128);
+          }
+        } else box(0, 5.49, -.5 + side * 1.18, w + 2.4, .12, 2.6, side * .4);
       }
-      box(0, 5.98, -.5, w + 2, .18, .25);
+      // 棟：熨斗瓦を積んだ太い棟と、両端の鬼瓦。
+      box(0, 6.06, -.5, w + 2.5, .26, .36, 0, 0x353430);
+      if (!coarse) for (const sd of [-1, 1]) box(sd * (w / 2 + 1.25), 6.12, -.5, .16, .46, .46, 0, 0x3a3833);
       // 妻壁と箱の頂点形式をそろえ、材質を増やさず一つの面にまとめる。
       const mergedPieces = detailed ? pieces.map(g => g.index ? g.toNonIndexed() : g) : pieces;
       const mesh = new THREE.Mesh(mergeGeometries(mergedPieces), mat);
@@ -2089,6 +2097,8 @@ const tennoji = {
   noDodgeCard: true, noPlayerFoot: true, quietMiss: true, inouFeel: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  // 10/30：城戸口まで追う最後の段は、八分の打ち切りで切らない（口の残兵は九十秒で退く）
+  pacingWait: (rt) => !!rt.flags.ending || rt.phase === 'chase',
   missions: ['南の門を守れ', '味方と門へ進め', '味方と集まれ', '出撃を待て', '味方と進め', '▼の敵を倒せ', '城戸口まで追え', 'ここを守れ'],
   missionOf(rt) {
     const F = rt.flags, p = rt.player.u.pos;
@@ -3293,7 +3303,8 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     tennojiCue(rt, 'kakari', '法螺と早打ち。二段で出よ', F.nobuU.pos);
     rt.say('佐久間信盛', '攻めの合図じゃ！　南門を出て、東の堀を回れ！', 4);
     for (const q of F.oda) { q.seekRange = 40; }
-    if (rt.player.u.group) rt.player.u.group.defMult = 1;
+    // 10/30：打って出た先で侍の三太刀で倒れる事が続いた（bot）。本人の身だけ少し固く保つ
+    if (rt.player.u.group) rt.player.u.group.defMult = 1.35;
     for (const x of rt.squad || []) if (x.group) x.group.defMult = 1;
     // 公記巻九（四）の再攻撃は二段。馬廻も後段と同時に出し、三つ目の波にしない。
     // 各段への隊の割り振りと十二秒の間隔は推定。兵数・通る道・戦闘の密度は保つ。
@@ -3742,7 +3753,13 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       // 先手と守備隊が口を押さえれば追撃の役目は済む。
       // 信長一人の位置まで待つと、敵を払った後も下知だけが残り、共通の時間切れで負けてしまう。
       // 本人・味方六人・敵不在の八秒は必要。信長の深手による敗北は上の判定で保つ。
-      F.secured = d < 10 && threat === 0 && near >= 6 ? F.secured + span : 0;
+      // 10/30：城戸口の脇に残る数人と揃わぬ味方を待ち、八分の打ち切りで負ける事があった（bot）。追い始めて九十秒で口の残兵は退き、味方三人で足りる
+      const late = F.kidoCut && rt.t - F.stepT > 90;
+      if (late && threat > 0 && rt.t >= (F.kidoRoutAt || 0)) {
+        F.kidoRoutAt = rt.t + 4;
+        for (const g of F.foes) if (!gone(g) && g.units.some((u) => u.alive && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18)) { g.noRout = false; g.morale = 0; }
+      }
+      F.secured = d < 10 && threat === 0 && near >= (late ? 3 : 6) ? F.secured + span : 0;
       rt.objProgress('main', !F.kidoCut ? `${gateDirection(rt, F.kz)} 崩れた敵を北へ追え。味方と進め` : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな' : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < 6 ? `集まった味方 ${near}／六人。ここで構えよ` : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);
     }

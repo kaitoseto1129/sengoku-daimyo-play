@@ -287,8 +287,19 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // 公記の「六月二日早天」、言経卿記の卯刻に合わせ、月夜でなく明け方の薄明。
 // 空の色・雲量・風向は推定。東北東（東は+x、北は-z）の低い光で、初夏の朝を示す。
 // https://akechikai.or.jp/siryo_nenpyo/mitsuhide_after/
-const HONNO_DAWN = { ...DAWN, sky: 0x7e8795, fog: 0x7b8390, top: 0x52647d,
-  sun: 0xffd6ab, hs: 0xbac8db, hg: 0x716653, sunI: 0.85, hI: 1.55, glow: 0.18, dir: [1, 0.08, -0.3] };
+// 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
+// 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
+const HONNO_DAWN = { ...DAWN, sky: 0x353b55, fog: 0x3f4458, top: 0x161b33,
+  sun: 0xd9c6b4, hs: 0x5d6788, hg: 0x5a3a26, sunI: 0.42, hI: 1.05, glow: 0.42, dir: [1, 0.03, -0.3] };
+// 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
+function honnoPreDawn(rt) {
+  const W = rt.world, U = W.skyMat.uniforms;
+  W.scene.fog.color.set(HONNO_DAWN.fog); U.bottom.value.set(0x4a4c5e);
+  U.glow.value.set(0xe9b98e); // 東の地平の白みは淡い橙、高い所は藍のまま
+  if (U.cloudDark) U.cloudDark.value = 0.62;
+  W.setSkyPhoto?.('dusk'); // 朝の写真は昼の雲。東の地平だけ焼ける夕の写真を日の向き（東）へ合わせて使う
+  W.updateEnv?.();
+}
 
 // 井戸・木戸（蛸薬師通り一帯の細い路地の雰囲気。町家の合間に少しだけ。軽い形で当たりは取らない）
 function well(W, x, z) {
@@ -3710,7 +3721,7 @@ const honnoji = {
     // 敵の総大将（光秀）の仕組みは使わない：寺の中に閉じ込められた戦で、味方の組が本陣へ斬り込んで勝ちになってしまう
     rt.after(0.05, () => { rt.taisho = null; });
     if (F.ehon?.general?.mounted) rt.army.setMounted(F.ehon.general, false);
-    applyLook(rt, HONNO_DAWN);
+    applyLook(rt, HONNO_DAWN); honnoPreDawn(rt);
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
     // 市内へ広がる遠景：町のあちこちで鐘が鳴り、叫びが起き、火の手が上がる（本能寺の騒ぎが町へ伝わる）
     [[34, -60, -90], [48, 100, 10], [62, -30, 130], [80, 130, -70]].forEach(([t, x, z], i) => rt.after(t, () => {
@@ -4810,7 +4821,7 @@ Object.assign(honnoji, {
     rt.makeSquad({ x: L_START.x - 2, z: L_START.z + 4 }, Math.PI / 2, [{ kind: 'spear', n: 12 }, { kind: 'bow', n: 8 }]);
     F.ehon = camp(rt, { x: -104, z: 120, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', general: { name: '明智光秀', haori: 0 }, guard: 15, reserve: 0 });
     if (F.ehon?.general?.mounted) rt.army.setMounted(F.ehon.general, false);
-    applyLook(rt, HONNO_DAWN);
+    applyLook(rt, HONNO_DAWN); honnoPreDawn(rt);
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
     // 寝入っていたところを急襲された信長：具足を着ける間が無い。小袖（肌着）のまま、兜も羽織も無しで戦い出す
     // （applyLord が戦の始めに具足一式を着せるので、その後の最初のコマで剥ぐ。rishi の段で簡単な羽織だけ足す）

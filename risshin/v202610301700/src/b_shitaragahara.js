@@ -1956,8 +1956,9 @@ const shitaragahara = {
       for (const x of [28, 33, 44, 55, 58]) for (let z = z0; z < z1; z += 4) azeSpots.push([x, z + 2, 1]);
     }
     // 箱でなく、上の丸い土手（半ば埋めた横倒しの円柱）。角の立った緑の板に見せない。
-    const azeGeo = new THREE.CylinderGeometry(0.42, 0.42, 4.15, 7, 1, true);
-    azeGeo.rotateZ(Math.PI / 2); azeGeo.scale(1, 0.62, 1); azeGeo.translate(0, -0.02, 0);
+    // 幅広く低い土の盛り（高さ十五センチほど）にする。細く黒い丸太の格子が原一面に散り、馬防柵の一列が読めなかった（10/29 差の表）。
+    const azeGeo = new THREE.CylinderGeometry(0.8, 0.8, 4.15, 9, 1, true);
+    azeGeo.rotateZ(Math.PI / 2); azeGeo.scale(1, 0.24, 1); azeGeo.translate(0, -0.05, 0);
     const aze = new THREE.InstancedMesh(azeGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), azeSpots.length);
     azeSpots.forEach(([x, z, along], i) => {
       reedPose.position.set(x, drawGroundAt(W, x, z), z);
@@ -1965,7 +1966,7 @@ const shitaragahara = {
       reedPose.scale.set(1, 0.85 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.9)), 1);
       reedPose.updateMatrix(); aze.setMatrixAt(i, reedPose.matrix);
       const tone = 0.5 + 0.5 * Math.sin(i * 0.77);
-      reedColor.setRGB(0.33 + tone * 0.06, 0.29 + tone * 0.06, 0.18 + tone * 0.03);   // 草の株の下は土の色。緑の管に見せない（10/28）
+      reedColor.setRGB(0.40 + tone * 0.05, 0.38 + tone * 0.05, 0.25 + tone * 0.03);   // 草の株の下は土の色。周りの田より少し明るい草土で、暗い丸太の筋に見せない
       aze.setColorAt(i, reedColor);
     });
     aze.receiveShadow = true;
@@ -1975,7 +1976,7 @@ const shitaragahara = {
     azeSpots.forEach(([x, z, along], i) => {
       const o = Math.sin(i * 2.71) * 1.6, gx = along ? x : x + o, gz = along ? z + o : z;
       const h = 0.38 + 0.3 * (0.5 + 0.5 * Math.sin(i * 1.31));
-      reedPose.position.set(gx, drawGroundAt(W, gx, gz) + 0.12, gz);
+      reedPose.position.set(gx, drawGroundAt(W, gx, gz) + 0.06, gz);
       reedPose.scale.set(1.5, h, 1.5); reedPose.rotation.set(0, i * 2.399, 0);
       reedPose.updateMatrix(); azeGrass.setMatrixAt(i, reedPose.matrix);
       const tone = 0.5 + 0.5 * Math.sin(i * 1.13);

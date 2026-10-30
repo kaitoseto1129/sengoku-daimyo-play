@@ -1984,27 +1984,27 @@ function tezutsuTatebori(rt, W, F) {
   for (let x = -30; x <= 32; x += 7) groove(x + Math.sin(x) * 1.5, -100, Math.PI / 2, 2);
   // 25秒の持ち場（8,-30）から見上げる近い斜面にも縦に並べる（推定）。
   // 遠い天筒山の溝は肩越しの画面の上へ外れ、柵の手前の斜面だけが写っていた（10/29 点付け：畝状竪堀なし）。
-  // 道の踏み跡と持ち場の真ん中（7歩）は空け、溝は斜面の下りに沿って裾で消す。
-  const nearOff = (x, z) => Math.hypot(x - LINES[0].x, z - LINES[0].z) < 7 || distToPolyline(x, z, HIKIDA_ROAD) < 3 || distToPolyline(x, z, ROAD) < 4;
-  const nearGroove = (x, z) => {
+  // 道の踏み跡と持ち場の真ん中（6歩）は空け、溝は斜面の下りに沿って裾で消す。
+  const nearOff = (x, z) => Math.hypot(x - LINES[0].x, z - LINES[0].z) < 6 || distToPolyline(x, z, HIKIDA_ROAD) < 2.4 || distToPolyline(x, z, ROAD) < 2.6;
+  // 持ち場を囲む斜面へ輪にして置く（25秒の向きが毎回違っても、見上げる斜面に溝が入る）。低い平らな所は溝にしない。
+  // 10/29 夜：半径24歩の輪から下ろすだけでは、肩越しに見上げる北の斜面の上半分が空き、谷へ寄った溝どうしが重なって濁った。
+  //   竪堀は斜面を真っ直ぐ下る溝なので、持ち場から放射に真っ直ぐ引き、急な所（一歩で0.2歩より上がる所）だけを刻む。
+  //   近い所は間を5歩、遠い所は間に一本足して、どこでも5歩ほどの間で並べる。
+  const ray = (a, r0) => {
     let seg = [];
     const pts = [];
-    for (let j = 0; j < 24 && W.heightAt(x, z) > 1.4; j++) {
-      pts.push([x, z]);
-      let gx = W.heightAt(x + 1, z) - W.heightAt(x - 1, z), gz = W.heightAt(x, z + 1) - W.heightAt(x, z - 1);
-      const gl = Math.hypot(gx, gz) || 1; x -= gx / gl * 1.2; z -= gz / gl * 1.2;
+    for (let r = 46; r >= r0; r -= 1.2) {
+      const x = LINES[0].x + Math.cos(a) * r, z = LINES[0].z + Math.sin(a) * r;
+      const g = Math.hypot(W.heightAt(x + 1, z) - W.heightAt(x - 1, z), W.heightAt(x, z + 1) - W.heightAt(x, z - 1)) / 2;
+      pts.push([x, z, g > 0.2 && W.heightAt(x, z) > 1.8]);
     }
-    pts.forEach(([px, pz], j) => {
-      if (nearOff(px, pz)) { if (seg.length > 2) lines.push(seg); seg = []; return; }
-      seg.push([px, pz, j / Math.max(1, pts.length - 1)]);
+    pts.forEach(([x, z, ok], j) => {
+      if (!ok || nearOff(x, z)) { if (seg.length > 2) lines.push(seg); seg = []; return; }
+      seg.push([x, z, j / Math.max(1, pts.length - 1)]);
     });
     if (seg.length > 2) lines.push(seg);
   };
-  // 持ち場を囲む斜面へ輪にして置く（25秒の向きが毎回違っても、見上げる斜面に溝が入る）。低い平らな所は溝にしない。
-  for (let a = 0; a < Math.PI * 2; a += 0.13) {
-    const r = 24 + Math.sin(a * 5) * 2, x = LINES[0].x + Math.cos(a) * r, z = LINES[0].z + Math.sin(a) * r;
-    if (W.heightAt(x, z) > 4.5) nearGroove(x, z);
-  }
+  for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) { ray(a, 7); ray(a + 0.15, 18); }
   kgGrooves(rt, F, W, lines);
 }
 
@@ -2014,8 +2014,10 @@ function kgGrooves(rt, F, W, lines) {
   const pos = [], col = [], idx = [];
   // 横切りの七点：外の裾・日の当たる土手（掘り上げた土）・暗い溝の壁と底・陰の土手・外の裾（横の位置・盛り・色）
   // 土手は丸く盛り、草に覆われた色にする（平らな板の照り返しで灰色の箱に見えた。10/29）。外の裾は地面の色へ沈める。
-  const prof = [[-1.7, -0.04, 0x4c5029], [-1.3, 0.22, 0x4a5229], [-0.95, 0.5, 0x465026], [-0.65, 0.55, 0x3f4522], [-0.4, 0.3, 0x30311b], [-0.15, 0.06, 0x221f12], [0, 0.03, 0x1c1a10],
-    [0.15, 0.06, 0x221f12], [0.4, 0.3, 0x2c2d19], [0.65, 0.55, 0x3a4020], [0.95, 0.5, 0x424b24], [1.3, 0.22, 0x485028], [1.7, -0.04, 0x4c5029]];
+  // 10/29 夜：溝の幅（左右 8m）が並びの間（3m）より広く、溝どうしが重なって一面の濁った斜面になり、点付けに「畝状竪堀なし」と見られた。
+  //   幅を左右 5m に細め、並びを 5〜6m 空け、土手を膝より高く盛る。溝の壁と底は掘り返した赤茶の土にし、草の土手と色でも形でも分ける。
+  const prof = [[-1.7, -0.04, 0x4c5029], [-1.3, 0.35, 0x5c662f], [-0.95, 0.85, 0x6e7638], [-0.65, 0.8, 0x5e4a2a], [-0.4, 0.4, 0x3a2a17], [-0.15, 0.05, 0x1e150c], [0, 0, 0x170f08],
+    [0.15, 0.05, 0x1a120a], [0.4, 0.4, 0x2c2012], [0.65, 0.8, 0x463a20], [0.95, 0.85, 0x56602c], [1.3, 0.35, 0x4c5529], [1.7, -0.04, 0x4c5029]];
   const c = new THREE.Color();
   for (const line of lines) {
     const base = pos.length / 3;
@@ -2024,7 +2026,7 @@ function kgGrooves(rt, F, W, lines) {
       const ul = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, sx = -(b[1] - a[1]) / ul, sz = (b[0] - a[0]) / ul;
       // 上の端は細く浅く消え、裾は近い肩越しに写るので終わりまで深く掘る。
       // 道で途切れた所も三点かけて地面へ戻す（切り口の土の壁を立てない）。
-      const k = Math.min(1, t * 5, (1 - t) * 12 + 0.3, j / 3, (line.length - 1 - j) / 3), w = 2.4 * Math.max(k, 0.25);
+      const k = Math.min(1, t * 5, (1 - t) * 12 + 0.3, j / 3, (line.length - 1 - j) / 3), w = 1.55 * Math.max(k, 0.25);
       for (const [o, lift, hex] of prof) {
         const x = x0 + sx * o * w, z = z0 + sz * o * w;
         pos.push(x, W.heightAt(x, z) + 0.06 + lift * k, z);
@@ -2048,7 +2050,7 @@ function kgGrooves(rt, F, W, lines) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx); geo.computeVertexNormals(); geo.computeBoundingSphere();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true;
+  const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true; mesh.castShadow = true;
   rt.scene.add(mesh);
   F.sceneryResources.push(geo, mat);
 }

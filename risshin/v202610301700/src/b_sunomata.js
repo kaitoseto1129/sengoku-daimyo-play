@@ -33,7 +33,7 @@ import { flagBlocksView } from './units_flags.js';
 import { rainDanger } from './arrow_rain.js';
 import { localClear } from './army_local_way.js';
 import { timeslipField } from './timeslip_field.js';
-import { FORT, ROAD3, ROAD3N, KISHI_ROAD, YOSE, SIDE_WORD, HORI, SUNOMATA_PLAN, SUNOMATA_PATHS, SHEDS as PLAN_SHEDS, sunomataGround } from './castles/sunomata.js';
+import { FORT, ROAD3, ROAD3N, KISHI_ROAD, YOSE, SIDE_WORD, HORI, SUNOMATA_PLAN, SUNOMATA_PATHS, SHEDS as PLAN_SHEDS, sunomataGround, MIZUHIKI, MIZUHIKI_POOL, mizuhikiDist } from './castles/sunomata.js';
 
 // ======================================================================
 // 第3戦　墨俣
@@ -1010,7 +1010,7 @@ function sunoYardDress(rt) {
   const PD = [];
   for (let k = 0; k < 80 && PD.length < 14; k++) {
     const x = (R() * 2 - 1) * (FORT - 3), z = (R() * 2 - 1) * (FORT - 3);
-    if (PD.some(([a, b]) => Math.hypot(a - x, b - z) < 4) || PLAN_SHEDS.some((h) => Math.hypot(h.x - x, h.z - z) < Math.max(h.w, h.d) / 2 + 2.5)) continue;
+    if (PD.some(([a, b]) => Math.hypot(a - x, b - z) < 4) || mizuhikiDist(x, z) < 3.5 || PLAN_SHEDS.some((h) => Math.hypot(h.x - x, h.z - z) < Math.max(h.w, h.d) / 2 + 2.5)) continue;
     PD.push([x, z, 0.45 + R() * 0.7]);
   }
   // 縁のくっきりした円板は空色の切り紙に見えた（10/29）。真ん中の水・濡れた泥の輪・乾いた土へ溶ける縁の三段にし、
@@ -1108,6 +1108,7 @@ function sunoBankGrass(rt) {
       spots.push([t + Math.sin(t * 5.3 + off) * 0.2, -FORT + off + Math.sin(t * 3.7 + off) * 0.4, 0.35 + 0.4 * Math.abs(Math.sin(t * 1.9 + off))]);
     }
   }
+  for (let i = spots.length - 1; i >= 0; i--) if (mizuhikiDist(spots[i][0], spots[i][1]) < 2) spots.splice(i, 1);   // 水を引いた溝の中に株を置かない
   const mesh = new THREE.InstancedMesh(rockTuftShape(true),
     new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), spots.length);
   const pose = new THREE.Object3D(), color = new THREE.Color();
@@ -1117,7 +1118,8 @@ function sunoBankGrass(rt) {
     pose.scale.set(size * 1.2, size * (0.8 + 0.4 * k), size * 1.2);
     pose.rotation.y = i * 2.399; pose.updateMatrix(); mesh.setMatrixAt(i, pose.matrix);
     const dry = 0.5 + 0.5 * Math.sin(i * 0.61);
-    color.setRGB(0.30 + dry * 0.22, 0.38 + dry * 0.08, 0.16 + dry * 0.02);
+    // 黒く沈んだ株に見えた（10/30）。秋の黄緑と枯れ色の間で明るさを上げる
+    color.setRGB(0.42 + dry * 0.26, 0.47 + dry * 0.1, 0.22 + dry * 0.05);
     mesh.setColorAt(i, color);
   });
   mesh.receiveShadow = true;
@@ -1841,9 +1843,21 @@ function sunoGate(rt) {
 }
 
 // 写真の塀沿いの細長い幟。織田の紋と風向きは共通部品から受け、墨俣の据え旗だけ細くする。
+// 土塁の上の幟は日に焼けた木綿。真っ白な布が横から白い板の柱に見えた（10/30）ので、生成りへ沈める（材質は幟ごとに一つを使い回す）
+const sunoFlagMats = new Map();
 function sunoFortFlag(W, x, z) {
   const flag = nobori(W, x, z, 'oda', 5);
   flag.scale.x *= .68;
+  flag.traverse((m) => {
+    if (!m.isMesh || !m.material?.map || Array.isArray(m.material)) return;
+    let mat = sunoFlagMats.get(m.material);
+    if (!mat) {
+      mat = m.material.clone(); mat.color.multiply(new THREE.Color(0xb9ae94));
+      mat.onBeforeCompile = m.material.onBeforeCompile; mat.customProgramCacheKey = m.material.customProgramCacheKey;
+      sunoFlagMats.set(m.material, mat);
+    }
+    m.material = mat;
+  });
   return flag;
 }
 
@@ -2030,7 +2044,7 @@ function sunoReedGeo() {
     const at = (t) => [bx + ox * lean * t * t, H * t, bz + oz * lean * t * t];
     // 茎：二節。根は濃い枯れ緑、上ほど明るい黄緑から藁色へ
     let p0 = at(0), wid0 = w;
-    for (const [t, ca, cb] of [[.55, 0x3d4125, 0x666f38], [1, 0x666f38, 0x958a58]]) {
+    for (const [t, ca, cb] of [[.55, 0x585b33, 0x868e47], [1, 0x868e47, 0xb2a56c]]) {
       const p1 = at(t), wid1 = w * (1.15 - t);
       const L0 = [p0[0] - sx * wid0, p0[1], p0[2] - sz * wid0], R0 = [p0[0] + sx * wid0, p0[1], p0[2] + sz * wid0];
       const L1 = [p1[0] - sx * wid1, p1[1], p1[2] - sz * wid1], R1 = [p1[0] + sx * wid1, p1[1], p1[2] + sz * wid1];
@@ -2041,14 +2055,14 @@ function sunoReedGeo() {
     for (const [t, side] of [[.32, 1], [.58, -1]]) {
       const m = at(t), la = a + side * 1.3 + h01s(s, 4) * .6, lx = Math.cos(la), lz = Math.sin(la), L = .26 + h01s(s, 5 + t) * .14;
       const tip = [m[0] + lx * L, m[1] + .06 - h01s(s, 6) * .1, m[2] + lz * L];
-      const dry = h01s(s, 7) < .35 ? 0x9c8e5a : 0x76803f;
-      tri([m[0] - lz * .02, m[1] - .012, m[2] + lx * .02], [m[0] + lz * .02, m[1] + .012, m[2] - lx * .02], tip, 0x56602f, 0x56602f, dry);
+      const dry = h01s(s, 7) < .35 ? 0xbcab72 : 0x95a14e;
+      tri([m[0] - lz * .02, m[1] - .012, m[2] + lx * .02], [m[0] + lz * .02, m[1] + .012, m[2] - lx * .02], tip, 0x76823c, 0x76823c, dry);
     }
     // 穂：秋の葦の紫がかった枯れ色の穂。茎の七割ほど
     if (h01s(s, 8) < .7) {
       const t0 = at(.97), t1 = [t0[0] + ox * .05, t0[1] + .2, t0[2] + oz * .05], mid = [(t0[0] + t1[0]) / 2, t0[1] + .09, (t0[2] + t1[2]) / 2];
       const L = [mid[0] - sx * .035, mid[1], mid[2] - sz * .035], R = [mid[0] + sx * .035, mid[1], mid[2] + sz * .035];
-      tri(t0, R, t1, 0x6b5c4b, 0x77695a, 0x847565); tri(t0, t1, L, 0x6b5c4b, 0x847565, 0x77695a);
+      tri(t0, R, t1, 0x8a7a66, 0x978876, 0xa69886); tri(t0, t1, L, 0x8a7a66, 0xa69886, 0x978876);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -2077,6 +2091,7 @@ function sunoReedBeds(rt) {
     if (y < -.32 || !free(jx, jz)) continue;
     if (jz < -18.6 && jx < 19.4) continue;
     if (roads.some((P) => distToPolyline(jx, jz, P) < 2.4)) continue;
+    if (mizuhikiDist(jx, jz) < 2.8) continue;
     // 舟着きの平場（上陸と斬り合いの場）は見通しを残す。柵の外の裾（八メートルほど）だけは刈り残しの葦の帯
     const landing = jz > -9 && jx > 27;
     if (landing && h01s(jx * 2, jz) > .18) continue;
@@ -2094,7 +2109,7 @@ function sunoReedBeds(rt) {
   // 柵の内の東半分：刈った葦の短い株（踏み跡の道・小屋・門の口は空ける）
   for (let z = -17.2; z < 8.5; z += .6) for (let x = -3.6; x < 17.4; x += .6) {
     const jx = x + (h01s(x + 9, z) - .5) * .6, jz = z + (h01s(z, x + 9) - .5) * .6;
-    if (inShed(jx, jz, .5) || onPath(jx, jz, 1.5) || !free(jx, jz)) continue;
+    if (inShed(jx, jz, .5) || onPath(jx, jz, 1.5) || !free(jx, jz) || mizuhikiDist(jx, jz) < 2.8) continue;
     const near = Math.min(17.6 - jx, jz + 17.6);   // 柵ぎわほど刈り残しが多く背が高い
     if (h01s(jx * 5, jz * 2) > .78 + Math.max(0, 1 - near / 5) * .15) continue;
     spots.push([jx, W.heightAt(jx, jz), jz, (near < 2.2 ? .45 : .32) + h01s(jx, jz) * .26, .3]);   // 土塁の内の法も刈った低い株（外の葦原を隠さない）
@@ -2442,6 +2457,10 @@ const SUNO_WEST_BROOK = { pts: [[-188, -68], [-150, -62], [-116, -54], [-80, -48
 // 砦の北東を回る枝水路。水面と岸の砂泥・草の被覆で同じ川筋を参照する。
 // 北の持ち場の右奥へ川面が開く入り江。北の寄せ道・舟着きの物見は岸に残す。
 // 当時の川筋の復元ではなく、長良川へ続く水面を見せる遊びの配置。
+// 水面は縁から一握り下（低い目から溝の手前の縁に隠れない）。柵の内は砦の地面、岸は舟着きの平場に合わせ、川の口で長良川へ下りる。
+const SUNO_MIZUHIKI = { pts: MIZUHIKI, w: 2.2, depth: .55,
+  levelAt: (x) => x < 18 ? .22 : x < 24 ? .22 - (x - 18) * .04 : x < 56 ? -.02 : -.02 - Math.min(1, (x - 56) / 6) * .68 };
+const SUNO_MIZUHIKI_POOL = { pts: MIZUHIKI_POOL, w: 3.2, depth: .55, levelAt: () => .22 };
 const SUNO_FORT_BROOK = { pts: [[30, -46], [40, -39], [50, -32], [64, -24]], w: 7.5, depth: 1.6, level: -.7, joinRiver: true };
 
 // 砂泥の色と草の被覆に同じ岸を使う。色だけ替えると草の地表と草株が水際を覆ってしまう。
@@ -3030,7 +3049,7 @@ const sunomata = {
     grass: 0x6e7a45, grassTints: [0xffffff, 0xd8cf9e, 0xa9b07c], tallGrass: 1,
     flagColors: [0xe2ded2, 0x2a2826, 0x6b4a32],   // 紺の旗は青い味方に見えるので柿渋に（10/29）
     fights: [[0, -FORT - 12, 30], [-FORT - 12, 0, 30], [0, -FORT, 16], [-FORT, 0, 16]],
-    skip: (x, z) => x > 56,
+    skip: (x, z) => x > 56 || mizuhikiDist(x, z) < 3.2,   // 水を引いた溝の水面を草で隠さない
   },
   // 民の位置と道は復元。江戸期の墨俣宿・寺町や天守の城下を持ち込まない。
   // 寺町の移転時期：大垣市 https://www.city.ogaki.lg.jp/0000019596.html
@@ -3255,6 +3274,8 @@ const sunomata = {
       // 当時の確定した堀でなく、岸の区画を囲う浅い枝水路の補い。舟着きと南の道は空ける。
       // 水面・川床・岸は同じ定義を使い、河口の水位も本流へつなぐ。
       SUNO_FORT_BROOK,
+      // 川から砦の内へ水を引いた浅い溝（castles/sunomata.js の MIZUHIKI）。土塁の切れ目から川面へ続く水を、柵の内の目から見せる。
+      SUNO_MIZUHIKI, SUNO_MIZUHIKI_POOL,
     ],
     height(x, z) {
       let h = 0.5 * Math.sin(x * 0.04) * Math.cos(z * 0.03) + 0.4 * Math.sin(z * 0.08 + x * 0.02);
@@ -3640,9 +3661,9 @@ const sunomata = {
         sakamogi.n.push(sunoSakamogi(W, k * 7, -FORT - 5.5, Math.PI, 5));
         sakamogi.w.push(sunoSakamogi(W, -FORT - 5.5, k * 7, -Math.PI / 2, 5));
       }
-      sakamogi.e.push(sunoSakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));
+      if (k !== -1) sakamogi.e.push(sunoSakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));   // -7 は水を引いた溝の切れ目
     }
-    rt.scene.add(lumber(W, 9, -10, 0.2));
+    rt.scene.add(lumber(W, 10.5, -12.8, 0.2));   // 水を引いた溝の手前を塞がない所へ（10/30）
     rt.scene.add(lumber(W, 10, 4, -0.1));
     rt.scene.add(lumber(W, -9, 7, 1.4));
     // 完成した西の守り場には足場を残さず、敵の顔と槍先を見通せるようにする。

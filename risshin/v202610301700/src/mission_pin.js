@@ -59,7 +59,8 @@ function make() {
     const rt = el._rt, it = rt?.nearestInteract();
     if (!rt || rt.over || rt.game.paused || !rt.player.u.alive || it?.id !== el._work) return;
     if (it.hold) el._hud.workHoldId = it.id;
-    label.setPointerCapture(event.pointerId);
+    // 指が既に離れていると掴めない。掴めなくても押した事は click で届く（ページの例外にしない）。
+    try { label.setPointerCapture(event.pointerId); } catch (e) { /* 掴めない指は放す */ }
   });
   for (const type of ['pointerup', 'pointercancel', 'lostpointercapture', 'blur']) label.addEventListener(type, release);
   label.addEventListener('keydown', event => {

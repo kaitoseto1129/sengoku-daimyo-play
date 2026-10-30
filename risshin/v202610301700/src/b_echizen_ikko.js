@@ -2608,9 +2608,12 @@ const echizen_ikko = {
       const gableGeo = new THREE.CylinderGeometry(1, 1, 1, 3, 1); gableGeo.rotateZ(Math.PI / 2); gableGeo.rotateX(-Math.PI / 2);
       gableGeo.translate(0, .5, 0); gableGeo.scale(1, 1 / 1.5, 1 / 1.732);
       const flameGeo = new THREE.ConeGeometry(.5, 1, 6, 1);
-      const litMat = new THREE.MeshBasicMaterial({ color: 0x6a4224, fog: false });  // 篝火の照る木
+      const litMat = new THREE.MeshBasicMaterial({ color: 0x3e2a1a, fog: false });  // 篝火の照る木（明るすぎると光る縁取りに見えた。10/29 差の表）
+      const stoneMat = new THREE.MeshBasicMaterial({ color: 0x4b4640, fog: false });  // 篝火に照る基壇の石
+      const seamMat = new THREE.MeshBasicMaterial({ color: 0x1c1915, fog: false });   // 石の目地・柱の陰
+      const postMat = new THREE.MeshBasicMaterial({ color: 0x33221a, fog: false });   // 陰の側の柱
       const doorMat = new THREE.MeshBasicMaterial({ color: 0x2e1c10, fog: false });
-      const eaveMat = new THREE.MeshBasicMaterial({ color: 0xa8642c, fog: false });
+      const eaveMat = new THREE.MeshBasicMaterial({ color: 0x3f2c1c, fog: false });   // 軒先は照らされた古材の色。橙の発光の縁にしない
       const coreMat = new THREE.MeshBasicMaterial({ color: 0xffe6a8, fog: false });
       const boxGeo = new THREE.BoxGeometry(1, 1, 1);
       const part = (g, geo, mat, sx, sy, sz, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, z); g.add(m); };
@@ -2627,9 +2630,17 @@ const echizen_ikko = {
         // 本堂の建つ山の黒い影。宙に浮いた堂に見せない。
         part(g, hillGeo, hillMat, 64, 26, 44, 0, -12.6, 6);
         // 惣門の上へ持ち上げた時、堂の下に夜空が抜けて宙に浮いて見えた（10/28 撮り直し）。堂の下を山の土手で埋め、石の基壇に載せる。
-        part(g, boxGeo, hillMat, 30, 14, 22, 0, -6.6, 2);
-        part(g, boxGeo, ridgeMat, 19, .9, 14, 0, .15, 0);
+        // 四角い黒い板に見えた（10/29 差の表）。裾の広がる土手の形にする。
+        part(g, hillGeo, hillMat, 36, 14, 26, 0, -6.9, 2);
+        // 石積みの基壇（高さ一・八メートル）。堂を地に据え、宙に浮く光る箱に見せない（10/29 差の表）。
+        part(g, boxGeo, stoneMat, 19.5, 1.8, 14.5, 0, -.3, 0);
+        for (const y of [-.75, -.15, .45]) part(g, boxGeo, seamMat, 19.6, .07, 14.6, 0, y, 0);
+        for (let i = 0; i < 9; i++) part(g, boxGeo, seamMat, .07, .55, .1, -8.6 + i * 2.15 + (i % 2) * .5, -.45 + (i % 2) * .6, -7.27);
         part(g, boxGeo, wallMat, 16, 4, 11, 0, 2.6, 0);
+        // 壁を一枚の箱にせず、四周に柱を立てる（正面は照る柱、側と背は陰の柱）。
+        for (const dx of [-5.05, 5.05]) part(g, boxGeo, litMat, .45, 3.8, .45, dx, 2.5, -5.8);
+        for (const dz of [-5.4, -1.8, 1.8, 5.4]) for (const dx of [-8.05, 8.05]) part(g, boxGeo, postMat, .45, 3.8, .45, dx, 2.5, dz);
+        part(g, boxGeo, postMat, 16.6, .35, .5, 0, 4.15, -5.75);   // 頭貫
         // 壁より二メートル張り出す深い軒と、その軒裏の暗がり（寺の大屋根の重さ）
         part(g, boxGeo, doorMat, 20, .5, 14.8, 0, 4.35, 0);
         part(g, roofGeo, roofMat, 10, 5.6, 7.4, 0, 4.6, 0);
@@ -2640,7 +2651,8 @@ const echizen_ikko = {
         for (const dx of [-7.6, -2.5, 2.5, 7.6]) part(g, boxGeo, litMat, .45, 3.8, .45, dx, 2.5, -5.8);   // 篝火に照る正面の柱
         part(g, boxGeo, eaveMat, 20, .3, .3, 0, 4.6, -7.4);   // 軒先の照り
         part(g, boxGeo, litMat, 17.5, .3, 1.4, 0, 1, -6.2);   // 縁
-        part(g, boxGeo, litMat, 6, .5, 2, 0, .4, -7.4);       // 正面の階
+        for (let i = 0; i < 4; i++) part(g, boxGeo, stoneMat, 6, .45, 1.1, 0, -.95 + i * .45, -9.2 + i * .55);   // 正面の石段
+        for (const dx of [-3.1, 3.1]) part(g, boxGeo, seamMat, .12, 1.9, 2.4, dx, -.25, -8.4);
         // 堂の下の土手が角の立った黒い板に見えた（10/28 夜）。両肩に杉の木立の影を立て、木の茂る山に見せる。
         for (const [dx, by, h, w, dz] of [[-12.5, -3, 13, 3.4, -1], [-15.5, -5, 15, 4, 3], [-19, -7, 12, 3.6, 0], [-23, -9, 13, 4.2, 4], [12.8, -3.5, 12, 3.2, 1], [15.8, -5, 16, 4, -1], [19.5, -7.5, 13, 3.8, 3], [23.5, -9.5, 12, 4, 0]]) {
           part(g, flameGeo, sugiMat, w, h, w, dx, by + h / 2, dz);
@@ -2714,7 +2726,7 @@ const echizen_ikko = {
         }
       };
       const disposeFar = rt.dispose.bind(rt);
-      rt.dispose = () => { roofGeo.dispose(); gableGeo.dispose(); flameGeo.dispose(); litMat.dispose(); doorMat.dispose(); eaveMat.dispose(); coreMat.dispose(); hillGeo.dispose(); hillMat.dispose(); boxGeo.dispose(); roofMat.dispose(); ridgeMat.dispose(); wallMat.dispose(); glowMat.dispose(); disposeFar(); };
+      rt.dispose = () => { stoneMat.dispose(); seamMat.dispose(); postMat.dispose(); roofGeo.dispose(); gableGeo.dispose(); flameGeo.dispose(); litMat.dispose(); doorMat.dispose(); eaveMat.dispose(); coreMat.dispose(); hillGeo.dispose(); hillMat.dispose(); boxGeo.dispose(); roofMat.dispose(); ridgeMat.dispose(); wallMat.dispose(); glowMat.dispose(); disposeFar(); };
     }
     const hudRoot = rt.hud.root;
     hudRoot.dataset.echizenIkko = '';
@@ -3335,7 +3347,7 @@ const echizen_ikko = {
       // 惣門の門前に固まって門を守る一揆勢（本物の兵二十四人。持ち場から動かず、寄せ手が近づいた時だけ槍を合わせる）。
       // 惣門の下の参道の坂に置き、麓の持ち場から松明と篝火に照らされた群れと、その奥の惣門が一緒に見える。人数と位置は推定（10/29）。
       F.ikkoGateCrowd = enemyGroup(rt, { faction: 'ikko', fixed: true, name: '惣門前の一揆勢', anchor: { x: GATE_SOMON.x, z: GATE_SOMON.z - 30 }, facing: Math.PI, width: 12, aggro: 7, formation: 'yari' },
-        [{ type: 'ashigaru', n: 20, o: { armor: IKKO.armor, flag: IKKO.flag } }, { type: 'samurai', n: 4, o: { armor: IKKO.armor, flag: IKKO.flag } }]);
+        [{ type: 'ashigaru', n: 12, o: { armor: IKKO.armor, flag: IKKO.flag } }, { type: 'samurai', n: 2, o: { armor: IKKO.armor, flag: IKKO.flag } }]);
       // 惣門前の一揆勢の両脇に篝火の台を二つ（麓の側から火が当たり、顔・笠・槍が浮かぶ）
       for (const dx of [-5.5, 5.5]) { const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 33; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
       // 惣門前の一揆勢が掲げる松明（竹の柄の先に火。柄の形と材質は一つを使い回す）。数と並びは推定。
@@ -3942,6 +3954,20 @@ const echizen_ikko = {
         }
         const zones = F.SZ.byId;
         const near = (at, r) => Math.hypot(P.x - at.x, P.z - at.z) < r;
+        // 10/30：門を破った後、堂の陰に残る数人を探し続けて退き陣になる事が続いた（bot）。
+        // 破って五十秒たてば、堂に残る守りは崩れて逃げる。堂の印のそば（22m）まで来ていれば押さえた事にする
+        const gz = F.step === 1 ? zones.gezan : F.step === 2 ? zones.hondo : null;
+        const gst = F.step === 1 ? F.gateSomon.struct : F.step === 2 ? F.gateSanmon.struct : null;
+        if (gz && gst && !gst.alive) {
+          if (F.gateDownStep !== F.step) { F.gateDownStep = F.step; F.gateDownT = rt.t; }
+          if (rt.t - F.gateDownT > 50 && rt.t >= (F.zoneRoutAt || 0)) {
+            F.zoneRoutAt = rt.t + 4;
+            for (const u of rt.army.units) if (u.team === 1 && u.alive && !u.fleeing && !u.isStruct && !u.invuln && gz.test(u.pos.x, u.pos.z) && u.group && !u.group.noRoutForce) {
+              u.group.noRout = false; u.group.morale = 0;
+            }
+          }
+        }
+        const zoneNear = (z) => z.test(P.x, P.z) || Math.hypot(P.x - z.pos.x, P.z - z.pos.z) < 22;
         if (F.step === 1) {
           F.target = F.gateSomon.struct.alive ? GATE_SOMON : OUTER_POS;
           if (!F.gateSomon.struct.alive) {
@@ -3954,7 +3980,7 @@ const echizen_ikko = {
           // 別手が外堂を取っても、惣門の打ち手を置き去りにして次の門へ向かわせない。
           // 堂の区域へ入れば合流。四角い庭の隅を中央からの円で除くと、
           // 制圧済みでも「先手と合流できず」の退き陣になってしまう。
-          if (!F.gateSomon.struct.alive && zones.gezan.owner === ZONE_STATE.FRIEND && zones.gezan.enemies === 0 && zones.gezan.test(P.x, P.z)) this.nextAttack(rt, 2);
+          if (!F.gateSomon.struct.alive && zones.gezan.owner === ZONE_STATE.FRIEND && zones.gezan.enemies === 0 && zoneNear(zones.gezan)) this.nextAttack(rt, 2);
           else if (F.gateSomon.struct.alive) {
             const cover = templeTabaFollow(rt);
             const text = nakaRoomAt(P.x, P.z, P.y) ? '堂を出て、参道から惣門へ'
@@ -3980,7 +4006,7 @@ const echizen_ikko = {
               rt.obj('main', '本堂を押さえ、印へ', 'main', true);
             }
           }
-          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zones.hondo.test(P.x, P.z)) this.nextAttack(rt, 3);
+          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zoneNear(zones.hondo)) this.nextAttack(rt, 3);
           else if (F.gateSanmon.struct.alive) {
             const text = templeSanmonTask(rt);
             if (F.sanmonGuide !== text) {
