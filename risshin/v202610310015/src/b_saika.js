@@ -2831,11 +2831,11 @@ const saika = {
     F.saikaBoss = F.reserve.units[0];
     // 地元の小組は、川上・川下を渡った東岸の道に初めからいる。開始後に兵を足さない。
     // 川上から寄せ、持ち場から見て杭抜きの組の正面で当たる（10/30 採点：兵が左に寄る）。
-    F.skirmish = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川べりの雑賀衆', anchor: { x: -9, z: -32 }, facing: 0,
-      formation: 'yari', order: 'hold', aggro: 10, fleeDir: { x: 0, z: -1 } }, dress([{ type: 'ashigaru', n: 4 }, { type: 'ashigaru', n: 4, o: SAIKA_HACHI }], SAIKA));
-    F.flanks = [48, -48, 64, -64].map((z) => enemyGroup(rt, { faction: 'saika', fixed: true, name: z > 0 ? '川下の雑賀衆' : '川上の雑賀衆',
+    F.skirmish = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川べりの雑賀衆', anchor: { x: -9, z: -24 }, facing: 0,
+      formation: 'yari', order: 'hold', aggro: 10, fleeDir: { x: 0, z: -1 } }, dress([{ type: 'ashigaru', n: 10 }, { type: 'ashigaru', n: 8, o: SAIKA_HACHI }], SAIKA));   // 10/30 25秒：乱戦が写る数へ（前の8人は画面にまばら）
+    F.flanks = [34, -34, 64, -64].map((z) => enemyGroup(rt, { faction: 'saika', fixed: true, name: z > 0 ? '川下の雑賀衆' : '川上の雑賀衆',
       anchor: { x: -9, z }, facing: z > 0 ? Math.PI : 0, formation: 'yari', order: 'hold', aggro: 10,
-      fleeDir: { x: 0, z: z > 0 ? 1 : -1 } }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }, { type: 'ashigaru', n: 2, o: SAIKA_HACHI }, { type: 'gun', n: 1 }], SAIKA)));
+      fleeDir: { x: 0, z: z > 0 ? 1 : -1 } }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'ashigaru', n: 3, o: SAIKA_HACHI }, { type: 'gun', n: 1 }], SAIKA)));
     // かつて戦闘中に足していた二十人も準備時に置き、人数と道筋を保つ。
     F.bankRelief = [80, -80, 96, -96].map((z) => {
       const g = enemyGroup(rt, { faction: 'saika', fixed: true, name: z > 0 ? '川下の寄せの控え' : '川上の寄せの控え',

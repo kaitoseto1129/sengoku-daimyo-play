@@ -2484,7 +2484,7 @@ const iga = {
         this.midA(rt); return;
       }
       // 消火の組が崩れても負けにしない。残る火は陣の者が消し、迎え撃ちを続ける。
-      if (w >= 100 && F.doused < 3) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
+      if (w >= 100 && F.doused < 3 && Math.hypot(rt.player.u.pos.x - CAMP.x, rt.player.u.pos.z - CAMP.z) < 45) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
 
     }
     if (F.step === 3 && guide && rt.t - F.stepT <= 8) rt.objProgress('main', '物見が木戸と曲輪を見張る');

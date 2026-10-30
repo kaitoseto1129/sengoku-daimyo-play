@@ -2953,7 +2953,7 @@ const shitaragahara = {
       }
       F.prepT = here && together ? (F.prepT || 0) + dt : 0;
       rt.objProgress('hold', !here ? '槍組の持ち場へ進め' : !together ? '持ち場で組を待て' : '仲間と並び、敵を待て');
-      if ((F.prepT >= 4 && rt.t - F.prepAt >= 4) || rt.t - F.prepAt >= 6) {
+      if ((F.prepT >= 4 && rt.t - F.prepAt >= 4) || rt.t - F.prepAt >= 6 && Math.hypot(p.x - F.prepPt.x, p.z - F.prepPt.z) < 25) {
         F.prepDone = true;
         rt.objProgress('hold', '');
         // 持ち場を確かめただけで、柵の丈夫さや傷を増減させない。
@@ -2972,7 +2972,8 @@ const shitaragahara = {
       }
       const here = Math.hypot(p.x - F.commandPt.x, p.z - F.commandPt.z) < 12;
       rt.objProgress('hold', !here ? '柵の奥を通り、次の持ち場へ進め' : !gunsReady ? '持ち場で鉄砲組を待て' : '槍を揃え、寄せを受けよ');
-      if ((here && gunsReady) || rt.t - F.postWaitAt >= (F.tobiDone ? 6 : 12)) {
+      // 10/30：時が過ぎても、本人が持ち場の近くにいなければ次の寄せを始めない
+      if ((here && gunsReady) || rt.t - F.postWaitAt >= (F.tobiDone ? 6 : 12) && Math.hypot(p.x - F.commandPt.x, p.z - F.commandPt.z) < 30) {
         rt.objProgress('hold', ''); this.wave(rt, true);
         if (!here) rt.say(F.voice, '敵が柵へ来るぞ！　奥の道を通り、持ち場へ急げ！', 3);
       }
