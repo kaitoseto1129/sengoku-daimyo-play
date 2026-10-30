@@ -53,6 +53,9 @@ const CAMP_LINE = { x: CAMP.x, z: CAMP.z - 6 };
 const FAILED_WITHDRAWAL = '低い法螺と二つ打ちは退き太鼓じゃ。持ち場を交代する。組を崩さず南の陣へ退け！';
 // 搦手へ登ってきた所から始め、長い道は地形として残す。
 const OPEN_PT = ROAD_KARAMETE[5];
+// 篝火の光の届き：小さな火の既定（12m・二乗の減り）では足もとの輪だけが照り、坂の土と下草が闇の一色だった（10/30）。
+// 届きを広げ、減りを緩めて、持ち場の平場と坂の肩の草を照らす。光の数は共通の付け替えのまま増やさない。
+const OK_FIRE_REACH = { lightRadius: 19, lightDecay: 1.3 };
 const NIGHT_WAIT = 12; // 日を送る紹介の後、夕暮れから雨の夜へ移す秒数。太鼓も同じ長さだけ待つ。
 // 集合は法螺二声の後、六・三秒から組が応じる。声の余韻まで札と下知を保つ。
 const ASSEMBLY_LISTEN = 8.5;
@@ -1175,7 +1178,7 @@ const okawachi = {
     // 本丸の館の前と、木戸の内の二棟の脇・西ノ丸の東の縁にも篝火。坂の下から城の屋根を照らす（位置は推定）。
     const castleFires = [[-5, -73], [6, -78], [-8, HON_C.z + 6], [8, HON_C.z + 6], [NISHI_C.x + 10, NISHI_C.z + 6]];
     for (const [x, z] of [...roadFires, [-18, MAE_C.z], [18, MAE_C.z], [-6, GATE.z - 3], [6, GATE.z - 3], [-14, GATE.z - 7], [14, GATE.z - 7], [-10, -96], [10, -96], ...castleFires]) {
-      rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7 });
+      rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7, ...OK_FIRE_REACH });
     }
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完）。表には出さない
     F.hist = { ...OKAWACHI_HIST, honjinOda: 'HIST_B', honjinKitabatake: 'HIST_B', kitabatakeAI: 'GAME_C' };
@@ -2607,6 +2610,15 @@ function okKarameteYard(rt) {
     if (!bushSrc && o.material.alphaTest === 0.42 && o.geometry.attributes.position.count === 126) bushSrc = o;
     if (!tuftSrc && o.material.alphaTest === 0.45) tuftSrc = o;
   });
+  // 共通の草の材質は、兵の踏み跡（持ち場の平場はほぼ全面）で株を七割がた寝かせ、夜は泥の一色に消えていた（10/30）。
+  // 曲輪と平場の縁の下草だけ、同じ絵と形のまま踏み跡で寝かせない材質を一つ作って共有する（揺れは無し・毎コマの処理なし）。
+  if (tuftSrc) {
+    const m = tuftSrc.material.clone(); m.color.setHex(0xd2ccae);
+    // 葉の板の裏や月の反対を向く面が黒い影絵になった。法線を上向きにそろえ、地面と同じ光の受け方にする。
+    const g = tuftSrc.geometry.clone(), nr = g.attributes.normal;
+    if (nr) { for (let i = 0; i < nr.count; i++) nr.setXYZ(i, 0, 1, 0); nr.needsUpdate = true; }
+    tuftSrc = { geometry: g, material: m, instanceColor: tuftSrc.instanceColor };
+  }
   const huts = [[16.5, -52.5, 4], [16, -42, 3.6], [-17, -53, 4]];
   const keep = [[-6, -47], [6, -47], [21.5, -37], [21.5, -50], [-11, -50], [11, -50], [-4.5, -56], [4.5, -56]];
   let seed = 70717;
@@ -2641,7 +2653,7 @@ function okKarameteYard(rt) {
   };
   // 九月の山城の曲輪：くすんだ緑の低木の株と、枯れかけの下草。
   place(bushSrc, 70, 1.25, [0.34, 0.4, 0.22]);
-  place(tuftSrc, 260, 1.1, [0.42, 0.42, 0.26]);
+  place(tuftSrc, 360, 0.75, [0.56, 0.52, 0.32]); // 10/30：低い株を増やし、平場の土に草の斑を作る（兵を隠す高さにしない。一つの束のまま）
   okYardRing(rt, bushSrc, tuftSrc);
 }
 
@@ -2666,7 +2678,7 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   const leafMat = bushSrc ? new THREE.MeshLambertMaterial({ map: leafTex('broad'), alphaTest: 0.42, side: THREE.DoubleSide }) : null;
   const crowns = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 72) : null;
   const bushes = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 110) : null;
-  const tufts = tuftSrc ? new THREE.InstancedMesh(tuftSrc.geometry, tuftSrc.material, 420) : null;
+  const tufts = tuftSrc ? new THREE.InstancedMesh(tuftSrc.geometry, tuftSrc.material, 640) : null;
   let nt = 0, nc = 0, nb = 0, nf = 0;
   // 秋の雑木（楢・櫟・山桜・漆）の葉色：褐色・黄・朱を主に、常緑のくすんだ緑を少し。
   // 鮮やかにしすぎず、くすんだ褐色・黄ばみ・赤茶に寄せる。
@@ -2691,10 +2703,11 @@ function okYardRing(rt, bushSrc, tuftSrc) {
     putCrown(bushes, nb++, x, W.heightAt(x, z) - 0.08 * sc, z, sc * (0.9 + R() * 0.5), sc * (0.7 + R() * 0.5), [0.58 + R() * 0.14, 0.46 + R() * 0.08, 0.25]);
   };
   const tuft = (x, z, y = W.heightAt(x, z)) => {
-    if (!tufts || nf >= 420) return;
-    const sc = 0.9 + R() * 0.7;
-    D.position.set(x, y - 0.05, z); D.rotation.set(0, R() * 6.28, 0); D.scale.set(sc, sc * (0.8 + R() * 0.5), sc); D.updateMatrix();
-    tufts.setMatrixAt(nf, D.matrix); tufts.setColorAt(nf++, col.setRGB(0.5 + R() * 0.12, 0.44 + R() * 0.08, 0.26 + R() * 0.05));
+    if (!tufts || nf >= 640) return;
+    // 夜の闇に沈まないよう、枯れ草の穂先の明るい藁色へ寄せる。兵の脛より低く保ち、土の上の斑として読ませる（10/30）。
+    const sc = 0.7 + R() * 0.45;
+    D.position.set(x, y - 0.05, z); D.rotation.set(0, R() * 6.28, 0); D.scale.set(sc, sc * (0.9 + R() * 0.5), sc); D.updateMatrix();
+    tufts.setMatrixAt(nf, D.matrix); tufts.setColorAt(nf++, col.setRGB(0.7 + R() * 0.14, 0.6 + R() * 0.1, 0.36 + R() * 0.06));
   };
   // 低い土塁（切岸の縁の土盛り）：盛り上がりの断面を弧に沿って延ばし、両端を細らせる。草をまばらに乗せる。
   const pos = [], uv = [], cols = [], idx = [], tops = [];
@@ -2748,6 +2761,17 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   // 木戸へ上る坂（北）を向いた時は寄せ手の筋で扇の中が空くので、筋の外の両肩（斜め前 35〜40 度）へ雑木を足す。
   for (const [x, z] of [[12.5, -36], [12, -40.5], [-14, -44], [-16.5, -47.5]]) { tree(x, z, 1.2); bush(x + 1.5, z + 1, 1.6); bush(x - 1.2, z + 1.4, 1.4); }
   for (const [x, y, z] of tops) for (let i = 0; i < 2; i++) tuft(x + (R() - 0.5) * 1.2, z + (R() - 0.5) * 1.2, y + 0.05);
+  // 平場の土に枯れ草の斑を足す（10/30）。上の雑木・土塁・篝火の並びを動かさないよう、別の種の乱数で群れに散らす。
+  {
+    const keepR = seed; seed = 51031;
+    for (let i = 0; i < 420; i++) {
+      const a = R() * 6.28, r = 4 + R() * 15, x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r;
+      if (Math.sin(x * 0.41 + Math.cos(z * 0.33) * 2) * Math.cos(z * 0.37 - x * 0.12) < -0.1 + R() * 0.4) continue;
+      if (distToPolyline(x, z, ROAD_KARAMETE) < 1.6 || (z > -30 && z < -20 && x > -13 && x < 8)) continue;
+      tuft(x, z);
+    }
+    seed = keepR;
+  }
   const tag = (m, kind) => { m.userData.okRing = kind; m.receiveShadow = true; (m.isInstancedMesh ? m : m.geometry).computeBoundingSphere(); rt.scene.add(m); };
   trunks.count = nt; trunks.castShadow = true; tag(trunks, 'ki');
   if (crowns) { crowns.count = nc; crowns.castShadow = true; tag(crowns, 'ki'); }
@@ -2764,7 +2788,7 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   }
   // 篝火（台と火）。火の揺らぎの乱数で遊びの乱数を動かさないよう、置く間だけ自前の乱数を使う。
   const keep = Math.random; Math.random = R;
-  try { for (const [x, z] of fires) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.8, lightRadius: 16 }); } }
+  try { for (const [x, z] of fires) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.8, ...OK_FIRE_REACH, lightRadius: 22 }); } }
   finally { Math.random = keep; }
 }
 
@@ -2780,7 +2804,7 @@ function okKarameteFront(rt) {
   const deckFire = (m, dx = 0.5, dz = 0.5) => {
     const x = m.x + dx, z = m.z + dz, k = kagaribi(W, x, z);
     k.position.y = m.topY; rt.scene.add(k);
-    W.addFire(x, z, { h: m.topY - W.heightAt(x, z) + 1.35, size: 0.7 });
+    W.addFire(x, z, { h: m.topY - W.heightAt(x, z) + 1.35, size: 0.7, ...OK_FIRE_REACH });
   };
   deckFire(monomi(rt, -25.5, -50, { kind: 'ro', height: 7.6, boarded: true }));
   // 西の谷へ下りる肩にも番の物見（持ち場から坂の西を向いた時に見える）
@@ -2790,14 +2814,14 @@ function okKarameteFront(rt) {
   deckFire(monomi(rt, high ? 34 : 30.5, -35, { kind: 'ro', height: 8.4, boarded: true }));
   finalizeKitBatch(rt, kit);
   const fires = [[-31.8, -44], [-26.2, -44], [-20, -52], [21.5, -37], [21.5, -50]];
-  for (const [x, z] of fires) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7 }); }
+  for (const [x, z] of fires) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.7, ...OK_FIRE_REACH }); }
   // 木戸の脇の二つは大きく焚き、門の扉と塀を火の色で照らす（10/29）。
-  for (const [x, z] of [[-4.5, -56], [4.5, -56]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 1.0, lightRadius: 18 }); }
+  for (const [x, z] of [[-4.5, -56], [4.5, -56]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 1.0, ...OK_FIRE_REACH, lightRadius: 22 }); }
   // 木戸の前の両脇に番の櫓と篝火（10/29）。持ち場から坂を見上げた画面の左右に、火に照らされた櫓と門が入る。
   // 道（幅2.8m）と前の段（MAE_C）は空ける。位置は推定復元。
   deckFire(monomi(rt, -11, -50, { kind: 'ro', height: 7.2, boarded: true }));
   deckFire(monomi(rt, 11, -50, { kind: 'ro', height: 7.2, boarded: true }));
-  for (const [x, z] of [[-6, -47], [6, -47]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.95, lightRadius: 16 }); }
+  for (const [x, z] of [[-6, -47], [6, -47]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.95, ...OK_FIRE_REACH }); }
 }
 
 function okSlopeDetail(W) {
@@ -3108,8 +3132,11 @@ function okNight(W) {
       // 遠山が夜の青い板に見えた（10/29 点付け：手本は秋の褐色と常緑の深緑が混ざる林の山）。山の地の色だけを褐色と深緑の闇へ寄せる。
       L.mount = [0x2b2d22, 0x36352a, 0x423f34];
       if (S.quality === 'high') {
-        L.hemiSky.setHex(0x8995ae); L.hemiGround.setHex(0x574938); L.hemiI = .65;
+        L.hemiSky.setHex(0x8995ae); L.hemiGround.setHex(0x655441); L.hemiI = .78;
       }
+      // 地が暗い一色で、坂の土と草の斑・下草の形が見えなかった（10/30 点付け 74）。雨雲越しの月の青白い光を
+      // 西寄りの低い角度から横に当て、土の起伏と下草の縁に明暗を付ける（夜のまま。光源は増やさない）。
+      L.sun.setHex(0xa6bad8); L.sunI = Math.max(L.sunI, 0.82); L.sunDir.set(-62, 30, 44).normalize();
     }
     // 10/28：日の低い夕暮れで、丘の陰になる手前と城の塀が真っ黒に沈んでいた。空からの回り光を上げ、
     // 夕日の色は残したまま、陰の中の兵・竹束・板塀の木目が読める明るさにする（光源は増やさない）。

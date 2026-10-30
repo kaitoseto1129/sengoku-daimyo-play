@@ -237,6 +237,8 @@ export class WorldSky {
             float streak = n(vec2(q.x * 0.09, q.y * 0.012 + q.x * 0.004));
             float patchy = n(q * vec2(0.02, 0.05) + 3.1) * 0.6 + n(q * vec2(0.06, 0.12)) * 0.4;
             vec3 c = color * mix(0.72, 1.18, patchy);
+            // 手前の層は木の緑を、奥の層は青みを帯びる（層ごとの一色の板にしない下地）
+            c *= mix(vec3(0.93, 1.07, 0.84), vec3(0.97, 1.0, 1.07), layer * 0.5);
             c *= mix(1.0, 0.7, smoothstep(0.55, 0.75, streak) * (1.0 - layer * 0.35));
             // 山肌の樹冠：杉と雑木の塊ごとの明暗と、斜面を下る沢筋の暗い溝（灰の平らな重ね絵に見えないように）
             float crowns = n(q * vec2(0.11, 0.16) + layer * 7.3) * 0.55 + n(q * vec2(0.3, 0.42) - layer * 3.1) * 0.45;
@@ -284,8 +286,14 @@ export class WorldSky {
             // 裾の不透明な切り口を霞へ溶かす。夜の稜線も細くほどき、明るい縁取りを作らない。
             float edge = smoothstep(0.0, 0.18, vCrest) * (1.0 - night * smoothstep(0.985, 1.0, vCrest));
             // 稜線の木立：峰の縁を樹冠の凸凹で刻む（遠い層ほど細かく浅く）
-            float tops = n(vec2(q.x * (0.22 + layer * 0.1), layer * 3.0)) * 0.6 + n(vec2(q.x * 0.9, layer + 0.5)) * 0.4;
-            edge *= 1.0 - smoothstep(-0.012, 0.012, vCrest - 1.0 + tops * (0.07 - layer * 0.018) * highDetail);
+            // 一本ずつの樹冠を丸い瘤で並べ、瘤の間に切れ込み、林の切れ目で稜線が下がる（滑らかな一本の線にしない）
+            float cw = 3.2 + layer * 1.8, cx = q.x / cw, ci = floor(cx), cl = fract(cx) * 2.0 - 1.0;
+            float crown = sqrt(max(0.0, 1.0 - cl * cl)) * mix(0.55, 1.0, h(vec2(ci, layer)));
+            float grove = smoothstep(0.3, 0.75, n(vec2(q.x * 0.05, layer * 3.0 + 1.0)));
+            float tops = (1.0 - crown) * 0.45 + (1.0 - grove) * 0.4 + n(vec2(q.x * 0.9, layer + 0.5)) * 0.15;
+            edge *= 1.0 - smoothstep(-0.01, 0.01, vCrest - 1.0 + tops * (0.13 - layer * 0.03) * highDetail);
+            // 稜線のすぐ下は樹冠の陰で一段濃く、瘤ごとに明暗（遠い層ほど浅く）
+            c *= mix(1.0, mix(0.72, 1.08, crown), smoothstep(0.82, 1.0, vCrest) * (1.0 - layer * 0.3) * highDetail);
             // 同じ距離の峰でも、張り出す尾根と谷の靄を分ける。夜の霧を一枚の灰色にしない。
             float shoulder = dot(normalize(vN), normalize(vec3(-0.4, 0.7, 0.3)));
             // 晴れた遠い峰ほど空の青へ。夜・雨・夕焼けは既存の空の色を受け継ぐ。
@@ -295,6 +303,13 @@ export class WorldSky {
             vec3 mountain = mix(c, hc, hz);
             mountain *= 1.0 + (shoulder - 0.4) * (0.16 - layer * 0.035) * (1.0 - rain * 0.65)
               * smoothstep(0.05, 0.65, vCrest);
+            // 帯の中の上下の濃淡：稜線ほど霞が薄く濃い色（距離がほぼ同じ一つの帯が一色の板に見えないように）。
+            // 戦ごとの霞の上限の後に掛け、雨・霧でも手前の尾根は少し濃く残す
+            float clearK = (1.0 - rain * 0.35) * (1.0 - mist * 0.35) * highDetail;
+            mountain = mix(mountain, mix(c, hc, hz * 0.5), smoothstep(0.15, 0.97, vCrest) * (0.5 - layer * 0.13) * clearK);
+            // 麓は野の霞へ溶かす：帯の下の切り口を見せず、手前の帯との境を霞の帯にする（奥の層ほど深く）
+            float foot = 1.0 - smoothstep(0.0, 0.62 + layer * 0.08, vCrest);
+            mountain = mix(mountain, mix(hazeCol, hc, 0.4), foot * foot * (0.45 + layer * 0.12) * highDetail);
             gl_FragColor = vec4(mountain, edge);
             #include <tonemapping_fragment>
             #include <colorspace_fragment>
