@@ -2567,6 +2567,15 @@ const shitaragahara = {
     // 目の前に槍の将を置き、同じ口を守る仲間と敵を初めから見せる。
     F.spears[0].formation = 'column'; F.spears[0].colW = 1;
     placeGroup(rt, F.spears[0], OUTER_POST_X - 2, F.prepPt.z);
+    // 10/30：開戦すぐから、柵の前（連吾川の柵際）で真田の先手と誘いの槍組が競り合う。
+    //   兵は足さず、今いる兵の置き場と出る時刻だけを動かす。持ち場から見て正面、柵の十数メートル先。
+    F.skirm = { x: SB.x0 + 10, z: F.prepPt.z + 6, until: 30 };
+    placeGroup(rt, F.waveGroups[0], F.skirm.x + 1.6, F.skirm.z); F.waveGroups[0].noRout = true;
+    placeGroup(rt, F.spears[1], F.skirm.x - 1.4, F.skirm.z + 4);
+    // 中ほどの控えの槍組も、最初の競り合いだけ北の柵の前へ出す（中央の寄せの前に元の持ち場へ戻す）
+    const help = F.spears[3];
+    F.skirm.help = help; F.skirm.home = { x: help.anchor.x, z: help.anchor.z };
+    placeGroup(rt, help, F.skirm.x - 1.4, F.skirm.z - 3);
     rt.banner('川向こうに武田勢', '柵の口を槍で守れ。鉄砲の弾込めを支えよ');
     rt.obj('hold', '槍の持ち場で仲間と並び、柵の口を守れ', 'main', true);
     // 柵を出ない決まりは台詞で伝え、任務札は一つにする。
@@ -2627,13 +2636,15 @@ const shitaragahara = {
     g.siegeStallAt = rt.t; g.lastFenceHp = g.breach?.hp;
     // 既存の槍組が口から誘い出て、敵が迫れば同じ道で柵へ戻る。
     g.lureSpear = F.spears[g.def.bamboo ? 4 : g.def.final ? 2 : 1];
-    g.lureOut = { x: SB.x0 + 10, z: g.lane.z };
+    g.lureOut = g.def.brother && !g.skirmDone && F.skirm ? { x: F.skirm.x - 1.4, z: F.skirm.z + 2 } : { x: SB.x0 + 10, z: g.lane.z };
     g.lureBack = { x: SB.x0 - SB.gap - 2, z: g.lane.z };
     g.luring = true; g.lureAt = rt.t;
     postRoad(rt, g.lureSpear, g.lureOut);
     g.order = 'move';
     g.dest = g.breach ? { x: Math.max(g.breach.seg[0], g.breach.seg[2]) + 2, z: (g.breach.seg[1] + g.breach.seg[3]) / 2 } : g.lane;
     g.onArrive = (q) => { q.order = 'hold'; q.aggro = 2; };
+    // 最初の寄せは、柵の前の競り合いを続けてから柵へ取り付く（siegeTick で誘いの組が戻る時に柵へ向ける）
+    if (g.def.brother && !g.skirmDone && F.skirm) { g.skirmDest = g.dest; g.dest = { x: F.skirm.x + 1.6, z: F.skirm.z }; }
     g.cavalry.noRout = true;
     g.cavalry.order = 'hold'; g.cavalry.dest = null;
     g.cavalry.onArrive = null;
@@ -2703,6 +2714,7 @@ const shitaragahara = {
           q.formation = 'column'; q.colW = 1; q.roadColumn = true;
           placeGroup(rt, q, INNER_POST_X - 2 - row++ * 5, w.z + 4.5);
         }
+        if (F.skirm?.help) placeGroup(rt, F.skirm.help, F.skirm.home.x, F.skirm.home.z);
         placeGroup(rt, incoming, 30, w.z + 4.5);
         placeGroup(rt, incoming.cavalry, 40, w.z + 4.5);
         placeGroup(rt, incoming.missiles, 46, w.z - 14);
@@ -2785,14 +2797,22 @@ const shitaragahara = {
       return;
     }
     const F = rt.flags, s = g.breach;
-    if (g.luring && (g.opened || F.overrunT > 0 || rt.t - g.lureAt >= 5 && g.center().x < SB.x0 + 24 || rt.t - g.lureAt >= 8)) {
+    const skirm = g.skirmDest && !g.skirmDone;
+    if (g.luring && (g.opened || F.overrunT > 0 || (skirm ? rt.t >= F.skirm.until || !readyCount(g.lureSpear)
+      : rt.t - g.lureAt >= 5 && g.center().x < SB.x0 + 24 || rt.t - g.lureAt >= 8))) {
       g.luring = false; g.lureAt = rt.t;
+      if (skirm) {
+        g.skirmDone = true; g.order = 'move'; g.dest = g.skirmDest; g.onArrive = (q) => { q.order = 'hold'; q.aggro = 2; };
+        if (F.skirm.help.count && !F.skirm.help.routed) postRoad(rt, F.skirm.help, { x: g.lureBack.x, z: g.lureBack.z - 6 });
+      }
       postRoad(rt, g.lureSpear, g.lureBack);
       shReport(rt, '敵が寄せる！　誘いの足軽は柵へ戻れ！', 3);
     } else if (!g.luring && !g.opened && !F.overrunT && rt.t - g.lureAt >= (F.tobiDone ? 8 : 14) && g.center().x > SB.x0 + 1 && g.lureSpear.order === 'hold') {
       g.luring = true; g.lureAt = rt.t;
       postRoad(rt, g.lureSpear, g.lureOut);
     }
+    // 柵の前の競り合いの間は、柵を叩かず、止まったと見て柵の口へ回さない
+    if (g.skirmDest && !g.skirmDone) { g.siegeStallAt = rt.t; return; }
     if (s?.alive) {
       const x = (s.seg[0] + s.seg[2]) / 2, z = (s.seg[1] + s.seg[3]) / 2;
       for (const u of g.units) if (s.alive && u.alive && !u.fleeing && !u.woundOut && !u.gone && Math.hypot(u.pos.x - x, u.pos.z - z) < 5.5) {
