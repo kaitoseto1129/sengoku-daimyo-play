@@ -2585,8 +2585,9 @@ const hieizan = {
       else if (rt.t - F.stepT > 150) {
         for (let i = 0; i < 2; i++) {
           const q = i ? F.gosei2 : g;
-          if (q && !gone(q) && (q.count <= q.initial * 0.5 || q.morale <= 30)) {
-            q.noRout = false; q.morale = Math.min(q.morale, 20);
+          // 10/30：届かない所に残った僧兵を待って八分の寄せが尽きないよう、三分で崩れる
+          if (q && !gone(q) && (q.count <= q.initial * 0.5 || q.morale <= 30 || rt.t - F.stepT > 180)) {
+            q.noRout = false; q.morale = Math.min(q.morale, rt.t - F.stepT > 180 ? 0 : 20);
           }
         }
       }
@@ -2809,7 +2810,7 @@ hieizan.botBrain = (b, inp, { goTo }) => {
     return;
   }
   inp.guardHold = false;
-  if (F.step === 3) { const t = [F.gosei, F.gosei2].find((q) => q && !gone(q)); if (t) { const c = t.center(); goTo(p, inp, c.x, c.z, 2); return; } }
+  if (F.step === 3) { const t = [F.gosei, F.gosei2].map((q) => q && hieiFighterPos(b, q)).find((q) => q); if (t) { goTo(p, inp, t.x, t.z, 2); return; } }
   if (F.step === 2) { goTo(p, inp, GATE.x + 8, 0, 2); return; }
   if (F.step === 1) { const at = hieiWay(u, CLIMB_GOAL); goTo(p, inp, at.x, at.z, 2); return; }
   const a = F.akeU.pos; goTo(p, inp, a.x + 4, a.z + 3, 3);

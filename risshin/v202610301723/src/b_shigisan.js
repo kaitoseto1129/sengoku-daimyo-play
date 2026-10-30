@@ -2496,7 +2496,7 @@ const shigisan = {
     F.ram = allyGroup(rt, { name: '門を破る組', anchor: { x: 14, z: 108 }, facing: Math.PI, width: 5, aggro: 3, noRout: true, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
     F.oda = [F.tsutsui, F.ake, F.ram];
-    for (const g of F.oda) { g.noRout = false; g.formation = 'column'; g.width = 5; g.defMult = 1; g.dmgMult = 1; }
+    for (const g of F.oda) { g.noRout = true; g.formation = 'column'; g.width = 5; g.defMult = 1.7; g.dmgMult = 1; }   // 10/30：本丸の南口の前で先手が尽きて負けが続いた（bot）
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: OPEN_PT[0] + 3, z: OPEN_PT[1] + 5 }, Math.PI, [{ kind: 'spear', n }]);
     F.oda.forEach((g, i) => {
@@ -3875,3 +3875,5 @@ function armyBackdrop(rt, o) {
   }
   return out;
 }
+// bot の記録の跡に、攻め口の兵の数（生き・逃げ・深手）を残す（10/30）
+shigisan.botDbg = (b) => (b.flags.oda || []).map((q) => `${q.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length}/${q.units.filter((u) => u.alive).length}/${q.units.length}`).join(',');
