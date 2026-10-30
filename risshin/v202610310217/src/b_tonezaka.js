@@ -947,10 +947,12 @@ function withdrawStage(rt) {
   const F = rt.flags, groups = F.stageDefenders[F.step], pp = rt.player.u.pos;
   for (const g of groups) {
     // 10/30：時の上限で退くのは、本人が近くで戦っている時だけ（立っているだけで段が進んで見えないように）
-    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step] && near(pp, g.center(), 45);
+    // 10/30：味方が削っただけでは退かない。本人が近く（四十五歩）で戦っている時だけ崩れる
+    const close = near(pp, g.center(), 45);
+    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step] && close;
     // 自分と組が三人を倒すと、三割弱の損失でも守りが崩れる。無傷の備は退かせない。
     const threshold = g._toneHelp >= 3 ? 0.75 : 0.6;
-    if (fighting(g) && (fighters(g) <= g.initial * threshold || late)) {
+    if (fighting(g) && close && (fighters(g) <= g.initial * threshold || late)) {
       retreat(g); tonezaka.onRout(rt, g);
     }
   }
@@ -1834,7 +1836,8 @@ const tonezaka = {
     // 供は馬廻の後ろから出る。傷は通すが、疲れた殿の一突きで組が溶けないようにする。
     for (const g of rt.squadGroups) g.defMult = 1.25;
     // 全ての戦う兵を初めに置く。武将は槍の前列より後ろで供に守られる。
-    F.r1 = foe('河合吉統の殿', at(-6, 40), [A(23), S(3), chief('河合吉統'), S(3)]);
+    // 開戦25秒の乱戦（10/30）：殿の列を持ち場の前30mの坂へ寄せ、馬廻が25秒までに槍を合わせる（兵の数は同じ）
+    F.r1 = foe('河合吉統の殿', at(-6, 54), [A(23), S(3), chief('河合吉統'), S(3)]);
     F.r1b = foe('朝倉の殿の二の手', at(-4, 8), [A(6), S(2)]);
     F.r2 = foe('山崎吉家の手', at(4, -74), [A(23), S(3), chief('山崎吉家'), S(3)]);
     F.r3 = enemyGroup(rt, { fixed: true, noAI: true, faction: 'saito', name: '斎藤龍興の手', anchor: at(6, -106), facing: TURN,
@@ -2070,6 +2073,8 @@ const tonezaka = {
     rt.say('織田信長', '法螺貝と進み太鼓じゃ。先手を待つな。敦賀へ追え！', 4);
     march(F.uma, [[-10, 60], [-6, 48], [-4, 16]].map(([x, z]) => xz(x, z)));
     march(F.late, [[roadX(82), 82], [-10, 60], [-6, 48], [-4, 24]].map(([x, z]) => xz(x, z)));
+    // 開戦25秒の乱戦（10/30）：殿の列は追手へ槍を入れて押し返しに出る（坂の途中で両軍が組み合う）
+    rt.after(4, () => { const g = F.r1; if (F.step === 1 && g && g.count && !g.routed) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; } });
     for (const b of Object.values(F.bO)) {
       if (b.light) b.light.advance(60, 45);
       const z = along(b.real.anchor.x, b.real.anchor.z);
@@ -2333,6 +2338,8 @@ const tonezaka = {
     // 他の守りも少数になれば退く。
     for (const g of F.defenders) {
       const n = fighters(g);
+      // 10/30：今の段の守りは、本人が遠い間は少数でも退かない（立っているだけで段が進まないように）
+      if (F.stageDefenders[F.step]?.includes(g) && !near(rt.player.u.pos, g.center(), 45)) continue;
       if (n > 0 && n <= 3 && n <= g.initial * 0.2) { retreat(g); this.onRout(rt, g); }
     }
     if (F.step >= 1 && !fighting(F.r1) && !fighting(F.r1b)) {
@@ -2424,9 +2431,10 @@ const tonezaka = {
       this.lose(rt, F.step >= 5 ? '城下の道を守る先手が崩れた' : '峠へ追う信長公の馬廻と後続が崩れた'); return;
     }
     // 殿が退いたら次の任務へ。列の後ろや逃げる残兵の到着を待たない。
-    if (F.step === 1 && !fighting(F.r1) && !fighting(F.r1b)) this.second(rt);
-    else if (F.step === 2 && !fighting(F.r2) && !fighting(F.r3)) this.toPass(rt);
-    else if (F.step === 3 && !fighting(F.r4)) this.toIchijodani(rt);
+    // 10/30：味方だけで殿を崩しても、本人がその段の持ち場（四十歩内）へ来るまで次の段へ進めない（立っているだけで段が進まないように）
+    if (F.step === 1 && !fighting(F.r1) && !fighting(F.r1b) && near(p, FIRST_END, 40)) this.second(rt);
+    else if (F.step === 2 && !fighting(F.r2) && !fighting(F.r3) && near(p, SAKA, 40)) this.toPass(rt);
+    else if (F.step === 3 && !fighting(F.r4) && near(p, PASS, 40)) this.toIchijodani(rt);
     else if (F.step === 5 && !fighting(F.townG) && (near(p, TOWN, 14) && arrived(F.late, TOWN, 22) || rt.t - F.stepT >= 60 && near(p, TOWN, 40))) this.townFire(rt);
     else if (F.step === 6) {
       if (near(p, INNER, 12) && toneSecureSupport(rt) && !fighting(F.townG)) F.secureT += elapsed;

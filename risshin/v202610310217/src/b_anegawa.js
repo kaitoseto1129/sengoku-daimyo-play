@@ -3602,7 +3602,7 @@ const anegawa = {
       F.jinIshikawa.m.moveTo(WEST_FRONT_X - 32, ishikawaNorth, 10);
     });
     rt.setPhase('brief');
-    F.openingWaitDuration = rt.G.lord ? 18 : 11;
+    F.openingWaitDuration = rt.G.lord ? 18 : 8;   // 開戦25秒の乱戦（10/30）：磯野の渡河を少し早める
     F.openingWaitUntil = rt.t + F.openingWaitDuration;
     anegawaObjective(rt, 'main', rt.G.lord ? '浅井の寄せを受け、押し返せ' : '川を渡らず、岸で浅井を待て');
     F.holdLabel = '森の先手・岸の槍列';
@@ -3665,7 +3665,8 @@ const anegawa = {
     rt.army.play('eshout', { x: 20, z: -20 }, 2);
     rt.banner('浅井勢、姉川を渡る', '磯野員昌の突撃');
     rt.say('足軽', '浅井が渡って来るがや！　磯野の旗だで！', 3);
-    const g = enemyGroup(rt, { faction: 'azai', name: '磯野員昌の隊', anchor: { x: 80 / 5, z: -125 / 5 }, facing: 0, fleeDir: AZAI_FLEE, aggro: 12, width: 16, morale: 100, noRout: false, speed: 3.0, dmgMult: 1 },
+    // 開戦25秒の乱戦（10/30）：対岸の水際（持ち場の前30m）から出し、25秒までに岸で組み合わせる
+    const g = enemyGroup(rt, { faction: 'azai', name: '磯野員昌の隊', anchor: { x: 80 / 5, z: -11 }, facing: 0, fleeDir: AZAI_FLEE, aggro: 12, width: 16, morale: 100, noRout: false, speed: 3.4, dmgMult: 1 },
       dress([{ type: 'busho', n: 1, o: { name: '磯野員昌', horse: true, hat: 'kabuto_r', haori: 0x4a3a22 } }, { type: 'cavalry', n: 2 }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 31 }], AZAI));
     F.iso = g; F.waves[0] = g; F.isoU = g.units[0];
     // 磯野の後ろに浅井の徒歩の兵が続き、対岸の先の備も川べりへ押し出す

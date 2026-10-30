@@ -4541,7 +4541,7 @@ function honnoTick(def, rt, dt) {
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
   // 上様のそばを離れない
-  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > 26) {
+  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
     F.farT = (F.farT || 0) + dt;
     if (F.farT > 8 && rt.t - (F.farSaidT || -99) > 20) { F.farSaidT = rt.t; honnoSay(rt, '森蘭丸', `${nm(rt)}！　上様のそばへ戻れ！　離れたままでは護衛を果たせぬ！`, 3); }
     if (F.farT > 60) { def.nbFail(rt, '上様から離れすぎ、護衛の持ち場を失った'); return; }

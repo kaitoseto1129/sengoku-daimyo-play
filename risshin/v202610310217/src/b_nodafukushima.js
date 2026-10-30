@@ -1849,6 +1849,10 @@ function nodaRiverBanks(rt) {
     const rock = st.rockMesh;
     if (rock?.parent) { rock.parent.remove(rock); rock.geometry.dispose(); rock.material.dispose(); }
     st.rockMesh = null;
+    // 10/30 採点「水が平ら」：曇りの空を一様に映した明るい灰の板に見えた。淀川の濁りの暗い緑灰に沈め、照りを鋭くして
+    // さざ波の明暗の筋を立てる（材質の値だけ。形・絵・描く数は同じ）。
+    const wm = st.mesh?.material;
+    if (wm && !wm.userData.nodaDim) { wm.userData.nodaDim = true; wm.color.setHex(0x7d8a82); wm.roughness = 0.14; }
   }
   const bankStone = (o) => o?.isInstancedMesh && o.geometry?.type === 'DodecahedronGeometry' && o.material?.color?.getHex() === 0x68695b;
   for (const mesh of scene.children.slice()) {
@@ -2551,7 +2555,7 @@ const nodafukushima = {
       return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.8) / 0.6)) * 0.8;
     },
     trees: 260,
-    treeMix: { sugi: .1, matsu: .3 }, // 河口の雑木を主体に。残る杉は遠景でも枝先を崩す。
+    treeMix: { sugi: .1, matsu: .65 }, // 河口の浜松を主体に（10/30：砦の裏の雑木の丸い樹冠が霞で灰の切り絵に見えた。雑木を減らし松に替える。本数は同じ）。残る杉は遠景でも枝先を崩す。
     raggedNeedles: true, // 既存の杉の頂点だけを崩し、三角を重ねた工作物の輪郭を和らげる。
     unevenCrowns: true, // 松と雑木も既存の房を変形する。木の本数や描画の数は増やさない。
     farTreeDensity: () => 0.15, // 河口の中洲の遠景は疎らな林。砦の後ろの霞に丸い切り絵の木が並ばないよう、地図の外の森を間引く（10/29）。
@@ -3686,7 +3690,14 @@ const nodafukushima = {
       }
       if (F.step === 1) rt.objProgress('main', !F.tabaReady ? '置き場を選んでから竹束を押す' : `竹束 ${F.placed}／${SPOTS.length}・` + (F.carry ? '据える印へ押し、長押し' : help || (rt.G.lord || F.tabaDone[F.pickIndex] ? '堤で待て。味方が竹束を押す' : '竹束の印へ。長押しで押せ')));
       // 運べなかった束は残す。据えた事にせず、総攻めの合図で準備を切り上げる。
-      if (F.tabaReady && rt.t - F.stepT >= CARRY_WAIT) this.sallyStart(rt);
+      // 10/30：時が来ても、本人が自分の竹束を押していなければ総攻めの段へ進めない（立っているだけで段が進まないように）。長く放っておけば負け
+      const mine = rt.G.lord || F.tabaDone[F.pickIndex] || F.carry;
+      if (F.tabaReady && rt.t - F.stepT >= CARRY_WAIT && mine) this.sallyStart(rt);
+      else if (F.step === 1 && F.tabaReady && !mine && !F.ending && rt.t - F.stepT >= CARRY_WAIT + 150 && rt.canFailMission()) {
+        F.ending = true; rt.setPhase('end'); rt.objFail('main'); rt.tracker.main = false;
+        rt.banner('竹束を据えられなかった', '鉄砲衆を守る竹束が足りず、総攻めに遅れた');
+        rt.finish({ scriptedEnd: true, failureReason: '竹束を据えられず、総攻めに遅れた' }, 8); return;
+      }
       if (F.step === 1 && F.tabaReady && !rt.G.lord && rt.t - F.stepT > 8 && !F.carry && !F.placed && !F.carryCall) { F.carryCall = true; rt.say('前田利家', `${nm(rt)}、その竹束を押せ。味方の鉄砲衆を矢玉から守るのじゃ`, 4); }
     }
     if (F.step === 2 && F.sally) {
