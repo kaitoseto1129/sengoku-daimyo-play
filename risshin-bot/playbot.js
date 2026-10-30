@@ -1327,7 +1327,13 @@ class TouchPad {
     else if (work && this.shown(work)) this.down('work', work, '長押しの作業');
     else {
       this.up('use'); this.up('work');
-      if (inp.e.has('KeyE')) { if (this.shown(use)) this.tap(use, '取る'); else if (this.shown(q('#prompt'))) this.tap(q('#prompt'), '取る（札）'); }
+      if (inp.e.has('KeyE')) {
+        // 指の端末では「取る」の丸も #prompt も隠れ、話す相手は印の「話す」札で押す（人の指と同じ所）。
+        const talk = q('#mission-goal.talk-action:not([hidden]) .goal-label');
+        if (this.shown(use)) this.tap(use, '取る');
+        else if (talk && this.shown(talk) && talk.getClientRects().length) this.tap(talk, '話す（印の札）');
+        else if (this.shown(q('#prompt'))) this.tap(q('#prompt'), '取る（札）');
+      }
     }
     // 号令
     for (const [k, id] of [['KeyC', 'attack'], ['KeyZ', 'follow'], ['KeyX', 'hold'], ['KeyN', 'retreat']]) if (inp.e.has(k)) this.cmd(id, b);
@@ -2354,6 +2360,8 @@ async function playPersona(game, spec, aud, c) {
       // 写真：困った事を見つけた時・山場・歴史好きの見回し
       if (c.shotQ.length) { const it = c.shotQ.shift(); if (!it.shot) { it.shot = await shot(game, it.title); } }
       if (c.wantShot) { const l = c.wantShot; c.wantShot = null; const f = await shot(game, l); if (f) rep.shots.push({ label: l, file: f }); }
+      // 写真を待つ間に戦が終わって片付くと b.army が無くなる。片付いた戦はここで抜ける（10/30 金ヶ崎で bot が落ちた）。
+      if (game.battle !== b || !b.army) break;
       if (!midShot && (t > cap * 0.45 || (b.army.nearestEnemy(P, 12) && t > 40))) { midShot = true; const f = await shot(game, `${name}・山場`); if (f) rep.shots.push({ label: '山場', file: f }); }
       if (!paused1 && t > 25) {
         paused1 = true;
