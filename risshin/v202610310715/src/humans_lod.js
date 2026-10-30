@@ -15,18 +15,20 @@ function coveredBodyGeo(geo, P, L) {
   const torso = !!P.torso && !L.backOpening && !L.rightOpening;
   const upperP = !!P.upperP?.attributes.position.count, upperN = !!P.upperN?.attributes.position.count;
   const thigh = !!P.thigh && (L.vi || 0) % 2 === 0;
-  const key = [geo.uuid, torso, upperP, upperN, thigh].join('|');
+  const loan = L.lacquer != null;   // 簡素な貸し具足：体に沿う胴（units_model.js ashiDo）が腰から胸まで包むので、その内の体は描かない
+  const key = [geo.uuid, torso, upperP, upperN, thigh, loan].join('|');
   if (coveredBodyGeos.has(key)) return coveredBodyGeos.get(key);
   const pos = geo.attributes.position, part = geo.attributes.part, ix = geo.index;
   if (!part || !ix) return geo;
   const hidden = new Uint8Array(pos.count), w = new THREE.Vector3(), q = new THREE.Vector3();
   const toTorso = SRC.fitTi;
-  const arms = {}, legs = {};
+  const arms = {}, legs = {}, shins = {};
   for (const side of ['Right', 'Left']) {
     const r = SRC.radius[side + 'Arm']?.r || 0.058;
     arms[side] = limbFit(side + 'Arm', side + 'ForeArm', 0.27, Math.max(1, r * 1.12 / 0.058)).invert();
     const t = SRC.radius[side + 'UpLeg']?.r || 0.11;
     legs[side] = limbFit(side + 'UpLeg', side + 'Leg', 0.4, Math.max(1, t * 1.12 / 0.11)).invert();
+    shins[side] = limbFit(side + 'Leg', side + 'Foot', 0.3, Math.max(1, (SRC.radius[side + 'Leg']?.r || 0.078) * 1.12 / 0.078)).invert();
   }
   for (let i = 0; i < pos.count; i++) {
     const p = part.getX(i);
@@ -34,13 +36,26 @@ function coveredBodyGeo(geo, P, L) {
     if (p > 3.5) { hidden[i] = 1; continue; }
     w.fromBufferAttribute(pos, i).applyMatrix4(SRC.bodyToRest);
     const side = w.x * SRC.rest.RightArm.x >= 0 ? 'Right' : 'Left';
+    // 簡素な貸し具足：腰（草摺の下の布の腰巻の内）も描かない
+    if (loan && (p === PART.torso || p === PART.leg)) {
+      q.copy(w).applyMatrix4(toTorso);
+      if (q.y > 0.72 && q.y <= 0.885 && Math.abs(q.x) < 0.158 && Math.abs(q.z) < 0.104) { hidden[i] = 1; continue; }
+    }
     if (p === PART.torso && torso) {
       q.copy(w).applyMatrix4(toTorso);
-      hidden[i] = q.y > 0.99 && q.y < 1.29 && Math.abs(q.x) < 0.17 && Math.abs(q.z) < 0.14 ? 1 : 0;
+      hidden[i] = loan ? q.y > 0.885 && q.y < 1.34 && (Math.abs(q.x) < 0.14 || q.y < 1.19 && Math.abs(q.x) < 0.2) ? 1 : 0
+        : q.y > 0.99 && q.y < 1.29 && Math.abs(q.x) < 0.17 && Math.abs(q.z) < 0.14 ? 1 : 0;
     } else if (p === PART.arm && (side === 'Right' ? upperP : upperN)) {
       q.copy(w).applyMatrix4(arms[side]);
       // 籠手の筒の端と、外へはみ出す小袖は残す。
       hidden[i] = q.y < -0.07 && q.y > -0.21 && Math.hypot(q.x, q.z) < 0.044 ? 1 : 0;
+    } else if (p === PART.arm && loan) {
+      // 籠手の無い足軽の二の腕は小袖の袖（humans_dress.js sleeveGeo）が包む
+      q.copy(w).applyMatrix4(arms[side]);
+      hidden[i] = q.y < -0.03 && q.y > -0.24 && Math.hypot(q.x, q.z) < 0.07 ? 1 : 0;
+    } else if (p === PART.leg && loan) {
+      // 脛は布の脚絆（units_model.js shinGeometry）が包むので、体の脛は描かない（腿の袴は体のまま）
+      q.copy(w).applyMatrix4(shins[side]); hidden[i] = q.y < 0.0 && q.y > -0.27 ? 1 : 0;
     } else if (p === PART.leg && thigh) {
       q.copy(w).applyMatrix4(legs[side]);
       // 足軽の佩楯は前だけ。後ろ・脇・膝の袴は消さない。
@@ -132,8 +147,10 @@ function bodyLod(m, h) {
     h.bodyD2 = d2;
     // 体の形の切り替え：高は 14m で中・32m で粗く（以前は 22m・42m）、中はさらに近く。900p で 14m の人は背丈 80px ほどで、細かい形の差は見えない
     const q2 = 0;
-    const fF = q2 === 1 ? 18 : q2 === 0 ? 24 : 42, mF = q2 === 1 ? 6 : q2 === 0 ? 8 : 22;
-    const far = h.bodyFar ? fF - 2 : fF, mfar = h.bodyMid ? mF - 1 : mF;   // 境目で行き来しないよう 1〜2m の幅
+    // 簡素な貸し具足の足軽は 3m で中・5m で粗く（体は胴・草摺・脚絆・袖でほとんど隠れ、見えるのは腿の袴・前腕・手・足だけ。胴丸のスキャンも 3m で軽い形だった）
+    const loan = h.look.lacquer != null;
+    const fF = loan ? 5 : q2 === 1 ? 18 : q2 === 0 ? 24 : 42, mF = loan ? 3 : q2 === 1 ? 6 : q2 === 0 ? 8 : 22;
+    const far = h.bodyFar ? fF - (loan ? 0.5 : 2) : fF, mfar = h.bodyMid ? mF - (loan ? 0.3 : 1) : mF;   // 境目で行き来しないよう 1〜2m の幅
     h.bodyFar = d2 > far * far || HUM.bodyLoD === 2; h.bodyMid = d2 > mfar * mfar || HUM.bodyLoD === 1;
     const want = HUM.lodOff ? hi : (h.bodyFar && lo) || (h.bodyMid && mid) || hi;   // lodOff：前と比べて測る時だけ
     if (m.geometry !== want) m.geometry = want;

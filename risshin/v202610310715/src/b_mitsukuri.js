@@ -3683,9 +3683,10 @@ const mitsukuri = {
 
     // ---- 守り（箕作城・六角の衆。曲輪ごとに butai.js の部隊。siege_ai.js の城の頭で動かす） ----
     // 南の攻め手に正対し、曲輪の幅と奥行きの中に備えを置く。
-    F.sanDef = makeButai(rt, { name: '坂の守り', team: 1, faction: 'rokkaku', kind: 'ashigaru', nominal: 220, nearReal: 11, maxReal: 11, armor: 0x574737, flag: RK.flag, at: sanC, facing: 0, lightWidth: 36, lightDepth: 18, real: 0 });
+    F.sanDef = makeButai(rt, { name: '坂の守り', team: 1, faction: 'rokkaku', kind: 'ashigaru', nominal: 220, nearReal: 9, maxReal: 9, armor: 0x574737, flag: RK.flag, at: sanC, facing: 0, lightWidth: 36, lightDepth: 18, real: 0 });
     F.sanDef.mix = { ashigaru: 0.75, bow: 0.25, samurai: 0, gun: 0, cavalry: 0 };
-    F.sanDef.growReal(11);
+    // 開戦25秒の押し合いを長く続ける分（10/30 夜）、本物の兵を二人減らして iPhone の重さを前とそろえる
+    F.sanDef.growReal(9);
     F.sanReserve = enemyGroup(rt, { fixed: true, name: '柵の口の控え', faction: 'rokkaku',
       anchor: { x: ROAD_OTE[6][0], z: ROAD_OTE[6][1] }, facing: Math.PI, width: 2, formation: 'column', aggro: 2 },
       dress([{ type: 'ashigaru', n: 3 }], RK));
@@ -3819,10 +3820,12 @@ const mitsukuri = {
       b.setForm('yari'); b.real.width = b === F.sanDef ? 8 : oku ? 7 : 6;
       const facing = 0;
       b.real.yariKneel = !oku; b.real.facing = b.real._face = facing;
-      const at = b === F.sanDef ? { x: 0, z: -48 } : b === F.niDef ? niC : HON_OKU;
+      const at = b === F.sanDef ? { x: 0, z: -52 } : b === F.niDef ? niC : HON_OKU;
       placeGroup(rt, b.real, at.x, at.z);
       for (const u of b.real.units) { u.heading = facing; u.mesh.rotation.y = facing; }
     }
+    // 開戦25秒（10/30 夜）：坂の守りは柵の口の奥（持ち場の前10m前後・三の郭の入り）に構え、二十八秒まで崩れず踏みとどまり、先手と押し合いを続ける。後からは常の通り崩れて退く（兵の数は同じ）
+    if (F.sanDef.real) { F.sanDef.real.noRout = true; rt.after(28, () => { if (F.sanDef.real) F.sanDef.real.noRout = false; }); }
     // 不足を埋める仲間が向かっている間は、別の郭の守りまで呼び戻さない。
     rt.addInteract('callFriends', () => F.callZone && !F.callZone._incoming && F.callZone._callable !== false && rt.t >= (F.callReadyAt || 0) ? rt.player.u.pos : null,
       '味方を呼ぶ', () => this.callFriends(rt), { r: 3, prio: 1 });

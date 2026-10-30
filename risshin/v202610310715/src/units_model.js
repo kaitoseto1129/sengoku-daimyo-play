@@ -19,7 +19,8 @@ import { YUMI, loadYumi } from './yumi.js';
 export const HORO_HEIGHT = 1.08, HORO_TOP = 1.62, HORO_BACK = -0.28;
 // 胴丸は八間を基本とする復元。形の分割と、歩行時に揺らす板の数をそろえる。
 // https://rekihaku.pref.hyogo.lg.jp/digital_museum/bugu-kacchuu/kc_doumaru/
-export const kusazuriCount = (look) => look.kusazuriCount === 12 ? 12 : look.domaru ? 8 : (look.tier || 0) === 0 ? 5 : 7;
+// 足軽の簡素な貸し具足（look.lacquer）は短い四間（腿の前後に一枚ずつ。kaito 10/30）
+export const kusazuriCount = (look) => look.kusazuriCount === 12 ? 12 : look.domaru ? 8 : (look.tier || 0) === 0 ? (look.lacquer != null ? 4 : 5) : 7;
 
 // ---------------- モデル ----------------
 // 模様の絵は 2048×1024 の一枚にまとめる（兵も馬も同じ材質で描き、描く回数を増やさない）。
@@ -1409,7 +1410,7 @@ function hatParts(look, parts, hi, fallen = false) {
     // 黒漆の笠：真っ黒に沈めず、鈍い艶の読める墨の黒（kaito 10/30「陣笠が厚く、真っ黒で艶が無い」）
     const col = look.hatColor ?? (hat === 'jingasa_n' ? 0x221e1a : 0x2a2520);
     // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
-    const hy = 1.655;
+    const hy = 1.575;   // 笠の縁は額と耳の上まで下げる（1.655 では笠が頭から浮き、下から頭頂が見えた。10/30）
     const fit = 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
     if (!hi) {
       // 遠くの軽い形：なだらかな円錐と縁
@@ -2317,6 +2318,67 @@ function okeYoko(r0, armor) {
   out.push(P(tg, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
   return out;
 }
+// 足軽の簡素な貸し具足の胴（kaito 10/30「ボカッと丸い円柱がかぶせられているみたい。もっとナチュラルに」）：
+// 丸い筒（Lathe）でなく、体の断面に沿う角の丸い四角（胸と背の板は平たく、脇は締まる）。胸で張り、腰でくびれ、裾は少し開く。
+// 前は胸、背は肩甲骨の高さまで。脇は腕が通るよう低く切れる。肩の紐（肩上）で吊る。桶側の横板の段は、板の裾をわずかに出すだけ
+// 行：[高さ, 半分の幅, 前の厚み, 背の厚み]（m。骨の入った人の体（共通の一体）を 1cm ほど包む寸法。体格の r0 は掛けない：体は一つなので、細い人で体が胴を突き抜ける）
+const ASHI_PROF = [[0.865, 0.18, 0.124, 0.114], [0.92, 0.172, 0.122, 0.11], [1.0, 0.184, 0.142, 0.103], [1.05, 0.2, 0.16, 0.101], [1.1, 0.205, 0.16, 0.107], [1.2, 0.202, 0.15, 0.126], [1.3, 0.19, 0.142, 0.13], [1.36, 0.185, 0.14, 0.13], [1.43, 0.17, 0.13, 0.128]];
+function ashiProfAt(y) {
+  const A = ASHI_PROF;
+  if (y <= A[0][0]) return A[0].slice(1);
+  for (let i = 1; i < A.length; i++) if (y <= A[i][0]) { const a = A[i - 1], b = A[i], t = (y - a[0]) / (b[0] - a[0]); return [1, 2, 3].map((k) => a[k] + (b[k] - a[k]) * t); }
+  return A[A.length - 1].slice(1);
+}
+// 腰の帯を巻く所の半分の幅と前の厚み（m）
+export function ashiWaist(y) { const [w, df] = ashiProfAt(y); return [w, df]; }
+const ASHI_E = 0.78;   // 断面の角の丸さ（1 で楕円、小さいほど平たい板の胸と背）
+function ashiPt(th, y, r0, off = 0) {
+  const [w, df, db] = ashiProfAt(y), s = Math.sin(th), c = Math.cos(th);
+  const x = w * r0 * Math.sign(s) * Math.abs(s) ** ASHI_E, z = (c >= 0 ? df : db) * r0 * Math.sign(c) * Math.abs(c) ** ASHI_E;
+  const l = Math.hypot(x, z) || 1;
+  return [x * (1 + off / l), y, z * (1 + off / l)];
+}
+const ASHI_TOP = (th) => {
+  const s = Math.abs(Math.sin(th)), c = Math.cos(th);
+  const base = c >= 0 ? 1.365 : 1.405, f = Math.min(1, Math.max(0, (s - 0.62) / 0.3));
+  return base - (base - 1.215) * f * f * (3 - 2 * f);
+};
+const ASHI_HEM = (th) => 0.868 + 0.014 * Math.sin(th) ** 2;   // 裾は脇で少し上がる（腿の動きを妨げない）
+function ashiDo(r00, armor, hi, under) {
+  const out = [], r0 = 1;
+  // 板の段（下から五段）：段の裾を 2.5mm 外へ出す。上は一枚の胸板・押付板
+  const rows = [];
+  if (hi) {
+    const B0 = 0.868, B1 = 1.27, n = 5, H = (B1 - B0) / n;
+    rows.push([B0, -0.005]);
+    for (let j = 0; j < n; j++) rows.push([B0 + j * H + 0.001, 0.0025], [B0 + (j + 0.93) * H, 0]);
+    rows.push([1.33, 0], [1.39, 0], [1.43, 0], [1.43, -0.007]);
+  } else rows.push([0.868, 0], [0.95, 0], [1.05, 0], [1.15, 0], [1.25, 0], [1.33, 0], [1.43, 0]);
+  const nu = hi ? 24 : 16, nv = rows.length - 1;
+  const g = surf(nu, nv, (u, v) => {
+    const th = Math.PI + u * Math.PI * 2, [ry, off] = rows[Math.round(v * nv)];
+    const top = ASHI_TOP(th), hem = ASHI_HEM(th);
+    const y = Math.min(top, Math.max(hem, ry));
+    // 縁の返し（厚み）は上の縁・裾の縁にそろえる
+    const last = Math.round(v * nv) === nv, first = Math.round(v * nv) === 0;
+    return ashiPt(th, last ? top : first ? hem : y, r0, off + (last || first ? 0 : 0.0005));
+  });
+  out.push(P(g, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+  // 肩上：胴の前の上の縁から肩を越えて背の上の縁へ、幅 4.5cm の漆の革の紐で吊る
+  if (true) {
+    for (const sd of [-1, 1]) {
+      const xs = sd * 0.098 * r0;
+      const zf = ashiPt(0, 1.365, r0)[2] + 0.002, zb = -ashiPt(Math.PI, 1.405, r0)[2] * -1;
+      const st = surf(hi ? 2 : 1, hi ? 10 : 5, (u, v) => {
+        const ph = Math.PI / 2 - v * Math.PI, x = xs + (u - 0.5) * 0.046;
+        const base = ph > 0 ? 1.35 : 1.395, z = ph > 0 ? zf * Math.sin(ph) : Math.abs(zb) * Math.sin(ph) - 0.002;
+        return [x, base + (1.522 - base) * Math.cos(ph), z];
+      });
+      out.push(P(st, armor, { mk: MK.lac, reg: 'lacq', c2: 0x4a2a1a, mk2: MK.lac }));
+    }
+  }
+  return out;
+}
 // 近い陣羽織の裾の広がりを寄せる量（m。裾で最大）
 export const HAORI_DRAPE = 0.035;
 // 陣羽織のひだ（背の角度 th と高さ y での、外への出っ張り m）
@@ -2439,7 +2501,8 @@ function bodyGeometry(key, o, hi, grp) {
   // https://rekihaku.pref.hyogo.lg.jp/digital_museum/bugu-kacchuu/kc_doumaru/
   // 高画質だけに適用し、引合緒と鎧下は既存の共有部品へ結合する。
   const rightOpening = !!o.rightOpening || takigawaTakahimo;
-  const common = [hi, T, r0, DIRT];
+  const loan = T === 0 && o.lacquer != null;   // 足軽の簡素な貸し具足（体に沿う胴・短い草摺・布の帯。kaito 10/30）
+  const common = [hi, T, r0, DIRT, loan];
   const partKeys = {
     base: [under],
     // 雑賀の堀の金小札・胴丸・脇板・緒を、同色の別形式の具足と混ぜない。
@@ -2472,7 +2535,7 @@ function bodyGeometry(key, o, hi, grp) {
   let parts = PT.base;
   if (!shared.base) {
   // 腰（袴の上端）と上帯
-  parts.push(P(at(new THREE.CylinderGeometry(0.19 * r0, 0.2 * r0, 0.2, hi ? 14 : 8), 0, 0.82, 0), under, { reg: 'cloth' }));
+  { const wc = new THREE.CylinderGeometry(loan ? 0.165 : 0.19 * r0, loan ? 0.175 : 0.2 * r0, 0.2, hi ? 14 : 8); if (loan) wc.scale(1, 1, 0.66); parts.push(P(at(wc, 0, 0.82, 0), under, { reg: 'cloth' })); }
   // 鎧下の肩と、首元の襟（白い襦袢がのぞく）
   // 肩は首から腕へなで下がる形に（平たい楕円の張り出しは、箱の肩に見える）
   const yoke = ball(0.23 * r0, 0.08, 0.15 * r0, hi ? 14 : 8, 5);
@@ -2489,7 +2552,8 @@ function bodyGeometry(key, o, hi, grp) {
   // 他の具足の開き位置や遠い形は保ち、共有形の組み立て時に処理する。
   const domaruOpening = hi && o.domaru && o.goldKozane;
   // 胴
-  if (hi && doStyle === 'okegawa') parts.push(...(T === 0 ? okeYoko(r0, armor) : okeDo(r0, armor)));
+  if (loan) parts.push(...ashiDo(r0, armor, hi, under));
+  else if (hi && doStyle === 'okegawa') parts.push(...(T === 0 ? okeYoko(r0, armor) : okeDo(r0, armor)));
   else {
     const smooth = doStyle === 'hotoke' || doStyle === 'katahada';
     parts.push(P(cuirass(r0, hi ? 28 : 12, smooth ? 0 : doStyle === 'okegawa' ? 5 : 6, hi, o.doOpening, o.honkozane, o.backOpening, rightOpening, domaruOpening, doStyle === 'sugake' ? (hi ? 4 : 2) : 1), armor, { mk: kozaneMk, reg: smooth ? 'lacq' : doStyle, c2: smooth ? armor : doStyle === 'okegawa' ? 0x4a2a1a : lace, c2Bands: o.doLaceBands, mk2: smooth || doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
@@ -2808,7 +2872,7 @@ function bodyGeometry(key, o, hi, grp) {
   }
   // 家紋（足軽の御貸具足は胴の前に大きく）
   const mr = monReg(o.mon);
-  if (mr && T === 0) {
+  if (mr && T === 0 && !loan) {
     const mp = DO_PROF.slice(3, 6).map(([r, y]) => new THREE.Vector2(r * r0 * (hi && doStyle === 'okegawa' ? 1.05 : 1.03), y));
     const dec = new THREE.LatheGeometry(mp, hi ? 6 : 3, -0.42, 0.84); dec.scale(1, 1, 0.8);
     parts.push(P(dec, armor, { mk: MK.lac, reg: mr, c2: o.monCol || 0xb08a3a, mk2: MK.gold }));
@@ -2831,8 +2895,8 @@ function bodyGeometry(key, o, hi, grp) {
     // 伝来具足の実測長を指定した時だけ裾を延ばす。上端の段の隙間三ミリを除いた板の長さ。
     const measuredLength = o.kusazuriLength;
     // 軽い姿も腰幅を胴の内へ収める。切り替えで腰が張り出す人形体形を防ぐ。
-    const KY1 = T === 0 ? 0.872 : 0.884, KY0 = measuredLength ? KY1 - 0.003 - measuredLength : T === 0 ? 0.6 : 0.63;
-    const KR0 = T === 0 ? 0.262 : 0.27, KR1 = T === 0 ? 0.18 : 0.202;
+    const KY1 = T === 0 ? 0.872 : 0.884, KY0 = measuredLength ? KY1 - 0.003 - measuredLength : loan ? 0.7 : T === 0 ? 0.6 : 0.63;
+    const KR0 = loan ? 0.215 : T === 0 ? 0.262 : 0.27, KR1 = loan ? 0.168 : T === 0 ? 0.18 : 0.202;
     const kr = (y) => (KR0 + (KR1 - KR0) * (y - KY0) / (KY1 - KY0)) * r0;
     let kprof = null;
     // 近くの形は、侍の草摺も段の板に（一枚の板に縞を描いた形にしない）。
@@ -2841,20 +2905,20 @@ function bodyGeometry(key, o, hi, grp) {
     // 比叡山の勝家・信盛も五段を保つ。小札の細分は増やさず、遠景用の少ない面で段を付ける。
     if (hi || takigawaKusazuri || o.honkozane || o.kusazuriStepped) {
       kprof = [];
-      const H = (KY1 - KY0) / 5, t = ash ? 0.007 : 0.006;
-      for (let j = 0; j < 5; j++) { const ya = KY0 + j * H, yb = ya + H; kprof.push([kr(ya), ya], [kr(ya) + t, ya + 0.002], [kr(ya + H * 0.5) + t * 0.45, ya + H * 0.5], [kr(yb - 0.003), yb - 0.003]); }
+      const KN = loan ? 3 : 5, H = (KY1 - KY0) / KN, t = loan ? 0.004 : ash ? 0.007 : 0.006;
+      for (let j = 0; j < KN; j++) { const ya = KY0 + j * H, yb = ya + H; kprof.push([kr(ya), ya], [kr(ya) + t, ya + 0.002], [kr(ya + H * 0.5) + t * 0.45, ya + H * 0.5], [kr(yb - 0.003), yb - 0.003]); }
       kprof = kprof.map(([r, y]) => new THREE.Vector2(r, y));
     }
     for (let k = 0; k < np; k++) {
-      const a = (k / np) * Math.PI * 2 + (np === 5 ? Math.PI / 5 : 0);
-      const L = (Math.PI * 2 / np) * 0.93;
+      const a = (k / np) * Math.PI * 2 + (np === 5 ? Math.PI / 5 : np === 4 ? Math.PI / 4 : 0);
+      const L = (Math.PI * 2 / np) * (loan ? 0.9 : 0.93);
       let kz;
       if (kprof) {
         // 近景の草摺は腿に沿う丸みを残す。段の数は増やさず、共有する形の横方向だけ滑らかにする。
         // 比叡山の信長・光秀の本小札は、草摺にも札を重ねた縁を残す。
         // 札幅約一・八センチ・重ね代二ミリは描画上の復元。生成時だけ細分し、共有形へまとめる。
         const kozane = hi && o.honkozane;
-        const segments = kozane ? Math.max(7, Math.ceil(L * KR0 * r0 / 0.018)) * 3 : hi ? 7 : 3;
+        const segments = kozane ? Math.max(7, Math.ceil(L * KR0 * r0 / 0.018)) * 3 : hi ? (loan ? 5 : 7) : 3;
         kz = new THREE.LatheGeometry(kprof, segments, a + Math.PI - L / 2, L);
         const p = kz.attributes.position, uv = kz.attributes.uv;
         for (let i = 0; i < p.count; i++) {
@@ -2866,8 +2930,8 @@ function bodyGeometry(key, o, hi, grp) {
           p.setX(i, x * (1 + overlap / r)); p.setZ(i, z * (1 + overlap / r));
         }
         if (kozane) kz.computeVertexNormals();
-        kz.scale(1, 1, 0.86);
-      } else { kz = arcCyl(KR1 * r0, KR0 * r0, KY1 - KY0, hi ? 3 : 2, L, a + Math.PI); kz.scale(1, 1, 0.86); at(kz, 0, (KY0 + KY1) * 0.5, 0); }
+        kz.scale(1, 1, loan ? 0.76 : 0.86);
+      } else { kz = arcCyl(KR1 * r0, KR0 * r0, KY1 - KY0, hi ? 3 : 2, L, a + Math.PI); kz.scale(1, 1, loan ? 0.8 : 0.86); at(kz, 0, (KY0 + KY1) * 0.5, 0); }
       if (takigawaKusazuri) {
         // 一益の草摺：跳ね上がった板を裏から見ても消さず、薄い札の厚みを補う。
         // 厚み・裏の仕上げは復元案。七間の分割と骨の割り当てを保ち、腰の共用形へ結合する。
@@ -3071,7 +3135,7 @@ function bodyGeometry(key, o, hi, grp) {
         parts.push(P(fur, o.kusazuriFur, { mk: MK.cloth, reg: 'fur' }));
       }
       // 足軽：板の段をつなぐ二列の素懸の糸（段ごとに板の外の面に沿わせる）
-      if (ash) {
+      if (ash && !loan) {
         const H = (KY1 - KY0) / 5, c = a + Math.PI;
         for (let j = 0; j < 5; j++) for (const sd of [-1, 1]) {
           const th = c + sd * L * 0.2, y = KY0 + (j + 0.55) * H, r = kr(y) + 0.008;
@@ -3116,8 +3180,8 @@ function bodyGeometry(key, o, hi, grp) {
   }
   parts = PT.torso;
   if (!shared.torso) {
-  // 肩上（わたがみ）と小鰭
-  for (const sd of [1, -1]) {
+  // 肩上（わたがみ）と小鰭（簡素な貸し具足は ashiDo の肩の紐で吊る）
+  for (const sd of loan ? [] : [1, -1]) {
     parts.push(P(at(new THREE.BoxGeometry(0.07, 0.018, 0.22 * r0), sd * 0.15, 1.435, -0.02), o.goldKozane ? plateArmor : T >= 1 ? 0x2a1e16 : armor, { mk: MK.lac, reg: 'lacq' }));
     if ((hi && !o.takahimo) || takigawaTakahimo) parts.push(P(at(new THREE.BoxGeometry(0.078, 0.01, 0.01), sd * 0.145, 1.452, 0.09), lace, { reg: 'cord' }));
     if (takigawaTakahimo) {
@@ -4100,13 +4164,19 @@ function bodyGeometry(key, o, hi, grp) {
   } else if (T === 0 && hi) {
     // 胴締め：胴の裾の上に白い布の帯を巻き、左の前で結んで端を垂らす（大小はこの帯に差す。雑兵物語の足軽）
     {
-      const bt = new THREE.CylinderGeometry(0.19 * r0, 0.192 * r0, 0.05, 24, 1, true); bt.scale(1, 1, 0.83);
-      parts.push(P(at(bt, 0, 0.905, 0), 0xd2c9b2, { reg: 'cloth', dirt: 0.8 }));
-      const bt2 = new THREE.CylinderGeometry(0.193 * r0, 0.193 * r0, 0.012, 24, 1, true); bt2.scale(1, 1, 0.83);
-      parts.push(P(at(bt2, 0, 0.912, 0), 0xb8ae96, { reg: 'cloth', dirt: 0.8 }));
-      parts.push(P(at(ball(0.026, 0.022, 0.016, 8, 5), -0.06, 0.905, 0.163 * r0), 0xd2c9b2, { reg: 'cloth', dirt: 0.8 }));
-      for (const [dx, a] of [[-0.075, 0.25], [-0.05, -0.12]]) parts.push(P(at(new THREE.BoxGeometry(0.03, 0.12, 0.006), dx, 0.84, 0.168 * r0, -0.08, 0, a), 0xd2c9b2, { reg: 'cloth', dirt: 0.9 }));
+      // 簡素な貸し具足は、胴の腰のくびれに沿う茶の布の帯（白い帯は目立つので使わない。kaito 10/30）
+      const [bw, bd] = loan ? ashiWaist(0.905) : [0.19 * r0, 0.83 * 0.19 * r0];
+      const bc = loan ? 0x4e3c2a : 0xd2c9b2, bc2 = loan ? 0x3e3022 : 0xb8ae96;
+      const bt = new THREE.CylinderGeometry(bw + (loan ? 0.005 : 0), bw + (loan ? 0.006 : 0.002 * r0), loan ? 0.04 : 0.05, loan ? 20 : 24, 1, true); bt.scale(1, 1, (loan ? bd + 0.005 : bd) / (bw + (loan ? 0.005 : 0)));
+      parts.push(P(at(bt, 0, 0.905, 0), bc, { reg: 'cloth', dirt: 0.8 }));
+      if (!loan) { const bt2 = new THREE.CylinderGeometry(0.193 * r0, 0.193 * r0, 0.012, 24, 1, true); bt2.scale(1, 1, 0.83);
+      parts.push(P(at(bt2, 0, 0.912, 0), bc2, { reg: 'cloth', dirt: 0.8 })); }
+      const fz = loan ? bd + 0.012 : 0.163 * r0;
+      parts.push(P(at(ball(0.026, 0.022, 0.016, 8, 5), -0.06, 0.905, fz), bc, { reg: 'cloth', dirt: 0.8 }));
+      for (const [dx, a] of [[-0.075, 0.25], [-0.05, -0.12]]) parts.push(P(at(new THREE.BoxGeometry(0.03, loan ? 0.09 : 0.12, 0.006), dx, loan ? 0.855 : 0.84, loan ? fz + 0.004 : 0.168 * r0, -0.08, 0, a), bc, { reg: 'cloth', dirt: 0.9 }));
     }
+    // 簡素な貸し具足の足軽は刀を差さない（陣笠・胴・草摺・脚絆と、槍か鉄砲か弓だけ。kaito 10/30）
+    if (!loan) {
     // 打刀：脇差の外に、柄を前へ（鍔は帯の前）。鞘は後ろへ下がる
     {
       const h0 = [-0.2 * r0, 0.92, 0.1];
@@ -4129,6 +4199,7 @@ function bodyGeometry(key, o, hi, grp) {
     parts.push(P(limb(pt(-0.03), pt(-0.012), 0.0175, 0.0165, 6), 0x2a211a, { mk: MK.wood }));
     parts.push(P(limb(pt(-0.425), pt(-0.4), 0.0145, 0.015, 6), 0x3a3430, { mk: MK.iron }));
     parts.push(P(limb(pt(0.155), pt(0.172), 0.0155, 0.014, 6), 0x3a3430, { mk: MK.iron }));
+    }
   }
   // 弓足軽の箙（右の腰）：下の箱（方立）に鏃を差し、二本の手と横木で矢を支える。羽は腰の後ろから肩の後ろへ斜めに立つ。近くの形だけ
   if (T === 0 && hi && o.weapon === 'bow') {
@@ -4150,7 +4221,7 @@ function bodyGeometry(key, o, hi, grp) {
   }
   parts = PT.torso;
   // 兵糧袋（打飼袋）：米を小分けにして結んだ細長い布の袋を輪にし、左の肩から右の脇へ斜めに掛ける。近くの形だけ
-  if (!shared.torso && T === 0 && hi && !o.horo) {
+  if (!shared.torso && T === 0 && hi && !o.horo && !loan) {
     const C = [[-0.14, 1.5, 0.0], [-0.1, 1.42, 0.172], [-0.01, 1.26, 0.222], [0.1, 1.1, 0.192], [0.2, 0.985, 0.11], [0.238, 0.955, -0.02], [0.2, 0.985, -0.135], [0.1, 1.1, -0.2], [-0.01, 1.26, -0.226], [-0.1, 1.42, -0.178]];
     const cv = new THREE.CatmullRomCurve3(C.map(([x, y, z]) => new THREE.Vector3(x * r0 / 0.94, y, z * r0 / 0.94)), true);
     const N = 11, Y = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion(), bc = [0x7e6e50, 0x6c6048, 0x8a7854][(o.vi || 0) % 3];
@@ -4293,14 +4364,14 @@ function thighGeometry(o, hi, part) {
   if (o.nanban && !o.kosode) return nanbanGeometry('thigh', hi, part, 0, { P, at, merge, MK, limb, ball });
   if (o.sohei) return soheiThigh(o, hi);
   const cloth = o.cloth || 0x2b2622, T = o.tier || 0;
-  const hd0 = hi && T === 0 && (o.vi || 0) % 2 === 0;   // 足軽の半分は布の佩楯（伊予佩楯）を前に垂らす
+  const hd0 = hi && T === 0 && (o.vi || 0) % 2 === 0 && o.lacquer == null;   // 足軽の半分は布の佩楯（伊予佩楯）を前に垂らす（簡素な貸し具足は無し）
   const haidateCloth = T >= 2 ? (o.lace || cloth) : cloth;
   const solidHaidate = S.quality === 'high' && o.crest === 'takigawa_buffalo' && T >= 1;
   // 一益の黒い家地を、先に作った別の武将の威色で共用しない。
   const ac = o.goldKozane ? 0x1c1a1a : o.armor || 0x2a2622;
   // 金の瓦佩楯（信玄の手本：金の小札を並べた佩楯）。kacchu_data の haidateGold
   const hGold = !!o.haidateGold;
-  const k = 'thigh' + cloth + '|' + T + '|' + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac + (hGold ? '|hg' : '');
+  const k = 'thigh' + cloth + '|' + T + '|' + (o.lacquer != null ? 'L|' : '') + (o.armor || 0) + '|' + (hi ? 1 : 0) + (part || '') + (hd0 ? '|h' : '') + '|' + haidateCloth + '|' + solidHaidate + '|' + ac + (hGold ? '|hg' : '');
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.9, 0.7, 0.5, 0.35][T];
   const b = BUILD[T];
@@ -4367,14 +4438,14 @@ function shinGeometry(o, hi, part) {
   // 脛当の篠と立挙の色（kacchu_data の suneateColor・suneateGold。信玄の金の篠、謙信の黒漆など）
   const sc = named && o.suneateColor != null ? o.suneateColor : null, sGold = named && !!o.suneateGold;
   const shinTies = S.quality === 'high' && !!o.shinTies;
-  const k = 'shin' + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + sc + (sGold ? 'g' : '') + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
+  const k = 'shin' + (o.lacquer != null ? 'L|' : '') + (o.detail85 ? '個体|' : '') + cloth + '|' + T + '|' + (T === 0 ? vi % 3 + '/' + (vi % 4 === 3 ? 0 : 1) : 0) + '|' + ac + '|' + lc + '|' + named + '|' + sc + (sGold ? 'g' : '') + '|' + (hi ? 1 : 0) + (part || '') + '|' + shinTies;
   if (geoCache.has(k)) return geoCache.get(k);
   DIRT = o.dirt ?? [0.95, 0.8, 0.6, 0.45][T];
   const b = BUILD[T];
   const P_ = [];
   // 脛とふくらはぎ
   if (!part || part === 'coveredLeg') P_.push(P(limb([0, 0, 0], [0, -0.3, -0.01], 0.07 * b, 0.05 * b, hi ? 10 : 6, hi && !part), cloth, { reg: 'cloth', flipV: true }));
-  if (part === 'foot') { /* 足だけ */ } else if (T === 0 && (!o.detail85 || vi % 3 !== 1)) {
+  if (part === 'foot') { /* 足だけ */ } else if (T === 0 && (o.lacquer != null || !o.detail85 || vi % 3 !== 1)) {
     // 足軽：脚絆（布を巻き、上下を紐で結ぶ）。半分は筒臑当
     const kc = [0x4a4a44, 0x3a332b, 0x5a5244][vi % 3];   // 鼠・茶・生成りの褪せ（紺は使わない。kaito 10/28 夜）
     P_.push(P(limb([0, -0.02, 0.0], [0, -0.28, -0.008], 0.074 * b, 0.058 * b, hi ? 10 : 6), kc, { reg: 'cloth', flipV: true }));

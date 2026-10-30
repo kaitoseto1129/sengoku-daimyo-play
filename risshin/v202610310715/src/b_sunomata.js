@@ -4006,6 +4006,8 @@ const sunomata = {
     const firstAt = { x: F.r1.yose.x + F.r1.dir.x * 4, z: F.r1.yose.z + F.r1.dir.z * 4 };
     // 一の手は先手と後詰の二つ。先手が柵の口で揉み合う間に後詰が押し出し、組が一度に二十人を受けないようにする。
     F.reserveW1 = camp('斎藤の一の手', firstAt, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1, o: { name: '斎藤方の先手頭' } }, { type: 'ashigaru', n: 11 }]);
+    // 開戦25秒（10/30 夜）：一の手の先手は柵の口で二十六秒まで崩れず踏みとどまる。後からは常の通り崩れて退く（兵の数は同じ）
+    F.reserveW1.noRout = true; rt.after(26, () => { F.reserveW1.noRout = false; });
     F.reserveW1b = camp('斎藤の一の手（後詰）', { x: firstAt.x - F.r1.dir.x * 10, z: firstAt.z - F.r1.dir.z * 10 }, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }]);
     // 波の合間に柵を探る物見の小勢（一の手の後は一の手の側、二の手の後は北の畑から）
     F.probe1 = camp('斎藤の物見', { x: F.r1.from.x - F.r1.dir.x * 2, z: F.r1.from.z - F.r1.dir.z * 2 }, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }]);
@@ -4065,7 +4067,8 @@ const sunomata = {
     F.W1 = F.reserveW1;
     F.B1 = F.reserveB1; F.B1.push();
     yoseApproach(rt, F.W1, r, r.side);
-    rt.after(16, () => {
+    // 開戦25秒（10/30 夜）：先手が柵の口で揉み合う間に後詰を押し出し、一の手の押し合いを途切れさせない（兵の数は同じ）
+    rt.after(7, () => {
       if (rt.over || F.ending || F.won || F.next2) return;
       F.W1b = F.reserveW1b;
       if (!F.W1b.count || F.W1b.routed) return;

@@ -42,6 +42,14 @@ const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
 const CH_Z = -32;                          // 島の手前の川筋
 const BANK_Z = -14;                        // こちらの岸（柵を結う所）
+// 輪中の地の斑（10/30）：a＝湿った泥の低み（高い所に水たまり）、b＝葦の根の株。0〜1。周期の違う波を重ね、升目に揃えない。
+const smoothstep = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+const NG_SOIL = { a: 0, b: 0 };
+function ngSoilNoise(x, z) {
+  NG_SOIL.a = .5 + .32 * Math.sin(x * .19 + Math.sin(z * .13) * 2.1) * Math.cos(z * .17 - x * .05) + .18 * Math.sin(x * .47 - z * .39 + 2.3);
+  NG_SOIL.b = .5 + .34 * Math.sin(x * .29 - z * .11 + 1.3) * Math.cos(z * .26 + Math.sin(x * .09) * 1.6) + .16 * Math.cos(x * .61 + z * .53);
+  return NG_SOIL;
+}
 const FORT = { x: 0, z: -74 };             // 中江の砦
 const GANSHO = { x: -44, z: -82 };         // 願証寺・寺内町（中江の砦とは別の、宗教の中心。軍事拠点と分ける）
 // 三川の輪中と願証寺の門徒の暮らしを踏まえる。個々の在所・人数・道筋は推定復元。
@@ -2111,6 +2119,8 @@ const nagashima = {
     autumn: true,
     softPathSoil: true, // 作業道と湿った岸をなじませ、格子ごとに泥の境が切り替わらないようにする。
     wetFieldRuts: 'wear', // 既存の沖積土の色と照りの抑制を使う。踏み跡だけを残し、雨の轍は足さない。
+    // 輪中の地を茶の一枚にしない（10/30）：乾いた沖積の灰茶・葦の根の灰緑と枯れ色・湿った黒い泥の差を広げる。色の定数だけ。
+    soilTones: { grass: [[.085, .1, .05], [.17, .165, .09]], dirt: [[.135, .122, .098], [.215, .198, .16]], mud: [[.045, .042, .035], [.08, .072, .058]] },
     patchyGround: true, // 岸の土にも湿乾のむらと草の切れ目を残す。
     plainGrassGround: true, // 草地の絵にも円い窪みがある。土と泥だけ替えても岸の縁に輪が残る。
     stableSlopeGrain: true, // 柵際の低い堤でも、法線の向きで地肌を回して縞へ引き伸ばさない。
@@ -2144,6 +2154,12 @@ const nagashima = {
           c.lerp({ r: 0.36, g: 0.38, b: 0.24 }, (.25 + .45 * patch) * road * fade);
         }
       }
+    },
+    // 踏み荒らした窪みの水たまり（見た目だけ。足の遅れや兵の道には入れない）。中央の作業道は避ける。
+    puddles(x, z) {
+      if (!(z < 32 && z > BANK_Z && Math.abs(x) < 140) || Math.abs(x) < 5) return 0;
+      const n = ngSoilNoise(x, z);
+      return .95 * smoothstep(.66, .8, n.a) * (1 - smoothstep(.45, .65, n.b));
     },
     clear: (x, z) => (Math.abs(x) < 145 && z > -140 && z < 50),
     get streams() { return TOWN_STREAMS; },

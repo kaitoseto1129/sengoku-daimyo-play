@@ -20,6 +20,7 @@ import { S as SETTINGS } from './settings.js';
 import { isTouch } from './touch.js';
 import { flagTexture } from './textures.js';
 import { woodTex, dirtTex } from './nature.js';
+import { landOverlay } from './world_terrain.js';
 import { RANKS } from './state.js';
 import { buildHorse, MAT, arrowGeometry, merge as mergeUnit } from './units_model.js';
 import { lookParts } from './units_look.js';
@@ -392,6 +393,32 @@ function aneBankGrassMaterial(height) {
   mat.customProgramCacheKey = () => `aneBankGrass${height}`;
   return mat;
 }
+// 10/30 採点「水が25秒の画面に写らず」：持ち場は南岸の川原の上で、25秒の画面は川を背にして北の野を向く（八方のうち北の三方に水が無い）。
+// 川原の外の縁（昔の流れの跡）に、細く切れ切れのたまり（わんど）を三つ置く。水は共通の水堀の材質（water_body.js が波・空の映り・照りを重ねる）。
+// 形は三つで一つの網、材質は城の堀と同じ値。当たり・足場・兵の道は変えない（見た目だけ）。
+function anegawaBackwater(rt) {
+  const W = rt.world, pos = [], uv = [], idx = [];
+  const gc = (x) => x < -60 ? -2 + 7 * Math.max(0, Math.min(1, (x + 120) / 60)) : x < 0 ? 5 - 6 * (x + 60) / 60 : -1 + 5 * Math.min(1, x / 60);
+  for (const [x0, x1, off, hw] of [[-52, -20, 30, 2.4], [-13, 26, 31.5, 3.0], [33, 68, 30, 2.5]]) {
+    const n = Math.ceil((x1 - x0) / 1.2), base = pos.length / 3;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = x0 + (x1 - x0) * t;
+      const zc = gc(x) + off + Math.sin(x * 0.13) * 1.6, w = hw * Math.pow(Math.sin(Math.PI * t), 0.6) * (0.8 + 0.2 * Math.sin(x * 0.41)) + 0.05;
+      // 水面は横断の三点の一番高い所の少し上（砂利の凹凸に沈まない）。長さ方向にはゆっくり地面に沿う。
+      const y = Math.max(W.heightAt(x, zc - w), W.heightAt(x, zc), W.heightAt(x, zc + w)) + 0.04;
+      for (const side of [-1, 1]) { pos.push(x, y, zc + side * w); uv.push(t * 6, side < 0 ? 0 : 1); }
+      if (i < n) { const a = base + i * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92, envMapIntensity: 0.6 });
+  const pools = new THREE.Mesh(geo, mat); pools.name = '川原のたまり';
+  W.scene.add(pools);
+  const dispose = rt.dispose;
+  rt.dispose = function () { geo.dispose(); mat.dispose(); return dispose && dispose.call(this); };
+}
 function anegawaRiver(rt) {
   const W = rt.world, st = W.def.streams[0], oldHeight = W.heightAt.bind(W), oldDepth = W.waterDepthAt.bind(W);
   // 湖北平野を琵琶湖へ下る川。地面の凹凸を水面へ写すと、西へ流れる途中で逆勾配になる。
@@ -661,7 +688,8 @@ function anegawaRiver(rt) {
           * sin(aneQ.y * 5.0 + sin(aneQ.x * 0.9));
         float aneH = aneRidge * aneTrod * 0.025 - aneTrod * 0.035
           + dot(aneMud, vec3(0.333)) * aneDamp * 0.12;
-        diffuseColor.rgb *= 1.0 - aneTrod * (0.16 + aneRidge * 0.1);`)
+        diffuseColor.rgb *= 1.0 - aneTrod * (0.16 + aneRidge * 0.1);
+        //ANE_LS`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         vec3 aneDx = dFdx(-vViewPosition), aneDy = dFdy(-vViewPosition);
         vec3 aneR1 = cross(aneDy, normal), aneR2 = cross(normal, aneDx);
@@ -670,6 +698,12 @@ function anegawaRiver(rt) {
           * (dFdx(aneH) * aneR1 + dFdy(aneH) * aneR2));`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = mix(roughnessFactor, 0.38, aneDamp);`);
+    // 10/30 採点「地が灰の一色」：持ち場の足元の四割余りはこの川原の面で、共通の地面の重ね塗り（landOverlay：
+    // 数十mの湿り乾きの斑・株と裸地のむら・踏み跡・粒の写真）が地面の材質にしか掛かっていなかった。同じ重ね塗りを川原にも掛ける（絵・描く数は同じ）。
+    // 川原の玉石・泥の塗りが上から色を置き直すので、重ね塗りはその後（//ANE_LS の所）に入れる。
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '//ANE_CF').replace('//ANE_LS', '#include <color_fragment>');
+    landOverlay(sh, W.groundU);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '').replace('//ANE_CF', '#include <color_fragment>');
   };
   const banks = new THREE.Mesh(bankGeo, bankMat);
   banks.receiveShadow = true; W.scene.add(banks);
@@ -3214,6 +3248,7 @@ const anegawa = {
     // 姉川の地面の参照だけ替え、共通の絵と材質は書き換えない。
     W.groundU.tDirt.value = dirtTex(true);
     anegawaRiver(rt);
+    anegawaBackwater(rt);
     anegawaNotices(rt);
     // 部位による最大一・四倍が後から掛かっても、一発は最大体力の三分の一まで。
     const takeBullet = rt.player.takeBullet.bind(rt.player);
