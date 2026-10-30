@@ -165,6 +165,12 @@ export class StaticFreezer {
     // 復帰時に元の自動更新へ戻せるよう、固定前の指定を控える。
     const automatic = snap.nodes.map(o => o.matrixAutoUpdate);
     for (const o of snap.nodes) { if (o.matrixAutoUpdate) { o.updateMatrix(); frozenAutomatic.add(o); } o.matrixAutoUpdate = false; }
+    // 凍らせた塊は舞台の毎コマの更新から外れる（hidden_skip.js）。隠れた部品の行列もここで一度だけ求めておく
+    //   （後で見えた時に原点や古い場所に描かない。snap.nodes は親が子より先の並び）
+    for (const o of snap.nodes) {
+      if (o !== c && o.parent) o.matrixWorld.multiplyMatrices(o.parent.matrixWorld, o.matrix);
+      o.matrixWorldNeedsUpdate = false;
+    }
     this.frozen.push({ root: c, snap, automatic });
     this.n++;
   }

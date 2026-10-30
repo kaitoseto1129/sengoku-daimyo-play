@@ -111,6 +111,24 @@ const shapes = new Map();   // 形の鍵 → { geo, mesh, n, cap, arr, vat }
 const looks = new Map();    // u.look → { shape, colBase } か null（描けない姿）
 const wpns = new Map();     // 得物の鍵 → { geo, mesh, ... } か null
 let scene = null;
+// 遠い VAT の兵（携帯・40m より先）は、面を半分にした形で描く（10/30 桶狭間の VAT が一コマ約 30 万三角）。
+//   頂点・色・骨の重みはそのまま、面の並びだけを替える。40m 先の兵は画面で二十画素ほどなので、陣笠と旗の形は残る割合に留める。出来るまでは元の形
+const XFAR_D = (MEM_TIGHT || typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) && !/[?&]vatxfar=0/.test(qs) ? 36 : Infinity;
+function farOf(S) {
+  if (S.far !== undefined) return S.far;
+  S.far = null;
+  const ix = S.geo.index, pos = S.geo.attributes.position;
+  if (!ix || ix.count < 900) return null;
+  const { P, U, I } = geoArrays(S.geo);
+  simplifyAsync(P, U, I, Math.round(ix.count / 3 * 0.4)).then((J) => {
+    if (!J) return;
+    const geo = new THREE.BufferGeometry();
+    for (const k in S.geo.attributes) geo.setAttribute(k, S.geo.attributes[k]);
+    geo.setIndex(new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1));
+    S.far = newBatch(geo, S.mat);
+  });
+  return null;
+}
 function newBatch(geo, mat) {
   return { geo, mat, mesh: null, cap: 0, n: 0, vat: null };
 }
@@ -661,7 +679,7 @@ export function vatDraw(army, cam) {
     COLUP.dirty = false; COLUP.at = frame; COLUP.gen++; colTex.needsUpdate = true;
     for (const L of looks.values()) if (L && L.nS && L.ngen <= COLUP.gen) { L.nshape = L.nS; L.ncolBase = L.nB; L.nS = null; }
   }
-  for (const S of shapes.values()) S.n = 0;
+  for (const S of shapes.values()) { S.n = 0; if (S.far) S.far.n = 0; }
   for (const W of wpns.values()) if (W) W.n = 0;
   _pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); _fr.setFromProjectionMatrix(_pm);
   const dt = Math.min(0.1, Math.max(0, army.time - (VAT.lastT ?? army.time))); VAT.lastT = army.time;
@@ -678,11 +696,11 @@ export function vatDraw(army, cam) {
     const cx = cam.position.x - e[12], cz = cam.position.z - e[14], nr = cx * cx + cz * cz < VAT.nearD * VAT.nearD;
     // 近い形は、その姿の兵が近くに来た時に作る（遠くにしか居ない姿の分は作らない）
     if (nr && VAT.nearShape && !u.vatL.nq) { u.vatL.nq = true; nearQ.push(u.vatL); }
-    put(nr ? u.vatL.nshape : u.vatL.shape, e, V, nr ? u.vatL.ncolBase : u.vatL.colBase);
+    put(nr ? u.vatL.nshape : cx * cx + cz * cz > XFAR_D * XFAR_D && farOf(u.vatL.shape) || u.vatL.shape, e, V, nr ? u.vatL.ncolBase : u.vatL.colBase);
     if (u.vatW) put(u.vatW, e, V, 0);
     drawn++;
   }
-  for (const S of shapes.values()) fin(S);
+  for (const S of shapes.values()) { fin(S); if (S.far) fin(S.far); }
   for (const W of wpns.values()) if (W) fin(W);
   VAT.stat.drawn = drawn;
   VAT.stat.drawMs = performance.now() - t0;
@@ -703,7 +721,7 @@ function fin(B) {
 export function vatReset(army, sc) {
   for (const u of list) if (u.vatOn) setOn(u, false);
   list.length = 0;
-  for (const S of shapes.values()) if (S.mesh) { S.mesh.parent?.remove(S.mesh); S.mesh.dispose(); S.mesh = null; S.cap = 0; }
+  for (const S of shapes.values()) for (const B of [S, S.far]) if (B && B.mesh) { B.mesh.parent?.remove(B.mesh); B.mesh.dispose(); B.mesh = null; B.cap = 0; }
   for (const W of wpns.values()) if (W?.mesh) { W.mesh.parent?.remove(W.mesh); W.mesh.dispose(); W.mesh = null; W.cap = 0; }
   looks.clear(); colUsed = 0; nearQ.length = 0; COLUP.dirty = false; COLUP.gen = 0; COLUP.at = -99;
   lastArmy = army; scene = sc || null;

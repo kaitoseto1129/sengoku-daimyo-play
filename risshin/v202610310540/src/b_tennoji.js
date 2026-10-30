@@ -2644,7 +2644,15 @@ const tennoji = {
       dress([{ type: 'samurai', n: 1, o: { name: '本願寺の鉄砲頭' } }, { type: 'gun', n: 6 }], SAIKA));
     // 門の口から南西の原を見ると、囲みの門徒の群れが土塁の外に詰めて見える（10/29 採点：門の外の原が空いていた）。人数と位置は推定。
     F.ringW = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 4, faction: 'honganji', name: '西の囲みの門徒', anchor: { x: -32, z: -36 }, facing: fortFacing(-32, -36), order: 'hold', aggro: 9, width: 16, morale: 80, fleeDir: { x: -1, z: 0.3 }, dmgMult: 0.75 },
-      dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }], IKKO));
+      dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 2 }], IKKO));
+    // 10/30 採点：開戦25秒の画面は門内の味方の背と空の原だけだった。門の外、遊び手の前十三〜二十一歩で、
+    //   門から突いて出た明智の手と、門前に詰めた門徒が、開戦すぐから押し合い斬り合う。人数・位置は推定。
+    //   門内（insideGate）の外なので陥落の数え・勝ち負けの数えには入れない。遠くの本物の兵を減らし、総数は二百五十人以内のまま。
+    F.gateSally = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 4, name: '門外へ突いて出た明智の手', anchor: { x: 0.5, z: -37.5 }, order: 'hold', facing: 0, width: 8, spacing: 0.9, seekRange: 7, aggro: 7, noRout: true },
+      dress([{ type: 'samurai', n: 2, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 13 }], ODA));
+    F.gateMob = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 3, faction: 'honganji', name: '門前に詰めた門徒', anchor: { x: 0.5, z: -31.5 }, facing: Math.PI, order: 'hold', seekRange: 7, aggro: 7, width: 8, spacing: 0.9, morale: 90, fleeDir: { x: -0.3, z: 1 }, dmgMult: 0.6 },
+      dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 14 }], IKKO));
+    F.gateMob.noRout = true;   // 最初の四十秒は崩れず門前で組み合う（update で解く）
     // ---- 大軍（軽い作り）：砦を囲む本願寺勢、遠くの石山本願寺 ----
     // 備の表の実名は保ち、軽い兵に同名の大将を重ねて描かない。
     const hosts = rosterBuild(rt, JIN.map((plan) => ({ ...plan, sonae: plan.sonae.map((s) => ({ ...s,
@@ -3060,11 +3068,11 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       aggro: 4, noRout: false },
       dress([{ type: 'ashigaru', n: 1, o: { name: '猪子兵介' } }, { type: 'ashigaru', n: 1, o: { name: '大津伝十郎' } }, { type: 'ashigaru', n: 2 }], ODA));
     F.ringB = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name: '囲みの新手', anchor: { x: -40, z: -6 }, facing: fortFacing(-40, -6), order: 'hold', seekRange: 70, aggro: 16, width: 12, morale: 90, fleeDir: { x: -1, z: -0.5 }, dmgMult: 1 },
-        dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }], IKKO));
+        dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }], IKKO));
     F.siegeW = [];
     for (const [x, z, name, facing, gun] of [[-36, -62, '西の門徒', Math.PI / 2, false], [36, -62, '東の鉄砲衆', -Math.PI / 2, true], [0, -102, '北の門徒', 0, false]]) {
       const g = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 3, faction: 'honganji', name, anchor: { x, z }, facing, order: 'hold', aggro: 22, width: 12, morale: 95, fleeDir: { x: 0, z: -1 } },
-        dress(gun ? [{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }] : [{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }], gun ? SAIKA : IKKO));
+        dress(gun ? [{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 2 }] : [{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 4 }], gun ? SAIKA : IKKO));
       F.siegeW.push(g);
     }
     F.last = [];
@@ -3074,16 +3082,16 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       return g;
     };
     // 本隊と本願寺の鉄砲衆は一度に構える。本隊の後ろには門徒の大軍（軽い作り）
-    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 9 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
-    mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 6 }, { type: 'ashigaru', n: 4 }], SAIKA));
-    F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }], IKKO));
+    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
+    mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 2 }], SAIKA));
+    F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 4 }], IKKO));
     F.kidoG = [];
     const add = (x, z, name, list) => {
       const g = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name, anchor: { x, z }, facing: 0, order: 'hold', aggro: 20, seekRange: 30, width: 14, morale: 80, fleeDir: { x: 0, z: -1 }, dmgMult: 1 }, list);
       F.kidoG.push(g);
       return g;
     };
-    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { name: '殿の侍大将', hat: 'kabuto_m' } }, { type: 'ashigaru', n: 8 }], IKKO));
+    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { name: '殿の侍大将', hat: 'kabuto_m' } }, { type: 'ashigaru', n: 4 }], IKKO));
     add(KIDO.x + 22, KIDO.z + 6, '木戸の本願寺の鉄砲', dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }], SAIKA));
     F.fighters = [...F.oda, F.fgun, F.rearGuard, F.honjin.guard];
     F.defenders = [F.ake, F.fgun, F.rearGuard];
@@ -3510,6 +3518,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       F.gunSmoke?.emit(x, rt.world.heightAt(x, z) + 2.2, z, dx / l, dz / l, 4);   // 柵と土塁の上へ煙の頭が出る高さ
     }
     F.gunSmoke?.update(dt);
+    if (F.gateMob?.noRout && rt.t > 40) F.gateMob.noRout = false;
     // 大軍の補いは三秒ごとに動く一隊だけ。列の足元へ散らし、中央から煙を噴かせない。
     F.hostDustT = (F.hostDustT || 0) - dt;
     if (F.hostDustT <= 0 && F.hostE.length) {
@@ -4251,6 +4260,8 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (F.step === 2) { botWalk(p, inp, F.gz.x, F.gz.z, 1.5, goTo); return; }
   if (siege) {
     botWalk(p, inp, GATE_REAR.x, GATE_REAR.z, 1, goTo);
+    // 持ち場に着いたら、門の外で組み合う門前の斬り合いへ向き直る（10/30：西の小屋の壁を見たまま待っていた）。
+    if (Math.hypot(GATE_REAR.x - u.pos.x, GATE_REAR.z - u.pos.z) < 2.6) { inp.k.delete('KeyW'); p.yaw = Math.atan2(0.5 - u.pos.x, -33 - u.pos.z); }   // 味方の列に阻まれて二歩手前で止まる事がある
     if (inp.quickCmd === 'yari') p.yaw = 0;
     return;
   }
