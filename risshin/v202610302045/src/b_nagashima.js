@@ -295,7 +295,7 @@ function shoreReedBelt(rt) {
 const UP_Y = new THREE.Vector3(0, 1, 0);
 const INLET = { pts: [[-3.5, 1.5], [-6, 4.5], [-9.5, 6.5], [-13.5, 7]], w: 3.2, depth: .6 };   // 西の脇の水路（x=-13）へ通じる溜まり。奥（北）が対岸。10/29 夜：岸から陸を振り向いた目の右手、十五〜二十五歩に寄せる
 function inletDressing(rt, reed) {
-  const W = rt.world, at = new THREE.Object3D(), color = new THREE.Color(), P = INLET.pts, MOORED = [[.3, -.5, .1], [.72, .8, -.18]];
+  const W = rt.world, at = new THREE.Object3D(), color = new THREE.Color(), P = INLET.pts, MOORED = [[.05, -.5, 1.05], [.15, -.25, .98], [.25, 0, 1.04], [.35, .25, .96], [.72, .8, -.18]];
   const rnd = (k) => { const v = Math.sin(k * 91.7 + 47.3) * 43758.5453; return v - Math.floor(v); };
   // 線に沿う点と、その左（奥＝対岸）への向き
   const along = (t) => {
@@ -320,7 +320,7 @@ function inletDressing(rt, reed) {
     color.copy(tones[Math.floor(rnd(i * 1.3) * tones.length)]).multiplyScalar(.82 + rnd(i * 4.4) * .3); reeds.setColorAt(n++, color);
   }
   reeds.count = n; reeds.receiveShadow = true; reeds.frustumCulled = false; rt.scene.add(reeds);
-  // 繋いだ舟：一艘は葦の際に寄せ、一艘は棹を立てたまま中ほどに。共通の小舟の束で描く。
+  // 繋いだ舟：入り江の口に四艘を横に連ねて舳先を岸へ寄せ（10/30：持ち場から陸を向いた目の右手に舟の列）、一艘は葦の際に。共通の小舟の束で描く。
   for (const [t, off, turn] of MOORED) {
     const q = along(t), x = q.x + q.nx * off, z = q.z + q.nz * off;
     rt.scene.add(riverBoat(x, waterHeight(W, x, z), z, q.rot + turn));
@@ -415,6 +415,88 @@ function moatDressing(rt, reed) {
     }
   }
   reeds.count = n; reeds.receiveShadow = true; reeds.frustumCulled = false; rt.scene.add(reeds);
+}
+// 点から折れ線までの平らな距離
+function segDist2(x, z, pts) { let d = Infinity; for (let i = 0; i < pts.length - 1; i++) {
+  const [ax, az] = pts[i], [bx, bz] = pts[i + 1], dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz || 1;
+  const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L)); d = Math.min(d, Math.hypot(x - ax - dx * t, z - az - dz * t)); } return d; }
+// 舟の列（10/30）：持ち場の岸から八方のどこを向いても、水路か川に連ねた舟が入るように。
+//   本流のこちらの岸に、上陸の口（|x|<20）を外して東西六艘ずつ舳先を岸へ向けて並べる。東の脇の水路には舳と艫をつないで三艘。
+//   見た目だけ（当たり・兵の道は変えない）。舟は共通の小舟の束（boatInstancer）で描くので描く回数は増えない。
+function boatRows(rt) {
+  const W = rt.world, rnd = (k) => { const v = Math.sin(k * 57.3 + 9.1) * 43758.5453; return v - Math.floor(v); };
+  const edgeZ = (x) => { for (let z = BANK_Z; z > CH_Z; z -= .25) if (W.waterDepthAt(x, z) > .45) return z; return null; };
+  const spots = [];
+  for (const [x0, dir] of [[-24, -1], [24, 1]]) for (let i = 0; i < 6; i++) {
+    const x = x0 + dir * (i * 2.35 + rnd(i + x0) * .3), ez = edgeZ(x); if (ez === null) continue;
+    const z = ez - 3.5 - rnd(i * 3.1 + x0) * .8;
+    rt.scene.add(riverBoat(x, waterHeight(W, x, z) + .04, z, (rnd(i * 7.7 + x0) - .5) * .22));
+    spots.push([x, z]);
+  }
+  // 東の脇の水路（x≒13）：浅い溝に細長く三艘。棹を立てた舟と筵を掛けた舟が交じる。
+  const P = [[14, -2], [12, 8], [14, 24]];
+  for (let i = 0; i < 3; i++) {
+    const t = .12 + i * .28, f = t * (P.length - 1), j = Math.floor(f), u = f - j, a = P[j], b = P[j + 1];
+    const x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u;
+    rt.scene.add(riverBoat(x, waterHeight(W, x, z) + .04, z, Math.atan2(b[0] - a[0], b[1] - a[1]) + (rnd(i * 4.3) - .5) * .08));
+    spots.push([x, z]);
+  }
+  return spots;
+}
+// 輪中の地面（10/30）：岸から陣までの土を一色にしない。窪みと水際は湿った黒い泥、所々に枯れ色と黄緑の葦の根の株、
+//   道と柵の持ち場は踏み固めた土。準備の時だけ頂点の配分（草・土・泥）を直し、葦の株は岸の葦と同じ形と材質で一回描く。
+function wajuuFloor(rt, reed, boats = []) {
+  const W = rt.world, geo = W.terrain?.geometry, P = geo?.attributes.position, splat = geo?.attributes.splat;
+  const paths = W.def.paths || [];
+  const segD = segDist2;
+  const pathD = (x, z) => { let d = Infinity; for (const p of paths) d = Math.min(d, segD(x, z, p)); return d; };
+  const wetNear = (x, z, r) => { for (let a = 0; a < 8; a++) if (W.waterDepthAt(x + Math.cos(a * .785) * r, z + Math.sin(a * .785) * r) > .03) return true; return false; };
+  // 斑：大きな湿りのむら（二十歩ほど）と、中くらいの草の株（七、八歩）
+  const n1 = (x, z) => Math.sin(x * .13 + Math.sin(z * .07) * 1.7) * Math.cos(z * .11 - x * .05);
+  const n2 = (x, z) => Math.sin(x * .41 + z * .23 + Math.cos(x * .09) * 2) * Math.cos(z * .37 - x * .19);
+  if (P && splat) {
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i), z = P.getZ(i);
+      if (Math.abs(x) > 130 || z < BANK_Z - 6 || z > 75) continue;
+      if (W.waterDepthAt(x, z) > .05) continue;
+      const fade = Math.min(1, (130 - Math.abs(x)) / 25, (75 - z) / 15);
+      const a = n1(x, z), b = n2(x, z), pd = pathD(x, z);
+      // 持ち場の近く（三十歩内）は四、五歩の細かな斑を重ね、足もとから草の株と泥と踏み跡が交じって見えるように
+      const near = Math.max(0, 1 - Math.hypot(x - 1, z + 6) / 32), c3 = Math.sin(x * .9 + Math.sin(z * .6) * 1.3) * Math.cos(z * .8 - x * .3);
+      const wet = Math.max(Math.max(0, Math.min(1, (a * .7 + b * .3 - .12 - c3 * .4 * near) / .4)), wetNear(x, z, 2.5) ? .85 : wetNear(x, z, 5) ? .45 : 0);
+      const reedy = Math.max(0, Math.min(1, (b * .7 - a * .25 + .18 + c3 * .45 * near) / .35));
+      const trod = Math.max(0, 1 - pd / 2.4);
+      let g = splat.getX(i), d = splat.getY(i), m = splat.getZ(i);
+      const G = reedy * (1 - trod), M = wet * (1 - trod * .5) * .8, D = trod * .9;
+      g = g * (1 - fade) + fade * Math.max(G, .08); m = m * (1 - fade) + fade * Math.max(M, trod * .35); d = d * (1 - fade) + fade * (D + (1 - Math.max(G, M)) * .5);
+      const t = g + d + m || 1;
+      splat.setXYZ(i, g / t, d / t, m / t);
+    }
+    splat.needsUpdate = true;
+  }
+  // 葦の根の株：持ち場の周り六〜五十歩に、草の斑と水際へ寄せて低い株と背の高い株を混ぜる（道・柵の持ち場・舟の脇は空ける）。
+  const rnd = (k) => { const v = Math.sin(k * 77.7 + 5.3) * 43758.5453; return v - Math.floor(v); };
+  const tones = [0x7c7452, 0x6f7044, 0x8a7d5c, 0x76783f, 0x938563, 0x5d6446].map(h => new THREE.Color(h));
+  const at = new THREE.Object3D(), color = new THREE.Color(), N = 340;
+  const clumps = new THREE.InstancedMesh(reed.geo, reed.mat, N);
+  let n = 0;
+  for (let i = 0; i < 2400 && n < N; i++) {
+    const ang = rnd(i) * 6.283, r = 3 + Math.pow(rnd(i * 1.7), .9) * 48, x = 1 + Math.sin(ang) * r, z = -9 + Math.cos(ang) * r;
+    if (z < BANK_Z - 4 || W.waterDepthAt(x, z) > .05) continue;
+    if (Math.abs(x) < 18 && z < BANK_Z + 2.5) continue;   // 柵を結う岸の持ち場と着岸口
+    const low = Math.abs(x) < 18 && z < BANK_Z + 12;   // 陣の足もとは踝ほどの低い株だけ
+    if (pathD(x, z) < 2.4 || boats.some(([bx, bz]) => Math.hypot(x - bx, z - bz) < 4)) continue;
+    let solid = false; for (const s of SOLIDS) if (x > s.x0 - 1 && x < s.x1 + 1 && z > s.z0 - 1 && z < s.z1 + 1) { solid = true; break; }
+    if (solid) continue;
+    const near = wetNear(x, z, 3), want = near ? .85 : Math.max(0, n2(x, z) * .7 - n1(x, z) * .25 + .05) * 1.4;
+    if (rnd(i * 3.3) > want) continue;
+    at.position.set(x, drawGroundAt(W, x, z) - .06, z);
+    at.rotation.set((rnd(i * 4.1) - .5) * .25, rnd(i * 6.3) * 6.28, (rnd(i * 9.7) - .5) * .25);
+    const h = low ? .22 + .25 * rnd(i * 1.9) : near ? .9 + 1.1 * rnd(i * 1.9) : .35 + .6 * rnd(i * 1.9), wd = .7 + rnd(i * 3.7) * .8;
+    at.scale.set(wd, h, wd); at.updateMatrix(); clumps.setMatrixAt(n, at.matrix);
+    color.copy(tones[Math.floor(rnd(i * 1.3) * tones.length)]).multiplyScalar(.8 + rnd(i * 4.4) * .3); clumps.setColorAt(n++, color);
+  }
+  clumps.count = n; clumps.receiveShadow = true; clumps.frustumCulled = false; rt.scene.add(clumps);
 }
 // 対岸の輪中（10/29）：川の向こうの水際を葦原で埋め、堤の上に草の株と一揆勢の群れ。退城の舟の口（|x|<20）と東の分流の口は空ける。
 // 葦は岸の帯と同じ形と材質（描くのは二回足すだけ）。群れは軽い遠景の軍勢で、本物の兵は増やさない。
@@ -1995,6 +2077,8 @@ const nagashima = {
     flagColors: [0xe6dfcc, 0x24211e, 0x713d30],
     maxSlope: 0.22,
     fights: [[0, BANK_Z, 16], [24, BANK_Z, 12], [-24, BANK_Z, 12]],   // 踏み荒らしは柵の作業場だけ。堤の草を残す
+    // 10/30：溜まり・水路の水面の上に濡れた泥と水たまりの板が載り、空を映した青白の板に見えた。水路の水面とその縁には置かない。
+    skip: (x, z) => TOWN_STREAMS.some((st) => st.w < 10 && segDist2(x, z, st.pts) < st.w + .6),
   },
   world: {
     seed: 1574,
@@ -2175,37 +2259,48 @@ const nagashima = {
       // 本流だけ：流れに沿って動く濃淡の筋と、浅い角度で空を映す照り（資料との差 10/29：平らな灰青で流れなし）。描く回数・形は増やさない。
       // 入り江と引き込み水路：浅い角度ほど空を映し、岸の葦と土の暗い映りを縁に揺らがせる（10/29 夜：鈍い灰の一枚だった）。
       // 縁の目安は水面の左右の頂点に付けた ±1 の値。形・描く回数は増やさない。
-      if (st === INLET || st === CANAL || st === MOAT_W || st === MOAT_E) {
+      if (st === INLET || st === CANAL || st === MOAT_W || st === MOAT_E || (RIVER_STREAMS.indexOf(st) >= 1 && RIVER_STREAMS.indexOf(st) <= 4)) {
         const g = st.mesh.geometry, cnt = g.attributes.position.count, cross = g.userData.waterCross || [1, -1];
         const edge = new Float32Array(cnt); for (let i = 0; i < cnt; i++) edge[i] = cross[i % cross.length];
         g.setAttribute('waterEdge', new THREE.BufferAttribute(edge, 1));
-        st.mesh.material.roughness = .4; st.mesh.material.envMapIntensity = .4;   // 深夜：空の照りで白い板に見えた。濁った水の暗さを残す
+        st.mesh.material.roughness = .4; st.mesh.material.envMapIntensity = .4;
         const m = st.mesh.material, base = m.onBeforeCompile, key = m.customProgramCacheKey;
         m.onBeforeCompile = (sh, r) => {
           base.call(m, sh, r);
           sh.vertexShader = 'attribute float waterEdge; varying float vWaterEdge;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vWaterEdge = waterEdge;');
-          sh.fragmentShader = 'varying float vWaterEdge;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `{
+          // 10/30：浅い溜まりと水路が淡い青白の板に見えた（照りを足した後で暗くしても、空の照りと環境の映りが残った）。
+          //   色を一から決める：濁った緑茶の水の地に、流れに沿って動く明暗の筋、さざ波で砕いた曇り空の映り、岸の暗い映り、筋の頂の細かな照り。
+          //   共通の水（water_body.js）の波・照りは後から重なり、空の照りが明るすぎて白く飛ぶ。照らしの後（色の変換の前）で共通の明るさを曇り空ほどに抑えて混ぜ、近くの霞を戻す。
+          sh.fragmentShader = 'varying float vWaterEdge;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', `vec3 npCol = vec3(0.0);
+          {
             vec3 rv = normalize(cameraPosition - vWPw);
-            float fres = 0.12 + 0.88 * pow(1.0 - clamp(rv.y, 0.0, 1.0), 4.0);
-            float wob = texture2D(tMacro, vWPw.xz * 0.35 + vec2(uTime * 0.02, 0.0)).r - 0.5;
-            // 空の映り：雲の濃淡を少し混ぜた空の色。手前は水の底の濁りを残す。
-            float cl = texture2D(tMacro, vWPw.xz * 0.03 + rv.xz * 0.5).r;
-            // 10/29 深夜：浅い角度で空を映し過ぎ、白い板に見えた。映りを曇り空ほどに抑え、濁った水の暗さを残す。
-            vec3 skyR = uWaterSky * (0.62 + cl * 0.25);
-            outgoingLight = mix(outgoingLight, skyR, fres * 0.45);
-            // 岸の映り：縁ほど葦と土の暗い色が水に落ちる。さざ波で境を揺らす。
-            float bankR = smoothstep(0.35, 0.92, abs(vWaterEdge) + wob * 0.25);
-            outgoingLight = mix(outgoingLight, vec3(0.16, 0.15, 0.10), bankR * (0.35 + fres * 0.4));
-            // 細かな照り：空が映る所だけ、さざ波の頂で光る。
-            float g1 = texture2D(tMacro, vWPw.xz * 0.21 + vec2(0.0, uTime * 0.03)).r;
-            float g2 = texture2D(tMacro, vWPw.xz * 0.47 + vec2(0.31, -uTime * 0.05)).r;
-            outgoingLight += vec3(0.95, 0.92, 0.84) * pow(clamp(g1 * g2 * 2.6 - 1.2, 0.0, 1.0), 1.5) * fres * (1.0 - bankR) * 0.6;
+            float fres = 0.05 + 0.95 * pow(1.0 - clamp(rv.y, 0.0, 1.0), 5.0);
+            vec2 fd = normalize(vWaterFlow + vec2(0.00001));
+            float al = dot(vWPw.xz, fd), ac = dot(vWPw.xz, vec2(-fd.y, fd.x));
+            float s1 = texture2D(tMacro, vec2(ac * 0.11, al * 0.025 - uTime * 0.05)).r;
+            float s2 = texture2D(tMacro, vec2(ac * 0.33 + 0.37, al * 0.07 - uTime * 0.12)).r;
+            float streak = smoothstep(0.52, 0.8, s1 * 0.55 + s2 * 0.6), band = smoothstep(0.3, 0.65, s1);
+            float wob = texture2D(tMacro, vWPw.xz * 0.35 - fd * uTime * 0.04).r - 0.5;
+            vec3 body = vec3(0.035, 0.045, 0.032) * (0.75 + band * 0.55);
+            float cl = texture2D(tMacro, vWPw.xz * 0.03 + rv.xz * 0.5 + vec2(wob * 0.06)).r;
+            vec3 sky = min(uWaterSky, vec3(0.9)) * (0.15 + cl * 0.12);
+            vec3 col = mix(body, sky, clamp(fres * (0.4 + streak * 0.55 + wob * 0.3), 0.0, 0.42));
+            float bankR = smoothstep(0.4, 0.95, abs(vWaterEdge) + wob * 0.3);
+            col = mix(col, vec3(0.06, 0.06, 0.045), bankR * 0.65);
+            col += sky * streak * (0.12 + fres * 0.18) * (1.0 - bankR);
+            float g1 = texture2D(tMacro, vWPw.xz * 0.21 - fd * uTime * 0.06).r;
+            float g2 = texture2D(tMacro, vWPw.xz * 0.47 + vec2(0.31) - fd * uTime * 0.1).r;
+            col += vec3(0.9, 0.87, 0.78) * pow(clamp(g1 * g2 * 2.6 - 1.22, 0.0, 1.0), 1.5) * (0.25 + fres * 0.6) * (1.0 - bankR);
+            npCol = col; outgoingLight = col;
           }
-          #include <opaque_fragment>`)
-            // 深夜：浅い溜まりが空の照りで雪のような白い板に見えた（共通の水面の照りは後から足される）。霧の前に、濁り水の暗さへ全体を沈める。
-            .replace('#include <fog_fragment>', 'gl_FragColor.rgb *= 0.58;\n#include <fog_fragment>');
+          #include <opaque_fragment>`).replace('#include <tonemapping_fragment>', `{ vec3 npC = gl_FragColor.rgb;
+            npC = clamp(npC, vec3(0.0), vec3(4.0));
+            npC *= min(1.0, 0.1 / max(dot(npC, vec3(0.2126, 0.7152, 0.0722)), 0.001)); gl_FragColor.rgb = mix(npC, npCol, 0.75); }
+          #include <tonemapping_fragment>`).replace('#include <fog_fragment>', `vec3 npPre = gl_FragColor.rgb;
+          #include <fog_fragment>
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, npPre, 0.5 * (1.0 - smoothstep(40.0, 140.0, length(vWPw - cameraPosition))));`).replace('#include <dithering_fragment>', '#include <dithering_fragment>\n gl_FragColor.a = 1.0;');
         };
-        m.customProgramCacheKey = () => key() + '|nagashimaPool2';
+        m.customProgramCacheKey = () => key() + '|nagashimaPool9';
         m.needsUpdate = true;
       }
       if (st === RIVER_STREAMS[0]) {
@@ -2264,7 +2359,7 @@ const nagashima = {
     }
     if (W.footWaves) W.footWaves.mesh.material.opacity = .65;
     bankReeds(rt);
-    { const reed = shoreReedBelt(rt); inletDressing(rt, reed); canalDressing(rt, reed); moatDressing(rt, reed); farBankDressing(rt, reed); }
+    { const reed = shoreReedBelt(rt); inletDressing(rt, reed); canalDressing(rt, reed); moatDressing(rt, reed); farBankDressing(rt, reed); wajuuFloor(rt, reed, boatRows(rt)); }
     bankBow(rt);
     // 戦功は戦後に数える。戦の最中に正確な点数や上限を知る札は出さない。
     rt.award = function (fn) { const before = this.tracker.raw(); fn(this.tracker); return this.tracker.raw() - before; };

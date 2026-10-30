@@ -1077,10 +1077,23 @@ function landOverlay(sh, U) {
       // 近くは 2.4m の繰り返し、中ほど（〜110m）は 9m の繰り返しで、坂の上から見下ろす戦でも一色にしない。
       // 遠くで粒の繰り返しが並んで見えないよう、大きな斑で読む所をゆっくりずらす（斑は数十mなので歪みは見えない）
       vec2 lsW = (vec2(lsM2, lsM1) - 0.5) * 2.6;
-      vec4 lsDA = texture2D(tLsDetail, lsP.xz * 0.41 + lsW) - 0.5;
+      // 低い目線（高さ2〜5m）では20m先から画素が奥へ長く伸び、粒の写真は細かい段（mipmap）へ落ちて濃淡が消える
+      // （草の写真の濃淡は段4で元の15%、土で22%）。読んだ段を微分から見積もり、消えた分だけ濃淡を戻す（10/30 c_ground3）。
+      // 異方性4を見込む：長い向きの幅を4で割り、短い向きと大きい方を取る。読み出しは増やさない。
+      vec2 lsQx = dFdx(lsP.xz), lsQy = dFdy(lsP.xz);
+      float lsQa = dot(lsQx, lsQx), lsQb = dot(lsQy, lsQy);
+      float lsLod0 = 0.5 * log2(max(max(lsQa, lsQb) / 16.0, min(lsQa, lsQb)) + 1e-8);
+      float lsGainA = min(3.2, exp2(0.62 * clamp(lsLod0 + 7.71, 0.0, 6.0)));   // 512×0.41
+      float lsGainB = min(3.2, exp2(0.62 * clamp(lsLod0 + 5.82, 0.0, 6.0)));   // 512×0.11
+      vec4 lsDA = vec4(0.0);
+      float lsNearA = 1.0 - smoothstep(14.0, 50.0, lsDist), lsNearB = 1.0 - smoothstep(70.0, 150.0, lsDist);
+      if (lsNearA > 0.001) lsDA = texture2D(tLsDetail, lsP.xz * 0.41 + lsW) - 0.5;
       vec4 lsDB = (texture2D(tLsDetail, vec2(lsP.z, -lsP.x) * 0.11 + 0.37 - lsW * 0.5) - 0.5) * mix(0.55, 1.3, lsM1);
-      float lsNearA = 1.0 - smoothstep(10.0, 38.0, lsDist), lsNearB = 1.0 - smoothstep(60.0, 130.0, lsDist);
       vec4 lsD = lsDA * lsNearA * 0.7 + lsDB * lsNearB * mix(0.6, 0.4, lsNearA);
+      // 見える濃淡（色だけ）。凹凸は元のまま（遠くの凹凸を強めるとちらつく）
+      vec4 lsDv = lsDA * (lsNearA * 0.7 * lsGainA) + lsDB * (lsNearB * mix(0.6, 0.4, lsNearA) * lsGainB);
+      // 数mの株と裸地のむら：大きな斑（数十m）と粒（数十cm）の間の段。20〜60m 先で草の斑・土の色むらに見える縮尺
+      float lsM3 = clamp((texture2D(tLsMacro, vec2(lsP.x + lsP.z * 0.35, lsP.z - lsP.x * 0.35) * 0.19 + 0.53).r - 0.5) * 3.4 + 0.5, 0.0, 1.0);
       // 土の色は共用の土の写真の平均に、土の粒の濃淡を掛ける（土の絵を読み足さない）
       vec3 lsSoil = vec3(0.31, 0.21, 0.115) * (1.0 + lsD.g * 1.6) * vec3(1.0, 0.9, 0.74) * mix(0.8, 1.12, lsM1) * (1.0 - lsDamp * 0.3);
       lsC = mix(lsC, lsSoil, lsFoot * 0.85);
@@ -1096,9 +1109,18 @@ function landOverlay(sh, U) {
       float lsSat = (max(lsC.r, max(lsC.g, lsC.b)) - min(lsC.r, min(lsC.g, lsC.b))) / max(max(lsC.r, max(lsC.g, lsC.b)), 1e-4);
       float lsSnow = smoothstep(0.38, 0.62, lsLum) * (1.0 - smoothstep(0.08, 0.2, lsSat));
       float lsGv = clamp(max(1.0 - lsOn, (1.0 - lsGreen) * smoothstep(0.55, 0.85, lsDry + lsH * 0.3) * 0.8), 0.0, 1.0);
-      float lsDet = lsD.b * lsGreen + lsD.g * (1.0 - lsGreen) * (1.0 - lsGv) + lsD.r * lsGv;
-      lsDet = mix(lsDet, lsD.a, lsSnow);
-      lsDet -= lsRut * lsD.g * 0.5;
+      float lsDet = lsDv.b * lsGreen + lsDv.g * (1.0 - lsGreen) * (1.0 - lsGv) + lsDv.r * lsGv;
+      lsDet = mix(lsDet, lsDv.a, lsSnow);
+      lsDet -= lsRut * lsDv.g * 0.5;
+      {
+        // 株と裸地のむら：草は濃い株・枯れた株・地の見える所、土は湿り乾きの明暗。足元から遠くまで同じ縮尺で、遠くは薄く
+        float lsMidK = lsK * (1.0 - smoothstep(110.0, 190.0, lsDist)) * (1.0 - lsSnow);
+        float lsTuft = smoothstep(0.15, 0.85, lsM3);
+        lsC *= mix(1.0, mix(0.74, 1.16, lsTuft), lsMidK * lsGreen);
+        lsC = mix(lsC, lsC * vec3(1.16, 1.04, 0.78), smoothstep(0.62, 0.9, lsM3 * 0.7 + lsDry * 0.3) * lsGreen * lsMidK * 0.6);
+        lsC = mix(lsC, lsSoil * mix(0.85, 1.05, lsM1), (1.0 - smoothstep(0.04, 0.2, lsM3)) * lsGreen * lsMidK * 0.55 * (1.0 - lsPool));
+        lsC *= mix(1.0, mix(0.8, 1.14, lsM3), lsMidK * (1.0 - lsGreen));
+      }
       lsC *= max(0.25, 1.0 + lsDet * lsNear * (1.7 + uLsNight * 0.9));
       // 霜：冬の朝夜は平らな所に写真の霜の斑（踏み跡と轍は溶ける）
       float lsFr = uLsSeason.y * lsFlat * smoothstep(-0.05, 0.2, lsD.a) * (1.0 - max(lsFoot, lsRut)) * (1.0 - uLsWet);

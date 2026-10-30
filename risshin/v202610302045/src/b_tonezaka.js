@@ -944,11 +944,13 @@ const REAR_VOICE = {
   '詫美越後守': '峠を守れ！　本隊が抜けるまで踏みとどまれ！',
 };
 function withdrawStage(rt) {
-  const F = rt.flags, groups = F.stageDefenders[F.step];
+  const F = rt.flags, groups = F.stageDefenders[F.step], pp = rt.player.u.pos;
   for (const g of groups) {
+    // 10/30：時の上限で退くのは、本人が近くで戦っている時だけ（立っているだけで段が進んで見えないように）
+    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step] && near(pp, g.center(), 45);
     // 自分と組が三人を倒すと、三割弱の損失でも守りが崩れる。無傷の備は退かせない。
     const threshold = g._toneHelp >= 3 ? 0.75 : 0.6;
-    if (fighting(g) && (fighters(g) <= g.initial * threshold || rt.t - F.stepT >= STAGE_LIMIT[F.step])) {
+    if (fighting(g) && (fighters(g) <= g.initial * threshold || late)) {
       retreat(g); tonezaka.onRout(rt, g);
     }
   }
@@ -2425,12 +2427,12 @@ const tonezaka = {
     if (F.step === 1 && !fighting(F.r1) && !fighting(F.r1b)) this.second(rt);
     else if (F.step === 2 && !fighting(F.r2) && !fighting(F.r3)) this.toPass(rt);
     else if (F.step === 3 && !fighting(F.r4)) this.toIchijodani(rt);
-    else if (F.step === 5 && !fighting(F.townG) && (near(p, TOWN, 14) && arrived(F.late, TOWN, 22) || rt.t - F.stepT >= 60)) this.townFire(rt);
+    else if (F.step === 5 && !fighting(F.townG) && (near(p, TOWN, 14) && arrived(F.late, TOWN, 22) || rt.t - F.stepT >= 60 && near(p, TOWN, 40))) this.townFire(rt);
     else if (F.step === 6) {
       if (near(p, INNER, 12) && toneSecureSupport(rt) && !fighting(F.townG)) F.secureT += elapsed;
       else F.secureT = 0;
       // 早く崩した場合は味方と持ち場を守る。各段の上限と合わせ四〜七分に収める。
-      if (rt.t >= 240 && (F.secureT >= 8 || rt.t - F.stepT >= 45)) this.win(rt);
+      if (rt.t >= 240 && (F.secureT >= 8 || rt.t - F.stepT >= 45 && near(p, INNER, 30))) this.win(rt);
     }
   },
   onKill(rt, v, k) {
