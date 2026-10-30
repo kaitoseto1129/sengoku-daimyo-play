@@ -1884,7 +1884,7 @@ const iga = {
     F.honjin.guard.guard = true; F.honjin.guard.guardLeash = 10;
     F.jinHosts = buildSonae(rt, this.jinkei);
     // 夜討ちの全組を準備時に林へ置く。時刻で新しく湧かせず、同じ兵へ進撃を命じる。
-    F.raiders = [igaEnemy(rt, 6, 28, 3, '陣の口から寄せる伊賀衆'), igaEnemy(rt, 48, 50, 5, '東から忍び寄る伊賀衆'), igaEnemy(rt, -30, 95, 5, '裏へ回る伊賀衆')];
+    F.raiders = [igaEnemy(rt, 6, 28, 12, '陣の口から寄せる伊賀衆'), igaEnemy(rt, 48, 50, 5, '東から忍び寄る伊賀衆'), igaEnemy(rt, -30, 95, 5, '裏へ回る伊賀衆')];
     F.waveA = [igaEnemy(rt, 48, 25, 9, '東の林の伊賀衆'), igaEnemy(rt, -48, 50, 9, '西の林の伊賀衆'), igaEnemy(rt, 0, 96, 8, '陣の裏の伊賀衆')];
     F.waveB = [igaEnemy(rt, ...APPROACH[3], 10, '城から出る伊賀衆'), igaEnemy(rt, ...APPROACH[2], 10, '林を回る伊賀衆')];
     // 最後の夜討ちの組を率いる既存の一人。史料に無い将名は作らない。
@@ -2484,7 +2484,7 @@ const iga = {
         this.midA(rt); return;
       }
       // 消火の組が崩れても負けにしない。残る火は陣の者が消し、迎え撃ちを続ける。
-      if (w >= 100 && F.doused < 3) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
+      if (w >= 100 && F.doused < 3 && Math.hypot(rt.player.u.pos.x - CAMP.x, rt.player.u.pos.z - CAMP.z) < 45) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
 
     }
     if (F.step === 3 && guide && rt.t - F.stepT <= 8) rt.objProgress('main', '物見が木戸と曲輪を見張る');

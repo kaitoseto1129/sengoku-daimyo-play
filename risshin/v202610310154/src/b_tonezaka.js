@@ -1834,7 +1834,8 @@ const tonezaka = {
     // 供は馬廻の後ろから出る。傷は通すが、疲れた殿の一突きで組が溶けないようにする。
     for (const g of rt.squadGroups) g.defMult = 1.25;
     // 全ての戦う兵を初めに置く。武将は槍の前列より後ろで供に守られる。
-    F.r1 = foe('河合吉統の殿', at(-6, 40), [A(23), S(3), chief('河合吉統'), S(3)]);
+    // 開戦25秒の乱戦（10/30）：殿の列を持ち場の前30mの坂へ寄せ、馬廻が25秒までに槍を合わせる（兵の数は同じ）
+    F.r1 = foe('河合吉統の殿', at(-6, 54), [A(23), S(3), chief('河合吉統'), S(3)]);
     F.r1b = foe('朝倉の殿の二の手', at(-4, 8), [A(6), S(2)]);
     F.r2 = foe('山崎吉家の手', at(4, -74), [A(23), S(3), chief('山崎吉家'), S(3)]);
     F.r3 = enemyGroup(rt, { fixed: true, noAI: true, faction: 'saito', name: '斎藤龍興の手', anchor: at(6, -106), facing: TURN,
@@ -2070,6 +2071,8 @@ const tonezaka = {
     rt.say('織田信長', '法螺貝と進み太鼓じゃ。先手を待つな。敦賀へ追え！', 4);
     march(F.uma, [[-10, 60], [-6, 48], [-4, 16]].map(([x, z]) => xz(x, z)));
     march(F.late, [[roadX(82), 82], [-10, 60], [-6, 48], [-4, 24]].map(([x, z]) => xz(x, z)));
+    // 開戦25秒の乱戦（10/30）：殿の列は追手へ槍を入れて押し返しに出る（坂の途中で両軍が組み合う）
+    rt.after(4, () => { const g = F.r1; if (F.step === 1 && g && g.count && !g.routed) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; } });
     for (const b of Object.values(F.bO)) {
       if (b.light) b.light.advance(60, 45);
       const z = along(b.real.anchor.x, b.real.anchor.z);

@@ -9,7 +9,7 @@ import { placeTaba } from './taketaba.js';
 import { ROAD_OTE } from './castles/takato.js';
 import { clearFoot } from './cover_guide.js';
 import { localClear } from './army_local_way.js';
-import { dirtTex } from './nature.js';
+import { dirtTex, groundDetailTex, stoneTex, woodTex } from './nature.js';
 import { nobori, hut, sakamogi, makeKitBatch, finalizeKitBatch } from './props.js';
 import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
@@ -1091,6 +1091,131 @@ function takatoMoatWater(rt) {
   }
 }
 
+// 大手の空堀の向こう岸（切岸、x 78〜84.6）を、灰の滑らかな板でなく、枯れ草の株・掘れた土の筋・半ば埋まった石の斜面に（10/30 採点「切岸が灰の板一面」）。
+// 地形の上に同じ形の皮を一枚かぶせ、凹凸は外へだけ出す。縁は地面の下へ潜らせて浮かせない。草の株と石は一つの形を使い回す。準備の時だけ。
+function tkHash(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
+function tkNoise(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+  const a = tkHash(ix, iz), b = tkHash(ix + 1, iz), c = tkHash(ix, iz + 1), d = tkHash(ix + 1, iz + 1);
+  return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+}
+let TK_CUT = null;
+function takatoCutSkin(rt) {
+  const W = rt.world;
+  if (!TK_CUT) {
+    // 写真の草の絵は明るさだけを使い、色は頂点の色（枯れ草・湿った土）で決める（緑の芝や灰の板にしない）。
+    const skin = new THREE.MeshStandardMaterial({ map: groundDetailTex('grass'), vertexColors: true, roughness: .96, metalness: 0 });
+    skin.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
+        vec3 tkPh = texture2D(map, vMapUv).rgb; float tkL = dot(tkPh, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb *= mix(vec3(tkL * 2.6), tkPh * 2.2, 0.25);
+        #endif`);
+    };
+    skin.customProgramCacheKey = () => '高遠の切岸の皮';
+    // 枯れ草の株：細く尖った葉を九枚、根元から外へ反らせる（板一枚の草にしない）
+    const blades = [];
+    for (let i = 0; i < 9; i++) {
+      const a = i * 2.39, lean = .25 + (i % 3) * .14, h = .55 + (i % 4) * .14, w = .035;
+      const g = new THREE.BufferGeometry(), seg = 3, pos = [], idx = [];
+      for (let s = 0; s <= seg; s++) {
+        const t = s / seg, r = lean * t * t, ww = w * (1 - t * .9);
+        const cx = Math.cos(a) * r, cz = Math.sin(a) * r, y = h * t;
+        pos.push(cx - Math.sin(a) * ww, y, cz + Math.cos(a) * ww, cx + Math.sin(a) * ww, y, cz - Math.cos(a) * ww);
+        if (s) idx.push(2 * s - 2, 2 * s - 1, 2 * s, 2 * s - 1, 2 * s + 1, 2 * s);
+      }
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+      blades.push(g.toNonIndexed());
+    }
+    const tuft = mergeGeometries(blades); tuft.computeVertexNormals();
+    const tuftMat = new THREE.MeshStandardMaterial({ color: 0xa48c5e, roughness: 1, side: THREE.DoubleSide });
+    // 石：角を崩した塊（箱にしない）
+    const rock = new THREE.IcosahedronGeometry(1, 1), rp = rock.attributes.position;
+    for (let i = 0; i < rp.count; i++) { const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), k = .78 + tkHash(x * 3.1 + z, y * 2.7) * .4; rp.setXYZ(i, x * k * 1.1, y * k * .8, z * k); }
+    rock.computeVertexNormals();
+    const rockMat = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x8c8478, roughness: .92 });
+    TK_CUT = { skin, tuft, tuftMat, rock, rockMat };
+  }
+  const { skin, tuft, tuftMat, rock, rockMat } = TK_CUT;
+  const X0 = 77.25, X1 = 84.8, DX = .3, DZ = .45;
+  const tufts = [], rocks = [];
+  const grassC = new THREE.Color(), soilC = new THREE.Color(.085, .062, .04), dryC = new THREE.Color(.36, .28, .14), darkC = new THREE.Color(.21, .16, .09);
+  for (const [z0, z1] of [[11.6, 36], [-63, -11.6]]) {
+    const nx = Math.ceil((X1 - X0) / DX), nz = Math.ceil((z1 - z0) / DZ), pos = [], col = [], uv = [], idx = [];
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      const x = X0 + (X1 - X0) * i / nx, z = z0 + (z1 - z0) * j / nz, y = W.heightAt(x, z);
+      // 斜面の外向きの向き（地形の傾きから）
+      const gx = (W.heightAt(x + .3, z) - W.heightAt(x - .3, z)) / .6, gz = (W.heightAt(x, z + .3) - W.heightAt(x, z - .3)) / .6;
+      const nl = Math.hypot(gx, 1, gz), nX = -gx / nl, nY = 1 / nl, nZ = -gz / nl;
+      // 縁（上の塀際・下の水際・土橋の脇・端）では地面の下へ潜らせる
+      const edge = Math.min((x - X0) / .35, (X1 - x) / .8, (z - z0) / 1.6, (z1 - z) / 1.6);
+      const fade = Math.max(0, Math.min(1, edge));
+      // 土塊の凹凸：大きな膨らみ＋草の株の盛り上がり＋斜面に沿った小さな段（踏み跡の段）
+      const lump = tkNoise(x * .45, z * .45) * .22 + tkNoise(x * 1.6 + 7, z * 1.6) * .1 + Math.max(0, Math.sin(y * 3.1 + tkNoise(z * .3, x) * 3)) * .06;
+      const off = fade * (.05 + lump) - (1 - fade) * .08;
+      pos.push(x + nX * off, y + nY * off, z + nZ * off);
+      uv.push(z * .45, y * .45 + x * .2);
+      // 色：枯れ草が主、雨で掘れた縦の土の筋と湿った裾、上の縁に少し暗い土
+      const streak = tkNoise(z * .55, y * .08) * .7 + tkNoise(z * 1.7, y * .3) * .3;
+      const soil = Math.min(1, Math.max(0, (streak - .56) / .14)) * .85 + Math.max(0, 1 - (y - W.heightAt(84.6, z)) / 1.4) * .6;
+      const patch = tkNoise(x * .7 + 3, z * .7);
+      grassC.copy(darkC).lerp(dryC, Math.min(1, Math.max(0, (patch - .3) / .4))).lerp(soilC, Math.min(1, soil));
+      grassC.multiplyScalar(.85 + tkHash(x * 9, z * 9) * .3);
+      col.push(grassC.r, grassC.g, grassC.b);
+      if (i && j) { const a = (j - 1) * (nx + 1) + i - 1, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+      // 株と石：縁から離れた所に、土の筋を避けて
+      if (fade >= 1 && soil < .4) {
+        const h = tkHash(x * 3.7 + 1, z * 5.3);
+        if (h < .32) tufts.push([x + (tkHash(x, z * 2) - .5) * DX, z + (tkHash(z, x) - .5) * DZ, .7 + tkHash(z * 3, x) * .8]);
+      } else if (fade >= 1 && tkHash(x * 2.1, z * 1.3) < .03) rocks.push([x, z, .25 + tkHash(z, x * 3) * .45]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, skin); m.receiveShadow = true; m.matrixAutoUpdate = false;
+    rt.scene.add(m);
+  }
+  const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3(), tint = new THREE.Color();
+  const tm = new THREE.InstancedMesh(tuft, tuftMat, tufts.length);
+  tufts.forEach(([x, z, k], i) => {
+    e.set((tkHash(x, z) - .5) * .3, tkHash(z, x) * 6.28, (tkHash(x * 2, z) - .5) * .3); q.setFromEuler(e);
+    tm.setMatrixAt(i, mtx.compose(p.set(x, W.heightAt(x, z) - .04, z), q, s.set(k, k * (.8 + tkHash(x, z * 3) * .5), k)));
+    tm.setColorAt(i, tint.setRGB(.8 + tkHash(x * 5, z) * .45, .78 + tkHash(x * 5, z) * .4, .7 + tkHash(z * 5, x) * .3));
+  });
+  tm.castShadow = true; tm.receiveShadow = true; rt.scene.add(tm);
+  const rm = new THREE.InstancedMesh(rock, rockMat, rocks.length);
+  rocks.forEach(([x, z, r], i) => {
+    e.set(tkHash(x, z) * 3, tkHash(z, x) * 6.28, 0); q.setFromEuler(e);
+    rm.setMatrixAt(i, mtx.compose(p.set(x, W.heightAt(x, z) - r * .6, z), q, s.set(r, r, r)));
+  });
+  rm.castShadow = rm.receiveShadow = true; rt.scene.add(rm);
+}
+
+// 大手の北脇の塀の内に石打棚（高さ二・二メートルの板の棚）を組み、「三の丸の鉄砲（塀の上）」の十四人を棚の上に据える。
+// 寄せ手の目から、塀の上に城兵の笠と肩・筒先が並んで見える（10/30 採点「仁科勢が塀の上に数人の小さな影だけ」）。
+// 棚の柱は地面から立て、浮かせない。鉄砲衆は元から動かない組（noAI）なので、足を止めるだけ。
+function takatoWallStep(rt) {
+  const W = rt.world, F = rt.flags, X0 = 75.5, X1 = 76.8, Z0 = 9.6, Z1 = 21.9, UP = 2.2;
+  const top = (z) => Math.max(W.heightAt(X0, z), W.heightAt(X1, z)) + UP;
+  const parts = [], box = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); parts.push(g); };
+  for (let z = Z0; z < Z1 - .01; z += .3) box(X1 - X0 + .1, .05, .28, (X0 + X1) / 2, top(z + .15) - .025, z + .15);   // 床板
+  for (let z = Z0; z <= Z1 + .01; z += 1.76) for (const x of [X0, X1]) {
+    const g0 = W.heightAt(x, z) - .15, h = top(z) - .05 - g0;
+    box(.14, h, .14, x, g0 + h / 2, z);                                                                             // 柱（地面から）
+    if (z + 1.76 <= Z1 + .01) box(.1, .12, 1.76, x, top(z + .88) - .11, z + .88);                                    // 桁
+  }
+  const mesh = new THREE.Mesh(mergeGeometries(parts), new THREE.MeshStandardMaterial({ map: woodTex(), color: 0x6b5a45, roughness: .9 }));
+  mesh.castShadow = mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; rt.scene.add(mesh);
+  const us = (F.sanGun?.real?.units || []).filter((u) => u.alive);
+  us.forEach((u, i) => {
+    const z = Z0 + .7 + (Z1 - Z0 - 1.4) * (us.length > 1 ? i / (us.length - 1) : .5), x = 76.25 + (i % 2) * .25;
+    const y = top(z);
+    u.pos.set(x, y, z); u.perch = { x, y, z }; u.heading = Math.PI / 2;
+    if (u.mesh) { u.mesh.position.copy(u.pos); u.mesh.rotation.y = u.heading; }
+  });
+}
+
 // 二ノ丸の板葺きの小屋（詰所の向かい）。門と門を結ぶ道・戸口は空ける。位置は推定。
 function takatoNinomaruHouses(rt) {
   for (const [x, z, w, d, r] of [[7, -26, 7, 4, .02], [-8, -27, 6, 4, -.03], [8, 27, 6, 4, .04]])
@@ -1120,7 +1245,7 @@ function takatoSmokePool(rt) {
   }
   const list = [];
   for (let i = 0; i < 24; i++) {
-    const m = new THREE.SpriteMaterial({ map: TK_SMOKE_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xd8d6cf, fog: false, rotation: i * 1.7 });
+    const m = new THREE.SpriteMaterial({ map: TK_SMOKE_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xaeaca5, fog: true, rotation: i * 1.7 });
     const s = new THREE.Sprite(m); s.visible = false; s.renderOrder = 2; s.userData = { t: 0, life: 1, vx: 1, noFreeze: true };
     rt.scene.add(s); list.push(s);
   }
@@ -1172,6 +1297,8 @@ takato.setup = function (rt) {
   takatoNinomaruHouses(rt);
   TK_POOL.rt = rt; TK_POOL.s = takatoSmokePool(rt);
   takatoMoatWater(rt);
+  takatoCutSkin(rt);
+  takatoWallStep(rt);
   takatoSakura(rt);
   { const kb = makeKitBatch(); takatoMoatEdge(rt, kb); finalizeKitBatch(rt, kb); }
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。
@@ -1633,10 +1760,10 @@ takato.update = function (rt, dt) {
     if (!p.visible) continue;
     const d = p.userData; d.t += dt;
     if (d.t > d.life) { p.visible = false; continue; }
-    const k = d.t / d.life, s = 1.2 + Math.sqrt(d.t) * 2.6;
-    p.scale.set(s * 1.25, s, 1);
+    const k = d.t / d.life, s = .8 + Math.sqrt(d.t) * 1.5;   // 白い大きな玉にしない：横へ流れて薄れる灰の硝煙（10/30）
+    p.scale.set(s * 1.9, s * .75, 1);
     p.position.x += d.vx * dt * (1 - k * .7); p.position.y += .35 * dt; p.position.z += .25 * dt;
-    p.material.opacity = Math.min(1, d.t * 6) * (1 - k * k) * .95;
+    p.material.opacity = Math.min(1, d.t * 6) * (1 - k * k) * .5;
   }
   F.commanderStandard.visible = !!this.commanderSignTarget(rt);
   for (const item of F.openFlags) item.flag.visible = item.gate.opened;

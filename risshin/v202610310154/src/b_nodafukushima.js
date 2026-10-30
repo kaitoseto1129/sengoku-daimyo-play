@@ -3686,7 +3686,14 @@ const nodafukushima = {
       }
       if (F.step === 1) rt.objProgress('main', !F.tabaReady ? '置き場を選んでから竹束を押す' : `竹束 ${F.placed}／${SPOTS.length}・` + (F.carry ? '据える印へ押し、長押し' : help || (rt.G.lord || F.tabaDone[F.pickIndex] ? '堤で待て。味方が竹束を押す' : '竹束の印へ。長押しで押せ')));
       // 運べなかった束は残す。据えた事にせず、総攻めの合図で準備を切り上げる。
-      if (F.tabaReady && rt.t - F.stepT >= CARRY_WAIT) this.sallyStart(rt);
+      // 10/30：時が来ても、本人が自分の竹束を押していなければ総攻めの段へ進めない（立っているだけで段が進まないように）。長く放っておけば負け
+      const mine = rt.G.lord || F.tabaDone[F.pickIndex] || F.carry;
+      if (F.tabaReady && rt.t - F.stepT >= CARRY_WAIT && mine) this.sallyStart(rt);
+      else if (F.step === 1 && F.tabaReady && !mine && !F.ending && rt.t - F.stepT >= CARRY_WAIT + 150 && rt.canFailMission()) {
+        F.ending = true; rt.setPhase('end'); rt.objFail('main'); rt.tracker.main = false;
+        rt.banner('竹束を据えられなかった', '鉄砲衆を守る竹束が足りず、総攻めに遅れた');
+        rt.finish({ scriptedEnd: true, failureReason: '竹束を据えられず、総攻めに遅れた' }, 8); return;
+      }
       if (F.step === 1 && F.tabaReady && !rt.G.lord && rt.t - F.stepT > 8 && !F.carry && !F.placed && !F.carryCall) { F.carryCall = true; rt.say('前田利家', `${nm(rt)}、その竹束を押せ。味方の鉄砲衆を矢玉から守るのじゃ`, 4); }
     }
     if (F.step === 2 && F.sally) {

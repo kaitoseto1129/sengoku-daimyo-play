@@ -3994,7 +3994,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (noticeReady(rt, '屋形に敵が入った！　押し返せ')) rt.bark('屋形に敵が入った！　押し返せ', true);
     }
     // 西の大筒から屋形の角を回って戻り、構えて押し返す時間を残す。
-    if (!fireProtected && F.deckLost >= 20) { this.lose(rt, '屋形を敵に奪われた。船を離せ！'); return; }
+    if (!fireProtected && F.deckLost >= (F.step === 4 ? 32 : 20)) { this.lose(rt, '屋形を敵に奪われた。船を離せ！'); return; }
     // 供船の大筒が十四秒ごとに沖を撃つ。自分の砲撃の手柄や命中判定には加えない。
     const salvo = F.salvo;
     if (F.step >= 1 && F.step <= 4 && !F.bigSunk && rt.t >= salvo.next) {
@@ -4356,7 +4356,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const F = rt.flags;
     // 大将船を狙う間も、既に寄せた小早の兵は乗り込む。
     // 乗り込みを止めるのは、一斉射で敵船が退き始めた時。
-    if (F.deckAttackers >= (F.step === 1 ? 6 : 8) || rt.t < F.nextBoardAt) return 0;
+    if (F.deckAttackers >= (F.step === 1 ? 6 : F.step === 4 ? 4 : 8) || rt.t < F.nextBoardAt) return 0;   // 大船を引き付ける段は、新手の乗り込みを絞り、大筒へ戻る間を残す
     if (F.step < 1 || F.step > 4 || F.bigSunk || b.damageStage || b.withdrawing || !b.remaining || rt.t < b.nextBoard) return 0;
     const u = b.group?.units.find(u => u.alive && !u.fleeing && !u.woundOut && u.shipBoat === b && !u.shipTransit.active);
     if (!u) { b.remaining = 0; return 0; }

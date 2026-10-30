@@ -1430,7 +1430,7 @@ const iwamura = {
     const campLookout = { kind: 'ro', mon: 'oda', height: 7.2, boarded: false, logFrame: true };
     F.step = 0; F.stepT = rt.t; F.ek = 0; F.ak = 0; F.lit = 0;
     F.botMouthGuide = { x: 0, z: 0 };
-    F.breach = 0; F.pollT = 0; F.quietSince = rt.t; F.duskAt = rt.t + 16; F.raidAt = rt.t + 44;
+    F.breach = 0; F.pollT = 0; F.quietSince = rt.t; F.duskAt = rt.t + 3; F.raidAt = rt.t + 12;   // 10/30 25秒：夜討ちを開戦すぐ（前は16秒・44秒）。篝火は早く焚く
     F.siege = siegeStart();
     // 柵を守る間は地上の仕事を優先し、物見の長押し札へ誘わない。
     // 追撃に移れば元の梯子操作へ戻す。床や兵の登り方は変えない。
@@ -1756,7 +1756,7 @@ const iwamura = {
     rt.obj('main', fireTask(rt), 'main', true);
     rt.objProgress('main', fireProgress(F));
     rt.say('河尻秀隆', `まず${POST_NAMES[F.firePost]}へ。火を焚け`, 3);
-    POSTS.forEach((q, i) => rt.after(25 + i * 10, () => { if (F.step === 1 && !F.ending && !rt.over) this.light(rt, i, true); }));
+    POSTS.forEach((q, i) => rt.after(3 + i * 2, () => { if (F.step === 1 && !F.ending && !rt.over) this.light(rt, i, true); }));
     POSTS.forEach((q, i) => {
       // 任務札で指定した次の火だけに名を出し、行き先を一つにする。
       rt.marker('p' + i, q, () => F.raidReturning || F.scoutNear || F.localContact || F.firePost !== i ? '' : POST_NAMES[i], { h: 2, guideAlways: true });
@@ -1987,8 +1987,8 @@ const iwamura = {
       F.duskStarted = true;
       const W = rt.world, from = W.currentLook(), fromNight = W.nightAmount();
       W.setTime('night');
-      if (W.fade) W.fade.dur = 28;
-      else W.fade = { from, to: W.lookOf('night'), fromNight, t: 0, dur: 28, env: 0 };
+      if (W.fade) W.fade.dur = 8;
+      else W.fade = { from, to: W.lookOf('night'), fromNight, t: 0, dur: 8, env: 0 };
     }
     // 支度中は先触れも山道に留まる。夜の色になってから実際に歩かせる。
     if (!F.scout.iwSent && F.duskStarted && rt.world.nightAmount() >= 0.5) {
