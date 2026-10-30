@@ -10,8 +10,13 @@ import { UNIT_MAT, soheiLook } from './units.js';
 const memTight = () => MEM_TIGHT;
 // 携帯だけ、骨入りの貸出枠と中景の細かな形の枠を分ける。
 // 弱い端末は密集しても骨入りを十二人まで。他の兵は共有する全身の形で残す。
-const SKIN_MAX = TIER.weak ? 12 : 40;
-const MIDDLE_MAX = TIER.weak ? 24 : 80;
+const _hq = typeof location !== 'undefined' ? location.search : '';
+const _hn = (k) => { const m = new RegExp('[?&]' + k + '=(\\d+)').exec(_hq); return m ? +m[1] : null; };   // 測り用：?skinmax=・?midmax=
+// iPhone（MEM_TIGHT）は骨入りを二十四人まで（10/30 実機：四十人の作りで小谷・設楽原の WebContent が落ちた。弱い作り（十二人）では一度も落ちない）。その先の兵も VAT の立体で描く
+const SKIN_MAX = _hn('skinmax') ?? (TIER.weak ? 12 : MEM_TIGHT ? 24 : 40);
+// 携帯（iPhone・iPad）は中景の細かな形を 48 人まで（GPU の形が 227→120MB ほど。10/30 実機の落ち）。兵の数は減らさない
+const _mobile = MEM_TIGHT || (typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
+const MIDDLE_MAX = _hn('midmax') ?? (TIER.weak ? 24 : MEM_TIGHT ? 32 : _mobile ? 48 : 80);
 const SKIN_IN = 15;
 const SKIN_OUT = 17;
 const humanPool = new Set();
@@ -578,7 +583,8 @@ function humanLook(look0) {
     look = { ...look, kote: 3, nanban: false,
       hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : 'jingasa',
       ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
-        : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
+        // 足軽の御貸具足の作り分け（gusoku_vars.js の loanWear）を済ませた人は、その漆と威糸のまま（全員を同じ色に塗り直さない）
+        : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
   }
   // 目の下頬は、実写の顔に沿わせて作る（兜の形の面は喉の垂だけにする。兵は近くで実写の顔に替えた時に付ける）
   // 面頬（半頬・目の下頬）は、実写の顔の形から打ち出す（units.js の遠目の面頬は平らな黒い板で、近くでは貼った板に見える）

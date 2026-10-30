@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { inou as OLD } from './b_inou.js';
 import { enemyGroup, allyGroup } from './bhelp.js';
 import { nobori } from './props.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 
@@ -45,6 +46,41 @@ const SECTIONS = [
 const bank = (z) => { const k = Math.max(0, Math.min(1, (-118 - z) / 14)); return k * k * (3 - 2 * k) * 2.6; };
 const baseH = OLD.world.height;
 const height = (x, z) => baseH(x, z) + bank(z);
+
+// 稲架（10/30 採点「稲架が無い」）：25秒の所（道の z 100〜110）から八方のどこを向いても一〜二基が入るよう、道の東西と前後に四基。
+// 杭と横木と垂らした稲束を、頂点の色だけの材質一つ・形一つにまとめる（絵は足さない。描く数は一つ。影は落とさない）。束は五角の筒で軽く。
+// 当たりは付けない（兵の歩く道を変えない）。道（x 12）と葦原の脇道からは離す。
+const HASA = [[-6, 92, 0.12, 8], [31, 96, -0.08, 7], [33, 121, Math.PI / 2 + 0.1, 8], [-8, 120, Math.PI / 2 - 0.12, 7]];
+function hasaField(rt) {
+  const W = rt.world, parts = [], c = new THREE.Color(), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), O = new THREE.Vector3(1, 1, 1);
+  const paint = (g, hex, k) => { c.setHex(hex).multiplyScalar(k); const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (g.index) { const ng = g.toNonIndexed(); g.dispose(); return ng; } return g; };
+  for (const [x, z, rot, len] of HASA) {
+    const one = [], tiers = 2, top = 0.75 + tiers * 0.55, n = Math.max(2, Math.round(len / 1.8));
+    for (let i = 0; i <= n; i++) { const p = new THREE.CylinderGeometry(0.045, 0.06, top + 0.35, 5, 1, true); p.rotateZ(0.03 * Math.sin(i * 2.7)); p.translate((i / n - 0.5) * len, (top + 0.35) / 2 - 0.15, 0); one.push(paint(p, 0x5a4a38, 0.75 + 0.15 * Math.abs(Math.sin(i * 1.9)))); }
+    for (let t = 0; t < tiers; t++) {
+      const y = 0.75 + (t + 1) * 0.55 - 0.05;
+      const bar = new THREE.CylinderGeometry(0.03, 0.03, len + 0.5, 4, 1, true); bar.rotateZ(Math.PI / 2); bar.translate(0, y, 0); one.push(paint(bar, 0x625240, 0.85));
+      const m = Math.floor(len / 0.17);
+      for (let k = 0; k < m; k++) {
+        const lx = -len / 2 + 0.1 + k * 0.17 + 0.02 * Math.sin(k * 3.1 + t);
+        const r1 = Math.abs(Math.sin(k * 12.9898 + t * 78.233 + x) * 43758.5453) % 1, r2 = Math.abs(Math.sin(k * 4.1 + t * 9.7 + z) * 9631.7) % 1;
+        if (r1 < 0.07) continue;
+        const h = 0.42 + 0.22 * r2, k0 = 0.8 + 0.22 * r1 - 0.07 * (tiers - 1 - t);
+        for (const s of [-1, 1]) {
+          const g = new THREE.CylinderGeometry(0.06 + 0.025 * r2, 0.1 + 0.03 * r1, h, 5, 1, true); g.scale(1, 1, 0.6); g.rotateZ((r1 - 0.5) * 0.22);
+          g.rotateX(-s * 0.2); g.translate(lx, y - h / 2 + 0.03, s * 0.07);
+          one.push(paint(g, r2 < 0.2 ? 0x8a7a5c : s > 0 ? 0xa89878 : 0x9c8c6e, k0));
+        }
+      }
+    }
+    const g = mergeGeometries(one); for (const q of one) q.dispose();
+    M.compose(V.set(x, W.heightAt(x, z) - 0.05, z), Q.setFromEuler(E.set(0, rot, 0)), O); g.applyMatrix4(M); parts.push(g);
+  }
+  const geo = mergeGeometries(parts); for (const q of parts) q.dispose();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide }));
+  mesh.name = 'hasaField'; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.updateMatrix();
+  rt.scene.add(mesh);
+}
 
 // 葦原：脇道の両側に背の高い葦（一つの InstancedMesh）
 function reeds(rt) {
@@ -163,6 +199,23 @@ const inou_spec = {
     // 田と畦の色（10/30）：前の稲生の田は |z|≤120 までで、出だしの南（z 120〜146）と土手の手前が砂色の野のままだった。
     // 南北の端も同じ 24×20m の区画の色（畦の土色の筋と稲の縞）で塗る。区画の並びは 20m ごとなので、z をずらして前の式を借りる。
     tint(x, z, h, c) { OLD.world.tint(x, z > 120 && z < 180 ? z - 60 : z < -120 && z > -160 ? z + 40 : z, h, c); },
+    // 稲の縞（10/30 採点「稲の縞が無く地が土の一色」）：田の色は藁色なので、色から読む草の割合が 0 になり、田の全部が土の絵だった。
+    // 田の中は草の絵（藁色に染まって稲の株に見える）を区画ごとに多め・少なめにし、刈った区画は株の列と土の列を交互に（東西の縞）。
+    // 頂点の割合だけを変える（形・絵・描く数は増えない）。道と畦の肩は土のまま。
+    grassMix(x, z, pd) {
+      if (pd < 1.3 || Math.abs(x) > 112) return 0;
+      const zz = z > 120 && z < 180 ? z - 60 : z < -120 && z > -160 ? z + 40 : z;
+      if (Math.abs(zz) > 120) return 0;
+      const ex = Math.abs(x - Math.round(x / 24) * 24), ez = Math.abs(zz - Math.round(zz / 20) * 20);
+      if (Math.min(ex, ez) < 1.3) return 0.15;
+      const f = Math.sin(Math.round(x / 24) * 12.9898 + Math.round(zz / 20) * 78.233) * 43758.5453, r = f - Math.floor(f);
+      const row = Math.round((z + 320) / (640 / 144)) % 2;
+      return r > 0.6 ? 0.7 + 0.2 * r : row ? 0.85 : 0.08;
+    },
+    autumn: true,   // 八月二十四日（今の九月末）の刈り入れ時：田の草の絵を枯れた藁色に（地面の描き方の枝を替えるだけ。絵は増えない）
+    // 西の於多井川（x −145）は見えない壁（±74）と杉の二重の帯と霞の向こうで見えないのに、水面と岸を描いていた（10/30）。
+    // 外して、稲架の描く一つと三角の分を相殺する。東の小川（x 72）は残す。
+    streams: OLD.world.streams.slice(1),
     clear: (x, z) => Math.abs(x) < 80 && Math.abs(z) < 150,
     fleeOut: (x, z, team) => team === 1 && z < -150,
     armyFlagKinds: undefined,
@@ -173,6 +226,7 @@ const inou_spec = {
     rt.def.playerAtkMax = 4;
     F.sec = {}; F.groups = []; F.holdPlayer = true; F.knots = []; F.allyGs = []; F.dinT = 2;
     reeds(rt);
+    hasaField(rt);
     bossFlag(rt);
     // 夏の終わりの薄雲と霞（前の稲生の setup と同じ。この戦の setup は前の物を呼ばないので、ここで掛ける）：
     // 霞を緑がかった灰に、日を弱めて影を柔らかく。昼の霞だけ百五十mで閉じ、五十〜八十m先の杉の帯を白く透かさない。

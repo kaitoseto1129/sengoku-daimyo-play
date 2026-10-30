@@ -64,9 +64,9 @@ const CLIMB_END = ROAD.findIndex((q) => q[1] === GATE.z) - 1;
 // 尾根の戦いの後も、敵のいない九十九折りを何分も歩かせない。
 const OPEN_I = CLIMB_END - 1;
 const OPEN_PT = ROAD[OPEN_I];
-// 最初の敵は同じ折り返しの十二歩先。谷の斜面から先手を待たせない。
+// 最初の敵は同じ折り返しの十八歩先。谷の斜面から先手を待たせない（10/30：十二歩では斬り合いが画面の下に切れた）。
 const OPEN_NEXT = ROAD[OPEN_I + 1];
-const AMBUSH_T = 12 / Math.hypot(OPEN_NEXT[0] - OPEN_PT[0], OPEN_NEXT[1] - OPEN_PT[1]);
+const AMBUSH_T = 18 / Math.hypot(OPEN_NEXT[0] - OPEN_PT[0], OPEN_NEXT[1] - OPEN_PT[1]);
 const AMBUSH_PT = [OPEN_PT[0] + (OPEN_NEXT[0] - OPEN_PT[0]) * AMBUSH_T, OPEN_PT[1] + (OPEN_NEXT[1] - OPEN_PT[1]) * AMBUSH_T];
 const AMBUSH_APPROACH = [OPEN_NEXT, AMBUSH_PT];
 const INNER_HALF = 3.2; // 城内は細い土道。切岸から離れた西の帯道を通る。
@@ -1451,6 +1451,177 @@ function sgNoise(x, z) {
   const a = sgHash(ix, iz), b = sgHash(ix + 1, iz), c = sgHash(ix, iz + 1), d = sgHash(ix + 1, iz + 1);
   return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
 }
+// 山頂の二重の望楼（天守の影）を、白く光る置物でなく、月夜に沈む古い漆喰の灰・黒い下見板・燻し瓦・野面の石垣の台で組む（10/30 採点 点検4）。
+// 絵はキャンバスで一度だけ描き（石垣・壁・瓦）、形は箱と寄棟の屋根だけ。見た目だけで当たりは持たない。
+let SG_KEEP = null;
+function sgKeepKit() {
+  if (SG_KEEP) return SG_KEEP;
+  let seed = 91; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const canvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t; };
+  // 野面積み：大小の自然石を崩れた横目地の段に積み、石ごとに濃淡、目地は深い黒（継ぎ目が写る）。
+  const stone = canvas(512, 512, (g, W, H) => {
+    g.fillStyle = '#141311'; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H;) {
+      const rowH = 34 + R() * 30;
+      for (let x = -R() * 40; x < W;) {
+        const w = 40 + R() * 70, v = 70 + R() * 70, wm = R() * 14;
+        const pts = [[x + 3 + R() * 6, y + 3 + R() * 5], [x + w - 3 - R() * 6, y + 2 + R() * 6], [x + w - 2 - R() * 5, y + rowH - 3 - R() * 6], [x + 2 + R() * 6, y + rowH - 2 - R() * 5]];
+        for (const dx of [0, -W, W]) {
+          g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo(px + dx, py) : g.moveTo(px + dx, py))); g.closePath();
+          const gr = g.createLinearGradient(x + dx, y, x + dx + w * .4, y + rowH);
+          gr.addColorStop(0, `rgb(${v + 18 | 0},${v + 16 - wm | 0},${v + 8 - wm | 0})`); gr.addColorStop(1, `rgb(${v - 22 | 0},${v - 24 | 0},${v - 28 | 0})`);
+          g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 2; g.stroke();
+        }
+        if (R() < .35) { g.fillStyle = `rgba(52,64,38,${.25 + R() * .3})`; g.beginPath(); g.ellipse(x + w * R(), y + rowH * .7, w * .3, rowH * .2, 0, 0, 7); g.fill(); }
+        x += w;
+      }
+      y += rowH;
+    }
+  });
+  // 壁：上は煤けて灰になった古い漆喰（雨だれの筋）、下は黒い下見板（板の重なりの影）、その中に狭間（四角＝鉄砲・三角＝弓）と格子窓。
+  const wall = canvas(512, 256, (g, W, H) => {
+    const cut = H * .42;
+    g.fillStyle = '#6a6761'; g.fillRect(0, 0, W, cut);
+    for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(40,38,34,${R() * .25})`; g.fillRect(R() * W, R() * cut * .4, 1 + R() * 3, cut * (.3 + R() * .7)); }
+    for (let i = 0; i < 30; i++) { g.fillStyle = `rgba(150,146,138,${R() * .12})`; g.beginPath(); g.ellipse(R() * W, R() * cut, 10 + R() * 30, 4 + R() * 10, 0, 0, 7); g.fill(); }
+    for (let y = cut; y < H; y += 14) {
+      g.fillStyle = `rgb(${24 + R() * 8 | 0},${22 + R() * 7 | 0},${20 + R() * 6 | 0})`; g.fillRect(0, y, W, 14);
+      g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, y + 12, W, 2);
+      g.fillStyle = 'rgba(90,84,74,0.18)'; g.fillRect(0, y, W, 1);
+    }
+    for (let x = 0; x < W; x += 64) { g.fillStyle = '#17140f'; g.fillRect(x, cut, 6, H - cut); }
+    g.fillStyle = '#2a2621'; g.fillRect(0, cut - 4, W, 6);
+    for (let x = 32; x < W; x += 64) {
+      g.fillStyle = '#050505';
+      if ((x / 64 | 0) % 2) g.fillRect(x - 7, cut + 40, 14, 14);
+      else { g.beginPath(); g.moveTo(x - 8, cut + 56); g.lineTo(x + 8, cut + 56); g.lineTo(x, cut + 42); g.closePath(); g.fill(); }
+    }
+    for (const x of [96, 352]) {
+      g.fillStyle = '#0c0b0a'; g.fillRect(x - 30, cut * .3, 60, cut * .5);
+      g.fillStyle = '#3b352d'; for (let k = 0; k <= 6; k++) g.fillRect(x - 30 + k * 10, cut * .3, 3, cut * .5);
+    }
+  });
+  // 瓦：燻し瓦の丸瓦の縦の列と段ごとの陰、苔の斑。
+  const tile = canvas(256, 256, (g, W, H) => {
+    g.fillStyle = '#1d1e20'; g.fillRect(0, 0, W, H);
+    for (let x = 0; x < W; x += 16) {
+      const gr = g.createLinearGradient(x, 0, x + 16, 0), v = 58 + R() * 14 | 0;
+      gr.addColorStop(0, '#141516'); gr.addColorStop(.45, `rgb(${v},${v + 2},${v + 6})`); gr.addColorStop(1, '#101112');
+      g.fillStyle = gr; g.fillRect(x + 2, 0, 12, H);
+    }
+    for (let y = 0; y < H; y += 21) { g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, y, W, 3); g.fillStyle = 'rgba(120,118,112,0.12)'; g.fillRect(0, y + 3, W, 2); }
+    for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(90,96,72,${R() * .2})`; g.beginPath(); g.ellipse(R() * W, R() * H, 6 + R() * 16, 3 + R() * 6, 0, 0, 7); g.fill(); }
+  });
+  const mat = (map, rough) => new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0 });
+  SG_KEEP = { stone: mat(stone, .95), wall: mat(wall, .9), tile: mat(tile, .7), wood: new THREE.MeshStandardMaterial({ color: 0x1c1915, roughness: .9 }) };
+  return SG_KEEP;
+}
+// 寄棟の屋根：軒の四辺から棟へ（w が棟の向き）。uv は寸法に合わせ、瓦の列が屋根の大きさで伸びない。
+function hipRoof(w, d, h) {
+  const r = Math.max(0, (w - d) / 2), pos = [], uv = [];
+  const E = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]], T = [[-r, 0], [r, 0], [r, 0], [-r, 0]];
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4, a = E[i], b = E[j], ta = T[i], tb = T[j], len = Math.hypot(b[0] - a[0], b[1] - a[1]) / 3, sl = Math.hypot(h, d / 2) / 3;
+    const q = [[a[0], .2, a[1], 0, 0], [b[0], .2, b[1], len, 0], [tb[0], h, tb[1], len, sl], [ta[0], h, ta[1], 0, sl]];
+    for (const k of [0, 2, 1, 0, 3, 2]) { pos.push(q[k][0], q[k][1], q[k][2]); uv.push(q[k][3], q[k][4]); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  return g;
+}
+// 板塀の絵：古びた黒い縦板・押縁・腰の横桟と、狭間（四角＝鉄砲・三角＝弓）の黒い口。
+let SG_HEI = null;
+function sgHeiMat() {
+  if (SG_HEI) return SG_HEI;
+  let seed = 37; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  for (let x = 0; x < 512; x += 16) {
+    const v = 30 + R() * 16 | 0; g.fillStyle = `rgb(${v + 6},${v + 2},${v - 3})`; g.fillRect(x, 0, 16, 256);
+    g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(x + 15, 0, 1, 256);
+    for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(110,100,84,${R() * .12})`; g.fillRect(x + R() * 14, 0, 1, 256); }
+  }
+  for (let i = 0; i < 25; i++) { g.fillStyle = `rgba(70,74,52,${R() * .25})`; g.beginPath(); g.ellipse(R() * 512, 230 + R() * 26, 20 + R() * 30, 6 + R() * 8, 0, 0, 7); g.fill(); }
+  g.fillStyle = '#1a1612'; g.fillRect(0, 70, 512, 9); g.fillRect(0, 196, 512, 9);
+  for (let x = 64; x < 512; x += 128) {
+    g.fillStyle = '#030303';
+    if ((x / 128 | 0) % 2) g.fillRect(x - 10, 110, 20, 20);
+    else { g.beginPath(); g.moveTo(x - 11, 134); g.lineTo(x + 11, 134); g.lineTo(x, 112); g.closePath(); g.fill(); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  SG_HEI = new THREE.MeshStandardMaterial({ map: t, roughness: .92, side: THREE.DoubleSide });
+  return SG_HEI;
+}
+// 線 pts に沿う帯の形（左右の高さを関数で）。uv は横の長さ・縦の高さを寸法で（絵が伸びない）。
+function sgBand(pts, step, at, uScale, vScale) {
+  const pos = [], uv = [], idx = []; let u = 0, n = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], len = Math.hypot(bx - ax, bz - az), k = Math.max(1, Math.ceil(len / step));
+    for (let j = (i === 1 ? 0 : 1); j <= k; j++) {
+      const x = ax + (bx - ax) * j / k, z = az + (bz - az) * j / k;
+      if (n) u += Math.hypot(x - pos[pos.length - 6], z - pos[pos.length - 4]);
+      const [lo, hi] = at(x, z);
+      pos.push(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+      uv.push(u / uScale, lo[1] / vScale, u / uScale, hi[1] / vScale);
+      if (n) idx.push(2 * n - 2, 2 * n, 2 * n - 1, 2 * n - 1, 2 * n, 2 * n + 1);
+      n++;
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// 野面の石垣（月夜に白く光る共通の石でなく、継ぎ目の黒い自然石。キャンバスの絵を使い回す）。
+// 天端は top(x,z)、裾は外（+x）へ勾配を付けて地面の下 0.6m まで差し込む。天端の上面も石で閉じる。
+function sgStoneWall(rt, pts, top, out = 1.1) {
+  const W = rt.world, K = sgKeepKit();
+  const face = sgBand(pts, .8, (x, z) => { const t = top(x, z), bx = x + out; return [[bx, W.heightAt(bx, z) - .6, z], [x, t, z]]; }, 3, 3);
+  const cap = sgBand(pts, .8, (x, z) => { const t = top(x, z); return [[x, t, z], [x - 1.4, Math.max(t - .1, W.heightAt(x - 1.4, z) + .05), z]]; }, 3, 3);
+  for (const g of [face, cap]) { const m = new THREE.Mesh(g, K.stoneTwo || (K.stoneTwo = Object.assign(K.stone.clone(), { side: THREE.DoubleSide }))); m.castShadow = m.receiveShadow = true; rt.scene.add(m); }
+}
+// 石垣の上の狭間の板塀（板と押縁・腰の横桟・狭間の口）。柱は地面から立てる。
+function sgHei(rt, pts, base, h = 2.2) {
+  const mat = sgHeiMat();
+  const g = sgBand(pts, 1, (x, z) => { const b = base(x, z); return [[x, b - .3, z], [x, b + h, z]]; }, 4, h + .3);
+  const parts = [g];
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, az] = pts[i - 1], [bx, bz] = pts[i], len = Math.hypot(bx - ax, bz - az), k = Math.max(1, Math.round(len / 1.8));
+    for (let j = 0; j <= k; j++) {
+      const x = ax + (bx - ax) * j / k, z = az + (bz - az) * j / k, b = base(x, z);
+      const p = new THREE.BoxGeometry(.14, h + .7, .14); p.translate(x - .1, b + (h + .7) / 2 - .5, z); parts.push(p);
+    }
+  }
+  const capG = sgBand(pts, 1, (x, z) => { const b = base(x, z) + h; return [[x + .28, b - .1, z], [x - .28, b + .06, z]]; }, 4, 1);
+  const wood = sgKeepKit().wood;
+  const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; rt.scene.add(m);
+  const posts = new THREE.Mesh(mergeGeometries(parts.slice(1)), wood); posts.castShadow = true; rt.scene.add(posts);
+  const cm = new THREE.Mesh(capG, sgKeepKit().tile); cm.castShadow = true; rt.scene.add(cm);
+  cm.material.side = THREE.DoubleSide;
+}
+function sgKeep(rt, x, z, gy) {
+  const K = sgKeepKit(), grp = new THREE.Group();
+  const add = (geo, mat, px, py, pz, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.rotation.y = ry; m.castShadow = m.receiveShadow = true; grp.add(m); return m; };
+  // 石垣の台（裾を広げた台形。底は地面の下 0.8m）。梁間（x）7m・桁行（z）9m の建物の下。
+  const bx = 8.4, bz = 10.4, top = gy + 3.4, bot = gy - .8, flare = .9;
+  const base = new THREE.CylinderGeometry(1, 1, 1, 4, 3, true); base.rotateY(Math.PI / 4);
+  const bp = base.attributes.position, buv = base.attributes.uv;
+  for (let i = 0; i < bp.count; i++) {
+    const t = bp.getY(i) + .5, f = (1 - t) * flare;
+    bp.setXYZ(i, Math.sign(bp.getX(i)) * (bx / 2 + f), bot + (top - bot) * t, Math.sign(bp.getZ(i)) * (bz / 2 + f));
+    buv.setXY(i, buv.getX(i) * (bx + bz) * 2 / 6, (top - bot) * t / 3);
+  }
+  base.computeVertexNormals();
+  add(base, K.stone, 0, 0, 0);
+  add(new THREE.BoxGeometry(7, 4.2, 9), K.wall, 0, top + 2.1, 0);
+  add(new THREE.BoxGeometry(7.3, .3, 9.3), K.wood, 0, top + .15, 0);
+  add(hipRoof(9 + 2.2, 7 + 2.2, 1.6), K.tile, 0, top + 4.0, 0, Math.PI / 2);
+  add(new THREE.BoxGeometry(4.8, 3.2, 6), K.wall, 0, top + 5.6, 0);
+  add(hipRoof(6 + 2.4, 4.8 + 2.4, 2.4), K.tile, 0, top + 7.0, 0, Math.PI / 2);
+  add(new THREE.BoxGeometry(.3, .35, 1.6), K.wood, 0, top + 9.5, 0);
+  grp.position.set(x, 0, z);
+  rt.scene.add(grp);
+}
 function slopeSkin(rt) {
   const W = rt.world, H = (x, z) => drawGroundAt(W, x, z);
   const skin = new THREE.MeshStandardMaterial({ map: groundDetailTex('dirt'), vertexColors: true, roughness: .97, metalness: 0 });
@@ -1479,7 +1650,7 @@ function slopeSkin(rt) {
   for (let i = 0; i < rp.count; i++) { const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), k = .78 + sgHash(x * 3.1 + z, y * 2.7) * .4; rp.setXYZ(i, x * k * 1.1, y * k * .75, z * k); }
   rock.computeVertexNormals();
   const rockMat = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x75716a, roughness: .93 });
-  const X0 = -14, X1 = 34, Z0 = -60, Z1 = -6, D = .6;
+  const X0 = -40, X1 = 34, Z0 = -78, Z1 = -6, D = .6;   // 門の西の縁の上（25秒の目のすぐ脇の土手）まで（10/30）
   const nx = Math.round((X1 - X0) / D), nz = Math.round((Z1 - Z0) / D), pos = [], col = [], uv = [], idx = [], tufts = [], rocks = [];
   const c = new THREE.Color(), soilC = new THREE.Color(.045, .036, .026), dryC = new THREE.Color(.1, .082, .05), mossC = new THREE.Color(.04, .047, .027);
   for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
@@ -2478,7 +2649,8 @@ const shigisan = {
       const y0 = W.heightAt(TOWER_POST.x, TOWER_POST.z);
       const crest = (z) => { for (let x = TOWER_POST.x - 12; x > TOWER_POST.x - 60; x -= 1) if (W.heightAt(x, z) > y0 + 2.5) return x; return null; };
       const pts = [-44, -52, -60, -68, -76].map((z) => [crest(z), z]).filter((p) => p[0] !== null);
-      for (let i = 1; i < pts.length; i++) rt.scene.add(palisade(W, [pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]], { h: 2.6 }));
+      // 10/30 採点 点検4：丸太の柵でなく、石垣の天端に狭間の板塀（月夜に黒い板と狭間の口）。
+      if (pts.length >= 2) sgHei(rt, pts.map(([x, z]) => [x - .6, z]), (x, z) => W.heightAt(x - .9, z) + .4);
       for (const [k, p] of pts.entries()) {
         if (k === 1 || k === 3) { rt.scene.add(kagaribi(W, p[0] - 1.2, p[1])); W.addFire(p[0] - 1.2, p[1], { torch: true, h: 1.35 }); }
         if (k === 0 || k === 2 || k === 4) rt.scene.add(nobori(W, p[0] - 2, p[1] + 1.5, 'todo', 7));
@@ -2488,17 +2660,19 @@ const shigisan = {
       // 縁の上の段（10/29 採点：天守・切岸が見えない、石の壁がのっぺり、背に敵が居ない）：
       // 切岸の肩を野面の石垣で締め、奥の高みに狭間の板塀と二重の望楼（天守の影）、柵の内に松永方の兵の群れ（軽い遠景の兵。当たりなし）。
       if (mid && pts.length >= 2) {
-        castlePart(W, 'ishigaki', { pts, top: (x, z) => W.heightAt(x - 1.5, z) + .4, kind: 'nozura' }, { era: 'early' });
+        sgStoneWall(rt, pts, (x, z) => W.heightAt(x - 1.5, z) + .4);   // 共通の石は月に白く光った（10/30）。継ぎ目の黒い野面の絵で
         // 切岸の裾を三〜四歩の高さの野面積みで締め、石の一つ一つと継ぎ目を持ち場の正面に見せる（10/29 採点：石の壁がのっぺり）。
         const foot = pts.map(([x, z]) => [x + 2.2, z]);
-        castlePart(W, 'ishigaki', { pts: foot, top: (x, z) => W.heightAt(x - 3.5, z) + .5, kind: 'nozura' }, { era: 'early' });
+        sgStoneWall(rt, foot, (x, z) => W.heightAt(x - 3.5, z) + .5);
         // 切岸の上の肩：狭間を切った板塀を月夜の空へ（柵の上の段）。
         const crest2 = (z) => { for (let x = TOWER_POST.x - 12; x > TOWER_POST.x - 70; x -= 1) if (W.heightAt(x, z) > y0 + 8) return x - 1; return null; };
         const top2 = [-46, -56, -66, -76].map((z) => [crest2(z), z]).filter((p) => p[0] !== null);
         if (top2.length >= 2) castlePart(W, 'hei', { pts: top2, kind: 'ita', h: 2.4, sama: 1.4 }, { era: 'early' });
+        // 狭間の板塀の足もとを野面の石垣で締める（25秒の目の正面の土手の上。10/30 採点 点検4：石の継ぎ目と狭間を一枚に）。
+        if (top2.length >= 2) sgStoneWall(rt, top2.map(([x, z]) => [x + .3, z]), (x, z) => W.heightAt(x - .6, z) + .15, 2.2);
         const kx = mid[0] - 21, kz = mid[1] + 5; SG_TS.keep = { x: kx, z: kz };
         let gy = Infinity; for (const [dx, dz] of [[-4, -3], [4, -3], [-4, 3], [4, 3], [0, 0]]) gy = Math.min(gy, W.heightAt(kx + dx, kz + dz));
-        castlePart(W, 'niju', { x: kx, z: kz, rot: Math.PI / 2, y: gy + 3.4, w: 9, d: 7, h1: 4.2, h2: 3.4, stone: gy - .8 }, { era: 'early' });
+        sgKeep(rt, kx, kz, gy);   // 共通の二重の櫓は白壁が月に光る置物に見えた（10/30）。この城だけ灰の漆喰・黒い下見板・燻し瓦・野面の台で組む
         castlePart(W, 'hei', { pts: [[kx + 7, kz - 9], [kx + 7, kz + 9]], kind: 'ita', h: 2.4, sama: 1.5 }, { era: 'early' });
         // 板塀の内に詰める松永勢（手前の柵越しに槍と旗が並んで見える所）。
         const ax = top2.length ? top2[Math.floor(top2.length / 2)][0] - 3 : kx + 11;
@@ -2580,7 +2754,7 @@ const shigisan = {
     F.ram = allyGroup(rt, { name: '門を破る組', anchor: { x: 14, z: 108 }, facing: Math.PI, width: 5, aggro: 3, noRout: true, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
     F.oda = [F.tsutsui, F.ake, F.ram];
-    for (const g of F.oda) { g.noRout = true; g.formation = 'column'; g.width = 5; g.defMult = 1.7; g.dmgMult = 1; }   // 10/30：本丸の南口の前で先手が尽きて負けが続いた（bot）
+    for (const g of F.oda) { g.noRout = true; g.formation = 'column'; g.width = 5; g.defMult = 2.6; g.dmgMult = 1; }   // 10/30：本丸の南口の前で先手が尽きて負けが続いた（bot）
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: OPEN_PT[0] + 3, z: OPEN_PT[1] + 5 }, Math.PI, [{ kind: 'spear', n }]);
     F.oda.forEach((g, i) => {
@@ -2614,8 +2788,16 @@ const shigisan = {
     for (const u of [F.ehon.lord, F.hisamichi]) { u.aiT = Infinity; u.perch = { x: u.pos.x, z: u.pos.z }; }
     // 史料の最期は自害。室内の共通の一騎打ち案内は使わない。
     F.C.seat.naka.onEnter = null; F.C.seat.naka.onLevel = null;
-    F.amb = enemyGroup(rt, { fixed: true, ambush: true, faction: 'matsunaga', name: '尾根の松永勢', anchor: { x: AMBUSH_PT[0], z: AMBUSH_PT[1] }, facing: Math.atan2(OPEN_PT[0] - AMBUSH_PT[0], OPEN_PT[1] - AMBUSH_PT[1]), formation: 'column', order: 'hold', aggro: 16, width: 5, morale: 90, fleeDir: { x: -1, z: -0.5 } },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], MATSU));
+    F.amb = enemyGroup(rt, { fixed: true, ambush: true, faction: 'matsunaga', name: '尾根の松永勢', anchor: { x: AMBUSH_PT[0], z: AMBUSH_PT[1] }, facing: Math.atan2(OPEN_PT[0] - AMBUSH_PT[0], OPEN_PT[1] - AMBUSH_PT[1]), formation: 'column', order: 'hold', aggro: 16, width: 5, morale: 100, fleeDir: { x: -1, z: -0.5 } },
+      // 10/30 採点：25秒の画面で味方が密で敵が遠い。尾根道の先に厚い松永勢を置き、先手と押し合い斬り合わせる。
+      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 25 }], MATSU));
+    // 伏兵の両脇の道端に篝火。夜の斬り合いを火で照らす（道の幅六歩の外。当たりなし）。
+    {
+      const dx = OPEN_NEXT[0] - OPEN_PT[0], dz = OPEN_NEXT[1] - OPEN_PT[1], L = Math.hypot(dx, dz), sx = -dz / L, sz = dx / L;
+      // 持ち場の脇に置くと鉄籠が画面の左を塞いだ。伏兵の六歩先、道の両端に置く。
+      const ax = AMBUSH_PT[0] + dx / L * 6, az = AMBUSH_PT[1] + dz / L * 6;
+      for (const k of [-1, 1]) { const x = ax + sx * k * (ROAD_HALF + 1.5), z = az + sz * k * (ROAD_HALF + 1.5); rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
+    }
     // 後列も登城道に沿わせ、藪の急斜面へ並べない。下知までは動かさない。
     march(F.amb, [OPEN_PT]);
     F.amb.path = [OPEN_NEXT, AMBUSH_PT, OPEN_PT]; F.amb.pathIdx = 2; F.amb.speed = 0;
@@ -2638,11 +2820,14 @@ const shigisan = {
     F.mori.noAI = true;
     for (const u of F.mori.units) { u.noTarget = true; u.invuln = true; }
     // 実際に戦う守兵だけを絞る。包囲の総勢と、父子が城内で自害する筋は保つ。
-    F.last = [mk(TOP.x, TOP.z + TOP.r - 4, '松永の旗本', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }])];
-    F.last.push(mk(TOP.x + 11, TOP.z + 10, '本丸の控え', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }]));
+    F.last = [mk(TOP.x, TOP.z + TOP.r - 4, '松永の旗本', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }])];   // 実際に戦う本丸の守りは絞る（城の総勢は備え表で示す。bot 10/30）
+    F.last.push(mk(TOP.x + 11, TOP.z + 10, '本丸の控え', [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }]));
+    for (const g of F.last) g.dmgMult = 0.8;
+    F.arch.dmgMult = 0.7;   // 門の内の弓は先手を削り過ぎない（bot 10/30）
     for (const [x, z, k] of [[-8, 130, 'oda'], [8, 130, 'eiraku'], [-30, 110, 'akechi'], [30, 110, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     for (const g of [F.arch, F.amb, F.sally, F.rg1, F.rg2, F.ryk, ...F.last, F.ehon.guard, ...F.ehon.kin]) { g.noAI = true; g.noRout = false; }
     F.amb.noAI = true; // 登りの下知で、同じ道の敵を必ず前へ出す。
+    F.amb.noRout = true;   // 10/30：最初の四十秒は崩れて逃げず、尾根道で先手と組み合う（update で解く）
     for (const u of rt.army.units) if (u.team === 1) {
       u.playerOpeningBlocked = true; u.sgWait = { x: u.pos.x, y: u.pos.y, z: u.pos.z };
       u.cdBase = Math.max(u.cdBase || 0, u.type === 'gun' || u.type === 'bow' ? 4.5 : 2.4);
@@ -2947,6 +3132,16 @@ const shigisan = {
         ? q.path.slice(q.pathIdx, -1) : [];
       march(q, approach.concat(route));
     }
+    // 後詰め：筒井の新手が門を抜けて続く（先手が尽きて負け続けた。bot 10/30）。
+    {
+      const rg = allyGroup(rt, { name: '筒井の後詰め', anchor: { x: GATE.x, z: GATE.z + 10 }, facing: Math.PI, width: 5, aggro: 10, noRout: true, formation: 'column' },
+        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }], TSUTSUI));
+      rg.noRout = true; rg.formation = 'column'; rg.width = 5; rg.defMult = 2.6; rg.dmgMult = 1;
+      for (const u of rg.units) { const q = rg.slotPos(u.slot, rg.initial); u.pos.set(q.x, rt.world.heightAt(q.x, q.z), q.z); u.mesh.position.copy(u.pos); }
+      F.oda.push(rg);
+      march(rg, route);
+      rt.say('組頭', '筒井の後詰めが門を抜けたぞ！　続け！', 4);
+    }
     // 本人も通過前の角を保つが、任せた曲輪の中心へ向かう最後の区間だけは外す。
     let previous = F.castleRoute || [];
     const from = F.castleGuideI || 1;
@@ -3193,6 +3388,7 @@ const shigisan = {
         w.sent = true; march(w.g, w.path); w.g.pathIdx = w.start + 1; w.g.facing = 0; w.g.onArrive = (q) => { q.order = 'hold'; q.formation = 'yari'; q.width = 7; q.facing = 0; q.aggro = 14; };
       }
     }
+    if (F.amb.noRout && rt.t > 40) F.amb.noRout = false;
     if (F.step === 1) {
       const p = rt.player.u.pos, end = CLIMB_END;
       climbWayPoint(rt.player, ROAD[end][0], ROAD[end][1], F.guidePoint);
@@ -3962,43 +4158,3 @@ function armyBackdrop(rt, o) {
 // bot の記録の跡に、攻め口の兵の数（生き・逃げ・深手）を残す（10/30）
 shigisan.botDbg = (b) => (b.flags.step >= 3.5 && b.flags.castleGuidePoint ? `g${b.flags.castleGuidePoint.x.toFixed(0)},${b.flags.castleGuidePoint.z.toFixed(0)}${b.flags.castleGuideBlocked ? 'B' : ''}${b.flags.castleGuideArrived ? 'A' : ''} ` : '') + (b.flags.oda || []).map((q) => `${q.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length}/${q.units.filter((u) => u.alive).length}/${q.units.length}`).join(',');
 
-// 門を打つ段（3）だけ、bot は門の裏の敵へ突っかからず、打つ所へ寄って掛矢を使い続ける。他の段は既定の動きへ譲る（10/30）
-shigisan.botBrain = (b, inp, { goTo, patientStrike }) => {
-  const F = b.flags, p = b.player, u = p.u, hp = F.gateHitPoint;
-  if (F.step === 2 && !F.towerCovered && !F.ending) {
-    // 門脇の持ち場へ寄って二秒立つ。遠い敵を追って持ち場から離れない。
-    const e2 = b.army.nearestEnemy(u, 3, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
-    inp.k.delete('KeyW');
-    if (e2) { p.yaw = Math.atan2(e2.pos.x - u.pos.x, e2.pos.z - u.pos.z); patientStrike(p, inp, e2, Math.hypot(e2.pos.x - u.pos.x, e2.pos.z - u.pos.z)); return; }
-    goTo(p, inp, TOWER_POST.x, TOWER_POST.z, 1.5);
-    return;
-  }
-  if (F.step >= 3.5 && !F.ending) {
-    // 曲輪・本丸：近い敵（八歩）は討ち、いなければ今の印の道を進む。遠い敵を追って道を外れない。
-    const e3 = b.army.nearestEnemy(u, 8, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
-    inp.k.delete('KeyW');
-    if (e3) {
-      const d3 = Math.hypot(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z);
-      p.yaw = Math.atan2(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z);
-      if (d3 > 2.4) goTo(p, inp, e3.pos.x, e3.pos.z, 2);
-      patientStrike(p, inp, e3, d3); return;
-    }
-    const m = b.markers.find((x) => ['rg1', 'rg2', 'yashiki', 'honmaru'].includes(x.id));
-    // 先手は同じ道を柵の口まで抜けて進む。いちばん前の先手の歩みについて行く。
-    let lead = null;
-    for (const g of F.oda) if (!gone(g) && g.order === 'path' && g.path && (!lead || g.pathIdx > lead.pathIdx)) lead = g;
-    const lc = lead && lead.center();
-    if (lc && Math.hypot(lc.x - u.pos.x, lc.z - u.pos.z) > 6) { goTo(p, inp, lc.x, lc.z, 4); return; }
-    const q = F.castleGuidePoint || (m && (typeof m.pos === 'function' ? m.pos() : m.pos));
-    if (q) { goTo(p, inp, q.x, q.z, 2.5); return; }
-    return false;
-  }
-  if (F.step !== 3 || !hp || !F.gate?.alive || F.ending) return false;
-  const e = b.army.nearestEnemy(u, 3, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
-  inp.k.delete('KeyW');
-  if (e) { p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z); patientStrike(p, inp, e, Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)); return; }
-  const d = Math.hypot(hp.x - u.pos.x, hp.z - u.pos.z);
-  if (d > 2.2) { goTo(p, inp, hp.x, hp.z, 1.5); return; }
-  p.yaw = Math.atan2(GATE.x - u.pos.x, GATE.z - u.pos.z);
-  inp.k.add('KeyE');
-};

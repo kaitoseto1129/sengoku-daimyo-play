@@ -416,6 +416,7 @@ if (MEM_TIGHT) {
     const STAT = window.__gpuOnly = { dropped: 0, droppedMB: 0, readback: 0, readbackMB: 0, frame: 0, rb0: 0, may: () => STAT.readback !== STAT.rb0 || STAT.frame % 15 === 0 };
     const readBack = (attr) => {
       const g = attr._gpuRef; attr._gpuRef = null;
+      if (window.__rbLog) { const k = (new Error().stack || '').split('\n').slice(3, 7).map((l) => (l.match(/(\w+)\s+\(.*\/(\w+\.js):(\d+)/) || []).slice(1).join(':')).join(' < '); window.__rbLog[k] = (window.__rbLog[k] || 0) + g.len * g.ctor.BYTES_PER_ELEMENT; }
       const a = new g.ctor(g.len);
       try {
         const prevVao = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
@@ -431,7 +432,10 @@ if (MEM_TIGHT) {
       Object.defineProperty(attr, 'array', { value: a, writable: true, configurable: true, enumerable: true });
       return a;
     };
-    if (TIER.weak) {
+    // 10/30 実機の落ち（iPhone 小谷・設楽原、iPad 大河内）：動かない形の CPU の写しが一戦 210〜290MB あった。弱い端末だけでなく iPhone・iPad でも手放す
+    const DROP_ALL = MEM_TIGHT || (typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) || /[?&]gpudrop=1/.test(location.search);
+    const dropOn = () => TIER.weak || DROP_ALL;
+    if (dropOn()) {
       // 返す形は先に読み戻す（共有の形は次の戦でまた送る。消えた GL の buffer からは読めない）
       const GP = THREE.BufferGeometry.prototype, gd = GP.dispose;
       GP.dispose = function () {
@@ -443,7 +447,7 @@ if (MEM_TIGHT) {
     const P = THREE.BufferAttribute.prototype;
     // 記憶の少ない端末（device_tier.js）：兵の形だけでなく、一度だけ送る動かない形（地面・建物・木・束など 64KB 以上）も手放す。
     //   CPU の写しが 120〜160MB あった（10/23 計り：森部・稲葉山）。二度目に送る物（描き換える形）・兵の重ね（Instanced）は手放さない
-    const weakDrop = (a, arr) => TIER.weak && arr.byteLength >= 65536 && a.usage === THREE.StaticDrawUsage && !a.isInstancedBufferAttribute && !a.isInterleavedBufferAttribute && (a._upN = (a._upN || 0) + 1) === 1;
+    const weakDrop = (a, arr) => dropOn() && arr.byteLength >= 65536 && a.usage === THREE.StaticDrawUsage && !a.isInstancedBufferAttribute && !a.isInterleavedBufferAttribute && (a._upN = (a._upN || 0) + 1) === 1;
     // 送ってすぐには手放さず、四秒待ってから手放す（10/27 tarapon「乱戦でカクつく」）。
     //   送った直後に束へ写す（units.js の soloDraw）・倒れた体を作る（army_ground.js）と、手放した配列を GPU から読み戻していた。
     //   読み戻しは GPU の仕事が済むまで待つので、乱戦の十二秒に二百回・一コマ数十 ms の固まりになっていた。待つ間に写せば読み戻さない

@@ -1255,7 +1255,7 @@ const takato_siege = {
     F.hodoinSpear = mkB(rt, { name: '西の搦手の備え', team: 1, faction: 'takeda', kind: 'bow', paperNominal: 70, armor: TAKEDA.armor, flag: TAKEDA.flag, at: { x: karaGP.x + 5, z: karaGP.z }, facing: -Math.PI / 2 });
     F.honGuard = mkB(rt, { name: '本丸の仁科盛信の衆', team: 1, faction: 'takeda', kind: 'ashigaru', paperNominal: 150, armor: TAKEDA.armor, flag: TAKEDA.flag, at: { x: honGP.x - 5, z: honGP.z }, facing: Math.PI / 2 });
     // 既存の控えを門外の寄せ場へ出す。門の内の守りと兵数は保つ。
-    F.reserveDef = mkB(rt, { name: '城方の控え', team: 1, faction: 'takeda', kind: 'ashigaru', paperNominal: 30, armor: TAKEDA.armor, flag: TAKEDA.flag, at: { x: 97, z: 0 }, facing: Math.PI / 2 });
+    F.reserveDef = mkB(rt, { name: '城方の控え', team: 1, faction: 'takeda', kind: 'ashigaru', paperNominal: 30, armor: TAKEDA.armor, flag: TAKEDA.flag, at: { x: 80.5, z: -6 }, facing: Math.PI / 2 });   // 開戦の時は大手の南脇の塀際で先手と斬り合っている（25秒の画面の乱戦）
     F.defenders = [F.sanSpear, F.sanGun, F.niSpear, F.hodoinSpear, F.honGuard, F.reserveDef];
     F.defendTotal = F.defenders.reduce((s, b) => s + b.nominal, 0);
     F.keep = makeLordKeep(rt, {
@@ -1428,7 +1428,7 @@ const takato_siege = {
     // 門前の撃ち合いを一度で終えず、寄せの間に硝煙が立ち続けるよう打ち返しを重ねる（10/29 採点：鉄砲の煙が見えない）。
     for (const [t, side] of [[17, 'A'], [22, 'A'], [30, 'A']]) rt.after(t, () => { if (!F.ending) volleyAll(F.lines, side); });
     // 旧い読み口の六十秒待ちに乗せず、寄せの後すぐに第一の山場へ進む。
-    rt.after(14, () => {
+    rt.after(26, () => {   // 二十六秒：塀際の斬り合いから門の前の道へ押し出す
       if (F.ending || rt.over || F.sanFell || F.niFell || deadB(F.reserveDef)) return;
       F.sallyOut = true; F.sallyUntil = 0;
       // 門前へ出した既存の控えが寄せ手を受ける。門は退く時に開ける。

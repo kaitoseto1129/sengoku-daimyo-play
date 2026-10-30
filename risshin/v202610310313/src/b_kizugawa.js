@@ -1658,7 +1658,8 @@ function cabinWallUV(geo, v0 = 0, v1 = 1, tileW = 2, tileD = tileW) {
 // 鉄甲船の船体。castle：true の船（プレイヤーの乗る中央の船）だけ、矢倉を一段上げて床（floors.js）を張り、
 // 梯子で上がれる「小さな城」にする（甲板・上甲板・矢倉・階段）。outL・outR：左右の舷に楯板と櫂を付ける
 // 西の舷で沖の船団を肩越しに見る視点の置き場（本人から：内へ一歩半・舳先へ一歩半。向きは南西の沖）
-const KZ_SEA_BACK = { x: 1.34, z: -1.34 };
+const KZ_SEA_BACK = { x: 2.1, z: -2.1 };   // 10/30：一・九歩では足を収めるために真下を覗き、艫の斬り合いが上で切れた。三歩へ引く
+const KZ_MELEE_LOOK = { x: -4.2, z: 11.5, y: DECK.y + 1.5 };
 const YAG_Y = DECK.y + 1.6;   // 矢倉（上甲板）の床の高さ
 function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
   const high = true, M = ironShipMats();
@@ -2908,7 +2909,7 @@ const kizugawa = {
     }
   },
   // 東の船べりから離し、最初の持ち場へ向く。肩越しの視点を引く余地を残す。
-  playerTaken: 0.3, // 10/28 旗艦の乗り込みで囲まれて倒れる事が五戦に二度あった（0.4→0.3）。// 狭い甲板で乗り込みの足軽に囲まれ、守り切る前に倒れていた（bot 10/26 に四度）。傷を半分に
+  playerTaken: 0.2, // 10/30 開戦から舷を越えた先手と斬り合うので、bot が乗り口で囲まれて倒れた（0.3→0.2）。 10/28 旗艦の乗り込みで囲まれて倒れる事が五戦に二度あった（0.4→0.3）。// 狭い甲板で乗り込みの足軽に囲まれ、守り切る前に倒れていた（bot 10/26 に四度）。傷を半分に
   playerRegen: 0.03, // 打ち合いの合間（四秒当たらない間）はゆっくり命が戻る
   spawn: { x: 0, z: -4, heading: -Math.atan2(3, 4) },
   // 総矢倉（x±2.5・z5.5〜12.5）の脇を歩く間、肩越しの視点を船べり側へ離し、視線も外へ少し振る。
@@ -2922,6 +2923,9 @@ const kizugawa = {
     return rt.flags.wallFrameAt !== rt.t; // 寄せた視点のある間は、壁よけの別の候補へ移さない。
   },
   // 沖を肩越しに見る間だけ、体を収めるための広角を抑える。広げると総矢倉の前の面が左の三割を占める。
+  // 10/30：西の舷で肩越しに沖を見る間は、見下ろしを艫の西の舷（乗り込みの斬り合い）の胸の高さまで起こす。
+  //   足もとばかりを映して、舷を越えた毛利勢が画面の上で切れないようにする。足が画面に収まる所までで止まる（共通の決まり）。
+  camLookAt(rt) { return this.seaFrameRt === rt && this.seaFrameAt >= rt.t - 0.2 ? KZ_MELEE_LOOK : null; },
   get maxFramedFov() { return this.seaFrameRt && this.seaFrameAt === this.seaFrameRt.t ? 48 : undefined; },
   frameCamera(rt, pos, look) {
     const p = rt.player.u.pos, ship = rt.flags.deckShip;
@@ -2940,6 +2944,14 @@ const kizugawa = {
     // 総矢倉は視点の後ろへ回り、船団（大将の関船・小早の群れ・先手）が正面から右に並ぶ。
     if (sg < 0 && sz < 6.3) {
       pos.x = p.x + KZ_SEA_BACK.x; pos.z = p.z + KZ_SEA_BACK.z;
+      rt.flags.wallFrameAt = rt.t;
+      this.seaFrameRt = rt; this.seaFrameAt = rt.t;
+      return;
+    }
+    // 10/30：西の舷の大筒（z8）に着いた間は、総矢倉の前の角（屋形の軒の外）から本人の肩越しに、艫の西の舷を見る。
+    // 視線が屋形の壁と平行になり、壁は左の細い帯だけ。舷を越えた毛利勢との斬り合いと、寄せた小早・沖の船団が正面から右に入る。
+    if (sg < 0 && sz < 9.5) {
+      pos.x = ship.position.x - 2.6; pos.z = ship.position.z + 4.4;
       rt.flags.wallFrameAt = rt.t;
       this.seaFrameRt = rt; this.seaFrameAt = rt.t;
       return;
@@ -3522,12 +3534,29 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     F.noticeAt = 0;
     // 大筒へ向かう遊び手から見える左舷へ先手を寄せる。十八メートルを九秒で寄せ、
     // 鉤縄の二秒と乗り移りの一・八秒を経て、開戦十三秒ほどで斬り合う。
-    const first = this.launch(rt, 'w');
+    // 先手の小早は、遊び手が屋形の西脇から艫を向いた時に写る z=8 の舷へ、開戦三秒ほどで着ける（10/30 開戦25秒の画面に乗り込みが写らなかった）。
+    const first = this.launch(rt, 'w', 8);
     if (first) {
       first.sp = 2;
-      first.x = first.t.x - 18; first.z = first.t.z;
+      first.x = first.t.x - 6; first.z = first.t.z;
       first.m.position.set(first.x, 0, first.z); first.m.rotation.y = Math.PI / 2;
       syncShipCrew(rt, first);
+    }
+    // 第二次木津川口の乗り込み戦：開戦の時には、もう艫の西の舷を越えた毛利の先手が、艫の鉄砲衆・水夫と斬り合っている。
+    // 持ち場を艫に固め、屋形の前（大将の所）へは攻め上らない。人数は推定。本物の兵の総数は二百人以内のまま。
+    {
+      const posts = [{ x: -4.9, z: 9.0 }, { x: -3.9, z: 9.6 }, { x: -4.8, z: 10.4 }, { x: -3.6, z: 11.0 }, { x: -4.9, z: 11.6 },
+        { x: -3.8, z: 12.2 }, { x: -5.0, z: 12.7 }, { x: -2.9, z: 12.8 }, { x: -4.4, z: 9.8 }, { x: -3.0, z: 11.8 },
+        { x: -4.3, z: 12.6 }, { x: -3.4, z: 12.9 }, { x: -5.0, z: 10.9 }, { x: -4.2, z: 11.4 }];
+      const g = enemyGroup(rt, { name: '舷を越えた毛利勢', faction: 'mori', fixed: true, fullStrength: true, noGuard: true,
+        anchor: { x: -4, z: 11 }, order: 'hold', facing: Math.PI, width: 2, spacing: 0.8, seekRange: 4, aggro: 4, morale: 80 },
+        dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 13, o: { spear: 'su' } }], MORI));
+      g.slotPos = (i) => posts[i % posts.length];
+      for (const u of g.units) { const q = posts[u.slot % posts.length]; u.pos.set(q.x, DECK.y, q.z); u.heading = Math.PI; u.shipPost = { x: q.x, y: DECK.y, z: q.z }; }
+      F.openingBoard = g;
+      // 艫の味方も、舷を越えた敵には槍を合わせる（持ち場は離れない）。
+      F.stern.aggro = 6;
+      for (const z of [8.6, 10.4, 12.2]) grapple(rt, DECK.x0 + 0.2, z);
     }
     rt.world.setTime('day');
     batchFleet(rt);
@@ -3547,7 +3576,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   },
 
   // 小早を一艘出す（南西から、甲板の西と南の縁へ向かう）
-  launch(rt, from) {
+  launch(rt, from, prefer = null) {
     const F = rt.flags;
     // 一番近い小早から寄せる。遠い配列順では最初の接舷が遅れる。
     let m = null, nearest = Infinity;
@@ -3562,7 +3591,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 荷駄船二艘と大将船の乗員二十四人分を先に空け、総数二百人以内に保つ。
     if (real + 8 > 176) return null;
     let dockZ = null;
-    for (const z of (from === 's' ? [0] : [-8, 0, 8])) {
+    for (const z of (from === 's' ? [0] : prefer !== null ? [prefer, ...[-8, 0, 8].filter((v) => v !== prefer)] : [-8, 0, 8])) {
       if (!F.boats.some((b) => b.alive && !b.damageStage && !b.withdrawing && !b.big && !b.supply && !b.ranged && b.from === from && (from === 's' || b.exit.z === z))) { dockZ = z; break; }
     }
     if (dockZ === null) return null;
@@ -3952,6 +3981,14 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         F.step === 4 && !F.bigSunk ? F.kukiDanger ? 4.5 : 3.5 : F.kukiDanger ? 8 : 6);
       const wasRoofDanger = !!F.roofDanger;
       F.roofDanger = F.step !== 2 && F.deckLost > 2;
+      // 10/30：乗り口を守る段で屋形の前が押されたら、屋形の中に控えた水夫と槍の者が一度だけ戸口から出て大将を囲む。
+      //   開戦から艫で斬り合った鉄砲衆・水夫が減っても、南の乗り口を守る遊び手が屋形を奪われきらないようにする。人数は推定。
+      if (F.roofDanger && F.step >= 3 && !F.cabinSally) {
+        F.cabinSally = allyGroup(rt, { name: '屋形の水夫', fixed: true, fullStrength: true, anchor: { x: F.roofPost.x, z: F.roofPost.z }, facing: Math.PI, formation: 'ring', spacing: 1, aggro: 5 },
+          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], ODA));
+        for (const u of F.cabinSally.units) { u.pos.set(-1.2 + (u.slot % 3) * 1.2, DECK.y, 5.0 - Math.floor(u.slot / 3) * 0.8); u.shipPost = { x: F.roofPost.x, y: DECK.y, z: F.roofPost.z }; }
+        rt.say('九鬼嘉隆', '屋形の者ども、出よ！　この前を通すな！', 3);
+      }
       const kukiDanger = F.roofDanger || !!kukiThreat;
       if (kukiDanger !== !!F.kukiDanger || F.roofDanger !== wasRoofDanger) {
         F.kukiDanger = kukiDanger;
@@ -3994,7 +4031,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (noticeReady(rt, '屋形に敵が入った！　押し返せ')) rt.bark('屋形に敵が入った！　押し返せ', true);
     }
     // 西の大筒から屋形の角を回って戻り、構えて押し返す時間を残す。
-    if (!fireProtected && F.deckLost >= (F.step === 4 ? 32 : 20)) { this.lose(rt, '屋形を敵に奪われた。船を離せ！'); return; }
+    if (!fireProtected && F.deckLost >= (F.step >= 3 ? 32 : 20)) { this.lose(rt, '屋形を敵に奪われた。船を離せ！'); return; }   // 10/30 乗り口を守る段も、南の乗り口から屋形の前へ戻る間を残す（bot が二度、南で戦う間に奪われた）
     // 供船の大筒が十四秒ごとに沖を撃つ。自分の砲撃の手柄や命中判定には加えない。
     const salvo = F.salvo;
     if (F.step >= 1 && F.step <= 4 && !F.bigSunk && rt.t >= salvo.next) {
@@ -4356,7 +4393,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const F = rt.flags;
     // 大将船を狙う間も、既に寄せた小早の兵は乗り込む。
     // 乗り込みを止めるのは、一斉射で敵船が退き始めた時。
-    if (F.deckAttackers >= (F.step === 1 ? 6 : F.step === 4 ? 4 : 8) || rt.t < F.nextBoardAt) return 0;   // 大船を引き付ける段は、新手の乗り込みを絞り、大筒へ戻る間を残す
+    if (F.deckAttackers >= (F.step === 1 ? 6 : F.step === 4 ? 4 : 6) || rt.t < F.nextBoardAt) return 0;   // 大船を引き付ける段は、新手の乗り込みを絞り、大筒へ戻る間を残す
     if (F.step < 1 || F.step > 4 || F.bigSunk || b.damageStage || b.withdrawing || !b.remaining || rt.t < b.nextBoard) return 0;
     const u = b.group?.units.find(u => u.alive && !u.fleeing && !u.woundOut && u.shipBoat === b && !u.shipTransit.active);
     if (!u) { b.remaining = 0; return 0; }

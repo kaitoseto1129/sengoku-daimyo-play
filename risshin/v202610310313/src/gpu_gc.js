@@ -34,7 +34,7 @@ function keepFrom(v, depth = 0) {
   if (!v || typeof v !== 'object' || depth > 3) return;
   if (v.isBufferGeometry) { keepGeo(v); return; }
   if (v.isObject3D) { keepObject(v); return; }
-  if (v.isMaterial || v.isTexture || ArrayBuffer.isView(v)) return;
+  if (v.isMaterial || v.isTexture || v.isBufferAttribute || v.isInterleavedBuffer || v.isInterleavedBufferAttribute || ArrayBuffer.isView(v)) return;   // 属性の array を触ると手放した写しを読み戻す
   if (v instanceof Map || v instanceof Set) { for (const e of v) { if (Array.isArray(e)) { keepFrom(e[0], depth + 1); keepFrom(e[1], depth + 1); } else keepFrom(e, depth + 1); } return; }
   if (Array.isArray(v)) { for (const e of v) keepFrom(e, depth + 1); return; }
   for (const k in v) { const e = v[k]; if (e && typeof e === 'object') keepFrom(e, depth + 1); }
@@ -99,7 +99,8 @@ function gcStep() {
       if (a._gpuRef) { need++; const n = a._gpuRef.len * a._gpuRef.ctor.BYTES_PER_ELEMENT; bytes += n; if (n > 8388608) big = true; }
       else if (idle && a.array) bytes += a.array.byteLength;
     }
-    if (big || idle && (w.idleReadback + need > 32 || need && w.idleBytes + bytes > 6291456)) continue;
+    // 描かれていない形を返す時、CPU の写しを手放した形は読み戻さない（読み戻すと WebContent の記憶が増える。10/30 実機の落ち）
+    if (big || idle && (need || w.idleReadback + need > 32 || w.idleBytes + bytes > 6291456)) continue;
     w.pending = g; w.pendingIdle = idle; w.pendingBytes = bytes;
   }
   const ms = performance.now() - t0;

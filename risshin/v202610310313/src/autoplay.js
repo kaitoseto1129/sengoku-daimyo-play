@@ -11,6 +11,7 @@ import { ASTC_RT } from './astc_rt.js';
 import * as THREE from 'three';
 import { DEATH_END } from './units.js';
 import { disposeProbe } from './autoplay_probe.js';
+import { TIER } from './device_tier.js';
 
 const _upV = new THREE.Vector3();
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -306,6 +307,7 @@ async function playOne(game, i, r, progress, started = false, firstInou = false,
   //   描く倍率（pr）は作り直しが重いので 3 秒ごと（初めの 1 秒は捨てる）。6 秒ごとの窓の中央も残す（戦の場面の移りを見る）
   const apx = window.__apx || {}, abKeys = apx.ab ? Object.keys(apx).filter((k) => !['ab', 'sec', 'compare'].includes(k)) : [];
   r.probeFlags = requestedFlags;
+  r.tier = TIER.why || 'normal'; r.gpuOnly = window.__gpuOnly ? { droppedMB: Math.round(window.__gpuOnly.droppedMB), readbackMB: Math.round(window.__gpuOnly.readbackMB) } : null;
   // 全試行で同じ開戦後60〜120秒。最重区間を各回で選び直して比べない。
   const comparison = { startSec: 60, endSec: 120, complete: false, on: null, off: null };
   const paired = { on: { frame: [], calls: [], triangles: [], update: [], render: [] }, off: { frame: [], calls: [], triangles: [], update: [], render: [] } };

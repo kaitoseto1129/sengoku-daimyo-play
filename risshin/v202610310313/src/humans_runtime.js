@@ -34,6 +34,8 @@ import { combatThinking, thinkingPhase } from './army_budget.js';
 import { VAT, vatSelect, vatOverflow, vatCan } from './crowd_vat.js';
 import { FLAT } from './flat_rule.js';
 import { nearSurfaceMaterial, nearSurfaceBlood } from './humans_near_surface.js';
+// 携帯（iPhone・iPad）は画面の外の一般兵へ骨の人を作らない（弱い端末と同じ。見える兵には効かない。10/30 実機の落ち）
+const OFFCULL = typeof location !== 'undefined' && (/[?&]offcull=1/.test(location.search) || !/[?&]offcull=0/.test(location.search) && (MEM_TIGHT || typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)));
 // 端末の熱の段（main.js の熱の見張りが書く。2＝かなり熱い）
 const HOT = () => (window.__heatBackgroundLevel || 0) >= 2;
 
@@ -837,7 +839,7 @@ function humansStep(rt, dt, army, cam) {
       _sph.center.set(u.pos.x, u.pos.y + 1.2, u.pos.z);
       const vis = u.isPlayer || _fr.intersectsSphere(_sph);
       // 見えない一般兵へ骨の貸出枠を渡さず、目の前の兵に使う。
-      if (TIER.weak && !vis && !opponent && !qualityKeeper(u)) continue;
+      if ((TIER.weak || OFFCULL) && !vis && !opponent && !qualityKeeper(u)) continue;
       // 画面の中を先に。今もう人の者は少し優先（境目で入れ替わりが続かないように）
       // 画面の真ん中に近い者ほど先に（大軍に近づいた時、目の前の最前列から本物に替わる）。横の端の者は後回し
       let cen = 0;

@@ -4725,13 +4725,15 @@ const inabayama = {
     if (n) rt.makeSquad({ x: 36, z: 114 }, Math.PI, [{ kind: 'spear', n }]);
     // ---- 町に残る斎藤の番の兵 ----
     // 十八人のうち九人は戸口の脇を守る。家までの距離と列の密度を保ち、正面を空ける。
-    F.town = enemyGroup(rt, { fixed: true, faction: 'saito', name: '町の番の兵', anchor: { x: 40, z: 88 }, facing: 0, order: 'hold', seekRange: 80, width: 8, aggro: 9, morale: 80, fleeDir: { x: 0, z: -1 } },
-      [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }]);
+    // 開戦の乱戦（10/30）：番の兵を四人厚くし、火付けの段の間は崩れず（noRout は②の段で外す）傷を浅くする。
+    //   持ち場の 25m 先で、走り込む味方の三組と押し合い斬り合う群れが25秒の画面に残る。
+    F.town = enemyGroup(rt, { fixed: true, faction: 'saito', name: '町の番の兵', anchor: { x: 40, z: 88 }, facing: 0, order: 'hold', seekRange: 80, width: 8, aggro: 9, morale: 95, noRout: true, dmgMult: 0.5, fleeDir: { x: 0, z: -1 } },
+      [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }]);
     F.houseGuards = F.houses.slice(0, 3).map((h) => enemyGroup(rt, {
       fixed: true, faction: 'saito', name: '火付けを防ぐ足軽',
       // 軒の角から離した前庭で構える。斬り合いの視点が壁に寄って画面を塞がない。
       anchor: { x: h.x + h.frontX * 6.5 + h.frontZ * 6.5, z: h.z + h.frontZ * 6.5 - h.frontX * 6.5 }, facing: 0, order: 'hold',
-      width: 2, aggro: 0, seekRange: 10, morale: 65, formation: 'yari', fleeDir: { x: 0, z: -1 },
+      width: 2, aggro: 0, seekRange: 10, morale: 85, noRout: true, dmgMult: 0.5, formation: 'yari', fleeDir: { x: 0, z: -1 },
     }, dress([{ type: 'ashigaru', n: 3 }], { flag: 'saito' })));
     // 後続はすでに町の通りまで下りている。山道の移動で斬り合いを長く途切れさせない。
     // 物見・伏兵・旗本は持ち場を守る。段の切り替えで兵を増やさない。
@@ -5032,7 +5034,8 @@ const inabayama = {
       }, { r: HOUSE_FIRE_R + .01, prio: 10 });
     }
     this.markHouses(rt);
-    const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 2.4; g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x, z }; gg.aggro = 12; }; };
+    // 味方の三組は駆けて町へ入り、着いたらそのまま近い番の兵へ掛かる（開戦の乱戦。10/30）
+    const go = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 3.4; g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 24; gg.anchor = { x, z }; gg.aggro = 12; }; };
     // 藤吉郎の旗は町の後ろ。先手と控えの間を退き道にする。
     go(F.kino, 32, 90); go(F.shiba, 40, 62); go(F.niwa, 0, 90);
     // 町の外れの見せ場を、家のない三本の往来へ寄せる。幅の合計を保ち、控えを一列厚くする。

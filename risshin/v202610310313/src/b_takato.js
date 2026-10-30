@@ -1216,6 +1216,53 @@ function takatoWallStep(rt) {
   });
 }
 
+// 大手門の前の乱戦（10/30 採点「開戦25秒の画面が乱戦・大軍対大軍に見えない」）。
+// 森長可の先手は開戦の前から大手に取り付き、塀の切れ目と木戸から打って出た城兵と、門の左右の塀際で押し合い斬り合う（高遠の大手の激戦）。
+// 門の前の道（z ±3）は本人と打ち手が通れるよう空ける。本物の兵は織田二十・城方十四（総勢二百五十に収める）。
+function takatoGateBrawl(rt) {
+  const F = rt.flags, A = rt.army;
+  const side = (team, sgn, n, x0, x1, name) => {
+    const z0 = 3.6 * sgn, z1 = 10.5 * sgn, at = { x: (x0 + x1) / 2, z: (z0 + z1) / 2 };
+    const g = A.addGroup({ team, faction: team ? 'takeda' : 'oda', name, anchor: at, facing: team ? Math.PI / 2 : -Math.PI / 2,
+      order: 'hold', aggro: 7, guardLeash: 7, width: 4, morale: 100, noRout: true, noAI: true });   // 総大将の頭に回さない（塀や堀の向こうの敵へ攻めかかって止まらない）
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      const r = (Math.sin(i * 12.9898 + sgn * 78.233 + team * 37.7) * 43758.5453) % 1, k = Math.abs(r);
+      const x = x0 + (x1 - x0) * ((i % 3) / 2 * .8 + k * .2), z = z0 + (z1 - z0) * ((Math.floor(i / 3) + k) / Math.ceil(n / 3));
+      list.push({ type: i % 6 === 0 ? 'samurai' : 'ashigaru', n: 1, o: { x, z, flag: team ? 'takeda' : 'oda', armor: team ? 0x3a2622 : 0x2a2622 } });
+    }
+    A.spawn(g, list);
+    // 刃は甲冑の上を滑り、組み打ちは長引く。一分余りで片が付かないよう、この塀際の斬り合いだけ兵どうしの手傷を浅くする（本人への刃も浅い）。
+    g.dmgMult = team ? .4 : .3;
+    return g;
+  };
+  F.gateBrawl = [
+    side(0, 1, 10, 82.6, 89.0, '大手の塀際に取り付く先手'), side(0, -1, 10, 82.6, 89.0, '大手の塀際に取り付く先手'),
+    side(1, 1, 7, 78.4, 84.6, '大手の木戸から打って出た城兵'), side(1, -1, 7, 78.4, 84.6, '大手の木戸から打って出た城兵'),
+  ];
+}
+
+// 塀際の城兵を討ち果たした先手は、塀の下で立ち尽くさず、道の脇へ退いて門の破れを待つ。門が開けば三の丸へなだれ込む。
+function gateBrawlTick(rt) {
+  const F = rt.flags; F.brawlT = 1;
+  const open = F.gates.oteOuter.opened || F.gates.oteInner.opened || F.sanFell;
+  for (let i = 0; i < 2; i++) {
+    const g = F.gateBrawl[i], foe = F.gateBrawl[i + 2], sgn = i ? -1 : 1;
+    if (g.brawlStage === 2 || !g.units.some((u) => u.alive)) continue;
+    if (g.brawlStage === 3) {
+      // 曲輪の中では森長可の先手の脇に付いて進む（遠い城兵を探して角で止まらない）。
+      const lead = F.oteSpear?.real?.units.filter((u) => u.alive) || [], c = lead.length ? lead : [rt.player.u];
+      let x = 0, z = 0; for (const u of c) { x += u.pos.x; z += u.pos.z; }
+      g.order = 'hold'; g.aggro = 10; g.anchor = { x: x / c.length + 2, z: z / c.length + sgn * 3 };
+    } else if (open) {
+      g.brawlStage = 2; g.order = 'path'; g.path = [[84, sgn * 2], [79, 0], [74.5, 0], [66, -6]]; g.pathIdx = 0; g.speed = 3.2;
+      g.onArrive = (gg) => { gg.brawlStage = 3; gg.order = 'hold'; gg.anchor = { x: 66, z: -6 }; };
+    } else if (!g.brawlStage && !foe.units.some((u) => u.alive && !u.fleeing)) {
+      g.brawlStage = 1; g.order = 'hold'; g.anchor = { x: 89, z: sgn * 7.5 }; g.aggro = 3; g.focus = null;
+    }
+  }
+}
+
 // 二ノ丸の板葺きの小屋（詰所の向かい）。門と門を結ぶ道・戸口は空ける。位置は推定。
 function takatoNinomaruHouses(rt) {
   for (const [x, z, w, d, r] of [[7, -26, 7, 4, .02], [-8, -27, 6, 4, -.03], [8, 27, 6, 4, .04]])
@@ -1299,6 +1346,7 @@ takato.setup = function (rt) {
   takatoMoatWater(rt);
   takatoCutSkin(rt);
   takatoWallStep(rt);
+  takatoGateBrawl(rt);
   takatoSakura(rt);
   { const kb = makeKitBatch(); takatoMoatEdge(rt, kb); finalizeKitBatch(rt, kb); }
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。
@@ -1710,6 +1758,7 @@ takato.guideAssault = function (rt) {
 
 takato.update = function (rt, dt) {
   const F = rt.flags;
+  if (F.gateBrawl && (F.brawlT = (F.brawlT || 0) - dt) <= 0) gateBrawlTick(rt);
   // 下知と同じ一秒間隔。目の前で戦う間は、四十メートル先の角へ戻せと言わない。
   if (F.stageCheck <= dt) {
     const p = rt.player.u;

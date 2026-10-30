@@ -4,7 +4,7 @@ import { leafTex, barkTex, alphaTex, stoneTex } from './nature.js';
 import * as THREE from 'three';
 import { liteMat, sway, farTreeLit, nearTreeLit, leafLit, nearLeafLit, treeTriangles, treeCards, scaleTreePart, treeTextureKind, treeCardDepth, treeLeafMap, grassLit, grassAlpha, keepAlpha, riceLit } from './world_vegetation_materials.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { S as SETTINGS } from './settings.js';
+import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { rockShape, groundRocks } from './rock_shape.js';
 
 
@@ -189,9 +189,11 @@ export class WorldVegetation {
       const material = lightCedar && far && kind === 'cedar'
         ? new THREE.MeshLambertMaterial(opts)
         : liteMat({ ...opts, roughness: 0.9, metalness: 0, envMapIntensity: 0.35 });
-      const mat = treeHaze(sway(material, amp, 2.5, { after: cards ? far ? farTreeLit : nearTreeLit : far ? leafLit : nearLeafLit }));
+      // 携帯（MEM_TIGHT）は縁を柔らかく抜く重ね描き（alphaToCoverage）を使わない：iPhone で森の多い戦の fps が落ちた（10/30 測り foliage2_c）
+      const softLeaf = !far && !cards && !MEM_TIGHT;
+      const mat = treeHaze(sway(material, amp, 2.5, { after: cards ? far ? farTreeLit : nearTreeLit : softLeaf ? nearLeafLit : leafLit }));
       // 近くの葉房は縁を重ね描きの濃淡で柔らかく抜く（切り絵のぎざぎざを消す。描く回数・形は増やさない）
-      if (!far && !cards) mat.alphaToCoverage = true;
+      if (softLeaf) mat.alphaToCoverage = true;
       // 近くの杉の枝房・雑木の葉房だけ写真の葉へ（遠くの一枚絵は手描きのまま）。
       if (!far && !cards && LEAF_PHOTO[kind]) { mat.userData.leafPhoto = kind; leafPhoto([mat], kind); }
       if (leafMaterials) leafMaterials.set(key, mat);
@@ -463,7 +465,7 @@ export class WorldVegetation {
         const tr = capless(new THREE.CylinderGeometry(0.16 * trunkScale, 0.32 * trunkScale, H, 7), !winter, true); tr.translate(0, H / 2, 0); bark.push(tr);
         for (let k = 0; k < 3; k++) { const a = T() * 6.28; const br = new THREE.CylinderGeometry(0.06, 0.12, 2.2, 5); br.rotateZ(0.8); br.rotateY(a); br.translate(Math.cos(a) * 0.6, H * 0.85, -Math.sin(a) * 0.6); bark.push(br); }
         // 葉の塊の中へ伸びる上の枝。葉の隙間から枝が見え隠れし、幹の上に丸い塊が浮いて見えないように（乱数は使わない）。
-        if (!winter) for (let k = 0; k < 3; k++) {
+        if (!winter && !MEM_TIGHT) for (let k = 0; k < 3; k++) {   // 携帯は葉の塊の中の枝を省く（ほぼ葉に隠れる。三角を減らす）
           const a = k * 2.1 + H, br = capless(new THREE.CylinderGeometry(0.035, 0.08, 2.6, 4), true, true);
           br.rotateZ(0.95); br.rotateY(a); br.translate(Math.cos(a) * 0.95, H + 0.7, -Math.sin(a) * 0.95); bark.push(br);
         }

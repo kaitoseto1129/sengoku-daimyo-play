@@ -15,7 +15,7 @@ function chainVisible(o, scene) {
 }
 function attrKey(g) {
   const names = Object.keys(g.attributes).sort();
-  return names.map((n) => { const a = g.attributes[n]; return n + ':' + a.itemSize + ':' + (a.normalized ? 1 : 0) + ':' + a.array.constructor.name; }).join(',') + (g.index ? '+i' : '');
+  return names.map((n) => { const a = g.attributes[n]; return n + ':' + a.itemSize + ':' + (a.normalized ? 1 : 0) + ':' + (a._gpuRef ? a._gpuRef.ctor.name : a.array.constructor.name); }).join(',') + (g.index ? '+i' : '');
 }
 function candidate(o, mat) {
   if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || o.isBatchedMesh || !o.visible) return false;

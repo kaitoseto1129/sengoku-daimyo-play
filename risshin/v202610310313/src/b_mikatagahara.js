@@ -541,9 +541,10 @@ function winterGround(W) {
     // 夕焼けは西だけの細い線にせず、北を向いた持ち場からも空の下半分が橙から黄に見えるよう広く敷く（10番の物差し③）。
     vec2 dh = normalize(d.xz + 0.0001);
     float wSide = dot(dh, normalize(vec2(-1.0, 0.72))) * 0.5 + 0.5, wPow = wSide * wSide;
-    float hz = max(d.y, 0.0);
-    vec3 dusk = mix(vec3(0.95, 0.5, 0.2), vec3(0.94, 0.74, 0.38), smoothstep(0.03, 0.24, hz));
-    c = mix(c, dusk * (0.7 + 0.3 * wPow), (1.0 - smoothstep(0.05, 0.55, hz)) * (0.62 + 0.3 * wPow) * mikataSunset);
+    // 10/30：共通の空の描き方に同じ名の hz があり、二度目の宣言で空の絵が作れず、空が霧の褐色の一色だった（空が褐色）。名を分ける。
+    float mhz = max(d.y, 0.0);
+    vec3 dusk = mix(vec3(0.95, 0.5, 0.2), vec3(0.94, 0.74, 0.38), smoothstep(0.03, 0.24, mhz));
+    c = mix(c, dusk * (0.7 + 0.3 * wPow), (1.0 - smoothstep(0.05, 0.55, mhz)) * (0.62 + 0.3 * wPow) * mikataSunset);
     float west = pow(max(0.0, dot(dh, normalize(vec2(-1.0, 0.72)))), 3.0) * exp(-abs(d.y - 0.03) * 10.0);
     c += vec3(0.5, 0.2, 0.06) * west * mikataSunset;
     gl_FragColor = vec4(c, 1.0);`);
@@ -2009,6 +2010,10 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     });
     winterGround(W);
     applyLook(rt, WINTER_DUSK);
+    // 開戦25秒の乱戦（10/30）：小山田の先手は始めから平手の列の前30mの野に構える（出る所が目の前で湧かないよう、始めに置く）。
+    // 目の前の乱戦で重くならないよう、足軽を六人減らす（iPhone の真似で fps を前とそろえる）。寄せは first() で始める。
+    F.w1 = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '武田の先手', anchor: { x: HIRATE_POST.x - 6, z: LINE_Z - 32 }, facing: 0, order: 'hold', seekRange: 8, aggro: 6, width: 18, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1, formation: 'yari' },
+      depthLook(rt, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 + more(rt, 0.4) }, { type: 'bow', n: 4 }], TAKEDA));
     rt.setPhase('brief');
     rt.obj('main', '目の前の槍の持ち場へ進め', 'main', true);
     rt.banner('夕暮れの三方ヶ原', '浜松を出た味方の前に、武田の大軍');
@@ -2061,7 +2066,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.after(3, () => { if (!F.ending && F.step === 1) F.cl.arrows('B'); });
     });
     // 小山田の先手の位置から寄せる。
-    F.w1 = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '武田の先手', anchor: { x: 0, z: TAKEDA_HQ_Z + OYAMADA_FRONT }, facing: 0, order: 'attack', seekRange: 120, aggro: 16, width: 18, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1, formation: 'yari' },
+    // 開戦25秒の乱戦（10/30）：先手は始めから平手の列の前に構えて見えている（setup）。ここで寄せに替える
+    if (F.w1 && !gone(F.w1)) { F.w1.order = 'attack'; F.w1.seekRange = 120; F.w1.aggro = 16; }
+    else F.w1 = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '武田の先手', anchor: { x: 0, z: TAKEDA_HQ_Z + OYAMADA_FRONT }, facing: 0, order: 'attack', seekRange: 120, aggro: 16, width: 18, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1, formation: 'yari' },
       depthLook(rt, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 + more(rt, 0.4) }, { type: 'bow', n: 4 }], TAKEDA));
     // 敵の寄せる合図は、正面の先手から届く。味方への突撃命令にしない。
     rt.army.playFar('sig_kakari', F.w1.anchor, 1);

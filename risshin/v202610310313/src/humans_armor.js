@@ -2,6 +2,7 @@
 import { HUM, preparationFrame, prepBody, prepHead, prepHeadMH, v0, v1, v2, SRC, qualityKeeper, attachBody, isNamed, isSohei, restMatrix, humanBoneMap } from './humans_shared.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { assetBytes, texOr, textureAtMost } from './bin_assets.js';
+import { OKE_VAR } from './gusoku_vars.js';
 import * as THREE from 'three';
 import { S as SETTINGS } from './settings.js';
 // 模様と色を保ち、鉄・布・革を共通の軽い照明で描く。形と骨には触れない。
@@ -693,6 +694,26 @@ float dmVn(vec3 x) {
   return mix(mix(mix(dmHb(i), dmHb(i + vec3(1,0,0)), f.x), mix(dmHb(i + vec3(0,1,0)), dmHb(i + vec3(1,1,0)), f.x), f.y),
              mix(mix(dmHb(i + vec3(0,0,1)), dmHb(i + vec3(1,0,1)), f.x), mix(dmHb(i + vec3(0,1,1)), dmHb(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
+// 素懸の小札（足軽）：横の段は 3.6cm、札は幅 1.5cm（段ごとに半枚ずらす）、二本の縦糸の組を 5.4cm ごと。糸は撚りの斜めの目。
+// 画素より細かい所は平均の色へ（遠くでちらつかせない）。h は凹凸、laceM は糸の所
+vec3 dmSugake(vec3 q, float rad, vec3 lacC, vec3 laceC, out float h, out float laceM) {
+  float s = atan(q.x, q.z + 0.03) * rad;
+  float rv = q.y / 0.036, tr = fract(rv), row = floor(rv);
+  float det = 1.0 - smoothstep(0.35, 0.8, max(fwidth(s / 0.015), fwidth(rv) * 2.5));
+  float rowS = mix(0.52, 1.08, smoothstep(0.0, 0.22, tr)) * (1.0 + 0.25 * smoothstep(0.8, 0.95, tr) * (1.0 - smoothstep(0.95, 1.0, tr)));
+  float ks = s / 0.015 + row * 0.5, kc = fract(ks);
+  float seam = 1.0 - smoothstep(0.0, 0.09, min(kc, 1.0 - kc));
+  float kv = fract(sin(floor(ks) * 12.9898 + row * 78.233) * 43758.5453);
+  vec3 col = lacC * mix(0.92, 0.8 + 0.4 * kv, det) * mix(0.86, rowS * (1.0 - 0.45 * seam), det);
+  float lp = fract(s / 0.054 + 0.5) * 0.054;
+  float d = min(abs(lp - 0.0225), abs(lp - 0.0315));
+  float th = 1.0 - smoothstep(0.0017, 0.0017 + max(fwidth(s), 1e-5) * 1.2, d);
+  float tw = 0.72 + 0.28 * sin(q.y * 1500.0 + lp * 1100.0);
+  laceM = mix(0.12, th, det);
+  col = mix(col, laceC * mix(1.0, tw, det) * (0.8 + 0.2 * smoothstep(0.0, 0.25, tr)), laceM);
+  h = ((smoothstep(0.0, 0.22, tr) - 0.6) * 0.1 - seam * 0.03 + th * 0.05) * det;
+  return col;
+}
 vec3 dmBump(vec3 sp, vec3 sn, vec2 dH, float fd) {
   vec3 sx = dFdx(sp), sy = dFdy(sp);
   vec3 R1 = cross(sy, sn), R2 = cross(sn, sx);
@@ -712,7 +733,9 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   // 具足の作り分け（kacchu_data.js の名のある武将）：kozaneColor は胴・袖の小札の漆の色だけを変える（兜の色は変えない）。
   //   plateDo は胴の前後を一枚の板に描く（nanban：鎬の立つ南蛮胴・hotoke：鎬の無い仏胴・sendai：五段の横矧に鋲の仙台胴）。silver は金具を銀に
   const nk0 = namedKacchu(look);
-  const tint = armorTint(nk0?.kozaneColor ?? look.kozaneColor ?? look.armor);
+  let tint = armorTint(nk0?.kozaneColor ?? look.kozaneColor ?? look.armor);
+  // 足軽の作り分け（okeVar）は、家の茶の具足色で全員を塗りつぶさない（赤備えの朱だけは家の色を守る）
+  if (look.okeVar != null && tint) { const th = tint.getHSL({}); if (!(th.s > 0.5 && (th.h < 0.035 || th.h > 0.95))) tint = null; }
   const plate = { nanban: 1, hotoke: 2, sendai: 3 }[nk0?.plateDo ?? look.plateDo] || 0;
   const silver = !!(nk0?.silver ?? look.silver);
   // noHead：true は兜と顔を描かない。'helm' は兜（鉢・錣・吹返し・眉庇）を残し、人形の顔と面頬だけを抜く（名のある武将：スキャンの兜に、その人の顔と前立）
@@ -724,17 +747,19 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   const okeMon = oke && look.mon ? (monDecal(look.mon, 0xc9a24a) || {}).material?.map || null : null;
   // 本の御貸具足の胴は明るい革・茶の漆。足軽の胴の色（貸し具足の革色）が明るい時はその色で桶側の板を塗る（黒い胴に沈ませない。同じ足軽は一つの材質）
   const okeLight = oke && !tint && look.armor != null && new THREE.Color(look.armor).getHSL({}).l > 0.3 ? new THREE.Color(look.armor) : null;
-  const okeC = okeLight ? `vec3(${[okeLight.r, okeLight.g, okeLight.b].map((v) => (v * 0.68).toFixed(4)).join(', ')})` : 'vec3(0.19, 0.105, 0.055)';
+  const ov = oke && look.okeVar != null ? OKE_VAR[look.okeVar] : null;
+  const ovC = ov ? new THREE.Color(ov.armor) : null;
+  const okeC = ov ? new THREE.Vector3(ovC.r, ovC.g, ovC.b) : okeLight ? new THREE.Vector3(okeLight.r * 0.68, okeLight.g * 0.68, okeLight.b * 0.68) : new THREE.Vector3(0.19, 0.105, 0.055);
   // 毛引威の人（名のある武将は kacchu_data.js の胴の作り、ほかの侍は侍大将より上）：黒漆の胴を、美術館の本物の毛引威の写真（CC0）でその人の威の色に描き替える
   // 写真の毛引の段を重ねるか（DOMARU.kebiki）
   const nk = namedKacchu(look), kebiki = DOMARU.kebiki && !oke && (nk ? nk.doStyle === 'kebiki' : (look.tier || 0) >= 2 && (look.doStyle || 'kebiki') === 'kebiki');
-  const kk = k + (oke ? '|oke' + (okeMon ? ':' + look.mon : '') + (okeLight ? ':' + okeLight.getHex() : '') : '') + (kebiki ? '|kb' : '');
+  const kk = k + (oke ? '|oke' + (okeMon ? ':' + look.mon : '') + (okeLight ? ':' + okeLight.getHex() : '') + (ov ? ':v' + look.okeVar : '') : '') + (kebiki ? '|kb' : '');
   if (dmMats.has(kk)) return dmMats.get(kk);
   // 両面で描き、裏（甲冑の内側）は暗く塗る：腕を上げた時の脇など、スキャンに写っていない所が、抜けずに暗い隙間に見える
   const m = armorMaterial({ map: detailed ? DM.col : DM.crowdCol, normalMap: DM.nrm, normalScale: new THREE.Vector2(0.55, 0.55), roughness: 0.55, metalness: 0.15, envMapIntensity: 0.9, side: THREE.DoubleSide }, detailed);
   const simple = m.isMeshPhongMaterial;
   if (m.isMeshPhongMaterial) m.shininess = 46;   // 漆の照りは細く鋭く（強さは絵の材の見分けで画素ごとに）
-  const U = { uLace: { value: lace }, uLaceAmt: { value: blueLace ? 0 : 1 }, uArm: { value: tint || new THREE.Color(0) }, uArmAmt: { value: tint ? 1 : 0 }, uWV: { value: new THREE.Vector4(...(DM_WEAR[wv] || DM_WEAR[0])) }, uOkeMon: { value: okeMon }, uSilver: { value: silver ? 1 : 0 } };
+  const U = { uLace: { value: lace }, uLaceAmt: { value: blueLace ? 0 : 1 }, uArm: { value: tint || new THREE.Color(0) }, uArmAmt: { value: tint ? 1 : 0 }, uWV: { value: new THREE.Vector4(...(DM_WEAR[wv] || DM_WEAR[0])) }, uOkeMon: { value: okeMon }, uOkeC: { value: okeC }, uOkeSug: { value: ov ? ov.sug : 0 }, uOkeWear: { value: ov ? ov.wear : 0.5 }, uSilver: { value: silver ? 1 : 0 } };
   const hi = noHead ? humanBoneMap(DM.bones, domaruInverses())[DM.bones.indexOf('Head')] : -1;
   m.onBeforeCompile = (sh) => {
     unitContour(sh);
@@ -771,7 +796,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         }
         #endif
         vDmGlove = vec2(smoothstep(0.35, 0.75, handWeight), smoothstep(0.15, 0.7, normal.z));`);
-    sh.fragmentShader = (okeMon ? 'uniform sampler2D uOkeMon;\n#define OKE_MON\n' : '') + 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime, uSilver;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nvarying vec2 vDmGlove;\nfloat dmCloth, dmGold, dmLacq, dmLeather, dmH, dmWv, dmEdge, dmDust, dmPlate = 0.0, dmLaceM = 0.0, dmRowH = 0.0;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    sh.fragmentShader = (okeMon ? 'uniform sampler2D uOkeMon;\n#define OKE_MON\n' : '') + 'uniform vec3 uLace, uArm, uOkeC;\nuniform float uOkeSug, uOkeWear, uLaceAmt, uArmAmt, uWet, uGrime, uSilver;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nvarying vec2 vDmGlove;\nfloat dmCloth, dmGold, dmLacq, dmLeather, dmH, dmWv, dmEdge, dmDust, dmPlate = 0.0, dmLaceM = 0.0, dmRowH = 0.0;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       {
         // スキャンの絵は博物館の暗い照明で撮られているので、少し明るく戻す
         diffuseColor.rgb = min(diffuseColor.rgb * 1.55, vec3(1.0));
@@ -996,17 +1021,31 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
         // 御貸具足の桶側胴：胴の高さの前後だけ（腕・草摺・袖は胴丸のまま）。板は横に七段、上の縁に鋲、下の縁は重なりの影
         vec3 q = vDmP;
         float okeM = smoothstep(0.215, 0.19, abs(q.x)) * smoothstep(0.955, 0.985, q.y) * smoothstep(1.40, 1.37, q.y) * (1.0 - vDmGlove.x) * (gl_FrontFacing ? 1.0 : 0.0);
-        if (okeM > 0.0) {
+        // 使い込みの擦れ：漆が薄れて下地の茶が覗く所（人の作り分けごとに多い少ない）
+        float okeScuff = smoothstep(0.74, 0.93, dmVn(q * vec3(85.0, 26.0, 85.0) + uOkeWear * 7.0) * 0.7 + dmVn(q * 240.0 + 3.0) * 0.3) * uOkeWear;
+        if (okeM > 0.0 && uOkeSug > 0.5) {
+          // 素懸の小札の胴（人の作り分けの二通り）
+          vec3 sb = uArmAmt > 0.5 ? uArm * 0.8 : uOkeC;
+          float sh0, sl0;
+          vec3 sc = dmSugake(q, 0.21, sb, uLace * 0.85, sh0, sl0);
+          sc = mix(sc, vec3(0.2, 0.12, 0.07), okeScuff * 0.55 * (1.0 - sl0));
+          diffuseColor.rgb = mix(diffuseColor.rgb, sc, okeM);
+          dmLacq = mix(dmLacq, (1.0 - sl0) * (1.0 - okeScuff * 0.6), okeM); dmCloth = mix(dmCloth, sl0, okeM); dmLeather *= 1.0 - okeM; dmGold *= 1.0 - okeM;
+          dmH = mix(dmH, sh0, okeM);
+        } else if (okeM > 0.0) {
           float pv = (q.y - 0.97) / 0.055, t = fract(pv), row = floor(pv);
-          vec3 base = uArmAmt > 0.5 ? uArm * 0.8 : ${okeC};   // 本の桶側胴の茶の漆（黒く沈ませない）
+          vec3 base = uArmAmt > 0.5 ? uArm * 0.8 : uOkeC;   // 本の桶側胴の漆（人ごとに黒・茶・朱）
           base *= 0.9 + 0.2 * fract(sin(row * 12.9898 + 4.1) * 43758.5453);
-          float shade = mix(0.28, 1.0, smoothstep(0.0, 0.2, t)) * (1.0 + 0.8 * smoothstep(0.82, 0.94, t) * (1.0 - smoothstep(0.94, 1.0, t)));
-          vec2 rv = vec2(fract(atan(q.x, q.z) * 4.2) - 0.5, (t - 0.88) * 2.2);
-          float rivet = 1.0 - smoothstep(0.07, 0.12, length(rv));
+          // 打ち出しの鉄の板の槌目（細かな明暗のむら）
+          base *= 0.9 + 0.2 * dmVn(q * vec3(160.0, 60.0, 160.0));
+          float shade = mix(0.45, 1.0, smoothstep(0.0, 0.2, t)) * (1.0 + 0.6 * smoothstep(0.82, 0.94, t) * (1.0 - smoothstep(0.94, 1.0, t)));
+          vec2 rv = vec2((fract(atan(q.x, q.z) * 6.4) - 0.5) * 1.5, (t - 0.88) * 3.0);
+          float rivet = 1.0 - smoothstep(0.07, 0.11, length(rv));
           // 本の御貸具足の胴：茶の漆の上に、擦れた金の斑（金箔押しの剥げ）
           float gm = smoothstep(0.5, 0.82, dmVn(q * 26.0) * 0.65 + dmVn(q * 70.0 + 2.3) * 0.35);
           vec3 col = mix(base, vec3(0.3, 0.22, 0.1), gm * 0.3) * shade + vec3(0.07, 0.05, 0.032) * rivet;
           col = mix(col, vec3(0.12, 0.07, 0.038), smoothstep(0.95, 1.0, t) * 0.55);
+          col = mix(col, vec3(0.2, 0.12, 0.07), okeScuff * 0.5);
           float monA = 0.0;
           #ifdef OKE_MON
           vec2 mu = vec2(q.x / 0.15 + 0.5, (q.y - 1.2) / 0.15 + 0.5);
@@ -1014,9 +1053,21 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
           col = mix(col, vec3(0.5, 0.34, 0.1), monA);
           #endif
           diffuseColor.rgb = mix(diffuseColor.rgb, col, okeM);
-          dmLacq = mix(dmLacq, 1.0 - monA, okeM); dmCloth *= 1.0 - okeM; dmLeather *= 1.0 - okeM;
+          dmLacq = mix(dmLacq, (1.0 - monA) * (1.0 - okeScuff * 0.6), okeM); dmCloth *= 1.0 - okeM; dmLeather *= 1.0 - okeM;
           dmGold = mix(dmGold, max(monA, gm * 0.2), okeM);   // 金の剥げは控えめに（金色の玩具に見えた。10/28）
           dmH = mix(dmH, (smoothstep(0.0, 0.18, t) - 0.5) * 0.12, okeM);
+        }
+        // 草摺：スキャンの黒い板の上に、細かな素懸の小札（札の目・二本の縦糸・撚り）。漆の色は人ごと
+        float kusM = smoothstep(0.69, 0.72, q.y) * (1.0 - smoothstep(0.93, 0.955, q.y)) * smoothstep(0.32, 0.29, abs(q.x)) * (1.0 - vDmGlove.x)
+          * smoothstep(0.1, 0.35, dmLacq + dmLaceM) * (gl_FrontFacing ? 1.0 : 0.0);
+        if (kusM > 0.0) {
+          float kh, kl;
+          vec3 kb = (uArmAmt > 0.5 ? uArm * 0.8 : uOkeC) * mix(1.0, 0.75, uOkeSug);
+          vec3 kc = dmSugake(q + vec3(0.0, 0.006, 0.0), 0.25, kb, uLace * 0.85, kh, kl);
+          kc = mix(kc, vec3(0.2, 0.12, 0.07), okeScuff * 0.5 * (1.0 - kl));
+          diffuseColor.rgb = mix(diffuseColor.rgb, kc, kusM);
+          dmLacq = mix(dmLacq, (1.0 - kl) * (1.0 - okeScuff * 0.6), kusM); dmCloth = mix(dmCloth, kl, kusM); dmGold *= 1.0 - kusM; dmLeather *= 1.0 - kusM;
+          dmH = mix(dmH, kh, kusM);
         }
         // 腕：本の足軽は大袖の漆でなく、茶の布の籠手（紺は使わない）（腕・袖の所の漆を紺の布に。手は除く）
         float armM = smoothstep(0.205, 0.235, abs(q.x)) * smoothstep(0.92, 0.97, q.y) * (1.0 - smoothstep(1.5, 1.56, q.y) * smoothstep(0.27, 0.25, abs(q.x))) * (1.0 - vDmGlove.x) * (gl_FrontFacing ? 1.0 : 0.0);
@@ -1187,10 +1238,14 @@ function dressDomaru(h, noHead = false) {
   // 一般兵は足軽も武者も頭を除いた中精細スキャンを共有する。
   h.loanedDomaru = noHead === true && !detailed;
   const variant = detailed ? Math.floor(((h.seed || 0) * 5.37) % 1 * 4) : 0;
-  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, domaruMaterial(h.look, noHead, variant, detailed));
+  // 足軽の御貸具足は、人ごとに六通りの漆・威糸・胴の作り・傷みから選ぶ（同じ人が並んで見えないように）
+  const L0 = h.look, okeLook = (L0.tier || 0) === 0 && !L0.kacchu && !L0.nanban && L0.doStyle !== 'sugake' && !h.u?.name && L0.face !== 'player';
+  const ovi = ((L0.vi || 0) % 6 + 6) % 6;
+  const lk = okeLook && L0.loanWorn ? { ...L0, okeVar: ovi, lace: OKE_VAR[ovi].lace } : L0;
+  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, domaruMaterial(lk, noHead, variant, detailed));
   m.userData.surfaceBase = m.material;
   // 一般兵の凹凸と汚れはスキャンの絵・法線で描く。画素ごとの多重雑音は本人・武将だけ。
-  m.userData.surfaceFine = detailed ? domaruMaterial(h.look, noHead, variant, true) : m.material;
+  m.userData.surfaceFine = detailed ? domaruMaterial(lk, noHead, variant, true) : m.material;
   m.bind(sk, new THREE.Matrix4());
   // 一般兵の影は、元からある具足の一体形で描く。胴丸の影は追加しない。
   m.castShadow = !h.loanedDomaru; m.receiveShadow = true;

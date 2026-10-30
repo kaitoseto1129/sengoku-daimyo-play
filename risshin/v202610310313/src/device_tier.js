@@ -11,6 +11,10 @@ const q = typeof location !== 'undefined' ? location.search : '';
 function detect() {
   if (/[?&]weak=1/.test(q)) return 'url';
   if (/[?&]weak=0/.test(q)) return '';
+  // 実機の試し：-autoplay x_weak,… は落ちた後の弱い作りで遊ぶ（前の日の実機の数と同じ条件で比べる）
+  if (typeof window !== 'undefined' && /\bx_weak\b/.test(String(window.__autoplay || ''))) return 'url';
+  // 実機の試し：-autoplay x_fresh,… は前に落ちた印を消して、初めての人と同じ作りで遊ぶ
+  try { if (typeof window !== 'undefined' && /\bx_fresh\b/.test(String(window.__autoplay || ''))) localStorage.removeItem('risshin-weak'); } catch (e) { /* 保存が無ければそのまま */ }
   try { if (localStorage.getItem('risshin-weak') === '1') return 'crashed'; } catch (e) { /* 保存が無くても見分ける */ }
   if (typeof navigator === 'undefined' || typeof screen === 'undefined') return '';
   const ua = navigator.userAgent || '';

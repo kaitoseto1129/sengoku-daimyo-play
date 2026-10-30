@@ -1,4 +1,7 @@
-import { namedKacchu, namedArmorLook, namedArmorGeometry } from './named_kacchu.js';
+import { namedKacchu, namedArmorLook as namedArmorLook0, namedArmorGeometry } from './named_kacchu.js';
+import { loanWear } from './gusoku_vars.js';
+// 名の無い足軽は、人の作り分けごとに御貸具足の漆・威糸・汚れを変える（gusoku_vars.js）
+const namedArmorLook = (look) => loanWear(namedArmorLook0(look));
 import { spearReach } from './weapon_reality.js';
 import { takedaHead, takedaShin } from './takeda_kiba.js';
 // 見た目の組み立て（lookParts・buildModel）：兵種と家から、頭・胴・手足・得物を選んで一人の形にする

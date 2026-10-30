@@ -6,7 +6,7 @@ import { prepHorse, HORSE, HORSE_Q, HR, PX_HORSE_K, proxyLo, _pxOff } from './hu
 import { horseMaterials, _lin } from './humans_horse_materials.js';
 import { HORSE_HOOK } from './units.js';
 import { driveHorse, placeHorseExtras } from './humans_horse_animate.js';
-import { S } from './settings.js';
+import { S, MEM_TIGHT } from './settings.js';
 import { makeRealHorse, dressHorse, tackGeometry, colGeo, tf, strap, mergeG } from './humans_horse_tack.js';
 import { preparationFrame } from './humans_shared.js';
 import { MK } from './units_model.js';
@@ -227,6 +227,7 @@ function detachReal(h) {
 const horsesOn = new Set();
 const horseCandidates = [];
 const horseWanted = new Map();
+const HORSE_TIGHT = { near: 36, far: 40, max: 16, must: 28, mustMax: 28 };
 let madeHorses = 0;
 function updateHorses(rt) {
   madeHorses = 0;
@@ -237,7 +238,8 @@ function updateHorses(rt) {
     const cam = rt.camera, cx = cam.position.x, cz = cam.position.z;
     // 馬の見た目は画質に関わらず写実。だが何頭を骨の入った馬にするかは、人と同じく画質なり（10/2 測って直す：
     //   姉川の騎馬で、携帯でも 40m の内の十頭あまりが一頭 2〜9万面・20〜37 回の描きのまま並び、一コマの三分の一を食っていた）
-    const HQ = HORSE_Q.high;
+    // iPhone（MEM_TIGHT）は骨の入った馬を十六頭・32m の内でも二十八頭まで（設楽原の武田の騎馬の突撃で六十頭まで本物の馬になり、WebContent が落ちた 10/30）。その先は今の形の馬（写実の形）で描く
+    const HQ = MEM_TIGHT ? HORSE_TIGHT : HORSE_Q.high;
     const cand = horseCandidates; cand.length = 0;
     let pxMade = 0;
     // 同じコマに毛色別の形をまとめて作らない。本人を先に、残りは一頭ずつ次のコマへ。

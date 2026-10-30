@@ -315,19 +315,20 @@ function retreatGroundDetail(rt) {
         vec3 grass = texture2D(tGrass, p.xz * 0.23).rgb;
         vec3 mud = texture2D(tMud, p.xz * 0.23).rgb;
         // 一枚の茶にしない：大きな斑で草の生えた所と踏んだ土を混ぜる。
-        float kgGreen = smoothstep(0.38, 0.62, texture2D(tMacro, p.xz * 0.0125 + 0.11).r) * smoothstep(0.55, 0.85, n.y);
+        float kgM = texture2D(tMacro, p.xz * 0.0125 + 0.11).r;
+        float kgGreen = smoothstep(0.38, 0.62, kgM) * smoothstep(0.55, 0.85, n.y);
         float kgBare = smoothstep(0.55, 0.75, texture2D(tMacro, p.xz * 0.019 + 0.63).r);
         w = mix(w, vec3(0.85, 0.15, w.z), kgGreen * (1.0 - w.z));
         w = mix(w, vec3(0.1, 0.9, w.z), kgBare * (1.0 - kgGreen) * (1.0 - w.z) * 0.8);
         w /= max(0.001, w.x + w.y + w.z);
-        float kgPatch = mix(0.7, 1.18, texture2D(tMacro, p.xz * 0.023 + 0.37).r)
+        float kgPatch = mix(0.62, 1.24, texture2D(tMacro, p.xz * 0.023 + 0.37).r)
           * mix(0.86, 1.08, texture2D(tMacro, p.xz * 0.071 + 0.19).r)
           // 坂が一枚の板に見えないよう、一歩ほどの細かな明暗（落ち葉と土の斑）も重ねる（10/29）
           * mix(0.88, 1.06, texture2D(tMacro, p.xz * 0.21 + 0.53).r);
         vec3 kgCol = (grass * w.x + soil * w.y + mud * w.z) * kgPatch;
         // 一色の緑にしない（10/30 点付け）：去年の落ち葉の溜まる褐色の斑・踏まれた土の斑・若草の斑を、
         //   人の背丈ほどの大きさで混ぜる。落ち葉の斑の中は一枚ずつの葉ほどの細かな明暗も重ねる。
-        float kgLitter = smoothstep(0.47, 0.6, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.35, 0.7, n.y);
+        float kgLitter = smoothstep(0.44, 0.58, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.2, 0.55, n.y);
         float kgLeafGrain = texture2D(tMacro, p.xz * 0.9 + 0.13).r * 0.6 + texture2D(tMacro, p.xz * 2.3 + 0.41).r * 0.4;
         vec3 kgLeaf = mix(vec3(0.24, 0.14, 0.07), vec3(0.54, 0.34, 0.16), kgLeafGrain) * mix(0.8, 1.1, texture2D(tMacro, p.xz * 0.13 + 0.29).r);
         kgCol = mix(kgCol, kgLeaf, kgLitter * 0.88 * (1.0 - w.z));
@@ -335,10 +336,12 @@ function retreatGroundDetail(rt) {
         kgCol = mix(kgCol, soil * vec3(0.92, 0.84, 0.74), kgSoil * 0.6);
         float kgMoss = smoothstep(0.6, 0.78, texture2D(tMacro, p.xz * 0.053 + 0.21).r) * (1.0 - kgLitter) * (1.0 - kgSoil);
         kgCol = mix(kgCol, grass * vec3(0.72, 0.92, 0.56), kgMoss * 0.65);
+        // 緑の一色にしない（10/30 点付け）：数十歩の大きさで、青い若草の所と黄ばんだ枯れ草の所の色みを替える（読み出しは足さない）
+        kgCol *= mix(vec3(0.9, 1.05, 0.84), vec3(1.07, 1.0, 0.85), kgM);
         diffuseColor.rgb *= kgCol * (1.0 - uWet * 0.18);
       `);
   };
-  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉';
+  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉2';
   ground.needsUpdate = true;
   const W = rt.world, resources = rt.flags.sceneryResources;
   const mat = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:1 });
@@ -2090,6 +2093,18 @@ function kgGrooves(rt, F, W, lines) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx); geo.computeVertexNormals(); geo.computeBoundingSphere();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  // 畝と溝を一枚の滑らかな板に見せない（10/30 点付け）：地面と同じ斑の絵を読み、草の株と土くれほどの明暗を重ねる（絵と物は足さない）
+  const tMacro = rt.world.groundU && rt.world.groundU.tMacro;
+  if (tMacro) {
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.tMacro = tMacro;
+      sh.vertexShader = 'varying vec3 vKgTb;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vKgTb = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform sampler2D tMacro; varying vec3 vKgTb;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        float kgTbA = texture2D(tMacro, vKgTb.xz * 0.19 + vKgTb.y * 0.07 + 0.53).r, kgTbB = texture2D(tMacro, vKgTb.xz * 0.83 + vKgTb.y * 0.3 + 0.13).r;
+        diffuseColor.rgb *= mix(0.6, 1.3, kgTbA) * mix(0.8, 1.15, kgTbB) * mix(vec3(1.12, 0.98, 0.82), vec3(0.9, 1.04, 0.92), kgTbB);`);
+    };
+    mat.customProgramCacheKey = () => 'kg_tatebori_grain';
+  }
   const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true; mesh.castShadow = true; mesh.name = 'kgTatebori';
   rt.scene.add(mesh);
   F.sceneryResources.push(geo, mat);
@@ -3026,7 +3041,8 @@ const kanegasaki = {
     // 朝倉の大軍：北の峠道と東の疋田方面。湿地・城山の中に東の列を置かない。
     // 西の追手も麓の道へ寄せ、横幅を城山の急斜面へ広げない。
     // 北の先頭だけ麓へ寄せ、最初の打ち合いまで長く待たせない。
-    F.host = [[6, -90, 18, 'asakura'], [-14, -150, 14, 'asakura'], [78, -24, 18, 'asakura']]
+    // 朝倉の先手の遠景は峠道の曲がりまで寄せる（開戦の乱戦：実兵へ引き継ぐ所を一の備の 30m ほど先に。10/30）
+    F.host = [[6, -70, 18, 'asakura'], [-14, -150, 14, 'asakura'], [78, -24, 18, 'asakura']]
       .map(([x, z, w, f], i) => DA(x, z, w, 28, 300, i === 2 ? HIKIDA_FACING : 0, ASAKURA.armor, f, 1590 + i));
     rt.scene.traverse(mesh => {
       const map = mesh.material?.map;
@@ -3056,7 +3072,7 @@ const kanegasaki = {
       rt.zone('kutsuki', KUTSUKI.x, KUTSUKI.z, KUTSUKI.r);
       rt.say('木下藤吉郎', '法螺貝と退き太鼓にござる！　追手はわしらが止めます、殿は若狭へ！', 4);
       rt.after(4, () => rt.say('織田信長', '藤吉郎、金ヶ崎に残れ。池田勝正と追手を止めよ', 3));
-      rt.after(9, () => this.wave1(rt));
+      rt.after(5, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/30。元は9秒）
       F.t0 = 0;
       return;
     }
@@ -3070,7 +3086,7 @@ const kanegasaki = {
       if (F.ending || F.fleeing || F.step > 1) return;
       rt.say('木下藤吉郎', '追手へ槍を向けよ。退けの下知で、組と次の旗へ下がれ', 3);
     });
-    rt.after(9, () => this.wave1(rt));
+    rt.after(5, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/30。元は9秒）
     F.t0 = 0;
   },
 
@@ -3106,10 +3122,14 @@ const kanegasaki = {
       rt.say('木下藤吉郎', '旗のそばで槍をそろえ、追手を止めよ', 3);
     });
     F.w1 = [
-      enemyGroup(rt, { faction: 'asakura', name: '朝倉の先手', anchor: { x: 6, z: -78 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.65, speed: 2.6 },
+      // 開戦の乱戦（10/30）：先手は峠道の曲がりで遠景から実兵に替わり、一の備の 12m 先まで駆け下りて槍とぶつかる。
+      //   兵は足さず、崩れにくく傷を浅くして、持ち場から25秒の画面に押し合い斬り合う群れを残す。
+      enemyGroup(rt, { faction: 'asakura', name: '朝倉の先手', anchor: { x: 6, z: -46 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 100, noRout: true, defMult: 1.6, fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, speed: 3.6 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], ASAKURA)),
     ];
     rt.marker('w0', centerOf(F.w1[0]), () => `朝倉の先手・旗が見える`, { red: true, group: F.w1[0] });
+    // 先手が崩れないのは最初の揉み合いの間だけ（二十五秒）。そのあとは士気の仕組みに任せる
+    rt.after(25, () => { const g = F.w1 && F.w1[0]; if (g) g.noRout = false; });
     rt.after(14, () => {
       if (rt.over || F.ending || F.step !== 1) return;
       const g = enemyGroup(rt, { faction: 'asakura', name: '朝倉の東の追手', anchor: HIKIDA_FROM, facing: HIKIDA_FACING, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 95, fleeDir: { x: 1, z: 0.3 }, dmgMult: 0.65, speed: 2.6 },
