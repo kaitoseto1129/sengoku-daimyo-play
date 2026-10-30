@@ -80,6 +80,26 @@ const KG_VIEW_TREES = [[14, -12], [18, -16], [22, -11], [26, -17], [30, -9], [34
   .map(([f, s]) => [Math.round((8 + 0.88 * f + 0.47 * s) * 10) / 10, Math.round((-30 - 0.47 * f + 0.88 * s) * 10) / 10])
   .filter(([x, z]) => distToPolyline(x, z, HIKIDA_ROAD) > 4.5 && distToPolyline(x, z, ROAD) > 5);
 const KG_FRONT_TREES = [...KG_FRONT_TREES0, ...KG_VIEW_TREES];   // 疋田の道（6歩）を空け、道の上の柵のすぐ上へ
+// 退き口の朝の薄曇り（10/30）：日差しは弱く東の低い所から、空と地の照り返しで日陰の具足を持ち上げる。
+// 開戦後に昼の見え方が当て直されても崩れないよう、見え方の作りそのものへ値を入れる。光と絵は増やさない。
+function kgOvercastMorning(W) {
+  if (W.kgLookOf) return;
+  const lookOf = W.kgLookOf = W.lookOf.bind(W);
+  W.lookOf = (key) => {
+    const L = lookOf(key);
+    if (key !== 'day' && key !== 'morning' && key !== 'noon' && key !== 'afternoon') return L;
+    L.sky.setHex(0xbfc6c6); L.fog.setHex(0xb3bab7); L.top.setHex(0x8d9ba6);
+    L.sun.setHex(0xebe7df); L.sunI = 1.3;
+    L.hemiSky.setHex(0xd0d6d8); L.hemiGround.setHex(0x6e6852); L.hemiI = 2.2 * (W.def.dayBounce || 1);
+    L.sunDir.set(75, 42, 30).normalize();   // 東（＋横）のやや南、朝の低い日
+    L.cover = 0.74; L.cloud = 0.3; L.glowK = 0.04; L.glow.setHex(0xfff0dc); L.vis = 560;
+    L.grade.exposure = 1.2; L.grade.saturation = 0.76; L.grade.contrast = 1.1; L.grade.wb = 0.22;
+    return L;
+  };
+  // 空の写真も曇りの雲（一枚を差し替えるだけ）。
+  const setSkyPhoto = W.setSkyPhoto && W.setSkyPhoto.bind(W);
+  if (setSkyPhoto) W.setSkyPhoto = (key, mood) => setSkyPhoto(key === 'day' || key === 'noon' || key === 'afternoon' ? 'after' : key, mood);
+}
 // 登城道の麓の木戸：金ヶ崎城の大手の外構え（位置・形は推定）。一の備から正面に、城の入口の冠木門と柵を見せる。
 // 柵は斜面に沿って短く切り、一束にまとめる。設営時に一度だけ。
 function kgFootGate(rt) {
@@ -3058,9 +3078,9 @@ const kanegasaki = {
       g.formation = g === F.kino || g === F.ikeda ? 'yari' : 'line';
       g.yariRanks = 3; settleRearguard(rt, g);
     }
+    // 薄曇りの白い空と柔らかい光（手本：杉の間から白い空がのぞき、影が薄い）。
+    kgOvercastMorning(W);
     rt.world.setTime('day');
-    // 薄曇りの白い空と柔らかい光（手本：杉の間から白い空がのぞき、影が薄い）。日差しを弱め、雲を厚くする。
-    W.sun.intensity *= 0.62; W.skyMat.uniforms.cover.value = Math.max(W.skyMat.uniforms.cover.value, 0.72);
     rt.setPhase('brief');
     // 攻城から撤退へ：浅井の寝返りの知らせで、織田の陣は攻めの形から総崩れ気味の退き陣へ変わる
     rt.banner('浅井が離反、全軍退け', '朝倉の追手を止め、味方を逃がせ');

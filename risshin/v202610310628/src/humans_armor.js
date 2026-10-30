@@ -645,9 +645,11 @@ function dressKabuto(h) {
 // 本物の胴丸を着る人：名のある武将と、look.real の人（侍大将より上の本人）
 // 小袖・僧衣は衣そのものが胴と腕を描く。名将でも鎧の経路へ送って中の体を隠さない。
 // 胴丸のスキャンは主人公だけの甲冑（kaito 10/27 夜「あの甲冑は主人公オンリー」）。名のある武将は kacchu_data.js のそれぞれの具足、侍も胴丸のスキャンを着ない
-function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real); }
+// 足軽の簡素な貸し具足（look.lacquer。units.js）は胴丸のスキャンを着せず、体に沿う軽い胴（units_model.js の ashiDo）で描く（kaito 10/30）
+const loanSimple = (look) => look.lacquer != null && !look.hero && (look.tier ?? 0) < 1;
+function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real) && !loanSimple(look); }
 // 近い一般兵は全員スキャンの具足。遠景は dressCrowd の元の姿を使う。
-const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look) && !isNamed(look) && (look.tier ?? 0) < 1;
+const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look) && !isNamed(look) && (look.tier ?? 0) < 1 && !loanSimple(look);
 // 着せる時の骨の立ち姿（人の根元の座標）の逆行列。腕と脚の骨は人形の腕・脚の向きへ回し、どの骨も人形の関節の位置へ
 function domaruInverses() {
   if (DM.inv) return DM.inv;

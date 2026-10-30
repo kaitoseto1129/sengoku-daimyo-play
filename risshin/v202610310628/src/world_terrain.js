@@ -7,6 +7,9 @@ import { WIND, WIND_STATE } from './world_weather.js';
 import { terrainView } from './terrain_view.js';
 import { castleMaskBlank } from './castle_mask.js';
 import { groundDetailPack } from './ground_photo.js';
+// soilTones：雨後の野（wetFieldRuts）の草・土・泥の暗い側と明るい側の色を戦ごとに替える（{ grass:[[r,g,b],[r,g,b]], dirt, mud }）。
+// 組み立て時の定数だけで、絵の読み出しと描く回数は増やさない（10/30 長島）。
+const soilTone = (def, k, i, d) => def.soilTones && def.soilTones[k] ? 'vec3(' + def.soilTones[k][i].map((v) => Number(v).toFixed(3)).join(', ') + ')' : d;
 
 
 export class WorldTerrain {
@@ -65,6 +68,8 @@ export class WorldTerrain {
       splat[k * 3] = grass / t; splat[k * 3 + 1] = dirt / t; splat[k * 3 + 2] = mud / t;
       // 水を張った田
       water[k] = this.field.wet && this.def.paddy ? this.def.paddy(x, z) : 0;
+      // puddles：踏み荒らした窪みの水たまり（見た目だけ。田の歩みや足の遅れには入れない）
+      if (this.def.puddles) water[k] = Math.max(water[k], this.def.puddles(x, z));
       // 岸の濡れは雨が止んでも残る。植生のない道・田には林床を置かない。
       let bank = 0;
       for (const st of this.def.streams || NO_STREAMS) {
@@ -90,7 +95,7 @@ export class WorldTerrain {
     // 手前の山肌が画面中央の四角い範囲で消え、空の色が露出する。
     mat.userData.camNearSolid = true;
     // 道肩の湿乾差・草の斑・濡れた踏み溝は、それぞれの指定に合う描き方を使う。
-    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}|${(this.def.dirtTint || []).join(',')}`;
+    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}|${(this.def.dirtTint || []).join(',')}|${JSON.stringify(this.def.soilTones || null)}`;
     // 通行の跡を持つ戦は無地の泥を使う。窪みと足形を残す指定の戦だけ従来の絵へ戻す。
     this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear' && !this.def.mudImprints) }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: { value: this.wearTex }, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color }, tCastle: { value: castleMaskBlank() }, uCastle: { value: new THREE.Vector4(0, 0, 0, 0) } };
     if (SETTINGS.quality !== 'high') {
@@ -220,13 +225,13 @@ export class WorldTerrain {
           // 草の下地も雨後の土と同じ明るさの範囲へ収める。
           // 素材の明るい枯草が灰白色の面を作らず、既存の粒と群落の境を残す。
           float fieldGrassGrain = clamp(dot(grass, vec3(0.333)) / max(0.003, ${SETTINGS.quality === 'high' ? 'vSoilMean.x * 0.333' : '0.12'}), 0.5, 1.65);
-          grass = mix(grass, mix(vec3(0.075, 0.095, 0.038), vec3(0.115, 0.14, 0.062), loamPatch)
+          grass = mix(grass, mix(${soilTone(this.def, 'grass', 0, 'vec3(0.075, 0.095, 0.038)')}, ${soilTone(this.def, 'grass', 1, 'vec3(0.115, 0.14, 0.062)')}, loamPatch)
             * fieldGrassGrain, 0.72);
           // 土色への補正で元の粒まで塗り潰さない。近景から中景へ写真の濃淡を残す。
           dirt = mix(dirt * vec3(0.9, 0.81, 0.66),
-            mix(vec3(0.125, 0.095, 0.06), vec3(0.18, 0.14, 0.085), loamPatch) * dirtGrain, 0.8);
+            mix(${soilTone(this.def, 'dirt', 0, 'vec3(0.125, 0.095, 0.06)')}, ${soilTone(this.def, 'dirt', 1, 'vec3(0.18, 0.14, 0.085)')}, loamPatch) * dirtGrain, 0.8);
           mud = mix(mud * vec3(0.78, 0.69, 0.55),
-            mix(vec3(0.085, 0.065, 0.043), vec3(0.125, 0.095, 0.06), loamPatch) * clayGrain, 0.8);
+            mix(${soilTone(this.def, 'mud', 0, 'vec3(0.085, 0.065, 0.043)')}, ${soilTone(this.def, 'mud', 1, 'vec3(0.125, 0.095, 0.06)')}, loamPatch) * clayGrain, 0.8);
           ` : ''}
           // 粘土の細かな塊を近景だけ重ねる。泥の広い色むらと別の縮尺にする。
           ${`

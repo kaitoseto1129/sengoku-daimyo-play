@@ -603,7 +603,7 @@ const CB = ['Hips', 'Spine1', 'Spine2', 'Head', 'LeftArm', 'LeftForeArm', 'LeftH
 // swK0..11：草摺の板一枚ずつの骨（腿に押されて板ごとに跳ね、遅れて揺れる）
 const XB = { swHips: 'Hips', swSodeP: 'Spine2', swSodeN: 'Spine2', swHaori: 'Spine2', swBack: 'Spine2', swHat: 'Head', swPole: 'Spine2', swK0: 'Hips', swK1: 'Hips', swK2: 'Hips', swK3: 'Hips', swK4: 'Hips', swK5: 'Hips', swK6: 'Hips', swK7: 'Hips', swK8: 'Hips', swK9: 'Hips', swK10: 'Hips', swK11: 'Hips' };
 // 草摺の板の並び（units.js の bodyGeometry と同じ）：足軽は五枚、侍から七枚。板の真ん中の向き（前 +z が 0）
-const kusaPlates = (L) => { const st = namedKacchu(L), np = (st?.kusazuriCount ?? L.kusazuriCount) === 12 ? 12 : (st?.domaru ?? L.domaru) ? 8 : (L.tier || 0) === 0 ? 5 : 7, off = np === 5 ? Math.PI / 5 : 0; return { np, off, c: (k) => (k / np) * Math.PI * 2 + off + Math.PI }; };
+const kusaPlates = (L) => { const st = namedKacchu(L), np = (st?.kusazuriCount ?? L.kusazuriCount) === 12 ? 12 : (st?.domaru ?? L.domaru) ? 8 : (L.tier || 0) === 0 ? (L.lacquer != null ? 4 : 5) : 7, off = np === 5 ? Math.PI / 5 : np === 4 ? Math.PI / 4 : 0; return { np, off, c: (k) => (k / np) * Math.PI * 2 + off + Math.PI }; };
 function plateOf(x, y, z, KP) {
   if (y > 0.885) return -1;   // 揺糸の帯は腰の骨のまま
   let a = Math.atan2(x, z) - KP.off - Math.PI;

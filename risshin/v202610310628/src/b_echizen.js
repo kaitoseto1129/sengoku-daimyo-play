@@ -1856,6 +1856,54 @@ echizen.setup = function (rt) {
   };
 };
 
+// 10/30：木戸の前の押し合いで、組の後ろの者を突っ立たせない（20人中1人しか動かなかった）。
+// 先手と打って出た一揆勢の徒歩の兵だけ。届く者は今までどおり斬り、届かぬ者は斬り結ぶ前の味方の背へ詰めて押し、
+// 前に味方のいない者は敵の脇へ出て槍を合わせる。兵・形・材質は足さず、行き先と見張る相手だけを替える。
+function gatePress(rt) {
+  const F = rt.flags, P = rt.player.u, A = rt.army;
+  const groups = [F.ake?.real, F.gateSally?.real];
+  if (!groups[1] || !groups[1].count || groups[1].routed) return;
+  for (const g of groups) {
+    if (!g || !g.count) continue;
+    for (const u of g.units) {
+      if (!u.alive || u.fleeing || u.mounted || u.woundOut || u.downed || u.gone || u.atk || u.swing || u.hit
+        || u.type === 'gun' || u.type === 'bow' || u.dragging) continue;
+      if (Math.abs(u.pos.x - P.pos.x) > 32 || Math.abs(u.pos.z - P.pos.z) > 32) continue;
+      const tg = u.target;
+      const foe = tg?.alive && !tg.isStruct && !tg.fleeing ? tg : A.nearestEnemy(u, 12, (o) => !o.fleeing && !o.isStruct && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 2);
+      if (!foe) continue;
+      const fx = foe.pos.x - u.pos.x, fz = foe.pos.z - u.pos.z, d = Math.hypot(fx, fz) || 1;
+      const reach = u.reach || 2;
+      if (tg === foe && d <= reach + 0.4) continue;
+      // 前で斬り結ぶ同じ組の者（敵に自分より近い者）の背へ
+      let fr = null, best = 20;
+      for (const o of g.units) {
+        if (o === u || !o.alive || o.fleeing || o.mounted || o.type === 'gun' || o.type === 'bow') continue;
+        const ot = o.swing?.target || o.atk?.target || o.target;
+        if (!ot?.alive || ot.isStruct || ot.team === o.team) continue;
+        if (Math.hypot(ot.pos.x - o.pos.x, ot.pos.z - o.pos.z) > (o.reach || 2) + 1) continue;
+        if (Math.hypot(foe.pos.x - o.pos.x, foe.pos.z - o.pos.z) > d - 0.6) continue;
+        const k = (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2;
+        if (k < best && !(o._pressBy && o._pressBy !== u && o._pressBy.alive && o._pressBy.pressBack === o)) { best = k; fr = o; }
+      }
+      const pt = u._pressPt || (u._pressPt = { x: 0, z: 0 });
+      u.watch = foe;
+      if (fr) {
+        const ot = fr.swing?.target || fr.atk?.target || fr.target;
+        const bx = fr.pos.x - ot.pos.x, bz = fr.pos.z - ot.pos.z, bl = Math.hypot(bx, bz) || 1;
+        pt.x = fr.pos.x + bx / bl * 1.05; pt.z = fr.pos.z + bz / bl * 1.05;
+        u.pressBack = fr; fr._pressBy = u;
+      } else {
+        // 前が空いている：敵の脇（左右に一歩ずらす）の間合いへ出る
+        const side = u.id % 2 ? 1 : -1, r = reach * 0.85;
+        pt.x = foe.pos.x - fx / d * r + (-fz / d) * side * 0.9; pt.z = foe.pos.z - fz / d * r + (fx / d) * side * 0.9;
+        u.pressBack = null;
+      }
+      u.moveTo = pt;
+    }
+  }
+}
+
 echizen.update = function (rt, dt) {
   // 崖や出血で先に alive が落ちた時も、共通の重傷・やり直し・結果へ渡す。
   // 兵を立たせ直さず、既に出ているやり直しの札はそのまま待つ。
@@ -1868,6 +1916,7 @@ echizen.update = function (rt, dt) {
   kinome.update.call(this, rt, dt);
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || !u.alive) return;
+  gatePress(rt);
   // 木戸を破られた郭の守りは、長くは踏みとどまらない（一揆勢は峠の奥へ退いた）。
   // 破れてから四十秒で残りを崩して奥へ退かせ、一戦を四〜七分に収める。人数と斬り合いは減らさない。
   for (const [gate, fell, key] of [[F.gateKannon, F.kannonFell, 'kannon'], [F.gateKinome, F.souFell, 'kinome_sou']]) {
