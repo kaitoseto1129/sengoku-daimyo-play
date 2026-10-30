@@ -393,7 +393,8 @@ function dressCrowd(h, P, L, only = null, look = L) {
     else {
       const e = m.matrixWorld.elements, c = cam.matrixWorld.elements;
       const d2 = (e[12] - c[12]) ** 2 + (e[13] - c[13]) ** 2 + (e[14] - c[14]) ** 2;
-      const near = false && !h.u.isPlayer ? 9 : HUM.lod;
+      // 簡素な貸し具足の足軽は 4m から軽い形（胴丸のスキャンも 3m から軽い形だった。胴・草摺・脚絆の形は遠くでも同じ寸法）
+      const near = L.lacquer != null ? 4 : HUM.lod;
       want = d2 < near * near ? (h.scanOn ? geo : faceGeo()) : (h.scanOn ? geoLo : faceLoGeo());
     }
     if (want.userData) want.userData.use = frameT0;

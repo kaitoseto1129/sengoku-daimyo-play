@@ -1448,7 +1448,9 @@ const iwamura = {
     F.rescued = true; // この戦では倒れた主人公を共通の担ぎ起こしで戦列へ戻さない。
     // ---- 水晶山砦（castles/iwamura.js。陣の柵・木戸は下の wallLine で手組みのまま＝場と地形の段だけ借りる） ----
     // 陣の平場は城の白い砂利でなく踏み土（白く光る板に見えていた。10/28）。地面の色は def.tint の陣の内で付ける
-    F.C = buildCastlePlan(rt, IWAMURA_SUISHOZAN_PLAN, { baseHeight: liftedTerrain, edgeW: 6, skipWalls: ['honjin'], life: false, floorLook: false });
+    F.C = buildCastlePlan(rt, IWAMURA_SUISHOZAN_PLAN, { baseHeight: liftedTerrain, edgeW: 6, skipWalls: ['honjin'], life: false, floorLook: false,
+      // 柵ぎわの自動の長屋は西の篝火の持ち場を囲み、肩越しの画面を板壁と屋根で塞いだ（10/30 八方の測り：72本中35〜72本が1〜6m で当たる）。陣の小屋は手置きの分だけにする
+      dense: false });
     // ---- 岩村城（外側曲輪→八幡曲輪→二の丸→主郭→本丸。土塁・切岸・木柵・木戸。本丸を総石垣にしない） ----
     F.castleC = buildCastlePlan(rt, IWAMURA_CASTLE_PLAN, { baseHeight: liftedTerrain, edgeW: 3, buildGates: true, buildTowers: true, gateTeam: 1, towerTeam: 1, life: false });
     // 城方が出入りする夜討ちの木戸は開放。見た目と通行の当たりをそろえる。
@@ -2866,7 +2868,8 @@ const iwamura = {
       const j = Math.floor(at), t = at - j, a = CHASE_PATH[j], b = CHASE_PATH[j + 1];
       const x = a[0] + (b[0] - a[0]) * t + (i % 2 ? -1 : 1) * (7 + Math.sin(i * 4.1) * 2);
       const z = a[1] + (b[1] - a[1]) * t;
-      const size = 0.3 + Math.pow((i * 0.754877666 % 1), 2) * 0.7;
+      // 柵の口から二十メートル内は小さく（夜討ちを受ける持ち場の肩越しの画面の下を岩で塞がない。10/30）
+      const size = (0.3 + Math.pow((i * 0.754877666 % 1), 2) * 0.7) * (z > FENCE_Z - 20 ? 0.45 : 1);
       // 上半分を残し、夜の地面に薄い黒い穴のような面を並べない。
       pose.position.set(x, W.heightAt(x, z) - size * 0.12, z);
       pose.rotation.set(Math.sin(i) * 0.15, i * 1.3, Math.cos(i) * 0.12);

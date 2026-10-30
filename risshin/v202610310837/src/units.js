@@ -654,8 +654,8 @@ export class Army {
     // 足軽（貸し具足）は簡素に：陣笠と胴は同じ漆の一色（軍ごとに黒・茶・朱）、籠手と袖は無し、鎧下は生成り・茶の布（kaito 10/30）
     if (loanArmor && !u.name && !look.kosode && !look.sohei && !(u.type === 'player' && fieldLook.battleKey === 'inou')) {
       const lq = ashigaruLacquer(fac, look.flag);
-      look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false;
-      look.cloth = [0x7a6a50, 0x5e4630, 0x8a7c62, 0x4a3a2a, 0x6e5a40, 0x806e52][vi];
+      look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false; look.saya = false; look.doStyle = undefined;
+      look.cloth = [0x6a5a44, 0x54422f, 0x6e6250, 0x4a3c2e, 0x605038, 0x5a5040][vi];   // 生成り・茶の褪せた布（明るい色は人形の手足に見える）
     }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;

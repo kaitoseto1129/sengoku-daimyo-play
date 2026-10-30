@@ -51,7 +51,7 @@ function nearArmorParts(parts) {
     // 桶側は縦矧の板を保ち、腹巻・侍は札板の六段を強調する。
     const oke = T === 0 && (L.vi || 0) % 3 !== 2;
     // 足軽の桶側（横矧）は板の段と縁を形に持つので、重ねない
-    if (oke && !L.doStyle) return;
+    if (oke && !L.doStyle || L.lacquer != null) return;   // 簡素な貸し具足（体に沿う胴）も重ねない
     const profile = [[0.2, 0.88], [0.205, 0.95], [0.212, 1.05], [0.232, 1.18], [0.248, 1.3], [0.238, 1.38]];
     for (let row = 0; row < (oke ? 2 : 5); row++) {
       const y = oke ? 0.94 + row * 0.37 : 0.977 + row * 0.097;
@@ -68,6 +68,7 @@ function nearArmorParts(parts) {
   });
   enhance('hips', ({ box, band }) => {
     // 足軽にも下二段の重なりを残す。近い姿の同じ束へ結合し、描画回数は増やさない。
+    if (L.lacquer != null) return;   // 簡素な貸し具足の短い草摺は段を重ねない
     const np = T === 0 ? 5 : 7, step = Math.PI * 2 / np;
     for (let k = 0; k < np; k++) {
       const a = k * step + (np === 5 ? Math.PI / 5 : 0) + Math.PI;
