@@ -2339,6 +2339,16 @@ const arioka = {
       anchor: { x: CAMP.x - 24 - i * 8, z: GATE.z + 10 }, facing: Math.PI / 2,
       order: 'hold', width: 6, formation: 'yari', aggro: 8 }, dress([{ type: 'ashigaru', n: reserveSize }], TAKIGAWA))) : [];
     for (const g of F.reserves) g.noAI = true;
+    // 辻へ向かう道の先、二十〜五十メートルに、押し合う槍の組を置く（遊び始めて二分の画面に斬り合いが写る。木戸の先で別手の織田勢が荒木勢と組み合う）。
+    // 辻の持ち場から離し、勝ち負けの数えと本人の道筋には入れない。崩れず、時間を持たせる。
+    {
+      const mel = (g) => { g.noRout = true; g.noAI = true; g.fire = false; g.morale = 100; g.dmgMult = .2; return g; };
+      for (const [k, mx, mz] of [[0, TOWN_X - 12, -44], [1, TOWN_X + 11, -46]]) {
+        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '別手の織田勢' + k, anchor: { x: mx, z: mz - 2.2 }, facing: 0, order: 'hold', width: 10, formation: 'yari', aggro: 9, morale: 100 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], TAKIGAWA)));
+        mel(enemyGroup(rt, { fixed: true, faction: 'araki', name: '町で組み合う荒木勢' + k, anchor: { x: mx, z: mz + 2.2 }, facing: Math.PI, order: 'hold', width: 10, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: 0, z: 1 } }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], ARAKI)));
+        rt.scene.add(kagaribi(W, mx + 6, mz - 5)); W.addFire(mx + 6, mz - 5, { h: 1.3, size: .7, lightRadius: 18 });
+      }
+    }
     // 惣構えの前に詰める織田の仕寄せの列と、その篝火（見た目だけ。起こさない）：夜の土塁を前に、味方の厚みと行く先の明かり
     for (const [x, z, s, k] of [[-24, WALL_Z + 22, 15790, 'oda'], [26, WALL_Z + 23, 15791, 'eiraku']]) W.addDistantArmy({ x, z, w: 16, d: 8, count: 45, facing: Math.PI, armor: 0x2a2622, team: 0, flagTex: flagTexture(k), host: false, flagRate: 0.18, banners: 2, seed: s }).army.noWake = true;
     for (const x of [-26, -12, 14, 28]) { const z = WALL_Z + 12; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.4 }); }
