@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { buildModel, poseArms } from './units.js';
 import { SOLIDS } from './props.js';
-import { S } from './settings.js';
+import { S, MEM_TIGHT } from './settings.js';
 import { personGeo, tintMat } from './town_crowd.js';
 import { sfx } from './audio.js';
 import { cameraWallBlocked } from './battle_sight.js';
@@ -596,7 +596,8 @@ function crowdSolidAt(s, x, z) {
 // def.civilianCrowd.openCache（格子の幅 m）を書いた戦だけ、その格子の真ん中の答えを 1.5 秒使い回す。
 // 地面・水・家の当たりは動かないので、見える動きは変えずに調べる回数だけを減らす（kaito 10/28「見えない計算は粗く」）。
 function lightOpen(rt, x, z) {
-  const cell = rt.def.civilianCrowd?.openCache;
+  // 10/30 iPhone：書いていない戦も 30cm の格子で使い回す（比叡山で民の道探しの七割がこの調べ）
+  const cell = rt.def.civilianCrowd?.openCache ?? (MEM_TIGHT ? 0.3 : 0);
   if (!cell) return lightOpenAt(rt, x, z);
   const ix = Math.round(x / cell), iz = Math.round(z / cell);
   // 10/30：Map の代わりに格子の配列で覚える（同じ格子・同じ 1.5 秒の使い回し。答えは同じで、引く手間だけ軽く）
@@ -5171,10 +5172,11 @@ function crowdTick(rt, dt) {
         const arrived = safeFlee ? remaining > 0.05 && remaining < 0.3
           : !a.retrying && !(a.waiting && recheck > 0) && remaining < 0.3 && !(a.stuckUntil > rt.t);
         // farSearch の戦（iPhone の稲葉山）：近景の形を持たず、視点から farSearch m より遠い民の道探しは1秒に一度まで。
-        const farSearch = rt.def.civilianCrowd?.farSearch;
+        // 10/30 iPhone：書いていない戦も、遠い民の道探し1秒に一度・一コマ四人まで・塞がれた人の待ち0.6秒を既定にする（比叡山で戦の計算の一割半が民の道探しだった）
+        const farSearch = rt.def.civilianCrowd?.farSearch ?? (MEM_TIGHT ? 40 : 0);
         const farHold = farSearch > 0 && !a.model && a.farSearchUntil > rt.t && crowdCameraDistance(rt, a, cam) > farSearch;
         // searchPerFrame の戦は、一コマに道を探す人数を区切る（見回りで一度に全員が探し直すと一コマが三十ミリ秒余り伸びた）。残りは次のコマへ。
-        const perFrame = rt.def.civilianCrowd?.searchPerFrame;
+        const perFrame = rt.def.civilianCrowd?.searchPerFrame ?? (MEM_TIGHT ? 4 : 0);
         if ((!safeFlee || !a.waitForFamily) && (a.wpT <= 0 || arrived) && !farHold && !(perFrame > 0 && C.searchFrame === rt.t && C.searchN >= perFrame)) {
           if (perFrame > 0) { if (C.searchFrame !== rt.t) { C.searchFrame = rt.t; C.searchN = 0; } C.searchN++; }
           if (farSearch > 0) a.farSearchUntil = rt.t + 1;
@@ -5183,7 +5185,7 @@ function crowdTick(rt, dt) {
           a.wpT = (a.waiting || a.retrying) && recheck > 0 ? recheck : rt.def.civilianCrowd?.escapeCheckInterval ?? rt.def.civilianCrowd?.fleeSearchInterval ?? 0.6;
           // 10/30 iPhone の重さ：どの向きも塞がれて足もとに留まる人は、毎コマ全候補を探し直さず stuckRecheck 秒待つ
           // （稲葉山の開戦30秒で逃げる34人のうち22人。危険の見回りで wpT が0になればすぐ探す）。fleeSearchInterval は歩く人の探し直しの間（既定0.6秒）。指定した戦だけ。
-          const stuck = rt.def.civilianCrowd?.stuckRecheck;
+          const stuck = rt.def.civilianCrowd?.stuckRecheck ?? (MEM_TIGHT ? 0.6 : 0);
           if (stuck > 0 && Math.hypot(a.tx - a.x, a.tz - a.z) < 0.05) a.stuckUntil = rt.t + stuck;
         }
         const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz);
@@ -5207,7 +5209,7 @@ function crowdTick(rt, dt) {
             a.tx = a.x; a.tz = a.z;
             a.retrying = !!rt.def.civilianCrowd?.narrowEscape;
             // stuckRecheck の戦は、塞がれた一歩の後に次のコマですぐ全候補を探し直さず、少し待つ（同じ塞がれた一歩を毎コマ選び続けた）。
-            a.wpT = a.retrying ? recheck || 0.2 : safeFlee ? Math.min(a.wpT, 0.2) : rt.def.civilianCrowd?.stuckRecheck > 0 ? 0.4 : 0;
+            a.wpT = a.retrying ? recheck || 0.2 : safeFlee ? Math.min(a.wpT, 0.2) : (rt.def.civilianCrowd?.stuckRecheck ?? (MEM_TIGHT ? 0.6 : 0)) > 0 ? 0.4 : 0;
           }
         }
       } else {

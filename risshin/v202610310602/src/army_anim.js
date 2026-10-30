@@ -7,7 +7,7 @@ import { angleDiff, DEATH_END, thrustOut, clamp01, SW_POSE, SW_HASSO, SW_JODAN, 
 import { IDLE, muddyFlag } from './units_flags.js';
 import { TYPES } from './units_data.js';
 import * as THREE from 'three';
-import { S as SET, reduceMotion } from './settings.js';
+import { S as SET, reduceMotion, MEM_TIGHT } from './settings.js';
 import { markArmor, syncArmorWear } from './armor_wear.js';
 import { groundAt } from './floors.js';
 import { MOCAP, tiltAt, pickDeath } from './mocap_data.js';
@@ -675,7 +675,12 @@ export const ArmyAnim = {
       // 打たれて大きく崩れたら、馬も驚いて跳ねる（竿立ちの最中でなければ）
       if (Hh && u.stagger > 0.5 && !(Hh.rear > 0) && (Hh.spookT || 0) <= 0) { Hh.spook = 1; Hh.spookT = 4; }
       if (Hh) Hh.spookT = (Hh.spookT || 0) - dt;
-      if (u.horse && u.horse.visible !== false) animateHorse(u.horse, dt, Math.hypot(u.vel.x, u.vel.z));
+      // 10/30 iPhone：18m より遠い乗り手の馬の骨は二コマに一度（経過はためて渡す。三方ヶ原で馬の骨が一コマの四分）。近い馬・驚く馬・倒れる馬は毎コマ
+      if (u.horse && u.horse.visible !== false) {
+        const lazy = MEM_TIGHT && Hh && !u.isPlayer && u.camD > 18 && !Hh.dead && !(Hh.rear > 0) && !Hh.spook && !u.hit && !(u.stagger > 0);
+        u._horseDt = (u._horseDt || 0) + dt;
+        if (!lazy || ((this.frameNo + u.id) & 1) === 0 || u._horseDt > 0.25) { animateHorse(u.horse, u._horseDt, Math.hypot(u.vel.x, u.vel.z)); u._horseDt = 0; }
+      }
       if (u.seat && Hh) { u.seat.matrix.copy(Hh.seat); if (!u.isPlayer) u.seat.matrix.multiply(RIDE.fit); u.seat.matrixWorldNeedsUpdate = true; }
       // 止まって交戦する乗り手は鞍へ腰を沈め、手綱側へ体重を戻す。
       if (!u.isPlayer && !u.hit && !u.atk && !u.swing && u.target?.alive && u.moving < 0.8) {

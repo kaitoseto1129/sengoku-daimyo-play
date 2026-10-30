@@ -1656,6 +1656,19 @@ const iwamura = {
     for (let i = 0; i < F.waves.length; i++) { F.waves[i].iwReturn = RETURN_PATHS[i].map((q) => q.slice()); F.waves[i].iwInitial = F.waves[i].count; }
     for (const g of F.waves) g.morale = F.siege.morale;
     F.contacts = [F.scout, ...F.waves];
+    // 10/30 採点：開戦25秒の画面は味方がまばらに並ぶだけで敵が見えなかった。西の篝火へ歩く遊び手の前十〜十五歩、
+    //   柵の外で、柵に取り付いた武田の夜討ちと、柵から出た河尻の足軽が開戦すぐから押し合い斬り合う。篝火で照らす。人数・位置は推定。
+    //   追う山道（x=0 の口から北）と柵の内の持ち場への道は塞がない。勝ち負けの数えには入れない。
+    F.fenceSally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x: -17, z: -9 }, facing: Math.PI, width: 8, spacing: 0.9, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 3, noRout: true },
+      battleLook(rt, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], ODA));
+    F.fenceRaid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x: -17, z: -14 }, facing: 0, order: 'hold', formation: 'yari', width: 8, spacing: 0.9, aggro: 7, seekRange: 7, guard: true, guardLeash: 3, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
+      battleLook(rt, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], TAKEDA));
+    F.fenceRaid.noRout = true;   // 最初の四十秒は崩れず柵の外で組み合う（update で解く）
+    {
+      const fires = [[-10, -9], [-24, -9]];
+      rt.scene.add(kagaribiBatch(W, fires));
+      for (const [x, z] of fires) W.addFire(x, z, { torch: true, h: 1.3 });
+    }
     // 柵の口に着いた列を三メートル以上へ散らさず、後続と槍の前線をつなぐ。
     // 人数・到着時刻・間合い・攻撃力は元のまま。行軍中は従来の二列を使う。
     for (const g of F.contacts) g.looseSpacing = 1.15;
@@ -1965,6 +1978,7 @@ const iwamura = {
   },
 
   update(rt, dt) {
+    if (rt.flags.fenceRaid?.noRout && rt.t > 40) rt.flags.fenceRaid.noRout = false;
     const F = rt.flags;
     KIT.backTick(rt);
     // 置換した備も持ち場の槍の列に留める。追撃の下知を受けた二手へ勝手に加わらせない。
