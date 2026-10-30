@@ -2339,6 +2339,24 @@ const tottori = {
     for (const g of F.sallies) hungryLook(g);
     F.tgun = allyGroup(rt, { fixed: true, name: '柵の内の鉄砲組', anchor: { x: 8, z: FENCE_Z + 17 }, facing: Math.PI, width: 9, aggro: 4, formation: 'line' },
       dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'gun', n: 10 }], ODA));
+    // 遊び始めて百十秒の頃、本人の向かう先の二十五〜三十五メートル（道の脇へ九メートルずらす）に、羽柴勢と城兵の押し合いが起こる。
+    // 打って出た城兵の組（F.sallies）とは別で、崩れず、時間を持たせる。本人の道筋は塞がない。
+    rt.after(110, () => {
+      if (rt.over || rt.flags.ending || !rt.player.u.alive) return;
+      const p = rt.player.u.pos, yaw = rt.player.yaw || 0, fx = Math.sin(yaw), fz = Math.cos(yaw);
+      for (const [k, side] of [[0, 1], [1, -1]]) {
+        const d = 24 + k * 6, mx = p.x + fx * d - fz * side * 7.5, mz = p.z + fz * d + fx * side * 7.5;
+        if (W.heightAt(mx, mz) < (W.waterY ?? -99) + 0.3) continue;
+        const mel = (g) => { g.noRout = true; g.noAI = true; g.fire = false; g.morale = 100; g.dmgMult = .2; return g; };
+        const face = Math.atan2(-fx, -fz);
+        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴の押さえ' + k, anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100 },
+          dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'ashigaru', n: 8 }], ODA)));
+        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '柵へ迫る城兵' + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
+          dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6 } }, { type: 'ashigaru', n: 8, o: { cdBase: 2.4, windup: 0.65 } }], HUNGRY)));
+        hungryLook(e);
+        W.addFire(mx - fz * 4, mz + fx * 4, { torch: true, h: 1.6, size: .7, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.8, lightDecay: 0 });
+      }
+    });
     // 主殿と陣所の床・護衛の持ち場を保ち、軽い備えから兵を追加しない。
     for (const g of rt.army.groups) {
       g.noAI = true;
@@ -2779,11 +2797,11 @@ const tottori = {
     // 開戦の操作後は、合流か短い下知で舟の夜へ。立ち止まっても番兵は来る。
     // 放火・柵の守り・護送の達成は、引き続き本人の働きを待つ。
     if (F.step === 0 && rt.t - F.stepT >= 2 &&
-        (rt.distTo(F.hide.center()) <= 8 || rt.t - F.stepT >= 8)) this.dayEvent(rt, '兵糧舟の夜');
+        (rt.distTo(F.hide.center()) <= 8 || rt.t - F.stepT >= 8 && rt.distTo(F.hide.center()) <= 60)) this.dayEvent(rt, '兵糧舟の夜');
     if (F.step === 1) {
       // 一艘が燃えて三十秒（一艘も燃えなければ百秒）たっても残る舟の番が張り付いていれば、飢えた番兵は火を見て崩れ、城へ逃げる。
       // 番と味方が舟の前で押し合ったまま、八分の刻を使い切らない（10/27）。
-      if ((F.burnt === 1 && rt.t - F.burntT > 30 || F.burnt === 0 && rt.t - F.stepT > 100) && !F.guardBroke) {
+      if ((F.burnt === 1 && rt.t - F.burntT > 30 || F.burnt === 0 && rt.t - F.stepT > 100) && !F.guardBroke && rt.distTo(F.hide.center()) <= 60) {
         F.guardBroke = true;
         for (const g of [F.guard, F.guard2]) {
           if (groupGone(g) || g.routed) continue;

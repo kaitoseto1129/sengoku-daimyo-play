@@ -3551,7 +3551,7 @@ const nagashima = {
         }
         // 正しく見張っている最中に、持ち場を離れるよう急がせない。
         if (rt.t - F.stepT >= 6 && !near && !F.watchWarned) { F.watchWarned = true; rt.bark('見張りの印へ進め。川の方を見よ', true); }
-        if (rt.t - F.stepT >= 30) this.boats(rt);
+        if (rt.t - F.stepT >= 30 && near) this.boats(rt);
       }
     }
     if (F.step === 3) {
@@ -3614,7 +3614,9 @@ const nagashima = {
         rt.objProgress('main', F.broken ? '岸の守りを破られた。東の柵へ下がれ' : breach ? `${dangerProgress(rt) ? '槍組の後ろへ　' : ''}背後の押し込み ${Math.floor(F.pushTime)}／二十秒　続くと岸を失う` : dangerProgress(rt) ? `危ない！　槍組の後ろへ。残り${Math.ceil(15 - (rt.t - F.dangerAt))}秒` : !atBank ? '岸の印へ戻り、味方と川を見張れ' : landingFoes && !shoreFoes ? '着いた舟に敵がいる。柵の手前で味方と止めよ' : waiting ? boatNews : !pressing && F.last[2].sallyReleased ? quietNews : w >= SALLY_HOLD ? '岸に敵が残る。柵の手前で味方と止めよ' : `次の下知まで守れ　あと${Math.ceil(SALLY_HOLD - w)}秒`);
       }
       // 第一陣が散っても終わらせず、後の舟を受ける。小さな押し合いは東の守りへ続ける。
-      if (!dangerProgress(rt) && w >= SALLY_HOLD && (F.shoreQuiet >= 12 || w >= SALLY_LIMIT || F.broken)) {
+      // 10/30：本人が岸で門徒を止めた（一人は討った）時だけ東へ移る。立っているだけでは段を進めず、期限で負けにする
+      if (!dangerProgress(rt) && w >= SALLY_LIMIT && !F.broken && !F.sallyKills) { F.sallyFailed = true; this.win(rt); return; }
+      if (!dangerProgress(rt) && w >= SALLY_HOLD && (F.shoreQuiet >= 12 && F.sallyKills || w >= SALLY_LIMIT || F.broken)) {
         F.sallyDefended = !F.broken && (F.sallyHeld >= 8 || atBank);
         F.sallyFailed = !!F.broken;
         if (F.sallyDefended) {
@@ -3684,7 +3686,8 @@ const nagashima = {
 
   onFinish(rt) { rt.flags.hurtEdge.remove(); rt.unmark('retreat'); },
 
-  onKill(rt) {
+  onKill(rt, v, k) {
+    if (k?.isPlayer && v.team !== 0 && rt.flags.step === 3) rt.flags.sallyKills = (rt.flags.sallyKills || 0) + 1;
     // 共通の鉄砲組の報告も、煙越しの正確な討ち取り人数にはしない。
     rt.volleyKillN = 0;
   },

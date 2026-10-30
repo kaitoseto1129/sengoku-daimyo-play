@@ -8,6 +8,9 @@ import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequ
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
+import { armyScale } from './army_scale.js';
+// 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
+const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
 
 const PORTER_TINT = new THREE.Color(0.95, 0.86, 0.7);
 let SASHI_GEO = null, KIBA_FLAG_GEO = null, BANNER_GEO = null, YOSE_BANNER_GEO = null, YOSE_PLUME_GEO = null;
@@ -179,7 +182,7 @@ export class WorldArmy {
       const vis = this.detailVis || this.vis || 230, gone = dd > vis * 1.5 + 30 || outside(cam, 48 + U.uRoutT.value * 12);
       // 高：45m（本物の兵に替わる輪の外）より先の遠い軍勢は奥ほど間引く（霞の中の人数の厚みは残す）
       const hiQ = true, near0 = Math.min(hiQ ? 45 : 110, vis * 0.6);
-      const keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd) : (dd < near0 ? 1 : Math.max(hiQ ? 0.3 : 0.4, 1 - (dd - near0) / (hiQ ? 180 : 260))) * lowKeep(dd);
+      const keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd) : keepStep((dd < near0 ? 1 : Math.max(hiQ ? 0.3 : 0.4, 1 - (dd - near0) / (hiQ ? 180 : 260))) * lowKeep(dd));
       lodState.n = gone ? 0 : Math.max(A.nImp, Math.ceil(N * keep));
       lodState.flags = !gone && (!MEM_TIGHT || dd < Math.min(230, vis));
       lodState.gone = gone;
@@ -204,7 +207,7 @@ export class WorldArmy {
     // 後詰め：隊の後ろに、同じ旗の軽い兵を厚く続ける（地平を埋める奥行き。本体と同じ動き・崩れ方。戦の数や置き換えには入れない）
     //   奥の列は小者・陣夫（隊と後詰めを合わせて表の二割。混ぜた備えの隊だけ。槍・鉄砲・弓だけの隊の後ろは一割）
     if (!o.people && o.host !== false && kd0 !== 'honjin' && kd0 !== 'cavalry' && N >= 60) {
-      const hn = typeof o.host === 'number' ? o.host : Math.round(Math.max(40, Math.min(420, N * 0.8)));
+      const hn = typeof o.host === 'number' ? o.host : Math.round(Math.max(40, Math.min(420, N * 0.8)) * armyScale(this.def.battleKey));   // 戦の兵力で厚く（army_scale.js）
       const pf = Math.min(0.6, (kd0 === 'mixed' ? o.mix.porter : o.mix.porter / 2) * (N + hn) / hn);
       const h = this.armyHost({ x: o.x, z: o.z, facing, w: o.w || 20, d: o.d || 10, count: hn, armor, flagTex, seed: (o.seed || 9) + 71, U, porter: pf });
       if (h.meshes.length) grp.add(...h.meshes);   // 近い視点（nearView）は空。空の add は three が誤りを出す
@@ -413,13 +416,14 @@ export class WorldArmy {
     const R = rng(o.seed || 31);
     const F = o.facing || 0, cf = Math.cos(F), sf = Math.sin(F);
     const w = o.w || 20, hd = (o.d || 10) / 2, n = Math.max(1, o.count | 0);
-    const depth = Math.max(10, Math.min(42, n / Math.max(6, w * 0.8) * 1.4 + 4));
+    // 大きい戦（army_scale.js）は奥行きの上限も伸ばす（地平まで続く備え）。列の数の上限も同じ割合
+    const big = armyScale(this.def.battleKey), depth = Math.max(10, Math.min(42 * big, n / Math.max(6, w * 0.8) * 1.4 + 4));
     const S = [];
     // 前の列から後ろへ：列の間は奥ほど開き（1.1m → 1.8m）、横は奥ほど少し広がる
     let z = -hd - 1.2, row = 0;
     const cuts = [];
     for (let x = -w / 2 + 8 + R() * 8; x < w / 2 - 4; x += 10 + R() * 8) cuts.push(x);   // 備えの切れ目
-    while (S.length < n && row < 60) {
+    while (S.length < n && row < 60 * big) {
       const t = Math.min(1, (-z - hd) / depth);
       const ww = w * (1 + t * 0.25), sx = 1.0 + t * 0.45;
       const cols = Math.max(2, Math.round(ww / sx));
@@ -488,7 +492,7 @@ export class WorldArmy {
       const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z), vis = this.detailVis || this.vis || 230;
       const gone = dd > vis * 1.5 + 30 + realDepth / 2;
       lodState.gone = gone;
-      lodState.keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd, true) : (dd < 50 ? 1 : Math.max(0.3, 1 - (dd - 50) / 180)) * lowKeep(dd, true);   // 後詰めは 50m より先を奥ほど間引く
+      lodState.keep = !MEM_TIGHT ? 1 : this.def.denseFront && false ? frontKeep(this.def, dd, true) : keepStep((dd < 50 ? 1 : Math.max(0.3, 1 - (dd - 50) / 180)) * lowKeep(dd, true));   // 後詰めは 50m より先を奥ほど間引く
       lodState.flags = !gone && (!MEM_TIGHT || dd < Math.min(230, vis));
       return lodState;
     };
@@ -710,7 +714,7 @@ export class WorldArmy {
         const HU = { uAT: WIND, uGust: GUST, uIdle: U.uIdle, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 }, uHgt: U.uHgt, uHP: U.uHP };
         const back = gap / 2 + rows * CLASH_ROW, fs = F + (sgn > 0 ? 0 : Math.PI);
         const [hx, hz] = toW(0, -sgn * back);
-        const hn = typeof P.host === 'number' ? P.host : Math.round(Math.max(60, Math.min(480, (P.count || nb * cols * 8) * 0.7)));
+        const hn = typeof P.host === 'number' ? P.host : Math.round(Math.max(60, Math.min(480, (P.count || nb * cols * 8) * 0.7)) * armyScale(this.def.battleKey));
         // 組み合う列の後ろの奥は小者・陣夫（前線には出さない。army_mix.js）
         const h = this.armyHost({ x: hx, z: hz, facing: fs, w: W * 1.05, d: 0, count: hn, armor, flagTex, seed: (o.seed || 5) * 13 + (sgn > 0 ? 1 : 2), U: HU, porter: Math.min(0.6, mixFor(this.def.battleKey).porter * ((P.count || nb * cols * 8) + hn) / hn) });
         const hg = new THREE.Group();
