@@ -324,11 +324,21 @@ function retreatGroundDetail(rt) {
           * mix(0.86, 1.08, texture2D(tMacro, p.xz * 0.071 + 0.19).r)
           // 坂が一枚の板に見えないよう、一歩ほどの細かな明暗（落ち葉と土の斑）も重ねる（10/29）
           * mix(0.88, 1.06, texture2D(tMacro, p.xz * 0.21 + 0.53).r);
-        diffuseColor.rgb *= (grass * w.x + soil * w.y + mud * w.z)
-          * kgPatch * (1.0 - uWet * 0.18);
+        vec3 kgCol = (grass * w.x + soil * w.y + mud * w.z) * kgPatch;
+        // 一色の緑にしない（10/30 点付け）：去年の落ち葉の溜まる褐色の斑・踏まれた土の斑・若草の斑を、
+        //   人の背丈ほどの大きさで混ぜる。落ち葉の斑の中は一枚ずつの葉ほどの細かな明暗も重ねる。
+        float kgLitter = smoothstep(0.47, 0.6, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.35, 0.7, n.y);
+        float kgLeafGrain = texture2D(tMacro, p.xz * 0.9 + 0.13).r * 0.6 + texture2D(tMacro, p.xz * 2.3 + 0.41).r * 0.4;
+        vec3 kgLeaf = mix(vec3(0.24, 0.14, 0.07), vec3(0.54, 0.34, 0.16), kgLeafGrain) * mix(0.8, 1.1, texture2D(tMacro, p.xz * 0.13 + 0.29).r);
+        kgCol = mix(kgCol, kgLeaf, kgLitter * 0.88 * (1.0 - w.z));
+        float kgSoil = smoothstep(0.58, 0.74, texture2D(tMacro, p.xz * 0.067 + 0.47).r) * (1.0 - kgLitter);
+        kgCol = mix(kgCol, soil * vec3(0.92, 0.84, 0.74), kgSoil * 0.6);
+        float kgMoss = smoothstep(0.6, 0.78, texture2D(tMacro, p.xz * 0.053 + 0.21).r) * (1.0 - kgLitter) * (1.0 - kgSoil);
+        kgCol = mix(kgCol, grass * vec3(0.72, 0.92, 0.56), kgMoss * 0.65);
+        diffuseColor.rgb *= kgCol * (1.0 - uWet * 0.18);
       `);
   };
-  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸';
+  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉';
   ground.needsUpdate = true;
   const W = rt.world, resources = rt.flags.sceneryResources;
   const mat = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:1 });
@@ -679,12 +689,14 @@ function retreatBaggage(rt, addSacks) {
   // 葉の塊は透ける葉の板を交差させて組む（つるりとした多面体の玉に見せない。10/28）。形と絵は一つを使い回す。
   // 一つの丸い塊に見えた（10/29）：大小の葉の房を五つ、高さと向きをずらして重ね、輪郭に切れ目と隙間を作る。
   const leafCards = [];
-  const tufts = [[0.05, 0.0, 0.62, 0.62], [0.55, 0.9, 0.38, 0.5], [0.5, 2.9, 0.42, 0.55], [0.6, 4.6, 0.3, 0.42], [0.3, 1.9, 0.95, 0.4]];
+  // 10/30（点付け：木の葉が板）：大きな板二十枚を、小さな葉の房四十五枚に。房を芯の周りへ散らし、どの向きからも一枚の板の縁が見えないように。
+  const tufts = [];
+  for (let t = 0; t < 9; t++) { const a = t * 2.39996, r = t ? 0.18 + 0.5 * Math.sqrt(t / 8) : 0.04; tufts.push([r, a, 0.28 + 0.62 * ((t * 5) % 9) / 8 * (1 - r * 0.6), 0.3 + 0.12 * ((t * 7) % 4) / 3]); }
   tufts.forEach(([r, a, y, sz], t) => {
     const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
-    for (let i = 0; i < 4; i++) {
-      const b = i * 2.39996 + t, d = sz * 0.35;
-      const card = new THREE.PlaneGeometry(sz * (1.3 + (i % 2) * 0.25), sz * (1.1 + ((i + t) % 3) * 0.15));
+    for (let i = 0; i < 5; i++) {
+      const b = i * 2.39996 + t * 1.3, d = sz * 0.4;
+      const card = new THREE.PlaneGeometry(sz * (1.2 + (i % 2) * 0.3), sz * (1.0 + ((i + t) % 3) * 0.2));
       card.rotateX(-0.45 + ((i + t) % 3) * 0.35); card.rotateY(b);
       card.translate(cx + Math.cos(b) * d, y + (i % 2 ? 0.08 : -0.06) * sz * 2, cz + Math.sin(b) * d);
       leafCards.push(card);
@@ -704,10 +716,18 @@ function retreatBaggage(rt, addSacks) {
     }
     shrubGeo.setAttribute('position', new THREE.BufferAttribute(P, 3)); shrubGeo.setAttribute('uv', new THREE.BufferAttribute(U, 2));
     shrubGeo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+    // 房の内と下は暗く（葉の重なりの陰）、外と上は明るく。一枚ずつ色の揺れも足す。
+    const C = new Float32Array(n * 6);
+    for (let i = 0; i < n * 2; i++) {
+      const x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2], out = Math.min(1, Math.hypot(x, z) / 0.75);
+      const v = (0.42 + 0.38 * Math.min(1, y / 1.0) + 0.25 * out) * (0.9 + 0.12 * Math.sin(Math.floor(i / 6) * 1.7));
+      C[i * 3] = v; C[i * 3 + 1] = v; C[i * 3 + 2] = v * 0.92;
+    }
+    shrubGeo.setAttribute('color', new THREE.BufferAttribute(C, 3));
   }
-  const shrubMat = new THREE.MeshLambertMaterial({ map: leafTex('broad'), alphaTest: 0.42 });
+  const shrubMat = new THREE.MeshLambertMaterial({ map: leafTex('broad'), alphaTest: 0.42, vertexColors: true });
   const shrubs = new THREE.InstancedMesh(shrubGeo, shrubMat, 64);
-  const leafTones = [0x8e9c5e, 0x7a8a4c, 0x9aa66a, 0x6c7c44];   // 四月の若葉。明るすぎる黄緑は絵に見えるので、日陰の混じる落ち着いた緑に
+  const leafTones = [0x8a9658, 0x6e7c44, 0x949a62, 0x5e6c3a, 0x86804c];   // 四月の若葉。明るすぎる黄緑は絵に見えるので、日陰の混じる落ち着いた緑に
   let ns = 0; const shrubShade = [];
   for (const [bx, bz, r, k] of [[16.5, -34.5, 2.5, 6], [22.5, -38.5, 3, 8], [27.5, -41, 3.5, 8], [30.5, -34.5, 2.5, 5], [7, -46.5, 3.5, 7], [18, -47.5, 3, 6], [12, -39.5, 2, 4]]) {
     for (let j = 0; j < k && ns < 64; j++) {
@@ -718,7 +738,7 @@ function retreatBaggage(rt, addSacks) {
       place.position.set(x, W.heightAt(x, z) - 0.08, z); place.rotation.set(0.1 * Math.sin(j * 1.3), a, 0.1 * Math.cos(j * 2.1));
       place.scale.set(sz * (1.3 + 0.4 * ((j * 3) % 4) / 3), sz * (1.0 + 0.5 * ((j * 5) % 3) / 2), sz * (1.2 + 0.4 * ((j * 7) % 4) / 3)); place.updateMatrix();
       shrubShade.push([x, z, sz * 1.1, sz * 1.0, 0.32]);
-      shrubs.setMatrixAt(ns, place.matrix); shrubs.setColorAt(ns++, color.setHex(leafTones[j % 4]));
+      shrubs.setMatrixAt(ns, place.matrix); shrubs.setColorAt(ns++, color.setHex(leafTones[(j + ns) % 5]));
     }
   }
   shrubs.count = ns; shrubs.receiveShadow = true; shrubs.computeBoundingSphere();   // 葉の板の四角い影を落とさない
@@ -2005,6 +2025,24 @@ function tezutsuTatebori(rt, W, F) {
     if (seg.length > 2) lines.push(seg);
   };
   for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) { ray(a, 7); ray(a + 0.15, 18); }
+  // 10/30：南（退き道の先の狭路の両側の山）を向くと平らな野の先に竪堀が一本も無かった（八方のうち三方で0%）。
+  //   持ち場から南東〜南西の五十〜百二十五歩（霞の手前）の山腹にも、遠目で縞が読めるよう遠いほど幅を広げた竪堀を並べる（推定）。歩く高さは変えない。
+  const farRay = (a) => {
+    let seg = [];
+    const pts = [];
+    for (let r = 125; r >= 50; r -= 2) {
+      const x = LINES[0].x + Math.cos(a) * r, z = LINES[0].z + Math.sin(a) * r;
+      const g = Math.hypot(W.heightAt(x + 1.5, z) - W.heightAt(x - 1.5, z), W.heightAt(x, z + 1.5) - W.heightAt(x, z - 1.5)) / 3;
+      pts.push([x, z, g > 0.16 && W.heightAt(x, z) > 2.5, r]);
+    }
+    pts.forEach(([x, z, ok, r], j) => {
+      if (!ok || off(x, z)) { if (seg.length > 3) { seg.w = Math.max(1.2, seg[seg.length - 1][3] / 50); lines.push(seg); } seg = []; return; }
+      seg.push([x, z, j / Math.max(1, pts.length - 1), r]);
+    });
+    if (seg.length > 3) { seg.w = Math.max(1.2, seg[seg.length - 1][3] / 50); lines.push(seg); }
+  };
+  // 放射の間（0.11）は遠いほど広がるので、幅も遠さに比べて広げ、隣と重ならない（重なると一面の濁った斜面に戻る）。
+  for (let a = 0.55; a < 2.65; a += 0.11) farRay(a);
   kgGrooves(rt, F, W, lines);
 }
 
@@ -2016,8 +2054,10 @@ function kgGrooves(rt, F, W, lines) {
   // 土手は丸く盛り、草に覆われた色にする（平らな板の照り返しで灰色の箱に見えた。10/29）。外の裾は地面の色へ沈める。
   // 10/29 夜：溝の幅（左右 8m）が並びの間（3m）より広く、溝どうしが重なって一面の濁った斜面になり、点付けに「畝状竪堀なし」と見られた。
   //   幅を左右 5m に細め、並びを 5〜6m 空け、土手を膝より高く盛る。溝の壁と底は掘り返した赤茶の土にし、草の土手と色でも形でも分ける。
-  const prof = [[-1.7, -0.04, 0x4c5029], [-1.3, 0.35, 0x5c662f], [-0.95, 0.85, 0x6e7638], [-0.65, 0.8, 0x5e4a2a], [-0.4, 0.4, 0x3a2a17], [-0.15, 0.05, 0x1e150c], [0, 0, 0x170f08],
-    [0.15, 0.05, 0x1a120a], [0.4, 0.4, 0x2c2012], [0.65, 0.8, 0x463a20], [0.95, 0.85, 0x56602c], [1.3, 0.35, 0x4c5529], [1.7, -0.04, 0x4c5029]];
+  // 10/30（点付け：まだ見分けにくい）：畝の頂は日を受けた枯れ草と落ち葉の明るい土色、溝の底は湿った黒い土にして、
+  //   明るい畝と暗い溝が交互に並ぶ縞を強める。頂を一段高く盛り、壁を急にして、溝の陰が斜面を縦に走るように。
+  const prof = [[-1.7, -0.04, 0x4c5029], [-1.35, 0.45, 0x6e6c3a], [-1.0, 1.05, 0x9a8f5a], [-0.75, 0.95, 0x7a6640], [-0.5, 0.45, 0x3a2a17], [-0.22, 0.04, 0x150e07], [0, 0, 0x0c0804],
+    [0.22, 0.04, 0x110b06], [0.5, 0.45, 0x241a0e], [0.75, 0.95, 0x4e4126], [1.0, 1.05, 0x6c6a3c], [1.35, 0.45, 0x52552c], [1.7, -0.04, 0x4c5029]];
   const c = new THREE.Color();
   for (const line of lines) {
     const base = pos.length / 3;
@@ -2026,10 +2066,10 @@ function kgGrooves(rt, F, W, lines) {
       const ul = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, sx = -(b[1] - a[1]) / ul, sz = (b[0] - a[0]) / ul;
       // 上の端は細く浅く消え、裾は近い肩越しに写るので終わりまで深く掘る。
       // 道で途切れた所も三点かけて地面へ戻す（切り口の土の壁を立てない）。
-      const k = Math.min(1, t * 5, (1 - t) * 12 + 0.3, j / 3, (line.length - 1 - j) / 3), w = 1.55 * Math.max(k, 0.25);
+      const k = Math.min(1, t * 5, (1 - t) * 12 + 0.3, j / 3, (line.length - 1 - j) / 3), w = 1.55 * (line.w || 1) * Math.max(k, 0.25);
       for (const [o, lift, hex] of prof) {
         const x = x0 + sx * o * w, z = z0 + sz * o * w;
-        pos.push(x, W.heightAt(x, z) + 0.06 + lift * k, z);
+        pos.push(x, W.heightAt(x, z) + 0.06 + lift * k * (line.w || 1), z);
         // 草と土のむらを頂点ごとに混ぜ、一色の板に見せない。
         const m = 0.78 + 0.36 * (0.5 + 0.5 * Math.sin(x * 1.7 + z * 2.3) * Math.cos(z * 0.9 - x * 1.1)) + 0.1 * Math.sin(x * 5.3 - z * 4.1);
         c.setHex(hex).multiplyScalar(m);
@@ -2050,7 +2090,7 @@ function kgGrooves(rt, F, W, lines) {
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   geo.setIndex(idx); geo.computeVertexNormals(); geo.computeBoundingSphere();
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.2, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true; mesh.castShadow = true;
+  const mesh = new THREE.Mesh(geo, mat); mesh.receiveShadow = true; mesh.castShadow = true; mesh.name = 'kgTatebori';
   rt.scene.add(mesh);
   F.sceneryResources.push(geo, mat);
 }

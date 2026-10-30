@@ -1565,8 +1565,15 @@ function addOdaniEastSlope(rt, boardHut, scenery) {
     const h0 = W.heightAt(x, z);
     if (Math.abs(W.heightAt(x + 2, z) - h0) > .9 || Math.abs(W.heightAt(x, z + 2) - h0) > .9) continue;
     const r = rnd(), k = .7 + rnd() * 1.5;
-    pose.position.set(x, h0 + .1, z); pose.scale.set(k * (1 + rnd() * .8), 1, k); pose.rotation.set(0, rnd() * 6, 0); pose.updateMatrix();
-    pm.push([pose.matrix.clone(), r < .4 ? 0x3a372c : r < .7 ? 0x7c755c : 0x4f5a34]);
+    const kx = k * (1 + rnd() * .8), ry = rnd() * 6;
+    // 平らな円は斜面で縁が浮き、谷道の低いカメラの真ん前で黒い板に見えた（10/30 点付け）。縁の八点の高さを見て、
+    // 地面との差が 0.2m を超える所には置かず、置く時は縁の一番低い所へ沈める（乱数の順は変えない）。
+    let lo = h0, hi = h0;
+    for (let j = 0; j < 8; j++) { const hy = W.heightAt(x + Math.cos(j * .785) * kx, z + Math.sin(j * .785) * kx); lo = Math.min(lo, hy); hi = Math.max(hi, hy); }
+    if (hi - lo < .2) {
+      pose.position.set(x, lo + .02, z); pose.scale.set(kx, 1, k); pose.rotation.set(0, ry, 0); pose.updateMatrix();
+      pm.push([pose.matrix.clone(), r < .4 ? 0x4a4434 : r < .7 ? 0x7c755c : 0x4f5a34]);
+    }
     if (rnd() < .5) put(2, x + (rnd() - .5) * 2, z + (rnd() - .5) * 2, -.12, .22 + rnd() * .2, .16, .2 + rnd() * .15, rnd() * 6, 0x6a655a);
     if (rnd() < .4) put(0, x + (rnd() - .5) * 1.2, z + (rnd() - .5) * 1.2, -.03, .4, .3 + rnd() * .3, .4, rnd() * 6, 0x6e8044);
   }
