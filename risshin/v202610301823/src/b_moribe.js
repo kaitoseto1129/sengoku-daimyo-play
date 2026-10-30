@@ -11,7 +11,7 @@ import { distToPolyline } from './world.js';
 import { tuftClumpAt } from './world_common.js';
 import { RANKS } from './state.js';
 import { nobori, timberRoof, jinmaku, solidRect } from './props.js';
-import { woodTex, mudTex } from './nature.js';
+import { woodTex, mudTex, stoneTex } from './nature.js';
 import { MORIBE_KACCHU } from './kacchu_data.js';
 import { addInterior } from './naka.js';
 import { interiorLayout } from './interior_layouts.js';
@@ -1547,19 +1547,21 @@ function moribeBankSoil(rt) {
     // 川原の砂利：一つ一つの石（十〜四十センチ）の明暗と石の間の陰。遠目では白っぽい灰の帯にまとまる（手本の川原。10/30）
     sh.fragmentShader = sh.fragmentShader.replace(/void\s+main\s*\(\s*\)\s*\{/, `
       vec2 mgH2(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
-      vec3 mgPeb(vec2 p) { vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; vec2 id = i;
-        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), r = g + 0.12 + 0.76 * mgH2(i + g) - f; float d = dot(r, r);
-          if (d < d1) { d2 = d1; d1 = d; id = i + g; } else if (d < d2) d2 = d; }
-        return vec3(sqrt(d2) - sqrt(d1), mgH2(id + 7.31)); }
+      // 石は一つずつ離れた丸い粒（升の境に暗い線を引くと、六角の敷石の模様に見えた。10/30）。間は砂と泥。
+      float mgPeb(vec2 p, out float tone) { vec2 i = floor(p), f = fract(p); float m = 0.0; tone = 0.5;
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), hs = mgH2(i + g);
+          float r = 0.16 + 0.24 * fract(hs.x * 7.13 + hs.y); vec2 d = (g + 0.15 + 0.7 * hs - f) * vec2(1.0, 0.8 + 0.4 * hs.y);
+          float k = (1.0 - smoothstep(r * 0.7, r, length(d))) * step(0.38, fract(hs.y * 5.71));
+          if (k > m) { m = k; tone = fract(hs.x * 3.7 + hs.y * 9.1); } }
+        return m; }
       vec3 mgGravel(vec2 xz, float wet) {
-        float lod = clamp(length(fwidth(xz)) * 5.0, 0.0, 1.0);
-        vec3 pa = mgPeb(xz * 6.5), pb = mgPeb(xz * 2.3 + 3.7);
-        vec3 c = mix(vec3(0.105, 0.1, 0.09), vec3(0.2, 0.193, 0.175), pa.y);
-        c = mix(c, vec3(0.14, 0.115, 0.085), step(0.82, pa.z) * 0.8);
-        c *= mix(0.42, 1.0, smoothstep(0.0, 0.14, pa.x));
-        float big = step(0.74, pb.y) * smoothstep(0.02, 0.1, pb.x);
-        c = mix(c, vec3(0.19, 0.185, 0.17) * (0.78 + 0.3 * pb.z), big * 0.85);
-        c = mix(c, vec3(0.135, 0.13, 0.118), lod);
+        float lod = clamp(length(fwidth(xz)) * 4.0, 0.0, 1.0);
+        float sn = texture2D(tMacro, xz * 0.9).r * 0.5 + texture2D(tMacro, xz * 3.1).g * 0.5;
+        vec3 c = mix(vec3(0.085, 0.077, 0.064), vec3(0.15, 0.14, 0.12), sn);   // 砂と泥の地
+        float ta, tb; float pa = mgPeb(xz * 5.2, ta), pb = mgPeb(xz * 1.9 + 3.7, tb);
+        c = mix(c, mix(vec3(0.12, 0.115, 0.105), vec3(0.22, 0.212, 0.192), ta), pa * 0.9 * (1.0 - lod * 0.7));
+        c = mix(c, mix(vec3(0.13, 0.125, 0.112), vec3(0.205, 0.198, 0.18), tb), pb * 0.85 * (1.0 - lod * 0.4));
+        c = mix(c, vec3(0.125, 0.118, 0.104), lod * 0.6);
         return c * mix(1.0, 0.62, wet);
       }
       void main() {`);
@@ -1847,7 +1849,7 @@ function moribeOverflow(rt) {
       if (k * 3 + 3 >= near.length) break;
     }
   };
-  W.scene.add(mesh);
+  W.scene.add(mesh); rt.moribeOvfMesh = mesh;
   // 渡り杭：雨に濡れた古い杉の杭（細い八角を少し傾け、頭を不揃いに）。形一つを束ねて描く。
   const stakes = ovfStakes();
   const sGeo = new THREE.CylinderGeometry(.055, .085, 1, 8, 2); sGeo.translate(0, .5, 0);
@@ -1866,6 +1868,136 @@ function moribeOverflow(rt) {
   sMesh.castShadow = true; W.scene.add(sMesh);
   const dispose = rt.dispose;
   rt.dispose = function () { geo.dispose(); mat.dispose(); sGeo.dispose(); sMat.dispose(); return dispose.call(this); };
+}
+
+// 瀬の白い波：楡俣川とあふれた流れの浅い所に、石を越えて砕ける泡の帯を置く（25秒の持ち場からどの向きにも一つは写る所。10/30）
+// 泡は流れに沿う細い筋が流れ下り、縁は霞む。当たりは持たない。形は一つにまとめて一度に描く。
+function moribeRiffles(rt) {
+  const W = rt.world, river = W.def.streams[1]?.mesh, ovf = rt.moribeOvfMesh;
+  const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), from = new THREE.Vector3();
+  const surface = (x, z, mesh) => { if (!mesh) return null; from.set(x, 40, z); ray.set(from, down); const hit = ray.intersectObject(mesh, false)[0]; return hit ? hit.point.y : null; };
+  // [中心x, 中心z, 川を横切る幅, 流れに沿う長さ, 向き, どの水]
+  const spots = [
+    [12, 87.2, 7.5, 2.6, .5, 'r'], [22, 88.6, 8, 3.2, -.35, 'r'], [31, 86.8, 6.5, 2.4, .25, 'r'], [49, 87.6, 8, 3, -.45, 'r'], [58, 88.8, 7, 2.6, .4, 'r'], [67, 89.6, 7.5, 2.8, -.2, 'r'],
+    [27, 92.5, 6, 2.4, -.15, 'r'], [42, 93, 7, 2.8, .3, 'r'], [36, 89.5, 5.5, 2.2, -.5, 'r'], [16, 92, 6, 2.4, .2, 'r'], [62, 85.4, 5, 2, -.3, 'r'],
+    [4, 46.6, 12, 3.4, .4, 'o'], [14, 47.8, 12, 3.2, -.3, 'o'], [24, 46.2, 11, 3, .15, 'o'], [34, 47.6, 12, 3.6, .35, 'o'], [46, 47.4, 11, 3, -.4, 'o'], [54, 48.2, 10, 2.8, .2, 'o'],
+  ];
+  const parts = [];
+  for (const [x, z, wide, long, rot, which] of spots) {
+    let y = surface(x, z, which === 'r' ? river : ovf);
+    if (y === null) { if (which === 'r') continue; y = drawGroundAt(W, x, z) + .24; }
+    rt.moribeRiffleN = (rt.moribeRiffleN || 0) + 1;
+    const g = new THREE.PlaneGeometry(long, wide, 6, 6).rotateX(-Math.PI / 2);
+    // 帯の縁は真っすぐにせず、泡の塊の不揃いな張り出しに
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const lx = p.getX(i), lz = p.getZ(i); p.setX(i, lx + Math.sin(lz * 1.7 + x) * .35); p.setY(i, .07 + Math.sin(lx * 3.1 + lz * 2.3) * .015); }
+    g.rotateY(rot); g.translate(x, y, z); parts.push(g);
+  }
+  if (!parts.length) return;
+  const geo = mergeGeometries(parts); for (const g of parts) g.dispose();
+  const time = { value: 0 }, foam = ovfFoam(), noise = ovfNoise();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xeeece4, roughness: .45, metalness: 0, transparent: true, depthWrite: false, envMapIntensity: .3 });
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.rfTime = time; sh.uniforms.rfFoam = { value: foam }; sh.uniforms.rfNoise = { value: noise };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 rfUv; varying vec3 rfW;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nrfUv = uv;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nrfW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float rfTime; uniform sampler2D rfFoam, rfNoise; varying vec2 rfUv; varying vec3 rfW;')
+      .replace('#include <map_fragment>', `
+        // 砕けた泡の筋：流れに沿って下る。二つの速さの筋と大きな斑を掛けて、同じ形が並ばないように
+        float rfA = texture2D(rfFoam, vec2(rfUv.x * 1.3 - rfTime * 0.55, rfUv.y * 2.6)).r;
+        float rfB = texture2D(rfFoam, vec2(rfUv.x * 2.1 - rfTime * 0.9 + 0.37, rfUv.y * 4.3 + 0.21)).r;
+        float rfN = texture2D(rfNoise, rfW.xz * 0.21).r * 0.6 + texture2D(rfNoise, rfW.xz * 0.9 + rfTime * 0.08).g * 0.4;
+        float rfEdge = smoothstep(0.0, 0.3, rfUv.x) * (1.0 - smoothstep(0.55, 1.0, rfUv.x)) * smoothstep(0.0, 0.22, rfUv.y) * (1.0 - smoothstep(0.78, 1.0, rfUv.y));
+        float rfFoamK = clamp(max(rfA, rfB * 0.8) * 0.85 + smoothstep(0.45, 0.75, rfN) * 0.45, 0.0, 1.0) * smoothstep(0.25, 0.6, rfN + rfEdge * 0.4) * rfEdge;
+        diffuseColor.rgb *= 0.86 + 0.18 * rfN;
+        diffuseColor.a *= clamp(rfFoamK * 1.25, 0.0, 0.95);`)
+      // 泡は空の光を四方へ返す（曇りでも水面より明るい）。霧の色の分だけ足し、縁を光らせない
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        #ifdef USE_FOG
+          totalEmissiveRadiance += fogColor * 0.32;
+        #endif`);
+  };
+  mat.customProgramCacheKey = () => '森部の瀬の泡';
+  const mesh = new THREE.Mesh(geo, mat); mesh.renderOrder = 2; mesh.receiveShadow = true;
+  mesh.userData.moribeSight = 'nami';
+  mesh.onBeforeRender = () => { time.value = performance.now() * .001 % 1000; };
+  W.scene.add(mesh);
+  const dispose = rt.dispose;
+  rt.dispose = function () { geo.dispose(); mat.dispose(); return dispose.call(this); };
+}
+
+// 川べりの辻堂と祠：25秒の持ち場の東と西に、雨に濡れた小さな堂・石の鳥居・石灯籠。当たりは持たない（人と兵の道を変えない。10/30）
+function moribeShrines(rt) {
+  const W = rt.world, stone = [], wood = [], dark = [], roofs = [];
+  const add = (list, g, x, y, z, rot = 0) => { g.rotateY(rot); g.translate(x, y, z); list.push(g); };
+  // 石は角を少し崩し、面ごとに凹凸を付けて、角ばった箱に見せない
+  const rough = (g, k = .03, seed = 1) => { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = Math.sin(x * 13 + seed) * Math.cos(z * 11 + y * 7 + seed) * k; p.setXYZ(i, x * (1 + n), y + n * .5, z * (1 + n)); } g.computeVertexNormals(); return g; };
+  const sink = (x, z, r) => Math.min(drawGroundAt(W, x, z), drawGroundAt(W, x + r, z), drawGroundAt(W, x - r, z), drawGroundAt(W, x, z + r), drawGroundAt(W, x, z - r));
+  const lantern = (x, z, s = 1, seed = 1) => {
+    const y = sink(x, z, .4) - .06;
+    add(stone, rough(new THREE.CylinderGeometry(.34 * s, .4 * s, .22 * s, 8, 1), .04, seed), x, y + .11 * s, z);
+    add(stone, rough(new THREE.CylinderGeometry(.12 * s, .15 * s, .8 * s, 8, 2), .02, seed + 1), x, y + .62 * s, z);
+    add(stone, rough(new THREE.CylinderGeometry(.24 * s, .2 * s, .12 * s, 6, 1), .03, seed + 2), x, y + 1.08 * s, z);
+    add(stone, rough(new THREE.BoxGeometry(.3 * s, .3 * s, .3 * s, 2, 2, 2), .05, seed + 3), x, y + 1.29 * s, z, seed);
+    add(dark, new THREE.BoxGeometry(.16 * s, .16 * s, .32 * s), x, y + 1.3 * s, z, seed);   // 火袋の窓の奥の暗がり
+    add(stone, rough(new THREE.ConeGeometry(.42 * s, .26 * s, 6, 1), .05, seed + 4), x, y + 1.57 * s, z, seed);
+    add(stone, rough(new THREE.SphereGeometry(.075 * s, 6, 4), .05, seed + 5), x, y + 1.74 * s, z);
+  };
+  const torii = (x, z, rot, seed = 1) => {
+    const y = sink(x, z, 1.4) - .1, c = Math.cos(rot), s = Math.sin(rot);
+    for (const side of [-1, 1]) { const px = x + side * 1.05 * c, pz = z - side * 1.05 * s;
+      add(stone, rough(new THREE.CylinderGeometry(.13, .16, 2.5, 10, 3), .02, seed + side), px, sink(px, pz, .2) - .1 + 1.25, pz); }
+    add(stone, rough(new THREE.BoxGeometry(2.3, .16, .2, 6, 1, 1), .02, seed + 3), x, y + 1.95, z, rot);   // 貫
+    const kasagi = rough(new THREE.BoxGeometry(3.0, .2, .3, 10, 1, 1), .02, seed + 4);
+    const kp = kasagi.attributes.position; for (let i = 0; i < kp.count; i++) { const lx = kp.getX(i); kp.setY(i, kp.getY(i) + (lx * lx) * .018); } kasagi.computeVertexNormals();
+    add(stone, kasagi, x, y + 2.52, z, rot);
+  };
+  // 西と南西：川原の端の祠（石の台に小さな木の社）と鳥居・灯籠
+  const hokora = (x, z, rot, seed) => { const y = sink(x, z, .8) - .05;
+    add(stone, rough(new THREE.BoxGeometry(1.5, .55, 1.3, 3, 2, 3), .05, 3), x, y + .27, z, rot);
+    add(wood, new THREE.BoxGeometry(.9, .75, .8), x, y + .55 + .37, z, rot);
+    add(dark, new THREE.BoxGeometry(.5, .5, .82), x + Math.sin(rot) * .03, y + .55 + .33, z + Math.cos(rot) * .03, rot);
+    roofs.push(timberRoof(x, y + 1.3, z, .9, .8, rot + Math.PI / 2, { eave: .28, pitch: .62, color: 0x4e463c }));
+    torii(x - Math.cos(rot + Math.PI / 2) * 3.2, z + Math.sin(rot + Math.PI / 2) * 3.2, rot, seed + 7);
+    lantern(x + 1.7, z + 1.2, .9, seed + 11); lantern(x - 1.6, z - 1.4, .9, seed + 13); };
+  hokora(13, 72, -1.35, 0); hokora(21, 61.5, .5, 40);
+  // 南東：あふれた流れの岸から薬師堂へ向かう参道の口に、石の鳥居と灯籠の対
+  torii(48, 58.5, -.96, 51); lantern(46.2, 57.2, 1, 53); lantern(49.9, 60, 1, 55);
+  // 東：川べりの辻堂（板壁・板屋根・石の礎）と灯籠の対
+  { const x = 57, z = 67, rot = .9, w = 2.8, d = 2.6, y = sink(x, z, 1.6) - .05, c = Math.cos(rot), s = Math.sin(rot);
+    add(stone, rough(new THREE.BoxGeometry(w + .5, .36, d + .5, 4, 2, 4), .04, 5), x, y + .18, z, rot);
+    add(wood, new THREE.BoxGeometry(w, 1.9, d, 1, 3, 1), x, y + .36 + .95, z, rot);
+    // 前の格子戸の暗がりと縁
+    const fx = x + s * (d / 2 + .02), fz = z + c * (d / 2 + .02);
+    add(dark, new THREE.BoxGeometry(1.5, 1.4, .06), fx, y + .36 + .8, fz, rot);
+    for (let i = -3; i <= 3; i++) add(wood, new THREE.BoxGeometry(.05, 1.4, .08), fx + c * i * .21, y + .36 + .8, fz - s * i * .21, rot);
+    add(wood, new THREE.BoxGeometry(w + .3, .08, .7), x + s * (d / 2 + .35), y + .5, z + c * (d / 2 + .35), rot);
+    roofs.push(timberRoof(x, y + .36 + 1.9, z, w, d, rot, { eave: .65, pitch: .5, color: 0x4a4238 }));
+    lantern(fx + s * 2.2 + c * 1.6, fz + c * 2.2 - s * 1.6, 1, 21); lantern(fx + s * 2.2 - c * 1.6, fz + c * 2.2 + s * 1.6, 1, 23); }
+  // 楡俣川の岸の灯籠（渡りの上手と下手）
+  lantern(27, 81, .95, 31); lantern(50, 81.5, .95, 33);
+  const tone = (list, v) => { for (const g of list) { const p = g.attributes.position, col = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const k = v(p.getX(i), p.getY(i), p.getZ(i)); col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k * .96; } g.setAttribute('color', new THREE.BufferAttribute(col, 3)); if (g.index) { const ng = g.toNonIndexed(); g.copy(ng); ng.dispose(); } g.deleteAttribute('uv2'); } };
+  // 雨に濡れた石の濃淡と、地際の苔の暗み
+  tone(stone, (x, y, z) => .78 + .22 * Math.sin(x * 5.3 + z * 4.1 + y * 2.2) * Math.cos(y * 3.7));
+  tone(wood, (x, y, z) => .8 + .2 * Math.sin(y * 9 + x * 2.3));
+  tone(dark, () => 1);
+  const mats = [
+    [stone, new THREE.MeshStandardMaterial({ color: 0xb2aea0, vertexColors: true, map: stoneTex(), bumpMap: stoneTex(), bumpScale: .03, roughness: .82, envMapIntensity: .25 })],
+    [wood, new THREE.MeshStandardMaterial({ color: 0x7d6a55, vertexColors: true, map: woodTex(), bumpMap: woodTex(), bumpScale: .025, roughness: .8, envMapIntensity: .2 })],
+    [dark, new THREE.MeshStandardMaterial({ color: 0x15120e, vertexColors: true, roughness: .95 })],
+  ];
+  const owned = [];
+  for (const [list, mat] of mats) {
+    if (!list.length) continue;
+    for (const g of list) { for (const k of Object.keys(g.attributes)) if (!['position', 'normal', 'uv', 'color'].includes(k)) g.deleteAttribute(k); }
+    const geo = mergeGeometries(list); for (const g of list) g.dispose();
+    const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = mesh.receiveShadow = true; mesh.userData.moribeSight = 'dou';
+    W.scene.add(mesh); owned.push(geo, mat);
+  }
+  for (const r of roofs) { r.userData.moribeSight = 'dou'; W.scene.add(r); }
+  const dispose = rt.dispose;
+  rt.dispose = function () { for (const o of owned) o.dispose(); return dispose.call(this); };
 }
 
 function moribeFord(rt) {
@@ -3232,6 +3364,8 @@ const moribe = {
     moribeNae(rt);
     moribeBankSoil(rt);
     moribeCobbles(rt);
+    moribeRiffles(rt);
+    moribeShrines(rt);
     moribeNearBodies(rt);
     // 落馬した瞬間の描画用の高さを空馬へ引き継ぐと、坂の判定に阻まれて宙で止まる。
     // 森部の野を逃げる空馬だけ、進路を調べる前に足元へ戻す。捕らえた馬は共通のまま。
@@ -3960,8 +4094,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     F.farO.push(...F.farX);
     // 手本の川の奥は木に覆われた濃い緑の山。雨の霞に半ば溶ける暗い緑にして、灰の空に黒い穴の形を開けない（10/30）。
     // 雨の霞の上限を下げ、手前の峰ほど木の緑を残す（奥の峰は霞に溶かす）。この戦の山の材質だけ。
-    if (W.mountains) for (const m of W.mountains.children) { m.material.uniforms?.color?.value.setHex(0x1c3320);
-      if (m.material.fragmentShader) { m.material.fragmentShader = m.material.fragmentShader.replace('float sI = pow(', 'hz = min(hz, 0.58 + layer * 0.14);\n            float sI = pow('); m.material.needsUpdate = true; } }
+    if (W.mountains) for (const m of W.mountains.children) { m.material.uniforms?.color?.value.setHex(0x2c4a30);
+      if (m.material.fragmentShader) { m.material.fragmentShader = m.material.fragmentShader.replace('float sI = pow(', 'hz = min(hz, 0.46 + layer * 0.17);\n            { float tm = n(q * vec2(0.035, 0.05) + layer * 9.0) * 0.35 + n(q * vec2(0.16, 0.24) + layer * 5.0) * 0.4 + n(q * vec2(0.5, 0.7) - layer * 2.0) * 0.25; tm = smoothstep(0.22, 0.78, tm); c *= mix(0.55, 1.45, tm); hz = clamp(hz * mix(1.12, 0.74, tm) + (1.0 - vCrest) * 0.1, 0.0, 0.97); }\n            float sI = pow('); m.material.needsUpdate = true; } }
     // 信長の本陣：陣幕の内に床几の大将と諸将、後ろに馬印と旗本
     F.odaCamp = camp(rt, { x: CAMP2.x, z: CAMP2.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長', haori: 0x7a1d14 }, guard: 15, reserve: 0, runTo: { x: -20, z: 60 } });
     // 両翼の後方に控えの幕。白幟だけの野に、地面へ接した陣の横の輪郭を置く。

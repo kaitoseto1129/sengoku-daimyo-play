@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { porterTrain } from './porters.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { dirtTex } from './nature.js';
+import { dirtTex, leafTex } from './nature.js';
 import { camNearMaterials } from './player.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // ======================================================================
@@ -2642,6 +2642,130 @@ function okKarameteYard(rt) {
   // 九月の山城の曲輪：くすんだ緑の低木の株と、枯れかけの下草。
   place(bushSrc, 70, 1.25, [0.34, 0.4, 0.22]);
   place(tuftSrc, 260, 1.1, [0.42, 0.42, 0.26]);
+  okYardRing(rt, bushSrc, tuftSrc);
+}
+
+// 持ち場（搦手の坂の上の平場の縁 x≈3・z≈-24）から八方（45度ずつ）のどこを向いても、
+// 秋の雑木の株立ち・低木の茂みと下草・低い土塁（切岸の縁）のうち二つ以上が画面に入るように、平場の縁へ輪に配る（10/30）。
+// 当たりは持たせない（兵と bot の歩く道は変えない）。竹束の列・三手の寄せる筋・坂道の上には木と茂みを置かず、下草だけ。
+// 夜でも形が読めるよう、輪の三か所に篝火（光は共通の近い火への付け替えで、数は増えない）。
+// 形と材質は野の株・木の幹を使い回し、設営時に一度だけ並べる。位置と樹種は推定の補景。乱数は自前（遊びの乱数を動かさない）。
+function okYardRing(rt, bushSrc, tuftSrc) {
+  const W = rt.world, P = { x: 3, z: -24 };
+  let seed = 30107;
+  const R = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const lane = (x, z) => distToPolyline(x, z, ROAD_KARAMETE) < 3.4
+    || (z < -24 && (Math.abs(x + 24) < 3 || Math.abs(x + 8) < 4 || Math.abs(x - 8) < 3 || Math.abs(x) < 6))
+    || (z > -30 && z < -20 && x > -13 && x < 8);
+  const D = new THREE.Object3D(), col = new THREE.Color();
+  const bark = (W.treeMeshes || []).find((m) => m.isInstancedMesh && m.material && !Array.isArray(m.material) && m.material.map && !(m.material.alphaTest > 0) && !m.userData.treeFoliage);
+  const trunkMat = bark ? bark.material : new THREE.MeshLambertMaterial({ color: 0x3e3226 });
+  const trunkGeo = new THREE.CylinderGeometry(0.07, 0.13, 1, 6); trunkGeo.translate(0, 0.5, 0);
+  const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, 96);
+  // 野の株の材質は株ごとの色を受けない（緑の一色に見える）。形は使い回し、葉の絵だけの材質を一つ作って雑木と茂みで共有する。
+  const leafMat = bushSrc ? new THREE.MeshLambertMaterial({ map: leafTex('broad'), alphaTest: 0.42, side: THREE.DoubleSide }) : null;
+  const crowns = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 72) : null;
+  const bushes = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 110) : null;
+  const tufts = tuftSrc ? new THREE.InstancedMesh(tuftSrc.geometry, tuftSrc.material, 420) : null;
+  let nt = 0, nc = 0, nb = 0, nf = 0;
+  // 秋の雑木（楢・櫟・山桜・漆）の葉色：褐色・黄・朱を主に、常緑のくすんだ緑を少し。
+  // 鮮やかにしすぎず、くすんだ褐色・黄ばみ・赤茶に寄せる。
+  const fall = [[0.82, 0.5, 0.26], [0.86, 0.64, 0.32], [0.74, 0.42, 0.24], [0.6, 0.46, 0.28], [0.4, 0.44, 0.28]];
+  const putCrown = (m, i, x, y, z, sx, sy, tint) => {
+    D.position.set(x, y, z); D.rotation.set((R() - 0.5) * 0.3, R() * 6.28, (R() - 0.5) * 0.3); D.scale.set(sx, sy, sx); D.updateMatrix();
+    m.setMatrixAt(i, D.matrix); m.setColorAt(i, col.setRGB(tint[0] * (0.85 + R() * 0.3), tint[1] * (0.85 + R() * 0.3), tint[2] * (0.85 + R() * 0.3)));
+  };
+  // 雑木の株立ち：根元から三本ほどの細い幹が斜めに立ち、上に葉の房が重なる。
+  const tree = (x, z, size) => {
+    if (!crowns || nt + 4 > 96 || nc + 3 > 72) return;
+    const g = W.heightAt(x, z), tint = fall[Math.floor(R() * fall.length)], stems = 2 + Math.floor(R() * 2);
+    for (let s = 0; s < stems; s++) {
+      const a = R() * 6.28, lean = 0.12 + R() * 0.16, h = size * (3.2 + R() * 1.4);
+      D.position.set(x + Math.cos(a) * 0.25, g - 0.1, z + Math.sin(a) * 0.25); D.rotation.set(Math.sin(a) * lean, 0, -Math.cos(a) * lean);
+      D.scale.set(size, h, size); D.updateMatrix(); trunks.setMatrixAt(nt++, D.matrix);
+      putCrown(crowns, nc++, x + Math.cos(a) * h * lean * 0.9, g + h * 0.92, z + Math.sin(a) * h * lean * 0.9, size * (1.9 + R() * 0.8), size * (1.6 + R() * 0.6), tint);
+    }
+  };
+  const bush = (x, z, sc) => {
+    if (!bushes || nb >= 110) return;
+    putCrown(bushes, nb++, x, W.heightAt(x, z) - 0.08 * sc, z, sc * (0.9 + R() * 0.5), sc * (0.7 + R() * 0.5), [0.58 + R() * 0.14, 0.46 + R() * 0.08, 0.25]);
+  };
+  const tuft = (x, z, y = W.heightAt(x, z)) => {
+    if (!tufts || nf >= 420) return;
+    const sc = 0.9 + R() * 0.7;
+    D.position.set(x, y - 0.05, z); D.rotation.set(0, R() * 6.28, 0); D.scale.set(sc, sc * (0.8 + R() * 0.5), sc); D.updateMatrix();
+    tufts.setMatrixAt(nf, D.matrix); tufts.setColorAt(nf++, col.setRGB(0.5 + R() * 0.12, 0.44 + R() * 0.08, 0.26 + R() * 0.05));
+  };
+  // 低い土塁（切岸の縁の土盛り）：盛り上がりの断面を弧に沿って延ばし、両端を細らせる。草をまばらに乗せる。
+  const pos = [], uv = [], cols = [], idx = [], tops = [];
+  const mound = (cx, cz, r0, a0, a1, H) => {
+    const N = 14, M = 7, base = pos.length / 3;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, a = a0 + (a1 - a0) * t, end = Math.sin(Math.PI * t) ** 0.6;
+      for (let j = 0; j <= M; j++) {
+        const u = j / M, rr = r0 + (u - 0.5) * 4.2;
+        const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
+        const bump = Math.sin(Math.PI * u) ** 1.4, n = 0.12 * Math.sin(x * 1.7 + z * 0.9) + 0.08 * Math.cos(z * 2.3 - x * 0.7);
+        const y = W.heightAt(x, z) - 0.25 + (H * end + n) * bump;
+        pos.push(x, y, z); uv.push(x / 3, (z + y) / 3);
+        const v = 0.72 + 0.18 * bump + n;
+        cols.push(v * 0.98, v * 0.88, v * 0.72);
+        if (j === 3 && i % 2 === 1) tops.push([x, y, z]);
+        if (i < N && j < M) { const k = base + i * (M + 1) + j; idx.push(k, k + 1, k + M + 1, k + 1, k + M + 2, k + M + 1); }
+      }
+    }
+  };
+  // 八方の扇ごとに、平場の縁（半径 7〜19m）へ雑木・茂み・土塁を散らす。道と寄せ手の筋は避ける。
+  const fires = [];
+  for (let k = 0; k < 8; k++) {
+    const mid = k * Math.PI / 4;
+    const spot = (r0, r1, tries = 30) => {
+      for (let t = 0; t < tries; t++) {
+        const a = mid + (R() - 0.5) * 1.1, r = r0 + R() * (r1 - r0);
+        const x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r;
+        if (!lane(x, z)) return [x, z, a, r];
+      }
+      return null;
+    };
+    for (let i = 0; i < 2; i++) { const s = spot(10, 17); if (s) { tree(s[0], s[1], 0.9 + R() * 0.4); for (let j = 0; j < 3; j++) bush(s[0] + (R() - 0.5) * 4, s[1] + (R() - 0.5) * 4, 1.3 + R() * 0.6); } }
+    for (let i = 0; i < 8; i++) { const s = spot(7, 16); if (s) bush(s[0], s[1], 1.2 + R() * 0.7); }
+    // 下草は道の肩と寄せる筋にもまばらに（低いので歩く兵の邪魔に見えない）。竹束の列の中は空ける。
+    for (let i = 0; i < 40; i++) {
+      const a = mid + (R() - 0.5) * 0.8, r = 5 + R() * 13, x = P.x + Math.sin(a) * r, z = P.z + Math.cos(a) * r;
+      if (distToPolyline(x, z, ROAD_KARAMETE) < 1.6 || (z > -30 && z < -20 && x > -13 && x < 8)) continue;
+      tuft(x, z);
+    }
+    // 土塁は扇の平場の縁（半径 10〜13m。外へ置くと坂の肩に隠れる）に一つ。寄せ手の筋・道にかかる所は短く切る。
+    const ra = 10 + R() * 3, half = 0.22 + R() * 0.08;
+    let a0 = mid - half, a1 = mid + half;
+    const at = (a) => lane(P.x + Math.sin(a) * ra, P.z + Math.cos(a) * ra);
+    while (a0 < a1 && at(a0)) a0 += 0.03;
+    while (a1 > a0 && at(a1)) a1 -= 0.03;
+    // 弧は (cos, sin) で回すので、扇の向き（sin, cos）に合わせて角度を移す。
+    if (a1 - a0 > 0.12 && !at((a0 + a1) / 2)) mound(P.x, P.z, ra, Math.PI / 2 - a1, Math.PI / 2 - a0, 1.3 + R() * 0.6);
+    if (k % 3 === 1) { const s = spot(8, 11); if (s) fires.push(s); }
+  }
+  // 木戸へ上る坂（北）を向いた時は寄せ手の筋で扇の中が空くので、筋の外の両肩（斜め前 35〜40 度）へ雑木を足す。
+  for (const [x, z] of [[12.5, -36], [12, -40.5], [-14, -44], [-16.5, -47.5]]) { tree(x, z, 1.2); bush(x + 1.5, z + 1, 1.6); bush(x - 1.2, z + 1.4, 1.4); }
+  for (const [x, y, z] of tops) for (let i = 0; i < 2; i++) tuft(x + (R() - 0.5) * 1.2, z + (R() - 0.5) * 1.2, y + 0.05);
+  const tag = (m, kind) => { m.userData.okRing = kind; m.receiveShadow = true; (m.isInstancedMesh ? m : m.geometry).computeBoundingSphere(); rt.scene.add(m); };
+  trunks.count = nt; trunks.castShadow = true; tag(trunks, 'ki');
+  if (crowns) { crowns.count = nc; crowns.castShadow = true; tag(crowns, 'ki'); }
+  if (bushes) { bushes.count = nb; tag(bushes, 'kusa'); }
+  if (tufts) { tufts.count = nf; tag(tufts, 'kusa'); }
+  if (idx.length) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    const mat = new THREE.MeshLambertMaterial({ map: W.groundU?.tDirt?.value || null, color: 0x9a8466, vertexColors: true });
+    tag(new THREE.Mesh(g, mat), 'kishi');
+  }
+  // 篝火（台と火）。火の揺らぎの乱数で遊びの乱数を動かさないよう、置く間だけ自前の乱数を使う。
+  const keep = Math.random; Math.random = R;
+  try { for (const [x, z] of fires) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.35, size: 0.8, lightRadius: 16 }); } }
+  finally { Math.random = keep; }
 }
 
 function okKarameteFront(rt) {
