@@ -3151,9 +3151,20 @@ const mitsukuri = {
             torchSoil += exp(-dot(gap, gap) * 0.16);
           }
           col += vec3(0.16, 0.065, 0.016) * min(1.0, torchSoil) * uNight * (1.0 - steep);
+          // 暗い土の一色を崩す（10/30 点付け）：平らな所に、乾いて白ちゃけた土・根の残る草の斑・
+          //   湿って黒ずんだ窪み・小石ほどの細かな明暗を、人の背丈ほどの大きさで混ぜる（物と絵は足さない）
+          float mkFlat = 1.0 - steep;
+          float mkA = texture2D(tMacro, vWP.xz * 0.041 + 0.17).r;
+          float mkB = texture2D(tMacro, vWP.xz * 0.11 + 0.59).r;
+          float mkDry = smoothstep(0.5, 0.68, mkA) * mkFlat;
+          col = mix(col, col * vec3(1.55, 1.45, 1.22), mkDry * 0.75);
+          float mkSod = smoothstep(0.5, 0.66, mkB) * (1.0 - mkDry) * mkFlat * (1.0 - smoothstep(0.5, 0.95, wear) * 0.6);
+          col = mix(col, grass * vec3(0.72, 0.86, 0.5), mkSod * 0.78);
+          col *= 1.0 - smoothstep(0.62, 0.8, 1.0 - mkA) * mkFlat * 0.2;
+          col *= mix(0.84, 1.14, texture2D(tMacro, vWP.xz * 0.37 + 0.81).r);
           diffuseColor.rgb *= col;`);
     };
-    ground.customProgramCacheKey = () => groundProgramKey + '|mitsukuriSoil';
+    ground.customProgramCacheKey = () => groundProgramKey + '|mitsukuriSoil2';
     ground.needsUpdate = true;
     // 共通の弔いの台詞は、近くの味方が実際に倒れた後だけ通す。
     const battleSay = rt.say;

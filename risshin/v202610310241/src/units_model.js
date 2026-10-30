@@ -191,6 +191,8 @@ function makeAtlas() {
     for (let i = 0; i < 30; i++) { const px = x0 + rnd() * w, py = y0 + h - 4 - rnd() * 10, rr = 1.5 + rnd() * 3.5; const gr = R.createRadialGradient(px, py, 0, px, py, rr); gr.addColorStop(0, gray(255, 0.8)); gr.addColorStop(1, gray(255, 0)); R.fillStyle = gr; R.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
     { const gr = R.createLinearGradient(0, y0, 0, y0 + 7); gr.addColorStop(0, gray(255, 0.5)); gr.addColorStop(1, gray(255, 0)); R.fillStyle = gr; R.fillRect(x0, y0, w, 7); }
     for (let i = 0; i < 40; i++) { const px = x0 + rnd() * w, py = y0 + 6 + rnd() * (h - 14), rr = 0.8 + rnd() * 1.8; R.fillStyle = gray(255, 0.5 + rnd() * 0.4); R.beginPath(); R.arc(px, py, rr, 0, 7); R.fill(); }
+    // 面の擦れ（担いだ時・槍の柄の当たり）：細く長い筋から下塗りが覗く
+    for (let i = 0; i < 28; i++) { const px = x0 + rnd() * w, py = y0 + 8 + rnd() * (h - 16), L = 6 + rnd() * 22; R.strokeStyle = gray(255, 0.3 + rnd() * 0.4); R.lineWidth = 0.6 + rnd() * 0.8; R.beginPath(); R.moveTo(px, py); R.lineTo(px + L, py + (rnd() - 0.5) * 4); R.stroke(); }
     scratches(REG.kasa, 260, 0.22);
     mottle(REG.kasa, 600, 0.06, 0.35, 0.6);
   });
@@ -630,6 +632,9 @@ float mkMetal(int k) {
         dd = clamp(dd + mud * 0.35 + splash * 0.25, 0.0, 1.0);
       }
       diffuseColor.rgb *= baseC;`)
+    .replace('#include <specularmap_fragment>', `#include <specularmap_fragment>
+      // 陣笠の黒漆（軽い光の材質）：鈍い艶を少し強く。擦れ（絵の赤）と泥の所は照らない
+      if (vMapUv.x > 0.374 && vMapUv.x < 0.5005 && vMapUv.y > 0.1245 && vMapUv.y < 0.1885) specularStrength *= mix(2.6, 0.6, clamp(txA.r + txA.b * dirtA, 0.0, 1.0));`)
     .replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = mix(mkRough(mkA), mkRough(mkB), txA.r);
       roughnessFactor = mix(roughnessFactor, 0.97, dd * 0.7);
@@ -662,6 +667,13 @@ float mkMetal(int k) {
           float scratch = smoothstep(0.82, 0.98, txA.g) * (0.35 + uBattleGrime * 0.4);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.13, 0.095), scratch * 0.22);
           roughnessFactor = mix(roughnessFactor, 0.7, smoothstep(0.3, 0.85, upN) * 0.6 * (1.0 - uWet));
+          // 陣笠（絵の kasa の欄）：上を向いた面でも黒漆の鈍い艶を残す。擦れと泥の所だけ曇る
+          float kasaR = step(0.374, vMapUv.x) * step(vMapUv.x, 0.5005) * step(0.1245, vMapUv.y) * step(vMapUv.y, 0.1885);
+          if (kasaR > 0.5) {
+            roughnessFactor = mix(0.3, 0.62, clamp(worn * 0.6 + dd, 0.0, 1.0)) * (1.0 - uWet * 0.3);
+            diffuseColor.rgb *= 0.93 + 0.14 * nz2;
+            dust *= 0.45;
+          }
         } else if (mk == 3) {
           float rust = smoothstep(0.6, 0.85, uVn(vObjP * 17.0 + 11.0)) * (0.4 + dirtA * 0.6);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.085, 0.035), rust * 0.7);
@@ -1394,7 +1406,8 @@ function hatParts(look, parts, hi, fallen = false) {
   const lace = look.lace || 0x5a4630;
   if (hat === 'jingasa' || hat === 'jingasa_n') {
     const hatStart = parts.length;
-    const col = look.hatColor ?? (hat === 'jingasa_n' ? 0x121110 : 0x1c1916);
+    // 黒漆の笠：真っ黒に沈めず、鈍い艶の読める墨の黒（kaito 10/30「陣笠が厚く、真っ黒で艶が無い」）
+    const col = look.hatColor ?? (hat === 'jingasa_n' ? 0x221e1a : 0x2a2520);
     // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
     const hy = 1.655;
     const fit = 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
@@ -1403,7 +1416,7 @@ function hatParts(look, parts, hi, fallen = false) {
       const prof = [[0.0, 0.25], [0.07, 0.195], [0.16, 0.122], [0.25, 0.043], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r * 0.91 * fit, y));
       // 中景へ切り替わる時にも笠の縁が十二角へ跳ねない。共用する形だけを細かくする。
       parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 20, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: 0x3e2a1e, mk2: MK.wood }));
-      parts.push(P(at(new THREE.TorusGeometry(0.282 * fit, 0.011, 3, 20), 0, hy - 0.008, 0, Math.PI / 2), 0x1c1914, { mk: MK.lac }));
+      parts.push(P(at(new THREE.TorusGeometry(0.282 * fit, 0.005, 3, 20), 0, hy - 0.004, 0, Math.PI / 2), 0x221e1a, { mk: MK.lac }));
       return;
     }
     // 近くの陣笠（御貸具足の鉄笠・塗り笠）：浅い円錐が頂から縁へ少し反り、縁の先でわずかに上へ返る。頂に小さな座。
@@ -1429,9 +1442,10 @@ function hatParts(look, parts, hi, fallen = false) {
     }
     parts.push(P(at(kasa, 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: hat === 'jingasa_n' ? 0x6a2216 : 0x4a3624, mk2: hat === 'jingasa_n' ? MK.lac : MK.wood }));
     // 裏（朱がかった茶の漆）と、縁の巻き（細い輪）
-    const under = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.min(r, R - 0.004), y - 0.01)), 32);
-    parts.push(P(at(under, 0, hy, 0), 0x4a1c14, { mk: MK.lac, reg: 'lacq' }));
-    parts.push(P(at(new THREE.TorusGeometry(R - 0.002, 0.0065, 4, 48), 0, hy + 0.009, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: 0x6a2216, mk2: MK.lac, rv: [0, 0.1] }));
+    // 笠は薄い鉄（漆塗り）：裏は表のすぐ下（厚さ 3mm ほど）。縁の巻きも細く
+    const under = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.min(r, R - 0.003), y - 0.003)), 32);
+    parts.push(P(at(under, 0, hy, 0), 0x2e1c16, { mk: MK.lac, reg: 'lacq' }));
+    parts.push(P(at(new THREE.TorusGeometry(R - 0.001, 0.0032, 4, 48), 0, hy + 0.0115, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: 0x6a2216, mk2: MK.lac, rv: [0, 0.1] }));
     // 頂の座（笠の頂を押さえる小さな丸い金具）
     parts.push(P(at(ball(0.026, 0.011, 0.026, 10, 4), 0, hy + prof[0][1] - 0.001, 0), col, { mk: MK.lac, reg: 'lacq', c2: 0x6a2216, mk2: MK.lac }));
     parts.push(P(at(new THREE.TorusGeometry(0.026, 0.003, 3, 12), 0, hy + prof[0][1] - 0.005, 0, Math.PI / 2), 0x2a2420, { mk: MK.iron }));
@@ -2174,7 +2188,7 @@ function menpoParts(look, parts, hi) {
 const DO_PROF = [[0.19, 0.88], [0.195, 0.95], [0.208, 1.05], [0.232, 1.18], [0.248, 1.3], [0.238, 1.38], [0.19, 1.43], [0.1, 1.46]];
 // rows：胴の段の数（桶側の板・小札の段）。近くの形（hi）では段ごとに下の縁が外へ出る（上の段が下の段に重なる）形にし、
 // 板を貼った筒でなく、段を重ねた厚みのある胴に見せる。模様の上下（v）は高さで決め、絵の段と形の段をそろえる
-function cuirass(r0, seg, rows = 0, hi = false, opening = '', honkozane = false, backOpening = false, rightOpening = false, domaruOpening = false) {
+function cuirass(r0, seg, rows = 0, hi = false, opening = '', honkozane = false, backOpening = false, rightOpening = false, domaruOpening = false, rep = 1) {
   // 比叡山の伝来具足を参考にした胴だけ、小札の重なりを形にも残す。
   // 一周五十六枚・厚み二ミリは復元上の補い。生成時に胴へまとめて共有する。
   // 一枚を三分割し、近い形だけに使う。材質と描く回数は増やさない。
@@ -2223,6 +2237,11 @@ function cuirass(r0, seg, rows = 0, hi = false, opening = '', honkozane = false,
   } else if (backOpening || rightOpening) {
     const start = rightOpening ? Math.PI / 2 : Math.PI;
     g = new THREE.LatheGeometry(points, seg, start + 0.065, Math.PI * 2 - 0.13);
+  } else if (rep > 1 && !right && !kozane) {
+    // 素懸の胴：絵（札二十二枚・糸の組五つ）を胴まわりに rep 回並べる。一周に一枚だと札が 5cm・糸の組が 20cm ごとの粗い縞に見えた（10/30）
+    const n = Math.max(2, Math.round(seg / rep)), L = (Math.PI * 2) / rep, pcs = [];
+    for (let k = 0; k < rep; k++) pcs.push(new THREE.LatheGeometry(points, n, Math.PI + k * L, L));
+    g = mergeGeometries(pcs); for (const q of pcs) q.dispose();
   } else g = new THREE.LatheGeometry(points, seg, right ? Math.PI / 2 + gap / 2 : Math.PI, Math.PI * 2 - gap);
   // 模様の上下は高さで（点の数によらず、絵の段が同じ高さに来るように）
   const p = g.attributes.position, uv = g.attributes.uv;
@@ -2473,7 +2492,7 @@ function bodyGeometry(key, o, hi, grp) {
   if (hi && doStyle === 'okegawa') parts.push(...(T === 0 ? okeYoko(r0, armor) : okeDo(r0, armor)));
   else {
     const smooth = doStyle === 'hotoke' || doStyle === 'katahada';
-    parts.push(P(cuirass(r0, hi ? 28 : 12, smooth ? 0 : doStyle === 'okegawa' ? 5 : 6, hi, o.doOpening, o.honkozane, o.backOpening, rightOpening, domaruOpening), armor, { mk: kozaneMk, reg: smooth ? 'lacq' : doStyle, c2: smooth ? armor : doStyle === 'okegawa' ? 0x4a2a1a : lace, c2Bands: o.doLaceBands, mk2: smooth || doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
+    parts.push(P(cuirass(r0, hi ? 28 : 12, smooth ? 0 : doStyle === 'okegawa' ? 5 : 6, hi, o.doOpening, o.honkozane, o.backOpening, rightOpening, domaruOpening, doStyle === 'sugake' ? (hi ? 4 : 2) : 1), armor, { mk: kozaneMk, reg: smooth ? 'lacq' : doStyle, c2: smooth ? armor : doStyle === 'okegawa' ? 0x4a2a1a : lace, c2Bands: o.doLaceBands, mk2: smooth || doStyle === 'okegawa' ? MK.lac : MK.cloth, rv: rows }));
     // 胸の錦（doNishiki：信玄の手本の、胸板の下の錦の布張り）：胴の前に布を張る。色と金の織りの斑
     if (o.doNishiki != null) {
       const rAtN = (y) => { for (let q = 1; q < DO_PROF.length; q++) { const [ra, ya] = DO_PROF[q - 1], [rb, yb] = DO_PROF[q]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return DO_PROF[DO_PROF.length - 1][0]; };

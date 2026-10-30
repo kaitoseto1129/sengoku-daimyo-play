@@ -3252,10 +3252,17 @@ const hiei_mtn = {
 
     // ---- P1 山麓：日吉社の鳥居の前の神人と僧兵、里坊の弓 ----
     // 鳥居前の守りは持ち場で応戦する。平地用の回り込み・退却で里坊の裏へ移さない。
-    F.hiyoshiG = this.foe(rt, { name: '日吉社の神人と僧兵', noAI: true, anchor: { x: 146, z: -7 }, facing: Math.PI / 2, width: 7, aggro: 12, morale: 75, fleeDir: { x: -1, z: -0.6 } },
-      [...dress([{ type: 'ashigaru', n: 4 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 3 }], LAY)]);
+    // 開戦25秒の乱戦（10/30）：鳥居前の守りを厚くし、持ち場の前15mの鳥居先まで出し、先手と押し合いが続くように
+    F.hiyoshiG = this.foe(rt, { name: '日吉社の神人と僧兵', noAI: true, anchor: { x: 151, z: -4 }, facing: Math.PI / 2, width: 7, aggro: 12, morale: 100, noRout: true, fleeDir: { x: -1, z: -0.6 } },
+      [...dress([{ type: 'ashigaru', n: 8 }, { type: 'samurai', n: 2, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'ashigaru', n: 4 }], LAY)]);
+    // 始めの押し合いの間は崩れず踏みとどまる。少し後からは常の通り崩れて退く（bot の勝ち筋は変えない）
+    rt.after(22, () => { if (F.hiyoshiG && !gone(F.hiyoshiG)) F.hiyoshiG.noRout = false; });
     F.satoboBow = this.foe(rt, { name: '里坊の僧兵（弓）', anchor: { x: 134, z: -5 }, facing: Math.PI / 2, width: 4, aggro: 10, morale: 60, fleeDir: { x: -1, z: -0.3 } }, dress([{ type: 'bow', n: 3 }], SOHEI));
 
+    // 開戦25秒の乱戦（10/30）：参道を下って先手へ打ち掛かる僧兵の一手。鳥居の守りの後から本人の前30〜40mより寄せる（段の進みには数えない）
+    F.sandoG = this.foe(rt, { name: '参道の僧兵', anchor: { x: 128, z: 2 }, facing: Math.PI / 2, width: 5, seekRange: 6, aggro: 6, morale: 85, fleeDir: { x: -1, z: 0 } },
+      dress([{ type: 'ashigaru', n: 7 }], SOHEI));
+    rt.after(9, () => { const g = F.sandoG; if (!gone(g) && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.aggro = 16; } });
     F.akechi2 = allyGroup(rt, { faction: 'oda', fixed: true, name: '煙に迷う明智の兵', anchor: { x: 180, z: 7 }, facing: -Math.PI / 2, width: 2, aggro: 10, formation: 'column', colW: 2, order: 'hold', seekRange: 12 },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], ODA));
     F.akechi2.defMult = 1; F.akechi2.dmgMult = 1;
@@ -3357,7 +3364,8 @@ const hiei_mtn = {
       { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     // 鳥居の手前で長い一列を止めず、参道へ先手を入れる。
     // 山道へ移る時は walk が一列に戻す。兵数や攻撃力は変えない。
-    walk(F.akechi, [[150, 5], [148, -6]], 2.6, (q) => attackFrom(q, 16));
+    // 開戦25秒の乱戦（10/30）：鳥居前の守りの手前で早く掛かり、本人の前で押し合う
+    walk(F.akechi, [[153, 3]], 2.6, (q) => attackFrom(q, 16));
     F.akechi.colW = 2;
     // 供まで先手と同じ鳥居の足元へ詰めず、光秀は通りで後続を指揮する。
     // 登山へ移ると、先手に続く従来の道順へ戻る。

@@ -2341,22 +2341,28 @@ const tottori = {
       dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'gun', n: 10 }], ODA));
     // 遊び始めて百十秒の頃、本人の向かう先の二十五〜三十五メートル（道の脇へ九メートルずらす）に、羽柴勢と城兵の押し合いが起こる。
     // 打って出た城兵の組（F.sallies）とは別で、崩れず、時間を持たせる。本人の道筋は塞がない。
-    rt.after(110, () => {
+    const clashAt = (base, tag, wide = 7.5) => {
       if (rt.over || rt.flags.ending || !rt.player.u.alive) return;
-      const p = rt.player.u.pos, yaw = rt.player.yaw || 0, fx = Math.sin(yaw), fz = Math.cos(yaw);
+      const p = rt.player.u.pos; let yaw = rt.player.yaw || 0;
+      if (tag) { const gp = F.guard.units.find((u) => u.alive)?.pos; if (gp && Math.hypot(gp.x - p.x, gp.z - p.z) > 20) yaw = Math.atan2(gp.x - p.x, gp.z - p.z); }   // 開戦すぐの組は、舟の番（本人の向かう先）の方へ
+      const fx = Math.sin(yaw), fz = Math.cos(yaw);
       for (const [k, side] of [[0, 1], [1, -1]]) {
-        const d = 24 + k * 6, mx = p.x + fx * d - fz * side * 7.5, mz = p.z + fz * d + fx * side * 7.5;
-        if (W.heightAt(mx, mz) < (W.waterY ?? -99) + 0.3) continue;
+        let d = base + k * 6, mx, mz;
+        for (; d >= 8; d -= 3) { mx = p.x + fx * d - fz * side * wide; mz = p.z + fz * d + fx * side * wide; if (W.heightAt(mx, mz) >= (W.waterY ?? -99) + 0.3) break; }
+        if (d < 8) continue;
         const mel = (g) => { g.noRout = true; g.noAI = true; g.fire = false; g.morale = 100; g.dmgMult = .2; return g; };
         const face = Math.atan2(-fx, -fz);
-        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴の押さえ' + k, anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100 },
+        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴の押さえ' + tag + k, anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100 },
           dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'ashigaru', n: 8 }], ODA)));
-        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '柵へ迫る城兵' + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
+        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '柵へ迫る城兵' + tag + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
           dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6 } }, { type: 'ashigaru', n: 8, o: { cdBase: 2.4, windup: 0.65 } }], HUNGRY)));
         hungryLook(e);
         W.addFire(mx - fz * 4, mz + fx * 4, { torch: true, h: 1.6, size: .7, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.8, lightDecay: 0 });
       }
-    });
+    };
+    // 開戦すぐ（12秒）にも、25秒の画面の前 20〜30m で押し合いを起こす（10/30 実機の門：開戦25秒でまばら）
+    rt.after(14, () => clashAt(22, 'α', 3));
+    rt.after(110, () => clashAt(24, ''));
     // 主殿と陣所の床・護衛の持ち場を保ち、軽い備えから兵を追加しない。
     for (const g of rt.army.groups) {
       g.noAI = true;

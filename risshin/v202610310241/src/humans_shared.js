@@ -578,7 +578,8 @@ function humanLook(look0) {
     look = { ...look, kote: 3, nanban: false,
       hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : 'jingasa',
       ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
-        : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
+        // 足軽の御貸具足の作り分け（gusoku_vars.js の loanWear）を済ませた人は、その漆と威糸のまま（全員を同じ色に塗り直さない）
+        : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
   }
   // 目の下頬は、実写の顔に沿わせて作る（兜の形の面は喉の垂だけにする。兵は近くで実写の顔に替えた時に付ける）
   // 面頬（半頬・目の下頬）は、実写の顔の形から打ち出す（units.js の遠目の面頬は平らな黒い板で、近くでは貼った板に見える）
