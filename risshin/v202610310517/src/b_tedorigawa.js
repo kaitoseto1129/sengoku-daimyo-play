@@ -2588,6 +2588,18 @@ const tedorigawa = {
     // 雨の踏み跡と泥の窪み、半ば埋まった玉石、退く時に捨てた俵・材木・桶を左右に（10/28 資料との差：手取川の川原）。
     dressStage(rt, { at: { x: 1, z: -46 }, heading: 0, seed: 1577, flag: false, huts: 0, fence: false, yagura: false, clutter: 5, rocks: 12, fire: false,
       wet: 1, trodden: 0.9, radius: 40 });
+    // 開戦25秒の画面（本人は殿の持ち場へ寄り、渡り口の方＝南を向く）の真ん中右に、川沿いを回り込んだ上杉の先手が、
+    //   渡り口の手前へ下がる柴田の手（-8, -38）へ斬り込んで押し合う（10/30 実機の門：25秒の画面に敵が写らない）。
+    //   軽い大軍はカメラの48m内に描かれないので本物の兵で。人数は十人に絞る（本物の兵は合わせて250人ほど）。渡り口の中ほど（x≈0〜4）は空ける。
+    F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '川沿いを回り込んだ上杉勢', anchor: { x: -9, z: -30 }, facing: Math.PI,
+      order: 'hold', width: 5, formation: 'yari', aggro: 10, seekRange: 14, morale: 95, fleeDir: { x: -1, z: -1 } },
+    dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], UESUGI));
+    {
+      // 押し合いの外の脇を篝火で照らす（雨の夜）
+      const fp = [[16, -28.5], [-15, -28]];
+      rt.scene.add(kagaribiBatch(W, fp));
+      for (const [x, z] of fp) W.addFire(x, z, { h: 0.9, size: 1.8, lightRadius: 20, lightColor: 0xff8a3a, lightStrength: 2, lightDecay: 0 });
+    }
     waterActions(rt);
     rt.setPhase('brief'); rt.objProgress('main', '');
     tedoSignal(rt, 'atsumare', F.shibaU.pos, 0.8, F.shibaU,

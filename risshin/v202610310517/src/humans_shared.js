@@ -580,11 +580,11 @@ function humanLook(look0) {
   // 近景では全員に籠手。足軽は簡素な御貸具足と陣笠、武者は兜と面頬。
   if (!sohei && !look.kosode) {
     const warrior = (look.tier ?? 0) >= 1 || isNamed(look);
-    look = { ...look, kote: 3, nanban: false,
+    look = { ...look, kote: warrior ? 3 : 0, nanban: false,
       hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : 'jingasa',
       ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
-        // 足軽の御貸具足の作り分け（gusoku_vars.js の loanWear）を済ませた人は、その漆と威糸のまま（全員を同じ色に塗り直さない）
-        : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
+        // 足軽は簡素な貸し具足：陣笠と胴は同じ漆の一色（look.lacquer。units.js）。決まっていない人だけ、作り分け（loanWear）の漆と威糸のまま
+        : look.lacquer != null ? { armor: look.lacquer, lace: look.lacquer, menpo: null, menpoScan: null } : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
   }
   // 目の下頬は、実写の顔に沿わせて作る（兜の形の面は喉の垂だけにする。兵は近くで実写の顔に替えた時に付ける）
   // 面頬（半頬・目の下頬）は、実写の顔の形から打ち出す（units.js の遠目の面頬は平らな黒い板で、近くでは貼った板に見える）

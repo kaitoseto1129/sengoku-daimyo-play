@@ -3331,7 +3331,7 @@ const shigisan = {
       u.playerOpeningBlocked = rt.t < 12 || (!F.firstFightDone ? u !== F.firstFoe : !ranged && (F.sgRest || !F.sgFront.includes(u)));
     }
     if (F.ending || rt.over || !rt.player.u.alive) return;
-    // 六分半で諸口の夜攻めが決着する。内通八秒と終幕十五秒を含めても七分以内。
+    // 七分半で諸口の夜攻めが決着する。
     // 本人の本丸取りの戦功は実際に取った時だけ。
     // 内通の段と、久秀による放火・父子の最期の知らせを順に伝えて終える。
     // 本丸の南口まで攻め上り、口で二十秒戦えば、諸口の味方と本丸を落とした事にする（館の守り二十人を一人で討ち尽くさせない。bot 10/26）。
@@ -3340,9 +3340,10 @@ const shigisan = {
       if (z?.test(P.x, P.z) || Math.hypot(P.x - TOP.x, P.z - (TOP.z + TOP.r + 4)) < 10) { F.shuT = (F.shuT || 0) + dt; if (F.shuT >= 20) { F.reachedShu = true; F.reachedWinAt = rt.t + 15; } }
     }
     if (F.reachedWinAt && rt.t >= F.reachedWinAt) { this.win(rt, true); return; }
-    if (rt.t >= 390) { this.win(rt, true); return; }
+    // 10/30 bot：尾根の伏兵を厚くした後、本丸の南口の二十秒が六分半に間に合わず失敗した。諸口の決着を七分半へ延ばす。
+    if (rt.t >= 450) { this.win(rt, true); return; }
     // 別口による落城を、戦後に初めて知らされないよう一度だけ伝える。
-    if (rt.t >= 330 && !F.otherFrontSaid) {
+    if (rt.t >= 390 && !F.otherFrontSaid) {
       F.otherFrontSaid = true;
       rt.say('使番', F.step >= 3.5
         ? '別の攻め口の味方が本丸へ迫る！　こちらも先手と本丸の南口へ！'

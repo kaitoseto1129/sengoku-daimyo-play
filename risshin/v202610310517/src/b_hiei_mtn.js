@@ -2335,25 +2335,25 @@ function hieiOldCedars(W, spots) {
   }
   trunk.computeVertexNormals();
   const trunkMat = new THREE.MeshLambertMaterial({ map: barkTex('sugi'), color: 0xc29a7c, emissive: 0x2a1c14 });
-  // 枝葉：幹の上の方に濃い緑の塊を段に重ねる（下からは幹が画面の上へ抜けて見える高さ）
-  const crowns = [];
-  for (let k = 0; k < 5; k++) {
-    const r = 2.6 - k * .45, c = new THREE.ConeGeometry(r, 3.4, 9, 2);
-    c.translate(0, 10.5 + k * 1.9, 0);
-    const cp = c.attributes.position;
-    for (let i = 0; i < cp.count; i++) { const x = cp.getX(i), z = cp.getZ(i), j = 1 + .16 * Math.sin(x * 5.1 + z * 3.7 + k); cp.setXYZ(i, x * j, cp.getY(i), z * j); }
-    crowns.push(c);
-  }
-  const crown = mergeGeometries(crowns); crown.computeVertexNormals();
-  const crownMat = new THREE.MeshLambertMaterial({ color: 0x24331f });
-  const tm = new THREE.InstancedMesh(trunk, trunkMat, ok.length), cm = new THREE.InstancedMesh(crown, crownMat, ok.length);
-  const pose = new THREE.Object3D();
+  // 枝葉：幹の上の方に段を重ねる。濃い緑の閉じた円錐を重ねると、黒い切り絵の塔に見えた（10/30 点付け）。
+  // 林の杉と同じ写真の葉房の形・材質・影の材質を使い回し、幹の上の高さへ持ち上げて置く（絵・形・材質は増やさない）。
+  const src = (W.treeMeshes || []).find((m) => m.isInstancedMesh && m.material?.userData?.leafPhoto === 'cedar' && m.customDepthMaterial);
+  if (!src) return;
+  const tm = new THREE.InstancedMesh(trunk, trunkMat, ok.length), cm = new THREE.InstancedMesh(src.geometry, src.material, ok.length);
+  cm.customDepthMaterial = src.customDepthMaterial;
+  const pose = new THREE.Object3D(), tint = new THREE.Color();
   ok.forEach(([x, z, s = 1], i) => {
     pose.position.set(x, drawGroundAt(W, x, z), z); pose.rotation.set(0, i * 2.39, 0);
     pose.scale.set(s, 1 + (s - 1) * .5, s); pose.updateMatrix();
-    tm.setMatrixAt(i, pose.matrix); cm.setMatrixAt(i, pose.matrix);
+    tm.setMatrixAt(i, pose.matrix);
+    // 葉房は幹の上の三分の二へ。下は幹だけが見え、見上げると梢が空へ抜ける。
+    pose.position.y += 7.6 * (1 + (s - 1) * .5); pose.scale.set(s * 1.25, (1 + (s - 1) * .5) * .78, s * 1.2); pose.updateMatrix();
+    cm.setMatrixAt(i, pose.matrix);
+    cm.setColorAt(i, tint.setRGB(.5 + (i % 3) * .03, .58 + (i % 4) * .025, .46));
   });
   for (const m of [tm, cm]) { m.castShadow = true; m.receiveShadow = true; m.computeBoundingSphere(); W.scene.add(m); }
+  // 葉房の影は林の杉と同じ落とし方に（影の描き方を一つ増やさない）。
+  cm.castShadow = false;
 }
 // 杉林の法面の苔むした露岩（10/29 採点：斜面がにじんだ茶の模様のまま）。地衣の付いた岩の写真（Lichen Rock・Poly Haven CC0）を
 // 崩した丸い岩に貼り、上を向いた面だけ苔の緑にする。半分以上を土に埋め、宙に浮かせない。
@@ -2854,6 +2854,7 @@ const hiei_mtn = {
     cedarBoughs: true,     // 杉の樹冠を枝ごとの房にし、縦に長い葉の幕を作らない。
     cedarBoughPitch: 1.3,  // 葉房を枝に沿って寝かせ、梢から裾へ連なる板の輪郭を崩す。
     cedarBoughWidth: 1.1,
+    farCedarPitch: 1.0,    // 遠景の三枚の房は垂らす。寝かせると霞の中で横板の棚に見えた（10/30 点付け：羽の板の葉）。
     roundNeedles: true,    // 板の葉ではなく、立体の針葉の段を使う。低画質にも残す。
     layeredNeedles: true,  // 枝の中段を張らせ、まっすぐな円錐の縁を崩す。形は林で共用する。
     raggedNeedles: true,   // 杉の枝先を不揃いにし、積んだ円錐の直線を崩す。

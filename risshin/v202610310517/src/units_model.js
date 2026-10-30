@@ -4380,7 +4380,7 @@ function shinGeometry(o, hi, part) {
     P_.push(P(limb([0, -0.02, 0.0], [0, -0.28, -0.008], 0.074 * b, 0.058 * b, hi ? 10 : 6), kc, { reg: 'cloth', flipV: true }));
     if (hi) for (const y of [-0.04, -0.26]) P_.push(P(at(new THREE.TorusGeometry(y > -0.1 ? 0.074 * b : 0.058 * b, 0.004, 4, 12), 0, y, -0.004, Math.PI / 2), 0x2a2520, { reg: 'cord' }));
     // 筒臑当（御貸具足）：脛の前を三枚の縦の板で包み、蝶番でつなぐ。家の色の漆。上下を紐で結ぶ（四人に一人は脚絆だけ）
-    if (vi % 4 !== 3) {
+    if (false) {   // 足軽に筒臑当は着けない（簡素な貸し具足：脚絆だけ。kaito 10/30）
       const ac = o.armor || 0x2e3236;
       if (hi) {
         const w3 = Math.PI * 0.32;

@@ -3348,6 +3348,10 @@ const echizen_ikko = {
       // 惣門の下の参道の坂に置き、麓の持ち場から松明と篝火に照らされた群れと、その奥の惣門が一緒に見える。人数と位置は推定（10/29）。
       F.ikkoGateCrowd = enemyGroup(rt, { faction: 'ikko', fixed: true, name: '惣門前の一揆勢', anchor: { x: GATE_SOMON.x, z: GATE_SOMON.z - 30 }, facing: Math.PI, width: 12, aggro: 7, formation: 'yari' },
         [{ type: 'ashigaru', n: 12, o: { armor: IKKO.armor, flag: IKKO.flag } }, { type: 'samurai', n: 2, o: { armor: IKKO.armor, flag: IKKO.flag } }]);
+      // 10/30 bot：竹束より先へ出た本人が、門前の群れと参道の見張りに一人で囲まれ七十秒で倒れた。
+      // 坂の上から突き下ろす槍は浅く、組頭の先手が追い付くまで持ちこたえられるようにする（数と並びは変えない）。
+      F.ikkoGateCrowd.dmgMult = .4;
+      for (const b of F.watchPosts) if (b.real) b.real.dmgMult = .5;
       // 惣門前の一揆勢の両脇に篝火の台を二つ（麓の側から火が当たり、顔・笠・槍が浮かぶ）
       for (const dx of [-5.5, 5.5]) { const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 33; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
       // 惣門前の一揆勢が掲げる松明（竹の柄の先に火。柄の形と材質は一つを使い回す）。数と並びは推定。

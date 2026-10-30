@@ -1885,11 +1885,11 @@ const iga = {
     F.jinHosts = buildSonae(rt, this.jinkei);
     // 夜討ちの全組を準備時に林へ置く。時刻で新しく湧かせず、同じ兵へ進撃を命じる。
     F.raiders = [igaEnemy(rt, 6, 28, 12, '陣の口から寄せる伊賀衆'), igaEnemy(rt, 48, 50, 5, '東から忍び寄る伊賀衆'), igaEnemy(rt, -30, 95, 5, '裏へ回る伊賀衆')];
-    F.waveA = [igaEnemy(rt, 48, 25, 9, '東の林の伊賀衆'), igaEnemy(rt, -48, 50, 9, '西の林の伊賀衆'), igaEnemy(rt, 0, 96, 8, '陣の裏の伊賀衆')];
-    F.waveB = [igaEnemy(rt, ...APPROACH[3], 10, '城から出る伊賀衆'), igaEnemy(rt, ...APPROACH[2], 10, '林を回る伊賀衆')];
+    F.waveA = [igaEnemy(rt, 48, 25, 6, '東の林の伊賀衆'), igaEnemy(rt, -48, 50, 6, '西の林の伊賀衆'), igaEnemy(rt, 0, 96, 6, '陣の裏の伊賀衆')];   // 10/30 陣口の斬り合いへ人数を回す（9・9・8→6）
+    F.waveB = [igaEnemy(rt, ...APPROACH[3], 8, '城から出る伊賀衆'), igaEnemy(rt, ...APPROACH[2], 8, '林を回る伊賀衆')];
     // 最後の夜討ちの組を率いる既存の一人。史料に無い将名は作らない。
     F.igaBoss = F.waveB[1].units.find((u) => u.type === 'samurai') || null;
-    F.sally = igaEnemy(rt, 55, -46, 12, '林の伊賀衆');
+    F.sally = igaEnemy(rt, 55, -46, 7, '林の伊賀衆');
     F.wallBow = igaEnemy(rt, FORT.x, F.gz - 5, 8, '土塁の伊賀衆', [{ type: 'bow', n: 6 }, { type: 'gun', n: 2 }]);
     F.wallBow.ambush = false; F.wallBow.aggro = 34; F.wallBow.facing = 0;
     // 登りと退きの道を三人ずつが守る。城の放棄後に新手を出さない。
@@ -1912,6 +1912,20 @@ const iga = {
       g.aggro = 0;
       for (const u of g.units) u.noTarget = true;
       F.raidPatrols.push(g);
+    }
+    // 10/30 採点：開戦25秒の画面は味方が並ぶだけで敵が見えなかった。陣の口を向く遊び手の前十〜二十歩で、
+    //   陣口へ斬り込んだ伊賀衆と、丹羽の先手が開戦すぐから押し合い斬り合う。夜なので両脇に篝火。人数・位置は推定。
+    //   遠い林の組を減らした分だけ置き、本物の兵は二百五十人以内。勝ち負けの数えには入れない。
+    F.mouthSally = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 3, name: '陣口の丹羽の先手', anchor: { x: 2, z: 28.5 }, facing: Math.PI, width: 8, spacing: 0.9, aggro: 7, seekRange: 7, noRout: true },
+      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], NIWA));
+    F.mouthRaid = enemyGroup(rt, { fixed: true, faction: 'iga', name: '陣口へ斬り込んだ伊賀衆', anchor: { x: 2, z: 22.5 }, facing: 0, formation: 'yari', width: 8, spacing: 0.9, guard: true, guardLeash: 3,
+      order: 'hold', aggro: 7, seekRange: 7, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 }, dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 14 }], IGA));
+    F.mouthRaid.noRout = true;   // 最初の四十秒は崩れず陣口で組み合う（update で解く）
+    F.mouthRaid.igaHome = { x: 0, z: -20 };   // 夜討ちが退く時は、陣口から北の山道へ戻る
+    {
+      const fires = [[-6, 25.5], [10, 25.5]];
+      rt.scene.add(kagaribiBatch(W, fires));
+      for (const [x, z] of fires) W.addFire(x, z, { torch: true, h: 1.3 });
     }
     // 陣の中で寝ずの番をする織田の兵：焚き火を囲んで座る者・立つ番の者。夜でも火に照らされて見える
     {
@@ -2160,6 +2174,7 @@ const iga = {
     F.honjin.guard.guardLeash = 10;
     for (let i = 0; i < 3; i++) { rt.uninteract('f' + i); rt.unmark('f' + i); rt.unmark('r' + i); if (F.fires[i]) igaDouseFire(rt, i); }
     retireRaid(rt, F.raiders);
+    if (F.mouthRaid && !gone(F.mouthRaid)) retireRaid(rt, [F.mouthRaid]);
     for (const g of F.raidPatrols) if (!g.ambush) retireRaid(rt, [g]);
     rt.obj('main', '陣の口へ集まり、夜討ちに備えよ', 'main');
     depthStart(rt, igaCtx(rt), igaA(rt), () => { rt.objRemove('dp'); if (!F.ending) this.assault(rt); });
@@ -2328,6 +2343,7 @@ const iga = {
   // 山麓の集落→森→外郭→堀切→主尾根→主郭、と進む流れの呼び名（足軽のいる所で変わる）
   stageOf(z) { return z > 30 ? '山麓の集落' : z > 5 ? '森の道' : z > -40 ? '外郭' : z > -62 ? '堀切' : z > FORT.z + FORT.r ? '主尾根' : '主郭'; },
   update(rt, dt) {
+    if (rt.flags.mouthRaid?.noRout && rt.t > 40) rt.flags.mouthRaid.noRout = false;
     const F = rt.flags;
     rt.world.def.raidSenseDistance = igaHoldingRaid(rt) ? 32 : 0;
     // 戦の時計と兵の時計の差で、最後の寄せだけ五人枠に戻さない。
@@ -2635,7 +2651,10 @@ iga.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (F.step === 1) {
     // 一軒を消したら消火役へ任せ、林の敵を追わず味方の列へ戻る。
     if (!igaNeedsDousing(b)) {
-      goTo(p, inp, CAMP.x + 4, CAMP.z, 3); return;
+      goTo(p, inp, CAMP.x + 4, CAMP.z, 3);
+      // 列に着いたら、陣口で組み合う先手と伊賀衆の方へ向き直って次の寄せを待つ（10/30：陣の奥を向いたまま待っていた）。
+      if (Math.hypot(CAMP.x + 4 - u.pos.x, CAMP.z - u.pos.z) < 3.5) { inp.k.delete('KeyW'); p.yaw = Math.atan2(2 - u.pos.x, 25 - u.pos.z); }
+      return;
     }
     let it = null, bd = Infinity;
     for (const x of b.interacts) if (x.id.startsWith('f')) { const d = Math.hypot(x.pos.x - u.pos.x, x.pos.z - u.pos.z); if (d < bd) { bd = d; it = x; } }

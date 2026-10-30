@@ -103,7 +103,7 @@ function nearArmorParts(parts) {
   });
   enhance('leg', ({ box }) => {
     // 臑当の蝶番を留める鋲。足軽の脚絆だけの者には付けない。
-    if (T === 0 && (L.vi || 0) % 4 === 3) return;
+    if (T === 0) return;   // 足軽に臑当は着けない（脚絆だけ）
     for (const y of [-0.065, -0.23]) for (const a of [-0.48, 0.48]) {
       const r = (0.081 - (-y - 0.03) * 0.016 / 0.22) * b;
       box(0.006, 0.007, 0.005, Math.sin(a) * (r + 0.003), y, Math.cos(a) * (r + 0.003) - 0.004, 0x3a3e42, MK.iron, a);

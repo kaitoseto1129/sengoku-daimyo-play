@@ -42,6 +42,15 @@ import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
 import { aliveGuard } from './army_alive.js';
 import { reservedModel, reservedHorse } from './army_reserve.js';
+// 足軽の漆の色（軍ごとに一色。軍の旗の名で決める。青・紺は使わない）
+const LACQUER = [0x1f1b18, 0x4a2a18];
+function ashigaruLacquer(fac, flag) {
+  const f = String((fac && fac.flag) || flag || '');
+  if (f === 'akazonae' || f === 'takeda') return 0x8a2a1c;
+  let h = 0; for (const ch of f) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
+  return LACQUER[h % 2];
+}
+
 export { MK, UNIT_MAT, UNIT_WET, haoriFold, HORSE_HOOK, poseArms, SPEARS, spearSpec, arrowGeometry, makeWeapon, setBowDraw, kickSpear, ENEMY_HORSE, COATS, coatOf, animateHorse, soheiLook, headEnvelope, katoGeometry } from './units_model.js';
 export { weaponMesh, LOD, IDLE } from './units_flags.js';
 export { lookParts } from './units_look.js';
@@ -642,6 +651,12 @@ export class Army {
     // 敵味方を具足の色で塗り分けない（赤と青に塗るとイラストに見える。kaito 10/28）。見分けは背の旗・旗の赤い縁・頭上の印だけ。
     // 本人だけ笠と兜を金にし、背の金の小旗とそろえて乱戦でも一目で分かるようにする。
     if (fieldLook.battleKey === 'inou' && u.type === 'player' && !look.kosode) look.helm = look.hatColor = 0xd9a63a;
+    // 足軽（貸し具足）は簡素に：陣笠と胴は同じ漆の一色（軍ごとに黒・茶・朱）、籠手と袖は無し、鎧下は生成り・茶の布（kaito 10/30）
+    if (loanArmor && !u.name && !look.kosode && !look.sohei && !(u.type === 'player' && fieldLook.battleKey === 'inou')) {
+      const lq = ashigaruLacquer(fac, look.flag);
+      look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false;
+      look.cloth = [0x7a6a50, 0x5e4630, 0x8a7c62, 0x4a3a2a, 0x6e5a40, 0x806e52][vi];
+    }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;
     // 全戦の武将は、背に垂れる母衣を外して袖なしの陣羽織を着る。

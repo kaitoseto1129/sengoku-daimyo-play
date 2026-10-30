@@ -26,13 +26,15 @@ export function mergeFenceBatch(scene, list, mat, cam = true, near = false, worl
     let offset = 0, visible = cell.length;
     // 元の位置と法線は一度だけ保存。壊れて傾く時だけ、該当区画を書き換える。
     for (const { geo: src } of cell) {
-      parts.push({ offset, pos: src.attributes.position.array, norm: src.attributes.normal.array, matrix: new THREE.Matrix4(), visible: true });
+      // 元の位置と法線は、初めて書き換える時に束の形から写す（区画の範囲は書き換えるまで元のまま）。前は全部の部品の写しを持ち続け、小谷で 25MB あった（10/30）
+      parts.push({ offset, count: src.attributes.position.count, pos: null, norm: null, matrix: new THREE.Matrix4(), visible: true });
       offset += src.attributes.position.count;
     }
     const write = (p, id) => {
       // 開閉・破壊の後は元の形で受ける。古い遠景の形を見せない。
       mesh.userData.detailChanged = true; mesh.geometry = geo;
       const P = geo.attributes.position, N = geo.attributes.normal;
+      if (!p.pos) { p.pos = P.array.slice(p.offset * 3, (p.offset + p.count) * 3); p.norm = N.array.slice(p.offset * 3, (p.offset + p.count) * 3); }
       normal.getNormalMatrix(p.matrix);
       v.fromArray(p.pos).applyMatrix4(p.matrix);
       const hx = v.x, hy = v.y, hz = v.z;

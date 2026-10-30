@@ -1233,7 +1233,9 @@ function takatoGateBrawl(rt) {
     }
     A.spawn(g, list);
     // 刃は甲冑の上を滑り、組み打ちは長引く。一分余りで片が付かないよう、この塀際の斬り合いだけ兵どうしの手傷を浅くする（本人への刃も浅い）。
-    g.dmgMult = team ? .4 : .3;
+    // 10/30 bot：門の前の道を通る本人が塀際の城兵に囲まれて倒れた。城兵の刃をさらに浅くし、門前の道へ出て来させない。
+    g.dmgMult = team ? .25 : .3;
+    if (team) { g.aggro = 4.5; g.guardLeash = 4.5; }
     return g;
   };
   F.gateBrawl = [

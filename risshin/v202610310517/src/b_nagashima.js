@@ -2575,7 +2575,7 @@ const nagashima = {
     // 人数と短い槍は保ち、列の間隔も広げる。二月の籠城の炊ぎの煙は川向こうへ置く。
     for (const [x, z, sd, k] of [[-44, BANK_Z + 68, 15752, 'oda'], [44, BANK_Z + 68, 15753, 'eiraku']]) W.addDistantArmy({ x, z, w: 14, d: 10, count: 30, spearScale: .65, facing: Math.PI, armor: 0x2a2622, team: 0, flagTex: flagTexture(k), seed: sd, flagRate: .12 }).army.noWake = true;
     for (const [x, z, sz] of [[FORT.x + 6, FORT.z - 6, 1.8], [GANSHO.x, GANSHO.z, 2.2]]) W.addSmokeColumn(x, W.heightAt(x, z) + 3, z, { size: sz });
-    F.odaCamp = camp(rt, { x: 0, z: 60, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 18, reserve: 0, runTo: { x: 0, z: BANK_Z + 8 } });
+    F.odaCamp = camp(rt, { x: 0, z: 60, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: 0, z: BANK_Z + 8 } });
     // 北向きの本陣では、護衛も前（北）へ。共通の南向き配置をそのまま使わない。
     F.odaCamp.guard.anchor.z = 46;
     F.odaCamp.guard.formation = 'yari';
@@ -3013,10 +3013,10 @@ const nagashima = {
     }
     // ---- 柴田勝家の手（自分の持ち場）と、柵を結う者 ----
     F.shiba = allyGroup(rt, { name: '柴田勝家の手', fixed: true, anchor: { x: 0, z: BANK_Z + 8 }, facing: Math.PI, width: 8, aggro: 10, formation: 'yari', yariRanks: 3 },
-      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: false } }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 4 }], { ...ODA, flag: NAMED_GEAR['柴田勝家'].flag }));
+      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: false } }, { type: 'ashigaru', n: 13 }, { type: 'bow', n: 4 }], { ...ODA, flag: NAMED_GEAR['柴田勝家'].flag }));
     F.shibaU = F.shiba.units[0];
     F.teppo = allyGroup(rt, { name: '織田の鉄砲衆', fixed: true, anchor: { x: 34, z: BANK_Z + 6 }, facing: Math.PI, width: 6, formation: 'line', ranks: 2, aggro: 36, fire: false },
-      dress([{ type: 'busho', n: 1, o: { name: '鉄砲組頭', invuln: true, horse: false } }, { type: 'gun', n: 12 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '鉄砲組頭', invuln: true, horse: false } }, { type: 'gun', n: 10 }], ODA));
     rt.after(12, () => { if (F.step === 1) rt.say('鉄砲組頭', 'こちらの鉄砲で対岸を抑える。横木の内で縄を締めよ', 3); });
     // 公記巻七の早尾口先陣に前田又左衛門。岸への加勢・徒歩の立ち位置は遊び上の復元。
     // https://kininaruart.com/artist/shincho/n7.html
@@ -3033,6 +3033,14 @@ const nagashima = {
       if (u.name === '前田利家') u.look.style = 'gouketsu_thrust';
     }
     F.oda = [F.shiba, F.teppo]; F.defenders = [F.shiba, F.teppo, F.relief];
+    // 開戦25秒の小競り合い（10/30）：島の物見の小舟が、まだ横木の無い柵の切れ目（中央と東の間）の浅瀬へ寄せ、岸の助けの槍組が始めから押し返す。
+    // 兵は足さない（本陣の旗本18→15・柴田の足軽16→13・鉄砲12→10 の八人を、物見の八人に回す）。小競り合いなので双方の打ちは弱い。
+    F.scouts = enemyGroup(rt, { fixed: true, faction: 'ikko', name: '島の物見', anchor: { x: 13, z: BANK_Z - 4 }, facing: 0, formation: 'line', width: 8,
+      order: 'hold', aggro: 9, seekRange: 10, morale: 80, noRout: true, dmgMult: .15, fire: false, historicalOrders: true, fleeDir: { x: 0, z: -1 } },
+      dress(Array.from({ length: 8 }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 30, maxHp: 30, kosode: 1, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 4 === 3 ? 'jingasa' : 'hachimaki', weapon: i % 3 === 2 ? 'sword' : 'spear', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
+    dressMonTo(F.scouts);
+    { const g = F.relief; g.noAI = false; g.anchor = { x: 12, z: BANK_Z + 2 }; g.aggro = 9; g.dmgMult = .2; g.formation = 'line'; g.width = 8;
+      for (const u of g.units) { u.noTarget = false; const at = g.slotPos(u.slot, g.units.length); u.pos.set(at.x, W.heightAt(at.x, at.z), at.z); u.mesh.position.copy(u.pos); } }
     // 地形に固定した出現場所を守った上で、大将は槍の列の後ろへ置く。
     for (const g of F.oda) {
       const u = g.units[0];
@@ -3413,6 +3421,16 @@ const nagashima = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
+    // 開戦の小競り合いの片付け：物見が尽きるか、開戦45秒か、降伏の報せで、残る物見は舟へ逃げ、助けの槍組は元の控えへ戻る
+    if (F.scouts && !F.scoutsDone && (F.step >= 2 || rt.t > 45 || !F.scouts.units.some((u) => u.alive && !u.fleeing))) {
+      F.scoutsDone = true; F.scouts.noRout = false; F.scouts.morale = 0;
+      const g = F.relief;
+      if (g && F.dangerAt == null) {
+        g.dmgMult = 1; g.order = 'path'; g.pathIdx = 0; g.aggro = 0; g.formation = 'column'; g.colW = 2;
+        g.path = [[10, BANK_Z + 16], [24, BANK_Z + 30]];
+        g.onArrive = (q) => { if (F.dangerAt != null) return; q.order = 'hold'; q.formation = 'yari'; q.facing = Math.PI; q.noAI = true; for (const u of q.units) u.noTarget = true; };
+      }
+    }
     if (F.backBow) F.backBow.visible = rt.player.weapon !== 'bow';
     if (F.backGear) {
       const u = rt.player.u, holder = u.human?.root.visible && u.human.flagHolder;

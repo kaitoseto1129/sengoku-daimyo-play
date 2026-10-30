@@ -357,10 +357,11 @@ export class WorldVegetation {
               }
             }
             // 遠景も同じ方向と傾斜。三方向の板だけで枝張りを残す。
+            // def.farCedarPitch：遠景の房だけ垂らす（寝かせた三枚が霞の中で横に並ぶ板の棚に見えた戦。10/30）。
             for (let j = 0; j < 3; j++) {
               const a = phase + j * Math.PI * 2 / 3, d = r * 0.4;
               card(farLeaves, Math.sin(a) * d, cy + Math.sin(a * 1.73 + k * 2.1) * step * 0.32, Math.cos(a) * d,
-                r * 1.25 * width, Math.max(r * 1.65, step * 2.0), a, (this.def.cedarBoughPitch == null ? pitch : pitch + 0.2) + Math.sin(a + k) * 0.3, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.48);
+                r * 1.25 * width, Math.max(r * 1.65, step * 2.0), a, (this.def.farCedarPitch ?? (this.def.cedarBoughPitch == null ? pitch : pitch + 0.2)) + Math.sin(a + k) * 0.3, 0, cy, 0, false, true, Math.sin(a * 2.7 + k) * 0.48);
             }
             continue;
           }

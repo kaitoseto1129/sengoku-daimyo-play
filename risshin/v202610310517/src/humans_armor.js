@@ -746,10 +746,10 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   const oke = (look.tier || 0) === 0 && !look.kacchu && !look.nanban && look.doStyle !== 'sugake';
   const okeMon = oke && look.mon ? (monDecal(look.mon, 0xc9a24a) || {}).material?.map || null : null;
   // 本の御貸具足の胴は明るい革・茶の漆。足軽の胴の色（貸し具足の革色）が明るい時はその色で桶側の板を塗る（黒い胴に沈ませない。同じ足軽は一つの材質）
-  const okeLight = oke && !tint && look.armor != null && new THREE.Color(look.armor).getHSL({}).l > 0.3 ? new THREE.Color(look.armor) : null;
-  const ov = oke && look.okeVar != null ? OKE_VAR[look.okeVar] : null;
+  const okeLight = oke && !tint && look.armor != null && (look.lacquer != null || new THREE.Color(look.armor).getHSL({}).l > 0.3) ? new THREE.Color(look.armor) : null;   // 足軽の漆（look.lacquer）は陣笠と同じ色で塗る
+  const ov = oke && look.lacquer == null && look.okeVar != null ? OKE_VAR[look.okeVar] : null;
   const ovC = ov ? new THREE.Color(ov.armor) : null;
-  const okeC = ov ? new THREE.Vector3(ovC.r, ovC.g, ovC.b) : okeLight ? new THREE.Vector3(okeLight.r * 0.68, okeLight.g * 0.68, okeLight.b * 0.68) : new THREE.Vector3(0.19, 0.105, 0.055);
+  const okeC = ov ? new THREE.Vector3(ovC.r, ovC.g, ovC.b) : okeLight ? new THREE.Vector3(okeLight.r * (look.lacquer != null ? 1.0 : 0.68), okeLight.g * (look.lacquer != null ? 1.0 : 0.68), okeLight.b * (look.lacquer != null ? 1.0 : 0.68)) : new THREE.Vector3(0.19, 0.105, 0.055);
   // 毛引威の人（名のある武将は kacchu_data.js の胴の作り、ほかの侍は侍大将より上）：黒漆の胴を、美術館の本物の毛引威の写真（CC0）でその人の威の色に描き替える
   // 写真の毛引の段を重ねるか（DOMARU.kebiki）
   const nk = namedKacchu(look), kebiki = DOMARU.kebiki && !oke && (nk ? nk.doStyle === 'kebiki' : (look.tier || 0) >= 2 && (look.doStyle || 'kebiki') === 'kebiki');

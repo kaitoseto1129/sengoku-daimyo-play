@@ -34,6 +34,8 @@ export function staticBatchBuild(rt) {
   const unitRoots = new Set(); for (const u of rt.army.units) if (u.mesh) unitRoots.add(u.mesh);
   const moving = new Set((rt.army.structs || []).map(s => s.mesh));
   const groups = new Map(), geoUse = new Map();
+  // 10/30：戦の定義で束の升の広さと最少の数を変えられる（稲葉山の iPhone の作り：家並みの小物が升ごとに六つ未満で束にならず、一つずつ描いていた）
+  const cellSize = rt.def?.staticBatchCell || 32, minN = rt.def?.staticBatchMinN || SBATCH.minN;
   const walk = (o) => {
     if (unitRoots.has(o) || moving.has(o) || o === rt.sbRoot || o.userData?.flag || o.userData?.noFreeze ||
       typeof o.userData?.open === 'function' || typeof o.userData?.fall === 'function') return;
@@ -43,7 +45,7 @@ export function staticBatchBuild(rt) {
       o.updateWorldMatrix(true, false);
       if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
       const center = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld);
-      const cell = Math.floor(center.x / 32) + ',' + Math.floor(center.z / 32);
+      const cell = Math.floor(center.x / cellSize) + ',' + Math.floor(center.z / cellSize);
       const k = cell + '|' + mat.uuid + '|' + attrKey(o.geometry) + '|' + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0);
       let G = groups.get(k); if (!G) { G = { mat, list: [] }; groups.set(k, G); }
       G.list.push(o);
@@ -54,7 +56,7 @@ export function staticBatchBuild(rt) {
   const root = new THREE.Group(); root.name = 'static-batch'; root.updateMatrix(); root.matrixAutoUpdate = false;
   const B = { root, batches: [], entries: [], frame: 0 };
   for (const G of groups.values()) {
-    if (G.list.length < SBATCH.minN) continue;
+    if (G.list.length < minN) continue;
     // 頂点の上限で分ける
     let cur = null;
     const flush = () => { if (cur && cur.items.length >= 2) B.batches.push(cur); else if (cur) { for (const it of cur.items) it.o.layers.mask = 1; } cur = null; };

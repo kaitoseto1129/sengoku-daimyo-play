@@ -660,6 +660,16 @@ function toneLeafFade(sh) {
     diffuseColor.a *= smoothstep(2.5, 7.5, length(vViewPosition));
     diffuseColor.rgb *= vec3(0.6, 0.66, 0.58);   // 雨の夜の杉は濃い緑。補光で青白い粉に見せない
     #include <alphatest_fragment>`);
+  // 近くの葉は共通の式（nearLeafLit）が先に alphatest の行を置き換えるので、上の色は遠い葉にしか効かなかった。
+  // 色は alphamap の行の後で掛け、近くの杉にも効かせる。
+  sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
+    // 葉房が明るい黄緑の羽の板に見えた（10/30 点付け：杉の葉の板）。濡れた夜の杉は灰青に沈み、房の根元ほど黒い。
+    // 絵の縦（根元→葉先）で暗くし、葉の重なりの斑を入れて、一枚の板の均一な明るさを崩す（絵・形・描く回数は増やさない）。
+    #ifdef USE_MAP
+    { float tk = 0.62 + 0.3 * smoothstep(0.1, 0.8, abs(vMapUv.y - 0.5) * 2.0) + 0.08 * sin(vMapUv.x * 23.0 + vMapUv.y * 17.0);
+      diffuseColor.rgb *= tk * vec3(0.8, 0.84, 0.9); }
+    #endif
+`);
 }
 
 // 刀根坂だけの外側の山腹。地面の端から続く面を折り、三つの尾根を距離の霞で重ねる。
@@ -780,7 +790,21 @@ function toneMountains(W) {
   }
   // 道脇は苔のある石だけ。浮いて見える箱形の土留めは置かない。
   // 月明かりの濡れた石は灰に光る。暗いままだと草地に黒い穴が並んで見えるので、わずかに自ら照らす（10/28）。
-  const stones = new THREE.InstancedMesh(rockShape(1, true), new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, emissive: 0x2a2c28 }), 144);
+  // 一色の灰の平らな塊に見えた（10/30 点付け）。絵を足さず、世界の位置で風化の濃淡と細かな粒、上を向く面に苔を差す。
+  const stoneMat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, emissive: 0x2a2c28 });
+  stoneMat.customProgramCacheKey = () => 'tonezaka-stones-weathered';
+  stoneMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'varying vec3 tsW; varying float tsUp;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      tsW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz; tsUp = normalize(mat3(instanceMatrix) * objectNormal).y;`);
+    sh.fragmentShader = 'varying vec3 tsW; varying float tsUp;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { float tsn = 0.5 + 0.5 * sin(tsW.x * 7.1 + tsW.z * 3.3 + sin(tsW.y * 9.0)) * sin(tsW.z * 6.3 - tsW.y * 5.1 + tsW.x * 2.0);
+        float tsg = fract(sin(dot(floor(tsW * 23.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        float tsShade = 0.42 + 0.5 * tsn + 0.22 * (tsg - 0.5);
+        diffuseColor.rgb *= tsShade * vec3(0.92, 0.88, 0.78);   // 月の青白い一色を土と苔の灰褐へ
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.25, 0.15), smoothstep(0.35, 0.85, tsUp) * (0.35 + 0.45 * tsn));
+        totalEmissiveRadiance *= tsShade * 0.6; }`);
+  };
+  const stones = new THREE.InstancedMesh(rockShape(1, true), stoneMat, 144);
   const stonePoint = new THREE.Vector3(), stoneVertices = stones.geometry.attributes.position;
   for (let i = 0; i < 144; i++) {
     const cluster = Math.floor(i / 6), a = i * 2.39996;

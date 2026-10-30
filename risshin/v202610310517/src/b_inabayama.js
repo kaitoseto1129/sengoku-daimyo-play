@@ -17,7 +17,7 @@ import { flagTexture } from './textures.js';
 import { stoneTex, barkTex, dirtTex, mudTex } from './nature.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
-import { reduceMotion, S } from './settings.js';
+import { reduceMotion, S, MEM_TIGHT } from './settings.js';
 import { sightPoint, sightScreenUnit } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { makeTownWay } from './inabayama_town_way.js';
@@ -3559,6 +3559,55 @@ function installInabaPresentation(rt) {
   };
 }
 
+// 10/30 iPhone の重さ：足もとの高さは兵ごとに毎コマ何千回も読む。細分した面は一升に数十枚あり、
+// drawGroundAt の升では重い（開戦30秒で一コマの二割）。升を四つ割りにした細かい升で、同じ面の同じ式を数枚だけ調べる。値は変えない。
+const FINE_GROUND = new WeakMap();
+function fineGroundAt(world, x, z) {
+  const geo = world.terrain?.geometry, p = geo?.attributes.position;
+  const index = geo?.userData.terrainViewIndex || geo?.index?.array;
+  const half = world.half;
+  if (!p || !index || p.isInterleavedBufferAttribute || p.itemSize !== 3 || Math.abs(x) >= half || Math.abs(z) >= half) return drawGroundAt(world, x, z);
+  let c = FINE_GROUND.get(geo);
+  if (!c || c.index !== index || c.arr !== p.array) {
+    const pa = p.array, step = world.step / 4, n = Math.round(half * 2 / step);
+    const counts = new Uint32Array(n * n), starts = new Uint32Array(n * n + 1);
+    const visit = (k, faces) => {
+      const a = index[k] * 3, b = index[k + 1] * 3, cc = index[k + 2] * 3;
+      const x0 = Math.max(0, Math.floor((Math.min(pa[a], pa[b], pa[cc]) + half) / step + 1e-5));
+      const x1 = Math.min(n - 1, Math.floor((Math.max(pa[a], pa[b], pa[cc]) + half) / step - 1e-5));
+      const z0 = Math.max(0, Math.floor((Math.min(pa[a + 2], pa[b + 2], pa[cc + 2]) + half) / step + 1e-5));
+      const z1 = Math.min(n - 1, Math.floor((Math.max(pa[a + 2], pa[b + 2], pa[cc + 2]) + half) / step - 1e-5));
+      for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
+        const cell = iz * n + ix;
+        if (faces) faces[starts[cell] + counts[cell]++] = k; else counts[cell]++;
+      }
+    };
+    for (let k = 0; k < index.length; k += 3) visit(k, null);
+    for (let k = 0; k < counts.length; k++) starts[k + 1] = starts[k] + counts[k];
+    const faces = new Uint32Array(starts[n * n]);
+    counts.fill(0);
+    for (let k = 0; k < index.length; k += 3) visit(k, faces);
+    c = { index, arr: pa, step, n, starts, faces }; FINE_GROUND.set(geo, c);
+  }
+  const pa = c.arr, n = c.n;
+  const ix = Math.min(n - 1, Math.floor((x + half) / c.step)), iz = Math.min(n - 1, Math.floor((z + half) / c.step));
+  const cell = iz * n + ix;
+  let height = -Infinity;
+  for (let j = c.starts[cell], e = c.starts[cell + 1]; j < e; j++) {
+    const k = c.faces[j], a = index[k] * 3, b = index[k + 1] * 3, cc = index[k + 2] * 3;
+    const ax = pa[a], az = pa[a + 2], bx = pa[b] - ax, bz = pa[b + 2] - az;
+    const cx = pa[cc] - ax, cz = pa[cc + 2] - az, det = bx * cz - bz * cx;
+    if (Math.abs(det) < 1e-8) continue;
+    const u = ((x - ax) * cz - (z - az) * cx) / det;
+    const v = (bx * (z - az) - bz * (x - ax)) / det;
+    if (u >= -1e-5 && v >= -1e-5 && u + v <= 1.00001) {
+      const y = pa[a + 1] + (pa[b + 1] - pa[a + 1]) * u + (pa[cc + 1] - pa[a + 1]) * v;
+      if (y > height) height = y;
+    }
+  }
+  return height;
+}
+
 // 裏道と民家の造成面だけ細分する。足場・庭・山肌を一枚の地面にする。
 function buildKaraTrail(rt) {
   const W = rt.world, oldHeight = W.heightAt;
@@ -3637,8 +3686,8 @@ function buildKaraTrail(rt) {
     if (karaSample(px, pz).d < KARA_BLEND || nearHome(px, pz)) W.grid[z * row + x] = drawGroundAt(W, px, pz);
   }
   W.heightAt = function (x, z) {
-    if (karaSample(x, z).d < KARA_BLEND || (x > -28 && x < 54 && z > 28 && z < 108)) {
-      const y = drawGroundAt(this, x, z);
+    if ((x > -28 && x < 54 && z > 28 && z < 108) || karaSample(x, z).d < KARA_BLEND) {
+      const y = fineGroundAt(this, x, z);
       if (Number.isFinite(y)) return y;
     }
     return oldHeight.call(this, x, z);
@@ -3750,9 +3799,18 @@ const inabayama = {
     return ph === 'karamete' ? 3 : ph === 'ote' ? 2 : ph === 'burn' ? 1 : 0;
   },
   // 民は描画専用。兵の名簿・人数・当たり・戦功には入れない（war_people.js）。
+  // 10/30 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。影の描きと影の巡回で一コマの一割近く）
+  tightShadowEvery: 2,
+  // 10/30 iPhone の作りだけ：動かない小物の束を 64m の升・三つからにして、描く回数を減らす（static_batch.js）
+  ...(MEM_TIGHT ? { staticBatchCell: 64, staticBatchMinN: 3 } : {}),
   civilianCrowd: {
     bounds: { minX: -176, maxX: 176, minZ: -176, maxZ: 176 }, bands: CIVILIAN_BANDS,
     openCache: 0.3,   // 民の逃げ道の地面の調べを 30cm の格子で使い回す（war_people.js lightOpen。戦の計算の七割を占めていた）
+    // 10/30 iPhone の作りだけ：逃げる民の道探し（一回が重い）を間引く。塞がれて立ち止まる人は毎コマから1秒ごと、
+    // 歩く人の探し直しは0.6秒から1.2秒ごと（war_people.js stuckRecheck・fleeSearchInterval）。危険が迫ればすぐ探す。
+    // 近景の形を持たない 40m より遠い民の道探しは1秒に一度まで（war_people.js farSearch）。
+    // 真っすぐの一歩が通れば脇の向きは調べない（firstClearStep）。一コマに探すのは四人まで（searchPerFrame）。
+    ...(MEM_TIGHT ? { stuckRecheck: 1, fleeSearchInterval: 1.2, farSearch: 40, firstClearStep: true, searchPerFrame: 4 } : {}),
     // 決着後の終幕でも町の火は残る。家に残る者の警戒と南への避難を続ける。
     evacuateAfterBattle: true,
     // 家や踏み跡と同じ描画面へ足を据える。通行・兵の警戒に使う地形は保つ。

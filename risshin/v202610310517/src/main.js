@@ -859,7 +859,9 @@ function drawScene(scene, fresh = false) {
   // 固定物の絵は更新しない。動く影だけ、熱が上がった時は二コマに一度描き直す。
   renderer.shadowMap.autoUpdate = false;
   //   かなり熱い（2）は三コマに一度（影は消さない。熱 3 で初めて切る）
-  renderer.shadowMap.needsUpdate = renderer.shadowMap.enabled && (backgroundHeat < 1 || ++heatFrame % (backgroundHeat >= 2 ? 3 : 2) === 0);
+  // 10/30：iPhone の作り（MEM_TIGHT）で戦の定義に tightShadowEvery がある戦（稲葉山）は、熱が無くても動く影を二コマに一度描き直す
+  const tightShadowEvery = MEM_TIGHT && shadowWorld?.def?.tightShadowEvery || 1;
+  renderer.shadowMap.needsUpdate = renderer.shadowMap.enabled && (backgroundHeat < 1 ? tightShadowEvery < 2 || ++heatFrame % tightShadowEvery === 0 : ++heatFrame % (backgroundHeat >= 2 ? 3 : 2) === 0);
   // 戦の側が光を直接変えた後にも、全画質で同じ夜の散乱光を当てる。
   const nightWorld = game.battle && game.battle.world;
   let drawMeasure = null;
