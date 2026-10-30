@@ -3347,7 +3347,7 @@ const echizen_ikko = {
       // 惣門の門前に固まって門を守る一揆勢（本物の兵二十四人。持ち場から動かず、寄せ手が近づいた時だけ槍を合わせる）。
       // 惣門の下の参道の坂に置き、麓の持ち場から松明と篝火に照らされた群れと、その奥の惣門が一緒に見える。人数と位置は推定（10/29）。
       F.ikkoGateCrowd = enemyGroup(rt, { faction: 'ikko', fixed: true, name: '惣門前の一揆勢', anchor: { x: GATE_SOMON.x, z: GATE_SOMON.z - 30 }, facing: Math.PI, width: 12, aggro: 7, formation: 'yari' },
-        [{ type: 'ashigaru', n: 20, o: { armor: IKKO.armor, flag: IKKO.flag } }, { type: 'samurai', n: 4, o: { armor: IKKO.armor, flag: IKKO.flag } }]);
+        [{ type: 'ashigaru', n: 12, o: { armor: IKKO.armor, flag: IKKO.flag } }, { type: 'samurai', n: 2, o: { armor: IKKO.armor, flag: IKKO.flag } }]);
       // 惣門前の一揆勢の両脇に篝火の台を二つ（麓の側から火が当たり、顔・笠・槍が浮かぶ）
       for (const dx of [-5.5, 5.5]) { const x = GATE_SOMON.x + dx, z = GATE_SOMON.z - 33; rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
       // 惣門前の一揆勢が掲げる松明（竹の柄の先に火。柄の形と材質は一つを使い回す）。数と並びは推定。
@@ -3954,6 +3954,20 @@ const echizen_ikko = {
         }
         const zones = F.SZ.byId;
         const near = (at, r) => Math.hypot(P.x - at.x, P.z - at.z) < r;
+        // 10/30：門を破った後、堂の陰に残る数人を探し続けて退き陣になる事が続いた（bot）。
+        // 破って五十秒たてば、堂に残る守りは崩れて逃げる。堂の印のそば（22m）まで来ていれば押さえた事にする
+        const gz = F.step === 1 ? zones.gezan : F.step === 2 ? zones.hondo : null;
+        const gst = F.step === 1 ? F.gateSomon.struct : F.step === 2 ? F.gateSanmon.struct : null;
+        if (gz && gst && !gst.alive) {
+          if (F.gateDownStep !== F.step) { F.gateDownStep = F.step; F.gateDownT = rt.t; }
+          if (rt.t - F.gateDownT > 50 && rt.t >= (F.zoneRoutAt || 0)) {
+            F.zoneRoutAt = rt.t + 4;
+            for (const u of rt.army.units) if (u.team === 1 && u.alive && !u.fleeing && !u.isStruct && !u.invuln && gz.test(u.pos.x, u.pos.z) && u.group && !u.group.noRoutForce) {
+              u.group.noRout = false; u.group.morale = 0;
+            }
+          }
+        }
+        const zoneNear = (z) => z.test(P.x, P.z) || Math.hypot(P.x - z.pos.x, P.z - z.pos.z) < 22;
         if (F.step === 1) {
           F.target = F.gateSomon.struct.alive ? GATE_SOMON : OUTER_POS;
           if (!F.gateSomon.struct.alive) {
@@ -3966,7 +3980,7 @@ const echizen_ikko = {
           // 別手が外堂を取っても、惣門の打ち手を置き去りにして次の門へ向かわせない。
           // 堂の区域へ入れば合流。四角い庭の隅を中央からの円で除くと、
           // 制圧済みでも「先手と合流できず」の退き陣になってしまう。
-          if (!F.gateSomon.struct.alive && zones.gezan.owner === ZONE_STATE.FRIEND && zones.gezan.enemies === 0 && zones.gezan.test(P.x, P.z)) this.nextAttack(rt, 2);
+          if (!F.gateSomon.struct.alive && zones.gezan.owner === ZONE_STATE.FRIEND && zones.gezan.enemies === 0 && zoneNear(zones.gezan)) this.nextAttack(rt, 2);
           else if (F.gateSomon.struct.alive) {
             const cover = templeTabaFollow(rt);
             const text = nakaRoomAt(P.x, P.z, P.y) ? '堂を出て、参道から惣門へ'
@@ -3992,7 +4006,7 @@ const echizen_ikko = {
               rt.obj('main', '本堂を押さえ、印へ', 'main', true);
             }
           }
-          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zones.hondo.test(P.x, P.z)) this.nextAttack(rt, 3);
+          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zoneNear(zones.hondo)) this.nextAttack(rt, 3);
           else if (F.gateSanmon.struct.alive) {
             const text = templeSanmonTask(rt);
             if (F.sanmonGuide !== text) {

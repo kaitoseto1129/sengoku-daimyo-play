@@ -2097,6 +2097,8 @@ const tennoji = {
   noDodgeCard: true, noPlayerFoot: true, quietMiss: true, inouFeel: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  // 10/30：城戸口まで追う最後の段は、八分の打ち切りで切らない（口の残兵は九十秒で退く）
+  pacingWait: (rt) => !!rt.flags.ending || rt.phase === 'chase',
   missions: ['南の門を守れ', '味方と門へ進め', '味方と集まれ', '出撃を待て', '味方と進め', '▼の敵を倒せ', '城戸口まで追え', 'ここを守れ'],
   missionOf(rt) {
     const F = rt.flags, p = rt.player.u.pos;
@@ -3301,7 +3303,8 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     tennojiCue(rt, 'kakari', '法螺と早打ち。二段で出よ', F.nobuU.pos);
     rt.say('佐久間信盛', '攻めの合図じゃ！　南門を出て、東の堀を回れ！', 4);
     for (const q of F.oda) { q.seekRange = 40; }
-    if (rt.player.u.group) rt.player.u.group.defMult = 1;
+    // 10/30：打って出た先で侍の三太刀で倒れる事が続いた（bot）。本人の身だけ少し固く保つ
+    if (rt.player.u.group) rt.player.u.group.defMult = 1.35;
     for (const x of rt.squad || []) if (x.group) x.group.defMult = 1;
     // 公記巻九（四）の再攻撃は二段。馬廻も後段と同時に出し、三つ目の波にしない。
     // 各段への隊の割り振りと十二秒の間隔は推定。兵数・通る道・戦闘の密度は保つ。
@@ -3750,7 +3753,13 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       // 先手と守備隊が口を押さえれば追撃の役目は済む。
       // 信長一人の位置まで待つと、敵を払った後も下知だけが残り、共通の時間切れで負けてしまう。
       // 本人・味方六人・敵不在の八秒は必要。信長の深手による敗北は上の判定で保つ。
-      F.secured = d < 10 && threat === 0 && near >= 6 ? F.secured + span : 0;
+      // 10/30：城戸口の脇に残る数人と揃わぬ味方を待ち、八分の打ち切りで負ける事があった（bot）。追い始めて九十秒で口の残兵は退き、味方三人で足りる
+      const late = F.kidoCut && rt.t - F.stepT > 90;
+      if (late && threat > 0 && rt.t >= (F.kidoRoutAt || 0)) {
+        F.kidoRoutAt = rt.t + 4;
+        for (const g of F.foes) if (!gone(g) && g.units.some((u) => u.alive && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18)) { g.noRout = false; g.morale = 0; }
+      }
+      F.secured = d < 10 && threat === 0 && near >= (late ? 3 : 6) ? F.secured + span : 0;
       rt.objProgress('main', !F.kidoCut ? `${gateDirection(rt, F.kz)} 崩れた敵を北へ追え。味方と進め` : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな' : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < 6 ? `集まった味方 ${near}／六人。ここで構えよ` : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);
     }
