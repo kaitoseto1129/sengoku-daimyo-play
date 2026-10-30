@@ -505,7 +505,7 @@ export function brain(b, inp) {
   // 戦を濃くする段（b_depth.js）の間は、その段の的へ
   if (b.flags.dp && b.flags.dp.on && !b.def.botBrainDepth) { depthBot(b, inp, goTo); cover(b, inp); return; }
   // 戦ごとの遊び方があればそれを使う（b_*.js の def.botBrain）
-  if (b.def.botBrain) { b.def.botBrain(b, inp, { goTo, patientStrike, strikeTarget, canStrike }); cover(b, inp); return; }
+  if (b.def.botBrain && b.def.botBrain(b, inp, { goTo, patientStrike, strikeTarget, canStrike }) !== false) { cover(b, inp); return; }   // false を返した戦の頭は、ここから先の既定の動きへ譲る（信貴山の門前）
   // 柵を使う別の戦にも、設楽原の動きを押し付けない。
   if (b.flags.fence) return shitaraBrain(b, inp);
   // 深手なら下がって手当て（墨俣の普請小屋）

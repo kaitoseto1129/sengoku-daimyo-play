@@ -4967,6 +4967,8 @@ html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-mes
           w.x = min(w.x, clamp((shPatch - 0.28) * 2.2, 0.08, 1.0));
           float wear = texture2D(tWear, (p.xz + 240.0) / 480.0).r;
           w.x *= (1.0 - smoothstep(0.05, 0.75, wear)) * smoothstep(0.4, 0.8, n.y);
+          // 橙の土の一色にしない（10/30 点付け）：踏まれない所は人の背丈ほどの斑で草を残す（読み出しは足さない）
+          w.x = max(w.x, (1.0 - smoothstep(0.05, 0.55, wear)) * smoothstep(0.42, 0.8, shPatch) * smoothstep(0.5, 0.8, n.y) * 0.7);
           w.z = clamp(w.z + uWet * 0.25, 0.0, 0.8);
           w.y = max(0.0, 1.0 - w.x - w.z);
           w /= max(0.001, w.x + w.y + w.z);
@@ -4979,7 +4981,10 @@ html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-mes
           // 地面の暗い一色を崩す（10/28）：枯れた黄褐と青い草の大きな斑、十数メートルの明暗、細かな土の濃淡
           float dryK = smoothstep(0.3, 0.72, 0.5 + 0.5 * sin(p.x * 0.065 + 1.3 + sin(p.z * 0.05) * 2.0) * cos(p.z * 0.07 - p.x * 0.03));
           float lightK = 0.5 + 0.5 * sin(p.x * 0.31 + sin(p.z * 0.23) * 1.9) * cos(p.z * 0.27 + sin(p.x * 0.19) * 1.5);
-          ground *= mix(vec3(0.9, 1.0, 0.9), vec3(1.7, 1.35, 0.8), dryK * 0.9) * mix(0.7, 1.45, lightK);
+          // 枯れ草は橙でなく灰みの黄褐に。土の色みを少し抜いて、濡れた踏み跡の暗い斑も混ぜる（10/30）
+          ground *= mix(vec3(0.92, 1.0, 0.9), vec3(1.32, 1.22, 0.96), dryK * 0.9) * mix(0.76, 1.32, lightK);
+          ground = mix(vec3(dot(ground, vec3(0.3, 0.59, 0.11))), ground, 0.8);
+          ground *= 1.0 - smoothstep(0.25, 0.7, wear) * (1.0 - dryK) * 0.22;
           // 城山の切岸も土の一枚面にせず、春日山の CG のように草で覆い、雨溝の筋だけ土を見せる（10/28）
           float steepK = 1.0 - smoothstep(0.45, 0.85, normalize(vShigaN).y);   // 頂点の法線でなめらかに（面ごとの四角い斑にしない）
           float sod = smoothstep(0.38, 0.62, texture2D(tMacro, vec2(p.x * 0.045 + p.z * 0.04, p.y * 0.07) + 0.63).r
@@ -4991,7 +4996,7 @@ html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-mes
           diffuseColor.rgb *= ground * mottling * (1.0 - uWet * 0.18);
         `);
     };
-    mat.customProgramCacheKey = () => '志賀の草土と切岸3';
+    mat.customProgramCacheKey = () => '志賀の草土と切岸4';
     terrain.material = mat;
     mat.userData.camNearSolid = true;
     mat.needsUpdate = true;

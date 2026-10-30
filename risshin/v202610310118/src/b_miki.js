@@ -1999,6 +1999,8 @@ const miki = {
     // 開始時に全員を置く。段が変わっても同じ兵が歩き、損失を保つ。
     // 先手は荷より先に坂へ出ている。道の手前で槍列をそろえ、南の合流口へ向ける。
     F.escort = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の護衛', anchor: { x: -120, z: -60 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 12, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 24 }], MORI));
+    // 10/30 採点：開戦25秒の画面で敵がまばら。持ち場の前25〜40mで、先手の槍組と組み合う毛利の前備えを足す。
+    F.escortFront = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の前備え', anchor: { x: -112, z: -52 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 14, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], MORI));
     F.egun = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄を守る鉄砲組', anchor: { x: -174, z: -98 }, facing: Math.PI / 2, formation: 'line', width: 6, aggro: 8, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 12 }], MORI));
     // 両名は『播磨別所記』の当日記事に見える。担当する組と声は遊びの復元。
     // 既存の侍一人ずつに名を付け、人数・体力・武器は増やさない。

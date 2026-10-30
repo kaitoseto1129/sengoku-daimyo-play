@@ -2302,6 +2302,11 @@ function sanKuchiWay(army, u, goal) {
   return q;
 }
 
+// 本人が三の郭の内にいるか
+function mkInSan(rt) {
+  const p = rt.player.u.pos;
+  return !!rt.flags.C?.kuruwa?.san?.test(p.x, p.z);
+}
 const SAN_ROAD_PROBE = { x: 0, z: 0 };
 function sanRoadPoint(road, p, out, army = null) {
   if (army) {
@@ -3146,9 +3151,20 @@ const mitsukuri = {
             torchSoil += exp(-dot(gap, gap) * 0.16);
           }
           col += vec3(0.16, 0.065, 0.016) * min(1.0, torchSoil) * uNight * (1.0 - steep);
+          // 暗い土の一色を崩す（10/30 点付け）：平らな所に、乾いて白ちゃけた土・根の残る草の斑・
+          //   湿って黒ずんだ窪み・小石ほどの細かな明暗を、人の背丈ほどの大きさで混ぜる（物と絵は足さない）
+          float mkFlat = 1.0 - steep;
+          float mkA = texture2D(tMacro, vWP.xz * 0.041 + 0.17).r;
+          float mkB = texture2D(tMacro, vWP.xz * 0.11 + 0.59).r;
+          float mkDry = smoothstep(0.5, 0.68, mkA) * mkFlat;
+          col = mix(col, col * vec3(1.55, 1.45, 1.22), mkDry * 0.75);
+          float mkSod = smoothstep(0.5, 0.66, mkB) * (1.0 - mkDry) * mkFlat * (1.0 - smoothstep(0.5, 0.95, wear) * 0.6);
+          col = mix(col, grass * vec3(0.72, 0.86, 0.5), mkSod * 0.78);
+          col *= 1.0 - smoothstep(0.62, 0.8, 1.0 - mkA) * mkFlat * 0.2;
+          col *= mix(0.84, 1.14, texture2D(tMacro, vWP.xz * 0.37 + 0.81).r);
           diffuseColor.rgb *= col;`);
     };
-    ground.customProgramCacheKey = () => groundProgramKey + '|mitsukuriSoil';
+    ground.customProgramCacheKey = () => groundProgramKey + '|mitsukuriSoil2';
     ground.needsUpdate = true;
     // 共通の弔いの台詞は、近くの味方が実際に倒れた後だけ通す。
     const battleSay = rt.say;
@@ -3966,6 +3982,8 @@ const mitsukuri = {
     while (i < TORCH.length && (F.litMask & (1 << i))) i++;
     if (i >= TORCH.length) return;
     const t = TORCH[i];
+    // 10/30：味方が松明を灯すのは、本人がその松明のそば（十二歩内）にいる時だけ
+    if (Math.hypot(rt.player.u.pos.x - t.x, rt.player.u.pos.z - t.z) > 12) return;
     if (i !== help.index || gone(help.group) || !help.group.units.some(torchReady)) {
       let group = null, nearest = Infinity;
       // 灯す三組が倒れても、既存の控えが引き継ぐ。木戸を打つ組は残す。
@@ -4107,7 +4125,7 @@ const mitsukuri = {
       F.sanFell = true;
       rt.unmark('san');
       if (!F.sanAwarded) { F.sanAwarded = true; rt.award((t) => t.side.push('坂の守りを退けた'), '坂の守りを退けた'); }
-      if (F.step < 2.5) this.dusk(rt);
+      if (F.step < 2.5 && mkInSan(rt)) this.dusk(rt);
       else if (F.step === 2.5) {
         torchTask(rt); markTorch(rt);
         sayKino(rt, zonePause(rt) || (rt.G.lord ? '三の郭を取り戻した。残る松明を灯す組を守れ' : '三の郭を取り戻した。残る松明に火を移せ'), 3);
@@ -4440,6 +4458,8 @@ const mitsukuri = {
       Math.hypot(pu.pos.x - F.asaiFoe.pos.x, pu.pos.z - F.asaiFoe.pos.z) > 70 &&
       Math.hypot(F.asai.pos.x - F.asaiFoe.pos.x, F.asai.pos.z - F.asaiFoe.pos.z) <= 20) lightClash(F.asai, F.asaiFoe, dt, 0.06);
     // 火入れの下知と同時に仲間も動く。本人の操作を待つ空白を作らない。
+    // 10/30：味方が郭を取っても、本人が三の郭へ入るまで夕暮れの段へ進めない（立っているだけで段が進まないように）
+    if (F.step < 2.5 && F.sanFell && mkInSan(rt)) this.dusk(rt);
     if (F.step === 2.5) this.torchHelpTick(rt, dt);
     if (F.step === 3 && F.gates.kido.opened && !F.gatePass) {
       F.gatePass = true; F.ram.assault = null;

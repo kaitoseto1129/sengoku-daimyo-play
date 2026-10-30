@@ -3817,6 +3817,14 @@ const honnoji = {
       F.scouts.roadColumn = true;
     }
     akechi(rt, '表門へ続く明智勢', PATROL_SKIRMISH, [uS(3), uA(5)]);
+    // 10/30 採点：25秒の画面で兵がまばら。持ち場の前（門との間）の表庭で、寄せ手の群れと馬廻が押し合う乱戦にする。
+    akechi(rt, '表庭へ押し込む明智勢', PATROL_SKIRMISH, [uS(3), uA(9)], { entered: true, nb: true });
+    akechi(rt, '表庭の斬り合い', [[-33, 56], [-38.5, 53.5]], [uS(2), uA(9)], { entered: true, nb: true });
+    rt.after(7, () => { if (F.hp === 2 && !F.ending) akechi(rt, '表庭へ続く明智勢', PATROL_SKIRMISH, [uS(2), uA(8)], { entered: true, nb: true }); });
+    F.frontGuard = allyGroup(rt, { fixed: true, name: '表庭の馬廻', anchor: { x: -39.5, z: 53 }, facing: -Math.PI / 2, width: 4, aggro: 14, noRout: true, fullStrength: true, formation: 'line' },
+      dress([{ type: 'samurai', n: 2, o: NEMAKI(0x4a3a2c) }, nA(6)], ODA));
+    F.frontGuard.defMult = 1;
+    F.frontGuard.hideFlags = true;
     F.patrolQuiet = 0;
     // 民と僧は、近づく兵や火を民の仕組みで調べて逃げる。
     // 信長が起き出し、回廊を抜けて表へ（B 警戒 → D 移る）
@@ -4533,7 +4541,7 @@ function honnoTick(def, rt, dt) {
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
   // 上様のそばを離れない
-  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > 26) {
+  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
     F.farT = (F.farT || 0) + dt;
     if (F.farT > 8 && rt.t - (F.farSaidT || -99) > 20) { F.farSaidT = rt.t; honnoSay(rt, '森蘭丸', `${nm(rt)}！　上様のそばへ戻れ！　離れたままでは護衛を果たせぬ！`, 3); }
     if (F.farT > 60) { def.nbFail(rt, '上様から離れすぎ、護衛の持ち場を失った'); return; }

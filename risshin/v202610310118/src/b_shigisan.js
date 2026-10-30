@@ -14,7 +14,7 @@ import { yamaLift } from './yamalift.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addInterior, facePanels, nakaGuide } from './naka.js';
-import { stoneTex, barkTex, woodTex, dirtTex, mudTex } from './nature.js';
+import { stoneTex, barkTex, woodTex, dirtTex, mudTex, groundDetailTex } from './nature.js';
 import { nobori, hut, village, yagura, campfire, kagaribi, kabukimon, gateRoofFrame, tawara, tobira, palisade, solidRect, makeSimpleBatch, finalizeSimpleBatch, castleStoneMat, castleMat, ishigaki, makeKitBatch, finalizeKitBatch } from './props.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { RANKS } from './state.js';
@@ -1442,6 +1442,89 @@ function ridgeSoil(rt) {
   W.viewCull([trunk, crown], 16);
 }
 
+// 持ち場から25秒の画面の大半を占める、門から山頂へ上がる尾根の斜面（x -14〜34・z -60〜-6）を、
+// 月に白く光る灰緑の一枚の板でなく、写真の土と枯れ草の肌・下草の株・露頭の石にする（10/30 採点「左上の斜面が灰緑の一枚の板に縦の筋」）。
+// 描く地面（drawGroundAt）に同じ形の皮を重ね、凹凸は急な所の外へだけ出す。縁と道（緩い所）は地面の下へ潜らせ、浮かせない。準備の時だけ。
+function sgHash(x, z) { const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453; return s - Math.floor(s); }
+function sgNoise(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
+  const a = sgHash(ix, iz), b = sgHash(ix + 1, iz), c = sgHash(ix, iz + 1), d = sgHash(ix + 1, iz + 1);
+  return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+}
+function slopeSkin(rt) {
+  const W = rt.world, H = (x, z) => drawGroundAt(W, x, z);
+  const skin = new THREE.MeshStandardMaterial({ map: groundDetailTex('dirt'), vertexColors: true, roughness: .97, metalness: 0 });
+  // 写真の土の絵は明るさだけを使い、色は頂点の色（湿った山の土・枯れ草・苔）で決める。
+  skin.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
+      vec3 sgPh = texture2D(map, vMapUv).rgb; float sgPl = dot(sgPh, vec3(0.3, 0.59, 0.11));
+      diffuseColor.rgb *= vec3(sgPl * 1.7);
+      #endif`);
+  };
+  skin.customProgramCacheKey = () => '信貴山の斜面の皮';
+  const blades = [];
+  for (let i = 0; i < 11; i++) {
+    const a = i * 2.39, lean = .3 + (i % 3) * .16, h = .5 + (i % 4) * .17, w = .04;
+    const g = new THREE.BufferGeometry(), pos = [], idx = [];
+    for (let s = 0; s <= 3; s++) {
+      const t = s / 3, r = lean * t * t, ww = w * (1 - t * .9), cx = Math.cos(a) * r, cz = Math.sin(a) * r, y = h * t;
+      pos.push(cx - Math.sin(a) * ww, y, cz + Math.cos(a) * ww, cx + Math.sin(a) * ww, y, cz - Math.cos(a) * ww);
+      if (s) idx.push(2 * s - 2, 2 * s - 1, 2 * s, 2 * s - 1, 2 * s + 1, 2 * s);
+    }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); blades.push(g.toNonIndexed());
+  }
+  const tuft = mergeGeometries(blades); tuft.computeVertexNormals();
+  const tuftMat = new THREE.MeshStandardMaterial({ color: 0x6d6046, roughness: 1, side: THREE.DoubleSide });
+  const rock = new THREE.IcosahedronGeometry(1, 1), rp = rock.attributes.position;
+  for (let i = 0; i < rp.count; i++) { const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), k = .78 + sgHash(x * 3.1 + z, y * 2.7) * .4; rp.setXYZ(i, x * k * 1.1, y * k * .75, z * k); }
+  rock.computeVertexNormals();
+  const rockMat = new THREE.MeshStandardMaterial({ map: stoneTex(), color: 0x75716a, roughness: .93 });
+  const X0 = -14, X1 = 34, Z0 = -60, Z1 = -6, D = .6;
+  const nx = Math.round((X1 - X0) / D), nz = Math.round((Z1 - Z0) / D), pos = [], col = [], uv = [], idx = [], tufts = [], rocks = [];
+  const c = new THREE.Color(), soilC = new THREE.Color(.045, .036, .026), dryC = new THREE.Color(.1, .082, .05), mossC = new THREE.Color(.04, .047, .027);
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const x = X0 + i * D, z = Z0 + j * D, y = H(x, z);
+    const gx = (H(x + .5, z) - H(x - .5, z)), gz = (H(x, z + .5) - H(x, z - .5)), sl = Math.hypot(gx, gz);
+    const nl = Math.hypot(gx, 1, gz), nX = -gx / nl, nY = 1 / nl, nZ = -gz / nl;
+    const edge = Math.max(0, Math.min(1, Math.min(i, nx - i, j, nz - j) / 3));
+    const steep = Math.max(0, Math.min(1, (sl - .25) / .35)) * edge;   // 道と平場（緩い所）は凹凸を出さない
+    const lump = sgNoise(x * .4, z * .4) * .22 + sgNoise(x * 1.5 + 7, z * 1.5) * .1;
+    const off = edge * (.05 + steep * lump) - (1 - edge) * .1;
+    pos.push(x + nX * off, y + nY * off, z + nZ * off);
+    uv.push(x * .4 + z * .12, z * .4 - y * .25);
+    const patch = sgNoise(x * .3 + 3, z * .3), wet = sgNoise(x * .9, z * .9 + 5);
+    c.copy(soilC).lerp(dryC, Math.max(0, Math.min(1, (patch - .35) / .35)) * (.4 + steep * .6)).lerp(mossC, Math.max(0, (wet - .6) / .4) * .7);
+    c.multiplyScalar(.8 + sgHash(x * 9, z * 9) * .4);
+    col.push(c.r, c.g, c.b);
+    if (i && j) { const a = (j - 1) * (nx + 1) + i - 1, b = a + 1, cc = a + nx + 1, d = cc + 1; idx.push(a, cc, b, b, cc, d); }
+    if (steep > .5 && edge >= 1) {
+      const h = sgHash(x * 3.7 + 1, z * 5.3);
+      if (h < .3) tufts.push([x + (sgHash(x, z * 2) - .5) * D, z + (sgHash(z, x) - .5) * D, .7 + sgHash(z * 3, x) * .9]);
+      else if (h > .975) rocks.push([x, z, .3 + sgHash(z, x * 3) * .6]);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, skin); m.receiveShadow = true; m.matrixAutoUpdate = false; rt.scene.add(m);
+  const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3(), tint = new THREE.Color();
+  const tm = new THREE.InstancedMesh(tuft, tuftMat, tufts.length);
+  tufts.forEach(([x, z, k], i) => {
+    e.set((sgHash(x, z) - .5) * .3, sgHash(z, x) * 6.28, (sgHash(x * 2, z) - .5) * .3); q.setFromEuler(e);
+    tm.setMatrixAt(i, mtx.compose(p.set(x, H(x, z) - .04, z), q, s.set(k, k * (.8 + sgHash(x, z * 3) * .5), k)));
+    const v = .75 + sgHash(x * 5, z) * .5; tm.setColorAt(i, tint.setRGB(v, v * (.95 + sgHash(z * 5, x) * .15), v * .9));
+  });
+  tm.castShadow = tm.receiveShadow = true; rt.scene.add(tm);
+  const rm = new THREE.InstancedMesh(rock, rockMat, rocks.length);
+  rocks.forEach(([x, z, r], i) => {
+    e.set(sgHash(x, z) * 3, sgHash(z, x) * 6.28, 0); q.setFromEuler(e);
+    rm.setMatrixAt(i, mtx.compose(p.set(x, H(x, z) - r * .6, z), q, s.set(r, r, r)));
+  });
+  rm.castShadow = rm.receiveShadow = true; rt.scene.add(rm);
+}
+
 // 持ち場の正面にある南斜面の推定復元。三段の土の縁を地面へ差し込み、
 // 道から離れた所だけに透ける二段貫を置く。準備時に三材質へまとめる。
 function openingTerraces(rt) {
@@ -2347,6 +2430,7 @@ const shigisan = {
     ridgeSoil(rt);
     terraceStone(rt);
     openingTerraces(rt);
+    slopeSkin(rt);
     // 道は整地済みの土の坂。全尾根へ連続する推定の石段を重ねない。
     innerRails(rt, fences);
     well(rt, TOP.x - 11, TOP.z + 2);
@@ -2767,7 +2851,7 @@ const shigisan = {
       rt.army.damage(F.gate, 55, rt.player.u);
       rt.army.play('wood', GATE, 1.1);
       rt.game.hitstop = 0.05;
-    }, { r: 3.4, hold: 0.6 });
+    }, { r: 4.6, hold: 0.6 });
     F.sally.aggro = 16; // 木戸の内で構え、攻め手を受ける。
     if (!F.gate.alive) this.interior(rt);
 
@@ -3178,7 +3262,7 @@ const shigisan = {
     }
     if (F.step === 2 && !F.towerCovered && rt.player.u.alive) {
       const p = rt.player.u.pos;
-      F.towerHoldT = Math.hypot(p.x - TOWER_POST.x, p.z - TOWER_POST.z) < 3.2 ? (F.towerHoldT || 0) + dt : 0;
+      F.towerHoldT = Math.hypot(p.x - TOWER_POST.x, p.z - TOWER_POST.z) < 4.6 ? (F.towerHoldT || 0) + dt : 0;
       if (F.towerHoldT >= 2) this.coverTower(rt);
     }
     F.guideT = (F.guideT || 0) - dt;
@@ -3876,4 +3960,45 @@ function armyBackdrop(rt, o) {
   return out;
 }
 // bot の記録の跡に、攻め口の兵の数（生き・逃げ・深手）を残す（10/30）
-shigisan.botDbg = (b) => (b.flags.oda || []).map((q) => `${q.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length}/${q.units.filter((u) => u.alive).length}/${q.units.length}`).join(',');
+shigisan.botDbg = (b) => (b.flags.step >= 3.5 && b.flags.castleGuidePoint ? `g${b.flags.castleGuidePoint.x.toFixed(0)},${b.flags.castleGuidePoint.z.toFixed(0)}${b.flags.castleGuideBlocked ? 'B' : ''}${b.flags.castleGuideArrived ? 'A' : ''} ` : '') + (b.flags.oda || []).map((q) => `${q.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length}/${q.units.filter((u) => u.alive).length}/${q.units.length}`).join(',');
+
+// 門を打つ段（3）だけ、bot は門の裏の敵へ突っかからず、打つ所へ寄って掛矢を使い続ける。他の段は既定の動きへ譲る（10/30）
+shigisan.botBrain = (b, inp, { goTo, patientStrike }) => {
+  const F = b.flags, p = b.player, u = p.u, hp = F.gateHitPoint;
+  if (F.step === 2 && !F.towerCovered && !F.ending) {
+    // 門脇の持ち場へ寄って二秒立つ。遠い敵を追って持ち場から離れない。
+    const e2 = b.army.nearestEnemy(u, 3, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+    inp.k.delete('KeyW');
+    if (e2) { p.yaw = Math.atan2(e2.pos.x - u.pos.x, e2.pos.z - u.pos.z); patientStrike(p, inp, e2, Math.hypot(e2.pos.x - u.pos.x, e2.pos.z - u.pos.z)); return; }
+    goTo(p, inp, TOWER_POST.x, TOWER_POST.z, 1.5);
+    return;
+  }
+  if (F.step >= 3.5 && !F.ending) {
+    // 曲輪・本丸：近い敵（八歩）は討ち、いなければ今の印の道を進む。遠い敵を追って道を外れない。
+    const e3 = b.army.nearestEnemy(u, 8, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+    inp.k.delete('KeyW');
+    if (e3) {
+      const d3 = Math.hypot(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z);
+      p.yaw = Math.atan2(e3.pos.x - u.pos.x, e3.pos.z - u.pos.z);
+      if (d3 > 2.4) goTo(p, inp, e3.pos.x, e3.pos.z, 2);
+      patientStrike(p, inp, e3, d3); return;
+    }
+    const m = b.markers.find((x) => ['rg1', 'rg2', 'yashiki', 'honmaru'].includes(x.id));
+    // 先手は同じ道を柵の口まで抜けて進む。いちばん前の先手の歩みについて行く。
+    let lead = null;
+    for (const g of F.oda) if (!gone(g) && g.order === 'path' && g.path && (!lead || g.pathIdx > lead.pathIdx)) lead = g;
+    const lc = lead && lead.center();
+    if (lc && Math.hypot(lc.x - u.pos.x, lc.z - u.pos.z) > 6) { goTo(p, inp, lc.x, lc.z, 4); return; }
+    const q = F.castleGuidePoint || (m && (typeof m.pos === 'function' ? m.pos() : m.pos));
+    if (q) { goTo(p, inp, q.x, q.z, 2.5); return; }
+    return false;
+  }
+  if (F.step !== 3 || !hp || !F.gate?.alive || F.ending) return false;
+  const e = b.army.nearestEnemy(u, 3, (o) => !o.fleeing && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+  inp.k.delete('KeyW');
+  if (e) { p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z); patientStrike(p, inp, e, Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z)); return; }
+  const d = Math.hypot(hp.x - u.pos.x, hp.z - u.pos.z);
+  if (d > 2.2) { goTo(p, inp, hp.x, hp.z, 1.5); return; }
+  p.yaw = Math.atan2(GATE.x - u.pos.x, GATE.z - u.pos.z);
+  inp.k.add('KeyE');
+};

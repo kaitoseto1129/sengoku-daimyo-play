@@ -64,22 +64,23 @@ export function upgradeThatch(tex) {
 }
 
 // 材ごとの古びの強さ：[雨だれ, 苔, 煤, 瓦の色むら]、写真の肌理：[名, 一回りの m, 強さ]
+// more：[壁の色の斑, 板一枚ずつの色, 足元の泥はね・軒下の陰, 茅の筋]（どれも計算だけ。絵・形・描く回数は増えない）
 const KIND = {
-  plaster: { amt: [1.0, 0.3, 0.55, 0], det: ['plaster', 1.4, 0.85] },
-  tsuchi: { amt: [0.8, 0.35, 0.3, 0], det: ['clay', 2.4, 0.55] },
-  home: { amt: [0.85, 0.35, 0.4, 0], det: ['clay', 2.4, 0.45] },
-  stone: { amt: [0.55, 1.0, 0.1, 0], det: ['stone', 2.2, 0.5] },
-  wood: { amt: [0.7, 0.45, 0.45, 0] },
-  ita: { amt: [0.6, 0.7, 0.4, 0] },
-  thatch: { amt: [0.3, 0.9, 0.55, 0] },
-  tile: { amt: [0.35, 0.55, 0.0, 1.0], det: ['stone', 3.0, 0.25] },
+  plaster: { amt: [1.0, 0.3, 0.55, 0], more: [0.45, 0, 0.8, 0], det: ['plaster', 1.4, 0.85] },
+  tsuchi: { amt: [0.8, 0.35, 0.3, 0], more: [0.7, 0, 0.9, 0], det: ['clay', 2.4, 0.55] },
+  home: { amt: [0.85, 0.35, 0.4, 0], more: [0.8, 0.35, 0.9, 0], det: ['clay', 2.4, 0.45] },
+  stone: { amt: [0.55, 1.0, 0.1, 0], more: [0.4, 0, 0.5, 0], det: ['stone', 2.2, 0.5] },
+  wood: { amt: [0.7, 0.45, 0.45, 0], more: [0.6, 0.75, 0.8, 0] },
+  ita: { amt: [0.6, 0.7, 0.4, 0], more: [0.6, 1.0, 0.8, 0] },
+  thatch: { amt: [0.3, 0.9, 0.55, 0], more: [0.5, 0, 0, 1.0] },
+  tile: { amt: [0.35, 0.55, 0.0, 1.0], more: [0.3, 0, 0, 0], det: ['stone', 3.0, 0.25] },
 };
 const uni = new Map();
 function kindUniforms(kind) {
   let u = uni.get(kind);
   if (u) return u;
   const K = KIND[kind];
-  u = { bwAmt: { value: new THREE.Vector4(...K.amt) } };
+  u = { bwAmt: { value: new THREE.Vector4(...K.amt) }, bwMore: { value: new THREE.Vector4(...K.more) } };
   if (K.det) {
     const P = photo(K.det[0]);
     u.bwPhoto = P.tex; u.bwMean = P.mean; u.bwDet = { value: new THREE.Vector2(K.det[1], K.det[2]) };
@@ -88,7 +89,7 @@ function kindUniforms(kind) {
   return u;
 }
 
-const VERT_HEAD = 'varying vec3 vBwPos;\nvarying vec3 vBwNrm;\n';
+const VERT_HEAD = 'varying vec3 vBwPos;\nvarying vec3 vBwNrm;\nvarying float vBwLy;\n';
 const VERT_BODY = `#include <project_vertex>
   {
     vec4 bwW = vec4(transformed, 1.0);
@@ -101,10 +102,17 @@ const VERT_BODY = `#include <project_vertex>
     #endif
     bwW = modelMatrix * bwW;
     vBwPos = bwW.xyz; vBwNrm = mat3(modelMatrix) * bwNo;
+    // 置いた家の中の高さ（土台からの m）。世界の座標で焼いた束・並べた物は使わない（99＝足元も軒下も無し）
+    vBwLy = dot(modelMatrix[3].xyz, modelMatrix[3].xyz) > 0.01 ? transformed.y : 99.0;
+    #if defined(USE_BATCHING) || defined(USE_INSTANCING)
+    vBwLy = 99.0;
+    #endif
   }`;
 const FRAG_HEAD = `varying vec3 vBwPos;
 varying vec3 vBwNrm;
+varying float vBwLy;
 uniform vec4 bwAmt;
+uniform vec4 bwMore;
 #ifdef BW_PHOTO
 uniform sampler2D bwPhoto; uniform vec3 bwMean; uniform vec2 bwDet;
 #endif
@@ -149,6 +157,23 @@ const FRAG_BODY = `#include <color_fragment>
     float bwLum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
     float bwMoss = smoothstep(0.5, 0.78, bwM) * (0.2 + 0.8 * bwUp) * bwAmt.y * bwAge;
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.15, 0.18, 0.07) * (0.55 + bwLum * 2.2), bwMoss * 0.6);
+    // 壁の色の斑：乾いて白んだ所と湿って暗い所（一色の平らな壁にしない）
+    float bwMo = bwNoise(vec2(bwH, bwP.y) * 0.8 + bwCell * 1.7) * 0.7 + bwNoise(vec2(bwH, bwP.y) * 3.1) * 0.3;
+    diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.7, 0.69, 0.72), vec3(1.14, 1.09, 0.99), bwMo), bwMore.x * bwVert);
+    // 板一枚ずつ（約24cm）の色：焼け・灰がかり・新しい差し板
+    float bwPk = bwHash(vec2(floor(bwH * 4.2), bwCell.x * 7.0 + bwCell.y));
+    diffuseColor.rgb *= mix(vec3(1.0), mix(vec3(0.8, 0.79, 0.78), vec3(1.12, 1.07, 1.0), bwPk), bwMore.y * bwVert);
+    // 茅の筋：流れに沿って細い濃淡（切り絵のような一様な面にしない）。束の境は深く
+    float bwSt = bwNoise(vec2(bwH * 9.0, bwP.y * 0.9)) * 0.6 + bwNoise(vec2(bwH * 23.0, bwP.y * 2.0)) * 0.4;
+    diffuseColor.rgb *= 1.0 - bwMore.w * (0.34 * (1.0 - bwSt) - 0.08);
+    // 下を向く面（軒裏・梁の下・床下）は空の光が届かず暗い
+    float bwDn = gl_FrontFacing ? bwN.y : -bwN.y;
+    diffuseColor.rgb *= 1.0 - 0.42 * smoothstep(0.2, 0.75, -bwDn);
+    // 足元の泥はね（地面との接ぎ目）と、軒の下の陰。置いた家の中の高さで決める
+    float bwFoot = (1.0 - smoothstep(0.0, 0.3 + 0.45 * bwMo, vBwLy)) * step(-2.0, vBwLy) * bwVert;
+    diffuseColor.rgb *= 1.0 - bwFoot * bwMore.z * vec3(0.5, 0.54, 0.6);
+    float bwEave = smoothstep(1.4, 2.3, vBwLy) * (1.0 - smoothstep(2.6, 2.9, vBwLy)) * bwVert;
+    diffuseColor.rgb *= 1.0 - bwEave * bwMore.z * 0.4;
   }`;
 
 // 材質に古びを足す（今ある onBeforeCompile の後に重ねる）。同じ材質に二度は掛けない。
