@@ -633,8 +633,10 @@ export class WorldArmy {
       C.left = () => 0; C.take = () => [];
       C.stat = () => ({ phase: C.phase, A: C.A.alive, B: C.B.alive, mA: C.A.m, mB: C.B.m,
         lostA: 0, lostB: 0, drift: 0, routed: C.A.routed ? 'A' : C.B.routed ? 'B' : '' });
-      let activeTick = null;
+      let activeTick = null, firstCmds = null;
       C.tick = (dt, focus) => {
+        // やり直し（最初から）の写しは起こす前の C に戻す（fx・形が消える）。その時は起こし直す（10/31 設楽原で C.fx が無いで止まった）
+        if (activeTick && !C.fx) { activeTick = null; if (!commands.length && firstCmds) commands.push(...firstCmds); }
         if (activeTick) { activeTick(dt, focus); return; }
         if (!C.mesh.visible || this.outsideNearView(o.x, o.z, (o.w || 60) / 2)) return;
         const wrappedTick = C.tick;
@@ -642,6 +644,7 @@ export class WorldArmy {
         activeTick = C.tick;
         C.tick = wrappedTick;
         for (const q of commands) C[q.name](q.key, q.value, q.count, q.pos, q.yaw);
+        if (!firstCmds) firstCmds = commands.slice();
         commands.length = 0;
         activeTick(dt, focus);
       };

@@ -221,6 +221,8 @@ function detachReal(h) {
   R.on = false;
   H.pose.visible = true;
   H.real = null;
+  // 待つ馬は骨の絵（boneTexture・一頭に四枚）を GPU から返す。また付ける時に three が作り直す（設楽原で待つ馬の分 30 枚ほど残った。10/31）
+  for (const r of [R.holder, R.extra]) r.traverse((o) => { if (o.isSkinnedMesh && o.skeleton && o.skeleton.boneTexture) o.skeleton.dispose(); });
   HR.pool.push(R);
 }
 // 毎コマ（updateHumans から）：近い馬を選んで、骨の入った馬に入れ替える

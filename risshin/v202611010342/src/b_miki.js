@@ -534,7 +534,7 @@ function mikiKido(W) {
 }
 function mikiFenceFire(W, x, z, torch = true) {
   // 開始時に本人の足元へ炎を重ねない。柵や通り道は動かさない。
-  if ((x - miki.spawn.x) ** 2 + (z - miki.spawn.z) ** 2 < 9) return;
+  if ((x - miki.spawn.x) ** 2 + (z - miki.spawn.z) ** 2 < 9 || unseen(x, z)) return;
   const k = mikiKido(W), h = torch ? 1.8 : 1.25;
   const f = W.addFire(x, z, { torch, nightOnly: true, h, size: torch ? .28 : .45, smoke: false });
   // 高画質でも既存の炎の束へ入れ、何百本の松明を二回で描く。
@@ -669,6 +669,7 @@ function outerFence(rt) {
       const seg = [ax + (bx - ax) * j / n, az + (bz - az) * j / n,
         ax + (bx - ax) * (j + 1) / n, az + (bz - az) * (j + 1) / n];
       if (crossesRoad(seg) || W.inWaterAt((seg[0] + seg[2]) / 2, (seg[1] + seg[3]) / 2)) continue;
+      if (unseen((seg[0] + seg[2]) / 2, (seg[1] + seg[3]) / 2)) { Object.assign(solidSeg(seg[0], seg[1], seg[2], seg[3], .15), { missileH: 2.3, missileType: 'wood' }); continue; }
       const count = Math.ceil(Math.hypot(seg[2] - seg[0], seg[3] - seg[1]) / 1.5);
       spans.push({ seg, count }); postCount += count + 1;
     }
@@ -758,6 +759,10 @@ const CONVOY_BOUNDS = { minX: -155, maxX: 35, minZ: -160, maxZ: 10, pushBack: 2 
 const HONJIN = { x: MIKI.x + MIKI_JO.honmaru.dx + MIKI_HONJIN_OFFSET.dx,
   z: MIKI.z + MIKI_JO.honmaru.dz + MIKI_HONJIN_OFFSET.dz };
 const GATE = { x: HIRATA.x, z: HIRATA.z + HIRATA.r + 6 };
+// 10/31 iPhone の記憶の上限：持ち場（平田〜大村）から霧の果て（fogFar 420）より遠い付城・柵・松明は形を作らない。
+// 遠い東と北の囲いの柵だけで頂点が二百万を超え、本人からは一度も見えなかった。
+const PLAY_C = { x: -70, z: -80 }, SEEN_R = 460;
+const unseen = (x, z) => Math.hypot(x - PLAY_C.x, z - PLAY_C.z) > SEEN_R;
 const CASTLE_ROAD = MIKI_ROAD.map(([x, z]) => [MIKI.x + x, MIKI.z + z]);
 const LANE = [[-190, -82], [-130, -74], [-104, -44], [-30, -40], [10, -26], [50, -8], [70, 10]];
 const SALLY_PATH = [[10, -26], [10, -40], [-30, -40], [GATE.x + 8, GATE.z]];
@@ -1886,6 +1891,7 @@ const miki = {
     siegeApproach(rt, SHIYORI, batch, true);
     // 東・南・西の付城も柵と土塁・南の木戸・番所と兵糧蔵・井楼を備える。
     for (const q of MIKI_FORTS) {
+      if (unseen(q.x, q.z)) continue;
       const walls = ringWall(rt, q.x, q.z, q.r, { gapAt: 0, gapW: .65, team: 0, hp: 1e9, name: '付城の柵', segLen: 5, meshOpt: { batch } });
       mikiFenceTorches(W, walls.map(wall => wall.seg));
       for (const wall of walls) {
@@ -1910,13 +1916,13 @@ const miki = {
     }
     // 平場の縁。道と戸口への枝道は全幅を開け、土塁・柵・当たりを同じ線へ置く。
     for (const q of MIKI_KURUWA) {
-      const x = MIKI.x + q.dx, z = MIKI.z + q.dz;
+      const x = MIKI.x + q.dx, z = MIKI.z + q.dz, far = unseen(x, z);
       // 本丸・二の丸は瓦葺き礎石建物と瓦の出土に合わせる。建物の姿・位置は復元。
       // https://www.city.miki.lg.jp/site/mikirekishishiryokan/13387.html
       // 主殿も短辺を屋根の勾配に使う。外周寸法と南の城道は保ち、棟を東西へ通す。
       // 長手の板戸と柱立ちの庇を南へ向ける。外形と建具の位置は推定。
       const high = true;
-      mikiHut(W, x, z, high ? q.d : q.w, high ? q.w : q.d, high ? -Math.PI / 2 : 0, { ita: true,
+      if (!far) mikiHut(W, x, z, high ? q.d : q.w, high ? q.w : q.d, high ? -Math.PI / 2 : 0, { ita: true,
         nagayaDoors: high, eaveGallery: high,
         tileRoof: q === MIKI_JO.honmaru || q === MIKI_JO.ninomaru, batch, interior: { name: `${q.name}の主殿`, kind: 'goten', profile: 'miki', team: 1 } });
       const pts = [[x-q.cw/2,z-q.cd/2],[x+q.cw/2,z-q.cd/2],[x+q.cw/2,z+q.cd/2],[x-q.cw/2,z+q.cd/2]];
@@ -1924,7 +1930,7 @@ const miki = {
         const a = pts[i], b = pts[(i+1)%4], n = Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/12);
         for (let j = 0; j < n; j++) {
           const seg = [a[0]+(b[0]-a[0])*j/n,a[1]+(b[1]-a[1])*j/n,a[0]+(b[0]-a[0])*(j+1)/n,a[1]+(b[1]-a[1])*(j+1)/n];
-          if (crossesRoad(seg)) continue;
+          if (crossesRoad(seg) || unseen((seg[0]+seg[2])/2, (seg[1]+seg[3])/2)) continue;
           const len = Math.hypot(seg[2]-seg[0], seg[3]-seg[1]);
           const nx = -(seg[3]-seg[1])/len, nz = (seg[2]-seg[0])/len;
           dorui(W, seg, nx, nz, { h: .8, w: 2, capEnds: true, closeBack: true, batch });
@@ -1935,6 +1941,7 @@ const miki = {
           for (const wall of wallLine(rt, [[seg[0],seg[1]],[seg[2],seg[3]]], { team: 1, hp: 1e9, name: board ? '曲輪の板塀' : '曲輪の柵', h: wallH, segLen: 12, mesh: board ? castleBoardFence : palisade, meshOpt: { h: wallH, boardCap: board && true, batch } })) { wall.noTarget = true; wall.wall = true; }
         }
       }
+      if (far) continue;
       rt.scene.add(mikiGate(W, x + 7, z + q.cd/2, 7));
       monomi(rt, x - q.cw/2 + 15, z - q.cd/2 + 4, { logFrame: true, height: q === MIKI_JO.honmaru ? 10 : 8.8, boarded: false, mon: 'maru', team: 1 });
       mikiHut(W, x + q.cw/2 - 15, z - q.cd/2 + 15, 6, 4, 0, { ita: true, batch, interior: { name: `${q.name}の番所`, kind: 'bansho', profile: 'miki', team: 1 } });
@@ -1971,7 +1978,7 @@ const miki = {
         const seg = [ax + (bx - ax) * s0, az + (bz - az) * s0, ax + (bx - ax) * s1, az + (bz - az) * s1];
         // 川を柵で横断しない。荷駄道にも道幅ぶんの口を残す。
         const mx = (seg[0] + seg[2]) / 2, mz = (seg[1] + seg[3]) / 2;
-        if (W.inWaterAt(mx, mz) || crossesRoad(seg)) continue;
+        if (unseen(mx, mz) || W.inWaterAt(mx, mz) || crossesRoad(seg)) continue;
         torchSegments.push(seg);
         for (const wall of wallLine(rt, [[seg[0], seg[1]], [seg[2], seg[3]]], { team: 0, hp: 180, name: '付城の柵', meshOpt: { mound: true, batch } })) {
           wall.noTarget = true; wall.wall = true;
@@ -1992,7 +1999,7 @@ const miki = {
     mikiFinishBatch(rt, batch);
     // 近い破損だけ一枚の札で示す。区画ごとの札を増やさない。
     rt.marker('repair', () => F.step === 1 && !F.ending && F.repairAt?.broken ? F.repairAt : null, '破れた柵', { h: 1.5 });
-    for (const [x, z] of TSUKESHIRO_CHAIN) rt.scene.add(nobori(W, x, z, 'oda', 7));
+    for (const [x, z] of TSUKESHIRO_CHAIN) if (!unseen(x, z)) rt.scene.add(nobori(W, x, z, 'oda', 7));
     // 秀吉は槍列の後ろ。護衛と鉄砲を別の列に置き、本人だけ突っ込ませない。
     F.hide = allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴秀吉の手', anchor: { x: -28, z: -60 }, facing: -Math.PI / 2, width: 6, aggro: 5, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true } }, { type: 'samurai', n: 5 }], ODA));
@@ -2003,16 +2010,16 @@ const miki = {
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: -74, z: -48 }, -Math.PI / 2, [{ kind: 'spear', n }]);
     // 平井山は美嚢川の北東側。留守役を秀長と断定せず、護衛の備だけ置く。
-    F.honjin = camp(rt, { ...HONJIN, compact: true, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', guard: 15, reserve: 0, runTo: { x: -28, z: -60 } });
-    const honjinBatch = makeSimpleBatch();
-    for (const wall of ringWall(rt, HONJIN.x, HONJIN.z, 20, { gapAt: 0, gapW: 0.7, team: 0, hp: 1e9, name: '本陣の柵', segLen: 8, meshOpt: { batch: honjinBatch } })) { wall.noTarget = true; wall.wall = true; dorui(W, wall.seg, wall.nx, wall.nz, { h: .8, w: 2, capEnds: true, closeBack: true, batch: honjinBatch }); }
+    F.honjin = camp(rt, { ...HONJIN, compact: true, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', guard: 8, reserve: 0, runTo: { x: -28, z: -60 } });
+    const honjinBatch = makeSimpleBatch(), honjinSeen = !unseen(HONJIN.x, HONJIN.z);
+    if (honjinSeen) for (const wall of ringWall(rt, HONJIN.x, HONJIN.z, 20, { gapAt: 0, gapW: 0.7, team: 0, hp: 1e9, name: '本陣の柵', segLen: 8, meshOpt: { batch: honjinBatch } })) { wall.noTarget = true; wall.wall = true; dorui(W, wall.seg, wall.nx, wall.nz, { h: .8, w: 2, capEnds: true, closeBack: true, batch: honjinBatch }); }
     mikiFinishBatch(rt, honjinBatch);
     // 板葺きの控え小屋を陣幕の西へ収める。
     const honjinHouses = makeSimpleBatch();
-    mikiFortHut(W, HONJIN.x - 13.5, HONJIN.z - 5, 8, 5, 0, { ita: true, batch: honjinHouses, interior: { name: '平井山本陣の控え小屋', kind: 'nagaya', profile: 'miki', team: 0 } });
-    mikiFortHut(W, HONJIN.x + 9, HONJIN.z - 7, 6, 4, 0, { ita: true, batch: honjinHouses, interior: { name: '平井山本陣の番所', kind: 'bansho', profile: 'miki', team: 0 } });
+    if (honjinSeen) mikiFortHut(W, HONJIN.x - 13.5, HONJIN.z - 5, 8, 5, 0, { ita: true, batch: honjinHouses, interior: { name: '平井山本陣の控え小屋', kind: 'nagaya', profile: 'miki', team: 0 } });
+    if (honjinSeen) mikiFortHut(W, HONJIN.x + 9, HONJIN.z - 7, 6, 4, 0, { ita: true, batch: honjinHouses, interior: { name: '平井山本陣の番所', kind: 'bansho', profile: 'miki', team: 0 } });
     finalizeSimpleBatch(rt, honjinHouses);
-    rt.scene.add(mikiGate(W, HONJIN.x, HONJIN.z + 20, 8));
+    if (honjinSeen) rt.scene.add(mikiGate(W, HONJIN.x, HONJIN.z + 20, 8));
     mikiCampStores(rt);
     mikiHarvest(rt);
     mikiRoadLitter(rt);
@@ -2021,26 +2028,30 @@ const miki = {
     mikiFireStands(rt);
     mikiKidoLight(rt, 0);
     // 円い柵の弦から、梯子の足と一歩手前まで離す。
-    monomi(rt, HONJIN.x - 14, HONJIN.z + 10, { logFrame: true, height: 10, boarded: false, mon: 'oda', team: 0 });
-    rt.scene.add(hyoro(W, HONJIN.x - 8, HONJIN.z + 8, 0), umatsunagi(W, HONJIN.x + 10, HONJIN.z + 8, 0, 8));
-    rt.scene.add(hatazao(W, HONJIN.x + 11, HONJIN.z - 3, 0, 5, 'oda'),
-      jindaiko(W, HONJIN.x + 6, HONJIN.z + 4, Math.PI / 2));
-    F.ehon = camp(rt, { x: MIKI.x + MIKI_JO.honmaru.dx + 22, z: MIKI.z + MIKI_JO.honmaru.dz + 18, facing: Math.PI, team: 1, faction: 'bessho', armor: 0x35382c, mon: 'maru', general: { name: '別所長治' }, guard: 20, reserve: 0, runTo: { x: MIKI.x + MIKI_JO.honmaru.dx, z: MIKI.z + MIKI_JO.honmaru.dz + 30 } });
+    if (honjinSeen) {
+      monomi(rt, HONJIN.x - 14, HONJIN.z + 10, { logFrame: true, height: 10, boarded: false, mon: 'oda', team: 0 });
+      rt.scene.add(hyoro(W, HONJIN.x - 8, HONJIN.z + 8, 0), umatsunagi(W, HONJIN.x + 10, HONJIN.z + 8, 0, 8));
+      rt.scene.add(hatazao(W, HONJIN.x + 11, HONJIN.z - 3, 0, 5, 'oda'),
+        jindaiko(W, HONJIN.x + 6, HONJIN.z + 4, Math.PI / 2));
+    }
+    F.ehon = camp(rt, { x: MIKI.x + MIKI_JO.honmaru.dx + 22, z: MIKI.z + MIKI_JO.honmaru.dz + 18, facing: Math.PI, team: 1, faction: 'bessho', armor: 0x35382c, mon: 'maru', general: { name: '別所長治' }, guard: 8, reserve: 0, runTo: { x: MIKI.x + MIKI_JO.honmaru.dx, z: MIKI.z + MIKI_JO.honmaru.dz + 30 } });
     F.ehon.general.allyOk = true;
+    // 共通の陣は旗本を十五人より減らさない。遠い二つの陣だけ、組頭を残して八人に詰める（10/31 iPhone の記憶）。
+    for (const c of [F.honjin, F.ehon]) { const g = c.guard; let k = 0; for (const u of g.units) if (u !== g.leader && ++k > 7) rt.army.despawn(u); }
     // 開始時に全員を置く。段が変わっても同じ兵が歩き、損失を保つ。
     // 先手は荷より先に坂へ出ている。道の手前で槍列をそろえ、南の合流口へ向ける。
-    F.escort = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の護衛', anchor: { x: -120, z: -60 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 12, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 24 }], MORI));
+    F.escort = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の護衛', anchor: { x: -120, z: -60 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 12, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }], MORI));
     // 10/30 採点：開戦25秒の画面で敵がまばら。持ち場の前25〜40mで、先手の槍組と組み合う毛利の前備えを足す。
     F.escortFront = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の前備え', anchor: { x: -112, z: -52 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 14, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], MORI));
-    F.egun = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄を守る鉄砲組', anchor: { x: -174, z: -98 }, facing: Math.PI / 2, formation: 'line', width: 6, aggro: 8, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 12 }], MORI));
+    F.egun = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄を守る鉄砲組', anchor: { x: -174, z: -98 }, facing: Math.PI / 2, formation: 'line', width: 6, aggro: 8, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 8 }], MORI));
     // 両名は『播磨別所記』の当日記事に見える。担当する組と声は遊びの復元。
     // 既存の侍一人ずつに名を付け、人数・体力・武器は増やさない。
-    // 二十七人を九人ずつに分ける。浅瀬で長い列の最後尾を待ち続けない。
+    // 二十一人を七人ずつに分ける（10/31 iPhone の記憶：本物の兵を百五十人ほどに）。浅瀬で長い列の最後尾を待ち続けない。
     F.sallies = [0, 1, 2].map(i => {
       const g = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '城から出た別所勢',
         anchor: { x: 18 + i * 6, z: -14 }, facing: -Math.PI / 2, formation: 'column', colW: 3,
         spacing: 1.1, roadColumn: true, arriveCount: 2, arriveRadius: 4, aggro: 12, fleeDir: { x: 1, z: 0.4 } },
-      dress([{ type: 'samurai', n: 1, o: i === 0 ? { name: '別所甚太夫' } : {} }, { type: 'ashigaru', n: 8 }], BESSHO));
+      dress([{ type: 'samurai', n: 1, o: i === 0 ? { name: '別所甚太夫' } : {} }, { type: 'ashigaru', n: 6 }], BESSHO));
       g.sortiePath = [[g.anchor.x, g.anchor.z], ...SALLY_PATH.map(pt => pt.slice())];
       g.sortieStarted = false;
       // 10/31 渡り切った城兵は、まず本人を目がけて寄せる（真ん中の組は近い敵から）。
@@ -2048,7 +2059,7 @@ const miki = {
       return g;
     });
     F.sally = F.sallies[0];
-    F.reserve = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '大村の控え', anchor: { x: OMURA.x, z: OMURA.z }, facing: 0, formation: 'yari', aggro: 12, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '別所三太夫' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 22 }, { type: 'bow', n: 4 }], BESSHO));
+    F.reserve = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '大村の控え', anchor: { x: OMURA.x, z: OMURA.z }, facing: 0, formation: 'yari', aggro: 12, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '別所三太夫' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 13 }, { type: 'bow', n: 2 }], BESSHO));
     F.carts = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '兵糧を担ぐ者', anchor: { x: -142, z: -74 }, facing: Math.PI / 2, formation: 'column', colW: 2, speed: 1.2, aggro: 0, civ: true, noRout: true, arriveNoncombat: true, fleeDir: { x: -1, z: 0 } }, [{ type: 'porter', n: 6, o: { flag: null } }]);
     for (const u of F.carts.units) { u.noTarget = true; u.dmg = 0; }
     F.cartArrived = new Uint8Array(F.carts.units.length); F.delivered = 0;

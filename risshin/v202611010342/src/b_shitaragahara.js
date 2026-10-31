@@ -2163,15 +2163,28 @@ const shitaragahara = {
     fenceWorld.heightAt = (x, z) => drawGroundAt(W, x, z);
     F.fenceGround = fenceWorld;
     const fenceRt = { world: fenceWorld, army: rt.army, scene: rt.scene };
+    // 10/31 iPhone の記憶：口から百メートル先の間の柵は、杭ごと・横木ごとの縄の巻き（一区画で二千六百頂点）を省く。
+    //   斬り合う三つの口の前（前後九十六メートル）は交差の杭と縄を保つ。
+    const plainWorld = Object.create(fenceWorld);
+    plainWorld.def = { ...W.def, bobosakuCrossed: false };
+    const plainRt = { ...fenceRt, world: plainWorld };
     let edge = SB.z0;
     for (const mouth of MOUTHS) {
       const z0 = mouth.z - 96, z1 = mouth.z + 96;
       // 交戦口は六メートル、間の柵は三十メートル単位でまとめ、壊せる区画の増え方を抑える。
-      if (edge < z0) buildBobosaku(fenceRt, { x0: SB.x0, z0: edge, z1: z0, gap: SB.gap, segLen: 30, facing: 1 }).forEach((f) => F.fence.push(f));
+      if (edge < z0) buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: z0, gap: SB.gap, segLen: 30, facing: 1 }).forEach((f) => F.fence.push(f));
       F.fence.push(...buildBobosaku(fenceRt, { x0: SB.x0, z0, z1, gap: SB.gap, gates: [mouth.z], facing: 1 }));
       edge = z1;
     }
-    if (edge < SB.z1) F.fence.push(...buildBobosaku(fenceRt, { x0: SB.x0, z0: edge, z1: SB.z1, gap: SB.gap, segLen: 30, facing: 1 }));
+    if (edge < SB.z1) F.fence.push(...buildBobosaku(plainRt, { x0: SB.x0, z0: edge, z1: SB.z1, gap: SB.gap, segLen: 30, facing: 1 }));
+    // 10/31 iPhone の記憶：馬防柵は口ごとに一つの束（三十八万頂点）。一区画が倒れる 0.8 秒のあいだ毎コマ傾けると、
+    //   そのたびに束を丸ごと書き直して送り直していた（三十秒で数百 MB の屑）。倒れる間の傾きは 0.3 ずつ・倒れ切りだけ書く。
+    const fenceSet = new Set(F.fence), army = rt.army, tilt = army.structTilt;
+    army.structTilt = function (st, ang) {
+      if (fenceSet.has(st) && ang < 1.349 && Math.abs(ang - (st._tiltW ?? -9)) < 0.3 && this.falling?.some((q) => q.s === st)) return true;
+      if (fenceSet.has(st)) st._tiltW = ang;
+      return tilt.call(this, st, ang);
+    };
     for (let i = fenceStart; i < rt.scene.children.length; i++) rt.scene.children[i].traverse((m) => {
       if (m.isMesh && m.material) {
         m.material = nearMaterial(m.material);
@@ -2210,7 +2223,7 @@ const shitaragahara = {
     F.officers = [];
     for (const [name, x, z, fac] of ALLIED_POSTS.slice(2, 7)) {
       const q = allyGroup(rt, { faction: fac, name: name + 'の控え', fixed: true, fullStrength: true, noGuard: true, anchor: { x, z }, facing: Math.PI / 2, width: 6, aggro: 6, formation: 'yari' },
-        [{ type: 'busho', n: 1, o: { name, invuln: true } }, { type: 'samurai', n: 2 }]);
+        [{ type: 'busho', n: 1, o: { name, invuln: true } }, { type: 'samurai', n: 1 }]);
       F.officers.push(q);
       if (name === F.boss) F.okubo = q.units[0];
     }
@@ -2225,12 +2238,12 @@ const shitaragahara = {
     F.hudBands = null; F.hudZone = null;
     // 槍の組：動く一組と、南北の虎口に残る守り。大将本人を連れ回さない。
     const ok = allyGroup(rt, { faction: 'oda', name: '仙石の槍組', fixed: true, fullStrength: true, noGuard: true, yariRanks: 3, anchor: { x: ALLIED_POSTS[1][1], z: ALLIED_POSTS[1][2] }, facing: Math.PI / 2, width: 16, aggro: 6, formation: 'yari', order: 'hold' },
-      [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true, weapon: 'spear' } }, { type: 'ashigaru', n: 8 }]);
+      [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true, weapon: 'spear' } }, { type: 'ashigaru', n: 7 }]);
     F.sengoku = ok.units[0];
     F.spears = [ok];
     for (const [z, fac] of [[MOUTHS[0].z + 4.5, 'oda'], [MOUTHS[1].z + 4.5, 'oda'], [42, 'oda'], [MOUTHS[2].z + 4.5, 'tokugawa']]) {
       F.spears.push(allyGroup(rt, { faction: fac, name: '槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: z === 42 ? SB.x0 - 2 * SB.gap - 1 : SB.x0 - 2, z }, facing: Math.PI / 2, width: 16, aggro: 6, formation: 'yari', order: 'hold' },
-        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: Math.abs(z) < 60 ? 7 : 3 }]));
+        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: Math.abs(z) < 60 ? 6 : 3 }]));
     }
     // 予備隊（長篠・設楽原 統合版 37・45 章）：柵の後ろに控え、いちばん危ない区画へ自動で動く・向き直る（reserveTick が毎コマ判断）
     F.reserve = allyGroup(rt, { faction: oda ? 'oda' : 'tokugawa', name: '予備の槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2 * SB.gap - 5, z: 0 }, facing: Math.PI / 2, width: 14, aggro: 8, formation: 'yari', order: 'hold' },
@@ -2394,6 +2407,9 @@ const shitaragahara = {
       c.guard.guard = true; c.guard.stay = true;
       c.guard.guardSight = 22; c.guard.guardLeash = 8;
     }
+    // 10/31 iPhone の記憶：共通の陣は旗本を十五人より減らさない。柵から遠い味方の二つの陣だけ、組頭を残して詰める
+    //   （茶臼山は一キロ西で本人が行かない。家康の陣は竹広の後ろの控え）。勝頼の陣は追い討ちで斬り合うので保つ。
+    F.camps.forEach((c, i) => { const g = c.guard, keep = i ? 5 : 9; let k = 0; for (const u of g.units) if (u !== g.leader && ++k > keep) rt.army.despawn(u); });
     F.katsCamp.guard.formation = 'yari';
     F.katsCamp.guard.noRout = true; F.katsCamp.guard.guard = true;
     F.katsCamp.guard.stay = true; F.katsCamp.guard.guardSight = 22; F.katsCamp.guard.guardLeash = 8; // 勝頼の馬廻は退きの下知まで本陣を守る
@@ -2497,10 +2513,21 @@ const shitaragahara = {
     F.south = this.makeWave(rt, { name: '山県昌景', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, cav: 3, ash: 8, bamboo: true });
     // 退路の旗と馬は軽い備の討死の跡。元の馬の形・材質を共用する。
     const fallenModel = F.south.cavalry.units.find((u) => u.horse)?.horse;
+    // 10/31 iPhone の記憶：three の clone は userData を JSON で写し直す。乗った馬の userData から辿れる物まで
+    //   一頭ごとに文字に起こして持ち続け、飾りの馬だけで三百 MB を超えていた。userData は浅く写す（中身は共有）。
+    const cloneFallen = () => {
+      const saved = [];
+      fallenModel.traverse((o) => { saved.push(o.userData); o.userData = {}; });
+      let copy;
+      try { copy = fallenModel.clone(true); } finally { let i = 0; fallenModel.traverse((o) => { o.userData = saved[i++]; }); }
+      // 骨組みの控え（userData.horse）は元の馬の脚や首を指すので写さない（飾りの馬は動かさない）。
+      let j = 0; copy.traverse((o) => { o.userData = { ...saved[j++] }; delete o.userData.horse; });
+      return copy;
+    };
     if (fallenModel) for (const band of F.frontBands) {
       // 口の内側は実際の落馬だけを残す。八十センチ間隔の飾り馬を二頭重ねない。
       if (band.inner) continue;
-      const horse = fallenModel.clone(true);
+      const horse = cloneFallen();
       const x = SB.x0 + 12;
       horse.position.set(x, W.heightAt(x, band.horseZ) + 0.55, band.horseZ);
       horse.rotation.set(0, -Math.PI / 2, 0);
@@ -2513,7 +2540,7 @@ const shitaragahara = {
       const flag = nobori(W, band.x + 28, band.z + 5, 'takeda', 3.5);
       shGroundFlag(rt, flag); remains.add(flag);
       if (fallenModel) {
-        const horse = fallenModel.clone(true);
+        const horse = cloneFallen();
         horse.position.set(band.x + 25, W.heightAt(band.x + 25, band.z + 8) + 0.55, band.z + 8);
         horse.rotation.set(0, Math.PI / 2, -1.5);
         horse.traverse((m) => { if (m.isMesh) { m.onBeforeRender = () => {}; delete m.userData.lod; } });
