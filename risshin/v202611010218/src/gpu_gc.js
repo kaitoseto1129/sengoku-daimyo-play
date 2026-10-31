@@ -43,7 +43,7 @@ function keepFrom(v, depth = 0) {
 }
 
 // clock：戦の中の時計（秒。描く時に形へ gpuUse の印を押す：main.js の renderBufferDirect）。idle：iPhone でこの秒数描かれない送り済みの形は GPU から返す（次に描く時に送り直す）
-export const GPU_GC = { at: 0, every: MEM_TIGHT ? 6 : 12, last: { kept: 0, freed: 0, readback: 0, ms: 0 }, total: 0, clock: 0, idle: MEM_TIGHT ? 5 : 10, idleFreed: 0, idleMB: 0 };
+export const GPU_GC = { at: 0, every: MEM_TIGHT ? 6 : 12, last: { kept: 0, freed: 0, readback: 0, ms: 0 }, total: 0, clock: 0, idle: MEM_TIGHT ? 30 : 10, idleAgain: Infinity, idleFreed: 0, idleMB: 0 };
 let gcWork = null;
 // 同期の読み戻しは一コマ一配列、返却は四つまで。候補の走査も六十四個・約半ミリ秒で区切る。
 function readOneGeometryArray(g) {
@@ -77,6 +77,7 @@ function gcStep() {
         continue;
       }
       g.userData.gpuUse = undefined;
+      if (w.pendingIdle) g.userData.idleFreed = 1;
       g.dispose(); freed++;
       if (w.pendingIdle) { w.idle++; w.idleBytes += w.pendingBytes; }
       else w.freed++;
@@ -89,7 +90,9 @@ function gcStep() {
     scanned++;
     const g = next.value, idle = _keep.has(g);
     if (g.userData.humanPooled || g.userData.gpuUse >= w.clock) continue;
-    if (idle && (!MEM_TIGHT || g.userData.gpuUse === undefined || g.userData.gpuUse > w.clock - GPU_GC.idle)) continue;
+    // 一度返して、また描かれて送り直した形は、もう返さない（idleAgain。10/31 iPhone 三木が開戦150秒に落ちた。
+    //   向きを変えるたびに景色や兵の形を返しては送り直し、形の数が 450〜816 と揺れ続けていた）
+    if (idle && (!MEM_TIGHT || g.userData.gpuUse === undefined || g.userData.gpuUse > w.clock - (g.userData.idleFreed ? GPU_GC.idleAgain : GPU_GC.idle))) continue;
     let bytes = 0, need = 0, big = false;
     for (const k in g.attributes) {
       const a = g.attributes[k]; if (!a) continue;

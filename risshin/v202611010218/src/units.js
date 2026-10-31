@@ -235,6 +235,8 @@ function allyNoBlue(look, deep = true) {
 
 // ---------------- 軍勢の管理 ----------------
 // まとめて描く兵の種類の番号（軽い兵の形：0 槍 1 鉄砲 2 弓 3 侍）
+// 遠い軽い兵の束へ渡す、近い兵と同じ作り分けの色（humans_dress.js の soldierTint が入る。読み込み前は null で、元の一色のまま）
+export const IMP_TINT = { fn: null };
 const IMP_KIND = { ashigaru: 0, gun: 1, bow: 2, samurai: 3, porter: 3 };   // 人足・逃げる人（porter）は得物を持たない侍の形（兜は無し）
 // 画質「低」の遠い兵（10m より先。背丈が五十画素ほど）の部品は、頂点を 4cm の升でまとめた粗い形で描く（色・素材の印は元の頂点のまま）。
 //   遠い形（lo）でも一人二千面ほどあり、百人の乱戦で二十万面を越えていた。人数・動き・並びは変えない
@@ -329,6 +331,7 @@ function shadowBox(g) {
 // 倒れた兵の補光の材質（army_ground.js fallenMaterial）で、元が兵の材質の物
 // 一人だけの形をまとめる入れ物（soloDraw）：材質と頂点の作りごとに一つ。形の数・頂点・番号の上限
 //   （10/28：乱戦では三人・四人だけの束と、入れ物の数の上限（十）で溢れた束が一コマ百回ほど残っていた。四人まで・十六まで。x_multi2・x_pools10 で元に）
+const RX_FENCE = /柵/;   // 回りの中で正規表現の字を書くと通るたびに作る（10/31 三木）
 const SOLO = { on: true, multi: 4, pools: 16, shards: 3, g: 420, v: 150000, i: 480000 }, _soloM = new THREE.Matrix4();
 // 満ちた入れ物で、二秒ほど使っていない形の場所のうち、大きさの足りるいちばん小さい所へ上書きする（無ければ -1）
 // 束（BatchedMesh）専用の材質の写し。元の材質を束と普通の形で使い回すと、three が物の入れ替わりごとに
@@ -1185,7 +1188,7 @@ export class Army {
       if ((g[0] < x0 && g[2] < x0) || (g[0] > x1 && g[2] > x1) || (g[1] < z0 && g[3] < z0) || (g[1] > z1 && g[3] > z1)) continue;
       if (segHit(pos.x, pos.z, tp.x, tp.z, g) < 0) continue;
       if (s.team === team && distToSeg(pos.x, pos.z, s.seg) < 2.5) continue;
-      if (over && /柵/.test(s.name || '') && distToSeg(pos.x, pos.z, s.seg) < clear) continue;
+      if (over && RX_FENCE.test(s.name || '') && distToSeg(pos.x, pos.z, s.seg) < clear) continue;
       return true;
     }
     return false;
@@ -1873,7 +1876,9 @@ export class Army {
       }
       if (st.n >= st.im.cap) { u.imp = false; u.mesh.visible = true; continue; }
       const helm = u.look.hat && u.look.hat.startsWith('kabuto') ? 1 : 0;
-      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1);
+      // 近い兵と同じ具足・笠の色（姿ごとに一度だけ決める。近づいて骨の人に替わっても色が飛ばない）
+      if (u.impTintLook !== u.look && IMP_TINT.fn) { u.impTintLook = u.look; try { u.impTint = IMP_TINT.fn(u.look); } catch (e) { u.impTint = null; } }
+      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1, u.impTint);
     }
     for (const st of I.values()) st.im.commit(st.n);
   }
@@ -2092,7 +2097,7 @@ export class Army {
   //   材質と頂点の作りが同じ物を、一つの BatchedMesh へまとめて一回で描く（形は初めて使う時に一度だけ写す。行列は毎コマ）。
   //   形・材質・色・動きは変えない。一括描画の拡張の無い機種と、入れ物が満ちた時は今までどおり
   soloDraw(B) {
-    const P = this.solo || (this.solo = { pools: new Map(), sig: new WeakMap(), frame: 0 });
+    const P = this.solo || (this.solo = { pools: new Map(), sig: new WeakMap(), frame: 0, again: new Map() });
     P.frame++;
     if (window.__apx?.multi) SOLO.multi = window.__apx.multi;
     if (window.__apx?.pools) SOLO.pools = window.__apx.pools;
@@ -2110,7 +2115,8 @@ export class Army {
       if (pool.used.length) pool.retireGeo = 0;
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
-      if (pool.idle > (MEM_TIGHT ? 240 : 900) && B.retired < 2 && B.retireMs < 0.5) {
+      // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
+      if (pool.idle > (MEM_TIGHT ? 240 : 900) * (1 + 3 * Math.min(3, P.again.get(key) || 0)) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。
@@ -2135,7 +2141,7 @@ export class Army {
         B.retireMs += performance.now() - started;
         if (waiting || pool.retireGeo < pool.geos.length || B.retireMs >= 0.5) continue;
         const disposeAt = performance.now();
-        this.scene.remove(pool.bm); pool.bm.dispose(); P.pools.delete(key); SOLO_STAT.poolsDisposed++;
+        this.scene.remove(pool.bm); pool.bm.dispose(); P.pools.delete(key); SOLO_STAT.poolsDisposed++; P.again.set(key, (P.again.get(key) || 0) + 1);
         B.retired++; B.retireMs += performance.now() - disposeAt;
       }
     }
