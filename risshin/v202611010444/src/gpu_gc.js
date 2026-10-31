@@ -43,7 +43,7 @@ function keepFrom(v, depth = 0) {
 }
 
 // clock：戦の中の時計（秒。描く時に形へ gpuUse の印を押す：main.js の renderBufferDirect）。idle：iPhone でこの秒数描かれない送り済みの形は GPU から返す（次に描く時に送り直す）
-export const GPU_GC = { at: 0, every: MEM_TIGHT ? 6 : 12, last: { kept: 0, freed: 0, readback: 0, ms: 0 }, total: 0, clock: 0, idle: MEM_TIGHT ? 30 : 10, idleAgain: Infinity, idleFreed: 0, idleMB: 0 };
+export const GPU_GC = { at: 0, every: MEM_TIGHT ? 6 : 12, last: { kept: 0, freed: 0, readback: 0, ms: 0 }, total: 0, clock: 0, idle: MEM_TIGHT ? 5 : 10, idleAgain: MEM_TIGHT ? 12 : Infinity, idleFreed: 0, idleMB: 0 };
 let gcWork = null;
 // 同期の読み戻しは一コマ一配列、返却は四つまで。候補の走査も六十四個・約半ミリ秒で区切る。
 function readOneGeometryArray(g) {

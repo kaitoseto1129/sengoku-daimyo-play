@@ -1068,6 +1068,6 @@ function showHuman(u) { madeThisFrame = -99; madeFaces = 0; const ok = useHuman(
 
 // 中景の焼いた動き（crowd_vat.js）が、場面の外の作り物の人を作る・手放す
 VAT.hooks.build = buildHuman;
-VAT.hooks.release = (h) => { humanPool.delete(h); releaseHumanBounds(h); h.mixer?.stopAllAction(); h.mixer?.uncacheRoot(h.model); };
+VAT.hooks.release = (h) => { humanPool.delete(h); releaseHumanBounds(h); freeSkeletons(h); h.mixer?.stopAllAction(); h.mixer?.uncacheRoot(h.model); };
 
 export { prefetchLook, prefetchFaces, makeHuman, buildHuman, efudaPose, disposeBattleHumans, updateHumans, showHuman };
