@@ -690,6 +690,7 @@ function shipMats() {
     wood: new THREE.MeshStandardMaterial({ map: T.grain, bumpMap: T.grain, bumpScale: 0.01, color: 0xb8a68e, roughness: 0.9 }),
     dark: new THREE.MeshStandardMaterial({ map: T.grain, bumpMap: T.grain, bumpScale: 0.01, color: 0x8a7a66, roughness: 0.9 }),
     tile: new THREE.MeshStandardMaterial({ color: 0x514334, roughness: 0.95 }),
+    roofWood: new THREE.MeshStandardMaterial({ map: T.grain, bumpMap: T.grain, bumpScale: 0.01, color: 0x9a8264, roughness: 0.9 }),
     plaster: new THREE.MeshStandardMaterial({ color: 0x897352, roughness: 0.95 }),
     black: new THREE.MeshStandardMaterial({ color: 0x141210, roughness: 0.8 }),
     copper: new THREE.MeshStandardMaterial({ map: T.bronze, bumpMap: T.bronze, bumpScale: 0.006, color: 0xd8ccb8, roughness: 0.62, metalness: 0.45 }),
@@ -1520,7 +1521,8 @@ function tateWall(ax, az, bx, bz, y0, h, M) {
 const SHIP_ROOFS = new Map();
 function hipRoof(w, d, h, M, gabled = false) {
   const g = new THREE.Group();
-  const iron = true && M === IRONSHIP;
+  // 10/31 採点「手本の木の船の屋根」：毛利・織田の木の船も、角錐の一枚でなく板葺きの寄棟・切妻（押縁の並ぶ白木の板）にする（手本 01.jpg）。
+  const iron = true, plain = M !== IRONSHIP;
   let body;
   if (iron) {
     // 上辺を狭めて長い棟を通す。切妻は棟を妻側の端まで延ばす。
@@ -1536,7 +1538,7 @@ function hipRoof(w, d, h, M, gabled = false) {
       }
       roof.computeVertexNormals(); SHIP_ROOFS.set(key, roof);
     }
-    body = new THREE.Mesh(roof, M.tile);
+    body = new THREE.Mesh(roof, plain ? M.roofWood : M.tile);
   } else {
     body = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.72, h, 4, 1), M.tile);
     body.rotation.y = Math.PI / 4; body.scale.set(w, 1, d);
@@ -1579,7 +1581,7 @@ function hipRoof(w, d, h, M, gabled = false) {
     }
     const R = rigParts();
     for (const sz of [-1, 1]) {
-      const panel = new THREE.Mesh(face, M.upperBoard);
+      const panel = new THREE.Mesh(face, M.upperBoard || M.board);
       panel.position.set(0, h / 2, sz * (d / 2 + 0.012)); panel.rotation.y = sz < 0 ? Math.PI : 0; g.add(panel);
       for (const sx of [-1, 1]) {
         const barge = new THREE.Mesh(R.box, M.wood);
@@ -2948,6 +2950,7 @@ const kizugawa = {
   camLookAt(rt) { return this.seaFrameRt === rt && this.seaFrameAt >= rt.t - 0.2 ? KZ_MELEE_LOOK : null; },
   get maxFramedFov() { return this.seaFrameRt && this.seaFrameAt === this.seaFrameRt.t ? 48 : undefined; },
   frameCamera(rt, pos, look) {
+    this.selfFrameMinDistance = 0;
     const p = rt.player.u.pos, ship = rt.flags.deckShip;
     if (!ship || p.y < DECK.y - 0.5 || p.y > DECK.y + 1.2) return;
     const sx = p.x - ship.position.x, sz = p.z - ship.position.z;
@@ -2964,14 +2967,20 @@ const kizugawa = {
     // 総矢倉は視点の後ろへ回り、船団（大将の関船・小早の群れ・先手）が正面から右に並ぶ。
     if (sg < 0 && sz < 6.3) {
       pos.x = p.x + KZ_SEA_BACK.x; pos.z = p.z + KZ_SEA_BACK.z;
+      // 10/31：本人へ向け直すと屋形の前の面が左の三割を占める。視線を本人の先の沖（西）へ振り、屋形を左の端の一割に。
+      look.x = p.x - 3; look.z = p.z + 1.5; this.selfFrameMinDistance = 99;
       rt.flags.wallFrameAt = rt.t;
       this.seaFrameRt = rt; this.seaFrameAt = rt.t;
       return;
     }
     // 10/30：西の舷の大筒（z8）に着いた間は、総矢倉の前の角（屋形の軒の外）から本人の肩越しに、艫の西の舷を見る。
     // 視線が屋形の壁と平行になり、壁は左の細い帯だけ。舷を越えた毛利勢との斬り合いと、寄せた小早・沖の船団が正面から右に入る。
+    // 10/31 採点 70「船の壁が左を塞ぐ」：総矢倉の角（x-2.6）からでは屋形の板壁が左の四割を占めた。
+    // 総矢倉の前の角の外から、視線を本人の先の沖（-x へ三十度）へ振る。屋形の板壁は左の端の細い帯だけ、沖の船団が正面から右に並ぶ。
     if (sg < 0 && sz < 9.5) {
       pos.x = ship.position.x - 2.6; pos.z = ship.position.z + 4.4;
+      look.x = p.x - 2.5; look.z = p.z + 2;
+      this.selfFrameMinDistance = 99;   // 最後に本人へ向け直す構図（視線が壁と平行になる）をこの間だけ止め、沖へ振った視線を保つ
       rt.flags.wallFrameAt = rt.t;
       this.seaFrameRt = rt; this.seaFrameAt = rt.t;
       return;
@@ -3684,6 +3693,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   fire(rt, i) {
     const F = rt.flags;
     const c = F.guns[i];
+    // 10/31：本人が大筒に手を掛けた印（立っているだけで段が進まないように）
+    if (F.step === 1 || F.step === 4) F['pf' + F.step] = true;
     if (F.step === 2 || F.step === 3) { rt.bark('今は甲板の持ち場を守れ'); return; }
     if (F.ending || rt.over || !rt.player.u.alive || (F.step !== 1 && F.step !== 4)) return;
     if (rt.t < c.cd) { rt.bark('弾込め中'); return; }
@@ -4373,7 +4384,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.step === 1) {
       if (elapsed >= 90 && F.cannonHits >= 1) { this.fires(rt); return; }
       // 大筒を当てられなくても負けにしない（必ず戦い続けられる。稲生の標準）。百秒で砲手が代わりに当て、次の段へ。
-      if (elapsed >= 100) { F.cannonHits = Math.max(1, F.cannonHits); rt.army.play('volley', CANNONS[1], 1.6); rt.say('砲手', '当たったぞ！　寄せる船が止まった', 3); this.fires(rt); return; }
+      if (elapsed >= 100 && (F.pf1 || F.pk)) { F.cannonHits = Math.max(1, F.cannonHits); rt.army.play('volley', CANNONS[1], 1.6); rt.say('砲手', '当たったぞ！　寄せる船が止まった', 3); this.fires(rt); return; }
     }
     if (F.step === 2) {
       if (F.doused < 3) F.fireDanger += dt;
@@ -4382,7 +4393,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         rt.objProgress('main', `残る火は${3 - F.doused}か所。${F.fireDanger >= 60 ? '屋形に火が迫る。急げ' : F.water ? '水を掛けたら、桶へ戻れ' : '水桶を取り、火へ運べ'}`);
       }
       // 九鬼の水夫も手桶で火に掛かる（三十五秒・六十秒に一つずつ）。主人公一人に船の火を任せきりにしない
-      const crewAt = [35, 55, 70][F.crewDoused || 0];   // 三つ目も七十秒で水夫が消す。甲板で戦い続けた者を火で負けにしない（bot 10/26）
+      // 10/31：三つ目は本人が一つでも消した時だけ水夫が消す（立っているだけで火の段が終わらない）
+      const crewAt = [35, 55, F.playerDoused ? 70 : undefined][F.crewDoused || 0];   // 三つ目も七十秒で水夫が消す。甲板で戦い続けた者を火で負けにしない（bot 10/26）
       if (F.doused < 3 && crewAt !== undefined && F.fireDanger >= crewAt) {
         const k = F.fl.findIndex((f) => f && !f.doused);
         F.crewDoused = (F.crewDoused || 0) + 1;
@@ -4407,10 +4419,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         rt.award((t) => { if (!t.side.includes('甲板へ乗り込む敵を退けた')) t.side.push('甲板へ乗り込む敵を退けた'); }, '甲板の持ち場を守った');
         this.decisive(rt); return;
       }
-      if (elapsed >= 130) { this.decisive(rt); return; }   // 乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
+      if (elapsed >= 130 && (F.pk || 0) >= 1) { this.decisive(rt); return; }   // 乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
     }
     if (F.step === 4) {
-      if (!F.bigSunk && elapsed >= 60) { this.breakFlagship(rt, false); return; }   // 当てられなくても味方の大船が崩す（負けにしない）
+      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk)) { this.breakFlagship(rt, false); return; }   // 当てられなくても味方の大船が崩す（負けにしない）
       // 命中後の崩れを見せたら退きへ進む。砲撃が早く決まっても待たせない。
       if (F.bigSunk && rt.t - F.flagshipHitAt >= 8) { this.retreat(rt); return; }
     }
@@ -4418,7 +4430,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
       if (!contested && F.bigSunk && F.doused >= 3 && F.cannonHits >= 1 && rt.player.u.alive) this.win(rt);
-      else if (elapsed >= 60 && rt.player.u.alive) this.win(rt);   // 甲板に敵が残っても、大船を崩した後は守り通した事にする
+      else if (elapsed >= 60 && rt.player.u.alive && (F.pk || 0) >= 1) this.win(rt);   // 甲板に敵が残っても、大船を崩した後は守り通した事にする
     }
 
   },
@@ -4462,9 +4474,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     rt.finish({ failureReason: line, scriptedEnd: true }, 8);
   },
 
-  onKill(rt, v) {
+  onKill(rt, v, k) {
     const F = rt.flags;
     deckFall(rt, v);
+    if (v.team === 1 && k && (k === rt.player.u || k.isPlayer)) F.pk = (F.pk || 0) + 1;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     if (v.team === 1 && v.group?.boat?.boarded && !v.shipBoat && !v.deckRepelled) { v.deckRepelled = true; F.deckRepelled++; }
   },

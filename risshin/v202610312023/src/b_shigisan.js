@@ -1650,6 +1650,14 @@ function slopeSkin(rt) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#ifdef USE_MAP
       vec3 sgPh = texture2D(map, vMapUv).rgb; float sgPl = dot(sgPh, vec3(0.3, 0.59, 0.11));
       diffuseColor.rgb *= vec3(sgPl * 1.7);
+      // 10/31 手本（docs/layout-ref/shigisan/）：離れた斜面は常緑の緑が主で、紅葉の赤・橙・黄が斑に混じる。近い土と草は元のまま。
+      float sgFar = smoothstep(14.0, 40.0, length(vViewPosition));
+      float sgCr = 0.5 + 0.5 * sin(vMapUv.x * 1.7 + sin(vMapUv.y * 1.3) * 2.6) * sin(vMapUv.y * 1.9 + vMapUv.x * 0.6);
+      float sgL2 = max(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), 0.1) * 1.3;
+      vec3 sgCan = sgL2 * mix(vec3(0.50, 1.10, 0.42), vec3(0.34, 0.86, 0.40), sgPl);
+      sgCan = mix(sgCan, sgL2 * vec3(1.75, 0.58, 0.24), smoothstep(0.66, 0.84, sgCr) * 0.9);
+      sgCan = mix(sgCan, sgL2 * vec3(1.30, 1.05, 0.38), smoothstep(0.10, 0.0, sgCr) * 0.6);
+      diffuseColor.rgb = mix(diffuseColor.rgb, sgCan, sgFar * 0.9);
       #endif`);
   };
   skin.customProgramCacheKey = () => '信貴山の斜面の皮';
@@ -2357,15 +2365,18 @@ const shigisan = {
     fieldStage: 'stubble',
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
-    nightLift: 2.1, // 月光の強さは保ち、空から一様に当たる光だけを抑えて夜の陰を残す。10/31：暗すぎて狭間と石垣が読めなかったので 1.6→2.1
-    nightMoonMin: 1.5,
-    lowNightExposure: 1.6, // 10/31：25秒の画面が暗く、白壁の狭間・石垣・兵の形が沈んだ。夜の増感を既定の 1.25 から少し上げる（光の数は同じ）。 // 光源は増やさず、切岸の稜線と望楼の板屋根に月の直射を残す。
+    // 10/31 点付け「暗い」：月明かりと空の回り光を上げ、兵の具足と城の輪郭を読めるように（光源は増やさない）。
+    nightLift: 3.2,
+    nightMoonMin: 1.6,
+    nightLight: { hemiSky: 0x7a8cae, hemiGround: 0x3e4a34 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
+    lowNightExposure: 1.6,
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。
     cedarBoughs: true, raggedPineCrowns: true, // 共通の枝房を使い、杉の大きな葉幕と松の水平な板の縁を崩す。
     nearTreeFadeRadius: 8, // 肩越しの視点から尾根までをふさぐ近い幹・葉房を透かす。木の数や当たりは保つ。
     autumn: true, // 枯草と葉の残る雑木。山全体を冬枯れの裸地にしない。
+    autumnLeafMix: 0.4, // 10/31 点付け：手本（docs/layout-ref/shigisan/）は緑の山に紅葉が混じる。山を赤茶一色にせず緑を主に。
     treeMix: { sugi: 0.24, matsu: 0.62 }, // 杉ばかりの尖った列にせず、松と雑木の樹冠を交ぜる。
     slopeForest: 0.65, cliffRock: 0.18, // 道の土を保ち、切岸には林床・苔・露岩の斑を残す。
     slopeForestTint: true, // 既存の山肌の色で沢の陰と緑褐色の斑を残し、一面の裸土を抑える。
@@ -2530,6 +2541,15 @@ const shigisan = {
         col = mix(col, vec3(sgL) * vec3(0.66, 0.70, 0.50), sgFlat * smoothstep(0.38, 0.72, sgM) * (1.0 - clamp(wear * 0.9, 0.0, 0.8)) * 0.75);
         col = mix(col, vec3(sgL) * vec3(0.58, 0.46, 0.34), sgFlat * smoothstep(0.30, 0.12, sgM) * 0.5);
         col *= mix(1.0, 0.6, sgFlat); // 門前の平場を砂浜の明るさにしない
+        // 10/31 手本（docs/layout-ref/shigisan/）：奥の山は常緑の緑が主で、紅葉の赤・橙・黄が斑に混じる。
+        // 十六歩より先の斜面だけを樹冠の色にする（近い道・曲輪の土は元のまま）。踏み跡の道には塗らない。
+        float sgFar = smoothstep(16.0, 45.0, soilViewDistance) * (1.0 - smoothstep(0.985, 0.999, gN.y) * 0.5) * (1.0 - clamp(wear * 1.5, 0.0, 1.0));
+        float sgCanL = max(sgL, 0.12) * 1.25;
+        float sgCrown = 0.5 + 0.5 * sin(vWP.x * 0.21 + sin(vWP.z * 0.17) * 2.6) * sin(vWP.z * 0.23 + vWP.x * 0.07 + macro2 * 4.0);
+        vec3 sgCanopy = sgCanL * mix(vec3(0.50, 1.10, 0.42), vec3(0.34, 0.86, 0.40), smoothstep(0.3, 0.7, macro2));
+        sgCanopy = mix(sgCanopy, sgCanL * vec3(1.75, 0.58, 0.24), smoothstep(0.66, 0.84, sgCrown) * 0.9);
+        sgCanopy = mix(sgCanopy, sgCanL * vec3(1.30, 1.05, 0.38), smoothstep(0.08, 0.0, sgCrown) * 0.6);
+        col = mix(col, sgCanopy * (0.8 + 0.4 * sgCrown), sgFar * 0.92);
         diffuseColor.rgb *= col;`);
     };
     // 地面は透かさず、空・星と草木を深さで遮る。近い切岸は共通のカメラ退避で避ける。
@@ -3483,7 +3503,8 @@ const shigisan = {
         F.gateWaitT = null;
         F.reMarchT = null; F.waitSaid = false;
         // 伏兵が崩れて二分たてば、先手が門前を押さえた事にして次の段（門脇の守り）へ。印が門へ導く。
-        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120) this.tower(rt);
+        // 10/31：本人が門前の近く（四十歩）まで登っていなければ進めない（立っているだけで段が進まないように）
+        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120 && Math.hypot(p.x - F.gateGather.x, p.z - F.gateGather.z) < 40) this.tower(rt);
       }
       // 待つ下知の間は歩数と進む矢印を出さない。離れたら元の尾根道の案内へ戻す。
       // 門前の判定・十二秒の待ち時間はそのまま、既存の印を待機用に切り替える。

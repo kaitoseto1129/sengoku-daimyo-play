@@ -997,6 +997,26 @@ function tanoNearestFoe(rt) {
 }
 
 // 敵の武士は全段を通じて四十一人。段の間に控えを増やさない。
+// 10/31 点付け「手前が黒く潰れる」：兵の具足の絵（黒漆）が谷の昼の光で墨一色に潰れた。
+//   日の向き・空の返りを替えても絵の黒（線形で 0.04 ほど）は読めなかった。
+//   この戦の間だけ、兵の材質（共有の UNIT_HQ と近くの兵の写し）の色を一段上げ（絵の明るさに掛かる）、戦の終わりに戻す。材質は新しく作らない。
+const TANO_LIFT = 2.4;
+function tanoLiftUnits(rt, dt) {
+  const F = rt.flags;
+  if (!F.liftMats) {
+    const mats = F.liftMats = new Map();
+    const dispose = rt.dispose;
+    rt.dispose = function () { for (const [m, c] of mats) m.color.copy(c); mats.clear(); return dispose?.call(this); };
+  }
+  if ((F.liftT = (F.liftT || 0) - dt) > 0) return;
+  // 始めの一分は兵の姿が揃うまで細かく、後は後から出る兵の分だけ間をあけて見る。
+  F.liftT = (F.liftN = (F.liftN || 0) + 1) > 40 ? 8 : 1.5;
+  rt.scene.traverse((o) => {
+    const m = o.isMesh && o.material;
+    if (!m || Array.isArray(m) || !m.color || F.liftMats.has(m) || !(m.defines?.UNIT_HQ || m.defines?.VAT_BODY || m.userData?.batchAs || m.userData?.nearSoil)) return;
+    F.liftMats.set(m, m.color.clone()); m.color.multiplyScalar(TANO_LIFT);
+  });
+}
 const tano = {
   // 稲生の水準：右上の一行・通れる道のピン一本・大将の印。
   missionSingleLine: true, hideMissionDots: true,
@@ -2007,6 +2027,7 @@ const tano = {
     rt.player.u.invuln = true; rt.finish({ scriptedEnd: true }, 18);
   },
   update(rt, dt) {
+    tanoLiftUnits(rt, dt);
     if (rt.flags.ending) return;
     const advantage = tanoAdvantage(rt);
     for (const g of rt.army.groups) if (g.team === 0 && !g.civ && !g.routed) g.noRout = advantage;

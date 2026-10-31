@@ -913,7 +913,8 @@ function mikiHasa(rt) {
 // 25秒の画面の真ん中（南西の斜面・持ち場から 70m）へ据え、塀と井楼を高くして奥でも大きく見せる。
 // 持ち場（木戸の外）から荷の護衛へ向かう先の奥（南西・70m）にも大きな付城を一つ。25秒の時のカメラの正面に入る（10/28 採点）。
 // 四つ目は25秒の視線（持ち場から南南東・約70m）の真ん中。塀と二つの井楼が奥に大きく入る（10/29 採点「奥の櫓は小さく遠い」）。
-const FAR_FORTS = [{ x: -62, z: -2, r: 14, big: true, lit: true }, { x: -150, z: -4, r: 14, big: true }, { x: -146, z: -104, r: 13, big: true }, { x: -224, z: -12, r: 12 }];
+// 10/31 採点 72「付城が小さい」：一つ目を開戦の視線（木戸前から北東）の上で 52m→37m へ寄せ、井楼を高くする。南の縁は城兵の出る道（z-40）から十歩空ける。
+const FAR_FORTS = [{ x: -62, z: -16, r: 12, big: true, lit: true, tall: true }, { x: -150, z: -4, r: 14, big: true }, { x: -146, z: -104, r: 13, big: true }, { x: -224, z: -12, r: 12 }];
 function mikiFarFort(rt, q) {
   const W = rt.world, batch = makeSimpleBatch(), n = 14;
   for (let i = 0; i < n; i++) {
@@ -922,7 +923,7 @@ function mikiFarFort(rt, q) {
     if (i === Math.round(n / 4)) continue;
     const seg = [q.x + Math.sin(a0) * q.r, q.z + Math.cos(a0) * q.r, q.x + Math.sin(a1) * q.r, q.z + Math.cos(a1) * q.r];
     const am = (a0 + a1) / 2;
-    palisade(W, seg, { h: q.big ? 3.2 : 2.4, batch });
+    palisade(W, seg, { h: q.tall ? 3.8 : q.big ? 3.2 : 2.4, batch });
     dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: q.big ? 1.4 : .9, w: 2.4, capEnds: true, closeBack: true, batch });
   }
   for (const [x, z, w, d] of [[-6, -2, 7, 4], ...(q.big ? [] : [[5, 4, 6, 4]]), [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
@@ -935,13 +936,13 @@ function mikiFarFort(rt, q) {
     const yx = q.x + 5, yz = q.z + 4, yy = W.heightAt(yx, yz);
     castlePart(W, 'niju', { x: yx, z: yz, rot: 0, y: yy + 0.3, w: 6, d: 4.6, h1: 3.4, h2: 2.6, stone: yy - 0.8 }, { era: 'early' });
   }
-  const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.big ? 15 : 11, boarded: true });
-  if (q.big) rt.scene.add(yagura(W, q.x - 8, q.z + 6, { logFrame: true, kind: 'ro', height: 12, boarded: true }));
+  const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.tall ? 18 : q.big ? 15 : 11, boarded: true });
+  if (q.big) rt.scene.add(yagura(W, q.x - 8, q.z + 6, { logFrame: true, kind: 'ro', height: q.tall ? 15 : 12, boarded: true }));
   rt.scene.add(tower, jinmaku(W, q.x - 4, q.z - 7, 5, 4, 3, { mon: 'oda' }));
   for (const [x, z] of [[q.x + 11, q.z - 6], [q.x + 11, q.z + 6], [q.x - 8, q.z + 10], ...(q.big ? [[q.x + 4, q.z + 13], [q.x - 12, q.z - 4]] : [])]) rt.scene.add(nobori(W, x, z, 'oda', q.big ? 7.5 : 6));
   // 夜でも奥の付城が黒い影だけにならないよう、持ち場に向く東の口と井楼の上に篝火（光源は足さない）。
   if (q.big) for (const [x, z, h, sz] of [[q.r + 2, -4, .15, 1.1], [q.r + 2, 4, .15, 1.1], [q.r - 3, -9, .15, .9], [q.r - 3, 9, .15, .9], [2, -1, 14.2, .7], [-8, 6, 11.2, .6], [-2, 1, .15, 1.3]])
-    W.addFire(q.x + x, q.z + z, { h, size: sz, nightOnly: true, smoke: false });
+    W.addFire(q.x + x, q.z + z, { h: h + (q.tall && h > 5 ? 3 : 0), size: sz, nightOnly: true, smoke: false });
   // 25秒の視線の真ん中の付城だけ、霧の奥でも塀と櫓の面が読めるよう、持ち場に向く北の塀の外の篝火に灯りを持たせる（二つだけ）。
   if (q.lit) for (const [x, z] of [[-6, -(q.r + 3)], [7, -(q.r + 3)]])
     W.addFire(q.x + x, q.z + z, { torch: true, h: 1.3, size: 1, nightOnly: true, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.4, lightDecay: 0 });
@@ -2108,7 +2109,7 @@ const miki = {
       A: { team: 0, flag: 'oda', flagRate: .25, count: 64 }, B: { team: 1, flag: 'maru', flagRate: .25, count: 64 },
       play: (id, pos, vol) => rt.army.play(id, pos, vol),
     });
-    // 視線の奥の付城（-62, -2）の東の口へ、城から出た別所勢の群れが押し寄せる。軽い大軍だけで、戦う兵の数は増やさない。
+    // 視線の奥の付城（-62, -16）の東の口の先へ、城から出た別所勢の群れが押し寄せる。軽い大軍だけで、戦う兵の数は増やさない。
     F.fortClash = W.addClash({ x: -34, z: 14, w: 18, facing: Math.PI / 2, gap0: 0, seed: 15795,
       noWake: true, noRout: true, killRate: 0, realNear: 12, // 本物の兵の輪の内でも描く（持ち場から五十歩余り）
       A: { flag: 'oda', armor: 0x2e2822, flagRate: .2, count: 56 }, B: { flag: 'maru', armor: 0x3a3028, flagRate: .3, count: 96 },

@@ -1182,8 +1182,8 @@ const tonezaka = {
     smokeFogFloor: 100,
     unitNightScale: 0.45, // 近い兵の補光を抑え、漆の胴と袖を白い縁で囲まない。夜道の照明は保つ。
     // 厚い雲の夜に晴夜用の月光を重ねず、山腹の白飛びを抑える。
-    nightMoonMin: 0.55,
-    nightFill: 0.45,
+    nightMoonMin: 0.7, // 10/31 雨の夜のまま、具足の受光面が読める所まで（0.55 では黒く沈んだ）
+    nightFill: 0.6,
     ordinaryFlagStride: 3, // 無名の足軽の指物を減らし、騎馬と槍先を見せる。割合は補完。
     rainOpacity: 0.42, // 雨筋を夜にも見せる（既定 0.24）。0.95・0.62 でも白い描いた線に見えた（10/29 点付け）
     rainDir: [2.6, 0.4], // 風下へ横から強く吹きつけ、雨筋を画面の斜めに流す（長さが横風の強さ。南を向く画面で約25度傾く）。
@@ -1855,6 +1855,30 @@ const tonezaka = {
       }, { gap: 0 });
       return b;
     });
+    // 退く朝倉の大軍（基準4・10/31）：持ち場の前40〜80mの峠道と右の肩に、背旗を負って退く軽い大軍を置く。
+    // 本人が進めば同じ間合いのまま峠へ退き、近い軽い兵の隠し（四十四歩）に入らない。戦う兵・任務の数には入れない。
+    // 設営の時の見る所が持ち場から遠いと空の入れ物になる（越前 vis_h と同じ）。持ち場を見る所として作る。
+    const focus0 = W.lastFocus; W.lastFocus = at(roadX(70), 70);
+    F.asaHosts = [[0, 0, 14, 22, 120, 15751], [17, -14, 10, 18, 80, 15757]].map(([dx, dz, w, d, count, seed]) => {
+      const z0 = 10 + dz, s = at(roadX(z0) + dx, z0);
+      const b = W.addDistantArmy({ x: s.x, z: s.z, facing: Math.PI + TURN, w, d, count, kind: 'spear',
+        flag: 'asakura', armor: 0x25211c, team: 1, host: false, seed });
+      b.army.noWake = true;
+      const p = { x: s.x, z: s.z, facing: Math.PI + TURN };
+      let scanAt = 0;
+      b.follow(() => {
+        b.visible = F.step < 4;
+        if (!b.visible) return null;
+        if (rt.t >= scanAt) {
+          scanAt = rt.t + 0.5;
+          const me = rt.player.u.pos, z = Math.max(-150, Math.min(z0 - rt.t * 0.35, along(me.x, me.z) - 52 + dz)), x = roadX(z) + dx;
+          p.x = x * CS + z * SN; p.z = z * CS - x * SN;
+        }
+        return p;
+      }, { gap: 0, speed: 1.6 });
+      return b;
+    });
+    W.lastFocus = focus0;
     const n = Math.min(30, RANKS[rt.G.rank || 0].squad || 0);
     if (n) rt.makeSquad(at(roadX(98) + 3, 98), Math.PI + TURN, [{ kind: 'spear', n }]);
     // 供は馬廻の後ろから出る。傷は通すが、疲れた殿の一突きで組が溶けないようにする。

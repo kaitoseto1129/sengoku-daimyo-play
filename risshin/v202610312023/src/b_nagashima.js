@@ -3588,7 +3588,8 @@ const nagashima = {
       if (F.built < SPOTS.length && w > 16 && !F.nudge2) { F.nudge2 = true; rt.say('足軽', 'お頭、手が足りん。わしらも手を貸すでよ', 3); }
       // 補修は人足と並行する。人足を失った時は残る杭で守る。
       // 脇の人足は中央から二十六歩移動してから結う。二十秒で打ち切ると横木が地面に残る。
-      if (F.built >= SPOTS.length || w >= 45) {
+      // 10/31：本人が一つでも結うまで見張りの段へ進めない（立っているだけで段が進まないように）
+      if ((F.built >= SPOTS.length || w >= 45) && F.participated) {
         if (F.built < SPOTS.length) { F.helped = true; rt.say('柴田勝家', '人足が倒れ、横木が足りぬ。残る杭の内で舟に備えよ', 3); }
         this.watch(rt);
       }
