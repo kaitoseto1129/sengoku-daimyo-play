@@ -361,8 +361,12 @@ function atkPhase(u, w, out) {
   const sw = u.swing;
   if (sw && sw.t < sw.dur + 0.3) {
     const p = sw.t / Math.max(0.05, sw.dur);
-    if (w === 'spear' && (sw.kind === 'thrust' || sw.kind === 'charge')) L = thrustOut(p, sw.dur, !u.mounted && (u.wpn?.userData.spec?.L ?? 9) < 4.2 ? 0.1 : !u.mounted && (u.isPlayer || u.focusD <= 15) ? 0.14 : 0.26);
-    else if (w === 'spear' && sw.kind === 'hook') {
+    if (w === 'spear' && (sw.kind === 'thrust' || sw.kind === 'charge')) {
+      const su = !u.mounted && (u.wpn?.userData.spec?.L ?? 9) < 4.2;
+      L = thrustOut(p, sw.dur, su ? 0.1 : !u.mounted && (u.isPlayer || u.focusD <= 15) ? 0.14 : 0.26);
+      // 素槍は突いたらすぐ引く：穂先を繰り込むのと一緒に腰も一足ぶん引いて間合いを切り、また構えへ出る
+      if (su && p > 0.66) L -= 0.16 * Math.sin(clamp01((sw.t - sw.dur * 0.66) / 0.24) * Math.PI);
+    } else if (w === 'spear' && sw.kind === 'hook') {
       // 引き倒し：突きで踏み込み、引く時は腰を落として後ろ足へ体を預ける
       const x = clamp01(p / 0.35), y = clamp01((p - 0.4) / 0.45), r = clamp01((sw.t - sw.dur) / 0.3);
       L = (x * x * (3 - 2 * x) * (1 - y) - 0.3 * y * y * (3 - 2 * y)) * (1 - r * r * (3 - 2 * r));
@@ -420,6 +424,9 @@ function attackBody(h, B, u, w, dt) {
   if (u.swing && u.swing.t < u.swing.dur) W = Math.min(A.W, 1 - L);
   // 速さを持ったばねで寄せる（溜め→踏み込み→戻り→次の踏み込みで、腰と足が一コマで跳ばない）
   spr2(A, 'W', W, 30, dt); spr2(A, 'L', L, 34, dt); spr2(A, 't', tw, w === 'spear' ? 22 : 26, dt);
+  // 腰で斬る：腰のひねりは胸より速いばねで先に切れ、胸と腕が遅れて付いて来る（腕だけで振らない）
+  if (A.tH === undefined) A.tH = A.t;
+  spr2(A, 'tH', tw, 40, dt);
   // 受け止められた一撃は、その当たりの時計で腰を引き、後ろ足へ重さを戻す。
   // 手の止まりに体が追い越さない。近い徒歩だけ、既存の骨とばねを使う。
   const sw = u.swing;
@@ -489,7 +496,16 @@ function attackBody(h, B, u, w, dt) {
     rotWorld(B.Neck, _up, -0.08 * r0);
   }
   // 刀：肩から腰を回して振る（腰が先、胸が後から付いて来る）
-  if (!sp && Math.abs(t0) > 0.01) { rotWorld(B.Hips, _up, -t0 * 0.16); rotWorld(B.Spine1, _up, -t0 * 0.24); rotWorld(B.Spine2, _up, -t0 * 0.08); rotWorld(B.Neck, _up, t0 * 0.3); }
+  if (!sp && (Math.abs(t0) > 0.01 || Math.abs(A.tH) > 0.01)) {
+    const tH = A.tH * mk;
+    rotWorld(B.Hips, _up, -tH * 0.22); rotWorld(B.Spine1, _up, -t0 * 0.2); rotWorld(B.Spine2, _up, -t0 * 0.08); rotWorld(B.Neck, _up, tH * 0.22 + t0 * 0.08);
+  }
+  // 長柄の叩き：溜めで伸び上がって背を反らし、打ち下ろしで腰を落として胸から柄へ重さを乗せる（腕だけで振り下ろさない）
+  if (sp && ((u.atk && u.atk.kind === 'slam') || (u.pAtk && u.pAtk.kind === 'slam') || (u.swing && u.swing.kind === 'slam'))) {
+    const d = Math.max(0, l0);
+    h.model.position.y += 0.09 * w0 - 0.05 * d;
+    rotWorld(B.Spine, _right, -0.1 * w0 + 0.1 * d); rotWorld(B.Spine2, _right, -0.06 * w0 + 0.08 * d);
+  }
 }
 // 受け：腰を落として備え、当たりを後ろ足で受け、胸から遅れて構えに戻る。
 function guardBody(h, B, u, dt) {

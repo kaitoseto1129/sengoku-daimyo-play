@@ -152,9 +152,10 @@ function horseHairGeometry(mesh, body, walk) {
     const gN = tb[tb.length - 1].p;
     const yEnd = 0.36;   // 飛節の下ほどまで
     for (let s = 0; s < 14; s++) {
-      const a = s * 2.399, rr = 0.012 + 0.02 * Math.sqrt(rnd(s * 5 + 1));
-      const ox = Math.cos(a) * rr, oz = Math.sin(a) * rr * 0.8;
-      const along = s % 2 === 0;
+      // 房は尾の芯の周りに輪に並べ、板の向きは輪に沿わせる（どの向きから見ても一枚の板でなく、丸い束に見せる）。内の房は芯から外へ向けて隙間を埋める
+      const a = s * 2.399, inner = s % 3 === 0, rr = inner ? 0.008 + 0.01 * rnd(s * 5 + 1) : 0.02 + 0.016 * Math.sqrt(rnd(s * 5 + 1));
+      const ox = Math.cos(a) * rr, oz = Math.sin(a) * rr * 0.85;
+      const tx = inner ? Math.cos(a) : -Math.sin(a), tz = inner ? Math.sin(a) : Math.cos(a);
       const yE = yEnd + 0.08 * rnd(s * 13) - 0.02;
       const base = P.length / 3, ROWS = 10;
       for (let j = 0; j <= ROWS; j++) {
@@ -169,10 +170,11 @@ function horseHairGeometry(mesh, body, walk) {
           const u = (t - 0.45) / 0.55;
           p = gN.clone(); p.y = gN.y + (yE - gN.y) * u; p.z = gN.z - 0.04 * u; bi = tb[tb.length - 1].i;
         }
-        const spread = 1 + 1.6 * t;
+        // 付け根は細く締まり、中ほどで膨らみ、毛先へ少しすぼまる。房ごとに少し揺らす
+        const spread = 1 + 2.4 * t * (1 - 0.45 * t) + 0.25 * (rnd(s * 7 + j) - 0.5) * t;
         p.x += ox * spread; p.z += oz * spread;
-        const ww = (0.03 + 0.012 * rnd(s)) * (1 - 0.5 * t * t) * (t < 0.1 ? 0.6 + 4 * t : 1);
-        const off = along ? new THREE.Vector3(0, 0, ww * 0.5) : new THREE.Vector3(ww * 0.5, 0, 0);
+        const ww = (0.034 + 0.014 * rnd(s)) * (1 - 0.55 * t * t) * (t < 0.1 ? 0.6 + 4 * t : 1);
+        const off = new THREE.Vector3(tx * ww * 0.5, 0, tz * ww * 0.5);
         const sk = [[bi, 0, 0, 0], [1, 0, 0, 0]];
         put(p.clone().sub(off), [0, t], sk); put(p.clone().add(off), [1, t], sk);
         if (j) { const b0 = base + (j - 1) * 2; quad(b0, b0 + 1, b0 + 2, b0 + 3); }
@@ -245,7 +247,7 @@ function proxySource(sc, skMesh, parts, clip, tex) {
       if (uv) tv[i] = uv.getY(i);
       if (img && uv && kind === 0) {
         const x = Math.min(255, Math.max(0, Math.floor(uv.getX(i) * 256))), y = Math.min(255, Math.max(0, Math.floor(uv.getY(i) * 256))), o = (y * 256 + x) * 4;
-        sh[i] = Math.min(1.18, Math.max(0.72, (img[o] * 0.3 + img[o + 1] * 0.59 + img[o + 2] * 0.11) / 255 / 0.214));
+        sh[i] = 1 + 0.4 * (Math.min(1.18, Math.max(0.72, (img[o] * 0.3 + img[o + 1] * 0.59 + img[o + 2] * 0.11) / 255 / 0.214)) - 1);   // 面の粗い形に頂点ごとの明暗を強く焼くと、葦毛でギザギザの縞になる。弱くする
       }
     }
     const ix = geo.index ? geo.index.array : Array.from({ length: n }, (_, i) => i);

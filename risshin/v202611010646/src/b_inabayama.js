@@ -4051,6 +4051,19 @@ const inabayama = {
   combatTaskLabel: (rt) => inabaClimbGuideEnemy(rt) ? 'この敵をたおそう' : '',
   enemyTaskLabel: () => 'この人を たおす',
   noWake: true,   // 城の部隊が本物の兵を受け持ち、遠景から重ねて増やさない。
+  // 大手の木戸（七曲りの上がりきった所）：喰違虎口・横矢の張り出し・丸馬出し・逆茂木を共通部品で組む（battle.js が組み、毎コマ動かす）。
+  // 木戸は開いたまま（攻め手と城兵の道筋を塞がない）。寄せ手が近づくと馬出しの脇の口から城兵が突き、引く所を追えば付け入り。
+  // 西の端は裏道の口を空ける（旧の柵と同じ西二十まで）。山の土の城なので塀は柵、堀は掘らない。縄張りは推定。
+  siegeKit: {
+    plan: { x: OTE.x, z: OTE.z, rot: 0, W: 18, koguchi: 'kuichigai', yokoya: { at: 11, w: 4.5, d: 3 }, moat: false, kirigishi: 0,
+      umadashi: { kind: 'maru', r: 4, moatW: 0, depth: 0 }, sakamogi: { at: 7 }, shiyori: false },
+    build: { team: 1, wall: 'saku', umadashiWall: 'saku', wallHp: 520, gateHp: 460, fire: { hurt: .25, near: 90, close: 18, base: 1, peak: 4.5 } },
+    open: true, stayOpen: true,
+    sorties: [{ fight: 14, again: 34,
+      group: (rt, K) => enemyGroup(rt, { fixed: true, faction: 'saito', name: '馬出しの兵', anchor: { ...K.at.uma }, facing: 0, order: 'hold', width: 4, aggro: 4, morale: 80, fleeDir: { x: 0, z: -1 }, formation: 'yari', historicalOrders: true },
+        [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }]),
+      when: (rt) => { const u = rt.player.u; return rt.t > 12 && u.alive && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 60; } }],
+  },
   // 斎藤勢が瑞龍寺山の信長の本陣を突いた記録はない。町の焼き討ちの最中に本陣の守りへ呼び戻さない。
   noTaishoRaid: true,
   uchisute: true, // 火付けと攻城を急ぐ。首を集める札を出さない。
@@ -4611,11 +4624,7 @@ const inabayama = {
     for (const [x, z] of summitFlags) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
     // ---- 大手の木戸（七曲りの道を切る柵。口は開いている） ----
     const noT = (segs) => { for (const s of segs) { s.noTarget = true; s.wall = true; } return segs; };
-    // この別置きの柵にも裏道の口を空ける。旧端の西二十六は裏道の中心に重なる。
-    // 西二十まで引き、道の肩四・四歩と杭・控え木の余白を保つ。
-    noT(wallLine(rt, [[-20, OTE.z + 4.4], [-4, OTE.z]], { team: 1, hp: 1e9, name: '柵', segLen: 5 }));
-    noT(wallLine(rt, [[4, OTE.z], [26, OTE.z + 6]], { team: 1, hp: 1e9, name: '柵', segLen: 5 }));
-    rt.scene.add(kabukimon(W, OTE.x, OTE.z, 7.4, 0));
+    // 柵・木戸・横矢・丸馬出し・逆茂木は城攻めの共通部品（def.siegeKit・siege_kit.js）が組む。
     // 岐阜市の令和六年度発掘成果：一ノ門・上台所には道三期とみられる巨石石垣がある。
     // https://www.city.gifu.lg.jp/kankoubunka/bunkazai/1005557/1021639/1030969.html
     // 全山を土だけの城にせず、山頂入口の脇に自然石を補う。位置・高さ・石の割付は推定。
@@ -4732,9 +4741,8 @@ const inabayama = {
     // 遊びの道筋は保ち、ここは篝火のある通路として描く。
     for (const [x, z] of [[NIMON.x - 2.6, NIMON.z + 1.6], [NIMON.x + 2.6, NIMON.z - 1.6]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.2 }); }
     rt.scene.add(nobori(W, IRI.x + 5, IRI.z - 3, 'saito', 5.5), nobori(W, NAKA.x - 4, NAKA.z + 3, 'saito', 5.5));
-    // 城の見栄え：大手の前に逆茂木、木戸に篝火
+    // 城の見栄え：木戸に篝火（大手の前の逆茂木は def.siegeKit）
     {
-      rt.scene.add(sakamogi(W, OTE.x - 13, OTE.z + 9, 0.2, 7), sakamogi(W, OTE.x + 13, OTE.z + 9, -0.2, 7));
       for (const [x, z] of [[OTE.x - 5.5, OTE.z + 2], [OTE.x + 5.5, OTE.z + 2]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.4 }); }
       // 本丸の守備は主殿前・馬廻・控えの実兵で示す。別の大軍を重ねない。
       // 総大将・斎藤龍興は主殿の中（天守の無い城。高遠の盛信と同じ作り）。旗本が縁側の上がり口を守り、踏み込むまで討てない

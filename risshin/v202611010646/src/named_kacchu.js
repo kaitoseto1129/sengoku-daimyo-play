@@ -174,9 +174,11 @@ export function namedCrestGeometry(kind, hi = true) {
       }
       return pts;
     };
-    const mount = new THREE.Shape(outline(0.128));
+    // 木瓜は鍬形の間に挿す小さな据え物（鉢の幅いっぱいの円板は、家紋の札を額に立てたように見えた。10/31 見直し 10）
+    const MS = 0.42, MY = 0.27;
+    const mount = new THREE.Shape(outline(0.128 * MS));
     backing = new THREE.ExtrudeGeometry(mount, { depth: 0.009, bevelEnabled: false });
-    backing.translate(0, 0.335, 0.17);
+    backing.translate(0, MY, 0.17);
     // 京都国立博物館の解説にある枝菊文の鍬形台。台の輪郭・彫りの配置は復元。
     // https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/
     // 木瓜の板と鍬形の根元をつなぎ、既存の金・黒の二つの形へまとめる。
@@ -222,10 +224,10 @@ export function namedCrestGeometry(kind, hi = true) {
     backing = mergeGeometries(engraving);
     for (const g of engraving) g.dispose();
     for (const [outer, inner] of [[0.115, 0.102], [0.092, 0.081]]) {
-      const ring = new THREE.Shape(outline(outer));
-      ring.holes.push(new THREE.Path(outline(inner).reverse()));
+      const ring = new THREE.Shape(outline(outer * MS));
+      ring.holes.push(new THREE.Path(outline(inner * MS).reverse()));
       const g = new THREE.ExtrudeGeometry(ring, { depth: 0.003, bevelEnabled: false });
-      g.translate(0, 0.335, 0.181); parts.push(g);
+      g.translate(0, MY, 0.181); parts.push(g);
     }
     for (let i = 0; i < 5; i++) {
       const a = Math.PI / 2 + i * Math.PI * 2 / 5;
@@ -233,9 +235,9 @@ export function namedCrestGeometry(kind, hi = true) {
       petal.moveTo(0.012, -0.009); petal.quadraticCurveTo(0.074, -0.028, 0.065, 0);
       petal.quadraticCurveTo(0.074, 0.028, 0.012, 0.009); petal.closePath();
       const g = new THREE.ExtrudeGeometry(petal, { depth: 0.003, bevelEnabled: false, curveSegments: 4 });
-      g.rotateZ(a); g.translate(0, 0.335, 0.181); parts.push(g);
+      g.rotateZ(a); g.scale(MS, MS, 1); g.translate(0, MY, 0.181); parts.push(g);
     }
-    disc(0.006, 0, 0.335);
+    disc(0.004, 0, MY);
     // 中心も漆板の前へ出す。
     parts[parts.length - 1].translate(0, 0, 0.028);
   }

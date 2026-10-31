@@ -2078,6 +2078,15 @@ const nagashima = {
     return null;
   },
   spawn: { x: 3, z: BANK_Z + 7, heading: Math.PI },
+  // 中江の砦の表（こちらの岸へ向く塀）：城攻めの共通部品（siege_kit.js。battle.js が組み、毎コマ動かす）。
+  // 砦の今の塀を狭間に借り、柵を結う岸へ鉄砲と矢を射かける（兵も塀も足さない）。塀の前の水際に逆茂木（乱杭）。
+  // 木戸は開いたまま・出撃は無し（退城の舟は筋書きが受け持つ）。撃つのは決戦の前まで。
+  siegeKit: {
+    plan: { x: 0, z: -52, rot: 0, W: 26, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: { at: 1 }, shiyori: false },
+    build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: .15, near: 80, close: 30, base: .8, peak: 3, arrows: .45, needMen: false } },
+    borrow: { r: 34, name: '中江の砦' },
+    when: (rt) => rt.flags.step < 3.5 && !rt.flags.ending,
+  },
   // 身の回りの当時の場（timeslip_field.js）。天正二年九月の長島は今の十月。輪中の岸はぬかるみ、葦が茂る。
   // 岸の柵の前に一揆の矢と捨てた笠、竹槍。水の上と堤の法には置かない。
   timeslip: {

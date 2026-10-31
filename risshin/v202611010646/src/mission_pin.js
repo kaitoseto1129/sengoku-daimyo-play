@@ -26,13 +26,11 @@ function make() {
     '#hud.field-clean:has(#mission-goal.fire-action:not([hidden])) #prompt{display:none!important}' +
     // 命・任務・操作の三枚に収め、押せる間は小地図と兵力の札を畳む。
     '#hud:has(#mission-goal:is(.fire-action,.talk-action):not([hidden])) :is(#armybar,#minimap,#maphint,.field-names){display:none!important}' +
-    // 会話の操作札が出る間だけ右上の重複を畳む。
-    '#hud:has(#mission-goal.talk-action:not([hidden])) #h-prog{display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
     '#mission-goal .goal-label:focus-visible{outline:3px solid #fff;outline-offset:3px}' +
     '#mission-goal .fire-progress{position:absolute;bottom:4px;left:8px;right:8px;height:5px;background:#615745}' +
     '#mission-goal .fire-progress i{display:block;height:100%;background:#fff3ba;width:var(--fire-progress,0%)}';
-  style.textContent += '#hud.ground-defense #h-prog{display:none!important}';
+  // 右上のミッションの一行は、守る戦でも会話の間でも畳まない（kaito：画面の字はこの一行・名・人数・命の棒だけ）。
   el.appendChild(style);
   const label = document.createElement('button');
   label.type = 'button'; label.className = 'goal-label'; label.tabIndex = -1;

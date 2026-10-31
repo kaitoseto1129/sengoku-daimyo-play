@@ -238,10 +238,11 @@ export class WorldArmy {
       if (h.meshes.length) grp.add(...h.meshes);   // 近い視点（nearView）は空。空の add は three が誤りを出す
       A.hostD = h.depth; A.host = h;
       if (foe0) this._foeHostN = (this._foeHostN || 0) + h.n;
+      if (foe0 && h.meshes.length) { const shift = new THREE.Vector3(); for (const m of h.meshes) m.userData.hostShift = shift; A.foeHost = { meshes: h.meshes, cx: h.cx, cz: h.cz, f: h.facing, U: h.U, shift, rot: 0, out: 0, at: -99 }; }
     }
     // 逃げる兵は隊の外へ出るので、画面の外かどうかの判断をやめる
     for (const c of grp.children) if (c.isInstancedMesh) c.computeBoundingSphere();
-    const ctl = (v) => { for (const c of grp.children) c.position.copy(A.off); return v; };
+    const ctl = (v) => { for (const c of grp.children) { c.position.copy(A.off); if (c.userData.hostShift) c.position.add(c.userData.hostShift); } return v; };
     grp.advance = (dist, secs, opt = {}) => {
       const fx = Math.sin(A.face0), fz = Math.cos(A.face0);
       A.tw = { from: A.off.clone(), to: A.off.clone().add(new THREE.Vector3(fx * dist, 0, fz * dist)), t: 0, secs: secs || Math.abs(dist) / (opt.charge ? 3 : 1.3), charge: !!opt.charge, back: dist < 0 && opt.turn !== false };
@@ -466,6 +467,65 @@ export class WorldArmy {
   // 敵の後詰めの残りの人数（一つの戦で army_scale.js の foeHostBudget まで）
   foeHostLeft() { return foeHostBudget(this.def.battleKey) - (this._foeHostN || 0); }
 
+  // 敵の前備え（後詰め）を見える所へ（10/31 gap_army2：開戦25秒の画面に敵の大軍が薄い。多くの戦で、前備えも本物の敵もカメラの向きの外に居る）。
+  //   見せ物だけ（戦の数・本物の兵・当たり・bot には入らない）。形・材質・兵の数は足さず、すでにある前備えを回して移すだけ（記憶は増えない）。
+  //   画面の内（本人から、本物の兵の輪の外〜見通しの六割＋16m）の前備えが二つ未満の時、2秒続けて画面の外にある前備えを、カメラの前の本人から 50〜75m（輪の外）へ移し、
+  //   霞から一人ずつ現れさせる（3秒）。移すのは敵の側（もとの隊への向きがカメラの向きの 100 度の内）だけ。一つの前備えは 6 秒に一度まで。
+  foeHostView(rt, dt) {
+    const T = this._fhv || (this._fhv = { t: 0, n: -1, list: null, v: new THREE.Vector3(), q: new THREE.Vector3(), pts: [] });
+    const all = this.armies || [];
+    if (T.n !== all.length) { T.n = all.length; T.list = all.filter((a) => a.foeHost); }
+    const L = T.list;
+    if (!L.length) return;
+    for (const A of L) { const u = A.foeHost.U.uHostIn; if (u.value < 1) u.value = Math.min(1, u.value + dt / 3); }
+    T.t -= dt; if (T.t > 0) return; T.t = 0.25;
+    const cam = rt.camera, P = rt.player?.u?.pos, D = this.def;
+    if (!cam?.isPerspectiveCamera || !P || D.noFoeNear || D.town || D.dojo || D.duel || rt.over || rt.flags?.quiet || (rt.prelude && rt.prelude !== 'done')) return;
+    cam.getWorldDirection(T.v);
+    const fl = Math.hypot(T.v.x, T.v.z);
+    if (fl < 0.2) return;
+    const cf = Math.atan2(T.v.x / fl, T.v.z / fl), half = Math.atan(Math.tan(cam.fov * Math.PI / 360) * cam.aspect) * 0.9;
+    const vis = Math.max(60, Math.min(this.scene.fog?.far || 999, 160));
+    const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    const pts = T.pts; pts.length = 0;
+    const h0 = this.heightAt(P.x, P.z), lim = (D.moveLim || 176) + 20, rn = (ARMY_REAL_R.value || 0) + 4, r0 = Math.max(rn + 6, Math.min(75, vis * 0.6));   // 本物の兵に任せる輪（ARMY_REAL_R）の内は軽い兵を描かないので、その外へ
+    let inV = 0;
+    for (const A of L) {
+      const H = A.foeHost, m = H.meshes[0], g = A.mesh;
+      if (!m.parent || !g.visible || A.rout || A.tw) { H.out = 0; continue; }
+      T.q.set(H.cx, 0, H.cz).applyMatrix4(m.matrix).applyMatrix4(m.parent.matrixWorld);
+      const dx = T.q.x - cam.position.x, dz = T.q.z - cam.position.z, d = Math.hypot(T.q.x - P.x, T.q.z - P.z);
+      // 本人から離れすぎた前備え（本人が進んで霞の奥に残った物）も、見えていないのと同じに数える
+      if (d > Math.max(32, rn) && d < r0 + 16 && Math.abs(wrap(Math.atan2(dx, dz) - cf)) < half) { inV++; H.out = 0; pts.push(T.q.x, T.q.z); } else H.out += 0.25;
+    }
+    if (inV >= 2) return;
+    for (const A of L) {
+      const H = A.foeHost, g = A.mesh;
+      if (inV >= 2) break;
+      if (H.out < 2 || rt.t - H.at < 6 || !g.visible || A.rout || A.tw) continue;
+      const ax = g.position.x + A.cx + A.off.x - P.x, az = g.position.z + A.cz + A.off.z - P.z;
+      if (Math.hypot(ax, az) > 1 && Math.abs(wrap(Math.atan2(ax, az) - cf)) > 1.75) continue;
+      let sx = 0, sz = 0, ok = false;
+      for (const [k, dr] of [[0.4, 0], [-0.4, 0], [0.15, 8], [-0.65, 0], [0.65, 0], [0, -10], [0.4, -12], [-0.4, -12]]) {
+        const h = cf + k * half, r = r0 + dr;
+        sx = P.x + Math.sin(h) * r; sz = P.z + Math.cos(h) * r;
+        if (Math.abs(sx) > lim || Math.abs(sz) > lim || this.inWaterAt(sx, sz) || Math.abs(this.heightAt(sx, sz) - h0) > 14) continue;
+        let near = false;
+        for (let i = 0; i < pts.length; i += 2) if (Math.hypot(pts[i] - sx, pts[i + 1] - sz) < 30) { near = true; break; }
+        if (!near) { ok = true; break; }
+      }
+      if (!ok) continue;
+      // 隊の入れ物の中の座標へ。前備えは本人の方を向く
+      g.updateMatrixWorld();
+      const tq = g.worldToLocal(T.q.set(sx, 0, sz));
+      const rot = Math.atan2(P.x - sx, P.z - sz) - g.rotation.y - H.f, c = Math.cos(rot), s = Math.sin(rot);
+      H.shift.set(tq.x - (H.cx * c + H.cz * s), 0, tq.z - (-H.cx * s + H.cz * c));
+      for (const m of H.meshes) { m.rotation.y = rot; m.position.copy(A.off).add(H.shift); }
+      H.rot = rot; H.at = rt.t; H.out = 0; H.U.uHostIn.value = 0;
+      pts.push(sx, sz); inV++;
+    }
+  }
+
   armyHost(o) {
     if (this.nearView && !o.foe) return { meshes: [], depth: 0, n: 0 };
     const R = rng(o.seed || 31);
@@ -505,6 +565,7 @@ export class WorldArmy {
     for (let i = S.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [S[i], S[j]] = [S[j], S[i]]; }
     if (!S.length) return { meshes: [], depth: 0, n: 0 };
     const N = S.length, U = { ...o.U, uRealNear: ARMY_REAL_R, uNear: { value: 0 }, uUnavailable: { value: 0 } };
+    if (o.foe) U.uHostIn = { value: 1 };   // 見える所へ移った前備えが霞から現れる割合（foeHostView）
     if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
     const body = new THREE.InstancedMesh(armyGeometryCopy(hostGeo(o.armor || 0x2a2622)), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), N);
     const flags = new THREE.InstancedMesh(armyGeometryCopy(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
@@ -549,7 +610,7 @@ export class WorldArmy {
     const cx = o.x - sf * (hd + realDepth / 2), cz = o.z - cf * (hd + realDepth / 2), cw = new THREE.Vector3();
     const lodState = { gone: false, keep: 1, flags: false };
     const lod = (mesh, cam) => {
-      cw.set(cx, 0, cz).add(mesh.position); if (mesh.parent) cw.applyMatrix4(mesh.parent.matrixWorld);
+      cw.set(cx, 0, cz).applyMatrix4(mesh.matrix); if (mesh.parent) cw.applyMatrix4(mesh.parent.matrixWorld);   // 前備えは回して移すので、位置だけでなく回りも入れる
       const dd = Math.hypot(cam.position.x - cw.x, cam.position.z - cw.z), vis = this.detailVis || this.vis || 230;
       const gone = dd > vis * 1.5 + 30 + realDepth / 2;
       lodState.gone = gone;
@@ -564,7 +625,7 @@ export class WorldArmy {
     // 低（携帯）でも軽い旗の束を残す。見通しの外は描かない。
     if (banners) { const nb = bear.length; banners.onBeforeRender = (r, sc, cam) => { const l = lod(banners, cam); banners.count = l.gone ? 0 : nb; }; }
     for (const m of meshes) m.computeBoundingSphere();
-    return { meshes, depth: realDepth, n: N };
+    return { meshes, depth: realDepth, n: N, cx, cz, facing: F, U };
   }
 
 
