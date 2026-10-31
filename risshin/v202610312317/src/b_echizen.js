@@ -38,6 +38,53 @@ function huntPlayer(rt, dt) {
     else if (mine && d > 45) g.focus = null;
   }
 }
+// 10/31 mini の点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所に置いた押し合いが画面から外れた。
+// 開戦から win 秒の間、本人の前（カメラの向く先）の foeD 歩へ近い敵の組を、allyD 歩へ味方の組を寄せ続け、
+// 画面の正面で斬り合わせる。兵は足さず、瞬間移動もしない（歩いて寄る）。時が過ぎたら元の下知へ戻す。
+function heroFrontClash(rt, dt, o = {}) {
+  const F = rt.flags, P = rt.player.u;
+  const H = F._hfc || (F._hfc = { t: 0, t0: rt.t, saved: new Map() });
+  if (H.done || (H.t -= dt) > 0) return;
+  H.t = 0.5;
+  if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
+    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    H.saved.clear(); H.done = true; return;
+  }
+  const e = rt.camera?.matrixWorld?.elements;
+  let fx = e ? -e[8] : 0, fz = e ? -e[10] : 0, L = Math.hypot(fx, fz);
+  if (L < 0.3) { fx = Math.sin(P.heading); fz = Math.cos(P.heading); L = 1; }
+  fx /= L; fz /= L;
+  // 戦の視点が決まった向き（例：表門）を見る時は、その向きを使う
+  const D = o.dir && o.dir(rt);
+  if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
+  const pick = (foe, want, d) => {
+    let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
+    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    const list = [];
+    for (const g of rt.army.groups) {
+      if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
+      const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
+      // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
+      if (r < (o.reach ?? 70) && !rt.army.wallBetween({ x: c.x, y: P.pos.y, z: c.z }, -1, { x, y: P.pos.y, z })) list.push([r, g]);
+    }
+    list.sort((a, b) => a[0] - b[0]);
+    const out = []; let n = 0;
+    for (const [, g] of list) { if (n >= want) break; out.push(g); n += g.count; }
+    out.forEach((g, k) => {
+      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, path: g.path, pathIdx: g.pathIdx, noAI: g.noAI, aggro: g.aggro });
+      const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
+      g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
+      if (g.focus && g.focus !== P) g.focus = null;
+      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
+    });
+  };
+  pick(true, o.foeN ?? 22, o.foeD ?? 15);
+  pick(false, o.allyN ?? 16, o.allyD ?? 9);
+}
 // 実際の構え方に合わせる。携帯と切替式では長押しを強いない。
 function passGuardAction() {
   return isTouch ? '「構え」を押す' : S.guardToggle ? '右押しで構える' : '右押しを押し続ける';
@@ -830,6 +877,10 @@ function passFortScenery(rt) {
   if (!zone?.centroid || !q) return;
   const gx = (q[0] + q[2]) / 2, gz = (q[1] + q[3]) / 2, cx = zone.centroid.x, cz = zone.centroid.z;
   ECH_GATE.value.set(gx, gz, 46);
+  // 10/31 点付け：木戸が小さく（三メートル）、兵に隠れて写らなかった。見た目の門構えと扉だけ一回り大きく（当たりの幅は変えない）。
+  { const G = F.gateKannon, S = 1.55;
+    if (G.frame) { G.frame.scale.set(S, 1.5, 1.2); G.frame.updateMatrixWorld(true); }
+    if (G.mesh) { G.mesh.scale.set(S, 1.45, 1); G.mesh.updateMatrixWorld(true); } }
   const dx = cx - gx, dz = cz - gz, len = Math.hypot(dx, dz) || 1, ux = dx / len, uz = dz / len;
   // 井楼は木戸の内脇。郭の内で道の芯から十メートル外す。
   for (const side of [1, -1]) {
@@ -844,8 +895,8 @@ function passFortScenery(rt) {
   // 設営の時の見る所（lastFocus）が持ち場から遠いと、群れが空の入れ物になっていた（10/30 vis_h：n=0）。持ち場を見る所として置く。
   const focus0 = W.lastFocus, post0 = F.passOpeningPost;
   if (post0) W.lastFocus = { x: post0.x, z: post0.z };
-  const ikki = W.addDistantArmy({ x: gx + ux * 15, z: gz + uz * 15, w: 16, d: 8, count: 40, facing: Math.atan2(-ux, -uz), team: 1,
-    armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.12, banners: 0, kind: 'spear', seed: 15991 });
+  const ikki = W.addDistantArmy({ x: gx + ux * 15, z: gz + uz * 15, w: 18, d: 9, count: 60, facing: Math.atan2(-ux, -uz), team: 1,
+    armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.3, banners: 0, kind: 'spear', seed: 15991 });
   if (ikki?.army) { ikki.army.noWake = true; F.echizenIkkiCrowd = ikki; }
   // 10/30 vis_h：敵が少なかった（点付け）。本物の兵は足さず、木戸の奥の坂の上（観音丸の奥から次の郭への道）に一揆勢の大きな遠景の群れ。
   // 持ち場から木戸越しに見上げる所。一つの群れなので描く回数は一つ分だけ増える。
@@ -1345,6 +1396,10 @@ echizen.setup = function (rt) {
     return after.call(this, seconds, fn);
   };
   try { kinome.setup.call(this, rt); } finally { rt.after = after; }
+  // 開戦25秒（10/31）：木戸前に打って出た一揆勢は、先手と二十八秒まで崩れず揉み合い、互いの傷も浅い（兵の数は同じ）。後からは常の通り崩れて退く
+  { const g = rt.flags.gateSally?.real;
+    if (g) { const dm = g.dmgMult; g.noRout = true; g.defMult = 1.8; g.dmgMult = (dm ?? 1) * 0.45;   // 長く揉み合う分、刃も浅く（本人が囲まれて倒れないように）
+      rt.after(28, () => { g.noRout = false; g.defMult = 1; g.dmgMult = dm; }); } }
   // 木戸を打つ手の釦は一語だけ。「掛矢で観音丸城の木戸を打つ」の長い札が画面に残っていた（10/28）。
   { const add = rt.addInteract; rt.addInteract = function (id, pos, label, fn, o) { if (typeof label === 'string' && label.startsWith('掛矢で')) label = '打つ'; return add.call(this, id, pos, label, fn, o); }; }
   passCampScenery(rt);
@@ -1611,22 +1666,7 @@ echizen.setup = function (rt) {
         float passLum = dot(col, vec3(0.3, 0.59, 0.11));
         col = mix(col, vec3(passLum) * vec3(0.8, 0.66, 0.5), passEarth * 0.6);
         col *= mix(0.9, 0.5, passEarth);
-        // 木戸の前は濡れた土の間に古い敷石が斑に残る（一枚の土に見えた。10/30）。
-        {
-          vec2 gq = vWP.xz - uEchGate.xy;
-          float gd = length(gq);
-          if (gd < uEchGate.z) {
-            // 1.1m の升に区切った敷石と目地は、少し離れると方眼の升目に見えた（10/31）。升も目地の線も引かず、
-            // 斑の絵の形で敷石の残る所を決め、石の肌と濃淡は石の絵と斑の絵から取る（読み出しは二つ増えるが、木戸の前の円の中だけ）。
-            float patchN = clamp((texture2D(tMacro, vWP.xz * 0.045 + 0.41).r - 0.5) * 3.0 + 0.5, 0.0, 1.0);
-            float reach = 1.0 - smoothstep(uEchGate.z * 0.55, uEchGate.z, gd);
-            float paved = smoothstep(0.45, 0.62, patchN) * reach;
-            float shade = texture2D(tMacro, vWP.xz * 0.31 + 0.77).r;
-            vec3 slab = texture2D(tStone, vWP.xz * 0.21).rgb * vec3(1.05, 1.03, 0.98) * mix(0.75, 1.2, shade);
-            col = mix(col, slab, paved);
-            echPaved = paved;
-          }
-        }
+        // 10/31 点付け：木戸の前の敷石の升が石畳に見えた。峠の土の道に戻す（敷石の斑は描かない）。
         diffuseColor.rgb *= col;`);
       shader.uniforms.uEchGate = ECH_GATE;
       shader.fragmentShader = 'uniform vec3 uEchGate;\nfloat echPaved = 0.0;\n' + shader.fragmentShader;
@@ -1998,6 +2038,23 @@ echizen.update = function (rt, dt) {
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || !u.alive) return;
   huntPlayer(rt, dt);
+  // 10/31 mini の点付け：木戸の外の敵が十二人だけで、開戦25秒の画面に兵が数人。打って出た一揆勢を二十四人にする（守りと勝ちの数には入れない）。
+  if (!F._sally2 && F.gateSally?.real?.count) {
+    F._sally2 = true;
+    const b = F.gateSally, g = b.real, c = g.center(), h = b.facing || 0, list = [];
+    for (let i = 0; i < 12; i++) {
+      const side = (i % 6 - 2.5) * 1.3, back = 3 + Math.floor(i / 6) * 1.6;
+      list.push({ type: i === 11 ? 'samurai' : 'ashigaru', n: 1, o: { ...(b.look || {}), armor: b.armor || undefined, flag: b.flag,
+        x: c.x + Math.cos(h) * side - Math.sin(h) * back, z: c.z - Math.sin(h) * side - Math.cos(h) * back, heading: h } });
+    }
+    b.nominal += 12; b.maxReal = (b.maxReal || 12) + 12;
+    rt.army.spawn(g, list);
+    // 数を倍にした分、本人一人へは集めず（huntPlayer から外す）、一太刀も軽くする（bot の勝ち筋を前と同じに保つ）。
+    g.noHunt = true; g.dmgMult = 0.6;
+  }
+  // 郭の守兵は郭から引き出さない（引き出すと郭が空になり、一戦が一分半で終わった）。木戸が破れるまでの間だけ。
+  heroFrontClash(rt, dt, { foeN: 24, allyN: 20, active: (r) => !!r.flags.gateKannon?.struct.alive,
+    skip: (g, foe) => foe && (r => (r.flags.defenders || []).some((b) => b?.real === g))(rt) });
   // kaito 10/31：門外の二人と打って出た一揆勢を別々に当てず、開戦の下知と同時に一つの群れで先手へ打ちかかる。
   if (!F.waveOpen && rt.t >= 12 && F.gateSally?.aliveNominal() > 0) { F.waveOpen = true; F.gateSally.order({ id: 'attack' }); }
   // 本道に四十五歩おきに立つ小勢も、一組ずつ待たせない。観音丸の木戸が破れたら、全部が一斉に本道を駆け下りる。

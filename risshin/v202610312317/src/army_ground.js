@@ -9,6 +9,7 @@ import { groundAt } from './floors.js';
 import { dropLazyGeo } from './units_model.js';
 
 // 落下時だけ使う作業場所。形ごとの外周を共有し、頂点全部で地面を調べない。
+export const REAP = { n: 0 };   // 確かめ用：army.units から外した消えた兵の数
 const NO_MARKS = true;   // 10/24 kaito：足跡・踏み荒らし・土煙を作らない
 const litterSupports = new WeakMap();
 const litterPoint = new THREE.Vector3(), litterNormal = new THREE.Vector3();
@@ -438,6 +439,29 @@ export const ArmyGround = {
     }
   },
 
+  // 沈み終えて消えた亡骸・退いて消えた者を army.units から外す（10/31 iPhone 三木・設楽原が開戦2〜3分で落ちた元の一つ。
+  //   援軍が出るたびに units が増え続け、毎コマの全員の巡りと、やり直しの写しが消えた兵まで抱えていた）。
+  //   外すのは消えて2秒たった名の無い兵だけ（骨の人は humans_runtime が先に使い回しへ返す）。隊（g.units）には残す（隊の損耗の割合を変えない）
+  reapGone(dt) {
+    this._reapT = (this._reapT || 0) - dt;
+    if (this._reapT > 0) return;
+    this._reapT = 1;
+    const U = this.units; let w = 0;
+    for (let i = 0; i < U.length; i++) {
+      const u = U[i];
+      if (u.gone && !u.alive && !u.isPlayer && !u.name && !u.keep && u.type !== 'busho' && u.type !== 'dummy') {
+        if (u.goneAt === undefined) u.goneAt = this.time;
+        else if (this.time - u.goneAt >= 2 && !u.human && !u._humanBuild && !u.humanPending && !u.loopP && !this.dead.includes(u)) {
+          if (u.mesh?.parent) u.mesh.parent.remove(u.mesh);
+          REAP.n++;
+          continue;
+        }
+      }
+      U[w++] = u;
+    }
+    U.length = w;
+  },
+
   trimCorpses() {
     const cap = 40, view = this._groundView || this.playerUnit?.pos;
     const frustum = this._viewFrustum;
@@ -532,6 +556,7 @@ export const ArmyGround = {
     // 上限超過と霧の外の片付けも一コマ一人。片付けは fallenKit を呼ぶので、形づくりと同じ枠を使う。
     this._groundView = cam || focus || this.playerUnit?.pos;
     this.sinkCorpses(dt);
+    this.reapGone(dt);
     const retired = this.trimCorpses();
     const deadCount = this.dead.length;
     for (let checked = 0; !retired && checked < deadCount; checked++) {

@@ -1676,6 +1676,24 @@ function cabinWallUV(geo, v0 = 0, v1 = 1, tileW = 2, tileD = tileW) {
 }
 
 // 鉄甲船の船体。castle：true の船（プレイヤーの乗る中央の船）だけ、矢倉を一段上げて床（floors.js）を張り、
+// 毛利の船団の並び（持ち場の前、南西の沖の四十〜八十歩の扇）。味方の安宅船・供船・先手の小早の周りは空ける。一度だけ求める。
+let FRONT_FLEET = null;
+function frontFleet() {
+  if (FRONT_FLEET) return FRONT_FLEET;
+  const ox = -3, oz = 2, fx = -0.66, fz = 0.75, rx = 0.75, rz = 0.66;
+  const keep = [[-40, 56, 16], [-2, 98, 16], [-58, 80, 10], [-20, 122, 10], [-28, 0, 12], [-42, 0, 12], [-85, 26, 10], [-52, -16, 10], [-64, 20, 10]];
+  const out = [];
+  for (let row = 0; row < 4 && out.length < 29; row++) {
+    const d = 46 + row * 11;
+    for (let k = 0; k < 13 && out.length < 29; k++) {
+      const a = (-0.95 + k * (1.9 / 12)) + (row % 2) * 0.07;
+      const x = ox + (fx * Math.cos(a) + rx * Math.sin(a)) * d, z = oz + (fz * Math.cos(a) + rz * Math.sin(a)) * d;
+      if (keep.some(([kx, kz, r]) => Math.hypot(x - kx, z - kz) < r) || out.some(([qx, qz]) => Math.hypot(x - qx, z - qz) < 9)) continue;
+      out.push([x, z]);
+    }
+  }
+  return (FRONT_FLEET = out);
+}
 // 梯子で上がれる「小さな城」にする（甲板・上甲板・矢倉・階段）。outL・outR：左右の舷に楯板と櫂を付ける
 // 西の舷で沖の船団を肩越しに見る視点の置き場（本人から：内へ一歩半・舳先へ一歩半。向きは南西の沖）
 const KZ_SEA_BACK = { x: 2.1, z: -2.1 };   // 10/30：一・九歩では足を収めるために真下を覗き、艫の斬り合いが上で切れた。三歩へ引く
@@ -1702,7 +1720,14 @@ function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
     for (const c of CANNONS) { if (c.z - 1.1 > s && c.z - 1.1 < zB) { out.push([s, c.z - 1.1]); s = c.z + 1.1; } }
     out.push([s, zB]); return out;
   };
-  if (outL) for (const [a, b] of gaps(z0 + 1, z1)) g.add(tateWall(cx - hw0 + 0.05, a, cx - hw0 + 0.05, b, DECK.y, TH, M));
+  // 10/31 点付け「甲板が箱の壁」：本人の立つ船の西の舷（沖の毛利の船団の側）は、肩越しの視点より低い欄干の高さにする。
+  //   絵は上の部分（狭間と笠木）を切り取って縮めない。ほかの船と東の舷は今の高さのまま。
+  const TL = castle ? 0.72 : TH;
+  if (outL) for (const [a, b] of gaps(z0 + 1, z1)) {
+    const wall = tateWall(cx - hw0 + 0.05, a, cx - hw0 + 0.05, b, DECK.y, TL, M);
+    if (TL < TH) { const uv = wall.children[0].geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - (1 - uv.getY(i)) * TL / TH); }
+    g.add(wall);
+  }
   if (outR) g.add(tateWall(cx + hw0 - 0.05, z1, cx + hw0 - 0.05, z0 + 1, DECK.y, TH, M));
   if (castle) {
     // 乗り移る所は見た目も開け、屋形の脇の通り道へそろえる。
@@ -3453,12 +3478,16 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // ---- 遠くの毛利の船団（小早を並べた影） ----
     F.boats = [];
     F.far = [];
+    let fleetK = 0;
     for (let i = 0; i < 36; i++) {
       const b = i % 6 === 0 ? sekibune(true) : kobaya();
       // 小早の先手は既に包囲へ寄せている。大将船だけは後ろで待つ。
       // 先頭の小早は既に西の舷へ寄せている。大筒を待つ間にも槍で乗り込みを防げる。
       const vanguard = i >= 3 && i <= 9 && i % 6 !== 0;
       b.position.set(i === 0 ? -85 : vanguard ? -28 - (i > 6 ? 14 : 0) : -70 - (i % 9) * 26, 0, i === 0 ? 26 : vanguard ? (i % 3 - 1) * 10 : 35 + Math.floor(i / 9) * 38);
+      // 10/31 点付け「敵船が小さい」：残りの船団は本人の向き（持ち場から南西の沖）の前の四十〜八十歩に、扇に並べる（数は同じ）。
+      //   味方の安宅船と供船の周りは空ける。
+      if (i && !vanguard) { const q = frontFleet()[fleetK++]; if (q) b.position.set(q[0], 0, q[1]); }
       b.rotation.y = Math.PI * 3 / 4;
       rt.scene.add(b);
       addCrew(b, i % 6 === 0 ? 1.3 : 0.65, 8);
