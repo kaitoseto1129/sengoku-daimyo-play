@@ -2055,7 +2055,7 @@ function moribeFord(rt) {
     `).replace('#include <opaque_fragment>', `
       // 空の白い反射で砂底を隠さない。流れと岸の波を残し、渡れる帯だけ底を見せる。
       // 帯の外は青緑へ落とし、空の反射が浅瀬と同じ白さになるのを抑える。
-      outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.46, 0.4, 0.29) + vec3(0.05, 0.035, 0.017), 0.88 * (1.0 - fordBand));   // 嵐で濁った楡俣川（泥の茶。10/28）
+      outgoingLight = mix(outgoingLight, outgoingLight * vec3(0.44, 0.47, 0.41) + vec3(0.035, 0.044, 0.036), 0.88 * (1.0 - fordBand));   // 嵐で濁った楡俣川（手本の灰緑。10/31）
       // 浅瀬も上に薄い水を残す（砂の白い板に見せない。10/27）。
       outgoingLight = mix(outgoingLight * vec3(0.6, 0.58, 0.5), mix(fordSand * 0.9, vec3(0.42, 0.43, 0.39),
         fordRipple * mix(0.08, 0.42, fordRim)),
@@ -2124,7 +2124,7 @@ function moribeFord(rt) {
         bankPos.push(x, drawGroundAt(W, x, z) + .018, z);
         bankUV.push(x * .45, z * .45);
         const k = j / 3, grain = .95 + .05 * Math.sin(x * 2.7 + j);
-        bankColor.setRGB((.04 + k * .02) * grain, (.03 + k * .015) * grain, (.019 + k * .01) * grain);   // 濡れた泥の斜面。色は線形の値（.13 でも灰の帯に見えていた。10/28）
+        bankColor.setRGB((.04 + k * .005) * grain, (.03 + k * .03) * grain, (.019 + k * .002) * grain);   // 外の列ほど濡れた草の緑へ（手本の岸。10/31）。水ぎわは濡れた泥。色は線形の値
         // 川底と同じ砂色を両岸へつなぎ、水際で渡り道が途切れて見えないようにする。
         const ford = Math.max(0, Math.min(1, (6 - Math.abs(x - START2.x)) / 1.5));
         bankColor.r += (.06 * grain - bankColor.r) * ford;
