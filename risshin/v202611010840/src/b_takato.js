@@ -928,12 +928,12 @@ takato.world.tint = (x, z, h, c) => {
   const spot = .5 + .5 * Math.sin(x * .21 + Math.sin(z * .13) * 2.1) * Math.cos(z * .19 - x * .07);
   const wet = .5 + .5 * Math.sin(x * .11 - Math.cos(z * .09) * 1.7) * Math.sin(z * .13 + x * .04);
   const snow = Math.min(1, Math.max(0, (light - .45) / .15)) * Math.min(1, Math.max(0, (spot - .7) / .12));
-  c.multiplyScalar(.55 / Math.max(1, light / .42));
-  const mud = Math.min(1, Math.max(0, (wet - .45) / .3)) * .75;
-  c.setRGB(c.r + (.11 - c.r) * mud, c.g + (.085 - c.g) * mud, c.b + (.062 - c.b) * mud);
+  c.multiplyScalar(.7 / Math.max(1, light / .46));
+  const mud = Math.min(1, Math.max(0, (wet - .45) / .3)) * .5;
+  c.setRGB(c.r + (.16 - c.r) * mud, c.g + (.125 - c.g) * mud, c.b + (.085 - c.b) * mud);
   // 灰の一枚にしない：雪の消えた所に去年の枯れ草（黄土）の大きな斑と、踏まれて黒い泥の筋を（10/28 点付け「地面は灰の一枚」）。
   const dry = .5 + .5 * Math.sin(x * .057 + Math.sin(z * .083) * 2.4) * Math.cos(z * .061 - x * .029);
-  const grass = Math.min(1, Math.max(0, (dry - .52) / .2)) * (1 - mud) * .8;
+  const grass = Math.min(1, Math.max(0, (dry - .44) / .2)) * (1 - mud) * .85;
   c.setRGB(c.r + (.3 - c.r) * grass, c.g + (.245 - c.g) * grass, c.b + (.12 - c.b) * grass);
   const rut = Math.max(0, 1 - Math.abs(Math.sin(x * .09 + z * .31 + Math.sin(z * .05) * 1.5)) * 6) * (1 - grass) * .55;
   c.setRGB(c.r + (.07 - c.r) * rut, c.g + (.055 - c.g) * rut, c.b + (.04 - c.b) * rut);
