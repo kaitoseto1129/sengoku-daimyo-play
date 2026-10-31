@@ -775,6 +775,30 @@ function igaAllyDress(rt) {
   };
 
 }
+// 夜の陣の兵は、調練の格子に並ばない（点付け 10/31「列が揃いすぎ」）。兵ごとに決まった間合いのずれと、
+// 二〜四人の寄り合いの塊を、隊の横と奥の向きで足す。形は共有のまま、位置だけ。毎コマ new しない。
+function igaLooseRanks(rt) {
+  const army = rt.army;
+  const loosen = (g) => {
+    if (!g || g._igaLoose || typeof g.slotPos !== 'function' || g.formation === 'ring') return;
+    g._igaLoose = true;
+    const slotPos = g.slotPos;
+    g.slotPos = function (i, n, out) {
+      const o = slotPos.call(this, i, n, out);
+      if (!o || this.cav || this.formation === 'ring' || this.formation === 'march') return o;
+      const J = (k) => this.slotJit(i, 20 + k);
+      // 塊：隣り合う三人ほどが同じ向きへ寄る。塊の間はあく。
+      const clump = Math.floor(i / 3), cj = (k) => this.slotJit(clump * 7 + 3, 30 + k);
+      const r = J(0) * 0.42 + cj(0) * 0.55, b = J(1) * 0.6 + cj(1) * 0.85 + (i % 2 ? 0.18 : -0.12);
+      const h = this._face ?? this.facing, fx = Math.sin(h), fz = Math.cos(h);
+      o.x += fz * r - fx * b; o.z += -fx * r - fz * b;
+      return o;
+    };
+  };
+  for (const g of army.groups || []) loosen(g);
+  const addGroup = army.addGroup;
+  army.addGroup = function (...a) { const g = addGroup.apply(this, a); loosen(g); return g; };
+}
 // 炎二つと屋根の赤みを一緒に消す。焼けた茅は残し、任務の数え方は変えない。
 function igaDouseFire(rt, i) {
   const F = rt.flags, h = F.huts[i];
@@ -1754,6 +1778,7 @@ const iga = {
       rt.hud.damageFrom(Math.atan2(u.pos.x - target.pos.x, u.pos.z - target.pos.z) - rt.player.yaw);
     };
     igaAllyDress(rt);
+    igaLooseRanks(rt);
     // 伊賀衆は手で下知を伝える。味方の合図は既存のまま、敵の音と反復だけを止める。
     const onSignal = rt.army.hooks.onSignal;
     rt.army.hooks.onSignal = (g, kind, at) => {

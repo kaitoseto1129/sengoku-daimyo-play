@@ -26,7 +26,7 @@ import { sfx } from './audio.js';
 import { makeWeapon, poseArms } from './units.js';
 import { FL, addDeck, groundAt } from './floors.js';
 import { battleEvent, EVENT_FIRE_START, EVENT_RETREAT } from './battle_events.js';
-import { sightScreenUnit } from './battle_sight.js';
+import { sightScreenUnit, cameraWallBlocked } from './battle_sight.js';
 
 import { enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
 import { applyLook, DAWN, dress, gone } from './b_inabayama.js';
@@ -385,6 +385,12 @@ const IN = {
 const HONDO_IN = { x: -51.5, z: 46 };       // 本堂の外陣
 const HONDO_FRONT = { x: -45.6, z: 46 };    // 本堂の東の縁
 const HONDO_LOOK = { x: -51, z: 46, y: 4.6 }; // 本堂の東の軒先（庭から見上げる点）
+// 開戦の視点の注視点：乱戦の向こう側。見下ろしは浅く（六度ほど）、高い視点から斬り合いが画面の真ん中に来る。
+// 深く見下ろすと、共通の壁よけが下の段の視線を地面にかかったと数えて、肩口へ引き戻した（10/31）。
+function courtLook(u, dx, dz, L, out, cam) {
+  const k = Math.max(1, 3 / L), x = u.pos.x + dx * k, z = u.pos.z + dz * k;
+  return out.set(x, cam.y - Math.hypot(x - cam.x, z - cam.z) * .1, z);
+}
 // 本堂から御殿へ移る道。出火した持ち場から出る区間は残すが、火元への再入場は避ける。
 // 棟の向きに合わせて線分全体を調べる。中心に近い一点だけでは回廊の端の火を見落とす。
 function routeBurning(T, pts) {
@@ -449,12 +455,15 @@ const PATROL_ROOM_PATHS = [-54, -62, -67, -70.6].map((x) => [
 // 足軽は表門の内側から見回る。回廊の遠回りで、最初の寄せ手とすれ違わせない。
 // 始まりは回廊の東の表庭（屋根の外）。廊下の中では視点が柱と梁に囲まれ、黒い額縁に見えた（10/28）。
 // 背の側も庭なので、肩越しの視点が外から境内と表門の方を見渡す。道案内は道の途中から合流する（pathGuide）。
-const PATROL_START = { x: -37.5, z: 55.5, heading: -0.97 };
+// 10/31 kaito：持ち場は本堂を背にした表庭。開戦の向きは表門（明智が攻め寄せる方）。
+const PATROL_START = { x: -40.5, z: 50.8, heading: Math.PI / 2 };
+// 表門の口の外（通り）。開戦の視点は本人の後ろ（本堂の側）からここを見る。押し入る明智勢と迎える近習が画面の正面。
+const GATE_LOOK = { x: -27, z: 50 };
 // 開いた表門を抜けた少人数が、門の内側の持ち場へ寄せる。
 // 外の備えから先鋒を替える。塀・宿坊・回廊の柱を横切らず、三〜七歩でぶつかる。
 const PATROL_SKIRMISH = [[GATES.main.x - 2, GATES.main.z], [PT.gateIn.x, PT.gateIn.z], [-40, 50]];
 // 少数の先手だけが回廊を奥へ進む。門内で全員を待たせ、廊下を歩く本人とすれ違わせない。
-const PATROL_ADVANCE = [...PATROL_SKIRMISH, [-45, 54], [-45.5, 77], [-52, 77.5], [-52, 80], [-52, 82.2]];
+// 10/31：持ち場を表庭に移したので、先鋒は回廊の奥へ進めず、門の内の本人へ寄せる（PATROL_SKIRMISH）。
 
 // 人の幅を含めて壁・柱・建物を確かめる。道案内だけ半秒ごとに使う。
 function pointSegDistance(x, z, ax, az, bx, bz) {
@@ -2157,6 +2166,32 @@ function cleanTemple(rt) {
   };
   rt.flags.fireGlow = fireGlow(0xff873c, 0, 18, 1.4);
   rt.scene.add(rt.flags.fireGlow);
+  // 10/31：開戦25秒の画面に、燃える本堂の炎と黒煙。開戦二十五秒の視点の向きの先で、最初に当たる壁・軒の手前に火を付ける
+  // （表庭からは本堂の正面、堂の中からは向こうの板戸と欄間が燃える）。壁が遠ければ三十歩先の屋根の上。
+  // 見せるだけの火（延焼・熱の判定は台本の T.fire のまま）。火二つと煙の柱二本だけで、形と材質は共通の物を使う。一度だけ当たりを調べる。
+  rt.after(24.9, () => {
+    const W = rt.world, cam = rt.camera, u = rt.player?.u;
+    if (!cam || rt.over) return;
+    const f = cam.getWorldDirection(new THREE.Vector3()); f.y = 0;
+    if (f.lengthSq() < 1e-4) return;
+    f.normalize();
+    const near = u ? Math.hypot(u.pos.x - cam.position.x, u.pos.z - cam.position.z) + 2 : 3;
+    const ray = new THREE.Raycaster(), d = new THREE.Vector3(), o = cam.position.clone();
+    const meshes = [];
+    rt.scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.visible && !m.material?.transparent && m.geometry?.attributes?.position) meshes.push(m); });
+    for (const [ang, s] of [[-0.18, 3.2], [0.22, 2.6]]) {
+      d.set(f.x * Math.cos(ang) - f.z * Math.sin(ang), 0, f.z * Math.cos(ang) + f.x * Math.sin(ang));
+      ray.set(o, d); ray.near = near; ray.far = 34;
+      const hits = [];
+      for (const m of meshes) { try { m.raycast(ray, hits); } catch (e) { /* 形の無い板は飛ばす */ } }
+      const hit = hits.filter((h) => !(h.face && Math.abs(h.face.normal.y) > 0.6) && h.distance >= near).sort((a, b) => a.distance - b.distance)[0];
+      const dist = hit ? Math.max(near, hit.distance - 0.9) : 30;
+      const x = o.x + d.x * dist, z = o.z + d.z * dist, g = W.heightAt(x, z);
+      const h = hit ? Math.max(0.2, o.y - g - 1.6) : Math.max(4, o.y - g + 3);
+      W.addFire(x, z, { size: s, h, blackSmoke: true });
+      W.addSmokeColumn?.(x, g + h + s * 1.6, z, { size: 4, black: true });
+    }
+  });
   rt.after(0, () => {
     for (const u of rt.army.units) if (u.team === 0 && !u.isStruct && !u.isPlayer) u.nanori = `味方。織田が家来、${u.name || '上様を守る'}！`;
   });
@@ -2487,23 +2522,50 @@ const honnoji = {
   frameCamera(rt, pos, look) {
     const P = rt.player, F = rt.flags, u = P.u;
     // 10/29 採点：門で戦う間、門の外を見る画面には本堂の火も庭の寄せ手も写らなかった。
-    // 門を閉める前に表庭に居る間は、門の側から庭を振り返る向きに視点を置く（本堂の大屋根の火と、庭へ攻め込む明智勢が正面）。
+    // 門を閉める前に表庭に居る間は、本堂を背に表門を向く視点に置く（10/31 kaito）。
     if (F.hp === 2 && !F.gMain && u.alive && !rt.over && !P.aiming && !P.cine && !P.camShot && !rt.game?.photo &&
-        u.pos.x > -45 && u.pos.x < GATES.main.x - 1.2 && u.pos.z > 38 && u.pos.z < 66 &&
-        // 回廊の軒の脇（屋根の外）を走る間も庭から本堂を見る。前は軒から一歩半の内で外れ、回廊の床を真上から見下ろした（10/30）。
-        (!rt.def.nearFade || courtBuildingDistance(u.pos.x, u.pos.z) > 0.6)) {
-      // 本人から本堂の庭側の軒へ向く線の後ろに置く。どこに立っても本堂の火が本人の向こうに来る。
-      // 10/30 採点：三歩強の後ろでは本堂の軒にかぶり、大屋根の棟と炎が画面の上で切れた。五歩まで引き、目の高さに下げて
-      // 少し（八度）見上げる。大屋根・炎・縁の前で斬り合う寄せ手が一枚に入る。見上げは十五度まで・視点は地面より上。
-      const dx = HONDO_LOOK.x - u.pos.x, dz = HONDO_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
-      for (const back of [5, 4.2, 3.3]) {
-        const cx = u.pos.x - dx / L * back + dz / L * 1.1, cz = u.pos.z - dz / L * back - dx / L * 1.1;
-        // 本堂の縁へ寄り過ぎた時と、視点が塀や堂の中に入る時は使わない（真下を向く画面にしない）。
-        if (!(L > 7 && cx < GATES.main.x - 0.8 && courtBuildingDistance(cx, cz) > 1.8 && inTera(cx, cz, -1))) continue;
-        const cy = Math.max(u.pos.y + 1.9, rt.world.heightAt(cx, cz) + 1.2);
-        pos.set(cx, cy, cz);
-        const lx = u.pos.x + dx / L * 4, lz = u.pos.z + dz / L * 4;
-        look.set(lx, cy + Math.tan(0.14) * Math.hypot(lx - cx, lz - cz), lz);
+        // 本堂の東の縁（軒の下）を回る間も入れる（10/31：x>-45 では開戦25秒の本人が外れ、回廊の床を写した）。
+        u.pos.x > -52 && u.pos.x < GATES.main.x - 1.2 && u.pos.z > 38 && u.pos.z < 76 &&
+        // 回廊の軒の脇（屋根の外）を走る間も庭を見る。前は軒から一歩半の内で外れ、回廊の床を見下ろした（10/30・10/31）。
+        courtBuildingDistance(u.pos.x, u.pos.z) > -0.2) {
+      // 10/31 採点：開戦25秒の画面が石畳の道と板だけで、敵も味方も写らなかった。
+      // 本人の後ろ上（本堂の側）から、表門の口（GATE_LOOK）を見る。押し入る明智勢と迎える近習・馬廻の斬り合いが正面（10/31 kaito）。
+      // 真後ろが回廊や堂にかかる時は、左右へ振った位置を順に試す（視点が屋根・壁の中に入らず、本人が見え、共通の壁よけに戻されない所）。
+      // 選び直しは四回／秒（壁よけの検査と同じ間合い）。間は選んだ向き・距離・高さを使い回す。
+      const dx = GATE_LOOK.x - u.pos.x, dz = GATE_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
+      const C = F.courtCam || (F.courtCam = { at: -1, x: 0, z: 0, a: 0, back: 0, up: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), look: new THREE.Vector3() });
+      if (rt.t >= C.at || rt.t < C.at - .3 || Math.hypot(u.pos.x - C.x, u.pos.z - C.z) > .4) {
+        C.at = rt.t + .25; C.x = u.pos.x; C.z = u.pos.z; C.back = 0;
+        const base = Math.atan2(-dz, -dx);
+        search: for (const back of [6.2, 5]) for (const turn of [0, .35, -.35, .7, -.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1, 2.5, -2.5]) {
+          const ang = base + turn, cx = u.pos.x + Math.cos(ang) * back, cz = u.pos.z + Math.sin(ang) * back;
+          if (!(cx < GATES.main.x - 0.8 && courtBuildingDistance(cx, cz) > 1.6 && inTera(cx, cz, -1))) continue;
+          const gy = rt.world.heightAt(cx, cz);
+          // 本人が軒の下に居る時は、高い視点が軒にかかる。かからない高さまで下げる。
+          for (const up of [3.2, 3.8, 4.4]) {
+            const y = Math.max(u.pos.y + up, gy + up - .4);
+            if (this.sightBlocked(rt, { x: cx, z: cz }, u.pos, y, u.pos.y + 1, .32)) continue;
+            C.from.set(u.pos.x, P.camTY ?? u.pos.y + 1.6, u.pos.z); C.to.set(cx, y, cz);
+            if ((rt.world.cameraBlockFraction?.(C.from, C.to) ?? null) !== null) continue;
+            // 共通の最後の当たり（軒・柱の形への線）にかかる所も使わない。かかると本人の目元まで引き戻された。
+            // 選び直しの時だけ（四回／秒）、その場で線を引いて確かめる。
+            const rays = P.camRayCount; P.camRayCount = 0;
+            const hit = P.camBlockHitNow?.(C.from, C.to) ?? null;
+            P.camRayCount = rays;
+            if (hit !== null) continue;
+            C.from.y = u.pos.y + 1.6;
+            if (cameraWallBlocked(rt, C.from, C.to)) continue;
+            courtLook(u, dx, dz, L, C.look, C.to);
+            if (P.wallViewBlocked?.(C.to, C.look) > 5) continue;
+            C.a = ang; C.back = back; C.up = up;
+            break search;
+          }
+        }
+      }
+      if (C.back) {
+        const cx = u.pos.x + Math.cos(C.a) * C.back, cz = u.pos.z + Math.sin(C.a) * C.back;
+        pos.set(cx, Math.max(u.pos.y + C.up, rt.world.heightAt(cx, cz) + C.up - .4), cz);
+        courtLook(u, dx, dz, L, look, pos);
         return;
       }
     }
@@ -3750,7 +3812,7 @@ const honnoji = {
     F.waitReached = false;
     // 待つ輪は表庭の始まりから表門の方へ三歩（屋根の外）。御殿の廊下に置くと、始まってすぐ廊下へ戻って
     // 視点が柱と梁の黒い額縁に囲まれていた（10/28 点付け）。表門と桔梗の旗を正面に見て待つ。
-    const WAIT = { x: PATROL_START.x + 2.3, z: PATROL_START.z - 2 };
+    const WAIT = { x: PATROL_START.x + 2.6, z: PATROL_START.z - 0.6 };
     const wait = F.waitPlace = { x: WAIT.x, z: WAIT.z, y: groundAt(rt.world, WAIT.x, WAIT.z, rt.player.u.pos.y) };
     const ring = F.waitRing = rt.ring(wait.x, wait.z, 1.1, 0xfff3ba, .65, 48, false);
     ring.position.y = wait.y + .09;
@@ -3818,7 +3880,7 @@ const honnoji = {
     rt.addInteract('gate', { x: GATES.main.x - 1.5, z: GATES.main.z }, '門をしめる', () => closeGate(rt, 'me'), { r: 4.5, hold: 1, prio: 1 });
     patrolGuide(rt); F.patrolScan = 0;
     rt.marker('next', () => F.patrolDistance < 12 && patrolClear(rt, F.entrancePos.x, F.entrancePos.z) ? F.entrancePos : F.patrolGuide, () => patrolLabel(rt), { h: .2, entrance: true, guideDestination: () => F.entrancePos, guidePriority: 200, guideAlways: true, alwaysDistance: true, routeDistance: () => F.patrolDistance });
-    F.scouts = akechi(rt, '回廊へ踏み込む明智の先鋒', PATROL_ADVANCE, [uS(1), uA(3)], { entered: true, player: true });
+    F.scouts = akechi(rt, '表門を抜けた明智の先鋒', PATROL_SKIRMISH, [uS(1), uA(3)], { entered: true, player: true });
     if (F.scouts) {
       F.scouts.honnoPatrolAdvance = true;
       F.scouts.honnoFollowPath = true;
@@ -3826,13 +3888,17 @@ const honnoji = {
     }
     akechi(rt, '表門へ続く明智勢', PATROL_SKIRMISH, [uS(3), uA(5)]);
     // 10/30 採点：25秒の画面で兵がまばら。表庭で寄せ手の群れと馬廻が押し合う乱戦にする。
-    //   この間の視点は本人の後ろから本堂（HONDO_LOOK）を見る（frameCamera）。門の側に置いた組はカメラの後ろで写らなかったので、
+    //   （10/31 kaito で替えた：視点は本人の後ろから表門を見る。下の群れは門の口から押し入る）
     //   本人と本堂の縁の間（画面の正面）で、門へ走る道（-40,50）から二、三歩外した庭の南に置く。上様へは向かわせず（nb を付けない）、近くの馬廻・近習と斬り合う。
-    akechi(rt, '表庭へ押し込む明智勢', [[-40, 42.5], [-42.5, 46]], [uS(3), uA(11)], { entered: true, fill: true, seek: 10 });
-    akechi(rt, '表庭の斬り合い', [[-44, 43.5], [-43.5, 47]], [uS(2), uA(10)], { entered: true, fill: true, seek: 10 });
-    rt.after(7, () => { if (F.hp === 2 && !F.ending) akechi(rt, '表庭へ続く明智勢', [[-41, 41], [-42.5, 45.5]], [uS(2), uA(8)], { entered: true, fill: true, seek: 10 }); });
+    // 10/31 kaito「小隊対小隊はチープ・敵は本人を多く狙う」：表庭の寄せ手は一つの群れとして、本人を目がけて押し寄せる（honnoTick）。
+    // 10/31 kaito：寄せ手の群れは表門の口から押し入る（通りから門を抜けて表庭へ）。本人は本堂を背に門を向くので、画面の正面。
+    F.courtMob = [
+      akechi(rt, '表門から押し入る明智勢', [[-25, 48.5], [-29, 48.8], [-33, 48.5], [-36.5, 47.5]], [uS(3), uA(11)], { entered: true, fill: true, seek: 10 }),
+      akechi(rt, '表門の口の斬り合い', [[-24, 51.5], [-29, 51.2], [-33, 51.5], [-36, 52.5]], [uS(2), uA(10)], { entered: true, fill: true, seek: 10 }),
+    ];
+    rt.after(7, () => { if (F.hp === 2 && !F.ending) F.courtMob.push(akechi(rt, '表門へ続く明智勢', [[-24, 50], [-29, 50], [-34, 49.5]], [uS(2), uA(8)], { entered: true, fill: true, seek: 10 })); });
     // 味方の新手は見える所に出すと guardSpawn（battle.js）が四十歩先へずらし、本堂の向こうから走って来た。noGuard でその場に立たせる。
-    F.frontGuard = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の馬廻', anchor: { x: -42, z: 48.5 }, facing: -2.6, width: 4, aggro: 8, noRout: true, fullStrength: true, formation: 'line' },
+    F.frontGuard = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の馬廻', anchor: { x: -37, z: 49.5 }, facing: Math.PI / 2, width: 4, aggro: 8, noRout: true, fullStrength: true, formation: 'line' },
       dress([{ type: 'samurai', n: 2, o: NEMAKI(0x4a3a2c) }, nA(6)], ODA));
     F.frontGuard.defMult = 1;
     F.frontGuard.hideFlags = true;
@@ -3866,14 +3932,14 @@ const honnoji = {
       akechi(rt, '庭へなだれ込む明智勢', [[-44.5, 37.5], [-43.5, 42], [-42.5, 45], [HONDO_FRONT.x + 1.5, HONDO_FRONT.z - 1]], [uS(2), uA(8)], { entered: true, nb: true });
     });
     // 10/30 採点：庭の本人が一人で突っ立って見えた。本堂の縁から飛び出した近習が本人の前に付き、庭の寄せ手と斬り結ぶ（持ち場は update で本人の前へ動かす）。
-    F.kinju = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の近習', anchor: { x: HONDO_FRONT.x + 2.5, z: HONDO_FRONT.z + 2 }, facing: Math.PI / 2, width: 3, aggro: 9, noRout: true, fullStrength: true, formation: 'line' },
+    F.kinju = allyGroup(rt, { fixed: true, noGuard: true, name: '森蘭丸と近習', anchor: { x: PATROL_START.x + 3, z: PATROL_START.z }, facing: Math.PI / 2, width: 3, aggro: 9, noRout: true, fullStrength: true, formation: 'line' },
       dress([{ type: 'samurai', n: 1, o: NEMAKI(0x4a3a2c) }, nA(4)], ODA));
     F.kinju.defMult = 1;
     F.kinju.hideFlags = true;
     // 南の塀を乗り越える組を、本人と本堂の間（庭から本堂を見る画面の正面）へなだれ込ませる。
     rt.after(13, () => {
       if (F.hp !== 2 || F.ending || rt.over) return;
-      const u = rt.player.u, dx = HONDO_LOOK.x - u.pos.x, dz = HONDO_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
+      const u = rt.player.u, dx = GATE_LOOK.x - u.pos.x, dz = GATE_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
       const tx = Math.max(-44, Math.min(-35, u.pos.x + dx / L * 5)), tz = Math.max(40, Math.min(58, u.pos.z + dz / L * 5));
       climbIn(rt, [[-44.5, 37.5], [-42, 38.5]], [uS(2), uA(7)], '', [tx, tz]);
     });
@@ -3956,9 +4022,9 @@ const honnoji = {
     });
     at(58, () => { honnoSay(rt, '門番', '門がきしむ！　内側で支えよ！', 3); });
     // 門を守り切っても延焼で持ち場を移す。敵の全滅待ちで止めない。
-    at(72, () => {
-      this.gateDown(rt, true);
-    });
+    // 10/31：延焼で持ち場を移すのは、本人が門で一人でも討ってから（立っているだけで段が進まないように）
+    const down = () => { if (F.gDown || F.ending || rt.over || F.hp !== 3) return; if ((F.pk || 0) >= 1) this.gateDown(rt, true); else rt.after(4, down); };
+    at(72, down);
   },
   gateDown(rt, burned = false) {
     const F = rt.flags;
@@ -4200,7 +4266,7 @@ const honnoji = {
       rt.banner('町を抜け、二条へ', '時が過ぎた。信忠の手は二条新御所へ移った');
       rt.after(0.5, () => this.toNijo(rt)); return;
     }
-    F.step = 3; F.stepT = rt.t;
+    F.step = 3; F.stepT = rt.t; F.pkNijo = F.pk || 0;
     for (const g of rt.squadGroups) g.hideFlags = false;
     rt.setPhase('nijo');
     F.bossName = '織田信忠';
@@ -4349,7 +4415,7 @@ const honnoji = {
     if (F.hp >= 3 && (!rt.over || rt.withdrawal)) allyCover(rt, rt.player.u);
     // 表庭の近習は、門へ走る本人の二、三歩前（本堂の側）に付いて斬り結ぶ。門を閉めた後は門の内に残る。
     if (F.hp === 2 && F.kinju && !gone(F.kinju)) {
-      const u = rt.player.u, dx = HONDO_LOOK.x - u.pos.x, dz = HONDO_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
+      const u = rt.player.u, dx = GATE_LOOK.x - u.pos.x, dz = GATE_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
       if (L > 6) { F.kinju.anchor.x = u.pos.x + dx / L * 2.6; F.kinju.anchor.z = u.pos.z + dz / L * 2.6; }
     }
     if (F.ending || rt.over) return;
@@ -4429,7 +4495,7 @@ const honnoji = {
         ? '御所の門へ戻り、味方と口を支えよ'
         : friend < 2 ? '門の内の味方へ寄れ。一人では守りを支えられぬ'
         : `門の内で味方と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
-      if (t > HOLD_END) this.escape(rt);   // 支えた時間が短くても、御所の侍が門を引き継ぐ。止めずに北の口へ
+      if (t > HOLD_END && ((F.pk || 0) - (F.pkNijo || 0) >= 1 || F.nHold >= HOLD_NEED)) this.escape(rt);   // 10/31：本人が門で討つか、門の内で支えた時だけ   // 支えた時間が短くても、御所の侍が門を引き継ぐ。止めずに北の口へ
 
     }
     if (F.step === 5) {
@@ -4437,7 +4503,8 @@ const honnoji = {
       rt.objProgress('main', `あと ${Math.max(0, Math.round(d))}歩`);
       if (d >= 7 && rt.t - F.stepT > 40 && !F.outCall) { F.outCall = true; honnoSay(rt, '御所の侍', '北の口はこちらじゃ！　町へ、早う落ちよ！　火が回るぞ', 3.5); }
       if (d < 7 && rt.player.u.alive) this.win(rt);
-      else if (rt.t - F.stepT > 90 && rt.player.u.alive) this.win(rt);   // 御所の侍に導かれて落ちのびた
+      // 10/31：iPhone の bot が北の口の明智勢に阻まれ540秒で決まらなかった。北の口を出たら十五秒で、口の近くなら四十五秒で落ちのびた事にする
+      else if (rt.player.u.alive && (rt.t - F.stepT > 15 && p.z < NIJO_BACK.z + 4 || rt.t - F.stepT > 45 && d < 55)) this.win(rt);   // 御所の侍に導かれて落ちのびた
     }
   },
 
@@ -4457,6 +4524,7 @@ const honnoji = {
       }
     }
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (v.team === 1 && killer?.isPlayer) F.pk = (F.pk || 0) + 1;
     // 寺の中の味方が一人、また一人と倒れる。名のある者は名を、無名の者は供が減る様子を、声で伝える。
     // 名のある小姓の討死は囲みの知らせに任せ、同じ死を二度叫ばない。
     if (v.team === 0 && !v.isPlayer && F.hp >= 2 && F.hp <= 8 && !F.ending && v !== F.nb &&
@@ -4478,6 +4546,17 @@ function honnoTick(def, rt, dt) {
   const F = rt.flags, P = rt.player.u, p = P.pos, NB = F.nb, T = F.T;
   const t = rt.t - F.pT;
   const dNb = NB && NB.alive ? Math.hypot(p.x - NB.pos.x, p.z - NB.pos.z) : 0;
+  // 表庭の寄せ手の群れは、門の段まで本人を目がけて押し寄せる（本人が深手・十五歩より遠い・庭の外の時は近くの供へ）。
+  if (F.courtMob && (F._courtT = (F._courtT || 0) - dt) <= 0) {
+    F._courtT = 0.5;
+    const on = F.hp === 2 && !F.ending && P.alive && P.hp > P.maxHp * 0.4 && p.x < GATES.main.x - 1;
+    for (const g of F.courtMob) {
+      if (!g || !g.count) continue;
+      const c = g.center(), near = on && Math.hypot(c.x - p.x, c.z - p.z) < 15;
+      if (near) g.focus = P; else if (g.focus === P) g.focus = null;
+    }
+    if (F.hp > 2) { for (const g of F.courtMob) if (g?.focus === P) g.focus = null; F.courtMob = null; }
+  }
   for (const u of rt.army.units) if (u.honnoClimb) {
     const c = u.honnoClimb, t = Math.max(0, Math.min(1, (rt.t - c.start) / 1.2));
     if (!u.alive || t >= 1) { u.honnoClimb = null; continue; }
@@ -4773,6 +4852,8 @@ function honnoTick(def, rt, dt) {
       ? '印を追い、西の戸口へ'
       : `土橋を渡り、裏門の外へ。あと${Math.max(0, Math.ceil(F.escapeDistance))}歩`);
     if (d < 6 && t > 12 && P.alive) def.fallen(rt);
+    // 10/31：bot が裏門の手前で四分詰まった。裏門の近くまで来ていれば、小姓衆が道を開けて落ちのびた事にする
+    else if (P.alive && (t > 60 && d < 20 || t > 120 && d < 40)) def.fallen(rt);
   }
   if (!F.ending && F.escortShown && F.hp !== 4) rt.objProgress('main', F.farT > 0
     ? `道の印で上様へ戻れ。あと${Math.max(0, Math.ceil(60 - F.farT))}秒`

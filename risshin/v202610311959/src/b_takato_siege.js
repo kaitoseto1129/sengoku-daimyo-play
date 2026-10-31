@@ -1826,7 +1826,9 @@ const takato_siege = {
         if (F.honFell) rt.obj('main', '本丸の旗へ集まり、守れ', 'main', true);
       }
       // 三百秒で本丸へ届かなければ、信忠の本隊が塀を越えて攻め入る（信長公記：信忠自ら塀際へ）。門は破れ、曲輪は次々に落ちる。
-      if (F.step >= 1 && !F.honFell && rt.t - F.stepT >= 300 && !F.allIn) {
+      // 10/31：信忠の本隊が塀を越えるのは、本人が討って働いた時だけ（立っているだけで城が落ちないように）
+      const hand = F.handKills.san + F.handKills.ni + F.handKills.hon + (F.pushKills?.hon || 0);
+      if (F.step >= 1 && !F.honFell && rt.t - F.stepT >= 300 && !F.allIn && hand >= 2) {
         F.allIn = true;
         for (const g of Object.values(F.gates)) if (g.struct.alive && !g.opened) { g.struct.hp = 0; g.breached = true; g._openNow(true); g.struct.alive = false; }
         rt.say('使番', '信忠様の本隊が塀を越えたぞ！　本丸へ攻め入れ！', 4);
@@ -1835,7 +1837,9 @@ const takato_siege = {
         this.honTaken(rt);
       }
       // 本丸の門を破って本丸へ入った後なら、三百八十秒で城は落ちた扱い（城兵は主殿に籠って果てた）。止めずに結果へ進める。
-      if (F.step >= 1 && F.honFell && rt.t - F.stepT >= 380 && F.honHold < 12 && rt.player.u.alive) {
+      const pp = rt.player.u.pos;
+      if (F.step >= 1 && F.honFell && rt.t - F.stepT >= 380 && F.honHold < 12 && rt.player.u.alive &&
+          F.C.kuruwa.hon.test(pp.x, pp.z) && Math.hypot(pp.x - F.honPost.x, pp.z - F.honPost.z) < 30) {
         const lord = F.keep.lord;
         if (lord?.alive) { lord.invuln = false; lord.hp = 0; rt.army.kill(lord, null); }   // 盛信は主殿で果てた
         F.keepFell = true;

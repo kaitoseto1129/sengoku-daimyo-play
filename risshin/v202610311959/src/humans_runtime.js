@@ -497,16 +497,20 @@ let rushNear = 0;
 //   一コマの作りの時間を広げ二人まで作る（遅い機械で、目の前の兵が部品の姿のまま数秒残った。比叡山 10/29）
 let rushFlat = 0;
 const canMake = () => (makeCool <= 0 || rushNear > 0 || (rush > 0 && makeCool <= 2)) && madeThisFrame < (rushFlat > 0 ? 2 : 1);
+// 作り直しで手放す人の骨の絵（boneTexture）を GPU から返す。three は skeleton.dispose() を呼ばない限り残す（設楽原・三木で 3 分に 100 枚ほど増え続けた。10/31）。
+//   同じ骨をまた描く時は three が絵を作り直すので、使い回しの人でも害はない
+function freeSkeletons(h) { h?.root?.traverse((o) => { if (o.isSkinnedMesh && o.skeleton && o.skeleton.boneTexture) o.skeleton.dispose(); }); }
 function useHuman(u, force = false) {
   // 本物の胴丸を着るはずの人を、胴丸を読む前に作っていたら作り直す
   // 本人は、姿（look）が差し替えられた時（信長で遊ぶ時など）も作り直す。本人と名のある者は、作る数の枠に関わらず作り直す
   const keyMan = qualityKeeper(u);
   if (MEM_TIGHT && !keyMan && !u.human) borrowHuman(u);
-  if ((!MEM_TIGHT || keyMan) && u.human && u.isPlayer && u.look && u.human.look !== u.look && u.human.lookSrc !== u.look && (force || keyMan)) { dropHuman(u); u.human.root.parent?.remove(u.human.root); releaseHumanBounds(u.human); u.human = null; }
+  if ((!MEM_TIGHT || keyMan) && u.human && u.isPlayer && u.look && u.human.look !== u.look && u.human.lookSrc !== u.look && (force || keyMan)) { dropHuman(u); u.human.root.parent?.remove(u.human.root); releaseHumanBounds(u.human); freeSkeletons(u.human); u.human = null; }
   if ((!MEM_TIGHT || keyMan) && u.human && !u.human.domaru && DOMARU.ready && (wantsDomaru(u.human.look) || crowdDomaru(u.human.look)) && (force || keyMan || canMake())) {
     dropHuman(u);
     u.human.root.parent?.remove(u.human.root);
     releaseHumanBounds(u.human);
+    freeSkeletons(u.human);
     u.human = null;
   }
   if (!u.human) {

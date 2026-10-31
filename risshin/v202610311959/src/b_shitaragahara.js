@@ -2604,7 +2604,9 @@ const shitaragahara = {
     placeGroup(rt, F.spears[0], OUTER_POST_X - 2, F.prepPt.z);
     // 10/30：開戦すぐから、柵の前（連吾川の柵際）で真田の先手と誘いの槍組が競り合う。
     //   兵は足さず、今いる兵の置き場と出る時刻だけを動かす。持ち場から見て正面、柵の十数メートル先。
-    F.skirm = { x: SB.x0 + 10, z: F.prepPt.z + 6, until: 30 };
+    // 10/31 点付け「乱戦が前に来ない」：押し合いが柵の十数メートル先の左奥で小さかった。兵は足さず、
+    //   柵のすぐ外（五〜七メートル）・持ち場から見た画面の真ん中の筋へ寄せる。
+    F.skirm = { x: SB.x0 + 6, z: F.prepPt.z + 2, until: 30 };
     placeGroup(rt, F.waveGroups[0], F.skirm.x + 1.6, F.skirm.z); F.waveGroups[0].noRout = true;
     placeGroup(rt, F.spears[1], F.skirm.x - 1.4, F.skirm.z + 4);
     // 中ほどの控えの槍組も、最初の競り合いだけ北の柵の前へ出す（中央の寄せの前に元の持ち場へ戻す）

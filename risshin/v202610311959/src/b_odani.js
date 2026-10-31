@@ -4082,7 +4082,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     }
     const nu = F.nagamasa?.units[0];
     // 旗本が崩れるか二十五秒たつと、長政が自ら打って出る。長政を討てば本丸は落ちる
-    if (nu?.alive && !F.nagaCharge && (left <= 2 && rt.t - F.honT > 10 || rt.t - F.honT > 25)) {
+    if (nu?.alive && !F.nagaCharge && (left <= 2 && rt.t - F.honT > 6 || rt.t - F.honT > 12)) {
       F.nagaCharge = true;
       const ng = F.nagamasa;
       // 本丸の口から大堀切・中丸を抜け、京極丸の方へ自ら打って出る（尾根の道をたどる）
@@ -4537,6 +4537,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       F.belowWait = d < 16 && guards === 0 && joined < 3 && F.patrolWave === AMBUSH_IDS.length ? (F.belowWait || 0) + dt : 0;
       if (F.belowWait >= 8 && F.patrolWave === AMBUSH_IDS.length) this.assault(rt);
       else if (d < 16 && guards === 0 && joined >= 3 && F.patrolWave === 3) this.assault(rt);
+      // 10/31：iPhone の bot が登り口で540秒詰まった（実機は一戦が九分を越える）。斜面に残った番兵を待ち続けず、本人が登り口の近くにいれば二分半で先手が取りつく。②〜④の後押しの秒も詰めた
+      else if (rt.t - (F.stepT || 0) >= 150 && rt.player.u.alive && Math.hypot(p.x - BELOW.x, p.z - BELOW.z) < 35) this.assault(rt);
       else if (updateHud) {
         const order = F.guideReturning ? '来た道の角の印へ戻れ'
           : F.guideBlocked ? '来た道へ戻る足場を探せ'
@@ -4612,9 +4614,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     if (F.step === 2) {
       this.ambushTick(rt);
       // 10/30：屋敷と西木戸で四分止まる事が続いた（bot）。段に入って七十秒で屋敷の兵は崩れ、屋敷を取って四十五秒で西木戸は羽柴の手が破る
-      if (!F.onoDone && rt.t - F.stepT > 70 && !F.onoRout) { F.onoRout = true; for (const g of [F.ono, F.relief]) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
+      if (!F.onoDone && rt.t - F.stepT > 40 && !F.onoRout) { F.onoRout = true; for (const g of [F.ono, F.relief]) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
       if (F.onoDone && F.onoDoneT === undefined) F.onoDoneT = rt.t;
-      if (F.onoDone && rt.t - F.onoDoneT > 45) { const wg = F.westGate?.struct; if (wg && !wg.opened && wg.hp > 0) rt.army.damage(wg, wg.hp + 1, null, { kind: 'gateWork' }); }
+      if (F.onoDone && rt.t - F.onoDoneT > 25) { const wg = F.westGate?.struct; if (wg && !wg.opened && wg.hp > 0) rt.army.damage(wg, wg.hp + 1, null, { kind: 'gateWork' }); }
       if (!F.onoDone && gone(F.ono) && gone(F.relief)) this.onoFall(rt);
       const gate = F.westGate?.struct, inner = F.innerGate?.struct;
       // 先手の掛矢も西木戸を打つ。本人が門前へ着けなくても、三十秒を過ぎた木戸は少しずつ傷む（一戦を四〜七分に）。
@@ -4781,11 +4783,11 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       // 木戸を破って三十秒で曲輪の残兵は崩れ、五十秒で京極丸は取れた事にする（本人が曲輪の内かそば）
       if (F.onoDone && breached) {
         if (F.kyoBreachT === undefined) F.kyoBreachT = rt.t;
-        if (rt.t - F.kyoBreachT > 30 && rt.t >= (F.kyoRoutAt || 0)) {
+        if (rt.t - F.kyoBreachT > 15 && rt.t >= (F.kyoRoutAt || 0)) {
           F.kyoRoutAt = rt.t + 4;
           for (const u of rt.army.units) if (u.team === 1 && battleReady(u) && !u.isStruct && u.group && !u.group.historicalLord && F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z)) { u.group.noRout = false; u.group.morale = 0; }
         }
-        if (rt.t - F.kyoBreachT > 50 && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 30)) { (F.trig ||= []).push('cut:time'); this.cut(rt); return; }
+        if (rt.t - F.kyoBreachT > 25 && (inside || Math.hypot(p.x - KC.x, p.z - KC.z) < 30)) { (F.trig ||= []).push('cut:time'); this.cut(rt); return; }
       }
       holdInterrupted(rt, F.captureT, inside, left, friends >= 6,
         '六人揃わぬ！　内に残れ。揃ってから十秒守り直せ');
@@ -4910,7 +4912,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           F.cutRout = true;
           for (const g of [F.south, F.north]) if (!gone(g)) { g.noRout = false; g.morale = 0; }
         }
-        if (F.holdT >= KYO_HOLD || rt.t - F.stepT > 50 && rt.player.u.alive) { (F.trig ||= []).push(F.holdT >= KYO_HOLD ? 'koma:player' : 'koma:time'); this.attackKoma(rt); }
+        if (F.holdT >= KYO_HOLD || rt.t - F.stepT > 30 && rt.player.u.alive) { (F.trig ||= []).push(F.holdT >= KYO_HOLD ? 'koma:player' : 'koma:time'); this.attackKoma(rt); }
       } else if (F.honAttack) {
         this.honTick(rt, dt, updateHud);
       } else if (!F.komaDown) {
@@ -4985,7 +4987,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         }
         if (updateHud) rt.objProgress('main', !F.C.kuruwa.koma.test(p.x, p.z) ? F.guideReturning ? '来た道の角の印へ戻れ。そこから北木戸へ進め' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : F.komaEntered ? '道の印から北木戸を抜け、小丸へ戻れ' : '道の印から北木戸を抜け、小丸へ進め' : enemies > 0 ? `小丸の敵あと${enemies}人。印の先で味方と退けよ` : friends < 4 ? `あと${4 - friends}人で四人揃う。内で後続を待て` : `内を離れると初めから。あと${Math.max(0, Math.ceil(12 - F.captureT))}秒守れ`);
         // 10/30：小丸の奥に残る数人を探し続けて止まらないよう、攻めかかって一分で小丸は落ちる
-        if (F.captureT >= 12 || rt.t - F.komaAttackT > 60 && rt.player.u.alive) this.komaFall(rt);
+        if (F.captureT >= 12 || rt.t - F.komaAttackT > 40 && rt.player.u.alive) this.komaFall(rt);
       }
     }
     // 曲輪内でも、敵まで通れない時は札の補足を戻る印にそろえる。

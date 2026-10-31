@@ -850,9 +850,25 @@ function passFortScenery(rt) {
   // 10/30 vis_h：敵が少なかった（点付け）。本物の兵は足さず、木戸の奥の坂の上（観音丸の奥から次の郭への道）に一揆勢の大きな遠景の群れ。
   // 持ち場から木戸越しに見上げる所。一つの群れなので描く回数は一つ分だけ増える。
   const fx = gx + ux * 46, fz = gz + uz * 46;
-  const host = W.addDistantArmy({ x: fx, z: fz, w: 34, d: 14, count: 110, facing: Math.atan2(gx - fx, gz - fz), team: 1,
+  // 10/31 基準4（大軍対大軍）：同じ一つの群れ（描く回数は増やさない）で、木戸の奥の坂と左右の尾根に一揆勢を詰める。
+  let seed = 15995;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const people = [];
+  for (const [ox, oz, w, d, n] of [[0, 50, 60, 22, 210], [30, 30, 24, 12, 70], [-30, 30, 24, 12, 70]]) {
+    const cx = gx + ux * oz + uz * ox, cz = gz + uz * oz - ux * ox, face = Math.atan2(gx - cx, gz - cz);
+    for (let k = 0; k < n; k++) {
+      const a = (rnd() - 0.5) * w, b = (rnd() - 0.5) * d;
+      people.push({ x: cx + uz * a + ux * b, z: cz - ux * a + uz * b, facing: face + (rnd() - 0.5) * 0.5,
+        k: 'spear', flag: rnd() < 0.3 ? 1 : 0 });
+    }
+  }
+  const host = W.addDistantArmy({ x: fx, z: fz, w: 40, d: 16, count: people.length, people, facing: Math.atan2(gx - fx, gz - fz), team: 1,
     armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.1, banners: 0, kind: 'spear', seed: 15995, host: false });
   if (host?.army) { host.army.noWake = true; F.echizenIkkiHost = host; }
+  // 木戸は共通の部品（kido の冠木門）のまま門構えを一回り大きく見せる（扉は破れて飛ぶ形を保つ）。当たり・口の幅・耐久は元のまま。
+  for (const g of [F.gateKannon, F.gateKinome]) {
+    if (g?.frame) g.frame.scale.set(1.3, 1.35, 1.3);
+  }
   // 味方の控えは持ち場のすぐ脇（遠景の軽い姿が目の前で塊に見える）なので、見る所は元のまま（前と同じく作らない）。
   W.lastFocus = focus0;
   // 味方の控えは持ち場と木戸の間、道の脇に並ぶ。
