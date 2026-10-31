@@ -1442,7 +1442,7 @@ function cappedList(rt, list) {
 function enemyGroup(rt, o, list) {
   const g = spawnEnemy(rt, { fixed: true, noGuard: true, formation: 'yari', ...o }, []);
   g.kgPending = true;
-  rt.flags.pursuers.push({ g, list, at: o.anchor, source: o.anchor.x > 40 ? 2 : o.anchor.x < -20 ? 1 : 0 });
+  rt.flags.pursuers.push({ g, list, at: o.anchor, source: o.anchor.x > 40 ? 2 : o.anchor.x < -20 ? 1 : 0, rush: !!o.rush });
   return g;
 }
 function pursuersTick(rt) {
@@ -1501,7 +1501,8 @@ function pursuersTick(rt) {
     }
     const startZ = fromEast ? -50 : g.anchor.z;
     // 殿が次へ退いた後も、昔の出現点へ引き返さず現在の備を追う。
-    const goalZ = F.fleeing ? KUTSUKI.z : Math.max(q.at.z, LINES[F.line].z - 24);
+    // 開戦の先手（rush）は備の槍の九歩手前まで寄せてから掛かる（遠い持ち場で止まって、25秒の画面が空にならないように）
+    const goalZ = F.fleeing ? KUTSUKI.z : q.rush ? LINES[F.line].z - 9 : Math.max(q.at.z, LINES[F.line].z - 24);
     let goalX = q.at.x;
     for (let j = 0; j < ROAD.length - 1; j++) {
       const a = ROAD[j], b = ROAD[j + 1];
@@ -1518,6 +1519,12 @@ function pursuersTick(rt) {
       gg.formation = formation; gg.roadColumn = false; gg._routeCols = 0; gg._slotFit = null;
     };
     if (F.fleeing) { g.speed = 3.3; }
+    // 開戦の先手（rush）は道の列で止まらず、一の備の槍の前の兵を目当てに駆け寄って揉み合う（25秒の乱戦。兵の数は同じ）
+    //   持ち場（隊の芯）を備の槍先（五歩先）へ移す。打ち合う相手の無い後列が、遠い寄せ口へ戻らないように
+    if (q.rush && !F.fleeing) {
+      g.path = null; g.onArrive = null; g.order = 'attack'; g.formation = formation; g.roadColumn = false;
+      g.anchor.x = LINES[F.line].x - 2; g.anchor.z = LINES[F.line].z - 5; g.facing = 0; g._fitAt = 0;
+    }
     g.kgPending = false;
     // 上限で一部しか替えられなかった時は残りも同じ列で待つ。
     let left = used;
@@ -3034,7 +3041,7 @@ const kanegasaki = {
       rt.zone('kutsuki', KUTSUKI.x, KUTSUKI.z, KUTSUKI.r);
       rt.say('木下藤吉郎', '法螺貝と退き太鼓にござる！　追手はわしらが止めます、殿は若狭へ！', 4);
       rt.after(4, () => rt.say('織田信長', '藤吉郎、金ヶ崎に残れ。池田勝正と追手を止めよ', 3));
-      rt.after(5, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/30。元は9秒）
+      rt.after(2, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/31。元は9秒→5秒）
       F.t0 = 0;
       return;
     }
@@ -3048,7 +3055,7 @@ const kanegasaki = {
       if (F.ending || F.fleeing || F.step > 1) return;
       rt.say('木下藤吉郎', '追手へ槍を向けよ。退けの下知で、組と次の旗へ下がれ', 3);
     });
-    rt.after(5, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/30。元は9秒）
+    rt.after(2, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/31。元は9秒→5秒）
     F.t0 = 0;
   },
 
@@ -3086,12 +3093,16 @@ const kanegasaki = {
     F.w1 = [
       // 開戦の乱戦（10/30）：先手は峠道の曲がりで遠景から実兵に替わり、一の備の 12m 先まで駆け下りて槍とぶつかる。
       //   兵は足さず、崩れにくく傷を浅くして、持ち場から25秒の画面に押し合い斬り合う群れを残す。
-      enemyGroup(rt, { faction: 'asakura', name: '朝倉の先手', anchor: { x: 6, z: -46 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 100, noRout: true, defMult: 1.6, fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, speed: 3.6 },
+      enemyGroup(rt, { faction: 'asakura', name: '朝倉の先手', anchor: { x: 6, z: -46 }, facing: 0, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 100, noRout: true, defMult: 1.6, fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, speed: 3.6, rush: true },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], ASAKURA)),
     ];
     rt.marker('w0', centerOf(F.w1[0]), () => `朝倉の先手・旗が見える`, { red: true, group: F.w1[0] });
-    // 先手が崩れないのは最初の揉み合いの間だけ（二十五秒）。そのあとは士気の仕組みに任せる
-    rt.after(25, () => { const g = F.w1 && F.w1[0]; if (g) g.noRout = false; });
+    // 先手が崩れないのは最初の揉み合いの間だけ（二十八秒まで）。そのあとは士気の仕組みに任せる
+    //   揉み合いの間は傷も浅く（守り三倍）、25秒の画面で先手が討ち尽くされて備の前が空かないようにする
+    F.w1[0].defMult = 3;
+    rt.after(26, () => { const g = F.w1 && F.w1[0]; if (g) { g.noRout = false; g.defMult = 1.6; } });
+    // 開戦25秒（10/31）：一の備の西の田で、殿の他の手と朝倉の大軍の組み合い（軽い作り）を先手と同時に始め、備の前に寄せる
+    rt.after(1, () => { if (!rt.over && !F.ending) this.lineClash(rt); });
     rt.after(14, () => {
       if (rt.over || F.ending || F.step !== 1) return;
       const g = enemyGroup(rt, { faction: 'asakura', name: '朝倉の東の追手', anchor: HIKIDA_FROM, facing: HIKIDA_FACING, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 95, fleeDir: { x: 1, z: 0.3 }, dmgMult: 0.65, speed: 2.6 },
@@ -3127,7 +3138,8 @@ const kanegasaki = {
   lineClash(rt) {
     const F = rt.flags;
     if (F.cl) return;
-    F.cl = clash(rt, { x: -14, z: -74, facing: Math.PI, w: 16, gap0: 30, closeSpeed: 3.4, seed: 1577, noRout: true, killRate: 0.14, measuredMelee: true,
+    // 一の備（z -34）から三十歩ほど先。軽い兵は既定では本人の60m内を描かないので、18m の外は描く（備の前の大軍を25秒の画面に見せる）
+    F.cl = clash(rt, { x: -14, z: -64, facing: Math.PI, w: 16, gap0: 30, closeSpeed: 3.4, seed: 1577, noRout: true, killRate: 0.14, measuredMelee: true, realNear: 18,
       surge: { k: 'B', every: 40, count: 140, flank: 0.35 },
       A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 320, team: 0, faction: 'oda' },
       B: { flag: 'asakura', armor: ASAKURA.armor, count: 620, team: 1, faction: 'asakura', guns: true, flagRate: 0.5 } });

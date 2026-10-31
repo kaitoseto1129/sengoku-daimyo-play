@@ -1,6 +1,7 @@
 // 読み込みや舞台の作り直しをせず、同じ兵・隊・任務・時限の参照を保って戻す。
 // 形・材質・素材・音・画面は写さない。開戦時と、十二秒おきの二点だけを持つ。
 const memories = new WeakMap();
+export const RETRY_STAT = { n: 0, records: 0, fresh: 0 };   // 確かめ用：最後の写しの記録の数と、新しく作った記録の数
 const HUMAN_KEYS = new Set(['human', '_humanBuild', '_humanBuildLook', '_hq', 'humanPending']);
 const ROOT_KEEP = new Set(['game', 'hud', 'camera', 'def', 'environmentSound', 'warVoices', 'warSpeech', 'freezer', 'frustum', 'projView']);
 
@@ -23,7 +24,8 @@ export function startRemember(rt, extra, prev = null) {
   const keep = (o, k) => (o === rt && ROOT_KEEP.has(k)) || (o === rt.army && k === 'batch');
   const seen = new Set(), records = [], byObject = new Map(), stack = [extra, rt], time = rt.t;
   // 参照の索引も一ミリ秒の枠で作る。最後に全記録を反転・再走査する山を残さない。
-  function record(r) { records.push(r); byObject.set(r.o, r); }
+  let fresh = 0;
+  function record(r) { records.push(r); byObject.set(r.o, r); if (!prevMap || prevMap.get(r.o) !== r) fresh++; }
   function visit(o) { if (o) stack.push(o); }
   function one(o) {
     if (!o || typeof o !== 'object' || seen.has(o) || blocked.has(o) ||
@@ -54,12 +56,14 @@ export function startRemember(rt, extra, prev = null) {
     // 骨入りの人（humans.js の h）は、自分の鍵の値だけ覚えて中へは入らない。
     //   中（動きの mixer・骨の表・指の配列など）は一人 800 個の物・5000 の鍵があり、三つの写しで 30 万個の Map になって
     //   iPhone の WebContent を 2GB まで押し上げていた（10/19）。姿勢と動きは戻した次の更新で u の状態から描き直される
-    const shallow = !!(o.root && o.root.userData && o.root.userData.hum === o);
     const keys = Object.keys(o), r = prevOf(o);
     // 兵の骨入りの人（u.human）と作りかけ（_humanBuild）は写さず、戻す時も今の物をそのまま使う。
     //   写すと、捨てた人（evictHidden）が三つの写しに残り続ける（森部 70 秒で生きている人 80 に対し mixer 148・骨 1 万。10/20）。
     //   姿勢と動きは戻した次の更新で u の状態から描き直される
     const isUnit = 'human' in o && 'mesh' in o && 'pos' in o;
+    // 消えた兵（沈み終えた亡骸・退いて消えた者）は自分の鍵だけ覚えて中へは入らない。もう動かず、戻す先でも消えたまま
+    //   （10/31：援軍のたびに消えた兵の中身まで三つの写しが抱え、iPhone の記憶が毎分 6〜7MB 増えて三木・設楽原が落ちた）
+    const shallow = !!(o.root && o.root.userData && o.root.userData.hum === o) || (isUnit && o.gone && !o.alive);
     // 前の写しと同じ鍵・同じ値なら、前の記録をそのまま使う（中の物はこれまでどおりたどる）
     if (r && r.values && r.length === o.length) {
       let n = 0, same = true;
@@ -99,6 +103,7 @@ export function startRemember(rt, extra, prev = null) {
   function finish() {
   // 写し終わりに前の写し・seen・blocked を手放す（閉包が戦の始めからの写しを鎖でつかまないように）
   prevMap = null; seen.clear(); blocked.clear(); stack.length = 0;
+  RETRY_STAT.records = records.length; RETRY_STAT.fresh = fresh; RETRY_STAT.n++;
   return { time, byObject, restore() {
     // 記録の順は変えず、戻す時だけ末尾からたどって従来の復元順を保つ。
     for (let i = records.length - 1; i >= 0; i--) {
