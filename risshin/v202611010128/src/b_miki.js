@@ -2749,8 +2749,7 @@ const miki = {
   update(rt, dt) {
     const F = rt.flags;
     // 並ぶだけの槍列の前へ、毛利の前備えを本人の見る先から押し寄せさせ、奥に別所勢の大軍（10/31 点付け70）
-    frontRig(rt, dt, { until: 45, foes: () => [F.escortFront],
-      host: { team: 1, flag: 'maru', armor: 0x3a3028, count: 130, w: 44, d: 14, flagRate: .55, seed: 15796 } });
+    frontRig(rt, dt, FRONT_RIG);
     mikiKidoLight(rt, dt);
     // 空の色のしきい値だけで星が一斉に消えないよう、夜明けに合わせて薄くする。
     if (rt.world.stars) {
@@ -3240,6 +3239,9 @@ export { miki };
 // 置き場を決め打ちにせず、本人の見る先（カメラから本人への向き）の前 8〜25m へ敵味方の組を寄せて斬り合わせ、
 // その奥 30〜60m に旗の林立する敵の大軍（軽い作り）を置く。本物の兵は足さない。
 // o：{ until（組を寄せる秒）, defMult, release(rt)（寄せ終えた後の後始末）, hostUntil, host（addDistantArmy の設定）, hostOk(x, z), meleeOk(x, z), meleeR, foes(rt), allies(rt) }
+// 毎コマ渡す決まりは一つを使い回す（10/31 iPhone の落ち：毎コマ物と関数を作らない）
+const FRONT_RIG = { until: 45, foes: (rt) => [rt.flags.escortFront],
+  host: { team: 1, flag: 'maru', armor: 0x3a3028, count: 130, w: 44, d: 14, flagRate: .55, seed: 15796 } };
 function frontRig(rt, dt, o) {
   const F = rt.flags, P = rt.player.u, cam = rt.camera, W = rt.world;
   if (!P?.alive || !cam || rt.over) return;

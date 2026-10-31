@@ -40,6 +40,8 @@ function fitPinnedArrow(a, parentReady = false) {
 // 刺さった矢は、どの戦でも胴・骨・馬の倍率を受け継がず実寸を保つ（稲生などで腰から何十メートルの棒が伸びた。kaito 10/22）。
 // 戦の定義で false を書いた時だけ、古い付け方に戻す。
 const pinLife = (d) => d.lifeSizePinnedArrows !== false && d.keepPinnedArrowSize !== false;
+// 塀・柵の名の見分け。正規表現の字を回りの中に書くと、通るたびに新しい物を作る（10/31 三木：鉄砲の索敵で毎秒数十 MB の屑。iPhone の落ちの元の一つ）
+const RX_FENCE = /柵/, RX_WALL = /塀|壁|門|石垣|櫓/;
 const pinAxis = (d) => d.pinnedArrowAxisScale !== false;
 const arrowMatrixWorld = THREE.Object3D.prototype.updateMatrixWorld;
 // 親から子へ行列を更新する途中なら、親の最新の倍率をそのまま使える。
@@ -373,8 +375,8 @@ export const ArmyRanged = {
       if (q < 0) continue;
       const x = a.x + (b.x - a.x) * q, z = a.z + (b.z - a.z) * q;
       const y = a.y + 1.46 + (b.y - a.y) * q;
-      const top = this.world.heightAt(x, z) + (s.h || (/塀|壁|門|石垣|櫓/.test(s.name || '') ? 3 : 2.1));
-      if (y < top) k *= /柵/.test(s.name || '') ? 0.6 : 0;
+      const top = this.world.heightAt(x, z) + (s.h || (RX_WALL.test(s.name || '') ? 3 : 2.1));
+      if (y < top) k *= RX_FENCE.test(s.name || '') ? 0.6 : 0;
     }
     // 竹束：的のすぐ前（3.5m 内）で、撃つ線の上 0.6m 内に竹束を持つ者が立っていれば、弾はほとんど通らない
     const ux = (b.x - a.x) / L, uz = (b.z - a.z) / L;
@@ -995,7 +997,7 @@ export const ArmyRanged = {
 
   // ---------------- 狭間・柵ごしに撃つ ----------------
   // 塀・柵の上の高さ
-  wallTop(s, x, z) { return this.world.heightAt(x, z) + (s.h || (/塀|壁|門|石垣|櫓/.test(s.name || '') ? 3 : 2.1)); },
+  wallTop(s, x, z) { return this.world.heightAt(x, z) + (s.h || (RX_WALL.test(s.name || '') ? 3 : 2.1)); },
   // u から tp へ撃つ線を、自分の方の塀・柵がさえぎるか（さえぎる物を返す。無ければ null）
   // 狭間の後ろに立つ者はその穴から、柵のすぐ後ろ（筒先が柵の外へ出る所）の者は柵の隙間から、櫓や石垣の上の者は塀の上越しに撃てる
   shotBlocked(u, tp) {
@@ -1006,7 +1008,7 @@ export const ArmyRanged = {
       const q = segHit(u.pos.x, u.pos.z, tp.x, tp.z, s.seg);
       if (q < 0) continue;
       const cx = u.pos.x + (tp.x - u.pos.x) * q, cz = u.pos.z + (tp.z - u.pos.z) * q;
-      if (/柵/.test(s.name || '') && q * L < 1.1) continue;
+      if (RX_FENCE.test(s.name || '') && q * L < 1.1) continue;
       const lineY = eye + ((tp.y ?? u.pos.y) + 1.2 - eye) * q;
       if (lineY > this.wallTop(s, cx, cz) + 0.25) continue;
       const m = u.sama;
@@ -1020,7 +1022,7 @@ export const ArmyRanged = {
   hiddenBehind(u, o) {
     if (o.isStruct) return false;
     for (const s of this.structs) {
-      if (!s.alive || s.opened || !s.seg || s.team === u.team || s.team !== o.team || /柵/.test(s.name || '')) continue;
+      if (!s.alive || s.opened || !s.seg || s.team === u.team || s.team !== o.team || RX_FENCE.test(s.name || '')) continue;
       const q = segHit(u.pos.x, u.pos.z, o.pos.x, o.pos.z, s.seg);
       if (q < 0) continue;
       const cx = u.pos.x + (o.pos.x - u.pos.x) * q, cz = u.pos.z + (o.pos.z - u.pos.z) * q;
@@ -1062,7 +1064,7 @@ export const ArmyRanged = {
   // 撃つ持ち場：柵なら、撃つ線が柵を越す所のすぐ後ろ。塀なら、近くの空いた狭間の真後ろ（一人ずつ）
   loopPost(u, tp, wb) {
     if (!wb.alive || wb.opened) { this.freeSama(u); return null; }
-    if (/柵/.test(wb.name || '')) {
+    if (RX_FENCE.test(wb.name || '')) {
       const [ax, az, bx, bz] = wb.seg, dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, L = Math.sqrt(l2);
       const q = segHit(u.pos.x, u.pos.z, tp.x, tp.z, wb.seg);
       const t = q < 0 ? 0.5 : Math.max(0.08, Math.min(0.92, (((u.pos.x + (tp.x - u.pos.x) * q) - ax) * dx + ((u.pos.z + (tp.z - u.pos.z) * q) - az) * dz) / l2));
