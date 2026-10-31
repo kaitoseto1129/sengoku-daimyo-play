@@ -754,6 +754,7 @@ function burnHouse(rt, h) {
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
 import { jinkeiBuild } from './jinkei.js';
+import { dressStage } from './stage_dress.js';
 
 // 備えごとの人数・細かな持ち場は復元値。総勢とは別に本物の兵を増やさない。
 // 名の伝わらない持ち場に架空の将を置かず、旗と紋は既存の家の物で示す。
@@ -1603,6 +1604,7 @@ const arioka = {
   // 乾いて凍てた土の町筋に荷車の轍、霜枯れの低い草。木戸と辻で槍を合わせた所ほど、倒れた槍・荒木方の旗・矢が多い。
   timeslip: {
     wet: 0.1, dust: 0.4, trample: 0.3, debris: 1, arrows: 0.7,
+    grassShape: 'blade', // 10/31 霜枯れの草を板の絵でなく細い葉の株に。
     mudColor: 0x7a6c5c, grassLift: 0.15, grass: 0x7e7252, grassTints: [0xffffff, 0xd8c8a0, 0xb8ac88], grassH: 0.8, tallGrass: 0.45,
     flagColors: [0xe6dfcc, 0x24211e, 0x2e3a52],
     fights: [[GATE.x, GATE.z, 26], [TOWN_X - 24, GATE.z, 24], [TOWN_X - 12, -70, 24], [TOWN_X, -14, 22]],
@@ -2412,6 +2414,9 @@ const arioka = {
     // 有岡だけの上書きとし、ほかの戦の床や堀の判定は変えない。
     const moatGround = W.heightAt.bind(W);
     W.heightAt = (x, z) => ariBridgeHeight(moatGround, x, z, bridgeY);
+    // 10/31 木戸の外の地面が砂色と灰緑の平らな一枚だった。踏み跡の土・窪みの泥・草の斑と半ば埋もれた石を混ぜる（形と材質は共通の束。町の内は空ける）。
+    dressStage(rt, { at: { x: GATE.x - 14, z: GATE.z }, heading: Math.PI / 2, huts: 0, fence: false, flag: false, yagura: false, clutter: 0, fire: false,
+      rocks: 5, wet: 0.6, trodden: 0.8, radius: 42, avoid: (x) => x > GATE.x - 3 });
     rt.setPhase('brief');
     rt.banner('一年の囲み。今、木戸が開く', '味方は織田。城の町へ入り、帰り道を守れ');
     rt.obj('main', HI(rt) ? '組をそろえ、開門を待て' : '先手の後ろで開門を待て', 'main', true);

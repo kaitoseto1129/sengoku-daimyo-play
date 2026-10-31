@@ -796,18 +796,27 @@ function farHillCastle(rt, W) {
     }
     W.addFire(x0 + 2, z + 3, { torch: true, h: L - W.heightAt(x0 + 2, z + 3) + 1.3, size: 0.6, smoke: false, nightOnly: true, lightRadius: 16, lightColor: 0xffa060, lightStrength: 1.6, lightDecay: 0 });
   }
-  // 川向こうの低い尾根（比高約12m）にも、川へ向く段の板塀と二重櫓を二か所。持ち場から西・北西を見た奥に屋根が並ぶ。
-  for (const z of [-84, -112, -138]) {
-    let x0 = null;
-    for (let x = -90; x > -140; x -= 0.5) if (W.heightAt(x, z) >= 8) { x0 = x; break; }
-    if (x0 === null) continue;
-    castlePart(W, 'hei', { pts: [[x0 + 1, z - 7], [x0 + 1, z + 7]], yAt: () => 8.2, h: 2.2, kind: 'ita', sama: 1.6 }, o);
-    castlePart(W, 'niju', { x: x0 - 5, z, rot: Math.PI / 2, y: W.heightAt(x0 - 5, z), w: 8, d: 6, h1: 4, h2: 3.2, stone: W.heightAt(x0 - 5, z) - 1.5 }, o);
-    W.addFire(x0 + 2, z + 4, { torch: true, h: 8 - W.heightAt(x0 + 2, z + 4) + 1.3, size: 0.6, smoke: false, nightOnly: true, lightRadius: 16, lightColor: 0xffa060, lightStrength: 1.6, lightDecay: 0 });
-  }
+  // 川向こうの低い尾根の板塀と二重櫓は westRidgeCastle（石垣つき・描く遠さの内）に移した。
   const top = TOTTORI_SEATS.find(k => k.id === 'hamasaka');
   castlePart(W, 'niju', { x: top.x + 4, z: top.z + 2, rot: Math.PI / 2, y: top.y, w: 10, d: 7.5, h1: 4.4, h2: 3.4, stone: top.y - 1.5 }, o);
   W.addFire(top.x + 10, top.z + 2, { torch: true, h: top.y - W.heightAt(top.x + 10, top.z + 2) + 1.3, size: 0.7, smoke: false, nightOnly: true, lightRadius: 18, lightColor: 0xffa060, lightStrength: 1.8, lightDecay: 0 });
+}
+// 川向こうの低い尾根（比高8〜13m・持ち場から北西へ90〜140m）。描く遠さ（150m）の内に、川へ向く面の野面積みの石垣と
+// 上の板塀を一続きに回し、二重櫓を三つ、篝火で月夜にも石と屋根の形を見せる（城の共通の部品の使い回し・当たりなし・配置は推定）。
+function westRidgeCastle(rt, W) {
+  // 城の部品の面の予算は近い順に配られる。遠景は櫓二つと足もとの短い石垣だけにして、予算の内に収める。
+  const o = { era: 'early' };
+  for (const z of [-68, -88]) {
+    let x0 = null;
+    for (let x = -90; x > -140; x -= 0.5) if (W.heightAt(x, z) >= 7) { x0 = x; break; }
+    if (x0 === null) continue;
+    const y = W.heightAt(x0 - 4, z) + 2.2;
+    // 南から北へ（z の小さい方へ）並べると石の面が西を向く。川側（東・持ち場）へ向けるため北から南へ並べる。
+    castlePart(W, 'ishigaki', { pts: [[x0 + 0.6, z - 7], [x0 + 0.6, z + 7]], top: () => y, kind: 'nozura' }, o);
+    castlePart(W, 'niju', { x: x0 - 4, z, rot: Math.PI / 2, y, w: 9, d: 6.5, h1: 4.2, h2: 3.3, stone: y - 3 }, { ...o, style: 'shikkui' });   // 白壁で月夜にも櫓の形を立たせる
+    // 櫓の前の石垣の上に篝火。百歩先からも火の点で城の並びが読める。
+    W.addFire(x0 - 0.6, z + 4, { torch: true, h: y - W.heightAt(x0 - 0.6, z + 4) + 1.1, size: 1.5, smoke: false, lightRadius: 18, lightColor: 0xffa060, lightStrength: 1.8, lightDecay: 0 });
+  }
 }
 // 久松山の麓：持ち場の右手の切岸の裾を野面積みの石垣で締め、前に細い水堀（手本の写真の石垣と堀の水）。
 // 石垣の脇の篝火で、月夜にも石の一つ一つと水の照りを見せる。道の交わる所は空ける（当たりなし・配置は推定）。
@@ -2235,10 +2244,10 @@ const tottori = {
     rt.scene.add(kagaribiBatch(W, boatBeacons));
     for (const [x, z] of boatBeacons) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 22, lightColor: 0xff8a3a, lightStrength: 2.4, lightDecay: 0, waterReflection: true });
     // 川上で先に火をかけられた米舟。持ち場から北の川面に炎と煙が見え、焼く仕事が分かる。
-    for (const [z, rot, size] of [[-50, 0.35, 3.2], [-76, -0.2, 2.4]]) {
+    for (const [z, rot, size] of [[-50, 0.35, 4.4], [-76, -0.2, 3.6]]) {
       const x = riverX(z) + 4, m = boatMesh(), y = W.heightAt(x, z) + W.waterDepthAt(x, z);
       m.position.set(x, y - 0.1, z); m.rotation.set(0.06, rot, -0.12); rt.scene.add(m);
-      W.addFire(x, z, { size, smoke: false, lightRadius: 22, lightColor: 0xff7a2a, lightStrength: 2.2, lightDecay: 0, waterReflection: true, h: m.position.y - W.heightAt(x, z) + 0.6 });
+      W.addFire(x, z, { size, smoke: false, lightRadius: 30, lightColor: 0xff7a2a, lightStrength: 3.2, lightDecay: 0, waterReflection: true, h: m.position.y - W.heightAt(x, z) + 0.6 });
       W.addSmokeColumn(x, y + 3, z, { size: size + 0.4 });
     }
     tottoriLanding(rt, W);
@@ -2278,6 +2287,7 @@ const tottori = {
     taikoBarracks(rt, W);
     hisamatsuTerraces(rt, W);
     farHillCastle(rt, W);
+    westRidgeCastle(rt, W);
     hisamatsuFootIshigaki(rt, W);
     if (true) {
       // 兵糧は寄せ手の陣にだけ置く。空腹の城内へ米俵を増やさない。
@@ -2392,7 +2402,7 @@ const tottori = {
     for (const u of F.env.units) { u.noTarget = true; u.invuln = true; u.dmg = 0; }
     // 月を少し高く置き、槍の影が岸を端から端まで走る黒い線にならないようにする。月明かりは岸の兵と石垣の形が読める明るさ（10/30 採点：暗すぎる）。
     // 月と反対を向いた胴・船べりにも空の光を残す。月の影と夜空は保つ。
-    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 0.95, hI: 1.15, sun: 0xa9b3c4, hs: 0x7c88a0 }); rt.world.lookDark = true;
+    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 1.1, hI: 1.3, sun: 0xa9b3c4, hs: 0x7c88a0 }); rt.world.lookDark = true;
     // 出陣札の間は世界の更新が止まる。遠景の霞もここで夜色にそろえる。
     W.mountU.hazeCol.value.copy(W.scene.fog.color);
     W.mountU.vis.value = W.lookOf('night').vis;
@@ -2525,7 +2535,7 @@ const tottori = {
     rt.uninteract('b' + b.i); rt.unmark('b' + b.i);
     // 船べりの灯りを燃える荷へ替え、同じ舟が点光源の枠を二つ使わない。
     rt.world.removeFire(b.lamp); b.lamp = null;
-    rt.world.addFire(b.m.position.x, b.z, { size: 1.9, smoke: false, lightRadius: 18, lightColor: 0xff8a3a, lightStrength: 1.6, lightDecay: 0, waterReflection: true, h: b.m.position.y - rt.world.heightAt(b.m.position.x, b.z) }); rt.world.addSmokeColumn(b.m.position.x, b.m.position.y + 3, b.z, { size: 2.4 });
+    rt.world.addFire(b.m.position.x, b.z, { size: 3.2, smoke: false, lightRadius: 28, lightColor: 0xff8a3a, lightStrength: 2.8, lightDecay: 0, waterReflection: true, h: b.m.position.y - rt.world.heightAt(b.m.position.x, b.z) }); rt.world.addSmokeColumn(b.m.position.x, b.m.position.y + 3, b.z, { size: 2.4 });
     F.burnt++; F.burntT = rt.t;
     // 放火の順にかかわらず、手柄が荷の搬入を止めたことを一度ずつ返す。
     rt.say('組頭', F.burnt === 1 ? '一艘は燃えた。残る舟へ組ごと進むぞ。味方のそばを離れるな'

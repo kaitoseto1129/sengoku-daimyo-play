@@ -15,6 +15,7 @@ import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
 import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { castlePart } from './cgt_castle.js';
+import { flagTexture } from './textures.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -544,11 +545,28 @@ takato.frameCamera = (rt, pos, look) => {
   const on = !F.ending && !rt.over && !rt.player.lock && !rt.player.cine && !F.sanFell && u.pos.x > 80 && Math.abs(u.pos.z) < 30;
   TK_CAM.k += ((on ? 1 : 0) - TK_CAM.k) * .1;
   rt.def.footFrameMinDistance = TK_CAM.k > .3 ? 99 : 2.5; rt.def.selfFrameMinDistance = TK_CAM.k > .3 ? 99 : 0;   // 戦の定義は写しなので、その場の写しへ書く
+  takatoGateLook(rt, pos, look);
   if (TK_CAM.k < .01) return;
   // 目を本人の背の高さまで下げ、見る先を門の先 25m・塀の上の高さへ送る。
   const k = TK_CAM.k, vx = look.x - pos.x, vz = look.z - pos.z, d = Math.hypot(vx, vz) || 1;
-  pos.y += (Math.max(rt.world.heightAt(pos.x, pos.z) + 1.2, u.pos.y + 3.2) - pos.y) * k;   // 竹束と堀の外の縁越しに、堀の水面の帯が覗く高さ
+  pos.y += (Math.max(rt.world.heightAt(pos.x, pos.z) + 1.2, u.pos.y + 4) - pos.y) * k;   // 10/31 竹束の上から土橋の押し合いが見える高さ
+    // 竹束と堀の外の縁越しに、堀の水面の帯が覗く高さ
   look.set(look.x + (pos.x + vx / d * 25 - look.x) * k, look.y + (u.pos.y + 4.5 - look.y) * k, look.z + (pos.z + vz / d * 25 - look.z) * k);
+};
+// 10/31 開戦の寄せ（四十秒まで）は、手で向きを変えていない間だけ、肩越しの目を大手へ向ける。
+// 斬り合いで本人が横や後ろ（寄せ手の陣）を向いても、画面の奥に土橋の押し合いと塀・城方の幟が入る。
+function takatoGateLook(rt, pos, look) {
+  const u = rt.player.u, F = rt.flags;
+  const handT = rt.player.manualLookAt ?? -99;   // 指・マウスで向きを変えて二秒半は手の向きのまま
+  const want = rt.t < 40 && performance.now() / 1000 - handT > 2.5 && !F.retreatTo && !F.ending && !rt.over && !rt.player.cine &&
+    !rt.player.mounted && rt.player.fpK < .5 && u.pos.x > 88 && Math.abs(u.pos.z) < 20 ? 1 : 0;
+  TK_CAM.g = (TK_CAM.g || 0) + (want - (TK_CAM.g || 0)) * .06;
+  const g = TK_CAM.g;
+  if (g < .01) return;
+  const gx = 84, gz = Math.max(-6, Math.min(6, u.pos.z * .5)), dx = u.pos.x - gx, dz = u.pos.z - gz, dl = Math.hypot(dx, dz) || 1;
+  pos.x += (u.pos.x + dx / dl * 5 - pos.x) * g; pos.z += (u.pos.z + dz / dl * 5 - pos.z) * g;
+  pos.y += (Math.max(rt.world.heightAt(pos.x, pos.z) + 1.2, u.pos.y + 4) - pos.y) * g;
+  look.set(look.x + (gx - look.x) * g, look.y + (u.pos.y + 2.6 - look.y) * g, look.z + (gz - look.z) * g);
 };
 // 城兵を味方の列で受ける戦で、たまたま近い一人を護衛する任務へ替えない。
 // 共通の敵へ向く・構える案内を使い、大きな盾で槍先と相手を隠さない。
@@ -1244,6 +1262,28 @@ function takatoGateBrawl(rt) {
   ];
 }
 
+// 10/31 採点 70「矢印と柵だけで兵が少ない・常に乱戦・大軍対大軍が未達」。
+// 寄せ道の両脇（道 z ±4 は空ける）で、森長可の先手と打って出た仁科勢が土橋の手前で押し合う軽い大軍の合戦を二つ据え、
+// 塀の内の曲輪には城方の大軍（軽い作り・旗）を並べて、塀越しに幟の林と笠を見せる。本物の兵の数は増やさない。
+function takatoFieldMelee(rt) {
+  const W = rt.world, A = rt.army;
+  const play = (k, p, v) => A.play(k, p, v), smoke = (x, y, z, fx, fz) => A.smoke(x, y, z, fx, fz);
+  const oda = { flag: 'tsuru', armor: 0x1d1c1a, flagRate: .35 }, nishina = { flag: 'takeda', armor: 0x3a2622, flagRate: .3 };
+  F_MELEE.list = [];
+  // 竹束（x 100）の向こう、土橋の口の両脇。本人の 12m 内だけ隠す（既定の 44m では画面から消える）。
+  for (const [z, seed] of [[9.5, 30411], [-9.5, 30412]]) {
+    F_MELEE.list.push(W.addClash({ rt, play, smoke, x: 93, z, facing: -Math.PI / 2, w: 11, gap0: 0, gap: 2.4, seed, noRout: true,
+      realNear: 12, killRate: .15, A: { ...oda, count: 50 }, B: { ...nishina, count: 42, bows: false } }));
+  }
+  // 塀の内の三の丸・二の丸に控える城方の大軍。塀の上へ幟の林が覗く。
+  for (const [x, z, w, d, n, seed] of [[64, 4, 14, 10, 90, 30421], [56, -20, 16, 9, 80, 30422], [57, 26, 14, 8, 70, 30423]]) {
+    const h = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.PI / 2, team: 1, armor: 0x34302a,
+      flagTex: flagTexture('takeda'), kind: 'mixed', banners: 6, flagRate: .55, seed });
+    h.army.noWake = true;
+  }
+}
+const F_MELEE = { list: [] };
+
 // 塀際の城兵を討ち果たした先手は、塀の下で立ち尽くさず、道の脇へ退いて門の破れを待つ。門が開けば三の丸へなだれ込む。
 function gateBrawlTick(rt) {
   const F = rt.flags; F.brawlT = 1;
@@ -1360,6 +1400,7 @@ takato.setup = function (rt) {
   takatoCutSkin(rt);
   takatoWallStep(rt);
   takatoGateBrawl(rt);
+  takatoFieldMelee(rt);
   takatoSakura(rt);
   { const kb = makeKitBatch(); takatoMoatEdge(rt, kb); finalizeKitBatch(rt, kb); }
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。

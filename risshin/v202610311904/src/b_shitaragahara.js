@@ -2062,11 +2062,12 @@ const shitaragahara = {
       stoneMatrix.setPosition(x, W.heightAt(x, z) + r * 0.2, z); stones.setMatrixAt(i, stoneMatrix);
     });
     groundRocks(W, stones); rt.scene.add(stones);
-    // 五十五メートル先の小石は割れ目だけ省き、本数・位置・色を保つ。
+    // 三十二メートル先の小石は割れ目だけ省き、本数・位置・色を保つ。
     // 既存の草木の距離切替で詰め、近づけば元の形と影へ戻す。
     const farStones = new THREE.InstancedMesh(rockShape(1, true, 0), stones.material, banks.length);
     farStones.count = 0; farStones.receiveShadow = true; farStones.frustumCulled = false;
     farStones.userData.noFreeze = true;
+    stones.userData.foliageDetailNear = 32;
     stones.userData.farFoliage = farStones; rt.scene.add(farStones);
     // 川岸から追い道までの石を、画面の外も全て描いていた。
     W.viewCull([stones], 0, Infinity, false);
@@ -2603,7 +2604,9 @@ const shitaragahara = {
     placeGroup(rt, F.spears[0], OUTER_POST_X - 2, F.prepPt.z);
     // 10/30：開戦すぐから、柵の前（連吾川の柵際）で真田の先手と誘いの槍組が競り合う。
     //   兵は足さず、今いる兵の置き場と出る時刻だけを動かす。持ち場から見て正面、柵の十数メートル先。
-    F.skirm = { x: SB.x0 + 10, z: F.prepPt.z + 6, until: 30 };
+    // 10/31 点付け「乱戦が前に来ない」：押し合いが柵の十数メートル先の左奥で小さかった。兵は足さず、
+    //   柵のすぐ外（五〜七メートル）・持ち場から見た画面の真ん中の筋へ寄せる。
+    F.skirm = { x: SB.x0 + 6, z: F.prepPt.z + 2, until: 30 };
     placeGroup(rt, F.waveGroups[0], F.skirm.x + 1.6, F.skirm.z); F.waveGroups[0].noRout = true;
     placeGroup(rt, F.spears[1], F.skirm.x - 1.4, F.skirm.z + 4);
     // 中ほどの控えの槍組も、最初の競り合いだけ北の柵の前へ出す（中央の寄せの前に元の持ち場へ戻す）

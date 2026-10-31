@@ -3064,9 +3064,11 @@ const nagashima = {
     F.oda = [F.shiba, F.teppo]; F.defenders = [F.shiba, F.teppo, F.relief];
     // 開戦25秒の小競り合い（10/30）：島の物見の小舟が、まだ横木の無い柵の切れ目（中央と東の間）の浅瀬へ寄せ、岸の助けの槍組が始めから押し返す。
     // 兵は足さない（本陣の旗本18→15・柴田の足軽16→13・鉄砲12→10 の八人を、物見の八人に回す）。小競り合いなので双方の打ちは弱い。
-    F.scouts = enemyGroup(rt, { fixed: true, faction: 'ikko', name: '島の物見', anchor: { x: 15, z: BANK_Z - 1 }, facing: 0, formation: 'line', width: 16,
+    // 10/31 kaito「小隊対小隊はチープ」：物見は岸に一列で並べず、川の中ほど（持ち場の前十歩）に一つの塊で置き、開戦八秒で本人を目がけて押し渡る（update）。
+    //   門徒の足軽八人を足して二十二人の群れにする（本物の兵は八人だけ増える）。
+    F.scouts = enemyGroup(rt, { fixed: true, faction: 'ikko', name: '島の物見', anchor: { x: 12, z: BANK_Z - 10 }, facing: 0, formation: 'yari', yariRanks: 3, width: 8,
       order: 'hold', aggro: 5, seekRange: 6, morale: 80, noRout: true, dmgMult: .15, fire: false, historicalOrders: true, fleeDir: { x: 0, z: -1 } },
-      dress(Array.from({ length: 8 }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 110, maxHp: 110, kosode: 1, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 4 === 3 ? 'jingasa' : 'hachimaki', weapon: i % 3 === 2 ? 'sword' : 'spear', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
+      dress(Array.from({ length: 16 }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 110, maxHp: 110, kosode: 1, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 4 === 3 ? 'jingasa' : 'hachimaki', weapon: i % 3 === 2 ? 'sword' : 'spear', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
     dressMonTo(F.scouts);
     // 開戦25秒（10/30 夜）：中江の守兵の足軽六人も物見の舟に乗せて寄せる（砦の守りは九人に。兵の数は同じ）
     { const src = F.ikkoCamp.guard, sc = F.scouts;
@@ -3077,7 +3079,7 @@ const nagashima = {
       }
       src.units.forEach((u, j) => { u.slot = j; }); src.initial = src.units.length; sc.initial = sc.units.length;
       for (const u of mv) { const at = sc.slotPos(u.slot, sc.units.length); u.pos.set(at.x, W.heightAt(at.x, at.z), at.z); u.mesh.position.copy(u.pos); } }
-    { const g = F.relief; g.noAI = false; g.anchor = { x: 15, z: BANK_Z + 1.5 }; g.aggro = 6; g.dmgMult = .1; g.formation = 'line'; g.width = 16;
+    { const g = F.relief; g.noAI = false; g.anchor = { x: 10, z: BANK_Z + 1 }; g.aggro = 8; g.dmgMult = .1; g.formation = 'line'; g.width = 12;
       for (const u of g.units) { u.noTarget = false; const at = g.slotPos(u.slot, g.units.length); u.pos.set(at.x, W.heightAt(at.x, at.z), at.z); u.mesh.position.copy(u.pos); } }
     // 地形に固定した出現場所を守った上で、大将は槍の列の後ろへ置く。
     for (const g of F.oda) {
@@ -3459,8 +3461,14 @@ const nagashima = {
     const F = rt.flags;
     KIT.backTick(rt);
     // 開戦の小競り合いの片付け：物見が尽きるか、開戦45秒か、降伏の報せで、残る物見は舟へ逃げ、助けの槍組は元の控えへ戻る
+    // 開戦八秒：川の中ほどの物見が一つの塊で岸へ押し渡り、本人を目がけて寄せる（本人が深手の時は近くの味方へ）
+    if (F.scouts && !F.scoutsDone && rt.t > 8) {
+      const P = rt.player.u, g = F.scouts;
+      if (!F.scoutsGo) { F.scoutsGo = true; g.order = 'attack'; g.seekRange = 50; g.aggro = 30; }
+      g.focus = P.alive && P.hp > P.maxHp * 0.35 ? P : null;
+    }
     if (F.scouts && !F.scoutsDone && (F.step >= 2 || rt.t > 45 || !F.scouts.units.some((u) => u.alive && !u.fleeing))) {
-      F.scoutsDone = true; F.scouts.noRout = false; F.scouts.morale = 0;
+      F.scoutsDone = true; F.scouts.noRout = false; F.scouts.morale = 0; F.scouts.focus = null;
       const g = F.relief;
       if (g && F.dangerAt == null) {
         g.dmgMult = 1; g.order = 'path'; g.pathIdx = 0; g.aggro = 0; g.formation = 'column'; g.colW = 2;

@@ -26,6 +26,29 @@ export function armyGeometryCopy(base) {
 // 形は頂点を分け合う形（index 付き）のまま束ねる：三角ごとに頂点を分けると、描くたびの頂点の計算（高さの絵の読み取り・揺れ）が三倍ほどになる
 function armyPart(list, geo, hex, part) {
   const g = geo;
+  // 円柱の平らな蓋は中心へ集めた扇から、同じ輪郭の三角へ張り直す。
+  // 色・法線・模様の座標は同じ平面上なので、笠・胴・荷の姿は変わらない。
+  // 設営時だけ行い、人数や斬り合い、近景の角数は減らさない。
+  if ((g.type === 'CylinderGeometry' || g.type === 'ConeGeometry') && g.index && g.groups.length &&
+    g.parameters.thetaLength === Math.PI * 2) {
+    const old = g.index, next = [], p = g.attributes.position, normal = g.attributes.normal;
+    for (const group of g.groups) {
+      const start = next.length, count = group.count / 3;
+      if (group.materialIndex > 0 && count >= 3) {
+        const a = old.getX(group.start);
+        for (let j = 1; j < count - 1; j++) {
+          const b = old.getX(group.start + j * 3), c = old.getX(group.start + (j + 1) * 3);
+          const bx = p.getX(b) - p.getX(a), by = p.getY(b) - p.getY(a), bz = p.getZ(b) - p.getZ(a);
+          const cx = p.getX(c) - p.getX(a), cy = p.getY(c) - p.getY(a), cz = p.getZ(c) - p.getZ(a);
+          const facing = (by * cz - bz * cy) * normal.getX(a) + (bz * cx - bx * cz) * normal.getY(a)
+            + (bx * cy - by * cx) * normal.getZ(a);
+          if (facing >= 0) next.push(a, b, c); else next.push(a, c, b);
+        }
+      } else for (let j = group.start; j < group.start + group.count; j++) next.push(old.getX(j));
+      group.start = start; group.count = next.length - start;
+    }
+    g.setIndex(next);
+  }
   if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
   // 笠や槍先の先端では、別の頂点番号が同じ位置を指す。
   // 同じ部品の同じ位置は動かしても重なるため、その三角だけ設営時に外す。

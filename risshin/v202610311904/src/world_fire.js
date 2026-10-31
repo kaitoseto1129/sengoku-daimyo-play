@@ -485,25 +485,37 @@ export class WorldFire {
     // 光の升の更新を待つコマにも材質の巡回を進める。
     this.updateFireMaterials(G);
     if (this.fireGlowBatch) this.fireGlowBatch.material.opacity = 0.22 * FIRE_FILL.area.value.z / 0.65;
-    if (G.time >= 0 && this.time - G.time < 0.2 && Math.abs(x - G.x) + Math.abs(z - G.z) < 2) return;
-    G.time = this.time; G.x = x; G.z = z;
-    const ox = Math.floor(x / 2) * 2 - 64, oz = Math.floor(z / 2) * 2 - 64;
-    FIRE_FILL.area.value.set(ox, oz, FIRE_FILL.area.value.z);
-    G.data.fill(0); G.strength.fill(0);
+    // 完成した升を描き続け、裏の配列へ八行ずつ作る。移動中も途中で捨てず最後まで進める。
+    // 升の原点と絵は完成時に一緒に替え、計算途中の暗い帯を見せない。
+    if (G.row < 0) {
+      if (G.time >= 0 && this.time - G.time < 0.2 && Math.abs(x - G.x) + Math.abs(z - G.z) < 2) return;
+      G.time = this.time; G.x = x; G.z = z;
+      G.ox = Math.floor(x / 2) * 2 - 64; G.oz = Math.floor(z / 2) * 2 - 64;
+      G.row = 0;
+    }
+    const ox = G.ox, oz = G.oz, rowEnd = Math.min(64, G.row + 8);
+    G.pending.fill(0, G.row * 64 * 4, rowEnd * 64 * 4);
+    G.strength.fill(0, G.row * 64, rowEnd * 64);
     for (const f of this.fires) {
       if (!f.lit || f.light) continue;
       const radius = f.lightRadius, fy = f.base + (f.big ? f.size * 0.3 : 0.25);
       const left = Math.max(0, Math.floor((f.x - radius - ox) / 2)), right = Math.min(63, Math.ceil((f.x + radius - ox) / 2));
-      const top = Math.max(0, Math.floor((f.z - radius - oz) / 2)), bottom = Math.min(63, Math.ceil((f.z + radius - oz) / 2));
+      const top = Math.max(G.row, Math.floor((f.z - radius - oz) / 2)), bottom = Math.min(rowEnd - 1, Math.ceil((f.z + radius - oz) / 2));
       for (let iz = top; iz <= bottom; iz++) for (let ix = left; ix <= right; ix++) {
         const wx = ox + ix * 2 + 1, wz = oz + iz * 2 + 1;
         const reach = 1 - Math.hypot(wx - f.x, this.heightAt(wx, wz) + 1 - fy, wz - f.z) / radius;
         const i = iz * 64 + ix;
         if (reach <= G.strength[i]) continue;
         G.strength[i] = reach;
-        const j = i * 4; G.data[j] = f.x; G.data[j + 1] = fy; G.data[j + 2] = f.z; G.data[j + 3] = radius;
+        const j = i * 4; G.pending[j] = f.x; G.pending[j + 1] = fy; G.pending[j + 2] = f.z; G.pending[j + 3] = radius;
       }
     }
+    G.row = rowEnd;
+    if (G.row < 64) return;
+    const previous = G.data; G.data = G.pending; G.pending = previous;
+    G.tex.image.data = G.data;
+    FIRE_FILL.area.value.set(ox, oz, FIRE_FILL.area.value.z);
+    G.row = -1;
     this.updateFireGlowBatch(x, z);
     G.tex.needsUpdate = true;
   }

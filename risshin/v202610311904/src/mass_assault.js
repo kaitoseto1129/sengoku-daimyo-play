@@ -1,5 +1,8 @@
 // 大軍の寄せ（kaito 10/31「小隊対小隊はチープ。散らばった小隊を一つに集め、大軍対大軍で一気に攻め寄せる」）。
-// 手の空いた「かかれ」の隊を、軍ごとに一つの大きな群れ（備）にまとめ、横一列に並べてから本人の居る前線へ一緒に押し寄せる。
+// 手の空いた「かかれ」の隊を、軍ごとに一つの大きな群れ（備）にまとめ、本人の居る前線へ一緒に押し寄せる。
+// 兵を後ろの集まり場へ下げて揃えるのでなく、今いる所から前へ寄りながら一つの横列へ揃う（10/31 c_mass_fix：
+//   開戦25秒に兵が前から離れて画面に居なくなるのを止める）。揃うのは待たず、前の隊から押し、後の隊は追い付いて加わる。
+// 開戦の時から本人の傍（NEAR0）に居る隊（前線の守り・最初の区画の兵）と、今もう本人の傍（NEAR）に居る隊は、群れに入れずそのまま戦わせる。
 // 戦の定義の隊は消さず、兵も足さない。動かすのは隊の要（anchor）と向きだけ。斬り合いに入った隊から群れを離れ、ふだんの頭へ戻る。
 // 触らない隊：自分の組・本陣・大将・伏兵・守り・城の持ち場・筋書きの下知（frontline_density の movable が見る）・控えの射手。
 // def.massAssault = false でその戦だけ止める。
@@ -8,6 +11,8 @@ import { localClear } from './army_local_way.js';
 const LINE_MAX = 72;      // 一列の幅（m）。超えれば二列目を 12m 後ろへ
 const FAR = 150;          // 本人からこの内の隊を集める
 const CLOSE = 30;         // 群れの真ん中がこれより近ければ、集めずにそのまま戦わせる
+const NEAR = 45;          // 本人からこの内の隊は、もう前線に居るので群れに入れない
+const NEAR0 = 70;         // 開戦の時にこの内に居た隊は、ずっと群れに入れない
 const probeA = { x: 0, y: 0, z: 0 }, probeB = { x: 0, y: 0, z: 0 };
 const cTmp = { x: 0, z: 0 };
 
@@ -34,7 +39,7 @@ function groundY(g) {
 }
 
 function eligible(rt, g, movable, P) {
-  if (g._massOwn || g._pacing || g.order !== 'attack' && g.order !== 'hold' && g.order !== 'yari' || g.count < 4 || g.routed || g.isPlayerSquad) return false;
+  if (g._massOwn || g._massNear0 || g._pacing || g.order !== 'attack' && g.order !== 'hold' && g.order !== 'yari' || g.count < 4 || g.routed || g.isPlayerSquad) return false;
   if (!movable(rt, g, true)) return false;
   // 守りの隊は、大将の傍（25m）の旗本だけを残し、ほかの備は群れに加える。
   if (g.guard || g.guardOn) {
@@ -43,8 +48,8 @@ function eligible(rt, g, movable, P) {
       Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 25) return false;
   }
   if (missileShare(g) >= 0.5 || engagedShare(g) >= 0.25) return false;
-  const c = g.center(cTmp);
-  return Math.hypot(c.x - P.x, c.z - P.z) < FAR;
+  const c = g.center(cTmp), d = Math.hypot(c.x - P.x, c.z - P.z);
+  return d >= NEAR && d < FAR;
 }
 
 function release(rt, g) {
@@ -115,11 +120,16 @@ function form(rt, M, movable) {
     if (g.guardOn) g.guardOn = false;
     if (g.order !== 'attack') { g._massPrev = g.order; (M.conv || (M.conv = [])).push(g); g.order = 'attack'; g.formation = g.formation === 'yari' ? 'line' : g.formation; }
   }
-  // 集まる所：前から 32〜55m 手前、群れの側。もう近い群れはその場で並ぶ。
-  const muster = Math.min(L, Math.max(32, Math.min(55, L * 0.5)));
-  M.x = M.front.x - dx * muster; M.z = M.front.z - dz * muster;
-  M.phase = 'muster'; M.t0 = A.time; M.speed = Infinity;
-  for (const g of list) M.speed = Math.min(M.speed, g.speed || 2.2);
+  // 列の始まりは、いちばん前（前線に近い）の隊の所。後ろの隊は下がらせず、前へ寄りながら列に加わる。
+  let lead = -Infinity;
+  for (const g of list) { const c = g.center(cTmp); lead = Math.max(lead, (c.x - cx) * dx + (c.z - cz) * dz); }
+  lead = Math.min(lead, L - CLOSE * 0.5);
+  M.x = cx + dx * lead; M.z = cz + dz * lead;
+  // 揃うのを待たずにすぐ寄せる。足は群れの並（遅い隊は追い付く足で加わる）。
+  M.phase = 'charge'; M.t0 = A.time; M.speed = 0;
+  for (const g of list) M.speed += g.speed || 2.2;
+  M.speed /= list.length;
+  A.play?.('eshout', M, 1); A.play?.('taiko', M, 0.8);
   return true;
 }
 
@@ -135,26 +145,14 @@ function decide(rt, M, movable) {
   // 斬り合いに入った隊・下知が変わった隊・崩れた隊は群れを離れる。
   for (let i = M.groups.length - 1; i >= 0; i--) {
     const g = M.groups[i];
-    if (g._massOwn !== M || g.order !== 'attack' || g.routed || g.count < 2 || !movable(rt, g, true) || engagedShare(g) >= (M.phase === 'muster' ? 0.5 : 0.3)) {
+    if (g._massOwn !== M || g.order !== 'attack' || g.routed || g.count < 2 || !movable(rt, g, true) || engagedShare(g) >= 0.3) {
       if (g._massOwn === M) release(rt, g);
       M.groups.splice(i, 1);
     }
   }
   if (M.groups.length < 1) { disband(rt, M, 8); return; }
   frontPoint(rt, M.team, M.front);
-  if (M.phase === 'muster') {
-    let ready = true;
-    for (const g of M.groups) {
-      const q = slot(M, g, cTmp);
-      const c = g.center(probeA);
-      if (Math.hypot(g.anchor.x - q.x, g.anchor.z - q.z) > 2 || Math.hypot(c.x - q.x, c.z - q.z) > g.halfWidth() + 7) { ready = false; break; }
-    }
-    if (ready || A.time - M.t0 > 15) {
-      M.phase = 'charge'; M.t0 = A.time;
-      // 鬨の声と太鼓で寄せの始まりを耳に知らせる（字は出さない）。
-      A.play?.('eshout', M, 1); A.play?.('taiko', M, 0.8);
-    }
-  } else if (M.phase === 'charge') {
+  if (M.phase === 'charge') {
     let n = 0, e = 0;
     for (const g of M.groups) { const k = g.count; n += k; e += engagedShare(g) * k; }
     if (Math.hypot(M.front.x - M.x, M.front.z - M.z) < 6 || e > n * 0.35 || A.time - M.t0 > 45) { disband(rt, M, 14); return; }
@@ -173,23 +171,23 @@ function decide(rt, M, movable) {
 function move(rt, M, dt) {
   const A = rt.army;
   if (M.phase === 'charge') {
-    // 真ん中を前へ。遅れた隊があれば足並みを待つ（群れのまま着く）。
-    let sp = M.speed * 1.15;
-    for (const g of M.groups) {
-      const c = g.center(cTmp);
-      if (Math.hypot(c.x - g.anchor.x, c.z - g.anchor.z) > g.halfWidth() + 9) { sp *= 0.3; break; }
-    }
+    // 真ん中を前へ。遅れた隊は待たない（後から追い付いて加わる）。
+    const sp = M.speed * 1.15;
     const dx = M.front.x - M.x, dz = M.front.z - M.z, d = Math.hypot(dx, dz);
     if (d > 0.1) { const k = Math.min(d, sp * dt); M.x += dx / d * k; M.z += dz / d * k; }
   }
   const h = Math.atan2(M.dx, M.dz);
   for (const g of M.groups) {
     const q = slot(M, g, cTmp);
-    const dx = q.x - g.anchor.x, dz = q.z - g.anchor.z, d = Math.hypot(dx, dz);
+    let dx = q.x - g.anchor.x, dz = q.z - g.anchor.z;
+    // 前の隊を後ろへ下げない：列より前に出ている隊は、横へだけ寄って列を待たずにそのまま押す。
+    const ahead = -(dx * M.dx + dz * M.dz);
+    if (ahead > 0) { dx += M.dx * ahead; dz += M.dz * ahead; dx += M.dx * Math.min(ahead, M.speed * 1.15); dz += M.dz * Math.min(ahead, M.speed * 1.15); }
+    const d = Math.hypot(dx, dz);
     if (d > 0.05) {
-      // 集まる間は各自の足で、寄せる間は真ん中と同じ足で。
+      // 列に追い付くまでは各自の早足で、列に着いたら真ん中と同じ足で。兵が要に遅れた隊だけは要を緩める。
       const c = g.center(probeA), lag = Math.hypot(c.x - g.anchor.x, c.z - g.anchor.z);
-      const sp = (M.phase === 'muster' ? (g.speed || 2.2) * 1.1 : M.speed * 1.6) * (lag > g.halfWidth() + 8 ? 0.3 : 1);
+      const sp = (d > 6 ? Math.max((g.speed || 2.2) * 1.3, M.speed * 1.6) : M.speed * 1.6) * (lag > g.halfWidth() + 8 ? 0.3 : 1);
       const k = Math.min(d, sp * dt);
       g.anchor.x += dx / d * k; g.anchor.z += dz / d * k;
     }
@@ -201,6 +199,12 @@ export function massAssaultTick(rt, on, dt, movable) {
   const A = rt.army;
   const S = A.mass || (A.mass = [0, 1].map((team) => ({ team, phase: 'idle', groups: [], next: 0, front: { x: 0, z: 0 }, x: 0, z: 0, dx: 0, dz: 1, t0: 0, speed: 2.2, at: 0 })));
   const off = !on || rt.def.massAssault === false || !rt.player?.u?.alive || A.duel;
+  // 開戦の時から本人の傍に居る隊は、最初の一度だけ印を付けて群れに入れない（前線の守り・最初の区画の兵）。
+  if (!A._massNear0Done && rt.player?.u?.pos) {
+    A._massNear0Done = true;
+    const P = rt.player.u.pos;
+    for (const g of A.groups) { if (!g.count) continue; const c = g.center(cTmp); if (Math.hypot(c.x - P.x, c.z - P.z) < NEAR0) g._massNear0 = true; }
+  }
   for (const M of S) {
     if (off) {
       if (M.phase !== 'idle') disband(rt, M, 4);

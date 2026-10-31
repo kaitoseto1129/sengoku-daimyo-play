@@ -180,7 +180,7 @@ export class World {
     this.fireCamera = new THREE.Vector3();
     if (true) {
       const data = new Float32Array(64 * 64 * 4);
-      this.fireFill = { data, strength: new Float32Array(64 * 64), tex: new THREE.DataTexture(data, 64, 64, THREE.RGBAFormat, THREE.FloatType), time: -1, matTime: -1 };
+      this.fireFill = { data, pending: new Float32Array(data.length), row: -1, strength: new Float32Array(64 * 64), tex: new THREE.DataTexture(data, 64, 64, THREE.RGBAFormat, THREE.FloatType), time: -1, matTime: -1 };
       FIRE_FILL.map.value = this.fireFill.tex;
       this.fireFill.tex.needsUpdate = true;
     }

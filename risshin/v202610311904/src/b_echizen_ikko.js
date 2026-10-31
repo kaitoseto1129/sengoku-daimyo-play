@@ -2579,7 +2579,9 @@ const echizen_ikko = {
     nearTreeFadeRadius: 7,
     templeNeedles: true, // この寺だけ、近景と遠景を低い枝のある丸い層にする。
     // 10/30 vis_h：杉が板に見えた（点付け）。杉だけ比叡山・木ノ芽峠と同じ写真の葉房へ（形と絵は共用。雑木・松の葉房はそのまま）。
-    cedarBoughs: true, nearCedarBranches: true, cedarBoughPitch: 1.3, cedarBoughWidth: 1.1, farCedarPitch: 1.0,
+    // 10/31 点付け「杉が平たい」：寝かせた房（1.3）が水平の棚板に重なり、横から平たい板に見えた。房を斜め上へ起こし幅を広げ、
+    //   段ごとに円錐の量感のある樹冠にする（形・数・絵は同じ）。幹も手本の参道の杉の太さへもう一段。
+    cedarBoughs: true, nearCedarBranches: true, cedarBoughPitch: 0.95, cedarBoughWidth: 1.35, farCedarPitch: 0.85,
     keepNeedleLayers: true, layeredNeedles: true, raggedNeedles: true, brokenNeedleTiers: true,
     // 地が茶の一色だった（点付け）。土の絵を金ヶ崎と同じ森の落ち葉の土の写真（Poly Haven forest_leaves_02・CC0）に。泥も同じ写真（絵の数は同じ）。
     groundPhoto: { dirt: 'kanegasaki', mudFromSoil: true },
@@ -2599,6 +2601,7 @@ const echizen_ikko = {
     tabaDeckGround: true, // 石段では土の坂でなく、兵と同じ踏面へ竹束の脚を据える。
     denseTabaBundles: true, // 写真の細竹を詰めた束。近くのみ詳しくし、遠くは七本の形へ戻す。
     trees: 1500,
+    treeTrunkScale: 1.8, // 10/31 杉の幹が細い棒だった。手本の参道の杉の太さへ（形・数は同じ）。
     tuftTint: 0x817d5f,
     nearGrassTint: 0x817d5f, // 足元に追加する草にも同じ色を掛け、白い粒の帯にしない。
     tufts: 2400,

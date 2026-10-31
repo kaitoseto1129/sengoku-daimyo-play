@@ -10,7 +10,7 @@ import { rosterPlan, rosterBuild } from './jinkei_roster.js';
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { hashigo, takataba, nobori, hut, yagura, tawara, kabukimon, jinmaku, dou, dorui, village, castleBoardFence, campfire, shogi, hatazao, solidRect, solidCircle, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { dobei, hashigo, takataba, nobori, hut, yagura, tawara, kabukimon, jinmaku, dou, dorui, village, castleBoardFence, campfire, shogi, hatazao, solidRect, solidCircle, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { extScatter } from './props_ext.js';
 import { addInterior } from './naka.js';
 import { RANKS } from './state.js';
@@ -1948,6 +1948,15 @@ function fortSiegeView(rt) {
     people.push({ x, z, k: i === 7 ? 'banner' : i % 4 === 2 ? 'spear' : 'gun', facing: Math.atan2(FORT.x - x, FORT.z - z) });
   }
   W.addDistantArmy({ people, armor: 0x2b2722, team: 1, flag: HONGAN_FLAG, host: false, seed: 15761 });
+  // 10/31 採点 基準4：門の内から南を見た25秒の画面に、囲む本願寺方の大軍が無かった（門前の数十人だけ）。
+  //   門の先七十〜九十メートルの野に、旗の林立する門徒の大軍を横に広く置き、砦を向かせる（軽い作り。本物の兵は足さない）。
+  //   門から五十〜七十メートル。霞に沈まないよう、軽い兵を描かない輪を狭める。
+  // 10/31 採点68：門から遠く小さかった。門の先二十〜三十メートルの堀の向こうへ寄せ、門の内の持ち場から旗の林が大きく見えるように。
+  //   本人から二十メートルの内は描かない（棒人間を出さない）。門の前の本物の寄せ手と押し合う並びに。
+  for (const [x, z, w, d, n, sd] of [[-4, -22, 64, 16, 280, 15762], [34, -30, 30, 14, 120, 15763]]) {
+    const h = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.atan2(FORT.x - x, FORT.z - z), armor: 0x2b2722, team: 1, kind: 'mixed', flag: HONGAN_FLAG, host: false, seed: sd });
+    if (h.army?.body) { h.army.noWake = true; h.army.U.uRealNear = { value: 20 }; }
+  }
   rt.flags.siegeSmokeT = 0; rt.flags.siegeSmokeI = 0; rt.flags.gunSmoke = makeGunSmoke(rt, 96, 2.3, 0xa8a8a2, [-.25, -1.1]);   // 南の風で柵越しに砦の中へ流れ込む（10/30）。柵の上の空を背にするので、白でなく灰の煙に。門の内の小屋の屋根より上まで昇らせ、内から見える（10/29）
 }
 
@@ -2581,6 +2590,14 @@ const tennoji = {
     fortFieldLife(rt);
     fortBankGrass(rt);
     fortSiegeView(rt);
+    // 10/31 採点68 手本の白壁：持ち場から見える南の口の両脇と斜めの辺は、木柵を隠して白い漆喰に瓦の笠の土塀に（当たりは元の柵のまま）。
+    for (const s of C.walls) if (s?.seg && s.mesh && (s.seg[1] + s.seg[3]) / 2 > -53) s.mesh.visible = false;
+    for (const seg of [[-22, -52, -12, -43], [-12, -43, -3.4, -43], [3.4, -43, 12, -43], [12, -43, 22, -52]]) {
+      // 土塁の肩で高さが揺れ、一間ごとに段になって笠が浮いた。辺ごとに足もとを一つに揃え、低い所は壁を土へ埋める。
+      let lo = Infinity, sum = 0;
+      for (let i = 0; i <= 10; i++) { const y = W.heightAt(seg[0] + (seg[2] - seg[0]) * i / 10, seg[1] + (seg[3] - seg[1]) * i / 10); lo = Math.min(lo, y); sum += y; }
+      rt.scene.add(dobei(W, seg, { shikkui: true, kawara: true, baseY: lo - .15, h: 2.2 + sum / 11 - lo }));
+    }
     rt.scene.add(tawara(W, -10, -63, 0.4, 6), tawara(W, 10, -73, -0.3, 5), campfire(W, -9.5, -58.95), campfire(W, 8, -56));
     // 囲まれて数日の砦（資料との差 10/28）：門の内の両脇に竹束を立て並べ、陣屋の脇に兵糧の俵と樽・箱を積む。門の通り道は空ける。
     // 竹束の形は fortFieldLife の門の束。矢玉を受ける当たりは前の三束と同じ場所に残す。

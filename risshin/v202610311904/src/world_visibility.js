@@ -140,7 +140,9 @@ export class WorldVisibility {
       cell.box.min.y = Math.min(cell.box.min.y, cy - r); cell.box.max.y = Math.max(cell.box.max.y, cy + r);
       cell.box.min.z = Math.min(cell.box.min.z, cz - r); cell.box.max.z = Math.max(cell.box.max.z, cz + r);
     }
-    L.push({ orig, pts, centers, bounds, radii, packed, bands: new Uint8Array(N), cells, cellOf, N, near, far2: far * far, thin: false, keepDensity: !thin, x: 1e9, y: 0, z: 0, fx: 0, fy: 0, fz: 0, projection: 0 });
+    const detailNear = meshes.some(m => m.userData.foliageDetailNear !== undefined)
+      ? Math.max(...meshes.map(m => m.userData.foliageDetailNear ?? 55)) : null;
+    L.push({ orig, pts, centers, bounds, radii, packed, bands: new Uint8Array(N), cells, cellOf, N, near, detailNear2: detailNear === null ? undefined : detailNear * detailNear, far2: far * far, thin: false, keepDensity: !thin, x: 1e9, y: 0, z: 0, fx: 0, fy: 0, fz: 0, projection: 0 });
     // カメラは描く時に拾う（毎コマの詰め直しは world.update で）
     const world = this;
     for (const m of meshes) {
@@ -249,7 +251,10 @@ export class WorldVisibility {
           if (!C.cells[C.cellOf[i]].on) continue;
           const dx = P[i * 3] - px, dz = P[i * 3 + 2] - pz, d2 = dx * dx + dz * dz;
           const sdx = P[i * 3] - sx, sdz = P[i * 3 + 2] - sz;
-          const band = d2 > 3025 ? 2 : sdx * sdx + sdz * sdz <= shadowRange2 ? 0 : 1;
+          // 距離を指定した小石も、影を落とす範囲では細かな形を残す。
+          const band = C.detailNear2 !== undefined
+            ? sdx * sdx + sdz * sdz <= shadowRange2 ? 0 : d2 > C.detailNear2 ? 2 : 1
+            : d2 > 3025 ? 2 : sdx * sdx + sdz * sdz <= shadowRange2 ? 0 : 1;
           if (d2 > C.far2 || (!bands && pass !== band)) continue;
           const centers = C.centers || P;
           V.sphere.center.set(centers[i * 3], centers[i * 3 + 1], centers[i * 3 + 2]);

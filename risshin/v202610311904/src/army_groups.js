@@ -460,12 +460,15 @@ export const ArmyGroups = {
       let clear = true;
       const probe = g._turnProbe || (g._turnProbe = { x: 0, y: 0, z: 0 });
       if (!(g._turnCheckAt > this.time)) {
-        g._turnCheckAt = this.time + 0.2;
+        // 初回はすぐ確認し、以後は隊ごとの時刻へ散らす。停止後の追い付き走査はしない。
+        const phase = ((g.id || 0) % 16) * 0.2 / 16;
+        g._turnCheckAt = (Math.floor((this.time + phase + 1e-9) / 0.2) + 1) * 0.2 - phase;
         const step = Math.sign(df) * Math.min(Math.abs(df), rate * 0.2);
+        const cs = Math.cos(step), sn = Math.sin(step);
         for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound) {
           const x = u.pos.x - g.anchor.x, z = u.pos.z - g.anchor.z;
-          probe.x = g.anchor.x + x * Math.cos(step) + z * Math.sin(step);
-          probe.z = g.anchor.z - x * Math.sin(step) + z * Math.cos(step);
+          probe.x = g.anchor.x + x * cs + z * sn;
+          probe.z = g.anchor.z - x * sn + z * cs;
           if (!localClear(this, u.pos, probe)) { clear = false; break; }
         }
         g._turnClear = clear;
