@@ -1988,7 +1988,7 @@ const tedorigawa = {
     seed: 15777,
     moveLim: 230,   // 置いた兵が 176 の端に貼り付いていた（見回り 10/2）
     time: 'night',
-    nightLift: 2.3, // 雨雲の夜に刈田全体を昼のように持ち上げず、火と近くの列を目じるしにする。
+    nightLift: 2.7, // 雨雲の夜に刈田全体を昼のように持ち上げず、火と近くの列を目じるしにする。10/31 敵の群れの形と具足の色が読める所まで（2.3 は暗かった）
     nightFill: 0.45,
     drawTimeUnitParts: true, // 移動後の骨と具足を描く時にそろえ、手を離れた槍の束や浮く笠を残さない。
     lifeSizePinnedArrows: true, // 胴や骨の倍率を刺さった矢へ重ねず、飛来時の長さを保つ。
@@ -1997,7 +1997,7 @@ const tedorigawa = {
     movingHiddenBones: true, // 画面外へ動く騎手も骨を根元へ合わせ、近景へ戻る時の体の帯を防ぐ。
     shadowBoneOrder: true, // 胴丸の影にも、体と同じ骨番号を使う。
     kasaDrape: false, // 資料本の戦国期の足軽に合わせ、映画風の長い陣笠の縁布を外す。
-    unitNightScale: 0.6, // 10/31 具足と顔を地面より一段明るく。雨雲の下で全身の縁を白く光らせず、漆と小袖の色を残す。
+    unitNightScale: 0.38, // 10/31 縁の照り（0.4 から）を出さない強さ。0.6 では騎馬の脚・腹帯と奥の群れの輪郭が白い線になり、骨の絵のように崩れて見えた。明るさは nightLift で補う
     // 加賀の川原の遠山。東〜南東の山地へ寄せ、西の日本海側を開く。
     mountainScale: 0.22,
     mountainHaze: 0.8,

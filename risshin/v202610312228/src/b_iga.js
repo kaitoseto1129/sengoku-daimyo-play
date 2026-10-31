@@ -1472,6 +1472,8 @@ function heightRaw(x, z) {
   return h;
 }
 
+// 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
+const igaPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 const iga = {
   // 登れる物見の張り出した床を、井桁から腕木と方杖で受ける推定復元。
   // 共通の形を使い回し、中央の梯子口と床の足場はそのまま通す。
@@ -2529,12 +2531,12 @@ const iga = {
         this.lose(rt, '陣を守る味方が崩れ、陣を退く'); return;
       }
       // 消火と陣の保持が役目。林や切岸に残る一人の全滅を求め、消火済みでも時間で負けにしない。
-      if (F.doused >= 3 && (foes || w >= 45 && L.every((g) => g.igaSent))) {
+      if (F.doused >= 3 && igaPlayed(rt) && (foes || w >= 45 && L.every((g) => g.igaSent))) {   // 10/31：本人が動くか討つまで進めない
         if (!foes) rt.say('丹羽の組頭', '火は消え、陣は持ちこたえた。敵が退くぞ。追うな', 4);
         this.midA(rt); return;
       }
       // 消火の組が崩れても負けにしない。残る火は陣の者が消し、迎え撃ちを続ける。
-      if (w >= 100 && F.doused < 3 && Math.hypot(rt.player.u.pos.x - CAMP.x, rt.player.u.pos.z - CAMP.z) < 45) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
+      if (w >= 100 && F.doused < 3 && igaPlayed(rt) && Math.hypot(rt.player.u.pos.x - CAMP.x, rt.player.u.pos.z - CAMP.z) < 45) F.fires.forEach((f, i) => { if (f) this.douse(rt, i, false); });
 
     }
     if (F.step === 3 && guide && rt.t - F.stepT <= 8) rt.objProgress('main', '物見が木戸と曲輪を見張る');
@@ -2594,7 +2596,7 @@ const iga = {
       if (!F.ram.count && !F.ramLost) { F.ramLost = true; rt.say('丹羽の組頭', '木戸の組が崩れた！　その方は土橋を保ち、味方が退く道を空けよ', 4); }
       if (F.sally && F.sally.count < 4 && !gone(F.sally)) { F.sally.noRout = false; F.sally.morale = Math.min(F.sally.morale, 20); }
       if (elapsed >= 45 || (elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0 && atBridge) ||
-          F.bridgeStarted == null && rt.t - F.stepT > 70) this.midB(rt);   // 坂で手間取っても、正面攻めは九十秒で引き上げる
+          F.bridgeStarted == null && rt.t - F.stepT > 70 && igaPlayed(rt) && Math.hypot(rt.player.u.pos.x - F.bridge.x, rt.player.u.pos.z - F.bridge.z) < 90) this.midB(rt);   // 坂で手間取っても、正面攻めは九十秒で引き上げる
     }
   },
 
