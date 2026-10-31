@@ -76,18 +76,26 @@ function treeLeafMap(sh) {
 // 枝房でも一枚の絵でも、株の中心からの向きで陰を決める（霞の中で切り絵・平らな影絵に見えないように）。
 // 近くの木は本当の光と影のまま。25〜45m で溶かし込む。形・描く回数・毎コマの処理は増やさない。
 function crownShade(sh) {
-  sh.vertexShader = 'varying vec4 vCrown; varying float vCrownK; varying vec3 vCrownEye;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
-    vCrown = vec4(0.0); vCrownK = 0.0; vCrownEye = vec3(0.0, 0.0, 1.0);
+  sh.vertexShader = 'varying vec4 vCrown; varying float vCrownK; varying float vCrownN; varying vec3 vCrownEye;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+    vCrown = vec4(0.0); vCrownK = 0.0; vCrownN = 0.0; vCrownEye = vec3(0.0, 0.0, 1.0);
     #ifdef USE_INSTANCING
       mat4 crW = modelMatrix * instanceMatrix;
       float crS = max(length(crW[1].xyz), 0.01);
       vCrown.xyz = ((crW * vec4(transformed, 1.0)).xyz - crW[3].xyz - vec3(0.0, 6.0 * crS, 0.0)) / crS;
       vCrown.w = fract(sin(dot(crW[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
       vCrownK = uv.x >= 0.0 ? smoothstep(25.0, 45.0, distance(cameraPosition, crW[3].xyz)) : 0.0;
+      vCrownN = uv.x >= 0.0 ? 1.0 - vCrownK : 0.0;
       vCrownEye = cameraPosition - crW[3].xyz; vCrownEye.y = 0.0; vCrownEye = normalize(vCrownEye + vec3(0.0001, 0.0, 0.0));
     #endif`);
-  sh.fragmentShader = 'varying vec4 vCrown; varying float vCrownK; varying vec3 vCrownEye;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
-    if (vCrownK > 0.0) {
+  sh.fragmentShader = 'varying vec4 vCrown; varying float vCrownK; varying float vCrownN; varying vec3 vCrownEye;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `#include <alphatest_fragment>
+    // 近くの葉房（10/31 gap4_veg）：25m より手前の木も、樹冠の日の側・裏・下枝の陰と房ごとの濃淡を七割ほど掛け、
+    //   幹に近い枝元ほど暗くする（同じ明るさの葉の板が並ぶ切り絵に見せない）。一枚の木の絵（TREE_CARD）は今まで通り。
+    #ifdef TREE_CARD
+      float crNear = 0.0;
+    #else
+      float crNear = vCrownN * 0.75;
+    #endif
+    if (vCrownK > 0.0 || crNear > 0.0) {
       vec3 crV = vCrown.xyz * vec3(1.0, 1.4, 1.0) + vec3(0.0, 0.6, 0.0);
       #if defined(TREE_CARD) && defined(USE_MAP)
       // 遠くの一枚の木（10/30）：板の上で、株の芯ほど手前へ膨らむ向きを足す。円錐・丸い塊の陰影になり、平たい三角・切り絵に見せない。
@@ -109,7 +117,8 @@ function crownShade(sh) {
       float crClump = mix(mix(crA, crB, crf.x), mix(crC, crD, crf.x), crf.y);
       float crK = mix(0.42, 1.25, crSun) * mix(0.6, 1.1, crClump) * mix(0.62, 1.0, smoothstep(-4.0, 1.0, vCrown.y));
       vec3 crTint = mix(vec3(0.94, 1.0, 0.86), vec3(1.04, 1.0, 1.08), vCrown.w);
-      diffuseColor.rgb *= mix(vec3(1.0), crK * crTint, vCrownK);
+      diffuseColor.rgb *= mix(vec3(1.0), crK * crTint, vCrownK + crNear);
+      diffuseColor.rgb *= mix(1.0, mix(0.5, 1.0, smoothstep(0.25, 1.9, length(vCrown.xz))), crNear * 1.2);
     }`);
 }
 function leafLit(sh, near = false) {

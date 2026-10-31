@@ -329,6 +329,7 @@ function shadowBox(g) {
 // 倒れた兵の補光の材質（army_ground.js fallenMaterial）で、元が兵の材質の物
 // 一人だけの形をまとめる入れ物（soloDraw）：材質と頂点の作りごとに一つ。形の数・頂点・番号の上限
 //   （10/28：乱戦では三人・四人だけの束と、入れ物の数の上限（十）で溢れた束が一コマ百回ほど残っていた。四人まで・十六まで。x_multi2・x_pools10 で元に）
+const RX_FENCE = /柵/;   // 回りの中で正規表現の字を書くと通るたびに作る（10/31 三木）
 const SOLO = { on: true, multi: 4, pools: 16, shards: 3, g: 420, v: 150000, i: 480000 }, _soloM = new THREE.Matrix4();
 // 満ちた入れ物で、二秒ほど使っていない形の場所のうち、大きさの足りるいちばん小さい所へ上書きする（無ければ -1）
 // 束（BatchedMesh）専用の材質の写し。元の材質を束と普通の形で使い回すと、three が物の入れ替わりごとに
@@ -1185,7 +1186,7 @@ export class Army {
       if ((g[0] < x0 && g[2] < x0) || (g[0] > x1 && g[2] > x1) || (g[1] < z0 && g[3] < z0) || (g[1] > z1 && g[3] > z1)) continue;
       if (segHit(pos.x, pos.z, tp.x, tp.z, g) < 0) continue;
       if (s.team === team && distToSeg(pos.x, pos.z, s.seg) < 2.5) continue;
-      if (over && /柵/.test(s.name || '') && distToSeg(pos.x, pos.z, s.seg) < clear) continue;
+      if (over && RX_FENCE.test(s.name || '') && distToSeg(pos.x, pos.z, s.seg) < clear) continue;
       return true;
     }
     return false;
@@ -2092,7 +2093,7 @@ export class Army {
   //   材質と頂点の作りが同じ物を、一つの BatchedMesh へまとめて一回で描く（形は初めて使う時に一度だけ写す。行列は毎コマ）。
   //   形・材質・色・動きは変えない。一括描画の拡張の無い機種と、入れ物が満ちた時は今までどおり
   soloDraw(B) {
-    const P = this.solo || (this.solo = { pools: new Map(), sig: new WeakMap(), frame: 0 });
+    const P = this.solo || (this.solo = { pools: new Map(), sig: new WeakMap(), frame: 0, again: new Map() });
     P.frame++;
     if (window.__apx?.multi) SOLO.multi = window.__apx.multi;
     if (window.__apx?.pools) SOLO.pools = window.__apx.pools;
@@ -2110,7 +2111,8 @@ export class Army {
       if (pool.used.length) pool.retireGeo = 0;
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
-      if (pool.idle > (MEM_TIGHT ? 240 : 900) && B.retired < 2 && B.retireMs < 0.5) {
+      // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
+      if (pool.idle > (MEM_TIGHT ? 240 : 900) * (1 + 3 * Math.min(3, P.again.get(key) || 0)) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。
@@ -2135,7 +2137,7 @@ export class Army {
         B.retireMs += performance.now() - started;
         if (waiting || pool.retireGeo < pool.geos.length || B.retireMs >= 0.5) continue;
         const disposeAt = performance.now();
-        this.scene.remove(pool.bm); pool.bm.dispose(); P.pools.delete(key); SOLO_STAT.poolsDisposed++;
+        this.scene.remove(pool.bm); pool.bm.dispose(); P.pools.delete(key); SOLO_STAT.poolsDisposed++; P.again.set(key, (P.again.get(key) || 0) + 1);
         B.retired++; B.retireMs += performance.now() - disposeAt;
       }
     }

@@ -1382,8 +1382,11 @@ const takato_siege = {
 
     // 空堀・塀から離れた門前の平地に、実兵の両脇の斬り合いを置く。
     // 本物への追加はせず、九十秒の門攻めでも軽い前列を保つ。
-    F.lines = [-8, 8].map((z, i) => clash(rt, {
-      x: 101, z, facing: -Math.PI / 2, w: 8, gap: 2.4, gap0: 0,
+    // 10/31 北の組（z 8）は、門前の 101 では寄せ道を歩く本人から近すぎて一度も写らなかった（軽い兵は本人から44m・カメラから30m の内を描かない）。
+    // 寄せ道の東、後詰の北の脇（x 134・z 11）へ移し、木戸から北へ回り込んだ城兵と後詰の端が押し合う形にする。
+    // 竹束の寄せ場（x 99〜125）でどちらを向いても、カメラから30m 余りの所に入る。寄せ道（z ±4）と鉄砲の手の道（z −2〜−12）は空けたまま。数は同じ。
+    F.lines = [[101, -8, -Math.PI / 2, null], [134, 11, 0, 12]].map(([x, z, facing, realNear], i) => clash(rt, {
+      x, z, facing, w: 8, gap: 2.4, gap0: 0, ...(realNear ? { realNear } : {}),
       seed: 15820 + i, noWake: true, noRout: true, killRate: 0, maxDrift: 1, calm: true,
       A: { flag: ODA.flag, armor: ODA.armor, count: 24, team: 0, faction: 'oda' },
       B: { flag: TAKEDA.flag, armor: TAKEDA.armor, count: 24, team: 1, faction: 'takeda' },

@@ -348,7 +348,7 @@ export class WorldVegetation {
             const count = lowV ? 4 : 5;
             // 指定した戦だけ葉房を起こす。横から薄い切れ端になるのを避ける。
             const pitch = this.def.cedarBoughPitch ?? 1.05;
-            const width = this.def.cedarBoughWidth ?? 1;
+            const width = this.def.cedarBoughWidth ?? 1.12;   // 10/31 gap4_veg：既定の房を少し広げ、房の間に空が抜けて一枚ずつの切り絵に見えるのを減らす（面数は同じ）
             for (let j = 0; j < count; j++) {
               const a = phase + j * Math.PI * 2 / count, d = r * (0.3 + F() * 0.2);
               // 輪生する枝も同じ棚の高さへ並べない。追加の乱数を使わず、幹と配置を保つ。
@@ -736,7 +736,7 @@ export class WorldVegetation {
     };
     const dummy = new THREE.Object3D();
     const tintOf = {
-      sugi: () => new THREE.Color().setRGB(0.55 + R() * 0.1, 0.62 + R() * 0.12, 0.5),
+      sugi: () => new THREE.Color().setRGB(0.49 + R() * 0.09, 0.6 + R() * 0.11, 0.53),   // 杉は黄緑に浮かせず、少し青みの深緑へ（10/31 gap4_veg）
       matsu: () => new THREE.Color().setRGB(0.6 + R() * 0.1, 0.7 + R() * 0.1, 0.55)
         .multiplyScalar(this.def.raggedPineCrowns ? 0.65 : 1),
       // 紅葉：赤錆・朱茶・黄・褐・名残の緑を株ごとに揺らす（鮮やかすぎない落ち着いた色）。

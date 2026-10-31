@@ -2748,6 +2748,8 @@ const miki = {
   },
   update(rt, dt) {
     const F = rt.flags;
+    // 並ぶだけの槍列の前へ、毛利の前備えを本人の見る先から押し寄せさせ、奥に別所勢の大軍（10/31 点付け70）
+    frontRig(rt, dt, FRONT_RIG);
     mikiKidoLight(rt, dt);
     // 空の色のしきい値だけで星が一斉に消えないよう、夜明けに合わせて薄くする。
     if (rt.world.stars) {
@@ -3232,3 +3234,95 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
 };
 export { miki };
+
+// 10/31 点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所へ置いた乱戦と大軍が画面から外れた。
+// 置き場を決め打ちにせず、本人の見る先（カメラから本人への向き）の前 8〜25m へ敵味方の組を寄せて斬り合わせ、
+// その奥 30〜60m に旗の林立する敵の大軍（軽い作り）を置く。本物の兵は足さない。
+// o：{ until（組を寄せる秒）, defMult, release(rt)（寄せ終えた後の後始末）, hostUntil, host（addDistantArmy の設定）, hostOk(x, z), meleeOk(x, z), meleeR, foes(rt), allies(rt) }
+// 毎コマ渡す決まりは一つを使い回す（10/31 iPhone の落ち：毎コマ物と関数を作らない）
+const FRONT_RIG = { until: 45, foes: (rt) => [rt.flags.escortFront],
+  host: { team: 1, flag: 'maru', armor: 0x3a3028, count: 130, w: 44, d: 14, flagRate: .55, seed: 15796 } };
+function frontRig(rt, dt, o) {
+  const F = rt.flags, P = rt.player.u, cam = rt.camera, W = rt.world;
+  if (!P?.alive || !cam || rt.over) return;
+  const R = F.frontRig || (F.frontRig = { t: 0 });
+  if ((R.t -= dt) > 0) return;
+  R.t = 0.5;
+  let fx = P.pos.x - cam.position.x, fz = P.pos.z - cam.position.z;
+  const fl = Math.hypot(fx, fz);
+  if (fl < 0.5) return;
+  fx /= fl; fz /= fl;
+  if (o.host && rt.t < (o.hostUntil || 120)) {
+    // カメラは斬り合いの中で大きく振れる。大軍は本人の周り四方（90度おき）に置き、本人の歩みに付いて歩かせる
+    //   （どちらを向いても、どれか一つが画面の奥に入る。向きが変わるたびに大軍を滑らせない）。
+    if (!R.hosts) { R.base = Math.atan2(fx, fz); R.hosts = []; R.aims = []; R.px = R.pz = 1e9; }
+    if (Math.hypot(P.pos.x - R.px, P.pos.z - R.pz) > 8) {
+      R.px = P.pos.x; R.pz = P.pos.z;
+      for (let k = 0; k < 4; k++) {
+        const a = R.base + k * Math.PI / 2, s = rigSpot(W, P.pos, Math.sin(a), Math.cos(a), o.hostR || [46, 40, 52, 36, 58, 32], o.hostOk, false);
+        if (s) R.aims[k] = { x: s.x, z: s.z, facing: Math.atan2(-s.fx, -s.fz) };
+      }
+    }
+    for (let k = 0; k < 4; k++) {
+      const at = R.aims[k];
+      if (!at || R.hosts[k]) continue;
+      const h = R.hosts[k] = W.addDistantArmy({ kind: 'spear', flagRate: .6, detailMiddle: 76, count: 130, w: 44, d: 14, ...o.host, seed: (o.host.seed || 1) + k, x: at.x, z: at.z, facing: at.facing, host: false });
+      if (h?.army) {
+        h.army.noWake = true;
+        // 軽い兵は本人から六十歩の内を描かない。本人の周りの大軍だけ、その輪を狭める（近い所は本物の組が埋める）。
+        if (h.army.U) h.army.U.uRealNear = { value: 24 };
+        h.follow(() => (rt.t < (o.hostUntil || 120) ? R.aims[k] : null), { gap: 0, speed: 4 });
+      }
+    }
+  }
+  if (!o.foes) return;
+  if (rt.t > (o.until || 45)) {
+    // 寄せる間だけ崩れず討たれにくくした組を、元へ戻す（一度だけ）
+    if (R.kept) { for (const [g, k] of R.kept) { g.noRout = k.noRout; g.defMult = Math.min(k.defMult ?? 1, g.defMult ?? 1); g.aggro = k.aggro; g.seekRange = k.seekRange; g.retreatOnly = k.retreatOnly; } R.kept = null; if (o.release) o.release(rt); }
+    return;
+  }
+  const ok = (g) => g && g.count && !g.routed;
+  const foes = o.foes(rt).filter(ok), allies = (o.allies ? o.allies(rt) : []).filter(ok);
+  let M = null;
+  R.kept = R.kept || new Map();
+  for (const g of [...foes, ...allies]) {
+    // 25秒の画面まで斬り合いが続くよう、寄せる間は崩れず討たれにくく（兵の数は変えない）
+    if (!R.kept.has(g)) {
+      R.kept.set(g, { noRout: g.noRout, defMult: g.defMult, aggro: g.aggro, seekRange: g.seekRange, retreatOnly: g.retreatOnly });
+      g.noRout = true; g.defMult = Math.max(g.defMult || 1, o.defMult || 2.4); g.aggro = Math.max(g.aggro || 0, 10); g.seekRange = Math.max(g.seekRange || 0, 14); g.retreatOnly = false;
+    }
+    const c = g.center(), dx = c.x - P.pos.x, dz = c.z - P.pos.z, d = Math.hypot(dx, dz);
+    let eng = false;
+    for (const u of g.units) {
+      const t = u.target;
+      if (u.alive && t?.alive && t.pos && t.team !== u.team && !t.isStruct && Math.abs(t.pos.x - u.pos.x) + Math.abs(t.pos.z - u.pos.z) < 6) { eng = true; break; }
+    }
+    const seen = d > (o.seenR?.[0] ?? 6) && d < (o.seenR?.[1] ?? 26) && dx * fx + dz * fz > d * 0.82;
+    if (g._rig) {
+      // 着いた・斬り合いになった：その場で打ち合う
+      if (eng && seen || Math.hypot(c.x - g.dest.x, c.z - g.dest.z) < 4) {
+        g._rig = false; g.order = 'attack'; g.march = false; g.signalSerial = (g.signalSerial || 0) + 1;
+        for (const u of g.units) if (u.alive) u.aiT = 0;
+        continue;
+      }
+    } else if (seen || (g._rigAt || 0) > rt.t) continue;   // 見えない所で斬り合う組も、四秒おきに見る先へ寄せ直す
+    M = M || rigSpot(W, P.pos, fx, fz, o.meleeR || [14, 12, 17, 10, 20], o.meleeOk, true);
+    if (!M) return;
+    const k = foes.includes(g) ? 2 : -2, x = M.x + M.fx * k, z = M.z + M.fz * k;
+    if (g._rig && Math.hypot(g.dest.x - x, g.dest.z - z) < 5) continue;
+    g.order = 'move'; g.dest = { x, z }; g.march = false; g.path = null; g.onArrive = null; g.focus = null;
+    if (g.anchor) { g.anchor.x = x; g.anchor.z = z; }
+    g._rig = true; g._rigAt = rt.t + 4; g.signalSerial = (g.signalSerial || 0) + 1;
+    for (const u of g.units) if (u.alive) u.aiT = 0;
+  }
+}
+function rigSpot(W, p, fx, fz, rs, ok, walk) {
+  for (const r of rs) for (const turn of [0, .2, -.2, .4, -.4, .6, -.6]) {
+    const c = Math.cos(turn), s = Math.sin(turn), ax = fx * c + fz * s, az = -fx * s + fz * c;
+    const x = p.x + ax * r, z = p.z + az * r, y = W.heightAt(x, z);
+    if (Math.abs(y - p.y) > (walk ? 4 : 12) || W.inWaterAt?.(x, z) || ok && !ok(x, z)) continue;
+    if (walk && W.walkable && !W.walkable(x, z, y)) continue;
+    return { x, z, fx: ax, fz: az };
+  }
+  return null;
+}
