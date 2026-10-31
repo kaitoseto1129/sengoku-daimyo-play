@@ -1014,7 +1014,7 @@ export class WorldTerrain {
 
 // 野の重ね塗り（10/28 leap_ground2）。地面の色が決まった後（color_fragment の後）に、世界座標だけで重ねる。
 // 絵は共用の斑と土を読むだけ（2〜3回）。同じ名前の uniform を二度宣言しないよう、別名で同じ値を渡す。
-function landOverlay(sh, U) {
+export function landOverlay(sh, U) {
   const fs = sh.fragmentShader;
   if (!fs.includes('#include <color_fragment>') || fs.includes('vLsP') || !sh.vertexShader.includes('#include <project_vertex>')) return;
   const tint = !fs.includes('uLandSeason');   // 共通の描き方には斑の塗りが既にある。差し替えた戦だけ斑も足す

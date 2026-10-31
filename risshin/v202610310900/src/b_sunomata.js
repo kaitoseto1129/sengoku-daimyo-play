@@ -3053,6 +3053,7 @@ const sunomata = {
       { pts: [[-13, 7], [-6, 7], [6, -10]], w: 2.2 }],
     // 葦は深い黄緑に枯れ色が混ざる（明るい黄の板にしない。手本。10/29）
     grass: 0x6e7a45, grassTints: [0xffffff, 0xd8cf9e, 0xa9b07c], tallGrass: 1,
+    grassShape: 'blade',   // 足元の草は絵の板でなく、細い葉の株（10/30 草の葉が板）
     flagColors: [0xe2ded2, 0x2a2826, 0x6b4a32],   // 紺の旗は青い味方に見えるので柿渋に（10/29）
     fights: [[0, -FORT - 12, 30], [-FORT - 12, 0, 30], [0, -FORT, 16], [-FORT, 0, 16]],
     skip: (x, z) => x > 56 || mizuhikiDist(x, z) < 3.2,   // 水を引いた溝の水面を草で隠さない

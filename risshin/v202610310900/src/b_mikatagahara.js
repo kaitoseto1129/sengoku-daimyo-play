@@ -44,7 +44,6 @@ import { clash } from './b_sekigahara.js';
 import { depthStart, depthTick, depthBot, rest, hold, move } from './b_depth.js';
 import { camp } from './b_mid.js';
 import { demSample } from './dem.js';
-import { WIND } from './world_weather.js';
 import { butaiTick } from './butai.js';
 import { fieldButai, fieldTick } from './b_yasen.js';
 import { jinkeiBuild } from './jinkei.js';
@@ -543,8 +542,13 @@ function winterGround(W) {
     float wSide = dot(dh, normalize(vec2(-1.0, 0.72))) * 0.5 + 0.5, wPow = wSide * wSide;
     // 10/30：共通の空の描き方に同じ名の hz があり、二度目の宣言で空の絵が作れず、空が霧の褐色の一色だった（空が褐色）。名を分ける。
     float mhz = max(d.y, 0.0);
-    vec3 dusk = mix(vec3(0.95, 0.5, 0.2), vec3(0.94, 0.74, 0.38), smoothstep(0.03, 0.24, mhz));
-    c = mix(c, dusk * (0.7 + 0.3 * wPow), (1.0 - smoothstep(0.05, 0.55, mhz)) * (0.62 + 0.3 * wPow) * mikataSunset);
+    // 10/30：名を分けた後も、25秒の画面（空は地平から二割ほどの高さまで）では霞の白・写真の雲・夕焼けが同じ明るさで混ざり、褐色の一色だった
+    //   （空の上・中・下の画素が d0bba6・e4cfb8・ddc3a7）。地平の橙→黄→褪せた藍を、見える高さの内で分け、雲の濃淡は明るさの比で残す。
+    //   色は描く値（明るい側へ持ち上がる）で選ぶ。画面で地平の橙・その上の黄・上の褪せた藍に見える濃さ。
+    vec3 dusk = mix(vec3(0.7, 0.22, 0.07), vec3(0.72, 0.46, 0.18), smoothstep(0.02, 0.08, mhz));
+    dusk = mix(dusk, vec3(0.18, 0.2, 0.33), smoothstep(0.09, 0.26, mhz));
+    float mcl = clamp(dot(c, vec3(0.3333)) / max(dot(bottom, vec3(0.3333)) * 1.25, 0.05), 0.7, 1.3);
+    c = mix(c, dusk * mcl * (0.85 + 0.25 * wPow), (1.0 - smoothstep(0.35, 0.8, mhz)) * (0.85 + 0.1 * wPow) * mikataSunset);
     float west = pow(max(0.0, dot(dh, normalize(vec2(-1.0, 0.72)))), 3.0) * exp(-abs(d.y - 0.03) * 10.0);
     c += vec3(0.5, 0.2, 0.06) * west * mikataSunset;
     gl_FragColor = vec4(c, 1.0);`);
@@ -898,68 +902,15 @@ function shadeY(g, lo, hi) {
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); return g;
 }
 function mkFarFlagsAndHills(rt) {
-  const W = rt.world, poles = [], cloth = [];
-  // 一本ずつ高さ・布の大きさ・傾き・はためきの向きを少しずつ違え、同じ板が柵のように並んで見えないようにする（10/28）。
-  // 形は作る時に一度だけ合わせ、毎コマは何も作らない。
-  const tilt = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-  // 布は細かく割って竿から離れるほど・裾ほど波打たせ、襞の陰を頂点の色で付ける（一枚の平らな赤い板にしない。10/29 点付け）。
-  // 三本に一本は細長い長旗、ほかは幅や丈を振り、紋も花菱と割菱を混ぜて同じ形の繰り返しに見せない。
-  const cloth2 = [];
-  const plant = (x, y, z, h, cw, ch, r0, r1, k) => {
-    // 形は一本ずつ四通り（細長い長旗・四角い幅広・燕尾に切れた裾・並の幟）と、大きさ 0.65〜1.35 倍を振る（10/29 夜「赤旗が同じ形」）。
-    const hz = (n) => { const v = Math.sin(k * 12.9898 + n * 78.233) * 43758.5453; return v - Math.floor(v); };
-    const kk = Math.abs(k * 53 % 7) / 6, form = Math.floor(hz(7) * 4), size = .65 + hz(8) * .7;
-    const fw = [1, .52, 1.3, .95][form], fh = [1, 1.55, .68, 1.08][form], notch = form === 3 ? .26 : 0;
-    const w = cw * (0.85 + kk * 0.3) * fw * size, hh = ch * (0.82 + (Math.abs(k * 31 % 5) / 4) * 0.3) * fh * size;
-    h = Math.max(h * (.8 + size * .25), hh + 1.2);
-    const pole = new THREE.CylinderGeometry(r0, r1, h, 4); pole.translate(0, h / 2, 0);
-    const p = new THREE.PlaneGeometry(w, hh, 4, 7); p.translate(w / 2, 0, 0);
-    const P = p.attributes.position, col = new Float32Array(P.count * 3), wv = new Float32Array(P.count * 4), ph = k * 1.37, amp = .16 + kk * .12;
-    // 一本ずつの色の揺らぎ：染めの濃さ・褪せ・煤け（同じ赤の板の繰り返しにしない。10/29 点付け）。
-    const rr = (n) => { const v = Math.sin(k * 91.7 + n * 47.3) * 43758.5453; return v - Math.floor(v); };
-    const dye = .8 + rr(1) * .32, fade = rr(2), soot = rr(3) * .1;
-    const yaw = Math.PI / 2 * .15 + Math.sin(k * 1.7) * .45, nx = Math.sin(yaw), nz = Math.cos(yaw);
-    for (let i = 0; i < P.count; i++) {
-      const free = P.getX(i) / w, down = (hh / 2 - P.getY(i)) / hh;
-      const a = free * 6.5 + down * 2.4 + ph, z0 = Math.sin(a) * amp * w * free * (.5 + down * .7);
-      P.setZ(i, z0); P.setX(i, P.getX(i) * (1 - .08 * down * free));
-      if (notch) P.setY(i, P.getY(i) + notch * hh * down * Math.max(0, 1 - Math.abs(free * 2 - 1.1) * 1.6));
-      // 襞の谷は暗く、山は残照で少し明るく。裾と竿の際は煤けた暗さ。
-      const sh = (.78 + Math.cos(a) * .16 * free - down * .08 - (1 - free) * .04) * dye - soot * down;
-      col[i * 3] = sh * (1 - fade * .08); col[i * 3 + 1] = sh * (.9 + fade * .14); col[i * 3 + 2] = sh * (.88 + fade * .12);
-      // 風の揺れ：竿から離れるほど・裾ほど大きく（形は作る時だけ。毎コマは頂点の描く所で揺らすだけ）
-      wv[i * 4] = nx; wv[i * 4 + 1] = nz; wv[i * 4 + 2] = free * (.45 + down * .6) * w * .22; wv[i * 4 + 3] = free * 3.2 + down * 1.1 + rr(4) * 6.28;
-    }
-    p.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    p.setAttribute('aWave', new THREE.BufferAttribute(wv, 4));
-    p.rotateY(yaw); p.translate(0, h - hh / 2 - .25, 0);
-    e.set(Math.sin(k * 2.3) * .07, 0, Math.sin(k * 5.9) * .08); q.setFromEuler(e);
-    tilt.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
-    pole.applyMatrix4(tilt); p.applyMatrix4(tilt);
-    poles.push(pole); (Math.abs(k * 7) % 5 < 2 ? cloth2 : cloth).push(p);
-  };
-  // 二列に互い違い（前の列を半歩ずらす）で、丘の背に赤い旗の帯が横に長く続いて見えるように（10/28 点付け）。
-  for (let i = -36; i <= 36; i++) {
-    const row = i & 1, t = i / 36, x = t * 126 + Math.sin(i * 7.3) * 1.2;
-    const z = TAKEDA_HQ_Z - 34 + row * 5 + 44 * Math.abs(t) ** 1.5 + Math.sin(i * 3.1) * 1.5;
-    const y = W.heightAt(x, z) + flagRidgeY(x, z) - .3, h = 10 + (i * 37 % 5) * .4 - row * 1.2;
-    // 遠い列でも赤い布が読める大きさ（幅1.7・丈5）。持ち場から北の丘に横へ長く並ぶ。
-    plant(x, y, z, h + Math.sin(i * 4.7) * 1.3, 2.2, 6.4, .06, .09, i);
+  const W = rt.world;
+  // 丘の背の赤い旗の列は、兵の体の無い・光も霧も受けない板の旗だった（10/30 点付け「遠い軍が絵」）。
+  // 旗の板を外し、軽い大軍（立体の人と背旗。army_batch.js）の備を丘の手前に連ねる。描く束は戦全体の物を使い回し、旗の三つの束が減る。
+  // 本陣の前は空け、両脇へ弓なりに張り出す。数と線は遠景の補いで、史料の陣立ての復元ではない。
+  for (const t of [-1, -2 / 3, -1 / 3, 1 / 3, 2 / 3, 1]) {
+    const x = t * 105, z = TAKEDA_HQ_Z - 10 + 40 * Math.abs(t) ** 1.5;
+    const g = W.addDistantArmy({ x, z, w: 16, d: 6, count: 34, team: 1, armor: AR.takeda, flag: Math.abs(t) > .5 ? "akazonae" : "takeda", facing: 0, flagRate: 1, seed: 15780 + Math.round(t * 9), host: false });
+    if (g?.army) g.army.noWake = true;
   }
-  // 先手の後ろの野に兵の体なしで立てた赤い旗の列は、宙に旗だけ浮いて見えた（10/29 夜）。外す。
-  // 手前の赤は、旗を背負う騎馬の群れ（軽い大軍の背旗）と先手の備の指物で見せる。
-  // 夕霧で布が白く褪せないよう、旗だけ霧を掛けない（赤い列を遠くまで読ませる）。
-  const pm = new THREE.Mesh(mergeGeometries(poles), new THREE.MeshLambertMaterial({ color: 0x3a2e22, fog: false }));
-  const tex = flagTexture('akazonae', true);
-  // 夕暮れの逆光で布が黒い影に沈んだ（10/28）。光に頼らず、残照に透ける赤で塗る。
-  const cm = new THREE.Mesh(mergeGeometries(cloth), new THREE.MeshBasicMaterial({ map: tex, color: 0xb8968a, vertexColors: true, side: THREE.DoubleSide, fog: false }));
-  const cm2 = new THREE.Mesh(mergeGeometries(cloth2), new THREE.MeshBasicMaterial({ map: flagTexture('yose_takeda_red', true), color: 0xae9084, vertexColors: true, side: THREE.DoubleSide, fog: false }));
-  for (const m of [cm.material, cm2.material]) m.onBeforeCompile = (sh) => {
-    sh.uniforms.uWT = WIND;
-    sh.vertexShader = 'attribute vec4 aWave;\nuniform float uWT;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-      '#include <begin_vertex>\n  float wq = sin(uWT * 2.3 + aWave.w) + .45 * sin(uWT * 3.7 + aWave.w * 1.9);\n  transformed.xz += aWave.xy * aWave.z * wq;');
-  };
-  for (const g of [...poles, ...cloth, ...cloth2]) g.dispose();
   // 浜松の方角（南）の低い丘。地図の南の端の外に、霧に溶ける色で四つ並べる。南の坂を下って退く時に、城の後ろに見える。
   const hills = [];
   for (const [x, z, sx, sy, sz] of [[-140, 205, 70, 13, 24], [-30, 212, 90, 18, 26], [85, 205, 80, 15, 24], [175, 198, 60, 11, 20]]) {
@@ -978,7 +929,7 @@ function mkFarFlagsAndHills(rt) {
   for (const g of ridge) g.dispose();
   rm.receiveShadow = true;
   for (const g of hills) g.dispose();
-  rt.scene.add(pm, cm, cm2, hm, rm);
+  rt.scene.add(hm, rm);
   // 旗の列の向こうの台地に、松と雑木の疎らな木立を影絵で連ねる（空と丘の間が一枚の紫に見えた）。
   // 三方ヶ原の台地の松林の補いで、木の場所の復元ではない。幹と梢を一つの束・一つの材質で描く（夕霞で消えないよう霧を掛けず、霞んだ青黒で塗る）。
   const trees = [];

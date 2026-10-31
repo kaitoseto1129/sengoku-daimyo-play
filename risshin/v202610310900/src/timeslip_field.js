@@ -283,13 +283,17 @@ function materials() {
       diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.68);`);
   };
   grass.customProgramCacheKey = () => 'tsGrass2';
+  // grassShape:'blade' の戦の草：絵の板でなく、共通の細い葉の株（fieldGrassGeo）。そよぎと彩度は同じ。
+  const grassBlade = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 });
+  grassBlade.onBeforeCompile = grass.onBeforeCompile;
+  grassBlade.customProgramCacheKey = () => 'tsGrassBlade';
   MAT = {
     mud: decal(T.mud),
     rut: decal(T.rut),
     pool: decal(T.pool, { roughness: 0.5, metalness: 0, envMapIntensity: 0.3, opacity: 0.5, emissiveIntensity: 0.04 }),
     blot: new THREE.MeshBasicMaterial({ map: T.blot, color: 0x000000, transparent: true, opacity: 0.42, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
     solid: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0, side: THREE.DoubleSide }),
-    grass, sway,
+    grass, grassBlade, sway,
     puff: new THREE.PointsMaterial({ map: T.puff, size: 7, sizeAttenuation: true, transparent: true, depthWrite: false, opacity: 0.12, color: 0xb8a68a }),
   };
   return MAT;
@@ -347,6 +351,8 @@ export function timeslipField(rt) {
   // 指定した戦だけ葉の垂れる株へ替える。次の戦では共有の絵へ戻す。
   M.grass.map = ts.grassTexture ? leafTex(ts.grassTexture) : textures().grass;
   M.grass.emissive.copy(M.grass.color).multiplyScalar(ts.grassLift || 0);   // 夜の戦：篝火に照らされた地面の上で、草だけ黒い影に見せない
+  const blade = ts.grassShape === 'blade';
+  if (blade) { M.grassBlade.color.set(0xffffff).lerp(M.grass.color, 0.35); M.grassBlade.emissive.copy(M.grass.emissive); }
   M.puff.color.setHex(ts.hazeColor ?? (wet > 0.5 ? 0xc4cacc : 0xbaa686));   // 夜の戦は暗い靄（光る白い粒にしない）
   M.puff.size = wet > 0.5 ? 9 : 6;
   const P = {
@@ -359,7 +365,7 @@ export function timeslipField(rt) {
     flag: pool(scene, G.flag, M.solid, CAP.flag, { color: true }),
     blot: pool(scene, G.blot, M.blot, CAP.blot),
     branch: ts.branches ? pool(scene, G.branch, M.solid, CAP.branch, { cast: true }) : null,
-    grass: pool(scene, G.grass, M.grass, Math.min(560, ts.grassCap ?? CAP.grass), { color: true }),   // grassCap：芒の原など草の多い戦だけ株の上限を上げる（三角は少ない板二枚）
+    grass: pool(scene, blade ? fieldGrassGeo() : G.grass, blade ? M.grassBlade : M.grass, Math.min(560, ts.grassCap ?? CAP.grass), { color: true }),   // grassCap：芒の原など草の多い戦だけ株の上限を上げる（三角は少ない板二枚）
   };
   // ---- 地を這う土埃・靄（一つの点の束。風に流れ、近くで斬り合うと濃くなる） ----
   const NP = 26, haze = new Float32Array(NP * 3);

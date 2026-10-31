@@ -1796,10 +1796,13 @@ function nodaWallLine(rt, pts, o = {}) {
 }
 
 // 堀の水だけに土色の縁、細い流れと泡、岸の草を一度組み立てる。
-function nodaMoat(rt, m, q) {
+function nodaMoat(rt, q, acc) {
   const [[ax, az], [bx, bz]] = q.pts, len = Math.hypot(bx - ax, bz - az);
   const nx = -(bz - az) / len, nz = (bx - ax) / len, half = (q.w - 1.6) / 2;
-  const y = m.geometry.attributes.position.getY(0), pos = [], uv = [], indices = [], bank = [], grass = [];
+  // 水面の高さは共通の水堀（castle_parts.js の mizubori）と同じ式に、この戦の掘り直しの分（深さの1.2倍）を足す。
+  const H = (x, z) => rt.world.heightAt(x, z);
+  const y = Math.min(H(ax, az), H(bx, bz), H((ax + bx) / 2, (az + bz) / 2)) + (q.deep ?? 2) * 1.65;
+  const base = acc.pos.length / 3, pos = acc.pos, uv = acc.uv, indices = acc.idx, bank = [], grass = [];
   const n = Math.ceil(len / 0.8);
   for (let i = 0; i <= n; i++) {
     const t = i / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
@@ -1815,20 +1818,14 @@ function nodaMoat(rt, m, q) {
         nodaBlade(grass, ox, gy, oz, Math.cos(angle), Math.sin(angle), h);
       }
     }
-    if (i < n) { const a = i * 2; indices.push(a, a + 1, a + 3, a, a + 3, a + 2); }
+    if (i < n) { const a = base + i * 2; indices.push(a, a + 1, a + 3, a, a + 3, a + 2); }
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(indices); geo.computeVertexNormals();
-  m.geometry.dispose(); m.geometry = geo;
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#526760'; ctx.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 32; i++) {
-    ctx.strokeStyle = i % 4 ? 'rgba(181,197,180,0.22)' : 'rgba(39,56,52,0.3)';
-    ctx.beginPath(); ctx.moveTo((i * 37) % 128, (i * 19) % 128); ctx.lineTo((i * 37) % 128 + 12, (i * 19) % 128 + 1); ctx.stroke();
+  // 向き：水面の表が上を向くように（裏向きなら三角の順を入れ替える）
+  if (pos.length - base * 3 >= 12) {
+    const o = base * 3, ux = pos[o + 3] - pos[o], uz = pos[o + 5] - pos[o + 2], vx = pos[o + 9] - pos[o], vz = pos[o + 11] - pos[o + 2];
+    if (uz * vx - ux * vz < 0) for (let i = acc.idx0; i < indices.length; i += 3) { const t = indices[i + 1]; indices[i + 1] = indices[i + 2]; indices[i + 2] = t; }
   }
-  for (let i = 0; i < 18; i++) { ctx.fillStyle = 'rgba(211,211,182,0.4)'; ctx.fillRect(i * 7, i % 2 ? 4 : 121, 2, 1); }
-  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping;
-  const mat = new THREE.MeshLambertMaterial({ map: tex, color: 0xffffff, side: THREE.DoubleSide }); m.material = mat;
+  acc.idx0 = indices.length;
   const bankIndex = [];
   for (let i = 0; i < n; i++) for (let side = 0; side < 2; side++) { const a = i * 4 + side * 2, b = a + 4; bankIndex.push(a, a + 1, b + 1, a, b + 1, b); }
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bank, 3)); bg.setIndex(bankIndex); bg.computeVertexNormals();
@@ -1838,7 +1835,25 @@ function nodaMoat(rt, m, q) {
   for (let i = 0; i < gn.count; i++) gn.setXYZ(i, 0, 1, 0);
   const gm = new THREE.MeshLambertMaterial({ color: 0x77704a, side: THREE.DoubleSide }); rt.scene.add(new THREE.Mesh(gg, gm));
   const dispose = rt.dispose;
-  rt.dispose = function () { for (const item of [geo, mat, tex, bg, bm, gg, gm]) item.dispose(); return dispose.call(this); };
+  rt.dispose = function () { for (const item of [bg, bm, gg, gm]) item.dispose(); return dispose.call(this); };
+}
+
+// 10/30 採点「水が平ら」：堀の水は絵の板（キャンバスの縞を貼った一色の面）だった。共通の水（water_body.js の水堀）が拾う材質の値で一枚にまとめ、
+// 波・風の筋・空と岸の映り込み・照りを任せる。前は縄張りの子の並びの番号で水面を取り違え、東の堀には別の物（土塁の草）の形を書き換えていた。
+// 縄張りが置いた水面（mizubori の材質）は外し、三本の堀を一つの網にする（描く数は三つから一つ。絵は一枚減る）。
+function nodaMoatWater(rt, acc) {
+  const drop = [];
+  rt.scene.traverse((o) => { if (o.isMesh && !o.isInstancedMesh && o.material?.color?.getHex?.() === 0x31424a && o.material.transparent) drop.push(o); });
+  for (const o of drop) { o.parent.remove(o); o.geometry.dispose(); }
+  rt.world._castleMoatMesh = null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(acc.pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(acc.uv, 2));
+  geo.setIndex(acc.idx); geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92, envMapIntensity: 0.6 });
+  const mesh = new THREE.Mesh(geo, mat); mesh.name = '堀の水'; mesh.receiveShadow = true;
+  rt.scene.add(mesh);
+  const dispose = rt.dispose;
+  rt.dispose = function () { geo.dispose(); mat.dispose(); return dispose.call(this); };
 }
 
 // 淀川の岸：共通の灰色の平たい川石（岸に浮いて見えた）を外し、水際に葦の群れを立てる。
@@ -2491,6 +2506,9 @@ const nodafukushima = {
     muddy: 0.55,
     rocks: 0, // 淀川の河口の中洲（砂と泥の低地）。山の岩を転がさない（灰色の平たい岩が堤に浮いて見えた。10/28）
     softPathSoil: true, patchyGround: true,
+    // 10/30 採点「地が茶の一色」：25秒の画面の地面の画素で緑が勝つ所は0%（秋の枯れ草と泥）で、共通の重ね塗り（landOverlay）の草の斑は掛からず、
+    // 土の絵（茶）と泥の絵（濃い茶）が同じ色相だった（色相の散らばり15度）。中洲の土を淀川の砂まじりの灰褐へ寄せ、濡れた泥の黒茶と枯れ草の黄と分ける（値だけ）。
+    dirtTint: [0.9, 0.93, 1.0],
     softEarthCrust: true, // 土塊の境で飛ぶ陰と凹凸を抑え、地面に格子を残さない。
     // 土と草の境を蛇行させ、堤の肩にも短い草と踏まれた土を混ぜる。歩く高さは保つ。
     grassMix(x, z, pd) {
@@ -2700,6 +2718,7 @@ const nodafukushima = {
     // ---- 野田砦・福島砦：土塁と柵、冠木門、板葺きの登れる井楼、水堀 ----
     // 堀は組み立て側で一度加える。withHori を渡して二重に掘らない。
     const fortBase = (x, z) => baseHeight(x, z) + DORUI_H(x, z);
+    const moatAcc = { pos: [], uv: [], idx: [], idx0: 0 };
     const buildFort = plan => {
       // 写真の細い縦板の目地。狭間を塞がず、乱杭と土塁の既存の形は保つ。
       // 両砦の高だけに指定し、ほかの戦の共通部品の見た目は変えない。
@@ -2717,21 +2736,18 @@ const nodafukushima = {
         // 既存の井楼の形・遠景用の形・梯子口をそのまま使う。元の縄張りは変えない。
         yagura: plan.yagura.map(y => ({ ...y, boarded: y.id === 'monomiW' })),
       };
-      const start = rt.scene.children.length;
       const C = buildCastlePlan(rt, plan, { baseHeight: fortBase, edgeW: 3, life: false, buildGates: true, buildTowers: true, team: 1 });
       // 遠近を切り替える井楼は結合しない。子の網を外すと、切替後に
       // 梯子口と守兵だけが空中へ残る。行列を止める軽量化はそのまま使う。
       for (const tower of C.towers) tower.mesh.userData.noMerge = true;
       // 共通部品は未造成の地面から水面を下げる。この戦の地面は既に堀底なので、
       // 最初に作られる水面を底より深さの六割五分だけ上へ戻す（土橋の切れ目は維持）。
-      plan.hori.forEach((q, i) => {
-        const m = rt.scene.children[start + i];
-        if (m?.isMesh && m.geometry?.type === 'BufferGeometry') { m.geometry.translate(0, q.deep * 1.2, 0); m.geometry.computeBoundingSphere(); nodaMoat(rt, m, q); }
-      });
+      plan.hori.forEach((q) => nodaMoat(rt, q, moatAcc));
       return C;
     };
     F.noda = buildFort(NODA_PLAN);
     F.fuku = buildFort(FUKU_PLAN);
+    nodaMoatWater(rt, moatAcc);
     if (true) {
       // 本の井楼に合わせ、樹皮の通し柱と木口を出す井桁へ。既存の形と遠近切替を共用する。
       monomi(rt, -10, -90, { team: 1, mon: 'miyoshi', logFrame: true, fieldFrame: true, barkPosts: true, boarded: true, name: '野田砦の奥の井楼' }).mesh.userData.noMerge = true;

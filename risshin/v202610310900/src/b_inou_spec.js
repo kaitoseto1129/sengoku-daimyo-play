@@ -10,7 +10,9 @@
 import * as THREE from 'three';
 import { inou as OLD } from './b_inou.js';
 import { enemyGroup, allyGroup } from './bhelp.js';
-import { nobori } from './props.js';
+import { nobori, hut } from './props.js';
+import { MEM_TIGHT } from './settings.js';
+import { flagTexture } from './textures.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
@@ -80,6 +82,101 @@ function hasaField(rt) {
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide }));
   mesh.name = 'hasaField'; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.updateMatrix();
   rt.scene.add(mesh);
+}
+
+// 穂の出た稲田と畦・茅葺きの農家・敵の後ろの大軍（10/30 mini「稲田と茅葺きの農家が無い・敵の後ろに続く大軍が無い」）。
+// 25秒の所（道の z 100〜110）から八方のどこを向いても、稲田か農家か大軍のどれかが入るように配る。当たりは付けない（兵の歩く道を変えない）。
+// 田の区画は地面の畦の筋と同じ 24×20m。道の区画（x 0〜24）と葦原・稲架・家の所は空ける。
+const FARMS = [[42, 106, 1.45], [38, 76, -0.1], [40, 138, 0.15], [-4, 141, -0.05], [-21, 133, 0.2], [-19, 100, 1.5], [-17, 70, 0.08],
+  [37, 32, -0.15], [-15, 12, 0.1], [38, -48, 1.62], [-13, -74, -0.12], [37, -98, 0.1]];
+const nearFarm = (x, z, m) => FARMS.some(([fx, fz]) => Math.abs(x - fx) < 4 + m && Math.abs(z - fz) < 3.5 + m) || HASA.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 5.5);
+function farmHouses(rt) {
+  for (const [x, z, r] of FARMS) rt.scene.add(hut(rt.world, x, z, 7.5, 5, r, { wall: 0x7f6b52, groundedHome: true, minka: false, solid: false, thatchTies: true }));
+}
+function paddyRice(rt) {
+  const W = rt.world, step = MEM_TIGHT ? 1.3 : 1.0;
+  // 株：葉二枚と垂れた穂一つ（三角八つ）。頂点の色で根元の濃い緑・葉先の黄緑・穂の黄金を分ける
+  const P = [], C = [], col = (r, g, b, n) => { for (let i = 0; i < n; i++) C.push(r, g, b); };
+  for (const [a, h, lean] of [[0.3, 0.95, 0.32], [2.3, 0.85, 0.36]]) {
+    const ca = Math.cos(a), sa = Math.sin(a), px = -sa * 0.035, pz = ca * 0.035, mx = ca * lean * 0.45, mz = sa * lean * 0.45, tx = ca * lean, tz = sa * lean;
+    const b0 = [-px, 0, -pz], b1 = [px, 0, pz], m0 = [mx - px * 0.8, h * 0.6, mz - pz * 0.8], m1 = [mx + px * 0.8, h * 0.6, mz + pz * 0.8], t = [tx, h * 0.92, tz];
+    P.push(...b0, ...b1, ...m1, ...b0, ...m1, ...m0, ...m0, ...m1, ...t);
+    col(0.2, 0.27, 0.1, 6); col(0.36, 0.4, 0.15, 2); col(0.5, 0.5, 0.2, 1);
+  }
+  { // 穂：茎の先から横へ垂れる細い房
+    const s = [0, 1.02, 0], e = [-0.22, 0.78, 0.1], w = [0.02, 0, 0.03];
+    P.push(s[0] - w[0], s[1], s[2] - w[2], s[0] + w[0], s[1], s[2] + w[2], ...e, -0.04, 0.55, 0, 0.04, 0.55, 0, ...s);
+    col(0.62, 0.53, 0.24, 3); col(0.3, 0.33, 0.13, 2); col(0.55, 0.5, 0.22, 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide });
+  const hash = (i, j) => { const f = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return f - Math.floor(f); };
+  const chunks = new Map(), ridges = [];
+  for (const cx of [-12, 36]) for (let cz = 130; cz > -120; cz -= 20) {
+    if (hash(cx, cz) < 0.32 && !(cz > 60)) continue;   // 刈った田も混ぜる（25秒の所の近くは全部実った田）
+    const key = Math.floor((cz + 130) / 60), arr = chunks.get(key) || chunks.set(key, []).get(key);
+    for (let x = cx - 11.2; x < cx + 11.2; x += step) for (let z = cz - 9.2; z < cz + 9.2; z += step) {
+      const r1 = hash(x * 3.1, z * 1.7), r2 = hash(z * 2.3, x * 4.9), jx = x + (r1 - 0.5) * step * 0.6, jz = z + (r2 - 0.5) * step * 0.6;
+      if (Math.abs(jx - sideX(jz)) < 13.5 || nearFarm(jx, jz, 1.5)) continue;
+      arr.push([jx, jz, r1, r2]);
+    }
+    ridges.push([cx, cz]);
+  }
+  const o = new THREE.Object3D(), c = new THREE.Color();
+  for (const pts of chunks.values()) {
+    if (!pts.length) continue;
+    const m = new THREE.InstancedMesh(geo, mat, pts.length);
+    pts.forEach(([x, z, r1, r2], i) => {
+      o.position.set(x, W.heightAt(x, z) - 0.04, z); o.rotation.set((r2 - 0.5) * 0.12, r1 * Math.PI * 2, (r1 - 0.5) * 0.12);
+      const s = 0.85 + 0.3 * r2; o.scale.set(s, s * (0.9 + 0.2 * r1), s); o.updateMatrix(); m.setMatrixAt(i, o.matrix);
+      c.setRGB(0.88 + 0.2 * r1, 0.88 + 0.16 * r2, 0.85 + 0.15 * r1); m.setColorAt(i, c);
+    });
+    m.receiveShadow = true; m.computeBoundingSphere(); m.matrixAutoUpdate = false; m.name = 'paddyRice';
+    rt.scene.add(m);
+  }
+  // 畦：実った田の四辺に低い土の盛り（半ば埋めた六角の筒を地面に沿って四m ごとに）。一つの形・一つの描く数
+  const seen = new Set(), parts = [], up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3(), Q = new THREE.Quaternion(), M = new THREE.Matrix4(), V = new THREE.Vector3(), O = new THREE.Vector3(1, 1, 1);
+  const seg = (ax, az, bx, bz) => {
+    const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 4));
+    for (let i = 0; i < n; i++) {
+      const x0 = ax + (bx - ax) * i / n, z0 = az + (bz - az) * i / n, x1 = ax + (bx - ax) * (i + 1) / n, z1 = az + (bz - az) * (i + 1) / n;
+      const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      if (Math.abs(mx - sideX(mz)) < 12 || Math.abs(mx - FRONT_X) < 4 || nearFarm(mx, mz, 0)) continue;
+      const y0 = W.heightAt(x0, z0), y1 = W.heightAt(x1, z1), L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+      const g = new THREE.CylinderGeometry(0.32, 0.32, L + 0.3, 6, 1, true); g.scale(1, 1, 0.55);
+      dir.set(x1 - x0, y1 - y0, z1 - z0).normalize(); Q.setFromUnitVectors(up, dir);
+      M.compose(V.set(mx, (y0 + y1) / 2 - 0.12, mz), Q, O); g.applyMatrix4(M);
+      const k = 0.85 + 0.15 * hash(mx, mz), n2 = g.attributes.position.count, a = new Float32Array(n2 * 3), p = g.attributes.position;
+      for (let j = 0; j < n2; j++) { const top = p.getY(j) > (y0 + y1) / 2 + 0.05; a.set(top ? [0.33 * k, 0.36 * k, 0.17 * k] : [0.3 * k, 0.24 * k, 0.16 * k], j * 3); }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
+    }
+  };
+  for (const [cx, cz] of ridges) for (const [ax, az, bx, bz] of [[cx - 12, cz - 10, cx + 12, cz - 10], [cx - 12, cz + 10, cx + 12, cz + 10], [cx - 12, cz - 10, cx - 12, cz + 10], [cx + 12, cz - 10, cx + 12, cz + 10]]) {
+    const key = [ax, az, bx, bz].join(); if (seen.has(key)) continue; seen.add(key); seg(ax, az, bx, bz);
+  }
+  if (parts.length) {
+    const g = mergeGeometries(parts); for (const q of parts) q.dispose();
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+    mesh.name = 'aze'; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; rt.scene.add(mesh);
+  }
+}
+// 敵の後ろに続く大軍：林勢・信勝方の軽い兵（立体・背旗つき）。本人の 85m 先を保って北へ退き（背を向けて）、土手の奥で止まる。
+// 本物の兵には替えない（noWake）。本人の 60m 内の軽い兵は描かれない（共通の決まり）。
+const REAR = [[12, 4, 40, 12, 150, 0], [-16, 22, 22, 10, 90, 1], [42, 12, 22, 10, 90, 2]];
+function rearArmy(rt) {
+  const W = rt.world, F = rt.flags, tex = flagTexture('kari');
+  F.rear = REAR.map(([x, z, w, d, count, i]) => {
+    const g = W.addDistantArmy({ x, z, w, d, count: MEM_TIGHT ? Math.round(count * 0.8) : count, facing: 0, armor: ZAKO.armor, team: 1, flagTex: tex, mon: 'kari', kind: 'mixed', host: false, flagRate: 0.45, seed: 1029 + i * 17 });
+    if (g.army) g.army.noWake = true;
+    return { g, x, z, dz: z - REAR[0][1] };
+  });
+}
+function rearTick(rt, P) {
+  for (const R of rt.flags.rear || []) {
+    if (R.z - P.pos.z < -80 || R.z <= -140) continue;
+    if (P.pos.z - R.z < 85) { R.z = Math.max(-140, P.pos.z - 95 + R.dz); R.g.moveTo(R.x, R.z, 8, { back: true }); }
+  }
 }
 
 // 葦原：脇道の両側に背の高い葦（一つの InstancedMesh）
@@ -212,6 +309,12 @@ const inou_spec = {
       const row = Math.round((z + 320) / (640 / 144)) % 2;
       return r > 0.6 ? 0.7 + 0.2 * r : row ? 0.85 : 0.08;
     },
+    // 10/30 採点「地が土の一色」：上の tint は地面の色にならない（tint の色は草の割合を読むためだけで、草の割合は grassMix が上書きする）。
+    // 地の色は藁色の草の絵と土の絵の二つだけで、土は明るい砂色寄り・藁と同じ色相だったので一色に見えた。
+    // 数で見ると、25秒の画面の地面の画素のうち緑が勝つのは3%だけで、共通の重ね塗り（landOverlay）の草の斑・株のむらは掛からず、土の明暗だけが効いていた。
+    // 刈った区画と踏まれた所の土を湿った黒褐へ沈めて藁の株と分け、株の抜けた裸地の斑（patchyGround）を足す（絵・形・描く数・足場は同じ）。
+    dirtTint: [0.5, 0.45, 0.38],
+    patchyGround: true,
     autumn: true,   // 八月二十四日（今の九月末）の刈り入れ時：田の草の絵を枯れた藁色に（地面の描き方の枝を替えるだけ。絵は増えない）
     // 西の於多井川（x −145）は見えない壁（±74）と杉の二重の帯と霞の向こうで見えないのに、水面と岸を描いていた（10/30）。
     // 外して、稲架の描く一つと三角の分を相殺する。東の小川（x 72）は残す。
@@ -227,6 +330,9 @@ const inou_spec = {
     F.sec = {}; F.groups = []; F.holdPlayer = true; F.knots = []; F.allyGs = []; F.dinT = 2;
     reeds(rt);
     hasaField(rt);
+    farmHouses(rt);
+    paddyRice(rt);
+    rearArmy(rt);
     bossFlag(rt);
     // 夏の終わりの薄雲と霞（前の稲生の setup と同じ。この戦の setup は前の物を呼ばないので、ここで掛ける）：
     // 霞を緑がかった灰に、日を弱めて影を柔らかく。昼の霞だけ百五十mで閉じ、五十〜八十m先の杉の帯を白く透かさない。
@@ -348,6 +454,7 @@ const inou_spec = {
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
+    rearTick(rt, P);
     // 区画と乱戦の塊を近い順に出す（本物の兵は REAL_CAP まで。美作守の備は先に出す）
     let n = aliveReal(rt);
     if (!F.bossG && P.pos.z < -40) { this.spawnBoss(rt); this.spawnBank(rt); n += 26; F.groups.push(F.guardG); F.guardG.secKind = 'guard'; }
