@@ -3053,6 +3053,7 @@ const sunomata = {
       { pts: [[-13, 7], [-6, 7], [6, -10]], w: 2.2 }],
     // 葦は深い黄緑に枯れ色が混ざる（明るい黄の板にしない。手本。10/29）
     grass: 0x6e7a45, grassTints: [0xffffff, 0xd8cf9e, 0xa9b07c], tallGrass: 1,
+    grassShape: 'blade',   // 足元の草は絵の板でなく、細い葉の株（10/30 草の葉が板）
     flagColors: [0xe2ded2, 0x2a2826, 0x6b4a32],   // 紺の旗は青い味方に見えるので柿渋に（10/29）
     fights: [[0, -FORT - 12, 30], [-FORT - 12, 0, 30], [0, -FORT, 16], [-FORT, 0, 16]],
     skip: (x, z) => x > 56 || mizuhikiDist(x, z) < 3.2,   // 水を引いた溝の水面を草で隠さない
@@ -4553,7 +4554,9 @@ const sunomata = {
       if (hw === 85) rt.say('木下藤吉郎', '小屋に敵が取り付いた！　組を連れて戻れ、小屋を守れ！', 3.5);
       else rt.bark('普請小屋が危ない！　中に入った敵を押し返せ', true);
     }
-    if (F.wave === 1 && gone(F.W1) && (!F.W1b || gone(F.W1b)) && rt.t - F.w1T > 18 && fortSafe(rt) && !F.next2) {
+    // 10/30：本人が槍を当てたか討った寄せの時だけ次の手へ進める（立っているだけでは段が進まない）
+    { const sw = rt.player.u.swing; if (sw?.target && sw.target.team !== rt.player.u.team && sw.res && sw.res !== 'miss') F.foughtWave = F.wave; }
+    if (F.wave === 1 && gone(F.W1) && (!F.W1b || gone(F.W1b)) && rt.t - F.w1T > 18 && fortSafe(rt) && !F.next2 && F.foughtWave === 1) {
       F.next2 = true; F.next2T = rt.t;
       rt.unmark('w');
       rt.say('木下藤吉郎', 'ようやった！　じゃが、まだ来るぞ。今のうちに備えを直せ', 4);
@@ -4646,7 +4649,7 @@ const sunomata = {
       // 二の手が崩れたら、荷駄の行方を長く待たずに三の手へ（荷駄を待つ間、六十秒以上だれも来なかった）。
       if (gone(F.W2) && F.w2ClearT == null) F.w2ClearT = rt.t;
       const nidaSettled = F.nidaDone && !F.portersUnsafe && (gone(F.KE) || (F.KEwithdraw && Math.hypot(F.KE.center().x, F.KE.center().z) > FORT + 12)) && !F.KEwait;
-      if (fortSafe(rt) && gone(F.W2) && (nidaSettled || rt.t - F.w2ClearT > 6) && !F.next3) {
+      if (fortSafe(rt) && gone(F.W2) && (nidaSettled || rt.t - F.w2ClearT > 6) && !F.next3 && F.foughtWave === 2) {
         F.next3 = true;
         rt.unmark('w');
         rt.say('木下藤吉郎', '日が傾いてきた。次が正念場じゃ', 3.5);
@@ -4821,6 +4824,7 @@ const sunomata = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    if (k === rt.player.u && v.team !== k.team) F.foughtWave = F.wave;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     nagashinojo.kit.carrion(rt, v);
     if (v === F.flagbearer) rt.unmark('flag');

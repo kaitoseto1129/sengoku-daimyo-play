@@ -19,7 +19,8 @@ const HOURS = {
   // 墨俣の昼→夕暮れは伝承をもとにした守りの場面。史実の開戦時刻とは扱わない。
   sunomata: { day: [12, 14, 120], afternoon: [14, 16, 150], dusk: [16, 17.8, 180] },
   // 箕作は申の刻から夜へ。夜への切替と松明は戦の台本が受け持つ。
-  mitsukuri: { day: [15.5, 17, 90], dusk: [17, 18, 90] },
+  // 10/30 vis_f：申の刻の始め（十五時）から。西日の明るい間を少し長くし、開戦の画面を暗く沈めない。
+  mitsukuri: { day: [15, 17, 90], dusk: [17, 18, 90] },
 };
 const COLORS = ['sky', 'fog', 'sun', 'hemiSky', 'hemiGround', 'top', 'glow'];
 const VALUES = ['sunI', 'hemiI', 'glowK', 'cover', 'cloudDark', 'vis', 'cloud'];

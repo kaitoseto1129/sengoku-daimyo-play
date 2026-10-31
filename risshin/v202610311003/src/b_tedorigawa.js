@@ -2592,7 +2592,7 @@ const tedorigawa = {
     //   渡り口の手前へ下がる柴田の手（-8, -38）へ斬り込んで押し合う（10/30 実機の門：25秒の画面に敵が写らない）。
     //   軽い大軍はカメラの48m内に描かれないので本物の兵で。人数は十人に絞る（本物の兵は合わせて250人ほど）。渡り口の中ほど（x≈0〜4）は空ける。
     F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '川沿いを回り込んだ上杉勢', anchor: { x: -9, z: -30 }, facing: Math.PI,
-      order: 'hold', width: 5, formation: 'yari', aggro: 10, seekRange: 14, morale: 95, fleeDir: { x: -1, z: -1 } },
+      order: 'hold', width: 5, formation: 'yari', aggro: 10, seekRange: 14, morale: 100, noRout: true, fleeDir: { x: -1, z: -1 } },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], UESUGI));
     {
       // 押し合いの外の脇を篝火で照らす（雨の夜）
@@ -2816,6 +2816,8 @@ const tedorigawa = {
   update(rt, dt) {
     if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: 'uesugi', foeArmor: 0x2a2a2a, seed: 9110 }) || [];
     const F = rt.flags;
+    // 川沿いの上杉勢は開戦四十秒まで崩れない（10/30 測り：弓組に削られ二十秒で崩れて逃げ、25秒の画面から消えた）。その後は普通に崩れる。
+    if (F.fordFoe && F.fordFoe.noRout && rt.t > 40) F.fordFoe.noRout = false;
     // 重傷の決着とやり直しは共通の処理へ渡す。倒れた本人へ次の下知を出さない。
     if (!rt.player.u.alive || rt.player.u.hp <= 0) {
       if (!F.downOrdersCleared) {

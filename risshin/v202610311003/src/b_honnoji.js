@@ -1149,6 +1149,12 @@ function akechi(rt, name, path, list, o = {}) {
     pts = h.take(at.x, at.z, n, R, null, (x, z) => !inTera(x, z));
     if (pts.length) { host = h; break; }
   }
+  // 表庭の乱戦の組（o.fill）は、一つの備えで足りない分を、ほかの備えから足して人数をそろえる
+  //   （10/30 測り：表門の先手の備えから4人しか引けず、表庭へ押し込む組が12人中4人・斬り合いの組は0人だった）
+  if (o.fill && pts.length < n) for (const h of F.aHost || []) {
+    if (h === host || pts.length >= n) continue;
+    pts = pts.concat(h.take(at.x, at.z, n - pts.length, 1e9, null, (x, z) => !inTera(x, z)));
+  }
   if (!pts.length) return null;
   // 寄せ手は具足と桔梗の指物。侍の兜と肩の具足を残し、小袖の供と形でも見分ける。
   const dressed = dress(list.map((s) => ({ ...s, o: {
@@ -1386,7 +1392,7 @@ function honnoSurround(rt, dt) {
   }
   // 体力はギリギリで減る：七分で三割ほど残る線より削られていれば、寄せ手の太刀を浅くする（立ち止まれば、それでも討たれる）
   const hpF = P.hp / P.maxHp, line = 1 - 0.7 * Math.min(1, (rt.t - F.surT0) / 420);
-  const gm = hpF < line - 0.12 ? 0.3 : hpF < line ? 0.6 : hpF > line + 0.15 ? 1.4 : 1;
+  const gm = hpF < 0.22 ? 0.06 : hpF < line - 0.12 ? 0.3 : hpF < line ? 0.6 : hpF > line + 0.15 ? 1.4 : 1;
   for (const g of F.foes) if (!gone(g)) { g.dmg0 ??= g.dmgMult ?? 1; g.dmgMult = g.dmg0 * (g.surround ? gm : Math.min(1, gm)); }
   // 離れた供は戸口の押し合いを支えられない。本人と同じ側で戦える
   // 味方の数に合わせ、残り二人の所へ囲みの補充まで重ねない。
@@ -3817,11 +3823,14 @@ const honnoji = {
       F.scouts.roadColumn = true;
     }
     akechi(rt, '表門へ続く明智勢', PATROL_SKIRMISH, [uS(3), uA(5)]);
-    // 10/30 採点：25秒の画面で兵がまばら。持ち場の前（門との間）の表庭で、寄せ手の群れと馬廻が押し合う乱戦にする。
-    akechi(rt, '表庭へ押し込む明智勢', PATROL_SKIRMISH, [uS(3), uA(9)], { entered: true, nb: true });
-    akechi(rt, '表庭の斬り合い', [[-33, 56], [-38.5, 53.5]], [uS(2), uA(9)], { entered: true, nb: true });
-    rt.after(7, () => { if (F.hp === 2 && !F.ending) akechi(rt, '表庭へ続く明智勢', PATROL_SKIRMISH, [uS(2), uA(8)], { entered: true, nb: true }); });
-    F.frontGuard = allyGroup(rt, { fixed: true, name: '表庭の馬廻', anchor: { x: -39.5, z: 53 }, facing: -Math.PI / 2, width: 4, aggro: 14, noRout: true, fullStrength: true, formation: 'line' },
+    // 10/30 採点：25秒の画面で兵がまばら。表庭で寄せ手の群れと馬廻が押し合う乱戦にする。
+    //   この間の視点は本人の後ろから本堂（HONDO_LOOK）を見る（frameCamera）。門の側に置いた組はカメラの後ろで写らなかったので、
+    //   本人と本堂の縁の間（画面の正面）で、門へ走る道（-40,50）から二、三歩外した庭の南に置く。上様へは向かわせず（nb を付けない）、近くの馬廻・近習と斬り合う。
+    akechi(rt, '表庭へ押し込む明智勢', [[-40, 42.5], [-42.5, 46]], [uS(3), uA(11)], { entered: true, fill: true, seek: 10 });
+    akechi(rt, '表庭の斬り合い', [[-44, 43.5], [-43.5, 47]], [uS(2), uA(10)], { entered: true, fill: true, seek: 10 });
+    rt.after(7, () => { if (F.hp === 2 && !F.ending) akechi(rt, '表庭へ続く明智勢', [[-41, 41], [-42.5, 45.5]], [uS(2), uA(8)], { entered: true, fill: true, seek: 10 }); });
+    // 味方の新手は見える所に出すと guardSpawn（battle.js）が四十歩先へずらし、本堂の向こうから走って来た。noGuard でその場に立たせる。
+    F.frontGuard = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の馬廻', anchor: { x: -42, z: 48.5 }, facing: -2.6, width: 4, aggro: 8, noRout: true, fullStrength: true, formation: 'line' },
       dress([{ type: 'samurai', n: 2, o: NEMAKI(0x4a3a2c) }, nA(6)], ODA));
     F.frontGuard.defMult = 1;
     F.frontGuard.hideFlags = true;
@@ -3855,7 +3864,7 @@ const honnoji = {
       akechi(rt, '庭へなだれ込む明智勢', [[-44.5, 37.5], [-43.5, 42], [-42.5, 45], [HONDO_FRONT.x + 1.5, HONDO_FRONT.z - 1]], [uS(2), uA(8)], { entered: true, nb: true });
     });
     // 10/30 採点：庭の本人が一人で突っ立って見えた。本堂の縁から飛び出した近習が本人の前に付き、庭の寄せ手と斬り結ぶ（持ち場は update で本人の前へ動かす）。
-    F.kinju = allyGroup(rt, { fixed: true, name: '表庭の近習', anchor: { x: HONDO_FRONT.x + 2.5, z: HONDO_FRONT.z + 2 }, facing: Math.PI / 2, width: 3, aggro: 9, noRout: true, fullStrength: true, formation: 'line' },
+    F.kinju = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の近習', anchor: { x: HONDO_FRONT.x + 2.5, z: HONDO_FRONT.z + 2 }, facing: Math.PI / 2, width: 3, aggro: 9, noRout: true, fullStrength: true, formation: 'line' },
       dress([{ type: 'samurai', n: 1, o: NEMAKI(0x4a3a2c) }, nA(4)], ODA));
     F.kinju.defMult = 1;
     F.kinju.hideFlags = true;
@@ -4748,7 +4757,7 @@ function honnoTick(def, rt, dt) {
     if (!(F.p8GmAt > rt.t)) {
       F.p8GmAt = rt.t + 1;
       const hpF = P.hp / P.maxHp, line = 1 - 0.7 * Math.min(1, (rt.t - (F.surT0 ?? rt.t)) / 420);
-      const gm = hpF < line - 0.12 ? 0.3 : hpF < line ? 0.6 : hpF > line + 0.15 ? 1.4 : 1;
+      const gm = hpF < 0.22 ? 0.06 : hpF < line - 0.12 ? 0.3 : hpF < line ? 0.6 : hpF > line + 0.15 ? 1.4 : 1;
       for (const g of F.foes) if (!gone(g)) { g.dmg0 ??= g.dmgMult ?? 1; g.dmgMult = g.dmg0 * Math.min(1, gm); }
     }
     const d = Math.hypot(p.x - PT.uraOut.x, p.z - PT.uraOut.z);

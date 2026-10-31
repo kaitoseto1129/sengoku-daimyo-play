@@ -52,6 +52,7 @@ export function wayLitter(rt, road, o = {}) {
 }
 
 // 伏せた馬（重さ：一つの InstancedMesh。形は馬の近い形を一度だけ結合）
+let FALLEN_HORSE_MAT = null;
 export function fallenHorses(rt, spots) {
   if (!spots.length) return null;
   const W = rt.world, source = buildHorse(), horse = source.userData.horse;
@@ -72,7 +73,10 @@ export function fallenHorses(rt, spots) {
   });
   const geo = mergeGeometries(list); for (const g of list) g.dispose();
   if (!geo) return null;
-  const mesh = new THREE.InstancedMesh(geo, material, spots.length);
+  // 10/30：兵の材質（頂点の種別で絵を引き、夜の縁取りを足す）を並べ物に使うと、刀根坂の夜で緑の角ばった塊に見えた。
+  //   倒れた馬は毛色の頂点色だけを鈍く照らす共通の材質で描く（一つを使い回す）。
+  void material;
+  const mesh = new THREE.InstancedMesh(geo, FALLEN_HORSE_MAT || (FALLEN_HORSE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 })), spots.length);
   const place = new THREE.Object3D(), normal = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), tilt = new THREE.Quaternion();
   spots.forEach(([x, z, r], i) => {
     normal.set(W.heightAt(x - 1, z) - W.heightAt(x + 1, z), 2, W.heightAt(x, z - 1) - W.heightAt(x, z + 1)).normalize();

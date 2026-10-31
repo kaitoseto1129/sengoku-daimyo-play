@@ -1577,7 +1577,9 @@ function addOdaniEastSlope(rt, boardHut, scenery) {
     if (rnd() < .5) put(2, x + (rnd() - .5) * 2, z + (rnd() - .5) * 2, -.12, .22 + rnd() * .2, .16, .2 + rnd() * .15, rnd() * 6, 0x6a655a);
     if (rnd() < .4) put(0, x + (rnd() - .5) * 1.2, z + (rnd() - .5) * 1.2, -.03, .4, .3 + rnd() * .3, .4, rnd() * 6, 0x6e8044);
   }
-  { const mesh = new THREE.InstancedMesh(patch, new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), pm.length);
+  // 沈めても縁の立った平らな円は持ち場の足元で黒い板に見えた（10/30 点付け・odani7 の後も残った）。描かない（乱数の順は変えない）。
+  patch.dispose();
+  if (0) { const mesh = new THREE.InstancedMesh(patch, new THREE.MeshLambertMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), pm.length);
     pm.forEach(([m, c], i) => { mesh.setMatrixAt(i, m); mesh.setColorAt(i, pc.setHex(c)); });
     mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere(); mesh.castShadow = false; mesh.receiveShadow = false;
@@ -1712,6 +1714,8 @@ function addOdaniTrailEdge(rt) {
   }
   for (const [geo, list] of sets) {
     const k = sets.findIndex((e) => e[0] === geo);
+    // 落ち葉・黒土の斑（平らな円）は、段の上で縁の立った赤茶・黒い板に見えた（10/30 点付け「足元に黒い板」）。描かない（乱数の順は変えない）。
+    if (k === 2) { geo.dispose(); continue; }
     const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, side: k < 2 ? THREE.DoubleSide : THREE.FrontSide, flatShading: k === 3,
       // 落ち葉の斑の押し出しは傾きに比例させない（坂を下から見ると丸太の段や足の前へ赤茶の板が浮いた 10/28）。
       polygonOffset: k === 2, polygonOffsetFactor: 0, polygonOffsetUnits: -4 }), list.length);
@@ -2894,7 +2898,8 @@ const odani = {
     for (const m of W.treeMeshes || []) {
       const mat = m.material;
       if (leafDone.has(mat) || !mat.color || (!mat.map && mat.color.getHex() !== 0x8fa572)) continue;
-      if (mat.map && !mat.alphaTest) continue;
+      // 写真の葉（map のある葉房）は暗く沈めない。沈めると写真の陰影が消え、杉が平たい暗い板の切り抜きに見えた（10/30 点付け）。
+      if (mat.map) continue;
       leafDone.add(mat); mat.color.multiply(new THREE.Color(0x7f9466));
     }
     // 終幕は戦場を残したまま暗くする。次の戦へは持ち越さない。

@@ -183,8 +183,9 @@ export function tabaMat() {
   if (!TABA_MAT) {
     const map = tabaTex();
     // 竹の肌は蝋を含んで鈍く照る。暗い頂点の色を本来の明るさへ持ち上げ、月明かりでも束と節の形が残る程度の下地の明るさを足す。
-    TABA_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map, color: new THREE.Color(0.98, 0.93, 0.84), roughness: 0.7, metalness: 0,
-      emissive: 0x24221a, emissiveMap: map, emissiveIntensity: 0.3 });
+    // 10/30：自ら光る下地と明るい掛け色で、竹束が原色の黄緑の円柱に見えた（野田・福島・大河内・姉川）。光りを弱め、乾いた竹の鈍い色へ下げる。
+    TABA_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map, color: new THREE.Color(0.8, 0.76, 0.68), roughness: 0.78, metalness: 0,
+      emissive: 0x24221a, emissiveMap: map, emissiveIntensity: 0.08 });
   }
   return TABA_MAT;
 }

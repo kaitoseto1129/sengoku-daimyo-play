@@ -89,11 +89,12 @@ function kgOvercastMorning(W) {
     const L = lookOf(key);
     if (key !== 'day' && key !== 'morning' && key !== 'noon' && key !== 'afternoon') return L;
     L.sky.setHex(0xbfc6c6); L.fog.setHex(0xb3bab7); L.top.setHex(0x8d9ba6);
-    L.sun.setHex(0xebe7df); L.sunI = 1.3;
-    L.hemiSky.setHex(0xd0d6d8); L.hemiGround.setHex(0x6e6852); L.hemiI = 2.2 * (W.def.dayBounce || 1);
+    L.sun.setHex(0xebe7df); L.sunI = 1.22;
+    // 10/30 vis_f：照り返しを土の暗い茶にし、若草の野を黄緑の一枚に白く飛ばさない（光の値だけ）。
+    L.hemiSky.setHex(0xc8d0d2); L.hemiGround.setHex(0x584f3e); L.hemiI = 2.0 * (W.def.dayBounce || 1);
     L.sunDir.set(75, 42, 30).normalize();   // 東（＋横）のやや南、朝の低い日
     L.cover = 0.74; L.cloud = 0.3; L.glowK = 0.04; L.glow.setHex(0xfff0dc); L.vis = 560;
-    L.grade.exposure = 1.2; L.grade.saturation = 0.76; L.grade.contrast = 1.1; L.grade.wb = 0.22;
+    L.grade.exposure = 1.08; L.grade.saturation = 0.84; L.grade.contrast = 1.14; L.grade.wb = 0.22;
     return L;
   };
   // 空の写真も曇りの雲（一枚を差し替えるだけ）。
@@ -341,14 +342,14 @@ function retreatGroundDetail(rt) {
         w = mix(w, vec3(0.85, 0.15, w.z), kgGreen * (1.0 - w.z));
         w = mix(w, vec3(0.1, 0.9, w.z), kgBare * (1.0 - kgGreen) * (1.0 - w.z) * 0.8);
         w /= max(0.001, w.x + w.y + w.z);
-        float kgPatch = mix(0.62, 1.24, texture2D(tMacro, p.xz * 0.023 + 0.37).r)
+        float kgPatch = mix(0.5, 1.3, texture2D(tMacro, p.xz * 0.023 + 0.37).r)
           * mix(0.86, 1.08, texture2D(tMacro, p.xz * 0.071 + 0.19).r)
           // 坂が一枚の板に見えないよう、一歩ほどの細かな明暗（落ち葉と土の斑）も重ねる（10/29）
           * mix(0.88, 1.06, texture2D(tMacro, p.xz * 0.21 + 0.53).r);
         vec3 kgCol = (grass * w.x + soil * w.y + mud * w.z) * kgPatch;
         // 一色の緑にしない（10/30 点付け）：去年の落ち葉の溜まる褐色の斑・踏まれた土の斑・若草の斑を、
         //   人の背丈ほどの大きさで混ぜる。落ち葉の斑の中は一枚ずつの葉ほどの細かな明暗も重ねる。
-        float kgLitter = smoothstep(0.44, 0.58, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.2, 0.55, n.y);
+        float kgLitter = smoothstep(0.4, 0.54, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.2, 0.55, n.y);
         float kgLeafGrain = texture2D(tMacro, p.xz * 0.9 + 0.13).r * 0.6 + texture2D(tMacro, p.xz * 2.3 + 0.41).r * 0.4;
         vec3 kgLeaf = mix(vec3(0.24, 0.14, 0.07), vec3(0.54, 0.34, 0.16), kgLeafGrain) * mix(0.8, 1.1, texture2D(tMacro, p.xz * 0.13 + 0.29).r);
         kgCol = mix(kgCol, kgLeaf, kgLitter * 0.88 * (1.0 - w.z));
@@ -357,11 +358,12 @@ function retreatGroundDetail(rt) {
         float kgMoss = smoothstep(0.6, 0.78, texture2D(tMacro, p.xz * 0.053 + 0.21).r) * (1.0 - kgLitter) * (1.0 - kgSoil);
         kgCol = mix(kgCol, grass * vec3(0.72, 0.92, 0.56), kgMoss * 0.65);
         // 緑の一色にしない（10/30 点付け）：数十歩の大きさで、青い若草の所と黄ばんだ枯れ草の所の色みを替える（読み出しは足さない）
-        kgCol *= mix(vec3(0.9, 1.05, 0.84), vec3(1.07, 1.0, 0.85), kgM);
+        // 10/30 vis_f：まだ黄緑の一枚に見えた（点付けの画面の地面の明るさのばらつき 6.6）。濃い青草と黄ばんだ枯れ草の差と、明暗の斑を強める（値だけ）。
+        kgCol *= mix(vec3(0.74, 0.98, 0.66), vec3(1.1, 0.94, 0.74), smoothstep(0.3, 0.7, kgM));
         diffuseColor.rgb *= kgCol * (1.0 - uWet * 0.18);
       `);
   };
-  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉2';
+  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉3';
   ground.needsUpdate = true;
   const W = rt.world, resources = rt.flags.sceneryResources;
   const mat = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:1 });
@@ -2612,6 +2614,15 @@ const kanegasaki = {
       const mix = Math.sin(x * 0.34 + z * 0.21) * Math.cos(z * 0.29 - x * 0.12);
       c.lerp(mix > 0 ? { r:0.30, g:0.38, b:0.20 } : { r:0.40, g:0.33, b:0.23 }, Math.abs(mix) * 0.5);
       if (h > 7) c.setRGB(c.r * 0.94, c.g * 0.98, c.b * 0.92);
+      // 10/30 vis_f：野を黄緑の一色にしない。十五〜三十歩の斑で、踏まれて乾いた土・湿った濃い草・枯れ草を分ける（頂点の色だけ）。
+      {
+        const big = Math.sin(x * 0.19 + Math.sin(z * 0.13) * 1.7) * Math.cos(z * 0.16 - x * 0.07);
+        const mid = Math.sin(x * 0.43 - z * 0.29 + Math.cos(x * 0.21) * 1.3);
+        const dry = Math.max(0, Math.min(1, (big - 0.25) / 0.45)) * (0.55 + 0.25 * mid);
+        const damp = Math.max(0, Math.min(1, (-big - 0.3) / 0.4));
+        c.lerp({ r: 0.44, g: 0.36, b: 0.25 }, Math.min(1, dry * 1.1));
+        c.lerp({ r: 0.19, g: 0.29, b: 0.14 }, damp * 0.7);
+      }
       // 川岸は草地と同じ明るさにせず、濡れた泥と乾いた砂礫を不揃いに分ける。
       const bankD = Math.abs(distToPolyline(x, z, SHO) - 4.5);
       const bank = Math.max(0, 1 - bankD / 3.6);

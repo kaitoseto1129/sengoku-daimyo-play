@@ -7,6 +7,7 @@
 // g.noFrontline = true は任務の隊を保護。大将・本陣・伏兵・守備専用の隊は常に保護。
 import { groundAt } from './floors.js';
 import { localPoint, localClear } from './army_local_way.js';
+import { CPU_LEAN } from './settings.js';
 const DEFAULT = {};
 const EMPTY = [];
 const QUIET_PHASE = /^(brief|march|wait|rest|pick|move|back\d*|retreat|withdraw|flee|escape|envoy|news|lull|regroup|redeploy|end\d*)$/;
@@ -259,8 +260,155 @@ function quietScouts(rt, F, dt) {
   if (F.qdry > 40) { scouts(rt, F, P); if (F.scoutAt > rt.army.time) F.qdry = 28; }
 }
 
+// 戦の間ずっと、本人の前（60m 内）で敵味方の組がぶつかり続けるように（kaito 10/30「常に乱戦激戦」）。
+// 斬り合う兵が減ったら、見えない所から味方と敵の小勢（六人ずつ）を同時に出し、本人の前 22〜36m で当たらせる。
+// 互いだけを相手に長く打ち合い、崩れず、決着が付いたら残りは近い敵へ寄る。遠くへ離れて手の空いた者は消す（死傷に数えない）。
+// 兵の上限（生きた本物 240 人）と一戦の組数を超えない。def.frontlineDensity = false・def.alwaysMelee = false の戦では出さない。
+const CLASH_SKIP = /^(brief|end\d*|envoy|news|pick)$/;
+const CLASH_MAX = 20, CLASH_N = 6, CLASH_WANT = 10;
+function clashOn(rt) {
+  return !(rt.over || rt.aftermath || rt.withdrawal || rt.flags.ending || !rt.player.u.alive || rt.def.dojo || rt.def.town ||
+    rt.choice || rt.tutPause || (rt.prelude && rt.prelude !== 'done') || rt.def.frontlineDensity === false || rt.def.alwaysMelee === false ||
+    rt.t < 30 || CLASH_SKIP.test(rt.phase || ''));
+}
+function fightingNear(A, P) {
+  let n = 0;
+  for (const u of A.units) {
+    if (!u.alive || u.isPlayer || u.isStruct || u.fleeing) continue;
+    const t = u.target;
+    if (!t || !t.alive || t.team === u.team || t.isStruct) continue;
+    const dx = u.pos.x - P.x, dz = u.pos.z - P.z;
+    if (dx * dx + dz * dz > 3600 || Math.abs(u.pos.y - P.y) > 8) continue;
+    if (Math.abs(t.pos.x - u.pos.x) + Math.abs(t.pos.z - u.pos.z) < 6) n++;
+  }
+  return n;
+}
+function clashKeep(rt, F, A, P) {
+  for (let i = F.clashes.length - 1; i >= 0; i--) {
+    const c = F.clashes[i];
+    let alive = 0;
+    for (const g of c.gs) for (const u of g.units) if (u.alive) alive++;
+    if (!alive) { F.clashes.splice(i, 1); continue; }
+    let eng = false;
+    for (const g of c.gs) for (const u of g.units) {
+      const t = u.target;
+      if (u.alive && t?.alive && t.team !== u.team && Math.abs(t.pos.x - u.pos.x) + Math.abs(t.pos.z - u.pos.z) < 6) { eng = true; break; }
+    }
+    if (eng) c.last = A.time;
+    // 二十秒打ち合わない組は役目を終える：本人から 45m より遠い手の空いた者は消し、近い者は近い敵へ寄る
+    c.idle = A.time - (c.last ?? c.at) > 20;
+    // 当たる前に本人が先へ進んだら、当たる所を本人の前へ付け直す（山道を登る戦で、後ろで打ち合わない）
+    if (!eng && c.M && c.gs.every((g) => g.order === 'move') && Math.hypot(c.M.x - P.x, c.M.z - P.z) > 45) {
+      const M = clashSpot(rt, A, P);
+      if (M) {
+        c.M = M;
+        for (const g of c.gs) {
+          const ce = g.center(g._centerProbe), dx = ce.x - M.x, dz = ce.z - M.z, dl = Math.hypot(dx, dz) || 1;
+          g.dest = { x: M.x + dx / dl * 2.5, z: M.z + dz / dl * 2.5 }; g.signalSerial = (g.signalSerial || 0) + 1;
+        }
+      }
+    }
+    for (const g of c.gs) {
+      if (!g.count) continue;
+      const foe = g === c.gs[0] ? c.gs[1] : c.gs[0];
+      const ce = g.center(g._centerProbe);
+      if (g.order === 'move') {
+        const fe = foe.count ? foe.center(foe._centerProbe) : null;
+        if (!fe || Math.hypot(fe.x - ce.x, fe.z - ce.z) < 16 || Math.hypot(g.dest.x - ce.x, g.dest.z - ce.z) < 4 || A.time - c.at > 25) {
+          g.order = 'attack'; g.signalSerial = (g.signalSerial || 0) + 1;
+          for (const u of g.units) if (u.alive) u.aiT = 0;
+        }
+      } else if ((!foe.count || c.idle) && !g._clashFree) {
+        // 相手の組が尽きた：残りは近い敵の組へ寄る（並んで突っ立たない）
+        g._clashFree = true; g.seekRange = 70; g.aggro = 30;
+        for (const u of g.units) if (u.alive) u.aiT = 0;
+      }
+      // 本人から遠く離れて手の空いた者は、静かに消す（遠景へ下がった扱い。討たれた数に入れない）
+      const d = Math.hypot(ce.x - P.x, ce.z - P.z);
+      if ((d > 95 || c.idle && d > 45) && A.time - c.at > 20) for (const u of g.units) if (u.alive && !u.atk && !u.swing && !u.bind && !(u.target?.alive && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6)) A.despawn(u);
+    }
+  }
+}
+function clashSpot(rt, A, P) {
+  const W = rt.world, cam = rt.camera;
+  let face = rt.player.yaw ?? 0;
+  if (cam?.position) { const dx = P.x - cam.position.x, dz = P.z - cam.position.z; if (Math.hypot(dx, dz) > 0.5) face = Math.atan2(dx, dz); }
+  const spot = { x: 0, z: 0, y: P.y };
+  for (const r of [28, 24, 34, 20, 40, 16]) for (const turn of [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]) {
+    const h = face + turn;
+    spot.x = P.x + Math.sin(h) * r; spot.z = P.z + Math.cos(h) * r;
+    spot.y = groundAt(W, spot.x, spot.z, P.y);
+    if (Math.abs(spot.y - P.y) > 6 || !W.walkable(spot.x, spot.z, spot.y)) continue;
+    // 当たる所の左右も歩ける所（崖や堀の縁に出さない）
+    const ax = Math.cos(h), az = -Math.sin(h);
+    let ok = true;
+    for (const s of [-7, 7]) { const x = spot.x + ax * s, z = spot.z + az * s, y = groundAt(W, x, z, spot.y); if (Math.abs(y - spot.y) > 2.5 || !W.walkable(x, z, y)) { ok = false; break; } }
+    if (!ok || !localClear(A, P, spot)) continue;
+    return { x: spot.x, z: spot.z, h };
+  }
+  return null;
+}
+function clashTick(rt, F, dt) {
+  F.clashScan = (F.clashScan || 0) + dt;
+  if (F.clashScan < 1) return;
+  F.clashScan = 0;
+  const A = rt.army, P = rt.player.u.pos;
+  if (!F.clashes) { F.clashes = []; F.clashN = 0; F.clashLow = 0; }
+  if (F.clashes.length) clashKeep(rt, F, A, P);
+  if (!clashOn(rt)) { F.clashLow = 0; return; }
+  const near = fightingNear(A, P);
+  F.clashLow = near < CLASH_WANT ? F.clashLow + 1 : 0;
+  if (F.clashLow < 3 || F.clashN >= CLASH_MAX || F.clashAt > A.time || A.pendingSpawn > 0) return;
+  let alive = 0, live = 0;
+  for (const u of A.units) if (u.alive && !u.isStruct) alive++;
+  for (const c of F.clashes) if (!c.idle && c.gs.some((g) => g.count)) live++;
+  const dbg = F.clashDbg || (F.clashDbg = { cap: 0, spot: 0, made: 0, gone: 0 });
+  // 携帯（CPU_LEAN）は生きた本物を 215 人・同時に三組までに抑え、重さを増やさない
+  const cap = CPU_LEAN ? 215 : 250, size = CPU_LEAN ? 5 : CLASH_N;
+  if (live >= (CPU_LEAN ? 3 : 4)) return;
+  // 逃げた兵は戻らずに消え、その分だけ新しい組が来る（本人から 45m より遠い、名の無い者だけ）
+  if (alive + size * 2 > cap) {
+    for (const u of A.units) {
+      if (alive + size * 2 <= cap) break;
+      if (!u.alive || !u.fleeing || u.isPlayer || u.name || u.isLord || u.type === 'busho' || u.group?.isPlayerSquad || u.group?.noRout ||
+          Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 45) continue;
+      A.despawn(u); alive--; dbg.gone++;
+    }
+  }
+  const per = Math.min(size, Math.floor((cap - alive) / 2));
+  if (per < 4) { dbg.cap++; F.clashAt = A.time + 4; return; }
+  const m = rt.def.frontlineDensity?.strength;
+  const M = clashSpot(rt, A, P);
+  F.clashAt = A.time + (M ? 9 : 4);
+  if (!M) { dbg.spot++; return; }
+  dbg.made++;
+  // 両軍の家（戦の始めの組から拾う）
+  const fac = [null, null];
+  for (const g of A.groups) if (!g.civ && !g.people && !g.isPlayerSquad && g.team <= 1 && !fac[g.team]) fac[g.team] = g.faction;
+  const pt = rt.player.u.team, ax = Math.cos(M.h), az = -Math.sin(M.h);
+  const gs = [];
+  for (const side of [-1, 1]) {
+    const team = side < 0 ? pt : 1 - pt;
+    // 横から寄せる（見える所に出る時は guardSpawn が見えない所へ移す）
+    const anchor = { x: M.x + ax * side * 34, z: M.z + az * side * 34 };
+    const dest = { x: M.x + ax * side * 2.5, z: M.z + az * side * 2.5 };
+    const g = A.addGroup({ team, faction: fac[team] || (team === pt ? 'oda' : 'imagawa'), name: team === pt ? '味方の小勢' : '敵の小勢', order: 'move', formation: 'line',
+      facing: Math.atan2(-ax * side, -az * side), anchor, dest, width: 3, aggro: 14, seekRange: 30, morale: 80, speed: 4.4,
+      noRout: true, noFrontline: true, wavered: true, dmgMult: 0.55 * (m && m < 1 ? m : 1) });
+    g.clash = true;
+    A.spawn(g, [{ type: 'samurai', n: 1, o: {} }, { type: 'ashigaru', n: per - 1, o: {} }]);
+    // guardSpawn が出る所を移したら、そこから当たる所へ向かう
+    const c0 = g.center(g._centerProbe); g.anchor.x = c0.x; g.anchor.z = c0.z;
+    g.facing = Math.atan2(dest.x - c0.x, dest.z - c0.z);
+    gs.push(g);
+  }
+  F.clashes.push({ gs, at: A.time, M });
+  F.clashN++;
+}
+
 export function frontlineDensityTick(rt, dt) {
   const F = rt.army.frontlineDensity || (rt.army.frontlineDensity = { rt, scan: 0, empty: 0, on: false, sent: [], stage: null });
+  clashTick(rt, F, dt);
   const config = rt.def.frontlineDensity || DEFAULT;
   const stage = rt.flags.dp?.on ? rt.flags.dp.cur : rt.phase;
   const on = rt.def.frontlineDensity !== false && config.strength !== 0 && fighting(rt, config);
