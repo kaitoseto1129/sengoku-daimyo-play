@@ -73,6 +73,7 @@ import { realmBattle } from './realm.js';
 import { pickLine, monOf, generalSituation } from './lines_data.js';
 import { gateGuideTick } from './gate_guide.js';
 import { siegeFeelTick } from './siege_feel.js';
+import { siegeKitFromDef } from './siege_kit.js';
 import { missionGuideTick, missionGuideDispose } from './mission_guide.js';
 import { rescueDamage, retreatRequired, rescueTarget } from './battle_danger.js';
 import { tacticsCueTick, tacticsCueBarkAllowed } from './battle_tactics_cue.js';
@@ -830,7 +831,11 @@ export class Battle {
     if (def.sides?.b?.mon) enemyFlagKinds.add(def.sides.b.mon);
     if (def.sides?.a?.mon) allyFlagKinds.add(def.sides.a.mon);
     blap('misc');
-    try { def.setup(this); } finally { this._issuingOrders = false; }
+    try {
+      def.setup(this);
+      // 城攻めの部品（def.siegeKit・siege_kit.js）。組めなくても戦は始める
+      try { this.siegeKit = siegeKitFromDef(this, def); } catch (e) { console.error(e); this.siegeKit = null; }
+    } finally { this._issuingOrders = false; }
     blap('setup');
     reserveLater(this); blap('reserve');   // 後から出る名のある武将を作り置く（army_reserve.js）
     this.buildCouriers(wdef);
@@ -2508,6 +2513,7 @@ export class Battle {
     timeLimitTick(this, tdt);
     frontlineDensityTick(this, dt);
     siegeFeelTick(this, dt);
+    if (this.siegeKit && !this.over) this.siegeKit.tick(dt);
     allyOrdersTick(this, dt);
     if (this.aftermath) return;
     taishoTick(this, dt);

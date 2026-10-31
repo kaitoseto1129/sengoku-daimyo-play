@@ -3605,6 +3605,15 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       first.m.position.set(first.x, 0, first.z); first.m.rotation.y = Math.PI / 2;
       syncShipCrew(rt, first);
     }
+    // 10/31 点付け「敵の大軍・乱戦が薄い」：先手の小早を三艘、画面の真ん中へ一斉に着ける（船団で押し寄せる）。
+    for (const [z, dx] of [[0, 8], [-8, 12]]) {
+      const b = this.launch(rt, 'w', z);
+      if (!b) continue;
+      b.sp = 2.4; if (b.group) b.group.dmgMult = 0.4;
+      b.x = b.t.x - dx; b.z = b.t.z;
+      b.m.position.set(b.x, 0, b.z); b.m.rotation.y = Math.PI / 2;
+      syncShipCrew(rt, b);
+    }
     // 第二次木津川口の乗り込み戦：開戦の時には、もう艫の西の舷を越えた毛利の先手が、艫の鉄砲衆・水夫と斬り合っている。
     // 持ち場を艫に固め、屋形の前（大将の所）へは攻め上らない。人数は推定。本物の兵の総数は二百人以内のまま。
     {

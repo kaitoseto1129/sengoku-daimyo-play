@@ -88,11 +88,13 @@ const GROUND_GRADE = {
   okehazama: { grass: [0x568a4c, 0x6c9a52], soil: [0x8a5236, 0x6c432e], k: 0.55, cover: 0.2 },     // 濡れた青緑の田と赤茶の泥
   okawachi: { grass: [0x7e8a4c, 0x9e9a5e], soil: [0xae9866, 0xc6b68a], k: 0.58, cover: 0.3 },       // 乾いた黄土と淡い黄の砂の州
 };
+const GROUND_DEFAULT = { grass: [0x6c8a44, 0x8c9258], soil: [0x8a7e68, 0x726a58], k: 0, cover: 0 };
 // photo：戦ごとの土の写真（def.groundPhoto）のある戦は、土の所の色寄せを半分にして写真の色を残す（10/30 c_ground_photo2）。
 export function groundGrade(key, photo = false) {
-  const g = GROUND_GRADE[key], c = (h) => new THREE.Color(h);
+  // 色の指定の無い戦（10/31 gap_ground2）：既定の二色ずつ（夏の青草と乾いた灰茶の土）を、量は共通の LAND_GAP2 で掛ける（w＝1 が目印）
+  const g = GROUND_GRADE[key] || (key ? GROUND_DEFAULT : null), c = (h) => new THREE.Color(h);
   return {
-    uLsGrade: { value: new THREE.Vector4(g ? g.k : 0, g ? g.cover : 0, photo ? 0.5 : 1, 0) },
+    uLsGrade: { value: new THREE.Vector4(g ? g.k : 0, g ? g.cover : 0, photo ? 0.5 : 1, g === GROUND_DEFAULT ? 1 : 0) },
     uLsGradeG0: { value: c(g ? g.grass[0] : 0) }, uLsGradeG1: { value: c(g ? g.grass[1] : 0) },
     uLsGradeS0: { value: c(g ? g.soil[0] : 0) }, uLsGradeS1: { value: c(g ? g.soil[1] : 0) },
   };

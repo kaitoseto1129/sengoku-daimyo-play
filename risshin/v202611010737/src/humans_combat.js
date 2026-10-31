@@ -197,7 +197,7 @@ function gripSet(h, u, hd, w, dt) {
     const calm = still && hd.rotation.x < -0.4 && (hd.rotation.x < -1.05 || !u.poseTarget?.alive && ((h.spd || 0) < 2.6 || u.spearRear) && (!u.target || u.spearRear));
     h.upK = (h.upK ?? (calm ? 1 : 0)) + ((calm ? 1 : 0) - (h.upK ?? 0)) * Math.min(1, dt * 5);
     const k = h.upK, s = h.seed;
-    // 構え：右手は右の腰（体の少し後ろ）、槍は units.js の向きのまま。叩きで振り上げる時は手も上がる
+    // 構え：右手は右の腰（体の少し後ろ・腰骨の高さ。槍術の中段は手元を胸へ上げない）、槍は units.js の向きのまま。叩きで振り上げる時は手も上がる
     const raise = Math.max(0, -hd.rotation.x - 0.25) * 0.28;
     const close = u.isPlayer || h.near || u.focusD <= 15;
     // 突き出す時は、右手を柄の線に沿って前へ（穂先の高さのまま一直線に）押し出し、手元を体の真ん中へ絞る
@@ -205,7 +205,7 @@ function gripSet(h, u, hd, w, dt) {
     // 踏み込んで腰が沈む分だけ手元も下げる（手が顔の前へ上がらない）
     const sink = h.atkB ? 0.1 * h.atkB.L + 0.05 * h.atkB.W : 0;
     // 二列目の頭越しの構えも、共通のばねでならした高さを一度だけ渡す。
-    const ex = 0.2 + (s - 0.5) * 0.03 - Math.max(0, ez0) * 0.12, ey = 1.08 + (s - 0.5) * 0.06 + raise + (u.spLift || 0) + ez0 * Math.sin(-hd.rotation.x) * 0.9 - sink, ez = close ? Math.max(0.22, hd.position.z - 0.16) : hd.position.z - 0.16;
+    const ex = 0.2 + (s - 0.5) * 0.03 - Math.max(0, ez0) * 0.12, ey = 1.0 + (s - 0.5) * 0.06 + raise + (u.spLift || 0) + ez0 * Math.sin(-hd.rotation.x) * 0.9 - sink, ez = close ? Math.max(0.22, hd.position.z - 0.16) : hd.position.z - 0.16;
     // 立て槍：右手は胸の右、穂先を少し前へ。歩く・走るほど前へ傾ける
     const mv = Math.min(1, (u.moving || 0) / 1.4);
     // 立てた槍も握り直す：同じ腕の骨と握り合わせを使い、手元を少し上げて戻す
@@ -464,11 +464,11 @@ function attackBody(h, B, u, w, dt) {
     rotWorld(B.Spine1, _up, 0.1 * w0 - 0.09 * l0);
   }
   // 溜め：腰を落とし、上体を少し引いて後ろ（右）足に乗る。槍は右の肩を引いて胸を開く
-  h.model.position.y -= 0.06 * w0 + 0.075 * Math.abs(l0);
+  h.model.position.y -= 0.025 * w0 + 0.03 * Math.abs(l0);
   h.model.position.z -= 0.045 * w0;
   // 刀は右足が前なので、溜めで乗る後ろ足・踏み込む前足を左右入れ替える（剣術の中段・右足の踏み込み）
   const rl = w === 'sword', FU = rl ? B.RightUpLeg : B.LeftUpLeg, FL = rl ? B.RightLeg : B.LeftLeg, BU = rl ? B.LeftUpLeg : B.RightUpLeg, BL = rl ? B.LeftLeg : B.RightLeg;
-  rotWorld(BU, _right, -0.2 * w0); rotWorld(BL, _right, 0.35 * w0);
+  rotWorld(BU, _right, -0.14 * w0); rotWorld(BL, _right, 0.18 * w0);
   rotWorld(B.Spine, _right, -0.08 * w0 + (sp ? 0.12 : 0.07) * l0);   // 背は立てたまま、腰ごと前へ出る（頭から突っ込まない）
   if (sp) {
     // 長い柄を後ろ足と腰で支え、腰から押して胸が遅れてついて来る。
@@ -480,18 +480,18 @@ function attackBody(h, B, u, w, dt) {
   // 侍の素槍：腰を一段落とし、前の膝を深く折って真っ直ぐ突く（上体は前へ倒さず、腰ごと出る）
   if (sp && (u.wpn?.userData.spec?.L ?? 9) < 4.2) {
     const d = Math.max(0, l0);
-    h.model.position.y -= 0.05 * d;
-    rotWorld(B.LeftUpLeg, _right, -0.14 * d); rotWorld(B.LeftLeg, _right, 0.2 * d);
+    h.model.position.y -= 0.02 * d;
+    rotWorld(B.LeftUpLeg, _right, -0.1 * d); rotWorld(B.LeftLeg, _right, 0.1 * d);
     rotWorld(B.Spine, _right, -0.05 * d);
   }
   // 突き出し・振り下ろし：後ろ足で地を押して前へ踏み込む（前の左足は膝を曲げ、後ろの右足は伸びる）
   h.model.position.z += (sp ? 0.22 : 0.12) * l0;
-  rotWorld(FU, _right, -0.4 * l0); rotWorld(FL, _right, 0.5 * l0);
+  rotWorld(FU, _right, -0.36 * l0); rotWorld(FL, _right, 0.3 * l0);
   rotWorld(BU, _right, 0.3 * l0); rotWorld(BL, _right, -0.18 * Math.max(0, l0) * clamp01(h.stance || 0));
   rotWorld(rl ? B.LeftFoot : B.RightFoot, _right, 0.12 * Math.max(0, l0));
   if (r0 > 0.01) {
-    h.model.position.z -= 0.085 * r0; h.model.position.y -= 0.035 * r0;
-    rotWorld(BU, _right, -0.12 * r0); rotWorld(BL, _right, 0.26 * r0);
+    h.model.position.z -= 0.085 * r0; h.model.position.y -= 0.015 * r0;
+    rotWorld(BU, _right, -0.1 * r0); rotWorld(BL, _right, 0.14 * r0);
     rotWorld(B.Spine, _right, -0.1 * r0); rotWorld(B.Spine1, _up, 0.1 * r0);
     rotWorld(B.Neck, _up, -0.08 * r0);
   }
@@ -520,13 +520,13 @@ function guardBody(h, B, u, dt) {
   // 当たりを受ける後ろ足：刀は右足が前なので左足、ほかは右足
   const rl = (u.wpnKind || u.lookWeapon) === 'sword' && !u.mounted;
   rotWorld(rl ? B.LeftUpLeg : B.RightUpLeg, _right, -0.16 * g - 0.08 * recoil);
-  rotWorld(rl ? B.LeftLeg : B.RightLeg, _right, 0.28 * g + 0.18 * recoil);
+  rotWorld(rl ? B.LeftLeg : B.RightLeg, _right, 0.15 * g + 0.1 * recoil);
   rotWorld(rl ? B.RightUpLeg : B.LeftUpLeg, _right, -0.06 * g);
-  rotWorld(rl ? B.RightLeg : B.LeftLeg, _right, 0.18 * g);
+  rotWorld(rl ? B.RightLeg : B.LeftLeg, _right, 0.08 * g);
   rotWorld(B.Spine, _right, -0.06 * g - 0.1 * recoil);
   rotWorld(B.Spine2, _right, 0.025 * g - 0.05 * recoil);
   rotWorld(B.Neck, _right, 0.05 * g);
-  h.model.position.y -= 0.035 * g + 0.025 * recoil;
+  h.model.position.y -= 0.015 * g + 0.012 * recoil;
   h.model.position.z -= 0.035 * recoil;
   if (cover > 0.01) {
     rotWorld(B.Spine1, _up, (u.id % 2 ? 0.1 : -0.1) * cover);

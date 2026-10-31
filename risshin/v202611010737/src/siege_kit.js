@@ -552,7 +552,7 @@ export function makeSortie(rt, K, g, so = {}) {
   };
   const pt = (o) => [o.x, o.z];
   const gateOpen = () => { const G = K.gate; if (!G || !G.struct || !G.struct.alive) return; if (!G.struct.opened) { G.struct.opened = true; G.open && G.open(); } if (K.masu && K.tsukeiri) { const I = K.masu.inner; if (I && I.struct && I.struct.alive && !I.struct.opened) { I.struct.opened = true; I.open && I.open(); } } };
-  const gateShut = () => { const G = K.gate; if (G && G.struct && G.struct.alive && G.struct.opened && !K.tsukeiri) closeGate(G); };
+  const gateShut = () => { const G = K.gate; if (!K.stayOpen && G && G.struct && G.struct.alive && G.struct.opened && !K.tsukeiri) closeGate(G); };
   const who = () => rt.player && rt.player.u;
   const pickMouth = () => {
     if (so.mouth !== undefined) return so.mouth;
@@ -643,7 +643,7 @@ export function makeSortie(rt, K, g, so = {}) {
       }
       // 付け入り：門が開いている間に、自分か攻め手が門の近くで引く隊のしんがりに追いすがっていれば、門は閉まらない
       const G = K.gate;
-      if (!K.tsukeiri && G && G.struct && G.struct.opened) {
+      if (!K.tsukeiri && (G ? !!(G.struct && G.struct.opened) : !!K.noGate)) {
         const R = so.R ?? 10, gx = at.gate.x, gz = at.gate.z;
         let chase = false;
         A.forNear(gx, gz, R + 4, (u) => {
@@ -673,4 +673,43 @@ export function makeSortie(rt, K, g, so = {}) {
   };
   function goOut2() { so.from = 'plaza'; goOut(); }
   return S;
+}
+
+// ---------------------------------------------------------------- def から呼ぶ口
+// 城と砦の戦は def.siegeKit を書くだけで部品が入る。battle.js が setup の後に組み、毎コマ tick する（戦のファイルで tick を呼ばない）。
+// def.siegeKit = spec | [spec, ...] | (rt) => spec か [spec]
+// spec: { plan: siegePlan の o（作った plan をそのまま渡してもよい）, build: buildSiege の o（gate・walls・umadashi などで要らない物を外す）,
+//         open（門を初めから開けておく）, stayOpen（出撃の後も門を閉めない＝戦の道筋を塞がない）,
+//         borrow: { r（門からの間合い 40）, name（塀の名で絞る）, flank }：戦に今ある塀を狭間に借りる（兵も塀も足さない）,
+//         sorties: [{ group: (rt, K) => g, ...makeSortie の so }], when: (rt) => bool（撃ち・出撃を動かす間。既定はいつも）,
+//         onBuild: (rt, K) }
+// 堀・畝・切岸を地形に掘る時は、戦のファイルの world.height を siegeHeight(plan) で包む（ここでは掘らない）。
+export function siegeKitFromDef(rt, def) {
+  let spec = def && def.siegeKit;
+  if (typeof spec === 'function') spec = spec(rt);
+  if (!spec) return null;
+  const list = (Array.isArray(spec) ? spec : [spec]).map((s) => (typeof s === 'function' ? s(rt) : s)).filter(Boolean);
+  const kits = list.map((s) => {
+    const P = s.plan && s.plan.L ? s.plan : siegePlan(s.plan || {});
+    const team = s.build?.team ?? 1, extra = [...(s.build?.extraWalls || [])];
+    if (s.borrow) {
+      const B = s.borrow, r = B.r ?? 40, [ix, iz] = P.L(0, -14), mine = [];
+      for (const st of rt.army.structs || []) {
+        if (!st || !st.seg || st.gate !== undefined || st.alive === false || (st.team ?? 0) !== team) continue;
+        if (B.name && st.name !== B.name) continue;
+        const [ax, az, bx, bz] = st.seg;
+        if (Math.hypot((ax + bx) / 2 - P.x, (az + bz) / 2 - P.z) < r) mine.push(st);
+      }
+      if (mine.length) extra.push({ structs: mine, inside: { x: ix, z: iz }, flank: !!B.flank });
+    }
+    const K = buildSiege(rt, P, { ...(s.build || {}), extraWalls: extra });
+    if (!K.gate) K.noGate = true;
+    if (s.open && K.gate && K.gate.struct) { K.gate.struct.opened = true; K.gate.open && K.gate.open(); }
+    K.stayOpen = !!s.stayOpen;
+    for (const so of s.sorties || []) { const g = so.group && so.group(rt, K); if (g) K.sortie(g, so); }
+    s.onBuild && s.onBuild(rt, K);
+    K.when = s.when;
+    return K;
+  });
+  return { kits, get tsukeiri() { return kits.some((K) => K.tsukeiri); }, tick(dt) { for (const K of kits) if (!K.when || K.when(rt)) K.tick(dt); } };
 }
