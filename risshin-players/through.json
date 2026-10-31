@@ -1,1 +1,1 @@
-{"run":"2610301948","at":"2026-10-30T19:48:48.891Z","ok":false,"errors":[{"key":"through:record-none","title":"通し試遊の記録が取れない（最初の戦に入れない・途中で落ちた）","where":"通し","sev":3}]}
+{"run":"2610310831","at":"2026-10-31T08:31:56.173Z","ok":false,"errors":[{"key":"through:record-none","title":"通し試遊の記録が取れない（最初の戦に入れない・途中で落ちた）","where":"通し","sev":3}]}
