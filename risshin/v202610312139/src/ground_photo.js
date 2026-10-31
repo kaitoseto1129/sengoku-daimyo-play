@@ -83,10 +83,10 @@ const GROUND_GRADE = {
   inabayama: { grass: [0x5c7a3a, 0x748646], soil: [0x8a867c, 0x6c6558], k: 0.5, cover: 0.15 },     // 灰白の岩肌
   nodafukushima: { grass: [0xb0a06a, 0x7c9248], soil: [0x988a6a, 0x7a6e56], k: 0.5, cover: 0.3 },  // 倒れた枯れ葦の淡い黄土と新しい葦の緑
   odani: { grass: [0x6c9a42, 0x86a64e], soil: [0x7a7462, 0x6a6c5a], k: 0.5, cover: 0.3 },          // 曲輪の短い草の明るい緑
-  moribe: { grass: [0x6c9444, 0x86a250], soil: [0xa6a294, 0x8a8678], k: 0.5, cover: 0.15 },        // 川原の白っぽい砂利と岸の草
+  moribe: { grass: [0x5f9040, 0x7a9c48], soil: [0xa6a294, 0x8a8678], k: 0.62, cover: 0.42 },       // 川原の白っぽい砂利と岸の草（岸の土を草の緑へ。10/31）
   tedorigawa: { grass: [0x96805a, 0x847652], soil: [0x6e6c66, 0x7e7a70], k: 0.5, cover: 0 },       // 雪の川原：枯れ草の茶と灰の石
   okehazama: { grass: [0x568a4c, 0x6c9a52], soil: [0x8a5236, 0x6c432e], k: 0.55, cover: 0.2 },     // 濡れた青緑の田と赤茶の泥
-  okawachi: { grass: [0x8a9052, 0x9e9a5e], soil: [0xae9866, 0xc6b68a], k: 0.5, cover: 0.1 },       // 乾いた黄土と淡い黄の砂の州
+  okawachi: { grass: [0x7e8a4c, 0x9e9a5e], soil: [0xae9866, 0xc6b68a], k: 0.58, cover: 0.3 },       // 乾いた黄土と淡い黄の砂の州
 };
 // photo：戦ごとの土の写真（def.groundPhoto）のある戦は、土の所の色寄せを半分にして写真の色を残す（10/30 c_ground_photo2）。
 export function groundGrade(key, photo = false) {

@@ -19,7 +19,7 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // 和田山城の退去：滋賀県立図書館の調査（信長公記・日本城郭大系）。
 // https://crd.ndl.go.jp/reference/entry/index.php?id=1000097854&page=ref_view
 // ======================================================================
-import { nobori, hut, tawara, lumber, hatazao, campfire, ishigaki, kabukimon, dobei, kuruwaBldg, solidCircle, solidRect, solidSeg, village, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { nobori, hut, tawara, lumber, hatazao, campfire, castleMat, ishigaki, kabukimon, dobei, kuruwaBldg, solidCircle, solidRect, solidSeg, village, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { flagTexture } from './textures.js';
 import { stoneTex, woodTex } from './nature.js';
 import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
@@ -1044,13 +1044,22 @@ function entranceSteps(rt) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(indices);
     const flat = g.toNonIndexed(); g.dispose(); flat.computeVertexNormals();
+    // 一石ごとの肌（10/31 mitsu_stone）：石垣（castleMat の野面）と同じ石一つの絵を、石の面ごとに 0〜1 で貼る
+    const P = flat.attributes.position, N = flat.attributes.normal, uv = new Float32Array(P.count * 2);
+    for (let i = 0; i < P.count; i++) {
+      const nx = Math.abs(N.getX(i)), ny = Math.abs(N.getY(i)), nz = Math.abs(N.getZ(i));
+      uv[i * 2] = (ny >= nx && ny >= nz ? P.getX(i) : nx > nz ? P.getZ(i) : P.getX(i)) + 0.5;
+      uv[i * 2 + 1] = (ny >= nx && ny >= nz ? P.getZ(i) : P.getY(i)) + 0.5;
+    }
+    flat.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     return flat;
   });
   const boxBase = new THREE.BoxGeometry(1, 1, 1), patchBase = new THREE.CylinderGeometry(1, 1, 1, 7);
   const box = boxBase.toNonIndexed(), patch = patchBase.toNonIndexed();
   boxBase.dispose(); patchBase.dispose();
   box.deleteAttribute('uv'); patch.deleteAttribute('uv');
-  const palette = [0x777366, 0x807969, 0x727163, 0x847d6c, 0x7a7768];
+  // 石垣（ishigaki の野面）と同じ灰茶の幅にそろえる。暗い灰の石段が石垣の脇で黒く沈まないように
+  const palette = [0x8a8478, 0x938c7e, 0x857f72, 0x9a9283, 0x8e887a];
   const color = new THREE.Color();
   // 石・土・苔・割れ目は開戦時に一つへまとめ、毎コマの追加をしない。
   const piece = (source, x, y, z, w, h, d, tint, turn = 0) => {
@@ -1128,6 +1137,7 @@ function entranceSteps(rt) {
   for (const g of geos) {
     const P = g.attributes.position;
     g.computeVertexNormals();
+    if (g.attributes.uv) continue;   // 石は一石ごとの uv を持つ。割れ目・苔・土だけ世界の向きで貼る
     // 石段の上面と側面に同じ縮尺の石肌を貼る。単色の大きな板に見せない。
     const N = g.attributes.normal, uv = new Float32Array(P.count * 2);
     for (let i = 0; i < P.count; i++) {
@@ -1137,22 +1147,8 @@ function entranceSteps(rt) {
     }
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   }
-  // 凹凸だけでは夜に無地の板になる。共有の石肌を明るさの狭い幅に収め、粒と割れを残す。
-  const material = new THREE.MeshLambertMaterial({ vertexColors: true, map: stoneTex(), bumpMap: stoneTex(), bumpScale: 0.065,
-    emissive: 0x171913, emissiveIntensity: 0.2 });
-  material.onBeforeCompile = (shader) => {
-    // 夜の踏面にも空からの弱い明かりを残す。石肌を通し、発光する白板にはしない。
-    shader.uniforms.uStepNight = W.nightU;
-    shader.fragmentShader = 'uniform float uStepNight;\n' + shader.fragmentShader;
-    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
-      #ifdef USE_MAP
-        vec3 grain = texture2D(map, vMapUv).rgb;
-        diffuseColor.rgb *= mix(vec3(0.72), vec3(1.18), smoothstep(vec3(0.12), vec3(0.68), grain));
-      #endif`).replace('#include <lights_fragment_end>', `
-      #include <lights_fragment_end>
-      reflectedLight.indirectDiffuse += diffuseColor.rgb * uStepNight * 0.12;`);
-  };
-  material.customProgramCacheKey = () => 'mitsukuriStepGrainNight';
+  // 石垣と同じ材質（castleMat の野面：一石の肌・岩の写真の肌理・古び）を使い回す。絵も材質も増やさない（10/31 mitsu_stone）
+  const material = castleMat('nozura');
   const mesh = new THREE.Mesh(mergeGeometries(geos), material);
   for (const g of [...geos, ...stones, box, patch]) g.dispose();
   mesh.receiveShadow = true; rt.scene.add(mesh);
@@ -2832,7 +2828,8 @@ const mitsukuri = {
     // 松明のある攻め口では、月と空の補助光を重ねて具足や木々を白くしない。
     nightLift: 1.35, nightFill: 0.16, nightMoonMin: 0.28,
     // 10/30 vis_f：申の刻の西日でも柵と郭の陰が黒く沈み、画面全体が暗かった。空と地の照り返しだけを強める（光の値だけ）。
-    dayBounce: 2.1, bounceGround: 0x6b5a45,
+    // 10/31 mitsu_stone：それでも柵の陰の黒漆の具足と石垣が黒く潰れて読めなかった。空と地の照り返しをもう一段（光の数・影は増やさない）
+    dayBounce: 2.8, bounceGround: 0x7a6852, unitCloudFill: 0.39,
     unitNightScale: 0.35, // 松明のそばで具足まで白くなる面の補光を控える。
     lowNightExposure: 0.45, // 携帯の夜だけの増感を抑え、火の暖色と月の陰を残す。
     autumn: true,     // 旧暦九月：枯れ色の草と色づく木

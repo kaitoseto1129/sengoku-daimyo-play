@@ -2188,7 +2188,8 @@ const iwamura = {
     if (F.step === 1 && F.lit < POSTS.length && !F.raidReturning && !F.localContact && !F.scoutContact && rt.t - F.stepT > 22 && !F.litCall) {
       F.litCall = true; rt.say('組頭', F.scoutNear ? '火は味方も焚く。おぬしは口を守れ' : '残る篝火へ向かえ。火がそろえば口を守れ', 4);
     }
-    if (F.step === 1 && rt.t >= F.raidAt && !rt.world.fade) {
+    // 10/31：本人が歩き出すまで夜討ちを始めない（立っているだけで段が進まないように）
+    if (F.step === 1 && rt.t >= F.raidAt && !rt.world.fade && (rt.stats.dist >= 8 || rt.stats.kills > 0)) {
       for (let i = 0; i < POSTS.length; i++) this.light(rt, i, true, false);
       this.raid(rt);
     }

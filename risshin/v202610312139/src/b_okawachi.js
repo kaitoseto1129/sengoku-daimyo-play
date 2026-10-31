@@ -2912,8 +2912,8 @@ function okSlopeDetail(W) {
       col = mix(col, dirt * vec3(1.22, 1.04, 0.82), smoothstep(0.32, 0.68, edge) * (0.2 + w.z * 0.35 + okSlope * 0.2));
       float okLeaf = (0.08 + litterCover * 0.65) * (1.0 - smoothstep(0.4, 0.7, macro2)) * (1.0 - trod) * (1.0 - slopeK * 0.7);
       col = mix(col, dirt * vec3(1.55, 1.12, 0.65), okLeaf);
-      // 高さごとの縞を作らず、既存の土のむらで切岸の濃淡を付ける。
-      col *= mix(0.9, 1.06, smoothstep(0.2, 0.8, macro2)) * okSlope + (1.0 - okSlope);
+      // 高さごとの縞を作らず、既存の土のむらで切岸の濃淡を付ける。平らな所も同じむらを強めに（夜に地面の斑を読ませる。10/31）
+      col *= mix(mix(0.8, 1.14, smoothstep(0.25, 0.75, macro2)), mix(0.9, 1.06, smoothstep(0.2, 0.8, macro2)), okSlope);
       // 雨で濡れると暗く`)
       // 共通の夜の青灰化を弱め、土と落ち葉の色を雨の下でも残す。
       .replace('uNight * 0.16) * (1.0 - uNight * 0.2)', 'uNight * 0.08) * (1.0 - uNight * 0.14)')
