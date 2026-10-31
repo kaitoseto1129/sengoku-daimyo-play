@@ -1123,7 +1123,10 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
       // 粒の写真（砂利・土・草・霜の濃淡を四つの段に詰めた一枚）を、向きと縮尺を変えて二回読む。
       // 近くは 2.4m の繰り返し、中ほど（〜110m）は 9m の繰り返しで、坂の上から見下ろす戦でも一色にしない。
       // 遠くで粒の繰り返しが並んで見えないよう、大きな斑で読む所をゆっくりずらす（斑は数十mなので歪みは見えない）
-      vec2 lsW = (vec2(lsM2, lsM1) - 0.5) * 2.6;
+      // 前は強めた斑（lsM1・lsM2）でずらしていた。斑の細かな傾きが粒の縮尺を超え、粒の写真が渦の縞に引き伸ばされた
+      // （伊賀の道。10/31）。ずらしは百m級の斑を粗い段（mipmap）で一回読んだなめらかな値から取り、傾きを粒の縮尺より十分小さく保つ。
+      float lsWm = texture2D(tLsMacro, lsP.xz * 0.0071 + 0.29, 4.0).r;
+      vec2 lsW = vec2(0.8, 0.6) * (lsWm - 0.5) * 2.0;
       // 低い目線（高さ2〜5m）では20m先から画素が奥へ長く伸び、粒の写真は細かい段（mipmap）へ落ちて濃淡が消える
       // （草の写真の濃淡は段4で元の15%、土で22%）。読んだ段を微分から見積もり、消えた分だけ濃淡を戻す（10/30 c_ground3）。
       // 異方性4を見込む：長い向きの幅を4で割り、短い向きと大きい方を取る。読み出しは増やさない。
@@ -1135,7 +1138,7 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
       vec4 lsDA = vec4(0.0);
       float lsNearA = 1.0 - smoothstep(14.0, 50.0, lsDist), lsNearB = 1.0 - smoothstep(70.0, 150.0, lsDist);
       if (lsNearA > 0.001) lsDA = texture2D(tLsDetail, lsP.xz * 0.41 + lsW) - 0.5;
-      vec4 lsDB = (texture2D(tLsDetail, vec2(lsP.z, -lsP.x) * 0.11 + 0.37 - lsW * 0.5) - 0.5) * mix(0.55, 1.3, lsM1);
+      vec4 lsDB = (texture2D(tLsDetail, vec2(lsP.z, -lsP.x) * 0.11 + 0.37 - lsW * 0.25) - 0.5) * mix(0.55, 1.3, lsM1);
       vec4 lsD = lsDA * lsNearA * 0.7 + lsDB * lsNearB * mix(0.6, 0.4, lsNearA);
       // 見える濃淡（色だけ）。凹凸は元のまま（遠くの凹凸を強めるとちらつく）
       vec4 lsDv = lsDA * (lsNearA * 0.7 * lsGainA) + lsDB * (lsNearB * mix(0.6, 0.4, lsNearA) * lsGainB);

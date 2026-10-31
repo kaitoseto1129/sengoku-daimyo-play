@@ -2977,15 +2977,13 @@ const nodafukushima = {
       dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], MIYOSHI));
     // 開戦25秒の小競り合い（10/30）：竹束を据える間、浅瀬の中ほどで佐々の先手と三好の物見が槍を合わせる（持ち場の前10〜15m）。
     // 兵は足さない（佐々の足軽12→2・砦の前の三好勢の足軽14→4 の十人ずつを回す。10/30 夜：竹束の三つの置き場のどれへ向かっても写るよう、中と西の束の前へ横に広げた）。小競り合いなので双方の打ちは弱く、崩れない。
-    F.skirA = allyGroup(rt, { fixed: true, name: '佐々の先手', anchor: { x: -4, z: -24 }, facing: Math.PI, width: 12, aggro: 8, seekRange: 9, noRout: true, formation: 'line', dmgMult: .06 },
-      dress([{ type: 'ashigaru', n: 10 }], ODA));
-    F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '三好の物見', anchor: { x: -4, z: -28 }, facing: 0, width: 12, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'line', dmgMult: .15 },
-      dress([{ type: 'ashigaru', n: 10 }], MIYOSHI));
-    // 西の竹束へ向かう道の先（浅瀬の西）にも、柴田の足軽と三好宗渭の足軽の小競り合いを置く（西の束へ歩いても斬り合いが前に見える）
-    F.skirA2 = allyGroup(rt, { fixed: true, fullStrength: true, name: '柴田の足軽', anchor: { x: -16, z: -17 }, facing: Math.PI, width: 8, aggro: 12, seekRange: 12, noRout: true, formation: 'line', dmgMult: .05 },
-      dress([{ type: 'ashigaru', n: 5 }], ODA));
-    F.skirE2 = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '三好の物見', anchor: { x: -16, z: -20.5 }, facing: 0, width: 8, aggro: 12, seekRange: 12, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'line', dmgMult: .15 },
-      dress([{ type: 'ashigaru', n: 5 }], MIYOSHI));
+    // 10/31 kaito「小隊対小隊はチープ」：二か所の小競り合いをやめ、三好の物見十五人を一つの塊にして浅瀬の向こう（持ち場の前二十歩）に置く。
+    //   開戦九秒で浅瀬を押し渡り、本人を目がけて寄せる（update）。佐々と柴田の足軽十五人は持ち場の前に一列で槍を揃え、本人の前で押し合う。兵の数は前と同じ。
+    F.skirA = allyGroup(rt, { fixed: true, name: '佐々の先手', anchor: { x: -2, z: -20 }, facing: Math.PI, width: 14, aggro: 10, seekRange: 12, noRout: true, formation: 'line', dmgMult: .06 },
+      dress([{ type: 'ashigaru', n: 15 }], ODA));
+    F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '浅瀬を押し渡る三好勢', anchor: { x: -2, z: -40 }, facing: 0, width: 7, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari', yariRanks: 3, dmgMult: .15 },
+      dress([{ type: 'ashigaru', n: 15 }], MIYOSHI));
+    F.skirE.noHunt = true;
     // 本願寺の先陣は早鐘の後に畦道から出す。昼の浅瀬の斬り合いには加わらない。
     F.waves = []; F.waveJoined = []; F.wavePaid = []; F.heldWaves = 0;
     // ---- 持ち場の区域（siege_zones.js）：堤の上・織田の詰め陣（味方）、野田砦・福島砦（三好） ----
@@ -3501,10 +3499,16 @@ const nodafukushima = {
     const F = rt.flags;
     const p = rt.player;
     // 開戦の小競り合いの片付け：45秒か、物見が尽きるか、総攻めが進めば、物見は砦へ退き、先手は堤の持ち場へ戻る
-    if (F.skirE && !F.skirDone && (rt.t > 45 || F.step >= 2.5 || ![F.skirE, F.skirE2].some((e) => e.units.some((u) => u.alive && !u.fleeing)))) {
+    // 開戦九秒：浅瀬の向こうの三好勢が一つの塊で押し渡り、本人を目がけて寄せる（本人が深手の時は近くの味方へ）
+    if (F.skirE && !F.skirDone && rt.t > 9) {
+      const P = p.u, g = F.skirE;
+      if (!F.skirGo) { F.skirGo = true; g.order = 'attack'; g.seekRange = 60; g.aggro = 30; rt.army.play?.('eshout', g.center(), 1.2); }
+      g.focus = P.alive && P.hp > P.maxHp * 0.35 ? P : null;
+    }
+    if (F.skirE && !F.skirDone && (rt.t > 45 || F.step >= 2.5 || !F.skirE.units.some((u) => u.alive && !u.fleeing))) {
       F.skirDone = true;
-      for (const e of [F.skirE, F.skirE2]) { e.noRout = false; e.morale = 0; }
-      for (const [g, x] of [[F.skirA, -14], [F.skirA2, -24]]) {
+      F.skirE.focus = null; F.skirE.noRout = false; F.skirE.morale = 0;
+      for (const [g, x] of [[F.skirA, -14]]) {
         g.dmgMult = 1; g.order = 'move'; g.dest = { x, z: LEVEE_Z + 4 };
         g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; q.facing = Math.PI; };
       }

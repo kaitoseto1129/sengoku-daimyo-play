@@ -850,9 +850,25 @@ function passFortScenery(rt) {
   // 10/30 vis_h：敵が少なかった（点付け）。本物の兵は足さず、木戸の奥の坂の上（観音丸の奥から次の郭への道）に一揆勢の大きな遠景の群れ。
   // 持ち場から木戸越しに見上げる所。一つの群れなので描く回数は一つ分だけ増える。
   const fx = gx + ux * 46, fz = gz + uz * 46;
-  const host = W.addDistantArmy({ x: fx, z: fz, w: 34, d: 14, count: 110, facing: Math.atan2(gx - fx, gz - fz), team: 1,
+  // 10/31 基準4（大軍対大軍）：同じ一つの群れ（描く回数は増やさない）で、木戸の奥の坂と左右の尾根に一揆勢を詰める。
+  let seed = 15995;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const people = [];
+  for (const [ox, oz, w, d, n] of [[0, 50, 60, 22, 210], [30, 30, 24, 12, 70], [-30, 30, 24, 12, 70]]) {
+    const cx = gx + ux * oz + uz * ox, cz = gz + uz * oz - ux * ox, face = Math.atan2(gx - cx, gz - cz);
+    for (let k = 0; k < n; k++) {
+      const a = (rnd() - 0.5) * w, b = (rnd() - 0.5) * d;
+      people.push({ x: cx + uz * a + ux * b, z: cz - ux * a + uz * b, facing: face + (rnd() - 0.5) * 0.5,
+        k: 'spear', flag: rnd() < 0.3 ? 1 : 0 });
+    }
+  }
+  const host = W.addDistantArmy({ x: fx, z: fz, w: 40, d: 16, count: people.length, people, facing: Math.atan2(gx - fx, gz - fz), team: 1,
     armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.1, banners: 0, kind: 'spear', seed: 15995, host: false });
   if (host?.army) { host.army.noWake = true; F.echizenIkkiHost = host; }
+  // 木戸は共通の部品（kido の冠木門）のまま門構えを一回り大きく見せる（扉は破れて飛ぶ形を保つ）。当たり・口の幅・耐久は元のまま。
+  for (const g of [F.gateKannon, F.gateKinome]) {
+    if (g?.frame) g.frame.scale.set(1.3, 1.35, 1.3);
+  }
   // 味方の控えは持ち場のすぐ脇（遠景の軽い姿が目の前で塊に見える）なので、見る所は元のまま（前と同じく作らない）。
   W.lastFocus = focus0;
   // 味方の控えは持ち場と木戸の間、道の脇に並ぶ。
@@ -1600,18 +1616,15 @@ echizen.setup = function (rt) {
           vec2 gq = vWP.xz - uEchGate.xy;
           float gd = length(gq);
           if (gd < uEchGate.z) {
-            vec2 pc = floor(vWP.xz / 1.1), pf = fract(vWP.xz / 1.1);
-            float ph = fract(sin(dot(pc, vec2(127.1, 311.7))) * 43758.5);
-            vec2 mc = floor(vWP.xz / 4.5), mf = fract(vWP.xz / 4.5); mf = mf * mf * (3.0 - 2.0 * mf);
-            float n00 = fract(sin(dot(mc, vec2(12.9, 78.2))) * 43758.5), n10 = fract(sin(dot(mc + vec2(1, 0), vec2(12.9, 78.2))) * 43758.5);
-            float n01 = fract(sin(dot(mc + vec2(0, 1), vec2(12.9, 78.2))) * 43758.5), n11 = fract(sin(dot(mc + vec2(1, 1), vec2(12.9, 78.2))) * 43758.5);
-            float patchN = mix(mix(n00, n10, mf.x), mix(n01, n11, mf.x), mf.y);
+            // 1.1m の升に区切った敷石と目地は、少し離れると方眼の升目に見えた（10/31）。升も目地の線も引かず、
+            // 斑の絵の形で敷石の残る所を決め、石の肌と濃淡は石の絵と斑の絵から取る（読み出しは二つ増えるが、木戸の前の円の中だけ）。
+            float patchN = clamp((texture2D(tMacro, vWP.xz * 0.045 + 0.41).r - 0.5) * 3.0 + 0.5, 0.0, 1.0);
             float reach = 1.0 - smoothstep(uEchGate.z * 0.55, uEchGate.z, gd);
-            float paved = smoothstep(0.34, 0.46, patchN) * reach * step(0.12, ph);
-            float joint = smoothstep(0.0, 0.08, min(min(pf.x, pf.y), min(1.0 - pf.x, 1.0 - pf.y)));
-            vec3 slab = texture2D(tStone, vWP.xz * 0.21).rgb * vec3(1.05, 1.03, 0.98) * (0.8 + ph * 0.4);
-            col = mix(col, mix(col * 0.4, slab, joint), paved);
-            echPaved = paved * joint;
+            float paved = smoothstep(0.45, 0.62, patchN) * reach;
+            float shade = texture2D(tMacro, vWP.xz * 0.31 + 0.77).r;
+            vec3 slab = texture2D(tStone, vWP.xz * 0.21).rgb * vec3(1.05, 1.03, 0.98) * mix(0.75, 1.2, shade);
+            col = mix(col, slab, paved);
+            echPaved = paved;
           }
         }
         diffuseColor.rgb *= col;`);

@@ -399,11 +399,12 @@ export function buildOdaniUpper(rt, ramps) {
     mesh.castShadow = list !== leaves;
     mesh.receiveShadow = true; rt.scene.add(mesh);
     if (list === rocks && !low) {
-      // 五十五メートル先の小石だけ割れ目を省く。岩の数・場所・色は同じ束から写す。
+      // 三十二メートル先の小石だけ割れ目を省く。岩の数・場所・色は同じ束から写す。
       // 近い岩と四十メートル内の影は元の細かい形を保つ。
       const farRocks = new THREE.InstancedMesh(rockShape(1, false, 0), mesh.material, list.length);
       farRocks.count = 0; farRocks.receiveShadow = true; farRocks.frustumCulled = false;
       farRocks.userData.noFreeze = true;
+      mesh.userData.foliageDetailNear = 32;
       mesh.userData.farFoliage = farRocks; rt.scene.add(farRocks);
     }
     // 小さな葉と根は近景だけ。岩は残し、画面の外だけ省く。

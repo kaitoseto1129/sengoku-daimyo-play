@@ -2357,8 +2357,9 @@ const shigisan = {
     fieldStage: 'stubble',
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
-    nightLift: 1.6, // 月光の強さは保ち、空から一様に当たる光だけを抑えて夜の陰を残す。
-    nightMoonMin: 1.2, // 光源は増やさず、切岸の稜線と望楼の板屋根に月の直射を残す。
+    nightLift: 2.1, // 月光の強さは保ち、空から一様に当たる光だけを抑えて夜の陰を残す。10/31：暗すぎて狭間と石垣が読めなかったので 1.6→2.1
+    nightMoonMin: 1.5,
+    lowNightExposure: 1.6, // 10/31：25秒の画面が暗く、白壁の狭間・石垣・兵の形が沈んだ。夜の増感を既定の 1.25 から少し上げる（光の数は同じ）。 // 光源は増やさず、切岸の稜線と望楼の板屋根に月の直射を残す。
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。
@@ -2712,7 +2713,9 @@ const shigisan = {
         }
         if (toe.length >= 2) {
           castlePart(W, 'ishigaki', { pts: toe, top: (x, z) => W.heightAt(x + lx * 3, z + lz * 3) + .8, kind: 'uchikomi' }, { era: 'early' });
-          castlePart(W, 'hei', { pts: toe.map(([x, z]) => [x + lx * 3.2, z + lz * 3.2]), kind: 'ita', h: 2.4, sama: 1.1 }, { era: 'early' });
+          // 10/31：25秒の画面の正面に斜めに上る塀。黒い板塀は月夜の黒い山肌に沈み、狭間が見えなかった。松永の城（多聞山の白壁の先がけ）
+          //   らしく白漆喰の土塀に替え、白い壁に黒い狭間の口を一つおきに切る（共通の土塀の部品。描く回数は同じ）。
+          castlePart(W, 'hei', { pts: toe.map(([x, z]) => [x + lx * 3.2, z + lz * 3.2]), kind: 'shikkui', h: 2.4 }, { era: 'early' });
           // 板塀の内に松永勢の槍と旗（塀越しに頭と旗が並ぶ）。
           const m = toe[Math.floor(toe.length / 2)];
           W.addDistantArmy({ x: m[0] + lx * 7, z: m[1] + lz * 7, w: 22, d: 4, count: 60, facing: Math.atan2(-lx, -lz), armor: 0x2a2622, team: 1, host: false, flagTex: flagTexture('todo'), seed: 15776 });
@@ -3480,7 +3483,8 @@ const shigisan = {
         F.gateWaitT = null;
         F.reMarchT = null; F.waitSaid = false;
         // 伏兵が崩れて二分たてば、先手が門前を押さえた事にして次の段（門脇の守り）へ。印が門へ導く。
-        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120) this.tower(rt);
+        // 10/31：本人が門前の近く（四十歩）まで登っていなければ進めない（立っているだけで段が進まないように）
+        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120 && Math.hypot(p.x - F.gateGather.x, p.z - F.gateGather.z) < 40) this.tower(rt);
       }
       // 待つ下知の間は歩数と進む矢印を出さない。離れたら元の尾根道の案内へ戻す。
       // 門前の判定・十二秒の待ち時間はそのまま、既存の印を待機用に切り替える。

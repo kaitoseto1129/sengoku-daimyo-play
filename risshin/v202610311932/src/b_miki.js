@@ -8,7 +8,7 @@ import { nobori, hut, yagura, tawara, takataba, jinmaku, dorui, umatsunagi, hyor
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { nabe, paintGeo } from './props.js';
-import { bodyGeometry } from './units_model.js';
+import { bodyGeometry, UNIT_NIGHT } from './units_model.js';
 import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 import { dirtTex, mudTex, leafTex } from './nature.js';
 import { lookKey } from './units_look.js';
@@ -18,6 +18,7 @@ import { setCastleMask } from './castle_mask.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { denseCamp } from './castle_bldg.js';
 import { castlePart } from './cgt_castle.js';
+import { gradeOf, copyGrade } from './grade.js';
 import { MIKI_JO, MIKI_KURUWA, MIKI_HONJIN_OFFSET, MIKI_ROAD, TSUKESHIRO_CHAIN, MIKI_BRANCHES, MIKI_HORI, MIKI_FORTS as BASE_FORTS } from './castles/miki.js';
 import { placeGroup } from './b_opening.js';
 import { RANKS } from './state.js';
@@ -820,9 +821,11 @@ const SHIYORI_CUT = horiboriHeight(SHIYORI, { depth: .65, width: 4 });
 const ROADS = [LANE, CASTLE_ROAD, SALLY_PATH, HIRATA_PATH, ASSEMBLY_PATH, ...INNER_ROADS, ...FORT_ROADS, HONJIN_PATH, HONJIN_ROOM, [[-80, -54], [-85, -58], [-85, -65]], SHIYORI, ...SERVICE_ROADS];
 const DITCHES = MIKI_HORI.map(pts => horiboriHeight(pts.map(([x, z]) => [x + MIKI.x, z + MIKI.z]), { depth: 2.4, width: 5 }));
 // 本の足軽装束：黒漆の胴に、織田方は茶の着物（味方に紺を使わない。10/29）、弁柄の陣笠。形と材質の数は増やさない。
-const ODA = { flag: 'oda', armor: 0x242322, hatColor: 0x713b30, lace: 0x67604c, cloth: 0x3d3328, haori: 0 },
-  BESSHO = { flag: 'maru', armor: 0x352b25, hatColor: 0x743c30, lace: 0x79664b, cloth: 0x303e46, haori: 0 },
-  MORI = { flag: 'mori', armor: 0x302a26, hatColor: 0x6e392f, lace: 0x75624b, cloth: 0x313d48, haori: 0 };
+// 10/31：夜明けの青い光と夜の補光で胴と着物が青灰の一色に沈み、青い味方に見えた。家の色の範囲で、褪せた茶の着物・
+//   黒茶の漆の胴・朱の陣笠に寄せる（別所は柿渋の赤茶、毛利は焦げ茶。紺・灰の布は使わない）。
+const ODA = { flag: 'oda', armor: 0x34281e, hatColor: 0x8a3a22, lace: 0x7a5a36, cloth: 0x5a4630, haori: 0 },
+  BESSHO = { flag: 'maru', armor: 0x3a2a20, hatColor: 0x8e3c24, lace: 0x86603a, cloth: 0x6a4028, haori: 0 },
+  MORI = { flag: 'mori', armor: 0x2e221b, hatColor: 0x7e3424, lace: 0x7c5838, cloth: 0x4a3426, haori: 0 };
 // 原点を移したため、旧原点の標高素材を混ぜない。古図との照合は調査表に残す。
 const HARVEST_FIELDS = [[-158, -90, 36, 28], [-48, -110, 32, 28], [-122, -122, 28, 24]];
 function fieldEdge(x, z) {
@@ -910,7 +913,8 @@ function mikiHasa(rt) {
 // 25秒の画面の真ん中（南西の斜面・持ち場から 70m）へ据え、塀と井楼を高くして奥でも大きく見せる。
 // 持ち場（木戸の外）から荷の護衛へ向かう先の奥（南西・70m）にも大きな付城を一つ。25秒の時のカメラの正面に入る（10/28 採点）。
 // 四つ目は25秒の視線（持ち場から南南東・約70m）の真ん中。塀と二つの井楼が奥に大きく入る（10/29 採点「奥の櫓は小さく遠い」）。
-const FAR_FORTS = [{ x: -62, z: -2, r: 14, big: true, lit: true }, { x: -150, z: -4, r: 14, big: true }, { x: -146, z: -104, r: 13, big: true }, { x: -224, z: -12, r: 12 }];
+// 10/31 採点 72「付城が小さい」：一つ目を開戦の視線（木戸前から北東）の上で 52m→37m へ寄せ、井楼を高くする。南の縁は城兵の出る道（z-40）から十歩空ける。
+const FAR_FORTS = [{ x: -62, z: -16, r: 12, big: true, lit: true, tall: true }, { x: -150, z: -4, r: 14, big: true }, { x: -146, z: -104, r: 13, big: true }, { x: -224, z: -12, r: 12 }];
 function mikiFarFort(rt, q) {
   const W = rt.world, batch = makeSimpleBatch(), n = 14;
   for (let i = 0; i < n; i++) {
@@ -919,7 +923,7 @@ function mikiFarFort(rt, q) {
     if (i === Math.round(n / 4)) continue;
     const seg = [q.x + Math.sin(a0) * q.r, q.z + Math.cos(a0) * q.r, q.x + Math.sin(a1) * q.r, q.z + Math.cos(a1) * q.r];
     const am = (a0 + a1) / 2;
-    palisade(W, seg, { h: q.big ? 3.2 : 2.4, batch });
+    palisade(W, seg, { h: q.tall ? 3.8 : q.big ? 3.2 : 2.4, batch });
     dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: q.big ? 1.4 : .9, w: 2.4, capEnds: true, closeBack: true, batch });
   }
   for (const [x, z, w, d] of [[-6, -2, 7, 4], ...(q.big ? [] : [[5, 4, 6, 4]]), [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
@@ -932,13 +936,13 @@ function mikiFarFort(rt, q) {
     const yx = q.x + 5, yz = q.z + 4, yy = W.heightAt(yx, yz);
     castlePart(W, 'niju', { x: yx, z: yz, rot: 0, y: yy + 0.3, w: 6, d: 4.6, h1: 3.4, h2: 2.6, stone: yy - 0.8 }, { era: 'early' });
   }
-  const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.big ? 15 : 11, boarded: true });
-  if (q.big) rt.scene.add(yagura(W, q.x - 8, q.z + 6, { logFrame: true, kind: 'ro', height: 12, boarded: true }));
+  const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.tall ? 18 : q.big ? 15 : 11, boarded: true });
+  if (q.big) rt.scene.add(yagura(W, q.x - 8, q.z + 6, { logFrame: true, kind: 'ro', height: q.tall ? 15 : 12, boarded: true }));
   rt.scene.add(tower, jinmaku(W, q.x - 4, q.z - 7, 5, 4, 3, { mon: 'oda' }));
   for (const [x, z] of [[q.x + 11, q.z - 6], [q.x + 11, q.z + 6], [q.x - 8, q.z + 10], ...(q.big ? [[q.x + 4, q.z + 13], [q.x - 12, q.z - 4]] : [])]) rt.scene.add(nobori(W, x, z, 'oda', q.big ? 7.5 : 6));
   // 夜でも奥の付城が黒い影だけにならないよう、持ち場に向く東の口と井楼の上に篝火（光源は足さない）。
   if (q.big) for (const [x, z, h, sz] of [[q.r + 2, -4, .15, 1.1], [q.r + 2, 4, .15, 1.1], [q.r - 3, -9, .15, .9], [q.r - 3, 9, .15, .9], [2, -1, 14.2, .7], [-8, 6, 11.2, .6], [-2, 1, .15, 1.3]])
-    W.addFire(q.x + x, q.z + z, { h, size: sz, nightOnly: true, smoke: false });
+    W.addFire(q.x + x, q.z + z, { h: h + (q.tall && h > 5 ? 3 : 0), size: sz, nightOnly: true, smoke: false });
   // 25秒の視線の真ん中の付城だけ、霧の奥でも塀と櫓の面が読めるよう、持ち場に向く北の塀の外の篝火に灯りを持たせる（二つだけ）。
   if (q.lit) for (const [x, z] of [[-6, -(q.r + 3)], [7, -(q.r + 3)]])
     W.addFire(q.x + x, q.z + z, { torch: true, h: 1.3, size: 1, nightOnly: true, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.4, lightDecay: 0 });
@@ -1562,7 +1566,7 @@ const miki = {
     // 城域と東の付城を地面の内に収める。共通地形の頂点数は増やさない。
     seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 2.8, nightFill: .48, fogFar: 420,
     // 夜明け前：東の空の下だけが白み、天頂はまだ紺。月でなく東の低い薄明かりから照らす（真夜中の空に見えていた。10/28）
-    nightLight: { sky: 0x2c3650, top: 0x101a30, glow: 0x9a7a86, glowK: 0.42, sunPos: [130, 22, -40], vis: 240 },   // 白み始めの空で、奥の付城の井楼と篝火の並びまで見通す（10/28）
+    nightLight: { sky: 0x2c3650, top: 0x101a30, glow: 0x9a7a86, glowK: 0.42, sunPos: [130, 30, -40], vis: 240, sun: 0xc9b4a4, hemiGround: 0x2a2620 },   // 白み始めの空で、奥の付城の井楼と篝火の並びまで見通す（10/28）
     // 既存の丸い炎を使い、門前に三角の札のような火を立てない。
     roundedFire: true,
     // 松明の暖色を粗い地形の頂点から広げず、火の届く足元だけへ描く。
@@ -1621,6 +1625,8 @@ const miki = {
     playerBounds: { minX: -245, maxX: 720, minZ: -255, maxZ: 720 },
     playerBoundsAt: (rt) => rt.flags.step === 1 && !rt.flags.dropped && !rt.flags.ending && !rt.over ? CONVOY_BOUNDS : null,
     autumn: true, muddy: 0.08, paths: ROADS, patchyGround: true,
+    // 10/31：道と刈田の土が茶の一色に見えた。播磨の刈田の土の写真（CC0・共用の土と入れ替えるだけで絵の数は同じ）。泥も同じ写真。
+    groundPhoto: { dirt: 'paddy_soil', mudFromSoil: true, scale: 0.2, contrast: 1.3 },
     // 茶色の頂点色だけで野まで裸地にしない。道と刈田は土、ほかは枯れ草を混ぜる。
     // 既存の地表の絵の配分だけを変え、房や描画の回数は増やさない。
     grassMix: (x, z) => roadBlend(x, z) > .1 || fieldEdge(x, z) > 0 ? 0
@@ -1806,20 +1812,36 @@ const miki = {
     // 三木の夜だけ、既存の半球光の下側にも中立色の照り返しを回す。
     // 青い輪郭光で沈む縅の赤・茶を見せ、朝には既存の明るさへ戻す。
     const prepareNight = W.prepareNight;
-    const clothFill = new THREE.Color(0xaaa18c);
+    const clothFill = new THREE.Color(0xaaa18c), dawnSky = new THREE.Color(0x8e7c66);
     const lookOf = W.lookOf;
     W.lookOf = function (key) {
       const look = lookOf.call(this, key);
       if (key === 'night') {
         look.sun.lerp(clothFill, .28);
         look.hemiSky.lerp(clothFill, .22);
+        // 10/31：空の青い返り（半球光）が東の薄明かりの三倍あり、兵の胴・着物・笠が同じ青灰の一色に潰れた。
+        //   空の返りを白み始めの灰茶へ寄せて二割弱め、東の低い光を強める（受光面と陰の差で胴と着物を分ける。光の数は同じ）。
+        look.hemiSky.lerp(dawnSky, .45); look.hemiI *= .78; look.sunI *= 2.2;
+        // 10/31：夜の仕上げ（色を二割抜き、陰を青く）で胴・陣笠の朱と茶が灰になっていた。三木の夜明けだけ色を残し、陰の青みを弱め、少し明るく。
+        const g = look.grade = copyGrade(gradeOf('night'));
+        g.saturation = .93; g.exposure = 1.1; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
       }
       return look;
     };
     W.applyLook(W.lookOf(W.timeKey));
+    // 10/31：夜の兵の面の補光（共通の下限 0.36）は、夜の増感と重なって三木の夜明けでは兵の胴・着物・笠を同じ青灰に
+    //   塗り潰していた（補光を切ると黒漆と茶の布が分かれる）。三木の戦の間だけ半分に弱め、代わりに東の低い光を強める。
+    //   ほかの戦（rt が今の戦でない時）は元の値のまま。入れ物と光の数は増やさない。
+    if (!Object.getOwnPropertyDescriptor(UNIT_NIGHT, 'value').get) {
+      let raw = UNIT_NIGHT.value;
+      Object.defineProperty(UNIT_NIGHT, 'value', { configurable: true, enumerable: true,
+        get() { const b = typeof window !== 'undefined' && window.__game && window.__game.battle; return b && b.world && b.world.mikiDawnFill ? raw * b.world.mikiDawnFill : raw; },
+        set(v) { raw = v; } });
+    }
+    W.mikiDawnFill = .5;
     W.prepareNight = function () {
       const night = prepareNight.call(this);
-      this.nightFill.intensity += .16 * night;
+      this.nightFill.intensity += .04 * night; // 10/31 布色の補光が強すぎて兵が灰色に平らだった。東の薄明かりの陰影を残す
       this.nightFill.color.lerp(clothFill, .65 * night);
       this.nightFill.groundColor.lerp(clothFill, .35 * night);
       return night;
@@ -2087,7 +2109,7 @@ const miki = {
       A: { team: 0, flag: 'oda', flagRate: .25, count: 64 }, B: { team: 1, flag: 'maru', flagRate: .25, count: 64 },
       play: (id, pos, vol) => rt.army.play(id, pos, vol),
     });
-    // 視線の奥の付城（-62, -2）の東の口へ、城から出た別所勢の群れが押し寄せる。軽い大軍だけで、戦う兵の数は増やさない。
+    // 視線の奥の付城（-62, -16）の東の口の先へ、城から出た別所勢の群れが押し寄せる。軽い大軍だけで、戦う兵の数は増やさない。
     F.fortClash = W.addClash({ x: -34, z: 14, w: 18, facing: Math.PI / 2, gap0: 0, seed: 15795,
       noWake: true, noRout: true, killRate: 0, realNear: 12, // 本物の兵の輪の内でも描く（持ち場から五十歩余り）
       A: { flag: 'oda', armor: 0x2e2822, flagRate: .2, count: 56 }, B: { flag: 'maru', armor: 0x3a3028, flagRate: .3, count: 96 },
