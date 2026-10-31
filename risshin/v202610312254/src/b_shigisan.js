@@ -1968,6 +1968,8 @@ function shigisanFoe(rt) {
   return (F.foePick = best);
 }
 
+// 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
+const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 const shigisan = {
   terrainCameraLift: false, // 切岸の上へ持ち上げず、斜面の手前へ寄せて道を見る。
   selfFrameMinDistance: 2.5, // 柵際で寄った時は、本人の胴へ振り向かず前を見る。
@@ -3477,11 +3479,11 @@ const shigisan = {
       const atGate = Math.hypot(p.x - F.gateGather.x, p.z - F.gateGather.z) < 20;
       const wait = F.climbWait || (F.climbWait = { arrived: 0, need: 0 });
       wait.arrived = arrived; wait.need = need;
-      if ((gone(F.amb) || F.ambCommitted && !roadThreat) && need > 0 && arrived >= need && atGate) this.tower(rt);
+      if ((gone(F.amb) || F.ambCommitted && !roadThreat) && need > 0 && arrived >= need && atGate && shiPlayed(rt)) this.tower(rt);
       // 先手が切岸の上の物見へ槍を向けて坂の途中で止まると、門前に揃わず次の段へ進めなかった（bot が 480 秒で失敗）。
       // 敵が道から退いたら、遅れた隊をすぐ道へ戻す。十二秒で着いた者から門脇へ移る。
       // 尾根の伏兵が道の脇に残って退かないと、門前で三分待たせていた（bot 10/26）。門前に着いて一分たてば、残りは先手に任せて進める。
-      else if (F.step === 1 && atGate && (!roadThreat || rt.t - F.stepT > 60)) {
+      else if (F.step === 1 && atGate && shiPlayed(rt) && (!roadThreat || rt.t - F.stepT > 60)) {
         F.gateWaitT = F.gateWaitT ?? rt.t;
         if (F.reMarchT == null || rt.t - F.reMarchT >= 8) {
           F.reMarchT = rt.t;
@@ -3504,7 +3506,7 @@ const shigisan = {
         F.reMarchT = null; F.waitSaid = false;
         // 伏兵が崩れて二分たてば、先手が門前を押さえた事にして次の段（門脇の守り）へ。印が門へ導く。
         // 10/31：本人が門前の近く（四十歩）まで登っていなければ進めない（立っているだけで段が進まないように）
-        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120 && Math.hypot(p.x - F.gateGather.x, p.z - F.gateGather.z) < 40) this.tower(rt);
+        if (!ambLive(F.amb) && !roadThreat && rt.t - F.stepT > 120 && shiPlayed(rt) && Math.hypot(p.x - F.gateGather.x, p.z - F.gateGather.z) < 40) this.tower(rt);
       }
       // 待つ下知の間は歩数と進む矢印を出さない。離れたら元の尾根道の案内へ戻す。
       // 門前の判定・十二秒の待ち時間はそのまま、既存の印を待機用に切り替える。

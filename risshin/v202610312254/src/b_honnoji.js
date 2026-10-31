@@ -3893,16 +3893,19 @@ const honnoji = {
     // 10/31 kaito「小隊対小隊はチープ・敵は本人を多く狙う」：表庭の寄せ手は一つの群れとして、本人を目がけて押し寄せる（honnoTick）。
     // 10/31 kaito：寄せ手の群れは表門の口から押し入る（通りから門を抜けて表庭へ）。本人は本堂を背に門を向くので、画面の正面。
     F.courtMob = [
-      akechi(rt, '表門から押し入る明智勢', [[-25, 48.5], [-29, 48.8], [-33, 48.5], [-36.5, 47.5]], [uS(3), uA(11)], { entered: true, fill: true, seek: 10 }),
-      akechi(rt, '表門の口の斬り合い', [[-24, 51.5], [-29, 51.2], [-33, 51.5], [-36, 52.5]], [uS(2), uA(10)], { entered: true, fill: true, seek: 10 }),
+      akechi(rt, '表門から押し入る明智勢', [[-25, 48.5], [-29, 48.8], [-33, 48.5], [-36.5, 47.5]], [uS(4), uA(16)], { entered: true, fill: true, seek: 10 }),
+      akechi(rt, '表門の口の斬り合い', [[-24, 51.5], [-29, 51.2], [-33, 51.5], [-36, 52.5]], [uS(3), uA(15)], { entered: true, fill: true, seek: 10 }),
     ];
     rt.after(7, () => { if (F.hp === 2 && !F.ending) F.courtMob.push(akechi(rt, '表門へ続く明智勢', [[-24, 50], [-29, 50], [-34, 49.5]], [uS(2), uA(8)], { entered: true, fill: true, seek: 10 })); });
     // 味方の新手は見える所に出すと guardSpawn（battle.js）が四十歩先へずらし、本堂の向こうから走って来た。noGuard でその場に立たせる。
     F.frontGuard = allyGroup(rt, { fixed: true, noGuard: true, name: '表庭の馬廻', anchor: { x: -37, z: 49.5 }, facing: Math.PI / 2, width: 4, aggro: 8, noRout: true, fullStrength: true, formation: 'line' },
-      dress([{ type: 'samurai', n: 2, o: NEMAKI(0x4a3a2c) }, nA(6)], ODA));
+      dress([{ type: 'samurai', n: 3, o: NEMAKI(0x4a3a2c) }, nA(13)], ODA));   // 10/31 mini の点付け：味方が数人に見えた。表庭の馬廻を十六人に
     F.frontGuard.defMult = 1;
     F.frontGuard.hideFlags = true;
     F.patrolQuiet = 0;
+    // 10/31 mini の点付け：開戦25秒の画面の奥に大軍が無い。門の外の通りを埋める明智勢（軽い遠景・桔梗の旗）を門の段より先に見せる。
+    F.streetMob = rt.world.addDistantArmy({ x: -14, z: 50, w: 9, d: 26, count: 90, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15897 });
+    if (F.streetMob?.army) F.streetMob.army.noWake = true;
     // 民と僧は、近づく兵や火を民の仕組みで調べて逃げる。
     // 信長が起き出し、回廊を抜けて表へ（B 警戒 → D 移る）
     nbSet(rt, 'B', { at: PT.nbRoom });
@@ -3916,8 +3919,6 @@ const honnoji = {
       if (F.hp !== 2 || F.arrowBlaze || F.ending || rt.over) return;
       const r = F.T?.G.byId.hondo;
       if (r) F.arrowBlaze = rt.world.addBlaze(-53, 46, { w: 16, d: 12, h: 3.8, n: 3 }); // 庭側の軒と大屋根の流れに火（棟より上に浮かせない）
-      // 共通の太い煙の柱は、この近さでは空に四角い板の縁が見えた。火の粉と炎の煙だけにする。
-      if (F.arrowBlaze?.smoke) { rt.world.removeSmokeColumn(F.arrowBlaze.smoke); F.arrowBlaze.smoke = null; }
     });
     // 南の宿坊の脇の塀を越えた明智勢が、本堂の縁へ攻め込む。表庭から本堂を見る向きの手前で縁の守りと斬り合う（庭に寄せ手の群れ）。
     // 北から庭を横切らせると、門へ走る本人を途中の斬り合いへ引き込み、門も本堂も写らなかった（10/29）。
@@ -3972,6 +3973,7 @@ const honnoji = {
     const wave = (name, list, o = {}) => akechi(rt, name, IN.main, list, { gate: F.gMain, ...o });
     // 門の外：明智の人垣が通りを埋めて押し寄せる。鬨の声と鉄砲、松明の火が、門の隙・屋根越しに見える
     const W3 = rt.world;
+    if (F.streetMob) { F.streetMob.visible = false; F.streetMob = null; }
     F.gateMob = W3.addDistantArmy({ x: -14, z: 50, w: 9, d: 26, count: 80, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', seed: 15899 });
     F.gateMob.army.noWake = true;
     at(6, () => courtClashGround(rt));
@@ -4405,6 +4407,9 @@ const honnoji = {
     honnoPressure(rt);
     honnoSurround(rt, dt);
     honnoClothes(rt, dt);
+    // 表庭の段は、視点の向く先の十歩で斬り合わせる。押し合いは表庭の内に置く（本堂の中へ引き込まない）。
+    if (!rt.G.lord) heroFrontClash(rt, dt, { foeD: 12, allyD: 7, foeN: 30, allyN: 24, active: (r) => (r.flags.hp || 0) <= 2,
+      clamp: (x, z) => ({ x: Math.max(-46, Math.min(-29, x)), z }) });
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     const F = rt.flags;
     if (!rt.player.u.alive) return;
@@ -4416,7 +4421,9 @@ const honnoji = {
     // 表庭の近習は、門へ走る本人の二、三歩前（本堂の側）に付いて斬り結ぶ。門を閉めた後は門の内に残る。
     if (F.hp === 2 && F.kinju && !gone(F.kinju)) {
       const u = rt.player.u, dx = GATE_LOOK.x - u.pos.x, dz = GATE_LOOK.z - u.pos.z, L = Math.hypot(dx, dz) || 1;
-      if (L > 6) { F.kinju.anchor.x = u.pos.x + dx / L * 2.6; F.kinju.anchor.z = u.pos.z + dz / L * 2.6; }
+      // 門から離れた時（十四歩より遠い）は、本人と門の間の六歩前に出て、押し寄せる寄せ手と本人の正面で当たる。
+      const ahead = L > 14 ? 6 : 2.6;
+      if (L > 6) { F.kinju.anchor.x = u.pos.x + dx / L * ahead; F.kinju.anchor.z = u.pos.z + dz / L * ahead; }
     }
     if (F.ending || rt.over) return;
     // 寺の熱で体力が尽きたコマは、護衛失敗や次の段より先に重傷の決着へ渡す。
@@ -4542,6 +4549,55 @@ const honnoji = {
 };
 
 // 本能寺の段の毎コマ（P1〜P8）
+// 10/31 mini の点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所に置いた押し合いが画面から外れた。
+// 開戦から win 秒の間、本人の前（カメラの向く先）の foeD 歩へ近い敵の組を、allyD 歩へ味方の組を寄せ続け、
+// 画面の正面で斬り合わせる。兵は足さず、瞬間移動もしない（歩いて寄る）。時が過ぎたら元の下知へ戻す。
+function heroFrontClash(rt, dt, o = {}) {
+  const F = rt.flags, P = rt.player.u;
+  const H = F._hfc || (F._hfc = { t: 0, t0: rt.t, saved: new Map() });
+  if (H.done || (H.t -= dt) > 0) return;
+  H.t = 0.5;
+  if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
+    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    H.saved.clear(); H.done = true; return;
+  }
+  const e = rt.camera?.matrixWorld?.elements;
+  let fx = e ? -e[8] : 0, fz = e ? -e[10] : 0, L = Math.hypot(fx, fz);
+  if (L < 0.3) { fx = Math.sin(P.heading); fz = Math.cos(P.heading); L = 1; }
+  fx /= L; fz /= L;
+  // 戦の視点が決まった向き（例：表門）を見る時は、その向きを使う
+  const D = o.dir && o.dir(rt);
+  if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
+  const pick = (foe, want, d) => {
+    let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
+    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    const list = [];
+    for (const g of rt.army.groups) {
+      if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
+      const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
+      // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
+      if (r < (o.reach ?? 70) && !rt.army.wallBetween({ x: c.x, y: P.pos.y, z: c.z }, -1, { x, y: P.pos.y, z })) list.push([r, g]);
+    }
+    list.sort((a, b) => a[0] - b[0]);
+    const out = []; let n = 0;
+    for (const [, g] of list) { if (n >= want) break; out.push(g); n += g.count; }
+    out.forEach((g, k) => {
+      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, path: g.path, pathIdx: g.pathIdx, noAI: g.noAI, aggro: g.aggro });
+      const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
+      g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
+      if (g.focus && g.focus !== P) g.focus = null;
+      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
+    });
+  };
+  pick(true, o.foeN ?? 22, o.foeD ?? 15);
+  pick(false, o.allyN ?? 16, o.allyD ?? 9);
+}
+// 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
+const honPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 function honnoTick(def, rt, dt) {
   const F = rt.flags, P = rt.player.u, p = P.pos, NB = F.nb, T = F.T;
   const t = rt.t - F.pT;
@@ -4549,7 +4605,8 @@ function honnoTick(def, rt, dt) {
   // 表庭の寄せ手の群れは、門の段まで本人を目がけて押し寄せる（本人が深手・十五歩より遠い・庭の外の時は近くの供へ）。
   if (F.courtMob && (F._courtT = (F._courtT || 0) - dt) <= 0) {
     F._courtT = 0.5;
-    const on = F.hp === 2 && !F.ending && P.alive && P.hp > P.maxHp * 0.4 && p.x < GATES.main.x - 1;
+    // 開戦の押し合い（heroFrontClash）の間は、寄せ手を本人一人へ集めない（馬廻の列と斬り合わせる。集めると bot が堂の奥へ退き、画面が壁になった）。
+    const on = F.hp === 2 && !F.ending && P.alive && P.hp > P.maxHp * 0.4 && p.x < GATES.main.x - 1 && !(F._hfc && !F._hfc.done);
     for (const g of F.courtMob) {
       if (!g || !g.count) continue;
       const c = g.center(), near = on && Math.hypot(c.x - p.x, c.z - p.z) < 15;
@@ -4762,7 +4819,7 @@ function honnoTick(def, rt, dt) {
 
     rt.objProgress('main', F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
       : g && g.alive ? (g.hp < g.maxHp * 0.3 ? '門がきしむ。上様の前で構え、退く下知を待て' : '門の内で構え、本堂へ退く下知を待て') : '門の口から離れ、味方の後ろで構えよ');
-    if (t >= 45 && ((g && !g.alive) || t >= 60 || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
+    if (t >= 45 && ((g && !g.alive) || t >= 60 && honPlayed(rt) || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
   } else if (F.hp === 4) {
     // 門が破られた後は、目の前に常に敵が数人以上いる（数で押される怖さ）。減れば表門から次の寄せ手が入る
     if ((F.topScan = (F.topScan || 0) - dt) <= 0) {
@@ -4782,7 +4839,7 @@ function honnoTick(def, rt, dt) {
       : '印を追い、東の戸へ');
     if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
-    else if (t > 110) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める）
+    else if (t > 110 && honPlayed(rt)) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める）
   } else if (F.hp === 5) {
     rt.objProgress('main', !F.hondoDirect ? '道の印で本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
       ? '侍を斬った。残る寄せ手を払い、奥へ退く支度を守れ'
@@ -4803,7 +4860,7 @@ function honnoTick(def, rt, dt) {
     // 延焼が早ければ、堂内で熱を受け始める二十二秒より前に退く下知を出す。
     const hondo = T.G.byId.hondo;
     const burningHondo = hondo.state === 1 && hondo.burnT >= 8;
-    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
+    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt)))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
   } else if (F.hp === 6) {
     if (F.mv && F.nbGoal) {
       // 遠い御殿だけを指すと本堂の壁へ直進してしまう。道の曲がり角を順に示す。
@@ -4830,8 +4887,8 @@ function honnoTick(def, rt, dt) {
       ? '道の印で上様へ戻れ。退く下知が出ておる'
       : F.standMerit?.[3] ? '侍を払った。上様の前で、奥へ退く支度を守れ'
       : '廊下の侍を斬り払え。上様が奥へ退く間を作れ');
-    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 28 && F.lastHold >= 12) || (t > 30 && (gone(F.stand) || t > 40)))) def.p8(rt);
-    else if (t > 135) def.p8(rt);   // 最後の間は小姓衆が守る。落ちる段へ進める
+    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 28 && F.lastHold >= 12) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt))))) def.p8(rt);
+    else if (t > 135 && honPlayed(rt)) def.p8(rt);   // 最後の間は小姓衆が守る。落ちる段へ進める
   } else if (F.hp === 8) {
     // 小姓衆が口をこじ開ける：落ちる自分のそばに二人より多く寄れば、五秒に一度、斬り込んで押し返す（兵は減らさない）。
     if (rt.t >= (F.p8PushAt || 0)) {
@@ -5557,6 +5614,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (hp === 1) { goTo(p, inp, F.waitPlace.x, F.waitPlace.z, 0.3); return; }
   // 門の内へ入った先鋒の中を一人で門まで走り抜けない。馬廻の後ろ（門から九歩）で構え、
   // 届く敵だけを受ける。門は近くの者が閉める。
+  // 10/31 mini の点付け：表庭の段で bot が本堂・回廊の奥へ敵を追い込み、開戦25秒の画面が堂の中の壁になった。表庭（本堂の縁の外）から出ない。
+  if (hp === 2 && u.pos.x < -45.5) { goTo(p, inp, -40, 52, 1); return; }
   if (hp === 2 && F.patrolDistance <= 12 && F.scouts && !gone(F.scouts) && F.scouts.units.some((o) => o.alive && !o.fleeing && !o.woundOut &&
       Math.abs(o.pos.y - u.pos.y) < 3 && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 10 &&
       !b.army.wallBetween(u.pos, -1, o.pos))) {
