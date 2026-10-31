@@ -460,6 +460,8 @@ export function distantBattleInit(rt) {
 
 export function distantBattleTick(rt, dt) {
   jinkeiTick(rt, dt);
+  // 敵の前備えを、カメラの向きの外から見える所へ（world_army.js foeHostView。形も数も足さない）
+  rt.world.foeHostView?.(rt, dt);
   if (!rt.def.town && !rt.def.dojo && !rt.def.duel && rt.t >= (rt._marchSoundAt || 0)) {
     rt._marchSoundAt = rt.t + 1;
     marchSound(rt);

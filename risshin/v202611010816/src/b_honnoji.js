@@ -289,12 +289,12 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // https://akechikai.or.jp/siryo_nenpyo/mitsuhide_after/
 // 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
 // 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
-const HONNO_DAWN = { ...DAWN, sky: 0x353b55, fog: 0x3f4458, top: 0x161b33,
-  sun: 0xe0c2a6, hs: 0x5d6788, hg: 0x4a3020, sunI: 0.58, hI: 0.98, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む
+const HONNO_DAWN = { ...DAWN, sky: 0x4a5272, fog: 0x585d78, top: 0x222a48,
+  sun: 0xf0d0b0, hs: 0x8088a8, hg: 0x5c4030, sunI: 0.85, hI: 1.45, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む
 // 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;
-  W.scene.fog.color.set(HONNO_DAWN.fog); U.bottom.value.set(0x4a4c5e);
+  W.scene.fog.color.set(HONNO_DAWN.fog); U.bottom.value.set(0x62647a);
   U.glow.value.set(0xe9b98e); // 東の地平の白みは淡い橙、高い所は藍のまま
   if (U.cloudDark) U.cloudDark.value = 0.62;
   W.setSkyPhoto?.('dusk'); // 朝の写真は昼の雲。東の地平だけ焼ける夕の写真を日の向き（東）へ合わせて使う
@@ -388,7 +388,7 @@ const HONDO_LOOK = { x: -51, z: 46, y: 4.6 }; // 本堂の東の軒先（庭か�
 // 開戦の視点の注視点：乱戦の向こう側。見下ろしは浅く（六度ほど）、高い視点から斬り合いが画面の真ん中に来る。
 // 深く見下ろすと、共通の壁よけが下の段の視線を地面にかかったと数えて、肩口へ引き戻した（10/31）。
 function courtLook(u, dx, dz, L, out, cam) {
-  const k = Math.max(1, 3 / L), x = u.pos.x + dx * k, z = u.pos.z + dz * k;
+  const k = Math.max(1, 7 / L), x = u.pos.x + dx * k, z = u.pos.z + dz * k;
   return out.set(x, cam.y - Math.hypot(x - cam.x, z - cam.z) * .1, z);
 }
 // 本堂から御殿へ移る道。出火した持ち場から出る区間は残すが、火元への再入場は避ける。
@@ -2537,12 +2537,13 @@ const honnoji = {
       if (rt.t >= C.at || rt.t < C.at - .3 || Math.hypot(u.pos.x - C.x, u.pos.z - C.z) > .4) {
         C.at = rt.t + .25; C.x = u.pos.x; C.z = u.pos.z; C.back = 0;
         const base = Math.atan2(-dz, -dx);
-        search: for (const back of [6.2, 5]) for (const turn of [0, .35, -.35, .7, -.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1, 2.5, -2.5]) {
+        search: for (const wide of [0, 1]) for (const back of [6.2, 5, 3.6]) for (const turn of [0, .35, -.35, .7, -.7, 1.05, -1.05, 1.4, -1.4, 1.75, -1.75, 2.1, -2.1, 2.5, -2.5]) {
+          if ((Math.abs(turn) > 1.1) !== !!wide) continue; // 10/31 先に後ろ寄りの向きを高さも変えて試し、だめなら横・前へ（門の向きを見る視点を優先）
           const ang = base + turn, cx = u.pos.x + Math.cos(ang) * back, cz = u.pos.z + Math.sin(ang) * back;
           if (!(cx < GATES.main.x - 0.8 && courtBuildingDistance(cx, cz) > 1.6 && inTera(cx, cz, -1))) continue;
           const gy = rt.world.heightAt(cx, cz);
           // 本人が軒の下に居る時は、高い視点が軒にかかる。かからない高さまで下げる。
-          for (const up of [3.2, 3.8, 4.4]) {
+          for (const up of wide ? [3.2, 3.8, 4.4] : [3.2, 4.4, 6, 8]) {
             const y = Math.max(u.pos.y + up, gy + up - .4);
             if (this.sightBlocked(rt, { x: cx, z: cz }, u.pos, y, u.pos.y + 1, .32)) continue;
             C.from.set(u.pos.x, P.camTY ?? u.pos.y + 1.6, u.pos.z); C.to.set(cx, y, cz);

@@ -2664,6 +2664,8 @@ function moribeNearestFoe(rt) {
 }
 
 const moribe = {
+  // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 14→20 の軽く）
+  tightShadowEvery: 2,
   missionStyle: 'ford', // 共通の印・ピン・カメラの型（field_signs・mission_pin・hud_map・player が読む。戦の名で分けない）
   compactIntro: true,
   noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（稲生と同じ。kaito 10/24「動かない味方と敵は一切排除」）。馬の分の記憶も空く。

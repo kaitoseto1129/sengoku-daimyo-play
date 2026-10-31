@@ -64,8 +64,8 @@ function huntPlayer(rt, dt) {
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 30) g.focus = P;
-    else if (mine && d > 45) g.focus = null;
+    if (!mine && d < 75) g.focus = P;
+    else if (mine && d > 110) g.focus = null;
   }
 }
 
@@ -2512,7 +2512,7 @@ const echizen_ikko = {
     noHorse: true, // 増援や名付きの兵も、狭い山寺では馬を下りる。
     nearAllyFadeRadius: 1.1, // 兵の更新側でも、描画直前の全身よけへ任せる。
     wind: [-0.3, -0.95], // 夜の風向は補完。寺から紙の里へ火の粉が飛ぶ場合がある。
-    nightLift: 3.4,   // 月齢は未確定。足元は見せ、山肌を昼のように白く照らさない。
+    nightLift: 4.6,   // 月齢は未確定。足元は見せ、山肌を昼のように白く照らさない。
     unitNightScale: 0, // 兵だけの白い縁取りを止め、地面と同じ月光と灯明で照らす。
     roundedFire: true, // 共用の丸い火の舌を使い、大きな三角の板に見える炎を抑える。
     fireLightLift: .9, // 戸口で顔と紙が白く飛ばない強さ。携帯の光源数は増やさない。
@@ -3830,8 +3830,8 @@ const echizen_ikko = {
     if (F.templeFar && rt.camera) F.templeFar(rt.camera);
     // 月光の青と補光を抑え、夏の土を雪のように白く照らさない。光源や影は増やさない。
     W.sun.color.setHex(0xc2c9d4);
-    W.sun.intensity = Math.max(W.sun.intensity, .5);
-    W.hemi.intensity = Math.max(W.hemi.intensity, .65);
+    W.sun.intensity = Math.max(W.sun.intensity, .85);
+    W.hemi.intensity = Math.max(W.hemi.intensity, 1.05);
     if (rt.t >= (F.flagLightAt || 0)) {
       F.flagLightAt = rt.t + 1;
       for (const u of rt.army.units) if (u.team === rt.player.u.team) {
@@ -4654,17 +4654,18 @@ export { echizen_ikko };
 // 軽い大軍どうしの押し合い斬り合いを置く（兵力の数・当たり・任務には入れない）。始めに一度だけ置き場を選ぶ。
 function armyBackdrop(rt, o) {
   const W = rt.world, cam = rt.camera, P = rt.player && rt.player.u;
-  if (!cam || !P) return null;
-  const d = new THREE.Vector3(); cam.getWorldDirection(d); d.y = 0;
+  if (!P) return null;
+  const d = new THREE.Vector3(); if (cam) cam.getWorldDirection(d); d.y = 0;
+  if (!cam || rt.flags.mode !== "defend") { d.set(GATE_SOMON.x - P.pos.x, 0, GATE_SOMON.z - P.pos.z); }
   if (d.lengthSq() < 1e-4) return null;
   d.normalize();
   const out = [];
   let fx = d.x, fz = d.z, sx = fz, sz = -fx, facing = Math.atan2(fx, fz);
   const clear = (x, z, r) => {
     if (W.inWaterAt && (W.inWaterAt(x, z) || W.inWaterAt(x + sx * r * .5, z + sz * r * .5) || W.inWaterAt(x - sx * r * .5, z - sz * r * .5))) return false;
-    for (const u of rt.army.units) if (u.alive && Math.abs(u.pos.x - x) < r && Math.abs(u.pos.z - z) < r) return false;
+    for (const u of rt.army.units) if (u.alive && Math.abs(u.pos.x - x) < 6 && Math.abs(u.pos.z - z) < 6) return false;
     const h = W.heightAt(x, z);
-    return Math.abs(W.heightAt(x + sx * r * .5, z + sz * r * .5) - h) < 6 && Math.abs(W.heightAt(x - sx * r * .5, z - sz * r * .5) - h) < 6;
+    return Math.abs(W.heightAt(x + sx * r * .5, z + sz * r * .5) - h) < 14 && Math.abs(W.heightAt(x - sx * r * .5, z - sz * r * .5) - h) < 14;
   };
   // 持ち場の周りの四方に置き、カメラがどちらを向いても、どれか一つの合戦が画面の奥に入るようにする。
   const ax = d.x, az = d.z;
@@ -4673,9 +4674,10 @@ function armyBackdrop(rt, o) {
     fx = ax * c + az * s; fz = -ax * s + az * c; sx = fz; sz = -fx; facing = Math.atan2(fx, fz);
     let at = null;
     for (let k = 0; k < 8 && !at; k++) {
-      const r = 80 + k * 14, x = P.pos.x + fx * r, z = P.pos.z + fz * r;
+      const r = 48 + k * 8, off = ang === 0 ? -18 : 0, x = P.pos.x + fx * r + sx * off, z = P.pos.z + fz * r + sz * off;
       if (clear(x, z, 20)) at = [x, z];
     }
+    if (!at && ang === 0) at = [P.pos.x + fx * 56 + sx * -18, P.pos.z + fz * 56 + sz * -18];
     if (!at) continue;
     const C = W.addClash({ x: at[0], z: at[1], facing, w: 46, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),

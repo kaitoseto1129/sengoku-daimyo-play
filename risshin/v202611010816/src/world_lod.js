@@ -1,5 +1,8 @@
 import { ARMY_P, _lodV, ARMY_REAL_R, ARMY_REAL_P, armyPartMask, armyTrimGeo, instTwin, ARMY_SPLIT_R, CLASH_ROW } from './world_army_shader.js';
 import * as THREE from 'three';
+import { CPU_LEAN } from './settings.js';
+// 10/31 携帯（CPU_LEAN）だけ：全隊の形選びの一巡を 0.25 秒から 0.4 秒へ（兵ごとの形選び lodSplit が一コマの四分ほど。近い形の写しの余裕は七メートルあり、走る兵でも 0.4 秒で二メートルほど）
+const lodPeriod = () => CPU_LEAN && !(typeof window !== 'undefined' && window.__apx?.lodfast) ? 0.4 : 0.25;
 
 
 export class WorldLod {
@@ -13,7 +16,7 @@ export class WorldLod {
     if (cx > 9e4) return;
     // 四分の一秒ごとの全隊の更新を、同じ周期のまま各コマへ配る。
     // 端数を持ち越して少ない隊も更新する。視点交換と最初の一枚は全隊をそろえる。
-    this.lodBudget = fresh ? total : Math.min(total, (this.lodBudget || 0) + Math.max(0, dt) * total / 0.25);
+    this.lodBudget = fresh ? total : Math.min(total, (this.lodBudget || 0) + Math.max(0, dt) * total / lodPeriod());
     const work = Math.floor(this.lodBudget + 1e-9);
     this.lodBudget = Math.max(0, this.lodBudget - work);
     if (!work) return;

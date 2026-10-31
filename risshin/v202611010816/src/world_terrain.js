@@ -1042,6 +1042,8 @@ export function linkLandOverlay(mat, U, anchor) {
 }
 // 一様で暗い土を割る（10/31 gap2_ground）：x＝土の色の明るさの掛け・y＝大きな斑の明暗の幅・z＝照らした後の暗い地面の持ち上げ（0で無し）・w＝黒い泥と水溜まりを浅く。全戦で一つ
 export const LAND_GAP = { value: new THREE.Vector4(1.2, 1.8, 2.2, 0.6) };
+// 残った暗い一色の土（10/31 gap_ground2）：x＝色の指定の無い戦に掛ける既定の色寄せの量・y＝照らした後の持ち上げの幅（暗さの物差し）・z＝色寄せの明るさの寄せ（小さいほど手本の明るさへ）・w＝既定の色寄せの草の斑
+export const LAND_GAP2 = { value: new THREE.Vector4(0.3, 0.06, 0.45, 0.1) };
 export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   const fs = sh.fragmentShader;
   if (!fs.includes(anchor) || fs.includes('vLsP') || !sh.vertexShader.includes('#include <project_vertex>')) return;
@@ -1049,11 +1051,11 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   Object.assign(sh.uniforms, {
     tLsMacro: U.tMacro, uLsWet: U.uWet, uLsNight: U.uNight, tLsCastle: U.tCastle, uLsCastle: U.uCastle,
     uLsSeason: U.uLandSeason || { value: new THREE.Vector4() }, uLsHeight: U.uLandHeight || { value: new THREE.Vector2(0, 1) },
-    tLsDetail: { value: groundDetailPack() }, uLsGap: LAND_GAP,
+    tLsDetail: { value: groundDetailPack() }, uLsGap: LAND_GAP, uLsGap2: LAND_GAP2,
   }, U.groundGrade || groundGrade(null));
   sh.vertexShader = 'varying vec3 vLsP;\n' + sh.vertexShader.replace('#include <project_vertex>',
     'vLsP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
-  let out = 'varying vec3 vLsP;\nuniform sampler2D tLsMacro, tLsCastle, tLsDetail;\nuniform float uLsWet, uLsNight;\nuniform vec4 uLsCastle, uLsSeason, uLsGrade, uLsGap;\nuniform vec3 uLsGradeG0, uLsGradeG1, uLsGradeS0, uLsGradeS1;\nuniform vec2 uLsHeight;\n'
+  let out = 'varying vec3 vLsP;\nuniform sampler2D tLsMacro, tLsCastle, tLsDetail;\nuniform float uLsWet, uLsNight;\nuniform vec4 uLsCastle, uLsSeason, uLsGrade, uLsGap, uLsGap2;\nuniform vec3 uLsGradeG0, uLsGradeG1, uLsGradeS0, uLsGradeS1;\nuniform vec2 uLsHeight;\n'
     + fs.replace(anchor, `${anchor}
     // 近くの土の肌（10/30 ground2_c）：小石・足跡・粒の高さと、濡れの照りを、後の凹凸と粗さへ渡す
     float lsHgt = 0.0, lsGloss = 0.0, lsLiftK = 0.0;
@@ -1078,19 +1080,20 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
       float lsLo = (1.0 - smoothstep(0.0, 0.3, lsH)) * uLsSeason.w;
       float lsDry = clamp(smoothstep(0.42, 0.75, lsM2 * 0.6 + lsM1 * 0.4) + uLsSeason.x - uLsWet * 0.5, 0.0, 1.0);
       float lsDamp = clamp(smoothstep(0.5, 0.85, 1.0 - (lsM2 * 0.5 + lsM1 * 0.5)) + lsLo * 0.4 + uLsWet * 0.4 - lsDry * 0.5, 0.0, 1.0);
-      if (uLsGrade.x > 0.0) {
+      float lsGrK = uLsGrade.w > 0.5 ? uLsGap2.x : uLsGrade.x, lsGrCov = uLsGrade.w > 0.5 ? uLsGap2.w : uLsGrade.y;
+      if (lsGrK > 0.0) {
         // 手本の写真の地面の色へ寄せる（10/30 top5_ground）。草か土かは赤に対する緑の比で分ける（枯れ草も草に入れる）。
         // 茶の土の所は大きな斑で草の色へ変え（cover）、草と土それぞれ数十mの斑で二色を混ぜる。
         // 色味は手本、明るさは今の画素と手本の間（細かな濃淡は残す）。雪・夜・城の平場・切岸は弱める。
         float lsGr = smoothstep(0.78, 0.96, lsC.g / max(lsC.r, 1e-4));
-        float lsCov = smoothstep(0.42, 0.68, lsM2 * 0.75 + lsM1 * 0.25) * uLsGrade.y;
+        float lsCov = smoothstep(0.42, 0.68, lsM2 * 0.75 + lsM1 * 0.25) * lsGrCov;
         lsGr = max(lsGr, lsCov);
         float lsTwo = smoothstep(0.3, 0.7, lsM1 * 0.6 + lsM2 * 0.4);
         vec3 lsTg = mix(mix(uLsGradeS0, uLsGradeS1, lsTwo), mix(uLsGradeG0, uLsGradeG1, 1.0 - lsTwo), lsGr);
         float lsTl = dot(lsTg, vec3(0.3, 0.59, 0.11));
-        vec3 lsRe = lsTg * pow(max(lsLum, 1e-4) / max(lsTl, 1e-4), mix(0.65, 1.0, uLsNight));
+        vec3 lsRe = lsTg * pow(max(lsLum, 1e-4) / max(lsTl, 1e-4), mix(uLsGap2.z, 1.0, uLsNight));
         float lsSn = smoothstep(0.35, 0.6, lsLum) * (1.0 - smoothstep(0.06, 0.18, (max(lsC.r, max(lsC.g, lsC.b)) - min(lsC.r, min(lsC.g, lsC.b))) / max(lsLum, 1e-4)));
-        lsC = mix(lsC, lsRe, uLsGrade.x * mix(uLsGrade.z, 1.0, lsGr) * lsOn * (1.0 - lsSn) * mix(0.35, 1.0, smoothstep(0.6, 0.9, abs(lsN.y))));
+        lsC = mix(lsC, lsRe, lsGrK * mix(uLsGrade.z, 1.0, lsGr) * lsOn * (1.0 - lsSn) * mix(0.35, 1.0, smoothstep(0.6, 0.9, abs(lsN.y))));
         lsLum = dot(lsC, vec3(0.3, 0.59, 0.11));
         lsGreen = clamp((lsC.g - max(lsC.r, lsC.b)) / max(lsLum, 1e-4) * 3.0, 0.0, 1.0);
       }
@@ -1281,7 +1284,7 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   // 明るさの順は崩さない（掛けの曲線は単調）。霧の前に掛けるので遠くの霞は変えない。
   for (const k of ['#include <opaque_fragment>', '#include <output_fragment>']) if (out.includes(k)) { out = out.replace(k, `{
       float lsOl = dot(outgoingLight, vec3(0.3, 0.59, 0.11));
-      outgoingLight *= 1.0 + uLsGap.z * exp(-lsOl / 0.035) * lsLiftK;
+      outgoingLight *= 1.0 + uLsGap.z * exp(-lsOl / uLsGap2.y) * lsLiftK;
     }
     ${k}`); break; }
   if (out.includes('#include <metalnessmap_fragment>')) out = out.replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>

@@ -33,16 +33,16 @@ const FLAG_DYE = {
   oda: '#cdac50', eiraku: '#cdac50', imagawa: '#9f2846', saito: '#685391',
   azai: '#408553', asakura: '#b76a30', takeda: '#ba3825', tokugawa: '#277c78',
   honganji: '#824b86', sagarifuji: '#824b86', ikko: '#98663b', namu: '#98663b',
-  mori: '#78a84b', uesugi: '#263f77', akechi: '#529dc1',
-  hojo: '#bca25c', shimazu: '#4f5267', date: '#326370', sanada: '#9a2a20', sanada2: '#9a2a20',
-  toyotomi: '#daaf3c', ishida: '#70689b', chosokabe: '#647d36', otomo: '#3d6ea0',
+  mori: '#78a84b', uesugi: '#5b5448', akechi: '#8a7a55',
+  hojo: '#bca25c', shimazu: '#5e5a4e', date: '#5a6450', sanada: '#9a2a20', sanada2: '#9a2a20',
+  toyotomi: '#daaf3c', ishida: '#70689b', chosokabe: '#647d36', otomo: '#7a6448',
   satake: '#8b772b', maeda: '#b76378', miyoshi: '#685348', kuroda: '#343331',
-  todo: '#59889c', otani: '#846d98', kobayakawa: '#a58b44', kyogoku: '#686ba0',
+  todo: '#7d8466', otani: '#846d98', kobayakawa: '#a58b44', kyogoku: '#76685a',
   ii: '#a3281c', inaba: '#698647', ukita: '#bc7042', akazonae: '#8e2a1e',
   okudaira: '#487272', katabami: '#827548', okubo: '#6a7050',
-  kari: '#855534', sujikai: '#3e714b', ageha: '#765284', tsuru: '#555e79',
-  shuro: '#4c5550', takigawa: '#537da2', hachisuka: '#ad8239', honda: '#454c41', mizuno: '#567cad',
-  ichimonji: '#697382', maru: '#927c63', kitabatake: '#927c63', igeta: '#558763', hikyaku: '#a87546',
+  kari: '#855534', sujikai: '#3e714b', ageha: '#765284', tsuru: '#6a6152',
+  shuro: '#4c5550', takigawa: '#8c7a52', hachisuka: '#ad8239', honda: '#454c41', mizuno: '#7f7058',
+  ichimonji: '#76736a', maru: '#927c63', kitabatake: '#927c63', igeta: '#558763', hikyaku: '#a87546',
 };
 
 

@@ -67,6 +67,7 @@ function driveHuman(h, dt, fine = true, arms = true) {
   h.root._fresh = CUR = ++PASS;
   try { driveHuman0(h, dt, fine, arms); } finally { CUR = -1; }
 }
+const KNEES = ['LeftLeg', 'RightLeg'];
 function driveHuman0(h, dt, fine = true, arms = true) {
   const u = h.u, fallen = !u.alive || !!u.dying;
   if (h.settledOffset) {
@@ -170,13 +171,14 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     const need = Math.max(0, Math.min(0.45, sp / (SRC.vRun * 1.35 * strideK) - 1)) * wRun;
     // 歩幅を縮めた分は上の時計を進め、足だけが地面を滑らないようにする。
     const amp = (1 + need) * (1 + (strideK - 1) * Math.min(1, wWalk + wRun)) * shortStride;
-    if (Math.abs(amp - 1) > 0.01) for (const nm in SRC.restQ) { const b = h.bones[nm]; _fq.copy(SRC.restQ[nm]).slerp(b.quaternion, amp); b.quaternion.copy(_fq); b.updateMatrix(); }
+    if (Math.abs(amp - 1) > 0.01) for (const nm in SRC.restQ) { if (amp > 1 && !nm.endsWith('UpLeg')) continue; const b = h.bones[nm];   // 歩幅は腿で広げ、膝は録った曲がりより深く折らない（蟹走りにしない）
+      _fq.copy(SRC.restQ[nm]).slerp(b.quaternion, amp); b.quaternion.copy(_fq); b.updateMatrix(); }
     // 鎧を着た駆け足は腿を腰より上へ振り上げない。録画の脚だけを抑え、
     // この後の踏み込み・受け・坂の足裏補正には制限を重ねない。
     for (const nm in SRC.restQ) {
       const b = B[nm], rest = SRC.restQ[nm];
       const angle = rest.angleTo(b.quaternion);
-      const limit = nm.endsWith('UpLeg') ? 0.88 - combatGait * 0.2 : 1.3 - combatGait * 0.2;
+      const limit = nm.endsWith('UpLeg') ? 0.88 - combatGait * 0.2 : 1.1 - combatGait * 0.3;
       if (angle > limit) { _fq.copy(rest).slerp(b.quaternion, limit / angle); b.quaternion.copy(_fq); b.updateMatrix(); }
     }
   }
@@ -241,9 +243,9 @@ function driveHuman0(h, dt, fine = true, arms = true) {
       if (k > 0.01) {
         // 腰を支える脚と胸の向きを人ごとに変え、同じ人形を並べた列にしない。
         const weight = k * (0.8 + h.seed * 0.4), side = left ? 1 : -1;
-        rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.3 * weight);
-        rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.48 * weight);
-        rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.17 * weight);
+        rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.2 * weight);
+        rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.24 * weight);
+        rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.07 * weight);
         rotWorld(B.Hips, _fwd, side * 0.035 * weight);
         rotWorld(B.Spine, _right, 0.16 * weight); rotWorld(B.Spine1, _up, (h.seed - 0.5) * 0.32 * k);
         // 支える脚の側へ肩も沈める。左右同じ胸と肩の反復を既存の骨だけで崩す。
@@ -251,9 +253,9 @@ function driveHuman0(h, dt, fine = true, arms = true) {
         // 槍の届く間合いでも、相手の突きに合わせて胸と膝を引き、重みを後ろ足へ渡す。
         const receive = reduceMotion() ? 0 : (u.contactLoad || 0) * k;
         rotWorld(B.Spine1, _right, -0.28 * receive);
-        rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.3 * receive);
+        rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.15 * receive);
         rotWorld(B.Hips, _right, -0.08 * receive);
-        h.model.position.y -= 0.055 * weight;
+        h.model.position.y -= 0.02 * weight;
       }
     }
     if (HUM.fx && !h.far && !engaged && wIdle > 0.2 && !u.isPlayer && !(u.idl && (u.idl.a || u.idl.sit > 0.3))) idleLife(h, B, dt, wIdle, st);
@@ -324,15 +326,15 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     const weightShift = reduceMotion() ? 0 : Math.sin(time * (1.25 + h.seed * 0.6) + h.seed * 13) * 0.018 * k;
     rotWorld(B.Hips, _right, (rear ? 0.055 : -0.025) * k);
     rotWorld(B.Spine1, _right, (rear ? 0.065 : 0.025) * k + weightShift);
-    h.model.position.y -= (0.035 + h.seed * 0.035) * set;
+    h.model.position.y -= (0.012 + h.seed * 0.012) * set;
 
     // 胸と腰も相手へ向け、槍を待つ前列と後ろから支える兵の重さを出す。
     rotWorld(B.Spine, _right, 0.12 * k - 0.16 * load);
     rotWorld(B.Spine2, _fwd, (left ? 1 : -1) * (0.04 * k + 0.05 * load));
-    rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.24 * k);
-    rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.4 * k);
-    rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, 0.12 * k);
-    rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.22 * k);
+    rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.16 * k);
+    rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.2 * k);
+    rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, 0.1 * k);
+    rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.08 * k);
     // 相手の振りに合わせ、前膝を戻し、後ろ膝で腰を支える。足の接地は後段の共通処理へ。
     if (!h.far && load > 0.001) {
       // 受ける肩を引き、腰は支える脚へ残す。胴・腰が一枚の板のように動くのを防ぐ。
@@ -342,9 +344,9 @@ function driveHuman0(h, dt, fine = true, arms = true) {
       rotWorld(B.Spine2, _right, -0.065 * load);
       rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, 0.16 * load);
       rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, -0.18 * load);
-      rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.24 * load);
+      rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.12 * load);
       h.model.position.z -= 0.075 * load;
-      h.model.position.y -= 0.025 * load;
+      h.model.position.y -= 0.01 * load;
       // 柄を寄せる腕だけでなく胸も打ち筋から外し、後ろ膝へ重さを逃がす。
       // 手は後段で同じ武器の握りへ合わせるので、両手と柄が離れない。
       const parry = !reduceMotion() ? (u.contactParry || 0) : 0;
@@ -358,24 +360,24 @@ function driveHuman0(h, dt, fine = true, arms = true) {
       rotWorld(B.Spine, _right, -0.16 * stop);
       rotWorld(B.Spine1, _up, (left ? 1 : -1) * 0.10 * stop);
       rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, -0.18 * stop);
-      rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.28 * stop);
+      rotWorld(left ? B.RightLeg : B.LeftLeg, _right, 0.14 * stop);
       h.model.position.z -= 0.07 * stop;
-      h.model.position.y -= 0.035 * stop;
+      h.model.position.y -= 0.015 * stop;
     }
     // 前列と後列で共用する踏み込み。近い骨のある人にも同じ腰・膝の重さを渡す。
     const push = !u.dodging && !reduceMotion() ? (u.contactPush || 0) * u.contactBrace : 0;
     if (!h.far && push > 0.001) {
       rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.16 * push);
-      rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.2 * push);
+      rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.1 * push);
       rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, 0.12 * push);
     }
     // 槍を出す拍子に前膝へ重さを移す。骨の接地補正へ渡し、兵の当たりは動かさない。
     const drive = !h.far && !reduceMotion() ? (u.contactDrive || 0) * k : 0;
     if (drive > 0.001) {
       rotWorld(left ? B.LeftUpLeg : B.RightUpLeg, _right, -0.18 * drive);
-      rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.22 * drive);
+      rotWorld(left ? B.LeftLeg : B.RightLeg, _right, 0.12 * drive);
       rotWorld(left ? B.RightUpLeg : B.LeftUpLeg, _right, 0.12 * drive);
-      h.model.position.y -= 0.035 * drive;
+      h.model.position.y -= 0.015 * drive;
     }
   }
   if (!fallen && !u.mounted && !u.isPlayer && u.woundRest > 0.01 && h.kneelK < 0.01 && !u.hit) {
@@ -500,6 +502,17 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     rotWorld(B.Hips, _up, h.gaitYaw);
     rotWorld(B.Spine, _up, -h.gaitYaw);
   } else h.gaitYaw = 0;
+  // 立って動く者の腰の落ちは浅く保つ（構え・受け・踏み込みを重ねても蟹のように沈まない）。膝つき・座り・手負いの休み・技は除く
+  if (!fallen && !u.mounted && !u.climb && !u.perch && !u.naka && !u.downed && !u.dragging && !u.tech && !u.dodging
+    && !(h.kneelK > 0.01) && !(u.woundRest > 0.01) && !(u.idl?.sit > 0.01)) {
+    h.model.position.y = Math.max(h.model.position.y, -0.06);
+    // 歩く・構える・突く膝は浅く（重ねた曲げを録った立ち姿から 0.5 まで）。駆ける脚の振りは録った動きのまま
+    if (SRC.restQ && wRun < 0.5 && (st > 0.15 || wIdle > 0.5 || combatGait > 0.05)) for (const nm of KNEES) {
+      const b = B[nm], r = SRC.restQ[nm]; if (!b || !r) continue;
+      const a = r.angleTo(b.quaternion);
+      if (a > 0.5) { _fq.copy(r).slerp(b.quaternion, 0.5 / a); b.quaternion.copy(_fq); b.updateMatrix(); }
+    }
+  }
   // 構え・突き・斬りの足は地を踏む：止まって戦う者の、浮いた足を地面へ下ろす（前の足を上げたまま宙に浮いて見えないよう）
   const plantCombat = !fallen && !u.mounted && !(u.woundRest > 0.01) && !(u.slipT > 0) && (w === 'spear' || w === 'sword') && HUM.fx && !h.far && WORLD && (h.spd || 0) < 0.8 && (st > 0.2 || (h.atkB && h.atkB.W + h.atkB.L > 0.02)) && !(u.isPlayer && (u.fpk || 0) > 0.5) && !u.dodging && !(u.hit && u.hit.kind === 'kneel') && !u.climb && !u.downed && !u.perch && !u.naka;
   // 共通の戦場指定も、近い十八人の足合わせの枠内で働かせる。
@@ -546,10 +559,10 @@ function driveHuman0(h, dt, fine = true, arms = true) {
     const gR = !alive ? 0.25 : h.saihai && h.saihai.visible ? 1 : has ? (w === 'bow' ? 0.6 : 1 + 0.1 * tight + gripLoad) : u.mounted && alive ? 1.2 : 0.52;
     const spearRun = w === 'spear' && (h.spd || 0) > 2.6;
     const gL = !alive ? 0.2 : u.look?.standard ? 0.2 : u.mounted ? 1.2 + 0.1 * tight : has && (!shouldered || spearRun) ? 1 + (w === 'bow' ? 0 : 0.1 * tight + gripLoad) : 0.52;
-    // 握りが変わった時だけ曲げ直す（録った動きは指を動かさないので、曲げた形がそのまま残る）
-    // 一人称の本人は毎コマ握り直す（振る・突く動きが指を開いても、柄を握った拳のまま）
-    if (h.gR === undefined || Math.abs(gR - h.gR) > 0.02 || tight) { h.gR = h.gR === undefined ? gR : h.gR + (gR - h.gR) * Math.min(1, dt * 10); curlFingers(h, 'Right', h.gR); }
-    if (h.gL === undefined || Math.abs(gL - h.gL) > 0.02 || tight) { h.gL = h.gL === undefined ? gL : h.gL + (gL - h.gL) * Math.min(1, dt * 10); curlFingers(h, 'Left', h.gL); }
+    // 毎コマ握り直す：上の録画の戻し（h.pose → 骨）が指の骨も開いた形へ戻すので、変わった時だけ曲げると指が開いたままになる。
+    //   槍・刀・鉄砲の柄を握った拳、空いた手の軽い曲げを、戻しの後に毎コマかける（近い人だけ。骨と値は使い回し）
+    h.gR = h.gR === undefined ? gR : h.gR + (gR - h.gR) * Math.min(1, dt * 10); curlFingers(h, 'Right', h.gR);
+    h.gL = h.gL === undefined ? gL : h.gL + (gL - h.gL) * Math.min(1, dt * 10); curlFingers(h, 'Left', h.gL);
   }
   // 甲冑の遅れた揺れ（草摺・袖）：体の上下と前後の速さの変わりから、ばねで
   // 倒れた人の手足が地面にめり込まないよう持ち上げる

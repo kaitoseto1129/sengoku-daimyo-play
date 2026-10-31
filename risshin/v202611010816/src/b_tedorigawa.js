@@ -2223,12 +2223,12 @@ const tedorigawa = {
       // 世界の座標で塗る。粗い水面の頂点色では浅瀬の幅が深みへにじむ。
       const mat = riverMesh.material, ripple = mat.onBeforeCompile;
       mat.color.setHex(0x89918a);
-      mat.roughness = 0.9;
-      mat.envMapIntensity = 0.06;
+      mat.roughness = 0.42; // 10/31 水面が平ら：値だけ変えて空の照りと筋を出す
+      mat.envMapIntensity = 0.3;
       mat.onBeforeCompile = function (sh, renderer) {
         ripple.call(this, sh, renderer);
         // 軽い材質の空の反射も雨夜へ。世界の半球光の色は共有して変えない。
-        sh.uniforms.uWaterSky.value = new THREE.Color(0x2c2a24); // 濁り水に映る雨雲。青くしない（10/29）
+        sh.uniforms.uWaterSky.value = new THREE.Color(0x4c4a42); // 濁り水に映る雨雲。青くしない（10/29）
         // 砂色は足の届く中央の川床に合わせる。
         sh.uniforms.uTedoFord = { value: 8 };
         sh.fragmentShader = 'uniform float uTedoFord;\n' + sh.fragmentShader;
