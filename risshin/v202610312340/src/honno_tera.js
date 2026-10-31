@@ -12,6 +12,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { paintGeo, hipGeo, solidSeg, solidRect, solidCircle, tsuiji, kabukimon, yagura, umatsunagi, makeKitBatch, finalizeKitBatch, dorui, ishigaki, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { wallLine } from './bhelp.js';
 import { kitReplace, kitDobeiSeg } from './cgt_castle.js';
+import { whenCgt, cgtMat } from './cgt.js';
 import { S as SETTINGS } from './settings.js';
 import { Garan, makeTempleFire } from './temple1571.js';
 import { panelInstances, furnishTemple, templeFloorClip } from './interior_parts.js';
@@ -379,56 +380,30 @@ const GARAN = [
 const INNER_WALL = { x: -84, gate: 79 };
 const UMAYA = { x: -128, z: 97 };
 
-// 本能寺の火だけ、加算の白い芯をやめる。材質・時刻・風・板の形は使い回す。
+// 本能寺の火は共通の火と煙（揺らぐ炎の房・煙の柱）にそろえる（10/31 点付け：独自の平らな炎の板が絵に見えた）。
+// 絵（色・揺らぎ・芯）は共通のまま。回廊や縁の火は本人のすぐ脇で燃えるので、目の前の火だけ板の幅と高さを抑え、画面を光る幕でふさがない。
 function honnoFireStyle(W) {
   if (W.honnoFireStyled) return;
   W.honnoFireStyled = true;
-  const add = W.addFire.bind(W);
-  let mat = null;
+  const add = W.addFire.bind(W), mats = new Map();
+  const near = (old) => {
+    let m = mats.get(old);
+    if (!m) {
+      m = old.clone(); m.uniforms = old.uniforms;
+      m.vertexShader = old.vertexShader.replace('vec4 mv = viewMatrix * vec4(wp, 1.0);', `
+        float closeFire = smoothstep(2.0, 9.0, length(c - cameraPosition));
+        vec3 root = c - vec3(0.0, sy * 0.5, 0.0);
+        wp = root + (wp - root) * vec3(mix(0.45, 1.0, closeFire), mix(0.6, 1.0, closeFire), mix(0.45, 1.0, closeFire));
+        vec4 mv = viewMatrix * vec4(wp, 1.0);`);
+      mats.set(old, m);
+    }
+    return m;
+  };
   W.addFire = (x, z, o) => {
     const f = add(x, z, o);
-    if (!mat) {
-      const old = f.flame.material;
-      // 近い火の板だけ幅と高さを抑える。火元・延焼・既存の火の粉は変えない。
-      const vertexShader = old.vertexShader.replace('vec4 mv = viewMatrix * vec4(wp, 1.0);', `
-        float closeFire = smoothstep(1.5, 7.0, length(c - cameraPosition));
-        vec3 root = c - vec3(0.0, sy * 0.5, 0.0);
-        wp = root + (wp - root) * vec3(mix(0.42, 0.8, closeFire), mix(0.65, 1.0, closeFire), mix(0.42, 0.8, closeFire));
-        vec4 mv = viewMatrix * vec4(wp, 1.0);`);
-      mat = new THREE.ShaderMaterial({ uniforms: old.uniforms, vertexShader,
-        transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
-        blending: THREE.NormalBlending, toneMapped: false,
-        fragmentShader: `uniform float uT; uniform float fogFar; uniform float uNight;
-          varying vec2 vUv; varying float vSeed; varying float vDist;
-          void main() {
-            float t = uT * 1.7 + vSeed * 27.0;
-            float h = vUv.y;
-            float fire = 0.0;
-            // 根元で重なる舌を、上へ流れる揺らぎでほぐす。細い三角の列にしない。
-            for (int i = 0; i < 3; i++) {
-              float k = float(i);
-              float top = 0.58 + 0.12 * k + 0.08 * sin(t + k * 2.7);
-              float sway = sin(t * (1.1 + k * 0.2) - h * 9.0 + k * 3.0) * h * 0.09;
-              float center = 0.28 + k * 0.22 + sway;
-              float ripple = 0.78 + 0.22 * sin(h * 19.0 - t * 2.1 + k * 2.4);
-              float width = 0.23 * pow(max(0.0, 1.0 - h / top), 0.65) * ripple;
-              float tongue = 1.0 - smoothstep(width * 0.15, width + 0.035, abs(vUv.x - center));
-              tongue *= 1.0 - smoothstep(top - 0.15, top, h);
-              fire = max(fire, tongue);
-            }
-            float flow = 0.68 + 0.32 * sin(h * 23.0 - t * 2.6 + sin(vUv.x * 17.0 + t));
-            float a = fire * flow * smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(0.65, 0.96, h));
-            float reach = mix(max(20.0, fogFar), max(260.0, fogFar), uNight);
-            // 目の前では薄め、橙の面で兵や戸口を覆わない。
-            a *= exp(-vDist / reach * 1.1) * mix(0.22, 0.58, smoothstep(0.8, 5.0, vDist));
-            if (a < 0.004) discard;
-            // 根元は橙、先は黄。白を足さず、上は薄れて既存の煙へつながる。
-            vec3 col = mix(vec3(1.0, 0.16, 0.015), vec3(1.0, 0.58, 0.035), smoothstep(0.12, 0.72, h) * flow);
-            gl_FragColor = vec4(col, a);
-          }` });
-    }
-    f.flame.material = f.inner.material = mat;
-    for (const m of f.flame.children) if (m.isMesh) m.material = mat;
+    f.flame.material = near(f.flame.material); f.inner.material = near(f.inner.material);
+    // 大きな火の脇の二枚は、寺の近い火では重なって一つの光る幕に見え、描く回数も増える。外の炎と芯の二枚だけにする。
+    if (!o?.torch) for (const m of [...f.flame.children]) if (m.isMesh) f.flame.remove(m);
     return f;
   };
 }
@@ -536,6 +511,14 @@ export function buildTera(rt) {
     // 瓦の面でカメラを止め、屋根越しに本人の腰や脚を隠さない。
     for (const roof of h.roofs) roof.userData.camBlock = true;
   }
+  // 10/31 点付け：本堂・御殿の大屋根が暗い一色の面に見えた。共通の城の部品の瓦（写真の肌）に替える。
+  //   部品の材質を一つだけ写して使い回す（絵は部品と同じ物を共有し、新しく読まない）。形・当たり・隠す仕組みは今のまま。
+  whenCgt(() => {
+    const k = cgtMat('Kawara');
+    if (!k) return;
+    const m = k.clone(); m.vertexColors = true; m.side = THREE.DoubleSide; m.color.setRGB(0.78, 0.78, 0.8);
+    for (const h of T.halls) for (const roof of h.roofs) roof.material = m;
+  });
   // ---- 共通の襖と障子。一枚を破ると、絵・枠・引き手と当たりを一緒に消す ----
   T.inst = {};
   const panelMats = new Map();
