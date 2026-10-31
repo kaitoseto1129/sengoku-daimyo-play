@@ -2117,7 +2117,7 @@ export class Army {
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
       // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
-      if (pool.idle > (MEM_TIGHT ? 240 : 900) * (1 + 3 * Math.min(3, P.again.get(key) || 0)) && B.retired < 2 && B.retireMs < 0.5) {
+      if (pool.idle > (MEM_TIGHT ? 240 : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。

@@ -6961,10 +6961,11 @@ if (nodaJoinery) {
     }
     }
 if (I.profile === 'iga') for (const d of I.doors || []) {
-      if (d.lv !== lv) continue;
+      // 溝の位置（trackZ）を持たない戸（窓など）は戸当たりを立てない。無いまま描くと形の位置が NaN になる（10/31 シミュレーター）。
+      if (d.lv !== lv || d.trackZ == null) continue;
       const bottom = d.y + .04, height = d.h - .04;
       for (const side of [-1, 1])
-        houseTimber(d.lx + side * (d.W + d.overlap + .03), bottom + height / 2, d.trackZ, .06, height, .15, DARK, 'y');
+        houseTimber(d.lx + side * (d.W + (d.overlap || 0) + .03), bottom + height / 2, d.trackZ, .06, height, .15, DARK, 'y');
     }
 if (I.profile === 'iga' && k === 0) {
       // 外の引き戸も内側の二本の溝へ納める。開けた戸の引きしろまで敷居・鴨居を延ばす。
@@ -6997,7 +6998,8 @@ if (I.profile === 'iga' && k === 0) {
       // 止め木を貫いて木口まで抜け、開けた戸の受けが欠けて見える。
       // 戸幅と召し合わせの重なりは、実際に滑る外戸から取る。
       const exteriorDoor = I.doors?.find(d => d.lv === lv && d.exterior);
-      const grooveW = exteriorDoor ? 2 * (exteriorDoor.W + exteriorDoor.overlap) : I.door.w * 2;
+      // 重ねの無い戸（overlap 未定義）で NaN の溝にならないよう 0 とみなす（10/31 シミュレーターで形の NaN）。
+      const grooveW = exteriorDoor ? 2 * (exteriorDoor.W + (exteriorDoor.overlap || 0)) : I.door.w * 2;
       const halfGroove = IGA_DOOR_GROOVE_W / 2;
       const lands = [[-.05, .34 - halfGroove], [.34 + halfGroove, .415 - halfGroove], [.415 + halfGroove, .47]];
       for (const [a, b] of lands) {

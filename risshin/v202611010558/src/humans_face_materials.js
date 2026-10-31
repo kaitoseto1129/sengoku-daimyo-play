@@ -105,7 +105,7 @@ function headMaterial(key, look, F) {
   let hk = 0; for (const ch of String(key)) hk = (hk * 31 + ch.charCodeAt(0)) % 997;
   const pk = named ? 0.93 + (hk % 13) / 12 * 0.12 : Math.max(0.82, Math.min(1.12, 0.9 + sk.l * 0.55));   // 兵は今ある肌の色の幅を、写真にも反映する
   // 名将は写真に強い褐色を重ねない。元の肌色に軽い個人差だけを掛ける。
-  const tint = named ? [Math.min(255, 244 * pk) | 0, Math.min(255, 239 * pk) | 0, Math.min(255, 232 * pk) | 0] : HEAD.mh ? [Math.min(255, (122 + tn.r * 108) * pk) | 0, Math.min(255, (122 + tn.g * 112) * pk) | 0, Math.min(255, (112 + tn.b * 104) * pk * (0.97 + (hk % 7) / 6 * 0.06)) | 0]
+  const tint = named ? [Math.min(255, 244 * pk) | 0, Math.min(255, 239 * pk) | 0, Math.min(255, 232 * pk) | 0] : HEAD.mh ? [Math.min(255, (146 + tn.r * 96) * pk) | 0, Math.min(255, (140 + tn.g * 100) * pk) | 0, Math.min(255, (126 + tn.b * 96) * pk * (0.97 + (hk % 7) / 6 * 0.06)) | 0]
     : [Math.min(255, 140 + tn.r * 110) | 0, Math.min(255, 150 + tn.g * 115) | 0, Math.min(255, 145 + tn.b * 110) | 0];
   const texKey = named ? null : 'c' + ((look.face | 0) % 12) + (look.monk ? '|m' : '');
   if (texKey && headTexs.has(texKey)) { const m = mkHeadMat(headTexs.get(texKey), null, tint); headMats.set(key, m); return m; }
@@ -168,7 +168,7 @@ function headMaterial(key, look, F) {
     // 髭の生える所：頬の下・顎・口の周り
     const face = z > 0.6 && y < 1.05 && y > -1.3 && Math.abs(x) < 2.6;
     // 無精髭：兵は三角ごとの濃さのむらを付けない（斑が泥の塗りに見える）。色は青みがかった灰（剃り跡の青さ）
-    if (face && !(y > 0.25 && y < 0.72 && Math.abs(x) < 0.55 && z > 1.8)) { const sa = stub * (named ? 0.6 + rnd() * 0.4 : 0.5) * (HEAD.mh ? 0.6 * Math.min(1, Math.max(0, (1.05 - y) / 0.45)) : 1); if (sa > al) { al = sa; if (!named) colr = '48,46,52'; } }
+    if (face && !(y > 0.25 && y < 0.72 && Math.abs(x) < 0.55 && z > 1.8)) { const sa = stub * (named ? 0.6 + rnd() * 0.4 : 0.38) * (HEAD.mh ? 0.6 * Math.min(1, Math.max(0, (1.05 - y) / 0.45)) : 1); if (sa > al) { al = sa; if (!named) colr = '48,46,52'; } }
     let inMus = mus && y > 0.72 && y < 1.02 && Math.abs(x) < 0.85 && z > 1.7;
     let inGoat = goat && y < 0.1 && Math.abs(x) < 0.7 && z > 1.2;
     let inSide = full && face && (y < 0.3 || Math.abs(x) > 0.8);
@@ -200,8 +200,9 @@ function headMaterial(key, look, F) {
       tri(150, 60, 45, red * 0.6); tri(95, 55, 30, sun * 0.6); tri(122, 86, 66, Math.min(1, 1.1 * lip));
       // 戦場の汚れ：頬・額・顎の土と汗の筋（型ごとに場所が違う）。目の下と小鼻の脇の陰（彫りを深く見せる）
       const sd = ((look.face | 0) % 12) * 1.7 + 0.3;
-      const mud = 0.16 * Gs(x0 - 0.9 - 0.3 * Math.sin(sd), y - 0.9 - 0.8 * Math.cos(sd * 1.3), 0.35, 0.28) + 0.1 * Gs(x + 0.6 * Math.sin(sd * 2.1), y - 2.3, 0.4, 0.18) + 0.08 * Gs(x0, y + 0.55, 0.5, 0.25);
-      const hol = 0.12 * Gs(x0 - 0.62, y - 1.5, 0.3, 0.1) + 0.1 * Gs(x0 - 0.33, y - 0.95, 0.1, 0.18);
+      // 泥は薄く（濃い斑は塗った模様に見えた）、目の下・小鼻の脇・頬のこけの陰を少し深く（形の凹凸を読ませる。10/31 見直し 5）
+      const mud = 0.09 * Gs(x0 - 0.9 - 0.3 * Math.sin(sd), y - 0.9 - 0.8 * Math.cos(sd * 1.3), 0.35, 0.28) + 0.06 * Gs(x + 0.6 * Math.sin(sd * 2.1), y - 2.3, 0.4, 0.18) + 0.05 * Gs(x0, y + 0.55, 0.5, 0.25);
+      const hol = 0.15 * Gs(x0 - 0.62, y - 1.5, 0.3, 0.1) + 0.12 * Gs(x0 - 0.33, y - 0.95, 0.1, 0.18) + 0.07 * Gs(x0 - 1.05, y - 0.75, 0.22, 0.32);
       tri(72, 56, 40, mud); tri(60, 36, 28, hol);
       // 年のしわ（型ごとに年が違う）：額の横じわ・目尻・ほうれい線
       const ft = (look.face | 0) % 12, oldC = old;
