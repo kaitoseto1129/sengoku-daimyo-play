@@ -2171,7 +2171,8 @@ const okawachi = {
         : Math.hypot(p.x - cover.x, p.z - cover.z) > 6 ? '組から離れるな。丹羽の竹束の後ろへ寄れ'
         : '組と歩調をそろえ、竹束が進んだら続け');
       // 竹束が寄ったら城兵が応じる。坂で一分間待たせず、遅れた時にも次へ進む。
-      if ((d < 22 && el >= 18 && ramReady) || (d < 22 && el >= 28) || el > 45) {
+      // 10/30：時が過ぎても、本人が坂の旗へ寄らなければ進めない（持ち場の入口に立つだけでは進まない）
+      if ((d < 22 && el >= 18 && ramReady) || (d < 22 && el >= 28) || el > 45 && d < 18) {
         if (!F.pushStarted) { F.pushStarted = true; this.pushback(rt); }
       }
     }
@@ -2186,7 +2187,8 @@ const okawachi = {
         rt.t < (F.sortieVoiceUntil || 0) ? '城兵の声！　坂の旗で槍をそろえ、退き口を守れ' :
         d > 18 ? '道の印をたどり、坂の旗へ戻れ' : active ?
         `木戸から城兵が来る。あと${active}組。旗で止め、城内へ追うな` : '城兵は退いた。旗で槍をそろえ、退きの下知を待て');
-      if ((rt.t - F.stepT >= 12 && L.length >= 2 && L.every(sortieBroken)) || rt.t - F.stepT > 60) this.midA(rt);
+      // 10/30：本人が坂で城兵を一人は討った時だけ退きの段へ。立っているだけなら進まず、刻限で負け
+      if (((rt.t - F.stepT >= 12 && L.length >= 2 && L.every(sortieBroken)) || rt.t - F.stepT > 60) && F.s2Own > 0 && d < 40) this.midA(rt);
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - CAMP_LINE.x, p.z - CAMP_LINE.z);
@@ -2206,7 +2208,7 @@ const okawachi = {
       // 遅れた組の割合では足止めしない。
       if (d <= 8 && rt.t - F.stepT >= 12 && rt.t >= F.signalQuietUntil && rt.player.u.alive) this.siegeDays(rt);
       // 帰陣が遅れた時の場面転換でも、本人を陣へ置いて翌朝につなぐ。
-      else if (rt.t - F.stepT >= 70 && rt.player.u.alive) {
+      else if (rt.t - F.stepT >= 70 && d < 40 && rt.player.u.alive) {
         const u = rt.player.u;
         u.pos.set(CAMP_LINE.x, rt.world.heightAt(CAMP_LINE.x, CAMP_LINE.z), CAMP_LINE.z);
         u.vel.x = u.vel.z = 0;
@@ -2283,8 +2285,9 @@ const okawachi = {
     }
   },
 
-  onKill(rt, v) {
+  onKill(rt, v, k) {
     const F = rt.flags;
+    if (F.step === 2 && v.team === 1 && k === rt.player.u) F.s2Own = (F.s2Own || 0) + 1;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {

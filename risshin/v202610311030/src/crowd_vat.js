@@ -28,7 +28,8 @@ export const VAT = {
   hooks: { build: null },   // humans_runtime.js が buildHuman を渡す（循環の import を避ける）
   stat: { units: 0, drawn: 0, rigs: 0, rows: 0, looks: 0, shapes: 0, bakeMs: 0, selMs: 0, drawMs: 0, fails: 0 },
 };
-const NB = ALLB.length + 1, WPN = ALLB.length, TW = NB * 3, ROWS = 3072, CW = 2048;
+// 色の絵の幅：携帯は 1024（three が弱い端末に答える絵の上限。2048 だと送るたびに「too big」の知らせが出ていた）
+const NB = ALLB.length + 1, WPN = ALLB.length, TW = NB * 3, ROWS = 3072, CW = MEM_TIGHT ? 1024 : 2048, COL_MAX_TIGHT = 512;
 const CLIP = { idle: 0, walk: 1, run: 2, guard: 3, atk: 4, hit: 5, dieF: 6, dieB: 7, dieS: 8, idleUp: 9, walkUp: 10, idleHedge: 11 };
 // 長柄の構えの違い：前の味方の背につく者は槍を立て（Up）、槍衾の前の段は穂先を前へ寝かせる（Hedge）。長柄でない組は元の動きを使う
 const CLIPS = ['idle', 'walk', 'run', 'guard', 'atk', 'hit', 'dieF', 'dieB', 'dieS', 'idleUp', 'walkUp', 'idleHedge'];
@@ -37,6 +38,8 @@ const VARIANT = { idleUp: 'idle', walkUp: 'walk', idleHedge: 'idle' };
 // ---- 絵（骨の行列）と色の置き場 ----
 let vatTex = null, vatData = null, rowsUsed = 0;
 let colTex = null, colData = null, colRows = 0, colUsed = 0;
+const colSeen = new Map();   // 形と色の並びの目印 → 色の置き場の場所（同じ色の姿で使い回す）
+let colScratch = new Float32Array(0);
 const U_VAT = { value: null }, U_COL = { value: null };
 function ensureTex() {
   if (vatTex) return;
@@ -187,18 +190,35 @@ function addShape(g, near = false) {
     lighten(S, near ? VAT.triNear : VAT.triFar, sk);
   }
   const n = g.attributes.position.count;
+  const C = g.attributes.color, C2 = g.attributes.col2 || C, M = g.attributes.mtl;
+  // 10/30 夜：姿（u.look）は兵ごとに別の物なので、援軍が出るたびに同じ色の並びを足し、色の絵が 2048×1024（32MB）まで増え続けて
+  //   iPhone の WebContent が落ちていた（木津川口・設楽原）。同じ形・同じ色の並びは前の場所を使い回す（見た目は同じ）
+  if (colScratch.length < n * 3) colScratch = new Float32Array(n * 3 * 2);
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
+  for (let i = 0; i < n; i++) {
+    const a = pack3(C, i), b = pack3(C2, i), m = M ? M.getX(i) : 0;
+    colScratch[i * 3] = a; colScratch[i * 3 + 1] = b; colScratch[i * 3 + 2] = m;
+    const q = (a ^ (b * 31) ^ Math.round(m * 1024) * 7919) | 0;
+    h1 = Math.imul(h1 ^ q, 16777619); h2 = Math.imul(h2 + q, 2246822519) ^ (h2 >>> 13);
+  }
+  const ck = sk + '|' + n + '|' + (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+  const seen = colSeen.get(ck);
+  if (seen) { VAT.stat.colShared = (VAT.stat.colShared || 0) + 1; return { S, base: seen.base, gen: seen.gen }; }
   if (colUsed + n > colRows * CW) {
     let r = colRows; while (colUsed + n > r * CW) r *= 2;
+    // 携帯は色の絵を 1024×512（8MB）までにする。越えた姿は軽い兵の束のまま描く（記憶が時間で増え続けない）
+    if (MEM_TIGHT && r > COL_MAX_TIGHT) { VAT.stat.colFull = (VAT.stat.colFull || 0) + 1; return null; }
     if (r > 1024) throw new Error('色の置き場があふれる');
     growCol(r);
   }
   const base = colUsed; colUsed += n;
-  const C = g.attributes.color, C2 = g.attributes.col2 || C, M = g.attributes.mtl;
   for (let i = 0; i < n; i++) {
     const o = (base + i) * 4;
-    colData[o] = pack3(C, i); colData[o + 1] = pack3(C2, i); colData[o + 2] = M ? M.getX(i) : 0; colData[o + 3] = 0;
+    colData[o] = colScratch[i * 3]; colData[o + 1] = colScratch[i * 3 + 1]; colData[o + 2] = colScratch[i * 3 + 2]; colData[o + 3] = 0;
   }
   COLUP.dirty = true;
+  colSeen.set(ck, { base, gen: COLUP.gen + 1 });
+  VAT.stat.colRows = colRows;
   return { S, base, gen: COLUP.gen + 1 };
 }
 const BUILD = { left: 0 };
@@ -723,7 +743,7 @@ export function vatReset(army, sc) {
   list.length = 0;
   for (const S of shapes.values()) for (const B of [S, S.far]) if (B && B.mesh) { B.mesh.parent?.remove(B.mesh); B.mesh.dispose(); B.mesh = null; B.cap = 0; }
   for (const W of wpns.values()) if (W?.mesh) { W.mesh.parent?.remove(W.mesh); W.mesh.dispose(); W.mesh = null; W.cap = 0; }
-  looks.clear(); colUsed = 0; nearQ.length = 0; COLUP.dirty = false; COLUP.gen = 0; COLUP.at = -99;
+  looks.clear(); colSeen.clear(); colUsed = 0; nearQ.length = 0; COLUP.dirty = false; COLUP.gen = 0; COLUP.at = -99;
   lastArmy = army; scene = sc || null;
   // 絵の仕組み（シェーダ）を戦の初めに並べて作り始める（初めて描くコマで固まらない）
   if (sc && VAT.on && !isNoRender()) {

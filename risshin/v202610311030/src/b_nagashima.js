@@ -1424,7 +1424,7 @@ function boatTick(rt, dt) {
     if (F.step >= 2 && (!pilot && !bt.landed || escaping) && bt.z <= CH_Z) bt.x += dt * .45;
     bt.flood = Math.min(1.6, bt.flood + bt.holes * .0015 * dt);
     const water = waterHeight(rt.world, bt.x, bt.z), bed = rt.world.heightAt(bt.x, bt.z);
-    bt.m.position.set(bt.x, Math.max(bed, water - bt.flood), bt.z);
+    bt.m.position.set(bt.x, Math.max(bed, water - bt.flood - .15), bt.z); // 船底を水に沈め、揺れても浮いて見せない
     if (F.step < 2) bt.m.position.x += Math.sin(rt.t * .22 + bt.x) * .7;
     bt.shadow.position.set(bt.m.position.x, water + .025, bt.z); bt.shadow.visible = !bt.landed && bt.flood < .8;
     bt.m.rotation.z = Math.min(.3, bt.flood * .2) + Math.sin(rt.t * 1.7 + bt.x) * .025;
@@ -1689,7 +1689,8 @@ function deltaSkyline(W) {
     const p = mountain.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const west = -p.getX(i) / Math.hypot(p.getX(i), p.getZ(i));
-      const ridge = Math.max(0, Math.min(1, (west - .15) / .55));
+      // 10/30 vis_f：東と北（25秒の画面の向き）にも、遠い尾張・美濃の低い丘を霞の中に薄く残す（頂点の高さだけ）。
+      const ridge = Math.max(.35, Math.min(1, (west - .15) / .55));
       p.setY(i, -12 + (p.getY(i) + 12) * ridge);
     }
     p.needsUpdate = true;
@@ -2110,17 +2111,19 @@ const nagashima = {
     fallPaceSpread: .35, // 傷による崩れ方を残し、倒れる速さだけ人ごとにばらす。
     longHoro: 'round', // 使番の母衣は既存の丸い竹籠を使う。細い板のような尾にしない。
     fogFar: 320,
+    // 10/30 vis_f：岸の地面が暗く沈んでいた（地面の画素の明るさ 24/255）。空と地の照り返しだけを強める（光の値だけ）。
+    dayBounce: 1.35, bounceGround: 0x5e5240,
     // 10/29 夜：川面から空へ立つ灰の板（視点に追従する光の筋）が宙に浮いて見えた。長島では出さない。
     noShafts: true,
     battleViewDistance: 110, // 八十歩の霞で対岸の願証寺の大屋根が白く消えた（10/29）。兵数と地形の細かさは増やさない。
-    mountainScale: .28, // 河口の輪中から見える遠い山並み。四方を高山で囲まない。
+    mountainScale: .4, // 河口の輪中から見える遠い山並み。四方を高山で囲まない。
     noticeRepeatGap: Infinity, // 共通の声や知らせも、同じ文はこの戦で一度だけ。
     muddy: 0.7,
     autumn: true,
     softPathSoil: true, // 作業道と湿った岸をなじませ、格子ごとに泥の境が切り替わらないようにする。
     wetFieldRuts: 'wear', // 既存の沖積土の色と照りの抑制を使う。踏み跡だけを残し、雨の轍は足さない。
     // 輪中の地を茶の一枚にしない（10/30）：乾いた沖積の灰茶・葦の根の灰緑と枯れ色・湿った黒い泥の差を広げる。色の定数だけ。
-    soilTones: { grass: [[.085, .1, .05], [.17, .165, .09]], dirt: [[.135, .122, .098], [.215, .198, .16]], mud: [[.045, .042, .035], [.08, .072, .058]] },
+    soilTones: { grass: [[.075, .1, .045], [.2, .205, .1]], dirt: [[.14, .125, .1], [.26, .235, .185]], mud: [[.04, .038, .032], [.085, .076, .06]] },
     patchyGround: true, // 岸の土にも湿乾のむらと草の切れ目を残す。
     plainGrassGround: true, // 草地の絵にも円い窪みがある。土と泥だけ替えても岸の縁に輪が残る。
     stableSlopeGrain: true, // 柵際の低い堤でも、法線の向きで地肌を回して縞へ引き伸ばさない。
@@ -2153,13 +2156,21 @@ const nagashima = {
           const fade = Math.min(1, (z - BANK_Z + 2) / 3, (BANK_Z + 22 - z) / 6);
           c.lerp({ r: 0.36, g: 0.38, b: 0.24 }, (.25 + .45 * patch) * road * fade);
         }
+        // 10/30 vis_f：岸を茶の一枚にしない。十五〜三十歩の斑で、葦の根の灰緑・乾いた灰茶・湿った黒い泥を分ける（頂点の色だけ）。
+        // 前の soilTones は塗りの後段で沈み、点付けの画面の地面の画素は平均 2.8/765 しか変わらなかった。草・土・泥の割合そのものを斑にする。
+        const big = Math.sin(x * .2 + Math.sin(z * .14) * 1.8) * Math.cos(z * .17 - x * .07);
+        const road2 = Math.max(0, Math.min(1, (Math.abs(x) - 4) / 5));
+        c.lerp({ r: 0.3, g: 0.37, b: 0.2 }, Math.max(0, Math.min(1, (big - .2) / .4)) * .65 * road2);
+        c.lerp({ r: 0.25, g: 0.22, b: 0.18 }, Math.max(0, Math.min(1, (-big - .3) / .4)) * .6 * road2);
       }
     },
     // 踏み荒らした窪みの水たまり（見た目だけ。足の遅れや兵の道には入れない）。中央の作業道は避ける。
     puddles(x, z) {
       if (!(z < 32 && z > BANK_Z && Math.abs(x) < 140) || Math.abs(x) < 5) return 0;
       const n = ngSoilNoise(x, z);
-      return .95 * smoothstep(.66, .8, n.a) * (1 - smoothstep(.45, .65, n.b));
+      // 10/30 vis_f：地面の頂点は 2.5m 置き。細い窪みは頂点に乗らず、点付けの画面の地面の 0.7% しか水にならなかった（晴れで uWet=0 のため雨溜まりの塗りも出ない）。
+      // 窪みの斑を頂点に乗る広さへ広げる。見た目だけで、足の遅れ・兵の道には入れない。
+      return .95 * smoothstep(.56, .7, n.a) * (1 - smoothstep(.5, .7, n.b));
     },
     clear: (x, z) => (Math.abs(x) < 145 && z > -140 && z < 50),
     get streams() { return TOWN_STREAMS; },

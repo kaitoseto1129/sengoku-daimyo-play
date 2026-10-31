@@ -3,6 +3,7 @@
 // [名、鉢、立物、胴の色、威、胴の作り、陣羽織、面頬、家紋、写真の番号]。
 // 10/28：同じ見た目の武将を二人作らない。鉢・立物・白熊が同じなら、威・陣羽織・胴の色のどれかを大きく（色の差55以上）変える。
 // 写真と出典のある人を先に決め、裏付けの無い人は名の重い順に、威と陣羽織を伝統の色（紺・縹・萌黄・紫・緋・朽葉など）から選んだ復元案。
+import { MAEDATE } from "./kabuto_maedate.js";
 export const KACCHU = {};
 for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of [
   // 稲生の参戦者。所用具足・立物・個人紋は未確認。筋兜と毛引威の復元で補う。
@@ -741,6 +742,9 @@ Object.assign(KACCHU["上杉謙信"], { crest: "kenshin_izuna", lace: 0x1a2238, 
   sodeLaceBands: [[1.2, 0x1a2238], [1.27, 0xb02a1c], [1.31, 0xe6e0d0], [1.35, 0xb02a1c], [Infinity, 0x1a2238]],
   kusazuriBands: [0xb02a1c, 0xe6e0d0, 0xb02a1c, 0x1a2238, 0x1a2238],
   suneateColor: 0x111012, suneateCloth: 0x1a2238 });
+// 名のある武将の前立は本物の形（kabuto_maedate.js：政宗の弦月・真田の鹿角と六文銭・信玄の諏訪法性・謙信の飯綱・家康の歯朶・
+//   秀吉の馬藺・如水の合子・高虎の唐冠・忠勝の鹿角）。上の調べで "none" にした人もここで本物の立物に戻す
+for (const [n, k] of Object.entries(MAEDATE)) if (KACCHU[n]) KACCHU[n].crest = k;
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];

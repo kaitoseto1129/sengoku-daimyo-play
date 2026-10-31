@@ -83,14 +83,10 @@ export class PlayerRanged {
     u.wpnKind = w;
     this.weapon = w;
     this.aimT = 0; this.aimed = this.lock || this.aimEnemy(14);
-    if (this.gunReload > 0 && !this.gunLoaded && (w === 'gun' || oldWeapon === 'gun')) this.rt.hud.flash('鉄砲は弾込めの途中。持ち直すと自動で続ける', 'dim');
     this.reachT = 2;   // 足もとに間合いの輪を 2 秒（battle.js updateSquadAids）
     // 持ち替えの音：刀は鞘走り（しゃっ）、ほかは柄と具足の擦れる音。画面の音（ui）は鳴らさない
     sfx(w === 'sword' ? 'saya' : 'kozane', w === 'sword' ? 0.8 : 0.7);
-    const teachW = !this.rt.teachOn || this.rt.teachOn();
-    if (!teachW) { if (w === 'gun' || w === 'bow') this.rt.hud.flash(w === 'gun' ? '鉄砲に持ち替えた' : '弓に持ち替えた', 'dim'); }
-    else if (w === 'gun') this.rt.hud.flash(isTouch ? '攻撃の釦を一度押して撃つ' : '左押しを一度押して撃つ', 'dim');
-    else if (w === 'bow') this.rt.hud.flash('弓　攻撃を一度押すと射る', 'dim');
+    // 持ち替えの字の知らせは出さない（kaito 10/23）。手の武器が替わるのが絵の知らせ
   }
   // 持っている武器の並び（持ち替えの順）
   weaponList() {
@@ -410,6 +406,7 @@ export class PlayerRanged {
           background: rgba(20,18,15,.82); color: #ece4d2; border: 1px solid rgba(236,228,210,.2); border-radius: 4px; font-size: 14px; letter-spacing: .06em; white-space: normal; width: max-content; max-width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 32px); line-height: 1.6; display: flex; gap: 10px; align-items: center; }
         #rangedui .st i { display: inline-block; width: 90px; flex-shrink: 0; height: 6px; background: #2c2821; position: relative; }
         #rangedui .st i[hidden] { display: none; }
+        #rangedui .st[hidden], #rangedui .st .label, #rangedui .flight { display: none; }
         #rangedui .st i b { position: absolute; inset: 0; right: auto; background: #c2a25a; }
         @media (max-height: 500px) { #rangedui .st { bottom: calc(84px + env(safe-area-inset-bottom)); font-size: 13px; } }
         #rangedui .flight { position: absolute; left: 50%; bottom: calc(128px + env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 2px 8px; font-size: 12px; color: #ece4d2; background: rgba(20,18,15,.82); max-width: 44vw; text-align: center; line-height: 1.4; }
@@ -437,6 +434,8 @@ export class PlayerRanged {
     const progress = Math.round((this.weapon === 'gun' ? this.gunReload : Math.min(1, this.draw / 2)) * 100);
     el._bar.hidden = this.weapon === 'gun' ? this.gunLoaded || this.gunAmmo === 0 : this.draw <= 0 || this.bowAmmo <= 0;
     if (el._progress !== progress) { el._fill.style.width = progress + '%'; el._progress = progress; }
+    // 字の札は出さない（kaito 10/23：画面の字はミッション・名前・人数・命の棒だけ）。溜めと弾込めの棒（絵）だけを見せる
+    st.hidden = el._bar.hidden;
     let txt;
     if (this.weapon === 'gun') {
       if (this.gunLoaded && (this.u.gunCordWet > 0.3 || this.u.gunPowderWet > 0.3)) txt = '火縄や火薬が湿っている。雨を避けて扱う';

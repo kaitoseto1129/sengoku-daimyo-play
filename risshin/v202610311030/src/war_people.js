@@ -601,18 +601,21 @@ function lightOpen(rt, x, z) {
   if (!cell) return lightOpenAt(rt, x, z);
   const ix = Math.round(x / cell), iz = Math.round(z / cell);
   // 10/30：Map の代わりに格子の配列で覚える（同じ格子・同じ 1.5 秒の使い回し。答えは同じで、引く手間だけ軽く）
+  // 10/30 夜：戦場の全体を 30cm で一度に取ると設楽原で 77MB あった（iPhone の WebContent の落ち）。64 升の区画ごとに、民が通った所だけ取る
   let G = rt._openGrid;
   if (!G || G.cell !== cell) {
-    const n = Math.ceil(rt.world.half * 2 / cell) + 3;
-    G = rt._openGrid = { cell, n, off: Math.ceil(rt.world.half / cell) + 1, v: new Uint8Array(n * n), gen: new Uint16Array(n * n), g: 1, t: rt.t || 0 };
+    const n = Math.ceil(rt.world.half * 2 / cell) + 3, tn = Math.ceil(n / 64);
+    G = rt._openGrid = { cell, n, tn, off: Math.ceil(rt.world.half / cell) + 1, tiles: new Array(tn * tn), g: 1, t: rt.t || 0 };
   }
-  if (G.t > rt.t || rt.t - G.t > 1.5) { G.t = rt.t || 0; if (++G.g > 65000) { G.g = 1; G.gen.fill(0); } }
+  if (G.t > rt.t || rt.t - G.t > 1.5) { G.t = rt.t || 0; if (++G.g > 65000) { G.g = 1; for (const T of G.tiles) if (T) T.gen.fill(0); } }
   const gx = ix + G.off, gz = iz + G.off;
   if (gx < 0 || gz < 0 || gx >= G.n || gz >= G.n) return lightOpenAt(rt, ix * cell, iz * cell);
-  const k = gz * G.n + gx;
-  if (G.gen[k] === G.g) return G.v[k] === 1;
+  const ti = (gz >> 6) * G.tn + (gx >> 6);
+  const T = G.tiles[ti] || (G.tiles[ti] = { v: new Uint8Array(4096), gen: new Uint16Array(4096) });
+  const k = ((gz & 63) << 6) | (gx & 63);
+  if (T.gen[k] === G.g) return T.v[k] === 1;
   const v = lightOpenAt(rt, ix * cell, iz * cell);
-  G.gen[k] = G.g; G.v[k] = v ? 1 : 0;
+  T.gen[k] = G.g; T.v[k] = v ? 1 : 0;
   return v;
 }
 function lightOpenAt(rt, x, z) {

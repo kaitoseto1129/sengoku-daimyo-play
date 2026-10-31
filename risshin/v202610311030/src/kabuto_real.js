@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { KACCHU } from './kacchu_data.js';
+import { maedateGeometry, isMaedate } from './kabuto_maedate.js';
 
 // 武将ごとの立物。諏訪法性は近い兜（スキャン）だけで足す（遠い形は units_model の kabuto_suwa が白熊と獅子を描く）
 const BY_NAME = {
@@ -45,7 +46,7 @@ for (const [n, h] of Object.entries(HELM)) {
 }
 
 const KINDS = new Set(['date_moon', 'sanada_rokumon', 'suwa_hossho', 'ieyasu_shida', 'hideyoshi_bari', 'kuroda_goshi', 'todo_tokan', 'honda_shika']);
-export const isRealCrest = (k) => KINDS.has(k);
+export const isRealCrest = (k) => KINDS.has(k) || isMaedate(k);
 const cache = new Map();
 
 const clean = (g) => {
@@ -280,6 +281,8 @@ export function furMaterial() {
   FUR_MAT = m; return m;
 }
 export function realCrestGeometry(kind, hi = true, near = false) {
+  // 前立の形は kabuto_maedate.js が本（下の build は古い形の控え）
+  if (isMaedate(kind)) return maedateGeometry(kind, hi, near);
   if (!KINDS.has(kind)) return undefined;
   if (kind === 'suwa_hossho' && !near) return null;
   const key = kind + (hi ? '|近' : '|遠') + (near && kind === 'todo_tokan' ? '|兜' : '');

@@ -2679,13 +2679,14 @@ function buildInabaMountain(rt) {
       ibStone *= mix(0.62, 1.04, macro) * (1.0 - ibLayer * 0.34) * (0.88 + ibN * 0.14);
       // 尾根が灰の一枚岩に見えた（10/29 点付け：手本は暗い常緑の林に茶・橙の紅葉が斑に混ざり、岩は所々だけ）。
       // 岩棚の林を広げ、三メートルほどの樹冠ごとに常緑・茶・橙を散らす。急な崖の芯だけ岩肌を残す。
-      float ibScrub = smoothstep(-0.35, 0.25, ibN + macro2 * 0.6 - 0.2) * smoothstep(1.0, 0.78, ibSlope);
+      // 縦に近い崖も林の斑で覆う（10/30 点付け：山が灰の一枚岩）。岩は斑の切れ目と崖の芯の三割ほどにだけ残す。
+      float ibScrub = smoothstep(-0.5, 0.1, ibN + macro2 * 0.6 - 0.15) * mix(1.0, 0.82, smoothstep(0.85, 1.0, ibSlope));
       // 縦の崖でも縦の筋にならないよう、高さも含めた立体の升で樹冠を分ける。
-      vec3 ibCell = floor(vWP * 0.34 + ibN * 0.8);
+      vec3 ibCell = floor(vWP * 0.75 + ibN * 0.8);   // 10/30：三mの升は遠目に迷彩の角ばった斑に見えた。一m余りの樹冠に
       float ibHash = fract(sin(dot(ibCell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
       vec3 ibEver = grass * vec3(0.36, 0.46, 0.3) * (0.8 + ibHash * 0.35);
-      vec3 ibLeaf = mix(ibEver, dirt * vec3(1.05, 0.62, 0.3), smoothstep(0.6, 0.66, ibHash));
-      ibLeaf = mix(ibLeaf, dirt * vec3(1.35, 0.68, 0.22), smoothstep(0.83, 0.88, ibHash));
+      vec3 ibLeaf = mix(ibEver, dirt * vec3(0.95, 0.68, 0.42), smoothstep(0.62, 0.74, ibHash));
+      ibLeaf = mix(ibLeaf, dirt * vec3(1.1, 0.7, 0.36), smoothstep(0.86, 0.94, ibHash));
       ibStone = mix(ibStone, ibLeaf, ibScrub * 0.92);
       col = mix(col, ibStone, ibRock);
       // 露岩の帯の外の急な山肌（共通の灰の崖肌）にも同じ林の斑を掛け、岩は斑の切れ目にだけ残す。曲輪の平場と緩い坂は変えない。
@@ -2698,10 +2699,13 @@ function buildInabaMountain(rt) {
     // 井口の町から金華山の山頂（比高約300m）が霧で消え、山城の戦なのに城山が画面に無かった（10/28）。
     // 高い所（標高20m〜110m で次第に）の山肌だけ、霧の見通しの外でも霞んだ山影として残す。兵・建物・低い地面の霧は変えない。
     // 町（z>30）から見上げる金華山の南の斜面（z<60・地面から一・五メートルより上）は霧を四割五分まで薄め（10/29：澄んだ秋空の手本に合わせて六割五分から）、チャートの岩肌と林の色を見せる（10/28）。
+    // 10/30：町の前の崖は日も空の光もほぼ受けず（地の色を赤に替えても画素がほぼ同じ）、黒い面に霧が掛かった灰の一枚になっていた。
+    //   林と岩の地の色を空の照り返しとして足し、斑が読めるようにする（町の前の斜面だけ。毎コマの計算は一行）。
+    // 10/30：七十mほど先の崖が四割五分の青灰の霧で一色の岩に見えた（画素 5f6464）。町の前の斜面は二割二分まで薄め、林と岩の斑を見せる。
     // 南の崖は日の陰で黒い壁に見えた（10/28 点付け：山を明るく）。山すそから上の山肌だけを最大五割五分明るくする。
     sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace(
       'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );',
-      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  fogFactor = min(fogFactor, mix(1.0, 0.45, (1.0 - smoothstep(60.0, 90.0, vWP.z)) * smoothstep(1.5, 10.0, vWP.y)));\n  gl_FragColor.rgb *= 1.0 + 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
+      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  fogFactor = min(fogFactor, mix(1.0, 0.22, (1.0 - smoothstep(60.0, 90.0, vWP.z)) * smoothstep(1.5, 10.0, vWP.y)));\n  gl_FragColor.rgb += sqrt(max(diffuseColor.rgb, vec3(0.0))) * 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb *= 1.0 + 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
   };
   mat.addEventListener('dispose', () => trail.dispose());
 
@@ -4053,7 +4057,8 @@ const inabayama = {
   // 置くのは城下（z 26 より南）だけ。家と寺の床、山の上の曲輪には置かない。
   timeslip: {
     wet: 0, dust: 0.9, trample: 0.3, debris: 0.9, arrows: 0.7,
-    grass: 0x9c9c60, grassTints: [0xffffff, 0xe8dcaa, 0xccd09a], grassH: 1.05, tallGrass: 0.7,
+    // 地の草は絵の板でなく共通の細い葉の株。町の空き地と道の脇に株を寄せる（10/30 地の草が平らな色だけ）。
+    grass: 0x9c9c60, grassTints: [0xffffff, 0xe8dcaa, 0xccd09a], grassH: 1.05, tallGrass: 1, grassShape: 'blade',
     flagColors: [0xe2ded2, 0x2a2826, 0x3a4a6a],
     fights: [[26, 80, 30], [22, 52, 28], [24, 34, 22]],
     skip: (x, z) => z < 26 || Math.hypot(x - TERA.x, z - TERA.z) < 12 || HOUSES.some(([hx, hz]) => Math.abs(x - hx) < 6 && Math.abs(z - hz) < 5),
@@ -4795,7 +4800,8 @@ const inabayama = {
     }, dress([{ type: 'ashigaru', n: 3 }], { flag: 'saito' })));
     // 後続はすでに町の通りまで下りている。山道の移動で斬り合いを長く途切れさせない。
     // 物見・伏兵・旗本は持ち場を守る。段の切り替えで兵を増やさない。
-    F.town2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 32, z: 36 }, facing: 0, order: 'hold', aggro: 10, width: 7, morale: 85, fleeDir: { x: 0, z: -1 } },
+    // 10/30：(32,36) は町の北の崖の上の棚（高さ 16m・町より 10m 上）で、町から登れず、ピンを追う遊び手が崖下で止まった。崖の下の通りへ下ろす。
+    F.town2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 34, z: 46 }, facing: 0, order: 'hold', aggro: 10, width: 7, morale: 85, fleeDir: { x: 0, z: -1 } },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }]);
     F.townGuards = [F.town, F.town2, ...F.houseGuards];
     // 味方が並ぶ持ち場だけを戸口の両脇へ寄せる。戦う相手・追撃・兵数は変えない。
@@ -5977,8 +5983,9 @@ const inabayama = {
   update(rt, dt) {
     const F = rt.flags;
     // 10/30：「話す」を押せずに8分止まる事があった（指の遊び）。藤吉郎のそばに来たら、押さなくても話が始まる
+    // 10/30 夕：時が経つだけでは始めない（立っているだけで段が進んだ）。本人が12歩の内へ寄った時だけ。
     if (F.step === 0 && !F.joinedKino && F.talkKino && rt.t > 6 && F.kinoU?.alive &&
-        (rt.t > 14 || Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 12)) F.talkKino();
+        Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 12) F.talkKino();
     if (F.dayOneMarks && (F.step || 0) >= 2) { F.dayOneMarks.visible = false; F.dayOneMarks = null; }
     if (F.torches) {
       if (F.step === 1 && !F.ending && !rt.over && rt.player.u.alive) F.torches.update();

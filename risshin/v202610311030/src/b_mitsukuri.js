@@ -2825,10 +2825,14 @@ const mitsukuri = {
     // 八十ｍの一様な霞で郭の外の山肌まで空色にしない。
     // 既存の百五十ｍの描画上限内に収め、兵・草木の数や形は増やさない。
     battleViewDistance: 140,
+    // 10/30 vis_f：郭の上の空に遠景が無かった。湖東の平野の向こうの鈴鹿の山並みを、共通の遠山の高さだけで郭の上へ出す。
+    mountainScale: 1.6,
     wind: [0.7, 0.7],   // 風向き・強さは景色の復元で、史料の断定ではない
     time: 'day', // 箕作用の時計で申の刻の西日から始める。雨上がりの時刻では時計が進まない。
     // 松明のある攻め口では、月と空の補助光を重ねて具足や木々を白くしない。
     nightLift: 1.35, nightFill: 0.16, nightMoonMin: 0.28,
+    // 10/30 vis_f：申の刻の西日でも柵と郭の陰が黒く沈み、画面全体が暗かった。空と地の照り返しだけを強める（光の値だけ）。
+    dayBounce: 2.1, bounceGround: 0x6b5a45,
     unitNightScale: 0.35, // 松明のそばで具足まで白くなる面の補光を控える。
     lowNightExposure: 0.45, // 携帯の夜だけの増感を抑え、火の暖色と月の陰を残す。
     autumn: true,     // 旧暦九月：枯れ色の草と色づく木
@@ -2885,6 +2889,15 @@ const mitsukuri = {
       : from === 'ni' && to === 'hon' ? ROAD_HON : null,
     height,
     tint(x, z, h, c) {
+      // 10/30 vis_f：郭と坂を同じ色にしない。十五〜三十歩の斑で、乾いた赤土・湿った黒土・枯れ草の肩を分ける（頂点の色だけ）。
+      {
+        const big = Math.sin(x * 0.17 + Math.sin(z * 0.12) * 1.9) * Math.cos(z * 0.15 - x * 0.06);
+        const mid = Math.sin(x * 0.41 - z * 0.27 + Math.cos(z * 0.2) * 1.2);
+        const dry = Math.max(0, Math.min(1, (big - 0.2) / 0.45)) * (0.6 + 0.25 * mid);
+        const damp = Math.max(0, Math.min(1, (-big - 0.25) / 0.45));
+        c.lerp({ r: 0.46, g: 0.34, b: 0.23 }, dry * 0.6);
+        c.lerp({ r: 0.27, g: 0.31, b: 0.17 }, damp * 0.5);
+      }
       const rim = Math.max(0, Math.min(1, (roadDistance(x, z) - 2.8) / 3));
       const high = Math.max(0, Math.min(1, (h - 8) / 4));
       if (rim > 0 && high > 0) {
