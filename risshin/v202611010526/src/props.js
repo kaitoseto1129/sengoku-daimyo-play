@@ -13,7 +13,7 @@ import { WIND_DIR } from './world_weather.js';
 import { addDeck, addLadder, FL } from './floors.js';
 import { addInterior, facePanels, windowLatticeMembers } from './naka.js';
 import { sumiInside, gateInside, lookoutInside, interiorBase } from './yagura_inside.js';
-import { S as SETTINGS } from './settings.js';
+import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { extScatter, extGateRoof, extMinka, extTempleRoof } from './props_ext.js';
 import { cgtOn, cgtHas, whenCgt, KitBatch, kitStoneSeg, cgtScene, cgtSpend, cgtSpendNear, kitAttach } from './cgt.js';
 import { kitReplace, castleStyle, kitNijuYagura, kitNagaYagura, kitDobeiSeg, kitStoneRect as kitStoneRect2, kitGateObj4 } from './cgt_castle.js';   // 城の建物を買った部品で（見た目だけ。当たり・火・壊れるは手作りの形のまま）
@@ -402,12 +402,29 @@ function kitCoarse(geo, cell = KIT_LOD_CELL) {
   out.computeBoundingSphere();
   return out;
 }
+// 浮動小数の属性を正規化した整数（法線は Int8・色は Uint8）へ置き換える。済みの物・整数の物は触らない
+function packAttr(g, name, Ctor) {
+  const a = g.attributes[name];
+  if (!a || a.normalized || a.isInterleavedBufferAttribute || !(a.array instanceof Float32Array)) return;
+  const max = Ctor === Int8Array ? 127 : 255, lo = Ctor === Int8Array ? -1 : 0, src = a.array, out = new Ctor(src.length);
+  for (let i = 0; i < src.length; i++) out[i] = Math.round(Math.min(1, Math.max(lo, src[i])) * max);
+  g.setAttribute(name, new THREE.BufferAttribute(out, a.itemSize, true));
+}
 // 材質一つの形の並び（{ geo, part }）を一つの BatchedMesh へ。
 //   遠い（囲みの端が 42m より先の）部品は、頂点を升でまとめた粗い形で描く。壊れた時の傾き・非表示は両方の形に写す
 export function kitBatchMesh(list, mat) {
   const los = list.map(({ geo }) => kitCoarse(geo));
   // さらに遠い（95m より先）時の、もっと粗い形（粗い形のある物だけ）
   const los2 = list.map(({ geo }, i) => (los[i] ? kitCoarse(los[i], KIT_LOD_CELL2) : null));
+  // iPhone（MEM_TIGHT）：束の法線は 8 ビット、頂点の色は 8 ビットで持つ（10/31 三木の城の束が 390 万頂点・CPU だけで 172MB、
+  //   GPU にも同じだけ置いて WebContent が落ちた）。見た目は同じ（色も法線も 8 ビットで足りる）。粗い形を作った後に替える（升の分けは元の値で）
+  if (MEM_TIGHT) {
+    const all = [];
+    for (let i = 0; i < list.length; i++) { all.push(list[i].geo); if (los[i]) all.push(los[i]); if (los2[i]) all.push(los2[i]); }
+    const colOk = all.every((g) => { const c = g.attributes.color; if (!c) return false; if (c.normalized) return true; const a = c.array; for (let k = 0; k < a.length; k++) if (a[k] < 0 || a[k] > 1) return false; return true; });
+    const norOk = all.every((g) => g.attributes.normal);
+    for (const g of all) { if (norOk) packAttr(g, 'normal', Int8Array); if (colOk) packAttr(g, 'color', Uint8Array); }
+  }
   let totalV = 0, totalI = 0, nG = 0;
   const add = (g) => { totalV += g.attributes.position.count; totalI += g.index ? g.index.count : g.attributes.position.count; nG++; };
   for (let i = 0; i < list.length; i++) { add(list[i].geo); if (los[i]) add(los[i]); if (los2[i]) add(los2[i]); }

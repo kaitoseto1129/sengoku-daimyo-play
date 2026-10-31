@@ -22,7 +22,8 @@ export function startRemember(rt, extra, prev = null) {
   // 舞台の動かない表（草木の間引きの升・近い草の置き場・矢が刺さる木の箱・木の点）は数千の物。戻す物ではないので写さない
   for (const k of ['cullList', 'nearOff', 'missileWood', 'treePoints']) if (rt.world?.[k]) blocked.add(rt.world[k]);
   const keep = (o, k) => (o === rt && ROOT_KEEP.has(k)) || (o === rt.army && k === 'batch');
-  const seen = new Set(), records = [], byObject = new Map(), stack = [extra, rt], time = rt.t;
+  const seen = new Set(), records = [], stack = [extra, rt], time = rt.t;
+  let byObject = new Map();
   // 参照の索引も一ミリ秒の枠で作る。最後に全記録を反転・再走査する山を残さない。
   let fresh = 0;
   function record(r) { records.push(r); byObject.set(r.o, r); if (!prevMap || prevMap.get(r.o) !== r) fresh++; }
@@ -61,34 +62,40 @@ export function startRemember(rt, extra, prev = null) {
     //   写すと、捨てた人（evictHidden）が三つの写しに残り続ける（森部 70 秒で生きている人 80 に対し mixer 148・骨 1 万。10/20）。
     //   姿勢と動きは戻した次の更新で u の状態から描き直される
     const isUnit = 'human' in o && 'mesh' in o && 'pos' in o;
+    // 退場した兵（遠景へ戻した・片付けた骸）は二度と出ないので写さない。戻す先で生きていた兵は、その時の写しに記録がある。
+    //   写すと、起こしては戻す兵が写しのたびに増え、古い兵まで抱えて記憶が伸び続けた（10/31 設楽原・三木）
+    if (isUnit && o.gone && !o.alive && !o.name && !o.isCourier && !o.civ && !o.group?.isRunner) return;
     // 消えた兵（沈み終えた亡骸・退いて消えた者）は自分の鍵だけ覚えて中へは入らない。もう動かず、戻す先でも消えたまま
     //   （10/31：援軍のたびに消えた兵の中身まで三つの写しが抱え、iPhone の記憶が毎分 6〜7MB 増えて三木・設楽原が落ちた）
     const shallow = !!(o.root && o.root.userData && o.root.userData.hum === o) || (isUnit && o.gone && !o.alive);
     // 前の写しと同じ鍵・同じ値なら、前の記録をそのまま使う（中の物はこれまでどおりたどる）
-    if (r && r.values && r.length === o.length) {
+    // 鍵と値は一つの平らな配列 [鍵, 値, 鍵, 値…] に持つ（10/31 c_leak2：記録ごとの Map が三つの写しで数万個になり、
+    //   記憶の多くを占めていた）。鍵の順は Object.keys の順なので、前の記録とは順に見比べる
+    if (r && r.kv && r.length === o.length) {
       let n = 0, same = true;
+      const kv = r.kv;
       for (const k of keys) {
         if (keep(o, k) || (isUnit && HUMAN_KEYS.has(k))) continue;
         const d = Object.getOwnPropertyDescriptor(o, k);
         if (!d?.writable) continue;
-        n++;
-        if (!r.values.has(k) || r.values.get(k) !== o[k]) { same = false; break; }
+        if (kv[n] !== k || kv[n + 1] !== o[k]) { same = false; break; }
+        n += 2;
       }
-      if (same && n === r.values.size) {
+      if (same && n === kv.length) {
         record(r);
-        if (!shallow) for (const v of r.values.values()) if (v && typeof v === 'object') stack.push(v);
+        if (!shallow) for (let i = 1; i < kv.length; i += 2) { const v = kv[i]; if (v && typeof v === 'object') stack.push(v); }
         return;
       }
     }
-    const values = new Map();
+    const kv = [];
     for (const k of keys) {
       if (keep(o, k) || (isUnit && HUMAN_KEYS.has(k))) continue;
       const d = Object.getOwnPropertyDescriptor(o, k);
       if (!d?.writable) continue;
       const v = o[k];
-      values.set(k, v); if (!shallow && v && typeof v === 'object') stack.push(v);
+      kv.push(k, v); if (!shallow && v && typeof v === 'object') stack.push(v);
     }
-    record({ o, kind: Array.isArray(o) ? 'array' : 'object', values, length: o.length });
+    record({ o, kind: Array.isArray(o) ? 'array' : 'object', kv, length: o.length });
   }
   // budgetMs ずつ進める。終われば写し（restore を持つ物）を返し、まだなら null
   return { step(budgetMs) {
@@ -104,7 +111,9 @@ export function startRemember(rt, extra, prev = null) {
   // 写し終わりに前の写し・seen・blocked を手放す（閉包が戦の始めからの写しを鎖でつかまないように）
   prevMap = null; seen.clear(); blocked.clear(); stack.length = 0;
   RETRY_STAT.records = records.length; RETRY_STAT.fresh = fresh; RETRY_STAT.n++;
-  return { time, byObject, restore() {
+  // 索引は返す物だけが持つ（restore の閉包に残すと、外しても捨てられない）
+  const index = byObject; byObject = null;
+  return { time, byObject: index, restore() {
     // 記録の順は変えず、戻す時だけ末尾からたどって従来の復元順を保つ。
     for (let i = records.length - 1; i >= 0; i--) {
       const r = records[i], o = r.o;
@@ -119,12 +128,16 @@ export function startRemember(rt, extra, prev = null) {
         o.clear(); for (const e of r.entries) { if (r.kind === 'map') o.set(e[0], e[1]); else o.add(e); }
       } else {
         const isUnit = 'human' in o && 'mesh' in o && 'pos' in o;
+        const kv = r.kv;
+        let had = null;
         for (const k of Object.keys(o)) {
           if (keep(o, k) || (isUnit && HUMAN_KEYS.has(k))) continue;
           const d = Object.getOwnPropertyDescriptor(o, k);
-          if (!r.values.has(k) && d?.writable && d.configurable) delete o[k];
+          if (!(d?.writable && d.configurable)) continue;
+          if (!had) { had = new Set(); for (let i = 0; i < kv.length; i += 2) had.add(kv[i]); }
+          if (!had.has(k)) delete o[k];
         }
-        for (const [k, v] of r.values) o[k] = v;
+        for (let i = 0; i < kv.length; i += 2) o[kv[i]] = kv[i + 1];
         if (r.kind === 'array') o.length = r.length;
       }
     }
@@ -188,8 +201,14 @@ export function retryTick(rt, input, extra, dt) {
   // 深手になる前の時点を残す。直前の八秒を必ず空け、戻った瞬間の同じ一撃を避ける。
   if (m.job) {
     const done = m.job.step(1.0);   // 一ミリ秒ずつ。終わるまで前の写しを残す
-    if (done) { m.previous = m.recent; m.recent = done; m.next = rt.t + 12; m.job = null; }
+    if (done) {
+      // 索引（byObject）は次の写しの見比べにだけ使う。古い写しからは外し、三つの写しが全部の索引を抱えないように
+      if (m.recent) m.recent.byObject = null;
+      m.previous = m.recent; m.recent = done; m.next = rt.t + 12; m.job = null;
+    }
   } else if (!rt.over && rt.player.u.alive && rt.player.u.hp >= rt.player.u.maxHp * 0.5 && rt.t >= m.next) {
+    // 写す間は、十二秒以上前の recent が「少し前」の戻り先。その前の写しは要らないので先に捨てる（写しを三つ重ねて抱えない）
+    m.previous = m.recent;
     m.job = startRemember(rt, extra, m.recent);
   }
   return false;

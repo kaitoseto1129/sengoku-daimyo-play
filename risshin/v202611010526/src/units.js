@@ -1352,6 +1352,7 @@ export class Army {
     this.wind = Math.atan2(WIND_STATE.dirX, WIND_STATE.dirZ);
     this.time += dt;
     this.frameNo = (this.frameNo | 0) + 1;
+    if (this.time >= (this._pruneAt || 0)) { this._pruneAt = this.time + 6; this.pruneGone(); }
     const noGate = !!(window.__apx && window.__apx.nogate);
     const hot = (window.__heatBackgroundLevel || 0) >= 2;   // 端末がかなり熱い（画面外の兵の判断だけ粗くする）   // 実機の試し x_nogate：コマ数の間引きを切って比べる
     this._viewFrustum = frustum;
@@ -2116,7 +2117,7 @@ export class Army {
       for (const id of pool.used) pool.bm.setVisibleAt(id, false);
       pool.used.length = 0; pool.bm.visible = false;
       // 一度返して作り直した束は、休眠を長く待ってから返す（10/31 iPhone 三木：大きな束を十秒ごとに返しては作り直し、開戦150秒に落ちた）
-      if (pool.idle > (MEM_TIGHT ? 240 : 900) * (1 + 3 * Math.min(3, P.again.get(key) || 0)) && B.retired < 2 && B.retireMs < 0.5) {
+      if (pool.idle > (MEM_TIGHT ? 240 : 900 * (1 + 3 * Math.min(3, P.again.get(key) || 0))) && B.retired < 2 && B.retireMs < 0.5) {
         const started = performance.now();
         // 配列は束の中だけに残っている。全形を一度に読み戻すと、返却一つでも
         // 大量の確保と写しが集中する。束を残したまま一コマ一配列ずつ戻す。
@@ -2399,6 +2400,33 @@ export class Army {
     if (e) { ne.arr.set(e.arr.subarray(0, e.n * 16)); if (isP) ne.col.set(e.col.subarray(0, e.n * 3)); this.scene.remove(e.im); e.im.dispose(); SOLO_STAT.batchesDisposed++; }
     this.scene.add(im); bm.set(key || (isP ? geo : (mat || geo)), ne);
     return ne;
+  }
+
+  // 退場した兵（遠景へ戻した・片付けた骸・運び出した）を兵の表から外す（10/31 実機の iPhone で設楽原・三木が落ちる元）。
+  //   外さないと、起こしては戻すたびに表が伸び、毎コマの輪とやり直しの写しが死んだ兵まで抱えて記憶が増え続けた。
+  //   名のある者・使番（また出る）・本人は残す。隊の表（g.units）は討死の数え に使うので触らない。
+  //   骨の人（u.human）を借りている間は残す（人の貸し借りは兵の表を見て返すので、外すと人が返らない）。
+  //   起こした兵だけの隊（recyclable）は、全員が退場したら隊の表からも外す。やり直しは写しの配列から元へ戻る。
+  pruneGone() {
+    const U = this.units;
+    let j = 0;
+    for (let i = 0; i < U.length; i++) {
+      const u = U[i];
+      if (u.gone && !u.alive && !u.name && !u.isPlayer && !u.isSub && !u.isCourier && !u.civ && !u.group?.isRunner && !u.mesh?.parent && !u.human && !u._humanBuild) {
+        if (u.target) u.target = null;
+        continue;
+      }
+      U[j++] = u;
+    }
+    if (j < U.length) U.length = j;
+    const G = this.groups;
+    j = 0;
+    for (let i = 0; i < G.length; i++) {
+      const g = G[i];
+      if (g.recyclable && !g.isPlayerSquad && g.units.length && g.units.every((u) => u.gone && !u.alive && !u.name)) continue;
+      G[j++] = g;
+    }
+    if (j < G.length) G.length = j;
   }
 
   despawn(u) {

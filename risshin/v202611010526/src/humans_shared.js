@@ -208,10 +208,11 @@ function prepBody(gl) {
     const CAP0 = { LeftShoulder: 0.1, RightShoulder: 0.1, LeftArm: 0.058, RightArm: 0.058, LeftForeArm: 0.058, RightForeArm: 0.058, LeftUpLeg: (t) => 0.1 + 0.035 * Math.sin(Math.PI * Math.min(1, t / 0.92)), RightUpLeg: (t) => 0.1 + 0.035 * Math.sin(Math.PI * Math.min(1, t / 0.92)), LeftLeg: 0.062, RightLeg: 0.062 };
     const CH = { LeftShoulder: 'LeftArm', RightShoulder: 'RightArm', LeftArm: 'LeftForeArm', LeftForeArm: 'LeftHand', RightArm: 'RightForeArm', RightForeArm: 'RightHand', LeftUpLeg: 'LeftLeg', LeftLeg: 'LeftFoot', RightUpLeg: 'RightLeg', RightLeg: 'RightFoot', Hips: 'Spine1', Spine: 'Spine1', Spine1: 'Spine2', Spine2: 'Neck' };
     // MakeHuman の裸の体には、布の厚みを足す：小袖の筒袖は二の腕でゆったり手首で細く、裁着袴は腿で大きく膨らみ膝下で絞る、脛は脚絆を巻いた太さ、胴は小袖の打ち合わせの厚み
-    const sleeve = (t) => 1.72 - 0.1 * t, fore = (t) => 1.55 - 0.32 * t;
-    const hakamaM = (t) => 1.3 + 0.22 * Math.sin(Math.PI * Math.min(1, Math.max(0, t / 0.9))) - 0.28 * Math.max(0, (t - 0.8) / 0.2);
-    const SHR = mh ? { LeftShoulder: 1.42, RightShoulder: 1.42, LeftArm: sleeve, RightArm: sleeve, LeftForeArm: fore, RightForeArm: fore, LeftUpLeg: hakamaM, RightUpLeg: hakamaM, LeftLeg: (t) => 1.16 - 0.08 * t, RightLeg: (t) => 1.16 - 0.08 * t, Hips: 1.16, Spine: 1.14, Spine1: 1.18, Spine2: 1.2 } : SHR0;
-    const CAP = mh ? { LeftArm: 0.1, RightArm: 0.1, LeftForeArm: 0.078, RightForeArm: 0.078, LeftUpLeg: (t) => 0.112 + 0.024 * Math.sin(Math.PI * Math.min(1, t / 0.9)), RightUpLeg: (t) => 0.112 + 0.024 * Math.sin(Math.PI * Math.min(1, t / 0.9)), LeftLeg: 0.07, RightLeg: 0.07 } : CAP0;
+    const sleeve = (t) => 1.5 - 0.12 * t, fore = (t) => 1.42 - 0.3 * t;
+    // 10/31 見直し：腰と腿が風船に見えた（1.3〜1.52 倍）。袴は体に沿い、膝の下で絞る
+    const hakamaM = (t) => 1.12 + 0.12 * Math.sin(Math.PI * Math.min(1, Math.max(0, t / 0.9))) - 0.2 * Math.max(0, (t - 0.8) / 0.2);
+    const SHR = mh ? { LeftShoulder: 1.42, RightShoulder: 1.42, LeftArm: sleeve, RightArm: sleeve, LeftForeArm: fore, RightForeArm: fore, LeftUpLeg: hakamaM, RightUpLeg: hakamaM, LeftLeg: (t) => 1.16 - 0.08 * t, RightLeg: (t) => 1.16 - 0.08 * t, Hips: 1.06, Spine: 1.06, Spine1: 1.08, Spine2: 1.1 } : SHR0;
+    const CAP = mh ? { LeftArm: 0.085, RightArm: 0.085, LeftForeArm: 0.07, RightForeArm: 0.07, LeftUpLeg: (t) => 0.098 + 0.014 * Math.sin(Math.PI * Math.min(1, t / 0.9)), RightUpLeg: (t) => 0.098 + 0.014 * Math.sin(Math.PI * Math.min(1, t / 0.9)), LeftLeg: 0.062, RightLeg: 0.062 } : CAP0;
     const mW = body.matrixWorld, mI = mW.clone().invert();
     const w = new THREE.Vector3(), A = new THREE.Vector3(), Bv = new THREE.Vector3(), D = new THREE.Vector3(), Q = new THREE.Vector3();
     for (let i = 0; i < n; i++) {
@@ -302,7 +303,8 @@ function prepBody(gl) {
       if (k <= 0 || !e) continue;
       const zc = (e[0] + e[1]) / 2;
       const dx = w.x - cx, dz = w.z - zc;
-      const nx = Math.min(Math.abs(dx) * 1.28, Math.max(Math.abs(dx), 0.215)), nz = Math.min(Math.abs(dz) * 1.3, Math.max(Math.abs(dz), 0.205));
+      // 10/31 見直し：横 0.215・前後 0.205 では胴が樽（前後 41cm）に見えた。人の胸の厚み（小袖を重ねて前後 30cm ほど）に
+      const nx = Math.min(Math.abs(dx) * 1.18, Math.max(Math.abs(dx), 0.19)), nz = Math.min(Math.abs(dz) * 1.15, Math.max(Math.abs(dz), 0.15));
       w.x = cx + Math.sign(dx) * (Math.abs(dx) + (nx - Math.abs(dx)) * k);
       w.z = zc + Math.sign(dz) * (Math.abs(dz) + (nz - Math.abs(dz)) * k);
       w.multiplyScalar(1 / kH).applyMatrix4(mI);
@@ -551,7 +553,8 @@ function fits() {
   if (SRC.fitT) return SRC;
   const R = SRC.rest, RD = SRC.radius;
   const chest = RD.Spine2 || { mx: 0.2, mz: 0.15 };
-  const sx = Math.max(1, (chest.mx * 1.08) / 0.25), sz = Math.max(1, (chest.mz * 1.1) / 0.2);
+  // 10/31 見直し：胸の太さのまま広げると、胴が前後 1.26 倍の樽になった（背の縮み 0.73 と合わせて寸胴）。広げは少しだけに
+  const sx = Math.min(1.03, Math.max(1, (chest.mx * 1.08) / 0.25)), sz = Math.min(1.04, Math.max(1, (chest.mz * 1.1) / 0.2));
   const neck = R.Neck, hipC = R.Hips;
   const sy = (neck.y - hipC.y) / (1.46 - 0.84);
   // 胴の上端（肩上）が首の付け根より少し下に来るように（首が短い体でも、胴の縁が顎にかからない）

@@ -163,7 +163,7 @@ function crowdGeometry(P, L, only = null, face = false, whole = false) {
   const kp = L.sohei ? 0 : ((L.tier || 0) === 0 ? 5 : 7);
   let shapeKey = null;
   const key = memTight() ? (shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp) + '#' + list.map((p) => colorId(p.geo)).join(',') : list.map((p) => p.geo.uuid).join('|');
-  if (crowdGeos.has(key)) { HSTAT.crowdHit++; const g0 = crowdGeos.get(key); const sh0 = g0 && crowdShapes.get(g0.userData.shapeKey); if (sh0) sh0.use = performance.now(); return g0; }
+  if (crowdGeos.has(key)) { HSTAT.crowdHit++; const g0 = crowdGeos.get(key); const sh0 = g0 && crowdShapes.get(g0.userData.shapeKey); if (sh0) sh0.use = performance.now(); if (g0 && g0.userData) g0.userData.use = performance.now(); return g0; }
   if (!shapeKey) shapeKey = list.map((p) => p.bn + ':' + shapeId(p.geo) + ':' + fitKey(p.fit)).join('|') + '|' + kp;
   let shape = crowdShapes.get(shapeKey);
   if (!shape) {

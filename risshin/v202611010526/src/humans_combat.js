@@ -19,7 +19,8 @@ function resetCrowdSweep() {
   crowdSweepAt = 0; crowdSweep.keys = null; crowdSweep.left = 0; crowdSweep.used = null;
 }
 function sweepCrowdGeos(now) {
-  if (MEM_TIGHT) return;   // 貸出待ちの甲冑も共有の形を保持し、出入りで再転送しない。
+  // 携帯（MEM_TIGHT）も巡回する。前は止めていて、姿の種類ごとの形（crowdGeos・crowdShapes）が戦の間ずっと増え続けた
+  //   （10/31 c_leak2：姉川 3 分で 64→217 個・15→60MB。設楽原・三木も同じ）。着ている人（貸出待ちも）の形は残し、GPU からも外さない
   const work = crowdSweep;
   if (!work.keys) {
     if (now - crowdSweepAt < 5000) return;
@@ -32,7 +33,7 @@ function sweepCrowdGeos(now) {
   }
   // 五秒ごとの全消去を重ねない。調べる数は三十二、返す数は四つ。半ミリ秒を超えたら次のコマへ。
   // 鍵だけを巡回し、候補の写しや [鍵, 形] の配列を毎回作らない。
-  const t0 = performance.now(), idle = 20000;   // iPhone も 20 秒（8 秒では返した形をすぐ作り直し、そのごみが WebContent を押した。鍵が中身になったので同じ姿は一つ。10/21）
+  const t0 = performance.now(), idle = MEM_TIGHT ? 45000 : 20000;   // iPhone も 20 秒（8 秒では返した形をすぐ作り直し、そのごみが WebContent を押した。鍵が中身になったので同じ姿は一つ。10/21）
   let scanned = 0, freed = 0;
   while (work.left > 0 && scanned < 32 && freed < 4) {
     const next = work.keys.next();
@@ -41,7 +42,7 @@ function sweepCrowdGeos(now) {
     const key = next.value, g = crowdGeos.get(key);
     // 巡回の途中で使われた形と、巡回開始後に作った形は残す。
     if (g?.userData && work.at - (g.userData.use || 0) >= idle) {
-      if (work.used.has(g)) { if (memTight()) { g.dispose(); disposeShGeo(g); } continue; }   // 着ている人がいる形は表に残し、GPU の分だけ返す（描けば three が送り直す）
+      if (work.used.has(g)) { if (memTight() && !MEM_TIGHT) { g.dispose(); disposeShGeo(g); } continue; }   // 着ている人がいる形は表に残し、GPU の分だけ返す（描けば three が送り直す）
       g.dispose(); disposeShGeo(g); crowdGeos.delete(key);
       freed++;
     }

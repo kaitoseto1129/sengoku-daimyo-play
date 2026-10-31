@@ -49,6 +49,8 @@ function dropHuman(u) {
     pinHumanGeometries(h);
     releaseHumanBounds(h);
     h.root.parent?.remove(h.root);
+    // 貸出待ちの間は骨の絵（boneTexture）を GPU から返す。また描く時に three が作り直す（設楽原・三木で待つ人の分だけ絵が増え続けた。10/31）
+    h.root.traverse((o) => { if (o.isSkinnedMesh && o.skeleton && o.skeleton.boneTexture) o.skeleton.dispose(); });
     h.leased = false; h.u = null; u.human = null;
   }
 }
