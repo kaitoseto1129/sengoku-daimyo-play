@@ -4542,6 +4542,8 @@ const honnoji = {
 };
 
 // 本能寺の段の毎コマ（P1〜P8）
+// 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
+const honPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 function honnoTick(def, rt, dt) {
   const F = rt.flags, P = rt.player.u, p = P.pos, NB = F.nb, T = F.T;
   const t = rt.t - F.pT;
@@ -4762,7 +4764,7 @@ function honnoTick(def, rt, dt) {
 
     rt.objProgress('main', F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
       : g && g.alive ? (g.hp < g.maxHp * 0.3 ? '門がきしむ。上様の前で構え、退く下知を待て' : '門の内で構え、本堂へ退く下知を待て') : '門の口から離れ、味方の後ろで構えよ');
-    if (t >= 45 && ((g && !g.alive) || t >= 60 || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
+    if (t >= 45 && ((g && !g.alive) || t >= 60 && honPlayed(rt) || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
   } else if (F.hp === 4) {
     // 門が破られた後は、目の前に常に敵が数人以上いる（数で押される怖さ）。減れば表門から次の寄せ手が入る
     if ((F.topScan = (F.topScan || 0) - dt) <= 0) {
@@ -4782,7 +4784,7 @@ function honnoTick(def, rt, dt) {
       : '印を追い、東の戸へ');
     if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
-    else if (t > 110) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める）
+    else if (t > 110 && honPlayed(rt)) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める）
   } else if (F.hp === 5) {
     rt.objProgress('main', !F.hondoDirect ? '道の印で本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
       ? '侍を斬った。残る寄せ手を払い、奥へ退く支度を守れ'
@@ -4803,7 +4805,7 @@ function honnoTick(def, rt, dt) {
     // 延焼が早ければ、堂内で熱を受け始める二十二秒より前に退く下知を出す。
     const hondo = T.G.byId.hondo;
     const burningHondo = hondo.state === 1 && hondo.burnT >= 8;
-    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
+    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt)))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
   } else if (F.hp === 6) {
     if (F.mv && F.nbGoal) {
       // 遠い御殿だけを指すと本堂の壁へ直進してしまう。道の曲がり角を順に示す。
@@ -4830,8 +4832,8 @@ function honnoTick(def, rt, dt) {
       ? '道の印で上様へ戻れ。退く下知が出ておる'
       : F.standMerit?.[3] ? '侍を払った。上様の前で、奥へ退く支度を守れ'
       : '廊下の侍を斬り払え。上様が奥へ退く間を作れ');
-    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 28 && F.lastHold >= 12) || (t > 30 && (gone(F.stand) || t > 40)))) def.p8(rt);
-    else if (t > 135) def.p8(rt);   // 最後の間は小姓衆が守る。落ちる段へ進める
+    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 28 && F.lastHold >= 12) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt))))) def.p8(rt);
+    else if (t > 135 && honPlayed(rt)) def.p8(rt);   // 最後の間は小姓衆が守る。落ちる段へ進める
   } else if (F.hp === 8) {
     // 小姓衆が口をこじ開ける：落ちる自分のそばに二人より多く寄れば、五秒に一度、斬り込んで押し返す（兵は減らさない）。
     if (rt.t >= (F.p8PushAt || 0)) {
