@@ -208,6 +208,8 @@ function build(kind, hi, near) {
       gold.push(plate([[-0.08, 0.03], [-0.06, 0.07], [0.06, 0.07], [0.1, 0.11], [0.11, 0.07], [0.08, 0.03]], false, 0.012).translate(0, 0.2, Z));
       gold.push(plate([[-0.02, 0.14], [-0.07, 0.17], [-0.02, 0.18], [0, 0.2], [0.02, 0.18], [0.07, 0.17], [0.02, 0.14]], false, 0.01).translate(0, 0.17, Z + 0.004));
     }
+    // 伝来の前立は高さ七寸ほどで鉢の前に収まる。台を軸に全体を縮める（鉢より高い金の塔に見えた。10/31 見直し 10）
+    for (const g of gold) { g.translate(0, -0.18, -Z); g.scale(0.62, 0.62, 0.62); g.translate(0, 0.18, Z); }
     return [join(gold), 'gold', [[join([haraidate(0.18, Z - 0.004, 0.04, hi)]), 'black']]];
   }
   if (kind === 'ieyasu_shida') {

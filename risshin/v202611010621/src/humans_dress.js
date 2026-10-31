@@ -398,7 +398,8 @@ function yokeGeo(L) {
   if (!yokeGeos.has(k)) {
     const b = [0.94, 1.0, 1.05, 1.08][L.tier || 0];
     const g = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    g.scale(0.215 * b, 0.075, 0.155 * b); g.translate(0, 1.41, -0.012);
+    // 10/31 見直し：肩の丸みが大きく、首が肩に埋まって見えた。細い胴に合わせて低く狭く
+    g.scale(0.2 * b, 0.062, 0.14 * b); g.translate(0, 1.405, -0.012);
     yokeGeos.set(k, paintG(g.toNonIndexed(), hex, 0, 0.6));
   }
   return yokeGeos.get(k);
@@ -408,20 +409,21 @@ const sleeveGeos = new Map();
 function sleeveGeo(L) {
   const hex = L.cloth || 0x2b2622, k = hex + '|' + (L.tier || 0);
   if (!sleeveGeos.has(k)) {
-    const tube = new THREE.CylinderGeometry(0.074, 0.066, 0.29, 12, 3, true); tube.translate(0, -0.125, 0);
+    // 10/31 見直し：太い筒と肩山の半球が、肩に丸い玉・腕が胴から浮いた形に見えた。筒を細く、肩山を低く
+    const tube = new THREE.CylinderGeometry(0.064, 0.056, 0.29, 12, 3, true); tube.translate(0, -0.13, 0);
     // 肩から垂れる布を肘で絞る。同じ頂点で袂と縫い目の襞を作り、筒の輪郭を崩す。
     const tp = tube.attributes.position;
     for (let i = 0; i < tp.count; i++) {
       const x = tp.getX(i), y = tp.getY(i), z = tp.getZ(i);
       const t = THREE.MathUtils.clamp((.02 - y) / .29, 0, 1), a = Math.atan2(z, x);
       const belly = Math.sin(t * Math.PI);
-      const fold = 1 + belly * (.12 + .065 * Math.cos(a * 5 + t * 2));
+      const fold = 1 + belly * (.07 + .045 * Math.cos(a * 5 + t * 2));
       tp.setXYZ(i, x * fold, y, z * fold - .018 * belly);
     }
     tube.computeVertexNormals();
-    const cap = new THREE.SphereGeometry(0.074, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2); cap.scale(1, 0.5, 1); cap.translate(0, 0.02, 0);
+    const cap = new THREE.SphereGeometry(0.064, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2); cap.scale(1, 0.28, 1); cap.translate(0, 0.015, 0);
     // 袖口：少し厚みのある折り返し
-    const cuff = new THREE.TorusGeometry(0.066, 0.007, 4, 12); cuff.rotateX(Math.PI / 2); cuff.translate(0, -0.27, 0);
+    const cuff = new THREE.TorusGeometry(0.056, 0.006, 4, 12); cuff.rotateX(Math.PI / 2); cuff.translate(0, -0.275, 0);
     const g = mergeGeometries([tube, cap, cuff].map((x) => { x = x.toNonIndexed(); for (const a of Object.keys(x.attributes)) if (a !== 'position' && a !== 'normal') x.deleteAttribute(a); return x; }));
     sleeveGeos.set(k, paintG(g, hex, 0, (L.tier || 0) === 0 ? 0.8 : 0.5));
   }

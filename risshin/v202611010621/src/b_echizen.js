@@ -2034,6 +2034,17 @@ echizen.update = function (rt, dt) {
   }
   const openingGuard = rt.flags.roadGuards?.[0];
   if (!rt.flags.step && openingGuard && openingGuard.aliveNominal() <= 0) this.assault(rt);
+  {
+    // 観音丸は味方の寄せだけでは落ちない：本人が郭の中で30秒戦い、かつ開戦から240秒たつまでは、押さえの時間が数え始まらない（4分以上の戦にする）。
+    const FF = rt.flags, kz = FF.SZ?.byId?.kannon, pu = rt.player.u;
+    if (kz && !FF.kannonFell) {
+      if (kz.test(pu.pos.x, pu.pos.z) && pu.alive) FF.kannonIn = (FF.kannonIn || 0) + dt;
+      if (FF.kannonHold0 == null) FF.kannonHold0 = kz.hold;
+      const open = (FF.kannonIn || 0) >= 30 && rt.t >= 240;
+      kz.hold = open ? FF.kannonHold0 : 1e9;
+      if (!open) kz.holdT = 0;
+    }
+  }
   kinome.update.call(this, rt, dt);
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || !u.alive) return;

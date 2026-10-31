@@ -52,11 +52,12 @@ function armsPose(h, B, dt, time, w) {
   const fpk = u.isPlayer && SRC.fingers ? (u.fpk || 0) : 0, fpg = fpk > 0.5;
   if (u.mounted) _tgt.y -= 0.18 * (u.isPlayer && w !== 'bow' && (u.fpk || 0) > 0.01 ? 1 - u.fpk : 1);   // 馬上の人は本編の形より肩が低いので、握りも下げる
   const dir = _dir.set(e[8], e[9], e[10]).normalize();
-  RIGHT_POLE.copy(_right).multiplyScalar(0.6).addScaledVector(_up, -1).addScaledVector(_fwd, -0.3);
-  LEFT_POLE.copy(_right).multiplyScalar(-0.6).addScaledVector(_up, -1).addScaledVector(_fwd, -0.3);
+  // 10/31 見直し：肘を横へ張りすぎると、腕が胴から離れて宙に浮いて見えた。肘は脇へ寄せて下へ
+  RIGHT_POLE.copy(_right).multiplyScalar(0.4).addScaledVector(_up, -1).addScaledVector(_fwd, -0.3);
+  LEFT_POLE.copy(_right).multiplyScalar(-0.4).addScaledVector(_up, -1).addScaledVector(_fwd, -0.3);
   // 構えの癖（人ごと）：肘を脇に締める人・横へ張る人、肘を下げる人。馬上と一人称の本人は変えない
   if (!u.mounted && !u.isPlayer) {
-    const S = h.hold || (h.hold = { eb: ((h.seed * 23.1) % 1 - 0.5) * 0.9, dn: ((h.seed * 17.9) % 1 - 0.5) * 0.5, sp: ((h.seed * 31.7) % 1 - 0.5) * 0.16 });
+    const S = h.hold || (h.hold = { eb: ((h.seed * 23.1) % 1 - 0.5) * 0.5, dn: ((h.seed * 17.9) % 1 - 0.5) * 0.5, sp: ((h.seed * 31.7) % 1 - 0.5) * 0.16 });
     RIGHT_POLE.addScaledVector(_right, S.eb).addScaledVector(_up, -S.dn); LEFT_POLE.addScaledVector(_right, -S.eb * 0.8).addScaledVector(_up, -S.dn);
   }
   if (w === 'spear' && !u.mounted && !fpg) {
@@ -158,7 +159,8 @@ function armsPose(h, B, dt, time, w) {
   if (fpg) gripHand(B, 'Right', _tgt, dir, _gU.set(-e[4], -e[5], -e[6]).normalize(), 0.4, rp);
   // 目の前の徒歩の槍も、手首の点ではなく拳の中へ柄を通す。
   // 遠い兵は元の二関節の補正だけに留める。
-  const nearSpearGrip = closeSpear && !h.far;
+  // 10/31 見直し：近くの刀・鉄砲も手首の点ではなく拳の中へ柄・台木を通す（手が板のまま柄の外に浮いて見えた）
+  const nearSpearGrip = (closeSpear || h.near && !u.mounted && (w === 'sword' || w === 'gun' || w === 'spear')) && !h.far;
   if (nearSpearGrip && !fpg) gripHand(B, 'Right', _tgt, dir, _gU.set(-e[4], -e[5], -e[6]).normalize(), 0.4, rp);
   if (aimGun) {
     // 頬を台に付けて狙う：首を傾け、顔を下げる
@@ -262,7 +264,8 @@ function armsPose(h, B, dt, time, w) {
   ik2(B.LeftArm, B.LeftForeArm, B.LeftHand, _tgt2, LEFT_POLE);
   if (nearSpearGrip && !fpg) {
     _tgt3.copy(_tgt).addScaledVector(dir, k);
-    gripHand(B, 'Left', _tgt3, dir, _gU.set(-e[4], -e[5], -e[6]).normalize(), 0.4, LEFT_POLE);
+    if (w === 'gun') gripHand(B, 'Left', _tgt3.addScaledVector(_gU.set(e[4], e[5], e[6]).normalize(), -0.012), dir, _gU.set(e[0], e[1], e[2]).normalize(), 0.2, LEFT_POLE);
+    else gripHand(B, 'Left', _tgt3, dir, _gU.set(-e[4], -e[5], -e[6]).normalize(), 0.4, LEFT_POLE);
   }
   // 一人称：左手も柄を拳の中に通して握る（刀は柄頭の側、槍・鉄砲は前の方）
   if (fpg) {

@@ -2737,7 +2737,10 @@ const shigisan = {
           castlePart(W, 'ishigaki', { pts: toe, top: (x, z) => W.heightAt(x + lx * 3, z + lz * 3) + .8, kind: 'uchikomi' }, { era: 'early' });
           // 10/31：25秒の画面の正面に斜めに上る塀。黒い板塀は月夜の黒い山肌に沈み、狭間が見えなかった。松永の城（多聞山の白壁の先がけ）
           //   らしく白漆喰の土塀に替え、白い壁に黒い狭間の口を一つおきに切る（共通の土塀の部品。描く回数は同じ）。
-          castlePart(W, 'hei', { pts: toe.map(([x, z]) => [x + lx * 3.2, z + lz * 3.2]), kind: 'shikkui', h: 2.4 }, { era: 'early' });
+          { // 10/31 斜面の段差で白い箱が浮いて階段に見えた：1.1m ごとに刻み、足もとを0.6m地面へ埋めて山肌に沿わせる
+            const wp = toe.map(([x, z]) => [x + lx * 3.2, z + lz * 3.2]), fine = [wp[0]];
+            for (let i = 1; i < wp.length; i++) { const [ax, az] = wp[i - 1], [bx, bz] = wp[i], m = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 1.1)); for (let j = 1; j <= m; j++) fine.push([ax + (bx - ax) * j / m, az + (bz - az) * j / m]); }
+            castlePart(W, 'hei', { pts: fine, kind: 'shikkui', h: 3.0, yAt: (x, z) => W.heightAt(x, z) - 0.6 }, { era: 'early' }); }
           // 板塀の内に松永勢の槍と旗（塀越しに頭と旗が並ぶ）。
           const m = toe[Math.floor(toe.length / 2)];
           W.addDistantArmy({ x: m[0] + lx * 7, z: m[1] + lz * 7, w: 22, d: 4, count: 60, facing: Math.atan2(-lx, -lz), armor: 0x2a2622, team: 1, host: false, flagTex: flagTexture('todo'), seed: 15776 });

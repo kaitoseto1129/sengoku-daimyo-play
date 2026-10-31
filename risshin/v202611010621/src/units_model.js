@@ -1420,23 +1420,28 @@ function hatParts(look, parts, hi, fallen = false) {
   if (hat === 'jingasa' || hat === 'jingasa_n') {
     const hatStart = parts.length;
     // 黒漆の笠：真っ黒に沈めず、鈍い艶の読める墨の黒（kaito 10/30「陣笠が厚く、真っ黒で艶が無い」）
-    const col = look.hatColor ?? (hat === 'jingasa_n' ? 0x221e1a : 0x2a2520);
+    // 脱げて地に落ちた笠は泥と雨で艶が落ちる：朱の笠も下塗りの朱も鮮やかに残さない（10/31 見直し 18）
+    const col0 = look.hatColor ?? (hat === 'jingasa_n' ? 0x221e1a : 0x2a2520);
+    const col = fallen ? new THREE.Color(col0).lerp(new THREE.Color(0x2a2520), 0.55).getHex() : col0;
+    const c2n = fallen ? 0x3e2a1e : 0x6a2216;
+    // 笠の大きさ：本の陣笠は差し渡し一尺四〜五寸（約 43cm）で肩幅を少し出るだけ（10/31 見直し 18：肩より広い皿に見えた）
+    const KR = 0.91 * 0.84;
     // 高さ：縁が眉の高さ。頭は笠の円錐の内に入り、頭に当てる輪（布）は円錐の内で頭の太い所に掛かる（縁の高さで頭の上に載せると、頭から浮いて見える）
-    const hy = 1.575;   // 笠の縁は額と耳の上まで下げる（1.655 では笠が頭から浮き、下から頭頂が見えた。10/30）
+    const hy = 1.6;   // 笠の縁は眉の上（1.655 では笠が頭から浮き、下から頭頂が見えた。10/30。1.575 では縁が鼻まで下りて目が隠れた。10/31）
     const fit = 0.96 + ((look.vi || 0) % 6) * .016; // 六つの共用形で笠の張りを変える。
     if (!hi) {
       // 遠くの軽い形：なだらかな円錐と縁
-      const prof = [[0.0, 0.25], [0.07, 0.195], [0.16, 0.122], [0.25, 0.043], [0.31, 0.0], [0.315, -0.01]].map(([r, y]) => new THREE.Vector2(r * 0.91 * fit, y));
+      const prof = [[0.0, 0.23], [0.07, 0.18], [0.16, 0.113], [0.25, 0.043], [0.31, 0.0], [0.315, -0.012]].map(([r, y]) => new THREE.Vector2(r * KR * fit, y));
       // 中景へ切り替わる時にも笠の縁が十二角へ跳ねない。共用する形だけを細かくする。
       parts.push(P(at(new THREE.LatheGeometry(prof.slice().reverse(), 20, Math.PI, Math.PI * 2), 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: 0x3e2a1e, mk2: MK.wood }));
-      parts.push(P(at(new THREE.TorusGeometry(0.282 * fit, 0.005, 3, 20), 0, hy - 0.004, 0, Math.PI / 2), 0x221e1a, { mk: MK.lac }));
+      parts.push(P(at(new THREE.TorusGeometry(0.282 * 0.84 * fit, 0.0065, 3, 20), 0, hy - 0.004, 0, Math.PI / 2), 0x221e1a, { mk: MK.lac }));
       return;
     }
     // 近くの陣笠（御貸具足の鉄笠・塗り笠）：浅い円錐が頂から縁へ少し反り、縁の先でわずかに上へ返る。頂に小さな座。
     // 黒漆の艶、擦れた所（縁・頂・欠け）から下塗りが出る（塗り陣笠は朱の下塗り、安い笠は紙と竹の茶）。前に小さく家紋（家ごとに金か朱）、顎紐
-    const R = 0.3003 * fit;
+    const R = 0.33 * KR * fit;
     // 戦国の陣笠は頂の立った円錐（資料の雑兵の笠）：頂を上げ、縁へ真っ直ぐ下ろす（平たい皿にしない）
-    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * 0.91 * fit, y + 0.1 * Math.max(0, 1 - r / 0.3)]);   // 本の陣笠は頂のとがった円錐（10/27 頂を上げた）
+    const prof = [[0, 0.158], [0.02, 0.156], [0.05, 0.146], [0.1, 0.123], [0.16, 0.09], [0.22, 0.056], [0.27, 0.031], [0.3, 0.017], [0.318, 0.01], [0.33, 0.014]].map(([r, y]) => [r * KR * fit, y + 0.08 * Math.max(0, 1 - r / 0.3)]);   // 頂を少し下げて浅く（10/31）   // 本の陣笠は頂のとがった円錐（10/27 頂を上げた）
     const yAt = (r) => { for (let i = 1; i < prof.length; i++) if (r <= prof[i][0]) { const [ra, ya] = prof[i - 1], [rb, yb] = prof[i]; return ya + (yb - ya) * (r - ra) / (rb - ra); } return prof[prof.length - 1][1]; };
     // 回す点は下から上の順に並べる（上から上の順だと面が下を向き、上から見えるのは裏の茶色だった）
     const kasa = new THREE.LatheGeometry(prof.slice().reverse().map(([r, y]) => new THREE.Vector2(r, y)), 48, Math.PI, Math.PI * 2);
@@ -1447,20 +1452,21 @@ function hatParts(look, parts, hi, fallen = false) {
         const x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z), a = Math.atan2(x, z);
         let dy = (Math.sin(a * 3 + sd) * 0.006 + Math.sin(a * 7 + sd * 2) * 0.0025) * (r / R) ** 2;
         let dd = a - da; dd = Math.atan2(Math.sin(dd), Math.cos(dd));
-        dy -= 0.01 * Math.exp(-(dd * dd) / 0.05 - ((r - 0.17) ** 2) / 0.003);
+        dy -= 0.01 * Math.exp(-(dd * dd) / 0.05 - ((r - 0.17 * 0.84) ** 2) / 0.003);
         p.setY(i, p.getY(i) + dy);
         uv.setY(i, 1 - r / R);   // 絵の上下は頂からの遠さで（下の縁が絵の下）
       }
       kasa.computeVertexNormals();
     }
-    parts.push(P(at(kasa, 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: hat === 'jingasa_n' ? 0x6a2216 : 0x4a3624, mk2: hat === 'jingasa_n' ? MK.lac : MK.wood }));
+    parts.push(P(at(kasa, 0, hy, 0), col, { mk: MK.lac, reg: 'kasa', c2: hat === 'jingasa_n' ? c2n : 0x4a3624, mk2: hat === 'jingasa_n' ? MK.lac : MK.wood }));
     // 裏（朱がかった茶の漆）と、縁の巻き（細い輪）
     // 笠は薄い鉄（漆塗り）：裏は表のすぐ下（厚さ 3mm ほど）。縁の巻きも細く
     const under = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(Math.min(r, R - 0.003), y - 0.003)), 32);
     parts.push(P(at(under, 0, hy, 0), 0x2e1c16, { mk: MK.lac, reg: 'lacq' }));
-    parts.push(P(at(new THREE.TorusGeometry(R - 0.001, 0.0032, 4, 48), 0, hy + 0.0115, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: 0x6a2216, mk2: MK.lac, rv: [0, 0.1] }));
+    // 縁は鉄の板を巻き返した厚い縁（薄い皿の板に見せない。10/31）
+    parts.push(P(at(new THREE.TorusGeometry(R - 0.002, 0.0062, 5, 48), 0, hy + 0.011, 0, Math.PI / 2), col, { mk: MK.lac, reg: 'kasa', c2: c2n, mk2: MK.lac, rv: [0, 0.1] }));
     // 頂の座（笠の頂を押さえる小さな丸い金具）
-    parts.push(P(at(ball(0.026, 0.011, 0.026, 10, 4), 0, hy + prof[0][1] - 0.001, 0), col, { mk: MK.lac, reg: 'lacq', c2: 0x6a2216, mk2: MK.lac }));
+    parts.push(P(at(ball(0.022, 0.01, 0.022, 10, 4), 0, hy + prof[0][1] - 0.001, 0), col, { mk: MK.lac, reg: 'lacq', c2: c2n, mk2: MK.lac }));
     parts.push(P(at(new THREE.TorusGeometry(0.026, 0.003, 3, 12), 0, hy + prof[0][1] - 0.005, 0, Math.PI / 2), 0x2a2420, { mk: MK.iron }));
     if (look.detail85) {
       const tilt = ((look.vi || 0) - 2.5) * 0.018;
@@ -1469,24 +1475,25 @@ function hatParts(look, parts, hi, fallen = false) {
     // 頭に当てる輪（布）と、顎の下で結ぶ忍の緒
     if (!fallen) {
       parts.push(P(at(new THREE.TorusGeometry(0.106, 0.016, 5, 16), 0, hy + 0.013, 0, Math.PI / 2), 0x4a4236, { reg: 'cloth' }));
-      for (const sd of [-1, 1]) parts.push(P(limb([sd * 0.1, hy, 0.0], [sd * 0.02, 1.49, 0.075], look.detail85 ? 0.006 : 0.0045, look.detail85 ? 0.006 : 0.0045, 4), 0xcfc4a8, { reg: 'cord' }));
-      parts.push(P(at(ball(0.012, 0.008, 0.008), 0, 1.49, 0.078), 0xcfc4a8, { reg: 'cord' }));
+      // 忍の緒は汗と泥の染みた茶の麻紐。笠の内の輪から頬に沿って顎へ（生成りの白い紐は、頬の横の白い尖りに見えた。10/31 見直し 6）
+      for (const sd of [-1, 1]) parts.push(P(limb([sd * 0.088, hy + 0.012, -0.004], [sd * 0.022, 1.492, 0.07], 0.0042, 0.0036, 4), 0x4a3b2c, { reg: 'cord' }));
+      parts.push(P(at(ball(0.009, 0.006, 0.006), 0, 1.49, 0.074), 0x4a3b2c, { reg: 'cord' }));
     }
     // 前に家紋（御貸具足の印）：小さく、家ごとに金か朱
     const mr = monReg(look.mon);
     if (mr) {
       const shu = KASA_SHU.has(look.mon);
-      const mp = [0.21, 0.185, 0.16, 0.135].map((r) => new THREE.Vector2(r, yAt(r) + 0.0035));
+      const mp = [0.18, 0.158, 0.136, 0.114].map((r) => new THREE.Vector2(r, yAt(r) + 0.0035));
       const dec = new THREE.LatheGeometry(mp, 4, -0.23, 0.46);
       if (look.detail85) { const tilt = ((look.vi || 0) - 2.5) * 0.018; dec.rotateZ(tilt).rotateX(tilt * 0.5); }
-      parts.push(P(at(dec, 0, hy, 0), col, { mk: MK.lac, reg: mr, c2: shu ? 0xa8301c : (hat === 'jingasa_n' ? gold : 0xb08a3a), mk2: shu ? MK.lac : MK.gold, swap: false }));
+      parts.push(P(at(dec, 0, hy, 0), col, { mk: MK.lac, reg: mr, c2: shu ? (fallen ? 0x6a2a1c : 0xa8301c) : (hat === 'jingasa_n' ? gold : 0xb08a3a), mk2: shu ? MK.lac : MK.gold, swap: false }));
     }
     // 落ちた笠には首に沿う垂れ布を付けない。地面で白い首のように立たせない。
     if (fallen) return;
     if (look.tenugui) parts.push(P(at(new THREE.CylinderGeometry(0.117, 0.115, 0.03, 16, 1, true), 0, 1.655, 0.006), 0xd6ccb4, { reg: 'cloth' }));
     // 笠の下の垂れ布（日除け・雨よけの手拭いを笠の内に挟み、耳の横から首の後ろへ垂らす。雑兵物語の足軽）。三人に二人
     if (look.kasaDrape !== false && T === 0 && (look.vi || 0) % 3 !== 1) {
-      const th0 = 1.15, sdv = (look.vi || 0) * 1.3;
+      const th0 = 1.42, sdv = (look.vi || 0) * 1.3;   // 布の前の端は耳の後ろから（耳の前に出すと、頬の横の白い三角に見えた。10/31 見直し 6）
       const pt = (u, v) => {
         const th = th0 + u * (Math.PI * 2 - th0 * 2), back = Math.max(0, -Math.cos(th));
         // 布のたるみ：裾ほど大きく波打ち、背は肩へ掛かって外へ開く
@@ -1497,7 +1504,7 @@ function hatParts(look, parts, hi, fallen = false) {
       const tg = surf(look.detail85 ? 16 : 20, 4, pt);
       const ti = tg.clone(); const ix = ti.index.array; for (let i = 0; i < ix.length; i += 3) { const t = ix[i]; ix[i] = ix[i + 2]; ix[i + 2] = t; } ti.computeVertexNormals();
       // 本の足軽の着用の写真は、笠の下から紺の布を垂らす。生成りの明るい布は白い板に見えるので、紺を主に褪せた鼠を一つ（10/27）
-      const tc = [0x3a3128, 0x5e5a50, 0x2e2a26][(look.vi || 0) % 3];   // 茶・鼠・墨（藍・紺は使わない。kaito 10/28 夜）
+      const tc = [0x3a3128, 0x4a463e, 0x2e2a26][(look.vi || 0) % 3];   // 鼠も褪せた暗い鼠に（明るい鼠は日なたで白く光った。10/31）   // 茶・鼠・墨（藍・紺は使わない。kaito 10/28 夜）
       const drape = P(tg, tc, { reg: 'cloth' });
       // 布の折り返しの陰を共用形へ焼く。笠の下の手拭いを白い板にしない。
       const dp = drape.attributes.position, dn = drape.attributes.normal;
@@ -4700,7 +4707,8 @@ function armGeometry(o, sd, kote, hi, part) {
     P_.push(P(at(new THREE.CylinderGeometry(0.038 * b, 0.038 * b, 0.03, seg), 0, -0.49, 0), 0x8a8270, { reg: 'cloth' }));
   }
   if (part === 'hand') {
-    if (kote) P_.push(P(at(new THREE.BoxGeometry(0.056 * b, 0.05, 0.007), 0, -0.54, -0.027, 0.1), T >= 2 || T === 0 ? handArmor : 0x2e3236, { mk: T >= 2 || T === 0 ? MK.lac : MK.iron, reg: 'lacq' }));
+    // 10/31 見直し：平らな箱の手甲は、握った手の上に浮く茶色の板に見えた。手の甲の丸みに沿う薄い反りの板に
+    if (kote) P_.push(P(at(new THREE.CylinderGeometry(0.032 * b, 0.032 * b, 0.048, 6, 1, true, Math.PI - 0.85, 1.7), 0, -0.54, 0.004, 0.1), T >= 2 || T === 0 ? handArmor : 0x2e3236, { mk: T >= 2 || T === 0 ? MK.lac : MK.iron, reg: 'lacq' }));
   } else if (part) { /* 籠手だけ */ } else if (hi) {
     // 手：握った拳（掌・指の列と節・親指）。籠手なら甲に手甲
     const hx = 0;
