@@ -2156,6 +2156,11 @@ const iwamura = {
       for (let i = 0; i < POSTS.length; i++) this.light(rt, i, true, false);
       this.raid(rt);
     }
+    // 10/30：本人が柵から四十歩の内で夜討ちの者に槍を当てるか討つまで、敵を退かせず追撃の段へ進めない（立っているだけで段が進まない）
+    if (F.step === 2 && !F.iwFought) {
+      const pu = rt.player.u, sw = pu.swing;
+      if (sw?.target?.team === 1 && sw.res && sw.res !== 'miss' && Math.abs(pu.pos.z - FENCE_Z) < 40) F.iwFought = true;
+    }
     if (F.step < 2 || (F.pollT -= dt) > 0) return;
     const span = 0.5 - F.pollT; F.pollT = 0.5;
     let inside = 0, deep = 0, guards = 0;
@@ -2268,7 +2273,7 @@ const iwamura = {
         F.atRaidMouth ? `${cue}。柵の内で槍をそろえよ` :
         F.raidCrossing ? '連絡道の印へ。柵の内を回れ' : '口の印へ。柵の内の道を通れ');
       // 損害で退く。時間を過ぎただけの無傷の寄せは退かせない。
-      if (F.raidContact && inside === 0 && !F.front.every(gone)) {
+      if (F.iwFought && F.raidContact && inside === 0 && !F.front.every(gone)) {
         for (const g of F.waves) if (g.iwSent && !g.iwWithdraw && !gone(g)) {
           let fighting = 0, breached = false;
           for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) { fighting++; if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) breached = true; }
@@ -2283,7 +2288,7 @@ const iwamura = {
       }
       // 最後の一手が退いた回は追撃の下知だけを出し、逆向きの守備命令を積まない。
       const allWithdrawn = F.waves.every((g) => g.iwSent && (gone(g) || g.iwWithdraw));
-      if (allWithdrawn && inside === 0 && !F.front.every(gone)) this.chase(rt);
+      if (allWithdrawn && F.iwFought && inside === 0 && !F.front.every(gone)) this.chase(rt);
       else if (!allWithdrawn && !F.breached && !F.raidReturning && !F.brokenSaid && F.waves.some((g) =>
         (gone(g) || g.iwWithdraw) && g.units.some((u) => u.alive && sightUnit(rt, u)))) {
         F.brokenSaid = true;
@@ -3090,6 +3095,7 @@ const iwamura = {
   onKill(rt, v, k) {
     const F = rt.flags;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (F.step === 2 && v.team === 1 && k === rt.player.u && Math.abs(k.pos.z - FENCE_Z) < 40) F.iwFought = true;
     if (F.step === 2 && v.team === 1 && F.waves.includes(v.group) && (k === rt.player.u || k?.isSub)) {
       v.group.iwOwnKills = (v.group.iwOwnKills || 0) + 1;
       if (gone(v.group) && v.group.iwOwnKills >= 2) F.playerOpened = true;

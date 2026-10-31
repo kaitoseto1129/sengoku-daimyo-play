@@ -5983,8 +5983,9 @@ const inabayama = {
   update(rt, dt) {
     const F = rt.flags;
     // 10/30：「話す」を押せずに8分止まる事があった（指の遊び）。藤吉郎のそばに来たら、押さなくても話が始まる
+    // 10/30 夕：時が経つだけでは始めない（立っているだけで段が進んだ）。本人が12歩の内へ寄った時だけ。
     if (F.step === 0 && !F.joinedKino && F.talkKino && rt.t > 6 && F.kinoU?.alive &&
-        (rt.t > 14 || Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 12)) F.talkKino();
+        Math.hypot(F.kinoU.pos.x - rt.player.u.pos.x, F.kinoU.pos.z - rt.player.u.pos.z) < 12) F.talkKino();
     if (F.dayOneMarks && (F.step || 0) >= 2) { F.dayOneMarks.visible = false; F.dayOneMarks = null; }
     if (F.torches) {
       if (F.step === 1 && !F.ending && !rt.over && rt.player.u.alive) F.torches.update();

@@ -325,7 +325,7 @@ function retreatGroundDetail(rt) {
         vec3 axis = pow(n, vec3(4.0)); axis /= max(0.001, axis.x + axis.y + axis.z);
         // 切岸にも同じ粒の大きさを保ち、縦に伸びた板模様にしない。
         vec3 soil = texture2D(tBank, p.zy * 0.23).rgb * axis.x
-          + texture2D(tDirt, p.xz * 0.23).rgb * axis.y
+          + texture2D(tDirt, p.xz * 0.13).rgb * axis.y   // 落ち葉の土の写真は一枚 7.7m（葉と小枝が離れても見える大きさ。10/30）
           + texture2D(tBank, p.xy * 0.23).rgb * axis.z;
         vec3 w = max(vKgMix, vec3(0.0));
         float wear = texture2D(tWear, (p.xz + 240.0) / 480.0).r;
@@ -333,8 +333,8 @@ function retreatGroundDetail(rt) {
         w.z = clamp(w.z + uWet * 0.25, 0.0, 0.8);
         w.y = max(0.0, 1.0 - w.x - w.z);
         w /= max(0.001, w.x + w.y + w.z);
-        vec3 grass = texture2D(tGrass, p.xz * 0.23).rgb;
-        vec3 mud = texture2D(tMud, p.xz * 0.23).rgb;
+        vec3 grass = texture2D(tGrass, p.xz * 0.14).rgb;   // 草の写真も離れて見える大きさに（10/30）
+        vec3 mud = texture2D(tMud, p.xz * 0.17 + 0.41).rgb * vec3(0.5, 0.46, 0.42);   // 泥＝落ち葉の土の写真を濡れた色に
         // 一枚の茶にしない：大きな斑で草の生えた所と踏んだ土を混ぜる。
         float kgM = texture2D(tMacro, p.xz * 0.0125 + 0.11).r;
         float kgGreen = smoothstep(0.38, 0.62, kgM) * smoothstep(0.55, 0.85, n.y);
@@ -351,19 +351,21 @@ function retreatGroundDetail(rt) {
         //   人の背丈ほどの大きさで混ぜる。落ち葉の斑の中は一枚ずつの葉ほどの細かな明暗も重ねる。
         float kgLitter = smoothstep(0.4, 0.54, texture2D(tMacro, p.xz * 0.034 + 0.71).r) * smoothstep(0.2, 0.55, n.y);
         float kgLeafGrain = texture2D(tMacro, p.xz * 0.9 + 0.13).r * 0.6 + texture2D(tMacro, p.xz * 2.3 + 0.41).r * 0.4;
-        vec3 kgLeaf = mix(vec3(0.24, 0.14, 0.07), vec3(0.54, 0.34, 0.16), kgLeafGrain) * mix(0.8, 1.1, texture2D(tMacro, p.xz * 0.13 + 0.29).r);
+        // LS_PHOTO_SOIL（共通の重ね塗りの黄緑の掛け色を止める印）
+        // 10/30 ground_photo：落ち葉は作り物の色でなく、土の絵（森の落ち葉の土の写真）をそのまま少し暗く使う。
+        vec3 kgLeaf = texture2D(tDirt, mat2(0.8, -0.6, 0.6, 0.8) * p.xz * 0.19 + 0.17).rgb * mix(0.78, 1.05, kgLeafGrain);
         kgCol = mix(kgCol, kgLeaf, kgLitter * 0.88 * (1.0 - w.z));
         float kgSoil = smoothstep(0.58, 0.74, texture2D(tMacro, p.xz * 0.067 + 0.47).r) * (1.0 - kgLitter);
-        kgCol = mix(kgCol, soil * vec3(0.92, 0.84, 0.74), kgSoil * 0.6);
+        kgCol = mix(kgCol, soil, kgSoil * 0.6);
         float kgMoss = smoothstep(0.6, 0.78, texture2D(tMacro, p.xz * 0.053 + 0.21).r) * (1.0 - kgLitter) * (1.0 - kgSoil);
         kgCol = mix(kgCol, grass * vec3(0.72, 0.92, 0.56), kgMoss * 0.65);
         // 緑の一色にしない（10/30 点付け）：数十歩の大きさで、青い若草の所と黄ばんだ枯れ草の所の色みを替える（読み出しは足さない）
         // 10/30 vis_f：まだ黄緑の一枚に見えた（点付けの画面の地面の明るさのばらつき 6.6）。濃い青草と黄ばんだ枯れ草の差と、明暗の斑を強める（値だけ）。
-        kgCol *= mix(vec3(0.74, 0.98, 0.66), vec3(1.1, 0.94, 0.74), smoothstep(0.3, 0.7, kgM));
+        kgCol *= mix(vec3(0.9, 1.0, 0.86), vec3(1.04, 0.97, 0.88), smoothstep(0.3, 0.7, kgM));   // 写真の色を残す（10/30 ground_photo で弱めた）
         diffuseColor.rgb *= kgCol * (1.0 - uWet * 0.18);
       `);
   };
-  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉3';
+  ground.customProgramCacheKey = () => '金ヶ崎の草土と川岸と落ち葉4';
   ground.needsUpdate = true;
   const W = rt.world, resources = rt.flags.sceneryResources;
   const mat = new THREE.MeshStandardMaterial({ color:0xffffff, vertexColors:true, roughness:1 });
@@ -2585,6 +2587,8 @@ const kanegasaki = {
     variedMarch: true, strideLimit: 1.1, livingSpearHedge: true,
     infantryWeight: true, contactDust: true,
     patchyGround: true, erodedSlopes: true,
+    // 10/30 ground_photo：地面の大半（25秒の画面の地面の63%）は土の絵。黄緑の一色に見えたので、土の絵を森の落ち葉の土の写真（Poly Haven forest_leaves_02・CC0）に替える。
+    groundPhoto: { dirt: 'kanegasaki', mudFromSoil: true },   // 川岸の泥も同じ写真を暗く濡らして使う（絵の数は前と同じ）
     stableSlopeGrain: true, // 道脇の法線が回っても、雨溝の模様を細い縞へ引き延ばさない。
     softEarthCrust: true, // 土塊の陰を塊の縁に限り、裸地を升目の板に見せない。
     sparseEarthCrust: true, // 乾いた道の土塊を間引き、同じ穴が一面に並ぶ見え方を抑える。

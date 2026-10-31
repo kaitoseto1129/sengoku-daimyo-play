@@ -40,7 +40,7 @@ import { makeGate, updateGates, resetGates } from './siege_gate.js';
 import { makeAttackAI } from './siege_ai.js';
 import { fordWatch } from './toride.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
-import { tabaMat, addTaba, patchGunCover, tickTabas } from './taketaba.js';
+import { tabaMat, tabaGeo, addTaba, patchGunCover, tickTabas } from './taketaba.js';
 import { timeslipField } from './timeslip_field.js';
 import { NODA_PLAN, FUKU_PLAN, NODA_GATE, FUKU_GATE, FORT_Z, LEVEE_Z, LEVEE_DORUI, LEVEE_TABA, LEVEE_ZONE, ODA_HONJIN, IKKO_ROUTES, RANKUI_LINES, SAKAMOGI_LINES, FORT_BUILDINGS, FORT_STORES } from './castles/nodafukushima.js';
 // 足軽大将より上の身分で出た時は、一手を預かる
@@ -1193,53 +1193,9 @@ function bPos(b) {
 const bDead = (b) => !b || b.aliveNominal() <= 0;
 function bDist(a, b) { const p = bPos(a), q = bPos(b); return Math.hypot(p.x - q.x, p.z - q.z); }
 
-// 資料の弾除け竹束：長い竹の束を縦に並べ、横木と縄、後ろの支えで保つ。
-// この戦専用の形を一度だけ作り、据え置き・運搬・敵の盾で共用する。
-let NODA_TABA_GEO = null;
-function nodaTabaGeo() {
-  if (NODA_TABA_GEO) return NODA_TABA_GEO;
-  const parts = [], color = new THREE.Color();
-  const put = (geo, hex) => {
-    const g = geo.index ? geo.toNonIndexed() : geo;
-    if (g !== geo) geo.dispose();
-    color.setHex(hex);
-    const colors = new Float32Array(g.attributes.position.count * 3);
-    for (let i = 0; i < colors.length; i += 3) { colors[i] = color.r; colors[i + 1] = color.g; colors[i + 2] = color.b; }
-    g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(g);
-  };
-  for (let k = 0; k < 5; k++) {
-    const x = (k - 2) * 0.34;
-    for (let j = 0; j < 7; j++) {
-      const h = 1.72 + (k % 3) * 0.04 + (((j * 3 + k) % 5) - 2) * 0.017;
-      const angle = j * Math.PI / 3, r = j === 6 ? 0 : 0.105;
-      const bx = x + Math.cos(angle) * r, bz = Math.sin(angle) * r;
-      const bamboo = new THREE.CylinderGeometry(0.054, 0.06, h, 6);
-      bamboo.translate(bx, h / 2, bz); put(bamboo, [0x7b7c49, 0x858451, 0x727543][(k + j) % 3]);
-      // 節をずらし、切り口も揃えすぎない。一度だけ束の形へまとめる。
-      for (let y = 0.22 + ((k + j) % 4) * 0.045; y < h - 0.1; y += 0.34) {
-        const node = new THREE.CylinderGeometry(0.062, 0.064, 0.018, 6);
-        node.translate(bx, y, bz); put(node, 0x626b3c);
-      }
-      const hole = new THREE.CircleGeometry(0.034, 6);
-      hole.rotateX(-Math.PI / 2); hole.translate(bx, h + 0.002, bz); put(hole, 0x3e3422);
-    }
-    for (const y of [0.42, 1.22]) {
-      const rope = new THREE.CylinderGeometry(0.177, 0.177, 0.075, 10, 1, true);
-      rope.translate(x, y, 0); put(rope, 0x9b8458);
-    }
-  }
-  for (const y of [0.42, 1.22]) {
-    const rail = new THREE.CylinderGeometry(0.045, 0.045, 1.9, 6);
-    rail.rotateZ(Math.PI / 2); rail.translate(0, y, 0.2); put(rail, 0x777346);
-  }
-  for (const x of [-0.58, 0.58]) {
-    const brace = new THREE.CylinderGeometry(0.04, 0.05, Math.hypot(1.25, 1.1), 6);
-    brace.rotateX(-Math.atan2(1.1, 1.25)); brace.translate(x, 0.625, 0.75); put(brace, 0x777346);
-  }
-  NODA_TABA_GEO = mergeGeometries(parts);
-  for (const g of parts) g.dispose();
-  return NODA_TABA_GEO;
-}
+// 資料の弾除け竹束：共通の竹束（taketaba.js の細竹の束・泥の根元・三巻きの縄・叉木の木架）を使う。
+// 10/30：この戦だけの一色の太い円柱の束が、原色の円柱に見えた。形は一度だけ作り、据え置き・運搬・敵の盾で共用する。
+const nodaTabaGeo = () => tabaGeo(false, false, false, true, true);
 function addNodaTaba(rt, x, z, team, options) {
   const tb = addTaba(rt, x, z, team, options);
   tb.m.geometry = nodaTabaGeo();

@@ -27,6 +27,8 @@ function keepObject(o) {
     const L = c.userData && c.userData.lod;
     if (L) { if (Array.isArray(L)) for (const g of L) keepGeo(g); else keepFrom(L, 2); }
     if (c.isBatchedMesh && c.geometry) keepGeo(c.geometry);
+    // 影を焼く時だけ描く元の形（props_batch の小谷・設楽原の柵）。描かれない間に返すと CPU へ読み戻して 17MB ずつ残っていた（10/30 夜 設楽原 82MB）
+    if (c.userData && c.userData.staticShadowGeometry) keepGeo(c.userData.staticShadowGeometry);
   });
 }
 // 表（Map・Set・配列・物）の中の形を 3 段まで拾う
@@ -132,7 +134,7 @@ export function gpuGcTick(rt, dt, caches) {
     if (A.batch) for (const bm of A.batch.maps || []) for (const e of bm.values()) keepGeo(e.im && e.im.geometry);
     if (A.solo) for (const p of A.solo.pools.values()) { keepGeo(p.bm && p.bm.geometry); for (const g of p.geos) keepGeo(g); }
   }
-  if (rt.world) { keepFrom(rt.world.armyBatch); keepFrom(rt.world.cullList); }
+  if (rt.world) { keepFrom(rt.world.armyBatch); keepFrom(rt.world.cullList); keepFrom(rt.world.buildingDetails); }
   for (const c of (typeof caches === 'function' ? caches() : caches) || []) keepFrom(c);
   const ms = performance.now() - t0;
   gcWork = { iterator: UPLOADED.values(), left: UPLOADED.size, clock: GPU_GC.clock, pending: null,

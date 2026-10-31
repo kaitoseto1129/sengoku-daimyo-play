@@ -13,7 +13,7 @@ import { benchRoads } from './yamalift.js';
 import { whenCgt, cgtScene, cgtSpend, KitBatch, kitStoneSeg } from './cgt.js';
 import { kitReplace, castleStyle, kitGateObj4 } from './cgt_castle.js';
 import { interiorBase } from './yagura_inside.js';
-import { woodTex, dirtTex, mudTex } from './nature.js';
+import { woodTex } from './nature.js';
 import { Garan } from './temple1571.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
@@ -1424,7 +1424,7 @@ function boatTick(rt, dt) {
     if (F.step >= 2 && (!pilot && !bt.landed || escaping) && bt.z <= CH_Z) bt.x += dt * .45;
     bt.flood = Math.min(1.6, bt.flood + bt.holes * .0015 * dt);
     const water = waterHeight(rt.world, bt.x, bt.z), bed = rt.world.heightAt(bt.x, bt.z);
-    bt.m.position.set(bt.x, Math.max(bed, water - bt.flood), bt.z);
+    bt.m.position.set(bt.x, Math.max(bed, water - bt.flood - .15), bt.z); // 船底を水に沈め、揺れても浮いて見せない
     if (F.step < 2) bt.m.position.x += Math.sin(rt.t * .22 + bt.x) * .7;
     bt.shadow.position.set(bt.m.position.x, water + .025, bt.z); bt.shadow.visible = !bt.landed && bt.flood < .8;
     bt.m.rotation.z = Math.min(.3, bt.flood * .2) + Math.sin(rt.t * 1.7 + bt.x) * .025;
@@ -2125,6 +2125,9 @@ const nagashima = {
     // 輪中の地を茶の一枚にしない（10/30）：乾いた沖積の灰茶・葦の根の灰緑と枯れ色・湿った黒い泥の差を広げる。色の定数だけ。
     soilTones: { grass: [[.075, .1, .045], [.2, .205, .1]], dirt: [[.14, .125, .1], [.26, .235, .185]], mud: [[.04, .038, .032], [.085, .076, .06]] },
     patchyGround: true, // 岸の土にも湿乾のむらと草の切れ目を残す。
+    // 10/30 ground_photo：25秒の画面の地面の57%は土の絵（作り置きの無地の土）で、茶の一枚に見えた。土と泥を、湿った泥の塊の写真
+    //   （Poly Haven brown_mud_03・CC0。葦の根元は既存の葦の株）に替え、上の soilTones へ寄せる量を下げて写真の色を残す。絵の数は前と同じ。
+    groundPhoto: { dirt: 'nagashima', mudFromSoil: true, scale: 0.16, contrast: 1.5 }, photoSoilMix: 0.3,
     plainGrassGround: true, // 草地の絵にも円い窪みがある。土と泥だけ替えても岸の縁に輪が残る。
     stableSlopeGrain: true, // 柵際の低い堤でも、法線の向きで地肌を回して縞へ引き伸ばさない。
     softEarthCrust: true, // 土塊の升の境を陰で囲まず、敷石状の継ぎ目を弱める。
@@ -2209,8 +2212,7 @@ const nagashima = {
     timeslipField(rt);   // 身の回りの岸のぬかるみ・葦・矢（def.timeslip）
     // 岸一面の同じ足形・窪みは、凹凸の処理だけでなく土と泥の絵にも焼かれている。
     // 高画質でも写真への切替を通さず、足形を省いた地肌を共用する。実際の踏み跡・湿りのむらは残す。
-    W.groundU.tDirt.value = dirtTex(true, true);
-    W.groundU.tMud.value = mudTex(true);
+    // 10/30 ground_photo：土と泥は def.groundPhoto の写真（作り置きの無地の土・共用の泥の写真には戻さない）。
     // 秋の河口の岸を白い雪原にしない。土の濃淡を残し、空の反射を抑える。
     W.terrain.material.color.setHex(0xaaa286);   // 橙の一枚に見えないよう、赤みを抜いた湿った土
     W.terrain.material.envMapIntensity = .15;

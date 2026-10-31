@@ -2352,17 +2352,6 @@ const tottori = {
         hungryLook(e);
         W.addFire(mx - fz * 4, mz + fx * 4, { torch: true, h: 1.6, size: .7, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.8, lightDecay: 0 });
     };
-    const clashAt = (base, tag, wide = 7.5) => {
-      if (rt.over || rt.flags.ending || !rt.player.u.alive) return;
-      const p = rt.player.u.pos, yaw = rt.player.yaw || 0;
-      const fx = Math.sin(yaw), fz = Math.cos(yaw);
-      for (const [k, side] of [[0, 1], [1, -1]]) {
-        let d = base + k * 6, mx, mz;
-        for (; d >= 8; d -= 3) { mx = p.x + fx * d - fz * side * wide; mz = p.z + fz * d + fx * side * wide; if (W.heightAt(mx, mz) >= (W.waterY ?? -99) + 0.3) break; }
-        if (d < 8) continue;
-        pairAt(mx, mz, yaw, tag, k);
-      }
-    };
     // 開戦25秒の画面（持ち場から舟の番へ寄った所。カメラは北北西を向く）の真ん中、本人の前8〜18mの岸の上（舟の番の右手）で、
     //   羽柴の押さえと打って出た城兵が始めから押し合う（10/30 実機の門：開戦25秒でまばら）。舟の番への道（左手前）は空ける。
     {
@@ -2374,7 +2363,8 @@ const tottori = {
       rt.scene.add(kagaribiBatch(W, kp));
       for (const [x, z] of kp) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 22, lightColor: 0xff8a3a, lightStrength: 2.2, lightDecay: 0 });
     }
-    rt.after(110, () => clashAt(24, ''));
+    // 百十秒の押し合いは始めから南の岸（舟の番の脇を抜けて川上の船べりへ回る道の先）に置く（10/30：開戦25秒に南を向いても乱戦が入る。兵の数は同じ）
+    [[-36.0, -47.0], [-44.0, -53.0]].forEach(([x, z], k) => pairAt(x, z, Math.PI, 'β', k));
     // 主殿と陣所の床・護衛の持ち場を保ち、軽い備えから兵を追加しない。
     for (const g of rt.army.groups) {
       g.noAI = true;

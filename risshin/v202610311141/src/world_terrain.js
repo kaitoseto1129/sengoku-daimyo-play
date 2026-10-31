@@ -6,7 +6,7 @@ import { S as SETTINGS } from './settings.js';
 import { WIND, WIND_STATE } from './world_weather.js';
 import { terrainView } from './terrain_view.js';
 import { castleMaskBlank } from './castle_mask.js';
-import { groundDetailPack } from './ground_photo.js';
+import { groundDetailPack, battleGroundTex } from './ground_photo.js';
 // soilTones：雨後の野（wetFieldRuts）の草・土・泥の暗い側と明るい側の色を戦ごとに替える（{ grass:[[r,g,b],[r,g,b]], dirt, mud }）。
 // 組み立て時の定数だけで、絵の読み出しと描く回数は増やさない（10/30 長島）。
 const soilTone = (def, k, i, d) => def.soilTones && def.soilTones[k] ? 'vec3(' + def.soilTones[k][i].map((v) => Number(v).toFixed(3)).join(', ') + ')' : d;
@@ -90,14 +90,19 @@ export class WorldTerrain {
     geo.computeVertexNormals();
     // 地表の絵を材質にも登録する。独自の混合処理の準備中も白い無地にせず、
     // 共用の土の絵を使う。混合後は世界座標で読むので二重には掛けない。
-    const mat = liteMat({ color: 0xffffff, map: dirtTex(), roughness: 0.95, metalness: 0, envMapIntensity: this.def.wetFieldRuts ? 0.2 : 0.55 });
+    // groundPhoto：戦ごとの土の写真（10/30。金ヶ崎・長島・箕作）。共用の土の写真と入れ替えるだけで絵の口は増やさない。
+    // scale：土の写真の縮尺（一枚が 1/scale m。離れても草の根や小石が見える大きさに）。
+    // contrast：写真の明暗をならした色のまわりで強める量（画質「高」の時だけ）。
+    // mudFromSoil：泥にも同じ写真を使い、共用の泥の写真を読まない（絵の数を前と同じに保つ）。
+    const soilPhoto = this.def.groundPhoto && this.def.groundPhoto.dirt ? battleGroundTex(this.def.groundPhoto.dirt) : null;
+    const mat = liteMat({ color: 0xffffff, map: soilPhoto || dirtTex(), roughness: 0.95, metalness: 0, envMapIntensity: this.def.wetFieldRuts ? 0.2 : 0.55 });
     // 坂は本人の足より高くても地面。屋根・柱を抜く処理へ渡すと、
     // 手前の山肌が画面中央の四角い範囲で消え、空の色が露出する。
     mat.userData.camNearSolid = true;
     // 道肩の湿乾差・草の斑・濡れた踏み溝は、それぞれの指定に合う描き方を使う。
-    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}|${(this.def.dirtTint || []).join(',')}|${JSON.stringify(this.def.soilTones || null)}`;
+    mat.customProgramCacheKey = () => `ground|${!!(this.def.patchyGround || this.def.roadsideGrass)}|${!!this.def.slopeForestTint}|${this.half}|${!!this.def.autumn}|${this.def.autumnLeafMix ?? 1}|${!!this.def.winter}|${!!this.def.snow}|${SETTINGS.quality}|${!!this.def.springSnowPatch}|${JSON.stringify(this.def.gravelCourt || null)}|${!!this.def.softEarthCrust}|${!!this.def.stableSlopeGrain}|${!!this.def.subtleMudRelief}|${!!this.def.churnedMud}|${!!this.def.sparseEarthCrust}|${!!this.def.stableCliffGrain}|${!!this.def.stableRockProjection}|${!!this.def.patchyGround}|${this.def.wetFieldRuts || false}|${JSON.stringify(this.def.trampledField || null)}|${this.def.cliffTurf || 0}|${this.def.muddyCastleFloor || 0}|${(this.def.dirtTint || []).join(',')}|${JSON.stringify(this.def.soilTones || null)}${this.def.photoSoilMix == null ? '' : '|psm' + this.def.photoSoilMix}${this.def.groundPhoto ? '|gp' + JSON.stringify(this.def.groundPhoto) : ''}`;
     // 通行の跡を持つ戦は無地の泥を使う。窪みと足形を残す指定の戦だけ従来の絵へ戻す。
-    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: dirtTex() }, tBank: { value: bankTex() }, tMud: { value: mudTex(this.def.wetFieldRuts === 'wear' && !this.def.mudImprints) }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: { value: this.wearTex }, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color }, tCastle: { value: castleMaskBlank() }, uCastle: { value: new THREE.Vector4(0, 0, 0, 0) } };
+    this.groundU = { tGrass: { value: grassTex(!!this.def.plainGrassGround) }, tDirt: { value: soilPhoto || dirtTex() }, tBank: { value: bankTex() }, tMud: { value: soilPhoto && this.def.groundPhoto.mudFromSoil ? soilPhoto : mudTex(this.def.wetFieldRuts === 'wear' && !this.def.mudImprints) }, tStone: { value: stoneTex() }, tMacro: { value: macroTex() }, uWet: { value: 0 }, uForest: { value: this.def.slopeForest ?? 0 }, uRock: { value: this.def.cliffRock ?? 0 }, uNight: this.nightU, uSoilRain: { value: 0 }, tWear: { value: this.wearTex }, uTime: { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } }, uSoilSky: { value: this.hemi.color }, tCastle: { value: castleMaskBlank() }, uCastle: { value: new THREE.Vector4(0, 0, 0, 0) } };
     if (SETTINGS.quality !== 'high') {
       const grassPhoto = groundDetailTex('grass'), dirtPhoto = groundDetailTex('dirt');
       this.groundU.tGrassPhoto = { value: grassPhoto };
@@ -178,7 +183,8 @@ export class WorldTerrain {
           // 秋は草の株ごとに灰緑と枯草を混ぜる。土と苔の斑や、雪のある戦はそのまま。
           grass *= mix(vec3(1.02, 0.94, 0.78), vec3(1.18, 0.9, 0.65), smoothstep(0.35, 0.75, macro2));
           ` : ''}
-          vec3 dirt = mix(texture2D(tDirt, wuv * ${SETTINGS.quality === 'high' ? '0.46' : '0.23'}).rgb, texture2D(tDirt, ruv * ${SETTINGS.quality === 'high' ? '0.22' : '0.11'} + 0.57).rgb, mixK * 0.6) * mix(0.85, 1.12, macro2);
+          vec3 dirt = mix(texture2D(tDirt, wuv * ${this.def.groundPhoto?.scale ? this.def.groundPhoto.scale.toFixed(3) : SETTINGS.quality === 'high' ? '0.46' : '0.23'}).rgb, texture2D(tDirt, ruv * ${this.def.groundPhoto?.scale ? (this.def.groundPhoto.scale * 0.48).toFixed(3) : SETTINGS.quality === 'high' ? '0.22' : '0.11'} + 0.57).rgb, mixK * 0.6) * mix(0.85, 1.12, macro2);
+          ${this.def.groundPhoto?.contrast && SETTINGS.quality === 'high' ? `dirt = max(vec3(0.0), vSoilMean.y * 0.333 + (dirt - vSoilMean.y * 0.333) * ${this.def.groundPhoto.contrast.toFixed(2)});   // groundPhoto.contrast：離れると薄れる写真の土の粒と塊の明暗を強める（10/30）` : ''}
           ${this.def.dirtTint ? `dirt *= vec3(${this.def.dirtTint.map((v) => Number(v).toFixed(3)).join(', ')});   // dirtTint：戦ごとの土の色（稲生は砂色でなく黒みの土。10/28）` : ''}
           ${this.def.patchyGround || this.def.roadsideGrass ? `
           // 広い裸地にも湿乾差をつなぐ。既存の大小の斑だけを使い、絵の読み出しは増やさない。
@@ -228,9 +234,9 @@ export class WorldTerrain {
           grass = mix(grass, mix(${soilTone(this.def, 'grass', 0, 'vec3(0.075, 0.095, 0.038)')}, ${soilTone(this.def, 'grass', 1, 'vec3(0.115, 0.14, 0.062)')}, loamPatch)
             * fieldGrassGrain, 0.72);
           // 土色への補正で元の粒まで塗り潰さない。近景から中景へ写真の濃淡を残す。
-          dirt = mix(dirt * vec3(0.9, 0.81, 0.66),
-            mix(${soilTone(this.def, 'dirt', 0, 'vec3(0.125, 0.095, 0.06)')}, ${soilTone(this.def, 'dirt', 1, 'vec3(0.18, 0.14, 0.085)')}, loamPatch) * dirtGrain, 0.8);
-          mud = mix(mud * vec3(0.78, 0.69, 0.55),
+          dirt = mix(dirt * ${this.def.groundPhoto ? 'vec3(0.92, 0.9, 0.86)' : 'vec3(0.9, 0.81, 0.66)'},   // 戦ごとの土の写真は橙へ寄せない
+            mix(${soilTone(this.def, 'dirt', 0, 'vec3(0.125, 0.095, 0.06)')}, ${soilTone(this.def, 'dirt', 1, 'vec3(0.18, 0.14, 0.085)')}, loamPatch) * dirtGrain, ${(this.def.photoSoilMix ?? 0.8).toFixed(2)});   // photoSoilMix：戦ごとの土の写真（groundPhoto）の色を残す量（10/30 長島）
+          mud = mix(mud * ${this.def.groundPhoto ? 'vec3(0.62, 0.6, 0.56)' : 'vec3(0.78, 0.69, 0.55)'},
             mix(${soilTone(this.def, 'mud', 0, 'vec3(0.085, 0.065, 0.043)')}, ${soilTone(this.def, 'mud', 1, 'vec3(0.125, 0.095, 0.06)')}, loamPatch) * clayGrain, 0.8);
           ` : ''}
           // 粘土の細かな塊を近景だけ重ねる。泥の広い色むらと別の縮尺にする。
@@ -1017,7 +1023,7 @@ export class WorldTerrain {
 export function landOverlay(sh, U) {
   const fs = sh.fragmentShader;
   if (!fs.includes('#include <color_fragment>') || fs.includes('vLsP') || !sh.vertexShader.includes('#include <project_vertex>')) return;
-  const tint = !fs.includes('uLandSeason');   // 共通の描き方には斑の塗りが既にある。差し替えた戦だけ斑も足す
+  const tint = !fs.includes('uLandSeason') && !fs.includes('LS_PHOTO_SOIL');   // LS_PHOTO_SOIL：土の写真の色をそのまま見せる戦（10/30 金ヶ崎）は黄緑の掛け色をしない   // 共通の描き方には斑の塗りが既にある。差し替えた戦だけ斑も足す
   Object.assign(sh.uniforms, {
     tLsMacro: U.tMacro, uLsWet: U.uWet, uLsNight: U.uNight, tLsCastle: U.tCastle, uLsCastle: U.uCastle,
     uLsSeason: U.uLandSeason || { value: new THREE.Vector4() }, uLsHeight: U.uLandHeight || { value: new THREE.Vector2(0, 1) },

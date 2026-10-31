@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { texOr } from './bin_assets.js';
+import { MEM_TIGHT } from './settings.js';
+import { canvasToAstc } from './astc_rt.js';
 
 // 同梱の二次元・四角四画素の圧縮画像だけを読む。携帯では展開も再圧縮もしない。
 export function groundMipmaps(buffer) {
@@ -36,6 +38,37 @@ export async function loadGroundPhoto(kind) {
     finally { clearTimeout(timer); }
   }
   return texOr('ground_' + kind, new URL('../assets/tex/ground_' + kind + '.jpg', import.meta.url).href);
+}
+
+// 戦ごとの地面の写真（10/30 ground_photo）：def.groundPhoto = { dirt: '<名>' } の戦だけ、共用の土の写真の代わりに
+// assets/tex/ground_b_<名>.jpg（512角。iPhone の作り MEM_TIGHT は _s の 256角）を読む。絵の口は共用の土と入れ替えるだけで増やさない。
+// ASTC の使える機械はその場で 4×4 の ASTC にして送る（共用の土の圧縮版と同じ記憶。256角なら四分の一）。
+// 材質の map にも渡すので、戦の終わりの片付けで一緒に返る（作り置きにしない）。読めない時は仮の土色のまま。
+export function battleGroundTex(name) {
+  const c = document.createElement('canvas'); c.width = c.height = 4;
+  const g = c.getContext('2d'); g.fillStyle = '#5c4b37'; g.fillRect(0, 0, 4, 4);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+  t.userData.noAstc = true;   // 下の読み込みで自分で圧縮する（携帯の canvas の自動圧縮と二重にしない）
+  t.userData.photoReady = { value: 0 };
+  const N = MEM_TIGHT ? 256 : 512;
+  const im = new Image();
+  im.onload = () => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = N;
+    cv.getContext('2d').drawImage(im, 0, 0, N, N);
+    let astc = null;
+    try { if (window.__renderer?.extensions.has('WEBGL_compressed_texture_astc')) astc = canvasToAstc(cv, { flip: false, alpha: 'opaque' }); } catch (e) { astc = null; }
+    t.dispose();   // 仮の絵の領域を返してから、同じ入れ物に本の絵を渡す
+    if (astc) {
+      t.image = { width: N, height: N }; t.mipmaps = astc.mipmaps; t.isCompressedTexture = true;
+      t.format = THREE.RGBA_ASTC_4x4_Format; t.type = THREE.UnsignedByteType; t.generateMipmaps = false; t.flipY = false;
+      cv.width = cv.height = 1;
+    } else { t.image = cv; t.flipY = false; }
+    t.needsUpdate = true; t.userData.photoReady.value = 1;
+  };
+  im.src = new URL('../assets/tex/ground_b_' + name + (MEM_TIGHT ? '_s' : '') + '.jpg', import.meta.url).href;
+  return t;
 }
 
 // 近くの地面の粒（10/28 leap_ground3）：砂利・土・草・霜の写真の濃淡（白黒）四枚を、一枚の絵の四つの色の段へ詰める。

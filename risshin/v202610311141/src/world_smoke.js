@@ -33,7 +33,7 @@ export class WorldSmoke {
           vSoot = soot;
           vec3 delta = position - cameraPosition;
           float distanceSq = dot(delta, delta);
-          if(distanceSq >= farStart || (distanceSq >= 2025.0 && mod(lane, 3.0) > 0.5)) {
+          if(distanceSq >= farStart || (distanceSq >= 2025.0 && soot < 0.5 && mod(lane, 3.0) > 0.5)) {
             vA = 0.0; gl_PointSize = 1.0; gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;
           }
           // 粒が根元へ戻る時は、柱を横切る線を補間しない。
@@ -43,8 +43,11 @@ export class WorldSmoke {
           vA = smoothstep(0.0, 0.08, t) * (1.0 - t) * (1.0 - t);
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           // カメラのすぐ前の粒は消す（目の前に光った綿の塊が貼り付いて人や家を隠さない）
-          vA *= smoothstep(3.0, 12.0, -mv.z) * (distanceSq >= 2025.0 ? 1.7 : 1.0);
-          gl_PointSize = (0.8 + t * 5.0) * seed.y * scale / -mv.z;
+          // 中景は三粒に一つだけ描く。粒の大きさが同じままだと、間の空いた丸い玉の列に見えた（長島の黒煙 10/30）。
+          // 残す粒を大きくして重ね、柱の形につなぐ（濃さは重なりで保つ）。
+          float midK = distanceSq >= 2025.0 && soot < 0.5 ? 1.0 : 0.0;   // 黒煙（火事の煙・数本だけ）は中景でも全粒を描き、柱につなぐ
+          vA *= smoothstep(3.0, 12.0, -mv.z) * (1.0 + midK * 0.15);
+          gl_PointSize = (0.8 + t * 5.0) * seed.y * scale / -mv.z * (1.0 + midK * 0.8);
           gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: 'uniform sampler2D map; uniform vec3 color; varying float vA; varying float vSoot; void main(){ vec4 t = texture2D(map, gl_PointCoord); gl_FragColor = vec4(mix(color, vec3(0.065, 0.058, 0.052), vSoot), t.a * vA * mix(0.42, 0.62, vSoot)); if (gl_FragColor.a < 0.004) discard; }',

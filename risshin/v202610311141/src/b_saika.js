@@ -2856,11 +2856,14 @@ const saika = {
     // 10/30 採点：開戦25秒の画面は川岸の隊列で、押し合いが右の槍列だけだった。持ち場から西の川を見る正面、十五歩ほど先の浅瀬で、
     //   西岸から渡ってきた雑賀衆と、川へ踏み込んだ堀の先手が開戦すぐから押し合い斬り合う。杭抜きの組（川上の杭）からは六歩外す。人数・位置は推定。
     //   遠い控えを減らした分だけ置き、本物の兵は二百五十人以内。勝ち負けの数えには入れない。
-    F.fordSally = allyGroup(rt, { name: '浅瀬へ踏み込んだ堀の先手', fixed: true, fullStrength: true, fleeDir: { x: 1, z: 0 }, guard: true, guardLeash: 3, anchor: { x: -20, z: -25 }, facing: WEST, width: 7, spacing: 0.9, aggro: 7, seekRange: 7, formation: 'yari', noRout: true },
+    F.fordSally = allyGroup(rt, { name: '浅瀬へ踏み込んだ堀の先手', fixed: true, fullStrength: true, fleeDir: { x: 1, z: 0 }, guard: true, guardLeash: 3, anchor: { x: -19, z: -20 }, facing: WEST, width: 7, spacing: 0.9, aggro: 7, seekRange: 7, formation: 'yari', noRout: true },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], { flag: 'hori' }));
-    F.fordRaid = enemyGroup(rt, { faction: 'saika', fixed: true, name: '浅瀬を渡る雑賀衆', anchor: { x: -26, z: -25 }, facing: EAST, width: 7, spacing: 0.9, formation: 'yari',
+    F.fordRaid = enemyGroup(rt, { faction: 'saika', fixed: true, name: '浅瀬を渡る雑賀衆', anchor: { x: -25, z: -20 }, facing: EAST, width: 7, spacing: 0.9, formation: 'yari',
       order: 'hold', guard: true, guardLeash: 3, aggro: 7, seekRange: 7, morale: 90, fleeDir: { x: -1, z: 0 }, dmgMult: 0.6 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }, { type: 'ashigaru', n: 5, o: SAIKA_HACHI }], SAIKA));
     F.fordRaid.noRout = true;   // 最初の四十秒は崩れず浅瀬で組み合う（update で解く）
+    // 開戦25秒の乱戦（10/30 夜）：浅瀬の押し合いと川べりの雑賀衆は二十八秒まで崩れず討たれにくく、持ち場の前十〜二十歩で斬り合いを続ける。後からは常の通り（兵の数は同じ）
+    F.fordRaid.defMult = 2.4; F.fordSally.defMult = 1.6; F.skirmish.noRout = true; F.skirmish.defMult = 2;
+    rt.after(28, () => { F.fordRaid.defMult = 1; F.fordSally.defMult = 1; F.skirmish.noRout = false; F.skirmish.defMult = 1; });
     F.defenders = [F.hori, F.workers, F.teppo];
     // 援護の鉄砲の前に用意済みの竹束。後で四束を無から作らない。
     // 鉄砲の列の幅に合わせ、四束とも射手の前へ据える。

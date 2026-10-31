@@ -2591,9 +2591,12 @@ const tedorigawa = {
     // 開戦25秒の画面（本人は殿の持ち場へ寄り、渡り口の方＝南を向く）の真ん中右に、川沿いを回り込んだ上杉の先手が、
     //   渡り口の手前へ下がる柴田の手（-8, -38）へ斬り込んで押し合う（10/30 実機の門：25秒の画面に敵が写らない）。
     //   軽い大軍はカメラの48m内に描かれないので本物の兵で。人数は十人に絞る（本物の兵は合わせて250人ほど）。渡り口の中ほど（x≈0〜4）は空ける。
-    F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '川沿いを回り込んだ上杉勢', anchor: { x: -9, z: -30 }, facing: Math.PI,
-      order: 'hold', width: 5, formation: 'yari', aggro: 10, seekRange: 14, morale: 100, noRout: true, fleeDir: { x: -1, z: -1 } },
+    F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '川沿いを回り込んだ上杉勢', anchor: { x: -3, z: -34 }, facing: Math.PI,
+      order: 'hold', width: 11, formation: 'yari', aggro: 10, seekRange: 14, morale: 100, noRout: true, fleeDir: { x: -1, z: -1 } },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], UESUGI));
+    // 開戦25秒の乱戦（10/30 夜）：殿の列の背（持ち場の前五〜十歩）へ寄せ、殿と組み合わせる。二十八秒まで討たれにくく、先に退く足軽を追って離れない（兵の数は同じ）
+    F.fordFoe.defMult = 2.2; rt.after(28, () => { if (F.fordFoe) F.fordFoe.defMult = 1; });
+    rt.after(3, () => { const g = F.fordFoe; if (g && g.count && !g.routed) { g.order = 'attack'; g.seekRange = 12; g.aggro = 12; } });
     {
       // 押し合いの外の脇を篝火で照らす（雨の夜）
       const fp = [[16, -28.5], [-15, -28]];

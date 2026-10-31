@@ -2838,7 +2838,10 @@ const mitsukuri = {
     autumn: true,     // 旧暦九月：枯れ色の草と色づく木
     muddy: 0.15,
     // 雨上がりの曲輪と道は濡れて黒ずんだ赤土。日の下で砂浜や雪のような白っぽい一枚にしない（10/28）。
-    dirtTint: [0.7, 0.58, 0.47],
+    // 10/30 ground_photo：25秒の画面の地面の71%は土の絵。暗い一色に見えたので、乾いた山の土と小石の写真（Poly Haven dry_ground_rocks・CC0）に替え、
+    //   上の暗い赤土の掛け色は写真の色を潰すので弱める。泥も同じ写真で、絵の数は前と同じ。
+    groundPhoto: { dirt: 'mitsukuri', mudFromSoil: true, scale: 0.15, contrast: 1.3 },
+    dirtTint: [0.78, 0.76, 0.8],   // 西日で橙に焼けないよう、写真の黄みを少し抜く
     muddyCastleFloor: 0.9,
     softPathSoil: true, // 道と草、湿った土の境を格子ごとに切らずにつなぐ。
     softEarthCrust: true, // 土塊の升の境で高さと陰が飛び、四角い敷石に見えるのを防ぐ。

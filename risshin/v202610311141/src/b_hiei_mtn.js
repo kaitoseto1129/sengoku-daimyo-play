@@ -524,7 +524,8 @@ class HieiHallGaran extends Garan {
         // 自然石：石ごとに花崗岩の灰・錆びた茶・青みの灰を混ぜ、形も少し回して大小を付ける（10/28）。
         const hue = .5 + .5 * Math.sin(k * 5.1 + n * 3.3), warm = Math.max(0, hue - .45) * .9, cool = Math.max(0, .35 - hue) * .7;
         const colors = part.attributes.color;
-        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .34 * tone * (1 + warm * .35 - cool * .12), .31 * tone * (1 + warm * .1), .26 * tone * (1 - warm * .2 + cool * .18));
+        // 10/30：明るい灰は日なたで白い丸板に見えた。湿った花崗岩の暗い灰へ下げる。
+        for (let v = 0; v < colors.count; v++) colors.setXYZ(v, .25 * tone * (1 + warm * .35 - cool * .12), .23 * tone * (1 + warm * .1), .2 * tone * (1 - warm * .2 + cool * .18));
         part.scale(1, 1, .86 + .14 * (.5 + .5 * Math.sin(k * 4.3 + n * 7.9)));
         part.rotateY(.08 * Math.sin(k * 6.1 + n * 2.3));
         part.translate(x, 0, .05 * Math.sin(k * 2.7 + n * 1.9));
@@ -2244,9 +2245,10 @@ function hieiStepMat() {
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const val = new Float32Array(N * N);
   // 大きな斑（風化と湿り）：数個の柔らかな丸を重ねる。端で繋がるよう巻き込む。
-  const blobs = Array.from({ length: 22 }, () => [rnd() * N, rnd() * N, 18 + rnd() * 50, (rnd() - .5) * .22]);
+  // 10/30：地の明るさを下げ、風化の斑を強める（石の肌を白い板にしない）
+  const blobs = Array.from({ length: 22 }, () => [rnd() * N, rnd() * N, 18 + rnd() * 50, (rnd() - .5) * .4]);
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    let v = .9;
+    let v = .7;
     for (const [bx, by, r, k] of blobs) {
       const dx = Math.min(Math.abs(x - bx), N - Math.abs(x - bx)), dy = Math.min(Math.abs(y - by), N - Math.abs(y - by));
       const q = 1 - Math.min(1, Math.hypot(dx, dy) / r); v += k * q * q;

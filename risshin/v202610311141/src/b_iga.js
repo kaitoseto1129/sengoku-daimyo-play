@@ -1916,11 +1916,14 @@ const iga = {
     // 10/30 採点：開戦25秒の画面は味方が並ぶだけで敵が見えなかった。陣の口を向く遊び手の前十〜二十歩で、
     //   陣口へ斬り込んだ伊賀衆と、丹羽の先手が開戦すぐから押し合い斬り合う。夜なので両脇に篝火。人数・位置は推定。
     //   遠い林の組を減らした分だけ置き、本物の兵は二百五十人以内。勝ち負けの数えには入れない。
-    F.mouthSally = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 3, name: '陣口の丹羽の先手', anchor: { x: 2, z: 28.5 }, facing: Math.PI, width: 8, spacing: 0.9, aggro: 7, seekRange: 7, noRout: true },
+    F.mouthSally = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 3, name: '陣口の丹羽の先手', anchor: { x: 2, z: 20 }, facing: Math.PI, width: 8, spacing: 0.9, aggro: 7, seekRange: 7, noRout: true },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], NIWA));
-    F.mouthRaid = enemyGroup(rt, { fixed: true, faction: 'iga', name: '陣口へ斬り込んだ伊賀衆', anchor: { x: 2, z: 22.5 }, facing: 0, formation: 'yari', width: 8, spacing: 0.9, guard: true, guardLeash: 3,
+    F.mouthRaid = enemyGroup(rt, { fixed: true, faction: 'iga', name: '陣口へ斬り込んだ伊賀衆', anchor: { x: 2, z: 14 }, facing: 0, formation: 'yari', width: 8, spacing: 0.9, guard: true, guardLeash: 3,
       order: 'hold', aggro: 7, seekRange: 7, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 }, dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 14 }], IGA));
     F.mouthRaid.noRout = true;   // 最初の四十秒は崩れず陣口で組み合う（update で解く）
+    // 開戦25秒の乱戦（10/30 夜）：組み合いを本人の着く陣口（二十五秒で z30 前後）の十〜二十歩先へ出す。本人の肩に近いと夜討ちの二人枠の外の者が離れて行くため。
+    //   陣口の伊賀衆は二十八秒まで討たれにくく、先手と押し合い斬り合いを続ける。後からは常の通り（兵の数は同じ）
+    F.mouthRaid.defMult = 2.6; rt.after(28, () => { if (F.mouthRaid) F.mouthRaid.defMult = 1; });
     F.mouthRaid.igaHome = { x: 0, z: -20 };   // 夜討ちが退く時は、陣口から北の山道へ戻る
     {
       const fires = [[-6, 25.5], [10, 25.5]];
@@ -2138,6 +2141,8 @@ const iga = {
     });
     // 最初の三人は前の明るい陣口から歩いて寄せる。後の組の順番は変えない。
     igaAdvance(F.raiders[0], CAMP, true);
+    // 開戦25秒の乱戦（10/30 夜）：陣口から寄せる組は二十八秒まで崩れず討たれにくく、陣口で味方と揉み合い続ける。後からは常の通り（兵の数は同じ）
+    { const g = F.raiders[0]; g.noRout = true; g.defMult = 2; rt.after(22, () => { g.noRout = false; g.defMult = 1; }); }
     rt.after(8, () => { if (F.step === 1 && !F.ending) rt.bark('陣の口に敵がおる！　前を向いて迎えよ'); });
   },
   douse(rt, i, byPlayer = true) {
