@@ -732,7 +732,9 @@ export function vatDraw(army, cam) {
     // 近い形は、その姿の兵が近くに来た時に作る（遠くにしか居ない姿の分は作らない）
     if (nr && VAT.nearShape && !u.vatL.nq) { u.vatL.nq = true; nearQ.push(u.vatL); }
     const ev = leanOf(e, V);
-    put(nr ? u.vatL.nshape : cx * cx + cz * cz > XFAR_D * XFAR_D && farOf(u.vatL.shape) || u.vatL.shape, ev, V, nr ? u.vatL.ncolBase : u.vatL.colBase);
+    // 兵ごとの褪せ・明るさ・泥は、骨の人に替わる手前（8〜20m）で薄めて消す（近い人には無いので、替わる所で色が飛ばない）
+    const d2 = cx * cx + cz * cz, fk = d2 >= 400 ? 1 : Math.max(0, (Math.sqrt(d2) - VAT.near) / (20 - VAT.near));
+    put(nr ? u.vatL.nshape : d2 > XFAR_D * XFAR_D && farOf(u.vatL.shape) || u.vatL.shape, ev, V, nr ? u.vatL.ncolBase : u.vatL.colBase, fk);
     if (u.vatW) put(u.vatW, ev, V, 0);
     drawn++;
   }
@@ -741,13 +743,13 @@ export function vatDraw(army, cam) {
   VAT.stat.drawn = drawn;
   VAT.stat.drawMs = performance.now() - t0;
 }
-function put(B, e, V, w) {
+function put(B, e, V, w, fk = 1) {
   if (B.n >= B.cap) growBatch(B, B.n + 1);
   const i = B.n++;
   B.mesh.instanceMatrix.array.set(e, i * 16);
   const a = B.vat.array;
   a[i * 4] = V.out0; a[i * 4 + 1] = V.out1; a[i * 4 + 2] = V.outW; a[i * 4 + 3] = w;
-  const q = V.var || VAR0, c = B.var.array; c[i * 3] = q[0]; c[i * 3 + 1] = q[1]; c[i * 3 + 2] = q[2];
+  const q = V.var || VAR0, c = B.var.array; c[i * 3] = q[0] * fk; c[i * 3 + 1] = 1 + (q[1] - 1) * fk; c[i * 3 + 2] = q[2] * fk;
 }
 // 兵ごとの揺らぎ（一度だけ決める）：褪せ・明るさ・泥（色）と、構えの傾き・向き（姿）。形と絵は使い回し、instance の値だけを替える
 const VAR0 = [0, 1, 0, 0, 0];

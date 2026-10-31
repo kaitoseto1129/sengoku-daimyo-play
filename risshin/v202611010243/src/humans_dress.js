@@ -4,8 +4,8 @@ import { namedKacchu } from './named_kacchu.js';
 import { DOMARU, wantsDomaru, crowdDomaru } from './humans_armor.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SRC, limbFit, kusaPlates, plateOf, HEAD } from './humans_shared.js';
-import { katoGeometry, headEnvelope } from './units.js';
+import { SRC, limbFit, kusaPlates, plateOf, HEAD, humanLook } from './humans_shared.js';
+import { katoGeometry, headEnvelope, IMP_TINT } from './units.js';
 
 
 // 近距離専用の打ち出しと縅。元の形は変えず、骨へ付ける前に同じ部品へ結合する。
@@ -39,6 +39,26 @@ function soldierVar(L) {
   const lacT = (red ? VAR_RED : T === 0 ? VAR_LAC0 : VAR_LAC1)[iL];
   return { iL, iC, iK, T, lac: lacT, lace: VAR_LACE[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: (red ? VAR_RED : VAR_HATC)[(iL + (vi % 2 ? 2 : 0)) % 6] };
 }
+// 遠い軽い兵の束（world_army.js の makeImpostor）へ渡す、近い兵と同じ作り分けの色（胴の漆・威糸・笠）。
+//   同じ soldierVar（同じ種と色の表）から、近い形の塗り替え（nearArmorParts・recolorGeo）と同じ混ぜ方で出す。作り分けの無い者は null
+function soldierTint(look0) {
+  const L = humanLook(look0), V = soldierVar(L);
+  if (L.sohei || L.nanban || L.kosode || L.hero) return null;
+  // 作り分けの無い者（名のある具足など）も、近い形と同じ漆・笠の色（humanLook の後の色）にそろえる
+  if (!V) return { lac: L.armor ?? 0x24221f, lace: L.lace ?? 0x5a4630, hat: L.hatColor ?? L.armor ?? 0x24221f, i: -1 };
+  const armor = L.armor ?? 0x24221f;
+  let lac = armor, lace = L.lace ?? 0x5a4630;
+  if (V.lac[0] != null) lac = varCol.set(armor).lerp(varTmp.set(V.lac[0]), V.lac[1]).getHex();
+  else if (V.iL) lac = varCol.set(armor).multiplyScalar(0.8).getHex();
+  if (V.lace[0] != null) lace = varCol.set(lace).lerp(varTmp.set(V.lace[0]), V.lace[1] * (V.T === 0 ? 0.8 : 1)).getHex();
+  let hat = lac;
+  if (V.hat) {
+    const hb = L.hatColor ?? armor, H = V.hatLac;
+    hat = H[0] != null ? varCol.set(hb).lerp(varTmp.set(H[0]), H[1]).getHex() : varCol.set(hb).multiplyScalar(0.8).getHex();
+  }
+  return { lac, lace, hat, i: V.iL };
+}
+IMP_TINT.fn = soldierTint;
 // 塗り替え：元の色 base に近い頂点（同じ色合い・陰の明るさ）だけを、明るさの比を保って target へ寄せる
 function remapNear(arr, i, base, bl, target, amt) {
   const r = arr[i], g = arr[i + 1], b = arr[i + 2], l = r * 0.3 + g * 0.59 + b * 0.11;
@@ -504,4 +524,4 @@ function naginata(u) {
   u.wpn.userData.tip = 1.8; u.wpn.userData.butt = -0.95;
 }
 
-export { nearArmorGeos, nearArmorParts, layParts, kzSplit, splitKusazuri, NAMED_KEEP, CREST_OFF, crestGeos, crestOnly, PLAIN_UV, yokeGeos, sleeveGeos, soheiCache, SOHEI_HEAD, NAGINATA, naginata };
+export { soldierTint, soldierVar, nearArmorGeos, nearArmorParts, layParts, kzSplit, splitKusazuri, NAMED_KEEP, CREST_OFF, crestGeos, crestOnly, PLAIN_UV, yokeGeos, sleeveGeos, soheiCache, SOHEI_HEAD, NAGINATA, naginata };

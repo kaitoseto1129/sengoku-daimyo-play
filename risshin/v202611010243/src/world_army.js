@@ -15,6 +15,17 @@ const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
 const PORTER_TINT = new THREE.Color(0.95, 0.86, 0.7);
 let SASHI_GEO = null, KIBA_FLAG_GEO = null, BANNER_GEO = null, YOSE_BANNER_GEO = null, YOSE_PLUME_GEO = null;
 
+// 軽い兵の形の頂点の印：1 胴の漆（armor・その陰の色）・2 威糸（lite）・3 陣笠・4 兜。ほかは 0（顔・腕・脚・得物は元の色）
+function impMask(g, armor) {
+  const C = g.attributes.color, P = g.attributes.aPart, n = C.count, out = new Float32Array(n);
+  const a = new THREE.Color(armor), d = a.clone().multiplyScalar(0.72), l = a.clone().lerp(new THREE.Color(0x8a8070), 0.18);
+  const eq = (i, c) => Math.abs(C.getX(i) - c.r) + Math.abs(C.getY(i) - c.g) + Math.abs(C.getZ(i) - c.b) < 1e-4;
+  for (let i = 0; i < n; i++) {
+    const pt = P ? P.getX(i) : 0;
+    out[i] = pt === 1 ? 3 : pt === 2 ? 4 : pt === 0 && (eq(i, a) || eq(i, d)) ? 1 : pt === 0 && eq(i, l) ? 2 : 0;
+  }
+  return new THREE.BufferAttribute(out, 1);
+}
 export class WorldArmy {
 
   addDistantArmy(o) {
@@ -1340,9 +1351,32 @@ export class WorldArmy {
       g.setAttribute('aHost', new THREE.InstancedBufferAttribute(new Float32Array(cap), 1));
       return g;
     };
+    // 近い兵と同じ作り分けの色（humans_dress.js の soldierTint。胴の漆・威糸・笠と兜）を兵ごとに。頂点の印（aVm）と兵ごとの値（aVarT）だけで、材質と描く数は増やさない
+    const arm = new THREE.Color(armor), lite = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18);
+    const lum = (c) => Math.max(1e-4, c.r * 0.3 + c.g * 0.59 + c.b * 0.11);
+    const tintGeo = (g) => {
+      g.setAttribute('aVm', impMask(g, armor));
+      g.setAttribute('aVarT', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage));
+      return g;
+    };
+    const uImpL = { value: new THREE.Vector4(lum(arm), lum(lite), lum(new THREE.Color(0x2c261e)), lum(new THREE.Color(0x1c1a18))) };
+    const tintMat = (mat) => {
+      const ob = mat.onBeforeCompile;
+      mat.onBeforeCompile = (sh, r) => {
+        ob(sh, r);
+        sh.uniforms.uImpL = uImpL;
+        sh.vertexShader = 'attribute float aVm; attribute vec4 aVarT; uniform vec4 uImpL;\nvec3 impUnp(float p) { return pow(vec3(floor(p / 65536.0), mod(floor(p / 256.0), 256.0), mod(p, 256.0)) / 255.0, vec3(2.2)); }\n' + sh.vertexShader
+          .replace('#include <color_vertex>', `#include <color_vertex>
+          if (aVarT.w > 0.5 && aVm > 0.5) {
+            float lb = dot(color, vec3(0.3, 0.59, 0.11));
+            vColor = aVm < 1.5 ? impUnp(aVarT.x) * (lb / uImpL.x) : aVm < 2.5 ? impUnp(aVarT.y) * (lb / uImpL.y) : impUnp(aVarT.z) * (lb / (aVm < 3.5 ? uImpL.z : uImpL.w));
+          }`);
+      };
+      return mat;
+    };
     // 高：まとめて描く兵は 48m より先だけなので、腕・袖のある軽い形（205 面）。110m より先（far）は輪郭の形
     // 画質「低」（携帯）：まとめて描く遠い兵は、角の少ない遠い形（一人 1100 面 → 300 面ほど。低では 12m より先の兵だけ。far：18m より先の兵の束は、さらに軽い形）
-    const body = new THREE.InstancedMesh(mk(soldierGeo(armor, false && (this.def.denseFront || this.def.lowArmyDetail) ? (far ? 'x3lo' : 'xlo') : far ? ('x3lo') : 'xlo')), armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U), cap);
+    const body = new THREE.InstancedMesh(tintGeo(mk(soldierGeo(armor, false && (this.def.denseFront || this.def.lowArmyDetail) ? (far ? 'x3lo' : 'xlo') : far ? ('x3lo') : 'xlo'))), tintMat(armyShader(new THREE.MeshLambertMaterial({ vertexColors: true }), U)), cap);
     const flags = new THREE.InstancedMesh(mk(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: flagTexture(flag || 'tokugawa'), side: THREE.DoubleSide }), U), cap);
     const meshes = [body, flags];
     for (const m of meshes) { m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); this.scene.add(m); }
@@ -1355,8 +1389,10 @@ export class WorldArmy {
     body.onBeforeRender = (r, sc, cam) => { if (R.onCam) R.onCam(cam.position); };
     return Object.assign(R, {
       cap,
-      put: (i, x, z, yaw, k, helm, ex, fl, sd) => {
+      put: (i, x, z, yaw, k, helm, ex, fl, sd, tint) => {
         if (i >= cap) return;
+        const T = A.aVarT.array, o = i * 4;
+        if (tint) { T[o] = tint.lac; T[o + 1] = tint.lace; T[o + 2] = tint.hat; T[o + 3] = 1; } else T[o + 3] = 0;
         p.set(x, this.heightAt(x, z), z); q.setFromAxisAngle(yAx, yaw); m4.compose(p, q, sc);
         body.setMatrixAt(i, m4); flags.setMatrixAt(i, m4);
         const at = i * 4;
@@ -1372,6 +1408,7 @@ export class WorldArmy {
         flags.visible = n > 0;   // 空の束は描かない（体の束は写真の視点の見張りに残す）
         if (!n) return;
         for (const m of meshes) { m.instanceMatrix.needsUpdate = true; m.geometry.attributes.aInfo.needsUpdate = true; m.geometry.attributes.aInfo2.needsUpdate = true; }
+        A.aVarT.needsUpdate = true;
       },
       dispose: () => { this.scene.remove(body, flags); },
     });

@@ -235,6 +235,8 @@ function allyNoBlue(look, deep = true) {
 
 // ---------------- 軍勢の管理 ----------------
 // まとめて描く兵の種類の番号（軽い兵の形：0 槍 1 鉄砲 2 弓 3 侍）
+// 遠い軽い兵の束へ渡す、近い兵と同じ作り分けの色（humans_dress.js の soldierTint が入る。読み込み前は null で、元の一色のまま）
+export const IMP_TINT = { fn: null };
 const IMP_KIND = { ashigaru: 0, gun: 1, bow: 2, samurai: 3, porter: 3 };   // 人足・逃げる人（porter）は得物を持たない侍の形（兜は無し）
 // 画質「低」の遠い兵（10m より先。背丈が五十画素ほど）の部品は、頂点を 4cm の升でまとめた粗い形で描く（色・素材の印は元の頂点のまま）。
 //   遠い形（lo）でも一人二千面ほどあり、百人の乱戦で二十万面を越えていた。人数・動き・並びは変えない
@@ -1874,7 +1876,9 @@ export class Army {
       }
       if (st.n >= st.im.cap) { u.imp = false; u.mesh.visible = true; continue; }
       const helm = u.look.hat && u.look.hat.startsWith('kabuto') ? 1 : 0;
-      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1);
+      // 近い兵と同じ具足・笠の色（姿ごとに一度だけ決める。近づいて骨の人に替わっても色が飛ばない）
+      if (u.impTintLook !== u.look && IMP_TINT.fn) { u.impTintLook = u.look; try { u.impTint = IMP_TINT.fn(u.look); } catch (e) { u.impTint = null; } }
+      st.im.put(st.n++, u.pos.x, u.pos.z, u.heading, k, helm, k === 0 ? 1.25 : 0, u.look.flag ? 1 : 0, (u.id * 0.618) % 1, u.impTint);
     }
     for (const st of I.values()) st.im.commit(st.n);
   }
