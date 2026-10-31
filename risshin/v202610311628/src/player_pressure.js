@@ -18,8 +18,11 @@ export function playerPressureTick(army) {
   if (army.tier == null) army.tier = battleTier(army.world?.def?.battleKey);
   // def.playerAtkMax：乱戦の戦（稲生）は四方から同時に打たせる数を戦ごとに決める（kaito 10/29 夜「乱戦激戦」）
   army.playerAtkMax = army.world?.def?.playerAtkMax ?? (army.tier >= 0.75 ? 3 : 2);
-  army.playerReach = 13 + 5 * army.tier;
-  army.playerPullMax = 2 + Math.round(6 * Math.pow(army.tier, 1.5));
+  // 敵は本人を多く狙う（kaito 10/31）：寄って来る間合いと数を広げる。打つ数（playerAtkMax）は変えない。
+  //   退き・行軍の段（大軍の寄せが止まる段＝_massOnV が偽）は元の数のまま。
+  const mass = !!army._massOnV;
+  army.playerReach = (mass ? 16 : 13) + 5 * army.tier;
+  army.playerPullMax = (mass ? 4 : 2) + Math.round((mass ? 5 : 6) * Math.pow(army.tier, 1.5));
   let pn = 0;
   for (const o of army.units) if (o.pullUntil > army.time && o.alive) pn++;
   army.playerPullN = pn;

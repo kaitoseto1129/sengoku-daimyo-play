@@ -8,6 +8,7 @@
 import { groundAt } from './floors.js';
 import { localPoint, localClear } from './army_local_way.js';
 import { CPU_LEAN } from './settings.js';
+import { massAssaultTick } from './mass_assault.js';
 const DEFAULT = {};
 const EMPTY = [];
 const QUIET_PHASE = /^(brief|march|wait|rest|pick|move|back\d*|retreat|withdraw|flee|escape|envoy|news|lull|regroup|redeploy|end\d*)$/;
@@ -34,14 +35,39 @@ function fighting(rt, config) {
   return task ? !QUIET_TASK.test(task.text) || COMBAT_TASK.test(task.text) && !/退き|退却/.test(task.text) : COMBAT_PHASE.test(rt.phase);
 }
 
+// 大軍の寄せを回す時：前線の濃さが動く時に加え、退き・行軍の段でなく、本人の 50m 内に敵の兵がいる時。
+function massOn(rt, config) {
+  const A = rt.army;
+  if (A._massOnAt > A.time) return A._massOnV;
+  A._massOnAt = A.time + 0.5;
+  return A._massOnV = massNow(rt, config);
+}
+function massNow(rt, config) {
+  if (rt.over || rt.aftermath || rt.withdrawal || rt.flags.ending || !rt.player.u.alive || rt.def.dojo || rt.def.town ||
+      rt.choice || rt.tutPause || (rt.prelude && rt.prelude !== 'done') || (rt.def.wakeOK && !rt.def.wakeOK(rt)) ||
+      config.excludePhases?.includes(rt.phase) || QUIET_PHASE.test(rt.phase)) return false;
+  for (const o of rt.objectives) {
+    if (o.state || (o.kind !== 'main' && o.kind !== 'order')) continue;
+    if (QUIET_TASK.test(o.text) && !COMBAT_TASK.test(o.text)) return false;
+  }
+  const P = rt.player.u;
+  for (const u of rt.army.units) {
+    if (u.team === P.team || !soldier(u)) continue;
+    const dx = u.pos.x - P.pos.x, dz = u.pos.z - P.pos.z;
+    if (dx * dx + dz * dz < 2500 && Math.abs(u.pos.y - P.pos.y) < 6) return true;
+  }
+  return false;
+}
+
 function soldier(u) {
   return u.alive && !u.gone && !u.isStruct && !u.fleeing && !u.noTarget && !u.woundOut && !u.rearWound &&
     u.type !== 'dummy' && u.type !== 'porter' && !u.group?.hidden && !u.group?.people && !u.group?.civ;
 }
 
-function movable(rt, g) {
-  if (!g || g.noFrontline || g.hidden || g.hideFlags || g.people || g.civ ||
-      g.isRunner || g.isPlayerSquad || g.routed || g.guard || g.guardOn || g.siegeAI || (g.noAI && !g.frontlineMobilize && !rt.army.frontlineDensity?.relax) ||
+function movable(rt, g, mass = false) {
+  // 大軍の寄せ（mass_assault.js）に入った隊の兵は、小勢として一人ずつ抜かない。
+  if (!g || g._massOwn && !mass || g.noFrontline || g.hidden || g.hideFlags || g.people || g.civ ||
+      g.isRunner || g.isPlayerSquad || g.routed || !mass && (g.guard || g.guardOn) || g.siegeAI || (g.noAI && !g.frontlineMobilize && !rt.army.frontlineDensity?.relax) ||
       g.ambush || g._ai?.ambushWait || g._ai?.mode === 'withdraw' || g._ai?.mode === 'rally' ||
       g.focus || g.onArrive || g.historicalOrders && g.ai !== true && !g.dispatch || g.stay || g.regroupT > 0 || g._ai?.mode === 'flank' || g.march || g.marching || g.retreatOnly ||
       (g.order !== 'attack' && g.order !== 'hold' && g.order !== 'yari')) return false;
@@ -292,7 +318,7 @@ function clashKeep(rt, F, A, P) {
     let eng = false;
     for (const g of c.gs) for (const u of g.units) {
       const t = u.target;
-      if (u.alive && t?.alive && t.team !== u.team && Math.abs(t.pos.x - u.pos.x) + Math.abs(t.pos.z - u.pos.z) < 6) { eng = true; break; }
+      if (u.alive && t?.alive && t.pos && t.team !== u.team && Math.abs(t.pos.x - u.pos.x) + Math.abs(t.pos.z - u.pos.z) < 6) { eng = true; break; }
     }
     if (eng) c.last = A.time;
     // 二十秒打ち合わない組は役目を終える：本人から 45m より遠い手の空いた者は消し、近い者は近い敵へ寄る
@@ -325,7 +351,7 @@ function clashKeep(rt, F, A, P) {
       }
       // 本人から遠く離れて手の空いた者は、静かに消す（遠景へ下がった扱い。討たれた数に入れない）
       const d = Math.hypot(ce.x - P.x, ce.z - P.z);
-      if ((d > 95 || c.idle && d > 45) && A.time - c.at > 20) for (const u of g.units) if (u.alive && !u.atk && !u.swing && !u.bind && !(u.target?.alive && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6)) A.despawn(u);
+      if ((d > 95 || c.idle && d > 45) && A.time - c.at > 20) for (const u of g.units) if (u.alive && !u.atk && !u.swing && !u.bind && !(u.target?.alive && u.target.pos && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6)) A.despawn(u);
     }
   }
 }
@@ -418,6 +444,7 @@ export function frontlineDensityTick(rt, dt) {
     F.nextWave = rt.army.time + 12;
   }
   F.on = on;
+  massAssaultTick(rt, on || massOn(rt, config), dt, movable);
   if (!on) { quietScouts(rt, F, dt); return; }
   F.scan += dt;
   if (F.scan < 0.5) return;

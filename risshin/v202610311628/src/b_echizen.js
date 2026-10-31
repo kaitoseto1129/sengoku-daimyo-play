@@ -684,6 +684,8 @@ echizen.world = {
   cedarBoughs: true, cedarBoughPitch: 1.3, cedarBoughWidth: 1.1, farCedarPitch: 1.0, keepNeedleLayers: true,
   // 画面が暗かった（点付け）。雨の峠の日と空の回り光を上げる（光の値だけ。霧の距離・見通しは変えない）。
   stormLift: 1.35,
+  // 10/31 雨の日差しが真上から一様で、兵の顔と胴が平らだった。雲越しの日を斜めから当て、陰の側を残す。
+  stormLight: { sunI: 1.75, hemiI: 2.35, sunPos: [-70, 80, 55] },
   unevenCrowns: true,
   // 遠景も枝の輪郭を崩し、雑木の重複頂点は一緒に動かして樹冠を裂かない。
   softFarNeedles: true,

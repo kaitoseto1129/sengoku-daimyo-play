@@ -342,6 +342,8 @@ export class Commander {
     let A = g._ai;
     if (!s || g.routed || !g.count) { if (A && A.mode) this.release(g, A); return; }
     if (!A) A = this.init(g);
+    // 大軍の寄せ（mass_assault.js）が要を動かす間は、この頭は手を出さない。
+    if (g._massOwn) { if (A.mode) this.release(g, A); if (A.gd) this.unguard(g, A); return; }
     // 味方の持ち場の隊（塀・柵の内でも控えでも守りの隊でもない）は、戦が始まって 8 秒たち、70m 内に敵の隊が来たら自分から出て戦う
     //   （味方が何もせず突っ立って待っているように見えないように。戦の定義が g.stay = true にした隊は動かさない）
     if (g.team === (this.rt.player ? this.rt.player.u.team : 0) && g.order === 'hold' && !scriptedAlly(g) && !g.stay && !g.guard && !g.reserve && !g.noAI && !g.isPlayerSquad && !g.holdFire && !g.focus && g !== this.rt.hostGroup && !A.walled && !A.fort && this.rt.t > 8 && !(A.wakeT > this.rt.t)) {

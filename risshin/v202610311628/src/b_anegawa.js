@@ -3637,7 +3637,7 @@ const anegawa = {
       F.jinIshikawa.m.moveTo(WEST_FRONT_X - 32, ishikawaNorth, 10);
     });
     rt.setPhase('brief');
-    F.openingWaitDuration = rt.G.lord ? 18 : 8;   // 開戦25秒の乱戦（10/30）：磯野の渡河を少し早める
+    F.openingWaitDuration = rt.G.lord ? 18 : 5;   // 開戦25秒の乱戦（10/30・夜に8→5）：磯野の渡河を早め、25秒には岸の斬り合いが広がっているように
     F.openingWaitUntil = rt.t + F.openingWaitDuration;
     anegawaObjective(rt, 'main', rt.G.lord ? '浅井の寄せを受け、押し返せ' : '川を渡らず、岸で浅井を待て');
     F.holdLabel = '森の先手・岸の槍列';

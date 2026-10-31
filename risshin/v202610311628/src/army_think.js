@@ -321,6 +321,27 @@ export const ArmyThink = {
       u.aiT = Math.min(u.aiT, 0.08);
       return;
     }
+    // 敵は本人を多く狙う（kaito 10/31）：手の届く間合い（playerReach）に本人がいれば、近くの味方より本人を選ぶ。
+    //   選ぶ数は playerPullMax まで。一度に斬りかかるのは player_pressure の playerAtkMax 人までで、残りは周りで順を待つ。
+    {
+      const PP = this.playerUnit;
+      if (PP && PP.alive && PP.team !== u.team && !PP.noTarget && (!PP.invuln || PP.allyOk) && !this.duel &&
+          (!PP.soloFor || PP.soloFor === u || !PP.soloFor.alive) &&
+          !u.name && !u.isLord && !u.stdHeld && !u.banner && !u.fleeing && !g.guardOn && !g.hidden && !g.ambush && !g.peaceful && !g.people && !g.civ &&
+          u.type !== 'busho' && u.type !== 'porter' && u.type !== 'dummy' && !u.civ && !u.noTarget && !u.mounted && !g.interiorHold &&
+          g.order !== 'retreat' && g.order !== 'assault' && g.order !== 'path' && g.order !== 'flee' && !g.routed && !g.stay && !g.retreatOnly &&
+          !g._ai?.ambushWait && g._ai?.mode !== 'withdraw' && g._ai?.mode !== 'rally' &&
+          (u.sidearm || u.type !== 'bow' && u.type !== 'gun') && !u.woundOut && !u.rearWound && !u.downed && !u.climb && !u.perch &&
+          !(u.atk && u.atk.target !== PP) && !(u.swing && !u.swing.done) && !u.bind &&
+          (u.pullUntil > this.time || (this.playerPullN || 0) < (this.playerPullMax || 3))) {
+        const dd = Math.hypot(PP.pos.x - u.pos.x, PP.pos.z - u.pos.z);
+        if (dd < (this.playerReach || 14) && Math.abs(PP.pos.y - u.pos.y) < 2 && weatherSees(this.world, u.pos, PP.pos) &&
+            !this.wallBetween(u.pos, u.team, PP.pos, (u.wpnKind || u.lookWeapon) === 'spear')) {
+          if (!(u.pullUntil > this.time)) this.playerPullN = (this.playerPullN || 0) + 1;
+          u.pullUntil = this.time + 2.5; u.target = PP; u.watch = null; u.moveTo = null; return;
+        }
+      }
+    }
     // 近ければ必ずぶつかる（kaito 10/23 稲生 9・17・24）。隊の下知（待て・控え・筋書きの止め）に関わらず、
     //   手の届く所の敵（本人も含む）には向き直って打ち合う。今の相手が近くにいる間は選び直さない。
     if ((u.sidearm || u.type !== 'bow' && u.type !== 'gun') && !u.civ && !u.stdHeld && !u.stdPickup && u.type !== 'porter' && u.type !== 'dummy' &&

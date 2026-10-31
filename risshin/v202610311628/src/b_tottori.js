@@ -1914,7 +1914,7 @@ const tottori = {
     keepSpawnInside: true, // 武将の後ろの持ち場と供も含め、陣形全体を場内へ収める。
     // 陰の側にも空の弱い光を残し、黒漆の胴・袖・手元を読み取れるようにする。
     nightLift: 2.9, nightFill: 0.68, nightMoonMin: 0.7, nightMetalness: 0.18, waterFireReflections: true,
-    time: 'night', unitNightScale: 0, // 兵だけの青白い自己発光を止め、地面と同じ月光で照らす。
+    time: 'night', unitNightScale: 0.55, // 10/31 岸の砂だけが明るく兵が黒い影だった。兵の面にだけ月の返りを残す（縁は光らせない強さ）。
     kasaDrape: false, // 本人と護送の供にも同じ陣笠の仕立て。白い首布を残さない。
     shadowBoneOrder: true, // 胴丸の軽い影も、体と共有する骨番号へそろえる。
     darkFootprints: true, // 足跡は月光で照らす泥色。道案内は既存の矢印一つ。
@@ -2392,7 +2392,7 @@ const tottori = {
     for (const u of F.env.units) { u.noTarget = true; u.invuln = true; u.dmg = 0; }
     // 月を少し高く置き、槍の影が岸を端から端まで走る黒い線にならないようにする。月明かりは岸の兵と石垣の形が読める明るさ（10/30 採点：暗すぎる）。
     // 月と反対を向いた胴・船べりにも空の光を残す。月の影と夜空は保つ。
-    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 0.85, hI: 1.45, sun: 0xa3abb8, hs: 0x848d9c }); rt.world.lookDark = true;
+    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 0.95, hI: 1.15, sun: 0xa9b3c4, hs: 0x7c88a0 }); rt.world.lookDark = true;
     // 出陣札の間は世界の更新が止まる。遠景の霞もここで夜色にそろえる。
     W.mountU.hazeCol.value.copy(W.scene.fog.color);
     W.mountU.vis.value = W.lookOf('night').vis;

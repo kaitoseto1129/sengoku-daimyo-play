@@ -17,6 +17,7 @@ import { WIND_STATE } from './world.js';
 import { setCastleMask } from './castle_mask.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { denseCamp } from './castle_bldg.js';
+import { castlePart } from './cgt_castle.js';
 import { MIKI_JO, MIKI_KURUWA, MIKI_HONJIN_OFFSET, MIKI_ROAD, TSUKESHIRO_CHAIN, MIKI_BRANCHES, MIKI_HORI, MIKI_FORTS as BASE_FORTS } from './castles/miki.js';
 import { placeGroup } from './b_opening.js';
 import { RANKS } from './state.js';
@@ -921,8 +922,16 @@ function mikiFarFort(rt, q) {
     palisade(W, seg, { h: q.big ? 3.2 : 2.4, batch });
     dorui(W, seg, -Math.sin(am), -Math.cos(am), { h: q.big ? 1.4 : .9, w: 2.4, capEnds: true, closeBack: true, batch });
   }
-  for (const [x, z, w, d] of [[-6, -2, 7, 4], [5, 4, 6, 4], [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
+  for (const [x, z, w, d] of [[-6, -2, 7, 4], ...(q.big ? [] : [[5, 4, 6, 4]]), [-3, 7, 5, 3.5], [4, -6, 5, 3.5]]) hut(W, q.x + x, q.z + z, w, d, 0, { ita: true, batch, boardRoof: true, weatheredBoards: true });
   mikiFinishBatch(rt, batch);
+  // 大きな付城の口に板の櫓門（冠木門の上に板壁の渡櫓・板葺きの屋根）。柵と井楼だけの囲いが箱と棒に見えた（10/31 採点 近道1・形は推定）。
+  if (q.big) {
+    const am = (Math.round(n / 4) + 0.5) / n * Math.PI * 2;
+    castlePart(W, 'yaguramon', { x: q.x + Math.sin(am) * q.r, z: q.z + Math.cos(am) * q.r, rot: am, w: 3.6, len: 7.4, D: 3.8 }, { era: 'early' });
+    // 番所の一つを二重の物見櫓に替える（下見板・板葺き・石の台）。
+    const yx = q.x + 5, yz = q.z + 4, yy = W.heightAt(yx, yz);
+    castlePart(W, 'niju', { x: yx, z: yz, rot: 0, y: yy + 0.3, w: 6, d: 4.6, h1: 3.4, h2: 2.6, stone: yy - 0.8 }, { era: 'early' });
+  }
   const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.big ? 15 : 11, boarded: true });
   if (q.big) rt.scene.add(yagura(W, q.x - 8, q.z + 6, { logFrame: true, kind: 'ro', height: 12, boarded: true }));
   rt.scene.add(tower, jinmaku(W, q.x - 4, q.z - 7, 5, 4, 3, { mon: 'oda' }));

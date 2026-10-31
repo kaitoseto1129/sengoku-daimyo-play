@@ -1661,11 +1661,19 @@ const iwamura = {
     // 10/30 採点：開戦25秒の画面は味方がまばらに並ぶだけで敵が見えなかった。西の篝火へ歩く遊び手の前十〜十五歩、
     //   柵の外で、柵に取り付いた武田の夜討ちと、柵から出た河尻の足軽が開戦すぐから押し合い斬り合う。篝火で照らす。人数・位置は推定。
     //   追う山道（x=0 の口から北）と柵の内の持ち場への道は塞がない。勝ち負けの数えには入れない。
-    F.fenceSally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x: -17, z: -9 }, facing: Math.PI, width: 8, spacing: 0.9, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 3, noRout: true },
-      battleLook(rt, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], ODA));
-    F.fenceRaid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x: -17, z: -14 }, facing: 0, order: 'hold', formation: 'yari', width: 8, spacing: 0.9, aggro: 7, seekRange: 7, guard: true, guardLeash: 3, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
-      battleLook(rt, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }], TAKEDA));
-    F.fenceRaid.noRout = true;   // 最初の四十秒は崩れず柵の外で組み合う（update で解く）
+    // 10/30 25秒（二）：一つの組み合いは西に十七歩離れ、まばらに見えた。同じ人数を口の左右十一〜十六歩へ二つに分け、
+    //   柵の外で詰めて押し合わせる（口へ向いても、西・東の篝火へ向いても、どちらかが画面に入る）。兵の総数は同じ。
+    F.fenceSallies = []; F.fenceRaids = [];
+    for (const [x, lead, n] of [[-16, true, 7], [11, false, 7]]) {
+      const sally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x, z: -8 }, facing: Math.PI, width: 5, spacing: 0.85, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, noRout: true },
+        battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], ODA));
+      const raid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x, z: -11.5 }, facing: 0, order: 'hold', formation: 'yari', width: 5, spacing: 0.85, aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
+        battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], TAKEDA));
+      raid.noRout = true;   // 最初の四十秒は崩れず柵の外で組み合う（update で解く）
+      raid.defMult = sally.defMult = 3;   // 二十五秒の前に討ち尽くさず、押し合いを長く見せる（四十秒で戻す）
+      F.fenceSallies.push(sally); F.fenceRaids.push(raid);
+    }
+    F.fenceSally = F.fenceSallies[0]; F.fenceRaid = F.fenceRaids[0];
     {
       const fires = [[-10, -9], [-24, -9]];
       rt.scene.add(kagaribiBatch(W, fires));
@@ -1980,7 +1988,10 @@ const iwamura = {
   },
 
   update(rt, dt) {
-    if (rt.flags.fenceRaid?.noRout && rt.t > 40) rt.flags.fenceRaid.noRout = false;
+    if (rt.t > 40 && rt.flags.fenceRaids?.[0].defMult > 1) {
+      for (const g of rt.flags.fenceRaids) { g.noRout = false; g.defMult = 1; }
+      for (const g of rt.flags.fenceSallies) g.defMult = 1;
+    }
     const F = rt.flags;
     KIT.backTick(rt);
     // 置換した備も持ち場の槍の列に留める。追撃の下知を受けた二手へ勝手に加わらせない。

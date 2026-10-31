@@ -40,7 +40,7 @@ export function drawMissionGround(rt, el, want, rects) {
   el.hidden = true;
   if (!el._groundCue) {
     const group = document.createElementNS(namespace, 'g');
-    group.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="10"/><path fill="none" stroke="#fff3ba" stroke-width="5"/><path fill="#fff3ba" stroke="#14120f" stroke-width="6"/><g><path d="M0 0V-48H30L22-36L30-24H0" fill="#fff3ba" stroke="#14120f" stroke-width="5"/><rect x="8" y="-17" width="120" height="27" rx="3" fill="#14120f"/><text x="68" y="3" text-anchor="middle" fill="#fff3ba" font-size="18" font-weight="bold">ここを まもれ</text></g>';
+    group.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="10"/><path fill="none" stroke="#fff3ba" stroke-width="5"/><path fill="#fff3ba" stroke="#14120f" stroke-width="6"/><g><path d="M0 0V-48H30L22-36L30-24H0" fill="#fff3ba" stroke="#14120f" stroke-width="5"/></g>';
     group.setAttribute('stroke-linejoin', 'round');
     el._lines.appendChild(group); el._groundCue = group;
   }

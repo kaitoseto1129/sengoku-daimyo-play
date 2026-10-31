@@ -540,6 +540,9 @@ function unitFill(strength, focus) {
       // 森の陰でも袖・兜・脚の縁に空の照り返しを残す。追加の形や光源は作らない。
       // 面の色と霧・遮蔽は保ち、近い兵だけに同じ補光を使う。
       totalEmissiveRadiance += vec3(0.12, 0.14, 0.17) * smoothstep(0.45, 0.9, fillEdge) * fillNear * rimK;
+      // 黒漆・黒い布は、遠い兵でも面の傾く所に空の照り返しを薄く残す（黒い影の塊に潰れず、胴・袖・笠の形が読める）。色の付いた面には足さない
+      float darkK = 1.0 - smoothstep(0.035, 0.12, max(max(material.diffuseColor.r, material.diffuseColor.g), material.diffuseColor.b));
+      reflectedLight.indirectSpecular += vec3(0.085, 0.088, 0.095) * fillEdge * fillEdge * fillEdge * darkK * (0.4 + 0.6 * fillFace) * fillAll;
     }
     #include <aomap_fragment>`;
 }

@@ -1467,7 +1467,14 @@ const tano = {
     // 午前の光を谷の向きに合わせる。＋横は東北東、＋奥行きは南南東。
     // 日付は旧暦三月十一日。日の高さ・天気は推定で、史実の確定値ではない。
     // 共通の昼の北寄りの日差しを替え、既存の光と空で同じ方向を使う。
-    W.sunOffset.set(36, 84, 78).normalize().multiplyScalar(120);
+    // 10/31 共通の昼の見え方が始めの5秒に日の向きを戻し、上の向きが効かず、東を向く持ち場で日が真正面の奥（逆光）になって手前の兵が黒い影だった。
+    //   見え方を読む所で日を南寄りに回して横から当て、空の返りも少し足す（光の数・影は増やさない）。
+    if (!W.tanoLookOf) {
+      const lookOf = W.tanoLookOf = W.lookOf.bind(W);
+      W.lookOf = (key) => { const L = lookOf(key); if (key === 'day') { L.sunDir.set(14, 80, 92).normalize(); L.hemiI *= 1.4; } return L; };
+      W.setTime(W.timeKey || 'day');
+    }
+    W.sunOffset.set(14, 80, 92).normalize().multiplyScalar(120);
     // 急な山肌に影自身の縞を残さない。田野の光だけを調整する。
     W.sun.shadow.normalBias = 0.12;
     // 低い朝日が当たる切岸へ、影の深さを押し込みすぎて網目を出さない。

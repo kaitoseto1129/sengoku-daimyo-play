@@ -70,6 +70,9 @@ const VAT_GLSL = `
 uniform highp sampler2D uVat;
 uniform highp sampler2D uVatCol;
 attribute vec4 aVat;
+#ifdef VAT_BODY
+attribute vec3 aVar;
+#endif
 attribute vec4 skinIndex;
 attribute vec4 skinWeight;
 mat4 vatBone(int b, int row) {
@@ -101,10 +104,18 @@ function vatMaterial(body) {
         int vci = int(aVat.w + 0.5) + gl_VertexID;
         vec4 vcc = texelFetch(uVatCol, ivec2(vci % ${CW}, vci / ${CW}), 0);
         vColor = vatUnpack(vcc.x); vCol2 = vatUnpack(vcc.y); vMtl = vcc.z;
+        // 兵ごとの使い込み（aVar：x 日焼けの褪せ・y 明るさ・z 泥）。布と漆だけ。色相は家の色のまま、褪せは暖かい灰へ寄せる（青くしない）
+        float vmA = floor(vMtl + 0.001);
+        if (vmA < 1.5) {
+          float vfk = aVar.x * (vmA < 0.5 ? 1.0 : 0.5);
+          vColor = mix(vColor, vec3(dot(vColor, vec3(0.299, 0.587, 0.114))) * vec3(1.07, 1.0, 0.88) + 0.03, vfk) * aVar.y;
+          vCol2 = mix(vCol2, vec3(dot(vCol2, vec3(0.299, 0.587, 0.114))) * vec3(1.07, 1.0, 0.88) + 0.03, vfk) * aVar.y;
+          vMtl = vmA + min(0.9, vMtl - vmA + aVar.z * 0.25);
+        }
       }`);
     sh.vertexShader = v;
   };
-  m.customProgramCacheKey = () => (body ? 'vatBody1' : 'vatWpn1');
+  m.customProgramCacheKey = () => (body ? 'vatBody2' : 'vatWpn1');
   return m;
 }
 let MAT_BODY = null, MAT_WPN = null;
@@ -144,12 +155,14 @@ function growBatch(b, need) {
   g.setIndex(b.geo.index);
   const vat = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage);
   g.setAttribute('aVat', vat);
+  const vv = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aVar', vv);
   const mesh = new THREE.InstancedMesh(g, b.mat, cap);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
   mesh.name = 'vatCrowd'; mesh.userData.noFreeze = true; mesh.userData.armyBatch = true; mesh.count = 0;
   if (old) { scene?.remove(old); old.geometry.dispose(); old.dispose(); }
-  b.mesh = mesh; b.vat = vat; b.cap = cap;
+  b.mesh = mesh; b.vat = vat; b.var = vv; b.cap = cap;
   scene?.add(mesh);
 }
 // 中景の形を軽くする（10/24）：一人の三角を VAT.triFar（15m より先）・VAT.triNear（8〜15m）までに減らす。
@@ -617,8 +630,10 @@ function prepareVat(u) {
   return true;
 }
 function showVat(u) {
-  if (!u.vat) u.vat = { lx: u.pos.x, lz: u.pos.z, sp: 0, phase: 0, clip: -1, fade: 1, rowA: 0, rowB: 0, fromRow: 0, out0: 0, out1: 0, outW: 0, seed: ((u.id || 1) * 0.6180339) % 1, strideK: 0 };
+  // 歩みの位相は兵ごとにずらして始める（皆 0 から歩き出すと、隊の足が揃って同じ人が並んで見えた）
+  if (!u.vat) u.vat = { lx: u.pos.x, lz: u.pos.z, sp: 0, phase: ((u.id || 1) * 0.3819660) % 1, clip: -1, fade: 1, rowA: 0, rowB: 0, fromRow: 0, out0: 0, out1: 0, outW: 0, seed: ((u.id || 1) * 0.6180339) % 1, strideK: 0 };
   if (!u.vat.strideK) { const s = ((u.id || 1) * 0.6180339) % 1; u.vat.strideK = 0.9 + ((s * 17.3) % 1) * 0.2; }
+  if (!u.vat.var) u.vat.var = vatVar(u);
   if (!u.vatOn) { u.vat.lx = u.pos.x; u.vat.lz = u.pos.z; u.vat.clip = -1; u.vat.fade = 1; }
   setOn(u, true);
 }
@@ -716,8 +731,9 @@ export function vatDraw(army, cam) {
     const cx = cam.position.x - e[12], cz = cam.position.z - e[14], nr = cx * cx + cz * cz < VAT.nearD * VAT.nearD;
     // 近い形は、その姿の兵が近くに来た時に作る（遠くにしか居ない姿の分は作らない）
     if (nr && VAT.nearShape && !u.vatL.nq) { u.vatL.nq = true; nearQ.push(u.vatL); }
-    put(nr ? u.vatL.nshape : cx * cx + cz * cz > XFAR_D * XFAR_D && farOf(u.vatL.shape) || u.vatL.shape, e, V, nr ? u.vatL.ncolBase : u.vatL.colBase);
-    if (u.vatW) put(u.vatW, e, V, 0);
+    const ev = leanOf(e, V);
+    put(nr ? u.vatL.nshape : cx * cx + cz * cz > XFAR_D * XFAR_D && farOf(u.vatL.shape) || u.vatL.shape, ev, V, nr ? u.vatL.ncolBase : u.vatL.colBase);
+    if (u.vatW) put(u.vatW, ev, V, 0);
     drawn++;
   }
   for (const S of shapes.values()) { fin(S); if (S.far) fin(S.far); }
@@ -731,11 +747,27 @@ function put(B, e, V, w) {
   B.mesh.instanceMatrix.array.set(e, i * 16);
   const a = B.vat.array;
   a[i * 4] = V.out0; a[i * 4 + 1] = V.out1; a[i * 4 + 2] = V.outW; a[i * 4 + 3] = w;
+  const q = V.var || VAR0, c = B.var.array; c[i * 3] = q[0]; c[i * 3 + 1] = q[1]; c[i * 3 + 2] = q[2];
+}
+// 兵ごとの揺らぎ（一度だけ決める）：褪せ・明るさ・泥（色）と、構えの傾き・向き（姿）。形と絵は使い回し、instance の値だけを替える
+const VAR0 = [0, 1, 0, 0, 0];
+const hash = (id, k) => { const x = Math.sin((id || 1) * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+function vatVar(u) {
+  const id = u.id || 1, f = hash(id, 1);
+  return [f * f * 0.34, 0.86 + hash(id, 2) * 0.24, hash(id, 3), (hash(id, 4) - 0.5) * 0.09, (hash(id, 5) - 0.4) * 0.07];
+}
+// 止まった構え（待ち・構え・槍衾）は向きを少しずらし、上体の傾き（前屈み）は歩く間も残す。足もとを軸に回す
+const STILL = new Set([CLIP.idle, CLIP.guard, CLIP.idleUp, CLIP.idleHedge]);
+const _lm = new THREE.Matrix4(), _lr = new THREE.Matrix4(), _lx = new THREE.Matrix4();
+function leanOf(e, V) {
+  const q = V.var; if (!q || !q[4] && !q[3]) return e;
+  _lr.makeRotationY(STILL.has(V.clip) ? q[3] : 0); _lx.makeRotationX(q[4]); _lr.multiply(_lx);
+  return _lm.fromArray(e).multiply(_lr).elements;
 }
 function fin(B) {
   if (!B.mesh) return;
   B.mesh.count = B.n; B.mesh.visible = B.n > 0;
-  if (B.n) { B.mesh.instanceMatrix.needsUpdate = true; B.vat.needsUpdate = true; }
+  if (B.n) { B.mesh.instanceMatrix.needsUpdate = true; B.vat.needsUpdate = true; B.var.needsUpdate = true; }
   if (B.mesh.parent !== scene && scene) scene.add(B.mesh);
 }
 export function vatReset(army, sc) {

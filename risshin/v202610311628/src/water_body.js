@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { S as SETTINGS } from './settings.js';
+import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { macroTex } from './nature.js';
 import { WIND_STATE } from './world_weather.js';
 
@@ -21,7 +21,7 @@ function surfaceNormalGLSL(flowExpr, speed, waves) {
       + sfGrad(sfP * vec2(0.075, 0.13) + vec2(0.37, -sfT * 0.11)) * vec2(0.075, 0.13) * 0.17
       + sfGrad(sfP * vec2(0.28, 0.42) + vec2(0.71, -sfT * 0.26)) * vec2(0.28, 0.42) * 0.045 * sfNear
       // 流れの向きに伸びる細かな筋（横に細かく、縦に長い）。近くだけ。
-      + sfGrad(sfP * vec2(0.62, 0.09) + vec2(0.13, -sfT * 0.3)) * vec2(0.62, 0.09) * 0.04 * sfNear;
+      ${MEM_TIGHT ? '' : '+ sfGrad(sfP * vec2(0.62, 0.09) + vec2(0.13, -sfT * 0.3)) * vec2(0.62, 0.09) * 0.04 * sfNear'};
     vec2 sfW = (sfSide * sfG.x + sfFlow * sfG.y) * ${waves.toFixed(2)};
     // 浅い瀬ほど波立つ（川底の石で水面が乱れる）。
     float sfND = mix(vSurfaceDepth.y, vSurfaceDepth.x, smoothstep(0.35, 1.0, abs(vSurfaceAcross)));
@@ -68,6 +68,11 @@ function surfaceLightGLSL(o) {
       ${o.cap ? 'outgoingLight = min(outgoingLight, vec3(0.30, 0.38, 0.36));' : ''}
       // 寝た目線でも波の向きで映りを変える：目へ向く斜面は水の色、向こうへ傾く斜面は空（細かな明暗）。
       float sfFacet = clamp(1.0 - dot(sfN.xz, normalize(sfV.xz + vec2(0.0001))) * 6.0, 0.3, 1.6);
+      ${MEM_TIGHT ? '' : `// 低い目線で空の一色の鏡にしない：流れに沿う長い筋で、滑らかな所は空を強く、ざわつく所は弱く映す（10/31）。
+      float sfSlick = texture2D(uSurfaceNoise, vec2(sfP.x * 0.05, sfP.y * 0.006 - sfT * 0.004)).r;
+      float sfGraze = smoothstep(0.35, 0.05, sfV.y);
+      sfFacet *= mix(1.0, 0.55 + smoothstep(0.35, 0.7, sfSlick) * 0.75, sfGraze);
+      sfSky *= mix(1.0, 0.82 + sfSlick * 0.36, sfGraze);`}
       outgoingLight = mix(outgoingLight, sfSky, clamp(sfFres * ${o.refl.toFixed(2)} * sfFacet${o.cap ? ' * (1.0 - sfBank * 0.55)' : ''} * (1.0 - sfFoamW), 0.0, 0.78));
       float sfSpec = pow(max(dot(sfR, uSurfaceSun), 0.0), 140.0) * (1.0 - uSurfaceRain * 0.85);
       outgoingLight += uSurfaceSunCol * sfSpec * ${o.glint.toFixed(2)};
@@ -77,7 +82,24 @@ function surfaceLightGLSL(o) {
 
 // 水の中身：浅い所は川底の砂と石が透け、深い所は黄土を含んだ濁りで暗く沈む。瀬は白く泡立ち、水際は濡れて暗い。
 // 深さは支度の時に頂点へ一度だけ書いた値（vSurfaceDepth：x＝岸の頂点、y＝その列の中ほど）。
+// 携帯（MEM_TIGHT）は川底の石・日の網目・濁りの筋を省き、泡の雑音一つだけ読む（画素ごとの読み出しを増やさない）。
 function surfaceBodyGLSL(flowExpr, o) {
+  if (MEM_TIGHT) return `
+    float sfFoamW = 0.0;
+    {
+      float sfBD = mix(vSurfaceDepth.y, vSurfaceDepth.x, smoothstep(0.35, 1.0, abs(vSurfaceAcross)));
+      vec2 sfBF = ${flowExpr};
+      vec3 sfBedC = vec3(0.09, 0.075, 0.055);
+      vec3 sfAbs = exp(-sfBD * ${o.absorb});
+      vec3 sfBody = sfBedC * sfAbs + mix(${o.silt}, ${o.deep}, smoothstep(0.35, 2.2, sfBD)) * (1.0 - sfAbs);
+      sfBody = mix(sfBody, sfBedC * 0.6, 1.0 - smoothstep(0.0, 0.05, sfBD));
+      diffuseColor.rgb = mix(diffuseColor.rgb, sfBody, ${o.mix.toFixed(2)});
+      float sfF2 = texture2D(uSurfaceNoise, vSurfaceWorld.xz * 1.4 - sfBF * uSurfaceTime * 0.45).r;
+      float sfFoam = (1.0 - smoothstep(0.04, 0.28, sfBD)) * smoothstep(0.62, 0.78, sfF2)
+        + smoothstep(0.0, 0.03, sfBD) * (1.0 - smoothstep(0.03, 0.08, sfBD)) * smoothstep(0.45, 0.65, sfF2) * 0.7;
+      sfFoamW = clamp(sfFoam, 0.0, 0.6) * ${o.foam.toFixed(2)};
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.43, 0.4), sfFoamW);
+    }`;
   return `
     float sfFoamW = 0.0;
     {
@@ -102,7 +124,7 @@ function surfaceBodyGLSL(flowExpr, o) {
       vec3 sfDeep = mix(${o.silt}, ${o.deep}, smoothstep(0.35, 2.2, sfBD));
       // 流れの向きの濁りの筋：横に細かく、縦に長い。
       float sfStreak = texture2D(uSurfaceNoise, vec2(sfBP.x * 0.33, sfBP.y * 0.022 - sfBT * 0.05)).r;
-      sfDeep *= 0.84 + sfStreak * 0.32;
+      sfDeep *= 0.78 + sfStreak * 0.44;
       vec3 sfBody = sfBedC * sfAbs + sfDeep * (1.0 - sfAbs);
       // 水際の数センチは濡れた底がそのまま見える。
       sfBody = mix(sfBody, sfBedC * 0.6, 1.0 - smoothstep(0.0, 0.05, sfBD));
@@ -112,7 +134,7 @@ function surfaceBodyGLSL(flowExpr, o) {
       float sfF2 = texture2D(uSurfaceNoise, vSurfaceWorld.xz * 1.4 - sfBF * sfBT * 0.45).r;
       float sfRif = 1.0 - smoothstep(0.04, 0.28, sfBD);
       float sfFoam = sfRif * smoothstep(0.66, 0.8, sfF1 * 0.55 + sfF2 * 0.5 + sfStone * 0.15)
-        + smoothstep(0.0, 0.03, sfBD) * (1.0 - smoothstep(0.03, 0.08, sfBD)) * smoothstep(0.45, 0.65, sfF2) * 0.7;
+        + smoothstep(0.0, 0.03, sfBD) * (1.0 - smoothstep(0.05, 0.14, sfBD)) * smoothstep(0.42, 0.62, sfF2 * 0.6 + sfF1 * 0.4) * 0.75;
       sfFoamW = clamp(sfFoam * mix(0.4, 1.0, sfBNear), 0.0, 0.6) * ${o.foam.toFixed(2)};
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.43, 0.4) * (0.9 + sfF2 * 0.2), sfFoamW);
     }`;
@@ -177,15 +199,16 @@ function prepareWaterSurface(world) {
     const ripple = key.startsWith('ripple|');
     const bigPlane = geo.type === 'PlaneGeometry' && geo.parameters.width === 2000 && geo.parameters.height === 2000;
     // 戦の側で岸と浅瀬まで仕上げた水面（と海の一枚）は、色と分割はそのまま、上に波・映り込み・照り・雨の波紋だけを重ねる。
-    const ready = !!mesh.userData?.waterSurfaceReady;
+    const ready = !!(mesh.userData?.waterSurfaceReady || base.userData?.waterSurfaceOverlay);   // 後者：戦が自前の色を塗った川にも、岸の濡れは残して波と映りだけ重ねる
     // 遠景の地面の大きい板（城攻めの戦）を拾わない。海の材質の鍵で見分ける。
     const overlaySea = bigPlane && !base.isMeshBasicMaterial && !ripple && /water|sea/i.test(key);
     if (ready || overlaySea) {
-      if (base.userData.surfaceOverlay) return;
       const stream = !!geo.attributes.waterFlow;
+      // 材質を分け合う二つ目の水面（手取川のあふれ筋など）も、頂点の深さは自分の形に書く。
       if (!geo.attributes.waterAcross) geo.setAttribute('waterAcross', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count), 1));
       // 戦が仕上げた川は頂点の実の深さ、海の一枚は深い水。
-      geo.setAttribute('waterDepth2', overlaySea ? flatDepth(geo.attributes.position.count, 4, 4) : depthAttr(world, mesh, geo, 1));
+      if (!geo.attributes.waterDepth2) geo.setAttribute('waterDepth2', overlaySea ? flatDepth(geo.attributes.position.count, 4, 4) : depthAttr(world, mesh, geo, 1));
+      if (base.userData.surfaceOverlay) return;
       const compile = base.onBeforeCompile, oldKey = base.customProgramCacheKey;
       base.userData.surfaceOverlay = true;
       base.extensions ??= {};
@@ -320,8 +343,9 @@ function addWaterBanks(world) {
 
 // 水際から外へ二歩ほど、濡れて暗い土の帯。水の中の部分は水面に隠れる。縁は揺らして直線にしない。
 function addWetBank(world, st, pos, col, idx) {
-  const pts = st.pts, offs = [0.7, 1.0, 1.0, 1.0], alpha = [0.62, 0.55, 0.3, 0];
-  const add = [0, 0.25, 1.1, 2.4];
+  // 携帯は前のまま。パソコンは低い目線でも見える幅と濃さに（頂点の数は同じ。10/31）。
+  const pts = st.pts, offs = [0.7, 1.0, 1.0, 1.0], alpha = MEM_TIGHT ? [0.62, 0.55, 0.3, 0] : [0.7, 0.62, 0.36, 0];
+  const add = MEM_TIGHT ? [0, 0.25, 1.1, 2.4] : [0, 0.3, 1.4, 3.0];
   for (const side of [1, -1]) {
     let n = 0;
     for (let i = 0; i < pts.length - 1; i++) {

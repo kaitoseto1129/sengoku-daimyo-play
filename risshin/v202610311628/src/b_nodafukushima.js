@@ -2914,7 +2914,7 @@ const nodafukushima = {
       dress([{ type: 'busho', n: 1, o: { name: '前田利家', horse: false, invuln: true, allyOk: true } }, { type: 'ashigaru', n: 14 }], ODA));
     F.maedaU = F.maeda.units[0];
     F.sassa = allyGroup(rt, { fixed: true, name: '佐々成政の手', anchor: { x: -30, z: LEVEE_Z + 6 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1, o: { name: '佐々成政', horse: false, invuln: true, allyOk: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 7 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '佐々成政', horse: false, invuln: true, allyOk: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 2 }], ODA));
     F.teppo = allyGroup(rt, { fixed: true, formation: 'line', name: '織田の鉄砲衆', anchor: { x: 26, z: LEVEE_Z + 2 }, facing: Math.PI, width: 12, aggro: 40, noRout: true },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 12 }], ODA));
     F.oda = [F.maeda, F.sassa, F.teppo];
@@ -2960,7 +2960,9 @@ const nodafukushima = {
     F.namedGuards = [];
     for (const [name, x, z, team, facing] of [['柴田勝家', -82, 16, 0, Math.PI], ['佐久間信盛', 56, 42, 0, Math.PI * 0.75], ['三好宗渭', -122, -84, 1, 0]]) {
       const o = { fixed: true, name: name + 'の旗本', anchor: { x, z }, facing, formation: 'yari', width: 7, aggro: 8, noRout: true, faction: team ? 'miyoshi' : 'oda' };
-      const list = dress([{ type: 'busho', n: 1, o: { name, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }], team ? MIYOSHI : ODA);
+      // 開戦25秒（10/30 夜）：柴田と三好宗渭の旗本の足軽五人ずつは、浅瀬の西の小競り合いへ回した（兵の数は同じ）
+      const ash = name === '佐久間信盛' ? 5 : 0;
+      const list = dress([{ type: 'busho', n: 1, o: { name, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, ...(ash ? [{ type: 'ashigaru', n: ash }] : [])], team ? MIYOSHI : ODA);
       F.namedGuards.push(team ? enemyGroup(rt, o, list) : allyGroup(rt, { ...o, fullStrength: true }, list));
     }
     // 野田砦の奥（本陣の曲輪）の三好の本陣：三好長逸と旗本（控えは軽い兵）。旗本は整った陣形で待つ
@@ -2972,12 +2974,17 @@ const nodafukushima = {
     F.campA.guard.anchor.z = ODA_JOIN.z; // 南向きの幕の北側で退く兵を迎える。共通の camp は南側に置くため補正
     for (const c of [F.campA, F.campB]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'yari'; if (c.general) c.general.allyOk = true; }
     F.sally = enemyGroup(rt, { faction: 'miyoshi', name: '砦の前の三好勢', anchor: { x: -4, z: -37 }, facing: 0, width: 12, aggro: 5, seekRange: 12, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], MIYOSHI));
+      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], MIYOSHI));
     // 開戦25秒の小競り合い（10/30）：竹束を据える間、浅瀬の中ほどで佐々の先手と三好の物見が槍を合わせる（持ち場の前10〜15m）。
-    // 兵は足さない（佐々の足軽12→7・砦の前の三好勢の足軽14→9 の五人ずつを回す）。小競り合いなので双方の打ちは弱く、崩れない。
-    F.skirA = allyGroup(rt, { fixed: true, name: '佐々の先手', anchor: { x: -6, z: -26 }, facing: Math.PI, width: 8, aggro: 8, seekRange: 9, noRout: true, formation: 'line', dmgMult: .2 },
+    // 兵は足さない（佐々の足軽12→2・砦の前の三好勢の足軽14→4 の十人ずつを回す。10/30 夜：竹束の三つの置き場のどれへ向かっても写るよう、中と西の束の前へ横に広げた）。小競り合いなので双方の打ちは弱く、崩れない。
+    F.skirA = allyGroup(rt, { fixed: true, name: '佐々の先手', anchor: { x: -4, z: -24 }, facing: Math.PI, width: 12, aggro: 8, seekRange: 9, noRout: true, formation: 'line', dmgMult: .06 },
+      dress([{ type: 'ashigaru', n: 10 }], ODA));
+    F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '三好の物見', anchor: { x: -4, z: -28 }, facing: 0, width: 12, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'line', dmgMult: .15 },
+      dress([{ type: 'ashigaru', n: 10 }], MIYOSHI));
+    // 西の竹束へ向かう道の先（浅瀬の西）にも、柴田の足軽と三好宗渭の足軽の小競り合いを置く（西の束へ歩いても斬り合いが前に見える）
+    F.skirA2 = allyGroup(rt, { fixed: true, fullStrength: true, name: '柴田の足軽', anchor: { x: -16, z: -17 }, facing: Math.PI, width: 8, aggro: 12, seekRange: 12, noRout: true, formation: 'line', dmgMult: .05 },
       dress([{ type: 'ashigaru', n: 5 }], ODA));
-    F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '三好の物見', anchor: { x: -6, z: -32 }, facing: 0, width: 8, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'line', dmgMult: .15 },
+    F.skirE2 = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '三好の物見', anchor: { x: -16, z: -20.5 }, facing: 0, width: 8, aggro: 12, seekRange: 12, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'line', dmgMult: .15 },
       dress([{ type: 'ashigaru', n: 5 }], MIYOSHI));
     // 本願寺の先陣は早鐘の後に畦道から出す。昼の浅瀬の斬り合いには加わらない。
     F.waves = []; F.waveJoined = []; F.wavePaid = []; F.heldWaves = 0;
@@ -3487,10 +3494,13 @@ const nodafukushima = {
     const F = rt.flags;
     const p = rt.player;
     // 開戦の小競り合いの片付け：45秒か、物見が尽きるか、総攻めが進めば、物見は砦へ退き、先手は堤の持ち場へ戻る
-    if (F.skirE && !F.skirDone && (rt.t > 45 || F.step >= 2.5 || !F.skirE.units.some((u) => u.alive && !u.fleeing))) {
-      F.skirDone = true; F.skirE.noRout = false; F.skirE.morale = 0;
-      const g = F.skirA; g.dmgMult = 1; g.order = 'move'; g.dest = { x: -14, z: LEVEE_Z + 4 };
-      g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; q.facing = Math.PI; };
+    if (F.skirE && !F.skirDone && (rt.t > 45 || F.step >= 2.5 || ![F.skirE, F.skirE2].some((e) => e.units.some((u) => u.alive && !u.fleeing)))) {
+      F.skirDone = true;
+      for (const e of [F.skirE, F.skirE2]) { e.noRout = false; e.morale = 0; }
+      for (const [g, x] of [[F.skirA, -14], [F.skirA2, -24]]) {
+        g.dmgMult = 1; g.order = 'move'; g.dest = { x, z: LEVEE_Z + 4 };
+        g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; q.facing = Math.PI; };
+      }
     }
     // 振りが遅くなる三割より先に知らせる。六割へ戻るまで出し直さない。
     if (p.sta >= p.maxSta * 0.6) F.breathWarned = false;

@@ -236,7 +236,8 @@ function igaFootDress(rt) {
 // 陣の大手の木戸（板と乳金物の扉を半ば開く）と、坂道の自然石の段。形と材質は一度だけ作り、石は一つの instanced にまとめる。
 function igaSandoDress(rt) {
   const W = rt.world;
-  rt.scene.add(kabukimon(W, 0, 12.5, 4.6, 0, { doors: false }));
+  // 屋根の無い黒い柱と冠木だけで箱の枠に見えた（10/31 採点 近道1）。切妻の屋根と控柱を持つ薬医門の形にする（城の薬医門と同じ部品）。
+  rt.scene.add(kabukimon(W, 0, 12.5, 4.6, 0, { doors: false, yakui: true, roof: true }));
   const leaves = tobira(W, 0, 12.5, 4.4, 0, { h: 2.9 });
   leaves.userData.open();
   leaves.userData.leaves.forEach((pv, i) => { pv.rotation.y = (i ? -1 : 1) * 0.55; });
@@ -1344,7 +1345,8 @@ const ODA = { flag: 'oda' };
 const NIWA = { flag: 'sujikai' };
 // 伊賀の地侍と足軽。装いと指物の省略は、両軍を見分けるための復元。
 // 夜の霧を白く照らしすぎず、兵の輪郭を読むための月明かりは残す。
-const IGA_NIGHT = { ...NIGHT, sky: 0x27354c, fog: 0x29384c, top: 0x18273f, sun: 0xa4bbdf, sunI: 0.72, hs: 0x91a5c7, hg: 0x2a2a30, hI: 0.48, dir: [-0.55, 0.42, 0.72], mount: 0x354966 };
+// 10/31 月が草地を昼のように照らし、兵だけ黒かった。月と空の返りを少し下げ、兵の面の補光（unitNightScale）で読ませる。
+const IGA_NIGHT = { ...NIGHT, sky: 0x27354c, fog: 0x29384c, top: 0x18273f, sun: 0xa4bbdf, sunI: 0.6, hs: 0x91a5c7, hg: 0x24242a, hI: 0.4, dir: [-0.55, 0.42, 0.72], mount: 0x354966 };
 function igaNight(rt) {
   // 共通の夜の時計を保ち、伊賀だけの色へ替える。光源の数は増やさない。
   applyLook(rt, NIGHT, false);
@@ -1636,7 +1638,7 @@ const iga = {
     // 木と草も細かい坂の表面へ置く。配置後に地面だけ削ると宙に残る。
     prepareTerrain: igaRoadGround,
     time: 'night',
-    unitNightScale: 0, // 白い縁取りの補光を重ねず、月光・篝火で漆と布の色を見せる。
+    unitNightScale: 0.6, // 10/31 草地だけ明るく兵が黒かった。縁の照りが出ない強さで、漆と布の面へ月の返りを残す。
     nightFill: 0.38, // 月の向いた面は保ち、軒下と火から離れた土を一様に照らさない。
     nightMoonMin: IGA_NIGHT.sunI, // 共通の最低値で月光を昼のように強めず、伊賀の夜色を保つ。
     contactShadows: true, // 味方・本人の足元にも、共通の柔らかい陰を使う。

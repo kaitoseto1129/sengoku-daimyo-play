@@ -940,6 +940,31 @@ const okawachi = {
     fights: () => [[FRONT.x, FRONT.z, 30], [SOUTH_BLOCK.x, SOUTH_BLOCK.z, 26], [NEAR.kara.x, NEAR.kara.z, 26], [CAMP_LINE.x, CAMP_LINE.z, 18]],
     skip: (x, z) => { const W = OK_TS.world; if (!W) return false; const h = W.heightAt(x, z); return Math.abs(W.heightAt(x + 1.5, z) - h) > 1 || Math.abs(W.heightAt(x, z + 1.5) - h) > 1; },
   },
+  // 搦手の前の持ち場（25秒の画面）は、目が地面へ向いて本丸の木戸・櫓・板塀が画面の上の縁より上や左の外に外れていた（10/31 採点：奥の城）。
+  // 本丸の方へ七十度より近く向いている時だけ、本人を軸に目を本丸の方へ二十度まで回し、少し下げて見上げる。
+  // 本丸への線は木の無い坂（木戸・櫓・塀）。木が前をふさぐ二ノ丸・御納戸へは回さない。本人の向き・操作・形・材質は変えない。
+  frameCamera(rt, pos, look) {
+    const P = rt.player, u = P.u, F = rt.flags;
+    const near = !F.ending && !P.lock && !P.cine && F.step < 3 && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 48;
+    let vx = look.x - pos.x, vz = look.z - pos.z;
+    const off = Math.atan2(HON_C.x - pos.x, HON_C.z - pos.z) - Math.atan2(vx, vz), da = Math.atan2(Math.sin(off), Math.cos(off));
+    const face = Math.max(0, Math.min(1, (1.25 - Math.abs(da)) / .35));
+    P.okCastleK = (P.okCastleK || 0) + ((near ? face : 0) - (P.okCastleK || 0)) * .12;
+    const k = P.okCastleK; if (k < .01) return;
+    // 本人を軸に回す（本人は画面の同じ所に残る）
+    const t = Math.max(-.35, Math.min(.35, da)) * k, c = Math.cos(t), s = Math.sin(t);
+    const ox = pos.x - u.pos.x, oz = pos.z - u.pos.z, lx = look.x - u.pos.x, lz = look.z - u.pos.z;
+    pos.x = u.pos.x + ox * c + oz * s; pos.z = u.pos.z + oz * c - ox * s;
+    look.x = u.pos.x + lx * c + lz * s; look.z = u.pos.z + lz * c - lx * s;
+    const y = Math.max(rt.world.heightAt(pos.x, pos.z) + 1.2, u.pos.y + 1.6);
+    if (pos.y > y) pos.y += (y - pos.y) * k * .7;
+    // 本丸の平場から四歩上（屋根の軒）が画面の真ん中より少し上に来る見上げ。十度より多く起こさない。
+    vx = look.x - pos.x; vz = look.z - pos.z;
+    const span = Math.hypot(vx, vz) || 1, cd = Math.hypot(HON_C.x - pos.x, HON_C.z - pos.z) || 1;
+    const p0 = Math.atan2(look.y - pos.y, span), a = Math.atan2(rt.world.heightAt(HON_C.x, HON_C.z) + 4 - pos.y, cd);
+    const p1 = Math.min(p0 + .17, Math.max(p0, a - .2));
+    look.y += (pos.y + Math.tan(p1) * span - look.y) * k;
+  },
   world: {
     compactScenery: true,
     syntheticSound: true, // 合図・鬨・鉄砲・馬・雨や川を、録音へ替えず合成音でそろえる。

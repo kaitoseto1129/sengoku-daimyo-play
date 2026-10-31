@@ -507,6 +507,19 @@ export function buildTera(rt) {
   }
   // 区画で分かれた壁すべてへ、同じ古い漆喰の材質を渡す。
   for (const b of G.buckets.values()) if (b.dist === 'hall' && b.mk === 'plaster' && b.mesh) b.mesh.material = teraPlasterMat();
+  // 燻し瓦：夜明けの低い空を浅い角度で照り返すと、宿坊の屋根が生成りの布の幕に見えた（10/31）。
+  // この寺の瓦だけ、灰の濃い燻しの色・照りの弱い粗さにする（形と瓦の凹凸の絵は共通のまま）。
+  const tileMats = new Map();
+  for (const b of G.buckets.values()) if (b.mk === 'tile' && b.mesh && !Array.isArray(b.mesh.material)) {
+    const old = b.mesh.material;
+    if (!tileMats.has(old)) {
+      const m = old.clone();
+      m.onBeforeCompile = old.onBeforeCompile; m.customProgramCacheKey = old.customProgramCacheKey;
+      m.color.setHex(0xa2a6ac); m.roughness = Math.max(m.roughness ?? 0.6, 0.86); m.metalness = 0; m.envMapIntensity = 0.35;
+      tileMats.set(old, m);
+    }
+    b.mesh.material = tileMats.get(old);
+  }
   // 当たりは軽い箱で調べ、描く壁・柱・格子は共通の処理で目の近くの面だけ薄くする。
   for (const b of G.buckets.values()) if (b.mesh) {
     b.mesh.userData.camNear = true;

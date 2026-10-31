@@ -1977,7 +1977,7 @@ const tedorigawa = {
     movingHiddenBones: true, // 画面外へ動く騎手も骨を根元へ合わせ、近景へ戻る時の体の帯を防ぐ。
     shadowBoneOrder: true, // 胴丸の影にも、体と同じ骨番号を使う。
     kasaDrape: false, // 資料本の戦国期の足軽に合わせ、映画風の長い陣笠の縁布を外す。
-    unitNightScale: 0.4, // 雨雲の下で全身の縁を白く光らせず、漆と小袖の色を残す。
+    unitNightScale: 0.6, // 10/31 具足と顔を地面より一段明るく。雨雲の下で全身の縁を白く光らせず、漆と小袖の色を残す。
     // 加賀の川原の遠山。東〜南東の山地へ寄せ、西の日本海側を開く。
     mountainScale: 0.22,
     mountainHaze: 0.8,
@@ -2239,6 +2239,7 @@ const tedorigawa = {
           THREE.ShaderChunk.fog_fragment.replace('float fogFactor = max(', 'float fogFactor = 0.3 * max('));
       };
       mat.customProgramCacheKey = () => '手取川の雨夜の浅瀬と濁流';
+      mat.userData.waterSurfaceOverlay = true;   // 共通の水（波・映り・泡）を上に重ねる
       mat.needsUpdate = true;
       const flow = riverMesh.geometry.attributes.waterFlow;
       if (flow) { for (let i = 0; i < flow.array.length; i++) flow.array[i] *= -1; flow.needsUpdate = true; }
@@ -2390,7 +2391,8 @@ const tedorigawa = {
     F.postFlag = nobori(W, RG.x - 3, RG.z + 1, 'kari', 3.4);
     F.postFlag.visible = false; rt.scene.add(F.postFlag);
     // 雨夜を保ち、甲冑と馬の輪郭に月明かりを足す。影の計算は増やさない。
-    rt.scene.add(new THREE.HemisphereLight(0xb6c9ec, 0x645943, 0.85));
+    // 10/31 刈田が白く平らに浮き、兵が黒く沈んでいた。上からの空の返りを弱め、土からの返りを暗くする（兵は面の補光で読む）。
+    rt.scene.add(new THREE.HemisphereLight(0xa8bce0, 0x3a3328, 0.5));
     // 敗走中に共通の救済兵を足元へ出さない。
     rt._rfN = 3;
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完）。表には出さない

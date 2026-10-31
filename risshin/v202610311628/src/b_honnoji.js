@@ -290,7 +290,7 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
 // 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
 const HONNO_DAWN = { ...DAWN, sky: 0x353b55, fog: 0x3f4458, top: 0x161b33,
-  sun: 0xd9c6b4, hs: 0x5d6788, hg: 0x5a3a26, sunI: 0.42, hI: 1.05, glow: 0.42, dir: [1, 0.03, -0.3] };
+  sun: 0xe0c2a6, hs: 0x5d6788, hg: 0x4a3020, sunI: 0.58, hI: 0.98, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む
 // 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;
@@ -1954,8 +1954,10 @@ function cleanTemple(rt) {
       if (b.mk !== 'plaster') { mat.map = woodMap; mat.bumpMap = null; mat.bumpScale = 0; mat.roughness = 0.78; }
       mat.color.set(b.mk === 'plaster' ? 0xb8c3d2 : 0xcbd0d8);
       // 板床と戸口の木部に弱い明るさを残し、屋根の陰でも段と通り口を読めるようにする。
-      mat.emissive.set(b.mk === 'plaster' ? 0x515e70 : b.mk === 'ita' ? 0x96846b : 0x594c38);
-      mat.emissiveIntensity = b.mk === 'plaster' ? .25 : b.mk === 'ita' ? .55 : .38;
+      mat.emissive.set(b.mk === 'plaster' ? 0x515e70 : b.mk === 'ita' ? 0x5a5044 : 0x594c38);
+      // 板葺きの宿坊の屋根も ita。強い自照で生成りの布の幕に見えた（10/31）。古びた灰茶の板にし、自照は床の段が読める弱さまで。
+      if (b.mk === 'ita') { mat.color.set(0x8f877a); mat.roughness = 0.9; }
+      mat.emissiveIntensity = b.mk === 'plaster' ? .25 : b.mk === 'ita' ? .22 : .38;
       nightMats.set(old, mat);
     }
     b.mesh.material = nightMats.get(old);

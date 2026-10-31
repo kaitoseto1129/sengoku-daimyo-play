@@ -25,6 +25,7 @@ import { camp } from './b_mid.js';
 import { sightPoint } from './battle_sight.js';
 import { heightOf, buildCastlePlan } from './castle_plan.js';
 import { horiboriHeight, mizubori } from './castle_parts.js';
+import { castlePart } from './cgt_castle.js';
 import { reset as flReset, groundAt, addDeck } from './floors.js';
 import { NAKA } from './naka.js';
 import { aimArm, bodyGeometry } from './units_model.js';
@@ -1576,6 +1577,7 @@ function townBoardEnclosures(rt, segments) {
 }
 
 // この戦の門も視点の当たりにする。門板を網目に抜かず、共通の視点の寄せで避ける。
+const KIT_TOP = true;
 function fortGate(world, x, z, w, watch = false) {
   // 主郭の門は扉を脇の柱ぞいまで開け放つ（持ち場の視点が門の下を通る時、半開きの扉の裏板が画面の半分を塞いでいた。10/30）
   const gate = kabukimon(world, x, z, w, 0, { roof: !watch, openFlat: !watch });
@@ -1688,7 +1690,8 @@ function fortGate(world, x, z, w, watch = false) {
         for (const zz of [-.95, -.05]) box(lx + .4, 4.04, zz, .09, .9, .09, 0, 0x62523f);
         box(lx + .4, 4.48, -.5, .12, .1, 1.05, 0, 0x62523f);
       }
-      for (const side of [-1, 1]) {
+      // 上階の壁・屋根は城の部品の渡櫓（下見板・狭間・瓦の一枚ずつ・軒の垂木）。箱を並べた一色の板と瓦の帯に見えた（10/31 採点 近道1）。
+      if (!KIT_TOP) for (const side of [-1, 1]) {
         if (detailed && side > 0) {
           for (const sd of [-1, 1]) box(side * (w / 2 + .17), 4.4, -.5 + sd * .84, .24, 2.1, .72);
           box(side * (w / 2 + .17), 5.32, -.5, .24, .26, .96);
@@ -1742,8 +1745,8 @@ function fortGate(world, x, z, w, watch = false) {
         } else box(0, 5.49, -.5 + side * 1.18, w + 2.4, .12, 2.6, side * .4);
       }
       // 棟：熨斗瓦を積んだ太い棟と、両端の鬼瓦。
-      box(0, 6.06, -.5, w + 2.5, .26, .36, 0, 0x353430);
-      if (!coarse) for (const sd of [-1, 1]) box(sd * (w / 2 + 1.25), 6.12, -.5, .16, .46, .46, 0, 0x3a3833);
+      if (!KIT_TOP) box(0, 6.06, -.5, w + 2.5, .26, .36, 0, 0x353430);
+      if (!coarse && !KIT_TOP) for (const sd of [-1, 1]) box(sd * (w / 2 + 1.25), 6.12, -.5, .16, .46, .46, 0, 0x3a3833);
       // 妻壁と箱の頂点形式をそろえ、材質を増やさず一つの面にまとめる。
       const mergedPieces = detailed ? pieces.map(g => g.index ? g.toNonIndexed() : g) : pieces;
       const mesh = new THREE.Mesh(mergeGeometries(mergedPieces), mat);
@@ -1753,6 +1756,7 @@ function fortGate(world, x, z, w, watch = false) {
       if (detailed) for (let i = 0; i < pieces.length; i++) if (mergedPieces[i] !== pieces[i]) mergedPieces[i].dispose();
     }
     unit.dispose(); gate.add(lod);
+    if (KIT_TOP) castlePart(world, 'tamon', { x, z: z - .5, rot: 0, y: baseY + 3.66, len: w + 1.2, d: 2.7, h: 2.1 }, { era: 'early' });
   }
   const materials = new Map();
   const solid = (base) => {

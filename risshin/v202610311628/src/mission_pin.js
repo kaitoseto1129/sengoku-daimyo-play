@@ -195,7 +195,7 @@ function drawMissionPin(rt) {
   // 移動中は行き先、到着後は敵。同時に別の場所を指さない。
   const moving = destination && navMe && !destination.enemy && (!destination.unit || destination.unit.team === rt.player.u.team) &&
     Math.hypot(destination.x - navMe.x, destination.z - navMe.z) > (destination.r ?? 6);
-  const taskFirst = following || destination && (destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
+  const taskFirst = following || destination && (destination.waiting || destination.guardBoundary || destination.defend || destination.fire || destination.treatment || destination.dodge ||
     destination.unit?.team === rt.player.u.team);
   // 森部は共通の頭上▼で間合い・命中まで示す。別の大きな▼と「敵」の札で覆わない。
   const enemyMarked = updateEnemyTarget(rt, rt.def.missionStyle !== 'ford' && (!moving || destination?.route) && !taskFirst);
@@ -1004,9 +1004,8 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
     // 通り口の旗には向きを添える。足あとや相手の印は重ねない。
     el._routeEdge.style.display = want.route || outside ? '' : 'none';
   }
-  const guardCaption = want.guardBoundary && !outside;
-  el._routeWord.textContent = guardCaption ? 'この はたを まもれ' : '';
-  el._routeWord.style.display = guardCaption && goalLabelRoom(rt.hud) ? '' : 'none';
+  el._routeWord.textContent = '';   // 守る所は旗と輪で分かる。字は出さない（kaito 10/23）
+  el._routeWord.style.display = 'none';
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
   // 集合先も同じ矢印。下向きの先端を集合地点に合わせる。
   if (want.allyGather && !outside) {
