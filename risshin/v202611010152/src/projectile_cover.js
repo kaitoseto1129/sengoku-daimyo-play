@@ -30,13 +30,15 @@ export function projectileGroundHeight(W, x, z) {
   }
   return top;
 }
+// 弾ごと・塀ごとに正規表現の字を書くと、通るたびに新しい物を作る（10/31 三木の iPhone の落ち）。一度だけ作って使い回す
+const RX_WALL = /塀|壁|門|石垣|櫓/, RX_EARTH = /土|石|堤/;
 export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
   const h = army._missileHit || (army._missileHit = { q: 2, object: null, type: 'dust', host: null });
   h.q = 2; h.object = h.host = null; h.type = 'dust';
   const dx = ex - x, dy = ey - y, dz = ez - z, W = army.world;
   for (const o of army.structs) {
     if (!o.alive || o.opened) continue;
-    const name = o.name || '', height = o.h || (/塀|壁|門|石垣|櫓/.test(name) ? 3 : 2.1);
+    const name = o.name || '', height = o.h || (RX_WALL.test(name) ? 3 : 2.1);
     let q = 2;
     if (o.seg) {
       const a = o.seg, vx = a[2] - a[0], vz = a[3] - a[1], L = Math.hypot(vx, vz) || 1;
@@ -51,7 +53,7 @@ export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
       const bottom = W.heightAt(o.x, o.z);
       q = boxEntry(x, y, z, dx, dy, dz, o.x - r, o.x + r, bottom, bottom + height, o.z - r, o.z + r);
     }
-    accept(h, q, o, /土|石|堤/.test(name) ? 'dust' : 'wood');
+    accept(h, q, o, RX_EARTH.test(name) ? 'dust' : 'wood');
   }
   if (army.solids) for (const o of army.solids) {
     if ((!o.missileH && o.naka == null) || (o.struct && (!o.struct.alive || o.struct.opened))) continue;

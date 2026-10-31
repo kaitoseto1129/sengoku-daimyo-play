@@ -4,21 +4,163 @@ import { namedKacchu } from './named_kacchu.js';
 import { DOMARU, wantsDomaru, crowdDomaru } from './humans_armor.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { SRC, limbFit, kusaPlates, plateOf, HEAD } from './humans_shared.js';
-import { katoGeometry, headEnvelope } from './units.js';
+import { SRC, limbFit, kusaPlates, plateOf, HEAD, humanLook } from './humans_shared.js';
+import { katoGeometry, headEnvelope, IMP_TINT } from './units.js';
 
 
 // 近距離専用の打ち出しと縅。元の形は変えず、骨へ付ける前に同じ部品へ結合する。
-// 遠距離・影の lookParts(false) は従来どおり。形は姿ごとに共有し、描く回数は増やさない。
-const nearArmorGeos = new LruMap(96);   // 人ごとの鍵（src.uuid）。人を手放した後も残るので上限つき（10/19）
+// 遠距離・影の lookParts(false) は打ち出しを重ねない（色の作り分け soldierVariety だけ layParts で掛ける）。形は姿ごとに共有し、描く回数は増やさない。
+const nearArmorGeos = new LruMap(320);   // 人ごとの鍵（src.uuid）。人を手放した後も残るので上限つき（10/19）
 let armorBox = null;
-function nearArmorParts(parts) {
-  const L = parts.look;
-  if (L.sohei || L.kosode || L.nanban || namedKacchu(L)) return parts;
+// ---- 兵の具足の作り分け（共通の差の3「兵が灰・黒の同じ形で単調」。10/31）----
+// 身分（足軽・侍）と家ごとに、漆・威糸・脚絆・陣笠の色と形を六通りに分ける。人の鍵（vi%6）は lookParts の形の鍵に入っているので、
+//   形の数も材質の数も増えない（頂点の色を塗り替えるだけ。共通の UNIT_MAT のまま）。名のある武将・本人・僧兵・小袖は触らない。
+//   色は戦国の実物の具足の色（黒漆・溜塗・茶・錆・朱の褪せ）。青（紺・縹）は使わない（kaito 10/29）。
+const VAR_LAC0 = [[null, 0, 1], [0x5a3420, 0.85, 1], [0x6a4c30, 0.8, 1], [0x7a6650, 0.7, 1], [0x5a2a1c, 0.6, 1], [0x141210, 0.7, 1]];
+const VAR_LAC1 = [[null, 0, 1], [0x16120f, 0.9, 1], [0x4a2414, 0.85, 1], [0x5e4028, 0.8, 1], [0x6a2a1a, 0.7, 1], [0x4a4642, 0.8, 1]];
+const VAR_RED = [[null, 0, 1], [0x6a2216, 0.5, 1], [0x8a3420, 0.45, 1], [0x4a1e14, 0.5, 1], [0x7a3020, 0.4, 1], [0x5a1a12, 0.55, 1]];
+const VAR_LACE = [[null, 0], [0x7a4e2a, 0.7], [0x6a6e3a, 0.65], [0x8e3024, 0.65], [0xbcb294, 0.6], [0x5e3450, 0.6]];
+const VAR_KYAHAN = [[null, 0], [0x8a7c62, 0.6], [0x2c2622, 0.6], [0x5a4630, 0.5], [0x6e5e48, 0.45], [0x3e3226, 0.5]];
+const VAR_PERM = [3, 0, 4, 1, 5, 2];
+// 陣笠の漆（黒漆が多め・溜・茶・朱の褪せ）
+const VAR_HATC = [[null, 0, 1], [0x5a3420, 0.85, 1], [0x141210, 0.75, 1], [0x6a4c30, 0.8, 1], [0x4e2618, 0.6, 1], [0x1e1a16, 0.6, 1]];
+// 陣笠の形（横の広さ・高さ）。平たい笠と尖った笠を混ぜる
+const VAR_HAT = [[1, 1], [1.06, 0.88], [0.95, 1.12], [1.02, 0.94], [0.97, 1.06], [1.04, 1.0]];
+const varCol = new THREE.Color(), varTmp = new THREE.Color();
+function soldierVar(L) {
+  if (L.hero || L.sohei || L.kosode || L.nanban || namedKacchu(L) || (L.tier || 0) >= 2 || L.kacchu || typeof L.face === 'string' || L.takedaRed) return null;
+  const T = L.tier || 0, vi = (L.vi || 0) % 6;
+  let h = 2166136261;
+  // 家ごとの並べ替え（同じ家の中では人ごとの鍵 vi だけで決まる）
+  for (const ch of String(L.mon || '') + '|' + (L.lace | 0) + '|' + T) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  const rot = (h >>> 0) % 6, iL = (vi + rot) % 6, iC = VAR_PERM[(vi + rot) % 6], iK = (vi + 2 * rot + 1) % 6;
+  const base = new THREE.Color(L.armor ?? 0x24221f), hs = base.getHSL({});
+  const red = hs.s > 0.45 && (hs.h < 0.05 || hs.h > 0.95) && hs.l > 0.15;
+  const lacT = (red ? VAR_RED : T === 0 ? VAR_LAC0 : VAR_LAC1)[iL];
+  return { iL, iC, iK, T, lac: lacT, lace: VAR_LACE[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: (red ? VAR_RED : VAR_HATC)[(iL + (vi % 2 ? 2 : 0)) % 6] };
+}
+// 遠い軽い兵の束（world_army.js の makeImpostor）へ渡す、近い兵と同じ作り分けの色（胴の漆・威糸・笠）。
+//   同じ soldierVar（同じ種と色の表）から、近い形の塗り替え（nearArmorParts・recolorGeo）と同じ混ぜ方で出す。作り分けの無い者は null
+function soldierTint(look0) {
+  const L = humanLook(look0), V = soldierVar(L);
+  if (L.sohei || L.nanban || L.kosode || L.hero) return null;
+  // 作り分けの無い者（名のある具足など）も、近い形と同じ漆・笠の色（humanLook の後の色）にそろえる
+  if (!V) return { lac: L.armor ?? 0x24221f, lace: L.lace ?? 0x5a4630, hat: L.hatColor ?? L.armor ?? 0x24221f, i: -1 };
+  const armor = L.armor ?? 0x24221f;
+  let lac = armor, lace = L.lace ?? 0x5a4630;
+  if (V.lac[0] != null) lac = varCol.set(armor).lerp(varTmp.set(V.lac[0]), V.lac[1]).getHex();
+  else if (V.iL) lac = varCol.set(armor).multiplyScalar(0.8).getHex();
+  if (V.lace[0] != null) lace = varCol.set(lace).lerp(varTmp.set(V.lace[0]), V.lace[1] * (V.T === 0 ? 0.8 : 1)).getHex();
+  let hat = lac;
+  if (V.hat) {
+    const hb = L.hatColor ?? armor, H = V.hatLac;
+    hat = H[0] != null ? varCol.set(hb).lerp(varTmp.set(H[0]), H[1]).getHex() : varCol.set(hb).multiplyScalar(0.8).getHex();
+  }
+  return { lac, lace, hat, i: V.iL };
+}
+IMP_TINT.fn = soldierTint;
+// 塗り替え：元の色 base に近い頂点（同じ色合い・陰の明るさ）だけを、明るさの比を保って target へ寄せる
+function remapNear(arr, i, base, bl, target, amt) {
+  const r = arr[i], g = arr[i + 1], b = arr[i + 2], l = r * 0.3 + g * 0.59 + b * 0.11;
+  if (bl < 1e-4 || l < 1e-4) return false;
+  const k = l / bl;
+  if (k < 0.55 || k > 1.12) return false;
+  const sr = r + g + b, sb = base.r + base.g + base.b;
+  if (Math.abs(r / sr - base.r / sb) + Math.abs(g / sr - base.g / sb) + Math.abs(b / sr - base.b / sb) > 0.12) return false;
+  arr[i] = r + (target.r * k - r) * amt; arr[i + 1] = g + (target.g * k - g) * amt; arr[i + 2] = b + (target.b * k - b) * amt;
+  return true;
+}
+// 漆の所（陣笠・胴の板・裏の色 col2）は指定の色が所ごとに違うので、漆ならどれも塗る。
+//   陰（頂点の明るさ ÷ 形の漆の平均）は保ち、色と明るさは target（×br）にする。target が無い時は元の色を br 倍
+function remapLac(arr, i, target, meanL, amt, br) {
+  const r = arr[i], g = arr[i + 1], b = arr[i + 2], l = r * 0.3 + g * 0.59 + b * 0.11;
+  const sh = target ? Math.min(1.3, Math.max(0.35, l / meanL)) * br : br;
+  const tr = target ? target.r * sh : r * sh, tg = target ? target.g * sh : g * sh, tb = target ? target.b * sh : b * sh;
+  arr[i] = r + (Math.min(1, tr) - r) * amt; arr[i + 1] = g + (Math.min(1, tg) - g) * amt; arr[i + 2] = b + (Math.min(1, tb) - b) * amt;
+}
+function recolorGeo(g, L, V, name) {
+  const col = g.attributes.color, c2 = g.attributes.col2, mtl = g.attributes.mtl;
+  if (!col || !mtl || !col.array || !mtl.array) return false;
+  const laceB = new THREE.Color(L.lace ?? 0x5a4630), clothB = new THREE.Color(L.cloth ?? 0x2b2622);
+  const lacV = name === 'head' && V.hat ? V.hatLac : V.lac;
+  const lacT = lacV[0] == null ? null : new THREE.Color(lacV[0]), lacA = lacV[0] == null ? (V.iL === 0 && lacV === V.lac ? 0 : 1) : lacV[1], lacBr = lacV[0] == null ? 0.8 : lacV[2];
+  // 形の漆の平均の明るさ（陰の物差し）
+  let lacSum = 0, lacN = 0;
+  for (let v = 0; v < col.count; v++) {
+    const m = Math.floor(mtl.array[v] + 0.001);
+    if (m % 8 === MK.lac) { const i = v * 3, a = col.array; lacSum += a[i] * 0.3 + a[i + 1] * 0.59 + a[i + 2] * 0.11; lacN++; }
+  }
+  const meanL = Math.max(1e-4, lacN ? lacSum / lacN : 0.02);
+  const laceT = V.lace[0] == null ? null : new THREE.Color(V.lace[0]), laceA = V.lace[1] * (V.T === 0 ? 0.8 : 1);
+  const kyaT = V.kya[0] == null ? null : new THREE.Color(V.kya[0]);
+  const lC = laceB.r * 0.3 + laceB.g * 0.59 + laceB.b * 0.11, lK = clothB.r * 0.3 + clothB.g * 0.59 + clothB.b * 0.11;
+  const legs = /^(leg|thigh)/.test(name);
+  let any = false;
+  const n = col.count;
+  for (let v = 0; v < n; v++) {
+    const m = Math.floor(mtl.array[v] + 0.001), k1 = m % 8, k2 = Math.floor(m / 8) % 8;
+    for (const [a, kk] of [[col.array, k1], [c2 && c2.array, k2]]) {
+      if (!a) continue;
+      const i = v * 3;
+      if (kk === MK.lac && lacA > 0) { remapLac(a, i, lacT, meanL, lacA, lacBr); any = true; }
+      else if (kk === MK.cloth) {
+        if (laceT && remapNear(a, i, laceB, lC, laceT, laceA)) any = true;
+        else if (legs && kyaT && remapNear(a, i, clothB, lK, kyaT, V.kya[1])) any = true;
+      }
+    }
+  }
+  if (any) { col.needsUpdate = true; if (c2) c2.needsUpdate = true; }
+  return any;
+}
+// 塗り替えた形は nearArmorGeos（戦の片付け・gpu_gc の守る表）に入れる。腕・足・腰の刀などは色が変わらないので写さない
+// 塗る所の無かった形の鍵（元の形をそのまま使う）
+const varSame = new Set();
+const VAR_PARTS = new Set(['torso', 'hips', 'head', 'sodeP', 'sodeN', 'thigh', 'leg']);
+function soldierVariety(parts) {
+  const L = parts.look, V = soldierVar(L);
+  if (!V) return parts;
+  const out = { ...parts };
+  for (const name of Object.keys(parts)) {
+    const src = parts[name];
+    if (!VAR_PARTS.has(name) || !src || !src.isBufferGeometry || src.userData.soldierVar) continue;
+    const key = ['var', name, src.uuid, V.iL, V.iC, V.iK, V.hat ? 'h' : ''].join('|');
+    if (varSame.has(key)) continue;
+    if (!nearArmorGeos.has(key)) {
+      const reshape = name === 'head' && V.hat && (V.hat[0] !== 1 || V.hat[1] !== 1);
+      let g = src.clone();
+      g.userData = {};   // clone は userData を元の形と共有するので、別にする（元の形の鍵 ck を書き換えない）
+      dequantize(g, 'color'); dequantize(g, 'col2');
+      let ok = recolorGeo(g, L, V, name);
+      if (reshape) {
+        g.computeBoundingBox();
+        const y0 = g.boundingBox.min.y;
+        g.translate(0, -y0, 0); g.scale(V.hat[0], V.hat[1], V.hat[0]); g.translate(0, y0, 0);
+        g.computeBoundingSphere(); ok = true;
+      }
+      if (!ok) { g.dispose(); if (varSame.size > 4000) varSame.clear(); varSame.add(key); continue; }
+      g.userData.soldierVar = 1;
+      nearArmorGeos.set(key, g);
+    }
+    out[name] = nearArmorGeos.get(key);
+  }
+  // 侍の袖：六人に一人は袖を着けない（籠手だけの軽い姿）
+  if (V.T === 1 && (L.vi || 0) % 6 === 4) { out.sodeP = null; out.sodeN = null; }
+  return out;
+}
+function nearArmorParts(parts0) {
+  const L = parts0.look;
+  if (L.sohei || L.kosode || L.nanban || namedKacchu(L)) return parts0;
+  // 身分と家ごとの具足の作り分け（色と陣笠の形・袖の有無）。重ねる縁と鋲も同じ漆と糸の色にする
+  const parts = soldierVariety(parts0), V = soldierVar(L);
   // 本物の胴丸には段・糸・金具が揃っているので、重ねる形を作らない。
   if (DOMARU.ready && (wantsDomaru(L) || crowdDomaru(L))) return parts;
   const out = { ...parts }, T = L.tier || 0, b = [0.94, 1, 1.05, 1.08][T];
-  const lac = L.armor ?? 0x24221f, lace = L.lace ?? 0x5a4630;
+  let lac = L.armor ?? 0x24221f, lace = L.lace ?? 0x5a4630;
+  if (V) {
+    if (V.lac[0] != null) lac = varCol.set(lac).lerp(varTmp.set(V.lac[0]), V.lac[1]).getHex();
+    else if (V.iL) lac = varCol.set(lac).multiplyScalar(0.82).getHex();
+    if (V.lace[0] != null) lace = varCol.set(lace).lerp(varTmp.set(V.lace[0]), V.lace[1] * (V.T === 0 ? 0.8 : 1)).getHex();
+  }
   if (!armorBox) armorBox = new THREE.BoxGeometry(1, 1, 1);
   const enhance = (name, build) => {
     const src = parts[name];
@@ -86,7 +228,7 @@ function nearArmorParts(parts) {
     }
   });
   // 袖の折り返しと縅は共通の板に含める。筒状の帯を二重に足さない。
-  if (T >= 1) enhance('thigh', ({ box }) => {
+  if (T >= 1 && (L.vi || 0) % 3 !== 2) enhance('thigh', ({ box }) => {
     // 佩楯は布の上の独立した小札。膝の曲げを妨げない長さ。
     for (let row = 0; row < 3; row++) for (let j = 0; j < 4; j++) {
       const a = (j - 1.5) * 0.32, y = -0.075 - row * 0.069;
@@ -127,6 +269,8 @@ function nearArmorParts(parts) {
 
 // 部品の置き方（本人の組み方と兵のまとめ方で同じ）：put(名, 骨, 形, 行列)
 function layParts(P, L, put) {
+  // 遠目・束ねた形（lookParts(look, false)）にも同じ作り分けを（近い形から来た部品は済みの印で二度塗らない）
+  if (P && P.look && !(L.sohei || L.kosode || L.nanban)) P = soldierVariety(P);
   const R = SRC.rest, RD = SRC.radius;
   const { fitT, fitH } = SRC;
   put('torso', 'Spine1', P.torso, fitT);
@@ -380,4 +524,4 @@ function naginata(u) {
   u.wpn.userData.tip = 1.8; u.wpn.userData.butt = -0.95;
 }
 
-export { nearArmorGeos, nearArmorParts, layParts, kzSplit, splitKusazuri, NAMED_KEEP, CREST_OFF, crestGeos, crestOnly, PLAIN_UV, yokeGeos, sleeveGeos, soheiCache, SOHEI_HEAD, NAGINATA, naginata };
+export { soldierTint, soldierVar, nearArmorGeos, nearArmorParts, layParts, kzSplit, splitKusazuri, NAMED_KEEP, CREST_OFF, crestGeos, crestOnly, PLAIN_UV, yokeGeos, sleeveGeos, soheiCache, SOHEI_HEAD, NAGINATA, naginata };
