@@ -379,6 +379,79 @@ function rainPuddles(rt) {
   rim.count = water.count = n; rim.renderOrder = 3; water.renderOrder = 4;
   for (const m of [rim, water]) { m.receiveShadow = true; rt.scene.add(m); }
 }
+// 手本の霧の棚田（10/31）：田楽狭間の谷の斜面を、等高線に沿う段（水を張った田と畦）にする。
+// 形は一枚の格子（描く回数は一つ）で、絵は共通の地面の写真（赤土）を使い回す。遠い段は雨の霧に溶ける。
+// 段は地面より少し上に載せるだけで、高さの判定・兵の道・田の音は変えない。
+// 25秒の立ち位置（43, 0 あたり）から八方のどこを向いても、斜面の段が霧の中に一つは写るように散らす。
+const TERRACES = [[92, 30, 26, 22], [88, -40, 24, 20], [40, 58, 24, 14], [-10, 22, 20, 16], [38, -58, 20, 14]];
+function okeTerraces(rt) {
+  const W = rt.world, STEP = 0.7, RISE = 0.5, pos = [], col = [], wet = [], uv = [], idx = [];
+  const paths = W.def.paths || [];
+  // 小屋・陣幕・柵などの置き物の足もとには段を作らない（物が水に浮いて見えないように）。
+  const keep = [], box = new THREE.Box3();
+  const visit = (o, depth) => {
+    if (o.isInstancedMesh || o === W.terrain || !(o.isMesh || o.isGroup)) return;
+    box.setFromObject(o); if (box.isEmpty()) return;
+    const r = Math.hypot(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+    if (r < 30) keep.push([(box.min.x + box.max.x) / 2, (box.min.z + box.max.z) / 2, r + 2]);
+    else if (depth < 2) for (const c of o.children) visit(c, depth + 1);
+  };
+  for (const o of rt.scene.children) visit(o, 0);
+  const ground = (x, z) => Math.max(drawGroundAt(W, x, z), W.heightAt(x, z)) + 0.04;
+  for (const [cx, cz, hw, hd] of TERRACES) {
+    const nx = Math.round(hw * 2 / STEP), nz = Math.round(hd * 2 / STEP), base = pos.length / 3;
+    const lv = [], gy = [], mk = [];
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      // 縁はゆがんだ楕円で薄れ、四角い板に見せない。道の上と水の上には段を作らない。
+      const x = cx - hw + i * STEP, z = cz - hd + j * STEP, u = (x - cx) / hw, v = (z - cz) / hd;
+      const r = Math.hypot(u, v) * (1 + 0.12 * Math.sin(Math.atan2(v, u) * 3 + cx));
+      let m = THREE.MathUtils.smoothstep(1 - r, 0, 0.3);
+      for (const p of paths) { const d = distToPolyline(x, z, p); if (d < 9) m *= THREE.MathUtils.smoothstep(d, 4, 9); }
+      if (W.waterDepthAt && W.waterDepthAt(x, z) > 0) m = 0;
+      for (const [kx, kz, kr] of keep) { const d = Math.hypot(x - kx, z - kz); if (d < kr + 4) m *= THREE.MathUtils.smoothstep(d, kr, kr + 4); }
+      const g = ground(x, z);
+      gy.push(g); mk.push(m); lv.push(Math.ceil(g / RISE));
+    }
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+      const k = j * (nx + 1) + i, x = cx - hw + i * STEP, z = cz - hd + j * STEP, L = lv[k];
+      // 下の段へ落ちる縁の点は畦（少し盛り上がる土手）、段の中は水を張った田。
+      let low = false, edge = false;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const a = i + di, b = j + dj; if (a < 0 || b < 0 || a > nx || b > nz) continue;
+        const n = lv[b * (nx + 1) + a]; if (n < L) low = true; if (n !== L) edge = true;
+      }
+      const m = mk[k], stair = L * RISE + 0.04 + (low ? 0.12 : 0);
+      pos.push(x, gy[k] + (Math.max(gy[k], stair) - gy[k]) * m, z);
+      const w = edge ? 0 : THREE.MathUtils.smoothstep(m, 0.55, 0.9);
+      // 水：曇り空を映す白っぽい灰（手本の霧の棚田の照り）。畦：草の残る暗い土手。畦は写真の土の肌を通す。
+      const t = 0.03 * Math.sin(x * 0.7 + z * 0.4);
+      col.push(0.24 + w * 0.56 + t, 0.27 + w * 0.55 + t, 0.17 + w * 0.65 + t, THREE.MathUtils.smoothstep(m, 0.02, 0.35));
+      wet.push(w); uv.push(x * 0.2, z * 0.2);
+      if (i < nx && j < nz && (m > 0 || mk[k + 1] > 0 || mk[k + nx + 1] > 0)) {
+        const a = base + k, b = a + nx + 1;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  geo.setAttribute('okeWet', new THREE.Float32BufferAttribute(wet, 1));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: W.groundU.tDirt.value, vertexColors: true, roughness: 0.9, metalness: 0, envMapIntensity: 1.1, transparent: true, polygonOffset: true, polygonOffsetFactor: -2 });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float okeWet; varying float vOkeWet;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOkeWet = okeWet;');
+    // 水面は土の肌を薄め、照りを強める（畦は乾いた土のまま）。
+    sh.fragmentShader = 'varying float vOkeWet;\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), vOkeWet * 0.85);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.1, vOkeWet);');
+  };
+  mat.customProgramCacheKey = () => 'okeTerrace';
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.receiveShadow = true; mesh.renderOrder = 2;
+  rt.scene.add(mesh);
+}
 const fieldVector = (x, z) => ({ x: x * FIELD_C + z * FIELD_S, z: -x * FIELD_S + z * FIELD_C });
 const localX = (x, z) => (x - FIELD_X) * FIELD_C - (z - FIELD_Z) * FIELD_S;
 const localZ = (x, z) => (x - FIELD_X) * FIELD_S + (z - FIELD_Z) * FIELD_C;
@@ -1693,6 +1766,7 @@ const okehazama = {
     // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     rainPuddles(rt);
+    okeTerraces(rt);
     // 豪雨のぬかるみが空を映して鈍く照るよう、地面の映りだけを強める（材質は一つのまま）。
     rt.world.terrain.material.envMapIntensity = 0.95;
     // 雨に濡れた土は暗く、色が沈み、少しだけ照る（10/29：乾いた赤土の明るさのままだった）。この戦の地面だけ。

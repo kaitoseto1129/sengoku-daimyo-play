@@ -1953,7 +1953,10 @@ function fortSiegeView(rt) {
   //   門から五十〜七十メートル。霞に沈まないよう、軽い兵を描かない輪を狭める。
   // 10/31 採点68：門から遠く小さかった。門の先二十〜三十メートルの堀の向こうへ寄せ、門の内の持ち場から旗の林が大きく見えるように。
   //   本人から二十メートルの内は描かない（棒人間を出さない）。門の前の本物の寄せ手と押し合う並びに。
-  for (const [x, z, w, d, n, sd] of [[-4, -22, 64, 16, 280, 15762], [34, -30, 30, 14, 120, 15763]]) {
+  // 10/31 採点68「本願寺の大軍が見えない」：砦を囲む一万五千の厚みを、門の先六十〜百メートルの台地と南西・南東の野に
+  //   横に長く深く置く。門内の持ち場から土塀の笠の上に旗と槍の林が並んで見える（軽い作り。本物の兵・当たりは足さない）。
+  for (const [x, z, w, d, n, sd] of [[-4, -22, 64, 16, 280, 15762], [34, -30, 30, 14, 120, 15763],
+    [0, 48, 130, 30, 320, 15764], [-78, 4, 56, 26, 160, 15765], [78, 4, 56, 26, 160, 15766]]) {
     const h = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.atan2(FORT.x - x, FORT.z - z), armor: 0x2b2722, team: 1, kind: 'mixed', flag: HONGAN_FLAG, host: false, seed: sd });
     if (h.army?.body) { h.army.noWake = true; h.army.U.uRealNear = { value: 20 }; }
   }
@@ -2140,6 +2143,10 @@ const tennoji = {
   missionSingleLine: true, hideMissionDots: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0,
   noDodgeCard: true, noPlayerFoot: true, quietMiss: true, inouFeel: true,
+  // 10/31：共通の物見・大寄せが、この戦の三方の一斉の寄せ（籠城）と救援の突入に重なって門が二十秒で落ち、
+  //   崩れた敵を追う段でも砦の脇の遊び手へ寄せ続けて倒れていた。この三つの段は戦の定義の寄せだけにする。
+  frontlineDensity: { excludePhases: ['siege', 'break', 'chase'] },
+  playerTaken: 0.42,   // 10/31：門内で三方の寄せと、打って出た先の小勢に削られ続け、倒れていた（bot 十に七）。越前一向一揆と同じに
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
   // 10/30：城戸口まで追う最後の段は、八分の打ち切りで切らない（口の残兵は九十秒で退く）
@@ -3315,6 +3322,8 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     }
     // 明智の槍を大将の円陣に閉じ込めず、門の内まで進んで迎え撃つ。
     F.ake.order = 'hold'; F.ake.noRing = true;
+    // 10/31 遊べる難しさ：門内の守りは柵と土塁を背にした籠城の側。一斉の寄せに二十秒で崩れないよう、受けだけ少し固くする（数は変えない）。
+    for (const g of [F.ake, F.fgun, F.rearGuard]) g.defMult = 1.3;
     F.ake.guardLeash = 4;
     defendGate(F.ake, 0, T_GATE.z - 2);
     defendGate(F.fgun, 2, T_GATE.z - 12);
@@ -3371,6 +3380,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     for (const q of F.oda) { q.seekRange = 40; }
     // 10/30：打って出た先で侍の三太刀で倒れる事が続いた（bot）。本人の身だけ少し固く保つ
     if (rt.player.u.group) rt.player.u.group.defMult = 1.35;
+    for (const g of [F.ake, F.fgun, F.gateSally]) g.defMult = 1;   // 籠城の間だけの固さは、打って出たら戻す
     for (const x of rt.squad || []) if (x.group) x.group.defMult = 1;
     // 公記巻九（四）の再攻撃は二段。馬廻も後段と同時に出し、三つ目の波にしない。
     // 各段への隊の割り振りと十二秒の間隔は推定。兵数・通る道・戦闘の密度は保つ。
@@ -3440,6 +3450,11 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     march(F.ehon.general.group, [[SHIMO.x, KIDO.z - 47]], 'hold', 0);
     // 残りの手：城戸口を守る殿の門徒と、木戸の脇の本願寺の鉄砲。後ろは氏名不明の将の控え。
     for (const g of F.kidoG) g.aggro = 30;
+    // 10/31：本隊が崩れても砦の周りの囲みの残りが斬り続け、追う遊び手が砦の脇で倒れていた。囲みの残りも北へ崩れる。
+    for (const g of [F.ringA, F.gunA, F.ringB, F.ringW, F.gateMob, ...F.siegeW]) {
+      if (!g || spent(g) || g.routed) continue;
+      g.noRout = false; g.morale = 0; g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+    }
     F.kz = { x: KIDO.x, z: KIDO.z + 16 };
     F.chaseWay = { x: 0, z: 0 };
     rt.marker('chaseWay', () => chaseWaypoint(rt), '味方と北へ追う道',
@@ -3452,6 +3467,8 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
     const F = rt.flags;
     if (F.kidoCut || F.ending || rt.over) return;
     F.kidoCut = true;
+    // 10/31：城戸口の手前で共通の小勢が次々に寄せ、印から引き離されて口を押さえ終えられなかった。ここでは新しい小勢を出さない。
+    if (rt.army.frontlineDensity) rt.army.frontlineDensity.clashAt = Infinity;
     rt.unmark('chaseWay');
     rt.obj('main', '城戸口の手前で、味方と八秒守れ', 'main');
     rt.scene.visible = false;
@@ -3577,7 +3594,16 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       F.gunSmoke?.emit(x, rt.world.heightAt(x, z) + 2.2, z, dx / l, dz / l, 4);   // 柵と土塁の上へ煙の頭が出る高さ
     }
     F.gunSmoke?.update(dt);
-    if (F.gateMob?.noRout && rt.t > 40) F.gateMob.noRout = false;
+    if (F.gateMob?.noRout && rt.t > 40) {
+      F.gateMob.noRout = false;
+      // 10/31 遊べる難しさ：三方の一斉の寄せに、門内の守りが二十秒で崩れていた（人でも守れない数の差）。
+      //   門外へ突いて出た明智の手を、寄せが着く前に門内へ引かせ、守りに数える（兵は足さない）。
+      if (!spent(F.gateSally) && !F.defenders.includes(F.gateSally)) {
+        defendGate(F.gateSally, -2, T_GATE.z - 4);
+        F.gateSally.defMult = 1.3;
+        F.defenders.push(F.gateSally); F.fighters.push(F.gateSally);
+      }
+    }
     // 大軍の補いは三秒ごとに動く一隊だけ。列の足元へ散らし、中央から煙を噴かせない。
     F.hostDustT = (F.hostDustT || 0) - dt;
     if (F.hostDustT <= 0 && F.hostE.length) {
@@ -3763,8 +3789,9 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       }
       // 信長と戦える六人が入れば合流。門外を固める馬廻の半数までは待たない。
       // 信長が門口（土橋の内の端）まで来れば入城とみなす。狭い門で後列を待って止めない。
+      // 10/31：信長が門の脇の柵の外で門徒と斬り合い続け、二分の待ちで負けていた。三十秒の後は門から二十五歩内で入城とみなす。
       const nobuIn = inPoly(SOTO_POLY, F.nobuU.pos.x, F.nobuU.pos.z) ||
-        Math.hypot(F.nobuU.pos.x - T_GATE.x, F.nobuU.pos.z - T_GATE.z) < 6;
+        Math.hypot(F.nobuU.pos.x - T_GATE.x, F.nobuU.pos.z - T_GATE.z) < (elapsed >= 30 ? 25 : 6);
       const playerIn = d < 10 && inPoly(SOTO_POLY, p.x, p.z);
       const joined = playerIn && nobuIn && inside >= 6;
       // 自分が門から一歩離れても、救援の入城待ちを数え直さない。
@@ -3779,8 +3806,11 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       // 救援が戦えない時も、門で延々と待たせない。勝ちにはせず退く下知を出す。
       if (F.joinWait >= 120) return this.fail(rt, '救援が砦へ入れぬ。列を保って南へ退け');
       // 入城がそろえば合流。列を整える十二秒は次の段で一度だけ待つ。
-      if (joined && F.step === 2) this.regroup(rt);
-      else if (joined && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);
+      // 10/31：傷を休める遊び手が印へ来ないと、救援が入っても戦が止まったままだった（bot が八分の時間切れ）。
+      //   信長と六人が門内に入っていれば、合流は三十秒、出撃は四十五秒で、本人を待たずに進める。
+      const ready = nobuIn && inside >= 6;
+      if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
+      else if ((joined || ready && elapsed >= 45) && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);
     } else if (F.step === 3) {
       let broken = true;
       for (const q of F.last) if (!spent(q)) broken = false;
@@ -4201,7 +4231,8 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
         Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < o.reach)) close++;
   // 布は残りと待ち時間で判断する。一枚目を巻いた印で二枚目を封じない。
   const canTreat = p.treatmentLeft > 0 && p.treatmentNext <= b.t && !p.mounted;
-  if ((u.hp < u.maxHp * 0.5 || u.wounds?.bleed > .0001) && canTreat && !F.botTreatRest && b.t >= (F.botTreatRetryAt || 0)) {
+  // 籠城の門では浅い血止めのために持ち場を離れない（離れた間に門が落ちていた 10/31）。深手の時だけ奥で巻く。
+  if ((u.hp < u.maxHp * 0.5 || u.wounds?.bleed > .0001 && !(siege && u.hp >= u.maxHp * 0.7)) && canTreat && !F.botTreatRest && b.t >= (F.botTreatRetryAt || 0)) {
     F.botTreatRest = true; F.botRestT = b.t;
   }
   if (F.botTreatRest && (!canTreat || b.t - F.botRestT >= 45)) {
@@ -4240,9 +4271,14 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 城戸口では砦まで戻らず、信長の旗の後ろへ下がる。
     if (F.step === 3 || F.step === 4 && F.shelterShown) {
       botWalk(p, inp, F.fieldRest.x, F.fieldRest.z, 2, goTo);
+    } else if (F.step === 4 && !F.kidoCut && !foe) {
+      // 崩れた敵を追う段は、敵が近くに居なければ砦へ戻らず、案内の道で味方の後を追う（砦の脇の残りに討たれていた 10/31）。
+      const w = chaseWaypoint(b) || F.kz;
+      botWalk(p, inp, w.x, w.z, 2, goTo);
     } else if (F.step === 4 && F.kidoCut) {
-      const c = F.nobuU.alive && !F.nobu.routed ? F.nobuU.pos : F.kz;
-      botWalk(p, inp, c.x, c.z + 10, 2, goTo);
+      // 敵の居ない口では、印の上で傷を巻く（信長の後ろへ下がり続けて口を押さえ終えられなかった 10/31）。
+      const c = foe && F.nobuU.alive && !F.nobu.routed ? F.nobuU.pos : F.kz;
+      botWalk(p, inp, c.x, c.z + (c === F.kz ? 0 : 10), 2, goTo);
     } else botWalk(p, inp, fortRest ? SHELTER.x : siege ? T_HONGATE.x : 2,
       fortRest || siege ? SHELTER.z : -50, 1, goTo);
     if (foe) {

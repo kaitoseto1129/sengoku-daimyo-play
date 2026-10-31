@@ -3693,6 +3693,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   fire(rt, i) {
     const F = rt.flags;
     const c = F.guns[i];
+    // 10/31：本人が大筒に手を掛けた印（立っているだけで段が進まないように）
+    if (F.step === 1 || F.step === 4) F['pf' + F.step] = true;
     if (F.step === 2 || F.step === 3) { rt.bark('今は甲板の持ち場を守れ'); return; }
     if (F.ending || rt.over || !rt.player.u.alive || (F.step !== 1 && F.step !== 4)) return;
     if (rt.t < c.cd) { rt.bark('弾込め中'); return; }
@@ -4382,7 +4384,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.step === 1) {
       if (elapsed >= 90 && F.cannonHits >= 1) { this.fires(rt); return; }
       // 大筒を当てられなくても負けにしない（必ず戦い続けられる。稲生の標準）。百秒で砲手が代わりに当て、次の段へ。
-      if (elapsed >= 100) { F.cannonHits = Math.max(1, F.cannonHits); rt.army.play('volley', CANNONS[1], 1.6); rt.say('砲手', '当たったぞ！　寄せる船が止まった', 3); this.fires(rt); return; }
+      if (elapsed >= 100 && (F.pf1 || F.pk)) { F.cannonHits = Math.max(1, F.cannonHits); rt.army.play('volley', CANNONS[1], 1.6); rt.say('砲手', '当たったぞ！　寄せる船が止まった', 3); this.fires(rt); return; }
     }
     if (F.step === 2) {
       if (F.doused < 3) F.fireDanger += dt;
@@ -4391,7 +4393,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         rt.objProgress('main', `残る火は${3 - F.doused}か所。${F.fireDanger >= 60 ? '屋形に火が迫る。急げ' : F.water ? '水を掛けたら、桶へ戻れ' : '水桶を取り、火へ運べ'}`);
       }
       // 九鬼の水夫も手桶で火に掛かる（三十五秒・六十秒に一つずつ）。主人公一人に船の火を任せきりにしない
-      const crewAt = [35, 55, 70][F.crewDoused || 0];   // 三つ目も七十秒で水夫が消す。甲板で戦い続けた者を火で負けにしない（bot 10/26）
+      // 10/31：三つ目は本人が一つでも消した時だけ水夫が消す（立っているだけで火の段が終わらない）
+      const crewAt = [35, 55, F.playerDoused ? 70 : undefined][F.crewDoused || 0];   // 三つ目も七十秒で水夫が消す。甲板で戦い続けた者を火で負けにしない（bot 10/26）
       if (F.doused < 3 && crewAt !== undefined && F.fireDanger >= crewAt) {
         const k = F.fl.findIndex((f) => f && !f.doused);
         F.crewDoused = (F.crewDoused || 0) + 1;
@@ -4416,10 +4419,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         rt.award((t) => { if (!t.side.includes('甲板へ乗り込む敵を退けた')) t.side.push('甲板へ乗り込む敵を退けた'); }, '甲板の持ち場を守った');
         this.decisive(rt); return;
       }
-      if (elapsed >= 130) { this.decisive(rt); return; }   // 乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
+      if (elapsed >= 130 && (F.pk || 0) >= 1) { this.decisive(rt); return; }   // 乗り口で戦い続けた者を負けにせず、決め手の段へ（bot 10/26）
     }
     if (F.step === 4) {
-      if (!F.bigSunk && elapsed >= 60) { this.breakFlagship(rt, false); return; }   // 当てられなくても味方の大船が崩す（負けにしない）
+      if (!F.bigSunk && elapsed >= 60 && (F.pf4 || F.pk)) { this.breakFlagship(rt, false); return; }   // 当てられなくても味方の大船が崩す（負けにしない）
       // 命中後の崩れを見せたら退きへ進む。砲撃が早く決まっても待たせない。
       if (F.bigSunk && rt.t - F.flagshipHitAt >= 8) { this.retreat(rt); return; }
     }
@@ -4427,7 +4430,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
       if (!contested && F.bigSunk && F.doused >= 3 && F.cannonHits >= 1 && rt.player.u.alive) this.win(rt);
-      else if (elapsed >= 60 && rt.player.u.alive) this.win(rt);   // 甲板に敵が残っても、大船を崩した後は守り通した事にする
+      else if (elapsed >= 60 && rt.player.u.alive && (F.pk || 0) >= 1) this.win(rt);   // 甲板に敵が残っても、大船を崩した後は守り通した事にする
     }
 
   },
@@ -4471,9 +4474,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     rt.finish({ failureReason: line, scriptedEnd: true }, 8);
   },
 
-  onKill(rt, v) {
+  onKill(rt, v, k) {
     const F = rt.flags;
     deckFall(rt, v);
+    if (v.team === 1 && k && (k === rt.player.u || k.isPlayer)) F.pk = (F.pk || 0) + 1;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     if (v.team === 1 && v.group?.boat?.boarded && !v.shipBoat && !v.deckRepelled) { v.deckRepelled = true; F.deckRepelled++; }
   },
