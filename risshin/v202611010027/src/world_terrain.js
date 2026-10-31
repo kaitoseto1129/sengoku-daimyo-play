@@ -1040,6 +1040,8 @@ export function linkLandOverlay(mat, U, anchor) {
   const f = mat.onBeforeCompile;
   mat.onBeforeCompile = function (sh, renderer) { f.call(this, sh, renderer); landOverlay(sh, U, anchor); };
 }
+// 一様で暗い土を割る（10/31 gap2_ground）：x＝土の色の明るさの掛け・y＝大きな斑の明暗の幅・z＝照らした後の暗い地面の持ち上げ（0で無し）・w＝黒い泥と水溜まりを浅く。全戦で一つ
+export const LAND_GAP = { value: new THREE.Vector4(1.2, 1.8, 2.2, 0.6) };
 export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   const fs = sh.fragmentShader;
   if (!fs.includes(anchor) || fs.includes('vLsP') || !sh.vertexShader.includes('#include <project_vertex>')) return;
@@ -1047,14 +1049,14 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   Object.assign(sh.uniforms, {
     tLsMacro: U.tMacro, uLsWet: U.uWet, uLsNight: U.uNight, tLsCastle: U.tCastle, uLsCastle: U.uCastle,
     uLsSeason: U.uLandSeason || { value: new THREE.Vector4() }, uLsHeight: U.uLandHeight || { value: new THREE.Vector2(0, 1) },
-    tLsDetail: { value: groundDetailPack() },
+    tLsDetail: { value: groundDetailPack() }, uLsGap: LAND_GAP,
   }, U.groundGrade || groundGrade(null));
   sh.vertexShader = 'varying vec3 vLsP;\n' + sh.vertexShader.replace('#include <project_vertex>',
     'vLsP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
-  let out = 'varying vec3 vLsP;\nuniform sampler2D tLsMacro, tLsCastle, tLsDetail;\nuniform float uLsWet, uLsNight;\nuniform vec4 uLsCastle, uLsSeason, uLsGrade;\nuniform vec3 uLsGradeG0, uLsGradeG1, uLsGradeS0, uLsGradeS1;\nuniform vec2 uLsHeight;\n'
+  let out = 'varying vec3 vLsP;\nuniform sampler2D tLsMacro, tLsCastle, tLsDetail;\nuniform float uLsWet, uLsNight;\nuniform vec4 uLsCastle, uLsSeason, uLsGrade, uLsGap;\nuniform vec3 uLsGradeG0, uLsGradeG1, uLsGradeS0, uLsGradeS1;\nuniform vec2 uLsHeight;\n'
     + fs.replace(anchor, `${anchor}
     // 近くの土の肌（10/30 ground2_c）：小石・足跡・粒の高さと、濡れの照りを、後の凹凸と粗さへ渡す
-    float lsHgt = 0.0, lsGloss = 0.0;
+    float lsHgt = 0.0, lsGloss = 0.0, lsLiftK = 0.0;
     {
       vec3 lsP = vLsP;
       vec3 lsN = normalize(cross(dFdx(lsP), dFdy(lsP)));
@@ -1152,7 +1154,7 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
       lsC = mix(lsC, lsSoil * mix(0.7, 0.36, lsRutWet), lsRut * 0.9);
       // 湿った窪み：低い所と斑の湿った所は黒く濡れた土（青草の上にも出す）
       float lsPool = smoothstep(0.72, 0.92, 1.0 - lsM1 * 0.6 - lsM2 * 0.4) * clamp(0.3 + lsLo + uLsWet + lsDamp * 0.4, 0.0, 1.0) * lsK;
-      lsC = mix(lsC, lsSoil * 0.42 * (1.0 - uLsNight * 0.3), lsPool * 0.65);
+      lsC = mix(lsC, lsSoil * 0.42 * (1.0 - uLsNight * 0.3), lsPool * 0.65 * (1.0 - uLsGap.w));
       // 近くの粒（10/28 leap_ground3）：草は草の粒、土は土の粒、乾いた高みと城の平場は砂利、白い雪は霜の粒。
       // 夜は差を少し強く（暗い戦でも一色に見せない）。
       float lsNear = mix(0.55, 1.0, smoothstep(0.35, 0.8, abs(lsN.y)));
@@ -1195,7 +1197,7 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
         vec3 lsBareC = lsSoil * vec3(1.12, 1.06, 0.98);
         lsBareC *= max(lsLumB, 0.06) * 1.22 / max(dot(lsBareC, vec3(0.3, 0.59, 0.11)), 1e-4);
         lsC = mix(lsC, mix(lsC * vec3(1.3, 1.2, 1.02), lsBareC, lsGreen), lsBare * 0.75);
-        lsC = mix(lsC, mix(lsC * vec3(0.42, 0.37, 0.32), lsSoil * 0.42, lsGreen * 0.6), lsMuck * 0.75);
+        lsC = mix(lsC, mix(lsC * vec3(0.42, 0.37, 0.32), lsSoil * 0.42, lsGreen * 0.6), lsMuck * 0.75 * (1.0 - uLsGap.w));
         lsGloss = max(lsGloss, lsMuck * 0.35 * lsFlat);
       }
       lsC *= max(0.25, 1.0 + lsDet * lsNear * (1.7 + uLsNight * 0.9));
@@ -1251,6 +1253,18 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
         lsHgt += (lsLip * 0.006 - lsPit * 0.014) * (1.0 - lsStone);
         lsGloss = max(lsGloss, lsPit * clamp(uLsWet * 1.2 + lsDamp * 0.4, 0.0, 1.0));
       }
+      {
+        // 一様で暗い土を割る（10/31 gap2_ground）：844×390 の25秒の画面で、地面の明るさは手本の写真の六割・明暗の幅は半分だった。
+        // 数m〜数十mの斑で明暗と色味（湿った緑寄り・乾いた黄土寄り）の幅を広げ、土の色を少し明るく。黒い泥と水溜まりは浅く。
+        // 照らした後の暗い所の持ち上げ（下の opaque の前）にも同じ重みを渡す。雪・夜・城の平場は弱める。絵の読み出しは足さない。
+        float lsGk = lsOn * (1.0 - lsSnow) * (1.0 - uLsNight * 0.7);
+        float lsV = clamp((lsM3 - 0.5) * 0.55 + (lsM1 - 0.5) * 0.45 + (lsM2 - 0.5) * 0.3, -0.5, 0.5);
+        lsC *= (1.0 + lsV * uLsGap.y * lsGk) * mix(vec3(1.0), mix(vec3(0.94, 1.03, 0.96), vec3(1.05, 1.0, 0.9), lsV + 0.5), min(uLsGap.y, 1.0) * lsGk);
+        lsC *= mix(1.0, uLsGap.x, lsGk);
+        // 持ち上げた土は橙に寄りすぎないよう、色を少し灰へ（手本の乾いた灰茶）
+        lsC = mix(lsC, vec3(dot(lsC, vec3(0.3, 0.59, 0.11))), clamp(uLsGap.x - 1.0, 0.0, 0.3) * 0.35 * (1.0 - lsGreen) * lsGk);
+        lsLiftK = lsGk;
+      }
       // 濡れた土は暗い（照りは粗さで出す）
       lsC *= 1.0 - lsGloss * 0.12 * lsSoilK;
       diffuseColor.rgb = lsC;
@@ -1263,6 +1277,13 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
       float lsDt = dot(lsDx, lsR1) * faceDirection;
       normal = normalize(abs(lsDt) * normal - sign(lsDt) * (dFdx(lsHgt) * lsR1 + dFdy(lsHgt) * lsR2));
     }`);
+  // 照らした後の暗い地面だけを持ち上げる（10/31 gap2_ground）：光の弱い戦の土は画面で暗い一色に沈む。暗い所ほど強く、明るい地面（姉川）はほぼそのまま。
+  // 明るさの順は崩さない（掛けの曲線は単調）。霧の前に掛けるので遠くの霞は変えない。
+  for (const k of ['#include <opaque_fragment>', '#include <output_fragment>']) if (out.includes(k)) { out = out.replace(k, `{
+      float lsOl = dot(outgoingLight, vec3(0.3, 0.59, 0.11));
+      outgoingLight *= 1.0 + uLsGap.z * exp(-lsOl / 0.035) * lsLiftK;
+    }
+    ${k}`); break; }
   if (out.includes('#include <metalnessmap_fragment>')) out = out.replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
     roughnessFactor = mix(roughnessFactor, 0.28, lsGloss * 0.75);`);
   sh.fragmentShader = out;

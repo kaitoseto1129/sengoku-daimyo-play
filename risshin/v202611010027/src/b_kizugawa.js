@@ -958,8 +958,10 @@ function addShipFlags(g, cx, z, y, halfWidth = 1.9, forwardZ = z, count = 5, sel
   for (let j = 0; j < count; j++) {
     const i = count === 5 ? j : j * 2;
     // 五本目は屋形の前の左舷。四隅の旗だけにせず、軒と大筒の間へ置く。
+    // 10/31：屋形の前（z2）では、西の舷で沖を肩越しに見る視点の一歩先に布が来て、右の三割を紺の幟が塞いだ。
+    //   中の大筒（z0）の舳先側へ移し、肩越しの視点の後ろへ回す（本数・形は同じ）。
     const x = cx + (i === 4 ? -0.8 : i % 2 ? 1 : -1) * halfWidth;
-    const zz = i === 4 ? z + (forwardZ - z) * 0.38 : i < 2 ? forwardZ : z;
+    const zz = i === 4 ? z + (forwardZ - z) * (self ? 0.55 : 0.38) : i < 2 ? forwardZ : z;
     D.position.set(x, (footY + poleTop) / 2, zz); D.rotation.set(0, 0, 0); D.scale.set(1, poleTop - footY, 1); D.updateMatrix(); poles.setMatrixAt(j * 2, D.matrix);
     D.position.set(x + 0.475 * Math.SQRT1_2, y + 3.5, zz - 0.475 * Math.SQRT1_2);
     D.rotation.set(0, Math.PI / 4, -Math.PI / 2); D.scale.set(0.65, 1.09, 0.65); D.updateMatrix(); poles.setMatrixAt(j * 2 + 1, D.matrix);
@@ -3194,7 +3196,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       }
       // 舷や屋形で肩まで寄った時は、通路に沿って引ける側を探す。
       const u = rt.player.u, p = camera.position;
-      if (u.alive && !rt.player.aiming && u.pos.y <= DECK.y + 0.5) {
+      // 10/31 採点「総矢倉の壁が左の三割五分を塞ぐ」：西の舷で沖を肩越しに見る構図（frameCamera の seaFrame）を置いた間は、
+      //   ここで本人へ向け直したり屋形の角の外へ寄せ直したりしない（寄せ直すと視点が屋形の脇へ戻り、壁に沿って甲板の奥を向いた）。
+      const seaFrame = rt.def.seaFrameRt === rt && rt.def.seaFrameAt >= rt.t - 0.1;
+      if (u.alive && !rt.player.aiming && u.pos.y <= DECK.y + 0.5 && !seaFrame) {
         // 位置だけ戻して元の注視点を残すと、壁や足元へ向いたままになる。
         // 補正した時と目の前が屋形の時だけ、見通せる本人へ向け直す。
         const corrected = Math.hypot(p.x - oldX, p.y - oldY, p.z - oldZ) > 0.05;
