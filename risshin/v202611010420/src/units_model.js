@@ -1082,7 +1082,11 @@ function merge(parts) {
 //   兵ごとの鍵（色・傷）で別の形になるので、同じ体格・同じ部品でも頂点の配列が兵の数だけ GPU と CPU に乗っていた
 //   （森部の乱戦で送り済みの兵の形 1193 個・82MB。GPU process が 600MB を越えて WebContent ごと切られる。10/20）。
 //   three は属性（BufferAttribute）ごとに一度だけ送るので、同じ属性を使い回せば GPU も一つ。中身の hash で見分ける
+// 10/31 c_leak2：表は弱い参照で持つ（共有の元の位置の配列が覚え書きを持つ）。強く持つと、手放した兵の形の配列が戦の間ずっと残り、
+//   姉川で 2 分に 3MB・設楽原でも同じだけ増え続けた。使う兵がいる間は配列が生きているので共有はそのまま
 const unitShapes = new Map();
+let unitShapeSets = 0;
+const derefShape = (key) => { const r = unitShapes.get(key), e = r && r.deref(); if (r && !e) unitShapes.delete(key); return e; };
 export const UNIT_SHAPE_STAT = { made: 0, shared: 0 };
 function shareShape(g) {
   const pos = g.attributes.position, uv = g.attributes.uv, nr = g.attributes.normal;
@@ -1093,7 +1097,7 @@ function shareShape(g) {
   hashF(pos.array); if (uv) hashF(uv.array); if (nr) hashF(nr.array);
   const ix = g.index.array; for (let i = 0; i < ix.length; i++) mix(ix[i]);
   const key = pos.count + ':' + ix.length + ':' + (uv ? 1 : 0) + (nr ? 1 : 0) + ':' + (h >>> 0).toString(36);
-  const sh = unitShapes.get(key);
+  const sh = derefShape(key);
   // 共有の元が配列を手放している（lazy・gpuOnly）時は、今できた配列を新しい元にする（作り直しの最中に自分を読んで回らないように）
   const dropped = sh && ['position', 'normal', 'uv', 'index'].some((k) => { const a = sh[k]; if (!a) return false; const d = Object.getOwnPropertyDescriptor(a, 'array'); return (d && d.get) || !a.array || a.array.length === 0; });
   if (sh && !dropped && sh.position.count === pos.count && sh.index.count === g.index.count && !!sh.uv === !!uv && !!sh.normal === !!nr) {
@@ -1102,7 +1106,10 @@ function shareShape(g) {
     UNIT_SHAPE_STAT.shared++;
     return;
   }
-  unitShapes.set(key, { position: pos, normal: nr, uv, index: g.index });
+  const entry = { position: pos, normal: nr, uv, index: g.index };
+  pos._unitShape = entry;
+  unitShapes.set(key, new WeakRef(entry));
+  if (++unitShapeSets % 256 === 0) for (const k of [...unitShapes.keys()]) derefShape(k);
   UNIT_SHAPE_STAT.made++;
 }
 function quantize8(g, name) {
@@ -2415,6 +2422,7 @@ export function haoriPoint(th, y, tier, hi) {
 // grp を渡すと、その部分だけ（骨の入った人に着せるため）：base 腰と肩の下着・torso 胴まわり・hips 草摺・sodeP/sodeN 袖（+x/-x）・head 兜と面頬
 const bodyPartsCache = new LruMap(160);
 const partAttributes = new Map();
+let partGeoN = 0;
 // 色だけ違う部位も、座標・法線・模様・素材の配列を共有する。
 // 色は従来の頂点色に残すので、高画質の材質と束の描き方もそのまま使える。
 function partGeo(parts) {
@@ -2428,18 +2436,25 @@ function partGeo(parts) {
     const step = Math.max(1, Math.floor(values.length / 32));
     for (let i = 0; i < values.length; i += step) hash = (Math.imul(hash, 31) + Math.round(values[i] * 10000)) | 0;
     const key = [name, values.constructor.name, values.length, a.itemSize, a.normalized, hash].join('|');
+    // 弱い参照で持つ（10/31 c_leak2：使う部品が無くなった配列まで戦の間ずっと抱えて増え続けた）
     let list = partAttributes.get(key);
     if (!list) partAttributes.set(key, list = []);
-    const shared = list.find(b => {
-      for (let i = 0; i < values.length; i++) if (values[i] !== b.array[i]) return false;
-      return true;
-    });
+    let shared = null;
+    for (let li = list.length - 1; li >= 0; li--) {
+      const b = list[li].deref();
+      if (!b) { list.splice(li, 1); continue; }
+      if (shared) continue;
+      let same = true;
+      for (let i = 0; i < values.length; i++) if (values[i] !== b.array[i]) { same = false; break; }
+      if (same) shared = b;
+    }
     if (shared) {
       shared._unitShared = true;
       if (name === 'index') g.setIndex(shared);
       else g.setAttribute(name, shared);
-    } else list.push(a);
+    } else list.push(new WeakRef(a));
   }
+  if (++partGeoN % 512 === 0) for (const [k, l] of partAttributes) if (!l.some((r) => r.deref())) partAttributes.delete(k);
   return g;
 }
 function bodyPartList(PT, grp) {

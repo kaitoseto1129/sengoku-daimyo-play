@@ -78,6 +78,13 @@ function remapLac(arr, i, target, meanL, amt, br) {
   const tr = target ? target.r * sh : r * sh, tg = target ? target.g * sh : g * sh, tb = target ? target.b * sh : b * sh;
   arr[i] = r + (Math.min(1, tr) - r) * amt; arr[i + 1] = g + (Math.min(1, tg) - g) * amt; arr[i + 2] = b + (Math.min(1, tb) - b) * amt;
 }
+function requantize(g, name, Ctor) {
+  const a = g.attributes[name];
+  if (!a || !Ctor || Ctor === Float32Array || !(a.array instanceof Float32Array)) return;
+  const max = Ctor === Uint8Array ? 255 : 65535, src = a.array, out = new Ctor(src.length);
+  for (let i = 0; i < src.length; i++) out[i] = Math.round(Math.min(1, Math.max(0, src[i])) * max);
+  g.setAttribute(name, new THREE.BufferAttribute(out, a.itemSize, true));
+}
 function recolorGeo(g, L, V, name) {
   const col = g.attributes.color, c2 = g.attributes.col2, mtl = g.attributes.mtl;
   if (!col || !mtl || !col.array || !mtl.array) return false;
@@ -129,8 +136,11 @@ function soldierVariety(parts) {
       const reshape = name === 'head' && V.hat && (V.hat[0] !== 1 || V.hat[1] !== 1);
       let g = src.clone();
       g.userData = {};   // clone は userData を元の形と共有するので、別にする（元の形の鍵 ck を書き換えない）
+      const qc = g.attributes.color?.array?.constructor, q2 = g.attributes.col2?.array?.constructor;
       dequantize(g, 'color'); dequantize(g, 'col2');
       let ok = recolorGeo(g, L, V, name);
+      // 塗った後は元の細かさ（8・16 ビット）へ戻す（浮動小数のままだと色の配列が四倍。10/31 iPhone の落ち）
+      requantize(g, 'color', qc); requantize(g, 'col2', q2);
       if (reshape) {
         g.computeBoundingBox();
         const y0 = g.boundingBox.min.y;
