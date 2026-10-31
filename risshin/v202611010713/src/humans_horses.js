@@ -84,6 +84,23 @@ async function primeHorses(rt, current = () => true) {
     if (typeof window !== 'undefined' && window.__loadTimes) window.__loadTimes.horsesPrimed = prepared.length;
   }
 }
+// 遠めの馬の脚：面を減らした形は脚が細い棒になる。高さごとの芯から外へ膨らませ、前腕と脛（すね）の肉・膝（腕節）と飛節・球節の関節の膨らみを付ける（頂点は増やさない）
+const LEG_JOINT = [[0.47, 0.2], [0.47, 0.2], [0.57, 0.2], [0.57, 0.2]];   // 前脚は腕節・球節、後脚は飛節・球節の高さ（m）
+function legSlices(g, S) {
+  const m = /^[ul](\d)$/.exec(g); if (!m) return null;
+  const leg = +m[1], N = 40, D = 0.03, sx = new Float32Array(N), sz = new Float32Array(N), sn = new Float32Array(N);
+  for (let i = 0; i < S.P.length / 3; i++) { const y = S.P[i * 3 + 1], b = Math.floor(y / D); if (b < 0 || b >= N) continue; sx[b] += S.P[i * 3]; sz[b] += S.P[i * 3 + 2]; sn[b]++; }
+  const c = (y) => { const b = Math.floor(y / D); return b >= 0 && b < N && sn[b] >= 3 ? [sx[b] / sn[b], sz[b] / sn[b]] : null; };
+  const [jk, jf] = LEG_JOINT[leg], hind = leg >= 2, ss = THREE.MathUtils.smoothstep, bump = (y, y0, w) => Math.exp(-(((y - y0) / w) ** 2));
+  const k = (y) => {
+    const top = 1 - ss(y, hind ? 0.78 : 0.74, hind ? 0.95 : 0.9);   // 胴との境目は動かさない
+    // 前腕・脛は太く、管（すね骨）は締まり、関節は膨らむ。蹄は少しだけ
+    const meat = ss(y, jk + 0.04, jk + 0.16) * 0.5, cannon = 0.36, joint = bump(y, jk, 0.05) * 0.26 + bump(y, jf, 0.035) * 0.24;
+    const f = (y < 0.1 ? 0.12 : cannon + meat + joint) * top;
+    return [1 + f * 0.85, 1 + f];   // 管は横より前後に厚い
+  };
+  return { c, k };
+}
 // 毛色・馬具ごとの形（部位ごとの BufferGeometry。今の形の馬の部品の座標＝根元の座標 / HORSE_K から支点を引いた所）
 function proxyGeos(st) {
   const PX = HR.proxy, K = PX_HORSE_K;
@@ -96,8 +113,10 @@ function proxyGeos(st) {
   for (const g in PX.G) {
     const S = PX.G[g], n = S.P.length / 3, pv = PX.piv[g] || new THREE.Vector3();
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), mt = new Float32Array(n);
+    const leg = legSlices(g, S);
     for (let i = 0; i < n; i++) {
-      const x = S.P[i * 3], y = S.P[i * 3 + 1], z = S.P[i * 3 + 2];
+      let x = S.P[i * 3], y = S.P[i * 3 + 1], z = S.P[i * 3 + 2];
+      if (leg) { const k = leg.k(y), c = leg.c(y); if (c) { x = c[0] + (x - c[0]) * k[0]; z = c[1] + (z - c[1]) * k[1]; } }
       pos[i * 3] = (x - pv.x) / K; pos[i * 3 + 1] = (y - pv.y) / K; pos[i * 3 + 2] = (z - pv.z) / K;
       const kd = S.K[i];
       if (kd === 1) c.copy(hoof);

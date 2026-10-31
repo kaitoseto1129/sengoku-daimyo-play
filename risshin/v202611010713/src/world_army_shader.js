@@ -275,6 +275,8 @@ export const ARMY_P = { value: new THREE.Vector2(1e5, 1e5) };
 export const ARMY_REAL_P = { value: new THREE.Vector2(1e5, 1e5) };
 export const ARMY_REAL_R = { value: 0 };
 export const ARMY_REAL_NEAR = 60;
+// 敵の前備え（後詰め）が見える所へ移った時に、霞から一人ずつ現れる割合（0〜1。world_army.js foeHostView）。ほかの隊は 1 のまま
+const HOST_IN_ONE = { value: 1 };
 // 兵ごとに形を選ぶ隊の境（m）：x より近くは細かい形、x〜y は中ほどの形、y より先は遠い束の形
 export const ARMY_SPLIT_R = { value: new THREE.Vector2(16, 44) };
 const _spM = new THREE.Matrix4(), _spV = new THREE.Vector3();
@@ -368,7 +370,7 @@ const ARMY_PUSH = `
    // 兵ごとに遠さで形を選ぶ隊：一人ずつの距離で、近い細かい形・中ほどの形・遠い束のどれか一つだけに描く
    if (aSplit > 1.5 ? dd < uArmySplitR.x : aSplit > 0.5 ? dd < uArmySplitR.y : aSplit < -1.5 ? (dd < uArmySplitR.x || dd >= uArmySplitR.y) : aSplit < -0.5 && dd >= uArmySplitR.x) AP.show = 0.0;
    // 近景の外でも一人ずつ徐々に間引く。体に穴を開けず、旗と槍も同じ兵ごとに残す。
-   if (aHost != 0.0) vArmyCover = step(aInfo.x, smoothstep(aHN, aHN * 1.5, dd));
+   if (aHost != 0.0) vArmyCover = step(aInfo.x, smoothstep(aHN, aHN * 1.5, dd) * (aHost < 0.0 ? uHostIn : 1.0));
  }
  #endif`;
 // 半透明の並べ替えを増やさず、後詰めの近い端だけを兵ごとに間引く。
@@ -428,12 +430,12 @@ function armyShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
     if (mat.map) flagMoonlight(sh);
     sh.uniforms.uAFlagWidth = { value: mat.map?.userData.mon === 'hachisuka' || mat.map?.userData.mon === 'yose_hachisuka' ? 0.65 : 1 };
-    Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
+    Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
     sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
       #ifdef USE_FOG
         gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz);
       #endif`);
-    sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR; uniform vec2 uArmyP, uArmyRealP;\n' + ARMY_GLSL + sh.vertexShader
+    sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR, uHostIn; uniform vec2 uArmyP, uArmyRealP;\n' + ARMY_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose();${ARMY_PUSH}
  if (uUnavailable > 0.5 && max(abs((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).x), abs((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).z)) < uMoveLim + 40.0) AP.show = 0.0;
@@ -648,8 +650,8 @@ function clashShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
     if (mat.map) flagMoonlight(sh);
     sh.uniforms.uAFlagWidth = { value: mat.map?.userData.mon === 'hachisuka' || mat.map?.userData.mon === 'yose_hachisuka' ? 0.65 : 1 };
-    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
-    sh.vertexShader = 'uniform vec2 uArmyRealP; uniform float uArmyRealR; uniform vec2 uArmyP;\n' + CLASH_GLSL + sh.vertexShader
+    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
+    sh.vertexShader = 'uniform vec2 uArmyRealP; uniform float uArmyRealR, uHostIn; uniform vec2 uArmyP;\n' + CLASH_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose(); cPose(AP);${ARMY_PUSH.replace(/uArmyNear/g, 'uNearHide')}
  objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));`)
