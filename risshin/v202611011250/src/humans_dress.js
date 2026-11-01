@@ -16,14 +16,24 @@ let armorBox = null;
 // 身分（足軽・侍）と家ごとに、漆・威糸・脚絆・陣笠の色と形を六通りに分ける。人の鍵（vi%6）は lookParts の形の鍵に入っているので、
 //   形の数も材質の数も増えない（頂点の色を塗り替えるだけ。共通の UNIT_MAT のまま）。名のある武将・本人・僧兵・小袖は触らない。
 //   色は戦国の実物の具足の色（黒漆・溜塗・茶・錆・朱の褪せ）。青（紺・縹）は使わない（kaito 10/29）。
-const VAR_LAC0 = [[null, 0, 1], [0x5a3420, 0.85, 1], [0x6a4c30, 0.8, 1], [0x7a6650, 0.7, 1], [0x5a2a1c, 0.6, 1], [0x141210, 0.7, 1]];
+// 足軽の御貸具足の色（kaito 10/31 夜・docs/risshin_tasks.md）：軍ごとに三通り。陣笠と胴は同じ色。青は使わない。
+//   ①黒漆（多くの家）：真っ黒の平らな塗りでなく、照りの差・下地の茶の剥げ・泥で六通り
+//   ②錆地（一揆・雑賀・小さな家・寄せ集め）：くすんだ茶がかった鉄色に、所々の錆の赤茶
+//   ③赤備え（武田・井伊・真田）：朱の濃さと褪せで六通り
+const LAC_BLACK = [[0x1c1814, 0.85, 1], [0x2e261e, 0.85, 1.22], [0x16130f, 0.85, 0.92], [0x3a2a1c, 0.8, 1], [0x24201a, 0.8, 1.1], [0x45342a, 0.7, 0.95]];
+const LAC_SABI = [[0x4a3e30, 0.85, 1], [0x5e3a22, 0.85, 1], [0x3e352b, 0.85, 1], [0x6e3e22, 0.75, 1], [0x504234, 0.85, 1.05], [0x2e2822, 0.8, 1]];
+const LAC_AKA = [[0x8a2a1c, 0.85, 1], [0x7a2618, 0.85, 1], [0x963222, 0.8, 1], [0x6a2216, 0.85, 1], [0x84301e, 0.75, 1], [0x5e1e14, 0.8, 1]];
+const KIND_AKA = new Set(['takeda', 'akazonae', 'ii', 'sanada', 'aka_oda', 'aka_kari']);
+const KIND_SABI = new Set(['namu', 'honganji', 'ikko', 'yatagarasu', 'saika', 'iga', 'maru', 'none', 'hikyaku', '']);
+// 侍（具足の作り分けは前のまま）
 const VAR_LAC1 = [[null, 0, 1], [0x16120f, 0.9, 1], [0x4a2414, 0.85, 1], [0x5e4028, 0.8, 1], [0x6a2a1a, 0.7, 1], [0x4a4642, 0.8, 1]];
 const VAR_RED = [[null, 0, 1], [0x6a2216, 0.5, 1], [0x8a3420, 0.45, 1], [0x4a1e14, 0.5, 1], [0x7a3020, 0.4, 1], [0x5a1a12, 0.55, 1]];
+// 足軽の縅の糸は黒か茶
+const VAR_LACE0 = [[null, 0], [0x2a2420, 0.7], [0x5a3a22, 0.7], [0x3a2a1e, 0.7], [0x6a4a2a, 0.6], [0x1e1a16, 0.7]];
 const VAR_LACE = [[null, 0], [0x7a4e2a, 0.7], [0x6a6e3a, 0.65], [0x8e3024, 0.65], [0xbcb294, 0.6], [0x5e3450, 0.6]];
-const VAR_KYAHAN = [[null, 0], [0x8a7c62, 0.6], [0x2c2622, 0.6], [0x5a4630, 0.5], [0x6e5e48, 0.45], [0x3e3226, 0.5]];
+const VAR_KYAHAN = [[null, 0], [0x8a7c62, 0.6], [0x7a4a2a, 0.55],   // 生成り・柿渋・茶
+  [0x5a4630, 0.5], [0x6e5e48, 0.45], [0x3e3226, 0.5]];
 const VAR_PERM = [3, 0, 4, 1, 5, 2];
-// 陣笠の漆（黒漆が多め・溜・茶・朱の褪せ）
-const VAR_HATC = [[null, 0, 1], [0x5a3420, 0.85, 1], [0x141210, 0.75, 1], [0x6a4c30, 0.8, 1], [0x4e2618, 0.6, 1], [0x1e1a16, 0.6, 1]];
 // 陣笠の形（横の広さ・高さ）。平たい笠と尖った笠を混ぜる
 const VAR_HAT = [[1, 1], [1.06, 0.88], [0.95, 1.12], [1.02, 0.94], [0.97, 1.06], [1.04, 1.0]];
 const varCol = new THREE.Color(), varTmp = new THREE.Color();
@@ -36,8 +46,11 @@ function soldierVar(L) {
   const rot = (h >>> 0) % 6, iL = (vi + rot) % 6, iC = VAR_PERM[(vi + rot) % 6], iK = (vi + 2 * rot + 1) % 6;
   const base = new THREE.Color(L.armor ?? 0x24221f), hs = base.getHSL({});
   const red = hs.s > 0.45 && (hs.h < 0.05 || hs.h > 0.95) && hs.l > 0.15;
-  const lacT = (red ? VAR_RED : T === 0 ? VAR_LAC0 : VAR_LAC1)[iL];
-  return { iL, iC, iK, T, lac: lacT, lace: VAR_LACE[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: (red ? VAR_RED : VAR_HATC)[(iL + (vi % 2 ? 2 : 0)) % 6] };
+  const f = String(L.flag || L.mon || '');
+  const hk = T > 0 ? 0 : red || KIND_AKA.has(f) || KIND_AKA.has(L.mon) ? 3 : KIND_SABI.has(f) ? 2 : 1;
+  const lacT = T === 0 ? [LAC_AKA, LAC_SABI, LAC_BLACK][hk === 3 ? 0 : hk === 2 ? 1 : 2][iL] : (red ? VAR_RED : VAR_LAC1)[iL];
+  // 足軽は陣笠と胴を同じ漆に（前の直しの通り）
+  return { iL, iC, iK, T, hk, lac: lacT, lace: (T === 0 ? VAR_LACE0 : VAR_LACE)[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: T === 0 ? lacT : (red ? VAR_RED : VAR_LAC1)[(iL + (vi % 2 ? 2 : 0)) % 6] };
 }
 // 遠い軽い兵の束（world_army.js の makeImpostor）へ渡す、近い兵と同じ作り分けの色（胴の漆・威糸・笠）。
 //   同じ soldierVar（同じ種と色の表）から、近い形の塗り替え（nearArmorParts・recolorGeo）と同じ混ぜ方で出す。作り分けの無い者は null
@@ -89,7 +102,7 @@ function recolorGeo(g, L, V, name) {
   const col = g.attributes.color, c2 = g.attributes.col2, mtl = g.attributes.mtl;
   if (!col || !mtl || !col.array || !mtl.array) return false;
   const laceB = new THREE.Color(L.lace ?? 0x5a4630), clothB = new THREE.Color(L.cloth ?? 0x2b2622);
-  const lacV = name === 'head' && V.hat ? V.hatLac : V.lac;
+  const lacV = (name === 'head' || name === 'hat') && V.hat ? V.hatLac : V.lac;
   const lacT = lacV[0] == null ? null : new THREE.Color(lacV[0]), lacA = lacV[0] == null ? (V.iL === 0 && lacV === V.lac ? 0 : 1) : lacV[1], lacBr = lacV[0] == null ? 0.8 : lacV[2];
   // 形の漆の平均の明るさ（陰の物差し）
   let lacSum = 0, lacN = 0;
@@ -122,7 +135,7 @@ function recolorGeo(g, L, V, name) {
 // 塗り替えた形は nearArmorGeos（戦の片付け・gpu_gc の守る表）に入れる。腕・足・腰の刀などは色が変わらないので写さない
 // 塗る所の無かった形の鍵（元の形をそのまま使う）
 const varSame = new Set();
-const VAR_PARTS = new Set(['torso', 'hips', 'head', 'sodeP', 'sodeN', 'thigh', 'leg']);
+const VAR_PARTS = new Set(['torso', 'hips', 'head', 'hat', 'sodeP', 'sodeN', 'thigh', 'leg']);   // hat：骨の入った人の笠（swHat）も頭と同じ笠の漆に
 function soldierVariety(parts) {
   const L = parts.look, V = soldierVar(L);
   if (!V) return parts;
@@ -130,7 +143,7 @@ function soldierVariety(parts) {
   for (const name of Object.keys(parts)) {
     const src = parts[name];
     if (!VAR_PARTS.has(name) || !src || !src.isBufferGeometry || src.userData.soldierVar) continue;
-    const key = ['var', name, src.uuid, V.iL, V.iC, V.iK, V.hat ? 'h' : ''].join('|');
+    const key = (name === 'hat' ? ['var', name, src.uuid, V.iL, V.hk] : ['var', name, src.uuid, V.iL, V.iC, V.iK, V.hk, V.hat ? 'h' : '']).join('|');   // 笠だけの形は漆の色だけで分ける
     if (varSame.has(key)) continue;
     if (!nearArmorGeos.has(key)) {
       const reshape = name === 'head' && V.hat && (V.hat[0] !== 1 || V.hat[1] !== 1);

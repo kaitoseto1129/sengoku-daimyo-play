@@ -1,3 +1,4 @@
+import { withBushou } from './bushou_roster.js';
 import { encounterTick, encounterDispose } from './battle_encounter.js';
 import { reserveLater } from './army_reserve.js';
 import { simpleControls } from './simple_controls.js';
@@ -563,7 +564,8 @@ export class Battle {
     this.game = game;
     this.G = game.G;
     this.index = index;
-    this.def = def;
+    // 戦の定義の def.bushou（武将の名簿の名）を、名のある武将（def.famous）へ一度だけ足す（bushou_roster.js）
+    this.def = withBushou(def);
     this.hud = game.hud;
     this.camera = game.camera;
     this.warVoices = createWarVoices(this);
@@ -2014,7 +2016,7 @@ export class Battle {
 
   // 名のある武将（def.famous）：史実でその場にいた武将を、その家の隊に一人ずつ加える
   //   一つ：{ name, team: 0|1, g: /隊の名/, loose, at: 秒, line, horse, mortal, near, lord }
-  //   shared：同じ隊で最大五人。flag：軍の合印。faction：家を限定。keepGroup：遠景へ戻さない。fall：史料にある討死の場面。
+  //   shared：同じ隊で最大五人。invuln：敵でも討たれない（名簿の敵の大将）。flag：軍の合印。faction：家を限定。keepGroup：遠景へ戻さない。fall：史料にある討死の場面。
   //   隊は「名にその武将の名を含む隊」→ g に合う隊 → いちばん大きな隊の順で選ぶ。まだ隊が無ければ、出るまで待つ
   //   戦が始まった後の敵は、自分から 45m 内の隊には加えない（目の前に湧かせない）。味方は討たれない（mortal で討たれる）
   placeFamous() {
@@ -2047,7 +2049,7 @@ export class Battle {
       if (!g) continue;
       if (this.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0) >= 250) break;
       const ng = g.noGuard; g.noGuard = true;
-      const [u] = this.army.spawn(g, [{ type: 'busho', n: 1, o: { name: e.name, flag: e.flag, horse: this.def.noHorse ? false : e.horse, invuln: team === 0 && !e.mortal } }]) || [];
+      const [u] = this.army.spawn(g, [{ type: 'busho', n: 1, o: { name: e.name, flag: e.flag, horse: this.def.noHorse ? false : e.horse, invuln: e.invuln ?? (team === 0 && !e.mortal) } }]) || [];
       g.noGuard = ng;
       const lead = u || g.units[g.units.length - 1];
       if (!lead || lead.name !== e.name) continue;
