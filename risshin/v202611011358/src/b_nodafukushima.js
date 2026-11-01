@@ -4088,5 +4088,7 @@ installBattleJinkei(nodafukushima, [
   ], '三人衆は五千〜一万とも伝わる。城別の担当・各曲輪の人数は推定。本願寺は早鐘の後に参戦。'),
 ]);
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+nodafukushima.bushou = ['織田信長', { name: '本願寺顕如', g: /本願寺/, loose: false }];
 export { nodafukushima };
 export { namuTex, sagarifujiTex };

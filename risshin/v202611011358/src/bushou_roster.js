@@ -20,16 +20,16 @@ const C = { kon: 0x232c40, hanada: 0x3c5a8a, moegi: 0x6a7a2c, murasaki: 0x5a3a6a
   shiro: 0xd8d0bc, kuro: 0x1c1a1a, asagi: 0x4a7a86, kurenai: 0xa8281c, ki: 0xa88a3a, nezu: 0x5a5650, kaki: 0x7a4a2a };
 // 家：名・家紋（textures.js の MON の鍵か none）・兵の家（FACTION）・威の幅・隊の名の目当て（戦の中の隊へ加える時）
 export const HOUSE = {
-  oda: { name: '織田', mon: 'oda', faction: 'oda', laces: [C.kon, C.cha, C.hanada, C.kuro, C.kuchiba, C.asagi], g: /織田|信長|馬廻|本陣|森|柴田|佐久間|池田|丹羽|木下|羽柴|坂井|滝川|明智|鉄砲組/ },
+  oda: { name: '織田', mon: 'oda', faction: 'oda', laces: [C.kon, C.cha, C.hanada, C.kuro, C.kuchiba, C.asagi, C.moegi, C.kaki, C.hi, C.murasaki, C.ki], g: /織田|信長|馬廻|本陣|森|柴田|佐久間|池田|丹羽|木下|羽柴|坂井|滝川|明智|鉄砲組/ },
   mino: { name: '美濃衆', mon: 'none', faction: 'saito', laces: [C.moegi, C.kuchiba, C.asagi, C.cha], g: /稲葉|氏家|安藤|美濃|三人衆/ },
-  tokugawa: { name: '徳川', mon: 'tokugawa', faction: 'tokugawa', laces: [C.kuro, C.kon, C.cha, C.moegi], g: /徳川|酒井|本多|榊原|石川|大久保|鳥居|三河/ },
-  nobukatsu: { name: '信勝方', mon: 'kari', faction: 'nobukatsu', laces: [C.cha, C.kaki, C.kuchiba], g: /信勝|柴田|林/ },
-  imagawa: { name: '今川', mon: 'imagawa', faction: 'imagawa', laces: [C.hi, C.moegi, C.kuchiba, C.kon], g: /今川|旗本|本陣|井伊|松井/ },
-  saito: { name: '斎藤', mon: 'saito', faction: 'saito', laces: [C.moegi, C.cha, C.kuchiba], g: /斎藤|美濃|長井|日比野/ },
+  tokugawa: { name: '徳川', mon: 'tokugawa', faction: 'tokugawa', laces: [C.kuro, C.kon, C.cha, C.moegi, C.asagi, C.kaki], g: /徳川|酒井|本多|榊原|石川|大久保|鳥居|三河/ },
+  nobukatsu: { name: '信勝方', mon: 'kari', faction: 'nobukatsu', laces: [C.cha, C.kaki, C.kuchiba, C.moegi, C.ki], g: /信勝|柴田|林/ },
+  imagawa: { name: '今川', mon: 'imagawa', faction: 'imagawa', laces: [C.hi, C.moegi, C.kuchiba, C.kon, C.murasaki, C.ki], g: /今川|旗本|本陣|井伊|松井/ },
+  saito: { name: '斎藤', mon: 'saito', faction: 'saito', laces: [C.moegi, C.cha, C.kuchiba, C.kaki, C.asagi, C.hi], g: /斎藤|美濃|長井|日比野/ },
   rokkaku: { name: '六角', mon: 'none', faction: 'rokkaku', laces: [C.moegi, C.cha, C.kon], g: /六角|箕作|観音寺/ },
   kitabatake: { name: '北畠', mon: 'kitabatake', faction: 'kitabatake', laces: [C.murasaki, C.kon, C.cha], g: /北畠|大河内/ },
-  azai: { name: '浅井', mon: 'azai', faction: 'azai', laces: [C.kon, C.asagi, C.murasaki, C.cha], g: /浅井|磯野|遠藤|小谷/ },
-  asakura: { name: '朝倉', mon: 'asakura', faction: 'asakura', laces: [C.moegi, C.kon, C.kuchiba, C.hanada], g: /朝倉/ },
+  azai: { name: '浅井', mon: 'azai', faction: 'azai', laces: [C.kon, C.asagi, C.murasaki, C.cha, C.moegi, C.kaki], g: /浅井|磯野|遠藤|小谷/ },
+  asakura: { name: '朝倉', mon: 'asakura', faction: 'asakura', laces: [C.moegi, C.kon, C.kuchiba, C.hanada, C.cha, C.murasaki, C.hi], g: /朝倉/ },
   miyoshi: { name: '三好', mon: 'miyoshi', faction: 'miyoshi', laces: [C.kon, C.cha, C.moegi], g: /三好|野田|福島/ },
   ikko: { name: '本願寺', mon: 'honganji', faction: 'ikko', laces: [C.shiro, C.cha, C.nezu], g: /一揆|本願寺|門徒|坊官|寺/ },
   enryakuji: { name: '延暦寺', mon: 'none', faction: 'ikko', laces: [C.shiro, C.nezu], g: /延暦寺|僧|山門/ },
@@ -303,7 +303,8 @@ export function rosterKacchu(name) {
   const p = rosterOf(name); if (!p) return null;
   const H = HOUSE[p.house] || HOUSE.oda, L = p.look;
   const lace = L.lace ?? pick(H.laces, name, 3);
-  const armor = L.armor ?? pick([0x1c1a1a, 0x1c1a1a, 0x24221f, 0x2a2420, 0x2e2a24], name, 5);
+  // 胴の塗り：黒漆・溜塗・茶漆・錆地・朱溜・金溜（並んだ時に一人ずつ違って見えるよう幅を広げた。10/31）
+  const armor = L.armor ?? pick([0x1c1a1a, 0x24221f, 0x3a1e16, 0x4a3222, 0x4a3a2e, 0x5e2418, 0x5e4a2c], name, 5);
   return {
     bowl: L.bowl ?? pick(['suji', 'suji', 'zunari', 'momonari', 'eboshi'], name, 1),
     crest: L.crest ?? (p.lord ? pick(['kuwa', 'kuwa_wide', 'kuwa_ken'], name, 2) : pick(GENERIC_CREST, name, 2)),

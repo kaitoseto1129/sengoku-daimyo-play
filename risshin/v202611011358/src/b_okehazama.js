@@ -3467,6 +3467,8 @@ export function volleyAt(rt, key, guns, foes, o = {}) {
   return true;
 }
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+okehazama.bushou = ['千秋季忠', '佐々政次', { name: '井伊直盛', g: /今川|旗本|本陣/ }, { name: '由比正信', g: /今川|旗本|本陣/ }];
 export { okehazama };
 
 // 林の株ごとの色を設営時に一度だけ替える。見える株を詰め直す時の元の色（cullList の orig.col）も同じに替え、詰め直しで元の色へ戻らないようにする。

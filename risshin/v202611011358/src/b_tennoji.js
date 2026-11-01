@@ -4405,6 +4405,8 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   botWalk(p, inp, c.x + 2, c.z + 4, 3, goTo);
 };
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。塙直政は五月三日に討死・荒木は木津口の押さえ・顕如は本願寺の内・下間頼廉は断定しないので出さない。
+tennoji.bushou = ['鈴木孫一'];
 export { tennoji };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、

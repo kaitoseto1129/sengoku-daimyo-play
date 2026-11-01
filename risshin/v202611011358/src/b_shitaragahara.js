@@ -3987,4 +3987,6 @@ const SHITARA_TAKEDA_JIN = battleJin('川向こうの十三の備え', 1, KATSUY
 ], '武田一万五千から鳶ヶ巣山の三千を除き、決戦場は一万二千の目安。十三か所の記述を採用し、全ての備の将や順が確定したとはしない。');
 installBattleJinkei(shitaragahara, [SHITARA_ODA_JIN, SHITARA_TOKUGAWA_JIN, SHITARA_TAKEDA_JIN]);
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。鳶ヶ巣山の別働（酒井・金森）・長篠城の奥平・野々村正成（野々村三十郎）は重ねない。
+shitaragahara.bushou = ['織田信忠', '丹羽長秀', '佐久間信盛', '滝川一益', '羽柴秀吉', '本多忠勝', '榊原康政', '大久保忠世', '大久保忠佐', '土屋昌次', '原昌胤', '甘利信康', '小山田信茂', '穴山信君', '武田信廉', '武田信豊'];
 export { shitaragahara };

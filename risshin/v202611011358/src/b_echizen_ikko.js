@@ -4697,6 +4697,8 @@ echizen_ikko.withdrawRoute = (rt, g) => {
   for (let k = 0; k < road.length; k++) { const d = Math.hypot(c.x - road[k][0], c.z - road[k][1]); if (d < best) { best = d; i = k; } }
   return road.slice(i);
 };
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+echizen_ikko.bushou = ['柴田勝家', '前田利家', '佐々成政'];
 export { echizen_ikko };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、

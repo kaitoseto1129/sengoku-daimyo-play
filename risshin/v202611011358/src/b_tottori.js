@@ -3249,6 +3249,8 @@ tottori.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
 };
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。宮部継潤は雁金山の遠景にいるので重ねない。
+tottori.bushou = [{ name: '蜂須賀正勝', g: /羽柴/ }, { name: '黒田官兵衛', g: /羽柴秀吉の旗本|羽柴/ }];
 export { tottori };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

@@ -4206,6 +4206,8 @@ shigisan.withdrawTick = (rt) => {
     smoke.pts.geometry.attributes.position.needsUpdate = smoke.pts.geometry.attributes.seed.needsUpdate = true;
   }
 };
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+shigisan.bushou = ['佐久間信盛', '羽柴秀吉', '明智光秀', '細川藤孝'];
 export { shigisan };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、

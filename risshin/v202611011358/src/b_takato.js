@@ -2185,4 +2185,6 @@ takato.siegeKit = {
     onTsukeiri: (rt) => { rt.flags.tsukeiri = true; } }],
 };
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+takato.bushou = [{ name: '団忠正', g: /森長可|大手/ }];
 export { takato };
