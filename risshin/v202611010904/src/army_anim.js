@@ -138,8 +138,19 @@ function lerpPose(a, b, k, out) {
   return out;
 }
 function swordKind(u, k) {
-  return u.mounted && (k === 'kesa' || k === 'gyaku' || k === 'yoko') ? 'uma' : k;
+  return u.mounted && (k === 'kesa' || k === 'gyaku' || k === 'yoko' || k === 'kara') ? 'uma' : k;
 }
+// 剣術に寄せた構えと太刀筋（手の置き所 [x, y, z, 上下, 左右, 刃の向き]。units.js の SW_POSE に足して上書きする。値だけで記憶は増えない）
+//   中段：両の拳を臍の前・正中線へ寄せ、切っ先は相手の喉へ
+//   真っ向（本人の「から」）：上段へ振りかぶり（柄頭は額の上、切っ先は背へ倒す）、正中線を真っ直ぐ斬り下ろして切っ先を胸の高さで止める
+//   八相：柄を右の肩の高さ・頬の脇に立て、刀身を後ろへ倒す。上段：両拳を額の上、切っ先を後ろ斜め上へ
+// units.js と互いに読み合うので、初めて使う時に一度だけ作る
+let SWK_ = null;
+const swk = () => SWK_ || (SWK_ = Object.assign({}, SW_POSE, {
+  chudan: [0.07, 1.08, 0.34, -0.42, -0.04, 0],
+  kara0: [0.05, 1.8, 0.08, -2.3, 0, 0], kara1: [0.03, 1.02, 0.56, 0.1, 0, 0],
+}));
+const KAMAE_HASSO = [0.2, 1.4, 0.04, -2.0, 0.3, -0.2], KAMAE_JODAN = [0.06, 1.74, 0.14, -2.15, 0, 0];
 
 // 形のならし：目当ての値へ、速さを持ったばねで寄せる（臨界の減衰。行き過ぎず、速さが一コマで跳ばない）。
 //   一次のならし（x += (目当て − x)·k）は目当てが変わった瞬間に速さが跳ぶので、技のつなぎで手がカクつく。ばねは速さも続く
@@ -1364,21 +1375,22 @@ export const ArmyAnim = {
 
   // 打刀：構え（中段）・袈裟（右上から左下）・逆袈裟（左下から右上）・横に薙ぐ・突き・受け（刃を横にして受ける）
   poseSword(u, dt, engaged) {
+    const SWK = swk();
     const h = u.hand, oy = u.mounted ? RIDE.y : 0;
     // [x, y, z, 上下, 左右, 刃の向き]
     // 構えは人ごとに：中段が多く、八相（右肩の上に立てる）・上段も混ぜる
-    const C = u.isPlayer ? SW_POSE.chudan : u.id % 4 === 2 ? SW_HASSO : u.id % 4 === 3 ? SW_JODAN : SW_POSE.chudan;
-    let P = engaged ? C : SW_POSE.sage;
+    const C = u.isPlayer ? SWK.chudan : u.id % 4 === 2 ? KAMAE_HASSO : u.id % 4 === 3 ? KAMAE_JODAN : SWK.chudan;
+    let P = engaged ? C : SWK.sage;
     const a = u.atk && !u.atk.ranged ? u.atk : u.pAtk, sw = u.swing;
     // 馬上の斬りは、すれ違う徒歩の相手へ右の脇へ斬り下ろす（袈裟・逆袈裟・横はどれも馬の右の低い所へ）
-    if (a && SW_POSE[swordKind(u, a.kind) + '0']) {
+    if (a && SWK[swordKind(u, a.kind) + '0']) {
       // 溜め：ゆっくり振りかぶり、振りかぶり切った所で一瞬ためる。
       //   前の太刀の残心・戻りの途中から振りかぶる時は、構え（中段）へ戻らず、今の刀の所から次の振りかぶりへ流れる（切り返し）
       const k0 = Math.min(1, 1 - Math.max(0, a.t) / (a.dur || u.windup)), k = k0 * k0 * (3 - 2 * k0);
       if (!u.swFrom || u.swAk !== a.kind || k0 < (u.swK0 ?? 1) - 0.02) { u.swFrom = (u.swp || C).slice(); u.swAk = a.kind; }
       u.swK0 = k0;
-      P = lerpPose(u.swFrom, SW_POSE[swordKind(u, a.kind) + '0'], k, swordPose);
-    } else if (sw && SW_POSE[swordKind(u, sw.kind) + '0'] && sw.t < sw.dur + 0.3) {
+      P = lerpPose(u.swFrom, SWK[swordKind(u, a.kind) + '0'], k, swordPose);
+    } else if (sw && SWK[swordKind(u, sw.kind) + '0'] && sw.t < sw.dur + 0.3) {
       // 振り：振りかぶりから加速して一気に斬り抜き（出の 0.85 で振り切る）、当たった所で止まる（受けられれば途中で弾かれ、甲冑なら浅く止まる）
       // 振り出しの 0.1 秒は手元だけが先に動き（腰が切れてから刀が走る）、そこから加速して一気に斬り抜く
       const p = Math.min(1, sw.t / (sw.dur * 0.85));
@@ -1391,14 +1403,14 @@ export const ArmyAnim = {
       // 刃筋が流れる：斬り抜けた刀は勢いで振り終わりの形の先へ少し流れ、そこで止まる（斬った後に手で止めない）
       else if (stop === 1) q += 0.12 * Math.sin(clamp01((sw.t - sw.dur * 0.85) / (sw.dur * 0.35 + 0.05)) * Math.PI / 2);
       const kd = swordKind(u, sw.kind);
-      P = lerpPose(SW_POSE[kd + '0'], SW_POSE[kd + '1'], q, swordPose);
+      P = lerpPose(SWK[kd + '0'], SWK[kd + '1'], q, swordPose);
       // 刀は肩を中心に弧を描いて振られる：途中では手が体の前へ張り出す（二つの形をまっすぐ結ぶと、手が胸に寄って縮こまる）
       const arc = Math.sin(Math.min(1, q) * Math.PI);
       P[2] += arc * 0.24; P[1] += arc * 0.05;
       // 残心：流れ切った形のまま一呼吸（0.1 秒）とどめ、切っ先を相手へ戻しながら中段へ構え直す（0.2 秒）
       if (sw.t > sw.dur) { const r = clamp01((sw.t - sw.dur - 0.1) / 0.2); P = lerpPose(P, C, r * r * (3 - 2 * r), swordPose); }
     } else if (u.strikeT > 0 && u.isPlayer) {
-      P = lerpPose(SW_POSE.kesa0, SW_POSE.kesa1, 1 - u.strikeT / 0.2, swordPose);
+      P = lerpPose(SWK.kesa0, SWK.kesa1, 1 - u.strikeT / 0.2, swordPose);
     }
     if (!a) u.swFrom = null;
     // 打ち手の振りに合わせて刀を胸の前へ引き上げる。足・腰と同じ受けの時計を使う。
@@ -1406,22 +1418,22 @@ export const ArmyAnim = {
       // 腰と連動する受けを残し、近くでは敵の打つ高さと左右へ手元を合わせる。
       const k = Math.max((u.contactLoad || 0) * (u.contactBrace || 0), u.contactParry || 0);
       if (k > 0.001) {
-        P = lerpPose(P, SW_POSE.uke, k, swordPose);
+        P = lerpPose(P, SWK.uke, k, swordPose);
         P[1] += 0.12 * (u.contactParryHigh || 0);
         P[4] += 0.3 * (u.contactParrySide || 0);
       }
     }
-    if (u.guard || u.guardFlash > 0 || u.guarding > 0) P = SW_POSE.uke;
+    if (u.guard || u.guardFlash > 0 || u.guarding > 0) P = SWK.uke;
     else if (u.contactCover > 0.01 && !a && !sw) {
       // 棒立ちで順番を待たず、相手の振りかぶりに刀を胸元へ運んで備える。
-      P = lerpPose(P, SW_POSE.uke, u.contactCover * 0.85, swordPose);
+      P = lerpPose(P, SWK.uke, u.contactCover * 0.85, swordPose);
       P[5] += (u.id % 2 ? 0.12 : -0.12) * u.contactCover;
     }
-    if (u.cheer > 0) P = SW_POSE.cheer;
+    if (u.cheer > 0) P = SWK.cheer;
     // 崩れた刀の兵も、残った標的・受け・勝鬨の姿から下げ刀へ渡す。
     // 斬り終わりと被弾は保ち、攻撃や防御の判定・逃げ足には触れない。
     if (this.world.def.routedFlightPose && (u.fleeing || routedPose(u.group))
-      && !u.isPlayer && !u.mounted && !a && !sw && !u.hit && !(u.stagger > 0)) P = SW_POSE.sage;
+      && !u.isPlayer && !u.mounted && !a && !sw && !u.hit && !(u.stagger > 0)) P = SWK.sage;
     const s = u.swp || (u.swp = P.slice());
     // 打つ間は速く、残心からの戻りは中くらい、構えの移りはゆっくり
     // 速さを持ったばねで寄せる（袈裟から逆袈裟への切り返しで、刀が一コマで向きを変えない）

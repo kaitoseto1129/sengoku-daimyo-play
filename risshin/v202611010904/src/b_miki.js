@@ -1569,7 +1569,7 @@ const miki = {
     compactScenery: true,
     mergeStaticBatches: true,
     // 城域と東の付城を地面の内に収める。共通地形の頂点数は増やさない。
-    seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 2.8, nightFill: .48, fogFar: 420,
+    seed: 15799, groundHalf: 780, moveLim: 750, time: 'night', nightLift: 3.3, nightFill: .48, fogFar: 420,
     // 夜明け前：東の空の下だけが白み、天頂はまだ紺。月でなく東の低い薄明かりから照らす（真夜中の空に見えていた。10/28）
     nightLight: { sky: 0x2c3650, top: 0x101a30, glow: 0x9a7a86, glowK: 0.42, sunPos: [130, 30, -40], vis: 240, sun: 0xc9b4a4, hemiGround: 0x2a2620 },   // 白み始めの空で、奥の付城の井楼と篝火の並びまで見通す（10/28）
     // 既存の丸い炎を使い、門前に三角の札のような火を立てない。
@@ -2040,9 +2040,9 @@ const miki = {
     for (const c of [F.honjin, F.ehon]) { const g = c.guard; let k = 0; for (const u of g.units) if (u !== g.leader && ++k > 7) rt.army.despawn(u); }
     // 開始時に全員を置く。段が変わっても同じ兵が歩き、損失を保つ。
     // 先手は荷より先に坂へ出ている。道の手前で槍列をそろえ、南の合流口へ向ける。
-    F.escort = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の護衛', anchor: { x: -120, z: -60 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 12, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }], MORI));
+    F.escort = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の護衛', anchor: { x: -118, z: -58 }, facing: Math.atan2(16, 16), formation: 'yari', width: 8, aggro: 12, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }], MORI));
     // 10/30 採点：開戦25秒の画面で敵がまばら。持ち場の前25〜40mで、先手の槍組と組み合う毛利の前備えを足す。
-    F.escortFront = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の前備え', anchor: { x: -112, z: -52 }, facing: Math.atan2(16, 16), formation: 'yari', width: 6, aggro: 14, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], MORI));
+    F.escortFront = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄の前備え', anchor: { x: -110, z: -50 }, facing: Math.atan2(16, 16), formation: 'yari', width: 8, aggro: 14, morale: 90, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], MORI));
     F.egun = enemyGroup(rt, { fixed: true, faction: 'mori', name: '荷駄を守る鉄砲組', anchor: { x: -174, z: -98 }, facing: Math.PI / 2, formation: 'line', width: 6, aggro: 8, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 8 }], MORI));
     // 両名は『播磨別所記』の当日記事に見える。担当する組と声は遊びの復元。
     // 既存の侍一人ずつに名を付け、人数・体力・武器は増やさない。

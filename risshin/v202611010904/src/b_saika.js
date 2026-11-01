@@ -2430,6 +2430,7 @@ const saika = {
       }
       cobble.count = n; cobble.receiveShadow = true; cobble.castShadow = false; cobble.computeBoundingSphere();
       rt.scene.add(cobble);
+      W.viewCull([cobble], 0, 45);   // 画面に入る玉石だけ・遠い玉石は描かない（iPhone の三角を減らす）
     }
     // 玉石の間を埋める細かな砂利（10/29 15:10 採点：持ち場の手前の岸が砂利の一枚）。三〜八 cm の粒を水際から陸へ疎らに、
     // 濡れた所ほど黒く。形は一つ・描くのは一回・当たりは無い。
@@ -2453,6 +2454,7 @@ const saika = {
       }
       grit.count = n; grit.receiveShadow = true; grit.castShadow = false; grit.computeBoundingSphere();
       rt.scene.add(grit);
+      W.viewCull([grit], 0, 30);
     }
     // 水際に打ち上がった流木。皮の剥げた灰褐色の幹を、半ば砂に埋めて両岸に寝かせる（一回の描画・当たり無し）。
     {

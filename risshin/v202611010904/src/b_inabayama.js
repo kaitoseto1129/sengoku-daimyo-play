@@ -2682,8 +2682,11 @@ function buildInabaMountain(rt) {
       // 縦に近い崖も林の斑で覆う（10/30 点付け：山が灰の一枚岩）。岩は斑の切れ目と崖の芯の三割ほどにだけ残す。
       float ibScrub = smoothstep(-0.5, 0.1, ibN + macro2 * 0.6 - 0.15) * mix(1.0, 0.82, smoothstep(0.85, 1.0, ibSlope));
       // 縦の崖でも縦の筋にならないよう、高さも含めた立体の升で樹冠を分ける。
-      vec3 ibCell = floor(vWP * 0.75 + ibN * 0.8);   // 10/30：三mの升は遠目に迷彩の角ばった斑に見えた。一m余りの樹冠に
-      float ibHash = fract(sin(dot(ibCell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+      // 10/31：升ごとの乱数（floor と hash）は遠くで画素より細かくなっても均されず、橙と緑の升が市松模様に並んで見えた。
+      // 升を使わず、斑の絵（段 mipmap で遠くほどなめらかに均される）を上からと横からの二向きで読み、面の向きで混ぜる。
+      float ibTop = texture2D(tMacro, vWP.xz * 0.083 + ibN * 0.05).r + texture2D(tMacro, mat2(0.8, -0.6, 0.6, 0.8) * vWP.xz * 0.21 + 0.53).r;
+      float ibSide = texture2D(tMacro, vec2(vWP.x * 0.6 + vWP.z * 0.8, vWP.y) * 0.083 + 0.19).r + texture2D(tMacro, vec2(vWP.z * 0.6 - vWP.x * 0.8, vWP.y) * 0.21 + 0.71).r;
+      float ibHash = clamp((mix(ibSide, ibTop, smoothstep(0.35, 0.8, abs(gN.y))) - 1.0) * 2.6 + 0.5, 0.0, 1.0);
       vec3 ibEver = grass * vec3(0.36, 0.46, 0.3) * (0.8 + ibHash * 0.35);
       vec3 ibLeaf = mix(ibEver, dirt * vec3(0.95, 0.68, 0.42), smoothstep(0.62, 0.74, ibHash));
       ibLeaf = mix(ibLeaf, dirt * vec3(1.1, 0.7, 0.36), smoothstep(0.86, 0.94, ibHash));

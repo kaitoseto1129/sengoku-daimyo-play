@@ -338,13 +338,13 @@ function lowerBody(h, B, dt, time, st, wIdle, sp, w) {
   const stance = st * (1 - clamp01(u.contactBrace || 0) * 0.45);
   // 刀は右足を前（剣術の中段）、槍・ほかは左足を前。前の足・後ろの足の形は同じで、左右だけを入れ替える
   const rl = w === 'sword' && !u.mounted;
-  const fF = -0.45 * stance * V.f, fK = 0.55 * stance * V.kn, bF = -0.15 * stance * (2 - V.f), bK = 0.45 * stance * V.kn;
+  const fF = -0.32 * stance * V.f, fK = 0.3 * stance * V.kn, bF = -0.12 * stance * (2 - V.f), bK = 0.2 * stance * V.kn;
   if (rl) { rf += fF; rk += fK; lf += bF; lk += bK; } else { lf += fF; lk += fK; rf += bF; rk += bK; }
-  drop += 0.035 * st * (V.kn + V.f) * 0.5; spread += 0.06 * st * V.sp;
+  drop += 0.015 * st * (V.kn + V.f) * 0.5; spread += 0.06 * st * V.sp;
   // 半身の構えでは後ろ足にも重みを残し、足首で膝の曲がりを戻して足裏を寝かせる。
   h.model.position.z -= 0.018 * st;
   if (st > 0.05) {
-    const fa = (0.45 * V.f - 0.55 * V.kn) * stance, ba = (0.15 * (2 - V.f) - 0.45 * V.kn) * stance;
+    const fa = (0.32 * V.f - 0.3 * V.kn) * stance, ba = (0.12 * (2 - V.f) - 0.2 * V.kn) * stance;
     rotWorld(B.LeftFoot, _right, rl ? ba : fa); rotWorld(B.RightFoot, _right, rl ? fa : ba);
     // 足先の向き（外へ開く人・まっすぐの人）：前の足はほぼ真っ直ぐ、後ろの足は外へ開く
     if (rl) { rotWorld(B.RightUpLeg, _up, -0.12 * V.out * st); rotWorld(B.LeftUpLeg, _up, 0.25 * (0.6 + V.out) * st); }
@@ -364,10 +364,10 @@ function lowerBody(h, B, dt, time, st, wIdle, sp, w) {
     rotWorld(B.LeftUpLeg, _fwd, shift * 0.12);
     rotWorld(B.RightUpLeg, _fwd, -shift * 0.12);
     lf -= 0.07 * liftL; rf -= 0.07 * liftR;
-    lk += 0.16 * liftL + 0.08 * weight; rk += 0.16 * liftR + 0.08 * weight;
+    lk += 0.12 * liftL + 0.04 * weight; rk += 0.12 * liftR + 0.04 * weight;
     rotWorld(B.Spine, _fwd, -side * 0.045);
     h.model.position.x += side * 0.018;
-    drop += 0.025 * weight;
+    drop += 0.01 * weight;
   }
   // 突きの踏み込みは attackBody でまとめ、叩きは両膝で受ける
   if (u.strikeT > 0 && w !== 'spear' && w !== 'sword') { const s = Math.sin((1 - u.strikeT / 0.2) * Math.PI); lf -= 0.3 * s; rf += 0.22 * s; drop += 0.05 * s; }
@@ -375,7 +375,7 @@ function lowerBody(h, B, dt, time, st, wIdle, sp, w) {
   // 鉄砲を撃つ・弓を引く：左足を前に開いて立つ
   const aim = (u.atk && (u.atk.ranged || u.atk.bow)) || u.gunPh === 'aim' || u.gunPh === 'kiri' || u.bowPh === 'draw' || u.bowPh === 'kai' ? 1 : 0;
   h.aimK = (h.aimK || 0) + (aim - (h.aimK || 0)) * Math.min(1, dt * 5);
-  if ((w === 'gun' || w === 'bow') && sp < 1.2) { lf -= 0.22 * h.aimK; rf += 0.12 * h.aimK; lk += 0.12 * h.aimK; spread += 0.06 * h.aimK; drop += 0.02 * h.aimK; }
+  if ((w === 'gun' || w === 'bow') && sp < 1.2) { lf -= 0.14 * h.aimK; rf += 0.08 * h.aimK; lk += 0.05 * h.aimK; spread += 0.06 * h.aimK; drop += 0.008 * h.aimK; }
   // 待つ間：ゆっくり重心を左右へ移し、力を抜いた脚の膝がゆるむ（棒立ちにしない）
   if (wIdle > 0.2) {
     const V = h.var;
@@ -391,7 +391,7 @@ function lowerBody(h, B, dt, time, st, wIdle, sp, w) {
   // 敵が近ければ膝を曲げて腰を落とす。陣の中では右の膝を立て、左の膝を地につける
   const I = u.idl;
   if (I && wIdle > 0.2) {
-    if (I.low > 0.01 && st < 0.5) { lf -= 0.3 * I.low; lk += 0.4 * I.low; rf += 0.05 * I.low; rk += 0.35 * I.low; drop += 0.05 * I.low; }
+    if (I.low > 0.01 && st < 0.5) { lf -= 0.2 * I.low; lk += 0.2 * I.low; rf += 0.04 * I.low; rk += 0.16 * I.low; drop += 0.02 * I.low; }
     if (I.sit > 0.01) { rf -= 1.0 * I.sit; rk += 1.6 * I.sit; lf += 0.15 * I.sit; lk += 1.4 * I.sit; drop += 0.3 * I.sit; }
   }
   if (lf) rotWorld(B.LeftUpLeg, _right, lf);
@@ -585,8 +585,8 @@ function gaitWeight(h, B, dt, wWalk, wRun, st) {
   // 駆け出しで膝に力を溜め、止まる時は前足で受けて腰が沈む。
   rotWorld(B.Spine, _right, (0.18 * push - 0.14 * brake) * (1 - st * 0.4));
   rotWorld(B.LeftUpLeg, _right, -0.12 * load); rotWorld(B.RightUpLeg, _right, -0.1 * load);
-  rotWorld(B.LeftLeg, _right, 0.23 * load); rotWorld(B.RightLeg, _right, 0.2 * load);
-  h.model.position.y -= 0.035 * load;
+  rotWorld(B.LeftLeg, _right, 0.12 * load); rotWorld(B.RightLeg, _right, 0.1 * load);
+  h.model.position.y -= 0.015 * load;
   if (h.far || wWalk + wRun < 0.03) return;
   const A = h.act;
   const ph = A.walk.time / Math.max(0.01, A.walk.getClip().duration) * Math.PI * 2;

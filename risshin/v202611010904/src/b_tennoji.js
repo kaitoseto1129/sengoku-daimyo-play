@@ -1840,6 +1840,7 @@ function fortBankGrass(rt) {
   mesh.count = n;
   mesh.castShadow = false; mesh.receiveShadow = true;
   rt.scene.add(mesh);
+  W.viewCull([mesh], 0, 60);   // 画面に入る株だけ描く
 }
 
 // 鉄砲の硝煙（天王寺・雑賀で使う。kaito 10/29 で戻してよくなった）。共通の硝煙は止めてあるので、戦の側で軽く描く。
