@@ -15,6 +15,7 @@ import { NAKA, nakaFind, nakaRoomAt } from './naka.js';
 import { interiorWaypoint } from './interior_layouts.js';
 import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { castlePart } from './cgt_castle.js';
+import { enemyGroup } from './bhelp.js';
 import { flagTexture } from './textures.js';
 
 const baseSetup = takato.setup;
@@ -2157,6 +2158,31 @@ takato.update = function (rt, dt) {
       : gate ? '門の印へ寄せ、掛矢で打て'
       : F.roadGuide.x >= 90 ? '竹束の切れ目を通り、道の印へ進め' : '道の印へ。柵に沿って口を曲がれ');
   }
+};
+
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：大手の枡形・横矢の張り出しは縄張り（castles/takato.js）が建てる。
+// ここでは今ある三の丸の柵と枡形の塀を狭間に借り、寄せる自分へ鉄砲と矢を射かける（兵・塀・絵は足さない。白煙は戦の束が受け持つ）。
+// 出撃と付け入り：枡形の広場の一隊が大手の門を開けて土橋へ打って出て、寄せ手の横を突いて退く。
+// 退くしんがりに追いすがって門の前にいれば、門は閉まらず枡形の二の門も開く（付け入り）。馬出しは高遠に無いので塀は建てず、出口の筋だけに使う。
+takato.siegeKit = {
+  plan: { x: 77, z: 0, rot: Math.PI / 2, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: { kind: 'kaku', r: 3, moatW: 0, depth: 0 }, sakamogi: false, shiyori: false },
+  build: { team: 1, gate: false, walls: false, bridge: false, umadashi: false, sakamogi: false, shiyori: false, heads: true,
+    fire: { smoke: false, hurt: 0, near: 95, close: 16, base: .9, peak: 4.5, arrows: .35 } },
+  borrow: { r: 34 },
+  when: (rt) => rt.flags.step >= 1 && !rt.flags.sanFell && !rt.flags.ending,
+  onBuild: (rt, K) => {
+    const G = rt.flags.gates; if (!G?.oteOuter) return;
+    const wrap = (g) => ({ struct: g.struct, open: () => { if (!g.opened) g._openNow(false); } });
+    K.gate = wrap(G.oteOuter); K.noGate = false;
+    if (G.oteInner) K.masu = { inner: wrap(G.oteInner) };
+  },
+  // 突くのは自分でなく、大手の先手（森長可の槍の列）の横腹。
+  sorties: [{ from: 'plaza', fight: 15, again: 30, R: 11,
+    strike: (rt) => { const p = rt.flags.oteSpear?.pos; return p ? { x: p.x, z: p.z + 4 } : { x: 100, z: 6 }; },
+    group: (rt, K) => enemyGroup(rt, { fixed: true, faction: 'takeda', name: '枡形の城兵', anchor: { ...K.at.plaza }, facing: Math.PI / 2, order: 'hold', width: 3, aggro: 4, morale: 85, fleeDir: { x: -1, z: 0 }, formation: 'yari' },
+      [{ type: 'ashigaru', n: 6 }]),
+    when: (rt) => { const u = rt.player.u, F = rt.flags; return F.step >= 1 && rt.t > 24 && !F.sanFell && u.alive && Math.hypot(u.pos.x - 77, u.pos.z) < 55; },
+    onTsukeiri: (rt) => { rt.flags.tsukeiri = true; } }],
 };
 
 export { takato };

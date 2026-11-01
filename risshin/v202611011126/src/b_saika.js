@@ -2308,9 +2308,9 @@ const saika = {
         // 五列の川面を共通の二列用補修へ渡すと、岸の透けと川幅方向が失われる。
         // 雑賀で仕上げた面として保ち、兵の初回更新でも不透明へ戻さない。
         st.mesh.userData.waterSurfaceReady = true;
-        mat.transparent = true; mat.opacity = .8; mat.depthWrite = false; mat.alphaTest = .01;
+        mat.transparent = true; mat.opacity = .72; mat.depthWrite = false; mat.alphaTest = .01;
         // 早春の澄んだ流れに空と対岸を映す（のっぺりした灰の板にしない）。形・深さ・判定は変えない。
-        mat.roughness = .14; mat.envMapIntensity = .9;
+        mat.roughness = .08; mat.envMapIntensity = 1.5; // 10/31 水面が平ら：照りと映りを値だけ強める
         mat.onBeforeCompile = function (shader, renderer) {
           compile.call(this, shader, renderer);
           shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>', `
@@ -2321,15 +2321,15 @@ const saika = {
             float sAl = dot(vWPw.xz, sDir), sAc = dot(vWPw.xz, vec2(-sDir.y, sDir.x));
             float sN = texture2D(tMacro, vec2(sAc * 0.08, sAl * 0.010 - uTime * 0.045)).r * 0.6
               + texture2D(tMacro, vec2(sAc * 0.21 + 0.37, sAl * 0.028 - uTime * 0.10)).r * 0.4;
-            float sStreak = smoothstep(0.42, 0.72, sN);
+            float sStreak = smoothstep(0.38, 0.64, sN);
             // 明るい筋は白く飛ばさず、暗い淵は緑がかった深い色に（10/29：川全体が乳白の灰の板に見えた）。
             diffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.42, 0.48, 0.46), diffuseColor.rgb * 1.15 + vec3(0.04, 0.05, 0.045), sStreak);
             // 濁りの斑と岸の映り込み（10/30 採点：水の青が一色）。岸寄りの浅瀬は泥で黄土に濁り、岸の草と土手が暗く映る。
             float sEdge = smoothstep(${(st.w * .35).toFixed(2)}, ${st.w.toFixed(2)}, abs(vWaterBed.y));
             float sMud = texture2D(tMacro, vWPw.xz * 0.018 + vec2(0.0, -uTime * 0.004)).r;
             vec3 sSilt = vec3(0.40, 0.36, 0.26), sDeep = vec3(0.13, 0.19, 0.17), sBank = vec3(0.17, 0.17, 0.11);
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.27, 0.29, 0.23) * (0.75 + sN * 0.5), 0.5);
-            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * sDeep * 4.0, (1.0 - sEdge) * 0.35);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.3, 0.3) * (0.6 + sN * 0.8), 0.32);
+            diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * sDeep * 4.0, (1.0 - sEdge) * 0.55);
             diffuseColor.rgb = mix(diffuseColor.rgb, sSilt, clamp(sEdge * 0.55 + smoothstep(0.45, 0.8, sMud) * 0.3, 0.0, 0.7));
             diffuseColor.rgb = mix(diffuseColor.rgb, sBank, smoothstep(0.6, 1.0, sEdge) * 0.6);
             // 流れに沿う細い白い筋（泡の筋）。

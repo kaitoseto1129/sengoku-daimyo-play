@@ -73,8 +73,9 @@ const CLIMB = [...SHIMIZU, ...CLIMB_UP.slice(1)];
 // 縄張りは推定（小谷の清水谷の屋敷群の西の段。docs/layout-ref/odani）。土の山城なので塀は板塀と柵（白壁にしない）。
 // 門の位置 G は谷道（-79.7,36）から西へ 33m。25秒で登る谷道の左前に馬出しと塀が入る。外向き（局所 +b）は谷道の側。
 const SIEGE = siegePlan({ x: -111.1, z: 26, rot: Math.atan2(.953, .303), W: 16, koguchi: 'masu', turn: 1,
-  yokoya: { at: 10.5, w: 4.5, d: 3 }, moat: { w: 5, depth: 2.4, une: 3.2 }, kirigishi: 1.1,
-  umadashi: { kind: 'kaku', r: 4, moatW: 2.6, depth: 1.8 }, sakamogi: { at: 6 }, shiyori: false });
+  // 横矢の張り出しに出隅の井楼（上の床から門の前を横から撃つ）。角馬出しの柵の下に土塁を盛る（城攻めの共通部品 1.6.5）
+  yokoya: { at: 10.5, w: 4.5, d: 3, yagura: { height: 5.2 } }, moat: { w: 5, depth: 2.4, une: 3.2 }, kirigishi: 1.1,
+  umadashi: { kind: 'kaku', r: 4, moatW: 2.6, depth: 1.8, bank: 0.9 }, sakamogi: { at: 6 }, shiyori: false });
 const SIEGE_H = siegeHeight(SIEGE);
 // 出曲輪の縄張りの内か（pad だけ外へ広げる）。草木・屋敷・塀をここへ置かない
 function inSiege(x, z, pad = 0) {
@@ -2155,9 +2156,7 @@ function addOdaniSiege(rt) {
   for (const [a0, a1] of [[-P.W - 2, P.laneA - gap], [P.laneA + gap, P.W + 2]]) {
     rt.scene.add(ishigaki(W, [L(a0, mIn), L(a1, mIn)], { top: .15, minH: 1.3, maxH: 2.2, lean: .3, out: 1, big: 1.3, noKit: true }));
   }
-  // 井楼（物見）を左の内に一つ、篝火を枡形の内と馬出しの内に
-  const [sx, sz] = L(-11, -6);
-  seiro(rt, sx, sz, { rot: P.rot + Math.PI });
+  // 井楼は横矢の張り出しの出隅に二つ（siege_kit の yokoya.yagura）。篝火を枡形の内と馬出しの内に
   for (const [a, b] of [[-4.5, -3], [4.5, -7.5], [-2.6, P.uma.cb + 1.5], [2.6, P.uma.cb + 1.5]]) {
     const [x, z] = L(a, b); rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.3, size: .6 });
   }

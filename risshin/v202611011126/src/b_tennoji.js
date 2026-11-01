@@ -2484,6 +2484,15 @@ const tennoji = {
       if (!inPoly(SOTO_POLY, x, z)) return;
       const soil = .5 + .5 * Math.sin(x * .37 + z * .21) * Math.cos(z * .29 - x * .13);
       c.setRGB(.31 + soil * .03, .255 + soil * .02, .18 + soil * .015);
+      // 10/31 点付け「地面が一様で暗い土」：乾いた黄土・湿った黒土・草の斑を大きく重ねる（値だけ）。
+      const dry = .5 + .5 * Math.sin(x * .071 + Math.sin(z * .093) * 2.2) * Math.cos(z * .083 - x * .037);
+      const wet = .5 + .5 * Math.sin(x * .113 - Math.cos(z * .079) * 1.9) * Math.sin(z * .127 + x * .05);
+      const dryK = Math.min(1, Math.max(0, (dry - .4) / .25)) * .7;
+      c.setRGB(c.r + (.5 - c.r) * dryK, c.g + (.4 - c.g) * dryK, c.b + (.26 - c.b) * dryK);
+      const wetK = Math.min(1, Math.max(0, (wet - .55) / .25)) * .55 * (1 - dryK);
+      c.setRGB(c.r + (.15 - c.r) * wetK, c.g + (.12 - c.g) * wetK, c.b + (.085 - c.b) * wetK);
+      const grassK = Math.min(1, Math.max(0, (Math.sin(x * .19 + z * .27) * Math.cos(x * .15 - z * .11) - .35) / .25)) * .55;
+      c.setRGB(c.r + (.3 - c.r) * grassK, c.g + (.38 - c.g) * grassK, c.b + (.14 - c.b) * grassK);
     },
     fieldStage: 'seedling',   // 稲の育ちと水の有無を合わせる（細かな収穫時期は推定）
     paddy(x, z) {
