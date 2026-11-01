@@ -1058,7 +1058,7 @@ export class Player {
           let stepSound;
           if (room) {
             const dx = u.pos.x - room.I.x, dz = u.pos.z - room.I.z;
-            const floor = interiorFloorAt(room.lv.layout, dx * room.I.c - dz * room.I.s, dx * room.I.s + dz * room.I.c, true);
+            const floor = interiorFloorAt(room.lv.layout, dx * room.I.c - dz * room.I.s, dx * room.I.s + dz * room.I.c);
             stepSound = floor === 'tatami' ? 'stepTatami' : floor === 'earth' ? 'step' : 'stepWood';
           } else stepSound = wade ? 'wade' : W.rainLevel > 0.3 ? 'stepWet' : sandy ? 'stepSand' : onPath ? 'stepPath' : 'step';
           // 同じ足音と鎧の音を長く続けず、四秒ごとに二秒の間を置く。
