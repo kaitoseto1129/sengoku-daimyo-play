@@ -58,7 +58,9 @@ function treeHaze(mat) {
     if (chunk.lastIndexOf(line) < 0) return;
     const at = chunk.lastIndexOf(line);
     sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', chunk.slice(0, at) +
-      'fogFactor *= mix(mix(0.58, 0.78, smoothstep(30.0, 100.0, fogD)), 1.0, smoothstep(105.0, 145.0, fogD));\n  ' + chunk.slice(at));
+      'fogFactor *= mix(mix(0.58, 0.78, smoothstep(30.0, 100.0, fogD)), 1.0, smoothstep(105.0, 145.0, fogD));\n  ' +
+      // 11/1 c_veg_far：見上げる山腹・山頂の木は霞を薄く（地形の山肌より白く浮いた淡い切り絵になっていた）。見通しの端の溶け込みは保つ。
+      (chunk.includes('fogVis') ? 'fogFactor = max(fogFactor * mix(1.0, 0.55, smoothstep(4.0, 40.0, vFogOff.y)), smoothstep(fogVis * 0.85, fogVis, fogD));\n  ' : '') + chunk.slice(at));
   };
   mat.customProgramCacheKey = () => key + '|treeHaze';
   return mat;
@@ -230,7 +232,12 @@ export class WorldVegetation {
       m.onBeforeCompile = (sh) => {
         sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
           { float nd = length(vViewPosition); if (nd < ${nearTreeFadeRadius}) { vec2 q = floor(gl_FragCoord.xy); float th = fract((q.x * 2.0 + q.y * 3.0) * 0.2 + fract(q.y * 0.5) * 0.5); if (smoothstep(0.7, ${nearTreeFadeRadius}, nd) < th) discard; } }`);
+        // 遠い幹（11/1 c_veg_far）：明るい灰茶の幹が霞で白く浮き、丸い樹冠の下の細い棒（切り絵の木）に見えた。
+        //   奥ほど樹冠の陰の暗さへ沈める。霞も葉と同じ薄め方にそろえる（treeHaze）。
+        sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+          diffuseColor.rgb *= mix(1.0, 0.5, smoothstep(25.0, 80.0, length(vViewPosition)));`);
       };
+      treeHaze(m);
       return m;
     };
     // 葉の板：外向きの法線にして、塊が丸く照らされるようにする

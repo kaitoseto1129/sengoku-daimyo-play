@@ -267,9 +267,9 @@ function buildSonae(rt, plans) {
 // 信長公記の明智勢一万余と信長の僅かな供。各口の将・人数は復元であり確定した布陣図ではない。
 // 斎藤利三・明智秀満は明智の家中の備えとして配る。桔梗は明智方の共通旗。
 const HONNO_ATTACK = sonaePlan('寺を囲む備え', 1, { x: -104, z: 120 }, Math.PI * 0.75, [
-  ['honjin', '本陣', '明智光秀', 5000, -104, 120, Math.PI * 0.75, 'akechi', 'akechi', 120, 38, 14],
+  ['honjin', '本陣', '明智光秀', 5000, -104, 120, Math.PI * 0.75, 'akechi', 'akechi', 60, 38, 14],   // 11/1：表門の外の大軍と庭の乱戦を足した分、表門から見えない西の本陣と裏門の封鎖を減らす（描く人数を保つ）
   ['north', '北の脇門への寄せ', '明智光秀の配下', 1500, -61, TERA.z0 - 16, 0, 'akechi', 'akechi', 120, 44, 10],
-  ['west', '西の裏門の封鎖', '明智秀満', 2000, TERA.x0 - 9, 67, Math.PI / 2, 'akechi', 'akechi', 120, 10, 56],
+  ['west', '西の裏門の封鎖', '明智秀満', 2000, TERA.x0 - 9, 67, Math.PI / 2, 'akechi', 'akechi', 90, 10, 56],
   ['south', '南の勝手口の封鎖', '明智光秀の配下', 1500, -54, 117, Math.PI, 'akechi', 'akechi', 140, 44, 12],
   ['east', '表門への先手', '斎藤利三', 2000, -24.5, 72, -Math.PI / 2, 'akechi', 'akechi', 80, 8, 32],
   ['reserve', '表門の控え', '明智光秀の配下', 1000, -14, 44, -Math.PI / 2, 'akechi', 'akechi', 100, 14, 16],
@@ -3919,6 +3919,21 @@ const honnoji = {
     // 10/31 mini の点付け：開戦25秒の画面の奥に大軍が無い。門の外の通りを埋める明智勢（軽い遠景・桔梗の旗）を門の段より先に見せる。
     F.streetMob = rt.world.addDistantArmy({ x: -14, z: 50, w: 9, d: 26, count: 90, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15897 });
     if (F.streetMob?.army) F.streetMob.army.noWake = true;
+    // 11/1 点付け（本能寺66：敵の大軍・乱戦が薄い）：25秒の画面は本人の後ろから表門を見る。門の右（庭の東の端・築地の内）は兵がまばらだった。
+    //   門の右で、塀を越えて入った明智勢と馬廻が押し合い斬り合う（軽い作り。本人とカメラから十二歩より近い軽い兵は描かれないので、門から十二歩あまり離す）。
+    //   築地の外の通りの奥には、旗を立てた明智の大軍を厚く置き、塀の上に旗と頭の列が並ぶようにする。
+    //   本物の兵の数・道・当たりは変えない。門の段が済めば（F.hp > 2）庭の押し合いは馬廻が崩れて消える。
+    F.yardClashes = [[-36, 63, 6, 15852]].map(([x, z, w, seed]) => {
+      const C = rt.world.addClash({ x, z, facing: Math.PI / 2, w, bw: 2.6, gap: 1.6, seed, rt,
+        play: (k, q, v) => rt.army.play(k, q, v), smoke: (x1, y1, z1, ax, az) => rt.army.smoke(x1, y1, z1, ax, az),
+        noRout: true, noWake: true, killRate: 0.004, maxDrift: 0.6, host: false, corpses: 6, realNear: 12, nearHide: 0,
+        A: { flag: 'oda', armor: 0x2a2622, count: 24, flagRate: 0.15 },
+        B: { flagTex: flagTexture('akechi'), armor: 0x34302a, count: 30, flagRate: 0.3 } });
+      C?.go?.();
+      return C;
+    }).filter(Boolean);
+    F.outerHost = rt.world.addDistantArmy({ x: 14, z: 50, w: 70, d: 14, count: 120, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15853, terrainRanks: true, yose: false, host: false });
+    if (F.outerHost?.army) F.outerHost.army.noWake = true;
     // 民と僧は、近づく兵や火を民の仕組みで調べて逃げる。
     // 信長が起き出し、回廊を抜けて表へ（B 警戒 → D 移る）
     nbSet(rt, 'B', { at: PT.nbRoom });
@@ -4625,7 +4640,9 @@ function honnoTick(def, rt, dt) {
       const c = g.center(), near = on && Math.hypot(c.x - p.x, c.z - p.z) < 15;
       if (near) g.focus = P; else if (g.focus === P) g.focus = null;
     }
-    if (F.hp > 2) { for (const g of F.courtMob) if (g?.focus === P) g.focus = null; F.courtMob = null; }
+    if (F.hp > 2) { for (const g of F.courtMob) if (g?.focus === P) g.focus = null; F.courtMob = null;
+      for (const C of F.yardClashes || []) C.rout?.('A', { hideAfter: 30, from: 0 });
+      F.yardClashes = null; }
   }
   for (const u of rt.army.units) if (u.honnoClimb) {
     const c = u.honnoClimb, t = Math.max(0, Math.min(1, (rt.t - c.start) / 1.2));

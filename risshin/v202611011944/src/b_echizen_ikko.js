@@ -206,6 +206,47 @@ function templeLantern(rt, x, z) {
   rt.world.addFire(x, z, { torch: true, h: 1.87, size: .08, smoke: false,
     lightRadius: 4, lightStrength: .7 });
 }
+// 11/01 点付け「建物が箱で平ら」：遠見の堂の瓦・板壁と石灯籠の石肌を、小さなキャンバスの絵一枚ずつで描く（初めに一度だけ。使い回す）。
+let templeTexCache;
+function templeTex() {
+  if (templeTexCache) return templeTexCache;
+  const mk = (w, h, draw, rx, ry) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(rx, ry);
+    return t;
+  };
+  // 本瓦：丸瓦の列（中が照り、両脇が陰）と、段ごとの重なりの影
+  const tile = mk(64, 64, (g, w, h) => {
+    for (let x = 0; x < w; x++) {
+      const k = Math.cos(((x % 16) / 16 - .5) * Math.PI);
+      const v = Math.round(110 + 120 * k * k);
+      g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, h);
+    }
+    for (let y = 0; y < h; y += 16) { g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, y, w, 3); g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, y + 3, w, 2); }
+  }, 22, 6);
+  // 板壁：縦板の目地・板ごとの色むら・貫・上の軒の影
+  const wall = mk(128, 64, (g, w, h) => {
+    for (let x = 0; x < w; x += 8) { const v = 150 + ((x * 37) % 50); g.fillStyle = `rgb(${v},${v - 6},${v - 14})`; g.fillRect(x, 0, 8, h); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x, 0, 1, h); }
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, 22, w, 5); g.fillStyle = 'rgba(255,230,200,.15)'; g.fillRect(0, 21, w, 1);
+    const eave = g.createLinearGradient(0, 0, 0, 20); eave.addColorStop(0, 'rgba(0,0,0,.8)'); eave.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = eave; g.fillRect(0, 0, w, 20);
+  }, 3, 1);
+  // 石灯籠の石肌：風化の斑と苔
+  const stone = mk(64, 64, (g, w, h) => {
+    g.fillStyle = 'rgb(200,196,186)'; g.fillRect(0, 0, w, h);
+    let r = 7; const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 200; i++) { const x = rnd() * w, y = rnd() * h, s = 1 + rnd() * 3;
+      const v = rnd() < .5 ? 90 : 230;
+      g.fillStyle = rnd() < .12 ? `rgba(90,100,70,${.1 + rnd() * .12})` : `rgba(${v},${v - 4},${v - 12},${.08 + rnd() * .12})`;
+      g.beginPath(); g.arc(x, y, s, 0, 6.283); g.fill(); }
+  }, 1, 1);
+  return (templeTexCache = { tile, wall, stone });
+}
+function weatherToro(mesh) {
+  if (!mesh) return;
+  mesh.material.map = templeTex().stone; mesh.material.color.setHex(0x6b665c); mesh.material.needsUpdate = true;
+}
 // この寺だけの石段。踏面と暗い蹴上げを分け、斜面の下まで石を埋めて隙間を塞ぐ。
 let templeStoneGeo, templeStoneMats, templePoleGeo;
 function templeSteps(W, ax, az, bx, bz, width = 3.2) {
@@ -1877,8 +1918,16 @@ function templeNightTrees(rt) {
           #ifdef USE_INSTANCING
             templeLeaf = instanceMatrix * templeLeaf;
           #endif
-          vTempleLeafXZ = (modelMatrix * templeLeaf).xz;`);
-        shader.fragmentShader = 'uniform vec3 uTemplePlayer; varying vec2 vTempleLeafXZ;\n' + shader.fragmentShader.replace('#include <alphatest_fragment>', `
+          vTempleLeafXZ = (modelMatrix * templeLeaf).xz;
+          // 11/01 点付け「木が切り絵」：同じ色の板の重なりに見えた。株ごとの濃淡と、樹冠の下ほど暗い奥行きを付ける（頂点だけ・数は同じ）。
+          vec3 templeRoot = vec3(0.0);
+          #ifdef USE_INSTANCING
+            templeRoot = instanceMatrix[3].xyz;
+          #endif
+          vTempleTree = vec2(fract(sin(dot(templeRoot.xz, vec2(12.9898, 78.233))) * 43758.5453), clamp((templeLeaf.y - templeRoot.y) / 14.0, 0.0, 1.0));`);
+        shader.vertexShader = 'varying vec2 vTempleTree;\n' + shader.vertexShader;
+        shader.fragmentShader = 'uniform vec3 uTemplePlayer; varying vec2 vTempleLeafXZ; varying vec2 vTempleTree;\n' + shader.fragmentShader.replace('#include <alphatest_fragment>', `
+          diffuseColor.rgb *= mix(vec3(0.72, 0.76, 0.7), vec3(1.12, 1.1, 0.96), vTempleTree.x) * (0.62 + 0.5 * smoothstep(0.05, 0.85, vTempleTree.y));
           // 葉の絵の隙間と、本人の近くで視線を空ける処理を保つ。
           #ifdef USE_MAP
             diffuseColor.a = texture2D(map, vMapUv).a * opacity;
@@ -2565,7 +2614,8 @@ const echizen_ikko = {
     fireLightLift: .9, // 戸口で顔と紙が白く飛ばない強さ。携帯の光源数は増やさない。
     mist: true,
     groundMistScale: .15, // 夏の夜の山を白い雪面にせず、低い霧だけ残す。
-    fogTint: 0x17202c, // 遠い木と山を明るい青の切り絵にしない。この戦の夜霧だけを暗くする。
+    fogTint: 0x29272a, // 遠い木と山を明るい青の切り絵にしない。11/01：紺でなく月夜の灰へ（青くしない・暗すぎない）。
+    nightLight: { sky: 0x3a3b40, top: 0x15171c, fog: 0x2e2d30, sun: 0xd2ccbf, hemiSky: 0x9c9a98, hemiGround: 0x4a4030 }, // 11/01 点付け「暗くて見えない」：信貴山の月夜を手本に、紺の空と青い月を灰と暖かみへ
     fogTintStrength: 1, // 夜の青白い既定色を残さず、空に近い暗い霧へそろえる。
     mistFar: 140, // 麓の最初の霧で先手と門が白い壁に隠れない距離。
     smokeFogFloor: 60, // 火と鉄砲の煙は残し、目前の先手と参道を白い壁で隠さない。
@@ -2673,22 +2723,38 @@ const echizen_ikko = {
     {
       const spots = [];
       for (const z of [-104, -74, -58, -34, -16, 10]) for (const side of [-1, 1]) spots.push([side * 3.6, z, 0]);
-      ishidoro(rt, spots, { lit: true });
+      weatherToro(ishidoro(rt, spots, { lit: true }));
     }
     // 麓から惣門と本堂の大屋根を見せる遠見の影（10/28）。見通しは八十メートルに抑えるので、
     // 遠い間だけ同じ向きの手前へ縮めて置き、篝火に照らされた軒と黒い屋根の形で山上の寺を示す。近づけば本物に任せる。
     {
       // 屋根は夜空より明るい月明かりの瓦の灰。真っ黒だと夜空に溶けて大屋根の形が読めなかった（10/28 点付け）。
-      const roofMat = new THREE.MeshBasicMaterial({ color: 0x2b323c, fog: false, side: THREE.DoubleSide });
+      const roofMat = new THREE.MeshBasicMaterial({ color: 0x4a4f58, map: templeTex().tile, fog: false, side: THREE.DoubleSide });
       const ridgeMat = new THREE.MeshBasicMaterial({ color: 0x4a5260, fog: false });
-      const wallMat = new THREE.MeshBasicMaterial({ color: 0x2a1a10, fog: false });
+      const wallMat = new THREE.MeshBasicMaterial({ color: 0x4a3020, map: templeTex().wall, fog: false });
       const glowMat = new THREE.MeshBasicMaterial({ color: 0xffa24a, fog: false });
       // 寄棟の大屋根：軒の四隅（±1, 0, ±1）から棟（±.47, 1, 0）へ。四角錐だと壁より狭い尖った天幕に見えていた（10/28 撮り直し）。
       const roofGeo = new THREE.BufferGeometry();
       {
-        const A = .47, E = [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1]], R0 = [-A, 1, 0], R1 = [A, 1, 0];
-        const tri = [E[0], E[1], R1, E[0], R1, R0, E[2], E[3], R0, E[2], R0, R1, E[1], E[2], R1, E[3], E[0], R0];
-        roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(tri.flat(), 3));
+        // 11/01：平らな四枚の板に見えた。軒から棟へ反る（下ほど緩く上ほど急な）面と、四隅の軒先の跳ね上がりを付ける。
+        const A = .47, T = [0, .14, .32, .56, .8, 1], N = 6, pos = [], uv = [], idx = [];
+        for (const t of T) {
+          const hx = 1 - t * (1 - A), hz = 1 - t, y = Math.pow(t, 1.45);
+          for (let side = 0; side < 4; side++) for (let i = 0; i < N; i++) {
+            const q = i / N, c = Math.abs(2 * q - 1), lift = .11 * c * c * c * (1 - t) * (1 - t);
+            const x = side === 0 ? -hx + 2 * hx * q : side === 1 ? hx : side === 2 ? hx - 2 * hx * q : -hx;
+            const z = side === 0 ? -hz : side === 1 ? -hz + 2 * hz * q : side === 2 ? hz : hz - 2 * hz * q;
+            pos.push(x, y + lift, z); uv.push(side % 2 ? z : x, t);
+          }
+        }
+        const R = 4 * N;
+        for (let r = 0; r < T.length - 1; r++) for (let i = 0; i < R; i++) {
+          const a0 = r * R + i, a1 = r * R + (i + 1) % R, b0 = a0 + R, b1 = a1 + R;
+          idx.push(a0, a1, b1, a0, b1, b0);
+        }
+        roofGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        roofGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        roofGeo.setIndex(idx);
       }
       // 切妻の屋根：底の幅 1・高さ 1 の三角の棟（x の向きに長い）
       const gableGeo = new THREE.CylinderGeometry(1, 1, 1, 3, 1); gableGeo.rotateZ(Math.PI / 2); gableGeo.rotateX(-Math.PI / 2);
@@ -3320,7 +3386,7 @@ const echizen_ikko = {
       rt.scene.add(templeSteps(W, -.8, -164, -1.6, -124, 3.6));
       const spots = [];
       for (const z of [-192, -180, -158, -144, -130, -118]) for (const side of [-1, 1]) spots.push([side * 3.3 + (z > -130 ? -1.6 : z > -165 ? -1 : 0), z, 0]);
-      ishidoro(rt, spots, { lit: true });
+      weatherToro(ishidoro(rt, spots, { lit: true }));
       for (const x of [-4.6, 4.6]) { rt.scene.add(kagaribi(W, x, -175)); W.addFire(x, -175, { torch: true, h: 1.35 }); }
       // 登り口の左の杉の下に首塚。持ち場から25秒の登りで、石段の左の視野に入る（10/30）。
       templeKubizuka(rt, 5.9, -157.6, 2.85);
@@ -3878,9 +3944,9 @@ const echizen_ikko = {
     if (F.fireDots) F.fireDots.visible = rt.player.u.pos.z < GATE_SOMON.z - 40;
     if (F.templeFar && rt.camera) F.templeFar(rt.camera);
     // 月光の青と補光を抑え、夏の土を雪のように白く照らさない。光源や影は増やさない。
-    W.sun.color.setHex(0xc2c9d4);
+    W.sun.color.setHex(0xd2ccbf);
     W.sun.intensity = Math.max(W.sun.intensity, .85);
-    W.hemi.intensity = Math.max(W.hemi.intensity, 1.05);
+    W.hemi.intensity = Math.max(W.hemi.intensity, 1.2);
     if (rt.t >= (F.flagLightAt || 0)) {
       F.flagLightAt = rt.t + 1;
       for (const u of rt.army.units) if (u.team === rt.player.u.team) {

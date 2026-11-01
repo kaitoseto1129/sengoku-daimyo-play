@@ -192,6 +192,26 @@ function treeCardVertex(sh, far = false) {
         if (treePlane > 0.5) transformed = vec3(0.0);
       }
     #endif`);
+  // 遠い一枚の木（11/1 c_veg_far）：山頂・中景で淡い灰の丸い切り絵に見えた。
+  //   奥ほど色を抜いて青みの深い緑へ沈め（霞の手前の森の影）、葉の塊の隙間を暗くして房の濃淡を残す。
+  //   縁は細かい抜けで崩し、なめらかな丸い輪郭を葉先のぎざぎざにする。形・描く回数・材質は増やさない。
+  sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `{
+      float tfD = length(vViewPosition), tfK = smoothstep(30.0, 110.0, tfD);
+      if (tfK > 0.0) {
+        float tfL = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+        vec3 tfDeep = tfL * vec3(0.80, 0.97, 0.98);
+        diffuseColor.rgb = mix(diffuseColor.rgb, tfDeep, tfK * 0.45);
+        diffuseColor.rgb *= mix(1.0, mix(0.6, 0.86, smoothstep(0.18, 0.55, tfL)), tfK);
+        #ifdef USE_MAP
+        if (vMapUv.x >= 0.0) {
+          vec2 tfc = floor(vMapUv * 56.0);
+          float tfN = fract(sin(dot(tfc, vec2(12.9898, 78.233))) * 43758.5453);
+          diffuseColor.a -= (tfN - 0.35) * 0.55 * tfK * (1.0 - smoothstep(0.75, 1.0, diffuseColor.a));
+        }
+        #endif
+      }
+    }
+    #include <alphatest_fragment>`);
 }
 function nearTreeLit(sh) { leafLit(sh); treeCardVertex(sh); }
 function farTreeLit(sh) { leafLit(sh); treeCardVertex(sh, true); }

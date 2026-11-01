@@ -1,4 +1,4 @@
-// 移動は床の太い矢印、守備は判定と同じ外周。戦の進行や判定には触れない。
+// 移動は床の小さい矢印、守備は判定と同じ外周の細い線（11/1：太い線と大きい矢印が画面を横切って見えた）。戦の進行や判定には触れない。
 import * as THREE from 'three';
 import { VIEW, safeInsets } from './viewport.js';
 import { groundAt } from './floors.js';
@@ -40,7 +40,7 @@ export function drawMissionGround(rt, el, want, rects) {
   el.hidden = true;
   if (!el._groundCue) {
     const group = document.createElementNS(namespace, 'g');
-    group.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="10"/><path fill="none" stroke="#fff3ba" stroke-width="5"/><path fill="#fff3ba" stroke="#14120f" stroke-width="6"/><g><path d="M0 0V-48H30L22-36L30-24H0" fill="#fff3ba" stroke="#14120f" stroke-width="5"/></g>';
+    group.innerHTML = '<path fill="none" stroke="#14120f" stroke-width="3.5" stroke-opacity=".45"/><path fill="none" stroke="#fff3ba" stroke-width="1.6" stroke-opacity=".8"/><path fill="#fff3ba" fill-opacity=".9" stroke="#14120f" stroke-width="2.5"/><g><path d="M0 0V-48H30L22-36L30-24H0" fill="#fff3ba" stroke="#14120f" stroke-width="5"/></g>';
     group.setAttribute('stroke-linejoin', 'round');
     el._lines.appendChild(group); el._groundCue = group;
   }
@@ -89,13 +89,13 @@ export function drawMissionGround(rt, el, want, rects) {
         const wx = a.x + (b.x - a.x) * t, wz = a.z + (b.z - a.z) * t;
         ahead.set(wx, groundAt(rt.world, wx, wz, p.y) + .14, wz);
         if (Math.hypot(wx - p.x, wz - p.z) < 2 || cameraWallBlocked(rt, rt.camera.position, ahead) ||
-            !project(rt, wx, wz, point) || !clear(point.x, point.y, rects, 42, 34) || Math.hypot(point.x - lastX, point.y - lastY) < 76) continue;
+            !project(rt, wx, wz, point) || !clear(point.x, point.y, rects, 22, 18) || Math.hypot(point.x - lastX, point.y - lastY) < 52) continue;
         const next = Math.min(1, t + .8 / Math.max(.01, length));
         // 終点のすぐ手前を投影し、到着地点でも矢印の向きを保つ。
         const before = next === t;
         if (!project(rt, a.x + (b.x - a.x) * (before ? Math.max(0, t - .1) : next), a.z + (b.z - a.z) * (before ? Math.max(0, t - .1) : next), ahead)) continue;
         const angle = Math.atan2((ahead.y - point.y) * (before ? -1 : 1), (ahead.x - point.x) * (before ? -1 : 1));
-        arrows += arrow(point.x, point.y, angle, count ? .8 : 1.15);
+        arrows += arrow(point.x, point.y, angle, count ? .42 : .55);   // 11/1 点付け（案内の矢印が画面に大きい）：半分ほどに縮める
         lastX = point.x; lastY = point.y; count++;
       }
       covered += length;
@@ -107,7 +107,7 @@ export function drawMissionGround(rt, el, want, rects) {
       const angle = Math.atan2(-(dx * Math.sin(yaw) + dz * Math.cos(yaw)), -dx * Math.cos(yaw) + dz * Math.sin(yaw));
       for (let i = 0; i < 12; i++) {
         const x = VIEW.w * .5 + (i % 2 ? -1 : 1) * Math.ceil(i / 2) * 64, y = VIEW.h - 88;
-        if (clear(x, y, rects, 44, 38)) { arrows = arrow(x, y, angle, 1.15); break; }
+        if (clear(x, y, rects, 24, 20)) { arrows = arrow(x, y, angle, .55); break; }
       }
       hud.missionPinOutside = true;
     }

@@ -1270,14 +1270,27 @@ function takatoFieldMelee(rt) {
   const W = rt.world, A = rt.army;
   const play = (k, p, v) => A.play(k, p, v), smoke = (x, y, z, fx, fz) => A.smoke(x, y, z, fx, fz);
   const oda = { flag: 'tsuru', armor: 0x1d1c1a, flagRate: .35 }, nishina = { flag: 'takeda', armor: 0x3a2622, flagRate: .3 };
-  F_MELEE.list = [];
-  // 竹束（x 100）の向こう、土橋の口の両脇。本人の 12m 内だけ隠す（既定の 44m では画面から消える）。
-  for (const [z, seed] of [[9.5, 30411], [-9.5, 30412]]) {
-    F_MELEE.list.push(W.addClash({ rt, play, smoke, x: 93, z, facing: -Math.PI / 2, w: 11, gap0: 0, gap: 2.4, seed, noRout: true,
-      realNear: 12, killRate: .15, A: { ...oda, count: 50 }, B: { ...nishina, count: 42, bows: false } }));
+  F_MELEE.list = rt.flags.fieldMelee = [];
+  // 11/1 点付け（高遠62：敵の大軍・乱戦が薄い）：軽い兵は本人から44m・カメラから30m の内を描かないので、x 93 の前線は25秒の画面に一度も写らなかった。
+  //   前線を土橋の口から堀に沿って南北へ離し（z ±27・堀の縁の x 89。カメラから三十〜四十歩）、堀の外の縁で城兵と先手が押し合い斬り合う形にする。
+  //   肩越しの向きが北西（堀の北の縁）でも南西でも、どちらか一つが画面に入る。寄せ道（z ±4）は空けたまま。
+  for (const [z, seed] of [[27, 30411], [-27, 30412]]) {
+    F_MELEE.list.push(W.addClash({ rt, play, smoke, x: 89, z, facing: -Math.PI / 2, w: 13, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
+      maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: 44 }, B: { ...nishina, count: 60, bows: false } }));
+  }
+  // 塀の裏の武者走りに並んだ仁科勢（大手の左右の塀の上に、笠と槍の穂・指物が切れ目なく覗く。配置は推定）。
+  //   寄せ手の目の高さからは塀の内の控えが見えないので、塀の上の人の列で城兵の多さを見せる。足は塀に隠れる（棚の高さは鉄砲衆の棚と同じ）。
+  //   鉄砲衆の棚（z 9.6〜21.9）と門（z ±5）は空ける。軽い作りの人の列だけで、本物の兵・当たりは変えない。
+  {
+    const ppl = [];
+    const row = (z0, z1) => { for (let z = z0, i = 0; z <= z1; z += .85, i++) ppl.push({ x: 76.1 + (i % 2) * .45, z, k: i % 4 === 1 ? 'gun' : 'spear', facing: Math.PI / 2, flag: i % 5 === 0 ? 1 : 0 }); };
+    row(-28, -5.5); row(5.5, 9); row(22.5, 28);
+    const h = W.addDistantArmy({ people: ppl, armor: 0x3a2622, team: 1, flagTex: flagTexture('takeda'), seed: 30431 });
+    if (h) { h.position.y = 2.2; h.updateMatrixWorld?.(true); if (h.army) h.army.noWake = true; }
   }
   // 塀の内の三の丸・二の丸に控える城方の大軍。塀の上へ幟の林が覗く。
-  for (const [x, z, w, d, n, seed] of [[64, 4, 14, 10, 90, 30421], [56, -20, 16, 9, 80, 30422], [57, 26, 14, 8, 70, 30423]]) {
+  // 11/1：塀に隠れて兵の見えない控え（幟は残す）を少し減らし、上の塀の上の列の分に回す（描く人数を増やさない）。
+  for (const [x, z, w, d, n, seed] of [[64, 4, 14, 10, 80, 30421], [56, -20, 16, 9, 40, 30422], [57, 26, 14, 8, 40, 30423]]) {
     const h = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.PI / 2, team: 1, armor: 0x34302a,
       flagTex: flagTexture('takeda'), kind: 'mixed', banners: 6, flagRate: .55, seed });
     h.army.noWake = true;
