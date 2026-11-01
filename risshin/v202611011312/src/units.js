@@ -26,7 +26,7 @@ import { buildModel, modelBuilt, finalLook } from './units_look.js';
 import { batchHumanParts, humanBatchBegin } from './army_human_batch.js';
 import { groundAt } from './floors.js';
 import { palOf } from './unit_pal.js';
-import { horseStyleFor, buildHorse, paint, at, MAT, MAT_I, MAT_P, P, merge, RIDE, seatLegs, rng, EMBER_GEO, dropLazyGeo } from './units_model.js';
+import { horseStyleFor, coatOf, buildHorse, paint, at, MAT, MAT_I, MAT_P, P, merge, RIDE, seatLegs, rng, EMBER_GEO, dropLazyGeo } from './units_model.js';
 import { numberedFlag, FLAG_T, FLAG_W, flagBlocksView, fadedWeapon, fadeViewFlag, IMP, BATCH, LOD } from './units_flags.js';
 import { ArmyCombat } from './army_combat.js';
 import { ArmyFx } from './army_fx.js';
@@ -716,7 +716,7 @@ export class Army {
     // 名のある武将（武将・GENERALS の人）は馬に乗る（kaito 2026-09-29）。o.horse: false で徒。塀に囲まれた曲輪の中（籠城）は徒（rideCheck）
     if (o.horse === undefined && (u.type === 'busho' || gen.face) && !g.isPlayerSquad && !(this._rideChk && this.walledIn(u.pos))) { o = { ...o, horse: true }; u.autoHorse = true; }
     // 名のある武将の馬は、家の色の馬具（鞍の縁は金、厚総は大きく）
-    const hst = () => { const s = horseStyleFor(u.id, gen.face ? 2 : u.type === 'busho' ? 1 : 0, g.faction); if (gen.tack) { s.tack = gen.tack; s.tassels = gen.tack === 0x2a2420 || gen.tack === 0x1a1816 ? (gen.lace ?? s.tassels) : new THREE.Color(gen.tack).multiplyScalar(1.3).getHex(); s.cushion = gen.haori ?? s.cushion; } return s; };
+    const hst = () => { const s = horseStyleFor(u.id, gen.face ? 2 : u.type === 'busho' ? 1 : 0, g.faction); if (gen.tack) { s.tack = gen.tack; s.tassels = gen.tack === 0x2a2420 || gen.tack === 0x1a1816 ? (gen.lace ?? s.tassels) : new THREE.Color(gen.tack).multiplyScalar(1.3).getHex(); s.cushion = gen.haori ?? s.cushion; } const C = gen.coat && coatOf(gen.coat); if (C) { s.coat = C.coat; s.mane = C.mane; s.points = C.points; } return s; };
     if (o.horse) {
       const baseStyle = o.horseStyle || hst();
       const style = redRider ? takedaHorseStyle(baseStyle) : baseStyle;

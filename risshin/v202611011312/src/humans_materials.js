@@ -68,7 +68,8 @@ function bodyMaterial(look, dm = false, nh = 0) {
   const fc = new THREE.Color(cloth), fhsl = fc.getHSL({});
   //   三通りの褪せは、灰茶・柿渋・鼠へ寄せ分ける（同じ家の兵が一色の塊に見えないように。青は使わない）
   const named = look.hero || typeof look.face === 'string' || (look.tier ?? 0) >= 2;
-  fc.setHSL(fhsl.h, fhsl.s * [0.8, 0.62, 0.48][fade], Math.min(0.5, fhsl.l * [1.0, 1.1, 1.22][fade] + 0.01 * fade)).lerp(new THREE.Color([0x5a5044, 0x6a4028, 0x5a5850][fade]), named ? [0.04, 0.1, 0.16][fade] : [0.04, 0.24, 0.26][fade]);
+  //   褪せは残しつつ、灰へ寄せすぎない（25秒の画面で兵の六割が灰に見えた。gap_soldier 10/31）
+  fc.setHSL(fhsl.h, fhsl.s * [0.9, 0.76, 0.62][fade], Math.min(0.5, fhsl.l * [1.0, 1.1, 1.22][fade] + 0.01 * fade)).lerp(new THREE.Color([0x5a5044, 0x6a4028, named ? 0x5a5850 : 0x6e6450][fade]), named ? [0.04, 0.1, 0.16][fade] : [0.04, 0.16, 0.18][fade]);   // 足軽の布は生成り・茶・柿渋
   // 侍の袴は着物と別の色（黒鼠・茶・着物の濃い色）
   const clothF = fc.getHex(), hakamaF = look.tier === 0 ? clothF : named ? fc.clone().multiplyScalar(0.8).getHex() : fc.clone().multiplyScalar(0.8).lerp(new THREE.Color([0x3a3430, 0x2e2a26, 0x4e3a28][fade]), [0, 0.55, 0.5][fade]).getHex();
   const U = {
