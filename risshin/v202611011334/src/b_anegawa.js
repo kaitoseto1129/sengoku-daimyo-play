@@ -4355,6 +4355,12 @@ anegawa.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '浅井の寄せ�
 anegawa.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) anegawa.charge(rt); };
 // 美濃三人衆は東の備えの同じ手に置く。森・佐久間への共通追加を防ぐ。
 anegawa.famous = HISTORICAL_GENERALS.anegawa.filter((e) => e.team !== 0);
+// 武将の名簿（bushou_roster.js）から、この戦に出た両軍の武将を呼ぶ。今いる隊の名に合う所へ一人ずつ加わる（もう場にいる人は重ねない）。
+anegawa.bushou = [
+  { name: '浅井長政', g: /浅井の三の手|浅井のしんがり/ }, { name: '朝倉景健', g: /朝倉/, loose: false },
+  { name: '磯野員昌', g: /磯野/ }, { name: '遠藤直経', g: /浅井長政の旗本|浅井の三の手/, loose: false },
+  '織田信長', '徳川家康', { name: '木下秀吉', g: /池田|佐久間/ }, { name: '柴田勝家', g: /柴田/ }, { name: '丹羽長秀', g: /坂井|池田/ },
+];
 // 戦の途中で出る名のある武将（磯野・柴田・美濃三人衆）は、支度で作り置いて出る時は置くだけ（army_reserve.js）。姿は出す時と同じ指定
 anegawa.reserve = [
   { team: 1, faction: 'azai', type: 'busho', o: { ...AZAI, name: '磯野員昌', horse: true, hat: 'kabuto_r', haori: 0x4a3a22 } },

@@ -3954,4 +3954,6 @@ installBattleJinkei(nagashima, [
   ], '戦う者一万は目安。砦別の将・兵数は不明で、籠もる非戦の人々を備の兵数に数えない。'),
 ]);
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+nagashima.bushou = ['織田秀成', '下間頼旦'];
 export { nagashima };

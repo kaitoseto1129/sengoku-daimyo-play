@@ -22,7 +22,7 @@ export function namedCrestGeometry(kind, hi = true) {
   // 名のある武将の本物の立物（kabuto_real.js）
   const real = realCrestGeometry(kind, hi);
   if (real !== undefined) return real;
-  if (!['ii_tentsuki', 'honda_shika', 'kenshin_nichirin', 'kenshin_izuna', 'niwa_shikami', 'kuwa', 'kuwa_wide', 'oda_kuwa', 'sankoken', 'moon', 'sun', 'horn', 'cross', 'shida', 'bellflower', 'bull', 'toyotomi_horns', 'feather', 'akechi_ears', 'manji', 'date_moon', 'takigawa_buffalo'].includes(kind)) return null;
+  if (!['ii_tentsuki', 'honda_shika', 'kenshin_nichirin', 'kenshin_izuna', 'niwa_shikami', 'kuwa', 'kuwa_wide', 'oda_kuwa', 'sankoken', 'moon', 'sun', 'horn', 'cross', 'shida', 'bellflower', 'bull', 'toyotomi_horns', 'feather', 'akechi_ears', 'manji', 'date_moon', 'takigawa_buffalo', 'kuwa_ken', 'kuwa_sun'].includes(kind)) return null;
   const buffaloSolid = kind === 'takigawa_buffalo' && S.quality === 'high';
   const key = (kind === 'honda_shika' && !hi) || (kind === 'oda_kuwa' && hi) ? kind + (hi ? '|近' : '|遠') : buffaloSolid ? kind + '|立体' : kind;
   if (crests.has(key)) return crests.get(key);
@@ -153,7 +153,7 @@ export function namedCrestGeometry(kind, hi = true) {
     for (let i = 18; i >= 0; i--) { const a = Math.PI + i * Math.PI / 18; pts.push([rx * Math.cos(a), ry * 0.62 * Math.sin(a) + 0.025]); }
     plate(pts, 0, wide ? 0.38 : 0.34, 0.16);
   };
-  if (kind === 'kuwa' || kind === 'kuwa_wide' || kind === 'oda_kuwa') for (const sd of [-1, 1]) {
+  if (kind === 'kuwa' || kind === 'kuwa_wide' || kind === 'oda_kuwa' || kind === 'kuwa_ken' || kind === 'kuwa_sun') for (const sd of [-1, 1]) {
     const w = kind === 'kuwa_wide' ? 1.5 : 1;
     plate([[0, 0], [0.055, 0], [0.13 * w, 0.14], [0.17 * w, 0.32], [0.105 * w, 0.27], [0.07, 0.12]].map(([x, y]) => [sd * x, y]), sd * 0.02, 0.17, 0.15);
   }
@@ -242,6 +242,9 @@ export function namedCrestGeometry(kind, hi = true) {
     parts[parts.length - 1].translate(0, 0, 0.028);
   }
   if (kind === 'sun') disc(0.13, 0, 0.34);
+  // 名簿の武将の鍬形の類（10/31 bushou_core）：鍬形台の真ん中に剣を立てる形と、小さな日輪を据える形。当時の兜にふつうの金物で、その人だけの立物ではない。
+  if (kind === 'kuwa_ken') plate([[-0.011, 0], [0.011, 0], [0.016, 0.17], [0, 0.27], [-0.016, 0.17]], 0, 0.18, 0.155);
+  if (kind === 'kuwa_sun') disc(0.07, 0, 0.29);
   if (kind === 'sankoken') {
     // 伝光秀所用具足の三鈷剣を基本形で復元。中央の剣と内へ返る左右の鈷。
     // 近景・遠景とも、この一度だけ結合した形を使い回す。

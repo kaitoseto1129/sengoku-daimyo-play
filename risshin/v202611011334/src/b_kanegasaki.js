@@ -3895,6 +3895,8 @@ function kgC() {
   ], true)];
 }
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+kanegasaki.bushou = ['松永久秀', '徳川家康', { name: '朝倉景恒', g: /朝倉/, loose: false }];
 export { kanegasaki };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

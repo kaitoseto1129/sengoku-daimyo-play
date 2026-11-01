@@ -2904,6 +2904,11 @@ function bodyGeometry(key, o, hi, grp) {
     const dec = new THREE.LatheGeometry(mp, hi ? 6 : 3, -0.42, 0.84); dec.scale(1, 1, 0.8);
     parts.push(P(dec, armor, { mk: MK.lac, reg: mr, c2: o.monCol || 0xb08a3a, mk2: MK.gold }));
   }
+  // 御貸具足（ashiDo）の胸にも家紋を一つ（金。陣笠の正面の紋とそろえる。kaito 10/31 夜）。胴と同じ形に合わせて薄く浮かせる
+  if (mr && T === 0 && loan) {
+    const dec = surf(hi ? 4 : 2, hi ? 3 : 1, (u, v) => ashiPt((u - 0.5) * 0.55, 1.18 + v * 0.1, r0, 0.0035));
+    parts.push(P(dec, armor, { mk: MK.lac, reg: mr, c2: o.monCol || 0xb08a3a, mk2: MK.gold }));
+  }
   }
   // 草摺：板を垂らし、裾へ広げる。足軽は五間、侍から七間、胴丸は八間
   parts = PT.hips;

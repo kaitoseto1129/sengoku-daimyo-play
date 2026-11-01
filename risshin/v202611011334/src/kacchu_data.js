@@ -4,6 +4,7 @@
 // 10/28：同じ見た目の武将を二人作らない。鉢・立物・白熊が同じなら、威・陣羽織・胴の色のどれかを大きく（色の差55以上）変える。
 // 写真と出典のある人を先に決め、裏付けの無い人は名の重い順に、威と陣羽織を伝統の色（紺・縹・萌黄・紫・緋・朽葉など）から選んだ復元案。
 import { MAEDATE } from "./kabuto_maedate.js";
+import { ROSTER, HOUSE, nameHash, rosterKacchu } from "./bushou_roster.js";
 export const KACCHU = {};
 for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of [
   // 稲生の参戦者。所用具足・立物・個人紋は未確認。筋兜と毛引威の復元で補う。
@@ -627,6 +628,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
 ]) {
   KACCHU[name] = { bowl, crest, armor, helm: armor, lace, odo: lace, doStyle, haori, menpo, menpoStyle: "hanbo", mon, ref, hat: "kabuto", hatFix: 1, lac: armor === 0xa52b1c || armor === 0x8e1f16 ? "shu" : "kuro", fuki: "kuro" };
 }
+// 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の値か家の色の範囲から一人ずつ組む（復元案。立物は鍬形の類だけ）。
+for (const name of Object.keys(ROSTER)) {
+  if (KACCHU[name]) continue;
+  const { bowl, crest, armor, lace, doStyle, haori, menpo, mon } = rosterKacchu(name);
+  KACCHU[name] = { bowl, crest, armor, helm: armor, lace, odo: lace, doStyle, haori, menpo, menpoStyle: "hanbo", mon, ref: "", hat: "kabuto", hatFix: 1, lac: "kuro", fuki: "kuro", roster: 1 };
+}
+// 姉川の頃の秀吉は木下の名で出る。若い頃の具足（木下藤吉郎）を使う。
+if (!KACCHU["木下秀吉"]) KACCHU["木下秀吉"] = KACCHU["木下藤吉郎"];
 // 同じ人物の別名に別の兜や威を割り当てない。
 KACCHU["氏家卜全"] = KACCHU["氏家直元"];
 // 同じ人物の別名に別の兜や威を割り当てない。
@@ -636,6 +645,26 @@ KACCHU["佐久間信盛"].flag = "sakuma";
 KACCHU["本多忠勝"].juzu = true;
 KACCHU["榊原康政"].fur = 0xe4dfcc;
 for (const name of ["羽柴秀吉", "豊臣秀吉"]) KACCHU[name].fur = 0x6d5440;
+// 名簿の武将で、出典の無い黒い胴の人（10/31 bushou_1_16）：並ぶと九人とも黒く似て見えたので、胴の塗りを当時の漆の幅（黒漆・溜塗・茶漆・錆地・朱溜・金溜）から名で一つ選び、
+//   暗すぎる威は家の威の幅から選び直す。大将（lord）と出典のある人はそのまま。鮮やかすぎる色は使わない。
+{
+  const DO_TINT = [0x1c1a1a, 0x3a1e16, 0x3a1e16, 0x4a3222, 0x4a3222, 0x4a3a2e, 0x5e2418, 0x5e4a2c];
+  const luma = (c) => ((c >> 16) & 255) * 0.3 + ((c >> 8) & 255) * 0.59 + (c & 255) * 0.11;
+  const done = new Set();
+  for (const name of Object.keys(ROSTER)) {
+    const k = KACCHU[name], p = ROSTER[name];
+    if (!k || done.has(k) || k.ref || p.lord) continue;
+    done.add(k);
+    if (luma(k.armor) < 48) {
+      const a = DO_TINT[Math.floor(nameHash(name, 31) * DO_TINT.length) % DO_TINT.length];
+      Object.assign(k, { armor: a, helm: a, lac: a === 0x5e2418 ? "shu" : a === 0x4a3a2e ? "sabi" : "kuro" });
+    }
+    if (luma(k.lace) < 44) {
+      const H = HOUSE[p.house] || HOUSE.oda, l = H.laces[Math.floor(nameHash(name, 32) * H.laces.length) % H.laces.length];
+      if (luma(l) >= 44) Object.assign(k, { lace: l, odo: l });
+    }
+  }
+}
 // 調べの表（reports/ref/generals/armor_research.md、10/27 夜）の詳しい50人を上から入れる（一つ目の十人）。
 //   確かさが「推し量り」の人は家と立場からの復元案。立物は伝わらない人には付けない（創作しない）
 const ARMOR_RESEARCH_1 = {

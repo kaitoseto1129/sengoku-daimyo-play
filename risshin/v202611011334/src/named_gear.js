@@ -3,6 +3,7 @@
 // weapon：spear・sword。spear：units_model.js の SPEARS の拵え。style：gouketsu は技を多く出し、槍は頭上で振り回す。
 // gouketsu_thrust は槍を回さず、腰の溜めと踏み込みで剛勇を表す（動きだけの復元）。
 // 伝わる得物・逸話をもとにした。確かな記録の無い者は、家の役目（騎馬の侍大将は素槍など）で補った。
+import { ROSTER, rosterGear } from './bushou_roster.js';
 export const NAMED_GEAR = {};
 for (const [name, weapon, spear, style] of [
   // 徳川
@@ -433,3 +434,5 @@ NAMED_GEAR['佐久間信盛'].campFlag = '佐久間の段染め';
 // https://www.city.nihonmatsu.lg.jp/data/doc/1527481349_doc_18_0.pdf
 // 手取川での使用・形・短冊の数は未確認。陣所に据える復元案とし、戦う兵を馬印持ちへ替えない。
 NAMED_GEAR['丹羽長秀'].campUma = 'bamboo_tanzaku';
+// 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
+for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

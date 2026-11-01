@@ -5087,6 +5087,8 @@ html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-mes
   };
 };
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+shiga.bushou = ['各務元正', { name: '浅井長政', g: /浅井/, loose: false }, { name: '朝倉義景', g: /朝倉/, loose: false }];
 export { shiga };
 
 // 本丸の比高に合わせて山の地肌も上げる。盛りの裾を町口へ延ばさない。

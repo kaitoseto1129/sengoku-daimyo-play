@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { BUSHO } from './generals_data.js';
 import { KACCHU } from './kacchu_data.js';
+import { rosterOf, rosterFaceShape, rosterAge, rosterCoat } from './bushou_roster.js';
 
 // ---------------- 兵種 ----------------
 export const TYPES = {
@@ -165,6 +166,10 @@ export const GENERALS = {
 };
 // 各戦に史実でいた名のある武将（段3「量を増やす」）：兜・威・陣羽織・顔を人ごとに。年はその戦の頃
 //   顔は [幅, えら, 頬骨, 眉の張り, 鼻, 目の細さ] と、髭の濃さ（0〜1）から作る（年で髪・皺・頬のこけが変わる）
+// 名から決まる 0〜1（年と肌の揺らぎ）
+function nameAge(nm) { let h = 7; for (const ch of nm) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0; return (h % 1000) / 1000; }
+// 名簿から作る顔の肌（SKIN_TONES と同じ幅。宣言順のため別に置く）
+const SKIN_TONES_N = [0xb58c68, 0xa87f5c, 0xc09a74, 0x9c7453, 0x8e6446, 0xb08664];
 function famFace(age, [w, jaw, cheek, brow, nose, eye], b, hair) {
   const cl = (v, a, c) => Math.max(a, Math.min(c, v));
   return { w, jaw, chin: +cl(2.05 - jaw, 0.8, 1.15).toFixed(2), cheek, gaunt: +(age >= 55 ? 1.1 : age >= 45 ? 0.75 : age >= 30 ? 0.5 : 0.25).toFixed(2), brow, nose, nw: +cl(2.1 - nose, 0.85, 1.3).toFixed(2), eye,
@@ -325,14 +330,22 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
 }
 // 地図の城主・城代と、史実の参戦表の人も同じ具足の入口を使う。
 // 能力と既存の顔は保ち、未登録の人だけ名簿の生年・髭から顔を作る。
+// 姉川の頃の秀吉（木下秀吉）は、若い頃の木下藤吉郎と同じ顔と姿。
+if (GENERALS['木下藤吉郎'] && !GENERALS['木下秀吉']) GENERALS['木下秀吉'] = GENERALS['木下藤吉郎'];
 for (const [nm, armor] of Object.entries(KACCHU)) {
   if (!GENERALS[nm]) {
-    const data = BUSHO[nm], age = data?.[1] ? Math.max(18, Math.min(70, 1575 - data[1])) : 38;
-    const beard = data ? Number((data[8] || 'k1').slice(1)) / 3 : 0.35;
-    GENERALS[nm] = { skin: 0xa87f5c, horo: 0, face: famFace(age, [1, 1.05, 1.1, 1.1, 1.05, 1.1], beard) };
+    // 顔の形は名で揺らす（同じ顔の使い回しに見せない。10/31 bushou_core）。年は名簿の生年と出る戦の年から、無ければ「戦国大名」の生年
+    const data = BUSHO[nm], rAge = rosterAge(nm, data?.[1]);
+    const age = rAge ?? (data?.[1] ? Math.max(18, Math.min(70, 1575 - data[1])) : 30 + Math.round(nameAge(nm) * 20));
+    const f = rosterFaceShape(nm, age);
+    const beard = data ? Math.min(1, Number((data[8] || 'k1').slice(1)) / 3 * 0.7 + f.beard * 0.3) : f.beard;
+    const skin = SKIN_TONES_N[Math.floor(nameAge(nm + '肌') * SKIN_TONES_N.length)];
+    GENERALS[nm] = { skin, horo: 0, face: famFace(age, f.shape, beard) };
   }
   Object.assign(GENERALS[nm], armor);
 }
+// 名簿の人の馬の毛色（units_model.js の COATS の名）。分からない人は名で決める（在来馬の出やすさの幅）
+for (const nm of Object.keys(GENERALS)) if (rosterOf(nm) && !GENERALS[nm].coat) GENERALS[nm].coat = rosterCoat(nm);
 // 馬具の色（名のある武将）：家の色。書いていない武将は、陣羽織・威の色から
 for (const [nm, g] of Object.entries(GENERALS)) {
   if (!g.tack) g.tack = ({ '山県昌景': 0x8e2218, '武田勝頼': 0xa8281c, '徳川家康': 0x2a2420, '大久保忠世': 0x262c3a, '酒井忠次': 0x3a2a1c, '奥平信昌': 0x2a2420 })[nm] ?? new THREE.Color(g.lace).multiplyScalar(0.8).getHex();

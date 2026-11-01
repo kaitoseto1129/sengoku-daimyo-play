@@ -6727,6 +6727,8 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 // 焼き討ちと城攻めは討ち捨て（首を取りに止まらせない。信長は城攻めでたびたび討ち捨てを命じた）
 inabayama.uchisute = true;
 inabayama.rts = true;
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
+inabayama.bushou = ['氏家卜全', '安藤守就'];
 export { inabayama };
 
 // 林の株ごとの色を設営時に一度だけ替える。見える株を詰め直す時の元の色（cullList の orig.col）も同じに替え、詰め直しで元の色へ戻らないようにする。
