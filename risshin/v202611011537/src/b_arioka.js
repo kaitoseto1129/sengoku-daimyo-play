@@ -3182,6 +3182,8 @@ function ariBot(b, inp, { goTo, patientStrike, strikeTarget }) {
 
 }
 
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。官兵衛の救い出しは落城の後・渡辺勘大夫は岸の砦にいるので出さない。
+arioka.bushou = ['丹羽長秀', '池田恒興', '中川清秀', '高山右近'];
 export { arioka };
 
 // 当日の細かな時刻・天気・各備えの人数と町割りは復元。

@@ -15,7 +15,8 @@ import { rosterPlan, rosterBuild } from './jinkei_roster.js';
 // ③退く武田勢を、城の麓まで追う
 // 向き：北（-z）の山の上に岩村城。南（+z）の水晶山に信忠の陣
 // ======================================================================
-import { nobori, campfire, tawara, village, ishigaki, solidCircle, lumber, hatazao, koshisaku, tateNarabi, takataba, hut, jinmaku, kagaribiBatch } from './props.js';
+import { dressStage } from './stage_dress.js';
+import { nobori, campfire, tawara, village, ishigaki, solidCircle, lumber, hatazao, koshisaku, tateNarabi, takataba, hut, jinmaku, kagaribiBatch, SOLIDS } from './props.js';
 import { timeslipField } from './timeslip_field.js';
 import { S as SETTINGS } from './settings.js';
 import { RANKS } from './state.js';
@@ -1828,6 +1829,8 @@ const iwamura = {
     });
     // 下知の声と任務の行き先を出陣時からそろえる。
     // 夜討ちの時刻は同じ。味方の点火の助けも元の時刻に残す。
+    // 11/1 点付け「地面」：柵ぎわの持ち場（25秒の所）の土を一色にしない。踏み跡の土・窪みの泥・小屋と岩の根の草、半分埋めた岩と俵（共通の stage_dress）。
+    dressStage(rt, { at: { x: 13, z: -4.5, heading: 1.89 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 3, rocks: 10, radius: 55, wet: 0.6, trodden: 0.85, seed: 2011 });
     this.prepare(rt);
   },
 
@@ -2061,7 +2064,7 @@ const iwamura = {
   update(rt, dt) {
     huntPlayer(rt, dt);
     heroFrontClash(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210 }) || [];
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210, at: [13, -4.5] }) || [];
     if (rt.t > 40 && rt.flags.fenceRaids?.[0].defMult > 1) {
       for (const g of rt.flags.fenceRaids) { g.noRout = false; g.defMult = 1; }
       for (const g of rt.flags.fenceSallies) g.defMult = 1;
@@ -3775,22 +3778,28 @@ function armyBackdrop(rt, o) {
   { let ex = 0, ez = 0, n = 0; for (const u of rt.army.units) if (u.alive && u.team !== P.team && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 160) { ex += u.pos.x; ez += u.pos.z; n++; }
     if (n > 8) { d.set(ex / n - P.pos.x, 0, ez / n - P.pos.z); if (d.lengthSq() > 1) d.normalize(); } }
   const out = [];
-  for (const [ang, seed, off] of [[0, 1, 0], [Math.PI / 2, 2, 0], [-Math.PI / 2, 3, 0], [Math.PI, 4, 0]]) {
+  // 11/1 点付け「乱戦が無い」：四方の 30m 先だと、25秒の柵ぎわの画面の向き（撮るたびに変わる）から外れた。
+  //   25秒の持ち場（柵ぎわ）を芯に六方へ置き、どちらを向いても一つは画面の奥に入る。一組の数を減らして、全体の兵の数は前と同じ（220×4 ≒ 146×6）。
+  const cx = o.at ? o.at[0] : P.pos.x, cz = o.at ? o.at[1] : P.pos.z;
+  for (let j = 0; j < 6; j++) {
+    const ang = j * Math.PI / 3, seed = j + 1;
     const c = Math.cos(ang), s = Math.sin(ang);
     const fx = d.x * c + d.z * s, fz = -d.x * s + d.z * c, sx = fz, sz = -fx;
     let at = null;
     for (let k = 0; k < 8 && !at; k++) {
-      const r = 30 + k * 10, x = P.pos.x + fx * r, z = P.pos.z + fz * r;
+      const r = 24 + k * 7, x = cx + fx * r, z = cz + fz * r;
+      if (HOUSE_PADS && HOUSE_PADS.some((h) => Math.abs(x - h[0]) < h[2] + 8 && Math.abs(z - h[1]) < h[3] + 8)) continue;
+      if (SOLIDS.some((q) => x + 9 > q.x0 && x - 9 < q.x1 && z + 9 > q.z0 && z - 9 < q.z1)) continue;   // 小屋・櫓・柵の当たりに兵を重ねない
       if (W.inWaterAt && W.inWaterAt(x, z)) continue;
       const h = W.heightAt(x, z);
       if (Math.abs(W.heightAt(x + sx * 10, z + sz * 10) - h) < 12 && Math.abs(W.heightAt(x - sx * 10, z - sz * 10) - h) < 12) at = [x, z];
     }
     if (!at) continue;
-    const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 46, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
+    const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
-      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 12,
-      A: { flag: o.ally, armor: 0x2a2622, count: 110, flagRate: .25 },
-      B: { flag: o.foe, armor: 0x2a2622, count: 110, flagRate: .25 } });
+      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
+      A: { flag: o.ally, armor: 0x2a2622, count: 73, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 73, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

@@ -2280,4 +2280,6 @@ function echizenWin(rt) {
   rt.player.u.invuln = true;
   rt.finish({ scriptedEnd: true }, 12);
 }
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。海側の明智・羽柴は出さない。杉浦玄任を足すと bot が負けたので出さない。
+echizen.bushou = ['柴田勝家', '丹羽長秀', '滝川一益'];
 export { echizen };

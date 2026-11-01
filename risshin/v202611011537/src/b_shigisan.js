@@ -2383,11 +2383,12 @@ const shigisan = {
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
     // 10/31 点付け「暗い」：月明かりと空の回り光を上げ、兵の具足と城の輪郭を読めるように（光源は増やさない）。
-    nightLift: 3.9,
-    nightFill: 0.8,
-    nightMoonMin: 2.0,
-    nightLight: { hemiSky: 0x7a8cae, hemiGround: 0x3e4a34 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
-    lowNightExposure: 1.9,
+    nightLift: 3.8,
+    // 11/1 点付け「暗い」：紺の夜空と青い月で全体が沈んだ。月は灰の銀、空と霧は鈍い鉛色にして、露出を一段上げる（光源は増やさない）。
+    nightFill: 1.0,
+    nightMoonMin: 2.6,
+    nightLight: { hemiSky: 0x9a9ea4, hemiGround: 0x4a4e36, sky: 0x3a414c, fog: 0x3c434c, top: 0x181d26 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
+    lowNightExposure: 2.5,
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。
@@ -3370,7 +3371,7 @@ const shigisan = {
   update(rt, dt) {
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240 }) || [];
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52] }) || [];
     const F = rt.flags;
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
@@ -4206,6 +4207,8 @@ shigisan.withdrawTick = (rt) => {
     smoke.pts.geometry.attributes.position.needsUpdate = smoke.pts.geometry.attributes.seed.needsUpdate = true;
   }
 };
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+shigisan.bushou = ['佐久間信盛', '羽柴秀吉', '明智光秀', '細川藤孝'];
 export { shigisan };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、
@@ -4225,21 +4228,24 @@ function armyBackdrop(rt, o) {
     return Math.abs(W.heightAt(x + sx * r * .5, z + sz * r * .5) - h) < 6 && Math.abs(W.heightAt(x - sx * r * .5, z - sz * r * .5) - h) < 6;
   };
   // 持ち場の周りの四方に置き、カメラがどちらを向いても、どれか一つの合戦が画面の奥に入るようにする。
-  const ax = d.x, az = d.z;
-  for (const [ang, seed] of [[0, 1], [Math.PI / 2, 2], [Math.PI, 3], [-Math.PI / 2, 4]]) {
+  // 11/1：80m 先の四方では山の陰と夜の霞に隠れ、25秒の画面（向きが撮るたびに変わる）に入らなかった。
+  //   25秒の尾根の持ち場を芯に六方、35m から置く。一組の数を減らして、全体の兵の数は前と同じ（220×4 ≒ 146×6）。
+  const ax = d.x, az = d.z, cx = o.at ? o.at[0] : P.pos.x, cz = o.at ? o.at[1] : P.pos.z;
+  for (let j = 0; j < 6; j++) {
+    const ang = j * Math.PI / 3, seed = j + 1;
     const c = Math.cos(ang), s = Math.sin(ang);
     fx = ax * c + az * s; fz = -ax * s + az * c; sx = fz; sz = -fx; facing = Math.atan2(fx, fz);
     let at = null;
-    for (let k = 0; k < 8 && !at; k++) {
-      const r = 80 + k * 14, x = P.pos.x + fx * r, z = P.pos.z + fz * r;
-      if (clear(x, z, 20)) at = [x, z];
+    for (let k = 0; k < 10 && !at; k++) {
+      const r = 35 + k * 9, x = cx + fx * r, z = cz + fz * r;
+      if (clear(x, z, 14)) at = [x, z];
     }
     if (!at) continue;
-    const C = W.addClash({ x: at[0], z: at[1], facing, w: 46, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
+    const C = W.addClash({ x: at[0], z: at[1], facing, w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
-      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 12,
-      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 110, flagRate: .25 },
-      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 110, flagRate: .25 } });
+      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
+      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 73, flagRate: .25 },
+      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 73, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

@@ -445,7 +445,9 @@ function armyShader(mat, U) {
     // 旗の布：一本ごとの褪せの差と、裏は染めが透けて暗い
     sh.vertexShader = 'varying float vAFT;\n' + sh.vertexShader;
     sh.fragmentShader = 'varying float vAFT;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);`);
+      diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);
+      // 幟の色の揺らぎ：暗く褪せた幟ほど日焼けで黄ばむ（家の染めの色は残す。青へは寄せない）
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
     armyCover(sh);
     armySteel(sh);
   };
@@ -660,7 +662,9 @@ function clashShader(mat, U) {
     // 旗の布：一本ごとの褪せの差と、裏は染めが透けて暗い
     sh.vertexShader = 'varying float vAFT;\n' + sh.vertexShader;
     sh.fragmentShader = 'varying float vAFT;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-      diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);`);
+      diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);
+      // 幟の色の揺らぎ：暗く褪せた幟ほど日焼けで黄ばむ（家の染めの色は残す。青へは寄せない）
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
     armyCover(sh);
     armySteel(sh);
   };

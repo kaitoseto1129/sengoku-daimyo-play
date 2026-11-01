@@ -455,7 +455,7 @@ export function buildTera(rt) {
   rt.scene.add(yagura(W, TERA.x1 - 3.5, TERA.z0 + 3.5));
   // 馬繋ぎを左右へ分け、北向きの馬舎の上り口を縄と当たりで塞がない。
   for (const dx of [-4.25, 4.25]) rt.scene.add(umatsunagi(W, UMAYA.x + dx, UMAYA.z - 4.5, 0, 3.5));
-  rt.scene.add(kabukimon(W, GATES.main.x, GATES.main.z, GATES.main.w + 1.4, Math.PI / 2, { doors: !!rt.G.lord }));   // 足軽の流れでは扉を b_honnoji の tobira で開け閉めする（二重の扉を出さない）
+  rt.scene.add(kabukimon(W, GATES.main.x, GATES.main.z, GATES.main.w + 1.4, Math.PI / 2, { doors: !!rt.G.lord, tileRoof: true }));   // 寺の表門は瓦葺き。足軽の流れでは扉を b_honnoji の tobira で開け閉めする（二重の扉を出さない）
   // ---- 共通の室内を持つ棟・外観だけの建物・廊・灯籠 ----
   for (const b of GARAN) G.build({ dist: 'near', ...b });
   for (const [x, z] of [[-48.5, 60], [-60, 72], [-55, 57]]) teraLantern(G, x, z);

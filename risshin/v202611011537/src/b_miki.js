@@ -3244,6 +3244,8 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     goTo(p, inp, at.x, at.z, 3);
   }
 };
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+miki.bushou = ['羽柴秀長', '蜂須賀正勝', { name: '谷衛好', g: /平田/ }, { name: '別所吉親', g: /城から出た別所勢|大村の控え/ }, { name: '生石治家', g: /荷駄/ }];
 export { miki };
 
 // 10/31 点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所へ置いた乱戦と大軍が画面から外れた。

@@ -2093,4 +2093,6 @@ tano.botBrain = (b, inp, { goTo }) => {
   if (b.flags.started) depthBot(b, inp, goTo);
   else goTo(b.player, inp, -62, 4, 3);
 };
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
+tano.bushou = [{ name: '滝川益重', g: /滝川/ }, { name: '小宮山友晴', g: /武田の最後の侍|田野の柵|土屋昌恒/ }];
 export { tano };
