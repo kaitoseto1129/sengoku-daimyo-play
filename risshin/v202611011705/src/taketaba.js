@@ -35,7 +35,8 @@ export function tabaGeo(night = false, pass = false, cart = false, fieldBundle =
   if (TABA_SHAPES.has(key)) return TABA_SHAPES.get(key);
   const parts = [], lift = cart ? .32 : 0;
   // くすんだ黄緑から枯れ色まで。一色に揃えず、束の中で青みと枯れを混ぜる。
-  const bamboo = night ? [0x6c7258, 0x77735a, 0x666c56] : [0x8f9156, 0x9c9060, 0x80854c];
+  // 11/1：昼の束が雨や曇りの場で黄緑の円柱に浮いた（木ノ芽峠）。乾いて白茶けた竹の色へ寄せ、緑みを抜く。
+  const bamboo = night ? [0x6c7258, 0x77735a, 0x666c56] : [0x7e7a66, 0x888070, 0x74725f];
   const rope = night ? 0x655e4c : 0xb6a071, wood = night ? 0x514d42 : 0x72644d;
   const add = (g, color, x, y, z) => { g.translate(x, y, z); parts.push(paint(g, color)); };
   const box = (w, h, d, x, y, z) => add(new THREE.BoxGeometry(w, h, d), wood, x, y, z);
@@ -71,14 +72,14 @@ export function tabaGeo(night = false, pass = false, cart = false, fieldBundle =
         // 黒い栓に見えないよう、空洞の周りへ淡い竹肉の木口を残す。
         const rim = new THREE.RingGeometry(dense ? .024 : .045, dense ? .034 : .061, 5);
         rim.rotateX(-Math.PI / 2);
-        add(rim, night ? 0x878370 : 0xc4b78a, x, lift + h + .002, z);
+        add(rim, night ? 0x878370 : 0xb0a68a, x, lift + h + .002, z);
       }
     }
     for (const y of [.27, .84, 1.43]) {
       if (high) {
         // 一枚の帯でなく、束を三巻きした縄。隙間と色差で巻き目を出す。
         for (const dy of [-.024, 0, .024]) add(new THREE.CylinderGeometry(.2, .2, .017, 8, 1, true),
-          dy === 0 ? (night ? 0x77705a : 0xc2ad7f) : rope, cx, lift + y + dy, 0);
+          dy === 0 ? (night ? 0x77705a : 0xa89878) : rope, cx, lift + y + dy, 0);
       } else add(new THREE.CylinderGeometry(.198, .198, .065, 8, 1, true), rope, cx, lift + y, 0);
       add(new THREE.BoxGeometry(.11, .08, .045), rope, cx, lift + y, -.207);
       if (high) {
@@ -184,7 +185,7 @@ export function tabaMat() {
     const map = tabaTex();
     // 竹の肌は蝋を含んで鈍く照る。暗い頂点の色を本来の明るさへ持ち上げ、月明かりでも束と節の形が残る程度の下地の明るさを足す。
     // 10/30：自ら光る下地と明るい掛け色で、竹束が原色の黄緑の円柱に見えた（野田・福島・大河内・姉川）。光りを弱め、乾いた竹の鈍い色へ下げる。
-    TABA_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map, color: new THREE.Color(0.8, 0.76, 0.68), roughness: 0.78, metalness: 0,
+    TABA_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, map, color: new THREE.Color(0.68, 0.66, 0.63), roughness: 0.78, metalness: 0,
       emissive: 0x24221a, emissiveMap: map, emissiveIntensity: 0.08 });
   }
   return TABA_MAT;

@@ -1056,6 +1056,8 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
   sh.vertexShader = 'varying vec3 vLsP;\n' + sh.vertexShader.replace('#include <project_vertex>',
     'vLsP = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>');
   let out = 'varying vec3 vLsP;\nuniform sampler2D tLsMacro, tLsCastle, tLsDetail;\nuniform float uLsWet, uLsNight;\nuniform vec4 uLsCastle, uLsSeason, uLsGrade, uLsGap, uLsGap2;\nuniform vec3 uLsGradeG0, uLsGradeG1, uLsGradeS0, uLsGradeS1;\nuniform vec2 uLsHeight;\n'
+    + 'float lsHash(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }\n'
+    + 'float lsVn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(lsHash(i), lsHash(i + vec2(1.0, 0.0)), f.x), mix(lsHash(i + vec2(0.0, 1.0)), lsHash(i + 1.0), f.x), f.y); }\n'
     + fs.replace(anchor, `${anchor}
     // 近くの土の肌（10/30 ground2_c）：小石・足跡・粒の高さと、濡れの照りを、後の凹凸と粗さへ渡す
     float lsHgt = 0.0, lsGloss = 0.0, lsLiftK = 0.0;
@@ -1202,6 +1204,43 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
         lsC = mix(lsC, mix(lsC * vec3(1.3, 1.2, 1.02), lsBareC, lsGreen), lsBare * 0.75);
         lsC = mix(lsC, mix(lsC * vec3(0.42, 0.37, 0.32), lsSoil * 0.42, lsGreen * 0.6), lsMuck * 0.75 * (1.0 - uLsGap.w));
         lsGloss = max(lsGloss, lsMuck * 0.35 * lsFlat);
+      }
+      {
+        // 土・草・踏み跡・砂利・泥・枯れ草の混じり（11/1 c_ground_var）：点付けで18戦「地面が一様で暗い土」。
+        // 手本の写真の地面は、数十mの枯れ草と青草の広がり・数mの踏み固めた土と砂利の斑・1m ほどの泥と草の株が重なる。
+        // 大きさの違う三つの揺らぎ（約24m・7m・1.8m。計算だけで絵は読まない）で六つの肌を選び、明るさは今の画素から寄せる
+        // （戦ごとの光に合わせ、暗い一色を持ち上げる）。細かい揺らぎは一画素より細かくなる所で消す（ちらつき止め）。雪・夜・城の平場・崖は弱める。
+        float lsVk = lsOn * (1.0 - lsSnow) * (1.0 - uLsNight * 0.6) * mix(0.3, 1.0, smoothstep(0.6, 0.9, abs(lsN.y))) * (1.0 - lsPool * 0.7);
+        vec2 lsVp = lsP.xz + vec2(lsM2 - 0.5, lsM1 - 0.5) * 9.0;
+        float lsVa = lsVn(lsVp * 0.042 + 3.1);
+        float lsVb = lsVn(vec2(lsVp.y, -lsVp.x) * 0.14 + 7.7) * (1.0 - smoothstep(0.3, 0.7, length(fwidth(lsVp * 0.14))));
+        float lsVc = lsVn(lsVp * 0.55 + 1.9) * (1.0 - smoothstep(0.25, 0.6, length(fwidth(lsVp * 0.55))));
+        float lsVbN = lsVb - 0.5 * (1.0 - smoothstep(0.3, 0.7, length(fwidth(lsVp * 0.14)))), lsVcN = lsVc - 0.5 * (1.0 - smoothstep(0.25, 0.6, length(fwidth(lsVp * 0.55))));
+        float lsLv = max(dot(lsC, vec3(0.3, 0.59, 0.11)), 0.055 * (1.0 - uLsNight * 0.7));
+        bool lsGd = uLsGrade.x > 0.0;
+        vec3 lsHDry = mix(vec3(0.82, 0.67, 0.34), lsGd ? uLsGradeG1 * 1.1 + vec3(0.06, 0.03, -0.03) : vec3(0.82, 0.67, 0.34), 0.35);
+        vec3 lsHLush = mix(vec3(0.40, 0.55, 0.24), lsGd ? uLsGradeG0 : vec3(0.40, 0.55, 0.24), 0.5);
+        vec3 lsHTrod = mix(vec3(0.72, 0.57, 0.40), lsGd ? uLsGradeS0 : vec3(0.72, 0.57, 0.40), 0.35);
+        vec3 lsHGrav = vec3(0.68, 0.64, 0.57), lsHMud = vec3(0.42, 0.34, 0.26);
+        // 色味は輝きで割って、明るさは今の画素×肌ごとの掛け
+        #define LSV(h, b) ((h) / max(dot((h), vec3(0.3, 0.59, 0.11)), 1e-4) * lsLv * (b))
+        float lsWDry = smoothstep(0.5, 0.68, lsVa * 0.65 + lsVbN * 0.5 + 0.12 + uLsSeason.x * 0.25 + lsDry * 0.12 - lsDamp * 0.1);
+        float lsWLush = smoothstep(0.62, 0.78, (1.0 - lsVa) * 0.7 + lsVbN * 0.4 + lsDamp * 0.15) * (1.0 - lsWDry);
+        float lsWTrod = smoothstep(0.6, 0.74, lsVb * 0.7 + lsVcN * 0.6 + (1.0 - lsVa) * 0.15 + lsFoot * 0.3);
+        float lsWGrav = smoothstep(0.78, 0.88, (1.0 - lsVb) * 0.6 + lsVa * 0.25 + lsVcN * 0.5 + lsGv * 0.2) * lsFlat;
+        float lsWMud = smoothstep(0.76, 0.88, (1.0 - lsVa) * 0.45 + (1.0 - lsVb) * 0.35 + lsVcN * 0.5 + lsDamp * 0.2 + uLsWet * 0.1) * (1.0 - uLsGap.w * 0.4);
+        lsC = mix(lsC, LSV(lsHDry, 1.28), lsWDry * 0.66 * lsVk);
+        lsC = mix(lsC, LSV(lsHLush, 0.96), lsWLush * 0.5 * lsVk);
+        lsC = mix(lsC, LSV(lsHTrod, 1.34), lsWTrod * 0.55 * lsVk);
+        lsC = mix(lsC, LSV(lsHGrav, 1.45), lsWGrav * 0.5 * lsVk);
+        lsC = mix(lsC, LSV(lsHMud, 0.58), lsWMud * 0.6 * lsVk);
+        #undef LSV
+        // 1.8m の株と土くれの明暗（近くだけ）と、全体を少し明るく（暗い一色に沈めない）
+        lsC *= 1.0 + lsVcN * 0.32 * lsVk;
+        lsC *= mix(1.0, 1.1, lsVk);
+        // 砂利の所は砂利の粒、踏み跡は土の粒で見せる
+        lsDet = mix(lsDet, lsDv.r * 1.25, lsWGrav * 0.7 * lsVk);
+        lsDet = mix(lsDet, lsDv.g, lsWTrod * 0.5 * lsVk * lsGreen);
       }
       lsC *= max(0.25, 1.0 + lsDet * lsNear * (1.7 + uLsNight * 0.9));
       // 霜：冬の朝夜は平らな所に写真の霜の斑（踏み跡と轍は溶ける）
