@@ -3923,8 +3923,10 @@ const honnoji = {
     //   門の右で、塀を越えて入った明智勢と馬廻が押し合い斬り合う（軽い作り。本人とカメラから十二歩より近い軽い兵は描かれないので、門から十二歩あまり離す）。
     //   築地の外の通りの奥には、旗を立てた明智の大軍を厚く置き、塀の上に旗と頭の列が並ぶようにする。
     //   本物の兵の数・道・当たりは変えない。門の段が済めば（F.hp > 2）庭の押し合いは馬廻が崩れて消える。
-    F.yardClashes = [[-36, 63, 6, 15852]].map(([x, z, w, seed]) => {
-      const C = rt.world.addClash({ x, z, facing: Math.PI / 2, w, bw: 2.6, gap: 1.6, seed, rt,
+    // 11/1：軽い兵が本人の 16m の外から描かれるようになった。25秒の持ち場（本堂の東の縁、-50,52 の辺り）から 18〜22 歩の所にも置く。
+    //   南東は表庭の南（門の道 z50 と南の棟の間）、北北西は本堂の裏庭（bot の通る -51 の道から八歩外す）。カメラが門・裏庭のどちらを向いても真ん中に写る。
+    F.yardClashes = [[-36, 63, 6, 15852], [-36, 43, 7, 15854, Math.PI / 2], [-61, 68, 8, 15855, -0.6]].map(([x, z, w, seed, facing = Math.PI / 2]) => {
+      const C = rt.world.addClash({ x, z, facing, w, bw: 2.6, gap: 1.6, seed, rt,
         play: (k, q, v) => rt.army.play(k, q, v), smoke: (x1, y1, z1, ax, az) => rt.army.smoke(x1, y1, z1, ax, az),
         noRout: true, noWake: true, killRate: 0.004, maxDrift: 0.6, host: false, corpses: 6, realNear: 12, nearHide: 0,
         A: { flag: 'oda', armor: 0x2a2622, count: 24, flagRate: 0.15 },
@@ -3932,7 +3934,8 @@ const honnoji = {
       C?.go?.();
       return C;
     }).filter(Boolean);
-    F.outerHost = rt.world.addDistantArmy({ x: 14, z: 50, w: 70, d: 14, count: 120, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15853, terrainRanks: true, yose: false, host: false });
+    // 11/1：近くの乱戦（上の二つ）に人を回すため、築地の外の通りの奥の大軍を 120 から 80 に
+    F.outerHost = rt.world.addDistantArmy({ x: 14, z: 50, w: 70, d: 14, count: 80, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15853, terrainRanks: true, yose: false, host: false });
     if (F.outerHost?.army) F.outerHost.army.noWake = true;
     // 民と僧は、近づく兵や火を民の仕組みで調べて逃げる。
     // 信長が起き出し、回廊を抜けて表へ（B 警戒 → D 移る）

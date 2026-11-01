@@ -3528,11 +3528,34 @@ const anegawa = {
       // 北岸での交戦は太田浩司の推定による。細かな位置は遊び用の復元。
       // https://cocoshiga.jp/official/topic/ieyasu01/
       // 東は中央の実兵の両脇へ寄せ、左右の兵数・隊列幅・斬り合いの密度を保つ。
-      clash(rt, { x: WEST_FRONT_X, z: WEST_FRONT_Z, facing: Math.PI, w: 76, gap0: 30, seed: 181, noRout: false, ...WK, A: side('tokugawa', TK, 240, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 250, 1, 'asakura', { bows: true }) }),
+      // 11/1：持ち場の近くの乱戦（F.nearClash）に人を回すため、二百四十歩先の西の瀬は 76 歩幅（468人）から 56 歩幅（378人）に
+      clash(rt, { x: WEST_FRONT_X, z: WEST_FRONT_Z, facing: Math.PI, w: 56, gap0: 30, seed: 181, noRout: false, ...WK, A: side('tokugawa', TK, 175, 0, 'tokugawa', { guns: true }), B: side('asakura', ASAKURA.armor, 180, 1, 'asakura', { bows: true }) }),
       clash(rt, { x: -28, z: 3, facing: Math.PI, w: 64, gap0: 16, seed: 182, noRout: false, ...WK, A: side('oda', OD, 160, 0, 'oda'), B: side('azai', AZAI.armor, 100, 1, 'azai'), link: realFront }),
       clash(rt, { x: 56, z: 3, facing: Math.PI, w: 60, gap0: 16, seed: 183, noRout: false, ...WK, A: side('oda', OD, 180, 0, 'oda', { guns: true }), B: side('azai', AZAI.armor, 100, 1, 'azai'), link: realFront }),
 
     ];
+
+    // 11/1：軽い兵が本人の 16m の外から描かれるようになった（world_army.js）。25秒の持ち場（森の備の騎馬の辺り）から
+    //   18〜34 歩の乾いた所に近い乱戦を三つ置き、カメラが南西・北東・南（川の向こう岸）のどちらを向いても画面の真ん中に斬り合いが入るようにする。
+    //   本物に替えない（組の team を付けず noWake）。勝ち負け・任務・兵力の数には入れない。
+    F.nearClash = [];
+    for (const j of [5, 1, 4, 3, 2, 6, 0, 7]) {
+      if (F.nearClash.length >= 3) break;
+      const ang = j * Math.PI / 4, nx = Math.sin(ang), nz = Math.cos(ang), sx = nz, sz = -nx;
+      let at = null;
+      for (let k = 0; k < 5 && !at; k++) {
+        const r = 18 + k * 4, x = -4 + nx * r, z = 12 + nz * r, h = W.heightAt(x, z);
+        // 川の中は水面に兵が沈んで見えないので、手前の岸（乱戦の奥の端まで乾いた所）だけ
+        if (W.inWaterAt && (W.inWaterAt(x, z) || W.inWaterAt(x + nx * 6, z + nz * 6) || W.inWaterAt(x - nx * 6, z - nz * 6))) continue;
+        if (Math.abs(W.heightAt(x + sx * 6, z + sz * 6) - h) < 3 && Math.abs(W.heightAt(x - sx * 6, z - sz * 6) - h) < 3) at = [x, z];
+      }
+      if (!at) continue;
+      const C = clash(rt, { x: at[0], z: at[1], facing: ang, w: 12, bw: 6, gap: 2.2, seed: 190 + j, noWake: true, noRout: true,
+        killRate: .005, maxDrift: 1.2, host: false, corpses: 6,
+        A: { flag: 'oda', armor: OD, count: 36, flagRate: .3 }, B: { flag: 'azai', armor: AZAI.armor, count: 36, flagRate: .3 } });
+      if (C && C.go) C.go();
+      F.nearClash.push(C);
+    }
 
     // 川の左右から軽い兵を振り分け、本陣前の突破にも向かい合う押し合いを残す。
     // 実兵の襲来まで描かず、勝敗や本陣の任務には加えない。

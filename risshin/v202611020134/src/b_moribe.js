@@ -4147,12 +4147,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         K({ x: 4, z: 70, facing: Math.PI, w: 20, seed: 2391,
           A: { flag: 'oda', armor: KT.ARMOR.oda, count: 44, kind: 'spear', flagRate: 0.16 },
           B: { flag: 'saito', armor: KT.ARMOR.saito, count: 76, kind: 'spear', flagRate: 0.16 } }),
-        K({ x: 14, z: 92, facing: Math.PI, w: 16, seed: 2392,
+        // 11/1 中景：浅瀬の乱戦を持ち場の前二十六歩・画面の真ん中へ寄せた（前は四十二歩で本物の斎藤勢の陰）。bot の歩く渡り口の筋から右へ外す。
+        K({ x: 23, z: 78, facing: Math.atan2(0.59, -0.78), w: 14, seed: 2392,
           A: { flag: 'oda', armor: KT.ARMOR.oda, count: 44, kind: 'spear', flagRate: 0.16 },
           B: { flag: 'saito', armor: KT.ARMOR.saito, count: 56, kind: 'spear', flagRate: 0.16 } })].filter(Boolean);
       for (const C of F.fordClashes) C.go?.();
     });
-    F.fordHost = W.addDistantArmy({ x: -78, z: 66, w: 18, d: 40, count: 180, facing: Math.PI / 2, armor: KT.ARMOR.saito, flag: 'saito', mon: 'saito', kind: 'spear', team: 1, seed: 2393, terrainRanks: true, banners: 1, near: true, yose: false, host: false, flagRate: 0.14 });
+    F.fordHost = W.addDistantArmy({ x: -78, z: 66, w: 18, d: 40, count: 150, facing: Math.PI / 2, armor: KT.ARMOR.saito, flag: 'saito', mon: 'saito', kind: 'spear', team: 1, seed: 2393, terrainRanks: true, banners: 1, near: true, yose: false, host: false, flagRate: 0.14 });
     F.fordHost?.army && (F.fordHost.army.noWake = true);
     // 重複する後方軍勢は足さない。備え表の控えは上の遠景と開戦時の実兵へ結ぶ。
     // 序盤から川向こうの敵が見える。射かける音は実際の弓兵に任せる。

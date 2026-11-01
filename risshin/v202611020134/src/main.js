@@ -288,8 +288,12 @@ const isNorender = () => window.__norender === true || /[?&]norender/.test(locat
 // 重い場面（戦・城下・道場・地図の戦）を一度組んだ後に次の重い場面へ入る時は、遊びを保存してページを読み込み直し、読み込み後に同じ所から続ける。
 // 続きの印は sessionStorage に一つだけ置き、読み込み後に最初に消す（二度は読み込まない）。置けない環境では読み込み直さずにそのまま進む。
 const MEM_RESUME_KEY = 'risshin-mem-resume';
+// 11/1 実機：iPad（MEM_TIGHT でない）は戦を替えても読み込み直さず、10〜11戦続けた支度中に WebContent が落ちた（有岡・三木。三回続けて）。
+//   iPad と iOS のアプリ（WKWebView）も、重い場面の間で読み込み直して、前の戦の GPU の物と記憶を確かに返す。
+const RELOAD_BETWEEN = typeof window !== 'undefined' && (!!window.__iosRecreate
+  || typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 function memReloadGate(g, fn, args) {
-  if (!MEM_TIGHT || isNorender() || /[?&]bot/.test(location.search) || window.__noMemReload) return false;
+  if (!(MEM_TIGHT || RELOAD_BETWEEN) || isNorender() || /[?&]bot/.test(location.search) || window.__noMemReload) return false;
   if (!g.memDirty && !g.battle) return false;
   // app（iOS）は WKWebView ごと作り直す（GPU process に前の戦の分が残る。10/20）。その時は sessionStorage が消えるので localStorage に置く
   return resumeReload(g, fn, args, !!window.__iosRecreate);
@@ -1909,7 +1913,7 @@ const game = {
   //   出陣の「戦の準備」が実機で 1.5 秒ほど縮む（10/28）。iPhone で戦の前に頁を読み直す時（前に戦をした後）は読まない（捨てるだけになる）
   prefetchBattleCode(first) {
     clearTimeout(this.codePrefetch);
-    if (isNorender() || MEM_TIGHT && (this.memDirty || this.battle)) return;
+    if (isNorender() || (MEM_TIGHT || RELOAD_BETWEEN) && (this.memDirty || this.battle)) return;
     const seq = this.startSeq;
     this.codePrefetch = setTimeout(() => {
       if (this.battle || seq !== this.startSeq || document.hidden) return;
