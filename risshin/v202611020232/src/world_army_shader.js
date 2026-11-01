@@ -79,7 +79,8 @@ APose aPose() {
   float fq = run > 0.5 ? 10.5 : (kd == 5.0 && uMarch > 0.01 ? mix(3.1, 7.0, uCharge) : (uMarch > 0.01 || swk > 0.3 ? 5.6 : 6.5));
   float amp = max(max(stepG * 0.2, uMarch * 0.42), swk * 0.4);
   amp = mix(amp, 0.7, run) * (1.0 - down);
-  float ph = sin(T * fq);
+  // 拍子を一人ずつ違える（±8％。隊が同じ歩幅で揃って脚を振らない。11/1）
+  float ph = sin(T * fq * (0.92 + fract(sd * 7.31) * 0.16));
   P.leg = ph * amp;
   P.lift = abs(ph) * (0.012 + amp * 0.07);
   // 見回し・ときどきの向き直り（進む・逃げる時はしない）
@@ -93,7 +94,7 @@ APose aPose() {
   P.fall = down * 1.45;
   // 槍：人ごとに傾きが違い、ゆっくり揺れ、ときどき持ち替える。進む時は少し前へ、かかる時は穂先を下ろし、逃げる時は肩に担ぐか放り出す
   float regrip = smoothstep(0.9, 1.0, sin(T * 0.083 + sd * 41.0));
-  P.spear = (sd - 0.5) * 0.24 + 0.05 * sin(T * 0.37) + regrip * 0.35 + uMarch * 0.1 + uCharge * 1.15 * (1.0 - run) - run * 0.55;
+  P.spear = (sd - 0.5) * 0.4 + 0.05 * sin(T * 0.37) + regrip * 0.35 + uMarch * 0.1 + uCharge * 1.15 * (1.0 - run) - run * 0.55;
   // 指定した槍隊の待機中だけ、城側へ約三十度傾けて穂先をそろえる。
   // 進軍・突撃・敗走では従来の持ち替えへ戻す。旗持ちと騎馬の得物は変えない。
   float ranks = uFieldRanks * (1.0 - min(1.0, max(gait, uCharge)));
@@ -245,7 +246,10 @@ vec3 aApply(APose P, vec3 v, float isN) {
   if (pt == 3.0 || pt == 6.0 || pt == 12.0) {
     vec3 hp = vec3(0.3, 1.15, 0.14) * pos; vec3 r = q - hp;
     if (pt == 3.0 && isN < 0.5) r.y *= P.spLen;
-    q = aRotX(P.spear * (pt == 3.0 ? 1.0 : 0.25)) * r + hp;
+    // 槍は一人ずつ左右へも傾ける（後ろ・前から見て平行な黒い棒の列にしない。11/1）
+    q = aRotX(P.spear * (pt == 3.0 ? 1.0 : 0.25)) * r;
+    if (pt == 3.0) q = aRotZ((fract(sd * 17.3) - 0.5) * 0.3 * (1.0 - P.run)) * q;
+    q += hp;
   }
   if (pt == 4.0) { vec3 hp = vec3(0.22, 1.1, 0.15) * pos; q = aRotX(P.spear * 0.3) * (q - hp) + hp; }
   if (pt == 21.0 || pt == 22.0) {

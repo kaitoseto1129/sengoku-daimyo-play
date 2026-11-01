@@ -58,11 +58,14 @@ import { realmAfter } from './realm.js';
 import { hyojoScreen, shitakuScreen, hyojoOn, phase2HintScreen } from './hyojo.js';
 import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
+import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { isLocked, showPaywall } from './paywall.js';
 import { ADDITIONAL_TIPS, pickTip } from './tips.js';
 import { loadWeapons, UNIT_NIGHT, UNIT_NIGHT_FOCUS, UNIT_FIRE_METAL } from './units_model.js';
 // 題では戦の名前だけ登録する。中身と素材は出陣する時に読む。
 markReady(BATTLE_IDS);
+// 豊臣編（toyotomi_line.js）の戦も名前だけ先に登録する。中身は battles.js が出陣の時に読む
+markReady(TOYOTOMI_LINE.map((b) => b.id));
 // 日本地図・城攻め・図鑑（名簿と顔）は重いので、最初には読まない。要る時に import() する（874・875）
 let JPm = null, CBm = null, ZKm = null;
 const jp = () => import('./japan.js').then((m) => (JPm = m));

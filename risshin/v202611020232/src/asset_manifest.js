@@ -11,8 +11,9 @@ export const TERRAIN = {
   inabayama: 'inabayama', mitsukuri: 'mitsukuri', odani: 'odani', iga: 'hijiyama',
   kanegasaki: 'kanegasaki', kinome: 'kinome', echizen: 'kinome', takato: 'takato', takato_siege: 'takato', takato_old: 'takato',
   mikatagahara: 'mikatagahara', tonezaka: 'tonezaka', tottori: 'tottori',
-  tano: 'tano', iwamura: 'iwamura', shigisan: 'shigisan', miki: 'miki',
+  tano: 'tano', iwamura: 'iwamura', shigisan: 'shigisan', miki: 'miki', t02_shizugatake: 'shizugatake',
   shiga: 'hiei_wide', hieizan: 'hiei_wide', hieizan_old: 'hiei_wide', hiei_mtn: 'hiei_wide',
+  t06_hetsugi: 'hetsugi',
 };
 // 森部：低い湿地の標高、人・具足・兜・武器・弓・馬、陣と室内の部品、模様と声。
 // 顔と体の旧素材は、従来どおり指定された時と読み込み失敗時にだけ読む。
@@ -44,7 +45,12 @@ ASSET_CONSUMERS['b_sunomata'] = ['dem_sunomata'];
 ASSET_CONSUMERS['b_takato_siege'] = ['dem_takato'];
 ASSET_CONSUMERS['b_tano'] = ['dem_tano'];
 ASSET_CONSUMERS['b_tonezaka'] = ['dem_tonezaka'];
+// 豊臣編：山崎（天王山と円明寺川）
+BATTLE_ASSETS.t01_yamazaki = Object.freeze([...COMMON, 'dem_yamazaki']);
+ASSET_CONSUMERS['b_t01_yamazaki'] = ['dem_yamazaki'];
 ASSET_CONSUMERS['b_tottori'] = ['dem_tottori'];
+ASSET_CONSUMERS['b_t02_shizugatake'] = ['dem_shizugatake'];
+ASSET_CONSUMERS['b_t06_hetsugi'] = ['dem_hetsugi'];
 ASSET_CONSUMERS['castles/odani'] = ['dem_odani'];
 ASSET_CONSUMERS['terrain_hiei'] = ['dem_hiei_wide'];
 ASSET_CONSUMERS['castles/hiei1571'] = ['dem_hieizan'];

@@ -92,22 +92,29 @@ const copyDef = (d) => Object.defineProperties({}, Object.getOwnPropertyDescript
 DEF_BY_ID.echizen = copyDef(echizen); DEF_BY_ID.takato = copyDef(takato_siege); DEF_BY_ID.hieizan = copyDef(hiei_mtn);
 // 比叡山の旧登録も山岳版へ。架空の豪盛戦・門の自動破壊・梯子の瞬間移動へ戻さない。
 DEF_BY_ID.hieizan_old = copyDef(hiei_mtn);
-// 豊臣編（toyotomi_line.js）：各戦のファイルを並びから読む（export は戦の id の名か default）。読めない戦は飛ばす
-for (const e of TOYOTOMI_LINE) {
-  try { const m = await import(e.file); const d = m[e.id] || m.default; if (d) DEF_BY_ID[e.id] = d; }
-  catch (err) { console.warn('豊臣編の戦を読めず', e.id, err); }
-}
+// 豊臣編は出陣の時に file から読む。それまでは空の札を置く（小谷と同じ）
+for (const e of TOYOTOMI_LINE) DEF_BY_ID[e.id] ||= {};
 addOdaHistory(DEF_BY_ID);
 installJindate(DEF_BY_ID);   // 野戦の陣立て（先陣・二陣・本陣の備。army_jindate.js）
+// 豊臣編（toyotomi_line.js）の戦は、出陣の時に file から読む。それまでは空の札だけ置く（小谷と同じ）
 for (const [id, d] of Object.entries(DEF_BY_ID)) d.key = id;
 export const BATTLE_DEFS = [];
 onScenario(() => BATTLE_DEFS.splice(0, BATTLE_DEFS.length, ...BATTLES.map((b) => DEF_BY_ID[b.id])));
 markReady(Object.keys(DEF_BY_ID));
+// 豊臣編（toyotomi_line.js）の戦は、各戦のファイルを裏で読み、読めた物から並びへ出す（始める時は loadBattleDefinition が待つ）
+const toyoLoad = new Map(TOYOTOMI_LINE.map((b) => [b.id, import(b.file).then((m) => {
+  const d = m[b.id] || m.default;
+  if (!d) return;
+  DEF_BY_ID[b.id] = d; d.key = b.id; markReady([b.id]);
+}).catch((e) => console.warn('豊臣編の戦を読めず', b.id, e))]));
 
 const lazyHistory = new Set();
 // 標高を使って曲輪や平場を初期化する戦は、標高の支度が済んでから定義を開く。
 export async function loadBattleDefinition(id) {
+  if (toyoLoad.has(id)) await toyoLoad.get(id);
   if (id === 'odani' && !lazyHistory.has(id)) DEF_BY_ID.odani = (await import('./b_odani.js')).odani;
+  const toyo = TOYOTOMI_LINE.find((b) => b.id === id);
+  if (toyo && !lazyHistory.has(id)) { const m = await import(toyo.file); DEF_BY_ID[id] = m[id] || m.default; lazyHistory.add(id); }
   if (['hieizan', 'hieizan_old', 'hiei_mtn'].includes(id) && !lazyHistory.has(id)) {
     const { hiei_mtn: def } = await import('./b_hiei_mtn.js');
     DEF_BY_ID[id] = copyDef(def);

@@ -5171,7 +5171,9 @@ const inabayama = {
     // 軽い兵は奥の押し合いを受け持つ。任務の敵と味方の数・当たりは保つ。
     // 11/1 点付け（敵の大軍・乱戦が薄い）：近い二十四歩を隠していたため、開戦25秒の持ち場（48,85）から二十〜四十歩の押し合いが消えていた。
     //   隠すのはカメラのすぐ前の九歩だけにし、持ち場の前（南東の空き地）にも一つ足す（軽い兵だけ。本物の兵・任務の数は変えない）。
-    F.townClash = [[14, 82, 10], [34, 66, 12], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
+    // 11/1 点付け（稲葉山70：敵の大軍・乱戦が薄い）：25秒の持ち場（35,95 の辺り）から bot は東北東の山すそを向く。
+    //   西の外れ（14,82）の押し合いは画面の後ろだったので、東北東の草の斜面の手前（60,108）へ移す（幅・人数は同じ）。
+    F.townClash = [[60, 108, 10], [34, 66, 12], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
       x, z, w, facing: Math.PI, seed: 156780 + i, gap: 2.8,
       noWake: true, noRout: true, host: false, nearHide: 9, realNear: 14,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
@@ -5182,7 +5184,8 @@ const inabayama = {
     }));
     // 火の手を見た町の番の兵が、松明の組へ斬りかかってくる
     // 11/1：押し合いの奥、山すその斎藤勢の大軍（軽い作り）。持ち場から南へ四十〜五十歩、町の火を見て麓の番所の前へ出た所。翌日の暗転で片付ける。
-    F.saitoHost = rt.world.addDistantArmy({ x: 60, z: 42, w: 30, d: 10, count: TIER.weak ? 120 : 180, facing: 0, team: 1,
+    // 11/1：麓の番所の前（60,42）は町の家の陰で25秒の画面に入らなかった。押し合いの奥、東北東の山すその斜面（82,118）に下ろし、町の火の方を向かせる（人数は同じ）。
+    F.saitoHost = rt.world.addDistantArmy({ x: 82, z: 118, w: 30, d: 10, count: TIER.weak ? 120 : 180, facing: Math.atan2(-47, -23), team: 1, terrainRanks: true,
       armor: 0x454957, flagTex: flagTexture('saito'), flagRate: 0.3, kind: 'spear', seed: 156790 });
     if (F.saitoHost?.army) F.saitoHost.army.noWake = true;
     F.town.order = 'attack'; F.town.seekRange = 60; F.town.aggro = 16;

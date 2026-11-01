@@ -290,7 +290,7 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
 // 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
 const HONNO_DAWN = { ...DAWN, sky: 0x4a5272, fog: 0x585d78, top: 0x222a48,
-  sun: 0xf0d0b0, hs: 0x8088a8, hg: 0x5c4030, sunI: 0.85, hI: 1.45, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む
+  sun: 0xf0d0b0, hs: 0x8a92b2, hg: 0x64483a, sunI: 0.95, hI: 1.6, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む。11/1 点付け「暗くて見えない」：日と空の光を一割ずつ上げる
 // 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;
@@ -3923,8 +3923,10 @@ const honnoji = {
     //   門の右で、塀を越えて入った明智勢と馬廻が押し合い斬り合う（軽い作り。本人とカメラから十二歩より近い軽い兵は描かれないので、門から十二歩あまり離す）。
     //   築地の外の通りの奥には、旗を立てた明智の大軍を厚く置き、塀の上に旗と頭の列が並ぶようにする。
     //   本物の兵の数・道・当たりは変えない。門の段が済めば（F.hp > 2）庭の押し合いは馬廻が崩れて消える。
-    F.yardClashes = [[-36, 63, 6, 15852]].map(([x, z, w, seed]) => {
-      const C = rt.world.addClash({ x, z, facing: Math.PI / 2, w, bw: 2.6, gap: 1.6, seed, rt,
+    // 11/1：軽い兵が本人の 16m の外から描かれるようになった。25秒の持ち場（本堂の東の縁、-50,52 の辺り）から 18〜22 歩の所にも置く。
+    //   南東は表庭の南（門の道 z50 と南の棟の間）、北北西は本堂の裏庭（bot の通る -51 の道から八歩外す）。カメラが門・裏庭のどちらを向いても真ん中に写る。
+    F.yardClashes = [[-36, 63, 6, 15852], [-36, 43, 7, 15854, Math.PI / 2], [-61, 68, 8, 15855, -0.6]].map(([x, z, w, seed, facing = Math.PI / 2]) => {
+      const C = rt.world.addClash({ x, z, facing, w, bw: 2.6, gap: 1.6, seed, rt,
         play: (k, q, v) => rt.army.play(k, q, v), smoke: (x1, y1, z1, ax, az) => rt.army.smoke(x1, y1, z1, ax, az),
         noRout: true, noWake: true, killRate: 0.004, maxDrift: 0.6, host: false, corpses: 6, realNear: 12, nearHide: 0,
         A: { flag: 'oda', armor: 0x2a2622, count: 24, flagRate: 0.15 },
@@ -3932,7 +3934,8 @@ const honnoji = {
       C?.go?.();
       return C;
     }).filter(Boolean);
-    F.outerHost = rt.world.addDistantArmy({ x: 14, z: 50, w: 70, d: 14, count: 120, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15853, terrainRanks: true, yose: false, host: false });
+    // 11/1：近くの乱戦（上の二つ）に人を回すため、築地の外の通りの奥の大軍を 120 から 80 に
+    F.outerHost = rt.world.addDistantArmy({ x: 14, z: 50, w: 70, d: 14, count: 80, facing: -Math.PI / 2, team: 1, armor: 0x34302a, flagTex: flagTexture('akechi'), mon: 'akechi', kind: 'mixed', flagRate: 0.35, seed: 15853, terrainRanks: true, yose: false, host: false });
     if (F.outerHost?.army) F.outerHost.army.noWake = true;
     // 民と僧は、近づく兵や火を民の仕組みで調べて逃げる。
     // 信長が起き出し、回廊を抜けて表へ（B 警戒 → D 移る）
@@ -3947,6 +3950,9 @@ const honnoji = {
       if (F.hp !== 2 || F.arrowBlaze || F.ending || rt.over) return;
       const r = F.T?.G.byId.hondo;
       if (r) F.arrowBlaze = rt.world.addBlaze(-53, 46, { w: 16, d: 12, h: 3.8, n: 3 }); // 庭側の軒と大屋根の流れに火（棟より上に浮かせない）
+      // 11/1 点付け（炎が板で平ら）：戸口の小さな火（-53,52）は本堂の縁を歩く本人のカメラの三〜四歩先に立ち、壁の前の大きな黄色い楕円の板に見えた。屋根の火だけ残す。
+      const door = F.arrowBlaze?.fires?.pop?.();
+      if (door) rt.world.removeFire(door);
     });
     // 南の宿坊の脇の塀を越えた明智勢が、本堂の縁へ攻め込む。表庭から本堂を見る向きの手前で縁の守りと斬り合う（庭に寄せ手の群れ）。
     // 北から庭を横切らせると、門へ走る本人を途中の斬り合いへ引き込み、門も本堂も写らなかった（10/29）。
