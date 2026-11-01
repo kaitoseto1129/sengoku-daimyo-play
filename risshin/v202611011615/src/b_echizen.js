@@ -665,7 +665,8 @@ echizen.world = {
     { x: 45, z: -560, r: 10, n: 12, kind: 'sugi' }, { x: 72, z: -578, r: 11, n: 13, kind: 'sugi' }, { x: 66, z: -604, r: 10, n: 12, kind: 'sugi' },
     { x: 40, z: -618, r: 9, n: 10, kind: 'sugi' }, { x: 20, z: -548, r: 8, n: 9, kind: 'sugi' }, ...echizenValleyGroves(),
     // 峠の斜面の雑木（杉ばかりだった。10/29）。持ち場から木戸までの道の両肩と、木戸の先の右手。
-    ...[[7, 15], [7, -15], [18, 25], [18, -25], [32, 27], [32, -28]].map(([d, o]) => { const [x, z] = ENTRY.at(d, o); return { x, z, r: 5, n: 5, kind: 'broad' }; }),
+    // 11/1：一つの輪に五本の雑木が重なり、持ち場の左手で一つの丸い塊に見えた。二本にして一本ずつの木に見せる。
+    ...[[7, 15], [7, -15], [18, 25], [18, -25], [32, 27], [32, -28]].map(([d, o]) => { const [x, z] = ENTRY.at(d, o); return { x, z, r: 5, n: 2, kind: 'broad' }; }),
     { x: 28, z: -556, r: 7, n: 7, kind: 'broad' }, { x: 38, z: -540, r: 6, n: 5, kind: 'broad' }],
   valleyGroves: true,
   compactScenery: true,
@@ -895,9 +896,7 @@ function passFortScenery(rt) {
   // 設営の時の見る所（lastFocus）が持ち場から遠いと、群れが空の入れ物になっていた（10/30 vis_h：n=0）。持ち場を見る所として置く。
   const focus0 = W.lastFocus, post0 = F.passOpeningPost;
   if (post0) W.lastFocus = { x: post0.x, z: post0.z };
-  const ikki = W.addDistantArmy({ x: gx + ux * 15, z: gz + uz * 15, w: 18, d: 9, count: 60, facing: Math.atan2(-ux, -uz), team: 1,
-    armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.3, banners: 0, kind: 'spear', seed: 15991 });
-  if (ikki?.army) { ikki.army.noWake = true; F.echizenIkkiCrowd = ikki; }
+  // 11/1：木戸の内の一揆勢の小さな群れ（六十）は、持ち場から四十四メートルの内で描かれず空いていた。下の郭の中の乱戦（addClash）に替えた。
   // 10/30 vis_h：敵が少なかった（点付け）。本物の兵は足さず、木戸の奥の坂の上（観音丸の奥から次の郭への道）に一揆勢の大きな遠景の群れ。
   // 持ち場から木戸越しに見上げる所。一つの群れなので描く回数は一つ分だけ増える。
   const fx = gx + ux * 46, fz = gz + uz * 46;
@@ -916,6 +915,18 @@ function passFortScenery(rt) {
   const host = W.addDistantArmy({ x: fx, z: fz, w: 40, d: 16, count: people.length, people, facing: Math.atan2(gx - fx, gz - fz), team: 1,
     armor: 0x3a342c, flagTex: flagTexture('namu'), flagRate: 0.1, banners: 0, kind: 'spear', seed: 15995, host: false });
   if (host?.army) { host.army.noWake = true; F.echizenIkkiHost = host; }
+  // 11/1 基準4（乱戦）：持ち場から木戸越しに見下ろす郭の中（木戸の奥十一〜二十二メートル、カメラから三十〜五十メートル）で、
+  // 柵を越えて先に斬り込んだ織田の寄せ手と一揆勢が押し合い突き合う。その奥（四十六メートル〜）に一揆勢の大軍が続く。
+  // 軽い大軍どうしの合戦（addClash）なので本物の兵の数・道は変えない。木戸が破れたら一揆勢の側が崩れて退く。
+  { F.echizenFenceClash = [];
+    const d = 16, x = gx + ux * d, z = gz + uz * d;
+    const C = W.addClash({ x, z, facing: Math.atan2(ux, uz), w: 36, bw: 5.2, gap: 2.4, seed: 16011, rt,
+      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+      noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
+      A: { flag: 'oda', armor: 0x2a2622, count: 80, flagRate: 0.22 },
+      B: { flagTex: flagTexture('namu'), armor: 0x3a342c, count: 80, flagRate: 0.22 } });
+    if (C?.go) C.go();
+    if (C) F.echizenFenceClash.push(C); }
   // 木戸は共通の部品（kido の冠木門）のまま門構えを一回り大きく見せる（扉は破れて飛ぶ形を保つ）。当たり・口の幅・耐久は元のまま。
   for (const g of [F.gateKannon, F.gateKinome]) {
     if (g?.frame) g.frame.scale.set(1.3, 1.35, 1.3);
@@ -2155,6 +2166,7 @@ echizen.update = function (rt, dt) {
   if (!F.echizenGateCleared && !F.gateKannon.struct.alive) {
     F.echizenGateCleared = true;
     F.echizenIkkiCrowd?.retreat?.(30, 16); F.echizenIkkiHost?.retreat?.(40, 20);
+    for (const C of F.echizenFenceClash || []) C.rout?.('B');
     rt.objRemove('_gate');
     for (let i = rt.objectives.length - 1; i >= 0; i--) {
       const o = rt.objectives[i];

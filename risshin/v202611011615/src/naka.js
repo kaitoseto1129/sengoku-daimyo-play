@@ -1,6 +1,6 @@
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FL, addDeck, addRamp, rampSurface } from './floors.js';
-import { SOLIDS } from './props.js';
+import { SOLIDS, stoneStepGeo, castleMat } from './props.js';
 import { INTERIOR_WALLS, makeInteriorGuards, interiorSafeSpot, interiorFloorBlocked, interiorBlocked } from './shironaka.js';
 import { interiorLayout, interiorFloorAt, shitaragaharaTempleMats, shitaragaharaHomePanels, interiorPartitionHeight, interiorPartitionHeaders, interiorPartitionSpans, interiorWaypoint, prepareInteriorPaths, interiorPropBlocksWalk, igaFixedPanelRange, interiorLampSpot } from './interior_layouts.js';
 import { HONNOJI_ALTAR_FRAME, honnojiCeilingPieces, honnojiCeilingRims, honnojiCeilingGrid, honnojiAltarLamps, interiorPanelHeight, interiorHeadTieHeight, inabaBoardTexture, INABA_ALTAR_SUSPENSION_DROP, inabaAltarBackHeight, tomyo, lightPool, furnishLayout, nageshiGeometry, nageshiNail, templeCeilingBoard, templeRoundPost, timberBox, batchInterior, SHITARAGAHARA_CEILING_LIFT, hieiAltarLamps, hieiNageshiHeight, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_SOBO_SILL, MORIBE_WRITING_TOOLS, nodaDoorHeight, nodaNageshiHeight, nodaPartitionPosts, koshiTimbers, paperDoorTimbers, nodaCanopySupport, ceilingWoodMaterial as nodaWoodMaterial, igaCeilingBoards, igaSootShade, igaPlasterWalls, igaShojiKoshi, IGA_DOOR_GROOVE_W, interiorDoorHeight, interiorDoorSill, interiorJinageshiHeight, hallBracketGeometry, hallPostGeometry, interiorPlasterMaterial } from './interior_parts.js';
@@ -3256,6 +3256,28 @@ function colorize(g, hex, emit) {
   return g;
 }
 
+// 外から上がる石段（共通）：灰の一色の箱だった段を、目地で割った切石の段にする。
+// 踏石は一段の上の厚みを明るい切石に、下は詰め石。石一つごとに石肌の絵を貼る（castleMat の打込接）。
+// 段の外寸・歩く高さは元の箱のまま。形は設営時に一度だけ作り、全部の戸口で一つの描画にまとめる。
+const STEP_STONE_HEX = new Set([0x7c7468, 0x847c70]);
+function stepStoneGeo(g, hex, seed) {
+  if (!STEP_STONE_HEX.has(hex) || g.type !== 'BoxGeometry') return null;
+  const { width: w, height: h, depth: d } = g.parameters; g.dispose();
+  const k = Math.abs(Math.round(seed)) % 997, th = Math.min(h, .26);
+  const top = stoneStepGeo(w, th, d, k); top.translate(0, h / 2 - th / 2, 0);
+  { const C = top.attributes.color; for (let i = 0; i < C.array.length; i++) C.array[i] = Math.min(1, C.array[i] * 1.3); }
+  if (h - th < .03) return top;
+  const low = stoneStepGeo(w * .985, h - th, d * .97, k + 3); low.translate(0, -th / 2, -d * .01);
+  const out = mergeGeometries([top, low]); top.dispose(); low.dispose();
+  return out;
+}
+function addStepStones(rt, stones) {
+  if (!stones.length) return;
+  const mesh = new THREE.Mesh(mergeGeometries(stones), castleMat('uchikomi'));
+  mesh.castShadow = mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
+  rt.scene.add(mesh);
+  for (const g of stones) g.dispose();
+}
 // 室内の天井板と壁板は雨ざらしの材と分け、淡い木目を一枚の絵で共有する。
 let anegawaCeilingWood = null;
 let entryWood = null;
@@ -11315,6 +11337,7 @@ export function nakaTick(rt, dt) {
 function mainBuildOuter(rt) {
   NAKA.outer = true;
   const list = [];
+  const stones = [];
   let landingShape = null;
   for (const I of NAKA.list) {
     if (I.profile === 'moribe' || I.profile === 'anegawa' || S.quality === 'high' && I.profile === 'shitaragahara') continue;
@@ -11322,6 +11345,8 @@ function mainBuildOuter(rt) {
     if (I.disabled) { if (I.mesh) I.mesh.visible = false; continue; }
     const lv = I.levels[0], ds = I.door.side, hd = lv.d / 2;
     const put = (g, lx, y, lz, hex) => {
+      const st = stepStoneGeo(g, hex, I.x * 13.1 + I.z * 7.3 + lx * 3 + y * 11 + lz * 5);
+      if (st) { st.translate(lx, y, lz); st.rotateY(I.rot); st.translate(I.x, 0, I.z); stones.push(st); return; }
       g.translate(lx, y, lz); g.rotateY(I.rot); g.translate(I.x, 0, I.z);
       list.push(colorize(g, hex));
     };
@@ -11597,6 +11622,7 @@ if (I.approach) {
 
   }
   if (landingShape) landingShape.dispose();
+  addStepStones(rt, stones);
   if (list.length) {
     const mesh = new THREE.Mesh(mergeGeometries(list), mats().door);
     mesh.castShadow = mesh.receiveShadow = true; mesh.matrixAutoUpdate = false;
@@ -13844,10 +13870,13 @@ function anegawaBuildInside(rt, I) {
 
 function anegawaBuildOuter(rt) {
   const list = [], wood = [];
+  const stones = [];
   for (const I of NAKA.list) {
     if (I.profile !== 'anegawa' || I.disabled) continue;
     const lv = I.levels[0], ds = I.door.side, hd = lv.d / 2;
     const put = (g, x, y, z, hex) => {
+      const st = stepStoneGeo(g, hex, I.x * 13.1 + I.z * 7.3 + x * 3 + y * 11 + z * 5);
+      if (st) { st.translate(x, y, z); st.rotateY(I.rot); st.translate(I.x, 0, I.z); stones.push(st); return; }
       g.translate(x, y, z); g.rotateY(I.rot); g.translate(I.x, 0, I.z);
       list.push(colorize(g, hex));
     };
@@ -13946,6 +13975,7 @@ function anegawaBuildOuter(rt) {
       if (timber) timber.dispose();
     }
   }
+  addStepStones(rt, stones);
   for (const parts of [list, wood]) {
     if (!parts.length) continue;
     if (parts === wood && !entryWood)

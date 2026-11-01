@@ -8,6 +8,7 @@ import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequ
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
+import { lacKind } from './lacquer_kind.js';
 import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
 // 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
 const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
@@ -25,6 +26,13 @@ function impMask(g, armor) {
     out[i] = pt === 1 ? 3 : pt === 2 ? 4 : pt === 0 && (eq(i, a) || eq(i, d)) ? 1 : pt === 0 && eq(i, l) ? 2 : 0;
   }
   return new THREE.BufferAttribute(out, 1);
+}
+// 隊の漆の種類（家の旗の名と隊の具足の色から。1 黒漆・2 錆地・3 赤備え）
+const _lk = new THREE.Color(), _lh = {};
+function armyLacKind(mon, armor) {
+  const h = _lk.set(armor || 0x2a2622).getHSL(_lh);
+  if (h.s > 0.45 && (h.h < 0.05 || h.h > 0.95) && h.l > 0.15) return 3;
+  return mon ? lacKind(mon) : 1;
 }
 export class WorldArmy {
 
@@ -99,6 +107,7 @@ export class WorldArmy {
     const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2);
     const d = new THREE.Object3D(), col = new THREE.Color(), cf = Math.cos(facing), sf = Math.sin(facing);
     const riders = [], bearers = [], chiefs = [];
+    const lk = redCavalry || family === 'takeda' ? 3 : armyLacKind(mon, armor);
     let sx = 0, sz = 0;
     S.forEach((s, i) => {
       let x, z, yaw;
@@ -122,7 +131,7 @@ export class WorldArmy {
       d.updateMatrix();
       body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
       // 一人ずつ少し色が違う（使い込んだ具足）
-      body.setColorAt(i, !redCavalry && yose && s.k === 5 && s.ex === 2 ? col.set(0xe7c07a) : s.k === K_PORTER ? soldierTint(col, R).multiply(PORTER_TINT) : soldierTint(col, R));
+      body.setColorAt(i, !redCavalry && yose && s.k === 5 && s.ex === 2 ? col.set(0xe7c07a) : s.k === K_PORTER ? soldierTint(col, R).multiply(PORTER_TINT) : soldierTint(col, R, lk));
       info.set([R(), s.k, s.helm, s.ex], i * 4); info2.set([s.flag, R()], i * 2);
       if (s.k === 5) { riders.push(i); if (yose && family === 'takeda' && s.ex === 2) chiefs.push(i); }
       if (s.k === 4) bearers.push(i);
@@ -571,7 +580,7 @@ export class WorldArmy {
     const flags = new THREE.InstancedMesh(armyGeometryCopy(SASHI_GEO), armyShader(new THREE.MeshLambertMaterial({ map: o.flagTex, side: THREE.DoubleSide }), U), N);
     const bear = [];
     const info = new Float32Array(N * 4), info2 = new Float32Array(N * 2), host = new Float32Array(N);
-    const d = new THREE.Object3D(), col = new THREE.Color();
+    const d = new THREE.Object3D(), col = new THREE.Color(), hk = armyLacKind(o.mon || o.flag || o.flagTex?.userData.mon, o.armor);
     S.forEach((q, i) => {
       const x = o.x + q.lx * cf + q.lz * sf, zz = o.z - q.lx * sf + q.lz * cf;
       d.position.set(x, this.heightAt(x, zz), zz);
@@ -583,7 +592,7 @@ export class WorldArmy {
       body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
       // 奥ほど少し色が浅く（遠い者は細部が潰れて灰色がかる）
       //   敵の後詰めは霞へ溶かしすぎない（旗の赤と具足の暗さを残す）
-      soldierTint(col, R).lerp(new THREE.Color(0.92, 0.92, 0.9), q.t * (o.foe ? 0.08 : 0.25));
+      soldierTint(col, R, hk).lerp(new THREE.Color(0.92, 0.92, 0.9), q.t * (o.foe ? 0.08 : 0.25));
       if (q.k === K_PORTER) col.multiply(PORTER_TINT);   // 小者は具足でなく褪せた麻の色
       body.setColorAt(i, col);
       info.set([R(), q.k, q.helm, q.ex], i * 4); info2.set([q.flag, R()], i * 2); host[i] = (0.12 + 0.88 * q.t) * (o.foe ? -0.45 : 1);
@@ -754,6 +763,7 @@ export class WorldArmy {
       const P = o[key] || {};
       const armor = P.armor || 0x2a2622;
       const flagKind = P.flag || P.flagTex?.userData.mon || 'tokugawa';
+      const clk = armyLacKind(P.flag || P.flagTex?.userData.mon, armor);
       const fieldFlag = this.def.armyFlagKinds?.[flagKind];
       const flagTex = fieldFlag ? flagTexture(fieldFlag) : P.flagTex || flagTexture(flagKind);
       const rows = Math.max(3, Math.round((P.count || nb * cols * 8) / nb / cols)), per = rows * cols;
@@ -820,7 +830,7 @@ export class WorldArmy {
         if (tag) { s[tag] = i; s.mesh = mesh; }
       });
       put(bodyN, S.near, 'mi'); put(bodyF, S.far, 'mi');
-      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { mesh.setColorAt(i, soldierTint(col, R)); });
+      for (const [mesh, list] of [[bodyN, S.near], [bodyF, S.far]]) list.forEach((s, i) => { mesh.setColorAt(i, soldierTint(col, R, clk)); });
       S.all.forEach((s, i) => { s.fi = i; });
       put(flags, S.all, null);
       bear.forEach((s) => { s.bi = bear.indexOf(s); });

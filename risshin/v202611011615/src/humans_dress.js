@@ -4,6 +4,7 @@ import { namedKacchu } from './named_kacchu.js';
 import { DOMARU, wantsDomaru, crowdDomaru } from './humans_armor.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { LAC_BLACK, LAC_SABI, LAC_AKA, KIND_AKA, KIND_SABI } from './lacquer_kind.js';
 import { SRC, limbFit, kusaPlates, plateOf, HEAD, humanLook } from './humans_shared.js';
 import { katoGeometry, headEnvelope, IMP_TINT } from './units.js';
 
@@ -20,11 +21,7 @@ let armorBox = null;
 //   ①黒漆（多くの家）：真っ黒の平らな塗りでなく、照りの差・下地の茶の剥げ・泥で六通り
 //   ②錆地（一揆・雑賀・小さな家・寄せ集め）：くすんだ茶がかった鉄色に、所々の錆の赤茶
 //   ③赤備え（武田・井伊・真田）：朱の濃さと褪せで六通り
-const LAC_BLACK = [[0x1c1814, 0.85, 1], [0x2e261e, 0.85, 1.22], [0x16130f, 0.85, 0.92], [0x3a2a1c, 0.8, 1], [0x24201a, 0.8, 1.1], [0x45342a, 0.7, 0.95]];
-const LAC_SABI = [[0x4a3e30, 0.85, 1], [0x5e3a22, 0.85, 1], [0x3e352b, 0.85, 1], [0x6e3e22, 0.75, 1], [0x504234, 0.85, 1.05], [0x2e2822, 0.8, 1]];
-const LAC_AKA = [[0x8a2a1c, 0.85, 1], [0x7a2618, 0.85, 1], [0x963222, 0.8, 1], [0x6a2216, 0.85, 1], [0x84301e, 0.75, 1], [0x5e1e14, 0.8, 1]];
-const KIND_AKA = new Set(['takeda', 'akazonae', 'ii', 'sanada', 'aka_oda', 'aka_kari']);
-const KIND_SABI = new Set(['namu', 'honganji', 'ikko', 'yatagarasu', 'saika', 'iga', 'maru', 'none', 'hikyaku', '']);
+// 表は lacquer_kind.js（遠い大軍と同じ）
 // 侍（具足の作り分けは前のまま）
 const VAR_LAC1 = [[null, 0, 1], [0x16120f, 0.9, 1], [0x4a2414, 0.85, 1], [0x5e4028, 0.8, 1], [0x6a2a1a, 0.7, 1], [0x4a4642, 0.8, 1]];
 const VAR_RED = [[null, 0, 1], [0x6a2216, 0.5, 1], [0x8a3420, 0.45, 1], [0x4a1e14, 0.5, 1], [0x7a3020, 0.4, 1], [0x5a1a12, 0.55, 1]];

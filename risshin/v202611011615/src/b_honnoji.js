@@ -2169,26 +2169,38 @@ function cleanTemple(rt) {
   // 10/31：開戦25秒の画面に、燃える本堂の炎と黒煙。開戦二十五秒の視点の向きの先で、最初に当たる壁・軒の手前に火を付ける
   // （表庭からは本堂の正面、堂の中からは向こうの板戸と欄間が燃える）。壁が遠ければ三十歩先の屋根の上。
   // 見せるだけの火（延焼・熱の判定は台本の T.fire のまま）。火二つと煙の柱二本だけで、形と材質は共通の物を使う。一度だけ当たりを調べる。
+  // 11/1：視点の向きでなく本人から表門への向きで測る（開戦の視点は門の向き優先。描かずに進めた時も同じ所に火が立つ）。
+  //   火は兵の足と道（火よけ）を変えるので、付けるのは画面の直前（二十四・九秒）のまま。
   rt.after(24.9, () => {
-    const W = rt.world, cam = rt.camera, u = rt.player?.u;
-    if (!cam || rt.over) return;
-    const f = cam.getWorldDirection(new THREE.Vector3()); f.y = 0;
-    if (f.lengthSq() < 1e-4) return;
+    const W = rt.world, u = rt.player?.u;
+    if (!u || rt.over) return;
+    const f = new THREE.Vector3(GATES.main.x - u.pos.x, 0, GATES.main.z - u.pos.z);
+    if (f.lengthSq() < 1) return;
     f.normalize();
-    const near = u ? Math.hypot(u.pos.x - cam.position.x, u.pos.z - cam.position.z) + 2 : 3;
-    const ray = new THREE.Raycaster(), d = new THREE.Vector3(), o = cam.position.clone();
+    const near = 6;
+    const ray = new THREE.Raycaster(), d = new THREE.Vector3(), o = new THREE.Vector3(u.pos.x - f.x * 3.5, u.pos.y + 2, u.pos.z - f.z * 3.5), down = new THREE.Vector3(), DOWN = new THREE.Vector3(0, -1, 0);
     const meshes = [];
     rt.scene.traverse((m) => { if (m.isMesh && !m.isInstancedMesh && !m.isSkinnedMesh && m.visible && !m.material?.transparent && m.geometry?.attributes?.position) meshes.push(m); });
     for (const [ang, s] of [[-0.18, 3.2], [0.22, 2.6]]) {
       d.set(f.x * Math.cos(ang) - f.z * Math.sin(ang), 0, f.z * Math.cos(ang) + f.x * Math.sin(ang));
-      ray.set(o, d); ray.near = near; ray.far = 34;
+      // 目の高さの線は低い視点（胸の高さ）だと築地・門の上を素通りした。少し見上げる線で屋根の面にも当てる（地面の平らな面は除く）。
+      d.y = 0.12; d.normalize();
+      ray.set(o, d); ray.near = near; ray.far = 60;
       const hits = [];
       for (const m of meshes) { try { m.raycast(ray, hits); } catch (e) { /* 形の無い板は飛ばす */ } }
-      const hit = hits.filter((h) => !(h.face && Math.abs(h.face.normal.y) > 0.6) && h.distance >= near).sort((a, b) => a.distance - b.distance)[0];
-      const dist = hit ? Math.max(near, hit.distance - 0.9) : 30;
+      const hit = hits.filter((h) => !(h.face && Math.abs(h.face.normal.y) > 0.95) && h.distance >= near).sort((a, b) => a.distance - b.distance)[0];
+      // 11/1 採点「炎が平ら」：壁の前の宙（目の高さ）に火の板が浮き、門の屋根の上に黄色い四角が立っていた。
+      //   当たった壁・軒の少し奥を真上から測り、その屋根・築地の天辺に火を載せる（燃える屋根）。当たりが無ければ置かない。
+      if (!hit) continue;
+      const dist = hit.distance + 0.7;
       const x = o.x + d.x * dist, z = o.z + d.z * dist, g = W.heightAt(x, z);
-      const h = hit ? Math.max(0.2, o.y - g - 1.6) : Math.max(4, o.y - g + 3);
-      W.addFire(x, z, { size: s, h, blackSmoke: true });
+      down.set(x, o.y + 25, z); ray.set(down, DOWN); ray.near = 0; ray.far = 40;
+      const tops = [];
+      for (const m of meshes) { try { m.raycast(ray, tops); } catch (e) { /* 形の無い板は飛ばす */ } }
+      const top = tops.length ? Math.max(...tops.map((t) => t.point.y)) : g;
+      const h = Math.max(0.2, Math.min(12, top - g - s * 0.2));
+      // 大きな一枚の火は遠目に黄色い塊になった。棟に沿って小さな火を二つ並べ、炎の舌の形が読めるようにする。
+      for (const k of [-1, 1]) W.addFire(x - d.z * k * s * 0.45, z + d.x * k * s * 0.45, { size: s * 0.5, h: h + (k > 0 ? 0.15 : 0), blackSmoke: true, smoke: k < 0 });
       W.addSmokeColumn?.(x, g + h + s * 1.6, z, { size: 4, black: true });
     }
   });

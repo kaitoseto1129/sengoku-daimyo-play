@@ -908,7 +908,9 @@ function addShipFlags(g, cx, z, y, halfWidth = 1.9, forwardZ = z, count = 5, sel
     const maps = [];
     for (let kind = 0; kind < 2; kind++) {
       const c = document.createElement('canvas'); c.width = 128; c.height = 256;
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#292333'; ctx.fillRect(0, 0, 128, 256);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#2b2621'; ctx.fillRect(0, 0, 128, 256);   // 11/1：紫がかった紺が青い味方の旗に見えた。墨染めの黒茶に
+      // 墨染めのむら（一色の平らな布にしない）。一度だけ描く
+      for (let k = 0; k < 40; k++) { ctx.fillStyle = `rgba(${k % 2 ? '70,58,44' : '12,10,8'},${0.06 + (k % 5) * 0.015})`; ctx.fillRect((k * 37) % 128 - 10, (k * 71) % 256 - 10, 30 + (k % 7) * 6, 24 + (k % 4) * 10); }
       for (let row = 0; row < (kind ? 4 : 1); row++) {
         ctx.save(); ctx.translate(64, kind ? 35 + row * 61 : 78);
         ctx.fillStyle = '#e3dfd3';
@@ -919,14 +921,14 @@ function addShipFlags(g, cx, z, y, halfWidth = 1.9, forwardZ = z, count = 5, sel
           }
         } else {
           // 五つの窠と中央の唐花。書籍の絵を写さず、紋の輪郭を描く。
-          for (const [radius, color] of [[19, '#e3dfd3'], [15, '#292333'], [12, '#e3dfd3']]) {
+          for (const [radius, color] of [[19, '#e3dfd3'], [15, '#2b2621'], [12, '#e3dfd3']]) {
             ctx.fillStyle = color;
             for (let i = 0; i < 5; i++) {
               const a = i * Math.PI * 2 / 5 - Math.PI / 2;
               ctx.beginPath(); ctx.arc(Math.cos(a) * 9, Math.sin(a) * 9, radius * 0.62, 0, Math.PI * 2); ctx.fill();
             }
           }
-          ctx.fillStyle = '#292333';
+          ctx.fillStyle = '#2b2621';
           for (let i = 0; i < 5; i++) {
             const a = i * Math.PI * 2 / 5;
             ctx.beginPath(); ctx.ellipse(Math.cos(a) * 5, Math.sin(a) * 5, 5, 2, a, 0, Math.PI * 2); ctx.fill();
@@ -1698,7 +1700,20 @@ function frontFleet() {
 }
 // 梯子で上がれる「小さな城」にする（甲板・上甲板・矢倉・階段）。outL・outR：左右の舷に楯板と櫂を付ける
 // 西の舷で沖の船団を肩越しに見る視点の置き場（本人から：内へ一歩半・舳先へ一歩半。向きは南西の沖）
-const KZ_SEA_BACK = { x: 2.1, z: -2.1 };   // 10/30：一・九歩では足を収めるために真下を覗き、艫の斬り合いが上で切れた。三歩へ引く
+// 11/1：総矢倉の前の角が肩越しの線を塞ぐ所（大筒の脇の z6 あたり）では、視点が本人の真上へ寄り甲板と大筒の尻だけを見下ろした。
+//   塞がれない後ろの候補（舷に沿って艫から舳先側へ三歩半）へ順に移し、沖の船団と艫の斬り合いを正面に入れる。
+const KZ_SEA_TRY = [{ x: 2.1, z: -2.1 }, { x: 1.2, z: -3 }, { x: 0.3, z: -3.5 }, { x: -0.4, z: -3.2 }];
+const _kzEye = new THREE.Vector3(), _kzTry = new THREE.Vector3();
+function kzClearBack(rt, p, pos, list) {
+  _kzEye.set(p.x, p.y + 1.58, p.z);
+  for (const o of list) {
+    _kzTry.set(p.x + o.x, pos.y, p.z + o.z);
+    if (_kzTry.x < DECK.x0 + 0.3) continue;
+    if (rt.world.cameraBlockFraction?.(_kzEye, _kzTry) == null) { pos.x = _kzTry.x; pos.z = _kzTry.z; return true; }
+  }
+  return false;
+}
+const KZ_SEA_BACK = KZ_SEA_TRY[0];   // 10/30：一・九歩では足を収めるために真下を覗き、艫の斬り合いが上で切れた。三歩へ引く
 const KZ_MELEE_LOOK = { x: -4.2, z: 11.5, y: DECK.y + 1.5 };
 const YAG_Y = DECK.y + 1.6;   // 矢倉（上甲板）の床の高さ
 function hull(W, cx, z0, z1, w, castle, outL = true, outR = true) {
@@ -2019,6 +2034,7 @@ function mergeShip(g, kind) {
 // 大安宅船の総矢倉（reports/ref/cg/ataka1・ataka2）：舷の上に二段の箱を立て、黒い鉄板（鋲・三角と四角の狭間）を
 // 明るい木の柱と貫の格子で押さえる。上は板張りの戦う床と楯板、艫寄りに二重の天守（板壁・板葺き）。
 // 形は全艘で共有し、材質ごとに一つへまとめる（mergeShip）。舳先の大筒の台は箱の外に残す
+let ATK_SKIRT = null;
 const ATK_TOP = 6.1, ATK_BOX = { x: 5.3, z0: -12.6, z1: 9.6, y0: 2.5, tiers: [2.5, 4.3, 6.1] };
 let ATK_FRAME = null;
 function ironBox(g, M) {
@@ -2050,6 +2066,17 @@ function ironBox(g, M) {
       const b = new THREE.Mesh(R.box, ATK_FRAME); b.scale.set(2 * B.x + 0.3, 0.24, 0.26); b.position.set(0, y, sd > 0 ? B.z1 + 0.1 : B.z0 - 0.1); g.add(b);
     }
   }
+  // 11/1 採点「箱の壁」：一段目と二段目の境に、瓦の腰庇を四方へ一メートル張り出す（手本 02・04 の安宅船の重なる屋根）。
+  //   切り立った箱の面を庇の影で二段に割る。形は一つを全艘で使い回し、mergeShip で材質ごとにまとめる。
+  if (!ATK_SKIRT) {
+    const sw = 2 * B.x + 2, sd = B.z1 - B.z0 + 2, geo = new THREE.BoxGeometry(sw, 0.55, sd), p = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) > 0) { p.setX(i, Math.sign(p.getX(i)) * (B.x - 0.05)); p.setZ(i, Math.sign(p.getZ(i)) * ((B.z1 - B.z0) / 2 - 0.05)); }
+      uv.setXY(i, (p.getX(i) + p.getZ(i)) / 6.4, p.getY(i) + 0.5);
+    }
+    geo.computeVertexNormals(); ATK_SKIRT = geo;
+  }
+  const skirt = new THREE.Mesh(ATK_SKIRT, M.tile); skirt.position.set(0, B.tiers[1] + 0.05, (B.z0 + B.z1) / 2); g.add(skirt);
   // 上の床と楯板
   const top = new THREE.Mesh(R.box, M.deck); top.scale.set(2 * B.x - 0.1, 0.16, B.z1 - B.z0 - 0.1); top.position.set(0, ATK_TOP, (B.z0 + B.z1) / 2); g.add(top);
   for (const [ax, az, bx, bz] of sides) g.add(tateWall(ax * 0.99, az, bx * 0.99, bz, ATK_TOP, 1.1, M));
@@ -2993,7 +3020,7 @@ const kizugawa = {
     // 西の舷で総矢倉より前に居る間は、視点を本人の内側・舳先寄りに置き、肩越しに西南西の沖を見る。
     // 総矢倉は視点の後ろへ回り、船団（大将の関船・小早の群れ・先手）が正面から右に並ぶ。
     if (sg < 0 && sz < 6.3) {
-      pos.x = p.x + KZ_SEA_BACK.x; pos.z = p.z + KZ_SEA_BACK.z;
+      if (!kzClearBack(rt, p, pos, KZ_SEA_TRY)) { pos.x = p.x + KZ_SEA_BACK.x; pos.z = p.z + KZ_SEA_BACK.z; }
       // 10/31：本人へ向け直すと屋形の前の面が左の三割を占める。視線を本人の先の沖（西）へ振り、屋形を左の端の一割に。
       look.x = p.x - 3; look.z = p.z + 4.5;   // 10/31 採点：乗り込みの斬り合いが画面の左へ寄り真ん中が海だけ。視線を艫の側へ振る this.selfFrameMinDistance = 99;
       rt.flags.wallFrameAt = rt.t;

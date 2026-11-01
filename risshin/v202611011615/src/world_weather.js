@@ -13,7 +13,7 @@ const TIME = {
   storm: { sky: 0x8c9496, fog: 0x9ca4a6, sun: 0xd8dcd8, sunI: 1.1, hemiSky: 0xc4cac8, hemiGround: 0x76705f, hemiI: 2.0, sunPos: [30, 120, 20], vis: 200, cloud: 0, top: 0x6a7477, cover: 0.85, glowK: 0 },
   after: { sky: 0x9aa7a8, fog: 0x98a2a0, sun: 0xffe8c8, sunI: 1.7, hemiSky: 0xb3bfc2, hemiGround: 0x423d2e, hemiI: 1.05, sunPos: [-70, 58, 30], vis: 440, cloud: 0.45, top: 0x6b7f92, cover: 0.55, glowK: 0.1, glow: 0xffc890 },
   // 夜：月明かり（青白く弱い光・影は淡く）。見通しは短く、闇の向こうは黒い霞に沈む（その中に敵がいるかもしれない）
-  night: { sky: 0x253048, fog: 0x2a3446, sun: 0x9bacce, sunI: 0.32, hemiSky: 0x6a7ca0, hemiGround: 0x34363c, hemiI: 0.22, sunPos: [-60, 70, 40], vis: 145, cloud: 0.3, top: 0x0a1120, cover: 0.3, glowK: 0 },
+  night: { sky: 0x253048, fog: 0x2a3446, sun: 0xb0b2b8, sunI: 0.32, hemiSky: 0x7a7f8a, hemiGround: 0x34363c, hemiI: 0.22, sunPos: [-60, 70, 40], vis: 145, cloud: 0.3, top: 0x0a1120, cover: 0.3, glowK: 0 },
   dusk: { sky: 0xb29588, fog: 0x9e8c85, sun: 0xffa060, sunI: 1.5, hemiSky: 0x76849e, hemiGround: 0x33302c, hemiI: 0.8, sunPos: [-120, 17, -24], vis: 470, cloud: 0.25, top: 0x596783, cover: 0.45, glowK: 0.62, glow: 0xff996d },
 };
 // 夕暮れ：日の当たる面だけ朱に、陰は空の青を受けて冷たく（半球光を青に寄せる）
@@ -281,8 +281,8 @@ export class WorldWeather {
     const dayFill = (0.48 + 0.34 * scatter) * (this.def.overcastFillScale ?? 1);
     // 夜の指定と雨・夕暮れの見やすさは保ち、移ろいの間も連続して変える。
     this.nightFill.intensity = dayFill * (1 - k) + Math.max(0.42, this.def.nightFill ?? 0.85) * k + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
-    // 夜の下向きの面は土からの弱い返りだけ。月の冷色と火の暖色を分ける。
-    this.nightFill.color.setRGB(0.75 - 0.30 * k, 0.82 - 0.29 * k, 0.93 - 0.25 * k).lerp(this.hemi.color, 0.3 * (1 - k));
+    // 夜の下向きの面は土からの弱い返りだけ。月は灰の銀（青く寄せると兵が青く見えた。kaito 10/31 青い味方は禁止）。空と霧の青は残す。
+    this.nightFill.color.setRGB(0.75 - 0.25 * k, 0.82 - 0.31 * k, 0.93 - 0.40 * k).lerp(this.hemi.color, 0.3 * (1 - k));
     this.nightFill.groundColor.setRGB(0.42 - 0.18 * k, 0.38 - 0.16 * k, 0.32 - 0.10 * k);
     // 晴天は締まった影、低い日・曇天・雨は柔らかい縁。影の枚数は増やさない。
     const height = Math.max(0, this.skyMat.uniforms.sunDir.value.y);

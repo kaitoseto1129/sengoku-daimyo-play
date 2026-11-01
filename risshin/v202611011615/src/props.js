@@ -3474,13 +3474,13 @@ export function kabukimon(world, x, z, w = 6.4, rot = 0, o = {}) {
     const px = sx * (w / 2 + 0.17), g0 = gy(px, 0);
     // 本柱（角材・褪せた灰茶）と礎石・根巻き
     const pw = o.groundedGate ? .4 : .36;
-    const post = timber(pw, H - g0 + 0.3, pw, 0x6a6254); post.translate(px, (H + g0 - 0.3) / 2, 0); parts.push(paintWorn(post, vary(0x6a6254, sx + 2), g0, H));
+    const post = timber(pw, H - g0 + 0.3, pw, 0x7c6a52); post.translate(px, (H + g0 - 0.3) / 2, 0); parts.push(paintWorn(post, vary(0x7c6a52, sx + 2), g0, H));
     box(0x7a766c, px, g0 - 0.02, 0, 0.7, 0.2, 0.7, 0.3 * sx, 0, true);
     box(IRONC, px, g0 + 0.3, 0, 0.4, 0.34, 0.4, 0, 0, true);
     // 控柱と、本柱と結ぶ貫（二段）
     const bz = -1.6, gb = gy(px, bz);
     const kH = o.yakui ? H + 0.15 : 2.5, kw = o.yakui ? 0.3 : 0.24;   // 薬医門の控柱は屋根まで立つ
-    const kp = timber(kw, kH - gb + 0.2, kw, 0x645c4e); kp.translate(px, (kH + gb - 0.2) / 2, bz); parts.push(paintWorn(kp, vary(0x645c4e, sx + 5), gb, kH));
+    const kp = timber(kw, kH - gb + 0.2, kw, 0x74644e); kp.translate(px, (kH + gb - 0.2) / 2, bz); parts.push(paintWorn(kp, vary(0x74644e, sx + 5), gb, kH));
     box(0x7a766c, px, gb - 0.02, bz, 0.5, 0.16, 0.5, 0, 0, true);
     for (const hy of [0.9, 2.25]) box(0x564e42, px, hy, bz / 2, 0.14, 0.2, -bz + 0.3);
     // 扉：肘金（蝶番）を軸に内へ開く（o.doors === false の時は描かない。閉じた扉は tobira を別に置く）
@@ -3502,18 +3502,21 @@ export function kabukimon(world, x, z, w = 6.4, rot = 0, o = {}) {
       }
       parts.push(fl ? flat(g, hex) : openFlat ? paintWorn(g, hex, 0, H) : g); };
     const np = 6;
-    for (let i = 0; i < np; i++) door(vary(0x6d6558, i + (sx > 0 ? 7 : 0)), (i + 0.5) * dw / np, 1.55, 0, dw / np - 0.015, 2.9 - (i % 2) * 0.03, 0.07);
+    for (let i = 0; i < np; i++) door(vary(0x7e6c54, i + (sx > 0 ? 7 : 0)), (i + 0.5) * dw / np, 1.55, 0, dw / np - 0.015, 2.9 - (i % 2) * 0.03, 0.07);
     for (const hy of [0.45, 1.55, 2.65]) door(0x4e473c, dw / 2, hy, -0.07, dw - 0.1, 0.16, 0.07);
     door(0x4e473c, dw / 2, 1.0, -0.075, Math.hypot(dw - 0.3, 1.0), 0.13, 0.06, Math.atan2(1.0, dw - 0.3) * (sx < 0 ? -1 : 1) * -1);
     for (const hy of [0.45, 1.55, 2.65]) {
-      door(IRONC, 0.25, hy, 0.045, 0.5, 0.1, 0.02, 0, true);                         // 肘金の帯
-      for (let q = 1; q < 5; q++) door(0x2a2622, q * dw / 5, hy, 0.05, 0.07, 0.07, 0.03, 0, true);   // 乳金物
+      // 肘金の帯は先を八双の形に広げ、帯の上に鋲。乳金物は一枚の扉に五つ、帯の上に並ぶ鉄の頭
+      door(IRONC, 0.3, hy, 0.045, 0.6, 0.1, 0.02, 0, true);
+      door(IRONC, 0.62, hy, 0.045, 0.08, 0.17, 0.02, 0, true);
+      for (const bx of [0.12, 0.3, 0.48]) door(0x3a3530, bx, hy, 0.058, 0.035, 0.035, 0.02, 0, true);
+      for (let q = 1; q < 5; q++) door(0x2a2622, q * dw / 5, hy + 0.13, 0.05, 0.09, 0.09, 0.04, 0, true);
     }
     }
   }
   // 冠木と貫（冠木は柱より両へ長く突き出す）。冠木の上の板葺きの小屋根
-  box(0x5c5548, 0, H + 0.02, 0, w + 1.9, 0.36, 0.4);
-  box(0x655d50, 0, H - 0.27, 0, w + 0.9, 0.18, 0.16);
+  box(0x6c5c46, 0, H + 0.02, 0, w + 1.9, 0.36, 0.4);
+  box(0x76664e, 0, H - 0.27, 0, w + 0.9, 0.18, 0.16);
   for (const sx of [-1, 1]) box(0x4e473c, sx * (w / 2 + 0.17), H - 0.27, 0, 0.1, 0.24, 0.24, 0, 0, true);   // 貫の楔
   const nRoof0 = parts.length;
   if (o.roof !== false) {
@@ -3596,7 +3599,7 @@ function leafParts(parts, lw, h, hinge, k0 = 0) {
   const B = (hex, px, py, pz, bw, bh, bd, rz = 0) => { const g = new THREE.BoxGeometry(bw, bh, bd); if (rz) g.rotateZ(rz); g.translate(px, py, pz); parts.push(paint(g, hex)); };
   const np = Math.max(3, Math.round(lw / 0.45));
   for (let i = 0; i < np; i++) {
-    const col = vary(0x5a4a38, i + k0 + (hinge < 0 ? 11 : 0));
+    const col = vary(0x76624a, i + k0 + (hinge < 0 ? 11 : 0));
     const bh = h - (i % 2) * 0.03;
     // 根元の濡れと中段の乾きを分け、木目は板ごとにずらす。既存の扉の束へ結合する。
     for (let row = 0; row < 3; row++) {
@@ -3609,8 +3612,11 @@ function leafParts(parts, lw, h, hinge, k0 = 0) {
   const dl = Math.hypot(lw - 0.2, h * 0.36);
   B(0x3a2e22, 0, h * 0.32, -0.08, dl, 0.14, 0.07, Math.atan2(h * 0.36, lw - 0.2) * -hinge);       // 筋交い（内）
   for (const f of [0.14, 0.5, 0.86]) {
-    B(0x1c1a18, hinge * (lw / 2 - 0.3), h * f, 0.055, 0.6, 0.12, 0.025);                          // 肘金の帯（外）
-    for (let q = 1; q < 5; q++) B(0x2a2622, -lw / 2 + q * lw / 5, h * f + 0.12, 0.055, 0.07, 0.07, 0.03);   // 乳金物
+    // 肘金の帯（外）は先を八双の形に広げ、帯の上に鋲。乳金物は鉄の頭を帯の上に並べる
+    B(0x1c1a18, hinge * (lw / 2 - 0.36), h * f, 0.055, 0.72, 0.12, 0.025);
+    B(0x1c1a18, hinge * (lw / 2 - 0.74), h * f, 0.055, 0.09, 0.2, 0.025);
+    for (const bx of [0.12, 0.34, 0.56]) B(0x3a3530, hinge * (lw / 2 - bx), h * f, 0.072, 0.04, 0.04, 0.02);
+    for (let q = 1; q < 5; q++) B(0x2a2622, -lw / 2 + q * lw / 5, h * f + 0.14, 0.06, 0.09, 0.09, 0.045);
   }
 }
 const _leafCache = new Map();

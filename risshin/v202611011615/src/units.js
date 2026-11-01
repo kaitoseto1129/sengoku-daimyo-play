@@ -42,13 +42,13 @@ import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
 import { aliveGuard } from './army_alive.js';
 import { reservedModel, reservedHorse } from './army_reserve.js';
-// 足軽の漆の色（軍ごとに一色。軍の旗の名で決める。青・紺は使わない）
-const LACQUER = [0x1f1b18, 0x4a2a18];
+import { LAC_OF, lacKind, houseHash } from './lacquer_kind.js';
+// 足軽の漆の色（軍ごとの基の一色。御貸具足の三通り：黒漆の照り違い・錆地・赤備え。表は lacquer_kind.js で近い兵の作り分け
+//   soldierVar（humans_dress.js）・遠い大軍（world_army.js）と同じ。人ごとの差は soldierVar が付ける。青・紺は使わない）
 function ashigaruLacquer(fac, flag) {
-  const f = String((fac && fac.flag) || flag || '');
-  if (f === 'akazonae' || f === 'takeda') return 0x8a2a1c;
-  let h = 0; for (const ch of f) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
-  return LACQUER[h % 2];
+  const f = String(flag || (fac && fac.flag) || '');
+  const T = LAC_OF[lacKind(f)];
+  return T[houseHash(f) % T.length][0];
 }
 
 export { MK, UNIT_MAT, UNIT_WET, haoriFold, HORSE_HOOK, poseArms, SPEARS, spearSpec, arrowGeometry, makeWeapon, setBowDraw, kickSpear, ENEMY_HORSE, COATS, coatOf, animateHorse, soheiLook, headEnvelope, katoGeometry } from './units_model.js';
@@ -656,7 +656,7 @@ export class Army {
     if (fieldLook.battleKey === 'inou' && u.type === 'player' && !look.kosode) look.helm = look.hatColor = 0xd9a63a;
     // 足軽（貸し具足）は簡素に：陣笠と胴は同じ漆の一色（軍ごとに黒・茶・朱）、籠手と袖は無し、鎧下は生成り・茶の布（kaito 10/30）
     if (loanArmor && !u.name && !look.kosode && !look.sohei && !(u.type === 'player' && fieldLook.battleKey === 'inou')) {
-      const lq = ashigaruLacquer(fac, look.flag);
+      const lq = ashigaruLacquer(fac, fieldLook.armyFlagKinds?.[look.flag] || look.flag);
       look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false; look.saya = false; look.doStyle = undefined;
       look.cloth = [0x6a5a44, 0x54422f, 0x6e6250, 0x4a3c2e, 0x605038, 0x5a5040][vi];   // 生成り・茶の褪せた布（明るい色は人形の手足に見える）
     }
