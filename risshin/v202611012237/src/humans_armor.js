@@ -1238,6 +1238,163 @@ function bandMaterial(base) {
   BAND_MATS.set(base, m);
   return m;
 }
+// 本人の胴丸：9/29「侍大将で出陣」の頃の材質をそのまま（黒漆に朱の威糸。毛引の写真・札の段の糸目・手甲の塗り替えは描かない。kaito 10/31）
+// 人形の兜・面頬・顔ごと描く（noHead なし）。材質は威糸の色と使い込みごとに一つ（本人だけなので一つか二つ）
+function heroMaterial0929(look, wv = 0) {
+  const lace = new THREE.Color(look.lace ?? 0xb8342a);
+  const tint = armorTint(look.armor);
+  const k = 'h9|' + lace.getHex() + '|' + (tint ? tint.getHex() : 0) + '|w' + wv;
+  if (dmMats.has(k)) return dmMats.get(k);
+  const m = new THREE.MeshStandardMaterial({ map: DM.col, normalMap: DM.nrm, normalScale: new THREE.Vector2(0.55, 0.55), roughness: 0.55, metalness: 0.15, envMapIntensity: 0.9, side: THREE.DoubleSide });
+  const U = { uLace: { value: lace }, uLaceAmt: { value: 1 }, uArm: { value: tint || new THREE.Color(0) }, uArmAmt: { value: tint ? 1 : 0 }, uWV: { value: new THREE.Vector4(...(DM_WEAR[wv] || DM_WEAR[0])) } };
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.uniforms.uWet = WET;
+    sh.uniforms.uGrime = GRIME;
+    // 着せる前の立ち姿の位置（m。足の裏が 0、前が +z）：縅の目・汚れの場所を、動いても甲冑に貼り付いたまま描く
+    sh.vertexShader = 'varying vec3 vDmP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmP = position;');
+    sh.fragmentShader = 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nfloat dmCloth, dmGold, dmLacq, dmH, dmWv, dmEdge, dmDust;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        // スキャンの絵は博物館の暗い照明で撮られているので、少し明るく戻す
+        diffuseColor.rgb = min(diffuseColor.rgb * 1.55, vec3(1.0));
+        vec3 c = diffuseColor.rgb;
+        float blue = smoothstep(1.08, 1.45, c.b / (max(c.r, c.g) + 0.002)) * smoothstep(0.003, 0.012, c.b) * uLaceAmt;
+        float l = dot(c, vec3(0.2126, 0.7152, 0.0722)), ll = dot(uLace, vec3(0.2126, 0.7152, 0.0722));
+        // 黒い漆（暗く、色の薄い所）
+        float sat = (max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b))) / (max(c.r, max(c.g, c.b)) + 0.01);
+        float lac = smoothstep(0.2, 0.06, l) * smoothstep(0.55, 0.2, sat) * uArmAmt * (1.0 - blue);
+        vec3 armC = uArm * (0.55 + l * 5.0);
+        diffuseColor.rgb = mix(c, uLace * min(3.0, l / max(ll, 0.002)) * 1.2, blue);
+        diffuseColor.rgb = mix(diffuseColor.rgb, armC, lac);
+        // 藍の威糸は、洗いざらしの褪せた藍に（スキャンの鮮やかな青のままだと染めたての作り物に見える）
+        float blue0 = smoothstep(1.08, 1.45, c.b / (max(c.r, c.g) + 0.002)) * smoothstep(0.003, 0.012, c.b) * (1.0 - uLaceAmt);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.45, 0.25))) * vec3(0.92, 0.97, 1.12), blue0 * 0.3);
+        if (!gl_FrontFacing) diffuseColor.rgb = vec3(0.012, 0.01, 0.009);
+        // 足：スキャンは素足に紐だけ。肌色の所を墨茶の足袋・藁の草鞋に（素足で戦に立たない。10/28 の直しは残す）
+        {
+          float footM = 1.0 - smoothstep(0.09, 0.13, vDmP.y);
+          vec3 fc0 = diffuseColor.rgb;
+          float skinF = footM * smoothstep(0.02, 0.08, fc0.r - fc0.b) * smoothstep(0.05, 0.14, fc0.r);
+          float fl = dot(fc0, vec3(0.3, 0.59, 0.11));
+          diffuseColor.rgb = mix(fc0, mix(vec3(0.028, 0.025, 0.021) * (0.8 + 0.6 * fl), vec3(0.3, 0.24, 0.14) * (0.7 + 0.8 * fl), 1.0 - smoothstep(0.012, 0.026, vDmP.y)), skinF);
+        }
+        // 材の見分け：糸（威し・色の濃い明るい所）は布の艶消し、金具（黄みの強い明るい所）は金属の照り、黒い漆は滑らかだが擦れて斑
+        float yel = smoothstep(0.15, 0.35, (c.r + c.g) * 0.5 - c.b) * smoothstep(0.08, 0.2, l);
+        dmGold = yel * (1.0 - blue);
+        dmCloth = max(blue, (1.0 - smoothstep(0.1, 0.4, lac + dmGold)) * smoothstep(0.35, 0.6, sat));
+        dmLacq = lac;
+        diffuseColor.rgb *= 1.0 - uWet * 0.25 * dmCloth;
+        // 絵の細かな起伏：ぼかした明るさとの差。小札の段の影・縅の目・金具の縁が、後で凹凸になる（絵の段にそろう）
+        float lb = min(dot(texture2D(map, vMapUv, 2.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
+        dmH = clamp(l - lb, -0.25, 0.25);
+        dmWv = 0.5; dmEdge = 0.0; dmDust = 0.0;
+        if (gl_FrontFacing) {
+          vec3 p = vDmP;
+          float n1 = dmVn(p * 16.0), n2 = dmVn(p * 75.0 + 3.1), n3 = dmVn(p * 260.0 + 7.7);
+          // 縅糸の編み目：糸は縦に通る（胴・袖・草摺・錣）。一筋 1cm ほどの平組に、杉綾の目。遠くでは消す
+          {
+            float au = atan(p.x, p.z + 0.03) * 0.21 * 100.0, av = p.y * 330.0;
+            float fu = fract(au), gap = smoothstep(0.0, 0.14, min(fu, 1.0 - fu));
+            float chev = fract(av + abs(fu - 0.5) * 1.6), rib = smoothstep(0.0, 0.3, chev) * smoothstep(1.0, 0.7, chev);
+            float fw = fwidth(av) + fwidth(au) * 4.0;
+            dmWv = mix(0.5, gap * (0.35 + rib * 0.65), (1.0 - smoothstep(0.3, 0.9, fw)) * dmCloth);
+            diffuseColor.rgb *= mix(1.0, 0.72 + dmWv * 0.5, dmCloth);
+            // 糸の毛羽と色むら（染めの濃い薄い、日に焼けた所）
+            diffuseColor.rgb *= mix(1.0, 0.86 + n1 * 0.2 + (n3 - 0.5) * 0.12, dmCloth);
+          }
+          // 擦れ：板の角・縁（丸みの強い所）で漆が薄くなり、下地の茶が出る。金具の角は明るく光る
+          {
+            vec3 vp = -vViewPosition, dpx = dFdx(vp), dpy = dFdy(vp);
+            float curv = dot(dFdx(vNormal), dpx) / max(dot(dpx, dpx), 1e-10) + dot(dFdy(vNormal), dpy) / max(dot(dpy, dpy), 1e-10);
+            dmEdge = smoothstep(14.0, 55.0, curv) * smoothstep(0.3, 0.7, n2 * 0.7 + n1 * 0.3);
+            // 絵の中の明るい斑（元から擦れた所）も擦れに数える
+            dmEdge = max(dmEdge, smoothstep(0.05, 0.14, dmH) * smoothstep(0.55, 0.75, n2));
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.14, 0.085, 0.045), dmEdge * dmLacq * 0.7);
+            // 漆の細かな剥げ：小さな斑に下地の茶が覗く（新品の一色の黒にしない）
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.11, 0.065, 0.035), smoothstep(0.72, 0.9, n3 * 0.55 + n2 * 0.45) * dmLacq * 0.5);
+          }
+          // 金具：金の照り（黄みを少し深く）。角は擦れて明るい
+          diffuseColor.rgb = mix(diffuseColor.rgb, min(diffuseColor.rgb * vec3(1.12, 1.0, 0.7) + vec3(0.03, 0.02, 0.0) + dmEdge * 0.08, vec3(1.0)), dmGold);
+          // 使い込んだ汚れ：溝（小札の重なり・糸の目）に埃が溜まり、上を向いた面に土埃。腰から下（草摺の裾・佩楯・脛当）は泥
+          float up = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz));
+          float cav = smoothstep(0.0, -0.12, dmH);
+          float dust = (cav * 0.6 + smoothstep(0.35, 0.9, up) * 0.45) * (0.3 + 0.7 * n1) * (0.45 + 0.7 * uGrime) * (1.0 - uWet * 0.7);
+          float mudA = smoothstep(0.66, 0.12, p.y) * (0.3 + 0.7 * smoothstep(0.35, 0.7, n1 * 0.6 + n2 * 0.4)) * (0.3 + 0.7 * uGrime);
+          mudA += smoothstep(0.8, 0.92, n3 * 0.5 + n2 * 0.5) * smoothstep(0.95, 0.4, p.y) * 0.6 * (0.3 + 0.7 * uGrime);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.18, 0.15), clamp(dust, 0.0, 0.7) * 0.5);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.1, 0.078, 0.055), clamp(mudA, 0.0, 1.0) * 0.6 * (1.0 - uWet * 0.3));
+          dmDust = clamp(dust * 0.5 + mudA * 0.7, 0.0, 1.0);
+          // 人ごとの汚れの濃さ
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.14, 0.11), clamp(dmDust * (uWV.y - 0.8), 0.0, 0.4));
+          // 日焼けの褪せ：色の漆は茶へ、威糸は白っぽく褪せる（肩と兜の上ほど）
+          float sunU = smoothstep(1.0, 1.6, p.y) * uWV.z;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.85, 0.72, 0.6) + vec3(0.03, 0.02, 0.01), dmLacq * sunU * 0.5);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.33))) * 1.2 + 0.03, dmCloth * sunU * 0.4);
+          // 刀傷と擦り傷：胴と袖の前に、斜めの細い切れ目。漆が削れて下地が白く、縁は暗い
+          {
+            vec3 q = p + vec3(uWV.w, uWV.w * 0.7, 0.0);
+            float cut = 0.0;
+            for (int i = 0; i < 3; i++) {
+              float fi = float(i);
+              vec2 d = normalize(vec2(cos(fi * 2.1 + uWV.w), sin(fi * 2.1 + uWV.w)));
+              float ln = dot(q.xy, d) * 7.0 + dmVn(q * 3.0 + fi) * 0.8;
+              float line = 1.0 - smoothstep(0.0, 0.035, abs(fract(ln) - 0.5));
+              float seg = smoothstep(0.62, 0.8, dmVn(q * 2.2 + fi * 4.0)) * step(0.0, p.z);
+              cut = max(cut, line * seg);
+            }
+            cut *= uWV.x * (1.0 - dmCloth);
+            float fw = fwidth(p.y) * 60.0;
+            cut *= 1.0 - smoothstep(0.4, 1.2, fw);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.33, 0.24), cut * 0.75);
+            dmEdge = max(dmEdge, cut);
+          }
+        }
+      }`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      {
+        // 漆は擦れ・埃で照りに斑（新品の一律の照りにしない）。滑らかな所は深い照り、擦れた所は曇る
+        float wear = dmVn(vDmP * 40.0) * 0.7 + dmVn(vDmP * 140.0) * 0.3;
+        roughnessFactor = mix(roughnessFactor, 0.26 + wear * 0.3 + dmEdge * 0.25, dmLacq);
+        roughnessFactor = mix(roughnessFactor, 0.9, dmCloth);
+        // 金具：磨かれた照りに、細かな引っ掻き傷
+        float scr = smoothstep(0.55, 0.8, dmVn(vec3(vDmP.x * 600.0, vDmP.y * 40.0, vDmP.z * 600.0)));
+        roughnessFactor = mix(roughnessFactor, 0.24 + scr * 0.22, dmGold);
+        roughnessFactor = mix(roughnessFactor, 0.95, dmDust);
+        // 雨：漆と金具は濡れて照りが増し、糸は水を吸って暗く重くなる（照りは少しだけ）
+        roughnessFactor *= 1.0 - uWet * mix(0.45, 0.2, dmCloth);
+      }`).replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+      metalnessFactor = mix(metalnessFactor, 0.0, max(dmCloth, dmLacq));
+      metalnessFactor = mix(metalnessFactor, 0.85, dmGold * (1.0 - dmDust));`).replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      {
+        // 小札の段・縅の目の凹凸（絵の細かな起伏と、編み目の高さ）
+        float hB = dmH * 0.005 + (dmWv - 0.5) * 0.0014 * dmCloth;
+        normal = dmBump(-vViewPosition, normal, vec2(dFdx(hB), dFdy(hB)), faceDirection);
+      }`).replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+      #if NUM_DIR_LIGHTS > 0
+      {
+        // 漆の艶：日の光が細く鋭く映る（塗りの上の透けた層の照り）。金具は少し広く、金色に光る
+        // directLight は日差しの最後の値（影が掛かった色）
+        vec3 Hd = normalize(directLight.direction + normalize(vViewPosition));
+        float nh = clamp(dot(normal, Hd), 0.0, 1.0), nl = clamp(dot(normal, directLight.direction), 0.0, 1.0);
+        float cc = dmLacq * (1.0 - dmDust) * (1.0 - dmEdge * 0.7) * (gl_FrontFacing ? 1.0 : 0.0);
+        reflectedLight.directSpecular += directLight.color * nl * (pow(nh, 240.0) * 1.4 * cc + pow(nh, 70.0) * 0.45 * dmGold * (1.0 - dmDust) * vec3(1.0, 0.84, 0.52));
+      }
+      #endif
+      {
+        // 縁の光：空の明るさが甲冑の縁を回り込む（輪郭が背景に沈まない）。糸は柔らかく、漆と金具は細く強く
+        float nvR = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+        float rim = pow(1.0 - nvR, mix(4.0, 2.5, dmCloth));
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * rim * 0.35 * dmCloth;
+        reflectedLight.indirectSpecular += vec3(0.55, 0.57, 0.6) * rim * 0.12 * (1.0 - dmCloth) * (gl_FrontFacing ? 1.0 : 0.0);
+      }`);
+    // 一人称：目のすぐ前（FP_CUT の球の中）に来た自分の袖・肩の板は描かない（目の前を塞がない。他の人は目から遠いので消えない）
+    sh.uniforms.uFpCut = FP_CUT;
+    sh.vertexShader = 'varying vec3 vFpW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vFpW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform vec4 uFpCut;\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && distance(vFpW, uFpCut.xyz) < uFpCut.w) discard;');
+  };
+  m.customProgramCacheKey = () => 'domaru-h9';
+  dmMats.set(k, m);
+  return m;
+}
 // 骨の入った人に本物の胴丸を着せる（顔も手も人形の物を使う）。noHead の時は兜と顔を描かない
 function dressDomaru(h, noHead = false) {
   // 元の体は隠す（現代の服の膨らみが甲冑の外へ出るので）。脇の、スキャンに写っていない所は、甲冑の裏（暗い）が見える
@@ -1251,10 +1408,11 @@ function dressDomaru(h, noHead = false) {
   const L0 = h.look, okeLook = (L0.tier || 0) === 0 && !L0.kacchu && !L0.nanban && L0.doStyle !== 'sugake' && !h.u?.name && L0.face !== 'player';
   const ovi = ((L0.vi || 0) % 6 + 6) % 6;
   const lk = okeLook && L0.loanWorn ? { ...L0, okeVar: ovi, lace: OKE_VAR[ovi].lace } : L0;
-  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, domaruMaterial(lk, noHead, variant, detailed));
+  const hero9 = !!L0.hero9 && !noHead;
+  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, hero9 ? heroMaterial0929(L0, variant) : domaruMaterial(lk, noHead, variant, detailed));
   m.userData.surfaceBase = m.material;
   // 一般兵の凹凸と汚れはスキャンの絵・法線で描く。画素ごとの多重雑音は本人・武将だけ。
-  m.userData.surfaceFine = detailed ? domaruMaterial(lk, noHead, variant, true) : m.material;
+  m.userData.surfaceFine = hero9 ? m.material : detailed ? domaruMaterial(lk, noHead, variant, true) : m.material;
   m.bind(sk, new THREE.Matrix4());
   // 一般兵の影は、元からある具足の一体形で描く。胴丸の影は追加しない。
   m.castShadow = !h.loanedDomaru; m.receiveShadow = true;

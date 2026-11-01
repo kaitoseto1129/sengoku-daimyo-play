@@ -17,6 +17,7 @@ import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { castlePart } from './cgt_castle.js';
 import { enemyGroup } from './bhelp.js';
 import { flagTexture } from './textures.js';
+import { dressStage } from './stage_dress.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -1274,9 +1275,11 @@ function takatoFieldMelee(rt) {
   // 11/1 点付け（高遠62：敵の大軍・乱戦が薄い）：軽い兵は本人から44m・カメラから30m の内を描かないので、x 93 の前線は25秒の画面に一度も写らなかった。
   //   前線を土橋の口から堀に沿って南北へ離し（z ±27・堀の縁の x 89。カメラから三十〜四十歩）、堀の外の縁で城兵と先手が押し合い斬り合う形にする。
   //   肩越しの向きが北西（堀の北の縁）でも南西でも、どちらか一つが画面に入る。寄せ道（z ±4）は空けたまま。
-  for (const [z, seed] of [[27, 30411], [-27, 30412]]) {
-    F_MELEE.list.push(W.addClash({ rt, play, smoke, x: 89, z, facing: -Math.PI / 2, w: 13, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
-      maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: 44 }, B: { ...nishina, count: 60, bows: false } }));
+  // 11/1（二）：z ±27 でも25秒の本人（x 101〜104）から三十歩ほどで、まだ描かれなかった。堀の北と南の端の平場（本人から四十七〜五十歩）へ出し、
+  //   北・北西・南・南西のどちらを向いても、堀の外で押し合う大軍が画面の奥に入る。
+  for (const [x, z, seed] of [[78, 44, 30411], [96, -47, 30412]]) {
+    F_MELEE.list.push(W.addClash({ rt, play, smoke, x, z, facing: -Math.PI / 2, w: 13, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
+      maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: 34 }, B: { ...nishina, count: 46, bows: false } }));
   }
   // 塀の裏の武者走りに並んだ仁科勢（大手の左右の塀の上に、笠と槍の穂・指物が切れ目なく覗く。配置は推定）。
   //   寄せ手の目の高さからは塀の内の控えが見えないので、塀の上の人の列で城兵の多さを見せる。足は塀に隠れる（棚の高さは鉄砲衆の棚と同じ）。
@@ -1416,6 +1419,9 @@ takato.setup = function (rt) {
   takatoGateBrawl(rt);
   takatoFieldMelee(rt);
   takatoSakura(rt);
+  // 11/1 点付け「地面が一様」：大手の寄せ口（25秒の所）の土を一色にしない。踏み跡・窪みの泥・岩の根の草、半分埋めた岩（共通の stage_dress。兵は増やさない）
+  dressStage(rt, { at: { x: 101, z: 1, heading: -1.0 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 0, rocks: 0, radius: 45, wet: 0.7, trodden: 0.9, seed: 3011,
+    avoid: (x, z) => Math.abs(z) < 13 && x < 96 });
   { const kb = makeKitBatch(); takatoMoatEdge(rt, kb); finalizeKitBatch(rt, kb); }
   // 裸地と切岸に同じ粒の土を使い、四角い土塊と足跡の反復を広場へ敷き詰めない。
   // 既存の共有画像だけを切り替え、残雪・踏み荒れ・血と地形の当たりは保つ。
@@ -1518,7 +1524,7 @@ takato.setup = function (rt) {
     mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     mesh.material.color.setHex(0x7b9169);
     mesh.material.emissive.setHex(0x172313);
-    mesh.material.emissiveIntensity = .22;
+    mesh.material.emissiveIntensity = .07;   // 11/1「木の切り絵」：自ら光る分を減らし、樹冠の陰影を残す
   }
 
   // 手持ち幟・指物も、紋ごとの材質と一つの布形を共有する。

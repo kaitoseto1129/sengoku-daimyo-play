@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { assetBytes } from './bin_assets.js';
 import { S as SETTINGS } from './settings.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 let LIB = null;          // 名前 -> [{ geo, mat }]
 let loading = null;
@@ -271,6 +272,36 @@ export function extMinka(grp, olds, w, d, h, seed) {
     const sx = (w / 9.03) * (0.94 + r1 * 0.12), sz = (d / 4.1) * (0.94 + r2 * 0.12), sy = (h / 2.76) * (0.96 + r3 * 0.08);
     const g = addParts(grp, 'minka', null, { tint: Math.floor(r1 * 3) % 3 });
     g.scale.set(sx, sy, sz); g.position.y = -0.2;
+    for (const o of olds) { o.visible = false; o.userData.extOld = true; }
+  });
+}
+
+// 何軒も並ぶ民家（村・まとめて描く町並み）：素材の民家を、色合いと材質ごとに一つの形へ焼いて置く（家の数だけ描く回数を増やさない）。
+// list：[{ x, y, z, ry, w, d, h, seed, part? }]（世界の座標・身舎の大きさ・正面 +z。part は束の一軒）。並びの先から cap 軒まで。olds（手作りの Mesh）は全部隠す
+const HIDDEN = new THREE.Group();
+export function extMinkaMany(parent, olds, list, cap = 48) {
+  if (low() || off() || !list.length) return;
+  whenBldg(() => {
+    if (!BLDG.minka) return;
+    const by = new Map(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3();
+    for (const h of list.slice(0, cap)) {
+      const r1 = hash01(h.seed, 1), r2 = hash01(h.seed, 2), r3 = hash01(h.seed, 3), tint = Math.floor(r1 * 3) % 3;
+      m4.compose(p.set(h.x, h.y - 0.2, h.z), q.setFromAxisAngle(up, h.ry),
+        s.set((h.w / 9.03) * (0.94 + r1 * 0.12), (h.h / 2.76) * (0.96 + r3 * 0.08), (h.d / 4.1) * (0.94 + r2 * 0.12)));
+      BLDG.minka.forEach(({ geo, mat }, k) => {
+        const key = tint + ':' + k;
+        let a = by.get(key); if (!a) by.set(key, (a = { mat: tintMat(mat, tint), geos: [] }));
+        a.geos.push(geo.clone().applyMatrix4(m4));
+      });
+    }
+    for (const { mat, geos } of by.values()) {
+      const g = mergeGeometries(geos); for (const x of geos) x.dispose();
+      if (!g) continue;
+      const m = new THREE.Mesh(g, mat);
+      m.castShadow = true; m.receiveShadow = true; m.userData.ext = true; m.userData.camBlock = true;
+      parent.add(m);
+    }
+    for (const h of list.slice(0, cap)) if (h.part) h.part.setKit(HIDDEN);   // 束の一軒は、その家の壁と屋根だけ隠す
     for (const o of olds) { o.visible = false; o.userData.extOld = true; }
   });
 }

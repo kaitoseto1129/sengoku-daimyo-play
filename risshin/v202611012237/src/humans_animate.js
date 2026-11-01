@@ -524,7 +524,8 @@ function driveHuman0(h, dt, fine = true, arms = true) {
   if ((plantCombat && (u.isPlayer || h.groundFeet)) || (plantBattle && (h.spd || 0) < 0.8) || plantHit) plantFeet(h, B, dt);
   else {
     h.combatFeetReady = false;
-    if ((h.groundFeet || u.isPlayer) && HUM.fx && WORLD && !h.far && !fallen && !u.mounted && !u.climb && !u.downed &&
+    // 本人（9/29 の動き：look.hero9）は歩く・走る足を地面へ引き寄せない（録った歩きのまま滑らかに）
+    if ((h.groundFeet || u.isPlayer && !u.look?.hero9) && HUM.fx && WORLD && !h.far && !fallen && !u.mounted && !u.climb && !u.downed &&
         !u.perch && !u.naka && !u.dodging && !(u.slipT > 0) && !(h.kneelK > 0.01)) footPlant(h, B, dt);
   }
   // 頭：体が傾いても顔は前を見る（首で七割ほど戻す）

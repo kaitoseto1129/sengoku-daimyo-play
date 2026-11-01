@@ -206,10 +206,12 @@ function* buildHuman(u, look0) {
   // 名のある武将：胴丸の人形の兜と顔は描かず、その人の兜・顔・陣羽織・母衣・腰の刀を付ける
   if (h.domaru) {
     // 本人も、胴丸を着る時は武将と同じく陣羽織・前立・腰の刀・自分の顔を付ける（胴丸の人形の兜に、本人の兜の前立を載せる）
-    h.mode = 'full'; const nd = isNamed(L) || !!u.isPlayer || !!L.officer; h.helmScan = nd;
+    // 本人は 9/29 の「侍大将で出陣」と同じ着せ方：胴丸の人形の兜・面頬ごと着て、別の兜・顔・陣羽織は付けない（kaito 10/31）
+    const hero9 = !!u.isPlayer && !!L.hero9 && !L.kosode;
+    h.mode = 'full'; const nd = !hero9 && (isNamed(L) || !!u.isPlayer || !!L.officer); h.helmScan = nd;
     // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
     const kb = nd && KABUTO.on && KABUTO.ready;
-    const ashigaru = (L.tier ?? 0) < 1 && !isNamed(L);
+    const ashigaru = !hero9 && (L.tier ?? 0) < 1 && !isNamed(L);
     // 着せる手順ごとに次のコマへ分ける（一つにまとめると 4倍遅くで一コマ 30〜130ms 止まっていた。10/28）
     tm('domaru', () => dressDomaru(h, ashigaru ? true : nd ? (kb ? true : 'helm') : false));
     pause = performance.now(); yield; waited += performance.now() - pause;
