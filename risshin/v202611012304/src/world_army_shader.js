@@ -279,6 +279,10 @@ export const ARMY_P = { value: new THREE.Vector2(1e5, 1e5) };
 export const ARMY_REAL_P = { value: new THREE.Vector2(1e5, 1e5) };
 export const ARMY_REAL_R = { value: 0 };
 export const ARMY_REAL_NEAR = 60;
+// 中景の乱戦を近くまで描く（11/1）。?midnear=0 で前の描き方（カメラ 30m・本人 44m の内を描かない）に戻して見比べる
+export const MID_NEAR = !(typeof location !== 'undefined' && /[?&]midnear=0/.test(location.search));
+// 本物の兵の足もと（カメラに近い順に 32 人まで。humans_runtime.js が毎コマ入れる）。そこから 1.5m の内の軽い兵は描かない（同じ所に重ねない）
+export const REAL_PTS = { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) };
 // 敵の前備え（後詰め）が見える所へ移った時に、霞から一人ずつ現れる割合（0〜1。world_army.js foeHostView）。ほかの隊は 1 のまま
 const HOST_IN_ONE = { value: 1 };
 // 兵ごとに形を選ぶ隊の境（m）：x より近くは細かい形、x〜y は中ほどの形、y より先は遠い束の形
@@ -368,6 +372,8 @@ const ARMY_PUSH = `
    //   近くは wake（b_nagashinojo.js）が同じ場所の軽い兵を本物の兵に替えて埋める
    //   カメラの 60m 以内も、画質に関わらず隠す（人は min(カメラ, 本人) が 60m 以内なら必ず本物。10/10 三方ヶ原の低で箱の体）
    if (dd < uArmyNear || dd < uArmyRealR || length(nw.xz - uArmyRealP) < uArmyRealR) AP.show = 0.0;
+   // 本物の兵の立つ所（1.5m の内）には描かない。カメラの 40m 内の兵だけ見る
+   if (dd < 40.0) for (int i = 0; i < 16; i++) { vec4 rp = uRealPts[i]; vec2 ra = nw.xz - rp.xy, rb = nw.xz - rp.zw; if (min(dot(ra, ra), dot(rb, rb)) < 2.25) { AP.show = 0.0; break; } }
    // 遠景専用の後詰めは近景に出さない。網目の人影が実兵と重なるのを防ぐ。
    float aHN = aHost < 0.0 ? 36.0 : 48.0;
    if (aHost != 0.0 && dd < aHN) AP.show = 0.0;
@@ -459,12 +465,12 @@ function armyShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
     if (mat.map) flagMoonlight(sh);
     sh.uniforms.uAFlagWidth = { value: mat.map?.userData.mon === 'hachisuka' || mat.map?.userData.mon === 'yose_hachisuka' ? 0.65 : 1 };
-    Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
+    Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR, uRealPts: REAL_PTS });
     sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
       #ifdef USE_FOG
         gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz);
       #endif`);
-    sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR, uHostIn; uniform vec2 uArmyP, uArmyRealP;\n' + ARMY_GLSL + sh.vertexShader
+    sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR, uHostIn; uniform vec2 uArmyP, uArmyRealP; uniform vec4 uRealPts[16];\n' + ARMY_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose();${ARMY_PUSH}
  if (uUnavailable > 0.5 && max(abs((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).x), abs((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).z)) < uMoveLim + 40.0) AP.show = 0.0;
@@ -682,8 +688,8 @@ function clashShader(mat, U) {
   mat.onBeforeCompile = (sh) => {
     if (mat.map) flagMoonlight(sh);
     sh.uniforms.uAFlagWidth = { value: mat.map?.userData.mon === 'hachisuka' || mat.map?.userData.mon === 'yose_hachisuka' ? 0.65 : 1 };
-    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR });
-    sh.vertexShader = 'uniform vec2 uArmyRealP; uniform float uArmyRealR, uHostIn; uniform vec2 uArmyP;\n' + CLASH_GLSL + sh.vertexShader
+    Object.assign(sh.uniforms, U, { uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR, uRealPts: REAL_PTS });
+    sh.vertexShader = 'uniform vec2 uArmyRealP; uniform float uArmyRealR, uHostIn; uniform vec2 uArmyP; uniform vec4 uRealPts[16];\n' + CLASH_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
  APose AP = aPose(); cPose(AP);${ARMY_PUSH.replace(/uArmyNear/g, 'uNearHide')}
  objectNormal = normalize(aApply(AP, objectNormal, 1.0) + vec3(0.0, 1e-4, 0.0));`)

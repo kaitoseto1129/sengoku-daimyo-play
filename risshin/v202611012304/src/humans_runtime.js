@@ -3,6 +3,7 @@ import { MHHAND, handGeo } from './humans_hands.js';
 import * as THREE from 'three';
 import { GRIME, bodyMaterial, fpArmMat, CLOTH_W } from './humans_materials.js';
 import { WIND_STATE, WET, ARMY_P, ARMY_REAL_P, ARMY_REAL_R } from './world.js';
+import { REAL_PTS, MID_NEAR } from './world_army_shader.js';
 import { HUM, SRC, HEAD, isNamed, isSohei, humanLook, preparationFrame, qualityKeeper, skinOpponent, humanPool, humanBuilding, SKIN_MAX, HSTAT, fits, attachBody, humanPoolKey, pinHumanGeometries, ALLB, restMatrix, XB, humanInv, memTight, borrowHuman, shapesReady, realNear, kusaPlates, SKIN_OUT, HUM_Q, HUM_T, SKIN_IN, v0, MIDDLE_MAX } from './humans_shared.js';
 import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuman, humanSelection, humanCaches, farSpHid, farSp, farSpNow, evictHidden, humanTurn, _pv } from './humans_lifecycle.js';
 import { preStep, preparationUnits, DM_KEEP, shareHumanSkeleton, cacheHumanSkeleton, crowdGeometry, humanGeoMaps } from './humans_crowd_geometry.js';
@@ -206,10 +207,12 @@ function* buildHuman(u, look0) {
   // 名のある武将：胴丸の人形の兜と顔は描かず、その人の兜・顔・陣羽織・母衣・腰の刀を付ける
   if (h.domaru) {
     // 本人も、胴丸を着る時は武将と同じく陣羽織・前立・腰の刀・自分の顔を付ける（胴丸の人形の兜に、本人の兜の前立を載せる）
-    h.mode = 'full'; const nd = isNamed(L) || !!u.isPlayer || !!L.officer; h.helmScan = nd;
+    // 本人は 9/29 の「侍大将で出陣」と同じ着せ方：胴丸の人形の兜・面頬ごと着て、別の兜・顔・陣羽織は付けない（kaito 10/31）
+    const hero9 = !!u.isPlayer && !!L.hero9 && !L.kosode;
+    h.mode = 'full'; const nd = !hero9 && (isNamed(L) || !!u.isPlayer || !!L.officer); h.helmScan = nd;
     // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
     const kb = nd && KABUTO.on && KABUTO.ready;
-    const ashigaru = (L.tier ?? 0) < 1 && !isNamed(L);
+    const ashigaru = !hero9 && (L.tier ?? 0) < 1 && !isNamed(L);
     // 着せる手順ごとに次のコマへ分ける（一つにまとめると 4倍遅くで一コマ 30〜130ms 止まっていた。10/28）
     tm('domaru', () => dressDomaru(h, ashigaru ? true : nd ? (kb ? true : 'helm') : false));
     pause = performance.now(); yield; waited += performance.now() - pause;
@@ -660,6 +663,24 @@ let farSpScene = null;function farSpears(rt) {
   for (const w of farSpHid) if (!farSpNow.has(w)) { w.layers.enable(0); farSpHid.delete(w); }
   for (const e of farSp.values()) { e.im.count = e.n; e.im.instanceMatrix.needsUpdate = true; e.im.visible = e.n > 0; }
 }
+// 本物の兵の足もとを、カメラに近い順に 32 人まで REAL_PTS へ（40m の内だけ）。軽い兵はその 1.5m の内に描かない（world_army_shader.js）
+const _rpD = new Float32Array(32), _rpX = new Float32Array(32), _rpZ = new Float32Array(32);
+function realPoints(units, cx, cz) {
+  let n = 0;
+  for (const u of units) {
+    if (u.gone || u.isStruct || !u.alive || !u.pos) continue;
+    const dx = u.pos.x - cx, dz = u.pos.z - cz, d = dx * dx + dz * dz;
+    if (d > 1764 || (n === 32 && d >= _rpD[31])) continue;
+    let i = n < 32 ? n++ : 31;
+    while (i > 0 && _rpD[i - 1] > d) { _rpD[i] = _rpD[i - 1]; _rpX[i] = _rpX[i - 1]; _rpZ[i] = _rpZ[i - 1]; i--; }
+    _rpD[i] = d; _rpX[i] = u.pos.x; _rpZ[i] = u.pos.z;
+  }
+  const V = REAL_PTS.value;
+  for (let k = 0; k < 16; k++) {
+    const a = 2 * k, b = a + 1;
+    V[k].set(a < n ? _rpX[a] : 1e5, a < n ? _rpZ[a] : 1e5, b < n ? _rpX[b] : 1e5, b < n ? _rpZ[b] : 1e5);
+  }
+}
 function updateHumans(rt, dt) {
   liveFrame = dt > 0;
   madeThisFrame = 0; madeFaces = 0; frameT0 = performance.now(); frameNo++; if (makeCool > 0) makeCool--;
@@ -675,6 +696,7 @@ function updateHumans(rt, dt) {
   for (const u of rt.army.units) if (u.humanPending && u.mesh) { u.mesh.visible = !u.gone && !u.camHidden && !u.imp; u.humanPending = false; }
   // 軽い兵を押し出す輪の中心（カメラの場所）
   if (rt.camera) ARMY_P.value.set(rt.camera.position.x, rt.camera.position.z);
+  if (MID_NEAR && rt.camera) realPoints(rt.army.units, rt.camera.position.x, rt.camera.position.z);
   // 布をはためかせる風（突風の強さで、止んだ時も少しは揺れる）
   GRIME.value = Math.min(1, Math.max(0, (rt.t || 0) / 360));
   nearSurfaceBlood(rt.army.hideBlood);

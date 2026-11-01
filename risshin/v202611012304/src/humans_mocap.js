@@ -95,8 +95,10 @@ const OUT = { ki: 0, ka: 0, kw: 0 };
 export function mocapStep(h, u, w, dt, wIdle, wWalk, wRun, sp, engaged, fallen) {
   OUT.ki = 0; OUT.ka = 0; OUT.kw = 0;
   // h.noMocap：比べ用に一人だけ外す。?mocap=0・__apx.nomocap（同じ遊びの中で入り切りして重さを比べる）でも外す
-  if (!MOCAP.ready || (h.noMocap || window.__apx?.nomocap) && !h.mc) return OUT;
-  const off = h.noMocap || window.__apx?.nomocap || fallen || h.far || u.mounted || u.climb || u.downed || u.perch || u.naka || reduceMotion() || (u.isPlayer && (u.fpk || 0) > 0.5);
+  // 本人（look.hero9）は 9/29 の侍大将の動きのまま、録った動きを混ぜない（kaito 10/31「動きがめっちゃスムーズだった」）
+  const noMc = h.noMocap || window.__apx?.nomocap || (u.isPlayer && !!u.look?.hero9);
+  if (!MOCAP.ready || noMc && !h.mc) return OUT;
+  const off = noMc || fallen || h.far || u.mounted || u.climb || u.downed || u.perch || u.naka || reduceMotion() || (u.isPlayer && (u.fpk || 0) > 0.5);
   const M = h.mc || (h.mc = { act: {}, ki: 0, ka: 0, kw: 0, one: null, idle: h.seed < 0.5 ? 'wait' : 'shift' });
   if (off && !M.ki && !M.ka && !M.kw) return OUT;
   const s = Math.min(1, dt * 6);

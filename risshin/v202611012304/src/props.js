@@ -14,8 +14,8 @@ import { addDeck, addLadder, FL } from './floors.js';
 import { addInterior, facePanels, windowLatticeMembers } from './naka.js';
 import { sumiInside, gateInside, lookoutInside, interiorBase } from './yagura_inside.js';
 import { S as SETTINGS, MEM_TIGHT } from './settings.js';
-import { extScatter, extGateRoof, extMinka, extTempleRoof } from './props_ext.js';
-import { cgtOn, cgtHas, whenCgt, KitBatch, kitStoneSeg, cgtScene, cgtSpend, cgtSpendNear, kitAttach } from './cgt.js';
+import { extScatter, extGateRoof, extMinka, extMinkaMany, extTempleRoof } from './props_ext.js';
+import { cgtOn, cgtHas, whenCgt, KitBatch, kitStoneSeg, cgtScene, cgtSpend, cgtSpendNear, kitAttach, cgtDist } from './cgt.js';
 import { kitReplace, castleStyle, kitNijuYagura, kitNagaYagura, kitDobeiSeg, kitStoneRect as kitStoneRect2, kitGateObj4 } from './cgt_castle.js';   // 城の建物を買った部品で（見た目だけ。当たり・火・壊れるは手作りの形のまま）
 import { tabaGeo, tabaMat } from './taketaba.js';
 
@@ -454,6 +454,14 @@ export function pushSimpleBatch(batch, geo, mat, part) {
   return part;
 }
 export function finalizeSimpleBatch(rt, batch) {
+  if (batch.minka) {
+    // 束の茅葺きの家を、持ち場に近い順に素材の民家へ（一つの形に焼くので、束ごと一つにまとめる戦では替えない）
+    const list = batch.minka; batch.minka = null;
+    if (!rt.world?.def?.distantMaterialBatch && !batch.mergeFence) {
+      list.sort((a, b) => cgtDist(a.x, a.z) - cgtDist(b.x, b.z));
+      extMinkaMany(rt.scene, [], list);
+    }
+  }
   for (const [mat, list] of batch.byMat) {
     if (!list.length) continue;
     // 戦の指定がある時は拡張のある機種も区画で結合し、遠景の細部を省く。
@@ -1622,6 +1630,9 @@ function earthWallGeo(w, h) {
   }
   return geo.clone();
 }
+// 素材の民家に替えてよい家：入れない・板葺きでない・平屋で、身舎が民家の形を大きく崩さない大きさ（幅が奥行きより狭い家は替えない）
+const minkaFit = (o, ita, w, d) => !o.interior && !ita && o.minka !== false && (o.h === undefined || o.h <= 3.2)
+  && w >= 4.5 && w <= 13 && d >= 3.2 && d <= 8 && w >= d * 0.9;
 export function hut(world, x, z, w, d, rot = 0, o = {}) {
   // 姉川の外戸は壁から三十六センチ外に二筋の溝を持つ。
   // 外側の戸と敷居（壁から五十三センチ）を平らな踏み板で受け、段はその先へ置く。
@@ -2588,15 +2599,17 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     // 町屋・小屋が何十も並ぶ所（本能寺の京の町並み等）は、材質ごとの BatchedMesh にまとめて
     // 描く回数を減らす（makeSimpleBatch／finalizeSimpleBatch。壁柱材質は MAT、屋根は別材質）
     const bake = (g) => { if (rot) g.rotateY(rot); g.translate(x, y, z); return g; };
-    merged(parts.map(bake), o.groundedHome ? EARTH_V() : MAT(), o.batch);
+    const part = merged(parts.map(bake), o.groundedHome ? EARTH_V() : MAT(), o.batch);
+    // 茅葺きの普通の家は、束の終わり（finalizeSimpleBatch）で素材の民家にまとめて替える（props_ext.js の extMinkaMany）
+    if (minkaFit(o, ita, w, d)) (o.batch.minka ||= []).push({ x, y, z, ry: rot, w, d, h: H, seed: sd0, part });
     if (!ita && true) {
       // 金ヶ崎の在所など、まとめた民家にも厚い茅束の軒先を残す。
       // 材質と描画の束は増やさず、同寸の原形から設営時にだけ複製する。
       const detailed = thatchRoofGeo(L, slope, th, th0, rh).clone();
       detailed.translate(0, H, 0);
-      pushSimpleBatch(o.batch, bake(detailed), roofMat);
+      pushSimpleBatch(o.batch, bake(detailed), roofMat, part);
       roofGeo.dispose();
-    } else pushSimpleBatch(o.batch, bake(roofGeo), roofMat);
+    } else pushSimpleBatch(o.batch, bake(roofGeo), roofMat, part);
     return null;
   }
   let m = merged(parts);
@@ -2638,7 +2651,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   grp.rotation.y = rot;
   if (inside) grp.userData.naka = inside;
   // 茅葺きの普通の家（色や高さを指定した陣屋・倉でない物）は、素材の民家に替える（props_ext.js の extMinka。画質「低」・読めない時は手作りのまま）
-  if (!o.interior && !ita && o.minka !== false && o.wall === undefined && (o.h === undefined || o.h <= 3) && w >= 5.5 && w <= 11 && d >= 3.8 && d <= 7.5) extMinka(grp, [m, roof], w, d, H, sd0);
+  if (minkaFit(o, ita, w, d)) extMinka(grp, [m, roof], w, d, H, sd0);
   // 呼び出し側が mesh として扱っても困らないよう、材質の参照を持たせる
   grp.castShadow = true;
   return grp;
@@ -4195,7 +4208,7 @@ export function village(world, x, z, o = {}) {
     if (spots.some((q) => Math.hypot(q[0] - lx, q[1] - lz) < 11)) continue;
     spots.push([lx, lz]);
   }
-  const roofMats = [], homes = [];
+  const roofMats = [], homes = [], homeWalls = [], minkaList = [];
   spots.forEach(([lx, lz], i) => {
     const [hx, hz] = W(lx, lz);
     let y = world.heightAt(hx, hz);
@@ -4236,6 +4249,7 @@ export function village(world, x, z, o = {}) {
         { minka: false, interior: o.interiorHomes });
       homes.push(home);
     } else {
+    const w0 = walls.length;
     if (o.interior) {
       // 入れる村だけ箱の壁を四面へ分け、戸口を中の床・出入り口と揃える。
       const entryX = -hw * .3;
@@ -4337,6 +4351,8 @@ export function village(world, x, z, o = {}) {
     const mune = VILLAGE_RIDGE().clone().scale(rl * 2 + .6, 1, 1);
     mune.translate(0, H + rh - .06, 0); walls.push(paint(place(mune), vary(0x615440, i + 2)));
     roofMats.push({ hx, hz, top: y + H + rh, ry, rl });
+    // 入れない村の家は、壁と棟を別の形に分けておき、素材の民家が読めたら屋根ごと替える（extMinkaMany）
+    if (!o.interior) { homeWalls.push(...walls.splice(w0)); minkaList.push({ x: hx, y, z: hz, ry, w: hw * 2, d: hd * 2, h: 2.6, seed: hx * 0.37 + hz * 0.71 + i }); }
     }
     // 家の脇に柿の木
     if (R() < 0.75) {
@@ -4414,9 +4430,10 @@ export function village(world, x, z, o = {}) {
   }
   const grp = new THREE.Group();
   for (const home of homes) grp.add(home);
-  if (walls.length) {
+  // 壁の LOD：家の壁（木組みつき）と、井戸・干し物・荷車を分ける。家の側だけ素材の民家と入れ替える
+  const wallLod = (list, frames) => {
     const mat = o.groundedHomes ? VILLAGE_WALL() : VILLAGE_WALL_LITE();
-    const near = merged([...walls, ...houseFrames], mat), far = merged(walls, mat);
+    const near = merged([...list, ...frames], mat), far = merged(list, mat);
     const coarse = kitCoarse(far.geometry, .8);
     if (coarse) { far.geometry.dispose(); far.geometry = coarse; }
     for (const m of [near, far]) { m.castShadow = false; if (o.cameraWalls) m.userData.camBlock = true; }
@@ -4424,13 +4441,19 @@ export function village(world, x, z, o = {}) {
     for (const m of [near, far]) m.geometry.translate(-x, -originY, -z);
     const lod = new THREE.LOD(); lod.position.set(x, originY, z);
     lod.addLevel(near, 0); lod.addLevel(far, Math.max(42, rad * 2)); grp.add(lod);
-    for (const g of [...walls, ...houseFrames]) g.dispose();
-  }
+    for (const g of [...list, ...frames]) g.dispose();
+    return lod;
+  };
+  const olds = [];
+  if (homeWalls.length) olds.push(wallLod(homeWalls, houseFrames));
+  if (walls.length) wallLod(walls, homeWalls.length ? [] : houseFrames);
   if (roofs.length) {
     const rm = new THREE.Mesh(mergeGeometries(roofs), VILLAGE_THATCH());
     rm.receiveShadow = true; rm.userData.camBlock = true; grp.add(rm);
     for (const g of roofs) g.dispose();
+    if (minkaList.length) olds.push(rm);
   }
+  if (minkaList.length) extMinkaMany(grp, olds, minkaList, Infinity);
   if (trees.length) grp.add(new THREE.Mesh(mergeGeometries(trees), new THREE.MeshLambertMaterial({ vertexColors: true })));
   // 田と畦：家並みの前に、段になった小さな田が並ぶ。水を張った田に空が映る
   const nf = o.fields ?? 12, cols = Math.max(2, Math.round(Math.sqrt(nf * 1.6))), fw = 14, fd = 9;

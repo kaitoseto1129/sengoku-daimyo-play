@@ -1706,7 +1706,7 @@ function burnTownHouse(rt, h) {
   burnHouse(rt, h);
   // 軒と屋根の斜面に別々の火口を置く。共通の濃淡のある炎・黒煙・光の枠を使う。
   const W = rt.world, rot = h.m.rotation.y;
-  for (const f of h.fires) W.removeFire(f);
+  for (const f of h.fires || []) W.removeFire(f);
   h.fires = [-1, 1].map((side) => {
     const dx = side * (1.6 + h.i % 3 * 0.2), dz = side * 0.6;
     const x = h.x + dx * Math.cos(rot) + dz * Math.sin(rot), z = h.z - dx * Math.sin(rot) + dz * Math.cos(rot);
@@ -2591,7 +2591,8 @@ function inabaChertRed(x, z) {
 // 伐採範囲の細部は未詳。城の斜面を疎らにし、残る林は戦場外縁へ寄せる仮の分布。
 function inabaTreeDensity(x, z) {
   // 11/1：持ち場の前の空き地（押し合いの場）には町の疎林を置かない（近くの松の葉房が板の切り絵のように画面を塞いでいた）。
-  if (z > 28) return Math.hypot(x - 58, (z - 74) * 0.8) < 26 ? 0 : 0.10;
+  // 11/1 夕（木の切り絵）：持ち場から南と南東を向く画面の手前（町の東の通り）にも、板に見える近い木を置かない。町の疎林は薄く。
+  if (z > 28) return Math.hypot(x - 58, (z - 74) * 0.8) < 26 || Math.hypot(x - 72, (z - 92) * 0.8) < 22 ? 0 : x > 88 || z > 128 ? 0.08 : 0.03;
   // 根元の周囲が急な切岸なら置かない。伐採後の疎林にも同じ足場の条件を使う。
   const y = height(x, z);
   const slope = Math.max(Math.abs(height(x + 1, z) - y), Math.abs(height(x - 1, z) - y),
@@ -2678,6 +2679,16 @@ function buildInabaMountain(rt) {
       float ibN = sin(vWP.x * 0.21 + vWP.z * 0.13) * sin(vWP.z * 0.17 - vWP.x * 0.07 + vWP.y * 0.09);
       float ibLayer = smoothstep(0.6, 0.95, abs(sin(vWP.y * 0.8 + vWP.x * 0.11 + ibN * 1.6)));
       ibStone *= mix(0.62, 1.04, macro) * (1.0 - ibLayer * 0.34) * (0.88 + ibN * 0.14);
+      // 11/1 夕（稲葉山72：遠い山肌・崖の模様が粗い）：岩に割れ目の網（斑の等高線を細い暗い筋に）と、石一つ分の細かい粒を足す。
+      //   崖の面の向きに沿って読む（縦の崖で筋が伸びない）。筋の幅は画素に合わせ、遠くで潰れる所は薄めて灰に濁らせない。
+      vec2 ibTan = normalize(vec2(-gN.z, gN.x) + vec2(1e-4, 0.0));
+      vec2 ibCu = mix(vec2(dot(vWP.xz, ibTan), vWP.y), vWP.xz, smoothstep(0.35, 0.8, abs(gN.y)));
+      float ibC1 = texture2D(tMacro, ibCu * 0.29 + 0.11).r, ibC2 = texture2D(tMacro, mat2(0.6, -0.8, 0.8, 0.6) * ibCu * 0.63 + 0.37).r;
+      float ibW1 = fwidth(ibC1) + 0.003, ibW2 = fwidth(ibC2) + 0.003;
+      float ibCrack = max((1.0 - smoothstep(ibW1 * 0.7, ibW1 * 2.0, abs(ibC1 - 0.5))) * clamp(0.04 / ibW1, 0.0, 1.0),
+        (1.0 - smoothstep(ibW2 * 0.7, ibW2 * 2.0, abs(ibC2 - 0.5))) * clamp(0.04 / ibW2, 0.0, 1.0) * 0.65);
+      float ibGrain = texture2D(tMacro, ibCu * 1.7 + 0.83).r;
+      ibStone *= (1.0 - ibCrack * 0.6) * (0.84 + ibGrain * 0.32);
       // 尾根が灰の一枚岩に見えた（10/29 点付け：手本は暗い常緑の林に茶・橙の紅葉が斑に混ざり、岩は所々だけ）。
       // 岩棚の林を広げ、三メートルほどの樹冠ごとに常緑・茶・橙を散らす。急な崖の芯だけ岩肌を残す。
       // 縦に近い崖も林の斑で覆う（10/30 点付け：山が灰の一枚岩）。岩は斑の切れ目と崖の芯の三割ほどにだけ残す。
@@ -2690,15 +2701,18 @@ function buildInabaMountain(rt) {
       float ibHash = clamp((mix(ibSide, ibTop, smoothstep(0.35, 0.8, abs(gN.y))) - 1.0) * 2.6 + 0.5, 0.0, 1.0);
       // 11/1 点付け（遠い山肌の模様が粗い）：開城は八月で、橙の大きな斑が秋の絵の具の塗り分けに見えた。
       //   夏の赤松と雑木の濃い緑を主にし、樹冠一つ分の細かい明暗（陰の谷間）で林の肌理を作る。茶は松の幹と枯れ枝の筋だけ薄く。
-      float ibFine = texture2D(tMacro, vWP.xz * 0.47 + vec2(vWP.y * 0.31, ibN * 0.2)).r;
+      float ibFine = texture2D(tMacro, ibCu * 0.47 + vec2(0.0, ibN * 0.2)).r;   // 面の向きに沿って読む（縦の崖で縦の筋に伸びない。11/1 夕）
       float ibCrown = smoothstep(0.25, 0.75, ibFine * 0.6 + ibHash * 0.4);
       vec3 ibEver = grass * mix(vec3(0.2, 0.28, 0.17), vec3(0.4, 0.5, 0.31), ibCrown) * (0.86 + ibHash * 0.22);
       vec3 ibLeaf = mix(ibEver, dirt * vec3(0.62, 0.5, 0.36), smoothstep(0.72, 0.86, ibHash) * 0.55);
       ibLeaf = mix(ibLeaf, grass * vec3(0.48, 0.52, 0.3), smoothstep(0.9, 0.97, ibHash) * 0.5);
+      ibLeaf *= 0.84 + ibGrain * 0.3;   // 葉叢一つ分の細かい明暗（11/1 夕）
       ibStone = mix(ibStone, ibLeaf, ibScrub * 0.92);
       col = mix(col, ibStone, ibRock);
       // 露岩の帯の外の急な山肌（共通の灰の崖肌）にも同じ林の斑を掛け、岩は斑の切れ目にだけ残す。曲輪の平場と緩い坂は変えない。
       col = mix(col, ibLeaf, ibScrub * smoothstep(0.22, 0.42, ibSlope) * (1.0 - castleCover) * (1.0 - ibRock) * 0.9);
+      // 林の斑の切れ目に出る共通の崖肌にも同じ割れ目を入れる（林の上には描かない）。
+      col *= 1.0 - ibCrack * 0.45 * smoothstep(0.3, 0.6, ibSlope) * (1.0 - castleCover) * (1.0 - ibScrub * 0.85);
       float ibTrail = texture2D(inabaTrail, (vWP.xz + ${W.half.toFixed(1)}) / ${(W.half * 2).toFixed(1)}).r;
       // 上から描いた道の帯を縦の切岸へ引き延ばさない。歩ける坂の土色は残す。
       ibTrail *= smoothstep(0.55, 0.72, abs(gN.y)) * (1.0 - castleCover * 0.7);
@@ -4838,6 +4852,21 @@ const inabayama = {
     F.town2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 34, z: 46 }, facing: 0, order: 'hold', aggro: 10, width: 7, morale: 85, fleeDir: { x: 0, z: -1 } },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }]);
     F.townGuards = [F.town, F.town2, ...F.houseGuards];
+    // 11/1 夕（稲葉山72：乱戦が薄い）：持ち場の前二十〜三十歩は軽い兵が隠れる間合いで、本物の兵はまばらだった。
+    //   火の印の家（44,78）の右手の通り（画面の真ん中から右）に、織田の手と町の番が槍を交えて押し合う群れを二つ置く。
+    //   前線は画面の奥行きに沿わせ、両軍を横顔で見せる。崩れず・持ち場を離れず・傷は浅い。家への道と戸口は空ける。
+    //   夜の暗転で片付ける。奥の軽い乱戦を一つ減らして重さを釣り合わせる。
+    F.townPairs = [];
+    {
+      const yaw = 1.26, fx = Math.sin(yaw), fz = Math.cos(yaw), face = Math.atan2(-fx, -fz);
+      const mel = (g) => { g.noRout = true; g.noAI = true; g.fire = false; g.morale = 100; g.dmgMult = 0.2; F.townPairs.push(g); return g; };
+      [[53.5, 80.3], [59.0, 71.0]].forEach(([mx, mz], k) => {
+        mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '町へ入った織田の手', anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 5, formation: 'yari', aggro: 9, morale: 100 },
+          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], ODA)));
+        mel(enemyGroup(rt, { fixed: true, faction: 'saito', name: '通りを守る斎藤の兵', anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 5, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
+          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], { flag: 'saito' })));
+      });
+    }
     // 味方が並ぶ持ち場だけを戸口の両脇へ寄せる。戦う相手・追撃・兵数は変えない。
     for (const g of F.oda) {
       const slotPos = g.slotPos;
@@ -5142,7 +5171,7 @@ const inabayama = {
     // 軽い兵は奥の押し合いを受け持つ。任務の敵と味方の数・当たりは保つ。
     // 11/1 点付け（敵の大軍・乱戦が薄い）：近い二十四歩を隠していたため、開戦25秒の持ち場（48,85）から二十〜四十歩の押し合いが消えていた。
     //   隠すのはカメラのすぐ前の九歩だけにし、持ち場の前（南東の空き地）にも一つ足す（軽い兵だけ。本物の兵・任務の数は変えない）。
-    F.townClash = [[14, 82, 10], [34, 66, 12], [-10, 57, 10], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
+    F.townClash = [[14, 82, 10], [34, 66, 12], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
       x, z, w, facing: Math.PI, seed: 156780 + i, gap: 2.8,
       noWake: true, noRout: true, host: false, nearHide: 9, realNear: 14,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
@@ -5244,6 +5273,8 @@ const inabayama = {
       g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = gg.dest; };
     }
     const h = F.torchHouse, c = g.center();
+    // 暗転で焼け跡にした家（charHouse）へ着いても、もう一度火を付けない（11/1 bot：h.fires が null で落ちた）。
+    if (h.burnt) { F.torchHouse = null; F.torchHold = 0; return; }
     if (Math.hypot(c.x - h.approach.x, c.z - h.approach.z) > 3) { F.torchHold = 0; return; }
     F.torchHold = (F.torchHold || 0) + 0.5;
     if (F.torchHold < 1.5) return;
@@ -5334,6 +5365,7 @@ const inabayama = {
         if (crowd.shade) crowd.shade.visible = false;
       }
       // 日をまたぐ暗転の中で町の乱戦を片付け、麓の戦と二重に数えない。
+      if (F.townPairs) { for (const g of F.townPairs) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u); F.townPairs = null; }
       if (F.townClash) {
         const meshes = new Set();
         for (const C of F.townClash) {

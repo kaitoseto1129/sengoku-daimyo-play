@@ -3,4 +3,5 @@
 export const TOYOTOMI_LINE = [
   // { id: 't01_yamazaki', name: '山崎の戦い', year: 1582, file: './b_t01_yamazaki.js' },
   { id: 't03_komaki', name: '小牧・長久手の戦い', year: 1584, file: './b_t03_komaki.js' },
+  { id: 't11_hachioji', name: '八王子城の戦い', year: 1590, file: './b_t11_hachioji.js' },
 ];

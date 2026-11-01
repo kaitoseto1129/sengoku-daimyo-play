@@ -2365,13 +2365,15 @@ const tottori = {
     // 開戦25秒の画面（持ち場から舟の番へ寄った所。カメラは北北西を向く）の真ん中、本人の前8〜18mの岸の上（舟の番の右手）で、
     //   羽柴の押さえと打って出た城兵が始めから押し合う（10/30 実機の門：開戦25秒でまばら）。舟の番への道（左手前）は空ける。
     {
-      const yaw = -2.73;
+      // 11/1 夕：押し合う向きを画面の奥行きに沿わせる（羽柴は切岸の側から川へ、毛利の番は舟の側から岸へ）。
+      //   川上を向く画面では、両軍の前線が横顔で見え、槍が交わる線が真ん中に入る（前は味方の背に敵が隠れ、一つの列に見えた）。
+      const yaw = -1.15;
       const pts = [[-45.0, -12.5], [-44.0, -21.5]];
       pts.forEach(([x, z], k) => pairAt(x, z, yaw, 'α', k));
       // 押し合いの右の脇に篝火（夜の岸で群れを照らす）
       const kp = [[-39.6, -15.0], [-38.8, -24.0]];
       rt.scene.add(kagaribiBatch(W, kp));
-      for (const [x, z] of kp) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 22, lightColor: 0xff8a3a, lightStrength: 2.2, lightDecay: 0 });
+      for (const [x, z] of kp) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 24, lightColor: 0xff9a48, lightStrength: 3.0, lightDecay: 0 });
     }
     // 百十秒の押し合いは始めから南の岸（舟の番の脇を抜けて川上の船べりへ回る道の先）に置く（10/30：開戦25秒に南を向いても乱戦が入る。兵の数は同じ）
     [[-36.0, -47.0], [-44.0, -53.0]].forEach(([x, z], k) => pairAt(x, z, Math.PI, 'β', k));
@@ -2402,7 +2404,10 @@ const tottori = {
     for (const u of F.env.units) { u.noTarget = true; u.invuln = true; u.dmg = 0; }
     // 月を少し高く置き、槍の影が岸を端から端まで走る黒い線にならないようにする。月明かりは岸の兵と石垣の形が読める明るさ（10/30 採点：暗すぎる）。
     // 月と反対を向いた胴・船べりにも空の光を残す。月の影と夜空は保つ。
-    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 1.3, hI: 1.6, sun: 0xb8b8bc, hs: 0x948f9c }); rt.world.lookDark = true;
+    // 11/1 夕（鳥取70：暗くて見えない）：青い霞が岸一面を灰色に塗り、群れの形が溶けていた。夜空と霞を青みの無い炭色へ、
+    //   空の光と地の返りを篝火の色寄り（暖かい灰・焦げ茶）へ。月の向きと強さは保ち、光源の数は増やさない。
+    applyLook(rt, { ...NIGHT, time: 'night', dir: [0.8, 0.48, -0.4], sunI: 1.3, hI: 1.75, sun: 0xc4beb4, hs: 0xa0948a, hg: 0x3a2c22,
+      sky: 0x1c1d22, fog: 0x221f1d, top: 0x0d0f14, mount: 0x111214 }); rt.world.lookDark = true;
     // 出陣札の間は世界の更新が止まる。遠景の霞もここで夜色にそろえる。
     W.mountU.hazeCol.value.copy(W.scene.fog.color);
     W.mountU.vis.value = W.lookOf('night').vis;

@@ -441,14 +441,16 @@ const STEP_UMA = [null, null, null, null, null, null, 'fan', 'fan', 'gourd', 'su
 // 装備と段から見た目を決める（戦場・武具屋・出世の道のプレビューで共通）
 export function playerLook(G, stepOverride) {
   const step = stepOverride ?? ladderStep(G);
+  // 本人の甲冑は、どの段でも9月末の「侍大将で出陣」の朱威の胴丸（kaito 10/31）。段が上がれば金縁などを足すだけ
+  const hs = Math.max(3, step);
   const bl = BODY_LOOK[ITEMS[G.equip.body].look];
   const wItem = ITEMS[G.equip.weapon];
   const eqHat = ITEMS[G.equip.hat].look;
-  const hat = HAT_ORDER.indexOf(STEP_HAT[step]) > HAT_ORDER.indexOf(eqHat) ? STEP_HAT[step] : eqHat;
-  const ar = STEP_ARMOR[step] || {};
+  const hat = HAT_ORDER.indexOf(STEP_HAT[hs]) > HAT_ORDER.indexOf(eqHat) ? STEP_HAT[hs] : eqHat;
+  const ar = { ...STEP_ARMOR[3], trim: (STEP_ARMOR[step] || {}).trim || 0 };
   const uma = STEP_UMA[step];
   return {
-    armor: ar.armor ?? bl.armor, lace: ar.lace ?? bl.lace, trim: ar.trim || 0, sode: bl.sode || step >= 2, hat,
+    armor: ar.armor ?? bl.armor, lace: ar.lace ?? bl.lace, trim: ar.trim || 0, sode: true, hat,
     // 本人だけは身分によらず、少し高い無地の金旗を背負う。
     flag: 'player_gold', pole: true, flagScale: 1.25, flagShape: 0,
     // 本の足軽の陣笠：弁柄の漆（黄色い菅笠に見せない。本人の見分けは背の金の旗）
@@ -457,15 +459,14 @@ export function playerLook(G, stepOverride) {
     uma,
     weapon: 'spear', weaponExtra: wItem.reach || 0,
     haori: STEP_HAORI[step] || (G.equip.coat ? 0x8e2f1f : 0),
-    saya: G.owned.includes('katana') || step >= 1, menpo: step >= 8 ? 0x7a1c14 : step >= 3 || G.equip.hat === 'hat3' ? 0x1c1a18 : 0,
+    saya: G.owned.includes('katana') || step >= 1, menpo: step >= 8 ? 0x7a1c14 : 0x1c1a18,
     horo: step === 4 ? 0xb8412c : step === 5 ? 0xe6dfcf : 0,
     left: step >= 3 ? 'gunbai' : step === 2 ? 'saihai' : null,
     // 身分の格（足軽・組頭・侍大将・武将）。本人の顔、胴と陣笠の家紋、汚れ（出世するほど身綺麗に）
-    tier: step >= 4 ? 3 : step >= 2 ? 2 : step, face: 'player', mon: scenario().mon, dirt: [0.7, 0.55, 0.4, 0.3, 0.25][Math.min(4, step)],
-    menpoStyle: step >= 3 ? 'hanbo' : 'full',
-    // 兜と具足（胴丸・桶側胴）を着る者は、本物の胴丸（humans.js の3Dスキャン）を着る。色は着た具足の威糸・漆
-    // （前は侍大将の段だけで、本編で城下の具足を着た足軽大将は、箱の胴の形のままだった）
-    real: step >= 3 || (hat.startsWith('kabuto') && (step >= 2 || ITEMS[G.equip.body].look >= 1)) ? 1 : 0,
+    tier: hs >= 4 ? 3 : 2, face: 'player', mon: scenario().mon, dirt: [0.7, 0.55, 0.4, 0.3, 0.25][Math.min(4, step)],
+    menpoStyle: 'hanbo',
+    // 本人はどの段でも本物の胴丸（3Dスキャン）を、9/29 の侍大将と同じ着せ方（人形の兜ごと）で着る（humans_runtime.js）
+    real: 1, hero9: 1,
   };
 }
 
@@ -559,8 +560,9 @@ export class Player {
     const army = rt.army;
     this.group = army.addGroup({ team: 0, faction: scenario().faction, noRout: true, order: 'hold', name: 'player' });
     const look = playerLook(G);
-    // 桶狭間・森部では本人の袖と威糸を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
-    if (rt.def.missionStyle === 'raid' || rt.def.missionStyle === 'ford') { look.cloth = 0xc8b99c; look.lace = 0xc8b99c; }
+    // 桶狭間・森部では本人の袖を生成りにする。足元の輪や札を足さず、具足の形は使い回す。
+    // 威糸は朱のまま（9月末の侍大将の甲冑。kaito 10/31）
+    if (rt.def.missionStyle === 'raid' || rt.def.missionStyle === 'ford') look.cloth = 0xc8b99c;
     this.sightHat = look.hat;
     this.u = army.addUnit(this.group, { type: 'player', x: spawn.x, z: spawn.z, heading: spawn.heading || 0, ...look });
     this.u.isPlayer = true;

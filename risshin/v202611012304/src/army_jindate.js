@@ -35,6 +35,12 @@ export const PLAN = {
   tano: { A: ODA, B: side('takeda', 'takeda', ARMOR.takeda), ahead: 60, lat: 18, men: 0.25, wings: false },
   // 岩村（1575）：水晶山の夜討ち。秋山の武田勢が城の前に備える
   iwamura: { A: ODA, B: side('takeda', 'takeda', ARMOR.takeda), ahead: 55, lat: 46, men: 0.6, wings: false },
+  // 野田・福島（1570）：淀川の向こう、二つの砦の後ろに三好の備が続く。砦の前の戦は台本のまま
+  nodafukushima: { A: ODA, B: side('miyoshi', 'miyoshi', 0x35382c), ahead: 62, lat: 54, men: 0.6, wings: false },
+  // 志賀（1570）：坂本の町口から北の比叡の裾へ、朝倉・浅井の縦の備が続く
+  shiga: { A: ODA, B: side('asakura', 'asakura', 0x302a25, '長蛇'), dir: Math.PI + 0.14, ahead: 82, lat: 50, men: 0.6, wings: false },
+  // 手取川（1577）：川の北の上杉の先手の後ろに二陣・本陣（謙信）が並ぶ
+  tedorigawa: { A: ODA, B: side('uesugi', 'uesugi', 0x2a2a2a), ahead: 62, lat: 56, men: 0.6, wings: false },
 };
 
 // 一つの側の備（左翼・中央・右翼 × 先陣・二陣、本陣・旗本・後詰）。中央の先陣は本物の兵の戦なので描かない。

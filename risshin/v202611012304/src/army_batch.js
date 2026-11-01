@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { FLAT, flatFogFar } from './flat_rule.js';
 import { MEM_TIGHT } from './settings.js';
+import { MID_NEAR } from './world_army_shader.js';
 
 // 霧の手前の軽い大軍は、立体の人（脚・胴・頭・笠・槍・背の旗を一つにまとめた形。world_army_geometry.js）だけで描く（10/29）。
 //   平たい板ではないので __flatNear には数えない。足踏み・槍の上下・前へ出る動きは頂点の中（world_army_shader.js）で揺らす。
-//   本物の兵と重ねないよう、カメラから SOLID_NEAR（30m）の内は描かない。携帯（MEM_TIGHT）は描く数を半分に（武者・旗持ち・騎馬は残す）。
+//   本物の兵と重ねないよう、カメラから SOLID_NEAR（12m。11/1 までは 30m）の内は描かない。携帯（MEM_TIGHT）は描く数を半分に（武者・旗持ち・騎馬は残す）。
 const SOLID_NEAR = { value: 0 };
 const SOLID_THIN = MEM_TIGHT;
 
@@ -376,7 +377,8 @@ export class ArmyBatch {
     for (const clash of clashes || []) clash.mesh.traverse(this.visit);
     if (camera?.isPerspectiveCamera && this.scene.fog) flatFogFar(this.scene.fog.far);
     // 霧の手前の軽い大軍は立体の人で描く（flat_rule.js の平たい兵には数えない）。30m の内は描かない
-    SOLID_NEAR.value = FLAT.on ? 30 : 0;
+    //   11/1：カメラから 12m に詰めた（中景の乱戦が画面に写るように）。本物の兵の立つ所は形の側で避ける（uRealPts）。?midnear=0 で前の 30m
+    SOLID_NEAR.value = FLAT.on ? (MID_NEAR ? 12 : 30) : 0;
     this.projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.projection);
     for (const source of this.sources) {

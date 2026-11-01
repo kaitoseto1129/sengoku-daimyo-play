@@ -4,7 +4,7 @@ import { armyGeometryCopy, armyLayout, soldierGeo, clothGeo, soldierTint, horseG
 import { flagTexture, yoseFlagTexture, yoseFlagKinds, enemyFlagKind } from './textures.js';
 import { WIND, GUST } from './world_weather.js';
 import { ARMY_IDLE } from './world_vegetation_materials.js';
-import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequest } from './world_army_shader.js';
+import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequest, MID_NEAR } from './world_army_shader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
@@ -767,6 +767,9 @@ export class WorldArmy {
       m4.compose(p3, q4, sc || s3); mesh.setMatrixAt(i, m4);
     };
     // 片方の側を作る
+    // 本物に替えない乱戦（台本が本物を立てない）は、本人から 16m の外を描く（11/1。前は 44m の内を描かず、置いた乱戦が画面に写らなかった）。
+    //   本物に替える乱戦は前のまま（本人の輪の内を本物で埋める）。本物の兵の立つ所は形の側で避ける（world_army_shader.js の uRealPts）
+    const clashNear = MID_NEAR && !(o.rt && !o.noWake && !(o.rt.def && o.rt.def.noWake) && o.A?.team !== undefined && o.B?.team !== undefined) ? { value: 16 } : ARMY_REAL_R;
     const side = (key, sgn) => {
       const P = o[key] || {};
       const armor = P.armor || 0x2a2622;
@@ -781,7 +784,7 @@ export class WorldArmy {
         uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
         uTerrainTriangles: { value: this.def.clashTerrainTriangles && this.def.terrainTriangles ? 1 : 0 },
         uBlk: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4()) }, uBlk2: { value: Array.from({ length: CLASH_NB }, () => new THREE.Vector4(0, 0, cols, 0)) },
-        uRealNear: o.realNear != null ? { value: Math.max(12, o.realNear) } : ARMY_REAL_R, uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { value: 0 }, uMeasuredMelee: { value: o.measuredMelee ? 1 : 0 },
+        uRealNear: o.realNear != null ? { value: Math.max(12, o.realNear) } : clashNear, uSide: { value: sgn }, uApp: { value: C.app }, uAppM: { value: 0 }, uAppC: { value: 0 }, uNearHide: o.nearHide != null ? { value: o.nearHide } : { value: 0 }, uMeasuredMelee: { value: o.measuredMelee ? 1 : 0 },
       };
       U.uSplitR = { value: new THREE.Vector2(16, this.def.clashMiddleDetail ?? 16) };
       // 設営後に台本が指定した近距離の設定も、材質を作る前に渡す。

@@ -614,6 +614,8 @@ export class Army {
       trim: o.trim || 0, left: o.left || null, uma: o.uma || null, dirt: o.dirt, hero: u.type === 'player',
       // 本物の胴丸（humans.js の3Dスキャン）を着る（侍大将より上の本人など）
       real: o.real || (o.name && (u.type === 'busho' || o.horse) ? 1 : 0),
+      // 本人の 9/29 の侍大将の胴丸と動き（player.js playerLook。humans_runtime・humans_armor・humans_mocap が見る）
+      hero9: u.type === 'player' && o.hero9 ? 1 : 0,
       officer: !!o.officer || !!(o.name && (u.type === 'busho' || o.horse)),
       // 僧兵（humans.js で白い裹頭・袈裟・薙刀を着せる）
       sohei: o.sohei || (o.kosode ? 1 : 0),
