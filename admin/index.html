@@ -4,147 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>戦国大名 管理</title>
+<title>戦国立身3D 管理</title>
 <style>
-:root{ --bg:#17150F; --card:#221E16; --line:#3A3326; --ink:#EDE6D6; --dim:#A79E8C; --kin:#C9A227; --ai:#5B8DEF; --shu:#E24A3A; --moe:#4CC45C; }
-*{ box-sizing:border-box; }
-body{ margin:0; background:var(--bg); color:var(--ink); font-family:"Hiragino Sans","Zen Kaku Gothic New",sans-serif; font-size:14px; }
-header{ display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--line); background:#1B1811; position:sticky; top:0; z-index:2; }
-header h1{ font-size:17px; margin:0; letter-spacing:.08em; }
-header .sub{ color:var(--dim); font-size:12px; margin-left:auto; }
-main{ max-width:1100px; margin:0 auto; padding:16px; }
-.grid{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
-.card{ background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
-.card h2{ font-size:13px; color:var(--dim); margin:0 0 8px; font-weight:600; letter-spacing:.05em; }
-.big{ font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
-.big small{ font-size:12px; color:var(--dim); font-weight:500; margin-left:6px; }
-.row{ display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed var(--line); font-variant-numeric:tabular-nums; }
-.row:last-child{ border-bottom:none; }
-.row .n{ font-weight:700; }
-.bar{ height:6px; background:#0F0D09; border-radius:3px; overflow:hidden; margin-top:3px; }
-.bar i{ display:block; height:100%; background:var(--kin); }
-.muted{ color:var(--dim); font-size:12px; }
-.sec{ margin-top:18px; }
-.sec h2{ font-size:15px; margin:0 0 8px; }
-.tabs{ display:flex; gap:6px; margin-left:8px; }
-.tabs button{ background:#0F0D09; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; font-size:12px; }
-.tabs button.on{ background:var(--kin); color:#1A1208; border-color:var(--kin); font-weight:700; }
-svg{ width:100%; height:auto; display:block; }
-.funnel{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
-.funnel .st{ background:#0F0D09; border-radius:6px; padding:10px; text-align:center; }
-.funnel .st b{ display:block; font-size:22px; }
-.funnel .st span{ font-size:11px; color:var(--dim); }
-.funnel .st em{ display:block; font-style:normal; font-size:11px; color:var(--kin); margin-top:2px; }
-#gate{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:9; }
-#gate form{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:26px 28px; width:min(92vw,360px); display:flex; flex-direction:column; gap:10px; }
-#gate input{ background:#0F0D09; color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:10px; font-size:15px; }
-#gate button{ background:var(--kin); color:#1A1208; border:none; border-radius:6px; padding:11px; font-weight:800; font-size:15px; cursor:pointer; }
-#gate .err{ color:var(--shu); font-size:12px; min-height:16px; }
-a{ color:var(--ai); }
-.note{ background:#0F0D09; border-radius:6px; padding:10px 12px; font-size:12px; color:var(--dim); line-height:1.6; }
-/* 左上の切り替え（戦国大名 ⇄ 戦国立身）：押せる所は 44px 以上。キーボードでも（Enter・矢印・Esc） */
-.gsw{ position:relative; }
-.gsw > button{ min-height:44px; min-width:44px; display:flex; align-items:center; gap:8px; background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:6px 12px; cursor:pointer; font:inherit; }
-.gsw > button:hover{ border-color:var(--kin); }
-.gsw > button:focus-visible, .gsw [role=menuitemradio]:focus-visible{ outline:2px solid var(--kin); outline-offset:2px; }
-.gsw > button h1{ font-size:17px; margin:0; letter-spacing:.08em; }
-.gsw > button .tag{ font-size:11px; font-weight:800; padding:2px 7px; border-radius:4px; background:var(--kin); color:#1A1208; letter-spacing:.05em; }
-.gsw > button .tag.r{ background:var(--ai); color:#fff; }
-.gsw > button .car{ color:var(--dim); font-size:12px; }
-.gsw [role=menu]{ position:absolute; left:0; top:calc(100% + 6px); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px; min-width:300px; box-shadow:0 10px 30px rgba(0,0,0,.5); z-index:5; }
-.gsw [role=menuitemradio]{ display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:8px 12px; background:transparent; color:var(--ink); border:none; border-radius:6px; cursor:pointer; font:inherit; font-size:15px; text-align:left; white-space:nowrap; }
-.gsw [role=menuitemradio]:hover{ background:#0F0D09; }
-.gsw [role=menuitemradio] .ck{ width:18px; color:var(--kin); font-weight:900; }
-.gsw [role=menuitemradio][aria-checked=true]{ background:#0F0D09; font-weight:800; }
-.gsw [role=menuitemradio] small{ color:var(--dim); font-size:11px; margin-left:auto; }
-body.risshin header{ border-bottom-color:var(--ai); }
-#reviewSigns{scroll-margin-top:130px}
-#reviewSigns .note,#reviewSigns .muted{font-size:14px;line-height:1.6}
-#reviewSigns .row{flex-wrap:wrap;gap:8px;overflow-wrap:anywhere}
-/* 毎日見る一枚。戦国立身は既存の切り替え先に残す。 */
-[hidden]{display:none!important}
-body:not(.risshin){--bg:#f5f5f2;--card:#fff;--line:#d9dcd7;--ink:#202822;--dim:#59625b;--kin:#344a3c;--ai:#344a3c;--shu:#b52d26;--moe:#247444;font-size:16px;line-height:1.5}
-body:not(.risshin) header{background:var(--card);padding:12px 24px;position:static;flex-wrap:wrap;gap:8px}
-body:not(.risshin) header .sub{font-size:14px}
-body:not(.risshin) .gsw>button{border:0;padding:0 8px 0 0}
-body:not(.risshin) .gsw>button .tag{display:none}
-body:not(.risshin) .gsw>button .car,body:not(.risshin) .gsw small{font-size:14px}
-body:not(.risshin) .gsw [role=menuitemradio]:hover,body:not(.risshin) .gsw [aria-checked=true]{background:#eef0ec}
-body:not(.risshin) main{max-width:1200px;padding:24px}
-body:not(.risshin) h2{color:var(--ink);font-size:20px;letter-spacing:0;margin:0 0 16px}
-body:not(.risshin) h3{font-size:16px;margin:16px 0 8px}
-body:not(.risshin) p{margin:8px 0}
-body:not(.risshin) .muted,body:not(.risshin) .note{font-size:14px;line-height:1.5}
-body:not(.risshin) .note{background:#f1f3ef}
-body:not(.risshin) .card{padding:20px;border-radius:12px}
-body:not(.risshin) .row{gap:12px;align-items:baseline;padding:10px 0;overflow-wrap:anywhere}
-body:not(.risshin) .row b{white-space:nowrap}
-.daily-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.daily-head h2{margin:0!important;font-size:24px!important}
-.daily-head p{margin:0!important;color:var(--dim);font-size:14px}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.kpi h3{font-size:16px!important;margin:0 0 8px!important;color:var(--dim)}
-.kpi .value{font-size:36px;font-weight:800;line-height:1.5;font-variant-numeric:tabular-nums}
-.kpi .yesterday{font-size:14px;color:var(--dim);margin-top:8px}.kpi .yesterday .change{display:inline;margin-left:6px}
-.change{font-size:14px;color:var(--dim);display:block}
-.change.good{color:var(--moe)}.change.bad{color:var(--shu)}
-.store{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-.store article{padding:14px 20px!important}.store h3{margin:0!important;font-size:16px!important}
-.store .store-n{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
-.store .store-line{display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
-.store .change{display:inline}
-.work-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
-.loss-rate{font-size:24px;color:var(--shu);font-variant-numeric:tabular-nums;font-weight:800}
-.loss-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding:10px 0}
-.loss-row:last-child{border:0}
-.loss-row small{font-size:14px;color:var(--dim);display:block}
-.action-list{list-style:none;margin:0;padding:0;counter-reset:action}
-.action-list li{padding:12px 0;border-bottom:1px solid var(--line);counter-increment:action;overflow-wrap:anywhere}
-.action-list li:first-child{padding-top:0}.action-list li:last-child{border:0;padding-bottom:0}
-.action-list strong::before{content:counter(action) ". ";color:var(--shu)}
-.action-list p{font-size:14px;color:var(--dim)}
-.daily-details{margin-top:12px}.daily-details summary{cursor:pointer;font-weight:700;min-height:44px;display:list-item;padding:10px 0;font-size:16px}
-.daily-details[open] summary{margin-bottom:12px;border-bottom:1px solid var(--line)}
-.review-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.review-grid div{background:var(--bg);padding:16px;border-radius:8px}.review-grid dt{font-size:14px;color:var(--dim)}.review-grid dd{font-size:24px;font-weight:700;margin:6px 0 0}
-body:not(.risshin) #gate{background:var(--bg)}
-body:not(.risshin) #gate input{background:var(--card)}
-body:not(.risshin) #gate button{background:var(--ink);color:#fff}
-body:not(.risshin) #gate .err{font-size:14px}
-body:not(.risshin) .daily-details input{max-width:100%}
-body:not(.risshin) button,body:not(.risshin) input{font-size: max(14px,1em);line-height:1.5}
-body:not(.risshin) #dailySettings .card{background:var(--bg)}
-@media(max-width:650px){
- body:not(.risshin) header{padding:10px 16px}body:not(.risshin) header .sub{margin-left:0;width:100%}
- body:not(.risshin) main{padding:20px 16px}body:not(.risshin) .card{padding:16px}
- .kpis{grid-template-columns:1fr 1fr;gap:10px}.kpi .value{font-size:26px}
- .kpis[aria-label="アプリ内の漏斗"]{grid-template-columns:1fr 1fr!important}.store{grid-template-columns:1fr 1fr}.store article{padding:12px!important}.store .store-line{gap:0;display:block}.store .store-line .muted{display:block}.store h3{font-size:14px!important}.work-grid{grid-template-columns:1fr;margin:20px 0;gap:16px}
- .review-grid{grid-template-columns:1fr}.daily-head{gap:6px}.daily-head h2{font-size:22px!important}
-}
-
+:root{--bg:#120f0b;--card:#1d1812;--line:#3a3022;--ink:#efe7d6;--dim:#b3a78f;--kin:#d9b45a;--shu:#e05a44;--moe:#62c46e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);background:#0d0b08;position:sticky;top:0;z-index:2}
+header h1{font-size:18px;margin:0;letter-spacing:.08em;font-family:"Hiragino Mincho ProN","Yu Mincho",serif}
+header .sub{margin-left:auto;color:var(--dim);font-size:13px}
+main{max-width:1120px;margin:0 auto;padding:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h2{font-size:13px;color:var(--dim);margin:0 0 4px;font-weight:600;letter-spacing:.05em}
+.big{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.3}
+.big small{font-size:13px;color:var(--dim);font-weight:500;margin-left:6px}
+.muted{color:var(--dim);font-size:13px}
+.up{color:var(--moe)}.down{color:var(--shu)}
+.sec{margin-top:16px}.sec>h2{font-size:16px;color:var(--ink);margin:0 0 10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
+.row:last-child{border:0}
+.rv{padding:8px 0;border-bottom:1px dashed var(--line)}.rv:last-child{border:0}.rv b{color:var(--kin)}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--dim);font-weight:600}
+svg{width:100%;height:auto;display:block}
+.note{background:#0d0b08;border-radius:6px;padding:10px 12px;font-size:13px;color:var(--dim);line-height:1.6}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9}
+#gate form{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:26px 28px;width:min(92vw,360px);display:flex;flex-direction:column;gap:10px}
+#gate input{background:#0d0b08;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;font-size:16px;min-height:44px}
+#gate button{background:var(--kin);color:#1a1208;border:none;border-radius:6px;padding:11px;font-weight:800;font-size:16px;cursor:pointer;min-height:44px}
+#gate .err{color:var(--shu);font-size:13px;min-height:16px}
+a{color:var(--kin)}
+@media(max-width:700px){.two{grid-template-columns:1fr}.big{font-size:26px}}
 </style>
 </head>
 <body>
 <div id="gate"><form id="loginForm">
-  <div style="font-size:18px;font-weight:800;letter-spacing:.1em">戦国大名　管理</div>
+  <div style="font-size:18px;font-weight:800;letter-spacing:.1em">戦国立身3D　管理</div>
   <input id="em" type="email" placeholder="メールアドレス" autocomplete="username">
   <input id="pw" type="password" placeholder="パスワード" autocomplete="current-password">
   <button type="submit">入る</button>
   <div class="err" id="gateErr"></div>
 </form></div>
-
-<header>
-  <div class="gsw" id="gsw">
-    <button type="button" id="gameBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="gameMenu" title="管理する遊びを切り替える"><h1 id="gameTitle">戦国大名　管理</h1><span class="tag" id="gameTag">大名</span><span class="car" aria-hidden="true">▾</span></button>
-    <div role="menu" id="gameMenu" aria-label="管理する遊び" hidden>
-      <button type="button" role="menuitemradio" data-g="daimyo" aria-checked="true"><span class="ck" aria-hidden="true"></span>戦国大名<small>/sengoku-daimyo-play/</small></button>
-      <button type="button" role="menuitemradio" data-g="risshin" aria-checked="false"><span class="ck" aria-hidden="true"></span>戦国立身<small>/risshin/</small></button>
-    </div>
-  </div>
-  <div class="tabs" id="rangeTabs"><button data-r="d1">1日</button><button data-r="d7">7日</button><button data-r="d30" class="on">30日</button><button data-r="d90">90日</button></div>
-  <div class="sub" id="updated">読み込み中…</div>
-</header>
+<header><h1>戦国立身3D　管理</h1><div class="sub" id="updated">読み込み中…</div></header>
 <main id="main"></main>
-
 <script>
 /* 入口：合言葉は手元で照らし合わせる（軽い鍵。数字だけの画面なのでこれで十分）。通れば三十日おぼえる */
 /* 第253巡（作り手：管理画面に人を追加できるように）：入れる人の一覧。足すときは下の「人を足す」で作った行をここに加える（合言葉そのものは置かない） */
@@ -168,68 +70,6 @@ document.getElementById("loginForm").onsubmit=async e=>{ e.preventDefault();
   if(u){ try{ localStorage.setItem("sd_admin_ok", String(Date.now())); localStorage.setItem("sd_admin_who", u.name||em); }catch(_){ } document.getElementById("gate").style.display="none"; load(); }
   else document.getElementById("gateErr").textContent="メールアドレスか合言葉が違います"; };
 if(opened()){ document.getElementById("gate").style.display="none"; }
-function showSales(){ if(GAME==="daimyo"){ loadDailySales(); return; } try{ fetch("sales.json?"+Date.now()).then(r=>r.ok?r.json():null).then(x0=>{ if(!x0) return; const x=(x0.games&&x0.games[GAME])||x0; /* 10/12：遊びごとの数 */
-  const el=document.getElementById("salesBox"); if(!el) return;
-  const ds=(x.days||[]).slice(-30); const mx=Math.max(1,...ds.map(d=>d.new||0));
-  const W=640,H=90,p=6, xs=i2=>p+(W-p*2)*(ds.length>1?i2/(ds.length-1):.5);
-  const bars=ds.map((d,i2)=>{ const h=Math.round((H-20)*(d.new||0)/mx); const w=Math.max(3,(W-p*2)/Math.max(1,ds.length)-2);
-    return `<rect x="${(xs(i2)-w/2).toFixed(1)}" y="${H-10-h}" width="${w.toFixed(1)}" height="${h}" fill="${d.units?'#E3C25A':'#6b5a2a'}" rx="1"><title>${d.d} 入れた ${d.new||0}人${d.units?'・課金 '+d.units+'本':''}</title></rect>`; }).join("");
-  const last=ds.length?ds[ds.length-1]:null;
-  el.innerHTML=`<div style="border-top:1px solid rgba(237,230,214,.12);margin-top:10px;padding-top:10px">
-    <div style="font-size:14px;letter-spacing:.08em;color:#C9A227">App Store（アプリ）</div>
-    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline;margin-top:4px">
-      <div><b style="font-size:26px">${x.total_new||0}</b><span class="muted"> 人が入れた（${(x.days||[]).length}日）</span></div>
-      <div><b style="font-size:26px">${x.total_units||0}</b><span class="muted"> 本の課金</span></div>
-      <div><b style="font-size:26px">${x.total_proceeds||0}</b><span class="muted"> ${x.cur||"JPY"} の入金</span></div>
-    </div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:640px;height:auto;margin-top:6px">${bars}</svg>
-    <div class="muted" style="font-size:14px">日ごとに入れた人（金色の日は課金あり）${last?`／最後の日 ${last.d} は ${last.new||0}人`:""}。
-    Apple の集計は一〜二日遅れます。${(x0.updated||"").slice(0,16)} 取得</div></div>`;
-}).catch(()=>{}); }catch(_){ } }
-const _load0=load; load=async function(){ await _load0(); try{ if(!document.getElementById("nuGo")) appendUsers(); }catch(_){ } showSales(); };
-
-let DATA=null, RANGE="d30";
-/* 遊びの切り替え（戦国大名 ⇄ 戦国立身）。中身は同じ作りで、数は GoatCounter の道の頭で分ける：
-   戦国立身は /risshin/（頁）と risshin/ev/…（出来事）。戦国大名はそれ以外。?game=risshin か #risshin で開ける */
-const GAMES={ daimyo:{name:"戦国大名", tag:"大名"}, risshin:{name:"戦国立身", tag:"立身"} };
-let GAME=(()=>{ try{ const q=new URLSearchParams(location.search).get("game"); if(q&&GAMES[q]) return q; if(/^#?risshin$/.test(location.hash)) return "risshin"; }catch(_){ } return "daimyo"; })();
-const RISSHIN_RE=/^\/?risshin(\/|$)/;
-function gameHits(hits){
-  const out=[];
-  for(const h of (hits||[])){ const p=String(h.path||""); const isR=RISSHIN_RE.test(p);
-    if(GAME==="risshin"){ if(!isR) continue; out.push(h.event?{...h, path:p.replace(/^\/?risshin\//,"")}:h); }
-    else if(!isR) out.push(h); }
-  return out;
-}
-function setGame(g, focus){
-  if(!GAMES[g]) return; GAME=g;
-  try{ const u=new URL(location.href); if(g==="daimyo") u.searchParams.delete("game"); else u.searchParams.set("game",g); u.hash=""; history.replaceState(null,"",u); }catch(_){ }
-  applyGame(); render(); loadExtras(); showSales();
-  if(focus) document.getElementById("gameBtn").focus();
-}
-function applyGame(){
-  const G=GAMES[GAME]; document.getElementById("gameTitle").textContent=G.name+"　管理"; document.title=G.name+" 管理";
-  const tag=document.getElementById("gameTag"); tag.textContent=G.tag; tag.classList.toggle("r",GAME==="risshin");
-  document.getElementById("gameBtn").setAttribute("aria-label","いま："+G.name+" の管理。押すと切り替え");
-  document.body.classList.toggle("risshin",GAME==="risshin");
-  document.getElementById("rangeTabs").hidden=GAME!=="risshin";
-  document.querySelectorAll("#gameMenu [role=menuitemradio]").forEach(b=>{ const on=b.dataset.g===GAME; b.setAttribute("aria-checked",on?"true":"false"); b.querySelector(".ck").textContent=on?"✓":""; });
-}
-(function(){ const btn=document.getElementById("gameBtn"), menu=document.getElementById("gameMenu"); const items=()=>[...menu.querySelectorAll("[role=menuitemradio]")];
-  const open=()=>{ menu.hidden=false; btn.setAttribute("aria-expanded","true"); (items().find(b=>b.dataset.g===GAME)||items()[0]).focus(); };
-  const close=(f)=>{ menu.hidden=true; btn.setAttribute("aria-expanded","false"); if(f) btn.focus(); };
-  btn.onclick=()=>{ if(menu.hidden) open(); else close(); };
-  btn.onkeydown=e=>{ if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); open(); } };
-  menu.onkeydown=e=>{ const it=items(), i=it.indexOf(document.activeElement);
-    if(e.key==="ArrowDown"){ e.preventDefault(); it[(i+1)%it.length].focus(); }
-    else if(e.key==="ArrowUp"){ e.preventDefault(); it[(i-1+it.length)%it.length].focus(); }
-    else if(e.key==="Escape"){ e.preventDefault(); close(true); }
-    else if(e.key==="Tab"){ close(false); } };
-  items().forEach(b=>b.onclick=()=>{ close(false); setGame(b.dataset.g, true); });
-  document.addEventListener("click",e=>{ if(!menu.hidden&&!document.getElementById("gsw").contains(e.target)) close(false); });
-  applyGame();
-})();
-document.querySelectorAll("#rangeTabs button").forEach(b=>b.onclick=()=>{ RANGE=b.dataset.r; document.querySelectorAll("#rangeTabs button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
 /* 第258巡：人を足す・外す。users.json を GitHub に直接書く。パスワードそのものは置かない（SHA-256 の印だけ） */
 const GH_REPO="kaitoseto1129/sengoku-daimyo-play", GH_PATH="admin/users.json";
 function ghKey(){ try{ return localStorage.getItem("sd_gh_key")||""; }catch(_){ return ""; } }
@@ -267,428 +107,51 @@ function usersCard(){ const el=document.createElement("div"); el.className="card
   const msg2=t=>{ const m=el.querySelector("#nuMsg"); if(m){ m.textContent=t; m.style.display="block"; } };
   loadUsers().then(draw); draw();
   return el; }
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>n==null||isNaN(n)?"—":Number(n).toLocaleString("ja-JP");
+const delta=n=>n==null?"":`<span class="${n>0?"up":n<0?"down":""}">${n>0?"+":""}${fmt(n)}</span>`;
+const getJson=async u=>{ try{ const r=await fetch(u+(u.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"}); return r.ok?await r.json():null; }catch(_){ return null; } };
+/* App Store の版と評価は Apple の公開の口からも読む（mkadmin の数がまだ無い時の代わり） */
+const lookup=()=>new Promise(ok=>{ const cb="lk"+Date.now(); const s=document.createElement("script"); const t=setTimeout(()=>ok(null),8000);
+  window[cb]=d=>{ clearTimeout(t); const it=d&&d.results&&d.results[0]; ok(it?{version:it.version,released:(it.currentVersionReleaseDate||"").slice(0,10),rating:it.averageUserRating,ratings:it.userRatingCount}:null); delete window[cb]; s.remove(); };
+  s.onerror=()=>{ clearTimeout(t); ok(null); }; s.src="https://itunes.apple.com/lookup?id=6816750198&country=jp&callback="+cb; document.head.appendChild(s); });
+function bars(days,key,color){ if(!days.length) return '<div class="muted">まだ数がありません</div>';
+  const W=640,H=110,mx=Math.max(1,...days.map(d=>d[key]||0)),w=(W-8)/days.length;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="日ごとの数">${days.map((d,i)=>{ const h=Math.round((H-24)*(d[key]||0)/mx); return `<rect x="${(4+i*w+1).toFixed(1)}" y="${H-14-h}" width="${Math.max(2,w-2).toFixed(1)}" height="${h}" fill="${color}" rx="1"><title>${esc(d.d||d.date)}　${fmt(d[key])}</title></rect>`; }).join("")}<text x="4" y="${H-1}" fill="#b3a78f" font-size="11">${esc((days[0].d||days[0].date||"").slice(5))}</text><text x="${W-4}" y="${H-1}" fill="#b3a78f" font-size="11" text-anchor="end">${esc((days.at(-1).d||days.at(-1).date||"").slice(5))}</text></svg>`; }
 async function load(){
-  try{ const r=await fetch("stats.json?t="+Date.now(), {cache:"no-store"}); if(!r.ok) throw new Error(r.status); DATA=await r.json(); }
-  catch(e){ document.getElementById("main").innerHTML=`<div class="card"><h2>まだ数がありません</h2><div class="note">stats.json がまだ作られていません。GitHub の <b>sengoku-daimyo-play</b> リポジトリで、<br>① Settings → Secrets and variables → Actions に <b>GOATCOUNTER_TOKEN</b>（GoatCounter の Settings → API tokens で「Read statistics」を付けて作った鍵）を入れる<br>② Actions → <b>stats</b> → Run workflow を一度押す<br>あとは六時間ごとに勝手に更新されます。</div></div>`; return; }
-  document.getElementById("updated").textContent="更新 "+new Date(DATA.generated).toLocaleString("ja-JP");
-  render();
-  loadExtras();
-}
-/* 第253巡（作り手：管理画面を見なくても、クロードが自分で手を打つ）：その記録を載せる。
-   戦国立身の時は ../risshin/data/kaizen.json（夜の順番表で済にした物）と、テストプレイヤー（bot）の声 ../risshin/data/players.md（あれば） */
-async function loadExtras(){
-  const g=GAME;
-  try{
-    const kr=await fetch((g==="risshin"?"../risshin/data/kaizen.json":"kaizen.json")+"?t="+Date.now(), {cache:"no-store"});
-    if(kr.ok&&g===GAME){ const K=await kr.json(); const it=(K.items||[]).slice(-12).reverse();
-      const card=document.getElementById("kaizenCard"); if(false && it.length&&card){ card.hidden=false;   /* 第256巡（作り手）：この欄は出さない。記録は kaizen.json に残す */
-        document.getElementById("kaizenBody").innerHTML=it.map(x=>`<div style="margin:8px 0;padding:8px 10px;border-radius:8px;background:#0F0D09;border-left:3px solid #4C9A5A">
-          <div style="font-weight:700;color:var(--kin)">${esc(x.date||"")}　${esc(x.title||"")}</div>
-          <div class="note" style="margin-top:4px">やったこと：${esc(x.did||"")}</div>
-          ${x.from?`<div class="note">きっかけ：${esc(x.from)}</div>`:""}</div>`).join(""); } }
-  }catch(_){ }
-  if(g!=="risshin"){
-    const card=document.getElementById("feedbackCard");
-    try{ const r=await fetch("feedback.json?t="+Date.now(),{cache:"no-store"}); if(!r.ok) throw Error(r.status);
-      const rows=await r.json(); if(g!==GAME||!card) return;
-      const names={meyasu:"目安箱",survey:"試遊の検証","first-battle":"初めての合戦","first-decisive":"初めての決戦",unify:"天下統一",quit:"合戦をやめた後"};
-      document.getElementById("feedbackBody").innerHTML=rows.filter(x=>/^ev\/plat\/(app|ios)\//.test(x.path||"")).filter(x=>!x.scenario||["nagashino","sekigahara","長篠","関ヶ原"].includes(x.scenario)).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).slice(0,5).map(x=>`<div style="border-top:1px solid #65543b;padding:10px 0"><b>${esc(x.date)}　${esc(names[x.scene]||x.scene)}　${esc(x.rating)}</b><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.text||"（一言なし）")}</div><div class="note">版 ${esc(x.build)}・筋書き ${esc(x.scenario)}・${Number(x.count)||1}件</div></div>`).join("")||"アプリ由来と確認できる声はまだありません";
-    }catch(_){ if(card) document.getElementById("feedbackBody").textContent="声の記録を読み込めませんでした"; }
-    return;
-  }
-  try{
-    const r=await fetch("../risshin/data/players.md?t="+Date.now(), {cache:"no-store"});
-    const card=document.getElementById("voicesCard");
-    if(r.ok&&card&&g===GAME){ const md=await r.text(); if(md.trim()&&!/^\s*<!doctype/i.test(md)){ card.hidden=false; document.getElementById("voicesBody").innerHTML=mdHtml(md); } }
-  }catch(_){ }
-}
-/* 声のまとめ（Markdown）をかんたんに HTML に：見出し・箇条・表・段落だけ。中身はすべて esc する */
-function mdHtml(md){
-  const inl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/`([^`]+)`/g,"<code>$1</code>");
-  const out=[]; let list=false, tbl=false;
-  const endL=()=>{ if(list){ out.push("</ul>"); list=false; } if(tbl){ out.push("</table>"); tbl=false; } };
-  for(const line of md.split("\n")){
-    const h=line.match(/^(#{1,4})\s+(.+)/), li=line.match(/^\s*[-*]\s+(.+)/), tr=/^\s*\|.*\|\s*$/.test(line);
-    if(h){ endL(); out.push(`<div style="font-weight:800;color:var(--kin);margin:${h[1].length<=2?12:8}px 0 4px">${inl(h[2])}</div>`); }
-    else if(li){ if(tbl){ out.push("</table>"); tbl=false; } if(!list){ out.push('<ul style="margin:4px 0;padding-left:20px;line-height:1.7">'); list=true; } out.push(`<li>${inl(li[1])}</li>`); }
-    else if(tr){ if(/^\s*\|[\s:|-]+\|\s*$/.test(line)) continue; if(list){ out.push("</ul>"); list=false; } if(!tbl){ out.push('<table style="border-collapse:collapse;font-size:12px;margin:6px 0;width:100%">'); tbl=true; } out.push("<tr>"+line.trim().slice(1,-1).split("|").map(c=>`<td style="border-bottom:1px dashed var(--line);padding:4px 6px">${inl(c.trim())}</td>`).join("")+"</tr>"); }
-    else if(line.trim()){ endL(); out.push(`<p style="margin:4px 0;line-height:1.7">${inl(line)}</p>`); }
-    else endL();
-  }
-  endL(); return out.join("");
-}
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const fmtN=n=>Number(n||0).toLocaleString("ja-JP");
-function sumStats(h){ return (h.stats||[]).reduce((s,d)=>s+(d.daily||0),0); }
-// 第260巡：ev/review 専用。同じ集計を管理画面と毎朝の読み取りに使う。
-function reviewMetrics(hits){
-  const counts={}, scenes={}, houses={}, tails=[]; let starts=0,leaves=0,returns=0,dominance=0;
-  for(const h of hits){if(!h.event||!String(h.path||'').startsWith('ev/review/'))continue;
-    const a=h.path.slice(10).split('/'),cl=a.pop(),sc=a.pop();if(!['nagashino','sekigahara'].includes(sc)||!cl)continue;
-    const n=(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0),key=sc+'/'+cl;
-    const home=houses[key]||(houses[key]={starts:0,unify:0,replay:0});
-    if(a[0]==='count'){
-      const delta=Number(a.pop());if(!Number.isSafeInteger(delta)||delta<=0)continue;
-      const k=a.slice(1).join('/');counts[k]=(counts[k]||0)+delta*n;
-    }else if(a[0]==='start'){starts+=n;home.starts+=n;}
-    else if(a[0]==='unify')home.unify+=n;
-    else if(a[0]==='replay')home.replay+=n;
-    else if(a[0]==='dominance')dominance+=n;
-    else if(a[0]==='early-leave'){leaves+=n;const k=a.slice(1).join('/');scenes[k]=(scenes[k]||0)+n;}
-    else if(a[0]==='early-return')returns+=n;
-    else if(a[0]==='tail-days'){const days=Number(a[1]);if(Number.isSafeInteger(days)&&days>=0)tails.push({days,n,house:key});}
-  }
-  const sum=p=>Object.entries(counts).filter(([k])=>k===p||k.startsWith(p+'/')).reduce((s,[,n])=>s+n,0);
-  const manual=sum('battle/manual'),auto=sum('battle/auto'),tailN=tails.reduce((s,t)=>s+t.n,0);
-  return {starts,leaves,returns,scenes,counts,houses,dominance,tails,bulk:sum('bulk'),manual,auto,
-    manualPct:manual+auto?Math.round(manual/(manual+auto)*100):null,
-    noticeShow:sum('notice-show'),noticeClose:sum('notice-close'),faults:sum('fault'),recovery:sum('recovery'),resume:sum('resume'),
-    tailN,tailDays:tailN?tails.reduce((s,t)=>s+t.days*t.n,0)/tailN:null};
-}
-
-function renderLegacy(){
-  if(!DATA) return; const R=DATA.ranges[RANGE]; if(!R){ return; }
-  const hits=gameHits(R.hits); const tot=R.total||{};
-  const RS=GAME==="risshin"; if(RS) setTimeout(()=>{ const mn=document.getElementById('main'); if(mn&&!document.getElementById('metaCard')){ const c=document.createElement('div'); c.className='card'; c.id='metaCard'; c.innerHTML='<h2>Meta 広告</h2><div id="metaBody" class="muted">読み込み中…</div>'; mn.prepend(c); } loadMeta(new Date(Date.now()-864e5).toISOString().slice(0,10),'risshin'); },0);   /* 戦国立身：同じ作りで、言葉と一部の欄だけ替える */
-  const L=RS?{battle:"出陣",result:"筋書きを終えた",resultLong:"筋書きを終えた（最後の戦まで）",startBy:"どの遊び方で始めたか",resultKinds:"終わり方",resultScen:"最後まで遊んだ筋書き",battleKinds:"出陣した戦"}:{battle:"会戦",result:"結び",resultLong:"結び（天下統一・滅亡まで）",startBy:"どの家で始めたか",resultKinds:"結びの種類",resultScen:"結びまで行った筋書き",battleKinds:"会戦の種類"};
-  /* 第254巡（作り手）：訪問は「出来事でない道（ページ）の数」だけから数える。
-     以前は総数から出来事を引いていたが、7日ぶんの stats/total が取れない日に二重に引かれ、656 が 21 になっていた */
-  const pageHits=hits.filter(h=>!h.event);
-  const dmap={}; for(const h of pageHits){ for(const d of (h.stats||[])) dmap[d.day]=(dmap[d.day]||0)+(d.daily||0); }
-  let days=Object.keys(dmap).sort().map(k=>({day:k,n:dmap[k]}));
-  /* 第256巡（作り手：遊び始め率・継続率・離脱率もグラフで）：日ごとの系列を作る */
-  const dailyOf=(p)=>{ const m={}; for(const h of hits){ if(!h.event) continue;
-      if(!(h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))) continue;
-      for(const d of (h.stats||[])) m[d.day]=(m[d.day]||0)+(d.daily||0); } return m; };
-  const visits=days.reduce((s,d)=>s+d.n,0);
-  /* 第254巡：道の区切りまで見て数える。前は ev/battle に ev/battle-end・ev/battle-30s なども混ざり、会戦が三倍に見えていた */
-  const ev=p=>hits.filter(h=>h.event && (h.path==="ev/"+p || h.path.startsWith("ev/"+p+"/"))).reduce((s,h)=>s+sumStats(h),0);
-  const byPrefix=p=>{ const m={}; for(const h of hits){ if(!h.event||!h.path.startsWith("ev/"+p+"/")) continue; const rest=h.path.slice(("ev/"+p+"/").length); m[rest]=(m[rest]||0)+sumStats(h); } return Object.entries(m).sort((a,b)=>b[1]-a[1]); };
-  const act=ev("funnel/first-end"), adClicks=byPrefix("src").filter(([k])=>/^meta/.test(k)).reduce((a,[,n])=>a+n,0)||ev("src/meta");
-  const loadFast=ev("load/1s"), load3=ev("load/3s"), loadSlow=ev("load/8s")+ev("load/slow"), loadTot=loadFast+load3+loadSlow;
-  const starts=ev("start"), battles=ev("battle"), results=ev("result"), unlocks=ev("unlock"), fundOpen=ev("fund/open"), fundClick=ev("fund-click"), payClick=ev("pay-click"), fundDone=byPrefix("fund").filter(([k])=>k!=="open");
-  const pages=pageHits;
-  const pageviews=pages.reduce((s,h)=>s+sumStats(h),0);
-  const pct=(a,b)=>b?Math.round(a/b*100)+"%":"—";
-  // 遊び始めの内訳：筋書き／家
-  const scen={}, clans={}; for(const [k,n] of byPrefix("start")){ const [sc,cl]=k.split("/"); scen[sc]=(scen[sc]||0)+n; if(cl) clans[cl]=(clans[cl]||0)+n; }
-  const resultKinds={}, resultScen={}; for(const [k,n] of byPrefix("result")){ const [kind,sc]=k.split("/"); resultKinds[kind]=(resultKinds[kind]||0)+n; if(sc) resultScen[sc]=(resultScen[sc]||0)+n; }
-  const battleKinds={}; for(const [k,n] of byPrefix("battle")){ battleKinds[k]=(battleKinds[k]||0)+n; }
-  /* 名の札：筋書きの id と会戦の種類は日本語で（nagashino → 長篠の戦い） */
-  const JA={oke:"桶狭間の戦い",honnoji:"本能寺の変",kiyosu:"清洲会議",shizugatake:"賤ヶ岳の戦い",komaki:"小牧・長久手の戦い",koshu:"甲州征伐",sekigahara:"関ヶ原の戦い",osaka:"大坂の陣",hoi:"信長包囲網",mikata:"三方ヶ原の戦い",nagashino:"長篠の戦い",kyushu:"九州征伐",odawara:"小田原征伐",ishiyama:"石山合戦",decisive:"決戦",siege:"城攻め",field:"野戦",word:"合言葉",open:"札を開いた",
-    ashigaru:"足軽から（はじめから・つづき）",lord:"織田信長で",samurai:"侍大将で（試し）",practice:"章を選んで",dojo:"稽古場",map:"天下の地図（城攻め）",clear:"最後の戦まで",dead:"討死（難）"};
-  const ja=k=>JA[k]||k;
-  const list=(obj,label,max)=>{ const es=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,max||12); const top=es.length?es[0][1]:1; if(!es.length) return `<div class="muted">まだありません</div>`; return es.map(([k,n])=>`<div class="row"><span>${esc(ja(k))}</span><span class="n">${fmtN(n)}</span></div><div class="bar"><i style="width:${Math.round(n/top*100)}%"></i></div>`).join(""); };
-  const SZ={phone:"スマホ",tablet:"タブレット",desktop:"パソコン",desktophd:"大きな画面",unknown:"（不明）"};   /* 第253巡：画面の大きさは名が空で返るので id で出す */
-  const bd=DATA.breakdown||{}; const bl=(k,label)=>{ const st=(bd[k]&&bd[k].stats)||[]; if(bd[k]&&bd[k].error) return `<div class="muted">取れませんでした（${esc(bd[k].error)}）</div>`; const top=st.length?st[0].count:1; return st.slice(0,10).map(s=>`<div class="row"><span>${esc(s.name||(k==="sizes"?(SZ[s.id]||s.id):"（不明）"))}</span><span class="n">${fmtN(s.count)}</span></div><div class="bar"><i style="width:${Math.round(s.count/top*100)}%"></i></div>`).join("")||`<div class="muted">まだありません</div>`; };
-  // 日ごとの折れ線
-  const W=900,H=180,pad=28; const mx=Math.max(1,...days.map(d=>d.n)); const xs=i=>pad+(W-pad*2)*(days.length>1?i/(days.length-1):0.5), ys=n=>H-pad-(H-pad*2)*n/mx;
-  const line=days.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys(d.n).toFixed(1)}`).join(" ");
-  const area=days.length?`${line} L${xs(days.length-1).toFixed(1)},${H-pad} L${xs(0).toFixed(1)},${H-pad} Z`:"";
-  /* 三本の折れ線（訪問・遊び始め・初戦を終えた）と、率の折れ線（遊び始め率・継続率・離脱率） */
-  const dStart=dailyOf("start"), dAct=dailyOf("funnel/first-end"), dBat=dailyOf("battle");
-  const series=days.map(d=>({day:d.day, v:d.n, s:dStart[d.day]||0, a:dAct[d.day]||0, b:dBat[d.day]||0}));
-  const mx2=Math.max(1,...series.map(d=>Math.max(d.v,d.s,d.a,d.b)));
-  const ys2=n=>H-pad-(H-pad*2)*n/mx2;
-  const path=(key)=>series.map((d,i)=>`${i?"L":"M"}${xs(i).toFixed(1)},${ys2(d[key]).toFixed(1)}`).join(" ");
-  const RH=170, rpad=28;                                  /* 率のグラフ */
-  const yr=v=>RH-rpad-(RH-rpad*2)*Math.max(0,Math.min(100,v))/100;
-  const rate=(num,den)=>series.map((d,i)=>{ const b=d[den]||0, a=d[num]||0; const v=b?a/b*100:0;
-      return `${i?"L":"M"}${xs(i).toFixed(1)},${yr(v).toFixed(1)}`; }).join(" ");
-  const rateStart=rate("s","v"), rateAct=rate("a","s");
-  const leave=series.map((d,i)=>{ const v=d.s?(1-(d.a||0)/d.s)*100:0; return `${i?"L":"M"}${xs(i).toFixed(1)},${yr(v).toFixed(1)}`; }).join(" ");
-  const gridY=[0,25,50,75,100].map(v=>`<line x1="${rpad}" y1="${yr(v)}" x2="${W-rpad}" y2="${yr(v)}" stroke="rgba(237,230,214,.10)"/><text x="4" y="${yr(v)+3}" font-size="9" fill="#9a927f">${v}%</text>`).join("");
-  const step=Math.ceil(days.length/8); const ticks=days.map((d,i)=>(days.length<=10||(i%step===0&&days.length-1-i>=step/2)||i===days.length-1)?`<text x="${xs(i)}" y="${H-8}" font-size="10" fill="#A79E8C" text-anchor="middle">${d.day.slice(5)}</text>`:"").join("");
-  const dots=days.map((d,i)=>`<circle cx="${xs(i)}" cy="${ys(d.n)}" r="2.5" fill="#C9A227"><title>${d.day}　${d.n}</title></circle>`).join("");
-  /* 第253巡（作り手：このデータを元に、こうした方がいいという改善点も載せて）：数から読み取れることと、次の一手 */
-  const adv=(()=>{ const out=[]; const add=(lv,t,why,how)=>out.push({lv,t,why,how});
-    const pct0=(a,b)=>b?Math.round(a/b*100):0;
-    const startPct=pct0(starts,visits), actPct=pct0(act,starts), lateSlow=pct0(loadSlow,loadTot||1);
-    const lpv=byPrefix("lp/view").reduce((a,[,n])=>a+n,0); const fromLp=ev("from/lp");
-    const appClicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0);
-    const iosShare=(()=>{ const st=((DATA.breakdown||{}).systems||{}).stats||[]; const tot=st.reduce((a,x)=>a+x.count,0)||1; const ios=(st.find(x=>/iOS/i.test(x.name||x.id||""))||{}).count||0; return Math.round(ios/tot*100); })();
-    /* 古い数では、外のブラウザの失敗も ev/err に混ざっている（第253巡で err-ext に分けた）。文で見分ける */
-    const errRows=byPrefix("err").concat(byPrefix("err-ext"));
-    const isExt=k=>/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k);
-    const extErr=errRows.filter(([k])=>isExt(k)).reduce((a,[,n])=>a+n,0)+ev("err-ext");
-    const ownErr=errRows.filter(([k])=>!isExt(k)).reduce((a,[,n])=>a+n,0);
-    const ret=ev("user/return"), neu=ev("user/new");
-    if(loadTot>=20 && lateSlow>=35) add("急","開くのが遅い（八秒以上が "+lateSlow+"％）","広告から来た人は数秒で去る。ここが一番大きな漏れ口","広告の行き先を紹介ページ（/lp/）にして、読んでいる間に本編を先に取らせる。表紙はすぐ出るようにしてあるので、あとは本体の読み込みを軽くする");
-    if(visits>=80 && startPct<20) add("急","遊び始めが少ない（訪問の "+startPct+"％）","表紙で止まっている。何のゲームか、一目で分からない恐れ","表紙の一文と絵を見直す。〈ゲームをはじめる〉までの手数を増やさない");
-    else if(visits>=80 && startPct>=35) add("良","入口は通っている（訪問の "+startPct+"％が遊び始め）","表紙は効いている","この率を保ったまま、人を増やす（広告・紹介ページ）");
-    if(starts>=20 && actPct<40) add("急","最初の合戦を終えた人が少ない（遊び始めの "+actPct+"％）","最初の戦で躓いている。操作か難しさ","長篠の最初の戦を易しく。〈自動で戦う〉をもっと目立たせる。手引きの一行を戦の始めに出す");
-    else if(starts>=20 && actPct>=60) add("良","最初の合戦まで届いている（"+actPct+"％）","合戦は伝わっている","次は二戦目・筋書きの続きへ（結びの数を見る）");
-    if(adClicks>=50 && lpv<adClicks*0.3) add("中","広告が本編に直行している（紹介ページの表示 "+lpv+"／広告 "+adClicks+"）","重い本編に直接落としている。紹介ページなら軽くて速い","広告の行き先を https://kaitoseto1129.github.io/sengoku-daimyo-play/lp/?src=meta&utm_campaign=… に変える");
-    if(fromLp>0) add("良","紹介ページから本編へ "+fromLp+"人","導線は働いている","この数と遊び始めの率を見比べる（LP 経由のほうが良ければ広告は全部 LP へ）");
-    if(iosShare>=60 && appClicks===0 && lpv>=10) add("中","iPhone の人が "+iosShare+"％なのに App Store が押されていない","ブラウザ版で完結している。アプリの利点が伝わっていない","紹介ページの App Store の札を上に。ブラウザ版の画面にも「アプリなら続きが残る」の一行を");
-    if(fundOpen>=10 && fundClick===0) add("中","軍資金の札は "+fundOpen+"回開かれたが、額を押した人は 0","札の一枚目で金額に届いていなかった（直したので次の数字を見る）","一枚目の大きな〈軍資金を出す〉が効いているか、次の三十日で確かめる");
-    if(neu>=30 && ret/Math.max(1,neu)<0.12) add("中","戻って来る人が少ない（新しい人 "+neu+"／戻って来た人 "+ret+"）","一度きりで終わっている。続きを残せると伝わっていない","〈つづきから〉を表紙で目立たせる。一戦終えた人に「続きは残ります」と一言");
-    if(extErr>0) add("良","外のブラウザの失敗 "+extErr+"件（こちらの不具合ではない）","Facebook・Instagram のアプリ内ブラウザが差し込む script の失敗","err/（こちらの不具合）だけを見ればよい"+(ownErr?"。いまは "+ownErr+"件":"。いまは 0件"));
-    if(ownErr>0) add("急","こちらの不具合が "+ownErr+"件","ゲームの中で落ちている","どの画面で出たかを見て直す");
-    if(results===0 && starts>=20) add("良","結びが 0 なのは普通","一つの筋書きを最後（天下統一・滅亡）まで遊ぶには何時間もかかる","日ごとの手応えは「初戦を終えた」で見る");
-    if(!out.length) add("良","まだ数が少ない","読み取るには人が足りない","広告か紹介で人を増やしてから見る");
-    return out; })();
-  /* 第253巡（作り手：ウェブとアプリで数を分けて）：肝心の数の内訳 */
-  const platRow=(k)=>{ const app=ev("plat/app/"+k), web=ev("plat/web/"+k); return {app,web,tot:app+web}; };
-  const platHtml=RS?"":(()=>{
-    const keys=[["start","遊び始め"],["funnel/first-end","初戦を終えた"],["result","結び"],["fund/open","軍資金の札"],["fund-click","額を押した"],["user/new","新しい人"],["user/return","戻って来た人"]];
-    const rows=keys.map(([k,n])=>[n,platRow(k)]);
-    const any=rows.some(([,r])=>r.tot>0);
-    if(!any) return `<div class="sec card"><h2>アプリとウェブの内訳</h2><div class="note">まだ分けた数が溜まっていません（この版を出した後の数から分かれます）。アプリの入手数は App Store Connect の Analytics を見てください。</div></div>`;
-    return `<div class="sec card"><h2>アプリとウェブの内訳</h2>
-      <div class="list">${rows.map(([n,r])=>`<div class="row"><span>${esc(n)}</span><span class="num"><b>${fmtN(r.tot)}</b><span class="tiny muted">　アプリ ${fmtN(r.app)}／ウェブ ${fmtN(r.web)}</span></span></div>`).join("")}</div>
-      <div class="note" style="margin-top:8px">アプリの中でもこちらの数取りは動きます（広告の Pixel はアプリでは送りません）。入手数・課金は App Store Connect を。</div></div>`;
-  })();
-  const review=reviewMetrics(hits);
-  const reviewLabels={fault:'不具合',recovery:'不具合後の復帰',resume:'再開',urgent:'急報',economy:'収支・季節',history:'史実・節目',council:'軍議',encounter:'合戦の知らせ',auto:'自動消去',choice:'選択して閉じる',replace:'次の知らせに交代',battle:'合戦',guide:'手ほどき',dialog:'対話',panel:'詳細',map:'地図',hidden:'裏へ移動',pagehide:'頁を離れる',nagashino:'長篠',sekigahara:'関ヶ原',error:'実行時の不具合',rejection:'非同期の不具合',save:'記録から',restart:'新しい遊びから'};
-  const reviewName=k=>k.split('/').map(x=>reviewLabels[x]||x).join('／');
-  const reviewRows=rows=>rows.map(([k,n])=>`<div class="row"><span>${esc(reviewName(k))}</span><span>${fmtN(n)}</span></div>`).join('')||'<div class="muted">まだ印がありません</div>';
-  const reviewHtml=RS?'':`<div class="sec card" id="reviewSigns"><h2>レビューの兆し</h2>
-    <p>一括命令 ${fmtN(review.bulk)}回・合戦 手動 ${fmtN(review.manual)}／自動 ${fmtN(review.auto)}（手動 ${review.manualPct===null?'—':review.manualPct+'％'}）</p>
-    <p>知らせ 表示 ${fmtN(review.noticeShow)}／閉じる ${fmtN(review.noticeClose)}・不具合 ${fmtN(review.faults)}／不具合後の復帰 ${fmtN(review.recovery)}・記録再開 ${fmtN(review.resume)}</p>
-    <p>三十分未満の離脱候補 ${fmtN(review.leaves)}回／直後の復帰 ${fmtN(review.returns)}回（計測した開始 ${fmtN(review.starts)}回）</p>
-    ${reviewRows(Object.entries(review.scenes))}
-    <h3>知らせの種類ごと：表示／閉じる</h3>${reviewRows(Object.entries(review.counts).filter(([k])=>k.startsWith('notice-')).map(([k,n])=>[k.replace('notice-show/','表示/').replace('notice-close/','閉じる/'),n]))}
-    <h3>優勢から統一まで</h3><p>自城＋従属城が全国の三分の一に初めて届いてから、平均 ${review.tailDays===null?'—':review.tailDays.toFixed(1)}日（統一 ${fmtN(review.tailN)}件／到達 ${fmtN(review.dominance)}件）</p>
-    ${reviewRows(review.tails.map(t=>[t.house+'／'+t.days+'日',t.n]))}
-    <h3>家ごとの統一／二周目の開始</h3>${Object.entries(review.houses).map(([k,h])=>`<div class="row"><span>${esc(reviewName(k))}</span><span>統一 ${fmtN(h.unify)}／二周目 ${fmtN(h.replay)}</span></div>`).join('')||'<p class="muted">まだ印がありません</p>'}
-    <h3>不具合と復帰の内訳</h3>${reviewRows(Object.entries(review.counts).filter(([k])=>/^(fault|recovery|resume)\//.test(k)))}
-    <p class="note">長篠・関ヶ原だけ。回数は途中最大三回＋結び一回の差分を合計した下限で、人数ではありません。途中終了や送信失敗で未送信分が残り、合戦の比にも偏りが生じます。手動・自動は開戦時の采配で分類します。離脱候補には裏へ移動した操作を含みます。日数はゲーム内の暦（二周目は同じ端末で同じ家の統一後に新しく開始）。不具合は検出できた実行時エラーで、端末やブラウザの強制終了は含みません。</p></div>`;
-  const advHtml="";   /* 第256巡（作り手）：読み取れることは載せない。クロードが自分で直す */
+  const [A,sales,meta,live]=await Promise.all([getJson("../risshin/data/admin.json"),getJson("sales.json"),getJson("meta.json"),lookup()]);
+  const app=(A&&A.app&&A.app.version)?A.app:live||{}, S=(sales&&sales.games&&sales.games.risshin)||null, days=S?(S.days||[]).slice(-30):[];
+  const sum=(a,k)=>a.reduce((t,d)=>t+(d[k]||0),0), last7=days.slice(-7), prev7=days.slice(-14,-7);
+  const yt=A&&A.youtube||{}, ig=A&&A.instagram, lc=A&&A.lancers, h=A&&A.health, ph=A&&A.iphone, st=A&&A.store||{};
+  const reviews=(A&&A.app&&A.app.reviews)||[];
+  const crash=h&&h.rows?h.rows.find(r=>r.metric==="終わった数"):null;
+  document.getElementById("updated").textContent=A?("数の更新 "+new Date(A.made).toLocaleString("ja-JP")):"mkadmin の数はまだ届いていません";
+  const ad=(meta&&meta.risshin)||[], adDays=ad.slice(-30);
+  const lcBest=lc&&lc.rows&&lc.rows.length?lc.rows.reduce((a,b)=>(b.score??-1)>(a.score??-1)?b:a):null;
   document.getElementById("main").innerHTML=`
-    ${platHtml}
-    ${reviewHtml}
-    ${advHtml}
-    ${RS?`<div class="sec card" id="voicesCard" hidden><h2>テストプレイヤー（bot）の声</h2><div id="voicesBody"></div>
-      <div class="note" style="margin-top:8px">reports/players/まとめ.md を、公開のたびに写した物です（tools/mkpages.mjs）。</div></div>`:""}
-    <div class="sec card" id="kaizenCard" hidden><h2>${RS?"改善の記録（夜の順番表で済にした物）":"クロードが自分でやったこと（毎朝九時）"}</h2><div id="kaizenBody"></div>
-      <div class="note" style="margin-top:8px">${RS?"docs/overnight-backlog.md で済にした改善を、公開のたびに写しています（tools/mkadmin.mjs → mkpages.mjs）。":"この欄は、上の「読み取れること」を見て、作り手に聞かずに手を打った記録です。"}</div></div>
-    <div class="grid">
-      <div class="card"><h2>訪問（人）</h2><div class="big">${fmtN(visits)}</div><div class="muted">${R.start}〜${R.end}　一日あたり ${fmtN(Math.round(visits/Math.max(1,days.length)))}</div></div>
-      <div class="card"><h2>遊び始め</h2><div class="big">${fmtN(starts)}<small>訪問の ${pct(starts,visits)}</small></div></div>
-      <div class="card"><h2>${L.battle}</h2><div class="big">${fmtN(battles)}<small>遊び始め一回あたり ${starts?(battles/starts).toFixed(1):"—"}</small></div><div class="muted">初戦を終えた ${fmtN(act)}（遊び始めの ${pct(act,starts)}）</div></div>
-      <div class="card"><h2>${L.resultLong}</h2><div class="big">${fmtN(results)}<small>遊び始めの ${pct(results,starts)}</small></div><div class="muted">一つの筋書きを最後まで（何時間もかかる）。日ごとの手応えは「初戦を終えた」で見る</div></div>
-      ${RS?(()=>{ const be={}; for(const [k,n] of byPrefix("battle-end")){ const o=k.split("/")[0]; be[o]=(be[o]||0)+n; } const mi={}; for(const [k,n] of byPrefix("mission")){ const o=k.split("/")[0]; mi[o]=(mi[o]||0)+n; } const pr=byPrefix("promote");
-        return `<div class="card"><h2>戦を終えた（勝ち負け・任務）</h2><div class="big">${fmtN((be.win||0)+(be.lose||0)+(be.dead||0))}<small>出陣の ${pct((be.win||0)+(be.lose||0)+(be.dead||0),battles)}</small></div><div class="muted">勝ち ${fmtN(be.win||0)}・負け ${fmtN(be.lose||0)}・討死 ${fmtN(be.dead||0)}　任務を果たした ${fmtN(mi.ok||0)}／果たせず ${fmtN(mi.ng||0)}（${pct(mi.ok||0,(mi.ok||0)+(mi.ng||0))}）</div></div>
-      `; })():`<div class="card"><h2>解除・支援</h2><div class="big">${fmtN(unlocks)}<small>解除</small></div><div class="muted">支援の札を開いた ${fmtN(fundOpen)}・額を押した ${fmtN(fundClick)}・払いに進んだ ${fmtN(payClick)}${fundDone.length?`・支援あり ${fundDone.map(([k,n])=>k+"×"+n).join(" ")}`:""}</div></div>
-      <div class="card"><h2>LP（紹介ページ）</h2>${(()=>{ const lpv=byPrefix("lp/view"); const views=lpv.reduce((a,[,n])=>a+n,0); const clicks=byPrefix("lp").filter(([k])=>/appstore_click$/.test(k)).reduce((a,[,n])=>a+n,0); const opens=byPrefix("lp").filter(([k])=>k.startsWith("open_")).reduce((a,[,n])=>a+n,0); const src={}; for(const [k,n] of lpv){ const s2=k.split("/")[0]; src[s2]=(src[s2]||0)+n; } const sc={}; for(const [k,n] of byPrefix("lp")){ const m=k.match(/^scroll_(\d+)$/); if(m) sc[m[1]]=(sc[m[1]]||0)+n; } return `<div class="big">${fmtN(views)}<small>表示</small></div><div class="muted">App Store を押した ${fmtN(clicks)}（${pct(clicks,views)}）・動く絵を開いた ${fmtN(opens)}・流入 ${Object.entries(src).map(([k,n])=>k+" "+n).join(" ")||"—"}・読み進み 25%:${sc["25"]||0} 50%:${sc["50"]||0} 75%:${sc["75"]||0} 100%:${sc["100"]||0}</div>`; })()}</div>
-      <div class="card"><h2>お便りと支払い</h2>
-        <div class="row"><span>目安箱に届いたお便り</span><span class="n">${fmtN(ev("meyasu/send"))}</span></div>
-        <div class="row"><span>軍資金を「払いました」と押した人</span><span class="n">${fmtN(byPrefix("fund-paid").reduce((a,[,n])=>a+n,0))}</span></div>
-        <div class="row"><span>軍資金の額を押した人（ゲーム・ウェブとiPhone）</span><span class="n">${fmtN(ev("fund-click"))}</span></div>
-        <div class="row"><span>　そのうち PayPal から戻って「あとで」を押した人</span><span class="n">${fmtN(ev("fund-later"))}</span></div>
-        <div class="row"><span>LP で軍資金の額を押した人</span><span class="n">${fmtN(byPrefix("lp").filter(([k])=>/^fund_\d+$/.test(k)).reduce((a,[,n])=>a+n,0))}</span></div>
-        <div class="row"><span>関ヶ原（¥500）を「払いました」と押した人</span><span class="n">${fmtN(ev("paid/sekigahara"))}</span></div>
-        <div class="note" style="margin-top:8px">お便りは「みんなの声」に届き、メールでも送れます。支払いは PayPal の頁へ送ったあと、ゲームに戻って自分で「払いました」を押した数――実際に入金があったかどうかは PayPal の明細で確かめてください。iPhone 版の課金はここには出ません（App Store Connect で見る）。</div></div>`}
-      
-      
-    </div>
-    ${GAME!=="risshin"?'<div class="sec card" id="feedbackCard"><h2>みんなの声</h2><div id="feedbackBody">読み込み中…</div></div>':""}
-    <div class="sec card"><h2>日ごと（訪問・遊び始め・初戦を終えた）</h2>
-      <svg viewBox="0 0 ${W} ${H}">
-        <path d="${path('v')}" fill="none" stroke="#C9A227" stroke-width="2"/>
-        <path d="${path('s')}" fill="none" stroke="#5B9BD5" stroke-width="2"/>
-        <path d="${path('a')}" fill="none" stroke="#7ED67E" stroke-width="2"/>
-        ${ticks}
-        <text x="${pad}" y="14" font-size="11" fill="#C9A227">訪問</text>
-        <text x="${pad+46}" y="14" font-size="11" fill="#5B9BD5">遊び始め</text>
-        <text x="${pad+116}" y="14" font-size="11" fill="#7ED67E">初戦を終えた</text>
-      </svg>
-      <div class="note">いちばん多い日を天井にした目安です。数字は下の流れの欄に。</div>
-    </div>
-    <div class="sec card"><h2>日ごとの率（遊び始め率・継続率・離脱率）</h2>
-      <svg viewBox="0 0 ${W} ${RH}">
-        ${gridY}
-        <path d="${rateStart}" fill="none" stroke="#5B9BD5" stroke-width="2"/>
-        <path d="${rateAct}" fill="none" stroke="#7ED67E" stroke-width="2"/>
-        <path d="${leave}" fill="none" stroke="#E24A3A" stroke-width="2" stroke-dasharray="4 3"/>
-        <text x="${rpad}" y="14" font-size="11" fill="#5B9BD5">遊び始め率（訪問のうち）</text>
-        <text x="${rpad+150}" y="14" font-size="11" fill="#7ED67E">継続率（遊び始めのうち初戦を終えた）</text>
-        <text x="${rpad+380}" y="14" font-size="11" fill="#E24A3A">離脱率</text>
-      </svg>
-    </div>
-    <div class="sec card"><h2>どこまで進んだか（人の数）</h2>
-      ${(()=>{ const d=byPrefix("depth"); const order=RS?["始めた","足軽組頭候補","足軽組頭","足軽大将候補","足軽大将"]:["始めた","城3","城5","城10","城20","城30","城50"];
-        const rows=order.map(k=>[k, (d.find?0:0)]); const m={}; for(const [k,n] of d) m[k]=n;
-        const top=Math.max(1,...order.map(k=>m[k]||0));
-        return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}</span><span class="bar" style="display:inline-block;height:10px;background:#C9A227;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
-      })()}
-      <div class="note">${RS?"身分がどこまで上がったかで数えています（一度の遊びで一回。人は追いかけていません）。":"城がいくつになったかで数えています（人は追いかけていません）。"}</div>
-    </div>
-    <div class="sec card"><h2>一回にどれだけ遊んだか（人の数）</h2>
-      ${(()=>{ const d=byPrefix("stay"); const order=["1分","5分","15分","30分","60分","120分"];
-        const m={}; for(const [k,n] of d) m[k]=n;
-        const top=Math.max(1,...order.map(k=>m[k]||0));
-        return order.map(k=>`<div class="row"><span style="min-width:72px;display:inline-block">${k}以上</span><span style="display:inline-block;height:10px;background:#5B9BD5;width:${Math.round((m[k]||0)/top*70)}%"></span> <b>${fmtN(m[k]||0)}</b></div>`).join("");
-      })()}
-    </div>
-    <div class="sec card"><h2>流れ（訪問 → 遊び始め → ${L.battle} → ${L.result}）</h2>
-      <div class="funnel">
-        <div class="st"><b>${fmtN(visits)}</b><span>訪問</span><em>100%</em></div>
-        <div class="st"><b>${fmtN(starts)}</b><span>遊び始め</span><em>${pct(starts,visits)}</em></div>
-        <div class="st"><b>${fmtN(battles)}</b><span>${L.battle}</span><em>${pct(battles,visits)}</em></div>
-        <div class="st"><b>${fmtN(results)}</b><span>${L.result}</span><em>${pct(results,visits)}</em></div>
-        ${RS?`<div class="st"><b>${fmtN(act)}</b><span>初戦を終えた</span><em>${pct(act,visits)}</em></div>`:``}
-        <div class="st"><b>${fmtN(unlocks)}</b><span>課金（解除）</span><em>${pct(unlocks,visits)}</em></div>
-      </div>
-      ${(()=>{ const u=platRow("unlock"); return `<div class="muted" style="margin-top:6px">課金の内訳：アプリ ${fmtN(u.app)}／ウェブ ${fmtN(u.web)}${u.tot?"":"（まだ一件もありません）"}</div>`; })()}
-      <div id="salesBox" class="muted" style="margin-top:6px"></div>
-      <div class="muted" style="margin-top:8px">訪問＝ページを開いた数（出来事の数は含めない）。遊び始めが少なければ入口（題名の画面）、初戦を終えた人が少なければ最初の合戦で躓いている、と読めます。結びは筋書きを最後まで遊んだ人だけなので、ふだんは 0 で構いません。iPhone 版は数えていません（ブラウザ版だけ）。</div>
-    </div>
-    <div class="sec grid">
-      <div class="card"><h2>どの筋書きで始めたか</h2>${list(scen)}</div>
-      <div class="card"><h2>${L.startBy}</h2>${list(clans,"",15)}</div>
-      <div class="card"><h2>${L.resultKinds}</h2>${list(resultKinds)}</div>
-      
-      <div class="card"><h2>${L.battleKinds}</h2>${list(battleKinds)}</div>
-    </div>
-    <div class="sec grid">
-      ${RS?`<div class="note" style="grid-column:1/-1">下の内訳（ブラウザ・OS・国など）は GoatCounter のサイト全体の数で、戦国大名と戦国立身をあわせた物です。</div>`:""}
-      
-      <div class="card"><h2>OS（30日）</h2>${bl("systems")}</div>
-      <div class="card"><h2>画面の大きさ（30日）</h2>${bl("sizes")}</div>
-      
-      <div class="card"><h2>どこから来たか（30日）</h2>${bl("toprefs")}</div>
-      
-    </div>
-    <div class="sec note">数は GoatCounter（${esc(DATA.site)}）から六時間ごとに写しています。細かい生の数は <a href="${esc(DATA.site)}" target="_blank" rel="noopener">GoatCounter の画面</a>でも見られます。</div>`;
+  <div class="kpis">
+    <div class="card"><h2>App Store の版</h2><div class="big">${esc(app.version||"—")}</div><div class="muted">${app.released?esc(app.released)+" 公開":""}</div></div>
+    <div class="card"><h2>評価</h2><div class="big">${app.rating!=null?"★ "+Number(app.rating).toFixed(2):"—"}<small>${fmt(app.ratings)} 件</small></div><div class="muted">レビュー ${reviews.length?reviews.length+" 件（新しい物）":"まだ無し"}</div></div>
+    <div class="card"><h2>遊んだ人（入れた人）</h2><div class="big">${fmt(S&&S.total_new)}<small>累計</small></div><div class="muted">この7日 ${fmt(sum(last7,"new"))}（前の7日 ${fmt(sum(prev7,"new"))}）</div></div>
+    <div class="card"><h2>落ち</h2><div class="big">${crash?fmt(crash.value):st.crashes!=null?fmt(st.crashes):"—"}</div><div class="muted">${crash?esc(crash.device||"")+" "+esc(crash.percentile||""):"App Store Connect の診断"}</div></div>
+    <div class="card"><h2>重さ（実機 iPhone）</h2><div class="big">${ph?fmt(ph.median)+"<small>ms 中央</small>":"—"}</div><div class="muted">${ph?"上位5% "+fmt(ph.p95)+" ms・"+esc(ph.at):"まだ測っていない"}</div></div>
+    <div class="card"><h2>YouTube</h2><div class="big">${fmt(yt.subscribers)}<small>登録 ${delta(yt.subscriberDelta)}</small></div><div class="muted">総再生 ${fmt(yt.views)} ${delta(yt.viewDelta)}</div></div>
+    <div class="card"><h2>インスタ</h2><div class="big">${ig?fmt(ig.followers)+"<small>フォロワー</small>":"—"}</div><div class="muted">${ig?"再生 "+fmt(ig.views)+"・投稿 "+fmt(ig.posts):"reports/ig-stats.md 待ち"}</div></div>
+    <div class="card"><h2>Lancers の点</h2><div class="big">${lcBest&&lcBest.score!=null?fmt(lcBest.score)+"<small>点</small>":"—"}</div><div class="muted">${lcBest?esc(lcBest.name):"reports/lancers.md 待ち"}</div></div>
+  </div>
+  <div class="two sec">
+    <div class="card"><h2>日ごとに入れた人（30日）</h2>${bars(days,"new","#d9b45a")}<div class="muted">Apple の集計は一〜二日遅れます${sales&&sales.updated?"・"+esc(sales.updated.slice(0,16))+" 取得":""}</div></div>
+    <div class="card"><h2>新しいレビュー</h2>${reviews.length?reviews.slice(0,5).map(r=>`<div class="rv"><b>${"★".repeat(r.stars||0)}</b> ${esc(r.title)} <span class="muted">${esc(r.at)}・${esc(r.version)}</span><div class="muted">${esc(r.body)}</div></div>`).join(""):'<div class="muted">文のあるレビューはまだありません</div>'}</div>
+  </div>
+  <div class="two sec">
+    <div class="card"><h2>広告（Meta・30日）</h2>${adDays.length?`<div class="row"><span>使った額</span><b>${fmt(sum(adDays,"spend"))} 円</b></div><div class="row"><span>表示</span><b>${fmt(sum(adDays,"imp"))}</b></div><div class="row"><span>押された</span><b>${fmt(sum(adDays,"link"))}</b></div><div class="row"><span>入れた</span><b>${fmt(sum(adDays,"installs"))}</b></div>`:'<div class="muted">まだ数がありません</div>'}</div>
+    <div class="card"><h2>落ちと重さ（Apple の診断）</h2>${h&&h.rows&&h.rows.length?h.rows.slice(0,8).map(r=>`<div class="row"><span>${esc(r.metric)} ${esc(r.percentile||"")}<span class="muted"> ${esc(r.device||"")}</span></span><b>${fmt(r.value)} ${esc(r.unit||"")}</b></div>`).join(""):'<div class="muted">まだ数がありません</div>'}</div>
+  </div>
+  ${yt.top&&yt.top.length?`<div class="card sec"><h2>この7日よく見られた動画</h2>${yt.top.map(v=>`<div class="row"><span>${esc(v.name)}</span><b>${fmt(v.views)}</b></div>`).join("")}</div>`:""}
+  ${lc&&lc.rows&&lc.rows.length?`<div class="card sec"><h2>Lancers（遊んでもらった人の点）</h2>${lc.rows.map(r=>`<div class="row"><span>${esc(r.name)}</span><span>${esc(r.note)}</span></div>`).join("")}</div>`:""}
+  ${A&&A.battles?`<div class="card sec"><h2>戦ごと（bot と重さ）</h2><table><thead><tr><th>戦</th><th>bot</th><th>三角（万）</th></tr></thead><tbody>${A.battles.map(b=>`<tr><td>${esc(b.name)}</td><td>${b.bot?(b.bot.win?"勝ち":"負け")+(b.bot.down?"・倒れた":""):"—"}</td><td>${b.perf&&b.perf.triangles!=null?fmt(b.perf.triangles):"—"}</td></tr>`).join("")}</tbody></table></div>`:""}`;
+  try{ document.getElementById("main").appendChild(Object.assign(usersCard(),{className:"card sec"})); }catch(_){ }
 }
-// アプリ印だけを正規化する。端末不明の旧記録とウェブ印は補完しない。
-function appHits(hits){
-  return (hits||[]).filter(h=>h.event&&/^ev\/plat\/(app|ios)\//.test(String(h.path||'')))
-    .map(h=>({...h,path:h.path.replace(/^ev\/plat\/(app|ios)\//,'ev/')}))
-    .filter(h=>{const sc=h.path.split('/').find(x=>['oke','honnoji','kiyosu','shizugatake','komaki','koshu','sekigahara','osaka','hoi','mikata','nagashino','kyushu','odawara','ishiyama'].includes(x));return !sc||['nagashino','sekigahara'].includes(sc);});
-}
-function derive(DATA, RANGE='d7'){
-  const R=DATA.ranges?.[RANGE];if(!R)return null;
-  const hits=appHits(R.hits),sum=h=>(h.stats||[]).reduce((s,d)=>s+(Number(d.daily)||0),0);
-  const matches=(h,p)=>h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/');
-  const ev=p=>hits.filter(h=>matches(h,p)).reduce((s,h)=>s+sum(h),0);
-  const has=p=>hits.some(h=>matches(h,p));
-  const byPrefix=p=>hits.filter(h=>matches(h,p)).map(h=>[h.path.slice(('ev/'+p+'/').length),sum(h)]).sort((a,b)=>b[1]-a[1]);
-  // 旧版の初戦完了と新しい漏斗は同じ到達点。足し合わせない。
-  const first=has('funnel/first-end')?'funnel/first-end':'activation/first-battle-complete';
-  return {hits,ev,has,byPrefix,starts:has('start')?ev('start'):null,act:has(first)?ev(first):null,
-    unified:has('result/天下統一')?ev('result/天下統一'):null,review:reviewMetrics(hits),
-    loadSlow:ev('load/8s')+ev('load/slow'),loadTot:ev('load'),first};
-}
-function insights(c){
-  const out=[],add=(lv,t,why,how,key)=>out.push({lv,t,why,how,key});
-  if(!c.hits.length){add('急','アプリ内の計測がまだありません','アプリと確認できる出来事が届いていません。旧記録は端末不明です','端末の印を付けた版を配信し、実機で開始・初戦完了・統一・離脱の到着を確認する','app-measure');return out;}
-  if(c.act===null||c.unified===null)add('中','アプリの漏斗に未計測の段があります','印がない段をゼロや離脱と断定できません','端末の印が付いた版と到達時の送信を確認する','app-stages');
-  if(c.starts>=20&&c.act!==null&&c.act/c.starts<.4)add('急',`アプリの初戦完了が少ない（${Math.round(c.act/c.starts*100)}％）`,'アプリの遊び始めに比べ初戦完了の記録が少ない','初戦の操作説明と自動で戦う導線を実機で確かめる','firstbattle');
-  if(c.loadTot>=20&&c.loadSlow/c.loadTot>=.35)add('急','アプリの起動が遅い','八秒以上の読み込みが35％以上','実機で起動時間を測り、読み込みを軽くする','load');
-  const errs=c.byPrefix('err').filter(([k])=>!/postMessa|Script error|ResizeObserver|fbclid|instantMessag|invoking/i.test(k));
-  if(errs.length||c.review.faults)add('急',`アプリの不具合が ${errs.reduce((s,[,n])=>s+n,0)+c.review.faults}回`,'アプリ由来の不具合印があります（重複送信を含む回数）','場面と版を確認して実機で再現する','err');
-  const scenes=Object.entries(c.review.scenes).sort((a,b)=>b[1]-a[1]);
-  if(scenes[0]?.[1]>=5)add('急',`アプリの早い離脱候補が ${scenes[0][1]}回`,'三十分未満で裏へ移動した場面があります','離脱が多い場面と直後の復帰を見て、操作と知らせを確かめる','early');
-  if(!out.length)add('良','アプリの数を継続して見る','急ぎの指摘はありません','初戦完了と場面ごとの離脱を翌週も比べる','app-watch');
-  return out;
-}
-
-// 急ぎの判定は insight.mjs の derive / insights と同じ規則を上で使用する。
-let DAILY_SALES=null, SALES_LOADING=false;
-function appendUsers(){
-  if(document.getElementById('nuGo')) return;
-  if(GAME==='risshin'){document.getElementById('main').appendChild(usersCard());return;}
-  const host=document.getElementById('dailySettings');if(host)host.appendChild(usersCard());
-}
-async function loadDailySales(){
-  if(SALES_LOADING)return;SALES_LOADING=true;
-  try{const r=await fetch('sales.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error(r.status);DAILY_SALES=await r.json();}
-  catch(_){DAILY_SALES={error:true};}finally{SALES_LOADING=false;}
-  if(GAME==='daimyo'){render();loadExtras();appendUsers();}
-}
-const shiftDay=(day,n)=>{const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
-const rangeDays=(end,n)=>Array.from({length:n},(_,i)=>shiftDay(end,i-n+1));
-const inScope=p=>{const sc=String(p).split('/').find(x=>['oke','honnoji','kiyosu','shizugatake','komaki','koshu','sekigahara','osaka','hoi','mikata','nagashino','kyushu','odawara','ishiyama'].includes(x));return !sc||['nagashino','sekigahara'].includes(sc);};
-function dailyCounts(hits,allowed){
- const hs=appHits(hits);
- const sum=h=>(h.stats||[]).filter(d=>!allowed||allowed.includes(d.day)).reduce((n,d)=>n+(Number(d.daily)||0),0);
- const event=p=>hs.filter(h=>h.event&&(h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/'))).reduce((n,h)=>n+sum(h),0);
- const count=p=>hs.some(h=>h.path==='ev/'+p||h.path.startsWith('ev/'+p+'/'))?event(p):null;
- return [count('start'),count(hs.some(h=>h.path.startsWith('ev/funnel/first-end'))?'funnel/first-end':'activation/first-battle-complete'),count('result/天下統一')];
-}
-function delta(now,prev){
- if(now===null||prev===null)return '<span class="change">— 比較できる記録なし</span>';
- if(!prev)return `<span class="change ${now?'good':''}">${now?'↑ ＋'+fmtN(now):'→ 変化なし'}</span>`;
- const d=(now-prev)/prev*100;return `<span class="change ${d>0?'good':d<0?'bad':''}">${d>0?'↑':d<0?'↓':'→'} ${fmtN(Math.round(Math.abs(d)))}％${d?'':'（変化なし）'}</span>`;
-}
-
-async function loadMeta(end,game){ const el=document.getElementById('metaBody'); if(!el)return;
- let m; try{const r=await fetch('meta.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok)throw 0; m=await r.json();}catch(_){el.textContent='まだつないでいません（Meta の鍵待ち）';return;}
- const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0}).format(n);
- const sum=(ds,k)=>ds.reduce((a,d)=>a+(Number(d[k])||0),0);
- const wk=rangeDays(end,7), pw=rangeDays(shiftDay(end,-7),7);
- const src=(game==='risshin'?m.risshin:m.days)||[]; const a=src.filter(d=>wk.includes(d.d)), b=src.filter(d=>pw.includes(d.d));
- const st=(DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days||[]; const nw=st.filter(d=>wk.includes(d.d)).reduce((n,d)=>n+(Number(d.new)||0),0);
- const sp=sum(a,'spend'), lk=sum(a,'link');
- el.className=''; el.innerHTML=`<div class="store-line"><b class="store-n">${yen(sp)}</b><span class="muted">直近7日の広告費</span>${b.length?delta(sp,sum(b,'spend')):''}</div>
- <div class="row"><span>リンクのクリック</span><b>${fmtN(lk)}回（1回 ${lk?yen(sp/lk):'—'}）</b></div>
- ${game==='risshin'?'':`<div class="row"><span>App Store の新規入手1件あたり</span><b>${nw?yen(sp/nw):'—'}</b></div>`}
- <div class="muted">${game==='risshin'?'戦国立身の名が付いた広告だけ。':'戦国立身の広告は除く。新規入手は広告以外も含む全体の数。'}Meta 更新 ${esc(String(m.updated).slice(0,10))}</div>`; }
-function render(){if(GAME==='risshin'){renderLegacy();return;}renderDaily();}
-function renderDaily(){
- if(!DATA)return;
- const r=DATA.ranges.d7,one=DATA.ranges.d1,history=DATA.ranges.d30||DATA.ranges.d90;
- if(!r||!one){document.getElementById('main').innerHTML='<div class="card">昨日・直近7日の記録を取得できませんでした。</div>';return;}
- // 日次統計の day は UTC の日付。d1 の実際のキーを基準に前週を切り出す。
- const dayKeys=[...new Set((one.hits||[]).flatMap(h=>(h.stats||[]).map(d=>d.day)))].sort();
- const keyEnd=dayKeys.at(-1)||shiftDay(one.end,-1),end=keyEnd;
- const hasHistory=history&&history.start<=shiftDay(end,-13)&&history.end>=end;
- const weekly=dailyCounts(r.hits),yesterday=dailyCounts(one.hits);
- const prev=hasHistory?dailyCounts(history.hits,rangeDays(shiftDay(keyEnd,-7),7)):null;
- const prevDay=hasHistory?dailyCounts(history.hits,[shiftDay(keyEnd,-7)]):null;
- const labels=['遊び始め','初戦を終えた','統一'];
- const c=derive(DATA,'d7'),urgent=c?insights(c).filter(x=>x.lv==='急').slice(0,3):[];
- const hits=appHits(r.hits);const review=reviewMetrics(hits);
- const scenes={};
- // 新しい記録がない期間は従来の「3分未満」を使用。人数と断定しない。
- const newScenes=Object.entries(review.scenes);
- if(!newScenes.length)for(const h of hits){const m=String(h.path).match(/^ev\/quit\/(.+)\/(1m|3m)$/);if(h.event&&m)scenes[m[1]]=(scenes[m[1]]||0)+sumStats(h);}
- const sceneNames={title:'表紙',map:'天下の地図',battle:'合戦','title-house':'大名家を選ぶ','battle-setup':'陣立て','battle-result':'合戦の結果',entry:'入口',house:'大名家を選ぶ'};
- const sceneName=k=>k.split('/').map(x=>sceneNames[x]||x.replace(/^panel:/,'札：').replace(/^dialog:/,'知らせ：')).join('・');
- const early=(newScenes.length?newScenes:Object.entries(scenes)).sort((a,b)=>b[1]-a[1]);
- const losses=labels.slice(0,2).map((label,i)=>{const from=weekly[i],to=weekly[i+1];return {label:label+' → '+labels[i+1],from,to,rate:from&&to!==null&&to<=from?Math.round((from-to)/from*100):null};}).sort((a,b)=>(b.rate??-1)-(a.rate??-1));
- const pct=(a,b)=>b?fmtN(Math.round(a/b*100))+'％':'—';
- const storeHtml=key=>{
-  const title=({new:'新規入手',re:'再入手',upd:'更新',proceeds:'売上（推定入金）'})[key];
-  if(!DAILY_SALES)return `<article class="card"><h3>${title}</h3><p class="muted">読み込み中…</p></article>`;
-  if(DAILY_SALES.error)return `<article class="card"><h3>${title}</h3><p class="muted">記録を取得できませんでした</p></article>`;
-  const x=DAILY_SALES.games?.daimyo||DAILY_SALES,ds=x.days||[];
-  const amount=n=>key!=='proceeds'?fmtN(n)+'件':new Intl.NumberFormat('ja-JP',{style:'currency',currency:x.cur||'JPY',maximumFractionDigits:2}).format(n);
-  const period=(e,n)=>{const wanted=rangeDays(e,n),rows=ds.filter(d=>wanted.includes(d.d)),complete=rows.length===n;return {sum:rows.reduce((s,d)=>s+(Number(d[key])||0),0),complete,days:rows.length};};
-  const a=period(end,7),b=period(shiftDay(end,-7),7),y=period(end,1),py=period(shiftDay(end,-7),1);
-  const val=t=>t.complete?amount(t.sum):t.days?amount(t.sum):'—';
-  return `<article class="card"><h3>${title}</h3><div class="store-line"><b class="store-n">${val(a)}</b><span class="muted">${a.complete?'直近7日':a.days+'/7日・判明分'}</span>${a.complete&&b.complete?delta(a.sum,b.sum):'<span class="change">— 前週比未確定</span>'}</div><div class="muted">昨日 ${y.complete?val(y):'集計待ち'} ${y.complete&&py.complete?delta(y.sum,py.sum):''}</div></article>`;
- };
- setTimeout(()=>loadMeta(end),0);
- document.getElementById('main').innerHTML=`
- <div class="daily-head"><h2>いまの戦国大名</h2><p>昨日 ${esc(keyEnd)} ／ 直近7日 ${esc(shiftDay(end,-6))}〜${esc(end)}</p></div>
- <p class="note">広告の効き目：ct（meta・google・lp・guide・lp-meta）の入手別集計は sales.json にありません（売上の日次合計のみ取得）。App Store Connect → App 分析 → 戦国大名 → 獲得 → キャンペーンで確認。<a href="https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links">表示条件</a>：初回入手5人以上。</p>
- <div class="store">${['new','re','upd','proceeds'].map(storeHtml).join('')}</div>
- <article class="card" id="metaCard"><h3>Meta 広告</h3><div id="metaBody" class="muted">読み込み中…</div></article>
- <p class="muted">星レビュー：平均 — ／ 件数 —（未取得。みんなの声の評価は星に換算しません）</p>
- <h2 style="margin-top:24px">アプリ内の漏斗</h2><p class="muted">アプリ印のある記録のみ。印がない過去の段は未計測。</p>
- <section class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))" aria-label="アプリ内の漏斗">${labels.map((label,i)=>`<article class="card kpi"><h3>${label}</h3><div class="value">${weekly[i]===null?'未計測':fmtN(weekly[i])}</div>${delta(weekly[i],prev?prev[i]:null)}<div class="yesterday">昨日 <b>${yesterday[i]===null?'未計測':fmtN(yesterday[i])}</b>${delta(yesterday[i],prevDay?prevDay[i]:null)}</div></article>`).join('')}</section>
- <p class="muted">上の数字は直近7日／矢印は前週比（昨日は前週同日比）。App Store 最新確定 ${esc((DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days?.at(-1)?.d||'—')}。</p>
- <div class="work-grid">
- <section class="card"><h2>どこで去っているか</h2><div class="muted">直近7日・離脱率の高い順</div>${losses.map(x=>`<div class="loss-row"><div>${x.label}<small>${x.from===null?'未計測':fmtN(x.from)} → ${x.to===null?'未計測':fmtN(x.to)}回</small></div><span class="loss-rate">${x.rate===null?'—':x.rate+'％'}</span></div>`).join('')}
- <h3>早い離脱が多い場面</h3><div class="muted">${newScenes.length?'30分未満の離脱候補':'3分未満の離脱候補（従来の記録）'}</div>${early.slice(0,5).map(([k,n])=>`<div class="row"><span>${esc(sceneName(k))}</span><b>${fmtN(n)}回</b></div>`).join('')||'<p class="muted">まだ記録がありません</p>'}
- <details><summary>数の読み方</summary><p class="muted">離脱率は各段階の記録回数の差です。同じ人の追跡ではありません。去った候補には裏への移動も含みます。端末の印なしは除外。筋書きが分かる記録は長篠・関ヶ原だけです。急ぎの判定は毎朝の insight.mjs と同じ規則です。旧版の初戦完了は activation、以降は funnel/first-end を使い、二重には足しません。</p>${early.slice(5).map(([k,n])=>`<div class="row"><span>${esc(sceneName(k))}</span><b>${fmtN(n)}回</b></div>`).join('')}</details></section>
- <section class="card"><h2>次の一手</h2><p class="muted">直近7日から・急ぎだけ、最大3件</p><ol class="action-list">${urgent.map(x=>`<li><strong>${esc(x.key==='start'?x.t.replace(/（.*）/,''):x.t)}</strong><p>${esc(x.key==='err'?x.how.split('：')[0]:x.how)}</p></li>`).join('')||'<li>急ぎの指摘はありません</li>'}</ol></section>
- </div>
- <details class="card daily-details"><summary>日ごとの入手・売上</summary>${(()=>{const ds=(DAILY_SALES?.games?.daimyo||DAILY_SALES)?.days||[],wanted=rangeDays(end,7);return wanted.map(day=>{const d=ds.find(x=>x.d===day);return `<div class="row"><span>${esc(day)}</span><span>${d?`新規 ${fmtN(d.new)}／再入手 ${fmtN(d.re)}／更新 ${fmtN(d.upd)}／${fmtN(d.proceeds)} ${esc((DAILY_SALES?.games?.daimyo||DAILY_SALES)?.cur||'JPY')}`:'集計待ち'}</span></div>`;}).join('');})()}</details>
- <details class="card daily-details" id="feedbackCard"><summary>みんなの声 <span class="muted">新しい順・5件まで</span></summary><div id="feedbackBody">読み込み中…</div></details>
- <details class="card daily-details" id="reviewSigns"><summary>レビューの兆し <span class="muted">直近7日</span></summary><dl class="review-grid">
- <div><dt>知らせの閉じる率</dt><dd>${pct(review.noticeClose,review.noticeShow)}</dd><p class="muted">表示 ${fmtN(review.noticeShow)}／閉じる ${fmtN(review.noticeClose)}回</p></div>
- <div><dt>一括の命令</dt><dd>${fmtN(review.bulk)}回</dd></div>
- <div><dt>優勢になってから統一まで</dt><dd>${review.tailDays===null?'—':review.tailDays.toFixed(1)+'日'}</dd><p class="muted">ゲーム内の暦・統一 ${fmtN(review.tailN)}件／優勢 ${fmtN(review.dominance)}件</p></div>
- <div><dt>手動と自動の比</dt><dd>${fmtN(review.manual)} : ${fmtN(review.auto)}</dd><p class="muted">手動 ${review.manualPct===null?'—':review.manualPct+'％'}</p></div></dl><p class="muted">長篠・関ヶ原。回数は送信された差分の合計です。優勢は自城＋従属城が全国の三分の一に届いた時。手動・自動は開戦時の采配で分類します。</p></details>
- <details class="card daily-details"><summary>管理の設定</summary><div id="dailySettings"></div></details>`;
- if(document.getElementById('gate').style.display==='none')appendUsers();
-}
-
 if(opened()) load();
 </script>
 </body>
