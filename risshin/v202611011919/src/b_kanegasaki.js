@@ -324,9 +324,14 @@ function retreatGroundDetail(rt) {
         vec3 n = abs(normalize(cross(dFdx(p), dFdy(p))));
         vec3 axis = pow(n, vec3(4.0)); axis /= max(0.001, axis.x + axis.y + axis.z);
         // 切岸にも同じ粒の大きさを保ち、縦に伸びた板模様にしない。
-        vec3 soil = texture2D(tBank, p.zy * 0.23).rgb * axis.x
+        // 11/1 点付け（崖の模様が粗い）：切岸の土の絵は一枚 4.3m の一回だけで、坂の肩に大きな縞が並んだ。
+        //   細かい一回（一枚 1.6m・向きを振る）を重ね、高さで湿った濃い土と乾いた明るい土を分ける（読み出しは二つ足すだけ）。
+        vec3 bankX = mix(texture2D(tBank, p.zy * 0.23).rgb, texture2D(tBank, mat2(0.8, 0.6, -0.6, 0.8) * p.zy * 0.62 + 0.37).rgb, 0.5);
+        vec3 bankZ = mix(texture2D(tBank, p.xy * 0.23).rgb, texture2D(tBank, mat2(0.8, 0.6, -0.6, 0.8) * p.xy * 0.62 + 0.71).rgb, 0.5);
+        float bankShade = mix(0.78, 1.04, smoothstep(-0.6, 0.6, sin(p.y * 1.7 + p.x * 0.31 + p.z * 0.23)));
+        vec3 soil = bankX * bankShade * axis.x
           + texture2D(tDirt, p.xz * 0.13).rgb * axis.y   // 落ち葉の土の写真は一枚 7.7m（葉と小枝が離れても見える大きさ。10/30）
-          + texture2D(tBank, p.xy * 0.23).rgb * axis.z;
+          + bankZ * bankShade * axis.z;
         vec3 w = max(vKgMix, vec3(0.0));
         float wear = texture2D(tWear, (p.xz + 240.0) / 480.0).r;
         w.x *= (1.0 - smoothstep(0.05, 0.75, wear)) * smoothstep(0.4, 0.8, n.y);
@@ -560,24 +565,25 @@ function kgSlopeLitter(rt) {
   const rocks = [];
   for (let i = 0; i < 26 && rocks.length < 18; i++) {
     const a = (i * 0.618034) % 1, b = (i * 0.754877) % 1;
-    const d = 10 + a * 24, s = (2.5 + b * 10) * (i % 2 ? 1 : -1), r = 0.55 + ((i * 7) % 5) / 4 * 0.9;
+    // 11/1 点付け（崖の模様が粗い）：二〜四メートルの殻のような岩が坂に並び、内の暗い腹が見えて草の幕の襞に見えた。小さく、深く埋める。
+    const d = 10 + a * 24, s = (2.5 + b * 10) * (i % 2 ? 1 : -1), r = 0.4 + ((i * 7) % 5) / 4 * 0.5;
     const [x, z] = at(d, s);
     if (free(x, z, r)) rocks.push([x, z, r, (i * 0.37) % 1]);
   }
   const geo = rockShape(1, true, S.quality === 'low' ? 1 : 2);
   // 暗い石の絵を頂点色へ重ねず、苔と乾いた土の色を混ぜる（黒い穴の塊に見えた）。
   // 茶の円盤に見えた（10/29）：砂色を減らし、灰の石に苔を混ぜる。
-  const vc = geo.attributes.color, vp = geo.attributes.position, sand = new THREE.Color(0x77736a), moss = new THREE.Color(0x5a6040), tone = new THREE.Color();
+  const vc = geo.attributes.color, vp = geo.attributes.position, sand = new THREE.Color(0x6c6a64), moss = new THREE.Color(0x4f5638), tone = new THREE.Color();
   for (let i = 0; i < vc.count; i++) {
     const y = vp.getY(i), patch = (.5 + .5 * Math.sin(vp.getX(i) * 7 + vp.getZ(i) * 5)) * Math.max(0, y);
     tone.fromBufferAttribute(vc, i).lerp(sand, .6).lerp(moss, patch * .6); vc.setXYZ(i, tone.r, tone.g, tone.b);
   }
-  const mat = new THREE.MeshLambertMaterial({ bumpMap: stoneTex(), bumpScale: .06, vertexColors: true, side: THREE.DoubleSide, emissive: 0x34322a, emissiveIntensity: .08 });
+  const mat = new THREE.MeshLambertMaterial({ bumpMap: stoneTex(), bumpScale: .14, vertexColors: true, side: THREE.DoubleSide, emissive: 0x34322a, emissiveIntensity: .08 });
   const mesh = new THREE.InstancedMesh(geo, mat, rocks.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), e = new THREE.Euler(), pv = new THREE.Vector3(), nv = new THREE.Vector3(), vn = geo.attributes.normal;
   const shade = [];
   rocks.forEach(([x, z, r, a], i) => {
-    p.set(x, W.heightAt(x, z) - r * 0.4, z);
+    p.set(x, W.heightAt(x, z) - r * 0.55, z);
     q.setFromEuler(e.set((a - 0.5) * 0.5, a * 6.28, (a * 7 % 1 - 0.5) * 0.4));
     // 平たい円盤に見せない：背を高めにする（据えるのは groundRocks の後で下の腹を調べ直す。10/29）
     mesh.setMatrixAt(i, m.compose(p, q, sc.set(r * (1.05 + a * 0.35), r * (0.9 + a * 0.35), r)));
@@ -1972,7 +1978,9 @@ function tezutsuTatebori(rt, W, F) {
     });
     if (seg.length > 2) lines.push(seg);
   };
-  for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) { ray(a, 7); ray(a + 0.15, 18); }
+  // 11/1 点付け（崖の模様が粗い）：持ち場の七歩先まで下ろした溝の裾が、肩越しのすぐ前で腰ほどの土手の襞（草の幕）に見えた。
+  //   近い裾は十四歩で止め、裾へ向けて浅く消す（kgGrooves）。見上げる斜面の縞は残す。
+  for (let a = 0; a < Math.PI * 2 - 0.01; a += 0.3) { ray(a, 14); ray(a + 0.15, 20); }
   // 10/30：南（退き道の先の狭路の両側の山）を向くと平らな野の先に竪堀が一本も無かった（八方のうち三方で0%）。
   //   持ち場から南東〜南西の五十〜百二十五歩（霞の手前）の山腹にも、遠目で縞が読めるよう遠いほど幅を広げた竪堀を並べる（推定）。歩く高さは変えない。
   const farRay = (a) => {
@@ -2014,7 +2022,7 @@ function kgGrooves(rt, F, W, lines) {
       const ul = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, sx = -(b[1] - a[1]) / ul, sz = (b[0] - a[0]) / ul;
       // 上の端は細く浅く消え、裾は近い肩越しに写るので終わりまで深く掘る。
       // 道で途切れた所も三点かけて地面へ戻す（切り口の土の壁を立てない）。
-      const k = Math.min(1, t * 5, (1 - t) * 12 + 0.3, j / 3, (line.length - 1 - j) / 3), w = 1.55 * (line.w || 1) * Math.max(k, 0.25);
+      const k = Math.min(1, t * 5, (1 - t) * 4 + 0.12, j / 3, (line.length - 1 - j) / 3), w = 1.55 * (line.w || 1) * Math.max(k, 0.25);
       for (const [o, lift, hex] of prof) {
         const x = x0 + sx * o * w, z = z0 + sz * o * w;
         pos.push(x, W.heightAt(x, z) + 0.06 + lift * k * (line.w || 1), z);
@@ -3103,6 +3111,24 @@ const kanegasaki = {
     rt.after(26, () => { const g = F.w1 && F.w1[0]; if (g) { g.noRout = false; g.defMult = 1.6; } });
     // 開戦25秒（10/31）：一の備の西の田で、殿の他の手と朝倉の大軍の組み合い（軽い作り）を先手と同時に始め、備の前に寄せる
     rt.after(1, () => { if (!rt.over && !F.ending) this.lineClash(rt); });
+    // 11/1 点付け（金ヶ崎56：敵の大軍・乱戦が薄い）：西の田の組み合いは25秒の肩越しの画面（北の登城道）では城山の裾に隠れていた。
+    // 麓の木戸の先、登城道の坂（持ち場から十五〜三十歩）で、殿の先に出た手と坂を駆け下る朝倉の先手が押し合い斬り合う乱戦を置く。
+    // 朝倉の側は坂の上へ厚く続け、峠道の大軍へつなげる。軽い作り（addClash）だけで、本物の兵の数・道・当たりは変えない。
+    // 二の備へ退く時（fallBack）に殿の側が崩れて退く。
+    rt.after(1, () => {
+      if (rt.over || F.ending || F.slopeClash) return;
+      // 25秒の向きは流すたびに北（登城道）か東（疋田の道）へ振れる。東は疋田の道の手前（持ち場から十七歩・道の杉の手前）で、東から寄せる朝倉の手と押し合う。
+      const K = (o) => clash(rt, { bw: 5.2, gap: 2.4, host: false, noRout: true, killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0, ...o });
+      F.slopeClashes = [
+        K({ x: 4, z: -63, facing: Math.PI, w: 16, seed: 1583,
+          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 32, flagRate: 0.22 },
+          B: { flag: 'asakura', armor: ASAKURA.armor, count: 72, flagRate: 0.3 } }),
+        K({ x: 25, z: -28, facing: Math.atan2(0.83, 0.55), w: 12, seed: 1584,
+          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 36, flagRate: 0.22 },
+          B: { flag: 'asakura', armor: ASAKURA.armor, count: 60, flagRate: 0.3 } })].filter(Boolean);
+      for (const C of F.slopeClashes) C.go?.();
+      F.slopeClash = true;
+    });
     rt.after(14, () => {
       if (rt.over || F.ending || F.step !== 1) return;
       const g = enemyGroup(rt, { faction: 'asakura', name: '朝倉の東の追手', anchor: HIKIDA_FROM, facing: HIKIDA_FACING, order: 'attack', seekRange: 90, aggro: 10, width: 14, morale: 95, fleeDir: { x: 1, z: 0.3 }, dmgMult: 0.65, speed: 2.6 },
@@ -3152,6 +3178,7 @@ const kanegasaki = {
     const F = rt.flags;
     if (F.line >= k) return;
     F.line = k;
+    for (const C of F.slopeClashes || []) C.rout?.('A', { hideAfter: 30, from: 0 });
     F.step = k * 2;            // 2：二の備へ ／ 4：三の備へ
     F.stepT = rt.t;
     F.lineGatherAt = 0; F.lineGap = undefined; F.lineProgressAt = rt.t;

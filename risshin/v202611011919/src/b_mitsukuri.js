@@ -1484,12 +1484,22 @@ function mitsukuriHut(W, x, z, w, d, o) {
       const patch = .15 + .12 * (Math.sin(cx * 4.7 + z * 2.3) * .5 + .5);
       for (let i = start; i < end; i++) {
         const t = Math.max(0, Math.min(1, (P.getY(i) - y0) / (y1 - y0)));
+        // 11/1 c_veg_far：軒の深い影を壁の上へ（上ほど明るい一枚の板に見せない）。
         weatherColor.copy(wallColor).lerp(silverWood, patch + t * .13)
-          .lerp(dampWood, (1 - t) * .48);
+          .lerp(dampWood, (1 - t) * .48).multiplyScalar(1 - Math.max(0, t - .55) * .75);
         C.setXYZ(i, weatherColor.r, weatherColor.g, weatherColor.b);
       }
     }
     start = end;
+  }
+  // 11/1 c_veg_far：屋根の反り。軒へ向けて屋根面・押さえ木・石を同じ量だけ持ち上げ、平らな箱の屋根に見せない。
+  //   壁の上端（base+H-0.1）より上の頂点だけ。軒先の下面（垂れた端）は少し暗くして軒の厚みと影を出す。
+  const reachX = w / 2 + 0.7, flat = w * 0.15;
+  for (let i = 0; i < P.count; i++) {
+    if (P.getY(i) <= base + H - 0.05) continue;
+    const ax = Math.abs(P.getX(i) - x), u = Math.max(0, (ax - flat) / (reachX - flat));
+    P.setY(i, P.getY(i) + 0.13 * u * u);
+    if (u > 0.92) C.setXYZ(i, C.getX(i) * .72, C.getY(i) * .72, C.getZ(i) * .72);
   }
   geo.computeVertexNormals();
   for (const [mat, entries] of batch.byMat) {
