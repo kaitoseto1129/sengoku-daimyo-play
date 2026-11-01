@@ -4,6 +4,7 @@
 // 10/28：同じ見た目の武将を二人作らない。鉢・立物・白熊が同じなら、威・陣羽織・胴の色のどれかを大きく（色の差55以上）変える。
 // 写真と出典のある人を先に決め、裏付けの無い人は名の重い順に、威と陣羽織を伝統の色（紺・縹・萌黄・紫・緋・朽葉など）から選んだ復元案。
 import { MAEDATE } from "./kabuto_maedate.js";
+import { ROSTER, rosterKacchu } from "./bushou_roster.js";
 export const KACCHU = {};
 for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of [
   // 稲生の参戦者。所用具足・立物・個人紋は未確認。筋兜と毛引威の復元で補う。
@@ -627,6 +628,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
 ]) {
   KACCHU[name] = { bowl, crest, armor, helm: armor, lace, odo: lace, doStyle, haori, menpo, menpoStyle: "hanbo", mon, ref, hat: "kabuto", hatFix: 1, lac: armor === 0xa52b1c || armor === 0x8e1f16 ? "shu" : "kuro", fuki: "kuro" };
 }
+// 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の値か家の色の範囲から一人ずつ組む（復元案。立物は鍬形の類だけ）。
+for (const name of Object.keys(ROSTER)) {
+  if (KACCHU[name]) continue;
+  const { bowl, crest, armor, lace, doStyle, haori, menpo, mon } = rosterKacchu(name);
+  KACCHU[name] = { bowl, crest, armor, helm: armor, lace, odo: lace, doStyle, haori, menpo, menpoStyle: "hanbo", mon, ref: "", hat: "kabuto", hatFix: 1, lac: "kuro", fuki: "kuro", roster: 1 };
+}
+// 姉川の頃の秀吉は木下の名で出る。若い頃の具足（木下藤吉郎）を使う。
+if (!KACCHU["木下秀吉"]) KACCHU["木下秀吉"] = KACCHU["木下藤吉郎"];
 // 同じ人物の別名に別の兜や威を割り当てない。
 KACCHU["氏家卜全"] = KACCHU["氏家直元"];
 // 同じ人物の別名に別の兜や威を割り当てない。

@@ -346,6 +346,61 @@ function sunoNearestFoe(rt) {
   F.sunoFoe = best;
   return best;
 }
+// 10/31：寄せ手の足。遠い所で「かかれ」を受けた組（物見・日暮れの寄せ・舟・林の組）は、遠景の軽い扱いの間は
+// 持ち場（anchor）の周りに留まり、柵へ来なかった。遠い組は道を歩かせて柵の前へ着いてから寄せさせる。
+// 三の寄せで空堀に足を取られて十五秒動かない組は、北の土橋へ回る。本人が三の寄せと槍を合わせた後なら、その組は退く。
+function sunoMarchPath(c, viaNorth) {
+  if (c.x > FORT + 6 && c.z > -FORT - 6) return [[FORT + 8, Math.max(-12, Math.min(12, c.z))]];
+  if (c.x < -FORT - 6 && c.z > -FORT - 6) return viaNorth ? [[-40, Math.max(-40, Math.min(20, c.z))], [-40, -40], [0, -40], [0, -FORT - 6]]
+    : [[-40, Math.max(-12, Math.min(12, c.z))], [-FORT - 5, Math.max(-10, Math.min(10, c.z))]];
+  return [[Math.max(-30, Math.min(30, c.x)), -40], [0, -40], [0, -FORT - 6]];
+}
+// 北の土橋の口の前に居る寄せ手の数（一度に回り込ませて口に積み上げない）。
+function sunoGapLoad(rt) {
+  let n = 0;
+  for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && Math.abs(u.pos.x) < 10 && u.pos.z < -FORT + 2 && u.pos.z > -FORT - 12) n++;
+  return n;
+}
+function sunoMarchTick(rt) {
+  const F = rt.flags;
+  if (!F.wave || rt.t < (F.marchAt || 0)) return;
+  F.marchAt = rt.t + 1;
+  for (const g of rt.army.groups) {
+    if (g.team === rt.player.u.team || !g.count || g.routed || g.noAI || g.isStruct || g === F.KE || g.focus) continue;
+    if (g.order !== 'assault') { if (g.order !== 'path' || !g._sunoMarch) g._sunoStallAt = null; continue; }
+    const c = g.center(), r = Math.max(Math.abs(c.x), Math.abs(c.z));
+    if (r < FORT + 3) { g._sunoStallAt = null; continue; }
+    const march = (viaNorth = false) => {
+      g._sunoMarch = true; g._sunoStallAt = null;
+      g.order = 'path'; g.path = sunoMarchPath(c, viaNorth); g.pathIdx = 0; g.speed = Math.max(g.speed || 0, 3);
+      const end = g.path[g.path.length - 1], side = end[0] > FORT ? 'e' : end[0] < -FORT ? 'w' : 'n';
+      g.onArrive = (q) => { q.order = 'assault'; q.onArrive = null; q.assault = assaultFn(rt, side); };
+    };
+    if (r > FORT + 20 && !g._sunoMarch) { march(); continue; }
+    const st = g._sunoStallAt;
+    if (!st || Math.hypot(c.x - st.x, c.z - st.z) > 3) { g._sunoStallAt = { x: c.x, z: c.z, t: rt.t }; continue; }
+    if (F.wave !== 3 || rt.t - st.t < 15) continue;
+    if (F.foughtWave === 3 && rt.t - st.t >= 20) { g.noRout = false; g.morale = 0; }
+    else if (!g._sunoDetour && c.x < -FORT - 3 && c.z > -FORT - 6 && sunoGapLoad(rt) < 8) { g._sunoDetour = true; march(true); }
+  }
+}
+// 最後の寄せの残り：柵の外で足を止めた組も、遊び手の持ち場へ寄せさせる（兵は足さない）。
+function sunoLastCall(rt) {
+  const F = rt.flags, me = rt.player.u.pos;
+  const side = F.post3 || F.guardSide || 'n';
+  const groups = [];
+  for (const g of rt.army.groups) {
+    if (g.team === rt.player.u.team || !g.count || g.routed || g.isStruct) continue;
+    const c = g.center();
+    groups.push([Math.hypot(c.x - me.x, c.z - me.z), g]);
+  }
+  groups.sort((a, b) => a[0] - b[0]);
+  for (const [, g] of groups.slice(0, 2)) {
+    g.noAI = false; g.focus = null; g.onArrive = null; g.order = 'assault';
+    g.assault = assaultFn(rt, side); g.speed = 3; g.aggro = 12; g.seekRange = 60; g.noRout = true;
+    g._sunoStallAt = null;
+  }
+}
 function sunoPost(rt, text, side) {
   rt.unmark('post0');
   rt.flags.guardSide = side;
@@ -2322,6 +2377,7 @@ function gateWall(rt, on) {
   }
 }
 
+const sunoArmedFoe = (o) => o.type !== 'porter' && !o.civ;
 function assaultFn(rt, side) {
   const outside = { x: 0, z: 0 }, cands = [];
   let crowdTeam, crowdSeg, crowdCount;
@@ -2342,7 +2398,8 @@ function assaultFn(rt, side) {
       if (hit.includes(u)) return F.hut;
       // 開戦の三十二秒までは小屋を打つのは二人まで。残りは小屋の前で守り手と斬り合う（開戦25秒の乱戦・10/30 夜）
       if (hit.length < (rt.t < 32 ? 2 : 6)) { hit.push(u); return F.hut; }
-      const foe = rt.army.nearestEnemy(u, 16);
+      // 10/31：あぶれた者は槍を持つ守り手へ向かう（人足を先に追わない。乱戦は小屋の前で起きる）
+      const foe = rt.army.nearestEnemy(u, 16, sunoArmedFoe) || rt.army.nearestEnemy(u, 16);
       if (foe) { goal.x = foe.pos.x; goal.z = foe.pos.z; return goal; }
       const a = u.id * 2.4;
       goal.x = F.hut.x + Math.sin(a) * 7.5; goal.z = F.hut.z + Math.cos(a) * 7.5; return goal;
@@ -2676,8 +2733,10 @@ const sunomata = {
   // 毎回いまの戦場から決める。討った・退けた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     if (sunomata.commanderTarget(rt)) return 2;
-    const u = sunoNearestFoe(rt);
-    return u && Math.hypot(u.pos.x, u.pos.z) < FORT + 35 ? 1 : 0;
+    const u = sunoNearestFoe(rt), F = rt.flags;
+    // 三の寄せでまだ槍を合わせていない間は、柵の外で止まった寄せ手もピンで示す（任務の無い間を作らない）。
+    const reach = F.wave === 3 && F.foughtWave !== 3 ? FORT + 50 : FORT + 35;
+    return u && Math.hypot(u.pos.x, u.pos.z) < reach ? 1 : 0;
   },
   missionHeading(rt) { return sunomata.missions[sunomata.missionOf(rt)]; },
   // 最後の寄せの大将が柵へ寄った時だけ、名と命の棒と大きな▼をその人へ。
@@ -4227,7 +4286,7 @@ const sunomata = {
   // 物見の小勢：柵の一区画に取り付き、破れ目を探る。数は少なく、討つか追えば退く。
   probe(rt, k, g, side) {
     const F = rt.flags;
-    if (rt.over || F.ending || F.won || !g || !g.count || g.routed) return;
+    if (rt.over || F.ending || F.won || !g || !g.count || g.routed || F['PR' + k] === g) return;
     F['PR' + k] = g; F['pr' + k + 'T'] = rt.t;
     g.order = 'assault'; g.assault = assaultFn(rt, side); g.speed = 3; g.formation = 'line';
     rt.marker('pr' + k, centerOf(g), '柵を探る物見', { red: true, group: g });
@@ -4372,7 +4431,14 @@ const sunomata = {
     }
     // 稲生の型：日暮れまで小屋と人足を守り抜けば、残りの寄せは退いて勝ち（守り抜けの一行と同じ物差し）。
     // 10/30：日暮れの勝ちも、本人が三の寄せで槍を当てたか討った時だけ（立っているだけなら期限で失敗）
-    if (rt.t >= deadline && F.wave === 3 && F.foughtWave === 3 && F.hut.alive && F.wk.count >= 2 && !F.wk.routed) {
+    // 10/31：日暮れにまだ三の寄せと槍を合わせていなければ、一度だけ四十秒の猶予。残る寄せ手を持ち場へ向かわせ、ピンもその敵へ。
+    // 槍を当てた時に勝つ（立っているだけの勝ちは無いまま、柵の外で寄せ手が止まって相手がいない負けを防ぐ）。
+    if (rt.t >= deadline && F.wave === 3 && F.foughtWave !== 3 && !F.lastCall && deadline < 480 && F.hut.alive && F.wk.count >= 2 && !F.wk.routed) {
+      F.lastCall = true; F.duskAt = deadline; F.finishAt = Math.min(480, deadline + 40);
+      sunoLastCall(rt);
+      return;
+    }
+    if (rt.t >= (F.duskAt ?? deadline) && F.wave === 3 && F.foughtWave === 3 && F.hut.alive && F.wk.count >= 2 && !F.wk.routed) {
       for (const g of rt.army.groups) if (g.team !== rt.player.u.team && !g.routed && g.count) { g.noRout = false; g.morale = 0; }
       this.holdWin(rt, true); return;
     }
@@ -4562,6 +4628,36 @@ const sunomata = {
     }
     // 10/30：本人が槍を当てたか討った寄せの時だけ次の手へ進める（立っているだけでは段が進まない）
     { const sw = rt.player.u.swing; if (sw?.target && sw.target.team !== rt.player.u.team && sw.res && sw.res !== 'miss') F.foughtWave = F.wave; }
+    // 10/31：寄せが退いたのに本人がまだ槍を合わせていない時は、待たせきりにしない。八秒で物見を持ち場へ寄せ、
+    // その組が崩れるか四十秒届かなければ、控えの組を一つずつ本人の持ち場へ出し続ける。段は本人が槍を合わせた時だけ進む（兵は足さない）。
+    if (F.foughtWave !== F.wave && fortSafe(rt) && (F.wave === 1 && gone(F.W1) && (!F.W1b || gone(F.W1b)) && !F.next2 ||
+        F.wave === 2 && F.W2 && gone(F.W2) && !F.next3)) {
+      const k = F.wave, pg = k === 1 ? F.probe1 : F.probe2, idleKey = `gateIdle${k}`;
+      if (F[idleKey] == null) F[idleKey] = rt.t;
+      const side = F.guardSide || (k === 1 ? F.r1.side : 'n'), cur = F.gateFoe;
+      if (rt.t - F[idleKey] > 8 && (!cur || gone(cur) || rt.t - F.gateFoeT > 40)) {
+        F.gateFoeT = rt.t;
+        if (pg && !gone(pg) && F['PR' + k] !== pg) { F.gateFoe = pg; this.probe(rt, k, pg, side); }
+        else {
+          // 控え（まだ動かない組）のうち小勢の一つ（物見や日暮れの小隊。一度に大勢を本人へ向けない）。荷駄と舟は筋書きの出番に残す。
+          let best = null, bd = Infinity;
+          for (const g of rt.army.groups) {
+            if (g.team === rt.player.u.team || !g.noAI || !g.count || g.count > 8 || g.routed || g === F.KE || g === F.supplyEnemy ||
+                F.boatWaves.includes(g)) continue;
+            const c = g.center(), d = g.count * 100 + Math.hypot(c.x, c.z);
+            if (d < bd) { bd = d; best = g; }
+          }
+          F.gateFoe = best;
+          // 空堀の西を避け、北の土橋から本人の柵の前へ歩かせる。
+          if (best) {
+            best.noAI = false; best.aggro = 8; best.seekRange = 45; best.speed = 3; best._sunoMarch = true;
+            best.order = 'path'; best.path = sunoMarchPath(best.center(), true); best.pathIdx = 0;
+            const end = best.path[best.path.length - 1], bs = end[0] > FORT ? 'e' : 'n';
+            best.onArrive = (q) => { q.order = 'assault'; q.onArrive = null; q.assault = assaultFn(rt, bs); };
+          }
+        }
+      }
+    }
     if (F.wave === 1 && gone(F.W1) && (!F.W1b || gone(F.W1b)) && rt.t - F.w1T > 18 && fortSafe(rt) && !F.next2 && F.foughtWave === 1) {
       F.next2 = true; F.next2T = rt.t;
       rt.unmark('w');
@@ -4689,6 +4785,7 @@ const sunomata = {
       }
     }
     // 三の手と最後の押しを退け、普請の点検が済めば味方の合図で終える。
+    sunoMarchTick(rt);
     if (F.wave === 3) {
       if (F.saved >= 2 && F.waveT >= 55 && !F.reinforced) { F.reinforced = true; this.callReinforce(rt); }
       const left = Math.max(0, Math.ceil(F.finishAt - rt.t));
@@ -4698,9 +4795,9 @@ const sunomata = {
         : F.buildBusy ? F.workNotice || '柵を直す人足を守れ'
         : F.segs.some((s) => !s.alive) ? '破れ目を守れ。寄せの合間に柵を直す' : '敵を退け、柵の修理と点検まで終えよ';
       const countdown = `${left <= 45 ? '日が沈むぞ' : left <= 90 ? '日暮れが近い' : '日が傾いてきた'}。期限あと${left}秒。${workGuide}`;
-      // 後続は四十五秒から二十五秒おき。最後の組にも接敵・退却と、修理・点検の時間を残す。
+      // 後続は三十秒から二十二秒おき（10/31：柵のあとの待ちを詰める）。最後の組にも接敵・退却と、修理・点検の時間を残す。
       const q = F.duskWaves[F.duskNext];
-      if (q && rt.t >= F.w3T + (45 + F.duskNext * 25) * Math.min(180, F.finishAt - F.w3T) / 180) {
+      if (q && rt.t >= F.w3T + (30 + F.duskNext * 22) * Math.min(180, F.finishAt - F.w3T) / 180) {
         F.duskNext++;
         q.startedAt = rt.t;
         const g = q.group;
@@ -4726,7 +4823,7 @@ const sunomata = {
         F.duskWarn = warning;
         rt.bark(`日暮れまで${left}秒！　砦の敵を退け、柵を仕上げよ`, true);
       }
-      if (F.duskNext === F.duskWaves.length && F.duskWaves.every((q) => gone(q.group)) && F.landed && F.W3d && gone(F.W3a) && gone(F.W3b) && F.boatWaves.every(gone) && gone(F.W3d) && gone(F.lastPush) && fortSafe(rt)) {
+      if (F.foughtWave === 3 && F.duskNext === F.duskWaves.length && F.duskWaves.every((q) => gone(q.group)) && F.landed && F.W3d && gone(F.W3a) && gone(F.W3b) && F.boatWaves.every(gone) && gone(F.W3d) && gone(F.lastPush) && fortSafe(rt)) {
         this.holdWin(rt); if (F.won) return;
         if (!F.w3Clear) {
           sunoRemove(rt, 'post');
@@ -5134,7 +5231,16 @@ function makeSunomataBrain(b) {
   const p = b.player, u = p.u, F = b.flags;
   // 退き先は一度だけ用意し、敵が小屋へ来た時は別の空いた所を選ぶ。
   const restPoints = [[-6, 5], [6, 10], [0, 14], [-12, 10], [12, 10]];
-  let restPoint = restPoints[0], senseAt = -1, closeFoes = 0, closeFriends = 0;
+  let restPoint = restPoints[0], senseAt = -1, closeFoes = 0, closeFriends = 0, restSince = null, noRestUntil = -1;
+  // 10/31：槍の届かない所で止まった敵（空堀の中・物見の上）を待ち続けない。十二秒届かなければ二十秒ほかの敵へ。
+  const skipUntil = new Map();
+  let waitFoe = null, waitSince = 0;
+  const reachable = (o) => !(skipUntil.get(o.group) > b.t);
+  const noteWait = (e) => {
+    const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+    if (d < 3.2 || e.group !== waitFoe) { waitFoe = e.group; waitSince = b.t; return; }
+    if (b.t - waitSince > 12) { skipUntil.set(e.group, b.t + 20); waitFoe = null; }
+  };
   const inF = (q, m = 0) => Math.abs(q.x) < FORT - m && Math.abs(q.z) < FORT - m;
   const walk = (x, z, r) => sunomataWalk(b, inp, goTo, x, z, r);
   // 回り道で決めた歩みを保ったまま敵を向く。前進のまま向きだけ替えると柵や小屋へ突っ込む。
@@ -5202,13 +5308,13 @@ function makeSunomataBrain(b) {
     // 持ち場への下知と突撃の往復で、同じ号令を何度も叫ばせない。
     if (b.squad.length && b.squadGroups[0].order !== 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyC'); b.botCmdT = b.t + 30; }
   };
-  const fightable = (o) => !o.invuln && !o.fleeing && !o.woundOut && !o.group?.routed;
+  const fightable = (o) => !o.invuln && !o.fleeing && !o.woundOut && !o.group?.routed && reachable(o);
   const insideEnemy = (o) => fightable(o) && inF(o.pos, 0.4);
   const visible = (o) => !o.fleeing && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
     !b.army.wallBetween(o.pos, -1, u.pos, (o.wpnKind || o.lookWeapon || o.weapon) === 'spear');
   const supplyEnemy = (o) => fightable(o) && o.group === F.KE;
   const outsideEnemy = (o) => fightable(o) && Math.abs(o.pos.x) < FORT + 8 && Math.abs(o.pos.z) < FORT + 8;
-  const activeEnemy = (o) => fightable(o) && (o.group === F.W1 || o.group === F.W1b || o.group === F.PR1 || o.group === F.PR2 || o.group === F.W2 || o.group === F.W3a || o.group === F.W3b || o.group === F.W3c || o.group === F.W3d);
+  const activeEnemy = (o) => fightable(o) && (o.group === F.lastPush || F.boatWaves.includes(o.group) || F.duskWaves.some((q) => q.group === o.group && q.startedAt != null) || o.group === F.W1 || o.group === F.W1b || o.group === F.PR1 || o.group === F.PR2 || o.group === F.W2 || o.group === F.W3a || o.group === F.W3b || o.group === F.W3c || o.group === F.W3d);
   const byFlag = (x) => x.id === 'flag';
   const byWoodPick = (item) => item.id === 'woodPick', byWoodDrop = (item) => item.id === 'woodDrop';
   return (nextInput, nextGoTo) => {
@@ -5249,13 +5355,18 @@ function makeSunomataBrain(b) {
     }
   }
   const surrounded = closeFoes >= 3 && closeFoes > closeFriends + 1;
-  if (hurt || tired || surrounded || u.mobbed || F.botRest) {
+  // 10/31：手当てが叶わないまま退き続けない（人の遊び手と同じく、二十五秒下がったら一度持ち場へ戻る）。
+  const restBlocked = b.t < noRestUntil && !surrounded && u.hp > u.maxHp * .4;
+  if (!restBlocked && (hurt || tired || surrounded || u.mobbed || F.botRest)) {
     // 追手は十二歩まで見張り、布を巻けるかは本体と同じ護衛・壁・八歩の条件で決める。
     const near = b.army.nearestEnemy(u, 12, visible);
     // 退く理由（気力切れ・囲み・手当て）が消えたら持ち場へ戻る。柵越しの敵が近いだけで休み続けると、
     // 砦へ入った敵が人足を討つ間も柵ぎわで立ち尽くした。
     const trig = tired || surrounded || u.mobbed || hurt;
     F.botRest = trig ? !!near || p.sta < p.maxSta * 0.6 || hurt : p.sta < p.maxSta * 0.45;
+    if (F.botRest && restSince === null) restSince = b.t;
+    if (F.botRest && !surrounded && (b.t - restSince > 25 && u.hp > u.maxHp * .45 || b.t - restSince > 45 && !near && u.hp > u.maxHp * .2)) { F.botRest = false; noRestUntil = b.t + 20; }
+    if (!F.botRest) restSince = null;
     if (F.botRest) {
       inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false;
       // 攻め続ける組を前に置き去りにせず、退き先へ連れて戻る。
@@ -5308,7 +5419,7 @@ function makeSunomataBrain(b) {
   }
   // 材を渡す途中の接敵と、普段の守備は、柵を越えた敵を先に止める。
   const inside = b.army.nearestEnemy(u, 60, insideEnemy);
-  if (inside) { fight(inside); return; }
+  if (inside) { noteWait(inside); fight(inside); return; }
   // 任務の材木を届けてから、柵内に落ちた旗だけ拾う。守りを離れて敵の控えへ出ない。
   const fl = b.interacts.find(byFlag);
   if (F.woodDelivered && fl && inF(fl.pos, 1) && !b.army.nearestEnemy(u, 3)) {
@@ -5353,7 +5464,7 @@ function makeSunomataBrain(b) {
   }
   // 柵に寄ってくる敵：柵の内側から突く
   const e = b.army.nearestEnemy(u, 30, outsideEnemy);
-  if (e) { fight(e); return; }
+  if (e) { noteWait(e); fight(e); return; }
   if (b.squad.length && b.squadGroups[0].order === 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyZ'); b.botCmdT = b.t + 30; }
   // 寄せ手の来る側の柵の内へ
   // 控えの隊へ走らず、今寄せている隊の側へ付く。
