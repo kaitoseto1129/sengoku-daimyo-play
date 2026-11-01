@@ -47,13 +47,16 @@ function huntPlayer(rt, dt) {
   const P = rt.player.u;
   if (!P?.alive) return;
   const weak = P.hp < P.maxHp * 0.4;
+  // 11/1：本人に集まる敵の組は二つまで（三つ目からは味方の列と斬り合わせる）
+  let hunting = 0;
+  for (const g of rt.army.groups) if (g.team === 1 && g.focus === P && g.count && !g.routed) hunting++;
   for (const g of rt.army.groups) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 75) g.focus = P;
+    if (!mine && d < 75 && hunting < 2) { g.focus = P; hunting++; }
     else if (mine && d > 110) g.focus = null;
   }
 }
@@ -1733,10 +1736,12 @@ const iwamura = {
     // 10/30 25秒（二）：一つの組み合いは西に十七歩離れ、まばらに見えた。同じ人数を口の左右十一〜十六歩へ二つに分け、
     //   柵の外で詰めて押し合わせる（口へ向いても、西・東の篝火へ向いても、どちらかが画面に入る）。兵の総数は同じ。
     F.fenceSallies = []; F.fenceRaids = [];
-    for (const [x, lead, n] of [[-16, true, 7], [11, false, 7]]) {
-      const sally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x, z: -8 }, facing: Math.PI, width: 5, spacing: 0.85, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, noRout: true },
+    // 11/1 点付け（岩村66「乱戦が薄い」）：二つの組み合いは画面の左右の端に分かれ、真ん中が空いた。
+    //   25秒の持ち場の正面（口の西、柵の外の十五〜二十歩）にもう一組、十対十の本物の兵の押し合いを置く。その分、遠景の軽い兵を減らす。
+    for (const [x, lead, n, zs] of [[-16, true, 7, -8], [11, false, 7, -8], [-5, true, 9, -12]]) {
+      const sally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x, z: zs }, facing: Math.PI, width: 5, spacing: 0.85, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, noRout: true },
         battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], ODA));
-      const raid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x, z: -11.5 }, facing: 0, order: 'hold', formation: 'yari', width: 5, spacing: 0.85, aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
+      const raid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x, z: zs - 3.5 }, facing: 0, order: 'hold', formation: 'yari', width: 5, spacing: 0.85, aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
         battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], TAKEDA));
       raid.noRout = true;   // 最初の四十秒は崩れず柵の外で組み合う（update で解く）
       raid.defMult = sally.defMult = 3;   // 二十五秒の前に討ち尽くさず、押し合いを長く見せる（四十秒で戻す）
@@ -2064,7 +2069,7 @@ const iwamura = {
   update(rt, dt) {
     huntPlayer(rt, dt);
     heroFrontClash(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210, at: [13, -4.5] }) || [];
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210, at: [-2, -2] }) || [];
     if (rt.t > 40 && rt.flags.fenceRaids?.[0].defMult > 1) {
       for (const g of rt.flags.fenceRaids) { g.noRout = false; g.defMult = 1; }
       for (const g of rt.flags.fenceSallies) g.defMult = 1;
@@ -3111,7 +3116,16 @@ const iwamura = {
         // 陣の外の城山の急な山肌（夕日を受けて白く浮く）は、苔と落葉の暗い褐色へ半分ほど寄せる。段の石垣の線を山肌の上で読ませる（10/28）。
         col = mix(col, col * vec3(0.5, 0.44, 0.34), smoothstep(0.3, 0.7, slopeK) * (1.0 - iwaField) * 0.65);
         // 緩い坂と道も褐色を残す。切岸だけを直すと麓の土が雪のように白くなる。
-        col *= mix(vec3(1.0), vec3(0.68, 0.51, 0.34), uNight * iwaField);
+        // 11/1 点付け「地面が一様で暗い土」：夜の一色の褐色を、枯れ草の明るい斑・踏んだ土・湿った黒土の三つに分ける（読む絵は増やさない）。
+        float iwaLeaf = smoothstep(0.32, 0.68, macro2 * 0.7 + dot(dirt, vec3(0.333)) * 0.9 - 0.12);
+        col *= mix(vec3(1.0), mix(vec3(0.56, 0.42, 0.29), vec3(0.9, 0.78, 0.55), iwaLeaf), uNight * iwaField);
+        // 11/1 点付け「遠い山肌・崖の模様が粗い」：陣の外の急な山肌に、岩の絵を細かい縮尺で横から読み、岩の割れ目と層の筋を重ねる（遠くは絵の縮小で自然にならす）。
+        float iwaSteep = smoothstep(0.3, 0.75, slopeK) * (1.0 - iwaField * 0.7);
+        vec2 iwaRU = vec2(vWP.x + vWP.z * 0.35, vWP.y * 1.3);
+        float iwaR1 = dot(texture2D(tStone, iwaRU * 0.11 + 0.17).rgb, vec3(0.333));
+        float iwaR2 = dot(texture2D(tStone, vec2(iwaRU.x * 0.031, iwaRU.y * 0.09) + 0.53).rgb, vec3(0.333));
+        float iwaCrack = 1.0 - smoothstep(0.16, 0.3, min(iwaR1, iwaR2 + 0.08));
+        col *= mix(1.0, clamp(0.62 + iwaR1 * 0.55 + iwaR2 * 0.35, 0.7, 1.25) * (1.0 - iwaCrack * 0.55), iwaSteep);
         // 柵の根元は踏んだ土から草へぼかす。板や草の描画を増やさない。
         float iwaFenceX = abs(vWP.x);
         float iwaFence = (1.0 - smoothstep(0.4, 2.2, abs(vWP.z - (-6.0 + max(0.0, iwaFenceX - 8.0) * 4.0 / 52.0))))
@@ -3782,12 +3796,13 @@ function armyBackdrop(rt, o) {
   //   25秒の持ち場（柵ぎわ）を芯に六方へ置き、どちらを向いても一つは画面の奥に入る。一組の数を減らして、全体の兵の数は前と同じ（220×4 ≒ 146×6）。
   const cx = o.at ? o.at[0] : P.pos.x, cz = o.at ? o.at[1] : P.pos.z;
   for (let j = 0; j < 6; j++) {
+    if (j === 3) continue;   // 11/1：真後ろ（陣の内）の一組は置かない（重さの釣り合い。本物の兵を二十足した分）
     const ang = j * Math.PI / 3, seed = j + 1;
     const c = Math.cos(ang), s = Math.sin(ang);
     const fx = d.x * c + d.z * s, fz = -d.x * s + d.z * c, sx = fz, sz = -fx;
     let at = null;
     for (let k = 0; k < 8 && !at; k++) {
-      const r = 24 + k * 7, x = cx + fx * r, z = cz + fz * r;
+      const r = 52 + k * 6, x = cx + fx * r, z = cz + fz * r;   // 11/1：本人の44m の内は軽い兵が描かれないので、その外へ
       if (HOUSE_PADS && HOUSE_PADS.some((h) => Math.abs(x - h[0]) < h[2] + 8 && Math.abs(z - h[1]) < h[3] + 8)) continue;
       if (SOLIDS.some((q) => x + 9 > q.x0 && x - 9 < q.x1 && z + 9 > q.z0 && z - 9 < q.z1)) continue;   // 小屋・櫓・柵の当たりに兵を重ねない
       if (W.inWaterAt && W.inWaterAt(x, z)) continue;
@@ -3798,8 +3813,8 @@ function armyBackdrop(rt, o) {
     const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
-      A: { flag: o.ally, armor: 0x2a2622, count: 73, flagRate: .25 },
-      B: { flag: o.foe, armor: 0x2a2622, count: 73, flagRate: .25 } });
+      A: { flag: o.ally, armor: 0x2a2622, count: 58, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 58, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

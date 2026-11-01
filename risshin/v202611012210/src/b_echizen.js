@@ -27,15 +27,18 @@ function huntPlayer(rt, dt) {
   F._huntT = 0.5;
   const P = rt.player.u;
   if (!P?.alive) return;
-  const weak = P.hp < P.maxHp * 0.4;
+  // 11/1：郭の中の乱戦の間、木戸前で三組・四組が一度に本人へ集まり、倒れる戦が増えた。本人へ向ける組は二つまで、深手の目安も半ばに。
+  const weak = P.hp < P.maxHp * 0.5;
+  let hunters = 0;
+  for (const g of rt.army.groups) if (g.team === 1 && g.focus === P && g.count && !g.routed) hunters++;
   for (const g of rt.army.groups) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
-    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
+    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) { g.focus = null; hunters--; } continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 30) g.focus = P;
-    else if (mine && d > 45) g.focus = null;
+    if (!mine && d < 30 && hunters < 2) { g.focus = P; hunters++; }
+    else if (mine && d > 45) { g.focus = null; hunters--; }
   }
 }
 // 10/31 mini の点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所に置いた押し合いが画面から外れた。
@@ -2054,6 +2057,16 @@ echizen.update = function (rt, dt) {
       const open = (FF.kannonIn || 0) >= 30 && rt.t >= 240;
       kz.hold = open ? FF.kannonHold0 : 1e9;
       if (!open) kz.holdT = 0;
+      // 11/1：郭の内を味方が三倍で押さえたら、本道から駆け下りた小勢の残りは踏みとどまらず退く（郭が空かず時間切れになった）。
+      if (open && kz.enemies && kz.friends >= 3 * kz.enemies && (FF._kzRoutT = (FF._kzRoutT || 0) - dt) <= 0) {
+        FF._kzRoutT = 2;
+        for (const g of rt.army.groups) {
+          if (g.team !== 1 || g.routed || !g.units.some((q) => q.alive && !q.fleeing && kz.test(q.pos.x, q.pos.z))) continue;
+          g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null;
+          if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; }
+          for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
+        }
+      }
     }
   }
   kinome.update.call(this, rt, dt);
@@ -2167,6 +2180,9 @@ echizen.update = function (rt, dt) {
     F.echizenGateCleared = true;
     F.echizenIkkiCrowd?.retreat?.(30, 16); F.echizenIkkiHost?.retreat?.(40, 20);
     for (const C of F.echizenFenceClash || []) C.rout?.('B');
+    // 11/1：破れた口へ本人が先に飛び込むと、味方が着くまで郭の守兵二十四人の刃を一人で受けて倒れた。味方が追いつく二十秒だけ刃を浅く。
+    { const g = F.d?.kannon?.real;
+      if (g && !g._breachSoft) { g._breachSoft = true; const dm = g.dmgMult; g.dmgMult = (dm ?? 1) * 0.5; rt.after(20, () => { g.dmgMult = dm; }); } }
     rt.objRemove('_gate');
     for (let i = rt.objectives.length - 1; i >= 0; i--) {
       const o = rt.objectives[i];

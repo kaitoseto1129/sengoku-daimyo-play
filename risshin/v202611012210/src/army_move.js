@@ -717,6 +717,10 @@ export const ArmyMove = {
     const pk = 1 - Math.exp(-dt / 0.1);
     u.push.x += (px + sx - u.push.x) * pk; u.push.z += (pz + sz - u.push.z) * pk;
     u.vel.x = u.mv.x + u.push.x; u.vel.z = u.mv.z + u.push.z;
+    if (!u.isPlayer) {   // 人と馬の本物の速さを超えない（甲冑の人は約5m/秒・馬は約11.5m/秒まで）
+      const vmax = mounted ? 11.5 : Math.min(5.2, (u.run || 4.5) * 1.05), vl = Math.hypot(u.vel.x, u.vel.z);
+      if (vl > vmax) { const k = vmax / vl; u.vel.x *= k; u.vel.z *= k; u.mv.x *= k; u.mv.z *= k; u.push.x *= k; u.push.z *= k; }
+    }
     if (!u.isPlayer && dt > 0) {
       const fieldLim = lim - 0.3;
       const vx = fieldSpeed(u.pos.x, u.vel.x, dt, fieldLim);

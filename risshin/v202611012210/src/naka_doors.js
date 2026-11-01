@@ -13,20 +13,7 @@ import * as THREE from 'three';
 import { SOLIDS } from './props.js';
 import { addDeck, FL } from './floors.js';
 import { INTERIOR_WALLS } from './shironaka.js';
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { panelInstances, mikiSillHeight, eachMikiWakishojiFramePart, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_LEAF_OVERLAP, HIEI_SOBO_SILL, inabaBoardTexture } from './interior_parts.js';
-=======
-import { koshiTimbers, paperDoorTimbers, nodaDoorHeight, nodaShojiReverse, ceilingWoodMaterial, panelInstances, slidingDoorTrack, batchInterior, hieiRitualTimber, inabaBoardTexture, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_LEAF_OVERLAP, HIEI_SOBO_SILL, igaShojiKoshi } from './interior_parts.js';
-=======
-import { koshiTimbers, paperDoorTimbers, nodaDoorHeight, nodaShojiReverse, ceilingWoodMaterial, panelInstances, slidingDoorTrack, batchInterior, hieiRitualTimber, inabaBoardTexture, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_LEAF_OVERLAP, HIEI_SOBO_SILL, igaShojiKoshi, interiorDoorHeight, interiorDoorSill } from './interior_parts.js';
->>>>>>> main
-import { interiorPartitionHeight, interiorPartitionHeaders, shitaragaharaEntryInset } from './interior_layouts.js';
->>>>>>> main
-=======
 import { koshiTimbers, paperDoorTimbers, nodaDoorHeight, nodaShojiReverse, ceilingWoodMaterial, panelInstances, batchInterior, hieiRitualTimber, inabaBoardTexture, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_LEAF_OVERLAP, HIEI_SOBO_SILL, igaShojiKoshi, interiorDoorHeight, interiorDoorSill } from './interior_parts.js';
->>>>>>> main
 import { S as SETTINGS } from './settings.js';
 
 export const DOORS = [];
@@ -66,12 +53,7 @@ export function resetNakaDoors() {
 }
 // 間仕切りの口ごとに戸を一組。lv.layout.walls の当たりを作った後に呼ぶ（y0・y1 は壁と同じ高さの幅）
 export function addNakaDoors(I, lv, y0, y1) {
-<<<<<<< HEAD
-  if (I.profile === 'miki') return addMikiDoors(I, lv, y0, y1);
-
-=======
   if (I.profile === 'iwamura' || I.profile?.startsWith('iwamura_')) return iwamuraDoors.addNakaDoors(I, lv, y0, y1);
->>>>>>> main
   if (I.profile === 'moribe') return moribeAddNakaDoors(I, lv, y0, y1);
   if (I.profile === 'anegawa') return addAnegawaDoors(I, lv, y0, y1);
   if ((['iga', 'hieizan', 'shitaragahara'].includes(I.profile) || I.profile?.startsWith('honnoji_'))) return addNakaDoorsHiei(I, lv, y0, y1);
@@ -647,20 +629,9 @@ function addNakaDoorsHiei(I, lv, y0, y1) {
 export function buildNakaDoorMeshes(I, grp) {
   if (I.profile === 'iwamura' || I.profile?.startsWith('iwamura_')) return iwamuraDoors.buildNakaDoorMeshes(I, grp);
   if (I.profile === 'moribe') return moribeBuildNakaDoorMeshes(I, grp);
-<<<<<<< HEAD
-<<<<<<< HEAD
-  if (I.profile === 'hieizan' || I.profile === 'miki') return buildNakaDoorMeshesHiei(I, grp);
-=======
-=======
   if (I.profile === 'anegawa') return buildAnegawaDoorMeshes(I, grp);
-<<<<<<< HEAD
->>>>>>> main
-  if (['iga', 'hieizan', 'shitaragahara'].includes(I.profile)) return buildNakaDoorMeshesHiei(I, grp);
-=======
   if ((['iga', 'hieizan', 'shitaragahara'].includes(I.profile) || I.profile?.startsWith('honnoji_'))) return buildNakaDoorMeshesHiei(I, grp);
->>>>>>> main
   if (I.profile === 'nodafukushima' && SETTINGS.quality === 'high') return buildNodaDoorMeshes(I, grp);
->>>>>>> main
   if (!I.doors) return;
   const fitted = SETTINGS.quality === 'high' && I.profile === 'inabayama';
   if (fitted && I.doors.length) {
@@ -816,42 +787,6 @@ if (I.profile === 'hieizan' || I.profile === 'iga' || I.profile?.startsWith('hon
   if (I.profile?.startsWith('honnoji_')) return buildHonnojiDoorPanels(I, grp);
   const by = new Map();
   for (const d of I.doors) {
-<<<<<<< HEAD
-    // 正面戸・座敷の戸・明かり障子は寸法が違う。同寸の戸だけをまとめ描きする。
-    if (I.profile === 'miki' && d.n === 2) {
-      d.panelW = d.pw + .015; d.panelH = d.h + .02;
-    }
-    const key = I.profile === 'miki' ? d.kind + ':' + d.panelW + ':' + d.panelH
-      : d.tracked ? d.kind + ':' + d.pw + ':' + panelHeight(d) : d.kind;
-    if (!by.has(key)) by.set(key, []);
-    by.get(key).push(d);
-  }
-  for (const list of by.values()) {
-    const first = list[0], kind = first.kind;
-    const count = list.reduce((s, d) => s + d.n, 0);
-    const panelKind = I.profile === 'hieizan' ? kind === 'shoji' ? 'shojiHiei' : kind === 'koshi' ? 'koshiHiei' : kind : kind;
-    const meshes = I.profile === 'miki'
-      ? panelInstances(kind, count, first.panelW, first.panelH, 'miki')
-      : first.tracked ? panelInstances(panelKind, count, false, first.pw + HIEI_LEAF_OVERLAP, panelHeight(first)) : panelInstances(panelKind, count);
-    let i = 0;
-    for (const d of list) { d.meshes = meshes; d.base = i; i += d.n; }
-    for (const m of meshes) { m.count = count; grp.add(m); }
-    if (['miki', 'hieizan'].includes(I.profile)) {
-      // 閉じた時だけの範囲では、横へ滑った障子が画面端で消える。
-      // 両端の範囲を設営時に一度だけ合わせ、動く間の計算は増やさない。
-      for (const d of list) pose(d, 0);
-      for (const m of meshes) m.computeBoundingSphere();
-      const closed = meshes.map(m => m.boundingSphere.clone());
-      for (const d of list) pose(d, 1);
-      for (let j = 0; j < meshes.length; j++) {
-        meshes[j].computeBoundingSphere();
-        meshes[j].boundingSphere.union(closed[j]);
-      }
-      for (const d of list) pose(d);
-    } else {
-      for (const d of list) pose(d);
-      for (const m of meshes) m.computeBoundingSphere();
-=======
     // 伊賀の戸は小窓も外戸も間仕切りも実寸で組む。標準幅の戸を伸縮すると、
     // 狭い外戸の框と引手が潰れ、館では固定の襖・障子と桟の太さが違っていた。
     // 同じ種類・寸法の戸は原形と材質を共有し、開閉中は行列だけを動かす。
@@ -866,7 +801,6 @@ if (I.profile === 'hieizan' || I.profile === 'iga' || I.profile?.startsWith('hon
       const key = kind + (d.fittedPanel ? ':' + d.panelW + ':' + (I.profile === 'iga' ? d.h - .04 : panelHeight(d)) : '');
       if (!by.has(key)) by.set(key, []);
       by.get(key).push({ d, right, kind, count: split ? d.n / 2 : d.n });
->>>>>>> main
     }
   }
   for (const entries of by.values()) {
@@ -1026,15 +960,6 @@ function buildHonnojiDoorPanels(I, grp) {
 }
 
 function pose(d, open = d.open) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  if (d.I.profile === 'miki') return poseMiki(d, open);
-  if (d.tracked) return poseHiei(d);
-  const I = d.I, k = d.open, e = k * k * (3 - 2 * k);
-=======
-=======
-=======
   if (d.I.profile?.startsWith('honnoji_')) {
 
   if (!d.meshes) return;
@@ -1065,13 +990,10 @@ function pose(d, open = d.open) {
   if (d.meshes) for (const m of d.meshes) m.instanceMatrix.needsUpdate = true;
     return;
   }
->>>>>>> main
   if (d.I.profile === 'anegawa') return anegawaPose(d);
->>>>>>> main
   if (d.I.profile === 'iga') return igaPose(d);
   if (d.joinery || d.tracked || d.villageTrack || d.I.profile === 'shitaragahara') return poseHiei(d, open);
   const I = d.I, k = open, e = k * k * (3 - 2 * k);
->>>>>>> main
   if (d.slidingSolids) for (let j = 0; j < d.n; j++) {
     const side = j < d.n / 2 ? -1 : 1, s = d.slidingSolids[j];
     const slide = d.window ? (j === 0 ? e * d.pw : 0) : side * e * d.W / 2;
@@ -1327,30 +1249,13 @@ function setWant(rt, d, want) {
   d.want = want;
   // 比叡山・本能寺は引き戸が開き切ってから通す。正面の入室札とも時機を揃え、
   // 動き始めの障子・襖・格子戸を体が突き抜けないようにする。
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  if (want && !d.tracked && !d.slidingSolids && d.I.profile !== 'miki') solidOff(d);
-=======
-  if (want && !d.joinery && !d.window && !d.villageTrack && !d.tracked && !d.slidingSolids && !d.leaves) solidOff(d);
->>>>>>> main
-=======
-  if (want && !d.panels && !d.joinery && !d.window && !d.villageTrack && !d.tracked && !d.slidingSolids && !d.leaves) solidOff(d);
->>>>>>> main
-=======
   if (want && !d.panels && !d.joinery && !d.window && !d.villageTrack && !d.tracked && !d.slidingSolids && !d.leaves && !honnoji) solidOff(d);
->>>>>>> main
   moving.add(d);
   if (rt.army && rt.army.play) rt.army.play('wood', { x: d.x, z: d.z }, .3);
 }
 // 戸口の帯に立っているか。稲葉山の玄関は柱の裏の溝まで含める。
-<<<<<<< HEAD
-function inDoorway(d, o) {
-  if (d.I.profile === 'miki') return inMikiDoorway(d, o);
-=======
 function genericInDoorway(d, o) {
   if (d.I.profile === 'iga') return igaInDoorway(d, o);
->>>>>>> main
   if (d.tracked) return inDoorwayHiei(d, o);
   if (d.window) return false;
   const I = d.I, dx = o.pos.x - I.x, dz = o.pos.z - I.z;
@@ -1465,12 +1370,7 @@ function autoDoorReachable(d, u) {
   return doorReachable(d, u, I.x + x * I.c + z * I.s, I.z - x * I.s + z * I.c);
 }
 
-<<<<<<< HEAD
-function nearest(rt) {
-  if (rt.def.key === 'miki') return nearestMiki(rt);
-=======
 function genericNearest(rt) {
->>>>>>> main
   if (rt.world.def.battleKey === 'hieizan' || DOORS[0]?.I.profile === 'hieizan') return nearestHiei(rt);
   if (pickT === rt.t) return pick?.I.disabled ? null : pick;
   pickT = rt.t; pick = null;
@@ -1563,20 +1463,10 @@ function nearestHiei(rt) {
 let autoT = 0;
 // 毎コマ（naka.js の nakaTick の終わり）。flagged：中にいる兵
 export function nakaDoorTick(rt, dt, flagged) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  if (rt.def.key === 'miki') return mikiNakaDoorTick(rt, dt, flagged);
-=======
-=======
-=======
   if (rt.def.key === 'iwamura') return iwamuraDoors.nakaDoorTick(rt, dt, flagged);
->>>>>>> main
   if (rt.def.key === 'anegawa' || rt.def.battleKey === 'anegawa') return anegawaNakaDoorTick(rt, dt, flagged);
->>>>>>> main
   if (rt.def.key === 'shitaragahara') return villageNakaDoorTick(rt, dt, flagged);
   if (rt.def.key === 'iga' || rt.def.battleKey === 'iga') return igaNakaDoorTick(rt, dt, flagged);
->>>>>>> main
   if (rt.def.key === 'moribe') return moribeNakaDoorTick(rt, dt, flagged);
   if (DOORS[0]?.joinery) return nodaNakaDoorTick(rt, dt, flagged);
   if (!DOORS.length) return;
@@ -4369,289 +4259,6 @@ function moribeAddNakaDoors(I, lv, y0, y1) {
   }
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-function syncDoorSolids(d) {
-  const I = d.I, e = d.open * d.open * (3 - 2 * d.open);
-  const track = d.entry || d.window ? .04 : .105;
-  for (let wing = 0; wing < d.n; wing++) {
-    const left = wing < d.n / 2, shift = (left ? -1 : 1) * e * d.slide;
-    const a = d.lx - d.W / 2 + wing * d.pw + shift - (wing > 0 ? .015 : 0);
-    const b = d.lx - d.W / 2 + (wing + 1) * d.pw + shift + (wing < d.n - 1 ? .015 : 0);
-    const across = d.lz + (wing % 2 ? track : -track), s = d.wings[wing];
-    // 窓障子は側壁の向きへ回す。紙・格子・板戸の厚さも
-    // 戸口を塞ぐ六センチの半径から、実際の框の半厚へ合わせる。
-    const ax = d.windowX ? across : a, az = d.windowX ? a : across;
-    const bx = d.windowX ? across : b, bz = d.windowX ? b : across;
-    s.ax = I.x + ax * I.c + az * I.s; s.az = I.z - ax * I.s + az * I.c;
-    s.bx = I.x + bx * I.c + bz * I.s; s.bz = I.z - bx * I.s + bz * I.c;
-    s.r = .03;
-    s.x0 = Math.min(s.ax, s.bx) - s.r; s.x1 = Math.max(s.ax, s.bx) + s.r;
-    s.z0 = Math.min(s.az, s.bz) - s.r; s.z1 = Math.max(s.az, s.bz) + s.r;
-    if (d.panelWood) for (const part of d.panelWood) {
-      if (part.wing !== wing) continue;
-      const wood = part.solid;
-      // 戸板の端の重なり、溝、上下十ミリの差し込みも描画とそろえる。
-      const length = Math.hypot(s.bx - s.ax, s.bz - s.az);
-      const ux = (s.bx - s.ax) / length, uz = (s.bz - s.az) / length;
-      const width = length * (part.b - part.a), depth = part.depth;
-      const radius = Math.min(width, depth) / 2;
-      const center = (part.a + part.b) / 2;
-      const cx = s.ax + (s.bx - s.ax) * center, cz = s.az + (s.bz - s.az) * center;
-      // 細い竪框は厚み方向へ線を渡す。長手の両端へ半径を重ねて
-      // 框を太らせず、描いた木の外寸で止める。
-      const half = Math.max(.000001, Math.max(width, depth) / 2 - radius);
-      const dx = (width >= depth ? ux : -uz) * half;
-      const dz = (width >= depth ? uz : ux) * half;
-      wood.ax = cx - dx; wood.az = cz - dz;
-      wood.bx = cx + dx; wood.bz = cz + dz;
-      wood.yBot = d.y - .01 + (d.h + .02) * part.low;
-      wood.yTop = d.y - .01 + (d.h + .02) * part.high;
-      wood.r = radius;
-      wood.x0 = Math.min(wood.ax, wood.bx) - wood.r;
-      wood.x1 = Math.max(wood.ax, wood.bx) + wood.r;
-      wood.z0 = Math.min(wood.az, wood.bz) - wood.r;
-      wood.z1 = Math.max(wood.az, wood.bz) + wood.r;
-    }
-  }
-}
-function mikiDoorwayOccupied(d, rt, flagged) {
-  const u = rt.player && rt.player.u;
-  if (u && u.alive && inDoorway(d, u)) return true;
-  // 外付きの窓障子は室内の兵だけでなく、外の兵や民の肩も見張る。
-  // 入口と同じ名簿を使い、閉める時だけ既存の位置と体幅で確かめる。
-  const exterior = d.entry || d.window && d.I.profile === 'miki';
-  const nearby = exterior ? rt.army?.units || flagged : flagged;
-  for (const o of nearby) {
-    if (o.alive && (exterior || o.naka === d.I.id + 1) && inDoorway(d, o)) return true;
-  }
-  return false;
-}
-
-// 開閉どちらも、実際に滑る戸板が体へ近づく時だけ止める。
-// 引き代全体で閉める判定をすると、戸の通らない脇に立っても閉められない。
-// 人から離れていく動きは通し、座標と形は作り直さない。
-function mikiDoorHeightOverlap(d, u) {
-  // 背の高い兵・小柄な民も実際の体格で見張る。戸板の上下への差し込みも
-  // 描画とそろえ、窓下の頭や跳んだ足を戸が横切らないようにする。
-  const height = u.bodyHeight || 1.72 * (u.mesh?.scale.y || 1);
-  return u.pos.y + height > d.y - .01 && u.pos.y < d.y + d.h + .01;
-}
-function slidingBlocked(d, rt, flagged, next) {
-  const I = d.I, now = d.open * d.open * (3 - 2 * d.open);
-  const after = next * next * (3 - 2 * next);
-  const track = d.entry || d.window ? .04 : .105;
-  const units = rt.army?.units || flagged, player = rt.player?.u;
-  for (let index = -1; index < units.length; index++) {
-    const u = index < 0 ? player : units[index];
-    if (!u?.alive || index >= 0 && u === player) continue;
-    if (!mikiDoorHeightOverlap(d, u)) continue;
-    const dx = u.pos.x - I.x, dz = u.pos.z - I.z;
-    const x = dx * I.c - dz * I.s, z = dx * I.s + dz * I.c;
-    const along = d.windowX ? z : x, across = d.windowX ? x : z;
-    const radius = Math.max(.45, u.bodyRadius || 0) + .03;
-    if (Math.abs(across - d.lz) > radius + track
-      || Math.abs(along - d.lx) > d.W / 2 + d.slide + radius) continue;
-    for (let wing = 0; wing < d.n; wing++) {
-      const direction = wing < d.n / 2 ? -1 : 1;
-      const a = d.lx - d.W / 2 + wing * d.pw - (wing > 0 ? .015 : 0);
-      const b = d.lx - d.W / 2 + (wing + 1) * d.pw + (wing < d.n - 1 ? .015 : 0);
-      const offset = across - d.lz - (wing % 2 ? track : -track);
-      const oldShift = direction * now * d.slide, newShift = direction * after * d.slide;
-      if (newShift === oldShift) continue;
-      // 一度の更新で人を飛び越さないよう、動く間の戸板全体を調べる。
-      const sweepA = a + Math.min(oldShift, newShift), sweepB = b + Math.max(oldShift, newShift);
-      const sweepGap = Math.max(sweepA - along, 0, along - sweepB);
-      if (offset * offset + sweepGap * sweepGap >= radius * radius) continue;
-      // 既に触れていても、戸が離れていくなら動かす。閉める時は進行方向が逆。
-      if ((newShift - oldShift) * (along - (a + b) / 2 - oldShift) > 0) return true;
-    }
-  }
-  return false;
-}
-
-
-// 三木の戸板は中心線だけでなく、框の厚さと上下端まで手を遮る。
-// 戸と平行な手や木口をかすめる手も調べ、窓の上下の空間は通す。
-// 動く戸の既存の当たりを読み、毎コマ新しい形や座標の器は作らない。
-function doorReachBlocked(wing, x, z, y, tx, tz, ty) {
-  const dx = wing.bx - wing.ax, dz = wing.bz - wing.az;
-  const length = Math.hypot(dx, dz);
-  if (length < .000001) return false;
-  const c = dx / length, s = dz / length;
-  let near = .001, far = .999;
-  for (let axis = 0; axis < 3; axis++) {
-    const start = axis === 2 ? y : axis === 1
-      ? -(x - wing.ax) * s + (z - wing.az) * c
-      : (x - wing.ax) * c + (z - wing.az) * s;
-    const delta = axis === 2 ? ty - y : axis === 1
-      ? -(tx - x) * s + (tz - z) * c : (tx - x) * c + (tz - z) * s;
-    const low = axis === 2 ? wing.yBot : axis === 1 ? -wing.r : 0;
-    const high = axis === 2 ? wing.yTop : axis === 1 ? wing.r : length;
-    if (Math.abs(delta) < .000001) {
-      if (start < low || start > high) return false;
-    } else {
-      const a = (low - start) / delta, b = (high - start) / delta;
-      near = Math.max(near, Math.min(a, b));
-      far = Math.min(far, Math.max(a, b));
-      if (near > far) return false;
-    }
-  }
-  return true;
-}
-// 三木の間仕切りは線の交差だけでなく、厚さ十六センチの木部まで調べる。
-// 壁と平行に手を伸ばしても、柱際や壁の中を通して戸を扱わせない。
-// 長手の端は戸口へ延ばさず、開口の内法と戸の操作距離を保つ。
-function mikiWallReachBlocked(wall, x, z, tx, tz) {
-  const dx = wall.bx - wall.ax, dz = wall.bz - wall.az;
-  const length = Math.hypot(dx, dz);
-  if (length < .000001) return false;
-  const c = dx / length, s = dz / length;
-  let near = .001, far = .999;
-  for (let axis = 0; axis < 2; axis++) {
-    const start = axis ? -(x - wall.ax) * s + (z - wall.az) * c
-      : (x - wall.ax) * c + (z - wall.az) * s;
-    const delta = axis ? -(tx - x) * s + (tz - z) * c : (tx - x) * c + (tz - z) * s;
-    const low = axis ? -.08 : 0, high = axis ? .08 : length;
-    if (Math.abs(delta) < .000001) {
-      if (start < low || start > high) return false;
-    } else {
-      const a = (low - start) / delta, b = (high - start) / delta;
-      near = Math.max(near, Math.min(a, b));
-      far = Math.min(far, Math.max(a, b));
-      if (near > far) return false;
-    }
-  }
-  return true;
-}
-// 手から戸への線分と調度の外寸を照合する。机の上を越す手は遮らず、
-// 床の間・来迎壁・須弥壇の中を通して建具を操作することはできない。
-// 間取りの寸法をそのまま使い、毎コマ座標や形を作らない。
-function furnitureReachBlocked(p, x, z, y, tx, tz, ty) {
-  if (p.doorReachParts) {
-    for (const part of p.doorReachParts)
-      if (furnitureReachBlocked(part, x, z, y, tx, tz, ty)) return true;
-    return false;
-  }
-  let near = .001, far = .999;
-  for (let axis = 0; axis < 3; axis++) {
-    const start = axis === 0 ? x : axis === 1 ? z : y;
-    const delta = (axis === 0 ? tx : axis === 1 ? tz : ty) - start;
-    const low = axis === 0 ? p.x - p.w / 2 : axis === 1 ? p.z - p.d / 2 : p.y || 0;
-    const high = axis === 0 ? p.x + p.w / 2 : axis === 1 ? p.z + p.d / 2 : low + p.h;
-    if (Math.abs(delta) < .000001) {
-      if (start < low || start > high) return false;
-    } else {
-      const a = (low - start) / delta, b = (high - start) / delta;
-      near = Math.max(near, Math.min(a, b));
-      far = Math.min(far, Math.max(a, b));
-      if (near > far) return false;
-    }
-  }
-  return true;
-}
-// 三木の狭い取次では、入口の向こうの障子まで手が届いた扱いにしない。
-// 戸の中央でなく開口内の近い所を使い、壁・閉じた戸を挟む札を除く。
-// 座標の器は設営時のものを使い回し、近い候補だけ局所座標で調べる。
-function mikiDoorDistance(d, u, updateInteract = true) {
-  const I = d.I, dx = u.pos.x - I.x, dz = u.pos.z - I.z;
-  const x = dx * I.c - dz * I.s, z = dx * I.s + dz * I.c;
-  let along = Math.max(d.lx - d.W / 2 + .08, Math.min(d.lx + d.W / 2 - .08, d.windowX ? z : x));
-  let trackZ = d.lz;
-  if (updateInteract && d.open > 0) {
-    // 開いた戸は元の開口でなく、横へ引いた戸板へ手を伸ばして閉める。
-    // 描画と同じ移動量・二筋の溝を使い、座標の器は増やさない。
-    // 兵の自動開閉は、通りたい開口までの距離をそのまま使う。
-    const e = d.open * d.open * (3 - 2 * d.open);
-    const track = d.entry || d.window ? .04 : .105;
-    let best = Infinity;
-    for (let j = 0; j < d.n; j++) {
-      const lapL = j > 0 ? .015 : 0, lapR = j < d.n - 1 ? .015 : 0;
-      const width = d.pw + lapL + lapR;
-      const center = d.lx - d.W / 2 + (j + .5) * d.pw
-        + (lapR - lapL) / 2 + (j < d.n / 2 ? -1 : 1) * e * d.slide;
-      const edge = Math.min(.08, width / 4);
-      const a = Math.max(center - width / 2 + edge,
-        Math.min(center + width / 2 - edge, d.windowX ? z : x));
-      const b = d.lz + (j % 2 ? 1 : -1) * track;
-      const da = a - (d.windowX ? z : x), db = b - (d.windowX ? x : z);
-      const distance = da * da + db * db;
-      if (distance >= best || distance >= 1.5 * 1.5) continue;
-      // 近い戸板が柱・壁・調度の陰でも、もう一枚の框へ手が届くなら閉められる。
-      // 全候補から近い順に一枚を決めてから遮りを調べると、届く方まで失われる。
-      // 見えている戸板だけを候補にし、札は最後に選んだ一枚へ付ける。
-      if (!isFinite(mikiDoorReachDistance(d, u, x, z,
-        d.windowX ? b : a, d.windowX ? a : b))) continue;
-      best = distance; along = a; trackZ = b;
-    }
-    if (!isFinite(best)) return Infinity;
-    d.interactPos.x = I.x + (d.windowX ? trackZ : along) * I.c + (d.windowX ? along : trackZ) * I.s;
-    d.interactPos.z = I.z - (d.windowX ? trackZ : along) * I.s + (d.windowX ? along : trackZ) * I.c;
-    return Math.sqrt(best);
-  }
-  const tx = d.windowX ? trackZ : along, tz = d.windowX ? along : trackZ;
-  const distance = mikiDoorReachDistance(d, u, x, z, tx, tz);
-  if (updateInteract && isFinite(distance)) {
-    d.interactPos.x = I.x + tx * I.c + tz * I.s;
-    d.interactPos.z = I.z - tx * I.s + tz * I.c;
-  }
-  return distance;
-}
-function mikiDoorReachDistance(d, u, x, z, tx, tz) {
-  const I = d.I;
-  // 手から建具へ届く高さも調べる。腰壁や窓上の小壁を穴として扱わない。
-  // 梁下の風戸は手を上げて扱う。通常の襖・障子の操作高はそのままにする。
-  const handY = u.pos.y + (d.shutter && !d.rainShutter ? 1.7 : 1), targetY = d.y + Math.min(1, d.h / 2);
-  const distance = Math.hypot(tx - x, tz - z);
-  if (distance >= 1.5) return Infinity;
-  if (I.hasExterior) {
-    // 角を挟んだ入口や明かり障子へ、外壁越しに手を伸ばせないようにする。
-    // 内壁と同じ面で調べ、実際の戸口・窓の穴だけを通す。器は作らない。
-    const lv = d.lv;
-    for (let face = 0; face < 2; face++) for (let side = -1; side <= 1; side += 2) {
-      const half = (face ? lv.w : lv.d) / 2 - .1;
-      const start = face ? x : z, end = face ? tx : tz;
-      if (Math.abs(end - start) < .000001) continue;
-      const t = (side * half - start) / (end - start);
-      if (t <= .001 || t >= .999) continue;
-      const alongWall = face ? z + (tz - z) * t : x + (tx - x) * t;
-      const reachY = handY + (targetY - handY) * t - lv.y;
-      const span = (face ? lv.d : lv.w) / 2;
-      if (Math.abs(alongWall) > span) continue;
-      let opening = !face && lv.k === 0 && side === I.door.side
-        && Math.abs(alongWall - I.door.lx) < I.door.w / 2
-        && reachY >= (I.door.rail || 0) && reachY <= I.door.h;
-      if (!opening && lv.windows) for (const win of lv.windows) {
-        if (win.face === (face ? 'x' : 'z') && win.s === side
-          && Math.abs(alongWall - win.t) < win.w / 2
-          && reachY >= win.y0 && reachY <= win.y1) { opening = true; break; }
-      }
-      if (!opening) return Infinity;
-    }
-  }
-  for (const wall of d.lv.layout.walls) {
-    if (!wall.guideOnly && mikiWallReachBlocked(wall, x, z, tx, tz)) return Infinity;
-  }
-  for (const prop of d.lv.layout.props) {
-    if (furnitureReachBlocked(prop, x, z, handY - d.lv.y, tx, tz, targetY - d.lv.y)) return Infinity;
-  }
-  const wx = I.x + x * I.c + z * I.s, wz = I.z - x * I.s + z * I.c;
-  const targetX = I.x + tx * I.c + tz * I.s, targetZ = I.z - tx * I.s + tz * I.c;
-  for (const other of I.doors) {
-    if (other === d || other.lv !== d.lv) continue;
-    // 閉じた時の開口幅でなく、描画と一緒に動く戸板ごとの当たりを使う。
-    // 開きかけの隙間は通し、全開でも引き込み先の戸板越しには操作させない。
-    // 側面の窓も世界座標の戸板で調べ、紙の上下は手の高さで確かめる。
-    for (const wing of other.wings) {
-      if (doorReachBlocked(wing, wx, wz, handY, targetX, targetZ, targetY)) return Infinity;
-    }
-  }
-  return distance;
-}
-function nearestMiki(rt) {
-  const u = rt.player && rt.player.u;
-  if (!u || !u.alive || rt.player.mounted || u.downed || u.climb || rt.over || rt.choice) return null;
-=======
 function villageInDoorway(d, o) {
   if (d.tracked) return villageHieiInDoorway(d, o);
   if (d.villageTrack && d.window && (o.pos.y + 1.65 <= d.y || o.pos.y >= d.y + d.h)) return false;
@@ -4826,15 +4433,10 @@ function villageNearest(rt) {
   // 選択中・終戦後には、窓や内陣の格子戸を遠隔で動かさない。
   const handsBusy = u.downed || u.climb || rt.over || rt.choice;
   if (handsBusy) return null;
->>>>>>> main
   if (pickT === rt.t) return pick?.I.disabled ? null : pick;
   pickT = rt.t; pick = null;
   let bd = 1.5;
   for (const d of DOORS) {
-<<<<<<< HEAD
-    if (d.I.disabled) continue;
-=======
-=======
 if (d.tracked) {
     if (d.I.disabled) continue;
     if (d.I.id + 1 !== u.naka && !((d.entry || d.window) && !u.naka)) continue;
@@ -4985,7 +4587,6 @@ function villageNakaDoorTick(rt, dt, flagged) {
 }
 
 
->>>>>>> main
 function addAnegawaDoors(I, lv, y0, y1) {
   if (SKIP.includes(I.kind) || I.open || I.profile === 'yagura') return;
   const joinery = SETTINGS.quality === 'high' && I.profile === 'nodafukushima';
@@ -5689,21 +5290,11 @@ function anegawaNearest(rt) {
   let bd = 1.5;
   for (const d of DOORS) {
     if (d.I.disabled || !d.I.built) continue;
->>>>>>> main
     if (d.I.id + 1 !== u.naka && !((d.entry || d.window) && !u.naka)) continue;
     // 明かり障子の基準は腰壁の上。僧坊の床高も加わるので、外の地面からは
     // 足元との差が一・二メートルを超えていた。窓は下の三次元の手掛け距離で
     // 判定し、腰壁・窓枠越しの遮りも従来どおり調べる。通常の戸は階を区別する。
     if (!d.window && Math.abs(u.pos.y - d.y) > 1.2) continue;
-<<<<<<< HEAD
-    const dist = d.I.profile === 'miki' ? mikiDoorDistance(d, u) : doorDistance(d, u.pos, true);
-    if (dist < bd) { bd = dist; pick = d; }
-  }
-  return pick;
-}
-
-function mikiNakaDoorTick(rt, dt, flagged) {
-=======
     const dist = d.I.profile === 'hieizan' ? doorDistance(d, u.pos, true) : anegawaDoorDistance(d, u.pos, anegawaCandidatePoint, true);
     if (dist < bd && d.I.profile === 'anegawa' && !anegawaDoorReachable(d, u.pos, anegawaCandidatePoint)) continue;
     if (dist < bd) { bd = dist; pick = d; }
@@ -5713,21 +5304,10 @@ function mikiNakaDoorTick(rt, dt, flagged) {
 }
 
 function anegawaNakaDoorTick(rt, dt, flagged) {
->>>>>>> main
   if (!DOORS.length) return;
   if (rt.addInteract && !rt._nakaDoors) {
     rt._nakaDoors = true;
     rt.addInteract('naka_to', () => {
-<<<<<<< HEAD
-      const d = nearestMiki(rt);
-      return d && !(d.want && rt.def.doorCloseOK?.(rt) === false) ? (d.I.profile === 'miki' ? d.interactPos : d.touch) : null;
-    }, '開ける', () => {
-      const d = nearestMiki(rt);
-      if (d && !(d.want && rt.def.doorCloseOK?.(rt) === false)) setWant(rt, d, d.want ? 0 : 1);
-    }, { r: 1.5, prio: -3 });
-    const it = rt.interacts[rt.interacts.length - 1];
-    Object.defineProperty(it, 'label', { get: () => (nearestMiki(rt) && nearestMiki(rt).want ? '閉める' : '開ける'), configurable: true });
-=======
       const d = anegawaNearest(rt);
       return d && !(d.want && rt.def.doorCloseOK?.(rt) === false)
         ? d.I.profile === 'anegawa' ? anegawaPickPoint : d.I.profile === 'hieizan' ? d.touch : d : null;
@@ -5737,7 +5317,6 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
     }, { r: 1.5, prio: -3 });
     const it = rt.interacts[rt.interacts.length - 1];
     Object.defineProperty(it, 'label', { get: () => (anegawaNearest(rt) && anegawaNearest(rt).want ? '閉める' : '開ける'), configurable: true });
->>>>>>> main
   }
   // 中の兵は戸口へ来たら自分で開ける。遊び手も閉じた戸へ押し続けると開く
   autoT -= dt;
@@ -5745,28 +5324,14 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
     autoT = .2;
     const u = rt.player && rt.player.u;
     if (u && u.alive && (rt.player.blockedWalkT || 0) >= .5) {
-<<<<<<< HEAD
-      const d = nearestMiki(rt);
-      if (d && !d.window && !d.want && (d.I.profile === 'miki' ? mikiDoorDistance(d, u, false) : doorDistance(d, u.pos)) < 1.1) setWant(rt, d, 1);
-=======
       const d = anegawaNearest(rt);
       // 腰壁へ歩き続けても明かり障子は通り道にならない。窓は札で開ける。
       if (d && !d.window && !d.want && Math.hypot(d.x - u.pos.x, d.z - u.pos.z) < 1.1) moribeSetWant(rt, d, 1);
->>>>>>> main
     }
     for (const o of flagged) {
       if (o.isPlayer || !o.alive || !o.naka) continue;
       const I = DOORS.find((d) => d.I.id + 1 === o.naka)?.I;
       if (!I || I.disabled || !I.doors) continue;
-<<<<<<< HEAD
-      for (const d of I.doors) if (!d.window && !d.want && Math.abs(o.pos.y - d.y) < 1.2 && (d.I.profile === 'miki' ? mikiDoorDistance(d, o, false) : doorDistance(d, o.pos)) < 1.2) setWant(rt, d, 1);
-    }
-    // 外から来る兵も正面の障子を開ける。入口で立ち往生させない。
-    for (const d of DOORS) if (!d.I.disabled && d.entry && !d.want) {
-      for (const o of rt.army?.units || []) {
-        if (o.isPlayer || !o.alive || Math.abs(o.pos.y - d.y) > 1.2) continue;
-        if ((d.I.profile === 'miki' ? mikiDoorDistance(d, o, false) : doorDistance(d, o.pos)) < 1.2) { setWant(rt, d, 1); break; }
-=======
       for (const d of I.doors) if (!d.window && !d.want && Math.abs(o.pos.y - d.y) < 1.2
         && canOpenDoor(d, o.pos, 1.2)) setWant(rt, d, 1);
     }
@@ -5776,7 +5341,6 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
       for (const o of rt.army.units) {
         if (o.isPlayer || !o.alive || o.isStruct || Math.abs(o.pos.y - d.y) > 1.2) continue;
         if (canOpenDoor(d, o.pos, 1.6)) { setWant(rt, d, 1); break; }
->>>>>>> main
       }
     }
   }
@@ -5786,24 +5350,6 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
     // 閉め始めに空いていても、滑る途中で人が入ったら開き直す。
     // 閉め切った後の判定では戸が体を横切るため、形と当たりを動かす前に止める。
     if (d.tracked && !d.want && doorwayOccupied(rt, d)) { setWant(rt, d, 1); continue; }
-<<<<<<< HEAD
-    const next = Math.max(0, Math.min(1, d.open + (d.want ? 1 : -1) * dt * 2.6));
-    if (d.I.profile === 'miki' && slidingBlocked(d, rt, flagged, next)) {
-      if (!d.want) setWant(rt, d, 1);
-      continue;
-    }
-    // 引き込み先に人がいる間は待ち、離れたら同じ動作を続ける。
-    // 絵と当たりを動かす前に止めるので、戸の端で人を壁へ押し込まない。
-    if (d.tracked && leafSweepOccupied(rt, d, next)) continue;
-    d.open = next;
-    pose(d);
-    if (d.wings) syncDoorSolids(d);
-    if (d.open !== d.want) continue;
-    if (d.want && d.tracked) moribeSolidOff(d);
-    if (!d.want) {
-      // 閉め切った時に戸口に人が立っていれば、開けたままにして待つ
-      if (d.I.profile !== 'miki' && (d.tracked ? doorwayOccupied(rt, d) : mikiDoorwayOccupied(d, rt, flagged))) { d.open = .02; continue; }
-=======
     // 引き込み先に人がいる間は待ち、離れたら同じ動作を続ける。
     // 絵と当たりを動かす前に止めるので、戸の端で人を壁へ押し込まない。
     if (d.panels && !d.want) {
@@ -5835,217 +5381,9 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
       const u = rt.player && rt.player.u;
       const occupants = d.entry && rt.army ? rt.army.units : flagged;
       if ((u && inDoorway(d, u)) || occupants.some((o) => o.alive && (d.entry || o.naka === d.I.id + 1) && inDoorway(d, o))) { d.open = .02; continue; }
->>>>>>> main
       if (d.saved) Object.assign(d.solid, d.saved);
     }
     moving.delete(d);
   }
 }
 
-<<<<<<< HEAD
-function addMikiDoors(I, lv, y0, y1) {
-  if (SKIP.includes(I.kind) || I.open || I.profile === 'yagura') return;
-  if (I.profile === 'miki') for (const p of lv.layout.props) {
-    if (p.part !== 'wakishoji') continue;
-    // 脇障子の開口を調度の箱で塞ぐと、自分の戸に手が届かなくなる。
-    // 描いた固定枠だけを設営時に分け、動く紙面は戸板の判定へ任せる。
-    const parts = p.doorReachParts = [];
-    const put = (x, y, w, h, d, z = 0) => parts.push({
-      x: p.x + x, z: p.z + z, y: (p.y || 0) + y - h / 2, w, h, d,
-    });
-    eachMikiWakishojiFramePart(p, lv.h, (x, y, w, h, d) => put(x, y, w, h, d));
-    const frame = .045, span = p.w * 2 - .09;
-    for (const side of [-1, 1]) put(side * (p.w - frame) / 2, p.h / 2, frame, p.h, p.d);
-    for (const y of [frame / 2, p.h - frame / 2]) {
-      put(0, y, span, frame, p.d);
-      for (const z of [-.145, -.065, .065, .145]) put(0, y, span, frame, .016, z);
-    }
-    for (const y of [.006, p.h - .006]) put(0, y, span, .012, .306);
-  }
-  const portals = [...(lv.layout.portals || [])];
-  if (I.profile === 'miki' && I.hasExterior && lv.k === 0) {
-    // 三木の外の入口にも共通の引き戸を付ける。柱の外側の溝へ引き込む。
-    // 主殿・屋敷・堂の戸締まりは板戸で受け、踏込の奥の明かり障子と分ける推定復元。
-    // 外を紙一枚で閉じず、既存の二筋の溝と引き代をそのまま使う。
-    // 堂も正面を紙一枚で外へさらさず、既存の板戸の型を使う。内側の障子は保つ。
-    portals.push({ entry: true, side: I.door.side, x: I.door.lx, z: I.door.side * (lv.d / 2 + .28),
-      kind: 'itado' });
-  }
-  if (I.profile === 'miki' && I.hasExterior) for (const v of lv.windows || []) {
-    if (!v.shoji && !v.shutter) continue;
-    portals.push({ window: true, side: v.s, windowX: v.face === 'x', x: v.t,
-      z: v.s * ((v.face === 'x' ? lv.w : lv.d) / 2 + .28),
-      w: v.w, y: v.y0, h: v.y1 - v.y0, kind: v.shutter ? 'itado' : 'shoji', shutter: !!v.shutter });
-    // 明かり障子の外へ別の板戸を置く。開口・引き代は共有し、
-    // 障子を開けてから外の板戸へ手を伸ばす。雨戸は開けた構えから始める。
-    if (v.rainShutter) portals.push({ window: true, side: v.s, windowX: v.face === 'x', x: v.t,
-      z: v.s * ((v.face === 'x' ? lv.w : lv.d) / 2 + .49),
-      w: v.w, y: v.y0, h: v.y1 - v.y0, kind: 'itado', shutter: true, rainShutter: true });
-  }
-  for (const p of portals) {
-    const bounded = p.entry || p.window || p.framed;
-    const width = p.window || p.framed ? p.w : I.door.w;
-    let l = bounded ? p.x - width / 2 : -Infinity;
-    let r = bounded ? p.x + width / 2 : Infinity, paper = true;
-    if (!bounded) for (const v of lv.layout.walls) {
-      if (v.guideOnly || Math.abs(v.az - p.z) > .01 || Math.abs(v.bz - p.z) > .01) continue;
-      const a = Math.min(v.ax, v.bx), b = Math.max(v.ax, v.bx);
-      if (b <= p.x + .01 && b > l) { l = b; paper = v.paper; }
-      if (a >= p.x - .01 && a < r) r = a;
-    }
-    if (!isFinite(l) || !isFinite(r) || r - l < .5 || r - l > 4.4) continue;
-    const temple = TEMPLE.includes(I.kind);
-    const kind = p.kind || (temple ? 'koshi' : !paper ? 'itado' : ['goten', 'yashiki', 'shisha'].includes(I.kind) ? 'fusumaE' : 'shoji');
-    const W = r - l, n = Math.max(2, Math.round(W / 1.8) * 2);
-    const [ax, az] = p.windowX ? I.P(p.z, l) : I.P(l, p.z);
-    const [bx, bz] = p.windowX ? I.P(p.z, r) : I.P(r, p.z), rad = .06;
-    const solid = { k: 's', ax, az, bx, bz, r: rad, yBot: y0, yTop: y1, naka: I.id, fusuma: kind !== 'itado',
-      x0: Math.min(ax, bx) - rad, x1: Math.max(ax, bx) + rad, z0: Math.min(az, bz) - rad, z1: Math.max(az, bz) + rad };
-    SOLIDS.push(solid); INTERIOR_WALLS.push(solid);
-    const [x, z] = p.windowX ? I.P(p.z, (l + r) / 2) : I.P((l + r) / 2, p.z);
-    // 主殿の内法は畳の上から約二メートル取る。鴨居・長押も同じ高さで受ける。
-    const d = { I, lv, kind, lx: (l + r) / 2, lz: p.z, W, n, pw: W / n, h: I.profile === 'miki' && !temple ? Math.min(I.kind === 'goten' ? 2.05 : 1.9, lv.h - .16) : lv.h > 3 ? 2.3 : lv.h - .02, y: lv.y, x, z, solid, saved: null, open: 0, want: 0, meshes: null, base: 0 };
-    d.interactPos = { x, z };
-    d.framed = !!p.framed;
-    d.entry = !!p.entry;
-    d.window = !!p.window;
-    d.shutter = !!p.shutter;
-    d.rainShutter = !!p.rainShutter;
-    d.windowX = !!p.windowX;
-    // 外付きの障子は組子を外、紙を室内へ向ける。反対側の壁でも
-    // 同じ向きの形を置くと紙が外を向くため、面に合わせて表裏を返す。
-    // 板戸も裏桟を室内へそろえ、二筋の溝と左右の引き代は保つ。
-    d.exteriorFlip = (d.entry || d.window) && (d.windowX ? p.side > 0 : p.side < 0);
-    // 三木の明かり障子と外の板戸は引き残しを取り、室内から閉める框を開口へ残す。
-    // 全部を壁の外へ引くと、閉める操作が外壁越しの手として遮られてしまう。
-    // 狭い番所・蔵の入口は八センチに抑え、戸の厚みを引いても体幅九十センチを通す。
-    // 推定の納まり。描画・当たり・操作は同じ移動量を使い、室内の戸は保つ。
-    d.slide = W / 2 - (I.profile === 'miki' && (d.window || d.entry)
-      ? Math.min(d.entry ? .08 : .16, d.pw / 2) : 0);
-    if (d.window || d.framed) {
-      d.y += p.y; d.h = p.h;
-      solid.yBot = d.y; solid.yTop = d.y + d.h;
-    }
-    if (d.entry) { d.h = I.door.h; solid.yTop = lv.y + d.h; }
-    if (I.profile === 'miki') {
-      // 敷居の上面から戸を立て、上端は鴨居の下面に合わせる。
-      // 入口は二センチ、窓は三・五センチ。座敷境は六センチの畳へそろえる。
-      const sill = d.framed ? 0 : d.entry ? .02 : d.window ? .035 : mikiSillHeight(lv.layout, p.z);
-      const head = d.window ? .035 : 0;
-      d.y += sill; d.h -= sill + head;
-      // 戸そのものの当たりを框の高さへ合わせる。鴨居と小壁は
-      // naka.js の別の当たりに任せ、閉じた紙を天井まで伸ばさない。
-      solid.yBot = d.y; solid.yTop = d.y + d.h;
-    }
-    if (I.profile === 'miki') {
-      // 左右の戸を別々の当たりで受ける。器は設営時だけ作り、
-      // 開閉中は描いた戸と同じ溝・引き代へ座標を移す。
-      // 射線を調べる区画には、全開までの移動範囲を最初から登録する。
-      // 戸が八歩の区画境を越えても、滑った木部の当たりを見失わない。
-      const doorBounds = { x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity };
-      for (const a of [d.lx - d.W / 2 - d.slide - .03, d.lx + d.W / 2 + d.slide + .03]) {
-        for (const b of [d.lz - .135, d.lz + .135]) {
-          const [x, z] = d.windowX ? I.P(b, a) : I.P(a, b);
-          doorBounds.x0 = Math.min(doorBounds.x0, x); doorBounds.x1 = Math.max(doorBounds.x1, x);
-          doorBounds.z0 = Math.min(doorBounds.z0, z); doorBounds.z1 = Math.max(doorBounds.z1, z);
-        }
-      }
-      solid.doorBounds = doorBounds;
-      d.wings = [solid];
-      for (let j = 1; j < d.n; j++) {
-        const leaf = { ...solid };
-        d.wings.push(leaf); SOLIDS.push(leaf); INTERIOR_WALLS.push(leaf);
-      }
-      if (['koshi', 'shoji', 'fusuma', 'fusumaE'].includes(kind) && d.n === 2) {
-        // 障子・襖も框は木として止める。紙面だけを槍が通るようにし、
-        // 腰付き障子の腰板は描いた高さまで受ける。格子戸の透かしは保つ。
-        // 器は設営時に作り、開閉中は戸板と一緒に座標だけを更新する。
-        const pw = d.pw + .015, ph = d.h + .02;
-        const parts = [
-          [0, .04 / pw, 0, 1, .06], [1 - .04 / pw, 1, 0, 1, .06],
-          [.04 / pw, 1 - .04 / pw, 0, .04 / ph, .06],
-          [.04 / pw, 1 - .04 / pw, 1 - .04 / ph, 1, .06],
-        ];
-        if (kind === 'koshi') parts.push([.04 / pw, 1 - .04 / pw, .04 / ph, .32 / ph, .05]);
-        if (kind === 'shoji') {
-          parts.push([.04 / pw, 1 - .04 / pw, .02 / ph, .16 - .02 / ph, .03]);
-          parts.push([.04 / pw, 1 - .04 / pw, .16 - .02 / ph, .16 + .02 / ph, .05]);
-        }
-        d.panelWood = [];
-        for (let wing = 0; wing < d.n; wing++) {
-          for (const [a, b, low, high, depth] of parts) {
-            const wood = { ...solid, fusuma: false, bodyOverlap: true };
-            d.panelWood.push({ wing, a, b, low, high, depth, solid: wood });
-            SOLIDS.push(wood); INTERIOR_WALLS.push(wood);
-          }
-        }
-      }
-    }
-    (I.doors || (I.doors = [])).push(d); DOORS.push(d);
-    // 三木の堂は本尊を見せる格子戸だけ開放し、外の板戸と内側の障子は札で開ける。
-    // 板倉の風戸は通風する開いた構えから始め、格子の外で戸締まりできる推定復元。
-    if (d.shutter || !d.entry && temple && (I.profile !== 'miki' || kind === 'koshi')) {
-      d.open = d.want = 1;
-      if (!d.wings) solidOff(d);
-    }
-    if (d.wings) syncDoorSolids(d);
-  }
-}
-function poseMiki(d, open = d.open) {
-  if (!d.meshes) return;
-  const I = d.I, k = open, e = k * k * (3 - 2 * k);
-  // 三木の建具は深さ十二ミリの溝へ上下の框を十ミリずつ差す。
-  // 外付きの入口・窓も、枠の溝の口に合わせた高さから上下へ伸ばす。
-  // 敷居の上へ載せるだけにせず、鴨居に掛かったまま横へ滑らせる。
-  // 通れる高さの当たりは変えず、框の差し込み分だけを描く。
-  const inset = I.profile === 'miki' ? .01 : 0;
-  Q.setFromAxisAngle(Y, I.rot); S.set(d.pw / (d.panelW || .9), (d.h + inset * 2) / (d.panelH || 1.8), 1);
-  for (let j = 0; j < d.n; j++) {
-    const left = j < d.n / 2;
-    // 二筋の溝の戸を突き合わせると、斜めから召し合わせの間が抜ける。
-    // 三木は隣り合う竪框を三センチ重ねる推定の納まり。
-    // 両端の外寸は保ち、中央側だけを伸ばして戸当たりへ食い込ませない。
-    const lapL = I.profile === 'miki' && j > 0 ? .015 : 0;
-    const lapR = I.profile === 'miki' && j < d.n - 1 ? .015 : 0;
-    S.x = (d.pw + lapL + lapR) / (d.panelW || .9);
-    // 三木の引き分け戸は左右の引き手を召し合わせ側へ向ける。
-    // 右の戸を半回転し、共有する形のまま引き手の位置を左右でそろえる。
-    // 障子の紙と板戸の裏桟は片面だけにあるため、右戸も表裏をそろえて引く。
-    // この二種は両框に指掛けがあり、半回転させる必要はない。
-    if (I.profile === 'miki') Q.setFromAxisAngle(Y, I.rot - (d.windowX ? Math.PI / 2 : 0)
-      + (d.exteriorFlip ? Math.PI : 0)
-      + (left || d.kind === 'shoji' || d.kind === 'itado' ? 0 : Math.PI));
-    // 閉めた時は二本の溝（前後に少しずらす）。開けると左右の壁の前へ引き込む
-    const lx = d.lx - d.W / 2 + (j + .5) * d.pw + (lapR - lapL) / 2
-      + (left ? -1 : 1) * e * d.slide;
-    // 三木は柱（厚さ十四センチ）の外に二本の溝を置く。
-    // 溝の前後位置を固定し、開閉の途中も戸が柱や固定の間仕切りへ埋まらない。
-    const track = d.entry || d.window ? .04 : I.profile === 'miki' ? .105 : .02 + .045 * e;
-    const lz = d.lz + (j % 2 ? 1 : -1) * track;
-    if (d.windowX) P.set(I.x + lz * I.c + lx * I.s, d.y - inset, I.z - lz * I.s + lx * I.c);
-    else P.set(I.x + lx * I.c + lz * I.s, d.y - inset, I.z - lx * I.s + lz * I.c);
-    M.compose(P, Q, S);
-    for (const m of d.meshes) m.setMatrixAt(d.base + j, M);
-  }
-  if (d.meshes) for (const m of d.meshes) m.instanceMatrix.needsUpdate = true;
-}
-function inMikiDoorway(d, o) {
-  if (d.window && d.I.profile !== 'miki') return false;
-  // 開閉中にも呼ぶので、座標の組を毎コマ作らない。
-  const I = d.I, dx = o.pos.x - I.x, dz = o.pos.z - I.z;
-  const lx = dx * I.c - dz * I.s, lz = dx * I.s + dz * I.c;
-  if (I.profile === 'miki') {
-    // 戸口の中心だけでなく、左右の引き込み先も体の幅で見張る。
-    // 二筋の溝と框の厚みを含め、肩や腕を横へ滑る戸で挟まない。
-    const radius = Math.max(.45, o.bodyRadius || 0);
-    // 窓障子も腰壁際の肩を挟まない。窓の軸を入れ替え、
-    // 腰壁の当たりは残したまま、滑る建具の高さだけを見張る。
-    if (!mikiDoorHeightOverlap(d, o)) return false;
-    const across = Math.max(0, Math.abs((d.windowX ? lx : lz) - d.lz) - (d.entry || d.window ? .04 : .105) - .03);
-    const along = Math.max(0, Math.abs((d.windowX ? lz : lx) - d.lx) - (d.W / 2 + d.slide));
-    return across * across + along * along < radius * radius;
-  }
-  return Math.abs(lz - d.lz) < .35 && Math.abs(lx - d.lx) < d.W / 2 + .1 && Math.abs(o.pos.y - d.y) < 1.2;
-}
-=======
->>>>>>> main

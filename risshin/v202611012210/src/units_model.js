@@ -533,14 +533,19 @@ function unitFill(strength, focus) {
       // 遠い兵も面の補光を半分残す（奥の群れが黒い影の板に潰れない。10/30 立身）。
       float fillAll = clamp(${strength}, 0.0, 1.0) * mix(0.5, 1.0, 1.0 - smoothstep(30.0, 38.0, length(vViewPosition - ${focus})));
       // 夜の兵の補光は灰の月明かり（青い縁で兵が青く見えた。青い味方は禁止 kaito 10/31）
-      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.075)) * vec3(0.76, 0.76, 0.75) * (0.38 + 0.65 * fillFace + 0.12 * fillRim) * fillAll;
+      // 11/1 底上げは色相を保つ（明るさの比で持ち上げ、上限 3 倍）。灰の一色へ max で寄せると、黒漆・柿渋・生成りの違いが同じ灰になっていた（共通の差の1）
+      float fillL = max(dot(material.diffuseColor, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
+      vec3 fillC = material.diffuseColor * clamp(0.075 / fillL, 1.0, 3.0);
+      reflectedLight.indirectDiffuse += fillC * vec3(0.76, 0.76, 0.75) * (0.38 + 0.65 * fillFace + 0.12 * fillRim) * fillAll;
       // 逆光の袖や脚も暗い柱から離して読む。面の色を残し、線の形は増やさない。
       // 縁の照りは夜と暗い空の時だけ。昼（既定の 0.35）は付けない：輪郭に青白い縁がちらつき、本の写真の黒漆に見えない（10/27）
       float rimK = smoothstep(0.4, 0.85, clamp(${strength}, 0.0, 1.0));
-      reflectedLight.indirectDiffuse += max(material.diffuseColor, vec3(0.22)) * vec3(0.85, 0.85, 0.84) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear * rimK;
+      // 縁も素材の色のまま（布は染めの色の縁、黒漆は黒のまま）。灰の縁で夜の兵が白い人形に見えていた（鳥取・伊賀）
+      reflectedLight.indirectDiffuse += material.diffuseColor * clamp(0.22 / fillL, 1.0, 3.0) * vec3(0.85, 0.85, 0.84) * smoothstep(0.35, 0.9, fillEdge) * 1.05 * fillNear * rimK;
       // 森の陰でも袖・兜・脚の縁に空の照り返しを残す。追加の形や光源は作らない。
       // 面の色と霧・遮蔽は保ち、近い兵だけに同じ補光を使う。
-      totalEmissiveRadiance += vec3(0.135, 0.135, 0.135) * smoothstep(0.45, 0.9, fillEdge) * fillNear * rimK;
+      // 空の照りは艶のある面（漆・鉄）だけ：黒漆の照り。艶の無い布には灰の縁を足さない
+      totalEmissiveRadiance += vec3(0.135, 0.135, 0.135) * smoothstep(0.45, 0.9, fillEdge) * fillNear * rimK * (${S.simpleMaterials ? '0.5' : 'smoothstep(0.75, 0.4, roughnessFactor)'});
       // 黒漆・黒い布は、遠い兵でも面の傾く所に空の照り返しを薄く残す（黒い影の塊に潰れず、胴・袖・笠の形が読める）。色の付いた面には足さない
       float darkK = 1.0 - smoothstep(0.035, 0.12, max(max(material.diffuseColor.r, material.diffuseColor.g), material.diffuseColor.b));
       reflectedLight.indirectSpecular += vec3(0.088, 0.088, 0.088) * fillEdge * fillEdge * fillEdge * darkK * (0.4 + 0.6 * fillFace) * fillAll;
