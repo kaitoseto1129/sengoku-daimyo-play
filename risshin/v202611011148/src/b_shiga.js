@@ -858,6 +858,8 @@ const STREET_HOMES = (() => {
   // 北から来る街道の両側（棟を通りに沿わせる）と、西へ折れる道の両側。
   for (const off of [11, 19]) for (let z = -4; z >= -84; z -= 8) for (const side of [-1, 1]) {
     const x = 24 + side * off - (z + 20) * .06;
+    // 10/31 町口の西の一軒（12.5, -12）は、25秒の持ち場（町口の南 x 27, z 9）から北西の野の寄せ手と木戸の外の押し合いを塞いでいた（数で敵の二割）。建てずに見通しを空ける。
+    if (side < 0 && off === 11 && z === -12) continue;
     if (free(x, z)) out.push([x, z, Math.PI / 2]);
   }
   // 西は x -26 まで（その先は尾根の切岸。-38・-46 の家は土台が崖下まで伸び、高さ25mの灰色の柱に見えた。10/29 stage_shot）
@@ -2530,7 +2532,8 @@ const shiga = {
     cameraGateRoof(22, -28, 8, Math.PI);
     // 町口の木戸の脇（柵の内）に、森勢の物見櫓。25秒の画面（北北東を向く）の木戸の右に、柵と並んで空を背に立つ（10/29 点付け：柵と城が写らない）。
     // 宇佐山の尾根はカメラの後ろ・左の外で写らないため、城方の守りを木戸に見せる。位置・形は遊びの補い（史料に無い）。当たりは櫓の柱だけ。
-    rt.scene.add(yagura(W, 28.4, -25.4, { kind: 'ro', height: 7.6, boarded: true }));
+    // 10/31 櫓を 28.4 から東へ 3.2m（柵の端の内）。25秒の画面の真ん中で、木戸の外の押し合いと北の大軍を細い柱の束で隠していた。
+    rt.scene.add(yagura(W, 31.6, -25.4, { kind: 'ro', height: 7.6, boarded: true }));
     rt.scene.add(tawara(W, 28, 30, 0.2, 5));
     rt.scene.add(dou(W, CIVILIAN_TEMPLE.x, CIVILIAN_TEMPLE.z, 6, 4, 0));
     // ---- 宇佐山城：縄張り（castles/usayama.js）。三の丸・二の丸・本丸の三つの曲輪、木戸三つ＋水の手口、櫓。縁は切岸で、道でしか上れない ----

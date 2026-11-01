@@ -2681,7 +2681,9 @@ const nodafukushima = {
       if (true) plan = {
         ...plan, year: 1570,
         // 岸の広場も縁に長屋・小屋・蔵を並べる（本の CG の砦の密度。真ん中の戦う場は castle_bldg が空ける。10/28）
-        kuruwa: plan.kuruwa.map(k => ({ ...k, wallOpt: { ...k.wallOpt, boardSeams: true }, ...(k.id === 'kishi' ? { dense: true } : {}) })),
+        kuruwa: plan.kuruwa.map(k => ({ ...k, wallOpt: { ...k.wallOpt, boardSeams: true,
+          // 10/31 野田の岸の広場の南の塀は、25秒の持ち場（堤の切れ目 z -20）から門の奥の三好勢を半分隠していた。透ける木柵にして、柵の間から広場の大軍と押し合いを見せる（形と数は同じ）。
+          ...(plan.name === NODA_PLAN.name && k.id === 'kishi' ? { openFence: true } : {}) }, ...(k.id === 'kishi' ? { dense: true } : {}) })),
       };
       // 元亀の河川砦としての推定。高の野田の表門だけ板葺きの渡櫓にする。
       // 元の縄張りは保持し、共通の門作りで脇の塀の切れ目も合わせる。

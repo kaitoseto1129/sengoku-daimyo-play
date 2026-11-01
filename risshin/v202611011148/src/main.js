@@ -273,7 +273,10 @@ import { toggleGunbai, gunbaiFrame, isGunbaiOpen, setGunbaiHooks } from './gunba
 import { toggleRts, isRtsOn, rtsAvailable, initRtsInput } from './rts.js';
 import { gungiAvailable, openGungi, closeGungi } from './gungi.js';   // 軍議の画面（砦の版）。def.gungi のある戦の始めにだけ挟む（F6）
 import { initMetrics } from './metrics.js';   // 遊びの数字（GA4。GA_ID が空なら送らない）
-import { initCount } from './count.js';   // 数え（github.io の時だけ GoatCounter へ送る）
+import { initCount } from './count.js';
+import { hubScreen, pickScreen } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
+import { loreOf, rosterDepart } from './screens.js';
+import { townTabOpen as hubTabOpen } from './town_unlock.js';   // 数え（github.io の時だけ GoatCounter へ送る）
 
 const $ = (id) => document.getElementById(id);
 // 動きを減らす：ゲームの設定か OS の設定（どちらかが入っていれば減らす。918）
@@ -1492,7 +1495,7 @@ function setPause(on) {
       // 城攻めの型を使う筋書きの戦（稲葉山など）は地図の城攻めではないので、地図の写し（mapSnap）が無い時は戦の前の写しに戻す
       // 城下を歩いている時：やり直しは町に入り直し、タイトルへは保存してから
       retry: b.def.town ? () => game.startTown() : () => { const fromMap = b.def.mapCastle && b.def.mapInfo && game.mapSnap; game.G = JSON.parse(game.snapshot) || game.G; if (fromMap) game.startMapBattle(b.def.mapInfo, true); else game.startBattle(b.index); },
-      title2: b.def.town ? () => { save(game.G); game.title(); } : () => { const snap = (b.def.mapCastle && game.mapSnap) || game.snapshot; const G0 = snap ? JSON.parse(snap) : null; if (G0) { game.G = G0; save(game.G); } game.title(); },
+      title2: b.def.town ? () => { save(game.G); game.base(); } : () => { const snap = (b.def.mapCastle && game.mapSnap) || game.snapshot; const G0 = snap ? JSON.parse(snap) : null; if (G0) { game.G = G0; save(game.G); } game.title(); },
     });
     silence();
     // メニューの外側をクリックしても再開できる
@@ -2475,7 +2478,7 @@ const game = {
     };
     if (G.practice) {
       const backTo = this.trialReturn;
-      actions.push({ label: backTo === 'samurai' ? '戦を選ぶ画面へ戻る' : '題の画面へ', primary: true, fn: () => this.title(backTo) });
+      actions.push(backTo === 'hub' ? { label: 'ホームへ戻る', primary: true, fn: () => this.backToHub() } : { label: backTo === 'samurai' ? '戦を選ぶ画面へ戻る' : '題の画面へ', primary: true, fn: () => this.title(backTo) });
       actions.push(retry);
     } else if (i === 0 && (scenarioKey() === 'oda' ? !r.mainDone : G.rank === 0)) {
       // 最初の戦をしくじった時は、もう一度（織田家編は桶狭間では昇進しないので、任務を果たせば城下へ進む）
@@ -2491,7 +2494,7 @@ const game = {
       save(G);
       // 墨の帯で「清洲へ戻る」と一枚挟んでから城下へ（827）
       const toTown = () => inkBand(`${(BATTLES[G.battle] && BATTLES[G.battle].town) || '城下'}へ戻る`, BATTLES[i].name, () => this.base());
-      actions.push({ label: '次へ（城下へ）', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
+      actions.push({ label: 'ホームへ戻る', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
       actions.push(retry);
     }
     // 勝った時は、城下へ戻った後に App Store のレビューの窓を出す候補にする（review_ask.js）
@@ -2552,10 +2555,60 @@ const game = {
     if (!progressStored(this.G) && !this.G.practice) notice('！ 城下の記録を保存できませんでした。題へ戻る前に、端末の保存の空きを確かめてください');
     // 稲葉山前の札は、歩く城下と札の城下のどちらでも一度だけ。
     if (phase2HintScreen(this.G, () => this.base(), save)) return;
+    // 戦の後・続きからは本陣（絵の札の一画面）へ。bot・norender の道具は今までどおり城下の札
+    if (!isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown) { if (this.battle && this.battle.def.town) this.stopBattle(); return this.hub(); }
     // 城下を歩く（設定の既定）。すでに町にいれば、そのまま町へ戻る
     if (this.townWalkOn()) { if (this.battle && this.battle.def.town) { this.townResume(); return true; } return this.startTown(); }
     if (this.battle && this.battle.def.town) this.stopBattle();
     baseScreen(this.G, this.G.battle, this.lastResult, this);
+  },
+
+  // ---- 本陣：戦を選ぶ・武具屋・訓練所・出世の記録・設定と、脇道の町・天下の地図 ----
+  hubOpts() {
+    const G = this.G;
+    const cards = (tab) => baseScreen(this.G, this.G.battle, this.lastResult, this, { tab, onLeave: () => this.base(), backLabel: 'ホームへ戻る' });
+    return {
+      mapOn: scenarioKey() === 'oda' && !G.lord && (G.rank >= 4 || G.battle >= BATTLES.length),
+      realmOn: scenarioKey() === 'oda' && !G.lord && hubTabOpen(G, 'realm'),
+      ranks: RANKS,
+      noPreview: isNorender(),
+      onTitle: () => this.title(),
+      onBack: () => this.hub(),
+      lore: loreOf,
+      onLaunch: (r) => this.launchPick(r),
+      on: {
+        realm: () => cards('realm'),
+        train: () => (hubTabOpen(G, 'train') ? cards('train') : this.startDojo()),
+        ladder: () => this.ladder('town'),
+        town: () => (this.townWalkOn() ? this.startTown() : cards('boss')),
+        map: () => this.japanMap('town'),
+        set: () => settingsScreen(onSettings, () => this.base()),
+      },
+    };
+  },
+  hub() { this.inTown = true; hubScreen(this.G, this, this.hubOpts()); },
+  pickBattles() { pickScreen(this.G, this, this.hubOpts()); },
+  // 戦を選ぶから出陣：次の戦は本編のまま、済んだ戦は記録を残さない試し（今の身分・装備のまま）
+  launchPick(r) {
+    const G = this.G;
+    if (r.state === 'next' && !G.practice) { rosterDepart(G); save(G); return this.nextBattle(); }
+    const T = JSON.parse(JSON.stringify(G));
+    T.practice = true; T.injured = false;
+    if (r.j < 0) T.owari = 1;
+    usePre(T);
+    const i = BATTLES.findIndex((b) => b.id === r.b.id);
+    if (i < 0) return;
+    T.battle = i;
+    this.trialReturn = 'hub';
+    this.G = T; this.bg = null;
+    this.startBattle(i);
+  },
+  // 試しの戦から本陣へ：保存の G に戻す
+  backToHub() {
+    const saved = readProgress(S.slot).game;
+    if (saved) { this.G = saved; usePre(saved); setScenario(saved.scenario || 'oda'); }
+    this.trialReturn = '';
+    this.base();
   },
 
   // ---- 城下を歩く（town3d.js）。設定の「城下を歩く／札で選ぶ」。bot・norender・sim の道具は札のまま ----

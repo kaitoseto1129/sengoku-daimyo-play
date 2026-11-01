@@ -338,6 +338,8 @@ export function topBack(fn, label = '戻る', parent = null, pad = true) {
   if (pad) s.classList.add('has-back');
   return b;
 }
+export { show as showScreen };
+export const loreOf = (id) => LORE[id];
 export function hideScreen() { stopBattleTalk(); stopTitleResize(); stopBind(); if (titleKotoOnce) { document.removeEventListener('pointerdown', titleKotoOnce); titleKotoOnce = null; } stopFirstHelp(); $('screen').hidden = true; $('screen').innerHTML = ''; screenKeys = null; }
 
 // 知らせは同時に三つまで・同じ文は 8 秒に一度まで（docs/ui-guidelines.md）
@@ -539,14 +541,12 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     ${readings[S.slot].bad ? '<p class="errbox">！ この枠の記録を読めません。別の枠か、控えてある保存文字列から再開してください。</p>' : readings[S.slot].recovered ? '<p class="note">前の控えから記録を読み直しました。</p>' : ''}
     <div class="tt-hero">
       <h1 class="title">戦国立身</h1>
-      <p class="note">立身（りっしん）は、手柄を立てて出世すること。</p>
-      <div class="title-act">${saved ? '<button type="button" class="btn primary" id="b-cont">続きから</button>' : `<button type="button" class="btn${firstDeparture ? '' : ' primary'}" id="b-new">戦いを始める</button>`}</div>
-      <nav class="tt-secondary" aria-label="ほかの操作">
+      <div class="title-act">${saved ? '<button type="button" class="btn primary" id="b-cont">始める</button>' : '<button type="button" class="btn primary" id="b-new">始める</button>'}<button type="button" class="btn" id="b-set">設定</button></div>
+      <nav class="tt-secondary" aria-label="ほかの操作" hidden>
         ${saved ? '<button type="button" class="btn small" id="b-new">新しく始める</button>' : ''}
         ${offerFull() ? '<button type="button" class="btn small" id="full-purchase">完全版</button>' : ''}
         <button type="button" class="btn ${firstDeparture ? 'primary' : 'small'}" id="b-alt" aria-expanded="false" aria-controls="tt-alt">練習</button>
         <button type="button" class="btn small" id="b-data" aria-expanded="false" aria-controls="tt-data">保存記録</button>
-        <button type="button" class="btn small" id="b-set">設定</button>
         <button type="button" class="btn small" id="b-controls">操作</button>
       </nav>
     </div>
@@ -832,7 +832,8 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   if (onSamurai) $('b-samurai').onclick = () => openPick('sam');
 
   // 触る端末では名の欄に焦点を当てない（文字盤が開いて画面が隠れる）
-  if (reopen === 'samurai' && onSamurai) {
+  if (reopen === 'data') { $('tt-data').hidden = false; $('b-data').setAttribute('aria-expanded', 'true'); }
+  else if (reopen === 'samurai' && onSamurai) {
     $('tt-alt').hidden = false; $('b-alt').setAttribute('aria-expanded', 'true'); openPick('sam');
   } else if (!isTouch) (saved ? $('b-cont') : $('b-new')).focus({ preventScroll: true });
   $('screen').classList.add('withbg');
@@ -1151,6 +1152,12 @@ export function bindSettings(onChange) {
 let bindHandler = null;
 function stopBind() { if (bindHandler) { window.removeEventListener('keydown', bindHandler, true); bindHandler = null; } }
 
+// 問い合わせのメール（kaito 10/31 夜）：版の番号と端末を本文に入れて、メールの画面を開く
+function contactMail() {
+  const app = window.__iosApp ? 'iPhone のアプリ' : window.__androidApp ? 'Android のアプリ' : 'Web';
+  const body = `（ここに、起きた事や問い合わせを書いてください）\n\n――――\n版：${VERSION}${window.__appVersion ? `（${window.__appVersion}）` : ''}・${app}\n端末：${navigator.userAgent}\n画面：${screen.width}×${screen.height}・${innerWidth}×${innerHeight}`;
+  return `mailto:kaitoseto1129@gmail.com?subject=${encodeURIComponent('戦国立身3D 問い合わせ')}&body=${encodeURIComponent(body)}`;
+}
 export function settingsScreen(onChange, onClose) {
   const game = window.__game;
   const G = game?.battle || game?.inTown ? game.G : readProgress(S.slot).game;
@@ -1158,7 +1165,7 @@ export function settingsScreen(onChange, onClose) {
   show(`<div class="wrap st-screen"><h2 class="st-h">設定</h2>
     ${G ? `<div class="field"><label for="st-player-name">名前</label><input id="st-player-name" maxlength="8" value="${esc(G.name)}" autocomplete="off" spellcheck="false"></div>` : ''}
     ${settingsHtml()}
-    <div style="margin:8px 0"><div class="row" style="gap:8px">${fullPurchaseButton()}${canRestorePurchases() ? '<button type="button" class="btn" id="st-restore" style="min-height:44px;min-width:44px;font-size:16px">購入を復元する</button>' : ''}</div><p id="st-restore-msg" role="status" aria-live="polite"></p></div>
+    <div style="margin:8px 0"><div class="row" style="gap:8px">${game && !game.battle ? '<button type="button" class="btn" id="st-slots" style="min-height:44px">保存の枠を開く</button>' : ''}<a class="btn" id="st-mail" style="min-height:44px;display:inline-flex;align-items:center" href="${esc(contactMail())}">バグの報告・問い合わせのメールを書く</a>${fullPurchaseButton()}${canRestorePurchases() ? '<button type="button" class="btn" id="st-restore" style="min-height:44px;min-width:44px;font-size:16px">購入を復元する</button>' : ''}</div><p id="st-restore-msg" role="status" aria-live="polite"></p></div>
     <div class="title-act st-act" style="gap:8px;flex-wrap:wrap"><button class="btn primary" id="st-close">決めて戻る</button>${COMMUNITY_URL ? '<button type="button" class="btn" id="st-community" style="min-height:44px">感想・不具合を送る</button>' : ''}${isTouch ? '' : '<span class="hintk">Escでも戻れます</span>'}</div></div>`, false, (e) => { if (e.key === 'Escape') closeSt(); });
   bindSettings(onChange);
   const playerName = $('st-player-name');
@@ -1169,6 +1176,7 @@ export function settingsScreen(onChange, onClose) {
   };
   bindFullPurchase();
   $('st-close').onclick = closeSt;
+  if ($('st-slots')) $('st-slots').onclick = () => { window.speechSynthesis?.cancel(); stopBind(); saveSettings(); sfx('ui'); game.title('data'); };
   const restore = $('st-restore');
   if (restore) restore.onclick = async () => {
     if (restore.disabled) return;
@@ -2637,7 +2645,7 @@ function rosterArrive(G, town, last) {
   return notes;
 }
 // 出陣の時：手当てしていない傷は、その戦の練度を下げる（戻すのは次の城下）
-function rosterDepart(G) {
+export function rosterDepart(G) {
   for (const r of (G.roster || []).filter((x) => x.alive)) {
     soldierOf(r);
     if (r.wound && !r.woundPen) { r.woundPen = r.wound; r.drill = (r.drill || 0) - r.wound; r.loyal = Math.max(0, r.loyal - 3); }
@@ -3209,7 +3217,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     const bt = $('b-title-town'); if (bt) bt.onclick = () => { sfx('ui'); save(G); if (preview) { preview.dispose(); preview = null; } document.querySelectorAll('.tour').forEach((e) => e.remove()); game.title(); };
     // 左上の戻る：施設（問屋・武具屋…）を開いていれば上官屋敷（城下の始めの札）へ、上官屋敷ならタイトルへ
     // 始めの札でも、ほかの画面と同じ左上からタイトルへ戻れる。
-    if (opts.onLeave) topBack(opts.onLeave, '町へ戻る');
+    if (opts.onLeave) topBack(() => { if (preview) { preview.dispose(); preview = null; } opts.onLeave(); }, opts.backLabel || '町へ戻る');
     else if (tab !== 'boss') topBack(() => { tab = 'boss'; confirmGo = false; render(); }, '城下へ戻る');
     else if (bt) topBack(() => bt.click(), '題の画面へ');
     // 問屋の釦
@@ -3912,7 +3920,7 @@ export function pauseMenu(el, o) {
       <button class="btn" id="pm-help">操作の一覧を見る</button>
       <button class="btn" id="pm-words">用語集を開く</button>
       <button class="btn" id="pm-retry">${o.town ? '町に入り直す' : 'やり直す'}</button>
-      <button class="btn" id="pm-title">題の画面へ</button>
+      <button class="btn" id="pm-title">${o.town ? 'ホームへ戻る' : '題の画面へ'}</button>
     </div>
     <div class="objs">${!o.error && (!!o.battle?.def.missionStyle || o.battle?.def.missionSingleLine && o.battle.def.missionHeading) ? esc(o.battle.def.missionHeading(o.battle)) : `<div class="eyebrow" style="margin-bottom:6px">現在の任務</div>${o.objectives.map((x) => `<div>${x.state === 'done' ? '済み' : x.state === 'fail' ? '失敗' : '進行中'} <b>${esc(x.text)}</b>${x.progress ? `　<small>${esc(x.progress)}</small>` : ''}</div>`).join('') || 'いまは任務がありません'}
       <div style="height:12px"></div><div>${o.town ? '城下を歩いた時間' : `この戦の戦功 <b>${o.merit}</b>　／　経過`} ${Math.floor(o.time / 60)}分${String(Math.floor(o.time % 60)).padStart(2, '0')}秒</div>
