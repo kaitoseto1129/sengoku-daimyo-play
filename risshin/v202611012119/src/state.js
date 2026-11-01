@@ -1,6 +1,7 @@
 // 進行データ・戦功計算・昇進判定（docs/mvp-requirements.md の数値に準拠）
 import { S } from './settings.js';
 import { tegaraSettle, tegaraTitle } from './merit.js';
+import { TOYOTOMI_LINE } from './toyotomi_line.js';
 
 // 詳細版 §16 の目安
 // roku：毎戦の禄（貫）。tomo：連れて行ける供の数（組とは別。足軽は中間一人だけ、身分が上がると増える）
@@ -210,6 +211,13 @@ export const SCENARIOS = {
       { id: 'takato_siege', name: '高遠城攻め（縄張り版）', cap: 320, year: '天正十年（1582）三月二日', place: '信濃国 高遠城' },
       { id: 'echizen_ikko', name: '越前一向一揆の山の寺攻め', cap: 290, year: '天正三年（1575）八月', place: '越前国 大滝寺' },
     ],
+  },
+  // 第二章「豊臣編」（toyotomi_line.js の並び）。題の画面にはまだ出さない（bot と試しの遊びから入る）
+  toyotomi: {
+    name: '豊臣編', year: '天正十年（1582）〜', faction: 'oda', mon: 'oda', town: '大坂城下',
+    blurb: '本能寺の後、羽柴秀吉に付いて天下統一まで戦う',
+    battles: TOYOTOMI_LINE.map((b) => ({ cap: 240, place: '', ceil: 4, ...b, year: b.yearText || `${b.year}年` })),
+    ceil: TOYOTOMI_LINE.map(() => 4),
   },
   // 戦闘システムの試し（docs/battle-system-plan.md 3 章）。題の画面・SCENARIO_ORDER・lord.js の一覧には出さない（tools/mvp/*.js が newGame で直に入る）
   system_mvp: {

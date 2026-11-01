@@ -66,6 +66,7 @@ import { inou_spec } from './b_inou_spec.js';
 import { sunomata } from './b_sunomata.js';
 import { shitaragahara } from './b_shitaragahara.js';
 import { addOdaHistory } from './oda_history.js';
+import { TOYOTOMI_LINE } from './toyotomi_line.js';
 export { buildBobosaku } from './b_sunomata.js';
 export { dojo } from './b_dojo.js';
 
@@ -91,6 +92,11 @@ const copyDef = (d) => Object.defineProperties({}, Object.getOwnPropertyDescript
 DEF_BY_ID.echizen = copyDef(echizen); DEF_BY_ID.takato = copyDef(takato_siege); DEF_BY_ID.hieizan = copyDef(hiei_mtn);
 // 比叡山の旧登録も山岳版へ。架空の豪盛戦・門の自動破壊・梯子の瞬間移動へ戻さない。
 DEF_BY_ID.hieizan_old = copyDef(hiei_mtn);
+// 豊臣編（toyotomi_line.js）：各戦のファイルを並びから読む（export は戦の id の名か default）。読めない戦は飛ばす
+for (const e of TOYOTOMI_LINE) {
+  try { const m = await import(e.file); const d = m[e.id] || m.default; if (d) DEF_BY_ID[e.id] = d; }
+  catch (err) { console.warn('豊臣編の戦を読めず', e.id, err); }
+}
 addOdaHistory(DEF_BY_ID);
 installJindate(DEF_BY_ID);   // 野戦の陣立て（先陣・二陣・本陣の備。army_jindate.js）
 for (const [id, d] of Object.entries(DEF_BY_ID)) d.key = id;
