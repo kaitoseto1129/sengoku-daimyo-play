@@ -51,8 +51,8 @@ export class HudRoute {
         }
         drew = true;
       }
-      g.strokeStyle = '#14120f'; g.lineWidth = emphasize ? 13 : rt.def.subtleGroundGuides || compact ? 8 : 13; g.stroke();
-      g.strokeStyle = emphasize ? '#ffffff' : '#fff3ba'; g.lineWidth = emphasize ? 5 : rt.def.subtleGroundGuides || compact ? 2 : 5; g.stroke();
+      g.strokeStyle = '#14120f'; g.lineWidth = emphasize ? 7 : rt.def.subtleGroundGuides || compact ? 4.5 : 7; g.stroke();   // 11/1：太い道の線が画面を横切って見えた。細くする
+      g.strokeStyle = emphasize ? '#ffffff' : '#fff3ba'; g.lineWidth = emphasize ? 3 : rt.def.subtleGroundGuides || compact ? 1.6 : 3; g.stroke();
     }
     g.restore();
     return drew;
@@ -102,8 +102,8 @@ export class HudRoute {
         g.lineTo(screen[4], screen[5]);
         g.lineTo(screen[4] - ux * head + uy * head * .65, screen[5] - uy * head - ux * head * .65);
       }
-      g.strokeStyle = '#14120f'; g.lineWidth = lane === 0 ? 16 : 7; g.stroke();
-      g.strokeStyle = lane === 0 ? '#fff3ba' : '#ffffff'; g.lineWidth = lane === 0 ? 9 : 3; g.stroke();
+      g.strokeStyle = '#14120f'; g.lineWidth = lane === 0 ? 9 : 5; g.stroke();
+      g.strokeStyle = lane === 0 ? '#fff3ba' : '#ffffff'; g.lineWidth = lane === 0 ? 4 : 2; g.stroke();
     }
     g.restore();
     return true;

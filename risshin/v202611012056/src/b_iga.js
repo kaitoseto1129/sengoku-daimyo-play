@@ -1349,11 +1349,12 @@ function buildSonae(rt, plans) {
 
 // 信長公記は侵攻の口、伊乱記・伊賀市の城跡資料は蒲生・堀・筒井の囲みを根拠とする。
 // 北伊賀の土豪の曲輪別の将名・旗紋は確定せず、丸は見分けるための代用。
+// 11/1：南・東・西の遠い囲みの軽い兵は百六十から百十へ（陣口の乱戦と山すその群れを足した分。描く人数を増やさない）。
 const IGA_ATTACK = sonaePlan('比自山の囲み', 0, { x: CAMP.x + 24, z: CAMP.z + 56 }, Math.PI, [
   ['honjin', '本陣', '堀秀政', 5000, CAMP.x + 24, CAMP.z + 56, Math.PI, 'oda', 'none'],
-  ['niwa', '南の仕寄り', '丹羽長秀', 2000, -70, 70, Math.PI, 'sujikai', 'sujikai', 160, 28, 10],
-  ['gamo', '東の包囲陣', '蒲生忠三郎', 4000, 70, -40, -Math.PI / 2, 'oda', 'none', 160, 24, 10],
-  ['tsutsui', '西の包囲陣', '筒井順慶', 4000, -90, -40, Math.PI / 2, 'igeta', 'igeta', 160, 24, 10],
+  ['niwa', '南の仕寄り', '丹羽長秀', 2000, -70, 70, Math.PI, 'sujikai', 'sujikai', 110, 28, 10],
+  ['gamo', '東の包囲陣', '蒲生忠三郎', 4000, 70, -40, -Math.PI / 2, 'oda', 'none', 110, 24, 10],
+  ['tsutsui', '西の包囲陣', '筒井順慶', 4000, -90, -40, Math.PI / 2, 'igeta', 'igeta', 110, 24, 10],
 ]);
 const IGA_DEFEND = sonaePlan('曲輪と尾根の守り', 1, SHU, 0, [
   ['shu', '主郭の南辺', '名は伝わらない', 1500, SHU.x - 8, SHU.z, 0, 'maru', 'none', 48, 8, 8],
@@ -1983,8 +1984,23 @@ const iga = {
     }
     // 陣の北の山すそに下りてくる伊賀衆の群れ（遠景・数には入れない）。陣から見上げる斜面に二つ。
     for (const [x, z, w, d, count, seed] of IGA_CROWDS) {
-      const h = W.addDistantArmy({ x, z, w, d, count, facing: 0, team: 1, armor: 0x34302a, flagTex: flagTexture('maru'), flagRate: 0.08, banners: 0, kind: 'spear', seed });
+      // 11/1：陣口の乱戦と山すその群れ（下）を足した分、肩越しの画面の外（陣の東西の脇）の群れを四分の一に（描く人数を増やさない）。
+      const h = W.addDistantArmy({ x, z, w, d, count: Math.round(count / 4), facing: 0, team: 1, armor: 0x34302a, flagTex: flagTexture('maru'), flagRate: 0.08, banners: 0, kind: 'spear', seed });
       if (h?.army) h.army.noWake = true;
+    }
+    // 11/1 点付け（伊賀66：敵の大軍・乱戦が薄い）：25秒の肩越しの画面（陣の中から北の陣口と山すそを見上げる）は、陣口の一組だけで乱戦が薄かった。
+    //   陣口の左右の柵の切れ目（持ち場から二十〜三十歩）で、斬り込んだ伊賀衆と丹羽の手が押し合い斬り合い、
+    //   その奥の山すそを伊賀衆の群れが松明の間を下りて来る（配置は推定）。軽い作り（addClash・addDistantArmy）だけで、本物の兵の数・道・当たりは変えない。
+    //   夜討ちを退けた所（midA）で伊賀衆の側が崩れて山へ退き、山すその群れも隠す。
+    {
+      const play = (k, p, v) => rt.army.play(k, p, v), smoke = (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz);
+      F.mouthClashes = [[-13, 13, 13, 15841], [20, 13, 12, 15842]].map(([x, z, w, seed]) => W.addClash({ rt, play, smoke, x, z, facing: Math.PI, w, bw: 5.2, gap0: 0, gap: 2.4, seed,
+        noRout: true, killRate: 0.004, maxDrift: 1.2, host: false, corpses: 8, realNear: 9, nearHide: 0,
+        A: { flagTex: flagTexture('sujikai'), armor: 0x2a2622, count: 26, flagRate: 0.2 },
+        B: { flagTex: flagTexture('maru'), armor: 0x34302a, count: 36, flagRate: 0.06, bows: false } })).filter(Boolean);
+      for (const C of F.mouthClashes) C.go?.();
+      F.slopeHost = W.addDistantArmy({ x: 4, z: 3, w: 34, d: 7, count: 80, facing: 0, team: 1, armor: 0x34302a, flagTex: flagTexture('maru'), flagRate: 0.08, banners: 0, kind: 'spear', seed: 15843, terrainRanks: true, yose: false, host: false });
+      if (F.slopeHost?.army) F.slopeHost.army.noWake = true;
     }
 
     // 陣幕の線と、見張りの焚き火も置き終えてから、迂回の当たりをそろえる。
@@ -2220,6 +2236,8 @@ const iga = {
     for (let i = 0; i < 3; i++) { rt.uninteract('f' + i); rt.unmark('f' + i); rt.unmark('r' + i); if (F.fires[i]) igaDouseFire(rt, i); }
     retireRaid(rt, F.raiders);
     if (F.mouthRaid && !gone(F.mouthRaid)) retireRaid(rt, [F.mouthRaid]);
+    for (const C of F.mouthClashes || []) C.rout?.('B', { hideAfter: 30, from: 0 });
+    if (F.slopeHost) F.slopeHost.visible = false;
     for (const g of F.raidPatrols) if (!g.ambush) retireRaid(rt, [g]);
     rt.obj('main', '陣の口へ集まり、夜討ちに備えよ', 'main');
     depthStart(rt, igaCtx(rt), igaA(rt), () => { rt.objRemove('dp'); if (!F.ending) this.assault(rt); });
