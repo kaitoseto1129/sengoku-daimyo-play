@@ -3170,16 +3170,16 @@ function okNight(W) {
     const L = lookOf.call(this, key);
     if (key === 'night') {
       // 霞は灰の板にせず、夜の闇の色へ沈める（10/29）。
-      L.sky.setHex(0x222c42); L.fog.setHex(0x161c28); L.top.setHex(0x0a1120);
+      L.sky.setHex(0x3a3a3f); L.fog.setHex(0x2a292b); L.top.setHex(0x16171c);   // 11/01 点付け「空が暗い」：紺を雨雲の灰へ一段明るく（青くしない）
       L.cover = 0.85; L.cloud = 0.9; L.vis = 100;
       // 遠山が夜の青い板に見えた（10/29 点付け：手本は秋の褐色と常緑の深緑が混ざる林の山）。山の地の色だけを褐色と深緑の闇へ寄せる。
       L.mount = [0x2b2d22, 0x36352a, 0x423f34];
       if (S.quality === 'high') {
-        L.hemiSky.setHex(0x8995ae); L.hemiGround.setHex(0x655441); L.hemiI = .78;
+        L.hemiSky.setHex(0x9a989a); L.hemiGround.setHex(0x6a5842); L.hemiI = .78;
       }
       // 地が暗い一色で、坂の土と草の斑・下草の形が見えなかった（10/30 点付け 74）。雨雲越しの月の青白い光を
       // 西寄りの低い角度から横に当て、土の起伏と下草の縁に明暗を付ける（夜のまま。光源は増やさない）。
-      L.sun.setHex(0xa6bad8); L.sunI = Math.max(L.sunI, 0.82); L.sunDir.set(-62, 30, 44).normalize();
+      L.sun.setHex(0xc8c2b6); L.hemiI = Math.max(L.hemiI, L.hemiI * 1.15);   // 11/01：月を青くせず、篝火の届かない坂も形が読める回り光に L.sunI = Math.max(L.sunI, 0.82); L.sunDir.set(-62, 30, 44).normalize();
     }
     // 10/28：日の低い夕暮れで、丘の陰になる手前と城の塀が真っ黒に沈んでいた。空からの回り光を上げ、
     // 夕日の色は残したまま、陰の中の兵・竹束・板塀の木目が読める明るさにする（光源は増やさない）。

@@ -235,7 +235,7 @@ export class HudGoal {
       const yaw = rt.player.yaw + (rt.player.camYawOff || 0);
       const gx = goal.x - p.x, gz = goal.z - p.z;
       const angle = routeDrawn ? this.routePathTip.angle : Math.atan2(-(gx * Math.sin(yaw) + gz * Math.cos(yaw)), -gx * Math.cos(yaw) + gz * Math.sin(yaw));
-      this.drawNavigationArrow(g, x, y, angle, 1);
+      this.drawNavigationArrow(g, x, y, angle, .6);
       const order = $('objectives');
       if (this.notices.sources[1].selected && !order.classList.contains('expand')) {
         setClass(order, 'linked-destination', true);
@@ -309,7 +309,7 @@ export class HudGoal {
     const W = VIEW.w, H = VIEW.h, p = rt.player.u.pos;
     const waiting = marker?.guideArea === 'wait' || marker?.guideArea === 'guard' || marker?.waitGuide;
     const nextMove = singleBattleGuide(rt) && marker?.guideArea === 'move' && !waiting;
-    const signScale = rt.def.groundFlagGuides ? .65 : waiting || nextMove ? 1 : rt.def.compactDestinationSign || rt.def.compactTravelArrow ? .65 : 1;
+    const signScale = rt.def.groundFlagGuides ? .5 : waiting || nextMove ? .7 : rt.def.compactDestinationSign || rt.def.compactTravelArrow ? .5 : .7;   // 11/1：矢印が画面に大きい。小さくする
     const point = this.singleGoalPoint || (this.singleGoalPoint = { x: 0, y: 0, z: 0 });
     const nextPoint = doorway && marker?.entrance ? rt.missionGuide?.pos || pos : pos;
     const sign = doorway ? rt.def.routeSignPoint?.(rt, nextPoint) || nextPoint : pos;
