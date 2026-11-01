@@ -1691,6 +1691,15 @@ const iga = {
     fallPaceSpread: 0.35, groundedFalls: true, settleSideFalls: true, // 膝が折れる間をずらし、横斬りでは肩から坂の土へ寝かせる。
     contactFalls: true, wetEarthBursts: true, // 体が地へ着いた時に具足の音。湿った土は低く短い泥粒にする。
     bareFallenHats: true, slopeLitter: true, longitudinalSpearFalls: true, // 笠に首布を残さず、長柄は穂先と石突の高さで坂へ寝かせる。
+    // 10/31 点付け「地面が一様で暗い土」：乾いた黄土と踏まれた黒土の大きな斑を重ねる（値だけ）。
+    tint(x, z, h, c) {
+      const dry = .5 + .5 * Math.sin(x * .061 + Math.sin(z * .087) * 2.3) * Math.cos(z * .071 - x * .033);
+      const wet = .5 + .5 * Math.sin(x * .107 - Math.cos(z * .083) * 1.8) * Math.sin(z * .121 + x * .047);
+      const dryK = Math.min(1, Math.max(0, (dry - .42) / .25)) * .5;
+      c.setRGB(c.r + (.42 - c.r) * dryK, c.g + (.34 - c.g) * dryK, c.b + (.2 - c.b) * dryK);
+      const wetK = Math.min(1, Math.max(0, (wet - .55) / .25)) * .4 * (1 - dryK);
+      c.setRGB(c.r * (1 - wetK) + .1 * wetK, c.g * (1 - wetK) + .082 * wetK, c.b * (1 - wetK) + .06 * wetK);
+    },
     terrainTags: true,   // 急斜面・細道・森で速さ・向き変え・疲れが変わる（terrain_tags.js）
     noticeRepeatGap: 32, quietMarch: true,
     // 大手道（南）＋北の搦手・裏の尾根（KITA→KITASOTO）に加え、犬走り（斜面沿いの細道。主郭の周り→北・東の曲輪へ）

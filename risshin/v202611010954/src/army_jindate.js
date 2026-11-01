@@ -21,6 +21,20 @@ export const PLAN = {
   anegawa: { A: ODA, B: side('azai', 'azai', 0x2f2a26), dir: Math.PI, ahead: 22, lat: 70, wings: false },
   mikatagahara: { A: side('tokugawa', 'tokugawa', ARMOR.tokugawa, '鶴翼'), B: side('takeda', 'takeda', ARMOR.takeda), dir: Math.PI, ahead: 40, lat: 58 },
   shitaragahara: { A: ODA, B: side('takeda', 'takeda', ARMOR.takeda), ahead: 38, lat: 64, wings: false },
+  // 墨俣（1566）：斎藤の寄せ手が砦の前へ押す。前の乱戦は台本が置くので、後ろの二陣・本陣・旗本だけを並べる
+  sunomata: { A: ODA, B: side('saito', 'saito', ARMOR.saito), ahead: 60, lat: 56, wings: false },
+  // 刀根坂（1573）：退く朝倉の殿と後ろの備が山道に縦に連なる（長蛇）。道幅に合わせて左右を狭め、重さのため人数を六割に
+  tonezaka: { A: ODA, B: side('asakura', 'asakura', 0x2f2a26, '長蛇'), ahead: 45, lat: 20, men: 0.6, wings: false },
+  // 天王寺（1576）：砦の南から本願寺の門徒が囲む。南の寄せ手の後ろへ門徒の備を並べる（信長の三段は南から来るので味方側）
+  tennoji: { A: ODA, B: side('namu', 'ikko', 0x3a342c), ahead: 58, lat: 46, men: 0.6, wings: false },
+  // 雑賀（1577）：小雑賀川の向こうの雑賀の鉄砲衆の備（八咫烏）
+  saika: { A: ODA, B: side('yatagarasu', 'ikko', 0x2a2622), ahead: 60, lat: 50, men: 0.6, wings: false },
+  // 三木・大村（1579）：大村の道に別所・毛利の兵糧を運ぶ備。iPhone で重かったので人数は三割半
+  miki: { A: ODA, B: side('mori', 'mori', 0x2e221b), ahead: 60, lat: 40, men: 0.35, wings: false },
+  // 田野（1582）：谷の道の奥に武田の落ち武者の備（史実は七十ほど）。ごく少なく
+  tano: { A: ODA, B: side('takeda', 'takeda', ARMOR.takeda), ahead: 60, lat: 18, men: 0.25, wings: false },
+  // 岩村（1575）：水晶山の夜討ち。秋山の武田勢が城の前に備える
+  iwamura: { A: ODA, B: side('takeda', 'takeda', ARMOR.takeda), ahead: 55, lat: 46, men: 0.6, wings: false },
 };
 
 // 一つの側の備（左翼・中央・右翼 × 先陣・二陣、本陣・旗本・後詰）。中央の先陣は本物の兵の戦なので描かない。

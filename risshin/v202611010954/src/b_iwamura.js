@@ -52,9 +52,56 @@ function huntPlayer(rt, dt) {
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 30) g.focus = P;
-    else if (mine && d > 45) g.focus = null;
+    if (!mine && d < 75) g.focus = P;
+    else if (mine && d > 110) g.focus = null;
   }
+}
+// 10/31 mini の点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所に置いた押し合いが画面から外れた。
+// 開戦から win 秒の間、本人の前（カメラの向く先）の foeD 歩へ近い敵の組を、allyD 歩へ味方の組を寄せ続け、
+// 画面の正面で斬り合わせる。兵は足さず、瞬間移動もしない（歩いて寄る）。時が過ぎたら元の下知へ戻す。
+function heroFrontClash(rt, dt, o = {}) {
+  const F = rt.flags, P = rt.player.u;
+  const H = F._hfc || (F._hfc = { t: 0, t0: rt.t, saved: new Map() });
+  if (H.done || (H.t -= dt) > 0) return;
+  H.t = 0.5;
+  if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
+    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    H.saved.clear(); H.done = true; return;
+  }
+  const e = rt.camera?.matrixWorld?.elements;
+  let fx = e ? -e[8] : 0, fz = e ? -e[10] : 0, L = Math.hypot(fx, fz);
+  if (L < 0.3) { fx = Math.sin(P.heading); fz = Math.cos(P.heading); L = 1; }
+  fx /= L; fz /= L;
+  // 戦の視点が決まった向き（例：表門）を見る時は、その向きを使う
+  const D = o.dir && o.dir(rt);
+  if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
+  const pick = (foe, want, d) => {
+    let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
+    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    const list = [];
+    for (const g of rt.army.groups) {
+      if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
+      const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
+      // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
+      if (r < (o.reach ?? 70) && !rt.army.wallBetween({ x: c.x, y: P.pos.y, z: c.z }, -1, { x, y: P.pos.y, z })) list.push([r, g]);
+    }
+    list.sort((a, b) => a[0] - b[0]);
+    const out = []; let n = 0;
+    for (const [, g] of list) { if (n >= want) break; out.push(g); n += g.count; }
+    out.forEach((g, k) => {
+      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, path: g.path, pathIdx: g.pathIdx, noAI: g.noAI, aggro: g.aggro });
+      const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
+      g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
+      if (g.focus && g.focus !== P) g.focus = null;
+      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
+    });
+  };
+  pick(true, o.foeN ?? 22, o.foeD ?? 15);
+  pick(false, o.allyN ?? 16, o.allyD ?? 9);
 }
 // 国土地理院の標高（asset_dem_iwamura.js。山頂は格子の中心から z+70m）は、そのまま混ぜると桁違いに急だった。
 // そこで山の形（高さ）は手書きのままにし、尾根と谷の凹凸（まわり平均との差）だけを 0.3 倍で足す。曲輪の段は広げた尾根の本丸を最高所にそろえる。
@@ -2013,6 +2060,8 @@ const iwamura = {
 
   update(rt, dt) {
     huntPlayer(rt, dt);
+    heroFrontClash(rt, dt);
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210 }) || [];
     if (rt.t > 40 && rt.flags.fenceRaids?.[0].defMult > 1) {
       for (const g of rt.flags.fenceRaids) { g.noRout = false; g.defMult = 1; }
       for (const g of rt.flags.fenceSallies) g.defMult = 1;
@@ -3715,4 +3764,35 @@ function fieldHeight(x, z) {
     h += (pad[4] - h) * k;
   }
   return h + campEarthwork(x, z);
+}
+
+// 大軍対大軍の乱戦：持ち場の前（柵の外）に、軽い大軍どうしの押し合いを置く（兵力・任務には入れない）。
+function armyBackdrop(rt, o) {
+  const W = rt.world, cam = rt.camera, P = rt.player && rt.player.u;
+  if (!P) return null;
+  const d = new THREE.Vector3(0, 0, -1);
+  if (cam) { cam.getWorldDirection(d); d.y = 0; if (d.lengthSq() < 1e-4) d.set(0, 0, -1); d.normalize(); }
+  { let ex = 0, ez = 0, n = 0; for (const u of rt.army.units) if (u.alive && u.team !== P.team && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 160) { ex += u.pos.x; ez += u.pos.z; n++; }
+    if (n > 8) { d.set(ex / n - P.pos.x, 0, ez / n - P.pos.z); if (d.lengthSq() > 1) d.normalize(); } }
+  const out = [];
+  for (const [ang, seed, off] of [[0, 1, 0], [Math.PI / 2, 2, 0], [-Math.PI / 2, 3, 0], [Math.PI, 4, 0]]) {
+    const c = Math.cos(ang), s = Math.sin(ang);
+    const fx = d.x * c + d.z * s, fz = -d.x * s + d.z * c, sx = fz, sz = -fx;
+    let at = null;
+    for (let k = 0; k < 8 && !at; k++) {
+      const r = 30 + k * 10, x = P.pos.x + fx * r, z = P.pos.z + fz * r;
+      if (W.inWaterAt && W.inWaterAt(x, z)) continue;
+      const h = W.heightAt(x, z);
+      if (Math.abs(W.heightAt(x + sx * 10, z + sz * 10) - h) < 12 && Math.abs(W.heightAt(x - sx * 10, z - sz * 10) - h) < 12) at = [x, z];
+    }
+    if (!at) continue;
+    const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 46, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
+      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 12,
+      A: { flag: o.ally, armor: 0x2a2622, count: 110, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 110, flagRate: .25 } });
+    if (C && C.go) C.go();
+    out.push(C);
+  }
+  return out;
 }
