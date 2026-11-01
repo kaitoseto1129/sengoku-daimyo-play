@@ -11,7 +11,12 @@ import { weatherMat } from './bldg_weather.js';
 import { FLAG_T } from './units.js';
 import { WIND_DIR } from './world_weather.js';
 import { addDeck, addLadder, FL } from './floors.js';
+<<<<<<< HEAD
+import { addInterior, facePanels } from './naka.js';
+import { interiorLayout } from './interior_layouts.js';
+=======
 import { addInterior, facePanels, windowLatticeMembers } from './naka.js';
+>>>>>>> main
 import { sumiInside, gateInside, lookoutInside, interiorBase } from './yagura_inside.js';
 import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { extScatter, extGateRoof, extMinka, extTempleRoof } from './props_ext.js';
@@ -1629,6 +1634,10 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   // 土台は四隅でいちばん高い地面に合わせる（低い隅は束で埋める）。真ん中だけで決めると、斜面で家が地面に埋まって傾いて見える（A027）
   let y = world.heightAt(x, z);
   for (const [cx, cz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]]) y = Math.max(y, world.heightAt(x + cx * Math.cos(rot) + cz * Math.sin(rot), z - cx * Math.sin(rot) + cz * Math.cos(rot)));
+<<<<<<< HEAD
+  // 三木で床下全体を測った地盤高を、土台と室内の共通の基準にする。
+  if (o.interior?.profile === 'miki' && Number.isFinite(o.groundY)) y = Math.max(y, o.groundY);
+=======
   if (SETTINGS.quality === 'high' && o.interior?.profile === 'anegawa') {
     // 姉川の館・番小屋・民家は床下全体と戸口の踊り場も測る。
     // 四隅の間の盛り上がりで板間や敷居が埋まらないよう、外装と室内を一緒に上げる。
@@ -1649,9 +1658,15 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       y = Math.max(y, world.heightAt(x + lx * c + lz * s, z - lx * s + lz * c));
     }
   }
+<<<<<<< HEAD
+>>>>>>> main
+  if (o.interior?.profile === 'iga') {
+    // 入れる伊賀の建物は、四隅の間の盛り上がりも測る。
+=======
   if (o.interior?.profile === 'iga'
       || SETTINGS.quality === 'high' && o.interior?.profile === 'shitaragahara') {
     // 入れる伊賀の建物と設楽原の民家は、四隅の間の盛り上がりも測る。
+>>>>>>> main
     // 戸口を含む床全体を同じ高さへ上げ、地面が板間や敷居を突き抜けるのを防ぐ。
     // 外壁・室内・入口の段は下の共通の y を使う。設営時だけ調べる。
     const c = Math.cos(rot), s = Math.sin(rot);
@@ -1697,6 +1712,124 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   const wallHex = igaPlaster ? 0xb2a58b : o.wall || (o.ita ? 0x7e7464 : 0x86705a);
   const postHex = 0x55463a, sillHex = 0x4a3d30, sd0 = Math.round(x * 3.7 + z * 5.3);
   const perim = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [w / 2, d / 2, -w / 2, d / 2], [-w / 2, d / 2, -w / 2, -d / 2]];
+<<<<<<< HEAD
+  const mikiEntry = SETTINGS.quality === 'high' && o.interior?.profile === 'miki';
+  const mikiTempleVeranda = mikiEntry && o.interior.kind === 'hondo';
+  // 三木の主殿・屋敷と堂は、番所の狭い木戸と分けて引き分けの入口を取る。
+  // 寸法は推定。全開時の戸と戸当たりを正面の壁幅へ収める。
+  // 外壁・柱・敷居・室内の当たり・共通の引き戸は、この幅を一緒に使う。
+  // 兵糧蔵は俵を出し入れする口を取る推定復元。従来の一・二五メートルでは
+  // 引き残しと戸の厚みを除くと約九十七センチしか通れない。
+  // 一・六メートルを目安に広げ、狭い蔵でも引き切った板戸を妻壁へ納める。
+  // 番所・控えも甲冑を着て出入りする口として、一・五メートルを目安に取る。
+  // 旧幅では引き残しと框の厚みを除くと約九十七センチしか通れない。
+  // 妻壁の中に引き代を残し、柱・敷居・動く戸と当たりを同じ幅へそろえる推定復元。
+  const DOOR = mikiEntry && ['goten', 'hondo'].includes(o.interior.kind)
+    ? Math.min(2.1, (w - .4) / 2)
+    : mikiEntry && o.interior.kind === 'kura' ? Math.min(1.6, (w - .4) / 2)
+    : mikiEntry && ['bansho', 'nagaya'].includes(o.interior.kind) ? Math.min(1.5, (w - .4) / 2)
+    : 1.25;   // ＋奥行きの面の真ん中
+  const entryH = mikiEntry ? Math.min(2, H - .55) : 1.65;
+  // 三木の主殿・屋敷と堂の明かり窓。柱間に納め、外壁と室内で同じ寸法を使う。
+  // 位置は推定。蔵・番所・控えには紙を張らない小さな格子の換気口を設ける。
+  const paperWindows = [];
+  if (mikiEntry && ['goten', 'hondo'].includes(o.interior.kind)) {
+    const bays = Math.max(1, Math.round(d / 1.8)), bay = d / bays;
+    const windowW = Math.min(1.2, (bay - .2) / 2);
+    // 外壁だけの柱割りでは、長い屋敷の間仕切りへ明かり障子が重なる。
+    // 全開時の戸と枠まで同じ部屋へ納め、近い柱間へ移す（位置は推定）。
+    // 室内と同じ内寸の間取りを設営時だけ調べ、戸の枚数と共通の開閉は保つ。
+    const layout = interiorLayout(o.interior.kind, w - .18, d - .18, { profile: 'miki' });
+    const candidates = [];
+    for (let i = 0; i < bays; i++) {
+      const t = -d / 2 + (i + .5) * bay;
+      // 隅柱も引き込み先の端になる。外壁の柱間だけで幅を決めると、
+      // 全開の障子が室内の隅柱や回縁へ食い込む。各室の内寸から
+      // 左右の引き代を取り、窓と開閉する戸へ同じ幅を渡す（納まりは推定）。
+      const room = layout.rooms.find(r => t > r.z0 && t < r.z1);
+      if (!room) continue;
+      const width = Math.min(windowW, t - room.z0 - .14, room.z1 - t - .14);
+      if (width >= .5 && layout.walls.every(v => Math.abs(t - v.az) >= width + .14))
+        candidates.push({ i, t, width });
+    }
+    for (const side of [-1, 1]) {
+      // 床の間の側壁で明かり障子を塞がない。左右それぞれの調度を調べ、
+      // 引き切った戸まで壁際の背の高い調度から離す。配置は推定。
+      const windows = [];
+      // 長い屋敷の三室にも一室ずつ採光を取る推定の構え。
+      // 建物全体の二か所だけを選ぶと、取次の座敷へ明かりが届かない。
+      // 窓枠と引き切った戸を同じ室内へ納められる柱間だけを使う。
+      for (const room of layout.rooms) {
+        const target = (room.z0 + room.z1) / 2;
+        let best = null, distance = Infinity;
+        for (const candidate of candidates) {
+          const { t, width } = candidate;
+          if (t <= room.z0 || t >= room.z1 || Math.abs(t - target) >= distance) continue;
+          if (windows.some(v => Math.abs(t - v.t) < width + v.width + .1)) continue;
+          const blocked = layout.props.some(p => p.h > .8
+            && side * p.x + p.w / 2 > (w - .18) / 2 - .25
+            && t + width + .08 > p.z - p.d / 2
+            && t - width - .08 < p.z + p.d / 2);
+          if (!blocked) { best = candidate; distance = Math.abs(t - target); }
+        }
+        if (best) windows.push(best);
+      }
+      for (const { t, width } of windows) paperWindows.push({
+        face: 'x', s: side, t,
+        // 両側へ引き切った障子も柱間に収め、隣の窓の戸と重ねない。
+        w: width, y0: .8, y1: Math.min(1.8, H - .65), shoji: true,
+      });
+    }
+    // 奥壁の明かりも柱間へ納める推定復元。床の間・来迎壁・本尊の背は開けない。
+    // 引き切る範囲まで調度を避け、室内と外観へ同じ開口を渡す。
+    const rearBays = Math.max(1, Math.round(w / 1.8)), rearBay = w / rearBays;
+    const rearWidth = Math.min(1.2, (rearBay - .5) / 2);
+    for (const target of [0, rearBays - 1]) {
+      if (target === 0 && rearBays === 1) continue;
+      const t = -w / 2 + (target + .5) * rearBay;
+      const blocked = layout.props.some(p => p.h > .8
+        && p.z - p.d / 2 < -(d - .18) / 2 + .25
+        && t + rearWidth + .14 > p.x - p.w / 2
+        && t - rearWidth - .14 < p.x + p.w / 2);
+      if (!blocked && rearWidth >= .5 && Math.abs(t) + rearWidth + .14 < (w - .18) / 2)
+        paperWindows.push({ face: 'z', s: -1, t, w: rearWidth,
+          y0: .8, y1: Math.min(1.8, H - .65), shoji: true });
+    }
+  } else if (mikiEntry && ['kura', 'bansho', 'nagaya'].includes(o.interior.kind)) {
+    // 板壁を四面とも閉じ切らず、奥の板間へ採光と通風を通す推定の構え。
+    // 梁下に納め、柱間の中央へ置く。内外の穴・格子・当たりは同じ窓定義を使う。
+    const bays = Math.max(1, Math.round(d / 1.8)), bay = d / bays;
+    // 長い控え・番所は奥の一か所だけでなく入口寄りにも格子窓を取る推定の構え。
+    // 兵糧蔵は従来の小さな換気口を保ち、踏込の間仕切りや槍掛けは避ける。
+    const layout = interiorLayout(o.interior.kind, w - .18, d - .18, { profile: 'miki' });
+    const positions = [0];
+    if (d >= 7.2 && o.interior.kind !== 'kura' && bays >= 4) positions.push(bays - 2);
+    for (const side of [-1, 1]) for (const index of positions) {
+      // 番所・控えも格子だけで雨風へさらさず、蔵と同じ横引きの風戸で閉じる推定復元。
+      // 全開の二枚と戸当たりまで柱間へ納め、間仕切り・調度への引き込みも避ける。
+      const t = -d / 2 + bay * (index + .5);
+      // 外壁の柱間だけで幅を決めると、五歩の蔵・七歩の控えでは
+      // 引き切った風戸が隅柱へ食い込む。内寸の各室から柱と枠の分を引き、
+      // 両側の引き代まで納める。外観・室内・動く戸は同じ窓幅を使う。
+      const room = layout.rooms.find(r => t > r.z0 && t < r.z1);
+      if (!room) continue;
+      const width = Math.min(.7, (bay - .3) / 2, t - room.z0 - .14, room.z1 - t - .14);
+      if (width < .5) continue;
+      const blocked = layout.walls.some(v => Math.abs(t - v.az) < width + .14)
+        || layout.props.some(p => (p.y || 0) + p.h > H - 1.05
+          && side * p.x + p.w / 2 > (w - .18) / 2 - .25
+          && Math.abs(t - p.z) < width + p.d / 2 + .08);
+      if (!blocked) paperWindows.push({
+        face: 'x', s: side, t,
+        w: width, y0: H - 1.05, y1: H - .65, shoji: false,
+        shutter: true,
+      });
+    }
+  }
+  // 三木の明かり障子は外側の板戸で雨風を受ける推定復元。
+  // 窓の開口と引き代は共用し、板戸は障子から二十一センチ外の別溝へ納める。
+  if (mikiEntry) for (const v of paperWindows) if (v.shoji) v.rainShutter = true;
+=======
   const DOOR = 1.25;   // 戸口の幅（+z の面の真ん中）
   // 姉川は徒歩の体の高さ（一・七メートル）に余裕を取る。
   // 外壁・鴨居・動く戸で床上の内法を共有し、開けたのに頭がつかえる戸口を作らない。
@@ -1760,6 +1893,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     face: 'z', s: -1, t: -w / 2 + (Math.floor(igaBay / 2) + .5) * w / igaBay,
     w: .7, y0: 1.4, y1: 2,
   } : null;
+>>>>>>> main
   const box = (hex, px, py, pz, bw, bh, bd, ry = 0, earth = false) => {
     const b = earth ? earthWallGeo(bw, bh) : new THREE.BoxGeometry(bw, bh, bd);
     // 伊賀の縦板・柱は上下、土台・桁・窓枠は長手へ木目を通す。
@@ -1798,6 +1932,23 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     } else g = paint(b, hex);
     g.userData.homeTimber = true; g.userData.igaGrain = igaGrain; parts.push(g); return g;
   };
+  // 三木の外付き建具も、黒線だけでなく框の厚さを受ける二筋の溝にする。
+  // 窓は長手を奥行きへ回し、入口と同じ断面を使う。設営時に外観の束へ結合する。
+  const mikiRail = (px, py, pz, run, height, upper, sideWindow = false) => {
+    const depth = .012, groove = .064, sign = upper ? -1 : 1;
+    const surface = py + sign * height / 2;
+    const piece = (offset, yy, width, hh, color) => sideWindow
+      ? box(color, px + offset, yy, pz, width, hh, run)
+      : box(color, px, yy, pz + offset, run, hh, width);
+    piece(0, py - sign * depth / 2, .2, height - depth, sillHex);
+    const edges = [-.1, -.04 - groove / 2, -.04 + groove / 2,
+      .04 - groove / 2, .04 + groove / 2, .1];
+    for (let j = 0; j < edges.length; j += 2)
+      piece((edges[j] + edges[j + 1]) / 2, surface - sign * depth / 2,
+        edges[j + 1] - edges[j], depth, sillHex);
+    for (const track of [-.04, .04])
+      piece(track, surface - sign * (depth - .001), groove, .002, 0x18120d);
+  };
   let k = 0;
   for (const [ax, az, bx, bz] of perim) {
     const len = Math.hypot(bx - ax, bz - az), ry = Math.atan2(bx - ax, bz - az) + Math.PI / 2;
@@ -1816,6 +1967,12 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     const windowU = backWindow ? (backWindow.t - (backWindow.face === 'z' ? ax : az)) / (backWindow.face === 'z' ? tx : tz) : len / 2;
     // 柱の間（一間ごと）。戸口の面は真ん中を空ける
     const nb = lo ? 1 : Math.max(1, Math.round(len / 1.8));
+    const sideWindows = paperWindows.filter(v => v.face === (ax === bx ? 'x' : 'z')
+      && v.s === Math.sign(ax === bx ? ax : az));
+    const holes = sideWindows.map(v => {
+      const u = ax === bx ? (v.t - az) / tz : (v.t - ax) / tx;
+      return { t0: u - v.w / 2, t1: u + v.w / 2, y0: v.y0, y1: v.y1 };
+    });
     const cuts = [];
     for (let i = 0; i < nb; i++) cuts.push([i * len / nb, (i + 1) * len / nb]);
     const spans = [];
@@ -1826,6 +1983,13 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       } else spans.push([s0, s1]);
     }
     for (const [s0, s1] of spans) {
+<<<<<<< HEAD
+      const m = (s0 + s1) / 2, px = ax + tx * m, pz = az + tz * m, L = s1 - s0;
+      if (!holes.length) {
+        // 窓のない壁は一枚で納め、土壁と木組みの描き分けも残す。
+        const panel = box(vary(wallHex, k++ + sd0), px, .25 + (H - .35) / 2, pz, L + .01, H - .35, .06, ry,
+          o.groundedHome && SETTINGS.quality === 'high' && !o.batch);
+=======
       const m = (s0 + s1) / 2, L = s1 - s0, px = ax + tx * m, pz = az + tz * m;
       const window = igaWindow && az === -d / 2 && bz === -d / 2 ? igaWindow : null;
       // 板壁（腰の 0.25m は土台に任せる）。少し内へ下げ、柱と土台の面が前へ出る
@@ -1838,10 +2002,31 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
         const along = m + (a + b) / 2;
         const panel = box(color, ax + tx * along, .25 + (low + high) / 2, az + tz * along,
           b - a + .01, high - low, .06, ry, o.groundedHome && true && !o.batch);
+>>>>>>> main
         if (o.groundedHome) {
           panel.userData.homeWall = true;
           if (panel.userData.homeCoarse) panel.userData.homeCoarse.userData.homeWall = true;
         }
+<<<<<<< HEAD
+        if (!lo && !o.groundedHome) for (let q = 1; q < Math.round(L / .45); q++) {
+          const u = s0 + q * L / Math.round(L / .45);
+          box(vary(0x6a5a48, q + k), ax + tx * u, .25 + (H - .35) / 2, az + tz * u, .05, H - .4, .09, ry);
+        }
+        continue;
+      }
+      // 開口の上下も壁を残し、押縁を障子の前へ通さない。
+      const panels = facePanels(L, H - .35, holes.map(v => ({
+        t0: v.t0 - m, t1: v.t1 - m, y0: v.y0, y1: v.y1,
+      })));
+      for (const [a, b, low, high] of panels) {
+        const u = m + (a + b) / 2, hh = high - low, yy = .25 + (low + high) / 2;
+        box(vary(wallHex, k++ + sd0), ax + tx * u, yy, az + tz * u, b - a + .01, hh, .06, ry);
+        if (!lo) for (let q = 1; q < Math.round(L / .45); q++) {
+          const v = s0 + q * L / Math.round(L / .45);
+          if (v <= m + a || v >= m + b) continue;
+          box(vary(0x6a5a48, q + k), ax + tx * v, yy, az + tz * v, .05, hh, .09, ry);
+        }
+=======
       }
       } else {
       const earth = (o.groundedHome || igaPlaster) && !o.batch;
@@ -1880,7 +2065,46 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
           ? [[.25, .25 + window.y0], [.25 + window.y1, H - .15]] : [[.275, H - .125]];
         for (const [low, high] of bands)
           box(vary(0x6a5a48, q + k), qx, (low + high) / 2, qz, .05, high - low, .09, ry);   // 押縁（縦の桟）
+>>>>>>> main
       }
+    }
+    // 敷居・鴨居と窓枠は外観の束へ結合。動く障子は近づいた時に組む。
+    for (const v of sideWindows) {
+      const side = v.face === 'x';
+      const windowBox = (color, across, py, along, bw, bh, bd) => side
+        ? box(color, across, py, along, bw, bh, bd)
+        : box(color, along, py, across, bd, bh, bw);
+      const half = (side ? w : d) / 2;
+      const yy = .25 + (v.y0 + v.y1) / 2, hh = v.y1 - v.y0;
+      const xx = v.s * (half + .012);
+      if (!v.shoji) {
+        // 格子も外観の束へ納め、室内が組まれる前から開口を木で守る。
+        // 室内の当たりと同じ三本・同じ芯。板倉の風戸は格子の外を滑らせる。
+        const depth = .25, cx = v.s * (half - .09);
+        for (const end of [-1, 1])
+          windowBox(postHex, cx, yy, v.t + end * (v.w / 2 + .035), depth, hh + .14, .07);
+        for (const edge of [v.y0, v.y1])
+          windowBox(sillHex, cx, .25 + edge, v.t, depth, .07, v.w);
+        for (let q = -1; q <= 1; q++)
+          windowBox(postHex, v.s * (half - .19), yy, v.t + q * v.w * .3,
+            .05, hh, .05);
+        if (!v.shutter) continue;
+      }
+      // 障子と板倉の風戸は共通の引き戸へ任せ、左右の引き代まで二筋の溝を通す。
+      const face = v.s * (half + .19);
+      for (const offset of v.rainShutter ? [0, .21] : [0]) {
+        const railFace = face + v.s * offset;
+        for (const edge of [v.y0, v.y1])
+          if (side) mikiRail(railFace, .25 + edge, v.t, v.w * 2, .07, edge === v.y1, true);
+          else mikiRail(v.t, .25 + edge, railFace, v.w * 2, .07, edge === v.y1);
+      }
+      // 引き切った障子を受ける戸当たり。二本の溝の端を縦木で閉じる。
+      // 窓の開口は塞がず、外観と同じ束へ納める。
+      for (const end of [-1, 1])
+        windowBox(sillHex, face + (v.rainShutter ? v.s * .105 : 0), yy,
+          v.t + end * (v.w + .025), v.rainShutter ? .41 : .2, hh + .07, .05);
+      for (const end of [-1, 1])
+        windowBox(postHex, xx, yy, v.t + end * (v.w / 2 + .04), .16, hh + .14, .08);
     }
     // 柱（一間ごと・隅・戸口の脇）と礎石
     const postAt = new Set([0, len]);
@@ -1996,6 +2220,26 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     }
     box(0x4c3e30, ax + tx * len / 2, H - 0.05, az + tz * len / 2, len + 0.24, 0.2, 0.2, ry);
     if (!lo) {
+<<<<<<< HEAD
+<<<<<<< HEAD
+      // 三木の入れる建物は、貫も戸口で切る。開いている入口を横木で塞がない。
+      const rails = front && o.interior?.profile === 'miki'
+        ? [[0, (len - DOOR) / 2], [(len + DOOR) / 2, len]] : [[0, len]];
+      for (const [a, b] of rails) {
+        const mid = (a + b) / 2;
+        if (!holes.length) {
+          box(0x4c3e30, ax + tx * mid, H * .55, az + tz * mid, b - a, .1, .1, ry);
+          continue;
+        }
+        const openings = holes.filter(v => H * .55 + .05 > .25 + v.y0 && H * .55 - .05 < .25 + v.y1)
+          .map(v => ({ t0: v.t0 - mid, t1: v.t1 - mid, y0: 0, y1: .1 }));
+        for (const [l, r] of facePanels(b - a, .1, openings))
+          box(0x4c3e30, ax + tx * (mid + (l + r) / 2), H * .55,
+            az + tz * (mid + (l + r) / 2), r - l, .1, .1, ry);
+      }
+    }
+=======
+=======
       if (o.interior?.profile === 'anegawa') {
       // 姉川の入れる家は、貫を戸口の両脇で止める。顔の高さに横木を渡さない。
       const spans = front && o.interior?.profile === 'anegawa'
@@ -2009,6 +2253,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
             az + tz * (mid + (p0 + p1) / 2), p1 - p0, high - low, .1, ry);
       }
       } else {
+>>>>>>> main
       // 入れる民家の貫は戸口の両脇で止める。動く板戸の前へ横木を渡さない。
       if (villageInterior && (front || faceWindows.length)) {
         const holes = faceWindows.map(v => ({ t0: v.t - v.w / 2, t1: v.t + v.w / 2, y0: 0, y1: .1 }));
@@ -2056,10 +2301,102 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     // 窓台は壁より外へ出し、下に水切りの溝を通す。既存の板壁の束へまとめる。
     box(sillHex, wx, low - .04, wz - .03, igaWindow.w + .2, .08, .22);
     box(0x30251b, wx, low - .081, wz - .115, igaWindow.w + .12, .004, .012);
+>>>>>>> main
   }
   // 中のない小屋は戸を閉じる。当たりのない飾りだけ半開きにする。
   const closed = o.solid !== false && !o.interior;
   if (!closed && !o.interior) box(0x120e0a, 0, 0.95, d / 2 - 0.25, DOOR - 0.1, 1.85, 0.02);
+<<<<<<< HEAD
+<<<<<<< HEAD
+  box(0x4a3d30, 0, 0.08, d / 2, DOOR + 0.3, 0.1, 0.16);
+  box(0x4a3d30, 0, mikiEntry ? .25 + entryH + .06 : 1.95, d / 2, DOOR + 0.3, 0.12, 0.14);
+  if (mikiEntry) {
+    // 床から測った戸口の高さを内外でそろえ、鴨居から軒桁までは小壁で納める。
+    const bottom = .25 + entryH + .12, top = H - .05;
+    if (top > bottom) box(wallHex, 0, (bottom + top) / 2, d / 2, DOOR, top - bottom, .06);
+    // 外の引き戸は柱より手前の二本の溝を滑る。左右へ引き切る長さを残す。
+    const run = DOOR * 2, face = d / 2 + .19;
+    for (const yy of [.23, .25 + entryH + .04])
+      mikiRail(0, yy, face, run, .08, yy > 1);
+    // 全開位置の戸当たりで上下の溝をつなぎ、戸が軌道の端から抜ける形にしない。
+    for (const end of [-1, 1])
+      box(sillHex, end * (run / 2 + .025), .25 + entryH / 2, face, .05, entryH + .08, .2);
+  }
+  if (mikiTempleVeranda) {
+    // 堂の正面には昇り口を覆う向拝を推定で設ける。
+    // 入母屋などの形式は断定せず、板葺きの片流れと見せる垂木で納める。
+    // 柱は左右の濡縁へ置き、中央の段・板戸の引き代と開閉の立ち所を空ける。
+    const postX = DOOR / 2 + .55, frontZ = d / 2 + .95;
+    const rearZ = d / 2 - .12, endZ = d / 2 + 1.45;
+    const pitch = .18, roofY = H - .38;
+    const roofAt = zz => roofY - (zz - rearZ) * Math.tan(pitch);
+    const beamY = roofAt(frontZ) - .18;
+    for (const side of [-1, 1]) {
+      const px = side * postX;
+      box(postHex, px, (.25 + beamY) / 2, frontZ, .16, beamY - .25, .16);
+      box(sillHex, px, .28, frontZ, .23, .06, .23);
+      if (o.solid !== false) {
+        const post = solidRect(x + px * Math.cos(rot) + frontZ * Math.sin(rot),
+          z - px * Math.sin(rot) + frontZ * Math.cos(rot), .16, .16, rot, y + beamY);
+        post.yBot = y + .25;
+      }
+    }
+    box(sillHex, 0, beamY, frontZ, postX * 2 + .3, .16, .18);
+    box(sillHex, 0, roofAt(rearZ) - .18, rearZ, postX * 2 + .3, .16, .18);
+    const length = (endZ - rearZ) / Math.cos(pitch), middleZ = (rearZ + endZ) / 2;
+    // 桁の上へ垂木を渡し、その上に縦葺きの板を載せる。外観の束へ一度だけ結合する。
+    for (let i = 0; i <= 8; i++) {
+      const rafter = box(postHex, 0, 0, 0, .065, .08, length);
+      rafter.rotateX(pitch);
+      rafter.translate(-postX + i * postX / 4, roofAt(middleZ) - .06, middleZ);
+    }
+    const width = postX * 2 + .5, boards = Math.ceil(width / .24);
+    for (let i = 0; i < boards; i++) {
+      const board = box(i % 3 ? 0x806347 : 0x756047, 0, 0, 0,
+        width / boards - .003, .04, length + .12);
+      board.rotateX(pitch);
+      board.translate(-width / 2 + (i + .5) * width / boards, roofAt(middleZ), middleZ);
+    }
+    // 三木の堂の正面は、戸口だけの小さな足場でなく濡縁で受ける推定復元。
+    // 中央は共通の踊り場へ任せ、同じ高さの板を重ねない。障子の二筋の溝も保つ。
+    const half = (w - .32) / 2, opening = (DOOR + .4) / 2;
+    // 六十二センチの縁では体幅九十センチを収めて横へ歩けない。
+    // 左右の板敷きだけ一・一メートルへ広げ、中央の昇り口は既存の段へ任せる。
+    const front = d / 2 + .04, depth = 1.1, rows = Math.ceil(depth / .2);
+    for (const side of [-1, 1]) {
+      const span = half - opening, px = side * (half + opening) / 2;
+      // 長い縁板を一枚で渡さず、板端を根太の上で継ぐ推定の木組み。
+      // 壁際の受け木と縁桁へ根太を掛け、床下から見ても板だけが浮かない。
+      // 既存の外観へ結合し、濡縁の高さ・戸の溝は保つ。
+      const bays = Math.max(1, Math.ceil(span / 1.8)), bay = span / bays;
+      for (let i = 0; i < rows; i++) for (let j = 0; j < bays; j++)
+        box(i % 2 ? 0x756047 : 0x6d583f,
+          side * (opening + (j + .5) * bay), .21,
+          front + (i + .5) * depth / rows, bay - .004, .08, depth / rows - .004);
+      box(sillHex, px, .12, front + .06, span, .1, .12);
+      box(sillHex, px, .12, front + depth - .07, span, .1, .12);
+      for (let j = 0; j <= bays; j++) {
+        const along = j === 0 ? opening + .05 : j === bays ? half - .05 : opening + j * bay;
+        box(postHex, side * along, .14, front + (depth - .01) / 2,
+          .1, .06, depth - .25);
+      }
+      // 縁束は地面へ届かせる。板・桁・束は既存の外観の束へ結合する。
+      for (const along of [opening + .12, half - .12]) {
+        const lx = side * along, lz = front + depth - .07;
+        const gy = world.heightAt(x + lx * Math.cos(rot) + lz * Math.sin(rot),
+          z - lx * Math.sin(rot) + lz * Math.cos(rot)) - y;
+        if (gy < .07) box(postHex, lx, (gy + .07) / 2, lz, .12, .07 - gy, .12);
+      }
+      // 床の判定も左右の縁板と同じ外寸にする。中央まで広げると
+      // 地面から上がる段の途中へ水平な床が重なり、足が跳ね上がる。
+      const lz = front + depth / 2;
+      addDeck({ cx: x + px * Math.cos(rot) + lz * Math.sin(rot),
+        cz: z - px * Math.sin(rot) + lz * Math.cos(rot), rot,
+        x0: -span / 2, x1: span / 2, z0: -depth / 2, z1: depth / 2,
+        y: y + .25, pad: .02, name: `${o.interior.name}の濡縁` });
+    }
+=======
+=======
   if (o.interior?.profile === 'anegawa') {
   box(0x4a3d30, 0, 0.08, d / 2, DOOR + 0.3, 0.1, 0.16);
   box(0x4a3d30, 0, doorTop + .05, d / 2, DOOR + 0.3, 0.12, 0.14);
@@ -2068,6 +2405,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     box(wallHex, 0, (doorTop + H - .1) / 2, d / 2, DOOR, H - .1 - doorTop, .06);
   }
   } else {
+>>>>>>> main
   // 伊賀の引き戸は床高 .25 の上に敷居がある。外の敷居も同じ上端 .29 へ納める。
   box(0x4a3d30, 0, igaEntry ? .27 : .08, d / 2, DOOR + 0.3, igaEntry ? .04 : .1, 0.16);
   const entryHeaderY = lintelY;
@@ -2082,6 +2420,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     // 外から天井裏へ抜けて見える隙間を塞ぎ、動く板戸の通りは空ける。
     const bottom = 2.01, top = H - .15;
     if (top > bottom) box(wallHex, 0, (bottom + top) / 2, d / 2, DOOR, top - bottom, .06);
+>>>>>>> main
   }
   }
   if (!o.interior) box(vary(0x75644e, 3), closed ? 0 : DOOR * 0.55, 1.0, d / 2 + 0.08, closed ? DOOR : DOOR * 0.62, 1.8, 0.05);
@@ -2120,18 +2459,78 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     }
   }
   // 指定した主殿だけ長手の戸口に柱立ちの下屋を添える。
-  // 床や当たりは増やさず、板戸の間に柱を立て、薄い庇と既存の束へ結合する。
+  // 板戸の間に柱を立て、薄い庇と既存の束へ結合する。
   if (o.eaveGallery === true && o.ita) {
-    const face = w / 2, depth = 1.15, bays = Math.max(2, Math.round(d / 3));
+    // 三木は壁外の引き戸と庇柱の間にも、体幅九十センチの通路を残す。
+    // 正面の回り込みも同じ幅の板敷きとし、妻口の踊り場へつなぐ推定復元。
+    const face = w / 2, depth = mikiEntry ? 1.5 : 1.15, bays = Math.max(2, Math.round(d / 3));
+    const beamTop = H - (mikiEntry ? .41 : .25);
     const roof = new THREE.BoxGeometry(depth + .18, .075, d + .9);
     roof.rotateZ(-.18); roof.translate(face + depth / 2 - .12, H - .12, 0);
     parts.push(paint(roof, 0x716451));
-    box(sillHex, face + depth - .2, H - .25, 0, .14, .16, d + .55);
+    box(sillHex, face + depth - .2, beamTop, 0, .14, .16, d + .55);
+    if (mikiEntry) {
+      // 三木の濡縁の庇は、垂木を母屋側の掛桁と外の桁へ渡す推定復元。
+      // 桁を屋根板へ突き抜けさせず、勾配に沿う垂木の下面で受ける。
+      // 同じ垂木の形を複製して外観の束へ結合し、描画と毎コマの処理は増やさない。
+      const rafter = paint(new THREE.BoxGeometry(depth + .18, .08, .055), postHex);
+      rafter.rotateZ(-.18);
+      const count = Math.max(1, Math.ceil((d + .6) / .45));
+      for (let i = 0; i <= count; i++) {
+        const g = rafter.clone();
+        g.translate(face + depth / 2 - .12, H - .12 - .0775 * Math.cos(.18),
+          -(d + .6) / 2 + i * (d + .6) / count);
+        parts.push(g);
+      }
+      rafter.dispose();
+      box(sillHex, face, H - .21, 0, .14, .12, d + .55);
+      // 三木の主殿の下屋は、庇と柱だけでなく床高をそろえた濡縁で受ける推定復元。
+      // 妻の昇り口から曲がれるよう正面にも縁を回し、引き戸の軌道は空ける。
+      // 板・根太・縁桁は既存の外観へ結合し、床の当たりだけ二面を登録する。
+      const strips = [
+        [face + .04, face + depth, -d / 2, d / 2 + 1.14],
+        [(DOOR + .4) / 2, face + .04, d / 2 + .04, d / 2 + 1.14],
+      ];
+      for (const [x0, x1, z0, z1] of strips) {
+        const rows = Math.max(1, Math.ceil((x1 - x0) / .28)), width = (x1 - x0) / rows;
+        const runs = Math.max(1, Math.ceil((z1 - z0) / 1.8)), length = (z1 - z0) / runs;
+        for (let row = 0; row < rows; row++) for (let run = 0; run < runs; run++)
+          box(row % 2 ? 0x756047 : 0x6d583f,
+            x0 + (row + .5) * width, .21, z0 + (run + .5) * length,
+            width - .004, .08, length - .004);
+        const lx = (x0 + x1) / 2, lz = (z0 + z1) / 2;
+        addDeck({ cx: x + lx * Math.cos(rot) + lz * Math.sin(rot),
+          cz: z - lx * Math.sin(rot) + lz * Math.cos(rot), rot,
+          x0: -(x1 - x0) / 2, x1: (x1 - x0) / 2,
+          z0: -(z1 - z0) / 2, z1: (z1 - z0) / 2,
+          y: y + .25, pad: .02, name: `${o.interior.name}の濡縁` });
+      }
+      box(sillHex, face + depth - .2, .1, 0, .12, .14, d);
+      const front0 = (DOOR + .4) / 2, front1 = face + depth;
+      box(sillHex, (front0 + front1) / 2, .1, d / 2 + 1.05, front1 - front0, .14, .12);
+      const supports = Math.max(1, Math.ceil((front1 - front0) / 1.8));
+      for (let i = 0; i <= supports; i++) {
+        const lx = front0 + (front1 - front0) * i / supports, lz = d / 2 + 1.05;
+        const gy = world.heightAt(x + lx * Math.cos(rot) + lz * Math.sin(rot),
+          z - lx * Math.sin(rot) + lz * Math.cos(rot)) - y;
+        if (gy < .03) box(postHex, lx, (gy + .03) / 2, lz, .12, .03 - gy, .12);
+      }
+      for (let i = 0; i <= bays; i++)
+        box(sillHex, face + depth / 2, .145, -d / 2 + i * d / bays, depth, .05, .1);
+    }
     for (let i = 0; i <= bays; i++) {
       const zz = -d / 2 + i * d / bays, px = face + depth - .2;
-      const gy = world.heightAt(x + px * Math.cos(rot) + zz * Math.sin(rot),
-        z - px * Math.sin(rot) + zz * Math.cos(rot)) - y;
-      box(postHex, px, (gy + H - .25) / 2, zz, .12, H - .25 - gy, .12);
+      const wx = x + px * Math.cos(rot) + zz * Math.sin(rot);
+      const wz = z - px * Math.sin(rot) + zz * Math.cos(rot);
+      const gy = world.heightAt(wx, wz) - y;
+      box(postHex, px, (gy + beamTop) / 2, zz, .12, beamTop - gy, .12);
+      if (mikiEntry && o.solid !== false) {
+        // 三木の主殿の庇柱は、描いた角材と同じ位置・太さで体を止める。
+        // 足元から柱頭までに限り、柱間と妻の昇り口は空ける。
+        // 設営時だけ登録し、室内の遅延生成や毎コマの処理へ足さない。
+        const post = solidRect(wx, wz, .12, .12, rot, y + beamTop);
+        post.yBot = y + gy;
+      }
     }
     for (let i = 0; i < 3; i++) box(0x4e473c, face + .15 + i * .36,
       H - .12 - (i * .36 - .3) * .18 + .06, 0, .045, .055, d + .85);
@@ -2571,6 +2970,12 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     }
     g.setAttribute('homeSurface', new THREE.BufferAttribute(surface, 2));
   }
+<<<<<<< HEAD
+  // まとめて描く小屋も、外の戸口と同じ寸法で室内を登録する。
+  const inside = o.interior ? addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
+    levels: [{ y: y + .25, w: w - .18, d: d - .18, h: H - .25 }],
+    door: { w: DOOR, h: entryH }, approach: { pad: mikiTempleVeranda ? .8 : mikiEntry && o.eaveGallery ? 1.1 : .25, len: 1.1 }, wins: () => paperWindows }) : null;
+=======
   // まとめて描く小屋も室内を一度だけ登録する。姉川の屋根・戸口・採光窓の寸法も保つ。
   const anegawaInterior = o.interior?.profile === 'anegawa';
   const inside = o.interior ? addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
@@ -2584,6 +2989,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
     wins: () => anegawaInterior
       ? anegawaWindows ? anegawaWindows.map(v => ({ ...v, y0: v.y0 - interiorFloorY, y1: v.y1 - interiorFloorY })) : []
       : nodaHome ? homeWindows : igaWindow ? [igaWindow] : villageWindows }) : null;
+>>>>>>> main
   if (o.batch) {
     // 町屋・小屋が何十も並ぶ所（本能寺の京の町並み等）は、材質ごとの BatchedMesh にまとめて
     // 描く回数を減らす（makeSimpleBatch／finalizeSimpleBatch。壁柱材質は MAT、屋根は別材質）
@@ -2636,7 +3042,40 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   grp.add(m, roof);
   grp.position.set(x, y, z);
   grp.rotation.y = rot;
+<<<<<<< HEAD
+<<<<<<< HEAD
   if (inside) grp.userData.naka = inside;
+=======
+  // 姉川の館と小屋。外の戸口・土台・屋根に室内の高さを合わせ、箱の当たりを置かない。
+  let inside = null;
+  if (o.interior?.profile === 'anegawa') {
+  inside = o.interior ? (() => {
+    const I = addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
+      roof: o.interior.profile === 'anegawa' ? { kind: 'gable', rise: rh, run: w / 2 + eave,
+        lining: ita ? 'boards' : 'battens',
+        // 屋根板の下面より内側へ垂木を納める。茅は厚みの分だけ深く取る。
+        inset: ita ? .12 : .3 } : null,
+      levels: [{ y: y + .25, w: w - .18, d: d - .18, h: H - .25 }],
+      door: { w: DOOR, h: doorHeight }, approach: { pad: entryPad, len: 1.1 },
+      wins: () => anegawaWindows ? anegawaWindows.map(v => ({ ...v, y0: v.y0 - .25, y1: v.y1 - .25 })) : [] });
+    return I;
+  })() : null;
+  if (inside) grp.userData.naka = inside;
+  } else {
+  if (o.interior) {
+    const I = inside = addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
+      levels: [{ y: y + interiorFloorY, w: w - .18, d: d - .18, h: H - interiorFloorY }],
+      door: { w: DOOR, h: interiorDoorH }, approach: { pad: .25, len: 1.1 }, wins: () => nodaHome ? homeWindows : igaWindow ? [igaWindow] : villageWindows });
+    grp.userData.naka = I;
+  }
+<<<<<<< HEAD
+>>>>>>> main
+=======
+  }
+>>>>>>> main
+=======
+  if (inside) grp.userData.naka = inside;
+>>>>>>> main
   // 茅葺きの普通の家（色や高さを指定した陣屋・倉でない物）は、素材の民家に替える（props_ext.js の extMinka。画質「低」・読めない時は手作りのまま）
   if (!o.interior && !ita && o.minka !== false && o.wall === undefined && (o.h === undefined || o.h <= 3) && w >= 5.5 && w <= 11 && d >= 3.8 && d <= 7.5) extMinka(grp, [m, roof], w, d, H, sd0);
   // 呼び出し側が mesh として扱っても困らないよう、材質の参照を持たせる

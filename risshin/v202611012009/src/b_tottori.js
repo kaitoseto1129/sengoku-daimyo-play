@@ -2496,6 +2496,21 @@ const tottori = {
     F.hide.path = [[-38, 10], [-42, -4], [-48, -16]]; F.hide.pathIdx = 0;
     F.hide.onArrive = (g) => { g.march = false; g.order = 'hold'; g.focus = null; };
     rt.marker('guard', centerOf(F.guard), '舟の番', { red: true, group: F.guard });
+    // 11/1 点付け（鳥取68：敵の大軍・乱戦が薄い）：25秒の画面は川岸の組の後ろから川上（南）の舟を見る。
+    //   岸の平らな帯（川と切岸の間）で、羽柴の夜討ちの手と毛利の舟の番が押し合い斬り合う（手前の右・奥の舟の先の二か所）。
+    //   川上の岸の奥には、舟の米を運び込もうとする毛利の人数（旗つき）が列をなす。軽い作り（addClash・addDistantArmy）だけで、本物の兵の数・道・当たりは変えない。
+    //   舟の段が済めば（midA）羽柴の押し合いは番が崩れて退き、川上の列も隠す。
+    F.bankClashes = [[-46, -31, 10, 30, 36, 15862]].map(([x, z, w, na, nb, seed]) => {
+      const C = rt.world.addClash({ x, z, facing: Math.PI, w, bw: 4, gap: 2, seed, rt,
+        play: (k, q, v) => rt.army.play(k, q, v), smoke: (x1, y1, z1, ax, az) => rt.army.smoke(x1, y1, z1, ax, az),
+        noRout: true, noWake: true, killRate: 0.004, maxDrift: 1, host: false, corpses: 6, realNear: 12, nearHide: 0,
+        A: { flag: 'oda', armor: ODA.armor, count: na, flagRate: 0.15 },
+        B: { flagTex: flagTexture('mori'), armor: KIKKAWA.armor, count: nb, flagRate: 0.2 } });
+      C?.go?.();
+      return C;
+    }).filter(Boolean);
+    F.upHost = rt.world.addDistantArmy({ x: -50, z: -68, w: 10, d: 24, count: 110, facing: 0, team: 1, armor: KIKKAWA.armor, flagTex: flagTexture('mori'), mon: 'mori', kind: 'mixed', flagRate: 0.35, seed: 15863, terrainRanks: true, yose: false, host: false });
+    if (F.upHost?.army) F.upHost.army.noWake = true;
     rt.after(12, () => {
       if (F.step !== 1 || F.ending || gone(F.guard2)) return;
       // 夜の見通しに頼って待たず、岸の通れる道を隊で寄せる。
@@ -2564,6 +2579,9 @@ const tottori = {
     const F = rt.flags;
     if (F.step !== 1) return;
     F.step = 1.5; F.stepT = rt.t; rt.setPhase('return');
+    for (const C of F.bankClashes || []) C.rout?.('B', { hideAfter: 30, from: 0 });
+    F.bankClashes = null;
+    if (F.upHost) F.upHost.visible = false;
     const p = rt.player.u.pos;
     F.returnIndex = p.x >= 4 && p.z >= 4 ? 3 : p.x >= -32 ? 2 : p.z >= -8 ? 1 : 0;
     rt.unmark('guard'); rt.unmark('guard2'); rt.unmark('bank-road'); rt.unmark('bank-fight'); rt.unmark('bank-approach');
