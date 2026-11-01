@@ -2590,7 +2590,8 @@ function inabaChertRed(x, z) {
 // https://www.city.gifu.lg.jp/_res/projects/default_project/_page_/001/005/558/seibi1.2s.pdf
 // 伐採範囲の細部は未詳。城の斜面を疎らにし、残る林は戦場外縁へ寄せる仮の分布。
 function inabaTreeDensity(x, z) {
-  if (z > 28) return 0.10;
+  // 11/1：持ち場の前の空き地（押し合いの場）には町の疎林を置かない（近くの松の葉房が板の切り絵のように画面を塞いでいた）。
+  if (z > 28) return Math.hypot(x - 58, (z - 74) * 0.8) < 26 ? 0 : 0.10;
   // 根元の周囲が急な切岸なら置かない。伐採後の疎林にも同じ足場の条件を使う。
   const y = height(x, z);
   const slope = Math.max(Math.abs(height(x + 1, z) - y), Math.abs(height(x - 1, z) - y),
@@ -2687,9 +2688,13 @@ function buildInabaMountain(rt) {
       float ibTop = texture2D(tMacro, vWP.xz * 0.083 + ibN * 0.05).r + texture2D(tMacro, mat2(0.8, -0.6, 0.6, 0.8) * vWP.xz * 0.21 + 0.53).r;
       float ibSide = texture2D(tMacro, vec2(vWP.x * 0.6 + vWP.z * 0.8, vWP.y) * 0.083 + 0.19).r + texture2D(tMacro, vec2(vWP.z * 0.6 - vWP.x * 0.8, vWP.y) * 0.21 + 0.71).r;
       float ibHash = clamp((mix(ibSide, ibTop, smoothstep(0.35, 0.8, abs(gN.y))) - 1.0) * 2.6 + 0.5, 0.0, 1.0);
-      vec3 ibEver = grass * vec3(0.36, 0.46, 0.3) * (0.8 + ibHash * 0.35);
-      vec3 ibLeaf = mix(ibEver, dirt * vec3(0.95, 0.68, 0.42), smoothstep(0.62, 0.74, ibHash));
-      ibLeaf = mix(ibLeaf, dirt * vec3(1.1, 0.7, 0.36), smoothstep(0.86, 0.94, ibHash));
+      // 11/1 点付け（遠い山肌の模様が粗い）：開城は八月で、橙の大きな斑が秋の絵の具の塗り分けに見えた。
+      //   夏の赤松と雑木の濃い緑を主にし、樹冠一つ分の細かい明暗（陰の谷間）で林の肌理を作る。茶は松の幹と枯れ枝の筋だけ薄く。
+      float ibFine = texture2D(tMacro, vWP.xz * 0.47 + vec2(vWP.y * 0.31, ibN * 0.2)).r;
+      float ibCrown = smoothstep(0.25, 0.75, ibFine * 0.6 + ibHash * 0.4);
+      vec3 ibEver = grass * mix(vec3(0.2, 0.28, 0.17), vec3(0.4, 0.5, 0.31), ibCrown) * (0.86 + ibHash * 0.22);
+      vec3 ibLeaf = mix(ibEver, dirt * vec3(0.62, 0.5, 0.36), smoothstep(0.72, 0.86, ibHash) * 0.55);
+      ibLeaf = mix(ibLeaf, grass * vec3(0.48, 0.52, 0.3), smoothstep(0.9, 0.97, ibHash) * 0.5);
       ibStone = mix(ibStone, ibLeaf, ibScrub * 0.92);
       col = mix(col, ibStone, ibRock);
       // 露岩の帯の外の急な山肌（共通の灰の崖肌）にも同じ林の斑を掛け、岩は斑の切れ目にだけ残す。曲輪の平場と緩い坂は変えない。
@@ -5135,9 +5140,11 @@ const inabayama = {
     // 任務・当たり・実兵数は変えず、軽い兵と既存の土煙で前線をつなぐ。
     // 近い二十四歩は実兵の領分にし、家の脇へ寄った時も軽い影絵を正面に残さない。
     // 軽い兵は奥の押し合いを受け持つ。任務の敵と味方の数・当たりは保つ。
-    F.townClash = [[14, 82, 10], [34, 66, 12], [-10, 57, 10]].map(([x, z, w], i) => rt.world.addClash({
+    // 11/1 点付け（敵の大軍・乱戦が薄い）：近い二十四歩を隠していたため、開戦25秒の持ち場（48,85）から二十〜四十歩の押し合いが消えていた。
+    //   隠すのはカメラのすぐ前の九歩だけにし、持ち場の前（南東の空き地）にも一つ足す（軽い兵だけ。本物の兵・任務の数は変えない）。
+    F.townClash = [[14, 82, 10], [34, 66, 12], [-10, 57, 10], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
       x, z, w, facing: Math.PI, seed: 156780 + i, gap: 2.8,
-      noWake: true, noRout: true, host: false, nearHide: 24, realNear: 24,
+      noWake: true, noRout: true, host: false, nearHide: 9, realNear: 14,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
       // 町の奥の軽い乱戦。弱い端末では六割にする（遠景の数だけ。本物の兵は変えない）。
       A: { flag: 'oda', armor: 0x3d4248, count: Math.round(w * (TIER.weak ? 3.6 : 6)), team: 0, faction: 'oda', flagRate: 0.35 },
@@ -5145,6 +5152,10 @@ const inabayama = {
       play: (k, p, v) => rt.army.play(k, p, v * 0.65),
     }));
     // 火の手を見た町の番の兵が、松明の組へ斬りかかってくる
+    // 11/1：押し合いの奥、山すその斎藤勢の大軍（軽い作り）。持ち場から南へ四十〜五十歩、町の火を見て麓の番所の前へ出た所。翌日の暗転で片付ける。
+    F.saitoHost = rt.world.addDistantArmy({ x: 60, z: 42, w: 30, d: 10, count: TIER.weak ? 120 : 180, facing: 0, team: 1,
+      armor: 0x454957, flagTex: flagTexture('saito'), flagRate: 0.3, kind: 'spear', seed: 156790 });
+    if (F.saitoHost?.army) F.saitoHost.army.noWake = true;
     F.town.order = 'attack'; F.town.seekRange = 60; F.town.aggro = 16;
     for (const g of F.houseGuards) { g.aggro = 10; g.seekRange = 10; }
     rt.after(2, () => {
@@ -5333,6 +5344,7 @@ const inabayama = {
         W.lodList = (W.lodList || []).filter((m) => !meshes.has(m));
         F.townClash = null;
       }
+      if (F.saitoHost) { F.saitoHost.visible = false; F.saitoHost = null; }
       for (const fire of F.farFires) W.removeFire(fire);
       F.farFires.length = 0;
       charFarTown(rt, true);

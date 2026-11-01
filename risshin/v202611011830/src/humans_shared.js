@@ -584,7 +584,8 @@ function humanLook(look0) {
   if (!sohei && !look.kosode) {
     const warrior = (look.tier ?? 0) >= 1 || isNamed(look);
     look = { ...look, kote: warrior ? 3 : 0, nanban: false,
-      hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : 'jingasa',
+      // 足軽の頭の散らし（units.js の御貸具足の六組：細い笠・鉢巻・頭形兜。11/1）は近景でも保つ。ほかの足軽は陣笠
+      hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : look.lacquer != null && /^(jingasa_n|hachimaki|kabuto)$/.test(look.hat || '') ? look.hat : 'jingasa',
       ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
         // 足軽は簡素な貸し具足：陣笠と胴は同じ漆の一色（look.lacquer。units.js）。決まっていない人だけ、作り分け（loanWear）の漆と威糸のまま
         : look.lacquer != null ? { armor: look.lacquer, lace: look.lacquer, menpo: null, menpoScan: null } : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };

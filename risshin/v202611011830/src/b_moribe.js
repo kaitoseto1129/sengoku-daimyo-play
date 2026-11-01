@@ -4091,7 +4091,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     F.farS = [[-86, -64], [-168, -360], [-30, -88], [74, -70], [136, -320], [-180, -240], [100, -260], null, [-100, -440]]
       .map((q, i) => {
         if (!q) return null;
-        const army = DA(q[0], q[1], 52, KS[i] === 'bow' ? 12 : (KS[i] === 'honjin' ? 44 : 24), KS[i] === 'cavalry' ? 80 : KS[i] === 'bow' ? 220 : 600, 0, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 5 + i, KS[i]);
+        // 11/1：渡り口の乱戦と西の後詰（下）を足した分、霞の奥の二備（i 1・8）を六百から四百へ（描く人数を増やさない）。
+        const army = DA(q[0], q[1], 52, KS[i] === 'bow' ? 12 : (KS[i] === 'honjin' ? 44 : 24), KS[i] === 'cavalry' ? 80 : KS[i] === 'bow' ? 220 : (i === 1 || i === 8 ? 400 : 600), 0, i % 2 ? 0x3a3a30 : 0x35382c, 'saito', 5 + i, KS[i]);
         // 寄せた描画用の三備から実兵を増やさず、任務と難しさを保つ。
         if (i === 0 || i === 2 || i === 3) army.noWake = true;
         return army;
@@ -4135,6 +4136,24 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 大幟・兵数・並び・押し合いの進みは保つ（指物の割合は復元）。
       A: { flag: 'oda', armor: KT.ARMOR.oda, count: 100, kind: 'spear', team: 0, faction: 'oda', flagRate: 0.08, bannerStride: 12 },
       B: { flag: 'saito', armor: KT.ARMOR.saito, count: 400, kind: 'spear', team: 1, faction: 'saito', flagRate: 0.08, bannerStride: 12 } }));
+    // 11/1 点付け（森部62：敵の大軍・乱戦が薄い）：25秒の肩越しの画面は渡り口の北岸から西〜南西（渡ってきた浅瀬）を向く。
+    // 渡り口の西（持ち場から十五〜三十五歩）で、斎藤の小勢が北岸と浅瀬で後から渡る織田の手を押し返し、押し合い斬り合う乱戦を二つ置く。
+    // 北岸の奥（西の土手道）には長井の後詰の大軍が渡り口へ寄せて来る（配置は推定）。軽い作り（addClash・addDistantArmy）だけで、本物の兵の数・道・当たりは変えない。
+    // 合図（signal）の後、斎藤の側が崩れて北へ退き、後詰も隠す。
+    rt.after(1, () => {
+      if (rt.over || F.ending || F.fordClashes) return;
+      const K = (o) => clash(rt, { bw: 5.2, gap: 2.4, host: false, noRout: true, noWake: true, killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0, ...o });
+      F.fordClashes = [
+        K({ x: 4, z: 70, facing: Math.PI, w: 20, seed: 2391,
+          A: { flag: 'oda', armor: KT.ARMOR.oda, count: 44, kind: 'spear', flagRate: 0.16 },
+          B: { flag: 'saito', armor: KT.ARMOR.saito, count: 76, kind: 'spear', flagRate: 0.16 } }),
+        K({ x: 14, z: 92, facing: Math.PI, w: 16, seed: 2392,
+          A: { flag: 'oda', armor: KT.ARMOR.oda, count: 44, kind: 'spear', flagRate: 0.16 },
+          B: { flag: 'saito', armor: KT.ARMOR.saito, count: 56, kind: 'spear', flagRate: 0.16 } })].filter(Boolean);
+      for (const C of F.fordClashes) C.go?.();
+    });
+    F.fordHost = W.addDistantArmy({ x: -78, z: 66, w: 18, d: 40, count: 180, facing: Math.PI / 2, armor: KT.ARMOR.saito, flag: 'saito', mon: 'saito', kind: 'spear', team: 1, seed: 2393, terrainRanks: true, banners: 1, near: true, yose: false, host: false, flagRate: 0.14 });
+    F.fordHost?.army && (F.fordHost.army.noWake = true);
     // 重複する後方軍勢は足さない。備え表の控えは上の遠景と開戦時の実兵へ結ぶ。
     // 序盤から川向こうの敵が見える。射かける音は実際の弓兵に任せる。
     for (const [x, z] of [[20, 54], [42, 52], [30, 48]]) rt.scene.add(nobori(W, x, z, 'saito', 5.5));
@@ -4620,6 +4639,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       g.onArrive = (arrived) => { arrived.order = 'hold'; };
     }
     F.fronts.forEach((c) => c.go());
+    rt.after(12, () => { for (const C of F.fordClashes || []) C.rout?.('B', { hideAfter: 30, from: 0 }); F.fordHost?.rout?.({ hideAfter: 0 }); });
     F.farO.forEach((m, i) => rt.after(i * 1.3, () => m.advance(24, 18)));
     battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.A.anchor, F.A, 0, true, '織田の槍の列が前へ出た');
   },

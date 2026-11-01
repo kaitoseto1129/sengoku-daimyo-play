@@ -48,8 +48,12 @@ APose aPose() {
   float T = uAT + sd * 97.0;
   // 見せる部品（種類に合わない得物はたたむ）
   P.show = 1.0;
-  if (pt == 1.0) P.show = 1.0 - hm;
-  else if (pt == 2.0) P.show = hm;
+  // 足軽の頭（11/1）：陣笠の多くに、頭形兜（自前の兜）と鉢巻（笠なし）を混ぜる。形は同じ束のまま見せる部品だけを替える
+  float hz = fract(sd * 53.7), hmv = hm;
+  if (hm < 0.5 && (kd < 2.5 || kd == 4.0) && hz < 0.15) hmv = 1.0;
+  float bare = hm < 0.5 && (kd < 2.5 || kd == 7.0) && hz >= 0.15 && hz < 0.23 ? 1.0 : 0.0;
+  if (pt == 1.0) P.show = (1.0 - hmv) * (1.0 - bare);
+  else if (pt == 2.0) P.show = hmv;
   else if (pt == 3.0) P.show = (kd == 0.0 || kd == 5.0) ? 1.0 : 0.0;
   else if (pt == 4.0) P.show = kd == 1.0 ? 1.0 : 0.0;
   else if (pt == 5.0) P.show = kd == 2.0 ? 1.0 : 0.0;
@@ -421,6 +425,31 @@ function armySteel(sh) {
       vASteel = pow(max(0.0, dot(normalize(normalMatrix * steelN), normalize(vec3(0.35, 0.7, 0.6)))), 12.0);
     }`);
 }
+// 足軽の布の散らし（11/1・共通の差の1）：脚・小袖の腕・袖の板を、一人ずつ家の布の芯（uACore）・生成り・茶・柿渋へ。
+//   頂点の色の明るさの比（陰）と一人ずつの色の明るさは保つ。形・描く回数は同じ（頂点の色だけ）
+const CLOTH_U = {
+  uACloth: { value: [0x857760, 0x54422f, 0x7a4a2a, 0x5a5040].map((h) => new THREE.Color(h)) },
+  uAArm: { value: new THREE.Color(0x5a4e3e) }, uALeg: { value: new THREE.Color(0x4c4438) },
+};
+const CORE_DEF = { value: new THREE.Color(0x7a4226) }, LITE_DEF = { value: new THREE.Color(0, 0, 0) };
+function armyCloth(sh, U) {
+  sh.uniforms.uACore = U.uACore || CORE_DEF; sh.uniforms.uALite = U.uALite || LITE_DEF;
+  Object.assign(sh.uniforms, CLOTH_U);
+  sh.vertexShader = 'uniform vec3 uACloth[4], uACore, uAArm, uALeg, uALite;\n' + sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
+  #ifdef USE_COLOR
+  if (aPart == 0.0 || aPart == 8.0 || aPart == 9.0) {
+    float ckd = aInfo.y, cr = fract(aInfo.x * 71.3), cw = dot(color, vec3(0.3, 0.59, 0.11));
+    bool cleg = aPart != 0.0, carm = !cleg && dot(abs(color - uAArm), vec3(1.0)) < 0.012;
+    bool csode = !cleg && !carm && uALite.r + uALite.g > 0.0 && dot(abs(color - uALite), vec3(1.0)) < 0.012 && fract(aInfo.x * 19.7) < 0.35;
+    if (${U.clothT ? 'aVarT.w > 1.5 && (cleg || carm)' : '(ckd < 2.5 || ckd == 4.0 || ckd == 7.0) && (cleg || carm || csode)'} && cw > 1e-4) {
+      vec3 tc = ${U.clothT ? 'impUnp(aVarT.w - 2.0)' : 'cr < 0.42 ? uACore : cr < 0.6 ? uACloth[0] : cr < 0.76 ? uACloth[1] : cr < 0.9 ? uACloth[2] : uACloth[3]'};
+      float bw = dot(carm ? uAArm : csode ? uALite : uALeg, vec3(0.3, 0.59, 0.11));
+      float il = dot(vColor.rgb, vec3(0.3, 0.59, 0.11)) / cw;
+      vColor.rgb = mix(vColor.rgb, tc * (cw / max(bw, 1e-4)) * il, 0.8);
+    }
+  }
+  #endif`);
+}
 function armyShader(mat, U) {
   armyCam(mat);
   U.uFieldRanks ||= { value: 0 };
@@ -450,6 +479,7 @@ function armyShader(mat, U) {
       diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
     armyCover(sh);
     armySteel(sh);
+    if (!mat.map) armyCloth(sh, U);
   };
   return mat;
 }
@@ -667,6 +697,7 @@ function clashShader(mat, U) {
       diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
     armyCover(sh);
     armySteel(sh);
+    if (!mat.map) armyCloth(sh, U);
   };
   return mat;
 }

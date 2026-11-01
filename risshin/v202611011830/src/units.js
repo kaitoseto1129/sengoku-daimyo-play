@@ -42,7 +42,7 @@ import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
 import { aliveGuard } from './army_alive.js';
 import { reservedModel, reservedHorse } from './army_reserve.js';
-import { LAC_OF, lacKind, houseHash } from './lacquer_kind.js';
+import { LAC_OF, lacKind, houseHash, houseCore } from './lacquer_kind.js';
 // 足軽の漆の色（軍ごとの基の一色。御貸具足の三通り：黒漆の照り違い・錆地・赤備え。表は lacquer_kind.js で近い兵の作り分け
 //   soldierVar（humans_dress.js）・遠い大軍（world_army.js）と同じ。人ごとの差は soldierVar が付ける。青・紺は使わない）
 function ashigaruLacquer(fac, flag) {
@@ -658,7 +658,16 @@ export class Army {
     if (loanArmor && !u.name && !look.kosode && !look.sohei && !(u.type === 'player' && fieldLook.battleKey === 'inou')) {
       const lq = ashigaruLacquer(fac, fieldLook.armyFlagKinds?.[look.flag] || look.flag);
       look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false; look.saya = false; look.doStyle = undefined;
-      look.cloth = [0x6a5a44, 0x54422f, 0x6e6250, 0x4a3c2e, 0x605038, 0x5a5040][vi];   // 生成り・茶の褪せた布（明るい色は人形の手足に見える）
+      // 家ごとの布の色の芯（lacquer_kind.js の houseCore：柿渋・生成り・弁柄・茶・丁子茶・褪せた赤）を六人に二人。残りは褪せた生成り・茶（明るすぎる色は人形の手足に見える）
+      const core = houseCore(fieldLook.armyFlagKinds?.[look.flag] || look.flag || fac.flag);
+      look.cloth = [0x6a5a44, core, 0x54422f, 0x4a3c2e, core, 0x6a4a30][vi];
+      // 頭の散らし（共通の差の1・11/1）：揃いの陣笠の中に、細い笠・鉢巻（笠なし）・頭形兜（自前の兜）を混ぜる。六組の鍵 vi のままで形は増えない
+      //   戦が陣笠を指した兵も、鉢巻と頭形兜の二組だけは混ぜる（兜など陣笠でない指定は守る）
+      if (!fieldLook.variedHeadgear && !gen.hatFix && !gen.hat && /^jingasa/.test(look.hat || '') && (o.hat == null || vi === 2 || vi === 5)) {
+        look.hat = ['jingasa', 'jingasa_n', 'hachimaki', 'jingasa', 'jingasa', 'kabuto'][vi];
+        if (vi === 2) { look.tenugui = false; if (look.hachi == null) look.hachi = houseHash(String(look.flag || fac.flag)) % 2 ? 0xbfb59c : core; }
+        if (vi === 5) look.helm = new THREE.Color(lq).multiplyScalar(0.8).getHex();
+      }
     }
     look.flag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
     look.standard = fieldLook.armyFlagKinds?.[look.standard] || look.standard;

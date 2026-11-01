@@ -8,7 +8,7 @@ import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequ
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
-import { lacKind } from './lacquer_kind.js';
+import { lacKind, houseCore } from './lacquer_kind.js';
 import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
 // 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
 const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
@@ -33,6 +33,12 @@ function armyLacKind(mon, armor) {
   const h = _lk.set(armor || 0x2a2622).getHSL(_lh);
   if (h.s > 0.45 && (h.h < 0.05 || h.h > 0.95) && h.l > 0.15) return 3;
   return mon ? lacKind(mon) : 1;
+}
+// 隊の布の色の芯と袖の板の色（world_army_shader.js の armyCloth が脚・腕・袖を一人ずつ散らす。lacquer_kind.js の表）
+function clothCore(flag, armor, kind) {
+  const core = new THREE.Color(kind === 3 ? 0x7a2c1e : houseCore(flag));
+  const lite = new THREE.Color(new THREE.Color(armor).lerp(new THREE.Color(0x8a8070), 0.18).getHex());
+  return { uACore: { value: core }, uALite: { value: lite } };
 }
 export class WorldArmy {
 
@@ -86,6 +92,7 @@ export class WorldArmy {
     const fieldFlag = this.def.armyFlagKinds?.[flagKind];
     const flagTex = redCavalry ? flagTexture(flagKind === 'furin' ? 'furin_kiba' : 'takeda_kiba') : fieldFlag ? flagTexture(fieldFlag) : o.flagTex || flagTexture(flagKind);
     const U = {
+      ...clothCore(fieldFlag || flagKind, armor, redCavalry || family === 'takeda' ? 3 : 0),
       uYose: { value: yose ? 1 : 0 },
       uFieldRanks: { value: o.fieldRanks === true && o.kind === 'spear' ? 1 : 0 },
       uOrganicRanks: { value: o.terrainRanks ? 1 : 0 },
@@ -125,8 +132,9 @@ export class WorldArmy {
       d.position.set(x, this.heightAt(x, z), z);
       d.rotation.set(0, yaw, 0);
       // 背丈と肩幅のばらつき（ときどき大柄な者・小柄な者）
-      const tall = yose && s.k === 5 && s.ex === 2 ? 1.02 : 0.891 + R() * 0.063;
-      const width = 0.93 + R() * 0.15;
+      // 11/1：背丈は ±5%・肩幅は ±10% ほど（近い兵の揺らぎに合わせる。乱数の数は同じ）
+      const tall = yose && s.k === 5 && s.ex === 2 ? 1.02 : 0.872 + R() * 0.1;
+      const width = 0.9 + R() * 0.2;
       d.scale.set(tall * width, tall, tall * (0.96 + (width - 1) * 0.6));
       d.updateMatrix();
       body.setMatrixAt(i, d.matrix); flags.setMatrixAt(i, d.matrix);
@@ -768,6 +776,7 @@ export class WorldArmy {
       const flagTex = fieldFlag ? flagTexture(fieldFlag) : P.flagTex || flagTexture(flagKind);
       const rows = Math.max(3, Math.round((P.count || nb * cols * 8) / nb / cols)), per = rows * cols;
       const U = {
+        ...clothCore(fieldFlag || flagKind, armor, clk),
         uAT: WIND, uGust: GUST, uIdle: typeof ARMY_IDLE !== 'undefined' ? ARMY_IDLE : { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
         uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
         uTerrainTriangles: { value: this.def.clashTerrainTriangles && this.def.terrainTriangles ? 1 : 0 },
@@ -1414,6 +1423,7 @@ export class WorldArmy {
     }
     if (!SASHI_GEO) { SASHI_GEO = clothGeo(0.34, 0.62, 3, 1, 0, 2.62, -0.17, 11); BANNER_GEO = clothGeo(0.72, 2.6, 3, 6, 0.3, 5.2, 0.14, 12); }
     const U = {
+      clothT: true,   // 布の色は本物の兵の鎧下（aVarT.w）にそろえる（world_army_shader.js の armyCloth）
       uNear: { value: 0 }, uRealNear: { value: 0 },
       uAT: WIND, uGust: GUST, uIdle: ARMY_IDLE, uMarch: { value: 0 }, uCharge: { value: 0 }, uTurn: { value: 0 }, uRout: { value: 0 }, uRoutT: { value: 0 },
       uHgt: { value: this.hgtTex }, uHP: { value: new THREE.Vector3(this.half, this.step, SEG) },
@@ -1466,7 +1476,7 @@ export class WorldArmy {
       put: (i, x, z, yaw, k, helm, ex, fl, sd, tint) => {
         if (i >= cap) return;
         const T = A.aVarT.array, o = i * 4;
-        if (tint) { T[o] = tint.lac; T[o + 1] = tint.lace; T[o + 2] = tint.hat; T[o + 3] = 1; } else T[o + 3] = 0;
+        if (tint) { T[o] = tint.lac; T[o + 1] = tint.lace; T[o + 2] = tint.hat; T[o + 3] = tint.cloth != null ? tint.cloth + 2 : 1; } else T[o + 3] = 0;
         p.set(x, this.heightAt(x, z), z); q.setFromAxisAngle(yAx, yaw); m4.compose(p, q, sc);
         body.setMatrixAt(i, m4); flags.setMatrixAt(i, m4);
         const at = i * 4;
