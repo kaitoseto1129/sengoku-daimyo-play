@@ -4796,13 +4796,38 @@ function armyBackdrop(rt, o) {
     }
     if (!at && ang === 0) at = [P.pos.x + fx * 56 + sx * -18, P.pos.z + fz * 56 + sz * -18];
     if (!at) continue;
-    const C = W.addClash({ x: at[0], z: at[1], facing, w: 46, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
+    // 11/1：近くの輪（下）に人を回すため、奥の一組を 46 歩幅（144人ずつ）から 30 歩幅（90人ずつ）に
+    const C = W.addClash({ x: at[0], z: at[1], facing, w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 12,
-      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 110, flagRate: .25 },
-      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 110, flagRate: .25 } });
+      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 90, flagRate: .25 },
+      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 90, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
+  }
+  // 11/1：軽い兵が本人の 16m の外から描かれるようになった（world_army.js）。25秒の持ち場（攻めは惣門へ登る石段の途中）から
+  //   22〜34 歩の所に近い乱戦を置き、カメラが東・西・門のどちらを向いても画面の真ん中に斬り合いが入るようにする。
+  //   本物に替えない（組の team を付けず noWake）。石段（x≒0）の上には置かない（bot と寄せ手の道）。
+  const cx = rt.flags.mode === 'defend' ? P.pos.x : -3, cz = rt.flags.mode === 'defend' ? P.pos.z : -166;
+  let near = 0;
+  for (const j of [2, 6, 1, 7, 3, 5, 0, 4]) {
+    if (near >= 4) break;
+    const ang = j * Math.PI / 4, nx = Math.sin(ang), nz = Math.cos(ang);
+    sx = nz; sz = -nx;
+    let at = null;
+    for (let k = 0; k < 4 && !at; k++) {
+      const r = 22 + k * 4, x = cx + nx * r, z = cz + nz * r;
+      if (rt.flags.mode !== 'defend' && Math.abs(x) < 10 && z < GATE_SOMON.z) continue;
+      if (clear(x, z, 14)) at = [x, z];
+    }
+    if (!at) continue;
+    const C = W.addClash({ x: at[0], z: at[1], facing: ang, w: 14, bw: 7, gap: 2.2, seed: (o.seed || 900) + 40 + j, rt, noWake: true,
+      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+      noRout: true, killRate: .005, maxDrift: 1.2, host: false, corpses: 6,
+      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 42, flagRate: .25 },
+      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 42, flagRate: .25 } });
+    if (C && C.go) C.go();
+    out.push(C); near++;
   }
   return out;
 }

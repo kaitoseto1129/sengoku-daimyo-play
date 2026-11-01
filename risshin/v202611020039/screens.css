@@ -997,8 +997,46 @@ html body #hud #intro[data-battle="inou"]:has(#intro-go) > .card.card {
 /* 題は一目で選べる一つの入口にする。絵巻と説明は置かない。 */
 /* 稲生の既存の一枚絵。初回も戦場を見せ、題のための兵や描画は増やさない。 */
 #screen:has(> .title-simple) {
-  background: linear-gradient(90deg, rgba(12,12,11,.28), rgba(12,12,11,.78) 50%, rgba(12,12,11,.28)),
-    url('./assets/slides/inou-1.jpg') center / cover no-repeat;
+  background: linear-gradient(180deg, rgba(12,12,11,.78), rgba(12,12,11,.25) 40%, rgba(12,12,11,0) 52%, rgba(12,12,11,0) 70%, rgba(12,12,11,.6)),
+    url('./assets/slides/title-charge.webp') center 62% / cover no-repeat, #14120f;
+}
+/* 題の一枚：ゲームの兵で撮った乱戦（三方ヶ原）に、逆光の金の砂ぼこりと四隅の墨のにじみ */
+#screen:has(> .title-simple)::before, #screen:has(> .title-simple)::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+}
+#screen:has(> .title-simple)::before {
+  background: radial-gradient(60% 45% at 55% 58%, rgba(255,196,96,.30), rgba(255,170,60,.10) 55%, rgba(0,0,0,0) 75%),
+    radial-gradient(30% 22% at 30% 72%, rgba(232,180,90,.22), rgba(0,0,0,0) 70%),
+    radial-gradient(26% 20% at 78% 70%, rgba(232,180,90,.18), rgba(0,0,0,0) 70%);
+  mix-blend-mode: screen; animation: tt-dust 14s ease-in-out infinite alternate;
+}
+#screen:has(> .title-simple)::after {
+  background: radial-gradient(42% 46% at 0 0, rgba(8,7,6,.92), rgba(8,7,6,.5) 45%, rgba(8,7,6,0) 75%),
+    radial-gradient(42% 46% at 100% 0, rgba(8,7,6,.92), rgba(8,7,6,.5) 45%, rgba(8,7,6,0) 75%),
+    radial-gradient(46% 50% at 0 100%, rgba(8,7,6,.95), rgba(8,7,6,.5) 45%, rgba(8,7,6,0) 75%),
+    radial-gradient(46% 50% at 100% 100%, rgba(8,7,6,.95), rgba(8,7,6,.5) 45%, rgba(8,7,6,0) 75%);
+}
+@keyframes tt-dust { from { opacity: .75; transform: translateX(-1.5%) scale(1.02); } to { opacity: 1; transform: translateX(1.5%) scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { #screen:has(> .title-simple)::before { animation: none; } }
+body.rm #screen:has(> .title-simple)::before { animation: none; }
+#screen .wrap.title-simple { position: relative; z-index: 1; }
+#screen #tt-home div.tt-hero h1.tt-brush {
+  font-size: calc(clamp(60px, 23dvh, 150px) * var(--text-scale, 1)); -webkit-text-stroke: .045em #f6efdf;
+  font-weight: 900; color: #f6efdf; letter-spacing: .04em; line-height: 1;
+  transform: skewX(-6deg) rotate(-2deg); filter: url(#ttKasure) drop-shadow(0 3px 0 rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(0,0,0,.65));
+}
+#screen #tt-home .tt-hero h1.tt-brush small {
+  font-size: .38em; margin-left: .12em; letter-spacing: 0; color: #e6c77a; vertical-align: .9em;
+}
+#screen #tt-home .tt-motto {
+  margin: calc(-1 * clamp(4px, 2dvh, 20px)) 0 0; font: 600 max(16px, calc(20px * var(--text-scale, 1))) var(--display);
+  letter-spacing: .3em; color: #f1e9d6; text-shadow: 0 1px 6px #000, 0 0 2px #000;
+}
+#screen #tt-home div.tt-hero { justify-content: flex-start; padding-block: clamp(14px, 6dvh, 48px) clamp(14px, 5dvh, 40px); }
+#screen #tt-home div.tt-hero .title-act { gap: 10px; margin-top: auto; }
+#screen #tt-home .tt-hero .title-act > .btn:not(.primary) {
+  min-height: 64px; padding: 12px 20px; flex: 0 0 auto; font-size: max(17px, calc(18px * var(--text-scale, 1)));
+  background: rgba(14,12,10,.78); color: #f1e9d6; border: 1px solid #a8843c;
 }
 #screen #tt-home:has(.tt-panel:not([hidden])) .tt-hero {
   min-height: 0; padding-block: 24px; gap: 16px;

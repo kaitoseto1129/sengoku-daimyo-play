@@ -174,6 +174,8 @@ function camNearMaterial(m) {
   const roomInside = m.userData.sgRoomInside, roof = !!m.userData.camNearRoof;
   m.onBeforeCompile = function (sh, renderer) {
     compile.call(this, sh, renderer);
+    // 写した材質（clone）は前の継ぎ足しを持ったまま来る。二度足すと vCamNear の重ね書きで形が組めない（11/1 iPad の記録）
+    if (sh.vertexShader.includes('varying vec3 vCamNear;')) return;
     sh.uniforms.camNearFade = CAM_NEAR_FADE;
     sh.uniforms.camNearProjection = CAM_NEAR_PROJECTION;
     sh.uniforms.camNearFoot = CAM_NEAR_FOOT;

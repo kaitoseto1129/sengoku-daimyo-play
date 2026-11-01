@@ -2675,8 +2675,8 @@ const shiga = {
       const mountainSide = row % 2 === 0;
       const x = mountainSide ? -30 : 30, z = -101 - Math.floor(row / 2) * 56;
       const flag = mountainSide ? 'azai' : 'asakura';
-      // 11/1：町口の東の乱戦と湖岸の縦隊（下）を足した分、遠い控えの四束を三百二十から二百四十へ（描く人数を増やさない）。
-      F.host.push(DA(x, z, 36, HOST_DEPTH, 240, 0,
+      // 11/1：町口の東の乱戦と湖岸の縦隊（下）を足した分、遠い控えの四束を三百二十から二百四十へ、町の背の乱戦の分で二百十へ（描く人数を増やさない）。
+      F.host.push(DA(x, z, 36, HOST_DEPTH, 210, 0,
         mountainSide ? AZA.armor : ASA.armor, flag, 15810 + row));
       // 公記の両手を示す推定配置。置き幟も各家の控えの両脇へそろえる。
       // 横一列の旧配置では別家の兵列へ幟が入り、二筋二段の備えと食い違う。
@@ -2699,7 +2699,9 @@ const shiga = {
     // 西：山側（推定どおり浅井）の先手が町の西の口（青地の手の前）で森隊の西の手と押し合う。奥の尾根に浅井の縦隊（flankHost）と控えが続く。
     // どちらも持ち場から三十歩ほど。軽い作り（addClash・addDistantArmy）だけで、本物の兵の数・道・当たりは変えない。
     // 退きの段（step 2）で森隊の手が崩れて退き、湖岸の縦隊も隠す。
-    F.townClashes = [[55, 15, Math.PI / 2, 16, 'asakura', ASA.armor, 15841], [6, -13, Math.PI + 0.35, 20, 'azai', AZA.armor, 15843]].map(([x, z, facing, w, flag, armor, seed]) => {
+    // 11/1（二）：軽い兵の切りが本人16m・カメラ12m に詰まったので、乱戦を25秒の持ち場（町口の南の端 x 28・z 8）の二十〜二十五歩先へ寄せる。
+    //   肩越しの向きは流すたびに北西（町の西の口）か南（町の背）へ振れる。北西は西の口の押し合いを寄せ、南は町の背へ回った浅井の手と森隊の後ろ備えの押し合いを足す（推定）。
+    F.townClashes = [[55, 15, Math.PI / 2, 16, 'asakura', ASA.armor, 15841], [10, -9, Math.PI + 0.35, 20, 'azai', AZA.armor, 15843], [27, 33, 0, 16, 'azai', AZA.armor, 15844]].map(([x, z, facing, w, flag, armor, seed]) => {
       const C = W.addClash({ x, z, facing, w, bw: 5.2, gap: 2.4, seed, rt,
         play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
         noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,

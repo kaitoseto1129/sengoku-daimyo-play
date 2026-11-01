@@ -1994,12 +1994,14 @@ const iga = {
     //   夜討ちを退けた所（midA）で伊賀衆の側が崩れて山へ退き、山すその群れも隠す。
     {
       const play = (k, p, v) => rt.army.play(k, p, v), smoke = (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz);
-      F.mouthClashes = [[-13, 13, 13, 15841], [20, 13, 12, 15842]].map(([x, z, w, seed]) => W.addClash({ rt, play, smoke, x, z, facing: Math.PI, w, bw: 5.2, gap0: 0, gap: 2.4, seed,
+      // 11/1（二）：軽い兵の切りが本人16m・カメラ12m に詰まった。25秒の本人（x 5・z 37。肩越しに北北西を向く）の前二十〜二十五歩、
+      //   画面の真ん中（陣口の本物の押し合いのすぐ左）へ西の組を寄せて厚くし、東の組も陣口の脇へ寄せる。山すその群れを減らした分（描く人数は同じ）。
+      F.mouthClashes = [[-7, 15, 16, 34, 44, 15841], [13, 14, 12, 26, 36, 15842]].map(([x, z, w, a, b, seed]) => W.addClash({ rt, play, smoke, x, z, facing: Math.PI, w, bw: 5.2, gap0: 0, gap: 2.4, seed,
         noRout: true, killRate: 0.004, maxDrift: 1.2, host: false, corpses: 8, realNear: 9, nearHide: 0,
-        A: { flagTex: flagTexture('sujikai'), armor: 0x2a2622, count: 26, flagRate: 0.2 },
-        B: { flagTex: flagTexture('maru'), armor: 0x34302a, count: 36, flagRate: 0.06, bows: false } })).filter(Boolean);
+        A: { flagTex: flagTexture('sujikai'), armor: 0x2a2622, count: a, flagRate: 0.2 },
+        B: { flagTex: flagTexture('maru'), armor: 0x34302a, count: b, flagRate: 0.06, bows: false } })).filter(Boolean);
       for (const C of F.mouthClashes) C.go?.();
-      F.slopeHost = W.addDistantArmy({ x: 4, z: 3, w: 34, d: 7, count: 80, facing: 0, team: 1, armor: 0x34302a, flagTex: flagTexture('maru'), flagRate: 0.08, banners: 0, kind: 'spear', seed: 15843, terrainRanks: true, yose: false, host: false });
+      F.slopeHost = W.addDistantArmy({ x: 4, z: 3, w: 34, d: 7, count: 64, facing: 0, team: 1, armor: 0x34302a, flagTex: flagTexture('maru'), flagRate: 0.08, banners: 0, kind: 'spear', seed: 15843, terrainRanks: true, yose: false, host: false });
       if (F.slopeHost?.army) F.slopeHost.army.noWake = true;
     }
 
@@ -3265,6 +3267,14 @@ function igaB(rt) {
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。南の木戸組には置かず、西の押さえと陣の者にだけ。百地丹波は討つ筋にしない・滝野は柏原城なので出さない。
 iga.bushou = [{ name: '織田信雄', g: /陣の者|西の押さえ/, loose: false }, { name: '滝川一益', g: /陣の者|西の押さえ/, loose: false }, { name: '蒲生氏郷', g: /陣の者|西の押さえ/, loose: false }];
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：南の木戸の左右の曲輪の柵を狭間に借り、
+// 夜討ちから木戸を破るまで、柵の上の頭と銃口・閃光と白煙・矢を見せる（伊賀衆の鉄砲と弓）。兵・塀は足さない。当てない。
+iga.siegeKit = {
+  plan: { x: SHU_SOUTH[0], z: SHU_SOUTH[1], rot: 0, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 85, close: 14, base: .7, peak: 3.5, arrows: .45 } },
+  borrow: { r: 34, flank: true },
+  when: (rt) => { const F = rt.flags; return F.step >= 1 && F.step < 3 && F.gate?.alive && !F.ending && !rt.over; },
+};
 export { iga };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

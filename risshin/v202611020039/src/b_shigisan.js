@@ -3371,7 +3371,7 @@ const shigisan = {
   update(rt, dt) {
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52] }) || [];
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52], front: [-3, -61, -1.83] }) || [];
     const F = rt.flags;
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
@@ -4209,6 +4209,14 @@ shigisan.withdrawTick = (rt) => {
 };
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
 shigisan.bushou = ['佐久間信盛', '羽柴秀吉', '明智光秀', '細川藤孝'];
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：大手の門の左右の柵と折れ（横矢の面）を狭間に借り、
+// 櫓を越えて門へ寄る間だけ、柵の上の陣笠と銃口・閃光と白煙・矢を見せる。兵・塀・門は足さない。当てない（傷は筋書きのまま）。
+shigisan.siegeKit = {
+  plan: { x: 0, z: GATE.z, rot: 0, W: 48, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 90, close: 16, base: .9, peak: 4, arrows: .35 } },
+  borrow: { r: 52, name: '柵', flank: true },
+  when: (rt) => { const F = rt.flags; return F.step >= 2 && F.step < 3.5 && F.gate?.alive && !F.ending && !rt.over; },
+};
 export { shigisan };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、
@@ -4244,8 +4252,20 @@ function armyBackdrop(rt, o) {
     const C = W.addClash({ x: at[0], z: at[1], facing, w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
-      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 73, flagRate: .25 },
-      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 73, flagRate: .25 } });
+      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 63, flagRate: .25 },
+      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 63, flagRate: .25 } });
+    if (C && C.go) C.go();
+    out.push(C);
+  }
+  // 11/1（二）：軽い兵の切りが本人16m・カメラ12m に詰まった。25秒の尾根の持ち場（x 24・z -54）の肩越しの向き（西南西。流しても変わらない）の
+  //   二十八歩先、尾根の道を登る味方の先の平らな鞍部で、寄せ手と松永の兵が押し合う一組を足す（六方の一組ずつから十人を回す。描く人数は同じ）。
+  //   本物の兵の足もとには軽い兵を描かない（world_army_shader.js）ので、味方の列と重ねてもよい。
+  if (o.front) {
+    const [x, z, f] = o.front, C = W.addClash({ x, z, facing: f, w: 20, bw: 5.2, gap: 2.4, seed: (o.seed || 900) + 7, rt,
+      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+      noRout: true, killRate: .004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
+      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 56, flagRate: .25 },
+      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 64, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

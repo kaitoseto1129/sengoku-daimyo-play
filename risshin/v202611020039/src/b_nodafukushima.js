@@ -2994,7 +2994,7 @@ const nodafukushima = {
     //   中の小競り合い（本物の兵）を挟んで東西の浅瀬に、渡り合う織田の先手と三好勢の押し合い（軽い作り。本物の兵・任務の数は変えない）。
     //   その奥、水堀の向こうの砦の左右に三好勢の大軍（軽い作り）。木ノ芽峠の作りに倣う。
     { const n = TIER.weak ? 0.65 : 1;
-      F.shoalClash = [[-21, -29, 20, 0], [22, -28.5, 20, 1]].map(([x, z, w, i]) => rt.world.addClash({
+      F.shoalClash = [[-18, -27, 18, 0], [22, -28.5, 20, 1]].map(([x, z, w, i]) => rt.world.addClash({
         x, z, w, facing: Math.PI, seed: 15721 + i, gap: 2.4, rt, host: false, noRout: true,
         killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0,
         play: (k, p, v) => rt.army.play(k, p, v * 0.7), smoke: (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz),
@@ -3002,7 +3002,7 @@ const nodafukushima = {
         B: { flag: 'miyoshi', armor: 0x35382c, count: Math.round(90 * n), flagRate: 0.3 } }));
       for (const C of F.shoalClash) C?.go?.();
       F.miyoshiHost = [[-40, -54, 15731], [42, -54, 15732]].map(([x, z, seed]) => {
-        const h = W.addDistantArmy({ x, z, w: 30, d: 8, count: Math.round(140 * n), facing: 0, team: 1, armor: 0x35382c, flagTex: flagTexture('miyoshi'), flagRate: 0.3, kind: 'spear', seed });
+        const h = W.addDistantArmy({ x, z, w: 30, d: 8, count: Math.round(120 * n), facing: 0, team: 1, armor: 0x35382c, flagTex: flagTexture('miyoshi'), flagRate: 0.3, kind: 'spear', seed });
         if (h?.army) h.army.noWake = true;
         return h;
       }); }

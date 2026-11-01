@@ -394,6 +394,9 @@ async function playOne(game, i, r, progress, started = false, firstInou = false,
       }
       r.upright = Math.max(r.upright || 0, upright); r.deadDone = Math.max(r.deadDone || 0, deadDone);
       if (upright) (r.uprightAt ||= []).length < 20 && r.uprightAt.push([Math.round(b.t), upright]);
+      // 戦の時が進まない時の切り分け（11/1 iPad の天王寺・鳥取）：待ちの札・止め・町・見渡し・写真・隠れ・開戦の釦の様子
+      if ((r.waitWhy ||= []).length < 14) { const go = document.getElementById('intro-go'), it = document.getElementById('intro');
+        r.waitWhy.push([Math.round(b.t * 10) / 10, +!!game.hud.introWaiting, +!!game.paused, +!!game.townShop, +!!game.deployment, +!!game.photo, +document.hidden, +!!game.pendingIntro, +!!game.gungiOn, it ? +it.hidden : -1, go ? `${+go.disabled}/${go.getClientRects().length}` : '-', game.battle === b ? 1 : 0, +!!b.over, game.drawn | 0].join(' ')); }
       r.tl.push([Math.round(b.t), hum, vis, ef, HSTAT.makeN, d ? d.geos.size : -1, d ? d.shapes.size : -1, ri ? ri.memory.geometries : -1, ri ? ri.memory.textures : -1]);
       const now = performance.now();
       if (now - memoryAt >= 30000) {

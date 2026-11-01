@@ -3545,6 +3545,19 @@ function battleLook(rt, list, look) {
   }), look);
 }
 
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：大手の木戸の左右の三の丸の塀を狭間に借り、
+// 夜討ちの城兵を麓まで追う間だけ、坂の上の塀から陣笠と銃口・閃光と白煙・矢を見せる（追い過ぎると城から撃たれる）。兵・塀は足さない。当てない。
+iwamura.siegeKit = () => {
+  const g = IWAMURA_CASTLE_PLAN.koguchi.find((q) => q.id === 'kido_outer');
+  if (!g) return null;
+  return {
+    plan: { x: g.at[0], z: g.at[1], rot: 0, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+    build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 95, close: 16, base: .7, peak: 3.5, arrows: .35 } },
+    borrow: { r: 34, flank: true },
+    when: (rt) => { const F = rt.flags; return F.step === 3 && !F.ending && !rt.over; },
+  };
+};
+
 export { iwamura };
 
 // 麓側の持ち上げは旧配置のまま保つ。夜討ち・追撃の坂と混戦の場所を変えない。
@@ -3810,11 +3823,43 @@ function armyBackdrop(rt, o) {
       if (Math.abs(W.heightAt(x + sx * 10, z + sz * 10) - h) < 12 && Math.abs(W.heightAt(x - sx * 10, z - sz * 10) - h) < 12) at = [x, z];
     }
     if (!at) continue;
-    const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
+    // 11/1：近くの輪（下）に人を回すため、奥の一組を 30 歩幅（90人ずつ）から 18 歩幅（54人ずつ）に
+    const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 18, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
-      A: { flag: o.ally, armor: 0x2a2622, count: 58, flagRate: .25 },
-      B: { flag: o.foe, armor: 0x2a2622, count: 58, flagRate: .25 } });
+      A: { flag: o.ally, armor: 0x2a2622, count: 54, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 54, flagRate: .25 } });
+    if (C && C.go) C.go();
+    out.push(C);
+  }
+  // 11/1：軽い兵が本人の 16m の外から描かれるようになった（world_army.js）。25秒の持ち場から 20〜34 歩の所に近い乱戦を置き、
+  //   どちらを向いても画面の真ん中に斬り合いが入るようにする。本物に替えない（組の team を付けず noWake）。
+  //   bot と寄せ手の通る山道・柵の口の道（RAID・MOUTH・CHASE・REST）から 12 歩の内には置かない（道で詰まらない）。
+  const ways = [CHASE_PATH, CHASE_EAST_PATH, REST_PATH, REST_EAST_PATH, ...RAID_PATHS, MOUTH_LINK, ...RETURN_PATHS];
+  //   柵・小屋の当たりと道を避けて十六方・20〜34 歩から拾い、互いに 45 度より離して四つまで（南・西を先に）。
+  const picks = [];
+  for (const j of [8, 12, 10, 6, 14, 4, 9, 11, 7, 13, 5, 15, 3, 2, 1, 0]) {
+    if (picks.length >= 4) break;
+    const ang = j * Math.PI / 8;
+    if (picks.some((q) => Math.abs(Math.atan2(Math.sin(ang - q[2]), Math.cos(ang - q[2]))) < Math.PI / 4 - 0.01)) continue;
+    const fx = Math.sin(ang), fz = Math.cos(ang), sx = fz, sz = -fx;
+    for (let r = 20; r <= 34; r += 3) {
+      const x = cx + fx * r, z = cz + fz * r;
+      if (ways.some((w) => distToPolyline(x, z, w) < 12)) continue;
+      if (HOUSE_PADS && HOUSE_PADS.some((h) => Math.abs(x - h[0]) < h[2] + 4 && Math.abs(z - h[1]) < h[3] + 4)) continue;
+      if (SOLIDS.some((q) => x + 5 > q.x0 && x - 5 < q.x1 && z + 5 > q.z0 && z - 5 < q.z1)) continue;
+      if (W.inWaterAt && W.inWaterAt(x, z)) continue;
+      const h = W.heightAt(x, z);
+      if (Math.abs(W.heightAt(x + sx * 7, z + sz * 7) - h) < 5 && Math.abs(W.heightAt(x - sx * 7, z - sz * 7) - h) < 5) { picks.push([x, z, ang, j]); break; }
+    }
+  }
+  for (const [x, z, ang, j] of picks) {
+    const at = [x, z];
+    const C = W.addClash({ x: at[0], z: at[1], facing: ang, w: 14, bw: 7, gap: 2.2, seed: (o.seed || 900) + 40 + j, rt, noWake: true,
+      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+      noRout: true, killRate: .005, maxDrift: 1.2, host: false, corpses: 6,
+      A: { flag: o.ally, armor: 0x2a2622, count: 42, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 42, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

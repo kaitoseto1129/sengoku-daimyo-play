@@ -136,12 +136,28 @@ function farOf(S) {
   const { P, U, I } = geoArrays(S.geo);
   simplifyAsync(P, U, I, Math.round(ix.count / 3 * 0.4)).then((J) => {
     if (!J) return;
+    J = dropBridges(S.geo, J);
     const geo = new THREE.BufferGeometry();
     for (const k in S.geo.attributes) geo.setAttribute(k, S.geo.attributes[k]);
     geo.setIndex(new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1));
     S.far = newBatch(geo, S.mat);
   });
   return null;
+}
+// 面を減らした形（QEM）は、腕と胴・脚と脚のように別の骨で動く頂点を一つの三角でつなぐ事がある。動くと細長く伸びるので外す
+//   （主の骨が違い、かつ縁が 10cm を超える三角だけ。小さな継ぎ目の三角は残す）
+function dropBridges(geo, J) {
+  const P = geo.attributes.position, SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight;
+  if (!SI || !SW) return J;
+  const main = (i) => SW.getX(i) >= SW.getY(i) ? SI.getX(i) : SI.getY(i);
+  const d2 = (a, b) => (P.getX(a) - P.getX(b)) ** 2 + (P.getY(a) - P.getY(b)) ** 2 + (P.getZ(a) - P.getZ(b)) ** 2;
+  const out = [];
+  for (let t = 0; t + 2 < J.length; t += 3) {
+    const a = J[t], b = J[t + 1], c = J[t + 2];
+    if ((main(a) !== main(b) || main(b) !== main(c)) && Math.max(d2(a, b), d2(b, c), d2(a, c)) > 0.01) continue;
+    out.push(a, b, c);
+  }
+  return out.length === J.length ? J : ArrayBuffer.isView(J) ? J.constructor.from(out) : Uint32Array.from(out);
 }
 function newBatch(geo, mat) {
   return { geo, mat, mesh: null, cap: 0, n: 0, vat: null };
@@ -174,6 +190,7 @@ function lighten(S, target, key) {
   const { P, U, I } = geoArrays(S.geo);
   simplifyAsync(P, U, I, target).then((J) => {
     if (!J || shapes.get(key) !== S) return;
+    J = dropBridges(S.geo, J);
     const attr = new THREE.BufferAttribute(pos.count > 65535 ? J : Uint16Array.from(J), 1);
     S.fullIndex = S.geo.index; S.geo.setIndex(attr);   // fullIndex：前と比べる写真の時だけ使う
     if (S.mesh) S.mesh.geometry.setIndex(attr);
@@ -185,6 +202,25 @@ const pack3 = (a, i) => {
   const r = Math.round(Math.min(1, Math.max(0, a.getX(i))) * 255), g = Math.round(Math.min(1, Math.max(0, a.getY(i))) * 255), b = Math.round(Math.min(1, Math.max(0, a.getZ(i))) * 255);
   return r * 65536 + g * 256 + b;
 };
+// 中景の頂点は二つの骨だけで動かす（シェーダーは skinWeight の x・y だけを読む）。体の形（MakeHuman）は四つの骨の重みを持ち、
+//   重い骨が z・w にある頂点や、x＋y が 1 に足りない頂点は、足もと（形の原点）へ引かれて細長い黒い三角に伸びていた（11/1 kaito「足軽の黒い長い三角」）。
+//   形を写す時に一度だけ、重い順の二つを x・y へ並べ替え、足して 1 にする
+function top2Weights(geo) {
+  const J = geo.attributes.skinIndex, W = geo.attributes.skinWeight;
+  if (!J || !W) return;
+  let fixed = 0;
+  for (let i = 0; i < W.count; i++) {
+    let a = 0, b = -1;
+    for (let c = 1; c < 4; c++) if (W.getComponent(i, c) > W.getComponent(i, a)) a = c;
+    for (let c = 0; c < 4; c++) if (c !== a && (b < 0 || W.getComponent(i, c) > W.getComponent(i, b))) b = c;
+    const ja = J.getComponent(i, a), jb = J.getComponent(i, b), wa = W.getComponent(i, a), wb = W.getComponent(i, b), sum = wa + wb;
+    if (a === 0 && b === 1 && Math.abs(sum - 1) < 1e-3) continue;
+    fixed++;
+    J.setXYZW(i, ja, jb, 0, 0);
+    W.setXYZW(i, sum > 0 ? wa / sum : 1, sum > 0 ? wb / sum : 0, 0, 0);
+  }
+  VAT.stat.top2 = (VAT.stat.top2 || 0) + fixed;
+}
 // 束の形 g を、形の束（形ごとに一つ）と色の置き場（姿ごと）へ入れる
 function addShape(g, near = false) {
   if (!g || !g.index || !g.attributes.position.count || !g.attributes.skinIndex || !g.attributes.color) return null;
@@ -198,6 +234,7 @@ function addShape(g, near = false) {
       if (a) geo.setAttribute(k, new THREE.BufferAttribute(a.array.slice(), a.itemSize, a.normalized));
     }
     geo.setIndex(new THREE.BufferAttribute(g.index.array.slice(), 1));
+    top2Weights(geo);
     S = newBatch(geo, MAT_BODY);
     shapes.set(sk, S); VAT.stat.shapes++;
     lighten(S, near ? VAT.triNear : VAT.triFar, sk);

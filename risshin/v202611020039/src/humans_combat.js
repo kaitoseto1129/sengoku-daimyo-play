@@ -612,7 +612,7 @@ function sway(h, dt) {
         const len = Math.max(.01, Math.hypot(dx, dy, dz));
         const out = Math.max(0, (dx * _right.x + dy * _right.y + dz * _right.z) * (positive ? 1 : -1) / len);
         const forward = (dx * _fwd.x + dy * _fwd.y + dz * _fwd.z) / len;
-        _pr.multiply(m0.makeRotationZ((positive ? 1 : -1) * Math.min(.55, out * .65)));
+        _pr.multiply(m0.makeRotationZ((positive ? 1 : -1) * Math.min(.3, out * .4)));   // 袖は肩から垂れる。腕に押されて横へ跳ね上がる板にしない（11/1）
         _pr.multiply(m0.makeRotationX(Math.max(-.3, Math.min(.3, forward * .35))));
       }
     }

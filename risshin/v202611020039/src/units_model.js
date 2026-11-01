@@ -473,6 +473,8 @@ const MAT = S.simpleMaterials
   ? new THREE.MeshPhongMaterial({ vertexColors: true, map: makeAtlas(), shininess: 18, specular: 0x333333 })
   : new THREE.MeshStandardMaterial({ vertexColors: true, map: makeAtlas(), normalMap: ATLAS_N, normalScale: new THREE.Vector2(1, 1), roughness: 0.9, metalness: 0 });
 MAT.defines = { UNIT_HQ: 1 };
+// 裏も描く（11/1 kaito「関節の透ける隙間」）：袖・草摺・佩楯・胴は開いた板なので、脇や下から覗くと裏が抜けて向こうが透けていた。裏は暗い内張りの色で描く
+MAT.side = THREE.DoubleSide;
 // 兵の材質（humans.js の甲冑もこれで描く）
 export const UNIT_MAT = MAT;
 // 兵の材質の写真の作り（PBR）：武将の見本（preview.js）だけで使う。絵（アトラス）も描き方も兵と同じ物を使い回す
@@ -582,6 +584,7 @@ MAT.onBeforeCompile = (sh) => {
       .replace('#include <color_fragment>', `
         ${iroLaceShader}
       vec3 baseC = mix(vColor.rgb, laceC, txA.r) * (txA.g * ${(255 / LUM0).toFixed(4)});
+      if (!gl_FrontFacing) baseC *= 0.3;   // 板の裏（袖・草摺・胴の内）は暗い内張りの色
         baseC = mix(baseC, vec3(0.075, 0.058, 0.04) * (0.7 + 0.5 * txA.g), dd * 0.85);
         diffuseColor.rgb *= baseC * (1.0 - uWet * 0.12);`)
       .replace('#include <aomap_fragment>', unitFill('uNightContour', 'uNightFocus'));
@@ -628,6 +631,7 @@ float mkMetal(int k) {
     .replace('#include <color_fragment>', `
       ${iroLaceShader}
       vec3 baseC = mix(vColor.rgb, laceC, txA.r) * (txA.g * ${(255 / LUM0).toFixed(4)});
+      if (!gl_FrontFacing) baseC *= 0.3;   // 板の裏（袖・草摺・胴の内）は暗い内張りの色
       float dd = clamp(txA.b * dirtA * 1.3, 0.0, 1.0);
       baseC = mix(baseC, vec3(0.075, 0.058, 0.04) * (0.7 + 0.5 * txA.g), dd * 0.85);
       baseC *= 1.0 - uWet * (mkA == 0 ? 0.22 : 0.06);
@@ -1558,6 +1562,9 @@ function hatParts(look, parts, hi, fallen = false) {
   const takigawaHelm = S.quality === 'high' && kind === 'suji' && look.crest === 'takigawa_buffalo';
   const tehen = kind === 'suji' && (look.tehenHole || takigawaHelm);
   const crownAngle = tehen ? Math.asin(0.015 / 0.19) : 0;
+  const bowlShaped = !tall && (!kind || kind === 'suji' || kind === 'zunari') && !sujiPlates && !coveredSuji && !takigawaHelm;
+  // 天辺の高さ（八幡座の輪を載せる所）
+  const bowlTop = bowlShaped ? (zunari ? bowlRise * 0.8 + 0.008 : bowlRise + 0.02) : bowlRise * Math.cos(crownAngle);
   const bowl = tall ? new THREE.CylinderGeometry(kind === 'namazu' ? 0.18 : 0.018, kind === 'namazu' ? 0.12 : 0.19, height, hi ? 16 : 10, 3, !noshi) : new THREE.SphereGeometry(0.19, takigawaHelm ? 32 : coveredSuji ? 61 : bowlSegments, hi ? (kind ? 8 : 9) : 5, Math.PI, Math.PI * 2, crownAngle, Math.PI / 2 - crownAngle);
   if (tall) {
     bowl.scale(1, 1, kind === 'namazu' ? 0.34 : 0.85);
@@ -1584,6 +1591,28 @@ function hatParts(look, parts, hi, fallen = false) {
       bowl.computeVertexNormals();
     }
     bowl.scale(kind === 'namban' ? 0.95 : 1, bowlRise / 0.19, 1.05);
+    // つるんと丸いお椀にしない（11/1 kaito）：筋兜は板の継ぎ目の筋を立て、天辺（八幡座）へ少し尖らせる。
+    //   頭形は天辺を平たく後ろへ流し、前から後ろへ通る鎬（しのぎ）を一本立てる。形を組む時だけの変形で、面の数は同じ
+    if (bowlShaped) {
+      const p = bowl.attributes.position, cols = bowlSegments + 1;
+      for (let i = 0; i < p.count; i++) {
+        let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+        const t = Math.max(0, Math.min(1, y / bowlRise));
+        if (zunari) {
+          y *= 1 - 0.2 * t * t;
+          z -= 0.03 * t * t;
+          y += 0.008 * Math.max(0, 1 - Math.abs(x) / 0.03) * t;
+        } else {
+          y += 0.02 * Math.max(0, (t - 0.9) / 0.1) ** 2;
+          const ridge = hi && (i % cols) % 2 === 1 && t < 0.97 ? 1.012 : 1;
+          x *= ridge; z *= ridge;
+        }
+        // 後ろの鉢は少し張り、錣の上へかぶさる
+        if (z < 0) z *= 1.04;
+        p.setXYZ(i, x, y, z);
+      }
+      bowl.computeVertexNormals();
+    }
     if (kind === 'momonari') {
       const p = bowl.attributes.position;
       for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + 0.13 * Math.pow(Math.max(0, p.getY(i) / 0.18), 3));
@@ -1678,7 +1707,7 @@ function hatParts(look, parts, hi, fallen = false) {
     parts.push(P(edging, gold, { mk: MK.gold }));
   }
   // 天辺の穴を囲む八幡座。穴の縁に据え、遠くでも金具と穴を保つ。
-  if ((hi || tehen) && (!kind || kind === 'suji')) parts.push(P(at(new THREE.TorusGeometry(0.022, 0.007, 5, 12), 0, 1.66 + bowlRise * Math.cos(crownAngle) - 0.003, 0, Math.PI / 2), T >= 2 ? gold : brass, { mk: MK.gold }));
+  if ((hi || tehen) && (!kind || kind === 'suji')) parts.push(P(at(new THREE.TorusGeometry(0.022, 0.007, 5, 12), 0, 1.66 + bowlTop - 0.003, 0, Math.PI / 2), T >= 2 ? gold : brass, { mk: MK.gold }));
   if (hi || sujiPlates) {
     // 比叡山の信長・光秀の腰巻は、距離で消さず黒漆の鉢と同じ仕上げにする。
     // 鉢と同じ前後の伸びへ合わせる。寸法は復元、生成時に既存の兜へ結合して共有する。
@@ -2368,6 +2397,20 @@ const ASHI_TOP = (th) => {
   const base = c >= 0 ? 1.365 : 1.405, f = Math.min(1, Math.max(0, (s - 0.62) / 0.3));
   return base - (base - 1.215) * f * f * (3 - 2 * f);
 };
+// 侍・武将の当世具足の胴の断面（m。高さ y、半分の幅・前の厚み・背の厚み。鎧下の上に板の厚みを足した寸法）。胸で一番張り、腰でくびれ、胴尻で少し開く
+const SAMU_PROF = [[0.86, 0.2, 0.148, 0.134], [0.95, 0.186, 0.138, 0.126], [1.05, 0.192, 0.143, 0.128], [1.18, 0.208, 0.153, 0.136], [1.3, 0.216, 0.158, 0.143], [1.4, 0.21, 0.156, 0.146]];
+const SAMU_E = 0.72;   // 断面の角（小さいほど平たい胸と背）
+function samuProfAt(y) {
+  const A = SAMU_PROF;
+  if (y <= A[0][0]) return A[0].slice(1);
+  for (let i = 1; i < A.length; i++) if (y <= A[i][0]) { const a = A[i - 1], b = A[i], t = (y - a[0]) / (b[0] - a[0]); return [1, 2, 3].map((k) => a[k] + (b[k] - a[k]) * t); }
+  return A[A.length - 1].slice(1);
+}
+// 胴の上の縁の高さ（s・c は前を 0 とした角の sin・cos）：前は胸板 1.385、背は押付板 1.425、脇は脇の下 1.25
+function samuTop(s, c) {
+  const ft = Math.min(1, Math.max(0, (Math.abs(s) - 0.62) / 0.3)), b0 = c >= 0 ? 1.385 : 1.425;
+  return b0 - (b0 - 1.25) * ft * ft * (3 - 2 * ft);
+}
 const ASHI_HEM = (th) => 0.868 + 0.014 * Math.sin(th) ** 2;   // 裾は脇で少し上がる（腿の動きを妨げない）
 function ashiDo(r00, armor, hi, under) {
   const out = [], r0 = 1;
@@ -3220,7 +3263,16 @@ function bodyGeometry(key, o, hi, grp) {
   if (!shared.torso) {
   // 肩上（わたがみ）と小鰭（簡素な貸し具足は ashiDo の肩の紐で吊る）
   for (const sd of loan ? [] : [1, -1]) {
-    parts.push(P(at(new THREE.BoxGeometry(0.07, 0.018, 0.22 * r0), sd * 0.15, 1.435, -0.02), o.goldKozane ? plateArmor : T >= 1 ? 0x2a1e16 : armor, { mk: MK.lac, reg: 'lacq' }));
+    if (T >= 1 && !o.nanban) {
+      // 侍・武将の肩上：胴の前の上の縁（胸板）から肩を越えて背の押付板へ渡す、幅 6cm の漆の革の板（下の「胴の断面を移す」と同じ寸法。胴の変形はかけない）
+      const zf = samuProfAt(1.385)[1] * r0, zb = samuProfAt(1.4)[2] * r0;
+      const st = surf(hi ? 2 : 1, hi ? 12 : 6, (u, v) => {
+        const ph = Math.PI / 2 - v * Math.PI, x = sd * (0.122 + (u - 0.5) * 0.06), base = ph > 0 ? 1.385 : 1.425;
+        return [x, base + (1.475 - base) * Math.cos(ph), ph > 0 ? (zf + 0.004) * Math.sin(ph) : (zb + 0.004) * Math.sin(ph)];
+      });
+      const wg = P(st, o.goldKozane ? plateArmor : 0x2a1e16, { mk: MK.lac, reg: 'lacq' });
+      wg.userData.noWarp = true; parts.push(wg);
+    } else parts.push(P(at(new THREE.BoxGeometry(0.07, 0.018, 0.22 * r0), sd * 0.15, 1.435, -0.02), o.goldKozane ? plateArmor : T >= 1 ? 0x2a1e16 : armor, { mk: MK.lac, reg: 'lacq' }));
     if ((hi && !o.takahimo) || takigawaTakahimo) parts.push(P(at(new THREE.BoxGeometry(0.078, 0.01, 0.01), sd * 0.145, 1.452, 0.09), lace, { reg: 'cord' }));
     if (takigawaTakahimo) {
       // 大滝寺の一益：肩上と胸板の鐶を高紐でつなぐ。垂れた端だけにしない。
@@ -3236,7 +3288,7 @@ function bodyGeometry(key, o, hi, grp) {
       }
     }
     // 小鰭：肩の外に寝かせて付ける（首の横に立てると顔にかぶる）
-    if (T >= 1 && hi) parts.push(P(at(arcCyl(0.075, 0.085, 0.04, 4, 1.2, sd * Math.PI / 2), sd * 0.215, 1.41, -0.01, 0, 0, sd * -1.1), plateArmor, { mk: MK.lac, reg: 'lacq' }));
+    if (T >= 1 && hi) { const kb = P(at(arcCyl(0.075, 0.085, 0.04, 4, 1.2, sd * Math.PI / 2), sd * (o.nanban ? 0.215 : 0.19), o.nanban ? 1.41 : 1.45, -0.01, 0, 0, sd * -1.1), plateArmor, { mk: MK.lac, reg: 'lacq' }); if (!o.nanban) kb.userData.noWarp = true; parts.push(kb); }
   }
   if (o.domaru) {
     // 胴丸の背の上端は、小札ではなく押付板で肩上を受ける。
@@ -3612,7 +3664,8 @@ function bodyGeometry(key, o, hi, grp) {
         }
       }
       // 冠板を肩へ吊る二本の紐。板だけが宙に浮いた輪郭にしない。
-      for (const dz of [-0.06, 0.06]) parts.push(P(limb([sd * 0.16, 1.445, dz * 0.75], [sd * 0.3, 1.405, dz], 0.004, 0.004, 3), laceColorAt(o.sodeLaceBands, 1.425), { reg: 'cord' }));
+      // 紐は肩の端から袖の冠板へ短く（肩の上から横へ突き出る棒に見せない。11/1）
+      for (const dz of [-0.06, 0.06]) parts.push(P(limb([sd * 0.235, 1.43, dz * 0.85], [sd * 0.27, 1.40, dz], 0.004, 0.004, 3), laceColorAt(o.sodeLaceBands, 1.425), { reg: 'cord' }));
       if (takigawaSode) {
         // 大滝寺の一益：裾板を交差する菱縫。色・数・寸法は一般的な構造の復元。
         // 福井市立郷土歴史博物館「甲冑の美」の菱縫の解説を参考にする。
@@ -3698,7 +3751,7 @@ function bodyGeometry(key, o, hi, grp) {
     if (hi || o.sodeStyle === 'kiritsuke' || o.sodeCrownFit) for (const dz of [-0.06, 0.06]) {
       const kiritsuke = o.sodeStyle === 'kiritsuke';
       const x = o.sodeCrownFit ? crownFace(dz, 0.123).x : kiritsuke ? 0.2625 + Math.sqrt(0.123 ** 2 - dz ** 2) * 0.5 : 0.3;
-      parts.push(P(limb([sd * 0.16, 1.445, dz * 0.75], [sd * x, kiritsuke || o.sodeCrownFit ? 1.415 : 1.405, dz], 0.004, 0.004, 3), laceColorAt(o.sodeLaceBands, 1.425), { reg: 'cord' }));
+      parts.push(P(limb([sd * 0.235, 1.43, dz * 0.85], [sd * x, kiritsuke || o.sodeCrownFit ? 1.415 : 1.405, dz], 0.004, 0.004, 3), laceColorAt(o.sodeLaceBands, 1.425), { reg: 'cord' }));
     }
     if (hi && T >= 1) for (const dz of [-0.06, 0.06]) {
       let x = sd * 0.325, z = dz, turn = sd * Math.PI / 2;
@@ -4368,15 +4421,57 @@ function bodyGeometry(key, o, hi, grp) {
     if (!shared.koshi) PT.koshi.push(P(at(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 6), 0, 1.07, -0.22), 0x211b18, { mk: MK.lac, reg: 'lacq' }));
     if (hi && !shared.koshi) PT.koshi.push(P(at(new THREE.BoxGeometry(0.06, 0.03, 0.08), 0, 1.36, -0.20), 0x211b18, { mk: MK.lac }));
   }
-  // 名将の胸を浅く平らにし、腰へすぼめる。段・金具・紐も同じ変形で収める。
-  if (named && !shared.torso) for (const g of PT.torso) {
+  // 侍・武将の胴（11/1 kaito「胸と肩がボコッと膨らむ」）：丸い筒（lathe）を、当世具足の硬い殻の断面（SAMU_PROF：角の立った平たい楕円）へ移す。
+  //   胸は平らに近く、脇は締まり、腰でくびれて胴尻で少し開く。上は肩を覆う丸い蓋にせず、前は胸板・脇は脇の下・背は押付板で開ける
+  //   （肩は肩上と鎧下で見せる）。段・金具・紐は胴の面からの浮きを保って同じ変形で収める
+  if (T >= 1 && !loan && !o.nanban && !shared.torso) for (const g of PT.torso) {
+    if (g.userData.noWarp) continue;
+    const p = g.attributes.position;
+    const rAt = (y) => { for (let q = 1; q < DO_PROF.length; q++) { const [ra, ya] = DO_PROF[q - 1], [rb, yb] = DO_PROF[q]; if (y <= yb) return ra + (rb - ra) * ((y - ya) / (yb - ya)); } return DO_PROF[DO_PROF.length - 1][0]; };
+    // 首の襟などの小さな部品（胴の半径より内）は、上の縁で切らない
+    let maxR = 0; for (let i = 0; i < p.count; i++) maxR = Math.max(maxR, Math.hypot(p.getX(i), p.getZ(i) / 0.8));
+    const clampTop = maxR > 0.15, above = new Uint8Array(p.count);
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i) / 0.8;
+      if (y < 0.86 || y > 1.5) continue;
+      const r = Math.hypot(x, z);
+      if (r < 1e-4) continue;
+      const yc = Math.min(1.4, Math.max(0.86, y)), base = rAt(yc) * r0, [w, df, db] = samuProfAt(yc);
+      const th = Math.atan2(x, z), s = Math.sin(th), c = Math.cos(th), f = r / base;
+      const nx = w * r0 * f * Math.sign(s) * Math.abs(s) ** SAMU_E, nz = (c >= 0 ? df : db) * r0 * f * Math.sign(c) * Math.abs(c) ** SAMU_E;
+      // 裾（草摺の吊り）の所は元の形へなじませる
+      const wt = Math.min(1, Math.max(0, (y - 0.86) / 0.06));
+      const top = samuTop(s, c);
+      if (clampTop && y > top) { p.setY(i, top); above[i] = y > top + 0.004 ? 1 : 0; }
+      p.setX(i, x + (nx - x) * wt);
+      p.setZ(i, z * 0.8 + (nz - z * 0.8) * wt);
+    }
+    // 縁より上の面（肩の上へ回り込んでいた蓋）は捨てる
+    if (clampTop) {
+      if (g.index) {
+        const ix = g.index.array, keep = [];
+        for (let t = 0; t < ix.length; t += 3) if (!(above[ix[t]] && above[ix[t + 1]] && above[ix[t + 2]])) keep.push(ix[t], ix[t + 1], ix[t + 2]);
+        g.setIndex(keep);
+      } else for (let t = 0; t + 2 < p.count; t += 3) if (above[t] && above[t + 1] && above[t + 2]) { p.setXYZ(t + 1, p.getX(t), p.getY(t), p.getZ(t)); p.setXYZ(t + 2, p.getX(t), p.getY(t), p.getZ(t)); }
+    }
+    g.computeVertexNormals();
+  }
+  // 陣羽織も細くした胴に沿わせる（元の丸い太い胴の寸法のままだと、脇の身頃が胴の横へ板のように張り出し、前から胸の前の箱に見えた）
+  if (T >= 1 && !loan && !o.nanban && !shared.haori) for (const g of PT.haori) {
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      if (y < 0.88 || y > 1.46) continue;
-      const t = Math.min(1, Math.max(0, (y - 0.88) / 0.42));
-      p.setX(i, x * (0.86 + 0.05 * t));
-      p.setZ(i, z * (0.72 + 0.2 * Math.min(1, Math.abs(x) / (0.25 * r0))));
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i) + 0.004;
+      if (y < 0.7 || y > 1.5) continue;
+      const r = Math.hypot(x, z);
+      if (r < 1e-4) continue;
+      const [w, , db] = samuProfAt(Math.min(1.4, Math.max(0.86, y)));
+      const th = Math.atan2(x, z), sn = Math.sin(th), cs = Math.cos(th);
+      // 胴の背の面からの寸法（布の厚み・ひだの出っ張りは元の半径の揺らぎとして残す）
+      const R0 = (0.35 + (0.262 - 0.35) * ((Math.min(1.44, Math.max(0.8, y)) - 0.8) / 0.64)) * BUILD[T] * r0, f = r / R0;
+      const flare = Math.max(0, 0.9 - y) * 0.35;
+      const ex = (w * r0 + 0.03 + flare) * f * Math.sign(sn) * Math.abs(sn) ** SAMU_E;
+      const ez = (cs >= 0 ? w * 0.7 : db * r0 + 0.03 + flare) * f * Math.sign(cs) * Math.abs(cs) ** SAMU_E;
+      p.setX(i, ex); p.setZ(i, ez - 0.004);
     }
     g.computeVertexNormals();
   }

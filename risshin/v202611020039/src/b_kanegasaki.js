@@ -3120,12 +3120,18 @@ const kanegasaki = {
       // 25秒の向きは流すたびに北（登城道）か東（疋田の道）へ振れる。東は疋田の道の手前（持ち場から十七歩・道の杉の手前）で、東から寄せる朝倉の手と押し合う。
       const K = (o) => clash(rt, { bw: 5.2, gap: 2.4, host: false, noRout: true, killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0, ...o });
       F.slopeClashes = [
-        K({ x: 4, z: -63, facing: Math.PI, w: 16, seed: 1583,
-          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 32, flagRate: 0.22 },
-          B: { flag: 'asakura', armor: ASAKURA.armor, count: 72, flagRate: 0.3 } }),
+        // 11/1 中景：北の坂の乱戦は二十七歩先で画面の上の縁に掛かっていた。坂の下へ八歩寄せて画面の真ん中に。
+        K({ x: 5, z: -55, facing: Math.PI, w: 16, seed: 1583,
+          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 24, flagRate: 0.22 },
+          B: { flag: 'asakura', armor: ASAKURA.armor, count: 52, flagRate: 0.3 } }),
         K({ x: 25, z: -28, facing: Math.atan2(0.83, 0.55), w: 12, seed: 1584,
-          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 36, flagRate: 0.22 },
-          B: { flag: 'asakura', armor: ASAKURA.armor, count: 60, flagRate: 0.3 } })].filter(Boolean);
+          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 28, flagRate: 0.22 },
+          B: { flag: 'asakura', armor: ASAKURA.armor, count: 44, flagRate: 0.3 } }),
+        // 11/1 中景：25秒の画面は南（退き口の田）を向く。持ち場の前二十二歩、画面の真ん中で、回り込んだ朝倉の手と殿の手が押し合う。
+        //   本物に替えない軽い乱戦（台本の team を持たない）なので本人の十二歩の外は描く。上の二つから人数を回した。
+        K({ x: 20, z: -12, facing: Math.atan2(-0.43, -0.9), w: 14, seed: 1585,
+          A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 28, flagRate: 0.22 },
+          B: { flag: 'asakura', armor: ASAKURA.armor, count: 48, flagRate: 0.3 } })].filter(Boolean);
       for (const C of F.slopeClashes) C.go?.();
       F.slopeClash = true;
     });
@@ -3168,7 +3174,7 @@ const kanegasaki = {
     F.cl = clash(rt, { x: -14, z: -64, facing: Math.PI, w: 16, gap0: 30, closeSpeed: 3.4, seed: 1577, noRout: true, killRate: 0.14, measuredMelee: true, realNear: 18,
       surge: { k: 'B', every: 40, count: 140, flank: 0.35 },
       A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 320, team: 0, faction: 'oda' },
-      B: { flag: 'asakura', armor: ASAKURA.armor, count: 620, team: 1, faction: 'asakura', guns: true, flagRate: 0.5 } });
+      B: { flag: 'asakura', armor: ASAKURA.armor, count: 600, team: 1, faction: 'asakura', guns: true, flagRate: 0.5 } });
     F.cl.push('B', 0.3);
     rt.after(1, () => F.cl.go());
   },

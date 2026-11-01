@@ -1277,9 +1277,12 @@ function takatoFieldMelee(rt) {
   //   肩越しの向きが北西（堀の北の縁）でも南西でも、どちらか一つが画面に入る。寄せ道（z ±4）は空けたまま。
   // 11/1（二）：z ±27 でも25秒の本人（x 101〜104）から三十歩ほどで、まだ描かれなかった。堀の北と南の端の平場（本人から四十七〜五十歩）へ出し、
   //   北・北西・南・南西のどちらを向いても、堀の外で押し合う大軍が画面の奥に入る。
-  for (const [x, z, seed] of [[78, 44, 30411], [96, -47, 30412]]) {
-    F_MELEE.list.push(W.addClash({ rt, play, smoke, x, z, facing: -Math.PI / 2, w: 13, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
-      maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: 34 }, B: { ...nishina, count: 46, bows: false } }));
+  // 11/1（三）：軽い兵の切りが本人16m・カメラ12m に詰まった。25秒の本人（x 97〜105・z 0）の前二十〜三十歩へ寄せる。
+  //   肩越しの向きは流すたびに西（大手門）・東（寄せ道）・北・南へ振れる。西は門前の土橋の口（塀際の本物の押し合いの間）、北と南は堀の外の縁の平場（逆茂木・桜の外）、
+  //   東は寄せ道へ打って出た城方の一手と森勢の後詰め（推定）。北と南は前線を東西に、門前と東は南北に引く（向いた時に横一面に見える）。
+  for (const [x, z, facing, w, a, b, seed] of [[84, 0, -Math.PI / 2, 22, 34, 40, 30413], [100, 25, 0, 12, 28, 38, 30411], [100, -30, Math.PI, 12, 28, 38, 30412], [125, 8, -Math.PI / 2, 14, 30, 36, 30414]]) {
+    F_MELEE.list.push(W.addClash({ rt, play, smoke, x, z, facing, w, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
+      maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: a }, B: { ...nishina, count: b, bows: false } }));
   }
   // 塀の裏の武者走りに並んだ仁科勢（大手の左右の塀の上に、笠と槍の穂・指物が切れ目なく覗く。配置は推定）。
   //   寄せ手の目の高さからは塀の内の控えが見えないので、塀の上の人の列で城兵の多さを見せる。足は塀に隠れる（棚の高さは鉄砲衆の棚と同じ）。
@@ -1293,7 +1296,7 @@ function takatoFieldMelee(rt) {
   }
   // 塀の内の三の丸・二の丸に控える城方の大軍。塀の上へ幟の林が覗く。
   // 11/1：塀に隠れて兵の見えない控え（幟は残す）を少し減らし、上の塀の上の列の分に回す（描く人数を増やさない）。
-  for (const [x, z, w, d, n, seed] of [[64, 4, 14, 10, 80, 30421], [56, -20, 16, 9, 40, 30422], [57, 26, 14, 8, 40, 30423]]) {
+  for (const [x, z, w, d, n, seed] of [[64, 4, 14, 10, 30, 30421], [56, -20, 16, 9, 10, 30422], [57, 26, 14, 8, 10, 30423]]) {   // 11/1（三）：門前と寄せ道の乱戦の分を減らす
     const h = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.PI / 2, team: 1, armor: 0x34302a,
       flagTex: flagTexture('takeda'), kind: 'mixed', banners: 6, flagRate: .55, seed });
     h.army.noWake = true;
@@ -1305,6 +1308,8 @@ const F_MELEE = { list: [] };
 function gateBrawlTick(rt) {
   const F = rt.flags; F.brawlT = 1;
   const open = F.gates.oteOuter.opened || F.gates.oteInner.opened || F.sanFell;
+  // 門が開いたら、門前の土橋の口の軽い乱戦（takatoFieldMelee の一つ目）は城方が崩れて退く（門をくぐる道に残さない）
+  if (open && !F.gateClashGone && F_MELEE.list[0]) { F.gateClashGone = true; F_MELEE.list[0].rout?.('B', { hideAfter: 20, from: 0 }); }
   // 10/31 城方の控えが打って出る時、塀際の城兵も持ち場を離れて一つの群れになり、門前の道へ一斉に押し出す。
   // 北の組は本人を目がけ、南の組は近い寄せ手から。刃は浅いまま。
   if (F.sallyOut && !F.brawlJoined) {

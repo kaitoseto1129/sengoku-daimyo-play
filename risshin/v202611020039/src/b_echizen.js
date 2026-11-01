@@ -907,7 +907,7 @@ function passFortScenery(rt) {
   let seed = 15995;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const people = [];
-  for (const [ox, oz, w, d, n] of [[0, 50, 60, 22, 210], [30, 30, 24, 12, 70], [-30, 30, 24, 12, 70]]) {
+  for (const [ox, oz, w, d, n] of [[0, 50, 60, 22, 170], [30, 30, 24, 12, 70], [-30, 30, 24, 12, 70]]) {
     const cx = gx + ux * oz + uz * ox, cz = gz + uz * oz - ux * ox, face = Math.atan2(gx - cx, gz - cz);
     for (let k = 0; k < n; k++) {
       const a = (rnd() - 0.5) * w, b = (rnd() - 0.5) * d;
@@ -922,8 +922,9 @@ function passFortScenery(rt) {
   // 柵を越えて先に斬り込んだ織田の寄せ手と一揆勢が押し合い突き合う。その奥（四十六メートル〜）に一揆勢の大軍が続く。
   // 軽い大軍どうしの合戦（addClash）なので本物の兵の数・道は変えない。木戸が破れたら一揆勢の側が崩れて退く。
   { F.echizenFenceClash = [];
-    const d = 16, x = gx + ux * d, z = gz + uz * d;
-    const C = W.addClash({ x, z, facing: Math.atan2(ux, uz), w: 36, bw: 5.2, gap: 2.4, seed: 16011, rt,
+    // 11/1 中景：木戸の奥十二歩（持ち場から二十八〜三十一歩・画面の真ん中）へ寄せ、幅を詰めた。破った後の bot の筋（木戸の右寄り）に掛からない。
+    const d = 12, x = gx + ux * d, z = gz + uz * d;
+    const C = W.addClash({ x, z, facing: Math.atan2(ux, uz), w: 20, bw: 5.2, gap: 2.4, seed: 16011, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
       A: { flag: 'oda', armor: 0x2a2622, count: 80, flagRate: 0.22 },
@@ -2179,7 +2180,8 @@ echizen.update = function (rt, dt) {
   if (!F.echizenGateCleared && !F.gateKannon.struct.alive) {
     F.echizenGateCleared = true;
     F.echizenIkkiCrowd?.retreat?.(30, 16); F.echizenIkkiHost?.retreat?.(40, 20);
-    for (const C of F.echizenFenceClash || []) C.rout?.('B');
+    // 11/1：破った後、本人と味方は郭の中（乱戦の立つ所）へ入る。一揆勢が崩れて退いた後は乱戦ごと消し、道に軽い兵を残さない。
+    for (const C of F.echizenFenceClash || []) { C.rout?.('B', { hideAfter: 8 }); rt.after(9, () => { if (C.mesh) C.mesh.visible = false; }); }
     // 11/1：破れた口へ本人が先に飛び込むと、味方が着くまで郭の守兵二十四人の刃を一人で受けて倒れた。味方が追いつく二十秒だけ刃を浅く。
     { const g = F.d?.kannon?.real;
       if (g && !g._breachSoft) { g._breachSoft = true; const dm = g.dmgMult; g.dmgMult = (dm ?? 1) * 0.5; rt.after(20, () => { g.dmgMult = dm; }); } }

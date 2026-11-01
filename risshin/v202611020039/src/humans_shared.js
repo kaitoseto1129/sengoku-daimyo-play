@@ -586,7 +586,8 @@ function humanLook(look0) {
     look = { ...look, kote: warrior ? 3 : 0, nanban: false,
       // 足軽の頭の散らし（units.js の御貸具足の六組：細い笠・鉢巻・頭形兜。11/1）は近景でも保つ。ほかの足軽は陣笠
       hat: warrior ? (String(look.hat || '').startsWith('kabuto') ? look.hat : 'kabuto') : look.lacquer != null && /^(jingasa_n|hachimaki|kabuto)$/.test(look.hat || '') ? look.hat : 'jingasa',
-      ...(warrior ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' }
+      // 面頬は名のある武将の指定（look.menpo）と、無名の侍の三人に一人だけ。全員が同じ面を付けると、お面の群れに見える（11/1 kaito）
+      ...(warrior ? (look.menpo || (!isNamed(look) && (look.vi || 0) % 3 === 0) ? { menpo: look.menpo || 0x242522, menpoScan: look.menpo || 0x242522, menpoStyle: 'tare' } : { menpo: null, menpoScan: null })
         // 足軽は簡素な貸し具足：陣笠と胴は同じ漆の一色（look.lacquer。units.js）。決まっていない人だけ、作り分け（loanWear）の漆と威糸のまま
         : look.lacquer != null ? { armor: look.lacquer, lace: look.lacquer, menpo: null, menpoScan: null } : look.loanWorn ? { menpo: null, menpoScan: null } : { armor: 0x292b27, lace: 0x373a32, menpo: null, menpoScan: null }) };
   }

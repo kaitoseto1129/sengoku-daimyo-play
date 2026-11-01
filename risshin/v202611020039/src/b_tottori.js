@@ -3274,6 +3274,14 @@ tottori.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。宮部継潤は雁金山の遠景にいるので重ねない。
 tottori.bushou = [{ name: '蜂須賀正勝', g: /羽柴/ }, { name: '黒田官兵衛', g: /羽柴秀吉の旗本|羽柴/ }];
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：城の木戸の左右の柵を狭間に借り、
+// 停戦の使いまで、柵の上の陣笠と銃口から閃光と白煙・矢を見せる（遠いうちはまばら、木戸へ寄るほど激しい）。兵・塀は足さない。当てない。
+tottori.siegeKit = {
+  plan: { x: GATE.x, z: GATE.z, rot: 0, W: 32, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 100, close: 18, base: .6, peak: 4, arrows: .3 } },
+  borrow: { r: 36, name: '柵' },
+  when: (rt) => { const F = rt.flags; return F.step < 3 && !F.ending && !rt.over; },
+};
 export { tottori };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

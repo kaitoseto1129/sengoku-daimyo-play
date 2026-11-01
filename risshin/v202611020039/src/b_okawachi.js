@@ -4784,6 +4784,14 @@ okawachi.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
 okawachi.bushou = ['稲葉一鉄'];
+// 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：搦手の門の左右の曲輪の塀を狭間に借り、
+// 門へ寄せて押し込むまで、塀の上の陣笠と銃口・閃光と白煙・矢を見せる（左右の折れが十字に撃つ）。兵・塀・門は足さない。当てない。
+okawachi.siegeKit = {
+  plan: { x: GATE.x, z: GATE.z, rot: 0, W: 36, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 95, close: 16, base: .8, peak: 4, arrows: .35 } },
+  borrow: { r: 40, flank: true },
+  when: (rt) => { const F = rt.flags; return F.step < 3 && !F.ending && !rt.over; },
+};
 export { okawachi };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

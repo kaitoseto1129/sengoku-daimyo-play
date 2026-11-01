@@ -202,7 +202,8 @@ function loadKabuto() {
   return kbLoading;
 }
 // 名のある武将の顔に、面頬の形を付ける（頭の骨の立ち姿の位置から MP_FIT だけずらす。形は上の縁が y=0・奥が z=0・前が +z）
-const MP_FIT = { y: 0.08, z: 0.04, s: 1.2 };
+// 11/1 kaito「面頬がお面のように顔に貼り付く」：顔より大きく浮いた面にしない。顔の形に沿う大きさへ縮め、頬と顎へ寄せる
+const MP_FIT = { y: 0.076, z: 0.036, s: 1.14 };
 // 色：絵は朱漆。武将の面頬の色（look.menpo）が赤でなければ、絵の明るさだけを残してその色の漆に塗り替える
 function menpoMat(col) {
   const c = new THREE.Color(col || 0x6a1c14), hsl = c.getHSL({});
@@ -210,7 +211,7 @@ function menpoMat(col) {
   const key = red ? 'red' : c.getHex();
   const M = KB.menpo.mats;
   if (!M.has(key)) {
-    const m = armorMaterial({ map: KB.menpo.mc, normalMap: KB.menpo.mn, roughness: 0.32, metalness: 0.1, envMapIntensity: 0.85, side: THREE.DoubleSide }, true);
+    const m = armorMaterial({ map: KB.menpo.mc, normalMap: KB.menpo.mn, roughness: 0.55, metalness: 0.1, envMapIntensity: 0.6, side: THREE.DoubleSide }, true);
     const tint = c.clone().multiplyScalar(2.2);
     // 色は uniform で渡す（色を描き方の字に書き込むと、武将ごとに別の program が乱戦の途中で組まれていた。10/26）
     const tintU = { value: new THREE.Vector3(tint.r, tint.g, tint.b) };
@@ -654,7 +655,8 @@ function dressKabuto(h) {
 // 胴丸のスキャンは主人公だけの甲冑（kaito 10/27 夜「あの甲冑は主人公オンリー」）。名のある武将は kacchu_data.js のそれぞれの具足、侍も胴丸のスキャンを着ない
 // 足軽の簡素な貸し具足（look.lacquer。units.js）は胴丸のスキャンを着せず、体に沿う軽い胴（units_model.js の ashiDo）で描く（kaito 10/30）
 const loanSimple = (look) => look.lacquer != null && !look.hero && (look.tier ?? 0) < 1;
-function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && (!!look.hero || !!look.real) && !loanSimple(look); }
+// 11/1 kaito「古い形の甲冑は使わない」：胴丸のスキャン（大袖・胴丸の古い形）は本人だけ。名のある武将・騎馬武者（look.real）は当世具足（kacchu_data・bodyGeometry）で描く
+function wantsDomaru(look) { return DOMARU.on && !!look && !look.kosode && !isSohei(look) && !!look.hero && !loanSimple(look); }
 // 近い一般兵は全員スキャンの具足。遠景は dressCrowd の元の姿を使う。
 const crowdDomaru = (look) => DOMARU.on && DOMARU.crowd && !!look && !look.kosode && !isSohei(look) && !wantsDomaru(look) && !isNamed(look) && (look.tier ?? 0) < 1 && !loanSimple(look);
 // 着せる時の骨の立ち姿（人の根元の座標）の逆行列。腕と脚の骨は人形の腕・脚の向きへ回し、どの骨も人形の関節の位置へ

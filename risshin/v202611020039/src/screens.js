@@ -540,7 +540,9 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
     <div id="tt-home">
     ${readings[S.slot].bad ? '<p class="errbox">！ この枠の記録を読めません。別の枠か、控えてある保存文字列から再開してください。</p>' : readings[S.slot].recovered ? '<p class="note">前の控えから記録を読み直しました。</p>' : ''}
     <div class="tt-hero">
-      <h1 class="title">戦国立身</h1>
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="ttKasure" x="-4%" y="-8%" width="108%" height="116%"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.9" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" result="d"/><feTurbulence type="fractalNoise" baseFrequency="0.9 0.06" numOctaves="1" seed="9" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.55" result="m"/><feComposite in="d" in2="m" operator="in"/></filter></svg>
+      <h1 class="title tt-brush" aria-label="戦国立身3D">戦国立身<small>3D</small></h1>
+      <p class="tt-motto">足軽から、天下へ。</p>
       <div class="title-act">${saved ? '<button type="button" class="btn primary" id="b-cont">始める</button>' : '<button type="button" class="btn primary" id="b-new">始める</button>'}<button type="button" class="btn" id="b-set">設定</button></div>
       <nav class="tt-secondary" aria-label="ほかの操作" hidden>
         ${saved ? '<button type="button" class="btn small" id="b-new">新しく始める</button>' : ''}
