@@ -23,6 +23,7 @@ import { flagTexture } from './textures.js';
 import { placeGroup } from './b_opening.js';
 import { RANKS } from './state.js';
 import { reduceMotion, S as SETTINGS } from './settings.js';
+import { TIER } from './device_tier.js';
 import { segHit, buildModel } from './units.js';
 import { sfx } from './audio.js';
 import { gauss, enemyGroup as spawnEnemy, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
@@ -2797,7 +2798,9 @@ const nodafukushima = {
           const x = from.x + (to.x - from.x) * t, z = from.z + (to.z - from.z) * t;
           // 運搬中の低い視線は本人の肩から徐々に下げる。
           // 始点から腰より下を調べると、足元の斜面を壁と見なして視点が身体まで寄ってしまう。
-          const clearance = F.step === 1 ? 1.3 : F.step <= 1 ? 1.1 : 0.65;
+          // 11/1：本人が堤の下の川原（堤の背から八歩より川寄り）にいる時、背の視点は堤の斜面の上に来る。
+          //   そこで腰の高さまで調べると堤の土を壁と見なして視点が本人の背まで寄り、足元の土だけが映った。目線そのものだけを調べる。
+          const clearance = from.z < LEVEE_Z - 8 && to.z > from.z ? 0.3 : F.step === 1 ? 1.3 : F.step <= 1 ? 1.1 : 0.65;
           const y = from.y + (to.y - from.y) * t - clearance * (F.step <= 1 ? t : 1);
           if (y < W.heightAt(x, z) + 0.15) { hit = t; break; }
         }
@@ -2940,6 +2943,7 @@ const nodafukushima = {
     // 岸の竹束の列：据えた束の間を、見た目だけの束で埋めて一続きの垣にする（形と材質は共用。10/29）。
     for (const [x, z] of [[-29, -20.2], [-25.5, -20.3], [-18, -20.6], [-10.4, -21.3], [10.4, -21.3], [17.6, -20.6], [24.5, -20.3], [28, -20.2]]) {
       const m = takeTaba(W, x, z, Math.PI + (x % 3) * 0.02); registerTabaCamera(rt, m); rt.scene.add(m);
+      (F.decorTabas || (F.decorTabas = [])).push(m);
     }
     // ---- 大軍（軽い作り）：詰め陣の後ろの控え ----
     const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed });
@@ -2986,6 +2990,22 @@ const nodafukushima = {
     F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '浅瀬を押し渡る三好勢', anchor: { x: -2, z: -40 }, facing: 0, width: 7, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari', yariRanks: 3, dmgMult: .15 },
       dress([{ type: 'ashigaru', n: 15 }], MIYOSHI));
     F.skirE.noHunt = true;
+    // 11/1 点付け（敵の大軍・乱戦が薄い）：持ち場の前の浅瀬（二十〜四十歩）は物見の一塊だけで、川の向こうが空いていた。
+    //   中の小競り合い（本物の兵）を挟んで東西の浅瀬に、渡り合う織田の先手と三好勢の押し合い（軽い作り。本物の兵・任務の数は変えない）。
+    //   その奥、水堀の向こうの砦の左右に三好勢の大軍（軽い作り）。木ノ芽峠の作りに倣う。
+    { const n = TIER.weak ? 0.65 : 1;
+      F.shoalClash = [[-21, -29, 20, 0], [22, -28.5, 20, 1]].map(([x, z, w, i]) => rt.world.addClash({
+        x, z, w, facing: Math.PI, seed: 15721 + i, gap: 2.4, rt, host: false, noRout: true,
+        killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0,
+        play: (k, p, v) => rt.army.play(k, p, v * 0.7), smoke: (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz),
+        A: { flag: 'oda', armor: 0x2a2622, count: Math.round(70 * n), flagRate: 0.25 },
+        B: { flag: 'miyoshi', armor: 0x35382c, count: Math.round(90 * n), flagRate: 0.3 } }));
+      for (const C of F.shoalClash) C?.go?.();
+      F.miyoshiHost = [[-40, -54, 15731], [42, -54, 15732]].map(([x, z, seed]) => {
+        const h = W.addDistantArmy({ x, z, w: 30, d: 8, count: Math.round(140 * n), facing: 0, team: 1, armor: 0x35382c, flagTex: flagTexture('miyoshi'), flagRate: 0.3, kind: 'spear', seed });
+        if (h?.army) h.army.noWake = true;
+        return h;
+      }); }
     // 本願寺の先陣は早鐘の後に畦道から出す。昼の浅瀬の斬り合いには加わらない。
     F.waves = []; F.waveJoined = []; F.wavePaid = []; F.heldWaves = 0;
     // ---- 持ち場の区域（siege_zones.js）：堤の上・織田の詰め陣（味方）、野田砦・福島砦（三好） ----
@@ -3500,6 +3520,8 @@ const nodafukushima = {
   update(rt, dt) {
     const F = rt.flags;
     const p = rt.player;
+    // 11/1：見た目だけの竹束（当たり無し）の中へ本人が踏み入ると、視点が束の内へ寄って画面が竹で塞がった。本人の足元の束だけ隠す。
+    if (F.decorTabas) for (const m of F.decorTabas) m.visible = Math.abs(p.u.pos.x - m.position.x) > 1.4 || Math.abs(p.u.pos.z - m.position.z) > 1.2;
     // 開戦の小競り合いの片付け：45秒か、物見が尽きるか、総攻めが進めば、物見は砦へ退き、先手は堤の持ち場へ戻る
     // 開戦九秒：浅瀬の向こうの三好勢が一つの塊で押し渡り、本人を目がけて寄せる（本人が深手の時は近くの味方へ）
     if (F.skirE && !F.skirDone && rt.t > 9) {

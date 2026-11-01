@@ -19,3 +19,12 @@ export function houseHash(flag) {
   let h = 0; for (const ch of String(flag || '')) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0;
   return h;
 }
+// 家ごとの布の色の芯（共通の差の1「兵が灰・黒の同じ形で単調」11/1）。黒漆の中に赤・茶・生成りの布を混ぜる。
+//   近い兵（units.js の鎧下・脚絆・鉢巻）と遠い大軍（world_army_shader.js の脚・腕・袖）で同じ表。青は使わない。色は褪せた染め
+export const CLOTH_CORE = [0x7a4226, 0x857660, 0x6e3424, 0x5e4630, 0x76543a, 0x6a2c20];   // 柿渋・生成り・弁柄・茶・丁子茶・褪せた赤
+export const CLOTH_PLAIN = [0x857760, 0x54422f, 0x7a4a2a, 0x5a5040];   // 家を問わない布：生成り・茶・柿渋・鼠茶
+export function houseCore(flag) {
+  const f = String(flag || '');
+  if (lacKind(f) === 3) return 0x7a2c1e;
+  return CLOTH_CORE[(houseHash(f) >>> 5) % CLOTH_CORE.length];
+}

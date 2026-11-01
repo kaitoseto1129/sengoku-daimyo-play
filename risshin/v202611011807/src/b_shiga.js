@@ -2675,7 +2675,8 @@ const shiga = {
       const mountainSide = row % 2 === 0;
       const x = mountainSide ? -30 : 30, z = -101 - Math.floor(row / 2) * 56;
       const flag = mountainSide ? 'azai' : 'asakura';
-      F.host.push(DA(x, z, 36, HOST_DEPTH, 320, 0,
+      // 11/1：町口の東の乱戦と湖岸の縦隊（下）を足した分、遠い控えの四束を三百二十から二百四十へ（描く人数を増やさない）。
+      F.host.push(DA(x, z, 36, HOST_DEPTH, 240, 0,
         mountainSide ? AZA.armor : ASA.armor, flag, 15810 + row));
       // 公記の両手を示す推定配置。置き幟も各家の控えの両脇へそろえる。
       // 横一列の旧配置では別家の兵列へ幟が入り、二筋二段の備えと食い違う。
@@ -2693,6 +2694,22 @@ const shiga = {
     // 幟と土煙だけでは群れに見えなかった（10/29）。尾根を回る一手の縦隊を軽い大軍（背旗つき・立体）で置く。本物の兵は増やさない。
     F.flankHost = W.addDistantArmy({ ...FLANK_HOST, armor: AZA.armor, flagTex: flagTexture('azai'), mon: 'azai', team: 1, seed: 15831, terrainRanks: true, yose: false, host: false });
     F.flankHost.army && (F.flankHost.army.noWake = true);
+    // 11/1 点付け（志賀54：敵の大軍・乱戦が薄い）：持ち場（町口）の25秒の肩越しの向きは流すたびに東か西へ振れる。
+    // 東：街道側（推定どおり朝倉）の先手が湖岸の街道から町の東の口へ回り込み、森隊の東の手と押し合い斬り合う（町屋の二軒の間から見える所）。奥（北）の街道に朝倉の縦隊が続く。
+    // 西：山側（推定どおり浅井）の先手が町の西の口（青地の手の前）で森隊の西の手と押し合う。奥の尾根に浅井の縦隊（flankHost）と控えが続く。
+    // どちらも持ち場から三十歩ほど。軽い作り（addClash・addDistantArmy）だけで、本物の兵の数・道・当たりは変えない。
+    // 退きの段（step 2）で森隊の手が崩れて退き、湖岸の縦隊も隠す。
+    F.townClashes = [[55, 15, Math.PI / 2, 16, 'asakura', ASA.armor, 15841], [6, -13, Math.PI + 0.35, 20, 'azai', AZA.armor, 15843]].map(([x, z, facing, w, flag, armor, seed]) => {
+      const C = W.addClash({ x, z, facing, w, bw: 5.2, gap: 2.4, seed, rt,
+        play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
+        noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
+        A: { flag: 'oda', armor: ODA.armor, count: 56, flagRate: 0.22 },
+        B: { flagTex: flagTexture(flag), armor, count: 64, flagRate: 0.22 } });
+      C?.go?.();
+      return C;
+    }).filter(Boolean);
+    { F.lakeColumn = W.addDistantArmy({ x: 71, z: -26, w: 9, d: 34, count: 120, facing: 0, armor: ASA.armor, flagTex: flagTexture('asakura'), mon: 'asakura', team: 1, seed: 15842, terrainRanks: true, yose: false, host: false, flagRate: 0.25 });
+      F.lakeColumn.army && (F.lakeColumn.army.noWake = true); }
     for (let i = 0; i < FLANK_FLAGS.length; i++) {
       const [x, z] = FLANK_FLAGS[i], f = nobori(W, x, z, 'azai', 6);   // 縦隊の両脇の旗持ちの幟。背旗と同じ浅井の旗で、高さは一つにして形を使い回す
       f.userData.shigaFlank = true; rt.scene.add(f);
@@ -3186,6 +3203,8 @@ const shiga = {
     for (const mesh of F.flankFlagBatches || []) mesh.removeFromParent();
     F.flankFlagBatches = null;
     if (F.flankHost) F.flankHost.visible = false;
+    for (const C of F.townClashes || []) C.rout?.('A', { hideAfter: 30, from: 0 });
+    if (F.lakeColumn) F.lakeColumn.visible = false;
     rt.setPhase('fall');
     rt.unmark('w1'); rt.unmark('w1b'); rt.unmark('campA'); rt.unmark('campB');
     // 二段の間隔を保ったまま寄せ、町屋を貫通する遠景の行軍にしない。
