@@ -55,7 +55,7 @@ function soldierTint(look0) {
   const L = humanLook(look0), V = soldierVar(L);
   if (L.sohei || L.nanban || L.kosode || L.hero) return null;
   // 作り分けの無い者（名のある具足など）も、近い形と同じ漆・笠の色（humanLook の後の色）にそろえる
-  if (!V) return { lac: L.armor ?? 0x24221f, lace: L.lace ?? 0x5a4630, hat: L.hatColor ?? L.armor ?? 0x24221f, i: -1 };
+  if (!V) return { lac: L.armor ?? 0x24221f, lace: L.lace ?? 0x5a4630, hat: L.hatColor ?? L.armor ?? 0x24221f, cloth: L.cloth ?? null, i: -1 };
   const armor = L.armor ?? 0x24221f;
   let lac = armor, lace = L.lace ?? 0x5a4630;
   if (V.lac[0] != null) lac = varCol.set(armor).lerp(varTmp.set(V.lac[0]), V.lac[1]).getHex();
@@ -66,7 +66,7 @@ function soldierTint(look0) {
     const hb = L.hatColor ?? armor, H = V.hatLac;
     hat = H[0] != null ? varCol.set(hb).lerp(varTmp.set(H[0]), H[1]).getHex() : varCol.set(hb).multiplyScalar(0.8).getHex();
   }
-  return { lac, lace, hat, i: V.iL };
+  return { lac, lace, hat, cloth: L.cloth ?? null, i: V.iL };   // cloth：脚・腕の布（world_army.js の aVarT.w）
 }
 IMP_TINT.fn = soldierTint;
 // 塗り替え：元の色 base に近い頂点（同じ色合い・陰の明るさ）だけを、明るさの比を保って target へ寄せる

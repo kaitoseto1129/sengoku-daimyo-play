@@ -3,6 +3,19 @@ import { rng } from './world_common.js';
 import { skyPhotoKey, loadSkyPhoto, skyEnvKey, loadSkyEnv } from './sky_photo.js';
 
 const _envLook = new THREE.Color(), _envTmp = new THREE.Color();
+// 11/01 夜の背の明るさの下限（描く一コマの間だけ）：空・地平・霞・遠山が紺の暗い一枚だと、携帯の小さな画面で
+//   兵・旗・山の形が背と溶けて見えなかった（大河内・三木・有岡・鳥取など）。戦ごとの色（applyLook・setTime・直書き）の後に
+//   描く直前だけ持ち上げ、描いたら戻す（戦の色の値・移ろいは変えない）。紺は灰の銀へ寄せる（青い夜にしない。信貴山の月夜が手本）。
+//   下限は線形の明るさ（sRGB で空 0.30・霞 0.29・天頂 0.16 ほど）。光の数・影・材質は増やさない。毎コマ new しない。
+const NIGHT_BACK = { sky: 0.075, fog: 0.07, top: 0.022, mount: 0.055, grey: 0.6, maxLift: 3.2 };
+const _nbSave = { bg: new THREE.Color(), fog: new THREE.Color(), top: new THREE.Color(), bottom: new THREE.Color(), haze: new THREE.Color(), mist: new THREE.Color(), mount: [new THREE.Color(), new THREE.Color(), new THREE.Color()] };
+function liftDark(c, save, floor, k) {
+  save.copy(c);
+  const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+  // 灰へ寄せる時は、少しだけ月と篝火の暖かみを残す（純粋な灰は死んだ色に見える）
+  c.lerp(_envTmp.setRGB(l * 1.03, l, l * 0.94), NIGHT_BACK.grey * k);
+  if (l < floor) c.multiplyScalar(1 + (Math.min(NIGHT_BACK.maxLift, floor / Math.max(l, 1e-4)) - 1) * k);
+}
 
 // 空の映り込み（漆や鉄に空が映る）を作るために、描画器を借りる
 let RENDERER = null;
@@ -326,6 +339,32 @@ export class WorldSky {
     this.scene.add(this.mountains);
   }
 
+
+  // 描く直前に夜の背を持ち上げる（k＝夜の度合い 0〜1）。描いた後に必ず dropNightBackdrop を呼ぶ。
+  liftNightBackdrop(k) {
+    if (!(k > 0.01) || this.def.nightBackdrop === false) return false;
+    const bg = this.scene.background, U = this.skyMat.uniforms, S = _nbSave;
+    if (bg && bg.isColor) liftDark(bg, S.bg, NIGHT_BACK.sky, k);
+    if (this.scene.fog) liftDark(this.scene.fog.color, S.fog, NIGHT_BACK.fog, k);
+    liftDark(U.top.value, S.top, NIGHT_BACK.top, k);
+    liftDark(U.bottom.value, S.bottom, NIGHT_BACK.fog, k);
+    if (this.mountU) liftDark(this.mountU.hazeCol.value, S.haze, NIGHT_BACK.fog, k);
+    const mist = this.haze?.mesh.material.uniforms?.color?.value;
+    if (mist) liftDark(mist, S.mist, NIGHT_BACK.fog, k);
+    for (let i = 0; i < 3 && i < this.mountMats.length; i++) liftDark(this.mountMats[i].color, S.mount[i], NIGHT_BACK.mount, k);
+    return true;
+  }
+
+  dropNightBackdrop() {
+    const bg = this.scene.background, U = this.skyMat.uniforms, S = _nbSave;
+    if (bg && bg.isColor) bg.copy(S.bg);
+    if (this.scene.fog) this.scene.fog.color.copy(S.fog);
+    U.top.value.copy(S.top); U.bottom.value.copy(S.bottom);
+    if (this.mountU) this.mountU.hazeCol.value.copy(S.haze);
+    const mist = this.haze?.mesh.material.uniforms?.color?.value;
+    if (mist) mist.copy(S.mist);
+    for (let i = 0; i < 3 && i < this.mountMats.length; i++) this.mountMats[i].color.copy(S.mount[i]);
+  }
 
   // 空の写真を時間帯に合わせて差し替える（読み込みは戦ごとに一枚。届いたら映り込みも焼き直す）
   setSkyPhoto(timeKey, mood) {
