@@ -40,6 +40,9 @@ function leafPhoto(mats, kind) {
   for (const m of mats) m.alphaMap = plainAlpha();
   Promise.all([photoTex(files[0], true), photoTex(files[1], false)]).then(([c, a]) => {
     if (!c || !a) return;
+    // 杉（10/31 gap_veg3）：一枚の房に小枝の写真を縦横二つずつ並べる。一本の写真の羽を数メートルに引き伸ばすと
+    //   大きな羊歯の葉の切り絵に見えた。小さな房が重なる枝に見せる。形・描く回数・絵の数は同じ（写真はこの杉の近い葉だけが使う）。
+    if (kind === 'cedar') for (const t of [c, a]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.needsUpdate = true; }
     for (const m of mats) { m.map = c; m.alphaMap = a; }
   });
 }

@@ -1611,6 +1611,16 @@ const arioka = {
     noGrass: (x, z) => x > GATE.x + 2 && x < SOKAKU_X,   // 惣構えの内（町屋と侍町）は踏み固めた土。草は木戸の外だけ
   },
   spawn: { x: GATE.x - 40, z: GATE.z, heading: Math.PI / 2 },
+  // 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：上ろう塚の木戸の左右の惣構えの塀を狭間に借り、
+  // 開門を待つ寄せ手と木戸をくぐる自分へ、塀の上の陣笠と銃口から鉄砲と矢を射かける（左右の面が十字に撃つ横矢）。
+  // 兵・塀・絵は足さない（白煙は戦の煙が受け持つ）。撃つのは近くに荒木勢が残る塀だけ。木戸の内へ入れば塀は背になる。
+  siegeKit: {
+    plan: { x: GATE.x, z: GATE.z, rot: -Math.PI / 2, W: 40, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+    build: { team: 1, gate: false, walls: false, bridge: false, umadashi: false, sakamogi: false, shiyori: false, heads: true,
+      fire: { smoke: false, hurt: 0, near: 70, close: 14, base: .8, peak: 4, arrows: .4 } },
+    borrow: { r: 46, flank: true, name: '惣構えの柵' },
+    when: (rt) => rt.flags.step <= 1 && !rt.flags.ending,
+  },
   // 稲生の標準：木戸を入った辻で四方から突かれ、開門の一分半で倒れていた（bot 10/28 に三度）。人数と斬り合いはそのまま、受ける傷を六割に。
   playerTaken: 0.6,
   playerRegen: 0.02,   // 戦っていない間（四秒当たらない間）は命が少しずつ戻る
@@ -1618,7 +1628,7 @@ const arioka = {
   world: {
     seed: 15791, moveLim: 1080, groundHalf: 1100,
     time: 'night', unitNightScale: 0, // 兵だけ青白く光らせず、具足と顔を同じ月光で照らす。
-    nightLift: 1.9, // 霜の夜を昼のような青白い一枚に持ち上げない（10/28 木戸の外が白い砂の一枚に見えた）。篝火と月の陰を残す。
+    nightLift: 3.0, nightFill: 0.8, nightMoonMin: 1.4, lowNightExposure: 1.6, // 霜の夜を昼のような青白い一枚に持ち上げない（10/28 木戸の外が白い砂の一枚に見えた）。篝火と月の陰を残す。
     drawTimeUnitParts: true, // 移動後の骨と具足の逆行列を描く時にそろえ、笠・手・槍だけを宙へ残さない。
     fullTipMatrices: true, // 遠い兵も手首と指をそろえ、木戸から手の皮が長い帯に伸びるのを防ぐ。
     movingHiddenBones: true, // 体の中心が画面外でも、動いた兵の骨を今の位置へそろえる。
@@ -2365,7 +2375,7 @@ const arioka = {
     applyLook(rt, NIGHT, false);
     W.sunOffset.set(.4, .8, -.2).normalize().multiplyScalar(120);
     W.skyMat.uniforms.sunDir.value.copy(W.sunOffset).normalize();
-    W.sun.intensity = .28; W.hemi.intensity = W.baseHemi = .75;
+    W.sun.intensity = .55; W.hemi.intensity = W.baseHemi = 1.2;
     W.skyMat.uniforms.cover.value = .36; W.skyMat.uniforms.cloudDark.value = .1;
     // 有岡の月夜だけ雲の縁を空へ溶かす。共通の空と昼の戦は変えない。
     W.skyMat.fragmentShader = W.skyMat.fragmentShader

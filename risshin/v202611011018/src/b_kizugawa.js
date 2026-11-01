@@ -2995,7 +2995,7 @@ const kizugawa = {
     if (sg < 0 && sz < 6.3) {
       pos.x = p.x + KZ_SEA_BACK.x; pos.z = p.z + KZ_SEA_BACK.z;
       // 10/31：本人へ向け直すと屋形の前の面が左の三割を占める。視線を本人の先の沖（西）へ振り、屋形を左の端の一割に。
-      look.x = p.x - 3; look.z = p.z + 1.5; this.selfFrameMinDistance = 99;
+      look.x = p.x - 3; look.z = p.z + 4.5;   // 10/31 採点：乗り込みの斬り合いが画面の左へ寄り真ん中が海だけ。視線を艫の側へ振る this.selfFrameMinDistance = 99;
       rt.flags.wallFrameAt = rt.t;
       this.seaFrameRt = rt; this.seaFrameAt = rt.t;
       return;
@@ -3006,7 +3006,8 @@ const kizugawa = {
     // 総矢倉の前の角の外から、視線を本人の先の沖（-x へ三十度）へ振る。屋形の板壁は左の端の細い帯だけ、沖の船団が正面から右に並ぶ。
     if (sg < 0 && sz < 9.5) {
       pos.x = ship.position.x - 2.6; pos.z = ship.position.z + 4.4;
-      look.x = p.x - 2.5; look.z = p.z + 2;
+      // 10/31 採点：乗り込みの斬り合いが画面の左へ寄り、真ん中が海だけ。視線を艫の側へ二十度振り、舷を越えた毛利勢と艫の味方を真ん中に入れる。
+      look.x = p.x - 2.5; look.z = p.z + 4.5;
       this.selfFrameMinDistance = 99;   // 最後に本人へ向け直す構図（視線が壁と平行になる）をこの間だけ止め、沖へ振った視線を保つ
       rt.flags.wallFrameAt = rt.t;
       this.seaFrameRt = rt; this.seaFrameAt = rt.t;
@@ -3616,6 +3617,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 13, o: { spear: 'su' } }], MORI));
       g.slotPos = (i) => posts[i % posts.length];
       for (const u of g.units) { const q = posts[u.slot % posts.length]; u.pos.set(q.x, DECK.y, q.z); u.heading = Math.PI; u.shipPost = { x: q.x, y: DECK.y, z: q.z }; }
+      g.noRout = true;   // 10/31 採点：二十五秒の画面で敵が逃げて乱戦が薄い。乗り込みの先手は討たれるまで斬り合う。
       F.openingBoard = g;
       // 艫の味方も、舷を越えた敵には槍を合わせる（持ち場は離れない）。
       F.stern.aggro = 6;

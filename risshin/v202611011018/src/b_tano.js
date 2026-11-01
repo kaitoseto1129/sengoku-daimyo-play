@@ -1800,6 +1800,13 @@ const tano = {
         D.cur.sortieAt = rt.t + 4;
         continue;
       }
+      // 10/31 谷道の乱戦：散った守兵（谷道の後ろの侍・柵の侍）を谷の奥で一つの群れにして、本人の前へ一気に押し寄せさせる。
+      if (s.phase === 'valley' && g !== F.defenders[0]) {
+        if (g === F.defenders[3]) { g.anchor = { x: -26, z: 1 }; placeGroup(rt, g, -26, 1); }
+        g.noAI = true; g.path = null; g.formation = 'yari'; g.facing = -Math.PI / 2; g.order = 'attack'; g.focus = rt.player.u;
+        g.seekRange = Math.max(g.seekRange || 0, 70); g.aggro = Math.max(g.aggro || 0, 40); g.onArrive = null;
+        continue;
+      }
       // 守兵の後列も曲がり角を通す。寄せ口と到着後の槍衾は変えない。
       roadOrder(g, s.at.x + 6, s.at.z, 'yari');
       // 10/31 谷道では、柵の侍も谷へ出て、散った守兵が一つの群れで先手へ打ちかかる。一組おきに本人を目がけて斬り込む。

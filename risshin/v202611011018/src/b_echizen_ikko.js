@@ -69,6 +69,53 @@ function huntPlayer(rt, dt) {
   }
 }
 
+// 10/31 mini の点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所に置いた押し合いが画面から外れた。
+// 開戦から win 秒の間、本人の前（カメラの向く先）の foeD 歩へ近い敵の組を、allyD 歩へ味方の組を寄せ続け、
+// 画面の正面で斬り合わせる。兵は足さず、瞬間移動もしない（歩いて寄る）。時が過ぎたら元の下知へ戻す。
+function heroFrontClash(rt, dt, o = {}) {
+  const F = rt.flags, P = rt.player.u;
+  const H = F._hfc || (F._hfc = { t: 0, t0: rt.t, saved: new Map() });
+  if (H.done || (H.t -= dt) > 0) return;
+  H.t = 0.5;
+  if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
+    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    H.saved.clear(); H.done = true; return;
+  }
+  const e = rt.camera?.matrixWorld?.elements;
+  let fx = e ? -e[8] : 0, fz = e ? -e[10] : 0, L = Math.hypot(fx, fz);
+  if (L < 0.3) { fx = Math.sin(P.heading); fz = Math.cos(P.heading); L = 1; }
+  fx /= L; fz /= L;
+  // 戦の視点が決まった向き（例：表門）を見る時は、その向きを使う
+  const D = o.dir && o.dir(rt);
+  if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
+  const pick = (foe, want, d) => {
+    let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
+    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    const list = [];
+    for (const g of rt.army.groups) {
+      if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
+      const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
+      // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
+      if (r < (o.reach ?? 70) && !rt.army.wallBetween({ x: c.x, y: P.pos.y, z: c.z }, -1, { x, y: P.pos.y, z })) list.push([r, g]);
+    }
+    list.sort((a, b) => a[0] - b[0]);
+    const out = []; let n = 0;
+    for (const [, g] of list) { if (n >= want) break; out.push(g); n += g.count; }
+    out.forEach((g, k) => {
+      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, path: g.path, pathIdx: g.pathIdx, noAI: g.noAI, aggro: g.aggro });
+      const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
+      g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
+      if (g.focus && g.focus !== P) g.focus = null;
+      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
+    });
+  };
+  pick(true, o.foeN ?? 22, o.foeD ?? 15);
+  pick(false, o.allyN ?? 16, o.allyD ?? 9);
+}
 // 見張り（山門番・番所・鐘楼・簡易見張り台）。城の物見櫓は置かない（late6-1573-1575-spec 80-96）
 const MONOMI_R = { x: 30, z: -34 };   // 右（谷川沿い）を見おろす見張り台
 const MONOMI_L = { x: -26, z: -36 };  // 左（森の小道・五箇の里の裏）を見おろす見張り台
@@ -3823,6 +3870,8 @@ const echizen_ikko = {
 
   update(rt, dt) {
     huntPlayer(rt, dt);
+    // 25秒の間は描く輪が止まり、カメラの行列が古いまま。カメラの位置から本人への向きを前とする（10/31）。
+    heroFrontClash(rt, dt, { dir: (r) => r.camera && { x: r.player.u.pos.x - r.camera.position.x, z: r.player.u.pos.z - r.camera.position.z } });
     if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: ODA.flag, foe: IKKO.flag, seed: 9190 }) || [];
     const F = rt.flags, W = rt.world;
     F.treePlayer.value.copy(rt.player.u.pos);

@@ -2383,10 +2383,11 @@ const shigisan = {
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
     // 10/31 点付け「暗い」：月明かりと空の回り光を上げ、兵の具足と城の輪郭を読めるように（光源は増やさない）。
-    nightLift: 3.2,
-    nightMoonMin: 1.6,
+    nightLift: 3.9,
+    nightFill: 0.8,
+    nightMoonMin: 2.0,
     nightLight: { hemiSky: 0x7a8cae, hemiGround: 0x3e4a34 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
-    lowNightExposure: 1.6,
+    lowNightExposure: 1.9,
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。

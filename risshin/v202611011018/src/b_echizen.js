@@ -2055,7 +2055,7 @@ echizen.update = function (rt, dt) {
     const b = F.gateSally, g = b.real, c = g.center(), h = b.facing || 0, list = [];
     for (let i = 0; i < 12; i++) {
       const side = (i % 6 - 2.5) * 1.3, back = 3 + Math.floor(i / 6) * 1.6;
-      list.push({ type: i === 11 ? 'samurai' : 'ashigaru', n: 1, o: { ...(b.look || {}), armor: b.armor || undefined, flag: b.flag,
+      list.push({ type: i % 12 === 11 ? 'samurai' : 'ashigaru', n: 1, o: { ...(b.look || {}), armor: b.armor || undefined, flag: b.flag,
         x: c.x + Math.cos(h) * side - Math.sin(h) * back, z: c.z - Math.sin(h) * side - Math.cos(h) * back, heading: h } });
     }
     b.nominal += 12; b.maxReal = (b.maxReal || 12) + 12;
@@ -2064,7 +2064,7 @@ echizen.update = function (rt, dt) {
     g.noHunt = true; g.dmgMult = 0.6;
   }
   // 郭の守兵は郭から引き出さない（引き出すと郭が空になり、一戦が一分半で終わった）。木戸が破れるまでの間だけ。
-  heroFrontClash(rt, dt, { foeN: 24, allyN: 20, active: (r) => !!r.flags.gateKannon?.struct.alive,
+  heroFrontClash(rt, dt, { foeN: 42, allyN: 28, reach: 110, foeD: 12, allyD: 7, active: (r) => !!r.flags.gateKannon?.struct.alive,
     skip: (g, foe) => foe && (r => (r.flags.defenders || []).some((b) => b?.real === g))(rt) });
   // kaito 10/31：門外の二人と打って出た一揆勢を別々に当てず、開戦の下知と同時に一つの群れで先手へ打ちかかる。
   if (!F.waveOpen && rt.t >= 12 && F.gateSally?.aliveNominal() > 0) { F.waveOpen = true; F.gateSally.order({ id: 'attack' }); }

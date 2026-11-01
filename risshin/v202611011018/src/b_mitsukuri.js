@@ -2727,6 +2727,15 @@ const mitsukuri = {
   playerRegen: 0.012,
   noTaisho: true, // 城将一人の討死で即勝ち・討ち取りの副任務を出さない。
   noWake: true,   // 城の部隊だけを本物へ替え、遠景の兵は重ねない。
+  // 木戸の構え（二の丸の南の柵）：城攻めの共通部品（siege_kit.js。battle.js が組み、毎コマ動かす）。
+  // 今の柵を狭間に借り、三の郭から木戸へ寄る間だけ、柵の上の陣笠と銃口・閃光と白煙・矢を見せる（兵も塀も足さない。
+  // 角の柵は横矢の面）。当てない（坂の矢と鉄砲の傷は筋書きのまま）。木戸・槌・出撃は筋書きが受け持つので外す。
+  siegeKit: {
+    plan: { x: KIDO.x, z: KIDO.z, rot: 0, W: 16, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
+    build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 90, close: 16, base: .9, peak: 4, arrows: .35 } },
+    borrow: { r: 21, name: ['三の郭（坂の上）', '二の丸'], flank: true },   // 木戸の左右の柵（三の郭と分け合う）と二の丸の脇の柵
+    when: (rt) => { const F = rt.flags; return F.step >= 2 && F.step < 4 && !F.gatePass && !F.ending && !rt.over; },
+  },
   nobiki: true,   // 攻め止めの合図も、札と同じ法螺貝と退き太鼓にそろえる。
   armySignals: false, // 攻め・集合・退きとも、戦固有の音源と札を使う。
   syntheticBattleSound: true, // 箕作の声・蹄・火・風や川も録音へ替えず、合成音を使う。

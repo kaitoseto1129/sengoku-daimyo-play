@@ -15,7 +15,7 @@
 // 部品だけ使う時：buildSiege(rt, SP, { umadashi: false, shiyori: false, ... }) で要らない物を外す。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { masugata, kabukiGate, dobeiLine, fence, sakamogiRow } from './castle_parts.js';
+import { masugata, kabukiGate, dobeiLine, fence, sakamogiRow, seiro } from './castle_parts.js';
 import { dorui, solidRect, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { closeGate } from './siege_gate.js';
 import { tabaGeo, tabaMat } from './taketaba.js';
@@ -28,9 +28,9 @@ const sstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t 
 
 // ---------------------------------------------------------------- 縄張り（形だけ・rt は要らない）
 // o: { x, z, rot（大手の門と外向き）, W（正面の塀の半幅 34）, koguchi: 'masu'|'kuichigai', turn（枡形の折れ ±1）,
-//      yokoya: { at（張り出しの中心の横位置 13）, w（張り出しの幅 7）, d（張り出しの出 5） } | false,
+//      yokoya: { at（張り出しの中心の横位置 13）, w（張り出しの幅 7）, d（張り出しの出 5）, yagura（出隅の井楼 true。既定は無し） } | false,
 //      moat: { w（幅 10）, depth（深さ 3.2）, une（畝の間合い 6・0 で無し） }, kirigishi（城の側を上げる高さ 1.2）,
-//      umadashi: { kind: 'kaku'|'maru', r（半径 8）, moatW（三日月堀の幅 5）, depth（2.4） } | false,
+//      umadashi: { kind: 'kaku'|'maru', r（半径 8）, moatW（三日月堀の幅 5）, depth（2.4）, bank（塀の下の土塁の高さ m。既定 0＝地形を盛らない） } | false,
 //      sakamogi: { at（堀の外からの距離 9） } | false, shiyori: { at（門からの距離 58）, rows（2）, gap（列の間 11） } | false }
 export function siegePlan(o = {}) {
   const P = { x: o.x ?? 0, z: o.z ?? 0, rot: o.rot ?? 0, W: o.W ?? 34, koguchi: o.koguchi || 'masu', turn: o.turn ?? 1 };
@@ -123,6 +123,13 @@ export function siegeHeight(P) {
         }
       }
       const half = U.moatW / 2;
+      // 土塁：塀の筋（角は三方の辺・丸は弧）に沿って地形を盛る。口（奥の角）は盛らない
+      if (U.bank > 0) {
+        let dw = Infinity;
+        if (U.kind === 'maru') { const r = Math.hypot(da, b - U.back), th = Math.atan2(b - U.back, Math.abs(da)); if (th > 0.42) dw = Math.abs(r - U.r); }
+        else if (b > U.back + 3 && b < U.front + 2.2 && Math.abs(da) < U.r + 2.2) dw = Math.min(b < U.front ? Math.abs(Math.abs(da) - U.r) : Infinity, Math.abs(da) < U.r ? Math.abs(b - U.front) : Math.hypot(Math.abs(da) - U.r, b - U.front));
+        if (dw < 2.2) h += U.bank * (1 - sstep(0.7, 2.2, dw));
+      }
       if (d < half) { const u = inner ? d / half : Math.pow(d / half, 0.8); h -= U.depth * Math.min(1, (1 - u) / 0.82); }
     }
     return h;
@@ -165,6 +172,17 @@ export function buildSiege(rt, P, o = {}) {
       K.walls.push(...wallFn(pts));
     }
   }
+  // 横矢の出隅の櫓（yokoya.yagura）：張り出しの内に井楼を一つずつ。上の床から外と門の前を撃つ（下の射撃に足す。兵は足さない）
+  K.yagura = []; const yagFire = [];
+  if (Y && Y.yagura && o.walls !== false) for (const s of [-1, 1]) {
+    const a = s * Y.at, b = Math.min(Y.d - 2, Y.d * 0.4), [x, z] = L(a, b);
+    const T = seiro(rt, x, z, { team, rot: P.rot + Math.PI, ...(Y.yagura === true ? {} : Y.yagura) });
+    K.yagura.push(T);
+    const top = T.topY - rt.world.heightAt(x, z), st = (p, q) => ({ alive: true, h: top + 1.3, seg: [...p, ...q] });
+    const W2 = (aa, bb) => { const [px, pz] = L(aa, bb); return { x: px, z: pz }; };
+    yagFire.push({ structs: [st(L(a - 1, b + 1), L(a + 1, b + 1))], inside: W2(a, b - 10), top: top + 1.2 },
+      { structs: [st(L(a - s, b - 1), L(a - s, b + 1))], inside: W2(a + s * 10, b), flank: true, top: top + 1.2 });
+  }
   // 土橋の縁（低い土の盛り。歩く床は地形そのもの）
   if (P.moat && o.bridge !== false) {
     const B = makeSimpleBatch();
@@ -206,6 +224,7 @@ export function buildSiege(rt, P, o = {}) {
     { structs: K.walls, inside, flank: true },
     { structs: K.umaWalls, inside: umaC },
     ...(K.masu ? [{ structs: K.masu.walls, inside: P.at.plaza }] : []),
+    ...yagFire,
     ...(o.extraWalls || []),
   ], { team, heads: o.heads !== false, ...(o.fire || {}) });
   // 出撃：守りの隊を馬出しの口から出し、横を突かせて引き上げさせる（付け入りの筋）
@@ -296,7 +315,7 @@ export function makeSamaFire(rt, groups, o = {}) {
     let nx = -(bz - az) / l, nz = (bx - ax) / l;
     if ((mx - G.inside.x) * nx + (mz - G.inside.z) * nz < 0) { nx = -nx; nz = -nz; }
     const list = ms.length ? ms : [{ x: mx, z: mz, kind: 'gun' }];
-    for (const m of list) src.push({ i: src.length, s, x: m.x, z: m.z, nx, nz, kind: m.kind || 'gun', flank: !!G.flank, h: s.h || 2.3, men: true, cool: 0 });
+    for (const m of list) src.push({ i: src.length, s, x: m.x, z: m.z, nx, nz, kind: m.kind || 'gun', flank: !!G.flank, h: s.h || 2.3, top: G.top, men: true, cool: 0 });
   }
   const F = { src, t: 0, acc: 0, menT: 0, shots: 0 };
   if (!src.length) { F.tick = () => {}; return F; }
@@ -318,7 +337,7 @@ export function makeSamaFire(rt, groups, o = {}) {
     const ang = Math.random() * 6.283, r = spread * (0.35 + Math.random() * 0.9);
     const tx = u.pos.x + Math.cos(ang) * r, tz = u.pos.z + Math.sin(ang) * r;
     const y0 = Wd.heightAt(c.x, c.z);
-    const sx = c.x + c.nx * 0.45, sz = c.z + c.nz * 0.45, sy = y0 + (c.kind === 'bow' ? c.h + 0.4 : 1.4);
+    const sx = c.x + c.nx * 0.45, sz = c.z + c.nz * 0.45, sy = y0 + (c.top ?? (c.kind === 'bow' ? c.h + 0.4 : 1.4));
     const bow = AR && (c.kind === 'bow' || Math.random() < arrowShare * 0.5);
     if (bow) {
       AR.fire(sx, sy + 0.4, sz, tx, Wd.heightAt(tx, tz), tz);
@@ -680,7 +699,7 @@ export function makeSortie(rt, K, g, so = {}) {
 // def.siegeKit = spec | [spec, ...] | (rt) => spec か [spec]
 // spec: { plan: siegePlan の o（作った plan をそのまま渡してもよい）, build: buildSiege の o（gate・walls・umadashi などで要らない物を外す）,
 //         open（門を初めから開けておく）, stayOpen（出撃の後も門を閉めない＝戦の道筋を塞がない）,
-//         borrow: { r（門からの間合い 40）, name（塀の名で絞る）, flank }：戦に今ある塀を狭間に借りる（兵も塀も足さない）,
+//         borrow: { r（門からの間合い 40）, name（塀の名で絞る。名の並びも可）, flank }：戦に今ある塀を狭間に借りる（兵も塀も足さない）,
 //         sorties: [{ group: (rt, K) => g, ...makeSortie の so }], when: (rt) => bool（撃ち・出撃を動かす間。既定はいつも）,
 //         onBuild: (rt, K) }
 // 堀・畝・切岸を地形に掘る時は、戦のファイルの world.height を siegeHeight(plan) で包む（ここでは掘らない）。
@@ -696,7 +715,7 @@ export function siegeKitFromDef(rt, def) {
       const B = s.borrow, r = B.r ?? 40, [ix, iz] = P.L(0, -14), mine = [];
       for (const st of rt.army.structs || []) {
         if (!st || !st.seg || st.gate !== undefined || st.alive === false || (st.team ?? 0) !== team) continue;
-        if (B.name && st.name !== B.name) continue;
+        if (B.name && !(Array.isArray(B.name) ? B.name.includes(st.name) : st.name === B.name)) continue;
         const [ax, az, bx, bz] = st.seg;
         if (Math.hypot((ax + bx) / 2 - P.x, (az + bz) / 2 - P.z) < r) mine.push(st);
       }
