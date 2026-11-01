@@ -1241,6 +1241,39 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
         // 砂利の所は砂利の粒、踏み跡は土の粒で見せる
         lsDet = mix(lsDet, lsDv.r * 1.25, lsWGrav * 0.7 * lsVk);
         lsDet = mix(lsDet, lsDv.g, lsWTrod * 0.5 * lsVk * lsGreen);
+        // 雪の上も一様にしない（11/1 c_ground_near）：高遠などは雪で上の斑が全部切れ、白い一枚に見えた。
+        // 兵が踏んだ所は雪が溶けて泥が覗き（7m と 1.8m の揺らぎ・踏み跡）、残る雪は窪みが青灰に沈む。
+        float lsOnC = mix(0.65, 1.0, lsOn);   // 城の平場（砂利の庭）も兵が踏み荒らすので弱めて効かせる
+        float lsSnowW = max(lsSnow, smoothstep(0.3, 0.46, lsLum) * (1.0 - smoothstep(0.08, 0.2, lsSat)) * 0.85);
+        float lsSk = lsSnowW * lsOnC * mix(0.4, 1.0, lsFlat) * (1.0 - uLsNight * 0.5);
+        if (lsSk > 0.001) {
+          float lsSl = smoothstep(0.58, 0.8, lsVb * 0.55 + lsVcN * 0.5 + (1.0 - lsVa) * 0.25 + max(lsFoot, lsLane) * 0.45 + uLsWet * 0.1);
+          lsC = mix(lsC, lsSoil * mix(0.75, 1.1, lsVa) * (1.0 - uLsNight * 0.3), lsSl * 0.7 * lsSk);
+          lsC *= 1.0 + (lsVcN * 0.22 + (lsVb - 0.5) * 0.14) * lsSk * (1.0 - lsSl);
+          lsC = mix(lsC, lsC * vec3(0.84, 0.9, 1.02), smoothstep(0.55, 0.3, lsVa + lsVcN * 0.5) * 0.5 * lsSk * (1.0 - lsSl));
+        }
+        // 足もとの細かい肌（11/1 c_ground_near）：近い所は写真の粒が数画素の一色に潰れ、つるりとした土に見えた。
+        // 約35cm と 12cm の揺らぎ（計算だけ・絵は読まない）で、土は腐葉の黒みと乾いた殻の明るみ・細かな砂粒、
+        // 草は根元の暗い隙間と穂先の枯れ色、雪は粒のざらつき。一画素より細かい所は消す（ちらつき止め）。近くの画素だけ。
+        float lsNk = (1.0 - smoothstep(5.0, 24.0, lsDist)) * lsOnC * lsNear;
+        if (lsNk > 0.001) {
+          vec2 lsNq = vec2(lsP.x * 0.8 + lsP.z * 0.6, lsP.z * 0.8 - lsP.x * 0.6) * 2.9 + lsW;
+          float lsNa = 1.0 - smoothstep(0.3, 0.65, length(fwidth(lsNq)));
+          float lsNb = 1.0 - smoothstep(0.3, 0.65, length(fwidth(lsNq * 2.9)));
+          float lsF1 = (lsVn(lsNq + 5.3) - 0.5) * lsNa, lsF2 = (lsVn(vec2(-lsNq.y, lsNq.x) * 2.9 + 11.7) - 0.5) * lsNb;
+          float lsSoK = (1.0 - lsGreen) * (1.0 - lsSnowW);
+          // 土：黒い腐葉と乾いた殻（色味ごと）、砂粒の明暗
+          vec3 lsSoT = mix(vec3(0.7, 0.64, 0.56), vec3(1.24, 1.16, 0.96), smoothstep(-0.3, 0.3, lsF1 + lsVcN * 0.4));
+          lsC *= mix(vec3(1.0), lsSoT, lsSoK * lsNk * lsNa);
+          lsC *= 1.0 + lsF2 * 0.6 * lsSoK * lsNk;
+          // 草：根元の隙間は暗く、穂先は枯れ色に明るく
+          float lsGap0 = smoothstep(0.05, -0.3, lsF1 + lsF2 * 0.6);
+          float lsTip = smoothstep(0.12, 0.38, lsF2 + lsF1 * 0.4);
+          lsC *= 1.0 - lsGap0 * 0.34 * lsGreen * lsNk;
+          lsC = mix(lsC, lsC * vec3(1.22, 1.14, 0.8), lsTip * 0.6 * lsGreen * lsNk);
+          // 雪：粒のざらつき
+          lsC *= 1.0 + (lsF2 * 0.24 + lsF1 * 0.16) * lsSnowW * lsNk;
+        }
       }
       lsC *= max(0.25, 1.0 + lsDet * lsNear * (1.7 + uLsNight * 0.9));
       // 霜：冬の朝夜は平らな所に写真の霜の斑（踏み跡と轍は溶ける）

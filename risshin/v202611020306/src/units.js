@@ -4,6 +4,7 @@ import { gunWeather, rangedSupply } from './weapon_reality.js';
 import { nanbanLook } from './nanban.js';
 import { NAMED_GEAR } from './named_gear.js';
 import { KACCHU } from './kacchu_data.js';
+import { genericKacchu } from './kacchu_generic.js';
 import { recoverGround, mountainWay } from './army_local_way.js';
 import { officerSetup, officerEscort } from './officer.js';
 import { cavalryRole } from './cavalry_tactics.js';
@@ -680,6 +681,8 @@ export class Army {
     }
     if (fieldLook.noHaori) { look.haori = 0; look.horo = 0; look.longHoro = false; }
     if (u.team === 0) allyNoBlue(look);
+    // 名の無い侍・侍大将は名将と同じ当世具足（丸い兜・絵の胴・板の前立にしない。kaito 11/1 E）
+    genericKacchu(look);
     // 全戦共通：背の受筒から一本だけ立てる。母衣衆と幟持ちは背の旗を重ねない。
     look.straightFlag = true;
     if (look.standard || look.horo) { look.flag = null; look.pole = false; }
@@ -725,7 +728,8 @@ export class Army {
     if (u.type === 'cavalry' && o.horse === undefined) o = { ...o, horse: true };
     if (u.type === 'cavalry' && (g.interiorHold || (this._rideChk && this.walledIn(u.pos)))) o = { ...o, horse: false };
     // 名のある武将（武将・GENERALS の人）は馬に乗る（kaito 2026-09-29）。o.horse: false で徒。塀に囲まれた曲輪の中（籠城）は徒（rideCheck）
-    if (o.horse === undefined && (u.type === 'busho' || gen.face) && !g.isPlayerSquad && !(this._rideChk && this.walledIn(u.pos))) { o = { ...o, horse: true }; u.autoHorse = true; }
+    // 侍大将は最初から馬に乗っている（kaito 11/1 C）：名に「大将」とある侍も武将と同じに馬に乗せる。
+    if (o.horse === undefined && (u.type === 'busho' || gen.face || u.type === 'samurai' && o.name && o.name.includes('大将')) && !g.isPlayerSquad && !(this._rideChk && this.walledIn(u.pos))) { o = { ...o, horse: true }; u.autoHorse = true; }
     // 名のある武将の馬は、家の色の馬具（鞍の縁は金、厚総は大きく）
     const hst = () => { const s = horseStyleFor(u.id, gen.face ? 2 : u.type === 'busho' ? 1 : 0, g.faction); if (gen.tack) { s.tack = gen.tack; s.tassels = gen.tack === 0x2a2420 || gen.tack === 0x1a1816 ? (gen.lace ?? s.tassels) : new THREE.Color(gen.tack).multiplyScalar(1.3).getHex(); s.cushion = gen.haori ?? s.cushion; } const C = gen.coat && coatOf(gen.coat); if (C) { s.coat = C.coat; s.mane = C.mane; s.points = C.points; } return s; };
     if (o.horse) {

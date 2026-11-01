@@ -290,7 +290,7 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
 // 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
 const HONNO_DAWN = { ...DAWN, sky: 0x4a5272, fog: 0x585d78, top: 0x222a48,
-  sun: 0xf0d0b0, hs: 0x8088a8, hg: 0x5c4030, sunI: 0.85, hI: 1.45, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む
+  sun: 0xf0d0b0, hs: 0x8a92b2, hg: 0x64483a, sunI: 0.95, hI: 1.6, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む。11/1 点付け「暗くて見えない」：日と空の光を一割ずつ上げる
 // 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;
@@ -3950,6 +3950,9 @@ const honnoji = {
       if (F.hp !== 2 || F.arrowBlaze || F.ending || rt.over) return;
       const r = F.T?.G.byId.hondo;
       if (r) F.arrowBlaze = rt.world.addBlaze(-53, 46, { w: 16, d: 12, h: 3.8, n: 3 }); // 庭側の軒と大屋根の流れに火（棟より上に浮かせない）
+      // 11/1 点付け（炎が板で平ら）：戸口の小さな火（-53,52）は本堂の縁を歩く本人のカメラの三〜四歩先に立ち、壁の前の大きな黄色い楕円の板に見えた。屋根の火だけ残す。
+      const door = F.arrowBlaze?.fires?.pop?.();
+      if (door) rt.world.removeFire(door);
     });
     // 南の宿坊の脇の塀を越えた明智勢が、本堂の縁へ攻め込む。表庭から本堂を見る向きの手前で縁の守りと斬り合う（庭に寄せ手の群れ）。
     // 北から庭を横切らせると、門へ走る本人を途中の斬り合いへ引き込み、門も本堂も写らなかった（10/29）。

@@ -298,6 +298,14 @@ export class PlayerHurt {
     // 矢玉を含む連続被害の上限は、部位の倍率の後で軍勢の共通処理が確かめる。
     taken = this.meleeDamage(taken, src);
     if (!(taken > 0)) return 0;
+    // 一太刀で死の危機（kaito 11/1 C）：構えずに受けた刃は、足軽で命の五割・侍や武将や騎馬で六割を削る。
+    //   満ちた命からの一太刀だけは一割を残す（二太刀目で討たれる）。稽古場と城下は除く。
+    if (src && !src.isStruct && !rt.def.dojo && !rt.def.town) {
+      const heavy = cav || src.type === 'busho' || src.type === 'samurai';
+      let floor = u.maxHp * (heavy ? 0.6 : 0.5) * (rt.D === DIFFICULTY.easy ? 0.75 : 1);
+      if (u.hp >= u.maxHp * 0.85) floor = Math.min(floor, u.hp - u.maxHp * 0.1);
+      taken = Math.max(taken, floor);
+    }
     this.feelHit(taken, src, { back, cav });
     // 馬上では、傷の一部を馬が受ける
     if (this.mounted) { this.horseHurt(taken * 0.5); taken *= 0.65; }
@@ -465,8 +473,10 @@ export class PlayerHurt {
     this.treating = this.treatmentReady = false;
     if (!u.alive || rt.over || rt.def.town || rt.def.dojo) { this.treatmentNearFlag = false; return; }
     // def.playerRegen：戦っていない間（四秒当たらず、自分も打っていない）はゆっくり戻る（稲生。1秒に最大の命のこの割合）
-    if (rt.def.playerRegen && u.lastHitT > 4 && !(this.inCombatT > 0) && u.hp < u.maxHp) {
-      u.hp = Math.min(u.maxHp, u.hp + u.maxHp * rt.def.playerRegen * dt);
+    //   全戦で戻る（kaito 11/1 C「HP は時間で自動に戻ってよい」）：一太刀が重いので、どの戦も一秒に三分より遅くしない。
+    const regen = Math.max(rt.def.playerRegen || 0, 0.03);
+    if (u.lastHitT > 4 && !(this.inCombatT > 0) && u.hp < u.maxHp) {
+      u.hp = Math.min(u.maxHp, u.hp + u.maxHp * regen * dt);
       // 息を整える間に血も止まる（長押しの手当てを知らなくても、休めば戦へ戻れる）
       if (u.wounds?.bleed > 0.0001 && u.lastHitT > 6) { bindWound(u); u.wounds.bleed = 0; this.bandaged = true; }
     }

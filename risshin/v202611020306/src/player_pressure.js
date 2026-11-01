@@ -17,12 +17,14 @@ export function playerPressureTick(army) {
   army._playerPressureAt = army.time + 0.25;
   if (army.tier == null) army.tier = battleTier(army.world?.def?.battleKey);
   // def.playerAtkMax：乱戦の戦（稲生）は四方から同時に打たせる数を戦ごとに決める（kaito 10/29 夜「乱戦激戦」）
-  army.playerAtkMax = army.world?.def?.playerAtkMax ?? (army.tier >= 0.75 ? 3 : 2);
+  //   敵の真ん中にいれば四方から斬りかかられる（kaito 11/1 C）：既定は四人が同時に打つ。
+  army.playerAtkMax = army.world?.def?.playerAtkMax ?? 4;
   // 敵は本人を多く狙う（kaito 10/31）：寄って来る間合いと数を広げる。打つ数（playerAtkMax）は変えない。
   //   退き・行軍の段（大軍の寄せが止まる段＝_massOnV が偽）は元の数のまま。
   const mass = !!army._massOnV;
-  army.playerReach = (mass ? 16 : 13) + 5 * army.tier;
-  army.playerPullMax = (mass ? 4 : 2) + Math.round((mass ? 5 : 6) * Math.pow(army.tier, 1.5));
+  //   kaito 11/1 C：敵は遠くからも走って向かってくる。間合いと数をさらに広げる。
+  army.playerReach = (mass ? 24 : 20) + 6 * army.tier;
+  army.playerPullMax = (mass ? 7 : 5) + Math.round(5 * Math.pow(army.tier, 1.5));
   let pn = 0;
   for (const o of army.units) if (o.pullUntil > army.time && o.alive) pn++;
   army.playerPullN = pn;
@@ -152,8 +154,11 @@ export function playerHitLimit(army, p, amount, src, kind, record = true) {
     if (values[i] > 0 && army.time - times[i] < 2) sum += values[i];
     else if (free < 0) free = i;
   }
-  const cap = kind === 'gun' ? 0.35 : kind === 'arrow' ? 0.25 : src.pos && army.behindOf(p, src) ? 0.3 : 0.35;
-  const taken = free < 0 ? 0 : Math.max(0, Math.min(amount, p.maxHp * cap, p.maxHp * (p.hp < p.maxHp * 0.5 ? 0.3 : 0.4) - sum));
+  // 刃は一太刀で死の危機まで通す（kaito 11/1 C）。矢玉だけは二秒の上限を残す。
+  const missile = kind === 'gun' || kind === 'arrow';
+  const cap = kind === 'gun' ? 0.35 : kind === 'arrow' ? 0.25 : 0.75;
+  const win = missile ? p.maxHp * (p.hp < p.maxHp * 0.5 ? 0.3 : 0.4) - sum : p.maxHp;
+  const taken = free < 0 ? 0 : Math.max(0, Math.min(amount, p.maxHp * cap, win));
   if (record && taken > 0) { times[free] = army.time; values[free] = taken; }
   return taken;
 }

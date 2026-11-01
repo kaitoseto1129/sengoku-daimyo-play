@@ -8,7 +8,10 @@ import { KACCHU } from './kacchu_data.js';
 import { S } from './settings.js';
 import { realCrestGeometry } from './kabuto_real.js';
 export function namedKacchu(look) {
-  if (look.kosode || look.sohei || look.nanban || typeof look.face !== 'string' || !look.face.startsWith('g:')) return null;
+  if (look.kosode || look.sohei || look.nanban) return null;
+  // 名の無い侍の当世具足（kacchu_generic.js）も同じ作りで描く
+  if (look.kacchu?.generic) return look.kacchu;
+  if (typeof look.face !== 'string' || !look.face.startsWith('g:')) return null;
   return look.kacchu || KACCHU[look.face.slice(2)] || null;
 }
 export function namedArmorLook(look) {

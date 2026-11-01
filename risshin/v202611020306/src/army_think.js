@@ -1276,11 +1276,11 @@ export const ArmyThink = {
       if (meleeWait && !u.swing) {
         const base = Math.atan2(u.pos.x - tp.x, u.pos.z - tp.z);
         const a = base + (u.id % 2 ? 1 : -1) * 0.22;
-        const r = Math.max(4.2, Math.min(6, u.reach + 1.1));
+        // 順を待つ者も遠巻きに構えて待たず、すぐ打てる間合いまで駆け寄って囲む（kaito 11/1 C）
+        const r = Math.max(2.8, Math.min(3.6, u.reach + 0.6));
         want = localPoint(this, u, u.moralePoint, tp.x + Math.sin(a) * r, tp.z + Math.cos(a) * r);
-        u.guarding = Math.max(u.guarding || 0, 0.25);
         u.charging = false;
-        this.steer(u, dt, want, u.speed * 0.65, fa);
+        this.steer(u, dt, want, Math.hypot(want.x - u.pos.x, want.z - u.pos.z) > 2 ? u.run : u.speed, fa);
         return;
       }
       // 近い敵から目を離さず、回り込みも引き足も行う。
@@ -1402,7 +1402,8 @@ export const ArmyThink = {
         want = u.moveTo; face = fa; speed = u.speed * 0.75;
       } else if (d > meleeReach || (u.charging && t.isStruct)) {
         // （本人へは 2.6m まで詰めてから打つ。長柄の間合いの外から一方的に打たれて、本人の突きが届かないことが無いように）
-        want = tp; speed = d > 6 || order === 'attack' ? u.run : u.speed;
+        // 本人へは走って向かう（kaito 11/1 C：のろのろ歩いて寄らない）
+        want = tp; speed = d > 6 || order === 'attack' || t.isPlayer ? u.run : u.speed;
         // 槍は組の向きと持ち場の幅を保って踏み込む。刀は横へ回る。
         if (spear && !mixing && !t.isStruct && !u.mounted && d < 12 && !g.isPlayerSquad && !u.combatRetreat) {
           const h = g._face ?? g.facing, fx = Math.sin(h), fz = Math.cos(h);
@@ -1455,7 +1456,7 @@ export const ArmyThink = {
         const a = base + (u.id % 2 ? 1 : -1) * (spear ? 0.12 : 0.38);
         const r = meleeReach + 0.45;
         want = localPoint(this, u, u.moralePoint, tp.x + Math.sin(a) * r, tp.z + Math.cos(a) * r);
-        face = fa; speed = u.speed * 0.55;
+        face = fa; speed = Math.hypot(want.x - u.pos.x, want.z - u.pos.z) > 2 ? u.run : u.speed;
       } else {
         face = fa;
         // 武将は足軽ひとりと延々打ち合わない：手の空いた旗本（同じ隊の者）を二人まで前へ呼び、自分は半歩下がる
@@ -1492,7 +1493,8 @@ export const ArmyThink = {
           want = D.want; speed = u.speed * (fe ? 1.2 : 0.55);
         }
         // 自分（プレイヤー）を前にした侍・足軽は、ときどき構えの姿勢をとる
-        if (t.isPlayer && u.cd > 0.2 && !(u.guardCd > this.time) && u.type !== 'bow' && Math.random() < dt * (u.isOfficer ? 2.4 : 1.1)) {
+        //   （kaito 11/1 C：ゆっくり構えて待つのをやめる。構えは稀にして、すぐ斬りかかる）
+        if (t.isPlayer && u.cd > 0.2 && !(u.guardCd > this.time) && u.type !== 'bow' && Math.random() < dt * (u.isOfficer ? 0.6 : 0.2)) {
           u.guarding = 0.45 + Math.random() * 0.4; u.guardCd = this.time + 2.2;
         }
         if (u.cd <= 0 && !(u.stagger > 0) && !u.swing && Math.abs(angleDiff(u.heading, fa)) < 0.6 && (!this.hooks.beforeMelee || this.hooks.beforeMelee(u, t))) {

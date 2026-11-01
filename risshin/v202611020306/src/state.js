@@ -212,13 +212,6 @@ export const SCENARIOS = {
       { id: 'echizen_ikko', name: '越前一向一揆の山の寺攻め', cap: 290, year: '天正三年（1575）八月', place: '越前国 大滝寺' },
     ],
   },
-  // 第二章「豊臣編」（toyotomi_line.js の並び）。題の画面にはまだ出さない（bot と試しの遊びから入る）
-  toyotomi: {
-    name: '豊臣編', year: '天正十年（1582）〜', faction: 'oda', mon: 'oda', town: '大坂城下',
-    blurb: '本能寺の後、羽柴秀吉に付いて天下統一まで戦う',
-    battles: TOYOTOMI_LINE.map((b) => ({ cap: 240, place: '', ceil: 4, ...b, year: b.yearText || `${b.year}年` })),
-    ceil: TOYOTOMI_LINE.map(() => 4),
-  },
   // 戦闘システムの試し（docs/battle-system-plan.md 3 章）。題の画面・SCENARIO_ORDER・lord.js の一覧には出さない（tools/mvp/*.js が newGame で直に入る）
   system_mvp: {
     name: '戦の試し', year: '天正三年（1575）', faction: 'oda', mon: 'oda', town: '岐阜城下',
@@ -231,11 +224,18 @@ export const SCENARIOS = {
       { id: 'mvp_rojo', name: '試しの出来事（籠城）', cap: 150, year: '天正三年（1575）', place: '試しの城' },
     ],
   },
+  // 第二章「豊臣編」（kaito 11/1・docs/chapter2_toyotomi.md）。並びは toyotomi_line.js。題の画面（SCENARIO_PICK）へ出すのは取り込みの後
+  toyotomi: {
+    name: '豊臣編', year: '天正十年（1582）〜', faction: 'oda', mon: 'oda', town: '大坂城下',
+    blurb: '本能寺の後、羽柴秀吉に付いて天下統一まで戦う',
+    battles: TOYOTOMI_LINE.map((b) => ({ cap: 240, place: '', ...b, year: typeof b.year === 'number' ? `${b.year}年` : b.year })),
+    ceil: TOYOTOMI_LINE.map((b) => b.ceil ?? 4),
+  },
 };
 // SCENARIO_PICK：題の画面で「新しく始める」時に選べる筋書き（いまは織田家編だけ。一つなら選ぶ歩は飛ばす）
 // SCENARIO_ORDER：前からある筋書き（前の保存の続き・侍大将で出陣・図鑑・テストプレイで使う。題の画面の選択には出さない）
-export const SCENARIO_PICK = ['oda'];
-export const SCENARIO_ORDER = ['nagashino', 'nobunaga_hoi', 'sekigahara', 'osaka', 'okehazama', 'siege_mvp'];
+export const SCENARIO_PICK = ['oda', 'toyotomi'];
+export const SCENARIO_ORDER = ['nagashino', 'nobunaga_hoi', 'sekigahara', 'osaka', 'okehazama', 'siege_mvp', 'toyotomi'];
 
 // 各戦の後に到達できる身分の上限。BATTLES と RANK_CEIL は、いま遊んでいる筋書きの中身に入れ替わる（同じ配列のまま中身だけ）
 export const RANK_CEIL = [];

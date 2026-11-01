@@ -177,10 +177,11 @@ function advanceGait(army, u, dt) {
     && !reduceMotion() && !u.isPlayer && !u.mounted
     && (u.fleeing || army.world.def.routedFlightPose && routedPose(u.group));
   const pace = grounded ? Math.min(u.moving, (u._flightSpeed || 0) / 2.4) : u.moving;
-  u.anim += dt * (3 + pace * 6) * (grounded ? Math.min(1, pace / 0.2) : 1);
+  // 歩みの速さを一人ずつ少し違える（±6％。同じ拍子で揃って脚を振る行進に見せない。11/1）
+  u.anim += dt * (3 + pace * 6) * (grounded ? Math.min(1, pace / 0.2) : 1) * (0.94 + ((u.id * 0.618034) % 1) * 0.12);
   const mg = u.group;
   if (mg && !mg.routed && !mg.brokenWithdrawalPose && (mg.marching || mg.formation === 'line' || mg.formation === 'yari' || mg.formation === 'column') && mg.anchorSpeed > 0.3 && u.moving > 0.2 && !u.target && !u.atk && !u.swing && !u.fleeing && !u.confused && !(u.stagger > 0) && !u.mounted && !u.isPlayer) {
-    const want = (mg._ph || 0) + (army.world.def.variedMarch ? (u.id * 2.39996) % (Math.PI * 2) : 0);
+    const want = (mg._ph || 0) + (army.world.def.variedMarch !== false ? (u.id * 2.39996) % (Math.PI * 2) : 0);
     let df = (want - u.anim) % (Math.PI * 2);
     if (df > Math.PI) df -= Math.PI * 2; else if (df < -Math.PI) df += Math.PI * 2;
     const disorder = Math.min(0.85, (mg._terrainLoose || 0) * 0.6 + (mg._wob || 0) * 0.25);
@@ -922,13 +923,13 @@ export const ArmyAnim = {
     let middleGuard = engaged || watching;
     if (watching) rx = -.06;
     // 待つ間の長柄は人ごとに ±4° ほど傾きが違う（槍の林が揃いすぎない）。槍衾に構えると一斉に揃う
-    if (!engaged && !watching && !u.isPlayer) { rx += ((u.id * 0.3719) % 1 - 0.5) * 0.14; ry += ((u.id * 0.5813) % 1 - 0.5) * 0.08; }
+    if (!engaged && !watching && !u.isPlayer) { rx += ((u.id * 0.3719) % 1 - 0.5) * 0.3; ry += ((u.id * 0.5813) % 1 - 0.5) * 0.36; }   // 11/1：±8°・左右±10°へ広げる（平行な棒の列にしない）
     const hedge = g && g.formation === 'yari' && !g.marching && !g.routed && !u.isPlayer && !u.mounted && !u.fleeing && (g.order === 'yari' || g.order === 'hold');
     // 槍衾は各段で穂先の高さと向きをそろえる。見回しの胴の回りを槍へ伝えない。
     if (hedge && !engaged && !(u.contactBrace > 0.1) && !u.atk && !u.swing && !(u.stagger > 0)) u.body.rotation.y = 0;
     if (hedge && !engaged) { const row = Math.floor(u.slot / Math.max(1, g._stepCols || 1)); rx = row === 0 ? 0.07 - (g.yariKneel && u.idl ? 0.12 * u.idl.sit : 0) : row === 1 ? -0.1 : -0.45; ry = Math.max(-0.5, Math.min(0.5, angleDiff(u.heading + u.body.rotation.y, g._face ?? g.facing))); }   // 膝をついた前の段は、穂先を少し上げて胸の高さに
     // 前の者の背について押す後ろの段は、槍を立て気味にして（前の者に当てないよう）穂先を林のように揃える
-    else if ((u._lineFront?.alive || u.pressBack?.alive) && !engaged && !u.isPlayer) { rx = -1.05 + ((u.id * 0.3719) % 1 - 0.5) * 0.1; ry = 0; }
+    else if ((u._lineFront?.alive || u.pressBack?.alive) && !engaged && !u.isPlayer) { rx = -1.05 + ((u.id * 0.3719) % 1 - 0.5) * 0.3; ry = ((u.id * 0.5813) % 1 - 0.5) * 0.4; }
     // 座って待つ槍は石突を下に、穂先を真上へ。合図で通常の構えへ戻す。
     if (u.jinchu && !u.jinchu.standing) { rx = -Math.PI / 2; ry = 0; middleGuard = false; }
     // 接敵して待つ間は穂先を小さく受け替える。突き・払いの軌道は元のまま。
@@ -1204,8 +1205,9 @@ export const ArmyAnim = {
     // 従来は近景でこの印が消え、前列の攻防へ連なる姿が遠景にしか出なかった。
     u.spearRear = !!(front && (!(this.world.def.livingSpearHedge && u.camD < 32) || crowded || this.world.def.rearSpearSupport) && !u.isPlayer && !u.mounted && !a && !sw && !u.fleeing && !(u.stagger > 0) && !(u.cheer > 0) && !(u.yariOpenUntil > this.time));
     if (u.spearRear) {
-      rx = -1.12 - ((u.id * 0.381966) % 1) * 0.2;
-      ry = Math.max(-0.12, Math.min(0.12, ry)); slide = 0; ext = -0.28;
+      rx = -1.06 - ((u.id * 0.381966) % 1) * 0.32;
+      // 柄を一人ずつ左右へ少し開く（後ろから見て平行な棒の列にしない。11/1）
+      ry = Math.max(-0.12, Math.min(0.12, ry)) + (((u.id * 0.5813) % 1) - 0.5) * 0.4; slide = 0; ext = -0.28;
     } else if (engaged && dT < 99 && !u.isPlayer && !u.mounted && !a && !sw) {
       // 胴の見回しで槍が敵から外れないよう、手元で向きを戻す。
       ry = Math.max(-0.45, Math.min(0.45, Math.atan2(sideT - h.position.x, Math.max(0.6, dT - 0.18)) - u.body.rotation.y));
@@ -1215,12 +1217,12 @@ export const ArmyAnim = {
       // 肩の上へ穂先を逃がしつつ、全員が垂直の棒にならない角度で支える。
       // 現在の肩の位置を使い、前列へ出た兵は通常の構えへ戻す。
       // 攻撃・受けの間は深く引き起こし、攻撃の時計と当たりは保つ。
-      const carry = -1.12 - ((u.id * 0.381966) % 1) * 0.2 - (u.contactLoad || 0) * .1;
+      const carry = -1.06 - ((u.id * 0.381966) % 1) * 0.32 - (u.contactLoad || 0) * .1;
       const holding = !a && !sw && !u.guard && !(u.guardFlash > 0) && !(u.guarding > 0)
         && !(u.planted > this.time) && !(u.cheer > 0) && !(u.stagger > 0)
         && !(u.yariOpenUntil > this.time) && !(u.jinchu && !u.jinchu.standing);
       rx = holding ? carry : Math.min(rx, -1.38, carry);
-      ry = 0; ext = Math.min(ext, -0.28);
+      ry = holding ? (((u.id * 0.5813) % 1) - 0.5) * 0.4 : 0; ext = Math.min(ext, -0.28);
       // 立てた石突きを土へ埋めない。拳を引き、柄は握りの中で上へ送る。
       const gripY = h.position.y - (u.spLift || 0) + u.body.position.y;
       slide = Math.max(0, Math.abs(w?.userData.butt || -1.25) - Math.max(0.15, gripY - 0.06) / Math.max(0.5, Math.sin(-rx)));

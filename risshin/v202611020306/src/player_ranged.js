@@ -146,6 +146,46 @@ export class PlayerRanged {
     }
   }
 
+  // ---------------- 敵の弓を拾う（kaito 11/1 C） ----------------
+  // 討たれた弓足軽（または脇差を抜いて弓を置いた者）の弓が 2.4m 内にあれば拾える。持っていれば矢だけ拾う。
+  findBowPickup() {
+    const rt = this.rt, army = rt.army, p = this.u.pos;
+    let best = null, bd = 2.4;
+    const look = (o) => {
+      if (Math.abs(o.pos.y - p.y) > 2) return;
+      if (o.type !== 'bow' || o.team === this.u.team || o.bowTaken) return;
+      const w = o.alive ? (o.sidearm ? o.dropped : null) : (o.dropped || (o.wpnKind !== 'sword' ? o.wpn : null));
+      if (!w || !w.parent) return;
+      const d = Math.hypot(o.pos.x - p.x, o.pos.z - p.z);
+      if (d < bd) { bd = d; best = o; }
+    };
+    for (const o of army.dead || []) look(o);
+    for (const o of army.units) if (o.alive && o.sidearm) look(o);
+    if (best === this.pickBowSrc) return;
+    rt.uninteract('pickbow');
+    this.pickBowSrc = best;
+    if (best) rt.addInteract('pickbow', { x: best.pos.x, z: best.pos.z }, this.hasBow ? '矢を拾う' : '弓を拾う', () => this.pickBow(best), { r: 2.6 });
+  }
+  pickBow(o) {
+    const rt = this.rt;
+    if (!o || o.bowTaken || this.mounted || this.u.climb || !this.u.alive || rt.over ||
+        Math.hypot(o.pos.x - this.u.pos.x, o.pos.z - this.u.pos.z) > 2.6 ||
+        Math.abs(o.pos.y - this.u.pos.y) > 2) return;
+    o.bowTaken = true;
+    const w = o.dropped && o.dropped.parent ? o.dropped : o.wpn;
+    if (w && w.parent) w.parent.remove(w);
+    if (o.dropped === w) o.dropped = null;
+    rt.uninteract('pickbow'); this.pickBowSrc = null;
+    sfx('kozane', 0.8);
+    if (!this.hasBow) {
+      // 拾った弓は、この戦の間だけ使える。矢は箙に残る十二本
+      this.hasBow = true; this.bowPicked = true;
+      this.bowMesh = weaponMesh('bow');
+      this.bowAmmo = 12;
+      this.switchWeapon('bow');
+    } else this.bowAmmo = (this.bowAmmo || 0) + 8;
+  }
+
   // ---------------- 火縄銃・弓 ----------------
   // 飛び道具を手にしていない時：引きかけ・切りかけをやめ、札を隠す（弾込めは火縄銃を手にしている間だけ進む）
   rangedIdle() {

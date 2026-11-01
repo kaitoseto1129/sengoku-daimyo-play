@@ -443,6 +443,9 @@ const STEP_UMA = [null, null, null, null, null, null, 'fan', 'fan', 'gourd', 'su
 // 装備と段から見た目を決める（戦場・武具屋・出世の道のプレビューで共通）
 export function playerLook(G, stepOverride) {
   const step = stepOverride ?? ladderStep(G);
+  // 最初の段は一番末端の足軽（kaito 11/1「侍大将で始まる＝誤り」）：御貸具足の黒い桶側胴に陣笠、袖なし、長柄の槍。
+  // 侍大将の朱威の胴丸（9/29 の姿）は組頭から上だけ
+  if (step === 0) return ashigaruLook(G);
   // 本人の甲冑は、どの段でも9月末の「侍大将で出陣」の朱威の胴丸（kaito 10/31）。段が上がれば金縁などを足すだけ
   const hs = Math.max(3, step);
   const bl = BODY_LOOK[ITEMS[G.equip.body].look];
@@ -469,6 +472,23 @@ export function playerLook(G, stepOverride) {
     menpoStyle: 'hanbo',
     // 本人はどの段でも本物の胴丸（3Dスキャン）を、9/29 の侍大将と同じ着せ方（人形の兜ごと）で着る（humans_runtime.js）
     real: 1, hero9: 1,
+  };
+}
+
+// 末端の足軽の姿（ホームの絵と戦場で同じ）。買った胴・笠はそのまま着る
+function ashigaruLook(G) {
+  const lk = ITEMS[G.equip.body].look, bl = BODY_LOOK[lk];
+  const wItem = ITEMS[G.equip.weapon];
+  return {
+    // 簡素な胴（最初の胴）は、革の色でなく御貸具足の黒漆の桶側胴に茶の威
+    armor: lk ? bl.armor : 0x24221f, lace: lk ? bl.lace : 0x4a3a2a, trim: 0, sode: lk ? bl.sode : false, hat: ITEMS[G.equip.hat].look || 'jingasa',
+    // 本人の見分けは背の金の旗（どの段でも）
+    flag: 'player_gold', pole: true, flagScale: 1.25, flagShape: 0,
+    hatColor: 0x2a2420,   // 御貸の陣笠は黒漆
+    cloth: 0x43392f, uma: null,
+    weapon: 'spear', weaponExtra: wItem.reach || 0,
+    haori: 0, noHaori: true, saya: G.owned.includes('katana'), menpo: 0, horo: 0, left: null,
+    tier: 0, face: 'player', mon: scenario().mon, dirt: 0.75,
   };
 }
 
@@ -829,6 +849,8 @@ export class Player {
       this.horseMax = Math.round((150 + 20 * (this.step - 2)) * H.hpMul);
       const condition = G.horse?.condition;
       this.horseHp = this.horseMax * Math.max(0, Math.min(1, condition?.health ?? 1));
+      // 侍大将より上（手柄の位は merit.js の 320 点から）は最初から馬に乗っている（kaito 11/1 C）：前の戦で馬が傷ついても、替え馬で出陣する。
+      if ((this.step >= 3 || (G.tegara ?? 0) >= 320) && this.horseHp < this.horseMax * 0.6) this.horseHp = this.horseMax * 0.6;
       this.hfat = Math.max(0, Math.min(1, condition?.fatigue || 0));
       this.maxBreath = Math.round(100 * H.breathMul); this.breath = this.maxBreath;
       this.yariResist = H.id === 'iwane' ? 0.6 : 1;
@@ -1221,7 +1243,7 @@ export class Player {
       rt.bark(this.lastHit?.ranged && rt.t - this.lastHit.t < 8 ? '深手だ！　矢玉を避け、塀や屋敷の陰へ退け' : '深手だ！　組の者のいる所まで退け', true);
     }
     this.pickT = (this.pickT || 0) - dt;
-    if (this.pickT <= 0 && !this.mounted) { this.pickT = 0.3; this.findGunPickup(); }
+    if (this.pickT <= 0 && !this.mounted) { this.pickT = 0.3; this.findGunPickup(); this.findBowPickup(); }
 
     // 旗の近くまで退くと、操作せず少しずつ命を戻す。
     this.updateTreatment(dt);

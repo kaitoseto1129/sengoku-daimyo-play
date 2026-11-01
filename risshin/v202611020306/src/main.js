@@ -37,7 +37,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { AdaptPass, FinishPass, clearEdgeDark } from './post.js';
 import { initAudio, silence, sfx, setVolume, duck, townMusic, playMusic, stopMusic } from './audio.js';
-import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, ronkoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
+import { titleScreen, storyCard, loadingStory, inkBand, evalScreen, spoilHorseInfo, aijirushiScreen, baseScreen, finalScreen, hideScreen, helpOverlay, settingsScreen, pauseMenu, notice, deathScreen, promoScreen, recordsScreen, dojoResult, epilogueScreen, ladderScreen } from './screens.js';
 import { S, QUALITY, saveSettings, canonical, K, reduceMotion, MEM_TIGHT, MEM_TIGHT_TEST, CPU_LEAN } from './settings.js';
 import { TIER, noteGL, markInBattle, markCrashed, WEAK_TEX_MAX, battleDrawRatio } from './device_tier.js';
 import { HeatWatch } from './heat_watch.js';
@@ -58,11 +58,14 @@ import { realmAfter } from './realm.js';
 import { hyojoScreen, shitakuScreen, hyojoOn, phase2HintScreen } from './hyojo.js';
 import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
+import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { isLocked, showPaywall } from './paywall.js';
 import { ADDITIONAL_TIPS, pickTip } from './tips.js';
 import { loadWeapons, UNIT_NIGHT, UNIT_NIGHT_FOCUS, UNIT_FIRE_METAL } from './units_model.js';
 // 題では戦の名前だけ登録する。中身と素材は出陣する時に読む。
 markReady(BATTLE_IDS);
+// 豊臣編（toyotomi_line.js）の戦も名前だけ先に登録する。中身は battles.js が出陣の時に読む
+markReady(TOYOTOMI_LINE.map((b) => b.id));
 // 日本地図・城攻め・図鑑（名簿と顔）は重いので、最初には読まない。要る時に import() する（874・875）
 let JPm = null, CBm = null, ZKm = null;
 const jp = () => import('./japan.js').then((m) => (JPm = m));
@@ -146,11 +149,14 @@ function ldTick() {
   if (left) {
     const elapsed = performance.now() - P.t;
     const current = P.est[Math.max(0, P.cur)] || 0;
-    const remaining = Math.max(0, current - elapsed) + P.total - P.done - current;
-    const text = elapsed > current
-      ? '目安より時間がかかっています。支度を続けています'
-      : `待つ目安：あと約${Math.max(5, Math.ceil(remaining / 5000) * 5)}秒（端末により前後します）`;
+    // 目安を過ぎた工程は、残りの半分ほどをまだ要ると見る（「時間がかかっています」の字に替えず、いつも秒で示す。kaito 11/1）
+    const remaining = Math.max(current - elapsed, Math.min(current, 1000) * 0.5) + P.total - P.done - current;
+    const sec = Math.max(1, Math.ceil(remaining / 1000));
+    // 秒は一つずつ減らす（見込みの揺れで増えて見せない。ただし工程が替わって大きく延びた時だけ上げる）
+    P.shown = P.shown == null || sec < P.shown || sec > P.shown + 3 ? sec : P.shown;
+    const text = `あと約${P.shown}秒`;
     if (left.textContent !== text) left.textContent = text;
+    $('loading').querySelector('.ldmon')?.setAttribute('data-sec', String(P.shown));
   }
 }
 function ldStep(key) {
@@ -204,7 +210,7 @@ const stage = (t, key) => {
   const remaining = $('ld-left');
   remaining.hidden = !t;
   remaining.style.display = t ? 'block' : 'none';
-  if (t === '戦の支度ができました') remaining.textContent = 'まもなく始まります';
+  if (t === '戦の支度ができました') { remaining.textContent = 'まもなく始まります'; $('loading').querySelector('.ldmon')?.setAttribute('data-sec', '0'); }
 };
 const stageError = (retry) => { game.loadingReader?.dispose(); game.loadingReader = null; const failedStage = ldName; $('loading').classList.add('failed'); lockHint(false); document.querySelector('#loading .ld-cancel')?.remove(); $('loading').hidden = false; clearInterval(ldIv); ldIv = 0; ldPlan = null; stage(''); const el = $('ld-stage'); el.textContent = `！ ${failedStage}の途中で止まりました。題へ戻っても城下の記録は残ります。もう一度お試しください。`; el.insertAdjacentHTML('beforeend', '<div class="ld-actions"><button class="btn small" id="ld-title">題の画面へ戻る</button><button class="btn small" id="ld-retry">もう一度支度する</button></div>'); el.setAttribute('role', 'alert'); $('ld-retry').onclick = () => { $('ld-retry').disabled = true; $('ld-title').disabled = true; el.setAttribute('role', 'status'); sfx('ui'); if (freshRetry()) return; Promise.resolve().then(retry).catch(() => stageError(retry)); }; $('ld-title').onclick = () => { hideLoading(); game.title(); }; $('ld-title').focus({ preventScroll: true }); };
 // 「もう一度支度する」は頁を読み込み直して同じ所から始める（10/24 Lancers：Windows の Chrome で稲生の後の支度が何度押しても止まった）。
@@ -1875,7 +1881,7 @@ const game = {
     if (saved) setScenario(saved.scenario || 'okehazama');
     this.prefetchBattleCode(!saved);
     titleScreen(saved,
-      (name, diff, scn) => { initAudio(); this.G = newGame(name, diff, scn); save(this.G); this.bg = null; this.story(0); },
+      (name, diff, scn) => { initAudio(); this.G = newGame(name, diff, scn); save(this.G); this.bg = null; if (!this.homeFirst()) this.story(0); },
       () => { initAudio(); this.G = saved; this.bg = null; this.resume(); },
       () => settingsScreen(onSettings, () => this.title()),
       async (G) => { initAudio(); G.slot = S.slot; this.G = G; setScenario(G.scenario); this.bg = null; const ok = await this.resume(); if (ok === false) return false; save(G); notice(progressStored(G) ? '保存文字列を確かめて再開し、端末へ保存しました' : '！ 再開しましたが、端末へ保存できませんでした。保存文字列を控えてください'); return true; },
@@ -1926,8 +1932,14 @@ const game = {
     const G = this.G;
     if (G.japan) return this.japanMap('title', true);
     if (G.battle >= BATTLES.length) return finalScreen(G, () => this.title(), () => this.japanMap('final'));
-    else if (G.battle === 0) return this.story(0);
+    else if (G.battle === 0) return this.homeFirst() || this.story(0);
     else return this.base();
+  },
+  // 題の「始める」はホームへ（kaito 11/1）。最初の戦（稲生）もホームの出陣から。bot・描かない道具は今までどおり戦へ直に
+  homeFirst() {
+    if (scenarioKey() !== 'oda' || this.G?.lord || this.G?.practice || isNorender() || /[?&]bot/.test(location.search) || window.__cardTown) return false;
+    this.base();
+    return true;
   },
 
   story(i) {
@@ -2488,9 +2500,9 @@ const game = {
     } else if (i === 0 && (scenarioKey() === 'oda' ? !r.mainDone : G.rank === 0)) {
       // 最初の戦をしくじった時は、もう一度（織田家編は桶狭間では昇進しないので、任務を果たせば城下へ進む）
       // 織田家編は、しくじっても戦功なしで城下へ進める（最初の戦で先へ進めなくならないように）
-      if (scenarioKey() === 'oda') actions.push({ label: '次へ（城下へ・戦功なし）', primary: true, fn: () => { save(G); this.base(); } });
+      if (scenarioKey() === 'oda') actions.push({ label: 'ホームへ戻る', primary: true, fn: () => { save(G); this.base(); } });
       actions.push({ label: `${BATTLES[0].name.replace(/の戦い$/, '')}に再挑戦する`, primary: scenarioKey() !== 'oda', fn: retry.fn });
-      actions.push({ label: '題の画面へ', fn: () => this.title() });
+      if (scenarioKey() !== 'oda') actions.push({ label: '題の画面へ', fn: () => this.title() });
     } else if (i === BATTLES.length - 1) {
       save(G);
       actions.push({ label: '後日譚へ', primary: true, fn: () => epilogueScreen(G, () => finalScreen(G, () => this.title(), () => this.japanMap('final'))) });
@@ -2514,25 +2526,11 @@ const game = {
         if (r.promoted && !G.lord) promoScreen(gBefore, G, r, reward);
         else reward();
       };
-      if (r.mainDone && !G.practice && !G.lord && !r.taishoLost && BATTLES[i].id !== 'honnoji') ronkoScreen(G, r, afterAward);
-      else afterAward();
+      // 主君の前の論功の札は出さない（kaito 11/1「戦の後のボタンが多すぎる。信長の許しなど何度も押させない」）。感状は記録に残す
+      afterAward();
     };
-    const afterScene = () => {
-      if (r.mainDone && !G.practice && !G.lord && scenarioKey() === 'oda') {
-        import('./campaign_map.js').then(({ campaignMap }) => {
-          if (this.G !== G || this.battle) return;
-          campaignMap(BATTLES[i], showResult, null, { G, victory: true });
-        }).catch(() => { if (this.G === G && !this.battle) showResult(); });
-      } else showResult();
-    };
-    if (r.mainDone && BATTLES[i].id === 'inou') {
-      // 戦場を片付けてから読む。他の戦へ稲生の札の処理を持ち込まない。
-      const seq = this.startSeq;
-      import('./inou_after.js').then(({ inouAfterScene }) => {
-        if (this.G !== G || this.battle || this.startSeq !== seq) return;
-        inouAfterScene(afterScene);
-      }).catch(() => { if (this.G === G && !this.battle && this.startSeq === seq) afterScene(); });
-    } else afterScene();
+    // 勝った後の版図の地図・稲生の後の史実の札は挟まない（kaito 11/1：戦の後に押させる数を減らす）。昇進の場面と結果の画面だけ
+    showResult();
   },
 
   base() {
@@ -2559,7 +2557,8 @@ const game = {
     save(this.G);
     if (!progressStored(this.G) && !this.G.practice) notice('！ 城下の記録を保存できませんでした。題へ戻る前に、端末の保存の空きを確かめてください');
     // 稲葉山前の札は、歩く城下と札の城下のどちらでも一度だけ。
-    if (phase2HintScreen(this.G, () => this.base(), save)) return;
+    // 稲葉山前の説明の札は出さない（kaito 11/1：先へ進むのに押させない）
+    void phase2HintScreen;
     // 戦の後・続きからは本陣（絵の札の一画面）へ。bot・norender の道具は今までどおり城下の札
     if (!isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown) { if (this.battle && this.battle.def.town) this.stopBattle(); return this.hub(); }
     // 城下を歩く（設定の既定）。すでに町にいれば、そのまま町へ戻る
@@ -2575,6 +2574,7 @@ const game = {
     return {
       mapOn: scenarioKey() === 'oda' && !G.lord && (G.rank >= 4 || G.battle >= BATTLES.length),
       realmOn: scenarioKey() === 'oda' && !G.lord && hubTabOpen(G, 'realm'),
+      toiyaOn: hubTabOpen(G, 'toiya'),
       ranks: RANKS,
       noPreview: isNorender(),
       onTitle: () => this.title(),
@@ -2583,6 +2583,8 @@ const game = {
       onLaunch: (r) => this.launchPick(r),
       on: {
         realm: () => cards('realm'),
+        toiya: () => cards('toiya'),
+        shop: () => cards('shop'),
         train: () => (hubTabOpen(G, 'train') ? cards('train') : this.startDojo()),
         ladder: () => this.ladder('town'),
         town: () => (this.townWalkOn() ? this.startTown() : cards('boss')),
@@ -2710,7 +2712,8 @@ const game = {
   // 出陣の前に「支度」を一つ整える（hyojo.js）。信長・試しは今のまま一押し
   nextBattle() {
     const G = this.G;
-    if (!hyojoOn(G) || G.battle >= BATTLES.length) return this.startBattle(G.battle);
+    // 最初の稲生はホームの出陣からそのまま戦へ（支度の札を挟まない。kaito 11/1）
+    if (!hyojoOn(G) || G.battle >= BATTLES.length || BATTLES[G.battle]?.id === 'inou') return this.startBattle(G.battle);
     shitakuScreen(G, () => { save(G); this.startBattle(G.battle); }, () => this.base());
   },
 
