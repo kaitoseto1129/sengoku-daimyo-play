@@ -6,7 +6,7 @@ import { spearReach } from './weapon_reality.js';
 import { takedaHead, takedaShin } from './takeda_kiba.js';
 // 見た目の組み立て（lookParts・buildModel）：兵種と家から、頭・胴・手足・得物を選んで一人の形にする
 // （units.js から分けた。中身は元のまま。外の係は今までどおり units.js から import してよい）
-import { faceOf, lodSwap, flagMaterial, umaGeometry } from './units_flags.js';
+import { faceOf, lodSwap, flagMaterial, umaGeometry, isPlayerFlag } from './units_flags.js';
 import { HAIR, FACES, headGeometry, geoCache, bodyGeometry, merge, soheiLook, thighGeometry, shinGeometry, armGeometry, MAT, makeWeapon, flagGeo, poseArms, P, at, MK, nanbanMaterial, lazyGeo } from './units_model.js';
 import * as THREE from 'three';
 import { S } from './settings.js';
@@ -217,7 +217,7 @@ export function buildModel(u, look) {
     flag = new THREE.Mesh(u.team === 1 ? enemyFlagGeo : flagGeo, flagMaterial(look.flag, look.flagBoost, u.team === 1));
     flag.castShadow = true;
     flag.position.set(0, 2.36, -0.24);
-    if (look.flag === 'player_gold') {
+    if (isPlayerFlag(look.flag)) {
       flag.position.y += .26;
       // 母衣のある身分でも布と竿が背の袋に埋まらない。
       if (look.horo) flag.position.z = -.65;

@@ -7,7 +7,7 @@ import { REAL_PTS, MID_NEAR } from './world_army_shader.js';
 import { HUM, SRC, HEAD, isNamed, isSohei, humanLook, preparationFrame, qualityKeeper, skinOpponent, humanPool, humanBuilding, SKIN_MAX, HSTAT, fits, attachBody, humanPoolKey, pinHumanGeometries, ALLB, restMatrix, XB, humanInv, memTight, borrowHuman, shapesReady, realNear, kusaPlates, SKIN_OUT, HUM_Q, HUM_T, SKIN_IN, v0, MIDDLE_MAX } from './humans_shared.js';
 import { _sph, _fr, COARSE, skipHiddenMW, tipMW, noopChange, carryFlag, dropHuman, humanSelection, humanCaches, farSpHid, farSp, farSpNow, evictHidden, humanTurn, _pv } from './humans_lifecycle.js';
 import { preStep, preparationUnits, DM_KEEP, shareHumanSkeleton, cacheHumanSkeleton, crowdGeometry, humanGeoMaps } from './humans_crowd_geometry.js';
-import { UNIT_MAT, lookParts, GENERALS, DEATH_END } from './units.js';
+import { UNIT_MAT, lookParts, GENERALS, DEATH_END, shadowWorth } from './units.js';
 import { unitMatPBR } from './units_model.js';
 import { headMats, headMaterial, faceStyle, finishFaceCopies, COMPILE, faceStyles, faceRenderer } from './humans_face_materials.js';
 import { S, MEM_TIGHT, CPU_LEAN } from './settings.js';
@@ -225,7 +225,8 @@ function* buildHuman(u, look0) {
     // 本人も、胴丸を着る時は武将と同じく陣羽織・前立・腰の刀・自分の顔を付ける（胴丸の人形の兜に、本人の兜の前立を載せる）
     // 本人は 9/29 の「侍大将で出陣」と同じ着せ方：胴丸の人形の兜・面頬ごと着て、別の兜・顔・陣羽織は付けない（kaito 10/31）
     const hero9 = !!u.isPlayer && !!L.hero9 && !L.kosode;
-    h.mode = 'full'; const nd = !hero9 && (isNamed(L) || !!u.isPlayer || !!L.officer); h.helmScan = nd;
+    // 本人が見た目の品（前立・兜の漆。cosmetics.js）を着ていれば、9/29 の姿でも兜はスキャンをかぶせて前立を立てる
+    h.mode = 'full'; const nd = (!hero9 || !!(L.kbCrest || L.kbLac)) && (isNamed(L) || !!u.isPlayer || !!L.officer); h.helmScan = nd;
     // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
     const kb = nd && KABUTO.on && KABUTO.ready;
     const ashigaru = !hero9 && (L.tier ?? 0) < 1 && !isNamed(L);
@@ -1042,7 +1043,7 @@ function humansStep(rt, dt, army, cam) {
     const noSh = u.qualityTier === 2 || !u.shOn;
     if (h.noSh !== noSh) {
       h.noSh = noSh;
-      h.root.traverse((o) => { if (!o.isMesh) return; if (o.userData.cs0 === undefined) o.userData.cs0 = (o.userData.unitCastShadow ?? o.castShadow) && !o.userData.teeth; o.castShadow = !noSh && o.userData.cs0; });
+      h.root.traverse((o) => { if (!o.isMesh) return; if (o.userData.cs0 === undefined) o.userData.cs0 = (o.userData.unitCastShadow ?? o.castShadow) && !o.userData.teeth; o.castShadow = !noSh && o.userData.cs0 && shadowWorth(o, u); });
       if (!noSh) h.root.updateMatrixWorld(true);
     }
     h.acc += dt;

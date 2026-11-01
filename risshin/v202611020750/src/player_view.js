@@ -318,7 +318,7 @@ export class PlayerView {
       const posVersion = o.geometry.attributes.position?.version;
       const instanceVersion = o.instanceMatrix?.version;
       if (!e || e.v !== version || e.g !== o.geometry || e.pos !== posVersion || e.instance !== instanceVersion || ((o.isBatchedMesh || o.isInstancedMesh) && e.t !== this.camNearT)) {
-        if (e && e.pos !== posVersion && !o.isBatchedMesh && !o.isInstancedMesh) o.geometry.computeBoundingSphere();
+        if (e && e.pos !== posVersion && !o.isBatchedMesh && !o.isInstancedMesh && o.geometry.userData.boundsVersion !== posVersion && !(o.geometry.userData.boundsFixed && o.geometry.boundingSphere)) o.geometry.computeBoundingSphere();
         const sphere = camBlockSphere(o);
         e = e || { c: new THREE.Vector3(), r: 0 };
         e.c.copy(sphere.center).applyMatrix4(o.matrixWorld); e.r = sphere.radius * o.matrixWorld.getMaxScaleOnAxis();
@@ -388,7 +388,9 @@ export class PlayerView {
   toggleView() {
     const r = S.camRange || 'mid';
     // 押すたびに一人称と三人称を行き来する（三人称は近い・普通・遠いの三段を回してから一人称へ行くと、押しても変わらないように見えた）。
-    if (S.view === 'first') S.view = 'third';
+    // 城下は戦の視点を受け継がず、既定は三人称（kaito 11/1 F：手と槍だけ見えるのはおかしい）。城下で切り替えた分はその場だけ
+    if (this.rt.def.town) this.townView = this.viewNow() === 'first' ? 'third' : 'first';
+    else if (S.view === 'first') S.view = 'third';
     else S.view = 'first';
     // 切り替えた瞬間の画面の向きを、そのまま歩く向きにする（肩越しの寄せを向きへ移す）
     this.yaw += this.camYawOff || 0; this.camYawOff = 0;
@@ -396,12 +398,13 @@ export class PlayerView {
     saveSettings();
     sfx('ui');
     const nm = { near: '近い', mid: '普通', far: '遠い' }[S.camRange || 'mid'];
-    if (this.rt.def.missionStyle !== 'lesson' && this.rt.def.missionStyle !== 'raid') this.rt.hud.flash(S.view === 'first' ? '一人称（自分の目で見る）' : `三人称・${nm}（背中から見る）`, 'dim');
+    if (this.rt.def.missionStyle !== 'lesson' && this.rt.def.missionStyle !== 'raid') this.rt.hud.flash(this.viewNow() === 'first' ? '一人称（自分の目で見る）' : `三人称・${nm}（背中から見る）`, 'dim');
   }
   // 一人称で見てよい時か。開戦の引き・大事な場面・倒れた時・戦の終わり・写真モードは三人称に戻す（終われば一人称へ戻る）
+  viewNow() { return this.rt.def.town ? (this.townView || 'third') : S.view; }
   fpWanted() {
     const rt = this.rt;
-    return S.view === 'first' && this.u.alive && !(this.introT > 0) && !this.cine && !rt.over && !(rt.game && rt.game.photo);
+    return this.viewNow() === 'first' && this.u.alive && !(this.introT > 0) && !this.cine && !rt.over && !(rt.game && rt.game.photo);
   }
   // 目の位置：骨の入った人なら頭の骨の少し上・前。無ければ体の高さから
   eyeRaw(out) {

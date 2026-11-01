@@ -271,7 +271,7 @@ function rideHuman(h, dt) {
   rotWorld(B.RightUpLeg, _right, -bob * .06); rotWorld(B.LeftUpLeg, _right, -bob * .06);
   // 上体：速いほど前へ、曲がる時は内へ、止まる時は後ろへ体を残す
   const charge = u.charging ? 0.12 : 0;
-  const lean = Math.min(0.1, spd * 0.01) + charge - Math.min(0.2, (h.decel || 0) * 0.25) + Math.max(0, up) * 0.55;
+  const lean = Math.min(0.2, spd * 0.022) + charge - Math.min(0.2, (h.decel || 0) * 0.25) + Math.max(0, up) * 0.55;
   rotWorld(B.Spine, _right, lean + bob * 0.5);
   rotWorld(B.Spine2, _right, -bob * 0.35);
   rotWorld(B.Spine, _fwd, -(h.turn || 0) * 0.25);

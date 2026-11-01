@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { S } from './settings.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+const partBox = new THREE.Box3(), partSphere = new THREE.Sphere();
 
 export function mergeFenceBatch(scene, list, mat, cam = true, near = false, world = null) {
   const meshes = [];
@@ -38,15 +39,22 @@ export function mergeFenceBatch(scene, list, mat, cam = true, near = false, worl
       normal.getNormalMatrix(p.matrix);
       v.fromArray(p.pos).applyMatrix4(p.matrix);
       const hx = v.x, hy = v.y, hz = v.z;
+      partBox.makeEmpty();
       for (let i = 0; i < p.pos.length / 3; i++) {
         if (p.visible) v.fromArray(p.pos, i * 3).applyMatrix4(p.matrix);
         else v.set(hx, hy, hz);   // 区画の場所で面を潰し、描く範囲が原点まで広がるのを防ぐ。
         P.setXYZ(p.offset + i, v.x, v.y, v.z);
+        partBox.expandByPoint(v);
         v.fromArray(p.norm, i * 3).applyNormalMatrix(normal);
         N.setXYZ(p.offset + i, v.x, v.y, v.z);
       }
       P.needsUpdate = true; N.needsUpdate = true;
-      geo.computeBoundingBox(); geo.computeBoundingSphere();
+      // 束の範囲は書き換えた区画だけ広げる（小谷は束が三十万頂点あり、戸の開閉ごとに全部を測り直して一コマ百ミリ秒止まった。11/1）。
+      // 範囲は縮めない（見切りの判定が少し甘くなるだけで、消える事はない）。
+      if (!geo.boundingBox) geo.computeBoundingBox(); else geo.boundingBox.union(partBox);
+      if (!geo.boundingSphere) geo.computeBoundingSphere();
+      else if (!partBox.isEmpty()) { partBox.getBoundingSphere(partSphere); geo.boundingSphere.union(partSphere); }
+      geo.userData.boundsVersion = P.version;   // 視点の当たり（player_view.js）が同じ範囲を測り直さない
       if (mesh.userData.refreshMaterialPart) mesh.userData.refreshMaterialPart(id);
       mesh.visible = visible > 0;
     };
@@ -246,6 +254,8 @@ function materialShape(mesh, world, entries, parts) {
   const indices = new Uint32Array(ranges.reduce((n, r) => n + r.full.length, 0));
   packed.setIndex(new THREE.BufferAttribute(indices, 1).setUsage(THREE.DynamicDrawUsage));
   packed.computeBoundingSphere(); mesh.geometry = packed;
+  // 遠近の形の入れ替え（setFar）は元の範囲の中で頂点を動かすだけ。視点の当たりが三十万頂点の範囲を毎回測り直さない（小谷で一コマ二百ミリ秒。11/1）
+  packed.userData.boundsFixed = true;
   (world.buildingDetails || (world.buildingDetails = [])).push({ hi, lo: packed });
   const cameraPos = new THREE.Vector3(), nearest = new THREE.Vector3(), frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
   const lastPos = new THREE.Vector3(Infinity, Infinity, Infinity), lastDir = new THREE.Vector3(), direction = new THREE.Vector3();

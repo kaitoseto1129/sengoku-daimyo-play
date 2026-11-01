@@ -33,6 +33,7 @@ import { PlayerMelee } from './player_melee.js';
 import { PlayerCommand } from './player_command.js';
 import { PlayerView } from './player_view.js';
 import { PlayerCamera } from './player_camera.js';
+import { dressLook, wornHorseKind } from './cosmetics.js';
 // 刃の軌跡（Player.trailTick）の材質と使い回しのベクトル
 export const TRAIL_N = 12;
 export const _meleeResult = { res: null };   // 二人目以降の当たり方を調べる入れ物を使い回す
@@ -477,7 +478,7 @@ export function playerLook(G, stepOverride) {
   const lq = R.lq != null && !ownBody ? R.lq : null;
   const ar = hi >= 7 ? STEP_ARMOR[hi] : null;
   const real = R.real || (hat.startsWith('kabuto') && (ownBody || g >= 2)) ? 1 : 0;
-  return {
+  return dressLook({
     armor: ar?.armor ?? lq ?? (ownBody ? bl.armor : R.armor ?? bl.armor), lace: ar?.lace ?? (ownBody ? bl.lace : R.lace ?? bl.lace), trim: ar?.trim ?? R.trim ?? 0,
     sode: !!R.sode || (ownBody && bl.sode && g >= 1), hat, kote: R.kote,
     // 御貸具足の簡素な胴（humans_armor.js の loanSimple）。陣笠と胴は同じ漆
@@ -498,11 +499,18 @@ export function playerLook(G, stepOverride) {
     real,
     // 侍大将から上は、9/29 の侍大将の胴丸と動き（kaito 10/31。humans_runtime・humans_armor・humans_mocap が見る）
     hero9: g >= 4 ? 1 : 0,
-  };
+  });
 }
 
 // 段ごとの馬の拵え。kind は毛色の名（栗毛・鹿毛・黒鹿毛。鹿毛の類は脚先と鬣が黒い）
+// 本人の馬だけに使う。見た目の品の毛色を着ていれば、段の白馬よりそれを先にする
 export function horseStyle(step, coat, kind) {
+  const wk = wornHorseKind();
+  const W = wk && coatOf(wk);
+  if (W) return { ...baseHorseStyle(step, W.coat, wk), coat: W.coat, mane: W.mane, points: W.points };
+  return baseHorseStyle(step, coat, kind);
+}
+function baseHorseStyle(step, coat, kind) {
   const C = kind ? coatOf(kind) : null;
   const bay = C ? C.points > 0 : coat === 0x6e4220 || coat === 0x2a1d14;
   return {
@@ -513,7 +521,7 @@ export function horseStyle(step, coat, kind) {
     saddle: 0x111010,
     rim: step >= 6 ? 0xc9a24a : 0,
     cushion: step >= 4 ? 0x7a1a14 : 0x3a2a1c,
-    aori: step >= 3 ? 0x3a2a1c : 0x4a3a26,
+    aori: step >= 3 ? 0x8a6a44 : 0x8c7a5a,   // 淡い枯れ色の革の障泥（手本 ref7_kiba 11/1）
     // 房：足軽大将は紺、侍大将から朱、上は金
     tassels: step >= 6 ? 0xc9a24a : step >= 4 ? 0xb8342a : 0x6a2a1c,
     big: step >= 5 ? 1 : 0,
@@ -1075,8 +1083,8 @@ export class Player {
       vx = u.vel.x; vz = u.vel.z;
       this.vel.x = vx; this.vel.z = vz;
       const sp = Math.hypot(vx, vz);
-      // 走ると毎秒五ずつ息が減る（およそ二十秒で切れる）。坂・悪路・重い具足・傷の負担は残す。
-      if (canRun && sp > 0.1) { this.sta -= 5 * this.heavy * (1 + wound * 0.65) * (1 + tf.tire * 0.6) * dt; this.staDelay = 0.4; rt.tutMark('run'); }
+      // 走ると疲れの棒が一区切り（四分の一）ずつ、およそ四秒で減る（kaito 11/1 L。十五秒ほどで切れる）。坂・悪路・重い具足・傷の負担は残す。
+      if (canRun && sp > 0.1) { this.sta -= this.maxSta / 16 * this.heavy * (1 + wound * 0.65) * (1 + tf.tire * 0.6) * dt; this.staDelay = 0.4; rt.tutMark('run'); }
       else if (this.staDelay <= 0) this.sta += (this.guard ? 5 : sp > 0.2 ? 10 / (1 + tf.tire) : 22) * (1 - wound * 0.5) * dt;
       this.sta = Math.max(0, Math.min(this.maxSta, this.sta));
       this.movedAcc += sp * dt;

@@ -5505,7 +5505,7 @@ function horseTailHi(Q, st) {
     Q.push(P(limb([i * 0.025, -0.5, -0.14], [i * 0.037, -0.86 + Math.abs(i) * 0.05, -0.09], 0.022, 0.003, 5), st.mane, { reg: 'hair' }));
   }
 }
-export const ENEMY_HORSE = { coat: 0x4a3222, mane: 0x16120e, tack: 0x6a2a1c, saddle: 0x1a1512, aori: 0x3a2e22, tassels: 0x1f2a4a, armor: 0 };
+export const ENEMY_HORSE = { coat: 0x4a3222, mane: 0x16120e, tack: 0x6a2a1c, saddle: 0x1a1512, aori: 0x8c7a5a, tassels: 0x1f2a4a, armor: 0 };
 // 日本の在来馬の毛色。points は脚先と鬣・尾が黒い（鹿毛・黒鹿毛）。w は出やすさ
 // 在来馬（木曽馬・野間馬など）は鹿毛が多く、色は洋種より沈んで赤みが弱い。本物の馬（humans.js）は色から鰻線・淡い腹・葦毛の連銭を描き足す
 export const COATS = [
@@ -5537,7 +5537,8 @@ export function horseStyleFor(seed, rank = 0, facKey = '') {
     rim: rank >= 2 ? 0xc9a24a : 0,
     cushion: F.cushion,
     // 大将の障泥は濃い茶の革。ほぼ黒（0x241a12）だと、馬の腹の下に黒い四角が貼り付いて見えた（森部 10/25）
-    aori: rank >= 2 ? 0x5a3c24 : 0x3a2e22,
+    // 手本（ref7_kiba 11/1）の障泥は淡い枯れ色の革。馬の毛色から浮いて見える
+    aori: rank >= 2 ? 0x8a6a44 : 0x8c7a5a,
     tassels: rank >= 2 && facKey !== 'tokugawa' ? 0xc23a22 : F.tassels,
     big: rank >= 2 ? 1 : 0,
     armor: 0,

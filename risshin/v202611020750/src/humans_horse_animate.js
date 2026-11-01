@@ -162,6 +162,9 @@ function driveHorse(h, dt, speed) {
     const brake = mv * clamp01(-(R.acc || 0) / 7) * rest, push = mv * clamp01((R.acc || 0) / 5) * rest;
     rotWorld(root, _hr, -0.07 * brake + 0.035 * push);
     rotWorld(B.BN_Neck_00_06_06, _hr, -0.28 * brake + 0.12 * push);
+    // 駆ける時は一完歩ごとに首を大きく上下に振る（在来馬の駆け方。手本 ref7_kiba）
+    const nod = 0.1 * gl + 0.08 * rw;
+    if (nod > 0.005) rotWorld(B.BN_Neck_00_06_06, _hr, nod * Math.sin(Math.PI * 2 * (rw > gl ? R.t.run / clips.run.duration : R.t.gallop / clips.gallop.duration)));
     // 曲がる方へ首を向ける
     rotWorld(B.BN_Neck_01_07_07, _up, Math.max(-0.14, Math.min(0.14, R.turn * 0.12)) * mv * rest);
   }
@@ -210,7 +213,7 @@ function driveHorse(h, dt, speed) {
       const bn = R.bones[TAIL_B[k]]; if (!bn) continue;
       const fl = Math.sin(t * (2.1 + run * 4) + k * 0.8 + (H.seed || 0)) * (0.04 * wg + 0.05 * run);
       rotWorld(bn, _up, -(wr * 0.1 * wg * (1 - run * 0.6) + fl) * (0.6 + k * 0.2));
-      if (k < 3) rotWorld(bn, _hr, run * 0.22);
+      if (k < 3) rotWorld(bn, _hr, run * 0.12);
     }
     for (let k = 0; k < MANE_B.length; k++) {
       const bn = R.bones[MANE_B[k]]; if (!bn) continue;
@@ -224,7 +227,7 @@ function driveHorse(h, dt, speed) {
   R.holder.updateMatrix();
   R.holder.matrixWorld.copy(R.holder.matrix);
   R.sc.updateMatrixWorld(true);
-  H.seat.multiplyMatrices(B[SEAT_B].matrixWorld, HR.restInv[SEAT_B]);
+  H.seat.multiplyMatrices(B[SEAT_B].matrixWorld, HR.seatInv || HR.restInv[SEAT_B]);
   // 手綱を握る手の置き所：鞍の前輪の上、腰より拳ふたつほど上（胸や顔の高さまで上げない）。馬の頭が前後すると、手もそれに引かれる
   _hM.multiplyMatrices(B[HEAD_B].matrixWorld, HR.restInv[HEAD_B]);         // 頭の骨の、立ち姿からの動き
   _hv2.copy(HR.head0).applyMatrix4(_hM);                                   // 頭の今の位置

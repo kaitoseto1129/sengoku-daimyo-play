@@ -63,6 +63,7 @@ import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { isLocked, showPaywall } from './paywall.js';
+import { showAfterWin } from './ads.js';
 import { ADDITIONAL_TIPS, pickTip } from './tips.js';
 import { loadWeapons, UNIT_NIGHT, UNIT_NIGHT_FOCUS, UNIT_FIRE_METAL } from './units_model.js';
 // 題では戦の名前だけ登録する。中身と素材は出陣する時に読む。
@@ -2532,6 +2533,11 @@ const game = {
       actions.push({ label: 'ホームへ戻る', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
       actions.push(retry);
     }
+    // 勝った後の広告（アプリだけ・一戦に一回）：結果の画面を閉じる主の釦で頼む。負け・練習・やり直しでは出さない（ads.js）
+    if (r.mainDone && !r.downInfo && !G.practice) {
+      const adId = BATTLES[i].id;
+      for (const a of actions) if (a.primary && a !== retry) { const f = a.fn; a.fn = () => { showAfterWin(adId); f(); }; }
+    }
     // 勝った時は、城下へ戻った後に App Store のレビューの窓を出す候補にする（review_ask.js）
     if (r.mainDone) import('./review_ask.js').then((m) => m.noteWin(G)).catch(() => {});
     // 戦の後の曲：昇進なら華やかに、勝てば凱歌、しくじれば尺八の一節
@@ -2626,6 +2632,8 @@ const game = {
   // 戦を選ぶから出陣：次の戦は本編のまま、済んだ戦は記録を残さない試し（今の身分・装備のまま）
   launchPick(r) {
     const G = this.G;
+    // 豊臣編（追加の章）の札は、侍大将で出陣と同じ試しで（買った人だけ。錠は hub.js が先に見る）
+    if (r.scn) { initAudio(); return this.startAsSamurai(r.scn, r.b.id); }
     if (r.state === 'next' && !G.practice) { rosterDepart(G); save(G); return this.nextBattle(); }
     const T = JSON.parse(JSON.stringify(G));
     T.practice = true; T.injured = false;

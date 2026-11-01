@@ -113,12 +113,16 @@ function muddyFlag(m) {
 export const FLAG_T = { value: 0 };
 // 風の向き（world.js の WIND_STATE から毎コマ写す）。突風の帯が風下へ隊を横切り、旗が順に翻る
 const FLAG_W = { value: new THREE.Vector2(0.565, 0.825) };
+// 本人の背の旗（色・ほのかな光）
+const PLAYER_FLAG = { player_gold: [0xf2b824, 0x5a3a06], player_shu: [0xd8402a, 0x4a1008], player_shiro: [0xf4efe2, 0x3a3630] };
+export const isPlayerFlag = (kind) => !!PLAYER_FLAG[kind];
 function flagMaterial(kind, boost = 0, enemy = false) {
   const key = (boost ? kind + '|' + boost : kind) + (enemy ? '|e' : '');
   if (flagMatCache.has(key)) return flagMatCache.get(key);
-  if (kind === 'player_gold') {
-    // 無地・つや消し。近景の布への交換も避け、しわ・破れ・点滅を付けない。
-    const m = new THREE.MeshLambertMaterial({ color: 0xf2b824, emissive: 0x5a3a06, side: THREE.DoubleSide });
+  if (PLAYER_FLAG[kind]) {
+    // 無地・つや消し。近景の布への交換も避け、しわ・破れ・点滅を付けない。金のほかは見た目の品（cosmetics.js）
+    const [color, emissive] = PLAYER_FLAG[kind];
+    const m = new THREE.MeshLambertMaterial({ color, emissive, side: THREE.DoubleSide });
     m.userData.nearFlag = true;
     flagMatCache.set(key, m);
     return m;

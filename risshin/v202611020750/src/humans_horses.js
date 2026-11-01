@@ -2,7 +2,7 @@
 import { assetBytes, texOr } from './bin_assets.js';
 import * as THREE from 'three';
 import { GLTFLoader } from './glb_loader.js';
-import { prepHorse, HORSE, HORSE_Q, HR, PX_HORSE_K, proxyLo, _pxOff } from './humans_horse_model.js';
+import { prepHorse, HORSE, HORSE_Q, HR, PX_HORSE_K, proxyLo, _pxOff, SEAT_B, CHEST_B, HIP_B } from './humans_horse_model.js';
 import { horseMaterials, _lin } from './humans_horse_materials.js';
 import { HORSE_HOOK } from './units.js';
 import { driveHorse, placeHorseExtras } from './humans_horse_animate.js';
@@ -91,13 +91,15 @@ function legSlices(g, S) {
   const leg = +m[1], N = 40, D = 0.03, sx = new Float32Array(N), sz = new Float32Array(N), sn = new Float32Array(N);
   for (let i = 0; i < S.P.length / 3; i++) { const y = S.P[i * 3 + 1], b = Math.floor(y / D); if (b < 0 || b >= N) continue; sx[b] += S.P[i * 3]; sz[b] += S.P[i * 3 + 2]; sn[b]++; }
   const c = (y) => { const b = Math.floor(y / D); return b >= 0 && b < N && sn[b] >= 3 ? [sx[b] / sn[b], sz[b] / sn[b]] : null; };
-  const [jk, jf] = LEG_JOINT[leg], hind = leg >= 2, ss = THREE.MathUtils.smoothstep, bump = (y, y0, w) => Math.exp(-(((y - y0) / w) ** 2));
+  // 脚を縮めた在来馬の形では、関節の高さも縮む。脚はもう太いので、膨らませる分は控えめに
+  const ly = HR.legY || 1, fat = ly < 1 ? 0.55 : 1;
+  const [jk, jf] = LEG_JOINT[leg].map((y) => y * ly), hind = leg >= 2, ss = THREE.MathUtils.smoothstep, bump = (y, y0, w) => Math.exp(-(((y - y0) / w) ** 2));
   const k = (y) => {
-    const top = 1 - ss(y, hind ? 0.78 : 0.74, hind ? 0.95 : 0.9);   // 胴との境目は動かさない
+    const top = 1 - ss(y, (hind ? 0.78 : 0.74) * ly, (hind ? 0.95 : 0.9) * ly);   // 胴との境目は動かさない
     // 前腕・脛は太く、管（すね骨）は締まり、関節は膨らむ。蹄は少しだけ
     const meat = ss(y, jk + 0.04, jk + 0.16) * 0.5, cannon = 0.36, joint = bump(y, jk, 0.05) * 0.26 + bump(y, jf, 0.035) * 0.24;
     const f = (y < 0.1 ? 0.12 : cannon + meat + joint) * top;
-    return [1 + f * 0.85, 1 + f];   // 管は横より前後に厚い
+    return [1 + f * 0.85 * fat, 1 + f * fat];   // 管は横より前後に厚い
   };
   return { c, k };
 }
@@ -155,6 +157,9 @@ function proxyGeos(st) {
         const t = tg.clone();
         for (const nm of Object.keys(t.attributes)) if (!['position', 'normal', 'color'].includes(nm)) t.deleteAttribute(nm);
         if (!t.attributes.normal) t.computeVertexNormals();
+        // 在来馬の形に組み直した胴と同じく、馬具も骨ごとに組み直す
+        const fx = HR.tackFix && HR.tackFix[k === 'chest' ? CHEST_B : k === 'hip' ? HIP_B : SEAT_B];
+        if (fx) t.applyMatrix4(fx);
         t.scale(1 / K, 1 / K, 1 / K);
         const m = t.attributes.position.count;
         if (!t.attributes.color) { const cc = new Float32Array(m * 3).fill(0.3); t.setAttribute('color', new THREE.BufferAttribute(cc, 3)); }

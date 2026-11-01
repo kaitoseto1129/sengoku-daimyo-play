@@ -36,6 +36,18 @@ function arrow(x, y, angle, size = 1) {
   return path + 'Z';
 }
 
+const wallMemo = new Map();
+let wallMemoRt = null;
+function wallSeen(rt, wx, wz) {
+  if (wallMemoRt !== rt || wallMemo.size > 256) { wallMemo.clear(); wallMemoRt = rt; }
+  const key = Math.round(wx * 2) * 131072 + Math.round(wz * 2);
+  const c = wallMemo.get(key);
+  if (c && rt.t >= c.t && rt.t - c.t < .25) return c.blocked;
+  const blocked = cameraWallBlocked(rt, rt.camera.position, ahead);
+  if (c) { c.t = rt.t; c.blocked = blocked; } else wallMemo.set(key, { t: rt.t, blocked });
+  return blocked;
+}
+
 export function drawMissionGround(rt, el, want, rects) {
   el.hidden = true;
   if (!el._groundCue) {
@@ -88,8 +100,9 @@ export function drawMissionGround(rt, el, want, rects) {
         const t = Math.min(1, step / Math.max(.01, length));
         const wx = a.x + (b.x - a.x) * t, wz = a.z + (b.z - a.z) * t;
         ahead.set(wx, groundAt(rt.world, wx, wz, p.y) + .14, wz);
-        if (Math.hypot(wx - p.x, wz - p.z) < 2 || cameraWallBlocked(rt, rt.camera.position, ahead) ||
-            !project(rt, wx, wz, point) || !clear(point.x, point.y, rects, 22, 18) || Math.hypot(point.x - lastX, point.y - lastY) < 52) continue;
+        // 壁の見通しは重い（比叡山で一コマ 6ms）。安い判定を先にし、同じ床の点の答えは四分の一秒使い回す。
+        if (Math.hypot(wx - p.x, wz - p.z) < 2 || !project(rt, wx, wz, point) || !clear(point.x, point.y, rects, 22, 18) ||
+            Math.hypot(point.x - lastX, point.y - lastY) < 52 || wallSeen(rt, wx, wz)) continue;
         const next = Math.min(1, t + .8 / Math.max(.01, length));
         // 終点のすぐ手前を投影し、到着地点でも矢印の向きを保つ。
         const before = next === t;

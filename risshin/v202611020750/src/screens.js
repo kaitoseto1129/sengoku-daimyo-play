@@ -28,13 +28,17 @@ import { watchFirstHelp, stopFirstHelp, resetFirstHelp } from './first_help.js';
 import { ronkoHtml } from './ronko.js';
 import { battleTalk, battleTalkHtml, bindBattleTalk, stopBattleTalk } from './battle_talk.js';
 import { COMMUNITY_URL } from './community.js';
-import { canRestorePurchases, restorePurchases, isFull, isLocked, isBattleLocked, remainingBattles, showPaywall, PRICE } from './paywall.js';
+import { offerNoAds, buyNoAds } from './ads.js';
+import { canRestorePurchases, restorePurchases, isFull, isBattleLocked, remainingBattles, showPaywall, PRICE, CHAPTERS, canBuyInApp } from './paywall.js';
+import { specialShopHtml, bindSpecialShop } from './cosmetics.js';
 
 watchGlossaryScreens();
 window.addEventListener('購入を復元しました', () => notice('復元しました'));
 
 // 題と設定から、押した時だけ購入札を開く。無料の Web と購入済みには出さない。
 const offerFull = () => !isFull() && !!(window.__iosApp || window.webkit?.messageHandlers?.iap);
+// 鍵の掛かった戦（完全版・追加の章）に、買える品の名を添える。アプリの外では鍵が無いので出さない
+const lockName = (scn, id) => canBuyInApp() && isBattleLocked(scn, id) ? (CHAPTERS[scn] ? CHAPTERS[scn].name : '完全版') : '';
 let fullResultDismissed = false;
 const fullPurchaseButton = (prominent = false) => !offerFull() ? '' : `<button type="button" class="btn ${prominent ? 'primary' : 'small'}" id="full-purchase" style="min-height:${prominent ? 48 : 44}px;font-size:16px;${prominent ? 'flex-basis:100%;margin:0;letter-spacing:0' : ''}">完全版を買う（${PRICE}）${prominent ? `・残りの${remainingBattles()}戦が遊べる` : ''}</button>`;
 function bindFullPurchase() {
@@ -621,6 +625,8 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   const start = () => {
     const nm = shortName($('nm').value) || '弥五郎', scn = (document.querySelector('input[name=scn]:checked') || {}).value || scns[0] || 'oda';
     const go = () => onNew(nm, 'normal', scn);
+    // 追加の章（豊臣編）はアプリで買った人だけ始められる（Web は全部無料）
+    if (CHAPTERS[scn] && lockName(scn, SCENARIOS[scn].battles[0]?.id)) { showPaywall(go, () => $('b-new')?.focus({ preventScroll: true }), scn); return; }
     if (scn !== 'oda') { go(); return; }
     try { initAudio(); } catch (e) { /* 音が出せなくても進める */ }
     go();
@@ -776,8 +782,8 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
   if (preB) preB.onclick = () => onChapter('pre');
   const ch = $('b-chapter');
   if (ch) ch.onclick = () => {
-    $('chapters').innerHTML = `<p class="note">記録を残さずに、好きな戦をもう一度遊べます（いまの身分・装備・組のまま）。</p><div class="row">${BATTLES.map((b, i) => `<button class="btn small" data-ch="${i}">${esc(b.name)}${offerFull() && isLocked(i) ? '・完全版で遊べる' : ''}${saved.best && saved.best[i] ? `（最高 ${saved.best[i]}）` : ''}</button>`).join('')}</div>`;
-    document.querySelectorAll('[data-ch]').forEach((b) => b.onclick = () => { const go = () => onChapter(+b.dataset.ch); if (offerFull() && isLocked(+b.dataset.ch)) showPaywall(go, () => b.focus({ preventScroll: true })); else go(); });
+    $('chapters').innerHTML = `<p class="note">記録を残さずに、好きな戦をもう一度遊べます（いまの身分・装備・組のまま）。</p><div class="row">${BATTLES.map((b, i) => `<button class="btn small" data-ch="${i}">${esc(b.name)}${lockName(scenarioKey(), b.id) ? `・${lockName(scenarioKey(), b.id)}で遊べる` : ''}${saved.best && saved.best[i] ? `（最高 ${saved.best[i]}）` : ''}</button>`).join('')}</div>`;
+    document.querySelectorAll('[data-ch]').forEach((b) => b.onclick = () => { const go = () => onChapter(+b.dataset.ch); if (lockName(scenarioKey(), BATTLES[+b.dataset.ch]?.id)) showPaywall(go, () => b.focus({ preventScroll: true })); else go(); });
   };
   // 964：設定・記録帳・出世の道から戻った時は、押して出た釦へ焦点を戻す
   const remember = (id, f) => () => { titleBack = id; f(); };
@@ -815,7 +821,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
         <label><span><input type="radio" name="lp-view" value="third" ${fp ? '' : 'checked'}> 三人称</span><small>背中から見る</small></label>
         <label><span><input type="radio" name="lp-view" value="first" ${fp ? 'checked' : ''}> 一人称</span><small>自分の目で見る（戦の中で視点の釦で切り替え）</small></label></div></div>
       ${groups.map((g) => `<div class="eyebrow" style="margin-top:12px">${esc(g.k)}</div>
-      <div class="lp-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:6px">${g.items.map((L) => `<button class="btn small lp-card" data-lord="${L.id}" data-scn="${L.scn}" style="min-height:64px;text-align:left;display:block;padding:8px 12px"><b style="display:block;font-size:max(12px, calc(15px * var(--text-scale, 1)))">${esc(L.name)}</b><small style="display:block;opacity:.8;margin-top:2px">${esc(L.year.split('　')[0])}</small>${offerFull() && isBattleLocked(L.scn, L.id) ? '<small style="display:block;color:var(--kin);margin-top:4px">完全版で遊べる</small>' : ''}</button>`).join('')}</div>`).join('')}
+      <div class="lp-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:6px">${g.items.map((L) => `<button class="btn small lp-card" data-lord="${L.id}" data-scn="${L.scn}" style="min-height:64px;text-align:left;display:block;padding:8px 12px"><b style="display:block;font-size:max(12px, calc(15px * var(--text-scale, 1)))">${esc(L.name)}</b><small style="display:block;opacity:.8;margin-top:2px">${esc(L.year.split('　')[0])}</small>${lockName(L.scn, L.id) ? `<small style="display:block;color:var(--kin);margin-top:4px">${lockName(L.scn, L.id)}で遊べる</small>` : ''}</button>`).join('')}</div>`).join('')}
       </div>`;
     const view = () => (box.querySelector('input[name=lp-view]:checked') || {}).value || 'third';
     const who = () => 'sam';   // 織田信長で遊ぶのはやめた（kaito 10/1）。侍大将だけ
@@ -824,7 +830,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
         if (who() === 'sam' && onSamurai) { if (view() !== S.view) { S.view = view(); saveSettings(); } onSamurai(b.dataset.scn, b.dataset.lord); }
         else if (onLord) onLord.onBattle(b.dataset.lord, view());
       };
-      if (offerFull() && isBattleLocked(b.dataset.scn, b.dataset.lord)) showPaywall(() => { openPick(mode0); go(); }, () => b.focus({ preventScroll: true }));
+      if (lockName(b.dataset.scn, b.dataset.lord)) showPaywall(() => { openPick(mode0); go(); }, () => b.focus({ preventScroll: true }), b.dataset.scn);
       else go();
     });
     box.querySelectorAll('[data-lordmap]').forEach((b) => b.onclick = () => onLord.onMap(b.dataset.lordmap));
@@ -1168,7 +1174,7 @@ export function settingsScreen(onChange, onClose) {
   show(`<div class="wrap st-screen"><h2 class="st-h">設定</h2>
     ${G ? `<div class="field"><label for="st-player-name">名前</label><input id="st-player-name" maxlength="8" value="${esc(G.name)}" autocomplete="off" spellcheck="false"></div>` : ''}
     ${settingsHtml()}
-    <div style="margin:8px 0"><div class="row" style="gap:8px">${game && !game.battle ? '<button type="button" class="btn" id="st-slots" style="min-height:44px">保存の枠を開く</button>' : ''}<a class="btn" id="st-mail" style="min-height:44px;display:inline-flex;align-items:center" href="${esc(contactMail())}">バグの報告・問い合わせのメールを書く</a>${fullPurchaseButton()}${canRestorePurchases() ? '<button type="button" class="btn" id="st-restore" style="min-height:44px;min-width:44px;font-size:16px">購入を復元する</button>' : ''}</div><p id="st-restore-msg" role="status" aria-live="polite"></p></div>
+    <div style="margin:8px 0"><div class="row" style="gap:8px">${game && !game.battle ? '<button type="button" class="btn" id="st-slots" style="min-height:44px">保存の枠を開く</button>' : ''}<a class="btn" id="st-mail" style="min-height:44px;display:inline-flex;align-items:center" href="${esc(contactMail())}">バグの報告・問い合わせのメールを書く</a>${fullPurchaseButton()}${offerNoAds() ? '<button type="button" class="btn" id="st-noads" style="min-height:44px;font-size:16px">広告を消す（月300円）</button>' : ''}${canRestorePurchases() ? '<button type="button" class="btn" id="st-restore" style="min-height:44px;min-width:44px;font-size:16px">購入を復元する</button>' : ''}</div><p id="st-restore-msg" role="status" aria-live="polite"></p></div>
     <div class="title-act st-act" style="gap:8px;flex-wrap:wrap"><button class="btn primary" id="st-close">決めて戻る</button>${COMMUNITY_URL ? '<button type="button" class="btn" id="st-community" style="min-height:44px">感想・不具合を送る</button>' : ''}${isTouch ? '' : '<span class="hintk">Escでも戻れます</span>'}</div></div>`, false, (e) => { if (e.key === 'Escape') closeSt(); });
   bindSettings(onChange);
   const playerName = $('st-player-name');
@@ -1180,6 +1186,13 @@ export function settingsScreen(onChange, onClose) {
   bindFullPurchase();
   $('st-close').onclick = closeSt;
   if ($('st-slots')) $('st-slots').onclick = () => { window.speechSynthesis?.cancel(); stopBind(); saveSettings(); sfx('ui'); game.title('data'); };
+  const noads = $('st-noads');
+  if (noads) noads.onclick = async () => {
+    if (noads.disabled) return;
+    noads.disabled = true;
+    const ok = await buyNoAds();
+    if (ok) noads.remove(); else noads.disabled = false;
+  };
   const restore = $('st-restore');
   if (restore) restore.onclick = async () => {
     if (restore.disabled) return;
@@ -3202,7 +3215,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
           else act = G.kan < it.cost ? `<span class="note">${zeni(it.cost)}（あと${zeni(it.cost - G.kan)}）</span>` : `<button class="btn small" data-buy="${id}">${zeni(it.cost)}で買う</button>`;
           return `<div class="item ${eq ? 'eq' : ''}"><div class="n"><span class="sic">${IC[SLOT_ICON[slot]]}</span>${esc(it.name)}<small>${esc(label)}</small>${cmp}${id === rec ? '<span class="rec">おすすめ</span>' : ''}</div><div class="x">${esc(tnote(it.note))}</div><div class="a">${act}</div></div>`;
         }).join('');
-      }).join('') + `<div class="item"><div class="n">打刀<small>刀</small></div><div class="x">${esc(tnote(ITEMS.katana.note))}</div><div class="a">${G.owned.includes('katana') ? (G.mainArm === 'sword' ? '<button class="btn small" data-arm="spear">槍で戦う</button>' : '<button class="btn small" data-arm="sword">刀で戦う</button>') : (G.kan < ITEMS.katana.cost ? `<span class="note">${zeni(ITEMS.katana.cost)}（あと${zeni(ITEMS.katana.cost - G.kan)}）</span>` : `<button class="btn small" data-buy="katana">${ITEMS.katana.cost}貫で買う</button>`)}</div></div></div>`;
+      }).join('') + `<div class="item"><div class="n">打刀<small>刀</small></div><div class="x">${esc(tnote(ITEMS.katana.note))}</div><div class="a">${G.owned.includes('katana') ? (G.mainArm === 'sword' ? '<button class="btn small" data-arm="spear">槍で戦う</button>' : '<button class="btn small" data-arm="sword">刀で戦う</button>') : (G.kan < ITEMS.katana.cost ? `<span class="note">${zeni(ITEMS.katana.cost)}（あと${zeni(ITEMS.katana.cost - G.kan)}）</span>` : `<button class="btn small" data-buy="katana">${ITEMS.katana.cost}貫で買う</button>`)}</div></div></div>` + specialShopHtml();
     } else if (tab === 'nagaya') {
       body = nagayaHtml(G);
     } else if (tab === 'realm') {
@@ -3465,6 +3478,7 @@ export function baseScreen(G, town0, lastResult, game, opts = {}) {
     const pv = $('pv');
     if (preview) { preview.dispose(); preview = null; }
     if (pv) { preview = new Preview(pv); preview.setLook(G); }
+    if ($('sp-shop')) bindSpecialShop(() => { sfx('ui'); render(); });
     // 馬屋
     const pvSt = $('pv-st');
     if (pvSt) { const pvs = new Preview(pvSt); pvs.setStep(G, Math.max(2, ladderStep(G))); }

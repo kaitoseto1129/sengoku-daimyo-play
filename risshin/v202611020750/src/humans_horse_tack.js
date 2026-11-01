@@ -183,14 +183,15 @@ function tackGeometry(st) {
     for (const sd of [1, -1]) {
       // 革の障泥：胴の丸みに沿って曲がり、裾は外へ少し開く。下の角は丸い。縁は紐で、面は使い込んだ革のむら（平らな四角い板に見せない）
       const P = [], C = [], IX = [], nu = 14, nv = 10;
-      const cloth = _lin(st.aori).lerp(_lin(cushion), 0.42), hem = _lin(st.tack).lerp(cloth, 0.5), c = new THREE.Color();
+      const cloth = _lin(st.aori).lerp(_lin(cushion), 0.12), hem = _lin(st.tack).lerp(cloth, 0.5), c = new THREE.Color();
       for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
         const u = i / nu, v = j / nv, e = 2 * u - 1;
         // 下の角を丸める：裾の両端ほど短い
         const vv = v * (1 - 0.32 * Math.pow(Math.abs(e), 5));
-        const z = e * 0.3;
+        const z = e * 0.34;
         const x = sd * (0.262 - 0.05 * e * e * (1 - vv) + Math.sin(vv * Math.PI * 0.6) * 0.03 + vv * vv * 0.03 + Math.sin(u * Math.PI * 5 + sd) * vv * vv * 0.006);
-        const y = 1.15 - vv * 0.47 + vv * vv * 0.02;
+        // 手本（ref7_kiba）の障泥は鞍の下から腹の線の下まで大きく垂れる
+        const y = 1.15 - vv * 0.56 + vv * vv * 0.02;
         P.push(x, y, z - 0.06);
         const edge = Math.min(u, 1 - u, (1 - v) * 0.6) ;
         const hemK = 1 - THREE.MathUtils.smoothstep(edge, 0.03, 0.07);
@@ -342,7 +343,7 @@ function dressHorse(R, st) {
       const m = new THREE.Mesh(geo, mat);
       // 骨の子に：骨の立ち姿の逆（骨は根元の座標で HS 倍されているので、その分も戻す）
       m.matrixAutoUpdate = false;
-      m.matrix.copy(HR.restInv[bn]);
+      m.matrix.copy(HR.tackInv ? HR.tackInv[bn] : HR.restInv[bn]);
       m.castShadow = true; m.frustumCulled = false;
       R.bones[bn].add(m); R.tack.push(m);
     }

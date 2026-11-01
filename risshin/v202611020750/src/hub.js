@@ -3,7 +3,11 @@
 import { showScreen, topBack, RM } from './screens.js';
 import { ODA_LINE, lineOf, LADDER, ladderStep } from './state.js';
 import { sfx } from './audio.js';
-import { isBattleLocked } from './paywall.js';
+import { offerNoAds, buyNoAds } from './ads.js';
+import { isBattleLocked, showPaywall } from './paywall.js';
+import { TOYOTOMI_LINE } from './toyotomi_line.js';
+import { TOKUGAWA_LINE } from './tokugawa_line.js';
+import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const thumbURL = (id) => new URL(`../assets/thumbs/${id}.webp`, import.meta.url).href;
@@ -19,7 +23,7 @@ const CHAPTERS = [
   { name: '浅井・朝倉と一向一揆', from: 12 },
   { name: '天下布武', from: 19 },
 ];
-const yearNum = (b) => (String(b.year || '').match(/（(\d{4})）/) || [])[1] || '';
+const yearNum = (b) => typeof b.year === 'number' ? String(b.year) : (String(b.year || '').match(/（(\d{4})）/) || [])[1] || '';
 // 難しさの星（並びの先ほど難しい。1〜5）
 const starsOf = (k) => Math.min(5, 1 + Math.floor(k / 7));
 const STAR = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.5 5.3 5.7.7-4.2 3.9 1.1 5.7L10 14.6l-5.1 2.8 1.1-5.7L1.8 7.8l5.7-.7z"/></svg>';
@@ -70,6 +74,7 @@ const CSS = `<style>
   .hub-c.lock { opacity: .45; cursor: default; }
   .hub-c.lock::after { content: ''; position: absolute; right: 8px; top: 8px; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--lk) center/contain no-repeat; mask: var(--lk) center/contain no-repeat; }
   .hub-set { position: fixed; z-index: 3; top: max(8px, env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: 44px; height: 44px; padding: 6px; background: rgba(20,18,15,.82); border: 1px solid rgba(236,228,210,.28); color: var(--kin); cursor: pointer; }
+  .hub-noads { position: fixed; z-index: 3; right: max(12px, env(safe-area-inset-right, 0px)); bottom: max(8px, env(safe-area-inset-bottom, 0px)); min-height: 44px; padding: 6px 12px; font-size: 14px; background: rgba(20,18,15,.82); border: 1px solid rgba(236,228,210,.28); color: var(--kin); cursor: pointer; }
   .hub-set svg { width: 100%; height: 100%; }
   .hub-c:hover, .hub-c:focus-visible, .hub-go:hover, .hub-go:focus-visible, .hub-set:focus-visible { border-color: #e6c77a; outline: none; }
   .pk { margin: 0 calc(-1 * max(12px, env(safe-area-inset-left, 0px))); }
@@ -166,6 +171,18 @@ export function battleRows(G) {
     return { b, k, j, state, grade: j >= 0 ? (G.grades || [])[j] : null, best: j >= 0 ? (G.best || [])[j] || 0 : 0, pay: isBattleLocked('oda', b.id) };
   });
 }
+// 第二章「豊臣編」の行（kaito 11/1）：サムネは見せ、アプリで買った人だけ開く（Web は全部開く）。開いた戦は侍大将で出陣と同じ試し
+export function toyoRows(from) {
+  return TOYOTOMI_LINE.map((b, n) => ({ b, k: from + n, j: -1, state: 'done', grade: null, best: 0, pay: isBattleLocked('toyotomi', b.id), scn: 'toyotomi' }));
+}
+// 第三章「徳川編」の行（kaito 11/1）：15戦ぜんぶのサムネを見せる。まだできていない戦は買った後も錠（soon）、できた戦はアプリで買った人だけ開く
+export function tokuRows(from) {
+  return TOKUGAWA_PLAN.map((p, n) => {
+    const made = TOKUGAWA_LINE.find((e) => e.id.slice(0, 3) === p.id.slice(0, 3));
+    const b = made ? { cap: 240, place: '', ...made } : p;
+    return { b, k: from + n, j: -1, state: made ? 'done' : 'lock', soon: !made, grade: null, best: 0, pay: made ? isBattleLocked('tokugawa', b.id) : false, scn: 'tokugawa' };
+  });
+}
 
 // ---------------- ホーム（真ん中に今の自分・周りに入口） ----------------
 let pv = null;
@@ -191,12 +208,14 @@ export function hubScreen(G, game, o) {
       <div class="hub-bar" role="img" aria-label="${nr ? `次の位まであと${need}` : '最上の位'}">${ICON.merit}<i><b style="width:${pct}%"></b></i>${nr && need ? `<span>あと${need}</span>` : ''}</div>
       <div class="hub-stairs" role="img" aria-label="出世の階段。今は${esc(LADDER[st]?.name || '')}">${stairs}</div></div>
     </div>
-    <button type="button" class="hub-set" id="hub-set" aria-label="設定">${ICON.set}</button>`);
+    <button type="button" class="hub-set" id="hub-set" aria-label="設定">${ICON.set}</button>${offerNoAds() ? '<button type="button" class="hub-noads" id="hub-noads">広告を消す（月300円）</button>' : ''}`);
   held = s.querySelector('.hub');
   const out = (f) => () => { freePv(); leave(f)(); };
   topBack(out(o.onTitle), '題の画面へ');
   $q('#hub-go').onclick = out(() => pickScreen(G, game, o));
   $q('#hub-set').onclick = out(() => o.on.set());
+  const noads = $q('#hub-noads');
+  if (noads) noads.onclick = async () => { if (noads.disabled) return; noads.disabled = true; const ok = await buyNoAds(); if (ok) noads.remove(); else noads.disabled = false; };
   for (const b of s.querySelectorAll('.hub-c')) b.onclick = b.classList.contains('lock') ? () => sfx('ui') : out(() => o.on[b.dataset.k]());
   const cv = $q('#hub-pv');
   if (cv && !o.noPreview) import('./preview.js').then(({ Preview }) => { if (!cv.isConnected) return; freePv(); pv = new Preview(cv); if (pv.renderer) pv.setLook(G); else pv = null; }).catch(() => {});
@@ -208,11 +227,15 @@ const $q = (sel) => document.querySelector('#screen ' + sel);
 export function pickScreen(G, game, o) {
   release();
   const rows = battleRows(G);
+  const oda = rows.length;
+  rows.push(...toyoRows(oda));
+  const toku = rows.length;
+  rows.push(...tokuRows(toku));
   const stars = (n) => [1, 2, 3, 4, 5].map((i) => STAR.replace('<svg', `<svg class="${i <= n ? '' : 'off'}"`)).join('');
   const cardHtml = (r) => {
     const lock = r.state === 'lock';
     return `<button type="button" class="pk-c ${r.state}" data-k="${r.k}" ${lock ? 'aria-disabled="true"' : ''} aria-label="${esc(r.b.name)}${lock ? '（まだ）' : ''}">
-      <img src="${thumbURL(r.b.id)}" alt="" loading="lazy" decoding="async" width="480" height="270">${lock || r.pay ? `<span class="pk-lk">${LOCK}</span>` : gradeHtml(r.grade)}
+      <img src="${thumbURL(r.b.id)}" alt="" loading="lazy" decoding="async" width="480" height="270" onerror="this.style.visibility='hidden'">${lock || r.pay ? `<span class="pk-lk">${LOCK}</span>` : gradeHtml(r.grade)}
       <span class="pk-no" aria-hidden="true">${r.k + 1}</span>
       <span class="pk-yr">${esc(yearNum(r.b))}</span>
       <span class="pk-nm">${esc(r.b.name)}</span>
@@ -220,7 +243,8 @@ export function pickScreen(G, game, o) {
       ${r.best ? `<span class="pk-best" aria-label="最高の手柄 ${r.best}">${ICON.merit}${r.best}</span>` : ''}
     </button>`;
   };
-  const chapters = CHAPTERS.map((c, n) => `<div class="pk-ch"><span class="pk-chn" aria-hidden="true">${'一二三四五六'[n]}</span><div class="pk-row" role="group" aria-label="${esc(c.name)}">${rows.slice(c.from, CHAPTERS[n + 1]?.from ?? rows.length).map(cardHtml).join('')}</div></div>`).join('');
+  const chs = [...CHAPTERS, { name: '豊臣編', from: oda }, { name: '徳川編', from: toku }];
+  const chapters = chs.map((c, n) => `<div class="pk-ch"><span class="pk-chn" aria-hidden="true">${'一二三四五六'[n]}</span><div class="pk-row" role="group" aria-label="${esc(c.name)}">${rows.slice(c.from, chs[n + 1]?.from ?? rows.length).map(cardHtml).join('')}</div></div>`).join('');
   const s = showScreen(`${CSS}<div class="pk" id="pk-row"><h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">本陣</h1>${chapters}</div>`, false,
     (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } });
   held = s.querySelector('.pk');
@@ -231,8 +255,8 @@ export function pickScreen(G, game, o) {
   let whyT = 0;
   const why = (r) => {
     row.querySelector('.pk-why')?.remove(); clearTimeout(whyT);
-    const prev = rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
-    const text = r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
+    const prev = r.soon ? null : rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
+    const text = r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
     row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !r.pay ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${prev && !r.pay && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
     const go = row.querySelector('#pk-why-go');
     if (go) go.onclick = () => { sfx('ui'); row.querySelector('.pk-why')?.remove(); const p = row.querySelector(`.pk-c[data-k="${prev.k}"]`); if (p) { p.scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', inline: 'center', block: 'center' }); p.classList.add('flash'); setTimeout(() => p.classList.remove('flash'), 900); p.focus({ preventScroll: true }); } };
@@ -241,6 +265,8 @@ export function pickScreen(G, game, o) {
   for (const b of row.querySelectorAll('.pk-c')) b.onclick = () => {
     const r = rows[+b.dataset.k];
     if (r.state === 'lock') { sfx('ui'); why(r); return; }
+    // 豊臣編の錠：その場で章の購入札（買えたら並びを描き直す）
+    if (r.scn && r.pay) { sfx('ui'); clearTimeout(whyT); row.querySelector('.pk-why')?.remove(); showPaywall(() => { release(); pickScreen(G, game, o); }, () => b.focus({ preventScroll: true }), r.scn); return; }
     const x = [...row.querySelectorAll('.pk-row')].map((e) => e.scrollLeft);
     clearTimeout(whyT);
     leave(() => preCard(G, game, o, r, { x, y: row.parentElement?.scrollTop || 0 }))();

@@ -2417,6 +2417,7 @@ function honnoNearFade(rt) {
   rt.def.nearFade = under;
 }
 
+let honnoLive = null;
 const honnoji = {
   cameraVolumeView: true,
   sightBlocked(rt, a, p, ay, by, postMargin = 0) {
@@ -3444,7 +3445,11 @@ const honnoji = {
   smallTaskAreas: true, // 狭い堂内を白い大輪で覆わず、足元に小さな印を残す。判定の広さは保つ。
   compactGuardGuide: true, // 護衛の盾を小さくし、上様の顔と近い兵の刃を見せる。
   noFieldMap: true,   // 稲生の標準：小さな地図は出さず、行き先のピンと敵の印に絞る
-  playerRegen: 0.02,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
+  // 11/1 点付け（本能寺：bot が六回に六回倒れた）：一太刀の重さ（kaito 11/1 C）は残し、満ちた命から一秒の内に二の太刀が続けて入って
+  //   討たれるのを止める。刃が入った後の八秒は次の刃が通らない（構え直して退く間）。矢玉と火傷は別。
+  meleeGrace: { rate: 1, burst: 1, interval: 8 },
+  // 命の戻りは一秒に一割（共通の下限は三分）。この戦は五分あまり堂・御殿で斬り合い続け、三分では一太刀ごとの傷が戻り切らず削り倒された。
+  playerRegen: 0.1,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
   playerTaken: 0.5,   // 受ける傷を五割に（狭い堂・御殿・御所の門で囲まれやすい）
   // 身の回りの当時の場（timeslip_field.js）。天正十年六月二日は今の六月末・梅雨の晴れ間の明け方。
   // 乾いた砂利の境内と町の通りに、明智勢の矢・倒れた槍・脱げた陣笠・桔梗の旗。堂の中と町家の中には置かない。
@@ -3563,6 +3568,16 @@ const honnoji = {
   },
 
   setup(rt) {
+    honnoLive = rt;
+    // 11/1 点付け（本能寺：bot が六回に六回倒れた）：共通の既定（kaito 11/1 C）は二十六歩の内の十人が本人へ走る。この戦は寺の塀の内の
+    //   狭い庭と堂で、表庭の明智勢のほぼ全員が馬廻を素通りして本人へ集まり、侍の一太刀（命の六割）を続けて浴びた。本人へ寄るのは
+    //   十四歩の内の、表庭で三人・堂と御殿で五人まで。ほかは馬廻・近習と斬り合う（乱戦の見た目と寄せ手の数は変えない）。
+    if (rt.army) {
+      const pull = () => { const hp = rt.flags.hp || 0; return hp === 2 || hp === 3 ? 3 : 5; };
+      const A = rt.army, base = {};   // 大名の戦（lord）は共通の値のまま
+      Object.defineProperty(A, 'playerPullMax', { configurable: true, get: () => rt.G?.lord ? base.pull : pull(), set(v) { base.pull = v; } });
+      Object.defineProperty(A, 'playerReach', { configurable: true, get: () => rt.G?.lord ? base.reach : 14, set(v) { base.reach = v; } });
+    }
     // 初めの札は下知を切らず、本文だけ指や鍵で送れるようにする。この戦を出たら外す。
     const hud = document.getElementById('hud'), introStyle = document.createElement('style');
     hud?.setAttribute('data-honnoji', '');
@@ -5353,6 +5368,23 @@ function honnoRetreatDodgeAllowed(b, step) {
   return guardClear(b, step.x, step.z);
 }
 
+// 11/1 点付け（本能寺72：壁・建物が画面をふさぐ）：表庭で門を守る間（異変の後・門を閉める前）、bot が共通の退き癖（survive）で
+//   回廊を抜け、本堂の南の白壁と回廊に挟まれた内庭へ下がり、25秒の画面が白壁の大写しになった。命が六割を超える間は表庭で受けて突く
+//   （この戦の頭は、門へ走り抜けず馬廻の後ろで届く敵だけを受ける）。遊ぶ人の操作・敵と味方の数は変えない。
+Object.defineProperty(honnoji, 'botDefendsFort', { get() {
+  const rt = honnoLive, u = rt?.player?.u;
+  if (!rt || rt.def !== honnoji || rt.over || !u || rt.G?.lord) return false;
+  const F = rt.flags;
+  return F.hp === 2 && !F.gMain && u.hp > u.maxHp * 0.6;   // 深手（六割を切る）なら共通の退き癖で味方へ下がる
+} });
+// 11/1 点付け（本能寺：bot が六回に六回倒れた）：共通の既定（player_pressure.js・kaito 11/1 C）は四人が同時に打ち、侍の一太刀で命の六割が減る。
+//   表庭の段（異変〜門）は門から押し入る明智勢の只中で、四方の刃を浴びて開戦五十秒で倒れた。本人へ同時に打ち込むのは二人まで
+//   （ほかは周りで順を待つ）。寄せてくる数・一太刀の重さ・乱戦の見た目は変えない。
+Object.defineProperty(honnoji, 'playerAtkMax', { configurable: true, get() {
+  const rt = honnoLive;
+  if (!rt || rt.def !== honnoji || rt.G?.lord) return undefined;
+  return 2;
+} });
 honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (b.G.lord) { lordBot(b, inp, goTo, patientStrike); return; }
   const p = b.player, u = p.u, F = b.flags;

@@ -293,12 +293,13 @@ function kabutoStyle(L) {
   const red = /^kabuto_(r|tentsuki|sanada)$/.test(hat) || (hsl.s > 0.5 && hsl.l > 0.2 && (hsl.h < 0.05 || hsl.h > 0.95));
   const mon = gd.mon || L.mon;
   // 決まりの無い人は家ごと（具足の色・家紋）と名前の散らしで
-  const lac = by.lac || (red ? 'shu' : KB_SABI.has(mon) ? (hs % 3 ? 'sabi' : 'kuro') : ['kuro', 'sabi', 'kuro', 'kuro', 'sabi', 'natural'][hs % 6]);
+  // kbLac・kbCrest：本人の見た目の品（cosmetics.js）。名のある武将の決まりより先にする
+  const lac = L.kbLac || by.lac || (red ? 'shu' : KB_SABI.has(mon) ? (hs % 3 ? 'sabi' : 'kuro') : ['kuro', 'sabi', 'kuro', 'kuro', 'sabi', 'natural'][hs % 6]);
   const fuki = by.fuki || (red ? 'shu' : ['lac', 'kawa', 'lac', 'kin', 'kawa'][(hs >>> 3) % 5]);
   // 錣の威は兜の糸（shikoroLace）を先に。無ければ具足の威
   const odo = by.shikoroLace ?? by.odo ?? gd.lace ?? L.lace ?? 0x3a2a20;
   const dragon = KB_DRAGON.has(nm);
-  const crest = L.takedaRed ? 'hishi' : by.crest || KB_CREST[hat] || 'none';
+  const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || KB_CREST[hat] || 'none');
   return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）

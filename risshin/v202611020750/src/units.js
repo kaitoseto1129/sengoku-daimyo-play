@@ -494,6 +494,19 @@ function fallenKey(geo, mat) {
   if (!k) m.set(geo, k = {});
   return k;
 }
+// iPhone（MEM_TIGHT）では、ほかの兵の小さな部品（紐・小札・飾り）の影を描かない。体と大きい具足の影の中に収まり、
+// 影の描く回数だけが一人に四十ほど増えていた（三方ヶ原で一コマの影が百八十回。11/1）。本人と骨で動く体は今まで通り。
+export function shadowWorth(o, u) {
+  if (!MEM_TIGHT || u?.isPlayer || o.isSkinnedMesh) return true;
+  let r = o.userData.shR;
+  if (r === undefined) {
+    const g = o.geometry;
+    if (g && !g.boundingSphere) g.computeBoundingSphere();
+    const sc = o.scale ? Math.max(o.scale.x, o.scale.y, o.scale.z) : 1;
+    r = o.userData.shR = g?.boundingSphere ? g.boundingSphere.radius * sc : 1;
+  }
+  return r >= 0.25;
+}
 export class Army {
   constructor(scene, world, hooks = {}) {
     this.scene = scene;
@@ -804,17 +817,19 @@ export class Army {
     const ce = this.world.cullCam?.matrixWorld.elements;
     let fx = 0, fz = 0;
     if (ce) { const l = Math.hypot(ce[8], ce[10]) || 1; fx = -ce[8] / l; fz = -ce[10] / l; }
+    // iPhone は動く影を 12m まで（16m の先の人の影は画面で数画素。影の描く回数を三割ほど減らす。11/1）
+    const sd = MEM_TIGHT ? Math.min(this.shadowDist, 12) : this.shadowDist;
     for (const u of this.units) {
       const dx = focus ? u.mesh.position.x - focus.x : 0, dz = focus ? u.mesh.position.z - focus.z : 0;
       const distance2 = focus ? dx * dx + dz * dz : Infinity;
-      u.shadowSelected = !!u.isPlayer || (distance2 < this.shadowDist * this.shadowDist && dx * fx + dz * fz > -4);
+      u.shadowSelected = !!u.isPlayer || (distance2 < sd * sd && dx * fx + dz * fz > -4);
       const on = u.shadowSelected && u.qualityTier !== 2 && this.shadows !== false && u.alive && !u.dying && !u.gone;
       if (u.shSet && u.shOn === on && !on) continue;
       u.shOn = on; u.shSet = true;
       u.mesh.traverse(o => {
         if (!o.isMesh) return;
         if (o.userData.unitCastShadow === undefined) o.userData.unitCastShadow = o.userData.cs0 ?? o.castShadow;
-        o.castShadow = on && o.userData.unitCastShadow;
+        o.castShadow = on && o.userData.unitCastShadow && shadowWorth(o, u);
       });
     }
   }

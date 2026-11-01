@@ -1,6 +1,7 @@
 // 人の処理：馬の形と読み込み。外部向けの入口は humans.js。
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { reshapeHorse } from './humans_horse_shape.js';
 
 
 // ---------------- 本物の馬（骨の入った馬） ----------------
@@ -109,7 +110,8 @@ function horseHairGeometry(mesh, body, walk) {
         const dir = new THREE.Vector3().subVectors(nxt, prv).normalize();
         const sk = skinOf(c.i);
         // 首の中ほどが長く、き甲と耳の際は短い。房ごとに長さを揃えない
-        const L = (0.12 + 0.15 * Math.sin(Math.PI * Math.min(1, f * 1.1)) + 0.07 * rnd(k * 3 + layer)) * [1, 0.92, 0.7][layer];
+        // 在来馬の鬣は短く立ち気味（手本 ref7_kiba）：首の脇へ長く垂らさない
+        const L = (0.12 + 0.15 * Math.sin(Math.PI * Math.min(1, f * 1.1)) + 0.07 * rnd(k * 3 + layer)) * [1, 0.92, 0.7][layer] * 0.6;
         const w = 0.06 + 0.015 * rnd(k * 7 + layer);
         const base = P.length / 3;
         let xo = 0;
@@ -284,6 +286,15 @@ function proxyLo(geo, off) {
 }
 function prepHorse(gl, tex) {
   const sc = gl.scene;
+  // 在来馬の体つきへ組み直す（遠く用の形も同じに。馬具は組み直す前の骨の立ち姿から、骨と一緒に動かす）
+  const tackKeep = {};
+  let shape = null;
+  {
+    const h0 = new THREE.Group(); h0.scale.setScalar(HS); h0.position.x = HX; h0.add(sc); h0.updateMatrixWorld(true);
+    for (const nm of [SEAT_B, CHEST_B, HIP_B]) { const b = sc.getObjectByName(nm); if (b) tackKeep[nm] = b.matrixWorld.clone().invert(); }
+    try { shape = reshapeHorse(gl); } catch (e) { console.warn('在来馬の形に組み直せませんでした', e); }
+    h0.remove(sc);
+  }
   const lo = {}, rm = [];
   sc.traverse((o) => { if (o.isSkinnedMesh && /_lo$/.test(o.name)) { lo[o.name.replace(/^horse_|_lo$/g, '')] = o.geometry; rm.push(o); } });
   for (const o of rm) o.parent.remove(o);
@@ -323,6 +334,18 @@ function prepHorse(gl, tex) {
   clips.trot = gaitClip(clips.walk, 'trot', { LH: 0.34, RH: 0.25 }, { fore: 1.3, hind: 1.3, low: 1.4, cen: { LF: 0.44, RF: 0.94, LH: 0.28, RH: 0.71 } });
   clips.run = gaitClip(clips.gallop, 'run', { RH: 0.06, LF: -0.04, RF: 0.04 }, { fore: 1.15, hind: 1.15, body: 1.25, cen: { LH: 0.57, RH: 0.72, LF: 0.77, RF: 0 } });
   HR = { scene: sc, lo, tex, rest, restInv, clips, bitL: bit.clone().setX(bit.x + 0.05), bitR: bit.clone().setX(bit.x - 0.05), head0: P(HEAD_B), pool: [], mats: new Map(), tack: new Map(), toRoot, proxy };
+  // 馬具（元の形の座標）を骨の子にする行列（tackInv）と、根元の座標での組み直し（tackFix）。
+  // 乗り手・手綱の手・力革（鞍の座標）は、組み直した鞍の座の高さの差（seatInv）だけ動かす
+  HR.tackInv = {}; HR.tackFix = {};
+  for (const nm of [SEAT_B, CHEST_B, HIP_B]) {
+    HR.tackInv[nm] = shape && tackKeep[nm] ? shape.local(nm).multiply(tackKeep[nm]) : restInv[nm];
+    HR.tackFix[nm] = rest[nm].clone().multiply(HR.tackInv[nm]);
+  }
+  {
+    const top = new THREE.Vector3(0, 1.335, -0.01), lift = top.clone().applyMatrix4(HR.tackFix[SEAT_B]).sub(top);
+    HR.seatInv = restInv[SEAT_B].clone().multiply(new THREE.Matrix4().makeTranslation(lift.x, lift.y, lift.z));
+  }
+  HR.legY = shape ? shape.kF * shape.s : 1;
   // 幅広い洋式の革の面繋を、同じ描き物のまま丸い組紐へ替える。
   const bridleMesh = sc.getObjectByName('horse_bridle');
   if (bridleMesh) {

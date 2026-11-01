@@ -923,6 +923,8 @@ function buildTown(rt, def) {
     else {
       rt.scene.add(hut(W, 0, CASTLE_Z + 30, 12, 8, 0, { ita: true }));
       rt.scene.add(yagura(W, 16, CASTLE_Z + 30));
+      // 町のどこからでも何の城の城下か分かるよう、館の奥に城の主の高楼（望楼）を立てる（kaito 11/1 F：天守が無い）
+      addKB(tenshu(W, -6, CASTLE_Z + 42, { floors: stoneCastle ? 3 : 2, b: stoneCastle ? 8 : 6.5, base: stoneCastle ? 3 : 1.6, borou: true, old: !stoneCastle, name: '城の主の高楼', batch: kb }));
     }
     rt.addInteract('castle-range', { x: 0, z: CASTLE_Z }, '見る　領主の城門', () => rt.say('門番', gifu ? '金華山の頂は三層の天守。殿は麓の四階の御殿にお住まいじゃ。庭に能舞台もある' : def.kiyosu ? '清洲は堀と土塁で館を守る城じゃ。木の櫓で見張る。見学は門の前まで' : '領主の城は御用の者だけ。見学はこの門の前まで', 4.5), { r: 3 });
     // 門の内には入れない（城の中は作らない）
@@ -1887,18 +1889,26 @@ function caught(rt) {
   const fine = 120 + F.heat * 90 + (crimeMemo(rt).debt || 0);
   const paid = Math.min(Math.max(0, Math.round((rt.G.kan || 0) * 1000)), fine);
   crimeMemo(rt).debt = fine - paid;
-  const lost = Math.min(rt.G.merit || 0, 8);
+  // 侍を斬った・何人も斬った（手配が最も重い）時は、捕り方が刀を抜いて斬り伏せてから縛る（kaito 11/1 F：斬ったら兵が来て討たれる）
+  const slain = F.heat >= 3;
+  const lost = Math.min(rt.G.merit || 0, slain ? 16 : 8);
+  if (slain) {
+    const p = rt.player.u;
+    if (p.hp != null) p.hp = Math.max(1, Math.round((p.maxHp || p.hp) * 0.05));
+    rt.army.play('clash', p.pos, 1);
+    rt.player.addShake?.(0.4);
+  }
   rt.G.kan = Math.max(0, Math.round((rt.G.kan || 0) * 1000) - paid) / 1000;
   rt.G.merit = Math.max(0, (rt.G.merit || 0) - lost);
   (rt.G.journal || (rt.G.journal = [])).push({ t: `${rt.def.when}　町の処罰`, s: `過料${paid}文を払った。未納は${fine - paid}文。戦功は${lost}減った` });
   rt.hud.say('町の記録', `捕縛。過料${paid}文、戦功${lost}を失った`, 4, true);
-  rt.banner('役人に捕らえられた', `過料 ${paid}文・戦功 −${lost}`);
+  rt.banner(slain ? '捕り方に斬り伏せられた' : '役人に捕らえられた', `過料 ${paid}文・戦功 −${lost}`);
   rt.say('役人', paid < fine ? `持ち銭から${paid}文を徴収した。不足の${fine - paid}文は借りとして記す。次に捕まれば合わせて徴収する。戦功は${lost}減る。次はこうはいかぬぞ` : `過料${paid}文を徴収した。町の者に手を上げるとは……次はこうはいかぬぞ`, 4.5);
   F.heat = 0; F.heatT = 0;
   const memo = crimeMemo(rt); memo.heat = 0; memo.remaining = 0;
   rt.objRemove('heat');
   const p = rt.player.u;
-  p.stagger = Math.max(p.stagger || 0, 1.2);
+  p.stagger = Math.max(p.stagger || 0, slain ? 3.5 : 1.2);
 }
 
 function talk(rt, P, rumors) {

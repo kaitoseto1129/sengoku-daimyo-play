@@ -2,6 +2,7 @@
 import { S } from './settings.js';
 import { tegaraSettle, tegaraTitle } from './merit.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
+import { TOKUGAWA_LINE } from './tokugawa_line.js';
 
 // 詳細版 §16 の目安
 // roku：毎戦の禄（貫）。tomo：連れて行ける供の数（組とは別。足軽は中間一人だけ、身分が上がると増える）
@@ -230,6 +231,13 @@ export const SCENARIOS = {
     blurb: '本能寺の後、羽柴秀吉に付いて天下統一まで戦う',
     battles: TOYOTOMI_LINE.map((b) => ({ cap: 240, place: '', ...b, year: typeof b.year === 'number' ? `${b.year}年` : b.year })),
     ceil: TOYOTOMI_LINE.map((b) => b.ceil ?? 4),
+  },
+  // 第三章「徳川編」（kaito 11/1・docs/chapter3_tokugawa.md）。並びは tokugawa_line.js。題の画面（SCENARIO_PICK）へは戦が揃うまで出さない
+  tokugawa: {
+    name: '徳川編', year: '慶長五年（1600）〜', faction: 'oda', mon: 'oda', town: '江戸城下',
+    blurb: '豊臣の世が崩れ、徳川に付いて関ヶ原から大坂の陣まで戦う',
+    battles: TOKUGAWA_LINE.map((b) => ({ cap: 240, place: '', ...b, year: typeof b.year === 'number' ? `${b.year}年` : b.year })),
+    ceil: TOKUGAWA_LINE.map((b) => b.ceil ?? 4),
   },
 };
 // SCENARIO_PICK：題の画面で「新しく始める」時に選べる筋書き（いまは織田家編だけ。一つなら選ぶ歩は飛ばす）

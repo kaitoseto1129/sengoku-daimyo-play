@@ -1479,6 +1479,13 @@ const tano = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
     const F = rt.flags, W = rt.world;
+    // 11/1 点付け（田野：25秒で倒れて負けの札）：谷道（侍ばかりの守兵が本人へ寄る段）は、本人へ同時に打ち込むのを二人まで
+    //   （共通の既定は四人・player_pressure.js。侍の重い一撃を四方から浴びて開戦二十秒で倒れた）。崖道・柵・屋敷の段は三人まで
+    //   （守兵はみな侍で一太刀が重く、四人では bot が八回に六回倒れた）。寄せてくる数・敵の強さは変えない。
+    if (W.def) Object.defineProperty(W.def, 'playerAtkMax', { configurable: true, get() {
+      const C = rt.flags.dp?.cur;
+      return !C ? undefined : C.s.phase === 'valley' ? 2 : 3;
+    } });
     timeslipField(rt);   // 身の回りの踏まれた谷の道・倒れた槍と旗・早春の枯れ草（def.timeslip）
     // 本人と兵で同じ切岸の判定を使う。押し合いで外れた兵は既存の足場復帰で戻る。
     // この戦にだけ加え、既存の通行止めも残す。関数は設営時に一度だけ作る。
@@ -1783,6 +1790,11 @@ const tano = {
       '', { red: true, h: 2.6 });   // 字は出さない（敵は赤い印だけで分かる）
     rt.zone('dp', s.at.x, s.at.z, s.kind === 'move' ? 8 : 12);
     sendColumn(rt, s.at, s.phase);
+    // 11/1 点付け（田野：25秒で倒れて負けの札）：谷道へ入るとすぐ、守兵の三組が本人ひとりを目がけ、先手に加わる前に囲まれた。
+    //   本人を狙うのは二組まで（先頭の組と、谷の奥の群れの一組）。残りの組は谷の奥で槍をそろえて控え（画面の奥の厚み）、
+    //   十二秒より後、本人を狙う組が崩れて二組を割った時に一組ずつ寄せる。味方の先手へ回すと先手が崩れて負けの札が出た。
+    let hunters = 0;
+    const reserve = [];
     for (const g of groups) {
       if (!fighting(g)) continue;
       // 今の持ち場だけが打って出る。次の守兵は本人を追わず、その場で迎える。
@@ -1805,6 +1817,12 @@ const tano = {
         if (g === F.defenders[3]) { g.anchor = { x: -26, z: 1 }; placeGroup(rt, g, -26, 1); }
         g.noAI = true; g.path = null; g.formation = 'yari'; g.facing = -Math.PI / 2; g.order = 'attack'; g.focus = rt.player.u;
         g.seekRange = Math.max(g.seekRange || 0, 70); g.aggro = Math.max(g.aggro || 0, 40); g.onArrive = null;
+        if (hunters++ >= 1) { g.order = 'hold'; g.focus = null; g.reserveAggro = g.aggro; g.aggro = 7; reserve.push(g); }
+        else {
+          // 寄せの始めは浅く：谷の奥の群れは先手の槍へ当たり、六秒後に本人を名指しする（先頭の組と同時に本人へ届かない）。
+          g.focus = null;
+          rt.after(6, () => { if (rt.player.u.alive && fighting(g) && D.cur === current && g.order === 'attack') g.focus = rt.player.u; });
+        }
         continue;
       }
       // 守兵の後列も曲がり角を通す。寄せ口と到着後の槍衾は変えない。
@@ -1814,6 +1832,18 @@ const tano = {
         const arrive = g.onArrive;
         g.onArrive = () => { arrive(); if (rt.player.u.alive) { g.order = 'attack'; g.focus = rt.player.u; g.seekRange = Math.max(g.seekRange || 0, 30); } };
       }
+    }
+    if (reserve.length) {
+      const release = () => {
+        if (rt.over || F.ending || D.cur !== current || !rt.player.u.alive) return;
+        const active = groups.filter((h) => h.focus === rt.player.u && fighting(h)).length;
+        if (active < 2) {
+          const r = reserve.shift();
+          if (r && fighting(r)) { r.order = 'attack'; r.focus = rt.player.u; r.aggro = r.reserveAggro || 40; }
+        }
+        if (reserve.length) rt.after(1, release);
+      };
+      rt.after(12, release);
     }
     // 持ち場へ着くまでは射手が槍の後ろから勝手に撃たない。
     F.tgun.holdFire = true; F.tgun.fire = true;
