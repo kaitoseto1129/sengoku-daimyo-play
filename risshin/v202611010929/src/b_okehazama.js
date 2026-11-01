@@ -849,6 +849,8 @@ function quietOtherFlags(rt, keep) {
 
 const okehazama = {
   namedKacchu: OKEHAZAMA_KACCHU,
+  // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 12→20 の軽く）
+  tightShadowEvery: 2,
   missionStyle: 'raid', // 共通の印・ピン・カメラの型（field_signs・mission_pin・hud_map・player が読む。戦の名で分けない）
   jinkei: OKEHAZAMA_JIN,
   minutes: 7,

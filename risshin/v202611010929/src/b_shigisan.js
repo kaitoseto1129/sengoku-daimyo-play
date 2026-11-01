@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addInterior, facePanels, nakaGuide } from './naka.js';
 import { stoneTex, barkTex, woodTex, dirtTex, mudTex, groundDetailTex } from './nature.js';
-import { nobori, hut, village, yagura, campfire, kagaribi, kabukimon, gateRoofFrame, tawara, tobira, palisade, solidRect, makeSimpleBatch, finalizeSimpleBatch, castleStoneMat, castleMat, ishigaki, makeKitBatch, finalizeKitBatch } from './props.js';
+import { nobori, hut, village, yagura, campfire, kagaribiBatch, kabukimon, gateRoofFrame, tawara, tobira, palisade, solidRect, makeSimpleBatch, finalizeSimpleBatch, castleStoneMat, castleMat, ishigaki, makeKitBatch, finalizeKitBatch } from './props.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { RANKS } from './state.js';
 import { S as SETTINGS } from './settings.js';
@@ -1642,6 +1642,19 @@ function sgKeep(rt, x, z, gy) {
   grp.position.set(x, 0, z);
   rt.scene.add(grp);
 }
+// 篝火は十二基。一基ごとに二回描かず、並びの束（鉄籠と薪の二回）へ一つずつ置く（iPhone の描く回数を減らす）。炎は今までどおり addFire。
+function kagaPlace(rt, W, x, z) {
+  let G = rt._sgKaga;
+  if (!G) {
+    G = rt._sgKaga = { grp: kagaribiBatch(W, Array.from({ length: 16 }, () => [0, 0])), n: 0, m: new THREE.Matrix4() };
+    rt.scene.add(G.grp);
+  }
+  G.m.makeTranslation(x, W.heightAt(x, z), z);
+  for (const im of G.grp.children) { im.setMatrixAt(G.n, G.m); }
+  G.n++;
+  for (const im of G.grp.children) { im.count = G.n; im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere(); }
+  W.addFire(x, z, { torch: true, h: 1.35 });
+}
 function slopeSkin(rt) {
   const W = rt.world, H = (x, z) => drawGroundAt(W, x, z);
   const skin = new THREE.MeshStandardMaterial({ map: groundDetailTex('dirt'), vertexColors: true, roughness: .97, metalness: 0 });
@@ -1722,6 +1735,8 @@ function slopeSkin(rt) {
     rm.setMatrixAt(i, mtx.compose(p.set(x, H(x, z) - r * .6, z), q, s.set(r, r, r)));
   });
   rm.castShadow = rm.receiveShadow = true; rt.scene.add(rm);
+  // 画面に入る株だけ・遠すぎる草は描かない（iPhone：草の三角が毎コマ十万を超えていた）
+  W.viewCull([tm], 0, 48); W.viewCull([rm], 0, 70);
 }
 
 // 持ち場の正面にある南斜面の推定復元。三段の土の縁を地面へ差し込み、
@@ -2624,7 +2639,7 @@ const shigisan = {
     noT(wallLine(rt, [[5.5, GATE.z], [28, GATE.z + 4]], { team: 1, hp: 1e9, name: '柵', segLen: 5, meshOpt: gateFenceOpt }));
     // 門の東は窪地へ落ちる切岸の縁。持ち場の正面右に、縁に沿う柵と篝火を続けて段の形を見せる（道と門前の平場は空ける）。
     noT(wallLine(rt, [[28, GATE.z + 4], [38, GATE.z + 3.5], [48, GATE.z + 2.5]], { team: 1, hp: 1e9, name: '柵', segLen: 5, meshOpt: gateFenceOpt }));
-    rt.scene.add(kagaribi(W, 41, GATE.z + 6.5)); W.addFire(41, GATE.z + 6.5, { torch: true, h: 1.35 });
+    kagaPlace(rt, W, 41, GATE.z + 6.5);
     F.gate = rt.army.addStruct({ seg: [-5.5, GATE.z, 5.5, GATE.z], nx: 0, nz: 1, hp: 1800, maxHp: 1800, armor: 0.22, team: 1, name: '門' });
     const dm = tobira(W, GATE.x, GATE.z, 11, 0);   // 閉じた扉（破られると根元から倒れる）
     F.gate.mesh = dm;
@@ -2640,7 +2655,7 @@ const shigisan = {
     // 門前の篝火は尾根道の幅六歩と、門の右脇の守りから離す。炎は鉄籠の高さに合わせる。
     // 主郭の南の木戸の両脇にも篝火。持ち場から見上げた天守と柵の影を火で縁取る（10/28 資料との差：天守が見えない）。
     for (const [x, z] of [[-9, GATE.z + 12], [10, GATE.z + 12], [TOP.x - 5.6, TOP.z - 1.5], [TOP.x + 1.6, TOP.z - 1.5], [TOP.x - 6, TOP.z + TOP.r - 3], [TOP.x + 6, TOP.z + TOP.r - 3]]) {
-      rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 });
+      kagaPlace(rt, W, x, z);
     }
     // 夜の高い尾根では近い遠景の板が空へせり出す。山の板を消して同じ空へつなぐ。
     W.mountains.visible = false;
@@ -2698,7 +2713,7 @@ const shigisan = {
       // 10/30 採点 点検4：丸太の柵でなく、石垣の天端に狭間の板塀（月夜に黒い板と狭間の口）。
       if (pts.length >= 2) sgHei(rt, pts.map(([x, z]) => [x - .6, z]), (x, z) => W.heightAt(x - .9, z) + .4);
       for (const [k, p] of pts.entries()) {
-        if (k === 1 || k === 3) { rt.scene.add(kagaribi(W, p[0] - 1.2, p[1])); W.addFire(p[0] - 1.2, p[1], { torch: true, h: 1.35 }); }
+        if (k === 1 || k === 3) { kagaPlace(rt, W, p[0] - 1.2, p[1]); }
         if (k === 0 || k === 2 || k === 4) rt.scene.add(nobori(W, p[0] - 2, p[1] + 1.5, 'todo', 7));
       }
       const mid = pts[Math.floor(pts.length / 2)];
@@ -2748,7 +2763,7 @@ const shigisan = {
         W.addDistantArmy({ x: kx + 11, z: kz, w: 16, d: 5, count: 70, facing: Math.PI / 2, armor: 0x2a2622, team: 1, host: false, flagTex: flagTexture('todo'), seed: 15775 });
         for (const [a, o, k] of [[3.5, 2.6, 'fire'], [5, -2.8, 'flag'], [8, 3.2, 'flag']]) {
           const x = tx + fx * a + lx * o, z = tz + fz * a + lz * o;
-          if (k === 'fire') { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); } else rt.scene.add(nobori(W, x, z, ODA.flag, 5));
+          if (k === 'fire') { kagaPlace(rt, W, x, z); } else rt.scene.add(nobori(W, x, z, ODA.flag, 5));
         }
       }
     }
@@ -2847,7 +2862,7 @@ const shigisan = {
       const dx = OPEN_NEXT[0] - OPEN_PT[0], dz = OPEN_NEXT[1] - OPEN_PT[1], L = Math.hypot(dx, dz), sx = -dz / L, sz = dx / L;
       // 持ち場の脇に置くと鉄籠が画面の左を塞いだ。伏兵の六歩先、道の両端に置く。
       const ax = AMBUSH_PT[0] + dx / L * 6, az = AMBUSH_PT[1] + dz / L * 6;
-      for (const k of [-1, 1]) { const x = ax + sx * k * (ROAD_HALF + 1.5), z = az + sz * k * (ROAD_HALF + 1.5); rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { torch: true, h: 1.35 }); }
+      for (const k of [-1, 1]) { const x = ax + sx * k * (ROAD_HALF + 1.5), z = az + sz * k * (ROAD_HALF + 1.5); kagaPlace(rt, W, x, z); }
     }
     // 後列も登城道に沿わせ、藪の急斜面へ並べない。下知までは動かさない。
     march(F.amb, [OPEN_PT]);

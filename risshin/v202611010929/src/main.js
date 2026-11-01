@@ -2973,7 +2973,9 @@ function loop() {
       // 「次のコマでまた同じ所で投げる」が延々続き、画面は止まって見えるのに輪は回り続ける＝固まる（9/30・軍議を経た戦で見つかった）。
       // 一度つかまえたら、その場で一時停止へ落として、Esc の「この戦をやり直す」が確かに効くようにする
       try {
-        const spd = getSpeed(), maxSteps = stepMs > 24 ? 1 : 2;
+        // 10/31 携帯（CPU_LEAN）は 10〜20fps の間を一刻みにする。描く側が重い iPhone では更新が 24ms 未満でも一コマが 50ms を超え、
+        //   更新を二度回して一コマがさらに重くなっていた（桶狭間・森部の実機 12〜15fps）。一刻みは 1/15 秒までのまま（10fps より遅い時は今までどおり二刻み）
+        const spd = getSpeed(), maxSteps = stepMs > 24 || CPU_LEAN && dt <= 0.1 ? 1 : 2;
         const steps = Math.min(maxSteps, Math.max(1, Math.ceil(dt / 0.05)));
         // 一刻みは 1/15 秒まで（当たり・歩みの刻みを粗くしすぎない。余った分は戦の時がその分ゆっくり進む）
         const slice = Math.min(dt / steps, 1 / 15);

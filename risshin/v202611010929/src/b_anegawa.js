@@ -1610,6 +1610,9 @@ function anegawaHqPressure(rt, dt) {
         u.woundOut || u.rearWound || u.downed || u.dropped) continue;
     const dx = u.pos.x - HQ.x, dz = u.pos.z - HQ.z, d2 = dx * dx + dz * dz;
     if (u.team !== team) {
+      // 本人の傍へ乱戦を絶やさないための小勢・物見（frontline_density.js）は、本陣を攻める寄せに数えない。
+      //   本人が本陣へ戻ると、その傍に湧いた小勢だけで「本陣が押し切られた」負けになっていた（10/31 bot）。
+      if (u.group?.clash || u.group?.frontlineScout) continue;
       // 西や東の押し合いだけでは帰陣させない。本陣へ通じる道に迫った兵を読む。
       // 警戒解除には余裕を持たせ、森の備を抜ける前に戻る時間を残す。
       // 川前から本陣前までは百三十歩ほどある。池田の後ろへ抜けた時点で帰陣を知らせる。
@@ -2983,6 +2986,9 @@ const anegawa = {
   retreatPointAllowed: anegawaGuidePointAllowed,
   distanceUnit: 'steps',
   hideGuideSteps: true, // 横持ちの任務札は、歩数より守備・手当て・退却の下知を優先する。
+  // 本陣の傍の味方（佐久間の段など）は、大軍の寄せ（mass_assault.js）や前線の埋め合わせで前へ連れ出さない。
+  //   連れ出すと本陣が空になり、殿を狙う一隊や川前から抜けた敵だけで本陣が押し切られた（10/31 bot：mass_9_16 の後 5戦2〜3勝）。
+  frontlineDensity: { canSend: (rt, g) => g.team !== rt.player.u.team || Math.hypot(g.anchor.x - HQ.x, g.anchor.z - HQ.z) > 70 },
   taishoRaid: { list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }],
     width: 10, spacing: 1.1, formation: 'yari' },
   jinkei: ANEGAWA_JIN,
