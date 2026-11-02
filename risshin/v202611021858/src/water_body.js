@@ -18,7 +18,7 @@ function surfaceNormalGLSL(flowExpr, speed, waves) {
     float sfT = uSurfaceTime * ${speed.toFixed(2)};
     // 流れと直に交わる峰が長い。三つの大きさの雑音を別の速さで流し、決まった向きの縞を作らない。
     vec2 sfG = sfGrad(sfP * vec2(0.022, 0.045) + vec2(0.0, -sfT * 0.035)) * vec2(0.022, 0.045) * 0.5
-      + sfGrad(sfP * vec2(0.075, 0.13) + vec2(0.37, -sfT * 0.11)) * vec2(0.075, 0.13) * 0.17
+      + sfGrad(sfP * vec2(0.075, 0.13) + vec2(0.37, -sfT * 0.11)) * vec2(0.075, 0.13) * 0.27
       + sfGrad(sfP * vec2(0.28, 0.42) + vec2(0.71, -sfT * 0.26)) * vec2(0.28, 0.42) * 0.045 * sfNear
       // 流れの向きに伸びる細かな筋（横に細かく、縦に長い）。近くだけ。
       ${MEM_TIGHT ? '' : '+ sfGrad(sfP * vec2(0.62, 0.09) + vec2(0.13, -sfT * 0.3)) * vec2(0.62, 0.09) * 0.04 * sfNear'};
@@ -71,7 +71,7 @@ function surfaceLightGLSL(o) {
       ${MEM_TIGHT ? '' : `// 低い目線で空の一色の鏡にしない：流れに沿う長い筋で、滑らかな所は空を強く、ざわつく所は弱く映す（10/31）。
       float sfSlick = texture2D(uSurfaceNoise, vec2(sfP.x * 0.05, sfP.y * 0.006 - sfT * 0.004)).r;
       float sfGraze = smoothstep(0.35, 0.05, sfV.y);
-      sfFacet *= mix(1.0, 0.55 + smoothstep(0.35, 0.7, sfSlick) * 0.75, sfGraze);
+      sfFacet *= mix(1.0, 0.4 + smoothstep(0.3, 0.7, sfSlick) * 1.0, sfGraze);
       sfSky *= mix(1.0, 0.82 + sfSlick * 0.36, sfGraze);`}
       outgoingLight = mix(outgoingLight, sfSky, clamp(sfFres * ${o.refl.toFixed(2)} * sfFacet${o.cap ? ' * (1.0 - sfBank * 0.55)' : ''} * (1.0 - sfFoamW), 0.0, 0.78));
       float sfSpec = pow(max(dot(sfR, uSurfaceSun), 0.0), 140.0) * (1.0 - uSurfaceRain * 0.85);

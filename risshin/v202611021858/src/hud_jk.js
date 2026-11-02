@@ -71,6 +71,8 @@ body:has(#pause:not([hidden])) #hud :is(#jk-chap,#jk-prog,#jk-map,#jk-vit) { vis
 /* 前の札は畳む（任務の一行・小さな丸い地図・左下の体力の束）。号令の釦は地図の下に残す。 */
 html:root body #hud#hud.jk.prog-on #h-prog#h-prog { top:calc(196px + env(safe-area-inset-top, 0px)) !important; background:none !important; border:0 !important; padding:0 !important; animation:none !important; }
 html:root body #hud#hud.jk #h-prog#h-prog > :is(.pg-st,.pg-next,.pg-dots,.pg-time,.pg-context) { display:none !important; }
+/* 戦の進行の札が無い戦（豊臣編など）：任務の一行が右上の小さな地図の下に潜って切れていた（11/2 1.6.5 の店の写真）。地図の下へ下げる */
+html:root body #hud#hud.jk-map-on:not(.jk) #h-prog#h-prog { top:calc(196px + env(safe-area-inset-top, 0px)) !important; }
 html:root body #hud#hud.jk-map-on :is(#minimap#minimap,#fieldmap#fieldmap,#maphint#maphint) { display:none !important; }
 html:root body #hud#hud.jk-vit-on .bl { display:none !important; }
 html:root body #hud#hud.jk.jk.prog-on:has(#jk-prog) #battle-notices:not(.choosing):not(.pg-x) { left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)) !important; top:calc(196px + env(safe-area-inset-top, 0px)) !important; bottom:auto !important; width:min(300px, 34vw) !important; max-width:34vw !important; max-height:calc(100% - 330px) !important; }
@@ -96,6 +98,7 @@ html.inframe.touch.tc-low #hud #jk-prog { top:calc(122px + env(safe-area-inset-t
  #hud #jk-vit .jk-bars { width:120px; gap:4px; }
  html:root body #hud#hud.jk.prog-on #h-prog#h-prog, html:root body #hud#hud.jk.jk.prog-on:has(#jk-prog) #battle-notices:not(.choosing):not(.pg-x) { top:calc(120px + env(safe-area-inset-top, 0px)) !important; }
  html:root body #hud#hud.jk.jk.prog-on:has(#jk-prog) #battle-notices:not(.choosing):not(.pg-x) { max-height:calc(100% - 240px) !important; }
+ html:root body #hud#hud.jk-map-on:not(.jk) #h-prog#h-prog { top:calc(120px + env(safe-area-inset-top, 0px)) !important; }
 }
 @media (min-height:700px) and (min-width:1100px) {
  #hud #jk-chap .jk-band { font-size:17px; }
@@ -112,6 +115,7 @@ html.inframe.touch.tc-low #hud #jk-prog { top:calc(122px + env(safe-area-inset-t
  #hud #jk-vit .jk-hp i { height:12px; }
  #hud #jk-vit .jk-sta i { height:10px; }
  html:root body #hud#hud.jk.prog-on #h-prog#h-prog, html:root body #hud#hud.jk.jk.prog-on:has(#jk-prog) #battle-notices:not(.choosing):not(.pg-x) { top:calc(236px + env(safe-area-inset-top, 0px)) !important; }
+ html:root body #hud#hud.jk-map-on:not(.jk) #h-prog#h-prog { top:calc(236px + env(safe-area-inset-top, 0px)) !important; }
 }
 /* 突く・守る（M）：丸い金の縁に槍と盾の絵、下に字。 */
 html.touch body #tc .tb:is([data-b=atk],[data-b=guard]) { border-radius:50% !important; border:3px solid #c9a24a !important; box-shadow:0 0 0 2px rgba(14,11,8,.85), inset 0 0 0 2px rgba(14,11,8,.7), 0 3px 10px rgba(0,0,0,.5) !important; background:radial-gradient(circle at 50% 38%, rgba(64,52,36,.92), rgba(16,12,9,.92) 70%) !important; color:#f3ead6 !important; font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; display:flex !important; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:8%; box-sizing:border-box; }

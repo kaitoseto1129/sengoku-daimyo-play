@@ -1829,7 +1829,7 @@ const miki = {
         look.hemiSky.lerp(dawnSky, .45); look.hemiI *= .78; look.sunI *= 2.2;
         // 10/31：夜の仕上げ（色を二割抜き、陰を青く）で胴・陣笠の朱と茶が灰になっていた。三木の夜明けだけ色を残し、陰の青みを弱め、少し明るく。
         const g = look.grade = copyGrade(gradeOf('night'));
-        g.saturation = .93; g.exposure = 1.1; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
+        g.saturation = .93; g.exposure = 1.24; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
       }
       return look;
     };

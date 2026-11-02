@@ -3592,6 +3592,8 @@ const honnoji = {
       Object.defineProperty(A, 'playerPullMax', { configurable: true, get: () => rt.G?.lord ? base.pull : pull(), set(v) { base.pull = v; } });
       Object.defineProperty(A, 'playerReach', { configurable: true, get: () => rt.G?.lord ? base.reach : 14, set(v) { base.reach = v; } });
     }
+    // 11/2：共通（player_pressure.js）は戦の定めでなく world の定め（def.world の写し）から playerAtkMax を読む。戦の定めの二人までが届かず四人のままだった。
+    if (rt.world?.def) Object.defineProperty(rt.world.def, 'playerAtkMax', { configurable: true, get: () => honnoji.playerAtkMax });
     // 初めの札は下知を切らず、本文だけ指や鍵で送れるようにする。この戦を出たら外す。
     const hud = document.getElementById('hud'), introStyle = document.createElement('style');
     hud?.setAttribute('data-honnoji', '');
@@ -5504,6 +5506,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  // 11/2：二秒半で一歩も進めていないか（道を塞ぐ兵・選んだ戸口の前で止まる時の手当てに使う）
+  if (!(b.t - (b.prgT ?? -9) <= 2.5)) { b.noProg = Math.hypot(u.pos.x - (b.prgX ?? 1e9), u.pos.z - (b.prgZ ?? 1e9)) < 0.8; b.prgT = b.t; b.prgX = u.pos.x; b.prgZ = u.pos.z; if (b.noProg && b.door) { b.badDoor = b.door; b.badDoorT = b.t + 6; } }
 
   // 行き先が壁の向こうにしか無い時（押されて堂の外へ出た等）は、見える堂・御殿の口のうち、行き先へ近い口を先に通る。
   // 半秒に一度だけ調べる。
@@ -5513,11 +5517,13 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     if (HZ && x > HZ.x0 - 0.8 && x < HZ.x1 && z > HZ.z0 && z < HZ.z1) x = HZ.x0 - 1.2;
     if (!(b.t - (b.doorT ?? -9) < 0.5) || Math.hypot(x - (b.doorX ?? 1e9), z - (b.doorZ ?? 1e9)) > 1) {
       b.doorT = b.t; b.doorX = x; b.doorZ = z; b.door = null;
-      if (F.hp >= 4 && !patrolClear(b, x, z)) {
+      // 11/2：三歩半より近い点は、壁そのものが無ければ直に行く。体の幅を足した検査だけで狭い渡りの口を塞がれたと見ると、祖師堂の口と行き来して止まる。
+      const near = Math.hypot(x - u.pos.x, z - u.pos.z) < 3.5 && !b.army.wallBetween(u.pos, -1, { x, y: u.pos.y, z });
+      if (F.hp >= 4 && !near && !patrolClear(b, x, z)) {
         let bd = 1e9;
         for (const h of F.T?.halls || []) for (const d of h.doors) {
           const dd = Math.hypot(d.x - u.pos.x, d.z - u.pos.z);
-          if (dd < 0.5 || dd > 14 || h.blocked || !patrolClear(b, d.x, d.z)) continue;
+          if (dd < 0.5 || dd > 14 || h.blocked || d === b.badDoor && b.t < b.badDoorT || !patrolClear(b, d.x, d.z)) continue;
           const v = dd + Math.hypot(x - d.x, z - d.z);
           if (v < bd) { bd = v; b.door = d; }
         }
@@ -5723,6 +5729,37 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     }
     nbOff = gap > 5;
   }
+  // 11/2（bot だけ）：渡り廊下の道は本堂の西の通路（須弥壇と西の壁の間）を抜ける。来迎柱（-61.6, 48.8）の角で道の点を見通しと誤り、
+  //   柱へ向かって押し続けて燃える本堂に取り残された（上様は通れる）。本堂の西半分では柱の北→西の通路→西の口の順に歩く。
+  if ((hp === 6 || hp === 7) && F.mv === 'watari' && u.pos.x < -57 && u.pos.x > -63.4 && u.pos.z > 40 && u.pos.z < 52.5) {
+    const q = u.pos.x > -61.9 ? (u.pos.z > 47.6 ? [-62.35, 50.4] : u.pos.z < 44 ? [-62.4, 42.6] : [-57.6, 50.6]) : u.pos.z > 47.2 ? [-62.4, 46.8] : [-64.4, 46.4];
+    inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    b.botPath = null;   // 本堂を出たら、道の点を今いる所から選び直す（本堂の中で決めた先の点へ引き返さない）
+    goTo(p, inp, q[0], q[1], 0.2); return;
+  }
+  //   本堂の西の口を出た後も、口の外から渡り廊下の南の端へ、廊下の中は北の端まで道の線の上を歩く（戸口探しで廊下の西へそれた）。
+  const nbFar = NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 6;
+  if ((hp === 6 || hp === 7) && F.mv === 'watari' && nbFar && u.pos.x <= -63.4 && u.pos.x > -71 && u.pos.z > 43 && u.pos.z < 80.2) {
+    const inRoka = u.pos.x > -69.4 && u.pos.x < -66.6 && u.pos.z > 51.2;
+    const q = inRoka ? [-68, 80.6] : u.pos.x > -67.2 && u.pos.z < 50 ? [-67.6, 50.4] : [-68, 53.5];
+    inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    b.botPath = null;
+    goTo(p, inp, q[0], q[1], 0.2); return;
+  }
+  // 11/2（bot だけ）：上様が御殿へ着いた時（段7）に本人がまだ本堂にいると、御殿の守りの点が一つも見通せず、戻る点が本堂の中を行き来して
+  //   燃える本堂で六十秒立ち尽くして「上様から離れすぎ」で負けた。移る段の道の点をたどって御殿へ入る。
+  if (hp === 7 && F.mv && MOVES[F.mv] && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 20 && u.pos.z < 70) {
+    inp.leftPressed = false; inp.chargeHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    const pts = MOVES[F.mv].pts;
+    if (!(b.t - (b.m7T ?? -9) <= 2)) { b.m7Stuck = Math.hypot(u.pos.x - (b.m7X ?? 1e9), u.pos.z - (b.m7Z ?? 1e9)) < 0.6; b.m7T = b.t; b.m7X = u.pos.x; b.m7Z = u.pos.z; }
+    follow('m7' + F.mv, pts);
+    // 二秒進めない時は、移る段と同じく行く手の障子・襖を一振りで破る。
+    if (b.m7Stuck) { const w = pts[Math.min(b.botWp ?? 0, pts.length - 1)]; p.yaw = Math.atan2(w[0] - u.pos.x, w[1] - u.pos.z); inp.leftPressed = p.cd <= 0; return; }
+    guardMove(); return;
+  }
   // 炎の広間では斬り合いや手当てより先に退く。火の中で止まって体力を失わない。
   const heatZone = F.heatZone;
   if (hp === 7 && heatZone && u.pos.x > heatZone.x0 && u.pos.x < heatZone.x1 && u.pos.z > heatZone.z0 && u.pos.z < heatZone.z1) {
@@ -5777,6 +5814,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     if (hp === 4) follow(u.pos.z > 58 && !inKairo ? 'h4n' : 'h4', u.pos.z > 58 && !inKairo ? HONDO_BOT_NIWA : HONDO_RETREAT_PATH);
     else if (hp === 6) follow('m6' + F.mv, MOVES[F.mv].pts);
     // 遊ぶ人に出す道の印と同じ出口へ。廊下から燃える広間の固定点へ戻らない。
+    // 11/2：上様が御殿へ入った後も渡りの火の中に取り残された時は、御殿の中の印（壁の向こう）でなく、移る道の続きをたどって火の外へ。
+    else if (hp === 7 && F.mv && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 14) follow('m7' + F.mv, MOVES[F.mv].pts);
     else if (hp === 7) goVia(F.guardGuide.x, F.guardGuide.z, 0.3);
     else follow(h8Key, HONNO_BOT_PATHS[h8Key]);
     guardMove();
@@ -5797,11 +5836,14 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 移る間は、寄る敵へ向いて構えたまま道の印へ下がり続ける。
   if (hp === 6 && F.mv && NB?.alive) {
     // 主君から離れた時は、前進用の終点や待ち場より戻る道の印を優先する。
+    // 11/2：道を塞ぐ兵の前で構えたまま止まると、上様に置いて行かれる。進めない時は届く敵を斬り払う。
+    if (b.noProg && fight(2.6)) return;
     if (F.escortShown) { goVia(F.mvGuide.x, F.mvGuide.z, 0.3); guardMove(); return; }
     moveRoute(); guardMove(); return;
   }
   // 11/1：御殿へ移り終えた後も渡りの口に取り残された時は、上様の通った道をたどって御殿へ入る（壁越しに上様へ直に寄って詰まらない）
-  if (hp === 7 && F.mv && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 14) { follow('m6' + F.mv, MOVES[F.mv].pts); guardMove(); return; }
+  // 11/2：移る間の道（m6）の続きの番号を引き継ぐと、押し戻された所から先の点しか選べず、渡りの口の壁に向かって止まる。別の鍵で見える点から選び直す。
+  if (hp === 7 && F.mv && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 14) { if (b.noProg && fight(2.6)) return; follow('m7' + F.mv, MOVES[F.mv].pts); guardMove(); return; }
   if ((hp === 5 || hp === 7 && u.hp < u.maxHp * 0.6) && NB?.alive) {
     const foe = b.army.nearestEnemy(NB, 12, (o) => !o.fleeing && !o.noTarget && !o.isStruct);
     let x = NB.pos.x, z = NB.pos.z;

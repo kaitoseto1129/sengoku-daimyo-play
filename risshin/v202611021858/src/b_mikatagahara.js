@@ -1841,7 +1841,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       return fb({ name: s.general + 'の備', general: s.general, team: plan.team, faction,
         kind: 'ashigaru', nominal: Math.round(s.soldiers / 15), armor: AR[faction], flag: s.flag, mon: s.mon,
         at, facing: plan.facing }, plan.team
-          ? { ...jinkeiDistantLayout(plan, s), w: s.id === 'oyamada' ? 18 : s.at.front === TAKEDA_SECOND ? 12 : 14, d: 10,
+          ? { ...jinkeiDistantLayout(plan, s), w: s.id === 'oyamada' ? 18 : s.at.front === TAKEDA_SECOND ? 12 : 14, d: s.at.front > TAKEDA_SECOND ? 10 : 6,
             host: s.at.front > TAKEDA_THIRD ? 40 : false }
           : { w: 7, d: 14, host: 40 });
     });

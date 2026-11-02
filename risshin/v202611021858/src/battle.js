@@ -68,6 +68,7 @@ import { taishoInit, taishoTick, taishoKill, taishoPrepare } from './taisho.js';
 import { armyHeadTick } from './armyhead.js';
 import { campLifeInit, campLifeTick, campLifeDispose } from './camp_life.js';
 import { distantBattleInit, distantBattleTick } from './distant_battle.js';
+import { frontFill } from './front_fill.js';
 import { frontlineDensityTick } from './frontline_density.js';
 import { retreatStart, retreatTick } from './battle_retreat.js';
 import { battlePacingTick } from './battle_pacing.js';
@@ -864,6 +865,7 @@ export class Battle {
     this.tomoUnits = [];
     if (!def.dojo && !def.mapCastle && !this.G.lord) this.makeTomo();
     realmBattle(this);
+    try { frontFill(this); } catch (e) { console.error(e); }   // 左右の奥の軽い乱戦（front_fill.js）
     distantBattleInit(this);
     campLifeInit(this);
     this.player.prepareCameraBlocks();

@@ -937,6 +937,7 @@ const inou = {
     mountainBase: -2,
     noGroundRipples: true,
     softEarthCrust: true,
+    stableSlopeGrain: true,
     sparseEarthCrust: true,
     noFootShadows: true,
     solidSpearView: true,

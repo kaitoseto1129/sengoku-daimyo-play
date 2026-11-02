@@ -1216,6 +1216,7 @@ const tonezaka = {
     groundedSlopeRocks: true, // 岩を坂へ埋め、谷をまたぐ黒い扇形の接地影を省く。
     templeNeedles: true, thickTrees: true, // 共通の丸い葉房と枝付きの幹を使う。
     layeredNeedles: true, raggedNeedles: true, // 既存の枝先の凹凸を使い、杉の整った三角の段を崩す。
+    cedarBoughs: true, nearCedarBranches: true, cedarBoughPitch: 1.3, cedarBoughWidth: 1.1, keepNeedleLayers: true, // 杉を写真の葉房にし、縁がブロックの板に見えないように（木ノ芽峠と同じ）。
     closedFarCrowns: true, // 遠い雑木の重なる頂点を同じ量だけ動かし、黒い房の継ぎ目を閉じる。
     terrainTags: true,   // F1：ぬかるみ・坂・道で速さと疲れが変わる（terrain_tags.js。騎馬はぬかるみと坂で弱る）
     yieldAlliedHorse: true, // 徒歩の主人公も味方の馬の胴をすり抜けず、列の脇へ譲る。

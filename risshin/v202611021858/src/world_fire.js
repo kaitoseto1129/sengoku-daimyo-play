@@ -102,14 +102,36 @@ function flameMat() {
 }
 // 遠景の大軍の、待つ間の小さな動き（体の揺れ・見回し・隊の中の入れ替わり）の強さ。見比べる時は 0 に
 
+// 焼け跡の絵（キャンバスで描く）：縁の不揃いな黒い焦げ、中ほど濃く、灰のむらと燃え残りの筋
+let _scorchTex = null;
+function scorchTex() {
+  if (_scorchTex) return _scorchTex;
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  let seed = 4177; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const blob = (x, y, rad, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(255,255,255,${a})`); gr.addColorStop(0.6, `rgba(255,255,255,${a * 0.7})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); };
+  blob(S / 2, S / 2, S * 0.34, 0.9);
+  for (let i = 0; i < 16; i++) { const a = r() * 6.283, d = S * (0.12 + r() * 0.22); blob(S / 2 + Math.cos(a) * d, S / 2 + Math.sin(a) * d, S * (0.07 + r() * 0.1), 0.5 + r() * 0.4); }
+  for (let i = 0; i < 18; i++) { const a = r() * 6.283, d = S * (0.34 + r() * 0.12); blob(S / 2 + Math.cos(a) * d, S / 2 + Math.sin(a) * d, 2 + r() * 4, 0.5); }
+  g.globalCompositeOperation = 'destination-out';
+  g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1.5;
+  for (let i = 0; i < 10; i++) { g.beginPath(); const a = r() * 6.283; let x = S / 2 + Math.cos(a) * S * 0.1, y = S / 2 + Math.sin(a) * S * 0.1; g.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (r() - 0.5) * 22; y += (r() - 0.5) * 22; g.lineTo(x, y); } g.stroke(); }
+  g.globalCompositeOperation = 'source-over';
+  const img = g.getImageData(0, 0, S, S), D = img.data;
+  for (let i = 0; i < D.length; i += 4) { const n = 0.55 + r() * 0.45; D[i] = D[i + 1] = D[i + 2] = 255 * n; D[i + 3] *= 0.75 + r() * 0.25; }
+  g.putImageData(img, 0, 0);
+  _scorchTex = new THREE.CanvasTexture(c);
+  _scorchTex.colorSpace = THREE.SRGBColorSpace;
+  return _scorchTex;
+}
+
 export class WorldFire {
 
   // 焼け跡は戦が終わるまで残す。形・材質は一組、最大512か所を一度に描く。
   addScorch(x, z, w = 4, d = w, rot = 0) {
     if (!this.scorches) {
-      if (!this.puffTex) this.makePuffTex();
       const geo = new THREE.PlaneGeometry(1, 1); geo.rotateX(-Math.PI / 2);
-      const mat = new THREE.MeshBasicMaterial({ map: this.puffTex, color: 0x100d0b, transparent: true, opacity: 0.88, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+      const mat = new THREE.MeshBasicMaterial({ map: scorchTex(), color: 0x100d0b, transparent: true, opacity: 0.88, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
       const mesh = new THREE.InstancedMesh(geo, mat, 512);
       mesh.count = 0; mesh.frustumCulled = false; this.scene.add(mesh);
       this.scorches = { mesh, m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), s: new THREE.Vector3(), axis: new THREE.Vector3(0, 1, 0) };

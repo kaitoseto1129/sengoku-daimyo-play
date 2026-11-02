@@ -373,9 +373,12 @@ export function barkTex(kind = 'cedar') {
 export function leafTex(kind) {
   return once('leaf' + kind, () => {
     const S = 256;
-    const c = document.createElement('canvas'); c.width = c.height = S;
+    // 木の葉の板は大きく引き伸ばされるので二倍の細かさで描く（縁がブロック状の板に見えない）。描く寸法は 256 のまま
+    const hi = /^tree/.test(kind);
+    const c = document.createElement('canvas'); c.width = c.height = hi ? S * 2 : S;
     // 描いた後に alphaTex で読み出すので、読み出しの速い（画面の部品を使わない）キャンバスにする。携帯では読み出しが特に遅い
     const g = c.getContext('2d', { willReadFrequently: true });
+    if (hi) g.scale(2, 2);
     const R = rnd(kind.length * 31 + 7);
     if (kind === 'treeCedar' || kind === 'treePine' || kind === 'treeBroad' || kind === 'treeBamboo') {
       // 一株分の葉。枝間の抜けと不揃いな葉先を残し、三枚板と遠景の一枚で共用する。

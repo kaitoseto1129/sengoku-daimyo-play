@@ -177,13 +177,30 @@ function rearTick(rt, P) {
 // 葦原：脇道の両側に背の高い葦（一つの InstancedMesh）
 function reeds(rt) {
   const W = rt.world, blade = new THREE.BufferGeometry();
-  blade.setAttribute('position', new THREE.Float32BufferAttribute([-0.05, 0, 0, 0.05, 0, 0, 0.02, 2.5, 0.06, -0.05, 0, 0, 0.02, 2.5, 0.06, -0.03, 1.2, 0.02], 3));
+  // 葉は根元から反って垂れる二節（根は暗い緑、先は枯れ色）。一株に葉三枚と穂一つ。頂点の色で塗り分ける
+  const P = [], C = [], lo = [0.22, 0.25, 0.12], mid = [0.5, 0.5, 0.28], hi = [0.78, 0.68, 0.42];
+  for (const [a, lean, h, w] of [[0.2, 0.1, 2.5, 0.05], [2.3, 0.22, 2.1, 0.045], [4.3, 0.16, 1.7, 0.04], [5.4, 0.3, 1.2, 0.035]]) {
+    const c = Math.cos(a), s = Math.sin(a), px = -s * w, pz = c * w;
+    const mx = c * lean * h * 0.3, mz = s * lean * h * 0.3, tx = c * lean * h * 0.9, tz = s * lean * h * 0.9;
+    P.push(-px, 0, -pz, px, 0, pz, mx + px * 0.6, h * 0.6, mz + pz * 0.6, -px, 0, -pz, mx + px * 0.6, h * 0.6, mz + pz * 0.6, mx - px * 0.6, h * 0.6, mz - pz * 0.6,
+      mx - px * 0.6, h * 0.6, mz - pz * 0.6, mx + px * 0.6, h * 0.6, mz + pz * 0.6, tx, h * 0.97, tz);
+    for (const q of [lo, lo, mid, lo, mid, mid, mid, mid, hi]) C.push(...q);
+  }
+  { // 穂：茎の先の薄茶の房
+    const s0 = [0.05, 2.45, 0], t = [0.12, 2.95, 0.04];
+    P.push(s0[0] - 0.05, s0[1], s0[2], s0[0] + 0.05, s0[1], s0[2], ...t);
+    for (const q of [mid, mid, [0.72, 0.62, 0.5]]) C.push(...q);
+  }
+  blade.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  blade.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
   blade.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ color: 0x8a8150, roughness: 0.95, side: THREE.DoubleSide });
+  // 細い葉は表裏とも空から照らす（逆光で黒い切り絵にならないよう法線を上へそろえる）
+  blade.setAttribute('normal', new THREE.Float32BufferAttribute(P.map((v, k) => k % 3 === 1 ? 1 : 0), 3));
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, side: THREE.DoubleSide });
   const pts = [];
   let s = 1556;
   const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let z = 128; z > -116; z -= 0.55) {
+  for (let z = 128; z > -116; z -= 0.8) {
     const cx = sideX(z);
     for (let k = 0; k < 6; k++) {
       const off = (2.2 + rnd() * 10) * (rnd() < 0.5 ? -1 : 1);
@@ -196,7 +213,7 @@ function reeds(rt) {
     o.position.set(x, W.heightAt(x, z) - 0.05, z);
     o.rotation.set((r - 0.5) * 0.25, r * Math.PI * 2, (rnd() - 0.5) * 0.25);
     const sc = 0.75 + r * 0.55; o.scale.set(1, sc, 1); o.updateMatrix(); m.setMatrixAt(i, o.matrix);
-    c.setRGB(0.5 + r * 0.12, 0.47 + r * 0.1, 0.27 + r * 0.05); m.setColorAt(i, c);
+    c.setRGB(0.85 + r * 0.3, 0.85 + r * 0.25, 0.8 + r * 0.2); m.setColorAt(i, c);
   });
   m.frustumCulled = false; m.receiveShadow = true;
   rt.scene.add(m);

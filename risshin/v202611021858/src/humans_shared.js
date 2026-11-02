@@ -12,8 +12,10 @@ const memTight = () => MEM_TIGHT;
 // 弱い端末は密集しても骨入りを十二人まで。他の兵は共有する全身の形で残す。
 const _hq = typeof location !== 'undefined' ? location.search : '';
 const _hn = (k) => { const m = new RegExp('[?&]' + k + '=(\\d+)').exec(_hq); return m ? +m[1] : null; };   // 測り用：?skinmax=・?midmax=
-// iPhone（MEM_TIGHT）は骨入りを二十四人まで（10/30 実機：四十人の作りで小谷・設楽原の WebContent が落ちた。弱い作り（十二人）では一度も落ちない）。その先の兵も VAT の立体で描く
-const SKIN_MAX = _hn('skinmax') ?? (TIER.weak ? 12 : MEM_TIGHT ? 24 : 40);
+// iPhone（MEM_TIGHT）は骨入りを二十人まで（10/30 実機：四十人の作りで小谷・設楽原の WebContent が落ちた。弱い作り（十二人）では一度も落ちない）。その先の兵も VAT の立体で描く
+// 11/2 1.6.5 の実機：三木・設楽原の5分が二十四人・二十人とも 1/3・1/2 落ちた。近くの兵が密になり、骨入りがいつも枠いっぱい（武将など枠の外を足して 27〜35 人。
+//   1.6.4 は中央 17〜19 人）になっていた。十六へ下げて 1.6.4 の数へ戻す。その先の兵も VAT の立体で描き、兵の数は変えない
+const SKIN_MAX = _hn('skinmax') ?? (TIER.weak ? 12 : MEM_TIGHT ? 16 : 40);
 // 携帯（iPhone・iPad）は中景の細かな形を 48 人まで（GPU の形が 227→120MB ほど。10/30 実機の落ち）。兵の数は減らさない
 const _mobile = MEM_TIGHT || (typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent) || /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1));
 const MIDDLE_MAX = _hn('midmax') ?? (TIER.weak ? 24 : MEM_TIGHT ? 32 : _mobile ? 48 : 80);

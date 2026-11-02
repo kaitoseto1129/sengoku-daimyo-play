@@ -439,7 +439,9 @@ function cannonTarget(F, c) {
   for (const b of F.boats) {
     if (!b.alive || b.damageStage || b.withdrawing || b.landed && !b.big && !b.ranged || F.step === 4 && b !== F.big || b.x >= c.x - 3 || Math.abs(b.z - c.z) > (c.x - b.x) * 0.55 + 3) continue;
     const d = Math.hypot(b.x - c.x, b.z - c.z);
-    if (d <= (F.step === 4 ? 60 : 95) && (!best || d < distance)) { best = b; distance = d; }
+    // 兵糧船が射界に入ったら先に狙う（勝ちは海の補給を断つ事。小舟は甲板の兵が防ぐ）
+    const score = b.supply ? d - 200 : d;
+    if (d <= (F.step === 4 ? 60 : 95) && (!best || score < distance)) { best = b; distance = score; }
   }
   return best;
 }

@@ -887,8 +887,10 @@ export class WorldVegetation {
     const gtex = alphaTex(gc);
     // 株：四枚の板を少しずつ外へ傾けて組む。光は上から受ける向き（法線を上へ寄せる）にして、板ごとの明暗の差を消す
     const blades = [];
-    const bladeCount = lowV ? 2 : 4;
-    for (let k = 0; k < bladeCount; k++) {
+    // 高画質は六枚（三十度ずつ）：近くで見ても二三枚の板に割れず、どの向きからも厚みのある草むらにする。低画質は二枚のまま。
+    const bladeCount = lowV ? 2 : 6;
+    for (let kr = 0; kr < bladeCount; kr++) {
+      const k = kr % 4;
       const pg = new THREE.PlaneGeometry(0.9, 0.75);
       // 同じ頂点数のまま根元を寄せ、上ほど外へ倒す。板の交差する塊を崩す。
       const gp = pg.attributes.position;
@@ -911,7 +913,7 @@ export class WorldVegetation {
       }
       pg.translate(0, 0.375 * (0.76 + k * 0.08), 0);
       pg.rotateX((k % 2 ? 1 : -1) * 0.12);
-      pg.rotateY((k / bladeCount) * Math.PI + (k % 2) * 0.2);
+      pg.rotateY((kr / bladeCount) * Math.PI + (k % 2) * 0.2);
       const nn = pg.attributes.normal, pp = pg.attributes.position;
       for (let q = 0; q < nn.count; q++) {
         const ox = pp.getX(q), oz = pp.getZ(q), l = Math.hypot(ox, oz) || 1;
@@ -919,7 +921,7 @@ export class WorldVegetation {
         const v = new THREE.Vector3(ox / l * 0.45, 1.0 + up, oz / l * 0.45).normalize();
         nn.setXYZ(q, v.x, v.y, v.z);
       }
-      pg.setAttribute('bladeLayer', new THREE.BufferAttribute(new Float32Array(pg.attributes.position.count).fill(k), 1));
+      pg.setAttribute('bladeLayer', new THREE.BufferAttribute(new Float32Array(pg.attributes.position.count).fill(Math.min(kr, 3)), 1));
       blades.push(pg);
     }
     const tuftGeo = mergeVegetationParts(blades);

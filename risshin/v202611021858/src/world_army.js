@@ -46,7 +46,8 @@ export class WorldArmy {
     const LOG = globalThis.__mixLog;   // 割合を数える道具（tools/armymix.js）だけが置く
     // 見える所の外の隊は作らない。ただし敵の隊は、前備えの後詰めを本人の見える所へ寄せられる時だけ作る（本物の兵には替えない：farFoe）
     let farFoe = false;
-    if (!o.people && this.outsideNearView(o.x, o.z, Math.hypot(o.w || 20, o.d || 10))) {
+    // farFill：奥を満たす軽い列（front_fill.js）。見える所の外でも作る（本物へ替えない・後詰めを付けない）
+    if (!o.people && !o.farFill && this.outsideNearView(o.x, o.z, Math.hypot(o.w || 20, o.d || 10))) {
       const fm = o.mon || o.flag || o.flagTex?.userData.mon, fk = o.kind || 'mixed';
       farFoe = foeNearOn(this.def.battleKey) && (o.team === 1 || (o.team == null && enemyFlagKind(fm))) && fk !== 'honjin' && fk !== 'cavalry'
         && (o.count || 300) >= foeHostMin() && this.foeHostLeft() >= 30 && !!this.foeHostPlace(o.x, o.z, o.facing || 0);

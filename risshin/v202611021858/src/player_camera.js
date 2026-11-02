@@ -312,7 +312,13 @@ export class PlayerCamera {
     this.wallT = (this.wallT || 0) - dt;
     if (this.wallT <= 0) {
       this.wallT = 0.3;
-      const probe = (sg) => { const q = _cQ.copy(target).addScaledVector(right, 1.3 * sg); return this.camBlockHit(target, q) !== null; };
+      // 肩の側の壁を、自分の脇（1.3m）だけでなく、カメラのいる斜め後ろ（2.6m 横・後ろへ半分）まで見る（建物がカメラの横で画面をふさがないように）
+      const probe = (sg) => {
+        const q = _cQ.copy(target).addScaledVector(right, 1.3 * sg);
+        if (this.camBlockHit(target, q) !== null) return true;
+        q.copy(target).addScaledVector(right, 2.6 * sg).addScaledVector(dir, -this.camDist * 0.5); q.y = target.y;
+        return this.camBlockHit(target, q) !== null;
+      };
       this.wallFlip = probe(this.shoulder) && !probe(-this.shoulder) ? -1 : 1;
     }
     this.shK = (this.shK ?? 1) + ((this.wallFlip || 1) - (this.shK ?? 1)) * Math.min(1, dt * 4);

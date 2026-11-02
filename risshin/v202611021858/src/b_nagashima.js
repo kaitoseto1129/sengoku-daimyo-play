@@ -3607,7 +3607,12 @@ const nagashima = {
       // 補修は人足と並行する。人足を失った時は残る杭で守る。
       // 脇の人足は中央から二十六歩移動してから結う。二十秒で打ち切ると横木が地面に残る。
       // 10/31：本人が一つでも結うまで見張りの段へ進めない（立っているだけで段が進まないように）
-      if ((F.built >= SPOTS.length || w >= 45) && F.participated) {
+      // 本人が結う前に人足が三か所とも結い終えると、長押しの相手が無くなり段が止まる。結い終えて十秒たてば見張りへ進める。
+      // 11/2：足軽が残りを結い終えた（helped）のに本人が一つも結っていないと、横木の印が消えたまま段が進まず480秒で時間切れになった。
+      //   その時は「舟の見張り場」の印まで来れば見張りへ移る（立っているだけでは進まない）。
+      const toWatch = F.helped && (F.built >= SPOTS.length || w >= 45) && !rt.G.lord &&
+        Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z - (BANK_Z + 5)) < 5;
+      if (((F.built >= SPOTS.length || w >= 45) && (F.participated || toWatch)) || (F.built >= SPOTS.length && w >= 12)) {
         if (F.built < SPOTS.length) { F.helped = true; rt.say('柴田勝家', '人足が倒れ、横木が足りぬ。残る杭の内で舟に備えよ', 3); }
         this.watch(rt);
       }
@@ -3854,7 +3859,8 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 岸を守る者は、退く舟や川の中の門徒を追わない。上陸した相手を受ける。
   // 東へ移る時は、十三歩先で味方が受けている敵を向いて寄り道しない。
   const e = candidate && !candidate.boatSeat?.aboard && candidate.pos.z >= BANK_Z - 3 &&
-    (F.step !== 3.5 || attacker || Math.hypot(candidate.pos.x - u.pos.x, candidate.pos.z - u.pos.z) < 6) ? candidate : null;
+    (F.step !== 3.5 && F.step !== 1.25 || attacker || Math.hypot(candidate.pos.x - u.pos.x, candidate.pos.z - u.pos.z) < 6) ? candidate : null;
+  // 11/2：見張りの段（1.25）で、届かない岸の際の敵へ向いたまま印の九歩手前で止まり、480秒まで段が進まなかった（bot だけ）。
   // 東への移動中も、深手や気力切れなら同じ持ち場の後ろへ退く。
   // 傷の自然回復は待たず、敵が離れて気力が戻ったら守りに加わる。
   const defending = F.step === 3 || F.step === 3.5;
@@ -3931,6 +3937,7 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     else p.yaw = Math.PI;
     return;
   }
+  if (F.step === 1 && F.helped) { goTo(p, inp, 0, BANK_Z + 5, 2); return; }   // 11/2：横木の印が消えた後は舟の見張り場の印へ
   if (F.step === 2) { goTo(p, inp, 0, BANK_Z + 4, 2); return; }
   if (F.step === 3 && u.hp < u.maxHp * 0.5) { goTo(p, inp, 4, BANK_Z + 16, 2); return; }
   if (F.step === 3) { const q = (F.last || []).find((x) => !gone(x)); if (q) { const c = q.center(); goTo(p, inp, c.x, BANK_Z + 3, 2); return; } goTo(p, inp, 4, BANK_Z + 3, 2); return; }

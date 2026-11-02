@@ -872,7 +872,9 @@ const PEOPLE_BANDS = PEOPLE_PATHS.map((p, i) => ({
 }));
 const TERR = [{ ...TORAGOZEN, r: 20 }, ...VILLAGE.map(([x, z]) => ({ x, z, r: 6 })), { x: ONOGI.x, z: ONOGI.z, r: 12 }, { x: AKAO.x, z: AKAO.z, r: 12 }, ...FORTS.map((f) => ({ x: f.x, z: f.z, r: 9, f })),
   // 清水谷の居館・家臣の屋敷・寺も、斜面を削った平場に建てる（谷の高さのまま。家の下に高い白い台を立てない）
-  { x: KYOKAN.x, z: KYOKAN.z, r: 15, own: true }, { x: TERA.x, z: TERA.z, r: 7, own: true }, ...YASHIKI.map(([x, z]) => ({ x, z, r: 6, own: true }))];
+  { x: KYOKAN.x, z: KYOKAN.z, r: 15, own: true }, { x: TERA.x, z: TERA.z, r: 7, own: true }, ...YASHIKI.map(([x, z]) => ({ x, z, r: 6, own: true, low: z > 90 }))];
+// 谷の口の二つの屋敷（low）は谷道の 15m 東の段の上にあり、平場が谷底より 2.5m 高く、道の脇まで急な土手が伸びて
+// 押された兵と供が崖に張り付いて見えた（11/2）。平場を同じ z の谷道の脇の高さ +0.4m まで下げ、土手を低くする（削った山側は屋敷の裏に残る）
 // 登り道（九十九折り）：谷の奥から京極丸の西の口へ。道の高さは長さに沿って一定の勾配で上る
 const CLIMB_LEN = [0];
 for (let i = 1; i < CLIMB_UP.length; i++) CLIMB_LEN.push(CLIMB_LEN[i - 1] + Math.hypot(CLIMB_UP[i][0] - CLIMB_UP[i - 1][0], CLIMB_UP[i][1] - CLIMB_UP[i - 1][1]));
@@ -902,6 +904,7 @@ function baseTerrain(x, z) {
     const d = Math.hypot(x - t.x, z - t.z);
     if (d >= t.r + 6) continue;
     if (t.h == null) t.h = t.own ? valleyTerrain(t.x, t.z) : baseRaw(t.x, t.z);
+    if (t.low && !t.lowered) { t.lowered = true; t.h = Math.min(t.h, valleyTerrain(t.x - 12, t.z) + 0.4); }
     const k = d <= t.r ? 1 : 1 - (d - t.r) / 6;
     h += (t.h - h) * k * k * (3 - 2 * k);
   }
@@ -3552,7 +3555,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       { type: 'samurai', n: 2, o: { armor: ODANI_KACCHU['羽柴秀吉'].armor, lace: ODANI_KACCHU['羽柴秀吉'].lace } },
       { type: 'ashigaru', n: 5 }, { type: 'gun', n: 3 }, { type: 'bow', n: 1 }]);
     F.hideU = F.hide.units[0];
-    F.hachi = column('羽柴小一郎の手', { x: MOUTH.x + 8, z: MOUTH.z + 4 }, [{ type: 'samurai', n: 1, o: { name: '羽柴小一郎', invuln: true, hat: 'kabuto_m', haori: 0 } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }]);
+    F.hachi = column('羽柴小一郎の手', { x: MOUTH.x + 5, z: MOUTH.z + 4 },   // 11/2：+8 では列の後ろが東の屋敷の段の土手に乗り、崖に張り付いて見えた
+      [{ type: 'samurai', n: 1, o: { name: '羽柴小一郎', invuln: true, hat: 'kabuto_m', haori: 0 } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }]);
     // 浅野は当時「長吉」。浅井長政と名を取り違えないよう、当時の名で出す。
     F.asano = column('浅野長吉の手', { x: MOUTH.x + 3, z: MOUTH.z + 14 }, [{ type: 'samurai', n: 1, o: { name: '浅野長吉', invuln: true, haori: 0 } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'gun', n: 2 }, { type: 'bow', n: 1 }]);
     // 後詰は谷の口に控え、京極丸を取ってから登って押さえに入る（先手は次の曲輪へ）。
