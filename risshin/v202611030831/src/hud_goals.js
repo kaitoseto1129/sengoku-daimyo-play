@@ -30,7 +30,13 @@ html:root body #hud#hud #h-prog.goal-mode > .pg-goals { display:block !important
 @keyframes goal-head { 0%,100% { color:#fff; } 30% { color:#f2cf6a; } }
 body.rm #hud #h-prog .pg-goals, body.rm #hud #h-prog .pg-goals * { animation:none !important; transition:none !important; }
 @media (prefers-reduced-motion:reduce) { #hud #h-prog .pg-goals, #hud #h-prog .pg-goals * { animation:none !important; transition:none !important; } }
+#hud #h-prog .pg-seg { display:flex; gap:3px; margin-top:8px; }
+#hud #h-prog .pg-seg[hidden] { display:none; }
+#hud #h-prog .pg-seg i { flex:1; height:5px; background:rgba(243,239,230,.18); border-radius:1px; }
+#hud #h-prog .pg-seg i.on { background:linear-gradient(180deg,#f2d78a,#b8913f); }
+#hud #h-prog .pg-seg i.now { background:rgba(216,178,90,.35); box-shadow:inset 0 0 0 1px #d9b45a; }
 @media (max-height:500px) {
+ #hud #h-prog .pg-seg { margin-top:6px; }
  html:root body #hud #h-prog.goal-mode.goal-mode { padding:7px 12px 9px 10px; min-width:180px; }
  #hud #h-prog .pg-goals h3 { font-size:15px; margin-bottom:4px; }
  #hud #h-prog .pg-goals ul { gap:4px; }
@@ -49,7 +55,7 @@ export function goalsTick(el, rt, stg) {
   let box = el.querySelector('.pg-goals');
   if (!box) {
     box = document.createElement('div'); box.className = 'pg-goals';
-    box.innerHTML = '<h3>目標</h3><ul></ul>';
+    box.innerHTML = '<h3>目標</h3><ul></ul><div class="pg-seg" aria-hidden="true"></div>';
     el.appendChild(box);
   }
   const G = el._goals && el._goals.rt === rt ? el._goals : (el._goals = { rt, shown: -1, key: '', next: -1, at: 0, list: null, done: [] });
@@ -65,9 +71,9 @@ export function goalsTick(el, rt, stg) {
     } else if (rt.t >= G.at && !still) box.classList.add('out');
   } else G.list = stg.goals;
   const list = G.list;
-  const key = list.map((g) => (g.done ? '1' : '0') + g.text).join('|');
+  const key = list.map((g) => (g.done ? '1' : '0') + g.text).join('|') + '#' + G.shown + '/' + (stg.n || 0);
   if (key === G.key) return true;
-  const ul = box.lastChild, before = G.key ? G.key.split('|') : [];
+  const ul = box.querySelector('ul'), before = G.key ? G.key.split('#')[0].split('|') : [];
   G.key = key;
   ul.textContent = '';
   list.forEach((g, i) => {
@@ -80,5 +86,12 @@ export function goalsTick(el, rt, stg) {
     li.setAttribute('aria-label', (g.done ? '済み：' : 'まだ：') + g.text);
     ul.appendChild(li);
   });
+  // 戦の進み（kaito 11/1 J の「進行率」の金の棒）：段の数だけ区切り、済んだ段は金・今の段は金の縁・先は暗い。字は出さない
+  const seg = box.querySelector('.pg-seg');
+  if (seg) {
+    const n = stg.n || 0;
+    seg.hidden = n < 2;
+    seg.innerHTML = n < 2 ? '' : Array.from({ length: n }, (_, k) => `<i class="${k < G.shown ? 'on' : k === G.shown ? 'now' : ''}"></i>`).join('');
+  }
   return true;
 }

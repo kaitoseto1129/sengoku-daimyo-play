@@ -290,7 +290,7 @@ import { toggleRts, isRtsOn, rtsAvailable, initRtsInput } from './rts.js';
 import { gungiAvailable, openGungi, closeGungi } from './gungi.js';   // 軍議の画面（砦の版）。def.gungi のある戦の始めにだけ挟む（F6）
 import { initMetrics } from './metrics.js';   // 遊びの数字（GA4。GA_ID が空なら送らない）
 import { initCount } from './count.js';
-import { hubScreen, pickScreen } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
+import { hubScreen, pickScreen, preCard, battleRows } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
 import { loreOf, rosterDepart } from './screens.js';
 import { playTalk } from './talk_scene.js';
 import { townTabOpen as hubTabOpen } from './town_unlock.js';   // 数え（github.io の時だけ GoatCounter へ送る）
@@ -2613,7 +2613,7 @@ const game = {
     // 稲葉山前の説明の札は出さない（kaito 11/1：先へ進むのに押させない）
     void phase2HintScreen;
     // 戦の後・続きからは本陣（絵の札の一画面）へ。bot・norender の道具は今までどおり城下の札
-    if (!isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown) { if (this.battle && this.battle.def.town) this.stopBattle(); return this.hub(); }
+    if (!isNorender() && !/[?&]bot/.test(location.search) && !window.__cardTown) { if (this.battle && this.battle.def.town) this.stopBattle(); return this.goNext ? this.hubNext() : this.hub(); }
     // 城下を歩く（設定の既定）。すでに町にいれば、そのまま町へ戻る
     if (this.townWalkOn()) { if (this.battle && this.battle.def.town) { this.townResume(); return true; } return this.startTown(); }
     if (this.battle && this.battle.def.town) this.stopBattle();
@@ -2647,7 +2647,15 @@ const game = {
       },
     };
   },
-  hub() { this.inTown = true; this.dailyHello(); if (S.townMusic) playMusic('honjin'); hubScreen(this.G, this, this.hubOpts()); },
+  hub() { this.goNext = false; this.inTown = true; this.dailyHello(); if (S.townMusic) playMusic('honjin'); hubScreen(this.G, this, this.hubOpts()); },
+  // 結果の札の「次の戦へ」：次に遊ぶ戦の一枚（出陣する）を直に開く。戻るは戦選び（そこからホーム）
+  hubNext() {
+    this.goNext = false;
+    const nx = scenarioKey() === 'oda' ? battleRows(this.G).find((r) => r.state === 'next') : null;
+    if (!nx) return this.hub();
+    this.inTown = true; this.dailyHello(); if (S.townMusic) playMusic('honjin');
+    preCard(this.G, this, this.hubOpts(), nx, null);
+  },
   // 毎日の楽しみ：ホームを開いた日の最初に、続けた日数を数え、褒美があれば一度だけ静かに知らせる
   dailyHello() {
     if (this.dailyDone || !this.G || isNorender()) return;

@@ -1786,12 +1786,12 @@ function resultCardHtml(G, r, lost, sq) {
   const after = r.rankAfter ?? G.rank, before = r.rankBefore ?? after;
   const men = RANKS[after]?.squad || 0, menUp = men - (RANKS[before]?.squad || 0);
   if (men > 0) rows.push({ ic: 'men', k: '兵', v: `${men}人${menUp > 0 ? `（＋${menUp}）` : ''}` });
-  if (r.promoted) rows.push({ face: G.name || '自分', k: '出世', v: r.rankNameAfter || RANKS[after]?.name || '' });
+  if (r.promoted) rows.push({ face: G.name || '自分', self: true, k: '出世', v: r.rankNameAfter || RANKS[after]?.name || '' });
   const hy = G.hyojoLog && G.hyojoLog.at === G.battle ? G.hyojoLog : null;
   if (hy && hy.k === 'hire') { const k = (G.kerai || [])[(G.kerai || []).length - 1]; if (k && k.name) rows.push({ face: k.name, k: '武将加入', v: k.name }); }
   const gear = hy && hy.k === 'gear' ? String(hy.msg || '').replace(/を賜った$/, '') : (r.granted || []).map((id) => ITEMS[id]?.name).filter(Boolean)[0];
   if (gear) rows.push({ ic: 'sword', k: '特別装備', v: gear });
-  const rowHtml = rows.map((x) => `<li>${x.face ? `<canvas class="rs-face" width="64" height="64" data-rs-face="${esc(x.face)}" aria-hidden="true"></canvas>` : `<i class="rs-ic">${RS_ICON[x.ic]}</i>`}<span>${esc(x.k)}${x.face || x.ic === 'sword' ? '：' : '　'}<b>${esc(x.v)}</b></span></li>`).join('');
+  const rowHtml = rows.map((x) => `<li>${x.face ? `<canvas class="rs-face" width="64" height="64" data-rs-face="${esc(x.face)}"${x.self ? ' data-rs-self="1"' : ''} aria-hidden="true"></canvas>` : `<i class="rs-ic">${RS_ICON[x.ic]}</i>`}<span>${esc(x.k)}${x.face || x.ic === 'sword' ? '：' : '　'}<b>${esc(x.v)}</b></span></li>`).join('');
   const next = !G.practice && r.battleIndex != null ? BATTLES[r.battleIndex + 1] : null;
   const thumb = next ? `<div class="rs-thumb" aria-hidden="true"><img alt="" src="${new URL(`../assets/thumbs/${next.id}.webp`, import.meta.url).href}"><b>${esc(String(next.name || '').replace(/の戦い$/, ''))}</b></div>` : '';
   return `<div class="rs-wrap${next ? ' has-next' : ''}"><section class="rs-card${lost ? ' lost' : ''}" aria-label="${esc(r.battle || '')}の結果">
@@ -2128,6 +2128,8 @@ export function evalScreen(G, r, actions) {
         confirm.scrollIntoView({ block: 'nearest' });
         return;
       }
+      // 「次の戦へ」はホームを通らずに次の戦の一枚（出陣する）へ（kaito 11/1 A：次へ進むのに何度も押させない）
+      if (main && /城下|ホームへ戻る/.test(a.label) && !G.practice && window.__game) window.__game.goNext = true;
       sfx('ui'); delete G._spoilPrev; a.fn();
     };
     if (retry) box.prepend(b); else (inCard ? box : $('ev-other-actions')).appendChild(b);
@@ -2137,7 +2139,12 @@ export function evalScreen(G, r, actions) {
   if (rsThumb) { const pb0 = box.querySelector('.primary'); if (pb0) rsThumb.onclick = (ev) => { ev.stopPropagation(); pb0.click(); }; else rsThumb.hidden = true; }
   const rsImg = screen.querySelector('.rs-thumb img');
   if (rsImg) rsImg.onerror = () => { rsImg.remove(); };
-  screen.querySelectorAll('canvas[data-rs-face]').forEach(drawRsFace);
+  // 出世の顔は、戦の左下の顔（ゲームの中の自分の3Dの姿を撮った絵・kaito 11/1 L）を写す。撮れていない時だけ描いた顔
+  const myFace = document.querySelector('#jk-vit canvas');
+  screen.querySelectorAll('canvas[data-rs-face]').forEach((cv) => {
+    if (cv.dataset.rsSelf && myFace && myFace.width) { try { const g = cv.getContext('2d'); g.drawImage(myFace, 0, 0, cv.width, cv.height); if (g.getImageData(cv.width >> 1, cv.height >> 1, 1, 1).data[3] > 0) return; } catch (e) { /* 写せなければ描く */ } }
+    drawRsFace(cv);
+  });
   bindBattleTalk(screen, talks, box.querySelector('.primary') || box.querySelector('button'));
   // 合計戦功を数え上げる
   const tot = $('ev-total');
