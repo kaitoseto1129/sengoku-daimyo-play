@@ -2963,7 +2963,8 @@ const mitsukuri = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k * (rt.flags.step === 3 && !rt.flags.gatePass ? 0.6 : 1) : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    // 11/2 oda_bot_1102：木戸を掛矢で打つ間（段3）は両手が塞がる。bot が木戸の前で城兵の突きを重ねて倒れた（十回に一回）ので、木戸を破るまで一太刀をさらに六割に
     const W = rt.world;
     const F = rt.flags;
     rt.def.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 板の間・台の上は床に隠れる
@@ -4041,6 +4042,13 @@ const mitsukuri = {
     const t = TORCH[i];
     // 10/30：味方が松明を灯すのは、本人がその松明のそば（十二歩内）にいる時だけ
     if (Math.hypot(rt.player.u.pos.x - t.x, rt.player.u.pos.z - t.z) > 12) return;
+    // 11/2 oda_bot_1102：灯し手の組が崩れ、本人も松明の手前で詰まって攻め止めの期限まで動けなかった（bot）。
+    //   火入れの段が七十五秒を過ぎ、本人がそばにいる間は、組の者が一束ずつ（二秒おき）灯す。
+    if (rt.t - F.stepT >= 75 && rt.player.u.alive) {
+      help.late = (help.late || 0) + elapsed;
+      if (help.late >= 2) { help.late = 0; this.light(rt, i, false); }
+      return;
+    }
     if (i !== help.index || gone(help.group) || !help.group.units.some(torchReady)) {
       let group = null, nearest = Infinity;
       // 灯す三組が倒れても、既存の控えが引き継ぐ。木戸を打つ組は残す。
@@ -4281,10 +4289,14 @@ const mitsukuri = {
     if (F.SZ) for (const z of F.SZ.zones) if (z.owner !== 'friend') return;
     // 味方が先に押さえても、足軽は本丸へ入り、持ち場を固めてから終える。
     const indoors = !rt.G.lord && courtyardHouse(rt, rt.player.u);
-    if (!rt.G.lord && (!F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z) || indoors)) {
+    // 11/2 oda_bot_1102：本丸の館の中や石段の脇で詰まり、三つの郭を取ったまま攻め止めの期限で負けた（bot）。
+    //   待って三十秒たち、本人が本丸の旗から四十五歩の内にいれば、そこで締める。
+    const pp = rt.player.u.pos;
+    const waited = F.honWait && rt.t - F.honWaitAt >= 30 && Math.hypot(pp.x - HON_GATHER.x, pp.z - HON_GATHER.z) < 45;
+    if (!rt.G.lord && !waited && (!F.C.kuruwa.hon.test(pp.x, pp.z) || indoors)) {
       F.callZone = null;
       if (!F.honWait) {
-        F.honWait = true;
+        F.honWait = true; F.honWaitAt = rt.t;
         rt.unmark('commander');
         markZone(rt, 'hon');
       }

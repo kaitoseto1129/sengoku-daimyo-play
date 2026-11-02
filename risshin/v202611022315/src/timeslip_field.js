@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WIND_STATE, distToPolyline } from './world.js';
 import { overlapsCastleGround } from './castle_mask.js';
 import { leafTex } from './nature.js';
+import { MEM_TIGHT } from './settings.js';
 import { sakamogi, takataba, nobori, jinmaku, bobosaku, tawara, makeKitBatch, finalizeKitBatch } from './props.js';
 
 const CELL = 6, RADIUS = 42, MOVE = 5;
@@ -88,26 +89,36 @@ function textures() {
   }, true);
   // 丈の高い草：細く弓なりの葉の束（10/29 b3）。葉ごとに青い緑〜枯れ色を揺らし、彩度は低め。
   //   根元は土に沈む暗さ、穂先ほど明るい。先の細い塗りの葉（線の太さが一定の棒に見せない）。
+  // 11/2 c_veg_near：葉を細く多く（38→64枚）、根元へ密に寄せて暗く、葉先は白く飛ばさない。葉の片側を暗く塗って中筋の折り目を付け、
+  //   二割ほどは途中で折れて垂れる葉にする（同じ形の太い三角が白い先を立てて並ぶ、切り紙の草に見せない）。白い穂は減らして沈める。
   const grass = canvasTex(256, 256, (g, w, h) => {
     const r = rnd(51);
     const hues = [[0.62, 0.68, 0.46], [0.56, 0.62, 0.42], [0.7, 0.7, 0.5], [0.82, 0.74, 0.52], [0.9, 0.8, 0.58]];
-    for (let i = 0; i < 38; i++) {
-      const x0 = w * 0.5 + (r() - 0.5) * w * 0.22, side = r() < 0.5 ? -1 : 1;
-      const tall = 0.45 + r() * 0.5, lean = side * (0.04 + r() * r() * 0.4) * w;
-      const tipY = h * (1 - tall) + Math.abs(lean) * 0.35 * r(), tipX = x0 + lean;
-      const cx = x0 + lean * 0.15, cy = h - (h - tipY) * (0.75 + r() * 0.2);
-      const bw = 2.2 + r() * 2.6;
-      const c = hues[Math.floor(r() * r() * hues.length)], v = 150 + r() * 75;
-      const gr = g.createLinearGradient(0, h, 0, tipY);
-      gr.addColorStop(0, `rgb(${v * c[0] * 0.32 | 0},${v * c[1] * 0.32 | 0},${v * c[2] * 0.3 | 0})`);
-      gr.addColorStop(0.35, `rgb(${v * c[0] * 0.7 | 0},${v * c[1] * 0.7 | 0},${v * c[2] * 0.66 | 0})`);
-      gr.addColorStop(1, `rgb(${Math.min(255, v * c[0] * 1.12) | 0},${Math.min(255, v * c[1] * 1.08) | 0},${Math.min(255, v * c[2] * 1.02) | 0})`);
+    for (let i = 0; i < 64; i++) {
+      const back = i < 22;   // 先に描く葉（奥）ほど暗い
+      const x0 = w * 0.5 + (r() + r() - 1) * w * 0.17, side = r() < 0.5 ? -1 : 1;
+      const tall = (back ? 0.35 : 0.3) + r() * 0.6, lean = side * (0.04 + r() * r() * 0.42) * w;
+      const droop = r() < 0.22;
+      let tipY = h * (1 - tall) + Math.abs(lean) * 0.35 * r(), tipX = x0 + lean;
+      if (droop) { tipY += h * tall * 0.35; tipX += lean * 0.6; }
+      const cx = x0 + lean * 0.15, cy = h - (h - tipY) * (droop ? 1.25 : 0.75 + r() * 0.2);
+      const bw = 1.3 + r() * 2.0;
+      const c = hues[Math.floor(r() * r() * hues.length)], v = (back ? 125 : 150) + r() * 70;
+      const gr = g.createLinearGradient(0, h, 0, Math.min(tipY, cy));
+      gr.addColorStop(0, `rgb(${v * c[0] * 0.34 | 0},${v * c[1] * 0.34 | 0},${v * c[2] * 0.3 | 0})`);
+      gr.addColorStop(0.4, `rgb(${v * c[0] * 0.72 | 0},${v * c[1] * 0.72 | 0},${v * c[2] * 0.68 | 0})`);
+      gr.addColorStop(1, `rgb(${Math.min(235, v * c[0] * 0.98) | 0},${Math.min(235, v * c[1] * 0.96) | 0},${Math.min(235, v * c[2] * 0.9) | 0})`);
       g.fillStyle = gr;
       g.beginPath(); g.moveTo(x0 - bw, h);
       g.quadraticCurveTo(cx - bw * 0.6, cy, tipX, tipY);
       g.quadraticCurveTo(cx + bw * 0.6, cy, x0 + bw, h); g.closePath(); g.fill();
-      // 穂：枯れた葉の先にだけ、細い淡い穂
-      if (c[0] > 0.8 && r() < 0.35) { g.fillStyle = 'rgba(206,192,156,0.95)'; g.beginPath(); g.ellipse(tipX, tipY + 6, 1.6, 8, lean * 0.004, 0, 7); g.fill(); }
+      // 中筋の片側の陰
+      g.fillStyle = 'rgba(30,38,20,0.22)';
+      g.beginPath(); g.moveTo(x0, h);
+      g.quadraticCurveTo(cx, cy, tipX, tipY);
+      g.quadraticCurveTo(cx + bw * 0.6, cy, x0 + bw, h); g.closePath(); g.fill();
+      // 穂：枯れた葉の先にだけ、細い淡い穂（少なく、白くしない）
+      if (c[0] > 0.8 && !droop && r() < 0.18) { g.fillStyle = 'rgba(168,150,112,0.9)'; g.beginPath(); g.ellipse(tipX, tipY + 6, 1.3, 7, lean * 0.004, 0, 7); g.fill(); }
     }
   });
   // 土埃・靄：柔らかな丸
@@ -179,11 +190,12 @@ function shapes() {
   const blades = [];
   for (let k = 0; k < 6; k++) {
     const wd = 0.36 + (k % 3) * 0.08, ht = 0.8 + ((k * 5) % 3) * 0.1;
-    const p = new THREE.PlaneGeometry(wd, ht, 1, 2), q = p.attributes.position;
+    // 11/2 c_veg_near：板の縦の中線を奥へ折る（横から見ても一本の線に消えない・平らな扇の面を見せない）。三角は一枚四つ増えるだけ。
+    const p = new THREE.PlaneGeometry(wd, ht, 2, 2), q = p.attributes.position;
     const lean = 0.1 + (k % 3) * 0.09;
     for (let i = 0; i < q.count; i++) {
-      const t = q.getY(i) / ht + 0.5;
-      q.setXYZ(i, q.getX(i) * (0.35 + t * 0.8), t * ht * (1 - t * lean * 0.6), lean * t * t);
+      const t = q.getY(i) / ht + 0.5, mid = 1 - Math.abs(q.getX(i)) / (wd * 0.5);
+      q.setXYZ(i, q.getX(i) * (0.35 + t * 0.8), t * ht * (1 - t * lean * 0.6), lean * t * t + mid * wd * (0.3 - t * 0.12) * (k % 2 ? 1 : -1));
     }
     p.rotateZ((k % 2 ? 1 : -1) * (0.08 + (k % 3) * 0.05));
     p.rotateY(k * 2.4 + 0.2);
@@ -205,32 +217,48 @@ const FIELD_GRASS = {};
 let FIELD_GRASS_MAT = null;
 export function fieldGrassGeo(kind = 'grass') {
   if (FIELD_GRASS[kind]) return FIELD_GRASS[kind];
-  const sedge = kind === 'sedge', NB = sedge ? 7 : 10;
+  // 11/2 c_veg_near：葉を中筋で浅い V に折る（横から見ても一本の線・平たい紙に見せない）。左右の半分で光の受け方を変え、中筋が明るむ。
+  //   株の芯に短く暗い葉を足して根元の暗がりを作り、葉ごとに丈・明るさ・枯れ色を散らす（皆同じ形の切り絵に見せない）。
+  //   葉先の色は白く飛ばさない（淡い先が紙の縁に見えた）。携帯は芯の短い葉を足さない（三角を増やしすぎない）。
+  const sedge = kind === 'sedge', NB = sedge ? 7 : 10, NI = MEM_TIGHT ? 0 : sedge ? 2 : 4;
   const pos = [], col = [], nor = [];
   const hues = [[0.5, 0.56, 0.36], [0.44, 0.5, 0.32], [0.56, 0.58, 0.4], [0.66, 0.6, 0.42], [0.74, 0.66, 0.46]];
-  for (let i = 0; i < NB; i++) {
+  for (let i = 0; i < NB + NI; i++) {
+    const inner = i >= NB;
     const a = i * 2.39996 + Math.sin(i * 7.1) * 0.3, ca = Math.cos(a), sa = Math.sin(a);
-    const r0 = 0.015 + (i % 3) * 0.022, bx = Math.cos(a + 1.3) * r0, bz = Math.sin(a + 1.3) * r0;
-    const h = sedge ? 0.3 + (i % 3) * 0.06 : 0.55 + ((i * 7) % 10) * 0.05, lean = sedge ? 0.55 + (i % 3) * 0.17 : 0.12 + ((i * 3) % 5) * 0.09;
-    const w = sedge ? 0.028 + (i % 2) * 0.008 : 0.016 + (i % 2) * 0.006;
+    const r0 = inner ? 0.01 : 0.015 + (i % 3) * 0.022, bx = Math.cos(a + 1.3) * r0, bz = Math.sin(a + 1.3) * r0;
+    const jf = Math.sin(i * 12.9898) * 43758.5453, jit = 0.82 + 0.36 * (jf - Math.floor(jf));
+    const h = (inner ? (sedge ? 0.18 : 0.26 + (i % 2) * 0.08) : sedge ? 0.3 + (i % 3) * 0.06 : 0.5 + ((i * 7) % 10) * 0.055) * jit;
+    const lean = inner ? 0.06 + (i % 2) * 0.05 : sedge ? 0.55 + (i % 3) * 0.17 : 0.12 + ((i * 3) % 5) * 0.09;
+    const w = (sedge ? 0.03 + (i % 2) * 0.009 : 0.018 + (i % 2) * 0.007) * (inner ? 1.15 : 1);
     const tw = (i % 2 ? 1 : -1) * 0.5;   // 葉を中ほどでねじる
     const c = hues[(i * 3) % 5 === 4 || i === 7 ? 4 : (i * 3) % 4];
+    const val = (inner ? 0.62 : 0.86 + 0.24 * (((i * 5) % 7) / 6));
     const pt = (t, side) => {
-      const ang = a + Math.PI / 2 + tw * t, ww = w * (1 - t) * side;
+      const ang = a + Math.PI / 2 + tw * t, ww = w * (1 - t * 0.92);
       const out = sedge ? lean * t : lean * t * t, y = sedge ? h * (2.1 * t - 1.35 * t * t) : h * (t * (1.25 - 0.25 * t)) * (1 - lean * 0.35 * t * t);
-      return [bx + ca * out + Math.cos(ang) * ww, y, bz + sa * out + Math.sin(ang) * ww];
+      // 中筋（side=0）は葉の腹の向きへ少し出す：浅い V の溝
+      const fold = side === 0 ? ww * 0.75 : 0;
+      return [bx + ca * (out + fold) + Math.cos(ang) * ww * side, y, bz + sa * (out + fold) + Math.sin(ang) * ww * side];
+    };
+    const push = (t, side) => {
+      pos.push(...pt(t, side));
+      const k = (0.2 + 0.72 * Math.pow(t, 0.75)) * val * (side === 0 ? 1.08 : side < 0 ? 0.9 : 1);
+      // 葉先は少し黄み（枯れ）へ寄せるが、白くは飛ばさない
+      const dry = t * t * 0.18;
+      col.push(Math.min(0.95, (c[0] + dry * 0.25) * k * 1.3), Math.min(0.95, (c[1] + dry * 0.12) * k * 1.3), Math.min(0.95, c[2] * k * 1.3));
+      const ang = a + Math.PI / 2 + tw * t;
+      const up = 0.35 + 0.65 * t;
+      const nx = ca * (1 - up) + Math.cos(a + Math.PI / 2) * 0.2 + Math.cos(ang) * side * 0.4, nz = sa * (1 - up) + Math.sin(a + Math.PI / 2) * 0.2 + Math.sin(ang) * side * 0.4;
+      const l = Math.hypot(nx, up, nz); nor.push(nx / l, up / l, nz / l);
     };
     const T = [0, 0.48, 1];
     for (let s = 0; s < 2; s++) {
       const t0 = T[s], t1 = T[s + 1];
-      const L0 = pt(t0, -1), R0 = pt(t0, 1), L1 = pt(t1, -1), R1 = pt(t1, 1);
-      const tri = s === 1 ? [[L0, t0], [R0, t0], [L1, t1]] : [[L0, t0], [R0, t0], [R1, t1], [L0, t0], [R1, t1], [L1, t1]];
-      for (const [v, t] of tri) {
-        pos.push(...v);
-        const k = 0.3 + 0.75 * Math.pow(t, 0.8);
-        col.push(Math.min(1, c[0] * k * 1.35), Math.min(1, c[1] * k * 1.35), Math.min(1, c[2] * k * 1.35));
-        const up = 0.35 + 0.65 * t, nx = ca * (1 - up) + Math.cos(a + Math.PI / 2) * 0.2, nz = sa * (1 - up) + Math.sin(a + Math.PI / 2) * 0.2;
-        const l = Math.hypot(nx, up, nz); nor.push(nx / l, up / l, nz / l);
+      if (s === 1) {   // 葉先：左右の半分が一点へ
+        for (const [ta, sa1, tb, sb, tc, sc] of [[t0, -1, t0, 0, t1, 0], [t0, 0, t0, 1, t1, 0]]) { push(ta, sa1); push(tb, sb); push(tc, sc); }
+      } else {
+        for (const [ta, sa1, tb, sb, tc, sc] of [[t0, -1, t0, 0, t1, 0], [t0, -1, t1, 0, t1, -1], [t0, 0, t0, 1, t1, 1], [t0, 0, t1, 1, t1, 0]]) { push(ta, sa1); push(tb, sb); push(tc, sc); }
       }
     }
   }
@@ -281,12 +309,18 @@ function materials() {
     _fs(sh);
     sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), diffuseColor.rgb, 0.68);`);
+    // 11/2 c_veg_near：絵の草の縁を一画素ほどにじませ、重ね描きの濃淡で柔らかく抜く（くっきり切った紙の縁に見せない）。携帯は今まで通り。
+    if (!MEM_TIGHT) sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `#ifdef USE_ALPHATEST
+      diffuseColor.a = clamp((diffuseColor.a - alphaTest) / max(fwidth(diffuseColor.a), 0.0001) * 0.6 + 0.5, 0.0, 1.0);
+      if (diffuseColor.a < 0.02) discard;
+    #endif`);
   };
-  grass.customProgramCacheKey = () => 'tsGrass2';
+  if (!MEM_TIGHT) grass.alphaToCoverage = true;
+  grass.customProgramCacheKey = () => 'tsGrass3';
   // grassShape:'blade' の戦の草：絵の板でなく、共通の細い葉の株（fieldGrassGeo）。そよぎと彩度は同じ。
   const grassBlade = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: 0.9, metalness: 0 });
   grassBlade.onBeforeCompile = grass.onBeforeCompile;
-  grassBlade.customProgramCacheKey = () => 'tsGrassBlade';
+  grassBlade.customProgramCacheKey = () => 'tsGrassBlade3';
   MAT = {
     mud: decal(T.mud),
     rut: decal(T.rut),

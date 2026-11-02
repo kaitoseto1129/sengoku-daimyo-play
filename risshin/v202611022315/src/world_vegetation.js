@@ -2,7 +2,7 @@ import { rng, distToPolyline, mergeVegetationParts, tuftClumpAt, TUFT_AUTUMN } f
 import { castleInside } from './world_castle.js';
 import { leafTex, barkTex, alphaTex, stoneTex } from './nature.js';
 import * as THREE from 'three';
-import { liteMat, sway, farTreeLit, nearTreeLit, leafLit, nearLeafLit, treeTriangles, treeCards, scaleTreePart, treeTextureKind, treeCardDepth, treeLeafMap, grassLit, grassAlpha, keepAlpha, riceLit } from './world_vegetation_materials.js';
+import { softBush, liteMat, sway, farTreeLit, nearTreeLit, leafLit, nearLeafLit, treeTriangles, treeCards, scaleTreePart, treeTextureKind, treeCardDepth, treeLeafMap, grassLit, grassAlpha, keepAlpha, riceLit } from './world_vegetation_materials.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { rockShape, groundRocks } from './rock_shape.js';
@@ -209,10 +209,10 @@ export class WorldVegetation {
         const prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey(), k = (0.82 * autumnLeafMix).toFixed(3);
         mat.onBeforeCompile = function (sh, r) {
           prev.call(this, sh, r);
-          sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `{ float aL = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(aL * 1.5), ${k}); }
+          sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', `{ float aL = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(aL * 1.5) * (0.62 + 0.62 * smoothstep(0.12, 0.55, aL)), ${k}); }
             #include <color_fragment>`);
         };
-        mat.customProgramCacheKey = () => pk + '|autumnLeaf' + k;
+        mat.customProgramCacheKey = () => pk + '|autumnLeaf2' + k;
       }
       if (leafMaterials) leafMaterials.set(key, mat);
       return mat;
@@ -300,6 +300,9 @@ export class WorldVegetation {
       if (roll) g.rotateZ(roll);
       g.rotateX(rx); g.rotateY(ry); g.translate(cx, cy, cz);
       const n = g.attributes.normal, p = g.attributes.position, shade = new Float32Array(p.count * 3);
+      // 11/2 c_veg_near：房ごとに明るさと色味を散らす（同じ明るさ・同じ緑の葉の板が並ぶ切り絵に見せない）。乱数の流れは使わない。
+      const hq = Math.sin(cx * 12.9898 + cy * 78.233 + cz * 37.719) * 43758.5453, hv = hq - Math.floor(hq), hw = (hq * 7.13) - Math.floor(hq * 7.13);
+      const cardK = (needle ? 0.66 : 0.78) + (needle ? 0.46 : 0.34) * hv, cardR = (needle ? 0.88 : 0.95) + 0.1 * hw, cardB = 1.05 - 0.1 * hw;
       for (let k = 0; k < p.count; k++) {
         const v = new THREE.Vector3(p.getX(k) - ox, (p.getY(k) - oy) * 0.6, p.getZ(k) - oz).normalize();
         n.setXYZ(k, v.x, Math.max(0.25, v.y + 0.35), v.z);
@@ -307,10 +310,10 @@ export class WorldVegetation {
         // 杉は枝元の重なりを暗く、外へ伸びる葉先を明るくする。
         // 絵や光源を増やさず、板全体が同じ明るさに見えるのを避ける。
         const light = needle
-          ? 0.48 + g.attributes.uv.getY(k) * 0.34 + Math.max(0, v.y) * 0.12
+          ? 0.3 + g.attributes.uv.getY(k) * 0.52 + Math.max(0, v.y) * 0.12
           : 0.58 + Math.max(0, v.y) * 0.32
             + 0.1 * Math.sin(p.getX(k) * 2.3 + p.getZ(k) * 1.7 + cy);
-        shade[k * 3] = light * 0.98; shade[k * 3 + 1] = light; shade[k * 3 + 2] = light * 1.02;
+        shade[k * 3] = light * 0.98 * cardK * cardR; shade[k * 3 + 1] = light * cardK; shade[k * 3 + 2] = light * 1.02 * cardK * cardB;
       }
       g.normalizeNormals();
       g.setAttribute('color', new THREE.BufferAttribute(shade, 3));
@@ -1127,11 +1130,20 @@ export class WorldVegetation {
           const nx = bp.getX(i), ny = (bp.getY(i) - 0.45) * 0.8 + 0.35, nz = bp.getZ(i), l = Math.hypot(nx, ny, nz) || 1;
           bn.setXYZ(i, nx / l, ny / l, nz / l);
         }
+        // 11/2 c_veg_near：株の芯と根元ほど暗く（葉の重なりの陰）、外の上の葉ほど明るく。板ごとに明るさも散らす（同じ明るさの葉の板が並ぶ切り絵に見せない）。
+        const bc = new Float32Array(bp.count * 3), bv = 0.85 + TB() * 0.3;
+        for (let i = 0; i < bp.count; i++) {
+          const rr = Math.hypot(bp.getX(i), bp.getZ(i)), yy = bp.getY(i);
+          const k = Math.min(1.15, (0.42 + 0.4 * Math.min(1, rr / 0.75) + 0.3 * Math.min(1, Math.max(0, yy - 0.2) / 0.9)) * bv);
+          bc[i * 3] = k * 0.98; bc[i * 3 + 1] = k; bc[i * 3 + 2] = k * 0.94;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(bc, 3));
         bushG.push(g);
       }
       const pts = this.treePoints || [];
       const N = Math.min(lowV ? 200 : 420, pts.length);
-      const bush = new THREE.InstancedMesh(mergeVegetationParts(bushG), sway(liteMat({ map: leafTex(this.def.lowBamboo ? 'bamboo' : 'broad'), alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, envMapIntensity: 0.1 }), 0.04, 0.3, { after: keepAlpha }), N);
+      const bush = new THREE.InstancedMesh(mergeVegetationParts(bushG), sway(liteMat({ map: leafTex(this.def.lowBamboo ? 'bamboo' : 'broad'), vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, envMapIntensity: 0.1 }), 0.04, 0.3, { after: MEM_TIGHT ? keepAlpha : softBush }), N);
+      if (!MEM_TIGHT) bush.material.alphaToCoverage = true;   // 縁を柔らかく抜く（携帯は今まで通り）
       // 根元の草も既存の形・材質を使い回し、一つの束にまとめる。
       const rootGrass = new THREE.InstancedMesh(tuftGeo, tuftMesh.material, N);
       const col = new THREE.Color();
