@@ -1977,7 +1977,11 @@ const saika = {
   noHorse: true,   // 小雑賀川は膝まで水の渡りと高い岸（「馬も上がれぬ高岸」）。徒歩で杭を抜き、竹束の陰で列を整える。
   playerRegen: 0.015,   // 稲生の標準：戦っていない間は命がゆっくり戻る（岸の鉄砲・矢で削られたまま作業へ戻れない事を防ぐ）
   spawn: { x: 8, z: -6, heading: WEST },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に、刃を受けた後の3秒は次の刃を通さない（bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     blockedHint: () => '陣幕は東にある。西へ進み、杭の印へ寄れ。渡る時は中央の口を通れ',
     // 公記のこの渡河記事には天候・時刻の記載がない。昼と湿った岸は見た目の復元。
     seed: 15772, time: 'day', fieldStage: 'fallow', muddy: 0.6, waterSlow: true,
@@ -2184,6 +2188,7 @@ const saika = {
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const F = rt.flags, W = rt.world;
     timeslipField(rt);   // 身の回りのぬかるんだ岸・枯れ葦・倒れた槍と旗（def.timeslip）
     // 遠くの木の葉の板は日に白く透けた絵に見える。遠景の板だけ色を沈め、近くの松と同じ緑へ寄せる。

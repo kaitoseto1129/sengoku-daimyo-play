@@ -114,7 +114,7 @@ export class HudThreats {
       setAttr(this.dodgeButton.querySelector('.dodge-progress'), 'stroke-dashoffset', String(Math.round((1 - progress) * 100)));
       setAttr(this.dodgeButton.querySelector('.dodge-frame rect'), 'stroke-dashoffset', String(Math.round((1 - progress) * 100)));
       setCssVar(this.dodgeButton, '--dodge-fill', `${Math.round(progress * 100)}%`);
-      const helpText = rt.def.dodgeActionHelp?.(rt, cue) || (held ? `あと${Math.max(1, Math.ceil(remaining))}歩` : '');
+      const helpText = rt.def.dodgeActionHelp?.(rt, cue) || '';
       help.hidden = !helpText;
       setText(help, helpText);
       this.dodgeButton.querySelector('.dodge-direction').setAttribute('transform', `rotate(${side === '右' ? 90 : side === '左' ? -90 : side === '後ろ' ? 180 : side === '右上' ? 45 : side === '左上' ? -45 : side === '右下' ? 135 : side === '左下' ? -135 : 0} 44 34)`);

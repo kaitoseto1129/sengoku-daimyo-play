@@ -3155,7 +3155,7 @@ const moribe = {
   foeHit: 1,
   // 重なる槍の傷を共通の仕組みで間引く。満タンの傷枠でも、
   // 体力九十二から近接だけで倒れるまで六十秒以上（厳しい戦は従来どおり）。
-  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.2 },
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 2.5 },   // 11/1：刃の後2.5秒は次の刃を通さない（一太刀五割で、続けての太刀に満ちた命から倒れた）
   learningFight: false,   // 初陣用の傷の軽減は、この槍戦に持ち込まない。
   noReserve: true,   // 台本の控え以外に、共通の新手を追加しない。
   noWake: true,   // 予告のない新手を増やさず、開戦時に置いた控えを前へ出す。
@@ -3183,6 +3183,8 @@ const moribe = {
   // 信長で遊ぶ時は前へ出た所から始め、後方からの長い行軍で任務を止めない。
   lordSpawn: { x: POINT2.x + 4, z: POINT2.z + 4, heading: Math.PI },
   lordAt: { x: POINT2.x, z: POINT2.z, r: 24, why: '渡河後の槍組のそば（前へ出た位置は復元）' },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
   world: {
     seed: 21,
     namedKacchu: MORIBE_KACCHU,
@@ -3350,6 +3352,7 @@ const moribe = {
     treeMix: { sugi: .22, matsu: .36 },   // 濃尾の野の林は広葉樹が主（杉の黒い円錐を並べない）
   },
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     // 安八町の案内：森部下河原2831。首実検の伝えを後日談へ。
     // https://www.town.anpachi.lg.jp/0000000392.html
     // 当時の姿と戦場での配置は復元。近代の石碑は置かない。

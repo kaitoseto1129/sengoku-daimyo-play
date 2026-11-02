@@ -480,6 +480,8 @@ const REAR_POSTS = [
   ['明智光秀', -240, -420, 'oda', 'akechi', 'spear'],
   ['羽柴秀吉', -300, -320, 'oda', 'oda', 'spear'],
   ['丹羽長秀', -240, -230, 'oda', 'sujikai', 'spear'],
+  ['柴田勝家', -240, -110, 'oda', 'oda', 'spear'],
+  ['滝川一益', -240, 20, 'oda', 'oda', 'spear'],
 ];
 const TAKEDA_POSTS = [
   ['馬場信春', 250, -440, 'takeda', 'takeda', 'spear'],
@@ -3976,7 +3978,7 @@ function shiA(rt) {
 // 信長公記巻八・地形参照：西の織田と徳川、東の武田十三の備え。
 // 各備の兵数・間隔は復元。酒井の鳶ヶ巣山別働は決戦場の備に重ねない。
 const alliedIds = ['sakuma', 'sengoku', 'nonomura', 'sassa', 'maeda', 'ban', 'fukutomi', 'sakakibara', 'honda'];
-const rearIds = ['akechi', 'hashiba', 'niwa'];
+const rearIds = ['akechi', 'hashiba', 'niwa', 'shibata', 'takigawa'];
 const takedaIds = ['baba', 'tsuchiya', 'sanada', 'sanada_masateru', 'naito', 'hara', 'shoyoken', 'oyamada', 'yamagata'];
 const postRows = (posts, ids, count) => posts.map(([name, x, z, fac, mon, kind], i) =>
   ['shitara_' + ids[i], '持ち場の備え', name, null, { x, z }, fac, mon, null, { draw: true, count, kind }]);
