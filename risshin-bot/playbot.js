@@ -1958,8 +1958,8 @@ function voiceOf(per, reports, probs, c) {
 
 // 戦略家が軍配の図を開いて、隊を選び、下知を出して閉じる（全部、指で）
 async function gunbaiTry(game, b, pad, c, aud, name, rep) {
-  const mp = document.getElementById('tc-map');
-  if (!pad.shown(mp)) { c.add('gunbai-nobtn', '信長で出陣しているのに、軍配の図を開く「地図」の釦が無い', c.where, 3, { cat: '使いづらい' }); return; }
+  const mp = document.getElementById('jk-map');   // 地図の釦は消した（kaito 11/1 N）。右上の小さな地図を押して開く
+  if (!pad.shown(mp)) { c.add('gunbai-nobtn', '信長で出陣しているのに、軍配の図を開く右上の小さな地図が無い', c.where, 3, { cat: '使いづらい' }); return; }
   pad.cache.delete('地図（軍配）');
   pad.tap(mp, '地図（軍配）');
   await wait(500);
