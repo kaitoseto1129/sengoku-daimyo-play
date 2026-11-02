@@ -44,7 +44,7 @@ export class PlayerHurt {
       this.tellPractice = practice;
       const dx = u.pos.x - best.pos.x, dz = u.pos.z - best.pos.z, d = Math.hypot(dx, dz) || 1;
       s.position.set(best.pos.x + (practice ? 0 : dx / d * 0.55), (best.pos.y || 0) + (practice ? 2.4 : 1.5), best.pos.z + (practice ? 0 : dz / d * 0.55));
-      this.tellT = practice ? lead : 0.18; s.visible = true;
+      this.tellT = this.tellDur = practice ? lead : Math.max(0.18, lead); s.visible = true;   // 11/2 tarapon さん「守る時が分からない」：光は打ち込みが届くまで残す
       sfx('kin', 0.45);
       if ((best.atk.heavy || best.type === 'busho' || best.type === 'samurai') && !(this.tellAdviceT > rt.t)) {
         this.tellAdviceT = rt.t + 12;
@@ -53,10 +53,10 @@ export class PlayerHurt {
     }
     if (this.tellT > 0) {
       this.tellT -= dt;
-      const k = Math.max(0, this.tellT / 0.18);
-      // 動きを減らす時は大きさを変えず、薄れるだけ
-      const sc = this.tellPractice ? 0.7 : reduceMotion() ? 0.25 : 0.12 + Math.sin(k * Math.PI) * 0.18;
-      s.scale.set(sc, sc, 1); s.material.opacity = this.tellPractice ? 1 : reduceMotion() ? k : Math.min(1, k * 2);
+      const k = Math.max(0, this.tellT / (this.tellDur || 0.18));
+      // 動きを減らす時は大きさを変えず、薄れるだけ。光は届く間際に一番大きく（ここで構える）
+      const sc = this.tellPractice ? 0.7 : reduceMotion() ? 0.3 : 0.16 + Math.sin(Math.min(1, (1 - k) * 1.25) * Math.PI * .5) * 0.26;
+      s.scale.set(sc, sc, 1); s.material.opacity = this.tellPractice ? 1 : reduceMotion() ? Math.min(1, k * 3) : Math.min(1, k * 6);
       if (this.tellT <= 0) s.visible = false;
     }
   }

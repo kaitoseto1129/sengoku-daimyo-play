@@ -262,6 +262,8 @@ async function readyBattleCode(retry, withWeapons = true, id = '') {
     btPromise = null; bmPromise = null;
     // 読み込みに一度失敗した部品は、同じ頁のままでは何度押しても読めない（ブラウザが失敗を覚える）。
     // 公開の版が替わった直後や通信が途切れた時なので、一度だけ頁を読み直して新しい版で始め直す（同じ戦の札へ戻る）
+    // 11/2：開いたままの頁が、公開で消えた古い版の部品を読みに行った時は、新しい版で読み直して同じ出陣から続ける
+    if (importFailed(e) && autoFreshRetry()) return false;
     try {
       if (!sessionStorage.getItem('risshin-reloaded')) {
         sessionStorage.setItem('risshin-reloaded', String(Date.now()));
@@ -1247,6 +1249,9 @@ window.addEventListener('error', (e) => {
   if (!game.battle) return;
   // ResizeObserver の「届けきれなかった」は害の無い知らせ。遊ぶ人に「問題が起きました」を出さない（10/11 木津川口で出た）
   if (/ResizeObserver loop/.test(e.message || '')) return;
+  // 拡張機能や自動の操作の道具が差し込んだ字の失敗（よその出所・中身の見えない「Script error.」）は、ゲームの不具合として出さない（11/2 Lancers の自動で遊んだ人の「不具合が起きていました」）
+  if (e.filename && !e.filename.startsWith(location.origin)) return;
+  if (!e.filename && /^Script error\.?$/.test(e.message || '')) return;
   console.error(e.error || e.message);
   reportBug(e.message, `${(e.filename || '').split('/').pop()}:${e.lineno}`);
 });

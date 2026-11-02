@@ -39,6 +39,8 @@ export const setFull = (on) => store.set(!!on);
 const ownedIds = () => { try { const a = JSON.parse(localStorage.getItem(OWNED_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
 const setOwnedIds = (a) => { try { localStorage.setItem(OWNED_KEY, JSON.stringify([...new Set(a)])); } catch (e) {} };
 // 買う道の無い所（Web・Steam・自動の道具）は全部開く
+// ブラウザ（Web）は織田家編の順番の錠も外す（kaito 11/2 Y）。アプリ・Steam・自動の道具は含めない
+export const isWebOpen = () => webFree;
 export const allFree = () => auto || webFree || !!window.__fullApp;
 export const ownsNoAds = () => ownedIds().includes(NOADS_PID);
 export const ownsProduct = (pid) => allFree() || (pid !== NOADS_PID && ownedIds().includes(BUNDLE_PID)) || (pid === FULL_PID ? store.get() : ownedIds().includes(pid));

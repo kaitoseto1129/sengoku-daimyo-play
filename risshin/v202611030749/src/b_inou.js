@@ -1161,6 +1161,8 @@ const inou = {
       g.onArrive = advanceOnArrival;
     }
     rt.after(6, () => rt.say('足軽', '柴田様まで向こうについたらしいぞ', 4));
+    // 小田井川を越えて名塚へ来た事を一言で（battle_events_1101 稲生）
+    rt.after(11, () => { if (!rt.over) rt.say('足軽', '小田井川を渡って名塚まで来た。信勝様の兵と身内で斬り合うとはな', 4); });
     this.trainingPhase(rt, 0);
   },
 
@@ -1731,8 +1733,8 @@ const inou = {
         F.lastWithdraw = true;
         F.shibaG.order = 'retreat'; F.shibaG.dest = F.retreatWarrior;
       }
-      // 追い手に絡まれて下がり切れない時も、五十秒で退き終えた扱いにする（止まったまま終わらない戦にしない）。
-      if (elapsed >= 50 || F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88)) {
+      // 追い手に絡まれて下がり切れない時も、二十八秒で退き終えた扱いにする（止まったまま終わらない戦にしない。11/2 Lancers「結果の画面まで待たされる」で五十秒から縮めた）。
+      if (elapsed >= 28 || F.lastWithdraw && F.shibaU.pos.z < -105 && (F.shiba1.count === 0 || F.shiba1.center().z < -88)) {
         F.commanderRetired = true;
         this.win(rt);
       }

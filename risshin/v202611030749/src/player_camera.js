@@ -622,7 +622,17 @@ export class PlayerCamera {
         if (h !== null) camera.position.lerpVectors(target, camera.position, Math.max(0, h - 0.25 / Math.max(0.25, target.distanceTo(camera.position))));
       }
       camera.position.y = Math.max(camera.position.y, cameraGroundAt(this.rt.world, camera.position.x, camera.position.z) + 0.65);
-    }
+      // 坂・建物のそばで、壁や斜面の寄せが一コマごとに付いたり外れたりして揺れない（11/2 Lancers「カメラが揺れる」）：
+      //   寄る時はすぐ、離れる時はゆっくり戻す。体へ近い点は壁の手前なので、戻りを遅らせても埋もれない。
+      const d = camera.position.distanceTo(target);
+      if (this.camHoldD == null || dt >= 0.5 || this.cine || this.camShot || Math.abs(d - this.camHoldD) > 6) this.camHoldD = d;
+      else if (d <= this.camHoldD) this.camHoldD = d;
+      else {
+        this.camHoldD += (d - this.camHoldD) * Math.min(1, dt * 3.5);
+        camera.position.lerpVectors(target, camera.position, this.camHoldD / d);
+        camera.position.y = Math.max(camera.position.y, cameraGroundAt(this.rt.world, camera.position.x, camera.position.z) + 0.65);
+      }
+    } else this.camHoldD = null;
     // 壁の補正や一人称の揺れの後も、水面より上へ目線を保つ。川床の高さだけでは胸まで浸かる川で沈む。
     if (!inRoom) {
       const W = this.rt.world, depth = W.waterDepthAt(camera.position.x, camera.position.z);

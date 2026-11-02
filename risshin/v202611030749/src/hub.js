@@ -4,7 +4,7 @@ import { showScreen, topBack, RM } from './screens.js';
 import { ODA_LINE, lineOf, LADDER, ladderStep } from './state.js';
 import { sfx } from './audio.js';
 import { offerNoAds, buyNoAds } from './ads.js';
-import { isBattleLocked, showPaywall } from './paywall.js';
+import { isBattleLocked, isWebOpen, showPaywall } from './paywall.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { TOKUGAWA_LINE } from './tokugawa_line.js';
 import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
@@ -170,7 +170,7 @@ export function battleRows(G) {
     const j = line.findIndex((x) => x.id === b.id);
     // 前の保存（尾張統一戦が並びに無い）の稲生は、いつも遊べる
     // 最初の3戦はいつも開いている（kaito 10/31 夜）
-    const state = j < 0 ? 'done' : j === prog ? 'next' : j < prog || j < 3 ? 'done' : 'lock';
+    const state = j < 0 ? 'done' : j === prog ? 'next' : j < prog || j < 3 || isWebOpen() ? 'done' : 'lock';
     return { b, k, j, state, grade: j >= 0 ? (G.grades || [])[j] : null, best: j >= 0 ? (G.best || [])[j] || 0 : 0, pay: isBattleLocked('oda', b.id) };
   });
 }
@@ -187,7 +187,7 @@ export function tokuRows(from) {
   }).concat(TOKUGAWA_LINE.filter((e) => e.secret).map((e, n) => {
     // 秘密の最後の戦：15戦すべてに勝つと開く（tokugawa_secret.js）
     const open = secretOpen();
-    return { b: { cap: 240, place: '', ...e }, k: from + TOKUGAWA_PLAN.length + n, j: -1, state: open ? 'done' : 'lock', secret: true, grade: null, best: 0, pay: open ? isBattleLocked('tokugawa', e.id) : false, scn: 'tokugawa' };
+    return { b: { cap: 240, place: '', ...e }, k: from + TOKUGAWA_PLAN.length + n, j: -1, state: open || isWebOpen() ? 'done' : 'lock', secret: true, grade: null, best: 0, pay: open || isWebOpen() ? isBattleLocked('tokugawa', e.id) : false, scn: 'tokugawa' };
   }));
 }
 

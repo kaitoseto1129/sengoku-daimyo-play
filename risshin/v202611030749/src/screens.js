@@ -1914,7 +1914,7 @@ export function evalScreen(G, r, actions) {
       : (nt.good.slice(0, 1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('') + nt.lack.slice(0, 1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('') + nt.neutral.map((g) => `<p class="lk">${esc(g)}</p>`).join('')) || '<p class="lk">この区分の加点・減点なし</p>';
     return `<div class="evc ${cls}" role="group" style="animation-delay:${t1 + i * 0.22}s" aria-label="${c}：${CAT_INFO[c].long}">
       <div class="evc-h"><span class="k">${c}</span><small>${CAT_INFO[c].long}</small><span class="evmk">${({ 上: '大手柄', 中: '手柄', 下: '小さな手柄', 欠: '差し引き', '—': '対象外・加点なし' })[mk]}</span><span class="p">${nt.locked ? '' : sgn(sum.pts)}</span></div>
-      <i class="evc-bar"><b style="width:${w}%"></b>${wm ? `<s style="width:${wm}%"></s>` : ''}</i>${body}${nt.good.length > 1 || nt.lack.length > 1 ? `<details><summary style="min-height:44px;cursor:pointer">ほかの評価${Math.max(0, nt.good.length - 1) + Math.max(0, nt.lack.length - 1)}件を見る</summary>${nt.good.slice(1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('')}${nt.lack.slice(1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('')}</details>` : ''}/div>`;
+      <i class="evc-bar"><b style="width:${w}%"></b>${wm ? `<s style="width:${wm}%"></s>` : ''}</i>${body}${nt.good.length > 1 || nt.lack.length > 1 ? `<details><summary style="min-height:44px;cursor:pointer">ほかの評価${Math.max(0, nt.good.length - 1) + Math.max(0, nt.lack.length - 1)}件を見る</summary>${nt.good.slice(1).map((g) => `<p class="g"><em>良し</em><span>${esc(g)}</span></p>`).join('')}${nt.lack.slice(1).map((g) => `<p class="l"><em>足りぬ</em><span>${esc(g)}</span></p>`).join('')}</details>` : ''}</div>`;
   }).join('');
   // 絵巻が開いたら、すぐ戦功を数え上げる（細かな札は「くわしく見る」の中）
   const delay = Math.max(0.9, t1 * 0.5);
@@ -2038,7 +2038,7 @@ export function evalScreen(G, r, actions) {
     ${!r.mainDone && r.bossLine ? `<div class="ev-fail"><b>${r.taishoLost ? '殿を討たれた' : 'しくじり'}</b><p><span>${esc(r.bossLine[0])}</span>「${esc(r.bossLine[1])}」</p></div>` : ''}
     <details class="ek-more"><summary>助言と昇進</summary>
     ${promo}
-    ${(() => { const notes = ['武','任','将','忠'].map((c) => catNotes(c, r, hadSquad)); const good = notes.find((n) => n.good.length)?.good[0]; const lack = notes.find((n) => n.lack.length)?.lack[0]; return `<div class="histnote">${good ? `<p>良かったこと：${esc(good)}</p>` : ''}${lack ? `<p>次の課題：${esc(lack)}</p>` : ''}/div>`; })()}
+    ${(() => { const notes = ['武','任','将','忠'].map((c) => catNotes(c, r, hadSquad)); const good = notes.find((n) => n.good.length)?.good[0]; const lack = notes.find((n) => n.lack.length)?.lack[0]; return `<div class="histnote">${good ? `<p>良かったこと：${esc(good)}</p>` : ''}${lack ? `<p>次の課題：${esc(lack)}</p>` : ''}</div>`; })()}
     </details>
     ${r.spoilHorse ? `<div class="histnote" style="border-color:var(--kin)"><b>分捕った馬</b><br>${esc(r.spoilHorse.who)}の馬。${spoilReplace ? `持ち帰ると前の馬（${esc(previousSpoil?.name || previousSpoil?.from || '分捕り馬')}）と入れ替わる。持ち帰る釦で決めるまでは前の馬を残す` : '持ち帰って城下の馬屋に並べる'}${ladderStep(G) < 2 ? '（乗れるのは足軽大将から）' : ''}。<div class="row" style="margin:6px 0 0"><button class="btn small" id="ev-spoil" aria-pressed="${spoilReplace}">${spoilReplace ? '持ち帰る' : '置いていく'}</button></div><div id="ev-spoil-confirm"></div></div>` : ''}
     <details class="ek-more" id="ek-more"><summary>手柄・褒美・組の記録</summary>

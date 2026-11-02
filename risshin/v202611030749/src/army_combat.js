@@ -323,6 +323,7 @@ export const ArmyCombat = {
     }
     woundHit(t, amount, z.part, side, kind, z.res === 'armor', this.world, src);
     t.hp -= amount;
+    if (src && src.isPlayer && t.type === 'busho' && amount > 0) t.heroDmg = (t.heroDmg || 0) + amount;   // 与えた傷の量で手柄を決める（battle.js onKill）
     if (melee && src && src.isPlayer && amount > 0) moralePlayerFight(this, src, t);
     if (kind === 'kesa' || kind === 'gyaku' || kind === 'yoko' || kind === 'sweep') markArmor(t, 'scar', src, this.hideBlood);
     if (this.hooks.onMeritHit) this.hooks.onMeritHit(t, src, kind, amount);

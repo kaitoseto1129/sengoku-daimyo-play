@@ -108,7 +108,7 @@ export function drawMissionGround(rt, el, want, rects) {
         const before = next === t;
         if (!project(rt, a.x + (b.x - a.x) * (before ? Math.max(0, t - .1) : next), a.z + (b.z - a.z) * (before ? Math.max(0, t - .1) : next), ahead)) continue;
         const angle = Math.atan2((ahead.y - point.y) * (before ? -1 : 1), (ahead.x - point.x) * (before ? -1 : 1));
-        arrows += arrow(point.x, point.y, angle, count ? .42 : .55);   // 11/1 点付け（案内の矢印が画面に大きい）：半分ほどに縮める
+        arrows += arrow(point.x, point.y, angle, count ? .5 : .68);   // 11/1 点付け（案内の矢印が大きい）で縮めたが、11/2 tarapon さん「前の地面の矢印の方が分かりやすい」で少し戻す
         lastX = point.x; lastY = point.y; count++;
       }
       covered += length;

@@ -1864,6 +1864,8 @@ export class Battle {
 
   // ---------------- 各種フック ----------------
   onKill(v, k) {
+    // 敵の武将を味方に横取りされない：自分が命の三分の一より多く削っていれば、止めを刺したのが味方でも自分の手柄（11/2 tarapon さん）
+    if (v.type === 'busho' && k && !k.isPlayer && this.player.u.alive && v.team !== this.player.u.team && (v.heroDmg || 0) >= (v.maxHp || 1) / 3) k = this.player.u;
     if (v.name && !v.civ && !v.isStruct) (this._deadSpeakers || (this._deadSpeakers = new Map())).set(v.name, v);
     if (v.team === this.player.u.team && !v.civ && !v.isStruct) this._allyDeathAt = this.t;
     killCry(this, v, k);
