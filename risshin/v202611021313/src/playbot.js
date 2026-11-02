@@ -1869,7 +1869,7 @@ function listPlayable() {
       if (lordList().some((l) => l.id === bt.id && l.scn === 'oda')) L.push({ kind: 'lord', scn: 'oda', i, id: bt.id, name: `${bt.name}（信長で出陣）`, rank: 4 });
     });
   }
-  for (const sk of [...SCENARIO_ORDER, 'toyotomi']) {
+  for (const sk of [...SCENARIO_ORDER, 'toyotomi', 'tokugawa']) {
     if (!SCENARIOS[sk]) continue;
     setScenario(sk);
     BATTLES.forEach((bt, i) => {

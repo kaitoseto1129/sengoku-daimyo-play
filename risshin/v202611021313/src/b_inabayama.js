@@ -5186,14 +5186,14 @@ const inabayama = {
       noWake: true, noRout: true, host: false, nearHide: 9, realNear: 14,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
       // 町の奥の軽い乱戦。弱い端末では六割にする（遠景の数だけ。本物の兵は変えない）。
-      A: { flag: 'oda', armor: 0x3d4248, count: Math.round(w * (TIER.weak ? 3.6 : 6)), team: 0, faction: 'oda', flagRate: 0.35 },
-      B: { flag: 'saito', armor: 0x454957, count: Math.round(w * (TIER.weak ? 3.6 : 6)), team: 1, faction: 'saito', flagRate: 0.4 },
+      A: { flag: 'oda', armor: 0x3d4248, count: Math.round(w * (TIER.weak ? 4.4 : 8)), team: 0, faction: 'oda', flagRate: 0.35 },
+      B: { flag: 'saito', armor: 0x454957, count: Math.round(w * (TIER.weak ? 4.4 : 8)), team: 1, faction: 'saito', flagRate: 0.4 },
       play: (k, p, v) => rt.army.play(k, p, v * 0.65),
     }));
     // 火の手を見た町の番の兵が、松明の組へ斬りかかってくる
     // 11/1：押し合いの奥、山すその斎藤勢の大軍（軽い作り）。持ち場から南へ四十〜五十歩、町の火を見て麓の番所の前へ出た所。翌日の暗転で片付ける。
     // 11/1：麓の番所の前（60,42）は町の家の陰で25秒の画面に入らなかった。押し合いの奥、東北東の山すその斜面（82,118）に下ろし、町の火の方を向かせる（人数は同じ）。
-    F.saitoHost = rt.world.addDistantArmy({ x: 82, z: 118, w: 30, d: 10, count: TIER.weak ? 120 : 180, facing: Math.atan2(-47, -23), team: 1, terrainRanks: true,
+    F.saitoHost = rt.world.addDistantArmy({ x: 82, z: 118, w: 30, d: 10, count: TIER.weak ? 160 : 280, facing: Math.atan2(-47, -23), team: 1, terrainRanks: true,
       armor: 0x454957, flagTex: flagTexture('saito'), flagRate: 0.3, kind: 'spear', seed: 156790 });
     if (F.saitoHost?.army) F.saitoHost.army.noWake = true;
     F.town.order = 'attack'; F.town.seekRange = 60; F.town.aggro = 16;

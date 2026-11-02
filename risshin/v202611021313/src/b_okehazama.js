@@ -2478,12 +2478,7 @@ const okehazama = {
       { wall: 0x857058, minka: false, groundedHome: true,
         interior: { name: '今川本陣の詰所', kind: 'bansho', profile: 'okehazama' } }));
     buildBattleJin(rt);
-    // 名のない敵の仮名は、この戦だけの名簿から選ぶ。実在の武将の名は保つ。
-    const foeNames = ['げんろく', 'へいはち', 'ひこしち', 'しんぱち', 'またろく', 'やさぶろう', 'きすけ', 'やごろう']
-      .filter((name) => name !== rt.G.name && name !== nm(rt));
-    for (const g of E) for (const u of g.units) {
-      if (!u.name && u.type === 'samurai') u.name = foeNames[u.id % foeNames.length];
-    }
+    // 名のない敵の侍に仮名を付けない（11/1 kaito D 節：頭上の名は名のある武将だけ。仮名の札が乱戦に並んでいた）。
     // 備え表の共通接続で槍列へ戻される旗本を、義元中心の囲みへ戻す。
     H.formation = 'ring'; H.leader = rt.flags.yoshimoto;
     for (let i = 0; i < H.units.length; i++) {
