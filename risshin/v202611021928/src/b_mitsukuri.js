@@ -21,6 +21,7 @@ import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // ======================================================================
 import { nobori, hut, tawara, lumber, hatazao, campfire, castleMat, ishigaki, kabukimon, dobei, kuruwaBldg, solidCircle, solidRect, solidSeg, village, makeKitBatch, finalizeKitBatch, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { flagTexture } from './textures.js';
+import { TIER } from './device_tier.js';
 import { stoneTex, woodTex } from './nature.js';
 import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 import { RANKS } from './state.js';
@@ -110,6 +111,9 @@ const HON_POLY = MITSUKURI_PLAN.kuruwa.find((k) => k.id === 'hon').poly;
 const torchReady = (u) => u.type === 'ashigaru' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.downed && !u.rearWound && !u.climb;
 const ODA = { flag: 'oda' };
 const RK = { armor: 0x33291f, flag: 'rokkaku' };
+// 11/2 点付け（兵が灰・黒の同じ形で単調）：丹羽・佐久間の手は旗と具足の色を分ける（丹羽は筋違の旗と茶の威、佐久間は赤茶の胴と藍の衣）。
+const NIWA = { flag: 'sujikai', armor: 0x3b3024, lace: 0x6a3a28, cloth: 0x4a4434 };
+const SAKU = { flag: 'oda', armor: 0x4a3024, lace: 0x5a4a38, cloth: 0x2f3a44 };
 // 下知は近くでは将本人。塀・切岸の向こうや、声を出せない時は組頭が伝える。
 const sayKino = (rt, text, secs) => {
   const u = rt.flags.kinoU, p = rt.player.u.pos;
@@ -2835,6 +2839,8 @@ const mitsukuri = {
   // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
   //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
   cutFloor: 0.35,
+  // 11/2：柵の口の下は坂で、後ろの高い所から足元ばかりを見下ろしていた。見下ろしを浅くし、柵の押し合いと城を目の高さに入れる。
+  camMaxDown: 0.14,
   world: {
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     allyTaken: 0.7,   // 10/28：郭ごとの制圧に要る味方が城兵の新手に削られ、二の丸・本丸の手前で攻め止めになった（bot 6回に4敗）。寄せ手の傷みを七割に
@@ -3749,9 +3755,9 @@ const mitsukuri = {
       dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true, horse: false } }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], ODA));
     F.kinoU = F.kino.units[0];
     F.niwa = allyGroup(rt, { fixed: true, name: '丹羽長秀の手', anchor: { x: CAMP.x - 22, z: CAMP.z - 4 }, facing: Math.PI, width: 12, aggro: 8, noRout: false },
-      dress([{ type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x2a3a2a } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x2a3a2a } }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], NIWA));
     F.saku = allyGroup(rt, { fixed: true, name: '佐久間信盛の手', anchor: { x: CAMP.x + 24, z: CAMP.z - 4 }, facing: Math.PI, width: 12, aggro: 8, noRout: false },
-      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x4a3a2a } }, { type: 'ashigaru', n: 14 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x4a3a2a } }, { type: 'ashigaru', n: 14 }], SAKU));
     F.ram = allyGroup(rt, { fixed: true, name: '木戸を破る組', anchor: { x: CAMP.x + 10, z: CAMP.z + 10 }, facing: Math.PI, width: 5, aggro: 3, noRout: false, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
     F.oda = [F.kino, F.niwa, F.saku, F.ram];
@@ -3811,9 +3817,20 @@ const mitsukuri = {
     // ---- 大軍（軽い作り）：上洛の織田勢と、繖山の六角勢 ----
     const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed, kind: 'spear', host: false });
     const OT = flagTexture('oda'), ET = flagTexture('eiraku');
-    DA(-40, 96, 36, 14, 260, Math.PI, 0x2a2622, OT, 15681);
-    DA(46, 100, 36, 14, 260, Math.PI, 0x2a2622, ET, 15682);
-    DA(0, 140, 50, 14, 300, Math.PI, 0x2a2622, OT, 15683);
+    // 11/2：麓の控えは開戦の画面に入らない。三の郭の柵で組み合う軽い作りの分（百六十人）を麓から減らし、重さを前とそろえる。
+    DA(-40, 96, 36, 14, 210, Math.PI, 0x2a2622, OT, 15681);
+    DA(46, 100, 36, 14, 210, Math.PI, 0x2a2622, ET, 15682);
+    DA(0, 140, 50, 14, 240, Math.PI, 0x2a2622, OT, 15683);
+    // 11/2 点付け（敵の大軍・乱戦が薄い）：三の郭の柵の口の左右で、寄せる織田の足軽と柵の内の六角勢が柵越しに槍を合わせる（軽い作り。本物の兵・任務の数は変えない）。
+    //   柵の口（x 0）は空け、口の東と西に一つずつ。開戦25秒の向きがどちらへ振れても柵の前の押し合いが画面に入る。
+    { const k = TIER.weak ? 0.65 : 1;
+      F.sakuClash = [[-14, -43.2, 11, 0], [14, -43.2, 11, 1]].map(([x, z, w, i]) => W.addClash({
+        x, z, w, facing: Math.PI, seed: 15691 + i, gap: 1.6, rt, host: false, noRout: true,
+        killRate: 0.003, maxDrift: 0.6, corpses: 6, realNear: 12, nearHide: 0,
+        play: (kk, p, v) => rt.army.play(kk, p, v * 0.7), smoke: (sx, sy, sz, fx, fz) => rt.army.smoke(sx, sy, sz, fx, fz),
+        A: { flag: 'oda', armor: 0x2a2622, count: Math.round(42 * k), flagRate: 0.25 },
+        B: { flagTex: rokkakuTex(), armor: 0x574737, count: Math.round(38 * k), flagRate: 0.3 } }));
+      for (const C of F.sakuClash) C?.go?.(); }
     // 観音寺城は戦わず退く。義賢の戦闘部隊や後詰を置かず、遠景と後日談だけで伝える。
 
     // ---- 区域の網（siege_zones.js）：三の郭→二の丸（木戸）→本丸 ----

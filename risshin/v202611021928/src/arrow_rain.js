@@ -23,7 +23,7 @@ function shadowTex() {
 // 中央は空けたまま、五組で形と材質を使い回す。
 function dangerGeometry() {
   const vertices = [], colors = [];
-  const dark = new THREE.Color(0x14120f), light = new THREE.Color(0xfff3ba);
+  const dark = new THREE.Color(0x0d0b09), light = new THREE.Color(0x3a3127);   // 11/2：黄と黒の縞は道の柄が崩れた絵に見えた（稲生）。矢の群れの影の濃淡に
   const band = (a, b, inner, outer, color, skew = 0) => {
     const ax = Math.sin(a) * inner, az = Math.cos(a) * inner;
     const bx = Math.sin(a + skew) * outer, bz = Math.cos(a + skew) * outer;
@@ -72,7 +72,7 @@ function state(army) {
   dots.count = 0; dots.frustumCulled = false; dots.instanceMatrix.setUsage(THREE.DynamicDrawUsage); dots.renderOrder = 2;
   army.scene.add(fly); army.scene.add(stuck); army.scene.add(dots);
   // 斜面の縞が地面に埋もれないようにする。兵との前後関係は保つ。
-  const cueMat = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, depthTest: true, depthWrite: false, fog: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4 });
+  const cueMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthTest: true, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4 });
   const ringGeo = dangerGeometry();
   const rings = Array.from({ length: 5 }, () => {
     const mesh = new THREE.Mesh(ringGeo.clone(), cueMat);

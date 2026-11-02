@@ -73,26 +73,28 @@ export function frontFill(rt) {
   const out = [];
   const w0 = MEM_TIGHT ? 40 : 52;
   let w = w0;
-  for (const sd of [1, -1]) {
+  for (const sd0 of [1, -1]) {
     let put = null;
     // 一の手：平らな所。二の手：坂をゆるく・前線を狭く（山・谷・城の戦）。三の手：山の斜面。
-    //   まずカメラから見える所（峰の陰でない所）だけ、無ければ陰でも
-    for (const need of [1, 0]) {
-      for (const [lax, ww] of [[0, w0], [1, w0], [1, 30], [3, 30]]) {
-        for (const D of [D0, D0 + 10, D0 - 12, D0 + 18, D0 - 24, 40]) {
-          if (D < 36 || D > fogF * 0.8) continue;
-          for (const L of [30, 46, 62, 80, 18]) {
-            const x = P.x + fx * D + rx * L * sd, z = P.z + fz * D + rz * L * sd;
-            if (out.some((c) => Math.hypot(c.x - x, c.z - z) < ww)) continue;
-            if (real.some((u) => Math.hypot(u.x - x, u.z - z) < ww / 2 + 8)) continue;   // 本物の兵の上には重ねない
-            if (need && !seen(W, P, fx, fz, x, z)) continue;
-            if (placeable(W, solids, x, z, a, ww, lax)) { put = { x, z }; w = ww; break; }
+    //   まずカメラに写る所（峰の陰でなく、正面から 37° の内）だけ、無ければ陰でも。
+    //   片側が崖・建物で置けない時は、もう片側に二つ目を置く（金ヶ崎・志賀）
+    find: for (const need of [1, 0]) {
+      for (const sd of [sd0, -sd0]) {
+        for (const [lax, ww] of [[0, w0], [1, w0], [1, 30], [3, 30]]) {
+          for (const D of [D0, D0 + 10, D0 - 12, D0 + 18, D0 - 24, 40]) {
+            if (D < 36 || D > fogF * 0.8) continue;
+            for (const L of [30, 46, 62, 80, 18]) {
+              if (need && L > D * 0.75) continue;
+              const x = P.x + fx * D + rx * L * sd, z = P.z + fz * D + rz * L * sd;
+              if (out.some((c) => Math.hypot(c.x - x, c.z - z) < ww)) continue;
+              // 本物の兵の上には重ねない（乱戦の枠：横 ww・前後 12m）
+              if (real.some((u) => { const dx = u.x - x, dz = u.z - z; return Math.abs(dx * rx + dz * rz) < ww / 2 + 5 && Math.abs(dx * fx + dz * fz) < 12; })) continue;
+              if (need && !seen(W, P, fx, fz, x, z)) continue;
+              if (placeable(W, solids, x, z, a, ww, lax)) { put = { x, z }; w = ww; break find; }
+            }
           }
-          if (put) break;
         }
-        if (put) break;
       }
-      if (put) break;
     }
     if (!put) continue;
     const seed = 4100 + out.length * 17 + (def.key.length * 31);
@@ -115,8 +117,11 @@ export function frontFill(rt) {
     const vmax = fogF * 0.9, vmin = fogF * 0.6, dm = Math.min(vmax, Math.max(vmin, d0 + 25)), wantA = Math.ceil(want / 2);
     // 一列を置ければ true（b：列の向きの角。味方の列は敵の真ん中へ向ける）
     const tryPut = (x, z, b, lax, need, foe) => {
-      if (far.some((c) => Math.hypot(c.x - x, c.z - z) < fw + 4) || out.some((c) => Math.hypot(c.x - x, c.z - z) < fw / 2 + w / 2 + 6)) return false;
-      if (real.some((u) => Math.hypot(u.x - x, u.z - z) < fw / 2 + 10)) return false;
+      // 近い乱戦とは、横に並ぶ時だけ間を空ける（前後に 22m 離れていれば重ならない。高遠：乱戦の奥に列が置けなかった）
+      const hitC = (c) => { const dx = x - c.x, dz = z - c.z; return Math.abs(dx * rx + dz * rz) < (fw + w) / 2 + 4 && Math.abs(dx * fx + dz * fz) < 22; };
+      if (far.some((c) => Math.hypot(c.x - x, c.z - z) < fw + 4) || out.some(hitC)) return false;
+      // 本物の兵とは、列の枠（横 fw・奥 18m）に余白を足した所だけ避ける（志賀：丸く 30m 避けて町の奥に置けなかった）
+      if (real.some((u) => { const dx = u.x - x, dz = u.z - z; return Math.abs(dx * rx + dz * rz) < fw / 2 + 6 && Math.abs(dx * fx + dz * fz) < 16; })) return false;
       if (need && !seen(W, P, fx, fz, x, z)) return false;
       if (!placeable(W, solids, x, z, b, fw, lax)) return false;
       const g = W.addDistantArmy({ x, z, w: fw, d: 18, count: fc, facing: foe ? a + Math.PI : (Math.atan2(ex - x, ez - z) || a), kind: (far.length % 2) ? 'mixed' : 'spear',
@@ -128,7 +133,7 @@ export function frontFill(rt) {
     const row = (upto, need, list) => {
       for (const [D, lax] of list) {
         // 敵より手前の列は、本人の歩く真ん中を空けて左右から。まず峰の陰でない所
-        for (const L of D < d0 - 20 ? [-44, 44, -84, 84, 0] : [0, -42, 42, -84, 84]) {
+        for (const L of D < d0 - 20 ? [-44, 44, -84, 84, 0, -124, 124] : [0, -42, 42, -84, 84, -124, 124]) {
           if (far.length >= upto) return;
           tryPut(P.x + fx * D + rx * L, P.z + fz * D + rz * L, a, lax, need, true);
         }

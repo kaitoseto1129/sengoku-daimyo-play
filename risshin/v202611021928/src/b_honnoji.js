@@ -3592,6 +3592,8 @@ const honnoji = {
       Object.defineProperty(A, 'playerPullMax', { configurable: true, get: () => rt.G?.lord ? base.pull : pull(), set(v) { base.pull = v; } });
       Object.defineProperty(A, 'playerReach', { configurable: true, get: () => rt.G?.lord ? base.reach : 14, set(v) { base.reach = v; } });
     }
+    // 11/2：共通（player_pressure.js）は戦の定めでなく world の定め（def.world の写し）から playerAtkMax を読む。戦の定めの二人までが届かず四人のままだった。
+    if (rt.world?.def) Object.defineProperty(rt.world.def, 'playerAtkMax', { configurable: true, get: () => honnoji.playerAtkMax });
     // 初めの札は下知を切らず、本文だけ指や鍵で送れるようにする。この戦を出たら外す。
     const hud = document.getElementById('hud'), introStyle = document.createElement('style');
     hud?.setAttribute('data-honnoji', '');
@@ -5726,6 +5728,37 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       gap = Math.min(gap, Math.hypot(NB.pos.x - a[0] - dx * s, NB.pos.z - a[1] - dz * s));
     }
     nbOff = gap > 5;
+  }
+  // 11/2（bot だけ）：渡り廊下の道は本堂の西の通路（須弥壇と西の壁の間）を抜ける。来迎柱（-61.6, 48.8）の角で道の点を見通しと誤り、
+  //   柱へ向かって押し続けて燃える本堂に取り残された（上様は通れる）。本堂の西半分では柱の北→西の通路→西の口の順に歩く。
+  if ((hp === 6 || hp === 7) && F.mv === 'watari' && u.pos.x < -57 && u.pos.x > -63.4 && u.pos.z > 40 && u.pos.z < 52.5) {
+    const q = u.pos.x > -61.9 ? (u.pos.z > 47.6 ? [-62.35, 50.4] : u.pos.z < 44 ? [-62.4, 42.6] : [-57.6, 50.6]) : u.pos.z > 47.2 ? [-62.4, 46.8] : [-64.4, 46.4];
+    inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    b.botPath = null;   // 本堂を出たら、道の点を今いる所から選び直す（本堂の中で決めた先の点へ引き返さない）
+    goTo(p, inp, q[0], q[1], 0.2); return;
+  }
+  //   本堂の西の口を出た後も、口の外から渡り廊下の南の端へ、廊下の中は北の端まで道の線の上を歩く（戸口探しで廊下の西へそれた）。
+  const nbFar = NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 6;
+  if ((hp === 6 || hp === 7) && F.mv === 'watari' && nbFar && u.pos.x <= -63.4 && u.pos.x > -71 && u.pos.z > 43 && u.pos.z < 80.2) {
+    const inRoka = u.pos.x > -69.4 && u.pos.x < -66.6 && u.pos.z > 51.2;
+    const q = inRoka ? [-68, 80.6] : u.pos.x > -67.2 && u.pos.z < 50 ? [-67.6, 50.4] : [-68, 53.5];
+    inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    b.botPath = null;
+    goTo(p, inp, q[0], q[1], 0.2); return;
+  }
+  // 11/2（bot だけ）：上様が御殿へ着いた時（段7）に本人がまだ本堂にいると、御殿の守りの点が一つも見通せず、戻る点が本堂の中を行き来して
+  //   燃える本堂で六十秒立ち尽くして「上様から離れすぎ」で負けた。移る段の道の点をたどって御殿へ入る。
+  if (hp === 7 && F.mv && MOVES[F.mv] && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 20 && u.pos.z < 70) {
+    inp.leftPressed = false; inp.chargeHold = false;
+    if (p.lock) inp.e.add('KeyQ');
+    const pts = MOVES[F.mv].pts;
+    if (!(b.t - (b.m7T ?? -9) <= 2)) { b.m7Stuck = Math.hypot(u.pos.x - (b.m7X ?? 1e9), u.pos.z - (b.m7Z ?? 1e9)) < 0.6; b.m7T = b.t; b.m7X = u.pos.x; b.m7Z = u.pos.z; }
+    follow('m7' + F.mv, pts);
+    // 二秒進めない時は、移る段と同じく行く手の障子・襖を一振りで破る。
+    if (b.m7Stuck) { const w = pts[Math.min(b.botWp ?? 0, pts.length - 1)]; p.yaw = Math.atan2(w[0] - u.pos.x, w[1] - u.pos.z); inp.leftPressed = p.cd <= 0; return; }
+    guardMove(); return;
   }
   // 炎の広間では斬り合いや手当てより先に退く。火の中で止まって体力を失わない。
   const heatZone = F.heatZone;

@@ -812,7 +812,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip) {
     for (const dir of [-1, 1]) {
       it.y = y0;
       for (let n = 0; n < 7; n++) {
-        if (it.y >= 30 && it.y <= H - 10 && !nameHit(items, shown, it) && !(rects && rects.some((r) => it.x + it.w / 2 > r.left && it.x - it.w / 2 < r.right && it.y > r.top && it.y - 26 < r.bottom))) { ok = true; break; }
+        if (it.y >= 68 && it.y <= H - 10 && it.x - it.w / 2 >= 6 && it.x + it.w / 2 <= W - 6 && !nameHit(items, shown, it) && !(rects && rects.some((r) => it.x + it.w / 2 > r.left && it.x - it.w / 2 < r.right && it.y > r.top && it.y - 26 < r.bottom))) { ok = true; break; }
         it.y += dir * 27;
       }
       if (ok) break;

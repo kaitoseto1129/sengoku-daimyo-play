@@ -1238,6 +1238,13 @@ export function landOverlay(sh, U, anchor = '#include <color_fragment>') {
         lsC = mix(lsC, LSV(lsHGrav, 1.45), lsWGrav * 0.5 * lsVk);
         lsC = mix(lsC, LSV(lsHMud, 0.58), lsWMud * 0.6 * lsVk);
         #undef LSV
+        // 中ほど（8〜200m）の斑（11/2 c_ground_1101）：844×390 の写真で 20〜60m 先の野が一色に見えた。約12mと5mの揺らぎ（計算だけ）で、
+        // 乾いて白む所・踏まれて暗い所・縁のはっきりした塊を明暗で付ける。霧で薄まる分、遠いほど強め、一画素より細かくならない縮尺にする。
+        float lsMk = lsVk * smoothstep(8.0, 25.0, lsDist) * (1.0 - smoothstep(140.0, 240.0, lsDist));
+        float lsMd = lsVn(lsVp * 0.083 + 11.3), lsMe = lsVn(vec2(lsVp.y, -lsVp.x) * 0.2 + 5.1);
+        float lsMz = mix(0.8, 1.35, smoothstep(20.0, 90.0, lsDist));
+        lsC = mix(lsC, lsC * vec3(1.3, 1.16, 0.88), smoothstep(0.52, 0.64, lsMd * 0.7 + lsMe * 0.3) * 0.7 * lsMk * lsMz);
+        lsC = mix(lsC, lsC * vec3(0.6, 0.57, 0.52), smoothstep(0.4, 0.28, lsMd * 0.6 + lsMe * 0.4) * 0.7 * lsMk * lsMz);
         // 1.8m の株と土くれの明暗（近くだけ）と、全体を少し明るく（暗い一色に沈めない）
         lsC *= 1.0 + lsVcN * 0.32 * lsVk;
         lsC *= mix(1.0, 1.1, lsVk);

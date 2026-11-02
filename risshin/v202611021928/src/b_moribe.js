@@ -3186,6 +3186,7 @@ const moribe = {
   // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
   cutFloor: 0.6,
   world: {
+    playerAtkMax: 2,   // 11/2：本人へ同時に打ち込むのは二人まで（win_1101 の三つのうち、この戦だけ抜けていた。bot が足軽の続けての刃で倒れた）
     seed: 21,
     namedKacchu: MORIBE_KACCHU,
     variedInfantry: true,
@@ -3912,6 +3913,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
       if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
+      // 勝ち戦なので、本人が受ける傷も少し浅くする（bot が 139 秒で倒れた：三回に二回は勝てる強さへ）。
+      if (t?.isPlayer && src?.team === 1) amount *= 0.65;
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       // 命を減らした本人の赤い▼を一拍残す。予告や防御成功では反応しない。

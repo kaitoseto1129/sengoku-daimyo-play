@@ -3041,6 +3041,8 @@ const kanegasaki = {
     // 朝倉の先手の遠景は峠道の曲がりまで寄せる（開戦の乱戦：実兵へ引き継ぐ所を一の備の 30m ほど先に。10/30）
     F.host = [[6, -70, 18, 'asakura'], [-14, -150, 14, 'asakura'], [78, -24, 18, 'asakura']]
       .map(([x, z, w, f], i) => DA(x, z, w, 28, 300, i === 2 ? HIKIDA_FACING : 0, ASAKURA.armor, f, 1590 + i));
+    // 11/2 小谷・金ヶ崎の点付け：25秒の画面（北の坂）の奥に朝倉の列が見えない。坂の乱戦の後ろへ、横に広い一手を足す（軽い作り・実兵は増やさない）。
+    F.hostFront = [[-12, -50, 26, 1596], [40, -30, 22, 1597], [34, -14, 18, 1598]].map(([x, z, w, sd]) => DA(x, z, w, 14, 110, 0, ASAKURA.armor, 'asakura', sd));
     rt.scene.traverse(mesh => {
       const map = mesh.material?.map;
       if (map === flagTexture('oda') || map === flagTexture('eiraku')) retreatFlag(rt, mesh, false);
