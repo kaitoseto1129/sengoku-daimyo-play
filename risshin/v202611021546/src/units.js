@@ -43,13 +43,19 @@ import { ArmyGround, fallenMaterial } from './army_ground.js';
 import { signalWait } from './army_signals.js';
 import { aliveGuard } from './army_alive.js';
 import { reservedModel, reservedHorse } from './army_reserve.js';
-import { LAC_OF, lacKind, houseHash, houseCore } from './lacquer_kind.js';
+import { LAC_OF, LAC_SABI, lacKind, houseHash, houseCore } from './lacquer_kind.js';
 // 足軽の漆の色（軍ごとの基の一色。御貸具足の三通り：黒漆の照り違い・錆地・赤備え。表は lacquer_kind.js で近い兵の作り分け
 //   soldierVar（humans_dress.js）・遠い大軍（world_army.js）と同じ。人ごとの差は soldierVar が付ける。青・紺は使わない）
-function ashigaruLacquer(fac, flag) {
+// 六組（vi）ごとの漆：半分は家の基の色、残りは同じ種類（黒漆・錆地・朱）の表の隣の色と、使い込んで褪せた色。
+//   一つの軍が一色の複製に見えないように（共通の差の1「兵が灰・黒の同じ形で単調」11/1）。形の鍵は六組のままで増えない
+function ashigaruLacquerVar(fac, flag, vi) {
   const f = String(flag || (fac && fac.flag) || '');
-  const T = LAC_OF[lacKind(f)];
-  return T[houseHash(f) % T.length][0];
+  const k = lacKind(f), T = LAC_OF[k], h = houseHash(f) % T.length;
+  if (vi === 1) return T[(h + 1) % T.length][0];
+  // 黒漆の軍は隣の色も黒なので、一組は錆地の胴（御貸具足の寄せ集め）、一組は褪せを強く
+  if (vi === 3) return k === 1 ? LAC_SABI[h % LAC_SABI.length][0] : T[(h + 3) % T.length][0];
+  if (vi === 5) return new THREE.Color(T[h][0]).lerp(new THREE.Color(0x6a5a44), k === 1 ? 0.45 : 0.3).getHex();
+  return T[h][0];
 }
 
 export { MK, UNIT_MAT, UNIT_WET, haoriFold, HORSE_HOOK, poseArms, SPEARS, spearSpec, arrowGeometry, makeWeapon, setBowDraw, kickSpear, ENEMY_HORSE, COATS, coatOf, animateHorse, soheiLook, headEnvelope, katoGeometry } from './units_model.js';
@@ -611,7 +617,7 @@ export class Army {
       // 足軽の槍は長柄（5m ほど）
       weaponExtra: o.weaponExtra ?? (gearWeapon === 'sword' ? gear?.weaponExtra : 0) ?? 0,
       // 槍の拵え：足軽は長柄（三間。織田は三間半）、騎馬と侍は素槍、武将は大身槍
-      spear: o.spear ?? (o.weaponExtra != null ? null : gear?.spear && gearWeapon === 'spear' ? gear.spear : u.type === 'ashigaru' && !o.weapon ? (g.faction === 'oda' ? 'nagae35' : 'nagae') : u.type === 'busho' ? 'omi' : 'su'),
+      spear: o.spear ?? (o.weaponExtra != null ? null : gear?.spear && gearWeapon === 'spear' ? gear.spear : u.type === 'ashigaru' && !o.weapon ? (g.faction === 'oda' ? (vi === 1 || vi === 4 ? 'nagae' : 'nagae35') : (vi === 2 ? 'nagae35' : 'nagae')) : u.type === 'busho' ? 'omi' : 'su'),
       skin: o.skin ?? gen.skin ?? SKIN_TONES[vi],
       // 顔：名のある武将はその人の顔、本人は本人の顔、兵は十二の顔から
       face: o.face ?? (gen.face ? 'g:' + o.name.replace(/^.* /, '') : ((lowQ ? vi : detail85 ? vi + 6 * (Math.floor(u.id / 6) % 2) : u.id) * 7) % 12),
@@ -676,8 +682,13 @@ export class Army {
     if (fieldLook.battleKey === 'inou' && u.type === 'player' && !look.kosode) look.helm = look.hatColor = 0xd9a63a;
     // 足軽（貸し具足）は簡素に：陣笠と胴は同じ漆の一色（軍ごとに黒・茶・朱）、籠手と袖は無し、鎧下は生成り・茶の布（kaito 10/30）
     if (loanArmor && !u.name && !look.kosode && !look.sohei && !(u.type === 'player' && fieldLook.battleKey === 'inou')) {
-      const lq = ashigaruLacquer(fac, fieldLook.armyFlagKinds?.[look.flag] || look.flag);
-      look.lacquer = lq; look.armor = lq; look.hatColor = lq; look.kote = 0; look.sode = false; look.saya = false; look.doStyle = undefined;
+      const lqFlag = fieldLook.armyFlagKinds?.[look.flag] || look.flag;
+      const lq = ashigaruLacquerVar(fac, lqFlag, vi);
+      // 陣笠は胴と同じ漆が多いが、六組に二組は別の笠（鉄の錆地の笠・胴より沈んだ漆）。御貸具足の寄せ集めらしく（共通の差の1・11/1）
+      // 黒漆の軍は六組に二組が鉄の地色の笠（手本 ref1・4「鉄の地色か黒漆」）
+      const lqKind = lacKind(String(lqFlag || fac.flag || ''));
+      const lqHat = vi === 1 ? (lqKind === 3 ? 0x5e1e14 : 0x4a3e30) : vi === 4 && lqKind === 1 ? 0x5a4a3a : vi === 3 && lqKind !== 1 ? new THREE.Color(lq).multiplyScalar(0.72).getHex() : lq;
+      look.lacquer = lq; look.armor = lq; look.hatColor = lqHat; look.kote = 0; look.sode = false; look.saya = false; look.doStyle = undefined;
       // 11/1 kaito の手本（docs/ashigaru_ref_1101）：腰に打刀と脇差、笠の下に白い手拭い。小さな袖と袖印は胴の形（units_model.js の loan）が持つ
       look.saya = true; look.tenugui = true;
       // 家ごとの布の色の芯（lacquer_kind.js の houseCore：柿渋・生成り・弁柄・茶・丁子茶・褪せた赤）を六人に二人。残りは褪せた生成り・茶（明るすぎる色は人形の手足に見える）
@@ -790,6 +801,8 @@ export class Army {
     }
     // 本人も当時の背丈に（1.63m ほどで一定。兵の 1.55〜1.70m の中ほど）
     if (u.type === 'player') u.mesh.scale.setScalar(0.935);
+    // 立ち姿の癖：人ごとに胸の前傾を少し変える（猫背・反り身。共通の差の1・11/1。毎コマの数の足し算だけ）
+    if (u.type !== 'player' && u.type !== 'dummy') u.stanceLean = (physique(2711) - 0.35) * 0.12;
     u.bodyRadius = 0.3 * Math.max(Math.abs(u.mesh.scale.x), Math.abs(u.mesh.scale.z));
     u.bodyHeight = 1.72 * u.mesh.scale.y;
     u.pos.y = groundAt(this.world, u.pos.x, u.pos.z, u.pos.y);

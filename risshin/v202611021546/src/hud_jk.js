@@ -65,6 +65,7 @@ body.rm #hud #jk-prog.jk-flash { animation:none; }
 #hud #jk-vit .jk-sta s b { position:absolute; left:0; top:0; bottom:0; width:100%; background:linear-gradient(#f0cf6a,#b8913f); }
 #hud #jk-vit .jk-sta.out s { border-color:#a8261a; }
 #hud :is(#jk-chap,#jk-prog,#jk-map,#jk-vit)[hidden] { display:none !important; }
+html:root body #hud:has(#jk-prog:not([hidden])) #h-prog.goal-mode { display:none !important; }
 body:has(#pause:not([hidden])) #hud :is(#jk-chap,#jk-prog,#jk-map,#jk-vit) { visibility:hidden; }
 #hud.photo :is(#jk-chap,#jk-prog,#jk-map,#jk-vit), #hud.ending :is(#jk-chap,#jk-prog,#jk-map), #hud:has(#bigmap:not([hidden])) :is(#jk-prog,#jk-map,#jk-chap) { display:none !important; }
 /* 前の札は畳む（任務の一行・小さな丸い地図・左下の体力の束）。号令の釦は地図の下に残す。 */
@@ -153,7 +154,7 @@ function build(root) {
   }
   const vit = document.createElement('div');
   vit.id = 'jk-vit';
-  vit.innerHTML = `<canvas width="${FACE}" height="${FACE}" aria-hidden="true"></canvas><div class="jk-bars"><div class="jk-row jk-hp" role="img"><span>HP</span><i><b></b></i></div><div class="jk-row jk-sta" role="img"><span>疲れ</span><i><s><b></b></s><s><b></b></s><s><b></b></s><s><b></b></s></i></div></div>`;
+  vit.innerHTML = `<canvas width="${FACE}" height="${FACE}" aria-hidden="true"></canvas><div class="jk-bars"><div class="jk-row jk-hp" role="img"><span>命</span><i><b></b></i></div><div class="jk-row jk-sta" role="img"><span>疲れ</span><i><s><b></b></s><s><b></b></s><s><b></b></s><s><b></b></s></i></div></div>`;
   for (const el of [chap, prog, map, vit]) root.appendChild(el);
   return {
     root, chap, prog, map, vit, style,
@@ -279,11 +280,11 @@ function drawMap(s, rt, goal) {
   g.beginPath(); g.moveTo(0, -sz); g.lineTo(sz * .7, sz * .75); g.lineTo(0, sz * .3); g.lineTo(-sz * .7, sz * .75); g.closePath();
   g.lineWidth = 2 * u1; g.strokeStyle = '#0d1a2a'; g.stroke(); g.fillStyle = '#58b4ff'; g.fill();
   g.restore();
-  // 北の印 N（北＝-z を上に固定）
+  // 北の印「北」（北＝-z を上に固定。英字は画面に出さない）
   const nx = 12 * u1, ny = 13 * u1;
   g.fillStyle = 'rgba(14,11,8,.75)'; g.beginPath(); g.arc(nx, ny, 9 * u1, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#f3ead6'; g.font = `700 ${11 * u1}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('N', nx, ny + 1 * u1);
+  g.fillText('北', nx, ny + 1 * u1);
   g.beginPath(); g.moveTo(nx, ny - 13 * u1); g.lineTo(nx + 3 * u1, ny - 8 * u1); g.lineTo(nx - 3 * u1, ny - 8 * u1); g.closePath(); g.fillStyle = '#e0261a'; g.fill();
   // 金の細い内縁
   g.strokeStyle = 'rgba(232,194,90,.45)'; g.lineWidth = 1 * u1; g.strokeRect(2 * u1, 2 * u1, px - 4 * u1, px - 4 * u1);
@@ -365,7 +366,8 @@ export function jkTick(rt, root, dt) {
   root.classList.toggle('jk', progOn);
   root.classList.toggle('jk-map-on', mapOn);
   root.classList.toggle('jk-vit-on', vitOn);
-  s.prog.hidden = !progOn; s.map.hidden = !mapOn; s.vit.hidden = !vitOn;
+  s.prog.hidden = true;   // 11/1 Simple：右上の「目標」と同じ字の二重なので札は出さない（目標の位置は下で計算し続ける）
+  s.map.hidden = !mapOn; s.vit.hidden = !vitOn;
   // 章の帯と並び
   const ch = progOn ? chapterRows(rt) : null;
   s.chap.hidden = !ch;

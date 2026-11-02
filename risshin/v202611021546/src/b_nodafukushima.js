@@ -2438,6 +2438,9 @@ const nodafukushima = {
     if (F.step === 3 && !F.retreating && Math.hypot(rt.player.u.pos.x - 8, rt.player.u.pos.z - LEVEE_Z - 4) <= 12) return null;
     return F.retreating ? 'retreat' : F.step === 0 ? 'maeda' : F.step === 1 ? (F.carry ? 'tabaWay' : 'pile') : F.step === 2 || F.step === 2.5 ? 'assault' : F.step === 3 ? 'leveeHold' : null;
   },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に、刃を受けた後の2.5秒は次の刃を通さない（bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.5 },
   world: {
     noHaori: true, // 本の足軽主体の装束。既存の指定で陣羽織を出さない。
     namedKacchu: NODAFUKUSHIMA_KACCHU,
@@ -2549,6 +2552,7 @@ const nodafukushima = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     F.peopleColumnPoint = { x: 0, z: 0 };

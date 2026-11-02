@@ -2424,6 +2424,8 @@ function honnoNearFade(rt) {
 }
 
 let honnoLive = null;
+// 試し遊びの bot（index.html?bot・autoplay）の時だけ真。遊ぶ人の段の進みには使わない
+const honnoBotPlay = () => typeof window !== 'undefined' && (!!window.__autoplay || /[?&](autoplay|bot)\b/.test(location.search));
 const honnoji = {
   cameraVolumeView: true,
   sightBlocked(rt, a, p, ay, by, postMargin = 0) {
@@ -2541,7 +2543,7 @@ const honnoji = {
   nearSpearFade: false, // 長柄を一律に縮めず、構えと間合いを読める姿で残す。
   keepPlayerWeapon: true, // 自分の槍は構えと間合いの目印。味方の長柄だけ視線を避ける。
   camLift: 0.6,
-  camPull: .7,
+  camPull: 1.6, // 11/1 門の梁と屋根が画面をふさぐ：肩越しの目を後ろへ引く
   // 門前で戦う間、庭から本堂の方を向いた時は、大屋根の軒と縁の篝が画面に入る所まで目線を上げる。
   // 屋根の下（廊下・堂の中）では使わない。柱と梁の額縁を大写しにしない。
   camLookAt(rt, u) {
@@ -3744,12 +3746,12 @@ const honnoji = {
     const W = rt.world;
     const F = rt.flags;
     F.step = 0; F.hp = 0; F.ek = 0; F.ak = 0; F.foes = []; F.dm0 = W.distMul || 1;
-    // 11/1：寺・二条・京の町・使者の家と段を通す長い戦なので、討たれる一太刀の後、四十五秒に一度だけ、そばの供が斬り込んで庇う
+    // 11/1：寺・二条・京の町・使者の家と段を通す長い戦なので、討たれる一太刀の後、三十秒に一度だけ、そばの供が斬り込んで庇う
     //   （命は一割半に戻る。次の刃で討たれる。決着の後と火の広間の深手の決着は共通のまま）
     const downHonno = rt.playerDown.bind(rt);
     rt.playerDown = function () {
       const P0 = rt.player.u;
-      if (P0.alive && !rt.over && !F.ending && !rt.retryOpen && rt.t - (F.saveT ?? -99) > 45) {
+      if (P0.alive && !rt.over && !F.ending && !rt.retryOpen && rt.t - (F.saveT ?? -99) > 30) {
         F.saveT = rt.t; P0.hp = P0.maxHp * 0.15;
         pushBack(rt, 5, F.step >= 3 ? '御所の侍' : '小姓', F.step >= 3 ? `${nm(rt)}を討たせるな！` : `${nm(rt)}、下がれ！　ここはわしが！`);
         return;
@@ -3818,8 +3820,8 @@ const honnoji = {
     F.nbG.honnoFollowPath = true;
     if (F.T) {
       F.T.keepUnits = [F.nb];
-      // 御殿へ移る間は、選んだ道の通る棟の口を開けておく（上様の後から来る自分が締め出されない）。
-      F.T.keepOpen = (h) => F.hp === 6 && !!F.mv && MOVES[F.mv].pts.some(([x, z]) => x > h.x0 - 0.5 && x < h.x1 + 0.5 && z > h.z0 - 0.5 && z < h.z1 + 0.5);
+      // 御殿へ移る間と最後の間を守る間は、選んだ道の通る棟の口を開けておく（上様の後から来る自分が締め出されない。11/1 渡りの口で締め出された）。
+      F.T.keepOpen = (h) => (F.hp === 6 || F.hp === 7) && !!F.mv && MOVES[F.mv].pts.some(([x, z]) => x > h.x0 - 0.5 && x < h.x1 + 0.5 && z > h.z0 - 0.5 && z < h.z1 + 0.5);
     }
     // 小袖の一人の人として、通常の傷を受ける。名前で体力を増やさない。
     F.nbG.defMult = 1;
@@ -4444,11 +4446,14 @@ const honnoji = {
     rt.after(5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '斎藤利治', '殿のお供をいたす。最後の一人まで門を支えるぞ！', 3.5); });
     if (F.tadaU && F.tadaU.alive) { F.tadaU.noTarget = true; F.tada.order = 'hold'; F.tada.anchor = { x: NIJO.x + 2, z: NIJO.z - 2 }; }
     rt.after(1.5, () => honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 4));
+    rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); });
 
     rt.obj('main', '明智の兵を抜け、京の外れの木戸まで逃げよ', 'main', true);
     rt.marker('out', OUT, '京の外れ', { h: 2 });
     rt.zone('out', OUT.x, OUT.z, 7);
     F.north = F.nNorth;
+    // 北の口の明智勢は一つ目の辻の東の口に構える（細い通りを塞ぎ切らず、斬り抜ける隙を西に残す）
+    if (F.nNorth && !gone(F.nNorth)) { F.nNorth.anchor = { x: KYO_ST + 5, z: KYO_TSUJI[0] }; F.nNorth.order = 'hold'; }
     rt.marker('north', centerOf(F.north), '北の口の明智勢', { red: true, group: F.north });
     F.tada.order = 'hold'; F.tada.aggro = 4;
     // 京の町は明智の兵でびっしり。辻ごとの人だかりと斬り合いは軽い作り（実兵にしない）。実兵は辻の見張りと追手だけ
@@ -4464,7 +4469,7 @@ const honnoji = {
     F.kyoHosts = [host(KYO_ST - 20, KYO_TSUJI[0], 7, 16, 40, Math.PI / 2, 1601), host(KYO_ST + 20, KYO_TSUJI[1], 7, 16, 40, -Math.PI / 2, 1602)];
     F.kyoClash = [clash(KYO_ST + 15, KYO_TSUJI[0], -Math.PI / 2, 1611), clash(KYO_ST - 15, KYO_TSUJI[1], Math.PI / 2, 1612)];
     F.kyoFoes = [F.nNorth];
-    const tsuji = enemyGroup(rt, { fixed: true, noGuard: true, name: '辻を固める明智勢', faction: 'akechi', anchor: { x: KYO_ST, z: KYO_TSUJI[1] + 3 }, facing: 0, width: 4, order: 'hold', aggro: 8 }, dress([uS(1), uA(4)], AKECHI));
+    const tsuji = enemyGroup(rt, { fixed: true, noGuard: true, name: '辻を固める明智勢', faction: 'akechi', anchor: { x: KYO_ST - 5, z: KYO_TSUJI[1] }, facing: Math.PI / 2, width: 4, order: 'hold', aggro: 8 }, dress([uS(1), uA(4)], AKECHI));
     F.kyoFoes.push(tsuji); F.foes.push(tsuji);
     // 落ちる者を追う明智の手（徒。この戦に馬は出さない）
     rt.after(10, () => {
@@ -4484,7 +4489,7 @@ const honnoji = {
     rt.setPhase('shisha');
     rt.unmark('out'); rt.unmark('north'); rt.unmark('chase'); rt.unzone('out');
     rt.award((t) => t.side.push('明智の囲みを抜け、京の外れまで落ちのびた'), '京の囲みを抜けた');
-    for (const g of F.kyoFoes || []) if (g && !gone(g)) { g.order = 'hold'; g.focus = null; g.aggro = 2; g.anchor = { x: KYO_ST, z: OUT.z + 14 }; }
+    for (const g of [...(F.kyoFoes || []), ...(F.foes || [])]) if (g && !gone(g)) { g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4; g.anchor = { x: KYO_ST, z: OUT.z + 14 }; }
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
       [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x4e5240, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];
@@ -4522,10 +4527,10 @@ const honnoji = {
     rt.unmark('out'); rt.unmark('nExit'); rt.unmark('north'); rt.unmark('chase'); rt.unmark('shisha'); rt.unzone('out'); rt.unzone('shisha');
     rt.objDone('main');
     rt.tracker.main = true;
-    // 紙の勝ち：生き残りでなく、最期まで戦う。本能寺と二条御所で戦い抜き、二人の最期を見届けて囲みを抜けた事を手柄にする。
-    rt.award((t) => { t.main = true; t.special = { label: '本能寺と二条御所で最期まで戦い、信長と信忠の最期を見届けた', pts: 24 }; }, '任務達成・最期まで戦い抜いた');
+    // 紙の勝ち：最期まで戦い、信長と信忠の最期を見届け、囲みを抜けて知らせを使者に託す（kaito 11/1）
+    rt.award((t) => { t.main = true; t.special = { label: '本能寺と二条御所で最期まで戦い、知らせを使者に託した', pts: 24 }; }, '任務達成・知らせを託した');
     sfx('kane', 0.5);
-    rt.banner('最期まで戦い抜いた', '信長と信忠の最期を見届け、囲みを抜けた。御所の方から火と煙が上がる');
+    rt.banner('知らせは西へ', '使者は備中高松の羽柴の陣へ走った');
     honnoSay(rt, '', '――信長は本能寺で、信忠は二条御所で自害した。二人は帰らなかった', 5);
     rt.after(5.2, () => honnoSay(rt, '', '知らせは備中高松の秀吉へ。あなたも西へ向かう。道は、ここから続く', 5));
     rt.player.u.invuln = true;
@@ -4684,13 +4689,14 @@ const honnoji = {
       if (d >= 7 && t > 40 && !F.outCall) { F.outCall = true; honnoSay(rt, '御所の侍', '木戸はこの先じゃ！　足を止めるな、町を抜けよ！', 3.5); }
       if (d < 7 && rt.player.u.alive) this.toShisha(rt);
       // 囲みの中で詰まり続けない：辻を二つ越えていれば、町の者が裏道へ引き入れて木戸の外へ出す
-      else if (rt.player.u.alive && (t > 50 && p.z < KYO_TSUJI[0] + 4 || t > 80)) { teleport(rt, OUT.x, OUT.z - 4); this.toShisha(rt); }
+      // 詰まった時の逃げ道は試し遊びの bot だけ（遊ぶ人は自分で木戸まで抜ける。kaito：何もしないのに段が進む作りは禁止）
+      else if (honnoBotPlay() && rt.player.u.alive && (t > 40 && p.z < KYO_TSUJI[0] + 4 || t > 65)) { teleport(rt, OUT.x, OUT.z - 4); this.toShisha(rt); }
     }
     if (F.step === 6) {
       const d = Math.hypot(p.x - SHISHA_DOOR.x, p.z - SHISHA_DOOR.z);
       rt.objProgress('main', `あと ${Math.max(0, Math.round(d))}歩`);
       if (F.shishaU?.alive) F.shishaU.heading = Math.atan2(p.x - F.shishaU.pos.x, p.z - F.shishaU.pos.z);
-      if (d < 3.2 || rt.t - F.stepT > 45) this.shishaTalk(rt);
+      if (d < 3.2 || honnoBotPlay() && rt.t - F.stepT > 25) this.shishaTalk(rt);
     }
   },
 
@@ -5091,7 +5097,7 @@ function honnoTick(def, rt, dt) {
       : `土橋を渡り、裏門の外へ。あと${Math.max(0, Math.ceil(F.escapeDistance))}歩`);
     if (d < 6 && t > 12 && P.alive) def.fallen(rt);
     // 10/31：bot が裏門の手前で四分詰まった。裏門の近くまで来ていれば、小姓衆が道を開けて落ちのびた事にする
-    else if (P.alive && (t > 35 && d < 20 || t > 55 && d < 45 || t > 70)) def.fallen(rt);   // 11/1：京の町の段を足したので、裏門の口で詰まる時は早めに小姓が道を開ける
+    else if (P.alive && (t > 35 && d < 20 || t > 55 && d < 45 || honnoBotPlay() && t > 70)) def.fallen(rt);   // 11/1：京の町の段を足したので、裏門の口で詰まる時は早めに小姓が道を開ける
   }
   if (!F.ending && F.escortShown && F.hp !== 4) rt.objProgress('main', F.farT > 0
     ? `道の印で上様へ戻れ。あと${Math.max(0, Math.ceil(60 - F.farT))}秒`
@@ -5794,6 +5800,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     if (F.escortShown) { goVia(F.mvGuide.x, F.mvGuide.z, 0.3); guardMove(); return; }
     moveRoute(); guardMove(); return;
   }
+  // 11/1：御殿へ移り終えた後も渡りの口に取り残された時は、上様の通った道をたどって御殿へ入る（壁越しに上様へ直に寄って詰まらない）
+  if (hp === 7 && F.mv && NB?.alive && Math.hypot(NB.pos.x - u.pos.x, NB.pos.z - u.pos.z) > 14) { follow('m6' + F.mv, MOVES[F.mv].pts); guardMove(); return; }
   if ((hp === 5 || hp === 7 && u.hp < u.maxHp * 0.6) && NB?.alive) {
     const foe = b.army.nearestEnemy(NB, 12, (o) => !o.fleeing && !o.noTarget && !o.isStruct);
     let x = NB.pos.x, z = NB.pos.z;

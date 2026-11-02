@@ -5181,9 +5181,12 @@ const inabayama = {
     //   隠すのはカメラのすぐ前の九歩だけにし、持ち場の前（南東の空き地）にも一つ足す（軽い兵だけ。本物の兵・任務の数は変えない）。
     // 11/1 点付け（稲葉山70：敵の大軍・乱戦が薄い）：25秒の持ち場（35,95 の辺り）から bot は東北東の山すそを向く。
     //   西の外れ（14,82）の押し合いは画面の後ろだったので、東北東の草の斜面の手前（60,108）へ移す（幅・人数は同じ）。
-    F.townClash = [[60, 108, 10], [34, 66, 12], [64, 68, 16]].map(([x, z, w], i) => rt.world.addClash({
-      x, z, w, facing: Math.PI, seed: 156780 + i, gap: 2.8,
-      noWake: true, noRout: true, host: false, nearHide: 9, realNear: 14,
+    // 11/2 点付け（稲葉山68・三回とも同じ構図）：25秒の本人は（45,88）、カメラは南東（向き 0.73,-0.65）を向き、（60,108）の押し合いは画面の右外だった。
+    //   一つ目をカメラの正面二十二歩（54,79）へ移し、前線を画面に横一面に見える向きにして幅を広げる（軽い兵だけ・本物の兵と任務は同じ）。
+    //   この戦は朝靄で九十歩先が消えるので、押し合いは靄の浅い手前に置く。本人から十二歩の内は本物の兵に任せる。
+    F.townClash = [[54, 79, 26, 2.3, 12], [34, 66, 12, Math.PI, 14], [64, 68, 16, Math.PI, 14]].map(([x, z, w, facing, realNear], i) => rt.world.addClash({
+      x, z, w, facing, seed: 156780 + i, gap: 2.8,
+      noWake: true, noRout: true, host: false, nearHide: 9, realNear,
       measuredMelee: true, killRate: 0.025, maxDrift: 0.6, corpses: 16,
       // 町の奥の軽い乱戦。弱い端末では六割にする（遠景の数だけ。本物の兵は変えない）。
       A: { flag: 'oda', armor: 0x3d4248, count: Math.round(w * (TIER.weak ? 4.4 : 8)), team: 0, faction: 'oda', flagRate: 0.35 },
@@ -5193,8 +5196,10 @@ const inabayama = {
     // 火の手を見た町の番の兵が、松明の組へ斬りかかってくる
     // 11/1：押し合いの奥、山すその斎藤勢の大軍（軽い作り）。持ち場から南へ四十〜五十歩、町の火を見て麓の番所の前へ出た所。翌日の暗転で片付ける。
     // 11/1：麓の番所の前（60,42）は町の家の陰で25秒の画面に入らなかった。押し合いの奥、東北東の山すその斜面（82,118）に下ろし、町の火の方を向かせる（人数は同じ）。
-    F.saitoHost = rt.world.addDistantArmy({ x: 82, z: 118, w: 30, d: 10, count: TIER.weak ? 160 : 280, facing: Math.atan2(-47, -23), team: 1, terrainRanks: true,
-      armor: 0x454957, flagTex: flagTexture('saito'), flagRate: 0.3, kind: 'spear', seed: 156790 });
+    // 11/2：（82,118）は25秒の画面の右外で、朝靄（九十歩で消える）の向こうだった。町の押し合いのすぐ奥、カメラの正面四十五歩（77,70）へ寄せ、
+    //   手前の押し合いの上へ斎藤勢の幟の林が重なって一つの大軍に見えるようにする（人数は同じ）。町の火の方（北西）を向く。
+    F.saitoHost = rt.world.addDistantArmy({ x: 77, z: 70, w: 40, d: 12, count: TIER.weak ? 160 : 280, facing: Math.atan2(-0.73, 0.65), team: 1, terrainRanks: true,
+      armor: 0x454957, flagTex: flagTexture('saito'), flagRate: 0.5, kind: 'spear', seed: 156790 });
     if (F.saitoHost?.army) F.saitoHost.army.noWake = true;
     F.town.order = 'attack'; F.town.seekRange = 60; F.town.aggro = 16;
     for (const g of F.houseGuards) { g.aggro = 10; g.seekRange = 10; }

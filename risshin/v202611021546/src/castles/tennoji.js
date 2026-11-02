@@ -20,7 +20,7 @@ export const T_HOUSES = [
   { x: -15, z: -59, w: 6, d: 7, kind: 'nagaya', name: '西の長屋' },
   { x: 15, z: -63, w: 6, d: 7, kind: 'nagaya', name: '東の長屋' },
   { x: -17, z: -70, w: 3, d: 4, kind: 'kura', name: '兵糧蔵' },
-  { x: -7, z: -49, w: 4, d: 3, kind: 'nagaya', name: '門の番所' },
+  { x: -11, z: -49, w: 3, d: 3, kind: 'nagaya', name: '門の番所' },   // 11/2：門の内の道の右を板壁が三分の一ふさいでいたので、間口を詰めて西へ寄せる（戸口の向きと位置の並びは同じ）
   { x: -4, z: -80.5, w: 9, d: 5, kind: 'goten', name: '明智勢の陣屋' },
 ];
 export const T_ROADS = [

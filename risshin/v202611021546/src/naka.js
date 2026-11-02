@@ -10494,7 +10494,7 @@ if (nodaJoinery) {
   igaNailPlate?.dispose(); igaNailHead?.dispose();
   // 光を頂点の色に焼き込む：暗い地に、灯明の暖かい明かりと窓の明かり
   for (const g of [...list, ...woodFloorList, ...timbers]) {
-    if (g.userData.emit) continue;
+    if (g.userData.emit || !g.attributes.color) continue;   // 色を持たない形（合わせた後の板など）は焼き込みを飛ばす（姉川の中で落ちた 11/1）
     const P = g.attributes.position, C = g.attributes.color;
     for (let i = 0; i < P.count; i++) {
       const wx = P.getX(i), wy = P.getY(i), wz = P.getZ(i);

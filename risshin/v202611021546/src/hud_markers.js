@@ -30,7 +30,7 @@ export class HudMarkers {
     this.workPromptRect = null;
     this.guideOrderRect = null; this.guardButtonRect = null;
     let squadRect = null;
-    for (const sel of ['.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#fieldmap', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
+    for (const sel of ['.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#fieldmap', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#jk-prog', '#jk-chap', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
       const el = sel === '#sonae-cards' ? document.getElementById('sonae-cards') : this.root.querySelector(sel);
       if (!el || el.hidden || !el.offsetParent) continue;
       // 今は消している札（平時の兵力の帯など）は避けなくてよい
@@ -51,6 +51,9 @@ export class HudMarkers {
         if (sr.width > 0 && sr.height > 0) this.rects.push(sr);
       }
     }
+    // 左の音・止める（body 直下なので上の root 探しに入らない）も避ける
+    const sideCtl = document.getElementById('side-ctl');
+    if (sideCtl && !sideCtl.hidden && sideCtl.offsetParent) { const r = sideCtl.getBoundingClientRect(); if (r.width > 0 && r.height > 0) this.rects.push(r); }
     // 寺の狭い間でも、間合いの札と気力の字の場所を先に空ける。
     if (this.rt.def.reserveCombatCues || this.guardAlly) for (const sel of ['#crosshair', '#crosshair .range-cue', '#staring', '.combat-cue-label']) {
       const el = this.root.querySelector(sel);
