@@ -36,6 +36,13 @@ export const TALKS = {
   iga: ['織田信雄', ['伊賀を攻める。山の中の砦じゃ。', '地の者は道を知っておる。気をつけよ。'], '織田信雄', ['伊賀は平らいだ。', 'よう戻った。']],
   tottori: [H, ['鳥取の城を囲む。米を買い占めてある。', 'ひと月、ふた月と待つ戦じゃ。'], H, ['吉川経家殿が自害され、城兵は救われた。', '飢えは何よりも辛い。']],
   takato: ['織田信忠', ['高遠の城を攻める。仁科盛信殿が籠もっておる。', '武田の誇りを見せる敵じゃ。'], '織田信忠', ['高遠は落ちた。盛信殿は見事な最期であった。', '武田家は終わりに近い。']],
+  // 本能寺の変の終わり（kaito 11/1 ④）：京の外れの使者の家で、戦の中から開く。行の頭に話し手（'$me'＝主人公）
+  honnoji_shisha: ['使者', [], '使者', [['使者', '……その血、本能寺の方か。中へ入られよ。'], ['$me', '上様は本能寺でご生害。信忠様も二条の御所で腹を召された。'],
+    ['使者', 'なんと……明智の謀反か。'], ['$me', 'この知らせを、羽柴様へ。'], ['使者', '承知した。備中高松の羽柴様の本陣へ走る。']]],
+  // 豊臣編の頭（docs/chapter2_toyotomi.md ① 序）：使者が備中高松の本陣に着き、主人公も合流する。中国大返しから山崎へ
+  t01_yamazaki: ['使者', [['使者', '京にて、上様ご生害。明智日向守の謀反にござる。'], ['羽柴秀吉', '……まことか。'],
+    ['黒田官兵衛', '殿、ご運が開けましたな。'], ['羽柴秀吉', '（遅れて着いた主人公へ）よう生きて戻った。おぬしの槍、わしに貸せ。'],
+    ['羽柴秀吉', '毛利と和を結ぶ。日向を討つは今ぞ。走れ、走れ。']], '羽柴秀吉', ['日向は討った。上様の仇はとったぞ。', 'ここからが、わしらの天下取りじゃ。']],
   tano: ['滝川一益', ['武田勝頼が天目山へ追い詰められた。', '田野で最後の戦じゃ。'], '滝川一益', ['勝頼公が自害された。', '武田は滅んだ。']],
   honnoji: [N, ['……是非に及ばず。', '敵は明智じゃ。逃げるな、ここで戦え。'], '森蘭丸', ['殿は、もう……。', '誰かこの知らせを、羽柴様へ。']],
 };
@@ -116,15 +123,16 @@ export function playTalk(id, when, done, o = {}) {
   const who = when === 'b' ? t[0] : t[2];
   let lines = when === 'b' ? t[1] : t[3];
   const key = id + '_' + when;
-  if (seen(key)) lines = lines.slice(0, 1);
-  const steps = lines.map((x) => ({ who, x }));
+  if (seen(key) && !o.full) lines = lines.slice(0, 1);
+  // 行が [話し手, 台詞] の時は、その行だけ話し手を替える（'$me'＝主人公の名）
+  const steps = lines.map((x) => Array.isArray(x) ? { who: x[0] === '$me' ? (o.me || '') : x[0], x: x[1] } : { who, x });
   if (o.rank && o.G) {
     if (!lines.some((x) => /今日から/.test(x))) steps.push({ who, x: `今日からお主は${o.rank}じゃ。` });
     steps.push({ who: o.G.name || '', x: 'ははっ。', me: true });
   }
   const el = document.createElement('div');
   el.className = 'tk'; el.setAttribute('role', 'dialog'); el.tabIndex = -1;
-  el.innerHTML = `${CSS}<div class="bg" style="background-image:url('${thumbURL(id)}')"></div><div class="vg"></div>
+  el.innerHTML = `${CSS}<div class="bg" style="background-image:url('${thumbURL(o.thumb || id)}')"></div><div class="vg"></div>
     <div class="who">${bust(who)}<canvas aria-hidden="true"></canvas></div><div class="rk" hidden>${esc(o.rank || '')}</div>
     <div class="box"><div class="nm">${esc(who)}</div><p class="tx" aria-live="polite"></p><i class="nx"></i></div>
     <button type="button" class="sk">とばす</button>`;
@@ -133,7 +141,8 @@ export function playTalk(id, when, done, o = {}) {
   requestAnimationFrame(() => pic.classList.add('on'));
   let i = 0, over = false, pv = null, meOn = false;
   // 絵は一枚の描き場を使い回す。閉じたら捨てる（戦の描画と重ねない）
-  import('./preview.js').then(async ({ Preview }) => {
+  // o.flat：戦の途中で開く時は、二つ目の描き場（WebGL）を作らず絵（SVG）の上半身だけ（携帯の記憶を増やさない）
+  (o.flat ? Promise.reject(new Error('flat')) : import('./preview.js')).then(async ({ Preview }) => {
     if (over || !cv.isConnected) return;
     pv = new Preview(cv);
     if (!pv.renderer) { pv = null; return; }
