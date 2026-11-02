@@ -65,6 +65,7 @@ body.rm #hud #jk-prog.jk-flash { animation:none; }
 #hud #jk-vit .jk-sta s b { position:absolute; left:0; top:0; bottom:0; width:100%; background:linear-gradient(#f0cf6a,#b8913f); }
 #hud #jk-vit .jk-sta.out s { border-color:#a8261a; }
 #hud :is(#jk-chap,#jk-prog,#jk-map,#jk-vit)[hidden] { display:none !important; }
+html:root body #hud:has(#jk-prog:not([hidden])) #h-prog.goal-mode { display:none !important; }
 body:has(#pause:not([hidden])) #hud :is(#jk-chap,#jk-prog,#jk-map,#jk-vit) { visibility:hidden; }
 #hud.photo :is(#jk-chap,#jk-prog,#jk-map,#jk-vit), #hud.ending :is(#jk-chap,#jk-prog,#jk-map), #hud:has(#bigmap:not([hidden])) :is(#jk-prog,#jk-map,#jk-chap) { display:none !important; }
 /* 前の札は畳む（任務の一行・小さな丸い地図・左下の体力の束）。号令の釦は地図の下に残す。 */

@@ -137,7 +137,7 @@ export function createMusic(ctx, dest, hooks = {}) {
       const cl = (v) => Math.max(0, Math.min(1, v));
       const ratio = e / Math.max(1, a), mor = a ? am / a : 30;
       const hp = pu && pu.maxHp ? pu.hp / pu.maxHp : 1;
-      return cl(cl((ratio - 1.3) / 1.4) * 0.55 + cl((55 - mor) / 30) * 0.55 + (pu && pu.alive && hp < 0.3 ? 0.35 : 0));
+      return cl(cl((ratio - 1.3) / 1.4) * 0.55 + cl((55 - mor) / 30) * 0.55 + (pu && pu.alive && hp < 0.3 ? 0.35 : 0) + (b.timeLimit && !b.timeLimit.up && b.timeLimit.left <= 180 ? 0.4 : 0));   // 制限時間の残り3分から曲が急く（Lancers 11/1）
     } catch (e) { return 0; }
   }
   function bus(c, name) {

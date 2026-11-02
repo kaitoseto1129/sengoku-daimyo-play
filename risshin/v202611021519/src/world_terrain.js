@@ -181,6 +181,8 @@ export class WorldTerrain {
           // 写真の主の繰り返しは約2.2〜2.4m。平地・坂・切岸で縮尺をそろえる。
           vec3 grass = mix(texture2D(tGrass, wuv * ${SETTINGS.quality === 'high' ? '0.42' : '0.21'}).rgb, texture2D(tGrass, ruv * ${SETTINGS.quality === 'high' ? '0.26' : '0.13'} + 0.31).rgb, mixK * 0.7) * mix(0.8, 1.2, texture2D(tGrass, wuv * 0.037).g * 1.6);
           grass = mix(grass, grass * vec3(1.12, 1.02, 0.8), smoothstep(0.55, 0.8, macro2));   // 枯れ色の斑
+          // 数十メートルの広い色むら：茂った所は濃い緑、薄い所は黄ばみ、土は明るい砂色と湿った褐色（既に読んだ斑だけ。絵の読み出しは増えない）
+          grass *= mix(vec3(0.88, 0.95, 0.84), vec3(1.12, 1.06, 1.1), smoothstep(0.28, 0.72, macro));
           ${this.def.autumn && !this.def.winter && !this.def.snow ? `
           // 秋は草の株ごとに灰緑と枯草を混ぜる。土と苔の斑や、雪のある戦はそのまま。
           grass *= mix(vec3(1.02, 0.94, 0.78), vec3(1.18, 0.9, 0.65), smoothstep(0.35, 0.75, macro2));
@@ -193,6 +195,7 @@ export class WorldTerrain {
           float dampSoil = smoothstep(0.38, 0.68, macro) * (1.0 - smoothstep(0.35, 0.72, macro2));
           dirt *= mix(vec3(1.06, 1.03, 0.96), vec3(0.61, 0.68, 0.62), dampSoil);
           ` : ''}
+          dirt *= mix(vec3(0.9, 0.88, 0.84), vec3(1.2, 1.12, 1.0), smoothstep(0.25, 0.75, macro * 0.6 + macro2 * 0.4));
           // 足もとは細かく：近くだけ、もっと細かな縮尺の絵を重ねて、ぼやけた地面にしない
           float nearK = 1.0 - smoothstep(6.0, 15.0, soilViewDistance);
           ${SETTINGS.quality !== 'high' ? `if (nearK > 0.0) {

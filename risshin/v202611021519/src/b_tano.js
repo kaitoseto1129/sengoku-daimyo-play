@@ -1328,7 +1328,7 @@ const tano = {
   playerRegen: 0.02,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
   playerTaken: 0.6,   // 受ける傷を六割に（崖道の武田の侍は一太刀が重い。稲生の初陣と同じ）
   // 11/1 実機：谷道で侍の二太刀が 0.6 秒の内に続き、立て直す前に倒れていた。比叡山・志賀と同じく続けての近接に間を置く。
-  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.6 },
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 3 },   // 11/1：刃の後3秒は次の刃を通さない
   // 身の回りの当時の場（timeslip_field.js）。天正十年三月十一日は今の四月初め・甲斐の山あいの早春。
   // 落ちのびる武田方が通った谷の道は踏まれて固く、芽吹き前の枯れ草。崖道と田野の陣の前ほど倒れた槍・武田の旗・脱げた陣笠。
   timeslip: {
@@ -1337,6 +1337,8 @@ const tano = {
     flagColors: [0x8a2a22, 0x1e1c1a, 0x7a6c58],   // 泥にまみれた布。白い板に見えないよう白地を汚す（10/28）
     fights: [[FIRST_JOIN.x, FIRST_JOIN.z, 28], [(NARROW.x0 + NARROW.x1) / 2, 0, 26], [TANO.x, TANO.z, 32]],
   },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.5倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.5,
   world: {
     seed: 15823, noticeRepeatGap: Infinity, moveLim: 230, time: 'day', mood: 'plain', mist: false, fogFar: 440, smokeFogFloor: 300, fogTint: 0x727d65, hazeColor: 0x929b83, mountainHaze: 0.28, wind: [1, 0.15], muddy: 0.1, riverCross: true,
     // 八十歩の霞で柵と対岸まで白く消さず、描く範囲の内で谷筋を読ませる。
@@ -1481,13 +1483,14 @@ const tano = {
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const F = rt.flags, W = rt.world;
     // 11/1 点付け（田野：25秒で倒れて負けの札）：谷道（侍ばかりの守兵が本人へ寄る段）は、本人へ同時に打ち込むのを二人まで
     //   （共通の既定は四人・player_pressure.js。侍の重い一撃を四方から浴びて開戦二十秒で倒れた）。崖道・柵・屋敷の段は三人まで
     //   （守兵はみな侍で一太刀が重く、四人では bot が八回に六回倒れた）。寄せてくる数・敵の強さは変えない。
     if (W.def) Object.defineProperty(W.def, 'playerAtkMax', { configurable: true, get() {
       const C = rt.flags.dp?.cur;
-      return !C ? undefined : C.s.phase === 'valley' ? 2 : 3;
+      return !C ? undefined : 2;   // 11/1 merge_1101d：勝頼の陣の段でも侍三人の太刀を同時に浴びて倒れたので、どの段も二人まで
     } });
     timeslipField(rt);   // 身の回りの踏まれた谷の道・倒れた槍と旗・早春の枯れ草（def.timeslip）
     // 本人と兵で同じ切岸の判定を使う。押し合いで外れた兵は既存の足場復帰で戻る。

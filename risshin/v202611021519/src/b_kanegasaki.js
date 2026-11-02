@@ -2486,7 +2486,7 @@ const kanegasaki = {
   foeHit: 1,
   // 普通・練習では、満タンから斬り合いを二十秒続けても立てる。
   // 最初の傷は体力の８％、以後は毎秒４％まで。受けと回避の間も残す。
-  meleeGrace: { rate: 0.04, burst: 0.08, interval: 0.85 },
+  meleeGrace: { rate: 0.04, burst: 0.08, interval: 2.5 },   // 11/1：刃の後2.5秒は次の刃を通さない
   // 一の備の麓では視線を少し上げ、正面の天筒山の斜面と雑木を画面に残す（見下ろしの絵にしない）。
   frameCamera(rt, pos, look) {
     const p = rt.player.u.pos;
@@ -2514,6 +2514,8 @@ const kanegasaki = {
       { k: 'tawara', x: -32, z: 86, rot: -0.6, n: 4 },
     ],
   },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
   world: {
     noHaori: true, // 本の足軽姿に合わせ、武将にも陣羽織を重ねない。
     drawTimeUnitParts: true, // 移動後の骨と具足の逆行列を描く時にそろえ、顔や槍だけを宙へ残さない。
@@ -2670,6 +2672,7 @@ const kanegasaki = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの若葉・捨てた槍と笠・矢（def.timeslip）

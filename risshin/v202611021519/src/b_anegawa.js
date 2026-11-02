@@ -2995,7 +2995,7 @@ const anegawa = {
   softOpen: 0,   // 開戦直後も傷を軽くしない
   // 普通・易では、重なる槍の傷を共通の仕組みで抑える。
   // 満身から十秒の白兵でも、部位の最大一・四倍を含めて傷は八割ほどまで。矢玉は別。
-  meleeGrace: { rate: 0.05, burst: 0.08, interval: 0.85 },
+  meleeGrace: { rate: 0.05, burst: 0.08, interval: 3 },   // 11/1：刃の後3秒は次の刃を通さない
   woundEffectMin: 0.05, // ごく浅い傷では退避の大札を出さず、傷の部位を残す。
   phaseBanners: true,
   latestPhaseBanner: true,
@@ -3060,7 +3060,10 @@ const anegawa = {
   // wakeRoom で本物の兵の上限を少し控えめに、humQ で写実の人へ替える数の上限を少し控えめにする（近さ・質はそのまま。見た目は大きく変えない）
   wakeRoom: 150,
   humQ: { max: 56, mustMax: 72 },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.5倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.5,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     compactScenery: true,
     drawTimeUnitParts: true, // 描く時の骨と逆行列を揃え、槍も持ち主と同じ束で描く。古い位置に柄だけを残さない。
     fitSupplyCover: true, // 兵糧の筵は俵の表面へ掛け、端を地面へ垂らす。
@@ -3174,6 +3177,7 @@ const anegawa = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     aneLive = rt;
     const W = rt.world;
     const F = rt.flags;
