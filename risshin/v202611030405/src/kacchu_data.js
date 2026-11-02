@@ -1374,3 +1374,6 @@ for (const [i, name] of ["織田信長", "柴田勝家", "森可成", "前田利
     lace: INOU_LACE[i], odo: INOU_LACE[i],
     haori: 0, menpo: 0, fur: 0, horo: 0, lac: "kuro", ref: "" };
 }
+// 11/2 armor_bushou：今川義元の「胸白の具足」（『信長記』ほかの軍記が伝える桶狭間の姿。docs/bushou_look_1102.md）。
+//   胴の胸から上の段だけ白糸、下は紅の威のまま。草摺は紅。八竜の五枚兜の立物は形が伝わらないので付けない
+Object.assign(KACCHU["今川義元"], { doLaceBands: [[1.21, 0x9e241b], [Infinity, 0xe6e0d0]], kusazuriBands: Array(5).fill(0x9e241b) });

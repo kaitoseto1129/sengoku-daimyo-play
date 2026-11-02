@@ -20,3 +20,10 @@ export const TOKUGAWA_LINE = [
   // 秘密の最後の戦（もしもの戦）。15戦に勝つと開く（tokugawa_secret.js）。本陣では虹色の縁の札
   { id: 'k16_secret', name: '淀の野の戦い', year: 1615, place: '淀の野', secret: true, file: './b_k16_secret.js' },
 ];
+
+// 徳川編の出世の段（docs/chapter3_tokugawa.md「出世と軍勢」）。出世の道（state.js の LADDER）の段の番号。
+// 関ヶ原までは侍大将、冬の陣は部将、夏の陣は家老として二〜三万の軍に加わり、秘密の戦は国持大名として二万を率いる
+export function tokuStep(id) {
+  const n = +String(id || '').slice(1, 3) || 0;
+  return n >= 16 ? 7 : n >= 12 ? 5 : n >= 8 ? 4 : 3;
+}

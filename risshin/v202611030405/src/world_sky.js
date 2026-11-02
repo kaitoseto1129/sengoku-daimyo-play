@@ -7,14 +7,16 @@ const _envLook = new THREE.Color(), _envTmp = new THREE.Color();
 //   兵・旗・山の形が背と溶けて見えなかった（大河内・三木・有岡・鳥取など）。戦ごとの色（applyLook・setTime・直書き）の後に
 //   描く直前だけ持ち上げ、描いたら戻す（戦の色の値・移ろいは変えない）。紺は灰の銀へ寄せる（青い夜にしない。信貴山の月夜が手本）。
 //   下限は線形の明るさ（sRGB で空 0.30・霞 0.29・天頂 0.16 ほど）。光の数・影・材質は増やさない。毎コマ new しない。
-const NIGHT_BACK = { sky: 0.075, fog: 0.07, top: 0.022, mount: 0.055, grey: 0.6, maxLift: 3.2 };
+// 11/02 夜の背が灰の霞に寄りすぎ、携帯の夜の増感（3〜4倍）と重なって空と遠くが手前の兵より明るく、曇りの昼に見えた（信貴山・三木・根白坂）。
+//   灰へ寄せる量と下限を下げ、増感の分の一部を背だけ打ち消す（dim：増感の 0.45 乗で割る）。空と遠くは手前より暗い月夜に残し、手前の兵と地面は変えない。
+const NIGHT_BACK = { sky: 0.05, fog: 0.05, top: 0.014, mount: 0.04, grey: 0.3, maxLift: 3.2, dim: 0.45 };
 const _nbSave = { bg: new THREE.Color(), fog: new THREE.Color(), top: new THREE.Color(), bottom: new THREE.Color(), haze: new THREE.Color(), mist: new THREE.Color(), mount: [new THREE.Color(), new THREE.Color(), new THREE.Color()] };
-function liftDark(c, save, floor, k) {
+function liftDark(c, save, floor, k, dim) {
   save.copy(c);
   const l = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
-  // 灰へ寄せる時は、少しだけ月と篝火の暖かみを残す（純粋な灰は死んだ色に見える）
-  c.lerp(_envTmp.setRGB(l * 1.03, l, l * 0.94), NIGHT_BACK.grey * k);
-  if (l < floor) c.multiplyScalar(1 + (Math.min(NIGHT_BACK.maxLift, floor / Math.max(l, 1e-4)) - 1) * k);
+  // 灰へ寄せる時は、少しだけ月夜の青みを残す（純粋な灰は死んだ色に、暖色は夕方に見える）。背だけで兵の色は変えない
+  c.lerp(_envTmp.setRGB(l * 0.97, l, l * 1.05), NIGHT_BACK.grey * k);
+  c.multiplyScalar((l < floor ? 1 + (Math.min(NIGHT_BACK.maxLift, floor / Math.max(l, 1e-4)) - 1) * k : 1) * dim);
 }
 
 // 空の映り込み（漆や鉄に空が映る）を作るために、描画器を借りる
@@ -340,18 +342,19 @@ export class WorldSky {
   }
 
 
-  // 描く直前に夜の背を持ち上げる（k＝夜の度合い 0〜1）。描いた後に必ず dropNightBackdrop を呼ぶ。
-  liftNightBackdrop(k) {
+  // 描く直前に夜の背を持ち上げる（k＝夜の度合い 0〜1、gain＝携帯の夜の増感の倍率）。描いた後に必ず dropNightBackdrop を呼ぶ。
+  liftNightBackdrop(k, gain = 1) {
     if (!(k > 0.01) || this.def.nightBackdrop === false) return false;
     const bg = this.scene.background, U = this.skyMat.uniforms, S = _nbSave;
-    if (bg && bg.isColor) liftDark(bg, S.bg, NIGHT_BACK.sky, k);
-    if (this.scene.fog) liftDark(this.scene.fog.color, S.fog, NIGHT_BACK.fog, k);
-    liftDark(U.top.value, S.top, NIGHT_BACK.top, k);
-    liftDark(U.bottom.value, S.bottom, NIGHT_BACK.fog, k);
-    if (this.mountU) liftDark(this.mountU.hazeCol.value, S.haze, NIGHT_BACK.fog, k);
+    const d = Math.pow(Math.max(1, gain), -NIGHT_BACK.dim * k);
+    if (bg && bg.isColor) liftDark(bg, S.bg, NIGHT_BACK.sky, k, d);
+    if (this.scene.fog) liftDark(this.scene.fog.color, S.fog, NIGHT_BACK.fog, k, d);
+    liftDark(U.top.value, S.top, NIGHT_BACK.top, k, d);
+    liftDark(U.bottom.value, S.bottom, NIGHT_BACK.fog, k, d);
+    if (this.mountU) liftDark(this.mountU.hazeCol.value, S.haze, NIGHT_BACK.fog, k, d);
     const mist = this.haze?.mesh.material.uniforms?.color?.value;
-    if (mist) liftDark(mist, S.mist, NIGHT_BACK.fog, k);
-    for (let i = 0; i < 3 && i < this.mountMats.length; i++) liftDark(this.mountMats[i].color, S.mount[i], NIGHT_BACK.mount, k);
+    if (mist) liftDark(mist, S.mist, NIGHT_BACK.fog, k, d);
+    for (let i = 0; i < 3 && i < this.mountMats.length; i++) liftDark(this.mountMats[i].color, S.mount[i], NIGHT_BACK.mount, k, d);
     return true;
   }
 

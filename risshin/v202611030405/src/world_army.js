@@ -8,7 +8,7 @@ import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequ
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
-import { lacKind, houseCore } from './lacquer_kind.js';
+import { lacKind, houseCore, LAC_AKA, LAC_MIX1, LAC_MIX2 } from './lacquer_kind.js';
 import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
 // 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
 const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
@@ -35,10 +35,13 @@ function armyLacKind(mon, armor) {
   return mon ? lacKind(mon) : 1;
 }
 // 隊の布の色の芯と袖の板の色（world_army_shader.js の armyCloth が脚・腕・袖を一人ずつ散らす。lacquer_kind.js の表）
+// 胴の漆と陣笠も一人ずつ、近い兵（humans_dress.js の soldierVar）と同じ六組の表へ（11/2「兵が灰・黒の同じ形で単調」：遠い列が一色の黒い帯に見えた）
 function clothCore(flag, armor, kind) {
   const core = new THREE.Color(kind === 3 ? 0x7a2c1e : houseCore(flag));
   const lite = new THREE.Color(new THREE.Color(armor).lerp(new THREE.Color(0x8a8070), 0.18).getHex());
-  return { uACore: { value: core }, uALite: { value: lite } };
+  const lk = kind === 3 ? 3 : armyLacKind(flag, armor), arm = new THREE.Color(armor);
+  const lacT = (lk === 3 ? LAC_AKA : lk === 2 ? LAC_MIX2 : LAC_MIX1).map(([c, a, b]) => arm.clone().lerp(new THREE.Color(c), a).multiplyScalar(b));
+  return { uACore: { value: core }, uALite: { value: lite }, uALac: { value: arm }, uALacT: { value: lacT } };
 }
 export class WorldArmy {
 

@@ -8,7 +8,7 @@ import { isBattleLocked, showPaywall } from './paywall.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { TOKUGAWA_LINE } from './tokugawa_line.js';
 import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
-import { secretOpen } from './tokugawa_secret.js';
+import { secretOpen, secretLeft } from './tokugawa_secret.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const thumbURL = (id) => new URL(`../assets/thumbs/${id}.webp`, import.meta.url).href;
@@ -263,7 +263,7 @@ export function pickScreen(G, game, o) {
   const why = (r) => {
     row.querySelector('.pk-why')?.remove(); clearTimeout(whyT);
     const prev = r.soon || r.secret ? null : rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
-    const text = r.secret && r.state === 'lock' ? '徳川編の十五の戦に、すべて勝つと開きます' : r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
+    const text = r.secret && r.state === 'lock' ? `徳川編の十五の戦に、すべて勝つと開きます（あと${secretLeft()}）` : r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
     row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !r.pay ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${prev && !r.pay && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
     const go = row.querySelector('#pk-why-go');
     if (go) go.onclick = () => { sfx('ui'); row.querySelector('.pk-why')?.remove(); const p = row.querySelector(`.pk-c[data-k="${prev.k}"]`); if (p) { p.scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', inline: 'center', block: 'center' }); p.classList.add('flash'); setTimeout(() => p.classList.remove('flash'), 900); p.focus({ preventScroll: true }); } };

@@ -6,7 +6,12 @@
 export const LAC_BLACK = [[0x1c1814, 0.85, 1], [0x2e261e, 0.85, 1.22], [0x16130f, 0.85, 0.92], [0x3a2a1c, 0.8, 1], [0x24201a, 0.8, 1.1], [0x45342a, 0.7, 0.95]];
 export const LAC_SABI = [[0x4a3e30, 0.85, 1], [0x5e3a22, 0.85, 1], [0x3e352b, 0.85, 1], [0x6e3e22, 0.75, 1], [0x504234, 0.85, 1.05], [0x2e2822, 0.8, 1]];
 export const LAC_AKA = [[0x8a2a1c, 0.85, 1], [0x7a2618, 0.85, 1], [0x963222, 0.8, 1], [0x6a2216, 0.85, 1], [0x84301e, 0.75, 1], [0x5e1e14, 0.8, 1]];
-export const KIND_AKA = new Set(['takeda', 'akazonae', 'ii', 'sanada', 'aka_oda', 'aka_kari']);
+// 足軽の胴を六組で色ごと分ける表（humans_dress.js の soldierVar・world_army_shader.js の遠い大軍の胴と陣笠。11/2）
+//   黒漆の軍：黒漆二・溜塗・錆地・茶・朱。錆地の軍：錆地・錆の赤茶・黒漆・茶・溜塗・鉄
+//   三つ目の値（明るさの倍）：溜塗・茶・朱は 1 のままだと陰と漆の沈みで黒に潰れ、844×390 の写真で胴が皆黒に見えた（11/2）。色の付いた漆だけ明るく
+export const LAC_MIX1 = [[0x1c1814, 0.85, 1], [0x4a2618, 0.85, 1.55], [0x2a2420, 0.85, 1.2], [0x5e4430, 0.85, 1.45], [0x6e2a1a, 0.8, 1.5], [0x6a4a2c, 0.85, 1.4]];
+export const LAC_MIX2 = [[0x4a3e30, 0.85, 1.3], [0x6e3e22, 0.85, 1.45], [0x1c1814, 0.85, 1.1], [0x7a5634, 0.85, 1.35], [0x4a2618, 0.85, 1.5], [0x3e352b, 0.85, 1.2]];
+export const KIND_AKA =new Set(['takeda', 'akazonae', 'ii', 'sanada', 'aka_oda', 'aka_kari']);
 export const KIND_SABI = new Set(['namu', 'honganji', 'ikko', 'yatagarasu', 'saika', 'iga', 'maru', 'none', 'hikyaku', '']);
 // 旗の名から漆の種類：3 赤備え・2 錆地・1 黒漆
 export function lacKind(flag) {

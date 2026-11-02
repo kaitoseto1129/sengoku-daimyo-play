@@ -64,7 +64,7 @@ import { hyojoScreen, shitakuScreen, hyojoOn, phase2HintScreen } from './hyojo.j
 import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
-import { TOKUGAWA_LINE } from './tokugawa_line.js';
+import { TOKUGAWA_LINE, tokuStep } from './tokugawa_line.js';
 import { markTokuWon } from './tokugawa_secret.js';
 import { isLocked, showPaywall } from './paywall.js';
 import { showAfterWin } from './ads.js';
@@ -937,7 +937,7 @@ function drawScene(scene, fresh = false) {
     const wr = nightWorld && nightWorld.scene === scene ? Math.min(1, nightWorld.rainLevel || 0) * (1 - night) : 0;
     // 夜の増感にも下限（箕作 0.45 のように下げすぎると、夜の兵が形ごと沈む）。夜らしい青さは空と光の色で保つ。
     renderer.toneMappingExposure = e0 * (1 + night * Math.max(NIGHT_EXPOSURE_MIN, nightWorld?.def.lowNightExposure ?? 1.25)) * (1 + wr * 0.15) * (S.brightness || 1);
-    const lifted = night > 0 && nightWorld.liftNightBackdrop && nightWorld.liftNightBackdrop(night);
+    const lifted = night > 0 && nightWorld.liftNightBackdrop && nightWorld.liftNightBackdrop(night, renderer.toneMappingExposure / (e0 * (S.brightness || 1)));
     renderer.render(scene, camera);
     if (lifted) nightWorld.dropNightBackdrop();
     renderer.toneMappingExposure = e0;
@@ -2560,7 +2560,7 @@ const game = {
       for (const a of actions) if (a.primary && a !== retry) { const f = a.fn; a.fn = () => { showAfterWin(adId); f(); }; }
     }
     // 勝った時は、城下へ戻った後に App Store のレビューの窓を出す候補にする（review_ask.js）
-    if (r.mainDone) import('./review_ask.js').then((m) => m.noteWin(G)).catch(() => {});
+    import('./review_ask.js').then((m) => (r.mainDone && !r.downInfo ? m.noteWin(G) : m.noteLoss())).catch(() => {});
     // 戦の後の曲：昇進なら華やかに、勝てば凱歌、しくじれば尺八の一節
     playMusic(r.promoted ? 'promote' : r.mainDone ? 'victory' : 'defeat', { delay: 1 });
     // 戦の後の会話の場面：手柄と出世を言われる（織田家編・負けた戦は飛ばす。本能寺は勝てば使者の家の会話を戦の中で済ませたので、負けた時だけ）。取り立てられたら新しい位と姿も
@@ -2786,6 +2786,8 @@ const game = {
     const G = newGame((readProgress(S.slot).game || {}).name || '弥五郎', 'normal', k);
     G.practice = true; G.injured = false;
     G.rank = 4; G.trialStep = 3; G.merit = 400;
+    // 徳川編は戦が進むほど位が上がる（関ヶ原まで侍大将・冬の陣は部将・夏の陣は家老・秘密の戦は国持大名）
+    if (k === 'tokugawa') G.trialStep = tokuStep(id);
     G.stats = { spear: 3, vit: 3, lead: 3 };
     // 侍大将で出陣は城下を通らないので、武具はひと通り持たせる（十文字槍・鉄砲・弓も）
     G.owned = [...new Set([...G.owned, 'spear2', 'spear4', 'teppo', 'yumi', 'hat3', 'body2', 'kote', 'haidate', 'suneate', 'haori', 'katana'])];

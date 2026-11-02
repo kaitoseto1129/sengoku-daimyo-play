@@ -442,10 +442,12 @@ const CLOTH_U = {
   uAArm: { value: new THREE.Color(0x5a4e3e) }, uALeg: { value: new THREE.Color(0x4c4438) },
 };
 const CORE_DEF = { value: new THREE.Color(0x7a4226) }, LITE_DEF = { value: new THREE.Color(0, 0, 0) };
+const LAC_DEF = { value: Array.from({ length: 6 }, () => new THREE.Color(0, 0, 0)) };
 function armyCloth(sh, U) {
   sh.uniforms.uACore = U.uACore || CORE_DEF; sh.uniforms.uALite = U.uALite || LITE_DEF;
+  sh.uniforms.uALac = U.uALac || LITE_DEF; sh.uniforms.uALacT = U.uALacT || LAC_DEF;
   Object.assign(sh.uniforms, CLOTH_U);
-  sh.vertexShader = 'uniform vec3 uACloth[4], uACore, uAArm, uALeg, uALite;\n' + sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
+  sh.vertexShader = 'uniform vec3 uACloth[4], uACore, uAArm, uALeg, uALite, uALac, uALacT[6];\n' + sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
   #ifdef USE_COLOR
   if (aPart == 0.0 || aPart == 8.0 || aPart == 9.0) {
     float ckd = aInfo.y, cr = fract(aInfo.x * 71.3), cw = dot(color, vec3(0.3, 0.59, 0.11));
@@ -458,6 +460,18 @@ function armyCloth(sh, U) {
       vColor.rgb = mix(vColor.rgb, tc * (cw / max(bw, 1e-4)) * il, 0.8);
     }
   }
+  ${U.clothT ? '' : `// 胴の漆（隊の具足の色とその陰）と陣笠を一人ずつ六組の漆へ（lacquer_kind.js の LAC_MIX。陣笠は半分が胴と同じ色）
+  if (uALac.r + uALac.g + uALac.b > 0.0 && aInfo.y != 7.0 && (aPart == 0.0 || aPart == 1.0)) {
+    float lw = dot(color, vec3(0.3, 0.59, 0.11));
+    bool lhat = aPart == 1.0;
+    bool lbody = !lhat && (dot(abs(color - uALac), vec3(1.0)) < 0.012 || dot(abs(color - uALac * 0.72), vec3(1.0)) < 0.012);
+    if ((lhat || lbody) && lw > 1e-5) {
+      int li = int(fract(aInfo.x * 53.71) * 6.0);
+      if (lhat && fract(aInfo.x * 29.3) > 0.5) li = (li + 2) % 6;
+      float lb = lhat ? 0.0204 : dot(uALac, vec3(0.3, 0.59, 0.11));
+      float il = dot(vColor.rgb, vec3(0.3, 0.59, 0.11)) / lw;
+      vColor.rgb = mix(vColor.rgb, uALacT[li] * (lw / max(lb, 1e-5)) * il, 0.85);    }
+  }`}
   #endif`);
 }
 function armyShader(mat, U) {
