@@ -8,7 +8,7 @@ import { ARMY_REAL_R, armyShader, CLASH_NB, CLASH_ROW, clashShader, nearHideRequ
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
-import { lacKind, houseCore } from './lacquer_kind.js';
+import { lacKind, houseCore, LAC_AKA, LAC_MIX1, LAC_MIX2 } from './lacquer_kind.js';
 import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
 // 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
 const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
@@ -35,10 +35,13 @@ function armyLacKind(mon, armor) {
   return mon ? lacKind(mon) : 1;
 }
 // 隊の布の色の芯と袖の板の色（world_army_shader.js の armyCloth が脚・腕・袖を一人ずつ散らす。lacquer_kind.js の表）
+// 胴の漆と陣笠も一人ずつ、近い兵（humans_dress.js の soldierVar）と同じ六組の表へ（11/2「兵が灰・黒の同じ形で単調」：遠い列が一色の黒い帯に見えた）
 function clothCore(flag, armor, kind) {
   const core = new THREE.Color(kind === 3 ? 0x7a2c1e : houseCore(flag));
   const lite = new THREE.Color(new THREE.Color(armor).lerp(new THREE.Color(0x8a8070), 0.18).getHex());
-  return { uACore: { value: core }, uALite: { value: lite } };
+  const lk = kind === 3 ? 3 : armyLacKind(flag, armor), arm = new THREE.Color(armor);
+  const lacT = (lk === 3 ? LAC_AKA : lk === 2 ? LAC_MIX2 : LAC_MIX1).map(([c, a, b]) => arm.clone().lerp(new THREE.Color(c), a).multiplyScalar(b));
+  return { uACore: { value: core }, uALite: { value: lite }, uALac: { value: arm }, uALacT: { value: lacT } };
 }
 export class WorldArmy {
 
@@ -464,8 +467,9 @@ export class WorldArmy {
     const vis = Math.max(60, Math.min(this.scene.fog?.far || 999, 1.15 * Math.max(80, Math.min(110, this.def.battleViewDistance ?? 80))));
     const dx = P.x - x, dz = P.z - z, d = Math.hypot(dx, dz);
     if (d < Math.min(95, vis * 0.68)) return null;
-    //   隊の 35m 前（本人が寄っても隊と一緒に見えるよう、本人の側へ寄せすぎない）。見通しの七割半まで
-    const ux = dx / d, uz = dz / d, at0 = Math.max(50, Math.min(Math.max(55, Math.min(85, vis * 0.75)), d - 35));
+    //   隊の 35m 前（本人が寄っても隊と一緒に見えるよう、本人の側へ寄せすぎない）。見通しの七割弱・70m まで
+    //   （11/2 c_army_thick：85m では霞に溶けて点の列になっていた。軽い兵の霞が半ばの帯＝見通しの七割の内に置く）
+    const ux = dx / d, uz = dz / d, at0 = Math.max(50, Math.min(Math.max(55, Math.min(70, vis * 0.68)), d - 35));
     const h0 = this.heightAt(P.x, P.z);
     // 川・堀・崖に当たる時は、線の上を前後に、また横へずらして陸を探す
     for (const [da, side] of [[0, 0], [10, 0], [0, 16], [0, -16], [18, 0], [-6, 0], [10, 24], [10, -24]]) {
@@ -506,7 +510,7 @@ export class WorldArmy {
     const vis = Math.max(60, Math.min(this.scene.fog?.far || 999, 160));
     const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
     const pts = T.pts; pts.length = 0;
-    const h0 = this.heightAt(P.x, P.z), lim = (D.moveLim || 176) + 20, rn = (ARMY_REAL_R.value || 0) + 4, r0 = Math.max(rn + 6, Math.min(75, vis * 0.6));   // 本物の兵に任せる輪（ARMY_REAL_R）の内は軽い兵を描かないので、その外へ
+    const h0 = this.heightAt(P.x, P.z), lim = (D.moveLim || 176) + 20, rn = (ARMY_REAL_R.value || 0) + 4, r0 = Math.max(rn + 8, Math.min(58, vis * 0.5));   // 11/2 c_army_thick：75m では霞の奥の点の列。中景の帯（軽い兵の霞が半ば）へ   // 本物の兵に任せる輪（ARMY_REAL_R）の内は軽い兵を描かないので、その外へ
     let inV = 0;
     for (const A of L) {
       const H = A.foeHost, m = H.meshes[0], g = A.mesh;
@@ -514,22 +518,22 @@ export class WorldArmy {
       T.q.set(H.cx, 0, H.cz).applyMatrix4(m.matrix).applyMatrix4(m.parent.matrixWorld);
       const dx = T.q.x - cam.position.x, dz = T.q.z - cam.position.z, d = Math.hypot(T.q.x - P.x, T.q.z - P.z);
       // 本人から離れすぎた前備え（本人が進んで霞の奥に残った物）も、見えていないのと同じに数える
-      if (d > Math.max(32, rn) && d < r0 + 16 && Math.abs(wrap(Math.atan2(dx, dz) - cf)) < half) { inV++; H.out = 0; pts.push(T.q.x, T.q.z); } else H.out += 0.25;
+      if (d > Math.max(32, rn) && d < r0 + 20 && Math.abs(wrap(Math.atan2(dx, dz) - cf)) < half) { inV++; H.out = 0; pts.push(T.q.x, T.q.z); } else H.out += 0.25;
     }
-    if (inV >= 2) return;
+    if (inV >= 3) return;   // 中景に前備えを三つ重ねる（形は使い回し。記憶は増えない）
     for (const A of L) {
       const H = A.foeHost, g = A.mesh;
-      if (inV >= 2) break;
+      if (inV >= 3) break;
       if (H.out < 2 || rt.t - H.at < 6 || !g.visible || A.rout || A.tw) continue;
       const ax = g.position.x + A.cx + A.off.x - P.x, az = g.position.z + A.cz + A.off.z - P.z;
       if (Math.hypot(ax, az) > 1 && Math.abs(wrap(Math.atan2(ax, az) - cf)) > 1.75) continue;
       let sx = 0, sz = 0, ok = false;
-      for (const [k, dr] of [[0.4, 0], [-0.4, 0], [0.15, 8], [-0.65, 0], [0.65, 0], [0, -10], [0.4, -12], [-0.4, -12]]) {
+      for (const [k, dr] of [[0.1, 0], [0.5, 6], [-0.45, 6], [0.25, 16], [-0.25, 16], [0.7, 0], [-0.7, 0], [0, -10]]) {   // 11/2 c_army_thick：画面の真ん中の中景から埋め、左右と奥へ重ねる
         const h = cf + k * half, r = r0 + dr;
         sx = P.x + Math.sin(h) * r; sz = P.z + Math.cos(h) * r;
         if (Math.abs(sx) > lim || Math.abs(sz) > lim || this.inWaterAt(sx, sz) || Math.abs(this.heightAt(sx, sz) - h0) > 14) continue;
         let near = false;
-        for (let i = 0; i < pts.length; i += 2) if (Math.hypot(pts[i] - sx, pts[i + 1] - sz) < 30) { near = true; break; }
+        for (let i = 0; i < pts.length; i += 2) if (Math.hypot(pts[i] - sx, pts[i + 1] - sz) < 20) { near = true; break; }
         if (!near) { ok = true; break; }
       }
       if (!ok) continue;
@@ -566,7 +570,8 @@ export class WorldArmy {
         if (R() < 0.06 + t * 0.12) continue;   // 奥ほどまばらに
         const r = R();
         // 幟は奥ほど多く（後ろの備えの旗の林）。列にそろえず散らす
-        const k = r < 0.035 + t * 0.07 ? 4 : r < 0.16 ? 3 : 0;
+        //   （11/2 c_army_thick：前の列にも幟を立て、奥は林にする。同じ一回の描きの内で数だけ）
+        const k = r < 0.06 + t * 0.1 ? 4 : r < 0.18 ? 3 : 0;
         S.push({ lx, lz: z + (R() - 0.5) * 0.6, t, k, ex: k === 0 ? 1.2 + R() * 0.45 : 0, helm: k === 3 || R() < 0.1 ? 1 : 0, flag: k === 4 ? 0 : R() < 0.82 ? 1 : 0 });
       }
       z -= 1.0 + t * 0.4; row++;   // 列の間を詰めて、同じ数で厚い塊を手前に（重さは同じ）

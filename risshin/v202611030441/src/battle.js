@@ -593,6 +593,8 @@ export class Battle {
     this.projView = new THREE.Matrix4();
     this.army = new Army(this.scene, this.world, {
       nanban: nanbanAfter(def, BATTLES[index]),
+      // 戦の年（名のある武将の具足を年代で替える。units.js の eraKacchu）
+      year: Number(String(def.year || BATTLES[index]?.year || '').match(/\d{4}/)?.[0] || 0),
       nobunaga: !!this.G.lord,
       onSignal: (g, kind, at) => {
         // 忍んで進む時は旗だけ。町・稽古では戦の合図を鳴らさない。

@@ -3,6 +3,7 @@
 // 結果は window.webkit.messageHandlers.autoplay（アプリが書類の autoplay.json に書く）か、無ければ window.__autoplayResult へ。
 import { newGame, fillRoster, RANKS, BATTLES, setScenario, usePre, SCENARIOS, SCENARIO_PICK, SCENARIO_ORDER } from './state.js';
 import { brain } from './playbot.js';
+import { tokuStep } from './tokugawa_line.js';
 import { S } from './settings.js';
 import { HSTAT } from './humans.js';
 import { LAZY_STAT } from './units_model.js';
@@ -108,7 +109,7 @@ export async function run(game, ids) {
       // 戦を探す前に新しい保存の並びに合わせる。端末の古い保存では稲生が外れている。
       // 豊臣編などの戦も、その筋書きの保存と並びにして探す（織田家編だけを見ていて豊臣編12戦が見つからなかった。11/1 実機第5回）
       const scn = scnOf(id);
-      if (!viaGate) botG(game, firstInou, scn);
+      if (!viaGate) botG(game, firstInou, scn, id);
       if (BATTLES.findIndex((b) => b.id === id) < 0) { setScenario(scn); usePre(game.G); }
       const i = BATTLES.findIndex((b) => b.id === id);
       const r = viaGate ? res.battles[k] : { id, ok: false };
@@ -194,16 +195,18 @@ function profInstall(game, b) {
 
 // 戦の id がどの筋書きの並びにあるか（織田家編を先に。無ければ豊臣編ほか）
 function scnOf(id) {
-  for (const k of ['oda', ...SCENARIO_PICK, ...SCENARIO_ORDER]) if (SCENARIOS[k]?.battles.some((b) => b.id === id)) return k;
+  for (const k of ['oda', ...SCENARIO_PICK, ...SCENARIO_ORDER, 'tokugawa']) if (SCENARIOS[k]?.battles.some((b) => b.id === id)) return k;
   return 'oda';
 }
 
-function botG(game, firstInou = false, scn = 'oda') {
+function botG(game, firstInou = false, scn = 'oda', id = '') {
   const G = newGame('bot', 'normal', scn);
   if (scn === 'oda') G.owari = 1;
   usePre(G);
   G.practice = true;
   if (!firstInou) { G.rank = 2; G.aijirushi = 'maru'; G.owned.push('katana'); }
+  // 徳川編は本陣から出陣した時と同じ位（main.js の startAsSamurai・tokugawa_line.js の tokuStep）
+  if (scn === 'tokugawa') { G.rank = 4; G.merit = 400; G.trialStep = tokuStep(id); }
   const n = RANKS[G.rank].squad;
   if (n) fillRoster(G, n - Math.round(n / 3), Math.round(n / 3));
   game.G = G; game.lastError = '';

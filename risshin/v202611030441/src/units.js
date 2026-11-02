@@ -5,6 +5,7 @@ import { nanbanLook } from './nanban.js';
 import { NAMED_GEAR } from './named_gear.js';
 import { KACCHU } from './kacchu_data.js';
 import { genericKacchu } from './kacchu_generic.js';
+import { eraKacchu } from './kacchu_era.js';
 import { recoverGround, mountainWay } from './army_local_way.js';
 import { officerSetup, officerEscort } from './officer.js';
 import { cavalryRole } from './cavalry_tactics.js';
@@ -585,7 +586,10 @@ export class Army {
     const physique = (salt) => (Math.imul(u.id ^ salt, 1597334677) >>> 0) / 4294967296;
     // 画質「低」（携帯）：顔と着物のずれを減らし、同じ形の兵を増やす（形ごとに一つずつ描く回数が、兵の数に比べて多すぎるので）
     const lowQ = false;
-    const tier = u.type === 'player' ? (o.tier ?? 0) : gen.armor ? 3 : u.type === 'busho' ? 3 : (u.type === 'samurai' || u.type === 'cavalry') ? 1 : 0;
+    // 名のある武将の本陣・旗本・馬廻・近習の兵は足軽ではなく侍の姿（当世具足・兜・袖・指物・腰の刀。kaito 11/2 O）。見た目だけで、役目と強さは元の兵のまま
+    const esc = ['ashigaru', 'bow', 'gun'].includes(u.type) && !o.name && !o.kosode && !o.sohei && !o.ashiTaisho
+      && (/(本陣|旗本|馬廻|近習|小姓)/.test(g.name || '') || g.units.some((x) => x.isLord));
+    const tier = u.type === 'player' ? (o.tier ?? 0) : gen.armor ? 3 : u.type === 'busho' ? 3 : (u.type === 'samurai' || u.type === 'cavalry' || esc) ? 1 : 0;
     const privateArmor = tier === 1 && !gen.armor;
     const loanArmor = tier === 0 && ['ashigaru', 'bow', 'gun'].includes(u.type);
     const armor = o.armor ?? gen.armor ?? (loanArmor && fac.flag !== 'akazonae' ? 0xa27b50 : u.type === 'busho' ? (fac.busho ?? 0x1c1a1a) : privateArmor && fac.flag !== 'akazonae' ? [fac.armor, fac.busho ?? fac.armor, fac.armor][vi % 3] : fac.armor);
@@ -596,17 +600,17 @@ export class Army {
       // 貸し具足の胴は明るい革色、鎧下は茶・柿渋・生成り。威は家の指定を使う
       lace: o.lace ?? gen.lace ?? (loanArmor ? fac.lace : [fac.lace, fac.lace2 || fac.lace, fac.lace3 || fac.lace][vi % 3]),
       // 足軽は揃いの陣笠。侍の兜は六通りの組み合わせ（指定した姿は優先）
-      hat: (gen.hatFix && gen.hat) || (o.hat ?? gen.hat ?? (u.type === 'busho' ? 'kabuto_b' : privateArmor ? ['kabuto', 'kabuto_m', 'kabuto', 'kabuto_f', 'kabuto_w', 'kabuto_m'][vi] : loanArmor ? fac.hat ?? t.hat : t.hat)),
+      hat: (gen.hatFix && gen.hat) || ((esc && /^(jingasa|hachimaki)/.test(o.hat || '') ? undefined : o.hat) ?? gen.hat ?? (u.type === 'busho' ? 'kabuto_b' : privateArmor ? ['kabuto', 'kabuto_m', 'kabuto', 'kabuto_f', 'kabuto_w', 'kabuto_m'][vi] : loanArmor ? fac.hat ?? t.hat : t.hat)),
       tenugui: tier === 0 && (detail85 ? vi % 2 === 0 : vi === 2),
       kasaDrape: this.world.def.kasaDrape !== false && (o.kasaDrape ?? fac.kasaDrape ?? true),
       hachi: o.hachi,   // 鉢巻の色（手ごとに変えて、味方の手を見分ける）
-      sode: loanArmor ? false : o.sode ?? (u.type === 'samurai' || u.type === 'cavalry' || u.type === 'busho'),
+      sode: loanArmor ? false : o.sode ?? (u.type === 'samurai' || u.type === 'cavalry' || u.type === 'busho' || esc),
       kote: o.kote ?? (tier >= 1 ? 3 : undefined),
       // 陣羽織はマントに見えるので誰にも着せない（kaito 10/24「マントやめて」）。
       haori: 0,
       // 旗は数を減らし、大きさを揃える（kaito 10/23 稲生 48）。足軽の指物は三人に一人。隊旗の旗持ちだけ少し大きい。
-      pole: o.flag !== null && u.type !== 'porter' && !(u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0),
-      flag: o.flag === null || u.type === 'porter' || (u.type === 'ashigaru' && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0) ? null : (o.flag || gen.flag || fac.flag),
+      pole: o.flag !== null && u.type !== 'porter' && !(u.type === 'ashigaru' && !esc && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0),
+      flag: o.flag === null || u.type === 'porter' || (u.type === 'ashigaru' && !esc && !o.name && !o.flagScale && !o.standard && vi % 3 !== 0) ? null : (o.flag || gen.flag || fac.flag),
       flagScale: o.flagScale ?? 1,
       flagShape: o.flagShape ?? (loanArmor ? fac.flagShape ?? 0 : privateArmor ? vi % 3 : 0),
       standard: o.standard || null,
@@ -617,14 +621,14 @@ export class Army {
       // 足軽の槍は長柄（5m ほど）
       weaponExtra: o.weaponExtra ?? (gearWeapon === 'sword' ? gear?.weaponExtra : 0) ?? 0,
       // 槍の拵え：足軽は長柄（三間。織田は三間半）、騎馬と侍は素槍、武将は大身槍
-      spear: o.spear ?? (o.weaponExtra != null ? null : gear?.spear && gearWeapon === 'spear' ? gear.spear : u.type === 'ashigaru' && !o.weapon ? (g.faction === 'oda' ? (vi === 1 || vi === 4 ? 'nagae' : 'nagae35') : (vi === 2 ? 'nagae35' : 'nagae')) : u.type === 'busho' ? 'omi' : 'su'),
+      spear: o.spear ?? (o.weaponExtra != null ? null : gear?.spear && gearWeapon === 'spear' ? gear.spear : u.type === 'ashigaru' && !esc && !o.weapon ? (g.faction === 'oda' ? (vi === 1 || vi === 4 ? 'nagae' : 'nagae35') : (vi === 2 ? 'nagae35' : 'nagae')) : u.type === 'busho' ? 'omi' : 'su'),
       skin: o.skin ?? gen.skin ?? SKIN_TONES[vi],
       // 顔：名のある武将はその人の顔、本人は本人の顔、兵は十二の顔から
       face: o.face ?? (gen.face ? 'g:' + o.name.replace(/^.* /, '') : ((lowQ ? vi : detail85 ? vi + 6 * (Math.floor(u.id / 6) % 2) : u.id) * 7) % 12),
       // 鎧下・袴の色：藍・茶・鼠・黒
       //   同じ色でも人ごとに明るさと色あいを ±6% ずらす（褪せた藍・柿渋寄り・生成り寄り。形の数が増えすぎないよう三通り）
       cloth: (this.world.def.allyCloth && u.team === 0 && u.type === 'ashigaru' && !u.name ? this.world.def.allyCloth[u.id % this.world.def.allyCloth.length] : o.cloth) ?? clothVar((loanArmor ? [0x4a3a2a, 0x5e4630, 0x7a6a50, 0x3e3328, 0x6a4a30, 0x8a7c62] : fac.cloth || [0x2b2622, 0x3a3024, 0x3a2e24, 0x34342e, 0x4a3a2a, 0x2b2622])[vi], lowQ ? 0 : Math.floor((gen.face && !detail85 ? nh : u.id) / 6) % 5),
-      saya: u.type === 'samurai' || u.type === 'busho' || u.type === 'cavalry' || o.saya,
+      saya: u.type === 'samurai' || u.type === 'busho' || u.type === 'cavalry' || esc || o.saya,
       menpo: o.menpo ?? (gen.armor ? gen.menpo || 0 : (u.type === 'busho' && vi % 2 === 0 ? 0x6a1c14 : u.type === 'samurai' && u.id % 2 === 0 ? 0x1c1a18 : 0)),
       menpoStyle: o.menpoStyle ?? gen.menpoStyle ?? (u.type === 'busho' ? 'hanbo' : 'full'),
       // 丸い母衣は自動で足さない。史実の武将や戦が明示した母衣だけ残す。
@@ -638,6 +642,8 @@ export class Army {
       hero9: u.type === 'player' && o.hero9 ? 1 : 0,
       // 本人の朱漆の札の色（player.js playerLook。侍大将・部将だけ）
       shu: u.type === 'player' && o.hero9 && o.shu || 0,
+      // 本人の兜の漆と前立（見た目の品 cosmetics.js。humans_armor.js kabutoStyle が見る）
+      kbCrest: u.type === 'player' && o.kbCrest || undefined, kbLac: u.type === 'player' && o.kbLac || undefined,
       officer: !!o.officer || !!(o.name && (u.type === 'busho' || o.horse)),
       // 僧兵（humans.js で白い裹頭・袈裟・薙刀を着せる）
       sohei: o.sohei || (o.kosode ? 1 : 0),
@@ -673,6 +679,9 @@ export class Army {
     // 戦の年代に合わせた具足は、近い骨の人と遠い形で同じ指定を使う。
     const kacchu = o.name && fieldLook.namedKacchu?.[o.name.replace(/^.* /, '')];
     if (kacchu && !look.kosode && !look.sohei && !look.nanban) Object.assign(look, kacchu, { kacchu });
+    // 伝来品の年より前の戦では、その品の立物・胴を着せない（kacchu_era.js）
+    const era = !kacchu && gen.face && eraKacchu(o.name.replace(/^.* /, ''), this.hooks.year);
+    if (era && !look.kosode && !look.sohei && !look.nanban) Object.assign(look, era, { kacchu: era });
     look.longHoro = fieldLook.longHoro === 'round' ? 'round' : !!fieldLook.longHoro;
     // 味方には印・輪・縁取りを付けない（kaito 10/28 夜）。肩の合印も付けない。
     look.shoulderMark = 0;

@@ -3,6 +3,8 @@
 // 目標の中身と進みの判定は stages.js（B の係と同じ物を読む）。ここは見せ方だけ。
 import { ODA_LINE, lineOf } from './state.js';
 import { STAGES, stageNow } from './stages.js';
+import { TOKUGAWA_LINE } from './tokugawa_line.js';
+import { tokuWon } from './tokugawa_secret.js';
 
 // 織田家編の章。戦の並び（ODA_LINE）の id で引く。
 export const CHAPTERS = [
@@ -12,6 +14,12 @@ export const CHAPTERS = [
   { name: '一向一揆と本願寺', ids: ['echizen', 'echizen_ikko', 'iwamura', 'tennoji', 'saika', 'tedorigawa', 'shigisan', 'kizugawa'] },
   { name: '天下布武の果て', ids: ['miki', 'arioka', 'iga', 'tottori', 'takato', 'tano', 'honnoji'] },
 ];
+// 徳川編の章（docs/chapter3_tokugawa.md の流れ）。勝った戦は tokuWon() で読む。秘密の戦は章の並びに出さない
+const TOKU_CHAPTERS = [
+  { name: '関ヶ原への道', ids: ['k01_fushimi', 'k02_kawada', 'k03_gifu', 'k04_kuisegawa', 'k05_ueda', 'k06_sekigahara', 'k07_sawayama'] },
+  { name: '大坂冬の陣', ids: ['k08_osaka_kizu', 'k09_imafuku', 'k10_shigino', 'k11_sanadamaru'] },
+  { name: '大坂夏の陣', ids: ['k12_kashii', 'k13_domyoji', 'k14_yao_wakae', 'k15_tennoji_okayama'] },
+];
 
 // 戦の筋の短い説明（二〜三行）。無い戦は年と場所から作る。
 const STORY = {
@@ -20,6 +28,21 @@ const STORY = {
   moribe: '斎藤義龍が死に、美濃が揺れている。雨の川を渡り、森部で斎藤勢の大将たちを討つ。',
   sunomata: '美濃攻めの足がかりに、敵の目の前の墨俣へ砦を築く。寄せてくる斎藤勢から柵を守り抜く。',
   inabayama: '斎藤龍興の稲葉山城を攻める。城下に火を放ち、山道から城へ迫る。',
+  k01_fushimi: '家康は会津へ向かい、三成ら西軍が兵を挙げた。鳥居元忠と伏見城に籠り、西軍の大軍から時を稼ぐ。',
+  k02_kawada: '東軍の先手が尾張から美濃へ攻め入る。木曽川の渡しを、鉄砲と弓を受けながら押し渡る。',
+  k03_gifu: '信長の孫・織田秀信が岐阜城に籠る。かつて信長と攻めた稲葉山を、今度は徳川方で攻め上る。',
+  k04_kuisegawa: '関ヶ原の前の日。島左近が杭瀬川で東軍を誘い出す。追えば伏兵が待っている。',
+  k05_ueda: '秀忠の軍が中山道を西へ。真田昌幸・信繁の上田城を攻めるが、城下と川に誘われ乱される。',
+  k06_sekigahara: '霧の関ヶ原で東西の大軍が向き合う。井伊・松平の抜け駆けで戦が始まり、小早川の寝返りを待つ。',
+  k07_sawayama: '関ヶ原の後、三成の居城・佐和山を囲む。主のいない城で、石田の一族が最後まで抗う。',
+  k08_osaka_kizu: '十四年の後。秀頼が浪人を集め、徳川が大坂城を囲む。夜、木津川口の砦を攻める。',
+  k09_imafuku: '大坂城の北東、今福の堤。湿地の細い道で、木村重成と後藤又兵衛の反撃を受ける。',
+  k10_shigino: '上杉景勝の軍と鴫野へ。大坂方の反撃に苦しんでも、堤に踏みとどまる。',
+  k11_sanadamaru: '大坂城の南に、真田信繁が出丸を築いた。誘われて寄せれば、堀と柵の前で一斉に撃たれる。',
+  k12_kashii: '夏の陣の始まり。紀州の浅野勢と、先に出た塙団右衛門を樫井で迎え撃つ。',
+  k13_domyoji: '奈良からの道を大坂へ。小松山に先に出た後藤又兵衛を、伊達・水野と攻める。',
+  k14_yao_wakae: '大坂方が河内の田へ出た。若江で木村重成と、八尾で長宗我部盛親と、二つの戦が同時に始まる。',
+  k15_tennoji_okayama: '大坂の陣の最後の野戦。真田信繁が家康の本陣へ何度も突きかかる。',
 };
 
 const thumb = (id) => new URL(`../assets/thumbs/${id}.webp`, import.meta.url).href;
@@ -27,14 +50,26 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 export function chapterOf(key) {
   const k = CHAPTERS.findIndex((c) => c.ids.includes(key));
-  return k < 0 ? null : { k, ...CHAPTERS[k] };
+  if (k >= 0) return { k, ...CHAPTERS[k] };
+  const t = TOKU_CHAPTERS.findIndex((c) => c.ids.includes(key));
+  return t < 0 ? null : { k: CHAPTERS.length + t, toku: true, ...TOKU_CHAPTERS[t] };
 }
+const shortName = (name) => name.replace(/の戦い$|の戦$|の決戦$/, '').replace(/^大坂冬の陣・/, '').replace(/[・（].*$/, '');
 
 // 章の戦の並びと、それぞれの状態（done／now／open／lock）
 export function chapterRows(rt) {
   const ch = chapterOf(rt?.def?.key);
   if (!ch) return null;
   const G = rt.G || {};
+  if (ch.toku) {
+    // 徳川編：できた戦はどれも開いている。勝った戦は済み
+    const won = new Set(tokuWon());
+    const rows = ch.ids.map((id) => {
+      const b = TOKUGAWA_LINE.find((x) => x.id === id) || { id, name: id };
+      return { id, name: b.name, short: shortName(b.name), state: id === rt.def.key ? 'now' : won.has(id) ? 'done' : 'open' };
+    });
+    return { ...ch, rows };
+  }
   const line = lineOf(G), prog = G.battle | 0;
   const rows = ch.ids.map((id) => {
     const b = ODA_LINE.find((x) => x.id === id) || { id, name: id };
@@ -81,9 +116,9 @@ export function warProgressHtml(rt) {
   if (!rt || rt.def?.town || rt.def?.dojo) return '';
   const ch = chapterRows(rt), st = stageRows(rt);
   if (!ch && !st) return '';
-  const b = ODA_LINE.find((x) => x.id === rt.def.key);
+  const b = ODA_LINE.find((x) => x.id === rt.def.key) || TOKUGAWA_LINE.find((x) => x.id === rt.def.key);
   const name = b?.name || rt.def.title || '';
-  const story = STORY[rt.def.key] || (b ? `${b.year}、${b.place}。` : '');
+  const story = STORY[rt.def.key] || (b?.place ? `${b.year}、${b.place}。` : '');
   const left = ch ? `<ol class="wp-list" aria-label="${esc(ch.name)}の戦">${ch.rows.map((r) => `<li class="wp-b ${r.state}"><span class="wp-th" style="background-image:url('${thumb(r.id)}')">${r.state === 'lock' ? SVG.lock : ''}</span><span class="wp-bn">${esc(r.name)}</span><em>${STATE_WORD[r.state]}</em></li>`).join('')}</ol>` : '';
   let right = `<div class="wp-cur"><div class="wp-eye">現在の任務</div><div class="wp-path">${ch ? `${esc(ch.name)}<span aria-hidden="true">›</span>` : ''}<b>${esc(name)}</b></div><p class="wp-story">${esc(story)}</p>`;
   if (st) {

@@ -22,3 +22,8 @@ export function secretOpen() {
   const won = new Set(tokuWon().map((id) => id.slice(0, 3)));
   return TOKUGAWA_PLAN.every((p) => won.has(p.id.slice(0, 3)));
 }
+// まだ勝っていない徳川編の戦の数（錠の札に出す）
+export function secretLeft() {
+  const won = new Set(tokuWon().map((id) => id.slice(0, 3)));
+  return TOKUGAWA_PLAN.filter((p) => !won.has(p.id.slice(0, 3))).length;
+}

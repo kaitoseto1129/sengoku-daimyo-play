@@ -384,7 +384,7 @@ const ARMY_PUSH = `
    // 兵ごとに遠さで形を選ぶ隊：一人ずつの距離で、近い細かい形・中ほどの形・遠い束のどれか一つだけに描く
    if (aSplit > 1.5 ? dd < uArmySplitR.x : aSplit > 0.5 ? dd < uArmySplitR.y : aSplit < -1.5 ? (dd < uArmySplitR.x || dd >= uArmySplitR.y) : aSplit < -0.5 && dd >= uArmySplitR.x) AP.show = 0.0;
    // 近景の外でも一人ずつ徐々に間引く。体に穴を開けず、旗と槍も同じ兵ごとに残す。
-   if (aHost != 0.0) vArmyCover = step(aInfo.x, smoothstep(aHN, aHN * 1.5, dd) * (aHost < 0.0 ? uHostIn : 1.0));
+   if (aHost != 0.0) vArmyCover = step(aInfo.x, smoothstep(aHN, aHN * 1.18, dd) * (aHost < 0.0 ? uHostIn : 1.0));
  }
  #endif`;
 // 半透明の並べ替えを増やさず、後詰めの近い端だけを兵ごとに間引く。
@@ -442,10 +442,12 @@ const CLOTH_U = {
   uAArm: { value: new THREE.Color(0x5a4e3e) }, uALeg: { value: new THREE.Color(0x4c4438) },
 };
 const CORE_DEF = { value: new THREE.Color(0x7a4226) }, LITE_DEF = { value: new THREE.Color(0, 0, 0) };
+const LAC_DEF = { value: Array.from({ length: 6 }, () => new THREE.Color(0, 0, 0)) };
 function armyCloth(sh, U) {
   sh.uniforms.uACore = U.uACore || CORE_DEF; sh.uniforms.uALite = U.uALite || LITE_DEF;
+  sh.uniforms.uALac = U.uALac || LITE_DEF; sh.uniforms.uALacT = U.uALacT || LAC_DEF;
   Object.assign(sh.uniforms, CLOTH_U);
-  sh.vertexShader = 'uniform vec3 uACloth[4], uACore, uAArm, uALeg, uALite;\n' + sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
+  sh.vertexShader = 'uniform vec3 uACloth[4], uACore, uAArm, uALeg, uALite, uALac, uALacT[6];\n' + sh.vertexShader.replace('#include <color_vertex>', `#include <color_vertex>
   #ifdef USE_COLOR
   if (aPart == 0.0 || aPart == 8.0 || aPart == 9.0) {
     float ckd = aInfo.y, cr = fract(aInfo.x * 71.3), cw = dot(color, vec3(0.3, 0.59, 0.11));
@@ -458,7 +460,27 @@ function armyCloth(sh, U) {
       vColor.rgb = mix(vColor.rgb, tc * (cw / max(bw, 1e-4)) * il, 0.8);
     }
   }
+  ${U.clothT ? '' : `// 胴の漆（隊の具足の色とその陰）と陣笠を一人ずつ六組の漆へ（lacquer_kind.js の LAC_MIX。陣笠は半分が胴と同じ色）
+  if (uALac.r + uALac.g + uALac.b > 0.0 && aInfo.y != 7.0 && (aPart == 0.0 || aPart == 1.0)) {
+    float lw = dot(color, vec3(0.3, 0.59, 0.11));
+    bool lhat = aPart == 1.0;
+    bool lbody = !lhat && (dot(abs(color - uALac), vec3(1.0)) < 0.012 || dot(abs(color - uALac * 0.72), vec3(1.0)) < 0.012);
+    if ((lhat || lbody) && lw > 1e-5) {
+      int li = int(fract(aInfo.x * 53.71) * 6.0);
+      if (lhat && fract(aInfo.x * 29.3) > 0.5) li = (li + 2) % 6;
+      float lb = lhat ? 0.0204 : dot(uALac, vec3(0.3, 0.59, 0.11));
+      float il = dot(vColor.rgb, vec3(0.3, 0.59, 0.11)) / lw;
+      vColor.rgb = mix(vColor.rgb, uALacT[li] * (lw / max(lb, 1e-5)) * il, 0.85);    }
+  }`}
   #endif`);
+}
+// 軽い兵の霞（11/2 c_army_thick「敵の大軍・乱戦が薄い」の共通の元）：見通しが 92〜126m に絞られ、本物の輪（44m）の外の
+//   中景の大軍が霞の色に溶けて消えていた。Total War の遠い隊のように、見通しの七割までは霞を半ば（0.55 倍）に抑えて暗い人影の帯に残し、
+//   見通しの端では地面と同じく霞に溶かす（宙に浮く影にしない）。後詰めを間引く帯も、本物の輪のすぐ外の短い帯だけにした。形・数・描く回数は同じ
+const ARMY_FOGK = '0.55';
+function armyFog() {
+  const c = THREE.ShaderChunk.fog_fragment, k = 'vec3 fogC = fogColor;';
+  return c.includes(k) ? c.replace(k, `fogFactor *= mix(${ARMY_FOGK}, 1.0, smoothstep(fogVis * 0.72, fogVis, fogD));\n  ${k}`) : '#include <fog_fragment>';
 }
 function armyShader(mat, U) {
   armyCam(mat);
@@ -470,9 +492,9 @@ function armyShader(mat, U) {
     if (mat.map) flagMoonlight(sh);
     sh.uniforms.uAFlagWidth = { value: mat.map?.userData.mon === 'hachisuka' || mat.map?.userData.mon === 'yose_hachisuka' ? 0.65 : 1 };
     Object.assign(sh.uniforms, U, { uYose: U.uYose || { value: 0 }, uUnavailable: U.uUnavailable || { value: 0 }, uMoveLim: U.uMoveLim || { value: 176 }, uArmyNear: U.uNear || ARMY_NEAR, uArmyP: ARMY_P, uArmyRealP: ARMY_REAL_P, uArmyRealR: U.uRealNear || ARMY_REAL_R, uArmySplitR: U.uSplitR || ARMY_SPLIT_R, uHostIn: U.uHostIn || HOST_IN_ONE, uShim: SHIMMER, uAMotion: ARMY_MOTION, uWindDir: WIND_DIR, uRealPts: REAL_PTS });
-    sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', `#include <fog_fragment>
+    sh.fragmentShader = 'varying float vAHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', armyFog() + `
       #ifdef USE_FOG
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, vAHz * 0.5);
       #endif`);
     sh.vertexShader = 'uniform float uArmyNear, uUnavailable, uMoveLim, uArmyRealR, uHostIn; uniform vec2 uArmyP, uArmyRealP; uniform vec4 uRealPts[16];\n' + ARMY_GLSL + sh.vertexShader
       .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
@@ -486,7 +508,7 @@ function armyShader(mat, U) {
     sh.fragmentShader = 'varying float vAFT;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);
       // 幟の色の揺らぎ：暗く褪せた幟ほど日焼けで黄ばむ（家の染めの色は残す。青へは寄せない）
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`).replace('#include <fog_fragment>', armyFog());
     armyCover(sh);
     armySteel(sh);
     if (!mat.map) armyCloth(sh, U);
@@ -704,7 +726,7 @@ function clashShader(mat, U) {
     sh.fragmentShader = 'varying float vAFT;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       diffuseColor.rgb *= vAFT * (gl_FrontFacing || vAFT == 1.0 ? 1.0 : 0.8);
       // 幟の色の揺らぎ：暗く褪せた幟ほど日焼けで黄ばむ（家の染めの色は残す。青へは寄せない）
-      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`);
+      diffuseColor.rgb *= mix(vec3(1.0), vec3(1.04, 0.97, 0.8), vAFT == 1.0 ? 0.0 : clamp((1.02 - vAFT) * 4.0, 0.0, 0.7));`).replace('#include <fog_fragment>', armyFog());
     armyCover(sh);
     armySteel(sh);
     if (!mat.map) armyCloth(sh, U);

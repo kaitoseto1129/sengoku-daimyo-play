@@ -191,7 +191,7 @@ function loadKabuto() {
     const geo = {};
     // 兜の形の向き：前のコペンハーゲンのスキャンは前が +x へ約27°回っていた（rotY -0.47）。今のワット館の兜（tools/kabuto_watt.mjs）は正面が +z（rotY 0）
     const kx = gl.parser.json.extras || {}, rotY = kx.rotY ?? -0.47;
-    gl.scene.traverse((o) => { if (o.isMesh) { if (rotY) o.geometry.rotateY(rotY); o.geometry.computeVertexNormals(); geo[o.name] = o.geometry; } });
+    gl.scene.traverse((o) => { if (o.isMesh) { if (rotY) o.geometry.rotateY(rotY); kbHineno(o.geometry, kx.rim ? kx.rim[0] : 0.124); o.geometry.computeVertexNormals(); geo[o.name] = o.geometry; } });
     // 鉢の前の龍を潰す形は、龍のあるスキャンの時だけ（ワット館の兜には龍が無い）
     const hiN = kx.flat === false ? geo.hi : kbFlatten(geo.hi), loN = kx.flat === false ? geo.lo : kbFlatten(geo.lo);
     for (const g of [geo.hi, geo.lo]) g.setAttribute('kbFlat', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count), 1));
@@ -213,6 +213,24 @@ function loadKabuto() {
     } catch (e) { console.warn('面頬の形を読めませんでした（今の面頬で描きます）', e); }
   })().catch((e) => { KABUTO.failed = true; KABUTO.err = String(e && e.stack || e).slice(0, 400); console.warn('本物の兜を読めませんでした（胴丸の兜で描きます）', e); });
   return kbLoading;
+}
+// 錣を日根野形に寄せる（11/2 kaito_play E「兜が丸い」）：スキャンの兜の錣は平たく横へ張る笠錣で、後ろや斜めから陣笠の鍔に見えた。
+//   当世具足の多くの兜（日根野錣。伝来の頭形・桃形・筋兜の写真）は、錣が首を包むように肩へ下りる。鉢の縁より下の点を、軸へ寄せて下げる。読み込みの時に一度だけ
+function kbHineno(g, rimY) {
+  const p = g.attributes.position;
+  let R0 = 0;
+  for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y > rimY && y < rimY + 0.02) R0 = Math.max(R0, Math.hypot(p.getX(i), p.getZ(i))); }
+  if (!R0) return;
+  const r0 = R0 * 0.96;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), r = Math.hypot(x, z);
+    if (y > rimY + 0.004 || r <= r0) continue;
+    // 前（眉庇の下・吹返し）は少しだけ。後ろと横ほど強く寄せる
+    const back = 0.55 + 0.45 * (0.5 - 0.5 * z / r);
+    const ex = r - r0, k = 1 - 0.5 * back, nr = r0 + ex * k;
+    p.setXYZ(i, x / r * nr, y - ex * 0.5 * back, z / r * nr);
+  }
+  p.needsUpdate = true; g.computeBoundingBox(); g.computeBoundingSphere();
 }
 // 名のある武将の顔に、面頬の形を付ける（頭の骨の立ち姿の位置から MP_FIT だけずらす。形は上の縁が y=0・奥が z=0・前が +z）
 // 11/1 kaito「面頬がお面のように顔に貼り付く」：顔より大きく浮いた面にしない。顔の形に沿う大きさへ縮め、頬と顎へ寄せる
@@ -644,7 +662,10 @@ function dressKabuto(h) {
   if (st.crest !== 'none') {
     const CM = crestMats();
     // 龍の人の鍬形は、龍の頭の後ろ（鉢の前）から立てる
-    const mx = namedKacchu(L) ? CREST_NAMED : st.crest === 'bari' ? CREST_BACK : st.dragon ? new THREE.Matrix4().makeTranslation(0, 0.2, 0.118).multiply(new THREE.Matrix4().makeRotationX(-0.2)) : CREST_M;
+    // 名のある武将の立物の形（named_kacchu・kabuto_real）は鉢の前の高さ（y 0.17・z 0.15）を形の中に持つ。重ねて CREST_M でずらすと、
+    //   鉢から 15cm 上・前へ浮いた金の板になっていた（本人の侍の鍬形。kaito_play E「前立がイラスト」）
+    const ownPos = namedKacchu(L) || realCrestGeometry(st.crest, true, true) !== undefined || !!namedCrestGeometry(st.crest);
+    const mx = ownPos ? CREST_NAMED : st.crest === 'bari' ? CREST_BACK : st.dragon ? new THREE.Matrix4().makeTranslation(0, 0.2, 0.118).multiply(new THREE.Matrix4().makeRotationX(-0.2)) : CREST_M;
     // 白熊は艶の無い毛の材質（一つだけ作って使い回す）
     if (!CM.white) CM.white = furMaterial();
     const real = isRealCrest(st.crest);
@@ -1256,11 +1277,13 @@ function bandMaterial(base) {
 }
 // 本人の胴丸：9/29「侍大将で出陣」の頃の材質をそのまま（黒漆に朱の威糸。毛引の写真・札の段の糸目・手甲の塗り替えは描かない。kaito 10/31）
 // 人形の兜・面頬・顔ごと描く（noHead なし）。材質は威糸の色と使い込みごとに一つ（本人だけなので一つか二つ）
-function heroMaterial0929(look, wv = 0) {
+// noHead：本物の兜（ワット館のスキャン）をかぶせる時は、人形の丸い兜と顔を描かない（kaito 11/2「兜が丸い」）
+function heroMaterial0929(look, wv = 0, noHead = false) {
   const lace = new THREE.Color(look.lace ?? 0xb8342a);
   const tint = armorTint(look.armor);
   const shu = look.shu ? new THREE.Color(look.shu) : null;
-  const k = 'h9|' + lace.getHex() + '|' + (tint ? tint.getHex() : 0) + '|w' + wv + (shu ? '|s' + shu.getHex() : '');
+  const k = 'h9|' + lace.getHex() + '|' + (tint ? tint.getHex() : 0) + '|w' + wv + (shu ? '|s' + shu.getHex() : '') + (noHead ? '|nh' : '');
+  const hdI = noHead ? humanBoneMap(DM.bones, domaruInverses())[DM.bones.indexOf('Head')] : -1;
   if (dmMats.has(k)) return dmMats.get(k);
   const m = new THREE.MeshStandardMaterial({ map: DM.col, normalMap: DM.nrm, normalScale: new THREE.Vector2(0.55, 0.55), roughness: 0.55, metalness: 0.15, envMapIntensity: 0.9, side: THREE.DoubleSide });
   const U = { uLace: { value: lace }, uLaceAmt: { value: 1 }, uArm: { value: tint || new THREE.Color(0) }, uArmAmt: { value: tint ? 1 : 0 }, uWV: { value: new THREE.Vector4(...(DM_WEAR[wv] || DM_WEAR[0])) }, uShu: { value: shu || new THREE.Color(0) } };
@@ -1271,8 +1294,9 @@ function heroMaterial0929(look, wv = 0) {
     sh.uniforms.uGrime = GRIME;
     // 着せる前の立ち姿の位置（m。足の裏が 0、前が +z）：縅の目・汚れの場所を、動いても甲冑に貼り付いたまま描く
     sh.vertexShader = 'varying vec3 vDmP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDmP = position;');
-    sh.fragmentShader = 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nfloat dmCloth, dmGold, dmLacq, dmH, dmWv, dmEdge, dmDust;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    sh.fragmentShader = 'uniform vec3 uLace, uArm;\nuniform float uLaceAmt, uArmAmt, uWet, uGrime;\nuniform vec4 uWV;\nvarying vec3 vDmP;\nfloat dmCloth, dmGold, dmLacq, dmH, dmWv, dmEdge, dmDust, dmSm;\n' + DM_GLSL + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       {
+        dmSm = 0.0;
         // スキャンの絵は博物館の暗い照明で撮られているので、少し明るく戻す
         diffuseColor.rgb = min(diffuseColor.rgb * 1.55, vec3(1.0));
         vec3 c = diffuseColor.rgb;
@@ -1306,24 +1330,33 @@ function heroMaterial0929(look, wv = 0) {
           // 侍大将の朱漆の具足：スキャンの紺の毛引（胴・袖・草摺・錣）を、くすんだ朱漆の札に黒茶の威糸を通した素懸に描き替える。
           // 糸は札の段の頭の耳糸と、縦の二筋だけ。ほかは漆の照り。曇り・雨でも朱が沈まないよう、暗い所も下を持ち上げる
           // 胴と草摺は黒漆の札も朱に（兜・面頬・籠手・脛当は黒漆のまま。立ち姿の高さと胴の芯からの近さで分ける）
-          float bodyS = (smoothstep(0.5, 0.56, vDmP.y) - smoothstep(1.36, 1.42, vDmP.y)) * (1.0 - smoothstep(0.2, 0.26, length(vDmP.xz)));
+          // 袖（肩から二の腕の外、立ち姿の高さ 1.08〜1.42m）も朱の札に（籠手は黒漆のまま）
+          float sodeR = mix(0.26, 0.46, smoothstep(0.94, 1.0, vDmP.y) * (1.0 - smoothstep(1.4, 1.44, vDmP.y)));
+          float bodyS = (smoothstep(0.5, 0.56, vDmP.y) - smoothstep(1.36, 1.42, vDmP.y) * step(abs(vDmP.x), 0.2) - smoothstep(1.44, 1.48, vDmP.y) * (1.0 - step(abs(vDmP.x), 0.2))) * (1.0 - smoothstep(sodeR - 0.06, sodeR, length(vDmP.xz)));
           float lacS = smoothstep(0.2, 0.06, l) * smoothstep(0.55, 0.2, sat) * (1.0 - blue);
           float sm = max(blue, lacS * bodyS) * (gl_FrontFacing ? 1.0 : 0.0);
-          float trS = fract(vDmP.y / 0.034 + 0.5), cuS = fract(atan(vDmP.x, vDmP.z + 0.03) * 9.5);
-          float thS = max(1.0 - smoothstep(0.07, 0.15, trS), (1.0 - smoothstep(0.035, 0.07, min(abs(cuS - 0.32), abs(cuS - 0.68)))) * step(0.15, trS));
+          // 11/2 本物の素懸威（伝来の当世具足の写真）に寄せる：糸は二本一組の縦の筋を 6cm ほどの間を空けて通すだけ。
+          //   前の作り（1.6cm ごとの縦の筋と段ごとの横の糸）は赤と黒の格子の模様に見えた（イラスト）。段の境は糸でなく、札の重なりの影と縁の照りで見せる
+          float trS = fract(vDmP.y / 0.034 + 0.5), aS = atan(vDmP.x, vDmP.z + 0.03), cuS = fract(aS * 2.6);
+          float thS = (1.0 - smoothstep(0.012, 0.03, min(abs(cuS - 0.44), abs(cuS - 0.56)))) * step(0.12, trS) * (1.0 - step(0.93, trS));
+          // 耳糸：段の上の縁の細い糸（札の頭を綴じる）
+          thS = max(thS, (1.0 - smoothstep(0.02, 0.05, abs(trS - 0.06))) * 0.75);
           // 遠くでは筋が潰れるので、糸と漆の混ざった色に
-          thS = mix(thS, 0.22, smoothstep(0.3, 0.8, fwidth(vDmP.y / 0.034)));
-          // 札の段の影（段の下ほど暗く）と、漆の塗りむら
-          float rowS = 0.82 + 0.18 * smoothstep(0.15, 0.95, trS);
-          vec3 shuC = uShu * (0.95 + clamp(l, 0.0, 0.25) * 1.4) * rowS * (0.93 + 0.14 * dmVn(vDmP * 40.0));
+          thS = mix(thS, 0.1, smoothstep(0.3, 0.8, fwidth(vDmP.y / 0.034)));
+          // 札の段の影（上の段の裾が落とす影・段の下ほど暗く）と、札一枚ごとの縁（1.3cm ごとの細い暗み）、漆の塗りむら
+          float rowS = mix(0.55, 1.0, smoothstep(0.0, 0.2, trS)) * (0.9 + 0.1 * smoothstep(0.2, 0.9, trS)) * (1.0 + 0.18 * (1.0 - smoothstep(0.85, 0.99, trS)) * step(0.85, trS));
+          // 札一枚ずつの縦の筋は描かない（素懸の札は漆で塗り固めた一枚の段に見える。筋を足すと煉瓦の目に見えた）
+          // スキャンの絵の明るさは、毛引の細かな糸目（1cm ごとの縦の筋）を持つので、ぼかした明るさだけを使う（糸目が朱の上に格子で残っていた）
+          float lS = min(dot(texture2D(map, vMapUv, 3.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
+          vec3 shuC = uShu * (0.85 + clamp(lS, 0.0, 0.3) * 1.3) * rowS * (0.86 + 0.2 * dmVn(vDmP * 23.0) + 0.06 * dmVn(vDmP * 160.0));
           diffuseColor.rgb = mix(diffuseColor.rgb, mix(shuC, uLace * (0.8 + l * 2.0), thS), sm);
-          dmLacq = mix(dmLacq, 1.0 - thS, sm); dmCloth = mix(dmCloth, thS, sm);
+          dmLacq = mix(dmLacq, 1.0 - thS, sm); dmCloth = mix(dmCloth, thS, sm); dmSm = sm;
         }
         #endif
         diffuseColor.rgb *= 1.0 - uWet * 0.25 * dmCloth;
         // 絵の細かな起伏：ぼかした明るさとの差。小札の段の影・縅の目・金具の縁が、後で凹凸になる（絵の段にそろう）
         float lb = min(dot(texture2D(map, vMapUv, 2.5).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722)), 1.0);
-        dmH = clamp(l - lb, -0.25, 0.25);
+        dmH = clamp(l - lb, -0.25, 0.25) * (1.0 - 0.75 * dmSm);
         dmWv = 0.5; dmEdge = 0.0; dmDust = 0.0;
         if (gl_FrontFacing) {
           vec3 p = vDmP;
@@ -1427,8 +1460,13 @@ function heroMaterial0929(look, wv = 0) {
     sh.uniforms.uFpCut = FP_CUT;
     sh.vertexShader = 'varying vec3 vFpW;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vFpW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'uniform vec4 uFpCut;\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && distance(vFpW, uFpCut.xyz) < uFpCut.w) discard;');
+    if (noHead) {
+      sh.vertexShader = 'varying float vHd;\n' + sh.vertexShader.replace('#include <skinbase_vertex>', `#include <skinbase_vertex>
+        vHd = 0.0; for (int i = 0; i < 4; i++) { if (abs(skinIndex[i] - ${hdI}.0) < 0.5) vHd += skinWeight[i]; }`);
+      sh.fragmentShader = 'varying float vHd;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (vHd > 0.5) discard;');
+    }
   };
-  m.customProgramCacheKey = () => 'domaru-h9' + (shu ? '-shu' : '');
+  m.customProgramCacheKey = () => 'domaru-h9' + (shu ? '-shu' : '') + (noHead ? '-nh' : '');
   dmMats.set(k, m);
   return m;
 }
@@ -1445,8 +1483,9 @@ function dressDomaru(h, noHead = false) {
   const L0 = h.look, okeLook = (L0.tier || 0) === 0 && !L0.kacchu && !L0.nanban && L0.doStyle !== 'sugake' && !h.u?.name && L0.face !== 'player';
   const ovi = ((L0.vi || 0) % 6 + 6) % 6;
   const lk = okeLook && L0.loanWorn ? { ...L0, okeVar: ovi, lace: OKE_VAR[ovi].lace } : L0;
-  const hero9 = !!L0.hero9 && !noHead;
-  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, hero9 ? heroMaterial0929(L0, variant) : domaruMaterial(lk, noHead, variant, detailed));
+  // 侍大将から上の本人：9/29 の胴丸の材質のまま、兜はワット館のスキャンをかぶせる（noHead が true の時は人形の兜と顔を抜く）
+  const hero9 = !!L0.hero9 && noHead !== 'helm' && !!h.u?.isPlayer;
+  const m = new THREE.SkinnedMesh(h.loanedDomaru ? DM.loanMid : DM.hi, hero9 ? heroMaterial0929(L0, variant, !!noHead) : domaruMaterial(lk, noHead, variant, detailed));
   m.userData.surfaceBase = m.material;
   // 一般兵の凹凸と汚れはスキャンの絵・法線で描く。画素ごとの多重雑音は本人・武将だけ。
   m.userData.surfaceFine = hero9 ? m.material : detailed ? domaruMaterial(lk, noHead, variant, true) : m.material;

@@ -226,7 +226,8 @@ function* buildHuman(u, look0) {
     // 本人は 9/29 の「侍大将で出陣」と同じ着せ方：胴丸の人形の兜・面頬ごと着て、別の兜・顔・陣羽織は付けない（kaito 10/31）
     const hero9 = !!u.isPlayer && !!L.hero9 && !L.kosode;
     // 本人が見た目の品（前立・兜の漆。cosmetics.js）を着ていれば、9/29 の姿でも兜はスキャンをかぶせて前立を立てる
-    h.mode = 'full'; const nd = (!hero9 || !!(L.kbCrest || L.kbLac)) && (isNamed(L) || !!u.isPlayer || !!L.officer); h.helmScan = nd;
+    // 11/2 kaito「侍大将・侍の兜が丸い」：9/29 の姿でも、人形の丸い兜はやめてスキャンの兜（錣・吹返し・前立）をかぶせる
+    h.mode = 'full'; const nd = isNamed(L) || !!u.isPlayer || !!L.officer; h.helmScan = nd;
     // 本物の兜が読めていれば、胴丸の人形の兜は描かずに、兜のスキャンをかぶせる
     const kb = nd && KABUTO.on && KABUTO.ready;
     const ashigaru = !hero9 && (L.tier ?? 0) < 1 && !isNamed(L);
