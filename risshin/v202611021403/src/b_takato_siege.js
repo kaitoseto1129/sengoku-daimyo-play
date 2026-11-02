@@ -1098,7 +1098,11 @@ const takato_siege = {
     flagColors: [0xe8e4d8, 0x1e1c1a, 0x8a2a22],
     fights: (rt) => Object.values(rt.flags.gates || {}).map(g => [g.inner.x, g.inner.z, 24]),
   },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.5倍に、刃を受けた後の3秒は次の刃を通さない（bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.5,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 15930,
     allyTaken: 0.5,   // 寄せ手（数で勝る織田勢）は城兵より傷みにくい。門を一つずつ取り続けられるように
 
@@ -1168,6 +1172,7 @@ const takato_siege = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const F = rt.flags;
     // 内部の史実札（HIST_A=根拠強い／HIST_B=推定復元／GAME_C=ゲーム補完。表には出さない）
     F.hist = { castleSite: 'HIST_B', nishinaMorinobu: 'HIST_A', twoFronts: 'HIST_A', nobutadaAdvance: 'HIST_A', oneDay: 'HIST_A', cliffs: 'HIST_B', routes: 'GAME_C', ladders: 'GAME_C', lordJudgement: 'GAME_C' };

@@ -12,7 +12,7 @@ export const STAGES = {
   // 稲生（kaito 11/1 B 節）：練習 → 先手を崩す → 二の備を退ける → 林美作守を討つ。三つ目の欄は右上の「目標」の札に並べる目標（[字, 済んだか]）
   inou: [
     ['練習', null, [['林の兵を一人討つ', (rt) => (rt.flags.pk || 0) >= 1], ['続けてもう一人討つ', (rt) => (rt.flags.pk || 0) >= 2]]],
-    ['林の先手を崩す', (rt) => (rt.flags.stage || 0) >= 1, [['味方の列と並んで進む', f('lineMet')], ['敵を三人討つ', (rt) => (rt.flags.kills || 0) >= 3], ['林の先手を崩す', f('line1Broken')]]],
+    ['柴田勢を退ける', (rt) => (rt.flags.stage || 0) >= 1, [['味方の列と並んで進む', f('lineMet')], ['敵を三人討つ', (rt) => (rt.flags.kills || 0) >= 3], ['柴田の先手を崩す', f('line1Broken')]]],
     ['林の二の備を退ける', (rt) => (rt.flags.stage || 0) >= 2, [['後ろの弓組を討つ', f('bowsDown')], ['林の二の備を退ける', f('line2Broken')]]],
     ['林美作守を討つ', (rt) => (rt.flags.stage || 0) >= 3, [['土手の林勢を崩す', f('bankDown')], ['林美作守を討つ', f('ending')]]],
   ],

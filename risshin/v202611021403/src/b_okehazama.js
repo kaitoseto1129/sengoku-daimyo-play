@@ -911,7 +911,7 @@ const okehazama = {
   },
   // 初陣は重なる槍の傷を間引き、構えて味方へ退く間を残す。信長にも同じ猶予を使う。
   // 厳しい戦・矢玉・地形の傷は、共通の仕組みで従来どおり扱う。
-  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.2 },
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 2.5 },   // 11/1：刃の後2.5秒は次の刃を通さない（一太刀五割で、続けての太刀に満ちた命から倒れた）
   noWake: false,
   noReserve: true,
   botOrders: true,   // 性格の突進で、組について進む下知や反撃の隙を上書きしない。
@@ -1533,6 +1533,8 @@ const okehazama = {
   nearAllySolidBody: true,
   // 自分を塞ぐ人馬は描く間だけ全身を避け、透けた武者を重ねない。
   nearAllyWholeOcclusion: true,
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
   world: {
     yieldAlliedFoot: true, // 徒歩でも進む先の味方が肩を引き、敵までの通り道を空ける。
     allyPersonalSpace: 1.5, // 自分の肩の周りを空け、同じ姿の味方に埋もれない。
@@ -1764,6 +1766,7 @@ const okehazama = {
     },
   },
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     // 実際に命を減らした敵だけ、既存の頭上の▼で命中を返す。
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     rainPuddles(rt);
@@ -2478,12 +2481,7 @@ const okehazama = {
       { wall: 0x857058, minka: false, groundedHome: true,
         interior: { name: '今川本陣の詰所', kind: 'bansho', profile: 'okehazama' } }));
     buildBattleJin(rt);
-    // 名のない敵の仮名は、この戦だけの名簿から選ぶ。実在の武将の名は保つ。
-    const foeNames = ['げんろく', 'へいはち', 'ひこしち', 'しんぱち', 'またろく', 'やさぶろう', 'きすけ', 'やごろう']
-      .filter((name) => name !== rt.G.name && name !== nm(rt));
-    for (const g of E) for (const u of g.units) {
-      if (!u.name && u.type === 'samurai') u.name = foeNames[u.id % foeNames.length];
-    }
+    // 名のない敵の侍に仮名を付けない（11/1 kaito D 節：頭上の名は名のある武将だけ。仮名の札が乱戦に並んでいた）。
     // 備え表の共通接続で槍列へ戻される旗本を、義元中心の囲みへ戻す。
     H.formation = 'ring'; H.leader = rt.flags.yoshimoto;
     for (let i = 0; i < H.units.length; i++) {

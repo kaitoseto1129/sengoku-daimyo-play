@@ -930,8 +930,8 @@ function passFortScenery(rt) {
     const C = W.addClash({ x, z, facing: Math.atan2(ux, uz), w: 20, bw: 5.2, gap: 2.4, seed: 16011, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
-      A: { flag: 'oda', armor: 0x2a2622, count: 80, flagRate: 0.22 },
-      B: { flagTex: flagTexture('namu'), armor: 0x3a342c, count: 80, flagRate: 0.22 } });
+      A: { flag: 'oda', armor: 0x2a2622, count: 120, flagRate: 0.22 },
+      B: { flagTex: flagTexture('namu'), armor: 0x3a342c, count: 120, flagRate: 0.22 } });
     if (C?.go) C.go();
     if (C) F.echizenFenceClash.push(C); }
   // 木戸は共通の部品（kido の冠木門）のまま門構えを一回り大きく見せる（扉は破れて飛ぶ形を保つ）。当たり・口の幅・耐久は元のまま。

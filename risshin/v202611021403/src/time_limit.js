@@ -44,9 +44,9 @@ export function timeLimitTick(rt, dt) {
   if (s !== L.shown) {
     L.shown = s; el.lastChild.textContent = s;
     el.firstChild.firstChild.style.transform = `scaleX(${k.toFixed(3)})`;
-    el.classList.toggle('warn', left <= 90 && left > 30);
-    el.classList.toggle('crit', left <= 30);
-    el.classList.toggle('blink', left <= 30 && !S.reduceMotion);
+    el.classList.toggle('warn', left <= 180 && left > 60);
+    el.classList.toggle('crit', left <= 60);
+    el.classList.toggle('blink', left <= 60 && !S.reduceMotion);
   }
   if (left <= 0) { L.up = true; L.sceneT = 0; timeLimitHide(); }
 }

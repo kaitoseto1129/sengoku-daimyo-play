@@ -226,7 +226,7 @@ export class HudDestination {
       const steps = Math.max(1, Math.ceil(Math.hypot(pos.x - p.x, pos.z - p.z) / .75));
       const direction = Math.sin(edgeAngle) > .5 ? '後ろへ' : Math.cos(edgeAngle) > .5 ? '右へ' :
         Math.cos(edgeAngle) < -.5 ? '左へ' : '前へ';
-      setText(this.destinationDistanceLabel, destinationLabel ? `${destinationLabel}・${direction}` : `${direction}・あと${steps}歩`);
+      setText(this.destinationDistanceLabel, destinationLabel ? `${destinationLabel}・${direction}` : direction);
     }
     const openingControls = isTouch && this.openingActive && this.opening?.el.classList.contains('opening-controls');
     const attached = !this.openingActive && this.notices.sources[1].selected && !order.classList.contains('expand');

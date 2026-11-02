@@ -1349,6 +1349,9 @@ const mikatagahara = {
     flagColors: [0xece6d6, 0xd9b23a, 0x9a2a20],
     fights: [[14, LINE_Z - 4, 36], [TAKIGAWA_X, LINE_Z - 10, 30], [NEARAI.x, NEARAI.z, 20], [SOUTH_SLOPE.x, SOUTH_SLOPE.z - 14, 26], [REARGUARD_POST.x, REARGUARD_POST.z, 22]],
   },
+  // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に、刃を受けた後の2.5秒は次の刃を通さない（bot が一太刀・続けての太刀で倒れて負けた）
+  cutFloor: 0.6,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.5 },
   world: {
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定の四人と一太刀五割では bot が倒れて負けた）。寄せる数・敵の強さは変えない
     combatSpace: mikataCombatSpace,
@@ -1478,6 +1481,7 @@ const mikatagahara = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     mikataPlainTokugawa(rt);
