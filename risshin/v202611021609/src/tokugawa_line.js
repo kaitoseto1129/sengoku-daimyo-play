@@ -17,4 +17,6 @@ export const TOKUGAWA_LINE = [
   { id: 'k13_domyoji', name: '道明寺の戦い', year: 1615, file: './b_k13_domyoji.js' },
   { id: 'k14_yao_wakae', name: '八尾・若江の戦い', year: 1615, file: './b_k14_yao_wakae.js' },
   { id: 'k15_tennoji_okayama', name: '天王寺・岡山の戦い', year: 1615, file: './b_k15_tennoji_okayama.js' },
+  // 秘密の最後の戦（もしもの戦）。15戦に勝つと開く（tokugawa_secret.js）。本陣では虹色の縁の札
+  { id: 'k16_secret', name: '淀の野の戦い', year: 1615, place: '淀の野', secret: true, file: './b_k16_secret.js' },
 ];

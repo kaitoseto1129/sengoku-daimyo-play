@@ -351,7 +351,7 @@ export const ArmyAnim = {
     // 走るほど胸が前へ倒れる（u.moving は 0〜1。骨の人は自前の前傾があるので u._runLean を引いて使う）
     u._runLean = !u.mounted && !u.fleeing ? Math.max(0, u.moving - 0.35) * 0.17 : u.fleeing ? Math.max(0, u.moving - 0.3) * 0.3 : 0;
     u.body.rotation.x = u.recoil > 0 ? -0.28 * (u.recoil / 0.22) : u.strikeT > 0 ? 0.2 * Math.sin((1 - u.strikeT / 0.2) * Math.PI) : u._runLean;
-    u.body.rotation.x += hx;
+    u.body.rotation.x += hx + (u.mounted ? 0 : u.stanceLean || 0);
     // 鍔迫り合いの間は胸を相手へ寄せる
     if ((u.bindPoseT || 0) > this.time && !u.isPlayer && !u.mounted && !reduceMotion()) u.body.rotation.x += 0.14 * Math.min(1, (u.bindPoseT - this.time) / 0.15);
     // 崩れかけの兵は、ちらちらと後ろを振り返る

@@ -8,6 +8,7 @@ import { isBattleLocked, showPaywall } from './paywall.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { TOKUGAWA_LINE } from './tokugawa_line.js';
 import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
+import { secretOpen } from './tokugawa_secret.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const thumbURL = (id) => new URL(`../assets/thumbs/${id}.webp`, import.meta.url).href;
@@ -114,6 +115,8 @@ const CSS = `<style>
   .pk-c.lock::after { background: rgba(0,0,0,.18); }
   .pk-lk { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; color: #e4dccb; }
   .pk-lk > svg { width: 34px; height: 34px; fill: currentColor; filter: drop-shadow(0 1px 3px #000); }
+  /* 徳川編の秘密の戦：虹色の縁（kaito 11/1 夜） */
+  .pk-c.secret, .pk-c.secret.lock { border: 3px solid transparent; background: linear-gradient(#1d1a16, #1d1a16) padding-box, linear-gradient(120deg, #e0473c, #e8a93a, #e6d65a, #5fbf6a, #4a8fd8, #8a5ad0, #e0473c) border-box; }
   .pk-c.flash { border-color: #e6c77a; box-shadow: 0 0 0 3px rgba(230,199,122,.7); }
   .pk-c:focus-visible { outline: 3px solid #e6c77a; outline-offset: 2px; }
   .pc { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; max-width: 1200px; margin: 0 auto; align-items: center; }
@@ -181,7 +184,11 @@ export function tokuRows(from) {
     const made = TOKUGAWA_LINE.find((e) => e.id.slice(0, 3) === p.id.slice(0, 3));
     const b = made ? { cap: 240, place: '', ...made } : p;
     return { b, k: from + n, j: -1, state: made ? 'done' : 'lock', soon: !made, grade: null, best: 0, pay: made ? isBattleLocked('tokugawa', b.id) : false, scn: 'tokugawa' };
-  });
+  }).concat(TOKUGAWA_LINE.filter((e) => e.secret).map((e, n) => {
+    // 秘密の最後の戦：15戦すべてに勝つと開く（tokugawa_secret.js）
+    const open = secretOpen();
+    return { b: { cap: 240, place: '', ...e }, k: from + TOKUGAWA_PLAN.length + n, j: -1, state: open ? 'done' : 'lock', secret: true, grade: null, best: 0, pay: open ? isBattleLocked('tokugawa', e.id) : false, scn: 'tokugawa' };
+  }));
 }
 
 // ---------------- ホーム（真ん中に今の自分・周りに入口） ----------------
@@ -234,7 +241,7 @@ export function pickScreen(G, game, o) {
   const stars = (n) => [1, 2, 3, 4, 5].map((i) => STAR.replace('<svg', `<svg class="${i <= n ? '' : 'off'}"`)).join('');
   const cardHtml = (r) => {
     const lock = r.state === 'lock';
-    return `<button type="button" class="pk-c ${r.state}" data-k="${r.k}" ${lock ? 'aria-disabled="true"' : ''} aria-label="${esc(r.b.name)}${lock ? '（まだ）' : ''}">
+    return `<button type="button" class="pk-c ${r.state}${r.secret ? ' secret' : ''}" data-k="${r.k}" ${lock ? 'aria-disabled="true"' : ''} aria-label="${esc(r.b.name)}${lock ? '（まだ）' : ''}">
       <img src="${thumbURL(r.b.id)}" alt="" loading="lazy" decoding="async" width="480" height="270" onerror="this.style.visibility='hidden'">${lock || r.pay ? `<span class="pk-lk">${LOCK}</span>` : gradeHtml(r.grade)}
       <span class="pk-no" aria-hidden="true">${r.k + 1}</span>
       <span class="pk-yr">${esc(yearNum(r.b))}</span>
@@ -255,8 +262,8 @@ export function pickScreen(G, game, o) {
   let whyT = 0;
   const why = (r) => {
     row.querySelector('.pk-why')?.remove(); clearTimeout(whyT);
-    const prev = r.soon ? null : rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
-    const text = r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
+    const prev = r.soon || r.secret ? null : rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
+    const text = r.secret && r.state === 'lock' ? '徳川編の十五の戦に、すべて勝つと開きます' : r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
     row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !r.pay ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${prev && !r.pay && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
     const go = row.querySelector('#pk-why-go');
     if (go) go.onclick = () => { sfx('ui'); row.querySelector('.pk-why')?.remove(); const p = row.querySelector(`.pk-c[data-k="${prev.k}"]`); if (p) { p.scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', inline: 'center', block: 'center' }); p.classList.add('flash'); setTimeout(() => p.classList.remove('flash'), 900); p.focus({ preventScroll: true }); } };

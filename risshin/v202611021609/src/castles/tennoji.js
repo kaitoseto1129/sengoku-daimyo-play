@@ -20,7 +20,7 @@ export const T_HOUSES = [
   { x: -15, z: -59, w: 6, d: 7, kind: 'nagaya', name: '西の長屋' },
   { x: 15, z: -63, w: 6, d: 7, kind: 'nagaya', name: '東の長屋' },
   { x: -17, z: -70, w: 3, d: 4, kind: 'kura', name: '兵糧蔵' },
-  { x: -7, z: -49, w: 4, d: 3, kind: 'nagaya', name: '門の番所' },
+  { x: -11, z: -49, w: 3, d: 3, kind: 'nagaya', name: '門の番所' },   // 11/2：門の内の道の右を板壁が三分の一ふさいでいたので、間口を詰めて西へ寄せる（戸口の向きと位置の並びは同じ）
   { x: -4, z: -80.5, w: 9, d: 5, kind: 'goten', name: '明智勢の陣屋' },
 ];
 export const T_ROADS = [
@@ -69,7 +69,7 @@ export const TENNOJI_PLAN = {
   // 物見櫓（見張り）：外曲輪の東南・西北、主郭の北東
   yagura: [
     // 高画質だけ、門脇は低い素木組み、奥は板囲いの二重井楼にする。位置・梯子口は保つ。
-    { id: 'monomi_se', kind: 'monomi', at: [17, -53], name: '物見櫓', height: 7.2, boarded: false },
+    { id: 'monomi_se', kind: 'monomi', at: [16, -62], name: '物見櫓', height: 7.2, boarded: false },
     { id: 'monomi_nw', kind: 'monomi', at: [-17, -76], name: '物見櫓', height: 8.8, boarded: false },
     { id: 'monomi_hon', kind: 'monomi', at: [8, -82], name: '主郭の櫓', height: 9.6, boarded: true },
   ],

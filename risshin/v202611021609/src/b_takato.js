@@ -18,6 +18,7 @@ import { castlePart } from './cgt_castle.js';
 import { enemyGroup } from './bhelp.js';
 import { flagTexture } from './textures.js';
 import { dressStage } from './stage_dress.js';
+import { drawGroundAt } from './render_camera.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -25,6 +26,12 @@ const baseTint = takato.world.tint;
 const baseGuide = takato.guideMarker;
 const baseBot = takato.botBrain;
 const baseClampCamera = takato.clampCamera;
+// 11/2 点付け（木・草が板の切り絵・乱戦が薄い）：25秒のカメラ（99,0 から東）の前、寄せ道の東の雑木の幹と板の葉が、奥の押し合いを隠していた。
+//   その一帯（x 104〜140・z -8〜26）だけ木を立てない（木の数は他へ回る。形と描く回数は同じ）。
+{
+  const baseDensity = takato.world.treeDensity;
+  takato.world.treeDensity = (x, z) => (x > 104 && x < 140 && z > -8 && z < 26 ? 0 : baseDensity(x, z));
+}
 // 稲生と同じ表示の指定。攻城の道順・兵数・打ち合いは既存のまま使う。
 Object.assign(takato, {
   missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
@@ -1092,6 +1099,31 @@ function takatoSakura(rt) {
   });
 }
 
+// 11/2 点付け「地面が一様で暗い土」：天正十年三月二日（今の三月の末）の伊那は雪解け。寄せ口の周り（25秒の本人から十〜六十歩）に、
+// 解け残った雪の斑を地面の傾きに沿わせて置く。寄せ道・土橋・堀は空ける。一つの形を使い回す一回の描画（設営の時だけ）。
+function takatoSnowPatches(rt) {
+  const W = rt.world;
+  let seed = 30511;
+  const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  const D = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), n = new THREE.Vector3(), q = new THREE.Quaternion();
+  const snow = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 9, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: 0xc8ccca }), 150);
+  const gy = (x, z) => Math.max(W.heightAt(x, z), drawGroundAt(W, x, z));
+  let k = 0;
+  for (let t = 0; t < 3000 && k < 150; t++) {
+    const a = rnd() * Math.PI * 2, r = 10 + rnd() * 50, x = 101 + Math.cos(a) * r, z = Math.sin(a) * r;
+    if (x < 92 || Math.abs(z) < 5 || W.inWaterAt?.(x, z)) continue;
+    if (rnd() > .35 + .55 * Math.sin(x * .09 + Math.cos(z * .07) * 2.2) ** 2) continue;
+    const gx = gy(x + 1, z) - gy(x - 1, z), gz = gy(x, z + 1) - gy(x, z - 1);
+    n.set(-gx / 2, 1, -gz / 2).normalize(); q.setFromUnitVectors(up, n);
+    D.position.set(x, gy(x, z) - .08, z); D.quaternion.copy(q); D.rotateY(rnd() * Math.PI);
+    const s = .8 + rnd() * 2.2; D.scale.set(s * (1 + rnd() * .9), .16 + rnd() * .08, s);
+    D.updateMatrix(); snow.setMatrixAt(k++, D.matrix);
+  }
+  snow.count = k; snow.receiveShadow = true; snow.computeBoundingSphere();
+  rt.scene.add(snow);
+}
+
 // 大手の前の空堀に溜まった雪解け水。低い目線でも堀と読めるよう、空を映す淡い水面の帯を底へ一枚ずつ（形二つ・材質一つ、準備時だけ）。
 function takatoMoatWater(rt) {
   // 灰青の板に見せない：澄んだ雪解け水に空と岸を映す、暗く滑らかな水面（10/29 20:40 採点「堀の水面」）。
@@ -1280,7 +1312,9 @@ function takatoFieldMelee(rt) {
   // 11/1（三）：軽い兵の切りが本人16m・カメラ12m に詰まった。25秒の本人（x 97〜105・z 0）の前二十〜三十歩へ寄せる。
   //   肩越しの向きは流すたびに西（大手門）・東（寄せ道）・北・南へ振れる。西は門前の土橋の口（塀際の本物の押し合いの間）、北と南は堀の外の縁の平場（逆茂木・桜の外）、
   //   東は寄せ道へ打って出た城方の一手と森勢の後詰め（推定）。北と南は前線を東西に、門前と東は南北に引く（向いた時に横一面に見える）。
-  for (const [x, z, facing, w, a, b, seed] of [[84, 0, -Math.PI / 2, 22, 34, 40, 30413], [100, 25, 0, 12, 28, 38, 30411], [100, -30, Math.PI, 12, 28, 38, 30412], [125, 8, -Math.PI / 2, 14, 30, 36, 30414]]) {
+  // 11/2 点付け（高遠68・三回とも同じ構図）：25秒の本人は（100,0）でカメラは東（向き 0.9,0.43）。東の一つ（125,8）は桜と雑木の幹の向こうで霞み、写らなかった。
+  //   カメラの正面二十歩（118,9）へ寄せ、前線を画面に横一面に見える向き（1.12）にし、城方を厚くする（軽い兵だけ）。手前の雑木は takatoClearView で抜く。
+  for (const [x, z, facing, w, a, b, seed] of [[84, 0, -Math.PI / 2, 22, 34, 40, 30413], [100, 25, 0, 12, 28, 38, 30411], [100, -30, Math.PI, 12, 28, 38, 30412], [118, 9, 1.12, 20, 34, 50, 30414]]) {
     F_MELEE.list.push(W.addClash({ rt, play, smoke, x, z, facing, w, bw: 5.2, gap0: 0, gap: 2.4, seed, noRout: true,
       maxDrift: 1.2, realNear: 9, nearHide: 0, killRate: .004, host: false, corpses: 8, A: { ...oda, count: a }, B: { ...nishina, count: b, bows: false } }));
   }
@@ -1434,6 +1468,7 @@ takato.setup = function (rt) {
   takatoGateBrawl(rt);
   takatoFieldMelee(rt);
   takatoSakura(rt);
+  takatoSnowPatches(rt);
   // 11/1 点付け「地面が一様」：大手の寄せ口（25秒の所）の土を一色にしない。踏み跡・窪みの泥・岩の根の草、半分埋めた岩（共通の stage_dress。兵は増やさない）
   dressStage(rt, { at: { x: 101, z: 1, heading: -1.0 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 0, rocks: 0, radius: 45, wet: 0.7, trodden: 0.9, seed: 3011,
     avoid: (x, z) => Math.abs(z) < 13 && x < 96 });

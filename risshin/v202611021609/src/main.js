@@ -65,6 +65,7 @@ import { keraiPrepareHtml } from './retainers.js';
 import { BATTLE_IDS } from './battle_ids.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
 import { TOKUGAWA_LINE } from './tokugawa_line.js';
+import { markTokuWon } from './tokugawa_secret.js';
 import { isLocked, showPaywall } from './paywall.js';
 import { showAfterWin } from './ads.js';
 import { ADDITIONAL_TIPS, pickTip } from './tips.js';
@@ -2351,6 +2352,8 @@ const game = {
     if (b.def.mapCastle) { this.endMapBattle(b); return; }
     const G = this.G;
     const i = b.index;
+    // 徳川編の勝ちを覚える（15戦すべてで秘密の戦が開く。試しの出陣でも数える）
+    if (G.scenario === 'tokugawa' && b.tracker.main === true && !b.result?.down) markTokuWon(BATTLES[i]?.id);
     if (b.def.dojo) {
       const k = b.flags.kills || 0, w = b.flags.wave || 0, t = b.t;
       this.stopBattle(); b = null;

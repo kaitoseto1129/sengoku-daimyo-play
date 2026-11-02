@@ -768,10 +768,11 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip) {
   if (!(s.namesAt > rt.t - .25 && s.namesAt <= rt.t)) {
     s.namesAt = rt.t;
     const list = s.nameList || (s.nameList = []); list.length = 0;
+    const nameR = rt.def.nameRange || NAME_R;   // 戦ごとの名札の届く距離（門の奥まで見通す天王寺で、遠い後詰の名が積み重なる）
     for (const u of rt.army.units) {
       if (!general(u) || u.isPlayer || u.isStruct || u.civ || u.team > 1 || !live(u)) continue;
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-      if (d2 > NAME_R * NAME_R && u !== commander) continue;
+      if (d2 > nameR * nameR && u !== commander) continue;
       u._fsNameD = d2;
       u._fsNameSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
       list.push(u);
@@ -806,6 +807,8 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip) {
   for (let i = 0; i < items.length; i++) {
     const it = items[i], y0 = it.y;
     let ok = false;
+    // 11/1 Simple：画面の知らせは同時に三つまで（近い武将から。名札が群れて重ならないように）
+    if (shown >= 3) { if (!it.e.hidden) it.e.hidden = true; continue; }
     for (const dir of [-1, 1]) {
       it.y = y0;
       for (let n = 0; n < 7; n++) {

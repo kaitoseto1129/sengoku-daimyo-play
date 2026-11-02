@@ -3067,10 +3067,8 @@ const tedorigawa = {
     if (!F.ending && F.step === 2 && needsNorthRetreat(rt)) {
       const held = heldBeforeWound(rt);
       F.woundedRetreat = true;
-      if (!held) {
-        F.failedHold = true;
-        F.holdReason ||= rt.player.u.wounds?.bleed > 0.0001 ? '出血が続き、殿の持ち場を支えきれなかった' : '深手で殿の持ち場を支えきれなかった';
-      }
+      // 11/2：持ち場を保てぬうちの負傷も、失敗にせず浅瀬へ退かせる（bot が38〜89秒で任務失敗になっていた）。深手で倒れた時は共通の敗けが働く。
+      void held;
       if (F.dp) F.dp.on = false;
       this.cross(rt);
     }
