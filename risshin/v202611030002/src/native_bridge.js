@@ -8,7 +8,18 @@ export const GC_BOARD = 'risshin.merit';
 export const gcAchId = (id) => `risshin.ach.${id}`;
 export function gcUnlock(id) { try { const h = H('gamecenter'); if (h) h.postMessage({ op: 'ach', id: gcAchId(id) }); } catch (e) { /* 失敗しても遊びを止めない */ } }
 export function gcScore(pt) { try { const h = H('gamecenter'); if (h && pt > 0) h.postMessage({ op: 'score', board: GC_BOARD, value: Math.round(pt) }); } catch (e) { /* 同上 */ } }
-export function gcShow() { try { const h = H('gamecenter'); if (h) h.postMessage({ op: 'show' }); } catch (e) { /* 同上 */ } }
+export function gcShow(board) { try { const h = H('gamecenter'); if (h) h.postMessage(board ? { op: 'show', board } : { op: 'show' }); } catch (e) { /* 同上 */ } }
+// 戦ごとの順位表（11/2）：討った数（多いほど上）と、早く勝った時間（秒・短いほど上。勝った時だけ）
+export const gcKillsBoard = (id) => `risshin.kills.${id}`;
+export const gcTimeBoard = (id) => `risshin.time.${id}`;
+export function gcBattle(id, kills, sec, win) {
+  try {
+    const h = H('gamecenter');
+    if (!h || !id) return;
+    if (kills > 0) h.postMessage({ op: 'score', board: gcKillsBoard(id), value: Math.round(kills) });
+    if (win && sec > 0) h.postMessage({ op: 'score', board: gcTimeBoard(id), value: Math.max(1, Math.round(sec)) });
+  } catch (e) { /* 同上 */ }
+}
 export const hasGameCenter = () => !!H('gamecenter');
 export const hasICloud = () => !!H('icloud');
 

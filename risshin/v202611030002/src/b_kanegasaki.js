@@ -104,7 +104,8 @@ function kgOvercastMorning(W) {
 // 登城道の麓の木戸：金ヶ崎城の大手の外構え（位置・形は推定）。一の備から正面に、城の入口の冠木門と柵を見せる。
 // 柵は斜面に沿って短く切り、一束にまとめる。設営時に一度だけ。
 function kgFootGate(rt) {
-  const W = rt.world, gx = 8, gz = -47;
+  // 11/2 点付け（金ヶ崎76）：木戸と柵は持ち場の九歩先で、その奥の坂の乱戦を隠していた。坂の上へ十一歩上げ、乱戦の後ろに置く。
+  const W = rt.world, gx = 8, gz = -58;
   rt.scene.add(kabukimon(W, gx, gz, 4.4, 0, {}));
   const batch = makeSimpleBatch();
   for (const [ax, az, bx, bz] of [[-6, gz + 1, gx - 2.4, gz], [gx + 2.4, gz, 22, gz - 2]]) {
@@ -3161,7 +3162,8 @@ const kanegasaki = {
       const K = (o) => clash(rt, { bw: 5.2, gap: 2.4, host: false, noRout: true, killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0, ...o });
       F.slopeClashes = [
         // 11/1 中景：北の坂の乱戦は二十七歩先で画面の上の縁に掛かっていた。坂の下へ八歩寄せて画面の真ん中に。
-        K({ x: 5, z: -55, facing: Math.PI, w: 16, seed: 1583,
+        // 11/2：まだ画面の上の縁（木戸と柵の奥）だった。持ち場から十三歩（本物に替える十二歩のすぐ外）まで下げ、幅を広げて画面の真ん中に。
+        K({ x: 7, z: -52, facing: Math.PI, w: 20, seed: 1583,
           A: { flag: 'oda', armor: KIT.ARMOR.oda, count: 24, flagRate: 0.22 },
           B: { flag: 'asakura', armor: ASAKURA.armor, count: 52, flagRate: 0.3 } }),
         K({ x: 25, z: -28, facing: Math.atan2(0.83, 0.55), w: 12, seed: 1584,

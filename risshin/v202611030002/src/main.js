@@ -936,7 +936,7 @@ function drawScene(scene, fresh = false) {
     // 昼の雨も、中・高の明暗順応（暗い絵を最大1.3倍）が無い分だけ少し持ち上げる
     const wr = nightWorld && nightWorld.scene === scene ? Math.min(1, nightWorld.rainLevel || 0) * (1 - night) : 0;
     // 夜の増感にも下限（箕作 0.45 のように下げすぎると、夜の兵が形ごと沈む）。夜らしい青さは空と光の色で保つ。
-    renderer.toneMappingExposure = e0 * (1 + night * Math.max(NIGHT_EXPOSURE_MIN, nightWorld?.def.lowNightExposure ?? 1.25)) * (1 + wr * 0.15);
+    renderer.toneMappingExposure = e0 * (1 + night * Math.max(NIGHT_EXPOSURE_MIN, nightWorld?.def.lowNightExposure ?? 1.25)) * (1 + wr * 0.15) * (S.brightness || 1);
     const lifted = night > 0 && nightWorld.liftNightBackdrop && nightWorld.liftNightBackdrop(night);
     renderer.render(scene, camera);
     if (lifted) nightWorld.dropNightBackdrop();
@@ -977,7 +977,7 @@ function drawScene(scene, fresh = false) {
   const hi = true, U = finishPass.uniforms;
   { const A2 = adaptPass.mat.uniforms; U.uBloomK.value = 0; U.tBloom.value = null; A2.uBloomK.value = 0; A2.tBloom.value = null; }
   // 夜の戦は中・高でも沈みすぎて何も見えなかった（大河内の夜の雨が真っ黒）。月明かりで兵と地形の形が読める所まで上げる
-  U.toneMappingExposure.value = renderer.toneMappingExposure * (1 + night * 0.7);
+  U.toneMappingExposure.value = renderer.toneMappingExposure * (1 + night * 0.7) * (S.brightness || 1);
   U.uNight.value = night;
   adaptPass.mat.uniforms.uNight.value = night;
   if (!RMm()) U.uTime.value = (U.uTime.value + 1 / 60) % 1000;
@@ -1498,7 +1498,7 @@ function resumePlay() {
   if (!locked) game.noLock = true;
   setPause(false);
 }
-function setPause(on) {
+function setPause(on, opts = null) {
   if (!$('loading').hidden) { input.clear(); return; }
   if (game.deployment) { input.clear(); return; }
   // 軍議（gungi.js）の間は、札を閉じても時は止めたまま（軍議の下で戦が動き出し、カメラが自分の目へ戻るのを防ぐ）
@@ -1512,6 +1512,7 @@ function setPause(on) {
   if (on && game.battle) {
     const b = game.battle;
     pauseMenu(el, {
+      settingsOnly: !!opts?.settings,
       error: game.lastError,
       hud: game.hud,
       battle: b,
@@ -2414,7 +2415,7 @@ const game = {
       const wt = (G.equip && G.equip.weapon) || '';
       const ck = { kills: b.stats.kills || 0, time: b.t, id: BATTLES[i].id, win: !!r.mainDone, weapon: /gun|teppo/.test(wt) ? 'gun' : 'spear', grade: r.grade || '' };
       if (!G.practice) import('./daily.js').then((m) => { if (m.dailyNote(ck, G).length) save(G); }).catch(() => {});
-      import('./native_bridge.js').then((m) => { m.gcScore(G.merit || 0); m.icloudPush(); }).catch(() => {});
+      import('./native_bridge.js').then((m) => { m.gcScore(G.merit || 0); if (!G.practice) m.gcBattle(ck.id, ck.kills, ck.time, ck.win && !r.downInfo); m.icloudPush(); }).catch(() => {});
     } catch (e) { /* 失敗しても進める */ }
     const hit = b.player.lastHit;
     if (b.result?.down && hit) {
@@ -2547,6 +2548,11 @@ const game = {
       const toTown = () => inkBand(`${(BATTLES[G.battle] && BATTLES[G.battle].town) || '城下'}へ戻る`, BATTLES[i].name, () => this.base());
       actions.push({ label: 'ホームへ戻る', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
       actions.push(retry);
+    }
+    // 戦ごとの順位表（Game Center・アプリだけ）を結果の画面から開く
+    if (!G.practice && window.webkit?.messageHandlers?.gamecenter) {
+      const gcId = BATTLES[i].id;
+      actions.push({ label: '順位を見る', fn: () => import('./native_bridge.js').then((m) => m.gcShow(m.gcKillsBoard(gcId))).catch(() => {}) });
     }
     // 勝った後の広告（アプリだけ・一戦に一回）：結果の画面を閉じる主の釦で頼む。負け・練習・やり直しでは出さない（ads.js）
     if (r.mainDone && !r.downInfo && !G.practice) {

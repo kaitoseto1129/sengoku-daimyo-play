@@ -2418,6 +2418,13 @@ function batchFleet(rt) {
 // 旗・帆・櫂・波・乗員は動くので元のまま。舟ごとの位置・向き・沈みは舟の入れ物で動かすので変わらない
 const SHIP_MERGED = new Map();
 let SHIP_PLAIN = null;
+// 形・材質の識別子を鍵にする表は、戦を作り直すたびに別の項目になる。
+// 本番の片付けで場面の形を返した後、表だけに残った形と長い鍵も手放す。
+function disposeShipCaches() {
+  const geometries = new Set([...SHIP_PARTS.values(), ...SHIP_MERGED.values()]);
+  SHIP_PARTS.clear(); SHIP_MERGED.clear();
+  for (const geometry of geometries) geometry.dispose();
+}
 function compactShip(g) {
   // 波（四枚）は見える見えないが舟ごとに一緒なので、一枚の形にまとめる
   const W = g.userData.wakes;
@@ -3206,8 +3213,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     document.head.appendChild(deckStyle);
     const dispose = rt.dispose;
     rt.dispose = function () {
+      if (this.disposed) return;
       hud.classList.remove('kizugawa-deck'); deckStyle.remove();
-      dispose.call(this);
+      try { dispose.call(this); } finally { disposeShipCaches(); }
     };
     W.cameraBlockFraction = (from, to) => {
       if (rt.player.fpK >= 0.5) return null;
