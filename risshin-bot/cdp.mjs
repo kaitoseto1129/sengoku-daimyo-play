@@ -1,6 +1,6 @@
 // 裏で Chrome を動かすための小さな道具（別のプロファイルを使うので、ふだんの保存には触れない）
 // 同時に開く数は openChrome の「席取り」で絞る（既定2・env CHROME_SLOTS で変えられる。Linux は既定で絞らない）
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { rmSync, mkdtempSync, existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -33,8 +33,19 @@ function hookRelease() {
   process.on('SIGINT', () => { releaseAllSlots(); process.exit(130); });
   process.on('SIGTERM', () => { releaseAllSlots(); process.exit(143); });
 }
+// 機械全体の関所（11/2 mini が裏の Chrome 40個で記憶が尽き、6度パニックで再起動した）：
+// 見張り（.local-tools/mem_guard.sh）が重い時に置く /tmp/risshin_mem_heavy がある間と、裏の Chrome が CHROME_HARD（既定8）個ある間は開かずに待つ（最大20分）
+function cftCount() {
+  try { return +execSync("ps -Ao command= | grep -c '[G]oogle Chrome for Testing.app/Contents/MacOS/[G]oogle Chrome for Testing '", { encoding: 'utf8' }).trim() || 0; } catch (e) { return 0; }
+}
+async function waitMachine() {
+  if (process.platform !== 'darwin') return;
+  const hard = +process.env.CHROME_HARD || 8, t0 = Date.now();
+  while (Date.now() - t0 < 20 * 60e3 && (existsSync('/tmp/risshin_mem_heavy') || cftCount() >= hard)) await sleep(5000 + Math.random() * 5000);
+}
 async function acquireSlot() {
   const n = slotCount();
+  await waitMachine();
   if (n <= 0) return null;  // 絞らない
   try { mkdirSync(SLOT_DIR, { recursive: true }); } catch (e) { /* あればよい */ }
   hookRelease();
@@ -121,7 +132,8 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
     // node が止められた時に Chrome だけが置き去りにならないように（置き去りが十数個たまって機械が重くなった。10/6）
     const reap = () => { try { chrome.kill('SIGKILL'); } catch (e) { /* noop */ } };
     process.once('exit', reap);
-    for (const s of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.once(s, () => { reap(); process.exit(1); });
+    // SIGALRM：perl -e 'alarm N; exec node …' の時間切れで node が死に、Chrome が置き去りになっていた（11/2）
+    for (const s of ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGALRM']) process.once(s, () => { reap(); process.exit(1); });
     let ws;
     for (let i = 0; i < 150 && !ws; i++) {
       try {
