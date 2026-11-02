@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202611020839 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202611020905 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202611020839/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611020839/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611020839/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611020839/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202611020905/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611020905/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611020905/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611020905/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -89,8 +89,9 @@
   --line: rgba(236, 228, 210, 0.16);
   --display: "Hiragino Mincho ProN", "Yu Mincho", serif;
   --ui: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
-}
-[hidden] { display: none !important; }
+  /* 題字（題・戦の名・位の名）だけの明朝。Shippori Mincho B1（OFL）を使う字だけに絞った同梱の字（docs/CREDITS.md） */
+  --title: "Risshin Title", "Hiragino Mincho ProN", "Yu Mincho", serif;
+}[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; background: var(--sumi); color: var(--washi); font-family: var(--ui); font-size: max(12px, calc(16px * var(--text-scale))); overflow: hidden; }
 canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 /* 画面の四隅をわずかに落とす（レンズの周辺減光。HUD には掛けない） */
@@ -187,7 +188,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--kin); outli
 #screen.clear { background: rgba(10,9,7,.78); backdrop-filter: blur(3px); }
 .wrap { max-width: 880px; margin: 0 auto; padding-block: 48px; }
 .eyebrow { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--washi-dim); }
-h1.title { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(52px, 10vw, 104px) * var(--text-scale, 1))); letter-spacing: .12em; margin: 12px 0 4px; line-height: 1.05; text-wrap: balance; }
+h1.title { font-family: var(--title); font-weight: 800; font-size: max(12px, calc(clamp(52px, 10vw, 104px) * var(--text-scale, 1))); letter-spacing: .12em; margin: 12px 0 4px; line-height: 1.05; text-wrap: balance; }
 h1.title span { color: var(--shu); }
 .lead { max-width: 34em; color: var(--washi-dim); line-height: 1.9; font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 .btn { appearance: none; border: 1px solid var(--washi); background: transparent; color: var(--washi); padding: 12px 28px; font-size: max(12px, calc(15px * var(--text-scale, 1))); letter-spacing: .14em; cursor: pointer; transition: background .15s, color .15s; }
@@ -215,7 +216,7 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 /* story card */
 .story { min-height: 100%; display: grid; place-items: center; text-align: center; }
 .story .year { font-size: max(12px, calc(13px * var(--text-scale, 1))); letter-spacing: .4em; color: var(--washi-dim); }
-.story h2 { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(36px, 7vw, 72px) * var(--text-scale, 1))); letter-spacing: .18em; margin: 14px 0 22px; }
+.story h2 { font-family: var(--title); font-weight: 800; font-size: max(12px, calc(clamp(36px, 7vw, 72px) * var(--text-scale, 1))); letter-spacing: .18em; margin: 14px 0 22px; }
 .story p { max-width: 30em; margin: 0 auto 28px; line-height: 2.1; color: var(--washi-dim); font-size: max(12px, calc(15px * var(--text-scale, 1))); }
 
 /* evaluation */
@@ -239,7 +240,7 @@ html.touch #town-sortie { right: calc(16px + env(safe-area-inset-right, 0px)); b
 .facts dd { margin: 0; }
 .promo { border: 1px solid var(--kin); padding: 20px 22px; margin: 18px 0 24px; background: linear-gradient(120deg, rgba(194,162,90,.12), transparent 70%); opacity: 0; animation: ln .6s ease-out forwards; }
 .promo .lbl { font-size: max(12px, calc(12px * var(--text-scale, 1))); letter-spacing: .3em; color: var(--kin); }
-.promo .rk { font-family: var(--display); font-weight: 800; font-size: max(12px, calc(clamp(26px, 5vw, 38px) * var(--text-scale, 1))); margin: 8px 0; letter-spacing: .08em; }
+.promo .rk { font-family: var(--title); font-weight: 800; font-size: max(12px, calc(clamp(26px, 5vw, 38px) * var(--text-scale, 1))); margin: 8px 0; letter-spacing: .08em; }
 .promo .rk .arrow { color: var(--washi-faint); margin: 0 .4em; font-weight: 600; }
 .promo .unl { font-size: max(12px, calc(14px * var(--text-scale, 1))); color: var(--washi); }
 .promo .unl b { color: var(--kin); font-weight: 500; }
@@ -1814,7 +1815,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202611020839/screens.css">
+<link rel="stylesheet" href="./v202611020905/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1963,5 +1964,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202611020839/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202611020905/src/main.js').catch((error) => window.__bootFail(error));
 </script>
