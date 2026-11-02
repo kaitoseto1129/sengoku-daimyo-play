@@ -1,5 +1,6 @@
 // 題の画面に要る戦の名前だけ。battles.js の DEF_BY_ID に戦を足した時は、ここにも足す。
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
+import { TOKUGAWA_LINE } from './tokugawa_line.js';
 export const BATTLE_IDS = ['inou', 'okehazama',
   'moribe',
   'sunomata',
@@ -49,4 +50,5 @@ export const BATTLE_IDS = ['inou', 'okehazama',
   'takato_old',
   'hieizan_old',
   // 豊臣編は toyotomi_line.js の並びをそのまま（各戦の係はここを触らない）
-  ...TOYOTOMI_LINE.map((b) => b.id)];
+  ...TOYOTOMI_LINE.map((b) => b.id),
+  ...TOKUGAWA_LINE.map((b) => b.id)];

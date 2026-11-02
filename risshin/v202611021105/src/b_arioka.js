@@ -1626,7 +1626,12 @@ const arioka = {
   playerTaken: 0.6,
   playerRegen: 0.02,   // 戦っていない間（四秒当たらない間）は命が少しずつ戻る
   frameCamera: ariTabaView,
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
+  meleeGrace: { rate: 1, burst: 1, interval: 4 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 15791, moveLim: 1080, groundHalf: 1100,
     time: 'night', unitNightScale: 0, // 兵だけ青白く光らせず、具足と顔を同じ月光で照らす。
     nightLift: 3.0, nightFill: 0.8, nightMoonMin: 1.4, lowNightExposure: 1.6, // 霜の夜を昼のような青白い一枚に持ち上げない（10/28 木戸の外が白い砂の一枚に見えた）。篝火と月の陰を残す。
@@ -1684,6 +1689,7 @@ const arioka = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     timeslipField(rt);   // 身の回りの凍てた町筋・轍・倒れた槍と旗（def.timeslip）
     const F = rt.flags;
@@ -2933,7 +2939,8 @@ function ariStage(o, defending) {
 function ariFight(o) { return ariStage(o, false); }
 function ariHold(o) { return ariStage(o, true); }
 // 辻から木戸へは通りと砦を回って約百四十メートル。足を傷め、構えて退く時間も残す。
-const ARI_RETURN_LIMIT = 150;
+// 11/1：帰り道で寄せ返す荒木勢と斬り合うと 150 秒では戻れず、bot が三度に二度「戻るのが遅れ」で負けた。寄せ返しの数は変えず、戻る時を延ばす。
+const ARI_RETURN_LIMIT = 200;
 function ariReturnGuide(p) {
   if (p.x > GATE.x + 23 && p.z > GATE.z + 2.5) {
     if (Math.abs(p.x - (TOWN_X + 2)) > .8) return '道の印で通りへ戻れ';

@@ -192,6 +192,8 @@ function passNearestFoe(rt) {
 
 const echizen = Object.defineProperties({}, Object.getOwnPropertyDescriptors(kinome));
 // 稲生と同じ共有の仕組みを使い、任務以外の指図・歩数・白い輪を出さない。
+// 11/1：共通の既定（本人へ四人が同時・一太刀五割）で bot が倒れて負けた。一太刀を一割八分に、刃の後4秒は次を通さず、同時に打つのは二人まで（木ノ芽峠の登録は変えない）
+Object.assign(echizen, { cutFloor: 0.35, meleeGrace: { rate: 1, burst: 1, interval: 4 }, world: { ...kinome.world, playerAtkMax: 2 } });
 Object.assign(echizen, {
   missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
   noPlayerFoot: true, quietMiss: true, noSiegeCards: true, noDodgeCard: true,
@@ -1136,6 +1138,7 @@ function passCampScenery(rt) {
 }
 
 echizen.setup = function (rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
   // 資料本の足軽：黒褐色の貸し胴と草摺、赤茶の漆の陣笠。金色の総具足にはしない。
   // 既存の陣笠・桶側胴・素懸威を共用し、兵・形・材質の種類を増やさない。
   const addUnit = rt.army.addUnit;

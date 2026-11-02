@@ -2807,7 +2807,7 @@ const hiei_mtn = {
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
   groundStandards: true, // 急な山道でも、隊旗の竿の根を地形に合わせて直立させる。
   // 狭い山道で前の僧兵に囲まれても、重なった槍で一息に倒れない（桶狭間・森部・志賀と同じ受けの猶予）。矢と火は別の危険として残す。
-  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.2 },
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 4 },
   spawn: { x: P.spawn.x, z: P.spawn.z, heading: -Math.PI / 2 },
   // 身の回りの当時の場（timeslip_field.js）。元亀二年九月十二日は今の九月末。山の参道は乾き、焼け打ちの灰が地を這う。
   // 登り口・文殊楼・中門・根本中堂の前に、僧兵の捨てた笠と矢、折れた枝。急な山腹と湖には置かない。
@@ -2819,7 +2819,11 @@ const hiei_mtn = {
     fights: [[P.trailhead.x, P.trailhead.z, 26], [P.monjuro.x, P.monjuro.z, 26], [P.court.x, P.court.z, 30], [P.chudo.x, P.chudo.z, 26], [P.saito.x, P.saito.z, 26]],
   },
   // 低い踏石は近くで透かす。段ごとのカメラ押し上げ・毎コマの全段検査は要らない。
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 15710,
     // 現在の比叡山でも畳・襖・須弥壇を堂内の光へ揃える。材質は全棟で共有する。
     interiorMaterial: hieiRoomMaterial,
@@ -2906,6 +2910,7 @@ const hiei_mtn = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     hieiFarBoundary(W);

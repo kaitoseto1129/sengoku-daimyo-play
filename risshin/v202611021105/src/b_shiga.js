@@ -2265,7 +2265,7 @@ const shiga = {
   meleeThreatRange: 7, // 遠い追手を出し続けず、槍が迫る手前で知らせる。
   meleeThreatHeight: 2.5, // 折り返しの上段・下段にいる敵の槍を同じ道の危険にしない。
   // 重なる槍で退く間を失わない。既存の傷枠を使い、厳しい戦・矢玉・火傷は従来どおり。
-  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.2 },
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 3 },
   noTaisho: true, // この戦にいない各務元正や、別の本陣襲撃を共通処理で足さない。
   // 狭い折り返しでは徒歩で下知を運ぶ。別仕立ての飾りの騎馬は柵際へ走らせない。
   footRunners: true,
@@ -2281,7 +2281,11 @@ const shiga = {
     maxSlope: 0.2,
     fights: [[TOWN_POST.x, TOWN_POST.z, 34], [NOBUHARU_POST.x, NOBUHARU_POST.z, 24], [AOCHI_POST.x, AOCHI_POST.z, 24], [GATE_OUT.x, GATE_OUT.z, 22]],
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.5,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     noHaori: true,
     variedInfantry: true,
     variedLoanArmor: true,
@@ -2423,6 +2427,7 @@ const shiga = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの刈り跡の田・町口の矢と笠（def.timeslip）

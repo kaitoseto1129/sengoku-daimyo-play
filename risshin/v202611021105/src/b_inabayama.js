@@ -4090,7 +4090,7 @@ const inabayama = {
   noTaishoRaid: true,
   uchisute: true, // 火付けと攻城を急ぐ。首を集める札を出さない。
   // 普通・易では、槍が重なっても満身から十八秒以上は退く余地を残す。
-  meleeGrace: { rate: 0.05, burst: 0.08, interval: 0.85 },
+  meleeGrace: { rate: 0.05, burst: 0.08, interval: 4 },
   // 列や建物の当たりを残し、組の脇の空いた所から始める。
   // 稲生の標準（kaito 10/23）：小地図・足元の輪・浮かぶ字の札を出さず、行き先のピン・敵の頭上の▼・右上の任務一行に絞る。
   noControlsHelp: true,   // 操作の字は尾張の戦で覚える。この戦では出さない
@@ -4313,7 +4313,11 @@ const inabayama = {
     if (F.step === 4) return F.sig ? 'sig' : 'honGuard';
     return 'kino';
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     syntheticSound: true, // 鬨・鉄砲・馬・川も、録音に替えず合成音でそろえる。
     // 合図は台詞と任務に結び付ける。環境音の太鼓・法螺が下知と混ざるのを防ぐ。
     ambientSignals: false,
@@ -4519,6 +4523,7 @@ const inabayama = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     installInabaPresentation(rt);

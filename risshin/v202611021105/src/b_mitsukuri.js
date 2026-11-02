@@ -2785,7 +2785,7 @@ const mitsukuri = {
     });
   },
   // 普通・易では、満身から二十秒の近接戦でも退く余地を残す。
-  meleeGrace: { rate: 0.035, burst: 0.07, interval: 0.9 },
+  meleeGrace: { rate: 0.035, burst: 0.07, interval: 4 },
   noticeLimit: 2,
   missionDialogue: true, // 箕作の下知は任務一枚と短い台詞で伝える。
   missionSingleLine: true,
@@ -2832,7 +2832,11 @@ const mitsukuri = {
     flagColors: [0xe6e0d0, 0x22201c, 0xd9b23a],
     fights: [[OPEN_PT[0], OPEN_PT[1] - 6, 24], [TORCH[2].x, TORCH[2].z, 20], [0, -75, 22], [-45, -95, 24]],
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     allyTaken: 0.7,   // 10/28：郭ごとの制圧に要る味方が城兵の新手に削られ、二の丸・本丸の手前で攻め止めになった（bot 6回に4敗）。寄せ手の傷みを七割に
     nearAllyFadeRadius: 1.1, // 兵の更新側も描画直前の全身よけへそろえる。
     blockedHint: () => '急な崖は通れない。二の丸から本丸へは西の道と石段を通れ',
@@ -2953,6 +2957,7 @@ const mitsukuri = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     rt.def.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 板の間・台の上は床に隠れる

@@ -97,8 +97,12 @@ export function playerPressureTick(army) {
   // 目前の打ち手へ、手の空いた徒歩の味方を呼ぶ。深手で退く時は三人まで。
   // 退却・行軍・射撃・筋書きの持ち場は守り、既に打ち合う者は取り上げない。
   const dx = first.pos.x - p.pos.x, dz = first.pos.z - p.pos.z;
+  // 11/1 実機（iPad の田野）：何もせず立つ本人が、寄せた小勢の二、三人に斬られ続けて倒れた（味方は退く時しか呼ばなかった）。
+  //   止まって打ち返さない本人へ敵が寄ったら（8m 内）、退く時と同じく近くの味方を呼んで守らせる。
+  const still = Math.hypot(p.vel?.x || 0, p.vel?.z || 0) < 0.3 && !p.atk && !p.swing;
   const retreating = p.hp <= p.maxHp * 0.3 &&
-    ((p.vel?.x || 0) * dx + (p.vel?.z || 0) * dz < -0.1 || Math.hypot(dx, dz) > 4.5);
+    ((p.vel?.x || 0) * dx + (p.vel?.z || 0) * dz < -0.1 || Math.hypot(dx, dz) > 4.5) ||
+    still;
   if (foes.length < 4 && !retreating) return;
   // 体力三割以下で 6m 内に味方がいない時は、遠くの味方も呼ぶ（20m 内の四人まで）。
   let lone = false;

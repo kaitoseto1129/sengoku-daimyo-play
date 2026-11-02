@@ -1350,6 +1350,7 @@ const mikatagahara = {
     fights: [[14, LINE_Z - 4, 36], [TAKIGAWA_X, LINE_Z - 10, 30], [NEARAI.x, NEARAI.z, 20], [SOUTH_SLOPE.x, SOUTH_SLOPE.z - 14, 26], [REARGUARD_POST.x, REARGUARD_POST.z, 22]],
   },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定の四人と一太刀五割では bot が倒れて負けた）。寄せる数・敵の強さは変えない
     combatSpace: mikataCombatSpace,
     contactShadows: true, // 高画質の人馬にも、影地図と重なりすぎない坂沿いの接地影を残す。
     meleeBodySpace: 1.2, // 乱戦で徒歩の兵の胴が重ならないよう、既存の押し合いを使う。

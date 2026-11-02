@@ -2971,7 +2971,7 @@ const kizugawa = {
   prelude: false,   // 船団は既に包囲へ寄せている。陸戦の開戦待ちを重ねない。
   softOpen: 90,   // 最初の乗り込みは傷を半分にし、大筒と構えを覚える間を残す。
   // 狭い甲板で重なる槍に、構え直して退く間を作る。矢玉・火傷と難しい戦は従来どおり。
-  meleeGrace: { rate: 0.025, burst: 0.08, interval: 0.85 },
+  meleeGrace: { rate: 0.025, burst: 0.08, interval: 4 },
   // 肩越しの視点が甲板の外へ出て、楯板越しに自分を透かさないようにする。
   // 上甲板と一人称の視点には手を加えない。床や兵の位置は動かさない。
   clampCamera(rt, pos) {
@@ -3050,7 +3050,11 @@ const kizugawa = {
       rt.flags.wallFrameAt = rt.t;
     }
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 兵を作る側もこの印を見る。戦の表側の印だけでは武将の馬が残る。
     noHorse: true,
     // 舷と屋形の旗・旗持ちは保ち、無名の長柄兵の背旗だけを間引く。
@@ -3158,6 +3162,7 @@ const kizugawa = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     // 長い負傷の文が格子の最小幅を押し広げ、命の棒まで枠外へ出るのを防ぐ。

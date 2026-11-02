@@ -294,10 +294,16 @@ function capturePortrait(s, rt) {
   const R = window.__renderer, p = rt.player, u = p?.u;
   if (!R || window.__norender || !rt.scene || !u?.pos || !u.alive) return false;
   if ((p.fpK || 0) > 0.3) return false;
-  if (!s.faceRT) {
-    s.faceRT = new THREE.WebGLRenderTarget(FACE, FACE);
-    s.faceRT.texture.colorSpace = THREE.SRGBColorSpace;
+  // 11/1 実機（本能寺 0.89秒・比叡山 1.79秒の引っ掛かり）：別の絵の板（RenderTarget）へ描くと、three は画面と違う描き方
+  //   （色の整え無し・直の色）を材質ごとに組み直し、写った物の数だけ同期で待っていた（iPhone の真似で一回 6 秒）。
+  //   画面の左下の隅へ画面と同じ描き方で描いて読み、そのコマの本の描画で上書きする。描き方は画面の物を使い回す。
+  const G = window.__game;
+  if (G && (G.paused || G.mapOpen || G.photo || G.deployment)) return false;
+  const gl = R.getContext && R.getContext();
+  if (!gl || R.getRenderTarget()) return false;
+  if (!s.faceCam) {
     s.faceCam = new THREE.PerspectiveCamera(30, 1, 0.05, 40);
+    s.faceVp = new THREE.Vector4(); s.faceSc = new THREE.Vector4();
     s.facePx = new Uint8Array(FACE * FACE * 4);
     s.faceImg = s.faceG.createImageData(FACE, FACE);
   }
@@ -308,19 +314,21 @@ function capturePortrait(s, rt) {
   cam.position.set(u.pos.x + fx * 1.2 - fz * 0.3, headY + 0.05, u.pos.z + fz * 1.2 + fx * 0.3);
   cam.lookAt(u.pos.x, headY - 0.14, u.pos.z);
   cam.updateMatrixWorld();
-  const prev = R.getRenderTarget();
+  const vp = R.getViewport(s.faceVp), sc = R.getScissor(s.faceSc), scOn = R.getScissorTest();
+  const side = Math.ceil(FACE / (R.getPixelRatio() || 1)) + 1;
   try {
-    R.setRenderTarget(s.faceRT); R.clear(); R.render(rt.scene, cam);
-    R.readRenderTargetPixels(s.faceRT, 0, 0, FACE, FACE, s.facePx);
-  } catch (e) { R.setRenderTarget(prev); return false; }
-  R.setRenderTarget(prev);
+    R.setViewport(0, 0, side, side); R.setScissor(0, 0, side, side); R.setScissorTest(true);
+    R.clear(); R.render(rt.scene, cam);
+    gl.readPixels(0, 0, FACE, FACE, gl.RGBA, gl.UNSIGNED_BYTE, s.facePx);
+  } catch (e) { return false; }
+  finally { R.setViewport(vp); R.setScissor(sc); R.setScissorTest(scOn); }
   const src = s.facePx, dst = s.faceImg.data;
   let sum = 0;
   for (let y = 0; y < FACE; y++) {
     const a = (FACE - 1 - y) * FACE * 4, b = y * FACE * 4;
     for (let i = 0; i < FACE * 4; i += 4) {
-      // 撮った絵は少し明るく（画面の仕上げを通さない分）
-      dst[b + i] = Math.min(255, src[a + i] * 1.25); dst[b + i + 1] = Math.min(255, src[a + i + 1] * 1.25); dst[b + i + 2] = Math.min(255, src[a + i + 2] * 1.25); dst[b + i + 3] = 255;
+      // 画面と同じ仕上げ（色の整え・sRGB）を通った絵なので、そのまま写す
+      dst[b + i] = src[a + i]; dst[b + i + 1] = src[a + i + 1]; dst[b + i + 2] = src[a + i + 2]; dst[b + i + 3] = 255;
       sum += src[a + i + 1];
     }
   }

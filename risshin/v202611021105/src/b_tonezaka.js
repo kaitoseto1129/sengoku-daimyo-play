@@ -1156,6 +1156,8 @@ const tonezaka = {
     if (!rt.player.u.alive || rt.over) return;
     p.y = Math.max(rt.world.heightAt(p.x, p.z) + 1.0, Math.min(p.y, rt.player.u.pos.y + 2.3));
   },
+  cutFloor: 0.35,   // 11/1：構えずに受けた一太刀は命の一割八分（侍は二割）
+  meleeGrace: { rate: 1, burst: 1, interval: 4 },   // 11/1：刃を受けた後の4秒は次の刃が通らない（一太刀五割のまま、同じ一瞬に二太刀・三太刀を浴びて倒れない）
   playerRegen: 0.02,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
   playerTaken: 0.75,   // 受ける傷を七割五分に（稲生の初陣は六割。最後まで戦い通せるように）
   // 身の回りの当時の場（timeslip_field.js）。天正元年八月十三日は今の九月半ば。夜の風雨（『信長公記』）。
@@ -1168,6 +1170,7 @@ const tonezaka = {
     fights: [...ROAD.map(([x, z]) => [x, z, 22]), ...CHASE_ROAD.map(([x, z]) => [x, z, 18])],
   },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定の四人と一太刀五割では bot が倒れて負けた）。寄せる数・敵の強さは変えない
     seed: 15738,
     // 静かな景物は材質で結合し、画面外と遠い小屋の細部を送らない。
     compactScenery: true,
@@ -1251,6 +1254,7 @@ const tonezaka = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world, F = rt.flags;
     timeslipField(rt);   // 身の回りの雨のぬかるみ・水たまり・捨てられた旗と槍（def.timeslip）
     // 退く朝倉勢が道に捨てた荷駄（荷車・俵・樽・箱）と、倒れた荷駄馬（資料との差 10/28：退く軍の見た目）

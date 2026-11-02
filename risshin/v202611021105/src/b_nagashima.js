@@ -2098,7 +2098,12 @@ const nagashima = {
     // 10/30：溜まり・水路の水面の上に濡れた泥と水たまりの板が載り、空を映した青白の板に見えた。水路の水面とその縁には置かない。
     skip: (x, z) => TOWN_STREAMS.some((st) => st.w < 10 && segDist2(x, z, st.pts) < st.w + .6),
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を三割五分（侍は四割強）に、刃を受けた後の2.2秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.7,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 1574,
     noHaori: true, // 本の足軽姿を保ち、武将も陣羽織・マントを着せない。
     time: 'day',
@@ -2216,6 +2221,7 @@ const nagashima = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの岸のぬかるみ・葦・矢（def.timeslip）

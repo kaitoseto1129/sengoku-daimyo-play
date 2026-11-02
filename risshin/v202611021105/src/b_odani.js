@@ -2670,7 +2670,12 @@ const odani = {
   playerTaken: 0.4,   // 夜の谷を登る間の番兵の突きで、木戸の前に着く前に深手になっていた（bot 10/26）。人数と斬り合いは減らさない
   playerRegen: 0.015,   // 斬り合いの合間（四秒当たらない間）は命が少しずつ戻る。谷で退いては戻るのを繰り返させない
   spawn: { x: MOUTH.x - 4, z: MOUTH.z + 6, heading: Math.PI - 0.2 },   // 谷道の内で秀吉の二列の脇に立つ。列の後ろと屋敷の軒を避ける
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
+  meleeGrace: { rate: 1, burst: 1, interval: 4 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 1573,
     noHaori: true, // 足軽主体の夜攻め。名将にも陣羽織・母衣を重ねない。
     softEarthCrust: true, // 土塊の升の境に陰を並べず、谷道を敷石模様にしない。
@@ -2867,6 +2872,7 @@ const odani = {
   introTaskFirst: true, // 横持ちでも、人物紹介より先に最初の仕事を読めるようにする。
   introText: '秀吉のそばで待とう。出発したら道の印に沿って登ろう。京極丸を取れば、城は二つに割れる。',
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     STONES.length = 0; // 前の戦の石（前の場面に置いた物）を使い回さない。

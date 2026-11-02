@@ -2595,7 +2595,12 @@ const echizen_ikko = {
     if (lift > 0) look.y = pos.y + Math.tan(cur + lift) * ld;
   },
   get spawn() { return mode() === 'defend' ? { x: 0, z: 10, heading: Math.PI } : { x: VILLAGE.x, z: VILLAGE.z - 2, heading: 0 }; },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.5,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 15750,
     namedKacchu: ECHIZEN_IKKO_KACCHU, // 近景・遠景とも、この戦の復元装備を使う。
     blockedHint: () => '急な坂や柵は越えられない。参道の印へ戻れ',
@@ -2715,6 +2720,7 @@ const echizen_ikko = {
   // 堂を取り合う最中に、通る仲間の前で戸を閉める案内を出さない。
   doorCloseOK: (rt) => rt.flags.mode === 'defend' || !(rt.flags.step >= 1 && rt.flags.step <= 3),
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     rt.def.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 堂の板の間・台の上は床に隠れる

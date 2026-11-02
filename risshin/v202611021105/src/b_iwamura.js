@@ -1318,7 +1318,12 @@ const iwamura = {
     flagColors: [0xe6e0d0, 0x24221e, 0x9a2c22],
     fights: [[POSTS[0].x, POSTS[0].z, 24], [POSTS[1].x, POSTS[1].z, 24], [0, FENCE_Z - 8, 28], [MOUTH_LINK[3][0], MOUTH_LINK[3][1], 20], [FOOT.x, FOOT.z + 30, 30]],
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を三割五分（侍は四割強）に、刃を受けた後の2.2秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.7,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     noHaori: true, // 本の足軽・徒立ち武者にならい、胴と草摺を隠す陣羽織を外す。
     seed: 15755,
     blockedHint: (rt) => {
@@ -1494,6 +1499,7 @@ const iwamura = {
   introSides: { a: '織田勢', b: '武田勢' },
   introText: 'まず印の篝火へ。近づき「篝火を焚く」を長押ししよう。次の持ち場は任務の札で確かめよう。',
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・霜枯れの草（def.timeslip）

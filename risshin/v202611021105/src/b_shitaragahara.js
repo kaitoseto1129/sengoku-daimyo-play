@@ -1378,7 +1378,12 @@ const shitaragahara = {
       { k: 'nobori', x: -18, z: SB.gates[0] + 14, dx: 0, dz: 4, n: 3, kind: 'oda', h: 5 },
     ],
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を三割五分（侍は四割強）に、刃を受けた後の2.2秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.7,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 小堂は敷地全体の高い地面に床を合わせる。中心だけでは斜面が内陣・外陣へ突き出す。
     // 外観・板床・戸口・石段は既存の共通基準高を使い、設営時だけ地面を測る。
     get interiorFit() { return SETTINGS.quality === 'high'; },
@@ -1556,6 +1561,7 @@ const shitaragahara = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     const openingDetail = SETTINGS.quality === 'high';

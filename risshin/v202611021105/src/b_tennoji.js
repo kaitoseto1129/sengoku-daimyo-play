@@ -2387,7 +2387,12 @@ const tennoji = {
   },
   spawn: { x: 6, z: -52, heading: 0 },   // 南の門と寄せ手を正面に見る。自分は砦の守備隊、信長は外から来る。
   lordSpawn: { x: 4, z: 80, heading: Math.PI },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.5,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     compactScenery: true, // 低画質は静かな景物を材質ごとに結合し、画面外の部品の面を送らない。
     seed: 15764,
     groundHalf: 260,
@@ -2525,6 +2530,7 @@ const tennoji = {
 
   waitForPlayer: true, // 動く・構える・打つまで開戦を待ち、無操作で敗退させない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     timeslipField(rt);   // 身の回りの湿った田の畦・夏草・倒れた槍と旗（def.timeslip）
     const F = rt.flags;

@@ -3241,7 +3241,12 @@ const sunomata = {
     naturalEscapeGait: true,
     bands: SUNO_CIVILIAN_BANDS,
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.5,
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     // 共通の膝・腰・胸の踏ん張りを使い、柵を押す兵の装備の重さを見せる。
     infantryWeight: true,
     closeBattleWeight: true, contactBraceObstacles: true, rearSpearSupport: true,
@@ -3505,6 +3510,7 @@ const sunomata = {
   // 任務を先に示し、開戦前にも史実・築城伝承・遊びの設定を分けて伝える。
   introText: 'まず北の柵の内で敵を待て。近づいた敵を槍で突き、外へ追うな。勝つには材木を一度届ける必要がある。敵が退いたら小屋の南西で材木を担ぎ、印の人足へ渡せ。外へ出る時は南門へ。信長公記には、永禄四年に信長が墨俣の守りを固めたとあります。この戦は永禄九年の一夜城伝承を借りた防衛戦です。史実の総勢は不明です。陣の配置・川筋・兵数・季節・時刻と空模様は遊びの設定です。',
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     // 再設定で光の板が復活しても、この戦の空中には描かせない。

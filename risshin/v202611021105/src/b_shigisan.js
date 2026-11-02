@@ -2362,7 +2362,12 @@ const shigisan = {
     fights: [[GATE.x, GATE.z + 8, 30], [TOWER_POST.x, TOWER_POST.z, 22], [RIDGE1.x, RIDGE1.z, 26], [TOP.x, TOP.z, 30]],
     skip: (x, z) => { const W = SG_TS.world; if (!W) return false; const h = W.heightAt(x, z); return Math.abs(W.heightAt(x + 1.5, z) - h) > 1 || Math.abs(W.heightAt(x, z + 1.5) - h) > 1; },
   },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を三割五分（侍は四割強）に、刃を受けた後の2.2秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.7,
+  meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 15770,
     groundHalf: 420, // 北端の屋敷の切岸まで。草木・実兵の数は増やさない。
     maxWalkDrop: 1.2, // 列を避ける一歩で切岸へ下りず、尾根道と木戸を通る。
@@ -2449,6 +2454,7 @@ const shigisan = {
 
   waitForPlayer: false, // 組頭の下知の後、法螺の合図で寄せる。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     F.entranceEye = new THREE.Vector3(); F.entranceLook = new THREE.Vector3();

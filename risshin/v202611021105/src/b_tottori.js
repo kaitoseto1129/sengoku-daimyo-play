@@ -1734,7 +1734,7 @@ const tottori = {
   lookoutLogFrame: true,
   // 共通の民の形・材質と近景の使い回し。兵数・当たり・戦功には加えない。
   civilianCrowd: { bands: PEOPLE_BANDS },
-  meleeGrace: { rate: 0.008, burst: 0.35, interval: 1.6 },
+  meleeGrace: { rate: 0.008, burst: 0.35, interval: 4 },
   // 家ごとの口ぐせをこの戦だけで替え、後世の「三本の矢」を言わせない。
   battleVoices: { lines: { ally: {
     // 囲まれた知らせに別の行き先を添えず、任務の指示を一つに保つ。
@@ -1916,7 +1916,11 @@ const tottori = {
   camLift: -1.1, // 馬上の視点を下げ、持ち場から千代川の水面と舟の列を横から見せる（地面ばかりを写さない）。
   playerRegen: 0.015,   // 稲生の標準：戦っていない間は命がゆっくり戻る（岸の鉄砲・矢で削られたまま作業へ戻れない事を防ぐ）
   spawn: { x: -30, z: 10, heading: -Math.PI / 2 },
+  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
+  //   一太刀を一割八分（侍は二割）に、刃を受けた後の4秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  cutFloor: 0.35,
   world: {
+    playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     noHaori: true, // 本の足軽姿にそろえ、名のある将も陣羽織・母衣を付けない。
     seed: 15810, moveLim: 250, groundHalf: 250,
     climbTan: 0.7, // 道のない切岸は登らず、城道と階段から木戸へ向かう。
@@ -2007,6 +2011,7 @@ const tottori = {
 
   waitForPlayer: true, // 動く・構える・打つまで開戦を待ち、無操作で敗退させない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     // 左下の「馬の息」の字を出さない（帯だけ残す。字は使わない）。
     rt.hud.root.dataset.tottori = '';

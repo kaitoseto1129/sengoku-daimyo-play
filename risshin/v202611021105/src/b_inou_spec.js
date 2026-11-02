@@ -265,7 +265,10 @@ const inou_spec = {
   missionPinCaption: '',
   learningFight: true,
   playerTaken: 0.42,         // 四人まで同時に打たれる乱戦なので、一太刀は前より軽く（前は二人で 0.6）
-  playerRegen: 0.02,
+  openingSafe: 10,   // 11/1：持ち場で乱戦に呑まれる最初の十秒（初陣の構えを覚える間）は手傷を負わない
+  cutFloor: 0.35,   // 11/1：構えずに受けた一太刀は命の一割八分（侍は二割）
+  meleeGrace: { rate: 1, burst: 1, interval: 4 },   // 11/1：刃を受けた後の4秒は次の刃が通らない（一太刀五割のまま、同じ一瞬に二太刀・三太刀を浴びて倒れない）
+  playerRegen: 0.05,   // 11/1：斬り合いの合間（四秒当たらない間）は一秒に命の五分戻る（四人が寄る乱戦の中で、討ち取りの間に削られ切らない）
   pacingWait: () => true,
   botDefendsFort: true,      // bot：矢を避けて物陰へ下がらず、前へ進む
   autoTargetCamera: true,
@@ -323,8 +326,10 @@ const inou_spec = {
   },
 
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const F = rt.flags;
-    rt.def.playerAtkMax = 4;
+    // 11/1 共通の既定（四人が同時に打つ・一太刀で命の五割）では bot が開戦二十秒で倒れた。共通の読み先は world.def（player_pressure.js）なので、そこへ置く。
+    rt.def.playerAtkMax = rt.world.def.playerAtkMax = 2;
     F.sec = {}; F.groups = []; F.holdPlayer = true; F.knots = []; F.allyGs = []; F.dinT = 2;
     reeds(rt);
     hasaField(rt);
@@ -624,7 +629,7 @@ const inou_spec = {
       else if (d < 3 && g.order === 'move') g.order = 'hold';
     }
     // 美作守との一騎打ちの間（8m 内）は、取り巻きと林勢は周りで味方と斬り合い、本人へ同時に打つのは美作守ともう一人まで
-    if (B?.alive) rt.def.playerAtkMax = F.bossOn && Math.hypot(B.pos.x - P.pos.x, B.pos.z - P.pos.z) < 8 ? 2 : 4;
+    if (B?.alive) rt.def.playerAtkMax = rt.world.def.playerAtkMax = 2;
     if (B && !B.alive) this.win(rt);
   },
 
