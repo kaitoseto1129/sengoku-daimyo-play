@@ -47,7 +47,7 @@ const height = (x, z) => baseH(x, z) + bank(z);
 // 稲架（10/30 採点「稲架が無い」）：25秒の所（道の z 100〜110）から八方のどこを向いても一〜二基が入るよう、道の東西と前後に四基。
 // 杭と横木と垂らした稲束を、頂点の色だけの材質一つ・形一つにまとめる（絵は足さない。描く数は一つ。影は落とさない）。束は五角の筒で軽く。
 // 当たりは付けない（兵の歩く道を変えない）。道（x 12）と葦原の脇道からは離す。
-const HASA = [[-6, 92, 0.12, 8], [31, 96, -0.08, 7], [33, 121, Math.PI / 2 + 0.1, 8], [-8, 120, Math.PI / 2 - 0.12, 7]];
+const HASA = [[-6, 92, 0.12, 8], [54, 108, -0.08, 7], [33, 121, Math.PI / 2 + 0.1, 8], [-8, 120, Math.PI / 2 - 0.12, 7]];
 function hasaField(rt) {
   const W = rt.world, parts = [], c = new THREE.Color(), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V = new THREE.Vector3(), O = new THREE.Vector3(1, 1, 1);
   const paint = (g, hex, k) => { c.setHex(hex).multiplyScalar(k); const n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); if (g.index) { const ng = g.toNonIndexed(); g.dispose(); return ng; } return g; };

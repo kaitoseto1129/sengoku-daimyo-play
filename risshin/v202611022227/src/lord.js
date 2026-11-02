@@ -125,7 +125,8 @@ export function lordList() {
     if (have) { have.scn = k; out.push(have); continue; }
     const X = LORD_FIX[b.id] || {};
     if (X.skip) continue;
-    const late = parseInt((b.year.match(/（(\d+)）/) || [])[1] || '0', 10) > 1582;
+    // 豊臣編・徳川編は信長の死後の戦（山崎も本能寺の後）。年の書き方が「1587年」でも外す
+    const late = k === 'toyotomi' || k === 'tokugawa' || parseInt((b.year.match(/（(\d+)）/) || [])[1] || '0', 10) > 1582;
     if (late) continue;   // 関ヶ原・大坂など信長の死後の戦は、今は出さない（kaito 2026-09-29）
     const ifs = late || !!X.if;
     out.push({ scn: k, id: b.id, name: b.name.replace(/の戦い$/, ''), year: `${b.year}　${b.place}`, goal: '', spawn: null, ifs,

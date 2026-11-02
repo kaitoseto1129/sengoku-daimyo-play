@@ -1025,6 +1025,9 @@ const tonezaka = {
   missionStatus: () => '',
   bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|一乗谷の火/.test(title),
   missions: ['味方と集まれ', '▼の敵を倒せ', '味方と進め', 'ここを守れ'],
+  // 11/2 bot（アクション好き）：峠を越えて一乗谷へ着いた後、城下と奥の道の段の途中で共通の八分打ち切りに掛かり、三回に二回負けた。
+  //   一乗谷の段（略図・城下・奥の道）だけ十分まで待つ。勝つ条件と敵・味方の数は変えない。
+  pacingWait: (rt) => !!rt.flags.ending || rt.flags.step >= 4 && rt.t < 600,
   missionOf(rt) {
     const F = rt.flags, step = toneMissionStep(rt);
     if (F.ending) return 3;

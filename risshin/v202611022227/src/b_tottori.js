@@ -1927,7 +1927,8 @@ const tottori = {
     maxWalkDrop: 1.2, // 山道の外へ踏み出して崖下へ落ちない。設営した階段は既存の足場判定で通す。
     keepSpawnInside: true, // 武将の後ろの持ち場と供も含め、陣形全体を場内へ収める。
     // 陰の側にも空の弱い光を残し、黒漆の胴・袖・手元を読み取れるようにする。
-    nightLift: 3.4, nightFill: 0.8, nightMoonMin: 0.7, nightMetalness: 0.18, waterFireReflections: true,
+    // 11/02 切岸と兵の背が黒く沈んだ（携帯で形が読めない）：月を共通の強さへ戻し、散乱光を一段上げる。
+    nightLift: 3.4, nightFill: 0.95, nightMoonMin: 0.95, nightMetalness: 0.18, waterFireReflections: true,
     time: 'night', unitNightScale: 0.55, // 10/31 岸の砂だけが明るく兵が黒い影だった。兵の面にだけ月の返りを残す（縁は光らせない強さ）。
     kasaDrape: false, // 本人と護送の供にも同じ陣笠の仕立て。白い首布を残さない。
     shadowBoneOrder: true, // 胴丸の軽い影も、体と共有する骨番号へそろえる。

@@ -1722,8 +1722,11 @@ function nodaWallLine(rt, pts, o = {}) {
       const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, y = W.heightAt(x, z);
       const wear = Math.sin(x * 12.7 + z * 7.3), lean = Math.sin(x * 4.1 - z * 6.7) * .11;
       const q = new THREE.Vector3(x + lean, y, z + wear * .07);
-      timber(new THREE.Vector3(x, y - 0.4, z), new THREE.Vector3(q.x, y + 1.85 + wear * .15, q.z), 0.08 + (wear + 1) * .008);
-      if (prev) for (const h of [0.65, 1.35]) {
+      // 深みの柵は横木の無い乱杭（11/2 点付け：浅瀬の乱戦を川の中の板塀が隠した）。杭は低く、間を不揃いに抜く。当たりは同じ。
+      if (o.stakes) { if (i === 0 || wear < .35 || i % 3 === 1) timber(new THREE.Vector3(x, y - 0.4, z), new THREE.Vector3(x + lean * 3, y + .95 + wear * .3, z + wear * .3), .07 + (wear + 1) * .01); continue; }
+      // 堤の柵は腰の高さ（11/2：肩越しの画面の正面で、浅瀬の乱戦を背丈の柵が隠した）。当たりは同じ。
+      timber(new THREE.Vector3(x, y - 0.4, z), new THREE.Vector3(q.x, y + (o.low ? 1.2 : 1.85) + wear * .15, q.z), 0.08 + (wear + 1) * .008);
+      if (prev) for (const h of o.low ? [0.75] : [0.65, 1.35]) {
         const end = new THREE.Vector3(q.x, y + h + wear * .06, q.z);
         const start = new THREE.Vector3(prev.x, prev.y + h, prev.z);
         if (h > 1 && wear > .88) end.lerp(start, .22); // 上の横木の先だけ欠く。通行の当たりは保つ。
@@ -1853,7 +1856,8 @@ function nodaRiverBanks(rt) {
   const reedMat = new THREE.MeshLambertMaterial({ color: 0x8a8550, side: THREE.DoubleSide });
   const max = 1800, reeds = new THREE.InstancedMesh(reedGeo, reedMat, max);
   const pose = new THREE.Object3D(), color = new THREE.Color();
-  const tones = [0x9a9258, 0x7f7c46, 0xa89c62, 0x6f7040];
+  // 11/2：手本は倒れた枯れ葦の上に新しい葦の緑が立つ。四株に一株ずつ若い緑を混ぜ、一色の黄土の切り絵に見せない。
+  const tones = [0x9a9258, 0x6f8a3c, 0xa89c62, 0x7f7c46];
   let n = 0;
   for (const st of W.def.streams) {
     const pts = st.pts;
@@ -1900,7 +1904,7 @@ function nodaLeveeGrass(rt) {
   const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide });
   const max = 2200, im = new THREE.InstancedMesh(geo, mat, max);
   const pose = new THREE.Object3D(), color = new THREE.Color();
-  const tones = [0xa89a62, 0x8f8452, 0xb9a874, 0x7b7146, 0x9c8a58];
+  const tones = [0xa89a62, 0x7a8c46, 0xb9a874, 0x7b7146, 0x9c8a58, 0x6a8240, 0xa08e5c];   // 11/2：枯れ色に若い葦の緑を混ぜる（手本①）
   let n = 0;
   for (let i = 0; n < max && i < 9000; i++) {
     const r1 = Math.sin(i * 12.9898) * 43758.5453 % 1, r2 = Math.sin(i * 78.233) * 24634.6345 % 1;
@@ -1911,7 +1915,7 @@ function nodaLeveeGrass(rt) {
     const sc = 0.9 + Math.abs(r1 * 7 % 1) * 0.9;
     pose.position.set(x, W.heightAt(x, z) - 0.03, z);
     pose.rotation.set(0, i * 2.4, 0); pose.scale.set(sc, sc * (0.8 + Math.abs(r2 * 5 % 1) * 0.6), sc); pose.updateMatrix();
-    im.setMatrixAt(n, pose.matrix); im.setColorAt(n++, color.setHex(tones[i % 5]));
+    im.setMatrixAt(n, pose.matrix); im.setColorAt(n++, color.setHex(tones[i % 7]));
   }
   im.count = n; im.receiveShadow = true; im.computeBoundingSphere();
   rt.scene.add(im);
@@ -1985,7 +1989,7 @@ function installNodaWater(rt) {
       const x0 = cuts[k], x1 = cuts[k + 1], x = (x0 + x1) / 2;
       if (st.fords.some(f => Math.abs(x - f.x) < f.w - 4)) continue;
       const zAt = x => az + (bz - az) * (x - ax) / (bx - ax);
-      for (const s of nodaWallLine(rt, [[x0, zAt(x0)], [x1, zAt(x1)]], { name: '深みの柵', hp: 1e9, segLen: 10 })) s.noTarget = true;
+      for (const s of nodaWallLine(rt, [[x0, zAt(x0)], [x1, zAt(x1)]], { name: '深みの柵', hp: 1e9, segLen: 10, stakes: true })) s.noTarget = true;
     }
   }
   const stoneGeo = new THREE.SphereGeometry(1, 10, 6);
@@ -2412,6 +2416,8 @@ const nodafukushima = {
   spawn: { x: -2, z: -6, heading: Math.PI }, // 堤の背の柵の切れ目から、淀川の浅瀬と葦原・野田砦の櫓と門を正面に見る（10/28）。
   // 身の回りの当時の場（timeslip_field.js）。元亀元年九月十二日は今の十月なかば。淀川の河口の中洲。
   // 湿った堤と川岸の泥、岸の葦、枯れ色の丈の高い草。竹束の陰に撃ち合いの矢と捨てた笠。
+  // 11/2：堤の上から足元の土ばかりを見下ろしていた。見下ろしを浅くし、浅瀬の乱戦と砦を目の高さに入れる。
+  camMaxDown: 0.14,
   timeslip: {
     wet: 0.3, dust: 0.1, trample: 0.12, debris: 1.1, arrows: 1.1, reeds: 1,   // 夜の堤で泥の跡が穴に見えないよう薄く
     grass: 0xa49c66, grassTints: [0xffffff, 0xeadcb0, 0xc8c898], grassH: 1.2, tallGrass: 0.9,
@@ -2766,7 +2772,7 @@ const nodafukushima = {
     // 持ち場のすぐ両脇に柵と火。中央の戻り道と、南東の寄せ道は空ける。
     const cameraWalls = F.cameraWalls;
     for (const pts of [[[-12, LEVEE_Z - 2.5], [-5, LEVEE_Z - 2.5]], [[18, LEVEE_Z - 2.5], [25, LEVEE_Z - 2.5]]]) {
-      nodaWallLine(rt, pts, { team: 0, name: '堤の柵', hp: 400 });
+      nodaWallLine(rt, pts, { team: 0, name: '堤の柵', hp: 400, low: true });
     }
     // 束ねた横木を面ごとに探さず、歩く柵と同じ短い線だけ調べる。
     // 本人と視点の間に柵がある時は手前へ寄せ、柱へ視点をめり込ませない。
@@ -2951,7 +2957,7 @@ const nodafukushima = {
     }
     // ---- 大軍（軽い作り）：詰め陣の後ろの控え ----
     const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed });
-    DA(40, 90, 36, 14, 240, Math.PI, 0x2a2622, flagTexture('oda'), 15703);
+    DA(40, 90, 36, 14, 150, Math.PI, 0x2a2622, flagTexture('oda'), 15703);   // 11/2：東の浅瀬の後詰めの分を、開戦の画面に入らない後ろの控えから減らす（重さを前とそろえる）
     // 堤の手前に構える織田の手（見た目だけ。起こさない）：竹束を据える所の左右に、川を挟んで砦と睨み合う大軍
     for (const [x, z, s, k] of [[-18, -5, 15704, 'oda'], [20, -4, 15705, 'eiraku']]) W.addDistantArmy({ x, z, w: 12, d: 10, count: 100, facing: Math.PI, armor: 0x2a2622, team: 0, flagTex: flagTexture(k), seed: s }).army.noWake = true;
     for (const [x, z] of [[-20, 60], [24, 64]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
@@ -2998,8 +3004,10 @@ const nodafukushima = {
     //   中の小競り合い（本物の兵）を挟んで東西の浅瀬に、渡り合う織田の先手と三好勢の押し合い（軽い作り。本物の兵・任務の数は変えない）。
     //   その奥、水堀の向こうの砦の左右に三好勢の大軍（軽い作り）。木ノ芽峠の作りに倣う。
     { const n = TIER.weak ? 0.65 : 1;
-      F.shoalClash = [[-18, -27, 18, 0], [22, -28.5, 20, 1]].map(([x, z, w, i]) => rt.world.addClash({
-        x, z, w, facing: Math.PI, seed: 15721 + i, gap: 2.4, rt, host: false, noRout: true,
+      F.shoalClash = [[-18, -27, 18, 0], [29, -15.5, 16, 1]].map(([x, z, w, i]) => rt.world.addClash({
+        // 11/2 点付け（乱戦が薄い）：東の押し合いは川底にあって堤の肩に隠れていた。浅瀬を押し渡った三好勢が東の竹束の垣に取り付き、堤の上で織田の手と揉み合う所へ移す
+        //   （持ち場の東、開戦25秒の正面）。組み合う列の後ろに後詰めを厚く続け、一列でなく塊に見せる。
+        x, z, w, facing: Math.PI, seed: 15721 + i, gap: i ? 1.8 : 2.4, rt, host: i ? undefined : false, noRout: true,
         killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0,
         play: (k, p, v) => rt.army.play(k, p, v * 0.7), smoke: (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz),
         A: { flag: 'oda', armor: 0x2a2622, count: Math.round(70 * n), flagRate: 0.25 },

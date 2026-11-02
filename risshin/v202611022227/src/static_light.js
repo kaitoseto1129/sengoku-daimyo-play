@@ -25,7 +25,8 @@ export class StaticLight {
     const amb = h.intensity * hl + (f ? f.intensity * lum(f.color) : 0);
     const direct = s ? s.intensity * lum(s.color) : 0;
     // 日が弱いほど（夜・雨・日の向こう側）空の返りを厚くする
-    const min = 0.62 + Math.max(0, 1 - direct) * 0.22;
+    // 11/02 夜はさらに一段（月の陰の側を見る事が多く、兵の背・切岸・軒下が携帯で黒く潰れた：手取川・三木・鳥取）。光・影は増やさない
+    const min = 0.62 + Math.max(0, 1 - direct) * 0.22 + 0.3 * (w.nightU?.value || 0);
     if (amb >= min) return;
     h.intensity = Math.min(h.intensity * 2.2 + 0.25, h.intensity + (min - amb) / hl);
   }
