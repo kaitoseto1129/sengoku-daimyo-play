@@ -453,7 +453,16 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
   left:auto !important; right:calc(16px + env(safe-area-inset-right, 0px)) !important; top:calc(176px + env(safe-area-inset-top, 0px)) !important;
   bottom:auto !important; width:300px !important; max-height:calc(100% - 320px) !important;
  }
-}`;
+}
+/* 目標の帯は小さな地図の左に置き、重ねない（--prog-right は地図の左端から測って入れる）。長い字は二行に折り、全部見せる。 */
+html:root body #hud #h-prog:not([data-battle="inou"]):not([data-battle="okehazama"]) {
+ right:var(--prog-right, calc(16px + env(safe-area-inset-right, 0px))) !important;
+ max-width:min(380px, calc(100% - var(--prog-right, 112px) - 16px - env(safe-area-inset-left, 0px))) !important;
+}
+html:root body #hud #h-prog:not([data-battle="inou"]):not([data-battle="okehazama"]) :is(.pg-st span,.pg-next) {
+ white-space:normal !important; overflow:visible; overflow-wrap:anywhere; max-width:100%; text-wrap:balance;
+}
+html:root body #hud #h-prog:not([data-battle="inou"]):not([data-battle="okehazama"]) .pg-st span { font-size:max(18px, calc(18px * var(--text-scale, 1))) !important; }`;
       root.appendChild(st);
       this.prog = el;
     }
@@ -549,6 +558,14 @@ html:root body #hud.prog-on #wait-guard { display:none !important; }
     if (this.progFitHeadline !== headline) {
       this.progFitHeadline = headline;
       el.style.setProperty('--mission-chars', String(Math.max(1, headline.length + (stg ? 5 : 2))));
+    }
+    // 小さな地図の左端に帯の右端を合わせる（画面の大きさか字が変わった時だけ測る）
+    const fitKey = innerWidth + 'x' + innerHeight + headline;
+    if (this.progFitKey !== fitKey) {
+      this.progFitKey = fitKey;
+      const mm = document.getElementById('minimap'), mr = mm && mm.getBoundingClientRect();
+      if (mr && mr.width > 0 && mr.left > innerWidth / 2) el.style.setProperty('--prog-right', `${Math.ceil(innerWidth - mr.left + 10)}px`);
+      else el.style.removeProperty('--prog-right');
     }
     stEl.lastChild.classList.toggle('foe-task', def.missionStyle === 'raid' && headline.startsWith('▼'));
     // 戦固有の案内と任務の進みは残す。同じ任務の全文は重ねない。

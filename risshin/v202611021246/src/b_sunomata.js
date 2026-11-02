@@ -4075,7 +4075,7 @@ const sunomata = {
     // 一の手は仕寄りから押し出した位置に控える。既存の先手が数秒歩いて柵へ取り付く。
     const firstAt = { x: F.r1.yose.x + F.r1.dir.x * 4, z: F.r1.yose.z + F.r1.dir.z * 4 };
     // 一の手は先手と後詰の二つ。先手が柵の口で揉み合う間に後詰が押し出し、組が一度に二十人を受けないようにする。
-    F.reserveW1 = camp('斎藤の一の手', firstAt, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1, o: { name: '斎藤方の先手頭' } }, { type: 'ashigaru', n: 11 }]);
+    F.reserveW1 = camp('斎藤の一の手', firstAt, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }]);   // 頭上の名は名のある武将だけ（11/1 kaito D 節）。台詞の話し手の名はそのまま
     F.reserveW1b = camp('斎藤の一の手（後詰）', { x: firstAt.x - F.r1.dir.x * 6, z: firstAt.z - F.r1.dir.z * 6 }, Math.atan2(F.r1.dir.x, F.r1.dir.z), [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 14 }]);
     // 開戦25秒（10/30 夜）：一の手の先手と後詰は柵の口で三十二秒まで崩れず踏みとどまる。後からは常の通り崩れて退く（兵の数は同じ）
     for (const g of [F.reserveW1, F.reserveW1b]) g.noRout = true;
@@ -4088,7 +4088,7 @@ const sunomata = {
     F.reserveW2 = camp('斎藤の二の手', r2At, Math.atan2(F.r2.dir.x, F.r2.dir.z), [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 3 }]);  // 開戦25秒（10/30 夜）：足軽六人を一の手の後詰へ回した（兵の数は同じ）
     // 北の畑・西の林という寄せの筋を保ち、控えを寄せ場の後ろへ置く。
     // 百米以上の道を歩く控えは遠景に任せ、本物を一分以上待たせない。
-    F.reserveW3a = camp('斎藤の三の手（北）', { x: -10, z: -56 }, 0.45, [{ type: 'samurai', n: 1, o: { name: '斎藤方の旗持ち', flag: 'saito', flagScale: 1.8, tag: 'flag' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }]);
+    F.reserveW3a = camp('斎藤の三の手（北）', { x: -10, z: -56 }, 0.45, [{ type: 'samurai', n: 1, o: { flag: 'saito', flagScale: 1.8, tag: 'flag' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }]);
     F.reserveW3b = camp('斎藤の三の手（西）', { x: -56, z: -10 }, 1.2, [{ type: 'busho', n: 1, o: { name: '斎藤方の寄せ大将' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 3 }]);
     // 三の手の十五人を後続の三組へ分ける。総兵数を増やさず、同じ兵が順に寄せる。
     F.duskWaves = ['n', 'w', 'n'].map((side, i) => ({

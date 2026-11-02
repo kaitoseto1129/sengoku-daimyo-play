@@ -395,7 +395,7 @@ export function jkTick(rt, root, dt) {
     const me = rt.player.u.pos;
     const d = goal ? Math.hypot(goal.x - me.x, goal.z - me.z) - (unit ? 0 : goal.r ?? 4) : 0;
     const steps = d > 2 ? Math.round(d / 0.75) : 0;
-    put(s, 'dist', steps, (v) => { s.dist.hidden = !v; s.dist.textContent = v ? `▲ 目標まで ${v}歩` : ''; });
+    put(s, 'dist', 0, () => { s.dist.hidden = true; s.dist.textContent = ''; });   // 歩数の字は出さない（行き先はピン）
   }
   // 小さな地図
   if (mapOn) {

@@ -180,7 +180,7 @@ export function castleFallTick(rt, dt) {
   if (vig) { vig.classList.toggle('burn', C.heat > 0.12); vig.style.setProperty('--burn', C.heat.toFixed(2)); }
   if (heat > 0.05) {
     // 戦の筋の炎上（本能寺の御殿など、火の中で戦う所）では傷を軽く。決着の後（invuln）は熱と咳だけ
-    if (!u.invuln && !(rt.t < (rt.def.openingSafe || 0))) { u.hp = Math.max(0, u.hp - BURN_PER_SEC * heat * (own ? 1 : 0.4) * dt); rt.player.inCombatT = Math.max(rt.player.inCombatT || 0, 1); }   // 火傷は受けも構えも効かない（倒れは戦の側が hp を見る）
+    if (!u.invuln && !(rt.t < (rt.def.openingSafe || 0))) { u.hp = Math.max(Math.min(u.hp, (rt.def.burnFloor || 0) * u.maxHp), u.hp - BURN_PER_SEC * heat * (own ? 1 : 0.4) * dt);   /* def.burnFloor：その戦だけ火傷では命のこの割合より下げない（本能寺 11/1） */ rt.player.inCombatT = Math.max(rt.player.inCombatT || 0, 1); }   // 火傷は受けも構えも効かない（倒れは戦の側が hp を見る）
     C.coughT -= dt;
     if (C.coughT <= 0) { C.coughT = 1.6 + Math.random(); import('./audio.js').then((m) => m.sfx('cough', 0.5)); }
   }

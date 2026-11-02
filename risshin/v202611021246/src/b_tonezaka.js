@@ -1417,7 +1417,8 @@ const tonezaka = {
         look.hemiSky.setHex(0x8999ad); look.hemiGround.setHex(0x514c41);
         // 空が一色の紺の板に見えた（10/29 点付け：手本は林の奥が霞んで白く明るい）。雨雲の夜明け前の灰青にし、
         // 霧を林より明るい雨霞の色にして、奥の杉ほど淡く抜ける。見通しの距離と明るさの持ち上げは変えない。
-        look.sky.setHex(0x66717a); look.top.setHex(0x343f4c); look.fog.setHex(0x6f7a80);
+        // 11/1 kaito の紙 14「夜の山間で追う」：灰青では曇りの昼に見えた。空と霞を雨雲の夜の暗い青灰へ沈め、兵の補光（hemi・sun）は保つ。
+        look.sky.setHex(0x2c353f); look.top.setHex(0x10161e); look.fog.setHex(0x323b44);
       }
       return look;
     };

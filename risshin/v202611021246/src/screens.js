@@ -3823,7 +3823,7 @@ export function epilogueScreen(G, onDone) {
   const lastB = BATTLES[BATTLES.length - 1] || {};
   const lines = scenarioKey() === 'oda' ? [
     lastB.id === 'honnoji' ? '天正十年六月二日、本能寺と二条御所は焼け落ち、信長と信忠は帰らなかった。' : lastB.id === 'shitaragahara' ? '天正三年五月、設楽原の柵の前で武田の騎馬は崩れ、宿将の多くが帰らなかった。' : `${lastB.name || '戦'}が終わった。`,
-    lastB.id === 'honnoji' ? `燃える京を落ちのびた${G.name}は、${rankLabel(G)}として、ただ一つ残った合印の旗を背に、東へ歩いた。` : `桶狭間の雨の中で槍を握った${G.name}は、${rankLabel(G)}として岐阜へ戻った。背には、自らの合印の旗が揺れていた。`,
+    lastB.id === 'honnoji' ? `燃える京を抜けた${G.name}は、知らせを使者に託し、${rankLabel(G)}として、ただ一つ残った合印の旗を背に、西の羽柴の陣へ向かった。` : `桶狭間の雨の中で槍を握った${G.name}は、${rankLabel(G)}として岐阜へ戻った。背には、自らの合印の旗が揺れていた。`,
     vets ? `組には、長く共に戦った古参が${vets}人、変わらず付き従っていた。${vetName}` : '組の顔ぶれは変わっても、合印の旗は変わらなかった。',
     (G.tomo || []).length ? `供の${G.tomo.map((t) => t.name).join('・')}も、主の後ろを離れなかった。` : '褒美の銭は、いつも組の者の酒と飯に消えた。',
     lastB.id === 'honnoji' ? '十一日後、中国から引き返した羽柴秀吉が、山崎で明智光秀を破る。' : '織田家の戦は、まだ続いていく。',

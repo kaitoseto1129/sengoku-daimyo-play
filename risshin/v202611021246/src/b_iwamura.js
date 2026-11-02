@@ -1633,7 +1633,7 @@ const iwamura = {
     const keepArmy = W.addDistantArmy({ people: keepers, armor: 0x2b2722, team: 1, flag: 'takeda', host: false, seed: 15771 });
     if (keepArmy) stepHaze(keepArmy);
     // 柵の北西の霧の野（九十メートルほど先）に、夜討ちを待つ武田の備え。白い霧の野に溶けて見えなかったので、霧を半ほどに抑えて黒い群れに見せる（位置と数は推定。10/30）。
-    const raidArmy = W.addDistantArmy({ x: -62, z: -40, w: 42, d: 10, count: 160, facing: Math.atan2(62, 40), armor: 0x2b2722, flag: 'takeda', kind: 'spear', yose: false, host: false, seed: 15773 });
+    const raidArmy = W.addDistantArmy({ x: -62, z: -40, w: 42, d: 10, count: 240, facing: Math.atan2(62, 40), armor: 0x2b2722, flag: 'takeda', kind: 'spear', yose: false, host: false, seed: 15773 });
     if (raidArmy) stepHaze(raidArmy, 0.55);
     // 段の石は苔むした野面（手本の苔の石垣の曲輪。灰の階段に見せない。10/29 採点）。stepHaze が材質を複製した後に色だけ寄せる。
     stepHaze(hillSteps);
@@ -3846,8 +3846,8 @@ function armyBackdrop(rt, o) {
     const C = W.addClash({ x: at[0], z: at[1], facing: Math.atan2(fx, fz), w: 18, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
-      A: { flag: o.ally, armor: 0x2a2622, count: 54, flagRate: .25 },
-      B: { flag: o.foe, armor: 0x2a2622, count: 54, flagRate: .25 } });
+      A: { flag: o.ally, armor: 0x2a2622, count: 80, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 80, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }
@@ -3877,8 +3877,8 @@ function armyBackdrop(rt, o) {
     const C = W.addClash({ x: at[0], z: at[1], facing: ang, w: 14, bw: 7, gap: 2.2, seed: (o.seed || 900) + 40 + j, rt, noWake: true,
       play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
       noRout: true, killRate: .005, maxDrift: 1.2, host: false, corpses: 6,
-      A: { flag: o.ally, armor: 0x2a2622, count: 42, flagRate: .25 },
-      B: { flag: o.foe, armor: 0x2a2622, count: 42, flagRate: .25 } });
+      A: { flag: o.ally, armor: 0x2a2622, count: 64, flagRate: .25 },
+      B: { flag: o.foe, armor: 0x2a2622, count: 64, flagRate: .25 } });
     if (C && C.go) C.go();
     out.push(C);
   }

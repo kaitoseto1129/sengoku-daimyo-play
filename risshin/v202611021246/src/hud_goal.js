@@ -592,7 +592,7 @@ export class HudGoal {
 
         } else if (isFlag || !defendRoute && !marker?.treatment) {
           if (isFlag && !atWait) {
-            const caption = rt.def.edgeDestinationCaption?.(rt, marker, distance) || `はたまで ${Math.ceil(distance)}歩`;
+            const caption = rt.def.edgeDestinationCaption?.(rt, marker, distance) || '';
             g.font = 'bold 16px sans-serif';
             const half = g.measureText(caption).width / 2 + 12;
             x = side >= 0 ? W - half - 12 : half + 12;
@@ -679,9 +679,9 @@ export class HudGoal {
           const direction = this.flagDirectionEl || (this.flagDirectionEl = document.createElement('small'));
           if (direction.parentNode !== now) now.appendChild(direction);
           direction.style.cssText = 'display:block!important;font-size:max(22px,calc(22px * var(--text-scale,1)))!important;line-height:1.4;white-space:nowrap';
-          const remaining = rt.def.distanceUnit === 'steps' ? `あと${Math.max(1, Math.ceil(distance / .75))}歩` : `あと${Math.ceil(distance)}歩`;
+          const remaining = '';
           const detail = rt.def.flagDirectionOnly ? (visible ? 'あの旗へ' : this.flagEdgeSide) :
-            `${visible ? 'あの旗へ・' : this.flagEdgeSide + '・'}${remaining}`;
+            (visible ? 'あの旗へ' : this.flagEdgeSide);
           setText(direction, detail);
           direction.hidden = false;
         }

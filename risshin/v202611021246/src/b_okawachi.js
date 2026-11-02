@@ -3182,7 +3182,7 @@ function okNight(W) {
       // 遠山が夜の青い板に見えた（10/29 点付け：手本は秋の褐色と常緑の深緑が混ざる林の山）。山の地の色だけを褐色と深緑の闇へ寄せる。
       L.mount = [0x2b2d22, 0x36352a, 0x423f34];
       if (S.quality === 'high') {
-        L.hemiSky.setHex(0x9a989a); L.hemiGround.setHex(0x6a5842); L.hemiI = .78;
+        L.hemiSky.setHex(0x9a989a); L.hemiGround.setHex(0x6a5842); L.hemiI = .95;
       }
       // 地が暗い一色で、坂の土と草の斑・下草の形が見えなかった（10/30 点付け 74）。雨雲越しの月の青白い光を
       // 西寄りの低い角度から横に当て、土の起伏と下草の縁に明暗を付ける（夜のまま。光源は増やさない）。

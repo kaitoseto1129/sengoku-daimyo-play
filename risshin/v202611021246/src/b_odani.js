@@ -2528,6 +2528,21 @@ const odani = {
   // 切岸で肩まで寄った時に足を収めようとして、地面ばかり見下ろさない。
   footFrameMinDistance: 2.5,
   terrainLookWeight: .35,
+  // 清水谷の谷道で、肩越しの視点が横の切岸に寄り、画面の四分の一が土の壁で埋まった（11/1 撮影）。
+  // 視点の左右 1.8m の地面が目の高さに迫る時は、低い側へ寄せて谷の真ん中から見る。
+  clampCamera(rt, p) {
+    const u = rt.player.u, W = rt.world;
+    if (!u.alive || rt.over) return;
+    let sx = -(p.z - u.pos.z), sz = p.x - u.pos.x;
+    const L = Math.hypot(sx, sz); if (L < .5) return;
+    sx /= L; sz /= L;
+    const over = (k) => W.heightAt(p.x + sx * k, p.z + sz * k) - (p.y - .7);
+    const a = over(1.8), b = over(-1.8);
+    if (a <= 0 && b <= 0) return;
+    const shift = Math.max(-2, Math.min(2, (b - a) * .8));
+    p.x += sx * shift; p.z += sz * shift;
+    p.y = Math.max(p.y, W.heightAt(p.x, p.z) + 1.4);
+  },
   compactFlagGuide: true,
   // 画面外の印は矢印で示し、任務の札と重ねない。
   avoidAllDestinationNotices: true,
