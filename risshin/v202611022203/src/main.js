@@ -704,7 +704,8 @@ function disposeFinish() {
   return true;
 }
 // 10/30 明るさの下限（全戦共通）：兵の面の補光の最低（縁の照りが出る 0.4 より下）と、夜の増感の最低
-const UNIT_FILL_MIN = 0.36, NIGHT_EXPOSURE_MIN = 1.6;   // 11/01 0.9→1.6：夜の兵・旗・地形の形が携帯で読める所まで（信貴山 2.5 が手本。明るい戦の指定はそのまま）
+const UNIT_FILL_MIN = 0.36, NIGHT_EXPOSURE_MIN = 1.9;   // 11/02 1.6→1.9：手取川・三木・鳥取の夜で兵の背と地形がまだ携帯で沈んだ（夜の背の空は別に持ち上げ済み）
+   // 11/01 0.9→1.6：夜の兵・旗・地形の形が携帯で読める所まで（信貴山 2.5 が手本。明るい戦の指定はそのまま）
 function useFinish() { return false; }   // 10/24 kaito：仕上げの描き直し（composer）をやめ、全端末で画面へ直接描く
 // 光の筋の計算に毎コマ使う入れ物（毎コマ new しない）
 const _dSd = new THREE.Vector3(), _dFw = new THREE.Vector3(), _dP = new THREE.Vector3();

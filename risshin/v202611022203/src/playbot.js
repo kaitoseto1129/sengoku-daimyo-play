@@ -1309,6 +1309,9 @@ class TouchPad {
     for (const k of ['KeyW', 'KeyS', 'KeyA', 'KeyD']) R.keys.delete(k);
     // 山道の下知や構えて退く歩みを、性格の「走る」で上書きしない。
     this.stick(stickX, stickY, inp.runHeld || (this.ctx.per.run && !b.def.botOrders && !b.botSurviving && !b.botRest));
+    // 守る（kaito 11/1 M の「守る」の丸）：頭が構えたい間は押し続ける。押さないと指の端末では一度も受けられない
+    if (inp.guardHold && this.shown(btn('guard'))) this.down('guard', btn('guard'), '守る');
+    else this.up('guard');
     // 突く（溜めは押し続ける）
     if (inp.chargeHold) this.down('atk', btn('atk'), '突く（溜め）');
     // 「突いた回数」は指を置いた回数（毎コマ）でなく、実の一振りが出た数で数える（player.strike の呼び出しで数える。army_combat.js 下）

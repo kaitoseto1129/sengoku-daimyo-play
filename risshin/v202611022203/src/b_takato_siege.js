@@ -1842,7 +1842,11 @@ const takato_siege = {
       // 三百秒で本丸へ届かなければ、信忠の本隊が塀を越えて攻め入る（信長公記：信忠自ら塀際へ）。門は破れ、曲輪は次々に落ちる。
       // 10/31：信忠の本隊が塀を越えるのは、本人が討って働いた時だけ（立っているだけで城が落ちないように）
       const hand = F.handKills.san + F.handKills.ni + F.handKills.hon + (F.pushKills?.hon || 0);
-      if (F.step >= 1 && !F.honFell && rt.t - F.stepT >= 300 && !F.allIn && hand >= 2) {
+      // 11/2 oda_bot_1102：本丸の門を破って本人が本丸の内にいる時も働いた扱い（bot が門の内で城兵に会えず、四百秒の交代で負けた）
+      const hp0 = rt.player.u.pos;
+      const inHon = F.gates.honInner?.opened && rt.player.u.alive &&
+        (F.C.kuruwa.hon.test(hp0.x, hp0.z) || Math.hypot(hp0.x - F.honPost.x, hp0.z - F.honPost.z) < 30);
+      if (F.step >= 1 && !F.honFell && rt.t - F.stepT >= 300 && !F.allIn && (hand >= 2 || inHon)) {
         F.allIn = true;
         for (const g of Object.values(F.gates)) if (g.struct.alive && !g.opened) { g.struct.hp = 0; g.breached = true; g._openNow(true); g.struct.alive = false; }
         rt.say('使番', '信忠様の本隊が塀を越えたぞ！　本丸へ攻め入れ！', 4);
@@ -2089,6 +2093,16 @@ takato_siege.guideMarker = (rt) => {
   return target.gate && rt._gg?.cur === target.gate &&
     Math.hypot(rt.player.u.pos.x - target.x, rt.player.u.pos.z - target.z) < 4 ? '_gate' : 'oteRoad';
 };
+// 歩く向きはそのまま、体と画面は (x, z) へ向ける。前へ歩く時は何もしない。
+function botWalkFacing(p, inp, x, z) {
+  if (!inp.k.has('KeyW')) return;
+  const u = p.u, walk = p.yaw, face = Math.atan2(x - u.pos.x, z - u.pos.z), turn = walk - face;
+  if (Math.cos(turn) > 0.3) return;
+  p.yaw = face; inp.k.delete('KeyW');
+  if (Math.cos(turn) < -0.3) inp.k.add('KeyS');
+  if (Math.sin(turn) > 0.3) inp.k.add('KeyA');
+  else if (Math.sin(turn) < -0.3) inp.k.add('KeyD');
+}
 takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
@@ -2127,6 +2141,8 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
         b.botFollowingTaba = true;
         inp.runHeld = false; inp.guardHold = false; inp.leftPressed = false;
         goTo(p, inp, tb.x - Math.sin(tb.rot) * 1.4, OTE.z, 0.5);
+        // 竹束より前へ出た時は、門を向いたまま竹束の陰へ下がる（25秒の写真が味方の背と木ばかりにならないように）。
+        botWalkFacing(p, inp, OTE.x - 20, OTE.z);
         return;
       }
     }
@@ -2227,7 +2243,13 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
     }
     b.botFollowingTaba = true;
     inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
-    if (receiver && distance > 3) goTo(p, inp, receiver.pos.x, receiver.pos.z, 2);
+    if (receiver && distance > 3) {
+      goTo(p, inp, receiver.pos.x, receiver.pos.z, 2);
+      // 11/2 写真（25秒）：列へ戻る間に打って出た城兵へ背を向け、画面が味方の背と木ばかりになっていた。
+      //   出撃の兵を向いたまま、横・後ろへ歩いて列へ戻る（教えの「敵を向いて退け」と同じ）。
+      const foe = b.army.nearestEnemy(u, 20, (o) => !o.isStruct && !o.fleeing && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3);
+      if (foe) botWalkFacing(p, inp, foe.pos.x, foe.pos.z);
+    }
     return;
   }
   // 近い打ち手がいない時に先手へ戻る。三の丸の奥へ一人で進み直さない。

@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LAC_BLACK, LAC_SABI, LAC_AKA, KIND_AKA, KIND_SABI } from './lacquer_kind.js';
 import { SRC, limbFit, kusaPlates, plateOf, HEAD, humanLook } from './humans_shared.js';
 import { katoGeometry, headEnvelope, IMP_TINT } from './units.js';
+import { MEM_TIGHT } from './settings.js';
 
 
 // 近距離専用の打ち出しと縅。元の形は変えず、骨へ付ける前に同じ部品へ結合する。
@@ -33,6 +34,13 @@ const VAR_KYAHAN = [[null, 0], [0x8a7c62, 0.6], [0x7a4a2a, 0.55],   // 生成り
 const VAR_PERM = [3, 0, 4, 1, 5, 2];
 // 陣笠の形（横の広さ・高さ）。平たい笠と尖った笠を混ぜる
 const VAR_HAT = [[1, 1], [1.06, 0.88], [0.95, 1.12], [1.02, 0.94], [0.97, 1.06], [1.04, 1.0]];
+// 足軽の胴の漆を六組で色ごと分ける（11/2「兵が灰・黒の同じ形で単調」が 844×390 の写真で残っていた：前の表は六つとも黒に近く、
+//   どの組も黒い塊に見えた）。手本 docs/ashigaru_var_ref_1102.md：現存の御貸具足・当世具足は黒漆が主で、溜塗（赤茶）・錆地・茶・朱も並ぶ。
+//   黒漆の軍：黒漆二・溜塗・錆地・茶・朱。錆地の軍：錆地・錆の赤茶・黒漆・茶・溜塗・鉄。赤備えは LAC_AKA のまま。青は使わない
+const LAC_MIX1 = [[0x1c1814, 0.85, 1], [0x4a2618, 0.85, 1], [0x2a2420, 0.85, 1.2], [0x5e4430, 0.85, 1], [0x6e2a1a, 0.8, 1], [0x6a4a2c, 0.85, 1]];
+const LAC_MIX2 = [[0x4a3e30, 0.85, 1], [0x6e3e22, 0.85, 1], [0x1c1814, 0.85, 1.1], [0x7a5634, 0.85, 1], [0x4a2618, 0.85, 1], [0x3e352b, 0.85, 1]];
+// 陣笠の漆の組（胴の組 iL から）：三組は胴と同じ、三組は別の色
+const VAR_HATLAC = [0, 2, 2, 0, 0, 2];
 const varCol = new THREE.Color(), varTmp = new THREE.Color();
 function soldierVar(L) {
   if (L.hero || L.sohei || L.kosode || L.nanban || namedKacchu(L) || (L.tier || 0) >= 2 || L.kacchu || typeof L.face === 'string' || L.takedaRed) return null;
@@ -45,9 +53,10 @@ function soldierVar(L) {
   const red = hs.s > 0.45 && (hs.h < 0.05 || hs.h > 0.95) && hs.l > 0.15;
   const f = String(L.flag || L.mon || '');
   const hk = T > 0 ? 0 : red || KIND_AKA.has(f) || KIND_AKA.has(L.mon) ? 3 : KIND_SABI.has(f) ? 2 : 1;
-  const lacT = T === 0 ? [LAC_AKA, LAC_SABI, LAC_BLACK][hk === 3 ? 0 : hk === 2 ? 1 : 2][iL] : (red ? VAR_RED : VAR_LAC1)[iL];
-  // 足軽は陣笠と胴を同じ漆に（前の直しの通り）
-  return { iL, iC, iK, T, hk, lac: lacT, lace: (T === 0 ? VAR_LACE0 : VAR_LACE)[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: T === 0 ? lacT : (red ? VAR_RED : VAR_LAC1)[(iL + (vi % 2 ? 2 : 0)) % 6] };
+  const lacT = T === 0 ? [LAC_AKA, LAC_MIX2, LAC_MIX1][hk === 3 ? 0 : hk === 2 ? 1 : 2][iL] : (red ? VAR_RED : VAR_LAC1)[iL];
+  // 足軽の陣笠は六組に三組が胴と別の漆（寄せ集めの御貸具足。形の鍵は iL のままで増えない）
+  const hatT = T === 0 ? [LAC_AKA, LAC_MIX2, LAC_MIX1][hk === 3 ? 0 : hk === 2 ? 1 : 2][VAR_HATLAC[iL]] : null;
+  return { iL, iC, iK, T, hk, lac: lacT, lace: (T === 0 ? VAR_LACE0 : VAR_LACE)[iC], kya: T === 0 ? VAR_KYAHAN[iK] : [null, 0], hat: T === 0 && /^jingasa/.test(L.hat || '') ? VAR_HAT[vi] : null, hatLac: T === 0 ? hatT : (red ? VAR_RED : VAR_LAC1)[(iL + (vi % 2 ? 2 : 0)) % 6] };
 }
 // 遠い軽い兵の束（world_army.js の makeImpostor）へ渡す、近い兵と同じ作り分けの色（胴の漆・威糸・笠）。
 //   同じ soldierVar（同じ種と色の表）から、近い形の塗り替え（nearArmorParts・recolorGeo）と同じ混ぜ方で出す。作り分けの無い者は null
@@ -326,7 +335,8 @@ function layParts(P, L, put) {
   }
   // 関節の内張り（11/1）：肩の付け根・肘・腿の付け根・膝で、甲冑と腕・草摺と腿・脛当と膝の間から向こうが透けていた。
   //   中に暗い布の玉を一つずつ入れて、どの角度からも抜けないようにする（低い面数・形は色ごとに共有）
-  for (const side of ['Right', 'Left']) {
+  // 11/2 1.6.5 の実機：一人に部品が八つ（描く回数も八回）増え、iPhone の設楽原の5分が落ちるようになった。iPhone（MEM_TIGHT）は入れない
+  if (!MEM_TIGHT) for (const side of ['Right', 'Left']) {
     const sx = side === 'Right' ? 'P' : 'N';
     put('jSh' + sx, side + 'Arm', jointGeo(L, 'sh'), limbFit(side + 'Arm', side + 'ForeArm', 0, 1));
     put('jEl' + sx, side + 'ForeArm', jointGeo(L, 'el'), limbFit(side + 'ForeArm', side + 'Hand', 0, 1));

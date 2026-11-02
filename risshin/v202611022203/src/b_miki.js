@@ -1564,7 +1564,12 @@ const miki = {
     }
     return soldier.pos;
   },
+  // 11/2 oda_bot_1102：win_1101 の刃の守り三つ（一太刀の倍・刃の後の間・同時に二人まで）がこの戦だけ抜けていた。
+  //   bot（アクション好き）が大村の乱戦で続けての刃に倒れて負けた。敵の数・強さは変えない
+  cutFloor: 0.6,
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 3 },
   world: {
+    playerAtkMax: 2,
     // この戦の景物だけを結合。壊れる柵の窓口と近い形は保つ。
     compactScenery: true,
     mergeStaticBatches: true,
@@ -1672,6 +1677,7 @@ const miki = {
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const W = rt.world, F = rt.flags;
     timeslipField(rt);   // 身の回りの刈田・夜露・落ちた俵と槍（def.timeslip）
     setCastleMask(W, MIKI_KURUWA.map(q => {
@@ -1826,10 +1832,10 @@ const miki = {
         look.hemiSky.lerp(clothFill, .22);
         // 10/31：空の青い返り（半球光）が東の薄明かりの三倍あり、兵の胴・着物・笠が同じ青灰の一色に潰れた。
         //   空の返りを白み始めの灰茶へ寄せて二割弱め、東の低い光を強める（受光面と陰の差で胴と着物を分ける。光の数は同じ）。
-        look.hemiSky.lerp(dawnSky, .45); look.hemiI *= .78; look.sunI *= 2.2;
+        look.hemiSky.lerp(dawnSky, .45); look.hemiI *= .9; look.sunI *= 2.2;
         // 10/31：夜の仕上げ（色を二割抜き、陰を青く）で胴・陣笠の朱と茶が灰になっていた。三木の夜明けだけ色を残し、陰の青みを弱め、少し明るく。
         const g = look.grade = copyGrade(gradeOf('night'));
-        g.saturation = .93; g.exposure = 1.24; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
+        g.saturation = .93; g.exposure = 1.4; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
       }
       return look;
     };

@@ -3913,6 +3913,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
       if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
+      // 勝ち戦なので、本人が受ける傷も少し浅くする（bot が 139 秒で倒れた：三回に二回は勝てる強さへ）。
+      if (t?.isPlayer && src?.team === 1) amount *= 0.65;
       const hp = t?.hp;
       const result = damage.call(this, t, amount, src, ...rest);
       // 命を減らした本人の赤い▼を一拍残す。予告や防御成功では反応しない。

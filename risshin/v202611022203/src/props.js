@@ -1423,7 +1423,7 @@ function roofSlab(L, slope, th, ridgeHex, eaveHex, seed, weathered = false, roug
   if (key && lappedRoofShapes.has(key)) return lappedRoofShapes.get(key).clone();
   // 一段約四十センチの葺き足。段の直前と直後を分け、板の薄い木口を実際の面にする。
   const courses = Math.min(12, Math.max(3, Math.round(slope / .4)));
-  const g = new THREE.BoxGeometry(slope, th, L, roughThatch ? 12 : lapped ? courses * 2 : 3, 1,
+  const g = new THREE.BoxGeometry(slope, th, L, roughThatch ? 12 : lapped ? courses * 2 : 6, 1,
     roughThatch ? Math.min(32, Math.ceil(L / .28)) : Math.max(1, Math.round(L / 1.5)));
   const P = g.attributes.position, N = g.attributes.normal, uv = g.attributes.uv, n = P.count, col = new Float32Array(n * 3);
   const cR = new THREE.Color(ridgeHex), cE = new THREE.Color(eaveHex), cM = new THREE.Color(0x4a5232), c = new THREE.Color();
@@ -1436,7 +1436,8 @@ function roofSlab(L, slope, th, ridgeHex, eaveHex, seed, weathered = false, roug
       const bundle = Math.sin(z * 13.7 + seed) * .025 + Math.sin(z * 5.1 + seed) * .035;
       // 葺き足を二分割ずつで刻む。厚い束の丸みと重ね目を実際の面の陰影にする。
       const row = Math.round(t * 12), course = (row % 2 ? .045 : -.025) * Math.sin(t * Math.PI);
-      P.setY(i, y + bundle * (.3 + t * .7) + course - Math.sin(t * Math.PI) * .055);
+      P.setY(i, y + bundle * (.3 + t * .7) + course - Math.sin(t * Math.PI) * Math.min(.22, slope * .045)
+        + .14 * t * t * t * Math.pow(Math.abs(z) / (L / 2), 3));   // 反り：棟で急に軒でゆるく、軒の両隅が跳ねる
       P.setX(i, x + t * t * (.065 * Math.sin(z * 9.3 + seed) + .035 * Math.sin(z * 19.1)));
     }
     c.copy(cR).lerp(cE, Math.pow(t, 1.6));
@@ -2172,6 +2173,12 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
         [sd * reach, eaveY, zz], 0.065, 0.055, 5), postHex));
     }
   }
+  if (!lo && !tile && !villageInterior && !o.interior) {
+    // 軒の影：深い軒の下で壁の上の半メートルが暗く落ちる。壁の束へ焼き込む四枚の薄い帯（形・材質・描く回数は増えない）。
+    for (const [bw, bd, bx, bz] of [[w + .04, .03, 0, d / 2 + .015], [w + .04, .03, 0, -d / 2 - .015], [.03, d, w / 2 + .015, 0], [.03, d, -w / 2 - .015, 0]]) {
+      const g = new THREE.BoxGeometry(bw, .55, bd); g.translate(bx, H - .28, bz); parts.push(paint(g, ita ? 0x3a3128 : 0x30281f));
+    }
+  }
   for (const sd of [1, -1]) {
     const boards = boardRoof ? Math.ceil(L / .48) : 1;
     for (let i = 0; i < boards; i++) {
@@ -2184,6 +2191,15 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
         // 共用の瓦の絵は八列・八段。屋根の大きさに合わせ、棟から軒へ葺く。
         const p = g.attributes.position, uv = g.attributes.uv;
         for (let i = 0; i < p.count; i++) uv.setXY(i, p.getZ(i) / 2.4, p.getX(i) / 2.4);
+      }
+      if (!tile && !boardRoof) {
+        // 反り：面は棟で急に軒でゆるく（縦の断面が凹む）、軒の両隅は跳ね上がる。頂点だけ動かし、形・材質は増やさない。
+        const p = g.attributes.position, camber = Math.min(.22, slope * .045), kick = ita ? .06 : .14;
+        for (let k = 0; k < p.count; k++) {
+          const t = Math.min(1, Math.max(0, p.getX(k) / slope + .5)), e = Math.abs(p.getZ(k)) / (L / 2);
+          p.setY(k, p.getY(k) - camber * Math.sin(t * Math.PI) + kick * t * t * t * e * e * e);
+        }
+        g.computeVertexNormals();
       }
       g.translate(slope / 2 - (ita ? 0.05 : 0.15), -th / 2 + 0.05, 0);
       g.rotateZ(-th0); if (sd < 0) g.rotateY(Math.PI);

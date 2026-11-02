@@ -738,7 +738,7 @@ export function fieldSignsTick(rt, root) {
   s.bars.count = b; s.bars.instanceMatrix.needsUpdate = true; if (s.bars.instanceColor) s.bars.instanceColor.needsUpdate = true;
   // 序盤の戦も、名のある武将全員の名を赤い▼の上に出す。
   if (ford || lesson || raid) {
-    drawNames(rt, s, me, cam, commander, true, null, null);
+    drawNames(rt, s, me, cam, commander, true, rt.hud?.hudRects?.() || null, null);
     return;
   }
   // 今の相手・合流する隊（体力の棒を出す一人）を選ぶ。名は武将全員に出す。
@@ -755,7 +755,8 @@ export function fieldSignsTick(rt, root) {
     previous && gens.includes(previous) && available(previous) ? previous : gens.find(available);
   s.nameUnit = chosen;
   // 案内中の人物名は足元につながる共通ピンに任せ、二枚にしない。
-  drawNames(rt, s, me, cam, commander, false, hud?.hudRects() || [], person);
+  const mm = document.getElementById('minimap'), mr = mm && !mm.hidden ?mm.getBoundingClientRect() : null;
+  drawNames(rt, s, me, cam, commander, false, mr && mr.width > 0 ? (hud?.hudRects() || []).concat(mr) : hud?.hudRects() || [], person);
 }
 
 // 名のある武将全員の名。候補と壁の見通しは四分の一秒ごとに選び直し、毎コマは投影と transform だけ。
@@ -812,7 +813,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip) {
     for (const dir of [-1, 1]) {
       it.y = y0;
       for (let n = 0; n < 7; n++) {
-        if (it.y >= 30 && it.y <= H - 10 && !nameHit(items, shown, it) && !(rects && rects.some((r) => it.x + it.w / 2 > r.left && it.x - it.w / 2 < r.right && it.y > r.top && it.y - 26 < r.bottom))) { ok = true; break; }
+        if (it.y >= 68 && it.y <= H - 10 && it.x - it.w / 2 >= 6 && it.x + it.w / 2 <= W - 6 && !nameHit(items, shown, it) && !(rects && rects.some((r) => it.x + it.w * .6 > r.left - 8 && it.x - it.w * .6 < r.right + 8 && it.y + 12 > r.top && it.y - 42 < r.bottom))) { ok = true; break; }
         it.y += dir * 27;
       }
       if (ok) break;
@@ -824,7 +825,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip) {
   }
 }
 const nameHit = (items, n, it) => {
-  for (let j = 0; j < n; j++) { const o = items[j]; if (Math.abs(o.x - it.x) < (o.w + it.w) / 2 && Math.abs(o.y - it.y) < 26) return true; }
+  for (let j = 0; j < n; j++) { const o = items[j]; if (Math.abs(o.x - it.x) < (o.w + it.w) * .6 && Math.abs(o.y - it.y) < 34) return true; }
   return false;
 };
 
