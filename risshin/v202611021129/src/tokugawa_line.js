@@ -4,5 +4,6 @@ export const TOKUGAWA_LINE = [
   // { id: 'k01_fushimi', name: '伏見城の戦い', year: 1600, file: './b_k01_fushimi.js' },
   { id: 'k08_osaka_kizu', name: '大坂冬の陣・木津川口の戦い', year: 1614, file: './b_k08_osaka_kizu.js' },
   { id: 'k07_sawayama', name: '佐和山城の戦い', year: 1600, file: './b_k07_sawayama.js' },
+  { id: 'k12_kashii', name: '樫井の戦い', year: 1615, file: './b_k12_kashii.js' },
   { id: 'k11_sanadamaru', name: '真田丸の戦い', year: 1614, file: './b_k11_sanadamaru.js' },
 ];

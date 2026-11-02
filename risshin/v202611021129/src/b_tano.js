@@ -1327,6 +1327,8 @@ const tano = {
   noFieldMap: true,   // 稲生の標準：小さな地図は出さず、行き先のピンと敵の印に絞る
   playerRegen: 0.02,   // 稲生の標準：戦っていない間は命が戻り、血も止まる（player_hurt.js）
   playerTaken: 0.6,   // 受ける傷を六割に（崖道の武田の侍は一太刀が重い。稲生の初陣と同じ）
+  // 11/1 実機：谷道で侍の二太刀が 0.6 秒の内に続き、立て直す前に倒れていた。比叡山・志賀と同じく続けての近接に間を置く。
+  meleeGrace: { rate: 0.009, burst: 0.08, interval: 1.6 },
   // 身の回りの当時の場（timeslip_field.js）。天正十年三月十一日は今の四月初め・甲斐の山あいの早春。
   // 落ちのびる武田方が通った谷の道は踏まれて固く、芽吹き前の枯れ草。崖道と田野の陣の前ほど倒れた槍・武田の旗・脱げた陣笠。
   timeslip: {
@@ -1797,11 +1799,6 @@ const tano = {
       '', { red: true, h: 2.6 });   // 字は出さない（敵は赤い印だけで分かる）
     rt.zone('dp', s.at.x, s.at.z, s.kind === 'move' ? 8 : 12);
     sendColumn(rt, s.at, s.phase);
-    // 11/1 点付け（田野：25秒で倒れて負けの札）：谷道へ入るとすぐ、守兵の三組が本人ひとりを目がけ、先手に加わる前に囲まれた。
-    //   本人を狙うのは二組まで（先頭の組と、谷の奥の群れの一組）。残りの組は谷の奥で槍をそろえて控え（画面の奥の厚み）、
-    //   十二秒より後、本人を狙う組が崩れて二組を割った時に一組ずつ寄せる。味方の先手へ回すと先手が崩れて負けの札が出た。
-    let hunters = 0;
-    const reserve = [];
     for (const g of groups) {
       if (!fighting(g)) continue;
       // 今の持ち場だけが打って出る。次の守兵は本人を追わず、その場で迎える。
@@ -1819,38 +1816,19 @@ const tano = {
         D.cur.sortieAt = rt.t + 4;
         continue;
       }
-      // 10/31 谷道の乱戦：散った守兵（谷道の後ろの侍・柵の侍）を谷の奥で一つの群れにして、本人の前へ一気に押し寄せさせる。
-      if (s.phase === 'valley' && g !== F.defenders[0]) {
+      // 10/31 谷道の乱戦：散った守兵（谷道の後ろの侍・柵の侍）を谷の奥で一つの群れにして、先手へ一気に押し寄せさせる。
+      // 11/1 実機：群れの全部が段の初めから本人だけを狙い、先手が着く前に本人が二太刀で倒れた（iPad の田野・43秒）。
+      //   田野は追う織田が大勢で、武田は最後の抵抗。守兵は持ち場で並んで待ち（槍衾は前の列へ詰め寄るので line）、
+      //   織田の先手が寄ってから本人を名指しせずに打ちかかる（flowTick の valleyCharge）。落ちのびる小勢の一撃も軽くする。
+      if (s.phase === 'valley') {
         if (g === F.defenders[3]) { g.anchor = { x: -26, z: 1 }; placeGroup(rt, g, -26, 1); }
-        g.noAI = true; g.path = null; g.formation = 'yari'; g.facing = -Math.PI / 2; g.order = 'attack'; g.focus = rt.player.u;
-        g.seekRange = Math.max(g.seekRange || 0, 70); g.aggro = Math.max(g.aggro || 0, 40); g.onArrive = null;
-        if (hunters++ >= 1) { g.order = 'hold'; g.focus = null; g.reserveAggro = g.aggro; g.aggro = 7; reserve.push(g); }
-        else {
-          // 寄せの始めは浅く：谷の奥の群れは先手の槍へ当たり、六秒後に本人を名指しする（先頭の組と同時に本人へ届かない）。
-          g.focus = null;
-          rt.after(6, () => { if (rt.player.u.alive && fighting(g) && D.cur === current && g.order === 'attack') g.focus = rt.player.u; });
-        }
+        else if (g === F.defenders[0]) { const c = g.center(g._centerProbe); g.anchor = { x: c.x, z: c.z }; }
+        g.noAI = true; g.path = null; g.formation = 'line'; g.facing = -Math.PI / 2; g.order = 'hold'; g.focus = null; g.onArrive = null;
+        g.dmgMult = Math.min(g.dmgMult ?? 1, 0.6); g.frontlineMobilize = false; g.seekRange = Math.min(g.seekRange ?? 8, 8);
         continue;
       }
       // 守兵の後列も曲がり角を通す。寄せ口と到着後の槍衾は変えない。
       roadOrder(g, s.at.x + 6, s.at.z, 'yari');
-      // 10/31 谷道では、柵の侍も谷へ出て、散った守兵が一つの群れで先手へ打ちかかる。一組おきに本人を目がけて斬り込む。
-      if (s.phase === 'valley' && groups.indexOf(g) % 2 === 0) {
-        const arrive = g.onArrive;
-        g.onArrive = () => { arrive(); if (rt.player.u.alive) { g.order = 'attack'; g.focus = rt.player.u; g.seekRange = Math.max(g.seekRange || 0, 30); } };
-      }
-    }
-    if (reserve.length) {
-      const release = () => {
-        if (rt.over || F.ending || D.cur !== current || !rt.player.u.alive) return;
-        const active = groups.filter((h) => h.focus === rt.player.u && fighting(h)).length;
-        if (active < 2) {
-          const r = reserve.shift();
-          if (r && fighting(r)) { r.order = 'attack'; r.focus = rt.player.u; r.aggro = r.reserveAggro || 40; }
-        }
-        if (reserve.length) rt.after(1, release);
-      };
-      rt.after(12, release);
     }
     // 持ち場へ着くまでは射手が槍の後ろから勝手に撃たない。
     F.tgun.holdFire = true; F.tgun.fire = true;
@@ -1903,6 +1881,23 @@ const tano = {
     }
     const elapsed = Math.max(0, rt.t - C.sampledAt); C.sampledAt = rt.t;
     const p = rt.player.u.pos;
+    // 11/1 谷道：織田の先手の槍が守兵の二十歩内へ寄ったら（遅くとも二十秒で）、守兵が一つの群れで先手へ打ちかかる。本人は名指ししない。
+    //   前は段の初めから本人だけを目がけて押し寄せ、先手が着く前に本人が二太刀で倒れていた（iPad の田野・43秒）。
+    if (C.s.phase === 'valley' && !C.charged) {
+      let near = rt.t - C.t0 >= 20;
+      for (const og of F.oda) {
+        if (near || !fighting(og)) continue;
+        const c = og.center(og._centerProbe);
+        for (const g of C.groups) for (const v of g.units) if (v.alive && Math.hypot(v.pos.x - c.x, v.pos.z - c.z) < 20) { near = true; break; }
+      }
+      if (near) {
+        C.charged = true;
+        for (const g of C.groups) if (fighting(g)) {
+          g.path = null; g.onArrive = null; g.order = 'attack'; g.focus = null; g.frontlineMobilize = true; g.formation = 'yari';
+          g.seekRange = Math.max(g.seekRange || 0, 70); g.aggro = Math.max(g.aggro || 0, 40);
+        }
+      }
+    }
     // 柵の段だけ四秒ごとに寄せ直す。行軍中は道順を最初へ戻さない。
     if (C.s.phase === 'fence' && rt.t >= C.sortieAt) {
       C.sortieAt = rt.t + 4;

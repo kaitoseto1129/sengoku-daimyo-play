@@ -46,7 +46,7 @@ export const STAGES = {
   tottori: [['毛利の兵糧舟に火をかける'], ['打って出た城兵を止める', s(2)], ['開城の使いを木戸まで守る', s(3)]],
   takato: [['大手を破り、三の丸を取る'], ['二の丸を取る', f('sanFell')], ['本丸の仁科盛信を攻める', f('niFell')]],
   tano: [['谷道の先手へ合流する'], ['谷道で武田勢を押す', dp('valley')], ['崖道の殿を破る', dp('narrow')], ['屋敷の柵の口を破る', dp('fence')], ['勝頼の陣へ迫る', dp('tano')]],
-  honnoji: [['明智の大軍を門で押し返す'], ['本堂で上様を守る', ph('hondo', 'kyoto', 'move')], ['御殿で最後まで防ぐ', ph('goten')], ['二条御所の門を守る', (rt) => !rt.G.lord && ph('nijo', 'defend')(rt)], ['北の口から落ちる', ph('escape')]],
+  honnoji: [['明智の大軍を門で押し返す'], ['本堂で上様を守る', ph('hondo', 'kyoto', 'move')], ['御殿で最後まで防ぐ', ph('goten')], ['二条御所の門を守る', (rt) => !rt.G.lord && ph('nijo', 'defend')(rt)], ['京の町を抜け、外れまで逃げる', ph('escape')], ['使者の家で知らせを渡す', (rt) => !rt.G.lord && (rt.flags.step || 0) >= 6]],
 };
 
 const memo = new WeakMap(), doneMemo = new WeakMap();

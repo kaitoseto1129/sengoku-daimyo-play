@@ -67,6 +67,9 @@ import { sunomata } from './b_sunomata.js';
 import { shitaragahara } from './b_shitaragahara.js';
 import { addOdaHistory } from './oda_history.js';
 import { TOYOTOMI_LINE } from './toyotomi_line.js';
+import { TOKUGAWA_LINE } from './tokugawa_line.js';
+// 豊臣編・徳川編の戦は同じ形（id と file の並び）。出陣の時に file から読む
+const LATER_LINES = [...TOYOTOMI_LINE, ...TOKUGAWA_LINE];
 export { buildBobosaku } from './b_sunomata.js';
 export { dojo } from './b_dojo.js';
 
@@ -93,7 +96,7 @@ DEF_BY_ID.echizen = copyDef(echizen); DEF_BY_ID.takato = copyDef(takato_siege); 
 // 比叡山の旧登録も山岳版へ。架空の豪盛戦・門の自動破壊・梯子の瞬間移動へ戻さない。
 DEF_BY_ID.hieizan_old = copyDef(hiei_mtn);
 // 豊臣編は出陣の時に file から読む。それまでは空の札を置く（小谷と同じ）
-for (const e of TOYOTOMI_LINE) DEF_BY_ID[e.id] ||= {};
+for (const e of LATER_LINES) DEF_BY_ID[e.id] ||= {};
 addOdaHistory(DEF_BY_ID);
 installJindate(DEF_BY_ID);   // 野戦の陣立て（先陣・二陣・本陣の備。army_jindate.js）
 // 豊臣編（toyotomi_line.js）の戦は、出陣の時に file から読む。それまでは空の札だけ置く（小谷と同じ）
@@ -102,7 +105,7 @@ export const BATTLE_DEFS = [];
 onScenario(() => BATTLE_DEFS.splice(0, BATTLE_DEFS.length, ...BATTLES.map((b) => DEF_BY_ID[b.id])));
 markReady(Object.keys(DEF_BY_ID));
 // 豊臣編（toyotomi_line.js）の戦は、各戦のファイルを裏で読み、読めた物から並びへ出す（始める時は loadBattleDefinition が待つ）
-const toyoLoad = new Map(TOYOTOMI_LINE.map((b) => [b.id, import(b.file).then((m) => {
+const toyoLoad = new Map(LATER_LINES.map((b) => [b.id, import(b.file).then((m) => {
   const d = m[b.id] || m.default;
   if (!d) return;
   DEF_BY_ID[b.id] = d; d.key = b.id; markReady([b.id]);
@@ -115,7 +118,7 @@ const lazyHistory = new Set();
 export async function loadBattleDefinition(id) {
   if (toyoLoad.has(id)) await toyoLoad.get(id);
   if (id === 'odani' && !lazyHistory.has(id)) DEF_BY_ID.odani = (await import('./b_odani.js')).odani;
-  const toyo = TOYOTOMI_LINE.find((b) => b.id === id);
+  const toyo = LATER_LINES.find((b) => b.id === id);
   if (toyo && !lazyHistory.has(id)) { const m = await import(toyo.file); DEF_BY_ID[id] = m[id] || m.default; lazyHistory.add(id); }
   if (['hieizan', 'hieizan_old', 'hiei_mtn'].includes(id) && !lazyHistory.has(id)) {
     const { hiei_mtn: def } = await import('./b_hiei_mtn.js');

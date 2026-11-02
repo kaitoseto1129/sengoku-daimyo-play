@@ -1790,7 +1790,8 @@ function heat(rt, T, P, warmth, elapsed) {
   // 28歩ほどの渡り廊下を通常の速さで抜ける約9秒は、体力の約18％。
   // 初めの8秒は毎秒2％まで。居続けると、12秒かけて毎秒3.5％まで増す。
   const rate = 0.02 + 0.015 * Math.min(1, Math.max(0, T.heatExposure - 8) / 12);
-  const damage = Math.min(P.hp, P.maxHp * rate * warmth * elapsed * (rt.def.playerTaken ?? 1));   // 敵の傷と同じ倍率（def.playerTaken）
+  // 11/1：火の熱だけでは倒れない（出血と同じく命の一割弱で止める。熱は画面と息で伝わり続け、そこへ刃が来れば討たれる）
+  const damage = Math.min(Math.max(0, P.hp - P.maxHp * 0.08), P.maxHp * rate * warmth * elapsed * (rt.def.playerTaken ?? 1));   // 敵の傷と同じ倍率（def.playerTaken）
   P.hp = Math.max(0, P.hp - damage);
   if (damage > 0) {
     rt.stats.taken += damage;
