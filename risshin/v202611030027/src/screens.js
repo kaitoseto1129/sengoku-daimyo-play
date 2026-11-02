@@ -548,7 +548,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
       <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="ttKasure" x="-4%" y="-8%" width="108%" height="116%"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.9" numOctaves="2" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" result="d"/><feTurbulence type="fractalNoise" baseFrequency="0.9 0.06" numOctaves="1" seed="9" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.55" result="m"/><feComposite in="d" in2="m" operator="in"/></filter></svg>
       <h1 class="title tt-brush" aria-label="戦国立身3D">戦国立身<small>3D</small></h1>
       <p class="tt-motto">足軽から、天下へ。</p>
-      <div class="title-act">${saved ? '<button type="button" class="btn primary" id="b-cont">始める</button>' : '<button type="button" class="btn primary" id="b-new">始める</button>'}<button type="button" class="btn" id="b-set">設定</button></div>
+      <div class="title-act">${saved ? '<button type="button" class="btn primary" id="b-cont">始める</button>' : '<button type="button" class="btn primary" id="b-new">始める</button>'}<button type="button" class="btn" id="b-set"><svg viewBox="0 0 64 64" aria-hidden="true" style="width:18px;height:18px;vertical-align:-3px;margin-right:6px"><path d="M32 20a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm0 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="currentColor"/><path d="M29 6h6l1 7 5 2 6-4 4 4-4 6 2 5 7 1v6l-7 1-2 5 4 6-4 4-6-4-5 2-1 7h-6l-1-7-5-2-6 4-4-4 4-6-2-5-7-1v-6l7-1 2-5-4-6 4-4 6 4 5-2z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>設定</button></div>
       <nav class="tt-secondary" aria-label="ほかの操作" hidden>
         ${saved ? '<button type="button" class="btn small" id="b-new">新しく始める</button>' : ''}
         ${offerFull() ? '<button type="button" class="btn small" id="full-purchase">完全版</button>' : ''}
@@ -857,7 +857,7 @@ export function titleScreen(saved, onNew, onContinue, onSettings, onImport, onSl
 const SET_CAT = {
   操作: ['st-sens', 'st-psens', 'st-tsens', 'st-tswap', 'st-tsize', 'st-talpha', 'st-rtime', 'st-inv', 'st-smooth', 'st-autocam', 'st-view', 'st-twalk', 'st-run', 'st-aim', 'st-vib'],
   // 914：「画面」を「見やすさ」と「HUD」に分ける
-  見やすさ: ['st-fov', 'st-shake', 'st-blood', 'st-rm', 'st-guide', 'st-metrics', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
+  見やすさ: ['st-fov', 'st-bright', 'st-shake', 'st-blood', 'st-rm', 'st-guide', 'st-metrics', 'st-ca', 'st-ui', 'st-sub', 'st-subbg', 'st-hints', 'st-font'],
   戦の札: ['st-hudmode', 'st-hc', 'st-fade', 'st-float', 'st-mark', 'st-toast', 'st-cross', 'st-north', 'st-fps', 'st-hudMinimap', 'st-hudCompass', 'st-hudArmy', 'st-hudSquad', 'st-hudBottom', 'st-hudObjectives'],
   音: ['st-vol', 'st-vsfx', 'st-vamb', 'st-vmus', 'st-town', 'st-voice', 'st-vrate', 'st-vvoice'],
   描画: ['st-cap', 'st-dist', 'st-light'],
@@ -932,6 +932,7 @@ export function settingsHtml() {
     ${row('st-autocam', '視点が背後へ回る', chk('st-autocam', 'autoCam'))}
     ${row('st-view', '戦の視点', `<select id="st-view"><option value="third" ${S.view !== 'first' ? 'selected' : ''}>三人称（背中から見る）</option><option value="first" ${S.view === 'first' ? 'selected' : ''}>一人称（自分の目で見る）</option></select>`)}
     ${row('st-fov', '見える広さ', `<input type="range" id="st-fov" min="40" max="85" step="1" value="${S.fov}">`, S.fov + '°')}
+    ${row('st-bright', '画面の明るさ', `<input type="range" id="st-bright" min="0.7" max="1.4" step="0.05" value="${S.brightness || 1}">`, Math.round((S.brightness || 1) * 100) + '%')}
     ${row('st-vol', '音量（全体）', `<input type="range" id="st-vol" min="0" max="1" step="0.05" value="${S.volume}">`, Math.round(S.volume * 100) + '%')}
     ${row('st-vsfx', '効果音', `<input type="range" id="st-vsfx" min="0" max="1" step="0.05" value="${S.volSfx}">`, Math.round(S.volSfx * 100) + '%')}
     ${row('st-vamb', '環境音', `<input type="range" id="st-vamb" min="0" max="1" step="0.05" value="${S.volAmb}">`, Math.round(S.volAmb * 100) + '%')}
@@ -1099,6 +1100,7 @@ export function bindSettings(onChange) {
   show(setCat);
   bind('st-inv', 'invertY', (e) => e.checked);
   bind('st-fov', 'fov', (e) => +e.value, (v) => v + '°');
+  bind('st-bright', 'brightness', (e) => +e.value, (v) => Math.round((v || 1) * 100) + '%');
   bind('st-vol', 'volume', (e) => +e.value, (v) => Math.round(v * 100) + '%');
   bind('st-run', 'runToggle', (e) => e.checked);
   bind('st-aim', 'aimAssist', (e) => e.checked);
@@ -4065,8 +4067,58 @@ export function helpOverlay(on) {
   $('help-words').onclick = () => openGlossary();
 }
 
+// ---------------- 戦の中の設定（左の歯車の釦。kaito 11/2「戦の画面に設定のボタンが無い」） ----------------
+// 戦を止めたまま、よく変える物だけを一枚に並べる。並びは kaito の頼んだ順。
+const QUICK_SET = ['st-vol', 'st-vmus', 'st-vvoice', 'st-voice', 'st-vsfx', 'st-bright', 'st-shake', 'st-rm', 'st-tsize', 'st-tswap', 'st-ui'];
+const QUICK_GEAR = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 20a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm0 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="currentColor"/><path d="M29 6h6l1 7 5 2 6-4 4 4-4 6 2 5 7 1v6l-7 1-2 5 4 6-4 4-6-4-5 2-1 7h-6l-1-7-5-2-6 4-4-4 4-6-2-5-7-1v-6l7-1 2-5-4-6 4-4 6 4 5-2z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';
+// 一列に並べ、説明の小さな字は出さない（字を減らす）。戻る釦は上に置き、狭い携帯でも送らずに押せる。
+const QUICK_CSS = `#pause .pm-quick { grid-template-columns: 1fr; gap: 10px; width: min(640px, 100%); background: rgba(14,12,10,.94); border: 1px solid rgba(194,162,90,.6); padding: 12px 18px; text-align: left; }
+#pause .pm-quick h3 { display: flex; align-items: center; gap: 8px; font-size: 22px; }
+#pause .pm-quick h3 svg { width: 24px; height: 24px; color: var(--kin, #c2a25a); }
+#pause .pm-quick .btns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#pause .pm-quick .btns .btn { min-height: 44px; margin: 0; text-align: center; }
+#pause .pm-quick .settings .s-row { grid-template-columns: minmax(120px, 200px) 1fr 56px; gap: 12px; margin-bottom: 4px; text-align: left; }
+#pause .pm-quick .settings .s-row label { color: var(--washi, #ece4d2); }
+#pause .pm-quick .settings .s-row label small { display: none; }
+#pause .pm-quick .settings .s-row select, #pause .pm-quick .settings .s-row input[type=range] { width: 100%; min-height: 44px; }
+#pause .pm-quick .settings .s-row input[type=checkbox] { justify-self: start; width: 28px; height: 28px; }`;
+function battleSettings(el, o) {
+  el.setAttribute('role', 'dialog'); el.setAttribute('aria-labelledby', 'pm-h'); el.setAttribute('aria-modal', 'true');
+  el.innerHTML = `<style>${QUICK_CSS}</style><div class="pmenu pm-quick"><h3 id="pm-h">${QUICK_GEAR}設定</h3>
+    <div class="btns"><button class="btn primary" id="pm-resume">戦に戻る</button><button class="btn" id="pm-title">${o.town ? 'ホームへ戻る' : '題の画面へ戻る'}</button></div>
+    <div id="pm-confirm"></div><div id="pm-set"></div></div>`;
+  const box = el.querySelector('#pm-set');
+  box.innerHTML = settingsHtml();
+  const st = box.querySelector('.settings');
+  st.classList.add('show-adv');
+  st.querySelectorAll('.st-tabs, .st-tools, .keybind, .kb-lbl, #st-rehint, #st-reset').forEach((x) => { x.hidden = true; x.style.display = 'none'; });
+  bindSettings(o.onSettings);
+  const panel = st.querySelector('#st-panel');
+  st.querySelectorAll('.s-row').forEach((r) => { r.dataset.pauseHidden = 'true'; r.hidden = true; });
+  for (const id of QUICK_SET) {
+    const r = st.querySelector(`#${id}`)?.closest('.s-row');
+    if (r) { r.dataset.pauseHidden = 'false'; r.hidden = false; panel.appendChild(r); }
+  }
+  // 試しの音の釦などの、行の外の物は出さない
+  [...panel.children].forEach((c) => { if (!c.classList.contains('s-row')) c.hidden = true; });
+  const done = () => { window.speechSynthesis?.cancel(); saveSettings(); o.resume(); };
+  el.querySelector('#pm-resume').onclick = done;
+  el.querySelector('#pm-title').onclick = () => {
+    const cb = el.querySelector('#pm-confirm');
+    saveSettings();
+    if (o.error) { returnedFromBattle = true; o.title2(); return; }
+    confirmBox(cb, o.town ? 'ホームへ戻ります。' : '題の画面へ戻ります。', o.town ? 'ホームへ戻る' : '題の画面へ戻る', () => { returnedFromBattle = true; o.title2(); }, { sub: o.town ? '城下までの記録は残ります。' : 'この戦の進み具合は消えます。城下までの記録は残ります。' });
+  };
+  el.querySelector('#pm-resume').focus({ preventScroll: true });
+  el.onkeydown = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(); return; }
+    if (['Tab', 'Enter', ' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.stopPropagation();
+  };
+}
+
 // ---------------- 一時停止メニュー ----------------
 export function pauseMenu(el, o) {
+  if (o.settingsOnly) return battleSettings(el, o);
   el.setAttribute('role', 'dialog'); el.setAttribute('aria-labelledby', 'pm-h'); el.setAttribute('aria-modal', 'true');
   el.innerHTML = `<style>${WAR_CSS}</style><div class="pmenu">
     <h3 id="pm-h">${esc(o.title || '一時停止')}</h3>

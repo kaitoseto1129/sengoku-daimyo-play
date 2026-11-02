@@ -2036,6 +2036,10 @@ function roadTarget(rt, key, target) {
   if (i >= end && zone.test(p.x, p.z)) {
     F[key] = end + 1; target.gate = null; return null;
   }
+  // 11/2 win_1102b：bot が本丸へ入った後に門の外へ押し出されると、道を歩き終えた扱いのまま立ち止まり、
+  //   四百秒の交代で負けた（4回に1回）。曲輪の外で最後の印から離れていれば、最後の喰違いから歩き直す（bot だけ）。
+  if (key === 'botRoadI' && i > end && !zone.test(p.x, p.z) &&
+      Math.hypot(p.x - BOT_ROAD[end][0], p.z - BOT_ROAD[end][1]) > 8) { i = Math.max(1, end - 3); F[key] = i; }
   while (i <= end) {
     const gate = F.gates[BOT_GATES[i]], closed = gate && gate.struct.alive && !gate.opened;
     const prev = BOT_ROAD[i - 1], next = BOT_ROAD[i];
