@@ -2188,6 +2188,16 @@ const saika = {
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    saikaLive = rt;
+    // 11/2 win_1102b：竹束の段で敵が寄ると共通の退きの案内（retreat-priority）が作業札を隠し、指では「列を整える」を押せず七分で負けた。
+    //   竹束の長押しの札だけは、退きの案内・避けの合図の間も見えて押せるまま残す（戦を出たら外す）。
+    {
+      const st = document.createElement('style');
+      st.textContent = 'html body #hud:is(.retreat-priority,.dodge-active,.rain-danger) #prompt.work-action[data-action="列を整える"]:not([hidden]) { visibility:visible !important; }';
+      document.head.appendChild(st);
+      const d0 = rt.dispose;
+      rt.dispose = function () { st.remove(); this.dispose = d0; return d0 ? d0.call(this) : undefined; };
+    }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     const F = rt.flags, W = rt.world;
     timeslipField(rt);   // 身の回りのぬかるんだ岸・枯れ葦・倒れた槍と旗（def.timeslip）
@@ -3597,6 +3607,23 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     inp.guardHold = !!attacker && attackDist < reach;
     return;
   }
+  // 11/2 win_1102b：竹束の段で、輪の外の寄せ手と打ち合い続けて七分を使い切った（3回に2回）。
+  //   輪の外では構えたまま竹束へ寄り、輪の内では止まって長押しし、打ち込む者だけを受ける（bot だけ）。
+  if (F.step === 4 && !F.cover) {
+    const it = b.interacts.find((i) => i.id === 'cover');
+    if (it) {
+      const dc = Math.hypot(it.pos.x - u.pos.x, it.pos.z - u.pos.z);
+      if (dc >= it.r - 0.4) {
+        if (p.lock) inp.e.add('KeyQ');
+        goTo(p, inp, it.pos.x, it.pos.z, Math.max(0.6, it.r - 1.2));
+        inp.guardHold = !!attacker && attackDist < reach;
+        return;
+      }
+      inp.k.add('KeyE');
+      // 長押しは動く・打つ・構える間は進まない。輪の内では、今こちらへ打ち込む者だけを受ける。
+      if (!attacker || attackDist >= reach) { if (p.lock) inp.e.add('KeyQ'); return; }
+    }
+  }
   // 杭抜きの護衛は、作業する組のそばへ来た敵を迎える。
   // 自分の槍の間合いだけを探すと、数歩先で味方を襲う敵を見過ごす。
   const work = F.step === 1 ? F.stakes.find((a) => !a.pulled) : null;
@@ -3672,6 +3699,15 @@ saika.history += '高画質の堀の大袖には、山口県の紺糸威肩紅�
 saika.history += '堀の桃形兜の矧ぎ目と大袖の裏包は、部位だけでなく全身と頭の共有形を選ぶ際にも区別する。同じ配色の装備を先に作った場合でも、高画質の構造の補完が消えないようにした。矧ぎ目・裏包の史料上の位置付けは従来どおり復元案である。';
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。浜手の諸将。雑賀の将は名を断定しないので出さない。
 saika.bushou = ['滝川一益', '明智光秀', '細川藤孝', '筒井順慶'];
+// 11/2 win_1102b：竹束の段で、共通の退き癖（survive）と鉄砲の避け足（cover）が戦の頭より先に動き、
+//   bot が輪の内で「列を整える」を一度も押せず七分で負けた（3回に2回）。竹束のそばで命が三割を超える間だけ戦の頭に任せる（bot だけ）。
+let saikaLive = null;
+Object.defineProperty(saika, 'botDefendsFort', { configurable: true, get() {
+  const rt = saikaLive, u = rt?.player?.u;
+  if (!rt || rt.over || !u || rt.def?.botBrain !== saika.botBrain) return false;
+  const F = rt.flags;
+  return F.step === 4 && !F.cover && u.hp > u.maxHp * 0.3 && Math.hypot(u.pos.x - COVER.x, u.pos.z - COVER.z) < 7;
+} });
 export { saika };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、

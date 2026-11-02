@@ -2415,7 +2415,7 @@ const game = {
       const wt = (G.equip && G.equip.weapon) || '';
       const ck = { kills: b.stats.kills || 0, time: b.t, id: BATTLES[i].id, win: !!r.mainDone, weapon: /gun|teppo/.test(wt) ? 'gun' : 'spear', grade: r.grade || '' };
       if (!G.practice) import('./daily.js').then((m) => { if (m.dailyNote(ck, G).length) save(G); }).catch(() => {});
-      import('./native_bridge.js').then((m) => { m.gcScore(G.merit || 0); m.icloudPush(); }).catch(() => {});
+      import('./native_bridge.js').then((m) => { m.gcScore(G.merit || 0); if (!G.practice) m.gcBattle(ck.id, ck.kills, ck.time, ck.win && !r.downInfo); m.icloudPush(); }).catch(() => {});
     } catch (e) { /* 失敗しても進める */ }
     const hit = b.player.lastHit;
     if (b.result?.down && hit) {
@@ -2549,13 +2549,18 @@ const game = {
       actions.push({ label: 'ホームへ戻る', primary: true, fn: () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); toTown(); }) : toTown()) });
       actions.push(retry);
     }
+    // 戦ごとの順位表（Game Center・アプリだけ）を結果の画面から開く
+    if (!G.practice && window.webkit?.messageHandlers?.gamecenter) {
+      const gcId = BATTLES[i].id;
+      actions.push({ label: '順位を見る', fn: () => import('./native_bridge.js').then((m) => m.gcShow(m.gcKillsBoard(gcId))).catch(() => {}) });
+    }
     // 勝った後の広告（アプリだけ・一戦に一回）：結果の画面を閉じる主の釦で頼む。負け・練習・やり直しでは出さない（ads.js）
     if (r.mainDone && !r.downInfo && !G.practice) {
       const adId = BATTLES[i].id;
       for (const a of actions) if (a.primary && a !== retry) { const f = a.fn; a.fn = () => { showAfterWin(adId); f(); }; }
     }
     // 勝った時は、城下へ戻った後に App Store のレビューの窓を出す候補にする（review_ask.js）
-    if (r.mainDone) import('./review_ask.js').then((m) => m.noteWin(G)).catch(() => {});
+    import('./review_ask.js').then((m) => (r.mainDone && !r.downInfo ? m.noteWin(G) : m.noteLoss())).catch(() => {});
     // 戦の後の曲：昇進なら華やかに、勝てば凱歌、しくじれば尺八の一節
     playMusic(r.promoted ? 'promote' : r.mainDone ? 'victory' : 'defeat', { delay: 1 });
     // 戦の後の会話の場面：手柄と出世を言われる（織田家編・負けた戦は飛ばす。本能寺は勝てば使者の家の会話を戦の中で済ませたので、負けた時だけ）。取り立てられたら新しい位と姿も
