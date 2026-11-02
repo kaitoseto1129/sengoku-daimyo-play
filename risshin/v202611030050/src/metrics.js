@@ -124,9 +124,9 @@ export function initMetrics(game) {
   wrap(game, 'startMapBattle', () => begin('mapcastle', 'map'));
   // 戦の途中で題へ戻った＝途中でやめた
   wrap(game, 'title', function () {
-    const b = this.battle;
+    const b = this.battle, level = liveStage();   // 段は stepEnd で消えるので先に取る（ga_dropoff.mjs が段ごとに数える）
     perfEnd(); stepEnd();
-    if (b && !b.over && cur) metric('battle_quit', { battle_id: cur.id, sec: Math.round(b.t || 0), falls: falls[cur.id] || 0, kills: (b.stats && b.stats.kills) || 0 });
+    if (b && !b.over && cur) metric('battle_quit', { battle_id: cur.id, level, sec: Math.round(b.t || 0), falls: falls[cur.id] || 0, kills: (b.stats && b.stats.kills) || 0 });
     cur = null;
   }, function () {
     titleAt = performance.now();

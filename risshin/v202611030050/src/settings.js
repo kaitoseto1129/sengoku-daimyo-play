@@ -57,6 +57,7 @@ const DEFAULTS = {
   runToggle: false,   // 走りを切替式にする
   aimAssist: true,    // 照準補助
   shake: true,        // 画面の揺れ
+  brightness: 1,      // 画面の明るさ（0.7〜1.4。描く時の露出に掛けるだけ）
   flagMotion: false,  // 旗・幟・指物のなびき（戻す時は有効にして再読込）
   groundMarks: false, // 血・足跡・踏み荒らしを地面へ残す
   simpleMaterials: true, // 鉄・布・革の光を軽くする（再読込で反映）

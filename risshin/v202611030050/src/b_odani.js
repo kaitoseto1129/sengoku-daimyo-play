@@ -66,6 +66,8 @@ const KC = { x: KYO.x, z: KYO.cz };                       // 京極丸の真ん�
 const KOMC = { x: KOM.x, z: KOM.cz };
 const HONC = { x: HON.x, z: HON.cz };
 const MOUTH = { x: -93, z: 86 };   // 清水谷の中ほど（羽柴の手が集まる所。谷の口から忍んで入った）
+// 11/2 点付け（小谷72）：25秒は秀吉の脇に潜む所（-92,96）で南（谷の口）を向く。ここから9〜10m は門・林の木を立てず、肩越しの画面をふさがない。
+const HIDE25 = { x: -92, z: 96 };
 const HEAD = { x: SHIMIZU[SHIMIZU.length - 1][0], z: SHIMIZU[SHIMIZU.length - 1][1] };   // 谷の奥
 const BELOW = { x: CLIMB_UP[2][0], z: CLIMB_UP[2][1] };   // 京極丸の西の口の下
 const CLIMB = [...SHIMIZU, ...CLIMB_UP.slice(1)];
@@ -1742,7 +1744,7 @@ function odaniFrontGroves() {
   const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const out = [];
   const keep = (x, z) => alongLine(SHIMIZU, x, z).d > 6.5 && !YASHIKI.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 9)
-    && Math.hypot(x - KYOKAN.x, z - KYOKAN.z) > 17 && !inSiege(x, z, 3);
+    && Math.hypot(x - KYOKAN.x, z - KYOKAN.z) > 17 && !inSiege(x, z, 3) && Math.hypot(x - HIDE25.x, z - HIDE25.z) > (z > HIDE25.z ? 20 : 10);   // 南（谷の口）の側は二十歩：葉の板が画面の左を覆っていた
   const add = (x, z) => { if (keep(x, z)) out.push({ x, z, r: 0.6, n: 1, kind: rnd() < 0.72 ? 'broad' : 'sugi' }); };
   for (let i = 0; i < 200; i++) { const f = -14 + rnd() * 106, sd = (rnd() < .6 ? -1 : 1) * (6.5 + Math.pow(rnd(), 1.4) * 24); add(-97 + .376 * f + .926 * sd, 93 - .926 * f + .376 * sd); }
   for (let i = 0; i < 40; i++) { const f = -6 + rnd() * 40, sd = 7 + rnd() * 14; add(-84 + .13 * f + .99 * sd, 53 - .99 * f + .13 * sd); }
@@ -1970,7 +1972,7 @@ function addOdaniYashikiGates(rt, scenery) {
     }
     if (!best || bd < h.off + 3) continue;
     const dx = (best[0] - h.x) / bd, dz = (best[1] - h.z) / bd, gx = h.x + dx * h.off, gz = h.z + dz * h.off;
-    if (alongLine(SHIMIZU, gx, gz).d < 4) continue;
+    if (alongLine(SHIMIZU, gx, gz).d < 4 || Math.hypot(gx - HIDE25.x, gz - HIDE25.z) < 9) continue;   // 潜む所の真横の門は画面の左を黒い板でふさいでいた（11/2）
     rt.scene.add(kabukimon(W, gx, gz, h.w, Math.atan2(dx, dz), { yakui: !!h.yakui }));
     const gy = W.heightAt(gx, gz);
     viewMark(rt, 'gate', [[gx - dz * h.w / 2, gz + dx * h.w / 2], [gx + dz * h.w / 2, gz - dx * h.w / 2]], () => gy + 2.2);
@@ -3544,6 +3546,10 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     F.oteRoute = [BANSHO, OCHAYA, ONMAYA, SAKURABABA, { x: GATE_KURO.x, cz: GATE_KURO.z, name: '黒金御門' }, OOHIROMA, { x: HON.x, cz: HON.z1 + 5, name: '本丸の前' }];
     F.oteColumn = DA(0, BANSHO.z1 + 14, 4, 12, 24, Math.PI, ODA_ARMOR, 'oda', 15752, 0);
     F.oteColumn.army.noWake = true;
+    // 11/2 点付け（小谷72：敵の大軍・乱戦が薄い）：25秒の潜む所から南（谷の口の屋敷町）を向くと、浅井の兵が一人もいなかった。
+    //   谷の口の道の東の脇（味方の列の奥・画面の真ん中）で、町へ入った織田の別手と屋敷の浅井の侍が斬り合う（軽い作り。本物の兵・道・当たりは変えない。本人の十二歩の外だけ描く）。
+    F.mouthClash = clash(rt, { x: -91, z: 122, facing: Math.PI, w: 16, gap0: 0, seed: 15753, bw: 4.6, gap: 2.4, host: false, noRout: true, killRate: 0.004, maxDrift: 1.2, corpses: 6, realNear: 12, nearHide: 0,
+      A: { flag: 'oda', armor: ODA_ARMOR, count: 26, flagRate: 0.2 }, B: { flag: 'azai', armor: AZ_ARMOR, count: 30, flagRate: 0.25 } });
     F.clash = clash(rt, { x: 0, z: BANSHO.z1 + 8, facing: Math.PI, w: 13, gap0: 0, seed: 15751,
       A: { flag: 'oda', armor: ODA_ARMOR, count: 24, team: 0, faction: 'oda' }, B: { flag: 'azai', armor: AZ_ARMOR, count: 36, team: 1, faction: 'azai', bows: true } });
     // ---- 羽柴秀吉の手（自分の持ち場）と、蜂須賀の手 ----
