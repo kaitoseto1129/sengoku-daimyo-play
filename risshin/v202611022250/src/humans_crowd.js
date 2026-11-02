@@ -1,6 +1,7 @@
 // 人の処理：遠い兵。外部向けの入口は humans.js。
 import * as THREE from 'three';
 import { UNIT_MAT } from './units.js';
+import { MEM_TIGHT } from './settings.js';
 import { GRIME } from './humans_materials.js';
 import { PEOPLE_DET, PEOPLE_GLSL, peopleDetail } from './people_tex.js';
 
@@ -46,6 +47,8 @@ function nearCrowdMat(v) {
   // 細部の上乗せは兵の材質が MeshStandard（光を細かく計算する作り）の時だけ組める（mkA・vObjP・roughnessFactor を使う）。
   //   既定の「光を軽く」（simpleMaterials＝Phong）では上乗せの絵の作りが組めず、近くの兵の具足が描かれなかった（10/26）。その時は兵の材質のまま
   // 11/1：近くの兵は裏面も描く（袖口・草摺の裏・佩楯の内から向こうが透けていた）。裏の多い面は近い兵だけなので重さはわずか
+  // 11/2 1.6.5 の実機：iPhone の設楽原の5分が落ちるようになった取り込みの一つ。iPhone（MEM_TIGHT）は前の通り表だけ
+  if (!UNIT_MAT.isMeshStandardMaterial && MEM_TIGHT) return UNIT_MAT;
   if (!UNIT_MAT.isMeshStandardMaterial) {
     if (!crowdMats[4]) {
       const d = UNIT_MAT.clone();
@@ -215,7 +218,7 @@ function nearCrowdMat(v) {
       .replace('float crowdNoise(vec3 x)', 'float uVn(vec3 x)');
   };
   m.customProgramCacheKey = () => 'nearcrowd-finish7';
-  m.side = THREE.DoubleSide;
+  if (!MEM_TIGHT) m.side = THREE.DoubleSide;
   crowdMats[v] = m;
   return m;
 }

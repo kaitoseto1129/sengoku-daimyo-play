@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LAC_BLACK, LAC_SABI, LAC_AKA, KIND_AKA, KIND_SABI } from './lacquer_kind.js';
 import { SRC, limbFit, kusaPlates, plateOf, HEAD, humanLook } from './humans_shared.js';
 import { katoGeometry, headEnvelope, IMP_TINT } from './units.js';
+import { MEM_TIGHT } from './settings.js';
 
 
 // 近距離専用の打ち出しと縅。元の形は変えず、骨へ付ける前に同じ部品へ結合する。
@@ -334,7 +335,8 @@ function layParts(P, L, put) {
   }
   // 関節の内張り（11/1）：肩の付け根・肘・腿の付け根・膝で、甲冑と腕・草摺と腿・脛当と膝の間から向こうが透けていた。
   //   中に暗い布の玉を一つずつ入れて、どの角度からも抜けないようにする（低い面数・形は色ごとに共有）
-  for (const side of ['Right', 'Left']) {
+  // 11/2 1.6.5 の実機：一人に部品が八つ（描く回数も八回）増え、iPhone の設楽原の5分が落ちるようになった。iPhone（MEM_TIGHT）は入れない
+  if (!MEM_TIGHT) for (const side of ['Right', 'Left']) {
     const sx = side === 'Right' ? 'P' : 'N';
     put('jSh' + sx, side + 'Arm', jointGeo(L, 'sh'), limbFit(side + 'Arm', side + 'ForeArm', 0, 1));
     put('jEl' + sx, side + 'ForeArm', jointGeo(L, 'el'), limbFit(side + 'ForeArm', side + 'Hand', 0, 1));

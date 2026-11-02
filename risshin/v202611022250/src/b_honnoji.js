@@ -295,8 +295,9 @@ const AKECHI = { flag: 'akechi', armor: 0x34302a, cloth: 0x343c50, skin: 0xb8896
 // https://akechikai.or.jp/siryo_nenpyo/mitsuhide_after/
 // 10/30 採点：昼の青空に見えた。卯刻の前の暗い藍の空に、東の低い所だけが白み始める色へ下げる。
 // 日はまだ地平の下（低い白みの光だけ）。地の照り返しは寺の炎の橙に寄せる。
+// 11/02 門の軒下・塀の陰が黒く潰れた（カメラは日の陰の側を見る）：空の光の青みを抜き、寺の火の橙の照り返しを強めて hI を上げる。
 const HONNO_DAWN = { ...DAWN, sky: 0x4a5272, fog: 0x585d78, top: 0x222a48,
-  sun: 0xf0d0b0, hs: 0x8a92b2, hg: 0x64483a, sunI: 0.95, hI: 1.6, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む。11/1 点付け「暗くて見えない」：日と空の光を一割ずつ上げる
+  sun: 0xf0d0b0, hs: 0x9a9aac, hg: 0x7a5840, sunI: 0.95, hI: 2.1, glow: 0.42, dir: [1, 0.1, -0.3] }; // 10/31 明け方の低い日を少し強く・高く。白砂の照り返しは抑え、兵の顔と胴を日の側で読む。11/1 点付け「暗くて見えない」：日と空の光を一割ずつ上げる
 // 共通の色調で霧が昼の灰へ寄るのを戻し、雲を暗い夜明け前の雲にする。applyLook の後に呼ぶ。
 function honnoPreDawn(rt) {
   const W = rt.world, U = W.skyMat.uniforms;

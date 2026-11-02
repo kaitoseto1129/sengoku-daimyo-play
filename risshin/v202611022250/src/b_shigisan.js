@@ -2390,10 +2390,10 @@ const shigisan = {
     // 10/31 点付け「暗い」：月明かりと空の回り光を上げ、兵の具足と城の輪郭を読めるように（光源は増やさない）。
     nightLift: 3.8,
     // 11/1 点付け「暗い」：紺の夜空と青い月で全体が沈んだ。月は灰の銀、空と霧は鈍い鉛色にして、露出を一段上げる（光源は増やさない）。
-    nightFill: 1.0,
+    nightFill: 1.15,
     nightMoonMin: 2.6,
     nightLight: { hemiSky: 0x9a9ea4, hemiGround: 0x4a4e36, sky: 0x3a414c, fog: 0x3c434c, top: 0x181d26 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
-    lowNightExposure: 2.5,
+    lowNightExposure: 2.85, // 11/2 手前の地面と兵の足元がまだ暗い：一段上げる
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。

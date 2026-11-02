@@ -1338,7 +1338,8 @@ const tano = {
     fights: [[FIRST_JOIN.x, FIRST_JOIN.z, 28], [(NARROW.x0 + NARROW.x1) / 2, 0, 26], [TANO.x, TANO.z, 32]],
   },
   // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.5倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
-  cutFloor: 0.5,
+  // 11/2 oda_bot_1102：田野の段で侍の続けての突きに倒れた（五回に一回）。一太刀を二割に
+  cutFloor: 0.4,
   world: {
     seed: 15823, noticeRepeatGap: Infinity, moveLim: 230, time: 'day', mood: 'plain', mist: false, fogFar: 440, smokeFogFloor: 300, fogTint: 0x727d65, hazeColor: 0x929b83, mountainHaze: 0.28, wind: [1, 0.15], muddy: 0.1, riverCross: true,
     // 八十歩の霞で柵と対岸まで白く消さず、描く範囲の内で谷筋を読ませる。

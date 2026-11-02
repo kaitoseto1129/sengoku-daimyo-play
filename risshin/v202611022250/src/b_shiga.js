@@ -2283,7 +2283,8 @@ const shiga = {
   },
   // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
   //   一太刀を二割五分（侍は三割）に、刃を受けた後の3秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
-  cutFloor: 0.5,
+  // 11/2 oda_bot_1102：後詰の段と坂の退きで、止まって打ち合う bot が四太刀で倒れた（六回に二回）。一太刀を一割七分半（侍は二割強）に
+  cutFloor: 0.35,
   world: {
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     noHaori: true,
@@ -2427,7 +2428,8 @@ const shiga = {
   },
 
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k * (rt.flags.step === 2 ? 0.6 : 1) : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    // 11/2 oda_bot_1102：坂道の退き（段2）は追手の槍を殿が受ける。bot が四百六十歩の退きの途中で追手の突きを重ねて倒れた（六回に二回）ので、退きの間だけ一太刀をさらに六割に
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの刈り跡の田・町口の矢と笠（def.timeslip）

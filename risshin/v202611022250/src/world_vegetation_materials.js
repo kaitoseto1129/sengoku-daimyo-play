@@ -93,7 +93,7 @@ function crownShade(sh) {
     #ifdef TREE_CARD
       float crNear = 0.0;
     #else
-      float crNear = vCrownN * 0.75;
+      float crNear = vCrownN * 0.9;   // 11/2 c_veg_near：0.75→0.9（近い樹冠も日の側・裏・芯の陰をはっきり。一色の葉の板に見せない）
     #endif
     if (vCrownK > 0.0 || crNear > 0.0) {
       vec3 crV = vCrown.xyz * vec3(1.0, 1.4, 1.0) + vec3(0.0, 0.6, 0.0);
@@ -118,7 +118,7 @@ function crownShade(sh) {
       float crK = mix(0.42, 1.25, crSun) * mix(0.6, 1.1, crClump) * mix(0.62, 1.0, smoothstep(-4.0, 1.0, vCrown.y));
       vec3 crTint = mix(vec3(0.94, 1.0, 0.86), vec3(1.04, 1.0, 1.08), vCrown.w);
       diffuseColor.rgb *= mix(vec3(1.0), crK * crTint, vCrownK + crNear);
-      diffuseColor.rgb *= mix(1.0, mix(0.5, 1.0, smoothstep(0.25, 1.9, length(vCrown.xz))), crNear * 1.2);
+      diffuseColor.rgb *= mix(1.0, mix(0.42, 1.0, smoothstep(0.3, 2.4, length(vCrown.xz))), min(1.0, crNear * 1.2));
     }`);
 }
 function leafLit(sh, near = false) {
@@ -144,6 +144,14 @@ function leafLit(sh, near = false) {
     #endif`);
 }
 function nearLeafLit(sh) { leafLit(sh, true); }
+// 低木（11/2 c_veg_near）：縮んだ絵の不透明は弱く上げ、縁を一画素ほどにじませて重ね描きの濃淡で抜く（くっきり切った葉の板に見せない）
+function softBush(sh) {
+  keepAlpha(sh, 0.1);
+  sh.fragmentShader = sh.fragmentShader.replace('#include <alphatest_fragment>', `#ifdef USE_ALPHATEST
+      diffuseColor.a = clamp((diffuseColor.a - alphaTest) / max(fwidth(diffuseColor.a), 0.0001) * 0.6 + 0.5, 0.0, 1.0);
+      if (diffuseColor.a < 0.02) discard;
+    #endif`);
+}
 // 葉の板は読み込み時だけ作る。遠景は頂点処理でカメラへ向け、毎コマの向き直しを省く。
 function treeTriangles(g) { return (g.index ? g.index.count : g.attributes.position.count) / 3; }
 // 戦ごとの寸法は共有形へ読み込み時に一度だけ反映する。高さと枝張りを別々に保つ。
@@ -274,4 +282,4 @@ function grassLit(sh, fade = true, dryTips = true) {
 function riceLit(sh) { grassLit(sh, false, false); }
 
 
-export { liteMat, scaleTreePart, treeCards, treeLeafMap, keepAlpha, sway, leafLit, nearLeafLit, farTreeLit, nearTreeLit, treeTriangles, treeTextureKind, treeCardDepth, grassLit, grassAlpha, riceLit };
+export { softBush, liteMat, scaleTreePart, treeCards, treeLeafMap, keepAlpha, sway, leafLit, nearLeafLit, farTreeLit, nearTreeLit, treeTriangles, treeTextureKind, treeCardDepth, grassLit, grassAlpha, riceLit };

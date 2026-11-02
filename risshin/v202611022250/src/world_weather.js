@@ -280,10 +280,12 @@ export class WorldWeather {
     const scatter = THREE.MathUtils.smoothstep(Math.max(cover, rain), 0.35, 0.85);
     const dayFill = (0.48 + 0.34 * scatter) * (this.def.overcastFillScale ?? 1);
     // 夜の指定と雨・夕暮れの見やすさは保ち、移ろいの間も連続して変える。
-    this.nightFill.intensity = dayFill * (1 - k) + Math.max(0.42, this.def.nightFill ?? 0.85) * k + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
+    this.nightFill.intensity = dayFill * (1 - k) + Math.max(0.6, this.def.nightFill ?? 0.85) * k + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
     // 夜の下向きの面は土からの弱い返りだけ。月は灰の銀（青く寄せると兵が青く見えた。kaito 10/31 青い味方は禁止）。空と霧の青は残す。
     this.nightFill.color.setRGB(0.75 - 0.25 * k, 0.82 - 0.31 * k, 0.93 - 0.40 * k).lerp(this.hemi.color, 0.3 * (1 - k));
-    this.nightFill.groundColor.setRGB(0.42 - 0.18 * k, 0.38 - 0.16 * k, 0.32 - 0.10 * k);
+    // 11/02 夜の下からの返りは篝火・松明の暖かい土色に（カメラは兵の背・月の陰の側を見る事が多く、陰の面が黒く潰れていた：手取川・三木・鳥取）。
+    //   散乱光の下限も 0.42→0.6。光の数・影は増やさない。
+    this.nightFill.groundColor.setRGB(0.42 - 0.02 * k, 0.38 - 0.07 * k, 0.32 - 0.10 * k);
     // 晴天は締まった影、低い日・曇天・雨は柔らかい縁。影の枚数は増やさない。
     const height = Math.max(0, this.skyMat.uniforms.sunDir.value.y);
     this.sun.shadow.radius = 1 + cover * 0.8 + rain * 0.55 + (1 - height) * 0.3;

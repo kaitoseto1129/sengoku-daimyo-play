@@ -206,8 +206,11 @@ const pack3 = (a, i) => {
 };
 // 骨の重みを VAT の決まり（骨二本・重みの和 1・番号は得物の骨より前）にそろえる。
 //   重みが三本目以降に残る・和が 1 に足りない・番号が骨の絵の外、のどれでも頂点が原点へ縮み、黒い細長い三角が飛び出していた（11/1）
+// 11/2 1.6.5：番号と重みを 32 bit の数（一頂点 32 byte）で持たず、番号は 8 bit（骨は 256 本より少ない）、重みは 8 bit の 0〜1 で持つ（一頂点 8 byte）。
+//   この直しの入った取り込み（76c775f094）から iPhone の設楽原の5分が落ちるようになった分の記憶を減らす
+const SI_T = WPN < 256 ? Uint8Array : Uint16Array;
 function cleanSkin(geo, SI, SW) {
-  const n = SI.count, si = new Float32Array(n * 4), sw = new Float32Array(n * 4);
+  const n = SI.count, si = new SI_T(n * 4), sw = new Float32Array(n * 4);
   const fb = Math.max(0, ALLB.indexOf('Spine1'));
   let bad = 0;
   for (let i = 0; i < n; i++) {
@@ -225,8 +228,10 @@ function cleanSkin(geo, SI, SW) {
     si[i * 4] = b0; si[i * 4 + 1] = b1; sw[i * 4] = w0 / t; sw[i * 4 + 1] = w1 / t;
   }
   if (bad) VAT.stat.skinFixed = (VAT.stat.skinFixed || 0) + bad;
+  const sw8 = new Uint8Array(n * 4);
+  for (let i = 0; i < n * 4; i += 4) { const a = Math.round(sw[i] * 255); sw8[i] = a; sw8[i + 1] = sw[i + 1] > 0 ? 255 - a : 0; }   // 二つの和を 255 にそろえる
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
-  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw8, 4, true));
 }
 // 束の形 g を、形の束（形ごとに一つ）と色の置き場（姿ごと）へ入れる
 function addShape(g, near = false) {
