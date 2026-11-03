@@ -222,7 +222,7 @@ function placeEnemy(rt, T, force, existing = null) {
   ringWall(rt, P.x, P.z, 15, { team: 1, hp: 260, segLen: 5, gapAt: face, gapW: 0.9, name: `${e.name}の柵` });
   const g = enemyGroup(rt, { faction, name: `${e.name}の旗本`, fixed: true, guardSight: 22, guardLeash: 8, anchor: { x: P.x, z: P.z - 2 }, facing: face, order: 'hold', aggro: 14, seekRange: 22,
     noRout: true, morale: 100, guard: true, width: 6, defMult: 1.4, noGuard: true },
-  [...(!existing ? [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }] : []), { type: 'samurai', n: sc(10) }, { type: 'ashigaru', n: sc(8) }]);
+  [...(!existing ? [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }] : []), { type: 'samurai', n: sc(18) }]);
   if (existing) {
     const old = existing.group, i = old.units.indexOf(existing);
     if (i >= 0) { old.units.splice(i, 1); old.initial = Math.max(0, old.initial - 1); }
@@ -274,8 +274,8 @@ function placeAlly(rt, T, force) {
     const h = rt.player.u.heading || 0;
     let dx = C1 ? C1.x - S.x : Math.sin(h), dz = C1 ? C1.z - S.z : Math.cos(h); const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
     const B = C0 && d2(C0, S) < 90 ? C0 : S;
-    P = { x: B.x - dx * 34, z: B.z - dz * 34 };
-    if (d2(P, S) > 95) P = { x: S.x - dx * 40, z: S.z - dz * 40 };
+    P = { x: B.x - dx * 60, z: B.z - dz * 60 };   // 味方の本陣は後ろの奥
+    if (d2(P, S) > 120) P = { x: S.x - dx * 70, z: S.z - dz * 70 };
   }
   P = landAt(rt, P, S);
   const face = C1 ? Math.atan2(C1.x - P.x, C1.z - P.z) : (rt.player.u.heading || 0);
@@ -283,7 +283,7 @@ function placeAlly(rt, T, force) {
   const small = real(rt) > CAP;
   const g = allyGroup(rt, { faction: e.faction || 'oda', name: `${e.name}の旗本`, fixed: true, guardSight: 22, guardLeash: 8, anchor: { x: P.x, z: P.z - 2 }, facing: face, order: 'hold', aggro: 10, seekRange: 18,
     noRout: true, morale: 100, guard: true, stay: true, width: 5, defMult: 1.5, fullStrength: true },
-  [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: small ? 2 : 4 }, { type: 'ashigaru', n: small ? 3 : 8 }]);
+  [{ type: 'busho', n: 1, o: { name: e.name, hat: e.hat || 'kabuto_w', haori: e.haori } }, { type: 'samurai', n: small ? 6 : 10 }]);   // 殿の旗本は侍だけで大勢（11/2：一人で前線に出さない）
   const u = g.units.find((o) => o.type === 'busho' && o.name === e.name);
   if (!u) return true;
   u.maxHp *= 4; u.hp = u.maxHp; u.isTaisho = 'a'; g.leader = u; g.guardBase = g.defMult;

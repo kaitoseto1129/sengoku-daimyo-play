@@ -12,8 +12,8 @@ import { BATTLES } from './state.js';
 const BIG = new Set(['織田信長', '羽柴秀吉', '木下秀吉', '豊臣秀吉', '羽柴秀長', '豊臣秀長', '徳川家康', '徳川秀忠']);
 const SKIP = new Set(['honnoji']);
 const pure = (n) => String(n || '').replace(/（.*?）/g, '').replace(/^.* /, '').trim();
-const REAL = MEM_TIGHT ? 8 : 14;     // 本物の侍の数（近くの侍を差し引く）。軽い兵は本人の 44m の内に描かれないので、近くは本物で囲む
-const LIGHT = MEM_TIGHT ? 16 : 28;   // 軽い作りの輪の数
+const REAL_BIG = MEM_TIGHT ? 8 : 14, REAL_MID = MEM_TIGHT ? 4 : 8;     // 本物の侍の数（近くの侍を差し引く）。軽い兵は本人の 44m の内に描かれないので、近くは本物で囲む
+const LIGHT_BIG = MEM_TIGHT ? 16 : 28, LIGHT_MID = MEM_TIGHT ? 10 : 16;   // 軽い作りの輪の数
 const RING_R = 5.0;                   // 本物の旗本の輪の半径
 const STOP_R = 3.4;                   // 本人はここより内へ入れない
 const MEET_R = 7.5;                   // ここまで寄ると旗本が前へ出る
@@ -24,8 +24,11 @@ const FAR_P = 140;                    // 本人がこの外へ離れたら本物
 function isGuardLord(rt, u) {
   if (!u.alive || u.isPlayer || u.isStruct || u.type === 'dummy') return false;
   if (BIG.has(pure(u.name))) return true;
-  return u.isTaisho === 'a' && (u.type === 'busho' || !!u.name);
+  if (u.isTaisho && (u.type === 'busho' || !!u.name)) return true;
+  // 名のある武将は誰でも、前線に一人で出ない（侍の一団が周りを囲む）。11/2
+  return u.type === 'busho' && !!u.name && !u.keep;
 }
+const isBig = (u) => BIG.has(pure(u.name)) || u.isTaisho === 'a';
 
 // 大将の家の侍の姿（具足と威を大将に揃える）
 function guardSpec(lord, n) {
@@ -43,7 +46,7 @@ function aliveCount(army) {
 }
 
 function realGuard(rt, L) {
-  const army = rt.army, u = L.u, g0 = u.group;
+  const army = rt.army, u = L.u, g0 = u.group, REAL = L.big ? REAL_BIG : REAL_MID;
   // 大将のそばに既にいる侍・騎馬（自分の組は除く）は旗本に数える
   let near = 0;
   for (const o of army.units) {
@@ -72,7 +75,7 @@ function dropGuard(rt, L) {
 
 // 軽い作りの外の輪：侍・旗持ち・騎馬。大将の周り 6〜10m に散らして置く（前は少し開けて、大将の見通しを残す）
 function lightRing(rt, L) {
-  const w = rt.world, u = L.u;
+  const w = rt.world, u = L.u, LIGHT = L.big ? LIGHT_BIG : LIGHT_MID;
   if (!w?.addDistantArmy) return null;
   const gd = GENERALS[pure(u.name)] || {}, fac = FACTION[u.group?.faction] || FACTION.oda;
   const mon = gd.mon || fac.flag || 'oda', h = u.group?.facing ?? u.heading ?? 0;
@@ -95,7 +98,7 @@ function lightRing(rt, L) {
 // 寄った本人の前へ、近い旗本を二人出して立ち塞がらせる。本人は STOP_R より内へ入れない
 function stopPlayer(rt, L) {
   const P = rt.player?.u, u = L.u;
-  if (!P || !P.alive || P.team !== u.team) return;
+  if (!L.big || !P || !P.alive || P.team !== u.team) return;
   const dx = P.pos.x - u.pos.x, dz = P.pos.z - u.pos.z, d = Math.hypot(dx, dz);
   if (d > MEET_R || d < 1e-3) { L.meet = null; return; }
   const ux = dx / d, uz = dz / d;
@@ -117,13 +120,13 @@ function stopPlayer(rt, L) {
 }
 
 function adoptLord(rt, S, u) {
-  const L = { u, g: null, ring: null };
-  u.oTaisho = true; u.isLord = true;
+  const L = { u, g: null, ring: null, big: isBig(u) };
+  if (L.big) { u.oTaisho = true; u.isLord = true; }
   // 城の中・櫓の上の大将には外の輪を付けない（壁の内へ兵を寄せない）
   const ground = rt.world?.heightAt ? rt.world.heightAt(u.pos.x, u.pos.z) : u.pos.y;
   const inside = u.perch || u.climb || (u.pos.y ?? ground) - ground > 1.5;
   // 本物の旗本は、本人が 90m の内へ来た時に置く（遠い大将の分で本物の兵の枠を使わない）
-  L.wantReal = !inside && u.team === rt.player?.u?.team;
+  L.wantReal = !inside && !(u.isTaisho === 'b' && u.group?.guard);   // 敵の総大将は taisho.js の本陣の旗本がいる
   if (!inside) L.ring = lightRing(rt, L);
   S.list.push(L);
 }
