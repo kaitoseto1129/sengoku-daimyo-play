@@ -2,6 +2,8 @@
 // 稲生の戦い（kaito 10/29 夜の仕様 docs/inou_spec_1029.md）
 // 南北300m×東西150m。南端から北の土手の林美作守へ。正面の道と葦原の脇道。
 // 11/1 kaito（B 節）：練習 → 陣形対陣形の大軍の激突（林の先手）→ 二の備と弓組 → 土手の林美作守。自分は味方の横の列の一組として動く。
+// 11/3 kaito の流れ（docs/battle_refs/inou_story.md）：柴田勢 千との乱戦を耐える → 信長が前へ出て「主に刃を向けるのか」の大音声で柴田勢が崩れる
+// → 「隊列を整えよ」で列を止め、助けに来た林勢 七百（こちらは四百ほど）へ → 土手の旗本を崩す → 信長が駆けつける中で美作守を討つ。
 // 流れ矢が飛ぶ。右上は「目標」の札（stages.js）と小さな地図（美作守の居場所は赤いひし形）。ばかでかい赤い旗印はやめた。
 // 以下は 10/29 の仕様の名残り：
 // 雑兵は北へ退く槍兵（8mで振り向く）と立ち止まる弓兵。近づいた区画から出す。
@@ -30,8 +32,14 @@ const sideX = (z) => { for (let i = 0; i < SIDE.length - 1; i++) { const [ax, az
 // 陣形（kaito 11/1 B 節）：味方は横一列の七組（自分の組は道の真ん中）、林の先手は横一列の六組、二の備は五組と後ろの弓組二つ
 const SLOTS = [-27, -14, -1, 25, 38, 51];
 const ALLY_Z0 = 130, L1_Z0 = 82, L1_MEET = 104, L2_Z0 = -24, L2_MEET = 4, BOW_Z = -40;
-const L1_X = [-20, -7, 6, 19, 32, 45], L2_X = [-14, 0, 14, 28, 42];
+// 11/3 kaito の稲生の流れ（docs/battle_refs/inou_story.md）：柴田勢 約千が信長方 七百足らずに押し寄せるので、柴田の列は味方より一組多く厚く
+const L1_X = [-26, -13, 0, 13, 26, 39, 52], L2_X = [-14, 0, 14, 28, 42];
 const PRACTICE_T = 45, STAGE_T = 150;
+const SHOUT_T = 50;                            // 列がぶつかってから信長の大音声までの乱戦（柴田の列が半分に減れば早まる）
+const REGROUP_T = 7;                           // 柴田勢が崩れた後、列を整える間
+// 両軍の人数（『信長公記』：信長方 七百足らず、柴田勢 千・林美作守 七百）。字の無い兵の絵の棒（hud_army.js）と開戦の札で見せる
+const FORCE = { a: 700, a0: 700, b: 1700, b0: 1700 };
+const round10 = (n) => Math.max(0, Math.round(n / 10) * 10);
 const TURN = 8;                                // 槍兵が振り向く近さ
 const BOW_RANGE = 30;
 const BOSS_RANGE = 20;
@@ -242,6 +250,22 @@ const inou_spec = {
   fieldMapRight: true,       // 小さな地図は右上の目標の札の下（kaito 11/1 B 節）。美作守の居場所を赤いひし形で
   mapMarks: (rt) => rt.flags.ending ? null : [rt.flags.bossU?.alive ? rt.flags.bossU.pos : BOSS],
   hideArmyPeek: true,
+  forceBar: true,
+  sides: { a: { name: '信長方', mon: 'oda' }, b: { name: '信勝方', mon: 'kari' } },
+  introSides: { a: '信長方 約七百', b: '信勝方 約千七百' },
+  // 柴田勢との乱戦で信長方は四百ほどに減る。柴田勢が崩れた後は林勢 七百が相手（減り方は本物の兵の減った割合）
+  force(rt) {
+    const F = rt?.flags;
+    if (!F || !F.l1N) return FORCE;
+    if ((F.stage || 0) < 2) {
+      const r1 = Math.max(0, Math.min(1, aliveIn(F.l1) / F.l1N));
+      FORCE.a = round10(700 - 560 * (1 - r1)); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
+    } else {
+      const all = [...(F.l2 || []), ...(F.bows || []), ...(F.bankG || []), ...(F.guardG ? [F.guardG] : [])];
+      FORCE.a = F.aLeft || 400; FORCE.b = F.ending ? 0 : round10(700 * (0.2 + 0.8 * Math.min(1, aliveIn(all) / Math.max(1, F.l2All || 1))));
+    }
+    return FORCE;
+  },
   hideGuideSteps: true,
   missionSingleLine: true,
   noPlayerFoot: true,
@@ -264,7 +288,7 @@ const inou_spec = {
   closeCombatAssist: true,
   noWinCrane: true,
   compactIntro: true,
-  introText: () => '信長の弟・信勝（のぶかつ）を立てた柴田勝家と林美作守（はやしみまさかのかみ）が兵を挙げた。織田家の内輪の戦。信長方は於多井川（おたいがわ）を渡り、名塚の砦から出て、柴田勢と陣を並べてぶつかる。',
+  introText: () => '信長の弟・信勝（のぶかつ）を立てた柴田勝家と林美作守（はやしみまさかのかみ）が兵を挙げた。織田家の内輪の戦。林勢は名塚の砦へ向かい、柴田勢 千が先に信長方へ押し寄せる。こちらは半分に足らない。',
   minutes: 8,
   spawn: { x: START.x, z: START.z, heading: Math.PI },
   world: {
@@ -346,16 +370,17 @@ const inou_spec = {
       g.slotX = x; return g;
     })];
     F.allies.slotX = FRONT_X;
-    F.l1 = L1_X.map((x, i) => this.foeLine(rt, x, L1_Z0, i, 8, '柴田勢の先手'));
+    F.l1 = L1_X.map((x, i) => this.foeLine(rt, x, L1_Z0, i, 9, '柴田勢'));
     F.l1N = F.l1.reduce((n, g) => n + g.units.length, 0);
     // 紙（battle_events_1101）：柴田勝家は敵将として必ず出る。馬上で先手の後ろに立ち、先手が崩れると北へ退く（討てない）
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家', anchor: { x: FRONT_X + 4, z: L1_Z0 - 12 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 3, noRout: true, noAI: true,
       order: 'hold', aggro: 0, morale: 100, dmgMult: 0.3, fixed: true },
-    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true, horse: true } }, { type: 'samurai', n: 2 }]));
+    dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, keep: true, horse: true } }, { type: 'samurai', n: 6 }]));
     F.groups.push(F.shibaG);
     // 味方の大将：信長（馬上）と、名塚の砦を守った佐久間大学（盛重）。列の後ろに付いて北へ（信長で遊ぶ時は本人が信長）
-    F.nobuG = allyGroup(rt, { name: '信長の旗本', fullStrength: true, anchor: { x: FRONT_X + 10, z: ALLY_Z0 + 8 }, facing: Math.PI, width: 3, aggro: 0, speed: 3, noAI: true, noRout: true, order: 'hold' },
-      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, keep: true, horse: true, flag: 'eiraku' } }]), { type: 'samurai', n: 1, o: { name: '佐久間大学', invuln: true, keep: true } }, { type: 'ashigaru', n: 3 }]);
+    // 大将は一人で動かない（kaito 11/2 O）：足軽でなく旗本の侍の一団ごと動く
+    F.nobuG = allyGroup(rt, { name: '信長の旗本', fullStrength: true, anchor: { x: FRONT_X + 10, z: ALLY_Z0 + 8 }, facing: Math.PI, width: 4, aggro: 0, speed: 3, noAI: true, noRout: true, order: 'hold' },
+      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, keep: true, horse: true, flag: 'eiraku' } }]), { type: 'samurai', n: 1, o: { name: '佐久間大学', invuln: true, keep: true } }, { type: 'samurai', n: 7, o: { invuln: true } }]);
     F.stage = 0; F.pk = 0; F.kills = 0;
     // 列の後ろの軽い大軍（数には入れない）：本物の列に付いて動く
     const W = rt.world;
@@ -366,7 +391,7 @@ const inou_spec = {
     F.backB?.follow?.(() => lineFront(F.l1, 0));
     rt.obj('main', '林美作守を討て', 'main');
     // 組頭の三つの台詞（字幕）。終わるまで動けない。その後に短い練習
-    const L = [['於多井川を渡り、名塚から出たぞ。相手は信勝さま方じゃ！', 0.6], ['同じ織田の者同士、朱の旗が敵じゃ。前に柴田勢、奥に林美作の備。', 3.4], ['かかる前に稽古じゃ。前の遅れ兵を突いてみよ！', 7.2]];
+    const L = [['名塚の砦から出たぞ。前の柴田勢は千、こちらは七百に足らぬ。', 0.6], ['林美作の七百は名塚へ回った。来る前に柴田を受け止めるのじゃ。', 3.4],['かかる前に稽古じゃ。前の遅れ兵を突いてみよ！', 7.2]];
     for (const [s, t] of L) rt.after(t, () => rt.say('組頭', s, 2.8));
     rt.after(9.6, () => { F.holdPlayer = false; this.spawnPractice(rt); });
   },
@@ -383,7 +408,7 @@ const inou_spec = {
   // 練習：組頭の前に林の遅れ兵が三人。弱く、一人ずつ寄ってくる
   spawnPractice(rt) {
     const F = rt.flags, P = rt.player.u;
-    F.practice = enemyGroup(rt, { faction: 'nobukatsu', name: '林の遅れ兵', anchor: { x: P.pos.x + 1, z: P.pos.z - 12 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 3,
+    F.practice = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田の遅れ兵', anchor: { x: P.pos.x + 1, z: P.pos.z - 12 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 3,
       noRout: true, noAI: true, order: 'attack', aggro: 12, seekRange: 22, focus: P, dmgMult: 0.2, morale: 60, speed: 1.6 }, dress([{ type: 'ashigaru', n: 3 }]));
     for (const u of F.practice.units) { u.hp = u.maxHp = Math.max(24, P.dmg * 2); u.cdBase *= 1.8; }
     F.groups.push(F.practice);
@@ -395,7 +420,7 @@ const inou_spec = {
     const F = rt.flags;
     if (F.stage >= 1) return;
     F.stage = 1; F.stageT = rt.t;
-    rt.say('組頭', '列に戻れ！　味方と並んで、柴田の先手を崩すぞ！', 3.5);
+    rt.say('組頭', '列に戻れ！　味方と並んで、柴田勢を受け止めよ！', 3.5);
     rt.after(3.6, () => rt.say('足軽', 'かかれぇっ！', 2));
     sfx('taiko', 1); rt.after(0.45, () => sfx('taiko', 0.9));
     rt.army.play('toki', { x: FRONT_X, z: ALLY_Z0 - 4 }, 1.5);
@@ -421,21 +446,42 @@ const inou_spec = {
     }
   },
 
-  // 段二：林の先手が崩れ、二の備（五組）と後ろの弓組が北から寄せる。両翼でも軽い大軍が組み合う
+  // 信長の大音声（11/3 kaito の流れ）：乱戦の最中、信長が旗本ごと列のすぐ後ろへ馬を進め「主に刃を向けるのか」と一喝する。
+  // 字の札は出さず、馬の一団が前へ出る動き・大音声・台詞で分からせる。三秒ののちに柴田勢が崩れる
+  shout(rt) {
+    const F = rt.flags;
+    if (F.shoutT != null || F.stage !== 1) return;
+    F.shoutT = rt.t;
+    const P = rt.player.u, f = lineFront(F.line, Math.PI);
+    F.nobuGo = { x: Math.max(-40, Math.min(56, P.pos.x + 7)), z: Math.min(ZS - 4, (f ? f.z : P.pos.z) + 6) };
+    if (live(F.nobuG)) { F.nobuG.speed = 5; }
+    sfx('taiko', 1); rt.after(0.35, () => sfx('taiko', 1));
+    rt.say('組頭', '殿じゃ！　殿が前へ出られたぞ！', 2.6);
+    rt.after(2.8, () => {
+      if (F.ending) return;
+      const at = F.nobuG?.center?.() || P.pos;
+      rt.army.play('eshout', { x: at.x, z: at.z }, 1.6);
+      rt.say(rt.G.lord ? '自分' : '織田信長', '主に刃を向けるのか！', 3);
+    });
+    rt.after(5.9, () => this.breakLine1(rt));
+  },
+
+  // 段二：柴田勢が崩れて敗走する。信長は「隊列を整えよ」と列を止め、間を置かず北から寄せる林勢（先手五組と弓組）へ向かう。両翼でも軽い大軍が組み合う
   breakLine1(rt) {
     const F = rt.flags;
     if (F.stage !== 1) return;
-    F.stage = 2; F.stageT = rt.t; F.line1Broken = true;
+    F.stage = 2; F.stageT = rt.t; F.line1Broken = true; F.forceShowUntil = rt.t + 6;
     this.routLine(rt, F.l1);
     // 『信長公記』：信長の大声に、柴田の兵は主の声を恐れて逃げた。勝家も北へ退く
     this.routLine(rt, [F.shibaG]);
     F.backB?.rout?.({ hideAfter: 30 });
     rt.army.play('eshout', rt.player.u.pos, 1.4);
-    rt.say(rt.G.lord ? '自分' : '織田信長', 'おのれら、主の顔を見忘れたか！', 3);
-    rt.after(3.2, () => rt.say('柴田勝家', '……殿の御声じゃ。退け、退けい！', 3));
-    rt.after(6.6, () => rt.say('組頭', '柴田勢が崩れたぞ！　だが、まだ林の二の備がおる。列を組み直せ！', 4));
-    rt.after(11, () => rt.say('足軽', '矢が来るぞ、頭を下げい！', 3));
-    F.l2 = L2_X.map((x, i) => this.foeLine(rt, x, L2_Z0, i + 2, 8, '林勢の二の備'));
+    rt.say('柴田勝家', '……なぜ、わしらは殿に刃を向けておるのじゃ。退け、退けい！', 3.4);
+    rt.after(3.6, () => rt.say('組頭', '柴田勢が崩れたぞ！', 2.4));
+    rt.after(6.2, () => rt.say(rt.G.lord ? '自分' : '織田信長', '隊列を整えよ！　次は林美作守の軍を叩く！', 3.6));
+    rt.after(10, () => { if (!F.ending) { F.forceShowUntil = rt.t + 6; rt.say('足軽', '林勢が来た……向こうは七百、こちらは四百ほどじゃ', 3.4); } });
+    rt.after(14, () => rt.say('足軽', '矢が来るぞ、頭を下げい！', 3));
+    F.l2 = L2_X.map((x, i) => this.foeLine(rt, x, L2_Z0, i + 2, 8, '林勢の先手'));
     for (const g of F.l2) g.dmgMult = 0.36;
     // 後詰の二組が南から駆け付け、減った味方の列を埋める
     const pz = Math.min(ZS - 6, rt.player.u.pos.z + 36);
@@ -464,17 +510,34 @@ const inou_spec = {
       C.go?.();
       return C;
     });
-    const alive = F.line.filter(live);
-    alive.forEach((g, i) => {
-      g.focus = null; g.order = 'move'; g.speed = 2.8; g.aggro = 0;
-      g.dest = { x: g.slotX, z: L2_MEET + 3 };
-      g.onArrive = (q) => { q.order = 'attack'; q.aggro = 11; q.seekRange = 28; };
-    });
+    F.l2All = F.l2N + F.bowN + 26;   // 土手の二組と旗本を含めた林勢（七百の減り方の割合に使う）
+    // 列を整える：味方の組は今いる所で足を止め、持ち場の横へ並び直す（REGROUP_T 秒の後に林勢へ進む。update）
+    const fz = lineFront(F.line, Math.PI)?.z ?? rt.player.u.pos.z;
+    for (const g of F.line) if (live(g)) {
+      g.focus = null; g.order = 'move'; g.speed = 2.4; g.aggro = 6;
+      g.dest = { x: g.slotX, z: Math.min(ZS - 6, fz + 2) };
+      g.onArrive = (q) => { q.order = 'hold'; };
+    }
     for (const g of F.l2) {
       g.order = 'move'; g.speed = 1.6; g.dest = { x: g.anchor.x, z: L2_MEET - 3 };
       g.onArrive = (q) => { q.order = 'attack'; q.aggro = 11; q.seekRange = 26; };
     }
     rt.army.play('toki', { x: FRONT_X, z: L2_Z0 }, 1.4);
+  },
+  // 列が整った：信長の旗本を真ん中の後ろに置いて、味方の列が林勢へ進む
+  advanceLine2(rt) {
+    const F = rt.flags;
+    if (F.regrouped) return;
+    F.regrouped = true; F.nobuGo = null;
+    if (live(F.nobuG)) F.nobuG.speed = 3;
+    sfx('taiko', 1); rt.after(0.45, () => sfx('taiko', 0.9));
+    rt.army.play('toki', { x: FRONT_X, z: rt.player.u.pos.z - 4 }, 1.4);
+    rt.say('組頭', '列が整うた。林勢へかかれぇっ！', 3);
+    for (const g of F.line) if (live(g)) {
+      g.focus = null; g.order = 'move'; g.speed = 2.8; g.aggro = 0;
+      g.dest = { x: g.slotX, z: L2_MEET + 3 };
+      g.onArrive = (q) => { q.order = 'attack'; q.aggro = 11; q.seekRange = 28; };
+    }
   },
 
   // 段三：二の備も崩れる。土手の林美作守と取り巻きが最後に踏ん張る
@@ -487,12 +550,29 @@ const inou_spec = {
     for (const C of F.wings || []) C.rout?.('B', { from: 0, minFight: 6, hideAfter: 30 });
     if (!F.bossG) { this.spawnBoss(rt); this.spawnBank(rt); F.groups.push(F.guardG); F.guardG.secKind = 'guard'; }
     sfx('taiko', 1); rt.after(0.4, () => sfx('taiko', 0.9));
-    rt.say('組頭', '二の備も崩れた！　あとは土手の林美作守じゃ。討ち取れ！', 4);
+    rt.say('組頭', '林の先手が崩れた！　美作守は土手で本気で迎え撃つ気じゃ。旗本を崩せ！', 4);
     for (const g of F.line) if (live(g)) {
       g.focus = null; g.order = 'move'; g.speed = 3; g.aggro = 0;
       g.dest = { x: Math.max(-30, Math.min(50, g.slotX)), z: -96 };
       g.onArrive = (q) => { q.order = 'attack'; q.aggro = 12; q.seekRange = 30; };
     }
+  },
+
+  // 段四：旗本が崩れると、信長が旗本ごと土手へ駆けつけ、大音声で美作守を呼ぶ（史実は信長が自ら討った。遊びでは本人が討ち、信長が見届ける）
+  lordArrives(rt) {
+    const F = rt.flags;
+    if (F.stage !== 3) return;
+    F.stage = 4; F.guardDown = true;
+    F.nobuGo = { x: BOSS.x + 9, z: BOSS.z + 13 };
+    if (live(F.nobuG)) F.nobuG.speed = 5;
+    sfx('taiko', 1); rt.after(0.4, () => sfx('taiko', 1));
+    rt.say('組頭', '旗本が崩れた！　殿が駆けつけて来られるぞ！', 3);
+    rt.after(3.2, () => {
+      if (F.ending) return;
+      const at = F.nobuG?.center?.() || rt.player.u.pos;
+      rt.army.play('eshout', { x: at.x, z: at.z }, 1.6);
+      rt.say(rt.G.lord ? '自分' : '織田信長', '美作！　主に刃を向けた報い、受けよ！', 3.2);
+    });
   },
 
   onKill(rt, v, k) {
@@ -509,7 +589,7 @@ const inou_spec = {
   spawnBank(rt) {
     const F = rt.flags;
     F.bankG = [-1, 1].map((sd, i) => {
-      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林勢の殿', anchor: { x: BOSS.x + sd * 12, z: BOSS.z + 6 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5,
+      const g = enemyGroup(rt, { faction: 'nobukatsu', name: '土手の林勢', anchor: { x: BOSS.x + sd * 12, z: BOSS.z + 6 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5,
         noRout: true, formation: 'line', morale: 95, dmgMult: 0.42, order: 'hold', aggro: 14, speed: 2.6 },
       dress([{ type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'ashigaru', n: 2 }, { type: 'samurai', n: 2 }, { type: 'bow', n: 1 }]));
       g.secKind = 'bank'; F.groups.push(g);
@@ -537,11 +617,11 @@ const inou_spec = {
     dress([{ type: 'busho', n: 1, o: { name: '林美作守', hat: 'kabuto_m', flag: 'aka_kari' } }]));
     F.guardG = enemyGroup(rt, { faction: 'nobukatsu', name: '林美作守の旗本', anchor: { x: BOSS.x, z: BOSS.z + 4 }, facing: 0, width: 5, noRout: true, noAI: true,
       formation: 'line', order: 'hold', aggro: 0, morale: 90, dmgMult: 0.55, fixed: true },
-    dress([{ type: 'ashigaru', n: 5 }]));
+    dress([{ type: 'samurai', n: 6 }]));   // 名のある将の旗本は足軽でなく侍（kaito 11/2 O）
     const b = F.bossU = F.bossG.units[0];
     const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
     put(b, BOSS.x, BOSS.z);
-    F.guardG.units.forEach((u, i) => put(u, BOSS.x + (i - 2) * 2.4, BOSS.z + 3.5));
+    F.guardG.units.forEach((u, i) => put(u, BOSS.x + (i - 2.5) * 2.4, BOSS.z + 3.5));
     // 四十秒〜一分で倒せる強さ（仮）
     b.maxHp = b.hp = BOSS_HP;
   },
@@ -562,9 +642,9 @@ const inou_spec = {
       const g = F.kumi;
       if (Math.hypot(F.kumiU.pos.x - P.pos.x, F.kumiU.pos.z - P.pos.z) > 4) { g.order = 'move'; g.dest = { x: P.pos.x + 2.5, z: P.pos.z + 1.5 }; }
       else g.order = 'hold';
-      // 信長の旗本は味方の列の十四m後ろに付いて北へ
+      // 信長の旗本は味方の列の十四m後ろに付いて北へ（大音声と美作守の場面では F.nobuGo へ馬を進める）
       const f = F.stage >= 1 && lineFront(F.line, Math.PI), N = F.nobuG;
-      if (f && live(N)) { const c = N.center(), z = Math.min(ZS - 4, f.z + 14); if (Math.hypot(c.x - FRONT_X - 10, c.z - z) > 5) { N.order = 'move'; N.dest = { x: FRONT_X + 10, z }; } else if (N.order === 'move') N.order = 'hold'; }
+      if ((f || F.nobuGo) && live(N)) { const c = N.center(), to = F.nobuGo || { x: FRONT_X + 10, z: Math.min(ZS - 4, f.z + 14) }; if (Math.hypot(c.x - to.x, c.z - to.z) > 5) { N.order = 'move'; N.dest = to; } else if (N.order === 'move') N.order = 'hold'; }
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
@@ -581,11 +661,23 @@ const inou_spec = {
           if (near < 16) F.lineMet = true;
         }
       }
-      if (aliveIn(F.l1) <= F.l1N * 0.35 || rt.t - F.stageT > STAGE_T) this.breakLine1(rt);
+      // 列どうしがぶつかった時（本人がどこにいても）。柴田は林勢の来ないのを焦り、数で押す
+      if (!F.meetT) { const a = lineFront(F.line, Math.PI), b = lineFront(F.l1, 0); if (a && b && Math.abs(a.z - b.z) < 14) F.meetT = rt.t; }
+      if (F.meetT && !F.waitSaid && rt.t - F.meetT > 8) {
+        F.waitSaid = true;
+        rt.say('柴田勝家', '美作守の勢はまだか！　名塚など捨て置いて、こちらへ回せ！', 3.4);
+        rt.after(5, () => { if (F.stage === 1) rt.say('足軽', '柴田勢はこちらの倍じゃ……押される！', 3); });
+        rt.after(10, () => { if (F.stage === 1) rt.say('組頭', '退くな！　列を崩さず踏みとどまれ！', 3); });
+      }
+      if (F.meetT && (rt.t - F.meetT > SHOUT_T || aliveIn(F.l1) <= F.l1N * 0.5) || rt.t - F.stageT > STAGE_T) this.shout(rt);
     } else if (F.stage === 2) {
+      if (!F.regrouped && rt.t - F.stageT > REGROUP_T + 6) this.advanceLine2(rt);
       if (!F.bowsDown && (aliveIn(F.bows) <= 1 || rt.t - F.stageT > STAGE_T)) { F.bowsDown = true; this.routLine(rt, F.bows); }
       if (aliveIn(F.l2) <= F.l2N * 0.35 || rt.t - F.stageT > STAGE_T + 30) { F.bowsDown = true; this.breakLine2(rt); }
-    } else if (F.stage === 3 && !F.bankDown && F.bankG && aliveIn(F.bankG) <= 6) F.bankDown = true;
+    } else if (F.stage === 3) {
+      if (!F.bankDown && F.bankG && aliveIn(F.bankG) <= 6) F.bankDown = true;
+      if (F.guardG && aliveIn([F.guardG]) <= 1) this.lordArrives(rt);
+    }
     if (F.bossG && !F.bankAllies && P.pos.z < -84) this.bankCharge(rt);
     // 崩れて退く林勢：本人から離れた者は去る（本物の兵の枠を空ける）
     for (const g of F.groups) {
@@ -644,6 +736,7 @@ const inou_spec = {
     rt.tracker.main = true;
     rt.player.u.invuln = true;
     rt.say('組頭', '林美作守、討ち取ったり！', 3);
+    if (!rt.G.lord) rt.after(1.2, () => rt.say('織田信長', '見事じゃ。美作の最期、この信長が見届けた！', 3));
     // 信勝方が崩れて退く。柴田らは後に赦されて信長方へ戻る（伏線）
     for (const g of F.groups) if (g !== F.bossG && live(g)) { g.routing = true; g.order = 'retreat'; g.dest = { x: g.center().x, z: -150 }; g.aggro = 0; g.focus = null; }
     rt.after(1.6, () => rt.banner('信勝方、総崩れ', '柴田勝家らは詫びを入れ、のちに信長に仕える'));
@@ -674,6 +767,7 @@ const inou_spec = {
   },
 };
 inou_spec.history = OLD.history;
+inou_spec.date = OLD.date;   // def.sides のある戦は開戦の札に日付を出す
 inou_spec.timeslip = OLD.timeslip;
 
 export { inou_spec };

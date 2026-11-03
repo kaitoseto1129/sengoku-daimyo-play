@@ -195,6 +195,17 @@ export const ArmyThink = {
   },
 
   thinkNow(u) {
+    this.thinkBody(u);
+    // 大将（taisho_guard.js の u.oTaisho）：足軽と斬り合わない。間近の敵だけ払い、あとは組の持ち場の少し後ろに構える（kaito_play O）
+    if (u.oTaisho && u.alive && !u.fleeing && u.target && !u.target.isStruct && !(u.duelW || u === this.duel?.foe) &&
+      Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) > (u.mounted ? 2.8 : 2.2)) {
+      const g = u.group, f = g.forward(), s = g.slotPos(u.slot, g.initial);
+      u.target = null; u.atk = null; u.watch = null;
+      u.moveTo = localPoint(this, u, u.moralePoint, s.x - f.x * 2.5, s.z - f.z * 2.5);
+    }
+  },
+
+  thinkBody(u) {
     const g = u.group;
     u.pressBack = null; u.combatRetreat = false;
     if (this.duel && (u.duelW || u === this.duel.foe) && !u.fleeing && !g.routed) {

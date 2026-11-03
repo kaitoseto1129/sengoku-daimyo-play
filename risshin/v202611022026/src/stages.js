@@ -11,10 +11,12 @@ const f = (k) => (rt) => !!rt.flags[k];
 export const STAGES = {
   // 稲生（kaito 11/1 B 節）：練習 → 先手を崩す → 二の備を退ける → 林美作守を討つ。三つ目の欄は右上の「目標」の札に並べる目標（[字, 済んだか]）
   inou: [
-    ['練習', null, [['林の兵を一人討つ', (rt) => (rt.flags.pk || 0) >= 1], ['続けてもう一人討つ', (rt) => (rt.flags.pk || 0) >= 2]]],
-    ['柴田勢を退ける', (rt) => (rt.flags.stage || 0) >= 1, [['味方の列と並んで進む', f('lineMet')], ['敵を三人討つ', (rt) => (rt.flags.kills || 0) >= 3], ['柴田の先手を崩す', f('line1Broken')]]],
-    ['林の二の備を退ける', (rt) => (rt.flags.stage || 0) >= 2, [['後ろの弓組を討つ', f('bowsDown')], ['林の二の備を退ける', f('line2Broken')]]],
-    ['林美作守を討つ', (rt) => (rt.flags.stage || 0) >= 3, [['土手の林勢を崩す', f('bankDown')], ['林美作守を討つ', f('ending')]]],
+    // 11/3 kaito の稲生の流れ（docs/battle_refs/inou_story.md）：柴田勢との乱戦を耐える → 信長の大音声で柴田勢が崩れる → 列を整えて林勢へ → 旗本を崩す → 美作守を討つ
+    ['練習', null, [['柴田の兵を一人討つ', (rt) => (rt.flags.pk || 0) >= 1], ['続けてもう一人討つ', (rt) => (rt.flags.pk || 0) >= 2]]],
+    ['柴田勢との乱戦を耐える', (rt) => (rt.flags.stage || 0) >= 1, [['味方の列と並ぶ', f('lineMet')], ['敵を三人討つ', (rt) => (rt.flags.kills || 0) >= 3], ['殿の声まで踏みとどまる', f('line1Broken')]]],
+    ['列を整え、林勢を叩く', (rt) => (rt.flags.stage || 0) >= 2, [['信長のもとで列を整える', f('regrouped')], ['林勢の弓を黙らせる', f('bowsDown')], ['林勢の先手を崩す', f('line2Broken')]]],
+    ['林美作守の旗本を崩す', (rt) => (rt.flags.stage || 0) >= 3, [['土手の林勢を崩す', f('bankDown')], ['美作守の旗本を崩す', f('guardDown')]]],
+    ['林美作守を討つ', (rt) => (rt.flags.stage || 0) >= 4, [['林美作守を討つ', f('ending')]]],
   ],
   // kaito 11/2 T：義元を探せ → 本陣に迫れ → 義元を討て の三段（幕と大きな旗印は本陣の一か所だけ）
   okehazama: [['義元を探せ'], ['本陣に迫れ', ph('assault')], ['義元を討て', f('entered')]],

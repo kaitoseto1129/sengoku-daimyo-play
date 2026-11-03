@@ -161,7 +161,8 @@ export class HudArmy {
   updateTug(rt) {
     let tb = this.tugEl;
     // 稲生は所属の分からない裸の数字を出さず、戦場の兵と敵の▼で見せる。
-    if (rt.def.missionStyle === 'lesson') { if (tb) tb.hidden = true; return; }
+    //   ただし def.forceBar の戦（稲生の 700 対 1700）は、字の無い兵の絵の棒で開戦と節目にだけ見せる。
+    if (rt.def.missionStyle === 'lesson' && !rt.def.forceBar) { if (tb) tb.hidden = true; return; }
     const f = rt.def.force?.(rt);
     if (!tb) {
       if (!f || !rt.def.sides) return;
@@ -189,7 +190,7 @@ export class HudArmy {
       this.tugKey = '';
     }
     const guided = !!rt.missionGuide?.marker || this.missionEnemyShown;
-    const needed = rt.t < 4 || rt.t < (rt.missionDangerUntil || 0);
+    const needed = rt.t < 4 || rt.t < (rt.missionDangerUntil || 0) || rt.t < (rt.flags?.forceShowUntil || 0);
     const off = !f || guided || !needed || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
     tb.hidden = off;
     if (off) return;

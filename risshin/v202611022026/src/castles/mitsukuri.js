@@ -90,6 +90,9 @@ export const MITSUKURI_PLAN = {
   hori: [
     { kind: 'horikiri', pts: [[-127, -149], [-109, -158]], w: 4.5, deep: 1.6 },
     { kind: 'tatebori', pts: [[-127, -149], [-143, -137], [-161, -117]], w: 2.6, deep: 1.8 },
+    // 北東（東）尾根の段郭の間の浅い堀切（現地記録。docs/battle_refs/mitsukuri.md）。尾根道は道の高さで土橋として渡る。
+    { kind: 'horikiri', pts: [[24.2, -99.4], [31.8, -85.4]], w: 3.5, deep: 0.9 },
+    { kind: 'horikiri', pts: [[68.3, -122.6], [75.7, -108.4]], w: 3.5, deep: 0.9 },
   ],
   yagura: [
     { id: 'monomi_ni', name: '木戸の物見', kind: 'monomi', at: [13, -78] },

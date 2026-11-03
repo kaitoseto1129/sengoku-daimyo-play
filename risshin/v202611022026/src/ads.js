@@ -11,6 +11,7 @@ export const offerNoAds = () => !!window.__iosApp && !!bridge() && canBuyInApp()
 export const buyNoAds = () => confirmBuy({
   title: `${NOADS.name}（${NOADS.price}）`, buy: `${NOADS.price}で広告を消す`,
   lines: ['勝った後の広告が出なくなります。戦の中には、もとから広告は出ません。', '1か月ごとに自動で更新します。止める時は、端末の設定の「サブスクリプション」から解約できます。'],
+  warn: '払った月の分は、途中で解約しても戻りません。',
 }).then((ok) => ok && buyProduct(NOADS_PID));
 
 // 勝った後の結果の画面を閉じた所で呼ぶ。battleId は一戦ごとの印（同じ戦で二度は出さない）

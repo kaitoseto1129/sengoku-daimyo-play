@@ -618,7 +618,8 @@ const CUES = {
 
   // 2. 城下：穏やかな琴と篠笛（季節で音階と楽器が少し変わる）
   town: {
-    bpm: 66, gain: 2.5, cap: 14,
+    // 11/2：題の曲より 8dB ほど小さく、城下だけ沈んで聞こえた。少し上げて画面ごとの大きさを揃える
+    bpm: 66, gain: 3.1, cap: 14,
     tempo: (o) => ({ 夏: 1.15, 冬: 0.85 }[o.season] || 1),
     bar(a, k, t, n) {
       const s = a.o.season || '春', sc = SCALES[s] || SCALES.春, B = a.B;

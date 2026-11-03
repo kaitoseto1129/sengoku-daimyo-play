@@ -3503,6 +3503,11 @@ const mitsukuri = {
     // 西面の低い野面積みと板笠の土塀だけ。総石垣や瓦・天守を補わない。
     const stoneBatch = makeKitBatch(), top = W.heightAt(...honPoint(-17,0)) + 0.25;
     ishigaki(W, [honPoint(-20.1,-5), honPoint(-20.1,-3.8)], { topY: top, minH: 2, maxH: 2.6, lean: 0.14, out: 1, batch: stoneBatch, scene: rt.scene });
+    // 副郭（二の丸）の虎口も石垣（縄張図）。木戸の石段の両脇の切岸を野面積みで留め、上に板塀が載る形。
+    for (const [x0, x1] of [[-7.5, -2.3], [2.3, 7.5]]) {
+      ishigaki(W, [[x0, -60.6], [x1, -60.6]], { topY: W.heightAt(0, -64.6) + 0.2, minH: 2, maxH: 4.5, lean: 0.16, out: 1, capIn: 3.6, batch: stoneBatch, scene: rt.scene });
+      solidSeg(x0, -60.8, x1, -60.8, 0.3);
+    }
     // 石垣の上の部分だけ、既存の柵を土塀へ替える。当たりの線を共用する。
     for (const wall of C.walls) if (wall.name === '本丸' && wall.seg && Math.hypot((wall.seg[0]+wall.seg[2])/2-HON_EXIT[0], (wall.seg[1]+wall.seg[3])/2-HON_EXIT[1]) < 6) {
       wall.mesh.visible = false;

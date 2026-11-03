@@ -39,7 +39,7 @@ import { Player, RADIAL, GROUP_NAME, ORDER_NAME } from './player.js';
 import { MeritTracker, RANKS, scenario, TOMO, tomoAlive, tomoCap, BATTLES, relOf } from './state.js';
 import { weatherPlanWorld, weatherPlanTick } from './weather_plan.js';
 import { aftermathStart, aftermathInput, aftermathDispose } from './battle_aftermath.js';
-import { sfx, setCrowd, setRain, setNearbyBattleSound, ambience, setScene, afterBattle, silence, farNext, deafen, hush, fadeAway } from './audio.js';
+import { sfx, setCrowd, setRain, setNearbyBattleSound, ambience, setScene, afterBattle, silence, farNext, deafen, hush, fadeAway, playMusic } from './audio.js';
 import { preludeStart, preludeTick } from './prelude.js';
 import { sightPoint } from './battle_sight.js';
 import { createWarVoices } from './war_voice.js';
@@ -65,6 +65,7 @@ import { updateLadders, resetLadders, ladderRetryState } from './siege_ladder.js
 import { helpSeen } from './first_help.js';
 import { kumiList, kamaeTick, shitaKind } from './kumi.js';
 import { taishoInit, taishoTick, taishoKill, taishoPrepare } from './taisho.js';
+import { taishoGuardTick } from './taisho_guard.js';
 import { armyHeadTick } from './armyhead.js';
 import { campLifeInit, campLifeTick, campLifeDispose } from './camp_life.js';
 import { distantBattleInit, distantBattleTick } from './distant_battle.js';
@@ -826,6 +827,8 @@ export class Battle {
     this.ready = false;
     // 戦ごとの環境音：川・夜・嵐と、下知に限って合図を鳴らす戦の決まり。
     silence();
+    // silence は戦の曲も止める。出陣の時（main.js startBattle）に鳴らし始めた戦の曲をここで掛け直す（消えたままだと戦の中は曲が無かった。11/2）
+    if (!def.town) playMusic('prebattle');
     setScene({ locatedBattleVoices: !!def.world?.locatedBattleVoices, noAmbientCalls: !!def.noAmbientCalls, scriptedBattleVoices: !!def.scriptedBattleVoices,
       syntheticBattleSound: !!def.syntheticBattleSound });
     setScene({ syntheticSound: !!def.world?.syntheticSound, river: (def.world && (def.world.water || (def.world.streams && def.world.streams.length))) ? 0.5 : 0, night: def.world && (def.world.time === 'dusk' || def.world.time === 'night'), wind: def.world && def.world.time === 'storm' ? 1 : 0.3, cold: !!(def.world && def.world.snow) });
@@ -2549,6 +2552,7 @@ export class Battle {
     allyOrdersTick(this, dt);
     if (this.aftermath) return;
     taishoTick(this, dt);
+    taishoGuardTick(this, dt);   // 大将を囲む近習・旗本（kaito_play O）
     intelTick(this);
     armyHeadTick(this, dt);   // 軍の頭（士気の上下・連鎖崩壊・使番の知らせ。armyhead.js）
     battleEventsTick(this, dt);

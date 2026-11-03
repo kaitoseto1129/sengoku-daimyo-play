@@ -13,8 +13,8 @@ export const PRICE = '500円';
 // 足す品（kaito 11/1）：第二章「豊臣編」500円と、見た目の品（cosmetics.js）。どれも消費しない品（Non-Consumable）。一覧は docs/iap_1101.md
 export const FULL_PID = 'jp.kaito.sengokurisshin.full';
 export const CHAPTERS = {
-  toyotomi: { pid: 'jp.kaito.sengokurisshin.ch2_toyotomi', name: '第二章 豊臣編', price: '500円', n: 12, blurb: '本能寺の後、秀吉に付いて天下統一まで戦う。山崎から小田原まで。侍大将から部将・城主・大名へ' },
-  tokugawa: { pid: 'jp.kaito.sengokurisshin.ch3_tokugawa', name: '第三章 徳川編', price: '500円', n: 15, blurb: '豊臣の世が崩れ、徳川に付いて関ヶ原から大坂の陣まで戦う。伏見城から天王寺・岡山まで', note: 'できた戦から順に開きます' },
+  toyotomi: { pid: 'jp.kaito.sengokurisshin.ch2_toyotomi', name: '第二章 豊臣編', price: '500円', n: 12, thumb: 't01_yamazaki', blurb: '本能寺の後、秀吉に付いて天下統一まで戦う。山崎から小田原まで。侍大将から部将・城主・大名へ' },
+  tokugawa: { pid: 'jp.kaito.sengokurisshin.ch3_tokugawa', name: '第三章 徳川編', price: '500円', n: 15, thumb: 'k06_sekigahara', blurb: '豊臣の世が崩れ、徳川に付いて関ヶ原から大坂の陣まで戦う。伏見城から天王寺・岡山まで', note: 'できた戦から順に開きます' },
 };
 // 全部入りの割引の組（kaito 11/1）：完全版・豊臣編・徳川編・見た目の品の全部。別々に買うと3,500円
 export const BUNDLE_PID = 'jp.kaito.sengokurisshin.bundle_all';
@@ -115,7 +115,7 @@ export function restorePurchases() {
   return promise;
 }
 // 買う前の確認札（見た目の品・広告を消す）。品の姿（canvas）・値段・取り消せない事を見せ、「買う」を押した時だけ true
-// o：{ title, price, buy（釦の字）, lines（説明の行）, look（姿を描く canvas を受け取る関数。戻り値は閉じる時の後始末） }
+// o：{ title, price, buy（釦の字）, lines（説明の行）, warn（取り消せない事の一文。定期購読は別の文）, look（姿を描く canvas を受け取る関数。戻り値は閉じる時の後始末） }
 let confirmEl = null;
 export function confirmBuy(o) {
   if (confirmEl) confirmEl.__done(false);
@@ -132,7 +132,7 @@ export function confirmBuy(o) {
       <div style="flex:1 1 auto;min-width:0">
         <h2 id="bc-title" style="margin:0 0 4px;font-size:19px;color:#e7c873">${o.title}</h2>
         ${(o.lines || []).map((t) => `<p style="margin:2px 0">${t}</p>`).join('')}
-        <p style="margin:6px 0 2px;color:#e3b8a8">支払いは${window.__androidApp ? ' Google Play ' : ' App Store '}で行います。買った後は取り消せません。</p>
+        <p style="margin:6px 0 2px;color:#e3b8a8">支払いは${window.__androidApp ? ' Google Play ' : ' App Store '}で行います。${o.warn || '買った後は取り消せません。'}</p>
         <div style="display:flex;flex-wrap:wrap;margin-top:6px">
           <button class="btn primary" id="bc-buy" style="${btn}">${o.buy}</button>
           <button class="btn" id="bc-no" style="${btn}">買わずに戻る</button>
@@ -174,14 +174,17 @@ export function showPaywall(onOpen, onClose, scn = scenarioKey()) {
   el.setAttribute('aria-labelledby', 'pw-title');
   el.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(10,8,6,.82);box-sizing:border-box;padding:max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px))';
   const btn = 'min-height:44px;padding:8px 18px;font-size:16px;margin:4px;cursor:pointer';
-  el.innerHTML = `<div style="max-width:460px;width:100%;max-height:100%;min-height:0;overflow:auto;box-sizing:border-box;background:#1c1813;color:#f1e8d6;border:1px solid #8a7348;border-radius:8px;padding:16px 18px;font-size:15px;line-height:1.7">
+  // 開く戦の姿（戦の中で撮った絵。assets/thumbs）を札の左に。完全版は無料の三戦の次の戦
+  const shot = canBuy ? new URL(`../assets/thumbs/${ch ? ch.thumb : (MAIN_LINE()[FREE_BATTLES]?.id || 'inabayama')}.webp`, import.meta.url).href : '';
+  el.innerHTML = `<div style="display:flex;gap:14px;align-items:center;max-width:${shot ? 680 : 460}px;width:100%;max-height:100%;min-height:0;overflow:auto;box-sizing:border-box;background:#1c1813;color:#f1e8d6;border:1px solid #8a7348;border-radius:8px;padding:14px 16px;font-size:15px;line-height:1.6">
+    ${shot ? `<img src="${shot}" alt="" decoding="async" style="flex:0 1 auto;width:min(36vw,260px);aspect-ratio:16/9;object-fit:cover;border-radius:6px">` : ''}<div style="flex:1 1 auto;min-width:0">
     ${ch ? `<h2 id="pw-title" style="margin:0 0 6px;font-size:20px;color:#e7c873">${ch.name}の購入</h2>
     <p style="margin:4px 0">${ch.blurb}。</p>
     <p style="margin:4px 0">買うと${ch.n}戦が開きます${ch.note ? `（${ch.note}）` : ''}。一度買えば、ずっと遊べます（買い切り・${ch.price}）。</p>`
     : `<h2 id="pw-title" style="margin:0 0 6px;font-size:20px;color:#e7c873">完全版の購入</h2>
     <p style="margin:4px 0">最初の${FREE_BATTLES}戦は、ずっと無料で遊べます。完全版を買うと、残りの${n}戦がすべて開きます。</p>
     <p style="margin:4px 0">一度買えば、ずっと遊べます（買い切り・${PRICE}）。</p>`}
-    <p id="pw-msg" role="status" style="margin:6px 0;min-height:24px;color:#e7c873"></p>
+    <p id="pw-msg" role="status" style="margin:2px 0;color:#e7c873"></p>
     ${canBuy ? '' : '<p style="margin:4px 0">購入の準備中です。今はすべての戦を遊べます。</p>'}
     ${ios ? `<p style="margin:4px 0;color:#e3b8a8">支払いは${window.__androidApp ? ' Google Play ' : ' App Store '}で行います。買った後は取り消せません。</p>` : ''}
     <div style="display:flex;flex-wrap:wrap;justify-content:center">
@@ -196,7 +199,7 @@ export function showPaywall(onOpen, onClose, scn = scenarioKey()) {
       <label for="pw-key">買った鍵</label>
       <input id="pw-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="pw-key-help" style="display:block;box-sizing:border-box;width:100%;min-height:44px;margin:8px 0;padding:8px;font-size:16px;background:#14120f;color:#f1e8d6;border:1px solid #c2a25a;border-radius:4px">
       <button class="btn" id="pw-verify" type="submit" style="${btn}">鍵を確かめる</button>
-    </form>`}</div>`;
+    </form>`}</div></div>`;
   document.body.appendChild(el);
   card = el; mt('fullView');
   // Web は Gumroad の買う画面をこの頁の上に重ねて開く（ほかのサイトへ移らない）。読めない時は新しいタブで開く

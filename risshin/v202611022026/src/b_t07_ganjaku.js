@@ -13,7 +13,9 @@ import { makeRockTraps } from './siege_rocks.js';
 import { enemyGroup, allyGroup } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { RANKS } from './state.js';
-import { hashigo, nobori, jinmaku, yagura } from './props.js';
+import * as THREE from 'three';
+import { hashigo, nobori, jinmaku, yagura, castleBoardFence, hut, solidCircle, solidSeg, solidRect } from './props.js';
+import { rockShape, groundRocks } from './rock_shape.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
 import { farSight } from './far_sight.js';
@@ -44,6 +46,8 @@ const MOUTH = pt(5.5, 7), FRONT = pt(5.5, -3), INSIDE = pt(-6, -3), INNER = pt(-
 // 梯子を掛ける岩肌（門の両脇の塀の外。足は外、上は塀の上）
 const LAD = [[-12, 3.2, -12, 0.3], [-16, 3.4, -16, 0.3], [14, 3.2, 14, 0.3]].map(([a, b, c, d]) => ({ foot: pt(a, b), top: pt(c, d) }));
 
+// 竪堀の筋（大手の南西から左右へ二十八度ずつ開いた二筋）
+const TATE = [-1, 1].map((k) => { const a = 3 * Math.PI / 4 + k * 0.49; return { x: Math.cos(a), z: Math.sin(a) }; });
 // 手書きの山（標高が読めない時）：頂を原点に、南西の尾根を緩く
 function base(x, z) {
   const r = Math.hypot(x, z), ridge = Math.max(0, (-x + z) / Math.SQRT2) / Math.max(1, r);
@@ -64,6 +68,14 @@ function shaped(x, z) {
   const flat = (c, r, k = 1) => { const d = Math.hypot(x - c.x, z - c.z); if (d < r + 8) h += (raw(c.x, c.z) - h) * (1 - sstep(r, r + 8, d)) * k; };
   flat(HON, 14);
   flat({ x: -40, z: 40 }, 12, 0.85);
+  // 縄張り（docs/battle_refs/t07_ganjaku.md）：本丸の下の北・東・南の尾根を横堀・堀切で断つ（大手の南西だけ残す）
+  const r = Math.hypot(x, z), sw = r > 1 ? (z - x) / (Math.SQRT2 * r) : 1;
+  h -= 4 * Math.exp(-(((r - 37) / 2.6) ** 2)) * (1 - sstep(0.3, 0.62, sw));
+  // 大手の坂の両脇に竪堀を落とし、寄せ手を坂の一筋へ絞る
+  if (r > 40 && r < 160) for (const a of TATE) {
+    const d = Math.abs(x * a.z - z * a.x);
+    if (d < 5) h -= 2.6 * Math.exp(-((d / 1.7) ** 2)) * sstep(40, 52, r) * (1 - sstep(130, 158, r));
+  }
   return h;
 }
 const height = (x, z) => shaped(x, z) + SIEGE_H(x, z);
@@ -136,6 +148,8 @@ const t07_ganjaku = {
       // 門・塀（siege_kit は作りの後に組む）も霧に沈めない
       const n1 = rt.scene.children.length; rt.after(0.05, () => farSight(rt.scene.children.slice(n1), { W, near: { x: GATE.x, z: GATE.z, r: 40 } })); }
 
+    this.nawabari(rt);
+
     // ---- 城方：秋月方の守り ----
     const foe = (name, at, list, o = {}) => enemyGroup(rt, { fixed: true, name, faction: 'oda', flag: 'maru', armor: AKI, anchor: at, facing: faceUp + Math.PI, order: 'hold', aggro: 9, width: 4, ...o }, list);
     F.slope = [
@@ -168,6 +182,61 @@ const t07_ganjaku = {
     rt.after(7.6, () => rt.say(rt.G.name || '主人公', '一日で？　この岩山を', 2.5));
     rt.after(10.4, () => rt.say('蒲生氏郷', '坂と岩肌の両方から寄せる。日が沈む前に旗を立てる。続け！', 3.4));
     rt.after(11, () => this.go(rt, 1));
+  },
+
+  // 岩石山の巨岩と本丸の囲い（docs/battle_refs/t07_ganjaku.md。天守は無い中世の山城）
+  nawabari(rt) {
+    const W = rt.world;
+    try {
+      // 本丸：頂を板塀で囲む（南西の大手の筋に口）。塀の内に掘立の小屋と秋月方の旗
+      const R = 15, N = 12;
+      for (let i = 0; i < N; i++) {
+        const a0 = 3 * Math.PI / 4 + (i - 0.5) * 2 * Math.PI / N, a1 = a0 + 2 * Math.PI / N;
+        if (i === 0) continue;
+        const seg = [Math.cos(a0) * R, Math.sin(a0) * R, Math.cos(a1) * R, Math.sin(a1) * R];
+        rt.scene.add(castleBoardFence(W, seg, { h: 2.4 }));
+        Object.assign(solidSeg(...seg, 0.15), { missileH: 2.4, missileType: 'wood' });
+      }
+      rt.scene.add(hut(W, 6, -6, 7, 4.5, Math.PI / 4, { solid: false }));
+      solidRect(6, -6, 7, 4.5, Math.PI / 4);
+      for (const [x, z] of [[-9, -6], [9, 7], [2, -12]]) rt.scene.add(nobori(W, x, z, 'maru', 6));
+    } catch (e) { console.warn(e); }
+    // 巨岩：本丸の縁・国見岩・大手の坂の両脇・上の斜面。坂と門と段の行き先は空ける
+    const keep = [[SPAWN, 16], [GATE, 30], [YAGURA, 12], [{ x: -168, z: 168 }, 34], [{ x: -98, z: 64 }, 8], [{ x: -84, z: 54 }, 8], [INNER, 10], [{ x: -84, z: 112 }, 10], [{ x: -112, z: 132 }, 10], ...LAD.map((l) => [l.foot, 6])];
+    const free = (x, z, s) => distToPolyline(x, z, ROAD) > 8 + s && distToPolyline(x, z, ROAD_IN) > 9 + s && keep.every(([c, r]) => Math.hypot(x - c.x, z - c.z) > r + s);
+    const list = [[15, -19, 8]];   // 国見岩（頂の東）
+    let seed = 1587;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 18; i++) {   // 本丸の縁（南西の口を残す）
+      const a = 3 * Math.PI / 4 + 0.7 + i * (2 * Math.PI - 1.4) / 17, r = 20 + rnd() * 5;
+      list.push([Math.cos(a) * r, Math.sin(a) * r, 3 + rnd() * 3]);
+    }
+    // 大手の坂の両脇の岩の壁（「切り立った岩の間の坂」。坂の筋は空ける）
+    for (let k = 1; k < ROAD.length; k++) {
+      const [ax, az] = ROAD[k - 1], [bx, bz] = ROAD[k], len = Math.hypot(bx - ax, bz - az), tx = (bx - ax) / len, tz = (bz - az) / len;
+      for (let u = 0; u < len; u += 8) for (const side of [-1, 1]) {
+        const s = 2.4 + rnd() * 2.6, off = 8.6 + s + rnd() * 3;
+        list.push([ax + tx * u - tz * off * side, az + tz * u + tx * off * side, s]);
+      }
+    }
+    for (let i = 0; i < 400 && list.length < 120; i++) {   // 大手の坂の両脇と上の斜面
+      const a = 3 * Math.PI / 4 + (rnd() - 0.5) * (i % 3 ? 0.8 : 3.6), r = 30 + rnd() * 120;
+      list.push([Math.cos(a) * r, Math.sin(a) * r, 1.6 + rnd() * rnd() * 5]);
+    }
+    const rocks = list.filter(([x, z, s], i) => i === 0 || (Math.hypot(x, z) > 17 + s && free(x, z, s)));
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, color: 0xffffff, emissive: 0x4f4a42, emissiveIntensity: 0.3 });   // 岩石山の白っぽい花崗岩
+    const mesh = new THREE.InstancedMesh(rockShape(1, false, 2), mat, rocks.length);
+    const pose = new THREE.Object3D();
+    rocks.forEach(([x, z, s], i) => {
+      pose.position.set(x, W.heightAt(x, z) - s * 0.15, z);
+      pose.rotation.set(0.25 * Math.sin(i * 1.7), i * 2.3, 0.2 * Math.cos(i * 0.9));
+      pose.scale.set(s * (i % 3 === 0 ? 1.3 : 1.0), s * (i % 2 ? 1.7 : 1.3), s * 0.85);   // 角ばって立つ花崗岩
+      pose.updateMatrix(); mesh.setMatrixAt(i, pose.matrix);
+      if (s > 2) Object.assign(solidCircle(x, z, s * 0.9), { missileH: s, missileType: 'dust' });
+    });
+    mesh.castShadow = mesh.receiveShadow = true;
+    try { groundRocks(W, mesh); } catch (e) { console.warn(e); }
+    rt.scene.add(mesh);
   },
 
   // 段を進める
