@@ -1786,7 +1786,7 @@ function resultCardHtml(G, r, lost, sq) {
   const after = r.rankAfter ?? G.rank, before = r.rankBefore ?? after;
   const men = RANKS[after]?.squad || 0, menUp = men - (RANKS[before]?.squad || 0);
   if (men > 0) rows.push({ ic: 'men', k: '兵', v: `${men}人${menUp > 0 ? `（＋${menUp}）` : ''}` });
-  if (r.promoted) rows.push({ face: G.name || '自分', self: true, k: '出世', v: r.rankNameAfter || RANKS[after]?.name || '' });
+  if (r.promoted) rows.push({ face: G.name || '自分', self: true, k: '昇進', v: `${RANKS[before]?.name || ''} → ${r.rankNameAfter || RANKS[after]?.name || ''}` });
   const hy = G.hyojoLog && G.hyojoLog.at === G.battle ? G.hyojoLog : null;
   if (hy && hy.k === 'hire') { const k = (G.kerai || [])[(G.kerai || []).length - 1]; if (k && k.name) rows.push({ face: k.name, k: '武将加入', v: k.name }); }
   const gear = hy && hy.k === 'gear' ? String(hy.msg || '').replace(/を賜った$/, '') : (r.granted || []).map((id) => ITEMS[id]?.name).filter(Boolean)[0];
@@ -1869,6 +1869,8 @@ const RS_CSS = `<style>
   .ev2 .rs-thumb { position: absolute; z-index: 0; right: 0; top: 50%; transform: translateY(-50%); width: 120px; height: 58%; border: 1px solid rgba(214,178,98,.8); border-radius: 6px 0 0 6px; overflow: hidden; background: #1a140e; cursor: pointer; box-shadow: 0 0 14px rgba(194,162,90,.3); }
   .ev2 .rs-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .9; }
   .ev2 .rs-thumb b { position: absolute; left: 0; right: 6px; bottom: 6px; text-align: right; font-family: var(--display); font-size: max(13px, calc(14px * var(--text-scale, 1))); color: #fff3e2; text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; overflow: hidden; }
+  .ev2 .ev-body > details.ek-more:not(#full-result), .ev2 #ev-other-actions { display: none; }
+  html body #screen .eval.ev2 .rs-card #ev-actions > .rs-home { background: linear-gradient(180deg, #2a2520, #16120e); border: 1px solid rgba(194,162,90,.55); color: var(--washi); }
   .ev2 details.rs-old > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--washi-dim); }
   @media (max-height: 460px) {
     .ev2 .rs-card { padding: 6px 12px 8px; }
@@ -2118,7 +2120,7 @@ export function evalScreen(G, r, actions) {
     const main = a === primary;
     const inCard = main || retry;
     b.className = main ? 'btn primary rs-next' : retry ? 'btn rs-again' : 'btn small ev-secondary';
-    b.textContent = main && /城下|ホームへ戻る/.test(a.label) && !G.practice ? '次の戦へ' : retry ? '戦をもう一度' : main && /城下/.test(a.label) ? '次へ' : retry ? 'この戦をやり直す' : a.label === '題の画面へ' ? '題の画面へ戻る' : a.label === '後日譚へ' ? '後日譚を読む' : a.label;
+    b.textContent = main && /城下|ホームへ戻る/.test(a.label) && !G.practice ? '次の戦へ' : retry ? 'もう一度' : main && /城下/.test(a.label) ? '次へ' : retry ? 'この戦をやり直す' : a.label === '題の画面へ' ? '題の画面へ戻る' : a.label === '後日譚へ' ? '後日譚を読む' : a.label;
     if (main && /城下|ホームへ戻る/.test(a.label) && !G.practice) b.setAttribute('aria-label', '次の戦へ（城下で支度してから）');
     b.onclick = (ev) => {
       ev.stopPropagation();
@@ -2133,6 +2135,14 @@ export function evalScreen(G, r, actions) {
       sfx('ui'); delete G._spoilPrev; a.fn();
     };
     if (retry) box.prepend(b); else (inCard ? box : $('ev-other-actions')).appendChild(b);
+    // 結果のボタンは三つだけ（kaito 11/2 P）：次の戦へ・もう一度・ホームへ
+    if (main && /城下|ホームへ戻る/.test(a.label) && !G.practice) {
+      const h = document.createElement('button');
+      h.className = 'btn rs-home';
+      h.textContent = 'ホームへ';
+      h.onclick = (ev) => { ev.stopPropagation(); sfx('ui'); delete G._spoilPrev; a.fn(); };
+      box.appendChild(h);
+    }
   }
   // 右の端の次の戦の絵：押すと主のボタンと同じ
   const rsThumb = screen.querySelector('.rs-thumb');

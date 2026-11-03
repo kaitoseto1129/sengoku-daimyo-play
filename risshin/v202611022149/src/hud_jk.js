@@ -383,10 +383,11 @@ export function jkTick(rt, root, dt) {
   const ch = progOn ? chapterRows(rt) : null;
   s.chap.hidden = !ch;
   if (ch) {
-    put(s, 'band', ch.name, (v) => { s.band.textContent = v; });
-    put(s, 'line', ch.rows.map((r) => r.id + r.state).join(), () => {
-      s.line.innerHTML = ch.rows.map((r) => `<li class="${r.state}" aria-label="${r.name}${r.state === 'done' ? '・済み' : r.state === 'now' ? '・今の戦' : ''}"><b></b><span>${r.short}</span></li>`).join('');
-    });
+    // 11/2 P：左上は今の戦の名前だけ（章の名と章の並びは出さない）
+    const nowRow = ch.rows.find((r) => r.state === 'now');
+    put(s, 'band', nowRow?.name || rt.def?.name || ch.name, (v) => { s.band.textContent = v; });
+    put(s, 'line', '', () => { s.line.innerHTML = ''; });
+    s.line.hidden = true;
   }
   // 戦の進行の札
   let goal = null;

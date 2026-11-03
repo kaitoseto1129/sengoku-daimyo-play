@@ -207,6 +207,10 @@ function soldierGeoX(armor, xx = false) {
     const cy = (rt, rb, h, seg, x, y, z) => { const g = new THREE.CylinderGeometry(rt, rb, h, seg, 1, true); g.translate(x, y, z); return g; };
     for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) armyPart(P4, cy(0.08, 0.055, 0.82, 3, sx, 0.41, 0), 0x4c4438, pt);
     const dou = cy(0.2, 0.25, 0.86, 3, 0, 1.15, 0); dou.scale(1, 1, 0.8); armyPart(P4, dou, a4.getHex(), 0);
+    // 腕を付ける（棒に見えない・斬り合う手が見える）。左は垂らし、右は得物を前へ。胴の上の威糸は明るく
+    const lt4 = a4.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
+    { const ps = dou.attributes.position, cs = dou.attributes.color, lc = new THREE.Color(lt4); for (let i = 0; i < ps.count; i++) if (ps.getY(i) > 1.2) cs.setXYZ(i, lc.r, lc.g, lc.b); }
+    for (const [sx, rx] of [[-1, 0], [1, -0.45]]) { const ar = cy(0.05, 0.042, 0.5, 3, 0, 0, 0); ar.rotateX(rx); ar.translate(sx * 0.29, 1.2, rx ? 0.08 : 0.02); armyPart(P4, ar, 0x5a4e3e, 0); }
     const hd = new THREE.SphereGeometry(0.11, 3, 2); hd.translate(0, 1.72, 0.01); armyPart(P4, hd, 0x6e5440, 0);
     const ks = new THREE.ConeGeometry(0.33, 0.13, 3, 1, true); ks.translate(0, 1.825, 0); armyPart(P4, ks, 0x2c261e, 1);
     const helmet = new THREE.SphereGeometry(0.15, 3, 1, 0, Math.PI * 2, 0, Math.PI / 2); helmet.translate(0, 1.75, 0); armyPart(P4, helmet, 0x1c1a18, 2);
@@ -223,6 +227,10 @@ function soldierGeoX(armor, xx = false) {
     for (const [sx, pt] of [[-0.11, 8], [0.11, 9]]) armyPart(P3, cy(0.08, 0.055, 0.82, 3, sx, 0.41, 0), 0x4c4438, pt);
     const sk = cy(0.19, 0.27, 0.34, 4, 0, 0.9, 0); sk.scale(1, 1, 0.8); armyPart(P3, sk, dk, 0);
     const dou = cy(0.21, 0.175, 0.5, 4, 0, 1.33, 0); dou.scale(1, 1, 0.74); armyPart(P3, dou, armor, 0);
+    const lt3 = a3.clone().lerp(new THREE.Color(0x8a8070), 0.18).getHex();
+    { const ps = dou.attributes.position, cs = dou.attributes.color, lc = new THREE.Color(lt3); for (let i = 0; i < ps.count; i++) if (ps.getY(i) > 1.55) cs.setXYZ(i, lc.r, lc.g, lc.b); }
+    for (const sx of [-1, 1]) { const sl = cy(0.14, 0.15, 0.26, 3, sx * 0.22, 1.43, 0); sl.scale(0.75, 1, 1); armyPart(P3, sl, lt3, 0); }
+    for (const [sx, rx] of [[-1, 0], [1, -0.45]]) { const ar = cy(0.05, 0.042, 0.5, 3, 0, 0, 0); ar.rotateX(rx); ar.translate(sx * 0.29, 1.2, rx ? 0.08 : 0.02); armyPart(P3, ar, 0x5a4e3e, 0); }
     const hd = new THREE.SphereGeometry(0.105, 4, 2); hd.scale(0.95, 1.12, 1); hd.translate(0, 1.72, 0.01); armyPart(P3, hd, 0x6e5440, 0);
     const ks = new THREE.ConeGeometry(0.33, 0.13, 4, 1, true); ks.translate(0, 1.825, 0); armyPart(P3, ks, 0x2c261e, 1);
     const helmet = new THREE.SphereGeometry(0.15, 4, 2, 0, Math.PI * 2, 0, Math.PI / 2); helmet.translate(0, 1.75, 0); armyPart(P3, helmet, 0x1c1a18, 2);
@@ -269,6 +277,7 @@ function hostGeo(armor) {
   for (const [sx, pt] of [[-0.1, 8], [0.1, 9]]) armyPart(P, cyl(0.075, 0.055, 0.82, 6, sx, 0.42, 0), 0x4c4438, pt);
   const skirt = cyl(0.19, 0.26, 0.34, 5, 0, 0.9, 0); skirt.scale(1, 1, 0.8); armyPart(P, skirt, dark, 0);
   const dou = cyl(0.22, 0.18, 0.55, 5, 0, 1.33, 0); dou.scale(1, 1, 0.75); armyPart(P, dou, armor, 0);
+  { const ps = dou.attributes.position, cs = dou.attributes.color, lc = arm.clone().lerp(new THREE.Color(0x8a8070), 0.18); for (let i = 0; i < ps.count; i++) if (ps.getY(i) > 1.5) cs.setXYZ(i, lc.r, lc.g, lc.b); }
   for (const sx of [-1, 1]) { const a = cyl(0.05, 0.045, 0.5, 3, sx * 0.28, 1.2, 0.03); armyPart(P, a, 0x5a4e3e, 0); }
   const head = new THREE.SphereGeometry(0.1, 7, 4); head.scale(0.95, 1.1, 1); head.translate(0, 1.7, 0.01); armyPart(P, head, 0x8a6a4e, 0);
   const kasa = new THREE.ConeGeometry(0.32, 0.13, 6, 1, true); kasa.translate(0, 1.82, 0); armyPart(P, kasa, 0x2c261e, 1);
@@ -309,8 +318,8 @@ function horseGeoX3() {
   const P = [];
   const body = new THREE.CapsuleGeometry(0.3, 0.95, 1, 5); body.rotateX(Math.PI / 2); body.scale(0.9, 1.1, 1); body.translate(0, 1.28, 0); armyPart(P, body, 0xffffff, 20);
   const chest = new THREE.SphereGeometry(0.3, 5, 3); chest.scale(0.85, 1.05, 0.8); chest.translate(0, 1.3, 0.55); armyPart(P, chest, 0xffffff, 20);
-  const neck = new THREE.CylinderGeometry(0.11, 0.2, 0.7, 4, 1, true); neck.rotateX(0.62); neck.translate(0, 1.66, 0.8); armyPart(P, neck, 0xffffff, 23);
-  const hd = new THREE.CylinderGeometry(0.065, 0.1, 0.5, 3, 1, true); hd.rotateX(Math.PI / 2 + 0.5); hd.translate(0, 1.84, 1.12); armyPart(P, hd, 0xffffff, 23);
+  const neck = new THREE.CylinderGeometry(0.11, 0.2, 0.7, 6, 1, true); neck.rotateX(0.62); neck.translate(0, 1.66, 0.8); armyPart(P, neck, 0xffffff, 23);
+  const hd = new THREE.CylinderGeometry(0.065, 0.1, 0.5, 5, 1, true); hd.rotateX(Math.PI / 2 + 0.5); hd.translate(0, 1.84, 1.12); armyPart(P, hd, 0xffffff, 23);
   const mane = new THREE.BoxGeometry(0.04, 0.55, 0.1); mane.rotateX(0.62); mane.translate(0, 1.8, 0.68); armyPart(P, mane, 0x1a1512, 23);
   const kura = new THREE.CylinderGeometry(0.34, 0.34, 0.5, 3, 1, true, -Math.PI / 2, Math.PI); kura.rotateX(Math.PI / 2); kura.scale(1, 0.55, 1); kura.translate(0, 1.47, -0.05); armyPart(P, kura, 0x3a1a14, 20);
   for (const sd of [-1, 1]) { const ao = new THREE.CylinderGeometry(0.34, 0.34, 0.48, 2, 1, true, sd > 0 ? Math.PI * 0.35 : Math.PI * 1.35, Math.PI * 0.3); ao.rotateX(Math.PI / 2); ao.translate(0, 1.25, -0.05); armyPart(P, ao, 0x3a1a14, 20); }

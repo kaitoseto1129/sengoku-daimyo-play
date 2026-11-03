@@ -139,6 +139,8 @@ export const SHIGISAN_PLAN = {
   // 西斜面の横堀のみ。主尾根に堀切はないという県の調査に合わせ、門前の二本の堀切を除く。
   hori: [
     { kind: 'karabori', pts: [[-142, -200], [-148, -240], [-144, -280], [-138, -322]], w: 4.5, deep: 2 },
+    // 谷を挟んだ西の郭群は「郭は堀切で遮断」（県の解説・docs/battle_refs/shigisan.md）。西の枝尾根の段の間を断ち切る。
+    ...[[-89, -219], [-92, -257], [-96, -296.5], [-96, -339.5]].map(([x, z]) => ({ kind: 'horikiri', pts: [[x - 13, z], [x + 13, z]], w: 4.4, deep: 2.6 })),
   ],
   yagura: [
     { id: 'monomi_gate', kind: 'monomi', at: [TOWER.x, TOWER.z] },

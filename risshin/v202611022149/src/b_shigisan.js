@@ -659,7 +659,20 @@ function heightWithoutPeople(x, z) {
   }
   return h;
 }
-function height(x, z) { return peopleHeight(x, z, heightWithoutPeople(x, z)); }
+// 11/2 史料（docs/battle_refs/shigisan.md）：城の頂は雄岳（主郭・437m）で、南西の雌岳はそれより低い（約400m）。
+// 西の道の高さに支えられ、雌岳の辺りが主郭より五十歩ほど高く残っていた。門の窪地と北の尾根は触らず、
+// 南西の山肌だけを、主郭から下る坂と、主郭より三十余歩低い雌岳の頂から下る坂の高い方まで下げる（二つの峰と鞍部）。
+const SHU_LEVEL = ROAD_LEVELS.find((q) => q.id === 'shu');
+function sstep01(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
+function medakeCap(x, z, h) {
+  const d = Math.hypot(x - TOP.x, z - TOP.z);
+  const w = sstep01((-25 - x) / 25) * sstep01((z + 100) / 25) * (1 - sstep01((d - 200) / 60));
+  if (w <= 0) return h;
+  const dm = Math.hypot(x - MEDAKE.x, z - MEDAKE.z);
+  const cap = Math.max(SHU_LEVEL.h + 12 - 0.6 * Math.max(0, d - 60), SHU_LEVEL.h - 34 - 0.6 * Math.max(0, dm - 45));
+  return h > cap ? h + (cap - h) * w : h;
+}
+function height(x, z) { return medakeCap(x, z, peopleHeight(x, z, heightWithoutPeople(x, z))); }
 
 // 材質・基本形は全棟で共有。外壁の戸口と共通室内の当たりを同じ幅にする。
 const ROOM_BOX = new THREE.BoxGeometry(1, 1, 1);
@@ -1471,7 +1484,7 @@ function sgNoise(x, z) {
   const a = sgHash(ix, iz), b = sgHash(ix + 1, iz), c = sgHash(ix, iz + 1), d = sgHash(ix + 1, iz + 1);
   return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
 }
-// 山頂の二重の望楼（天守の影）を、白く光る置物でなく、月夜に沈む古い漆喰の灰・黒い下見板・燻し瓦・野面の石垣の台で組む（10/30 採点 点検4）。
+// 野面の石垣・狭間の板塀の絵：白く光る置物でなく、月夜に沈む古い漆喰の灰・黒い下見板・燻し瓦・野面の石で組む（10/30 採点 点検4）。
 // 絵はキャンバスで一度だけ描き（石垣・壁・瓦）、形は箱と寄棟の屋根だけ。見た目だけで当たりは持たない。
 let SG_KEEP = null;
 function sgKeepKit() {
@@ -1618,29 +1631,6 @@ function sgHei(rt, pts, base, h = 2.2) {
   const posts = new THREE.Mesh(mergeGeometries(parts.slice(1)), wood); posts.castShadow = true; rt.scene.add(posts);
   const cm = new THREE.Mesh(capG, sgKeepKit().tile); cm.castShadow = true; rt.scene.add(cm);
   cm.material.side = THREE.DoubleSide;
-}
-function sgKeep(rt, x, z, gy) {
-  const K = sgKeepKit(), grp = new THREE.Group();
-  const add = (geo, mat, px, py, pz, ry = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.rotation.y = ry; m.castShadow = m.receiveShadow = true; grp.add(m); return m; };
-  // 石垣の台（裾を広げた台形。底は地面の下 0.8m）。梁間（x）7m・桁行（z）9m の建物の下。
-  const bx = 8.4, bz = 10.4, top = gy + 3.4, bot = gy - .8, flare = .9;
-  const base = new THREE.CylinderGeometry(1, 1, 1, 4, 3, true); base.rotateY(Math.PI / 4);
-  const bp = base.attributes.position, buv = base.attributes.uv;
-  for (let i = 0; i < bp.count; i++) {
-    const t = bp.getY(i) + .5, f = (1 - t) * flare;
-    bp.setXYZ(i, Math.sign(bp.getX(i)) * (bx / 2 + f), bot + (top - bot) * t, Math.sign(bp.getZ(i)) * (bz / 2 + f));
-    buv.setXY(i, buv.getX(i) * (bx + bz) * 2 / 6, (top - bot) * t / 3);
-  }
-  base.computeVertexNormals();
-  add(base, K.stone, 0, 0, 0);
-  add(new THREE.BoxGeometry(7, 4.2, 9), K.wall, 0, top + 2.1, 0);
-  add(new THREE.BoxGeometry(7.3, .3, 9.3), K.wood, 0, top + .15, 0);
-  add(hipRoof(9 + 2.2, 7 + 2.2, 1.6), K.tile, 0, top + 4.0, 0, Math.PI / 2);
-  add(new THREE.BoxGeometry(4.8, 3.2, 6), K.wall, 0, top + 5.6, 0);
-  add(hipRoof(6 + 2.4, 4.8 + 2.4, 2.4), K.tile, 0, top + 7.0, 0, Math.PI / 2);
-  add(new THREE.BoxGeometry(.3, .35, 1.6), K.wood, 0, top + 9.5, 0);
-  grp.position.set(x, 0, z);
-  rt.scene.add(grp);
 }
 // 篝火は十二基。一基ごとに二回描かず、並びの束（鉄籠と薪の二回）へ一つずつ置く（iPhone の描く回数を減らす）。炎は今までどおり addFire。
 function kagaPlace(rt, W, x, z) {
@@ -2006,7 +1996,7 @@ const shigisan = {
     // 登城道の最後の折り返し（門の南）では、窪地の底の地面でなく、北西の縁の上の段の切岸と主郭の天守の影へ目を振る（10/29 採点）。
     // 門前の窪地（持ち場の近く）では、本人の東の肩越しに西の縁の上（天守の影）を見上げる。bot の向きに依らず同じ絵にする。
     const kp = SG_TS.keep;
-    const climb = kp && u.pos.x > kp.x + 25 && !rt.flags.ending && !P.lock && !P.cine && (rt.flags.step === 1 || rt.flags.step === 2) &&
+    const climb = kp && u.pos.x > SG_TS.view.x + 25 && !rt.flags.ending && !P.lock && !P.cine && (rt.flags.step === 1 || rt.flags.step === 2) &&
       Math.hypot(u.pos.x - TOWER_POST.x, u.pos.z - TOWER_POST.z) < 22;
     P.shigiNwK = (P.shigiNwK || 0) + ((climb ? 1 : 0) - (P.shigiNwK || 0)) * .12;
     const nk = P.shigiNwK; rt.def.footFrameMinDistance = nk > .3 ? 99 : 0;   // 戦の定義は写しなので、その場の写しへ書く
@@ -2017,7 +2007,8 @@ const shigisan = {
       const x = u.pos.x - ax * 6 - az * 1.2, z = u.pos.z - az * 6 + ax * 1.2;
       const y = Math.max(rt.world.heightAt(x, z) + 1.1, u.pos.y + 1.4);
       pos.x += (x - pos.x) * nk; pos.y += (y - pos.y) * nk; pos.z += (z - pos.z) * nk;
-      const lx = u.pos.x + ax * 30, lz = u.pos.z + az * 30, ly = u.pos.y + 11;
+      // 11/2：見る先は雄岳の頂の天主（遠く高い）。天主が画面の上の端で切れないよう、少し高く見上げる。
+      const lx = u.pos.x + ax * 30, lz = u.pos.z + az * 30, ly = u.pos.y + 15;
       look.set(look.x + (lx - look.x) * nk, look.y + (ly - look.y) * nk, look.z + (lz - look.z) * nk);
     }
     const k = P.shigiOverK;
@@ -2614,10 +2605,15 @@ const shigisan = {
         b(2.5, 1.9, 2.1, 7.65); b(2.9, .14, 2.5, 6.75);
         const hip = new THREE.ConeGeometry(2.55, 1.15, 4, 1); hip.rotateY(Math.PI / 4); hip.scale(1.2, 1, 1.02);
         hip.translate(sx, sy + 9.15, sz); roofs.push(hip);
-        const ridge = new THREE.BoxGeometry(.9, .16, .16); ridge.translate(sx, sy + 9.72, sz); roofs.push(ridge);
+        // 11/2 史料（docs/battle_refs/shigisan.md）：天主は四階櫓。三重の上へ細い四階目と寄棟を重ね、雄岳の頂に一つだけ立てる。
+        b(1.9, 1.6, 1.7, 10.0); b(2.2, .12, 2.0, 9.25);
+        const hip2 = new THREE.ConeGeometry(2.0, 1.0, 4, 1); hip2.rotateY(Math.PI / 4); hip2.scale(1.2, 1, 1.02);
+        hip2.translate(sx, sy + 11.3, sz); roofs.push(hip2);
+        const ridge = new THREE.BoxGeometry(.8, .16, .16); ridge.translate(sx, sy + 11.8, sz); roofs.push(ridge);
         const top = new THREE.Group();
-        top.add(new THREE.Mesh(mergeGeometries(wood), new THREE.MeshStandardMaterial({ color: 0x5c5246, roughness: .95 })),
-          new THREE.Mesh(mergeGeometries(roofs), new THREE.MeshStandardMaterial({ color: 0x77736a, roughness: .9, flatShading: true })));
+        // 11/2：一色の板は月に白く浮いた。上の二つの階も下見板の壁・燻し瓦の絵（城の石垣と同じ使い回しの絵）で。
+        const K = sgKeepKit();
+        top.add(new THREE.Mesh(mergeGeometries(wood), K.wall), new THREE.Mesh(mergeGeometries(roofs), K.tile));
         for (const g of [...wood, ...roofs]) g.dispose();
         top.traverse((m) => { if (m.isMesh) m.castShadow = m.receiveShadow = true; });
         rt.scene.add(top);
@@ -2739,9 +2735,8 @@ const shigisan = {
         if (top2.length >= 2) castlePart(W, 'hei', { pts: top2, kind: 'ita', h: 2.4, sama: 1.4 }, { era: 'early' });
         // 狭間の板塀の足もとを野面の石垣で締める（25秒の目の正面の土手の上。10/30 採点 点検4：石の継ぎ目と狭間を一枚に）。
         if (top2.length >= 2) sgStoneWall(rt, top2.map(([x, z]) => [x + .3, z]), (x, z) => W.heightAt(x - .6, z) + .15, 2.2);
-        const kx = mid[0] - 21, kz = mid[1] + 5; SG_TS.keep = { x: kx, z: kz };
-        let gy = Infinity; for (const [dx, dz] of [[-4, -3], [4, -3], [-4, 3], [4, 3], [0, 0]]) gy = Math.min(gy, W.heightAt(kx + dx, kz + dz));
-        sgKeep(rt, kx, kz, gy);   // 共通の二重の櫓は白壁が月に光る置物に見えた（10/30）。この城だけ灰の漆喰・黒い下見板・燻し瓦・野面の台で組む
+        // 11/2 史料：天主は雄岳の山頂（主郭）に一つだけ。縁の上の段に置いていた飾りの櫓はやめ、目線は主郭の天主へ向ける。
+        const kx = mid[0] - 21, kz = mid[1] + 5; SG_TS.view = { x: kx, z: kz }; SG_TS.keep = { x: KEEP_AT.x, z: KEEP_AT.z };
         castlePart(W, 'hei', { pts: [[kx + 7, kz - 9], [kx + 7, kz + 9]], kind: 'ita', h: 2.4, sama: 1.5 }, { era: 'early' });
         // 板塀の内に詰める松永勢（手前の柵越しに槍と旗が並んで見える所）。
         const ax = top2.length ? top2[Math.floor(top2.length / 2)][0] - 3 : kx + 11;
@@ -2757,7 +2752,8 @@ const shigisan = {
           for (let o = 3; o < 28; o += .5) { const x = cx + lx * o, z = cz + lz * o; if (W.heightAt(x, z) > cy + 2) { toe.push([x - lx * .8, z - lz * .8]); break; } }
         }
         if (toe.length >= 2) {
-          castlePart(W, 'ishigaki', { pts: toe, top: (x, z) => W.heightAt(x + lx * 3, z + lz * 3) + .8, kind: 'uchikomi' }, { era: 'early' });
+          // 11/2：1577 年の大和の土の城に打込接（割った石）は合わない。野面積みに。
+          castlePart(W, 'ishigaki', { pts: toe, top: (x, z) => W.heightAt(x + lx * 3, z + lz * 3) + .8, kind: 'nozura' }, { era: 'early' });
           // 10/31：25秒の画面の正面に斜めに上る塀。黒い板塀は月夜の黒い山肌に沈み、狭間が見えなかった。松永の城（多聞山の白壁の先がけ）
           //   らしく白漆喰の土塀に替え、白い壁に黒い狭間の口を一つおきに切る（共通の土塀の部品。描く回数は同じ）。
           { // 10/31 斜面の段差で白い箱が浮いて階段に見えた：1.1m ごとに刻み、足もとを0.6m地面へ埋めて山肌に沿わせる

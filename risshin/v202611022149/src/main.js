@@ -3131,7 +3131,8 @@ function loop() {
     if (b.disposed || game.battle !== b) { input.endFrame(); return; }
     if (game.hud.introWaiting) input.clear();
     if (!game.deployment && !game.hud.introWaiting) {
-      if (b.lord) { lordFrame(b); gunbaiFrame(b, real); } else if (isGunbaiOpen()) gunbaiFrame(b, real);
+      // 軍議・軍配の更新が毎コマ投げても、下の描きまで飛ばさない（画面が止まって見える固まりを防ぐ）
+      try { if (b.lord) { lordFrame(b); gunbaiFrame(b, real); } else if (isGunbaiOpen()) gunbaiFrame(b, real); } catch (e) { console.error(e); if (!b.frameFault) { b.frameFault = 1; reportBug(e.message, (e.stack || '').split('\n')[1] || ''); } }
     }
     if (b.noboriFlags) for (let i = 0; i < b.noboriFlags.length; i++) b.noboriFlags[i].rotation.y = Math.sin(b.t * 1.6 + i * 1.3) * 0.18;
     const t_u1 = measuring ? performance.now() : 0;

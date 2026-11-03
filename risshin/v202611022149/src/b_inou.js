@@ -1267,7 +1267,7 @@ const inou = {
     const F = rt.flags;
     if (F.step >= 1) return;
     if (F.lesson) lessonEnd(rt, F.lesson);
-    F.step = 1; F.stepT = rt.t; F.training = 9;
+    F.step = 1; F.stepT = rt.t; F.training = 9; F.ek1 = F.ek || 0;
     // 守る場所を固定し、逃げ回る間は最初の守備を進めない。
     const lead = F.nobuU?.alive ? F.nobuU.pos : NOBU;
     F.holdPoint = { x: lead.x, z: lead.z }; F.holdElapsed = 0;
@@ -1667,7 +1667,9 @@ const inou = {
       }
       if (elapsed > 56 && F.training < 13) this.hayaCome(rt);
       // 左の崩れ：横から来た林の新手が森の手に当たると、時を待たずに崩れる。
-      if ((elapsed > 76 || F.surgeHit && rt.t - F.surgeHit > 5 && elapsed > 64) && !F.leftBack) {
+      // 段は敵を倒した数（手柄）で進める。時間は長い保険だけ。
+      const k1 = (F.ek || 0) - (F.ek1 || 0);
+      if ((k1 >= 14 && elapsed > 60 || elapsed > 220) && !F.leftBack) {
         F.leftBack = true;
         if (F.mori && !gone(F.mori)) rt.army.play('unitBreak', F.mori.center(), 1);
         F.mori.morale = Math.max(25, F.mori.morale - 30);
@@ -1676,14 +1678,14 @@ const inou = {
         F.front.push('A', 0.5);
         rt.say('足軽', '左が崩れた！中央の脇が空くぞ！', 4);
       }
-      if (elapsed > 86 && !F.centerBack) {
+      if ((k1 >= 26 && elapsed > 90 || elapsed > 260) && F.leftBack && !F.centerBack) {
         F.centerBack = true;
         F.hata.morale = Math.max(30, F.hata.morale - 20);
         F.hata.order = 'retreat'; F.hata.dest = { x: 0, z: 56 };
         F.hata.onArrive = advanceOnArrival;
         rt.say('組頭 源八', '中央も下がる！列を切らすな！', 4);
       }
-      if (elapsed > 98) this.daionjo(rt);
+      if (F.centerBack && (k1 >= 40 && elapsed > 120 || elapsed > 320)) this.daionjo(rt);
     }
     // 宮井がほかの者に討たれても、段を止めない（全員が打ち合うので、利家より先に倒れる事がある）。
     if (F.miyaiU && !F.miyaiFell && !F.miyaiU.alive && F.step < 5) { F.miyaiFell = true; F.inu.focus = null; }
@@ -1707,7 +1709,7 @@ const inou = {
       }
       // 信長が届かない時も、斬り合う黒田が八十秒で討つ（山場を長く引き延ばさない）。
       const kuro = F.kuroda?.units[0];
-      if (F.step === 3 && F.hayaU.alive && elapsed > 80) { F.hayaU.invuln = false; F.hayaU.hp = 0; rt.army.kill(F.hayaU, kuro?.alive ? kuro : nobu?.alive ? nobu : null); }
+      if (F.step === 3 && F.hayaU.alive && (elapsed > 180 && (F.ek || 0) - (F.ek1 || 0) >= 50 || elapsed > 300)) { F.hayaU.invuln = false; F.hayaU.hp = 0; rt.army.kill(F.hayaU, kuro?.alive ? kuro : nobu?.alive ? nobu : null); }
       if (!F.hayaU.alive) this.hayaFell(rt);
     }
     if (F.step === 4) this.aftermathTick(rt);

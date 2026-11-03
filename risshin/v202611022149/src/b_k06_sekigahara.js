@@ -275,7 +275,7 @@ const k06_sekigahara = {
     F.step = 3; F.s3t = rt.t;
     rt.objDone('main'); rt.unmark('foe');
     rt.award((t) => t.side.push('宇喜多の先手を押し返した'), '宇喜多の先手を押し返した');
-    for (const g of [F.akashi, F.ukita2]) rout(g);
+    for (const g of [F.akashi, F.ukita2, F.ukita3]) rout(g);
     F.clash[0].push?.('A', 0.3);
     rt.obj('main', '笹尾山の前へ。黒田・細川と島左近の隊を崩せ', 'main');
     rt.say('井伊直政', '南は福島殿に任せた。我らは北へ、治部（三成）の陣を突く', 3.5);
@@ -301,7 +301,7 @@ const k06_sekigahara = {
     rt.objDone('main'); rt.unmark('foe');
     rt.award((t) => t.side.push('島左近の隊を崩した'), '島左近の隊を崩した');
     rt.say('使番', '島左近、黒田の鉄砲に撃たれ、陣の内へ退いた由！', 3.5);
-    for (const g of [F.sakon, F.gamo]) rout(g);
+    for (const g of [F.sakon, F.gamo, F.shima3]) rout(g);
     rt.obj('main', '石田の本陣へ攻め上れ。笹尾山の三成を崩せ', 'main');
     room(rt, 25);
     F.mitsu = foe(rt, '石田三成の本陣', SASAO, [{ type: 'busho', n: 1, o: { name: '石田三成', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 8 }], ISHIDA, { order: 'hold', aggro: 22, seekRange: 30, morale: 90 });
@@ -449,29 +449,44 @@ const k06_sekigahara = {
     } else if (F.step === 2) {
       const left = (alive(F.akashi) ? F.akashi.count : 0) + (alive(F.ukita2) ? F.ukita2.count : 0);
       F.ek = F.akaN - left;
-      const need = Math.round(F.akaN * 0.45);
-      rt.objProgress('main', `${Math.max(0, left - need)}`);
-      // 押し合いが長引いた時の保険：福島の大軍が宇喜多を押し返す（史実でも一進一退の後に東軍が押した）
-      if (left <= need || rt.t - F.s2t > 85) this.stage3(rt);
+      // 先手が半ば減ると、宇喜多の本隊から新手が出る（数で押してくる）。段は敵の数と手柄で進め、時間では進めない。
+      if (!F.wave2 && left <= Math.round(F.akaN * 0.5)) {
+        F.wave2 = true; room(rt, 34);
+        F.ukita3 = foe(rt, '宇喜多の本隊', { x: UKITA_H.x + 14, z: UKITA_H.z + 6 }, [{ type: 'busho', n: 1, o: { name: '宇喜多秀家', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }, { type: 'ashigaru', n: 18 }], UKITA, { morale: 90 });
+        F.akaN += F.ukita3.count;
+        rt.banner('宇喜多の本隊が出る', '天満山から新手が押し寄せる');
+        rt.say('宇喜多秀家', '東軍を押し返せ！　一人も陣へ入れるな！', 3.5);
+      }
+      const left2 = left + (alive(F.ukita3) ? F.ukita3.count : 0);
+      const need = Math.round(F.akaN * 0.3);
+      rt.objProgress('main', `${Math.max(0, left2 - need)}`);
+      if (F.wave2 && left2 <= need || rt.t - F.s2t > 420) this.stage3(rt);
     } else if (F.step === 3) {
       const left = (alive(F.sakon) ? F.sakon.count : 0) + (alive(F.gamo) ? F.gamo.count : 0);
-      const need = Math.round(F.sakN * 0.4);
-      rt.objProgress('main', `${Math.max(0, left - need)}`);
-      // 長引いた時は黒田の鉄砲が左近を撃つ（史実）
-      if (left <= need || rt.t - F.s3t > 85) this.stage4(rt);
+      if (!F.wave3 && left <= Math.round(F.sakN * 0.5)) {
+        F.wave3 = true; room(rt, 30);
+        F.shima3 = foe(rt, '島津・小西の援兵', { x: SAKON.x + 6, z: SAKON.z + 30 }, [{ type: 'busho', n: 1, o: { name: '島津豊久', horse: true } }, { type: 'samurai', n: 3 }, { type: 'gun', n: 6 }, { type: 'ashigaru', n: 16 }], ISHIDA, { morale: 92, aggro: 30, seekRange: 50 });
+        F.sakN += F.shima3.count;
+        rt.banner('西軍の援兵', '南から島津・小西の手が左近を救いに来る');
+      }
+      const left3 = left + (alive(F.shima3) ? F.shima3.count : 0);
+      const need = Math.round(F.sakN * 0.3);
+      rt.objProgress('main', `${Math.max(0, left3 - need)}`);
+      // 段は敵の数で進める（時間は長い保険だけ）。黒田の鉄砲が左近を撃つ（史実）
+      if (F.wave3 && left3 <= need || rt.t - F.s3t > 420) this.stage4(rt);
     } else if (F.step === 4) {
       const n = alive(F.mitsu) ? F.mitsu.count : 0;
-      const need = Math.round(F.mitN * 0.35);
+      const need = Math.round(F.mitN * 0.25);
       // 寝返りの前は本陣が固い（兵が減っても崩れず、次の兵が陣の内から出る）
       if (F.mitsuGate && n <= need + 2 && alive(F.mitsu) && !F.refill) {
         F.refill = true;
         room(rt, 8);
-        F.mitsu2 = foe(rt, '石田の旗本', { x: SASAO.x - 6, z: SASAO.z - 6 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], ISHIDA, { aggro: 24, seekRange: 30 });
+        F.mitsu2 = foe(rt, '石田の旗本', { x: SASAO.x - 6, z: SASAO.z - 6 }, [{ type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 14 }], ISHIDA, { aggro: 24, seekRange: 30 });
       }
       rt.objProgress('main', `${Math.max(0, n - need)}`);
       if (!F.mitsuGate && (n <= need || broken(F.mitsu))) this.stage5(rt);
       // 寝返りから時が経っても笹尾山へ届かない時の保険（史実で三成はこの頃に落ちた）
-      if (!F.mitsuGate && F.flipT && rt.t - F.flipT > 90) this.stage5(rt);
+      if (!F.mitsuGate && F.flipT && rt.t - F.flipT > 240) this.stage5(rt);
     } else if (F.step === 5 && F.shima) {
       const n = alive(F.shima) ? F.shima.count : 0;
       F.shiK = F.shiN - n;

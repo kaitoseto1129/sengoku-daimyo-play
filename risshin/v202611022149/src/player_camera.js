@@ -244,7 +244,7 @@ export class PlayerCamera {
     // 開戦の引き
     if (this.introT > 0) this.introT -= dt;
     const pr = this.introT > 0 && !reduceMotion() ? Math.min(1, this.introT / 3.4) : 0;
-    const pull = selfFrame ? 0 : pr * pr * (3 - 2 * pr);
+    const pull = 0;   // 開戦の引きも動かさない（kaito 11/2 V）
     // 大事な場面では、その方へ視点を向ける
     // 操作していない時は一切動かさない（kaito 11/2 V）：場面の寄せ・見せ場の撮り・押し引きは全部止める
     this.cine = null; this.camShot = null; this.shotZoom = 0; this.camPush = null; this.camLean = null;
