@@ -79,7 +79,7 @@ function mesh(parts, block = true) {
 // 大坂城：惣構の向こうの打込接の石垣と、黒い五重の天守（遠景）。土塀と隅櫓は props.js の部品
 function osakaCastle(world, x, z) {
   const g = new THREE.Group();
-  g.add(tenshu(world, x, z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi' }));
+  g.add(tenshu(world, x, z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi', goldShachi: true }));
   // 本丸の石垣（天守台の前に一段）と、惣構の土塀・隅櫓（真ん中は門の口）
   g.add(ishigaki(world, [[x - 60, z + 22], [x + 60, z + 22]], { kind: 'uchikomi', top: 0.1, minH: 5, maxH: 7 }));
   for (const [a, b] of [[-170, -22], [22, 170]]) g.add(dobei(world, [a, -100, b, -100], { hikae: -1, shikkui: true }));   // 控柱は内（北）

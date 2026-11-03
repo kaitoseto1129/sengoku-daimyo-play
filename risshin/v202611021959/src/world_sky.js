@@ -183,7 +183,7 @@ export class WorldSky {
       gr.addColorStop(0, 'rgba(240,244,255,1)'); gr.addColorStop(0.28, 'rgba(230,236,250,0.95)'); gr.addColorStop(0.36, 'rgba(180,196,230,0.25)'); gr.addColorStop(1, 'rgba(120,140,190,0)');
       mg.fillStyle = gr; mg.fillRect(0, 0, 64, 64);
       this.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(mc), fog: false, transparent: true, depthWrite: false }));
-      this.moon.scale.setScalar(46); this.moon.visible = false; this.moon.renderOrder = -1;
+      this.moon.scale.setScalar(46); this.moon.visible = false; this.moon.name = 'moon'; this.moon.renderOrder = -1;
       this.sky.add(this.moon);
     }
     // 遠くの山並み：三重に重ね、遠いほど霞ませる。山肌には杉林の筋と雑木の斑、近い山の裾には棚田

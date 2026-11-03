@@ -1563,7 +1563,8 @@ const HABIT = {
       return;
     }
     if (ordered) { c.charge = 0; inp.chargeHold = false; return; }
-    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || p.takeO) && t - (c.mountT || -9) > 4) {
+    // 六回乗れなかったら、あきらめて徒歩で行き先へ（乗れない馬の横で立ち尽くして刻限が尽きた。八尾・若江 11/2）
+    if (!p.mounted && !p.catching && p.mountT <= 0 && (ownHorse || p.takeO) && (c.mountTry || 0) < 6 && t - (c.mountT || -9) > 4) {
       inp.e.add('KeyR'); c.mountT = t;
       // 口笛は馬を呼ぶ操作。近くで手綱を取る時だけ乗馬を試したと数える。
       if (p.takeO || Math.hypot(p.loose.x - u.pos.x, p.loose.z - u.pos.z) < 3.2) {

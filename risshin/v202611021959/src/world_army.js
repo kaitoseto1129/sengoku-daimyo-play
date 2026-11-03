@@ -9,6 +9,10 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MEM_TIGHT, S as SETTINGS } from './settings.js';
 import { mixFor, K_PORTER } from './army_mix.js';
 import { lacKind, houseCore, LAC_AKA, LAC_MIX1, LAC_MIX2 } from './lacquer_kind.js';
+// 前から n 人を描く時、旗持ちの番号（小さい順）のうち描かれる者の数
+// 体の束を描かない時（遠い大軍・本物に替わる輪の内。world_lod.js の allHidden）は、背旗・幟・馬も描かない（体の無い旗が宙に浮く。T）
+const bodyOff = (m) => !!m?.userData.lod?.allHidden;
+const bodyBound = (idx, n) => { let lo = 0, hi = idx.length; while (lo < hi) { const m = (lo + hi) >> 1; if (idx[m] < n) lo = m + 1; else hi = m; } return lo; };
 import { armyScale, foeHostScale, foeNearOn, foeHostMin, foeHostBudget } from './army_scale.js';
 // 携帯の間引きの割合は十六段に丸める。カメラが少し動くたびに人数が変わり、全軍の束（army_batch.js）が兵を詰め直すのを減らす（大軍でも重くしない）
 const keepStep = (v) => Math.max(1 / 16, Math.floor(v * 16) / 16);
@@ -239,10 +243,12 @@ export class WorldArmy {
     };
     // 高は lodTick の兵ごとの選び（lodSplit）が同じ仕事をする。両方だと元の束を消した上に三つの写しを毎コマ描く
     if (o.detailPerSoldier && false) this.soldierDetail(body, grp, armor, o.detailMiddle);
-    flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); flags.count = l.flags ? Math.min(N, l.n * 2) : 0; };
+    // 背の旗は描く体の数まで（体の無い旗が宙に浮く。kaito 11/2 T）
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); flags.count = l.flags && !bodyOff(body) ? Math.min(N, l.n) : 0; };
     //   馬も、低（携帯）では数を減らす（lowKeep）
-    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); mesh.count = l.gone ? 0 : Math.max(mesh === horses && yose ? Math.min(n0, 21) : 0, Math.ceil(n0 * (mesh === horses ? this.def.denseFront ? frontKeep(this.def, l.dd) : lowKeep(150) : 1))); }; };
-    if (banners) lodAll(banners);
+    const lodAll = (mesh) => { const n0 = mesh.count; mesh.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); mesh.count = l.gone || bodyOff(body) ? 0 : Math.max(mesh === horses && yose ? Math.min(n0, 21) : 0, Math.ceil(n0 * (mesh === horses ? this.def.denseFront ? frontKeep(this.def, l.dd) : lowKeep(150) : 1))); }; };
+    // 幟は、描く体（前から l.n 人）の旗持ちの分だけ（体の無い幟を宙に浮かせない）
+    if (banners) banners.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); banners.count = l.gone || bodyOff(body) ? 0 : bodyBound(bearers, l.n); };
     if (horses) lodAll(horses);
     if (plumes) lodAll(plumes);
     // 後詰め：隊の後ろに、同じ旗の軽い兵を厚く続ける（地平を埋める奥行き。本体と同じ動き・崩れ方。戦の数や置き換えには入れない）
@@ -644,9 +650,9 @@ export class WorldArmy {
     body.onBeforeRender = (r, sc, cam) => { const l = lod(body, cam); body.count = l.gone ? 0 : Math.ceil(N * l.keep); };
     // 遠い塊は、とても遠い兵の形（一人 160 面ほど）で描く（lodTick。中ほどの形は持たない）
     this.lodTwin(body, o.armor || 0x2a2622, false);
-    flags.onBeforeRender = (r, sc, cam) => { const l = lod(flags, cam); flags.count = l.flags ? Math.min(N, Math.ceil(N * l.keep * 2)) : 0; };
+    flags.onBeforeRender = (r, sc, cam) => { const l = lod(flags, cam); flags.count = l.flags && !bodyOff(body) ? Math.min(N, Math.ceil(N * l.keep)) : 0; };   // 体の数まで（T）
     // 低（携帯）でも軽い旗の束を残す。見通しの外は描かない。
-    if (banners) { const nb = bear.length; banners.onBeforeRender = (r, sc, cam) => { const l = lod(banners, cam); banners.count = l.gone ? 0 : nb; }; }
+    if (banners) banners.onBeforeRender = (r, sc, cam) => { const l = lod(banners, cam); banners.count = l.gone || bodyOff(body) ? 0 : bodyBound(bear, Math.ceil(N * l.keep)); };   // 描く体の旗持ちの分だけ（T）
     for (const m of meshes) m.computeBoundingSphere();
     return { meshes, depth: realDepth, n: N, cx, cz, facing: F, U };
   }
@@ -922,9 +928,11 @@ export class WorldArmy {
       const nbAll = M.banners.count;
       M.bodyN.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); const g = l.gone || sideLod(r, cam); M.flags.layers.mask = l.flags && !g && !M.flags.userData.lod?.sashiCut ? 1 : 0; M.banners.layers.mask = g || !M.banners.count && !nbAll ? 0 : 1; M.bodyF.layers.mask = g || !nF ? 0 : 1; M.dead.layers.mask = M.dead.count ? 1 : 0; M.bodyN.count = sideLod(r, cam) ? 0 : l.flags || true ? nN : Math.ceil(nN * Math.min(1, frontKeep(this.def, l.dd) * 1.5)); };
       M.bodyF.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.bodyF.count = sideLod(r, cam) ? 0 : Math.ceil(nF * l.keep); };
-      M.flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.flags.count = l.flags && !sideLod(r, cam) ? nN + Math.min(nF, Math.ceil(nF * l.keep * 2)) : 0; };
+      M.flags.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.flags.count = l.flags && !sideLod(r, cam) && !bodyOff(M.bodyN) ? nN + Math.min(nF, Math.ceil(nF * l.keep)) : 0; };   // 体の数まで（T）
       const nb0 = M.banners.count;
-      M.banners.onBeforeRender = (r, sc, cam) => { M.banners.count = sideLod(r, cam) ? 0 : nb0; };
+      // 幟は前の列の旗持ち全員と、奥の列で描く体（前から ceil(nF*keep) 人）の旗持ちだけ（体の無い幟を浮かせない。T）
+      const bearNear = S.all.filter((q) => q.k === 4 && q.mesh === M.bodyN).length, bearFarMi = S.all.filter((q) => q.k === 4 && q.mesh === M.bodyF).map((q) => q.mi);
+      M.banners.onBeforeRender = (r, sc, cam) => { const l = lod(r, cam); M.banners.count = sideLod(r, cam) || bodyOff(M.bodyN) && bodyOff(M.bodyF) ? 0 : Math.min(nb0, bearNear + bodyBound(bearFarMi, Math.ceil(nF * l.keep))); };
     }
     const other = (S) => (S === C.A ? C.B : C.A);
     const sideOf = (k) => (k === 'B' ? C.B : C.A);

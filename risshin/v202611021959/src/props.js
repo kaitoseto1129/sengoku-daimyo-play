@@ -5908,10 +5908,10 @@ function ktile(P, W, x, y, z, w, d, h, rot = 0, ridge = 0.35, lower = false) {
   }
 }
 // 塗籠の軒裏：天守・櫓の軒の下は白漆喰で塗り込めた野地と垂木（松本・彦根・姫路の天守。下から見上げると軒の裏が白く、垂木の筋が並ぶ）。
-// 形は堂の軒裏（hipEaveGeo）を使い回し、色だけ漆喰へ寄せて漆喰の入れ物に積む（材質も描く回数も増えない）。画質「低」は垂木を省く
+// 形は堂の軒裏（hipEaveGeo）を使い回し、色だけ漆喰へ寄せて漆喰の入れ物に積む（材質も描く回数も増えない）。画質「低」と携帯は垂木を省く
 function nurigomeEave(B, x, y, z, w, d, h, rot, ridge) {
   const rl = Math.max(0.3, (w - d) / 2 + ridge);
-  const g = hipEaveGeo(w / 2, d / 2, h, 0, rl, SETTINGS.quality === 'low');
+  const g = hipEaveGeo(w / 2, d / 2, h, 0, rl, SETTINGS.quality === 'low' || MEM_TIGHT);   // 携帯（記憶の少ない作り）も垂木を省く（形の数を増やさない）
   const C = g.attributes.color;
   // 木の色（暗い 0x554534・明るい 0x887054）を、漆喰の白の濃淡（垂木の影が少し暗い）へ
   if (C) for (let i = 0; i < C.count; i++) { const v = (C.getX(i) + C.getY(i) + C.getZ(i)) / 3, k = 0.72 + v * 0.5; C.setXYZ(i, 0.86 * k, 0.83 * k, 0.77 * k); }
@@ -6347,6 +6347,8 @@ export function sumiyagura(world, x, z, o = {}) {
   // 中に入れる櫓：一重目の屋根の頂が二重目の床（+3.35）から出て、二階の部屋に瓦の山が立つので、床の下に収める（B102）
   if (o.inside) ktile(B.tile, B.plaster, x, yy + 2.72, z, w + 1.8, d + 1.8, 0.55, rot, 0.9, true);
   else ktile(B.tile, B.plaster, x, yy + 3.0, z, w + 1.8, d + 1.8, 0.9, rot, 0.9);
+  // 塗籠の白い軒裏（天守と同じ。画質「低」は買った部品を使わず、この手作りの形がそのまま見える）
+  nurigomeEave(B, x, yy + (o.inside ? 2.72 : 3.0), z, w + 1.8, d + 1.8, o.inside ? 0.55 : 0.9, rot, 0.9);
   yy += 3.35;
   const w2 = w * 0.72, d2 = d * 0.72;
   if (o.inside) {
@@ -6363,6 +6365,7 @@ export function sumiyagura(world, x, z, o = {}) {
     for (const hy of [1.06, 1.64]) { const [fx, fz] = P(0, s * (d2 / 2 + 0.05)); kbox(B.plaster, 0xe6e0d0, fx, yy + hy, fz, 1.3, 0.08, 0.08, rot); }
   }
   ktile(B.tile, B.plaster, x, yy + 2.2, z, w2 + 1.9, d2 + 1.9, 1.5, rot, 0.4);
+  nurigomeEave(B, x, yy + 2.2, z, w2 + 1.9, d2 + 1.9, 1.5, rot, 0.4);
   // 棟の鯱
   // 鯱は棟の両端に（前は二重目の壁の端の上＝隅棟の斜面の上に浮いていた）
   { const rl2 = Math.max(0.3, (w2 - d2) / 2 + 0.4); for (const s of [-1, 1]) { const [cx, cz] = P(s * (rl2 + 0.1), 0); kbox(B.iron, 0x2a2622, cx, yy + 2.2 + 1.5 + 0.3, cz, 0.18, 0.55, 0.26, rot); } }

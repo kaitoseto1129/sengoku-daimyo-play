@@ -402,11 +402,11 @@ export class PlayerView {
     const nm = { near: '近い', mid: '普通', far: '遠い' }[S.camRange || 'mid'];
     if (this.rt.def.missionStyle !== 'lesson' && this.rt.def.missionStyle !== 'raid') this.rt.hud.flash(this.viewNow() === 'first' ? '一人称（自分の目で見る）' : `三人称・${nm}（背中から見る）`, 'dim');
   }
-  // 一人称で見てよい時か。開戦の引き・大事な場面・倒れた時・戦の終わり・写真モードは三人称に戻す（終われば一人称へ戻る）
+  // 一人称で見てよい時か。倒れた時・写真モードだけ三人称に戻す（kaito 11/2 T）
   viewNow() { return this.rt.def.town ? (this.townView || 'third') : S.view; }
   fpWanted() {
     const rt = this.rt;
-    return this.viewNow() === 'first' && this.u.alive && !(this.introT > 0) && !this.cine && !rt.over && !(rt.game && rt.game.photo);
+    return this.viewNow() === 'first' && this.u.alive && !(rt.game && rt.game.photo);   // 出来事・戦の終わりで勝手に三人称へ戻さない（T）
   }
   // 目の位置：骨の入った人なら頭の骨の少し上・前。無ければ体の高さから
   eyeRaw(out) {

@@ -147,7 +147,8 @@ export class PlayerMelee {
     // 頭上で回す一撃（spin）は、周りに三人以上いる時だけ autoMeleeKind が選ぶ。
     const u = this.u;
     const army = this.rt.army;
-    const steady = !!this.rt.def.steadyMeleeCamera, shakeK = steady ? .2 : 1;
+    // 全戦で打ち合いの視点を揺らさない（kaito 11/2 T：カメラは一つの形に固定）
+    const steady = true, shakeK = .2;
     if (this.assistImpact && !assisted) return;
     // 押した時に前の一番近い敵を狙いに決め、倒すまでその相手へ向き直る。
     const focus = !impact && !assisted && !this.mounted && this.rt.def.autoTargetCamera && this.weapon !== 'gun' && this.weapon !== 'bow' ? this.pickStrikeTarget() : null;

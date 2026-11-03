@@ -61,9 +61,11 @@ export function officerThink(army, u, g) {
   // 馬印持ちは、主将が倒れても竿を武器にして斬り合わない。崩れた時の退却は通常の仕組みに任せる。
   if (u.isStandard) { u.target = null; u.watch = null; u.moveTo = null; return true; }
   if (!u.isOfficer || officerBroken(u) || u.isTaisho) return false;
-  const enemy = army.nearestEnemy(u, 2.3, (v) => !v.fleeing);
+  // 間合いの内の相手には、深手でも下がる途中でも必ず打ち返す（馬上は槍の長さの分だけ広く。kaito 11/2 T：馬上の侍大将が反撃しない）
+  const reachR = Math.max(2.3, (u.reach || 2) + (u.mounted ? 1.8 : 1));
+  const enemy = army.nearestEnemy(u, reachR, (v) => !v.fleeing);
   u.watch = null; u.target = enemy;
-  if (enemy && !(u.officerBackUntil > army.time) && u.hp > u.maxHp * 0.45) return true;
+  if (enemy) return true;
   const f = g.forward(), c = g.center(), p = u.officerPoint;
   const back = u.hp < u.maxHp * 0.45 || u.officerBackUntil > army.time ? 12 : 7;
   // 将が何人もいる備は、隊の後ろで横に並ぶ（全員が同じ一点へ寄って重ならない。kaito 10/27）

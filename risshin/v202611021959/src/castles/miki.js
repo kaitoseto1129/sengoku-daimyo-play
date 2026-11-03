@@ -12,7 +12,8 @@ import { jinshiroFortPlan } from '../castle_plan.js';
 // 出所：https://www.shirofan.com/shiro/kinki/miki/miki.html
 export const MIKI_JO = {
   honmaru: { name: '三木城・本丸', dx: 100, dz: 80, w: 16, d: 10, cw: 190, cd: 140, level: 22 },
-  ninomaru: { name: '三木城・二の丸', dx: -20, dz: 220, w: 10, d: 6, cw: 130, cd: 100, level: 19 },
+  // 二の丸は本丸の真南（間の道が空堀の跡）。台地の西の崖へはみ出さない。docs/battle_refs/miki.md
+  ninomaru: { name: '三木城・二の丸', dx: 90, dz: 225, w: 10, d: 6, cw: 130, cd: 100, level: 19 },
   shinjo: { name: '三木城・新城', dx: 320, dz: 150, w: 9, d: 6, cw: 150, cd: 120, level: 20 },
   takao: { name: '鷹尾山城', dx: 180, dz: 390, w: 9, d: 6, cw: 180, cd: 120, level: 18 },
   miyanoue: { name: '宮ノ上要害', dx: 180, dz: 570, w: 9, d: 6, cw: 150, cd: 120, level: 16 },
@@ -24,8 +25,8 @@ export const MIKI_KURUWA = [MIKI_JO.honmaru, MIKI_JO.ninomaru, MIKI_JO.shinjo, M
 export const MIKI_HONJIN_OFFSET = { dx: 2650 / 9, dz: -900 / 9 };
 // 平田は本丸の北西約1.8ｋｍ（戦場は約六分の一）を保つ。君ヶ峰は南東約1.5ｋｍだが独立した砦は未配置。
 // 北の荷駄道を接続し、主殿を横切らず南の尾根へ。大手・搦手の向きは断定しない。
-export const MIKI_ROAD = [[0, -20], [0, 20], [70, 35], [205, 60], [205, 180], [205, 240],
-  [80, 270], [80, 400], [80, 480], [80, 560], [80, 650], [180, 680]];
+export const MIKI_ROAD = [[0, -20], [0, 20], [70, 35], [205, 60], [205, 180], [205, 290],
+  [80, 290], [80, 400], [80, 480], [80, 560], [80, 650], [180, 680]];
 // 付城の網（戦場の絶対座標）。城内を横切らず、北西から北東へ遠巻きに並ぶ。
 // 場所・寸法は縮尺の復元。川と荷駄道を横切る柵は戦の準備時に除く。
 export const TSUKESHIRO_CHAIN = [[-100, 90], [-80, -64], [-160, -140], [20, -110], [640, 150]];
@@ -41,7 +42,8 @@ export const MIKI_BRANCHES = MIKI_KURUWA.map((q, i) => [MIKI_APPROACHES[i],
 // 本丸の区画堀・本丸と二の丸の堀切・鷹尾山城北の東西堀。
 // 本丸の堀の存在は市の発掘資料。断面・位置・年代は推定。伝天守台は堀を埋めた後なので足さない。
 // https://www.city.miki.lg.jp/site/mikirekishishiryokan/13225.html
-export const MIKI_HORI = [[[15, 120], [82, 120]], [[-65, 112], [0, 150], [40, 165]],
+// 本丸と二の丸の間の東西の空堀は、本丸へ入る城道の所だけ土橋で残す。
+export const MIKI_HORI = [[[15, 120], [82, 120]], [[10, 162], [95, 162]], [[120, 162], [175, 162]],
   [[75, 300], [300, 300]], [[250, 220], [395, 220]]];
 // 平田以外の代表付城へは南から入り、台地に番所・蔵・井楼を置く。
 export const MIKI_FORTS = TSUKESHIRO_CHAIN.filter(([x, z]) => x !== -80 || z !== -64)

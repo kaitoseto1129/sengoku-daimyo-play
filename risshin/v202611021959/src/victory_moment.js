@@ -60,18 +60,10 @@ export function brushWord(rt, text, { big = false, introduction = false, hold = 
   rt.cleanupTasks?.add(() => { clearTimeout(t1); clearTimeout(t2); cancelAnimationFrame(frame); e.remove(); });
 }
 
-// 近くの味方の多い向きへ肩越しのカメラを向ける。見上げず、少し見下ろす。
+// 勝った瞬間は狙いと演出だけ外す（向きは変えない）。
 export function faceAllies(rt) {
-  const P = rt.player, me = P.u.pos;
-  let sx = 0, sz = 0, n = 0;
-  for (const o of rt.army.units) {
-    if (!o.alive || o.isPlayer || o.team !== P.u.team || o.gone || o.fleeing) continue;
-    const dx = o.pos.x - me.x, dz = o.pos.z - me.z, d2 = dx * dx + dz * dz;
-    if (d2 > 22 * 22 || d2 < 2) continue;
-    sx += dx; sz += dz; n++;
-  }
-  if (n) P.yaw = Math.atan2(sx, sz);
-  P.pitch = -0.1;
+  const P = rt.player;
+  // 向きは勝手に変えない（kaito 11/2 T：カメラは自分で回した時だけ変える）
   P.lock = null; P.cine = null; P.camShot = null;
 }
 

@@ -1135,8 +1135,8 @@ export class Player {
         }
         rt.stats.dist += sp * dt;
       }
-      // 移動中にしばらく視点を動かさなければ、カメラが背後へ回り込む
-      if (S.autoCam && !this.camFixed && !reduceMotion() && !this.lock && !(this.inCombatT > 0) && ml > 0 && this.lookIdle > 2.5 && iz >= 0 && !this.fpWanted() && !(this.fpK > 0)) this.yaw += angleDiff(this.yaw, u.heading) * Math.min(1, dt * 0.8);
+      // 背後への回り込みは止める（kaito 11/2 T：向きは自分で回した時だけ変える）
+      if (false && S.autoCam && !reduceMotion() && !this.lock && !(this.inCombatT > 0) && ml > 0 && this.lookIdle > 2.5 && iz >= 0 && !this.fpWanted() && !(this.fpK > 0)) this.yaw += angleDiff(this.yaw, u.heading) * Math.min(1, dt * 0.8);
       // 向き：構え・攻撃・狙い定め中はカメラ方向、それ以外は進行方向
       let want = null;
       // 一人称では、体はいつも見ている方を向く（振り向くと自分の背が見える、を防ぐ）

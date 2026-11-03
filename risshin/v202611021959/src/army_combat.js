@@ -1085,11 +1085,12 @@ export const ArmyCombat = {
       };
       // 本人のそば（15m）で主を失った馬は、少し駆けてから止まり、寄れば手綱を取って乗れる（kaito 10/23 稲生 12）
       const P0 = this.playerUnit, tame = !!(P0 && P0.alive && Math.hypot(P0.pos.x - t.pos.x, P0.pos.z - t.pos.z) < 15);
-      L.push({ h, heading: t.heading + (Math.random() - 0.5) * 0.9, spd: Math.max(spd, 4), t: 0, from, tame });
+      // 本人のそばで討った馬は駆け去らず、すぐ横で足を止める（討った将の馬に乗れる。kaito 11/2 T）
+      L.push({ h, heading: t.heading + (Math.random() - 0.5) * 0.9, spd: tame ? Math.min(spd, 1.2) : Math.max(spd, 4), t: 0, from, tame, calm: tame || undefined });
       // 多すぎる時は古い空馬から消す（プレイヤーが置いた馬は残す）
       // 空馬は 20 頭まで（戦場を駆け回る馬を見せる）。多すぎる時は、置いた馬を除いて本人から一番遠い馬から消す
       if (L.length > 20) { const P = this.playerUnit; let k = -1, bd = -1; L.forEach((o, j) => { if (o.kept) return; const d = P ? Math.hypot(o.h.position.x - P.pos.x, o.h.position.z - P.pos.z) : j; if (d > bd) { bd = d; k = j; } }); if (k >= 0) this.scene.remove(L.splice(k, 1)[0].h); }
-      if (h.userData.horse) h.userData.horse.spook = 1;
+      if (h.userData.horse) h.userData.horse.spook = tame ? 0 : 1;
       this.play('neigh', t.pos, 0.7);
     }
     t.death.vx = spd * 0.5;

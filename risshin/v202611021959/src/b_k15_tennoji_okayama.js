@@ -93,7 +93,7 @@ function scenery(rt) {
   for (const [x, z] of [[SHITENNO.x - 10, SHITENNO.z], [SHITENNO.x + 6, SHITENNO.z - 4], [SHITENNO.x + 16, SHITENNO.z]]) rt.scene.add(nobori(W, x, z, 'mori', 5));
   for (const [x, z] of [[OKA.x - 6, OKA.z], [OKA.x + 6, OKA.z - 3]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 5));
   // 大坂城：五重の天守と本丸の石垣（遠景）
-  rt.scene.add(tenshu(W, CASTLE.x, CASTLE.z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi' }));
+  rt.scene.add(tenshu(W, CASTLE.x, CASTLE.z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi', goldShachi: true }));
   rt.scene.add(ishigaki(W, [[CASTLE.x - 50, CASTLE.z + 22], [CASTLE.x + 50, CASTLE.z + 22]], { kind: 'uchikomi', top: 0.1, minH: 5, maxH: 7 }));
 }
 

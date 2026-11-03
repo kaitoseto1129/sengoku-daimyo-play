@@ -1022,6 +1022,7 @@ function rawTerrain(x, z) {
   // 低い盛り土と十二歩の丸い肩へ緩める。柵・木戸・道の位置は保つ。
   const hirataShoulder = Math.max(0, Math.min(1, (HIRATA.r + 10 - Math.hypot(x - HIRATA.x, z - HIRATA.z)) / 12));
   h += 1.5 * hirataShoulder * hirataShoulder * (3 - 2 * hirataShoulder);
+  h += yaguraDai(x, z, HIRATA.x + 8, HIRATA.z - 3);
   h += 2.4 * gauss(x, z, 19, -55, 36); // 仕寄り先の築山。位置と断面は復元。
   // 狭い堀も一頂点だけの深い切れ込みにしない。深さ・中心線・南の土橋は保つ。
   if (!(z > HIRATA.z && Math.abs(x - HIRATA.x) < 7)) h -= 1.2 * Math.max(0, 1 - Math.abs(Math.hypot(x - HIRATA.x, z - HIRATA.z) - HIRATA.r - 4) / 5);
@@ -1029,6 +1030,11 @@ function rawTerrain(x, z) {
   const rz = -32 + 9 * Math.exp(-((x - 90) ** 2) / 9000);
   h -= 5 * Math.exp(-((z - rz) ** 2) / 130);
   return h;
+}
+// 二期の付城（天正七年）の主郭は櫓台を備えた土塁囲み（三木市「付城跡群」）。井楼の足元だけを低い土の壇にする。
+function yaguraDai(x, z, cx, cz) {
+  const k = Math.max(0, Math.min(1, (3.6 - Math.hypot(x - cx, z - cz)) / 1.4));
+  return 1.2 * k * k * (3 - 2 * k);
 }
 // 五曲輪の平場と急な土の法面。三木は平山城なので山城の盛り上げを加えない。
 let FORT_LEVELS = MIKI_FORTS.map(q => rawTerrain(q.x, q.z) + 1.8);
@@ -1044,7 +1050,7 @@ function terrainHeight(x, z) {
   for (let i = 0; i < MIKI_FORTS.length; i++) {
     const q = MIKI_FORTS[i], d = Math.hypot(x - q.x, z - q.z);
     const k = Math.max(0, Math.min(1, (q.r + 4 - d) / 4));
-    h += (FORT_LEVELS[i] - h) * k;
+    h += (FORT_LEVELS[i] - h) * k + yaguraDai(x, z, q.x + 6, q.z - 6);
     // 付城の外の浅い空堀。南の土橋を残す（位置・断面は推定）。
     if (!(z > q.z && Math.abs(x - q.x) < 5)) h -= 1.6 * Math.max(0, 1 - Math.abs(d - q.r - 4) / 2.2);
   }
@@ -1889,7 +1895,8 @@ const miki = {
     // 10/29 採点：開戦の肩越しの視点の左を木戸の屋根と板がふさいだ。平田の口は屋根も扉板も無い冠木の口にして低くする。
     rt.scene.add(mikiGate(W, HIRATA.x, HIRATA.z + HIRATA.r, 6, false));
     for (const [x, z] of [[HIRATA.x - 6, HIRATA.z + 8], [HIRATA.x + 6, HIRATA.z + 8]]) rt.scene.add(nobori(W, x, z, 'oda', 6));
-    for (const wall of hirataWalls) dorui(W, wall.seg, wall.nx, wall.nz, { h: .7, w: 2, capEnds: true, closeBack: true, batch });
+    // 主郭の土塁は付城をつなぐ土塁（高さ約1m）より高く厚くする（docs/battle_refs/miki.md）。
+    for (const wall of hirataWalls) dorui(W, wall.seg, wall.nx, wall.nz, { h: 1.05, w: 2.8, capEnds: true, closeBack: true, batch });
     // 兵糧蔵は番所の脇の奥へ寄せ、持ち場の肩越しの右を板壁でふさがない（10/28 資料との差）。
     mikiFortHut(W, HIRATA.x - 7, HIRATA.z, 5, 4, 0, { ita: true, batch, interior: { name: '平田の兵糧蔵', kind: 'kura', profile: 'miki', team: 0 } });
     rt.scene.add(jinmaku(W, HIRATA.x + 2, HIRATA.z - 5, 6, 5, 3, { mon: 'oda' }));

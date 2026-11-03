@@ -11,7 +11,7 @@ import { OKEHAZAMA_KACCHU } from './kacchu_data.js';
 import { gauss, allyGroup as commonAllyGroup, enemyGroup as commonEnemyGroup, unitPos, nm, guardRecover, jpNum } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { tuftClumpAt } from './world_common.js';
-import { palisade, hut, dou, yagura, nobori, tawara, campfire, koshi, umaFollow, jinmaku } from './props.js';
+import { palisade, hut, dou, yagura, nobori, tawara, campfire, koshi, umaFollow } from './props.js';
 import { nagashinojo } from './b_nagashinojo.js';
 import { customFlag } from './b_inabayama.js';
 import { farArmy, moveFar, gone, sky } from './b_shared.js';
@@ -1356,13 +1356,14 @@ const okehazama = {
   // 攻め上る始めの一分だけ肩越しの高さを本人の上一・九歩まで下げ、坂の上の林・家・陣幕を画面の上に入れる。一分を過ぎたら五秒かけて元の高さへ戻す。
   clampCamera(rt, pos) {
     const P = rt.player, u = P?.u, t = rt.army?.time || 0;
-    if (!u?.alive || rt.over || rt.game?.photo || rt._rts?.on || P.fpK >= .5 || P.cine || P.mounted || t > 75) return;
-    const cap = u.pos.y + 1.9 + Math.max(0, t - 70) / 5 * 0.9;
+    if (!u?.alive || rt.over || rt.game?.photo || rt._rts?.on || P.fpK >= .5 || P.cine || P.mounted) return;
+    void t;
+    const cap = u.pos.y + 1.9;   // 時間で高さを変えない（kaito 11/2 T：カメラを一つの形に）
     if (pos.y > cap) pos.y = cap;
   },
   frameCamera(rt, pos, look) {
     const P = rt.player;
-    if (!look || rt.over || rt.game?.photo || rt._rts?.on || P.fpK >= .5 || P.cine || (rt.army.time || 0) > 70) return;
+    if (!look || rt.over || rt.game?.photo || rt._rts?.on || P.fpK >= .5 || P.cine) return;
     const span = Math.hypot(look.x - pos.x, look.z - pos.z);
     look.y = Math.max(look.y, pos.y - span * .1);
   },
@@ -2186,28 +2187,8 @@ const okehazama = {
     const camp = KT.honjin(scenery, HONJIN.x, HONJIN.z, { mon: 'imagawa', w: 26, d: 18, gap: 10, people: false, tate: false });
     for (const [a, b] of [[4, 11.8], [24.2, 32]]) scenery.scene.add(okePalisade(W, a, b));
     okeCloth(camp, W);
-    // 北の丘の肩に今川の前備の陣幕（白地に二引両）。谷の持ち場から坂の上に見える。位置は推定。
-    scenery.scene.add(jinmaku(W, -67, -41, 16, 9, 5, { mon: 'imagawa' }));
-    // 谷を北へ攻め上る目の正面、坂の上にも前備の陣幕を一つ（10/28：25秒の画面に今川の陣が入らなかった）。位置は推定。通り道は塞がない。
-    scenery.scene.add(jinmaku(W, 64, -64, 18, 10, 6, { mon: 'imagawa', solid: false }));
-    // 東の尾根の稜線にも前備の陣幕を二つ（25秒のカメラが北東・東を向いた時、坂の上の空に白い幕が立つ）。位置は推定。
-    scenery.scene.add(jinmaku(W, 123, -52, 16, 9, 5, { mon: 'imagawa', solid: false }), jinmaku(W, 129, -20, 14, 8, 5, { mon: 'imagawa', solid: false }));
-    // 攻め上る道の東の丘にも前備の陣幕と幟（25秒で道の始めから東を向いた時、林の前に白い幕が立つ）。位置は推定。通り道は塞がない。
-    scenery.scene.add(jinmaku(W, 32, -30, 18, 9, 6, { mon: 'imagawa', solid: false }));
-    for (const [x, z] of [[24, -36], [33, -36], [42, -36]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
-    // 本陣へ上る坂の中ほど、道の東に前備の陣幕と幟（道の始めから本陣を向くと、坂の上に白い幕が立つ）。位置は推定。
-    scenery.scene.add(jinmaku(W, 31, -79, 14, 8, 5, { mon: 'imagawa', solid: false }));
-    for (const [x, z] of [[26, -74], [36, -74]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
-    // 25秒の画面はどの向きにもなる。持ち場から三十五〜七十歩の西・北・東にも前備の陣幕を一つずつ（雨の中でも白い幕が届く間合い）。位置は推定。
-    scenery.scene.add(jinmaku(W, -10, 23, 14, 8, 5, { mon: 'imagawa', solid: false }), jinmaku(W, -49, -24, 14, 8, 5, { mon: 'imagawa', solid: false }),
-      jinmaku(W, -8, -94, 14, 8, 5, { mon: 'imagawa', solid: false }));
-    // 谷の上の桶狭間村の百姓家（茅葺き）を、持ち場を囲む西・北西・南・東の丘に一軒ずつ。軒数と位置は推定。攻め上る道と押し合いの場は外す。
+    // 今川の陣幕と大きな旗印は義元の本陣の一か所だけ（kaito 11/2 T：幕がたくさんあって義元の居所が分からない）。前備の幕・幟は置かない。
     for (const [x, z, r] of [[10, 28, 0.5], [-42, 46, 1.9], [49, -1, -0.4], [-41, -96, 2.6]]) scenery.scene.add(hut(W, x, z, 6.5, 4.4, r));
-    // 25秒の立ち位置（-15, -46）からは上の幕も家も四十歩より遠く、雨と林に隠れていた（10/29 撮り：カメラの先三十歩に幕と家が無い）。
-    // 立ち位置を囲む西・南西・北西・南の二十〜二十八歩に、今川の前備の小さな陣幕と百姓家を足す。味方の着く所と本陣へ上る道は外す。位置は推定。
-    scenery.scene.add(jinmaku(W, -40, -54, 12, 7, 5, { mon: 'imagawa', solid: false }), jinmaku(W, -24, -72, 12, 7, 5, { mon: 'imagawa', solid: false }),
-      jinmaku(W, 6, -30, 10, 6, 5, { mon: 'imagawa', solid: false }));
-    for (const [x, z] of [[-34, -60], [-16, -66]]) scenery.scene.add(nobori(W, x, z, 'imagawa', 5.5));
     for (const [x, z, r] of [[-41, -30, 1.2], [-2, -70, -0.3]]) scenery.scene.add(hut(W, x, z, 6, 4.2, r));
     okeRainSheet(rt);
     // 母衣だけの形を複製して使い回す。共有の甲冑や次の戦には書き込まない。

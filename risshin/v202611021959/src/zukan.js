@@ -1,16 +1,14 @@
 // 武将図鑑と実績（戦功の記録）
-// 図鑑：generals_data.js の BUSHO と、戦に出てくる名のある者（下の EXTRA）を並べる。会った者だけ顔と能力・来歴を見せる
+// 図鑑：zukan_people.js の名簿（三つの章の戦に出る武将）を出会う順に並べる。会った者だけ 3D の絵と来歴を見せ、会っていない者は影絵
 // 実績：戦の終わりに zukanRecord(b, G) を呼ぶと、会った武将を記し、取れた実績の札を出す
 // 記録は保存（state.js）とは別の鍵で localStorage に置く。読めない・書けない時は、その場の記憶だけで動く
-import { BUSHO, LINEUP, TRAIT_NOTE } from './generals_data.js';
-import { MAP_SCENARIOS } from './japan_data.js';
-import { faceURL } from './japan3d.js';
-import { SCENARIOS, SCENARIO_ORDER, BATTLES, ITEMS, HORSES, loadAll, scenarioKey, lineOf } from './state.js';
+import { SCENARIOS, BATTLES, ITEMS, HORSES, loadAll, scenarioKey, lineOf } from './state.js';
 import { S, reduceMotion } from './settings.js';
 import { sfx } from './audio.js';
 
 import { ZK_KEY as KEY, readZukanRaw } from './zukan_store.js';
-import { ROSTER, ROSTER_ALIAS, BATTLE_BUSHOU, HOUSE } from './bushou_roster.js';
+import { ROSTER, ROSTER_ALIAS } from './bushou_roster.js';
+import { ZUKAN_ROWS } from './zukan_people.js';
 import { portrait, portraitStop } from './busho_portrait.js';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const RM = reduceMotion;
@@ -25,168 +23,51 @@ function store() {
 function keep() { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) { /* 書けなくても続ける */ } }
 
 // ---------------- 武将の名簿 ----------------
-// 名簿にいない、戦に出てくる者（史実に沿って。分からない年は書かない）
-// [読み, 生まれ, 没, 似顔, 来歴, 家, 物語の人物か]
-const EXTRA = {
-  奥平信昌: ['おくだいらのぶまさ', 1555, 1615, 'k0', '長篠城の城主。わずかな兵で武田の大軍から城を守り抜いた。のちに家康の娘・亀姫を妻に迎えた。', '奥平家'],
-  鳥居強右衛門: ['とりいすねえもん', null, 1575, 'm1', '奥平家の足軽。囲まれた長篠城を抜け出し、岡崎へ援軍を頼みに走った。戻る途中で武田方に捕らえられ、「援軍は来る」と城へ叫んで命を落としたと伝わる。', '奥平家'],
-  今川義元: ['いまがわよしもと', 1519, 1560, 'e1', '駿河・遠江・三河を治めた「海道一の弓取り」。大軍で尾張へ攻め入ったが、桶狭間で織田勢に討たれた。', '今川家'],
-  毛利新介: ['もうりしんすけ', null, 1582, 'k1', '信長の馬廻。桶狭間で今川義元を討ち取った。本能寺の変のとき、織田信忠とともに討死したと伝わる。', '織田家'],
-  今福浄閑: ['いまふくじょうかん', null, null, 'b1', '武田方の将。天正三年、遠江の諏訪原城を守ったと伝わる。', '武田家'],
-  日比野下野守: ['ひびのしもつけのかみ', null, 1561, 'k2', '斎藤家の将。森部の戦いで織田勢に討たれた。', '斎藤家'],
-  長井甲斐守: ['ながいかいのかみ', null, 1561, 'k1', '斎藤家の将。森部の戦いで、日比野下野守とともに討たれた。', '斎藤家'],
-  坂井政尚: ['さかいまさひさ', null, 1570, 'k2', '織田家の将。姉川の戦いで先手を務めた。同じ年の暮れ、近江の堅田で討死した。', '織田家'],
-  浅井政澄: ['あざいまさずみ', null, null, 'k1', '浅井家の一門。姉川の戦いで浅井勢の一手を率いたと伝わる。', '浅井家'],
-  北畠具教: ['きたばたけとものり', 1528, 1576, 'e2', '伊勢国司。大河内城で織田勢を長く防いだが、和睦の末に信長の子・信雄を養子に迎えて家を譲った。のち三瀬の変で謀殺された。', '北畠家'],
-  日置大膳: ['へきだいぜん', null, null, 'k2', '北畠家の将。大河内城の籠城で織田勢を防いだと伝わる。', '北畠家'],
-  池田勝正: ['いけだかつまさ', null, null, 'e1', '摂津の池田城主。金ヶ崎の退き口で、木下藤吉郎・明智光秀らとともに殿を務めたと伝わる。', '摂津池田家'],
-  正覚院豪盛: ['しょうがくいんごうせい', null, null, 'b0', '比叡山延暦寺の僧。焼き討ちの後に山を逃れ、甲斐の武田信玄を頼ったという。', '延暦寺'],
-  戸田勝成: ['とだかつしげ', null, 1600, 'k1', '豊臣家の大名。関ヶ原では大谷吉継とともに戦い、討死した。', '大谷家'],
-  平塚為広: ['ひらつかためひろ', null, 1600, 'k2', '豊臣家の大名。関ヶ原で大谷吉継の隊に加わって戦い、討死した。', '大谷家'],
-  平岡頼勝: ['ひらおかよりかつ', 1560, 1607, 'e1', '小早川秀秋の家老。関ヶ原で秀秋が東軍に付くことに関わったと伝わる。', '小早川家'],
-  島津豊久: ['しまづとよひさ', 1570, 1600, 'k0', '島津家久の子。関ヶ原の退き口で、伯父の義弘を逃がすために殿に残り、討死した。', '島津家'],
-  寺沢広高: ['てらざわひろたか', 1563, 1633, 'e1', '豊臣家の奉行。関ヶ原では東軍に付き、のちに肥前の唐津を治めた。', '寺沢家'],
-  山崎長徳: ['やまざきながのり', null, null, 'k2', '前田家の将。大坂冬の陣で、前田勢として真田丸に寄せた。', '前田家'],
-  片倉重長: ['かたくらしげなが', 1585, 1659, 'k0', '伊達家の家臣で、片倉景綱の子。道明寺の戦いで後藤又兵衛の隊と戦い、「鬼の小十郎」と呼ばれた。', '伊達家'],
-  松平忠明: ['まつだいらただあきら', 1583, 1644, 'e0', '奥平信昌の子で、家康の外孫。大坂の陣の後、焼けた大坂の町の立て直しを任された。', '徳川家'],
-  本多重次: ['ほんだしげつぐ', 1529, 1596, 'k3', '「鬼作左」と呼ばれた徳川の古参。「一筆啓上　火の用心」で始まる短い手紙で知られる。', '徳川家'],
-  源八: ['げんぱち', null, null, 'm2', 'この物語の人物。桶狭間で主人公を預かる足軽の組頭。', '織田家', true],
-  大沢勘兵衛: ['おおさわかんべえ', null, null, 'k2', 'この物語の人物。森部で主人公の組を率いる足軽大将。', '織田家', true],
-  // 831：桶狭間で救う侍と、墨俣の敵将
-  前野長兵衛: ['まえのちょうべえ', null, null, 'm1', '織田家の侍。桶狭間の雨の中で今川勢に囲まれ、主人公に救われる（この物語では）。前野家は尾張の土豪で、のちに蜂須賀家と共に藤吉郎を助けた。', '織田家'],
-  稲田弾正: ['いなだだんじょう', null, null, 'k2', 'この物語の人物。墨俣の砦普請を襲う斎藤方の侍大将。', '斎藤家', true],
-  吉田出雲守: ['よしだいずものかみ', null, null, 'k1', '六角家の将。永禄十一年、織田勢の上洛の道をふさぐ箕作城を守ったと伝わる。', '六角家'],
-  座光寺為清: ['ざこうじためきよ', null, null, 'k1', '武田方の将。信濃の国衆で、岩村城攻めの後詰に加わったと伝わる。', '武田家'],
-  明智秀満: ['あけちひでみつ', null, 1582, 'k2', '光秀の重臣で娘婿。本能寺の変では先手として押し寄せた。山崎の敗戦の後、坂本城で自害した。', '明智家'],
-  池田知正: ['いけだともまさ', 1555, 1604, 'e1', '摂津池田家の当主。荒木村重が謀叛した後も織田方に付き、有岡城攻めに加わったと伝わる。', '摂津池田家'],
-  滝野吉政: ['たきのよしまさ', null, null, 'k1', '伊賀衆の将。天正伊賀の乱では柏原城に拠って織田勢に抗ったと伝わる。', '伊賀衆'],
-  奈佐日本之介: ['なさひのもとのすけ', null, null, 'k1', '因幡の水軍衆。鳥取城の兵糧攻めのとき、海から兵糧を運び入れようとしたと伝わる。', '毛利家'],
-  武田信勝: ['たけだのぶかつ', 1567, 1582, 'm0', '勝頼の嫡男。田野で父とともに最期まで戦い、自害した。まだ十六歳だった。', '武田家'],
-};
-// 名簿の年の誤りを直す
-const FIX = { 織田信長: { d: 1582 } };
-// 戦の中の呼び名 → 図鑑の名
-const ALIAS = { 木下秀吉: '木下藤吉郎', 藤吉郎: '木下藤吉郎', 強右衛門: '鳥居強右衛門', 河窪信実: '武田信実', 真田信繁: '真田幸村', 本多作左: '本多重次', 勘兵衛: '大沢勘兵衛', 谷大膳: '谷衛好', 蜂須賀小六: '蜂須賀正勝', 稲葉良通: '稲葉一鉄', ...ROSTER_ALIAS };
-
-// どの戦で会えるか（戦の id → [名, 立場]）。戦の定義（battles.js・b_*.js）と main.js の BOSS_BY から
-const APPEAR = {
-  inou: [['織田信長', '味方の大将'], ['源八', '組頭'], ['柴田勝家', '敵'], ['林美作守', '敵']],
-  okehazama: [['織田信長', '味方の大将'], ['源八', '組頭'], ['毛利新介', '味方'], ['前野長兵衛', '救う味方'], ['今川義元', '敵の総大将']],
-  moribe: [['大沢勘兵衛', '足軽大将'], ['日比野下野守', '敵'], ['長井甲斐守', '敵']],
-  sunomata: [['木下藤吉郎', '普請の頭（伝承）'], ['前野長康', '西の守り（物語）'], ['蜂須賀正勝', '川側の守り（物語）']],
-  // 織田家編の戦（戦の定義に出てくる名のある者）
-  inabayama: [['木下藤吉郎', '上役'], ['丹羽長秀', '味方']],
-  mitsukuri: [['木下藤吉郎', '上役'], ['丹羽長秀', '味方'], ['佐久間信盛', '味方'], ['吉田出雲守', '敵の城将']],
-  okawachi: [['丹羽長秀', '上役'], ['池田恒興', '味方'], ['稲葉一鉄', '味方'], ['滝川一益', '味方'], ['北畠具教', '敵の総大将'], ['日置大膳', '敵']],
-  nodafukushima: [['前田利家', '上役'], ['佐々成政', '味方'], ['岩成友通', '敵']],
-  shiga: [['森可成', '町口の大将'], ['織田信治', '味方'], ['青地茂綱', '味方'], ['武藤五郎右衛門', '城の守り'], ['肥田彦左衛門', '城の守り'], ['朝倉義景', '敵の総大将'], ['浅井長政', '敵の総大将']],
-  mikatagahara: [['佐久間信盛', '上役'], ['平手汎秀', '味方'], ['徳川家康', '味方の大将'], ['山県昌景', '敵']],
-  tonezaka: [['柴田勝家', '上役'], ['織田信長', '味方の大将'], ['山崎吉家', '敵'], ['斎藤龍興', '敵']],
-  odani: [['羽柴秀吉', '上役'], ['蜂須賀正勝', '味方'], ['浅井長政', '敵の総大将']],
-  nagashima: [['柴田勝家', '上役'], ['織田信広', '味方'], ['下間頼旦', '一揆の大将の一人']],
-  echizen: [['明智光秀', '上役'], ['佐久間信盛', '味方'], ['杉浦玄任', '敵'], ['下間頼照', '敵の総大将']],
-  takato: [['森長可', '上役'], ['織田信忠', '味方の大将'], ['団忠正', '味方'], ['仁科盛信', '敵の城将']],
-  honnoji: [['織田信忠', '上役'], ['村井貞勝', '味方'], ['森蘭丸', '味方'], ['森坊丸', '味方'], ['森力丸', '味方'], ['明智秀満', '敵'], ['明智光秀', '敵の総大将']],
-  iwamura: [['河尻秀隆', '上役'], ['毛利長秀', '味方'], ['座光寺為清', '敵'], ['秋山虎繁', '敵の総大将']],
-  // 『信長公記』巻九の当該条に本願寺方の将名はない。敵の総大将は断定しない。
-  tennoji: [['明智光秀', '上役'], ['織田信長', '味方の大将'], ['佐久間信盛', '味方'], ['滝川一益', '味方']],
-  saika: [['堀秀政', '上役'], ['佐久間信盛', '山手の将'], ['鈴木孫一', '雑賀の主な者']],
-  tedorigawa: [['柴田勝家', '上役'], ['丹羽長秀', '味方'], ['前田利家', '味方'], ['上杉謙信', '敵の総大将']],
-  shigisan: [['筒井順慶', '上役'], ['織田信忠', '味方の総大将'], ['明智光秀', '西尾根の将'], ['羽柴秀吉', '包囲の将'], ['細川藤孝', '包囲の将'], ['佐久間信盛', '包囲の将'], ['丹羽長秀', '包囲の将'], ['松永久通', '城内の将'], ['松永久秀', '敵の総大将']],
-  kizugawa: [['九鬼嘉隆', '上役'], ['乃美宗勝', '敵']],
-  miki: [['羽柴秀吉', '上役'], ['谷衛好', '味方'], ['別所吉親', '敵'], ['別所長治', '敵の総大将']],
-  arioka: [['滝川一益', '上役'], ['池田知正', '味方'], ['黒田官兵衛', '味方'], ['栗山善助', '味方'], ['荒木久左衛門', '敵の総大将']],
-  iga: [['丹羽長秀', '上役'], ['堀秀政', '味方の本陣'], ['蒲生氏郷', '味方'], ['筒井順慶', '味方']],
-  tottori: [['羽柴秀吉', '上役'], ['蜂須賀正勝', '味方'], ['奈佐日本之介', '敵'], ['吉川経家', '敵の総大将']],
-  tano: [['滝川一益', '上役'], ['河尻秀隆', '味方'], ['土屋昌恒', '敵'], ['武田信勝', '敵'], ['武田勝頼', '敵の総大将']],
-  nagashinojo: [['奥平信昌', '城主'], ['鳥居強右衛門', '味方']],
-  sune: [['鳥居強右衛門', '味方'], ['奥平信昌', '城主']],
-  tobinosu: [['酒井忠次', '別働隊の大将'], ['奥平信昌', '味方'], ['武田信実', '敵']],
-  shitaragahara: [['大久保忠世', '上官'], ['山県昌景', '敵'], ['内藤昌豊', '敵'], ['真田信綱', '敵'], ['馬場信春', '敵の殿'], ['武田勝頼', '敵の総大将']],
-  suwahara: [['大久保忠世', '上官'], ['本多重次', '門破りの頭'], ['今福浄閑', '敵の城将']],
-  kanegasaki: [['木下藤吉郎', '殿の大将'], ['明智光秀', '味方'], ['池田勝正', '味方'], ['朝倉景鏡', '敵'], ['朝倉景健', '敵']],
-  anegawa: [['森可成', '上官'], ['柴田勝家', '味方'], ['池田恒興', '味方'], ['坂井政尚', '味方'], ['木下藤吉郎', '味方'], ['稲葉一鉄', '味方'], ['榊原康政', '味方'], ['磯野員昌', '敵'], ['遠藤直経', '敵'], ['浅井政澄', '敵']],
-  hieizan: [['明智光秀', '上官'], ['佐久間信盛', '味方'], ['正覚院豪盛', '僧兵の大将']],
-  sekigahara: [['藤堂高虎', '上官'], ['京極高知', '味方'], ['寺沢広高', '味方'], ['井伊直政', '味方'], ['小早川秀秋', '寝返る'], ['平岡頼勝', '寝返る'], ['脇坂安治', '寝返る'], ['戸田勝成', '敵'], ['平塚為広', '敵'], ['島津義弘', '敵'], ['島津豊久', '敵']],
-  sanadamaru: [['山崎長徳', '上官'], ['真田幸村', '敵の大将']],
-  domyoji: [['水野勝成', '上官'], ['本多忠政', '味方'], ['松平忠明', '味方'], ['片倉重長', '味方'], ['後藤又兵衛', '敵'], ['薄田兼相', '敵'], ['明石全登', '敵'], ['真田幸村', '敵']],
-};
-// 833：同じ戦でも筋書きで顔ぶれが違う物（織田家編の設楽原は、織田方から見る）
-const APPEAR_BY = { oda: { shitaragahara: [['前田利家', '上役'], ['織田信長', '味方の総大将'], ['徳川家康', '味方'], ['山県昌景', '敵'], ['馬場信春', '敵'], ['武田勝頼', '敵の総大将']] } };
-// 11/1：武将の名簿（bushou_roster.js）で各戦に出る史実の武将も、その戦の顔ぶれに入れる。立場は「味方／敵」と役目の一文
-const rosterAppear = (id) => (BATTLE_BUSHOU[id] || []).map((n) => { const [side, role] = ROSTER[n].battles[id]; return [n, `${side ? '敵' : '味方'}・${role}`]; });
-const appearOf = (k, id) => {
-  const base = (APPEAR_BY[k] && APPEAR_BY[k][id]) || APPEAR[id] || [];
-  if (k !== 'oda') return base;
-  const more = rosterAppear(id).filter(([n]) => !base.some(([m]) => (ALIAS[m] || m) === (ALIAS[n] || n)));
-  return more.length ? [...base, ...more] : base;
-};
+// 11/2（kaito「150人に」）：図鑑に並べるのは zukan_people.js の名簿だけ（織田家編・豊臣編・徳川編の戦に出る人）。並びは物語で出会う順。
+// 会える戦は名簿の戦と、武将の名簿（bushou_roster.js）でその人が出る戦。没年より後の戦は入れない。
+const SCN_KEYS = ['oda', 'toyotomi', 'tokugawa'];
+// 戦の中の呼び名 → 図鑑の名（名簿の別名と、武将の名簿の別名）
+const ALIAS = { 強右衛門: '鳥居強右衛門', 本多作左: '本多重次', 谷大膳: '谷衛好', 木下秀吉: '豊臣秀吉', 藤吉郎: '豊臣秀吉', 河窪信実: '武田信実' };
+for (const r of ZUKAN_ROWS) for (const a of r[8].split('・')) if (a) ALIAS[a] = r[0];
+for (const [a, n] of Object.entries(ROSTER_ALIAS)) if (!ALIAS[a]) ALIAS[a] = ALIAS[n] || n;
+const YEAR_OF = {};
+for (const k of SCN_KEYS) for (const b of SCENARIOS[k]?.battles || []) YEAR_OF[b.id] = +((String(b.year).match(/(\d{4})/) || [])[1] || 0);
+// 戦の id → その戦で会える名
+const MEET = {};
+for (const r of ZUKAN_ROWS) {
+  const ros = ROSTER[r[0]] || ROSTER[ROSTER_ALIAS[r[0]]] || [r[0], ...r[8].split('・')].map((a) => ROSTER[a]).find(Boolean);
+  const ids = new Set([...r[5].split(' '), ...Object.keys(ros?.battles || {})]);
+  for (const id of ids) if (YEAR_OF[id] && !(r[3] && YEAR_OF[id] > r[3])) (MEET[id] = MEET[id] || []).push(r[0]);
+}
+const appearOf = (k, id) => (MEET[id] || []).map((n) => [n]);
 // 図鑑では、長い戦の名を短く言い換える。
-const WAR_NAME = { sunomata: '墨俣の砦を守る戦', shiga: '宇佐山城の戦い', nagashima: '長島の戦い', echizen: '木の芽峠の戦い', echizen_ikko: '大滝寺の戦い', iwamura: '岩村城の戦い', saika: '雑賀の戦い', kizugawa: '木津川口の戦い', miki: '三木城の戦い', iga: '伊賀の戦い', tano: '田野の戦い', nagashinojo: '長篠城を守る戦', sune: '強右衛門を逃がす戦', tobinosu: '鳶ヶ巣山の砦の戦い', suwahara: '諏訪原城の戦い', kanegasaki: '金ヶ崎から退く戦', hieizan: '比叡山の戦い', honnoji: '本能寺の戦い', shitaragahara: '設楽原の戦い' };
+const WAR_NAME = { sunomata: '墨俣の砦を守る戦', shiga: '宇佐山城の戦い', nagashima: '長島の戦い', echizen: '木の芽峠の戦い', echizen_ikko: '大滝寺の戦い', iwamura: '岩村城の戦い', saika: '雑賀の戦い', kizugawa: '木津川口の戦い', miki: '三木城の戦い', iga: '伊賀の戦い', tano: '田野の戦い', kanegasaki: '金ヶ崎から退く戦', hieizan: '比叡山の戦い', honnoji: '本能寺の戦い', shitaragahara: '設楽原の戦い' };
 const warName = (b) => WAR_NAME[b.id] || b.name;
-const SCN_YEAR = { nagashino: 1575, hoi: 1570, sekigahara: 1600, osaka: 1614 };
 
 let DB = null;
-function toHex(col) {
-  try { const c = document.createElement('canvas').getContext('2d'); c.fillStyle = '#6a5a48'; c.fillStyle = col; return c.fillStyle; } catch (e) { return '#6a5a48'; }
-}
-// 家の色を墨に寄せる（顔の地に使う）
-function inkOf(col) {
-  const h = toHex(col || '#6a5a48');
-  const n = parseInt(h.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  const m = (v, w) => Math.round(v * 0.42 + w * 0.58);
-  return `rgb(${m(r, 42)},${m(g, 36)},${m(b, 28)})`;
-}
 function db() {
   if (DB) return DB;
-  const clanOf = {}, clanCol = {}, scnOf = {};
-  for (const [k, sc] of Object.entries(MAP_SCENARIOS)) for (const c of Object.values(sc.clans || {})) if (!clanCol[c.name]) clanCol[c.name] = c.color;
-  for (const s of ['nagashino', 'hoi', 'sekigahara', 'osaka']) for (const [c, l] of Object.entries(LINEUP[s] || {})) for (const n of l) if (!clanOf[n]) { clanOf[n] = c; scnOf[n] = s; }
-  // 会える戦：名 → [{ scn, id, name, role, year }]
-  const where = {};
-  for (const k of [...new Set(['oda', ...SCENARIO_ORDER])]) {
-    const sc = SCENARIOS[k]; if (!sc) continue;
-    for (const b of sc.battles) for (const [n, role] of appearOf(k, b.id)) {
-      const y = +((b.year.match(/（(\d{4})）/) || [])[1] || 0);
-      (where[n] = where[n] || []).push({ scn: sc.name, id: b.id, name: warName(b), role, year: y });
-    }
-  }
-  const list = [];
-  const add = (name, v) => {
-    const w = where[name] || [];
-    const yr = (w[0] && w[0].year) || SCN_YEAR[v.scn] || 1575;
-    list.push({ ...v, name, where: w, age: v.b ? yr - v.b : 0, col: clanCol[v.clan] || '#6a5a48' });
-  };
-  for (const [n, a] of Object.entries(BUSHO)) {
-    const f = FIX[n] || {};
-    add(n, { yomi: a[0], b: f.b ?? a[1], d: f.d ?? a[2], st: [a[3], a[4], a[5], a[6]], traits: a[7] ? a[7].split('・') : [], lk: a[8], bio: a[9], clan: clanOf[n] || '浪人', scn: scnOf[n] });
-  }
-  for (const [n, a] of Object.entries(EXTRA)) add(n, { yomi: a[0], b: a[1], d: a[2], st: null, traits: [], lk: a[3], bio: a[4], clan: a[5], story: !!a[6] });
-  // 名簿にだけいる武将：紹介は生まれ・仕えた家・戦での役目から。似顔の型は僧と侍で分ける
-  for (const [n, r] of Object.entries(ROSTER)) if (!BUSHO[n] && !EXTRA[n] && !ALIAS[n]) {
-    const lk = /ikko|enryakuji/.test(r.house) ? 'b1' : 'k' + ([...n].reduce((h, c) => h + c.charCodeAt(0), 0) % 4);
-    const roles = Object.values(r.battles).map(([, t]) => t).join('');
-    add(n, { yomi: r.yomi, b: r.born, d: null, st: null, traits: [], lk, bio: `${r.province}の生まれ。${r.served}に仕える。${roles}`, clan: HOUSE[r.house]?.name || r.served });
-  }
-  const byName = new Map(list.map((p) => [p.name, p]));
-  // 家の並び：人の多い順
-  const cnt = {};
-  for (const p of list) cnt[p.clan] = (cnt[p.clan] || 0) + 1;
-  const clans = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a] || a.localeCompare(b, 'ja'));
-  DB = { list, byName, clans, cnt };
+  const war = {};
+  for (const k of SCN_KEYS) for (const b of SCENARIOS[k]?.battles || []) war[b.id] = { id: b.id, name: warName(b), scn: SCENARIOS[k].name, year: YEAR_OF[b.id], i: Object.keys(war).length };
+  const list = ZUKAN_ROWS.map((r, i) => ({
+    no: i + 1, name: r[0], yomi: r[1], b: r[2], d: r[3], clan: r[4], bio: r[6],
+    keys: [r[0], ...r[8].split('・').filter(Boolean)],
+    lk: /僧|坊/.test(r[7]) ? 'b' : 'k',
+    where: Object.keys(MEET).filter((id) => MEET[id].includes(r[0])).map((id) => war[id]).sort((a, z) => a.year - z.year || a.i - z.i),
+  }));
+  DB = { list, byName: new Map(list.map((p) => [p.name, p])) };
   return DB;
 }
 const canon = (raw) => {
   if (!raw) return null;
-  const n = String(raw).replace(/^.* /, '').replace(/の(隊|手|備|段|組|旗本|鉄砲|衆)$/, '');
+  const n = String(raw).replace(/^.* /, '').replace(/の(隊|手|備|段|組|旗本|鉄砲|衆)$/, '').replace(/(殿|様)$/, '');
   const k = ALIAS[n] || n;
   return db().byName.has(k) ? k : null;
 };
-const isMet = (n) => !!store().met[n];
-const isSlain = (n) => !!(store().slain || {})[n];
-const meetHint = (p) => isMet(p.name)
-  ? (store().metBattle?.[p.name] ? `初めて会った戦：${store().metBattle[p.name]}` : '初めて会った戦：前の記録には戦の名がない')
-  : `${p.where[0]?.name || '天下の地図の城攻め'}で会える`;
+// 会った・討った：前の記録の呼び名（木下藤吉郎など）でも数える
+const metAt = (p) => { const m = store().met; for (const k of p.keys) if (m[k]) return m[k]; return 0; };
+const isMet = (n) => { const p = db().byName.get(n); return p ? !!metAt(p) : !!store().met[n]; };
+const isSlain = (n) => { const p = db().byName.get(n), sl = store().slain || {}; return p ? p.keys.some((k) => sl[k]) : !!sl[n]; };
 
 // これまでの保存から、会った者と取れていた実績を拾う（札は出さない）
 function backfill() {
@@ -632,195 +513,109 @@ html.touch.inframe #zk .zk-top { padding-top: 118px; }
   document.head.appendChild(st);
 }
 
-const ST_NAMES = ['統率', '武勇', '知略', '政治'];
-const SORTS = [
-  ['yomi', '読み順'], ['met', '会った順'], ['s0', '統率'], ['s1', '武勇'], ['s2', '知略'], ['s3', '政治'], ['sum', '能力の合計'], ['born', '生まれ年'],
-];
-const V = { tab: 'busho', q: '', clan: '', sort: 'yomi', view: 'card', show: 'all' };
+// 11/2：図鑑の画面は「並び・影絵・開いた一人の札」だけ（Simple is the best）。探す・絞る・並べ替え・表・能力は出さない
+const ZK2_CSS = `
+#zk .zk-grid2 { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+#zk .zk-g { position: relative; display: grid; grid-template-rows: auto auto; width: 100%; min-height: 44px; padding: 0 0 6px; background: #241f19; border: 1px solid #4a4236; color: var(--washi); cursor: pointer; text-align: center; font: 600 13px/1.3 var(--display); }
+#zk .zk-g:hover { border-color: var(--shu-deep); }
+#zk .zk-g:focus-visible { outline: 3px solid var(--kin); outline-offset: 2px; }
+#zk .zk-g .fc { display: block; width: 100%; aspect-ratio: 5 / 6; background: radial-gradient(circle at 50% 35%, #4a4034, #1a1612); overflow: hidden; }
+#zk .zk-g .fc img, #zk .zk-g .fc svg { width: 100%; height: 100%; display: block; object-fit: cover; }
+#zk .zk-g.un { background: #1c1814; border-color: #3a342b; }
+#zk .zk-g.un .fc { background: #2a241c; }
+#zk .zk-g b { display: block; padding: 4px 2px 0; font-weight: 600; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#zk .zk-g.un b { color: var(--washi-dim); }
+#zk .zk-d2 .hd { grid-template-columns: 168px 1fr; }
+#zk .zk-d2 .fc { width: 168px; height: 202px; background: radial-gradient(circle at 50% 35%, #4a4034, #1a1612); overflow: hidden; }
+#zk .zk-d2 .fc img, #zk .zk-d2 .fc svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+#zk .zk-d2 .zk-bio { margin-top: 12px; }
+#zk .zk-d2 .zk-where { margin-top: 6px; }
+#zk .zk-d2 .zk-where li.no { color: #8a7a5a; }
+@media (max-width: 720px), (max-height: 460px) {
+  #zk .zk-grid2 { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+  #zk .zk-g { font-size: 12px; }
+  #zk .zk-d2 .hd { grid-template-columns: 120px 1fr; gap: 14px; }
+  #zk .zk-d2 .fc { width: 120px; height: 144px; }
+  #zk .zk-d2 h3 { font-size: 24px; }
+  #zk .zk-d2 .zk-bio { font-size: 15px; line-height: 1.7; }
+}`;
+const yearTxt = (p) => `${p.b ? `${p.b}年` : '生年不詳'}〜${p.d ? `${p.d}年` : '没年不詳'}`;
 let root = null, lastFocus = null, faceIO = null, dlg = null;
-const yearTxt = (p) => (p.b || p.d ? `${p.b ? `${p.b}年` : '生年不詳'}〜${p.d ? `${p.d}年` : '没年不詳'}` : '生没年不詳');
-const kata2hira = (s) => s.replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-const sumOf = (p) => (p.st ? p.st.reduce((a, v) => a + v, 0) : -1);
+const V = { tab: 'busho' };
 
-function faceSrc(p) {
-  return faceURL(p.name, { name: p.clan, crest: p.clan[0] }, inkOf(p.col), { lk: p.lk, age: p.age || undefined });
-}
-// まだ会っていない者の影絵（頭の形だけ：k 兜・e 烏帽子・m 髷・b 坊主）
+// まだ会っていない者の影絵（兜の武将・坊主）
 function shadowSvg(lk) {
-  const k = (lk || 'm')[0];
-  const head = k === 'k' ? '<path d="M36 64 Q36 30 64 30 Q92 30 92 64 L100 70 L28 70 Z"/><path d="M50 34 L36 6 L44 6 L58 32 Z M78 34 L92 6 L84 6 L70 32 Z"/>'
-    : k === 'e' ? '<path d="M46 44 Q44 8 70 6 Q84 14 80 44 Z"/>' : k === 'm' ? '<rect x="58" y="28" width="12" height="12" rx="3"/>' : '';
-  return `<svg viewBox="0 0 128 128" aria-hidden="true"><g fill="#211b15">${head}<ellipse cx="64" cy="62" rx="20" ry="25"/><rect x="55" y="80" width="18" height="16"/><path d="M6 128 C10 104 30 94 50 92 L78 92 C98 94 118 104 122 128Z"/></g></svg>`;
+  const head = lk === 'b' ? '' : '<path d="M36 64 Q36 30 64 30 Q92 30 92 64 L100 70 L28 70 Z"/><path d="M50 34 L36 6 L44 6 L58 32 Z M78 34 L92 6 L84 6 L70 32 Z"/>';
+  return `<svg viewBox="0 0 128 154" aria-hidden="true"><g fill="#0f0c09">${head}<ellipse cx="64" cy="64" rx="20" ry="25"/><rect x="55" y="82" width="18" height="16"/><path d="M4 154 C8 116 30 100 50 96 L78 96 C98 100 120 116 124 154Z"/></g></svg>`;
 }
-function faceHtml(p, big) {
+// 会った者は 3D の上半身の絵（撮れるまで影絵）
+function faceHtml(p) {
   if (!isMet(p.name)) return `<span class="fc">${shadowSvg(p.lk)}</span>`;
-  return `<span class="fc" data-face="${esc(p.name)}">${big ? `<img alt="" src="${faceSrc(p)}">` : ''}</span>`;
+  return `<span class="fc" data-face="${esc(p.name)}">${shadowSvg(p.lk)}</span>`;
 }
-// 顔は見える所に来てから描く（四百人ぶんを一度に描かない）
+function fillFace(el) {
+  if (el.classList.contains('done')) return;
+  el.classList.add('done');
+  const nm = el.dataset.face;
+  portrait(nm).then((url) => { if (url && el.isConnected) el.innerHTML = `<img alt="" src="${url}">`; });
+}
+// 絵は見える所に来てから撮る（百五十人ぶんを一度に撮らない）
 function watchFaces(scope) {
   if (faceIO) faceIO.disconnect();
-  const els = scope.querySelectorAll('.fc[data-face]:not(.done)');
-  const draw = (el) => {
-    const p = db().byName.get(el.dataset.face);
-    if (!p || el.classList.contains('done')) return;
-    el.classList.add('done');
-    el.insertAdjacentHTML('afterbegin', `<img alt="" src="${faceSrc(p)}">`);
-  };
-  // 初めに見える分はすぐ描く（下の 3D が重いと、見張りの知らせが遅れるため）
-  [...els].slice(0, 42).forEach(draw);
-  if (!('IntersectionObserver' in window)) { els.forEach(draw); return; }
-  faceIO = new IntersectionObserver((ents) => { for (const e of ents) if (e.isIntersecting) { draw(e.target); faceIO.unobserve(e.target); } }, { root: scope.closest('.zk-pane'), rootMargin: '200px' });
-  els.forEach((el) => { if (!el.classList.contains('done')) faceIO.observe(el); });
+  const els = [...scope.querySelectorAll('.fc[data-face]:not(.done)')];
+  if (!('IntersectionObserver' in window)) { els.forEach(fillFace); return; }
+  faceIO = new IntersectionObserver((ents) => { for (const e of ents) if (e.isIntersecting) { fillFace(e.target); faceIO.unobserve(e.target); } }, { root: scope.closest('.zk-pane'), rootMargin: '120px' });
+  els.forEach((el) => faceIO.observe(el));
 }
 
-function filtered() {
+function renderBusho(pane) {
   const { list } = db();
-  const st = store();
-  const q = kata2hira(V.q.trim());
-  let r = list.filter((p) => (!V.clan || p.clan === V.clan)
-    && (V.show === 'all' || (V.show === 'war' ? p.where.some((w) => w.scn === (SCENARIOS.oda || {}).name) : V.show === 'slain' ? isSlain(p.name) : !!st.met[p.name]))
-    && (!q || p.name.includes(q) || p.yomi.includes(q) || p.clan.includes(q)));
-  const y = (a, b) => a.yomi.localeCompare(b.yomi, 'ja');
-  const val = (p) => {
-    if (!st.met[p.name] || !p.st) return -1;
-    if (V.sort === 'sum') return sumOf(p);
-    return p.st[+V.sort[1]];
-  };
-  if (V.sort === 'yomi') r.sort(y);
-  else if (V.sort === 'met') r.sort((a, b) => (st.met[b.name] || 0) - (st.met[a.name] || 0) || y(a, b));
-  else if (V.sort === 'born') r.sort((a, b) => (a.b || 9999) - (b.b || 9999) || y(a, b));
-  else r.sort((a, b) => val(b) - val(a) || y(a, b));
-  return r;
-}
-
-function cardHtml(p, i) {
-  const m = isMet(p.name);
-  const best = p.st ? Math.max(...p.st) : 0;
-  const stHtml = p.st ? `<span class="st" aria-hidden="true">${p.st.map((v, k) => `<span>${ST_NAMES[k][0]}<em class="${m && v === best && v >= 85 ? 'hi' : ''}">${m ? v : '？'}</em></span>`).join('')}</span>` : '';
-  const label = `${p.name}（${p.yomi}）・${p.clan}${m ? (p.st ? `・${ST_NAMES.map((n, k) => `${n}${p.st[k]}`).join('・')}` : '') : '・まだ会っていない'}`;
-  return `<button type="button" class="zk-c ${m ? '' : 'un'}" data-p="${esc(p.name)}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(label)}">
-    ${faceHtml(p)}<span><b>${esc(p.name)}</b><small>${esc(p.yomi)}</small></span><small>${esc(p.clan)}${p.story ? '<span class="story">・物語</span>' : ''}${isSlain(p.name) ? '<span class="story">・討った</span>' : ''}</small><small class="zk-meet">${esc(meetHint(p))}</small>${stHtml}</button>`;
-}
-function tableHtml(r) {
-  const cols = [['name', '名'], ['clan', '家'], ['born', '生没年'], ['s0', '統率'], ['s1', '武勇'], ['s2', '知略'], ['s3', '政治'], ['sum', '計'], ['war', '出会いの戦']];
-  const sortable = { name: 'yomi', born: 'born', s0: 's0', s1: 's1', s2: 's2', s3: 's3', sum: 'sum' };
-  const th = cols.map(([k, l]) => {
-    const sk = sortable[k];
-    const on = sk && V.sort === sk;
-    return `<th scope="col" ${on ? `aria-sort="${sk === 'yomi' || sk === 'born' ? 'ascending' : 'descending'}"` : ''}>${sk ? `<button type="button" data-sort="${sk}">${l}${on ? (sk === 'yomi' || sk === 'born' ? ' ▲' : ' ▼') : ''}</button>` : `<span style="display:block;padding:6px 8px">${l}</span>`}</th>`;
-  }).join('');
-  const rows = r.map((p, i) => {
+  pane.innerHTML = `<ul class="zk-grid2" aria-label="武将の並び">${list.map((p, i) => {
     const m = isMet(p.name);
-    const best = p.st ? Math.max(...p.st) : 0;
-    const n = (v, k) => `<td data-label="${ST_NAMES[k]}" class="n ${m && v === best && v >= 85 ? 'hi' : ''}">${p.st ? (m ? v : '？') : '—'}</td>`;
-    return `<tr class="${m ? '' : 'un'}"><td style="display:flex;gap:8px;align-items:center">${faceHtml(p)}<button type="button" class="nm" data-p="${esc(p.name)}" tabindex="${i === 0 ? 0 : -1}">${esc(p.name)}</button></td>
-      <td>${esc(p.clan)}</td><td><small>${esc(yearTxt(p))}</small></td>${p.st ? p.st.map(n).join('') : ST_NAMES.map((l) => `<td class="n" data-label="${l}">—</td>`).join('')}<td class="n" data-label="計">${p.st ? (m ? sumOf(p) : '？') : '—'}</td>
-      <td><small>${esc(meetHint(p))}</small></td></tr>`;
-  }).join('');
-  return `<table class="zk-tbl"><caption class="sr" style="position:absolute;left:-9999px">武将の一覧</caption><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>`;
+    return `<li><button type="button" class="zk-g ${m ? '' : 'un'}" data-p="${esc(p.name)}" tabindex="${i === 0 ? 0 : -1}" aria-label="${esc(m ? `${p.name}（${p.clan}）` : 'まだ会っていない武将')}">${faceHtml(p)}<b>${m ? esc(p.name) : '？'}</b></button></li>`;
+  }).join('')}</ul>`;
+  const order = list.map((p) => p.name);
+  pane.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => openCard(b.dataset.p, order));
+  watchFaces(pane);
 }
 
-function renderBusho(pane, keepFocus) {
-  const { list, clans, cnt } = db();
-  const st = store();
-  const metN = list.filter((p) => st.met[p.name]).length;
-  const r = filtered();
-  const tools = pane.querySelector('.zk-tools');
-  if (!tools) {
-    pane.innerHTML = `<div class="zk-tools">
-      <label class="zk-f">名で探す<input type="search" id="zk-q" placeholder="例：のぶなが" autocomplete="off" value="${esc(V.q)}"></label>
-      <label class="zk-f">家<select id="zk-clan"><option value="">すべての家（${list.length}）</option>${clans.map((c) => `<option value="${esc(c)}" ${V.clan === c ? 'selected' : ''}>${esc(c)}（${cnt[c]}）</option>`).join('')}</select></label>
-      <label class="zk-f">並べ替え<select id="zk-sort">${SORTS.map(([k, l]) => `<option value="${k}" ${V.sort === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <div class="zk-f"><span id="zk-lb-show">見る範囲</span><div class="zk-seg" role="group" aria-labelledby="zk-lb-show">${[['all', 'すべて'], ['war', '織田家編で会える'], ['met', '会った'], ['slain', '討った']].map(([k, l]) => `<button type="button" data-show="${k}" aria-pressed="${V.show === k}">${l}</button>`).join('')}</div></div>
-      <div class="zk-f"><span id="zk-lb-view">見せ方</span><div class="zk-seg" role="group" aria-labelledby="zk-lb-view">${[['card', '札'], ['table', '表']].map(([k, l]) => `<button type="button" data-view="${k}" aria-pressed="${V.view === k}">${l}</button>`).join('')}</div></div>
-    </div><div class="zk-sum" aria-live="polite"></div><div class="zk-list"></div>`;
-    const q = pane.querySelector('#zk-q');
-    let qT = 0;
-    q.oninput = () => { V.q = q.value; clearTimeout(qT); qT = setTimeout(() => renderBusho(pane, true), 150); };
-    pane.querySelector('#zk-clan').onchange = (e) => { V.clan = e.target.value; renderBusho(pane, true); };
-    pane.querySelector('#zk-sort').onchange = (e) => { V.sort = e.target.value; renderBusho(pane, true); };
-    pane.querySelectorAll('[data-show]').forEach((b) => b.onclick = () => { V.show = b.dataset.show; pane.querySelectorAll('[data-show]').forEach((x) => x.setAttribute('aria-pressed', x === b)); renderBusho(pane, true); });
-    pane.querySelectorAll('[data-view]').forEach((b) => b.onclick = () => { V.view = b.dataset.view; pane.querySelectorAll('[data-view]').forEach((x) => x.setAttribute('aria-pressed', x === b)); renderBusho(pane, true); });
-  }
-  pane.querySelector('#zk-sort').value = V.sort;
-  // 834：織田家編で会える者のうち何人に会ったか
-  const oda = list.filter((p) => p.where.some((w) => w.scn === (SCENARIOS.oda || {}).name));
-  const odaMet = oda.filter((p) => st.met[p.name]).length;
-  pane.querySelector('.zk-sum').innerHTML = `<span>織田家編で会える ${oda.length}人のうち <b>${odaMet}</b>人</span><span class="zk-meter" aria-hidden="true"><i style="width:${(odaMet / Math.max(1, oda.length) * 100).toFixed(1)}%"></i></span><span>名簿の全部では ${metN}／${list.length}人・討った ${Object.keys(st.slain || {}).length}人・いま並んでいるのは ${r.length}人</span>`;
-  const box = pane.querySelector('.zk-list');
-  if (!r.length) {
-    box.innerHTML = `<div class="zk-empty"><p>当てはまる武将がいません。</p><button type="button" class="zk-x" id="zk-clear">絞り込みを外す</button></div>`;
-    box.querySelector('#zk-clear').onclick = () => { V.q = ''; V.clan = ''; V.show = 'all'; pane.innerHTML = ''; renderBusho(pane); };
-    return;
-  }
-  box.innerHTML = V.view === 'table' ? tableHtml(r) : `<div class="zk-grid" role="list" aria-label="武将の札">${r.map(cardHtml).join('')}</div>`;
-  box.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => openCard(b.dataset.p, r.map((p) => p.name)));
-  box.querySelectorAll('[data-sort]').forEach((b) => b.onclick = () => {
-    const k = b.dataset.sort;
-    V.sort = k;
-    renderBusho(pane);
-    pane.querySelector(`[data-sort="${k}"]`)?.focus({ preventScroll: true });
-  });
-  watchFaces(box);
-  void keepFocus;
-}
-
-// 札の並びを矢印キーで動く（並びの中は Tab 一つで入れる）
+// 並びを矢印キーで動く（並びの中は Tab 一つで入れる）
 function rovingKeys(e) {
-  const items = [...root.querySelectorAll('.zk-list [data-p]')];
+  const items = [...root.querySelectorAll('.zk-grid2 [data-p]')];
   const i = items.indexOf(document.activeElement);
   if (i < 0) return false;
-  let cols = 1;
-  if (V.view === 'card' && items.length > 1) { const top = items[0].offsetTop; cols = items.findIndex((x) => x.offsetTop !== top); if (cols < 0) cols = items.length; }
-  let j = i;
-  if (e.key === 'ArrowRight' && V.view === 'card') j = i + 1;
-  else if (e.key === 'ArrowLeft' && V.view === 'card') j = i - 1;
-  else if (e.key === 'ArrowDown') j = i + cols;
-  else if (e.key === 'ArrowUp') j = i - cols;
-  else if (e.key === 'Home') j = 0;
-  else if (e.key === 'End') j = items.length - 1;
-  else if (e.key === 'PageDown') j = i + cols * 4;
-  else if (e.key === 'PageUp') j = i - cols * 4;
-  else return false;
+  const top = items[0].offsetTop;
+  let cols = items.findIndex((x) => x.offsetTop !== top); if (cols < 1) cols = items.length;
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols, PageDown: cols * 4, PageUp: -cols * 4 }[e.key];
+  let j = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : step != null ? i + step : null;
+  if (j == null) return false;
   j = Math.max(0, Math.min(items.length - 1, j));
   items[i].tabIndex = -1; items[j].tabIndex = 0; items[j].focus({ preventScroll: true });
   items[j].scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: RM() ? 'auto' : 'smooth' });
   return true;
 }
 
+// 開いた一人の札：絵・名・読み・生没年・家・主な戦・一言。会っていない者は影絵と、会える戦だけ
 function openCard(name, order) {
   const p = db().byName.get(name);
   if (!p) return;
   const m = isMet(name);
-  const st = store();
   const i = order.indexOf(name);
   if (!dlg) { dlg = document.createElement('div'); dlg.className = 'zk-dlg'; root.appendChild(dlg); dlg.onclick = (e) => { if (e.target === dlg) closeCard(); }; }
-  const ret = root.querySelector(`.zk-list [data-p="${CSS.escape(name)}"]`);
-  const best = p.st ? Math.max(...p.st) : 0;
-  const where = p.where.length
-    ? `<ul class="zk-where">${p.where.map((w) => `<li><span class="r ${/敵|寝返/.test(w.role) ? 'foe' : ''}">${esc(w.role)}</span><span>${esc(w.name)}</span><small>${esc(w.scn)}</small></li>`).join('')}</ul>`
-    : '<p class="zk-lock">この物語の戦には、まだ出てこない。天下の地図の城攻めで出会えるかもしれない。</p>';
-  dlg.innerHTML = `<div class="zk-d ${m ? '' : 'un'}" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="zk-d-h">
-    <div class="hd">${faceHtml(p, true)}<div>
-      <h3 id="zk-d-h">${esc(p.name)}</h3><p class="zk-lock">${esc(meetHint(p))}</p><div class="yomi">${esc(p.yomi)}</div>
-      <dl><dt>家</dt><dd>${esc(p.clan)}${p.story ? '（この物語の人物）' : ''}</dd><dt>生没年</dt><dd>${esc(yearTxt(p))}</dd>
-      ${m && st.met[name] ? `<dt>会った日</dt><dd>${new Date(st.met[name]).toLocaleDateString('ja-JP')}</dd>` : '<dt>まだ</dt><dd>会っていない</dd>'}
-      ${isSlain(name) ? `<dt>討った日</dt><dd>${new Date(st.slain[name]).toLocaleDateString('ja-JP')}</dd>` : ''}</dl></div></div>
-    <div class="zk-cols"><div>
-      ${p.st ? `<h4>能力</h4><div class="zk-bars">${p.st.map((v, k) => `<div class="zk-bar"><span>${ST_NAMES[k]}</span><i role="img" aria-label="${ST_NAMES[k]} ${m ? v : '不明'}"><b class="${m && v === best && v >= 85 ? 'hi' : ''}" style="width:${m ? v : 0}%"></b></i><em>${m ? v : '？'}</em></div>`).join('')}</div>` : ''}
-      ${m && p.traits.length ? `<h4>個性</h4>${p.traits.map((t) => `<span class="zk-trait">${esc(t)}${TRAIT_NOTE[t] ? `<small>${esc(TRAIT_NOTE[t])}</small>` : ''}</span>`).join('')}` : ''}
-      <h4>この戦で会える</h4>${where}
-    </div><div>
-      <h4>来歴</h4>${m ? `<p class="zk-bio">${esc(p.bio || '伝わることは少ない。')}</p>` : `<p class="zk-lock">戦で会うと、顔と能力、来歴が分かる。${p.where.length ? `「${esc(p.where[0].name)}」に出てくる。` : ''}</p>`}
+  const wars = `<ul class="zk-where">${p.where.map((w) => `<li><span>${esc(w.name)}</span><small>${esc(w.scn)}・${w.year}年</small></li>`).join('')}</ul>`;
+  dlg.innerHTML = `<div class="zk-d zk-d2 ${m ? '' : 'un'}" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="zk-d-h">
+    <div class="hd"><span class="fc">${shadowSvg(p.lk)}</span><div>
+      <h3 id="zk-d-h">${m ? esc(p.name) : '？'}</h3>${m ? `<div class="yomi">${esc(p.yomi)}</div>
+      <dl><dt>生没年</dt><dd>${esc(yearTxt(p))}</dd><dt>家</dt><dd>${esc(p.clan)}</dd>${isSlain(name) ? '<dt>討った</dt><dd>この手で討ち取った</dd>' : ''}</dl>
+      <p class="zk-bio">${esc(p.bio)}</p>` : `<p class="zk-lock">${esc(p.where[0]?.name || '')}で会える</p>`}
     </div></div>
-    <div class="ft"><div style="display:flex;gap:8px"><button type="button" id="zk-prev" ${i <= 0 ? 'disabled' : ''} aria-label="前の武将">前の武将</button><button type="button" id="zk-next" ${i < 0 || i >= order.length - 1 ? 'disabled' : ''} aria-label="次の武将">次の武将</button></div>
+    ${m ? `<h4>主な戦</h4>${wars}` : ''}
+    <div class="ft"><div style="display:flex;gap:8px"><button type="button" id="zk-prev" ${i <= 0 ? 'disabled' : ''}>前の武将</button><button type="button" id="zk-next" ${i < 0 || i >= order.length - 1 ? 'disabled' : ''}>次の武将</button></div>
       <button type="button" class="pri" id="zk-dx">図鑑にもどる</button></div></div>`;
   dlg.hidden = false;
   dlg.dataset.ret = name;
-  // 会った武将は、ゲームの 3D で撮った上半身の絵に替える（撮れなければ顔の絵のまま）
-  if (m) portrait(name).then((url) => { const img = url && dlg && dlg.dataset.ret === name && dlg.querySelector('.hd .fc img'); if (img) { img.src = url; img.closest('.fc').classList.add('pt'); } });
-  dlg._order = order;
-  const go = (d) => { const n = order[i + d]; if (n) { openCard(n, order); } };
+  if (m) portrait(name).then((url) => { const fc = url && dlg && dlg.dataset.ret === name && dlg.querySelector('.hd .fc'); if (fc) fc.innerHTML = `<img alt="" src="${url}">`; });
+  const go = (d) => { const n = order[i + d]; if (n) openCard(n, order); };
   dlg.querySelector('#zk-prev').onclick = () => go(-1);
   dlg.querySelector('#zk-next').onclick = () => go(1);
   dlg.querySelector('#zk-dx').onclick = closeCard;
@@ -828,15 +623,14 @@ function openCard(name, order) {
   const box = dlg.querySelector('.zk-d');
   box.scrollTop = 0;
   box.focus({ preventScroll: true });
-  void ret;
   try { sfx('ui'); } catch (e) { /* 音が無くても */ }
 }
 function closeCard() {
   if (!dlg || dlg.hidden) return;
   const name = dlg.dataset.ret;
   dlg.hidden = true; dlg.innerHTML = '';
-  const el = root.querySelector(`.zk-list [data-p="${CSS.escape(name)}"]`);
-  if (el) { root.querySelectorAll('.zk-list [data-p]').forEach((x) => x.tabIndex = -1); el.tabIndex = 0; el.focus({ preventScroll: true }); el.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }
+  const el = root.querySelector(`.zk-grid2 [data-p="${CSS.escape(name)}"]`);
+  if (el) { root.querySelectorAll('.zk-grid2 [data-p]').forEach((x) => x.tabIndex = -1); el.tabIndex = 0; el.focus({ preventScroll: true }); el.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }
 }
 
 const achRead = new Set();
@@ -866,16 +660,17 @@ function renderEmaki(pane) {
   try { G = loadAll()[S.slot] || loadAll().find(Boolean) || null; } catch (e) { G = null; }
   const { byName } = db();
   const hist = G ? BATTLES.map((b, i) => ({ b, h: (G.history || [])[i] })).filter((x) => x.h) : [];
-  const met = Object.entries(st.met).sort((a, z) => z[1] - a[1]).map(([n]) => byName.get(n)).filter(Boolean).slice(0, 18);
+  const met = Object.entries(st.met).sort((a, z) => z[1] - a[1]).map(([n]) => byName.get(canon(n))).filter((p, i, a) => p && a.indexOf(p) === i).slice(0, 18);
   const gear = G ? [...new Set([...(G.owned || []).filter((id) => ITEMS[id] && ITEMS[id].cost), ...(G.horses || []).map((id) => 'h:' + id)])] : [];
   const gearName = (id) => (id.startsWith('h:') ? (HORSES[id.slice(2)] || {}).name || '馬' : ITEMS[id].name);
   const sec = (h, body) => `<section class="zk-em-s"><h3>${h}</h3>${body}</section>`;
   pane.innerHTML = `<div class="zk-em" role="region" aria-label="歩みの絵巻"><div class="zk-em-roll">
     ${sec('戦った戦', hist.length ? `<ol class="zk-em-b">${hist.map(({ b, h }) => `<li><b>${esc(b.name)}</b><small>${esc((b.year || '').replace(/（.*$/, ''))}</small>${h.grade ? `<i class="sl">${esc(h.grade)}</i>` : ''}<em>戦功 ${h.total}</em></li>`).join('')}</ol>` : '<p class="none">まだ戦っていない</p>')}
-    ${sec(`会った武将 <small>${Object.keys(st.met).length}人</small>`, met.length ? `<ul class="zk-em-p">${met.map((p) => `<li><button type="button" data-em="${esc(p.name)}" aria-label="${esc(p.name)}の札を開く">${faceHtml(p, true)}<b>${esc(p.name)}</b></button></li>`).join('')}</ul>` : '<p class="none">まだ誰にも会っていない</p>')}
+    ${sec(`会った武将 <small>${Object.keys(st.met).length}人</small>`, met.length ? `<ul class="zk-em-p">${met.map((p) => `<li><button type="button" data-em="${esc(p.name)}" aria-label="${esc(p.name)}の札を開く">${faceHtml(p)}<b>${esc(p.name)}</b></button></li>`).join('')}</ul>` : '<p class="none">まだ誰にも会っていない</p>')}
     ${sec('手に入れた武具', gear.length ? `<ul class="zk-em-g">${gear.map((id) => `<li>${esc(gearName(id))}</li>`).join('')}</ul>` : '<p class="none">まだ何も買っていない</p>')}
   </div></div>${G ? `<p class="zk-note">${esc(G.name)}の歩み（いまの保存の枠）</p>` : ''}`;
   pane.querySelectorAll('[data-em]').forEach((b) => b.onclick = () => openCard(b.dataset.em, met.map((p) => p.name)));
+  watchFaces(pane);
 }
 const TABS = ['busho', 'emaki', 'ach'];
 const TAB_H = { busho: '武将図鑑', emaki: '歩みの絵巻', ach: '実績' };
@@ -887,7 +682,7 @@ function setTab(k, focus) {
   root.querySelector('#zk-scope').textContent = k === 'emaki' ? 'この物語の記録' : '全保存記録共通';
   const pb = root.querySelector('#zk-p-busho'), pa = root.querySelector('#zk-p-ach'), pe = root.querySelector('#zk-p-emaki');
   pb.hidden = k !== 'busho'; pa.hidden = k !== 'ach'; pe.hidden = k !== 'emaki';
-  if (k === 'busho') { if (!pb.querySelector('.zk-tools')) renderBusho(pb); else watchFaces(pb.querySelector('.zk-list')); }
+  if (k === 'busho') { if (!pb.querySelector('.zk-grid2')) renderBusho(pb); else watchFaces(pb); }
   else if (k === 'emaki') renderEmaki(pe);
   else renderAch(pa);
 }
@@ -901,9 +696,9 @@ function onKey(e) {
     if (e.key === 'Tab') trap(e, dlg);
     return;
   }
-  if (e.key === 'Escape') { e.preventDefault(); if (e.target.id === 'zk-q' && e.target.value) { e.target.value = ''; V.q = ''; renderBusho(root.querySelector('#zk-p-busho')); return; } zukanClose(); return; }
+  if (e.key === 'Escape') { e.preventDefault(); zukanClose(); return; }
   if (e.target.getAttribute && e.target.getAttribute('role') === 'tab' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); const i = TABS.indexOf(V.tab); setTab(TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length], true); return; }
-  if (e.target.closest && e.target.closest('.zk-list') && e.target.matches('[data-p]') && rovingKeys(e)) { e.preventDefault(); return; }
+  if (e.target.closest && e.target.closest('.zk-grid2') && e.target.matches('[data-p]') && rovingKeys(e)) { e.preventDefault(); return; }
   if (e.key === 'Tab') trap(e, root);
 }
 function trap(e, box) {
@@ -917,6 +712,7 @@ function trap(e, box) {
 // 開く：which は 'busho'（武将図鑑）か 'ach'（実績）
 export function zukanOpen(which = 'busho') {
   css();
+  if (!document.getElementById('zk2-css')) { const st = document.createElement('style'); st.id = 'zk2-css'; st.textContent = ZK2_CSS; document.head.appendChild(st); }
   store();
   backfill();
   keep();
@@ -961,4 +757,6 @@ export function zukanClose(quiet) {
 // 838：一人の札を開く（評定の画面の「新たに会った武将」から）
 export function zukanOpenCard(name) { zukanOpen('busho'); const n = canon(name) || name; if (db().byName.has(n)) openCard(n, [n]); }
 // 確かめ用：数を見る
+// 確かめ用：その戦で会える名
+export function zukanMeet(id) { return (MEET[id] || []).slice(); }
 export function zukanCount() { const { list } = db(); const st = store(); return { people: list.length, met: Object.keys(st.met).length, ach: ACH.length, got: Object.keys(st.ach).length }; }

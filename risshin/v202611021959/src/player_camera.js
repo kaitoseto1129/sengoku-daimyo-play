@@ -20,8 +20,8 @@ export class PlayerCamera {
     this.camCameraFrame = (this.camCameraFrame || 0) + 1;
     this.cameraRayFrame();
     this.updateCameraTarget(dt);
-    // 接敵した武将への一瞬の振り向きだけ残し、手動で選んだ距離を保つ。
-    if (!this.cine?.encounter) this.cine = null;
+    // カメラは一つの形に固定する（kaito 11/2 T）。出来事で向きを勝手に振り向かせない。
+    this.cine = null;
     this.camShot = null; this.shotZoom = 0; this.introT = 0;
     decisiveCameraReset(this.rt, camera);
     const u = this.u;
@@ -96,7 +96,7 @@ export class PlayerCamera {
     }
     // 屋外も近い肩越しで見る。携帯とパソコンで同じ間合いを保つ。
     const fieldView = !this.rt.def.town && !this.rt.def.dojo && !NAKA.cur && !this.aiming && !this.fpWanted();
-    const selfFrame = fieldView && u.alive && !this.rt.over && !this.overHold && !this.cine && !this.camShot && !this.rt.game?.photo;
+    const selfFrame = fieldView && u.alive && !this.overHold && !this.rt.game?.photo;   // 戦の終わりも同じ距離（T）
     this.fieldViewK = (this.fieldViewK || 0) + ((fieldView ? 1 : 0) - (this.fieldViewK || 0)) * Math.min(1, dt * 4);
     const viewK = this.fieldViewK;
     const rc = 0;
@@ -118,7 +118,8 @@ export class PlayerCamera {
     const escortPerson = this.rt.def.escortGuideTarget?.(this.rt);
     const guardPerson = escortPerson?.alive ? escortPerson : this.rt.def.guardTarget?.(this.rt);
     const guardDistance = guardPerson?.alive ? Math.hypot(guardPerson.pos.x - u.pos.x, guardPerson.pos.z - u.pos.z) : Infinity;
-    const steady = !!this.rt.def.steadyMeleeCamera;
+    // 全戦で、近い敵・道案内・護衛へ向きを勝手に寄せない（kaito 11/2 T：自分で回した時だけ変える）
+    const steady = true;
     const guardFrame = !steady && S.autoCam && guardDistance < (escortPerson?.alive ? 36 : 10) && !this.aiming && !this.lock && !this.cine &&
       !this.camShot && !this.overHold && !this.rt.over && !this.rt.game?.photo && !NAKA.cur && !this.fpWanted() &&
       (this.lookIdle || 0) > .7 && !this.rt.army.wallBetween(u.pos, u.team, guardPerson.pos);
@@ -261,8 +262,8 @@ export class PlayerCamera {
     }
     // 行軍の間は少し引いて、斜め後ろから隊列の長さを見せる。勝った後は 3 秒かけてゆっくり上へ引き、旗の林と戦の跡を見せる
     const rt0 = this.rt;
-    this.marchK = reduceMotion() ? 0 : (this.marchK || 0) + ((rt0.phase === 'march' && !(this.inCombatT > 0) ? 1 : 0) - (this.marchK || 0)) * Math.min(1, dt * 0.8);
-    if (rt0.over && rt0.result && !rt0.result.down && rt0.tracker && rt0.tracker.main === true && !reduceMotion() && !this.cine?.up && !rt0.def.noWinCrane) this.winK = Math.min(1, (this.winK || 0) + dt / 3); else this.winK = 0;
+    this.marchK = 0;   // 行軍・勝った後の引きは止める（T：距離が勝手に変わる）
+    this.winK = 0;
     const wk = this.winK * this.winK * (3 - 2 * this.winK);
     // 高い所を見せる場面（cine.up）：少し引いて上げ、見上げる物を画面の真ん中へ入れる
     this.cineK = reduceMotion() ? 0 : (this.cineK || 0) + ((this.cine?.up ? 1 : 0) - (this.cineK || 0)) * Math.min(1, dt * 1.5);
@@ -310,7 +311,7 @@ export class PlayerCamera {
     const selfLandscapePull = landscapeFrame ? (rt0.def.missionStyle === 'raid' || rt0.def.missionStyle === 'ford') && !this.mounted ? 0 : 1.2 : 0;
     const distR = selfFrame ? Math.max(2.2, (this.mounted ? 6 : S.camRange === 'near' ? 3.8 : S.camRange === 'far' ? 4.8 : 4.4) + this.zoom + selfLandscapePull + (rt0.def.camPull || 0)) : Math.min(desiredDist + (routeNear ? 0 : landscapePull), Math.max(this.mounted ? 6 : footLimit, guardPull) + landscapePull);
     this.camDist = this.camDist ? this.camDist + (distR - this.camDist) * Math.min(1, dt * (inRoom ? 5 : 3)) : distR;
-    this.sideK = (this.sideK ?? 0.85) + ((routeNear || closeFightFrame ? .2 : fight || this.guard ? 0.95 : 0.85) - (this.sideK ?? 0.85)) * Math.min(1, dt * 3);
+    this.sideK = 0.85;   // 肩越しの横の寄りも固定（T）
     // 狭い所（門・塀の内）：肩の側が壁に近ければ、空いている逆の肩へカメラだけ回す（決めた肩の設定は変えない）
     this.wallT = (this.wallT || 0) - dt;
     if (this.wallT <= 0) {
@@ -333,7 +334,7 @@ export class PlayerCamera {
     if (this.crowdT <= 0) { this.crowdT = 0.3; this.crowd = 0; this.rt.army.forNear(u.pos.x, u.pos.z, 4, countCameraAlly, this); }
     // 持ち上げは小さく（見下ろしの絵にしない。前の味方は allyFade で透かす）。馬上は馬の首を越えて前が見える高さに
     // 騎乗中は囲まれるほど、さらに高く引く（自分の馬のたてがみ・鞍で前が塞がらないように）
-    this.crowdLift = (this.crowdLift || 0) + ((this.crowd > 5 && this.mounted ? 0.55 : 0) - (this.crowdLift || 0)) * Math.min(1, dt * 2);
+    this.crowdLift = 0;
     want.y += landscapePull * .4 + (this.rt.squad.length ? 0.35 : 0.15) - pull * 0.7 + this.crowdLift + (this.mounted ? 1.3 - rc * 2 : 0) + viewK * 0.25 + this.marchK * 1.0 * (1 - rc * 0.85) + wk * 6 + this.cineK * 1.2 + ok * overH + (this.rt.def.camLift || 0) + defeatLift;
     // 横持ちでは味方の肩越しへ上げ、視線も上げて前方の敵を残す。
     if (landscapeFrame && !this.mounted) want.y = Math.max(want.y, u.pos.y + 2.6);   // 目の高さに近い低めの肩越し
@@ -473,10 +474,10 @@ export class PlayerCamera {
     // 三人称の歩み：走ると肩越しのカメラも足の運びに合わせて小さく上下・左右に揺れる（手持ちの撮影のように）
     // 馬上は鞍の弾み（駆けるほど大きく、蹄の拍子で）。画面の揺れを切った時・動きを減らす時は揺らさない
     // 歩きの揺れは S.shakeWalk で別に切れる（無ければ S.shake に従う）
-    const calm = !(S.shakeWalk ?? S.shake) || reduceMotion();
+    const calm = true;   // 歩き・鞍でカメラを揺らさない（T）
     const sp = Math.hypot(u.vel.x, u.vel.z);
     // 動きを減らす時は、鞍の揺れも止める。
-    const rideK = !(S.shakeWalk ?? S.shake) || reduceMotion() ? 0 : 1;
+    const rideK = 0;
     let gaitRoll = 0;
     if (this.mounted && rideK > 0 && e < 0.5) {
       // 歩き方ごとの鞍の動き（拍子は rideMove の gaitPh＝一完歩で 1）：
@@ -639,7 +640,7 @@ export class PlayerCamera {
       const W = this.rt.world, depth = W.waterDepthAt(camera.position.x, camera.position.z);
       if (depth > 0.02) camera.position.y = Math.max(camera.position.y, W.heightAt(camera.position.x, camera.position.z) + depth + 0.35);
     }
-    this.terrainLookK = terrainBlocked ? 1 : (this.terrainLookK || 0) * Math.max(0, 1 - dt * 5);
+    this.terrainLookK = (this.terrainLookK || 0) + ((terrainBlocked ? 1 : 0) - (this.terrainLookK || 0)) * Math.min(1, dt * 2);   // 地形の当たりで目線が跳ねない（T）
     if (!inRoom && e < 0.5 && this.terrainLookK > 0.001) look.lerp(target, this.terrainLookK * (1 - e * 2) * (this.rt.def.terrainLookWeight ?? 0.85));
     // 高い所を見せる場面：見る点をその物へ寄せる（崖の下からでも画面の真ん中に入れる）
     if (this.cine?.up != null) (this.cineLook || (this.cineLook = new THREE.Vector3())).set(this.cine.x, this.rt.world.heightAt(this.cine.x, this.cine.z) + this.cine.up, this.cine.z);
@@ -943,7 +944,7 @@ export class PlayerCamera {
     const raw = this.eyeRaw(_cQ);
     // 足もとからのずれでならす（歩く速さで横に遅れない）。揺れを切った時は上下を強くならす
     const off = raw.sub(u.pos);
-    const calm = !(S.shakeWalk ?? S.shake) || reduceMotion();
+    const calm = true;   // 一人称も歩みで目を揺らさない（T）
     if (!this.eyeOff) this.eyeOff = off.clone();
     else if (dt >= 0.5) this.eyeOff.copy(off);
     else {

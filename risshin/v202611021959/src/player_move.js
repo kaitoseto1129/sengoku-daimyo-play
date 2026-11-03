@@ -600,7 +600,7 @@ export class PlayerMove {
       if (best) {
         const o = best, f = o.from;
         const label = o.kept ? `馬に乗る（${o.stats.name}）` : `馬を捕らえて乗る（${f.name ? f.name + 'の馬' : f.house ? f.house + 'の馬' : '空馬'}）`;
-        rt.addInteract('horse-take', () => (o.h.parent ? o.h.position : null), label, () => this.takeHorse(o), { r: 3.2, hold: o.kept ? 0 : 1.5 });
+        rt.addInteract('horse-take', () => (o.h.parent ? o.h.position : null), label, () => this.takeHorse(o), { r: 3.2, hold: o.kept ? 0 : o.calm ? 1 : 1.5, prio: 0.6 });   // 首より先に「乗る」を出す（T）
       }
     }
     const o = best;

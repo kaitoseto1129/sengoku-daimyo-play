@@ -3389,7 +3389,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const foam = new THREE.InstancedMesh(rigParts().foam, new THREE.MeshBasicMaterial({ map: rigParts().foamMat.map, color: 0xc2d4d0, transparent: true, opacity: 0.24, depthWrite: false }), 420); // 航跡を描いた白い帯にしない（手本の屏風・写真の淡い泡）
     foam.instanceMatrix.setUsage(THREE.DynamicDrawUsage); foam.frustumCulled = false;
     for (let i = 0; i < 420; i++) foam.setColorAt(i, _wakeTint.setScalar(1)); // 航跡の後ろほど薄れる色を一つの描画で
-    foam.count = 0; F.foam = foam; rt.scene.add(foam);
+    foam.count = 0; foam.name = 'water-foam'; F.foam = foam; rt.scene.add(foam);
     const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 5), new THREE.MeshBasicMaterial({ color: 0xffcc66 }));
     const splash = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 7), new THREE.MeshBasicMaterial({ color: 0xc5e1df }));
     flash.visible = splash.visible = false; rt.scene.add(flash, splash);

@@ -468,10 +468,10 @@ const k14_yao_wakae = {
         const fe = rt.t - F.flankT;
         if ((fe > 15 && aliveN(F.choSide) <= F.sideN0 * 0.5) || (fe > 75 && dist(P.pos, FLANK) < 40)) this.win(rt);
       }
-      // 若江に残った敵は去らせる（本物の兵の枠を空ける）
+      // 若江に残った敵は去らせる（本物の兵の枠を空ける）。崩れて十秒たったら、目の前にいない者は去らせる（逃げる者を北へ追って八尾へ行けなかった 11/2）
       if ((F.gcT = (F.gcT || 0) - dt) <= 0) {
         F.gcT = 1;
-        for (const g of [F.kimuraG, F.yamaG, F.naitoG]) if (g) for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, P.pos) > 70) rt.army.despawn(u);
+        for (const g of [F.kimuraG, F.yamaG, F.naitoG]) if (g) for (const u of g.units) if (u.alive && !u.gone && (dist(u.pos, P.pos) > 70 || (rt.t - F.st0 > 10 && dist(u.pos, P.pos) > 12))) rt.army.despawn(u);
       }
     }
   },

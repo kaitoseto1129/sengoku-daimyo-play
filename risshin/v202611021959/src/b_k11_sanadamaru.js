@@ -90,7 +90,7 @@ function mesh(parts, block = true) {
 // 大坂城：惣構の向こうの石垣と五重の天守（遠景）。惣構の土塀と隅櫓
 function osakaCastle(world, x, z) {
   const g = new THREE.Group();
-  g.add(tenshu(world, x, z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi' }));
+  g.add(tenshu(world, x, z, { floors: 5, b: 17, base: 9, old: true, stone: 'uchikomi', goldShachi: true }));
   g.add(ishigaki(world, [[x - 60, z + 22], [x + 60, z + 22]], { kind: 'uchikomi', top: 0.1, minH: 5, maxH: 7 }));
   for (const [a, b] of [[-170, -22], [22, 170]]) g.add(dobei(world, [a, -100, b, -100], { hikae: -1, shikkui: true }));
   for (const wx of [-150, -90, -30, 30, 90, 150]) g.add(sumiyagura(world, wx, -102.5, { w: 6, d: 5, base: 1.4 }));
