@@ -2030,7 +2030,7 @@ async function campaignTown(game, c, aud, spec) {
     const scr = document.getElementById('screen');
     if ((!scr || scr.hidden || !scr.innerText.trim()) && performance.now() < tEnd) { k--; await wait(1000); continue; }
     const bs = [...document.querySelectorAll('#screen button, #screen .btn')].filter(vis);
-    const b = bs.find((x) => /城下|次へ|進む|続け|わかった|持ち帰|受け取|閉じ|はい/.test(x.textContent) && !/タイトル|やり直|易しく/.test(x.textContent)) || bs.find((x) => x.classList.contains('primary') && !/タイトル|やり直/.test(x.textContent));
+    const b = bs.find((x) => /ホームへ|城下|次へ|進む|続け|わかった|持ち帰|受け取|閉じ|はい/.test(x.textContent) && !/タイトル|やり直|易しく/.test(x.textContent)) || bs.find((x) => x.classList.contains('primary') && !/タイトル|やり直/.test(x.textContent));
     if (b) { pad.cache.clear(); pad.tap(b, `戦のあと：${b.textContent.trim().slice(0, 8)}`); }
     else { const sc = document.getElementById('screen'); if (sc) { pad.pe('pointerdown', sc, innerWidth / 2, innerHeight / 2, 7000 + k); pad.pe('pointerup', sc, innerWidth / 2, innerHeight / 2, 7000 + k); sc.click(); } }
     await wait(1200);

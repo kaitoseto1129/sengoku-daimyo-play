@@ -14,7 +14,7 @@ import { GENERALS } from './units.js';
 const IDLE_OK_ORDERS = new Set(['hold', 'guard', 'yari', 'flee']);
 const IDLE_OK_TYPES = new Set(['dummy', 'porter', 'player']);
 // 画面の部品で、重なっていてよい物（全面の飾り・浮かぶ字・印）
-const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt']);
+const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines']);
 // 遊び手を責める言い回し
 const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|下手|失格|情けない|しっかりせい)/;
 // 断るだけで、どうすればいいかを言わない言い回し
@@ -415,6 +415,19 @@ export class Auditor {
       }
       return right > left && bottom > top ? { left, right, top, bottom, width: right - left, height: bottom - top } : null;
     };
+    const inkRect = (el) => {
+      if (!visibleRect(el)) return null;
+      let left = W, right = 0, top = H, bottom = 0;
+      for (const part of el.querySelectorAll('path, ellipse, b, button')) {
+        const cs = getComputedStyle(part);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || part.closest('[hidden], clipPath, defs')) continue;
+        const r = part.getBoundingClientRect();
+        if (r.width <= 0 || r.height <= 0) continue;
+        left = Math.min(left, Math.max(0, r.left)); right = Math.max(right, Math.min(W, r.right));
+        top = Math.min(top, Math.max(0, r.top)); bottom = Math.max(bottom, Math.min(H, r.bottom));
+      }
+      return right > left && bottom > top ? { left, right, top, bottom, width: right - left, height: bottom - top } : null;
+    };
     // 枠外の釦の検査は元の座標で続け、重なりだけを見える範囲で比べる。
     const visible = (el) => {
       // 閉じた「もっと読む」の中には、字の位置だけ残る端末がある。押せる見出しだけを調べる。
@@ -484,7 +497,9 @@ export class Auditor {
         // 道しるべの親は画面全体に広がる透明な入れ物。印そのものの重なりと面積を調べる。
         const cards = el.matches('.tl, .tr, #battle-notices, #markers') ? el.children : [el];
         for (const card of cards) {
-          const r = visibleRect(card);
+          // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
+          const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target';
+          const r = ink ? inkRect(card) : visibleRect(card);
           if (r) panels.push({ el: card, r });
         }
       }
