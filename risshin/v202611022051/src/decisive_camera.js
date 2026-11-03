@@ -52,6 +52,7 @@ export function decisiveCameraReset(rt, camera) {
 export function decisiveCameraApply(rt, camera) {
   const s = rt.decisiveCamera;
   if (!s) return;
+  return;   // 操作していない時は視野も動かさない（kaito 11/2 V）
   if (decisiveCameraSpeed(rt) === 1) return;
   const now = performance.now() / 1000;
   if (now >= s.until) return;

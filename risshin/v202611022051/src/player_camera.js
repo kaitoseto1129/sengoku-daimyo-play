@@ -246,7 +246,8 @@ export class PlayerCamera {
     const pr = this.introT > 0 && !reduceMotion() ? Math.min(1, this.introT / 3.4) : 0;
     const pull = selfFrame ? 0 : pr * pr * (3 - 2 * pr);
     // 大事な場面では、その方へ視点を向ける
-    if (reduceMotion()) { this.cine = null; this.camShot = null; this.shotZoom = 0; this.camPush = null; this.camLean = null; }
+    // 操作していない時は一切動かさない（kaito 11/2 V）：場面の寄せ・見せ場の撮り・押し引きは全部止める
+    this.cine = null; this.camShot = null; this.shotZoom = 0; this.camPush = null; this.camLean = null;
     if (this.cine && (this.lookIdle < 0.2 || this.aiming || this.lock || this.inCombatT > 0 && !this.cine.encounter)) this.cine = null;
     if (this.cine) {
       this.cine.t -= dt;

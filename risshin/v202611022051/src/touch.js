@@ -496,8 +496,6 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
     `<button class="tb sq" id="tc-map" aria-label="戦術地図">${ICON.map}地図</button>` +
     `<button class="tb sq" id="tc-view" aria-label="視点の切り替え（一人称）" aria-pressed="false"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 10c2.2-3.6 5-5.4 8-5.4s5.8 1.8 8 5.4c-2.2 3.6-5 5.4-8 5.4S4.2 13.6 2 10z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg>視点</button>` +
     BTN.map((b) => `<button class="tb${b.big ? ' big' : ''}" data-b="${b.id}" aria-label="${b.label}" style="width:${b.d}px;height:${b.d}px"><span class="name">${b.label}</span>${b.sub ? `<small>${b.sub}</small>` : ''}</button>`).join('') +
-    `<button class="tb sq" id="tc-zin" aria-label="大地図を寄せる" hidden>＋<small>寄る</small></button>` +
-    `<button class="tb sq" id="tc-zout" aria-label="大地図を引く" hidden>－<small>引く</small></button>` +
     `<div class="hint" id="tc-hint" hidden></div>`;
   const extraHelp = document.createElement('span'); extraHelp.id = 'tc-extra-help'; extraHelp.textContent = '武器の持ち替え・馬の追加操作'; extraHelp.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)'; root.appendChild(extraHelp);
   root.querySelector('[data-b=more]').setAttribute('aria-describedby', extraHelp.id);
@@ -762,8 +760,6 @@ function setupTouch({ input, game, setPause, toggleBigMap }) {
   $('tc-pause').addEventListener('click', () => { if (game.battle && !game.battle.ended && (!game.battle.over || game.battle.withdrawal) && !game.paused) setPause(true); });
   $('tc-map').addEventListener('click', () => { if (active()) toggleBigMap(); });
   // 大地図の縮尺：＋・－の釦と、二本指で拡げる・つまむ
-  $('tc-zin').addEventListener('click', () => { if (game.hud && game.hud.zoomBigmap) game.hud.zoomBigmap(-250); });
-  $('tc-zout').addEventListener('click', () => { if (game.hud && game.hud.zoomBigmap) game.hud.zoomBigmap(250); });
   const bmP = new Map();
   let bmD = 0;
   const bmMove = (e) => {
@@ -1379,9 +1375,6 @@ export function touchFrame(dt) {
     if (el.getAttribute('aria-pressed') !== pressed) el.setAttribute('aria-pressed', pressed);
   }
   tog(document.documentElement, 'tc-cmd', !!(p.radial || T.sticky || p.cmdOpen));
-  // 大地図を開いている間だけ、縮尺の釦を出す
-  const bm = !!(game.hud && game.hud.bigmap);
-  hide(document.getElementById('tc-zin'), !bm); hide(document.getElementById('tc-zout'), !bm);
   // 初めての手ほどき：いま試す操作の丸を光らせる（歩く・見回すは棒と画面の右に字）
   measureMoveZone(b.t);
   coachGlow(b);
@@ -1965,15 +1958,12 @@ function layout() {
   // 枠の中なら、アプリの丸（上端から 70px ほど）の下から並べる
   const FT = document.documentElement.classList.contains('inframe') ? 64 : 0;
   const L0 = Math.max(16, sa.l + 12), T0 = Math.max(sa.t, FT) + (low ? 8 : 10);
-  const zi = document.getElementById('tc-zin'), zo = document.getElementById('tc-zout');
   // 地図の釦は出さない（kaito 11/1 N「小さな地図は右上に常に出ているので足りる」。大きな地図は右上の小さな地図を押すと開く）
   mp.style.display = 'none';
   if (low) {
     pz.style.top = vw.style.top = T0 + 'px';
     pz.style.left = L0 + 'px'; vw.style.left = (L0 + 56) + 'px';
-    zi.style.top = zo.style.top = T0 + 'px'; zi.style.left = (L0 + 112) + 'px'; zo.style.left = (L0 + 168) + 'px';
   } else {
-    zi.style.left = zo.style.left = L0 + 'px'; zi.style.top = (T0 + 112) + 'px'; zo.style.top = (T0 + 168) + 'px';
     pz.style.left = vw.style.left = L0 + 'px';
     pz.style.top = T0 + 'px';
     vw.style.top = (T0 + 56) + 'px';

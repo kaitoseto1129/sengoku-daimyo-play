@@ -7,6 +7,27 @@ import { MEM_TIGHT } from './settings.js';
 import { SEG } from './world_common.js';
 import { FLAT } from './flat_rule.js';
 import { cameraWallBlocked } from './battle_sight.js';
+import { scenario } from './state.js';
+
+// 本物の斬り合い（kaito 11/3 AA）：向き f の先で、味方と敵の槍足軽が向き合って斬り合う。本物の兵が多い時は false（軽い作りへ）
+function realClash(rt, put, ww, f, amon, bmon) {
+  const A = rt.army, def = rt.def;
+  if (!A || !A.queueSpawn) return false;
+  let alive = 0;
+  for (const g of A.groups) for (const u of g.units) if (u.alive) alive++;
+  const per = MEM_TIGHT ? 7 : 11;
+  if (alive + A.pendingSpawn + per * 2 > (MEM_TIGHT ? 150 : 200)) return false;
+  const fac = (team) => A.groups.find((g) => g.team === team && !g.isPlayerSquad && g.faction)?.faction;
+  const fx = Math.sin(f), fz = Math.cos(f);
+  for (const team of [0, 1]) {
+    const s = team ? 1 : -1, mon = team ? bmon : amon;
+    const faction = (team ? def.sides?.b?.faction : def.sides?.a?.faction) || fac(team) || scenario().faction || 'oda';
+    const g = A.addGroup({ team, faction, name: team ? '敵の乱戦' : '味方の乱戦', order: 'attack', formation: 'line', facing: team ? f + Math.PI : f,
+      anchor: { x: put.x + fx * 2.5 * s, z: put.z + fz * 2.5 * s }, width: Math.min(ww, per * 1.6), aggro: 14, seekRange: 40, speed: 3.2 });
+    A.queueSpawn(g, [{ type: 'ashigaru', n: per, o: mon ? { flag: mon } : {} }]);
+  }
+  return true;
+}
 
 const KEYS = new Set([
   'inou', 'inabayama', 'kanegasaki', 'nodafukushima', 'shiga', 'hieizan', 'tonezaka', 'echizen', 'kinome', 'kizugawa', 'tottori', 'takato',
@@ -108,6 +129,8 @@ export function frontFill(rt) {
   const clash = (put, ww, f = a) => {
     const seed = 4100 + out.length * 17 + (def.key.length * 31);
     spots.push({ x: put.x, z: put.z, w: ww });
+    // 近づける所の乱戦は描いただけにしない（kaito 11/3 AA）：本物の兵が両側から斬り合う。兵の数が多い時だけ軽い作りに戻す
+    if (realClash(rt, put, ww, f, amon, bmon)) return;
     out.push(W.addClash({
       x: put.x, z: put.z, facing: f, w: ww, gap: 2.6, bw: 5.5, seed, noWake: true, noRout: true, killRate: 0.01, maxDrift: 2, corpses: MEM_TIGHT ? 12 : 30,
       A: { flag: amon, count: MEM_TIGHT ? 110 : 170, flagRate: 0.7 },
