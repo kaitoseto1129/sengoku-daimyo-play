@@ -63,7 +63,8 @@ export function goalsTick(el, rt, stg) {
   const G = el._goals && el._goals.rt === rt ? el._goals : (el._goals = { rt, shown: -1, key: '', next: -1, at: 0, list: null, done: [] });
   const still = !!S.reduceMotion;
   // 段が変わった：前の段を ✓ のまま一拍見せてから入れ替える
-  if (G.shown < 0) { G.shown = stg.i; G.list = stg.goals; }
+  if (stg.flat) { G.shown = 0; G.next = -1; G.list = stg.goals; }
+  else if (G.shown < 0) { G.shown = stg.i; G.list = stg.goals; }
   else if (stg.i !== G.shown && G.next !== stg.i) { G.next = stg.i; G.at = rt.t + (still ? 0 : HOLD); for (const g of G.list) g.done = true; }
   if (G.next >= 0) {
     if (rt.t >= G.at + (still ? 0 : OUT)) {
@@ -95,7 +96,7 @@ export function goalsTick(el, rt, stg) {
   // 戦の進み（kaito 11/1 J の「進行率」の金の棒）：段の数だけ区切り、済んだ段は金・今の段は金の縁・先は暗い。字は出さない
   const seg = box.querySelector('.pg-seg');
   if (seg) {
-    const n = stg.n || 0;
+    const n = stg.flat ? 0 : stg.n || 0;
     seg.hidden = n < 2;
     seg.innerHTML = n < 2 ? '' : Array.from({ length: n }, (_, k) => `<i class="${k < G.shown ? 'on' : k === G.shown ? 'now' : ''}"></i>`).join('');
   }

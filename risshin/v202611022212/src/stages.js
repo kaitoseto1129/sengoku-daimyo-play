@@ -69,5 +69,23 @@ export function stageNow(rt) {
     if (!seen.has(k)) { let ok = false; try { ok = !!at?.(rt); } catch (e) { ok = false; } if (ok) seen.add(k); }
     return { text, done: seen.has(k) };
   });
-  return { i, n: list.length, line: list[i][0], goals };
+  // 目標は最初から全部並べ、済んだ物にチェック（kaito 11/2 P・Q）。段が三つ以上なら段の一行を並べ、少なければ小目標を並べる。五つまで
+  const rows = list.map((r, k) => [r, k]).filter(([r]) => r[0] !== '練習');
+  const mark = (k, j, at) => {
+    const key = i + ':' + j;
+    if (k === i && !seen.has(key)) { let ok = false; try { ok = !!at?.(rt); } catch (e) { ok = false; } if (ok) seen.add(key); }
+    return k < i || k === i && seen.has(key);
+  };
+  let flat;
+  if (rows.length >= 3) {
+    flat = rows.map(([r, k]) => {
+      const subs = r[2];
+      const done = k < i || (k === i && (subs ? subs.map(([, at], j) => mark(k, j, at)).every(Boolean) : rt.over && rt.tracker?.main === true));
+      return { text: r[0], done };
+    });
+  } else {
+    flat = rows.flatMap(([r, k]) => (r[2] || [[r[0], (q) => q.over && q.tracker?.main === true]]).map(([text, at], j) => ({ text, done: mark(k, j, at) })));
+  }
+  if (flat.length > 5) flat = [...flat.slice(0, 4), flat[flat.length - 1]];
+  return { i, n: list.length, line: list[i][0], goals: flat, flat: true };
 }

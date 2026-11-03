@@ -184,7 +184,8 @@ function drawMissionPin(rt) {
   if (!destination?.defend || destination.unit || rt.over || rt.choice || rt.hud.introWaiting || !rt.player.u.alive)
     rt.hud.root.classList.remove('ground-defense');
   const following = updateFollowGuide(rt, destination);
-  drawJoinGround(rt, destination, !!destination?.guardBoundary &&
+  // 足元の丸は出さない（kaito 11/2 Q）
+  drawJoinGround(rt, destination, false && !!destination?.guardBoundary &&
     !rt.over && !rt.choice && !rt.hud.introWaiting && rt.player.u.alive &&
     !rt.hud.root.classList.contains('photo') && !rt.hud.root.classList.contains('ending') &&
     !rt.hud.bigmap && !rt.player.camShot && !rt.hud.root.querySelector('#cine.on'));
