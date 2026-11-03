@@ -972,7 +972,7 @@ export function makeLordKeep(rt, o) {
   if (lord) { lord.pos.y = spot.y; lord.keep = true; lordG.leader = lord; }
   const m = I ? I.doorOut : (o.mouth || spot);
   const guard = A.addGroup({ team, faction: o.faction, name: `${o.name}の旗本`, order: 'hold', anchor: { x: m.x, z: m.z }, facing: o.facing ?? 0, morale: 100, aggro: 7, width: 5, noRout: true });
-  A.spawn(guard, [{ type: 'samurai', n: I ? Math.max(3, (o.guardN ?? 6) - 2) : (o.guardN ?? 6), o: { ...look } }]);
+  A.spawn(guard, [{ type: 'samurai', n: I ? Math.max(8, (o.guardN ?? 6) - 2) : Math.max(10, o.guardN ?? 6), o: { ...look } }]);   // 城の主も侍の旗本が大勢で囲む（11/3）
   // 近習：建物の中の階ごと（御殿は奥の間の口）に二人ずつ。その階の床に立たせる（units.js が床の高さを保つ）
   const kin = I ? makeInteriorGuards(rt, I, { team, faction: o.faction, ...look }) : [];
   if (I) {
