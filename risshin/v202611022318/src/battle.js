@@ -11,6 +11,8 @@ import { timeLimitTick, timeLimitHide } from './time_limit.js';
 import { botInput } from './bot_input.js';
 let HOLD_INPUT = null;
 import { tegaraKill } from './merit.js';
+import { namedKill } from './victory_flow.js';
+import { victoryMoment } from './victory_moment.js';
 import { stageNow } from './stages.js';
 import { intelTick, intelMarker, intelReport, intelText } from './battle_intel.js';
 import * as THREE from 'three';
@@ -1939,7 +1941,6 @@ export class Battle {
       if (this.def.dojo) this.grantTitle('firstBlood');
       if (v.type === 'busho') {
         if (this.def.dojo) this.grantTitle('busho');
-        this.banner('敵武将が倒れた', '討ち取りの証は戦の後に確かめる');
       }
       if (this.def.dojo) {
         const at = { x: v.pos.x, y: v.pos.y, z: v.pos.z };
@@ -1957,6 +1958,7 @@ export class Battle {
       }
     }
     meritKill(this, v, k);
+    namedKill(this, v);
     if (!this.over && this.def.onKill) {
       const old = this._noticeAt; this._noticeAt = v.pos;
       try { this.def.onKill(this, v, k); } finally { this._noticeAt = old; }
@@ -2867,6 +2869,8 @@ export class Battle {
     }
     this.over = true;
     if (!info.down) castleFallStart(this);
+    // 最後の目標を済ませたら止まらず勝利の場面へ（戦固有の終幕は指定どおり）
+    if (!info.down && !info.scriptedEnd && this.tracker.main === true && !this.def.dojo && !this.def.town) { victoryMoment(this, '勝利'); delay = Math.min(delay, 4.5); }
     document.getElementById('rain-mark')?.remove();
     if (this.world.dayClock) this.world.dayClock.stopped = true;
     // 戦の後の静けさ（太鼓が止み、烏と遠いうめき声と風）

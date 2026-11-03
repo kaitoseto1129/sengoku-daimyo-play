@@ -17,13 +17,6 @@ const MORE = {
   okawachi: ['伊勢の北畠氏が、大河内城にこもった', '城を囲み、夜の攻め口で木戸へ寄せる'],
   echizen_ikko: ['越前の一向一揆が、大滝寺に集まった', '夜に寺を討ち、逃げる一揆を追う'],
 };
-// 章（行を分ける所）。ODA_LINE の並びの番号から
-const CHAPTERS = [
-  { name: '尾張と美濃', from: 0 },
-  { name: '上洛と包囲網', from: 5 },
-  { name: '浅井・朝倉と一向一揆', from: 12 },
-  { name: '天下布武', from: 19 },
-];
 const yearNum = (b) => typeof b.year === 'number' ? String(b.year) : (String(b.year || '').match(/（(\d{4})）/) || [])[1] || '';
 // 難しさの星（並びの先ほど難しい。1〜5）
 const starsOf = (k) => Math.min(5, 1 + Math.floor(k / 7));
@@ -79,17 +72,17 @@ const CSS = `<style>
   .hub-set svg { width: 100%; height: 100%; }
   .hub-c:hover, .hub-c:focus-visible, .hub-go:hover, .hub-go:focus-visible, .hub-set:focus-visible { border-color: #e6c77a; outline: none; }
   .pk { margin: 0 calc(-1 * max(12px, env(safe-area-inset-left, 0px))); }
-  /* 戦の並び（kaito 11/1）：YouTube のサムネのように、章ごとに一行・左から 1・2・3… と横へ */
-  .pk-ch { display: flex; align-items: stretch; gap: 0; margin-bottom: 6px; }
-  .pk-chn { flex: none; display: grid; place-items: center; width: 34px; margin-left: max(8px, env(safe-area-inset-left, 0px)); font: 800 max(16px, calc(18px * var(--text-scale, 1))) var(--display); color: var(--kin); border-right: 2px solid rgba(230,199,122,.5); }
-  .pk-row { flex: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 300px; gap: 12px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 4px 16px 10px 10px; scrollbar-width: thin; }
+  /* 戦の並び（kaito 11/2 R）：縦に流れる格子。見出し（織田家編・豊臣編・徳川編）の下に並べ、最後に秘密の一枚 */
+  .pk-ch { margin-bottom: 10px; }
+  .pk-chn { margin: 6px max(14px, env(safe-area-inset-left, 0px)) 4px; font: 800 max(17px, calc(20px * var(--text-scale, 1))) var(--display); color: var(--kin); letter-spacing: .1em; }
+  .pk-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 4px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px)); }
   .pk-no { position: absolute; left: 8px; top: 30px; z-index: 1; min-width: 22px; padding: 1px 5px; font: 800 max(12px, calc(13px * var(--text-scale, 1))) var(--ui); text-align: center; background: rgba(20,18,15,.82); border: 1px solid rgba(236,228,210,.45); }
   .pk-why { position: fixed; z-index: 4; left: 50%; bottom: max(12px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; width: min(560px, calc(100vw - 32px)); box-sizing: border-box; padding: 10px 12px; background: rgba(20,18,15,.96); border: 1px solid #e6c77a; color: var(--washi); font: 600 max(15px, calc(15px * var(--text-scale, 1))) var(--ui); line-height: 1.5; }
   .pk-why img { flex: none; width: 96px; height: 54px; object-fit: cover; border: 1px solid rgba(236,228,210,.4); }
   .pk-why svg { flex: none; width: 22px; height: 22px; fill: #e6c77a; }
   .pk-why span { flex: 1; }
   .pk-why button { flex: none; min-height: 44px; }
-  .pk-c { position: relative; display: block; width: 100%; aspect-ratio: 16/9; padding: 0; border: 2px solid rgba(236,228,210,.22); background: #1d1a16; overflow: hidden; cursor: pointer; scroll-snap-align: start; color: #fff; text-align: left; }
+  .pk-c { position: relative; display: block; width: 100%; aspect-ratio: 16/9; padding: 0; border: 2px solid rgba(236,228,210,.22); background: #1d1a16; overflow: hidden; cursor: pointer; color: #fff; text-align: left; }
   .pk-c img, .pc-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .pk-c::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.35) 0, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 52%, rgba(0,0,0,.78) 100%); pointer-events: none; }
   .pk-c > span, .pk-c > i { z-index: 1; }
@@ -129,8 +122,7 @@ const CSS = `<style>
   .pc .go { margin-top: 12px; min-height: 52px; width: 100%; font-size: max(16px, calc(18px * var(--text-scale, 1))); }
   @media (max-height: 500px) {
     #screen.has-back:has(> .pk) { padding-top: calc(52px + env(safe-area-inset-top, 0px)); }
-    .pk-row { grid-auto-columns: 196px; gap: 10px; padding-bottom: 6px; }
-    .pk-chn { width: 28px; }
+    .pk-row { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding-bottom: 6px; }
     .pk-why img { width: 80px; height: 45px; }
     .hub { gap: 10px; height: calc(100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
     .hub-col { gap: 8px; grid-template-rows: 1.4fr repeat(3, minmax(44px, 1fr)); }
@@ -149,7 +141,7 @@ const CSS = `<style>
     .hub, .pc { grid-template-columns: 1fr; }
     .hub { height: auto; }
     .hub-me { min-height: 300px; order: -1; }
-    .pk-row { grid-auto-columns: 220px; }
+    .pk-row { grid-template-columns: repeat(2, 1fr); }
   }
 </style>`;
 
@@ -255,8 +247,10 @@ export function pickScreen(G, game, o) {
       ${r.best ? `<span class="pk-best" aria-label="最高の手柄 ${r.best}">${ICON.merit}${r.best}</span>` : ''}
     </button>`;
   };
-  const chs = [...CHAPTERS, { name: '豊臣編', from: oda }, { name: '徳川編', from: toku }];
-  const chapters = chs.map((c, n) => `<div class="pk-ch"><span class="pk-chn" aria-hidden="true">${'一二三四五六'[n]}</span><div class="pk-row" role="group" aria-label="${esc(c.name)}">${rows.slice(c.from, chs[n + 1]?.from ?? rows.length).map(cardHtml).join('')}</div></div>`).join('');
+  const nSecret = rows.filter((r) => r.secret).length;
+  const end = rows.length - nSecret;
+  const chs = [{ name: '織田家編', from: 0, to: oda }, { name: '豊臣編', from: oda, to: toku }, { name: '徳川編', from: toku, to: end }, { name: '', from: end, to: rows.length }].filter((c) => c.to > c.from);
+  const chapters = chs.map((c) => `<div class="pk-ch">${c.name ? `<h2 class="pk-chn">${esc(c.name)}</h2>` : ''}<div class="pk-row" role="group" aria-label="${esc(c.name || '秘密の戦')}">${rows.slice(c.from, c.to).map(cardHtml).join('')}</div></div>`).join('');
   const s = showScreen(`${CSS}<div class="pk" id="pk-row"><h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">本陣</h1>${chapters}</div>`, false,
     (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } });
   held = s.querySelector('.pk');
@@ -268,10 +262,14 @@ export function pickScreen(G, game, o) {
   const why = (r) => {
     row.querySelector('.pk-why')?.remove(); clearTimeout(whyT);
     const prev = r.soon || r.secret ? null : rows.find((x) => x.j === r.j - 1) || rows[r.k - 1];
-    const text = r.secret && r.state === 'lock' ? `徳川編の十五の戦に、すべて勝つと開きます（あと${secretLeft()}）` : r.soon ? 'まだできていません' : r.pay ? '完全版で開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
-    row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !r.pay ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${prev && !r.pay && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
+    // 完全版が要る錠の戦：完全版を買い、かつ前の戦に勝って開く。札から買える（kaito 11/3 AC）
+    const buyable = r.pay && !r.soon && !(r.secret && r.state === 'lock');
+    const text = r.secret && r.state === 'lock' ? `徳川編の十五の戦に、すべて勝つと開きます（あと${secretLeft()}）` : r.soon ? 'まだできていません' : buyable ? (r.state === 'lock' && prev ? `完全版を買い、「${prev.b.name}」に勝つと開きます` : '完全版で開きます') : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
+    row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !buyable ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${buyable ? '<button type="button" class="btn small primary" id="pk-why-buy">完全版を買う</button>' : ''}${prev && !buyable && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
+    const gb = row.querySelector('#pk-why-buy');
+    if (gb) gb.onclick = () => { sfx('ui'); clearTimeout(whyT); row.querySelector('.pk-why')?.remove(); showPaywall(() => { release(); pickScreen(G, game, o); }, () => {}, r.scn || 'oda'); };
     const go = row.querySelector('#pk-why-go');
-    if (go) go.onclick = () => { sfx('ui'); row.querySelector('.pk-why')?.remove(); const p = row.querySelector(`.pk-c[data-k="${prev.k}"]`); if (p) { p.scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', inline: 'center', block: 'center' }); p.classList.add('flash'); setTimeout(() => p.classList.remove('flash'), 900); p.focus({ preventScroll: true }); } };
+    if (go) go.onclick = () => { sfx('ui'); row.querySelector('.pk-why')?.remove(); const p = row.querySelector(`.pk-c[data-k="${prev.k}"]`); if (p) { p.scrollIntoView({ behavior: RM() ? 'auto' : 'smooth', block: 'center' }); p.classList.add('flash'); setTimeout(() => p.classList.remove('flash'), 900); p.focus({ preventScroll: true }); } };
     whyT = setTimeout(() => row.querySelector('.pk-why')?.remove(), 6000);
   };
   for (const b of row.querySelectorAll('.pk-c')) b.onclick = () => {
@@ -279,19 +277,13 @@ export function pickScreen(G, game, o) {
     if (r.state === 'lock') { sfx('ui'); why(r); return; }
     // 豊臣編の錠：その場で章の購入札（買えたら並びを描き直す）
     if (r.scn && r.pay) { sfx('ui'); clearTimeout(whyT); row.querySelector('.pk-why')?.remove(); showPaywall(() => { release(); pickScreen(G, game, o); }, () => b.focus({ preventScroll: true }), r.scn); return; }
-    const x = [...row.querySelectorAll('.pk-row')].map((e) => e.scrollLeft);
+    const x = [];
     clearTimeout(whyT);
     leave(() => preCard(G, game, o, r, { x, y: row.parentElement?.scrollTop || 0 }))();
   };
   // 次に遊ぶ戦（か、戻ってきた札）を見える所へ
-  const lines = [...row.querySelectorAll('.pk-row')];
-  if (o.scrollX != null) { lines.forEach((e, n) => { e.scrollLeft = o.scrollX.x?.[n] || 0; }); if (row.parentElement) row.parentElement.scrollTop = o.scrollX.y || 0; }
-  else {
-    const at = row.querySelector('.pk-c.next');
-    if (at) { const ln = at.closest('.pk-row'); ln.scrollLeft = Math.max(0, at.offsetLeft - ln.offsetLeft - 16); at.closest('.pk-ch').scrollIntoView({ block: 'nearest' }); }
-  }
-  // 縦の輪で横へ送る（パソコン）：Shift を押した時だけ横。そのままなら章の行を上下に
-  for (const ln of lines) ln.addEventListener('wheel', (e) => { if (e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) { ln.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
+  if (o.scrollX != null) { if (row.parentElement) row.parentElement.scrollTop = o.scrollX.y || 0; }
+  else row.querySelector('.pk-c.next')?.scrollIntoView({ block: 'center' });
   if (!('ontouchstart' in window)) (row.querySelector('.pk-c.next') || row.querySelector('.pk-c'))?.focus({ preventScroll: true });
 }
 

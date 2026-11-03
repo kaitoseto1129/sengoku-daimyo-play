@@ -215,7 +215,9 @@ export function showPaywall(onOpen, onClose, scn = scenarioKey()) {
   const opened = () => { closeCard(); onOpen && onOpen(); };
   paywallState = (o) => {
     if (!o) return;
-    if (o.error) { msg('購入を確かめられませんでした。少し後でもう一度'); return; }
+    if (o.error) { buyEnd(); msg('購入を確かめられませんでした。少し後でもう一度'); return; }
+    if (o.cancelled) { buyEnd(); msg(''); return; }
+    if (o.bought || o.owned || o.full) buyEnd();
     if (ch) {
       if (Array.isArray(o.owned) && (o.owned.includes(ch.pid) || o.owned.includes(BUNDLE_PID)) && card) opened();
       else if (o.restored) msg('復元できる購入はありません');
@@ -227,9 +229,17 @@ export function showPaywall(onOpen, onClose, scn = scenarioKey()) {
     }
   };
   const buy = el.querySelector('#pw-buy');
+  let buyT = 0;
+  const buyEnd = (t) => { clearTimeout(buyT); buyT = 0; if (buy) buy.disabled = false; if (t) msg(t, true); };
   if (buy) buy.onclick = () => {
     mt('fullBuyTap');
-    if (ios) { msg('購入の画面を開いています…'); try { iap('buy', ch ? ch.pid : undefined); } catch (e) { msg('購入の画面を開けませんでした'); } }
+    if (ios) {
+      if (buyT) return;
+      buy.disabled = true; msg('購入の画面を開いています…');
+      // 返事が来ない・取りやめた時に「開いています」のまま残らない
+      buyT = setTimeout(() => buyEnd('購入の画面が開きませんでした。もう一度押してください'), 12000);
+      try { iap('buy', ch ? ch.pid : undefined); } catch (e) { buyEnd('購入の画面を開けませんでした'); }
+    }
     else if (GUMROAD_URL) {
       // 買い終えると、重ねた画面とメールに鍵が出る。そのまま下に貼れるよう、鍵の欄を先に開いておく
       const form = el.querySelector('#pw-key-form');

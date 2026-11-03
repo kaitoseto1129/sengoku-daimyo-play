@@ -1676,7 +1676,7 @@ function guide(rt, def) {
     rt.addInteract('door-' + tab, { x: d.x, z: d.z }, `支度する　${f.n}（札を開く）`, () => game.townOpen(tab), { r: 3 });
   }
   if (nagayaOn(rt.G) && townTabOpen(rt.G, 'nagaya') && D0.squad) rt.addInteract('door-nagaya', D0.squad, '仲間を迎える　足軽の長屋', () => game.townOpen('nagaya'), { r: 3 });
-  rt.addInteract('door-gate', { x: D0.gate.x, z: D0.gate.z }, '任務を受けて出陣する', () => game.townOpen('boss', { go: true }), { r: 3.5 });
+  rt.addInteract('door-gate', { x: D0.gate.x, z: D0.gate.z }, '任務を受けて出陣する', () => game.townSortie(), { r: 3.5 });
   // 上官屋敷と出陣の門を小さな地図に出す
   if (D0.boss) rt.marker('mk-boss', { x: D0.boss.x, z: D0.boss.z }, '上官屋敷');
   rt.marker('mk-gate', { x: D0.gate.x, z: D0.gate.z }, '出陣の門');

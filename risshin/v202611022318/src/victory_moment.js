@@ -68,7 +68,7 @@ export function faceAllies(rt) {
 }
 
 // 勝った瞬間。title：「勝」か「〇〇 討ち取ったり」。結果の画面へは呼び手が finish で 2〜3 秒後に送る。
-export function victoryMoment(rt, title = '勝') {
+export function victoryMoment(rt, title = '勝利') {
   if (rt.flags.victoryShown) return;
   rt.flags.victoryShown = true;
   sfx('kachidoki', 1);
@@ -78,5 +78,9 @@ export function victoryMoment(rt, title = '勝') {
   rt.army.celebrate(rt.player.u.team);
   const pos = rt.player.u.pos;
   for (const t of [0.5, 1.7]) rt.after(t, () => { rt.warSpeech?.crowd('eiei', pos, 0.9); rt.warVoices?.play('eiei', pos, 0.9); });
-  brushWord(rt, title, { big: title.length <= 2, hold: 2.4 });
+  if (title === '勝') title = '勝利';
+  // 「討ち取ったり」の字が出ている間は、引くのを待ってから出す
+  const wait = Math.max(0, (rt.flags.killWordUntil || 0) - rt.t);
+  const show = () => brushWord(rt, title, { big: title.length <= 2, hold: 2.4 });
+  if (wait > 0) rt.after(wait, show); else show();
 }

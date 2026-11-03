@@ -24,6 +24,7 @@ import { ronkoDeeds } from './ronko.js';
 import { afterHistory } from './after_history.js';
 import { sharedBattle, makeSharecard, mountSharecard } from './sharecard.js';
 import { mountFeedback } from './feedback.js';
+import { mountSaved } from './victory_flow.js';
 import { Hud } from './hud.js';
 import { viewSync } from './viewport.js';
 import { decisiveCameraSpeed } from './decisive_camera.js';
@@ -290,7 +291,7 @@ import { toggleRts, isRtsOn, rtsAvailable, initRtsInput } from './rts.js';
 import { gungiAvailable, openGungi, closeGungi } from './gungi.js';   // 軍議の画面（砦の版）。def.gungi のある戦の始めにだけ挟む（F6）
 import { initMetrics } from './metrics.js';   // 遊びの数字（GA4。GA_ID が空なら送らない）
 import { initCount } from './count.js';
-import { hubScreen, pickScreen, preCard, battleRows } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
+import { hubScreen, pickScreen } from './hub.js';   // 本陣と戦を選ぶ（サムネの並び）
 import { loreOf, rosterDepart } from './screens.js';
 import { playTalk } from './talk_scene.js';
 import { townTabOpen as hubTabOpen } from './town_unlock.js';   // 数え（github.io の時だけ GoatCounter へ送る）
@@ -2531,6 +2532,8 @@ const game = {
     const show = () => {
       evalScreen(G, r, actions);
       if (sharecard) mountSharecard(sharecard, $('ev-actions').parentElement);
+      // 勝利の画面：save を呼ぶだけで自動保存し、印と短い字を出す
+      if (r.mainDone && !r.downInfo && !G.practice) { save(G); mountSaved($('ev-actions').parentElement, progressStored(G)); }
       if (!G.practice) mountFeedback($('ev-actions').parentElement, BATTLES[i].name, !!r.mainDone);
     };
     if (G.practice) {
@@ -2640,7 +2643,7 @@ const game = {
         shop: () => cards('shop'),
         train: () => (hubTabOpen(G, 'train') ? cards('train') : this.startDojo()),
         ladder: () => this.ladder('town'),
-        town: () => (this.townWalkOn() ? this.startTown() : cards('boss')),
+        town: () => (this.townWalkOn() ? this.startTown() : this.pickBattles()),
         map: () => this.japanMap('town'),
         extra: () => import('./extras_screen.js').then((m) => m.extrasScreen(G, () => this.hub())),
         set: () => settingsScreen(onSettings, () => this.base()),
@@ -2648,13 +2651,11 @@ const game = {
     };
   },
   hub() { this.goNext = false; this.inTown = true; this.dailyHello(); if (S.townMusic) playMusic('honjin'); hubScreen(this.G, this, this.hubOpts()); },
-  // 結果の札の「次の戦へ」：次に遊ぶ戦の一枚（出陣する）を直に開く。戻るは戦選び（そこからホーム）
+  // 結果の札の「次の戦へ」：戦選びの格子を直に開く（昔の一覧の出陣画面は無い）。戻るはホーム
   hubNext() {
     this.goNext = false;
-    const nx = scenarioKey() === 'oda' ? battleRows(this.G).find((r) => r.state === 'next') : null;
-    if (!nx) return this.hub();
     this.inTown = true; this.dailyHello(); if (S.townMusic) playMusic('honjin');
-    preCard(this.G, this, this.hubOpts(), nx, null);
+    this.pickBattles();
   },
   // 毎日の楽しみ：ホームを開いた日の最初に、続けた日数を数え、褒美があれば一度だけ静かに知らせる
   dailyHello() {
@@ -2765,6 +2766,18 @@ const game = {
     // 町の場所から（蔵＝内政・館の庭＝家臣・使者の間＝外交）：知行の札のその欄を見せる
     if (o.deeds) setTimeout(() => { const d = document.querySelector('.realm-deeds'); if (d) { d.open = true; d.scrollIntoView({ block: 'center' }); } }, 60);
     if (o.focus != null) setTimeout(() => { const g = document.querySelector('.realm-grid'), el = g && g.children[o.focus]; if (el) { el.scrollIntoView({ block: 'start' }); el.style.outline = '2px solid var(--kin)'; el.style.outlineOffset = '3px'; } }, 60);
+  },
+  // 歩く城下の門・出陣の釦：町を止めて、戦選びの格子だけを出す。戻ると町へ
+  townSortie() {
+    if (!this.battle || this.townShop) return;
+    if (this.battle.def.town && this.battle.flags.heat) { this.battle.bark('手配中は支度の札を開けない。捕り方から離れて騒ぎを収めよう'); return; }
+    this.townShop = true;
+    this.paused = true;
+    input.clear();
+    if (document.exitPointerLock && locked) document.exitPointerLock();
+    this.hud.show(false);
+    sfx('ui');
+    pickScreen(this.G, this, { ...this.hubOpts(), onBack: () => this.townResume() });
   },
   townResume() {
     this.townShop = false;

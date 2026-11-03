@@ -372,7 +372,7 @@ export class Hud {
     if (sortie) {
       const show = !!(rt.def && rt.def.town);
       if (sortie.hidden === show) setHidden(sortie, !show);
-      if (show && !sortie.__wired) { sortie.__wired = true; sortie.onclick = () => { sfx('ui'); rt.game.townOpen('boss', { go: true }); }; }
+      if (show && !sortie.__wired) { sortie.__wired = true; sortie.onclick = () => { sfx('ui'); rt.game.townSortie(); }; }
     }
     // 浮かぶ戦功
     if (this.floats) {
