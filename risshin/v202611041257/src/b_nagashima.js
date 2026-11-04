@@ -541,8 +541,7 @@ function farBankDressing(rt, reed) {
   reeds.count = n; grass.count = g;
   for (const m of [reeds, grass]) { m.receiveShadow = true; m.frustumCulled = false; rt.scene.add(m); }
   // 堤の上と裏に群れる門徒（念仏の旗）。退城の組（z=-44）と対岸の弓衆（z=-51）の後ろ・脇に寄せる。
-  for (const [x, z, w, d, count, seed] of [[-40, CH_Z - 19, 10, 3, 30, 15761], [-14, CH_Z - 22, 8, 2, 20, 15762], [14, CH_Z - 22, 8, 2, 20, 15763], [64, CH_Z - 16, 8, 3, 24, 15764]])
-    W.addDistantArmy({ x, z, w, d, count, facing: 0, armor: IKKO.armor, team: 1, flagTex: flagTexture('namu'), seed, flagRate: .14 });
+  // 11/4 jin（AF・AP9）：近づくと消える絵の軍勢（addDistantArmy）はやめた。対岸の門徒は本物の退城の組と弓衆だけ。
 }
 // 輪中の奥の寺々（10/29）：中江の砦の裏と屋長島の裏に、願証寺と同じ茅の大屋根を二つ。霞の向こうに棟と念仏の旗が覗く。
 function farTemples(rt) {
@@ -1807,7 +1806,8 @@ const nagashima = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|降伏|火/.test(text),
-  missions: ['横木を直せ', '舟を見張れ', '柵の手前を守れ', 'この敵をたおせ', '東の柵を確かめよ', '対岸を見よ'],
+  missions: ['横木を直せ', '舟を見張れ', '柵の手前を守れ', '岸に上がった門徒を討て', '東の柵の縄を確かめよ', '岸と包囲の柵を守り切った'],
+  goalSignNoLabel: true,     // 11/4 jin：▼の上に字を出さない（kaito 10/23）
   missionOf(rt) {
     const F = rt.flags;
     if (F.ending) return 5;
@@ -1825,7 +1825,7 @@ const nagashima = {
   },
   missionHeading(rt) {
     const F = rt.flags, stage = this.missionOf(rt), p = rt.player.u.pos;
-    if (F.ending) return F.failureReason ? '持ち場を守れなかった' : '対岸を見よ';
+    if (F.ending) return F.failureReason ? '持ち場を守れなかった' : '岸と包囲の柵を守り切った';
     if (dangerProgress(rt)) return '味方の後ろへ下がれ';
     if (stage === 0) {
       const q = bankWorkSpot(rt);
@@ -1833,7 +1833,7 @@ const nagashima = {
     }
     if (stage === 4) {
       const q = CHECK_SPOTS[F.finalChecks.indexOf(false)];
-      return q && Math.hypot(p.x - q.x, p.z - q.z) >= 3 ? '東の柵の印へ' : '印で四秒待て';
+      return q && Math.hypot(p.x - q.x, p.z - q.z) >= 3 ? '東の柵の印へ' : '印で縄を確かめよ';
     }
     if (stage === 1) return watchingRiver(rt) ? '舟を見張れ' : '川を向いて見張れ';
     if (stage === 3 && this.commanderTarget(rt)) return '門徒の指揮役をたおせ';
@@ -2601,8 +2601,7 @@ const nagashima = {
     // 繋いだ舟は寺の船着場に残し、川口の封鎖は東の水軍と遠景の船団で示す。
     F.ganshoStruct = rt.army.addStruct({ x: GANSHO.x, z: GANSHO.z, r: 5, solidR: 0, hp: 220, maxHp: 220, armor: 0, team: 1, name: '願証寺の本堂', moraleOnBurn: 'big', flammable: true });
     // 既存の遠景の人数だけを保つ。砦の家や物見と重ならない広場へ寄せる。
-    for (const [x, z, w, d, count, seed] of [[53, -63, 8, 5, 40, 15747], [107, -76, 8, 5, 20, 15749], [-50, -55, 6, 2, 24, 15750], [48, -44, 5, 1, 24, 15751]])
-      W.addDistantArmy({ x, z, w, d, count, facing: 0, armor: IKKO.armor, team: 1, flagTex: flagTexture('namu'), seed, flagRate: .12 });
+    // 11/4 jin（AF）：砦の広場の絵の門徒（addDistantArmy）はやめた。籠もる者は本物の守兵と、煙と旗で示す。
     // 史実の放火は最後の下知でのみ行う。町・降伏する城を任務外の的にしない。
     for (const q of [F.kuraStruct, F.kuraStruct2, F.yanaStruct, F.ganshoStruct, F.karatoStruct, F.tsutsumiStruct, F.nakasuStruct]) { q.noTarget = true; q.fireProof = true; }
     F.fireTargets = [];
@@ -2645,13 +2644,11 @@ const nagashima = {
       for (const u of g.units) { u.perch = { x: u.pos.x, y: u.pos.y, z: u.pos.z }; u.noTarget = true; }
       F.bankBows.push(g);
     }
-    W.addDistantArmy({ x: 18, z: -82, w: 10, d: 10, count: 30, facing: 0, armor: IKKO.armor, team: 1, flagTex: flagTexture('namu'), seed: 15745, flagRate: .12 });
-    W.addDistantArmy({ x: -14, z: -78, w: 8, d: 8, count: 20, facing: 0, armor: IKKO.armor, team: 1, flagTex: flagTexture('namu'), seed: 15746, flagRate: .12 });
     // ---- こちらの岸：織田の陣（信長と旗本。後ろの大軍が控え） ----
     // 動かない控えは岸から後ろへ離す。目の前の反撃には、本当に戦う組だけを並べる。
     // 動かない控えは本陣の左右へ。岸の戦う兵のすぐ後ろに、棒状の近景を並べない。
     // 人数と短い槍は保ち、列の間隔も広げる。二月の籠城の炊ぎの煙は川向こうへ置く。
-    for (const [x, z, sd, k] of [[-44, BANK_Z + 68, 15752, 'oda'], [44, BANK_Z + 68, 15753, 'eiraku']]) W.addDistantArmy({ x, z, w: 14, d: 10, count: 30, spearScale: .65, facing: Math.PI, armor: 0x2a2622, team: 0, flagTex: flagTexture(k), seed: sd, flagRate: .12 }).army.noWake = true;
+    // 11/4 jin（AF）：本陣の左右の絵の控え（addDistantArmy）はやめた。本陣は信長と本物の旗本だけ。
     for (const [x, z, sz] of [[FORT.x + 6, FORT.z - 6, 1.8], [GANSHO.x, GANSHO.z, 2.2]]) W.addSmokeColumn(x, W.heightAt(x, z) + 3, z, { size: sz });
     F.odaCamp = camp(rt, { x: 0, z: 60, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: 0, z: BANK_Z + 8 } });
     // 北向きの本陣では、護衛も前（北）へ。共通の南向き配置をそのまま使わない。
@@ -2660,6 +2657,8 @@ const nagashima = {
     // 旗本は本陣を守る。指定がないと共通の頭が岸へ攻め出し、結った柵に取り付いてしまう。
     F.odaCamp.guard.guard = true;
     if (F.odaCamp.general) F.odaCamp.general.group.noAI = true;
+    // 11/4 jin（AV7・AT3）：総大将の信長は後ろの本陣の床几に座り、前へ出ない
+    if (F.odaCamp.general) F.odaCamp.general._crouch = true;
     for (const u of F.odaCamp.guard.units) {
       const at = F.odaCamp.guard.slotPos(u.slot, F.odaCamp.guard.initial);
       u.pos.set(at.x, W.heightAt(at.x, at.z), at.z); u.mesh.position.copy(u.pos);
@@ -3091,7 +3090,7 @@ const nagashima = {
     }
     // ---- 柴田勝家の手（自分の持ち場）と、柵を結う者 ----
     F.shiba = allyGroup(rt, { name: '柴田勝家の手', fixed: true, anchor: { x: 0, z: BANK_Z + 8 }, facing: Math.PI, width: 8, aggro: 10, formation: 'yari', yariRanks: 3 },
-      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: false } }, { type: 'ashigaru', n: 13 }, { type: 'bow', n: 4 }], { ...ODA, flag: NAMED_GEAR['柴田勝家'].flag }));
+      dress([{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'ashigaru', n: 13 }, { type: 'bow', n: 4 }], { ...ODA, flag: NAMED_GEAR['柴田勝家'].flag }));
     F.shibaU = F.shiba.units[0];
     F.teppo = allyGroup(rt, { name: '織田の鉄砲衆', fixed: true, anchor: { x: 34, z: BANK_Z + 6 }, facing: Math.PI, width: 6, formation: 'line', ranks: 2, aggro: 36, fire: false },
       dress([{ type: 'busho', n: 1, o: { name: '鉄砲組頭', invuln: true, horse: false } }, { type: 'gun', n: 10 }], ODA));
@@ -3102,7 +3101,7 @@ const nagashima = {
     // 三間半の朱柄は伝承による姿で、長島当日の得物の確証とはしない。個人の馬印は補わない。
     const reliefTroops = [{ type: 'ashigaru', n: 8 }];
     if (SETTINGS.quality === 'high') reliefTroops.unshift({ type: 'busho', n: 1,
-      o: { name: '前田利家', horse: false, invuln: true, flag: NAMED_GEAR['前田利家'].flag } });
+      o: { name: '前田利家', horse: true, invuln: true, flag: NAMED_GEAR['前田利家'].flag } });
     F.relief = allyGroup(rt, { name: '岸の助けの槍組', fixed: true, noAI: true, anchor: { x: 24, z: BANK_Z + 30 }, facing: Math.PI, formation: 'yari', yariRanks: 2, aggro: 0, fire: false }, dress(reliefTroops, ODA));
     for (const u of F.relief.units) {
       u.noTarget = true;
@@ -3149,11 +3148,7 @@ const nagashima = {
     // ---- 大軍（軽い作り）：輪中を囲む織田勢 ----
     // 背後へ自動で足す控えは長い槍の形が固定。岸から見える四隊は本体だけにし、
     // 控えと同じ短めの槍を使う。戦う兵・備えの位置・陣形への結び付けは保つ。
-    const DA = (x, z, w, d, count, facing, armor, flag, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), seed, flagRate: .12, spearScale: .65, host: false });
-    DA(-90, 0, 36, 24, 180, Math.PI * 0.65, 0x2a2622, 'oda', 15741);
-    DA(110, 4, 36, 24, 180, -Math.PI * 0.65, 0x2a2622, 'eiraku', 15742);
-    DA(0, 96, 52, 24, 240, Math.PI, 0x2a2622, 'oda', 15743);
-    DA(-150, -150, 36, 24, 160, Math.PI * 0.25, 0x2a2622, 'oda', 15744);
+    // 11/4 jin（AF・AP9）：輪中を囲む絵の織田勢（addDistantArmy）はやめた。囲みは柵・幟・安宅船と、本物の岸の手で示す。
     for (const [x, z] of [[-24, 50], [24, 52]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
 
     rt.world.setTime('day');

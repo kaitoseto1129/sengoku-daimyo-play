@@ -15,7 +15,7 @@ import { evPerson } from './b_ev6.js';
 // 自分は滝川の先手。谷道の押し合い → 崖道で鉄砲の合図 → 平屋敷の柵の口 → 最後の寄せ。
 // 向き：西南西から東北東への谷筋を +x に合わせて復元。田野は谷の奥。細かな寸法は推定。
 // ======================================================================
-import { nobori, hut, tawara, jinmaku } from './props.js';
+import { nobori, hut, tawara, jinmaku, jinCamp } from './props.js';
 import { flagTexture } from './textures.js';
 import { placeGroup } from './b_opening.js';
 import { RANKS } from './state.js';
@@ -95,16 +95,17 @@ function sonaePlan(name, team, honjin, facing, rows) {
 // 谷では大きな陣形を開けない。長蛇は道に沿う復元の呼び名で、史料の陣名ではない。
 const TANO_ATTACK = sonaePlan('長蛇', 0, { x: -188, z: 0 }, Math.PI / 2, [
   ['front', '先手の槍', '滝川一益の配下', 1700, -152, 0, Math.PI / 2, 'takigawa', 'takigawa'],
-  ['kawa', '第二陣', '滝川一益の配下', 1500, -208, 0, Math.PI / 2, 'oda', 'none'],
+  ['kawa', '第二陣', '河尻秀隆', 1500, -208, 0, Math.PI / 2, 'oda', 'none'],
   ['gun', '先手の鉄砲', '滝川一益の配下', 500, -168, 0, Math.PI / 2, 'takigawa', 'takigawa'],
   ['taki', '指揮所と近習', '滝川一益', 300, -188, 0, Math.PI / 2, 'takigawa', 'takigawa'],
 ]);
 const TANO_DEFEND = sonaePlan('谷道と平屋敷の守り', 1, { x: 138, z: -6 }, -Math.PI / 2, [
   ['valley', '谷道の殿', '名は伝わらない', 6, -40, 0, -Math.PI / 2, 'takeda', 'takeda'],
   ['rear', '殿の控え', '名は伝わらない', 8, -20, 0, -Math.PI / 2, 'takeda', 'takeda'],
-  ['tsuchiya', '崖道', '土屋昌恒', 9, 34, 2, -Math.PI / 2, 'takeda', 'takeda'],
+  // 11/4 jin（史跡の案内：下手の四郎作で小宮山友晴が討死→鳥居畑の激戦→土屋昌恒らが勝頼のそばで果てる）。
+  ['tsuchiya', '四郎作の崖道', '小宮山友晴', 9, 34, 2, -Math.PI / 2, 'takeda', 'takeda'],
   ['fence', '平屋敷の柵の口', '武田勝頼の配下', 10, 110, 0, -Math.PI / 2, 'takeda', 'takeda'],
-  ['last', '平屋敷の奥', '武田勝頼・武田信勝', 8, 136, 0, -Math.PI / 2, 'takeda', 'takeda'],
+  ['last', '平屋敷の奥', '土屋昌恒', 8, 136, 0, -Math.PI / 2, 'takeda', 'takeda'],
 ]);
 
 // 徒歩で狭い谷を守る姿。母衣は付けず、指物は肩幅ほどに収める。
@@ -386,7 +387,7 @@ function sendColumn(rt, at, phase) {
   roadOrder(F.tgun, at.x - (narrow ? 8 : 20), at.z, 'line');
   // 後詰の列頭を先手の後列と重ねない。射手と指揮の間にも一隊分の間を取る。
   // 合流の配置は保ち、先手の損耗時は既存の前線支援で後詰が歩いて寄せる。
-  roadOrder(F.taki, at.x - (phase === 'approach' ? 36 : narrow ? 56 : 52), at.z, 'ring');
+  // 11/4 jin（AR3・AT3）：総大将の滝川一益は後ろの本陣の床几から動かない。下知は組頭と使番が運ぶ。
   // 屋敷では後詰も西の口から北脇へ入る。三十四歩後ろの柵外に残さない。
   roadOrder(F.kawa, at.x - (phase === 'tano' ? 6 : phase === 'approach' ? 20 : narrow ? 38 : 34), at.z, 'yari');
 }
@@ -1054,7 +1055,8 @@ const tano = {
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   minutes: 6,
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
-  missions: ['先手の旗へ進め', '▼の敵を倒せ', 'ここで鉄砲を待て', '柵の口へ進め', '屋敷の奥へ進め'],
+  // 11/4 jin（AW3・AR1）：目標は段ごとに一文で固定（史実の順：谷道→四郎作→鳥居畑の柵→屋敷の奥）。途中で言い方を替えない。
+  missions: ['谷道の入口の滝川の先手へ進め', '谷道の武田の殿を先手と押し返せ', '四郎作の崖道で小宮山友晴の衆を破れ', '鳥居畑の柵の口へ攻め込め', '屋敷の奥で土屋昌恒の衆を退けよ'],
   missionOf(rt) {
     const F = rt.flags, C = F.dp?.cur;
     if (F.ending || !C || C.s.kind === 'move') return 0;
@@ -1065,16 +1067,8 @@ const tano = {
   },
   missionHeading(rt) {
     if (rt.flags.ending || rt.over) return rt.tracker.main ? '味方と集まれ' : '味方と退け';
-    const mission = this.missionOf(rt);
-    // 待ち場へ歩く間と、着いて射撃を待つ間を分ける。
-    // 敵が迫って接敵へ切り替わった時は、印と同じく敵を示す。
-    if (mission === 2) {
-      const at = rt.flags.dp.cur.waitAt, p = rt.player.u.pos;
-      return Math.hypot(p.x - at.x, p.z - at.z) > 4
-        ? p.x > at.x + 2 ? '鉄砲の待ち場へ下がれ' : '鉄砲の待ち場へ進め'
-        : this.missions[2];
-    }
-    return this.missions[mission];
+    const i = rt.flags.dp?.cur ? rt.flags.dp.i : 0;
+    return this.missions[Math.max(0, Math.min(this.missions.length - 1, i))];
   },
   // 勝頼は自害する大将。印だけを付け、討ち取りの的へ変えない。
   commanderSignTarget(rt) {
@@ -1086,27 +1080,36 @@ const tano = {
   foeMarkVisible: (rt, u) => u === rt.def.commanderSignTarget(rt),
   commanderTarget(rt) {
     const u = tanoNearestFoe(rt);
-    return u?.name === '土屋昌恒' ? u : null;
+    return u?.name === '小宮山友晴' || u?.name === '土屋昌恒' ? u : null;
   },
   namedGuideTarget(rt) { return this.commanderTarget(rt); },
   missionSignTarget(rt) { return tanoNearestFoe(rt); },
+  // 頭上の▼も同じ固定の所へ（近い敵の固まりへ動かさない）。字は添えない。
+  goalSignNoLabel: true,
+  // 地面・画面の矢印と旗の案内は出さない（BH6・AP12）。行き先は真上の▼一つ。
+  pinOnlyDestination: true,
+  goalTargetOverride(rt) {
+    const q = this.missionPin(rt);
+    if (!q) return null;
+    const t = rt.flags.tanoGoal || (rt.flags.tanoGoal = { x: 0, z: 0, action: '', unit: null, label: '', boss: false });
+    t.x = q.x; t.z = q.z;
+    return t;
+  },
+  // 11/4 jin（AW3・BK4・BH6）：行き先は段ごとの固定の所に真上の▼一つ。敵や曲がり角へ動かさない。
   missionPin(rt) {
     const F = rt.flags, C = F.dp?.cur, p = rt.player.u.pos;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     const q = F.tanoPin || (F.tanoPin = { x: 0, z: 0 });
-    const waiting = this.missionOf(rt) === 2;
-    const enemy = !waiting && C?.s.kind !== 'move' ? this.missionSignTarget(rt) : null;
-    const destination = waiting ? C.waitAt : enemy ? enemy.pos : C?.at || FIRST_JOIN;
+    const destination = C?.at || FIRST_JOIN;
+    // 柵の口・屋敷の脇を通る時だけ、その決まった通り口に▼を置く（通り口も固定の所。敵には付けない）。
     const route = valleyWay(rt.army, rt.player.u, destination);
     const turn = route !== destination && Math.hypot(route.x - p.x, route.z - p.z) > .6;
-    if (!turn && enemy && rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
     const pos = turn ? route : destination;
     q.x = pos.x; q.z = pos.z;
-    q.unit = !turn ? enemy : null; q.enemy = !!q.unit; q.route = turn;
-    q.waiting = q.defend = waiting && !turn;
-    q.always = true; q.silent = true; q.approach = !!enemy;
-    q.r = q.hide = turn ? .5 : enemy ? 3 : waiting ? 4 : C?.s.kind === 'move' ? 8 : 12;
-    q.arrived = !turn && Math.hypot(p.x - pos.x, p.z - pos.z) < q.r;
+    q.unit = null; q.enemy = false; q.route = turn; q.waiting = q.defend = false;
+    q.always = true; q.silent = true; q.approach = false;
+    q.r = q.hide = turn ? .5 : C?.s.kind === 'move' ? 8 : 12;
+    q.arrived = Math.hypot(p.x - pos.x, p.z - pos.z) < q.r;
     return q;
   },
   jinkei: [TANO_ATTACK, TANO_DEFEND],
@@ -1689,12 +1692,12 @@ const tano = {
     F.front = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の先手の槍', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[0]), facing: Math.PI / 2, width: 4, yariRanks: 4, aggro: 9, noAI: true, formation: 'yari' }, tanoAllyDress([uS(6), uA(18, 'naga')], { ...TANO_KIT, flag: 'takigawa' }));
     // 指揮所と後詰も既存の二間半を使う。装備配分は復元値。
     F.taki = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川一益と近習', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[3]), facing: Math.PI / 2, aggro: 4, noAI: true, guardOn: true, formation: 'ring' },
-      tanoAllyDress([{ type: 'busho', n: 1, o: { name: '滝川一益', horse: false, invuln: true, hat: 'kabuto_w' } }, uS(4), uA(4, 'naga')], { ...TANO_KIT, flag: 'takigawa' }));
+      tanoAllyDress([{ type: 'busho', n: 1, o: { name: '滝川一益', horse: false, invuln: true, hat: 'kabuto_w' } }, uS(8), uA(10, 'naga')], { ...TANO_KIT, flag: 'takigawa' }));
     F.taki.leader = F.taki.units.find((u) => u.type === 'busho');
     // 公記で追手を率いるのは滝川。後詰の持ち場を河尻本人の陣と断定しない。
     // 組頭の兵種・人数・下知は保ち、実名の将だけを推定の役名へ替える。
     F.kawa = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の後ろの手', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[1]), facing: Math.PI / 2, colW: 2, aggro: 12, noAI: true, ai: true, formation: 'column' },
-      tanoAllyDress([{ type: 'busho', n: 1, o: { name: '後詰の組頭', horse: false, invuln: true } }, uS(6), uA(13, 'naga')], ODA));
+      tanoAllyDress([{ type: 'busho', n: 1, o: { name: '河尻秀隆', horse: true, invuln: true } }, uS(6), uA(13, 'naga')], ODA));   // 11/4 jin（AV7・AY7）：二陣の河尻は馬上で旗本に囲まれて続く
     F.kawa.leader = F.kawa.units.find((u) => u.type === 'busho');
     F.taki.leader.allyOk = true; F.kawa.leader.allyOk = true;
     F.tgun = allyGroup(rt, { fixed: true, fullStrength: true, name: '滝川の鉄砲組', anchor: jinkeiPoint(TANO_ATTACK, TANO_ATTACK.sonae[2]), facing: Math.PI / 2, width: 3, ranks: 2, aggro: 6, noAI: true, order: 'hold' }, tanoAllyDress([{ type: 'gun', n: 6 }], { ...TANO_KIT, flag: 'takigawa', flagScale: 0.55 }));
@@ -1715,7 +1718,10 @@ const tano = {
     F.front.frontlineMobilize = true; F.kawa.frontlineMobilize = true;
     placeGroup(rt, F.front, -80, 0);
     placeGroup(rt, F.tgun, -94, -4);
-    placeGroup(rt, F.taki, -106, 0);
+    // 本陣は谷道の入口（初鹿野の側）。陣幕と床几、旗本が囲む。
+    rt.scene.add(jinCamp(W, -146, -2, { w: 12, d: 9, gap: 4, mon: 'takigawa', people: false, noUma: true }));
+    placeGroup(rt, F.taki, -146, 2);
+    F.taki.order = 'hold'; F.taki.anchor = { x: -146, z: 2 };
     placeGroup(rt, F.kawa, -118, 0);
     // 崖道は三列の幅しかない。先手の槍二十四人と組の三十人が同じ所で斬り合うと、笠と胴が重なって一枚に潰れて見えた
     // （10/29 点検表9：左の列が重なって潰れて見える）。この谷の組は二十人までにし、組の横と前後に一歩半の間を残す。
@@ -1731,9 +1737,11 @@ const tano = {
     F.defenders = [
       guard('谷道の武田勢', 0, [uS(6)], 8),
       guard('谷道の後ろの侍', 1, [uS(8)], 8),
-      guard('土屋昌恒の衆', 2, [{ type: 'busho', n: 1, o: { name: '土屋昌恒', horse: false, hat: 'kabuto_m' } }, uS(8)], 5),
+      // 11/4 jin：下手の四郎作の崖道は、勘気を解かれず駆け付けた小宮山友晴が守って討死した所（史跡の案内）。
+      guard('小宮山友晴の衆', 2, [{ type: 'busho', n: 1, o: { name: '小宮山友晴', horse: false, hat: 'kabuto_m' } }, uS(8)], 5),
       guard('田野の柵を守る侍', 3, [uS(10)], 7),
-      guard('武田の最後の侍', 4, [uS(5)], 4),
+      // 土屋昌恒は最後まで勝頼のそばで戦った（屋敷の奥の守り）。
+      guard('土屋昌恒の衆', 4, [{ type: 'samurai', n: 1, o: { name: '土屋昌恒', horse: false, hat: 'kabuto_m', weapon: 'spear', reach: 3.4 } }, uS(4)], 4),
     ];
     // 奥の五人は柵が落ちるまでは屋敷の控え。先の段で討ち尽くさない。
     placeGroup(rt, F.defenders[4], 134, -8);
@@ -1742,8 +1750,6 @@ const tano = {
     F.principals = enemyGroup(rt, { fixed: true, noAI: true, faction: 'takeda', name: '武田父子の居所', anchor: { x: 138, z: -6 }, facing: -Math.PI / 2, aggro: 0, noRout: true, stay: true, formation: 'column', civ: true },
       tanoGuardDress([{ type: 'busho', n: 1, o: { name: '武田勝頼', horse: false, flagScale: 1.4, noTarget: true, invuln: true } }, { type: 'samurai', n: 1, o: { name: '武田信勝', horse: false, noTarget: true, invuln: true } },
         // 紙（battle_events_1101）：勝頼の妻・北条夫人も田野で果てる。小袖の姿（はなと同じ作り）。
-        // 小宮山友晴は父子のそばに初めから置く（名簿から足すと谷道の組へ入り、開戦から名札が浮いた。11/3）。最期は父子と同じ。
-        { type: 'busho', n: 1, o: { name: '小宮山友晴', horse: false, hat: 'kabuto_m', noTarget: true, invuln: true } },
         { type: 'samurai', n: 1, o: { name: '北条夫人', horse: false, noTarget: true, invuln: true, weapon: 'sword', kosode: 1, kosodeCol: 0x6a4a5a, hat: 'none', flag: null, haori: 0, sode: false, kote: 0, menpo: 0 } }]));
     // 無名の侍の呼び名は仮名。本人と同じ名を避け、実名の土屋は保つ。
     const names = ['源六', '平八', '彦七', '新八', '又六', '弥三郎', '喜助'];
@@ -1760,10 +1766,9 @@ const tano = {
       if (g.isPlayerSquad) { g.spacing = 2; g.rankSpacing = 1.5; g.width = 3; }
     }
     rt.setPhase('brief');
-    rt.obj('main', '谷道の入口の織田の先手に加わり、崖道へ向かう', 'main');
-    rt.marker('dp', FIRST_JOIN, '谷道の先手', { h: 3, alwaysDistance: true });
+    rt.obj('main', tano.missions[0], 'main');
     rt.banner('谷の奥に、武田の最後の旗', '勝頼父子は田野の屋敷にいる');
-    rt.say('滝川一益', '前の旗へ続け。川へ下りず、谷道の敵を押せ', 4);
+    rt.say('滝川の組頭', '殿（滝川一益）の下知じゃ。前の旗へ続け。川へ下りず、谷道の敵を押せ', 4);
     // 紙：勝頼は新府城を焼いて逃れ、頼った小山田信茂に拒まれ、天目山を目指して田野へ。小山田は織田へ降り、後ろに控える。
     rt.after(2, () => { if (!F.ending && !rt.over) rt.say('使番', '勝頼は新府の城に火をかけて逃げた。頼った小山田にも笹子で拒まれたそうじゃ', 4.5); });
     rt.after(8, () => { if (!F.ending && !rt.over) rt.say('使番', '勝頼は天目山を目指して田野へ。信忠様の下知じゃ、逃すな', 4); });
@@ -1776,11 +1781,11 @@ const tano = {
     F.started = true;
     // 初めからいる守兵と到着で進める。果たせない任務は失敗として閉じる。
     const steps = [
-      { phase: 'approach', kind: 'move', at: FIRST_JOIN, label: '谷道の先手', text: '進み太鼓と法螺に従い、先手へ' },
-      { phase: 'valley', kind: 'hold', at: { x: -46, z: 0 }, guards: [0, 1, 3], label: '谷道の先手', text: '先手と谷道の敵を退けよ' },
-      { phase: 'narrow', kind: 'hold', at: { x: 22, z: 2 }, guards: [2], label: '土屋昌恒の崖道', text: '射手の後ろで鉄砲の合図を待て' },
-      { phase: 'fence', kind: 'fight', at: { x: 98, z: 0 }, guards: [3], label: '田野の柵の口', text: '出てくる敵を退け、柵の口へ' },
-      { phase: 'tano', kind: 'hold', at: { x: 124, z: -8 }, guards: [4], label: '屋敷の奥', text: '柵の口から入り、奥の敵を退けよ' },
+      { phase: 'approach', kind: 'move', at: FIRST_JOIN, label: '谷道の先手', text: tano.missions[0] },
+      { phase: 'valley', kind: 'hold', at: { x: -46, z: 0 }, guards: [0, 1, 3], label: '谷道の先手', text: tano.missions[1] },
+      { phase: 'narrow', kind: 'hold', at: { x: 22, z: 2 }, guards: [2], label: '四郎作の崖道', text: tano.missions[2] },
+      { phase: 'fence', kind: 'fight', at: { x: 98, z: 0 }, guards: [3], label: '鳥居畑の柵の口', text: tano.missions[3] },
+      { phase: 'tano', kind: 'hold', at: { x: 132, z: -8 }, guards: [4], label: '屋敷の奥', text: tano.missions[4] },
     ];
     // 手当てができる命の六割未満に合わせる。六割台で退いて待ち続けない。
     F.dp = { on: true, i: -1, steps, ctx: { friends: () => F.oda, routeFight: true, botTreatAt: 0.6, botSeek: 100, botSeekHold: true,
@@ -1826,12 +1831,7 @@ const tano = {
     // 交戦中は到着点へ振り返らせない。敵を退けたら組をそろえる印を戻す。
     const current = D.cur;
     // 射撃待ちの印は槍の待機位置。射手より前の寄せ口へ案内しない。
-    rt.marker('dp', () => current.seeking || current.routeTurn ? null : current.waiting ? current.waitAt : s.at,
-      () => current.waiting ? F.tgun.order !== 'hold' ? '鉄砲を待つ印' : '射手の後ろの待ち場' : s.label, { h: 3, alwaysDistance: true });
-    // 混戦でも最寄りの敵一人だけを短い名で示す。旗のない侍も見失わせない。
-    // 父子・次の持ち場は示さず、到着の印と同時には出さない。距離は近くで省く。
-    rt.marker('tanoEnemy', () => D.on && !F.ending && current.seeking && !current.routeTurn ? current.enemyAt : null,
-      '', { red: true, h: 2.6 });   // 字は出さない（敵は赤い印だけで分かる）
+    // 11/4 jin：印は missionPin の▼一つだけ（敵を追う赤い印・曲がり角の印・持ち場の名札は出さない）。
     rt.zone('dp', s.at.x, s.at.z, s.kind === 'move' ? 8 : 12);
     sendColumn(rt, s.at, s.phase);
     for (const g of groups) {
@@ -2042,12 +2042,10 @@ const tano = {
     C.routeTurn = route !== destination && Math.hypot(route.x - p.x, route.z - p.z) > 0.6;
     C.yardTurn = inYard(p.x, p.z) !== inYard(destination.x, destination.z);
     C.houseTurn = C.routeTurn && inYard(p.x, p.z) && inYard(route.x, route.z);
-    if (passed) rt.unmark('dp');
     if (!passed && C.routeTurn) {
       // 移動用の座標は退避・接敵でも書き換わる。表示には段ごとの座標を使う。
       C.turnAt.x = route.x; C.turnAt.z = route.z;
-      rt.marker('turn', C.turnAt, C.houseTurn ? '屋敷の脇' : C.yardTurn ? '柵の口' : '谷道', { h: 3 });
-    } else rt.unmark('turn');
+    }
     // 敵が残る間に先手の近くで支えた事を数える。到着後の待ちだけでは手柄にしない。
     if (!clear && inside && distance < 25 && Math.hypot(p.x - C.goal.x, p.z - C.goal.z) < 25) C.support += elapsed;
     // 討った・着いた更新で次へ。空の持ち場で三〜五秒待たせない。
@@ -2057,7 +2055,7 @@ const tano = {
     if ((near || C.s.phase === 'valley' || C.s.phase === 'narrow') && clear && ready) {
       // 間に合わなかった段は手柄を付けず、敵を退けた先手に続く。
       if (C.s.kind !== 'move' && (C.support >= 3 || C.playerKills)) {
-        const label = C.s.phase === 'valley' ? '谷道の先手を支えた' : C.s.phase === 'narrow' ? '土屋昌恒の守る崖道を開いた' : C.s.phase === 'fence' ? '田野の柵の口を押さえた' : '屋敷の奥への道を押さえた';
+        const label = C.s.phase === 'valley' ? '谷道の先手を支えた' : C.s.phase === 'narrow' ? '四郎作の崖道を開いた' : C.s.phase === 'fence' ? '鳥居畑の柵の口を押さえた' : '屋敷の奥への道を押さえた';
         rt.award((t) => t.side.push(label), label);
       } else if (C.s.kind === 'move') rt.award((t) => { t.special = { label: '谷道の先手に合流した', pts: 5 }; }, '谷道の先手に合流した');
       this.next(rt);
@@ -2169,7 +2167,7 @@ tano.skip = (rt) => {
 };
 // 人数には史料の異同がある。父子を含む四十一人という配分はこの戦の復元。
 // 織田の総勢・各将の持ち場・川幅・道幅・光・鉄砲の合図・火・下知の台詞は補完。
-tano.history = '天正十年三月十一日。信長公記は、滝川一益の軍が田野の平屋敷を囲み、武田の侍が打って出たと記す。土屋昌恒らは戦い続けた。勝頼、信勝、北条夫人は田野で命を絶った。\n信長公記の侍は四十一人。侍女らは別に記され、四十一人が一行の総人数という意味ではない。父子を含めた守兵の配分と、織田方の四千人・備えごとの人数は遊びのための推定である。人数や最期の様子には別の伝えもある。\n崖道の「片手千人斬り」は後の伝え。道幅や鉄砲の合図、後詰の組頭と武将の下知は復元である。午前の時刻・日差し・天気も推定で、当日の晴天を確定したものではない。景徳院は戦の後に建てられた。\n甲斐の武田家はここで終わった。およそ三か月後、京の本能寺で信長の運命も変わる。';
+tano.history = '天正十年三月十一日。信長公記は、滝川一益の軍が田野の平屋敷を囲み、武田の侍が打って出たと記す。下手の四郎作では小宮山友晴が討死し、鳥居畑で最も激しく戦った。土屋昌恒らは勝頼のそばで最後まで戦った。勝頼、信勝、北条夫人は田野で命を絶った。\n信長公記の侍は四十一人。侍女らは別に記され、四十一人が一行の総人数という意味ではない。父子を含めた守兵の配分と、織田方の四千人・備えごとの人数は遊びのための推定である。人数や最期の様子には別の伝えもある。\n崖道の「片手千人斬り」は後の伝え。道幅や鉄砲の合図、滝川・河尻の持ち場と下知は復元である。午前の時刻・日差し・天気も推定で、当日の晴天を確定したものではない。景徳院は戦の後に建てられた。\n甲斐の武田家はここで終わった。およそ三か月後、京の本能寺で信長の運命も変わる。';
 tano.botBrain = (b, inp, { goTo }) => {
   inp.quickCmd = null;
   if (!b.player.u.alive || b.flags.ending) return;

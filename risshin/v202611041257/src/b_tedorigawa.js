@@ -29,6 +29,7 @@ import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, hold, depthBot } from './b_depth.js';
 import { uS, uA, uC, round, gunLine, camp } from './b_mid.js';
 import { sightUnit } from './battle_sight.js';
+import { goalTarget } from './goals5.js';
 import { timeslipField } from './timeslip_field.js';
 import { liteMat, sway } from './world_vegetation_materials.js';
 import { TEDORIGAWA_KACCHU } from './kacchu_data.js';
@@ -97,6 +98,8 @@ const FLOW = RIVER.slice(1).map((b, i) => {
 });
 const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
 const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
+const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の火へ退け'];
+const BANK_Z = SOUTH.z - 8;                // 南岸の土手の登り（z 26 から乾いた土手。11/4：手前の斜面で守っても数えない食い違いをなくす）
 // 増水で水の回った手取川の古い流れ筋（霞堤の内へ逆流した分流）。持ち場から北を向いた画面の手前に見せる（10/28 点付け：川が画面に無い）。
 // 川床は浅く掘るだけ（膝より下）。水深の当たりや渡河の判定には入れない。道の所は浅瀬の砂の色。
 const CHANNEL = [[-96, -46], [-60, -48], [-28, -52], [4, -55], [34, -53], [64, -50], [100, -45]];
@@ -1545,7 +1548,7 @@ function riverTorches(W) {
 function riverFacingHint(rt, C) {
   if (!rt.flags.dp?.on || !C?.at || C.isolatedT > 0 || C.breachT > 0) return false;
   // 南岸では上陸を先にし、着いてから実際の追手へ向き直らせる。
-  if (C.at.z >= 0 && (rt.player.u.pos.z < SOUTH.z - 4 ||
+  if (C.at.z >= 0 && (rt.player.u.pos.z < BANK_Z ||
       rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z))) return false;
   // 遠い射手だけでは向き直らせず、持ち場と渡る味方の案内を残す。
   if (C.faceYaw == null || !(C.nearFoes > 0 || C.frontThreat)) return false;
@@ -1621,6 +1624,16 @@ const tedorigawa = {
     return F.step === 2 && this.missionSignTarget(rt) ? 5 : Math.min(F.step || 0, 4);
   },
   missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  // 11/4：頭上の札は「篝火」の火の字で「印へ進め」にならないよう、段ごとの行いで書く（AR1）。
+  goalTargetOverride(rt) {
+    const d = rt.def, own = d.goalTargetOverride;
+    d.goalTargetOverride = null;
+    try {
+      const t = goalTarget(rt);
+      if (t && !t.unit) t.action = TEDO_ACTIONS[d.missionOf(rt)] || t.action;
+      return t;
+    } finally { d.goalTargetOverride = own; }
+  },
   // 地図と戦場の大将印だけに使う。無敵の本陣へ討取りのピンを向けない。
   commanderSignTarget(rt) {
     const u = rt.flags.ehon?.general;
@@ -1656,7 +1669,9 @@ const tedorigawa = {
     q.unit = u; q.enemy = !!u; q.defend = false;
     q.waiting = hold && !u; q.always = hold && !u; q.silent = true;
     q.x = u ? u.pos.x : at.x; q.z = u ? u.pos.z : at.z;
-    q.r = q.hide = u ? 2 : F.dp?.on && C ? C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;
+    // 南岸の持ち場は、岸へ上がって初めて着いた扱い（川原の手前で「着いた」と見せて守りを数えない食い違いをなくす。bot 11/4）。
+    const offBank = C?.s.tedoWaitCross && (p.z < BANK_Z || rt.world.inWaterAt(p.x, p.z));
+    q.r = q.hide = u ? 2 : F.dp?.on && C ? offBank ? 2 : C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;
     q.arrived = !u && hold && Math.hypot(p.x - at.x, p.z - at.z) < q.r;
     return u && rt.player.inRange && rt.player.rangeCueTarget === u ? null : q;
   },
@@ -1737,7 +1752,7 @@ const tedorigawa = {
     if (text === rt.objectives.find((o) => o.id === 'dp' && !o.state)?.text) {
       // 南岸の守りでも、流されて川へ戻ったら上陸を先にする。
       if (F.dp?.on && C?.s.tedoWaitCross &&
-          (rt.player.u.pos.z < SOUTH.z - 4 || rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)))
+          (rt.player.u.pos.z < BANK_Z || rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)))
         return '川から上がり、南岸の火へ戻れ';
       // 列が危ない時は、普段の待機や槍の案内より立て直しを先に伝える。
       if (F.dp?.on && C?.isolatedT > 0) return '囲まれるぞ！　槍を向けたまま味方へ下がれ';
@@ -1830,7 +1845,7 @@ const tedorigawa = {
     // 向き直り・構えの下知は本文に残し、補足で渡る列の様子を伝える。
     // 川の中や持ち場の外では、元の上陸・呼び戻しを優先する。
     if (Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.postRadius &&
-        (!C.s.tedoWaitCross || rt.player.u.pos.z >= SOUTH.z - 4 &&
+        (!C.s.tedoWaitCross || rt.player.u.pos.z >= BANK_Z &&
           !rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)) &&
         (riverFacingHint(rt, C) || C.frontThreat && !rt.player.guard)) {
       const crossing = F.mainCross < 100 ? `本隊の渡河 ${Math.floor(F.mainCross / 10)}割` :
@@ -2451,7 +2466,7 @@ const tedorigawa = {
     shelterGeneral(F.shiba, F.shibaU);
     F.others = [
       allyGroup(rt, { fixed: true, name: '丹羽長秀の手', anchor: { x: -30, z: -60 }, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: 'sujikai' } }, { type: 'samurai', n: 1, o: { name: '氏家直昌', flag: null } }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], ODA)),
-      allyGroup(rt, { fixed: true, name: '前田利家の手', anchor: { x: 32, z: -62 }, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 3 }], { flag: 'maeda' })),
+      allyGroup(rt, { fixed: true, name: '前田利家の手', anchor: { x: 32, z: -62 }, facing: 0, width: 12, aggro: 3, noRout: false, formation: 'column', colW: 2 }, dress([{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true } }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 3 }], { flag: 'maeda' })),
     ];
     for (const g of F.others) shelterGeneral(g, g.units[0]);
     for (const g of [F.shiba, ...F.others]) { g.defMult = 1; g.dmgMult = 1; }
@@ -3050,7 +3065,7 @@ const tedorigawa = {
       F.crossCheckT = rt.t + 1; F.crossRemaining = 0; F.crossed = 0; F.crossStranded = 0;
       fordTick(rt);
       for (const g of F.crossGroups) for (const u of g.units) if (u.alive && !u.gone) {
-        if (u.pos.z >= SOUTH.z - 4 && !rt.world.inWaterAt(u.pos.x, u.pos.z)) F.crossed++;
+        if (u.pos.z >= BANK_Z && !rt.world.inWaterAt(u.pos.x, u.pos.z)) F.crossed++;
         else if (u.woundOut || u.fleeing) F.crossStranded++;
         else F.crossRemaining++;
       }
@@ -3833,11 +3848,13 @@ function tedoHold(o) {
       rt.obj('dp', `鉦二つで${RETREAT_NAMES[o.line]}に踏みとどまれ。北へ槍を向け、退く味方を守れ`, 'main', true);
     }
     // 南岸では川へ戻ったまま守備を終えない。決着時の上陸判定とそろえる。
-    const onSouthBank = !o.waitCross || p.z >= SOUTH.z - 4 && !rt.world.inWaterAt(p.x, p.z);
+    const onSouthBank = !o.waitCross || p.z >= BANK_Z && !rt.world.inWaterAt(p.x, p.z);
     // 呼び戻しは印と札の範囲にそろえる。逆襲の九歩の外で黙って待たせない。
     const inRing = onSouthBank && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.postRadius;
     C.awayT = inRing ? 0 : (C.awayT || 0) + dt;
     if (inRing) C.inT += dt;
+    // 持ち場の火で踏みとどまるのが殿の働き。共通の「止まったまま四十五秒」の時間切れで負けにしない（bot 11/4：南岸で守って「取り残された」で失敗）。
+    if (inRing && rt._idleP) rt._idleP.t = rt.t;
     // 迷ったままでも呼び戻す。川の中では下の上陸の声だけにし、重ねない。
     if (onSouthBank && el > 8 && C.awayT > 8 && rt.t >= (F.absenceAt || 0) &&
         !F.tedoQueuedSignal.kind && rt.t >= (F.tedoSignalUntil || 0) && rt.t >= (F.tedoCallUntil || 0)) {

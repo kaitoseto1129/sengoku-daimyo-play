@@ -476,6 +476,18 @@ import { jinkeiBuild } from './jinkei.js';
 
 // 備えごとの人数・細かな持ち場は復元値。総勢とは別に本物の兵を増やさない。
 // 名の伝わらない持ち場に架空の将を置かず、旗と紋は既存の家の物で示す。
+// 本陣の大将は陣幕の内の床几に座る（徒・動かない）。陣幕と旗本は共通の camp、大将だけこの戦で置く（kaito AR3・AV7）。
+function seatedCamp(rt, o) {
+  const gn = o.general, c = camp(rt, { ...o, general: null });
+  c.guard.name = gn.name + 'の旗本';
+  const g = rt.army.addGroup({ team: o.team, faction: o.faction, order: 'hold', name: gn.name + 'の本陣', anchor: { x: o.x, z: o.z - (o.d || 12) / 2 + 3 },
+    facing: o.facing, aggro: 0, width: 1, morale: 100, noRout: true, fixed: true, noAI: true });
+  rt.army.spawn(g, [{ type: 'busho', n: 1, o: { name: gn.name, invuln: true, horse: false, ...(gn.hat ? { hat: gn.hat } : {}) } }]);
+  c.general = g.units[0] || null;
+  if (c.general) { g.leader = c.general; c.general._crouch = true; c.general._nest = true; }
+  return c;
+}
+
 function sonaePlan(name, team, honjin, facing, rows) {
   const sn = Math.sin(facing), cs = Math.cos(facing);
   return { name, team, honjin, facing, sonae: rows.map(([id, role, general, soldiers, x, z, face, flag, mon, count = 0, w = 14, d = 8]) => ({
@@ -509,8 +521,9 @@ const TOTTORI_ATTACK = sonaePlan('付城と兵糧の道の囲み', 0, TAIKO, -Ma
   ['hidenaga', '丸山方面の囲み', '羽柴秀長', 4000, -132, -210, Math.PI / 2, 'oda', 'none'],
   // 栗谷側は本人の持ち場のすぐ脇。近づくと消える軽い兵を置かず、柵と岸の本物の組だけで見せる（count 0）。
   ['kuridani', '栗谷側の付城', '名は伝わらない', 4000, -24, -12, Math.PI, 'oda', 'oda', 0, 14, 9],
-  ['engoji', '円護寺側の付城', '名は伝わらない', 3000, -36, -186, Math.PI / 2, 'oda', 'oda', 18, 24, 14],
-  ['karigane', '雁金山の宮部・垣屋の備え', '宮部継潤', 3000, 28, -210, Math.PI, 'oda', 'oda', 18, 18, 10],
+  // 11/4：円護寺・雁金山の軽い兵の塊も、歩いて近づくと消える見せかけなので置かない（kaito AV4・AP9）。数と将の名は布陣の記録だけに残す。
+  ['engoji', '円護寺側の付城', '名は伝わらない', 3000, -36, -186, Math.PI / 2, 'oda', 'oda', 0, 24, 14],
+  ['karigane', '雁金山の宮部・垣屋の備え', '宮部継潤', 3000, 28, -210, Math.PI, 'oda', 'oda', 0, 18, 10],
 ]);
 const TOTTORI_DEFEND = sonaePlan('山上と麓の守り', 1, { x: CASTLE.x, z: CASTLE.z }, 0, [
   ['honjin', '本陣', '吉川経家', 500, CASTLE.x, CASTLE.z, 0, 'mori', 'mori'],
@@ -1656,7 +1669,15 @@ const tottori = {
   speechAllowed: (rt) => !!rt.flags.ending || rt.over,
   bannerAllowed: (rt) => !!rt.flags.ending || rt.over,
   compactMapAllies: true, mapCommanderAlways: true,
-  missions: ['味方と集まれ', '舟を焼け', '▼の敵を倒せ', '岸を守れ', '柵へ戻れ', '柵を守れ', '使いに続け', '木戸へ進め'],
+  // 11/4：場所と行いの言い方に（kaito AR1・AW3）。「味方と集まれ」「▼の敵を倒せ」は何をする所か分からない。
+  missions: ['川岸の組へ行け', '舟に火をかけよ', '舟の番を討て', '千代川の岸を守れ', '柵へ戻れ', '柵の口を守れ', '使いに続け', '木戸へ進め'],
+  goalSignOnly: true,  // 行き先は頭上の金の▼一つだけ（地面の矢印・持ち場の輪を出さない。BH6）
+  kumiLead: false,     // 組頭の青い印も出さない（印は一つ。AV15）
+  noFrontFill: true,   // 作り物の乱戦を足さない（AR7）
+  noHatamotoMass: true,   // 将の後ろの軽い作りの備を置かない（見える兵は全部本物。AF）
+  stageGoalsOnly: true,   // 目標は三段（舟を焼く・柵の口・使いを木戸へ）だけ。「敵を何人討つ」で埋めない（AW3）
+  // 頭上の▼の札も、今の目標と同じ場所と行い（「印へ進め」では何の印か分からない。AR1）
+  goalSignAction(rt) { return this.missionHeading(rt); },
   missionOf(rt) {
     const F = rt.flags;
     if (F.step === 0) return 0;
@@ -1669,7 +1690,9 @@ const tottori = {
   missionHeading(rt) {
     if (rt.flags.ending || rt.over) return rt.tracker.main ? '鳥取城、開く' : '味方と退け';
     if (rt.flags.step === 1 && bankNeedsReturn(rt)) return '岸へ戻れ';
-    return this.missions[this.missionOf(rt)];
+    const m = this.missionOf(rt);
+    if (m === 2 && rt.flags.step >= 2) return '柵の口の城兵を討て';
+    return this.missions[m];
   },
   missionSignTarget: tottoriNearestFoe,
   // 経家は城内の大将として示す。討ち取りの目標にはせず、開城の史実を保つ。
@@ -2260,7 +2283,8 @@ const tottori = {
     if (n) rt.makeSquad({ x: -26, z: 22 }, -Math.PI / 2, [{ kind: 'spear', n }]);
     // ---- 太閤ヶ平の本陣と大軍（軽い作り） ----
     // 秀吉は東の陣城に置き、経家は山上に置く。近い組への命令は組頭・伝令が伝える。
-    F.honjin = camp(rt, { x: TAIKO.x, z: TAIKO.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀吉', hat: 'kabuto_bari' }, guard: 15, reserve: 16, runTo: { x: -20, z: 20 } });
+    // 11/4：総大将は太閤ヶ平の陣幕の内で床几に座り、旗本に守られて前に出ない（kaito AR3・AV7）。陣の外の軽い控えは置かない。
+    F.honjin = seatedCamp(rt, { x: TAIKO.x, z: TAIKO.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀吉', hat: 'kabuto_bari' }, guard: 22, reserve: 0, runTo: { x: -20, z: 20 } });
     // 太閤ヶ平は攻めの本陣だけでなく、毛利の後詰が来た時の大きな野戦にも備える堅い陣城。内郭を大きな土塁で囲む
     // 南大手・東搦手を開け、北には口を作らない。
     const west = TAIKO.x - TX - TB, east = TAIKO.x + TX + TB;
@@ -2297,13 +2321,13 @@ const tottori = {
       noT(wallLine(rt, [[TAIKO.x - TX - TAIKO.bankW - 12, TAIKO.z + off], [70, CASTLE.z + off]], { team: 0, hp: 1e9, name: '竪土塁', segLen: 10 }));
       // 土塁の形は高さの関数にある。柵の下に模型を重ねて二重に盛らない。
     }
-    F.ehon = camp(rt, { x: CASTLE.x, z: CASTLE.z, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '吉川経家', hat: 'kabuto_m' }, guard: 15, reserve: 10, runTo: { x: GATE.x, z: GATE.z - 8 } });
+    F.ehon = seatedCamp(rt, { x: CASTLE.x, z: CASTLE.z, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '吉川経家', hat: 'kabuto_m' }, guard: 15, reserve: 0, runTo: { x: GATE.x, z: GATE.z - 8 } });
     // 本の城図にある高い登り旗で城将の居所を示す。既存の材質を使い、支度時だけ置く。
     rt.scene.add(nobori(W, CASTLE.x + 3, CASTLE.z + 3, 'mori', 9));
     // 丸山方面の秀長は西の付城から城へ向く。既存の旗本・控えを移し、兵は増やさない。
-    F.hidenaga = camp(rt, { x: -132, z: -210, compact: true, facing: Math.PI / 2, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀長' }, guard: 15, reserve: 10, runTo: { x: -132, z: -180 } });
+    F.hidenaga = seatedCamp(rt, { x: -132, z: -210, compact: true, facing: Math.PI / 2, team: 0, faction: 'oda', mon: 'oda', general: { name: '羽柴秀長' }, guard: 15, reserve: 0, runTo: { x: -132, z: -180 } });
     // 番所の戸口と襖に旗竿の束を重ねず、幕の外を通れる陣にする。
-    F.nasa = camp(rt, { x: -28, z: -222, compact: true, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '奈佐日本之介' }, guard: 15, reserve: 10, runTo: { x: -30, z: -186 } });
+    F.nasa = seatedCamp(rt, { x: -28, z: -222, compact: true, facing: 0, team: 1, faction: 'mori', mon: 'mori', general: { name: '奈佐日本之介' }, guard: 15, reserve: 0, runTo: { x: -30, z: -186 } });
     F.castleGuards = [['森下道誉', GATE.x + 24, GATE.z - 18], ['中村春続', CASTLE.x + 12, CASTLE.z - 6]].map(([name, x, z]) => {
       const g = enemyGroup(rt, { fixed: true, noAI: true, faction: 'mori', name: name + 'と近習', anchor: { x, z }, facing: 0, width: 3, formation: 'ring', aggro: 4 },
         dress([{ type: 'busho', n: 1, o: { name, invuln: true, horse: false } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], KIKKAWA));
@@ -2311,11 +2335,12 @@ const tottori = {
       return g;
     });
     F.jinHosts = buildSonae(rt, this.jinkei);
-    // 千代川の西岸にも羽柴の囲みの列と篝火（兵糧の舟を通さない川の封鎖。位置と人数は推定）。軽い遠景の兵だけ。
-    for (const [x, z, w, count, seed] of [[-100, -30, 30, 46, 15901], [-104, 4, 22, 30, 15902]]) {
-      const h = W.addDistantArmy({ x, z, w, d: 6, count, facing: Math.PI / 2, team: 0, armor: 0x2e2822, flagTex: flagTexture('oda'), mon: 'oda', kind: 'mixed', seed });
-      h.army.noWake = true;
-    }
+    // 千代川の西岸の浅野長吉の陣（山彦館：西岸に吉川平介・浅野長吉・杉原家次が陣を張り、賀露と丸山の道を断つ）。
+    // 11/4：近づくと消える軽い列をやめ、本物の兵で置く。浅野は馬上で旗本に囲まれ、川越しに舟の番へ鉄砲を向ける（kaito AV4・AR4・AV9）。
+    F.asano = allyGroup(rt, { fixed: true, noAI: true, noRout: true, name: '浅野長吉の手', anchor: { x: -100, z: -22 }, facing: Math.PI / 2, width: 8, formation: 'line', order: 'hold', aggro: 0, morale: 95 },
+      dress([{ type: 'busho', n: 1, o: { name: '浅野長吉', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 6 }], ODA));
+    F.asano.leader = F.asano.units.find((u) => u.name === '浅野長吉');
+    if (F.asano.leader) { F.asano.leader.campProtected = true; F.asano.leader.noTarget = true; }
     {
       const westFires = [[-92, -44], [-93, -18], [-95, 12]];
       rt.scene.add(kagaribiBatch(W, westFires));
@@ -2355,9 +2380,8 @@ const tottori = {
         const face = Math.atan2(-fx, -fz);
         mel(allyGroup(rt, { fixed: true, fullStrength: true, name: '羽柴の押さえ' + tag + k, anchor: { x: mx - fx * 2.2, z: mz - fz * 2.2 }, facing: yaw, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100 },
           dress([{ type: 'samurai', n: 1, o: KUMIGASHIRA }, { type: 'ashigaru', n: 8 }], ODA)));
-        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '柵へ迫る城兵' + tag + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
-          dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6 } }, { type: 'ashigaru', n: 8, o: { cdBase: 2.4, windup: 0.65 } }], HUNGRY)));
-        hungryLook(e);
+        const e = mel(enemyGroup(rt, { fixed: true, faction: 'mori', name: '舟の荷揚げの兵' + tag + k, anchor: { x: mx + fx * 2.2, z: mz + fz * 2.2 }, facing: face, order: 'hold', width: 6, formation: 'yari', aggro: 9, morale: 100, fleeDir: { x: fx, z: fz } },
+          dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6 } }, { type: 'ashigaru', n: 8, o: { cdBase: 2.4, windup: 0.65 } }], KIKKAWA)));   // 舟で来た吉川の手。飢えた城兵の姿にしない
         W.addFire(mx - fz * 4, mz + fx * 4, { torch: true, h: 1.6, size: .7, smoke: false, lightRadius: 26, lightColor: 0xffa060, lightStrength: 2.8, lightDecay: 0 });
     };
     // 開戦25秒の画面（持ち場から舟の番へ寄った所。カメラは北北西を向く）の真ん中、本人の前8〜18mの岸の上（舟の番の右手）で、
@@ -2373,8 +2397,7 @@ const tottori = {
       rt.scene.add(kagaribiBatch(W, kp));
       for (const [x, z] of kp) W.addFire(x, z, { torch: true, h: 1.3, lightRadius: 24, lightColor: 0xff9a48, lightStrength: 3.0, lightDecay: 0 });
     }
-    // 百十秒の押し合いは始めから南の岸（舟の番の脇を抜けて川上の船べりへ回る道の先）に置く（10/30：開戦25秒に南を向いても乱戦が入る。兵の数は同じ）
-    [[-36.0, -47.0], [-44.0, -53.0]].forEach(([x, z], k) => pairAt(x, z, Math.PI, 'β', k));
+    // 11/4：川上の岸で終わらずに押し合い続ける二組（β）はやめた。岸で戦うのは舟の番・荷揚げの兵と、それに懸かる羽柴の組だけ。
     // 主殿と陣所の床・護衛の持ち場を保ち、軽い備えから兵を追加しない。
     for (const g of rt.army.groups) {
       g.noAI = true;
@@ -2400,6 +2423,8 @@ const tottori = {
     F.env = allyGroup(rt, { name: '秀吉の使い', fixed: true, anchor: { x: 0, z: FENCE_Z + 8 }, facing: Math.PI, width: 1.4, colW: 1, roadColumn: true, followColumnRoad: true, aggro: 0, noRout: true, noAI: true, order: 'hold', formation: 'column', speed: 1.6, civ: true },
       [{ type: 'samurai', n: 1, o: { name: '使いの侍', flag: null } }, { type: 'porter', n: 2, o: { flag: null } }]);
     for (const u of F.env.units) { u.noTarget = true; u.invuln = true; u.dmg = 0; }
+    // 使いの名札は使いの段（③）まで出さない。柵の口を守る間に「味方 使いの侍」の札を重ねない（印は一つ。AV15）。
+    F.envName = F.env.units[0]?.name; if (F.env.units[0]) F.env.units[0].name = '';
     // 月を少し高く置き、槍の影が岸を端から端まで走る黒い線にならないようにする。月明かりは岸の兵と石垣の形が読める明るさ（10/30 採点：暗すぎる）。
     // 月と反対を向いた胴・船べりにも空の光を残す。月の影と夜空は保つ。
     // 11/1 夕（鳥取70：暗くて見えない）：青い霞が岸一面を灰色に塗り、群れの形が溶けていた。夜空と霞を青みの無い炭色へ、
@@ -2417,7 +2442,7 @@ const tottori = {
       W.stars.geometry.setDrawRange(0, 180);
     }
     rt.setPhase('brief');
-    rt.obj('main', HI(rt) ? '川岸の組へ進み、一手をそろえよ' : '川岸の組へ合流せよ', 'main', true);
+    rt.obj('main', '千代川の川岸の組へ行け', 'main', true);
     this.siegeScene(rt, '鳥取城を囲んで四か月', '山の城へ米を運ぶ舟。今夜は、この岸を守る');
     rt.say('組頭', '川面の灯りを見よ。米舟二艘を焼くぞ。まず、わしらの列へ', 5);
     // 紙（battle_events_1101）：囲む前に因幡の米を高く買い集め、補給の道を断った事と、経家の入城を戦の前に。
@@ -2615,8 +2640,8 @@ const tottori = {
     for (const leaf of F.gateDoor.userData.leaves) leaf.rotation.y = 0;
     for (let i = 1; i <= 3; i++) rt.unmark('s' + i);
     rt.award((t) => t.side.push('柵の口を守った'), '柵の口を守った');
-    rt.obj('main', '柵の口を守り、秀吉方の使いが来るのを待つ', 'main', true);
-    rt.objProgress('main', '城兵は退いた。追わず、ここで待て');
+    rt.obj('main', '柵の口を守れ。城へ退く者は追うな', 'main', true);
+    rt.objProgress('main', '城兵は退いた。追わず、柵の口に立て');
     rt.banner('城兵が退いた', '追わずに柵の口を守れ');
     rt.after(4, () => { if (F.step === 2.5 && !F.ending && !rt.over) this.envoy(rt); });
   },
@@ -2761,6 +2786,7 @@ const tottori = {
     rt.objProgress('main', '幾日か後の朝。開城の返事を届ける');
     battleEvent(rt, EVENT_MESSENGER, GATE, null, 0, true, '秀吉方の使いが城へ返答に向かう');
     const g = F.env;
+    if (g.units[0] && F.envName) g.units[0].name = F.envName;
     // 使いは斬り合いの対象外だが、護送の到着では本人と人足の歩みを待つ。
     g.arriveNoncombat = true;
     g.order = 'path'; g.path = [[GATE.x, FENCE_Z + 8], ...CASTLE_ROADS[0].slice(1), [GATE.x, GATE.z + 6]]; g.pathIdx = 0;

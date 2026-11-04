@@ -609,7 +609,7 @@ const sig = (v) => 1 / (1 + Math.exp(-v));
 // 犀ヶ崖（台地の南の端に刻まれた深い谷）。東の端は浅く、道はその東を下る（崖は登れず、道を通る）
 const RETREAT_ROAD = [[10, 60], [14, 104], [14, 136], [0, 171]];
 // 城が見える坂の下でも、通り過ぎた崖へ呼び戻す札にしない。
-const RETREAT_LABELS = ['南の坂の道印へ', '崖の東の道印へ', '坂を下る道印へ', '浜松城の口へ'];
+const RETREAT_LABELS = ['南の坂へ', '崖の東の道へ', '坂の下の道へ', '浜松城の口へ'];
 // 先に下った隊を、坂の上へ呼び戻さない。下知の時だけ道を作る。
 function retreatGroup(g, speed = 3) {
   if (!g || !g.count || g.routed) return;
@@ -1009,7 +1009,8 @@ const mikatagahara = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|討ち死|帰着|取り残/.test(t),
-  missions: ['ここで敵を待て', '持ち場で敵をふせげ', '赤備えをふせげ', '浜松城へ退け', 'ここで追手を防げ'],
+  // 11/4 jin（AR1・AW3）：場所と行いで言う。「ピン」「印」「▼」の字は使わない
+  missions: ['平手の持ち場で武田を待て', '持ち場で武田の寄せを防げ', '右の森の際で赤備えを受けよ', '浜松城の口へ退け', '南の坂で追手を防げ'],
   // 討った・着いた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     if (!mikataPost(rt)) return 3;
@@ -1022,7 +1023,7 @@ const mikatagahara = {
     const F = rt.flags, post = mikataPost(rt);
     if (!post) return F.step >= 3 ? '浜松城へ退け' : '南の坂へ退け';
     if (Math.hypot(rt.player.u.pos.x - post.x, rt.player.u.pos.z - post.z) >= mikataPostRadius(rt))
-      return F.step === 2 && F.mkFlank ? '味方と森の印へ進め' : '印の持ち場へ戻れ';
+      return F.step === 2 && F.mkFlank ? '味方と右の森の際へ進め' : '平手の槍の持ち場へ戻れ';
     if (F.dpOn && F.dpB) return '味方が下るまで守れ';
     return mikatagahara.missions[mikatagahara.missionOf(rt)];
   },
@@ -1086,7 +1087,7 @@ const mikatagahara = {
     matchNearScale: true, // 近くの姿へ替えても、子・大人・年寄りの背丈を保つ。
     nearKinds: ['farmer', 'merchant', 'townsman', 'woman', 'child', 'monk', 'elder'],
   },
-  introText: '武田の大軍が三方ヶ原に寄せる。ピンの持ち場で寄せを支え、退けの声で浜松城へ退け。',
+  introText: '武田の大軍が三方ヶ原に寄せる。平手の槍の持ち場で寄せを支え、退けの声で浜松城へ退け。',
   nobiki: true, // 負け戦の退き口：法螺貝と退き太鼓で退けを知らせる（battle.js の signalCue）
   noticeOnce: true,
   noticeLimit: 2,
@@ -1860,6 +1861,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     F.campB = camp(rt, { x: 0, z: TAKEDA_JIN.honjin.z, facing: 0, team: 1, faction: 'takeda', mon: 'takeda', armor: AR.takeda, tate: false, noUma: true, general: { name: '武田信玄', hat: 'kabuto_m', haori: 0x8a1a14 }, depth: false, guard: 15, reserve: 0, runTo: { x: 0, z: TAKEDA_HQ_Z - 20 } });
     // 徳川の本陣（鶴翼の後ろ）：徳川家康と旗本。鶴翼が破れると浜松城へ退く
     F.campA = camp(rt, { x: 0, z: 0, facing: Math.PI, team: 0, faction: 'tokugawa', mon: 'tokugawa', armor: AR.tokugawa, compact: true, tate: false, general: { name: '徳川家康', hat: 'kabuto_m', haori: 0x6a5a2a }, guard: 15, reserve: 0, runTo: { x: -40, z: LINE_Z - 4 } });
+    // 11/4 jin（AV7）：総大将は後方の本陣の幕の前で床几に座る（寄せられる・動くと立つ。army_anim）
+    for (const H of [F.campA, F.campB]) if (H.general) H.general._crouch = true;
     // 本陣の旗本は、整った陣形のまま静かに待つ（寄ってきた敵にだけ向き直る。前へ出て乱れない）
     for (const H of [F.campA, F.campB]) for (const g of [H.guard, H.general && H.general.group]) if (g && g.count) { g.order = 'hold'; g.formation = 'line'; g.aggro = 6; g.seekRange = 10; }
     // 共通の本陣は護衛を南側に置く。北向きの家康の護衛は敵側へ戻す。
@@ -2177,7 +2180,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     sfx('kane', 0.4);
     rt.banner('織田の援軍、退く', F.flankBroken ? '隣の備えが崩れ、浜松城へ退く' : '武田の寄せを受け、浜松城へ退く');
     rt.after(8, () => { if (!F.ending) rt.say('組頭', '散るな！　組の者と連れ立って下れ！', 3); });
-    rt.say('組頭', '浜松へ退け！　崖は下るな。東の道の印を追え！', 4);
+    rt.say('組頭', '浜松へ退け！　崖は下るな。東の道から城の口へ走れ！', 4);
     // 紙 13：徳川の敗走・平手汎秀の討死・家康が浜松城へ逃げ帰る（家康は負ける）
     rt.after(2, () => { if (!F.ending) rt.say('本多忠勝', '殿、ここは支えまする。浜松へお退きくだされ！', 3.5); });
     rt.after(5, () => { if (!F.ending) rt.say('徳川家康', '……退け、浜松へ退け！', 3); });
@@ -2190,8 +2193,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.after(11, () => { if (!F.ending) rt.say('酒井忠次', '殿は城へ入られた。門を開けて待つ。走れ！', 3.5); });
     // 目の前の組頭の声と同時に札を替える。使番待ちで坂の守りの札を残さない。
     rt.obj('main', HI(rt) ? '一手を率い、浜松城へ退け' : '追手を避け、浜松へ退け', 'main', true);
-    F.retreatPoint = { x: 10, z: 60 }; F.retreatIdx = 0;
-    while (F.retreatIdx < RETREAT_ROAD.length - 1 && rt.player.u.pos.z > RETREAT_ROAD[F.retreatIdx][1]) F.retreatIdx++;
+    // 11/4 jin（BK4）：行き先は浜松城の口に固定する。南の坂から城の口へまっすぐ下る線は犀ヶ崖（x<-24）から三十歩離れる
+    F.retreatPoint = { x: 10, z: 60 }; F.retreatIdx = RETREAT_ROAD.length - 1;
     F.retreatPoint.x = RETREAT_ROAD[F.retreatIdx][0]; F.retreatPoint.z = RETREAT_ROAD[F.retreatIdx][1];
     rt.army.mikataRetreatGoal = F.retreatPoint;
     rt.marker('hama', () => F.retreatPoint, () => RETREAT_LABELS[F.retreatIdx], { h: 3, guideAlways: true });
@@ -2391,16 +2394,19 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         if (g.order === 'path') g.speed = Math.hypot(g.anchor.x - guard.anchor.x, g.anchor.z - guard.anchor.z) > 24 ? (g.anchor.z > guard.anchor.z ? 2.4 : 3.2) : 3;
       }
     }
-    // 10/30：本人が先手に槍を当てるか討つまで、赤備えの段へ進めない（立っているだけでは段が進まない）
+    // 本人が槍を当てた記録。味方が先手を退けた場合は、下の持ち場の判定でも次へ進める。
     { const sw = rt.player.u.swing; if (sw?.target?.team === 1 && sw.res && sw.res !== 'miss') F.foughtStep = F.step; }
     if (F.dpOn || F.ifOn) return;
     if (F.step === 1) {
-      // この後も後詰を受ける。先手の刻限を、城へ退く刻限とは案内しない。
-      if (!F.dpOn) rt.objProgress('main', `${isTouch ? '長押しでふせぐ' : '右押しを押し続けてふせぐ'}。次の下知まで最大${Math.max(0, Math.ceil(55 - (rt.t - F.stepT)))}秒`);
+      // 敵が残れば下知は待つ。零秒で止まる刻限を出さず、今する守りを伝える。
+      if (!F.dpOn) rt.objProgress('main', `${isTouch ? '長押しでふせぐ' : '右押しを押し続けてふせぐ'}。味方と列を保て`);
       if (F.w1.count < 6 && !gone(F.w1)) F.w1.morale = Math.min(F.w1.morale, 25);
       // 武田の奥へ出たことを記録する。別の勝ち筋にはしない。
       if (!F.overchase && p.z < -85) F.overchase = true;
-      if (F.foughtStep === 1 && ((gone(F.w1) && (gone(F.scout) || rt.t - F.stepT > 18)) || rt.t - F.stepT > 55)) this.deep(rt, 'A');
+      // 槍列で守っている間に味方が先手と物見を退けても、当てる相手を失って足止めされない。
+      const heldLine = gone(F.w1) && gone(F.scout) &&
+        Math.hypot(p.x - HIRATE_POST.x, p.z - HIRATE_POST.z) < 25 && rt.t - F.stepT > 18;
+      if ((F.foughtStep === 1 || heldLine) && ((gone(F.w1) && (gone(F.scout) || rt.t - F.stepT > 18)) || rt.t - F.stepT > 55)) this.deep(rt, 'A');
     }
     if (F.step === 2) {
       if (!F.akaEngaged) for (const q of F.aka.units) {

@@ -2090,7 +2090,7 @@ const JIN = [
     ['kizu', '木津口方面の押さえ（人数不明）', '荒木村重', null, -190, -140, 'oda', 'oda', 48, { w: 16, d: 10, kind: 'spear', facing: -Math.PI / 2 }],
   ], '信長公記巻九（三）（四）。後詰三段が約三千。砦守備と木津口の押さえは別の持ち場で、人数不明。各段への人数の割り振りも不明'),
   rosterPlan('本願寺方の備え（砦の囲み・城戸口の控え）', 1, SHIMO, 0, [
-    ['rairen', '城戸口の控え（推定）', '本願寺の将（名は不明）', null, SHIMO.x, SHIMO.z, HONGAN_FLAG, HONGAN_FLAG, 260, { bind: 'ehon.guard' }],
+    ['rairen', '城戸口の控え（推定）', '下間頼廉', null, SHIMO.x, SHIMO.z, HONGAN_FLAG, HONGAN_FLAG, 260, { bind: 'ehon.guard' }],
     // 公記巻九（四）の数千挺の鉄砲による抵抗を、西の囲みの遠景にも補う。
     // 西への配分は推定。既存の二百六十体を替え、位置・幅・実兵の斬り合いは保つ。
     // https://ja.wikisource.org/wiki/信長公記
@@ -2100,7 +2100,7 @@ const JIN = [
     ['east', SETTINGS.quality === 'high' ? '砦の東の囲み・鉄砲（推定）' : '砦の東の囲み', '本願寺の将（名は不明）', null, 60, -70, HONGAN_FLAG, HONGAN_FLAG, 260, { w: 14, d: 26, kind: SETTINGS.quality === 'high' ? 'gun' : 'spear', facing: fortFacing(60, -70) }],
     // 公記の数千挺の鉄砲を北の囲みにも示す推定配置。既存の軽い兵を替え、総数は保つ。
     ['north', SETTINGS.quality === 'high' ? '砦の北の囲み・鉄砲（推定）' : '砦の北の囲み', '本願寺の将（名は不明）', null, 0, -120, 'namu', HONGAN_FLAG, 320, { w: 26, d: 12, kind: SETTINGS.quality === 'high' ? 'gun' : 'mixed', facing: fortFacing(0, -120) }],
-    ['saika', '西の鉄砲の備え', '本願寺の鉄砲頭（名は不明）', null, -84, -22, 'namu', HONGAN_FLAG, 200, { w: 16, d: 10, kind: 'gun', facing: fortFacing(-84, -22) }],
+    ['saika', '西の鉄砲の備え', '鈴木孫一', null, -84, -22, 'namu', HONGAN_FLAG, 200, { w: 16, d: 10, kind: 'gun', facing: fortFacing(-84, -22) }],
     ['rear', '城戸口の前の後備え', '本願寺の将（名は不明）', null, -6, KIDO.z + 10, 'namu', HONGAN_FLAG, 460, { w: 32, d: 14 }],
     // 公記巻九（四）は住吉口からの突破でも数千挺の鉄砲による抵抗を記す。
     // 南だけ槍兵一色にせず、既存の軽い二百二十体を鉄砲へ。配分・持ち場は推定。
@@ -2376,7 +2376,8 @@ const tennoji = {
   } } },
   jinkei: JIN,
   noWake: true,
-  noHorse: true, // 狭い門と土橋を守り、先手の足軽と打って出る局地は徒歩で表す。
+  // 11/4：名のある将は馬上（AY7・AV7）。砦の曲輪の中の明智・信栄だけ徒（horse: false）。
+  noCouriers: true, // 騎馬の使番を狭い門と曲輪の中へ走り込ませない（下知は声と札で出す）。
   noTaishoRaid: true,
   holdLine: true, // 城戸口で勝っても、共通の追撃で木戸の内へ踏み込まない。
   noDistantBattle: true,
@@ -2417,7 +2418,6 @@ const tennoji = {
     // 高画質は tennojiSkyline で方角ごとに縮める。二重に縮めて峰を地面へ沈めない。
     mountainScale: SETTINGS.quality === 'high' ? 1 : 0.18,
     mountainHaze: 0.65,
-    noHorse: true, // 実名による自動乗馬も止め、後詰の将を門内へ騎馬で押し込まない。
     distantFootOnly: true, // 後詰の軽い兵も徒歩にそろえ、砦へ続く列へ無名の騎馬を重ねない。
     ordinaryFlagStride: 4, // 無名の長柄足軽は四人に一本。隊の幟・武将・自分の組は保つ。
     wholeInfantrySilhouette: true, // 軽い姿へ戻る兵も脚を隠さず、門外で胴だけを浮かせない。
@@ -2690,8 +2690,8 @@ const tennoji = {
       dress([{ type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '佐久間信栄', invuln: true, horse: false, hat: 'hachimaki' } }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2 }], ODA));
     // ---- 三段の後詰。南の住吉口から北へ進む。信長本人は先手の足軽に交じる ----
     F.nobu = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '先手に交じる信長の手', anchor: { x: 4, z: 80 }, order: 'hold', facing: Math.PI, width: 14, aggro: 12, noRout: false },
-      // 信長公記の先手の足軽に交じる姿。狭い門でも徒歩の道を使う。
-      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2 }], ODA));
+      // 信長公記の先手の足軽に交じる姿。名のある将は馬上（AY7・kaito 11/3）。
+      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2 }], ODA));
     F.nobuU = F.nobu.units[0];
     // 公記では信長の手は門徒を切り崩して砦へ入った。士気の数字だけで背を向けて負けにせず、本当に討ち減らされた時だけ崩れる（bot の半分がここで負けていた 10/28）
     F.nobu.noRout = true;
@@ -2703,10 +2703,10 @@ const tennoji = {
       rt.say('足軽', '殿が撃たれた！　……いや、殿は旗を下げぬ。続け！', 3);
     };
     F.saku = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '一段目・佐久間と若江衆', anchor: { x: -8, z: 72 }, order: 'hold', facing: Math.PI, width: 12, aggro: 10, noRout: false },
-      // 門へ突入する局地は徒歩で表す。馬が柱と槍の間で竿立ちを繰り返さない。
-      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { name: '松永久秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '細川藤孝', invuln: true } }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 2 }], ODA));
+      // 名のある将は馬上（AY7）。砦の曲輪の中（籠城の明智・信栄）だけ徒。
+      dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { name: '松永久秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '細川藤孝', invuln: true } }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 2 }], ODA));
     F.taki = allyGroup(rt, { fixed: true, fullStrength: true, formation: 'yari', guard: true, guardLeash: 6, name: '二段目・滝川らの手', anchor: { x: 16, z: 98 }, order: 'hold', facing: Math.PI, width: 12, aggro: 10, noRout: false },
-      dress([{ type: 'samurai', n: 1, o: { name: '滝川一益', invuln: true, horse: false, hat: 'kabuto_w' } }, { type: 'samurai', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '蜂屋頼隆', invuln: true } }, { type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '氏家左京助', invuln: true } }, { type: 'samurai', n: 1, o: { name: '伊賀伊賀守', invuln: true } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }, { type: 'gun', n: 2 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '滝川一益', invuln: true, hat: 'kabuto_w' } }, { type: 'samurai', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'samurai', n: 1, o: { name: '丹羽長秀', invuln: true } }, { type: 'samurai', n: 1, o: { name: '蜂屋頼隆', invuln: true } }, { type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true } }, { type: 'samurai', n: 1, o: { name: '氏家左京助', invuln: true } }, { type: 'samurai', n: 1, o: { name: '伊賀伊賀守', invuln: true } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }, { type: 'gun', n: 2 }], ODA));
     F.oda = [F.nobu, F.saku, F.taki, F.ake];
     // 公記では先陣の佐久間・松永と二番の滝川らは門徒を押し崩した。士気の数字だけで背を向けず、討ち減らされた時だけ崩れる（bot の負けの多くがここ 10/28）
     F.saku.noRout = F.taki.noRout = true;
@@ -2723,11 +2723,12 @@ const tennoji = {
     }
     // ---- 砦を囲む本願寺勢 ----
     // 南の囲みは門へ進む道の始点から出す。初戦までの余分な三十メートルを省く。
+    // 名の伝わらない侍大将・鉄砲頭は名を付けない（討っても「討ち取ったり」を出さない・AY7）。侍大将は馬上（11/1 C）。
     F.ringA = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name: '囲みの門徒', anchor: { x: -8, z: -20 }, facing: fortFacing(-8, -20), order: 'hold', aggro: 16, width: 18, morale: 80, fleeDir: { x: -0.3, z: -1 }, dmgMult: 0.75 },
-      dress([{ type: 'samurai', n: 1, o: { name: '南の囲みの侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 2 }], IKKO));
+      dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 2 }], IKKO));
     // 公記巻九（四）は大坂方の鉄砲戦を記す。所属も本願寺にそろえ、雑賀衆とは断定しない。
     F.gunA = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name: '本願寺の鉄砲', anchor: { x: 20, z: -6 }, facing: fortFacing(20, -6), order: 'hold', aggro: 40, width: 14, morale: 90, fleeDir: { x: 0.3, z: -1 }, dmgMult: 1 },
-      dress([{ type: 'samurai', n: 1, o: { name: '本願寺の鉄砲頭' } }, { type: 'gun', n: 6 }], SAIKA));
+      dress([{ type: 'samurai', n: 1, o: {} }, { type: 'gun', n: 6 }], SAIKA));
     // 門の口から南西の原を見ると、囲みの門徒の群れが土塁の外に詰めて見える（10/29 採点：門の外の原が空いていた）。人数と位置は推定。
     F.ringW = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 4, faction: 'honganji', name: '西の囲みの門徒', anchor: { x: -32, z: -36 }, facing: fortFacing(-32, -36), order: 'hold', aggro: 9, width: 16, morale: 80, fleeDir: { x: -1, z: 0.3 }, dmgMult: 0.75 },
       dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 2 }], IKKO));
@@ -2776,10 +2777,12 @@ const tennoji = {
     // 公記同条は敵の将名と指揮系統を記さない。城戸口の控えは氏名不明の将として補う。城戸口の後ろに置き、前の斬り合いには出さない。
     // 金扇の馬印も同条では確認できない。共通の陣が自動で置く印を借りず、既存の幟を目印にする。
     // 控えの背旗もそろえる。共通の門徒の装いは本願寺と同じ配色で、旗だけが違う。
-    F.ehon = camp(rt, { x: SHIMO.x, z: SHIMO.z, facing: 0, team: 1, faction: SETTINGS.quality === 'high' ? 'ikko' : 'honganji', mon: HONGAN_FLAG, noUma: true, armor: 0x3a342c, general: { name: '本願寺の将（名は不明）', hat: 'kabuto_m', haori: 0x4a4236 }, guard: 15, reserve: 0, runTo: { x: KIDO.x, z: KIDO.z + 30 } });
+    F.ehon = camp(rt, { x: SHIMO.x, z: SHIMO.z, facing: 0, team: 1, faction: SETTINGS.quality === 'high' ? 'ikko' : 'honganji', mon: HONGAN_FLAG, noUma: true, armor: 0x3a342c, general: { name: '下間頼廉', hat: 'kabuto_m', haori: 0x4a4236 }, guard: 15, reserve: 0, runTo: { x: KIDO.x, z: KIDO.z + 30 } });
     F.ehon.guard.name = '城戸口の控え';
     F.ehon.general.keepInvuln = true;
     F.ehon.general.noTarget = true;
+    // 下間頼廉：『言継卿記』天正四年五月八日条の「大坂之左右之大将」の一人。城戸口の後ろの控えの陣に馬上で控え、旗本に守られ前へ出ない（AV7）。
+    //   総大将の顕如は本願寺の内で、戦場に出さない。
     F.ehon.general.group.guard = true; F.ehon.general.group.guardLeash = 2;
     F.ehon.guard.guard = true; F.ehon.guard.guardLeash = 6;
     this.prepare(rt);
@@ -3168,7 +3171,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       return g;
     };
     // 本隊と本願寺の鉄砲衆は一度に構える。本隊の後ろには門徒の大軍（軽い作り）
-    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { name: '本隊の侍大将', hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
+    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
     mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 2 }], SAIKA));
     F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 4 }], IKKO));
     F.kidoG = [];
@@ -3177,7 +3180,7 @@ html body #hud.tennoji-tasks #battle-notices:not(.choosing) #objectives.keep-com
       F.kidoG.push(g);
       return g;
     };
-    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { name: '殿の侍大将', hat: 'kabuto_m' } }, { type: 'ashigaru', n: 4 }], IKKO));
+    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 4 }], IKKO));
     add(KIDO.x + 22, KIDO.z + 6, '木戸の本願寺の鉄砲', dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }], SAIKA));
     F.fighters = [...F.oda, F.fgun, F.rearGuard, F.honjin.guard];
     F.defenders = [F.ake, F.fgun, F.rearGuard];
@@ -4432,8 +4435,10 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   botWalk(p, inp, c.x + 2, c.z + 4, 3, goTo);
 };
 
-// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。塙直政は五月三日に討死・荒木は木津口の押さえ・顕如は本願寺の内・下間頼廉は断定しないので出さない。
+// 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。塙直政は五月三日に討死・荒木は木津口の押さえ・顕如は本願寺の内。下間頼廉は城戸口の控えの陣の将（F.ehon）として出す。
 tennoji.bushou = ['鈴木孫一'];
+// 鈴木孫一は雑賀の鉄砲衆の頭。門前の斬り合いの群れではなく、砦の東の鉄砲の隊に馬上で付ける（11/4）。
+tennoji.famous = [{ name: '鈴木孫一', g: /^本願寺の鉄砲$/, horse: true }];
 // 11/2 点付け「名札の重なり」：門の奥へ百歩以上見通すので、外で待つ後詰の将の名まで十枚が門の上に積み重なった。名札は近い五十五歩の内だけ。
 tennoji.nameRange = 55;
 export { tennoji };

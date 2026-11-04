@@ -2028,6 +2028,7 @@ const shigisan = {
   // 共通の「味方の小勢・敵の小勢」（六人ずつ湧く見せかけ）は足さない（AQ・AT・AW6）。城兵は曲輪の持ち場の本物だけ。
   frontlineDensity: false,
   pinOnlyDestination: true,
+  goalSignOnly: true, // 11/4：行き先は頭上の金の▼一つだけ（持ち場のピンの上向きの矢印を重ねない。AV15・BH6）
   singleDestinationArrow: true, // 行き先の印一つに、足元からの道の矢印を重ねない（⑧・AJ）。
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,
@@ -2848,11 +2849,11 @@ const shigisan = {
     F.honjin = camp(rt, { x: 0, z: 142, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信忠', hat: 'kabuto_m', haori: 0x7a1d14 }, guard: 15, reserve: 200, runTo: { x: 2, z: 92 } });
     F.honjin.guard.anchor.z = 127; F.honjin.guard.guard = true; F.honjin.guard.guardLeash = 12;
     // kaito 11/1 の紙：信長（本陣）を必ず出す。麓の本陣の奥、信忠の脇に床几を据える。頭上に名。
-    F.lordCamp = allyGroup(rt, { name: '信長の床几', fixed: true, noHunt: true, anchor: { x: 10, z: 150 }, facing: Math.PI, width: 3, order: 'hold', aggro: 2, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, { type: 'samurai', n: 2 }], ODA));
-    // 明智光秀は西尾根の仕寄りの前に立つ（片岡城を落とした手）。
-    F.akechiG = allyGroup(rt, { name: '明智光秀の手', fixed: true, noHunt: true, anchor: { x: -62, z: 30 }, facing: Math.PI, width: 4, order: 'hold', aggro: 4, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, flag: 'akechi' } }, { type: 'samurai', n: 3, o: { flag: 'akechi' } }], ODA));
+    F.lordCamp = allyGroup(rt, { name: '信長の床几', fixed: true, noHunt: true, anchor: { x: 10, z: 150 }, facing: Math.PI, width: 5, order: 'hold', aggro: 2, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, { type: 'samurai', n: 8 }], ODA));   // 床几の周りに近習の侍（O：大将は一人で置かない）
+    // 明智光秀は西尾根の仕寄りの備えの後ろ（麓の側）に馬上で控える（片岡城を落とした手）。備えの塊に重ねない。名のある将は旗本に囲ませる（AW6・AV7）。
+    F.akechiG = allyGroup(rt, { name: '明智光秀の手', fixed: true, noHunt: true, anchor: { x: -70, z: 41 }, facing: Math.PI, width: 6, order: 'hold', aggro: 4, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, keep: true, horse: true, flag: 'akechi' } }, { type: 'samurai', n: 10, o: { flag: 'akechi' } }], ODA));
     F.tsuCamp = camp(rt, { ...TSUTSUI_CAMP, facing: Math.PI, team: 0, mon: 'igeta', general: { name: '筒井順慶' }, guard: 15, reserve: 0, runTo: { x: 2, z: 80 } });
     // 旗本は南の口を守る。閉じた北の幕を横切る持ち場へ動かさない。
     F.tsuCamp.guard.guard = true; F.tsuCamp.guard.guardLeash = 12;
@@ -3433,7 +3434,7 @@ const shigisan = {
   update(rt, dt) {
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52], front: [-3, -61, -1.83] }) || [];
+    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52] }) || [];   // 11/4（AA）：門前の道の鞍部の描いただけの一組（front）はやめる。門前は本物の打って出る兵と斬り合う
     const F = rt.flags;
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
@@ -4302,6 +4303,12 @@ function armyBackdrop(rt, o) {
   const clear = (x, z, r) => {
     if (W.inWaterAt && (W.inWaterAt(x, z) || W.inWaterAt(x + sx * r * .5, z + sz * r * .5) || W.inWaterAt(x - sx * r * .5, z - sz * r * .5))) return false;
     for (const u of rt.army.units) if (u.alive && Math.abs(u.pos.x - x) < r && Math.abs(u.pos.z - z) < r) return false;
+    // 11/4（AA）：遊ぶ人が歩いて行ける所（門の内・本丸の周り・登城道と尾根道の脇）には描いただけの兵を置かない。
+    if (z < GATE.z + 6 || Math.hypot(x - TOP.x, z - TOP.z) < TOP.r + 45) return false;
+    for (const L of WALK_LINES) for (let i = 1; i < L.length; i++) {
+      const [ax, az] = L[i - 1], bx = L[i][0] - ax, bz = L[i][1] - az, t = Math.max(0, Math.min(1, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz || 1)));
+      if (Math.hypot(ax + bx * t - x, az + bz * t - z) < r + 12) return false;
+    }
     const h = W.heightAt(x, z);
     return Math.abs(W.heightAt(x + sx * r * .5, z + sz * r * .5) - h) < 6 && Math.abs(W.heightAt(x - sx * r * .5, z - sz * r * .5) - h) < 6;
   };

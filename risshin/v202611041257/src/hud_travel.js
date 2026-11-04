@@ -10,6 +10,7 @@ export class HudTravel {
   drawTravelGuide(g, rt, pos, radius, ally, showLabel = true, retreat = false, routeOnly = false, goalPos = pos) {
     const W = VIEW.w, H = VIEW.h, p = rt.player.u.pos;
     if (!ally && !retreat) setClass(this.root, 'travel-guide', true);
+    if (rt.def.noTravelArrow) return false;   // 11/4 kaito AV15・BH6：行き先は真上の▼だけ。足元・端の矢印は描かない
     const cache = this.travelGuide || (this.travelGuide = {
       scout: { id: 0, pos: p }, goal: { x: 0, y: 0, z: 0 },
       arrow: new Float32Array(14), at: -1, gx: Infinity, gz: Infinity, valid: false

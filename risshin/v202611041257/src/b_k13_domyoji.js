@@ -9,7 +9,10 @@
 // 見せかけの軍勢（軽い作りの大軍・奥の乱戦・段の敵の後ろの控え）は置かない。見える兵は全部本物（kaito 11/3 AA・AF・AQ6）。
 // 段：①小松山の斜面の鉄砲組を破る ②頂の後藤又兵衛を討つ ③道明寺の野で薄田兼相の手を討つ ④誉田で真田・毛利の寄せを伊達勢と受け止める ⑤真田のしんがりの逆襲を退ける
 // 負け：目標ごとの刻限（①②③。kaito 11/3 AP8）までに果たせない。
-// 向き：東（奈良の側）が +x、西（大坂の側）が -x。小松山は中ほど、石川は山の西、誉田・道明寺の野はその西。
+// 向き：東（奈良の側）が +x、西（大坂の側）が -x、北が -z。小松山は中ほど、石川は山の西を北へ流れて大和川（北）に入る。
+//   道明寺の野は石川の西、誉田（誉田八幡・誉田陵）はその南西（史実の地図どおり。docs/battle_refs/k13_domyoji.md の「布陣図の目標」）。
+// 流れ（史実の刻）：寅の刻（午前四時）松倉重政・奥田忠次の先手が小松山の後藤勢に崩され奥田が討死→水野勝成・堀直寄らが助け、十倍で山を囲む
+//   →昼前に又兵衛討死→薄田兼相・山川賢信・明石全登が着いて道明寺で破れる→真田・毛利が誉田に着き伊達勢と撃ち合う→未の刻（十四時半）八尾・若江の敗報→申の刻（十六時）退く
 // 地形：手書きの小山と野（国土地理院の標高はまだ混ぜない）。大きさは常識の低い丘（AT8）。
 // ======================================================================
 import { nobori, jinmaku, kagaribi } from './props.js';
@@ -28,13 +31,14 @@ const START = { x: 96, z: 4 };           // 国分を抜けた水野勢の寄せ
 const SLOPE = { x: 40, z: 2 };           // 小松山の東の斜面（後藤勢の鉄砲組）
 const TOP = { x: 4, z: 0 };              // 小松山の頂（後藤又兵衛）
 const ISHI_X = -52;                      // 石川（小松山の西の裾を北へ流れる浅い川）
-const NOGAWA = { x: -78, z: 4 };         // 道明寺の野（薄田兼相）
-const HONDA = { x: -110, z: -4 };        // 誉田（真田・毛利が着く所）
+const NOGAWA = { x: -80, z: -6 };        // 道明寺の野（薄田兼相）。道明寺は石川の西・大和川との合流の南
+const HONDA = { x: -116, z: 26 };        // 誉田（誉田八幡・誉田陵。道明寺の南西。真田・毛利が着く所）
+const YAMATO_Z = -118;                   // 大和川（北の端を西へ流れる。石川はここに入る）
 const HILL = 18;                         // 小松山（玉手山の丘陵の北の高み）の麓からの高さ（m）
 const REAR = { x: 178, z: -6 };          // 松平忠輝の陣（後ろ）
 const LIMIT = [240, 330, 0, 270];        // 段ごとの刻限（秒。0 は刻限なし。休みと持ちこたえは数で決まる）
 
-const ROUTE = [[236, 6], [START.x, START.z], [SLOPE.x, SLOPE.z], [TOP.x, TOP.z], [-30, 2], [ISHI_X, 3], [NOGAWA.x, NOGAWA.z], [HONDA.x, HONDA.z], [-230, 0]];
+const ROUTE = [[236, 6], [START.x, START.z], [SLOPE.x, SLOPE.z], [TOP.x, TOP.z], [-30, 0], [ISHI_X, -2], [NOGAWA.x, NOGAWA.z], [-98, 10], [HONDA.x, HONDA.z], [-230, 40]];
 
 const TOYO = { armor: 0x2e2a26, flag: 'toyotomi' };
 const SANADA = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'sanada' };
@@ -133,7 +137,9 @@ const k13_domyoji = {
     groundHalf: 300,
     mountainScale: 0.6,
     paths: [ROUTE.slice(0, 5), ROUTE.slice(4)],
-    streams: [{ pts: [[ISHI_X + 4, -260], [ISHI_X - 2, -90], [ISHI_X, 0], [ISHI_X - 4, 110], [ISHI_X + 2, 260]], w: 12, depth: 0.5 }],
+    // 石川（南から北へ）と大和川（北の端。国分の亀の瀬から西へ）。石川は大和川に入って終わる
+    streams: [{ pts: [[ISHI_X + 2, 260], [ISHI_X - 4, 110], [ISHI_X, 0], [ISHI_X - 2, -80], [ISHI_X - 6, YAMATO_Z]], w: 12, depth: 0.5 },
+      { pts: [[70, YAMATO_Z - 14], [20, YAMATO_Z - 6], [ISHI_X - 6, YAMATO_Z], [-140, YAMATO_Z - 4], [-260, YAMATO_Z - 10]], w: 20, depth: 0.8 }],
     height,
     tint(x, z, h, c) {
       if (distToPolyline(x, z, ROUTE) < 3.4) { c.setRGB(c.r * 0.5 + 0.2, c.g * 0.5 + 0.17, c.b * 0.5 + 0.12); return; }
@@ -166,24 +172,33 @@ const k13_domyoji = {
       dress([uS(3), uA(12), uG(4), uB(2)], MIZU));
     F.honda = allyGroup(rt, { faction: 'tokugawa', name: '本多忠政の隊', fixed: true, anchor: { x: START.x - 6, z: START.z - 16 }, facing: -Math.PI / 2, width: 10, aggro: 10, speed: 4.2, noRout: true, formation: 'yari', dmgMult: 0.8 },
       dress([{ type: 'busho', n: 1, o: { name: '本多忠政', invuln: true, horse: true } }, uS(5), uA(16), uG(6)], HONDA_K));
+    // 先に小松山へ取り付いた松倉重政・奥田忠次の先手（寅の刻に後藤勢に崩され、奥田は討死。勝成らが助けに出る）
+    F.matsukura = allyGroup(rt, { faction: 'tokugawa', name: '松倉重政・奥田忠次の先手', fixed: true, anchor: { x: SLOPE.x + 10, z: SLOPE.z + 14 }, facing: -Math.PI / 2, width: 10, aggro: 12, speed: 4.2, noRout: true, order: 'attack', seekRange: 30, dmgMult: 0.7 },
+      dress([{ type: 'busho', n: 1, o: { name: '松倉重政', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '奥田忠次', horse: true } }, uS(3), uA(10), uG(4)], TOKU));
+    // 松平忠明の隊（大和口の先鋒の一つ。水野・本多と並んで山へ寄せる）
+    F.tadaaki = allyGroup(rt, { faction: 'tokugawa', name: '松平忠明の隊', fixed: true, anchor: { x: START.x - 2, z: START.z + 20 }, facing: -Math.PI / 2, width: 10, aggro: 10, speed: 4.2, noRout: true, formation: 'yari', dmgMult: 0.8 },
+      dress([{ type: 'busho', n: 1, o: { name: '松平忠明', invuln: true, horse: true } }, uS(4), uA(10), uG(4)], TOKU));
     // 大和口の総大将 松平忠輝は後ろの陣幕の内に留まる（史実で戦に間に合っていない）。陣幕の内と口を旗本が固める（BH1・AV18）
     F.tadateru = allyGroup(rt, { faction: 'tokugawa', name: '松平忠輝の旗本', fixed: true, anchor: { x: REAR.x, z: REAR.z }, facing: -Math.PI / 2, width: 10, aggro: 6, seekRange: 12, order: 'hold', noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '松平忠輝', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(14), uA(16), uG(6)], TOKU));
+      dress([{ type: 'busho', n: 1, o: { name: '松平忠輝', invuln: true, horse: false, hat: 'kabuto_w' } }, uS(14), uA(8), uG(4)], TOKU));
+    // 総大将は陣幕の内の床几に腰を下ろす（kaito AV7「本陣の総大将は座っている」）
+    const tdt = F.tadateru.units.find((v) => v.name === '松平忠輝');
+    if (tdt) tdt._crouch = true;
     F.tadateru.noFrontline = true;
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: START.x - 4, z: START.z + 6 }, -Math.PI / 2, [{ kind: 'spear', n: Math.min(n, 12) }]);
     // 名のある将は馬上（BH2）。乗り手の足の速さを覚え、馬を失っても乗り直させる
     F.riders = [];
-    for (const g of [F.mizuno, F.honda, F.tadateru]) for (const u of g.units) if (u.alive && u.name && u.mounted) F.riders.push({ u, speed: u.speed, run: u.run, g });
+    for (const g of [F.mizuno, F.honda, F.tadaaki, F.matsukura]) for (const u of g.units) if (u.alive && u.name && u.mounted) F.riders.push({ u, speed: u.speed, run: u.run, g });
     // 動けなくなった時に抜け出す（BH8）：歩こうとした向きを覚える
     F.want = 0; F.stillT = 0; F.goodPos = [];
     rt.setPhase('brief');
     rt.obj('main', '小松山の後藤又兵衛を討ち、誉田で真田・毛利の寄せを止める', 'main');
-    rt.say('水野勝成', '国分を抜けたぞ。霧の向こうの小松山に、豊臣の旗が立っておる', 4.5);
+    rt.say('水野勝成', '松倉と奥田の先手が小松山で崩れかけておる。霧の中じゃ、すぐ助けに出る', 4.5);
     rt.after(5, () => rt.say(nm(rt), '山の上は後藤又兵衛。ほかの隊は霧でまだ見えませぬ', 3.6));
     // 始めから味方の組が麓へ歩き出す（本人だけが丘に着いて一人に見えない）
     rt.after(2, () => {
-      [F.mizuno, F.mine, F.honda].forEach((g, i) => { if (g && g.count) { g.calm = false; g.order = 'attack'; g.seekRange = 45; g.anchor = { x: SLOPE.x + 14 + i * 4, z: SLOPE.z + (i - 1) * 10 }; } });
+      [F.mizuno, F.mine, F.honda, F.tadaaki].forEach((g, i) => { if (g && g.count) { g.calm = false; g.order = 'attack'; g.seekRange = 45; g.anchor = { x: SLOPE.x + 14 + i * 4, z: SLOPE.z + (i - 1) * 10 }; } });
     });
     rt.after(9, () => rt.say('水野勝成', '又兵衛は後続を待たずに一人先に出た。霧が晴れる前に叩く。かかれ！', 4));
     rt.after(13.5, () => this.begin(rt));
@@ -196,10 +211,16 @@ const k13_domyoji = {
     rt.setPhase('battle');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
+    // 奥田忠次の討死（史実。後藤勢の最初の押しで）
+    rt.after(16, () => {
+      const o = F.matsukura && F.matsukura.units.find((v) => v.alive && v.name === '奥田忠次');
+      if (o) rt.army.kill(o, null);
+      rt.say('松倉の足軽', '奥田殿が討たれた！　後藤の槍が下りて来る！', 3.4);
+    });
     const look = (list) => dress(list, TOYO);
-    depthStart(rt, { faction: 'toyotomi', flag: 'toyotomi', armor: TOYO.armor, friends: () => [F.mizuno, F.mine, F.honda, F.date, F.katakura].filter((g) => g && g.count && !g.routed), look, scale: 1.6, dmg: 0.62, botSeek: 45, mass: 0, backing: false }, [
+    depthStart(rt, { faction: 'toyotomi', flag: 'toyotomi', armor: TOYO.armor, friends: () => [F.mizuno, F.mine, F.honda, F.tadaaki, F.matsukura, F.date, F.katakura].filter((g) => g && g.count && !g.routed), look, scale: 1.6, dmg: 0.62, botSeek: 45, mass: 0, backing: false }, [
       // ① 小松山の東の斜面（撃ち下ろす鉄砲組と、駆け下りる槍）
-      DP.fight({ at: SLOPE, title: '小松山', sub: '斜面に後藤勢の鉄砲組が並ぶ', obj: '小松山の東の斜面で、後藤勢の鉄砲組を破れ', max: LIMIT[0],
+      DP.fight({ at: SLOPE, title: '小松山', sub: '斜面に後藤勢の鉄砲組が並ぶ', obj: '小松山の東の斜面で、松倉勢を崩した後藤勢の鉄砲組を破れ', max: LIMIT[0],
         say: [['足軽', '山の上から撃ち下ろしてくる！　身を低うせよ']],
         foes: () => [keep('後藤勢の鉄砲組', SLOPE, [uS(3), uA(8), uG(9)], { dx: -14 })],
         later: [{ t: 30, say: ['後藤の侍', '押し返せ！　山を下りて槍を入れよ'], foes: () => [keep('後藤勢の槍組', SLOPE, [uS(3), uA(10)], { dx: -20, dz: 10, dmg: 0.75 })] }],
@@ -218,7 +239,7 @@ const k13_domyoji = {
       DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: '石川を渡り、道明寺の野で薄田兼相の手を討て', max: LIMIT[3],
         say: [['足軽', '薄田隼人の旗じゃ！　川の向こうから来るぞ！']],
         foes: () => [keep('薄田兼相の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '薄田兼相', horse: true, hat: 'kabuto_g' } }, uS(6), uA(12), uG(4)], { dx: -26, dz: -6, noRout: 40 })],
-        later: [{ t: 35, say: ['足軽', '新手が霧の中から！'], foes: () => [keep('豊臣の新手', NOGAWA, [uS(2), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
+        later: [{ t: 35, say: ['足軽', '山川賢信と明石全登の手じゃ！　霧の中から！'], foes: () => [keep('山川賢信・明石全登の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(2), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
         reward: '道明寺の野で薄田兼相の手を破った' }),
       DP.rest({ dur: 6, heal: 0.3, fn: () => { rt.world.setTime?.('day'); },
         banner: ['真田信繁・毛利勝永が着く', '霧が晴れ、誉田の野に赤い旗が並ぶ'],
@@ -233,6 +254,7 @@ const k13_domyoji = {
         reward: '誉田で真田・毛利の寄せを止めた' }),
       // ⑤ しんがり（信繁・勝永は討てず、大坂へ退く）
       DP.hold({ at: HONDA, dur: 40, r: 16, title: '大坂へ退く', sub: '信繁のしんがりが、追う者を斬り払う', label: '誉田の野', obj: '真田のしんがりの逆襲を、誉田の野で押し返せ',
+        say: [['足軽', '八尾・若江で木村重成殿が討たれたと！　豊臣方が退き始めた！']],
         waves: [{ t: 4, say: ['真田信繁', '関東勢百万と候え、男は一人もなし。引け、秀頼様の城を守る'], foes: () => [keep('真田のしんがり', HONDA, dress([uS(4), uA(10), uG(5)], SANADA), { dx: -40, dz: 0, dmg: 0.75 })] }],
         reward: '豊臣勢を大坂へ退かせた' }),
     ], (rt2) => this.win(rt2));
@@ -300,7 +322,7 @@ const k13_domyoji = {
       else { g.focus = null; g.speed = sp; }
     });
     // 水野・本多・伊達の隊：自分より遅れたら、自分の速さで前へ出る（自分だけが先に敵を引き受けない）
-    for (const g of [F.mizuno, F.honda, F.date, F.katakura]) {
+    for (const g of [F.mizuno, F.honda, F.tadaaki, F.date, F.katakura]) {
       if (!g || !g.count || g.routed || g.order === 'retreat') continue;
       const c = g.center(), lag = c.x - u.pos.x;
       g.speed = lag > 8 ? sp : 4.2;
@@ -356,7 +378,7 @@ k13_domyoji.sides = { a: { name: '徳川方', mon: 'tokugawa', faction: 'tokugaw
 k13_domyoji.date = (rt) => (rt.flags.dusk ? '慶長二十年（1615）五月六日　夏・夕暮れ' : '慶長二十年（1615）五月六日　夏・朝霧');
 k13_domyoji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 k13_domyoji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
-k13_domyoji.history = '慶長二十年（1615）五月六日、大坂夏の陣。大和路から大坂へ向かう徳川方（先鋒の大将 水野勝成・本多忠政・伊達政宗と片倉重長ら三万四千ほど。総大将は松平忠輝）を、豊臣方は国分の隘路の出口で迎え撃つ策を立てた。後藤又兵衛（約二千八百）は薄田兼相・真田信繁・毛利勝永らの到着を待たず、霧の中を石川を渡って小松山へ先に出た。後続が霧で遅れたため又兵衛は孤立し、十倍を越える徳川方と昼まで戦って討死した。誉田八幡から出た薄田兼相も道明寺の辺りで討たれた。昼に着いた信繁・勝永は誉田で伊達勢と鉄砲を撃ち合い、待ち伏せで伊達勢を押し戻したのち、夕方、信繁が殿を務めて大坂へ退いた。徳川方は兵が疲れ、追わなかった。\n両軍の数や細かい陣の動きは史料により異なり、地形は遊びのために縮めて復元した推定である。';
+k13_domyoji.history = '慶長二十年（1615）五月六日、大坂夏の陣。大和路から大坂へ向かう徳川方（先鋒の大将 水野勝成・本多忠政・伊達政宗と片倉重長ら三万四千ほど。総大将は松平忠輝）を、豊臣方は国分の隘路の出口で迎え撃つ策を立てた。後藤又兵衛（約二千八百）は薄田兼相・真田信繁・毛利勝永らの到着を待たず、霧の中を石川を渡って小松山へ先に出た。寅の刻（午前四時ごろ）、又兵衛は山へ取り付いた松倉重政・奥田忠次の先手を崩して奥田を討ったが、水野勝成・堀直寄らが助けに入り、伊達勢も加わって山を囲んだ。後続が霧で遅れたため又兵衛は孤立し、十倍を越える徳川方と昼まで戦って討死した。そのあと着いた薄田兼相・山川賢信・明石全登らも道明寺の辺りで破れ、兼相は討たれた。昼に着いた信繁・勝永は誉田で伊達勢と鉄砲を撃ち合い、待ち伏せで伊達勢を押し戻した。十四時半ごろ八尾・若江の敗報が届き、十六時ごろ信繁が殿を務めて大坂へ退いた。徳川方は兵が疲れ、追わなかった。\n両軍の数や細かい陣の動きは史料により異なり、地形は遊びのために縮めて復元した推定である。';
 k13_domyoji.bushou = [{ name: '後藤又兵衛', g: /後藤/ }, { name: '薄田兼相', g: /薄田/ }];
 
 k13_domyoji.botBrain = (b, inp, { goTo }) => {

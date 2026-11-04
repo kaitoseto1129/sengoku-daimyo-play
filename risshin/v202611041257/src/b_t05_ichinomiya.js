@@ -199,18 +199,20 @@ function steps(rt) {
     fight({ at: WATER, title: '水の手', sub: '石で囲った城の貯水池', obj: '貯水池を守る番兵を追い払え',
       foes: () => [{ name: '水の手の番兵', from: { x: WATER.x + 4, z: WATER.z - 6 }, list: [uS(2), uA(12), uB(3)], mass: 130 }],
       later: [{ t: 24, say: ['足軽', '尾根の陰から伏兵じゃ！'], foes: () => [{ name: '尾根の伏兵', from: { x: WATER.x - 26, z: WATER.z + 10 }, list: [uS(1), uA(9)], mass: 80 }] }],
-      max: 120, reward: '水の手の番兵を追い払った' }),
+      max: 120, reward: '水の手の番兵を追い払った', onEnd: () => { F.step = 3; } }),
     hold({ at: WATER, dur: 70, r: 14, title: '貯水池を守る', sub: '城兵が水を取り返しに来る', label: '水の手',
       obj: '貯水池の前で、搦手から下りる城兵を退けよ',
       say: [['羽柴秀長の使番', 'ここを渡すな。城の者は水が無ければ持たぬ', 3.5]],
       waves: [
         { t: 4, say: ['足軽', '搦手から城兵が下りてくる！'], foes: () => [{ name: '水を取り返す城兵', from: { x: -50, z: -74 }, list: [uS(2), uA(12)], mass: 150 }] },
-        { t: 30, say: ['足軽', '水桶を担いだ者までおる。必死じゃ！'], foes: () => [{ name: '江村親俊の手', from: { x: -40, z: -60 }, list: [uS(2), uA(10), uG(3)], mass: 130 }] },
+        { t: 30, say: ['足軽', '水桶を担いだ者までおる。必死じゃ！'], foes: () => [{ name: '江村親俊の手', from: { x: -40, z: -60 }, list: [{ type: 'busho', n: 1, o: { ...CHOSO, name: '江村親俊', horse: true } }, uS(4), uA(10), uG(3)], mass: 130 }] },
       ],
       reward: '城の水の手を断った', lost: ['羽柴秀長の使番', '水場を取り返されたか……'],
       onEnd: (r, m, won) => {
         if (!won) { ichinomiya.lose(r, '水場を取り返された'); return; }
-        F.step = 3;
+        F.step = 4;
+        // 付け入り：退く城兵を入れるため、搦手の門と本丸の口が開いたまま（閉まった門の前で立ち往生し、櫓から撃たれ続けた。11/4 測り）
+        for (const id of ['karamete', 'hon']) { const g = F.C?.gateObjs?.[id]; if (g && g.struct) { g.open && g.open(); Object.assign(g.struct, { solidR: 0, passable: true, opened: true, noTarget: true, fireProof: true }); } }
         // 讃岐から回ってきた官兵衛の手が水の手に加わる（植田城を捨て置いて阿波へ回った）
         F.kanbei = allyGroup(r, { name: '黒田官兵衛の手', anchor: { x: WATER.x + 18, z: WATER.z + 22 }, facing: Math.PI, noRout: true, aggro: 6, seekRange: 12, fullStrength: true },
           [{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, flag: 'toyotomi' } }, uS(1), uA(6)]);
@@ -221,13 +223,13 @@ function steps(rt) {
       // 曲輪の中は軽い控え（mass）を付けない：本丸の塀の内で目覚めた控えが切岸の上に残り、段が終わらなかった（11/3 測り）
       foes: () => [{ name: '搦手の門の守兵', from: { x: HON_GATE.x, z: HON_GATE.z - 8 }, list: [uS(2), uA(12), uG(3)], mass: 0 }],
       later: [{ t: 22, say: ['足軽', '小倉丸の奥から加勢が来る！'], foes: () => [{ name: '小倉丸の加勢', from: { x: -6, z: -100 }, list: [uS(2), uA(8)], mass: 0 }] }],
-      max: 130, reward: '搦手の門を破り、小倉丸を取った', onEnd: () => { F.step = 4; } }),
+      max: 130, reward: '搦手の門を破り、小倉丸を取った', onEnd: () => { F.step = 5; } }),
   ];
 }
 
 export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
-  noReserve: true, noTaishoRaid: true,
+  noReserve: true, noTaishoRaid: true, stageGoalsOnly: true,
   noFrontFill: true,         // 奥の作り物の乱戦（front_fill.js）を置かない：始めの河原の左に、近づくと無い軽い軍勢の列が見えた（kaito AA・AF）
   frontlineDensity: false,   // 共通の小勢を足さない（織田の旗の小勢・見せかけの軍勢を出さない。kaito AQ4・AT）
   world: {
@@ -336,7 +338,8 @@ t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
 
 // 右上の一行（stages.js の作りをそのまま使う。共通の表は直さず、ここで足す）
 const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
-STAGES.t05_ichinomiya = [['鮎喰川を渡り、麓の砦を落とす'], ['西の谷の口の伏兵を討ち、水の手の貯水池を取る', s(1)], ['貯水池を守り、搦手から下りる城兵を退ける', s(2)], ['退く城兵を追い、搦手の門から小倉丸へ入る', s(3)]];
+// 段は史実の順の五つだけ（「敵を何人討つ」で埋めない。kaito AW3・stageGoalsOnly）
+STAGES.t05_ichinomiya = [['鮎喰川を渡り、麓の砦を落とす'], ['西の谷の口で、待ち伏せる兵を討つ', s(1)], ['水の手の貯水池から番兵を追い払う', s(2)], ['貯水池を守り、搦手から下りる城兵を退ける', s(3)], ['退く城兵を追い、搦手の門から小倉丸へ入る', s(4)]];
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 withGuard(t05_ichinomiya);

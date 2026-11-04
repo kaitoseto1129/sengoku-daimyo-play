@@ -4155,6 +4155,8 @@ const sunomata = {
     // 柵の内の守り手は足場と柵の陰の分だけ傷が浅い。数で劣る組が持ち場を守れる釣り合いにする。
     for (const g of [F.reserveW1, F.reserveW2, F.reserveW3a, F.reserveW3b, F.reserveW3d, ...F.duskWaves.map((q) => q.group), ...F.boatWaves]) g.morale = 72;
     for (const g of [F.ally, F.ally2, F.tk, F.gunReserve, F.bowReserve]) if (g) g.defMult = 1.4;
+    // BF4（kaito 11/3）：bot は傷 0 で勝った。寄せ手の一太刀を三割増しにして、囲まれる緊張を出す
+    for (const g of [F.reserveW1, F.reserveW1b, F.reserveW2, F.reserveW3a, F.reserveW3b, F.reserveW3d, ...F.duskWaves.map((q) => q.group), ...F.boatWaves]) if (g) g.dmgMult = 1.3;
     F.reserveB1 = yoseButai(rt, F.reserveW1, { name: '北西の先手の備', at: F.reserveW1.anchor, dir: F.r1.dir, back: 160 });
     F.reserveB2 = yoseButai(rt, F.reserveW2, { name: '北西の次の備', at: F.reserveW2.anchor, dir: F.r2.dir, back: 150 });
     F.reserveB3a = yoseButai(rt, F.reserveW3a, { name: '北の控えの備', at: F.reserveW3a.anchor, dir: { x: 0.4, z: 0.92 }, back: 130 });

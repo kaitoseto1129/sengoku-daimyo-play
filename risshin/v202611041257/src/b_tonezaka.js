@@ -961,6 +961,11 @@ function toneRoadside(W) {
 // 各任務の上限。夜の追撃から城下の守りまで、残兵探しで長引かせない。
 const TONE_FOE = { 1: '河合吉統の殿', 2: '山崎吉家・斎藤龍興の手', 3: '詫美越後守の殿' };
 const TONE_NEXT = { 1: '刀根坂の中ほど', 2: '刀根坂の峠口', 3: '刀根坂の峠' };
+// ▼の添え字：行く場所と行い（段ごとに一つ）。
+const TONE_SIGN = { 0: '坂の下の殿を崩せ', 1: '坂の下の殿を崩せ', 2: '坂の中ほどの手を崩せ', 3: '峠口の殿を崩せ', 5: '城下の兵を崩せ', 6: '奥の道を守れ' };
+// 段ごとの行き先は動かさない（AW3・BK4）。殿の持ち場・坂の中ほど・峠口・城下・奥の道。
+const TONE_GOAL = { 0: at(-6, 40), 1: at(-6, 40), 2: SAKA, 3: PASS, 5: TOWN, 6: INNER };
+const TONE_QUIET = new Set(['nobu', 'toneShelter', 'asakuraMain', 'toneFront', 'toneRoad', 'pass', 'town', 'townAllies', 'inner']);
 const STAGE_LIMIT = { 1: 75, 2: 100, 3: 55, 5: 60, 6: 45 };
 // 台詞は場面の復元。史料の発言をそのまま再現したものではない。
 const REAR_VOICE = {
@@ -990,6 +995,8 @@ function toneMissionStep(rt) {
   while (step >= 1 && step <= 3 && !rt.flags.stageDefenders[step].some(fighting)) step++;
   return step;
 }
+// 目標の段：今の段そのもの。殿が崩れても、その段の持ち場へ着いて次の段が始まるまで、目標と▼を替えない（AW3）。
+const toneGoalStep = (rt) => rt.flags.step;
 function toneMissionEnemy(rt) {
   const F = rt.flags, step = toneMissionStep(rt), p = rt.player.u.pos;
   if (F.ending || rt.over) return null;
@@ -1027,14 +1034,26 @@ const tonezaka = {
   missionStatus: () => '',
   bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|一乗谷の火|越前への追撃|一乗谷の城下/.test(title),
   // 11/3 b100（AQ1・AR1）：「味方と進め」のような分からない言い方をやめ、段ごとに場所と行いを書く。
-  missions: ['信長公の馬廻に続け', '▼の敵を倒せ', '味方と進め', '城下の道を守れ'],
+  // 11/4 史実の流れ（docs/battle_refs/tonezaka.md）：段ごとの目標は場所と行いの一つの言い方に固め、途中で言い替えない（AW3）。
+  missions: ['坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ', '一乗谷の奥の道を守れ'],
   stageGoals: {
-    0: ['信長公の馬廻に続け', '坂の下の河合吉統の殿を崩せ', '坂の下の殿へ進め'],
-    1: ['信長公の馬廻に続け', '坂の下の河合吉統の殿を崩せ', '坂の下の殿へ進め'],
-    2: ['勝家の手に続け', '坂の中ほどの山崎・龍興の手を崩せ', '坂の中ほどへ進め'],
-    3: ['勝家の手に続け', '峠口の詫美越後守の殿を崩せ', '刀根坂の峠へ進め'],
-    5: ['勝家の手に続け', '一乗谷の城下の朝倉の兵を崩せ', '一乗谷の城下へ進め'],
-    6: ['勝家の手に続け', '一乗谷の奥の道を押さえよ', '一乗谷の奥の道へ進め'],
+    0: ['坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ'],
+    1: ['坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ', '坂の下で河合吉統の殿を崩せ'],
+    2: ['坂の中ほどで山崎吉家・斎藤龍興の手を崩せ', '坂の中ほどで山崎吉家・斎藤龍興の手を崩せ', '坂の中ほどで山崎吉家・斎藤龍興の手を崩せ'],
+    3: ['峠口で詫美越後守の殿を崩せ', '峠口で詫美越後守の殿を崩せ', '峠口で詫美越後守の殿を崩せ'],
+    4: ['一乗谷の城下で朝倉の兵を崩せ', '一乗谷の城下で朝倉の兵を崩せ', '一乗谷の城下で朝倉の兵を崩せ'],
+    5: ['一乗谷の城下で朝倉の兵を崩せ', '一乗谷の城下で朝倉の兵を崩せ', '一乗谷の城下で朝倉の兵を崩せ'],
+    6: ['一乗谷の奥の道を守れ', '一乗谷の奥の道を守れ', '一乗谷の奥の道を守れ'],
+  },
+  noHatamotoMass: true, // 狭い峠道で、将の後ろの軽い旗本の塊に追い手の味方が埋もれる（AP9・AQ6）。旗本は本物の侍の輪だけ
+  stageGoalsOnly: true, // 右上の五つは段だけ（「敵を何人討つ」「義景を討つ」で埋めない。AW3・AV16）
+  goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（道の曲がりの名札・旗・輪を重ねない。AP12・AV15・BH6）
+  // ▼の添え字に行き先までの道のり（十メートル刻み。BK1）。
+  goalSignAction: (rt) => {
+    const step = toneGoalStep(rt), say = TONE_SIGN[step], to = TONE_GOAL[step], p = rt.player.u.pos;
+    if (!say || !to) return say || '';
+    const d = Math.round(Math.hypot(to.x - p.x, to.z - p.z) / 10) * 10;
+    return d >= 20 ? `${say} ${d}メートル` : say;
   },
   // 11/2 bot（アクション好き）：峠を越えて一乗谷へ着いた後、城下と奥の道の段の途中で共通の八分打ち切りに掛かり、三回に二回負けた。
   //   一乗谷の段（略図・城下・奥の道）だけ十分まで待つ。勝つ条件と敵・味方の数は変えない。
@@ -1049,10 +1068,12 @@ const tonezaka = {
   },
   missionHeading(rt) {
     if (toneShelter(rt)) return '味方へ下がれ';
-    const k = this.missionOf(rt), L = this.stageGoals[toneMissionStep(rt)];
+    const step = toneGoalStep(rt), k = this.missionOf(rt), L = this.stageGoals[step];
+    if (k === 3 && step === 6 && !rt.flags.ending) return '一乗谷の奥の道を守れ';
     return k < 3 && L ? L[k] : this.missions[k];
   },
-  missionSignTarget(rt) { return this.missionOf(rt) === 1 ? toneMissionEnemy(rt) : null; },
+  // 行き先は段の場所に固定し、近い敵を追う▼は出さない。敵は頭上の赤い印で分かる（AW3・AV15）。
+  missionSignTarget: () => null,
   // 総大将は退く義景本人。討ち取りの任務や勝ちの条件は足さない。
   // 11/3 b100（④・⑧）：総大将は峠の向こうを退く本隊の奥にいて、討てる所に出ない。印は今の目標一つだけにし、義景の印は出さない。
   commanderSignTarget: () => null,
@@ -1063,42 +1084,24 @@ const tonezaka = {
     return u?.type === 'busho' ? u : null;
   },
   missionPin(rt) {
-    const F = rt.flags, step = toneMissionStep(rt);
+    const F = rt.flags, step = toneGoalStep(rt);
     if (F.ending || rt.over || F.step === 4 || !rt.player.u.alive) return null;
     const pin = F.missionPin || (F.missionPin = { x: 0, z: 0, r: 0, hide: 0, silent: true, always: true });
     pin.unit = null; pin.enemy = false; pin.waiting = false; pin.defend = false;
     pin.arrived = false; pin.route = false; pin.approach = false;
     const shelter = toneShelter(rt);
     if (shelter) {
-      const way = chaseWay(rt.army, rt.player.u, shelter);
-      pin.x = way.x; pin.z = way.z; pin.r = 3; pin.hide = 0;
-      pin.route = way !== shelter;
+      // 退き先も道の曲がりへ動かさず、息を整える所そのものを指す。
+      pin.x = shelter.x; pin.z = shelter.z; pin.r = 3; pin.hide = 0;
       pin.arrived = near(rt.player.u.pos, shelter, 3);
       return pin;
     }
     if (step === 4) return null;
-    // 合流の下知と同じ道を指す。奥の守り場へ直行させ、勝家の手を置き去りにしない。
-    if (step === F.step && F.guideJoin && (step < 4 || step === 6)) {
-      pin.x = F.roadGuide.x; pin.z = F.roadGuide.z; pin.r = 3; pin.hide = 0;
-      pin.route = F.guideBend;
-      return pin;
-    }
-    const enemy = this.missionSignTarget(rt);
-    if (enemy) {
-      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
-      const way = chaseWay(rt.army, rt.player.u, enemy.pos);
-      pin.x = way.x; pin.z = way.z; pin.r = pin.hide = .2;
-      pin.route = way !== enemy.pos; pin.unit = pin.route ? null : enemy;
-      pin.enemy = !pin.route; pin.approach = true;
-      return pin;
-    }
-    // 守り場に着いてもピンを残す。勝家の兵も同じ持ち場へ進む。
-    const post = step === 6 ? INNER : step === 5 ? TOWN : F.roadGuide;
-    const reached = step >= 5 && near(rt.player.u.pos, post, step === 6 ? 12 : 14);
-    const way = reached ? post : chaseWay(rt.army, rt.player.u, step === 0 ? F.nobuU.pos : post);
-    pin.x = way.x; pin.z = way.z; pin.r = reached ? (step === 6 ? 12 : 14) : 3;
-    pin.hide = 0; pin.route = !reached; pin.waiting = pin.defend = step >= 5;
-    pin.arrived = reached;
+    // 段の行き先は一か所（道の曲がりや近い敵へ替えない）。着いたら▼を消し、敵の赤い印で戦う。
+    const post = TONE_GOAL[step] || TOWN, r = step >= 5 ? (step === 6 ? 12 : 14) : 10;
+    pin.x = post.x; pin.z = post.z; pin.r = r; pin.hide = 0;
+    pin.arrived = near(rt.player.u.pos, post, r);
+    pin.waiting = pin.defend = step >= 5;
     return pin;
   },
   compactIntro: true,
@@ -1155,7 +1158,8 @@ const tonezaka = {
   softOpen: 90, // 最初の追撃は本人の傷を半分にし、構えと退き方を覚える間を残す。
   // 任務の言葉との部分一致に頼らず、既に置いた道と味方の印を選ぶ。
   guideMarker(rt) {
-    if (rt.flags.ending) return null;
+    // 11/4：道の曲がり・合流の名札は出さない（字の印を重ねない。行き先は▼一つ）。
+    if (rt.flags.ending || this.goalSignOnly) return null;
     if (toneShelter(rt)) return 'toneShelter';
     switch (rt.flags.step) {
       case 0: return 'nobu';
@@ -1860,19 +1864,19 @@ const tonezaka = {
     for (const g of rt.squadGroups) g.defMult = 1.25;
     // 全ての戦う兵を初めに置く。武将は槍の前列より後ろで供に守られる。
     // 開戦25秒の乱戦（10/30）：殿の列を持ち場の前30mの坂へ寄せ、馬廻が25秒までに槍を合わせる（兵の数は同じ）
-    F.r1 = foe('河合吉統の殿', at(-6, 54), [A(23), S(3), chief('河合吉統'), S(3)]);
+    F.r1 = foe('河合吉統の殿', at(-6, 54), [A(23), S(3), chief('河合吉統', false, true), S(3)]);
     // 大軍対大軍（kaito 10/31）：殿の二の手は河合の殿のすぐ後ろに付け、一つの塊で坂を押し返す。
     F.r1b = foe('朝倉の殿の二の手', at(-4, 42), [A(6), S(2)]);
-    F.r2 = foe('山崎吉家の手', at(4, -74), [A(23), S(3), chief('山崎吉家'), S(3)]);
+    F.r2 = foe('山崎吉家の手', at(4, -74), [A(23), S(3), chief('山崎吉家', false, true), S(3)]);
     // 斎藤龍興の手は山崎の手の真後ろに詰め、二つで一つの塊（前が崩れても続けて押す後詰め）にする。
     F.r3 = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '斎藤龍興の手', anchor: at(6, -88), facing: TURN,
       order: 'hold', formation: 'yari', yariRanks: toneYariRanks(30), width: 5, aggro: 8, morale: 78, guardOn: true, fleeDir: { ...NORTHWEST } },
       // 11/3 b100：龍興は朝倉の客将として朝倉の陣にいた。旗はこの戦の家（織田・朝倉）だけにする。
-      dress([A(23), S(3), chief('斎藤龍興'), S(3)], ASA));
-    F.r4 = foe('詫美越後守の殿', at(-4, -142), [A(23), S(3), chief('詫美越後守'), S(3)]);
-    F.roadG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '街道で向き直る朝倉勢', anchor: STREET, facing: -Math.PI / 2 + TURN,
+      dress([A(23), S(3), chief('斎藤龍興', false, true), S(3)], ASA));
+    F.r4 = foe('詫美越後守の殿', at(-4, -142), [A(23), S(3), chief('詫美越後守', false, true), S(3)]);
+    F.roadG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '街道で向き直る朝倉勢', anchor: { ...STREET }, facing: -Math.PI / 2 + TURN,
       order: 'hold', formation: 'yari', yariRanks: 3, aggro: 8, morale: 65, fleeDir: { ...EAST } }, dress([A(6), S(2)], ASA));
-    F.townG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '城下に残った朝倉の兵', anchor: TOWN, facing: -Math.PI / 2 + TURN,
+    F.townG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '城下に残った朝倉の兵', anchor: { ...TOWN }, // 備が動いても城下の行き先（TOWN）は動かさない facing: -Math.PI / 2 + TURN,
       order: 'hold', formation: 'yari', yariRanks: 3, aggro: 8, morale: 65, fleeDir: { ...EAST } }, dress([A(6), S(2)], ASA));
     F.hurtG = foe('道脇を退く朝倉の兵', at(-8, -48), [A(4)], 2);
     for (const u of F.hurtG.units) { u.hp = Math.min(u.hp, u.maxHp * 0.25); u.dmg = 0; u.yariOpenUntil = 1e9; }
@@ -2013,8 +2017,10 @@ const tonezaka = {
         earth: 0x947b55, naka: true, noTarget: true, doorX: 0, profile: 'tonezaka',
         kind: residence ? 'yashiki' : 'machiya', name: residence ? '一乗谷の屋敷' : '一乗谷の町家' });
     }
+    // 11/4（AP12・BH6）：道の曲がり・合流・退き先の名札（字の印）は出さない。行き先は頭上の▼一つ。
+    { const mk = rt.marker; rt.marker = function (id, pos, label, o) { return mk.call(this, id, pos, TONE_QUIET.has(id) ? '' : label, o); }; }
     rt.setPhase('brief');
-    rt.obj('main', '馬が動いたら、信長公に続け', 'main');
+    rt.obj('main', '坂の下で河合吉統の殿を崩す', 'main');
     rt.say('組頭', '前の馬に乗ったお方が信長公じゃ。供の兵が動いたら続け', 5);
     rt.marker('nobu', unitPos(F.nobuU), '馬に乗った信長公', {});
     rt.marker('toneShelter', () => toneShelter(rt), '味方の後ろで息を整える所',
@@ -2096,7 +2102,7 @@ const tonezaka = {
       () => F.guideJoin ? F.guideBend ? '味方へ合流する道' : '合流する味方の兵' : F.guideBend ? '次の道の曲がり' : F.guideVisible ? '道を塞ぐ敵の列' : '坂へ続く道', { h: 0.35, hideNear: 8 });
     rt.banner('朝倉が退く。信長公が追う', '前の敵は、仲間を逃がすために道を塞ぐ兵だ');
     F.chiefNoteT = rt.t + 8;
-    rt.obj('main', '坂の下で道を塞ぐ河合吉統の殿を崩す', 'main', true);
+    rt.obj('main', '坂の下で河合吉統の殿を崩す', 'main', true);
     toneAdvanceCue(rt, 'susume', F.nobuU.pos);
     rt.say('織田信長', '法螺貝と進み太鼓じゃ。先手を待つな。敦賀へ追え！', 4);
     march(F.uma, [[-10, 60], [-6, 48], [-4, 16]].map(([x, z]) => xz(x, z)));
@@ -2129,7 +2135,7 @@ const tonezaka = {
   toPass(rt) {
     const F = rt.flags;
     F.step = 3; F.stepT = rt.t; F.guideTask = null; rt.setPhase('pass'); rt.unmark('toneRoad');
-    rt.obj('main', '刀根坂の峠口で詫美越後守の殿を崩す', 'main', true);
+    rt.obj('main', '峠口で詫美越後守の殿を崩す', 'main', true);
     const signaled = toneAdvanceCue(rt, 'kakari', F.late.center());
     toneGuide(rt, PASS);
     rt.unmark('nobu'); rt.marker('pass', () => F.roadGuide,
@@ -2168,7 +2174,7 @@ const tonezaka = {
     F.guideTask = null;
     rt.world.setTime('day');
     rt.banner('一乗谷の城下', '勝家の手と、城下に残る朝倉の兵を崩せ');
-    rt.obj('main', '一乗谷の城下で、勝家の手と朝倉の兵を崩す', 'main', true);
+    rt.obj('main', '一乗谷の城下で朝倉の兵を崩す', 'main', true);
     const signaled = toneAdvanceCue(rt, 'kakari', F.late.center());
     rt.say('使番', signaled ? '陣太鼓の早打ちじゃ。柴田殿の手に続き、城下の道を押さえよ' : '柴田殿の手に加われとの御下知じゃ。城下の道を押さえよ', 4);
     toneGuide(rt, TOWN);
@@ -2199,7 +2205,7 @@ const tonezaka = {
     rt.banner('一乗谷の火', '城下に火が上がる。義景は大野へ逃れたという');
     F.guideTask = null;
     // 目の前の持ち場替えはその場で知らせ、前の任務を運ぶ使番も取り消す。
-    rt.obj('main', '勝家の手と一乗谷の奥の道を押さえる', 'main', true);
+    rt.obj('main', '一乗谷の奥の道を守る', 'main', true);
     toneDestinationGuide(rt, INNER);
     rt.marker('inner', () => !F.guideJoin && near(rt.player.u.pos, INNER, 12) ? null : F.roadGuide,
       () => F.guideJoin ? F.guideBend ? '勝家の手へ合流する道' : '合流する勝家の手' : F.guideBend ? '奥の道へ続く曲がり' : '奥の道の守り場', { h: 0.35, hideNear: 8 });
@@ -2629,4 +2635,7 @@ installBattleJinkei(tonezaka, [
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
 tonezaka.bushou = ['蜂屋頼隆', '稲葉一鉄'];
+// 11/4（AP9・AQ6）：共通の陣立て（army_jindate）の軽い大軍を入れない。持ち場のすぐ後ろに味方が埋もれる見せかけになった。
+//   後続の備（丹羽・羽柴・滝川・佐久間）と峠の向こうの義景の本隊・荷駄は、この戦が自分で置く。
+tonezaka.__jindate = true;
 export { tonezaka };

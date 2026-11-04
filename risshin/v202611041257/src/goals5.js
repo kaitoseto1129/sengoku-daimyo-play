@@ -79,14 +79,28 @@ const OWN = {
       { ...bossGoal('中山勘解由'), k: 4 },
     ];
   },
-  // 桶狭間（11/3）：どこで何をするかを最初から五つ並べる。人数を討つ目標は一つだけ
+  // 桶狭間（11/4 jin）：史実の順（中島砦を出て谷の出口へ → 雨の後に坂道の守り → 幕の前の旗本 → 幕の入口 → 退く義元を毛利が討つ）。
+  //   首を取ったのは毛利新介なので「自分で討つ」は置かない。敵を何人討つは使わない（AW3）
   okehazama: () => [
-    { kind: 'stage', k: 0, text: '谷の出口で組の旗に集まる', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
-    { kind: 'stage', k: 1, text: '坂道の今川の守りを崩す', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
-    { kind: 'stage', k: 2, text: '義元を囲む旗本を崩す', check: (rt) => won(rt) || !!rt.flags.guardOpened },
-    { ...bossGoal('今川義元'), k: 2 },
-    killGoal(KILL_N),
+    { kind: 'stage', k: 0, text: '谷の出口で組の旗に集まる', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
+    { kind: 'stage', k: 1, text: '坂道の今川の守りを崩す', noun: '今川の守り', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
+    { kind: 'stage', k: 2, text: '幕の前で義元の旗本を崩す', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
+    { kind: 'stage', k: 2, text: '幕の入口から義元へ迫る', noun: '幕の入口', check: (rt) => won(rt) || !!rt.flags.mouthReached || !!rt.flags.koshiLeft || !!rt.flags.yoshiDown },
+    { kind: 'stage', k: 2, text: '退く旗本を追い、義元を討ち取る', noun: '義元', check: won },
   ],
+  // 三方ヶ原（11/4 jin・docs/battle_refs/mikatagahara.md）：史実の順（平手の持ち場で北へ構える → 小山田の先手の投石と寄せ → 山県の赤備えが右から →
+  //   鶴翼が崩れ南の坂で殿 → 犀ヶ崖の東を下って浜松城へ）。勝てぬ戦で、生きて城へ退くのが勝ち。敵を何人討つ・自分で討つは置かない（AW3）
+  mikatagahara: () => {
+    const F = (rt) => rt.flags;
+    return [
+      { kind: 'stage', k: 0, text: '平手の槍の持ち場で北へ構える', noun: '平手の持ち場', action: '持ち場で構えよ',
+        check: (rt) => won(rt) || (F(rt).step || 0) >= 2 || !!F(rt).dpA || ((F(rt).step || 0) >= 1 && Math.hypot(rt.player.u.pos.x - 19.25, rt.player.u.pos.z + 12.25) < 8) },
+      { kind: 'stage', k: 0, text: '持ち場の前で小山田の先手を押し返す', noun: '小山田の先手', action: '先手を押し返せ', check: (rt) => won(rt) || !!F(rt).dpA || (F(rt).step || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '右の森の際で山県の赤備えを槍で受ける', noun: '山県の赤備え', action: '槍で馬を受けよ', check: (rt) => won(rt) || !!F(rt).dpB || (F(rt).step || 0) >= 3 },
+      { kind: 'stage', k: 2, text: '南の坂で追手を支え、味方を先に下らせる', noun: '南の坂', action: '坂で追手を防げ', check: (rt) => won(rt) || (F(rt).step || 0) >= 3 },
+      { kind: 'stage', k: 2, text: '崖の東を下り、浜松城の口へ退く', noun: '浜松城の口', action: '城の口へ走れ', check: won },
+    ];
+  },
   // 高遠（11/4 p100）：山中城の付け入りの型。大手で打って出た城兵を受け、退く城兵に続いて門を抜け、曲輪を一つずつ奥へ。
   //   盛信は主殿で果てる（自分で討つ目標にしない）。敵を何人討つは一つだけ
   takato: () => [
@@ -165,15 +179,14 @@ OWN.t12_odawara = () => {
   ];
 };
 
-// 忍城攻め（11/3 p100_t10_oshi）：堤の夜討ち → 堰 → 丸墓山へ逃げる → 佐間口の打って出 → 付け入り。敵を何人討つは打って出の一つだけ（b_t10_oshi.js の KILLS）
+// 忍城攻め（11/3 p100_t10_oshi）：堤の夜討ち → 堰 → 丸墓山へ逃げる → 佐間口の打って出 → 付け入り。敵を何人討つは使わない（11/4）
 OWN.t10_oshi = () => {
   const st = (n) => (rt) => won(rt) || (rt.flags.step ?? 0) > n;
   return [
     { kind: 'stage', k: 0, text: '浅瀬の口で、城の夜討ちを討つ', noun: '浅瀬の口', check: st(1) },
     { kind: 'stage', k: 1, text: '堤の西の堰へ行き、堰を切る', noun: '堰', check: st(2) },
     { kind: 'stage', k: 2, text: '人夫と兵を連れ、丸墓山へ走る', noun: '丸墓山', check: st(3) },
-    { kind: 'stage', k: 3, text: '佐間口の門前で、正木丹波守の手を討つ', noun: '佐間口', check: st(5),
-      count: (rt) => { const F = rt.flags; if (F.step !== 5 || (F.sorties?.length ?? 0) < 2) return null; const all = Math.ceil(F.sorties.reduce((n, g) => n + g.units.filter((u) => !u.invuln).length, 0) * 0.6); return [Math.min(all, F.sorties.reduce((n, g) => n + g.units.filter((u) => !u.invuln && (!u.alive || u.gone || u.fleeing)).length, 0)), all]; } },
+    { kind: 'stage', k: 3, text: '佐間口の門前で、打って出た手を押し返す', noun: '佐間口', check: st(5) },
     { kind: 'stage', k: 5, text: '佐間口の門へ付け入り、枡形の敵を討つ', noun: '枡形', check: won },
   ];
 };
@@ -320,9 +333,9 @@ export function goalTarget(rt) {
     if (near.length >= 3) { x = near.reduce((n, q) => n + q[1].pos.x, 0) / near.length; z = near.reduce((n, q) => n + q[1].pos.z, 0) / near.length; }
   }
   if (!Number.isFinite(x)) return null;
-  const action = /火|焼/.test(text) ? '印へ進め' : /門|木戸/.test(text) ? '門へ進め' :
+  const action = g.action || (/火|焼/.test(text) ? '印へ進め' : /門|木戸/.test(text) ? '門へ進め' :
     /討|退け|崩|押し返|たお|倒/.test(text) ? '敵をたおせ' : /守/.test(text) ? 'ここを守れ' :
-    /集ま|待/.test(text) ? '味方の旗へ進め' : '印へ進め';
+    /集ま|待/.test(text) ? '味方の旗へ進め' : '印へ進め');
   G.tg = { x, z, action, unit: around ? null : unit, label: unit?.name && !around ? '' : g.noun ?? goalNoun(text), boss: g.kind === 'boss' };
   return G.tg;
 }

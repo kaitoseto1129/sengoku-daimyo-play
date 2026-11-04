@@ -141,10 +141,12 @@ const k16_secret = {
     F.ieyasu = F.hon.units.find((u) => u.name === '徳川家康');
     if (F.ieyasu) F.ieyasu._crouch = true;   // 床几に腰を下ろす
     F.hon.defMult = 1.4;
-    for (const [x, z, h] of [[-18, HQ.z + 10, 7], [18, HQ.z + 10, 7], [-34, HQ.z - 4, 6], [34, HQ.z - 4, 6]]) rt.scene.add(nobori(W, x, z, 'tokugawa', h));
+    // 本陣の丘を葵の幟で囲む（Q：旗がぶわっと並ぶ。旗は動かない陣にだけ立て、隊が去った後に旗だけ残さない AR5）
+    for (const [x, z, h] of [[-18, HQ.z + 10, 7], [18, HQ.z + 10, 7], [-34, HQ.z - 4, 6], [34, HQ.z - 4, 6], [-9, HQ.z + 13, 7], [9, HQ.z + 13, 7], [-28, HQ.z + 4, 6], [28, HQ.z + 4, 6], [-24, HQ.z - 16, 6], [24, HQ.z - 16, 6]]) rt.scene.add(nobori(W, x, z, 'tokugawa', h));
     rt.scene.add(hut(W, -40, HQ.z - 24, 8, 5, 0.1), tawara(W, 40, HQ.z - 20, 0.2, 5));
     // 本陣の前の本多正純の旗本・丘の下の鉄砲衆
     F.honda = foe('本多正純の旗本', HONDA_AT, dress([busho('本多正純', { hat: 'kabuto_m' }), uS(12), uA(8), uC(3)], HONDA), { width: 9, morale: 98 });
+    for (const [x, z] of [[-14, HONDA_AT.z - 8], [0, HONDA_AT.z - 10], [14, HONDA_AT.z - 8]]) rt.scene.add(nobori(W, x, z, 'honda', 6));
     F.teppo = foe('徳川の鉄砲衆', TEPPO, dress([uS(2), uG(14)], TK), { width: 12, formation: 'line', fire: true, seek: 30 });
     // 東の林の陰の井伊の赤備え（騎馬を厚く。直孝は自ら前に出る将）
     F.ii = foe('井伊直孝の赤備え', II_AT, dress([busho('井伊直孝', { hat: 'kabuto_tentsuki' }), uC(7), uS(4), uA(12)], II), { facing: -1.2, width: 9, morale: 100, seek: 8, aggro: 8, speed: 4.2 });
@@ -153,7 +155,7 @@ const k16_secret = {
     F.takatora = foe('藤堂高虎の本陣', TODO_HQ, dress([busho('藤堂高虎', { horse: false, invuln: true }), uS(8)], TODO), { width: 5, morale: 100, seek: 6, aggro: 4 });
     const tk = F.takatora.units.find((u) => u.name === '藤堂高虎');
     if (tk) tk._crouch = true;
-    for (const [x, z] of [[-52, -38], [-36, -38]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
+    for (const [x, z] of [[-52, -38], [-36, -38], [-56, -48], [-32, -48], [-44, -54]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
 
     // ---- 自分の軍：左右の備と、自分の組（大将の旗本） ----
     const ally = (name, at, list, o = {}) => {
@@ -166,7 +168,7 @@ const k16_secret = {
     F.right = ally('右の備', { x: 22, z: 52 }, [uS(4), uA(18), uC(6)]);
     const n = RANKS[rt.G.rank].squad;
     rt.makeSquad({ x: START.x, z: START.z }, S, [{ kind: 'spear', n: Math.max(10, Math.min(n || 10, 16)) }]);
-    for (const [x, z, h] of [[-10, 70, 7], [12, 70, 7], [0, 84, 8]]) rt.scene.add(nobori(W, x, z, OWN.flag, h));
+    for (const [x, z, h] of [[-10, 70, 7], [12, 70, 7], [0, 84, 8], [-22, 76, 6], [24, 76, 6], [-8, 90, 6], [10, 90, 6]]) rt.scene.add(nobori(W, x, z, OWN.flag, h));
     KIT.farVillage(rt, -150, 120, { rot: Math.PI / 2, n: 6, fields: 8, seed: 73 });
 
     W.setTime('day');
@@ -390,7 +392,7 @@ k16_secret.sides = { a: { name: '自分の軍', mon: 'maru' }, b: { name: '徳�
 k16_secret.date = (rt) => `元和元年（1615）五月　夏・晴・${rt.t < 300 ? '朝' : '昼'}　もしもの戦`;
 k16_secret.canSkip = (rt) => (!rt.flags.step && rt.t > 3 ? '采配を振るまで待つ' : '');
 k16_secret.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
-k16_secret.history = 'この戦は史実ではない、もしもの戦である。元和元年（1615）五月、大坂夏の陣で豊臣家は滅び、徳川家康は天下の主となった。家康は翌年に世を去り、征夷大将軍の位は慶長十年（1605）からすでに子の秀忠が継いでいた。徳川の世は、この後二百六十年ほど続く。\n淀は桂川・宇治川・木津川が寄り合う所で、秀吉が淀川の左岸に築いた堤の上を、伏見と大坂を結ぶ京街道が通っていた。東には巨椋池が広がっていた。\n淀の野で家康を討ち、主人公が征夷大将軍になる筋は、足軽から出世してきた道の締めとして作った物語である。陣の並びと兵の数も遊びのための設定である。';
+k16_secret.history = 'この戦は史実ではない、もしもの戦である。元和元年（1615）五月、大坂夏の陣で豊臣家は滅び、徳川家康は天下の主となった。家康は翌年に世を去り、征夷大将軍の位は慶長十年（1605）からすでに子の秀忠が継いでいた。徳川の世は、この後二百六十年ほど続く。\n淀は桂川・宇治川・木津川が寄り合う所で、秀吉が淀川の左岸に築いた堤の上を、伏見と大坂を結ぶ京街道が通っていた。東には巨椋池が広がっていた。\n淀の野で家康を討ち、主人公が征夷大将軍になる筋は、足軽から出世してきた道の締めとして作った物語である。徳川方の五重の構え（先手・横槍・鉄砲・旗本・本陣）と、本陣へ切り込む流れは、夏の陣の天王寺口で真田信繁が先手を割って家康の本陣に迫った戦いを手本にした。';
 k16_secret.bushou = [{ name: '徳川家康', g: /家康/ }, { name: '井伊直孝', g: /井伊/ }, { name: '渡辺勘兵衛', g: /藤堂の先手|勘兵衛/ }, { name: '本多正純', g: /本多/ }, { name: '藤堂高虎', g: /高虎/ }];
 
 const st = (k) => (rt) => (rt.flags.step || 0) >= k;

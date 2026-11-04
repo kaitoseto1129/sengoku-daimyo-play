@@ -1505,7 +1505,7 @@ function honnoSurround(rt, dt) {
 }
 // 寝間着の小袖（具足・笠・指物なし）
 const NEMAKI = (col) => ({ kosode: 1, honnoCloth: true, kosodeCol: col, obi: 0x30251c, flag: null, hat: 'none', horo: 0 });
-const nS = (n) => ({ type: 'samurai', n, o: NEMAKI(0x2e3440) }), nA = (n) => ({ type: 'ashigaru', n, o: NEMAKI(0x4a463e) });
+const nS = (n) => ({ type: 'samurai', n, o: NEMAKI(0x2e3440) }), nA = (n) => ({ type: 'ashigaru', n, o: NEMAKI(0x4a4038) });   // 灰茶（オリーブ寄りだと灯りで緑の甲冑に見える）
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uB = (n) => ({ type: 'bow', n });
 // 門の扉（開いた二枚の扉。閉めると army の struct になる）
 function openLeaves(W, x, z, w) {
@@ -3284,6 +3284,10 @@ const honnoji = {
   // ---- 稲生の水準（10/25）。信長で遊ぶ時は今まで通り ----
   missionSingleLine: true,
   hideMissionDots: true,
+  // 二条御所が落ちた後は一人で京を落ちる。御所に残って討死した村井貞勝らを組頭として呼び戻さない（kumi_lead.js）
+  get kumiLead() { return !(honnoLive?.flags?.step >= 5); },
+  goalSignUnitNoLabel: true, // 頭上の▼に「ここを攻める」などの字を添えない（kaito 10/23 字は使わない）
+  goalSignNoLabel: true,
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
@@ -3830,6 +3834,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const [x, z] of [[-24, 40], [-24, 62], [TERA.x0 - 5, 50], [TERA.x0 - 5, 95], [-60, 112], [-40, TERA.z0 - 8]]) honnoTorch(rt, x, z);
     for (const [x, z] of [[-20, 56], [TERA.x0 - 7, 60], [-50, 114], [-62, TERA.z0 - 8]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
     if (F.ehon.general?.mounted) rt.army.setMounted(F.ehon.general, false);
+    if (F.ehon.general) F.ehon.general._crouch = true;   // 光秀は寺の外の本陣で床几に腰を下ろす（自ら斬り込まない）
     // 総大将の光秀は寺の外の本陣を動かない（kaito AR3・AT3）。大将の頭に任せると旗本ごと境内へ入って来た（11/3 測り：百五十秒で御殿の前）。
     for (const g of [F.ehon.general?.group, F.ehon.guard]) if (g) { g.noAI = true; g.order = 'hold'; g.aggro = 3; g.seekRange = 4; g.noPursue = true; }
     // ---- 寺の中の者：信長・小姓衆・馬廻と中間・僧 ----
@@ -3851,7 +3856,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.nb.range = 0;   // 寝所では弓を番えない（表へ出て、門の内で射る）
     F.kosho =allyGroup(rt, { fixed: true, name: '森蘭丸と小姓衆', anchor: jinkeiPoint(HONNO_DEFEND, HONNO_DEFEND.sonae[1]), facing: Math.PI / 2, width: 3, aggro: 7, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, honnoCloth: true, kosodeCol: 0x5a3a2e, obi: 0x6a2a24, flag: null, horse: false } },
-        { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, honnoCloth: true, kosodeCol: 0x5c6648, obi: 0x30251c, flag: null, horse: false } },
+        { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, honnoCloth: true, kosodeCol: 0x46485a, obi: 0x30251c, flag: null, horse: false } },
         { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, honnoCloth: true, kosodeCol: 0x78634d, obi: 0x30251c, flag: null, horse: false } },
         { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, honnoCloth: true, kosodeCol: 0x6e5a40, obi: 0x30251c, flag: null, horse: false } },
         { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, honnoCloth: true, kosodeCol: 0x6e5a40, obi: 0x30251c, flag: null, horse: false } }]);
@@ -3859,7 +3864,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.kosho.hideFlags = true;
     F.ran = F.kosho.units[0];
     F.uma = allyGroup(rt, { fixed: true, name: '馬廻と中間', anchor: jinkeiPoint(HONNO_DEFEND, HONNO_DEFEND.sonae[2]), facing: Math.PI / 2, width: 6, aggro: 8, noRout: true, fullStrength: true },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 3, o: { ...NEMAKI(0x4a463e), keep: true } }, { type: 'ashigaru', n: 3, o: { ...NEMAKI(0x5a5244), keep: true } }], ODA));   // 具足は宿直の侍二人だけ。ほかは寝間着の小袖に槍
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 3, o: { ...NEMAKI(0x4a4038), keep: true } }, { type: 'ashigaru', n: 3, o: { ...NEMAKI(0x5a5244), keep: true } }], ODA));   // 具足は宿直の侍二人だけ。ほかは寝間着の小袖に槍
     F.uma.defMult = 1;
     F.uma.hideFlags = true;
     // 供の者はそれぞれ持ち場（本堂の縁・回廊・御殿の廊下の口・勝手口の内）に詰め、そこで戦って倒れる。上様の後ろに固まらない。
@@ -4463,6 +4468,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     W.addSmokeColumn(KYO_ST + 7, 7, -116.5, { size: 2.4, black: true });
     // 紙：信忠も明智勢と戦い、御所の奥で腹を切る。最期の下知を聞いてから北の口へ。
     rt.banner('もはやこれまで', '信忠は御所の奥で腹を切った。御所に火がかけられた');
+    rt.praiseT = 1e9;   // 上役の信忠・村井は御所で死ぬ。一人で落ちる間に、上役の褒めの声を出さない（battle.js）
     honnoSay(rt, '織田信忠', '腹を切る。屍は縁の下へ隠せ。……そなたは落ちよ、見た事を伝えよ', 4.5);
     rt.after(5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '斎藤利治', '殿のお供をいたす。最後の一人まで門を支えるぞ！', 3.5); });
     if (F.tadaU && F.tadaU.alive) { F.tadaU.noTarget = true; F.tada.order = 'hold'; F.tada.anchor = { x: NIJO.x + 2, z: NIJO.z - 2 }; }
@@ -4512,7 +4518,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.award((t) => t.side.push('明智の囲みを抜け、京の外れまで落ちのびた'), '京の囲みを抜けた');
     for (const g of [...(F.kyoFoes || []), ...(F.foes || [])]) if (g && !gone(g)) { g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4; g.anchor = { x: KYO_ST, z: OUT.z + 14 }; }
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
-      [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x4e5240, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
+      [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x544a3e, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];
     if (F.shishaU) { F.shishaU.invuln = true; F.shishaU.noTarget = true; }
     rt.obj('main', '町の使者の家へ行き、知らせを渡せ', 'main', true);
@@ -5185,7 +5191,7 @@ Object.assign(honnoji, {
     for (const [x, z] of [[HONNO.x - 10, TERA.z1 + 12], [TERA.x0 - 12, HONNO.z + 8], [HONNO.x + 4, TERA.z0 - 12], [TERA.x1 + 12, HONNO.z - 6]]) rt.scene.add(nobori(W, x, z, 'akechi', 6));
     // ---- 小姓衆（森蘭丸ら）。自分のそばを離れない ----
     F.kosho = allyGroup(rt, { fixed: true, name: '森蘭丸と小姓衆', anchor: { ...PT.hikae }, facing: Math.PI / 2, width: 4, aggro: 8, noRout: true },
-      dress([{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, honnoCloth: true, kosodeCol: 0x805244, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, honnoCloth: true, kosodeCol: 0x5c6648, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, honnoCloth: true, kosodeCol: 0x78634d, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, honnoCloth: true, kosodeCol: 0x6e5a40, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, honnoCloth: true, kosodeCol: 0x6a795c, obi: 0x30251c, flag: null, horse: false } }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '森蘭丸', kosode: 1, honnoCloth: true, kosodeCol: 0x805244, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森坊丸', kosode: 1, honnoCloth: true, kosodeCol: 0x46485a, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '森力丸', kosode: 1, honnoCloth: true, kosodeCol: 0x78634d, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '高橋虎松', kosode: 1, honnoCloth: true, kosodeCol: 0x6e5a40, obi: 0x30251c, flag: null, horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋角蔵', kosode: 1, honnoCloth: true, kosodeCol: 0x6a795c, obi: 0x30251c, flag: null, horse: false } }], ODA));
     F.kosho.defMult = 1;
     F.ran = F.kosho.units[0]; F.bo = F.kosho.units[1]; F.riki = F.kosho.units[2];
     // 供のわずかな者（槍と弓。自分の組として付いて来る）

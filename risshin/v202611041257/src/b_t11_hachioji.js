@@ -54,7 +54,7 @@ const LIMIT = 900;                        // 日が昇り切るまで（秒）�
 const ROUTE = [
   [230, 56], [START.x, START.z], [150, 52], [133, 52], [108, 52], [101, 50], [95, 42], [BRIDGE_S.x, BRIDGE_S.z], [BRIDGE_N.x, BRIDGE_N.z],
   [LANDING.x, LANDING.z], [KOGUCHI.x, KOGUCHI.z], [70, -8], [72, -34], [KANEKO.x, KANEKO.z], [66, -58], [50, -68], [44, -75], [38, -76], [TAKA.x, TAKA.z],
-  [18, -92], [4, -98], [-12, -104], [MATSUKI.x, MATSUKI.z], [-38, -110], [-52, -122], [-66, -134], [HON.x, HON.z],
+  [18, -92], [17, -98], [4, -99], [-12, -104], [MATSUKI.x, MATSUKI.z], [-38, -110], [-52, -122], [-66, -134], [HON.x, HON.z],
 ];
 // 尾根の背（x, z, 高さ）：曲輪の段の高さと、間の坂
 const SPINE = [
@@ -128,13 +128,13 @@ const PLAN = {
     { id: 'ote_e', name: '大手の木戸', from: 'out', to: 'ote', kind: 'hira', at: [165, 52], rot: Math.PI / 2, w: 5 },
     { id: 'ote_w', name: '大手の奥の木戸', from: 'ote', to: 'out', kind: 'hira', at: [140, 52], rot: -Math.PI / 2, w: 5 },
     { id: 'goshu', name: '御主殿の虎口', from: 'out', to: 'goshu', kind: 'hira', at: [60, 4], rot: Math.PI / 2, w: 5 },
-    { id: 'kaneko_s', name: '金子丸の口', from: 'out', to: 'kaneko', kind: 'hira', at: [72, -34], rot: 0, w: 4.4 },
-    { id: 'kaneko_n', name: '金子丸の奥の口', from: 'kaneko', to: 'out', kind: 'hira', at: [66, -58], rot: Math.PI, w: 4.4 },
-    { id: 'taka_e', name: '高丸の口', from: 'out', to: 'taka', kind: 'hira', at: [38, -76], rot: Math.PI / 2, w: 4.4 },
-    { id: 'taka_n', name: '高丸の奥の口', from: 'taka', to: 'out', kind: 'hira', at: [18, -92], rot: Math.PI, w: 4.4 },
-    { id: 'matsuki_e', name: '松木曲輪の口', from: 'out', to: 'matsuki', kind: 'hira', at: [-12, -104], rot: Math.PI / 2, w: 4.4 },
-    { id: 'matsuki_w', name: '松木曲輪の奥の口', from: 'matsuki', to: 'out', kind: 'hira', at: [-38, -110], rot: -Math.PI / 2, w: 4.4 },
-    { id: 'hon', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [-66, -134], rot: Math.PI / 2, w: 4.4 },
+    { id: 'kaneko_s', name: '金子丸の口', from: 'out', to: 'kaneko', kind: 'hira', at: [72, -34], rot: 0, w: 5.6 },
+    { id: 'kaneko_n', name: '金子丸の奥の口', from: 'kaneko', to: 'out', kind: 'hira', at: [66, -58], rot: Math.PI, w: 5.6 },
+    { id: 'taka_e', name: '高丸の口', from: 'out', to: 'taka', kind: 'hira', at: [38, -76], rot: Math.PI / 2, w: 5.6 },
+    { id: 'taka_n', name: '高丸の奥の口', from: 'taka', to: 'out', kind: 'hira', at: [18, -92], rot: Math.PI, w: 5.6 },
+    { id: 'matsuki_e', name: '松木曲輪の口', from: 'out', to: 'matsuki', kind: 'hira', at: [-12, -104], rot: Math.PI / 2, w: 5.6 },
+    { id: 'matsuki_w', name: '松木曲輪の奥の口', from: 'matsuki', to: 'out', kind: 'hira', at: [-38, -110], rot: -Math.PI / 2, w: 5.6 },
+    { id: 'hon', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [-66, -134], rot: Math.PI / 2, w: 5.6 },
   ],
   paths: [{ id: 'ote', kind: 'ote', pts: ROUTE.slice(1) }],
 };
@@ -174,6 +174,33 @@ function hachiojiWay(army, u, want) {
   if (i < 0 || i >= ROUTE.length || (fwd ? i > RT.s : i < RT.s)) { q.x = RT.x; q.z = RT.z; }
   else { q.x = ROUTE[i][0]; q.z = ROUTE[i][1]; }
   return q;
+}
+
+// 味方の組を、谷の道と尾根の道の曲がり角を順にたどって段の場所へ（11/4：攻める号令のままでは大手の曲輪の柵に掛かって寄せ口に残った）。
+//   細い道は二列の縦隊で歩き、着いたら槍の備に組み直して段の敵へかかる
+const RG = { d: 0, s: 0, x: 0, z: 0 };
+function marchTo(rt, g, to, k = 0) {
+  if (!g || !g.count || g.routed) return;
+  const c = g.center(), at = { x: to.x + (k % 2 ? 3 : -3) * Math.ceil(k / 2), z: to.z + 3 * k };
+  routeAt(c.x, c.z, RG); const s0 = RG.s, d0 = RG.d, rx = RG.x, rz = RG.z;
+  routeAt(at.x, at.z, RG); const s1 = RG.s;
+  const path = [];
+  if (d0 > 3) path.push([rx, rz]);
+  if (s1 > s0) for (let i = Math.floor(s0) + 1; i <= Math.floor(s1); i++) path.push(ROUTE[i]);
+  else for (let i = Math.ceil(s0) - 1; i >= Math.ceil(s1); i--) path.push(ROUTE[i]);
+  path.push([at.x, at.z]);
+  // 柵の外へはぐれて止まった者（列の後ろが遅れると先頭が待ち続ける）は、遊び手から見えない時だけ組の中へ戻す
+  //   戻す先は、組の中で遊び手から一番遠い者のそば（目の前に湧かせない）
+  const P = rt.player.u.pos, far = (u) => Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
+  let rear = null;
+  for (const u of g.units) if (u.alive && !u.fleeing && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 12 && (!rear || far(u) > far(rear))) rear = u;
+  if (rear && far(rear) > 30) for (const u of g.units) if (u.alive && !u.fleeing && !u.isPlayer && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45) {
+    u.pos.x = rear.pos.x + (Math.random() - 0.5) * 3; u.pos.z = rear.pos.z + (Math.random() - 0.5) * 3; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.target = null; u.aiT = 0;
+  }
+  g.focus = null; g.dest = null; g.fixed = false;
+  g.anchor = { x: c.x, z: c.z }; g.path = path; g.pathIdx = 0;
+  g.order = 'path'; g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; g.speed = 3.4;
+  g.onArrive = (q) => { q.order = 'attack'; q.path = null; q.roadColumn = false; q.formation = 'yari'; q.anchor = at; q.seekRange = 30; q._fitAt = 0; };
 }
 
 // ---- 曳橋と石段（形は一つずつにまとめる。毎コマ new しない） ----
@@ -240,7 +267,7 @@ function bridgeAndSteps(rt) {
 // ---- 旗と篝火：前田の寄せ口・北条の曲輪 ----
 function flags(rt) {
   const W = rt.world;
-  rt.scene.add(jinmaku(W, START.x + 10, START.z, 12, 9, 4, { mon: 'maeda' }));
+  rt.scene.add(jinmaku(W, START.x + 10, START.z, 12, 9, 4, { mon: 'maeda', people: false }));   // 幕の内の床几には本物の利家が座る（作り物の大将と二人にしない）
   for (const [x, z] of [[START.x - 2, START.z - 7], [START.x - 2, START.z + 7], [START.x + 4, START.z - 14]]) rt.scene.add(nobori(W, x, z, 'maeda', 6));
   for (const [x, z] of [[START.x + 2, START.z - 4], [START.x + 2, START.z + 5]]) rt.scene.add(kagaribi(W, x, z));
   for (const [x, z] of [[128, 44], [128, 60], [56, -16], [24, 10], [80, -38], [34, -70], [-16, -96], [-70, -126], [-90, -144]]) rt.scene.add(nobori(W, x, z, 'hojo', 5));
@@ -280,7 +307,7 @@ function sallyStep() {
       F.sallyN = g.units.length;
       rt.obj('dp', '曳橋の袂で、打って出た北条勢を迎え撃て', 'main');
       rt.marker('dp', BRIDGE_S, '曳橋', { h: 3 });
-      for (const f of ctx.friends(rt)) if (f && f.count) { f.order = 'attack'; f.anchor = { x: BRIDGE_S.x + 4, z: BRIDGE_S.z + 6 }; f.seekRange = 30; }
+      ctx.friends(rt).forEach((f, k) => marchTo(rt, f, { x: BRIDGE_S.x + 4, z: BRIDGE_S.z + 6 }, k));
       rt.army.play('eshout', { x: LANDING.x, z: LANDING.z }, 1.6);
     },
     tick(rt, C, m, ctx, el) {
@@ -290,6 +317,7 @@ function sallyStep() {
         rt.objProgress('dp', `敵 ${live(g)}人`);
         if (live(g) <= F.sallyN * 0.5 || el > 120) {
           F.sallyBack = true; C.backT = el;
+          C.goal = { x: KOGUCHI.x + 1, z: KOGUCHI.z + 0.4 };   // 行き先は冠木門（遊び手の印と同じ所）
           g.order = 'path'; g.path = BACK_PATH; g.pathIdx = 0; g.speed = 3.2; g.aggro = 0; g.noRout = true; g.focus = null;
           g.onArrive = (q) => { q.order = 'hold'; q.aggro = 8; };
           for (const u of g.units) if (u.alive) { u.target = null; u.aiT = 0; }
@@ -297,7 +325,7 @@ function sallyStep() {
           rt.after(1.2, () => rt.say('前田利長', '退く敵に続け！　門を閉めさせるな！', 3.4));
           rt.obj('dp', '退く敵に続き、石段の上の冠木門へ駆け込め', 'main');
           rt.unmark('dp'); rt.marker('dp', { x: KOGUCHI.x + 1, z: KOGUCHI.z + 0.4 }, '冠木門', { h: 3 });
-          for (const f of ctx.friends(rt)) if (f && f.count) { f.order = 'attack'; f.anchor = { x: KOGUCHI.x, z: KOGUCHI.z }; f.seekRange = 24; }
+          ctx.friends(rt).forEach((f, k) => marchTo(rt, f, KOGUCHI, k));
         }
         return false;
       }
@@ -321,12 +349,12 @@ function sallyStep() {
           const ng = enemyGroup(rt, { fixed: true, faction: 'hojo', name: '冠木門の守り', anchor: { x: KOGUCHI.x - 3, z: KOGUCHI.z }, facing: Math.PI / 2, width: 5, aggro: 10, morale: 90, order: 'hold', seekRange: 14 },
             dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HOJO));
           ng.dmgMult = ctx.dmg ?? 0.58;
-          C.groups.push(ng);
+          C.groups.push(ng); F.gateG = ng;
         }
         return false;
       }
-      // 門を固められた時：冠木門の守りと虎口の鉄砲を討てば、虎口を抜ける
-      const rest = C.groups.reduce((n, q) => n + live(q), 0) - live(g);
+      // 門を固められた時：冠木門の守りを討てば虎口を抜ける（虎口の鉄砲は上の段にいて、門の内からしか届かない。抜ければ崩れる）
+      const rest = live(F.gateG);
       rt.objProgress('dp', `冠木門の敵 ${rest}人`);
       return rest <= 2;
     },
@@ -393,16 +421,19 @@ const t11_hachioji = {
     farSight(rt.scene.children.slice(castle0), { W, cap: 0.4, from: 40, to: 85, ground: { x: 60, z: 6, r: 45 } });
     // ---- 前田勢：自分の手勢と前田の先手。利家は寄せ口の本陣に残る ----
     // 総大将の利家は寄せ口の陣幕の内に座り、前へ出ない（kaito AR3・AV7）。旗本の侍と槍が幕の前を固める
-    F.honjin = allyGroup(rt, { faction: 'oda', name: '前田利家の本陣', anchor: { x: START.x + 9, z: START.z }, facing: -Math.PI / 2, width: 8, aggro: 3, order: 'hold', fixed: true, noRout: true, noAI: true },
+    F.honjin = allyGroup(rt, { faction: 'oda', name: '前田利家の本陣', anchor: { x: START.x + 9, z: START.z }, facing: -Math.PI / 2, width: 8, aggro: 0, order: 'hold', fixed: true, noRout: true, noAI: true },
       dress([{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: false } }, { type: 'samurai', n: 10, o: { invuln: true } }, { type: 'ashigaru', n: 12, o: { invuln: true } }], MAEDA));
     F.mine = allyGroup(rt, { faction: 'oda', name: '手勢', anchor: { x: START.x - 8, z: START.z + 3 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 5 }], MAEDA));
     F.saki = allyGroup(rt, { faction: 'oda', name: '前田の先手', anchor: { x: START.x - 10, z: START.z - 6 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '前田利長', invuln: true, horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 3 }], MAEDA));
+      dress([{ type: 'busho', n: 1, o: { name: '前田利長', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'bow', n: 3 }], MAEDA));
     // 前田の二の手：先手の後ろから続く（寄せ手は城兵の五倍。史実の比は docs/battle_refs/t11_hachioji.md）
     F.ni = allyGroup(rt, { faction: 'oda', name: '前田の二の手', anchor: { x: START.x - 4, z: START.z + 12 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }], MAEDA));
     for (const g of [F.mine, F.saki, F.ni]) { g.defMult = 1.2; g.dmgMult = 0.8; }
+    // 利家は幕の奥の床几に座ったまま（陣中の待ち：u.jinchu。敵は寄せ口まで来ない）
+    const toshiie = F.honjin.units.find((u) => u.name === '前田利家');
+    if (toshiie) { toshiie.pos.x = START.x + 10; toshiie.pos.z = START.z - 2.5; toshiie.heading = Math.PI / 2; toshiie.jinchu = { standing: false, danger: false, soldiers: [] }; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: START.x - 2, z: START.z + 6 }, -Math.PI / 2, [{ kind: 'spear', n: Math.min(n, 16) }]);
     W.setTime('morning');
@@ -427,7 +458,7 @@ const t11_hachioji = {
       // ① 大手の曲輪：山下曲輪を守った近藤出羽守（綱秀）の組。木戸の内から鉄砲を撃ちかける
       DP.fight({ at: OTE, title: '大手の曲輪', sub: '近藤出羽守が守る', obj: '大手の曲輪で、近藤出羽守の組を討て', max: 90, noRefill: true,
         say: [['前田の侍', '木戸の内に北条の兵！　霧の中から撃ってくるぞ']],
-        foes: () => [keep('近藤出羽守の組', OTE, [{ type: 'busho', n: 1, o: { name: '近藤出羽守', hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }]),
+        foes: () => [keep('近藤出羽守の組', OTE, [{ type: 'busho', n: 1, o: { name: '近藤出羽守', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }]),
           keep('大手の木戸の鉄砲', OTE, [{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], { dx: -10, width: 6 })],
         later: [{ t: 25, say: ['前田の侍', '奥の木戸から新手じゃ！'], foes: () => [keep('大手の奥の新手', OTE, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dx: -18 })] }],
         reward: '大手の曲輪を破った' }),
@@ -441,20 +472,20 @@ const t11_hachioji = {
       // ④ 尾根の曲輪を一つずつ落とす（上からの鉄砲）
       DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
         say: [['前田の侍', '上の曲輪から鉄砲じゃ！　身を低くして登れ']],
-        foes: () => [keep('金子家重の組', KANEKO, [{ type: 'samurai', n: 1, o: { name: '金子家重', hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }])],
+        foes: () => [keep('金子家重の組', KANEKO, [{ type: 'busho', n: 1, o: { name: '金子家重', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }])],
         reward: '金子丸を落とした' }),
       DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }])],
         reward: '高丸を落とした' }),
       DP.fight({ at: MATSUKI, title: '松木曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、松木曲輪の狩野一庵の組を討て', max: 70, noRefill: true,
         say: [['前田の侍', '搦手に竹に雀の旗！　上杉勢が来たぞ']],
-        foes: () => [keep('狩野一庵の組', MATSUKI, [{ type: 'samurai', n: 1, o: { name: '狩野一庵', hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }])],
+        foes: () => [keep('狩野一庵の組', MATSUKI, [{ type: 'busho', n: 1, o: { name: '狩野一庵', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }])],
         reward: '松木曲輪を落とした' }),
       // ⑤ 頂の本丸：中山勘解由（家範）は降るのを拒んで討死。城代の横地監物は西の詰城の方へ落ちる
       DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['中山勘解由', '北条の城、ただでは渡さぬ！'], ['横地監物', '要害を固めよ。小田原の殿に顔向けできぬぞ！']],
-        foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'busho', n: 1, o: { name: '中山勘解由', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
-          keep('横地監物の手', HON, [{ type: 'samurai', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 60, seek: 20 })],
+        foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'busho', n: 1, o: { name: '中山勘解由', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
+          keep('横地監物の手', HON, [{ type: 'busho', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 60, seek: 20 })],
         reward: '本丸を落とした' }),
     ], (rt2) => this.win(rt2));
   },
@@ -464,10 +495,10 @@ const t11_hachioji = {
     const F = rt.flags;
     if (F.uesugi) return;
     F.uesugi = allyGroup(rt, { faction: 'uesugi', name: '上杉勢', anchor: { x: KARAMETE.x, z: KARAMETE.z }, facing: Math.PI, width: 10, aggro: 12, noRout: true, order: 'attack', seekRange: 60 },
-      dress([{ type: 'busho', n: 1, o: { name: '上杉景勝', invuln: true, horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], UESUGI));
+      dress([{ type: 'busho', n: 1, o: { name: '上杉景勝', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], UESUGI));
     // 真田昌幸の手：上杉勢の脇から尾根を登る
     F.sanada = allyGroup(rt, { faction: 'uesugi', name: '真田昌幸の手', anchor: { x: KARAMETE.x + 8, z: KARAMETE.z + 6 }, facing: Math.PI, width: 6, aggro: 12, noRout: true, order: 'attack', seekRange: 50 },
-      [{ type: 'busho', n: 1, o: { name: '真田昌幸', invuln: true, horse: false, flag: 'sanada' } }, { type: 'samurai', n: 1, o: { flag: 'sanada' } }, { type: 'ashigaru', n: 6, o: { flag: 'sanada' } }]);
+      [{ type: 'busho', n: 1, o: { name: '真田昌幸', invuln: true, horse: true, flag: 'sanada' } }, { type: 'samurai', n: 1, o: { flag: 'sanada' } }, { type: 'ashigaru', n: 6, o: { flag: 'sanada' } }]);
     F.sanada.anchor = { x: MATSUKI.x + 4, z: MATSUKI.z + 8 };
     F.sanada.dmgMult = 0.7;
     rt.after(1.5, () => rt.say('上杉景勝', '搦手は上杉が破る。前田殿に遅れるな', 3.4));
@@ -512,6 +543,29 @@ const t11_hachioji = {
     depthTick(rt, dt);
     const D = F.dp;
     if (D && D.on && D.i >= 5) this.uesugi(rt);
+    // 道の途中で動かなくなった兵（崖の上・柵の角・橋の袂で止まり、組の列が待ち続ける）は、遊び手から見えない所でだけ組の持ち場へ寄せる
+    if (D && D.on && !(F.unstuckT > rt.t)) {
+      F.unstuckT = rt.t + 2;
+      const P = rt.player.u.pos;
+      for (const g of [F.saki, F.mine, F.ni]) if (g && g.count && !g.routed) for (const u of g.units) {
+        if (!u.alive || u.fleeing || u.isPlayer) continue;
+        const k = u._t11Stay || (u._t11Stay = { x: u.pos.x, z: u.pos.z, t: rt.t });
+        if (Math.hypot(u.pos.x - k.x, u.pos.z - k.z) > 1.5) { k.x = u.pos.x; k.z = u.pos.z; k.t = rt.t; continue; }
+        if (rt.t - k.t < 12 || u.target) continue;
+        const home = g.slotPos(u.slot, g.initial);
+        if (Math.hypot(home.x - u.pos.x, home.z - u.pos.z) < 8 || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 45 || Math.hypot(home.x - P.x, home.z - P.z) < 40) continue;
+        u.pos.x = home.x; u.pos.z = home.z; u.pos.y = rt.world.heightAt(home.x, home.z); u.aiT = 0; u.jamT = 0; u.jammed = false;
+        k.x = u.pos.x; k.z = u.pos.z; k.t = rt.t;
+      }
+    }
+    // 段が変わったら、前田の組を道どおりに段の場所へ（曳橋の段は sallyStep が送る）
+    if (D && D.on && D.i !== F.marchI) {
+      F.marchI = D.i;
+      const to = D.i !== 2 && D.cur && (D.cur.goal || D.cur.at);
+      if (to) [F.saki, F.mine, F.ni].forEach((g, k) => marchTo(rt, g, to, k));
+      // 本丸の段：搦手の上杉勢・真田の手も、松木曲輪から本丸へ攻め上る
+      if (D.i >= 7) [F.uesugi, F.sanada].forEach((g, k) => marchTo(rt, g, { x: HON.x + 4, z: HON.z + 10 }, k + 3));
+    }
     // 霧は登るほど薄れ、本丸の段で朝日が差す
     if (D && D.on && D.i >= 7 && !F.sun) { F.sun = true; rt.world.setTime('day'); }
     if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
@@ -531,6 +585,12 @@ const t11_hachioji = {
 t11_hachioji.force = (rt) => ({ a: Math.round(15000 - (rt.flags.ak || 0) * 20), a0: 15000, b: Math.max(0, 3000 - (rt.flags.ek || 0) * 25), b0: 3000 });
 t11_hachioji.sides = { a: { name: '前田・上杉勢', mon: 'maeda' }, b: { name: '北条勢', mon: 'hojo' } };
 t11_hachioji.date = (rt) => (rt.flags.sun ? '天正十八年（1590）六月二十三日　夏・朝日' : '天正十八年（1590）六月二十三日　夏・夜明けの霧');
+// 金の▼に添える一言：今の段の場所と行い（「印へ進め」では何をするか分からない）
+t11_hachioji.goalSignAction = (rt) => {
+  const F = rt.flags, i = F.dp?.on ? F.dp.i : -1;
+  if (i === 2) return F.sallyBack ? '冠木門へ駆け込め' : '曳橋の袂で迎え撃て';
+  return ['大手の曲輪を破れ', '曳橋へ進め', '', '御主殿の敵を討て', '金子丸を落とせ', '高丸を落とせ', '松木曲輪を落とせ', '本丸を落とせ'][i] || '';
+};
 t11_hachioji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 t11_hachioji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 t11_hachioji.history = '天正十八年（1590）の小田原攻めで、豊臣方は関東の北条の城を次々に攻めた。八王子城は北条氏照が築いた山城で、深沢山の頂の本丸から、城山川の谷の御主殿（館）まで曲輪が連なる。氏照は小田原に籠もっていたため、城は城代の横地監物や中山勘解由（家範）・狩野一庵らが守り、兵のほかに近くの村の女や子も多く籠もっていた。六月二十三日の夜明け前、前田利家・利長、上杉景勝、真田昌幸らおよそ一万五千が霧の中を大手と搦手から攻め、城は一日で落ちた。中山勘解由らは討死し、御主殿の滝では女たちが身を投げたと伝えられる。八王子城の落城は小田原に知らされ、北条の心を折る一つとなった。\n曲輪の並びと寸法は遊びのために縮めて復元したもので、伏兵や上杉勢の来る道筋は推定である。両軍の人数には別の伝えもある。';

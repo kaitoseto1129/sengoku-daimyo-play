@@ -4233,7 +4233,9 @@ const mitsukuri = {
   sallyTick(rt) {
     const F = rt.flags, gate = F.gates.kido;
     if (!F.sally) {
-      if (gate.opened || !F.sanFell || F.ending || rt.over || rt.t < (F.sallyAt ?? Infinity)) return;
+      // 11/4 夜：掛矢で木戸が先に破れると付け入りの段が飛ぶ（bot）。木戸が半ば傷んだ所でも打って出る。
+      const st = gate.struct, worn = st && st.hp < st.maxHp * 0.55;
+      if (gate.opened || !F.sanFell || F.ending || rt.over || (!worn && rt.t < (F.sallyAt ?? Infinity))) return;
       const g = F.sally = enemyGroup(rt, { name: '木戸から打って出た組', faction: 'rokkaku', anchor: { x: KIDO.x, z: KIDO.z - 5 },
         facing: 0, width: 6, formation: 'yari', aggro: 12, morale: 90, noRout: true },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 19 }], RK));

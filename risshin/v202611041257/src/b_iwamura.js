@@ -936,14 +936,16 @@ const iwamura = {
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   minutes: 7,
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
-  missions: ['篝火を焚け', '柵を守れ', '▼の敵を倒せ', '麓へ進め', '味方を待て', '麓を守れ'],
+  // 信長公記の順：水精山の陣で火を守る→城方の夜討ちを河尻・毛利が柵で防ぐ→退く武田勢を城の麓まで追い討つ。
+  // 場所と行いで書く。待つだけの段は置かない（AW3・BA3）。
+  missions: ['柵の西と東の篝火を焚け', '柵の口で武田の夜討ちを防げ', '山道を退く武田勢を討て', '岩村城の麓まで追え', '麓の木戸の前を固めよ'],
   missionOf(rt) {
     const F = rt.flags;
     if (F.step < 2 && F.lit < POSTS.length && !F.scoutNear) return 0;
     if (F.step < 3) return 1;
     if (this.missionSignTarget(rt)) return 2;
     if (!atFoot(F, rt.player.u.pos)) return 3;
-    return F.joinHold > 0 ? 5 : 4;
+    return 4;
   },
   missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
   // 秋山は後日捕らえられる城将。目印を付けても、この夜の討取りの対象にはしない。
@@ -1003,8 +1005,8 @@ const iwamura = {
     q.arrived = q.waiting && (F.step === 3 ? atFoot(F, p) :
       Math.hypot(p.x - q.x, p.z - q.z) < q.r);
     // 麓に着いた後は任務の一行で待機を示す。自分の足元へ旗と矢印を重ねない。
-    // 押し戻された時は同じ山道への案内を再び出す。柵の守備の印は残す。
-    if (F.step === 3 && q.arrived) return null;
+    // 押し戻された時は同じ山道への案内を再び出す。柵の口に着いた後も足元の旗を出さない（BH6：印は真上の▼一つ）。
+    if (q.arrived) return null;
     return q;
   },
   // 共通の民の仕組みで見物・兵や火からの避難を行い、兵数や戦功には加えない。
@@ -1221,7 +1223,7 @@ const iwamura = {
       .replace('目の前の敵を、味方と押し返せ', '味方と敵を押し返せ')
       .replace('道の敵を押し返し、麓へ進め', '敵を押し返し麓へ進め')
       .replace('柵で武田の夜討ちを防げ', '柵で夜討ちを防げ').replace('山道を進み、麓の味方につけ', '山道から麓へ進め')
-      .replace('麓に留まり、組の到着を待て', '麓で味方を待て');
+      .replace('麓に留まり、組の到着を待て', '麓の木戸の前を固めよ');
   },
   taskDetail(rt, _title, detail) {
     const cue = rt.hud.retreatGuide;
@@ -1718,8 +1720,9 @@ const iwamura = {
       anchor: { x: path[0][0], z: path[0][1] }, facing: Math.atan2(path[1][0] - path[0][0], path[1][1] - path[0][1]), order: 'hold', formation: 'column', colW: 2, roadColumn: true,
       aggro: 4, seekRange: 28, noAI: true, morale: 85, fleeDir: { x: 0, z: -1 },
     }, battleLook(rt, [
-      { type: 'samurai', n: i < 3 ? 2 : 0 },
-      { type: 'ashigaru', n: i < 3 ? [10, 16, 12][i] : i >= 4 ? 2 : 6 },
+      // 城方の夜討ちは大将分二十一人・千百余が討たれた大勢（信長公記）。各手に侍を入れ、山道を埋める数にする。
+      { type: 'samurai', n: i < 3 ? 3 : 1 },
+      { type: 'ashigaru', n: i < 3 ? [16, 22, 16][i] : i >= 4 ? 4 : 8 },
       { type: 'bow', n: i < 3 ? 0 : 2 },
     ], TAKEDA)));
     // 城へ退く手を守る小隊。ならした道の二つの折れに初めから置く（配置は遊びの補完）。

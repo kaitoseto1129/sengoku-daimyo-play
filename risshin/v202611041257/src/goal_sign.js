@@ -120,7 +120,8 @@ export function goalSignTick(rt, root) {
   // 呼び名：隊と場所はいつも。名のある武将は頭上の名前があるので、画面の外の時だけ名を添える
   // 場所の説明だけにせず、印へ向かって今する行動を一つ示す。
   const action = rt.def.goalSignAction?.(rt, currentObjective(rt)?.text || '') || t.action;
-  const label = unit ? (unit.team === me.team ? 'この人について行く' : 'ここを攻める') : rt.def.goalSignNoLabel ? '' : action ? '▼ ' + action.split(/[。！？]/)[0] : t.label || (edge && u?.name) || '';
+  // def.goalSignBare（稲生）：▼だけで字を添えない（kaito 10/23「字は一切使わない」）
+  const label = rt.def.goalSignBare ? '' : unit ? rt.def.goalSignUnitNoLabel ? '' : (unit.team === me.team ? 'この人について行く' : 'ここを攻める') : rt.def.goalSignNoLabel ? '' : action ? '▼ ' + action.split(/[。！？]/)[0] : t.label || (edge && u?.name) || '';
   if (label !== el._label) { el._label = label; el._name.textContent = label; el._tw = 0; }
   el._tri.style.transform = edge ? `rotate(${(ang * 180 / Math.PI + 180).toFixed(0)}deg)` : '';
   if (!el._tw || el._twH !== VIEW.h) { el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20; el._twH = VIEW.h; }

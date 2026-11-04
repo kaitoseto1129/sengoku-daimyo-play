@@ -38,7 +38,7 @@ TEGARA_ON.add(ID);
 const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 // 携帯の横（844）の右上の札に一行で入る長さ（十八字まで）
 const MISSIONS = ['浅瀬の口で、城の夜討ちを討つ', '堤の西の堰へ行き、堰を切る', '人夫と兵を連れ、丸墓山へ走る',
-  '浅野勢と浅瀬を渡り、佐間口の門前へ', '佐間口の門前で、正木丹波守の手を討つ', '佐間口の門へ付け入り、枡形の敵を討つ'];
+  '浅野勢と浅瀬を渡り、佐間口の門前へ', '佐間口の門前で、打って出た手を押し返す', '佐間口の門へ付け入り、枡形の敵を討つ'];
 STAGES[ID] = MISSIONS.map((m, i) => (i ? [m, s(i + 1)] : [m]));
 
 let dem = null;
@@ -305,6 +305,8 @@ const t10_oshi = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /^(六月十八日の夜|七月の総攻め)/.test(t),
   nearbyAllySignLimit: 0, foeMarks: true, enemyTriangleSigns: true, foeMarkRange: 30,
   missionPinCaption: '',
+  goalSignNoLabel: true,     // 11/4 jin：▼の上に「敵をたおせ」などの字を出さない（字は使わない・kaito 10/23）
+  meleeGuide: () => false,   // 11/4 jin（Simple・BH6）：「敵をたおせ」の札と敵を指す矢印は出さない。敵は頭上の▼で分かる
   noFrontFill: true,          // 共通の奥の乱戦は沼の水の上に立ってしまう（水面が見えず、水攻めの広さが出ない）。乱戦は土橋の上に置く（camps）
   learningFight: true, playerTaken: 0.45, playerRegen: 0.02,
   autoTargetCamera: true, steadyMeleeCamera: true, closeCombatAssist: true,
@@ -360,12 +362,15 @@ const t10_oshi = {
       [{ type: 'porter', n: 10, o: { flag: null, hat: 'none', armor: 0x4a4034, lace: 0x5a4e3c, cloth: 0x6a5a44, haori: null, mon: null, porterLoad: dohyoLoad() } }]);
     // 総大将の石田三成は丸墓山の上の本陣を動かない。旗本・馬廻の何百に囲まれる（kaito AR3・AV7）
     F.mitsunari = allyGroup(rt, { faction: 'toyotomi', name: '石田三成の旗本', anchor: { ...MARU }, facing: Math.atan2(-1, -1), width: 8, aggro: 0, fixed: true, noAI: true },
-      dress([{ type: 'busho', n: 1, o: { name: '石田三成', invuln: true, hat: 'kabuto_m', flag: 'ishida' } }, { type: 'busho', n: 1, o: { name: '大谷吉継', invuln: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 6 }], ISHI));
+      dress([{ type: 'busho', n: 1, o: { name: '石田三成', invuln: true, horse: false, hat: 'kabuto_m', flag: 'ishida' } }, { type: 'busho', n: 1, o: { name: '大谷吉継', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 6 }], ISHI));
+    // 11/4 jin（AV7）：総大将の三成は本陣の床几に座る。大谷吉継は馬上で脇に控える
+    const mitsu = F.mitsunari.units.find((u) => u.name === '石田三成'); if (mitsu) mitsu._crouch = true;
     KIT.backOf(rt, F.mitsunari, { flag: 'ishida', armor: ISHI.armor, kind: 'mixed', w: 20, depth: 10, count: 260, gap: 3, seed: 10902 });
     // 城代の成田長親は本丸の屋形の前を動かない
     F.narita = enemyGroup(rt, { faction: 'hojo', name: '成田長親の旗本', anchor: { x: CASTLE.x + 3, z: CASTLE.z + 3 }, facing: Math.PI / 4, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '成田長親', invuln: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 6 }], HOJO));
+      dress([{ type: 'busho', n: 1, o: { name: '成田長親', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'samurai', n: 6 }], HOJO));
     F.naritaU = F.narita.units[0];
+    if (F.naritaU) F.naritaU._crouch = true;   // 城代は本丸の屋形の前の床几に座る（11/4 jin・AV7）
     // 本丸の屋形の周りを固める城兵の控え（島に収まる小さな塊。kaito AT4・AV7）
     KIT.backOf(rt, F.narita, { flag: 'hojo', armor: HOJO.armor, kind: 'mixed', w: 9, depth: 6, count: 90, gap: 0, seed: 10905 });
     // 戦の前の会話（史実：三成は秀吉の高松城の水攻めに倣った）
@@ -390,10 +395,11 @@ const t10_oshi = {
     const F = rt.flags;
     if (F.raid >= 3 || F.step !== 1) return;
     const i = F.raid++, side = i % 2 ? 1 : -1;
-    const at = { x: KU.x - 34 + side * 14, z: KU.z - 30 - side * 6 };
+    // 11/4 jin：夜討ちは城の口から浅瀬の土手（水を入れる前は乾いた道）を伝って来る。前は沼の深みに出て、兵が首まで沈んで見えた
+    const at = i % 2 ? { x: FORD.x - 6, z: FORD.z - 6 } : { x: (FORD.x + GATE.x) / 2 + side, z: (FORD.z + GATE.z) / 2 };
     const g = enemyGroup(rt, { faction: 'hojo', name: '城の夜討ち', anchor: at, facing: Math.PI * 0.75, fleeDir: { x: -1, z: -1 }, width: 5, noRout: true, formation: 'line', morale: 80,
       order: 'move', dest: { x: KU.x - 6, z: KU.z - 2 }, speed: 3.2, aggro: 5, dmgMult: 0.45 },
-    dress([{ type: 'samurai', n: 1, o: i === 2 ? { name: '正木丹波守' } : {} }, { type: 'ashigaru', n: 5 + i }, { type: i === 2 ? 'gun' : 'bow', n: 1 }], HOJO));
+    dress([{ type: 'samurai', n: i === 2 ? 3 : 1 }, ...(i === 2 ? [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }] : []), { type: 'ashigaru', n: 5 + i }, { type: i === 2 ? 'gun' : 'bow', n: 1 }], HOJO));
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 30; q.aggro = 12; };
     F.raids.push(g);
     if (i === 2) rt.say('石田勢の足軽', '正木丹波の旗じゃ！　城の口の守り頭が出てきた！', 3.2);
@@ -431,7 +437,7 @@ const t10_oshi = {
     rt.world.setTime('storm');
     sfx('taiko', 1);
     // 時が飛ぶ（堰を切った日から六月十八日の夜へ）。人夫の小屋のそばへ戻し、真ん中に次の目標を出す
-    warp(rt, KU.x + 5, KU.z + 9, Math.atan2(MARU.x - KU.x, MARU.z - KU.z));
+    warp(rt, CAMP.x - 4, CAMP.z - 2, Math.atan2(MARU.x - CAMP.x, MARU.z - CAMP.z));
     rt.banner('六月十八日の夜　大雨', '切れた堤から、人夫と兵を丸墓山へ');
     rt.after(6, () => {
       F.broken = true; F.breakT = rt.t;
@@ -443,11 +449,20 @@ const t10_oshi = {
     });
     rt.obj('main', MISSIONS[2], 'main');
     // 逃がす組：人夫と区の足軽。数えるのは今生きている者
-    F.porters.fixed = false;
+    F.porters.fixed = false; F.guard.ai = true;
     F.evac = [F.porters, F.guard].filter(live);
     F.evac0 = F.evac.reduce((a, g) => a + g.units.filter((u) => u.alive && !u.gone).length, 0);
     // 逃がす組は散り散りに逃げ出さず、呼ぶ声の方へ寄る（夜討ちで崩れた足軽も立て直して付いて来る）
     for (const g of F.evac) { g.routed = false; g.noRout = true; g.morale = 100; }
+    // 11/4 jin：時が飛ぶので、夜討ちで沼へ散った人夫と足軽も陣の小屋のそばへ戻す（前は城の前の沼に残り、丸墓山まで遠すぎて水に取られた）
+    let k = 0;
+    for (const g of F.evac) g.anchor = { x: CAMP.x - 3, z: CAMP.z - 5 };   // 隊の要も移す（要が区に残ると、皆が区へ戻ってしまう）
+    for (const g of F.evac) for (const u of g.units) {
+      if (!u.alive || u.gone) continue;
+      const x = CAMP.x - 6 + (k % 5) * 1.6, z = CAMP.z - 8 + Math.floor(k / 5) * 1.6; k++;
+      u.fleeing = false; u.target = null;
+      u.pos.set(x, rt.world.heightAt(x, z), z); if (u.vel) u.vel.x = u.vel.z = 0; if (u.mesh) u.mesh.position.copy(u.pos);
+    }
     for (const g of F.raids) if (live(g)) { g.noRout = false; g.morale = 0; }
   },
 
@@ -470,20 +485,21 @@ const t10_oshi = {
     F.boats = [[-44, -52], [-54, -60], [-36, -62]].map(([x, z]) => { const b = kobune(x, F.lakeY + 0.05, z, Math.atan2(GATE.x - x, GATE.z - z), 7); if (b) rt.scene.add(b); return b; });
     F.fordAlly = allyGroup(rt, { faction: 'toyotomi', name: '浅野長政の手', fullStrength: true, anchor: { x: FORD.x + 2, z: FORD.z + 4 }, facing: Math.atan2(-1, -1), width: 7, aggro: 10, noRout: true,
       order: 'move', dest: { x: FRONT.x + 3, z: FRONT.z + 3 }, speed: 2.6, dmgMult: 0.5 },
-    dress([{ type: 'busho', n: 1, o: { name: '浅野長政', invuln: true, hat: 'kabuto_m', flag: 'toyotomi' } }, { type: 'samurai', n: 3, o: { flag: 'toyotomi' } }, { type: 'ashigaru', n: 12, o: { flag: 'toyotomi' } }, { type: 'gun', n: 3, o: { flag: 'toyotomi' } }], ISHI));
-    F.fordAlly.ai = true;
+    dress([{ type: 'busho', n: 1, o: { name: '浅野長政', invuln: true, horse: true, hat: 'kabuto_m', flag: 'toyotomi' } }, { type: 'samurai', n: 3, o: { flag: 'toyotomi' } }, { type: 'ashigaru', n: 12, o: { flag: 'toyotomi' } }, { type: 'gun', n: 3, o: { flag: 'toyotomi' } }], ISHI));
+    F.fordAlly.ai = false;   // 11/4 jin：自由な AI だと浅瀬の手前に留まり、門へ来なかった（AQ7）。下知どおりに進む
     F.fordAlly.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; q.anchor = { x: FRONT.x + 3, z: FRONT.z + 3 }; q.aggro = 16; };
     KIT.backOf(rt, F.fordAlly, { flag: 'toyotomi', armor: ISHI.armor, kind: 'spear', w: 14, depth: 10, count: 180, gap: 4, seed: 10903 });
     F.sanada = allyGroup(rt, { faction: 'toyotomi', name: '真田昌幸の手', fullStrength: true, anchor: { x: FORD.x + 14, z: FORD.z + 2 }, facing: Math.atan2(-1, -1), width: 6, aggro: 10, noRout: true,
       order: 'move', dest: { x: FRONT.x + 7, z: FRONT.z - 1 }, speed: 2.6, dmgMult: 0.5 },
-    [{ type: 'busho', n: 1, o: { name: '真田昌幸', invuln: true, hat: 'kabuto_w', flag: 'sanada' } }, { type: 'samurai', n: 2, o: { flag: 'sanada' } }, { type: 'ashigaru', n: 8, o: { flag: 'sanada' } }]);
-    F.sanada.ai = true;
+    // 11/4 jin（AV1）：赤備えは大坂の陣の信繁の物。天正十八年の昌幸の手は黒の具足に六文銭の旗
+    dress([{ type: 'busho', n: 1, o: { name: '真田昌幸', invuln: true, horse: true, hat: 'kabuto_w', flag: 'sanada' } }, { type: 'samurai', n: 2, o: { flag: 'sanada' } }, { type: 'ashigaru', n: 8, o: { flag: 'sanada' } }], ISHI));
+    F.sanada.ai = false;
     F.sanada.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; q.anchor = { x: FRONT.x + 7, z: FRONT.z - 1 }; q.aggro = 16; };
     KIT.backOf(rt, F.sanada, { flag: 'sanada', armor: ISHI.armor, kind: 'mixed', w: 12, depth: 8, count: 120, gap: 4, seed: 10904 });
     // 城そのものが兵器：佐間口の塀の内と櫓の下から、鉄砲と弓が寄せ手を撃つ（門に近づくほど当たる）
     const ya = Math.atan2(GATE.z - NI.z, GATE.x - NI.x);
     F.wallShot = [ya + 0.45, ya - 0.45].map((wa) => enemyGroup(rt, { faction: 'hojo', name: '佐間口の塀の鉄砲', anchor: { x: NI.x + Math.cos(wa) * (NI.r - 3), z: NI.z + Math.sin(wa) * (NI.r - 3) }, facing: Math.PI * 0.25, width: 4, noRout: true,
-      order: 'hold', aggro: 36, fixed: true, dmgMult: 0.35 }, dress([{ type: 'gun', n: 3 }, { type: 'bow', n: 2 }], HOJO)));
+      order: 'hold', aggro: 36, fixed: true, dmgMult: 0.16 }, dress([{ type: 'gun', n: 3 }, { type: 'bow', n: 2 }], HOJO)));   // 11/4 jin：門の前で三発で倒れた。煙と音は残し、当たりを軽く
   },
   // ⑤ 門を開いて、正木丹波守の手が打って出る（佐間口の守り頭。史実で生き残るので討てない）。続いて甲斐姫の手（後の軍記の言い伝え）
   sortie(rt, i) {
@@ -499,12 +515,13 @@ const t10_oshi = {
     if (F.step !== 5) return;
     const g = enemyGroup(rt, { faction: 'hojo', name: i ? '甲斐姫の手' : '正木丹波守の手', anchor: { ...INSIDE }, facing: Math.PI * 0.25, fleeDir: { x: -1, z: -1 }, width: 5, noRout: true, formation: 'yari', morale: 90,
       order: 'move', dest: { x: FRONT.x - 1, z: FRONT.z - 1 }, speed: 3.6, aggro: 3, dmgMult: 0.5 },
-    dress(i ? [{ type: 'samurai', n: 1, o: { name: '甲斐姫', hat: 'hachimaki', haori: 0x8a2a2a } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }]
-      : [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 13 }, { type: 'gun', n: 2 }], HOJO));
+    dress(i ? [{ type: 'samurai', n: 1, o: { name: '甲斐姫', horse: true, hat: 'hachimaki', haori: 0x8a2a2a } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 9 }]
+      : [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 15 }], HOJO));
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 30; q.aggro = 14; };
     F.sorties.push(g);
     rt.army.play('eshout', GATE, 1.3);
-    for (const a of [F.fordAlly, F.sanada]) if (live(a)) { a.order = 'attack'; a.seekRange = 34; a.aggro = 18; }
+    // 浅野・真田の手は門の前へ詰め、打って出た手を一緒に受け止める（自分だけが戦わない・AP5）
+    for (const a of [F.fordAlly, F.sanada]) if (live(a)) { a.order = 'move'; a.dest = { x: FRONT.x + 2, z: FRONT.z + 2 }; a.speed = 3.6; a.seekRange = 24; a.aggro = 18; a.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 24; }; }
     if (i === 0) rt.say('浅野長政', '門が開いた！正木丹波が打って出たぞ。門の前で受け止めよ！', 3.6);
     else { rt.say('浅瀬の寄せ手', '女武者が先頭じゃ！成田の姫か！', 3.2); rt.after(3.4, () => rt.say('甲斐姫', '忍の城は、女子供まで戦うぞ！', 3)); }
   },
@@ -589,11 +606,15 @@ const t10_oshi = {
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.5;
+    // 11/4 jin：門が開いて城兵が打って出た後は、塀の上からの矢の雨（siege_feel の volley）を止める（味方を射る事になる。前は門の前で矢の雨と打って出の挟みで数秒で倒れた）
+    F.noVolley = F.step >= 5;
+    // 11/4 jin：井楼櫓の中の守り（shironaka.js が城兵から上げる）は門の前を射すくめ、数秒で倒れた。撃つのは残し、当たりを塀の鉄砲と同じに軽く
+    for (const g of rt.army.groups) if (g.team === 1 && g.dmgMult !== 0.05 && /櫓の守り$/.test(g.name || '')) g.dmgMult = 0.05;
     if (F.step === 1) {
       // 前の夜討ちが崩れたら次。三度退けば堤が出来る
       const cur = F.raids[F.raids.length - 1];
       if (cur && !fighting(cur)) { if (F.raid < 3) { if (!F.nextT) F.nextT = rt.t + 5; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else this.weir(rt); }
-      if (rt.t - F.stepT > 130) this.weir(rt);
+      if (rt.t - F.stepT > 110) this.weir(rt);
     } else if (F.step === 2) {
       if (!F.weirOpen) {
         F.weirT = near(P.pos, WEIR, 4.5) ? F.weirT + 0.5 : 0;
@@ -606,15 +627,16 @@ const t10_oshi = {
       let alive = 0, safe = 0;
       for (const g of F.evac) {
         // 主人公のそばの組は丸墓山へ。離れた組（堤の西の端の人夫・浅瀬で斬り合う足軽）は、呼ぶ声の方へ寄って来る
+        //   11/4 jin：組は主人公と同じ足で丸墓山へ走る（前は水の中で 2.2 に落ち、主人公だけ先に着いて組が水に取られた・BH3）
         const gl = leading && g.units.some((u) => u.alive && !u.gone && near(u.pos, P.pos, 36));
         const to = g._evTo || (g._evTo = { x: 0, z: 0 });
-        if (gl) { to.x = MARU.x - 6; to.z = MARU.z - 6; } else { to.x = P.pos.x; to.z = P.pos.z; }
-        g.order = 'move'; g.dest = to; g.speed = F.floodY > 0.8 ? 2.2 : 3; g.aggro = 0;
+        if (gl || near(P.pos, MARU, 40)) { to.x = MARU.x - 6; to.z = MARU.z - 6; } else { to.x = P.pos.x; to.z = P.pos.z; }
+        g.order = 'move'; g.dest = to; g.speed = 4.2; g.aggro = 0;
         for (const u of g.units) {
           if (!u.alive || u.gone) continue;
           const deep = F.floodY - rt.world.heightAt(u.pos.x, u.pos.z);
           // 離れても一息には流されない（呼びに戻る間がある）
-          if (deep > 0.4 && !near(u.pos, P.pos, 36) && Math.random() < 0.01) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); continue; }
+          if (deep > 0.4 && !near(u.pos, P.pos, 40) && !near(u.pos, MARU, 30) && Math.random() < 0.004) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); continue; }
           alive++;
           if (near(u.pos, MARU, 24)) safe++;
         }
@@ -622,7 +644,7 @@ const t10_oshi = {
       // 負けに出来ない間（canFailMission）も段を止めない。逃がし切れなくても時が来れば次の段へ
       //   堤が切れて二十秒は、散った組を呼び集める間（すぐ負けにしない）
       if (rt.t - F.breakT > 20 && alive < F.evac0 * 0.4) { this.lose(rt, 'evac'); if (F.ending) return; }
-      if ((near(P.pos, MARU, 16) && safe >= alive * 0.6) || rt.t - F.breakT > 85) {
+      if ((near(P.pos, MARU, 16) && safe >= alive * 0.6) || rt.t - F.breakT > 100) {
         rt.award((t) => { t.side.push('人夫と兵を逃がした'); }, '人夫と兵を逃がした');
         for (const g of F.evac) { g.order = 'hold'; g.anchor = { x: MARU.x - 6, z: MARU.z - 6 }; }
         this.ford(rt);
@@ -637,7 +659,9 @@ const t10_oshi = {
     } else if (F.step === 6) {
       if (!F.inGate && near(P.pos, INSIDE, 4.5)) { F.inGate = true; rt.say('浅野長政', '枡形へ入った！奥の二の丸の口を払え！', 3); }
       const left = F.niGuard ? F.niGuard.units.filter((u) => u.alive && !u.gone && !u.fleeing).length : 0;
-      if (F.inGate && P.alive && left <=Math.ceil((F.niGuard0 || 1) * 0.3)) this.win(rt);
+      // 自分が入れなくても、浅野の手が枡形へ入れば進む（kaito AY5）
+      const allyIn = !F.inGate && rt.t - F.stepT > 60 && live(F.fordAlly) && F.fordAlly.units.some((u) => u.alive && !u.gone && near(u.pos, INSIDE, 5));
+      if ((F.inGate || allyIn) && P.alive && left <= Math.ceil((F.niGuard0 || 1) * 0.3)) this.win(rt);
       else if (rt.t - F.stepT > 150 && F.niGuard) { F.niGuard.noRout = false; F.niGuard.morale = 0; }
     }
   },
@@ -651,7 +675,7 @@ const t10_oshi = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (!u.alive || F.ending || !F.step) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && b.world.heightAt(o.pos.x, o.pos.z) > (F.lakeY ?? -9) - 0.5;   // 沼の深みへは追わない
     const range = F.step === 3 ? 4 : F.step === 2 && !F.weirOpen ? 3 : F.step === 4 ? 6 : F.step === 1 ? 30 : 14;
     const home = F.step === 5 ? FRONT : F.step === 1 ? RAIDAT : null;
     const e = b.army.nearestEnemy(u, range, (o) => ok(o) && (!home || near(o.pos, home, F.step === 1 ? 24 : 16)));
@@ -667,7 +691,7 @@ const t10_oshi = {
     if (F.step === 1) { goTo(p, inp, RAIDAT.x, RAIDAT.z, 3); return; }   // 堤の内の法で、城から来る夜討ちを待つ
     if (F.step === 2) { if (!F.weirOpen) goTo(p, inp, WEIR.x, WEIR.z, 1.5); else goTo(p, inp, KU.x, KU.z + 6, 3); return; }
     if (F.step === 3) {
-      if (!F.broken) { goTo(p, inp, KU.x + 6, KU.z + 8, 3); return; }
+      if (!F.broken) { goTo(p, inp, CAMP.x - 4, CAMP.z - 2, 3); return; }
       // 組を待つ：人夫と兵の真ん中から十八歩より離れない（水に取られた一人を追って立ち止まらない）
       let cx = 0, cz = 0, n = 0;
       for (const g of F.evac || []) for (const o of g.units) { if (!o.alive || o.gone || !near(o.pos, u.pos, 45)) continue; cx += o.pos.x; cz += o.pos.z; n++; }
@@ -675,7 +699,10 @@ const t10_oshi = {
       return;
     }
     if (F.step <= 5) { goTo(p, inp, FRONT.x, FRONT.z, 3); return; }
-    if (!F.inGate) goTo(p, inp, INSIDE.x, INSIDE.z, 1.5); else goTo(p, inp, NI.x + 1.5, NI.z + 1.5, 2);
+    // 門の口は一つ。門の前（外）の口へ寄ってから、まっすぐ枡形へ入る（塀の外を回って詰まらない）
+    const mouth = { x: GATE.x + 2.6, z: GATE.z + 2.6 };
+    if (!F.inGate) { if (!near(u.pos, mouth, 2.2) && !near(u.pos, INSIDE, 4) && !p._oshiMouth) goTo(p, inp, mouth.x, mouth.z, 1.2); else { p._oshiMouth = true; goTo(p, inp, INSIDE.x, INSIDE.z, 1.5); } }
+    else goTo(p, inp, NI.x + 1.5, NI.z + 1.5, 2);
   },
 };
 
@@ -691,11 +718,8 @@ t10_oshi.history = '天正十八年（1590）、豊臣秀吉の小田原攻め�
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
-KILLS.t10_oshi = (rt) => {
-  const F = rt.flags;
-  if (F.ending || F.step !== 5) return null;
-  return sortieCount(F);
-};
+// 11/4 jin（AW3）：「敵を何人討つ」の数は出さない。段の進みは sortieCount の六割のまま
+KILLS.t10_oshi = () => null;
 withGuard(t10_oshi);
 
 export { t10_oshi };

@@ -2362,6 +2362,7 @@ const kanegasaki = {
   compactDestinationSign: true, // 退く道の旗と矢印で、兵の姿や橋板を覆わない。
   footFlagGuides: true, groundFlagGuides: true, // 待つ備も実旗を大枠で囲まず、根元の小旗で示す。
   compactTravelArrow: true,
+  noTravelArrow: true,
   swipeArrowLength: 64, directionArrowLength: 64, guideArrowLength: 64, // 退却の別経路も足元の短い矢印に収める。
   smallTaskAreas: true, // 守る味方の足元だけを示し、大きな半円で橋や槍列を隠さない。
   smallRetreatAreas: true, taskAreaFootRing: true, // 強調する退避の輪にも既存の小さな足元印を使う。

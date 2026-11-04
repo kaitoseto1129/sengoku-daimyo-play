@@ -45,6 +45,7 @@ const TSUDA = { x: 70, z: -50 };          // 津田信春の隊（明智の右�
 const SAITO = { x: -4, z: -36 };          // 斎藤利三の隊（中ほど。南を向く）
 const ISE = { x: 14, z: -104 };           // 伊勢貞興の隊（明智の二陣。御坊塚の前）
 const GOBO = { x: 18, z: -140 };          // 御坊塚の光秀の本陣の前
+const GOBO_PIN = { x: 16, z: -116 };      // ⑤の行き先（伊勢の隊と御坊塚の旗本の間。動かさない）
 const HONJIN_A = { x: 18, z: -158 };      // 光秀の床几（陣幕の中）
 const SHORYUJI = { x: 64, z: -186 };      // 勝竜寺城の前（光秀の退く先）
 const HIDE = { x: -34, z: 138 };          // 秀吉の本陣（南の後ろ）
@@ -121,7 +122,7 @@ const t01_yamazaki = {
   playerTaken: 0.45,
   sides: { a: { name: '羽柴勢', mon: HA }, b: { name: '明智勢', mon: 'akechi', faction: 'akechi' } },
   date: () => '天正十年（1582）六月十三日　午後四時ごろ　山城国 山崎',
-  history: '本能寺の変の十一日後、備中高松から大返しの羽柴勢およそ四万が、明智勢およそ一万六千と天王山と淀川の間の狭い野でぶつかった。羽柴秀長・黒田官兵衛が天王山の手を押さえ、中川清秀・高山右近が円明寺川の前で支えた。明智の斎藤利三は川を渡って高山の隊を押したが、空いていた右手（淀川側）を池田恒興らが渡り、津田信春の隊を崩して明智の横を突いた。明智勢は崩れ、光秀は御坊塚の本陣から勝竜寺城へ退き、夜に城を出て坂本へ向かう途中、小栗栖で討たれた。川筋・浅瀬・陣の間隔は遊びのために縮めた復元。',
+  history: '本能寺の変の十一日後、備中高松から大返しの羽柴勢およそ四万が、明智勢およそ一万六千と天王山と淀川の間の狭い野でぶつかった。羽柴秀長・黒田官兵衛が天王山の手を押さえ、中川清秀・高山右近が円明寺川の前で支えた。明智の斎藤利三は川を渡って高山の隊を押したが、空いていた右手（淀川側）を池田恒興らが渡り、津田信春の隊を崩して明智の横を突いた。明智勢は崩れ、光秀は御坊塚の本陣から勝竜寺城へ退き、夜に城を出て坂本へ向かう途中、小栗栖で討たれた。',
   force(rt) {
     const F = rt.flags;
     const k = [0, 0.05, 0.15, 0.3, 0.55, 0.8][F.stage || 0] || 0;
@@ -130,7 +131,8 @@ const t01_yamazaki = {
   missionPin(rt) {
     const F = rt.flags;
     if (!F.stage || F.ending) return null;
-    const p = F.stage === 1 ? HOLD : F.stage === 2 ? (F.fordIn ? FORD_N : FORD_S) : F.stage === 3 ? TSUDA : F.stage === 4 ? SAITO : (live(F.ise) && aliveN(F.ise) > F.iseN * 0.3 ? ISE : GOBO);
+    // 行き先は段ごとに一つで動かさない（AW3・BK4）。浅瀬は渡った北の岸に一つ
+    const p = [null, HOLD, FORD_N, TSUDA, SAITO, GOBO_PIN][F.stage];
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.stage === 2 ? 10 : 8;
     return PIN;
   },
@@ -177,15 +179,15 @@ const t01_yamazaki = {
         { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }], HA));
     // 前で支える中川・高山の隊（二人は史実で生き残るので討たれない）
     F.naka = allyGroup(rt, { name: '中川清秀の隊', anchor: { x: -74, z: 20 }, facing: Math.PI, width: 10, formation: 'line', aggro: 14, morale: 90, noRout: true, fullStrength: true, dmgMult: 0.4 },
-      fl(knot(14, [{ type: 'busho', n: 1, o: { name: '中川清秀', invuln: true, horse: true } }]), HA));
+      fl(knot(22, [{ type: 'busho', n: 1, o: { name: '中川清秀', invuln: true, horse: true } }]), HA));
     F.taka = allyGroup(rt, { name: '高山右近の隊', anchor: { x: -42, z: 18 }, facing: Math.PI, width: 10, formation: 'line', aggro: 14, morale: 90, noRout: true, fullStrength: true, dmgMult: 0.38 },
-      fl(knot(14, [{ type: 'busho', n: 1, o: { name: '高山右近', invuln: true, horse: true } }]), HA));
+      fl(knot(22, [{ type: 'busho', n: 1, o: { name: '高山右近', invuln: true, horse: true } }]), HA));
     // 主人公の付く池田勢（主人公の脇に付いて動く）
     F.ikeda = allyGroup(rt, { name: '池田恒興の隊', anchor: { x: START.x + 4, z: START.z + 6 }, facing: Math.PI, width: 10, formation: 'line', aggro: 12, morale: 95, noRout: true, fullStrength: true, speed: 4.2, dmgMult: 0.45 },
-      fl(knot(16, [{ type: 'busho', n: 1, o: { name: '池田恒興', invuln: true, horse: true } }]), IK));
+      fl(knot(26, [{ type: 'busho', n: 1, o: { name: '池田恒興', invuln: true, horse: true } }]), IK));
     // 明智の西の手（松田・並河。天王山の裾）と、川向こうの津田・斎藤の本隊。前に出ない時は川の北で構える
     F.matsuda = enemyGroup(rt, { name: '松田政近の隊', faction: 'akechi', anchor: { x: -84, z: -46 }, facing: 0, width: 10, formation: 'line', order: 'hold', aggro: 10, seekRange: 20 },
-      ak(knot(12, [{ type: 'busho', n: 1, o: { name: '松田政近', horse: true } }])));
+      ak(knot(12, [{ type: 'busho', n: 1, o: { name: '松田政近', horse: true } }, { type: 'busho', n: 1, o: { name: '並河易家', horse: true } }])));
     rt.say('羽柴秀吉', '毛利と和を結び、備中から駆け通して来たぞ。上様の仇、日向を討つは今ぞ', 4.2);
     rt.after(4.5, () => rt.say('池田恒興', '川の向こう、日向の右手（淀川の方）は手薄じゃ', 3.6));
     rt.after(8.4, () => rt.say(nm(rt), 'この槍、そのために残しました', 3));
@@ -232,7 +234,7 @@ const t01_yamazaki = {
       F.tsudaN = allN(F.tsudaGs);
       // 加藤光泰の隊も続いて渡る（味方も目標へ）
       F.kato = allyGroup(rt, { name: '加藤光泰の隊', anchor: { x: FORD_S.x - 6, z: FORD_S.z + 14 }, facing: Math.PI, width: 10, formation: 'line', aggro: 30, seekRange: 50, morale: 95, noRout: true, fullStrength: true, speed: 4.2, dmgMult: 0.4 },
-        fl(knot(10, [{ type: 'busho', n: 1, o: { name: '加藤光泰', invuln: true, horse: true } }]), HA));
+        fl(knot(16, [{ type: 'busho', n: 1, o: { name: '加藤光泰', invuln: true, horse: true } }]), HA));
       F.kato.order = 'move'; F.kato.dest = { x: TSUDA.x + 8, z: TSUDA.z + 10 }; F.kato.onArrive = (g) => { g.order = 'attack'; };
       rt.army.play('toki', { x: TSUDA.x, z: TSUDA.z + 10 }, 1.2);
       rt.after(2, () => rt.say('津田信春', '川を渡って来たじゃと！　槍を揃えよ！', 3));
@@ -242,12 +244,12 @@ const t01_yamazaki = {
       if (F.kato) { F.kato.order = 'move'; F.kato.dest = { x: SAITO.x + 22, z: SAITO.z - 6 }; F.kato.onArrive = (g) => { g.order = 'attack'; }; }
       // 斎藤利三の本隊は南（高山の方）を向いたまま。東の横から突く
       F.saito = enemyGroup(rt, { name: '斎藤利三の隊', faction: 'akechi', anchor: { ...SAITO }, facing: 0, width: 14, formation: 'line', order: 'hold', aggro: 18, seekRange: 26, morale: 85, dmgMult: 0.55 },
-        ak(knot(32, [{ type: 'busho', n: 1, o: { name: '斎藤利三', invuln: true, horse: true } }])));
+        ak(knot(28, [{ type: 'busho', n: 1, o: { name: '斎藤利三', invuln: true, horse: true } }])));
       F.saiGs = [F.saito];
       F.saiN = allN(F.saiGs);
       // 前から中川・高山、中ほどから堀秀政の二の手も川を越えて押す
       F.hori = allyGroup(rt, { name: '堀秀政の隊', anchor: { x: 10, z: 40 }, facing: Math.PI, width: 10, formation: 'line', aggro: 30, seekRange: 50, morale: 95, noRout: true, fullStrength: true, speed: 4, dmgMult: 0.4 },
-        fl(knot(10, [{ type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, horse: true } }]), HO));
+        fl(knot(22, [{ type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, horse: true } }]), HO));
       //   池田勢が横を突くのが先。前の隊は少し遅れて川を越える（主人公が先に当たる）
       rt.after(14, () => {
         if (F.stage !== 4) return;
@@ -263,7 +265,7 @@ const t01_yamazaki = {
       for (const g of rt.army.groups) if (g.team === 1 && live(g) && !g.honjin) { g.routed = true; g.order = 'flee'; }
       // 御坊塚の本陣の前の旗本（崩せる）。光秀は陣幕の中で動かない
       F.guard = enemyGroup(rt, { name: '御坊塚の旗本', faction: 'akechi', anchor: { ...GOBO }, facing: 0, width: 16, formation: 'line', order: 'hold', fixed: true, noRout: true, aggro: 12, seekRange: 18, morale: 99, dmgMult: 0.55 },
-        ak(knot(26, [{ type: 'samurai', n: 1, o: { name: '溝尾茂朝', horse: true } }])));
+        ak(knot(20, [{ type: 'samurai', n: 1, o: { name: '溝尾茂朝', horse: true } }])));
       // 二陣の伊勢貞興の隊が御坊塚の前に立ち塞がる（破らないと本陣の旗本に届かない。AW6）
       F.ise = enemyGroup(rt, { name: '伊勢貞興の隊', faction: 'akechi', anchor: { ...ISE }, facing: 0, width: 14, formation: 'line', order: 'hold', aggro: 18, seekRange: 26, morale: 85, dmgMult: 0.55 },
         ak(knot(18, [{ type: 'busho', n: 1, o: { name: '伊勢貞興', horse: true } }])));

@@ -241,6 +241,8 @@ const inou_spec = {
   allyReports: false,        // 使番の「組頭殿の隊は北で移動中」は出さない（組頭は自分を率いる人。字を足さない）
   pinOnlyDestination: true,  // 地面・足元の行き先の矢印は出さない（kaito AP12・BH6）。行き先は真上の金の▼だけ
   noGoalCount: true,         // 美作守が画面の外の時の赤い端の矢印（goal_count.js）も出さない。金の▼の端の印と二つになった
+  hideNameTag: (u) => u.name === '組頭',   // 名札は名のある将だけ。組頭の「味方 かしら」は出さない（字を足さない）
+  goalSignBare: true,       // 真上の▼に「この人について行く」「ここを攻める」の字を添えない（字は使わない）
   goalSignOff: () => true,   // 敵本人は赤い▼だけ。黄色い▼と隊の呼び名を重ねない。
   noLeaderFollow: true,      // 同じく、ついていく相手の頭上の青い印・画面の端の青い矢印も出さない（金の▼と二つになった。11/3 p100_inou）
   playerAtkMax: 4,           // 四方から同時に打つのは四人まで（五人目からは後ろで待つ）
@@ -274,11 +276,11 @@ const inou_spec = {
   foeMarkRange: 30,
   missionHeading(rt) {
     const F = rt.flags;
-    if (F.stage === 0) return '柴田の兵を倒せ';
-    if (F.stage === 1 || F.stage === 2 && !F.regrouped) return '耐えろ';
-    if (F.stage === 2) return '林の兵を倒せ';
-    if (F.stage === 3) return '林の旗本を倒せ';
-    return '林美作守を倒せ';
+    if (F.stage === 0) return '前の柴田の兵を倒せ';
+    if (F.stage === 1 || F.stage === 2 && !F.regrouped) return '列に並んで耐えろ';
+    if (F.stage === 2) return '土手の前の林の兵を倒せ';
+    if (F.stage === 3) return '土手の上の林の旗本を倒せ';
+    return '土手の林美作守を倒せ';
   },
   missionSignTarget(rt) {
     const F = rt.flags, P = rt.player.u.pos;
@@ -408,6 +410,7 @@ const inou_spec = {
     F.kumi = allyGroup(rt, { name: '組頭', anchor: { x: START.x + 2, z: START.z }, facing: Math.PI, aggro: 6, speed: 4.2, order: 'hold', noFrontline: true },
       [{ type: 'samurai', n: 1, o: { name: '組頭', invuln: true } }]);
     F.kumiU = F.kumi.units[0];
+    F.bossName = '組頭';   // 褒める声も「組頭」の名で（源八と組頭の二つの名で出さない。kaito AT3）
     F.kumiLeader = F.kumiU;   // 共通の「組頭に従う」（kumi_lead.js）の上役
     // 自分の組：組頭と足軽八人。味方の横一列の真ん中（道の上）に立つ
     // 11/2 Q「兵がまばら（稲生が特に）。もっと密集させる」：組を十二〜十三人・横七人に厚くし、組どうしの隙間を詰めて一つの横陣に見せる
@@ -437,7 +440,7 @@ const inou_spec = {
     F.stage = 0; F.pk = 0; F.kills = 0;
     rt.obj('main', '北の土手の林美作守を討つ', 'main');
     // 組頭の三つの台詞（字幕）。終わるまで動けない。その後に短い練習
-    const L = [['川を渡ったぞ。前の柴田勢は千、こちらは七百に足らぬ。', 0.6], ['林美作の七百は名塚の砦へ回った。来る前に柴田を受け止めるのじゃ。', 3.4], ['かかる前に稽古じゃ。前の遅れ兵を三人討ってみよ！', 7.2]];
+    const L = [['川を渡ったぞ。前の柴田勢は千、こちらは七百に足らぬ。', 0.6], ['林美作の七百は名塚の砦へ回った。来る前に柴田を受け止めるのじゃ。', 3.4], ['かかる前に稽古じゃ。前の遅れ兵を討ってみよ！', 7.2]];
     for (const [s, t] of L) rt.after(t, () => rt.say('組頭', s, 2.8));
     rt.after(9.6, () => { F.holdPlayer = false; this.spawnPractice(rt); });
   },
@@ -623,8 +626,8 @@ const inou_spec = {
     if (!k?.isPlayer || v.team === rt.player.u.team) return;
     if (F.stage === 0 && v.group === F.practice) {
       F.pk++;
-      if (F.pk === 1) rt.say('組頭', 'よし、一人討った、その調子じゃ！', 3);
-      else if (F.pk === 2) rt.say('組頭', '見事じゃ。槍は腰で突け。あと一人！', 3);
+      // 一人目の褒めは共通の「よし、一人討った！」が出る（二度言わない）
+      if (F.pk === 2) rt.say('組頭', '見事じゃ。槍は腰で突け。もう一息！', 3);
     } else if (F.stage >= 1) F.kills++;
   },
 

@@ -864,10 +864,10 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    if (enemy && enemy === rt.flags.yoshimoto) return '今川義元を倒せ';
+    if (enemy && enemy === rt.flags.yoshimoto) return '幕の中の今川義元を討て';
     // 赤い▼と今川の兵を同じ一行で結び、場所の案内と取り違えさせない。
-    if (rt.phase !== 'assault') return '▼の今川の物見を倒せ';
-    return rt.flags.entered ? '▼の今川の旗本を倒せ' : '▼の今川兵を倒せ';
+    if (rt.phase !== 'assault') return '谷の出口で今川の物見を討て';
+    return rt.flags.entered ? '幕の前の義元の旗本を討て' : '坂道の今川の守りを崩せ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -1001,7 +1001,8 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  missions: ['ピンに集まれ', 'ピンに集まれ', '雨がやむまで待て', '▼の今川兵を倒せ', '今川義元を倒せ', '逃げる今川勢を追え', '帰る組の旗へ集まれ'],
+  // 11/4 jin（AR1・AW3）：場所と行いで言う。「ピン」「▼」の字は使わない
+  missions: ['谷の出口の組の旗へ行け', '谷の出口の組の旗へ行け', '谷の出口で雨がやむまで待て', '坂道の今川の守りを崩せ', '幕の中の今川義元へ迫れ', '退く今川勢を追え', '帰る組の旗へ集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -1011,7 +1012,7 @@ const okehazama = {
   missionHeading(rt) {
     // 合流済みの待ちは敵が寄っても続く。雨上がりまで同じ一行を保つ。
     if (rt.phase === 'wait') return '雨がやむまで待て';
-    if (rt.phase === 'brief' && rt.flags.briefed) return '出発を待て';
+    if (rt.phase === 'brief' && rt.flags.briefed) return '組の旗のそばで出発を待て';
     if (rt.phase === 'march' && rt.flags.scoutFighting) return this.enemyOrder(rt, rt.flags.scoutEnemy);
     if (rt.phase === 'assault' && !rt.flags.victory) {
       const F = rt.flags;
@@ -1019,7 +1020,7 @@ const okehazama = {
       if (!F.entered && F.roadStep >= F.road.length ||
           F.guardOpened && !F.mouthReached && !F.koshiLeft) {
         const enemy = this.missionSignTarget(rt);
-        return enemy ? this.enemyOrder(rt, enemy) : '本陣のピンへ進め';
+        return enemy ? this.enemyOrder(rt, enemy) : '義元の幕の入口へ進め';
       }
       // 義元に深手を負わせた後は、囲む旗本へ任務を移す。
       if (F.entered && (F.yoshiDown || this.objectiveEnemies(rt).length)) return this.enemyOrder(rt);
@@ -1311,7 +1312,7 @@ const okehazama = {
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory) {
       if (this.objectiveEnemies(rt).length) return this.enemyOrder(rt, this.objectiveEnemies(rt)[0]);
       // 残り人数は攻めの処理が数えた本文を使い、毎コマ兵を数え直さない。
-      if (!rt.flags.guardOpened) return rt.flags.attackText || '義元を囲む旗本を崩せ';
+      if (!rt.flags.guardOpened) return rt.flags.attackText || '幕の前の義元の旗本を崩せ';
       if (rt.flags.yoshiDown) return rt.flags.nobKill[1]?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。討取りは毛利に任せよ';
       if (rt.flags.koshiLeft) return rt.hud.defendEnemy?.alive || rt.hud.approachGuideEnemy?.alive || rt.guideEnemy?.alive
         ? '退く義元の旗本を討て' : '退く義元の旗本を追え';
@@ -2338,7 +2339,7 @@ const okehazama = {
     rt.flags.okeSquadN = squadN;
     // 信長の馬廻
     const nob = allyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, name: '馬廻', anchor: fieldPoint(-44, 2), facing: Math.PI + FIELD_TURN, formation: 'column', order: 'hold', speed: 3.3, noRout: true },
-      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, flag: 'eiraku', horse: true, haori: 0x7a1d14 } }]), { type: 'samurai', n: 1, o: { name: '服部小平太', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '毛利新介', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '前田利家', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '木下雅楽助', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '中川金右衛門', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 3, o: { flag: 'eiraku', horse: false } }, { type: 'ashigaru', n: 12, o: { flag: 'eiraku' } }]);
+      [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, flag: 'eiraku', horse: true, haori: 0x7a1d14 } }]), { type: 'samurai', n: 1, o: { name: '服部小平太', flag: 'eiraku', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: { name: '毛利新介', flag: 'eiraku', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '前田利家', flag: 'eiraku', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '木下雅楽助', flag: 'eiraku', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '中川金右衛門', flag: 'eiraku', invuln: true, horse: true } }, { type: 'samurai', n: 3, o: { flag: 'eiraku', horse: false } }, { type: 'ashigaru', n: 12, o: { flag: 'eiraku' } }]);
     nob.path = [[-44, 2], [-44, -30]].map(fieldPathPoint);
     nob.onArrive = (g) => { g.order = 'hold'; g.formation = 'line'; g.facing = Math.PI + FIELD_TURN; };
     rt.flags.nob = nob;
@@ -2383,8 +2384,10 @@ const okehazama = {
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-4, -134), facing: (0.2) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.2, -1), aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 2 }]));
     // 義元が刀で戦う姿は後世の伝承を借りた補い。武将の既定の騎乗を使わない。
     const H = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', name: '義元の旗本', formation: 'ring', yariRanks: 3, width: 12, anchor: fieldPoint(HONJIN.x, HONJIN.z + 2), facing: FIELD_TURN, morale: 100, fleeDir: fieldVector(0, -1), aggro: 6, noRout: true, spacing: 1.8 },
-      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true, flagScale: 2.2 } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: false } }, { type: 'samurai', n: 5, o: { hp: 55, maxHp: 55 } }, { type: 'ashigaru', n: 24, o: { hp: 55, maxHp: 55 } }]);
+      [{ type: 'busho', n: 1, o: { name: '今川義元', horse: false, invuln: true, noHead: true, flagScale: 2.2 } }, { type: 'busho', n: 1, o: { name: '山田新右衛門', horse: true } }, { type: 'samurai', n: 5, o: { hp: 55, maxHp: 55 } }, { type: 'ashigaru', n: 24, o: { hp: 55, maxHp: 55 } }]);
     rt.flags.yoshimoto = H.units[0];
+    // 11/4 jin（AV7）：総大将の義元は本陣の幕の内で床几に座って休む（史実：桶狭間山で昼の休み）。寄せられると立つ（army_anim）
+    H.units[0]._crouch = true;
     // 義元は主人公だけでなく味方の槍でも傷つく。首を挙げる筋は毛利新介へ結ぶ。
     H.units[0].allyOk = true;
     H.units[0].onWound = () => {
@@ -3038,7 +3041,7 @@ const okehazama = {
         g.guard = false; g.order = 'attack'; g.seekRange = 30; g.aggro = 12; g.focus = null;
       }
       if (sightPoint(rt, y.pos)) rt.bark('本陣の両脇から今川の備えが駆け寄る。組から離れるな', true);
-      F.attackText = '義元を囲む旗本を崩せ';
+      F.attackText = '幕の前の義元の旗本を崩せ';
       rt.obj('attack', F.attackText, 'main');
     }
     // 三人分の囲みが欠けたら、討取りへ向かう任務に進む。全滅は求めない。
@@ -3147,7 +3150,7 @@ const okehazama = {
         // 同じ印の相手と必要な人数を短く伝える。
         if (!F.guardOpened) {
           // 崩す相手と人数を一文に保つ。
-          const text = '義元を囲む旗本を崩せ';
+          const text = '幕の前の義元の旗本を崩せ';
           if (F.attackText !== text) { F.attackText = text; rt.obj('attack', text, 'main'); }
         } else if (F.yoshiDown) {
           const text = mor?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。毛利に任せ、そばで構えよ';
