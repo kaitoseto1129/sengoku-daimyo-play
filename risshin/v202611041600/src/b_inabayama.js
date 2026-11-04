@@ -41,7 +41,7 @@ import { rockShape, rockTuftShape, groundRocks } from './rock_shape.js';
 let DEM = null;
 // 読めた時・外れた時は、前に作った高さの覚えを捨てて作り直す（実測の無い高さが残らないように）
 useTerrain('dem_inabayama', (data) => { DEM = data; DEM_MT.ring = null; CASTLE_HEIGHT = null; BENCHED = null; LIFT.rise = null; });
-import { reset as flReset, addRamp } from './floors.js';
+import { reset as flReset, addRamp, rampAt } from './floors.js';
 import { monomi, goten, horiboriHeight, sumiyaguraTower } from './castle_parts.js';
 import { heightOf, inPoly, buildCastlePlan, garrisonKuruwa, makeLordKeep } from './castle_plan.js';
 import { makeRockTraps } from './siege_rocks.js';
@@ -3311,6 +3311,13 @@ function installInabaPresentation(rt) {
   const canStep = player.canStep;
   player.canStep = function (x0, z0, x, z, y) {
     if (karaPushBlocked(x0, z0, x, z, y)) return false;
+    // 道の印の幅に切岸が入っても、急な山肌まで歩ける道としない。
+    // 設営した階段と曲輪は残し、進む先の実際の地面で上りを確かめる。
+    if (z < 28 && !this.u.naka && !inabaClearing(x, z) && rampAt(x, z, y) == null) {
+      const dx = x - x0, dz = z - z0, d = Math.hypot(dx, dz), h = W.heightAt(x, z);
+      if (h - y > 0.91) return false;
+      if (d > 1e-6 && W.heightAt(x + dx / d * 1.2, z + dz / d * 1.2) - h > W.def.climbTan * 1.2) return false;
+    }
     return canStep.call(this, x0, z0, x, z, y);
   };
   // 合流するまでは歩きも押し戻しも止め、本人の位置を保つ。
@@ -3439,6 +3446,8 @@ function installInabaPresentation(rt) {
   // 手ほどきも任務札の中に入る。本文の高さを確保し、下の操作文を切らない。
   style.textContent += '@media(max-height:500px){html body #hud #battle-notices:not(.choosing) #objectives:not(.expand) #obj-list{max-height:none !important; overflow:visible !important;} html body #hud #battle-notices #objectives > #tutorial.coach:not([hidden]):not(.notice-muted){height:auto !important; min-height:min-content; max-height:none !important; overflow:visible !important; flex-shrink:0;} html body #hud #battle-notices #tutorial.coach :is(.what,.how){white-space:normal; max-height:none !important; overflow:visible !important;}}';
   style.textContent += '#hud #intro[data-battle="inabayama"] > .card.card {display:flex; flex-direction:column; min-height:0;}'
+    // 出陣前の説明を、戦場の名前札と行き先の印で覆わない。
+    + '#hud.inaba-notices:has(#intro[data-battle="inabayama"]:not([hidden])) :is(#markers,#foe-marks,#squad-marks,#field-signs,#mission-goal,#mission-target-lines){visibility:hidden !important;}'
     + '#hud #intro[data-battle="inabayama"] .intro-reading {flex:1 1 auto; min-height:0; overflow-y:auto; touch-action:pan-y; overscroll-behavior:contain; padding-bottom:12px;}'
     + '#hud #intro[data-battle="inabayama"] #intro-go {flex:0 0 auto; margin-top:8px;}'
     // 高い画面では人物紹介まで読める高さを使い、名の途中で切れた細い帯を残さない。
@@ -3833,7 +3842,9 @@ function buildKaraTrail(rt) {
     if (karaSample(px, pz).d < KARA_BLEND || nearHome(px, pz)) W.grid[z * row + x] = drawGroundAt(W, px, pz);
   }
   W.heightAt = function (x, z) {
-    if ((x > -28 && x < 54 && z > 28 && z < 108) || karaSample(x, z).d < KARA_BLEND) {
+    // 大手の斜面も描く三角形と同じ高さにする。裏道だけを合わせると、
+    // 町から追った兵と本人が粗い格子の高さで山肌に埋まり続ける。
+    if (z < 28 || (x > -28 && x < 54 && z > 28 && z < 108) || karaSample(x, z).d < KARA_BLEND) {
       const y = fineGroundAt(this, x, z);
       if (Number.isFinite(y)) return y;
     }
@@ -4158,11 +4169,9 @@ const inabayama = {
   introPeopleFolded: true,
   introText(rt) {
     return 'まず印の人、藤吉郎（とうきちろう）と話そう。'
-      + (rt.G.lord ? '町では敵を払い、火付けの足軽を守ろう。' : '火の印の家へ。「火をつける」を押して三軒焼こう。')
-      + '次は仲間とさくを守る。山では道の印をたどり、本丸の小屋に合図の火を付けよう。'
-      + '七曲りは緩く、東の尾根道は急。今回は裏道の印へ。'
-      + '三人衆は味方になると申し入れ、信長は人質を待たず瑞龍寺山へ出兵した。'
-      + '兵数は仮の目安。裏道攻めは後世の伝えで、道筋と合図の火は遊びの補い。';
+      + (rt.G.lord ? '町では火付けの足軽を守ろう。' : '次は火の印の家を三軒焼こう。')
+      + '敵を坂へ追わず、仲間とさくを守ろう。山へ進む下知が出たら、道の印をたどろう。'
+      + '裏道攻めは後世の伝え。道筋と合図の火は遊びの補い。';
   },
   immediateTaskChanges: true, // 道へ戻る下知は、携帯の畳んだ任務にもすぐ出す。
   // 合図は各段の下知から鳴らす。「敵を退けよ」を味方の退却と誤読せず、裏道で自動の太鼓を鳴らさない。
@@ -6915,7 +6924,7 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
     // 敵の槍が低い柵を越えて届く時も、打ち手へ向いて受ける。
     const over = (o.wpnKind || o.lookWeapon) === 'spear' && d <= o.reach + 0.3;
-    if (b.army.wallBetween(o.pos, -1, u.pos, over) || F.step === 3 && b.army.terrainBlocks(o.pos, u.pos)) continue;
+    if (b.army.wallBetween(o.pos, -1, u.pos, over) || b.army.terrainBlocks(o.pos, u.pos)) continue;
     if (d < ad) { attacker = o; ad = d; }
   }
   // 道を外れた時は、届かない守兵を追う前に足場へ寄る。目の前の槍には従来どおり応戦する。
@@ -6935,9 +6944,10 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
   // 構えを解く半秒の間は相手を保つ。近い兵へ替え続けると反撃が出ない。
   const pending = p.botStrikeUntil > p.time ? strikeTarget(b, 0) : null;
-  const pendingClear = pending && (F.step !== 3 || Math.hypot(pending.pos.x - u.pos.x, pending.pos.z - u.pos.z) < 4.5 && !b.army.terrainBlocks(u.pos, pending.pos));
+  const pendingClear = pending && !b.army.terrainBlocks(u.pos, pending.pos)
+    && (F.step !== 3 || Math.hypot(pending.pos.x - u.pos.x, pending.pos.z - u.pos.z) < 4.5);
   const e = attacker || (pendingClear && !pending.isStruct && !pending.group?.civ ? pending : null) || b.army.nearestEnemy(u, F.step === 3 ? 4.5 : F.step === 1 ? 7 : 12, (o) => !o.fleeing && !o.noTarget && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, p.weapon === 'spear' && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 2.8) && !(o.group && o.group.civ) &&
-    (F.step !== 3 || !b.army.terrainBlocks(u.pos, o.pos)) &&
+    !b.army.terrainBlocks(u.pos, o.pos) &&
     (F.step !== 2 || o.pos.z >= SHIKA_Z - 14));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

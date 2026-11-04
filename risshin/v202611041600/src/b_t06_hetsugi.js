@@ -16,7 +16,7 @@
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
 import { enemyGroup, allyGroup, nm } from './bhelp.js';
-import { nobori, palisade, dorui, yagura, hut, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { nobori, palisade, dorui, yagura, hut, jinmaku, shogi, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { KIT } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
 import { MEM_TIGHT } from './settings.js';
@@ -38,12 +38,13 @@ const IJUIN = { x: 40, z: -72 };             // 伊集院久宣の先手（鶴�
 const WOODS = [{ x: -62, z: -70 }, { x: 152, z: -62 }];   // 釣り野伏せの林（西：新納大膳・東：本庄）
 const IEHISA = { x: 0, z: -182 };            // 島津家久の本隊（尾根の西の陰）
 const RING = { x: 22, z: -100 };             // 包みが閉じる所（中津留の河原の上）
+const SEAT = { x: 4, z: -214 };              // 島津家久の本陣（尾根の西の陰のさらに後ろ。床几に座って動かない）
 const SC = MEM_TIGHT ? 20 : 12;              // 塊の一人が史実の何人か
 // 史実の兵数（調べ：豊臣方は六千ほどが渡った、島津は一万〜一万三千・新納大膳 五千・長宗我部 三千）
 const HIST = { sen: 2000, nobu: 2000, sogo: 1000, moto: 1000, ijuin: 2000, niiro: 5000, honjo: 2000, ieh: 3000 };
 const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.niiro + HIST.honjo + HIST.ieh;
 const STEP_TEXT = ['浅瀬を渡り、鶴賀城の下の島津の陣の前まで進む', '鶴賀城の下の島津の先手（伊集院）に槍を入れ、押し返す',
-  '長宗我部信親様の馬印の横に立ち、囲む島津を食い止める', '中津留の河原を走り、浅瀬を南へ渡って退く', '夜の土手を西へ走り、鏡城の下の味方の陣まで逃げ切る'];
+  '中津留の河原の長宗我部信親様の馬印の横に立ち、三方から来る島津を食い止める', '中津留の河原を走り、浅瀬を南へ渡って退く', '夜の土手を西へ走り、鏡城の下の味方の陣まで逃げ切る'];
 
 // ---- 地形：南の岸は低い河原と田、北の岸は段丘から鶴賀城の尾根へ。国土地理院の起伏は北の岸に ----
 let dem = null;
@@ -165,6 +166,10 @@ const t06_hetsugi = {
     F.step = 0; F.holdPlayer = true; F.foes = []; F.ending = false; F.blk = {}; F.blocks = [];
     this.castle(rt);
     this.kagami(rt);
+    // 家久の本陣の陣幕と床几（伏せの段まで中は見えない後ろ）
+    rt.scene.add(jinmaku(rt.world, SEAT.x, SEAT.z, 12, 8, 4, { mon: 'shimazu' }));
+    rt.scene.add(shogi(rt.world, SEAT.x, SEAT.z, 0, { gunbai: true }));
+    for (const [dx, dz] of [[-8, 6], [8, 6], [-14, -2], [14, -2]]) rt.scene.add(nobori(rt.world, SEAT.x + dx, SEAT.z + dz, 'shimazu', 6));
     // 豊臣方の塊（渡る前の岸）。仙石が先陣、信親が左、十河が右、元親は後ろで渡らずに残る
     const B = F.blk;
     B.sen = this.block(rt, { key: 'sen', name: '仙石秀久の備', team: 0, flag: 'toyotomi', at: { x: 54, z: 40 }, facing: Math.PI, w: 34, d: 10 });
@@ -177,9 +182,9 @@ const t06_hetsugi = {
     const ally = (o, list, flag) => { const g = allyGroup(rt, { fullStrength: true, facing: Math.PI, width: 5, aggro: 9, speed: 3.4, order: 'hold', noRout: true, ...o }, fl(list, flag)); g.mon = flag; return g; };
     F.nobu = ally({ name: '長宗我部信親の旗本', anchor: { x: -2, z: 58 } }, [{ type: 'busho', n: 1, o: { name: '長宗我部信親', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }], 'chosokabe');
     F.nobuU = F.nobu.units.find((u) => u.type === 'busho');
-    F.sogo = ally({ name: '十河存保の旗本', anchor: { x: 92, z: 70 } }, [{ type: 'busho', n: 1, o: { name: '十河存保', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }], 'miyoshi');
+    F.sogo = ally({ name: '十河存保の旗本', anchor: { x: 92, z: 70 } }, [{ type: 'busho', n: 1, o: { name: '十河存保', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }], 'miyoshi');
     F.sogoU = F.sogo.units.find((u) => u.type === 'busho');
-    F.sen = ally({ name: '仙石秀久の旗本', anchor: { x: 56, z: 48 } }, [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }], 'toyotomi');
+    F.sen = ally({ name: '仙石秀久の旗本', anchor: { x: 56, z: 48 } }, [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }], 'toyotomi');
     F.moto = ally({ name: '長宗我部元親の旗本', anchor: { x: -4, z: 104 }, aggro: 6, seekRange: 10 }, [{ type: 'busho', n: 1, o: { name: '長宗我部元親', invuln: true, horse: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }], 'chosokabe');
     F.mine = ally({ name: '手勢', anchor: { x: START.x + 3, z: START.z + 5 }, width: 4, speed: 3.8, dmgMult: 0.9 }, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 13 }], 'chosokabe');
     F.follow = [[F.nobu, B.nobu, 6, 4], [F.sogo, B.sogo, 0, 4], [F.sen, B.sen, 0, 4]];
@@ -266,7 +271,7 @@ const t06_hetsugi = {
       this.go(B.nobu, { x: -2, z: -32 }, 2.8);
       this.go(B.sogo, { x: 92, z: -28 }, 2.6);
     } else if (n === 2) {
-      rt.marker('go', () => (B.ijuin && !B.ijuin.routedL ? lightPos(B.ijuin) : CASTLE), '島津の先手');
+      rt.marker('go', { x: IJUIN.x, z: IJUIN.z + 6 }, '伊集院の先手');   // 行き先は固定（AW の 3）
       rt.say('仙石秀久', 'かかれ！　鶴賀の囲みを破れ！', 2.6);
       rt.army.play('toki', IJUIN, 1.3);
       this.go(B.sen, { x: 52, z: -58 }, 3, { charge: true });
@@ -275,7 +280,7 @@ const t06_hetsugi = {
       F.ijN0 = B.ijuin.aliveNominal();
     } else if (n === 3) {
       this.ambush(rt);
-      rt.marker('nobu', () => (F.nobuU?.alive ? { x: F.nobuU.pos.x, z: F.nobuU.pos.z } : null), '長宗我部信親');
+      rt.marker('nobu', { x: 6, z: -96 }, '長宗我部信親');   // 信親の備が追い着く中津留の河原（固定）
     } else if (n === 4) {
       rt.marker('ford', { x: FORD.x, z: 34 }, '戸次川の浅瀬');
       sfx('horagai', 0.8);
@@ -314,12 +319,19 @@ const t06_hetsugi = {
     this.go(B.honjo, { x: RING.x + 62, z: RING.z + 6 }, 2.6, { charge: true });
     this.go(B.ieh, { x: RING.x + 4, z: RING.z - 34 }, 2.0, { charge: true });
     this.go(B.ijuin, { x: RING.x + 20, z: RING.z - 22 }, 2.4, { charge: true });
-    // 島津家久と旗本（本隊の塊の真ん中。塊を割らないと届かない。史実で討たれていないので討てない）
-    F.ieh = enemyGroup(rt, { faction: 'shimazu', name: '島津家久の旗本', anchor: { x: IEHISA.x, z: IEHISA.z + 2 }, facing: 0, width: 7, formation: 'line', noRout: true,
-      morale: 100, dmgMult: 0.5, order: 'hold', aggro: 6, seekRange: 10, speed: 2.4 },
-    [{ type: 'busho', n: 1, o: { name: '島津家久', invuln: true, horse: true } }, { type: 'samurai', n: 12, o: { keep: true } }, { type: 'ashigaru', n: 8, o: { flagScale: 1, keep: true } }, { type: 'gun', n: 4 }]);
-    F.ieh.kind = 'main'; F.foes.push(F.ieh);
-    F.follow.push([F.ieh, B.ieh, 0, 0]);
+    // 総大将の島津家久は後ろの本陣の床几に座って動かない（AR3・AV7）。旗本二十五人が前を固める。史実で討たれていないので討てない
+    F.ieh = enemyGroup(rt, { faction: 'shimazu', name: '島津家久の旗本', anchor: { x: SEAT.x, z: SEAT.z + 7 }, facing: 0, width: 9, formation: 'line', noRout: true,
+      morale: 100, dmgMult: 0.5, order: 'hold', fixed: true, aggro: 6, seekRange: 10, speed: 2.4 },
+    [{ type: 'samurai', n: 12, o: { keep: true } }, { type: 'ashigaru', n: 9, o: { flagScale: 1, keep: true } }, { type: 'gun', n: 4 }]);
+    F.ieh.kind = 'main'; F.ieh.stay = true; F.foes.push(F.ieh);
+    F.iehS = enemyGroup(rt, { faction: 'shimazu', name: '島津家久の本陣', anchor: SEAT, facing: 0, width: 2, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
+      [{ type: 'busho', n: 1, o: { name: '島津家久', invuln: true, horse: false, keep: true } }]);
+    F.iehS.stay = true; F.iehS.noAI = true;
+    for (const u of F.iehS.units) {
+      u.invuln = true; u.noTarget = true;
+      u.pos.set(SEAT.x, rt.world.heightAt(SEAT.x, SEAT.z), SEAT.z + 0.35); u.mesh.position.copy(u.pos);
+      u.jinchu = { standing: false, t: 0, soldiers: [] };
+    }
     // 四国の衆は不意を突かれて士気が落ちる
     for (const b of [B.sen, B.nobu, B.sogo]) if (b) b.morale = Math.min(b.morale, 48);
     rt.army.play('toki', WOODS[0], 1.5); rt.after(0.4, () => rt.army.play('toki', WOODS[1], 1.5));
@@ -328,7 +340,7 @@ const t06_hetsugi = {
     rt.say('長宗我部元親', '伏せじゃ！　両の林から島津が出たぞ', 3);
     rt.after(5, () => rt.say('島津家久', '釣り出したぞ。三方から包め。一人も川へ戻すな', 3));
     // 仙石の隊が先に崩れる（史実：仙石は讃岐まで逃げた）
-    rt.after(11, () => {
+    rt.after(32, () => {
       if (F.step !== 3) return;
       rt.say('仙石秀久', 'ええい、退け、退け！', 2.5);
       routButai(B.sen, 26);
@@ -354,7 +366,7 @@ const t06_hetsugi = {
     routButai(B.sogo, 30);
     rt.after(2.6, () => { fall(F.nobuU, '長宗我部信親', '中津留の河原で包まれた'); routButai(B.nobu, 30); });
     rt.after(3.8, () => rt.say(F.mine.leader?.name || '手勢の侍', `${nm(rt)}殿、信親様が……！　ここは退くほかござらぬ`, 3.2));
-    F.follow = F.follow.filter((f) => f[0] === F.ieh);
+    F.follow = [];
     for (const g of [F.nobu, F.sogo]) if (live(g)) { g.order = 'move'; g.dest = { x: FORD.x - 10, z: 40 }; g.speed = 3.6; }
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
     this.go(B.moto, { x: CAMP.x + 30, z: CAMP.z + 24 }, 1.8, { back: true });
@@ -364,11 +376,11 @@ const t06_hetsugi = {
   },
 
   // 夜の追手：浅瀬を渡って追ってくる本物の組
-  spawnChase(rt) {
+  spawnChase(rt, at = { x: FORD.x, z: -14 }) {
     const F = rt.flags;
     let n = aliveReal(rt);
     for (let i = 0; i < 2 && n < 190; i++) {
-      const g = enemyGroup(rt, { faction: 'shimazu', name: '島津の追手', anchor: { x: FORD.x + (i ? 14 : -14), z: -14 }, facing: Math.PI, width: 4, noRout: true, formation: 'line',
+      const g = enemyGroup(rt, { faction: 'shimazu', name: '島津の追手', anchor: { x: at.x + (i ? 14 : -14), z: at.z }, facing: Math.PI, width: 4, noRout: true, formation: 'line',
         morale: 90, dmgMult: 0.38, order: 'attack', seekRange: 70, aggro: 14, speed: 3.3 },
       [{ type: 'ashigaru', n: 7 }, { type: 'samurai', n: 1 }]);
       g.kind = 'chase'; g.focus = rt.player.u; F.foes.push(g); n += 8;
@@ -409,16 +421,22 @@ const t06_hetsugi = {
     else if (F.step === 2) {
       // 先手は当たって少し討たれると退く（退くふり）。退いた先まで追うと包みが閉じる
       const ij = B.ijuin, hurt = ij && ij.aliveNominal() < F.ijN0 * 0.85;
-      if (!F.feigned && ((hurt && el > 12) || el > 40 || (dist(lightPos(ij), P.pos) < 24 && el > 18))) this.feign(rt);
-      if (F.feigned && (P.pos.z < RING.z + 12 || rt.t - F.feignT > 24)) this.toStep(rt, 3);
+      // 囮の先手は本気で戦わない（史実：当たってすぐ退いた）。替わった本物の兵の手は軽く
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.45); }
+      if (!F.feigned && ((hurt && el > 18) || el > 32)) this.feign(rt);   // 先手は当たっては少し粘り、それから退く
+      if (F.feigned && ((P.pos.z < RING.z + 12 && rt.t - F.feignT > 14) || rt.t - F.feignT > 34)) this.toStep(rt, 3);
     } else if (F.step === 3) {
       // 包む島津の兵（塊から替わった本物）は、待たずに四国の衆と本人へ打ち掛かる
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g !== F.ieh && !g.interiorHold) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g !== F.ieh && g !== F.iehS && !g.interiorHold) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
+      // 包みの兵は数で押すが、一人ひとりの手は並み（騎馬の一突きで倒れず、信親の横で一分半は持ちこたえられる）
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.ringSoft && g !== F.ieh && g !== F.iehS) { g.ringSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.5); }
       const near = F.nobuU?.alive && dist(F.nobuU.pos, P.pos) < 12;
       if (near) F.nearT = (F.nearT || 0) + 0.25;
-      if ((F.nearT > 16 && el > 22) || el > 48) this.closeRing(rt);
+      if ((F.nearT > 40 && el > 60) || el > 80) this.closeRing(rt);   // 包みの中で一分半ほど持ちこたえる
     } else if (F.step === 4 && P.pos.z > 26) this.toStep(rt, 5);
     else if (F.step === 5 && dist(P.pos, CAMP) < 13) this.win(rt);
+    // 夜の土手の半ばで、川上の浅瀬から島津の追手がもう一手（史実：追い討ちで多くが討たれた）
+    if (F.step === 5 && !F.chase2 && P.pos.x < -60) { F.chase2 = true; this.spawnChase(rt, { x: FORD2.x, z: 6 }); rt.say(F.mine.leader?.name || '手勢の侍', '上の瀬からも来たぞ。止まるな！', 2.6); }
     // 退く段：島津の塊は本人を追い、近い本物の追手は人の走りより少し遅く、斬り合いは軽く（止まれば囲まれるが、走れば抜けられる）
     if (F.step >= 4) {
       if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
@@ -426,8 +444,8 @@ const t06_hetsugi = {
         const to = { x: P.pos.x, z: Math.min(P.pos.z, F.step >= 5 ? 40 : -6) };
         for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g !== F.ieh) {
-        g.chaseSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.16); g.speed = Math.min(g.speed || 3, 2);
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g !== F.ieh && g !== F.iehS) {
+        g.chaseSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.3); g.speed = Math.min(g.speed || 3, 2);
         if (g.order === 'hold') { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
       }
       if (!F.breath) { F.breath = true; P.hp = Math.max(P.hp, P.maxHp * 0.7); }

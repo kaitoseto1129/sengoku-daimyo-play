@@ -724,7 +724,7 @@ export function buildCastlePlan(rt, plan, o = {}) {
   stamp('門');
   if (o.buildTowers) C.towers = buildYaguraTowers(rt, plan, o, batch);
   // 櫓門・隅櫓・物見櫓の上の守り（perch.js）：o.perch が false でなければ、城の全戦で置く
-  if ((o.buildTowers || o.buildGates) && o.perch !== false && rt.army) makePerchGuards(rt, C, { team: o.towerTeam ?? o.team ?? 1, faction: o.perchFaction });
+  if ((o.buildTowers || o.buildGates) && o.perch !== false && rt.army) makePerchGuards(rt, C, { team: o.towerTeam ?? o.team ?? 1, faction: o.perchFaction, look: o.perchLook });
   stamp('櫓と守り');
   finalizeKitBatch(rt, batch);
   stamp('形をまとめる');

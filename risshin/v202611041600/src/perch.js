@@ -37,7 +37,7 @@ function collectPosts(C) {
   return posts;
 }
 
-// C：buildCastlePlan の戻り。o.team：守りの側（既定 1）。o.n：一つの櫓の人数の上限（既定 3）
+// C：buildCastlePlan の戻り。o.team：守りの側（既定 1）。o.n：一つの櫓の人数の上限（既定 3）。o.look：兵の装い（旗など）
 export function makePerchGuards(rt, C, o = {}) {
   const team = o.team ?? 1;
   const low = false;
@@ -58,7 +58,7 @@ export function makePerchGuards(rt, C, o = {}) {
       // 中に入れる櫓（naka.js）は、格子窓のすぐ内に立たせ、外を向かせる（窓から姿と筒先が見える。kaito 10/2）
       const spots = p.spots && p.spots.length >= n ? p.spots.slice(0, n) : deckSpots(d, n);
       const g = A.addGroup({ team, faction, name: `${p.name}の守り`, order: 'hold', anchor: { x: d.cx, z: d.cz }, facing: spots[0].heading ?? 0, morale: 100, noRout: true, aggro: 2 });
-      const list = mix.slice(0, n).map((type, i) => ({ type, n: 1, o: { x: spots[i].x, z: spots[i].z } }));
+      const list = mix.slice(0, n).map((type, i) => ({ type, n: 1, o: { ...(o.look || {}), x: spots[i].x, z: spots[i].z } }));
       const us = A.spawn(g, list);
       us.forEach((u, i) => {
         u.pos.set(spots[i].x, spots[i].y, spots[i].z); u.perch = { x: spots[i].x, y: spots[i].y, z: spots[i].z }; u.mesh.position.copy(u.pos);

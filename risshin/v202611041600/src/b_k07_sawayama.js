@@ -1,7 +1,7 @@
 // ======================================================================
 // 徳川編 7　佐和山城の戦い（慶長五年 1600・九月十八日〜二十日）　関ヶ原のすぐ後の山城攻め
 // 筋書きの正：docs/chapter3_tokugawa.md の「7. 佐和山城」
-// 三成は関ヶ原で敗れて城にいない（ボスにしない）。城は父の石田正継、兄の正澄、子の重成ら二千八百ほどが守る。
+// 三成は関ヶ原で敗れて城にいない（ボスにしない）。城は父の石田正継、兄の正澄と子の朝成、舅の宇多頼忠ら二千八百ほどが守る。
 // 小早川秀秋・脇坂安治は東の大手（東山道・鳥居本の側）から、田中吉政は西の搦手（琵琶湖・松原内湖の側）から攻め、
 // 十八日に城内の長谷川守知が裏切って東軍を引き入れ、城は落ちた。主人公は小早川勢の先手に付き大手から攻める。
 // 段：①大手門の石田勢を討つ ②三の丸の石田正澄を討つ ③二の丸の下の段（長谷川守知の内応・田中勢が搦手から）④二の丸の上の段 ⑤本丸の石田正継（天守炎上）
@@ -188,7 +188,7 @@ function sawayamaWay(army, u, want) {
 // ---- 旗と篝火：東軍の寄せ口・石田の曲輪 ----
 function flags(rt) {
   const W = rt.world;
-  rt.scene.add(jinmaku(W, START.x + 10, START.z, 12, 9, 4, { mon: 'kobayakawa' }));
+  rt.scene.add(jinmaku(W, START.x + 20, START.z, 14, 11, 4, { mon: 'kobayakawa' }));   // 陣幕の中に秀秋と旗本（AV18・BH1）
   for (const [x, z] of [[START.x - 2, START.z - 7], [START.x - 2, START.z + 7], [START.x + 4, START.z - 14]]) rt.scene.add(nobori(W, x, z, 'kobayakawa', 6));
   for (const [x, z] of [[START.x + 2, START.z - 4], [START.x + 2, START.z + 5]]) rt.scene.add(kagaribi(W, x, z));
   // 石田の旗：大手の土塁の上・三の丸・二の丸・本丸・西の丸・南の尾根の太鼓丸と法華丸
@@ -206,6 +206,8 @@ const k07_sawayama = {
     flagColors: [0xe6dfcc, 0x24211e, 0x5a4a36],
   },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
+  noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
+  noDistantBattle: true,
   cutFloor: 0.5,
   meleeGrace: { rate: 1, burst: 1, interval: 3 },   // 刃を受けた後の3秒は次の刃を通さない（bot が続けての太刀で倒れて負けた）
   noWake: true,
@@ -259,11 +261,13 @@ const k07_sawayama = {
     // 見せかけの軍勢は置かない（AA・AF・AQ6）。見える兵は全部本物
     // ---- 東軍：自分の手勢と脇坂の先手。総大将の秀秋は寄せ口の後ろの本陣で、侍の旗本に囲まれて動かない（O・AR3） ----
     F.honjin = allyGroup(rt, { faction: 'oda', name: '小早川秀秋の本陣', anchor: { x: START.x + 20, z: START.z }, facing: -Math.PI / 2, width: 8, aggro: 3, order: 'hold', fixed: true, noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: true } }, { type: 'samurai', n: 14 }], KOBA));
+      dress([{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: false } }, { type: 'samurai', n: 20 }], KOBA));
+    F.hide = F.honjin.units.find((u) => u.name === '小早川秀秋');
+    if (F.hide) F.hide._crouch = true;   // 総大将は床几に腰を下ろす（O・AR3）
     F.mine = allyGroup(rt, { faction: 'oda', name: '手勢', anchor: { x: START.x - 8, z: START.z + 3 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 6 }], KOBA));
     F.saki = allyGroup(rt, { faction: 'oda', name: '脇坂安治の先手', anchor: { x: START.x - 10, z: START.z - 6 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }], WAKI));
+      dress([{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }], WAKI));
     for (const g of [F.mine, F.saki]) { g.defMult = 1.5; g.dmgMult = 1.1; g.aggro = 24; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: START.x - 2, z: START.z + 6 }, -Math.PI / 2, [{ kind: 'spear', n: Math.min(n, 16) }]);
@@ -274,8 +278,8 @@ const k07_sawayama = {
     rt.say('小早川秀秋', '関ヶ原は終わった。残るは治部（三成）の本拠、佐和山じゃ', 4.5);
     rt.after(5, () => rt.say(nm(rt), '治部少輔はおらぬと聞きます。城には誰が', 3.5));
     rt.after(9, () => rt.say('脇坂安治', '父の石田正継、兄の正澄ら。二千八百ほどが籠もっておる', 4));
-    rt.after(13.5, () => rt.say('小早川秀秋', '田中吉政殿が搦手から回る。我らは大手じゃ。かかれ！', 3.6));
-    rt.after(17.5, () => this.begin(rt));
+    rt.after(13.5, () => rt.say('小早川秀秋', '内府（家康）様は南の正法山に陣を取られた。田中殿は搦手、我らは大手じゃ。かかれ！', 4));
+    rt.after(18, () => this.begin(rt));
   },
 
   begin(rt) {
@@ -299,7 +303,7 @@ const k07_sawayama = {
       // ② 三の丸
       DP.fight({ at: SAN, title: '三の丸', sub: '北の尾根の先に石田正澄', obj: '三の丸の石田正澄の隊を討て', max: 180,
         say: [['石田正澄', '三成の兄ここにあり。一歩も通すな！']],
-        foes: () => [keep('三の丸の守り', SAN, [{ type: 'busho', n: 1, o: { name: '石田正澄', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { morale: 98 })],
+        foes: () => [keep('三の丸の守り', SAN, [{ type: 'busho', n: 1, o: { name: '石田正澄', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { morale: 98 })],
         later: [{ t: 35, say: ['石田正澄', '大坂の鉄砲衆、櫓から撃ちかけよ！'], foes: () => [keep('大坂の鉄砲衆', { x: SAN.x - 6, z: SAN.z - 8 }, [{ type: 'gun', n: 5 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 1 }])] }],
         reward: '三の丸を落とした' }),
       DP.rest({ dur: 5, heal: 0.7 }),
@@ -308,17 +312,28 @@ const k07_sawayama = {
         say: [['小早川の侍', '西の丸で長谷川守知が寝返った！　搦手から田中勢も入るぞ']],
         foes: () => [keep('二の丸の下の段の守り', NI3, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }])],
         reward: '二の丸の下の段を落とした' }),
-      DP.fight({ at: NI1, title: '二の丸の上の段', sub: '本丸の石垣の下', obj: '二の丸の上の段の石田勢を討て', max: 160,
-        foes: () => [keep('二の丸の守り', NI1, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 4 }])],
+      DP.fight({ at: NI1, title: '二の丸の上の段', sub: '本丸の石垣の下', obj: '二の丸の上の段の宇多頼忠の隊を討て', max: 160,
+        say: [['宇多頼忠', '婿どのの城じゃ。この老骨が二の丸を守る']],
+        foes: () => [keep('宇多頼忠の隊', NI1, [{ type: 'busho', n: 1, o: { name: '宇多頼忠', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 4 }], { morale: 98 })],
         reward: '二の丸を落とした' }),
       DP.rest({ dur: 5, heal: 0.7 }),
       // ④ 本丸の天守
-      DP.fight({ at: HON, title: '本丸', sub: '佐和山の頂、石垣と五層の天守', obj: '本丸へ攻め入り、石田正継の隊を討て', max: 200,
-        say: [['石田正継', '倅の城を、ただでは渡さぬ！'], ['石田重成', '父上、城に火を放ちまする！']],
+      DP.fight({ at: HON, title: '本丸', sub: '佐和山の頂、石垣と五層の天守', obj: '本丸へ攻め入り、石田朝成と正継の旗本を討て', max: 200,
+        say: [['石田正継', '倅の城を、ただでは渡さぬ！'], ['石田朝成', 'お爺さま、天守は我らが守りまする！']],
         onEnd: (rt2) => this.burn(rt2),
-        foes: () => [keep('本丸の守り', HON, [{ type: 'busho', n: 1, o: { name: '石田正継', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 1, o: { name: '石田重成', hat: 'kabuto_m' } }, { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], { morale: 100, seek: 30 })],
+        foes: (rt2) => { this.tsugu(rt2); return [keep('本丸の旗本', HON, [{ type: 'busho', n: 1, o: { name: '石田朝成', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 12 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 4 }], { morale: 100, seek: 30 })]; },
         reward: '本丸に攻め入った' }),
     ], (rt2) => this.win(rt2));
+  },
+
+  // 本丸の奥：城の総大将の石田正継は天守の前で床几に座り、侍の旗本に囲まれて動かない（O・AR3）。旗本が崩れると自害する（史実）
+  tsugu(rt) {
+    const F = rt.flags;
+    if (F.tsugu) return;
+    F.tsugu = enemyGroup(rt, { fixed: true, faction: 'ishida', name: '石田正継の旗本', anchor: { x: HON.x - 12, z: HON.z + 6 }, facing: -Math.PI / 2, order: 'hold', aggro: 4, seekRange: 10, width: 8, morale: 100, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '石田正継', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 10 }], ISHIDA));
+    const u = F.tsugu.units.find((v) => v.name === '石田正継');
+    if (u) u._crouch = true;
   },
 
   // 田中吉政の手：二の丸の段で、搦手（西・琵琶湖の側）から西の丸へ攻め上る（城内の長谷川守知の手引き）
@@ -326,7 +341,7 @@ const k07_sawayama = {
     const F = rt.flags;
     if (F.tanaka) return;
     F.tanaka = allyGroup(rt, { faction: 'oda', name: '田中吉政の手', anchor: { x: KARAME.x, z: KARAME.z }, facing: 0, width: 10, aggro: 12, noRout: true, order: 'attack', seekRange: 60 },
-      dress([{ type: 'busho', n: 1, o: { name: '田中吉政', invuln: true, horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], TANAKA));
+      dress([{ type: 'busho', n: 1, o: { name: '田中吉政', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], TANAKA));
     F.tanaka.anchor = { x: NISHI.x + 6, z: NISHI.z };
     F.tanaka.dmgMult = 0.7;
     rt.after(1.5, () => rt.say('田中吉政', '搦手は田中が破る。小早川殿に遅れるな', 3.4));
@@ -334,16 +349,16 @@ const k07_sawayama = {
     rt.army.play('toki', KARAME, 1.4);
     // 城内の長谷川守知の手：西の丸で寝返り、二の丸へ打ちかかる（十八日の内応。言った物が本当にそこにいる。AT の1）
     F.hasegawa = allyGroup(rt, { faction: 'oda', name: '長谷川守知の手', anchor: { x: NISHI.x + 4, z: NISHI.z - 4 }, facing: -Math.PI / 2, width: 8, aggro: 12, noRout: true, order: 'attack', seekRange: 50, fixed: true },
-      dress([{ type: 'samurai', n: 1, o: { name: '長谷川守知' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], TANAKA));
+      dress([{ type: 'busho', n: 1, o: { name: '長谷川守知', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 8 }], TANAKA));
     F.hasegawa.anchor = { x: NI1.x, z: NI1.z };
   },
 
-  // 南の尾根：小早川の別の手が太鼓丸へ取り付く。見せかけでなく本物の兵どうしが斬り合う（谷戸の向こうに見える）
+  // 南の尾根：関ヶ原で寝返った小川祐忠（朽木・赤座と共に加わった）の手が太鼓丸へ取り付く。見せかけでなく本物の兵どうしが斬り合う（谷戸の向こうに見える）
   south(rt) {
     const F = rt.flags;
     if (F.south) return;
-    F.south = allyGroup(rt, { faction: 'oda', name: '小早川の別の手', anchor: { x: 96, z: 44 }, facing: -Math.PI / 2, width: 10, aggro: 12, noRout: true, order: 'attack', seekRange: 70, fixed: true },
-      dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 4 }], KOBA));
+    F.south = allyGroup(rt, { faction: 'oda', name: '小川祐忠の手', anchor: { x: 96, z: 44 }, facing: -Math.PI / 2, width: 10, aggro: 12, noRout: true, order: 'attack', seekRange: 70, fixed: true },
+      dress([{ type: 'busho', n: 1, o: { name: '小川祐忠', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 4 }], TANAKA));
     F.south.anchor = { x: TAIKO.x + 22, z: TAIKO.z };
     F.southFoe = enemyGroup(rt, { fixed: true, faction: 'ishida', name: '太鼓丸の守り', anchor: { x: TAIKO.x + 18, z: TAIKO.z + 4 }, facing: Math.PI / 2, order: 'hold', aggro: 12, width: 10, morale: 95 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], ISHIDA));
@@ -372,7 +387,7 @@ const k07_sawayama = {
     sfx('horagai', 0.9);
     rt.banner('佐和山城、落城', '慶長五年九月　石田家、滅ぶ');
     rt.player.u.invuln = true;
-    rt.after(2, () => rt.say(nm(rt), '天守が燃えておりまする。正継殿は、中で自害なされたと', 4));
+    rt.after(2, () => rt.say(nm(rt), '天守が燃えておりまする。正継殿・正澄殿は、天守で自害なされたと', 4));
     rt.after(6.5, () => rt.say('小早川秀秋', '……三成は城に戻れなんだ。主のおらぬ城を、我らは落としたのよ', 4.4));
     rt.after(11, () => rt.say('脇坂安治', '城の女たちは、西の崖から身を投げたと……', 4));
     rt.after(15.5, () => rt.say('田中吉政', '治部（三成）は伊吹の山に逃れた。我が手の者が捜し出す', 4.4));
@@ -405,7 +420,8 @@ const k07_sawayama = {
   onKill(rt, v) {
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
-    if (v.name === '石田正継') rt.award((t) => { t.special = { label: '石田正継を追い詰めた', pts: 30 }; }, '石田正継を追い詰めた');
+    if (v.name === '石田朝成') rt.award((t) => { t.special = { label: '石田朝成を討ち取った', pts: 30 }; }, '石田朝成を討ち取った');
+    if (v.name === '宇多頼忠') rt.award((t) => { t.special = { label: '宇多頼忠を討ち取った', pts: 20 }; }, '宇多頼忠を討ち取った');
     if (v.name === '石田正澄') rt.award((t) => { t.special = { label: '石田正澄を討ち取った', pts: 20 }; }, '石田正澄を討ち取った');
   },
   onRout(rt, g) {
@@ -418,8 +434,8 @@ k07_sawayama.sides = { a: { name: '東軍', mon: 'kobayakawa' }, b: { name: '石
 k07_sawayama.date = (rt) => (rt.flags.dusk ? '慶長五年（1600）九月　秋・夕暮れ' : '慶長五年（1600）九月　秋・昼');
 k07_sawayama.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 k07_sawayama.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
-k07_sawayama.history = '慶長五年（1600）九月十五日、関ヶ原で西軍が敗れると、東軍は三成の本拠・佐和山城へ向かった。城は琵琶湖を見下ろす佐和山の頂に五層の天守を持つ山城で、三成は戻らず、父の石田正継、兄の正澄、子の重成らが二千八百ほどで守った。小早川秀秋・田中吉政・脇坂安治・朽木元綱らおよそ一万五千が大手と搦手から攻め、十八日に城内の長谷川守知が裏切って東軍を引き入れ、城は落ちた。正継と正澄は自害したと伝えられ、石田家は滅んだ。三成本人は関ヶ原の後に逃れ、近江で捕らえられた。\n曲輪の並びと寸法は遊びのために縮めて復元したもので、攻め口の細かい道筋は推定である。内応や裏切りの伝えなど、史料により異なる点もある。';
-k07_sawayama.bushou = [{ name: '石田正継', g: /正継/ }, { name: '石田正澄', g: /正澄/ }];
+k07_sawayama.history = '慶長五年（1600）九月十五日、関ヶ原で西軍が敗れると、東軍は三成の本拠・佐和山城へ向かった。城は琵琶湖を見下ろす佐和山の頂に五層の天守を持つ山城で、三成は戻らず、父の石田正継、兄の正澄とその子の朝成、三成の舅の宇多頼忠らが二千八百ほどで守った。家康は城の南の正法山に陣を取り、小早川秀秋を先鋒に脇坂安治・朽木元綱・小川祐忠・赤座直保・田中吉政らおよそ一万五千が十七日の明け方から大手と搦手から攻め、十八日に城内の長谷川守知が裏切って東軍を引き入れ、城は落ちた。正継・正澄・朝成・宇多頼忠と三成の妻は自害したと伝えられ、石田家は滅んだ。三成本人は関ヶ原の後に逃れ、近江で捕らえられた。\n曲輪の並びと寸法は遊びのために縮めて復元したもので、攻め口の細かい道筋は推定である。内応や裏切りの伝えなど、史料により異なる点もある。';
+k07_sawayama.bushou = [{ name: '石田正継', g: /正継/ }, { name: '石田正澄', g: /正澄/ }, { name: '宇多頼忠', g: /頼忠/ }, { name: '石田朝成', g: /朝成/ }];
 
 k07_sawayama.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
@@ -431,7 +447,7 @@ k07_sawayama.botBrain = (b, inp, { goTo }) => {
 };
 
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k07_sawayama = [['大手門の石田勢を討つ'], ['三の丸の石田正澄を討つ', dpAt(3)], ['二の丸の下の段を落とす', dpAt(5)], ['二の丸の上の段を落とす', dpAt(6)], ['本丸の石田正継を討つ', dpAt(8)]];
+STAGES.k07_sawayama = [['大手門の石田勢を討つ'], ['三の丸の石田正澄を討つ', dpAt(3)], ['二の丸の下の段を落とす', dpAt(5)], ['二の丸の上の段の宇多頼忠を討つ', dpAt(6)], ['本丸の正継の旗本を討つ', dpAt(8)]];
 
 export { k07_sawayama };
 export default k07_sawayama;

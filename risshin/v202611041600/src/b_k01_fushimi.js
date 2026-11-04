@@ -97,9 +97,11 @@ const { way: fushimiWay } = routeTools(ROUTE, 'k01');
 // 寄せ手の組：from から寄せる。旗はその家の紋（紋の確かでない長束・甲賀・雑賀は丸）
 const keep = (name, from, flag, list, o = {}) => ({ name, from: { x: from.x, z: from.z }, faction: flag, width: o.width || 10, list: dress(list, { ...WEST, flag }), seek: o.seek || 60, morale: o.morale || 94 });
 // 城の外の陣（本物の兵。動かずに城を囲む。総大将とその下の大将は前に出ない）
-const camp = (rt, name, at, flag, lead, list, facing) => {
+// 総大将（宇喜多秀家）は床几に座り、下の大将（小早川・島津）は馬上で旗本に囲まれる（AR3・AV7・Q）
+const camp = (rt, name, at, flag, lead, list, facing, seat = false) => {
   const g = enemyGroup(rt, { fixed: true, faction: flag, name, anchor: at, facing, order: 'hold', aggro: 3, width: 10, morale: 100, noRout: true },
-    dress([{ type: 'busho', n: 1, o: { name: lead, invuln: true, horse: true } }, ...list], { ...WEST, flag }));
+    dress([{ type: 'busho', n: 1, o: { name: lead, invuln: true, horse: !seat } }, ...list], { ...WEST, flag }));
+  if (seat) { const u = g.units.find((x) => x.name === lead); if (u) u._crouch = true; }
   rt.scene.add(nobori(rt.world, at.x - 6, at.z + 3, flag, 6)); rt.scene.add(nobori(rt.world, at.x + 6, at.z + 3, flag, 6));
   return g;
 };
@@ -113,6 +115,12 @@ const k01_fushimi = {
   },
   spawn: { x: SAN.x, z: SAN.z + 4, heading: Math.PI },
   noWake: true,
+  noFrontFill: true,       // 見せかけの軍勢を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
+  noDistantBattle: true,
+  noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ
+  goalSignOnly: true,      // 地面の矢印・持ち場の輪を出さない（BH6）
+  kumiLead: false,         // 組頭の印も出さない（AV15）
+  noHatamotoMass: true,    // 将の後ろの軽い作りの備を置かない（AF）
   minutes: 8,
   world: {
     seed: 1600719,
@@ -139,24 +147,26 @@ const k01_fushimi = {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const W = rt.world, F = rt.flags;
     F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
-    F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 0, perch: false, interiorGuards: false, buildGates: true, buildTowers: true });
+    F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 0, perchLook: TORII, interiorGuards: false, buildGates: true, buildTowers: true });
     // 門は開けた形（味方が退き、寄せ手が攻め入る道を塞がない）
     for (const g of Object.values(F.C.gateObjs || {})) { g.open(); Object.assign(g.struct, { solidR: 0, passable: true, opened: true, noTarget: true, fireProof: true }); }
     for (const [x, z] of [[-14, 66], [14, 66], [-16, 26], [16, 26], [-14, -14], [14, -14], [-10, -50], [10, -50]]) rt.scene.add(nobori(W, x, z, 'tokugawa', 6));
     for (const [x, z] of [[-8, 70], [8, 34], [-8, -6], [8, -44]]) rt.scene.add(kagaribi(W, x, z));
     // 見せかけの軍勢は置かない（AA・AF・AQ6・AP9）。城を囲む西軍の陣も本物の兵。総大将の宇喜多秀家は南の外の本陣から出ない（AR3・AT3）
-    F.ukitaCamp = camp(rt, '宇喜多秀家の本陣', CAMPS[0], 'ukita', '宇喜多秀家', [{ type: 'samurai', n: 12 }, { type: 'gun', n: 4 }], Math.PI);
-    F.kobaCamp = camp(rt, '小早川秀秋の陣', CAMPS[1], 'kobayakawa', '小早川秀秋', [{ type: 'samurai', n: 8 }, { type: 'ashigaru', n: 6 }], Math.PI * 0.6);
-    F.shimaCamp = camp(rt, '島津義弘の陣', CAMPS[2], 'shimazu', '島津義弘', [{ type: 'samurai', n: 6 }, { type: 'gun', n: 6 }], -Math.PI * 0.8);
+    F.ukitaCamp = camp(rt, '宇喜多秀家の本陣', CAMPS[0], 'ukita', '宇喜多秀家', [{ type: 'samurai', n: 16 }, { type: 'gun', n: 4 }], Math.PI, true);
+    F.kobaCamp = camp(rt, '小早川秀秋の陣', CAMPS[1], 'kobayakawa', '小早川秀秋', [{ type: 'samurai', n: 10 }, { type: 'ashigaru', n: 6 }], Math.PI * 0.6);
+    F.shimaCamp = camp(rt, '島津義弘の陣', CAMPS[2], 'shimazu', '島津義弘', [{ type: 'samurai', n: 8 }, { type: 'gun', n: 6 }], -Math.PI * 0.8);
     // ---- 城方：千八百。鳥居元忠は本丸の天守の前の本陣で旗本に囲まれる。主人公は元忠の手勢として三の丸の虎口を受け持つ ----
     F.motochika = allyGroup(rt, { faction: 'oda', name: '鳥居元忠の本陣', anchor: { x: -2, z: -48 }, facing: Math.PI, width: 6, aggro: 3, order: 'hold', fixed: true, noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '鳥居元忠', invuln: true, horse: false } }, { type: 'samurai', n: 10 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '鳥居元忠', invuln: true, horse: false } }, { type: 'samurai', n: 14 }], TORII));
+    F.toriiU = F.motochika.units.find((u) => u.name === '鳥居元忠');
+    if (F.toriiU) F.toriiU._crouch = true;   // 本丸の床几に腰を下ろす（最後の段で立って前に出る）
     F.mine = allyGroup(rt, { faction: 'oda', name: '手勢', anchor: { x: SAN.x - 2, z: SAN.z + 8 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }], TORII));
     F.ie = allyGroup(rt, { faction: 'oda', name: '松平家忠の手', anchor: { x: SAN.x + 12, z: SAN.z + 8 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '松平家忠', invuln: true, horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '松平家忠', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], TORII));
     F.nai = allyGroup(rt, { faction: 'oda', name: '内藤家長の手', anchor: { x: SAN.x - 14, z: SAN.z + 8 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 4 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 4 }], TORII));
     for (const g of [F.mine, F.ie, F.nai]) { g.defMult = 1.25; g.dmgMult = 0.8; }
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: SAN.x + 2, z: SAN.z + 2 }, Math.PI, [{ kind: 'spear', n: Math.min(n, 12) }]);
@@ -224,7 +234,7 @@ const k01_fushimi = {
       // ⑥ 雑賀孫一の鉄砲衆が本丸に斬り込む
       DP.fight({ at: HON, title: '雑賀孫一', sub: '鉄砲衆を連れて本丸へ斬り込む', obj: '本丸に斬り込んだ雑賀孫一の鉄砲衆を討て', max: 150,
         say: [['雑賀孫一', '鳥居殿はいずこ！　雑賀の孫一、見参！'], ['鳥居元忠', '旗本ども、わしに続け！']],
-        foes: () => [keep('雑賀孫一の鉄砲衆', { x: 0, z: -14 }, 'maru', [{ type: 'busho', n: 1, o: { name: '雑賀孫一', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 8 }], { morale: 100, seek: 40 })],
+        foes: () => [keep('雑賀孫一の鉄砲衆', { x: 0, z: -14 }, 'maru', [{ type: 'busho', n: 1, o: { name: '雑賀孫一', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 8 }], { morale: 100, seek: 40 })],
         reward: '雑賀孫一の鉄砲衆と戦い抜いた' }),
     ], (rt2) => this.win(rt2));
   },
@@ -277,7 +287,7 @@ const k01_fushimi = {
     // 八月一日：松の丸の内応の火（④の段）
     if (D && D.on && D.i >= 4) this.burn(rt);
     // 本丸の段：元忠と旗本が本丸の口へ出て、自ら戦う
-    if (D && D.on && D.i >= 6 && !F.toriiOut && F.motochika) { F.toriiOut = true; F.motochika.anchor = { x: HON.x, z: HON.z + 8 }; F.motochika.aggro = 14; F.motochika.order = 'attack'; }
+    if (D && D.on && D.i >= 6 && !F.toriiOut && F.motochika) { F.toriiOut = true; if (F.toriiU) F.toriiU._crouch = false; F.motochika.anchor = { x: HON.x, z: HON.z + 8 }; F.motochika.aggro = 14; F.motochika.order = 'attack'; }
     if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
   },
 

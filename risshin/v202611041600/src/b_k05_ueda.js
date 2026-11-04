@@ -163,7 +163,9 @@ const k05_ueda = {
     try { S.add(yaguramon(W, GATE.x, GATE.z, 7, Math.PI / 2, { doors: false, inside: false })); } catch (e) { console.warn(e); }
     for (const [x, z] of [[GATE.x - 3, GATE.z - 28], [GATE.x - 3, GATE.z + 28], [C.x - 28, GATE.z - 28]]) S.add(yagura(W, x, z, { mon: 'sanada', team: 1 }));
     S.add(sumiyagura(W, GATE.x - 2, GATE.z - 10, { w: 6, d: 5, base: 1.4 }), sumiyagura(W, GATE.x - 2, GATE.z + 10, { w: 6, d: 5, base: 1.4 }));
-    for (const [x, z] of [[GATE.x - 10, GATE.z - 14], [GATE.x - 10, GATE.z + 14], [C.x, C.z]]) S.add(nobori(W, x, z, 'sanada', 7));
+    // 六文銭の幟：土塀の内に並べ、寄せ手から城の守りが見えるように（Q・動かない城にだけ）
+    for (const [x, z] of [[GATE.x - 10, GATE.z - 14], [GATE.x - 10, GATE.z + 14], [C.x, C.z], [GATE.x - 4, GATE.z - 22], [GATE.x - 4, GATE.z - 16], [GATE.x - 4, GATE.z + 16], [GATE.x - 4, GATE.z + 22],
+      [GATE.x - 6, GATE.z - 5], [GATE.x - 6, GATE.z + 5], [C.x + 4, C.z - 8], [C.x + 4, C.z + 8], [C.x - 22, C.z - 22], [C.x - 22, C.z + 22]]) S.add(nobori(W, x, z, 'sanada', 7));
     // 本丸の二重櫓（今の西櫓と同じ下見板と白壁の二重。町屋の屋根越しに城の姿が見える）
     S.add(sumiyagura(W, C.x + 6, C.z - 14, { w: 9, d: 7, base: 4.2 }), sumiyagura(W, C.x + 6, C.z + 16, { w: 8, d: 6, base: 3.6 }));
     farSight(S.children.slice(castle0), { W, ground: { x: C.x + 10, z: C.z, r: 50 } });
@@ -173,7 +175,9 @@ const k05_ueda = {
     try { for (const [x, z] of [[KARI.x - 8, KARI.z - 6], [KARI.x + 8, KARI.z - 8], [KARI.x, KARI.z + 8]]) S.add(hasa(W, x, z, 0.2)); } catch (e) { console.warn(e); }
     // ---- 秀忠の本陣（神川の東・染屋台）：幕と葵の旗・篝火 ----
     S.add(jinmaku(W, HONJIN.x + 6, HONJIN.z, 18, 12, 6, { mon: 'tokugawa' }));
-    for (const dz of [-10, 10]) S.add(nobori(W, HONJIN.x - 6, HONJIN.z + dz, 'tokugawa', 6));
+    for (const dz of [-10, -5, 0, 5, 10]) S.add(nobori(W, HONJIN.x - 6, HONJIN.z + dz, 'tokugawa', 6));
+    for (const dz of [-8, 8]) S.add(nobori(W, HONJIN.x + 18, HONJIN.z + dz, 'tokugawa', 6));
+    for (const dx of [-6, 0, 6]) S.add(nobori(W, HONJIN.x - 10 + dx, HONJIN.z - 30, 'sakakibara', 6));   // 榊原の陣の後ろ
     S.add(kagaribi(W, HONJIN.x - 2, HONJIN.z + 13));
     KIT.farVillage(rt, 190, 100, { rot: -Math.PI / 2, n: 5, fields: 6, seed: 45 });
 
@@ -188,15 +192,25 @@ const k05_ueda = {
       okD([bu('大久保忠隣'), uS(5), uA(14), uG(3)]));
     // 秀忠の本陣：神川の東で旗本に囲まれ、前に出ない（AR3・AT3）
     F.hide = allyGroup(rt, { faction: 'tokugawa', name: '徳川秀忠の本陣', fullStrength: true, fixed: true, anchor: { x: HONJIN.x, z: HONJIN.z }, facing: -Math.PI / 2, width: 8, aggro: 4, seekRange: 10, order: 'hold', noRout: true },
-      tkD([bu('徳川秀忠'), uS(16), uG(6)]));
+      tkD([bu('徳川秀忠', { horse: false }), uS(22), uG(6)]));
+    F.hideU = F.hide.units.find((u) => u.name === '徳川秀忠');
+    if (F.hideU) F.hideU._crouch = true;   // 床几に腰を下ろす
     F.saka = allyGroup(rt, { faction: 'tokugawa', name: '榊原康政の隊', fullStrength: true, fixed: true, anchor: { x: HONJIN.x - 10, z: HONJIN.z - 22 }, facing: -Math.PI / 2, width: 7, aggro: 6, seekRange: 14, order: 'hold', noRout: true, formation: 'yari' },
       skD([bu('榊原康政'), uS(4), uA(10), uG(3)]));
     for (const g of [F.honda, F.okubo, F.makino]) g.ai = true;
     // 真田昌幸は城の内（本丸）にいて出て来ない
-    F.masa = this.foe(rt, '真田昌幸の旗本', { x: C.x + 2, z: C.z }, [bu('真田昌幸'), uS(6), uG(2)], { hold: true, width: 5 });
+    F.masa = this.foe(rt, '真田昌幸の旗本', { x: C.x + 2, z: C.z }, [bu('真田昌幸', { horse: false }), uS(6), uG(2)], { hold: true, width: 5 });
+    F.masaU = F.masa.units.find((u) => u.name === '真田昌幸');
+    if (F.masaU) F.masaU._crouch = true;   // 本丸で床几に座り、出て来ない
     // 門の上の鉄砲衆（土塀の内に並ぶ。門へ寄る者を撃つ）
     F.wallG = this.foe(rt, '大手門の鉄砲衆', { x: GATE.x - 3, z: GATE.z }, [uS(1), uG(10)], { hold: true, width: 9 });
     F.wallG.facing = Math.PI / 2;
+    // 隅櫓の脇の鉄砲衆（北と南の塀の内から、門へ寄る者を横から撃つ。BK3・BJ3）
+    F.wallN = this.foe(rt, '北の隅櫓の鉄砲衆', { x: GATE.x - 4, z: GATE.z - 12 }, [uG(6)], { hold: true, width: 6 });
+    F.wallS = this.foe(rt, '南の隅櫓の鉄砲衆', { x: GATE.x - 4, z: GATE.z + 12 }, [uG(6)], { hold: true, width: 6 });
+    // 信繁の手は初めから北の林に潜む（伏兵。四の段で林から出る。急に湧かせない AT17・AV10）
+    F.nobushige = this.foe(rt, '真田信繁の手', { x: KOKUZO.x, z: KOKUZO.z }, [bu('真田信繁', { hat: 'kabuto_sanada' }), uS(6), uA(20), uG(4)], { hold: true, width: 8, morale: 100, dmg: 0.6 });
+    F.nobushige.seekRange = 8; F.nobushige.aggro = 6;
     const T = this.talk.before;
     T.forEach(([who, s], i) => rt.after(0.6 + i * 3.6, () => rt.say(who, s, 3.4)));
     rt.after(0.6 + T.length * 3.6, () => { F.holdPlayer = false; this.toStep(rt, 1); });
@@ -254,8 +268,11 @@ const k05_ueda = {
       // 信繁の手が北の林から出て、門の前の徳川の先手の横を突く
       sfx('taiko', 1);
       rt.banner('北の林から六文銭', '真田信繁の手が横を突く');
-      F.nobushige = this.foe(rt, '真田信繁の手', { x: KOKUZO.x, z: KOKUZO.z }, [bu('真田信繁', { hat: 'kabuto_sanada' }), uS(6), uA(20), uG(4)], { aim: { x: FRONT.x + 6, z: FRONT.z - 6 }, width: 8, morale: 100, dmg: 0.6 });
-      F.w4N = aliveN(F.nobushige);
+      const nb = F.nobushige, aim = { x: FRONT.x + 6, z: FRONT.z - 6 };
+      nb.anchor = { ...aim }; nb.order = 'move'; nb.dest = { ...aim }; nb.seekRange = 90; nb.aggro = 16;
+      nb.onArrive = (q) => { if (q.order === 'move') q.order = 'attack'; };
+      rt.after(40, () => { nb.noRout = false; });
+      F.w4N = aliveN(nb);
       for (const g of [F.honda, F.okubo, F.makino]) if (live(g)) { g.morale -= 15; g.order = 'attack'; g.seekRange = 40; }
       rt.after(3, () => rt.say('大久保忠隣', '横から来たぞ！　槍を北へ向けよ！', 3));
       rt.after(8, () => rt.say('真田信繁', '徳川の先手、門の前で足が止まったわ。揉み潰せ！', 3.2));
@@ -282,7 +299,7 @@ const k05_ueda = {
     rt.objDone('s5');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    for (const g of F.foes) if (g !== F.masa && g !== F.wallG) this.back(g);
+    for (const g of F.foes) if (g !== F.masa && g !== F.wallG && g !== F.wallN && g !== F.wallS) this.back(g);
     sfx('horagai', 0.8);
     rt.award((t) => { t.main = true; t.special = { label: '上田城下から先手を退かせた', pts: 20 }; }, '上田城下でしんがりを務めた');
     rt.banner('先手、本陣へ退く', '上田城は落ちなかった');
