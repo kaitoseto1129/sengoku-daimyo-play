@@ -3887,9 +3887,9 @@ const nodafukushima = {
       rt.objProgress('main', safe ? '敵へ向いたまま、味方の後ろへ下がれ' : bind || rest ? rear ? !atRest ? '印まで下がれ。着いたら止まって休め' : bind ? '血を止める札が出たら三秒押せ' : '印で止まり、息を整えよ' : '敵が近い。味方と下がれ' : !held ? '味方と堤を奪い返せ' : F.kyotoNews ? (F.holdMerit ? '退き口は保てた。味方と下知を待て' : '堤で退き口を守り、下知を待て') : F.waveNear || F.holdThreat ? '堤の味方と敵を防げ。追わず、列を守れ' : F.wavesCleared ? '寄せを退けた。追わず、堤で下知を待て' : F.waveApproaching ? '敵が近づいている。堤の味方と迎えよ' : '敵が離れた。追わず、堤で構えを解け');
       // 京を守る撤退命令は、局地の奪い返しや本人の帰着を待たない。
       // 堤を失っても退き口へ向かわせ、安全に味方へ合流できた時だけ成功にする。
-      // 10/30：退きの段へは、本人が堤の近く（三十歩内）で守っているか、二組を押し返した時だけ（時だけでは進まない）
-      const atLevee = Math.hypot(rt.player.u.pos.x - 8, rt.player.u.pos.z - LEVEE_Z - 4) < 30;
-      if (rt.t >= 240 && rt.t - F.stepT > (F.holdMerit ? 168 : 185) && F.kyotoNews && (F.holdMerit || atLevee)) this.midB(rt);
+      // 手当てや敵の押し込みで堤を離れていても、全軍の退き太鼓を止めない。
+      // 堤を守った手柄は別に数え、撤退の成功は合流先で判定する。
+      if (rt.t >= 240 && rt.t - F.stepT > (F.holdMerit ? 168 : 185) && F.kyotoNews) this.midB(rt);
     }
   },
 

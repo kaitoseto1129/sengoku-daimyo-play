@@ -453,8 +453,8 @@ const t11_hachioji = {
       // ⑤ 頂の本丸：中山勘解由（家範）は降るのを拒んで討死。城代の横地監物は西の詰城の方へ落ちる
       DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['中山勘解由', '北条の城、ただでは渡さぬ！'], ['横地監物', '要害を固めよ。小田原の殿に顔向けできぬぞ！']],
-        foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'busho', n: 1, o: { name: '中山勘解由', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }], { morale: 100, seek: 30 }),
-          keep('横地監物の手', HON, [{ type: 'samurai', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], { dx: -12, dz: -8, morale: 60, seek: 20 })],
+        foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'busho', n: 1, o: { name: '中山勘解由', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
+          keep('横地監物の手', HON, [{ type: 'samurai', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 60, seek: 20 })],
         reward: '本丸を落とした' }),
     ], (rt2) => this.win(rt2));
   },

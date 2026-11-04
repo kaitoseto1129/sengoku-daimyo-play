@@ -399,11 +399,11 @@ const t04_negoro = {
     F.tsutsuiG = allyGroup(rt, { ...H, name: '筒井定次の手', anchor: P(10, -136), facing: ROT, width: 12, aggro: 9, noRout: true, formation: 'yari', dmgMult: 0.85 },
       dress([{ type: 'samurai', n: 1, o: { name: '筒井定次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], HASHIBA));
     F.hidetsugu = allyGroup(rt, { ...H, name: '羽柴秀次の旗本', anchor: P(-22, -154), facing: ROT, width: 8, aggro: 4, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'samurai', n: 3 }], HASHIBA));
+      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'samurai', n: 10 }], HASHIBA));
     F.hidetsuguU = F.hidetsugu.units[0];
     // 紀州攻めの大将たち（battle_events_1101：秀吉・秀長・堀秀政・仙石秀久）。秀吉と秀長は陣幕の前、仙石は先手の右
     F.hideyoshi = allyGroup(rt, { ...H, name: '羽柴秀吉の本陣', anchor: P(-30, -164), facing: ROT, width: 6, aggro: 3, seekRange: 6, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x8a6a1c } }, { type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }], HASHIBA));
+      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x8a6a1c } }, { type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 14 }], HASHIBA));
     // 堀秀政：坊舎の前へ馬を進め、根来の鉄砲に狙われる侍大将（AY 2「侍大将が鉄砲に狙われ、それを守る」）。討たれはせず、深手で退く
     F.horiG = allyGroup(rt, { ...H, name: '堀秀政の手', anchor: P(-14, -140), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },
       dress([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HASHIBA));

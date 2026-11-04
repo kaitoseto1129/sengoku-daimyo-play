@@ -2841,7 +2841,7 @@ const shigisan = {
     });
     // ---- 木戸の内の弓と鉄砲 ----
     F.arch = enemyGroup(rt, { fixed: true, faction: 'matsunaga', name: '木戸の弓', anchor: { x: 8, z: GATE.z - 3 }, facing: 0, width: 14, aggro: 40, noRout: false, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
-      dress([{ type: 'bow', n: 7 }, { type: 'gun', n: 2 }], MATSU));
+      dress([{ type: 'bow', n: 10 }, { type: 'gun', n: 7 }], MATSU));
     // ---- 麓の織田の陣と大軍（軽い作り） ----
     rt.scene.add(tawara(W, -16, 132, 0.3, 6));
     // 麓の総大将 織田信忠の本陣と、本丸の松永久秀の陣所（旗本は本丸の内に控える）
@@ -2882,7 +2882,7 @@ const shigisan = {
       u.pos.set(q.x, W.heightAt(q.x, q.z), q.z); u.mesh.position.copy(u.pos);
     }
     F.sally = enemyGroup(rt, { fixed: true, faction: 'matsunaga', name: '木戸脇の控え', anchor: { x: 22, z: GATE.z - 10 }, facing: 0, formation: 'yari', order: 'hold', aggro: 8, width: 6, morale: 90, fleeDir: { x: 0.5, z: -1 } },
-      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 }], MATSU));
+      dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 30 }], MATSU));
     F.rg1 =enemyGroup(rt, { fixed: true, faction: 'matsunaga', name: '下の曲輪の松永勢', anchor: { x: RIDGE1.x - 3, z: RIDGE1.z }, facing: Math.PI, formation: 'yari', order: 'hold', aggro: 14, width: 10, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], MATSU));
     F.rg2 = enemyGroup(rt, { fixed: true, faction: 'matsunaga', name: '上の曲輪の松永勢', anchor: { x: RIDGE2.x, z: RIDGE2.z }, facing: Math.PI, formation: 'yari', order: 'hold', aggro: 14, width: 9, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },

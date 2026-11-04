@@ -3743,8 +3743,8 @@ const mitsukuri = {
     F.defendTotal = F.defenders.reduce((s, b) => s + b.nominal, 0);
     // 城将は本丸の館前で近習と徒歩で守る。自動騎乗で狭い庭へ馬を足さない。
     F.commandGuard = enemyGroup(rt, { fixed: true, name: '城将の旗本', faction: 'rokkaku',
-      anchor: { ...HON_DEFEND }, facing: Math.PI / 2 - Math.PI / 9, width: 5, formation: 'yari', aggro: 5 },
-      dress([{ type: 'busho', n: 1, o: { name: '吉田出雲守', horse: false } }, { type: 'samurai', n: 5 }], RK));
+      anchor: { ...HON_DEFEND }, facing: Math.PI / 2 - Math.PI / 9, width: 6, formation: 'yari', aggro: 5 },
+      dress([{ type: 'busho', n: 1, o: { name: '吉田出雲守', horse: false } }, { type: 'samurai', n: 11 }], RK));
     F.commander = F.commandGuard.units[0];
     if (rt.castleSeat) rt.castleSeat.used = true;
     for (const b of F.defenders) b.order({ id: 'hold' });
@@ -4235,8 +4235,8 @@ const mitsukuri = {
     if (!F.sally) {
       if (gate.opened || !F.sanFell || F.ending || rt.over || rt.t < (F.sallyAt ?? Infinity)) return;
       const g = F.sally = enemyGroup(rt, { name: '木戸から打って出た組', faction: 'rokkaku', anchor: { x: KIDO.x, z: KIDO.z - 5 },
-        facing: 0, width: 4, formation: 'yari', aggro: 12, morale: 90, noRout: true },
-      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], RK));
+        facing: 0, width: 6, formation: 'yari', aggro: 12, morale: 90, noRout: true },
+      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 19 }], RK));
       F.sallyT = rt.t; F.sallyN = g.count || g.units.length;
       gate._openNow(false);
       F.ram.assault = null;

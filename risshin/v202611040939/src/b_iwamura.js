@@ -1719,7 +1719,7 @@ const iwamura = {
       aggro: 4, seekRange: 28, noAI: true, morale: 85, fleeDir: { x: 0, z: -1 },
     }, battleLook(rt, [
       { type: 'samurai', n: i < 3 ? 2 : 0 },
-      { type: 'ashigaru', n: i < 3 ? [6, 12, 8][i] : i >= 4 ? 2 : 6 },
+      { type: 'ashigaru', n: i < 3 ? [10, 16, 12][i] : i >= 4 ? 2 : 6 },
       { type: 'bow', n: i < 3 ? 0 : 2 },
     ], TAKEDA)));
     // 城へ退く手を守る小隊。ならした道の二つの折れに初めから置く（配置は遊びの補完）。
@@ -2060,12 +2060,12 @@ const iwamura = {
     rt.say('河尻秀隆', 'よう守った。囲みは崩れなんだ。ここに留まれ', 3);
     // 11/1 kaito の紙：勝ちは「城が降る」。夜討ちを退けた後、城が降り、秋山とおつやの方は処刑される（全滅で勝ちにしない）。
     for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.order = 'hold'; g.aggro = 0; g.seekRange = 0; }
-    rt.after(3.5, () => {
+    rt.after(2.5, () => {
       rt.banner('岩村城、降る', '十一月二十一日、秋山虎繁が城を開いた');
       rt.say('秋山虎繁', '兵糧も尽きた。城を開く。城の者の命は助けられよ', 4);
     });
-    rt.after(8, () => rt.say('語り', '信長は秋山虎繁とおつやの方を許さず、岐阜の長良川の河原で処刑した', 5));
-    rt.finish({ scriptedEnd: true }, 14);
+    rt.after(5, () => rt.say('語り', '信長は秋山虎繁とおつやの方を許さず、岐阜の長良川の河原で処刑した', 4));
+    rt.finish({ scriptedEnd: true }, 8);
   },
 
   lose(rt, reason = '') {
@@ -2089,7 +2089,7 @@ const iwamura = {
   update(rt, dt) {
     huntPlayer(rt, dt);
     heroFrontClash(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { ally: "oda", foe: "takeda", seed: 9210, at: [-2, -2] }) || [];
+    // 11/4：本物に替わらない乱戦（armyBackdrop）は出さない（AF・AP9）
     if (rt.t > 40 && rt.flags.fenceRaids?.[0].defMult > 1) {
       for (const g of rt.flags.fenceRaids) { g.noRout = false; g.defMult = 1; }
       for (const g of rt.flags.fenceSallies) g.defMult = 1;

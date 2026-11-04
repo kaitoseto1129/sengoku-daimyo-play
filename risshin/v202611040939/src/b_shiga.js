@@ -3806,13 +3806,17 @@ const shiga = {
           rt.t - F.stepT > 95)) this.midA(rt);
     }
     if (F.step === 1.5) {
-      const text = rt.t < F.townSoundUntil ? F.townSoundText : '町口を守れ。味方の退き口を保て';
+      const atTown = Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z) < 40;
+      const elapsed = rt.t - F.stepT;
+      const text = rt.t < F.townSoundUntil ? F.townSoundText :
+        !atTown && elapsed >= 35 ? '町口の印へ戻れ。味方の退き口を保て' : '町口を守れ。味方の退き口を保て';
       rt.objProgress('main', text); rt.objProgress('mouth', text);
       // 森可成の討死は必ず（docs/battle_events_1101 の11）。森隊を救う「もしもの筋」の判断は出さない。
       // 深手や包囲を待たず退き口を開く。守将の討死と城の守りは元の筋へつなぐ。
       // 10/30：時の上限で退くのは、本人が町口（四十歩内）にいる時だけ
-      const atTown = Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z) < 40;
-      if (rt.t - F.stepT >= 35 && atTown || rt.t - F.stepT >= 12 && (u.hp < u.maxHp * 0.7 || F.nearFoes >= 3)) this.fall(rt);
+      // 持ち場を離れたまま無傷だと進まなかった。戻る案内を出し、最初の段と同じ猶予で敗北にする。
+      if (!atTown && elapsed > 150) { this.lose(rt, '町口へ戻らず、味方の退き口を守れなかった', true); return; }
+      if (elapsed >= 35 && atTown || elapsed >= 12 && (u.hp < u.maxHp * 0.7 || F.nearFoes >= 3)) this.fall(rt);
     }
     if (F.step === 3.5) {
       const hon = F.SZ.byId.hon;
