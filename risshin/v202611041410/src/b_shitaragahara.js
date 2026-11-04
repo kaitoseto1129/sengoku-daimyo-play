@@ -1021,6 +1021,9 @@ const shitaragahara = {
   nearbyAllySignLimit: 0,
   // 11/3 b100 ⑧：印は一つだけ。今の目標はいつも持ち場か追う隊なので、ついていく相手の青い印は出さない（金の▼一つ）
   noLeaderFollow: true,
+  goalSignNoLabel: true, // 11/4 jin：▼の上に字を出さない（字は使わない・kaito 10/23）
+  noTravelArrow: true, // 11/4 jin（AV15・BH6）：足元・画面の端の矢印は描かない
+  actionGuideTarget: () => null, // 11/4 jin：追い討ちで殿の兵の上に「ここを攻める」の札を出さない（敵は頭上の赤い▼、行き先は金の▼一つ）
   goalSignOnly: true, // 持ち場の旗・輪・枠のピンも重ねず、頭上の金の▼だけ（場所は missionPin が決め、goals5 の goalTarget が同じ所を指す）
   noDodgeCard: true,
   noPlayerFoot: true,
@@ -1033,7 +1036,7 @@ const shitaragahara = {
   // 11/3 b100 ⑦：持ち場を移す場面替え（柳田前へ・大宮前の虎口へ）は、画面の真ん中に次の目標を短く出す
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /退却|討ち取|勝|柵へ$|虎口へ$/.test(t),
   // 11/3 b100 ①：どこで・何をするかの一行（「持ち場へ」「柵を守れ」では場所が分からない）
-  missions: ['の柵の口へ行け', 'を槍で止めよ', '柵に来た▼の敵を討て', '大将をたおせ', '柵の内で進み太鼓を待て', '連吾川を渡り、馬場隊を追え', '組と柵の内へ戻れ'],
+  missions: ['の柵の口へ行け', 'を槍で止めよ', '柵に来た敵を討て', '大将をたおせ', '柵の内で進み太鼓を待て', '連吾川を渡り、馬場隊を追え', '組と柵の内へ戻れ'],
   // 毎回いまの戦場から決める。討った・着いた瞬間に次の一行へ替わり、古い字を残さない。
   missionOf(rt) {
     const F = rt.flags;
@@ -1041,7 +1044,9 @@ const shitaragahara = {
     // 持ち場を離れたら、敵の追跡より柵へ戻る下知を先に出す。
     if (!F.pursuit && !F.chaseOrdered) {
       const pt = shPostPoint(rt), p = rt.player.u.pos;
-      if (pt && Math.hypot(pt.x - p.x, pt.z - p.z) > 10) return 0;
+      // 11/4 jin（AW3）：柵際で敵と斬り合って少し出ても一行を替えない。持ち場を大きく離れた時だけ「口へ行け」
+      const far = F.cur && !F.cur.doneWave ? 45 : 12;   // 寄せの間は柵の外の斬り合いも持ち場のうち
+      if (pt && Math.hypot(pt.x - p.x, pt.z - p.z) > far) return 0;
     }
     if (shCommander(rt)) return 3;
     if (F.chaseOrdered && !F.pursuit) return 4;
@@ -1049,9 +1054,8 @@ const shitaragahara = {
       const u = shNearestFoe(rt), me = rt.player.u.pos;
       return u && Math.hypot(u.pos.x - me.x, u.pos.z - me.z) < 30 ? 2 : 5;
     }
-    if (shNearestFoe(rt)) return 2;
-    const pt = shPostPoint(rt), me = rt.player.u.pos;
-    return pt && Math.hypot(pt.x - me.x, pt.z - me.z) > 7 ? 0 : 1;
+    // 11/4 jin（AW3）：柵を守る間は一行を「〇〇前の柵で〇〇隊を槍で止めよ」に保つ（寄った敵は頭上の▼で分かる。字を行き来させない）
+    return 1;
   },
   missionHeading(rt) {
     const i = shitaragahara.missionOf(rt);
@@ -1139,16 +1143,8 @@ const shitaragahara = {
   openingWait: (rt) => Math.hypot(rt.player.u.pos.x - rt.flags.prepPt.x,
     rt.player.u.pos.z - rt.flags.prepPt.z) < SH_HOLD_GUIDE.guideRadius,
   releaseGuardForAttack: true, // 槍の届くすきには、防ぐ長押しから既存の反撃案内へ渡す。
-  meleeGuide(rt, enemy) {
-    const F = rt.flags, P = rt.player;
-    if (!F.prepDone || F.ending || !enemy) return false;
-    // 虎口と浅瀬では道案内を保つ。渡河後は道中の殿の反撃も受けられる。
-    if (F.pursuit && !(F.tsuigeki?.stage >= 2)) return false;
-    if (F.pursuit && F.tsuigeki.stage === 3) return true;
-    return Math.hypot(enemy.pos.x - P.u.pos.x, enemy.pos.z - P.u.pos.z)
-      <= P.meleeReach(P.weapon === 'sword' ? 'slash' : 'thrust') ||
-      enemy.atk?.target === P.u || enemy.swing?.target === P.u && !enemy.swing.done;
-  },
+  // 11/4 jin（Simple・BH6）：「敵をたおせ」の札と敵を指す矢印は出さない。敵は頭上の▼で分かる
+  meleeGuide() { return false; },
   waitGuardAllowed(rt) {
     // 持ち場に着いたら寄せ手が来る前から構えられる。移動中の案内は保つ。
     const F = rt.flags, p = rt.player.u.pos;
@@ -2473,6 +2469,8 @@ const shitaragahara = {
     // 10/31 iPhone の記憶：共通の陣は旗本を十五人より減らさない。柵から遠い味方の二つの陣だけ、組頭を残して詰める
     //   （茶臼山は一キロ西で本人が行かない。家康の陣は竹広の後ろの控え）。勝頼の陣は追い討ちで斬り合うので保つ。
     F.camps.forEach((c, i) => { const g = c.guard, keep = i ? 5 : 9; let k = 0; for (const u of g.units) if (u !== g.leader && ++k > keep) rt.army.despawn(u); });
+    // 11/4 jin（AV7）：三人の総大将は後方の本陣の床几に座る（勝頼は退きの下知で立つ）
+    for (const c of [...F.camps, F.katsCamp]) if (c.general) c.general._crouch = true;
     F.katsCamp.guard.formation = 'yari';
     F.katsCamp.guard.noRout = true; F.katsCamp.guard.guard = true;
     F.katsCamp.guard.stay = true; F.katsCamp.guard.guardSight = 22; F.katsCamp.guard.guardLeash = 8; // 勝頼の馬廻は退きの下知まで本陣を守る
@@ -3748,7 +3746,7 @@ const shitaragahara = {
     F.katsuyori.retreat(240, 60);
     // 11/3 b100 ⑥：大宮前の川向こうに控えた武田の本備（軽い作り）も東へ退く。追い討ちの道に、戦わない兵の塊を立たせたままにしない
     F.mainHost?.retreat?.(260, 55);
-    F.katsCamp.general.invuln = true;
+    F.katsCamp.general.invuln = true; F.katsCamp.general._crouch = false;
     for (const q of [F.katsCamp.guard, F.katsCamp.general.group]) {
       q.guard = false; q.stay = false; q.noRout = true; q.retreatOnly = true;
       q.order = 'path'; q.formation = 'column'; q.colW = 2; q.pathIdx = 0;

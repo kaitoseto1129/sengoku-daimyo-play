@@ -78,7 +78,12 @@ function heroFrontClash(rt, dt, o = {}) {
   if (H.done || (H.t -= dt) > 0) return;
   H.t = 0.5;
   if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
-    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    for (const [g, s] of H.saved) {
+      // 逃げ始めた組や、新しい下知を受けた組を古い待機へ戻さない。
+      if (g.routed || g.order !== 'hold' || !g.noAI) continue;
+      g.order = s.order; g.noAI = s.noAI; g.aggro = s.aggro;
+      g.anchor.x = s.x; g.anchor.z = s.z; g.facing = s.facing;
+    }
     H.saved.clear(); H.done = true; return;
   }
   const e = rt.camera?.matrixWorld?.elements;
@@ -96,6 +101,8 @@ function heroFrontClash(rt, dt, o = {}) {
     const list = [];
     for (const g of rt.army.groups) {
       if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      // 職人・僧・里の者や、退く組を斬り合いへ呼び込まない。
+      if (g.civ || g.people || g.order === 'flee' || !g.units.some(siegeFighter)) continue;
       if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
       const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
       // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
@@ -105,7 +112,7 @@ function heroFrontClash(rt, dt, o = {}) {
     const out = []; let n = 0;
     for (const [, g] of list) { if (n >= want) break; out.push(g); n += g.count; }
     out.forEach((g, k) => {
-      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, path: g.path, pathIdx: g.pathIdx, noAI: g.noAI, aggro: g.aggro });
+      if (!H.saved.has(g)) H.saved.set(g, { order: g.order, noAI: g.noAI, aggro: g.aggro, x: g.anchor.x, z: g.anchor.z, facing: g.facing });
       const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
       g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
       if (g.focus && g.focus !== P) g.focus = null;

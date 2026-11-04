@@ -844,22 +844,10 @@ function sunoChoiceLayout(rt) {
     intro.apply(this, args);
     const reading = this.root.querySelector('#intro .intro-reading');
     const goal = reading.querySelector('p b');
-    if (goal) goal.textContent = '勝つには：三度の寄せから柵を守り抜く';
-    const people = reading.querySelectorAll('.intro-person, .intro-castle');
-    if (!people.length) return;
-    const toggle = document.createElement('button'), panel = document.createElement('div');
-    toggle.type = 'button'; toggle.className = 'suno-people-toggle';
-    toggle.textContent = '味方と砦の紹介を読む';
-    toggle.setAttribute('aria-expanded', 'false');
-    panel.id = 'suno-intro-people'; panel.hidden = true;
-    toggle.setAttribute('aria-controls', panel.id);
-    for (const person of people) panel.appendChild(person);
-    toggle.onclick = () => {
-      panel.hidden = !panel.hidden;
-      toggle.setAttribute('aria-expanded', String(!panel.hidden));
-      toggle.textContent = panel.hidden ? '味方と砦の紹介を読む' : '紹介を閉じる';
-    };
-    reading.append(toggle, panel);
+    if (goal) goal.textContent = '勝つには：北・西・川からの寄せを柵の内で受け、寄せ大将を討つ';
+    // 11/4 jin（BE）：札は戦の名・年・両軍・状況・「戦いを始める」だけ。紹介を読む釦と待ちの説明は出さない
+    for (const el of reading.querySelectorAll('.intro-people, .intro-person, .intro-castle')) el.remove();
+    for (const p of reading.querySelectorAll('p:not(#intro-wait)')) if (/読む時間|押すと始まります/.test(p.textContent)) p.remove();
   };
   const dispose = rt.dispose.bind(rt);
   rt.dispose = () => {
@@ -2744,6 +2732,7 @@ const sunomata = {
   noDodgeCard: true,
   hideGuideSteps: true, // 右上は一行だけ。「あと何歩」を足さない。
   noPlayerFoot: true, // 自分の足元の白い輪は出さない（稲生と同じ。ちらつきの元）。
+  goalSignNoLabel: true, // 11/4 jin：行き先は真上の▼だけ。「▼ 印へ進め」の字を添えない（kaito 10/23 字は使わない）
   quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
   missionPinCaption: '',
   missionDetail: () => '',
@@ -3537,8 +3526,8 @@ const sunomata = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   compactIntro: true,
   introTaskFirst: true,
-  // 任務を先に示し、開戦前にも史実・築城伝承・遊びの設定を分けて伝える。
-  introText: 'まず北の柵の内で敵を待て。近づいた敵を槍で突き、外へ追うな。勝つには材木を一度届ける必要がある。敵が退いたら小屋の南西で材木を担ぎ、印の人足へ渡せ。外へ出る時は南門へ。信長公記には、永禄四年に信長が墨俣の守りを固めたとあります。この戦は永禄九年の一夜城伝承を借りた防衛戦です。史実の総勢は不明です。陣の配置・川筋・兵数・季節・時刻と空模様は遊びの設定です。',
+  // 11/4 jin（BE）：札は二三行の状況だけ。断りの字は書かない。
+  introText: '永禄九年九月、藤吉郎は長良川の西の洲に柵の砦を急ぎ組んだ。斎藤勢が北と西の陸、そして川の舟から寄せて来る。柵の内で槍を揃えて受け、外の伏兵と挟んで退けよ。',
   setup(rt) {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
@@ -3881,9 +3870,11 @@ const sunomata = {
     // 守りや敵の強さを本人の身分で変えない。
     const bows = Math.round(n * (rt.G.bowRatio ?? 0.33));
     rt.makeSquad({ x: 0, z: 10 }, Math.PI, [{ kind: 'spear', n: n - bows }, { kind: 'bow', n: bows }]);
-    const tk = allyGroupA(rt, { name: '藤吉郎', fixed: true, fullStrength: true, anchor: { x: 4, z: 2 }, facing: Math.PI, formation: 'ring', aggro: 5 }, [{ type: 'samurai', n: 1, o: { name: '木下藤吉郎', invuln: true, allyOk: true, hat: 'jingasa_n' } }, { type: 'ashigaru', n: 4 }]);
+    const tk = allyGroupA(rt, { name: '藤吉郎', fixed: true, fullStrength: true, anchor: { x: 4, z: 2 }, facing: Math.PI, formation: 'ring', aggro: 5 }, [{ type: 'samurai', n: 1, o: { name: '木下藤吉郎', invuln: true, allyOk: true, hat: 'jingasa_n' } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 2 }]);
     tk.leader = tk.units[0]; F.tk = tk;
     F.tokichiro = tk.units[0];
+    // 11/4 jin（AV7・AW6）：総大将の藤吉郎は柵の内の本陣で床几に座り、旗本が囲む。敵が寄れば立つ（army_anim）
+    F.tokichiro._crouch = true;
     const wk = allyGroup(rt, { name: '人足', fixed: true, fullStrength: true, anchor: { x: -6, z: -10 }, facing: 0, width: 3, aggro: 0 }, [{ type: 'porter', n: 10, o: { ...SUNO_PORTER_LOOK, porterLoad: sunoPorterLoad() } }]);
     F.wk = wk;
     wk.sunoWorkers = true;
@@ -4126,15 +4117,16 @@ const sunomata = {
     // 北の畑・西の林という寄せの筋を保ち、控えを寄せ場の後ろへ置く。
     // 百米以上の道を歩く控えは遠景に任せ、本物を一分以上待たせない。
     F.reserveW3a = camp('斎藤の三の手（北）', { x: -10, z: -56 }, 0.45, [{ type: 'samurai', n: 1, o: { flag: 'saito', flagScale: 1.8, tag: 'flag' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }]);
-    F.reserveW3b = camp('斎藤の三の手（西）', { x: -56, z: -10 }, 1.2, [{ type: 'busho', n: 1, o: { name: '斎藤方の寄せ大将' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 3 }]);
+    F.reserveW3b = camp('斎藤の三の手（西）', { x: -56, z: -10 }, 1.2, [{ type: 'busho', n: 1, o: { name: '斎藤方の寄せ大将', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 3 }]);
+    // 11/4 jin（AQ9・AW6）：寄せ大将は馬上で、旗本の槍が囲む。林の寄せ手と日暮れの組から回して総数は変えない
     // 三の手の十五人を後続の三組へ分ける。総兵数を増やさず、同じ兵が順に寄せる。
     F.duskWaves = ['n', 'w', 'n'].map((side, i) => ({
       side, startedAt: null,
       group: camp(`日暮れの寄せ手（${['一', '二', '三'][i]}の組）`,
         side === 'n' ? { x: 12 + i * 4, z: -52 } : { x: -52, z: 12 },
-        side === 'n' ? 0 : Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }]),
+        side === 'n' ? 0 : Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }]),
     }));
-    F.reserveW3d = camp('西の林の寄せ手', { x: -106, z: -26 }, Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }]);
+    F.reserveW3d = camp('西の林の寄せ手', { x: -106, z: -26 }, Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }]);
     F.supplyEnemy = camp('西の林の物見', { x: -142, z: 48 }, Math.PI / 2, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }]);
     F.boatWaves = [-20, -6, 8].map((z, i) => {
       const g = camp(`舟の寄せ手（${['一', '二', '三'][i]}の舟）`, { x: 130, z }, -Math.PI / 2,
@@ -4833,6 +4825,9 @@ const sunomata = {
         sunoObj(rt, 'defend', '北の柵の口へ戻り、三の手を待て', 'main');
       }
     }
+    // 本陣の藤吉郎は、立って動いた後も止まれば床几へ座り直す（AV7）
+    const tki = F.tokichiro;
+    if (tki?.alive && !tki._crouch && !tki.target && !(tki.moving > 0.15)) tki._crouch = true;
     // 三の手と最後の押しを退け、普請の点検が済めば味方の合図で終える。
     sunoMarchTick(rt);
     if (F.wave === 3) {
@@ -4961,7 +4956,8 @@ const sunomata = {
   // 守る砦の援軍（fort-spec 18）：南から後詰の一隊が駆けつけ、砦の内へ入って加勢する
   callReinforce(rt) {
     const F = rt.flags;
-    if (F.reinforceCalled || F.won || F.ending || rt.over) return;
+    // 伏兵が出るのは三の手の時だけ（伝承の筋：最後の寄せを外と内で挟む）。砦の区域の呼び出しで二の手の間に出さない
+    if (F.reinforceCalled || F.won || F.ending || rt.over || F.wave !== 3) return;
     F.reinforceCalled = true;
     const r = F.reinforceReserve;
     if (!r.count || r.routed) return;
@@ -5541,7 +5537,7 @@ sunomata.famous = [
   { name: '蜂須賀正勝', team: 0, g: /川並衆/, line: '川の側はわしらが守る。組を離すな！' },
 ];
 // 築城年は伝承、秋の景物と空模様・時刻は遊びの設定。残らない月日を確定しない。
-sunomata.date = (rt) => `永禄九年（築城伝承）　秋・${sky(rt)}（遊びの設定）`;
+sunomata.date = (rt) => `永禄九年九月　${sky(rt)}`;
 
 // 史料にない千五百対四千へ兵を足さず、この場に配置した兵だけ一人ずつ数える。
 // 武器を持たない普請・荷駄の人足は兵力へ混ぜない。姿と仕事はそのまま残す。

@@ -37,6 +37,7 @@ const GATE = { x: -56, z: 56 };                  // 二の丸の門（喰違の�
 const ROT = -Math.PI / 4;                         // 門の外向き＝南西
 const YAGURA = { x: -24, z: 30 };                 // 岩の上の矢倉
 const HON = { x: 0, z: 0 };                       // 本丸（頂）
+const HONF = { x: HON.x - 9, z: HON.z + 9 };       // 本丸の大手の口の前（退いた守りが寄る所）
 const KARA_OUT = { x: 70, z: -70 }, KARA_IN = { x: 26, z: -26 };   // 搦手（北東の尾根）の寄せ手の持ち場と、本丸の下の搦手の口
 const ROAD = [[SPAWN.x, SPAWN.z], [-122, 124], [-96, 98], [-76, 76], [-60, 64]];
 const ROAD_IN = [[-60, 50], [-46, 40], [-30, 30], [-14, 14], [0, 0]];
@@ -45,6 +46,16 @@ const SIEGE_H = siegeHeight(SP);
 // 門の外の口・門の前・門の内（喰違：外から右へ回り込み、横の筋の門を抜けて城の内へ）
 const pt = (a, b) => { const [x, z] = SP.L(a, b); return { x, z }; };
 const MOUTH = pt(5.5, 7), FRONT = pt(5.5, -3), INSIDE = pt(-6, -3), INNER = pt(-6, -14);
+// 門の周りの居場所：'out' 塀の外・'rec' 門の前の窪み・'lane' 門の横の筋・'in' 塀の内（門から 26m の外は null）
+const gl = (x, z) => { const dx = x - GATE.x, dz = z - GATE.z; return [dx * SP.px + dz * SP.pz, dx * SP.ux + dz * SP.uz]; };
+function gateZone(x, z) {
+  const [a, b] = gl(x, z);
+  if (Math.abs(a) > 20 || b > 26 || b < -22) return null;
+  if (a > 3.6 && a < 16 && b > -6.2 && b <= 0.5) return 'rec';
+  if (a >= -3.2 && a <= 3.6 && b > -6.2 && b < -0.3) return 'lane';
+  return b > 0 ? 'out' : 'in';
+}
+const wantInside = (q) => gl(q.x, q.z)[1] < 0;
 // 梯子を掛ける岩肌（門の両脇の塀の外。足は外、上は塀の上）
 const LAD = [[-12, 3.2, -12, 0.3], [-16, 3.4, -16, 0.3], [14, 3.2, 14, 0.3]].map(([a, b, c, d]) => ({ foot: pt(a, b), top: pt(c, d) }));
 
@@ -93,6 +104,9 @@ const t07_ganjaku = {
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
+  // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
+  goalSignOnly: true, stageGoalsOnly: true,
+  goalSignAction: (rt) => ['', '門の前へ進め', '坂で迎え撃て', '門の内へ入れ', '本丸へ攻め入れ'][rt.flags.stage || 0] || '',
   // 奥の軽い作りの乱戦（見せかけの軍勢）は置かない。戦うのは場にいる本物の兵だけ（kaito AP9・AQ6・⑥）
   noFrontFill: true,
   camPull: 4.5,   // 11/2 カメラが兵に寄りすぎ：後ろへ引いて、坂の上の城と味方の列を一緒に写す
@@ -117,9 +131,22 @@ const t07_ganjaku = {
     trees: 380, tufts: 1200,
     treeDensity: (x, z) => (distToPolyline(x, z, ROAD) < 16 ? 0.3 : Math.hypot(x, z) > 60 ? 1.2 : 0.5),   // 大手の坂の脇はまばらに（麓から二の丸の門と塀が見える）
     fleeOut: (x, z, team) => team === 1 && Math.hypot(x, z) > 200,
+    // 兵の歩みを喰違の筋に沿わせる（門の外 → 門の前の窪み → 横の筋の門 → 門の内）。塀に向かってまっすぐ押し続けない
+    moveWay: (army, u, want) => {
+      const k = gateZone(u.pos.x, u.pos.z);
+      if (!k) return want;
+      const w = gateZone(want.x, want.z) || (Math.hypot(want.x - GATE.x, want.z - GATE.z) > 30 ? (wantInside(want) ? 'in' : 'out') : null);
+      if (!w || w === k) return want;
+      const inward = w === 'in' || (w === 'lane' && k !== 'in') || (w === 'rec' && k === 'out');
+      if (inward) {
+        if (k === 'out') { const a = gl(u.pos.x, u.pos.z)[0]; return w === 'rec' ? want : a > 3.8 && a < 15 ? FRONT : MOUTH; }
+        return k === 'rec' ? INSIDE : INNER;
+      }
+      return k === 'in' ? INSIDE : k === 'lane' ? FRONT : k === 'rec' ? MOUTH : want;
+    },
   },
   // 二の丸の門・塀・狭間の射撃（siege_kit）。守り手の矢と鉄砲は門へ近づくほど激しい
-  siegeKit: { plan: SP, build: { team: 1, wall: 'dobei', gateHp: 260, fire: { hurt: 0.035, peak: 4, near: 60 } }, when: (rt) => (rt.flags.stage || 0) <= 3 },
+  siegeKit: { plan: SP, build: { team: 1, wall: 'dobei', gateHp: 260, fire: { hurt: 0.022, rain: 0.35, peak: 4, near: 60 } }, when: (rt) => (rt.flags.stage || 0) <= 1 },   // 門が開いて打って出た後は、狭間から味方越しに撃たない
 
   setup(rt) {
     const F = rt.flags;
@@ -131,17 +158,18 @@ const t07_ganjaku = {
     // ---- 攻め手（docs/battle_refs/t07_ganjaku.md）：大手は蒲生、搦手は前田。秀吉は馬ヶ岳の本陣にいて、この山には来ない ----
     // 蒲生の先手（主人公はこの列と坂を登る）。対い鶴の蒲生の旗は鶴の紋で代える
     F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'oda', flag: 'tsuru', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
-      [{ type: 'samurai', n: 1, o: { name: '蒲生の侍大将' } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 26 }, { type: 'bow', n: 5 }, { type: 'gun', n: 5 }]);
+      [{ type: 'samurai', n: 1, o: { name: '蒲生の侍大将' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 40 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
     F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'oda', flag: 'tsuru', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
-      [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 4 }]);
+      [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);
     F.allies = [F.gamo, F.gamo2];
     // 搦手（北東の尾根）から寄せる前田勢。本丸の段で搦手の守りを破って本丸へ入る
     F.maeda = allyGroup(rt, { name: '前田勢', faction: 'oda', flag: 'maeda', anchor: { ...KARA_OUT }, facing: Math.atan2(-KARA_OUT.x, -KARA_OUT.z), width: 8, aggro: 12, noRout: true, fullStrength: true },
-      [{ type: 'busho', n: 1, o: { name: '前田利長', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }]);
-    // 麓の蒲生の本陣：大手の大将の蒲生氏郷は旗本に囲まれて坂の下にいて、前に出ない
+      [{ type: 'busho', n: 1, o: { name: '前田利長', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);   // 利長は馬上で旗本の侍に囲まれる
+    // 麓の蒲生の本陣：大手の大将の蒲生氏郷は旗本の侍に囲まれ、坂の下の幕の前で床几に座り、前に出ない
     F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'oda', flag: 'tsuru', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
-      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 4 }]);
+      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
     F.honjin.noFrontline = true;
+    for (const u of F.honjin.units) if (u.name === '蒲生氏郷') u.jinchu = {};   // 座ったまま下知する
     try {
       rt.scene.add(jinmaku(W, -174, 174, 14, 9, 3, { mon: 'tsuru' }));
       for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'tsuru', 7));
@@ -150,7 +178,10 @@ const t07_ganjaku = {
     if (n) rt.makeSquad({ x: SPAWN.x - 2, z: SPAWN.z + 3 }, faceUp, [{ kind: 'spear', n }]);
     // 二の丸の門の左右の櫓・岩の上の矢倉・大手の坂の上の西の尾根の物見櫓。坂の下から尾根の上に城の櫓が並んで見える
     { const n0 = rt.scene.children.length;
-      try { for (const [x, z] of [[-45.4, 59.6], [-59.6, 45.4], [YAGURA.x, YAGURA.z], [-98, 64], [-84, 54]]) rt.scene.add(yagura(W, x, z, { mon: 'maru', team: 1 })); } catch (e) { console.warn(e); }
+      try {
+        for (const [x, z] of [[-45.4, 59.6], [-59.6, 45.4], [YAGURA.x, YAGURA.z]]) rt.scene.add(yagura(W, x, z, { mon: 'maru', team: 1 }));
+        for (const [x, z] of [[-98, 64], [-84, 54]]) rt.scene.add(yagura(W, x, z, { mon: 'maru' }));   // 西の尾根の物見櫓は空（寄せ手が登れない櫓の上の一人に足止めされない）
+      } catch (e) { console.warn(e); }
       farSight(rt.scene.children.slice(n0), { W, ground: { x: -40, z: 40, r: 60 } });
       // 門・塀（siege_kit は作りの後に組む）も霧に沈めない
       const n1 = rt.scene.children.length; rt.after(0.05, () => farSight(rt.scene.children.slice(n1), { W, near: { x: GATE.x, z: GATE.z, r: 40 } })); }
@@ -164,12 +195,12 @@ const t07_ganjaku = {
       foe('坂の上の弓', { x: -80, z: 80 }, [{ type: 'bow', n: 4 }, { type: 'ashigaru', n: 3 }]),
     ];
     // 門の内で打って出る機を待つ芥田の手（段2で門を開けて坂へ突いて出る）
-    F.sally = foe('芥田の手', INNER, [{ type: 'busho', n: 1, o: { name: '芥田悪六兵衛', horse: false } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 18 }], { aggro: 6, width: 6 });
+    F.sally = foe('芥田の手', INNER, [{ type: 'busho', n: 1, o: { name: '芥田悪六兵衛', horse: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 18 }], { aggro: 6, width: 6 });
     F.gateGuard = foe('門の守り', { x: INNER.x + 6, z: INNER.z - 6 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], { aggro: 7 });
     F.yagura = foe('矢倉の射手', YAGURA, [{ type: 'bow', n: 4 }, { type: 'gun', n: 2 }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], { aggro: 8 });
     F.kara = foe('搦手の守り', KARA_IN, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], { facing: Math.atan2(KARA_OUT.x, KARA_OUT.z), aggro: 9 });
     // 本丸：城将の熊井越中守は旗本に囲まれて本丸の奥にいる（陣を割らないと届かない）
-    F.hon = foe('本丸の守り', { x: HON.x - 3, z: HON.z - 9 }, [{ type: 'busho', n: 1, o: { name: '熊井越中守', horse: false } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], { aggro: 8, width: 6 });
+    F.hon = foe('本丸の守り', { x: HON.x - 3, z: HON.z - 9 }, [{ type: 'busho', n: 1, o: { name: '熊井越中守', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], { aggro: 8, width: 6 });
     F.foes = [...F.slope, F.sally, F.gateGuard, F.yagura, F.kara, F.hon];
     for (const g of [F.sally, F.gateGuard, F.yagura, F.kara, F.hon]) g.noFrontline = true;
     F.hon.noRout = true;   // 本丸の守りは崩れて逃げない（熊井越中守は本丸で討死した）
@@ -255,7 +286,7 @@ const t07_ganjaku = {
     } else if (s === 2) {
       rt.award((t) => t.side.push('大手の坂を一番に登った'), '大手の坂を一番に登った');
       rt.obj('main', '門から打って出た秋月勢を坂で迎え撃つ', 'main');
-      A(MOUTH.x - 2, MOUTH.z + 6);
+      A(MOUTH.x - 7, MOUTH.z + 13);   // 寄せ手は櫓の真下に留まらず、門から坂へ出て来る秋月勢を少し下で受ける
       this.to(F.maeda, { x: 44, z: -44 });   // 搦手でも前田勢が寄せる
       // 門が開き、芥田の手が喰違の筋を抜けて坂へ突いて出る（山中城の馬出しの出撃の型）
       this.gateOpen(rt);
@@ -272,17 +303,21 @@ const t07_ganjaku = {
       rt.marker('t07', INSIDE, '二の丸の門', { h: 3 });
       // 芥田の手は門の内へ駆け戻る。追いすがれば門は閉まらない（付け入り）
       const g = F.sally;
-      g.aggro = 1; g.focus = null; g.speed = (g.speed || 2.2) * 1.1;
-      for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.fleeing = false; }
-      F.sw = { route: [MOUTH, FRONT, INSIDE, INNER], i: 0, aggro: 8 };
-      this.walk(g, F.sw, rt.t);
+      // 支えきれず背を向けて城の奥（本丸の方）へ崩れ退く。振り返って斬り合わない（追い討ちされる側）
+      const fx = HON.x - GATE.x, fz = HON.z - GATE.z, fl = Math.hypot(fx, fz);
+      F.sw = null;
+      // 坂に残った守りも、門の前が崩れたのを見て城の奥へ逃げ込む
+      for (const q of [g, ...F.slope]) if (!q.routed) { q.noRout = false; q.fleeSet = true; q.fleeDir = { x: fx / fl, z: fz / fl }; q.morale = 0; }
       for (const ga of F.allies) this.march(rt, ga, [MOUTH, FRONT, INSIDE], 14);
       rt.say('蒲生の侍大将', '引くぞ！　門が閉まる前に、追って城内へ紛れ込め！', 3.2);
     } else if (s === 4) {
       rt.award((t) => t.side.push(F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた'), F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた');
       rt.obj('main', '本丸へ攻め入り、熊井越中守を討つ', 'main');
       rt.marker('t07', HON, '本丸', { h: 3 });
-      for (const ga of F.allies) this.march(rt, ga, [MOUTH, FRONT, INSIDE, INNER, { x: HON.x - 4, z: HON.z + 6 }], 14);
+      // 門の脇の塀は押し倒され、大手の寄せ手は本丸の口へなだれ込む（喰違の細い筋に詰まらない）
+      this.breach(rt); F.walks = [];
+      for (const ga of F.allies) { ga.noFrontline = true; this.march(rt, ga, [MOUTH, FRONT, INSIDE, INNER, { x: HON.x - 5, z: HON.z + 7 }], 14); }
+      F.maeda.noFrontline = true;
       this.to(F.maeda, { x: HON.x + 6, z: HON.z - 6 });   // 搦手を破った前田勢も本丸へ
       rt.say('蒲生の侍大将', '城内じゃ！　岩の上の矢倉に構うな、本丸の熊井を討て', 3.2);
       rt.after(4, () => { if (F.stage === 4) rt.say('前田利長', '搦手は破った！　本丸で落ち合おうぞ', 3); });
@@ -293,18 +328,17 @@ const t07_ganjaku = {
     if (!g || g.routed) return;
     g.anchor.x = at.x; g.anchor.z = at.z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null;
   },
-  // 道筋を一つずつ進ませる（隊の要を次の点へ置き、兵の真ん中が着いてから次へ。喰違の塀を回り込む）
-  walk(g, w, t) { const q = w.route[w.i]; this.to(g, q); g.formation = 'column'; w.t0 = t; },
+  // 道筋に沿って列で進ませる（隊の道筋 order 'path'。狭い喰違の筋では列の幅を詰め、遅れを待つ。塀を突き抜けない）
+  walk(g, w, t) {
+    if (!g || g.routed) return;
+    g.order = 'path'; g.path = w.route.slice(w.i).map((q) => [q.x, q.z]); g.pathIdx = 0; g.dest = null; g.focus = null;
+    g.formation = 'column'; w.t0 = t; g.aggro = Math.min(g.aggro ?? 5, 5);   // 道筋の間は脇の櫓の上の射手に構わず進む
+    g.onArrive = () => { w.done = true; g.formation = 'yari'; g.aggro = w.aggro; };   // 出た先では斬りかかる
+  },
   stepWalk(g, w, t) {
-    if (!w || w.done) return;
-    const q = w.route[w.i], c = this.centerOf(g);
-    if (c && Math.hypot(c.x - q.x, c.z - q.z) > 6 && t - w.t0 < 14) return;
-    if (++w.i >= w.route.length) {
-      w.done = true;
-      g.formation = 'yari'; g.aggro = w.aggro;   // 出た先では斬りかかる。戻った後は門の内を守る
-      return;
-    }
-    this.walk(g, w, t);
+    if (!w || w.done || t - w.t0 < 45) return;
+    // 四十五秒で着かなければ、そこで構える（道筋に詰まって止まり続けない）
+    w.done = true; g.onArrive = null; g.formation = 'yari'; g.aggro = w.aggro;
   },
   // 味方の隊を喰違の筋に沿って進める（いちばん近い所から先へ。塀を突き抜けない）
   march(rt, g, route, aggro) {
@@ -359,6 +393,7 @@ const t07_ganjaku = {
     if (!F.dusk && el > T_LIMIT * 0.62) { F.dusk = true; try { rt.world.setTime('dusk'); } catch (e) { /* 空の切り替えが無い時はそのまま */ } }
     if (el > T_LIMIT) { this.lose(rt); return; }
     if (F.sw) this.stepWalk(F.sally, F.sw, rt.t);
+    if (F.gw) this.stepWalk(F.gateGuard, F.gw, rt.t);
     for (const m of F.walks || []) this.stepWalk(m.g, m.w, rt.t);
     const sallyN = this.fighting(F.sally), sally0 = F.sally.units.length;
     if (F.stage === 1) {
@@ -371,10 +406,10 @@ const t07_ganjaku = {
       }
       if (Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20) this.go(rt, 2);
     } else if (F.stage === 2) {
-      // 四割を討たれるか、芥田が討たれるか、斬り合って二十五秒（出てから六十秒）で門の内へ引く
+      // 四割を討たれるか、芥田が討たれるか、斬り合って二十五秒（出てから六十五秒）で崩れて引く
       const boss = F.sally.units.find((u) => u.name === '芥田悪六兵衛');
       if (F.sw.done && !F.fightT) F.fightT = rt.t;
-      if (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25) || rt.t - F.stageT > 60) this.go(rt, 3);
+      if (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25) || rt.t - F.stageT > 65) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;
@@ -382,10 +417,15 @@ const t07_ganjaku = {
       if (!F.tsukeiri && gateUp && st.opened) {
         let chase = Math.hypot(p.x - FRONT.x, p.z - FRONT.z) < 9 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 9;
         if (!chase) for (const g of F.allies) for (const u of g.units) if (u.alive && Math.hypot(u.pos.x - FRONT.x, u.pos.z - FRONT.z) < 6) { chase = true; break; }
-        if (chase) { F.tsukeiri = true; this.breach(rt); rt.bark('門が閉まらぬ。付け入った'); for (const g of [F.sally, F.gateGuard]) g.morale = Math.max(0, (g.morale ?? 100) - 30); }
+        if (chase) {
+          F.tsukeiri = true; this.breach(rt); rt.bark('門が閉まらぬ。付け入った');
+          for (const g of [F.sally, F.gateGuard]) g.morale = Math.max(0, (g.morale ?? 100) - 30);
+          // 門の守りも支えきれず本丸へ退く
+          F.gw = { route: [INNER, HONF], i: 0, aggro: 8 }; F.gateGuard.aggro = 1; this.walk(F.gateGuard, F.gw, rt.t);
+        }
         else {
           // 芥田の手がみな門の内へ入り、誰も追って来なければ門を閉める
-          const out = F.sally.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - INNER.x, u.pos.z - INNER.z) > 9);
+          const out = F.sally.units.some((u) => u.alive && Math.hypot(u.pos.x - MOUTH.x, u.pos.z - MOUTH.z) < Math.hypot(u.pos.x - INNER.x, u.pos.z - INNER.z));
           if (!out || rt.t - F.stageT > 30) { closeGate(this.gateRef(rt)); F.shut = true; this.ladders(rt); rt.say('蒲生の侍大将', '門を閉められた！　掛矢で門を破れ', 3); F.walks = []; for (const g of F.allies) this.to(g, { x: MOUTH.x, z: MOUTH.z + 2 }); }
         }
       }
@@ -458,7 +498,7 @@ t07_ganjaku.sides = { a: { name: '豊臣勢', mon: 'toyotomi' }, b: { name: '秋
 // 上に出す総勢（史料に異同あり。攻め手の蒲生・前田らと城の守りの数は遊びのための推定）
 t07_ganjaku.force = (rt) => ({ a: Math.max(0, 10000 - (rt.flags.ak || 0) * 20), a0: 10000, b: Math.max(0, 3000 - (rt.flags.ek || 0) * 30), b0: 3000 });
 t07_ganjaku.date = () => '天正十五年四月一日　初夏';
-t07_ganjaku.history = '天正十五年（1587）四月一日。九州へ入った豊臣秀吉の本隊は、秋月種実の持ち城である豊前の岩石城を攻めた。秀吉は馬ヶ岳に陣を置き、蒲生氏郷が大手から、前田利長が搦手から攻めた。\n城は岩石山（454m）の頂にあり、大きな岩が天然の守りになる険しい山城だった。秋月方の城兵はおよそ三千、大手を芥田悪六兵衛、搦手を城将の熊井越中守が守ったと伝わる。城は一日で落ち、城兵の四百ほどが討たれ、熊井越中守も討死した。\n堅い城がたちまち落ちたことで、秋月種実は益富城を捨てて古処山へ退き、やがて戦わずに降った。豊臣軍の九州の進撃は一気に速まった。\n攻め手の人数・城兵が門から打って出た事・門と矢倉の置き場は、遊びのための推定と復元である。';
+t07_ganjaku.history = '天正十五年（1587）四月一日。九州へ入った豊臣秀吉の本隊は、秋月種実の持ち城である豊前の岩石城を攻めた。秀吉は馬ヶ岳に陣を置き、蒲生氏郷が大手から、前田利長が搦手から攻めた。\n城は岩石山（454m）の頂にあり、大きな岩が天然の守りになる険しい山城だった。秋月方の城兵はおよそ三千、大手を芥田悪六兵衛、搦手を城将の熊井越中守が守ったと伝わる。城は一日で落ち、城兵の四百ほどが討たれ、熊井越中守も討死した。\n堅い城がたちまち落ちたことで、秋月種実は益富城を捨てて古処山へ退き、やがて戦わずに降った。豊臣軍の九州の進撃は一気に速まった。';
 
 // bot の頭：近い敵を突き、段の行き先へ。門が閉まった時は門を打つ
 t07_ganjaku.botBrain = (b, inp, { goTo }) => {
@@ -499,6 +539,8 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
     if (F.botFront && nearTo(INSIDE, 3)) F.botIn = true;
     at(F.botIn ? INNER : F.botFront ? INSIDE : FRONT, 1.5); return;
   }
+  // 本丸へは門の内（喰違の奥）を抜けてから向かう（門の脇の塀に詰まらない）
+  if (!F.botPast) { if (nearTo(INNER, 4)) F.botPast = true; else { at(INNER, 2); return; } }
   if (gd > 3) { at(goal, 2.4); return; }
   p.yaw = Math.atan2(goal.x - u.pos.x, goal.z - u.pos.z); inp.leftPressed = Math.random() < 0.6;
 };

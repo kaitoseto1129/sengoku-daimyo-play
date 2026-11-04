@@ -132,12 +132,12 @@ function kgFootGate(rt) {
 }
 
 const LINES = [
-  { x: 8, z: -34, r: 12, name: '一の備（金ヶ崎の麓）', mark: '一の備' },
+  { x: 8, z: -34, r: 12, name: '一の備（金ヶ崎の麓）', mark: '一の備', at: '金ヶ崎の麓の一の備', hold: '麓の一の備で朝倉の先手を止めよ' },
   // 橋の南の取付坂は z=22 まで。輪の北端も渡り終えた岸へ置く。
-  { x: 2, z: 32, r: 9, name: '二の備（笙の川の南）', mark: '二の備' },
-  { x: -22, z: 102, r: 11, name: '三の備（狭路）', mark: '三の備' },
+  { x: 2, z: 32, r: 9, name: '二の備（笙の川の南）', mark: '二の備', at: '笙の川の南の二の備', hold: '笙の川の橋で騎馬の追手を受けよ' },
+  { x: -22, z: 102, r: 11, name: '三の備（狭路）', mark: '三の備', at: '南の狭路の三の備', hold: '狭路で朝倉の後続を止めよ' },
 ];
-const RETREAT_T = 300;    // 守備五分と最後の合流で、四〜七分を目安にする。
+const RETREAT_T = 230;    // 守備四分弱と最後の合流で、四〜七分を目安にする（11/4 jin：三つの備の守りを詰めたのに合わせて 300 → 230）。
 // 金ヶ崎を攻める段から、浅井の離反の知らせまでの秒（docs/battle_events_1101 の8：目的が「攻める」から「逃げる」へ変わる）
 const KG_BETRAY_T = 12;
 const AZAI_LOOK = { armor: 0x2b2b2e, lace: 0x3a4a6a, cloth: 0x45464c, flag: 'azai' };
@@ -146,11 +146,14 @@ function kgNamedFar(rt) {
   const F = rt.flags;
   if (F.yoshikage) return;
   F.yoshikage = spawnEnemy(rt, { fixed: true, faction: 'asakura', name: '朝倉義景の本隊', anchor: { x: -8, z: -168 }, facing: 0, width: 4, aggro: 0, noRout: true },
-    dress([{ type: 'busho', n: 1, o: { name: '朝倉義景', invuln: true, horse: true } }, { type: 'samurai', n: 4, o: { invuln: true } }], ASAKURA));
+    dress([{ type: 'busho', n: 1, o: { name: '朝倉義景', invuln: true, horse: false } }, { type: 'samurai', n: 4, o: { invuln: true } }], ASAKURA));
+  // 11/4 jin（AV7）：総大将は後方の本陣で床几に座る（寄せられる・動くと立つ。army_anim）
+  for (const u of F.yoshikage.units) if (u.type === 'busho') u._crouch = true;
   F.azaiFar = { show() {
     if (F.nagamasa) return;
     F.nagamasa = spawnEnemy(rt, { fixed: true, faction: 'azai', name: '浅井長政の手', anchor: { x: 46, z: 172 }, facing: Math.PI, width: 4, aggro: 0, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '浅井長政', invuln: true, horse: true } }, { type: 'samurai', n: 4, o: { invuln: true } }], AZAI_LOOK));
+      dress([{ type: 'busho', n: 1, o: { name: '浅井長政', invuln: true, horse: false } }, { type: 'samurai', n: 4, o: { invuln: true } }], AZAI_LOOK));
+    for (const u of F.nagamasa.units) if (u.type === 'busho') u._crouch = true;
     rt.marker('azaiFar', () => unitPos(F.nagamasa.units[0]), '浅井長政', { red: true, h: 3.4 });
     rt.after(10, () => rt.unmark('azaiFar'));
   } };
@@ -839,7 +842,7 @@ function lineGather(rt, L) {
   F.lineGatherAt = rt.t + 0.5;
   F.lineReady = true; F.lineWaiting = '';
   let gap = 0;
-  const late = rt.t - (F.stepT || 0) > 25;
+  const late = rt.t - (F.stepT || 0) > 18;
   const fighting = (u) => u.target?.alive && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 4;
   for (const g of F.tono) {
     if (gone(g)) continue;
@@ -2241,16 +2244,23 @@ const kanegasaki = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /重傷|討死|任務失敗/.test(title),
-  missions: ['旗へ進め', '仲間を待て', 'ここを守れ', '▼の敵を倒せ', '退き口へ退け'],
+  // 11/4 jin（AR1・AW3・BK4）：場所と行いで言う。行き先はいつも備の旗か退き口の一つ（近くの敵へ移さない）。「▼」「印」の字は使わない
+  missions: ['備の旗へ進め', '旗で味方を待て', '旗の周りで追手を止めよ', '旗の周りで追手を止めよ', '若狭への道の退き口へ退け'],
   missionOf(rt) {
     const F = rt.flags, L = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line || 0];
     const arrived = rt.distTo(L) < L.r;
     if (rt.G.lord || F.fleeing) return arrived ? 1 : 4;
     if (!arrived) return 0;
     if (F.step === 0 || F.step === 2 || F.step === 4) return 1;
-    return kgNearestFoe(rt) ? 3 : 2;
+    return 2;
   },
-  missionHeading(rt) { return kanegasaki.missions[kanegasaki.missionOf(rt)]; },
+  missionHeading(rt) {
+    const F = rt.flags, k = kanegasaki.missionOf(rt), L = LINES[F.line || 0];
+    if (rt.G.lord || F.fleeing) return k === 1 ? '退き口で味方を待て' : kanegasaki.missions[4];
+    if (k === 0) return `${L.at}へ${F.step === 2 || F.step === 4 ? '退け' : '進め'}`;
+    if (k === 1) return `${L.mark}の旗で味方を待て`;
+    return L.hold;
+  },
   // 総大将を補わず、この戦に既にいる朝倉の侍大将を地図と戦場で強調する。
   // 遠景の義景・長政は戦わない。倒せない本隊へ討取りの案内を向けない。
   commanderSignTarget(rt) {
@@ -2288,10 +2298,23 @@ const kanegasaki = {
     }
     const L = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line || 0];
     const arrived = rt.distTo(L) < L.r;
-    const at = arrived ? L : retreatWay(rt, L);
-    q.x = at.x; q.z = at.z; q.r = q.hide = arrived ? L.r : .5;
+    // 11/4 jin（BK4）：道の途中の点へ動かさず、行き先の旗そのものに固定する
+    q.x = L.x; q.z = L.z; q.r = q.hide = arrived ? L.r : .5;
     q.waiting = arrived; q.arrived = arrived; q.route = !arrived;
     return q;
+  },
+  // 11/4 jin（docs/battle_refs/kanegasaki.md）：史実の順の五つ（金ヶ崎の麓で朝倉の先手を止める → 笙の川の南へ繰り引く →
+  //   橋で騎馬の追手を受ける → 狭路で後続を止め主力を退かせる → 若狭への道の退き口へ三将と退く）。行き先は備の旗に固定。敵を何人討つ・自分で討つは置かない
+  goals5(rt) {
+    const won = () => rt.tracker?.main === true, F = rt.flags, at = (L) => () => ({ x: L.x, z: L.z });
+    if (rt.G.lord) return [{ kind: 'stage', k: 0, text: '旗本と南の若狭への道の退き口へ退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won }];
+    return [
+      { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で朝倉の先手を止める', noun: '一の備', action: '一の備で追手を止めよ', place: at(LINES[0]), check: () => won() || (F.line || 0) >= 1 },
+      { kind: 'stage', k: 1, text: '笙の川を渡り、南の二の備へ繰り引く', noun: '二の備', action: '二の備へ退け', place: at(LINES[1]), check: () => won() || (F.step || 0) >= 3 || (F.line || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '笙の川の橋で朝倉の騎馬の追手を受ける', noun: '笙の川の橋', action: '橋で追手を受けよ', place: at(LINES[1]), check: () => won() || (F.line || 0) >= 2 },
+      { kind: 'stage', k: 2, text: '南の狭路の三の備で、主力が退くまで後続を止める', noun: '三の備', action: '狭路で後続を止めよ', place: at(LINES[2]), check: () => won() || !!F.fleeing && !!F.exitReady },
+      { kind: 'stage', k: 2, text: '若狭への道の退き口へ、三将と退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won },
+    ];
   },
   // 高画質の井楼は既存の垂直柱・交互の横木を使う。遠景も同じ輪郭にする。
   lookoutLogFrame: true,
@@ -2363,6 +2386,7 @@ const kanegasaki = {
   footFlagGuides: true, groundFlagGuides: true, // 待つ備も実旗を大枠で囲まず、根元の小旗で示す。
   compactTravelArrow: true,
   noTravelArrow: true,
+  goalSignOnly: true, // 11/4 jin（AP12・AV15・BH6）：行き先は頭上の金の▼一つだけ（旗の白い印と下向きの矢印を重ねない）
   swipeArrowLength: 64, directionArrowLength: 64, guideArrowLength: 64, // 退却の別経路も足元の短い矢印に収める。
   smallTaskAreas: true, // 守る味方の足元だけを示し、大きな半円で橋や槍列を隠さない。
   smallRetreatAreas: true, taskAreaFootRing: true, // 強調する退避の輪にも既存の小さな足元印を使う。
@@ -2725,11 +2749,15 @@ const kanegasaki = {
     F.retreatWay = { x: 0, z: 0 };
     rt.marker('retreatWay', () => {
       if (F.ending || !rt.player.u.alive || !(rt.G.lord || F.fleeing || F.step === 2 || F.step === 4)) return null;
-      return retreatWay(rt, rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line]);
+      // 11/4 jin（BK4）：道しるべを道に沿って動かさず、行き先（次の備・退き口）に固定する
+      const goal = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line];
+      const q = F.wayPin || (F.wayPin = { x: 0, z: 0 });
+      q.x = goal.x; q.z = goal.z;
+      return q;
     }, () => {
       const goal = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line];
       return rt.distTo(goal) < goal.r ? rt.G.lord || F.fleeing ? '退き口・味方を待て' : `${goal.mark}・味方を待て`
-        : rt.G.lord || F.fleeing ? '退き口へ続く道' : `${goal.mark}へ退く道`;
+        : rt.G.lord || F.fleeing ? '若狭への道の退き口' : goal.at;
     }, { guideAlways: true, groundGuide: true,
       routeDistance: () => retreatDistance(rt, rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line]) });
     F.lineMerit = [0, 0, 0]; F.meritDone = [false, false, false];
@@ -2745,12 +2773,12 @@ const kanegasaki = {
       from: { team: 0, house: '織田', name: '', speed: 1, hp: 200, maxHp: 200 } });
     // ---- 殿：木下藤吉郎の手（自分の持ち場）、池田勝正の手、明智光秀の鉄砲 ----
     F.kino = allyGroup(rt, { fixed: true, fullStrength: true, faction: 'oda', name: '木下藤吉郎の手', anchor: { x: L.x - 3, z: L.z - 4 }, facing: Math.PI, width: 22, aggro: 8, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { horse: false, name: '木下藤吉郎', invuln: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { horse: true, name: '木下藤吉郎', invuln: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], ODA));
     F.kinoU = F.kino.units[0];
     F.ikeda = allyGroup(rt, { fixed: true, fullStrength: true, faction: 'oda', name: '池田勝正の手', anchor: { x: L.x - 22, z: L.z + 2 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 1, o: { name: '池田勝正', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x3a2e22 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11 }], ODA));
     F.akechi = allyGroup(rt, { fixed: true, fullStrength: true, faction: 'oda', name: '明智光秀の鉄砲', anchor: { x: L.x + 12, z: L.z + 6 }, facing: Math.PI, width: 6, aggro: 30, noRout: true },
-      dress([{ type: 'samurai', n: 1, o: { name: '明智光秀', invuln: true, hat: 'kabuto_w', haori: 0x2e2a26 } }, { type: 'ashigaru', n: 4 }, { type: 'samurai', n: 2 }, { type: 'gun', n: 6 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '明智光秀', invuln: true, horse: true, hat: 'kabuto_w', haori: 0x2e2a26 } }, { type: 'ashigaru', n: 4 }, { type: 'samurai', n: 2 }, { type: 'gun', n: 6 }], ODA));
     F.akeU = F.akechi.units[0];
     F.ikedaU = F.ikeda.units[0];
     F.gunsEast = allyGroup(rt, { fixed: true, fullStrength: true, faction: 'oda', name: '明智の右の鉄砲組', anchor: { x: L.x + 22, z: L.z + 6 }, facing: Math.PI, width: 4, formation: 'line', aggro: 22, noRout: true }, dress([{ type: 'gun', n: 6 }, { type: 'ashigaru', n: 2 }], ODA));
@@ -3477,7 +3505,7 @@ const kanegasaki = {
     // 主力への突破、持ち場への退き遅れ、残兵の合流で結末を出す。
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true;
+    F.ending = true; F.loseWhy = sub;
     rt.setPhase('end');
     if (!F.escaped) rt.objFail('main');
     for (const id of ['dp', 'back', 'stay', 'escape']) {
@@ -3697,19 +3725,19 @@ const kanegasaki = {
     }
     if (F.step === 1) {
       const all = F.w1.filter((g) => !gone(g));
-      if ((F.w1.length >= 2 && !all.length) || rt.t - F.stepT > 28) this.deep(rt, 'A');
+      if ((F.w1.length >= 2 && !all.length) || rt.t - F.stepT > 24) this.deep(rt, 'A');
       // 東の追手。隊が弱れば崩れて退く
       if (F.w1[1] && !F.w1[1].kgPending && F.w1[1].count < 7) { F.w1[1].noRout = false; F.w1[1].morale = Math.min(F.w1[1].morale, 20); }
     }
     if (F.step === 3) {
-      if (F.w2.every(gone) || rt.t - F.stepT > 22) this.deep(rt, 'B');
+      if (F.w2.every(gone) || rt.t - F.stepT > 18) this.deep(rt, 'B');
     }
     if (F.step === 5) {
       rt.objProgress('main', '追手を通すな。退けの下知を待て');
       // 追手の本隊。隊が弱れば崩れて退く
       if (!F.w3[0].kgPending && F.w3[0].count < 8) { F.w3[0].noRout = false; F.w3[0].morale = Math.min(F.w3[0].morale, 20); }
       // 本隊の寄せを凌いだら（あるいは長く持ちこたえたら）、狭路の追い討ちの段へ。済めば退き口成る
-      if ((F.w3more && !F.w3pending && F.w3.every(gone)) || rt.t - F.stepT > 40) this.deep(rt, 'C');
+      if ((F.w3more && !F.w3pending && F.w3.every(gone)) || rt.t - F.stepT > 30) this.deep(rt, 'C');
       else if (F.w3.length >= 2 && F.w3.every(gone) && !F.w3more) {
         // 早く崩しすぎたら、もう一押しが来る
         F.w3more = true; F.w3pending = true;
@@ -3986,26 +4014,29 @@ function kgHold(line, dur, waves, ambush = false) {
 }
 function kgA() {
   // 一の備に寄せを重ねすぎず、殿が健在のうちに川岸へ退く。
-  return [kgHold(0, 45, [
+  // 11/4 jin：遊んで七分に収める（描いた流しで八分半だった。三つの備の守りを 45・65・85 → 35・45・60 秒）
+  return [kgHold(0, 35, [
     { t: 3, name: '朝倉の後続の槍組', from: { x: 6, z: -104 }, list: [uS(2), uA(10)] },
     { t: 24, name: '朝倉の西の備', from: { x: -42, z: -90 }, list: [uS(2), uA(8)] },
   ])];
 }
 function kgB() {
-  return [kgHold(1, 65, [
+  return [kgHold(1, 45, [
     { t: 3, name: '橋へ向かう朝倉勢', from: { x: 8, z: -38 }, list: [uS(2), uA(16)] },
     { t: 24, name: '浅瀬へ向かう朝倉勢', from: { x: -50, z: -12 }, list: [uS(2), uA(12)] },
   ])];
 }
 function kgC() {
-  return [kgHold(2, 85, [
+  return [kgHold(2, 60, [
     { t: 3, name: '谷道へ続く朝倉勢', from: { x: -8, z: 48 }, list: [uS(2), uA(16)] },
     { t: 30, name: '朝倉の後詰の鉄砲', from: { x: 8, z: 42 }, list: [uS(1), uG(7)], gun: true },
   ], true)];
 }
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
-kanegasaki.bushou = ['松永久秀', '徳川家康', { name: '朝倉景恒', g: /朝倉/, loose: false }];
+// 11/4 jin：徳川家康は離反の知らせの後に退き道の奥へ置く（F.ieyasu）。松永久秀は信長と朽木越えに先に退いた（殿にいない）。
+//   どちらも名簿から足して殿の乱戦の中（主人公のそば）へ立てない
+kanegasaki.bushou = [{ name: '朝倉景恒', g: /朝倉/, loose: false }];
 export { kanegasaki };
 
 // 山城の高さ（kaito 10/3）：本物の山の比高に近づける。麓の陣は今まで通りの高さ、本丸のほうへ向かって高くなる（yamalift.js）

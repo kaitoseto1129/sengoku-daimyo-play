@@ -38,13 +38,16 @@ Object.assign(takato, {
   noSiegeCards: true, enemyTriangleSigns: true, nearbyAllySignLimit: 0,
   // 11/4 p100（kaito AS・AV15）：行き先は金の▼一つ。ついていく相手の青い▼を重ねない。
   noLeaderFollow: true,
+  // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。敵を指す札と矢印も出さない（敵は頭上の▼で分かる）。
+  goalSignNoLabel: true, goalSignBare: true, meleeGuide: () => false,
+  goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（旗と矢印のピンを重ねない。AV15・BH6）
   // 共通の「味方の小勢・敵の小勢」は足さない（kaito AQ6・AW6：5人ほどの小隊を湧かせない）。
   frontlineDensity: false,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   speechAllowed: (rt) => rt.over || !!rt.flags.ending,
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
   // 11/4 p100（kaito AR1・AT16）：どこで何をするかを一行で。「味方と進め」「ここを守れ」のような分からない言い方をしない。
-  missions: ['大手門へ攻め寄せよ', '大手門の前で城兵を受けよ', '▼の城兵を討て', '門を破れ', '本丸へ進め', '主殿へ進め'],
+  missions: ['大手門へ攻め寄せよ', '大手門の前で城兵を受けよ', '曲輪の城兵を退けよ', '門を破れ', '本丸へ進め', '主殿へ進め'],
   missionOf(rt) {
     const F = rt.flags;
     if (F.retreatTo || roomExit(rt)) return 0;
@@ -61,29 +64,9 @@ Object.assign(takato, {
     return F.honFell ? 4 : 0;
   },
   missionHeading(rt) {
-    if (rt.over || rt.flags.ending) return rt.tracker.main ? '本丸を守り抜いた' : '味方と退け';
-    if (roomExit(rt)) return '戸口へ戻れ';
-    // 一行の下知にも到着後の行動を通す。下がれのままでは手当てへ移れない。
-    if (rt.flags.retreatTo) {
-      const p = rt.player, q = rt.flags.retreatTo;
-      if (p.treating) return '手当てを続けよ';
-      if (p.treatmentReady) return '手当てを三秒長押し';
-      if (Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) < 1.5 &&
-          !rt.flags.closeFoe?.alive) {
-        // 到着だけで手当てを促さず、護衛と布の有無を実際の条件に合わせる。
-        if (needsShelter(rt)) {
-          if (!p.treatmentShelter(p.u.pos)) return rt.flags.retreatGuarded ? '味方の後ろへ' : '敵から離れよ';
-          return p.treatmentLeft <= 0 ? '血が落ち着くまで休め' : 'ここで手当ての支度';
-        }
-        return '構えを解いて休め';
-      }
-      return rt.flags.retreatGuarded ? '味方の後ろへ' : '敵から離れよ';
-    }
-    const F = rt.flags, k = this.missionOf(rt);
-    if (k === 1) return F.honFell ? '本丸の旗を守れ' : this.missions[1];
-    if (k === 0) return F.niFell ? '本丸の門へ進め' : F.sanFell ? '二の丸の土橋へ進め'
-      : F.sallyReturning ? '退く城兵に続き、門へ' : this.missions[0];
-    return this.missions[k];
+    if (rt.over || rt.flags.ending) return rt.tracker.main ? '高遠城を攻め落とした' : '味方と退け';
+    // 11/4 kaito AW3：目標は段ごとに一つの言い方で固定。退く・手当て・討てなどの案内で書き換えない。
+    return takatoStageText(rt);
   },
   commanderTarget(rt) {
     const u = this.commanderSignTarget(rt);
@@ -138,6 +121,16 @@ Object.assign(takato, {
     return q;
   },
 });
+// 史実の順（大手へ寄せる → 打って出た城兵を受ける → 退く後ろに続き三の丸へ → 二の丸 → 本丸 → 旗を守る）の一行。
+const TK_STAGE_TEXT = ['東の大手道を進み、大手門へ寄せよ', '大手門の前で、打って出た城兵を受けよ', '退く城兵に続き、大手門から三の丸へ入れ',
+  '二の丸の門を破り、二の丸へ入れ', '本丸門を破り、本丸へ入れ', '本丸の旗の下で、主殿の城兵を防げ'];
+function takatoStageText(rt) {
+  const F = rt.flags, g = F.gates || {};
+  const lv = F.honFell ? 5 : F.niFell ? 4 : F.sanFell ? 3 : F.sallyReturning || g.oteInner?.opened ? 2 : F.sallyOut || F.sallyUntil ? 1 : 0;
+  // 段は戻さない（打って出た城兵が一時途切れても、前の一行へ戻して迷わせない）。
+  F.tkStage = Math.max(F.tkStage || 0, lv);
+  return TK_STAGE_TEXT[F.tkStage];
+}
 const takatoFighter = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
   !u.downed && !u.woundOut && !u.rearWound && !u.fleeing;
 // 門の向こうや別の曲輪へ直進させず、現在の持ち場で最寄りの残敵を示す。
@@ -1825,37 +1818,7 @@ html:root body #hud.prog-on #battle-notices:not(.choosing) :is(#objectives:not(.
 takato.guideAssault = function (rt) {
   const F = rt.flags;
   if ((F.step < 1 && !F.closeFoe) || F.ending) return;
-  // 本丸を取っても城将と城兵は残る。退避と手当てを終えてから主殿の下知へ戻す。
-  if (F.honFell && !F.retreatTo && !rt.player.treating && !rt.player.treatmentReady &&
-      !(F.closeFoe?.alive && needsBreath(rt))) {
-    const outside = !F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z);
-    const text = outside ? '本丸門を通り、本丸へ入れ'
-      : F.keep.down || F.lordDying ? '味方と本丸の旗を守れ' : '本丸の城兵を退け、主殿の守りを崩せ';
-    if (F.guideText !== text) { F.guideText = text; rt.obj('main', text, 'main', true); }
-    return;
-  }
-  const g = F.gates;
-  let text;
-  const guide = baseGuide(rt);
-  // 退き先が消えても、布を巻く間に前進の下知へ戻さない。
-  if (roomExit(rt)) text = '戸口の印から外へ出て、味方と合流しよう';
-  else if (rt.player.treating || rt.player.treatmentReady) text = restingTreatmentLabel(rt);
-  else if (F.retreatTo) text = Math.hypot(rt.player.u.pos.x - F.retreatTo.x, rt.player.u.pos.z - F.retreatTo.z) < 1.5
-    ? this.retreatGuideLabel(rt, true)
-    : retreatTravelLabel(rt);
-  else if (F.closeFoe) text = needsBreath(rt) ? retreatTravelLabel(rt) : '▼の城兵を討て';
-  else if (offRoad(rt)) text = '寄せ道へ戻り、味方と進め';
-  else if ((guide === '_gate' || guide === 'oteRoad') && F.roadGuide.gate)
-    text = `${F.roadGuide.gate.name}を掛矢で打て`;
-  else if (guide === 'oteRoad' && !F.roadGuide.gate) text = F.niFell ? '本丸の土橋へ進め' : F.sanFell ? '二の丸の土橋へ進め' : F.sallyReturning ? '退く城兵に続き、大手門へ走れ' : '大手道を進み、大手門へ寄せよ';
-  else if (F.niFell) text = g.honInner.opened ? '本丸門を通り、城兵を退けよ'
-    : `${g.honOuter.opened ? g.honInner.name : g.honOuter.name}を破れ`;
-  else if (F.sanFell) text = g.gateNi.opened ? `${g.gateNi.name}を通り、城兵を退けよ`
-    : `${g.gateNi.name}を破り、二の丸へ入れ`;
-  else if (F.sallyOut || F.sallyUntil) text = '大手門から打って出た城兵を押し返す';
-  else if (F.sallyReturning && !g.oteInner.opened) text = '退く城兵に続き、大手門から三の丸へ入る';
-  else if (g.oteInner.opened) text = '三の丸へ入り、城兵を退けよ';
-  else text = `${g.oteOuter.opened ? g.oteInner.name : g.oteOuter.name}を破れ`;
+  const text = takatoStageText(rt);
   if (F.guideText !== text || rt.objectives.find(o => o.id === 'main')?.text !== text) {
     F.guideText = text; rt.obj('main', text, 'main', true);
   }

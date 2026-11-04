@@ -1725,8 +1725,25 @@ const saika = {
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true,
   quietMiss: true, noPlayerFoot: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  goalSignOnly: true,  // 11/4 jin（BH6）：行き先は頭上の▼一つだけ。地面の旗・矢印・輪を出さない
+  goalSignAction(rt) { return this.missionHeading(rt); },  // 頭上の札も今の目標と同じ場所と行い（「印へ進め」にしない。AR1）
+  noFrontFill: true,   // 作り物の乱戦を足さない（AR7）
+  noHatamotoMass: true,   // 将の後ろの軽い作りの備を置かない（AF）
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
-  missions: ['杭抜き組を守れ', '川を渡れ', '退く合図を待て', '東岸へ戻れ', '列を整えよ', 'ここを守れ', 'この敵を倒せ', '後陣へ戻れ', '使者を本陣へ通せ'],
+  // 11/4 jin（AR1・AW3）：場所と行いで言う。「ここ」「この敵」「印」の字は使わない
+  missions: ['川べりの小旗で杭抜き組を守れ', '中央の口から川を渡れ', '坂の下で退く合図を待て', '中央の口を東岸へ戻れ', '竹束の陰で列を整えよ', '東岸の旗の前を守れ', '旗へ寄る雑賀衆を払え', '後陣へ戻れ', '孫一の使者を本陣へ通せ'],
+  // 11/4 jin（AW3・AQ1）：公記の流れの順に場所と行いの五つ。敵を何人討つ・大将を自分で討つは置かない（和議で終わる戦）
+  goals5(rt) {
+    const F = rt.flags, won = () => rt.tracker?.main === true;
+    return [
+      { kind: 'stage', k: 0, text: '川べりの小旗で、杭を外す組を守る', noun: '川べりの小旗', check: () => won() || (F.step || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '中央の渡り口から川を渡り、西岸の坂の下へ', noun: '西岸の坂の下', check: () => won() || !!F.reached,
+        fail: () => (F.step || 0) >= 3 && !F.reached },
+      { kind: 'stage', k: 2, text: '退き太鼓で中央の口を戻り、東岸の旗へ', noun: '東岸の旗', check: () => won() || (F.step || 0) >= 4 },
+      { kind: 'stage', k: 3, text: '竹束の陰で列を整え、川上・川下の寄せを払う', noun: '竹束の陰', check: () => won() || (F.step || 0) >= 6 },
+      { kind: 'stage', k: 3, text: '孫一の使者を、信長の本陣まで通す', noun: '信長の本陣', check: won },
+    ];
+  },
   missionOf(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     if (F.ending) return 7;
@@ -1740,7 +1757,7 @@ const saika = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.ending) return rt.tracker.main ? '雑賀が降った' : this.missions[7];
-    if (F.step === 3 && Math.hypot(rt.player.u.pos.x - BACK.x, rt.player.u.pos.z - BACK.z) < 16) return '仲間を待て';
+    if (F.step === 3 && Math.hypot(rt.player.u.pos.x - BACK.x, rt.player.u.pos.z - BACK.z) < 16) return '東岸の旗で仲間を待て';
     return this.missions[this.missionOf(rt)];
   },
   // 名の不明なこの局地の組頭を使う。討取りを勝利条件にはしない。
@@ -1789,11 +1806,11 @@ const saika = {
   },
   // 東岸の農耕地と西岸の雑賀荘は市の地理図を手掛かりにする。渡河地点の実測ではない。
   // https://www.city.wakayama.wakayama.jp/_res/projects/default_project/_page_/001/034/752/saikapdf.pdf
-  introPlace: '小雑賀川の東岸（渡河地点は復元）',
+  introPlace: '小雑賀川の東岸',
   // 史実と操作を同じ案内へまとめる。重複した指定で史実の説明を上書きしない。
   // 公記巻十の山手・浜手の区別。詳しい諸将・分進の日付は戦後の史実に残す。
   // https://ja.wikisource.org/wiki/信長公記
-  introText: '川べりの黄旗へ進み、杭抜き組を守れ。三か所の杭が外れたら川を渡れ。退けの合図が出たら元の岸へ戻り、味方の旗を守れ。\n\n堀秀政の先手が渡る小雑賀川。高岸と鉄砲に阻まれ、川を境に対陣する。川岸の形や杭抜きは復元です。',
+  introText: '織田の十万が雑賀を攻める。堀秀政の先手は小雑賀川を渡るが、高い岸と鉄砲が待つ。\n川べりの小旗で杭抜き組を守り、川を渡れ。退き太鼓で東岸へ戻り、旗の前を守れ。',
   noTaisho: true, // 信長・孫一をこの局地へ自動配置し、討取り・本陣襲撃で決着させない。
   // 公記は高岸・柵・鉄砲による渡河阻止を記し、この局地の兵力比は記さない。
   // 共通の開戦演出は正面百五十歩先を仮の大軍として映すため、
@@ -2887,7 +2904,7 @@ const saika = {
     ruinTimbers.instanceMatrix.needsUpdate = true;
     ruinTimbers.castShadow = true; ruinTimbers.receiveShadow = true; rt.scene.add(ruinTimbers);
     F.hori = allyGroup(rt, { name: '堀秀政の先手', fixed: true, fullStrength: true, fleeDir: { x: 1, z: 0 }, guard: true, guardSight: 20, guardLeash: 6, anchor: { x: 26, z: 0 }, facing: WEST, width: 14, aggro: 10, formation: 'yari' },
-      dress([{ type: 'ashigaru', n: 13 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '堀秀政', invuln: true } }], { flag: 'hori' }));
+      dress([{ type: 'ashigaru', n: 13 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, horse: true } }], { flag: 'hori' }));
     F.workers = allyGroup(rt, { noAI: true, noGuard: true, noFrontline: true, name: '杭を外す先手の組', fixed: true, fullStrength: true, anchor: { x: 2, z: -6 }, facing: WEST, width: 4, formation: 'column', colW: 2, aggro: 2, fleeDir: { x: 1, z: 0 } }, dress([{ type: 'ashigaru', n: 16 }], ODA)); // 杭抜き組の群れを大きく（10/29 17:10 採点）
     F.workParties = [F.workers];
     for (const a of F.stakes) {
@@ -2922,8 +2939,7 @@ const saika = {
     });
     // 10/31 採点 基準4：持ち場から川上を見た25秒の画面に、雑賀衆の大軍が無く小組だけだった。
     //   川上の小組の後ろ（東岸の道）に、旗の林立する雑賀の大軍を一つの塊で置き、小組をその先手に見せる（軽い作り。本物の兵は足さない）。
-    F.upHost = W.addDistantArmy({ x: -10, z: -100, w: 22, d: 40, count: 280, team: 1, kind: 'mixed', facing: 0, armor: SAIKA.armor, flag: SAIKA.flag, host: false, seed: 15801 });
-    if (F.upHost.army) F.upHost.army.noWake = true;
+    // 11/4 jin（AF・AQ6）：近づくと消える見せかけの大軍は置かない。川上の寄せは本物の小組と陣の備え（jinkei）で見せる
     F.raiders = [F.skirmish, ...F.flanks, ...F.bankRelief];
     // 寄せの狙いは tickRaiders が作業場と本人で決める（共通の本人狙いと取り合わない）。
     for (const g of F.raiders) g.noHunt = true;
@@ -2982,12 +2998,16 @@ const saika = {
     // kaito 11/1 の紙：信長・佐久間信盛・明智光秀・滝川一益・鈴木孫一を必ず出す。頭上に名。
     // 織田の諸将は後ろの本陣（和泉から出た信長の床几）にまとめ、川岸の局地へは出さない。
     F.lordCamp = allyGroup(rt, { name: '信長の本陣', fixed: true, noHunt: true, fullStrength: true, anchor: { x: 100, z: 0 }, facing: WEST, width: 6, order: 'hold', aggro: 4, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, { type: 'busho', n: 1, o: { name: '佐久間信盛', invuln: true } },
-        { type: 'busho', n: 1, o: { name: '明智光秀', invuln: true } }, { type: 'busho', n: 1, o: { name: '滝川一益', invuln: true } }, { type: 'samurai', n: 4 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true } }, { type: 'busho', n: 1, o: { name: '佐久間信盛', invuln: true, horse: true } },
+        { type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '滝川一益', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }], ODA));
+    // 11/4 jin（AV7・AW6）：総大将は後方の本陣で床几に座り、馬廻と旗本が囲む。使者を迎えて動く時に立つ（army_anim）
+    F.lordCamp.units[0]._crouch = true;
     rt.scene.add(nobori(W, 104, -6, 'oda', 7)); rt.scene.add(nobori(W, 104, 6, 'oda', 7));
     // 雑賀衆の頭目。西岸の後ろで鉄砲衆を指図し、最後は誓紙の使者として東へ渡る。
     F.magoichi = enemyGroup(rt, { faction: 'saika', fixed: true, noHunt: true, name: '鈴木孫一の手', anchor: { x: -74, z: 0 }, facing: EAST, width: 4, order: 'hold', aggro: 4, noRout: true, fleeDir: { x: -1, z: 0 } },
-      dress([{ type: 'busho', n: 1, o: { name: '鈴木孫一', invuln: true, flagScale: 2.2 } }, { type: 'gun', n: 3 }], SAIKA));
+      dress([{ type: 'busho', n: 1, o: { name: '鈴木孫一', invuln: true, flagScale: 2.2 } }, { type: 'gun', n: 5 }, { type: 'samurai', n: 2 }], SAIKA));
+    // 11/4 jin（AR3）：雑賀の頭目は柵の後ろの陣で座って下知する。使者に立つ時に立つ
+    F.magoichi.units[0]._crouch = true;
     F.magoichi.noHunt = true; F.lordCamp.noHunt = true;
     for (const u of F.magoichi.units) { u.noTarget = true; u.cd = 1e9; }
     rosterBuild(rt, JIN);
@@ -3000,14 +3020,7 @@ const saika = {
     }
     // 遠い四つの控えの後詰（当たりのない見せ兵）から各四十人分の描画枠を川沿いへ回す。
     // 本物の寄せ・攻撃・任務は従来のまま。中央の作業口と川底には列を置かない。
-    F.shoreClashes = [-1, 1].map(side => W.addClash({
-      x: 1, z: side * 38, facing: side > 0 ? 0 : Math.PI, w: 9, bw: 4.5,
-      gap: 2.8, seed: 15790 + side, rt, noWake: true, noRout: true,
-      host: false, corpses: 16, realNear: 12, nearHide: 14,
-      groundedMelee: true, measuredMelee: true, calm: true, maxDrift: 1.2, killRate: .008,
-      A: { flag: 'oda', armor: 0x2a2622, count: 40, flagRate: .3 },
-      B: { flag: 'yatagarasu', armor: SAIKA.armor, count: 40, flagRate: .25 },
-    }));
+    // 11/4 jin（AP9・AR7）：川沿いの作り物の押し合い（近づくと消える）はやめる。押し合いは浅瀬の本物の兵で見せる
     installSaikaCloth(rt);
     // 中野城と紀ノ川はこの狭い川岸の外。陸上の舟や小屋を城と呼ぶ復元はしない。
     phase(rt, 0, 'brief', '川べりの小旗へ。杭抜き組を守れ', F.stakes[0].workAt, '杭抜きの小旗');
@@ -3149,7 +3162,7 @@ const saika = {
   update(rt, dt) {
     huntPlayer(rt, dt);
     if (rt.flags.fordRaid?.noRout && rt.t > 40) rt.flags.fordRaid.noRout = false;
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: 'yatagarasu', foeArmor: SAIKA.armor, seed: 9220 }) || [];
+    // 11/4 jin（AP10・AF）：持ち場の四方に作り物の合戦（armyBackdrop）を置かない。いない所に軍勢を見せない
     const F = rt.flags;
     tickSaikaRear(rt);
     F.gunSmoke?.update(dt);
@@ -3300,7 +3313,7 @@ const saika = {
         if (marker) marker.label = `杭抜きの小旗 ${a.i + 1}か所目`;
       }
       if (el > 55 && !F.help && F.pulled !== 3) { F.help = true; rt.say('堀秀政', '杭のそばで長押しじゃ。組が減っても、おぬしの手で道を通せ', 5); }
-      if (el >= 180 && F.pulled < 3) warnBank(rt, 'stakesWarn', '川の杭抜きを急げ', '杭の印へ寄れ。「杭を外す」を長押しじゃ', a?.workAt);
+      if (el >= 180 && F.pulled < 3) warnBank(rt, 'stakesWarn', '川の杭抜きを急げ', '川べりの小旗へ寄れ。「杭を外す」を長押しじゃ', a?.workAt);
       if (F.pulled === 3) this.cross(rt);
       else if (el >= 240) return this.win(rt, false);
     } else if (F.step === 2) {
@@ -3326,8 +3339,8 @@ const saika = {
       }
       if (notice) rt.objProgress('main', F.reached ?
         Math.hypot(p.x - SHORE.x, p.z - SHORE.z) < 7 ?
-          '川へ向き直って構えよ。退き太鼓で元の岸へ戻れ' : '坂の下の印へ戻り、退く合図を待て' :
-        '中央の渡り口を通り、西岸の印へ');
+          '川へ向き直って構えよ。退き太鼓で元の岸へ戻れ' : '坂の下へ戻り、退く合図を待て' :
+        '中央の渡り口を通り、西岸の坂の下へ');
       if (F.reached && el >= 16 || el >= 60) this.retreat(rt);
     } else if (F.step === 3) {
       // 川筋から横へ外れても、東岸へ着けば旗を案内する。

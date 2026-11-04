@@ -301,6 +301,7 @@ function escort() {
       C.at = st; C.goal = st; C.i = 1; C.groups = []; C.waves = [12, 34, 56];
       F.envoy = allyGroup(rt, { faction: 'oda', name: '黒田官兵衛の使い', anchor: { ...st }, fixed: true, noGuard: true, noAI: true, facing: -Math.PI / 2, width: 4, aggro: 0, noRout: true, morale: 100 },
         dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', hat: 'kabuto_m', haori: 0x2a2a2a, horse: false } }, { type: 'samurai', n: 8 }], KURODA));
+      // 官兵衛は刀を預けた使いとして徒で城へ入る（開城の談判。馬は門の外に置く）
       F.envoy.fixed = false;   // 置く所は山王口の外の土橋（隠れた所へずらさない）。置いた後は歩く
       F.kanU = F.envoy.units[0];
       F.kanU.maxHp = (F.kanU.maxHp || 100) * 3; F.kanU.hp = F.kanU.maxHp;
@@ -364,10 +365,14 @@ function seats(rt) {
   F.ieyasu = allyGroup(rt, { faction: 'oda', name: '家康の旗本', anchor: { x: IE_JIN.x - 2, z: IE_JIN.z }, facing: -Math.PI / 2, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
     dress([{ type: 'busho', n: 1, o: { name: '徳川家康', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 22 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 8 }], TOKU));
   for (const u of F.ieyasu.units) u.invuln = true;
+  // 総大将は本陣の床几に座る（kaito AV7。b_tottori の seatedCamp と同じ印）
+  const sit = (u) => { if (u) { u._crouch = true; u._nest = true; } };
+  sit(F.ieyasu.units[0]);
   F.hojo = enemyGroup(rt, { faction: 'hojo', name: '北条の本丸', anchor: { ...CASTLE }, facing: Math.PI / 2, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
     dress([...['北条氏直', '北条氏政', '北条氏照'].map((name) => ({ type: 'busho', n: 1, o: { name, hat: 'kabuto_m', invuln: true, horse: false } })), { type: 'samurai', n: 18 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 6 }], HOJO));
   // 本丸の奥の当主は堀の向こうで討てない。遠くから名札と命の棒を出さない（kaito AS：討てない総大将を討てる所に見せない）
   for (const u of F.hojo.units) { u.invuln = true; if (u.name) u.isSub = true; }
+  for (const u of F.hojo.units) if (u.type === 'busho') sit(u);
 }
 
 // 時が飛ぶ所：夜討ちの残りの北条勢は城の中へ引き揚げた（本丸の当主と旗本は残す）
@@ -493,12 +498,13 @@ const t12_odawara = {
           rt2.award((t) => t.side.push('篠曲輪へ付け入った'), '篠曲輪へ付け入った');
         } }),
       // ④ 城中から山王口を出た北条の新手から、篠曲輪の井伊の旗を守る
-      DP.hold({ at: { x: SHINO_C.x - 1, z: SHINO_C.z }, dur: 55, r: 9, label: '井伊の旗', title: '篠曲輪を取った', sub: '山王口から北条の新手が出てきた',
+      DP.hold({ at: { x: SHINO_C.x - 1, z: SHINO_C.z }, dur: 80, r: 9, label: '井伊の旗', title: '篠曲輪を取った', sub: '山王口から北条の新手が出てきた',
         obj: '篠曲輪の井伊の旗を、山王口から来る北条の新手から守れ',
         say: [['井伊直政', '旗を立てたぞ！　城の兵が山王口から出て来る。西の口で防げ！']],
         waves: () => [
           { t: 5, foes: () => [{ name: '山王口から出た北条勢', from: SANNO_IN, width: 8, list: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }] }] },
           { t: 28, foes: () => [{ name: '北条の新手', from: { x: SANNO_IN.x, z: SANNO_IN.z + 4 }, width: 8, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }] }], say: ['足軽', '土橋をまた渡って来る！'] },
+          { t: 54, foes: () => [{ name: '山王口の三番手', from: { x: SANNO_IN.x, z: SANNO_IN.z - 4 }, width: 8, list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }] }], say: ['井伊直政', 'まだ来るぞ。旗を渡すな！'] },
         ], noRefill: true, reward: '篠曲輪の旗を守った' }),
       // ⑤ 後押しが無く、直政の下知で退く（史実）
       DP.move({ to: { x: II_JIN.x - 4, z: II_JIN.z + 2 }, obj: '井伊直政の下知で、山王川の東の井伊の陣へ退け', label: '井伊の陣', r: 8, max: 80,

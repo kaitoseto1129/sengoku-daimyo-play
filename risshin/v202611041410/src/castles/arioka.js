@@ -73,7 +73,7 @@ export const SOTO_MOAT_SEGS = [
   [[-SOKAKU_X - 5, SOTO_MOAT_Z], [-SOKAKU_X - 5, GATE.z + SOTO_MOAT_GAP]],
   [[-SOKAKU_X - 5, GATE.z - SOTO_MOAT_GAP], [-SOKAKU_X - 5, SOKAKU_N - 5], [SOKAKU_X, SOKAKU_N - 5]],
 ];
-export const SOTO_BRIDGE = { a: [-SOKAKU_X - 10.5, GATE.z], b: [-SOKAKU_X + 0.5, GATE.z], w: 7 };
+export const SOTO_BRIDGE = { a: [-SOKAKU_X - 10.5, GATE.z], b: [-SOKAKU_X + 0.5, GATE.z], w: 9 };
 export const KISHI_TORIDE = { x: 0, z: SOKAKU_N, name: '岸の砦' };
 export const JORO_TORIDE = { x: -SOKAKU_X, z: HON_CENTER_Z, name: '上ろう塚砦' };
 export const HIYODORI_TORIDE = { x: 0, z: WALL_Z, name: '鵯塚砦' };

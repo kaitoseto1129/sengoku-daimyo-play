@@ -200,8 +200,9 @@ Object.assign(echizen, {
   noPlayerFoot: true, quietMiss: true, noSiegeCards: true, noDodgeCard: true,
   nearbyAllySignLimit: 0, enemyTriangleSigns: true, mapMissionEnemy: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
-  missions: ['ここを守れ', '味方と進め', '木戸を破れ', '中へ進め', '守兵を倒せ', '味方を集めよ'],
+  missions: ['ここを守れ', '味方と進め', '木戸を破れ', '中へ進め', '守兵を倒せ', '味方を集めよ', '北口へ追え'],
   missionOf(rt) {
+    if (rt.flags.echAdv) return 6;
     if (!rt.flags.step) return 0;
     const gate = passGate(rt)?.struct, me = rt.player.u.pos, zone = passZone(rt);
     if (gate?.alive) {
@@ -221,10 +222,10 @@ Object.assign(echizen, {
   // 阿波賀三郎は鉢伏の守将。本道の任務を遠い別の城へ向けない。
   commanderTarget(rt) {
     const u = rt.flags.d?.hachibuseHon?.taishoU, p = rt.player.u.pos;
-    return !rt.over && !rt.flags.ending && passFighter(u) &&
+    return !rt.over && !rt.flags.ending && !rt.flags.echAdv && passFighter(u) &&
       Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 35 ? u : null;
   },
-  missionSignTarget(rt) { return this.commanderTarget(rt) || passNearestFoe(rt); },
+  missionSignTarget(rt) { return rt.flags.echAdv ? null : this.commanderTarget(rt) || passNearestFoe(rt); },
   namedGuideTarget(rt) { return this.commanderTarget(rt); },
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u.pos;
@@ -236,7 +237,11 @@ Object.assign(echizen, {
     q.defend = false; q.always = false; q.approach = false; q.silent = true;
     q.r = q.hide = 3;
     let pos;
-    if (!F.step) {
+    if (F.echAdv) {
+      // 落城後は次の木戸へ向けず、勝ちの判定と同じ北口を指す。
+      pos = rt.world.def.moveWay(rt.army, rt.player.u, F.echExitAt);
+      q.route = true; q.r = q.hide = .5;
+    } else if (!F.step) {
       // 開始時の味方の隊列と同じ持ち場を保ち、敵を受ける間も消さない。
       pos = F.passOpeningPost; q.waiting = q.defend = true; q.r = q.hide = 8;
     } else if (enemy) {
@@ -1549,8 +1554,9 @@ echizen.setup = function (rt) {
   const exitPoint = { x: 0, z: 0, botRadius: .6 };
   const roadWay = (u, want) => {
     const F = rt.flags;
-    if (!u.isPlayer || !F.step || !F.roadPoint ||
-        Math.hypot(want.x - F.roadPoint.x, want.z - F.roadPoint.z) >= .1) return null;
+    const goal = F.echAdv ? F.echExitAt : F.roadPoint;
+    if (!u.isPlayer || !F.step || !goal ||
+        Math.hypot(want.x - goal.x, want.z - goal.z) >= .1) return null;
     // 平場の中から遠い折れ目へ投影すると、横の柵へ向かったり入口へ戻る。
     // 確保した郭では先に奥の口の内側へ寄り、そのまま三メートル外へ抜ける。
     const held = F.souFell ? 'kinome_sou' : F.kannonFell ? 'kannon' : null;
@@ -2027,6 +2033,10 @@ echizen.update = function (rt, dt) {
     if (!rt.over && !rt.flags.ending && !rt.retryOpen) rt.playerDown();
     return;
   }
+  if (rt.flags.echAdv) {
+    echizenAdvanceTick(rt);
+    return;
+  }
   const openingGuard = rt.flags.roadGuards?.[0];
   if (!rt.flags.step && openingGuard && openingGuard.aliveNominal() <= 0) this.assault(rt);
   {
@@ -2054,7 +2064,7 @@ echizen.update = function (rt, dt) {
   kinome.update.call(this, rt, dt);
   echizenAdvanceTick(rt);
   const F = rt.flags, u = rt.player.u;
-  if (rt.over || F.ending || !u.alive) return;
+  if (rt.over || F.ending || F.echAdv || !u.alive) return;
   huntPlayer(rt, dt);
   // 10/31 mini の点付け：木戸の外の敵が十二人だけで、開戦25秒の画面に兵が数人。打って出た一揆勢を二十四人にする（守りと勝ちの数には入れない）。
   if (!F._sally2 && F.gateSally?.real?.count) {
@@ -2221,6 +2231,19 @@ function echizenTsukeiri(rt) {
 // 木戸を抜けた後、打ちかけてくる相手は受けるが、郭外の敵を追って制圧を中断しない。
 echizen.botBrain = function (rt, inp, helpers) {
   const F = rt.flags;
+  if (F.echAdv) {
+    const p = rt.player, u = p.u;
+    inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
+    inp.leftPressed = false; inp.chargeHold = false; inp.quickCmd = null;
+    inp.guardHold = false; inp.runHeld = false;
+    if (!u.alive || rt.over || F.ending) return;
+    if (p.lock) inp.e.add('KeyQ');
+    // 郭の堂と柵をよけ、北口へ進む。次の城の掛矢には戻らない。
+    const next = rt.world.def.moveWay(rt.army, u, F.echExitAt);
+    inp.runHeld = true;
+    helpers.goTo(p, inp, next.x, next.z, next.botRadius ?? 1, true);
+    return;
+  }
   const gate = F.kannonFell ? F.gateKinome : F.gateKannon;
   const zone = !F.souFell && gate && !gate.struct.alive
     ? F.SZ.byId[F.kannonFell ? 'kinome_sou' : 'kannon'] : null;

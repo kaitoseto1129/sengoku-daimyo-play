@@ -159,7 +159,14 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
         if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description?.slice(0, 300));
         return r.result?.result?.value;
       },
-      async png() { const r = await send('Page.captureScreenshot', { format: 'png' }); return Buffer.from(r.result.data, 'base64'); },
+      async png() {
+        const r = await send('Page.captureScreenshot', { format: 'png' });
+        // 撮影側の失敗応答には result が無い。画像を読む前に確かめる。
+        if (r.error || typeof r.result?.data !== 'string' || !r.result.data.length) {
+          throw new Error(`画面を撮れませんでした（撮影側の応答番号：${r.error?.code ?? '不明'}）。撮影できる状態でやり直してください`);
+        }
+        return Buffer.from(r.result.data, 'base64');
+      },
       close() { try { ws.close(); } catch (e) { /* noop */ } chrome.kill(); releaseSlot(slot); setTimeout(() => { try { rmSync(prof, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* 消しきれない一時ファイルは残してよい */ } }, 800); },
     };
   } catch (e) {

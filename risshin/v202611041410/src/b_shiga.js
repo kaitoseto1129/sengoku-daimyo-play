@@ -1092,7 +1092,7 @@ function enemyGunCue(rt) {
     // 発砲音は射手の合成音を使う。退き太鼓の後も、道案内を消さずに危険を伝える。
     F.retreatGunText = `${sound}。道沿いの物陰を使え`;
     F.retreatGunUntil = rt.t + 8;
-    rt.say('足軽', `${sound}じゃ！　道沿いの物陰を使い、坂道の印から木戸へ退け！`, 3.5);
+    rt.say('足軽', `${sound}じゃ！　道沿いの物陰を使い、坂道を上って木戸へ退け！`, 3.5);
     return;
   }
   if (town) {
@@ -1120,8 +1120,8 @@ function castleGateProgress(rt, text) {
 
 function castleProgress(rt, text) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (F.backed && !F.C.kuruwa.hon.test(p.x, p.z)) text = '退きの鉦。本丸の木戸の印へ退け。切岸へ寄るな';
-  else if (F.backedNi && !F.C.kuruwa.ni.test(p.x, p.z) && !F.C.kuruwa.hon.test(p.x, p.z)) text = '退きの鉦。二の丸の木戸の印へ退け';
+  if (F.backed && !F.C.kuruwa.hon.test(p.x, p.z)) text = '退きの鉦。本丸の木戸へ退け。切岸へ寄るな';
+  else if (F.backedNi && !F.C.kuruwa.ni.test(p.x, p.z) && !F.C.kuruwa.hon.test(p.x, p.z)) text = '退きの鉦。二の丸の木戸へ退け';
   else {
     const post = F.backed ? '本丸' : F.backedNi ? '二の丸' : '大手';
     text = `${post}木戸を守れ。${text}`;
@@ -2006,7 +2006,7 @@ const shiga = {
   playerSignMinScale: .4, // 共通の下限に戻さず、この戦の小さい本人印を使う。
   woundEffectMin: 0.05, // 浅い打撲で守りの下知を退避札に替えない。出血・深手の案内は残す。
   introText() {
-    return '東は琵琶湖、西は比叡山方面。敵は北から坂本へ来る。まず「森隊の列」の印へ。敵を向いて槍を構え、町口を守れ。退き太鼓が鳴ったら、道の印をたどって南の宇佐山城へ。';
+    return '東は琵琶湖、西は比叡山方面。敵は北から坂本へ来る。まず町口の森可成の槍の列へ。敵を向いて槍を構え、町口を守れ。退き太鼓が鳴ったら、坂道を上って南の宇佐山城へ。';
   },
   guardButtonText: '押して かまえる',
   waitGuardButtonText: '押し続けて ふせぐ',
@@ -2053,7 +2053,7 @@ const shiga = {
         /^(?:二の丸|本丸)の木戸の内へ退け$/.test(text)) return text.replace('内へ退け', '内で味方を待て');
     if (text === '町口を守れ。深追いするな' || text === '町口を守れ。味方の退き口を保て' ||
         text === '森隊の槍の列に入り、町口を守れ') return '森隊の列で町口を守れ';
-    if (text === '坂道の印をたどり、城の木戸へ退け') return '道の印を追って城へ退け';
+    if (text === '坂道を上り、城の木戸へ退け') return '坂道を上って城へ退け';
     if (text === '大手木戸を閉め、内で槍を揃えよ') return '大手木戸を閉めよう';
     if (text === '大手木戸を守れ。破られたら奥へ') return '大手木戸の内を守れ';
     if (text === '二の丸を守れ。危うければ本丸へ') return '二の丸木戸の内を守れ';
@@ -2065,7 +2065,7 @@ const shiga = {
   taskDetail(rt, title, text) {
     // 空の補足が共通の「味方の旗へ」に変わり、持ち場から離れさせないようにする。
     if (!text) return rt.flags.step < 2 ? '退けの声まで、森隊の列を離れるな' :
-      rt.flags.step === 2 ? '切岸を避け、道の印をたどれ' : castleWatchText(rt);
+      rt.flags.step === 2 ? '切岸を避け、坂道を上れ' : castleWatchText(rt);
     if (rt.flags.step >= 3 && /^(?:木戸を開けず、外を見張れ|木戸の内で敵を向いて構えよ)$/.test(text))
       return castleWatchText(rt);
     if (rt.flags.step < 2 && title === '森隊の列で町口を守れ' && rt.hud.defendEnemy?.alive) {
@@ -2165,7 +2165,7 @@ const shiga = {
   holdLine: true, // 後詰が来ても城兵は木戸を離れて追わない。
   missionDangerText(rt) {
     const F = rt.flags;
-    return F.step === 2 ? '味方が押されている。坂道の印をたどり、城へ退け' :
+    return F.step === 2 ? '味方が押されている。坂道を上り、城へ退け' :
       F.step >= 3 ? F.backed ? '味方が押されている。本丸の木戸の内を守れ' :
         F.backedNi ? '味方が押されている。二の丸の木戸の内を守れ' :
         '味方が押されている。大手木戸の内を守れ' :
@@ -2206,13 +2206,15 @@ const shiga = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|守り通す/.test(text),
-  missions: ['森隊に集まれ', '町口を守れ', '▼の敵を倒せ', '道の印をたどれ', '木戸を守れ', '味方と集まれ'],
+  // 11/4 jin_shiga_r（AR1・AW3）：場所と行いで言う。「ピン」「印」「▼」の字は使わない
+  goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の輪と小旗を重ねない。BH6・AL）
+  missions: ['町口の森可成の槍の列へ行け', '坂本の町口で浅井・朝倉の先手を防げ', '町口へ寄せる先手を槍で討て', '坂道を上り、宇佐山城の大手木戸へ退け', '三の丸の大手木戸で寄せ手を防げ', '本丸で信長の後詰を迎えよ'],
   missionOf(rt) {
     const F = rt.flags;
     if (F.ending || rt.over) return 5;
     if (!F.step) return rt.distTo(TOWN_POST) > 5 ? 0 : 1;
     if (F.step === 2) return F.C.kuruwa.san.test(rt.player.u.pos.x, rt.player.u.pos.z) ? 4 : 3;
-    if (rt.def.missionSignTarget(rt)) return 2;   // 右上の札は this 無しで呼ぶ（hud_cards.js）
+    if (rt.def.missionSignTarget(rt)) return F.step < 2 ? 2 : 4;   // 右上の札は this 無しで呼ぶ（hud_cards.js）。城では木戸を守る言葉のまま
     return F.step < 2 ? 1 : 4;
   },
   missionHeading(rt) {
@@ -2224,7 +2226,7 @@ const shiga = {
       return order?.text || this.missions[5];
     }
     if (F.step === 2) {
-      if (rt.t < F.retreatSoundUntil) return '退きの法螺・太鼓・鉦。道の印から城へ';
+      if (rt.t < F.retreatSoundUntil) return '退きの法螺・太鼓・鉦。坂道を宇佐山城へ';
       if (rt.t < F.retreatGunUntil) return `${F.retreatGunText}。城へ退け`;
     }
     if (F.step >= 3) {
@@ -2235,7 +2237,9 @@ const shiga = {
         return '退きの鉦。木戸の内で槍を揃えよ';
       if (rt.t < F.castleSoundUntil) return F.castleSoundText;
     } else if (F.step < 2 && rt.t < F.townSoundUntil) return F.townSoundText;
-    return this.missions[this.missionOf(rt)];
+    const k = this.missionOf(rt);
+    if (k === 4 && (F.backed || F.backedNi)) return F.backed ? '本丸の木戸で寄せ手を防げ' : '二の丸の木戸で寄せ手を防げ';
+    return this.missions[k];
   },
   // 大将は本陣の朝倉義景。守城の任務を無敵の本陣襲撃へ替えず、地図と戦場の印だけ付ける。
   // AT3：総大将（義景・長政）は後方の本陣の幕の内。討つ相手の印は付けない。
@@ -2269,8 +2273,8 @@ const shiga = {
     const enemy = this.missionSignTarget(rt);
     let point;
     if (F.step === 2) {
-      // 深手でも別の段の味方を直に指さず、次の角へ案内をそろえる。
-      point = F.retreatPoint;
+      // 11/4 jin_shiga_r（AW3・BK4・AT10）：行き先は大手木戸の内に固定する。曲がり角ごとに▼を動かさない（坂道の角は bot の案内だけが使う）
+      point = F.gateC ? (F.retreatGate || (F.retreatGate = { x: F.gateC.x - F.gateN.x * 5, z: F.gateC.z - F.gateN.z * 5 })) : F.retreatPoint;
       pin.waiting = pin.defend = F.C.kuruwa.san.test(me.pos.x, me.pos.z);
     }
     else if (enemy) { point = enemy.pos; pin.unit = enemy; pin.enemy = true; }
@@ -2658,19 +2662,19 @@ const shiga = {
     // 足軽十四人の指定（縮小後九人）を、十一人（七人）と名のある二人に分け、人数と兵種は保つ。
     // 名前はこの底本の表記。立ち位置・具足・筆跡と兵種の割り当ては推定復元。
     F.mori = allyGroup(rt, { name: '森可成の手', fixed: true, anchor: { x: TOWN.x, z: TOWN.z - 6 }, facing: Math.PI, width: 5, aggro: 10, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '森可成', invuln: true } },
+      dress([{ type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } },
         { type: 'samurai', n: 1, o: { name: '道家助十郎', flag: '天下一の勇士' } },
         { type: 'ashigaru', n: 1, o: { name: '道豪清十郎', flag: '天下一の勇士' } },
         { type: 'ashigaru', n: 1, o: { name: '尾藤源内' } },
         { type: 'ashigaru', n: 1, o: { name: '尾藤又八' } },
-        { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 13 }], { ...ODA, flag: 'tsuru' }));
+        { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }], { ...ODA, flag: 'tsuru' }));   // 可成の旗本は侍（11/4 O）
     F.moriU = F.mori.units[0];
     F.nobuharu = allyGroup(rt, { name: '織田信治の手', fixed: true, anchor: { ...NOBUHARU_POST }, facing: Math.PI, yariRanks: 3, aggro: 10, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1, o: { name: '織田信治', invuln: true, hat: 'kabuto_m', haori: 0x6a1a14 } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '織田信治', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a1a14 } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], ODA));
     F.nobuU = F.nobuharu.units[0];
     // 青地茂綱の手（信長公記に町口での討死が記される）
     F.sakai = allyGroup(rt, { name: '青地茂綱の手', fixed: true, anchor: { ...AOCHI_POST }, facing: Math.PI, width: 4, aggro: 10, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1, o: { name: '青地茂綱', invuln: true, hat: 'kabuto_g', haori: 0x5a2a1c } }, { type: 'ashigaru', n: 10 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { name: '青地茂綱', invuln: true, horse: true, hat: 'kabuto_g', haori: 0x5a2a1c } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 7 }], ODA));
     F.aochiU = F.sakai.units[0];
     // 城に残る者（武藤五郎右衛門ら）
     // 槍衾の横幅は width ではなく人数と段数で決まる。三人幅で塀と門柱を空ける。
@@ -2732,7 +2736,8 @@ const shiga = {
     // 退きの段（step 2）で森隊の手が崩れて退き、湖岸の縦隊も隠す。
     // 11/1（二）：軽い兵の切りが本人16m・カメラ12m に詰まったので、乱戦を25秒の持ち場（町口の南の端 x 28・z 8）の二十〜二十五歩先へ寄せる。
     //   肩越しの向きは流すたびに北西（町の西の口）か南（町の背）へ振れる。北西は西の口の押し合いを寄せ、南は町の背へ回った浅井の手と森隊の後ろ備えの押し合いを足す（推定）。
-    F.townClashes = [[55, 15, Math.PI / 2, 16, 'asakura', ASA.armor, 15841], [10, -9, Math.PI + 0.35, 20, 'azai', AZA.armor, 15843], [27, 33, 0, 16, 'azai', AZA.armor, 15844]].map(([x, z, facing, w, flag, armor, seed]) => {
+    // 11/4 jin_shiga_r（AA・AP9）：持ち場から二十歩ほどの作り物の乱戦と、湖岸の街道（町口から六十歩）の軽い縦隊はやめる。町口で戦うのは本物の先手と森・信治・青地の手だけ
+    F.townClashes = [].map(([x, z, facing, w, flag, armor, seed]) => {
       const C = W.addClash({ x, z, facing, w, bw: 5.2, gap: 2.4, seed, rt,
         play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
         noRout: true, killRate: 0.004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
@@ -2741,7 +2746,7 @@ const shiga = {
       C?.go?.();
       return C;
     }).filter(Boolean);
-    { F.lakeColumn = W.addDistantArmy({ x: 71, z: -26, w: 9, d: 34, count: 120, facing: 0, armor: ASA.armor, flagTex: flagTexture('asakura'), mon: 'asakura', team: 1, seed: 15842, terrainRanks: true, yose: false, host: false, flagRate: 0.25 });
+    if (false) { F.lakeColumn = W.addDistantArmy({ x: 71, z: -26, w: 9, d: 34, count: 120, facing: 0, armor: ASA.armor, flagTex: flagTexture('asakura'), mon: 'asakura', team: 1, seed: 15842, terrainRanks: true, yose: false, host: false, flagRate: 0.25 });
       F.lakeColumn.army && (F.lakeColumn.army.noWake = true); }
     for (let i = 0; i < FLANK_FLAGS.length; i++) {
       const [x, z] = FLANK_FLAGS[i], f = nobori(W, x, z, 'azai', 6);   // 縦隊の両脇の旗持ちの幟。背旗と同じ浅井の旗で、高さは一つにして形を使い回す
@@ -2754,10 +2759,10 @@ const shiga = {
     // 両家の北の本陣の位置は復元。公記のこの条は朝倉方の将を特定しないため、義景本人と断定しない。
     // 根拠：『信長公記』巻三「志賀御陣之事」。
     // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
-    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉義景', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 15, reserve: 0, runTo: { x: 26, z: -80 } });
+    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉義景', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 20, reserve: 0, runTo: { x: 26, z: -80 } });
     // 「浅井備前」は長政を指すが、この復元位置の陣を本人の持ち場とは特定できない。
     // 朝倉側と同じく、目に見える本陣の将は名を断定しない。
-    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井長政', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 15, reserve: 0, runTo: { x: 0, z: -80 } });
+    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井長政', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 20, reserve: 0, runTo: { x: 0, z: -80 } });
     // 本陣の控えは移した陣幕の後ろへ。同じ人数で、二十四日に本隊と一緒に比叡山へ退かせる。
     // 共通の camp 内に任せると参照が残らず、後詰の後も坂本に五百六十人が居座る。
     for (let i = 0; i < CAMP_HOSTS.length; i++) {
@@ -2770,6 +2775,8 @@ const shiga = {
     // 昼の常設の焚火は置かない。斜面に浮く火を消し、端城への放火は後の段で起こす。
     // 本陣の旗本は、陣幕の前で整った陣形のまま待つ（寄って来た者だけを相手にする）
     for (const c of [F.campA, F.campB]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'line'; }
+    // 11/4 jin_shiga_r（AV7）：総大将は後方の本陣の幕の前で床几に座る（寄せられる・動くと立つ。army_anim）
+    for (const c of [F.campA, F.campB]) if (c?.general) c.general._crouch = true;
         // ---- 町口の戦いの部隊（butai.js）：前に立つ名のある組（本物）の後ろの本隊。本物はほとんど出さず、遠くで押し合う軽い作り ----
     const mkB = (o, real) => capReal(makeButai(rt, { real, ...o }), real);
     F.bMori = mkB({ name: '森可成の手の本隊', team: 0, faction: 'oda', kind: 'ashigaru', nominal: 400, armor: 0x2a2622, flag: 'tsuru', at: { x: TOWN.x - 2, z: TOWN.z + 16 }, facing: Math.PI }, 0);
@@ -2883,7 +2890,7 @@ const shiga = {
     rt.banner('坂本へ迫る三万ほどの軍勢', '守る兵は三千ほど。十倍の敵を受ける');
     rt.obj('main', '森隊の槍の列に入り、町口を守れ', 'main');
     rt.say('森可成', rt.G.lord ? '敵は浅井・朝倉、三万ほど！　殿、わしらが町口を支えまする！' : '敵は浅井・朝倉、三万ほど！　殿は摂津じゃ。わしの槍の列へ入れ！', 4);
-    rt.marker('mori', TOWN_POST, '森隊の槍の列', { guideRadius: 3, hideNear: 3, hideOnArrival: true });
+    rt.marker('mori', TOWN_POST, '森隊の槍の列', { noGuide: true, guideRadius: 3, hideNear: 3, hideOnArrival: true });
     rt.after(4.5, () => { if (F.step === 0) rt.say('織田信治', '湖側はわしが受ける。森殿の列から離れるな！', 3); });
     rt.after(8, () => { if (!F.ending && !rt.over) this.first(rt); });
   },
@@ -2896,7 +2903,7 @@ const shiga = {
     rt.setPhase('first');
     // 本人を囲む数は、共通の槍の間合いに従う。
     // 攻撃人数は共通の間合い判定に従う。本人だけを二人に制限しない。
-    rt.marker('mori', TOWN_POST, '守る町口・森隊の列', { guideRadius: 3, hideNear: 3, hideOnArrival: true });
+    rt.marker('mori', TOWN_POST, '守る町口・森隊の列', { noGuide: true, guideRadius: 3, hideNear: 3, hideOnArrival: true });
     shigaSignal(rt, 'hajime', TOWN_POST, 0.9);
     F.townSoundText = '開戦の法螺と太鼓。町口で先手を迎え撃て'; F.townSoundUntil = rt.t + 8;
     F.townSignalUntil = F.townSoundUntil;
@@ -3032,7 +3039,7 @@ const shiga = {
     F.bAza.order({ id: 'move', to: { x: -12, z: -54 } });
     F.stepT = rt.t;
     // 可成が敵を受けて動いても、守る印は家の方へ追わせず同じ町口へ残す。
-    rt.marker('mori', TOWN_POST, '守る町口・森隊の列', { h: 3, guideRadius: 3, hideNear: 3, hideOnArrival: true });
+    rt.marker('mori', TOWN_POST, '守る町口・森隊の列', { noGuide: true, h: 3, guideRadius: 3, hideNear: 3, hideOnArrival: true });
     rt.obj('main', '敵の突撃太鼓。両手の敵を町口で受けよ', 'main');
     rt.obj('mouth', '町口を守れ。味方の退き口を保て', 'order');
     // 日をまたぐ経過は見出しに残す。同時の合図の台詞で日付説明を消さない。
@@ -3274,7 +3281,7 @@ const shiga = {
       else if (F.nobuU.alive && !gone(F.nobuharu))
         rt.say('織田信治', 'わしらがここで支えるぞ。殿が戻るまで城を渡すな！', 3.5);
     });
-    rt.obj('main', '退きの法螺・太鼓・鉦。坂道の印をたどり、城の木戸へ退け', 'main');
+    rt.obj('main', '退きの法螺・太鼓・鉦。坂道を上り、城の木戸へ退け', 'main');
     F.retreatPath = ROAD.slice(2, ROAD.findIndex(([x, z]) => x === GATE_OUT.x && z === GATE_OUT.z) + 1); F.retreatIdx = 0;
     // 全行程の残りは出発時に一度だけ求める。次の角までの距離と木戸までの距離を分ける。
     F.retreatRemaining = new Array(F.retreatPath.length).fill(0);
@@ -3284,7 +3291,7 @@ const shiga = {
     }
     F.retreatPoint = { x: F.retreatPath[0][0], z: F.retreatPath[0][1] };
     rt.marker('usa', () => F.retreatPoint, () => F.retreatIdx === 0 ? '坂道の入口' :
-      F.retreatIdx < F.retreatPath.length - 3 ? '次の曲がり角へ' : '城の木戸へ', { h: 2, guidePriority: 400 });
+      F.retreatIdx < F.retreatPath.length - 3 ? '次の曲がり角へ' : '城の木戸へ', { noGuide: true, h: 2, guidePriority: 400 });   // 行き先は▼一つ（11/4 BH6）。bot は id で引く
     // 退く先は大手木戸の内（城の者が木戸を開けて待つ。入ったら自分で閉める）
     rt.zone('usa', F.gateC.x - F.gateN.x * 5, F.gateC.z - F.gateN.z * 5, 5);
     F.gu.open(F.gateMk);
@@ -3369,7 +3376,7 @@ const shiga = {
     
     if (!F.gateMk.opened) rt.obj('inner', '木戸の内で受けよ。危うければ奥へ', 'order');
     F.keep.order = 'hold'; F.keep.anchor = { x: F.gateC.x - F.gateN.x * 4, z: F.gateC.z - F.gateN.z * 4 }; F.keep.facing = Math.atan2(F.gateN.x, F.gateN.z); F.keep.aggro = 12;
-    rt.marker('gate', F.keep.anchor, '大手木戸の内で守る', { h: 2, hideNear: 5, hideOnArrival: true });
+    rt.marker('gate', F.keep.anchor, '大手木戸の内で守る', { noGuide: true, h: 2, hideNear: 5, hideOnArrival: true });
 
     // 城へ入ったら退却から待ち受けへ。退けの乱打とは違う、止まれの鉦二つで伝える。
     // 入城の下知と先の退き太鼓を読み終えてから鳴らし、奥への退きが始まれば取り下げる。
@@ -3783,7 +3790,7 @@ const shiga = {
       const ranged = player.lastHit?.ranged && rt.t - player.lastHit.t < 6;
       const guard = isTouch ? '「構える」を押し続けよ' : '右押しを押し続けよ';
       const retreat = F.step >= 3 ? '木戸の内へ下がれ' : '味方の槍の後ろへ下がれ';
-      rt.say('足軽', F.step === 2 ? '傷を受けたぞ。退きの下知に従い、坂道の印から城へ進め！' :
+      rt.say('足軽', F.step === 2 ? '傷を受けたぞ。退きの下知に従い、坂道を上って城へ進め！' :
         ranged ? F.step >= 3 ? '矢玉は構えでは防げぬ。木戸の内の塀の陰へ退け' :
           '矢玉は構えでは防げぬ。塀や屋敷の陰へ退け' : `敵を向いて${guard}。${retreat}`, 5);
     }
@@ -3809,7 +3816,7 @@ const shiga = {
       const atTown = Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z) < 40;
       const elapsed = rt.t - F.stepT;
       const text = rt.t < F.townSoundUntil ? F.townSoundText :
-        !atTown && elapsed >= 35 ? '町口の印へ戻れ。味方の退き口を保て' : '町口を守れ。味方の退き口を保て';
+        !atTown && elapsed >= 35 ? '町口へ戻れ。味方の退き口を保て' : '町口を守れ。味方の退き口を保て';
       rt.objProgress('main', text); rt.objProgress('mouth', text);
       // 森可成の討死は必ず（docs/battle_events_1101 の11）。森隊を救う「もしもの筋」の判断は出さない。
       // 深手や包囲を待たず退き口を開く。守将の討死と城の守りは元の筋へつなぐ。
@@ -3910,7 +3917,7 @@ const shiga = {
       const left = Math.max(0, Math.ceil(RETREAT_TIME + 30 - (rt.t - F.stepT)));
       if (left <= 60) {
         const task = F.moriRescue && (d < 6 || inSan) ? `森隊 ${saved}／${Math.ceil(F.mori.initial / 3)}人。外の味方を守れ` :
-          d < 6 || inSan ? '木戸の内で退く味方を守れ' : '道の印をたどり、木戸の内へ急げ';
+          d < 6 || inSan ? '木戸の内で退く味方を守れ' : '坂道を上り、木戸の内へ急げ';
         retreatText = `${task}。退く猶予あと${left}秒`;
         if (!F.retreatWarned) {
           F.retreatWarned = true;
@@ -3948,7 +3955,7 @@ const shiga = {
       F.inHon = true;
       rt.objDone('honmaru');
       rt.obj('inner', '本丸の木戸の内を守れ', 'order');
-      rt.marker('hon', { x: GATE_HON.x - 3, z: GATE_HON.z + 8 }, '本丸木戸の内で守る', { h: 2, hideNear: 5, hideOnArrival: true });
+      rt.marker('hon', { x: GATE_HON.x - 3, z: GATE_HON.z + 8 }, '本丸木戸の内で守る', { noGuide: true, h: 2, hideNear: 5, hideOnArrival: true });
       // 入城の声で、鳴っている退きの鉦・突撃太鼓・銃声の説明を消さない。
       shigaSupportVoice(rt, '武藤五郎右衛門', 'よう戻った。本丸の口で槍を揃えよ。ここなら寄せ手は横に広がれぬ', 3.5,
         () => (F.step === 3 || F.step === 3.5) && F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z));
@@ -4000,7 +4007,7 @@ const shiga = {
     const guardIn = outside === 0;
     if (outside && S.test(u.pos.x, u.pos.z)) S.notice = `外の守兵${outside}人を待て。先に閉めるなら木戸へ寄れ`;
     else if (wounded && S.woundWait && S.test(u.pos.x, u.pos.z)) S.notice = '負傷兵を待っている。閉めるなら木戸へ寄れ';
-    else S.notice = S.test(u.pos.x, u.pos.z) ? '木戸の内で槍を揃えよ' : '奥の木戸の印へ退け';
+    else S.notice = S.test(u.pos.x, u.pos.z) ? '木戸の内で槍を揃えよ' : '奥の木戸へ退け';
     castleGateProgress(rt, S.notice);
     S.inT = S.test(u.pos.x, u.pos.z) && guardIn && (!wounded || !S.woundWait) ? S.inT + dt : 0;
     if (S.inT > 1.5 && F.gu.close(S.G)) {
@@ -4088,7 +4095,7 @@ const shiga = {
     if (F.backedNi) return;
     F.backedNi = true;
     rt.unmark('gate');
-    rt.marker('ni', { x: GATE_NI.x, z: GATE_NI.z + 3.5 }, '二の丸の木戸の内へ', { h: 3 });
+    rt.marker('ni', { x: GATE_NI.x, z: GATE_NI.z + 3.5 }, '二の丸の木戸の内へ', { noGuide: true, h: 3 });
     // 城内の退きは短い鉦の乱打。町口の長い退き太鼓と区別する。
     shigaSignal(rt, 'hike', F.keep.center(), 0.85);
     F.castleRetreatSignalT = rt.t;
@@ -4117,7 +4124,7 @@ const shiga = {
     rt.objRemove('mouth');
     rt.unmark('ni');
     // 門口から少し離れた庭へ案内し、後から入る守兵の列を塞がない。
-    rt.marker('hon', { x: GATE_HON.x - 3, z: GATE_HON.z + 8 }, '本丸の木戸の内へ', { h: 3 });
+    rt.marker('hon', { x: GATE_HON.x - 3, z: GATE_HON.z + 8 }, '本丸の木戸の内へ', { noGuide: true, h: 3 });
     // 一度に本丸まで退く時は、二の丸の鉦と重ねず同じ合図を引き継ぐ。
     if (rt.t - (F.castleRetreatSignalT ?? -99) >= 8) {
       shigaSignal(rt, 'hike', F.keep.center(), 0.85);
@@ -4153,7 +4160,7 @@ const shiga = {
     if (id === 'san' && z.owner === ZONE_STATE.ENEMY && !F.backedNi) this.toNinomaru(rt);
     if (id === 'ni' && z.owner === ZONE_STATE.ENEMY && !F.backed) this.toHonmaru(rt);
     if (id === 'hon' && z.owner === ZONE_STATE.ENEMY) {
-      rt.marker('hon', HON_C, '取り返す本丸', { h: 3 });
+      rt.marker('hon', HON_C, '取り返す本丸', { noGuide: true, h: 3 });
       rt.say('武藤五郎右衛門', '本丸に入られた！　城兵とともに口を押し返せ！', 3.5);
     }
     if (z.owner === ZONE_STATE.FRIEND && F['lost_' + id]) rt.say('武藤五郎右衛門', `${z.name}を取り返した！`, 2.5);
@@ -4493,7 +4500,7 @@ shiga.setup = function (rt) {
     if (/^(槍衾だ|鉄砲の列だ)/.test(text)) {
       const guns = text.startsWith('鉄砲');
       text = this.def.botEvacuating(this)
-        ? guns ? '敵の鉄砲だ。物陰を通り、木戸の印へ退け' : '敵の槍列を避け、木戸の印へ退け'
+        ? guns ? '敵の鉄砲だ。物陰を通り、木戸へ退け' : '敵の槍列を避け、木戸へ退け'
         : F.step >= 3
           ? guns ? '敵の鉄砲だ。木戸の内の物陰で待て' : '敵の槍列へ出るな。木戸の内で受けよ'
           : guns ? '敵の鉄砲だ。物陰で待ち、町口を離れるな' : '敵の槍列へ出るな。森隊の列で受けよ';
@@ -4519,7 +4526,7 @@ shiga.setup = function (rt) {
     rt.rainWarnT = rt.t;
     // 銃声や退きの合図と同じ持ち場を示す。坂道から町へ戻らせない。
     const F = rt.flags;
-    rt.bark(F.step === 2 ? '上から矢！　坂道の印をたどり、城へ退け' :
+    rt.bark(F.step === 2 ? '上から矢！　坂道を上り、城へ退け' :
       F.step >= 3 ? '上から矢！　木戸の内の塀の陰へ退け' :
         '上から矢！　塀や屋敷の陰へ退け', true);
   };
@@ -4577,7 +4584,7 @@ shiga.setup = function (rt) {
     // 総兵数が減っても、城の木戸を捨てて別の旗へ走らせない。
     if (who === '組頭' && /味方が討ち減らされておる|味方がもう持たぬ/.test(text)) {
       const F = this.flags;
-      text = F.step === 2 ? '坂道の印を追って城へ退け。味方と離れるな' :
+      text = F.step === 2 ? '坂道を上って城へ退け。味方と離れるな' :
         F.step >= 3 ? '持ち場の木戸を守れ。城兵の槍の列から離れるな' :
         '森隊の槍の列へ戻れ。町口で味方と受けよ';
     }

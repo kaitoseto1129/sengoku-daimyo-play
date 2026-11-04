@@ -27,7 +27,7 @@ export const ARMY_STRENGTH = {
   echizen_ikko: [30000, 10000],
   iwamura: [30000, 3000],
   tennoji: [3000, 15000],         // 天王寺砦は本願寺の一万五千に囲まれる（信長の後詰め三千）
-  saika: [60000, 10000],
+  saika: [100000, 10000],   // 11/4：織田は十万余と伝わる大軍（山手・浜手）。雑賀は二千以上〜一万と諸説（docs/battle_refs/saika.md）
   tedorigawa: [30000, 25000],
   shigisan: [40000, 8000],
   kizugawa: [8000, 12000],

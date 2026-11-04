@@ -81,6 +81,18 @@ const OWN = {
   },
   // 桶狭間（11/4 jin）：史実の順（中島砦を出て谷の出口へ → 雨の後に坂道の守り → 幕の前の旗本 → 幕の入口 → 退く義元を毛利が討つ）。
   //   首を取ったのは毛利新介なので「自分で討つ」は置かない。敵を何人討つは使わない（AW3）
+  // 墨俣（11/4 jin・docs/battle_refs/sunomata.md）：伝承の順（北の口の先手 → 西の柵の二の手 → 三の手の北の旗印 →
+  //   伏兵が西の外へ出て挟む → 寄せ大将を討つ）。行き先は戦の印（持ち場の柵・寄せた敵）と同じ。敵を何人討つは置かない
+  sunomata: () => {
+    const F = (rt) => rt.flags, out = (g) => !g || !g.count || g.routed;
+    return [
+      { kind: 'stage', k: 0, text: '北の柵の口で斎藤の先手を止める', noun: '北の柵の口', check: (rt) => won(rt) || (F(rt).wave || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '西の柵で斎藤の二の手を止める', noun: '西の柵', check: (rt) => won(rt) || (F(rt).wave || 0) >= 3 },
+      { kind: 'stage', k: 2, text: '北の柵で三の手の旗印を止める', noun: '三の手の旗印', check: (rt) => won(rt) || F(rt).wave === 3 && out(F(rt).W3a) },
+      { kind: 'stage', k: 3, text: '伏兵と西の柵の外の寄せ手を挟む', noun: '西の柵の外', check: (rt) => won(rt) || F(rt).wave === 3 && !!F(rt).reinforceCalled && !!F(rt).W3b && (F(rt).W3b.units || []).filter((u) => u.alive && !u.fleeing && u !== F(rt).yoseBoss).length <= 4 },
+      { kind: 'stage', k: 3, text: '斎藤方の寄せ大将を討ち取る', noun: '寄せ大将', check: (rt) => won(rt) || F(rt).wave === 3 && !!F(rt).yoseBoss && (!F(rt).yoseBoss.alive || F(rt).yoseBoss.fleeing) },
+    ].map((g) => ({ ...g, sec: 400 }));   // 寄せ一つが三分を超える（柵の修理と次の寄せの間を含む）。段の長さに合わせる
+  },
   okehazama: () => [
     { kind: 'stage', k: 0, text: '谷の出口で組の旗に集まる', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
     { kind: 'stage', k: 1, text: '坂道の今川の守りを崩す', noun: '今川の守り', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
@@ -88,6 +100,18 @@ const OWN = {
     { kind: 'stage', k: 2, text: '幕の入口から義元へ迫る', noun: '幕の入口', check: (rt) => won(rt) || !!rt.flags.mouthReached || !!rt.flags.koshiLeft || !!rt.flags.yoshiDown },
     { kind: 'stage', k: 2, text: '退く旗本を追い、義元を討ち取る', noun: '義元', check: won },
   ],
+  // 志賀の陣・宇佐山城（11/4 jin_shiga_r・docs/battle_refs/shiga.md）：『信長公記』の順（十六日 町口の足軽合戦で小勝ち → 十九日 浅井・朝倉が両手から寄せ、
+  //   可成・信治・青地が討死 → 坂道を宇佐山城へ退く → 端城を焼かれ、木戸を一つずつ守る → 二十四日 信長の後詰）。敵を何人討つ・自分で討つは置かない（AW3）
+  shiga: () => {
+    const F = (rt) => rt.flags, st = (rt) => F(rt).step || 0;
+    return [
+      { kind: 'stage', k: 0, text: '坂本の町口で浅井・朝倉の先手を押し返す', noun: '町口', action: '町口で先手を防げ', check: (rt) => won(rt) || st(rt) >= 1.25 },
+      { kind: 'stage', k: 0, text: '両手から寄せる大軍を、町口で森可成と支える', noun: '町口', action: '森隊の列で支えよ', check: (rt) => won(rt) || st(rt) >= 2 },
+      { kind: 'stage', k: 1, text: '坂道を上り、宇佐山城の大手木戸へ退く', noun: '大手木戸', action: '木戸へ退け', check: (rt) => won(rt) || st(rt) >= 3 },
+      { kind: 'stage', k: 2, text: '二の丸・本丸の木戸で寄せ手を防ぐ', noun: '本丸の木戸', action: '木戸で防げ', check: (rt) => won(rt) || (!!F(rt).backed && st(rt) >= 3.5) },
+      { kind: 'stage', k: 2, text: '本丸を守り抜き、信長の後詰を迎える', noun: '本丸', action: '本丸を守れ', check: won },
+    ];
+  },
   // 三方ヶ原（11/4 jin・docs/battle_refs/mikatagahara.md）：史実の順（平手の持ち場で北へ構える → 小山田の先手の投石と寄せ → 山県の赤備えが右から →
   //   鶴翼が崩れ南の坂で殿 → 犀ヶ崖の東を下って浜松城へ）。勝てぬ戦で、生きて城へ退くのが勝ち。敵を何人討つ・自分で討つは置かない（AW3）
   mikatagahara: () => {
@@ -126,7 +150,7 @@ const OWN = {
     ];
   },
   // 設楽原（11/3 b100）：どこで・何をするかの5つ。勝頼は後方の才ノ神から退き、史実どおり討てない（総大将を目標にしない）。
-  //   守る段は場所（持ち場の旗）を指し、寄せる隊の崩れた数を出す。敵を何人討つは一つだけ
+  //   守る段は場所（持ち場の旗）を指し、寄せる隊の崩れた数を出す。敵を何人討つは使わない（11/4）
   shitaragahara: () => {
     const wave = (k) => (rt) => rt.flags.waveGroups?.[k];
     const broken = (k) => (rt) => { const g = wave(k)(rt); if (!g) return null; const all = g.units.length; return [all - aliveIn([g]), all]; };
@@ -136,7 +160,6 @@ const OWN = {
       { kind: 'stage', k: 1, text: '連吾川を渡り、馬場隊を追う', noun: '馬場隊', check: (rt) => (rt.flags.tsuigeki?.stage ?? 0) >= 2 || !!rt.flags.ending },
       { kind: 'stage', k: 1, text: '馬場隊を崩す', noun: '馬場隊', check: (rt) => !!rt.flags.dpB && !rt.flags.tsuigeki?.timedOut,
         fail: (rt) => !!rt.flags.dpB && !!rt.flags.tsuigeki?.timedOut, groups: (rt) => [rt.flags.rear] },
-      killGoal(KILL_N),
     ];
   },
   // 山中城（11/3 p100_t09_yamanaka）：出丸→障子堀→馬出しの迎え撃ち→付け入り→本丸。人数を数えるのは出丸の一つだけ

@@ -21,6 +21,7 @@ import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
 import { KILLS, STAGES, downTo } from './stages.js';
+import { KIT } from './b_nagashinojo.js';
 
 // ---- 標高（国土地理院） ----
 const XY = 8, BIWA = 84, YOGO = 132.95, VS = 0.1;      // 高さは 1/10（水平の 1/8 より少し潰す。実の 30〜40 度の法を兵が上り下りできる傾きに）
@@ -147,8 +148,8 @@ const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.aliv
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const MOUTH = { x: FORT.x + FORT.r + 4, z: FORT.z };     // 賤ヶ岳の砦の東の口（柵の切れ目）
 const DAWN_AT = { x: -82, z: 256 };                      // 夜明けに主人公が立つ所（砦の西の肩。切通しの口まで三十五歩ほど）
-// 目標（goals5.js が並べる。段の一行は場所と行い。四つの段＋共通の「敵を八人討つ」で五つ）
-const STAGE_TEXT = ['賤ヶ岳の東の物見へ下り、佐久間の追手を討つ', '砦の東の口で、寄せる佐久間勢を防ぐ', '飯浦の切通しの口で、殿の柴田勝政を討つ', '余呉湖の西の岸を北へ、茂山の麓まで追う'];
+// 目標（goals5.js が並べる。段の一行は場所と行い。四つの段だけ。「敵を何人討つ」で埋めない・stageGoalsOnly。携帯の横で一行に収まる長さ）
+const STAGE_TEXT = ['東の物見へ下り、佐久間の追手を討つ', '砦の東の口で、寄せる佐久間勢を防ぐ', '切通しの口で、殿の柴田勝政を討つ', '湖の西の岸を、茂山の麓まで追う'];
 
 const t02_shizugatake = {
   noCouriers: true,
@@ -168,6 +169,11 @@ const t02_shizugatake = {
   enemyTriangleSigns: true,
   foeMarkRange: 30,
   missionPinCaption: '',
+  goalSignOnly: true,         // 11/4 jin：行き先は頭上の金の▼一つだけ（持ち場の旗・輪・地面の矢印を重ねない。AP12・BH6）
+  goalSignNoLabel: true,      // ▼の上に字を出さない（kaito 10/23）
+  noGoalCount: true,          // 討つ相手への画面の端の赤い矢印も出さない（BH6・印は真上の▼一つ）
+  stageGoalsOnly: true,       // 目標は段の四つだけ（「敵を何人討つ」「深手を負わずに勝つ」を足さない。AW3）
+  noHatamotoMass: true,       // 将の後ろの軽い作りの備を置かない（AA・AF）
   // 画面の真ん中の札は、時が飛ぶ所（夜明け）と終わりだけ（kaito AT7・Simple）
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /^四月二十一日/.test(t),
   // 兵の声の家の名：羽柴方は豊臣（＝味方の兵）・柴田方は柴田（信勝方と出さない）
@@ -235,7 +241,7 @@ const t02_shizugatake = {
     F.saku.kind4 = 'main'; F.groups.push(F.saku);
     // ---- 砦の守り（桑山重晴の手。千ほど） ----
     F.fortG = allyGroup(rt, { name: '桑山の手', fullStrength: true, anchor: { x: FORT.x + 7, z: FORT.z }, facing: Math.PI / 2, width: 5, aggro: 14, order: 'hold', noRout: true },
-      [{ type: 'busho', n: 1, o: { name: '桑山重晴', invuln: true, horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }]);
+      [{ type: 'busho', n: 1, o: { name: '桑山重晴', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }]);
     // ---- 戦の前の会話：秀吉と柴田の対立・砦の並びの対陣・盛政の大岩山急襲（battle_events_1101） ----
     const L = [['桑山重晴', '大岩山から煙が上がっておる。柴田と睨み合うて一月、何が起きた', 0.6],
       ['物見', '行市山の佐久間玄蕃の勢、夜のうちに余呉湖の西を回り、大岩山を落とした由。中川殿の兵が逃げて来る', 4.0],
@@ -290,9 +296,10 @@ const t02_shizugatake = {
       g.kind4 = 'raid'; F.groups.push(g); F.waves++;
       rt.army.play('toki', { x, z }, 1.1);
     };
-    rt.after(3, () => wave(-30, 238, 12));
-    rt.after(24, () => { if (F.phase === 2) wave(-38, 232, 12); });
-    rt.after(46, () => { if (F.phase === 2) wave(-28, 226, 12); });
+    // 11/4 jin：盛政の勢は賤ヶ岳の手の数倍（八千対千ほど）。寄せ手を厚くし、桑山が退きかけた苦しさを出す（AQ10）
+    rt.after(3, () => wave(-30, 238, 16));
+    rt.after(24, () => { if (F.phase === 2) wave(-38, 232, 16); });
+    rt.after(46, () => { if (F.phase === 2) wave(-28, 226, 18); });
   },
   // 夜（美濃大返し）を飛ばして二十一日の夜明けへ。真ん中に次の目標を出し、皆を切通しの口の手前に揃える
   dawn(rt) {
@@ -306,22 +313,25 @@ const t02_shizugatake = {
     rt.banner('四月二十一日　夜明け', '切通しの口の柴田勝政を討て');
     // 秀吉は大垣から駆け戻り、賤ヶ岳の砦に本陣を置く（総大将は前に出ず、旗本の侍に守られる）
     placePlayer(rt, DAWN_AT.x, DAWN_AT.z, Math.atan2(KATSUMASA.x - DAWN_AT.x, KATSUMASA.z - DAWN_AT.z));
-    F.hide = allyGroup(rt, { name: '羽柴秀吉の旗本', fullStrength: true, anchor: { x: FORT.x - 2, z: FORT.z + 4 }, facing: -2.5, width: 5, aggro: 4, seekRange: 6, order: 'hold', noRout: true, fixed: true },
-      [{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: false } }, { type: 'samurai', n: 14 }]);
+    //   11/4 jin（AV7・AV18・AT3）：砦の中に陣幕を張り、秀吉は床几に座る。旗本は陣幕の中と前で動かず、討たれない
+    KIT.honjin(rt, FORT.x - 3, FORT.z + 3, { mon: HASHIBA, people: false, fire: false, w: 12, d: 9 });
+    F.hide = allyGroup(rt, { name: '羽柴秀吉の旗本', fullStrength: true, anchor: { x: FORT.x - 3, z: FORT.z + 2 }, facing: -2.5, width: 5, aggro: 4, seekRange: 6, order: 'hold', noRout: true, fixed: true },
+      [{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: false } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 4, o: { flagScale: 1, keep: true } }, { type: 'gun', n: 3, o: { keep: true } }]);
+    F.hide.honjin = true;
+    for (const u of F.hide.units) { u.invuln = true; u.noTarget = true; }
     F.hideU = F.hide.units.find((u) => u.type === 'busho');
+    if (F.hideU) F.hideU._crouch = true;
     // 七本槍（秀吉の小姓衆）と馬廻・丹羽の隊が、主人公と並んで切通しの口へかかる
     F.yari = allyGroup(rt, { name: '七本槍', fullStrength: true, anchor: { x: DAWN_AT.x + 6, z: DAWN_AT.z + 4 }, facing: -2.5, width: 5, aggro: 12, speed: 3.4, order: 'hold', noRout: true },
-      [{ type: 'samurai', n: 1, o: { name: '加藤清正', invuln: true } }, { type: 'samurai', n: 1, o: { name: '福島正則', invuln: true } }, { type: 'samurai', n: 1, o: { name: '脇坂安治', invuln: true } },
-        { type: 'samurai', n: 1, o: { name: '加藤嘉明', invuln: true } }, { type: 'samurai', n: 1, o: { name: '平野長泰', invuln: true } },
-        { type: 'samurai', n: 1, o: { name: '片桐且元', invuln: true } }, { type: 'samurai', n: 1, o: { name: '糟屋武則', invuln: true } }, { type: 'ashigaru', n: 8 }]);
+      [...['加藤清正', '福島正則', '脇坂安治', '加藤嘉明', '平野長泰', '片桐且元', '糟屋武則'].map((name) => ({ type: 'samurai', n: 1, o: { name, invuln: true, horse: true } })), { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }]);   // 名のある者は馬上（AY7）
     F.uma = allyGroup(rt, { name: '羽柴の先手', fullStrength: true, anchor: { x: DAWN_AT.x + 12, z: DAWN_AT.z + 10 }, facing: -2.5, width: 6, aggro: 12, speed: 3.2, order: 'hold', noRout: true },
-      [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 4 }]);
+      [{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }, { type: 'bow', n: 2 }]);   // 秀吉の本隊は一万五千ほど。殿の勝政より厚く（AQ10）
     if (live(F.niwaG)) placeGroup(rt, F.niwaG, DAWN_AT.x - 4, DAWN_AT.z + 12);
     if (live(F.scoutG)) placeGroup(rt, F.scoutG, DAWN_AT.x - 6, DAWN_AT.z - 2);
     // 殿：柴田勝政（三千ほど。切通しの口で踏みとどまる）
     F.kmG = enemyGroup(rt, { ...SHIBATA, name: '柴田勝政の殿', anchor: { ...KATSUMASA }, facing: 0.7, fleeDir: { x: -0.3, z: -1 }, width: 6, morale: 95, dmgMult: 0.5,
       noRout: true, formation: 'line', order: 'hold', aggro: 14, fixed: true },
-    [{ type: 'busho', n: 1, o: { name: '柴田勝政', hat: 'kabuto_m', flag: SHIBATA.flag } }, { type: 'samurai', n: 3 }, ...foeList(20)]);
+    [{ type: 'busho', n: 1, o: { name: '柴田勝政', hat: 'kabuto_m', horse: true, flag: SHIBATA.flag } }, { type: 'samurai', n: 3 }, ...foeList(20)]);
     F.kmG.kind4 = 'km'; F.groups.push(F.kmG);
     F.kmU = F.kmG.units.find((u) => u.type === 'busho');
     if (F.kmU) F.kmU.maxHp = F.kmU.hp = 110;
@@ -372,6 +382,7 @@ const t02_shizugatake = {
       return g;
     });
     for (const g of [F.yari, F.uma, F.niwaG, F.scoutG]) if (live(g)) { g.order = 'move'; g.speed = 3.6; g.dest = { x: -130, z: 120 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; }
+    F.push2 = false;
   },
 
   onKill(rt, v) { if (v && v.team === 1) rt.flags.kills++; },
@@ -409,7 +420,7 @@ const t02_shizugatake = {
     if (F.phase === 2) {
       // 三度の寄せ手を退ければ夜へ（柵に寄って残る数人は数えない）
       const left = F.groups.reduce((n, g) => n + (g.kind4 === 'raid' ? nLive(g) : 0), 0);
-      if ((F.waves >= 3 && left <= 5) || st > 170) { F.phase = 2.5; this.dawn(rt); }
+      if ((F.waves >= 3 && left <= 6) || st > 180) { F.phase = 2.5; this.dawn(rt); }
       return;
     }
     if (F.phase === 3) {
@@ -419,7 +430,13 @@ const t02_shizugatake = {
     if (F.phase === 4) {
       // 勝ち：岸の道の柴田勢を崩して茂山の麓まで追う
       const left = F.chase5.reduce((s, g) => s + nLive(g), 0);
-      if ((left <= 4 && dist(P.pos, SHIGE) < 80) || (st > 150 && dist(P.pos, SHIGE) < 100) || st > 220) this.win(rt);
+      // 岸の一つ目の塊が崩れたら、味方の隊も茂山の麓へ押し出す（主人公だけが行き先へ行かない・BK1）
+      if (!F.push2 && nLive(F.chase5[0]) <= 3) {
+        F.push2 = true;
+        for (const g of [F.yari, F.uma, F.niwaG, F.scoutG]) if (live(g)) { g.order = 'move'; g.speed = 3.6; g.dest = { x: SHIGE.x + 14, z: SHIGE.z + 22 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; }; }
+      }
+      // 11/4 jin：一戦を七分ほどに収める（岸の柴田勢を崩して茂山へ近づけば勝ち）
+      if ((left <= 4 && dist(P.pos, SHIGE) < 110) || (st > 110 && dist(P.pos, SHIGE) < 130) || st > 170) this.win(rt);
     }
   },
 
@@ -497,8 +514,7 @@ t02_shizugatake.history = '天正十一年、羽柴秀吉と柴田勝家は、�
   + '四月二十日、佐久間盛政は行市山から余呉湖の西を回り込み、大岩山の砦を攻め落とした。守っていた中川清秀は討ち死にし、岩崎山の高山右近も退いた。賤ヶ岳の砦は、琵琶湖を渡って来た丹羽長秀の加勢で持ちこたえた。\n'
   + '大垣にいた秀吉はこれを聞き、およそ五十二キロの道をわずかな時で駆け戻った（美濃大返し）。勝家は盛政に退くよう命じたが、盛政は大岩山に居座り、勝家の本隊から離れて孤立した。\n'
   + '二十一日の夜明け、秀吉は湖の西の岸を退く佐久間勢を追い、飯浦の切通しの辺りで殿の柴田勝政を討った。茂山の前田利家が戦の場を離れると、柴田勢は総崩れとなった。\n'
-  + '佐久間盛政は落ちのびたが、のちに捕らえられた。勝家は越前の北ノ庄城へ退き、数日の後に城とともに果てた。この日に手柄を立てた福島正則・加藤清正らは、のちに「賤ヶ岳の七本槍」と呼ばれた。\n'
-  + '地形は国土地理院の標高による。砦の位置は対陣図による。兵の数は柴田方およそ三万・羽柴方およそ五万と伝わる（諸説ある）。隊ごとの人数の分け方・会話は遊びのための推定である。';
+  + '佐久間盛政は落ちのびたが、のちに捕らえられた。勝家は越前の北ノ庄城へ退き、数日の後に城とともに果てた。この日に手柄を立てた福島正則・加藤清正らは、のちに「賤ヶ岳の七本槍」と呼ばれた。';
 
 // 目標の並び（goals5.js）。段の一行は場所と行いで書く。「敵を何人討つ」は共通の一つだけ（AR の 1）
 const st = (n) => (rt) => (rt.flags.phase ?? 0) >= n;
