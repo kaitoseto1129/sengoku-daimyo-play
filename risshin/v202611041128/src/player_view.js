@@ -895,10 +895,10 @@ export class PlayerView {
         part.updateMatrixWorld(true);
         part.traverse(this.nearAllyFadePart);
       }
-      const goal = D.missionStyle === 'lesson' || D.missionStyle === 'raid' ? focus?.pos : this.rt.missionGuide?.pos;
+      const goal = D.missionStyle === 'lesson' || D.missionStyle === 'raid' || D.missionStyle === 'ford' ? focus?.pos : this.rt.missionGuide?.pos;
       // 行き先の前を横切る手前の味方の長柄も避ける。敵の攻撃の見え方は保つ。
       let blocksGoal = false;
-      if ((closeSpear || (D.missionStyle === 'lesson' || D.missionStyle === 'raid') && o !== this.u && o.team === this.u.team && o.wpn?.visible && (o.wpnKind || o.lookWeapon) === 'spear') && goal) {
+      if ((closeSpear || (D.missionStyle === 'lesson' || D.missionStyle === 'raid' || D.missionStyle === 'ford') && o !== this.u && o.team === this.u.team && o.wpn?.visible && (o.wpnKind || o.lookWeapon) === 'spear') && goal) {
         _fpS.set(goal.x, goal.y ?? this.rt.world.heightAt(goal.x, goal.z), goal.z);
         blocksGoal = flagMeshBlocksView(o.wpn, cam.position, _fpS, .35);
       }
@@ -943,11 +943,11 @@ export class PlayerView {
     if (this.rt.army.forNear) {
       this.nearAllyCam = cam;
       // 赤い▼と同じ本人への視線を空ける。相手選びは描く前に一度だけ。
-      this.nearAllyGoal = this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid'
+      this.nearAllyGoal = this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid' || this.rt.def.missionStyle === 'ford'
         ? focus?.pos : null;
       const viewRadius = this.fpK < .5 ? Math.hypot(this.u.pos.x - cp.x, this.u.pos.z - cp.z) + 1 : 0;
       // 桶狭間はカメラから本人までの視線を空ける。遠い目標でも探索は三十二歩まで。
-      const goalRadius = this.nearAllyGoal ? D.missionStyle === 'raid'
+      const goalRadius = this.nearAllyGoal ? D.missionStyle === 'raid' || D.missionStyle === 'ford'
         ? Math.max(18, Math.min(32, Math.sqrt(focusLength2) + 2)) : 10 : 4;
       this.nearAllyGoalRadius2 = goalRadius * goalRadius;
       this.rt.army.forNear(cp.x, cp.z, Math.max(goalRadius, this.rt.def.nearAllyFadeRadius || 2.2, viewRadius), this.nearAllyVisit);

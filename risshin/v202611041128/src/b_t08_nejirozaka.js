@@ -67,7 +67,7 @@ function steps(rt) {
     hold({ at: POST, dur: 70, r: 12, title: '島津の夜討ち', sub: '堀を越え、塀へ取り付いてくる', label: '土橋の塀', obj: '土橋の塀で、堀を越えて来る島津勢を突き落とせ',
       say: [['宮部継潤', '来たぞ！　塀に取り付く者を突き落とせ！']],
       waves: [
-        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'samurai', n: 1, o: { name: '猿渡信光', hat: 'kabuto_w' } }, uS(3), uA(10)], noRout: 20 }] },
+        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 20 }] },
         { t: 24, say: ['鉄砲頭', '堀の中に詰まった！　放て！'], foes: () => [{ name: '島津の二の手', from: from(14), off: { x: 8, z: 2 }, list: [uS(2), uA(9), uG(3)] }] },
         { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 38, z: -14 }, list: [uS(2), uA(10)] }] },
       ],
@@ -95,7 +95,7 @@ function steps(rt) {
     //   忠隣の手は土橋の前の坂（堀の下）で踏みとどまる。味方の組も一緒に打って出る（kaito AP5：周りの味方も一緒に攻める）
     fight({ at: { x: BREACH.x, z: 30 }, title: '島津忠隣の斬り込み', sub: '退く島津勢の中から、若武者が土橋へ', obj: '土橋の前の坂で、島津忠隣の手を討て', max: 120,
       say: [['島津忠隣', '島津の名にかけて、この塀を越えてみせる！']],
-      foes: () => [{ name: '島津忠隣の手', from: { x: 2, z: 56 }, list: [{ type: 'busho', n: 1, o: { name: '島津忠隣', horse: false, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(4), uA(10)], noRout: 25 }],
+      foes: () => [{ name: '島津忠隣の手', from: { x: 2, z: 56 }, list: [{ type: 'busho', n: 1, o: { name: '島津忠隣', horse: true, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(4), uA(10)], noRout: 25 }],
       reward: (t) => { t.special = { label: '島津忠隣の斬り込みを止めた', pts: 15 }; }, rewardLabel: '島津忠隣の斬り込みを止めた' }),
   ];
 }
@@ -179,7 +179,7 @@ function todoArrive(rt) {
   const F = rt.flags;
   if (F.todo) return;
   F.todo = allyGroup(rt, { name: '藤堂高虎・戸川達安の手', anchor: { x: -6, z: -50 }, facing: 0, width: 10, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
-    dress([{ type: 'busho', n: 1, o: { name: '藤堂高虎', invuln: true, horse: false, hat: 'kabuto_w' } }, { type: 'samurai', n: 1, o: { name: '戸川達安', hat: 'kabuto_m' } }, uS(4), uA(14)], TODO));
+    dress([{ type: 'busho', n: 1, o: { name: '藤堂高虎', invuln: true, horse: true, hat: 'kabuto_w' } }, { type: 'busho', n: 1, o: { name: '戸川達安', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(6), uA(14)], TODO));
   F.todo.anchor = { x: BREACH.x, z: BREACH.z - 6 };
   KIT.backOf(rt, F.todo, { flag: 'todo', armor: TODO.armor, kind: 'spear', w: 16, depth: 8, count: 140, seed: 1587 });
   rt.banner('藤堂高虎の援け', '砦の後ろから、新手が駆け付けた');
@@ -191,9 +191,9 @@ function todoArrive(rt) {
 function reliefArrive(rt) {
   const F = rt.flags;
   if (F.relief) return;
-  F.relief = allyGroup(rt, { name: '黒田・小早川の後詰', anchor: { x: 40, z: -46 }, facing: 0, width: 10, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
-    dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'busho', n: 1, o: { name: '小早川隆景', invuln: true, horse: false, hat: 'kabuto_w' } }, uS(3), uA(10), uG(3)], MIYABE));
-  F.relief.anchor = { x: BREACH.x + 14, z: BREACH.z - 6 };
+  F.relief = allyGroup(rt, { name: '黒田・小早川の後詰', anchor: { x: 96, z: 34 }, facing: -Math.PI / 2, width: 10, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
+    dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'busho', n: 1, o: { name: '小早川隆景', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(6), uA(10), uG(3)], MIYABE));
+  F.relief.anchor = { x: BREACH.x + 16, z: 30 };
   KIT.backOf(rt, F.relief, { flag: 'toyotomi', armor: MIYABE.armor, kind: 'mixed', w: 16, depth: 8, count: 120, seed: 1588 });
   rt.banner('黒田・小早川が横を突く', '東の尾根から、島津勢の横腹へ');
   rt.say('黒田官兵衛', '島津の横を突く。宮部殿の砦は、もう落ちぬ', 4);
@@ -250,6 +250,8 @@ const t08_nejirozaka = {
     F.shHon = enemyGroup(rt, { faction: 'shimazu', name: '島津義弘の本陣', anchor: { x: 4, z: 150 }, facing: Math.PI, width: 12, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', seekRange: 4 },
       dress([{ type: 'busho', n: 1, o: { name: '島津義弘', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(10), uA(8)], SHIMAZU));
     F.shHon.noPursue = true;
+    const yU = F.shHon.units.find((u) => u.name === '島津義弘');
+    if (yU) yU._crouch = true;   // 坂の下の本陣で床几に座る
     // 本陣の後ろに旗本の控え（寄れば本物の兵に替わる）。坂の上の砦からは松明の陰に沈む
     KIT.backOf(rt, F.shHon, { flag: 'shimazu', armor: SHIMAZU.armor, kind: 'mixed', w: 22, depth: 10, count: 240, gap: 2, seed: 1589 });
     for (const [x, z] of [[-6, 146], [14, 146]]) rt.scene.add(nobori(W, x, z, 'shimazu', 7));
@@ -257,8 +259,13 @@ const t08_nejirozaka = {
     addSite(rt, 'fort', 0, -20, '根白坂の砦');
     F.torches = torchField(rt);
     // ---- 味方：宮部継潤の手と、塀の内の鉄砲 ----
-    F.miyabe = allyGroup(rt, { name: '宮部継潤の手', anchor: { x: -14, z: -7 }, facing: 0, width: 14, aggro: 10, noRout: true, order: 'hold' },
-      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto_m' } }, uS(5), uA(18)], MIYABE));
+    // 守将の宮部継潤は砦の奥の本陣で床几に座り、旗本に囲まれて下知する（塀へは出ない。kaito AR3・AV7）
+    F.miyaHon = allyGroup(rt, { name: '宮部継潤の本陣', anchor: { x: -4, z: -40 }, facing: 0, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', fullStrength: true },
+      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto_m' } }, uS(10), uA(6)], MIYABE));
+    F.miyaU = F.miyaHon.units.find((u) => u.name === '宮部継潤');
+    if (F.miyaU) F.miyaU._crouch = true;   // 床几に腰を下ろす
+    F.miyabe = allyGroup(rt, { name: '宮部の手', anchor: { x: -14, z: -7 }, facing: 0, width: 14, aggro: 10, noRout: true, order: 'hold' },
+      dress([uS(6), uA(18)], MIYABE));
     F.guns = allyGroup(rt, { name: '塀の内の鉄砲', anchor: { x: 12, z: -4 }, facing: 0, width: 12, aggro: 6, noRout: true, order: 'hold', formation: 'line' },
       dress([uS(1), uG(14)], MIYABE));
     const n = RANKS[rt.G.rank || 0]?.squad || 0;
@@ -313,6 +320,13 @@ const t08_nejirozaka = {
     const F = rt.flags;
     KIT.backTick(rt);
     depthTick(rt, dt);
+    // 味方の隊も段の目当てへ動く（kaito AQ7・BK1）：破れ口の段は宮部の手が土橋の内へ詰め、忠隣の段は藤堂の手と共に土橋の前の坂へ打って出る
+    const di = F.dp?.i ?? -1;
+    if (di !== F.allyStep) {
+      F.allyStep = di;
+      const go = di >= 6 ? { x: BREACH.x - 4, z: 26 } : di >= 3 ? { x: BREACH.x - 5, z: BREACH.z - 5 } : null;
+      if (go) for (const g of di >= 6 ? [F.miyabe, F.todo, F.relief] : [F.miyabe, F.todo]) if (g && g.count && !g.routed) { g.anchor = { ...go }; g.order = di >= 6 ? 'attack' : 'hold'; g.seekRange = Math.max(g.seekRange || 0, di >= 6 ? 40 : 12); }
+    }
     // 塀を守る段で、守る刻を十五秒過ぎても堀の外に残る島津の組は退かせる（低い気で立ち尽くし、段が終わらなかった。11/3 測り）
     const C = F.dp && F.dp.on && F.dp.cur;
     if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max - 20) for (const g of C.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
@@ -364,6 +378,16 @@ withGuard(t08_nejirozaka);
 const dpAt = (n) => (rt) => (rt.flags.dp?.i ?? -1) >= n;
 STAGES.t08_nejirozaka = [['土橋の塀で、堀を越える島津勢を突き落とす'], ['倒れた土橋の塀へ走り、破れ口の島津勢を討つ', dpAt(3)],
   ['破れ口で島津勢を防ぎ、藤堂高虎の援けを待つ', dpAt(4)], ['土橋の前の坂で、島津忠隣の手を討つ', dpAt(6)]];
+// 右上の目標5つ（goals5.js の def.goals5）：段の四つと、史実で討死した島津忠隣。「敵を何人討つ」は入れない（kaito AR1・AW3）
+const won5 = (rt) => rt.tracker?.main === true;
+const curG = (k) => (rt) => (rt.flags.dp?.on && rt.flags.dp.i === k ? rt.flags.dp.cur?.groups || [] : []);
+t08_nejirozaka.goals5 = () => [
+  { kind: 'stage', k: 0, text: STAGES.t08_nejirozaka[0][0], noun: '土橋の塀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 2, groups: curG(1) },
+  { kind: 'stage', k: 1, text: STAGES.t08_nejirozaka[1][0], noun: '破れ口', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 4, groups: curG(3) },
+  { kind: 'stage', k: 2, text: STAGES.t08_nejirozaka[2][0], noun: '破れ口', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 5, groups: curG(4) },
+  { kind: 'stage', k: 3, text: STAGES.t08_nejirozaka[3][0], noun: '島津忠隣の手', check: won5, groups: curG(6) },
+  { kind: 'boss', k: 3, name: '島津忠隣', text: '島津忠隣を自分で討つ', check: (rt) => !!rt._g5?.own.has('島津忠隣') || !!rt._g5?.dead.has('島津忠隣') },
+];
 
 export { t08_nejirozaka };
 export default t08_nejirozaka;

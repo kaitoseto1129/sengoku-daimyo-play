@@ -363,7 +363,7 @@ function drawMissionPin(rt) {
   if (talkFrame) { x = talkFrame.cx; y = talkFrame.headY - 6; }
   // 移動先は地面の足形。側面へ回る時だけ太い地面の矢印に替える。
   if (simplePin) {
-    drawGroundDestination(rt, pin, want, x, y, behind || occluded, rects);
+    drawGroundDestination(rt, pin, want, x, y, behind || occluded, rects, U.arrivalAt);
     return;
   }
   // 足元を別の場所へずらさず、札に隠れる時も端の矢印へ切り替える。
@@ -947,7 +947,7 @@ function drawJoinGround(rt, want, visible) {
   ring.material.color.setHex(want.guardBoundary ? 0xece6d6 : want.arrived ? 0xb4d79a : 0xd8ccb0);   // 白・黄の原色をやめ、生成りを半ば透かす
 }
 
-function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
+function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   if (!el._simplePin) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '80'); svg.setAttribute('height', '80');
@@ -1011,8 +1011,9 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects) {
   el._routeEdge.setAttribute('fill-rule', 'evenodd');
   const waiting = joined && want.waiting && Number.isFinite(want.progress);
   // 集合できた後は移動の矢印を出さず、隠れた輪を任務の下へ移す。
-  // 待ち始めたら任務の下へ固定し、集合地点が画面外でも残る時間を見せる。
-  const docked = joined && (outside || waiting);
+  // 森部は着いた地面で同じピンを満たし、到着と待機を結び付けてから任務の下へ移す。
+  // 地面が画面外ならすぐ移し、歩き続ける矢印に戻さない。
+  const docked = joined && (outside || waiting && (!ford || rt.t - arrivalAt >= ARRIVAL_CUE_SECONDS));
   if (docked) {
     x = W - 52;
     y = Math.min(H - 68, (rt.hud.guideOrderRect?.bottom ?? 56) + 84);

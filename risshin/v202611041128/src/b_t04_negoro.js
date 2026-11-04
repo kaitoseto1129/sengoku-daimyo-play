@@ -19,7 +19,7 @@ import { demSample } from './dem.js';
 import { distToPolyline } from './world.js';
 import { enemyGroup, allyGroup, wallLine, nm, centerOf } from './bhelp.js';
 import { dress } from './b_inabayama.js';
-import { nobori, jinmaku, tsuiji, tawara, romon, ishigaki, solidRect, solidCircle, solidSeg } from './props.js';
+import { nobori, jinmaku, shogi, tsuiji, tawara, romon, ishigaki, solidRect, solidCircle, solidSeg } from './props.js';
 import { sobo, kura, doja, hondo, shoro, monomidai } from './temple_parts.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
@@ -247,6 +247,28 @@ const t04_negoro = {
   noWake: true, noTaishoRaid: true, noDespair: true,
   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。AW 3）
   stageGoalsOnly: true,
+  // 11/4 jin（BH6・Simple）：敵を指す矢印と構えの案内は出さない。敵は頭上の▼で分かる
+  meleeGuide: () => false,
+  guardGuideAllowed: () => false,
+  // 11/4 jin（AW3・AJ）：▼は段ごとに決まった一か所に立て、言葉もその段の行いにする（「門前の坊舎」を「門へ進め」と読み違えない）
+  goalTargetOverride(rt) {
+    const F = rt.flags, s = F.step || 0;
+    if (F.ending || s < 1) return null;
+    const T = F._ngTg || (F._ngTg = {});
+    if (T.s !== s) {
+      const at = s === 1 ? YOSE : s === 2 ? (F.posts.win ? centerOf(F.posts.win) : MONZEN) : s === 3 ? P(0, -3) : TOWER_FRONT;
+      Object.assign(T, { s, x: at.x, z: at.z, unit: null, boss: false,
+        action: ['', '坊舎へ寄れ', '鉄砲衆を討て', '山門を破れ', '大塔へ進め', '大塔を守れ'][s], label: ['', '門前の坊舎', '坊舎の鉄砲衆', '山門', '大塔', '大塔の前'][s] });
+    }
+    // 鉄砲衆は参道の左右の縁に分かれて据わる。真ん中の道を指さず、近い撃ち手の持ち場（動かない）を指す
+    if (s === 2 && alive(F.posts.win) && !(T.unit && T.unit.alive)) {
+      const p = rt.player.u.pos;
+      let best = null, bd = 1e9;
+      for (const u of F.posts.win.units) if (u.alive) { const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z); if (d < bd) { bd = d; best = u; } }
+      if (best) { T.unit = best; T.x = best.pos.x; T.z = best.pos.z; }
+    }
+    return T;
+  },
   // 共通の奥の乱戦の補い（front_fill）は参道の正面に立って門前の坊舎と大門を隠すので、この戦では下の setup で参道の左右にだけ置く
   noFrontFill: true,
   introPlace: '紀伊国 根来寺（今の和歌山県岩出市根来）',
@@ -257,7 +279,8 @@ const t04_negoro = {
     height,
     moveWay: sandoWay,
     guideWay: (u, p) => (NG_RT ? sandoWay(NG_RT.army, u, p) : p),
-    guideMarkerWay: true,   // 行き先の印も、まず道の次の曲がり角（大門の口など）へ立てる
+    // 11/4 jin（AW3・BK4）：行き先の▼は段の所に固定する（道の曲がり角へ動かさない）
+    guideMarkerWay: false,
     tint(x, z, h, c) {
       const L = toL(x, z);
       // 参道は踏み固めた土、堂の前の平場は白い砂
@@ -360,7 +383,7 @@ const t04_negoro = {
       }
     }
     walls.sort((p, q) => q.drop - p.drop);
-    for (const w of walls.slice(0, MEM_TIGHT ? 8 : 28)) rt.scene.add(ishigaki(W, w.pts, { topY: w.y + 0.1, big: 1.5, maxH: 4.5, minH: 1.6 }));
+    for (const w of walls.slice(0, MEM_TIGHT ? 8 : 28)) rt.scene.add(ishigaki(W, w.pts, { topY: w.y + 0.1, big: 1.5, maxH: 8, minH: 1.6 }));   // 坂の下の側で石垣の根が宙に浮かないよう、高さの上限を 8m に（11/4）
     for (const [x, z] of [[-8, -6], [8, -6], [-10, 64], [10, 64]]) { const q = P(x, z); rt.scene.add(nobori(W, q.x, q.z, NEGORO.flag, 5)); }
     // 大門池（大門の外の溜池）
     {
@@ -387,9 +410,12 @@ const t04_negoro = {
     }
     // 門前の坊舎・蔵・大門は、田の寄せ口からでも霧に沈めない（根来の坊舎の屋根の並びが見える）
     farSight(rt.scene.children.slice(tera0), { W, ground: { ...P(0, -60), r: 70 } });
-    // 秀次の陣：出だしの後ろに陣幕と幟
-    { const q = P(-22, -158); rt.scene.add(jinmaku(W, q.x, q.z, 12, 8, 4, { mon: HASHIBA.flag })); }
-    for (const [x, z] of [[-8, -178], [8, -178], [-26, -170], [26, -170]]) { const q = P(x, z); rt.scene.add(nobori(W, q.x, q.z, HASHIBA.flag, 6)); }
+    // 秀吉の本陣：出だしの後ろ（田の中の寄せ口）に陣幕と幟。秀吉は幕の奥の床几に座る（AT3・AV7）
+    const HJ = P(-24, -176);
+    rt.scene.add(jinmaku(W, HJ.x, HJ.z, 12, 8, 4, { mon: HASHIBA.flag }));
+    const SEAT = { x: HJ.x, z: HJ.z - 2 };
+    rt.scene.add(shogi(W, SEAT.x, SEAT.z, 0, { gunbai: true, color: 0x5a1a14 }));
+    for (const [x, z] of [[-8, -190], [8, -190], [-42, -182], [26, -170]]) { const q = P(x, z); rt.scene.add(nobori(W, q.x, q.z, HASHIBA.flag, 6)); }
     { const q = P(20, -186); rt.scene.add(tawara(W, q.x, q.z, 0.3, 4)); }
 
     // ---- 羽柴勢：秀次の先手（自分が率いる）と筒井定次の手。名のある将は皆馬に乗る（AY 7） ----
@@ -398,12 +424,23 @@ const t04_negoro = {
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }], HASHIBA));
     F.tsutsuiG = allyGroup(rt, { ...H, name: '筒井定次の手', anchor: P(10, -136), facing: ROT, width: 12, aggro: 9, noRout: true, formation: 'yari', dmgMult: 0.85 },
       dress([{ type: 'samurai', n: 1, o: { name: '筒井定次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], HASHIBA));
-    F.hidetsugu = allyGroup(rt, { ...H, name: '羽柴秀次の旗本', anchor: P(-22, -154), facing: ROT, width: 8, aggro: 4, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'samurai', n: 10 }], HASHIBA));
+    F.hidetsugu = allyGroup(rt, { ...H, name: '羽柴秀次の旗本', anchor: P(-16, -152), facing: ROT, width: 8, aggro: 4, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 6 }], HASHIBA));
     F.hidetsuguU = F.hidetsugu.units[0];
-    // 紀州攻めの大将たち（battle_events_1101：秀吉・秀長・堀秀政・仙石秀久）。秀吉と秀長は陣幕の前、仙石は先手の右
-    F.hideyoshi = allyGroup(rt, { ...H, name: '羽柴秀吉の本陣', anchor: P(-30, -164), facing: ROT, width: 6, aggro: 3, seekRange: 6, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x8a6a1c } }, { type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 14 }], HASHIBA));
+    // 紀州攻めの大将たち（battle_events_1101：秀吉・秀長・堀秀政・仙石秀久）。総大将の秀吉は後ろの本陣の床几に座って動かない。
+    //   秀長は馬上で、旗本とともに本陣の前を固める。仙石は先手の右
+    F.hideyoshi = allyGroup(rt, { ...H, name: '羽柴秀吉の本陣', anchor: SEAT, facing: ROT, width: 2, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true, fullStrength: true },
+      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x8a6a1c, keep: true } }], HASHIBA));
+    F.hideyoshi.stay = true; F.hideyoshi.noAI = true;
+    for (const u of F.hideyoshi.units) {
+      u.invuln = true; u.noTarget = true;
+      u.pos.set(SEAT.x, W.heightAt(SEAT.x, SEAT.z), SEAT.z + 0.35); u.mesh.position.copy(u.pos);
+      u.jinchu = { standing: false, t: 0, soldiers: [] };   // 床几に腰を下ろしたまま（prelude の陣中の座りを使う）
+    }
+    { const q = P(-24, -164);
+      F.hatamoto = allyGroup(rt, { ...H, name: '秀吉の旗本', anchor: q, facing: ROT, width: 12, aggro: 3, seekRange: 6, order: 'hold', fixed: true, noRout: true, fullStrength: true },
+        dress([{ type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, horse: true, hat: 'kabuto_m', keep: true } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 10, o: { keep: true } }], HASHIBA));
+      F.hatamoto.stay = true; }
     // 堀秀政：坊舎の前へ馬を進め、根来の鉄砲に狙われる侍大将（AY 2「侍大将が鉄砲に狙われ、それを守る」）。討たれはせず、深手で退く
     F.horiG = allyGroup(rt, { ...H, name: '堀秀政の手', anchor: P(-14, -140), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },
       dress([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HASHIBA));

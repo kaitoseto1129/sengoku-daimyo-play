@@ -636,8 +636,8 @@ export function fieldSignsTick(rt, root) {
     // 拡大を重ねず、印の先端を本人の頭上に保つ。
     dummy.updateMatrix();
     if (foe) {
-      // 森部は傷が増えても赤を残す。討った本人の印は黒くせず閉じる。
-      const life = ford ? defeated ? 1 : Math.max(.16, Math.min(1, u.hp / (u.maxHp || 1))) : (lesson || raid) && defeated ? 0 : special ? Math.max(0, Math.min(1, u.hp / (u.maxHp || 1))) : Math.sqrt(Math.max(.16, Math.min(1, u.hp / (u.maxHp || 1))));
+      // 森部も残る命をそのまま赤の面積にする。討った瞬間に赤を満杯へ戻さない。
+      const life = (ford || lesson || raid) && defeated ? 0 : special ? Math.max(0, Math.min(1, u.hp / (u.maxHp || 1))) : Math.sqrt(Math.max(.16, Math.min(1, u.hp / (u.maxHp || 1))));
       // 届く敵の▼は最後に描き、重なった所でも上に出す。
       // 森部は赤い▼の幅で間合い、縦の伸びと中身の減りで命中を示す。
       // 森部の届く本人は横幅、命中した本人は赤い中身の減りと縦の伸びで分ける。
@@ -660,7 +660,7 @@ export function fieldSignsTick(rt, root) {
           // 森部も連打の合間に同じ本人の傷を読めるようにする。
           // 森部は一瞬の白い削れ跡を閉じ、次の一振りまでに残る赤を見せる。
           const loss = Math.min(1, Math.max(0, lossLeft / .8));
-          const before = defeated ? 0 : Math.max(life, Math.min(1, ((lesson ? u.inouHitHp : raid ? u.okeHitHp : u.moribeHitHp) || 0) / (u.maxHp || 1)));
+          const before = defeated && !ford ? 0 : Math.max(life, Math.min(1, ((lesson ? u.inouHitHp : raid ? u.okeHitHp : u.moribeHitHp) || 0) / (u.maxHp || 1)));
           c.loss = Math.sqrt(life + (before - life) * loss);
         }
         // 届く本人・命中直後・桶狭間で追う本人を、遠い兵の印で覆わせない。

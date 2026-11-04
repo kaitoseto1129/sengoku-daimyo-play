@@ -748,10 +748,10 @@ export class Player {
         const gl2 = gx * gx + gz * gz;
         const t = gl2 > .01 ? (dx * gx + dz * gz) / gl2 : -1;
         const gy = cam.position.y + ((goal.y ?? u.pos.y) + 1 - cam.position.y) * t;
-        // 桶狭間は胸だけでなく頭上の▼まで空け、笠で本人を隠さない。
-        const headY = this.rt.def.missionStyle === 'raid' && this.nearFlagEnemy?.alive
+        // 森部・桶狭間は胸から頭上の▼まで空け、本人と印を同時に見せる。
+        const headY = (this.rt.def.missionStyle === 'raid' || this.rt.def.missionStyle === 'ford') && this.nearFlagEnemy?.alive
           ? cam.position.y + (this.nearFlagEnemy.pos.y + (this.nearFlagEnemy.mounted ? 3.17 : 2.1) - cam.position.y) * t : gy;
-        const goalWidth = (this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid') && o.mounted ? 1.8 : 1.2;
+        const goalWidth = (this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid' || this.rt.def.missionStyle === 'ford') && o.mounted ? 1.8 : 1.2;
         blocksGoal = t > 0 && t < (this.nearAllyGoal ? .98 : .85) && (dx - gx * t) ** 2 + (dz - gz * t) ** 2 < goalWidth * goalWidth &&
           Math.max(gy, headY) > o.pos.y + .3 && Math.min(gy, headY) < o.pos.y + (o.mounted ? RIDE.y : 0) + 2.5;
       }
@@ -759,7 +759,7 @@ export class Player {
         // 全身を避ける戦では、行き先を塞ぐ味方にも半透明の残像を作らない。
         if (this.rt.def.nearAllyWholeOcclusion !== false) {
           this.hideNearFlag(o.mesh); this.hideNearFlag(o.human?.root); this.hideNearFlag(o.wpn);
-          if (this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid') this.hideNearFlag(o.horse);
+          if (this.rt.def.missionStyle === 'lesson' || this.rt.def.missionStyle === 'raid' || this.rt.def.missionStyle === 'ford') this.hideNearFlag(o.horse);
           this.hideNearFlag(o.flag); this.hideNearFlag(o.standardFlag);
           return;
         }

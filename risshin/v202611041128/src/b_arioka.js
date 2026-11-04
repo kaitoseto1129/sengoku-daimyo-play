@@ -1396,7 +1396,7 @@ const arioka = {
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt) => !!rt.over || !!rt.flags.ending,
-  missions: ['木戸へ寄れ', '辻へ進め', 'この敵をたおせ', 'ここを守れ', '木戸へ戻れ', '槍をそろえよ', '木戸を守り抜いた', '木戸の外へ退け'],
+  missions: ['木戸へ寄れ', '辻へ進め', 'この敵をたおせ', 'ここを守れ', '木戸へ戻れ', '土橋の前を固めよ', '木戸を守り抜いた', '木戸の外へ退け'],
   missionOf(rt) {
     const F = rt.flags, C = F.dpOn && F.dp?.cur;
     if (F.ending || rt.over) return rt.tracker.main ? 6 : 7;
@@ -1443,7 +1443,7 @@ const arioka = {
   },
   waitForIntro: true,
   compactIntro: true, introTaskFirst: true,
-  introText: '木戸が開くまで味方の後ろで待とう。開いたら組と辻へ進み、十二秒守ろう。戻れの合図で木戸の外へ戻り、敵を防ごう。',
+  introText: '竹束の後ろから木戸へ寄ろう。木戸が開いたら組と辻へ進み、十二秒押さえよう。退き太鼓で木戸の外へ戻り、寄せる荒木勢を防ごう。',
   civilianCrowd: { bands: PEOPLE_BANDS },
   noUnitContrast: true, // 実際の姿からずれる白い人型を重ねず、足元の自分の印は残す。
   compactCombatGuides: true, compactGuardGuide: true,
@@ -1457,12 +1457,14 @@ const arioka = {
   playerSignMinScale: .4, playerSignScale: .6, // 小輪の下限も指定し、共通の大きな白輪へ戻さない。
   playerSignBodyScale: 0, playerFootSignOnly: true, // 本人は足元だけで示し、重なる味方へ白い人型を載せない。
   groundFlagGuides: true, compactFlagGuide: true, compactFloorGuides: true,
-  groundAdvanceGuides: true, // 曲がり角は通れる床の短い矢印で示し、通りがかった兵を大枠で囲まない。
+  // 床の矢印は出さない。行き先は真上の▼一つ（kaito BH6）。
   compactDestinationSign: true, compactFlagEmphasis: true,
   cornerFlagFrames: true, subtleFlagFrames: true,
   namedGuideMarkers: true,
-  travelGuideLabel: () => '道の印へ進め',
-  edgeDestinationLabel: () => '道の印へ', // 実物の旗がない曲がり角を「旗へ」と呼ばない。
+  // 曲がり角の印にも、着く先の名を出す（「印へ進め」では何の印か分からない。AR1）。
+  travelGuideLabel: (rt) => (arioka.missionOf(rt) >= 4 ? '木戸へ戻れ' : rt.flags.step === 0 ? '木戸へ寄れ' : '城下の辻へ進め'),
+  goalSignAction: (rt) => arioka.missionHeading(rt),
+  edgeDestinationLabel: (rt) => (arioka.missionOf(rt) >= 4 ? '木戸へ' : '城下の辻へ'), // 実物の旗がない曲がり角を「旗へ」と呼ばない。
   hideArrivedDestination: true, // 辻や曲がり角に着いたら、本人を覆う大きな印を足元へ畳む。
   compactHoldGuide: true, // 持ち場の印は地面へ収め、兵より大きな輪を重ねない。
   softGuideRings: true, dashedGuideRings: true, nearAllyBodyOnly: true,
@@ -2302,7 +2304,7 @@ const arioka = {
     ariSiegeFront(rt);
     for (const [x, z, k] of [[CAMP.x - 14, CAMP.z - 10, 'oda'], [CAMP.x + 20, CAMP.z - 10, 'oda'], [CAMP.x - 30, GATE.z + 40, 'oda']]) rt.scene.add(nobori(W, x, z, k, 6));
     // 織田の本陣（この口の攻め手 滝川一益）と、本丸の城将 荒木久左衛門の陣所（村重は尼崎へ移っている）
-    F.honjin = camp(rt, { x: CAMP.x, z: CAMP.z + 4, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', noUma: true, general: { name: '滝川一益' }, guard: 15, reserve: 0, runTo: { x: GATE.x - 20, z: GATE.z } });
+    F.honjin = camp(rt, { x: CAMP.x, z: CAMP.z + 4, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', noUma: true, general: { name: '滝川一益' }, guard: 25, reserve: 0, runTo: { x: GATE.x - 20, z: GATE.z } });
     // 主郭の狭い庭へ十六メートルの陣幕を重ねず、館の城将と庭の旗本に分ける。人数は従来のまま。
     const castleLord = enemyGroup(rt, { fixed: true, name: '荒木久左衛門の本陣', anchor: { x: TENSHU_POS.x, z: TENSHU_POS.z + 1 }, width: 1, facing: 0, aggro: 4, morale: 100, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '荒木久左衛門', invuln: true } }], ARAKI));
@@ -2600,9 +2602,9 @@ const arioka = {
         : p.x < TOWN_X - 24
           ? { x: TORIDE_WORKS[1].x1 - 1.8, z: GATE.z + (p.z < GATE.z ? -10 : 10) }
           : { x: TOWN_X + 5, z: -14 };
-      rt.obj('ariCover', '矢印の鉄砲から、柵の陰へ退け', 'side');
+      rt.obj('ariCover', '鉄砲の撃ち手から、柵の陰へ退け', 'side');
       rt.marker('ariCover', F.coverAt, '柵の陰へ退く');
-      rt.say('滝川の組頭', '矢印の方から鉄砲じゃ。柵の陰へ横に退け', 4);
+      rt.say('滝川の組頭', '町屋の陰から鉄砲じゃ。柵の陰へ横に退け', 4);
       const paused = [];
       for (const g of F.defenders.values()) if (g.fire !== false) { paused.push(g); g.fire = false; }
       rt.after(6, () => { for (const g of paused) g.fire = true; });
@@ -2886,7 +2888,7 @@ function ariStage(o, defending) {
           const instruction = !present ? '道の印で組と辻へ進め' : enemy > friend
             ? '味方へ寄り、槍を構えよ' : secure
             ? `辻を守れ。あと${Math.max(0, Math.ceil(12 - C.inT))}秒`
-              : enemy && !advantage ? `味方と並び、辻の敵を討て。あと${enemy * 2 - friend}人`
+              : enemy && !advantage ? '味方と並び、辻の敵を討て'
                 : C.rangedEnemy ? '町屋を盾に、辻の射手を崩せ'
                 : !ready ? (C.orders.length ? '辻で新手を迎え撃て' : '辻を離れず、町屋の間の敵に備えよ') : '辻の印で槍を構えよ';
           // 横長の携帯でも、残り時間と今する事を本文から読めるようにする。
@@ -3001,13 +3003,13 @@ function rest(o) {
         C.guideAt = rt.t + .5;
         rt.obj('main', !C.arr
           ? ariReturnGuide(rt.player.u.pos)
-          : '木戸の外で槍をそろえよ', 'main', true);
+          : '土橋の前を固めよ', 'main', true);
         rt.objProgress('main', !C.arr
           ? `木戸へ戻るまで${Math.max(0, Math.ceil(ARI_RETURN_LIMIT - el))}秒`
-          : `木戸で槍をそろえよ\n合流待ちは最長あと${Math.max(0, Math.ceil(30 - (rt.t - C.homeSince)))}秒`);
+          : '土橋の前に槍を並べ、荒木勢を通すな');
         if (C.arr && !C.waitTold) {
           C.waitTold = true;
-          rt.say('滝川の組頭', 'ここで槍をそろえよ。続く味方を待つぞ', 4);
+          rt.say('滝川の組頭', 'ここで槍をそろえよ。土橋を渡らせるな', 4);
         }
       }
       return C.arr && el >= o.dur && (C.friendsHome >= 2 || rt.t - C.homeSince >= 30);
@@ -3141,7 +3143,7 @@ arioka.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '荒木軍', m
 // 渡辺勘大夫は岸の砦を退いた後に処刑されたと公記にある。この夜の討取り相手にはしない。
 arioka.famous = [];
 arioka.date = () => '天正七年十月十五日　冬・夜（復元）';
-arioka.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '合図まで待つ' : '');
+arioka.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '木戸を開けさせる' : '');
 arioka.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) arioka.open(rt); };
 arioka.history = '天正六年（1578）十月、摂津の荒木村重は信長に背いて有岡城（伊丹城）に籠もった。村重を説きに城へ入った黒田官兵衛（孝高。小寺家の家老で、羽柴秀吉のもとで働いていた）は捕らえられ、牢に入れられた。織田勢は城を囲み、一年近く戦いが続いたが、翌年九月、村重は家族と家臣を残し、わずかな供と城を抜けて尼崎城へ移った。十月十五日、城の中から織田方に内応する者が出て、滝川一益らが惣構えの内へ攻め入った。本丸はなお持ちこたえたが、十一月に城は開け渡された。官兵衛は救い出されたが（救い出された日には諸説ある）、長い牢暮らしで足が不自由になったと伝わる。村重の妻子や家臣の家族の多くは、のちに信長の命で処刑された。荒木家の紋の絵はまだ無いので、ここでは丸の旗で代えている。この戦では十月の惣構えへの攻めと木戸の確保までを扱い、本丸の開城や官兵衛の救出を同じ夜に重ねない。内応は上ろう塚で起きたと公記は記す。操作する木戸は西の上ろう塚に置く。三砦の細かな位置と城下の道は推定で、鵯塚の内応とはしない。辻の反撃と各隊の細かな位置は復元で、人数は目安である。公記の十月十五日の条に時刻や天気の記述はなく、夜の場面は復元である。 各備えの兵数と将ごとの細かな持ち場は、家中の組み方と地形から復元した目安で、史料に確かな布陣図が伝わるという意味ではない。';
 

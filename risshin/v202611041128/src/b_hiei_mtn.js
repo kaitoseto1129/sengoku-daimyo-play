@@ -2524,7 +2524,8 @@ const hiei_mtn = {
   introText: 'まず道の先の鳥居へ。味方と進む。組の兵が三分の一を割ると退く。逃げる者は追わない。',
   openingMoveLabel: '上になぞり 鳥居へ',
   meleeApproachText: '刀の印へなぞって進め',
-  meleeGuide: hieiMeleeGuide,
+  // 11/4 jin（BH6・Simple）：敵を指す矢印と「構え」の案内は出さない。敵は頭上の▼で分かる。
+  meleeGuide: () => false,
   waitGuardAllowed: hieiMeleeGuide,
   navigationEnemyAllowed: hieiMeleeGuide,
   guardGuideAllowed: () => false,
@@ -3242,7 +3243,8 @@ const hiei_mtn = {
     F.akechi = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, name: '明智の先手', anchor: { x: 158, z: 1 }, facing: -Math.PI / 2, width: 3, aggro: 9, formation: 'column', colW: 2 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], ODA));
     F.command = allyGroup(rt, { faction: 'oda', fixed: true, fullStrength: true, noGuard: true, name: '明智光秀と供の衆', anchor: { x: 174, z: 6 }, facing: -Math.PI / 2, width: 2, formation: 'column', colW: 2, aggro: 4, seekRange: 8, guard: true, guardSight: 12, guardLeash: 3, noRing: true, noRout: true },
-      dress([{ type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: false } }, { type: 'samurai', n: 2 }], ODA));
+      // 11/4 jin（AV7・AY7）：光秀は馬上で、旗本（侍4・足軽4）に守られて先手の後ろを進む。
+      dress([{ type: 'samurai', n: 2 }, { type: 'busho', n: 1, o: { name: '明智光秀', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], ODA));
     F.akeU = F.command.units.find((u) => u.name === '明智光秀');
     F.command.leader = F.akeU;
     F.akechi._command = F.command;
@@ -3259,8 +3261,8 @@ const hiei_mtn = {
     const DA = (x, z, w, d, count, flag, seed, armor = 0x2a2622) => W.addDistantArmy({ x, z, w, d, count, facing: -Math.PI / 2, armor, flagTex: flagTexture(flag), seed });
     // 山を囲む織田の各手（11/3 p100）：始まりの所（168, 6）から七十歩より遠い坂本の北と南の山すそに置く。
     //   近くに軽い兵を置くと、寄った時に消える（kaito AF・AA）。山へ登る本人が近づかない所だけにする。
-    //   北の八王子山の口に柴田、南の坂本の町の外れに丹羽、その間の湖沿いに佐久間（信長公記・言継卿記の「四方より」）。
-    F.ringArmies = [[186, -80, 'kari', 0x5a4630], [186, 84, 'sujikai', 0x3a3a3e], [150, -86, 'sakuma', 0x4a3524], [150, 92, 'oda', 0x2e2a30]]
+    //   11/4 jin（布陣図 fujin60 hieizan）：坂本の北の八王子山の口に柴田、そのさらに北に丹羽・中川、南（三井寺の方）に佐久間。
+    F.ringArmies = [[186, -80, 'kari', 0x5a4630], [170, -118, 'sujikai', 0x3a3a3e], [186, 84, 'sakuma', 0x4a3524], [150, 92, 'oda', 0x2e2a30]]
       .map(([x, z, f, a], i) => DA(x, z, 26, 12, 220, f, 1571 + i, a));
     // 11/3 p100：坂本の左右に置いた作り物の乱戦（addClash）はやめた（kaito AP9・AF：近くの作り物の大勢対大勢は出さない）。
     // 11/1 点付け（比叡山76：地面が一様で暗い土）：寄せ口の土に踏み跡・ぬかるみ・岩の根の草の斑を混ぜる（共通の stage_dress。物は足さない）。
@@ -3297,27 +3299,28 @@ const hiei_mtn = {
     // 11/3 p100：信長は南の三井寺の本陣（幕と旗本の塊）から動かず、前に出さない（kaito AR3）。下知は使番が伝える。
     //   佐久間・柴田・丹羽は、それぞれの手の塊（上の ringArmies）の前に構える。
     F.oldGen = [
-      ['佐久間信盛', { x: 150, z: -74 }, 'sakuma'], ['柴田勝家', { x: 186, z: -68 }, 'kari'], ['丹羽長秀', { x: 186, z: 72 }, 'sujikai'],
+      ['佐久間信盛', { x: 186, z: 72 }, 'sakuma'], ['柴田勝家', { x: 186, z: -68 }, 'kari'], ['丹羽長秀', { x: 170, z: -106 }, 'sujikai'],
     ].map(([name, at, flag]) => {
-      const g = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, order: 'hold', name: name + 'の手', anchor: at, facing: -Math.PI / 2, width: 2, aggro: 3, seekRange: 6 },
-        [{ type: 'busho', n: 1, o: { name, invuln: true, horse: true, flag } }, { type: 'samurai', n: 1, o: { flag } }, { type: 'ashigaru', n: 2, o: { flag } }]);
+      // 11/4 jin（AV7・AP16）：馬上の将のまわりに旗本（侍3・足軽6）。
+      const g = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, order: 'hold', name: name + 'の手', anchor: at, facing: -Math.PI / 2, width: 4, aggro: 3, seekRange: 6 },
+        [{ type: 'busho', n: 1, o: { name, invuln: true, horse: true, flag } }, { type: 'samurai', n: 3, o: { flag } }, { type: 'ashigaru', n: 6, o: { flag } }]);
       return g;
     });
     rt.after(1.5, () => { if (!F.ending) rt.say('使番', '殿の下知じゃ。山の衆は浅井・朝倉に与した。坂本から攻め上り、山の堂を焼け', 4); });
-    rt.after(10, () => { if (!F.ending && F.step < 3) rt.say('佐久間信盛', '柴田殿は八王子山の口、丹羽殿は坂本の町を押さえる。明智の手は本坂を登れ', 4); });
+    rt.after(10, () => { if (!F.ending && F.step < 3) rt.say('佐久間信盛', '柴田殿は八王子山の口、丹羽殿はその北。わしは南を押さえる。明智の手は本坂を登れ', 4); });
     this.preparePeople(rt);
     for (const g of F.foes) placePeople(rt, g);
     rt.world.setTime('day');
     rt.setPhase('brief');
     rt.banner('比叡山の麓・坂本', '鳥居の前の守りを退け、山への道を開く');
-    rt.obj('main', '坂本の道の先の鳥居へ進み、前の守りの僧兵を明智の先手と崩す', 'main');
+    rt.obj('main', '日吉社の鳥居へ進み、守りの僧兵を退けよ', 'main');
     rt.obj('civ', '逃げる僧・里の者には刃を向けない', 'side');
     rt.say('明智光秀', `${nm(rt)}、鳥居の前を抜ける。先手とともに道を開け`, 4);
     rt.after(5, () => { if (!F.ending && F.step < 2) rt.say('明智光秀', '槍を向ける者だけを退けよ。逃げる僧や里の者は追うな', 4); });
     // 坂本の肩越しは足もとの道で画面が埋まり、山の上の伽藍が画面の外にあった（10/28）。
     // 始めの五秒だけ、本坂の尾根の上から東塔の屋根の並びを見せる。見回せばすぐ本人の視点へ戻る。
     rt.after(.5, () => { if (F.step < 1 && !rt.player.lock) rt.player.cine = { x: VISTA.x, z: VISTA.z, t: 5, up: VISTA.up, vista: true, crane: true, encounter: true }; });
-    rt.marker('ake', unitPos(F.akeU), '明智光秀', {});
+    // 11/4 jin：光秀の頭上の印は出さない（行き先の▼と二つにしない。名札は武将の名で足りる）。
     // 任務の「鳥居」と印の「日吉社」が食い違っても、開戦の矢印を鳥居へ向ける。
     rt.marker('hiyoshi', { x: 148, z: -4 }, '鳥居・日吉社', { h: 3, guidePriority: 250 });
     rt.after(6, () => { if (rt.phase === 'brief') this.p1(rt); });
@@ -3396,9 +3399,9 @@ const hiei_mtn = {
     F.step = 1; F.stepT = rt.t; F.smokeCall = false; F.t1 = rt.t;
     rt.setPhase('climb');
     rt.unmark('ake');
-    hieiOrder(rt, 'susume', 'main', '先手と鳥居へ進み、守りを退けよ',
+    hieiOrder(rt, 'susume', 'main', '日吉社の鳥居へ進み、守りの僧兵を退けよ',
       '合図：法螺貝と陣太鼓＝前へ進め', '法螺貝と陣太鼓を聞け。先手と鳥居へ進み、道を開け');
-    rt.marker('hiyoshi', () => F._gHold ? null : F._gp, () => shrineGuideLabel(rt),
+    rt.marker('hiyoshi', { x: 148, z: -4 }, () => shrineGuideLabel(rt),
       { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     // 鳥居の手前で長い一列を止めず、参道へ先手を入れる。
     // 山道へ移る時は walk が一列に戻す。兵数や攻撃力は変えない。
@@ -3447,13 +3450,13 @@ const hiei_mtn = {
     F.fire.tick(0.5);
     // 上の三組は接近した時に順に下ろす。先に短い道を下り切って待たせない。
     F.nextDownT = rt.t;
-    rt.marker('stairs', () => F._gHold ? null : F._gp || P.stairsFoot, () => stairsGuideLabel(rt), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('stairs', P.stairsFoot, () => stairsGuideLabel(rt), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     // 登り口へ着いた先頭を坂本へ引き返させない。遅れた兵の道順は walk が引き継ぐ。
     walk(F.akechi, pts('honzaka', 0, 19), 2.5, (q) => { q.order = 'hold'; q.aggro = 12; });
     walk(F.akechi2, [[170, 7], [158, 5], [146, 4], [134, 3], ...pts('honzaka')], 2.4);
     walk(F.teppo, [[138, 4], ...pts('honzaka', 0, 12)], 2.4);
     // 無動寺谷への分かれ道（別ルート・退き道・伏兵の谷）：本道を外れて谷へ下りれば、僧兵の伏兵が待つ
-    rt.marker('mudoji', P.branch, '谷への分かれ道・任務は本道', { h: 2 });
+    // 11/4 jin：谷への分かれ道の印は出さない（印は行き先の▼一つだけ）。
     rt.after(14, () => {
       if (F.ending || rt.over || F.dangerAt !== undefined || F.step !== 2 || !rt.player.u.alive) return;
       rt.say('明智光秀', near(rt.player.u, P.stairsFoot, 9)
@@ -3527,7 +3530,7 @@ const hiei_mtn = {
     };
     if (signalDelay > 0) rt.after(signalDelay, charge);
     else charge();
-    rt.marker('monju', () => F._gHold ? null : F._gp, () => rallyGuideLabel(rt, P.monjuro, 6, '門の前', '文殊楼へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('monju', P.monjuro, () => rallyGuideLabel(rt, P.monjuro, 6, '門の前', '文殊楼へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     walk(F.akechi, pts('honzaka', 19, 22), 2.5, (q) => attackFrom(q, 30));
     walk(F.teppo, [...pts('honzaka', 12, 18)], 2.4, (q) => { q.order = 'hold'; q.anchor = { x: 6, z: -10 }; });
     rt.after(6, () => { if (!F.ending) F.fireJobs[1].ready = true; });
@@ -3562,7 +3565,7 @@ const hiei_mtn = {
     hieiOrder(rt, 'susume', 'main', '根本中堂の前へ進み、槍を向ける僧兵を退けよ',
       '合図：法螺貝と陣太鼓＝中堂前へ進め', '進み太鼓じゃ。門を抜け、根本中堂の前で先手をそろえよ。燃える堂から離れ、逃げる者は追うな');
     rt.objProgress('main', '根本中堂の前へ');
-    rt.marker('court', () => F._gHold ? null : F._gp, () => rallyGuideLabel(rt, P.court, 9, '中堂の前', '根本中堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('court', P.court, () => rallyGuideLabel(rt, P.court, 9, '中堂の前', '根本中堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     walk(F.akechi, pts('todo', 0, 3), 2.5, (q) => attackFrom(q, 30));
     walk(F.teppo, pts('honzaka', 18, 22), 2.4, (q) => { q.order = 'hold'; q.anchor = { x: -18, z: -8 }; });
     // 煙で道を見失った味方。救い出しの任務にはしない
@@ -3591,7 +3594,7 @@ const hiei_mtn = {
     rt.unmark('court');
     rt.obj('main', '燃える東塔を抜け、西塔へ続く山道の僧兵を明智の先手と崩す', 'main');
     hieiEnemyCue(rt, '敵の動き：西の山道から加勢');
-    rt.marker('west', () => F._gHold ? null : F._gp || P.westGate, () => rallyGuideLabel(rt, P.westGate, 12, '西の道の入口', '西塔への山道・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('west', P.westGate, () => rallyGuideLabel(rt, P.westGate, 12, '西の道の入口', '西塔への山道・道なり'), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
     walk(F.saitoG, [[-96, -30], [-86, -27], [-76, -21]], 2.6, (q) => attackFrom(q, 28));
     // 早鐘の六打と余韻の後に応じる。鐘楼が失われていれば従来の間で呼ぶ。
     const reply = () => {
@@ -3630,7 +3633,7 @@ const hiei_mtn = {
     rt.after(3, () => { if (!F.ending) rt.say('明智光秀', '火が山じゅうへ回った。東塔も西塔も燃えておる。人々が谷へ逃げる。追うな', 4); });
     hieiOrder(rt, 'susume', 'main', '浄土院を荒らさず抜け、西塔の釈迦堂の僧兵を退けよ',
       '合図：法螺貝と陣太鼓＝西塔へ進め', '進み太鼓じゃ。浄土院を荒らすな。脇の道を通り、釈迦堂の前へ列を進めよ');
-    rt.marker('west', () => F._gHold ? null : F._gp, () => rallyGuideLabel(rt, P.saito, 12, '釈迦堂の前', '釈迦堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('west', P.saito, () => rallyGuideLabel(rt, P.saito, 12, '釈迦堂の前', '釈迦堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
     F.jodoinShown = false;
     walk(F.akechi, pts('saito', 4), 2.3, (q) => attackFrom(q, 24));
     walk(F.teppo, pts('saito', 4, 7), 2.1);
@@ -3646,9 +3649,8 @@ const hiei_mtn = {
     rt.banner('横川へ', '長い山道の先、北の山中へ入る');
     hieiOrder(rt, 'susume', 'main', '逃げる人々を追わず、横川中堂の僧兵を退けよ',
       '合図：法螺貝と陣太鼓＝北の尾根道を進め', '法螺貝と陣太鼓を聞け。北の尾根道を前の列に続け。逃げる者は追うな。横川で後の隊へ引き継ぐ');
-    rt.marker('yokawa', () => F._gHold ? null : F._gp, () => rallyGuideLabel(rt, P.yokawa, 12, '横川中堂の前', '横川中堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
+    rt.marker('yokawa', P.yokawa, () => rallyGuideLabel(rt, P.yokawa, 12, '横川中堂の前', '横川中堂の前へ・道なり'), { h: 2, guidePriority: 250, guideAlways: true, routeDistance: () => hieiGuideDistance(rt) });
     walk(F.akechi, pts('yokawa'), 2.2, (q) => attackFrom(q, 24));
-    rt.marker('valley', { x: -90, z: -216 }, '六谷への逃げ道・掃討は本道', { h: 2 });
   },
 
   // 開いた道へ既存の味方が進む時だけ、本人と配下の働きを記録する。
@@ -3852,10 +3854,10 @@ const hiei_mtn = {
       rt.objProgress('main', F._gHold ? '道を見失った。来た道の味方の旗へ戻れ' : F.guideReturn.active ? '参道の印へ戻れ' : !cleared ? shrineGuideLabel(rt) : !near(u, P.trailhead, 16) ? '道しるべに沿い、本坂の登り口へ' : !guardedRoad(rt, P.trailhead) ? '登り口の敵を、味方と退けよ' : columnWait(F.akechi, '登り口'));
       if (cleared && !F.hiyoDone) {
         F.hiyoDone = true; rt.unmark('hiyoshi'); rt.bark('日吉社の前が開いた。登り口へ');
-        rt.obj('main', '明智の先手とともに、本坂の登り口の印へ進む', 'main');
+        rt.obj('main', '本坂の登り口へ進め', 'main');
         this.roadOpened(rt, 'hiyoHand', '本坂の登り口への道を開いた', '鳥居の守りを退けたな。先手は登り口へ進め！');
         // 登り口への直線は法面を横切る。鳥居から参道へ戻る近い道を指す。
-        rt.marker('trail', () => F._gHold ? null : F._gp, () => rallyGuideLabel(rt, P.trailhead, 16, '登り口', '登り口へ・道なり', 10), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
+        rt.marker('trail', P.trailhead, () => rallyGuideLabel(rt, P.trailhead, 16, '登り口', '登り口へ・道なり', 10), { h: 2, guidePriority: 250, guideAlways: true, guideNear: 1.2, routeDistance: () => hieiGuideDistance(rt) });
         // 鳥居の前で「かかれ」のまま待たせず、実際に登り口へ列を進める。
         // 参道へ戻った兵を、残った攻め道へもう一度戻さない。
         // 鳥居からの帰路は walk が兵ごとに付け、本坂の続きでは従来どおり折れを残す。

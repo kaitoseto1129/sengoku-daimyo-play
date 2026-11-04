@@ -15,6 +15,33 @@ import { stirrupParts } from './horse_tack.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { lodSwap } from './units_flags.js';
 
+// 写真から作った和鞍（.local-tools/meshy_gen.mjs：MET「Saddle (Kura)」2000.405 の写真（CC0）から Meshy で作った物。絵 512。docs/meshy_1104.md）
+// 形は前が +x・底が y=0 の箱なので、前を +z へ回し、長さ 0.5m にして馬の根元の座標（背の上）へ置く。材質は一つを使い回す
+function kuraGeometry(gl) {
+  let g = null, map = null;
+  gl.scene.updateMatrixWorld(true);
+  gl.scene.traverse((o) => {
+    if (!o.isMesh || g) return;
+    const src = o.geometry, n = src.attributes.position.count, p = src.attributes.position, t = src.attributes.uv;
+    // 量子化した形は、行列を掛ける前に小数へ戻す
+    const P = new Float32Array(n * 3), U = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) { P[i * 3] = p.getX(i); P[i * 3 + 1] = p.getY(i); P[i * 3 + 2] = p.getZ(i); if (t) { U[i * 2] = t.getX(i); U[i * 2 + 1] = t.getY(i); } }
+    g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+    if (src.index) g.setIndex(Array.from(src.index.array));
+    g.applyMatrix4(o.matrixWorld);
+    map = o.material.map;
+  });
+  g.rotateY(-Math.PI / 2);
+  g.computeBoundingBox();
+  const b = g.boundingBox, s = 0.5 / (b.max.z - b.min.z);
+  g.translate(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2);
+  g.scale(s, s, s);
+  g.translate(0, 1.15, -0.005);
+  g.computeVertexNormals(); g.computeBoundingSphere();
+  if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; }
+  return { geo: g, mat: new THREE.MeshStandardMaterial({ map, roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide }) };
+}
 let hrLoading = null;
 function loadHorse() {
   if (hrLoading) return hrLoading;
@@ -29,6 +56,9 @@ function loadHorse() {
     const tex = {};
     names.forEach((n, i) => { tex[n] = ts[i]; });
     prepHorse(gl, tex);
+    // 和鞍の前輪・後輪・居木を、写真から作った本物の鞍の形に（読めなければ今の組んだ鞍のまま）
+    // 見比べる時：?oldkura で今までの組んだ鞍だけにする
+    if (!/[?&]oldkura\b/.test(location.search)) try { HR.kura = kuraGeometry(await new GLTFLoader().parseAsync((await assetBytes('meshy_kura')).buffer, '')); } catch (e) { console.warn('写真から作った鞍を読めませんでした（組んだ鞍で描きます）', e); }
     // 毛色と家ごとの馬具の色の材質を先に作っておく（戦の中で new しない。形の下ごしらえは一つを使い回す）
     try {
       const { COATS, horseStyleFor, FACTION } = await import('./units.js');

@@ -717,10 +717,16 @@ const okawachi = {
   noPlayerFoot: true,
   quietMiss: true,
   missionPinCaption: '',
+  goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の旗・輪・枠を重ねない。AV15・BH6）
+  // 頭上の▼の添え字も、行く場所と行いを一つに（「印へ進め」にしない）。
+  goalSignAction: (rt) => {
+    const s = rt.flags.step;
+    return s >= 4 ? '南の柵を守れ' : s >= 3 ? '南の陣へ退け' : s >= 2 ? '坂の旗を守れ' : '搦手の竹束へ';
+  },
   missionDetail: () => '',
   missionStatus: () => '',
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
-  missions: ['ここで太鼓を待て', '味方と進め', '▼の城兵を倒せ', 'ここを守れ', '陣へ戻れ', '柵を守れ'],
+  missions: ['搦手の坂下の竹束に付け', '竹束と搦手の木戸へ寄せよ', '坂の旗で打って出た城兵を止めよ', '坂の旗で退き口を守れ', '追っ手を防ぎ、南の陣へ退け', '南の柵で兵糧の道を封じよ'],
   missionOf(rt) {
     const F = rt.flags;
     return F.step === 4 ? 5 : F.step === 3 ? 4 : F.step === 2.5 ? 3 :
@@ -734,8 +740,8 @@ const okawachi = {
         rt.flags.chaseVoiceUntil || 0, rt.flags.wetGunUntil || 0))
       return this.taskLabel(rt, this.missions[this.missionOf(rt)]);
     if ((rt.flags.step === 0 || rt.flags.step === 1 && !rt.flags.assaultMoving) && !okAtWaitCover(rt)) return '竹束の陰へ';
-    if (rt.flags.step === 3 && Math.hypot(rt.player.u.pos.x - CAMP_LINE.x, rt.player.u.pos.z - CAMP_LINE.z) <= 8) return '陣で次の下知を待て';
-    if (rt.flags.step === 4 && !okAtSouthLine(rt)) return '柵へ進め';
+    if (rt.flags.step === 3 && Math.hypot(rt.player.u.pos.x - CAMP_LINE.x, rt.player.u.pos.z - CAMP_LINE.z) <= 8) return '南の陣で組を立て直し、追っ手を防げ';
+    if (rt.flags.step === 4 && !okAtSouthLine(rt)) return '南の柵へ進め';
     return this.missions[this.missionOf(rt)];
   },
   enemyOrder: (rt) => okawachi.missionHeading(rt),
@@ -743,7 +749,8 @@ const okawachi = {
   mapCommanderAlways: true,
   commanderSignTarget: (rt) => !rt.flags.ending && rt.flags.keep?.lord?.alive ? rt.flags.keep.lord : null,
   commanderTarget(rt) { return rt.flags.keep?.reached ? this.commanderSignTarget(rt) : null; },
-  missionSignTarget: (rt) => rt.flags.step === 2 ? okNearestFoe(rt) : null,
+  // 行き先は坂の旗に固定し、▼は一つだけ。城兵は頭上の敵の印で分かる（AW3・BH6）。
+  missionSignTarget: () => null,
   missionPin(rt) {
     const F = rt.flags;
     if (rt.over || F.ending) return null;
@@ -752,9 +759,7 @@ const okawachi = {
     q.waiting = false; q.arrived = false; q.route = false; q.always = true; q.silent = true;
     q.r = 6; q.hide = 0;
     let at;
-    if (F.step === 2 && (q.unit = okNearestFoe(rt))) {
-      at = q.unit.pos; q.enemy = true; q.approach = true; q.r = q.hide = .2;
-    } else if (F.step === 3) at = CAMP_LINE;
+    if (F.step === 3) at = CAMP_LINE;
     else if (F.step === 4) { at = SOUTH_BLOCK; q.r = 18; q.defend = q.waiting = true; }
     else if (F.step >= 2) { at = FRONT; q.r = 18; q.defend = q.waiting = true; }
     else {
@@ -895,7 +900,7 @@ const okawachi = {
       const C = rt.flags.dp?.cur;
       // 旗の範囲に入っただけでは、槍の列に合流したことにはしない。
       if (!C || C.lineCount < 3) {
-        return C ? okShortLineOrder(rt, C) : '柵の旗で番の組を待て';
+        return C ? okShortLineOrder(rt, C) : '南の柵の旗で番の組と槍をそろえよ';
       }
       if (!C.holding) return '南の柵の味方へ寄り、列を守れ';
       if (C.repelling) return '城兵を追わず、柵の列を守れ';
@@ -1332,7 +1337,7 @@ const okawachi = {
 
     // ---- 丹羽長秀の手（自分の持ち場）、池田・稲葉の手、退路の支援、竹束を進める組 ----
     F.niwa = allyGroup(rt, { fixed: true, formation: 'yari', name: '丹羽長秀の手', anchor: { x: 0, z: 40 }, facing: Math.PI, width: 14, aggro: 10, noRout: false },
-      okDress([{ type: 'busho', n: 1, o: { name: '丹羽長秀', x: 0, z: 47, horse: false, invuln: true, hat: 'kabuto_w', haori: 0x2a3a2a } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 4 }, { type: 'bow', n: 2 }], ODA));
+      okDress([{ type: 'busho', n: 1, o: { name: '丹羽長秀', x: 0, z: 47, horse: true, invuln: true, hat: 'kabuto_w', haori: 0x2a3a2a } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 4 }, { type: 'bow', n: 2 }], ODA));
     F.niwaU = F.niwa.units[0];
     // 巻二が丹羽の攻め口に記す近松豊前・神戸伯耆を、既存の侍で示す。
     // 高だけ二人目にも名を付け、共通の人数調整・能力・具足・立ち位置を保つ。
@@ -1346,9 +1351,9 @@ const okawachi = {
       niwaSamuraiN++;
     }
     F.ikeda = allyGroup(rt, { fixed: true, formation: 'yari', name: '池田恒興の手', anchor: { x: -26, z: 44 }, facing: Math.PI, width: 12, aggro: 10, noRout: false },
-      okDress([{ type: 'samurai', n: 1, o: { name: '池田恒興', x: -26, z: 51, horse: false, invuln: true, hat: 'kabuto_m', haori: 0x3a2a2a } }, { type: 'ashigaru', n: 14 }], ODA));
+      okDress([{ type: 'busho', n: 1, o: { name: '池田恒興', x: -26, z: 51, horse: true, invuln: true, hat: 'kabuto_m', haori: 0x3a2a2a } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }], ODA));
     F.inaba = allyGroup(rt, { fixed: true, formation: 'yari', name: '稲葉良通の手', anchor: { x: 26, z: 44 }, facing: Math.PI, width: 12, aggro: 10, noRout: false },
-      okDress([{ type: 'samurai', n: 1, o: { name: '稲葉良通', x: 26, z: 51, horse: false, invuln: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 14 }], { ...ODA, flag: 'inaba' }));
+      okDress([{ type: 'busho', n: 1, o: { name: '稲葉良通', x: 26, z: 51, horse: true, invuln: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }], { ...ODA, flag: 'inaba' }));
     F.ram = allyGroup(rt, { fixed: true, formation: 'yari', name: '竹束を進める組', anchor: { x: 12, z: 54 }, facing: Math.PI, width: 5, aggro: 3, noRout: false, formation: 'column' },
       okDress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], ODA));
     // 夜攻めを命じられた三将と、南の囲みの滝川を混同しない。
@@ -1439,7 +1444,9 @@ const okawachi = {
     // ---- 織田の本陣（東の山。信長）と、城外の四方の囲みの陣（軽い作り。一つのキャンプに集めない） ----
     okRunnerBridge(rt);
     F.jinOdaCamp = camp(rt, { x: HONJIN.x, z: HONJIN.z, facing: -Math.PI / 2, team: 0, faction: 'oda', mon: 'oda', armor: ODA.armor, lace: ODA.lace,
-      general: { name: '織田信長' }, guard: 15, reserve: 0, runTo: { x: 148, z: -190 } });
+      general: { name: '織田信長' }, guard: 25, reserve: 0, runTo: { x: 148, z: -190 } });
+    // 総大将は東の山の本陣で床几に座る（前に出ない。AT3・AV7）。
+    if (F.jinOdaCamp.general) F.jinOdaCamp.general._crouch = true;
     // 巻二の御座所の番は馬廻・小姓・弓衆・鉄砲衆。既存の旗本の侍で前二者を示す。
     // 高だけ六人を三人ずつ呼び分ける。人数・配分は推定で、兵種・能力・具足は保つ。
     // 馬廻という役目を騎馬兵への変更と取り違えず、山上の本陣では従来どおり徒歩で控える。
@@ -1498,7 +1505,7 @@ const okawachi = {
         const pts = b.light.take(x, z, headcount, 1e9, null, b._canSpawn);
         if (pts.length !== headcount) { for (const q of pts) b.light.give(q.i); continue; }
         b.nominal -= headcount;
-        const troops = [{ type: 'busho', n: 1, o: { name: names[i], x, z, horse: false, invuln: true } },
+        const troops = [{ type: 'busho', n: 1, o: { name: names[i], x, z, horse: true, invuln: true } },
           { type: 'samurai', n: 1, o: { x: x - sx * 2, z: z - sz * 2 } }];
         if (headcount === 3) troops.push({ type: 'samurai', n: 1, o: { x: x + sx * 2, z: z + sz * 2 } });
         const g = allyGroup(rt, { fixed: true, name: names[i] + 'の旗本', anchor: { x, z }, facing: b.facing, width: 4, formation: 'yari', aggro: 8, noRout: false },

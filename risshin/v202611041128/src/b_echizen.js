@@ -1392,6 +1392,16 @@ echizen.setup = function (rt) {
   // 11/4 p100_echizen：八月十五日、信長は敦賀にいて峠へは来ていない（翌十六日に府中へ。信長公記）。
   //   前は縮める前の座標（z -198）で一揆の本陣の脇に信長の本陣が立っていたので外した。
   rt.after(6, () => { if (!rt.over && !rt.flags.ending) rt.say('組頭', '信長様は敦賀におわす。今日、峠の一揆を討って越前へ入る', 4.5); });
+  // 11/4 jin_echizen（AV7・AW6・BH2）：峠口の二陣は滝川一益・蜂屋頼隆（敦賀の歴史）。馬上で、侍の旗本に囲まれて先手の後ろの本道に控え、
+  //   観音丸の木戸が開いたら郭へ押し入る。峠口の大将の丹羽長秀は後ろの本陣で座る（echizen.taisho）。
+  { const g0 = rt.flags.gateKannon?.struct?.seg, gx = g0 ? (g0[0] + g0[2]) / 2 : GATE_KANNON.x, gz = g0 ? (g0[1] + g0[3]) / 2 : GATE_KANNON.z;
+    // 先手の真後ろ（木戸から見て先手の向こう十四歩）。本道の曲がりの外へ出さない
+    const a0 = rt.flags.ake?.pos || { x: gx, z: gz - 12 }, al = Math.hypot(a0.x - gx, a0.z - gz) || 1;
+    const back = [a0.x + (a0.x - gx) / al * 14, a0.z + (a0.z - gz) / al * 14];
+    rt.flags.niJin = [['滝川一益', -4], ['蜂屋頼隆', 4]].map(([name, ox]) => allyGroup(rt,
+      { faction: 'oda', name: `${name}の手`, fixed: true, fullStrength: true, noGuard: true, anchor: { x: back[0] + ox, z: back[1] }, facing: 0, width: 3, aggro: 6, order: 'hold' },
+      [{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: 6 }]));
+    rt.flags.niJinGate = { x: gx, z: gz }; }
 
   const opening = rt.flags.ake.pos;
   rt.flags.passOpeningPost = { x: opening.x, z: opening.z };
@@ -2020,12 +2030,13 @@ echizen.update = function (rt, dt) {
   const openingGuard = rt.flags.roadGuards?.[0];
   if (!rt.flags.step && openingGuard && openingGuard.aliveNominal() <= 0) this.assault(rt);
   {
-    // 観音丸は味方の寄せだけでは落ちない：本人が郭の中で30秒戦い、かつ開戦から240秒たつまでは、押さえの時間が数え始まらない（4分以上の戦にする）。
+    // 観音丸は味方の寄せだけでは落ちない：本人が郭の中で30秒戦うまでは、押さえの時間が数え始まらない。
+    // 11/4 jin_echizen（AP8・BA3）：前は開戦から240秒まで待たせ、守兵のいない郭で二分立ち尽くしていた。待ちの時計はやめ、郭の守兵との斬り合いで長さを作る。
     const FF = rt.flags, kz = FF.SZ?.byId?.kannon, pu = rt.player.u;
     if (kz && !FF.kannonFell) {
       if (kz.test(pu.pos.x, pu.pos.z) && pu.alive) FF.kannonIn = (FF.kannonIn || 0) + dt;
       if (FF.kannonHold0 == null) FF.kannonHold0 = kz.hold;
-      const open = (FF.kannonIn || 0) >= 30 && rt.t >= 240;
+      const open = (FF.kannonIn || 0) >= 30;
       kz.hold = open ? FF.kannonHold0 : 1e9;
       if (!open) kz.holdT = 0;
       // 11/1：郭の内を味方が三倍で押さえたら、本道から駆け下りた小勢の残りは踏みとどまらず退く（郭が空かず時間切れになった）。
@@ -2071,6 +2082,16 @@ echizen.update = function (rt, dt) {
   }
   gatePress(rt);
   echizenTsukeiri(rt);
+  // 二陣（滝川・蜂屋）は木戸が開いたら郭の中へ押し入る
+  if (F.niJin && !F.niJinGo && F.gateKannon && !F.gateKannon.struct.alive) {
+    F.niJinGo = true;
+    const c = F.SZ?.byId?.kannon?.pos, G = F.niJinGate;
+    F.niJin.forEach((g, i) => {
+      g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.aggro = 10;
+      g.path = [[G.x + (i ? 2 : -2), G.z - 4], [G.x + (i ? 2 : -2), G.z + 8], ...(c ? [[c.x * 0.4 + G.x * 0.6 + (i ? 4 : -4), c.z * 0.4 + G.z * 0.6]] : [])];
+      g.onArrive = (q) => { q.order = 'hold'; };
+    });
+  }
   // 木戸を破られた郭の守りは、長くは踏みとどまらない（一揆勢は峠の奥へ退いた）。
   // 破れてから四十秒で残りを崩して奥へ退かせ、一戦を四〜七分に収める。人数と斬り合いは減らさない。
   for (const [gate, fell, key] of [[F.gateKannon, F.kannonFell, 'kannon'], [F.gateKinome, F.souFell, 'kinome_sou']]) {
@@ -2330,7 +2351,7 @@ function echizenAdvance(rt) {
     return g;
   };
   F.echUp = [
-    up('柴田勝家の手', 3, [{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 3 }]),
+    up('柴田勝家の手', 3, [{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 6 }]),
     up('府中への先手', -3, [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, weapon: 'spear' } }, { type: 'busho', n: 1, o: { name: '佐々成政', invuln: true } },
       { type: 'busho', n: 1, o: { name: '不破光治', invuln: true } }, { type: 'ashigaru', n: 3 }]),
   ];
@@ -2364,5 +2385,8 @@ function echizenWin(rt) {
   rt.finish({ scriptedEnd: true }, 12);
 }
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。海側の明智・羽柴は出さない。杉浦玄任を足すと bot が負けたので出さない。
-echizen.bushou = ['柴田勝家', '丹羽長秀', '滝川一益'];
+// 11/4 jin_echizen：名簿から足すと徒で旗本も無く本人の脇に立っていた（AV7）。峠口の将は setup で馬上・旗本付きで置く（滝川・蜂屋は二陣、柴田は観音丸の後に上がる）。
+echizen.bushou = [];
+// 峠口の大将は丹羽長秀（後ろの本陣で座る）。信長は敦賀、下間頼照は杉津口にいて峠にはいない（docs/battle_refs/echizen.md）
+echizen.taisho = { a: { name: '丹羽長秀' }, b: null };
 export { echizen };

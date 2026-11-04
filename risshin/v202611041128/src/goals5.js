@@ -134,7 +134,7 @@ const OWN = {
     { kind: 'stage', k: 4, text: '本丸の松田康長の旗本を崩す', noun: '松田康長の旗本', count: () => null, groups: (rt) => (rt.flags.hon ? [rt.flags.hon] : []), check: won },
   ],
   // 越前・木ノ芽峠（11/4 p100_echizen）：山中城の付け入りの型。木戸前へ打って出た一揆勢を迎え撃ち → 退く敵について木戸を抜ける
-  //   （追いすがれなければ掛矢で破る）→ 観音丸の郭の守兵を討つ → 府中へ逃げる一揆勢を北口まで追う。敵を何人討つは一つだけ
+  //   （追いすがれなければ掛矢で破る）→ 観音丸の郭の守兵を討つ → 府中へ逃げる一揆勢を北口まで追う。敵を何人討つは入れない
   echizen: () => {
     const F = (rt) => rt.flags;
     const gateUp = (rt) => !!F(rt).gateKannon?.struct?.alive;
@@ -146,7 +146,7 @@ const OWN = {
       { kind: 'stage', k: 1, text: '観音丸の郭の守兵を討つ', noun: '観音丸の守兵', check: (rt) => won(rt) || !!F(rt).kannonFell,
         groups: (rt) => [F(rt).d?.kannon?.real].filter(Boolean) },
       { kind: 'stage', k: 1, text: '逃げる一揆勢を観音丸の北口まで追う', noun: '観音丸の北口', check: won, place: (rt) => F(rt).echExitAt || null },
-      killGoal(KILL_N),
+      // 11/4 jin_echizen（AW3）：「敵を何人討つ」は入れない
     ];
   },
 };

@@ -312,7 +312,9 @@ function dressHorse(R, st) {
   const T = tackGeometry(st);
   for (const [bn, key] of [[SEAT_B, 'seat'], [CHEST_B, 'chest'], [HIP_B, 'hip']]) {
     const [g, mt, sk] = T[key];
-    for (const [geo, mat] of [[g, TACK_GLOSS], [mt, TACK_MATTE], [sk, TACK_SILK]]) {
+    // 骨の入った馬の前輪・後輪・居木は、写真から作った本物の鞍（humans_horses.js の HR.kura。絵つき）に替える。遠くの馬は組んだ鞍のまま
+    const real = key === 'seat' && HR.kura;
+    for (const [geo, mat] of [real ? [HR.kura.geo, HR.kura.mat] : [g, TACK_GLOSS], [mt, TACK_MATTE], [sk, TACK_SILK]]) {
       if (!geo) continue;
       const m = new THREE.Mesh(geo, mat);
       // 骨の子に：骨の立ち姿の逆（骨は根元の座標で HS 倍されているので、その分も戻す）
