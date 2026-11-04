@@ -62,6 +62,9 @@ const HONGAN = { x: 170, z: 170 };          // 石山本願寺（遠く）
 // 詰め陣の幕は南向き。北から退く兵は、幕の裏へ入らず外の守兵へ合流する。
 // 案内・到着の範囲・遊び手を、実際の守兵の持ち場へそろえる。
 const ODA_JOIN = { x: ODA_HONJIN.x, z: ODA_HONJIN.z - 16 };
+// 史実の順（入江を埋め竹束で寄せる → 九月十二日の総攻め・打って出た三好勢 → 砦の口 → 十二〜十四日の本願寺の寄せ・春日井堤 → 二十三日の退陣）。
+const NODA_STAGE_TEXT = ['堤の上で、前田利家の下知を受けよ', '竹束を押し、浅瀬の岸へ据えよ', '浅瀬の入口で、打って出た岩成友通の槍を防げ',
+  '浅瀬を渡り、野田砦の口で槍を揃えよ', '春日井堤へ戻り、本願寺の門徒を防げ', '信長の本陣へ退け', '信長の本陣へ退いた'];
 // 河口の在所と本願寺の門前。村・町の存在を踏まえ、細かな位置・人数・道筋は推定復元。
 // 大阪市福島区の沿革：https://www.city.osaka.lg.jp/fukushima/page/0000224266.html
 // 二城の城下へ現代の市街地を置かず、既存の南岸の家並みと南東の堂を使う。
@@ -2105,6 +2108,8 @@ function installNodaWater(rt) {
   rt.dispose = function () { for (const item of owned) item.dispose(); return dispose.call(this); };
 }
 
+// 任務の札（rt.obj）も段の一行と同じ字にする（案内の字で書き換えない。AW3）。
+const nodaGoal = (rt) => NODA_STAGE_TEXT[nodafukushima.missionOf(rt)];
 const nodafukushima = {
   // 稲生の型。兵数・寄せの五組は変えず、任務と行き先だけを一つにする。
   missionSingleLine: true,
@@ -2120,33 +2125,22 @@ const nodafukushima = {
   missionStatus: () => '',
   missionTimeText: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|撤退|退き口を失|間に合わなかった/.test(text),
-  missions: ['味方と集まれ', '竹束を押せ', '▼の敵を倒せ', '砦前に集まれ', 'ここを守れ', '味方の列へ退け', '味方と合流した'],
+  // 11/4 jin（AR1・AW3・BA3）：史実の順（公記巻三）の一行を段ごとに固定する。「▼」「印」の字と、待つだけの言葉は使わない。
+  missions: NODA_STAGE_TEXT,
+  // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。行き先は頭上の▼一つだけ。
+  goalSignBare: true, goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,
   missionOf(rt) {
     const F = rt.flags;
-    if (F.ending) return 6;
-    if (F.retreating) return 5;
-    if (F.step === 3) return 4;
-    if (F.step === 2.5 || F.step === 2 && gone(F.sally)) return 3;
-    return F.step === 2 ? 2 : F.step === 1 ? 1 : 0;
+    const k = F.ending ? 6 : F.retreating ? 5 : F.step === 3 ? 4
+      : F.step === 2.5 || F.step === 2 && gone(F.sally) ? 3 : F.step === 2 ? 2 : F.step === 1 ? 1 : 0;
+    // 段は戻さない（前の一行へ戻して迷わせない）。
+    F.nodaStage = Math.max(F.nodaStage || 0, k);
+    return F.nodaStage;
   },
   missionHeading(rt) {
     const F = rt.flags, stage = this.missionOf(rt);
-    if (stage === 6 && !rt.tracker.main) return '戦を終える';
-    if (!F.retreating && !F.ending && F.recoveryShown && F.recoveryFound) {
-      for (const order of rt.objectives) if (order.id === 'main' && order.state !== 'done' && order.state !== 'fail') return order.text;
-    }
-    if (stage === 1) {
-      if (!F.tabaReady) return '竹束の置き場を選べ';
-      if (rt.G.lord || F.tabaDone?.[F.pickIndex]) return 'ここを守れ';
-      return F.carry ? '竹束を印へ押せ' : '竹束を押せ';
-    }
-    // 生存状態から読むので、討ち取り・到着のコマに古い下知を残さない。
-    if (stage === 2 && !this.missionSignTarget(rt)) return Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18 ? '味方を待て' : '砦前に集まれ';
-    if (stage === 3 && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z + 37) < 18) return '味方を待て';
-    if (stage === 5) {
-      const to = F.retreatAlt ? retreatPoint(rt) : ODA_JOIN;
-      if (to && Math.hypot(rt.player.u.pos.x - to.x, rt.player.u.pos.z - to.z) < (F.retreatAlt ? 6 : 10)) return '味方と合流せよ';
-    }
+    if (stage === 6 && !rt.tracker.main) return '信長の本陣へ退けなかった';
+    if (stage === 1 && rt.G.lord && !F.tabaReady) return '竹束の置き場を、中央か西か選べ';
     return this.missions[stage];
   },
   // 落城させない戦なので、砦の大将の印と、浅瀬で倒す相手を分ける。
@@ -2398,7 +2392,7 @@ const nodafukushima = {
   introTaskFirst: true,
   introKeepControls: true, // 開戦前は長押しの説明を省かず、そのまま読ませる。
   keepOpeningTaskLabel: true, // 開始直後も「竹束の印へ」の下知を残し、指の操作だけの札にしない。
-  introText: '「竹束を押す」を長押しし、道の印へ。据える印でも長押し。二束は味方が運ぶ。太鼓の後は、上の命令に従え。',
+  introText: '三好三人衆が野田・福島の砦に籠もる。竹束で寄せて浅瀬を渡り、本願寺の早鐘の後は春日井堤を守れ。',
   // 夜の任務には「退き口」が入るが、撤退の下知までは堤で斬り合う。
   // 寄せる口と新手はこの戦の道順で決める。本人の周囲へ共通の物見を足さない。
   frontlineDensity: { gap: false, active: (rt) => !rt.flags.retreating && (rt.flags.step === 2 || rt.flags.step === 3),
@@ -2924,12 +2918,12 @@ const nodafukushima = {
     bellTower.position.set(HONGAN.x - 20, W.heightAt(HONGAN.x - 20, HONGAN.z - 24), HONGAN.z - 24); rt.scene.add(bellTower);
     for (const [x, z] of [[HONGAN.x - 20, HONGAN.z - 12], [HONGAN.x - 6, HONGAN.z - 20], [HONGAN.x + 8, HONGAN.z - 26]]) rt.scene.add(nobori(W, x, z, 'sagarifuji', 7));
     // ---- 織田勢：前田利家の手（自分の持ち場）、佐々成政の手、鉄砲衆 ----
-    // 浅瀬と竹束の間で槍を揃える先頭の将は徒立ち。本陣・控えの騎馬は残す。
+    // 11/4 jin（AP16・AV7）：名のある将は馬上で、侍の近習に守られる。
     F.maeda = allyGroup(rt, { fixed: true, name: '前田利家の手', anchor: { x: 0, z: LEVEE_Z + 6 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '前田利家', horse: false, invuln: true, allyOk: true } }, { type: 'ashigaru', n: 14 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '前田利家', horse: true, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }], ODA));
     F.maedaU = F.maeda.units[0];
     F.sassa = allyGroup(rt, { fixed: true, name: '佐々成政の手', anchor: { x: -30, z: LEVEE_Z + 6 }, facing: Math.PI, width: 14, aggro: 8, noRout: true, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1, o: { name: '佐々成政', horse: false, invuln: true, allyOk: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 2 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '佐々成政', horse: true, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], ODA));
     F.teppo = allyGroup(rt, { fixed: true, formation: 'line', name: '織田の鉄砲衆', anchor: { x: 26, z: LEVEE_Z + 2 }, facing: Math.PI, width: 12, aggro: 40, noRout: true },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 12 }], ODA));
     F.oda = [F.maeda, F.sassa, F.teppo];
@@ -2940,8 +2934,8 @@ const nodafukushima = {
     F.fortGun = enemyGroup(rt, { faction: 'miyoshi', name: '砦の鉄砲', anchor: { x: 0, z: FORT_Z - 2.5 }, facing: 0, width: 30, aggro: 50, noRout: true, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
       dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 8 }, { type: 'bow', n: 3 }], MIYOSHI));
     // ---- 陣と旗・竹束の置き場 ----
-    // 南東の退き口は名の不明な陣代と守兵。信長・義昭の海老江詰陣は二城の北で、この局地の外。
-    F.campA = camp(rt, { x: ODA_HONJIN.x, z: ODA_HONJIN.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田の陣代', hat: 'kabuto_m', haori: 0x8a1a14 }, guard: 15, reserve: 300, runTo: { x: 0, z: LEVEE_Z + 10 } });
+    // 南東の詰め陣は信長の本陣（天王寺から天満が森へ移した陣。位置は概略）。総大将は前へ出ず、幕の前の床几に座る（AV7・AR3）。
+    F.campA = camp(rt, { x: ODA_HONJIN.x, z: ODA_HONJIN.z, facing: Math.PI, team: 0, faction: 'oda', mon: 'oda', general: { name: '織田信長', hat: 'kabuto_m', haori: 0x8a1a14, flag: 'eiraku' }, guard: 15, reserve: 300, runTo: { x: 0, z: LEVEE_Z + 10 } });
     rt.scene.add(tawara(W, ODA_HONJIN.x - 14, ODA_HONJIN.z - 14, 0.4, 6));
     // 公記の「入江を埋めさせ、土手を築き」：浅瀬は織田が埋めて寄せた道。両の縁を土俵三段で留める（見た目だけ。当たりは置かない。一つの束で描く）。
     {
@@ -2972,21 +2966,17 @@ const nodafukushima = {
       const m = takeTaba(W, x, z, Math.PI + (x % 3) * 0.02); registerTabaCamera(rt, m); rt.scene.add(m);
       (F.decorTabas || (F.decorTabas = [])).push(m);
     }
-    // ---- 大軍（軽い作り）：詰め陣の後ろの控え ----
-    const DA = (x, z, w, d, count, facing, armor, tex, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: tex, seed });
-    DA(40, 90, 36, 14, 150, Math.PI, 0x2a2622, flagTexture('oda'), 15703);   // 11/2：東の浅瀬の後詰めの分を、開戦の画面に入らない後ろの控えから減らす（重さを前とそろえる）
-    // 堤の手前に構える織田の手（見た目だけ。起こさない）：竹束を据える所の左右に、川を挟んで砦と睨み合う大軍
-    for (const [x, z, s, k] of [[-18, -5, 15704, 'oda'], [20, -4, 15705, 'eiraku']]) W.addDistantArmy({ x, z, w: 12, d: 10, count: 100, facing: Math.PI, armor: 0x2a2622, team: 0, flagTex: flagTexture(k), seed: s }).army.noWake = true;
+    // 11/4 jin（AF・AV4・AP10）：堤の左右と詰め陣の後ろの、起きない絵の大軍三つをやめた（本物の備えは butai と本陣の控え）。
     for (const [x, z] of [[-20, 60], [24, 64]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // ---- 部隊（butai.js）：囲む織田の手・野田と福島の三好勢。本物はほんの少し（遠くで戦う軽い作り。携帯の重さのため名目も小さめ） ----
     const mk = (o, real) => capReal(makeButai(rt, { real, lightWidth: 24, lightDepth: 18, ...o }), real);
     F.bOdaW = mk({ name: '柴田勝家の手', general: '柴田勝家', team: 0, faction: 'oda', kind: 'ashigaru', nominal: 160, armor: 0x2a2622, flag: 'oda', at: { x: -82, z: 10 }, facing: Math.PI }, 0);
     F.bOdaE = mk({ name: '根来・雑賀の鉄砲衆', team: 0, faction: 'oda', kind: 'gun', nominal: 140, armor: 0x2a2622, flag: 'eiraku', at: { x: 84, z: 6 }, facing: Math.PI }, 0);
     F.bOdaS = mk({ name: '佐久間信盛の手', general: '佐久間信盛', team: 0, faction: 'oda', kind: 'ashigaru', nominal: 150, armor: 0x2a2622, flag: 'oda', at: { x: 56, z: 34 }, facing: Math.PI * 0.75 }, 0);
-    F.bNoda = mk({ name: '野田砦の三好勢（三好長逸）（仮）', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 100, armor: 0x35382c, flag: 'miyoshi', at: { x: 0, z: -63 }, lightWidth: 26, lightDepth: 10, facing: 0 }, 0);
-    F.bFuku = mk({ name: '福島砦の三好勢（三好宗渭）（仮）', general: '三好宗渭', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 100, lightWidth: 20, lightDepth: 16, armor: 0x35382c, flag: 'miyoshi', at: { x: -122, z: -74 }, facing: 0.15 }, 0);
+    F.bNoda = mk({ name: '野田砦の三好勢', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 100, armor: 0x35382c, flag: 'miyoshi', at: { x: 0, z: -63 }, lightWidth: 26, lightDepth: 10, facing: 0 }, 0);
+    F.bFuku = mk({ name: '福島砦の三好勢', general: '三好宗渭', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 100, lightWidth: 20, lightDepth: 16, armor: 0x35382c, flag: 'miyoshi', at: { x: -122, z: -74 }, facing: 0.15 }, 0);
     F.bFukuGun = mk({ name: '福島砦の鉄砲', team: 1, faction: 'miyoshi', kind: 'gun', nominal: 40, lightWidth: 20, lightDepth: 4, armor: 0x35382c, flag: 'miyoshi', at: { x: -122, z: -61 }, facing: 0 }, 0);
-    F.bSally = mk({ name: '浅瀬へ打って出た三好勢（岩成友通の手と仮定）', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 150, armor: 0x33302a, flag: 'miyoshi', at: { x: -82, z: -62 }, facing: 0 }, 0);
+    F.bSally = mk({ name: '浅瀬へ打って出た三好勢', team: 1, faction: 'miyoshi', kind: 'ashigaru', nominal: 150, armor: 0x33302a, flag: 'miyoshi', at: { x: -82, z: -62 }, facing: 0 }, 0);
     for (const b of [F.bOdaW, F.bOdaE, F.bOdaS, F.bNoda, F.bFuku, F.bFukuGun, F.bSally]) b.order({ id: 'hold' });
     F.bAll = [F.bOdaW, F.bOdaE, F.bOdaS, F.bNoda, F.bFuku, F.bFukuGun, F.bSally];
     F.lightOda = [F.bOdaE, F.bOdaS];
@@ -2995,7 +2985,7 @@ const nodafukushima = {
       const o = { fixed: true, name: name + 'の旗本', anchor: { x, z }, facing, formation: 'yari', width: 7, aggro: 8, noRout: true, faction: team ? 'miyoshi' : 'oda' };
       // 開戦25秒（10/30 夜）：柴田と三好宗渭の旗本の足軽五人ずつは、浅瀬の西の小競り合いへ回した（兵の数は同じ）
       const ash = name === '佐久間信盛' ? 5 : 0;
-      const list = dress([{ type: 'busho', n: 1, o: { name, invuln: true, allyOk: true } }, { type: 'samurai', n: 2 }, ...(ash ? [{ type: 'ashigaru', n: ash }] : [])], team ? MIYOSHI : ODA);
+      const list = dress([{ type: 'busho', n: 1, o: { name, invuln: true, allyOk: true, horse: true } }, { type: 'samurai', n: 2 }, ...(ash ? [{ type: 'ashigaru', n: ash }] : [])], team ? MIYOSHI : ODA);
       F.namedGuards.push(team ? enemyGroup(rt, o, list) : allyGroup(rt, { ...o, fullStrength: true }, list));
     }
     // 野田砦の奥（本陣の曲輪）の三好の本陣：三好長逸と旗本（控えは軽い兵）。旗本は整った陣形で待つ
@@ -3006,8 +2996,10 @@ const nodafukushima = {
     for (const u of F.campA.guard.units) { u.pos.z -= 27; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.mesh.position.copy(u.pos); }
     F.campA.guard.anchor.z = ODA_JOIN.z; // 南向きの幕の北側で退く兵を迎える。共通の camp は南側に置くため補正
     for (const c of [F.campA, F.campB]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'yari'; if (c.general) c.general.allyOk = true; }
-    F.sally = enemyGroup(rt, { faction: 'miyoshi', name: '砦の前の三好勢', anchor: { x: -4, z: -37 }, facing: 0, width: 12, aggro: 5, seekRange: 12, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: false, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], MIYOSHI));
+    // 11/4 jin（AV7）：総大将の信長と三好長逸は、本陣の幕の前で床几に座る（寄せられる・動くと立つ。army_anim）
+    for (const c of [F.campA, F.campB]) if (c?.general) c.general._crouch = true;
+    F.sally = enemyGroup(rt, { faction: 'miyoshi', name: '砦の前の三好勢', anchor: { x: -4, z: -37 }, facing: 0, width: 12, aggro: 5, seekRange: 12, morale: 90, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
+      dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: true, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }], MIYOSHI));
     // 開戦25秒の小競り合い（10/30）：竹束を据える間、浅瀬の中ほどで佐々の先手と三好の物見が槍を合わせる（持ち場の前10〜15m）。
     // 兵は足さない（佐々の足軽12→2・砦の前の三好勢の足軽14→4 の十人ずつを回す。10/30 夜：竹束の三つの置き場のどれへ向かっても写るよう、中と西の束の前へ横に広げた）。小競り合いなので双方の打ちは弱く、崩れない。
     // 10/31 kaito「小隊対小隊はチープ」：二か所の小競り合いをやめ、三好の物見十五人を一つの塊にして浅瀬の向こう（持ち場の前二十歩）に置く。
@@ -3017,24 +3009,7 @@ const nodafukushima = {
     F.skirE = enemyGroup(rt, { fixed: true, faction: 'miyoshi', name: '浅瀬を押し渡る三好勢', anchor: { x: -2, z: -40 }, facing: 0, width: 7, aggro: 8, seekRange: 9, noRout: true, morale: 90, fleeDir: { x: 0, z: -1 }, formation: 'yari', yariRanks: 3, dmgMult: .15 },
       dress([{ type: 'ashigaru', n: 15 }], MIYOSHI));
     F.skirE.noHunt = true;
-    // 11/1 点付け（敵の大軍・乱戦が薄い）：持ち場の前の浅瀬（二十〜四十歩）は物見の一塊だけで、川の向こうが空いていた。
-    //   中の小競り合い（本物の兵）を挟んで東西の浅瀬に、渡り合う織田の先手と三好勢の押し合い（軽い作り。本物の兵・任務の数は変えない）。
-    //   その奥、水堀の向こうの砦の左右に三好勢の大軍（軽い作り）。木ノ芽峠の作りに倣う。
-    { const n = TIER.weak ? 0.65 : 1;
-      F.shoalClash = [[-18, -27, 18, 0], [29, -15.5, 16, 1]].map(([x, z, w, i]) => rt.world.addClash({
-        // 11/2 点付け（乱戦が薄い）：東の押し合いは川底にあって堤の肩に隠れていた。浅瀬を押し渡った三好勢が東の竹束の垣に取り付き、堤の上で織田の手と揉み合う所へ移す
-        //   （持ち場の東、開戦25秒の正面）。組み合う列の後ろに後詰めを厚く続け、一列でなく塊に見せる。
-        x, z, w, facing: Math.PI, seed: 15721 + i, gap: i ? 1.8 : 2.4, rt, host: i ? undefined : false, noRout: true,
-        killRate: 0.004, maxDrift: 1.2, corpses: 8, realNear: 12, nearHide: 0,
-        play: (k, p, v) => rt.army.play(k, p, v * 0.7), smoke: (x, y, z, fx, fz) => rt.army.smoke(x, y, z, fx, fz),
-        A: { flag: 'oda', armor: 0x2a2622, count: Math.round(70 * n), flagRate: 0.25 },
-        B: { flag: 'miyoshi', armor: 0x35382c, count: Math.round(90 * n), flagRate: 0.3 } }));
-      for (const C of F.shoalClash) C?.go?.();
-      F.miyoshiHost = [[-40, -54, 15731], [42, -54, 15732]].map(([x, z, seed]) => {
-        const h = W.addDistantArmy({ x, z, w: 30, d: 8, count: Math.round(120 * n), facing: 0, team: 1, armor: 0x35382c, flagTex: flagTexture('miyoshi'), flagRate: 0.3, kind: 'spear', seed });
-        if (h?.army) h.army.noWake = true;
-        return h;
-      }); }
+    // 11/4 jin（AP9・AA・AV4）：浅瀬の作り物の押し合い二つと、砦の左右の絵の大軍二つをやめた（近づくと消える見せかけ）。
     // 本願寺の先陣は早鐘の後に畦道から出す。昼の浅瀬の斬り合いには加わらない。
     F.waves = []; F.waveJoined = []; F.wavePaid = []; F.heldWaves = 0;
     // ---- 持ち場の区域（siege_zones.js）：堤の上・織田の詰め陣（味方）、野田砦・福島砦（三好） ----
@@ -3054,9 +3029,9 @@ const nodafukushima = {
 
     rt.world.setTime('after');
     rt.setPhase('brief');
-    rt.obj('main', '利家の下知を聞け', 'main', true);
-    rt.say('前田利家', '竹束を印へ押せ。鉄砲衆の盾じゃ', 5);
-    rt.banner('砦の鉄砲を、竹束でしのぐ', rt.G.lord ? '足軽に竹束を押させ、堤で備えよ' : '一束はあなた、二束は味方。印へ押せ');
+    rt.obj('main', nodaGoal(rt), 'main', true);
+    rt.say('前田利家', '竹束を浅瀬の岸へ押せ。鉄砲衆の盾じゃ', 5);
+    rt.banner('砦の鉄砲を、竹束でしのぐ', rt.G.lord ? '足軽に竹束を押させ、堤で備えよ' : '一束はあなた、二束は味方。浅瀬の岸へ押せ');
     // 印の前田に寄って話を聞けば、すぐに次へ（寄らなくても下知は来る）
     rt.marker('maeda', unitPos(F.maedaU), '前田利家（話を聞く）', {});
     rt.addInteract('talk', { x: 0, z: LEVEE_Z + 6 }, '前田利家の話を聞く', () => { rt.uninteract('talk'); rt.say('前田利家', rt.G.lord ? '殿、竹束はいずこへ据えまするか' : 'よし、竹束を川べりへ押し出せ', 2); rt.after(2, () => this.carryStart(rt)); }, { r: 5 });
@@ -3088,15 +3063,15 @@ const nodafukushima = {
     F.spots = SPOTS.map((q) => ({ ...q }));
     F.tabaDone = [false, false, false]; F.tabaHelpers = []; F.pickIndex = 0;
     // 目の前の利家と竹束の案内。遠い本陣の使番待ちで、初めの任務を残さない。
-    rt.obj('main', HI(rt) || rt.G.lord ? '竹束の置き場を選べ。中央か西か' : '竹束を長押しで押せ', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     const begin = (i) => {
       if (F.step !== 1 || F.tabaReady) return;
       // 置き場を決めてから運ぶ時間を数え、判断の待ち時間を引かない。
       F.tabaReady = true; F.stepT = rt.t;
       rt.unmark('tabaCenter'); rt.unmark('tabaWest');
       if (i === 1) for (const q of F.spots) q.x -= 16;
-      rt.obj('main', rt.G.lord ? '堤で運び手を守れ。太鼓で総攻め' : '竹束を長押しで押せ', 'main', true);
-      rt.say('前田利家', rt.G.lord ? '三束とも足軽に押させ申す。殿、堤の守りにも御下知を' : '竹束を印へ押せ。二束は味方じゃ', 3.5);
+      rt.obj('main', nodaGoal(rt), 'main', true);
+      rt.say('前田利家', rt.G.lord ? '三束とも足軽に押させ申す。殿、堤の守りにも御下知を' : '竹束を浅瀬の岸へ押せ。二束は味方じゃ', 3.5);
       this.startTabaHelpers(rt);
       this.nextPick(rt);
     };
@@ -3200,7 +3175,7 @@ const nodafukushima = {
     rt.uninteract('pile'); rt.unmark('pile');
     if (i < 0 || rt.G.lord) return;
     F.pickIndex = i;
-    rt.obj('main', '竹束を長押しで押せ', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     const pos = F.pileMeshes[i].position;
     rt.marker('pile', pos, i > 0 ? '残りの竹束' : '竹束', { h: 2.6, guideAlways: true, alwaysDistance: true });
     rt.addInteract('pile', pos, '竹束を押す', () => {
@@ -3210,7 +3185,7 @@ const nodafukushima = {
       F.carryNext = { x: 0, z: 0 };
       F.carryPath = this.tabaRoute(F.backMesh, F.spots[i]); F.carryAt = 0;
       rt.uninteract('pile'); rt.unmark('pile');
-      rt.obj('main', '道の印へ押し、長押しで据えよ', 'main', true);
+      rt.obj('main', nodaGoal(rt), 'main', true);
       rt.marker('tabaWay', () => F.carry ? F.carryPath[F.carryAt] : null, '運び道・この印へ押す', { h: 2, guideAlways: true, alwaysDistance: true });
       const s = F.spots[i];
       rt.marker('spot', s, '竹束を据える', { h: 2 }); rt.zone('spot', s.x, s.z, 2);
@@ -3264,7 +3239,7 @@ const nodafukushima = {
     rt.unzone('spot');
     // 総攻めは間を詰める陣太鼓と法螺。退きの二つ打ちとは節を分ける。
     sfx('sig_kakari', 0.8);
-    rt.obj('main', '太鼓だ。味方と浅瀬へ', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     rt.marker('assault', { x: 0, z: -21 }, '浅瀬の入口', { h: 2, guideAlways: true, alwaysDistance: true });
     rt.say('前田利家', F.placed >= SPOTS.length ? '陣太鼓だ、掛かれ！　竹束は据わったぞ。鉄砲衆、放て！　槍の者は浅瀬へ続け！' : '陣太鼓だ、掛かれ！　束は置け、鉄砲衆は槍の者を援けよ！', 3.5);
     F.teppo.order = 'move'; F.teppo.dest = { x: 0, z: LEVEE_Z - 1 }; F.teppo.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: 0, z: LEVEE_Z - 1 }; };
@@ -3276,6 +3251,8 @@ const nodafukushima = {
       const charge = (g) => { if (g.order === 'attack') return; g.order = 'attack'; g.seekRange = 70; g.aggro = 14; rt.say('岩成友通', '竹束を捨てよ！　堤へ掛かれ！', 2.5); };
       F.sally.onArrive = charge;
       rt.after(8, () => { if (F.step === 2 && !gone(F.sally)) charge(F.sally); });
+      // 11/4 jin（AB）：打って出た列は三十秒は崩れず、浅瀬で槍を合わせる（総攻めの前に鉄砲で崩れ、この段が飛ばないように）。
+      rt.after(30, () => { F.sally.noRout = false; });
       for (const off of [-4, 0, 4]) addNodaTaba(rt, -4 + off, -34, 1, { van: F.sally, off, faceSign: 1, vanDist: 3, rot: 0, detailed: true });
       // 西では、福島から渡った三好の本隊と柴田の手が、堤の西の端の向こうで押し合う（軽い作り）
       F.bSally.order({ id: 'move', to: { x: -82, z: -26 } });
@@ -3296,7 +3273,7 @@ const nodafukushima = {
       F.lines.forEach((c, i) => rt.after(2 + i * 2, () => c.go()));
       rt.army.play('eshout', { x: 0, z: -40 }, 1.6);
       rt.banner('野田・福島へ総攻め', '鉄砲衆が放つ。浅瀬へ三好の槍が出る');
-      rt.obj('main', '味方と浅瀬の敵を防げ', 'main', true);
+      rt.obj('main', nodaGoal(rt), 'main', true);
       // 敵を防ぐ間は南岸の入口へ合流させる。対岸へ進む印は三好勢が退いてから出す。
       rt.marker('assault', { x: 0, z: -21 }, '浅瀬・味方と防ぐ', { h: 2, guideAlways: true, alwaysDistance: true });
       rt.say('前田利家', '三好が出たぞ！　浅瀬で食い止めよ、槍先を下げるな！', 3.5);
@@ -3327,9 +3304,9 @@ const nodafukushima = {
     F.sallyDone = !late;
     if (late) rt.say('前田利家', 'ここは押し切れぬ。砦の口を押さえ、備えを崩すな', 3.5);
     F.midT = rt.t;
-    rt.obj('main', '砦前の印で並べ。塀の奥へ入るな', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     rt.marker('assault', { x: 0, z: -37 }, '砦の口・槍を揃える', { h: 2, guideAlways: true, alwaysDistance: true });
-    rt.say('前田利家', '門は固い。印で槍を揃えよ。塀の奥へ入るな', 3.5);
+    rt.say('前田利家', '門は固い。砦の口で槍を揃えよ。塀の奥へ入るな', 3.5);
   },
   // 退き口を保ったら、敵を追わず囲みを解く
   midB(rt) {
@@ -3345,19 +3322,14 @@ const nodafukushima = {
     F.step = 3; F.stepT = rt.t;
     rt.setPhase('night');
     rt.unmark('sally'); rt.unmark('assault');
-    rt.obj('main', '早鐘だ。堤の味方へ戻れ', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     rt.marker('leveeHold', { x: 8, z: LEVEE_Z + 4 }, '堤の持ち場', { h: 2, guideAlways: true, alwaysDistance: true, hideNear: 12, hideOnArrival: true });
     rt.unzone('levee');
     if (!late && !F.sallyDone) rt.award((t) => t.side.push('打って出た三好勢を退けた'), '三好勢を退けた');
     // 三好の守りは崩れていない。織田の攻めを止める。
     for (const c of F.lines || []) c.phase = 'wait'; // 既存の待機状態へ戻し、敗走と消去を起こさない
     // 本願寺の側（南東）から寄せる一揆の大群と、堤の東の端の味方が押し合う（軽い作り）
-    rt.after(4, () => {
-      if (F.ending) return;
-      F.lines2 = lines(rt, [{ x: 28, z: 4, facing: Math.PI * 0.25, w: 22, gap0: 12, measuredMelee: true, seed: 15710, surge: false, A: ['oda', 0x2a2622, 120, 'oda'], B: ['namu', IKKO.armor, 180, 'honganji'], gunsB: true }]);
-      F.lines2.forEach((c) => c.go());
-      leanAll(F.lines2, 'B', 0.3);
-    });
+    // 11/4 jin（AP9）：堤の東の端の作り物の押し合いはやめた。堤へ寄せるのは本物の門徒の五つの組（wave）。
     dayCut(rt, 13, 'night', '九月十三日夜・本願寺の寄せ', '楼の岸と川口へ鉄砲の火。早鐘で堤へ戻れ');
     // 寺の早鐘は低く響く梵鐘の乱れ打ち。陣鉦の高い金物音と区別する。
     rt.after(3, () => { if (F.step === 3 && !F.retreating && !F.ending) sfx('bellRapid', 0.7); });
@@ -3384,7 +3356,7 @@ const nodafukushima = {
       dayCut(rt, 22, 'day', '対陣を重ねて・九月二十二日', '浅井・朝倉が醍醐・山科を焼いた');
       battleEvent(rt, EVENT_MESSENGER, { x: 6, z: LEVEE_Z + 3 }, null, 0, true, '浅井・朝倉が京へ迫る知らせ');
       rt.say('伝令', '浅井・朝倉が京へ迫る！　醍醐・山科が焼かれた！', 4.5);
-      rt.obj('main', '堤を守り、退きの下知を待て', 'main', true);
+      rt.obj('main', nodaGoal(rt), 'main', true);
       rt.after(6, () => rt.say('前田利家', '京を敵に踏ませるわけにはゆかぬ。退き口を固めよ！', 3.5));
     });
     // 本願寺の方に篝火
@@ -3522,7 +3494,7 @@ const nodafukushima = {
     dayCut(rt, 23, 'day', '翌日・囲みを解く', 'しんがりを残し、江口へ退く');
     sfx('sig_nobiki', 0.8);
     rt.say('伝令', '退き太鼓だ！　詰め陣の守兵へ戻れ。しんがりが支える！', 4.5);
-    rt.obj('main', '退き太鼓。詰め陣の印へ退け', 'main', true);
+    rt.obj('main', nodaGoal(rt), 'main', true);
     rt.marker('retreat', ODA_JOIN, '詰め陣の守兵', { h: 3, guideAlways: true, alwaysDistance: true });
     rt.zone('retreat', ODA_JOIN.x, ODA_JOIN.z, 10);
   },
@@ -3630,7 +3602,7 @@ const nodafukushima = {
       if ((!joined || F.retreatAlt) && c) {
         if (!F.retreatAlt) {
           F.retreatAlt = true; rt.unzone('retreat');
-          rt.obj('main', '退き太鼓。佐久間の列へ退け', 'main', true);
+          rt.obj('main', nodaGoal(rt), 'main', true);
           rt.marker('retreat', () => retreatPoint(rt), '佐久間の列', { h: 3, group: rear, guideAlways: true, alwaysDistance: true });
           rt.say('前田利家', '陣の口は崩れた。南東へ退く佐久間の列に合流せよ！', 3);
         }
@@ -3643,8 +3615,8 @@ const nodafukushima = {
       const retreatText = !joined ? '合流する味方がいない。退き口が危ない' :
         !safe ? '追手が近い。味方の列へ下がれ' :
         F.retreatAlt ? '佐久間の列へ退け' : '詰め陣の守兵へ退け';
-      if (F.retreatText !== retreatText) { F.retreatText = retreatText; rt.obj('main', retreatText, 'main', true); }
-      rt.objProgress('main', safe ? (F.retreatAlt ? '佐久間の印へ退き、列に合流せよ' : '詰め陣の印へ退き、守兵に合流せよ') : '追手が近い。味方の槍の列へ戻れ');
+      if (F.retreatText !== retreatText) { F.retreatText = retreatText; rt.obj('main', nodaGoal(rt), 'main', true); }
+      rt.objProgress('main', safe ? (F.retreatAlt ? '佐久間信盛の列へ退き、合流せよ' : '信長の本陣へ退き、守兵に合流せよ') : '追手が近い。味方の槍の列へ戻れ');
       if (joined) F.retreatLostT = 0;
       if (!joined) {
         const occupied = F.SZ?.byId.honjin?.owner === ZONE_STATE.ENEMY;
@@ -3666,8 +3638,8 @@ const nodafukushima = {
       // 時間切れは成功にせず、味方が先に退いた結果として終える。
       const left = RETREAT_WAIT - (rt.t - F.retreatT);
       if (!F.ending && left <= 30) {
-        rt.objProgress('main', `味方が先に退くまで${Math.max(0, Math.ceil(left))}秒。退き口の印へ急げ`);
-        if (!F.retreatLastCall) { F.retreatLastCall = true; rt.say('前田利家', '列が先に退くぞ！　印へ急げ、取り残されるな！', 3); }
+        rt.objProgress('main', `味方が先に退くまで${Math.max(0, Math.ceil(left))}秒。信長の本陣へ急げ`);
+        if (!F.retreatLastCall) { F.retreatLastCall = true; rt.say('前田利家', '列が先に退くぞ！　本陣へ急げ、取り残されるな！', 3); }
         if (left <= 0 && rt.canFailMission()) {
           F.ending = true; rt.setPhase('end'); rt.objFail('main'); rt.tracker.main = false;
           rt.unmark('retreat'); rt.unzone('retreat');
@@ -3746,7 +3718,7 @@ const nodafukushima = {
         help = h.blocked ? '竹束がつかえた。道を空けよ' : h.g.units.some((u) => u.atk || u.target?.alive) ? '運び手が襲われた。味方と守れ' : h.g.units.some((u) => u.stagger > 0) ? '運び手が負傷。そばを守れ' : h.g.units.some((u) => Math.hypot(u.pos.x - h.g.anchor.x, u.pos.z - h.g.anchor.z) > 2) ? '運び手の到着を待て' : '運び手のそばを守れ';
         break;
       }
-      if (F.step === 1) rt.objProgress('main', !F.tabaReady ? '置き場を選んでから竹束を押す' : `竹束 ${F.placed}／${SPOTS.length}・` + (F.carry ? '据える印へ押し、長押し' : help || (rt.G.lord || F.tabaDone[F.pickIndex] ? '堤で待て。味方が竹束を押す' : '竹束の印へ。長押しで押せ')));
+      if (F.step === 1) rt.objProgress('main', !F.tabaReady ? '置き場を選んでから竹束を押す' : `竹束 ${F.placed}／${SPOTS.length}・` + (F.carry ? '浅瀬の岸まで押し、長押しで据えよ' : help || (rt.G.lord || F.tabaDone[F.pickIndex] ? '岸の竹束の前で、運び手を守れ' : '竹束へ寄り、長押しで押せ')));
       // 運べなかった束は残す。据えた事にせず、総攻めの合図で準備を切り上げる。
       // 10/30：時が来ても、本人が自分の竹束を押していなければ総攻めの段へ進めない（立っているだけで段が進まないように）。長く放っておけば負け
       const mine = rt.G.lord || F.tabaDone[F.pickIndex] || F.carry;
@@ -3780,11 +3752,9 @@ const nodafukushima = {
         gone(F.sally) ? '浅瀬を渡り、砦前の印へ' : '味方と浅瀬の敵を防げ';
       let assaultOrder = null;
       for (const order of rt.objectives) if (order.id === 'main') { assaultOrder = order; break; }
-      if (assaultOrder?.text !== assaultText) rt.obj('main', assaultText, 'main', true);
-      rt.objProgress('main', safe ? '敵へ向いたまま、味方の後ろへ下がれ' : resting ?
-        bind && p.treatmentReady ? '味方に守られた所で、血を止める' :
-        rear ? atRest ? bind ? '血を止める札が出たら三秒押せ' : '印で止まり、息を整えよ' : '印まで下がれ。着いたら止まって休め' : bind ? '味方の後ろで止まり、血を止める札を待て' : '味方の後ろで止まれ。敵が近ければ下がれ' :
-        gone(F.sally) ? '浅瀬を渡り、砦前の印へ' : '味方の槍の列と進め。一人で前へ出るな');
+      if (assaultText && assaultOrder?.text !== nodaGoal(rt)) rt.obj('main', nodaGoal(rt), 'main', true);
+      // 11/4 jin（AW3・BH6）：添えの一行にも「印」「待て」を使わない。
+      rt.objProgress('main', safe || resting ? '味方の槍の列の後ろへ下がれ' : gone(F.sally) ? '浅瀬を渡り、野田砦の口へ' : '味方の槍の列と浅瀬へ進め');
       if (gone(F.sally) && !F.nightAt) {
         F.nightAt = rt.t;
         // 渡った後の札を「浅瀬の先」のままにせず、次に並ぶ所と揃える。
@@ -3800,7 +3770,7 @@ const nodafukushima = {
 
     }
     if (F.step === 2.5) {
-      rt.objProgress('main', '砦前の印で並べ。塀の奥へ入るな');
+      rt.objProgress('main', '野田砦の口で、味方と槍を揃えよ');
       if (rt.t - F.midT > 3 && !F.bellNews) {
         F.bellNews = true; rt.say('物見', '後ろの畦に人影だがや！　味方か、敵か……', 3.5);
       }
@@ -3877,14 +3847,15 @@ const nodafukushima = {
         F.waveApproaching ? '敵が来る。堤で味方と待て' : '堤で休め。敵が来たら防げ';
       let currentOrder = null;
       for (const order of rt.objectives) if (order.id === 'main') { currentOrder = order; break; }
-      if (F.holdText !== holdText || currentOrder?.text !== holdText) { F.holdText = holdText; rt.obj('main', holdText, 'main', true); }
+      if (F.holdText !== holdText || currentOrder?.text !== nodaGoal(rt)) { F.holdText = holdText; rt.obj('main', nodaGoal(rt), 'main', true); }
       if (held && F.heldWaves >= 2 && !F.holdMerit) {
         F.holdMerit = true;
         rt.award((t) => t.side.push('味方と堤の二組を押し返した'), '退き口を保った');
         rt.say('前田利家', `${nm(rt)}、よう支えた！　退く道は保てた。京の知らせが来たら兵を返せるぞ`, 4);
       }
       if (!held && !F.leveeLostSaid) { F.leveeLostSaid = true; F.leveeLostAt = rt.t; rt.say('前田利家', '堤を奪い返せ！　退き口を塞がれては一人も帰れぬぞ！', 3.5); }
-      rt.objProgress('main', safe ? '敵へ向いたまま、味方の後ろへ下がれ' : bind || rest ? rear ? !atRest ? '印まで下がれ。着いたら止まって休め' : bind ? '血を止める札が出たら三秒押せ' : '印で止まり、息を整えよ' : '敵が近い。味方と下がれ' : !held ? '味方と堤を奪い返せ' : F.kyotoNews ? (F.holdMerit ? '退き口は保てた。味方と下知を待て' : '堤で退き口を守り、下知を待て') : F.waveNear || F.holdThreat ? '堤の味方と敵を防げ。追わず、列を守れ' : F.wavesCleared ? '寄せを退けた。追わず、堤で下知を待て' : F.waveApproaching ? '敵が近づいている。堤の味方と迎えよ' : '敵が離れた。追わず、堤で構えを解け');
+      // 11/4 jin（AW3・BA3）：添えの一行にも「印」「待て」を使わない。
+      rt.objProgress('main', safe || bind || rest ? '堤の味方の槍の列の後ろへ下がれ' : !held ? '味方と春日井堤を奪い返せ' : F.kyotoNews ? '春日井堤で退き口を守れ' : '春日井堤で、寄せる門徒を味方と防げ');
       // 京を守る撤退命令は、局地の奪い返しや本人の帰着を待たない。
       // 堤を失っても退き口へ向かわせ、安全に味方へ合流できた時だけ成功にする。
       // 手当てや敵の押し込みで堤を離れていても、全軍の退き太鼓を止めない。
@@ -4119,7 +4090,7 @@ nodafukushima.rts = true;   // 侍大将以上は上空の指揮（rtsCanCommand
 // 兵数は既存の総勢を備へ割った目安。三人衆の城別の担当は確定していない。
 installBattleJinkei(nodafukushima, [
   battleJin('水路を挟む攻めの陣', 0, ODA_HONJIN, Math.PI, [
-    ['noda_oda_hq', '南東の詰め陣・退き口', '織田の陣代（名は不明）', 10000, ODA_HONJIN, 'eiraku', 'oda', (r) => r.flags.campA?.guard, { named: false }],
+    ['noda_oda_hq', '南東の本陣・退き口', '織田信長', 10000, ODA_HONJIN, 'eiraku', 'oda', (r) => r.flags.campA?.guard],
     ['noda_shibata', '西の仕寄り（配置は推定）', '柴田勝家', 6000, { x: -82, z: 16 }, 'oda', 'oda', (r) => r.flags.namedGuards?.[0]],
     ['noda_guns', '東の仕寄り・鉄砲衆', '根来・雑賀の衆（将の名は不明）', 4000, { x: 84, z: 6 }, 'eiraku', null, (r) => r.flags.bOdaE, { named: false }],
     ['noda_sakuma', '後ろの備え・退き口', '佐久間信盛', 8000, { x: 56, z: 42 }, 'oda', 'oda', (r) => r.flags.namedGuards?.[1]],

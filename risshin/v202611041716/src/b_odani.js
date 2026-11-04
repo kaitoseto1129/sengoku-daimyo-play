@@ -2610,7 +2610,7 @@ const odani = {
   routeGuidePriority: (rt) => !rt.flags.retreatOn && !(rt.flags.step === 1 ? rt.flags.valleyFighting : rt.player.inCombatT > 0) &&
     !(rt.player.u.wounds?.bleed > .0001) && !rt.player.u.mobbed && rt.player.sta >= 20,
   // 浅い一撃ごとに登りと退避を切り替えない。出血・深い傷・囲まれた時は退く。
-  damageRetreatNeeded: (rt) => !!rt.flags.retreatOn || rt.player.u.hp < rt.player.u.maxHp * .6 ||
+  damageRetreatNeeded: (rt) => !!rt.flags.retreatOn || rt.player.u.hp < rt.player.u.maxHp * .4 ||
     rt.player.u.wounds?.bleed > .0001 || !!rt.player.u.mobbed || rt.player.sta < 20,
   // 止血して退き終えた後は、残った手足の傷だけで次の退き口へ誘わない。
   // 再び深手を負った時・出血中・退避の下知中は、任務より退く案内を優先する。
@@ -4402,7 +4402,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const hurtAgain = F.retreatHp === undefined || u.hp < F.retreatHp - 1;
     // 登り口から虎口の折れの間は退き口を出さない（後ろは味方で詰まり、退けば段から落ちる。押し抜けるしかない所）。
     const pressGate = F.step === 2 && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) && (Math.hypot(u.pos.x - BELOW.x, u.pos.z - BELOW.z) < 18 || Math.hypot(u.pos.x - GATE_WEST.x, u.pos.z - GATE_WEST.z) < 18);
-    if (F.step >= 1 && !pressGate && (u.hp < u.maxHp * .6 && hurtAgain || bleeding) && !F.retreatOn && rt.t >= (F.retreatNext || 0)) {
+    if (F.step >= 1 && !pressGate && (u.hp < u.maxHp * .4 && hurtAgain || bleeding) && !F.retreatOn && rt.t >= (F.retreatNext || 0)) {
       F.retreatNext = rt.t + .5;
       // 屋敷を取った後も、南木戸から出て西木戸へ向かった道を戻る。
       // 登り口の道へ切り替えると、庭の塀越しに退き口を探してしまう。
@@ -4428,7 +4428,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           if (remaining <= .01) break;
         }
         if (Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 2) {
-          F.retreatOn = true; F.retreatUntil = rt.t + 12; F.retreatNext = rt.t + 32;
+          F.retreatOn = true; F.retreatUntil = rt.t + 12; F.retreatNext = rt.t + 75;
           F.retreatTreatmentLeft = rt.player.treatmentLeft;
           F.retreatHp = u.hp;
           if (rt.missionGuide) rt.missionGuide.scan = 0;

@@ -20,7 +20,6 @@ import { sightPoint } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
 import { demBlend, demDetail } from './dem.js';
 import { sendOrder, posOf } from './denrei.js';
-import { clash } from './b_sekigahara.js';
 import { cryCaption } from './battle_cries.js';
 import { rescueTarget, retreatRequired } from './battle_danger.js';
 import { localPoint } from './army_local_way.js';
@@ -55,6 +54,8 @@ function enemyGroup(rt, options, list) {
 
 const P1 = [[0, 172], [-4, 150], [-4, 144], [4, 140], [6, 118], [-8, 90], [-24, 60], [-30, 30], [-22, 0], [-12, -30], [-8, -46]];
 const HONJIN = { x: 18, z: -116 };
+// 織田の四組が雨の谷を歩き出す所（P1 の上・先手が前）。出口の集合まで六十〜百歩。
+const MARCH_STARTS = [[-19, -4], [-24, 10], [-27, 22], [-29, 34]];
 // ピンの手前で合流できる広さにし、地面の輪と到着判定をそろえる。
 const JOIN_RADIUS = 5;
 // 初陣の出発待ちと雨待ちは短く保つ。
@@ -827,7 +828,9 @@ const OKEHAZAMA_JIN = [
     ['okhYoshi', '本陣', '今川義元', 1500, HONJIN.x, HONJIN.z + 2, 'hatamoto', 'imagawa'],
     ['okhGuard', '本陣前の守り', '名は伝わらない', 600, 0, -96, 'enemies.0', 'imagawa'],
     ['okhFrontEast', '本陣前の右の守り', '名は伝わらない', 400, 40, -92, 'enemies.1', 'imagawa'],
-    ['okhWest', '本陣左の備え', '松井宗信', 1000, -22, -118, 'enemies.2', 'imagawa'],
+    // 11/4 布陣図（fujin60）：松井宗信は高根山の先手（本陣と織田の間）。井伊直盛は本陣脇（巻山）。
+    ['okhMatsui', '高根山の坂の先手', '松井宗信', 1500, 16, -94, 'road.2', 'imagawa'],
+    ['okhWest', '本陣左の備え', '井伊直盛', 1000, -22, -118, 'enemies.2', 'imagawa'],
     ['okhEast', '本陣右の備え', '名は伝わらない', 1000, 40, -124, 'enemies.3', 'imagawa'],
     ['okhReserve', '本陣後ろの控え', '名は伝わらない', 1500, -4, -134, 'enemies.4', 'imagawa'],
   ], '今川全軍は『信長公記』では四万五千、後世には二万五千とも。本陣周辺の六千は推定の目安で、全軍の数ではない。松平元康らの大高・丸根方面の別働勢はここへ集めない。', fieldPoint),
@@ -864,10 +867,10 @@ const okehazama = {
   // 右上はミッションの一行だけ。距離・向き・操作の字を見出しに出さない（kaito 10/23 49・50）。
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   enemyOrder(rt, enemy) {
-    if (enemy && enemy === rt.flags.yoshimoto) return '幕の中の今川義元を討て';
-    // 赤い▼と今川の兵を同じ一行で結び、場所の案内と取り違えさせない。
+    if (enemy && enemy === rt.flags.yoshimoto) return '桶狭間山の本陣で義元を討て';
+    // 場所と相手で言う。相手は頭上の赤い▼で示す（11/4）。
     if (rt.phase !== 'assault') return '谷の出口で今川の物見を討て';
-    return rt.flags.entered ? '幕の前の義元の旗本を討て' : '坂道の今川の守りを崩せ';
+    return rt.flags.entered ? '幕の前の義元の旗本を討て' : '坂道で松井宗信の先手を破れ';
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
   commanderTarget(rt) {
@@ -1001,8 +1004,8 @@ const okehazama = {
   missionSingleLine: true,
   hideGuideSteps: true,
   // 稲生の型：短い一行。兵は頭上の▼、大将は名で呼び、討った瞬間に次の一行へ替える。
-  // 11/4 jin（AR1・AW3）：場所と行いで言う。「ピン」「▼」の字は使わない
-  missions: ['谷の出口の組の旗へ行け', '谷の出口の組の旗へ行け', '谷の出口で雨がやむまで待て', '坂道の今川の守りを崩せ', '幕の中の今川義元へ迫れ', '退く今川勢を追え', '帰る組の旗へ集まれ'],
+  // 11/4：場所と行いで言う（AR1・AW3）。史実の順：中島砦の下で集まる→雨の谷を下る→谷の出口で雨待ち→高根山の坂の松井勢→桶狭間山の本陣の義元。
+  missions: ['組の旗のそばへ行け', '雨の谷を下り 谷の出口へ行け', '谷の出口で雨がやむまで待て', '坂道で松井宗信の先手を破れ', '桶狭間山の本陣で義元を討て', '逃げる今川勢を追え', '帰る組の旗へ集まれ'],
   missionOf: (rt) => {
     const F = rt.flags;
     if (F.victory) return F.pursuitDone ? 6 : 5;
@@ -1289,7 +1292,7 @@ const okehazama = {
       if (this.squadFlagDistance(rt) > 12) return '谷の出口の組の旗へ進め';
       return rt.hostGroup?.arrived ? '組の旗のそばで味方を待て' : '谷の出口の組の旗へ進め';
     }
-    if (F.kakare) return '坂道の今川の守りを崩せ';
+    if (F.kakare) return '坂道で松井宗信の先手を破れ';
     if (!reached) return '組の旗のそばへ戻れ';
     return '谷の出口で雨がやむまで待て';
   },
@@ -1312,7 +1315,7 @@ const okehazama = {
     if (rt.phase === 'assault' && rt.flags.entered && !rt.flags.victory) {
       if (this.objectiveEnemies(rt).length) return this.enemyOrder(rt, this.objectiveEnemies(rt)[0]);
       // 残り人数は攻めの処理が数えた本文を使い、毎コマ兵を数え直さない。
-      if (!rt.flags.guardOpened) return rt.flags.attackText || '幕の前の義元の旗本を崩せ';
+      if (!rt.flags.guardOpened) return rt.flags.attackText || '幕の前で義元の旗本を破れ';
       if (rt.flags.yoshiDown) return rt.flags.nobKill[1]?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。討取りは毛利に任せよ';
       if (rt.flags.koshiLeft) return rt.hud.defendEnemy?.alive || rt.hud.approachGuideEnemy?.alive || rt.guideEnemy?.alive
         ? '退く義元の旗本を討て' : '退く義元の旗本を追え';
@@ -1398,7 +1401,7 @@ const okehazama = {
     const span = Math.hypot(look.x - pos.x, look.z - pos.z);
     look.y = Math.max(look.y, pos.y - span * .1);
   },
-  spawn: { ...fieldPoint(-12, -25), heading: Math.PI + FIELD_TURN },
+  spawn: { ...fieldPoint(-24, 30), heading: Math.PI + FIELD_TURN },
   lordSpawn: { ...fieldPoint(-44, 8), heading: Math.PI + FIELD_TURN },
   lordAt: { ...fieldPoint(-44, 2), r: 16, why: '谷の馬廻の後ろ（接近路の細かな位置は推定）' },
   civilianCrowd: { bounds: CIVILIAN_BOUNDS, bands: CIVILIAN_BANDS },
@@ -2313,10 +2316,12 @@ const okehazama = {
     rt.flags.cols = [];
     specs.forEach((sp, i) => {
       const [sx, sz] = finals[i];
-      const g = allyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, name: sp.name, anchor: fieldPoint(sx, sz + 16), facing: Math.PI + FIELD_TURN, formation: 'column', spacing: 1.4, order: 'hold', speed: 3.0, morale: 100, noRout: true, fleeDir: fieldVector(0, 1) },
+      // 11/4（AV12）：中島砦の下から雨の谷を下って寄る。出口の手前十六歩でなく、谷の中ほど（P1 の上）から縦列で歩き出す。
+      const [ox, oz] = MARCH_STARTS[i];
+      const g = allyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, name: sp.name, anchor: fieldPoint(ox, oz), facing: Math.PI + FIELD_TURN, formation: 'column', spacing: 1.4, order: 'hold', speed: 3.0, morale: 100, noRout: true, fleeDir: fieldVector(0, 1) },
         [{ type: 'samurai', n: 1, o: { name: '' } }, { type: 'ashigaru', n: sp.n }]);
       g.leader = g.units[0];
-      g.path = [[sx, sz + 16], [sx, sz]].map(fieldPathPoint); g.pathIdx = 0;
+      g.path = [[ox, oz], ...(oz > 0 ? [[-22, 0]] : []), [-12, -26], [sx, sz + 10], [sx, sz]].map(fieldPathPoint); g.pathIdx = 0;
       if (i === 2) {
         // 自分の組だけ列の間を空け、背中と槍で集合ピンを隠しにくくする。
         g.spacing = 1.9;
@@ -2332,7 +2337,7 @@ const okehazama = {
       g.onArrive = (gg) => { gg.arrived = true; gg.order = 'hold'; gg.formation = 'yari'; gg.facing = Math.PI + FIELD_TURN; };
       rt.flags.cols.push(g);
     });
-    const squadAt = rt.G.lord ? fieldPoint(-44, 13) : fieldPoint(-12, -20);
+    const squadAt = rt.G.lord ? fieldPoint(-44, 13) : fieldPoint(-25, 28);
     // 預かり兵を名簿の家来に置き換えず、槍だけの小組にする。
     // 行軍の列には加えない。列の下知で自分の号令を上書きしないため。
     rt.makeSquad(squadAt, Math.PI + FIELD_TURN, [{ kind: 'spear', n: squadN, members: [] }]);
@@ -2378,7 +2383,8 @@ const okehazama = {
     // 前の備えの無名の侍を一騎ずつ騎乗させる補完。討たれれば空馬が残る（実兵数は変えない）。
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(0, -96), facing: FIELD_TURN, morale: 85, fleeDir: fieldVector(0.2, -1), aggro: 7 }, [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'ashigaru', n: 8 }]));
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(40, -92), facing: (-0.4) + FIELD_TURN, morale: 85, fleeDir: fieldVector(0.6, -1), aggro: 7 }, [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 4 }]));
-    E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-22, -118), facing: (0.3) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.5, -1), aggro: 7 }, [{ type: 'busho', n: 1, o: { name: '松井宗信' } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }]));
+    // 本陣左の備え：井伊直盛（この戦で討死）。名のある将は馬上で、侍と槍に守られる。
+    E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', name: '井伊直盛の備え', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-22, -118), facing: (0.3) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.5, -1), aggro: 7 }, [{ type: 'busho', n: 1, o: { name: '井伊直盛', horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }]));
     // 本陣の両脇と後方で休む組。近い敵へ備えを向ける。
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(40, -124), facing: (-0.8) + FIELD_TURN, morale: 85, fleeDir: fieldVector(0.6, -1), aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }]));
     E.push(enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa', formation: 'yari', spacing: 1.5, width: 12, anchor: fieldPoint(-4, -134), facing: (0.2) + FIELD_TURN, morale: 85, fleeDir: fieldVector(-0.2, -1), aggro: 7 }, [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 2 }]));
@@ -2397,7 +2403,7 @@ const okehazama = {
       y.target = null; y.atk = null; y.swing = null;
       y.hit = { kind: 'kneel', t: 0, dur: 1.2, from: 'front', side: 1, part: 'torso', res: 'gap', heavy: true, wkind: 'thrust' };
       y.lastHit = y.hit;
-      if (sightPoint(rt, y.pos)) rt.bark('義元が深手を負った。旗本が囲んで支えている。味方と囲みを崩せ');
+      if (sightPoint(rt, y.pos)) rt.bark('義元が深手を負った。旗本が囲んで支えている。味方と囲みを破れ');
     };
     rt.flags.hatamoto = H;
     rt.flags.guardStart = H.units.filter((u) => u !== H.units[0] && readyUnit(u)).length;
@@ -2415,12 +2421,15 @@ const okehazama = {
     // 出陣位置から三十五メートルほど離し、下知を読む前の斬り合いを避ける。
     // 同じ六人が行軍後に歩いて寄せる。合図や本陣の守りは変えない。
     // 二の組は見張りの脇の林に置く（開戦25秒に見張りと続いて寄せる。10/30 夜）
-    rt.flags.road = [[-12, -60], [-1, -64], [18, -96]].map(([x, z], i) => {
+    // 11/4 布陣図：坂道の三組は高根山に出た松井宗信の先手（本陣と織田の間）。三の組は松井本人が馬上で、侍と槍に守られる。
+    rt.flags.road = [[-12, -60], [-1, -64], [16, -94]].map(([x, z], i) => {
       const g = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa',
-        name: '谷の守り' + ['一の組', '二の組', '三の組'][i], formation: 'yari',
-        spacing: 1.3, width: 6, anchor: fieldPoint(x, z), facing: FIELD_TURN,
-        morale: 70, aggro: 0, fleeDir: fieldVector(0, -1) },
-        [{ type: 'ashigaru', n: 4 }, { type: 'ashigaru', n: 2, o: { weapon: 'sword', reach: 1.75 } }]);
+        name: '松井宗信の先手' + ['一の組', '二の組', '本隊'][i], formation: 'yari',
+        spacing: 1.3, width: i === 2 ? 8 : 6, anchor: fieldPoint(x, z), facing: FIELD_TURN,
+        morale: i === 2 ? 90 : 70, aggro: 0, fleeDir: fieldVector(0, -1), noRout: i === 2 },
+        i === 2
+          ? [{ type: 'busho', n: 1, o: { name: '松井宗信', horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }]
+          : [{ type: 'ashigaru', n: 6 }, { type: 'ashigaru', n: 2, o: { weapon: 'sword', reach: 1.75 } }]);
       E.push(g);
       return g;
     });
@@ -2484,16 +2493,8 @@ const okehazama = {
       q.a.noWake = true;
       rt.flags.far.push(q);
     }
-    // 本陣の左右でも、ほかの織田の組が今川の備えと組み合う（軽い作り。兵の数・任務には数えない）。
-    // 接近路の小隊で止まっても、その両脇から本陣へ続く押し合いを中景に残す。
-    // 二隊の人数と配置は保つ。実兵の間合いの外まで槍列を残し、空いた広場にしない。
-    rt.flags.wings = [[-31, -69, 0.12, 191], [39, -69, -0.12, 192]].map(([x, z, f, seed]) => clash(rt, {
-      ...fieldPoint(x, z), facing: Math.PI + FIELD_TURN + f, w: 34, gap0: 36, closeSpeed: 2.6, seed, noRout: true, killRate: 0.1,
-      gap: 2.35, measuredMelee: true, // 人数と前線の幅を保ち、槍列の間合いを詰めて突き・受け・引きを使う。
-      realNear: 16, // 至近は実兵へ渡し、十六〜六十メートルの軽い兵まで一律に消さない。
-      groundedMelee: true, // 雨後の泥跳ね・膝からの崩れ・塊ごとに伝わる敗走。
-      A: { flag: 'oda', armor: 0x2a2622, count: 220 },
-      B: { flag: 'imagawa', armor: 0x3f2a24, count: 300, bows: true, flagRate: 0.5 } }));
+    // 11/4：攻め道の両脇の軽い作りの押し合い（近づくと消える影の戦い）はやめる（kaito AA・AP9）。戦うのは本物の兵だけ。
+    rt.flags.wings = [];
     scenery.finish();
     // 推定配置の詰所を西へ寄せ、接近路・幕の口・味方を見る場所を空ける。
     // 床と引き戸は実座標で一度だけ登録し、地面になじむ外壁と土台も保つ。
@@ -2551,7 +2552,7 @@ const okehazama = {
     rt.setPhase('march'); rt.flags.marchBegan = rt.t; rt.objDone('talk'); rt.objRemove('talk'); rt.objRemove('honjin0');
     rt.flags.speechCheckAt = 0; this.clearOldSpeech(rt);
     this.marchFlag(rt);
-    localSay(rt, rt.hostGroup, 'たいちょう', '出発じゃ！　ピンの場所へ進め', 3);
+    localSay(rt, rt.hostGroup, 'たいちょう', '出発じゃ！　雨にまぎれて谷を下るぞ', 3);
     // 合図で移し直さず、同じ兵が林の低地から歩いて接近する。
     for (const g of rt.flags.cols) { g.arrived = false; g.order = 'path'; g.pathIdx = 0; }
     rt.flags.nob.order = 'path'; rt.flags.nob.pathIdx = 0;
@@ -2906,7 +2907,7 @@ const okehazama = {
       // 雨脚は弱まっても、攻め始めの間は斜めの細い筋を残す。しばらくして止む。
       rt.after(45, () => { if (!rt.over) rt.world.setRainTarget(0); }); rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;
-      rt.banner('雨が弱まった', '坂道の今川の守りを崩し、本陣の幕へ攻め上れ');
+      rt.banner('雨が弱まった', '坂道の松井勢を破り、桶狭間山の本陣へ攻め上れ');
       // 視点を奪わず、目の前の仲間が一斉に動き出す様子を合図にする。
     }
     if (rt.t >= F.waitReadyAt + RAIN_CLEAR_CUE && !F.kakare) {
@@ -2955,6 +2956,9 @@ const okehazama = {
   },
   pushRoad(rt) {
     const F = rt.flags;
+    // 松井宗信の本隊は四人に減るまで踏みとどまる（史実でも本陣を救けに戻り、義元と共に討死）。
+    const mb = F.road[2];
+    if (mb?.noRout && mb.units.filter(readyUnit).length <= 4) mb.noRout = false;
     let step = 0;
     while (step < F.road.length && (gone(F.road[step]) ||
       F.road[step].units.every((u) => !u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget))) step++;
@@ -2976,7 +2980,7 @@ const okehazama = {
       }
       rt.unmark('road');
       // 同じ札を出し直さない（札の揺れと、組頭の読み上げの重なりを防ぐ）。
-      const text = block ? '坂道の今川の守りを崩せ' : '義元の幕の入口へ進め';
+      const text = block ? '坂道で松井宗信の先手を破れ' : '義元の幕の入口へ進め';
       if (!F.entered && F.attackText !== text) {
         F.attackText = text; rt.obj('attack', text, 'main');
         const task = rt.objectives.find((o) => o.id === 'attack' && !o.state);
@@ -3041,7 +3045,7 @@ const okehazama = {
         g.guard = false; g.order = 'attack'; g.seekRange = 30; g.aggro = 12; g.focus = null;
       }
       if (sightPoint(rt, y.pos)) rt.bark('本陣の両脇から今川の備えが駆け寄る。組から離れるな', true);
-      F.attackText = '幕の前の義元の旗本を崩せ';
+      F.attackText = '幕の前で義元の旗本を破れ';
       rt.obj('attack', F.attackText, 'main');
     }
     // 三人分の囲みが欠けたら、討取りへ向かう任務に進む。全滅は求めない。
@@ -3150,7 +3154,7 @@ const okehazama = {
         // 同じ印の相手と必要な人数を短く伝える。
         if (!F.guardOpened) {
           // 崩す相手と人数を一文に保つ。
-          const text = '幕の前の義元の旗本を崩せ';
+          const text = '幕の前で義元の旗本を破れ';
           if (F.attackText !== text) { F.attackText = text; rt.obj('attack', text, 'main'); }
         } else if (F.yoshiDown) {
           const text = mor?.woundOut ? '毛利は手当て中。味方と構えよ' : '義元は深手。毛利に任せ、そばで構えよ';
@@ -3213,7 +3217,7 @@ const okehazama = {
     if (!F.assaultHint && rt.t - F.assaultProgressAt >= 180) {
       F.assaultHint = F.yoshiDown ? '毛利の旗へ寄れ。道を空け、そばで構えよ' :
         F.koshiLeft ? '旗本の退き口へ回れ。服部と毛利の旗に続け' :
-        F.entered ? '義元の旗本へ寄れ。味方と囲みを崩せ' : '味方の旗に続け。道をふさぐ敵を崩せ';
+        F.entered ? '義元の旗本へ寄れ。味方と囲みを破れ' : '味方の旗に続け。坂道の松井勢を破れ';
       localSay(rt, rt.hostGroup, '組頭', F.assaultHint, 5);
       const block = !F.entered && !F.koshiLeft && F.road[F.roadStep];
       rt.marker('honjin', F.yoshiDown && mor?.alive ? unitPos(mor) : block ? block.anchor : unitPos(y), F.assaultHint, { red: true });
@@ -3233,7 +3237,7 @@ const okehazama = {
       rt.unmark('hattori'); rt.unmark('mori'); rt.unmark('guardGap'); rt.unmark('road'); rt.unmark('honjin');
       rt.banner('義元を討ち取れず', !ready ? '攻める味方の組が崩れた' : rt.pt > 420 ? '時間切れで攻めを止めた' : '退く義元に追いつけなかった');
       localSay(rt, rt.hostGroup, '組頭', !ready ? '攻める備が崩れた。残った者を連れて下がれ！' : rt.pt > 420 ? '攻めが長引いた。敵の守りはまだ固い。組を下げよ！' : '義元の旗本に退かれた。深追いせず、組を下げよ！', 3);
-      const mission = F.attackText || '味方の旗に続き、道の守りを崩せ';
+      const mission = F.attackText || '味方の旗に続き、坂道の松井勢を破れ';
       const reason = !ready ? '攻める味方の組が崩れた。' : rt.pt > 420 ? '敵の守りを崩せず、攻めが長引いた。' : '義元の旗本が退き、追いつけなかった。';
       rt.finish({ failureReason: `「${mission}」を果たせず。${reason}味方と槍をそろえて押そう。` }, 5);
     }
@@ -3490,7 +3494,7 @@ export function volleyAt(rt, key, guns, foes, o = {}) {
 }
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
-okehazama.bushou = ['千秋季忠', '佐々政次', { name: '井伊直盛', g: /今川|旗本|本陣/ }, { name: '由比正信', g: /今川|旗本|本陣/ }];
+okehazama.bushou = ['千秋季忠', '佐々政次',{ name: '由比正信', g: /今川|旗本|本陣/ }];
 export { okehazama };
 
 // 林の株ごとの色を設営時に一度だけ替える。見える株を詰め直す時の元の色（cullList の orig.col）も同じに替え、詰め直しで元の色へ戻らないようにする。

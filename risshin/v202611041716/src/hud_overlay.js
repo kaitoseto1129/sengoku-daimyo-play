@@ -23,25 +23,25 @@ export class HudOverlay {
       return this.drawDestinationPin(g, x, y);
     if (rt.def.missionStyle !== 'ford') return this.drawDestinationPin(g, x, y);
     // 地図のピンと同じ、丸い頭から地面へ先細りになる形。先端は到着判定の地点。
-    // 到着後の時計も同じ形を保ち、到着のチェックと待つ進みを区別する。
-    // 守備中は到着後も持ち場に同じピンの時計を残す。
+    // 到着後は先端を畳み、同じ丸の中が満ちる待機の印へ替える。
     const waiting = pin?.waiting && (pin.arrived || pin.guardArea);
-    const radius = waiting ? 32 : 18;
-    // 行き先は先端の真上にそろえ、到着後の大きな時計だけ任務の下の内側へ寄せる。
-    const cx = waiting ? x - 28 : x, cy = waiting ? y - 64 : y - 54;
+    const radius = waiting ? 22 : 18;
+    const cx = x, cy = y - 54;
     const progress = Math.max(0, Math.min(1, pin?.progress || 0));
     g.save(); g.lineJoin = 'round';
     // 移動中は地面の根元も描き、兵の頭上の印と区別する。
-    if (!waiting || !pin.arrived || pin.guardArea) {
+    if (!waiting) {
       // 川岸の地面を覆わず、先端の接地だけを小さく示す。
       g.beginPath(); g.ellipse(x, y, 5, 2, 0, 0, Math.PI * 2);
       g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
       g.strokeStyle = '#fff3ba'; g.lineWidth = 2; g.stroke();
     }
-    g.beginPath(); g.moveTo(x, y); g.lineTo(cx - radius * .8, cy + radius * .55);
-    g.lineTo(cx + radius * .8, cy + radius * .55); g.closePath();
-    g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
-    g.fillStyle = '#fff3ba'; g.fill();
+    if (!waiting) {
+      g.beginPath(); g.moveTo(x, y); g.lineTo(cx - radius * .8, cy + radius * .55);
+      g.lineTo(cx + radius * .8, cy + radius * .55); g.closePath();
+      g.strokeStyle = '#14120f'; g.lineWidth = 4; g.stroke();
+      g.fillStyle = '#fff3ba'; g.fill();
+    }
     g.beginPath(); g.arc(cx, cy, radius + 3, 0, Math.PI * 2);
     g.strokeStyle = '#14120f'; g.lineWidth = 6; g.stroke();
     g.fillStyle = '#fff3ba'; g.fill();
@@ -145,7 +145,8 @@ export class HudOverlay {
     const pinTarget = rt.def.missionPin?.(rt);
     // 森部は任務が返したピン一本。敵や味方の位置で上書きしない。
     // 敵は本人の赤い▼にそろえる。敵の足元へ黄色い行き先を重ねない。
-    if (moribe && (!pinTarget || pinTarget.enemy && inouSignVisible(rt, pinTarget.unit))) return;
+    // ピンを消す判定は任務側にそろえる。画面外や遠い敵へ向かう一本をここで消さない。
+    if (moribe && !pinTarget) return;
     // 守備も到着したら任務の下へ移し、足元に時計を残さない。
     // 到着後は同じピンを任務の下で満たす。足元や背後へ隠れて、終わりが見えなくなるのを防ぐ。
     // 移動する時だけ地面へ戻し、時計と行き先を同時に二本出さない。

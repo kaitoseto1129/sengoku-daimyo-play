@@ -95,8 +95,8 @@ const OWN = {
   },
   okehazama: () => [
     { kind: 'stage', k: 0, text: '谷の出口で組の旗に集まる', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
-    { kind: 'stage', k: 1, text: '坂道の今川の守りを崩す', noun: '今川の守り', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
-    { kind: 'stage', k: 2, text: '幕の前で義元の旗本を崩す', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
+    { kind: 'stage', k: 1, text: '坂道で松井宗信の先手を破る', noun: '松井宗信の先手', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
+    { kind: 'stage', k: 2, text: '幕の前で義元の旗本を破る', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
     { kind: 'stage', k: 2, text: '幕の入口から義元へ迫る', noun: '幕の入口', check: (rt) => won(rt) || !!rt.flags.mouthReached || !!rt.flags.koshiLeft || !!rt.flags.yoshiDown },
     { kind: 'stage', k: 2, text: '退く旗本を追い、義元を討ち取る', noun: '義元', check: won },
   ],

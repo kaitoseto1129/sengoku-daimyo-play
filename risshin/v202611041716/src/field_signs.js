@@ -76,7 +76,7 @@ function build(rt, root) {
         shader.vertexShader = shader.vertexShader.replace(
           'if (position.z > 0.0) { transformed.xy = vec2(0.0, 0.065) + (position.xy - vec2(0.0, 0.065)) * signLife; }',
           'vSignLevel = vec3(position.z > 0.0 ? 1.0 : 0.0, position.y, signLife);');
-        // 森部も実際に届く本人だけ白縁にする。中身は赤い▼のまま。
+        // 稲生は届く本人だけ白縁へ。森部は通常の赤い▼の色を使う。
         shader.vertexShader = shader.vertexShader.replace('if (signTone > 1.5) vColor = position.z > 0.0 ? vec3(0.42, 0.06, 0.03) : vec3(1.0);',
           ['ford', 'lesson'].includes(rt.def.missionStyle) ? 'if (mod(signTone, 8.0) == 2.0) vColor = position.z > 0.0 ? vec3(0.42, 0.06, 0.03) : vec3(1.0);' :
           // 桶狭間は届く本人だけ白縁へ替える。赤い▼の横幅と明るい中身も保つ。
@@ -493,7 +493,7 @@ export function fieldSignsTick(rt, root) {
     // 桶狭間の遠い印は頭ほどに収め、森部・稲生の間合いと命中の調整も保つ。
     // 森部は遠い印を頭ほどに収め、近づくほど滑らかに広げる。討つ武将は一段大きく残す。
     const moribeNear = ford ? Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / 22)) : 0;
-    // 最寄りの目当ては同じ▼を一回り大きくする。届く時の白縁・横広がりとは分ける。
+    // 最寄りの目当ては同じ▼を一回り大きくする。届く時はさらに横へ広げる。
     const moribeFocus = ford && u === missionEnemy;
     const moribeLimit = (u === commander ? .9 : moribeFocus ? .8 : .6) + .45 * moribeNear;
     // 近い所属印は二十画素、目当てと届く本人は二十四画素、命中した本人は二十八画素を保つ。
@@ -625,10 +625,12 @@ export function fieldSignsTick(rt, root) {
       // 手前は描画方式によらず読める幅を保ち、隣の兵を覆わない上限も守る。
       // 接近で同じ印を育て、届く時・命中・防がれた時の横幅を保つ。
       const close = Math.max(0, Math.min(1, (40 - Math.sqrt(meD2)) / Math.max(1, 40 - reachHot)));
-      const width = reachable ? 32 : hit > 0 || defeated || blocked ? 28 : 12 + 8 * close;
-      dummy.scale.x = Math.max(dummy.scale.x, width * close * screenScale / .34);
+      // 追う一人は赤いまま一回り大きくし、黄色いピンから同じ本人へ渡す。
+      const focus = u === missionEnemy;
+      const width = reachable ? 32 : hit > 0 || defeated || blocked ? 28 : focus ? 24 : 12 + 8 * close;
+      dummy.scale.x = Math.max(dummy.scale.x, width * (focus || reachable ? 1 : close) * screenScale / .34);
       // 届く横幅と命中の縦伸びを最後の上限で潰さない。先端は頭上に固定する。
-      dummy.scale.x = Math.min(dummy.scale.x, (reachable ? 38 : hit > 0 || defeated || blocked ? 30 : 22) * screenScale / .34);
+      dummy.scale.x = Math.min(dummy.scale.x, (reachable ? 38 : hit > 0 || defeated || blocked ? 30 : focus ? 26 : 22) * screenScale / .34);
       // 命中の縦伸びを残し、目前でも笠の上に収める。
       const height = 12 + 6 * close;
       dummy.scale.y = Math.min(dummy.scale.y, Math.min(hit > 0 ? 32 : 24, height * (blocked ? .55 : 1 + 1.6 * pulse)) * screenScale / .28);
@@ -649,8 +651,8 @@ export function fieldSignsTick(rt, root) {
       // 選択・命中・受け止めでは白縁を付けず、届くという意味を保つ。
       // 敵が振りかぶっても、届く予告と自分の命中の反応を金縁で隠さない。
       // 桶狭間は近距離の境を越えても▼を隠さない。壁の見通しは上で確認済み。
-      // 森部の届く本人は白縁と横幅、命中は削れた面と縦の伸びで示す。
-      const tone = lesson ? (general(u) ? 24 : near ? 8 : 0) + (defeated ? 4 : reachable ? 2 : 1) : ford ? (near ? 8 : 0) + (reachable && !defeated ? 2 : 1) : raid ? 8 + (defeated ? 1 : hit > 0 ? reachable ? 6 : 4 : reachable ? 2 : 1) : justHit ? 3 : hot ? 2 : 1;
+      // 森部は白縁への切り替えを省き、届く横幅と命中の動きを同じ赤い▼で示す。
+      const tone = lesson ? (general(u) ? 24 : near ? 8 : 0) + (defeated ? 4 : reachable ? 2 : 1) : ford ? (near ? 8 : 0) + 1 : raid ? 8 + (defeated ? 1 : hit > 0 ? reachable ? 6 : 4 : reachable ? 2 : 1) : justHit ? 3 : hot ? 2 : 1;
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
@@ -875,7 +877,8 @@ const nameHit = (items, n, it, gap = 1) => {
 
 // 名札を画面の所（x・y は点）へ置く。遠くても 15 点より小さくしない。動かすのは transform だけ。
 function placeName(e, u, x, y, d, me) {
-  const label = `${u.team === me.team ? '味方' : '敵'} ${u.name.replace(/組頭/g, 'かしら').replace(/足軽 /g, '')}`;
+  // 名札は名前だけ（kaito の物差し 五-1：「味方」「敵」の字は出さない。敵味方は縁の色と太さで分ける）
+  const label = `${u.name.replace(/組頭/g, 'かしら').replace(/足軽 /g, '')}`;
   if (e._n !== label) { e._n = label; e._name.textContent = label; }
   // 味方は金の縁と字、敵は赤い縁と字（色だけに頼らず、敵は縁を太くする）
   const foe = u.team !== me.team;
