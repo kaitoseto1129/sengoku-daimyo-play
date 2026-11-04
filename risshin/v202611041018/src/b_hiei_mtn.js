@@ -1888,7 +1888,9 @@ function hieiMeleeGuide(rt, enemy) {
   if (Math.abs(enemy.pos.y - p.pos.y) >= 2 || rt.army.wallBetween(p.pos, p.team, enemy.pos, false)) return false;
   // 案内中の相手自身の打ち込みだけを残す。別の敵の攻撃を理由に、
   // 道の外の相手へ向き直らせない。本道へ戻る間も目前の一撃は受ける。
-  const striking = enemy.target === p || enemy.atk?.target === p || enemy.swing?.target === p;
+  // 狙っているだけの兵や打ち終えた振りは、目前の攻撃に数えない。
+  const striking = enemy.atk?.target === p || enemy.swing?.target === p && !enemy.swing.done
+    || enemy.charging && enemy.cv === 'in' && enemy.target === p;
   if (d <= 3 && striking) return true;
   if (F.exitMarked || F._gHold || F.guideReturn?.active || d > 7) return false;
   // 平常時にも本道の検査を通す。近いだけの法面・別の段・室内へは誘わない。

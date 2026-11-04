@@ -2187,15 +2187,15 @@ function anegawaTask(rt) {
   const hasLine = F.step !== 1 || !!anegawaLineSoldier(F.holdRow, F.holdSoldier);
   if (near || !F.atHold) { F.holdQuietAt = rt.t; F.holdWaiting = false; }
   else if (rt.t - (F.holdQuietAt ?? F.stepT) >= 12) F.holdWaiting = true;
-  const holding = F.atHold ? F.holdWaiting ? F.inabaT ? 'ここで槍を揃え、残る旗を見張れ' : F.westReported ? 'ここで槍を揃え、横槍を待て' :
-    'ここで槍を揃え、西の知らせを待て' : '味方と槍を揃え、浅井を止めよ' : null;
+  const holding = F.atHold ? F.holdWaiting ? F.inabaT ? '槍列から出て、残る浅井勢を討て' : '槍列の前の浅井勢を討て' :
+    '味方と槍を揃え、浅井を止めよ' : null;
   // 出血が止まっても、深手なら残る布で手当てできる。布切れを回復待ちにしない。
   const canTreat = rt.player.treatmentLeft > 0 && rt.player.treatmentNext <= rt.t;
   // 手当てが先でも、本陣へ敵が抜けた事を任務から消さない。
   const hurtHq = F.step === 1 && F.taskHurt && (F.hqThreat || F.hqDefend);
   const returnHq = anegawaHqReturnPriority(rt);
   const text = returnHq ? anegawaHqReturnText(rt) : hurtHq ? anegawaHurtHqText(rt, F.retreatReached) : F.taskHurt ? !F.retreatSafe ? '槍を構え、南へ下がれ' : canTreat ?
-    F.retreatReached ? 'ここで布を巻き、手当てせよ' : '退き先へ下がり、布で手当てせよ' : F.retreatReached ? rt.player.treatmentLeft > 0 ? '構えて休め。次の手当てを待て' : '傷は残る。味方の後ろで構えよ' : '印へ下がり、槍を構えよ' : F.step === 2 ? anegawaPursuitText(rt) :
+    F.retreatReached ? 'ここで布を巻き、手当てせよ' : '退き先へ下がり、布で手当てせよ' : F.retreatReached ? rt.player.treatmentLeft > 0 ? '味方の後ろで構え、息を整えよ' : '傷は残る。味方の後ろで構えよ' : '印へ下がり、槍を構えよ' : F.step === 2 ? anegawaPursuitText(rt) :
     F.hqThreat || F.hqDefend ? atHq ? anegawaHqWatchText(rt) : near >= 3 ? '槍を構え、味方と本陣前へ退け' : '本陣前へ戻り、抜けた敵を止めよ' : east ? '東の瀬で別手を止めよ' : pushing ?
     Math.hypot(P.pos.x - F.pushAt.x, P.pos.z - F.pushAt.z) > 18 ? '押し返す味方の槍列へ合流せよ' : '横槍に合わせ、味方と浅井を押せ' :
     !hasLine ? F.atHold ? near ? '本陣前で構え、敵を通すな' : 'ここで構え、味方の旗を守れ' : '本陣前へ戻り、残る味方と守れ' : holding || (F.breach >= 3 ? '印の槍列で槍を揃え直せ' : F.holdAt.z > POST.z + 4 ? '印の槍列へ戻り、浅井を止めよ' : '川を渡らず、岸で浅井を止めよ');
@@ -2419,7 +2419,7 @@ function anegawaReturning(rt) {
 // 遠い敵を止めるよう急かさず、旗の前で見張る向きと接敵後の行動を分ける。
 function anegawaHqWatchText(rt) {
   const F = rt.flags, p = rt.player.u.pos, enemy = F.hqEnemy;
-  if (!enemy?.alive) return '輪の中で待とう';
+  if (!enemy?.alive) return '本陣の旗の前で、抜ける敵を討て';
   const dx = enemy.pos.x - p.x, dz = enemy.pos.z - p.z;
   // 本陣へ抜けた敵か、同じ相手が接近した時だけ迎撃を示す。
   if (F.hqBreached) {
@@ -2427,7 +2427,7 @@ function anegawaHqWatchText(rt) {
   }
   // 二十五歩内の別の敵ではなく、案内している敵が槍を向ける距離に来たかを見る。
   if (dx * dx + dz * dz < 12 * 12) return '近づく敵をたおそう';
-  return '輪の中で待とう';
+  return '本陣の旗の前で、抜ける敵を討て';
 }
 // 軽傷で歩ける間は、手当ての退き先で本陣への道案内を消さない。
 // 出血・深手と布を巻いている間は傷の案内を優先する。
@@ -2451,7 +2451,7 @@ function anegawaHurtHqText(rt, reached) {
   return reached ? '本陣前で かまえよう' : anegawaHqReturnText(rt);
 }
 function anegawaHoldRoute(rt) {
-  return '旗へもどろう';
+  return '川前の槍列へ戻れ';
 }
 // 退き太鼓の時だけ選ぶ。空の畑を「味方の旗」と呼ばず、残る徒歩兵の後ろを探す。
 function anegawaWithdrawPost(rt) {
@@ -2481,13 +2481,14 @@ function anegawaGuardLabel(rt, reached) {
   if (F.hqThreat || F.hqDefend) return reached ? anegawaHqWatchText(rt) : anegawaHqReturnText(rt);
   if (!reached) return anegawaHoldRoute(rt);
   if (rt.phase !== 'brief' && F.nearEnemies > 0) return '近づく敵をたおそう';
-  return '輪の中で待とう';
+  return rt.phase === 'brief' ? '森可成の川前へ行け' : '川前の槍列で、渡る浅井勢を討て';
 }
 // ---- 稲生の水準（reports/inou-standard.md 10/25）----
 // 右上は任務の一行だけ。守る段は持ち場へピン（着いても残し、味方の槍列がそこに集まる）。
 // 倒す段はピンを一番近い残りの敵へ。磯野員昌が寄れば大将の印。手負い・退き太鼓は元の案内に任せる。
 // 11/4：どこで何をするかを書く（AR1。「ここ」「敵」だけにしない）
-const ANE_MISSIONS = ['森可成の川前を守れ', '川前に寄る敵兵を討て', '磯野員昌を退けよ', '姉川を北へ渡れ', '浅井のしんがりを崩せ'];
+// 11/4 夜：史実の順（川前へ出る→浅井の渡河→磯野の突破→稲葉の横槍→渡る→しんがり）に一つずつ進め、前の段へ戻さない（AW3・BA3）。
+const ANE_MISSIONS = ['森可成の川前へ行け', '川前へ渡る浅井勢を討て', '磯野員昌を退けよ', '稲葉の横槍に合わせ、浅井を押せ', '姉川を北へ渡れ', '浅井のしんがりを崩せ'];
 const aneFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound &&
   !u.fleeing && !u.noTarget && !u.isStruct && !u.civ && u.team === 1 && !u.group?.routed && !u.group?.noAI &&
   u.mesh?.visible !== false;
@@ -2530,10 +2531,11 @@ function aneCommander(rt) {
   return Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 26 ? u : null;
 }
 function aneMissionOf(rt) {
-  const F = rt.flags;
-  if (F.step === 2) return aneNearestFoe(rt) ? 4 : rt.player.u.pos.z >= aneNorthBank(rt.player.u.pos.x) ? 3 : 0;
-  if (aneCommander(rt)) return 2;
-  return F.step === 1 && aneNearestFoe(rt) ? 1 : 0;
+  const F = rt.flags, p = rt.player.u.pos;
+  let s = 0;
+  if (F.step === 2) s = p.z < aneNorthBank(p.x) ? 5 : 4;
+  else if (F.step === 1) s = F.inabaT || F.iso?.fled ? 3 : F.isoU?.announced || F.breach > 0 ? 2 : 1;
+  return F.aneStage = Math.max(F.aneStage || 0, s);
 }
 
 // 遊んでいる姉川の rt（bot の本陣守りの判定に使う）
@@ -2680,7 +2682,7 @@ const anegawa = {
     const F = rt.flags;
     if (rt.phase === 'brief' || aneOwnGuide(rt)) return null;
     const stage = aneMissionOf(rt);
-    return stage === 2 ? aneCommander(rt) : stage === 1 || stage === 4 ? aneNearestFoe(rt) : null;
+    return stage === 2 ? aneCommander(rt) || aneNearestFoe(rt) : stage === 1 || stage === 3 || stage === 5 ? aneNearestFoe(rt) : null;
   },
   commanderTarget: (rt) => aneCommander(rt),
   namedGuideTarget: (rt) => aneCommander(rt),
@@ -2711,17 +2713,17 @@ const anegawa = {
     const me = rt.player.u.pos, stage = aneMissionOf(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false; q.defend = false;
     q.follow = false; q.fire = false; q.gate = false; q.footRing = false; q.treatment = false; q.passage = false;
-    if (stage === 1 || stage === 2 || stage === 4) {
-      const u = stage === 2 ? aneCommander(rt) : aneNearestFoe(rt);
-      // 槍が届いたら頭上の▼に任せ、ピンは消す。
-      if (!u || rt.player.inRange && rt.player.rangeCueTarget === u) return null;
-      q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2;
-      return q;
+    if (stage === 1 || stage === 2 || stage === 3 || stage === 5) {
+      const u = stage === 2 ? aneCommander(rt) || aneNearestFoe(rt) : aneNearestFoe(rt);
+      // 槍が届いたら頭上の▼に任せ、ピンは消す。討つ相手がいない間は、決まった持ち場（渡った後は向こう岸）へ。
+      if (u && rt.player.inRange && rt.player.rangeCueTarget === u) return null;
+      if (u) { q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2; return q; }
     }
     // 守る段・渡る段：持ち場（または向こう岸）に刺したまま。味方の槍列もそこに並ぶ。
-    const at = stage === 3 ? { x: 24, z: -22 } : anePost(rt);
-    q.x = at.x; q.z = at.z; q.r = q.hide = stage === 3 ? 6 : 8;
-    q.waiting = q.defend = stage !== 3;
+    const cross = stage >= 4;
+    const at = cross ? { x: 24, z: -22 } : anePost(rt);
+    q.x = at.x; q.z = at.z; q.r = q.hide = cross ? 6 : 8;
+    q.waiting = q.defend = !cross;
     q.arrived = q.waiting && Math.hypot(me.x - at.x, me.z - at.z) < 8;
     return q;
   },
@@ -3663,7 +3665,7 @@ const anegawa = {
     rt.setPhase('brief');
     F.openingWaitDuration = rt.G.lord ? 18 : 5;   // 開戦25秒の乱戦（10/30・夜に8→5）：磯野の渡河を早め、25秒には岸の斬り合いが広がっているように
     F.openingWaitUntil = rt.t + F.openingWaitDuration;
-    anegawaObjective(rt, 'main', rt.G.lord ? '浅井の寄せを受け、押し返せ' : '川を渡らず、岸で浅井を待て');
+    anegawaObjective(rt, 'main', rt.G.lord ? '浅井の寄せを受け、押し返せ' : '森可成の川前へ行き、槍を揃えよ');
     F.holdLabel = '森の先手・岸の槍列';
     // 守る範囲を残し、到着しても「待とう」の一文で下知を隠さない。
     // 持ち場の手前の川原に半ば埋まった玉石と根の草、陣の俵・材木、踏み跡の土（共通の stage_dress）。
@@ -4158,7 +4160,7 @@ const anegawa = {
         rt.say('組頭', F.flankHelp ? 'おぬしらが別手を止めた！　鉄砲組の背後は守れたぞ！' : '東の別手が退いた！　正面の味方を支えよ！', 3);
       }
 
-      if (rt.G.lord) rt.objProgress('main', F.flankPick === 0 && !F.flankDone ? '佐久間の手と東の瀬を守れ' : F.inabaT ? '横槍が取り付いた。味方と正面の備を押せ' : F.westReported ? '西の朝倉は退いた。横槍が届くまで正面の列を保て' : '備を保ち、使番の知らせを待て');
+      if (rt.G.lord) rt.objProgress('main', F.flankPick === 0 && !F.flankDone ? '佐久間の手と東の瀬を守れ' : F.inabaT ? '横槍が取り付いた。味方と正面の備を押せ' : F.westReported ? '西の朝倉は退いた。正面の浅井勢を討て' : '備を保ち、渡る浅井勢を討て');
       // 森の備が危うければ、稲葉の横槍を早める
       if (!F.inaba && F.mori.count < F.mori0 * 0.25 && F.tkDone) this.inaba(rt);
       if (!F.tkDone && F.mori.count < F.mori0 * 0.25) this.tokugawa(rt);
@@ -4180,7 +4182,7 @@ const anegawa = {
       }
       const spent = waves.every((e) => !e || (!e.anePending && (gone(e) || e.count <= 3)));
       // 二の手と東の別手が出た後、寄せを早く退けた働きで西の別手を早める。
-      if (F.second && F.flankG && spent && !F.tkDone && !F.tkSoon) { F.tkSoon = true; rt.say('森可成', '敵の足が鈍ったぞ。残る旗を見張れ、西の知らせが来るまで動くな！', 3.5); rt.after(6, () => this.tokugawa(rt)); }
+      if (F.second && F.flankG && spent && !F.tkDone && !F.tkSoon) { F.tkSoon = true; rt.say('森可成', '敵の足が鈍ったぞ。川前に残る浅井の兵を討て！', 3.5); rt.after(6, () => this.tokugawa(rt)); }
       if (F.third && gone(F.third)) rt.unmark('third');
       // 前の塊（磯野と二の手）が半分を割ったら、後詰めが続けて押す。
       if (F.thirdWait && F.second && (iso.count + F.second.count) * 2 < F.frontN0) this.pushReserve(rt);

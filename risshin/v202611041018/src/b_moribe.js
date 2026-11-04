@@ -2780,8 +2780,10 @@ const moribe = {
   },
   missionHeading(rt) {
     const F = rt.flags, p = rt.player.u.pos;
+    // 渡河中でも敵が迫ったら、岸への移動より頭上の▼を優先する。
+    if (!F.signal && F.fordThreat) return '▼の敵を倒せ';
     // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || playerAtFord(p, rt.world))) return F.fordThreat ? '敵を倒せ' : '仲間を待て';
+    if (!F.signal && (F.pointReached || F.pointInside || playerAtFord(p, rt.world))) return '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -2796,6 +2798,7 @@ const moribe = {
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
+    if (F.stage === 'contact' && !F.vBroken) return '▼の敵を倒せ';
     return this.missions[this.missionOf(rt)];
   },
   minutes: 10,
@@ -2874,13 +2877,12 @@ const moribe = {
     // 開戦したら渡河のピンを残さず、頭上の▼へ切り替える。
     // 先手の中心の空地でなく、頭上の▼と同じ生きた一人へ導く。
     // 本人と▼が見えたらピンを畳む。まだ描いていない時や画面外では同じ一本を保つ。
-    if (F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press') && !F.squadGuide) {
+    if ((!F.signal && F.fordThreat || F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press')) && !F.squadGuide) {
       const enemy = this.missionSignTarget(rt);
       // 間合いにいても画面外なら行き先を残す。見える本人の▼へ渡す時だけ消す。
       if (!enemy) return null;
       // 姿と頭上の▼が見えたら、地面の黄色いピンは消す。
-      if (Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z) <= 40 &&
-          inouSignVisible(rt, enemy) && sightScreenUnit(rt, enemy)) return null;
+      if (inouSignVisible(rt, enemy) && sightScreenUnit(rt, enemy)) return null;
       const distance = Math.hypot(enemy.pos.x - p.u.pos.x, enemy.pos.z - p.u.pos.z);
       const remaining = Math.max(0, distance - (p.weapon === 'sword' ? 1.9 : 2.8));
       if (F.pinApproachKey !== enemy) {
@@ -3429,8 +3431,12 @@ const moribe = {
 /* 説明のない総兵数や綱引きは出さず、行き先のピンと敵の▼で判断する。 */
 #hud.moribe-notices #tugbar,
 #hud.moribe-notices #armybar { display:none !important; }
-/* 次の一手と号令を右の任務札にまとめる。横持ちでも二行を切らない。 */
-#hud #h-prog[data-battle="moribe"] { width:min(320px, 38vw); }
+/* 任務一行は携帯横でも画面の右上へ収める。 */
+html:root body #hud.moribe-notices #h-prog[data-battle="moribe"] {
+ right:calc(16px + env(safe-area-inset-right, 0px));
+ top:calc(12px + env(safe-area-inset-top, 0px)); width:max-content;
+ max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
 #hud #h-prog[data-battle="moribe"] .pg-st:not(.mission-combat) { background-image:none !important; }
 /* 耐える間だけ任務と同じ行で丸が満ちる。場所を離れても時計を見失わない。 */
 #hud #h-prog[data-battle="moribe"] .pg-st.moribe-wait {
@@ -3446,9 +3452,9 @@ const moribe = {
   conic-gradient(#fff3ba calc(var(--wait-progress,0) * 1%), #393328 0);
 }
 /* 共通の一行省略より優先し、今することを最後まで読めるようにする。 */
-html:root body #hud.mission-only #h-prog[data-battle="moribe"] .pg-st span {
- max-width:100% !important; white-space:normal !important; overflow:visible !important;
- text-overflow:clip !important; overflow-wrap:anywhere !important;
+html:root body #hud.moribe-notices #h-prog[data-battle="moribe"] .pg-st span {
+ max-width:100% !important; white-space:nowrap !important; overflow:visible !important;
+ text-overflow:clip !important;
 }
 #hud #h-prog[data-battle="moribe"] .pg-next { white-space:normal; overflow:visible; text-overflow:clip; }
 #hud #h-prog[data-battle="moribe"] .pg-context { white-space:pre-line; margin-top:4px; }
