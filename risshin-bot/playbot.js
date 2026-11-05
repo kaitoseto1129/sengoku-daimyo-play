@@ -217,8 +217,8 @@ function survive(b, inp) {
       let best = -Infinity, bx = 0, bz = 0;
       const walk = Math.atan2(dx, dz), moving = Math.hypot(dx, dz) > 0.3;
       // 志賀の曲がり角や三方ヶ原の退路では、速回しの一歩で足場が変わる。
-      // 時間だけで古い一歩を保たず、移動と道の向きの変化でも調べ直す。
-      const choose = !(b._botEscapeAt > b.t) ||
+      // 横槍は本人が動く前にも入る。届く打ち手・追手がいる間は毎判断で調べ直す。
+      const choose = !!attacker || !!pursuer || !(b._botEscapeAt > b.t) ||
         Math.hypot(u.pos.x - b._botEscapeFromX, u.pos.z - b._botEscapeFromZ) >= 0.35 ||
         Math.cos(walk - b._botEscapeWalk) < 0.95;
       for (let i = 0; choose && moving && i < 8; i++) {
@@ -258,6 +258,17 @@ function survive(b, inp) {
             danger += (1.4 - clearance) * 6;
           }
           if (o.team === u.team || o.fleeing || o.group?.routed) continue;
+          // 終点が空いていても、横槍の内側を通る一歩には走らない。
+          // 待ち列へ移った兵も、既に振り出した刃が本人へ残る間は打ち手に数える。
+          const striking = o.atk?.target === u && !o.atk.ranged && !o.atk.bow ||
+            o.swing?.target === u && !o.swing.done;
+          const pursuing = o.target === u && !o.playerQueue && !o.woundOut && !o.rearWound &&
+            (o.sidearm || o.type !== 'gun' && o.type !== 'bow');
+          if ((striking || pursuing) && clearance < (o.reach || 2.8) + .6 &&
+              clearance + .01 < Math.hypot(ox, oz) &&
+              !army.wallBetween(o.pos, -1, u.pos, (o.wpnKind || o.lookWeapon) === 'spear')) {
+            clear = false; break;
+          }
           // 順番待ちと打ち手は分け、刃の届く一歩にはさらに余裕を取る。
           if (o.playerQueue) {
             if (gap < 2 && !army.wallBetween(u.pos, -1, o.pos)) danger += (2 - gap) * 6;
@@ -269,7 +280,7 @@ function survive(b, inp) {
         const value = Math.cos(turn) * 2 - danger;
         if (value > best) { best = value; bx = sx; bz = sz; }
       }
-      // 足場と道の向きが同じ間は四分の一秒ごと。入れ物は増やさない。
+      // 近い打ち手がなく、足場と道の向きが同じ間は四分の一秒ごと。
       if (choose) {
         b._botEscapeAt = b.t + 0.25; b._botEscapeX = bx; b._botEscapeZ = bz;
         b._botEscapeFromX = u.pos.x; b._botEscapeFromZ = u.pos.z; b._botEscapeWalk = walk;
