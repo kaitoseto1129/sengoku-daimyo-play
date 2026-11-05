@@ -498,7 +498,7 @@ export class Auditor {
         const cards = el.matches('.tl, .tr, #battle-notices, #markers') ? el.children : [el];
         for (const card of cards) {
           // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
-          const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target';
+          const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target' || card.id === 'mission-dest-arrow';
           const r = ink ? inkRect(card) : visibleRect(card);
           if (r) panels.push({ el: card, r });
         }
