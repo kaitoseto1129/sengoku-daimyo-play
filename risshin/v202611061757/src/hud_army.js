@@ -176,7 +176,7 @@ export class HudArmy {
 #tugbar[hidden]{display:none}
 #tugbar .mon{width:24px;height:24px;flex:none;background:#f2d27a;border:2px solid #14120f;border-radius:50%}
 #tugbar .mon[hidden]{display:none}#tugbar .mon.b{border:3px solid #e14d36}
-#tugbar .bar{position:relative;flex:1;height:12px;border-radius:6px;overflow:hidden;background:#14120f;box-shadow:0 0 0 2px #14120f,0 1px 4px rgba(0,0,0,.6)}
+#tugbar .bar{position:relative;flex:1;height:12px;border-radius:6px;overflow:hidden;background:#5d5b57;box-shadow:0 0 0 2px #14120f,0 1px 4px rgba(0,0,0,.6)}
 #tugbar .bar i{position:absolute;top:0;bottom:0}
 #tugbar .bar i.a{left:0;background:linear-gradient(#f2d27a,#c99a2e)}
 #tugbar .bar i.b{right:0;background:linear-gradient(#ff6a50,#b8281a)}
@@ -197,8 +197,9 @@ export class HudArmy {
     tb.hidden = off;
     if (off) return;
     // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
-    const ra = Math.max(0, f.a) / (rt.def.missionStyle === 'lesson' ? 1 : Math.max(1, f.a0 || f.a)), rb = Math.max(0, f.b) / (rt.def.missionStyle === 'lesson' ? 1 : Math.max(1, f.b0 || f.b));
-    const share = ra + rb > 0 ? ra / (ra + rb) * 100 : 50;
+    // 数の棒は真ん中で区切り、左半分＝味方の最初の人数、右半分＝敵の最初の人数を100%に。減った分はグレー（十八の2・二十一の1）
+    const [ra, rb] = forceRatio(rt, f);
+    const share = 50;
     const oke = rt.def.missionStyle === 'raid', inou = rt.def.missionStyle === 'lesson';
     const picture = oke || inou;
     const separateForces = picture || rt.def.missionStyle === 'ford';
@@ -226,15 +227,14 @@ export class HudArmy {
         }
       }
     }
-    const key = `${rt.def.key}|${share.toFixed(1)}|${Math.round(f.a)}|${Math.round(f.b)}|${f.a0}|${f.b0}|${!!f.provisional}`;
+    const key = `${rt.def.key}|${ra.toFixed(3)}|${rb.toFixed(3)}|${Math.round(f.a)}|${Math.round(f.b)}|${f.a0}|${f.b0}|${!!f.provisional}`;
     if (key === this.tugKey) return;
     this.tugKey = key;
     tb.classList.toggle('still', !!S.reduceMotion);
     // 稲生・桶狭間・森部は初めの大きい軍を基準に、両軍の残りを別々に減らす。
     // 同じ割合だけ減った時も棒が縮み、史実の全軍と紛らわしい裸の数字は出さない。
-    const full = Math.max(1, f.a0 || f.a, f.b0 || f.b);
-    tb.querySelector('i.a').style.width = (separateForces ? Math.max(0, Math.min(1, f.a / full)) * 48 : share).toFixed(1) + '%';
-    tb.querySelector('i.b').style.width = (separateForces ? Math.max(0, Math.min(1, f.b / full)) * 48 : 100 - share).toFixed(1) + '%';
+    tb.querySelector('i.a').style.width = (ra * (separateForces ? 48 : 50)).toFixed(1) + '%';
+    tb.querySelector('i.b').style.width = (rb * (separateForces ? 48 : 50)).toFixed(1) + '%';
     tb.querySelector('s').hidden = separateForces;
     tb.querySelector('s').style.left = share.toFixed(1) + '%';
     tb.querySelector('.na').hidden = tb.querySelector('.nb').hidden = separateForces;
@@ -309,7 +309,8 @@ export class HudArmy {
     const pa = f ? ga : a ? 50 : 0, pb = f ? gb : b ? 50 : 0;
     $('ab-ga').parentElement.hidden = !f;
     $('ab-gb').parentElement.hidden = !f;
-    if (f) { const sa = f.a + f.b > 0 ? Math.max(0, f.a) / (Math.max(0, f.a) + Math.max(0, f.b)) * 100 : 50; $('ab-ga').style.width = sa.toFixed(1) + '%'; $('ab-gb').style.width = (100 - sa).toFixed(1) + '%'; }
+    // 一本の棒を真ん中で区切り、左半分は味方の最初の人数、右半分は敵の最初の人数を100%に。減った分だけその半分がグレー（十八の2・二十一の1）
+    if (f) { const [ra, rb] = forceRatio(rt, f); $('ab-ga').style.width = (ra * 50).toFixed(1) + '%'; $('ab-gb').style.width = (rb * 50).toFixed(1) + '%'; }
     this.armyPct = { a: pa, b: pb };
     const lp = this.armyPeekAt || (this.armyPeekAt = { a: pa, b: pb });
     if (Math.abs(lp.a - pa) >= 4 || Math.abs(lp.b - pb) >= 4) { this.armyPeekAt = { a: pa, b: pb }; this.peekArmy(4); }
@@ -426,4 +427,12 @@ export class HudArmy {
       if (el) setStyle(el, 'width', G[k] + '%');
     }
   }
+}
+
+// 両軍それぞれの、最初の人数に対する今の割合（0〜1）。戦が最初の数（a0・b0）を出さない時は、見た中で一番多かった数を最初とする
+function forceRatio(rt, f) {
+  const m = rt.force0 || (rt.force0 = { a: 0, b: 0 });
+  m.a = Math.max(m.a, f.a0 || 0, f.a || 0); m.b = Math.max(m.b, f.b0 || 0, f.b || 0);
+  const r = (n, n0) => Math.max(0, Math.min(1, Math.max(0, n) / Math.max(1, n0)));
+  return [r(f.a, m.a), r(f.b, m.b)];
 }

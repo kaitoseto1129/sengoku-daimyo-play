@@ -8,7 +8,6 @@ import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { groundAt } from './floors.js';
 import { goalTarget, goalNoun } from './goals5.js';
-import { S } from './settings.js';
 import { missionFollowTarget } from './mission_guide.js';
 import { missionTarget, markedEnemy } from './mission_pin.js';
 import { cameraWallBlocked } from './battle_sight.js';
@@ -138,9 +137,9 @@ export function goalSignTick(rt, root) {
   let x, y, edge = false, ang = 0;
   const W = VIEW.w, H = VIEW.h, m = 70;
   const seen = proj(rt, t.x, top, t.z);
-  if (seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
+  if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
   // 前にあって画面の上へはみ出す行き先（高い本丸など）は、上向きの矢印にせず、上の縁の▼のまま示す（五3「矢印は使わない」。11/5 伏見）
-  else if (seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; }
+  else if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; }
   else {
     // 画面の外：自分から見た相手の向きを、画面の縁へ写す
     const camDir = rt.camera.getWorldDirection(dir);
@@ -156,28 +155,33 @@ export function goalSignTick(rt, root) {
   }
   // def.goalSignNameOnly（稲生）：名のある相手が画面に見えている間は、頭上の名札と赤い▼だけにして金の▼を重ねない（kaito AN「一人の相手には札一つ」）
   if (!unit && !edge && u?.name && rt.def.goalSignNameOnly) return hide();
-  if (el._edge !== edge) { el._edge = edge; el._tw = 0; el._tag.classList.toggle('bob', !edge && !S.reduceMotion); }
+  if (el._edge !== edge) { el._edge = edge; el._tw = 0; el._tag.classList.remove('bob'); }
   // 人の上の▼には「この人について行く」「ここを攻める」の説明を添えない（五1。11/5 一宮・佐和山）。画面の外の時だけ名を添える
   // 呼び名：隊と場所はいつも。名のある武将は頭上の名前があるので、画面の外の時だけ名を添える
   // def.goalSignBare（稲生）：▼だけで字を添えない（kaito 10/23「字は一切使わない」）
   //   全戦で「この人について行く」「ここを攻める」「▼ 〇〇へ」の案内の字は添えない（kaito 五1・五3「▼一つに距離を添える」・11/5 共通の係）。画面の外の名のある人だけ名を添える
-  // 行き先の札は名と「80m」だけ（「ここへ」「あと」「メートル」は出さない。kaito 十三1・BU）
-  const label = enemy || unit ? (edge && u?.name) || '' : placeName(rt, t);
+  // 相手は「この敵」、行き先は場所と距離を一枚にまとめる。
+  const label = enemy ? 'この敵' : unit ? (edge && u?.name) || '' : placeName(rt, t);
   // 距離は五メートルきざみ。行き先と同じ札にまとめる。
-  const metres = `${Math.round(d / 5) * 5}m`;
+  const metres = `${Math.round(d / 5) * 5}メートル`;
   const shown = !unit && d >= 10 ? (label ? `${label} ${metres}` : metres) : label;
   const frame = enemy && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
-  el._frame.hidden = !frame;
+  // 名のある敵将を枠で囲わない（名は頭上の名札で出す。探して倒すのが良い。十八の3・BZ）。枠は印の高さ合わせにだけ使う
+  el._frame.hidden = true;
   if (frame) {
-    el._frame.style.left = frame.left + 'px'; el._frame.style.top = frame.top + 'px';
-    el._frame.style.width = Math.max(24, frame.right - frame.left) + 'px';
-    el._frame.style.height = Math.max(32, frame.bottom - frame.top) + 'px';
+    el._frame.style.left = ((frame.left + frame.right - Math.max(44, frame.right - frame.left)) / 2) + 'px';
+    el._frame.style.top = frame.top + 'px';
+    el._frame.style.width = Math.max(44, frame.right - frame.left) + 'px';
+    el._frame.style.height = Math.max(56, frame.bottom - frame.top) + 'px';
     x = (frame.left + frame.right) / 2; y = frame.top - 8;
   }
   if (shown !== el._label) { el._label = shown; el._name.textContent = shown; el._tw = 0; }
   el._tri.style.display = enemy && !edge || groundPin && (!edge || t.arrived) ? 'none' : '';
-  // 画面の端でも▼は下向きのまま（向きを指す矢印にしない。kaito 11/3 AP12・五3。11/5 佐和山で赤い矢印に見えた）。置き場の縁で向きを示す
-  el._tri.style.transform = '';
+  // 遠い相手と画面外の相手は、同じ一人へ向く矢印で示す。
+  el._tri.style.transform = edge ? `rotate(${ang + Math.PI}rad)` : '';
+  el._tri.style.clipPath = edge ? 'polygon(35% 0,65% 0,65% 45%,100% 45%,50% 100%,0 45%,35% 45%)' : '';
+  el._tri.style.width = edge ? '38px' : ''; el._tri.style.height = edge ? '42px' : '';
+  el._tri.style.border = edge ? '0' : ''; el._tri.style.background = edge ? '#fff3ba' : '';
   if (!el._tw || el._twH !== VIEW.h) { el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20; el._twH = VIEW.h; }
   const tw = el._tw, th = el._th;
   x = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, x));

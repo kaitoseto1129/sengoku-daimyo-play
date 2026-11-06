@@ -535,6 +535,20 @@ html:root body #hud#hud#hud.mission-one-line #h-prog#h-prog:not([data-battle="ok
 html:root body #hud#hud#hud.mission-one-line #h-prog#h-prog.goal-mode .pg-goals li.now {
  font-size:max(22px, calc(22px * var(--text-scale, 1))) !important; line-height:1.3 !important;
 }
+
+/* 目標・命・近くの一人（または行き先）の三枚。戦場の中央を空ける。 */
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog {
+ top:calc(12px + env(safe-area-inset-top,0px)) !important;
+ max-width:min(340px, 34vw) !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li.now {
+ font-size:max(24px,calc(24px * var(--text-scale,1))) !important;
+ line-height:1.4 !important; margin:0 !important; padding:0 !important; background:none;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { display:none !important; }
+html:root body #hud#hud#hud.battle-order :is(#jk-map,#fieldmap,#minimap,#maphint,#boss,#target,#h-units,#h-squad) { display:none !important; }
+html:root body #hud#hud#hud#hud.battle-order:has(#goal-sign:not([hidden]),.field-name:not([hidden])) #armybar#armybar { display:none !important; }
+
 ` ;
       root.appendChild(st);
       this.prog = el;

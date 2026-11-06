@@ -1,4 +1,4 @@
-// 右上の「目標」の札（kaito 11/1 の手本 docs/kaito_mission_ref_1101.png・B 節 → 11/2 Q で作り直し）
+// 右上に今の目標一つを大きく示す。達成条件と採点は goals5.js のまま。
 //   暗い半透明の下地に白い字。見出し「目標」と残り時間の下に、その戦の目標5つ（goals5.js）を最初から全部並べる。
 //   済んだ物は印が弾んで ✓、果たせなくなった物は ✕ で字を沈める。今の目標は赤い丸の印で明るく。倒す数は（3／8）。
 //   並びは戦の間ずっと変えない（Q「目標がどんどん変わりすぎ」）。字が変わる時だけ書く。毎コマ作らない。
@@ -63,7 +63,7 @@ let styled = false;
 //   always：一行の札の戦（missionSingleLine）でも並べる（九1「目標は右に①から全部を最初から」・11/6 共通の係で全戦）
 export function goalsTick(el, rt, stg, always) {
   const f = rt.def.goalsList === false ? null : fiveGoals(rt);
-  const on = !!((always || !rt.def.missionSingleLine) && f && f.rows.length && !rt.over);
+  const on = !!((always || !rt.def.missionSingleLine) && f && f.now >= 0 && !rt.over);
   el.classList.toggle('goal-mode', on);
   if (!on) return false;
   if (!styled) { styled = true; const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
@@ -75,9 +75,8 @@ export function goalsTick(el, rt, stg, always) {
   }
   const G = el._goals && el._goals.rt === rt ? el._goals : (el._goals = { rt, key: '', clock: '' });
   const still = !!S.reduceMotion;
-  // 目標はいくつでもよい。画面には今の5つだけ：済んでいない一つ目から5つ。終わった分だけ次を送る（kaito 十三1・BU）
-  let from = f.rows.findIndex((g) => !g.done && !g.fail);
-  from = Math.max(0, Math.min(from < 0 ? f.rows.length : from, f.rows.length - 5));
+  // 達成や採点の計算はそのまま、今進める一つだけを表示する。
+  const from = f.now;
   const key = from + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === f.now ? 'n' : '0') + g.text + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
   // 残り時間は今の目標の行だけ。秒が変わる時だけ書き、並びは作り直さない
   const tm = box.querySelector('li .tm');
@@ -90,13 +89,13 @@ export function goalsTick(el, rt, stg, always) {
   G.key = key;
   ul.textContent = '';
   f.rows.forEach((g, i) => {
-    if (i < from || i >= from + 5) return;
+    if (i !== from) return;
     const li = document.createElement('li');
     li.className = g.done ? 'done' : g.fail ? 'fail' : i === f.now ? 'now' : '';
     // 今まで済んでいなかった物が済んだ時だけ弾ませる
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
-    li.lastChild.textContent = `${i + 1}　${screenWords(rt.def.teach ? g.text : periodWords(g.text))}`;   // 番号（kaito 11/3 AV16）
+    li.lastChild.textContent = screenWords(rt.def.teach ? g.text : periodWords(g.text));   // 番号（kaito 11/3 AV16）
     if (g.count && !g.done) {   // 敵の隊は赤い字・倒した数が一人ごとに上がる（kaito 11/3 AV16）
       const em = document.createElement('em'); em.textContent = `（${g.count[0]}／${g.count[1]}）`; em.style.cssText = 'color:#ff6a58;font-weight:800'; li.appendChild(em);
       li.lastChild.previousSibling.style.color = '#ff8a78';

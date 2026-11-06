@@ -42,15 +42,16 @@ give('榊原康政', { armor: 0x1e1c1a, lace: 0x2a3a58, hat: 'kabuto_m', haori: 
   face: face({ age: 53, gaunt: 0.4, beard: { mus: 0.7, musW: 1, droop: 0.4, goat: 0.4, side: 0.3, stub: 0.7 } }) });
 give('牧野康成', { armor: 0x201e1c, lace: 0x4a3a2a, hat: 'kabuto_w', haori: 0x2e2620, mon: 'kashiwa',   // 牧野家の丸に三つ柏。弘治元年（1555）生まれで慶長五年は数え四十六
   face: face({ age: 46, beard: { mus: 0.6, musW: 1, droop: 0.4, goat: 0.3, side: 0.2, stub: 0.6 } }) });
-give('大久保忠隣', { armor: 0x1c1c1e, lace: 0x2e3a52, hat: 'kabuto_m', haori: 0x28282a, mon: 'none',
+// 大久保忠隣の陣羽織は自家の上り藤に大の字（隊の旗と同じ。譜代は自家の紋＝U5。葵は秀忠の本陣だけ）
+give('大久保忠隣', { armor: 0x1c1c1e, lace: 0x2e3a52, hat: 'kabuto_m', haori: 0x28282a, mon: 'okubo',
   face: face({ age: 48, brow: 1.3, beard: { mus: 0.7, musW: 1, droop: 0.4, goat: 0.3, side: 0.3, stub: 0.7 } }) });
 give('真田昌幸', { armor: 0x1c1816, lace: 0x7a2a20, hat: 'kabuto_m', haori: 0x2a1c18, mon: 'sanada', lord: true,
   face: face({ age: 54, gaunt: 0.5, brow: 1.4, beard: { mus: 0.8, musW: 1, droop: 0.5, goat: 0.5, side: 0.3, stub: 0.8 } }) });
-// 慶長五年の信繁（三十三歳・従五位下左衛門佐）。赤備えと鹿角の兜は大坂の陣（1614〜15）の姿なので、この戦では黒の二枚胴（上田市立博物館の伝信繁所用・鉄二枚胴具足）に並の兜。
+// 慶長五年の信繁（永禄十年の生まれで数え三十四・従五位下左衛門佐）。赤備えと鹿角の兜は大坂の陣（1614〜15）の姿なので、この戦では黒の二枚胴（上田市立博物館の伝信繁所用・鉄二枚胴具足）に並の兜。
 // 共通の「真田信繁」（大坂の姿）を替えないよう、官途名で別に持つ（十の4：名乗りは年に合わせる）
 const NOBU = '真田左衛門佐信繁';
 give(NOBU, { armor: 0x1a1816, lace: 0x5a2a22, hat: 'kabuto_m', haori: 0x241a16, mon: 'sanada', tack: 0x2a1e18,
-  face: { ...(GENERALS['真田信繁']?.face || face({})), age: 33 } });
+  face: { ...(GENERALS['真田信繁']?.face || face({})), age: 34 } });
 
 // ---- 場所 ----
 const C = { x: -10, z: -30 };                  // 上田城の本丸
@@ -471,7 +472,7 @@ const k05_ueda = {
     sfx('horagai', 0.8);
     // 勝ち戦ではない（徳川の先手が押し返されて退いた小競り合い）。終わりの札は「務めを果たした」（victory_card.js の DUTY。critic60）
     rt.award((t) => { t.main = true; t.special = { label: '上田城下でしんがりを務めた', pts: 20 }; }, '上田城下でしんがりを務めた');
-    rt.banner('先手、本陣へ退く', '上田城は落ちなかった');
+    // 「先手、本陣へ退く／上田城は落ちなかった」の説明の帯は出さない（五の1・V3。台詞と日付だけで伝える）
     // 締め：一つずつ読める間を空ける（critic60：急使の言葉を読む間が無い）。家康（慶長五年は内大臣＝内府）の急使が小諸に着いたのは二日後の九月八日（秀忠の書状）
     rt.after(1.2, () => rt.say(this.talk.after[0][0], this.talk.after[0][1], 3.6));
     rt.after(5.2, () => { rt.banner('九月八日', ''); rt.say('家康の使者', '内府様より急ぎのお下知。上田にかかずらわず、美濃へ上られよ', 4.2); });

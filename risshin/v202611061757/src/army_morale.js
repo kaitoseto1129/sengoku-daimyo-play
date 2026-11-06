@@ -108,7 +108,9 @@ export function moraleThink(army, u) {
   u.fearSafe = sense.foes === 0 && !horse && !u.atk && !u.swing;
   const m = moraleState(u);
   // 個人の逃亡は弱った無名の兵から。筋書きの不退転・武将・備の頭を守る。
-  if (!g.noRout && !g.routed && !u.invuln && !u.name && u.type !== 'busho' && !u.isTaisho && u !== g.leader && m < 22 && (runners || horse || sense.foes >= 3 || g.morale < 30)) {
+  // 頭（侍大将・組頭）が生きていて退く下知も無い組の者は、一人で背を向けない（十八の4・二十二の1）
+  const headUp = g.leader && g.leader.alive && !g.leader.fleeing && !g.leader.woundOut && g.order !== 'retreat';
+  if (!g.noRout && !g.routed && !headUp && !u.invuln && !u.name && u.type !== 'busho' && !u.isTaisho && u !== g.leader && m < 22 && (runners || horse || sense.foes >= 3 || g.morale < 30)) {
     const f = runner && (runner.moraleFleeDir || runner.group.fleeDir);
     u.moraleDir.x = f ? f.x : -Math.sin(g.facing);
     u.moraleDir.z = f ? f.z : -Math.cos(g.facing);

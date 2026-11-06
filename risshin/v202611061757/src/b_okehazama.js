@@ -1164,22 +1164,24 @@ const okehazama = {
       return pin;
     }
     if (rt.phase === 'brief' || rt.phase === 'march') {
-      const pos = rt.phase === 'march' ? F.marchPinPos || this.squadFlagPosition(rt) : this.squadFlagPosition(rt);
+      const pos = rt.phase === 'march' ? F.marchPins?.[F.marchPinIndex] || this.squadFlagPosition(rt) : this.squadFlagPosition(rt);
       if (!pos) return null;
+      // 道の区切りごとに一本だけ刺す。近づいたら次へ移り、歩いた結果を返す。
+      if (rt.phase === 'march' && pos.key) pin.key = pos.key;
       const me = rt.player.u.pos, distance = Math.hypot(pos.x - me.x, pos.z - me.z);
       // 遠い集合先へ歩き始めた時から、同じピンの縁で近づいた分を返す。
       // 出発で行き先が替わる時だけ測り直し、引き返した分もそのまま示す。
-      if (F.gatherProgressPhase !== rt.phase) {
-        F.gatherProgressPhase = rt.phase;
+      if (F.gatherProgressPhase !== pin.key) {
+        F.gatherProgressPhase = pin.key;
         F.gatherStartDistance = Math.max(JOIN_RADIUS + 1, distance);
       }
       // 実際の集合判定をピンにも返し、中心を踏むまで歩かせない。
-      pin.arrived = this.squadFlagReached(rt);
+      pin.arrived = distance <= JOIN_RADIUS;
       pin.arrivalProgress = pin.arrived ? 1 : Math.max(0, Math.min(.98,
         (F.gatherStartDistance - distance) / (F.gatherStartDistance - JOIN_RADIUS)));
       pin.waiting = false;
       pin.always = true;
-      // 歩く旗持ちではなく、実際に到着すると次の段へ進む集合地点へ刺す。
+      // 人物ではなく道の地面へ刺す。最後の一本は集合判定と同じ地点。
       pin.x = pos.x; pin.z = pos.z;
       pin.r = JOIN_RADIUS;
       // ピンは到着判定と同じ地面の一点へ。人物への話しかけの印にしない。
@@ -2039,9 +2041,10 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
     /* 任務は一行。待つ進みは足元のピンだけにまとめる。 */
     html:root body #hud[data-oke-task].mission-only #h-prog :is(.pg-next,.pg-time) { display:none !important; }
     /* 操作する札に見せず、目的だけを戦場へ重ねる。 */
-    html:root body #hud[data-oke-task] #h-prog { background:none; border:0; text-shadow:0 2px 3px #14120f, 0 0 4px #14120f; }
+    html:root body #hud[data-oke-task] #h-prog { background:none; border:0; box-shadow:none; pointer-events:none; text-shadow:0 2px 3px #14120f, 0 0 4px #14120f; }
     /* 任務の横に別の印を置かず、行き先は戦場のピン一本で示す。 */
     html:root body #hud[data-oke-task] #h-prog .pg-st > b { display:none !important; }
+    html:root body #hud[data-oke-task] #h-prog .pg-st span { background:none; border:0; box-shadow:none; }
     #hud[data-oke-task] #h-prog .pg-pie { width:36px; height:36px; margin-top:4px; }
     html:root body #hud[data-oke-task].mission-only #h-prog { max-width:calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
     html:root body #hud[data-oke-task].mission-only #h-prog .pg-st span { max-width:100%; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
@@ -2725,6 +2728,23 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
     const x = end[0] + (d ? dx / d * offset : 0), z = end[1] + (d ? dz / d * offset : 0);
     rt.flags.marchPinPos = { x, y: rt.world.heightAt(x, z), z };
     rt.flags.marchGoal = rt.flags.marchPinPos;
+    // 遠い兵の頭上に見える一本を追わせず、組と同じ道を短い区切りで示す。
+    // 点は出発時だけ作り、毎コマは番号だけを進める。
+    const pins = rt.flags.marchPins = [];
+    let fromX = p.x, fromZ = p.z;
+    const path = rt.hostGroup.path;
+    for (let i = 1; i < path.length; i++) {
+      const toX = i === path.length - 1 ? x : path[i][0];
+      const toZ = i === path.length - 1 ? z : path[i][1];
+      const steps = Math.ceil(Math.hypot(toX - fromX, toZ - fromZ) / 16);
+      for (let j = 1; j <= steps; j++) {
+        const px = fromX + (toX - fromX) * j / steps;
+        const pz = fromZ + (toZ - fromZ) * j / steps;
+        pins.push({ x: px, y: rt.world.heightAt(px, pz), z: pz, key: 'march-' + pins.length });
+      }
+      fromX = toX; fromZ = toZ;
+    }
+    rt.flags.marchPinIndex = 0;
     rt.obj('col', '谷の出口の組の旗へ進め', 'main');
     if (!rt.flags.zenshojiSaid) {
       rt.flags.zenshojiSaid = true; rt.say('組頭 源八', '善照寺の砦で集まった兵は二千に足らぬ。殿について今川の本陣を突く', 5);
@@ -2947,6 +2967,13 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
   march(rt, dt = 0) {
     const F = rt.flags, host = rt.hostGroup;
     const c = readyGroup(host) ? host.center() : null, p = rt.player.u.pos;
+    // 途中の印では雨待ちにしない。最後の集合地点へ着いた時だけ段を進める。
+    const pins = F.marchPins;
+    while (pins && F.marchPinIndex < pins.length - 1) {
+      const pin = pins[F.marchPinIndex];
+      if (Math.hypot(pin.x - p.x, pin.z - p.z) > JOIN_RADIUS) break;
+      F.marchPinIndex++;
+    }
     const distance = c ? Math.hypot(c.x - p.x, c.z - p.z) : Infinity;
     // 追う旗が逃げ続けないよう、離れたら組の歩みだけを待つ。戦闘は止めない。
     if (host && !host.arrived && host.order === 'path') {
