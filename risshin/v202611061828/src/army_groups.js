@@ -54,7 +54,10 @@ export const ArmyGroups = {
       }
       // 崩れた部隊は、戦の筋書きが号令を出しても逃げ続ける（bot の報告から。自分の組は号令で立て直せる）
       if (g.routed && g.order !== 'flee' && !g.isPlayerSquad) g.order = 'flee';
-      if (!g.routed && !g.noRout && g.morale < 22) {
+      // 背を向けてよいのは、退く下知が出た時と、その組の頭（侍大将・組頭）が討たれた時だけ。頭が生きている組は死ぬまで向かってくる（十八の4・二十二の1）。
+      //   頭の無い組と、三人まで減った組は今までどおり崩れる
+      const headUp = g.leader && g.leader.alive && !g.leader.fleeing && !g.leader.woundOut && g.order !== 'retreat' && g.count > 3;
+      if (!g.routed && !g.noRout && g.morale < 22 && !headUp) {
         g.routed = true;
         g.order = 'flee';
         // 崩れは「ほつれ」から：後ろの段と端の者が先に逃げ出し、前の中ほどの者は 1〜3 秒遅れて背を向ける
@@ -66,6 +69,15 @@ export const ArmyGroups = {
           let dx = en ? c.x - ex / en : -f.x, dz = en ? c.z - ez / en : -f.z;
           const dl = Math.hypot(dx, dz);
           if (dl > 0.5) { dx /= dl; dz /= dl; } else { dx = -f.x; dz = -f.z; }
+          // 退く先は自分の城・本陣の方（同じ方の総大将の居場所）。四方八方に散らない（十八の4・BZ「大坂城の方へ退く」）。
+          //   本陣が敵の向こうにある時（逃げる向きと真逆）は、敵から離れる向きのまま
+          let home = null;
+          for (const o of this.units) if (o.alive && o.isTaisho && o.team === g.team && o.group !== g) { home = o; break; }
+          if (home) {
+            let hx = home.pos.x - c.x, hz = home.pos.z - c.z;
+            const hl = Math.hypot(hx, hz);
+            if (hl > 15) { hx /= hl; hz /= hl; if (hx * dx + hz * dz > -0.3) { dx = hx; dz = hz; } }
+          }
           g.fleeDir = { x: dx, z: dz };
         }
         let dMin = 0, dMax = 0, lMax = 0;

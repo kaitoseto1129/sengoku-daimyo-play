@@ -1,7 +1,5 @@
-// 右上の「目標」の札（kaito 11/1 の手本 docs/kaito_mission_ref_1101.png・B 節 → 11/2 Q で作り直し）
-//   暗い半透明の下地に白い字。見出し「目標」と残り時間の下に、その戦の目標5つ（goals5.js）を最初から全部並べる。
-//   済んだ物は印が弾んで ✓、果たせなくなった物は ✕ で字を沈める。今の目標は赤い丸の印で明るく。倒す数は（3／8）。
-//   並びは戦の間ずっと変えない（Q「目標がどんどん変わりすぎ」）。字が変わる時だけ書く。毎コマ作らない。
+// 今の目標一件を大きく示し、一覧は開いた時だけ見せる。兵数も同じ札へ収める。
+// 達成条件と採点は goals5.js のまま。並びを保ち、字が変わる時だけ書く。
 import { S } from './settings.js';
 import { fiveGoals } from './goals5.js';
 import { screenWords } from './screen_words.js';
@@ -22,6 +20,7 @@ html:root body #hud#hud #h-prog.goal-mode > .pg-goals { display:block !important
 #hud #h-prog .pg-goals h3 b.over { color:#a39a8a; text-decoration:line-through; }
 #hud #h-prog .pg-goals ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
 #hud #h-prog .pg-goals li { display:flex; align-items:center; gap:10px; font-size:max(15px, calc(15px * var(--text-scale, 1))); line-height:1.3; white-space:nowrap; color:#e6dfd2; }
+#hud #h-prog .pg-goals:not(.goals-expanded) li:not(.now) { display:none; }
 #hud #h-prog .pg-goals li i { flex:none; position:relative; width:16px; height:16px; border:2px solid #f3efe6; border-radius:2px; box-sizing:border-box; }
 #hud #h-prog .pg-goals li em { font-style:normal; font-size:13px; color:#f3e2b4; font-variant-numeric:tabular-nums; }
 #hud #h-prog .pg-goals li em.tm { margin-left:auto; padding-left:10px; }
@@ -57,30 +56,48 @@ body.rm #hud #h-prog .pg-goals, body.rm #hud #h-prog .pg-goals * { animation:non
  #hud #h-prog .pg-goals li.fail i::before, #hud #h-prog .pg-goals li.fail i::after { left:4px; height:10px; }
 }`;
 
+const goalWords = (s) => screenWords(s).replace(/寄せ大将/g, '敵の大将').replace(/先手|(?:一|二|三)の手|寄せ手/g, '敵');
+
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 let styled = false;
-// el：右上の任務の札（#h-prog）。目標5つ（goals5.js）を出したら true。stg は前の作りの名残（使わない）
-//   always：一行の札の戦（missionSingleLine）でも並べる（九1「目標は右に①から全部を最初から」・11/6 共通の係で全戦）
+// 一件の表示と一覧の開閉を共有する。達成・時間切れの判定は元の目標表のまま。
 export function goalsTick(el, rt, stg, always) {
   const f = rt.def.goalsList === false ? null : fiveGoals(rt);
-  const on = !!((always || !rt.def.missionSingleLine) && f && f.rows.length && !rt.over);
+  const on = !!((always || !rt.def.missionSingleLine) && f && f.now >= 0 && !rt.over);
   el.classList.toggle('goal-mode', on);
-  if (!on) return false;
+  if (!on) {
+    const army = document.getElementById('armybar');
+    if (army && el.contains(army)) el.parentNode.appendChild(army);
+    return false;
+  }
   if (!styled) { styled = true; const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
   let box = el.querySelector('.pg-goals');
   if (!box) {
     box = document.createElement('div'); box.className = 'pg-goals';
-    box.innerHTML = '<h3><span>目標</span><b hidden></b></h3><ul></ul>';
+    box.innerHTML = '<h3><span>今の目標</span><b hidden></b></h3><ul id="battle-goal-list"></ul><button type="button" class="goals-toggle" aria-expanded="false" aria-controls="battle-goal-list">目標を開く</button>';
+    const toggle = box.querySelector('button');
+    toggle.addEventListener('click', event => {
+      event.stopPropagation();
+      const expanded = box.classList.toggle('goals-expanded');
+      toggle.setAttribute('aria-expanded', String(expanded));
+      toggle.textContent = expanded ? '目標を閉じる' : '目標を開く';
+    });
     el.appendChild(box);
   }
+  const army = document.getElementById('armybar');
+  if (army && army.parentNode !== box) box.prepend(army);
   const G = el._goals && el._goals.rt === rt ? el._goals : (el._goals = { rt, key: '', clock: '' });
+  if (!G.key) {
+    box.classList.remove('goals-expanded');
+    const toggle = box.querySelector('button');
+    toggle.setAttribute('aria-expanded', 'false'); toggle.textContent = '目標を開く';
+  }
   const still = !!S.reduceMotion;
-  // 目標はいくつでもよい。画面には今の5つだけ：済んでいない一つ目から5つ。終わった分だけ次を送る（kaito 十三1・BU）
-  let from = f.rows.findIndex((g) => !g.done && !g.fail);
-  from = Math.max(0, Math.min(from < 0 ? f.rows.length : from, f.rows.length - 5));
-  const key = from + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === f.now ? 'n' : '0') + g.text + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
+  // 今の一件を表示し、ほかの目標は一覧を開いた時だけ見せる。
+  const now = f.now >= 0 ? f.now : f.rows.findIndex(g => !g.done && !g.fail);
+  const key = now + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === now ? 'n' : '0') + goalWords(g.text) + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
   // 残り時間は今の目標の行だけ。秒が変わる時だけ書き、並びは作り直さない
-  const tm = box.querySelector('li .tm');
+  const tm = box.querySelector('li.now .tm');
   if (tm) {
     const r = f.rows[f.now], s = r && r.left != null ? clock(r.left) : '';
     if (s !== tm.textContent) { tm.textContent = s; tm.className = 'tm' + (!s ? '' : r.left <= 30 ? ' crit' : r.left <= 60 ? ' warn' : ''); }
@@ -90,18 +107,17 @@ export function goalsTick(el, rt, stg, always) {
   G.key = key;
   ul.textContent = '';
   f.rows.forEach((g, i) => {
-    if (i < from || i >= from + 5) return;
     const li = document.createElement('li');
-    li.className = g.done ? 'done' : g.fail ? 'fail' : i === f.now ? 'now' : '';
+    li.className = g.done ? 'done' : g.fail ? 'fail' : i === now ? 'now' : '';
     // 今まで済んでいなかった物が済んだ時だけ弾ませる
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
-    li.lastChild.textContent = `${i + 1}　${screenWords(rt.def.teach ? g.text : periodWords(g.text))}`;   // 番号（kaito 11/3 AV16）
+    li.lastChild.textContent = `${i + 1}　${goalWords(rt.def.teach ? g.text : periodWords(g.text))}`;   // 番号（kaito 11/3 AV16）
     if (g.count && !g.done) {   // 敵の隊は赤い字・倒した数が一人ごとに上がる（kaito 11/3 AV16）
       const em = document.createElement('em'); em.textContent = `（${g.count[0]}／${g.count[1]}）`; em.style.cssText = 'color:#ff6a58;font-weight:800'; li.appendChild(em);
       li.lastChild.previousSibling.style.color = '#ff8a78';
     }
-    li.setAttribute('aria-label', (g.done ? '済み：' : g.fail ? '果たせなかった：' : 'まだ：') + g.text + (g.count ? ` ${g.count[1]}のうち${g.count[0]}` : ''));
+    li.setAttribute('aria-label', (g.done ? '済み：' : g.fail ? '果たせなかった：' : 'まだ：') + goalWords(g.text) + (g.count ? ` ${g.count[1]}のうち${g.count[0]}` : ''));
     if (g.left != null) { const t = document.createElement('em'); t.className = 'tm'; t.textContent = clock(g.left); li.appendChild(t); }
     ul.appendChild(li);
   });

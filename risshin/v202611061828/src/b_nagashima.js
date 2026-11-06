@@ -73,7 +73,6 @@ const SPOTS = [{ x: 0, z: BANK_Z - 1 }, { x: -26, z: BANK_Z }, { x: 26, z: BANK_
 // 手を添える場所は横木の二歩手前。印・到着の案内を、長押しできる場所にそろえる。
 const WORK_SPOTS = SPOTS.map(s => ({ x: s.x, z: s.z + 2 }));
 const BUILD_HOLD = 8;                      // 人足と並行して補修する
-const WORK_WAIT_LIMIT = 8;                 // 横木に着いても人足が来ない時は、見張りを引き受ける
 const WATCH_HOLD = 8;                      // 近い岸で水路を見張る
 const HELP_HOLD = 4;                       // 人足と手分けし、本人は横木の縄を締める
 const SALLY_HOLD = 160;                    // 約四〜七分：後続舟まで受け、同じ兵のまま守備時間を確保する
@@ -84,14 +83,12 @@ const SHORE_WATCH_HOLD = 8;                // 全ての舟を受けた後、静�
 const BOAT_LAND_Z = BANK_Z - 6;            // 舳先を浅い岸へ寄せる。川の中で足場を外さない。
 const LANDING_DZ = 4.25;                   // 舳先から一歩で、水面の南端を越えた岸へ降りる
 const PUSH_HOLD = 20;                      // 四人以上が背後へ押し込み続けた時間
-const FINAL_LIMIT = 100;                   // 三か所の確認と見張りに使える時間
-const FINAL_MOVE_LIMIT = 45;               // 深手で歩く移動にも猶予を取り、立ち止まり続けても期限は始める
 const FINAL_HOLD = 8;                      // 縄を確かめ、敵が散った後の見張り。静かな岸で長く待たせない
 const CHECK_HOLD = 4;                      // 縄と横木の確認。戦いの合間に一か所ずつ確かめる
 const CHECK_SPOTS = [20, 26, 32].map(x => ({ x, z: BANK_Z + 2 }));
 // 11/5 専門家の目：本陣の脇に立つのは、公記巻七で早尾口の先陣・篠橋攻めと、同じ賀鳥口の将だけ。
 // 一江口・押付郷・加路戸島口・船の衆は自分の持ち場にいる（本陣に四十余人が並んでいた）。
-const AT_HQ = new Set(['inaba_ukyonosuke', 'inaba_kiroku', 'hachiya', 'ujiie', 'ando', 'fuwa', 'sassa', 'hidenaga', 'asai_shinpachi',
+const AT_HQ = new Set(['inaba_ukyonosuke', 'inaba_kiroku', 'hachiya', 'ujiie', 'ando', 'fuwa', 'sassa', 'maeda', 'hidenaga', 'asai_shinpachi',
   'kawajiri', 'mizuno_nobumoto', 'iinuma_kanpei', 'marumo_hyogo', 'marumo_saburobei', 'chujo_shogen', 'iio_okinokami', 'yokoi_utanosuke']);
 // 11/6 専門家の目：公記の「津田大隅守」は織田信広その人。信広の姿と二人にしない（tsuda_osumi は本陣に出さない）。
 const CHECK_NAMES =['西の柵の縄（一つ目）', '西の柵の縄（二つ目）', '西の柵の縄（三つ目）'];
@@ -198,7 +195,7 @@ function bankCheckThreat(rt) {
 }
 function bankWorkSpot(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (F.workSpot != null && !F.raised?.[F.workSpot]) return SPOTS[F.workSpot];
+  if (F.workSpot != null && !F.raised?.[F.workSpot]) return WORK_SPOTS[F.workSpot];
   let spot = null, best = Infinity;
   for (let i = 0; i < WORK_SPOTS.length; i++) {
     if (F.raised?.[i]) continue;
@@ -1687,9 +1684,6 @@ function canWorkBank(u) {
   const target = u.target;
   return !target?.alive || Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) > 8;
 }
-function bankHelpReady(job) {
-  return canWorkBank(job?.u) && Math.hypot(job.u.pos.x - job.x, job.u.pos.z - job.z) < 2.5;
-}
 function workHands(u, t) {
   if (!u?.hand || !canWorkBank(u)) return;
   if (u.workRope) u.workRope.visible = true;
@@ -2946,6 +2940,9 @@ const nagashima = {
       // 当日の陣羽織の色・刀の銘は未詳。固有の立物・名刀・馬印は作らない。
       // 戦闘兵を指揮像へ替えず、東西の担当は本人の言葉で示す。
       F.visitingGenerals = [
+        // 公記巻七の前田又左衛門は早尾口の先陣。賀鳥口の助けの槍組へは加えない。
+        { id: 'maeda', name: '前田利家', x: 18, z: 42, flag: NAMED_GEAR['前田利家'].flag,
+          words: '早尾口の先陣を務めた。賀鳥口の岸は柴田殿の手で固めよ' },
         // 公記巻七の北畠茶筅（信雄）。船での参陣・南大島口の担当に基づく。
         // https://kininaruart.com/artist/shincho/n7.html
         // 本陣への立ち寄り・采配姿は復元。既存の指揮像・形・材質を共用し、戦闘兵は替えない。
@@ -3277,20 +3274,9 @@ const nagashima = {
             : '岸の横木へ。手伝いは一か所でよい';
       rt.say('鉄砲組頭', order, 3);
     });
-    // 公記巻七の早尾口先陣に前田又左衛門。岸への加勢・徒歩の立ち位置は遊び上の復元。
-    // https://kininaruart.com/artist/shincho/n7.html
-    // 高画質だけに一人補い、既存の槍兵は減らさない。朱柄槍と豪傑の型は共通の得物表を使う。
-    // 三間半の朱柄は伝承による姿で、長島当日の得物の確証とはしない。個人の馬印は補わない。
-    const reliefTroops = [{ type: 'ashigaru', n: 8 }];
-    if (SETTINGS.quality === 'high') reliefTroops.unshift({ type: 'busho', n: 1,
-      o: { name: '前田利家', horse: true, invuln: true, flag: NAMED_GEAR['前田利家'].flag } });
-    F.relief = allyGroup(rt, { name: '岸の助けの槍組', fixed: true, noAI: true, anchor: { x: 24, z: BANK_Z + 30 }, facing: Math.PI, formation: 'yari', yariRanks: 2, aggro: 0, fire: false }, dress(reliefTroops, ODA));
-    for (const u of F.relief.units) {
-      u.noTarget = true;
-      // 岸の密集では三間半の長槍を頭上で回さず、腰の溜めと踏み込みで槍の又左を表す。
-      // 長島の高画質の利家だけに既存の突きの型を使う。得物・兵数・攻撃力は保つ。
-      if (u.name === '前田利家') u.look.style = 'gouketsu_thrust';
-    }
+    // 賀鳥口の後詰は無名の槍組。早尾口の前田利家は本陣側に置く。
+    F.relief = allyGroup(rt, { name: '岸の助けの槍組', fixed: true, noAI: true, anchor: { x: 24, z: BANK_Z + 30 }, facing: Math.PI, formation: 'yari', yariRanks: 2, aggro: 0, fire: false }, dress([{ type: 'ashigaru', n: 8 }], ODA));
+    for (const u of F.relief.units) u.noTarget = true;
     F.oda = [F.shiba, F.teppo]; F.defenders = [F.shiba, F.teppo, F.relief];
     // 11/5 check60：陸の三手（公記巻七）。東（-x）の市江口に信忠、西（+x）の賀鳥口に稲葉一鉄の手。後ろの早尾口に信長の本陣。
     // 始めは後ろの道から岸へ寄せ、最後の囲みで中江・屋長島の向かいの水際へ詰める（三方から囲む流れ）。
@@ -3396,15 +3382,15 @@ const nagashima = {
       }
       return oldSlot.call(this, i, n);
     };
-    F.helped = true; // 人足は初めから並行して補修する。本人は近い一か所を手伝える。
+    F.helped = true; // 両脇は人足が結う。中央の一か所は本人の縄締めまで残す。
+    F.workSpot = 0;
     if (!rt.G.lord) {
       for (let i = 0; i < SPOTS.length; i++) {
         const s = SPOTS[i], workSpot = { x: s.x, z: s.z + 2 };
         if (i === 0) rt.marker('s' + i, { x: s.x, z: s.z + 2 }, '柵の横木に縄を締める', { h: .6 });
         // 盛り土の上で輪の端が空へ浮くため、作業場所は案内札だけで示す。
-        rt.addInteract('s' + i, () => F.step === 1 && F.workSpot === i && rt.player.u.pos.z >= BANK_Z && !F.raised?.[i] && bankHelpReady(F.builders.find(j => j.i === i)) ? workSpot : null, '縄を締める', () => {
-          const job = F.builders.find((j) => j.i === i);
-          if (F.step !== 1 || rt.player.u.pos.z < BANK_Z || F.raised?.[i] || !bankHelpReady(job)) return;
+        rt.addInteract('s' + i, () => F.step === 1 && F.workSpot === i && rt.player.u.pos.z >= BANK_Z && !F.raised?.[i] ? workSpot : null, '縄を締める', () => {
+          if (F.step !== 1 || rt.player.u.pos.z < BANK_Z || F.raised?.[i]) return;
           F.participated = true; F.personalBuilt = (F.personalBuilt || 0) + 1; F.personalWork[i] = BUILD_HOLD; this.raise(rt, i);
         }, { r: 3, hold: HELP_HOLD });
       }
@@ -3454,6 +3440,7 @@ const nagashima = {
 
   watch(rt) {
     const F = rt.flags;
+    if (!rt.G.lord && !F.participated) return;
     // 11/6 fixc1721：人足を待つ間に見張りが済んでいると②が一度も出ず、右上が①から③へ飛んだ（十1）。済んだ分は残し、②を三秒は見せる。
     F.step = 1.25; F.stepT = rt.t; F.watchAt = 0; F.watchTime = Math.min(F.workWatchTime || 0, WATCH_HOLD - 3); F.watchStarted = null;
     F.watchSpot = nearestBankSpot(rt.player.u.pos);
@@ -3530,7 +3517,7 @@ const nagashima = {
   midB(rt) {
     const F = rt.flags;
     if (F.step >= 3.5) return;
-    F.step = 3.5; F.stepT = rt.t; F.finalHeld = 0; F.finalSafe = 0; F.finalStarted = null;
+    F.step = 3.5; F.stepT = rt.t; F.finalHeld = 0; F.finalSafe = 0;
     rt.setPhase('enclose'); rt.unmark('bank'); rt.unmark('retreat'); rt.unmark('breach'); rt.unmark('shoreFacing');
     F.hurtShown = false;
     surroundForts(rt);
@@ -3636,8 +3623,10 @@ const nagashima = {
 
   win(rt) {
     const F = rt.flags;
-    // 11/6 fixc1439：見張りの遅れでは負けにしない（十二3）。負けは岸を破られた時か、西の柵の縄を確かめなかった時だけ。
-    const held = F.held && !F.sallyFailed && !F.broken && rt.player.u.alive;
+    // 縄締め・見張り・反撃の防衛・三か所の確認を全部果たしてから勝ちにする。
+    const held = (rt.G.lord || F.participated) && F.watchDone && F.sallyDefended &&
+      F.held && F.finalChecked >= 3 && F.finalSafe >= FINAL_HOLD &&
+      !F.sallyFailed && !F.broken && rt.player.u.alive;
     // 放火の下知まで進んだら、斬り合いが残っていても任務の成否を確定する。
     if (F.ending) return;
     F.ending = true; F.endingAt = rt.t; F.endingClock = END_SEC;
@@ -3713,7 +3702,9 @@ const nagashima = {
       } else {
         const helping = at && !rt.G.lord && rt.holdId === 's' + job.i;
         if (helping) F.personalWork[job.i] = Math.max(F.personalWork[job.i], (rt.holdT || 0) * BUILD_HOLD / HELP_HOLD);
-        job.t = at ? Math.min(BUILD_HOLD, Math.max(job.t + dt, F.personalWork[job.i])) : job.t;
+        // 主人公の横木を人足だけで仕上げない。両脇の補修は並行して続ける。
+        const limit = !rt.G.lord && !F.participated && job.i === F.workSpot ? BUILD_HOLD * .75 : BUILD_HOLD;
+        job.t = at ? Math.min(limit, Math.max(job.t + dt, F.personalWork[job.i])) : job.t;
         fenceProgress(F.fenceWork[job.i], job.t, BUILD_HOLD);
         if (job.t >= BUILD_HOLD) {
           if (!rt.G.lord && rt.holdId === 's' + job.i && (rt.holdT || 0) >= 2) {
@@ -3840,108 +3831,23 @@ const nagashima = {
       if (!dangerProgress(rt)) rt.unmark('retreat');
     }
     if (F.step === 1) {
-      // 結いに来ない時は、柴田が場所とやり方を言い、それでも来なければ足軽が残りを結う（待たせきりにしない）
-      const w = rt.t - F.stepT;
-      if (w > 8 && !F.boatNews) { F.boatNews = true; rt.say('物見', '島の船着きに人が集まっておる。舟を出すつもりにござろう', 3); }
-      // 作業できる人足の所へ案内する。準備済みの印は、移動中に切り替えない。
-      let nextWork = -1, bestWork = Infinity;
-      for (const job of F.builders) {
-        if (F.raised?.[job.i]) continue;
-        // 倒れた人足の横木へは案内しない。交代と残りの補修は味方に任せる。
-        const worker = job.u;
-        if (!worker?.alive || worker.gone || worker.fleeing || worker.woundOut || worker.rearWound || worker.noTarget) continue;
-        const ready = bankHelpReady(job);
-        const s = SPOTS[job.i], p = rt.player.u.pos;
-        const distance = Math.hypot(p.x - s.x, p.z - (s.z + 2));
-        // 押している縄を優先し、別の人足の到着で作業先を替えない。
-        if (rt.holdId === 's' + job.i && ready && distance < 3) { nextWork = job.i; break; }
-        // 着いた横木では人足を待つ。別の人足が動くたびに印を飛ばさない。
-        if (job.i === F.workSpot && (ready || distance < 3)) { nextWork = job.i; break; }
-        const score = (ready ? 0 : 10000) + distance;
-        if (score < bestWork) { bestWork = score; nextWork = job.i; }
-      }
-      // 手伝える人足がいない時は、遠い空の印へ歩かせず見張りへ移る。
-      if (!rt.G.lord && nextWork < 0) { this.watch(rt); return; }
-      const workReady = nextWork >= 0 && bankHelpReady(F.builders.find(j => j.i === nextWork));
-      if (!rt.G.lord && !F.participated && nextWork >= 0 && F.workSpot !== nextWork) {
-        F.workSpot = nextWork;
-        for (let i = 0; i < SPOTS.length; i++) rt.unmark('s' + i);
-        const s = SPOTS[nextWork];
-        rt.marker('s' + nextWork, { x: s.x, z: s.z + 2 }, '柵の横木に縄を締める', { h: .6 });
-      }
-      // 手が届くまでは移動を案内し、人足と合流してから長押しを促す。
-      const workSpot = SPOTS[nextWork];
-      const nearWork = workSpot && rt.player.u.pos.z >= BANK_Z && Math.hypot(rt.player.u.pos.x - workSpot.x, rt.player.u.pos.z - (workSpot.z + 2)) < 3;
-      const buildTask = !nearWork ? 'move' : !workReady ? 'wait' : 'work';
-      // 人足が倒れた・動けない時も、印で長く立ち尽くさせない。
-      // 補修は味方が続け、本人は舟の見張りを引き受ける。
-      // 人足が一瞬構え直しても、すでに待った時間は取り消さない。
-      if (buildTask === 'wait') {
-        F.workWait = (F.workWait || 0) + dt;
-        if (!rt.G.lord && watchingRiver(rt)) F.workWatchTime = Math.min(WATCH_HOLD, (F.workWatchTime || 0) + dt);
-      }
-      if (!rt.G.lord && F.workWait >= WORK_WAIT_LIMIT) {
-        rt.say('足軽', '縄はわしらに任せてくれ。川の見張りを頼む', 3);
-        this.watch(rt);
-        return;
-      }
-      const workDetail = buildTask === 'move' ? '柵の内から岸の横木へ進め' : buildTask === 'wait' ? 'ここで川を見張れ。縄は味方が着いてから' : '横木に縄を締めよ';
-      if (!rt.G.lord && !F.participated && nextWork >= 0 && F.buildTask !== buildTask) {
-        F.buildTask = buildTask;
-        rt.obj('main', workDetail, 'main');
-        if (buildTask === 'work') rt.say('足軽', 'この縄を頼む。しっかり締めてくれ', 3);
-        else if (buildTask === 'wait') rt.say('足軽', '人足が来るまで、ここで川を見てくれ', 3);
-      }
-      // 補修待ちの上限を伝える。秒が変わる時だけ字を組み直す。
-      if (F.buildClock !== Math.floor(w) || F.buildProgressTask !== buildTask || F.buildProgressCount !== F.built) {
-        F.buildClock = Math.floor(w); F.buildProgressTask = buildTask; F.buildProgressCount = F.built;
-        const waitLeft = Math.max(0, Math.ceil(Math.min(45 - w, WORK_WAIT_LIMIT - (F.workWait || 0))));
-        const tying = buildTask === 'work' && rt.holdId === 's' + nextWork;
-        rt.objProgress('main', rt.G.lord ? `柵 ${F.built}／${SPOTS.length}か所　岸の柵で舟に備えよ` : buildTask === 'wait' ? `${watchingRiver(rt) ? `見張り　あと${Math.max(0, Math.ceil(WATCH_HOLD - (F.workWatchTime || 0)))}秒` : riverTurnText(rt)}　人足待ちはあと最大${waitLeft}秒` : tying ? `縄を締めている　あと${Math.max(0, Math.ceil(HELP_HOLD - (rt.holdT || 0)))}秒` : `手伝いは一か所　あと${Math.max(0, Math.ceil(45 - w))}秒で見張りへ`);
-      }
-      if (!rt.G.lord && !F.participated && F.built < SPOTS.length && buildTask === 'move' && w > 12 && !F.nudge) {
-        F.nudge = true;
-        rt.say('柴田勝家', '岸の横木へ。手伝いは一か所でよい', 4);
-      }
-      if (w > 10 && rt.t >= (F.rescueWorkT || 0)) {
-        F.rescueWorkT = rt.t + 4;
-        for (let i = 0; i < SPOTS.length; i++) {
-          if (F.raised?.[i]) continue;
-          const old = F.builders.find((j) => j.i === i);
-          if (old && (!old.mate?.alive || old.mate.fleeing || old.mate.woundOut || old.mate.gone || old.mate.noTarget)) {
-            old.mate = F.shiba.units.find((q) => q.alive && !q.fleeing && !q.woundOut && !q.gone && !q.noTarget && !q.stdHeld && !q.banner && q.type === 'ashigaru' && !F.builders.some((j) => (j.u === q || j.mate === q) && !F.raised?.[j.i]));
-            old.t = 0;
-          }
-          if (old && old.u.alive && !old.u.fleeing && !old.u.woundOut && !old.u.gone) {
-            if (!rt.G.lord && !F.helped && !rt.holdId && w > 35) {
-              F.helped = true;
-              for (const job of F.builders) job.t = F.personalWork[job.i];
-              for (let j = 0; j < SPOTS.length; j++) { rt.uninteract('s' + j); rt.unmark('s' + j); rt.unzone('s' + j); }
-              rt.say('足軽', '舟が出るぞ。残りはわしらが結う', 3);
-            }
-            continue;
-          }
-          const u = F.shiba.units.find((q) => q.alive && !q.fleeing && !q.woundOut && !q.gone && !q.noTarget && !q.stdHeld && !q.banner && q.type === 'ashigaru' && !F.builders.some((j) => (j.u === q || j.mate === q) && !F.raised?.[j.i]));
-          if (!u) continue;
-          if (old) { old.u = u; old.t = 0; }
-          else F.builders.push({ u, i, x: SPOTS[i].x + 1, z: SPOTS[i].z + 1, mateAt: { x: SPOTS[i].x - 1, z: SPOTS[i].z + 1 }, t: 0 });
-          // 倒れた人足だけを替え、本人が結う印は残す。
+      // 中央の横木を最初から最後まで同じ場所で案内する。
+      // 人足が遅れたり倒れたりしても、本人は岸側から縄を締められる。
+      if (!rt.G.lord && !F.participated) {
+        const s = WORK_SPOTS[F.workSpot], p = rt.player.u.pos;
+        const near = p.z >= BANK_Z && Math.hypot(p.x - s.x, p.z - s.z) < 3;
+        const task = near ? 'work' : 'move';
+        if (!rt.markers.some(m => m.id === 's' + F.workSpot))
+          rt.marker('s' + F.workSpot, s, '岸の横木', { h: .6 });
+        if (F.buildTask !== task) {
+          F.buildTask = task;
+          rt.obj('main', '岸の横木に縄をかけよ', 'main');
+          rt.say('足軽', near ? 'この縄を頼む。しっかり締めてくれ' : '岸の中央の横木へ。縄を締めてくれ', 3);
         }
+        rt.objProgress('main', '縄 ' + (F.personalBuilt || 0) + '／一か所');
       }
-      if (F.built < SPOTS.length && w > 16 && !F.nudge2) {
-        F.nudge2 = true;
-        rt.say('足軽', rt.G.lord ? '殿、柵はわしらが結います。岸で舟の見張りを' : buildTask === 'wait' ? '縄は任せてくれ。今は川を見ていてくれ' : buildTask === 'move' ? '岸の横木へ来てくれ。一か所だけ頼む' : 'その縄だけ頼む。残りはわしらが結う', 3);
-      }
-      // 補修は人足と並行する。人足を失った時は残る杭で守る。
-      // 脇の人足は中央から二十六歩移動してから結う。二十秒で打ち切ると横木が地面に残る。
-      // 当主は岸の柵へ着けば見張りへ移る。人足の補修は並行して続ける。
       const lordAtBank = rt.G.lord && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z - (BANK_Z + 5)) < 5;
-      // 期限直前に始めた四秒の縄締めは終えさせる。離した時や人足が動けない時は待たせない。
-      const finishingWork = !rt.G.lord && buildTask === 'work' && rt.holdId === 's' + nextWork && rt.holdT > 0;
-      if (lordAtBank || F.built >= SPOTS.length || w >= 45 && (!finishingWork || w >= 45 + HELP_HOLD)) {
-        if (!lordAtBank && F.built < SPOTS.length) { F.helped = true; rt.say('柴田勝家', '柵の続きは味方に任せよ。杭の内で舟を見張れ', 3); }
-        this.watch(rt);
-      }
+      if (lordAtBank || F.participated) this.watch(rt);
     }
     if (F.step === 1.25) {
       const p = rt.player.u.pos;
@@ -4199,9 +4105,6 @@ const nagashima = {
         if (!rt.markers.some(m => m.id === id)) rt.marker(id, task === 'turn' ? { x: p.x, z: CH_Z } : next < 0 ? { x: 24, z: BANK_Z + 6 } : CHECK_SPOTS[next], task === 'turn' ? '歩かず、この向きへ' : next < 0 ? '柵を見張る持ち場' : CHECK_NAMES[next]);
       }
       if (safe && !dangerProgress(rt)) rt.unmark('retreat');
-      // 最初の縄へ手が届いてから確認の期限を数える。十八歩先では、まだ作業を始められない。
-      if (F.finalStarted == null && (atEast && Math.hypot(p.x - CHECK_SPOTS[0].x, p.z - CHECK_SPOTS[0].z) < 3 || rt.t - F.stepT >= FINAL_MOVE_LIMIT)) F.finalStarted = rt.t;
-      const finalElapsed = F.finalStarted == null ? 0 : rt.t - F.finalStarted;
       // 中断の案内は上の任務切り替えで一度だけ伝える。済んだ見張りは残す。
       const watching = safe && F.finalChecked >= 3 && !dangerProgress(rt);
       if (watching) { F.finalHeld += dt; F.finalSafe += dt; }
@@ -4214,19 +4117,13 @@ const nagashima = {
       if (foes >= 4) dangerWarning(rt);
       if (Math.floor(rt.t - F.stepT) !== F.finalClock) {
         F.finalClock = Math.floor(rt.t - F.stepT);
-        const left = Math.max(0, Math.ceil(FINAL_LIMIT - finalElapsed));
-        // 敵や移動で止まっている時は、残り秒だけでなく再開の条件も伝える。
+        // 縄の確認と見張りの進み具合を伝える。移動や応戦で期限切れにしない。
         const detail = task === 'retreat' ? `退く間はあと${Math.max(0, Math.ceil(15 - (rt.t - F.dangerAt)))}秒` : task === 'turn' ? riverTurnText(rt) : F.finalChecked < 3 ? `縄 ${F.finalChecked}／三か所　${task === 'fight' ? 'まず敵を止めよ' : task === 'check' ? `その場で確認　あと${Math.max(0, Math.ceil(CHECK_HOLD - F.finalCheckT))}秒` : `${nextCheck + 1}つ目へ`}` : `${watching ? '見張り' : '見張り休止'}　あと${Math.max(0, Math.ceil(FINAL_HOLD - F.finalSafe))}秒`;
         // 再開の行動は任務本文にある。小さな札に同じ下知を重ねない。
-        rt.objProgress('main', F.finalStarted == null ? `${detail}　移動の猶予あと${Math.max(0, Math.ceil(FINAL_MOVE_LIMIT - (rt.t - F.stepT)))}秒` : `${detail}　期限${left}秒`);
-      }
-      if (finalElapsed >= FINAL_LIMIT - 30 && !F.deadlineWarn) {
-        F.deadlineWarn = true;
-        const order = task === 'retreat' ? '敵を向き、槍組の後ろへ下がれ' : task === 'fight' ? '残る敵を味方と止めよ' : F.finalChecked < 3 ? '西の柵で、残る縄を確かめよ' : task === 'turn' ? 'その場で川へ向き直れ' : '縄はよし。西の柵で川を見張れ';
-        rt.say('柴田勝家', `火をかける刻が迫る。${order}`, 4);
+        rt.objProgress('main', detail);
       }
       // 三か所を見回って見張る。岸で失敗していても、見回りの務めは最後まで残す。
-      if (!dangerProgress(rt) && (watching && F.finalHeld >= FINAL_HOLD && F.finalSafe >= FINAL_HOLD || finalElapsed >= FINAL_LIMIT)) { F.held = F.finalChecked >= 3; rt.unmark('east'); this.win(rt); }
+      if (!dangerProgress(rt) && watching && F.finalHeld >= FINAL_HOLD && F.finalSafe >= FINAL_HOLD) { F.held = F.finalChecked >= 3; rt.unmark('east'); this.win(rt); }
     }
   },
 
@@ -4400,7 +4297,7 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     else p.yaw = Math.PI;
     return;
   }
-  if (F.step === 1 && F.helped) { goTo(p, inp, 0, BANK_Z + 5, 2); return; }   // 11/2：横木の印が消えた後は舟の見張り場の印へ
+  if (F.step === 1 && (b.G.lord || F.participated)) { goTo(p, inp, 0, BANK_Z + 5, 2); return; }   // 11/2：横木の印が消えた後は舟の見張り場の印へ
   if (F.step === 2) { goTo(p, inp, 0, BANK_Z + 4, 2); return; }
   if (F.step === 3 && u.hp < u.maxHp * 0.5) { goTo(p, inp, 4, BANK_Z + 16, 2); return; }
   if (F.step === 3) {
@@ -4419,6 +4316,7 @@ installBattleJinkei(nagashima, [
   battleJin('陸三方と川口の囲み', 0, { x: 0, z: 60 }, Math.PI, [
     ['nagashima_hq', '早尾口の本陣・旗本の守り', '織田信長', null, { x: 0, z: 60 }, 'eiraku', 'oda', (r) => r.flags.odaCamp?.guard, { named: false }],
     ['nagashima_shibata', '賀鳥口・岸の柵と仕寄り', '柴田勝家', null, { x: 0, z: BANK_Z + 3 }, 'kari', 'kari', (r) => r.flags.shiba],
+    ['nagashima_maeda', '早尾口の先陣', '前田利家', null, { x: 18, z: 42 }, 'oda', 'oda', (r) => r.flags.visitingGenerals?.find(v => v.id === 'maeda')?.figure],
     ['nagashima_teppo', '岸の鉄砲の備え', '鉄砲組頭（名は不明）', null, { x: 34, z: BANK_Z + 6 }, 'oda', 'oda', (r) => r.flags.teppo, { named: false }],
     // 公記巻七：賀鳥口は柴田・稲葉父子・蜂屋、市江口は信忠の手。佐久間は九月に河内へ移り、この日いない。
     // 北が +z（mapNorth）：+x が西の賀鳥口・今島、-x が東の市江口。名の無い「北西の囲み」は史料に無いので置かない。

@@ -2833,8 +2833,8 @@ const moribe = {
   noGoalCount: true,
   noMiniMap: true,
   goalSignOnly: true,
-  // 人物への共通案内で行き先や任務を上書きしない。敵は赤い▼だけ。
-  actionGuideTarget: () => null,
+  // 既存の相手選びを使い、共通の枠と方向の矢印を同じ本人へ出す。
+  actionGuideTarget(rt) { return this.missionSignTarget(rt); },
   // 集団の中心でなく、赤い▼と同じ本人へ渡す。見えたら金の印を重ねない。
   // 行き先は金の▼一つと距離（m）。戦う相手が見える間は敵の赤い▼に任せ、金の▼は出さない。
   goalSignTarget(rt) {

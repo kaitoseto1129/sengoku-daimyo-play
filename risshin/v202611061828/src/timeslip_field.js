@@ -10,6 +10,7 @@ import { overlapsCastleGround } from './castle_mask.js';
 import { leafTex } from './nature.js';
 import { MEM_TIGHT } from './settings.js';
 import { sway } from './world_vegetation_materials.js';
+import { drawGroundAt } from './render_camera.js';
 import { sakamogi, takataba, nobori, jinmaku, bobosaku, tawara, makeKitBatch, finalizeKitBatch } from './props.js';
 
 const CELL = 6, RADIUS = 42, MOVE = 5;
@@ -381,6 +382,9 @@ function nearPath(paths, x, z) {
 export function timeslipField(rt) {
   const ts = rt.def.timeslip; if (!ts || globalThis.__noTimeslip || globalThis.__apx?.noTimeslip) return null;   // __noTimeslip：重さを前後で比べる時だけ
   const W = rt.world, scene = rt.scene;
+  // 細分した地形では歩く高さと描く三角形が異なる。指定した戦の飾りは描画面へ据える。
+  // 穴の上には飾りを戻さず、形・材質・描く数は共用のままにする。
+  const ground = ts.drawGround ? (x, z) => drawGroundAt(W, x, z) : (x, z) => W.heightAt(x, z);
   const G = shapes(), M = materials();
   const wet = ts.wet ?? 0, dust = ts.dust ?? 0.5;
   M.mud.color.setHex(ts.mudColor ?? (wet > 0.5 ? 0x8a7a68 : 0xa08c70));   // mudColor：夜の戦は暗い土（月明かりの地面より明るい斑を浮かせない）
@@ -432,8 +436,8 @@ export function timeslipField(rt) {
   function lay(x, z, rot, sx, sy, sz, lift = 0.03, ex = 0.6, ez = 0.6) {
     ex = Math.max(0.6, ex); ez = Math.max(0.6, ez);
     const c = Math.cos(rot), s = Math.sin(rot), ax = c * ex, az = -s * ex, bx = s * ez, bz = c * ez;
-    const h = W.heightAt(x, z), xp = W.heightAt(x + ax, z + az), xm = W.heightAt(x - ax, z - az);
-    const zp = W.heightAt(x + bx, z + bz), zm = W.heightAt(x - bx, z - bz);
+    const h = ground(x, z), xp = ground(x + ax, z + az), xm = ground(x - ax, z - az);
+    const zp = ground(x + bx, z + bz), zm = ground(x - bx, z - bz);
     _tx.set(2 * ax, xp - xm, 2 * az); _tz.set(2 * bx, zp - zm, 2 * bz);
     _n.crossVectors(_tz, _tx).normalize();
     _q.setFromUnitVectors(_up, _n).multiply(_qy.setFromAxisAngle(_up, rot));
@@ -444,6 +448,8 @@ export function timeslipField(rt) {
   function blot(x, z, rot, w, d, ex, ez) { put(P.blot, lay(x, z, rot, w, 1, d, 0.02, ex, ez)); }
   function put(mesh, mtx) {
     if (!mesh || mesh.count >= mesh.instanceMatrix.count) return -1;
+    // 描画面の穴や外れ値から壊れた行列を渡さない。
+    if (!mtx.elements.every(Number.isFinite)) return -1;
     mesh.setMatrixAt(mesh.count, mtx);
     return mesh.count++;
   }
@@ -487,8 +493,9 @@ export function timeslipField(rt) {
       const x = (i + r(1)) * CELL, z = (j + r(2)) * CELL;
       if (Math.abs(x) > lim || Math.abs(z) > lim) continue;
       if (skip && skip(x, z)) continue;
+      if (!Number.isFinite(ground(x, z))) continue;
       // 急な斜面（城山・堤の法）には置かない。平らな跡を斜面に寝かせると縁が地面に切られて四角い影に見える。
-      if (ts.maxSlope && Math.hypot(W.heightAt(x + 1.5, z) - W.heightAt(x - 1.5, z), W.heightAt(x, z + 1.5) - W.heightAt(x, z - 1.5)) / 3 > ts.maxSlope) continue;
+      if (ts.maxSlope && Math.hypot(ground(x + 1.5, z) - ground(x - 1.5, z), ground(x, z + 1.5) - ground(x, z - 1.5)) / 3 > ts.maxSlope) continue;
       const bk = bank(x, z);
       if (bk < 0) continue;
       if (W.def.water && W.inWaterAt?.(x, z)) continue;   // 湖・海の水面に泥や矢を浮かべない
@@ -542,7 +549,7 @@ export function timeslipField(rt) {
           const crushed = ts.crushedGrass ? fightNear(gx, gz) * .65 : 0;
           _q.setFromAxisAngle(_up, r(52 + g) * 6.28);
           if (crushed > 0) _q.multiply(_qy.setFromAxisAngle(_lean, crushed * .9));
-          _m.compose(_p.set(gx, W.heightAt(gx, gz) - 0.05, gz), _q, _s.set(s, s * (0.8 + r(55 + g) * 0.6) * (ts.grassH ?? 1) * (1 - crushed * .65), s));
+          _m.compose(_p.set(gx, ground(gx, gz) - 0.05, gz), _q, _s.set(s, s * (0.8 + r(55 + g) * 0.6) * (ts.grassH ?? 1) * (1 - crushed * .65), s));
           const n = put(P.grass, _m);
           // 株ごとに明るさと枯れ具合を揺らす（同じ黄緑の株が並ばない）。三割ほどは枯れ色へ寄せる。
           if (n >= 0) {
@@ -597,8 +604,8 @@ export function timeslipField(rt) {
   // 坂の上の積み物は四隅で一番低い所まで下ろして浮かせず、下に接地の影を一枚敷く（形と材質は散らし物と共用）
   const seat = (o, x, z, rot, ex, ez) => {
     const c = Math.cos(rot), sn = Math.sin(rot);
-    let lo = W.heightAt(x, z);
-    for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) lo = Math.min(lo, W.heightAt(x + c * ex * a + sn * ez * b, z - sn * ex * a + c * ez * b));
+    let lo = ground(x, z);
+    for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) lo = Math.min(lo, ground(x + c * ex * a + sn * ez * b, z - sn * ex * a + c * ez * b));
     o.position.y = lo - 0.03;
     const sh = new THREE.Mesh(G.blot, M.blot);
     sh.matrix.copy(lay(x, z, rot, ex * 2.6, 1, ez * 2.6, 0.02, ex, ez)); sh.matrixAutoUpdate = false;

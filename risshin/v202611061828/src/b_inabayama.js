@@ -4372,6 +4372,8 @@ const inabayama = {
   // 井口の城下の往来は乾いて踏まれ、焼き払いの土埃が流れる。辻と木戸ほど倒れた槍・矢・斎藤方の旗が多い。
   // 置くのは城下（z 26 より南）だけ。家と寺の床、山の上の曲輪には置かない。
   timeslip: {
+    // 町の均した庭と道の境でも、草・落ち物・踏み跡を実際に描く面へ据える。
+    drawGround: true,
     wet: 0, dust: 0.9, trample: 0.3, debris: 0.9, arrows: 0.7,
     // 地の草は絵の板でなく共通の細い葉の株。町の空き地と道の脇に株を寄せる（10/30 地の草が平らな色だけ）。
     grass: 0x9c9c60, grassTints: [0xffffff, 0xe8dcaa, 0xccd09a], grassH: 1.05, tallGrass: 1, grassShape: 'blade',

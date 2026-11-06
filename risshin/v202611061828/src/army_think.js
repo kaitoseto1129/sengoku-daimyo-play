@@ -392,6 +392,17 @@ export const ArmyThink = {
           !this.wallBetween(u.pos, u.team, PP.pos)) {
         u._crouch = false; u.target = PP; u.watch = null; u.moveTo = null; return;
       }
+      // 名のある敵将は、十六歩の内に来た本人へ自ら馬（足）を向けて挑み、一騎打ちになる（十八の3・BZ「薄田兼相が攻めてこない」）。
+      //   総大将・本陣の守り・伏せ・持ち場に留まる隊・使番は除く。挑むのは一度に一人（一番近い将）
+      const ch = this._challenger;
+      if (ch && (!PP || !ch.alive || ch.fleeing || ch.team === PP.team || Math.hypot(PP.pos.x - ch.pos.x, PP.pos.z - ch.pos.z) > 22)) this._challenger = null;
+      if (u.name && u.type === 'busho' && PP && PP.alive && PP.team !== u.team && !PP.noTarget && !PP.invuln && !this.duel && !u.fleeing && !u.woundOut && !u.mustLive && !u.civ &&
+          !u.isCourier && !u.isTaisho && !g.guardOn && !g.stay && !g.hidden && !g.ambush && !g.peaceful && g.order !== 'retreat' && g.order !== 'flee' && g.order !== 'path' &&
+          u.hp >= u.maxHp * 0.45 && (!this._challenger || this._challenger === u) && Math.abs(PP.pos.y - u.pos.y) < 1.8 &&
+          Math.hypot(PP.pos.x - u.pos.x, PP.pos.z - u.pos.z) < 16 && !this.wallBetween(u.pos, u.team, PP.pos)) {
+        this._challenger = u;
+        u._crouch = false; u.target = PP; u.watch = null; u.moveTo = null; return;
+      }
     }
     // 合図を聞き分ける間は、前の歩みと持ち場を保つ。目の前の敵には応戦する。
     if (signalWait(this, g, u)) {

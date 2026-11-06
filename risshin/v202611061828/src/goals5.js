@@ -6,6 +6,7 @@
 //   目当て（target）：今の目標の相手と場所。右上の地図のひし形・地面の矢印・頭上の名前（goal_sign.js）が同じ物を指す。
 import { STAGES, stageNow } from './stages.js';
 import { missionTarget } from './mission_pin_target.js';
+import { goalCountText } from './goal_count.js';
 
 const KILL_N = 8;          // 「敵を何人討つ」の数
 const NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十'];
@@ -363,6 +364,12 @@ export function fiveGoals(rt) {
   });
   // 今の目標：済んでいない最初の段の目標（無ければ大将）。残りの時は、今の目標になった時から数える
   const now = nowOf();
+  // 「〇〇を破れ」「〇〇を止めよ」のように敵を相手にする今の目標は、何人中何人を倒したかを出す（十八の2・BZ。全戦）。
+  //   戦が数を決めていない（count も groups も無い）時だけ：段の流れ（b_depth.js）の寄せた敵、無ければ目標の字に合う敵の組の数
+  if (now >= 0 && rows[now].count == null && !rows[now].done) {
+    const g = G.goals[now];
+    if (!g.count && !g.groups && g.kind === 'stage' && FOE_VERB.test(rows[now].text)) rows[now].count = foeCount(rt, rows[now].text);
+  }
   if (now !== G.nowI) { G.nowI = now; G.nowT0 = G.endT ?? rt.t; }
   if (now >= 0 && G.goals[now].sec && !G.done[now] && !G.fail[now]) {
     const left = G.goals[now].sec - ((G.endT ?? rt.t) - G.nowT0);
@@ -370,6 +377,14 @@ export function fiveGoals(rt) {
     else rows[now].left = Math.max(0, left);
   }
   return { rows, now, stars: starsOf(rt, rows) };
+}
+
+const FOE_VERB = /破れ|破る|討て|討つ|倒せ|崩せ|止めよ|止める|退けよ|押し返|迎え撃|受け止め|蹴散ら|防げ/;
+function foeCount(rt, text) {
+  const C = rt.flags?.dp?.on && rt.flags.dp.cur;
+  if (C && C.nTot > 0) { const left = aliveIn(C.groups); return [Math.max(0, C.nTot - left), C.nTot]; }
+  const m = /(\d+)／(\d+)$/.exec(goalCountText(rt, text, true) || '');
+  return m ? [+m[1], +m[2]] : null;
 }
 
 // 星は5つまで。目標が5つより多い戦は、果たした割合で5つに割る

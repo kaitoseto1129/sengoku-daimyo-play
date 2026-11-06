@@ -58,6 +58,9 @@ export class Commander {
     this.tallySerial = 0;
     this.siege = new Map();
     this.scanStates = new WeakMap();
+    // 判断は一隊ずつ終えるので、敵候補の表は全隊で共用できる。
+    this.foes = [];
+    this.foePool = [];
     this.stepTime = 0;
     this.stepDt = 0;
     this.stepSpan = 0.1;
@@ -180,6 +183,8 @@ export class Commander {
       s = { c: { x: 0, z: 0 }, f: { x: 0, z: 0 }, fightPoint: { x: 0, z: 0 }, by: [], tallySerial: 0, tallyCount: 0 };
       s.stepLast = this.stepTime;
       this.scanStates.set(key, s);
+      // 初期の隊は出陣前、援軍は参加時に一つだけ足す。
+      this.foePool.push({ o: null, d: 0 });
     }
     return s;
   }
@@ -599,19 +604,25 @@ export class Commander {
     //   （かかれの号令や乱戦の段で、持ち場の近くに縛られて 20 秒も動かないように。塀の内の城兵・守りの隊・控えは除く。合戦の前線で替えた「備の兵」は含める）
     const loose = g.order === 'attack' && g.team === (rt.player ? rt.player.u.team : 0) && !A.garrison && (!g.guard || g.clashSide) && !g.reserve && !g.isPlayerSquad;
     if (loose) { leash = Math.max(leash, 120); aware = Math.max(aware, 100 * this.vis()); A.home = { x: s.c.x, z: s.c.z }; if (A.spot && !(A.pressT > t - 12) && dist(A.spot, s.c) > 12) A.spot = null; }
-    const foes = [];
+    const foes = this.foes;
+    let foeCount = 0;
     for (const o of this.S.values()) {
       if (o.team === g.team || o.routed) continue;
       const d = dist(o.c, s.c);
       if (d >= aware + o.hw || dist(o.c, A.home) >= leash + base) continue;
       // 閉じた木戸や塀の内へ、槍・刀の隊を寄せない。射手は塀越しに射られる。
       if (!s.missile && this.army.wallBetween(s.c, g.team, o.c)) continue;
-      foes.push({ o, d });
+      const q = this.foePool[foeCount];
+      q.o = o; q.d = d;
+      foes[foeCount++] = q;
     }
+    // 毎回空にして伸ばさず、候補数が同じ時は配列の格納場所も保つ。
+    foes.length = foeCount;
     // 城兵：寄せ手が崩れかけていれば打って出る
     if (A.garrison) {
-      const wk = foes.filter((q) => q.d < 60);
-      const sally = wk.length > 0 && wk.every((q) => q.o.morale < 35) || (wk.length && this.strNear(1 - g.team, s.c, 45) < s.str * 0.45);
+      let near = 0, weak = true;
+      for (const q of foes) if (q.d < 60) { near++; if (!(q.o.morale < 35)) weak = false; }
+      const sally = near > 0 && (weak || this.strNear(1 - g.team, s.c, 45) < s.str * 0.45);
       if (sally) { leash = 60; if (!A.sallied) { A.sallied = true; this.stats.sally++; this.log(g, 'sally 寄せ手が崩れた、打って出る'); } }
     }
 

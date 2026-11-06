@@ -104,7 +104,8 @@ export function hiddenFrom(rt, pos) { return pos; }
 //   鉄砲は戦の年で（稲生・桶狭間は少なく、長篠から表どおり）。鉄砲・弓を既に持つ組・名のある者・o.keep・def.keepMix は替えない。人数の合計は変えない
 function mixList(rt, list, ally) {
   if (!Array.isArray(list) || rt.def?.keepMix || list.some((e) => e && (e.type === 'gun' || e.type === 'bow'))) return list;
-  const m = mixFor(rt.def?.key), gr = m.gun * (ally ? 0.8 : 0.6), br = 0.08;
+  // 鉄砲・弓を多く（緊迫感。十八の7・BZ）：鉄砲はその年の割合どおり、弓は一割
+  const m = mixFor(rt.def?.key), gr = m.gun * (ally ? 1 : 0.9), br = 0.1;
   const out = [];
   for (const e of list) {
     if (!e || e.type !== 'ashigaru' || !(e.n >= 8) || (e.o && (e.o.name || e.o.keep))) { out.push(e); continue; }
@@ -112,6 +113,18 @@ function mixList(rt, list, ally) {
     out.push({ ...e, n: e.n - ng - nb });
     if (ng) out.push({ ...e, type: 'gun', n: ng });
     if (nb) out.push({ ...e, type: 'bow', n: nb });
+  }
+  return out;
+}
+// 騎馬隊（十八の7・BZ「騎馬に乗るのが侍大将だけ」）：名の無い侍が三人より多い組は、その四割を騎馬武者に（馬廻・騎馬の組）。
+//   城や塀の内では units.js が馬を下りさせる。戦の定義が騎馬を決めている組（cavalry がある）と def.noCavalryMix の戦はそのまま
+function horseList(rt, list) {
+  if (!Array.isArray(list) || rt.def?.noCavalryMix || rt.def?.keepMix || list.some((e) => e && e.type === 'cavalry')) return list;
+  const out = [];
+  for (const e of list) {
+    if (!e || e.type !== 'samurai' || !(e.n >= 4) || (e.o && (e.o.name || e.o.keep || e.o.ashiTaisho))) { out.push(e); continue; }
+    const nc = Math.round(e.n * 0.4);
+    out.push({ ...e, n: e.n - nc }, { ...e, type: 'cavalry', n: nc });
   }
   return out;
 }
@@ -128,7 +141,7 @@ export function enemyGroup(rt, o, list) {
   const { ambush, ...go } = o;
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 1, order: 'hold', aggro: 8, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(mixList(rt, list, false)));
+  rt.army.spawn(g, taishoList(horseList(rt, mixList(rt, list, false))));
   const lead = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
   if (lead) g.leader = lead;
   if (ambush) { g.ambush = true; for (const u of g.units) u._crouch = true; }
@@ -158,7 +171,7 @@ export function allyGroup(rt, o, list) {
   // 味方の新手も、戦の定義が決めた持ち場から進む。
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 0, faction: 'oda', order: 'hold', aggro: 9, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(escortLook(mixList(rt, scaleAllyList(list, fullStrength), true))));
+  rt.army.spawn(g, taishoList(escortLook(horseList(rt, mixList(rt, scaleAllyList(list, fullStrength), true)))));
   // 名のある武将の隊は、戦の秒数・合図で動く。自由な判断は g.ai = true で明示する。
   g.historicalOrders = list.some((e) => e.o && e.o.name && (e.type === 'busho' || e.type === 'samurai'));
   return g;

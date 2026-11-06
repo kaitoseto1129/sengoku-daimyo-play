@@ -79,7 +79,11 @@ export function officerThink(army, u, g) {
   }
   const chief = u.officerGuard;
   if (chief && chief.alive && chief.group === g && !chief.fleeing && !officerBroken(chief)) {
-    const enemy = u.isStandard ? null : army.nearestEnemy(u, 5, (v) => !v.fleeing && Math.hypot(v.pos.x - chief.pos.x, v.pos.z - chief.pos.z) < 7);
+    // 家臣は殿を必死に守る：殿へ九歩の内に迫った本人（遊び手）には、間に割って入って斬りかかる（十八の3・BZ）
+    const pl = army.playerUnit;
+    const rush = !u.isStandard && pl && pl.alive && pl.team !== u.team && !pl.noTarget && Math.hypot(pl.pos.x - chief.pos.x, pl.pos.z - chief.pos.z) < 9 &&
+      Math.hypot(pl.pos.x - u.pos.x, pl.pos.z - u.pos.z) < 12 && !army.duel ? pl : null;
+    const enemy = rush || (u.isStandard ? null : army.nearestEnemy(u, 5, (v) => !v.fleeing && Math.hypot(v.pos.x - chief.pos.x, v.pos.z - chief.pos.z) < 7));
     u.target = enemy; u.watch = null;
     if (!enemy) u.moveTo = guardSpot(g, chief, u, u.moralePoint);
     return true;
