@@ -24,7 +24,7 @@ const FLAG_BG = {
   kari: '#ece6d6', sujikai: '#ece6d6', ageha: '#ece6d6', tsuru: '#ece6d6', shuro: '#ece6d6', takigawa: '#ece6d6',
   // 稲生の信勝方（林美作守の勢）：信勝は弾正忠家。林家の紋は伝わらないので、主の信勝の木瓜を白地に（信長方の金地と分ける）
   nobukatsu: '#ece6d6',
-  hachisuka: '#ece6d6', kitabatake: '#ece6d6', sakuma: '#ece6d6', hori: '#ece6d6',
+  hachisuka: '#ece6d6', manji: '#ece6d6', kitabatake: '#ece6d6', sakuma: '#ece6d6', hori: '#ece6d6',
   kuki: '#ece6d6', asano: '#ece6d6', horio: '#ece6d6', narita: '#ece6d6', akadori: '#ece6d6', kashiwa: '#ece6d6', kuginuki: '#ece6d6', umebachi: '#ece6d6',
   honganji: '#ece6d6', sagarifuji: '#ece6d6', ikko: '#ece6d6', namu: '#ece6d6',
 };
@@ -43,7 +43,7 @@ const FLAG_DYE = {
   ii: '#a3281c', inaba: '#698647', ukita: '#bc7042', akazonae: '#8e2a1e',
   okudaira: '#487272', katabami: '#827548', okubo: '#6a7050',
   kari: '#855534', sujikai: '#3e714b', ageha: '#765284', tsuru: '#6a6152', nobukatsu: '#6e5e4c',
-  shuro: '#4c5550', takigawa: '#8c7a52', hachisuka: '#ad8239', honda: '#454c41', mizuno: '#7f7058',
+  shuro: '#4c5550', takigawa: '#8c7a52', hachisuka: '#ad8239', manji: '#3b3632', honda: '#454c41', mizuno: '#7f7058',
   ichimonji: '#76736a', maru: '#927c63', kitabatake: '#927c63', igeta: '#558763', hikyaku: '#a87546', kuyo: '#3c3a36', asano: '#3a4a6a', horio: '#5a5446', narita: '#4a4e5a', akadori: '#9f2846', kashiwa: '#4e4a40', kuginuki: '#5a4e44', umebachi: '#46443f',
 };
 
@@ -328,6 +328,14 @@ const MON = {
     g.save(); g.strokeStyle = g.fillStyle; g.lineWidth = 0.09;
     for (const r of [0.69, 0.84]) { g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke(); }
     g.restore();
+  },
+  // 丸に卍（蜂須賀。慶長の阿波徳島の蜂須賀家の紋。木津川口などで def.flagEra の hachisuka をこれに替える）：太い丸の内に左卍（上の腕は左へ、右の腕は上へ折れる）
+  manji(g) {
+    ring(g, 0.94, 0.12);
+    const t = 0.11, a = 0.52;
+    g.fillRect(-t, -a, 2 * t, 2 * a); g.fillRect(-a, -t, 2 * a, 2 * t);
+    g.fillRect(-a, -a, a + t, 2 * t); g.fillRect(a - 2 * t, -a, 2 * t, a + t);
+    g.fillRect(-t, a - 2 * t, a + t, 2 * t); g.fillRect(-a, -t, 2 * t, a + t);
   },
   // 揚羽蝶（池田）：横から見た蝶。手前の大きな上の羽と尾のある下の羽、奥の羽を小さく。筋と斑を白く抜き、胴の周りを細く白で縁取る
   ageha(g, bg) {

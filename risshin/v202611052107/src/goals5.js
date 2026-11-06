@@ -83,10 +83,13 @@ const OWN = {
       { kind: 'stage', k: 1, text: '北岸の畦で斎藤の先手を押し返す', noun: '斎藤の先手', check: (rt) => !!F(rt).vBroken || F(rt).stage === 'hold' || F(rt).stage === 'press', groups: (rt) => [F(rt).V] },
       { kind: 'stage', k: 1, text: '森部の野で両将の槍列を受け止める', noun: '槍列', check: (rt) => F(rt).stage === 'press' || !!F(rt).ending,
         groups: (rt) => [F(rt).M, F(rt).N, ...(F(rt).reserves || [])] },
-      { kind: 'stage', k: 2, text: '長井甲斐守か日比野下野守を自分で討つ', check: (rt) => bosses.some((n) => rt._g5?.own.has(n)),
-        fail: (rt) => (F(rt).bossDown || 0) >= 2 && !bosses.some((n) => rt._g5?.own.has(n)) },
+      // 11/6 fixc：公記の討ち手は長井＝服部平左衛門・日比野＝恒河久蔵。名の無い足軽の自分が両将を討つのは史料に合わない。
+      //   自分の手柄は両将の旗本の侍を討つ事にし、果たすまで勝ちにしない（b_moribe.js）。
+      { kind: 'stage', k: 2, text: '長井・日比野の旗本へ攻め入り、旗本の侍を自分で討つ', noun: '旗本', check: (rt) => !!F(rt).ownHatamoto || bosses.some((n) => rt._g5?.own.has(n)),
+        groups: (rt) => [F(rt).HM, F(rt).HN] },
       { kind: 'stage', k: 2, text: '墨俣への道で両将の殿を討ち破る', noun: '殿', check: (rt) => won(rt), groups: (rt) => F(rt).shingari || [] },
-    ];
+    // 11/6 fixc（kaito 五-1）：右上の並びに「（0／100）」の数や残りの時計を添えない。目標ごとの時切れの ✕ も付けない（戦の時は十分）。
+    ].map((g) => ({ ...g, count: () => null, sec: 900 }));
   },
   // 八王子城（11/4 p100）：大手 → 曳橋で打って出た敵を迎え撃つ → 付け入り → 尾根の三つの曲輪 → 本丸の中山勘解由。人数を討つ目標は置かない
   t11_hachioji: () => {
@@ -114,12 +117,13 @@ const OWN = {
       { kind: 'stage', k: 3, text: '斎藤方の寄せ大将を討ち取る', noun: '寄せ大将', check: (rt) => won(rt) || F(rt).wave === 3 && !!F(rt).yoseBoss && (!F(rt).yoseBoss.alive || F(rt).yoseBoss.fleeing) },
     ].map((g) => ({ ...g, sec: 400 }));   // 寄せ一つが三分を超える（柵の修理と次の寄せの間を含む）。段の長さに合わせる
   },
+  // 11/6 kaito 十1：右上の①〜⑤（b_okehazama.js の missions）と同じ言葉・同じ順にそろえた。
   okehazama: () => [
-    { kind: 'stage', k: 0, text: '谷の出口で組の旗に集まる', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
+    { kind: 'stage', k: 0, text: '中島砦の下から雨の谷を下り、谷の出口へ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
+    { kind: 'stage', k: 0, text: '谷の出口で雨の上がるのを待つ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'assault' },
     { kind: 'stage', k: 1, text: '坂道で松井宗信の先手を破る', noun: '松井宗信の先手', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
-    { kind: 'stage', k: 2, text: '幕の前で義元の旗本を破る', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
-    { kind: 'stage', k: 2, text: '幕の入口から義元へ迫る', noun: '幕の入口', check: (rt) => won(rt) || !!rt.flags.mouthReached || !!rt.flags.koshiLeft || !!rt.flags.yoshiDown },
-    { kind: 'stage', k: 2, text: '退く旗本を追い、義元を討ち取る', noun: '義元', check: won },
+    { kind: 'stage', k: 2, text: '桶狭間山の幕の前で旗本を破る', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
+    { kind: 'stage', k: 2, text: '幕の口から今川義元を討つ', noun: '今川義元', check: won },
   ],
   // 志賀の陣・宇佐山城（11/4 jin_shiga_r・docs/battle_refs/shiga.md）：『信長公記』の順（十六日 町口の足軽合戦で小勝ち → 十九日 浅井・朝倉が両手から寄せ、
   //   可成・信治・青地が討死 → 坂道を宇佐山城へ退く → 端城を焼かれ、木戸を一つずつ守る → 二十四日 信長の後詰）。敵を何人討つ・自分で討つは置かない（AW3）

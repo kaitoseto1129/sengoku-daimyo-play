@@ -15,7 +15,9 @@
 //   →昼前に又兵衛討死→薄田兼相・山川賢信・明石全登が着いて道明寺で破れる→真田・毛利が誉田に着き伊達勢と撃ち合う→未の刻（十四時半）八尾・若江の敗報→申の刻（十六時）退く
 // 地形：手書きの小山と野（国土地理院の標高はまだ混ぜない）。大きさは常識の低い丘（AT8）。
 // ======================================================================
-import { nobori, jinmaku, kagaribi } from './props.js';
+import * as THREE from 'three';
+import { nobori, jinmaku, kagaribi, hut, dou, bridgeWoodMaterial, solidCircle } from './props.js';
+import { revealName } from './battle_intel.js';
 import { RANKS } from './state.js';
 import { STAGES } from './stages.js';
 import { sfx } from './audio.js';
@@ -36,7 +38,22 @@ const HONDA = { x: -116, z: 26 };        // 誉田（誉田八幡・誉田陵。
 const YAMATO_Z = -118;                   // 大和川（北の端を西へ流れる。石川はここに入る）
 const HILL = 18;                         // 小松山（玉手山の丘陵の北の高み）の麓からの高さ（m）
 const REAR = { x: 178, z: -6 };          // 松平忠輝の陣（後ろ）
-const LIMIT = [240, 330, 0, 270];        // 段ごとの刻限（秒。0 は刻限なし。休みと持ちこたえは数で決まる）
+// 誉田陵（応神天皇陵）：誉田の野の南。北が方形の前、南が円い後ろの前方後円の古墳（史実は長さ四百メートルを越える。ゲームは十分の一）。
+//   周りに空堀と外の土手。墳丘は木に覆われる。誉田八幡はその南（後円部の裾）。真田の鉄砲はこの堀と土の高まりに伏せた
+const KOFUN = { x: -128, z: 64 };
+const HACHIMAN = { x: -128, z: 100 };
+// 誉田の村の民家（夕方、豊臣方が退きながら火を放つ）
+const HOUSES = [[-172, 10, 0.1], [-181, 22, -0.2], [-170, -6, 0.3], [-186, 2, 0]];
+const LIMIT = [240, 0, 0, 270];          // 段ごとの刻限（秒。0 は刻限なし。②は伊達の鉄砲で又兵衛が果てるので刻限なし）
+const FOES = ['後藤又兵衛', '薄田兼相', '明石全登', '山川賢信', '毛利勝永', '真田信繁'];
+// 目標の言葉（右上の並び・段の目標・負けの札で同じ字。途中で言い替えない。kaito 十1）
+const GOALS = ['小松山の東の斜面で、後藤勢の鉄砲組を破れ', '小松山の頂で、後藤又兵衛と侍衆を討て', '石川を渡り、道明寺の野で薄田兼相の手を討て',
+  '誉田陵の前で伊達勢と並び、真田・毛利の寄せを止めよ', '誉田の野で、真田の殿の逆襲を押し返せ'];
+// 誉田陵の墳丘の縁からの距離（内は負）。円い後ろ（南）と方形の前（北）を合わせた形
+function kofunDist(x, z) {
+  const kx = x - KOFUN.x, kz = z - KOFUN.z;
+  return Math.min(Math.hypot(kx, kz - 8) - 13, Math.max(Math.abs(kx) - 11, Math.abs(kz + 6) - 10));
+}
 
 const ROUTE = [[236, 6], [START.x, START.z], [SLOPE.x, SLOPE.z], [TOP.x, TOP.z], [-30, 0], [ISHI_X, -2], [NOGAWA.x, NOGAWA.z], [-98, 10], [HONDA.x, HONDA.z], [-230, 40]];
 
@@ -65,6 +82,11 @@ function height(x, z) {
   // 石川の河原はわずかに低く
   h -= 0.9 * Math.exp(-((x - ISHI_X) * (x - ISHI_X)) / 160);
   h += 0.35 * Math.sin(x * 0.05 + 0.4) * Math.cos(z * 0.05) + 0.2 * Math.sin(z * 0.08 - x * 0.03);
+  // 誉田陵：墳丘（後ろの円が高く 7m・前の方形 5.5m）・空堀（深さ 1.3m）・外の土手
+  const kd = kofunDist(x, z);
+  if (kd < 0) { const kz = z - KOFUN.z; h += sstep(-kd / 5) * (5.5 + 1.5 * sstep((kz + 2) / 8)); }
+  else if (kd < 6) h -= 1.3 * Math.sin(Math.PI * kd / 6);
+  else if (kd < 9) h += 0.7 * Math.sin(Math.PI * (kd - 6) / 3);
   return h;
 }
 
@@ -76,10 +98,32 @@ function flags(rt) {
   rt.scene.add(jinmaku(W, REAR.x, REAR.z, 12, 9, 4, { mon: 'tokugawa' }));
   for (const [x, z] of [[REAR.x - 6, REAR.z - 10], [REAR.x - 6, REAR.z + 10]]) rt.scene.add(nobori(W, x, z, 'tokugawa', 6));
   rt.scene.add(kagaribi(W, REAR.x - 4, REAR.z + 2));
-  // 小松山の頂の後藤勢の旗（浪人衆は豊臣の旗の下）
-  for (const [x, z] of [[8, -10], [-2, 8], [14, 6]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 6));
-  // 誉田八幡の辺りの豊臣方の旗（薄田の陣所・後から真田の赤い旗）
-  for (const [x, z] of [[HONDA.x - 18, -16], [HONDA.x - 18, 10]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 6));
+  // 小松山の頂の後藤勢の旗（浪人衆は豊臣の旗の下）。頂の平らに輪に立て、どこが頂か遠くから分かるように
+  for (const [x, z] of [[8, -10], [-2, 8], [14, 6], [0, -4], [10, -2], [-4, -12]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 6));
+  // 誉田八幡（誉田陵の南の裾。薄田兼相が陣を張った境内）：社殿と白木の鳥居、薄田の旗
+  rt.scene.add(dou(W, HACHIMAN.x, HACHIMAN.z + 4, 7, 5, 0, { h: 2.6 }));
+  {
+    const wood = bridgeWoodMaterial(), tz = HACHIMAN.z - 3, y = W.heightAt(HACHIMAN.x, tz), T = new THREE.Group();
+    for (const sx of [-1, 1]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 3.8, 10), wood); p.position.set(sx * 1.6, 1.9, 0); T.add(p); solidCircle(HACHIMAN.x + sx * 1.6, tz, 0.24); }
+    for (const [w, yy, d, hh] of [[4.7, 3.9, 0.38, 0.28], [4.2, 3.65, 0.3, 0.2], [3.9, 2.9, 0.16, 0.18]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), wood); b.position.y = yy; T.add(b); }
+    T.position.set(HACHIMAN.x, y, tz); T.traverse((o) => { o.castShadow = true; }); rt.scene.add(T);
+  }
+  for (const [x, z] of [[HACHIMAN.x - 7, HACHIMAN.z - 4], [HACHIMAN.x + 7, HACHIMAN.z - 4]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 6));
+  // 誉田の村の民家（板の壁・茅葺き。夕方に火を放たれる）
+  for (const [x, z, r] of HOUSES) rt.scene.add(hut(W, x, z, 7, 5, r, { groundedHome: true }));
+}
+
+// 芦毛（灰白の毛）は描くと真っ白な置物の馬に見える（kaito 十5）。この戦の馬は鹿毛・黒鹿毛にそろえる（半秒ごとに乗った馬を見る）
+const GRAY = 0x74716b;
+function recoat(rt) {
+  for (const u of rt.army.units) {
+    if (u._coatOk || !u.alive || !u.mounted || !u.horse || u.isPlayer) continue;
+    u._coatOk = true;
+    const st = u.horse.userData && u.horse.userData.style;
+    if (!st || st.coat !== GRAY) continue;
+    rt.army.setMounted(u, false);
+    rt.army.setMounted(u, true, buildHorse({ ...st, coat: 0x2e1f16, mane: 0x0e0b09, points: 1 }));
+  }
 }
 
 const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 10, list, seek: o.seek || 55, ...o });
@@ -91,25 +135,51 @@ function matabeiDown(rt) {
   F.matabei = true;
   for (const u of rt.army.units) if (u.alive && u.name === '後藤又兵衛') rt.army.kill(u);
   rt.award((t) => { t.special = { label: '後藤又兵衛が小松山に果てた', pts: 40 }; }, '後藤又兵衛が討死した');
-  rt.banner('後藤又兵衛、討死', '小松山の頂で、後続を待たずに果てた');
+  // 見出しは共通の「後藤又兵衛が討たれた」の一枚だけ（二枚重ねない。五6）
   sfx('horagai', 0.7);
   rt.after(1.5, () => rt.say('後藤の侍', '殿は……殿は鉄砲に……！　薄田殿はまだか、真田殿は！', 3.6));
+  // 主を失った後藤勢は崩れる（頂の段を締める）
+  for (const g of rt.army.groups) if (g.team === 1 && /後藤/.test(g.name || '') && g.count) { g.noRout = false; g.morale = 0; }
+}
+
+// 又兵衛は頂で待たず、山を西から東へ駆け下りて槍を入れる（史実：数度押し返し、最後は隊を二つに分けて突っ込んだ）
+function matabeiCharge(rt) {
+  for (const g of rt.army.groups) {
+    if (g.team !== 1 || !/後藤/.test(g.name || '') || !g.count) continue;
+    const p = rt.player.u.pos;
+    g.calm = false; g.order = 'attack'; g.seekRange = 70; g.aggro = 30; g.anchor = { x: p.x - 4, z: p.z };
+  }
+}
+
+// 片倉重長の鉄砲が又兵衛を撃つ（伊達家の記録。胸を撃たれて家臣に介錯させた）。本人が先に討てばそれが手柄
+function matabeiShot(rt) {
+  const F = rt.flags;
+  if (F.matabei) return;
+  const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
+  const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重長');
+  rt.say('片倉重長', 'あの黒の具足、又兵衛ぞ。鉄砲、揃えて放て！', 3);
+  rt.after(2.4, () => {
+    if (F.matabei) return;
+    if (k) rt.army.play('volley', k.pos, 1.4);
+    if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
+    rt.after(1.2, () => matabeiDown(rt));
+  });
 }
 
 // 伊達勢が国分を抜けて着く（片倉重長の鉄砲隊が先手。政宗はその後ろの旗本の中）
 function datearrive(rt) {
   const F = rt.flags;
   if (F.date) return;
-  F.date = allyGroup(rt, { faction: 'tokugawa', name: '伊達勢', fixed: true, speed: 4.2, anchor: { x: 60, z: -14 }, facing: -Math.PI / 2, width: 14, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8 },
+  F.date = allyGroup(rt, { faction: 'tokugawa', name: '伊達勢', fixed: true, speed: 4.2, anchor: { x: TOP.x + 26, z: 12 }, facing: -Math.PI / 2, width: 14, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8 },
     dress([uS(5), uA(16), uG(8)], DATE));
-  F.katakura = allyGroup(rt, { faction: 'tokugawa', name: '片倉重長の鉄砲隊', fixed: true, speed: 4.2, anchor: { x: 64, z: 14 }, facing: -Math.PI / 2, width: 12, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8, formation: 'line' },
+  F.katakura = allyGroup(rt, { faction: 'tokugawa', name: '片倉重長の鉄砲隊', fixed: true, speed: 4.2, anchor: { x: TOP.x + 18, z: -14 }, facing: -Math.PI / 2, width: 12, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8, formation: 'line' },
     dress([{ type: 'busho', n: 1, o: { name: '片倉重長', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uG(14)], DATE));
   // 政宗は伊達勢の後ろ（前へは出ない）
-  F.masamune = allyGroup(rt, { faction: 'tokugawa', name: '伊達政宗の旗本', anchor: { x: TOP.x + 30, z: -18 }, facing: -Math.PI / 2, width: 8, aggro: 6, order: 'hold', noRout: true, fullStrength: true },
+  F.masamune = allyGroup(rt, { faction: 'tokugawa', name: '伊達政宗の旗本', anchor: { x: TOP.x + 44, z: -20 }, facing: -Math.PI / 2, width: 8, aggro: 6, order: 'hold', noRout: true, fullStrength: true },
     dress([{ type: 'busho', n: 1, o: { name: '伊達政宗', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(7)], DATE));
   F.masamune.noFrontline = true;
   for (const g of [F.katakura, F.masamune]) for (const u of g.units) if (u.alive && u.name && u.mounted) F.riders.push({ u, speed: u.speed, run: u.run, g });
-  rt.scene.add(nobori(rt.world, TOP.x + 34, -26, 'date', 6));
+  for (const [x, z] of [[TOP.x + 48, -28], [TOP.x + 22, -22], [TOP.x + 30, 20]]) rt.scene.add(nobori(rt.world, x, z, 'date', 6));
   rt.army.play('toki', { x: 70, z: 0 }, 1.2);
   rt.say('伊達政宗', '片倉、前へ出よ。又兵衛を討ったなら、あとは野の戦じゃ', 3.8);
 }
@@ -117,12 +187,15 @@ function datearrive(rt) {
 const k13_domyoji = {
   // 身の回りの合戦の跡（timeslip_field.js）。道明寺：五月初め（今の六月）の霧の朝。濡れた初夏の草、小松山の斜面の倒れた槍と旗
   timeslip: {
-    wet: 0.4, dust: 0.2, trample: 0.3, debris: 1.2, arrows: 1, maxSlope: 0.3,
+    wet: 0.4, dust: 0.2, trample: 0.3, debris: 0.45, arrows: 1, maxSlope: 0.3,
     grass: 0x7e9a4c, grassTints: [0xffffff, 0xe4ecc4, 0xc8d49c], grassH: 1.15, grassLift: 0.2, grassShape: 'blade', tallGrass: 1,
     flagColors: [0xe6dfcc, 0x24211e, 0x8e1f16],
   },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
-  noWake: true, noReserve: true, noTaishoRaid: true,
+  noWake: true, noReserve: true, noTaishoRaid: true, noFarFill: true, noAheadFill: true,
+  // 刃を受けた後の3秒は次の刃を通さない（三万四千の中で足軽一人に十秒で討たれない。kaito 十二3）
+  meleeGrace: { rate: 1, burst: 1, interval: 3 },
+  stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   // 歩こうとした強さを覚える（動けなくなった時に抜け出す。BH8）。速さはそのまま返す
   playerVelocity(rt, vx, vz) { const F = rt.flags, q = F.pv || (F.pv = { x: 0, z: 0 }); F.want = Math.hypot(vx, vz); q.x = vx; q.z = vz; return q; },
   // 作り物の遠景の軍勢・奥の乱戦を出さない（kaito 11/3 AA・AF・AQ6）
@@ -134,29 +207,33 @@ const k13_domyoji = {
     seed: 1615506,
     time: 'morning',
     mist: true,
+    // 濃い霧（後続が遅れた原因）：見通しは五十歩ほど。④の前に晴れる（update で fogFar・mistFar を戻す）
+    fogFar: 20, mistFar: 40,
     groundHalf: 300,
     mountainScale: 0.6,
     paths: [ROUTE.slice(0, 5), ROUTE.slice(4)],
     // 石川（南から北へ）と大和川（北の端。国分の亀の瀬から西へ）。石川は大和川に入って終わる
-    streams: [{ pts: [[ISHI_X + 2, 260], [ISHI_X - 4, 110], [ISHI_X, 0], [ISHI_X - 2, -80], [ISHI_X - 6, YAMATO_Z]], w: 12, depth: 0.5 },
+    streams: [{ pts: [[ISHI_X + 2, 260], [ISHI_X - 4, 110], [ISHI_X, 0], [ISHI_X - 2, -80], [ISHI_X - 6, YAMATO_Z]], w: 12, depth: 0.75 },
       { pts: [[70, YAMATO_Z - 14], [20, YAMATO_Z - 6], [ISHI_X - 6, YAMATO_Z], [-140, YAMATO_Z - 4], [-260, YAMATO_Z - 10]], w: 20, depth: 0.8 }],
     height,
     tint(x, z, h, c) {
       if (distToPolyline(x, z, ROUTE) < 3.4) { c.setRGB(c.r * 0.5 + 0.2, c.g * 0.5 + 0.17, c.b * 0.5 + 0.12); return; }
       // 石川の河原
-      if (Math.abs(x - ISHI_X) < 12) { c.setRGB(c.r * 0.5 + 0.24, c.g * 0.5 + 0.22, c.b * 0.5 + 0.16); return; }
+      if (Math.abs(x - ISHI_X) < 10) { c.setRGB(c.r * 0.55 + 0.15, c.g * 0.55 + 0.14, c.b * 0.55 + 0.1); return; }
+      // 誉田陵の空堀は湿った濃い草、墳丘は木の下の土
+      { const kd = kofunDist(x, z); if (kd < 6) { const k = kd > 0 ? 0.6 : 0.75; c.setRGB(c.r * k, c.g * k + 0.02, c.b * k); return; } }
       // 河内の野は田と畑（初夏の青田）
       if (h < 4 && x < -20) { c.setRGB(c.r * 0.6 + 0.04, c.g * 0.7 + 0.14, c.b * 0.6 + 0.03); return; }
       // 小松山の斜面は土と下草（急な所ほど土の色）
       if (h > 6 && x > -50 && x < 80) { const k = Math.min(1, (h - 6) / 14); c.setRGB(c.r * (1 - 0.3 * k) + 0.12 * k, c.g * (1 - 0.32 * k) + 0.1 * k, c.b * (1 - 0.3 * k) + 0.06 * k); }
     },
     // 小松山の左右の裾（道から離れた所）には木を残す
-    clear: (x, z) => distToPolyline(x, z, ROUTE) < 9 || (Math.abs(z) < 40 && x > -160 && x < 130 && !(x > -40 && x < 70 && Math.abs(z) > 22)),
+    clear: (x, z) => kofunDist(x, z) > 0 && kofunDist(x, z) < 9 || HOUSES.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 7) || Math.hypot(x - HACHIMAN.x, z - HACHIMAN.z - 1) < 9 || distToPolyline(x, z, ROUTE) < 9 || (Math.abs(z) < 40 && x > -160 && x < 130 && !(x > -40 && x < 70 && Math.abs(z) > 22)),
     trees: 420,
     tufts: 2400,
-    treeDensity: (x, z) => (distToPolyline(x, z, ROUTE) < 10 ? 0 : (Math.abs(z) > 50 ? 1.1 : 0.2)),
+    treeDensity: (x, z) => { const kd = kofunDist(x, z); if (kd > 0 && kd < 9) return 0; if (kd <= 0) return 1.4; if (distToPolyline(x, z, ROUTE) < 12) return 0; return Math.abs(z) > 50 ? 1.1 : 0.15; },
     groves: [{ x: 90, z: -50, r: 18, n: 22, kind: 'sugi' }, { x: 80, z: 54, r: 18, n: 22, kind: 'sugi' }, { x: -110, z: 50, r: 14, n: 16 },
-      { x: 16, z: -34, r: 14, n: 18 }, { x: 8, z: 34, r: 14, n: 18 }, { x: 44, z: -32, r: 10, n: 10 }, { x: -24, z: 32, r: 10, n: 10 }, { x: -6, z: -60, r: 16, n: 18 }, { x: 0, z: 62, r: 16, n: 18 }],
+      { x: 16, z: -50, r: 14, n: 18 }, { x: 8, z: 50, r: 14, n: 18 }, { x: 44, z: -48, r: 10, n: 10 }, { x: -24, z: 48, r: 10, n: 10 }, { x: -6, z: -60, r: 16, n: 18 }, { x: 0, z: 62, r: 16, n: 18 }],
     fleeOut: (x, z, team) => (team === 1 ? x < -220 : x > 240),
   },
 
@@ -192,8 +269,10 @@ const k13_domyoji = {
     for (const g of [F.mizuno, F.honda, F.tadaaki, F.matsukura]) for (const u of g.units) if (u.alive && u.name && u.mounted) F.riders.push({ u, speed: u.speed, run: u.run, g });
     // 動けなくなった時に抜け出す（BH8）：歩こうとした向きを覚える
     F.want = 0; F.stillT = 0; F.goodPos = [];
+    // 目標に名を挙げた敵将は、右上の目標・頭上の名で伏せない（「見えぬ敵の陣を物見する」に替えない。十1）
+    for (const n of FOES) revealName(rt, n);
     rt.setPhase('brief');
-    rt.obj('main', '小松山の後藤又兵衛を討ち、誉田で真田・毛利の寄せを止める', 'main');
+    rt.obj('main', GOALS[0], 'main');
     rt.say('水野勝成', '松倉と奥田の先手が小松山で崩れかけておる。霧の中じゃ、すぐ助けに出る', 4.5);
     rt.after(5, () => rt.say(nm(rt), '山の上は後藤又兵衛。ほかの隊は霧でまだ見えませぬ', 3.6));
     // 始めから味方の組が麓へ歩き出す（本人だけが丘に着いて一人に見えない）
@@ -218,46 +297,83 @@ const k13_domyoji = {
       rt.say('松倉の足軽', '奥田殿が討たれた！　後藤の槍が下りて来る！', 3.4);
     });
     const look = (list) => dress(list, TOYO);
-    depthStart(rt, { faction: 'toyotomi', flag: 'toyotomi', armor: TOYO.armor, friends: () => [F.mizuno, F.mine, F.honda, F.tadaaki, F.matsukura, F.date, F.katakura].filter((g) => g && g.count && !g.routed), look, scale: 1.6, dmg: 0.62, botSeek: 45, mass: 0, backing: false }, [
+    depthStart(rt, { faction: 'toyotomi', flag: 'toyotomi', armor: TOYO.armor, friends: () => [F.mizuno, F.mine, F.honda, F.tadaaki, F.matsukura, F.date, F.katakura].filter((g) => g && g.count && !g.routed), look, scale: 1.6, dmg: 0.5, botSeek: 45, mass: 0, backing: false }, [
       // ① 小松山の東の斜面（撃ち下ろす鉄砲組と、駆け下りる槍）
-      DP.fight({ at: SLOPE, title: '小松山', sub: '斜面に後藤勢の鉄砲組が並ぶ', obj: '小松山の東の斜面で、松倉勢を崩した後藤勢の鉄砲組を破れ', max: LIMIT[0],
+      DP.fight({ at: SLOPE, title: '小松山', sub: '斜面に後藤勢の鉄砲組が並ぶ', obj: GOALS[0], max: LIMIT[0], noRefill: true,
         say: [['足軽', '山の上から撃ち下ろしてくる！　身を低うせよ']],
         foes: () => [keep('後藤勢の鉄砲組', SLOPE, [uS(3), uA(8), uG(9)], { dx: -14 })],
         later: [{ t: 30, say: ['後藤の侍', '押し返せ！　山を下りて槍を入れよ'], foes: () => [keep('後藤勢の槍組', SLOPE, [uS(3), uA(10)], { dx: -20, dz: 10, dmg: 0.75 })] }],
         reward: '小松山の斜面を破った' }),
       // ② 頂の後藤又兵衛（孤立しても侍衆が固く守る。必ず討たれる）
-      DP.fight({ at: TOP, title: '後藤又兵衛', sub: '後続は霧で遅れ、小松山の頂は孤立している', obj: '小松山の頂で、後藤又兵衛と侍衆を討て', max: LIMIT[1],
+      DP.fight({ at: TOP, title: '後藤又兵衛', sub: '後続は霧で遅れ、小松山の頂は孤立している', obj: GOALS[1], max: 200, noRefill: true,
         say: [['後藤又兵衛', '薄田も真田も遅れたか。ならば我が手で、この山を墓所とする！'], ['足軽', '黒の甲冑、又兵衛じゃ！　侍衆が固めておる！']],
         foes: () => [keep('後藤又兵衛の旗本', TOP, [{ type: 'busho', n: 1, o: { name: '後藤又兵衛', horse: true, hat: 'kabuto_t' } }, uS(10), uA(8), uG(5)], { dx: -6, morale: 100, noRout: 120, dmg: 0.8 })],
         later: [
+          // 又兵衛は頂で待たず、隊を率いて東の斜面へ駆け下りる（何度も押し返した）
+          { t: 14, say: ['後藤又兵衛', '下りて突き崩す！　我に続け！'], foes: () => { matabeiCharge(rt); return []; } },
           { t: 30, say: ['後藤の侍', '殿をお守りせよ！　一歩も退くな！'], foes: () => [keep('後藤勢の新手', TOP, [uS(3), uA(9), uG(3)], { dx: -24, dz: 10, dmg: 0.75 })] },
-          { t: 60, say: ['水野勝成', '伊達の鉄砲が着いた。撃ち込め！'], foes: () => { datearrive(rt); return []; } },
+          { t: 40, say: ['水野勝成', '伊達の鉄砲が着いた。撃ち込め！'], foes: () => { datearrive(rt); return []; } },
+          { t: 52, foes: () => { matabeiCharge(rt); return []; } },
+          // 史実：又兵衛は伊達の鉄砲に撃たれて果てた。本人が討てなくても、時が来れば物語は進む（二5）
+          { t: 78, foes: () => { matabeiShot(rt); return []; } },
         ],
         onEnd: (rt2) => matabeiDown(rt2) }),
       DP.rest({ dur: 6, heal: 0.6, say: [['水野勝成', '又兵衛は討った。息を整えよ。石川の向こうに薄田の旗じゃ']] }),
       // ③ 石川を渡り、道明寺の野で薄田兼相を討つ（史実で討死）
-      DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: '石川を渡り、道明寺の野で薄田兼相の手を討て', max: LIMIT[3],
+      DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: GOALS[2], max: LIMIT[3], noRefill: true,
         say: [['足軽', '薄田隼人の旗じゃ！　川の向こうから来るぞ！']],
         foes: () => [keep('薄田兼相の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '薄田兼相', horse: true, hat: 'kabuto_g' } }, uS(6), uA(12), uG(4)], { dx: -26, dz: -6, noRout: 40 })],
         later: [{ t: 35, say: ['足軽', '山川賢信と明石全登の手じゃ！　霧の中から！'], foes: () => [keep('山川賢信・明石全登の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(2), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
         reward: '道明寺の野で薄田兼相の手を破った' }),
-      DP.rest({ dur: 6, heal: 0.3, fn: () => { rt.world.setTime?.('day'); },
+      DP.rest({ dur: 6, heal: 0.3, fn: () => { rt.world.setTime?.('day'); this.dateToHonda(rt); },
         banner: ['真田信繁・毛利勝永が着く', '霧が晴れ、誉田の野に赤い旗が並ぶ'],
         say: [['伊達政宗', '真田が来た。誉田で鉄砲を並べて迎える。片倉、前へ！'], ['水野勝成', '遅れて着いたが、数は一万を越える。気を抜くな']] }),
       // ④ 誉田の鉄砲戦（伊達の片倉隊と並ぶ。真田の待ち伏せで伊達勢は一度押し戻される）
-      DP.hold({ at: HONDA, dur: 80, r: 16, title: '誉田の戦い', sub: '伊達勢と真田・毛利が鉄砲を撃ち合う', label: '誉田の野', obj: '誉田の野で伊達勢と並び、真田・毛利の寄せを止めよ',
+      DP.hold({ at: HONDA, dur: 70, r: 16, title: '誉田の戦い', sub: '伊達勢と真田・毛利が鉄砲を撃ち合う', label: '誉田の野', obj: GOALS[3], noRefill: true,
         say: [['片倉重長', '放て！　撃ち続けよ。弾が尽きるまで野を渡らせるな！']],
         waves: [
           { t: 4, say: ['足軽', '毛利の手じゃ！　鉄砲を揃えて来る！'], foes: () => [keep('毛利勝永の手', HONDA, [{ type: 'busho', n: 1, o: { name: '毛利勝永', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(4), uA(10), uG(8)], { dx: -40, dz: 14, noRout: 30 })] },
-          { t: 26, say: ['足軽', '赤備えじゃ！　真田の待ち伏せ、伊達殿が押し戻される！'], foes: () => [keep('真田信繁の手', HONDA, [{ type: 'busho', n: 1, o: { name: '真田信繁', invuln: true, horse: true, ...SANADA } }, ...dress([uS(5), uA(10), uG(8)], SANADA)], { dx: -40, dz: -12, noRout: 30, dmg: 0.75 })] },
+          // 真田は誉田陵の堀と土手に折り敷いて伏せ、片倉の寄せを引きつけて一斉に撃つ。伊達勢は一度押し戻される
+          { t: 22, say: ['真田信繁', '折り敷け。引きつけて撃て。まだじゃ……放て！'], foes: () => { rt.after(1.5, () => this.datePushed(rt)); return [keep('真田信繁の手', HONDA, [{ type: 'busho', n: 1, o: { name: '真田信繁', invuln: true, horse: true, ...SANADA } }, ...dress([uS(5), uA(10), uG(8)], SANADA)], { dx: -18, dz: 34, noRout: 30, dmg: 0.6 })]; } },
+          { t: 30, say: ['足軽', '赤備えじゃ！　誉田陵の堀から撃って来る！　伊達殿が押し戻される！'], foes: () => [] },
         ],
         reward: '誉田で真田・毛利の寄せを止めた' }),
       // ⑤ しんがり（信繁・勝永は討てず、大坂へ退く）
-      DP.hold({ at: HONDA, dur: 40, r: 16, title: '大坂へ退く', sub: '信繁のしんがりが、追う者を斬り払う', label: '誉田の野', obj: '真田のしんがりの逆襲を、誉田の野で押し返せ',
+      DP.hold({ at: HONDA, dur: 35, r: 16, title: '大坂へ退く', sub: '信繁の殿が、追う者を斬り払う', label: '誉田の野', obj: GOALS[4], noRefill: true,
         say: [['足軽', '八尾・若江で木村重成殿が討たれたと！　豊臣方が退き始めた！']],
-        waves: [{ t: 4, say: ['真田信繁', '関東勢百万と候え、男は一人もなし。引け、秀頼様の城を守る'], foes: () => [keep('真田のしんがり', HONDA, dress([uS(4), uA(10), uG(5)], SANADA), { dx: -40, dz: 0, dmg: 0.75 })] }],
+        waves: [
+          // 退く豊臣方が誉田の村の民家に火を放つ（史実。夕暮れの煙の中の殿）
+          { t: 1, foes: () => { this.burnVillage(rt); return []; } },
+          { t: 4, say: ['真田信繁', '関東勢百万と候え、男は一人もなし。引け、秀頼様の城を守る'], foes: () => [keep('真田の殿', HONDA, dress([uS(4), uA(10), uG(5)], SANADA), { dx: -40, dz: 0, dmg: 0.6 })] },
+          { t: 12, say: ['足軽', '村に火を掛けて退いて行く！　煙で前が見えぬ！'], foes: () => [] },
+        ],
         reward: '豊臣勢を大坂へ退かせた' }),
     ], (rt2) => this.win(rt2));
+  },
+
+  // ④の前：伊達勢（片倉の鉄砲が先・政宗はその後ろ）が誉田の野へ出て、西へ向いて鉄砲を並べる
+  dateToHonda(rt) {
+    const F = rt.flags;
+    const put = (g, x, z, o = {}) => { if (!g || !g.count) return; g.calm = false; g.order = o.order || 'attack'; g.seekRange = o.seek || 40; g.anchor = { x, z }; if (o.line) g.formation = 'line'; };
+    put(F.katakura, HONDA.x + 6, HONDA.z - 8, { line: true });
+    put(F.date, HONDA.x + 10, HONDA.z + 8, { line: true });
+    put(F.masamune, HONDA.x + 34, HONDA.z - 4, { order: 'hold' });
+    for (const [x, z] of [[HONDA.x + 12, HONDA.z - 16], [HONDA.x + 38, HONDA.z - 10]]) rt.scene.add(nobori(rt.world, x, z, 'date', 6));
+  },
+  // 真田の待ち伏せの一斉射撃で、片倉の隊が十数歩押し戻され、少しして持ち直す
+  datePushed(rt) {
+    const F = rt.flags, g = F.katakura;
+    rt.army.play('volley', { x: HONDA.x - 20, z: HONDA.z + 22 }, 1.6);
+    if (!g || !g.count) return;
+    g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
+    rt.after(12, () => { if (g.count && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重長', '退くな！　列を立て直して撃ち返せ！', 3); } });
+  },
+  // ⑤：誉田の村の民家に火（夕暮れ）
+  burnVillage(rt) {
+    const F = rt.flags;
+    if (F.burnt || !rt.world.addFire) return;
+    F.burnt = true;
+    HOUSES.forEach(([x, z], i) => rt.after(i * 1.6, () => rt.world.addFire(x + 0.6, z - 0.4, { size: 2.4, h: 2 })));
   },
 
   win(rt) {
@@ -295,11 +411,17 @@ const k13_domyoji = {
     this.keepUp(rt, dt);
     const D = F.dp;
     if (!F.dusk && D && D.i >= 6) { F.dusk = true; rt.world.setTime('dusk'); }
+    // 右上の主の目標は今の段の言葉（休みの間も次の段の番号と言葉をそろえる。十1）
+    const gi = D && D.on ? [0, 1, 2, 2, 3, 3, 4][D.i] : null;
+    if (gi != null && F.goalI !== gi) { F.goalI = gi; rt.obj('main', GOALS[gi], 'main'); }
+    // 霧：③までは濃く（五十歩ほど）、④の前の休みから二十秒ほどで晴れる（史実：霧は昼までに晴れ、真田・毛利が着いた）
+    const W = rt.world.def, clear = D && D.i >= 4;
+    if (clear && W.fogFar < 230) { W.fogFar = Math.min(230, W.fogFar + dt * 10); W.mistFar = Math.min(95, W.mistFar + dt * 3); }
     // 目標ごとの刻限（kaito 11/3 AP8）
     const lim = D && D.on && D.cur ? LIMIT[D.i] : 0;
     if (lim) {
       const left = lim - (rt.t - D.cur.t0);
-      if (left <= 0) { this.lose(rt, D.i === 0 ? '小松山の斜面を破れなかった' : D.i === 1 ? '後藤又兵衛を討てなかった' : '薄田兼相の手を破れなかった'); return; }
+      if (left <= 0) { this.lose(rt, D.i === 0 ? '小松山の東の斜面の鉄砲組を破れなかった' : '道明寺の野で薄田兼相の手を破れなかった'); return; }
       if (left < 45 && F.warned !== D.i) { F.warned = D.i; rt.say('水野勝成', '霧が晴れる。豊臣の後続が着く前に、急げ', 3.5); }
     }
   },
@@ -310,6 +432,7 @@ const k13_domyoji = {
     const F = rt.flags, P = rt.player, u = P.u;
     if ((F.kuT = (F.kuT || 0) - dt) > 0) return;
     F.kuT = 0.5;
+    recoat(rt);
     if (!u.alive) return;
     const sp = Math.max(4.2, Math.min(9, Math.hypot(u.vel.x, u.vel.z) * 1.05));
     const threat = rt.army.nearestEnemy(u, 9);
@@ -323,7 +446,7 @@ const k13_domyoji = {
     });
     // 水野・本多・伊達の隊：自分より遅れたら、自分の速さで前へ出る（自分だけが先に敵を引き受けない）
     for (const g of [F.mizuno, F.honda, F.tadaaki, F.date, F.katakura]) {
-      if (!g || !g.count || g.routed || g.order === 'retreat') continue;
+      if (!g || !g.count || g.routed || g.order === 'retreat' || (g === F.katakura && rt.t < (F.pushedUntil || 0))) continue;
       const c = g.center(), lag = c.x - u.pos.x;
       g.speed = lag > 8 ? sp : 4.2;
       if (lag > 18 && F.begun) { g.calm = false; g.order = 'attack'; g.seekRange = 40; g.anchor = { x: u.pos.x + 5, z: Math.max(-30, Math.min(30, (g.anchor ? g.anchor.z : u.pos.z))) }; }
@@ -367,15 +490,12 @@ const k13_domyoji = {
     if (v.name === '後藤又兵衛') matabeiDown(rt);
     if (v.name === '薄田兼相') rt.award((t) => { t.special = { label: '薄田兼相を討ち取った', pts: 20 }; }, '薄田兼相を討ち取った');
   },
-  onRout(rt, g) {
-    if (g.team === 1 && g.name) rt.say('足軽', `${g.name}が崩れた！`, 2.5);
-  },
 };
 
 // 兵の数は史実（徳川方 大和口 三万四千・豊臣方 後藤二千八百と後続を合わせて一万八千六百）。本物の兵一人がおよそ百人
 k13_domyoji.force = (rt) => ({ a: Math.max(0, 34000 - (rt.flags.ak || 0) * 60), a0: 34000, b: Math.max(0, 18600 - (rt.flags.ek || 0) * 60), b0: 18600 });
 k13_domyoji.sides = { a: { name: '徳川方', mon: 'tokugawa', faction: 'tokugawa' }, b: { name: '豊臣方', mon: 'toyotomi', faction: 'toyotomi' } };
-k13_domyoji.date = (rt) => (rt.flags.dusk ? '慶長二十年（1615）五月六日　夏・夕暮れ' : '慶長二十年（1615）五月六日　夏・朝霧');
+k13_domyoji.date = (rt) => (rt.flags.dusk ? '慶長二十年五月六日　夕暮れ' : rt.flags.dp && rt.flags.dp.i >= 4 ? '慶長二十年五月六日　昼' : '慶長二十年五月六日　朝霧');
 k13_domyoji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 k13_domyoji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 k13_domyoji.history = '慶長二十年（1615）五月六日、大坂夏の陣。大和路から大坂へ向かう徳川方（先鋒の大将 水野勝成・本多忠政・伊達政宗と片倉重長ら三万四千ほど。総大将は松平忠輝）を、豊臣方は国分の隘路の出口で迎え撃つ策を立てた。後藤又兵衛（約二千八百）は薄田兼相・真田信繁・毛利勝永らの到着を待たず、霧の中を石川を渡って小松山へ先に出た。寅の刻（午前四時ごろ）、又兵衛は山へ取り付いた松倉重政・奥田忠次の先手を崩して奥田を討ったが、水野勝成・堀直寄らが助けに入り、伊達勢も加わって山を囲んだ。後続が霧で遅れたため又兵衛は孤立し、十倍を越える徳川方と昼まで戦って討死した。そのあと着いた薄田兼相・山川賢信・明石全登らも道明寺の辺りで破れ、兼相は討たれた。昼に着いた信繁・勝永は誉田で伊達勢と鉄砲を撃ち合い、待ち伏せで伊達勢を押し戻した。十四時半ごろ八尾・若江の敗報が届き、十六時ごろ信繁が殿を務めて大坂へ退いた。徳川方は兵が疲れ、追わなかった。\n両軍の数や細かい陣の動きは史料により異なり、地形は遊びのために縮めて復元した推定である。';
@@ -392,7 +512,7 @@ k13_domyoji.botBrain = (b, inp, { goTo }) => {
 
 // 戦の進行の札：五つの目標（段の 0・1・3・5・6）
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k13_domyoji = [['小松山の斜面の鉄砲組を破る'], ['頂の後藤又兵衛を討つ', dpAt(1)], ['道明寺の野で薄田兼相を討つ', dpAt(3)], ['誉田で真田・毛利を止める', dpAt(5)], ['真田のしんがりを押し返す', dpAt(6)]];
+STAGES.k13_domyoji = [[GOALS[0]], [GOALS[1], dpAt(1)], [GOALS[2], dpAt(3)], [GOALS[3], dpAt(5)], [GOALS[4], dpAt(6)]];
 
 export { k13_domyoji };
 export default k13_domyoji;

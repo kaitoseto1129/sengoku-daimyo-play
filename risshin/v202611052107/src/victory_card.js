@@ -12,7 +12,7 @@ body.rm #victory-card, body.rm #victory-card p { animation:none; }
 @media (prefers-reduced-motion:reduce) { #victory-card, #victory-card p { animation:none; } }
 `;
 // 退き口を果たす戦は「勝利」と言わない
-export const DUTY = new Set(['kanegasaki', 'mikatagahara', 'honnoji', 'shiga', 'tedorigawa']);
+export const DUTY = new Set(['kanegasaki', 'mikatagahara', 'honnoji', 'shiga', 'tedorigawa', 'saika']);   // 雑賀は川を越えられず和議で終わる（勝ちと呼ばない）
 
 export function showVictory(rt) {
   if (document.getElementById('victory-card') || rt.def.dojo || rt.def.town) return;

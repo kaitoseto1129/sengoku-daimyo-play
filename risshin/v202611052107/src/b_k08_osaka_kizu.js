@@ -17,11 +17,10 @@
 // 座標：南が +z（蜂須賀勢）、北が −z（砦の北の口と博労淵・大坂城）、東が +x（大坂城の方）、西が −x（木津川・大坂湾）。
 // ======================================================================
 import { enemyGroup, allyGroup, centerOf, nm, wallLine } from './bhelp.js';
-import { nobori, yagura, kabukimon, tobira, kagaribi, kobune, jinmaku, shogi, hut, takataba } from './props.js';
+import { nobori, yagura, kabukimon, tobira, kagaribi, kobune, jinmaku, shogi, hut, takataba, lookoutDeckHeight } from './props.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { farSight } from './far_sight.js';
-import { osakaFar } from './osaka_far.js';
 import { timeslipField } from './timeslip_field.js';
 import { KILLS, cut } from './stages.js';
 import { setStages } from './b_k_help.js';
@@ -58,7 +57,7 @@ const sum = (gs) => gs.reduce((s, g) => s + (alive(g) ? g.count : 0), 0);
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
 const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s);
 // 北の口の守りに残る数（柵の外へ押し出された者は守りから外れた者として数えない。追えずに④が止まらないように）
-const northLeft = (F) => F.w3.units.filter((u) => u.alive && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4).length;
+const northLeft = (F) => [...F.w3.units, ...F.zen.units].filter((u) => !u.invuln && u.alive && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4).length;
 const flee = (g) => { if (!alive(g)) return; g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee'; for (const u of g.units) u.perch = null; };
 
 // 低い平野。砦は少し盛り上がった土の上。木津川の東の堤と西の湿地だけ起伏を付ける
@@ -92,18 +91,25 @@ function perch(g, x, y, z, f) {
 
 const k08_osaka_kizu = {
   // 身の回りの合戦の跡（timeslip_field.js）。木津川口：十一月半ば（今の十二月）の夜の湿地。枯れ葦・ぬかるみ・暗い土
+  // 抜け駆けの夜襲の始まりで、まだ誰も戦っていない。倒れた槍・陣笠・矢は撒かない（debris・arrows 0）
   timeslip: {
-    wet: 0.55, dust: 0.1, trample: 0.2, debris: 1, arrows: 1, reeds: 0.5, mudColor: 0x5e5446, hazeColor: 0x6a6660, poolDim: 0.5, grassLift: 0.12, grassShape: 'blade',
+    wet: 0.55, dust: 0.1, trample: 0.2, debris: 0, arrows: 0, reeds: 0.5, mudColor: 0x5e5446, hazeColor: 0x6a6660, poolDim: 0.5, grassLift: 0.12, grassShape: 'blade',
     grass: 0x8c8456, grassTints: [0xffffff, 0xe0d4a8, 0xbcb890], grassH: 1.25, tallGrass: 1, grassCap: 420,
     flagColors: [0xe6dfcc, 0x24211e, 0x5a4a36],
   },
+  // 蜂須賀の旗は慶長の阿波の蜂須賀家の丸に卍（墨俣の頃の糸輪の遊びの旗を使わない。11/6 crit・十4）
+  flagEra: { hachisuka: 'manji' },
+  noMiniMap: true,        // 右上の小さな地図を出さない（五の1）
+  nameRange: 45,          // 浅野長晟・明石全延の名を、組が見える所から出す（九3）
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
   prelude: 12,
   // 見せかけの軍勢・遠くの作り物の戦いは置かない（kaito AA・AF・AV の4）
   noReserve: true, noWake: true, noTaishoRaid: true, noFrontFill: true, noDistantBattle: true, noFarFill: true, noAheadFill: true,
   frontlineDensity: false,   // 見えない所から湧く「味方の小勢・敵の小勢」も出さない（kaito AW の6）
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を何人討つ」を足さない。goals5.js）
-  allyReports: false,     // 使番の「〇〇殿の隊は北西で持ち場を守る」を三十秒ごとに出さない（五の1：字を足さない）
+  noYaguraTask: true,     // 板囲いの櫓を「物見櫓の中へ入り…」の目標にしない（目標は五つの段だけ＝十1）
+  gateGuide: false,      // ②の目標を「門を打て」に言い替えない（十1）。門は寄せた味方と主人公がそばにいるだけ早く破れる（update）
+  allyReports: false,    // 使番の「〇〇殿の隊は北西で持ち場を守る」を三十秒ごとに出さない（五の1：字を足さない）
   sides: { a: { name: '徳川勢', mon: 'hachisuka', faction: 'hachisuka' }, b: { name: '豊臣勢', mon: 'toyotomi', faction: 'toyotomi' } },
   taisho: { a: { name: '蜂須賀至鎮', def: true }, b: { name: '明石全延', def: true, fate: 'flee', survives: true } },   // 全登は留守。代わりに守った全延は博労淵へ退く（討てない）
   date: () => '慶長十九年（1614）十一月十九日　未明　摂津国 木津川口',
@@ -118,6 +124,9 @@ const k08_osaka_kizu = {
     muddy: 0.35,
     height,
     waterSlow: true,
+    farReliefScale: 0.12,   // 木津川の河口は大坂の低い平野。地図の外を丘や山並みにしない
+    mountainScale: 0.14, mountainHaze: 0.85,   // 遠くの山（六甲・生駒）は低く霞ませる
+    nightLift: 1.8, nightFill: 0.5, nightMoonMin: 0.55,   // 午前三時の闇。篝火の輪の外を昼の明るさにしない（有岡・刀根坂と同じ）
     streams: [{ pts: KIZU, w: 30, depth: 2.6 }, { pts: [[-66, 52], [0, 50], [30, 51]], w: 16, depth: 0.7 }, { pts: [[24, 51], [80, 54], [220, 60]], w: 16, depth: 2.0 }],   // 砦の前を横切る入り江。西は膝までの浅瀬（先手が渡る）、東は胸までの深み（浅野勢が急いで渡り溺れる）
     paths: [[[SPAWN.x, SPAWN.z], [-2, 70], [0, 50], [SHORE.x, SHORE.z], [GATE.x, GATE.z + 4]], [[0, NGATE.z], [2, -100], [6, -150]]],
     tint(x, z, h, c) {
@@ -150,15 +159,16 @@ const k08_osaka_kizu = {
     fence([-WALL_X, WALL_N], [-3.4, WALL_N]); fence([3.4, WALL_N], [WALL_X, WALL_N]);
     rt.scene.add(kabukimon(W, GATE.x, GATE.z + 1.5, 7, 0, { doors: false }));
     rt.scene.add(kabukimon(W, NGATE.x, NGATE.z - 1.5, 7, Math.PI));
-    F.gate = rt.army.addStruct({ seg: [-3.4, GATE.z, 3.4, GATE.z], nx: 0, nz: 1, hp: 300, maxHp: 300, team: 1, name: '砦の大手門' });
+    F.gate = rt.army.addStruct({ seg: [-3.4, GATE.z, 3.4, GATE.z], nx: 0, nz: 1, hp: 600, maxHp: 600, team: 1, name: '砦の大手門' });   // 閂を掛けた扉は寄せた味方でも一分余りかかる（一つの戦を 4〜7 分に）
     // 扉は板を矧ぎ、貫と乳金物を打った二枚の扉（props の tobira）。破れると内へ倒れる（army の structFall）
     F.gateMesh = tobira(W, GATE.x, GATE.z + 1.5, 6.9, 0, { h: 3.1 });
     F.gateMesh.userData.noFreeze = true;
     F.gateMesh.traverse((o) => { if (o.isMesh) o.userData.noBatch = true; });
     rt.scene.add(F.gateMesh);
     F.gate.mesh = F.gateMesh;
-    for (const [x, z] of [[-18, GATE.z - 3], [18, GATE.z - 3], [-18, WALL_N + 4], [18, WALL_N + 4]]) rt.scene.add(yagura(W, x, z, { mon: 'toyotomi', team: 1 }));
-    for (const [x, z] of [[-9, GATE.z + 4], [9, GATE.z + 4], [-14, -30], [14, -30], [-7, WALL_N + 3], [7, WALL_N + 3]]) { try { rt.scene.add(kagaribi(W, x, z)); } catch (e) { console.warn(e); } }
+    for (const [x, z] of [[-18, GATE.z - 3], [18, GATE.z - 3], [-18, WALL_N + 4], [18, WALL_N + 4]]) rt.scene.add(yagura(W, x, z, { mon: 'toyotomi', team: 1, boarded: true }));   // 板で囲った櫓（黒い箱の骨組みにしない）
+    // 夜の砦の篝火には火を入れる（空の籠にしない。四の6）
+    for (const [x, z] of [[-9, GATE.z + 4], [9, GATE.z + 4], [-14, -30], [14, -30], [-7, WALL_N + 3], [7, WALL_N + 3]]) { try { rt.scene.add(kagaribi(W, x, z)); if (W.addFire) W.addFire(x, z, { h: 1.3, size: 0.7, lightRadius: 16 }); } catch (e) { console.warn(e); } }
     for (const [x, z] of [[-12, -16], [12, -16], [-14, -48], [14, -48]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 7));
     // 砦の背（北）の民家。②で蜂須賀の別手が火をかける
     for (const [x, z, r] of VILLAGE) { try { rt.scene.add(hut(W, x, z, 7, 5, r, { h: 2.6 })); } catch (e) { console.warn(e); } }
@@ -172,13 +182,10 @@ const k08_osaka_kizu = {
     rt.scene.add(jinmaku(W, HONJIN.x, HONJIN.z, 14, 10, 5, { mon: 'hachisuka' }));
     for (const [x, z] of [[HONJIN.x - 10, HONJIN.z + 4], [HONJIN.x, HONJIN.z + 8], [HONJIN.x + 10, HONJIN.z + 4], [HONJIN.x - 10, HONJIN.z - 6], [HONJIN.x + 10, HONJIN.z - 6]]) rt.scene.add(nobori(W, x, z, 'hachisuka', 7));
     rt.scene.add(kagaribi(W, HONJIN.x + 4, HONJIN.z - 7));
+    if (W.addFire) W.addFire(HONJIN.x + 4, HONJIN.z - 7, { h: 1.3, size: 0.7, lightRadius: 16 });
     // 浅野勢の幟（約束の刻を待つ陣。南東）
     for (const [x, z] of [[ASANO_AT.x - 8, ASANO_AT.z + 6], [ASANO_AT.x + 8, ASANO_AT.z + 6]]) rt.scene.add(nobori(W, x, z, 'asano', 6));
-    // 大坂城（遠景。兵は置かない）：本丸・二の丸と、こちらを向く惣構えの西と南。osaka_far.js
-    try {
-      osakaFar(rt, { x: OSAKA.x + 10, z: OSAKA.z - 70, s: 1.4, big: 2.8, land: [[-200, -800, 700, -181]],
-        sogamae: [{ pts: [[120, -180], [440, -180]], side: 1, water: false, s: 1.4 }, { pts: [[120, -440], [120, -180]], side: 1, water: true, s: 1.4 }] });
-    } catch (e) { console.warn(e); }
+    // 大坂城は置かない：城は上町台地の上で約 5km 先。午前三時の闇では見えず、場の 400m 先に置くと柵のすぐ向こうに大きく見えた（二1）
 
     // ---- 味方：至鎮の旗本（陣幕の内）、先手（主人公が率いる）、別手（砦の背へ回る）、舟手（川から撃つ）、浅野の搦手（遅れて渡る） ----
     // この場の大将は陣幕の内の床几に腰を下ろして動かない（kaito AV7）。旗本は陣幕の内と前を固める
@@ -217,7 +224,7 @@ const k08_osaka_kizu = {
       F.fune.push(g);
     }
     F.allies = [F.saki, F.east, F.asano, F.ikeda];
-    for (const g of [...F.allies, ...F.fune]) g.dmgMult = 0.6;   // 味方だけでは時がかかる（主人公の槍で早まる。何もしなくても段は進む＝二の5）
+    for (const g of [...F.allies, ...F.fune]) g.dmgMult = 0.45;   // 味方だけでは時がかかる（主人公の槍で早まる。何もしなくても段は進む＝二の5）
     const n = Math.min(12, RANKS[rt.G.rank || 0]?.squad || 0);
     if (n) rt.makeSquad({ x: SPAWN.x - 2, z: SPAWN.z - 3 }, faceN, [{ kind: 'spear', n }]);
 
@@ -230,11 +237,11 @@ const k08_osaka_kizu = {
     F.garrison.noAI = true;   // 門が破れるまで動かない（stage3 で放つ）
     // 新手は始めから持ち場にいる（湧かせない。kaito AW の6）。門の前の鉄砲組と、北の口の守兵・全延の組
     F.w1 = foe(rt, '門の前の鉄砲組', { x: 0, z: GATE.z + 6 }, [sq(TOYO, 'samurai', 1), sq(TOYO, 'gun', 3), sq(TOYO, 'ashigaru', 2)], { aggro: 6 });
-    F.w3 = foe(rt, '北の口の守兵', { x: 0, z: WALL_N + 6 }, [sq(TOYO, 'samurai', 2), sq(TOYO, 'ashigaru', 3), sq(TOYO, 'gun', 2)], { aggro: 3, width: 10 });
-    F.zen = foe(rt, '明石全延の組', { x: 4, z: WALL_N + 10 }, [sq(TOYO, 'busho', 1, { name: '明石全延', invuln: true, horse: true }), sq(TOYO, 'samurai', 3)], { aggro: 0, width: 6, morale: 100 });
+    F.w3 = foe(rt, '北の口の守兵', { x: 0, z: WALL_N + 6 }, [sq(TOYO, 'samurai', 2), sq(TOYO, 'ashigaru', 5), sq(TOYO, 'gun', 3)], { aggro: 3, width: 10 });
+    F.zen = foe(rt, '明石全延の組', { x: 4, z: WALL_N + 10 }, [sq(TOYO, 'busho', 1, { name: '明石全延', invuln: true, horse: true }), sq(TOYO, 'samurai', 4), sq(TOYO, 'gun', 1)], { aggro: 0, width: 6, morale: 100 });
     for (const g of [F.w3, F.zen]) { g.noFrontline = true; g.noAI = true; g.noRout = true; }
     // 北の口の守兵は④まで奥に控える。③で砦の内へ流れ込んだ味方に先に討ち尽くされると④が一瞬で済むので、④まで狙わせない
-    for (const u of F.w3.units) u.noTarget = true;
+    for (const u of [...F.w3.units, ...F.zen.units]) u.noTarget = true;
     F.foes = [F.front, F.w1, F.wallG, F.garrison, F.w3];
     // 櫓の上の鉄砲・弓（二の3・二の7：砦に近づくほど上から撃たれる）。南の櫓は入り江と大手門、北の櫓は北の道を向く
     F.towers = [];
@@ -243,7 +250,7 @@ const k08_osaka_kizu = {
       const g = enemyGroup(rt, { fixed: true, name: '砦の櫓の守り', faction: 'toyotomi', flag: TOYO.flag, armor: TOYO.armor, anchor: { x, z }, facing: f, order: 'hold', aggro: 2, seekRange: 0, noRout: true, morale: 100 },
         [sq(TOYO, 'gun', 1), sq(TOYO, 'bow', 1)]);
       g.noFrontline = true;
-      perch(g, x, W.heightAt(x, z) + 6.7, z, f);
+      perch(g, x, W.heightAt(x, z) + lookoutDeckHeight() + 0.08, z, f);   // 櫓の床の上に立つ（宙に浮かせない）
       F.towers.push(g);
     }
     F.s1 = [F.front]; F.fN = F.front.count;
@@ -256,7 +263,7 @@ const k08_osaka_kizu = {
     rt.after(0.5, () => rt.say('物見の森村重', '砦の炊ぎの煙が少のうございます。守りは手薄かと', 3.8));
     rt.after(4.6, () => rt.say('蜂須賀至鎮', '浅野殿との約束は明け六つ。待たぬ。今、出る', 4));
     rt.after(9, () => rt.say('蜂須賀至鎮', '舟手は川から撃て。別手は砦の背へ回り、火をかけよ', 4));
-    rt.after(13.4, () => rt.say('蜂須賀至鎮', `${nm(rt)}、先手を率いて入り江を渡れ。岸の鉄砲組から払え`, 4));
+    rt.after(13.4, () => rt.say('蜂須賀至鎮', `${nm(rt)}、先手と共に入り江を渡れ。岸の鉄砲組から払え`, 4));
     rt.after(17.6, () => rt.say(nm(rt), '承知。先手、続け', 2.4));
     rt.after(20, () => rt.say('明石全延', '全登様は城の評定でお留守じゃ。持ちこたえよ', 3.4));
     rt.after(20.2, () => this.stage1(rt));
@@ -291,7 +298,7 @@ const k08_osaka_kizu = {
     hold(F.asano, 42, 20);
     rt.say('蜂須賀至鎮', '門に取り付け！　鉄砲は櫓を撃て', 3.4);
     // 先手が門の前に竹束を据える（門の前の鉄砲と櫓の弾を受けて寄る。真ん中は空けて門へ通す）
-    if (!F.taba) { F.taba = true; for (const x of [-10.4, -8.2, -6, 6, 8.2, 10.4]) { try { rt.scene.add(takataba(rt.world, x, GATE.z + 15, 0)); } catch (e) { console.warn(e); } } }
+    if (!F.taba) { F.taba = true; for (const x of [-10.4, -8.2, -6, 6, 8.2, 10.4]) { try { rt.scene.add(takataba(rt.world, x, GATE.z + 15, 0, { fieldBundle: true, fieldTrestle: true })); } catch (e) { console.warn(e); } } }
     rt.after(4, () => { if (F.step === 2) rt.say('蜂須賀の舟手', '樋口の舟五艘、捕らえた。川から砦を撃つ', 3.4); });
     rt.after(9, () => rt.say('浅野長晟', '蜂須賀殿が抜け駆けか。遅れるな、川を渡れ', 3.4));
   },
@@ -344,14 +351,19 @@ const k08_osaka_kizu = {
     for (const g of F.towers.slice(0, 2)) flee(g);   // 南の櫓の兵は降りて逃げる
     rt.obj('main', '砦の北の口で明石全延の組を追い払う', 'main');
     F.w3.noAI = false; F.zen.noAI = false;
-    for (const u of F.w3.units) u.noTarget = false;
-    for (const g of [F.w3]) { g.order = 'attack'; g.aggro = 18; }
-    F.s4 = [F.w3]; F.nN = sum(F.s4);   // 北の櫓の上の兵は数えない（⑤で降りて逃げる）
+    // 全延の組も北の口の守兵と共に打って出る（目標に書いた敵は必ず来て戦う。九2）。全延は馬上で指図し、討てない
+    for (const u of [...F.w3.units, ...F.zen.units]) u.noTarget = !!u.invuln;
+    for (const g of [F.w3, F.zen]) { g.order = 'attack'; g.aggro = 18; g.seekRange = 30; }
+    F.s4 = [F.w3, F.zen]; F.nN = northLeft(F);   // 北の櫓の上の兵は数えない（⑤で降りて逃げる）
     hold(F.saki, NGATE.x + 3, NGATE.z + 10); F.saki.aggro = 24;
+    for (const g of F.allies) g.dmgMult = 0.45;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない）
     hold(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
     hold(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
-    rt.marker('k08', () => { const g = F.s4.find(alive); return g ? centerOf(g)() : NGATE; }, '明石全延の組', { red: true, group: F.w3 });
+    rt.marker('k08', () => { const g = F.s4.find(alive); return g ? centerOf(g)() : NGATE; }, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
+    // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
+    rt.world.setTime('morning');
+    rt.after(7, () => { if (F.step === 4) rt.say('浅野長晟', '夜が白んできた。明け六つの約束の刻じゃ', 3.2); });
   },
   // ⑤ 北の口に卍の幟を立てる（守兵は博労淵へ退く）
   stage5(rt) {
@@ -441,10 +453,10 @@ const k08_osaka_kizu = {
       if (sum(F.s3) <= F.gN * 0.15) this.stage4(rt);
     } else if (F.step === 4) {
       // 柵の外へ押し出された守兵は北の口の守りから外れた者（博労淵へ逃げる）。残りが追えずに④が止まらないように
-      if (northLeft(F) <= Math.floor(F.nN * 0.2) || rt.t - F.tS > 90) this.stage5(rt);
+      if (northLeft(F) <= Math.floor(F.nN * 0.2) || rt.t - F.tS > 120) this.stage5(rt);
     } else if (F.step === 5) {
       // 主人公が北の口に立てば幟を立てる。来なければ先手の誰かが北の口に着き、十五秒で立てる（二の5）
-      if (near(P, F.flagAt, 4) || (rt.t - F.tS > 15 && F.saki.units.some((u) => u.alive && near(u.pos, F.flagAt, 6)))) this.win(rt);
+      if (near(P, F.flagAt, 4) || (rt.t - F.tS > 25 && F.saki.units.some((u) => u.alive && near(u.pos, F.flagAt, 6)))) this.win(rt);
     }
   },
 };

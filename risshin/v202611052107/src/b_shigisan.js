@@ -37,6 +37,7 @@ import { timeslipField } from './timeslip_field.js';
 import { SHIGISAN_PLAN, TOP, GATE, TOWER, RIDGE1, RIDGE2, RIDGE3, RIDGE4, YASHIKI, MEDAKE, TEMPLE, ROAD as SITE_ROAD, TEMPLE_ZONE, ROUTES } from './castles/shigisan.js';
 import { demRelief, demDetail } from './dem.js';
 import { dressStage } from './stage_dress.js';
+import { rainVolley } from './arrow_rain.js';
 import { castlePart } from './cgt_castle.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
@@ -57,6 +58,29 @@ function huntPlayer(rt, dt) {
     if (!mine && d < 30) g.focus = P;
     else if (mine && d > 45) g.focus = null;
   }
+}
+// 11/6 fixc1429（critic60「門の前で命が一度も減らない・守り手も矢弾も見えない」・十3・二3）：門の内の弓は塀越しに射上げる。
+//   木戸に寄る間（本人が門から三十二歩内・木戸が立つ間）は、四〜六秒ごとに寄せ手の固まり（本人の周り）へ一斉射ちを落とす（共通の矢の雨。
+//   一人一本・当たりも共通のまま）。塀の内の鉄砲も本人を狙い直す。
+function gateVolley(rt, dt) {
+  const F = rt.flags, P = rt.player.u;
+  if ((F._volleyT = (F._volleyT || 0) - dt) > 0) return;
+  F._volleyT = 4 + Math.random() * 2;
+  if (!P?.alive || F.ending || rt.over || !(F.step >= 1 && F.step < 3.5) || !F.gate?.alive || !F.arch || gone(F.arch)) return;
+  const d = Math.hypot(P.pos.x - GATE.x, P.pos.z - GATE.z);
+  if (d > 32 || P.hp < P.maxHp * 0.3) return;
+  const live = F.arch.units.filter((u) => u.alive && !u.fleeing && !u.woundOut);
+  const bow = live.find((u) => u.type === 'bow');
+  if (bow) {
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 1.5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
+    rainVolley(rt.army, F.arch, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
+    // 落ちる所（影が濃くなる輪）に留まった本人には、三度に一度ほど矢が立つ。影を見て動けば避けられる
+    rt.after(1.7, () => {
+      if (!P.alive || F.ending || rt.over || !bow.alive || Math.hypot(P.pos.x - x, P.pos.z - z) > 3 || Math.random() > .35) return;
+      rt.army.damage(P, (bow.dmg || 9) * (F.arch.dmgMult ?? 1), bow, { kind: 'arrow', y: P.pos.y + 1.5 });
+    });
+  }
+  for (const u of live) if (u.type === 'gun' && Math.random() < .3) { u.target = P; u.aiT = 2.5; }
 }
 let sgDem = null;
 // 標高が届いたら、寺から里へ下る民の道も同じ地形で整え直す。
@@ -346,7 +370,7 @@ const ATTACK_PLAN = { ...SHIGISAN_PLAN,
   continuousEdges: true, // 土の段は内外を同じ高さでつなぎ、縁に七歩の裂け目を作らない。
   terrainBanks: true, // 土塁は歩く地面に含める。別格子の薄い土の帯を重ね、切岸から浮かせない。
   sakamogiMaxRise: 1.1, // 逆茂木は緩い足場だけ。切岸をまたぐ長い伐り木にしない。
-  lordSeat: { ...SHIGISAN_PLAN.lordSeat, floors: 2, b: 8, name: '山頂の小さな天守' },
+  lordSeat: { ...SHIGISAN_PLAN.lordSeat, floors: 2, b: 8, name: '山頂の天主' },
   paths: SHIGISAN_PLAN.paths.map((p) => p.id === 'ote' ? { ...p, pts: ROAD } : p),
   kuruwa: SHIGISAN_PLAN.kuruwa.map((k) => ({ ...k, ...(k.gapW ? { gapW: 9 } : {}) })),
   koguchi: SHIGISAN_PLAN.koguchi.map((g) => ({ ...g, w: g.id === 'gate' ? 11.4 : 7.4 })),
@@ -1613,14 +1637,6 @@ function sgBand(pts, step, at, uScale, vScale) {
   g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
-// 野面の石垣（月夜に白く光る共通の石でなく、継ぎ目の黒い自然石。キャンバスの絵を使い回す）。
-// 天端は top(x,z)、裾は外（+x）へ勾配を付けて地面の下 0.6m まで差し込む。天端の上面も石で閉じる。
-function sgStoneWall(rt, pts, top, out = 1.1) {
-  const W = rt.world, K = sgKeepKit();
-  const face = sgBand(pts, .8, (x, z) => { const t = top(x, z), bx = x + out; return [[bx, W.heightAt(bx, z) - .6, z], [x, t, z]]; }, 3, 3);
-  const cap = sgBand(pts, .8, (x, z) => { const t = top(x, z); return [[x, t, z], [x - 1.4, Math.max(t - .1, W.heightAt(x - 1.4, z) + .05), z]]; }, 3, 3);
-  for (const g of [face, cap]) { const m = new THREE.Mesh(g, K.stoneTwo || (K.stoneTwo = Object.assign(K.stone.clone(), { side: THREE.DoubleSide }))); m.castShadow = m.receiveShadow = true; rt.scene.add(m); }
-}
 // 石垣の上の狭間の板塀（板と押縁・腰の横桟・狭間の口）。柱は地面から立てる。
 function sgHei(rt, pts, base, h = 2.2) {
   const mat = sgHeiMat();
@@ -1834,75 +1850,6 @@ function innerRails(rt, batch) {
   }
 }
 
-// 曲輪の縁を低い石積みで留める推定復元。通り道と土塁の口は残す。
-function terraceStone(rt) {
-  const W = rt.world, corners = [], dummy = new THREE.Object3D(), batch = makeKitBatch();
-  for (const id of ['shu', 'ridge1']) {
-    const k = ATTACK_PLAN.kuruwa.find((q) => q.id === id);
-    const cx = k.poly.reduce((s, p) => s + p[0], 0) / k.poly.length;
-    const cz = k.poly.reduce((s, p) => s + p[1], 0) / k.poly.length;
-    for (let i = 0; i < k.poly.length; i++) {
-      const start = k.poly[i], end = k.poly[(i + 1) % k.poly.length];
-      const pieces = Math.ceil(Math.hypot(end[0] - start[0], end[1] - start[1]) / 2.5);
-      for (let part = 0; part < pieces; part++) {
-        const a = [start[0] + (end[0] - start[0]) * part / pieces, start[1] + (end[1] - start[1]) * part / pieces];
-        const b = [start[0] + (end[0] - start[0]) * (part + 1) / pieces, start[1] + (end[1] - start[1]) * (part + 1) / pieces];
-        const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
-        const side = (-dz * ((a[0] + b[0]) / 2 - cx) + dx * ((a[1] + b[1]) / 2 - cz)) > 0 ? 1 : -1;
-        const nx = -dz / len * side, nz = dx / len * side;
-        const rim = [a, b].map((p) => W.heightAt(p[0], p[1]));
-        const top = Math.min(...rim) + 0.12;
-        if (Math.max(...rim) - Math.min(...rim) > 0.6) continue;
-        // 切岸の裾に面を置き、天端を内側の曲輪へつなぐ。二〜三メートルの落差だけ使う。
-        let offset = 0;
-        for (const d of [1, 2, 3, 4, 5, 6]) {
-          if ([a, b].every((p) => {
-            const drop = top - W.heightAt(p[0] + nx * d, p[1] + nz * d);
-            return drop >= 2 && drop <= 2.7;
-          })) { offset = d; break; }
-        }
-        if (!offset) continue;
-        const pts = [a, b].map((p) => [p[0] + nx * offset, p[1] + nz * offset]);
-        // 東の木戸・枝道を含め、兵の通る帯と交わる石積みは作らない。
-        let mouth = false;
-        for (let j = 0; j <= Math.ceil(len); j++) {
-          const t = j / Math.ceil(len), x = pts[0][0] + dx * t, z = pts[0][1] + dz * t;
-          for (const q of ROAD_SEGMENTS) {
-            const u = Math.max(0, Math.min(1, ((x - q.ax) * q.dx + (z - q.az) * q.dz) / q.l2));
-            if (Math.hypot(x - q.ax - q.dx * u, z - q.az - q.dz * u) < q.half + 2) mouth = true;
-          }
-        }
-        if (mouth) continue;
-        // 天端は平場の高さ。裏側の石敷きを縁まで戻し、独立した板にしない。
-        ishigaki(W, pts, { topY: top, minH: 2.2, maxH: 3, lean: 0.28, capIn: offset, out: side, noKit: true, batch });
-        for (let end = 0; end < 2; end++) for (let row = 0; row < 5; row++) {
-          if (end !== 0 || part !== 0) continue;
-          const prev = k.poly[(i + k.poly.length - 1) % k.poly.length];
-          const px = start[0] - prev[0], pz = start[1] - prev[1];
-          if (Math.abs(px * dz - pz * dx) / (Math.hypot(px, pz) * len) < 0.2) continue;
-          const p = pts[end], q = 1 - (row + 0.5) / 5, out = 0.7 * Math.pow(q, 1.5);
-          corners.push({ x: p[0] + nx * out, z: p[1] + nz * out, y: top - 2.5 + row * 0.5 + 0.25,
-            rot: Math.atan2(-dz, dx) + (row % 2 ? Math.PI / 2 : 0) });
-        }
-      }
-    }
-  }
-  finalizeKitBatch(rt, batch);
-  // 石の形と間詰石はそのまま、一石の肌に煉瓦状の目地を重ねない。
-  for (const m of batch.meshes) {
-    if (m.material === castleMat('nozura')) m.material = castleStoneMat('warishiGrain');
-    else if (m.material === castleStoneMat('nozura')) m.material = castleStoneMat('warishi');
-  }
-  if (!corners.length) return;
-  // 隅の長石を交互に組む算木積み。基本形・材質を使い回して一束にする。
-  const mesh = new THREE.InstancedMesh(STAIR_BOX, stairMaterial(), corners.length);
-  for (let i = 0; i < corners.length; i++) {
-    const p = corners[i]; dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, p.rot, 0);
-    dummy.scale.set(1.1, 0.46, 0.55); dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
-  }
-  mesh.receiveShadow = true; rt.scene.add(mesh);
-}
-
 // 本人へ寄る兵は段ごとに二人、門内では三人まで。後続は味方と戦い、道の外へ押し出さない。
 function shigisanCombatSpace(army, u) {
   const p = army.playerUnit, F = army.shigisanFlags;
@@ -1993,13 +1940,23 @@ function shigisanFoe(rt) {
 }
 
 // 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
+// 右上の①〜⑤（stages.js の shigisan と同じ字）
+const SG_GOALS = ['尾根道の伏兵を討ち、大手の木戸へ登る', '大手の木戸を掛矢で破る', '土橋で、打って出た松永勢を討つ', '北尾根の下の曲輪を取り、松永屋敷との道を断つ', '本丸の南口へ攻め入り、館の前を固める'];
+// 持ち場で構える間（門脇の守り・木戸の前でそろう・曲輪と南口で構える）。行き先の印を持ち場のピンにする
+function sgHolding(rt) {
+  const F = rt.flags;
+  if (F.ending || rt.over) return false;
+  if (F.step === 2) return true;
+  if (F.step === 3 || F.step === 3.2 || shigisanFoe(rt)) return false;
+  if (F.step >= 3.5) return !!(F.castleGuideArrived && !F.castleGuideLeaving);
+  return F.gateWaitT != null;
+}
 const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 const shigisan = {
   terrainCameraLift: false, // 切岸の上へ持ち上げず、斜面の手前へ寄せて道を見る。
   selfFrameMinDistance: 2.5, // 柵際で寄った時は、本人の胴へ振り向かず前を見る。
   maxFramedFov: 65, // 狭い所で全身を収めようとして、陣笠を大きく歪めない。
   terrainLookWeight: 0.25, // 切岸を避けた直後も、本人の頭より進む道を優先する。
-  missionSingleLine: true,
   // 門前で縁の上を見上げる間は、足を画面に入れるために見下ろし直さない（10/29 採点）。
   // 窪地の底を真上から見下ろさず、目の高さへ下げて縁の上の柵と櫓を画面の上に入れる（10/28 採点）。
   camLift: -.6,
@@ -2060,26 +2017,16 @@ const shigisan = {
   missionStatus: () => '',
   speechAllowed: (rt) => rt.over || !!rt.flags.ending,
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|崩れ/.test(text),
-  // 11/5：右上の一行も場所と行いで言う（三1：「進め」「敵を倒せ」「守れ」だけの言い方をやめる）。
-  // 携帯の右上の札は一行が七字ほどで折れる。十字ほどまでに収める。
-  missions: ['大手の木戸へ登る', '尾根の伏兵を討つ', '門脇で打ち手を守る', '木戸を掛矢で打つ', '下の曲輪を取る', '本丸の南口へ攻め入る', '本丸の南口を固める'],
-  foeMissions: { 3.2: '土橋で松永勢を討つ', 3.5: '曲輪の守り手を討つ', 4: '南口の守り手を討つ' },
+  // 11/6 fixc1429：右上の目標は①〜⑤を始めから全部並べ（stages.js の段・goals5）、段の中で言い替えない（九1・十1）。
+  //   「敵を何人討つ」で埋めない（三1）。一行の札も今の段の字をそのまま出す。
+  stageGoalsOnly: true,
+  missions: SG_GOALS,
   missionOf(rt) {
     const F = rt.flags;
-    if (F.ending || rt.over) return 6;
-    if (F.step === 2) return 2;
-    if (F.step === 3) return F.gate?.alive ? 3 : 4;
-    if (F.step === 3.2) return 1;
-    if (shigisanFoe(rt)) return 1;
-    if (F.step >= 3.5) return F.castleGuideArrived && !F.castleGuideLeaving ? 2 : F.step === 4 ? 5 : 4;
-    return F.gateWaitT != null ? 2 : 0;
+    if (F.ending || rt.over) return 4;
+    return F.step >= 4 ? 4 : F.step >= 3.5 ? 3 : F.step >= 3.2 ? 2 : F.step >= 2 ? 1 : 0;
   },
-  missionHeading(rt) {
-    const m = this.missionOf(rt), F = rt.flags;
-    if (m === 1 && F.step >= 3) return this.foeMissions[F.step >= 4 ? 4 : F.step >= 3.5 ? 3.5 : 3.2];
-    if (m === 2 && F.step !== 2) return F.step >= 3.5 ? F.step === 4 ? '本丸の南口で構える' : '下の曲輪で構える' : '木戸の前でそろう';
-    return this.missions[m];
-  },
+  missionHeading(rt) { return SG_GOALS[this.missionOf(rt)]; },
   missionSignTarget: shigisanFoe,
   foeMarkVisible(rt, u) { return u === this.commanderSignTarget(rt); },
   // 久秀は屋内で自害する大将。討取りの対象にせず、地図と戦場の大将印だけを出す。
@@ -2104,7 +2051,7 @@ const shigisan = {
     const id = this.guideMarker(rt);
     const marker = rt.markers.find((m) => m.id === id);
     let pos = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
-    const defending = this.missionOf(rt) === 2;
+    const defending = sgHolding(rt);
     const postArrived = defending && F.step === 2 && towerPostReached(rt);
     // 着いた後も持ち場のピンを残す。敵が消えた同じコマで守りへ替える。
     if (defending) pos = F.step === 2 ? F.approachByRoad && !postArrived ? F.approachGuide : TOWER_POST
@@ -2424,7 +2371,6 @@ const shigisan = {
     groundHalf: 420, // 北端の屋敷の切岸まで。草木・実兵の数は増やさない。
     maxWalkDrop: 1.2, // 列を避ける一歩で切岸へ下りず、尾根道と木戸を通る。
     terrainTriangles: true, // 兵と門の足元を、見えている地面の三角形へそろえる。
-    lookoutLogFrame: true, // 高画質の井楼へ丸太組みの指定を通す。通し柱を垂直にし、横木の木口を交互に出す。
     keepTerrainGrid: true, // 携帯でも足場と同じ格子。粗い地面の切岸に人物と道を埋めない。
     armyHeightLOD: true, // 麓と山上の控えは、高低差も含めて遠い兵の細部を省く。
     nearAllyFadeRadius: 2.2, // 共通の部分隠しを止め、この戦の全身での視点よけにそろえる。
@@ -2439,13 +2385,13 @@ const shigisan = {
     fieldStage: 'stubble',
     paddy: (x, z) => x > 84 && x < 130 && z > 164 && z < 204 ? 1 : 0,
     time: 'night',
-    // 10/31 点付け「暗い」：月明かりと空の回り光を上げ、兵の具足と城の輪郭を読めるように（光源は増やさない）。
-    nightLift: 3.8,
-    // 11/1 点付け「暗い」：紺の夜空と青い月で全体が沈んだ。月は灰の銀、空と霧は鈍い鉛色にして、露出を一段上げる（光源は増やさない）。
-    nightFill: 1.15,
-    nightMoonMin: 2.6,
-    nightLight: { hemiSky: 0x9a9ea4, hemiGround: 0x4a4e36, sky: 0x3a414c, fog: 0x3c434c, top: 0x181d26 }, // 下からの照り返しを苔と下草の緑に（灰の一枚の地面に見えた）
-    lowNightExposure: 2.85, // 11/2 手前の地面と兵の足元がまだ暗い：一段上げる
+    // 11/6 fixc1429（critic60「ずっと曇りの昼」・四6）：上げ過ぎた月明かりを夜へ戻す。十日の月（半月過ぎ）に照らされた尾根と、
+    //   篝火・三の丸の火・天主の火が浮く暗さ。空と霧は鉛色でなく夜の紺鼠。兵と城の輪郭は月の縁で読む。
+    nightLift: 2.1,
+    nightFill: 0.75,
+    nightMoonMin: 1.5,
+    nightLight: { hemiSky: 0x5f6878, hemiGround: 0x2e3326, sky: 0x1b2230, fog: 0x1c232d, top: 0x090d15 },
+    lowNightExposure: 1.6,
     unitNightScale: 0, // 兵だけの白い縁取りを止め、道と同じ月光・篝火で漆と布を照らす。
     fogFar: 310, // 月明かりの尾根越しに、城の櫓の輪郭を見せる。
     treePadMul: 1.2, // 幹は道の半幅六歩より外。折り返しの外の林縁を近づける。
@@ -2645,7 +2591,7 @@ const shigisan = {
         ? { ...k, wallOpt: { ...k.wallOpt, openFence: true, h: 1.8 } } : k) };
     F.C = buildCastlePlan(rt, { ...visualPlan, lifeDense: 1.6, lifeNoFlags: true, lifeFires: 8 }, { life: true, ladders: true, buildSeat: false, baseHeight: base, edgeW: TERRAIN_EDGE });
     // 共通の天守は白壁と層を重ねる形なので、この城だけ板壁の小さな望楼にする。
-    const seat = boardRoom(rt, { x: TOP.x - 2, z: TOP.z - 8, w: 8, d: 6, name: '山頂の小さな天守', kind: 'tenshu', keep: true });
+    const seat = boardRoom(rt, { x: TOP.x - 2, z: TOP.z - 8, w: 8, d: 6, name: '山頂の天主', kind: 'tenshu', keep: true });
     // 月夜の遠景で天守と松永屋敷を影として読ませる：板壁の小窓に灯りを少しだけ点す（一つの形・一回の描画）。
     {
       const lit = [], at = (cx, cz, w, d, hy, xs) => {
@@ -2661,20 +2607,22 @@ const shigisan = {
       };
       at(TOP.x - 2, TOP.z - 8, 8, 6, 1.7, [-2.4, 2.4]);
       at(YASHIKI.x, YASHIKI.z - 3, 11, 7, 1.5, [-3.6, 0.0, 3.6]);
-      at(TOP.x - 2, TOP.z - 8, 2.5, 2.1, 7.7, [0]);
+      at(TOP.x - 2, TOP.z - 8, 3.6, 3.0, 7.7, [-.8, .8]);
       // 松永の「四階の櫓」の伝えに寄せ、望楼の棟の上へ小さな最上階と寄棟を一つ重ねる（見た目だけ。入れる床は変えない）。
       // 窪地の向こうの尾根上で、持ち場から月夜の空に三重の影として読ませる。
       {
         const sx = TOP.x - 2, sz = TOP.z - 8, sy = W.heightAt(sx, sz), wood = [], roofs = [];
         const b = (w, h, d, y) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(sx, sy + y, sz); wood.push(g); };
-        b(2.5, 1.9, 2.1, 7.65); b(2.9, .14, 2.5, 6.75);
-        const hip = new THREE.ConeGeometry(2.55, 1.15, 4, 1); hip.rotateY(Math.PI / 4); hip.scale(1.2, 1, 1.02);
-        hip.translate(sx, sy + 9.15, sz); roofs.push(hip);
+        // 11/6 fixc1429（critic60「遠くの細い塔・五重塔のよう」・四5）：上の二つの階が細い棒に見えた。望楼型の四階櫓らしく、
+        //   三階は二階の床いっぱい・四階はその七割の幅にし、軒を深く出す（雄岳の頂から城を見下ろす重さ）。
+        b(3.6, 1.9, 3.0, 7.65); b(4.2, .14, 3.6, 6.75);
+        const hip = new THREE.ConeGeometry(3.7, 1.35, 4, 1); hip.rotateY(Math.PI / 4); hip.scale(1.2, 1, 1.02);
+        hip.translate(sx, sy + 9.2, sz); roofs.push(hip);
         // 11/2 史料（docs/battle_refs/shigisan.md）：天主は四階櫓。三重の上へ細い四階目と寄棟を重ね、雄岳の頂に一つだけ立てる。
-        b(1.9, 1.6, 1.7, 10.0); b(2.2, .12, 2.0, 9.25);
-        const hip2 = new THREE.ConeGeometry(2.0, 1.0, 4, 1); hip2.rotateY(Math.PI / 4); hip2.scale(1.2, 1, 1.02);
-        hip2.translate(sx, sy + 11.3, sz); roofs.push(hip2);
-        const ridge = new THREE.BoxGeometry(.8, .16, .16); ridge.translate(sx, sy + 11.8, sz); roofs.push(ridge);
+        b(2.7, 1.7, 2.3, 10.1); b(3.1, .12, 2.7, 9.3);
+        const hip2 = new THREE.ConeGeometry(2.9, 1.25, 4, 1); hip2.rotateY(Math.PI / 4); hip2.scale(1.2, 1, 1.02);
+        hip2.translate(sx, sy + 11.55, sz); roofs.push(hip2);
+        const ridge = new THREE.BoxGeometry(1.1, .16, .16); ridge.translate(sx, sy + 12.15, sz); roofs.push(ridge);
         const top = new THREE.Group();
         // 11/2：一色の板は月に白く浮いた。上の二つの階も下見板の壁・燻し瓦の絵（城の石垣と同じ使い回しの絵）で。
         const K = sgKeepKit();
@@ -2712,9 +2660,12 @@ const shigisan = {
     F.gate = rt.army.addStruct({ seg: [-5.5, GATE.z, 5.5, GATE.z], nx: 0, nz: 1, hp: 1800, maxHp: 1800, armor: 0.22, team: 1, name: '門' });
     const dm = tobira(W, GATE.x, GATE.z, 11, 0);   // 閉じた扉（破られると根元から倒れる）
     F.gate.mesh = dm;
-    rt.scene.add(dm, boardGate(W, GATE.x, GATE.z, 11.4));
-    // 写真の常設井楼のように、横木の木口と開いた脚組を見せる。床の高さは保つ。
-    const towerOpt = { logFrame: true, boarded: false, mon: MATSU.flag };
+    // 11/6 fixc1429（critic60「屋根も櫓も無い板の壁一枚」）：大手の木戸は本柱と控柱に切妻の屋根を架けた薬医門の形に（house）。
+    //   扉の外の面の八双金物・肘金の帯は、城門の扉の外に打つ物で正しい（姫路城・彦根城の門扉と同じ）。
+    rt.scene.add(dm, boardGate(W, GATE.x, GATE.z, 11.4, 0, true));
+    // 11/6 fixc1429（critic60「麓に丸太を組んだ井楼」）：丸太を井の字に組んだ吹き放しの井楼は寄せ手の攻め櫓に見える。
+    //   城方の物見櫓は板で囲った櫓にする（床の高さ・当たりは保つ）。
+    const towerOpt = { logFrame: false, boarded: true, mon: MATSU.flag };
     F.tower = yagura(W, TOWER.x, TOWER.z, towerOpt);
     rt.scene.add(F.tower, yagura(W, -12, GATE.z - 6, towerOpt));
     // ---- 本丸（雄嶽の主郭）：柵の囲い（南に口）と、板葺きの館 ----
@@ -2729,7 +2680,7 @@ const shigisan = {
     // 夜の高い尾根では近い遠景の板が空へせり出す。山の板を消して同じ空へつなぐ。
     W.mountains.visible = false;
     ridgeSoil(rt);
-    terraceStone(rt);
+    // 11/6 fixc1429：曲輪の縁の石積みと算木積みの隅（terraceStone）はやめた。天正五年の大和の山城は土の切岸（critic60「煉瓦の石垣」・八1）
     openingTerraces(rt);
     slopeSkin(rt);
     // 道は整地済みの土の坂。全尾根へ連続する推定の石段を重ねない。
@@ -2790,40 +2741,21 @@ const shigisan = {
       // 縁の上の段（10/29 採点：天守・切岸が見えない、石の壁がのっぺり、背に敵が居ない）：
       // 切岸の肩を野面の石垣で締め、奥の高みに狭間の板塀と二重の望楼（天守の影）、柵の内に松永方の兵の群れ（軽い遠景の兵。当たりなし）。
       if (mid && pts.length >= 2) {
-        sgStoneWall(rt, pts, (x, z) => W.heightAt(x - 1.5, z) + .4);   // 共通の石は月に白く光った（10/30）。継ぎ目の黒い野面の絵で
-        // 切岸の裾を三〜四歩の高さの野面積みで締め、石の一つ一つと継ぎ目を持ち場の正面に見せる（10/29 採点：石の壁がのっぺり）。
-        const foot = pts.map(([x, z]) => [x + 2.2, z]);
-        sgStoneWall(rt, foot, (x, z) => W.heightAt(x - 3.5, z) + .5);
+        // 11/6 fixc1429（critic60「茶色の煉瓦を階段に積んだ石垣」・八1）：天正五年の大和の山城は土塁と切岸が主で、石は破城で崩れた僅かな石積みだけ。
+        //   切岸の肩と裾の野面の石垣（段に刻んだ帯）はやめ、土の切岸と板塀で見せる。
         // 切岸の上の肩：狭間を切った板塀を月夜の空へ（柵の上の段）。
         const crest2 = (z) => { for (let x = TOWER_POST.x - 12; x > TOWER_POST.x - 70; x -= 1) if (W.heightAt(x, z) > y0 + 8) return x - 1; return null; };
         const top2 = [-46, -56, -66, -76].map((z) => [crest2(z), z]).filter((p) => p[0] !== null);
         if (top2.length >= 2) castlePart(W, 'hei', { pts: top2, kind: 'ita', h: 2.4, sama: 1.4 }, { era: 'early' });
-        // 狭間の板塀の足もとを野面の石垣で締める（25秒の目の正面の土手の上。10/30 採点 点検4：石の継ぎ目と狭間を一枚に）。
-        if (top2.length >= 2) sgStoneWall(rt, top2.map(([x, z]) => [x + .3, z]), (x, z) => W.heightAt(x - .6, z) + .15, 2.2);
         // 11/2 史料：天主は雄岳の山頂（主郭）に一つだけ。縁の上の段に置いていた飾りの櫓はやめ、目線は主郭の天主へ向ける。
         const kx = mid[0] - 21, kz = mid[1] + 5; SG_TS.view = { x: kx, z: kz }; SG_TS.keep = { x: KEEP_AT.x, z: KEEP_AT.z };
         castlePart(W, 'hei', { pts: [[kx + 7, kz - 9], [kx + 7, kz + 9]], kind: 'ita', h: 2.4, sama: 1.5 }, { era: 'early' });
         // 11/4 p100（AA・AT9）：板塀の内に描いただけの松永勢を詰めない。門を抜けて歩いて行ける曲輪で、近づくと消える見せかけになる。
-        // 18:10 採点：持ち場から天守を見た左の斜面がのっぺり・背の敵が見えない・手前が空く。
-        // 左の斜面の裾を野面の石垣で締め、その上に狭間の板塀。天守の前の段に松永勢をもう一群。足もとに篝火と幟（飾り。当たりなし）。
+        // 11/6 fixc1429（critic60「石垣の上の空に白い板が十枚ほど浮く」「煉瓦の石垣」・八1）：左の斜面の裾の野面の石垣と、
+        //   斜めに刻んで上る白漆喰の土塀をやめた（段の白い箱が宙に浮いて見えた）。土の切岸の上に黒い板塀（top2）だけを残す。足もとに篝火と幟。
         const tx = TOWER_POST.x, tz = TOWER_POST.z;
         let fx = kx - tx, fz = kz - tz; { const d = Math.hypot(fx, fz) || 1; fx /= d; fz /= d; }
-        const lx = fz, lz = -fx;   // 天守を向いて左
-        const toe = [];
-        for (let t = 4; t <= 36; t += 4) {
-          const cx = tx + fx * t, cz = tz + fz * t, cy = W.heightAt(cx, cz);
-          for (let o = 3; o < 28; o += .5) { const x = cx + lx * o, z = cz + lz * o; if (W.heightAt(x, z) > cy + 2) { toe.push([x - lx * .8, z - lz * .8]); break; } }
-        }
-        if (toe.length >= 2) {
-          // 11/2：1577 年の大和の土の城に打込接（割った石）は合わない。野面積みに。
-          castlePart(W, 'ishigaki', { pts: toe, top: (x, z) => W.heightAt(x + lx * 3, z + lz * 3) + .8, kind: 'nozura' }, { era: 'early' });
-          // 10/31：25秒の画面の正面に斜めに上る塀。黒い板塀は月夜の黒い山肌に沈み、狭間が見えなかった。松永の城（多聞山の白壁の先がけ）
-          //   らしく白漆喰の土塀に替え、白い壁に黒い狭間の口を一つおきに切る（共通の土塀の部品。描く回数は同じ）。
-          { // 10/31 斜面の段差で白い箱が浮いて階段に見えた：1.1m ごとに刻み、足もとを0.6m地面へ埋めて山肌に沿わせる
-            const wp = toe.map(([x, z]) => [x + lx * 3.2, z + lz * 3.2]), fine = [wp[0]];
-            for (let i = 1; i < wp.length; i++) { const [ax, az] = wp[i - 1], [bx, bz] = wp[i], m = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 1.1)); for (let j = 1; j <= m; j++) fine.push([ax + (bx - ax) * j / m, az + (bz - az) * j / m]); }
-            castlePart(W, 'hei', { pts: fine, kind: 'shikkui', h: 3.0, yAt: (x, z) => W.heightAt(x, z) - 0.6 }, { era: 'early' }); }
-        }
+        const lx = fz, lz = -fx;   // 天主を向いて左
         for (const [a, o, k] of [[3.5, 2.6, 'fire'], [5, -2.8, 'flag'], [8, 3.2, 'flag']]) {
           const x = tx + fx * a + lx * o, z = tz + fz * a + lz * o;
           if (k === 'fire') { kagaPlace(rt, W, x, z); } else rt.scene.add(nobori(W, x, z, ODA.flag, 5));
@@ -3475,7 +3407,7 @@ const shigisan = {
     // 城内の自害は戦後の語りで知らせ、足軽による討取りにしない。
     for (const u of [F.ehon.lord, F.hisamichi]) { u.alive = false; u.noTarget = true; if (u.mesh) u.mesh.visible = false; }
     // 天主の火（信長公記：久秀が自ら火をかけて焼死）。平蜘蛛・爆死の伝えは絵にしない。
-    rt.marker('keep', { x: KEEP_AT.x, z: KEEP_AT.z }, '天守の上の階', { h: KEEP_AT.up + 2 });
+    rt.marker('keep', { x: KEEP_AT.x, z: KEEP_AT.z }, '天主の上の階', { h: KEEP_AT.up + 2 });
     // kaito 11/1 の紙：平蜘蛛と爆死は後の脚色が強い。史実の演出にせず、天主の火と自害だけを見せる。
     rt.after(1.2, () => rt.say('松永久秀', '信長に頭は下げぬ。この城と共に果てるまでよ', 4));
     rt.after(2.0, () => {
@@ -3500,7 +3432,9 @@ const shigisan = {
   update(rt, dt) {
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
-    if (!rt.flags.armyBd && rt.t > 1.5) rt.flags.armyBd = armyBackdrop(rt, { foe: MATSU.flag, seed: 9240, at: [27, -52] }) || [];   // 11/4（AA）：門前の道の鞍部の描いただけの一組（front）はやめる。門前は本物の打って出る兵と斬り合う
+    gateVolley(rt, dt);
+    // 11/6 fixc1429（critic60「灰紫の色の無い人形」「空に兵が浮く」・九5・十5）：持ち場の三十五歩先から置いていた描いただけの乱戦（addClash）をやめた。
+    //   軽い兵は近くでは人形に見え、山の斜面の上で空に浮いた。合戦の広さは麓の包囲の備え（遠く）と、本物の兵で見せる。
     const F = rt.flags;
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
@@ -3879,7 +3813,9 @@ const shigisan = {
       const s = F.SZ.byId;
       if (F.step === 3.5) {
         const z = s.ridge1;
-        if (z.enemies < F.lowerBest || z.holdT > (F.lowerHold || 0)) F.lowerStallAt = rt.t;
+        // 11/6 fixc1429：本人が曲輪の口へ歩いて行く間は数えない（着いた途端に「別の先手が道を開いた」で④が済み、曲輪で一度も戦わずに本丸へ戻されていた）
+        const pp = rt.player.u.pos, far = Math.hypot(pp.x - RIDGE1.x, pp.z - RIDGE1.z - RIDGE1.r) > 30;
+        if (far || z.enemies < F.lowerBest || z.holdT > (F.lowerHold || 0)) F.lowerStallAt = rt.t;
         F.lowerBest = Math.min(F.lowerBest, z.enemies); F.lowerHold = z.holdT;
         // 一分間進まなければ別の先手が道を開く。本人の曲輪取りの戦功は与えない。
         if (rt.t - F.lowerStallAt >= 60) {
@@ -4031,7 +3967,7 @@ shigisan.skip = (rt) => {
   const F = rt.flags;
   if (F.step === 0 && !F.ending && F.climbTimer) F.climbTimer.t = Math.min(F.climbTimer.t, 0.2);
 };
-shigisan.history = '天正五年（1577）八月、石山本願寺を囲む陣にいた松永久秀は、勝手に陣を払って大和の信貴山城に籠もり、再び信長に背いた。信長は嫡男の織田信忠を大将に、佐久間信盛・羽柴秀吉・明智光秀・丹羽長秀らを諸口へ向かわせ、筒井順慶・細川藤孝らも攻めに加わり、支城の片岡城を落としてから信貴山城を囲んだ。『信長公記』は十月十日の晩に諸口から夜攻めが行われ、守兵が防戦する中、久秀が自ら天主に火をかけて焼死したと記す。森好久が鉄砲二百を率いて寝返った話は後世の伝えで、同書には記されていない。遊びでは筒井の先手が押し返された後、三の丸あたりから火の手が上がる場面として残し、天主の火は久秀による放火として描く。この日は、十年前に東大寺の大仏殿が焼けた日と同じで、人々は因果と噂したと『信長公記』は伝える。久秀が名物の茶釜「平蜘蛛」を打ち砕いて死んだという話は、のちの伝えである。火薬で釜とともに爆ぜたという話は昭和に広まった伝えで、遊びでは描かず、天主の火と自害だけを見せる。総大将の信忠は鹿の角の脇立の兜で自ら険しい山を攻め上ったと『信長公記』は記す。信長は安土にいて、この城攻めには来ていない。大和はその後、筒井順慶が治めた（大和一国を正式に任されたのは天正八年）。松永の紋は蔦で、ここでは近い形の蔦の紋で旗を描いている。兵の数には諸説ある。織田四万・松永八千はこの戦の仮の目安で、『信長公記』に当夜の両軍の総数は記されていない。城には百二十を超える曲輪があり、北尾根には松永屋敷がある。山頂の小さな天守は安土の先がけともいわれるが、形は確定していない。各将の攻め口・北尾根の細かな攻め順・伏兵・枝尾根の小曲輪の配置・板壁の望楼の形は推定で、当夜の天気は確定していない。月の形は旧暦十日から満月前と推定したもので、当夜の正確な月齢・傾きや見え方を再現したものではない。';
+shigisan.history = '天正五年（1577）八月、石山本願寺を囲む陣にいた松永久秀は、勝手に陣を払って大和の信貴山城に籠もり、再び信長に背いた。信長は嫡男の織田信忠を大将に、佐久間信盛・羽柴秀吉・明智光秀・丹羽長秀らを諸口へ向かわせ、筒井順慶・細川藤孝らも攻めに加わり、支城の片岡城を落としてから信貴山城を囲んだ。『信長公記』は十月十日の晩に諸口から夜攻めが行われ、守兵が防戦する中、久秀が自ら天主に火をかけて焼死したと記す。森好久が鉄砲二百を率いて寝返った話は後世の伝えで、同書には記されていない。遊びでは筒井の先手が押し返された後、三の丸あたりから火の手が上がる場面として残し、天主の火は久秀による放火として描く。この日は、十年前に東大寺の大仏殿が焼けた日と同じで、人々は因果と噂したと『信長公記』は伝える。久秀が名物の茶釜「平蜘蛛」を打ち砕いて死んだという話は、のちの伝えである。火薬で釜とともに爆ぜたという話は昭和に広まった伝えで、遊びでは描かず、天主の火と自害だけを見せる。総大将の信忠は鹿の角の脇立の兜で自ら険しい山を攻め上ったと『信長公記』は記す。信長は安土にいて、この城攻めには来ていない。大和はその後、筒井順慶が治めた（大和一国を正式に任されたのは天正八年）。松永の紋は蔦で、ここでは近い形の蔦の紋で旗を描いている。兵の数には諸説ある。織田四万・松永八千はこの戦の仮の目安で、『信長公記』に当夜の両軍の総数は記されていない。城には百二十を超える曲輪があり、北尾根には松永屋敷がある。山頂の天主は安土の先がけともいわれるが、形は確定していない。各将の攻め口・北尾根の細かな攻め順・伏兵・枝尾根の小曲輪の配置・板壁の望楼の形は推定で、当夜の天気は確定していない。月の形は旧暦十日から満月前と推定したもので、当夜の正確な月齢・傾きや見え方を再現したものではない。';
 
 function march(g, pts) {
   if (gone(g)) return;
@@ -4361,63 +4297,5 @@ shigisan.siegeKit = {
 };
 export { shigisan };
 
-// 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、
-// 軽い大軍どうしの押し合い斬り合いを置く（兵力の数・当たり・任務には入れない）。始めに一度だけ置き場を選ぶ。
-function armyBackdrop(rt, o) {
-  const W = rt.world, cam = rt.camera, P = rt.player && rt.player.u;
-  if (!cam || !P) return null;
-  const d = new THREE.Vector3(); cam.getWorldDirection(d); d.y = 0;
-  if (d.lengthSq() < 1e-4) return null;
-  d.normalize();
-  const out = [];
-  let fx = d.x, fz = d.z, sx = fz, sz = -fx, facing = Math.atan2(fx, fz);
-  const clear = (x, z, r) => {
-    if (W.inWaterAt && (W.inWaterAt(x, z) || W.inWaterAt(x + sx * r * .5, z + sz * r * .5) || W.inWaterAt(x - sx * r * .5, z - sz * r * .5))) return false;
-    for (const u of rt.army.units) if (u.alive && Math.abs(u.pos.x - x) < r && Math.abs(u.pos.z - z) < r) return false;
-    // 11/4（AA）：遊ぶ人が歩いて行ける所（門の内・本丸の周り・登城道と尾根道の脇）には描いただけの兵を置かない。
-    if (z < GATE.z + 6 || Math.hypot(x - TOP.x, z - TOP.z) < TOP.r + 45) return false;
-    for (const L of WALK_LINES) for (let i = 1; i < L.length; i++) {
-      const [ax, az] = L[i - 1], bx = L[i][0] - ax, bz = L[i][1] - az, t = Math.max(0, Math.min(1, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz || 1)));
-      if (Math.hypot(ax + bx * t - x, az + bz * t - z) < r + 12) return false;
-    }
-    const h = W.heightAt(x, z);
-    return Math.abs(W.heightAt(x + sx * r * .5, z + sz * r * .5) - h) < 6 && Math.abs(W.heightAt(x - sx * r * .5, z - sz * r * .5) - h) < 6;
-  };
-  // 持ち場の周りの四方に置き、カメラがどちらを向いても、どれか一つの合戦が画面の奥に入るようにする。
-  // 11/1：80m 先の四方では山の陰と夜の霞に隠れ、25秒の画面（向きが撮るたびに変わる）に入らなかった。
-  //   25秒の尾根の持ち場を芯に六方、35m から置く。一組の数を減らして、全体の兵の数は前と同じ（220×4 ≒ 146×6）。
-  const ax = d.x, az = d.z, cx = o.at ? o.at[0] : P.pos.x, cz = o.at ? o.at[1] : P.pos.z;
-  for (let j = 0; j < 6; j++) {
-    const ang = j * Math.PI / 3, seed = j + 1;
-    const c = Math.cos(ang), s = Math.sin(ang);
-    fx = ax * c + az * s; fz = -ax * s + az * c; sx = fz; sz = -fx; facing = Math.atan2(fx, fz);
-    let at = null;
-    for (let k = 0; k < 10 && !at; k++) {
-      const r = 35 + k * 9, x = cx + fx * r, z = cz + fz * r;
-      if (clear(x, z, 14)) at = [x, z];
-    }
-    if (!at) continue;
-    const C = W.addClash({ x: at[0], z: at[1], facing, w: 30, bw: 6, gap: 2.6, seed: (o.seed || 900) + seed, rt,
-      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
-      noRout: true, killRate: .006, maxDrift: 3, host: false, corpses: 8,
-      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 63, flagRate: .25 },
-      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 63, flagRate: .25 } });
-    if (C && C.go) C.go();
-    out.push(C);
-  }
-  // 11/1（二）：軽い兵の切りが本人16m・カメラ12m に詰まった。25秒の尾根の持ち場（x 24・z -54）の肩越しの向き（西南西。流しても変わらない）の
-  //   二十八歩先、尾根の道を登る味方の先の平らな鞍部で、寄せ手と松永の兵が押し合う一組を足す（六方の一組ずつから十人を回す。描く人数は同じ）。
-  //   本物の兵の足もとには軽い兵を描かない（world_army_shader.js）ので、味方の列と重ねてもよい。
-  if (o.front) {
-    const [x, z, f] = o.front, C = W.addClash({ x, z, facing: f, w: 20, bw: 5.2, gap: 2.4, seed: (o.seed || 900) + 7, rt,
-      play: (k, p, v) => rt.army.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army.smoke(x, y, z, ax, az),
-      noRout: true, killRate: .004, maxDrift: 1.5, host: false, corpses: 8, realNear: 12, nearHide: 0,
-      A: { flag: o.ally || 'oda', armor: o.allyArmor ?? 0x2a2622, count: 56, flagRate: .25 },
-      B: { flag: o.foe, flagTex: o.foeTex, armor: o.foeArmor ?? 0x2a2622, count: 64, flagRate: .25 } });
-    if (C && C.go) C.go();
-    out.push(C);
-  }
-  return out;
-}
 // bot の記録の跡に、攻め口の兵の数（生き・逃げ・深手）を残す（10/30）
 shigisan.botDbg = (b) => (b.flags.step >= 3.5 && b.flags.castleGuidePoint ? `g${b.flags.castleGuidePoint.x.toFixed(0)},${b.flags.castleGuidePoint.z.toFixed(0)}${b.flags.castleGuideBlocked ? 'B' : ''}${b.flags.castleGuideArrived ? 'A' : ''} ` : '') + (b.flags.oda || []).map((q) => `${q.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length}/${q.units.filter((u) => u.alive).length}/${q.units.length}`).join(',');

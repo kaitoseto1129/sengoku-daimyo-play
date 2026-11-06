@@ -1,7 +1,7 @@
 // ======================================================================
 // castles/arioka.js … 有岡城の縄張り（docs/final7-1579-1582-spec.md 16〜29章）
 // 惣構えの平城。伊丹段丘の東の縁に主郭、東は低地。惣構え（東西約800m・南北約1,700mを実寸）は
-// 西・北・南は堀と土塁、東は崖と土塁で閉じ、内応で開くのは西の上ろう塚の木戸。北に岸の砦、西に上ろう塚砦。
+// 西・北・南は堀と土塁、東は崖と土塁で閉じ、内応で開くのは西の上臈塚の木戸。北に岸の砦、西に上臈塚砦。
 // 主郭は台地の縁に野面積みの石垣、その手前（町側）に水堀。牢へ上る道の口（石垣の切れ目）は
 // 水堀も同じ所を切って、土橋の道を地続きで上がれるようにする。
 // 伊丹市の解説に従い、主郭の人工の堀は西・南。北・東の堀は補わず、東の段丘で守る。
@@ -12,7 +12,7 @@
 export const HIST = {
   dankyu: 'HIST_A',     // 伊丹段丘の縁・段差（地形そのもの）
   soukaku: 'HIST_B',    // 惣構えの範囲・堀と土塁（実寸で再現）
-  toride: 'HIST_B',     // 岸・上ろう塚・鵯塚の三砦（おおよその方角だけ合わせた位置）
+  toride: 'HIST_B',     // 岸・上臈塚・鵯塚の三砦（おおよその方角だけ合わせた位置）
   honmaru: 'HIST_B',    // 主郭の御殿・櫓・堀（発掘・絵図に沿った推定）
   tenshu: 'HIST_B',     // 天主は主郭の北西（2022 年の復元画・千田嘉博監修）。三重の望楼型と寸法は推定
   machiya: 'GAME_C',    // 町屋・侍町の並び（当時の町割りの推定の補い）
@@ -34,7 +34,7 @@ export const HON_N = HON_CENTER_Z - HON_SIZE / 2;
 export const HON_Z = HON_CENTER_Z + HON_SIZE / 2;
 export const HON_GAP = [HON_W + 24, HON_W + 36];   // 南面の西寄り。堀の角から離して土橋の幅を保つ
 export const HON_ENTRY_X = (HON_GAP[0] + HON_GAP[1]) / 2;
-export const GATE = { x: -SOKAKU_X, z: HON_CENTER_Z, name: '上ろう塚の木戸' };
+export const GATE = { x: -SOKAKU_X, z: HON_CENTER_Z, name: '上臈塚の木戸' };
 export const GATE_HALF = 3.5;
 // 内応の口から辻までの歩行距離は保つ。城の寸法と局地の任務を分ける。
 export const TOWN_X = GATE.x + 60;
@@ -64,7 +64,7 @@ export const ROU = { x: HON_ENTRY_X, z: HON_CENTER_Z + 1 };
 export const TENSHU_POS = { x: HON_X + 5, z: HON_CENTER_Z - 5 };
 export const CAMP = { x: GATE.x - 44, z: HON_CENTER_Z - 24 };
 
-// 西の上ろう塚の木戸に土橋を残す。東面は猪名川側の崖、西・北は堀で囲う。
+// 西の上臈塚の木戸に土橋を残す。東面は猪名川側の崖、西・北は堀で囲う。
 export const SOTO_MOAT_Z = WALL_Z + 10;
 export const SOTO_MOAT_GAP = 4.5;
 export const SOTO_MOAT = { depth: 2.6, width: 8 };
@@ -75,13 +75,13 @@ export const SOTO_MOAT_SEGS = [
 ];
 export const SOTO_BRIDGE = { a: [-SOKAKU_X - 10.5, GATE.z], b: [-SOKAKU_X + 0.5, GATE.z], w: 9 };
 export const KISHI_TORIDE = { x: 0, z: SOKAKU_N, name: '岸の砦' };
-export const JORO_TORIDE = { x: -SOKAKU_X, z: HON_CENTER_Z, name: '上ろう塚砦' };
+export const JORO_TORIDE = { x: -SOKAKU_X, z: HON_CENTER_Z, name: '上臈塚砦' };
 export const HIYODORI_TORIDE = { x: 0, z: WALL_Z, name: '鵯塚砦' };
 // 砦の内部は遺構の方角に沿う推定。惣構えの内側へ寄せ、外堀と重ねない。
-// 上ろう塚は西・東に口を空け、内応後の往来を保つ。ほかの砦は町側の口。
+// 上臈塚は西・東に口を空け、内応後の往来を保つ。ほかの砦は町側の口。
 export const TORIDE_WORKS = [
   { id: 'kishi', name: '岸の砦', x0: -16, x1: 16, z0: SOKAKU_N + 3, z1: SOKAKU_N + 25, side: 'south' },
-  { id: 'joro', name: '上ろう塚砦', x0: -SOKAKU_X + 3, x1: -SOKAKU_X + 23, z0: GATE.z - 20, z1: GATE.z + 20, side: 'cross' },
+  { id: 'joro', name: '上臈塚砦', x0: -SOKAKU_X + 3, x1: -SOKAKU_X + 23, z0: GATE.z - 20, z1: GATE.z + 20, side: 'cross' },
   { id: 'hiyodori', name: '鵯塚砦', x0: -18, x1: 18, z0: WALL_Z - 26, z1: WALL_Z - 3, side: 'north' },
 ];
 export const ARIOKA_ROADS = [
@@ -99,7 +99,7 @@ export const ARIOKA_ROADS = [
 const rect = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
 export const MACHIYA_Z = [WALL_Z - 2, -46];        // 町屋（木戸に近い南寄り）
 export const SAMURAI_Z = [-46, SOKAKU_N + 2];    // 侍町は岸の砦まで。本丸とその堀は別の区域
-// 三砦の区域は実際に囲った平場と一致させる。内応の口は上ろう塚で、南の鵯塚へ移さない。
+// 三砦の区域は実際に囲った平場と一致させる。内応の口は上臈塚で、南の鵯塚へ移さない。
 export const ARIOKA_PLAN = {
   name: '有岡城', type: 'hira', year: 1579,
   kuruwa: [

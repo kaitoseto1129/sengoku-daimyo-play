@@ -31,6 +31,7 @@ import { horiboriHeight, mizubori } from './castle_parts.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
+import { revealName } from './battle_intel.js';
 
 const HAS_DEM = false;
 let dem = null;
@@ -156,9 +157,9 @@ let HEIGHT_FN = null;
 function height(x, z) { if (!HEIGHT_FN) HEIGHT_FN = heightOf(PLAN, base, 3); return HEIGHT_FN(x, z); }
 
 // ---- 道を外れない動き：道に沿って、一つ先の曲がり角へ（bot と兵の両方） ----
-function routeAt(x, z, out) {
+function routeAt(x, z, out, from = 0) {
   let best = Infinity, bs = 0, bx = x, bz = z;
-  for (let i = 0; i < ROUTE.length - 1; i++) {
+  for (let i = from; i < ROUTE.length - 1; i++) {
     const [ax, az] = ROUTE[i], [cx, cz] = ROUTE[i + 1];
     const dx = cx - ax, dz = cz - az, l2 = dx * dx + dz * dz || 1;
     const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
@@ -168,6 +169,7 @@ function routeAt(x, z, out) {
   out.d = best; out.s = bs; out.x = bx; out.z = bz;
   return out;
 }
+const OTE_IN = 7;   // ROUTE の [113, -9]：枡形を出た所
 const RF = { d: 0, s: 0, x: 0, z: 0 }, RT = { d: 0, s: 0, x: 0, z: 0 };
 function sawayamaWay(army, u, want) {
   const q = u._k07Way || (u._k07Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
@@ -175,7 +177,9 @@ function sawayamaWay(army, u, want) {
   if (q.t > army.time && !q.active) return want;
   q.t = army.time + 0.3; q.active = false;
   if (Math.hypot(want.x - u.pos.x, want.z - u.pos.z) < 9) return want;
-  routeAt(u.pos.x, u.pos.z, RF); routeAt(want.x, want.z, RT);
+  routeAt(want.x, want.z, RT);
+  // 侍屋敷の中から奥へ向かう時は、枡形の中の道（大手門の内の曲がり）へ戻さない（枡形の西の塀に詰まり、門の外へ押し出されていた）
+  routeAt(u.pos.x, u.pos.z, RF, RT.s >= OTE_IN && u.pos.x > 74 && u.pos.x < 111 && Math.abs(u.pos.z) < 26 ? OTE_IN : 0);
   if (RF.d > 30 || RT.d > 30 || Math.abs(RT.s - RF.s) < 0.6) return want;
   q.active = true;
   if (RF.d > 4) { q.x = RF.x; q.z = RF.z; return q; }
@@ -186,6 +190,20 @@ function sawayamaWay(army, u, want) {
   if (i < 0 || i >= ROUTE.length || (fwd ? i > RT.s : i < RT.s)) { q.x = RT.x; q.z = RT.z; }
   else { q.x = ROUTE[i][0]; q.z = ROUTE[i][1]; }
   return q;
+}
+
+// 隊の要（anchor）の次の行き先：道の上の一つ先の曲がり角（行き先が道から遠ければそのまま）
+const RA = { d: 0, s: 0, x: 0, z: 0 }, RB = { d: 0, s: 0, x: 0, z: 0 };
+function wayNext(p, to, out) {
+  routeAt(to.x, to.z, RB); routeAt(p.x, p.z, RA, RB.s >= OTE_IN && p.x > 74 && p.x < 111 && Math.abs(p.z) < 26 ? OTE_IN : 0);
+  if (RB.d > 30 || Math.abs(RB.s - RA.s) < 0.6) { out.x = to.x; out.z = to.z; return out; }
+  if (RA.d > 3) { out.x = RA.x; out.z = RA.z; return out; }
+  const fwd = RB.s > RA.s;
+  let i = fwd ? Math.floor(RA.s) + 1 : Math.ceil(RA.s) - 1;
+  if (Math.hypot(ROUTE[i][0] - p.x, ROUTE[i][1] - p.z) < 1.5) i += fwd ? 1 : -1;
+  if (i < 0 || i >= ROUTE.length || (fwd ? i > RB.s : i < RB.s)) { out.x = to.x; out.z = to.z; }
+  else { out.x = ROUTE[i][0]; out.z = ROUTE[i][1]; }
+  return out;
 }
 
 // ---- 旗と篝火：東軍の寄せ口・石田の曲輪 ----
@@ -199,7 +217,7 @@ function flags(rt) {
   for (const [x, z] of [[OTE.x - 6, OTE.z + 6], [SAN.x + 4, SAN.z - 4], [NI1.x + 6, NI1.z], [HON.x + 8, HON.z - 8], [TAIKO.x + 6, TAIKO.z]]) rt.scene.add(kagaribi(W, x, z));
 }
 
-const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 8, list, seek: o.seek || 45, morale: o.morale || 92, dmg: o.dmg ?? 0.28 });
+const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 8, list, seek: o.seek || 45, morale: o.morale || 92, dmg: o.dmg ?? 0.28, ...(o.noRout ? { noRout: o.noRout } : {}) });
 
 const k07_sawayama = {
   // 身の回りの合戦の跡（timeslip_field.js）。佐和山：九月半ばの山城。乾いた土と落ちた矢・槍、秋の草
@@ -209,6 +227,7 @@ const k07_sawayama = {
     flagColors: [0xe6dfcc, 0x24211e, 0x5a4a36],
   },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
+  stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を八人討つ」で埋めない・三の1）
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   cutFloor: 0.5,
@@ -281,6 +300,8 @@ const k07_sawayama = {
     rt.say('小早川秀秋', '関ヶ原は終わった。残るは治部（三成）の本拠、佐和山じゃ', 4.5);
     rt.after(5, () => rt.say(nm(rt), '治部少輔はおらぬと聞きます。城には誰が', 3.5));
     rt.after(9, () => rt.say('脇坂安治', '治部の父の正継、兄の正澄ら。二千八百ほどが籠もっておる', 4));
+    // 城の守り手の名は始めに脇坂が告げる（右上の目標の名を「見えぬ敵の陣を物見する」に伏せない）
+    for (const n of ['石田正継', '石田正澄', '石田朝成', '宇多頼忠']) rt.after(9, () => revealName(rt, n));
     rt.after(13.5, () => rt.say('小早川秀秋', '内府（家康）様は南の正法山に陣を取られた。田中殿は搦手、我らは大手じゃ。かかれ！', 4));
     rt.after(18, () => this.begin(rt));
   },
@@ -293,7 +314,8 @@ const k07_sawayama = {
     this.south(rt);
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    depthStart(rt, { faction: 'ishida', flag: 'ishida', armor: ISHIDA.armor, friends: () => [F.mine, F.saki, F.hasegawa], look: (list) => dress(list, ISHIDA), scale: 1.7, backing: false, fixedSpawn: true, dmg: 0.4, botSeek: 40 }, [
+    depthStart(rt, { faction: 'ishida', flag: 'ishida', armor: ISHIDA.armor, friends: () => [F.mine, F.saki, F.hasegawa], look: (list) => dress(list, ISHIDA), scale: 1.7, backing: false, fixedSpawn: true, dmg: 0.4, botSeek: 40,
+      botFoeAllowed: (o) => !o.perch }, [   // 櫓の上の射手は下から斬れない（追うと塀の下に詰まって段が進まなかった）
       // ① 大手門を破る
       DP.fight({ at: OTE, title: '大手門', sub: '内堀と土塁の奥に枡形の門', obj: '大手門の前の石田勢を討て', max: 150,
         say: [['脇坂の侍', '櫓と土塁の上から鉄砲と矢じゃ！　土橋を駆け抜けよ'], ['小早川の侍', '先手が谷へ撃ち落とされておる。土塁の陰を伝え']],
@@ -319,7 +341,7 @@ const k07_sawayama = {
       // 三の丸が落ちると、本丸のほかの曲輪は次々と落ちた（歴史街道）。二の丸の二つの段は新手を足さず、居る兵を討てば次へ
       DP.fight({ at: NI3, title: '二の丸', sub: '尾根の段を一つずつ落とす', obj: '二の丸の下の段の石田勢を討て', max: 160, noRefill: true,
         say: [['小早川の侍', '三の丸は落ちた。二の丸の段を一つずつ落とせ']],
-        foes: () => [keep('二の丸の下の段の守り', NI3, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { seek: 22 })],
+        foes: () => [keep('二の丸の下の段の守り', NI3, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }], { seek: 22, noRout: 40 })],   // 一人討たれて皆逃げ、斬り合わずに段が済んだ（九の2）。四十秒は段の口で踏みとどまる
         reward: '二の丸の下の段を落とした' }),
       DP.fight({ at: NI1, title: '二の丸の上の段', sub: '本丸の石垣の下', obj: '二の丸の上の段の宇多頼忠の隊を討て', max: 160, noRefill: true,
         say: [['宇多頼忠', '婿どのの城じゃ。この老骨が二の丸を守る']],
@@ -329,7 +351,7 @@ const k07_sawayama = {
       DP.rest({ dur: 12, heal: 0.7, fn: (rt2) => this.tanaka(rt2),
         say: [['小早川の侍', '本丸から使いじゃ。正継殿は一族の腹と引き替えに、城の者を助けよと', 4.2], ['小早川秀秋', '……よかろう。城を開けさせよ', 3.4]] }),
       // ④ 本丸の天守
-      DP.fight({ at: HON_YARD, title: '本丸', sub: '佐和山の頂、石垣と五層の天守', obj: '本丸へ攻め入り、石田朝成と正継の旗本を討て', max: 200, noRefill: true,   // 十八日は開城の約束の後の乱入で、本丸は短い斬り合いで終わった
+      DP.fight({ at: HON_YARD, title: '本丸', sub: '佐和山の頂、石垣と五層の天守', obj: '本丸へ攻め入り、天守の前の石田朝成の隊を討て', max: 200, noRefill: true,   // 十八日は開城の約束の後の乱入で、本丸は短い斬り合いで終わった
         say: [['小早川の侍', '本丸の門じゃ。城を受け取りに上れ']],
         onEnd: (rt2) => this.burn(rt2),
         foes: (rt2) => { this.tsugu(rt2); return [keep('本丸の旗本', HON_YARD, [{ type: 'busho', n: 1, o: { name: '石田朝成', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 12 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 4 }], { morale: 100, seek: 22 })]; },
@@ -353,7 +375,8 @@ const k07_sawayama = {
     if (F.tanaka) return;
     F.tanaka = allyGroup(rt, { faction: 'oda', name: '田中吉政の手', anchor: { x: KARAME.x, z: KARAME.z }, facing: 0, width: 10, aggro: 12, noRout: true, order: 'attack', seekRange: 60 },
       dress([{ type: 'busho', n: 1, o: { name: '田中吉政', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], TANAKA));
-    F.tanaka.anchor = { x: HON.x - 14, z: HON.z - 4 };
+    // 水の手から西の丸の尾根を登り、西の丸を抜けて本丸の西の口へ（まっすぐ寄せると西の丸の土塁の下に詰まった）
+    F.tanaka.order = 'path'; F.tanaka.path = [[-80, -8], [-62, -4], [-48, -4], [-34, -4], [-24, -4], [HON.x - 6, HON.z - 6]]; F.tanaka.pathIdx = 0;
     F.tanaka.dmgMult = 0.7;
     F.tanakaT = rt.t;
     rt.scene.add(nobori(rt.world, KARAME.x + 4, KARAME.z - 4, 'maru', 6));
@@ -369,6 +392,7 @@ const k07_sawayama = {
     const near = F.tanaka.units.some((u) => u.alive && u.pos.x < -14 && Math.hypot(u.pos.x - HON.x, u.pos.z - HON.z) < 26);
     if (!near && since < 45) return;
     F.tanakaIn = true;
+    F.tanaka.order = 'attack'; F.tanaka.anchor = { x: HON_YARD.x, z: HON_YARD.z };
     rt.say('田中吉政', '水の手は田中が破った。本丸へ乗り込め', 3.4);
     rt.after(3.8, () => rt.say('石田正継', '……内府も念の入ったことよ', 3.6));
     rt.after(7.8, () => rt.say('石田朝成', '約束を違えたか。祖父上、天守は我らが守りまする！', 3.6));
@@ -380,9 +404,40 @@ const k07_sawayama = {
     if (F.hasegawa) return;
     F.dusk = true;
     rt.world.setTime('dusk');
+    this.clearPerch(rt, (p) => p.x > 70);   // 大手門と左右の櫓
+    // 三の丸の門と櫓の上は長谷川が受け持った大坂の鉄砲衆。日暮れに長谷川と共に櫓を降りて城を出る（主人公は大手にいて見えない）。
+    //   残すと下から斬れない射手の下に寄せ手が詰まり、三の丸へ入れなかった
+    const A = rt.army;
+    for (const u of A.units.slice()) if (u.alive && u.team === 1 && u.perch && u.pos.z < -90) {
+      A.scene.remove(u.mesh); A.units.splice(A.units.indexOf(u), 1);
+      if (u.group) u.group.units.splice(u.group.units.indexOf(u), 1);
+      u.alive = false; u.gone = true;
+    }
     F.hasegawa = allyGroup(rt, { faction: 'oda', name: '長谷川守知の手', anchor: { x: 20, z: -102 }, facing: Math.PI / 2, width: 8, aggro: 6, noRout: true, order: 'attack', seekRange: 20, fixed: true },
       dress([{ type: 'busho', n: 1, o: { name: '長谷川守知', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 6 }], TANAKA));
     F.hasegawa.anchor = { x: 76, z: -52 };
+  },
+
+  // 味方の手は自分と同じ速さで次の持ち場へ（九の4・一の5）。持ち場まで遠く、近くに敵がいない間は隊のまま駆け足で進み、着くか敵に当たれば攻めに戻る
+  hurry(rt) {
+    const F = rt.flags, C = F.dp && F.dp.on && F.dp.cur;
+    if (!C || !C.at || C.s.kind === 'rest' || (F.hurryT || 0) > rt.t) return;
+    F.hurryT = rt.t + 1;
+    for (const g of [F.mine, F.saki, F.hasegawa]) {
+      if (!g || !g.count || g.routed) continue;
+      const c = g.center(), d = Math.hypot(c.x - C.at.x, c.z - C.at.z);
+      const foe = rt.army.units.some((o) => o.alive && o.team === 1 && !o.fleeing && !o.noTarget && !o.perch && (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < 400);
+      if (!g._k07Go && d > 28 && !foe) { g._k07Go = { x: C.at.x, z: C.at.z }; g._k07Sp = g.speed; g.speed = Math.max(g.speed || 0, 4.4); g.order = 'move'; g.anchor = { x: c.x, z: c.z }; g.dest = { x: c.x, z: c.z }; }
+      if (g._k07Go && (d < 14 || foe || Math.hypot(g._k07Go.x - C.at.x, g._k07Go.z - C.at.z) > 1)) { g._k07Go = null; g.speed = g._k07Sp; g.order = C.s.kind === 'move' ? 'hold' : 'attack'; g.seekRange = 45; g.anchor = { x: C.at.x, z: C.at.z }; }
+      // 隊の要は尾根の道の曲がり角を一つずつ（まっすぐ斜面を突っ切ると、曲輪の土塁の下に詰まった）
+      else if (g._k07Go) wayNext(g.anchor, C.at, g.dest);
+    }
+  },
+
+  // 落とした曲輪の櫓の上の射手は、寄せ手の鉄砲に撃たれて一人ずつ倒れる（下から斬れない射手が残り、味方の隊がその下に詰まっていた）
+  clearPerch(rt, test) {
+    let k = 0;
+    for (const u of rt.army.units) if (u.alive && u.team === 1 && u.perch && test(u.pos)) { const v = u; rt.after(1 + k++ * 0.8, () => { if (v.alive) { v.hp = 0; rt.army.kill(v, null); } }); }
   },
 
   // 十八日の夜明け
@@ -451,6 +506,7 @@ const k07_sawayama = {
     depthTick(rt, dt);
     const D = F.dp;
     if (D && D.on && D.i >= 7) { this.tanaka(rt); this.tanakaIn(rt); }
+    this.hurry(rt);
     // 十七日の夜：長谷川の手引きで三の丸を夜のうちに攻める（夜の戦は夜に）
     if (D && D.on && D.i >= 2 && D.i < 4 && !F.night) { F.night = true; rt.world.setTime('night'); }
     if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
@@ -488,7 +544,7 @@ k07_sawayama.botBrain = (b, inp, { goTo }) => {
 };
 
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k07_sawayama = [['大手門の石田勢を討つ'], ['三の丸の石田正澄を討つ', dpAt(3)], ['二の丸の下の段を落とす', dpAt(5)], ['二の丸の上の段の宇多頼忠を討つ', dpAt(6)], ['本丸の正継の旗本を討つ', dpAt(8)]];
+STAGES.k07_sawayama = [['大手門の石田勢を討つ'], ['三の丸の石田正澄を討つ', dpAt(3)], ['二の丸の下の段を落とす', dpAt(5)], ['二の丸の上の段の宇多頼忠を討つ', dpAt(6)], ['本丸の天守の前の石田朝成を討つ', dpAt(8)]];
 
 export { k07_sawayama };
 export default k07_sawayama;

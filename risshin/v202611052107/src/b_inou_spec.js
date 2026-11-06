@@ -145,11 +145,13 @@ function paddyRice(rt) {
       const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
       if (Math.abs(mx - sideX(mz)) < 12 || Math.abs(mx - FRONT_X) < 4 || nearFarm(mx, mz, 0)) continue;
       const y0 = W.heightAt(x0, z0), y1 = W.heightAt(x1, z1), L = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
-      const g = new THREE.CylinderGeometry(0.32, 0.32, L + 0.3, 6, 1, true); g.scale(1, 1, 0.55);
-      dir.set(x1 - x0, y1 - y0, z1 - z0).normalize(); Q.setFromUnitVectors(up, dir);
-      M.compose(V.set(mx, (y0 + y1) / 2 - 0.12, mz), Q, O); g.applyMatrix4(M);
+      // 11/6 fixc1455（1600×900 で遊んだ写真）：前は筒を向きに回してから平たくしていたので、東西の畦だけ背が高く細い淡い緑の管に見えた。
+      //   筒を横に寝かせて上下だけ潰し（幅七十cm・高さ二十cm ほど）、どの向きでも低い土の盛りに。色は頂点の色（線形）なので、写真の濡れた土と枯れ草の暗さに
+      const g = new THREE.CylinderGeometry(0.36, 0.36, L + 0.3, 6, 1, true);
+      g.rotateZ(Math.PI / 2); g.scale(1, 0.5, 1); g.rotateZ(Math.atan2(y1 - y0, Math.hypot(x1 - x0, z1 - z0))); g.rotateY(-Math.atan2(z1 - z0, x1 - x0));
+      g.translate(mx, (y0 + y1) / 2 - 0.02, mz);
       const k = 0.85 + 0.15 * hash(mx, mz), n2 = g.attributes.position.count, a = new Float32Array(n2 * 3), p = g.attributes.position;
-      for (let j = 0; j < n2; j++) { const top = p.getY(j) > (y0 + y1) / 2 + 0.05; a.set(top ? [0.33 * k, 0.36 * k, 0.17 * k] : [0.3 * k, 0.24 * k, 0.16 * k], j * 3); }
+      for (let j = 0; j < n2; j++) { const top = p.getY(j) > (y0 + y1) / 2 + 0.08; a.set(top ? [0.11 * k, 0.1 * k, 0.045 * k] : [0.12 * k, 0.08 * k, 0.045 * k], j * 3); }
       g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
     }
   };
@@ -249,7 +251,7 @@ const inou_spec = {
   pinOnlyDestination: true,  // 地面・足元の行き先の矢印は出さない（kaito AP12・BH6）。行き先は真上の金の▼だけ
   noGoalCount: true,         // 美作守が画面の外の時の赤い端の矢印（goal_count.js）も出さない。金の▼の端の印と二つになった
   hideNameTag: (u) => u.name === '組頭',   // 名札は名のある将だけ。組頭の「味方 かしら」は出さない（字を足さない）
-  goalSignBare: true,       // 真上の▼に「この人について行く」「ここを攻める」の字を添えない（字は使わない）
+  // 11/6 fixc1455：前は goalSignBare で▼の距離まで消していた。九1「距離は m」に従い外す（案内の字は共通で全戦から外れた）
   goalSignOff: () => true,   // 敵本人は赤い▼だけ。黄色い▼と隊の呼び名を重ねない。
   noLeaderFollow: true,      // 同じく、ついていく相手の頭上の青い印・画面の端の青い矢印も出さない（金の▼と二つになった。11/3 p100_inou）
   playerAtkMax: 4,           // 四方から同時に打つのは四人まで（五人目からは後ろで待つ）
@@ -823,6 +825,9 @@ const inou_spec = {
       const g = F.bossG, d = Math.hypot(B.pos.x - BOSS.x, B.pos.z - BOSS.z);
       if (d > 14 && g.order !== 'move') { g.order = 'move'; g.dest = { x: BOSS.x, z: BOSS.z }; g.speed = 3; B.target = null; B.atk = null; }
       else if (d < 3 && g.order === 'move') g.order = 'hold';
+      // 11/6 fixc1455（1600×900 で遊んだ写真）：馬上の美作守が追い合いのうちに東の杉の帯（x 60）まで六十m 駆け、最期が暗い林の中で信長の見えない所になった。
+      //   田の道から二十m より先へは出さない（『信長公記』の最期は野の上。信長が馬を寄せて突き伏せる所が見える）
+      if (d > 20) { const k = 20 / d; B.pos.x = BOSS.x + (B.pos.x - BOSS.x) * k; B.pos.z = BOSS.z + (B.pos.z - BOSS.z) * k; B.fleeing = false; }
     }
     // 美作守との一騎打ちの間（8m 内）は、取り巻きと林勢は周りで味方と斬り合い、本人へ同時に打つのは美作守ともう一人まで
     if (B?.alive) rt.def.playerAtkMax = rt.world.def.playerAtkMax = 2;

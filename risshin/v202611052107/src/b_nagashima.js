@@ -208,8 +208,9 @@ function bankWorkSpot(rt) {
 }
 
 // 見張りは体ではなく視線で判定する。肩越しを回した時も、下知と達成をそろえる。
+// 11/6 fixc1439：岸の持ち場に立てば見張りに数える。「向き直れ」は操作の説明で、向きで務めを止めない（五1・十一1）。
 function watchingRiver(rt) {
-  return Math.cos(rt.player.yaw + (rt.player.camYawOff || 0)) < -.5;
+  return true;
 }
 
 function riverTurnText(rt) {
@@ -579,8 +580,9 @@ function farBankDressing(rt, reed) {
 function farTemples(rt) {
   const W = rt.world, G = new Garan(rt);
   // 深夜：陸の側にも、輪中の東西の端に門徒の道場を一つずつ（岸から東・西・南西を向いた画面の奥に茅の大屋根が入る）。
-  const T = [{ id: 'oku_hondo', x: -18, z: -118, w: 16, d: 12, h: 8 }, { id: 'yana_dojo', x: 62, z: -108, w: 14, d: 11, h: 7.5 },
-    { id: 'nishi_dojo', x: -66, z: 14, w: 16, d: 12, h: 8.4, rot: -Math.PI / 2 }, { id: 'higashi_dojo', x: 68, z: 8, w: 16, d: 12, h: 8.4, rot: Math.PI / 2 }];
+  // 11/6 fixc1439：陸の側（織田の囲みの内）の東西の道場は外した。市江口・賀鳥口の手のすぐ脇に門徒の寺と南無の旗が立ち、
+  //   遠目の作り（dist: 'far'）が四十歩で窓も戸も無い箱に見えた。門徒の寺は島の側だけ。
+  const T = [{ id: 'oku_hondo', x: -18, z: -118, w: 16, d: 12, h: 8 }, { id: 'yana_dojo', x: 62, z: -108, w: 14, d: 11, h: 7.5 }];
   for (const t of T) G.build({ id: t.id, name: '門徒の寺', kind: 'hondo', x: t.x, z: t.z, w: t.w, d: t.d, h: t.h, rot: t.rot || 0, roof: 'thatch', enterable: true, dist: 'far' });   // 共通の種類表に 'hondo' は無く、入れない棟では形が出来なかった（支坊と同じ作りにする）
   G.finish();
   for (const t of T) { const L = Math.hypot(t.x, t.z), ux = -t.x / L, uz = -t.z / L, r = Math.max(t.w, t.d) / 2 + 3;   // 旗は岸の側の前に
@@ -1847,7 +1849,7 @@ const nagashima = {
   missionStatus: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|降伏|火/.test(text),
   // 公記巻七・九月二十九日条の順：柵を結う → 舟を見張る → 退城の舟 → 裸の斬り込み → 中江・屋長島の柵 → 火。
-  missions: ['岸の横木に縄をかけよ', '岸の見張り場で川の舟を見張れ', '柵の内で退く舟を見張れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所確かめよ', '岸に残り中江・屋長島の火を見届けよ'],
+  missions: ['岸の横木に縄をかけよ', '岸の見張り場で川の舟を見張れ', '柵の内で退く舟を見張れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所確かめ、川を見張れ', '岸に残り中江・屋長島の火を見届けよ'],
   // 味方が減った時の共通の声は「任務の札」と遊びの言葉を使う。岸の組頭の言葉に替える。
   missionDangerSpeech: (rt) => rt.flags.step >= 3.5 ? '西の柵の槍が減った！　柵の内へ寄り、列を詰めよ' : '岸の槍が減った！　柵の内へ寄り、列を詰めよ',
   missionDangerText: () => '岸の列が薄い。柵の内へ寄れ',
@@ -1856,8 +1858,7 @@ const nagashima = {
   // 右上の番号は時の順に進むだけで戻らない（kaito 三2・三3）。中の下知の選び分けは taskOf。
   missionOf(rt) {
     const F = rt.flags;
-    const base = F.ending ? 5 : F.step >= 3.5 ? 4 : F.step >= 3 ? 3 : F.step >= 2 ? 2
-      : F.step >= 1.25 || F.participated || F.helped || rt.G.lord ? 1 : 0;
+    const base = F.ending ? 5 : F.step >= 3.5 ? 4 : F.step >= 3 ? 3 : F.step >= 2 ? 2 : F.step >= 1.25 ? 1 : 0;
     F.missionMax = Math.max(F.missionMax || 0, base);
     return F.missionMax;
   },
@@ -1879,9 +1880,12 @@ const nagashima = {
     return foe ? 3 : 2;
   },
   // 一行の頭に、時の順の番号（①〜⑥）を付ける（kaito 三3「目標に番号」）。
+  // 11/6 kaito 十1：一つの目標の間は言い替えない。右上は番号と決まった一行だけ（その場の下知は台詞と印で）。
   missionHeading(rt) {
-    return '①②③④⑤⑥'[this.missionOf(rt)] + '　' + this.taskHeading(rt);
+    const k = this.missionOf(rt);
+    return '①②③④⑤⑥'[k] + '　' + (rt.flags.ending && rt.flags.failureReason ? '持ち場を守れなかった' : this.missions[k]);
   },
+  // 場面ごとの下知の言い方（11/6 から右上には出さない。taskText などの控え）
   taskHeading(rt) {
     const F = rt.flags, stage = this.taskOf(rt), p = rt.player.u.pos;
     if (F.ending) return F.failureReason ? '持ち場を守れなかった' : '岸に残り中江・屋長島の火を見届けよ';
@@ -2700,7 +2704,7 @@ const nagashima = {
     F.teranaka = new Garan(rt);
     F.teranaka.build({ id: 'gansho_hondo', name: '願証寺の本堂', kind: 'hondo', x: GANSHO.x, z: GANSHO.z, w: 15, d: 12, h: 7, roof: 'thatch', enterable: true });   // 10/29 夜：対岸の柵と井楼の上に棟が抜けるよう一回り大きく（西の里道 x=-53 と包囲柵 x=-34 の間に収める）   // 輪中の門徒寺の茅の大屋根。瓦の灰は霞に溶けて薄く見えた（10/29）   // 柱を高くし、対岸から大屋根が柵の上に見えるように
     rt.scene.add(romon(W, GANSHO.x, GANSHO.z + 11, 5.2, 0));
-    shiboTemple(rt);
+    // 11/6 fixc1439：陣の後ろ（早尾口の本陣の奥）の門徒の支坊も外す。織田の囲みの内に南無の旗を立てない（一6）。
     farTemples(rt);
     // 炊煙の遠景の板は霞の中で四角い灰の板に見えた（10/29 夜）。煙は砦と寺の柱だけにする。
     rt.scene.add(village(W, GANSHO.x - 48, GANSHO.z + 2, { n: 6, r: 10, rot: 0.2, seed: 15748, smoke: 0 }));
@@ -3568,13 +3572,16 @@ const nagashima = {
     };
     g.order = 'assault'; g.aggro = 22; g.seekRange = 90;
     g.formation = 'column'; g.colW = 3; g.anchor.z = BANK_Z + 18;
+    // 11/6 fixc1439（九2）：斬り込みは本人の立つ岸の柵へ寄せる。味方の列の脇を素通りさせず、目標に書いた門徒と本人が必ず刃を合わせる。
+    g.anchor.x = Math.max(-16, Math.min(16, rt.player.u.pos.x + (i - 1) * 5));
     if (i === 0 && nearTroops(rt, g)) rt.say('門徒', '退けると言うたではないか！　岸へ、道を開け！', 3);
     if (i > 0) rt.bark(i === 2 ? '後の舟も来る！　西の岸も守れ' : '次の一団が来る！　柵の内で受け止めよ', true);
   },
 
   win(rt) {
     const F = rt.flags;
-    const held = F.held && F.watchDone && !F.sallyFailed && !F.broken && F.sallyDefended && rt.player.u.alive;
+    // 11/6 fixc1439：見張りの遅れでは負けにしない（十二3）。負けは岸を破られた時か、西の柵の縄を確かめなかった時だけ。
+    const held = F.held && !F.sallyFailed && !F.broken && rt.player.u.alive;
     // 放火の下知まで進んだら、斬り合いが残っていても任務の成否を確定する。
     if (F.ending) return;
     F.ending = true; F.endingAt = rt.t; F.endingClock = 18;
@@ -3584,8 +3591,11 @@ const nagashima = {
     for (let i = 0; i < SPOTS.length; i++) { rt.unmark('s' + i); rt.unzone('s' + i); rt.uninteract('s' + i); }
     rt.obj('main', held ? '岸と包囲の柵を守り切った' : '持ち場を守り切れなかった', 'main');
     if (held) {
-      rt.objDone('main');
-      rt.award((t) => { t.main = true; t.special = { label: '岸と包囲の柵を守った', pts: 20 }; }, '岸と包囲の柵を守った');
+      // 11/6 fixc1439：主の任務を果たした印は火を見届けた後に付ける。すぐ付けると共通の締め（goalsDoneTick）が二秒半で勝ちにして、⑥の火が見えなかった。
+      rt.after(16, () => {
+        rt.objDone('main');
+        rt.award((t) => { t.main = true; t.special = { label: '岸と包囲の柵を守った', pts: 20 }; }, '岸と包囲の柵を守った');
+      });
     } else {
       rt.objFail('main');
       const why = F.broken ? '岸の背後へ四人以上の敵が二十秒押し込み、持ち場を失った' : F.sallyFailed ? '岸の反撃を受け止めきれなかった' : !F.watchDone ? '岸で舟を見張る務めを果たせなかった' : !F.sallyDefended ? '岸に踏みとどまれなかった' : F.finalChecked < 3 ? '西の柵を三か所確かめ切れなかった' : '西の柵の見張りを果たせなかった';
@@ -3883,9 +3893,10 @@ const nagashima = {
       const spotChanged = spot !== F.watchSpot;
       F.watchSpot = spot;
       // 入った後は一歩のずれを許し、場所と向きの境目で下知を往復させない。
-      const near = p.z >= BANK_Z && Math.hypot(p.x - s.x, p.z - (BANK_Z + 5)) < (F.watchNear ? 6 : 5);
+      // 柵の川側に出ていても、岸の上なら見張りに数える（柵の外へ出て戻れずに務めを落とさない）。
+      const near = p.z >= BANK_Z - 6 && Math.hypot(p.x - s.x, p.z - (BANK_Z + 2)) < (F.watchNear ? 10 : 9);
       // 体を残して肩越しに川を見ても、見張りを続けられる。
-      const facing = Math.cos(rt.player.yaw + (rt.player.camYawOff || 0)) < (F.watchFacing ? -.35 : -.5);
+      const facing = watchingRiver(rt);
       F.watchNear = near; F.watchFacing = facing;
       const task = !near ? 'move' : !facing ? 'turn' : 'watch';
       // 持ち場に着いたら、足元でなく川の向こうを示す。移動の印とは同時に出さない。
@@ -3944,14 +3955,15 @@ const nagashima = {
     if (F.step === 3) {
       const w = rt.t - F.stepT;
       // 前の隊が押されたら後詰めを寄せる。戦える者が退き切った時も待たせない。
-      if (F.rearBoatAt == null && (w >= 85 || w >= 20 && (gone(F.last[0]) ? 0 : F.last[0].count) + (gone(F.last[1]) ? 0 : F.last[1].count) <= 10 || F.last[1].sallyReleased && !canCounterattack(F.last[0]) && !canCounterattack(F.last[1]))) {
+      if (F.rearBoatAt == null && (w >= 85 || w >= 40 && (gone(F.last[0]) ? 0 : F.last[0].count) + (gone(F.last[1]) ? 0 : F.last[1].count) <= 10 || F.last[1].sallyReleased && !canCounterattack(F.last[0]) && !canCounterattack(F.last[1]))) {
         F.rearBoatAt = rt.t;
         // 戦える者がいない舟のために、東へ移動させない。
         F.rearBoatThreat = canCounterattack(F.last[2]);
         rt.say('物見', F.rearBoatThreat ? '後の舟が動いた！　西の岸で構えよ' : '後の舟に戦える敵はおらぬ。岸を見張れ', 3);
       }
       // 戦える者のいない舟を、反撃の待ち時間に数えない。
-      if (F.rearBoatAt != null && (rt.t - F.rearBoatAt >= 15 || !canCounterattack(F.last[2]))) this.sallyWave(rt, 2);
+      // 11/6 fixc1439：一陣を退けてから後の舟まで息をつかせ過ぎず、早すぎもしない（一戦が二分半で終わっていた）。
+      if (F.rearBoatAt != null && (rt.t - F.rearBoatAt >= 20 || !canCounterattack(F.last[2]))) this.sallyWave(rt, 2);
       const p = rt.player.u.pos;
       const atBank = onBank(p, F.sallyNear);
       F.sallyNear = atBank;
@@ -3980,7 +3992,7 @@ const nagashima = {
       }
       // 全ての舟を受けてから川を見た八秒を数える。敵への応戦中も済んだ分は残す。
       const shoreClear = !pressing && through === 0 && F.last[2].sallyReleased;
-      const facingRiver = Math.cos(rt.player.yaw + (rt.player.camYawOff || 0)) < (F.shoreFacing ? -.35 : -.5);
+      const facingRiver = watchingRiver(rt);
       F.shoreFacing = facingRiver;
       if (shoreClear && atBank && !dangerProgress(rt) && facingRiver) F.shoreQuiet += dt;
       F.breakThrough = through;
@@ -4085,7 +4097,7 @@ const nagashima = {
       const atEast = p.z >= BANK_Z && Math.hypot(p.x - 24, p.z - (BANK_Z + 6)) < (F.atEast ? 20 : 18);
       F.atEast = atEast;
       // 川を見る向きにも余裕を持たせ、少しの視点操作で下知を往復させない。
-      const facing = Math.cos(rt.player.yaw + (rt.player.camYawOff || 0)) < (F.finalFacing ? -.35 : -.5);
+      const facing = watchingRiver(rt);
       F.finalFacing = facing;
       // 持ち場の端でも、本人へ迫る敵がいる間は見張りを進めない。
       const safe = rt.player.u.alive && atEast && foes === 0 && closeFoes === 0 && facing && !dangerProgress(rt);
@@ -4154,7 +4166,7 @@ const nagashima = {
         rt.say('柴田勝家', `火をかける刻が迫る。${order}`, 4);
       }
       // 三か所を見回って見張る。岸で失敗していても、見回りの務めは最後まで残す。
-      if (!dangerProgress(rt) && (watching && F.finalHeld >= FINAL_HOLD && F.finalSafe >= FINAL_HOLD || finalElapsed >= FINAL_LIMIT)) { F.held = watching && F.finalHeld >= FINAL_HOLD && F.finalSafe >= FINAL_HOLD; rt.unmark('east'); this.win(rt); }
+      if (!dangerProgress(rt) && (watching && F.finalHeld >= FINAL_HOLD && F.finalSafe >= FINAL_HOLD || finalElapsed >= FINAL_LIMIT)) { F.held = F.finalChecked >= 3; rt.unmark('east'); this.win(rt); }
     }
   },
 
@@ -4313,8 +4325,11 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   }
   if (F.step === 1) {
     let it = null, bd = Infinity;
-    for (const x of b.interacts) if (x.id.startsWith('s')) { const d = Math.hypot(x.pos.x - u.pos.x, x.pos.z - u.pos.z); if (d < bd) { bd = d; it = x; } }
-    if (it) { if (bd > 1.6) goTo(p, inp, it.pos.x, it.pos.z, 1.2); else inp.k.add('KeyE'); return; }
+    // 横木の受け付けの場所は関数（人足の支度が済んだ所だけ返す）。済む前は次の横木の前で待つ
+    for (const x of b.interacts) if (/^s\d$/.test(x.id)) { const q = typeof x.pos === 'function' ? x.pos() : x.pos; if (!q) continue; const d = Math.hypot(q.x - u.pos.x, q.z - u.pos.z); if (d < bd) { bd = d; it = q; } }
+    if (it) { if (bd > 1.6) goTo(p, inp, it.x, it.z, 1.2); else inp.k.add('KeyE'); return; }
+    const w = !F.participated && bankWorkSpot(b);
+    if (w) { if (Math.hypot(w.x - u.pos.x, w.z - u.pos.z) > 1.6) goTo(p, inp, w.x, w.z, 1.2); else p.yaw = Math.PI; return; }
   }
   if (F.step === 3.5) {
     const next = F.finalChecks.indexOf(false), spot = CHECK_SPOTS[next];

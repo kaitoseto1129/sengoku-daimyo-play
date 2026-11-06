@@ -262,6 +262,8 @@ const k09_imafuku = {
           { t: 6, say: ['足軽', '旗は木村長門守！　若い大将が自ら出てきた！'], foes: () => [{ name: '木村重成の隊', from: { x: FORT.x - 40, z: 0 }, list: [busho('木村重成', { hat: 'kabuto_f', invuln: true }), uS(6), uA(20), uG(8)], mass: 150, noRout: 30, dmg: 0.25 }] },
           { t: 28, say: ['足軽', '堤の両側から鉄砲が並んだ！　横から撃たれる！'], foes: () => [gunLine('重成の鉄砲衆（南）', { x: FORT.x - 20, z: 11 }, 5), gunLine('重成の鉄砲衆（北）', { x: FORT.x - 20, z: -11 }, 5)] },
           { t: 48, say: ['足軽', '後藤又兵衛じゃ！　川からも舟で鉄砲が寄せてくる！'], foes: () => { this.gotoBoats(rt); rt.world.setTime('afternoon'); return [{ name: '後藤又兵衛の隊', from: { x: FORT.x - 44, z: 6 }, list: [busho('後藤又兵衛', { invuln: true }), uS(6), uA(22), uG(6)], mass: 200, noRout: 24, dmg: 0.25 }]; } },
+          // 史実：渋江の討死は重成の指図した狙い撃ち。撃たれる六秒前に下知の声
+          { t: 64, say: ['木村重成', 'あの馬上の指物が佐竹の侍大将じゃ。鉄砲、狙え！'], foes: () => [] },
           { t: 70, say: ['足軽', '渋江様が撃たれた！　渋江内膳様、お討死！'], foes: () => { this.shibueFalls(rt); return []; } },
           { t: 88, say: ['足軽', '木村の新手が堤を押してくる！　下がるな！'], foes: () => [{ name: '木村重成の二の手', from: { x: FORT.x - 46, z: -4 }, list: [uS(2), uA(20), uG(6)], mass: 160, dmg: 0.24 }] },
         ],
@@ -269,7 +271,7 @@ const k09_imafuku = {
       DP.rest({ dur: 5, heal: 0.7 }),
       // ④ 増援とともに押し返す
       DP.fight({ at: { x: FORT.x - 20, z: 0 }, title: '押し返す', sub: '上杉の加勢が着いた', obj: '上杉の加勢とともに、砦の西の堤から木村・後藤の殿を追い払え', max: 150, noRefill: true,   // 史実は上杉の横撃で豊臣方が城へ引く。殿を崩せば締める（戦を四〜七分に）
-        say: [['須田長義', '佐竹を見捨てるな！　上杉の鉄砲で横から撃て！']],
+        say: [['水原親憲', '佐竹を見捨てるな！　中州から堤の敵を横から撃て！']],
         foes: () => [{ name: '木村重成の殿', from: { x: FORT.x - 40, z: 0 }, list: [uS(2), uA(16), uG(5)], mass: 140, dmg: 0.25 },
           { name: '後藤又兵衛の殿', from: { x: FORT.x - 52, z: 6 }, list: [uS(2), uA(14), uG(4)], mass: 120, dmg: 0.25 }],
         reward: '増援とともに豊臣方を退けた' }),
@@ -322,14 +324,15 @@ const k09_imafuku = {
     F.step = 4; F.reinfT = rt.t;
     rt.player.treatWounds(0.6);
     sfx('taiko', 1); sfx('horagai', 0.8);
-    rt.banner('上杉の加勢', '鴫野の上杉勢が川を越えて来た');
+    rt.banner('上杉の加勢', '鴫野の上杉勢が大和川の中州から撃ちかける');
     // 史実：上杉の横撃で豊臣方が退くのは午後四時過ぎ（冬の日の傾く頃）。一分ほどかけて西の城の方へ日が傾く
     rt.world.setTime('dusk');
-    rt.say('足軽', '大和川の向こうから上杉の鉄砲じゃ！　竹に雀の旗が渡ってくる！', 3.6);
+    rt.say('足軽', '大和川の中州に上杉の鉄砲じゃ！　竹に雀の旗が並んだ！', 3.6);
     F.reinf = [];
-    // 須田長義の隊は堤を西へ上がって加わり、水原親憲の鉄砲衆は南の大和川の向こう岸（鴫野の側）に並んで、川越しに横から撃つ（史実の横撃）
-    const su = allyGroup(rt, { faction: 'tokugawa', name: '須田長義の隊', anchor: { x: KEEP.x + 70, z: 0 }, facing: WESTWARD, width: 7, aggro: 8, speed: 3.4, morale: 90, formation: 'column' },
-      dress([busho('須田長義', { invuln: true }), uS(4), uA(18), uG(6)], { flag: 'uesugi' }));
+    // 上杉は川を渡らず、水原親憲の鉄砲衆が南の大和川の中州（鴫野の側）に並んで川越しに横から撃つ（史実の横撃）。
+    // 須田長義は同じ時に鴫野の先手で大野治長の反撃を受けており、今福の堤には来ていない。堤を西へ上がるのは佐竹の後備
+    const su = allyGroup(rt, { faction: 'tokugawa', name: '佐竹の後備', anchor: { x: KEEP.x + 70, z: 0 }, facing: WESTWARD, width: 7, aggro: 8, speed: 3.4, morale: 90, formation: 'column' },
+      dress([uS(4), uA(18), uG(6)], SATAKE));
     su.order = 'move'; su.dest = { x: KEEP.x + 14, z: 0 };
     const mz = allyGroup(rt, { faction: 'tokugawa', name: '水原親憲の鉄砲衆', anchor: { x: KEEP.x - 6, z: 46 }, facing: Math.PI, width: 10, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
       dress([busho('水原親憲', { invuln: true }), uS(3), uG(14)], { flag: 'uesugi' }));
@@ -343,7 +346,7 @@ const k09_imafuku = {
     rt.after(9, () => {
       const g = rt.army.groups.find((q) => q.team === 1 && q.name === '後藤又兵衛の隊');
       const u = g && g.units.find((q) => q.alive && q.type === 'busho');
-      if (u) { u.hp = Math.max(1, Math.round(u.hp * 0.6)); g.morale -= 30; rt.say('後藤又兵衛', '直江の弾か……脇腹をやられた。構わぬ、退きながら撃て！', 3.6); }
+      if (u) { u.hp = Math.max(1, Math.round(u.hp * 0.6)); g.morale -= 30; rt.say('後藤又兵衛', '上杉の弾か……脇腹をやられた。構わぬ、退きながら撃て！', 3.6); }
       F.boatBack = true;
     });
   },

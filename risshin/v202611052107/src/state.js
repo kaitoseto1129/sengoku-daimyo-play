@@ -136,7 +136,7 @@ export const ODA_LINE = [
   { id: 'miki', name: '三木城・大村の合戦', cap: 260, year: '天正七年（1579）九月十日', place: '播磨国 三木', ceil: 4, town: '安土', boss: '羽柴秀吉', rel: 'tokichiro' },
   { id: 'arioka', name: '有岡城の戦い', cap: 260, year: '天正七年（1579）十月十五日', place: '摂津国 有岡城', ceil: 4, town: '安土', boss: '滝川一益', rel: 'tokichiro' },
   { id: 'iga', name: '天正伊賀の乱・比自山城', cap: 260, year: '天正九年（1581）九月', place: '伊賀国 比自山城', ceil: 4, town: '安土', boss: '丹羽長秀', rel: 'nobutada' },
-  { id: 'tottori', name: '鳥取城の戦い', cap: 260, year: '天正九年（1581）十月', place: '因幡国 鳥取城', ceil: 4, town: '安土', boss: '羽柴秀吉', rel: 'tokichiro' },
+  { id: 'tottori', name: '鳥取城の戦い', cap: 260, year: '天正九年（1581）九月〜十月', place: '因幡国 鳥取城', ceil: 4, town: '安土', boss: '羽柴秀吉', rel: 'tokichiro' },
   { id: 'takato', name: '高遠城の戦い', cap: 260, year: '天正十年（1582）三月二日', place: '信濃国 高遠城', ceil: 4, town: '安土', boss: '森長可', rel: 'nagayoshi' },
   { id: 'tano', name: '田野の戦い・天目山', cap: 260, year: '天正十年（1582）三月十一日', place: '甲斐国 田野', ceil: 4, town: '安土', boss: '滝川一益', rel: 'nobutada' },
   { id: 'honnoji', name: '本能寺の変', cap: 260, year: '天正十年（1582）六月二日', place: '山城国 京 本能寺', ceil: 4, town: '安土', boss: '織田信忠', rel: 'nobutada' },

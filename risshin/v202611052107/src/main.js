@@ -1865,7 +1865,7 @@ STORY_BY.oda = {
 };
 TIPS_BATTLE_BY.oda = {
   inou: '信長の旗を離れず、槍をそろえて柴田の寄せを受けよ。南から林の手が来たら向き直れ。追わずに旗へ戻る',
-  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '楡俣川を渡って畦で組をそろえ、法螺貝で前備に続け。長井・日比野の旗本を崩し、集結の旗へ戻れ', sunomata: '柵を直し、材木を南門へ運べ。北・西・川岸の持ち場を守り、砦の完成まで耐えよ',
+  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '楡俣川の浅瀬を渡り、北岸の畦で斎藤の先手を押し返す。長井・日比野の旗本へ攻め入り、墨俣へ退く殿を討ち破る', sunomata: '柵を直し、材木を南門へ運べ。北・西・川岸の持ち場を守り、砦の完成まで耐えよ',
   kanegasaki: TIPS_BATTLE_BY.nobunaga_hoi[0], anegawa: TIPS_BATTLE_BY.nobunaga_hoi[1], hieizan: TIPS_BATTLE_BY.nobunaga_hoi[2],
   inabayama: '印の家にだけ火を放て。手向かわぬ町の者は討つな。打って出た斎藤勢を退けたら、藤吉郎について搦手を登れ',
   mitsukuri: 'まず三の郭を取れ。日が暮れたら松明を灯し、木戸を破る組を守れ。仲間と二の丸、本丸へ進め',

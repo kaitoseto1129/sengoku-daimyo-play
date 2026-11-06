@@ -9,7 +9,7 @@
 //   兵の比は史実どおり：徳川方 8200（井伊3200・藤堂5000）対 大坂方 10000（木村4700・長宗我部5300）。本物もおよそ百対百二十。
 //   井伊直孝・藤堂高虎は後ろの本陣、長宗我部盛親は長瀬川の向こうの本陣で旗本に囲まれ動かない（AR3・AT3）。木村重成は史実で自ら戦ったので若江の堤に。
 // 段（目標ごとの刻限。AP8）：①北の田の山口弘定の隊 ②南の田の内藤長秋の隊 ③若江の堤の木村重成 ④八尾の北の長宗我部の横の備 ⑤長瀬川の前の長宗我部の先手
-// 勝ち＝長宗我部の先手が崩れ、盛親が大坂へ退く。負け：④⑤の刻限までに果たせず、八尾の藤堂勢が崩れ切る。
+// 勝ち＝長宗我部の先手が崩れ、盛親が大坂へ退く。刻限で負けにはしない（過ぎれば味方の押しが強まり物語が進む。十二3）。
 // 向き：北が -z、東が +x。徳川方は東（生駒の麓の方）から西（大坂）へ向かう。西を向くと右が若江、左が八尾。
 // 地形：国土地理院の標高（asset_dem_yaowakae.js。node prototype/tools/dem.mjs yaowakae で作る）。河内の低い田で起伏はほぼ無い。
 //   今の道や堤の高まりは丸めて薄め、旧大和川の分かれ（玉串川・長瀬川）と堤は手で描き戻す。間隔は縮めた復元（実の若江と八尾は 2km あまり）。
@@ -33,23 +33,25 @@ const dem = null; // 標高の素材は素材の枝で入れる（今は平ら�
 const DEM_XY = 12;
 const START = { x: 86, z: -92 };          // 井伊勢の寄せ口（若江の東の田）
 const WAKAE = { x: -6, z: -96 };           // 若江の堤（木村重成の陣）
-const YAMA = { x: 24, z: -128 };           // 木村の右翼・山口弘定（北）
-const NAITO = { x: 22, z: -66 };           // 木村の左翼・内藤長秋（南）
+const YAMA = { x: 16, z: -128 };           // 木村の右翼・山口弘定（北）
+const NAITO = { x: 14, z: -66 };           // 木村の左翼・内藤長秋（南）
 const YAO = { x: -84, z: 108 };            // 長宗我部盛親の本陣（長瀬川の堤の向こう）
 const YAO_FRONT = { x: 2, z: 100 };        // 八尾の前線（藤堂勢と長宗我部勢がぶつかる所）
-const CHO_A = { x: -22, z: 100 };          // 長宗我部の先手（長瀬川の堤の前に伏せる）
+const CHO_A = { x: -22, z: 100 };          // 長宗我部の先手（長瀬川の堤の前）
+const FUSE = { x: -42, z: 98 };            // 長瀬川の堤に伏せた槍（⑤で主人公の目の前で一斉に立つ）
 const FLANK = { x: -22, z: 70 };           // 長宗我部の横の備（先手の北の端。北から突く所）
+const FLANK_GO = { x: FLANK.x + 10, z: FLANK.z - 16 };   // ④で井伊の隊が駆ける先（一度だけ出す。行き先を替え続けると隊は合図を待って動かない）
 const TODO_HQ = { x: 118, z: 118 };        // 藤堂高虎の本陣
 const II_HQ = { x: 122, z: -104 };         // 井伊直孝の本陣
 const TAMA = [[46, -260], [40, -150], [48, -60], [40, 30], [46, 140], [40, 260]];        // 玉串川（北へ流れる）
 const NAGASE = [[-62, -260], [-56, -150], [-64, -40], [-52, 60], [-58, 160], [-52, 260]]; // 長瀬川（八尾の堤）
+const WAKAE_DIKE = [[-8, -150], [-6, -120], [-8, -96], [-5, -70], [-8, -44]];   // 若江の堤（村の東を南北に通る。木村の本隊が立つ）
 const ROAD = [[250, -40], [160, -60], [90, -20], [44, 0], [-10, 10], [-60, 6], [-250, 0]];  // 東西の道（八尾と若江の間）
 const STEP_TEXT = ['', '若江の北の田で、山口弘定の隊を追い払う', '若江の南の田で、内藤長秋の隊を追い払う', '若江の堤に立つ木村重成を討つ',
   '南の八尾へ駆け、長宗我部の横の備を北から突き破る', '長瀬川の堤の前の、長宗我部の先手を堤の向こうへ追い払う'];   // 「崩す」は使わない（kaito_standard 三1）
-const STEP_T = [0, 180, 180, 200, 210, 220];   // 目標ごとの刻限（秒。AP8）
+const STEP_T = [0, 90, 90, 100, 70, 80];   // この秒を過ぎると味方の押しが強まり、主人公が遅れても物語は進む（負けにも、果たせなかった印にもしない。二5・三3・十二3）
 const STEP_AT = [null, YAMA, NAITO, WAKAE, FLANK, CHO_A];
 const KEEP = 0.4;                          // 段の隊は四割まで減れば崩れて退く（倒す数＝六割）
-const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const ARMOR = KIT.ARMOR;
 // 井伊の赤備え・藤堂勢・木村勢・長宗我部勢の装い
 const II = { armor: ARMOR.akazonae, cloth: 0x8e2a1e, lace: 0xa0402a, flag: 'ii' };
@@ -67,24 +69,28 @@ const LOOK = {
   内藤長秋: { armor: 0x22241e, lace: 0x6a4a3a, hat: 'kabuto_w', haori: 0x3a2e24 },
   藤堂高刑: { armor: 0x24221f, lace: 0x5a4630, hat: 'kabuto_m', haori: 0x3a3424 },
   桑名吉成: { armor: 0x22241e, lace: 0x4a5a3a, hat: 'kabuto_f', haori: 0x2e3a2a },
+  庵原朝昌: { armor: 0x9a2a1c, lace: 0xa0402a, hat: 'kabuto_f', haori: 0x7a1a12 },
   川手良列: { armor: 0x9a2a1c, lace: 0xa0402a, hat: 'kabuto_m', haori: 0x7a1a12 },
   安藤重勝: { armor: 0x9a2a1c, lace: 0xa0402a, hat: 'kabuto_f', haori: 0x6a1a12 },
 };
 const named = (name, type = 'samurai', o = {}) => ({ type, n: 1, o: { name, ...LOOK[name], ...o } });
 
 const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
+const stepAlive = (F) => aliveN(F.stepG) + (F.step === 5 ? aliveN(F.fuseG) : 0);   // ⑤は堤の前の先手と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ---- 地形：平らな河内の田。二本の川の堤だけが高い。国土地理院の起伏は丸めて薄く ----
-function levee(x, z, line) {
+// 旧大和川の分かれは天井川：細い流れの両岸に、田より背丈ほど高い堤（八3）
+function levee(x, z, line, a = 3, b = 5, c = 7.5, e = 12) {
   const d = distToPolyline(x, z, line);
-  return 1.5 * sm(4.5, 7, d) * (1 - sm(9, 15, d));
+  return 2.4 * sm(a, b, d) * (1 - sm(c, e, d));
 }
 function height(x, z) {
   let h = 0.5 + 0.18 * Math.sin(x * 0.031 + 0.7) * Math.cos(z * 0.027) + 0.12 * Math.sin(z * 0.06 - x * 0.02);
-  h += levee(x, z, TAMA) + levee(x, z, NAGASE) * 1.2;
+  h += levee(x, z, TAMA) + levee(x, z, NAGASE, 3.5, 5.5, 8, 13) * 1.1;
+  { const d = distToPolyline(x, z, WAKAE_DIKE); h += 1.6 * (1 - sm(2.5, 7, d)); }
   // 東の端は生駒の麓へゆるく上がる
   h += 0.06 * Math.max(0, x - 200);
   if (dem) {
@@ -127,7 +133,6 @@ const k14_yao_wakae = {
   playerTaken: 0.5,
   playerRegen: 0.025,
   closeCombatAssist: true,
-  autoTargetCamera: true,
   steadyMeleeCamera: true,
   noWinCrane: true,
   compactIntro: true,
@@ -156,30 +161,31 @@ const k14_yao_wakae = {
   talk: {
     before: [['井伊直孝', '若江に木村長門守（重成）の旗。若いが、死ぬ気の者は手強いぞ'], ['使番', '八尾には長宗我部盛親。藤堂殿が向かわれました'],
       ['井伊直孝', '赤備えの名にかけて、木村を討て']],
-    after: [['井伊直孝', '木村殿の兜には香が焚き込めてあったそうな。見事な覚悟よ'], ['藤堂高虎', '八尾では身内を多く失うた……長宗我部は退いた']],
+    after: [['井伊直孝', '木村長門守の首は、大御所様の御前へお届けいたす'], ['藤堂高虎', '八尾では身内を多く失うた……長宗我部は退いた']],
   },
   spawn: { x: START.x - 6, z: START.z + 4, heading: -Math.PI / 2 },
   world: {
     seed: 1615506,
-    time: 'day',
-    mood: 'morning',          // 夜明けから昼までの戦（朝の光）
+    time: 'morning',
+    mood: 'morning',          // 夜明けから朝の戦（井伊と木村は午前七時ごろ。低い朝日。二2）
     mist: 0.15,               // 河内の朝靄
     muddy: 0.5,               // 深田（足を取られる田）
     groundHalf: 260,
     moveLim: 248,
+    mountainScale: 0.2, mountainHaze: 0.85,   // 河内の平らな田：四方を高い山で囲まない。生駒は遠く霞む（八1・四5）
     patchyGround: true,
     height,
     fieldStage: 'seedling',   // 旧暦五月六日（今の六月の初め）：植えたばかりの稲と水の張った田
     paddy(x, z) {
-      if (Math.min(distToPolyline(x, z, TAMA), distToPolyline(x, z, NAGASE)) < 16 || distToPolyline(x, z, ROAD) < 5) return 0;
+      if (Math.min(distToPolyline(x, z, TAMA), distToPolyline(x, z, NAGASE)) < 12 || distToPolyline(x, z, WAKAE_DIKE) < 6 || distToPolyline(x, z, ROAD) < 5) return 0;
       if (Math.abs(x) > 230 || Math.abs(z) > 230) return 0;
       if ((Math.floor(x / 14) + Math.floor(z / 12)) % 4 === 1) return 0;
       const ex = Math.min(((x % 14) + 14) % 14, 14 - ((x % 14) + 14) % 14), ez = Math.min(((z % 12) + 12) % 12, 12 - ((z % 12) + 12) % 12);
-      return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.8) / 0.6)) * 0.75;
+      return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.8) / 0.6)) * 0.95;
     },
     riverCross: true,
     wadeDepth: 0.7,
-    streams: [{ pts: TAMA, w: 5, depth: 0.9 }, { pts: NAGASE, w: 6, depth: 1.0 }],
+    streams: [{ pts: TAMA, w: 2.6, depth: 0.55 }, { pts: NAGASE, w: 3.2, depth: 0.65 }],   // 細い流れ（幅広の川の中で斬り合わない）
     paths: [{ pts: ROAD, w: 3 }, { pts: [[START.x, START.z], [90, -94], [WAKAE.x, WAKAE.z], [-120, -100]], w: 2.4 }, { pts: [[TODO_HQ.x, TODO_HQ.z], [60, 106], [YAO.x, YAO.z], [-140, 110]], w: 2.4 }],
     tint(x, z, h, c) {
       // 堤の草（濃い緑）と道の土
@@ -204,7 +210,7 @@ const k14_yao_wakae = {
   setup(rt) {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const F = rt.flags, W = rt.world;
-    F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.holdPlayer = true; F.miss = 0;
+    F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.holdPlayer = true;
     // ---- 旗・本陣・村（旗は井伊・藤堂・豊臣・長宗我部だけ。AQ4） ----
     KIT.honjin(rt, II_HQ.x + 6, II_HQ.z, { mon: 'ii', people: false, fire: true });
     KIT.honjin(rt, TODO_HQ.x + 10, TODO_HQ.z + 4, { mon: 'todo', people: false, fire: false });
@@ -222,7 +228,10 @@ const k14_yao_wakae = {
       dress([named('井伊直孝', 'busho', { invuln: true }), { type: 'samurai', n: 12 }], II));
     F.iiU = F.iiG.units.find((u) => u.name === '井伊直孝');
     F.sakiG = allyGroup(rt, { faction: 'tokugawa', name: '井伊の先手', fullStrength: true, anchor: { x: START.x - 14, z: START.z - 18 }, facing: -Math.PI / 2, width: 10, aggro: 10, order: 'hold', noRout: true, formation: 'yari', dmgMult: 0.8 },
-      dress([named('川手良列', 'samurai', { invuln: true }), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], II));
+      dress([named('川手良列', 'samurai', { invuln: true }), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9, o: { flagScale: 1 } }, { type: 'gun', n: 6 }], II));
+    // 井伊の右の先鋒・庵原朝昌（北の田の山口へ向かう。若江は徳川方が数で勝る：幕府九千五百 対 木村六千。battle_refs）
+    F.iharaG = allyGroup(rt, { faction: 'tokugawa', name: '庵原朝昌の隊', fullStrength: true, anchor: { x: START.x - 18, z: START.z - 34 }, facing: -Math.PI / 2, width: 10, aggro: 10, order: 'hold', noRout: true, formation: 'yari', dmgMult: 0.8 },
+      dress([named('庵原朝昌', 'samurai', { invuln: true }), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], II));
     F.mine = allyGroup(rt, { faction: 'tokugawa', name: '手勢', fullStrength: true, anchor: { x: START.x - 10, z: START.z + 12 }, facing: -Math.PI / 2, width: 8, aggro: 10, order: 'hold', noRout: true, formation: 'yari', dmgMult: 0.8 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }, { type: 'bow', n: 1 }], II));
     F.andoG = allyGroup(rt, { faction: 'tokugawa', name: '安藤重勝の手', fullStrength: true, anchor: { x: START.x + 2, z: START.z - 4 }, facing: -Math.PI / 2, width: 4, aggro: 8, seekRange: 10, order: 'hold', noRout: true, dmgMult: 0.6 },
@@ -243,27 +252,31 @@ const k14_yao_wakae = {
     // ---- 八尾：藤堂の先手（高刑・桑名）・鉄砲衆・高虎の本陣、長宗我部の先手（堤の前に伏せる）・横の備・盛親の本陣 ----
     const todoO = { faction: 'tokugawa', facing: -Math.PI / 2, order: 'hold', noRout: true, formation: 'yari', dmgMult: 0.5 };
     F.takanoriG = allyGroup(rt, { ...todoO, name: '藤堂高刑の隊', fullStrength: true, anchor: { x: YAO_FRONT.x + 40, z: YAO_FRONT.z - 12 }, width: 10, aggro: 10 },
-      dress([named('藤堂高刑', 'samurai', { invuln: true }), { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12, o: { flagScale: 1 } }], TODO));
+      dress([named('藤堂高刑', 'samurai', { invuln: true }), { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9, o: { flagScale: 1 } }], TODO));
     F.kuwanaG = allyGroup(rt, { ...todoO, name: '桑名吉成の隊', fullStrength: true, anchor: { x: YAO_FRONT.x + 44, z: YAO_FRONT.z + 12 }, width: 10, aggro: 10 },
-      dress([named('桑名吉成', 'samurai', { invuln: true }), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11, o: { flagScale: 1 } }], TODO));
+      dress([named('桑名吉成', 'samurai', { invuln: true }), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8, o: { flagScale: 1 } }], TODO));
     F.todoGun = allyGroup(rt, { ...todoO, name: '藤堂の鉄砲衆', fullStrength: true, anchor: { x: 76, z: 102 }, width: 8, aggro: 8, seekRange: 20 },
       dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 8 }], TODO));
     F.todoG = allyGroup(rt, { ...todoO, name: '藤堂高虎の旗本', fixed: true, fullStrength: true, anchor: { ...TODO_HQ }, width: 6, aggro: 5, seekRange: 8 },
-      dress([named('藤堂高虎', 'busho', { invuln: true }), { type: 'samurai', n: 12 }], TODO));
+      dress([named('藤堂高虎', 'busho', { invuln: true }), { type: 'samurai', n: 10 }], TODO));
     const choO = { faction: 'toyotomi', facing: Math.PI / 2, fleeDir: { x: -1, z: 0 }, noRout: true, formation: 'yari', morale: 96, dmgMult: 0.4, defMult: 1.15 };
     F.choA = enemyGroup(rt, { ...choO, name: '長宗我部の先手', anchor: { ...CHO_A }, width: 14, aggro: 12, seekRange: 22, order: 'hold', ambush: true },
-      dress([{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 20, o: { flagScale: 1 } }, { type: 'gun', n: 5 }], CHOSO));
+      dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], CHOSO));
+    // 長瀬川の堤に伏せた槍（盛親は騎馬を下ろして槍を持たせ、堤に伏せた。battle_refs）。⑤で主人公が寄ると一斉に立つ（二3・十二4）
+    F.fuseG = enemyGroup(rt, { ...choO, name: '長宗我部の伏せ槍', facing: Math.PI / 2, anchor: { ...FUSE }, width: 12, aggro: 4, seekRange: 6, order: 'hold', ambush: true, fixed: true },
+      dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12, o: { flagScale: 1 } }], CHOSO));
     F.choSide = enemyGroup(rt, { ...choO, name: '長宗我部の横の備', facing: Math.PI, anchor: { ...FLANK }, width: 10, aggro: 10, seekRange: 18, order: 'hold', morale: 90, dmgMult: 0.55 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 13, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], CHOSO));
     F.choG = enemyGroup(rt, { ...choO, name: '長宗我部盛親の旗本', fixed: true, anchor: { ...YAO }, width: 7, aggro: 5, seekRange: 8, order: 'hold' },
-      dress([named('長宗我部盛親', 'busho', { invuln: true }), { type: 'samurai', n: 15 }, { type: 'gun', n: 2 }], CHOSO));
+      dress([named('長宗我部盛親', 'busho', { invuln: true }), { type: 'samurai', n: 11 }, { type: 'gun', n: 2 }], CHOSO));
     F.choU = F.choG.units.find((u) => u.name === '長宗我部盛親');
 
-    W.setTime('day');
+    W.setTime('morning');
     rt.setPhase('brief');
-    // 戦の前：道明寺の報せ・若江と八尾へ分かれる
+    rt.obj('s1', STEP_TEXT[1], 'main');   // 下知までの間も右上は①（共通の「味方の旗へ」を出さない。十1）
+    // 戦の前：夜明けの若江。道明寺の又兵衛の討死は昼前なので、ここでは言わない（二2）
     const me = nm(rt);
-    const L = [['使番', '道明寺口で後藤又兵衛が討たれたとの報せ！', 0.5], ['井伊直孝', '大坂方は河内の田へも出てきた。若江の堤に木村長門守（重成）の旗', 3.6],
+    const L = [['使番', '夜明けの靄の向こう、若江に大坂方の旗！', 0.5], ['井伊直孝', '大坂方は河内の田へも出てきた。若江の堤に木村長門守（重成）の旗', 3.6],
       ['使番', '藤堂殿の右の手は、木村勢の鉄砲で半ばを討たれて退きました', 7.0], ['井伊直孝', 'ならば赤備えが代わる。北の田の山口から追い払え', 10.2],
       [me, '木村殿は、まだ二十三と聞きまする', 13.4], ['井伊直孝', '若いが、死ぬ気の者は手強い。赤備えの名にかけて、木村を討て', 16.2]];
     for (const [who, s, t] of L) rt.after(t, () => rt.say(who, s, 2.9));
@@ -279,7 +292,7 @@ const k14_yao_wakae = {
     rt.after(1.2, () => sfx('taiko', 0.8));
     this.toStep(rt, 1);
     // 若江：井伊の先手と手勢が北の田へ。八尾：藤堂の先手が堤へ寄る
-    for (const g of [F.sakiG, F.mine]) { g.order = 'attack'; g.seekRange = 70; g.aggro = 14; }
+    for (const g of [F.sakiG, F.iharaG, F.mine]) { g.order = 'attack'; g.seekRange = 70; g.aggro = 14; }
     F.yamaG.order = 'attack'; F.yamaG.seekRange = 60;
     for (const g of [F.takanoriG, F.kuwanaG]) { g.order = 'move'; g.dest = { x: YAO_FRONT.x + 6, z: g.anchor.z }; g.speed = 3.2; }
     F.todoGun.order = 'move'; F.todoGun.dest = { x: YAO_FRONT.x + 30, z: YAO_FRONT.z }; F.todoGun.speed = 3;
@@ -293,8 +306,8 @@ const k14_yao_wakae = {
   // 段を進める（済んだ目標に印・新しい目標を足す）
   toStep(rt, n) {
     const F = rt.flags;
-    if (F.step && !F.failed) rt.objDone('s' + F.step);
-    F.failed = false; F.next = false;
+    if (F.step) rt.objDone('s' + F.step);
+    F.next = false; F.pushed = false;
     F.step = n; F.st0 = rt.t; F.stepT = rt.t;
     F.stepG = [null, F.yamaG, F.naitoG, F.kimuraG, F.choSide, F.choA][n];
     F.stepN = 0;
@@ -306,21 +319,29 @@ const k14_yao_wakae = {
       rt.say('井伊直孝', '両翼が崩れた。堤の木村の本隊へかかれ！', 2.8);
       rt.after(3, () => rt.say('木村重成', '長門守重成これにあり。退く者は討て、一歩も引くな！', 3));
       F.kimuraU.invuln = false;
-      F.kimuraU.maxHp = F.kimuraU.hp = Math.max(160, F.kimuraU.maxHp || 0);
-      F.kimuraG.order = 'attack'; F.kimuraG.seekRange = 50; F.kimuraG.aggro = 16;
+      F.kimuraU.maxHp = F.kimuraU.hp = 110;
+      // 木村の本隊は若江の堤の上で迎え撃つ（野の中へ出て行かない。十1「堤に立つ」）
+      F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 16; F.kimuraG.aggro = 16;
       // 井伊の手の安藤重勝が木村の首を狙って寄る（史実で首を取った者）
       F.andoG.order = 'attack'; F.andoG.seekRange = 50; F.andoG.focus = F.kimuraU;
+      // 先手と庵原の隊も堤の木村の本隊へ寄せる（主人公一人で堤へ行かせない）
+      for (const g of [F.sakiG, F.iharaG]) if (live(g)) { g.order = 'attack'; g.seekRange = 70; g.aggro = 16; }
     } else if (n === 4) {
       rt.say('井伊直孝', '八尾の藤堂殿が危うい。南へ駆け、長宗我部の横の備を突け！', 3.2);
       rt.after(3.4, () => rt.say(nm(rt), '承知。皆、南へ！', 2));
       for (const g of [F.kimuraG, F.yamaG, F.naitoG]) if (live(g)) { g.order = 'flee'; g.routed = true; }
-      for (const g of [F.mine, F.sakiG, F.andoG]) { g.order = 'move'; g.dest = { x: FLANK.x + 14, z: FLANK.z - 10 }; g.speed = 4; }
+      F.choSide.order = 'hold'; F.choSide.seekRange = 12; F.choSide.dmgMult = 0.4; F.choSide.defMult = 0.9;   // 赤備えの隊が着くまでは槍を構えて待つ（主人公一人を囲みに出ない）
+      if (live(F.todoGun)) { F.todoGun.order = 'attack'; F.todoGun.seekRange = 60; }
+      rt.after(6.6, () => rt.say('井伊直孝', '赤備えの旗が横に見えれば、長宗我部は退く。旗を高く掲げよ！', 3.2));
+      // 先手・手勢・安藤の手は主人公と一緒に南へ駆ける（update が主人公の脇へ寄せ続ける。一5・九4）
+      for (const g of [F.mine, F.sakiG, F.iharaG, F.andoG]) if (g.dest !== FLANK_GO || g.order !== 'move') { g.order = 'move'; g.dest = FLANK_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
     } else if (n === 5) {
       rt.say('長宗我部盛親', '北から赤備えじゃと……！　木村は崩れたか', 3);
       rt.after(3.4, () => rt.say('使番', '藤堂の鉄砲衆も前へ！　先手を挟みまする', 2.8));
       F.choA.order = 'attack'; F.choA.seekRange = 40;
+      for (const g of [F.choA, F.fuseG]) g.defMult = 0.9;   // 横を突かれて浮き足立つ
       for (const g of [F.todoGun, F.takanoriG, F.kuwanaG]) if (live(g)) { g.order = 'attack'; g.seekRange = 50; }
-      for (const g of [F.mine, F.sakiG, F.andoG]) if (live(g)) { g.order = 'attack'; g.seekRange = 40; }
+      for (const g of [F.mine, F.sakiG, F.iharaG, F.andoG]) if (live(g)) { g.order = 'attack'; g.seekRange = 40; }
     }
   },
 
@@ -357,7 +378,8 @@ const k14_yao_wakae = {
     if (byMe) rt.award((t) => { t.main = true; t.special = { label: '木村重成を討ち取った', pts: 40 }; }, '木村重成を討ち取った', U?.pos);
     else { rt.award((t) => t.side.push('木村勢を崩した'), '木村勢を崩した'); }
     rt.say(byMe ? nm(rt) : '安藤重勝', byMe ? '木村長門守、討ち取ったり！' : '木村長門守重成、安藤長三郎が討ち取ったり！', 3);
-    rt.after(3.4, () => rt.say('井伊直孝', '……兜に香が焚き込めてある。討たれる覚悟で出てきたか', 3.4));
+    rt.after(3.4, () => rt.say('井伊直孝', '木村長門守、見事な最期よ。若江は取った', 3.4));
+    for (const g of [F.sakiG, F.iharaG, F.andoG]) if (live(g)) { g.order = 'move'; g.dest = FLANK_GO; g.speed = 6.2; g.noRun = false; g.focus = null; }
     rt.after(7.4, () => this.toStep(rt, 4));
   },
 
@@ -381,19 +403,6 @@ const k14_yao_wakae = {
     rt.finish({ scriptedEnd: true }, 15);
   },
 
-  lose(rt, why) {
-    const F = rt.flags;
-    if (F.ending || !rt.canFailMission()) return;
-    F.ending = true;
-    rt.setPhase('end');
-    rt.tracker.main = false;
-    rt.objFail('s' + (F.step || 1));
-    for (const g of [F.takanoriG, F.kuwanaG, F.todoGun]) if (live(g)) { g.order = 'flee'; g.routed = true; }
-    rt.banner('八尾の藤堂勢が崩れた', why);
-    rt.say('井伊直孝', '遅かったか……藤堂殿の手が崩れた', 3);
-    rt.finish({ scriptedEnd: true, failureReason: why }, 6);
-  },
-
   update(rt, dt) {
     const F = rt.flags;
     if (F.ending || !F.begun) return;
@@ -408,13 +417,20 @@ const k14_yao_wakae = {
         if (u.pos.z > 248) u.pos.z = 248; else if (u.pos.z < -248) u.pos.z = -248;
       }
     }
-    // 手勢は主人公の近くで戦う（離れたら寄る）
+    // 手勢は主人公の近くで戦う（離れたら寄る）。④で南へ駆ける間は、先手と安藤の手も主人公の脇を同じ向きへ駆ける（一5・九4）
     if ((F.menT = (F.menT || 0) - dt) <= 0) {
       F.menT = 0.5;
       const c = live(F.mine) && F.mine.center();
       if (c) {
-        if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) > 12) { F.mine.order = 'move'; F.mine.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; F.mine.speed = 4.4; }
+        // 行き先は主人公から 10m 外れた時だけ出し直す（出し直すたびに隊は合図を待つので、毎回替えると動かない）
+        if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) > 12) { if (F.mine.order !== 'move' || !F.mine.dest || dist(F.mine.dest, P.pos) > 10) { F.mine.order = 'move'; F.mine.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; } F.mine.speed = 4.6; }
         else { F.mine.order = 'attack'; F.mine.seekRange = 18; }
+      }
+      if (F.step === 4 && dist(P.pos, FLANK) < 34) {
+        for (const g of [F.sakiG, F.iharaG, F.andoG]) if (live(g) && g.order === 'move') { g.order = 'attack'; g.seekRange = 40; }
+      }
+      if (F.step === 4 && F.choSide.order === 'hold' && [F.sakiG, F.iharaG].some((g) => live(g) && dist(g.center(), FLANK) < 36)) {
+        F.choSide.order = 'attack'; F.choSide.seekRange = 30;
       }
     }
     // 崩れて退いた兵は遠く離れたら去らせる（本物の兵の枠を空ける）
@@ -425,25 +441,39 @@ const k14_yao_wakae = {
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const left = STEP_T[F.step] - (rt.t - F.stepT);
-    if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
-    if (F.step <= 2 && !F.kawate && rt.t - F.t0 > 60) {
-      // 井伊の先手の川手良列が深入りして討たれる（史実）
+    if (F.step <= 3 && !F.kawate && (rt.t - F.t0 > 50 || F.step === 3)) {
+      // 井伊の先手の川手良列が深入りして討たれる（史実）。堤の鉄砲に撃たれ、右の先鋒の庵原朝昌が代わる
       F.kawate = true;
       const u = F.sakiG.units.find((q) => q.name === '川手良列' && q.alive);
-      if (u) { u.invuln = false; rt.army.kill(u); rt.say('井伊の侍', '川手良列殿、深入りしてお討死！', 2.8); }
+      if (u) { u.invuln = false; rt.army.kill(u); rt.say('井伊の侍', '川手良列殿、堤の鉄砲に撃たれてお討死！', 2.8); rt.after(3.2, () => rt.say('井伊の侍', '庵原朝昌殿が先手を継がれる。押せ！', 2.6)); }
+    }
+    // ⑤：長瀬川の堤に伏せた槍が、主人公が寄るのを待って一斉に立つ（八尾の芯。二3）
+    if (F.step === 5 && F.fuseG?.ambush && (dist(P.pos, FUSE) < 34 || rt.t - F.stepT > 30)) {
+      F.fuseG.ambush = false; F.fuseG.fixed = false; F.fuseG.order = 'attack'; F.fuseG.seekRange = 40; F.fuseG.aggro = 14;
+      for (const u of F.fuseG.units) u._crouch = false;
+      rt.army.play('toki', FUSE, 1.6);
+      rt.say('足軽', '堤から槍が立った！ 伏せておったぞ！', 2.8);
+    }
+    // 刻限を過ぎたら味方の押しが強まる（主人公が遅れても、軍勢の力で物語が進む。負けにはしない。二5・十二3）
+    if (left <= 0 && !F.pushed && !F.next) {
+      F.pushed = true;
+      const g = F.stepG;
+      for (const q of [g, F.step === 5 && F.fuseG]) if (q) { q.morale = Math.min(q.morale || 100, 40); q.dmgMult = (q.dmgMult || 1) * 0.6; }
+      for (const a of [F.sakiG, F.iharaG, F.andoG, F.todoGun, F.takanoriG, F.kuwanaG]) if (live(a)) { a.order = 'attack'; a.seekRange = 80; a.dmgMult = Math.max(a.dmgMult || 1, 1.2); }
+      if (F.step <= 2) rt.say('井伊直孝', '先手が押しておる。遅れるな！', 2.6);
     }
     if (F.step === 3) {
-      // 木村は主人公が近くに来るまで討たれない（味方だけで段が進まない）
-      if (F.kimuraU?.alive) F.kimuraU.invuln = dist(P.pos, F.kimuraU.pos) > 25;
+      // 木村は主人公が近くに来るまで討たれない（刻限の後は安藤重勝が首を取りに行ける）
+      if (F.kimuraU?.alive) F.kimuraU.invuln = left > 0 && dist(P.pos, F.kimuraU.pos) > 25;
       if (!F.kimuraDone && F.kimuraU && !F.kimuraU.alive) this.kimuraEnd(rt, F.kimuraByMe);
-      else if (!F.kimuraDone && left <= 0) { rt.objFail('s3'); F.failed = true; this.kimuraEnd(rt, false); }
+      else if (!F.kimuraDone && left < -20) this.kimuraEnd(rt, false);
       return;
     }
     if (F.next) return;
     const g = F.stepG;
-    if (!F.stepN) F.stepN = Math.max(1, aliveN(g));   // 数えるのは段の始めに立っていた兵
-    const gone = F.stepN - aliveN(g);
-    if (gone >= Math.round(F.stepN * (1 - KEEP))) {
+    if (!F.stepN) F.stepN = Math.max(1, stepAlive(F));   // 数えるのは段の始めに立っていた兵
+    const gone = F.stepN - stepAlive(F);
+    if (gone >= Math.round(F.stepN * (1 - KEEP)) || left < -20) {
       F.next = true;
       if (F.step === 5) { this.win(rt); return; }
       for (const q of g.units) if (q.alive && q.name && !q.invuln) { rt.army.kill(q); break; }   // 隊の将も崩れの中で討たれる
@@ -451,14 +481,6 @@ const k14_yao_wakae = {
       if (F.step === 1) { rt.award((t) => t.side.push('若江で山口弘定の隊を崩した'), '山口弘定の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 2)); }
       else if (F.step === 2) { rt.award((t) => t.side.push('若江で内藤長秋の隊を崩した'), '内藤長秋の隊を崩した'); rt.after(2.5, () => this.toStep(rt, 3)); }
       else if (F.step === 4) { rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた'); rt.after(2.5, () => this.toStep(rt, 5)); }
-    } else if (left <= 0) {
-      if (F.step >= 4) { this.lose(rt, F.step === 4 ? '刻限までに長宗我部の横を突けなかった' : '刻限までに長宗我部の先手を追い払えなかった'); return; }
-      // 若江の両翼は、刻限を過ぎれば井伊の先手が崩す（果たせなかった印を付けて次へ）
-      F.next = true;
-      rt.objFail('s' + F.step); F.failed = true; F.miss++;
-      g.order = 'flee'; g.routed = true;
-      rt.say('井伊直孝', `${g.name}は先手が崩した。遅れるな！`, 2.6);
-      rt.after(2.5, () => this.toStep(rt, F.step + 1));
     }
   },
 
@@ -514,7 +536,7 @@ k14_yao_wakae.history = '慶長二十年（1615）五月六日、大坂夏の陣
 KILLS.k14_yao_wakae = (rt) => {
   const F = rt.flags;
   if (F.ending || !F.step || F.step === 3 || !F.stepN) return null;
-  return cut(F.stepN, aliveN(F.stepG), Math.round(F.stepN * KEEP));
+  return cut(F.stepN, stepAlive(F), Math.round(F.stepN * KEEP));
 };
 // 戦の進行の札（段）：F.step の 1〜5
 setStages('k14_yao_wakae', [[STEP_TEXT[1]], [STEP_TEXT[2], 2], [STEP_TEXT[3], 3], [STEP_TEXT[4], 4], [STEP_TEXT[5], 5]]);

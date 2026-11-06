@@ -1693,10 +1693,11 @@ const tottori = {
   },
   missionHeading(rt) {
     if (rt.flags.ending || rt.over) return rt.tracker.main ? '鳥取城、開く' : '味方と退け';
-    if (rt.flags.step === 1 && bankNeedsReturn(rt)) return '岸へ戻れ';
-    const m = this.missionOf(rt);
-    if (m === 2 && rt.flags.step >= 2) return '柵の口の城兵を討て';
-    return this.missions[m];
+    // 11/6 kaito 十1：目標は三つ（stages.js の段と同じ）を地図の場所の名で言い、途中で言い替えない。
+    //   前は「舟に火をかけよ」「舟の番を討て」「岸へ戻れ」「柵へ戻れ」が十秒ごとに入れ替わった。
+    //   番兵や戻り道は頭上の▼で示す（字は替えない）。
+    const step = rt.flags.step ?? 0;
+    return step < 2 ? '千代川の兵糧舟二艘に火をかけよ' : step < 3 ? '柵の口で打って出た城兵を止めよ' : '開城の使いを城の木戸まで守れ';
   },
   missionSignTarget: tottoriNearestFoe,
   // 経家は城内の大将として示す。討ち取りの目標にはせず、開城の史実を保つ。
@@ -2696,12 +2697,15 @@ const tottori = {
         g.path = [[GATE.x, GATE.z - 4], ...road.filter((p) => p[1] > GATE.z && p[1] < FENCE_Z + 10), [GATE.x, FENCE_Z + 10]];
         g.ttIngress = [[SALLY_SEATS[i].x, SALLY_SEATS[i].z], ...g.path];
         // 幾日か後の夜。城兵は闇にまぎれて坂の下まで降りてから見つかる。
-        // 長い九十九折りを歩き切るのを待たせず、柵から四十歩ほどの折れから寄せる。
-        let k = g.path.findIndex((q) => q[1] > FENCE_Z - 40);
-        if (k > 0) k = Math.max(1, k - i);
+        // 長い九十九折りを歩き切るのを待たせず、柵の手前の最後の折れから三つの波で寄せる。
+        // 11/6：前は柵から四十歩の折れ（一つの折れが六十歩余り）から歩かせ、一組目が柵に着くまで九十秒、
+        //   三組目は着かないまま終わった（描いて遊んで、柵の口で二分近く敵が見えなかった。kaito 九2）。
+        //   一組目は最後の折れの角から、二・三組目はその前の折れの途中から。二十〜四十五秒で三組とも柵に懸かる。
+        const k = g.path.findIndex((q) => q[1] > FENCE_Z - 10);
         if (k > 0) {
-          const [tx, tz] = g.path[k], W = rt.world;
-          g.anchor.x = tx; g.anchor.z = tz; g.pathIdx = k + 1;
+          const f = [1, 0.62, 0.28][i] ?? 1, a = g.path[k - 1], c = g.path[k], W = rt.world;
+          const tx = a[0] + (c[0] - a[0]) * f, tz = a[1] + (c[1] - a[1]) * f;
+          g.anchor.x = tx; g.anchor.z = tz; g.pathIdx = f >= 1 ? k + 1 : k;
           const next = g.path[g.pathIdx];
           g._face = g.facing = Math.atan2(next[0] - tx, next[1] - tz);
           // 木戸内の横ずれをそのまま移さず、後列も九十九折りの道上から歩き出す。
@@ -2733,6 +2737,15 @@ const tottori = {
       if (!g.ttOut || g.ttRetreat || g.ttReturned || g.routed || gone(g)) continue;
       const from = g.ttPressFrom || (g.ttPressFrom = { x: 0, y: 0, z: 0 });
       from.x = g.anchor.x; from.z = g.anchor.z; from.y = rt.world.heightAt(from.x, from.z);
+      if (g.order === 'path') {
+        // 折れで十二秒動かない組（前の組の背に詰まる・切岸の角で止まる）は、その場から柵の口へ懸かる。
+        //   坂に立ったまま終わらせない（11/6 描いて遊んで、三組目が七十秒止まって柵に来なかった）。
+        const last = g.ttLastAt, moved = !last || Math.hypot(g.anchor.x - last.x, g.anchor.z - last.z) > 1.5;
+        g.ttLastAt = { x: g.anchor.x, z: g.anchor.z };
+        if (!moved && g.onArrive && Math.hypot(g.anchor.x - GATE.x, g.anchor.z - FENCE_Z) < 48) {
+          const arrive = g.onArrive; g.onArrive = null; arrive(g); pressing = true;
+        }
+      }
       if (g.order === 'path') {
         const at = Math.min(g.pathIdx, g.path.length - 1), goal = g.path[at];
         let front = false;

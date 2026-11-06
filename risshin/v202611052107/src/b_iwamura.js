@@ -38,7 +38,6 @@ import { demDetail } from './dem.js';
 import { distToPolyline } from './world.js';
 import { groundAt } from './floors.js';
 import { camNearMaterials } from './player.js';
-import { castlePart } from './cgt_castle.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
 //   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
@@ -942,14 +941,25 @@ const iwamura = {
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
   // 信長公記の順：水精山の陣で火を守る→城方の夜討ちを河尻・毛利が柵で防ぐ→退く武田勢を城の麓まで追い討つ。
   // 場所と行いで書く。待つだけの段は置かない（AW3・BA3）。
-  missions: ['柵の南と北の篝火を焚け', '柵の口で武田の夜討ちを防げ', '山道を退く武田勢を討て', '岩村城の麓まで追え', '麓の木戸の前を固めよ'],
+  // 11/7 描いて遊んだ：③「討て」と④「追え」が道の敵の見え隠れで行き来し、右上の番号（段の①〜③）とも合わなかった（十1）。
+  //   麓に木戸は無く（大手の木戸は七十メートル上）、「木戸の前」は地図で分からなかった。四つを一本道にし、一度進んだら戻さない。
+  missions: ['柵の南と北の篝火を焚け', '柵の口で武田の夜討ちを防げ', '山道を退く武田勢を城の麓まで追え', '城の麓の大手道の登り口を固めよ'],
   missionOf(rt) {
     const F = rt.flags;
-    if (F.step < 2 && F.lit < POSTS.length && !F.scoutNear) return 0;
-    if (F.step < 3) return 1;
-    if (this.missionSignTarget(rt)) return 2;
-    if (!atFoot(F, rt.player.u.pos)) return 3;
-    return 4;
+    let k = 3;
+    if (F.step < 2 && F.lit < POSTS.length && !F.scoutNear) k = 0;
+    else if (F.step < 3) k = 1;
+    else {
+      if (atFoot(F, rt.player.u.pos)) F.footSeen = true;
+      if (!F.footSeen && !F.ending) k = 2;
+    }
+    F.missionMax = Math.max(F.missionMax || 0, k);
+    return F.missionMax;
+  },
+  // 右上の目標（goals5.js）：段の四つだけ。秋山は後日の開城で捕らえられる城将なので「自分で討つ」、人数を討つ目標は置かない（三1・九2）。
+  goals5(rt) {
+    const at = (k) => (q) => q.tracker?.main === true && q.over || (q.def.missionOf(q) ?? 0) > k;
+    return this.missions.map((text, k) => ({ kind: 'stage', k, text, check: k === 3 ? (q) => q.tracker?.main === true && !!q.over : at(k) }));
   },
   missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
   // 秋山は後日捕らえられる城将。目印を付けても、この夜の討取りの対象にはしない。
@@ -1228,7 +1238,7 @@ const iwamura = {
       .replace('目の前の敵を、味方と押し返せ', '味方と敵を押し返せ')
       .replace('道の敵を押し返し、麓へ進め', '敵を押し返し麓へ進め')
       .replace('柵で武田の夜討ちを防げ', '柵で夜討ちを防げ').replace('山道を進み、麓の味方につけ', '山道から麓へ進め')
-      .replace('麓に留まり、組の到着を待て', '麓の木戸の前を固めよ');
+      .replace('麓に留まり、組の到着を待て', '城の麓の大手道の登り口を固めよ');
   },
   taskDetail(rt, _title, detail) {
     const cue = rt.hud.retreatGuide;
@@ -1355,6 +1365,7 @@ const iwamura = {
     nearAllyFadeRadius: 2.2, // 近い味方の扱いを描画直前の判定へそろえる。
     time: 'dusk',
     // 遠い山と霞は冬の夕の青灰（茶の霞に見えていた。10/29 採点）。
+    // 11/7 専門家の目：夜になっても霧と霞が冬の夕の明るい青灰のままで、陣の奥が曇りの昼に見えた。夜は月の下の暗い紺の霧へ（暮れる時に替える）。
     fogTint: 0x7f8a97, fogTintStrength: 0.6, hazeColor: 0x8a95a2,
     mountainScale: 0.58, mountainHaze: 0.82, // 遠い峰は低く霞ませ、近くの城山の上へ切り絵の壁を重ねない。
     winter: true,
@@ -1372,8 +1383,8 @@ const iwamura = {
     rockCenterGround: true, // 岩の中心を埋め、上側の土へ全体を沈めて薄い板にしない。
     rockDrawGround: true, // 岩と根草を描かれる三角形の高さへ据え、道の折れで浮かせない。
     curvedRockTufts: true, litRockTufts: true, // 岩の根元を黒い直線の針にせず、短い葉で土へつなぐ。
-    nightLift: 2.4, // 夜の一様な照り返しを抑え、道の形と篝火の明暗を残す。
-    fireLightLift: 1.5, // 既存の灯りだけ強め、篝火の周りに橙の照りを残す。
+    nightLift: 2.0, // 夜の一様な照り返しを抑え、道の形と篝火の明暗を残す。
+    nightFill: 0.55, nightMoonMin: 0.7, // 11/7：旧暦十日の月（半月より太い）の夜。篝火の輪の外を曇りの昼の明るさにしない。    fireLightLift: 1.5, // 既存の灯りだけ強め、篝火の周りに橙の照りを残す。
     unitNightScale: 0.4, // 兵だけの輪郭補光を抑える。道と篝火の明るさは保つ。
     climbTan: 0.7, // 道のない切岸を駆け上がらせない。
     muddy: 0.3,
@@ -1535,7 +1546,8 @@ const iwamura = {
       // 柵ぎわの自動の長屋は西の篝火の持ち場を囲み、肩越しの画面を板壁と屋根で塞いだ（10/30 八方の測り：72本中35〜72本が1〜6m で当たる）。陣の小屋は手置きの分だけにする
       dense: false });
     // ---- 岩村城（外側曲輪→八幡曲輪→二の丸→主郭→本丸。土塁・切岸・木柵・木戸。本丸を総石垣にしない） ----
-    F.castleC = buildCastlePlan(rt, IWAMURA_CASTLE_PLAN, { baseHeight: liftedTerrain, edgeW: 3, buildGates: true, buildTowers: true, gateTeam: 1, towerTeam: 1, life: false });
+    // 11/7 描いて遊んだ：曲輪の平場を城の砂利の色で塗り、城山に灰の四角い板が段々に貼り付いて見えた（八1）。天正三年の土の城の平場は踏み土。
+    F.castleC = buildCastlePlan(rt, IWAMURA_CASTLE_PLAN, { baseHeight: liftedTerrain, edgeW: 3, buildGates: true, buildTowers: true, gateTeam: 1, towerTeam: 1, life: false, floorLook: false });
     // 城方が出入りする夜討ちの木戸は開放。見た目と通行の当たりをそろえる。
     for (const g of Object.values(F.castleC.gateObjs)) { g.open(); g.struct.opened = true; }
     const lifeStart = rt.scene.children.length;
@@ -1639,9 +1651,8 @@ const iwamura = {
       const runs = runsOf(pts, 11 + ti * 13 + (x0 > 0 ? 5 : 0));
       for (const run of runs) {
         bank(hillSteps, run, 0.9);
-        // 段の天端の塀は城の部品の板塀（狭間つき・早い時代）。下の二段は低い腰柵のまま（10/29）。
-        if (h >= 16) castlePart(W, 'hei', { pts: run.map(([x, z]) => [x, z - 1.6]), yAt: () => h + 0.3, h: 2.1, era: 'early', kind: 'ita' });
-        else for (let i = 1; i < run.length; i++) hillSteps.add(koshisaku(W, [run[i - 1][0], run[i - 1][1] - 1.6, run[i][0], run[i][1] - 1.6], { h: 1.15 }));
+        // 11/7 描いて遊んだ：段の天端の板塀・腰柵（左右四百メートル・四段）が、霧の中で山腹に貼った灰の四角い板の列に見えた（八1）。
+        //   城の外の山腹にまで塀を巡らすのは天正三年の土の城に合わない。塀は縄張りの曲輪（castles/iwamura.js）の分だけにし、ここは低い土塁と旗・篝火に。
       }
       // 旗の架けは城将の武田方の旗（赤備えは山県の物で、秋山の城には出さない）。
       if (h === 34) for (const run of runs) if (run.length >= 3) hillSteps.add(hatazao(W, run[1][0], run[1][1] - 3, 0, 3, 'takeda'));
@@ -1668,8 +1679,8 @@ const iwamura = {
     const keepArmy = W.addDistantArmy({ people: keepers, armor: 0x2b2722, team: 1, flag: 'takeda', host: false, seed: 15771 });
     if (keepArmy) stepHaze(keepArmy);
     // 柵の北西の霧の野（九十メートルほど先）に、夜討ちを待つ武田の備え。白い霧の野に溶けて見えなかったので、霧を半ほどに抑えて黒い群れに見せる（位置と数は推定。10/30）。
-    const raidArmy = W.addDistantArmy({ x: -62, z: -40, w: 42, d: 10, count: 240, facing: Math.atan2(62, 40), armor: 0x2b2722, flag: 'takeda', kind: 'spear', yose: false, host: false, seed: 15773 });
-    if (raidArmy) stepHaze(raidArmy, 0.55);
+    // 11/7 専門家の目：この二百四十人の軽い群れは夜討ちの間も最後まで動かず、柵の前の坂に旗を立てて並んだままだった（一 3・四 1）。
+    //   夜討ちは火を消して忍び寄る物で、野に旗を並べて待たない。寄せる兵は山道の本物の兵（F.waves）だけにした。
     // 段の土塁・柵は山肌と同じ霧のかかり方にする（11/5：霧を抑えると、霞んだ山肌の上に暗い灰の横筋として浮いた）。
     closeBanks();
     // 陣の番所も両翼の仮小屋と同じ低い切妻へ。建物の形は推定復元。
@@ -1683,7 +1694,12 @@ const iwamura = {
     F.honjin.guard.order = 'move'; F.honjin.guard.dest = { x: 0, z: 34 };
     F.honjin.guard.onArrive = (g) => { g.order = 'hold'; };
     F.honjin.guard.formation = 'yari'; F.honjin.guard.aggro = 6;
-    F.keep = makeLordKeep(rt, { name: '秋山虎繁', naka: F.castleC.seat.naka, faction: 'takeda', flag: 'takeda', guardN: 6 });
+    // 11/7 専門家の目：共通の頭（ai.js の「8秒たって70m 内に敵なら持ち場から出る」）で、信忠が夜討ちの間に幕を出て柵の口まで寄っていた（二 2）。
+    //   夜討ちの間は本陣に座らせ、追い討ちの下知の後だけ柵の口まで出す（下の step 3）。
+    if (F.honjin.general?.group) F.honjin.general.group.stay = true;
+    F.honjin.guard.stay = true;
+    // 11/7：秋山の陣羽織は共通の表で萌黄（緑）だった。手本の無い色は出さず、黒褐の陣羽織に（四 3）。
+    F.keep = makeLordKeep(rt, { name: '秋山虎繁', naka: F.castleC.seat.naka, faction: 'takeda', flag: 'takeda', guardN: 6, haori: 0x2a2420 });
     F.keep.lord.invuln = true; F.keep.lord.mustLive = true; // 開城後に捕らえられる城将を夜の討取りにしない。
     // 11/1 kaito の紙：おつやの方（信長の叔母・秋山の妻）が城内に居る。刀を持たぬ姿で城主のそば（頭上に名）
     { const L = F.keep.lord, g = L.group;
@@ -1945,7 +1961,7 @@ const iwamura = {
     // 柵外から戻る途中でも、開戦の下知で帰り道を消さない。
     guideRaidMouth(rt);
     rt.obj('main', F.raidReturning || F.raidCrossing ? watchTask(F) :
-      HI(rt) ? '組を率い、柵で夜討ちを防げ' : '柵で武田の夜討ちを防げ', 'main', true);
+      `${F.raidMouthX ? '北の脇口' : '正面の口'}で夜討ちを防げ`, 'main', true);   // 11/7：一秒後に下の札へ替わっていた（AW3）。初めから同じ札に
     rt.objProgress('main', F.raidReturning || F.raidCrossing ? watchProgress(rt) : '柵の内で槍をそろえよ');
     // 先触れが口へ着く頃に本隊の夜討ちを知らせる。
     rt.say('河尻秀隆', F.raidReturning ? '夜討ちじゃ。口から柵の内へ戻れ' :
@@ -2012,6 +2028,22 @@ const iwamura = {
     rt.banner('追い討ちの下知', '信忠様が敵を城へ追った。われらは山道から麓へ');
     if (F.playerOpened) rt.award((t) => t.side.push('夜討ちの列を押し返した'), '自分の手で追撃の道を開いた');
     rt.say('河尻秀隆', '追い討ちじゃ。山道をたどり、味方と麓へ進め', 4);
+    // 11/7 専門家の目：信長公記「信忠が先駆けして城へ追い入れた」のに、信忠は陣幕の奥に座ったままだった。
+    //   信忠と旗本は幕の口（後ろ）から回り、柵の口まで出て追い討ちを下知する。山道（x 0 の折れ）は塞がない。
+    rt.after(1, () => {
+      if (F.ending || rt.over || !F.honjin) return;
+      const gen = F.honjin.general?.group, guard = F.honjin.guard;
+      // 柵の外の切岸へ出すと、旗本が柵と坂の間に詰まって一点に重なった（bot 11/7）。口の内の左に並べ、口と山道は空ける。
+      const out = [[-6.4, 48], [0, 48], [0, 60], [-15, 60], [-15, 35], [-6, 34], [-6, 6]];
+      for (const [g, end] of [[gen, [-4, -1]], [guard, [-5, 3]]]) {
+        if (!g || gone(g)) continue;
+        g.path = g === gen ? [...out, end] : [[0, 34], [-6, 34], [-6, 6], end];
+        g.pathIdx = 1; g.dest = { x: end[0], z: end[1] };
+        g.order = 'move'; g.march = false; g.keepMoveOrder = true; g.speed = 3;
+        g.onArrive = (q) => { q.keepMoveOrder = false; q.order = 'hold'; q.anchor.x = end[0]; q.anchor.z = end[1]; q.facing = Math.PI; };
+      }
+      rt.after(30, () => { if (!F.ending && !rt.over && F.step === 3) rt.say('織田信忠', '退く者を城へ追い入れよ。一人も柵へ戻すな', 3.5); });
+    });
     rt.obj('main', '味方と山道を進み、城の麓の旗へ行け', 'main', true);
     rt.objProgress('main', '山道を下り、味方と麓へ進め');
     // 一度麓へ着いた後も、戻る途中は道の印だけを示して崖への直進を防ぐ。
@@ -2144,6 +2176,7 @@ const iwamura = {
     if (!F.duskStarted && rt.t >= F.duskAt) {
       F.duskStarted = true;
       const W = rt.world, from = W.currentLook(), fromNight = W.nightAmount();
+      W.fogTint = new THREE.Color(0x1c222d); W.def.hazeColor = 0x2a303a;   // W.def はこの戦の写し
       W.setTime('night');
       if (W.fade) W.fade.dur = 8;
       else W.fade = { from, to: W.lookOf('night'), fromNight, t: 0, dur: 8, env: 0 };
@@ -2348,7 +2381,7 @@ const iwamura = {
       for (let i = 0; i < F.waves.length; i++) {
         const g = F.waves[i];
         // 先頭が口へ着いたら構える。後列全員の到着待ちで斬り合いを止めない。
-        if (g.iwSent && !g.iwWithdraw && !gone(g) && g.order === 'path' && g.onArrive && g.pathIdx >= g.path.length - 1) {
+        if (g.iwSent && !g.iwWithdraw && !gone(g) && g.order === 'path' && g.onArrive && g.path && g.pathIdx >= g.path.length - 1) {   // 11/7：道順が外れた列で落ちていた
           const mouth = g.path[g.path.length - 1];
           if (g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - mouth[0], u.pos.z - mouth[1]) < 8)) {
             const deploy = g.onArrive; g.onArrive = null; deploy(g);
@@ -2403,7 +2436,7 @@ const iwamura = {
       // 見えている寄せを「次」と呼ばず、迎撃・接近待ち・後続待ちを分ける。
       const cue = F.raidVisible ? '迫る敵を味方と受けよ' :
         approachingRaid ? '山道からの敵に備えよ' : awaitingRaid ? '次の敵に備えよ' :
-        F.withdrawSignal ? '敵の退き太鼓。下知まで追うな' : '下知まで口を守れ';
+        F.withdrawSignal ? '敵の引き貝じゃ。下知まで追うな' : '下知まで口を守れ';
       // 危機の残り時間だけでなく、救援先と取る行動も同じ任務札へ収める。
       rt.objProgress('main', breached ?
         `${F.raidReturning ? '口を通り、柵の内へ急げ' : F.raidCrossing ? '連絡道へ急げ' :
@@ -2588,7 +2621,7 @@ const iwamura = {
       // 敵が迫る間は迎撃を先に伝える。倒れた味方の人数は同じ札の下段へ残す。
       // 標準 三-2：追撃の目標は「麓へ」→着けば「麓の木戸の前を固めよ」の二つだけ。道の外れ・道の敵は下の行で示す。
       if (arrived) F.footReached = true;
-      rt.obj('main', !F.footReached ? '味方と山道を進み、城の麓の旗へ行け' : '麓の木戸の前を固めよ', 'main', true);
+      rt.obj('main', !F.footReached ? '味方と山道を進み、城の麓の旗へ行け' : '城の麓の大手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。
       if (arrived && !roadHeld && joined < need && F.joinWaitState !== joinWaitState && rt.t >= (F.joinCallAt ?? -99) + 8) {
@@ -3226,7 +3259,7 @@ const iwamura = {
       // 最後の一手も退いた時は、直後の追撃の下知と逆の声を重ねない。
       rt.after(0.2, () => {
         if (!F.ending && !rt.over && F.step === 2)
-          rt.say('見張り', '敵の退き太鼓じゃ。下知まで柵を守れ', 3);
+          rt.say('見張り', '敵の引き貝じゃ。下知まで柵を守れ', 3);
       });
     }
     g.iwWithdraw = true; g.order = 'path'; g.formation = 'column'; g.path = g.iwReturn;

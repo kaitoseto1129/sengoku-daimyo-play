@@ -29,6 +29,7 @@ const arrowAxisMatrix = new THREE.Matrix4();
 // 親の変換と矢の向きから、単位長の三軸だけを測る。親子の行列を二度更新・分解しない。
 function fitPinnedArrow(a, parentReady = false) {
   const m = a.mesh, s = a.pinScale;
+  if (!m.parent) return;   // 刺さった体が外された直後（11/6 山崎で落ちた）
   if (!parentReady) m.parent.updateWorldMatrix(true, false);
   arrowAxisMatrix.makeRotationFromQuaternion(m.quaternion).premultiply(m.parent.matrixWorld);
   arrowAxisScale.setFromMatrixScale(arrowAxisMatrix);

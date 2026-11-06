@@ -22,6 +22,8 @@ import { nagashinojo } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
 import { sightPoint, sightScreenUnit, inouSignVisible, inouSignHeight } from './battle_sight.js';
 import { revealName } from './battle_intel.js';
+import { fiveGoals } from './goals5.js';
+import { goalsTick } from './hud_goals.js';
 import { gone as groupGone, seasonOf } from './b_shared.js';
 import { KILLS, broke } from './stages.js';
 import { camp } from './b_mid.js';
@@ -29,7 +31,6 @@ import { demBlend, demSample } from './dem.js';
 import { drawGroundAt } from './render_camera.js';
 import { battleEvent, EVENT_COMMANDER_ADVANCE, EVENT_UNIT_BREAK, EVENT_COMMANDER_KILLED, EVENT_REINFORCEMENT, EVENT_RETREAT } from './battle_events.js';
 import { timeslipField } from './timeslip_field.js';
-import { fiveGoals } from './goals5.js';
 
 // ======================================================================
 // 第2戦　森部
@@ -38,7 +39,7 @@ import { fiveGoals } from './goals5.js';
 const FIELD2 = 800;
 // 信長は陣幕に座らず、馬廻と本備の後ろから楡俣川を越えて懸かる（公記「信長、天の与ふる所の由、御諚候て、にれまたの川を越え、かけ向はせられ」）。
 const CAMP2 = { x: -6, z: 134 };
-const NOBU_NORTH = { x: -8, z: 62 };   // 渡った後の北岸。三手の後ろで前へは出ない。馬上の信長は槍の列の後ろ（川から離れた畦）に立つ（位置は復元）
+const NOBU_NORTH = { x: -6, z: 42 };   // 11/6 fixc：三手の槍列（z 10〜20）のすぐ後ろ。振り向けば馬上の信長と馬廻が見える   // 渡った後の北岸。三手の後ろで前へは出ない。馬上の信長は槍の列の後ろ（川から離れた畦）に立つ（位置は復元）
 const NAGARA2 = 500;
 const ROAD2 = [[-40, FIELD2], [-40, 176], [-28, 100], [-14, 40], [-6, -40], [4, -176], [4, -FIELD2]];
 // 楡俣川（南の支流）の南岸から始め、腿までの流れを渡って北岸の川岸で組をそろえる。
@@ -1445,18 +1446,25 @@ const AZE_GRASS = new THREE.Color(0x5f6e3e);
 function moribeAze(rt) {
   const W = rt.world, segs = [];
   const skip = (x, z) => distToPolyline(x, z, ROAD2) < 4 || Math.hypot(x - YAKUSHI2.x, z - YAKUSHI2.z) < 14 ||
-    peoplePathDistance(x, z) < 2.5 || z > nireZ(x) - 20 || Math.abs(x - 50) < 18 ||
-    (x > OVF_X0 - 2 && x < OVF_X1 + 2 && Math.abs(z - ovfZ(x)) < ovfHW(x) + 2);
+    peoplePathDistance(x, z) < 2.5 || z > nireZ(x) - 20 || Math.abs(x - 50) < 18;
   for (let x = -110; x <= 110; x += 22) for (let z = -150; z <= 66; z += 4) if (!skip(x, z + 2)) segs.push([x, z + 2, 0]);
   for (let z = -144; z <= 66; z += 18) for (let x = -110; x <= 110; x += 4) if (!skip(x + 2, z)) segs.push([x + 2, z, 1]);
   // 丸い土の畝（横から見て蒲鉾形）。半分を土に埋め、黒い板の帯に見せない。
-  const geo = new THREE.CylinderGeometry(.62, .62, 4.4, 9, 1).rotateX(Math.PI / 2).scale(1, .32, 1);
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff }), segs.length);
+  // 11/6 fixc（kaito 八-1）：丸い筒を四メートルごとに並べるとホースに見えた。高さ二十五センチ・天端三十センチ・裾一メートルの
+  //   台形の土の畝にし、四・八メートルで重ねて継ぎ目を見せない。天端は少しうねらせ、草の付いた土の色の斑に。
+  const geo = (() => {
+    const L = 4.8, N = 6, prof = [[-.5, -.08], [-.17, .22], [.15, .25], [.5, -.08]], pos = [], idx = [];
+    for (let i = 0; i <= N; i++) { const z = -L / 2 + L * i / N, wob = Math.sin(i * 2.3) * .03;
+      for (const [x, y] of prof) pos.push(x + wob, y + (y > 0 ? Math.sin(i * 1.7) * .03 : 0), z); }
+    for (let i = 0; i < N; i++) for (let j = 0; j < 3; j++) { const a = i * 4 + j, b = a + 4; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  })();
+  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }), segs.length);
   const m = new THREE.Object3D(), col = new THREE.Color();
   segs.forEach(([x, z, along], i) => {
     m.position.set(x, W.heightAt(x, z) - .02, z); m.rotation.set(Math.sin(x * 2.1 + z) * .03, (along ? Math.PI / 2 : 0) + Math.sin(x + z * 1.7) * .025, 0);
-    m.scale.set(1 + Math.sin(x * 1.3 + z) * .15, .8 + Math.sin(x * .9 - z * 1.1) * .2, 1); m.updateMatrix(); mesh.setMatrixAt(i, m.matrix);
-    mesh.setColorAt(i, col.setHex(0x4e4232).lerp(AZE_GRASS, .1 + (Math.sin(x * .7 + z * .9) + 1) * .12));
+    m.scale.set(1 + Math.sin(x * 1.3 + z) * .12, .9 + Math.sin(x * .9 - z * 1.1) * .15, 1); m.updateMatrix(); mesh.setMatrixAt(i, m.matrix);
+    mesh.setColorAt(i, col.setHex(0x4a4030).lerp(AZE_GRASS, .25 + (Math.sin(x * .7 + z * .9) + 1) * .18));
   });
   mesh.receiveShadow = true; mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   rt.scene.add(mesh);
@@ -1517,7 +1525,7 @@ function moribeNae(rt) {
   { const n = geo.attributes.normal, p = geo.attributes.position;   // 細い葉は上からの光を受ける（裏表で明るさが跳ねて筋が光らない）
     for (let i = 0; i < n.count; i++) { const up = 0.5 + Math.min(1, p.getY(i) / 0.3) * 0.4; n.setXYZ(i, n.getX(i) * (1 - up), up, n.getZ(i) * (1 - up)); }
     geo.normalizeNormals(); }
-  const ovf = (x, z) => x > OVF_X0 - 2 && x < OVF_X1 + 2 && Math.abs(z - ovfZ(x)) < ovfHW(x) + 2;
+  const ovf = () => false;   // 11/6 fixc：あふれた流れは置かない
   // 大雨の前に植えた田は、水の張った升だけでなく野の田の全部（畦の内）。道・薬師堂・人の通り道・川べりは空ける。
   const inCell = (x, z) => { const ex = Math.min(((x % 22) + 22) % 22, 22 - ((x % 22) + 22) % 22), ez = Math.min(((z % 18) + 18) % 18, 18 - ((z % 18) + 18) % 18); return Math.min(ex, ez) > 1.2; };
   const ok = (x, z) => inCell(x, z) && !ovf(x, z) && !W.inWaterAt?.(x, z) && distToPolyline(x, z, ROAD2) > 4 && Math.hypot(x - YAKUSHI2.x, z - YAKUSHI2.z) > 14 &&
@@ -1637,11 +1645,7 @@ function moribeCobbles(rt) {
       const x = START2.x - 200 + u * 400; if (Math.abs(x - START2.x) < 8) continue;
       const z = nireZ(x) + side * (9.4 + Math.pow(v, 1.6) * 7);
       spots.push([x, z, w]);
-    } else {   // あふれた分かれの流れの両岸
-      const x = OVF_X0 - 4 + u * (OVF_X1 - OVF_X0 + 8); if (Math.abs(x - OVF_FORD_X) < 7) continue;
-      const z = ovfZ(x) + side * (ovfHW(x) + .3 + Math.pow(v, 1.4) * 4);
-      spots.push([x, z, w]);
-    }
+    }   // 11/6 fixc：あふれた分かれの流れは置かないので、その岸の丸石の帯も野に並べない
   }
   const geo = new THREE.IcosahedronGeometry(1, 2), p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + .08 * Math.sin(x * 2.3 + z * 1.7) + .05 * Math.sin(y * 3.1 - x * 2.2);
@@ -1968,12 +1972,11 @@ function moribeShrines(rt) {
     add(stone, rough(new THREE.BoxGeometry(1.5, .55, 1.3, 3, 2, 3), .05, 3), x, y + .27, z, rot);
     add(wood, new THREE.BoxGeometry(.9, .75, .8), x, y + .55 + .37, z, rot);
     add(dark, new THREE.BoxGeometry(.5, .5, .82), x + Math.sin(rot) * .03, y + .55 + .33, z + Math.cos(rot) * .03, rot);
-    roofs.push(timberRoof(x, y + 1.3, z, .9, .8, rot + Math.PI / 2, { eave: .28, pitch: .62, color: 0x4e463c }));
-    torii(x - Math.cos(rot + Math.PI / 2) * 3.2, z + Math.sin(rot + Math.PI / 2) * 3.2, rot, seed + 7);
-    lantern(x + 1.7, z + 1.2, .9, seed + 11); lantern(x - 1.6, z - 1.4, .9, seed + 13); };
-  hokora(13, 72, -1.35, 0); hokora(21, 61.5, .5, 40);
-  // 南東：あふれた流れの岸から薬師堂へ向かう参道の口に、石の鳥居と灯籠の対
-  torii(48, 58.5, -.96, 51); lantern(46.2, 57.2, 1, 53); lantern(49.9, 60, 1, 55);
+    roofs.push(timberRoof(x, y + 1.3, z, .9, .8, rot + Math.PI / 2, { eave: .28, pitch: .62, color: 0x4e463c })); };
+  // 11/6 fixc（kaito・時代考証）：野の真ん中に鳥居三つ・石灯籠の列は在所の田に無い。薬師堂は仏堂で、前に鳥居は並べない。
+  //   川べりの小さな祠一つと辻堂だけを残す（石灯籠は寺社の献灯で、村の辻や渡りには立てない）。
+  hokora(13, 72, -1.35, 0);
+  void torii; void lantern;
   // 東：川べりの辻堂（板壁・板屋根・石の礎）と灯籠の対
   { const x = 57, z = 67, rot = .9, w = 2.8, d = 2.6, y = sink(x, z, 1.6) - .05, c = Math.cos(rot), s = Math.sin(rot);
     add(stone, rough(new THREE.BoxGeometry(w + .5, .36, d + .5, 4, 2, 4), .04, 5), x, y + .18, z, rot);
@@ -1983,10 +1986,7 @@ function moribeShrines(rt) {
     add(dark, new THREE.BoxGeometry(1.5, 1.4, .06), fx, y + .36 + .8, fz, rot);
     for (let i = -3; i <= 3; i++) add(wood, new THREE.BoxGeometry(.05, 1.4, .08), fx + c * i * .21, y + .36 + .8, fz - s * i * .21, rot);
     add(wood, new THREE.BoxGeometry(w + .3, .08, .7), x + s * (d / 2 + .35), y + .5, z + c * (d / 2 + .35), rot);
-    roofs.push(timberRoof(x, y + .36 + 1.9, z, w, d, rot, { eave: .65, pitch: .5, color: 0x4a4238 }));
-    lantern(fx + s * 2.2 + c * 1.6, fz + c * 2.2 - s * 1.6, 1, 21); lantern(fx + s * 2.2 - c * 1.6, fz + c * 2.2 + s * 1.6, 1, 23); }
-  // 楡俣川の岸の灯籠（渡りの上手と下手）
-  lantern(27, 81, .95, 31); lantern(50, 81.5, .95, 33);
+    roofs.push(timberRoof(x, y + .36 + 1.9, z, w, d, rot, { eave: .65, pitch: .5, color: 0x4a4238 })); }
   const tone = (list, v) => { for (const g of list) { const p = g.attributes.position, col = new Float32Array(p.count * 3); for (let i = 0; i < p.count; i++) { const k = v(p.getX(i), p.getY(i), p.getZ(i)); col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k * .96; } g.setAttribute('color', new THREE.BufferAttribute(col, 3)); if (g.index) { const ng = g.toNonIndexed(); g.copy(ng); ng.dispose(); } g.deleteAttribute('uv2'); } };
   // 雨に濡れた石の濃淡と、地際の苔の暗み
   tone(stone, (x, y, z) => .78 + .22 * Math.sin(x * 5.3 + z * 4.1 + y * 2.2) * Math.cos(y * 3.7));
@@ -2202,7 +2202,7 @@ function moribeFord(rt) {
       gl_Position = projectionMatrix * mvPosition;`);
   };
   reedMat.customProgramCacheKey = () => 'moribe_reed_wind';
-  const REEDS2 = 520;   // 分かれの流れの両岸を倍に（一度に描く数は同じ。10/29）   // 280 から先の120は、あふれた分かれの流れの両岸に群れ（株五つずつ。持ち場の正面の道はあける）   // 160 は川沿いに一本ずつ。残りは渡る所の両脇に群れ（株五つずつ）。
+  const REEDS2 = 280;   // 11/6 fixc：あふれた流れを置かないので、その岸の葦の群れも置かない   // 分かれの流れの両岸を倍に（一度に描く数は同じ。10/29）   // 280 から先の120は、あふれた分かれの流れの両岸に群れ（株五つずつ。持ち場の正面の道はあける）   // 160 は川沿いに一本ずつ。残りは渡る所の両脇に群れ（株五つずつ）。
   const reeds = new THREE.InstancedMesh(reedGeo, reedMat, REEDS2);
   for (let i = 160; i < 280; i++) {
     const c = (i - 160) / 5 | 0, side = c % 2 ? 1 : -1, lr = (c >> 1) % 2 ? 1 : -1;
@@ -2745,7 +2745,8 @@ function moribeNearestFoe(rt) {
 const moribe = {
   // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 14→20 の軽く）
   tightShadowEvery: 2,
-  missionStyle: 'ford', // 共通の印・ピン・カメラの型（field_signs・mission_pin・hud_map・player が読む。戦の名で分けない）
+  // 11/6 fixc（kaito 九1・九3・五3・五4）：森部だけの「渡り」の型（時計のような丸いピン・名札を出さない・始まりの札を飛ばす）をやめ、
+  //   ほかの戦と同じ作り（右上に①〜⑤を全部・行き先は金の▼と m・名のある将の名・両軍の兵の棒・始まりの札）にする。
   compactIntro: true,
   // 行き先は地面に刺さるピン一本。頭上の金の▼を重ねて人物の印に見せない。
   kumiLead: false,
@@ -2753,16 +2754,18 @@ const moribe = {
   noGoalCount: true,
   noMiniMap: true,
   goalSignOnly: true,
-  goalSignBare: true,
-  goalSignNoLabel: true,
-  goalSignGroundPin: true,
-  pinDistance: false, // 行き先はピンだけで示し、距離の字を添えない。
-  goalSignOff: () => true, // 行き先は専用ピン、敵は赤い▼だけ。共通の金の▼と札を重ねない。
   // 人物への共通案内で行き先や任務を上書きしない。敵は赤い▼だけ。
   actionGuideTarget: () => null,
   // 集団の中心でなく、赤い▼と同じ本人へ渡す。見えたら金の印を重ねない。
+  // 行き先は金の▼一つと距離（m）。戦う相手が見える間は敵の赤い▼に任せ、金の▼は出さない。
   goalSignTarget(rt) {
-    return this.missionPin(rt);
+    // 始まりの札の上に▼を重ねない（kaito 五-4）
+    const intro = typeof document !== 'undefined' && document.getElementById('intro');
+    if (intro && !intro.hidden && intro.querySelector('.card')) return null;
+    const q = this.missionPin(rt);
+    if (!q || q.enemy || q.unit || q.arrived) return null;
+    const pt = rt.flags.goalPt || (rt.flags.goalPt = { x: 0, z: 0, y: 0 });
+    pt.x = q.x; pt.z = q.z; pt.y = q.y; return pt;
   },
   noMiniMap: true,
   noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（稲生と同じ。kaito 10/24「動かない味方と敵は一切排除」）。馬の分の記憶も空く。
@@ -2771,7 +2774,8 @@ const moribe = {
   introPeopleFolded: true,   // 横持ちでは下知を先に読み、人物紹介は自分で開く。
   // 操作は稲生で覚える。ここでは行き先と勝つための流れを伝える。
   introText: '楡俣川（にれまたがわ）の浅瀬を渡り、北岸で斎藤の先手を迎え撃つ。',
-  introSides: { a: '織田軍', b: '斎藤軍' },
+  introSides: { a: '織田軍 約千五百', b: '斎藤軍 約六千' },
+  nameRange: 60,   // 名のある将（信長・柴田・森・前田・源八・長井・日比野）の名は遠くからも出す（標準 五-2・九-3）
   introPeople: [
     { id: 'moribe-oda', name: '織田信長（おだ のぶなが）', note: '尾張の主。義龍の急死から三日、雨を「天の与うる所」と見て、自ら楡俣川を越えて懸かる。' },
     { id: 'moribe-nagai', name: '長井甲斐守（ながい かいのかみ）', note: '斎藤家の将。幼い龍興に代わり、墨俣から西の手を率いて出る。' },
@@ -2785,14 +2789,14 @@ const moribe = {
   noPlayerFoot: true, // 本人は姿で示す。別経路の白い足元輪も消し、倒れた隣の兵や行き先のピンと混同させない。
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
-  hideMissionDots: true, // 任務の段数は出さず、今することだけを一行にする。
-  missionSingleLine: true, // 右上は任務一行だけ。耐える進みは同じ一行の丸で示す。
+  // 右上は目標①〜⑤を最初から全部並べ、済んだ物に印（goals5・標準 九-1・十-1）。
   missionAlways: true, // 敵を狙う間も「▼の敵を倒せ」などの一行を残す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
   missionContext: '永禄四年（一五六一）・森部（もりべ）の戦い',
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
-  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
+  // 11/6 fixc：「敵の隊が崩れた」「味方の隊が崩れた」の札は八秒おきに出て戦の形が分からなくなる（kaito）。討ち取りと終わりだけ。
+  bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(t),
   // 右上の一行は「何をするか」だけ（kaito 10/23 49・50）。段の総称で通し、向き・行き先の字は書かない。
   missions: ['川を渡れ', '仲間を待て', '▼の敵を倒せ', '耐えろ', '日比野下野守を倒せ', '長井甲斐守を倒せ', '残る▼の敵を倒せ', '仲間と集まれ'],
   // ピン・▼・名前は同じ本人へ。描画の間引きで相手を替えない。
@@ -2869,6 +2873,7 @@ const moribe = {
       const i = f.now >= 0 ? f.now : f.rows.length - 1;
       return `${i + 1}／${f.rows.length}　${f.rows[i].text}`;
     }
+    // 目標の準備前は、今の行いを示す従来の案内を使う。
     const F = rt.flags, p = rt.player.u.pos;
     // 渡河中でも敵が迫ったら、岸への移動より頭上の▼を優先する。
     if (!F.signal && F.fordThreat) return '▼の敵を倒せ';
@@ -2881,14 +2886,18 @@ const moribe = {
     }
     // 守る段は稲生と同じ一行。守る所はピン、味方はその左右へ寄る。
     if (F.stage === 'hold') return F.lineReturning ? '仲間と集まれ' : '▼の敵を倒して耐えろ';
-    if (F.squadGuide && Math.hypot(p.x - F.squadGuide.pos.x, p.z - F.squadGuide.pos.z) >= 16 ||
-        !F.signal && F.pointReached && !F.pointInside ||
-        (F.stage === 'hold' || F.stage === 'contact' && F.vBroken) && F.lineReturning)
+    // 戦う間は仲間が離れても敵の▼を追う。任務とピンを同じ行いにそろえる。
+    if (F.stage === 'contact' && F.vBroken && F.lineReturning)
       return '仲間と集まれ';
     // 討つ相手の名前は許された任務一行に収め、頭上に別の札を足さない。
     const commander = this.commanderTarget(rt);
     if (commander?.name) return `${commander.name}を倒せ`;
-    if (F.stage === 'contact' && !F.vBroken) return '▼の敵を倒せ';
+    if (F.stage === 'contact' && !F.vBroken) {
+      // 案内する先手の隊だけを数え、味方の討ち取りや敵の退却も同じ一行へ返す。
+      let remaining = 0;
+      for (const u of F.V?.units || []) if (moribeRemainFoe(u)) remaining++;
+      return remaining ? `▼の敵を倒せ（残り${remaining}人）` : '耐えろ';
+    }
     return this.missions[this.missionOf(rt)];
   },
   minutes: 10,
@@ -3290,7 +3299,6 @@ const moribe = {
   // 稲生の標準（kaito 10/23）：小地図・足元の輪・浮かぶ字の札を出さず、行き先のピン・敵の頭上の▼・右上の任務一行に絞る。
   noControlsHelp: true,   // 操作の字は尾張の戦で覚える。この戦では出さない
   noFieldMap: true,
-  hideArmyPeek: true,
   foeMarks: true,
   missionPinCaption: '',
   spawn: { x: START2.x, z: START2.z, heading: Math.PI },
@@ -3423,9 +3431,12 @@ const moribe = {
         fords: [{ x: START2.x, w: 10 }] },   // 楡俣川：川幅十八メートル（w は片側の幅）
       { pts: [[-70, -FIELD2], [-66, -40], [-74, 60], [-70, FIELD2]], w: 1.2, depth: 0.7 }],
     mist: false,   // 雨は公記にあるが、濃い霧は確定できない。
+    // 11/6 fixc（kaito 四-5）：輪中の平らな野に大きな山が迫って見えた。養老・伊吹は十キロ余り先なので、地平に低く霞ませる。
+    mountainScale: .2, mountainHaze: .85,
     fogFar: 360,   // 雨は残し、川向こうと両将の槍列の輪郭まで読めるようにする。
     battleViewDistance: 140,   // 描画の上限内で両翼と控えを見せる。遠い兵は既存の軽い姿を使う。
     trees: 140,
+    rocks: 30,   // 11/6 fixc（kaito 八-1）：輪中の田に大きな灰の岩はほぼ無い。道の上ののっぺりした大岩を減らす
     tufts: 2800,   // 河原の踏み場を、同じ黄色い穂の株で埋めない。
     // 既存の株数を畦・会戦の両脇へ集める。遠い野へ散らして足元を裸にしない。
     undergrowthBands: [{ x: -20, z: 22, w: 22, d: 72 }, { x: 28, z: 18, w: 22, d: 64 },
@@ -3488,12 +3499,12 @@ const moribe = {
     W.stampTrail([[40, 123], [40, 98]], 3.2, 130);
     W.stampTrail([[40, 79], [38, 65], [29, 45]], 3.2, 130);
     moribeFord(rt);
-    moribeOverflow(rt);
+    // 11/6 fixc（kaito 八-1）：北岸の野を横切る作りの濁流は史料に無く、白い泡が雪の斑・黒い杭が意味の分からない棒に見えた。置かない。
     moribeAze(rt);
     moribeNae(rt);
     moribeBankSoil(rt);
     moribeCobbles(rt);
-    moribeRiffles(rt);
+    // 瀬の白い筋（板の川の白いジグザグに見えた）も置かない。
     moribeShrines(rt);
     moribeNearBodies(rt);
     // 落馬した瞬間の描画用の高さを空馬へ引き継ぐと、坂の判定に阻まれて宙で止まる。
@@ -3524,8 +3535,25 @@ const moribe = {
     const noticeStyle = document.createElement('style');
     noticeStyle.textContent = `
 /* 説明のない総兵数や綱引きは出さず、行き先のピンと敵の▼で判断する。 */
+/* 11/6 fixc（kaito 九-3・十二-1）：両軍の今の兵の数の棒（紋と減っていく棒）を上に常に出す。経過の時計の字は出さない。 */
+html:root body #hud#hud#hud.moribe-notices #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.moribe-notices #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.moribe-notices #armybar { visibility:hidden !important; }
+/* 11/6 fixc（kaito 九-1）：右上は目標①〜⑤の並び（hud_goals の札）だけ。共通の任務一行（battle-order の指定）より強く。 */
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+}
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.moribe-notices #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
 #hud.moribe-notices #tugbar,
-#hud.moribe-notices #armybar,
 #hud.moribe-notices #minimap,
 #hud.moribe-notices #maphint { display:none !important; }
 /* 任務一行は携帯横でも画面の右上へ収める。 */
@@ -3901,6 +3929,19 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         ? hudFootRing.call(this, g, battle, pos, Math.min(scale, 0.65), person, false, guardPost)
         : hudFootRing.call(this, g, battle, pos, scale, person, prominent, guardPost);
     };
+    // 11/6 fixc：行き先は共通の金の▼と距離（goal_sign）だけ。地面の輪や丸いピンを重ねない（kaito 五-3「印はいつも一つ」）。
+    // 11/6 fixc（kaito 九-1・十-1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印・今の物を赤い丸で（hud_goals の札）。
+    //   共通の任務札は今の一行だけを出すので、森部ではその後に目標の札を重ねて置き換える。
+    const hudProgress = hud.progress;
+    hud.progress = function (battle) {
+      const out = hudProgress.call(this, battle);
+      if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+      return out;
+    };
+    const hudBattleGoal = hud.drawBattleGoal;
+    hud.drawBattleGoal = function (g, battle) {
+      return battle === rt ? false : hudBattleGoal.call(this, g, battle);
+    };
     // 待機専用の描画は smallTaskAreas を通らないため、森部では同じ小さな足元印へ渡す。
     // 地面の起伏・遮蔽と表示の上限は共通の印に任せ、待機判定の広さは保つ。
     const hudWaitFrame = hud.drawWaitFrame;
@@ -3969,6 +4010,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       hud.drawFootDirection = hudFootDirection;
       hud.drawEnemyOutline = hudEnemyOutline;
       hud.drawTargetFootRing = hudFootRing;
+      hud.drawBattleGoal = hudBattleGoal;
+      hud.progress = hudProgress;
+      if (hud.prog) hud.prog.classList.remove('goal-mode');
       hud.root.classList.remove('moribe-notices'); noticeStyle.remove();
       return dispose.call(this);
     };
@@ -3980,7 +4024,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       return onKill(v, k);
     };
     rt.say = function (speaker, text, dur) {
-      if (/^(?:柴田)?勝家$/.test(speaker) && /無念|仲間を失った|嘆くのは後/.test(text)) {
+      if (/^(?:柴田)?勝家$/.test(speaker) && /無念|仲間を失った|嘆くのは後|朋輩を失うたか/.test(text)) {
         if (fallen <= mourned || rt.t - fallenAt > 2) return;
         mourned = fallen;
       }
@@ -4022,7 +4066,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 公記の森部は織田の大勝。味方の兵（自分と組を除く）への打ち込みを少し浅くし、勝ち戦の芯が溶けないようにする。
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
-      if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.7;
+      // 11/6 fixc（kaito 一-1）：速回しで味方が三分の二討たれた。公記の森部は織田の大勝なので、味方の兵への打ち込みは四割に。
+      if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= 0.4;
+      // 11/6 fixc（目標④・⑤）：両将の旗本の侍は、自分が一人討つまで味方の槍では倒れにくい（自分で討つ間を残す）。
+      //   旗本は殿に残る者なので、追い討ちまでは味方の槍で溶けない（目標⑤の殿が必ず来る）。
+      const Fd = rt.flags;
+      if (t && t.team === 1 && src && !src.isPlayer && src.team === 0 && (t.group === Fd.HM || t.group === Fd.HN)) {
+        if (!Fd.ownHatamoto && (t.type === 'samurai' || t.type === 'busho')) amount *= 0.12;
+        else if (!Fd.pursuit) amount *= 0.2;
+      }
+      // 公記：足立六兵衛は前田又左衛門が討つ。ほかの味方の槍では倒れにくく、又左衛門の槍は深く入る。
+      if (t && t.name === '足立六兵衛' && src && !src.isPlayer && src.team === 0) amount *= src.name === '前田利家' ? 3 : 0.1;
       // 勝ち戦なので、本人が受ける傷も少し浅くする（bot が 139 秒で倒れた：三回に二回は勝てる強さへ）。
       if (t?.isPlayer && src?.team === 1) amount *= 0.65;
       const hp = t?.hp;
@@ -4069,15 +4123,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 11/4 jin（AV7・AP16）：柴田・森・河村は馬上で、それぞれ旗本の侍三人に守られる。
     // 三手は楡俣川の南岸に並び、遊び手と同じ流れを渡る。柴田・本備・森の備は勝ち戦の芯なので、
     // 兵は討たれても隊ごとの総崩れはしない（右手の小勢は崩れうる）。
-    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 34, z: 94 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
+    rt.flags.A = allyGroup(rt, { name: '柴田の前備', fixed: true, anchor: { x: 34, z: 94 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 12 }, { type: 'samurai', n: 1, o: { name: '源八', invuln: true } }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
     rt.flags.B = allyGroup(rt, { name: '本備', fixed: true, anchor: { x: -22, z: 116 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 14 }, { type: 'bow', n: 2 }, { type: 'samurai', n: 2 }]);
     // 上役の源八は戦の後に城下で昇進を告げる。この戦では討たれない。
     rt.flags.moribeOfficer = rt.flags.A.units.find((u) => u.name === '源八');
+    // 11/6 fixc（十一-4 森部の芯）：勘当の又左衛門は、自分の組のすぐそば（柴田の前備）で足立六兵衛と槍を合わせる。
+    rt.flags.toshiie = rt.flags.A.units.find((u) => u.name === '前田利家');
     // 小勢が横に広がりすぎず、槍の前線へ合流する（細かな隊の位置は復元）。
     // 右手は津島衆（公記：津島の服部平左衛門が長井甲斐守を、恒河久蔵が日比野下野守を、河村久五郎が神戸将監を討つ）。
     //   佐久間信盛は森部の記事に名が無い。三人は徒の侍で、馬上の将にしない。
     rt.flags.R3 = allyGroup(rt, { name: '津島衆', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 8 }, { type: 'samurai', n: 1, o: { name: '河村久五郎', invuln: true } }, { type: 'samurai', n: 1, o: { name: '服部平左衛門', invuln: true } }, { type: 'samurai', n: 1, o: { name: '恒川久蔵', invuln: true } }, { type: 'samurai', n: 1 }]);
-    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 10 }, { type: 'samurai', n: 1, o: { name: '前田利家', invuln: true } }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
+    rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 10 }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
     // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
     // 渡り口の正面に同じ先手を寄せ、印だけを追って野を歩く時間を短くする。
     rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 40, z: 60 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 34 }, { type: 'bow', n: 5 }, { type: 'samurai', n: 3 }]);
@@ -4085,6 +4141,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 日比野下野守の備え（足立六兵衛を含む）
     rt.flags.M = enemyGroup(rt, { faction: 'saito', name: '日比野の備', fixed: true, anchor: { x: -14, z: -30 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, width: 10, morale: 85, noRout: false, formation: 'yari', yariRanks: 3 },
       [{ type: 'ashigaru', n: 26 }, { type: 'samurai', n: 3 }, { type: 'samurai', n: 1, o: { name: '足立六兵衛' } }, { type: 'bow', n: 4 }]);
+    rt.flags.adachi = rt.flags.M.units.find((u) => u.name === '足立六兵衛');
     // 長井甲斐守の備え：日比野の西に並ぶ
     rt.flags.N = enemyGroup(rt, { faction: 'saito', name: '長井の備', fixed: true, anchor: { x: -44, z: -34 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 8, width: 9, morale: 85, noRout: false, formation: 'yari', yariRanks: 3 },
       [{ type: 'ashigaru', n: 24 }, { type: 'samurai', n: 2 }, { type: 'samurai', n: 1, o: { name: '神戸将監' } }, { type: 'bow', n: 3 }]);
@@ -4180,6 +4237,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const say0 = rt.say;
     rt.say = function (who, text, ...rest) {
       if (typeof text === 'string' && /^(?:組頭|お頭)の御前ぞ/.test(text)) text = text.replace(/^(組頭|お頭)の御前ぞ、/, '$1に');
+      // 11/6 fixc（kaito・二-2）：森部に横槍の話は無い。共通の「横槍が入ったぞ」は言わせない。
+      if (typeof text === 'string' && /横槍/.test(text)) return false;
+      // 11/6 fixc（身分）：足軽の自分が「者ども」と下知しない。組の朋輩へ声を掛ける言い方に。
+      if (typeof text === 'string' && /^者ども、ついて来い/.test(text)) text = '離れるな、続け！';
       return say0.call(this, who, text, ...rest);
     };
     // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
@@ -4408,8 +4469,24 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     this.feedReserves(rt);
     this.advanceEnemies(rt);
     this.advanceFriends(rt);
+    // 11/6 fixc（kaito 十一-4）：勘当の前田又左衛門が「首取り足立」と槍を合わせて討つ。近づいたら互いに槍を向け、声で知らせる。
+    { const T = F.toshiie, A = F.adachi;
+      if (T?.alive && A?.alive && !A.fleeing && !A.woundOut) {
+        const d = Math.hypot(T.pos.x - A.pos.x, T.pos.z - A.pos.z);
+        // 「首取り足立」は背を向けず、又左衛門へ向かって来る（公記：下野と一所に討死）。
+        if (F.signal && A.fleeing) { A.fleeing = false; A.routIn = undefined; A.moraleFleeDir = null; A.fright = 0; A.backUntil = 0; A.aiT = 0; }
+        if (d < 30) { T.target = A; T.watch = null; A.target = T; A.watch = null; }
+        F.adachiClose = d < 14 ? (F.adachiClose || 0) + 1 : Math.max(0, (F.adachiClose || 0) - 1);
+        if (F.adachiClose >= 3) rt.army.kill(A, T);
+        else if ((F.stage === 'hold' || F.stage === 'contact') && T.group && !gone(T.group)) {
+          // 押し合いが長引いても会わない時は、足立の備が前備の正面へ寄せる（足立は日比野の与力で前に出る）。
+          const g = A.group; if (g && !gone(g) && g.order !== 'attack') { g.order = 'attack'; g.seekRange = 40; }
+        }
+        if (!F.adachiSaid && d < 24) { F.adachiSaid = true; rt.say('足軽', 'あれが首取り足立じゃ！　前田又左衛門殿が槍を向けたぞ！', 3.5); }
+      }
+    }
     if (F.stage === 'contact') {
-      if (rt.t - F.signal >= 12) nearbyVoice(rt, F.A, '柴田勝家', 'shibataVoice', '槍を並べよ！　川を背に、一人も取り残すな！');
+      if (rt.t - F.signal >= 12) nearbyVoice(rt, F.A, '柴田勝家', 'shibataVoice', '槍を並べよ！　畦を越えて押し上げよ、一人も遅れるな！');
       if (!F.vBroken && gone(F.V)) this.onRout(rt, F.V);
       rt.objProgress(F.vBroken ? 'support' : 'break', '');
       // 先手が退いた時点で本備と控えを寄せる。次の斬り合いを待ってから下知しない。
@@ -4476,30 +4553,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
             g.speed = 2.2; g.seekRange = 8;
             g.order = 'hold'; g.dest = null; g.onArrive = null;
             for (const u of g.units) if (u.type === 'busho' && u.alive) u.hp = Math.min(u.hp, u.maxHp * 0.5);
-            // 大将の後ろに控えていた後備が雨の中から続き、大将の周りが入り乱れる（見える兵は250まで）。
-            //   段の切り替えの一コマに兵を作り重ねない（稲生と同じく、出る兵は少しずつ時をずらす）。
-            rt.after(g === F.HM ? .4 : .8, () => {
-              if (F.ending || rt.over || gone(g)) return;
-              const live = rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0);
-              if (live >= 210) return;
-              const c = g.center();
-              g.rear = enemyGroup(rt, { faction: 'saito', name: g === F.HM ? '日比野の後備' : '長井の後備', fixed: true,
-                anchor: { x: c.x + (g === F.HM ? 8 : -8), z: c.z - 26 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, morale: 90, noRout: true, formation: 'yari', yariRanks: 2 },
-              [{ type: 'ashigaru', n: 14 }, { type: 'samurai', n: 2 }]);
-              g.rear.speed = 2.3;
-              F.opposition.push(g.rear);
-            });
+            // 11/6 fixc（kaito 一-6・AA）：後備・二の備を戦の途中に湧かせない。両将の旗本が自ら前へ出て、本人の組の前へ寄せる。
+            g.noAI = false; g.order = 'attack'; g.seekRange = 60; g.aggro = 10;
           }
           battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.HM.anchor, F.HM, 1, true, '長井甲斐守・日比野下野守が、旗本を率いて自ら前へ出た');
-          // 柴田の二の備が後ろから追いつき、自分の左右で大将の旗本へ槍を入れる。
-          rt.after(1.2, () => {
-            if (F.ending || rt.over || rt.army.units.reduce((n, u) => n + (u.alive ? 1 : 0), 0) >= 215) return;
-            const p = rt.player.u.pos;
-            const g2 = allyGroup(rt, { name: '柴田の二の備', fixed: true, anchor: { x: p.x + 6, z: p.z + 22 }, facing: Math.PI, aggro: 12, morale: 100, noRout: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 2 },
-              [{ type: 'ashigaru', n: 16 }, { type: 'samurai', n: 2 }]);
-            g2.order = 'attack'; g2.seekRange = 45; g2.speed = 2.4;
-            F.friends.push(g2);
-          });
         }
         for (const g of F.friends) if (!gone(g)) { g.calm = false; g.order = 'attack'; g.seekRange = 35; }
       }
@@ -4508,10 +4565,31 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (rt.t - F.pressStart >= 20) nearbyVoice(rt, F.HN, '長井甲斐守', 'nagaiVoice', 'まだ退かぬ！　旗本、わしに続け！');
       // 大将が長く討たれぬ時は、乱戦の別の所で織田の兵に討たれる（公記どおり両将とも討死。戦が終わらない事も防ぐ）。
       // 一人ずつ（百十秒と百四十秒。11/3 p100_moribe：自分で討つ目標に間を残す）。同じ瞬間に二つの見出しを重ねない。
-      const fall = rt.t - F.pressStart >= 140 ? 2 : rt.t - F.pressStart >= 110 ? 1 : 0;
+      // 11/6 fixc（kaito 三-3・三-4）：自分が旗本の侍を討つ前に両将が味方に討たれて終わらないよう、討ってから八秒後に一人目。
+      //   自分が旗本へ寄らない時も、物語は二百二十秒・二百五十秒で進む（標準 二-5）。
+      const pel = rt.t - F.pressStart, own = F.ownHatamoto ? rt.t - F.ownHatamoto : -1;
+      const fall = pel >= 250 || own >= 30 && pel >= 70 ? 2 : pel >= 220 || own >= 8 && pel >= 40 ? 1 : 0;
+      // 11/6 fixc（kaito 九-2）：両将の旗本は、自分の組の槍先まで押し出して来る（目標④の相手が必ず来て戦いになる）。
+      //   組（隊）へ向かうので、名のある将が足軽一人を追い回す形にはならない。打ち合っている間は動かさない。
+      if (!F.ownHatamoto && rt.t >= (F.hatamotoAimAt || 0)) {
+        F.hatamotoAimAt = rt.t + 3;
+        const sq = rt.squadGroups.find((g) => !gone(g)), aim = sq ? fightingCenter(sq) : rt.player.u.pos;
+        for (const g of [F.HM, F.HN]) if (!gone(g)) {
+          const busy = g.units.some((u) => u.alive && u.target?.alive && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6);
+          const c = fightingCenter(g);
+          if (busy || Math.hypot(c.x - aim.x, c.z - aim.z) < 10) continue;
+          const d = g._moribeHatDest || (g._moribeHatDest = { x: 0, z: 0 });
+          d.x = aim.x + (g === F.HM ? 3 : -3); d.z = aim.z - 4;
+          g.order = 'move'; g.dest = d; g.speed = 2.2; g.onArrive = (a) => { a.order = 'attack'; a.seekRange = 25; };
+        }
+      }
+      // 旗本の侍は、自分が一人討つまで背を向けない（目標④の相手が戦場から消えない）。
+      if (!F.ownHatamoto) for (const g of [F.HM, F.HN]) for (const u of g.units) if (u.alive && u.fleeing && !u.woundOut && (u.type === 'samurai' || u.type === 'busho')) {
+        u.fleeing = false; u.routIn = undefined; u.moraleFleeDir = null; u.fright = 0; u.backUntil = 0; u.aiT = 0; g.routed = false;
+      }
       if ((F.bossDown || 0) < fall && !(F.bossFallAt > rt.t)) {
         const u = F.HM.units.find((x) => x.type === 'busho' && x.alive) || F.HN.units.find((x) => x.type === 'busho' && x.alive);
-        if (u) { F.bossFallAt = rt.t + 5; rt.army.kill(u, null); }
+        if (u) { F.bossFallAt = rt.t + 5; rt.army.kill(u, F.R3.units.find((x) => x.alive && x.name === (u.group === F.HM ? '恒川久蔵' : '服部平左衛門')) || null); }
       }
       if (!F.standDown && fall >= 2 && !F.pursuit) { F.standDown = true; for (const g of F.opposition) g.noRout = false; }
       // 総大将の討死・側面攻撃・逃亡の連鎖は共通の士気の仕組みに任せる。
@@ -4547,7 +4625,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       //   両将の旗本の生き残りが殿に踏みとどまる。殿を崩し、退く敵を追い討って首を挙げてから勝ちにする（七十五秒まで）
       if ((F.bossDown || 0) >= 2 && !F.pursuit) {
         F.pursuit = { t: rt.t, k0: F.ek || 0, need: 10 };
-        F.bossWinAt = rt.t + 75;
+        F.bossWinAt = rt.t + 90;
         F.shingari = [];
         for (const g of F.opposition) {
           if (g.hatamoto || g === F.HN?.rear || g === F.HM?.rear) { if (g.units.some((u) => u.alive && !u.woundOut)) F.shingari.push(g); }
@@ -4568,18 +4646,30 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (F.pursuit) {
         const n = Math.max(0, (F.ek || 0) - F.pursuit.k0), el = rt.t - F.pursuit.t;
         // 殿：主を討たれた旗本は死に物狂いで踏みとどまる（四十秒。主の死に怯えて背を向けない）
+        // 11/6 fixc（kaito 九-2「目標に書いた敵は必ず来る」）：殿は本人の組の前まで寄せて槍を合わせる。棒立ちで待たせない。
+        const pp = rt.player.u.pos;
+        for (const g of F.shingari) if (!gone(g) && el < 40) {
+          const c = fightingCenter(g);
+          if (Math.hypot(c.x - pp.x, c.z - pp.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = pp.x; d.z = pp.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }; }
+          else { g.order = 'attack'; g.seekRange = 30; }
+        }
         if (el < 40) for (const g of F.shingari) {
           g.routed = false; g.noRout = true; g.morale = 100;
           if (g.order === 'hold' || g.order === 'retreat') g.order = 'attack';
           for (const u of g.units) if (u.alive && u.fleeing && !u.woundOut) { u.fleeing = false; u.routIn = undefined; u.moraleFleeDir = null; u.fright = 0; u.backUntil = 0; u.aiT = 0; }
         }
         rt.objProgress('pursuit', `${Math.min(n, F.pursuit.need)}／${F.pursuit.need}`);
-        if (n >= F.pursuit.need && el >= 20 || !left && el >= 20 || rt.t >= F.bossWinAt) {
+        // 四十秒踏みとどまった殿は、墨俣へ背を向けて退く（残った者が野に立ち尽くさない）。
+        if (el >= 40 && !F.shingariBroke) { F.shingariBroke = true; for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; } }
+        // 11/6 fixc（kaito 三-3）：目標④（旗本の侍を自分で討つ）を果たすまで勝ちにしない。殿が背を向けた後も旗本の侍は踏みとどまる。
+        const shLeft = F.shingari.some((g) => !gone(g));
+        if (F.ownHatamoto && (n >= F.pursuit.need && el >= 20 || !shLeft && el >= 20 || !left && el >= 20 || rt.t >= F.bossWinAt)) {
           rt.objDone('pursuit');
           this.endBattle(rt, true);
           return;
         }
-      } else if (!left) {
+      } else if (!left && F.ownHatamoto) {
+        // 11/6 fixc：両将が残らないまま敵が皆退いた時だけ。両将の討死と殿の追い討ちを飛ばして勝ちにしない時は、上の討死の時計に任せる。
         battleEvent(rt, EVENT_RETREAT, FRONT2, null, 1, true, '斎藤勢が墨俣の方へ退き始めた');
         F.farS.forEach((m, i) => rt.after(i * 1.2, () => m.rout({ hideAfter: 0 })));
         F.fronts.forEach((c) => c.rout('B', { hideAfter: Infinity }));
@@ -4757,6 +4847,11 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       g.onArrive = (arrived) => { arrived.order = 'hold'; };
     }
     F.fronts.forEach((c) => c.go());
+    // 11/6 fixc（kaito 一-2・二-1）：公記「信長、天の与ふる所の由、御諚候て、にれまたの川を越え」。合図と共に馬廻と流れを越え、三手の後ろに付く。
+    { const nobu = F.odaCamp;
+      if (!gone(nobu)) { nobu.leader = nobu.general || nobu.leader; nobu.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z };
+        nobu.order = 'move'; nobu.dest = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; nobu.speed = 2;
+        nobu.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: NOBU_NORTH.x, z: NOBU_NORTH.z }; g.seekRange = 8; }; } }
     F.farO.forEach((m, i) => rt.after(i * 1.3, () => m.advance(24, 18)));
     battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.A.anchor, F.A, 0, true, '織田の槍の列が前へ出た');
   },
@@ -4813,13 +4908,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.toshiieAdachiConfirmed = confirmed;
         rt.say('仲間', who === 'player' ? '首取り足立と呼ばれた六兵衛を、お主が討ったとは……' : confirmed ? '前田又左衛門殿が、首取り足立の首を挙げなされた。勘当も解けような' : '前田又左衛門殿も首を挙げたと聞いた。勘当の身で、ようやるわ', 4.5);
       });
-      rt.after(6, () => rt.say('組頭 源八（げんぱち）', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。首実検は薬師堂の前じゃ。首を持って参れ。次は墨俣の砦を固めるぞ`, 5));
+      rt.after(6.5, () => rt.say('組頭 源八（げんぱち）', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。首実検は薬師堂の前じゃ。首を持って参れ。次は墨俣の砦を固めるぞ`, 5));
     }
     const failureReason = won ? '' : F.friends.every(gone) || F.odaCamp.general?.woundOut
       ? '味方の列が崩れ、川岸を守れなくなった'
       : '時間内に敵を押し返せなかった';
     // 11/4 jin（BD）：勝鬨のあと数秒で結果へ（十六秒は長い）。
-    rt.finish({ scriptedEnd: true, failureReason }, won ? 9 : 11);
+    rt.finish({ scriptedEnd: true, failureReason }, won ? 12 : 11);   // 11/6 fixc：首実検の下知まで聞かせてから結果へ
     // 終幕の共通音が鳴った後に札を出す。同じ退けの音を札からもう一度鳴らさない。
     if (!won) rt.obj('withdraw', '低い法螺貝と退き太鼓で、仲間と川へ退け', 'main', true);
   },
@@ -4840,11 +4935,16 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
   onKill(rt, v, k) {
     if (v.name === '足立六兵衛' && k?.name === '前田利家' && !rt.flags.toshiieReport) {
       rt.flags.toshiieReport = true; rt.flags.toshiieAdachi = true;
-      if (sightPoint(rt, v.pos)) rt.say('足軽', '前田又左衛門殿が、足立六兵衛を討ったぞ！', 3);
+      rt.say('足軽', '前田又左衛門殿が、首取り足立を討ち取ったぞ！', 3.5);
     }
     // 公記：神戸将監は津島の河村久五郎が討つ。味方が討った時は、伝わる討ち手の名で呼ばわる。
     if (v.name === '神戸将監' && k && !k.isPlayer && k.team === 0 && sightPoint(rt, v.pos)) rt.say('足軽', '河村久五郎殿が、神戸将監を討ったぞ！', 3);
     if (v.team === 1) rt.flags.ek = (rt.flags.ek || 0) + 1; else rt.flags.ak = (rt.flags.ak || 0) + 1;
+    // 11/6 fixc：目標④「両将の旗本の侍を自分で討つ」。名の伝わらない侍なので名は呼ばない。
+    if (k?.isPlayer && (v.group === rt.flags.HM || v.group === rt.flags.HN) && (v.type === 'samurai' || v.type === 'busho') && !rt.flags.ownHatamoto) {
+      rt.flags.ownHatamoto = rt.t;
+      rt.say('組頭 源八（げんぱち）', `${v.group === rt.flags.HM ? '日比野' : '長井'}の旗本の侍を突き伏せたか。首を取れ、証にするぞ`, 4);
+    }
     nagashinojo.kit.carrion(rt, v);
     moribeRiverStain(rt, v);
     if (v.type === 'busho' && v.group?.hatamoto) {
@@ -4858,9 +4958,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (k?.isPlayer) rt.award((t) => { t.special = { label: `${v.name}を討ち取った`, pts: 40 }; }, `${v.name}を討ち取った`, v.pos);
       sfx('toki', 0.9);
       // 大将の生きている間は旗本が踏みとどまる。討たれた備から崩れ、両将が討たれれば全体が揺らぐ。
-      v.group.noRout = false;
-      if (v.group.rear) v.group.rear.noRout = false;
-      if (F.bossDown >= 2) for (const g of F.opposition) g.noRout = false;
+      // 11/6 fixc：一人目の旗本は崩れるが、二人目（殿に残る）の旗本は追い討ちの合図まで踏みとどまる（目標⑤の殿が必ず来る）。
+      if (F.bossDown >= 2) { v.group.noRout = true; v.group.routed = false; }
+      else v.group.noRout = false;
+      if (F.bossDown >= 2) for (const g of F.opposition) if (!g.hatamoto) g.noRout = false;
       for (const g of F.opposition) if (!gone(g)) g.morale = Math.max(0, (g.morale ?? 80) - (g === v.group ? 45 : F.bossDown >= 2 ? 40 : 15));
       F.marked = null;
     }
@@ -4903,7 +5004,7 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
     if (d < attackDist) { attacker = o; attackDist = d; }
   }
   // 戦場で実際に落馬した馬だけを拾う。開戦時の空馬は置かない。
-  if ((!gathering || (F.pointDone && !F.signal)) && !attacker && !p.mounted && p.mountT <= 0 && !b.army.nearestEnemy(u, 8)) {
+  if (F.pointDone && !F.signal && !attacker && !p.mounted && p.mountT <= 0 && !b.army.nearestEnemy(u, 8)) {   // 11/6 fixc：開戦後は空馬を追い回さない（押し合いの間に bot が馬の横で止まった）
     let horse = p.catching?.o || null, hd = gathering ? 6 : 12;
     if (!horse) for (const o of b.army.looseHorses || []) {
       if (!o.from || !o.h.parent || o.mode === 'fled') continue;
@@ -5004,8 +5105,10 @@ function remainingForce(rt, a0, b0, aKeep, bKeep, out) {
     c.a = a; c.b = b; c.a0 = Math.max(c.a0, a); c.b0 = Math.max(c.b0, b);
   }
   const ra = c.a0 ? c.a / c.a0 : 1, rb = c.b0 ? c.b / c.b0 : 1;
-  out.a = Math.round(a0 * (aKeep + (1 - aKeep) * ra) / 10) * 10; out.a0 = a0;
-  out.b = Math.round(b0 * (bKeep + (1 - bKeep) * rb) / 10) * 10; out.b0 = b0;
+  const na = Math.round(a0 * (aKeep + (1 - aKeep) * ra) / 10) * 10, nb = Math.round(b0 * (bKeep + (1 - bKeep) * rb) / 10) * 10;
+  // 11/6 fixc（kaito 一-6）：手当てで戻った兵で数が増えて見えないよう、表示は減るだけ。
+  out.a = c.shownA === undefined ? na : Math.min(c.shownA, na); c.shownA = out.a; out.a0 = a0;
+  out.b = c.shownB === undefined ? nb : Math.min(c.shownB, nb); c.shownB = out.b; out.b0 = b0;
   return out;
 }
 const MORIBE_FORCE = { a: 1500, a0: 1500, b: 6000, b0: 6000, aCaption: '約', bCaption: '約' };

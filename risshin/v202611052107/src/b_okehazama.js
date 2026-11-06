@@ -848,7 +848,7 @@ const okehazama = {
   // 間合いと命中は頭上の▼で示し、別の距離案内は出さない。
   // 相手は赤い▼で示す。右上は場所と行いの目標の一行のまま（「敵を倒せ」「残る何人」は言わない・kaito 三1）。
   enemyOrder(rt, enemy) {
-    if (enemy && enemy === rt.flags.yoshimoto) return this.missions[5];
+    if (enemy && enemy === rt.flags.yoshimoto) return this.missions[4];
     return this.missionHeading(rt);
   },
   // 大将の印：義元を討つ段だけ、地図と戦場で大将の印を大きくする（稲生の型）。
@@ -985,38 +985,24 @@ const okehazama = {
   // 場所と相手は既存のピン・布陣・下知で伝え、討った瞬間に次の一行へ替える。
   // 行き先はピン、相手は赤い▼。任務に場所・距離・向き・難しい役名を重ねない。
   // 集合先は地面のピンに任せ、人名や地名を探して歩かせない。
-  // 11/5 専門家の見直し：右上は戦の間ずっと番号付きの一行（kaito 三1・三3）。史実の順に六つ。
-  missions: ['①中島砦の下で組の旗に集まる', '②雨の谷を下り、谷の出口へ', '③谷の出口で雨の上がるのを待つ',
-    '④坂道で松井宗信の先手を破る', '⑤桶狭間山の幕の前で旗本を破る', '⑥幕の口から今川義元を討つ'],
+  // 11/5 専門家の見直し：右上は戦の間ずっと番号付きの一行（kaito 三1・三3）。
+  // 11/6 kaito 十1：一つの目標の間は言い替えない（前は物見・入口・深手で「⑥幕の口へ進む」などに替わっていた）。
+  //   集まるのは出発の数秒だけだったので、①を谷の下りとまとめ、終わりの札（goals5.js）と同じ五つにした。
+  missions: ['①中島砦の下から雨の谷を下り、谷の出口へ', '②谷の出口で雨の上がるのを待つ',
+    '③坂道で松井宗信の先手を破る', '④桶狭間山の幕の前で旗本を破る', '⑤幕の口から今川義元を討つ'],
   missionOf: (rt) => {
     const F = rt.flags;
-    if (F.victory) return 5;
-    if (rt.phase === 'assault') {
+    let k = 0;
+    if (F.victory) k = 4;
+    else if (rt.phase === 'assault') {
       if (F.entered) revealName(rt, '今川義元');
-      return F.entered && F.guardOpened ? 5 : F.entered || F.roadStep >= F.road.length ? 4 : 3;
-    }
-    if (rt.phase === 'wait') return 2;
-    if (rt.phase === 'march') return okehazama.squadFlagReached(rt) ? 2 : 1;
-    return 0;
+      k = F.entered && F.guardOpened ? 4 : F.entered || F.roadStep >= F.road.length ? 3 : 2;
+    } else if (rt.phase === 'wait') k = 1;
+    // 済んだ番号へ戻さない。
+    F.missionMax = Math.max(F.missionMax || 0, k);
+    return F.missionMax;
   },
   missionHeading(rt) {
-    const F = rt.flags;
-    if (rt.phase === 'brief' && F.briefed) return '①中島砦の下で組の出発を待つ';
-    // 谷と出口で今川の物見が寄せた時だけ、同じ番号のまま相手を言う。
-    if (F.scoutFighting && rt.phase === 'march') return '②谷の道で今川の物見を迎え討つ';
-    if (F.scoutFighting && rt.phase === 'wait') return '③谷の出口で今川の物見を迎え討つ';
-    if (rt.phase === 'assault' && !F.victory) {
-      // 敵の▼が入口のピンへ替わる時、同じ番号のまま行き先を伝える。
-      if (!F.entered && F.roadStep >= F.road.length) return '⑤桶狭間山の幕の前へ進む';
-      if (F.guardOpened && !F.mouthReached && !F.koshiLeft) return '⑥幕の口へ進む';
-      // 義元に深手を負わせた後は、囲む旗本へ任務を移す。
-      // enemyOrder はこの関数を呼ぶため、ここでは目標を直接返す。
-      if (F.yoshiDown) return '⑥義元を囲む旗本を破る';
-      if (F.entered && F.guardOpened && this.objectiveEnemies(rt).length)
-        return '⑥幕の口の旗本を破り、今川義元を討つ';
-    }
-    if (F.victory) return F.pursuitDone && F.returnGatherT > 0
-      ? '⑥帰る組の旗に集まって待つ' : '⑥帰る組の旗に集まる';
     return this.missions[this.missionOf(rt)];
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
@@ -3281,12 +3267,8 @@ const okehazama = {
     const mor = F.nobKill[1];
     if (sightPoint(rt, F.yoshimoto.pos) && Math.hypot(rt.player.u.pos.x - F.yoshimoto.pos.x, rt.player.u.pos.z - F.yoshimoto.pos.z) <= 12)
       rt.banner('今川義元 討ち取ったり', '');
-    else if (Math.hypot(rt.player.u.pos.x - F.yoshimoto.pos.x, rt.player.u.pos.z - F.yoshimoto.pos.z) <= 45) {
-      // 少し離れていても、鬨の声の方へ一息だけ目を向ける。構えている時は奪わない。
-      const p = rt.player;
-      if (!p.lock && !(p.inCombatT > 0)) p.cine = { x: F.yoshimoto.pos.x, z: F.yoshimoto.pos.z, t: 1.4 };
-      rt.banner('今川義元 討ち取ったり', '');
-    } else rt.banner('今川義元 討ち取ったり', ''); // 大きく短く（五3）。誰が首を挙げたかは兵の声で
+    // 11/6 kaito 九7「カメラは勝手に回らない」：鬨の声の方へ目を向けさせていた視点の奪いは外した。
+    else rt.banner('今川義元 討ち取ったり', ''); // 大きく短く（五3）。誰が首を挙げたかは兵の声で
     // 討死を見た生存兵から知らせが走る。隊の番号や時刻だけでは崩さない。
     const witness = F.enemies.flatMap((g) => g.units).find((u) => u.alive && !u.gone && !u.woundOut &&
       Math.hypot(u.pos.x - F.yoshimoto.pos.x, u.pos.z - F.yoshimoto.pos.z) < 30 &&
