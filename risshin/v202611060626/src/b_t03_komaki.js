@@ -20,12 +20,13 @@
 // ======================================================================
 import { gauss, enemyGroup, allyGroup, wallLine } from './bhelp.js';
 import { distToPolyline } from './world.js';
-import { horiboriHeight } from './castle_parts.js';
+import { horiboriHeight, dobeiLine, yaguraGate, monomi } from './castle_parts.js';
 import { kagaribiBatch } from './props.js';
 import { KIT } from './b_nagashinojo.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
 import { STAGES } from './stages.js';
+import { flagTexture } from './textures.js';
 
 const XW = 158, ZN = -120, ZS = 120;                   // 見えない壁
 const ROAD = [[156, -8], [110, -10], [60, -22], [10, -26], [-40, -22], [-70, -18], [-156, -24]];
@@ -46,6 +47,19 @@ const GOJO = [[162, 46], [132, 36], [104, 33], [74, 37], [50, 54], [34, 90], [26
 const HORI = [[[FORT.x - 38, 3], [GATE.x - 5, 3]], [[GATE.x + 5, 3], [FORT.x + 38, 3]],
   [[FORT.x - 40, 10], [GATE.x - 5, 10]], [[GATE.x + 5, 10], [FORT.x + 40, 10]]].map((pts) => horiboriHeight(pts, { depth: 1.5, width: 4.2 }));
 // 柵の内の篝火（夜討ちの夜に火を入れる）
+// 楽田城（秀吉の本陣）：四方に堀と土塁の平城（楽田城跡・『尾張志』）。南の大手に櫓門、北西の隅に櫓。堀は大手の前だけ土橋
+const RK = { x0: RAKUDA.x - 24, x1: RAKUDA.x + 24, z0: RAKUDA.z - 14, z1: RAKUDA.z + 24 };
+const RHORI = [[[RK.x0 - 5, RK.z1 + 5], [RAKUDA.x - 4, RK.z1 + 5]], [[RAKUDA.x + 4, RK.z1 + 5], [RK.x1 + 5, RK.z1 + 5]],
+  [[RK.x0 - 5, RK.z1 + 5], [RK.x0 - 5, RK.z0 - 6]], [[RK.x1 + 5, RK.z1 + 5], [RK.x1 + 5, RK.z0 - 6]]].map((pts) => horiboriHeight(pts, { depth: 1.6, width: 4.6 }));
+// 遠くの軍勢（軽い作り・本物に替えない）：描く兵は百に足りなくても、三千対五千・楽田と小牧山の対陣の規模に見せる（十二の1）
+function farArmy(rt, x, z, w, d, count, facing, flag, team, seed) {
+  const A = rt.world.addDistantArmy({ x, z, w, d, count, facing, armor: team ? TOKU.armor : 0x2b2723, flagTex: flagTexture(flag), mon: flag, flag, seed, team, farFill: true, host: false, kind: 'mixed', flagRate: 0.4 });
+  if (A && A.army) { A.army.team = team; A.army.noWake = true; }
+  return A;
+}
+// 徳川方の将の旗（奥平は奥平の紋、榊原は「無」の字、酒井は片喰。物見が旗で見分ける）
+const HOUSE = { '奥平信昌': 'okudaira', '榊原康政': 'sakakibara', '酒井忠次': 'katabami' };
+const kitOf = (name) => { const k = Object.keys(HOUSE).find((n) => name && name.startsWith(n)); return k ? { ...TOKU, flag: HOUSE[k] } : TOKU; };
 const KAGARI = [[FORT.x - 26, -7], [FORT.x - 12, -7], [GATE.x - 6, -7], [GATE.x + 6, -7], [FORT.x + 12, -7], [FORT.x + 26, -7], [FORT.x, -30]];
 export const ARMOR = KIT.ARMOR;
 export const TOKU = { armor: ARMOR.tokugawa, cloth: 0x5a4632, lace: 0x7a5a3a, flag: 'tokugawa' };
@@ -75,7 +89,7 @@ function foeGeneral(rt, name, at, n = 14) {
   const g = enemyGroup(rt, { faction: 'tokugawa', name: name + 'の旗本', anchor: { ...at }, facing: Math.PI, width: 5, formation: 'line', morale: 95, dmgMult: 0.4,
     order: 'hold', seekRange: 10, aggro: 6, speed: 3.4, noRout: true },
   dressT([{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: Math.round(n * 0.45), o: { keep: true } },
-    { type: 'ashigaru', n: Math.round(n * 0.4), o: { flagScale: 1 } }, { type: 'gun', n: Math.max(1, n - Math.round(n * 0.45) - Math.round(n * 0.4)) }]));
+    { type: 'ashigaru', n: Math.round(n * 0.4), o: { flagScale: 1 } }, { type: 'gun', n: Math.max(1, n - Math.round(n * 0.45) - Math.round(n * 0.4)) }], kitOf(name)));
   g.leader = g.units.find((u) => u.name === name);
   rt.flags.waves.push(g);
   return g;
@@ -136,6 +150,7 @@ function height(x, z) {
   if (r < 6) h *= 0.7 + r * 0.05;
   if (Math.abs(x - FORT.x) < 44 && z > -2 && z < 15) for (const d of HORI) h += d(x, z);
   h += dorui(x, z);
+  if (x > RK.x0 - 12 && x < RK.x1 + 12 && z < RK.z1 + 12) for (const d of RHORI) h += d(x, z);
   return h;
 }
 
@@ -188,6 +203,7 @@ const t03_komaki = {
     groundHalf: 220,
     height,
     paths: [{ pts: ROAD, w: 3.5 }, { pts: NROAD, w: 3 }],
+    longHoro: 'round',   // 野呂助左衛門の母衣は竹籠に布の丸い母衣（背の薄い板やマントにしない）
     streams: [{ pts: GOJO, w: 4.5, depth: 0.9 }],
     patchyGround: true,
     tint(x, z, h, c) {
@@ -203,7 +219,7 @@ const t03_komaki = {
       { x: 30, z: -70, r: 16, n: 30 },
     ],
     clearGroves: true,
-    clear: (x, z) => dist({ x, z }, HAGURO) < 16 || dist({ x, z }, MORIJIN) < 16 || dist({ x, z }, FORT) < 26 || dist({ x, z }, RAKUDA) < 18 || distToPolyline(x, z, ROAD) < 6 || distToPolyline(x, z, NROAD) < 6,
+    clear: (x, z) => dist({ x, z }, HAGURO) < 16 || dist({ x, z }, MORIJIN) < 16 || dist({ x, z }, FORT) < 26 || dist({ x, z }, RAKUDA) < 34 || distToPolyline(x, z, ROAD) < 6 || distToPolyline(x, z, NROAD) < 6,
     trees: 200,
     tufts: 2200,
     treeDensity: (x, z) => (Math.abs(z) < 60 && Math.abs(x) < 150 ? 0.25 : 1),
@@ -261,6 +277,9 @@ const t03_komaki = {
       F.okuG = foeGeneral(rt, '奥平信昌', { x: HAGURO.x - 6, z: HAGURO.z + 74 }, 12);
       F.frontN = F.front.reduce((s, g) => s + aliveN(g), 0);
       rt.army.play('toki', { x: HAGURO.x, z: HAGURO.z + 46 }, 1.4);
+      // 五条川の南に続く徳川勢の後備（大須賀康高・丹羽氏次ら）と、八幡林の北に控える森勢の後ろの備（遠景・本物に替えない）
+      F.farToku = [farArmy(rt, 112, 100, 46, 14, 260, Math.PI, 'tokugawa', 1, 15901), farArmy(rt, 160, 82, 22, 10, 110, -Math.PI * 0.8, 'sakakibara', 1, 15902)];
+      F.farMori = [farArmy(rt, 66, -78, 26, 10, 160, 0, 'tsuru', 0, 15903)];
       // 二十秒後、西の田から酒井忠次の手が横へ回り、北の犬山への退き道を断ちにかかる（挟まれる）
       rt.after(20, () => {
         if (F.stage !== 1) return;
@@ -289,13 +308,16 @@ const t03_komaki = {
         // 森長可の旗本は斬り合いに留まらず退く（retreat）。先手と脇備は打ち合いながら後ろを守って下がる（move）
         g.order = g === F.moriG ? 'retreat' : 'move'; g.dest = { x: INU.x + dx, z: INU.z + dz }; g.speed = 3.6; g.fixed = false;
       }
+      // 遠くの森勢の備も北の犬山へ退き、徳川の後備は五条川の岸まで押し出す
+      for (const A of F.farMori || []) A?.moveTo?.(90, -160, 70);
+      for (const A of F.farToku || []) A?.moveTo?.(A === F.farToku[0] ? 112 : 150, 58, 60);
       // 追う徳川勢は鶴丸の旗（森長可）を狙う。退く者を背から突くので、斬り合いより手は軽い
       F.chaseHit = 0.3;
       for (const g of F.waves) if (live(g)) { g.order = 'attack'; g.seekRange = 50; g.focus = F.moriU; g.dmgMult = Math.min(g.dmgMult ?? 1, F.chaseHit); }
       if (F.okuG) { F.okuG.order = 'move'; F.okuG.dest = { x: HAGURO.x, z: HAGURO.z + 8 }; }
       // 母衣衆の野呂助左衛門と子の助三郎（初陣）が引き返して殿をする。討てる（史実で討死）
       F.noro = allyGroup(rt, { name: '野呂助左衛門の殿', fullStrength: true, anchor: { x: HAGURO.x + 2, z: HAGURO.z + 8 }, facing: 0, width: 4, formation: 'line', aggro: 14, seekRange: 30, speed: 4, order: 'attack', noRout: true, dmgMult: 0.7 },
-        fl([{ type: 'samurai', n: 1, o: { name: '野呂助左衛門', horse: true } }, { type: 'samurai', n: 1, o: { name: '野呂助三郎' } }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }], 'tsuru'));
+        fl([{ type: 'samurai', n: 1, o: { name: '野呂助左衛門', horse: true, horo: 0xe6dfcf } }, { type: 'samurai', n: 1, o: { name: '野呂助三郎' } }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }], 'tsuru'));
       F.noroU = F.noro.units.find((u) => u.name === '野呂助左衛門');
       rt.after(3.2, () => { if (F.stage === 2) rt.say('野呂助左衛門', '殿はこの野呂が引き受け申す。助三郎、そなたは退け！', 3); });
       rt.after(6.6, () => { if (F.stage === 2) rt.say('野呂助三郎', '父上を置いては退けませぬ！', 2.4); });
@@ -308,8 +330,9 @@ const t03_komaki = {
       for (const g of [F.moriG, F.moriFront, F.moriSide]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
       if (F.noro) for (const u of F.noro.units) if (u.alive) rt.army.despawn(u);
       // 半月の間に組は討たれた者を埋め直し、羽柴の砦の守りに付いた（退き戦で散った組のまま夜討ちを受けない）
+      for (const A of [...(F.farMori || []), ...(F.farToku || [])]) if (A) { A.halt?.(); A.visible = false; }
       for (const u of F.men.units) if (u.alive) rt.army.despawn(u);
-      F.men = this.squad(rt, { x: GATE.x, z: GATE.z - 8 }, 'toyotomi');
+      F.men = this.squad(rt, { x: GATE.x, z: GATE.z - 8 }, 'toyotomi', '砦の加勢の足軽');
       F.menN0 = aliveN(F.men);
       warpTo(rt, GATE.x, GATE.z - 6, 0);
       rt._dangerPeak = 0; rt._dangerStep = 0;   // 羽黒の森勢を帰したのを「味方が討ち減らされた」と数えない（組頭の危ない時の声が時の飛んだ直後に出た）
@@ -318,8 +341,17 @@ const t03_komaki = {
       if (rt.world.fade) rt.world.fade.t = rt.world.fade.dur;   // 時が飛ぶので、昼から夜へ移ろわせずにすぐ夜にする
       for (const [x, z] of KAGARI) rt.world.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 14, smoke: false });
       KIT.honjin(rt, RAKUDA.x, RAKUDA.z, { mon: 'toyotomi', fire: false });
+      // 楽田城：陣幕の本陣を土塀で囲み、南の大手に櫓門、北西の隅に櫓（城の本陣。四の5）
+      const rw = dobeiLine(rt, [[RAKUDA.x - 4, RK.z1], [RK.x0, RK.z1], [RK.x0, RK.z0], [RK.x1, RK.z0], [RK.x1, RK.z1], [RAKUDA.x + 4, RK.z1]], { team: 0, name: '楽田城の塀', hp: 99999 });
+      for (const w of rw.structs) { w.noTarget = true; w.wall = true; }
+      F.rkGate = yaguraGate(rt, RAKUDA.x, RK.z1, 5, 0, { team: 0, hp: 99999, name: '楽田城の大手門', inside: false });
+      if (F.rkGate?.struct) F.rkGate.struct.noTarget = true;
+      monomi(rt, RK.x0 + 6, RK.z0 + 6, { team: 0, name: '楽田城の櫓', mon: 'toyotomi' });
+      // 山野に満ちた羽柴の大軍（楽田の東西）と、小牧山の麓の徳川・信雄の軍勢（遠景・本物に替えない）
+      F.farNight = [farArmy(rt, -100, -96, 30, 16, 220, 0, 'toyotomi', 0, 15911), farArmy(rt, 22, -100, 30, 16, 220, 0, 'toyotomi', 0, 15912),
+        farArmy(rt, -152, 162, 28, 12, 180, Math.PI, 'tokugawa', 1, 15913), farArmy(rt, -40, 170, 28, 12, 160, Math.PI, 'tokugawa', 1, 15914)];
       // 対陣の夜は両陣の篝火が星のようだった（四戦紀聞）。楽田と小牧山の本陣の前にも火を入れる
-      const camps = [[RAKUDA.x - 12, RAKUDA.z + 20], [RAKUDA.x + 12, RAKUDA.z + 20], [RAKUDA.x - 24, RAKUDA.z + 8], [RAKUDA.x + 24, RAKUDA.z + 8],
+      const camps = [[RAKUDA.x - 12, RAKUDA.z + 20], [RAKUDA.x + 12, RAKUDA.z + 20], [RAKUDA.x - 19, RAKUDA.z + 8], [RAKUDA.x + 19, RAKUDA.z + 8],
         [HONJIN.x - 14, HONJIN.z - 16], [HONJIN.x + 10, HONJIN.z - 16], [HONJIN.x + 34, HONJIN.z - 8], [HONJIN.x - 30, HONJIN.z - 4]];
       rt.scene.add(kagaribiBatch(rt.world, camps));
       for (const [x, z] of camps) rt.world.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
@@ -352,8 +384,8 @@ const t03_komaki = {
   },
 
   // 主人公の連れた組（森隊の足軽。砦では羽柴の旗の下に付く）
-  squad(rt, at, flag) {
-    const g = allyGroup(rt, { name: '森隊の足軽', fullStrength: true, anchor: { ...at }, facing: 0, width: 5, aggro: 10, speed: 3.9, order: 'hold', noRout: true, dmgMult: 0.5 },
+  squad(rt, at, flag, name = '森隊の足軽') {
+    const g = allyGroup(rt, { name, fullStrength: true, anchor: { ...at }, facing: 0, width: 5, aggro: 10, speed: 3.9, order: 'hold', noRout: true, dmgMult: 0.5 },
       fl([{ type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'ashigaru', n: 3 }, { type: 'samurai', n: 2 }, { type: 'gun', n: 2 }], flag));
     g.ai = true;
     g.defMult = 2;   // 森勢の討死は三千のうち三百ほど。主人公の組だけが溶けない
@@ -364,7 +396,7 @@ const t03_komaki = {
     const F = rt.flags;
     if (aliveReal(rt) + n > REAL_CAP) return null;
     const g = enemyGroup(rt, { faction: 'tokugawa', name, anchor: at, facing: Math.PI, fleeDir: { x: 0, z: 1 }, width: 4, formation: 'line', morale: 85, dmgMult: 0.42,
-      order: 'attack', seekRange: 50, aggro: 14, speed: 3.6, noRout: true, ...(focus ? { focus } : {}) }, foeKnot(n));
+      order: 'attack', seekRange: 50, aggro: 14, speed: 3.6, noRout: true, ...(focus ? { focus } : {}) }, foeKnot(n, kitOf(name)));
     if (to) g.dest = { x: to.x, z: to.z };
     if (F.stage === 2 && F.chaseHit) g.dmgMult = F.chaseHit;
     if (F.stage === 3) g.dmgMult = 0.36;   // 木戸は柵の陰から迎える（柵越しの打ち合い）

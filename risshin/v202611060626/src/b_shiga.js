@@ -28,7 +28,8 @@ import { RANKS } from './state.js';
 import { isTouch } from './touch.js';
 import { signal, sfx, withPan, farNext } from './audio.js';
 import { battleEvent, EVENT_RETREAT, EVENT_FIRE_START, EVENT_REINFORCEMENT, EVENT_VOLLEY } from './battle_events.js';
-import { sightPoint } from './battle_sight.js';
+import { sightPoint, sightUnit } from './battle_sight.js';
+import { goalsTick } from './hud_goals.js';
 import { drawGroundAt, avoidCameraBodies } from './render_camera.js';
 import { gauss, enemyGroup as spawnEnemy, allyGroup, nm, centerOf, wallLine } from './bhelp.js';
 import { dress, gone } from './b_inabayama.js';
@@ -902,7 +903,7 @@ function moveHostToHiei(rt, host, index) {
   });
 }
 // 後詰の言い方（信長で遊ぶ時は、自分が上様なので摂津の本隊）
-const AID = (rt) => (rt.G.lord ? '京からの本隊が着くまで' : '信長の援軍が着くまで');
+const AID = (rt) => (rt.G.lord ? '京からの本隊が着くまで' : '信長の後詰が着くまで');
 // 足軽大将ほどの身分で出た時は、城兵の一手を預かる
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 // 登城後の静かな待ちを短くする。寄せ手の出発・後詰の移動・本丸の守備条件は保つ。
@@ -928,7 +929,7 @@ function castleWatchText(rt) {
   for (const g of F.waves || []) {
     if (gone(g) || g.order !== 'assault' || !g._shigaGate?.alive || g._shigaGate.opened) continue;
     if (F.gates.indexOf(g._shigaGate) < F.gates.indexOf(gate?.struct))
-      return '敵は下の木戸を攻めている。ここで援軍を待て';
+      return '敵は下の木戸を攻めている。ここで後詰を待て';
   }
   for (const g of F.waves || []) if (!gone(g) && g.order === 'path')
     return '敵が坂道を上ってくる。木戸を閉じて待て';
@@ -1092,7 +1093,7 @@ function enemyGunCue(rt) {
     // 発砲音は射手の合成音を使う。退き太鼓の後も、道案内を消さずに危険を伝える。
     F.retreatGunText = `${sound}。道沿いの物陰を使え`;
     F.retreatGunUntil = rt.t + 8;
-    rt.say('足軽', `${sound}じゃ！　道沿いの物陰を使い、坂道を上って木戸へ退け！`, 3.5);
+    rt.say('足軽', `${sound}じゃ！　身を低うして坂を上れ、木戸へ退け！`, 3.5);
     return;
   }
   if (town) {
@@ -2001,12 +2002,12 @@ const shiga = {
   compactPlayerSign: true, // 自分の足元の輪を小さくし、壁の向こうへ描かない。
   openingFootSignOnly: true, // 初めの本人案内を足元へ収め、具足を白い全身枠で覆わない。
   playerFootSignOnly: true,
-  hideArmyPeek: true, // 坂で任務札に重なる両軍の帯を畳む。軍の名は出陣札に残す。
+  hideArmyPeek: false, // 11/6 九3：両軍の今の人数の棒を上に常に出す（目標の札は右へ寄せた）
   playerSignScale: .4, // 白い足形を草鞋より目立たせず、自分の位置は残す。
   playerSignMinScale: .4, // 共通の下限に戻さず、この戦の小さい本人印を使う。
   woundEffectMin: 0.05, // 浅い打撲で守りの下知を退避札に替えない。出血・深手の案内は残す。
   introText() {
-    return '東は琵琶湖、西は比叡山方面。敵は北から坂本へ来る。まず町口の森可成の槍の列へ。敵を向いて槍を構え、町口を守れ。退き太鼓が鳴ったら、坂道を上って南の宇佐山城へ。';
+    return '東は琵琶湖、西は比叡山。敵は北から坂本へ来る。まず町口の森可成の槍の列へ。退きの鉦が鳴ったら、坂道を上って南の宇佐山城へ。';
   },
   guardButtonText: '押して かまえる',
   waitGuardButtonText: '押し続けて ふせぐ',
@@ -2018,7 +2019,7 @@ const shiga = {
       F.step < 2 ? '森隊の列' : '守る持ち場';
     if (F.step >= 3 && distance < 3) return castleWatchText(rt);
     if (F.step < 2 && distance < 3) return '持ち場で敵を向いて構えよ';
-    return distance < 3 ? `${place}はすぐ先` : `${place}まで約${Math.round(distance)}歩`;
+    return distance < 3 ? `${place}はすぐ先` : `${place}まで約${Math.round(distance)}m`;
   },
   taskDetails: true, // 携帯でも守りの条件と残り時間を読めるようにする。
   armySignals: false, // 場面ごとの実際の隊から鳴らす。任務の文言から別の突撃・退き合図を足さない。
@@ -2226,7 +2227,7 @@ const shiga = {
       return order?.text || this.missions[5];
     }
     if (F.step === 2) {
-      if (rt.t < F.retreatSoundUntil) return '退きの法螺・太鼓・鉦。坂道を宇佐山城へ';
+      if (rt.t < F.retreatSoundUntil) return '退きの鉦。坂道を宇佐山城へ';
       if (rt.t < F.retreatGunUntil) return `${F.retreatGunText}。城へ退け`;
     }
     if (F.step >= 3) {
@@ -2296,6 +2297,9 @@ const shiga = {
   noTaisho: true, // この戦にいない各務元正や、別の本陣襲撃を共通処理で足さない。
   // 狭い折り返しでは徒歩で下知を運ぶ。別仕立ての飾りの騎馬は柵際へ走らせない。
   footRunners: true,
+  // 11/6 fix61_shiga：主人公は森可成の手の守備兵。町口の槍の列から細い坂道を退き、木戸の内で守る籠城なので徒歩で出る。
+  //   侍大将の位で馬に乗ったままだと、町屋の間で退きの坂の入口へ向けず止まり続けた（描かない流しで二度）。名のある将の馬上は保つ
+  noHorse: true,
   noCouriers: true,
   camLift: -0.9,   // 騎馬の行軍で真上から見下ろさない。町屋の軒と背の山を画面の上に残す（10/28）
   spawn: { x: TOWN.x + 4, z: TOWN.z + 8, heading: Math.PI + 0.7 },   // 北西へ少し振り、背後の宇佐山の段と柵を始めの画面の縁に入れる（10/28）
@@ -2655,7 +2659,7 @@ const shiga = {
     // 森家の鶴丸を隊旗・備の旗にする。具足と陣羽織、十文字槍と豪傑の型は本人の表を使う。
     // 鶴丸の根拠：可児市「可成寺」。この戦での旗の配り方は復元。
     // https://www.city.kani.lg.jp/24538.htm
-    // 公記は可成とともに戦った道豪清十郎・道家助十郎兄弟の白い指物を記す。
+    // 公記は可成とともに戦った道家清十郎・道家助十郎兄弟の白い指物を記す（Wikisource の底本は兄を「道豪」と書くが、兄弟なので同じ道家にそろえる）。
     // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
     // 兄の清十郎も同じ森隊に置き、兄弟の白い指物を二人とも見せる。
     // 公記に可成と並んで記される尾藤源内・尾藤又八も同じ手に置く。細かな所属は復元。
@@ -2664,7 +2668,7 @@ const shiga = {
     F.mori = allyGroup(rt, { name: '森可成の手', fixed: true, anchor: { x: TOWN.x, z: TOWN.z - 6 }, facing: Math.PI, width: 5, aggro: 10, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } },
         { type: 'samurai', n: 1, o: { name: '道家助十郎', flag: '天下一の勇士' } },
-        { type: 'ashigaru', n: 1, o: { name: '道豪清十郎', flag: '天下一の勇士' } },
+        { type: 'ashigaru', n: 1, o: { name: '道家清十郎', flag: '天下一の勇士' } },
         { type: 'ashigaru', n: 1, o: { name: '尾藤源内' } },
         { type: 'ashigaru', n: 1, o: { name: '尾藤又八' } },
         { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }], { ...ODA, flag: 'tsuru' }));   // 可成の旗本は侍（11/4 O）
@@ -2905,7 +2909,7 @@ const shiga = {
     // 攻撃人数は共通の間合い判定に従う。本人だけを二人に制限しない。
     rt.marker('mori', TOWN_POST, '守る町口・森隊の列', { noGuide: true, guideRadius: 3, hideNear: 3, hideOnArrival: true });
     shigaSignal(rt, 'hajime', TOWN_POST, 0.9);
-    F.townSoundText = '開戦の法螺と太鼓。町口で先手を迎え撃て'; F.townSoundUntil = rt.t + 8;
+    F.townSoundText = '法螺と陣太鼓。町口で先手を迎え撃て'; F.townSoundUntil = rt.t + 8;
     F.townSignalUntil = F.townSoundUntil;
     rt.banner('九月十六日・坂本の町口', '湖の西の道を、浅井・朝倉の旗が下ってくる');
     rt.obj('main', '町口で先手を迎え撃て', 'main');
@@ -2931,7 +2935,7 @@ const shiga = {
     // 町口の左右では、森・信治の手の後ろの者と朝倉の大軍が押し合う（軽い作り）
     F.lines.forEach((c, i) => rt.after(6 + i * 2, () => c.go()));
     rt.marker('w1', centerOf(g), () => `朝倉の先手`, { red: true, group: g });
-    rt.say('森可成', '開戦の法螺と太鼓じゃ！　鬨を上げ、槍先を揃えよ！', 3);
+    rt.say('森可成', '法螺を吹け、陣太鼓を打て！　鬨を上げ、槍先を揃えよ！', 3);
     // 勝ち筋：町口は狭く、大軍でも横に広がれぬ。口を塞いで鉄砲で頭を叩く
     rt.after(10, () => shigaSupportVoice(rt, '青地茂綱', '山側はわしが守る！　敵を追って列を空けるな！', 3,
       () => F.step === 1 && F.aochiU.alive));
@@ -3216,13 +3220,13 @@ const shiga = {
     shigaDay(rt, 22);
     rt.banner('九月二十二日・摂津へ急報', '京へ迫る敵の知らせが、摂津の信長に届く');
     castleProgress(rt, '塀と門で寄せ手を押し返せ');
-    shigaSupportVoice(rt, '肥田彦左衛門', '城を出るな。殿の援軍の旗が見えるまで、門を固めよ！', 4,
+    shigaSupportVoice(rt, '肥田彦左衛門', '城を出るな。上様の後詰の旗が見えるまで、門を固めよ！', 4,
       () => F.step === 3.5 && !F.aidMoving);
     rt.after(20, () => {
       if (F.ending || rt.over || F.step !== 3.5 || F.aidMoving) return;
       shigaDay(rt, 23);
       rt.banner('九月二十三日・信長は摂津を引き払う', '柴田勝家・和田惟政がしんがり。本隊は江口を通り京へ');
-      rt.say('', '――信長は野田・福島を引き払い、江口の川を渡って帰京する。宇佐山城はなお援軍を待つ', 5);
+      rt.say('', '――信長は野田・福島を引き払い、江口の川を渡って帰京する。宇佐山城はなお後詰を待つ', 5);
     });
   },
 
@@ -3240,7 +3244,8 @@ const shiga = {
     F.moriRescue = rescue;
     if (rescue) F.hist.moriRescue = 'GAME_C';
     rt.unmark('mori');
-    F.step = 2; F.stepT = rt.t; F.retreating = true;
+    F.step = 2; F.stepT = rt.t; F.retreating = true; F.akAtFall = F.ak || 0;
+    F.bossName = '武藤五郎右衛門';   // 町口が崩れた後の褒め言葉は城の守将から（討死した可成に言わせない）
     for (const mesh of F.flankFlagBatches || []) mesh.removeFromParent();
     F.flankFlagBatches = null;
     if (F.flankHost) F.flankHost.visible = false;
@@ -3270,18 +3275,18 @@ const shiga = {
     // 法螺・太鼓・鉦の説明、城の受け入れ、しんがりの下知を順に読む時間。
     // 守将の攻防は進めたまま、途中の「押されとる」だけで説明を遮らせない。
     F.retreatVoiceUntil = rt.t + 12;
-    rt.say('森可成', '退きの法螺と太鼓じゃ！　続く鉦に従い、南の坂から城へ退け！', 4);
+    rt.say('森可成', '退きの鉦じゃ！　南の坂から宇佐山の城へ退け！', 4);
     battleEvent(rt, EVENT_RETREAT, TOWN, F.mori, 0, true, '町口が崩れた。宇佐山城へ退け');
     rt.objRemove('mouth');
     // 退き太鼓の意味と退く先を読み終えてから、しんがりの声を続ける。
     rt.after(8, () => {
       if (rt.over || F.ending || F.step !== 2) return;
       if (rescue && F.moriU.alive && !gone(F.mori) && !F.mori.routed)
-        rt.say('森可成', '退き太鼓に従え！　皆を城へ入れるぞ、追手を払い、坂道を空けよ！', 4);
+        rt.say('森可成', '退きの鉦に従え！　皆を城へ入れるぞ、追手を払い、坂道を空けよ！', 4);
       else if (F.nobuU.alive && !gone(F.nobuharu))
-        rt.say('織田信治', 'わしらがここで支えるぞ。殿が戻るまで城を渡すな！', 3.5);
+        rt.say('織田信治', 'わしらがここで支えるぞ。兄上が戻られるまで城を渡すな！', 3.5);
     });
-    rt.obj('main', '退きの法螺・太鼓・鉦。坂道を上り、城の木戸へ退け', 'main');
+    rt.obj('main', '退きの鉦。坂道を上り、城の木戸へ退け', 'main');
     F.retreatPath = ROAD.slice(2, ROAD.findIndex(([x, z]) => x === GATE_OUT.x && z === GATE_OUT.z) + 1); F.retreatIdx = 0;
     // 全行程の残りは出発時に一度だけ求める。次の角までの距離と木戸までの距離を分ける。
     F.retreatRemaining = new Array(F.retreatPath.length).fill(0);
@@ -3378,7 +3383,7 @@ const shiga = {
     F.keep.order = 'hold'; F.keep.anchor = { x: F.gateC.x - F.gateN.x * 4, z: F.gateC.z - F.gateN.z * 4 }; F.keep.facing = Math.atan2(F.gateN.x, F.gateN.z); F.keep.aggro = 12;
     rt.marker('gate', F.keep.anchor, '大手木戸の内で守る', { noGuide: true, h: 2, hideNear: 5, hideOnArrival: true });
 
-    // 城へ入ったら退却から待ち受けへ。退けの乱打とは違う、止まれの鉦二つで伝える。
+    // 城へ入ったら退却から待ち受けへ。退けの乱打とは違う止まれの合図を鳴らし、守将が弓と槍の持ち場を言う。
     // 入城の下知と先の退き太鼓を読み終えてから鳴らし、奥への退きが始まれば取り下げる。
     const holdSignal = () => {
       if (rt.over || F.ending || !rt.player.u.alive || F.step !== 3 || F.backedNi ||
@@ -3386,10 +3391,10 @@ const shiga = {
       const wait = Math.max(shigaCommandUntil(F), F.supportVoiceUntil || 0, F.stepT + 4) - rt.t;
       if (wait > 0) { rt.after(wait, holdSignal); return; }
       shigaSignal(rt, 'tomare', F.keep.center(), 0.85);
-      F.castleSoundText = '止まれの鉦二つ。木戸の内で槍を揃え、寄せ手を待て';
+      F.castleSoundText = '木戸を閉めた。内で槍を揃え、寄せ手を待て';
       F.castleSoundUntil = rt.t + 8;
       castleProgress(rt, '城兵と槍の列を保て');
-      rt.say('武藤五郎右衛門', '鉦二つは止まれの合図じゃ！　木戸の内で槍を揃え、寄せ手を待て！', 4);
+      rt.say('武藤五郎右衛門', '弓は塀の内から射よ！　槍は木戸の内に揃えよ！', 4);
     };
     rt.after(4, holdSignal);
 
@@ -3619,7 +3624,7 @@ const shiga = {
     }
     // 公記の二十四日の陣所は下坂本。到着した兵列と知らせの位置を同じ着点にそろえる。
     // 逢坂越えは出発時に知らせ済み。城の南を再び示さず、着陣を伝える。
-    battleEvent(rt, EVENT_REINFORCEMENT, AID_CAMP, null, 0, true, '九月二十四日、信長の援軍が下坂本に着いた');
+    battleEvent(rt, EVENT_REINFORCEMENT, AID_CAMP, null, 0, true, '九月二十四日、信長の後詰が下坂本に着いた');
     rt.marker('lakeRoute', AID_CAMP, '下坂本・信長の陣（位置は推定）', { h: 3 });
     rt.obj('main', '集まれの法螺。城内を保ち、敵を追うな', 'main');
     rt.objDone('main'); rt.objRemove('inner'); rt.objRemove('mouth');
@@ -3641,7 +3646,7 @@ const shiga = {
     }
     // 敵の退きと味方の集合を、出どころと間を分けて知らせる。
     rt.banner('九月二十四日・宇佐山城、守り通す', '摂津から戻った信長の前に、浅井・朝倉は比叡山へ上がった');
-    rt.say('武藤五郎右衛門', '殿の援軍が下坂本に着いたぞ！　城は守った、追わず、城内を保て！', 3.5);
+    rt.say('武藤五郎右衛門', '上様の後詰が下坂本に着いたぞ！　城は守った、追わず、城内を保て！', 3.5);
     // 勝ちの終幕中は over が立つ。討死や結果画面への移行だけで、残りの合図を止める。
     const endCueActive = () => !rt.ended && rt.player.u.alive && !rt.result?.down;
     rt.after(endCueDelay, () => {
@@ -3649,8 +3654,8 @@ const shiga = {
       const retreating = (F.waves || []).find(g => !gone(g));
       // 敵軍が引き揚げる長い合図。味方が城内で持ち場を退く短い鉦と聞き分ける。
       shigaSignal(rt, 'nobiki', retreating ? retreating.center() : F.campA.pos, 0.85);
-      rt.obj('inner', '敵の退きの法螺・太鼓・鉦。城内を保ち、敵を追うな', 'order', true);
-      rt.say('武藤五郎右衛門', '敵の退きの法螺と太鼓じゃ！　続く鉦も敵の合図ぞ。追わず、城内を保て！', 4);
+      rt.obj('inner', '敵の退きの鉦。城内を保ち、敵を追うな', 'order', true);
+      rt.say('武藤五郎右衛門', '敵の退きの鉦じゃ！　追わず、城内を保て！', 4);
     });
     // 退き太鼓と最後の鉦の余韻まで約十秒。鳴り終えてから味方の集合を伝える。
     rt.after(endCueDelay + 10, () => {
@@ -3828,12 +3833,12 @@ const shiga = {
     if (F.step === 3.5) {
       const hon = F.SZ.byId.hon;
       const inCastle = F.C.kuruwa.san.test(p.x, p.z) || F.C.kuruwa.ni.test(p.x, p.z) || F.C.kuruwa.hon.test(p.x, p.z);
-      castleProgress(rt, hon.owner === ZONE_STATE.ENEMY ? `本丸を取り返せ。猶予はあと${Math.max(0, Math.ceil(45 - (F.honLostT || 0)))}秒` : !inCastle ? '城の木戸の内へ戻れ' : !F.honGuarded ? F.honGuards < 3 ? '本丸に味方を三人以上集めよ' : '本丸の敵を押し返せ。味方の列で受けよ' : F.aidMoving ? `信長の援軍が着くまであと${Math.max(0, Math.ceil(20 - (rt.t - F.aidT)))}秒` : `信長の援軍が出るまであと${Math.max(0, Math.ceil(AID_WAIT_SECONDS - (rt.t - F.stepT)))}秒`);
+      castleProgress(rt, hon.owner === ZONE_STATE.ENEMY ? `本丸を取り返せ。猶予はあと${Math.max(0, Math.ceil(45 - (F.honLostT || 0)))}秒` : !inCastle ? '城の木戸の内へ戻れ' : !F.honGuarded ? F.honGuards < 3 ? '本丸に味方を三人以上集めよ' : '本丸の敵を押し返せ。味方の列で受けよ' : F.aidMoving ? `信長の後詰が着くまであと${Math.max(0, Math.ceil(20 - (rt.t - F.aidT)))}秒` : `信長の後詰が出るまであと${Math.max(0, Math.ceil(AID_WAIT_SECONDS - (rt.t - F.stepT)))}秒`);
       // 最後の出発待ちを十五秒縮める。後詰が移動する二十秒は保つ。
       if (rt.t - F.stepT >= AID_WAIT_SECONDS && !F.aidMoving) {
         shigaDay(rt, 24);
         F.aidMoving = true; F.aidT = rt.t; F.aid.visible = true;
-        rt.banner('九月二十四日・南に信長の援軍の旗', '京の本能寺を発った信長が逢坂を越えた。木戸を守れ');
+        rt.banner('九月二十四日・南に信長の後詰の旗', '京の本能寺を発った信長が逢坂を越えた。木戸を守れ');
         // 必須の人物（docs/battle_events_1101 の11）：後詰の先に信長の姿と名を見せる（軽い遠景の列の先頭に本物の小勢）。
         rt.after(20, () => {
           if (rt.over || F.nobunagaAid) return;
@@ -3841,7 +3846,7 @@ const shiga = {
             [{ type: 'busho', n: 1, o: { ...ODA, name: '織田信長', invuln: true, horse: true } }, { type: 'samurai', n: 4, o: { ...ODA, invuln: true } }]);
           for (const u of F.nobunagaAid.units) u.noTarget = true;
         });
-        rt.marker('lakeRoute', AID_START, '信長の援軍', { h: 3 });
+        rt.marker('lakeRoute', AID_START, '信長の後詰', { h: 3 });
         // 公記の二十四日の陣所まで同じ湖岸道を北上する。移動時間は遊びのための短縮。
         // 六十五メートルだけの前進では城の南で止まり、「到着」の札と兵列の位置が食い違う。
         // 守りの二十秒・兵数は保ち、終幕へ入る前に下坂本へ着ける。
@@ -3854,7 +3859,7 @@ const shiga = {
           F.victoryVoiceUntil || 0) - rt.t;
         const aidCueCard = () => {
           if (F.victory) rt.obj('inner', F.castleSoundText, 'order', true);
-          else castleProgress(rt, '信長の援軍が近い。門を守れ');
+          else castleProgress(rt, '信長の後詰が近い。門を守れ');
         };
         const aidSignal = () => {
           if (!aidCueActive()) return;
@@ -3864,7 +3869,7 @@ const shiga = {
           shigaSignal(rt, 'susume', { x: aid.cx + aid.off.x, z: aid.cz + aid.off.z }, 0.85);
           F.aidCallStarted = true;
           // 合図待ちの間も後詰は北上する。着陣後も通る湖側を示し、南と取り違えない。
-          F.castleSoundText = '湖側で援軍の法螺と進み太鼓。城を出るな'; F.castleSoundUntil = rt.t + 8;
+          F.castleSoundText = '湖側で後詰の法螺と進み太鼓。城を出るな'; F.castleSoundUntil = rt.t + 8;
           rt.objRemove('mouth');
           aidCueCard();
           rt.say('肥田彦左衛門', '湖側から法螺と進み太鼓じゃ！　味方の後詰ぞ、城を出ず、木戸を守れ！', 4);
@@ -4083,11 +4088,14 @@ const shiga = {
       for (const q of [F.w1, F.w1b, ...F.twoHands, F.w2]) this.castleAdvance(rt, q);
     }
     // 実際に討たれた時も必ず報せる。三人の報せを同時に重ねない。
-    const text = sightPoint(rt, u.pos, 80) ? `${name}が討たれた！` : `町口からの知らせ。${name}が討死`;
+    // 11/6：小さな報せは画面の決まりで落とされ、三将の最期が誰にも分からなかった。名のある味方の討死は大きく短く出す（五3）
+    const sub = { mori: '宇佐山城主・四十八歳', nobu: '信長の弟', aochi: '近江の国衆' }[key] || '';
+    //   共通の「〇〇、討死」の小さな報せが先に「聞いた」扱いになり rt.banner が落ちるので、画面の大見出しへ直に出す
+    const show = () => { if (!rt.over && !F.ending) { rt._bannerT = rt.t; rt.hud.banner(`${name}、討死`, sub); } };
     const wait = Math.max(0, (F.doomReportT || 0) - rt.t);
-    F.doomReportT = rt.t + wait + 8;
-    if (!wait) rt.bark(text, true);
-    else rt.after(wait, () => { if (!rt.over && !F.ending) rt.bark(text, true); });
+    F.doomReportT = rt.t + wait + 5;
+    if (!wait) show();
+    else rt.after(wait, show);
   },
   // 二の丸への退き：三の丸が危うい時、城の守りを二の丸の木戸へ下げる
   toNinomaru(rt) {
@@ -4236,8 +4244,12 @@ const shiga = {
 
 // ---------------- 町口の押し合いと、宇佐山城の守り ----------------
 // 両軍の総勢（宇佐山城の森可成の兵 千ほど、浅井・朝倉 三万ほど。数には諸説ある）
-shiga.force = () => {
-  return { a: 3000, a0: 3000, b: 30000, b0: 30000 }; // AT4（11/3）：三千対三万（約十対一）。出陣時の目安。遠い死傷者を倍率で捏造しない。
+// 11/6 九3：今の数を出す。町口では討たれた実の兵の数だけ減り、町口が崩れた後（森可成らの討死）は城に入った千余り（各務元正らの城兵・battle_learn）から減る。
+//   寄せ手は三万から討たれた実の兵の数だけ減る。遠い死傷者を倍率で捏造しない。
+shiga.force = (rt) => {
+  const F = rt?.flags || {}, ak = F.ak || 0, ek = F.ek || 0;
+  const a = (F.step || 0) >= 2 ? 1000 - Math.max(0, ak - (F.akAtFall ?? ak)) : 3000 - ak;
+  return { a: Math.max(0, a), a0: 3000, b: 30000 - ek, b0: 30000 }; // AT4（11/3）：三千対三万（約十対一）。出陣時の目安。
 };
 shiga.sides = { a: { name: '織田軍（宇佐山城）', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'asakura' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
@@ -4490,6 +4502,90 @@ installBattleJinkei(shiga, [
 ]);
 
 // 志賀に置かれた軽い馬だけを整える。共通の形は複製し、兵数と描画回数は増やさない。
+// 11/6 fix61_shiga（kaito 九1・九3・十1）：右上は一行の札だけで、①〜⑤の目標の並び・両軍の人数の棒・近い敵みなの▼が無かった。
+//   有岡（b_arioka.js の ariGoalBoard）と同じ作りで、目標の五つ（goals5.js の shiga）を最初から並べ、済んだ物に印。
+//   両軍の棒（def.force）を上に常に出し、四十メートル内の見える敵の残りにも同じ赤い▼を付ける。印は使い回し、見通しは兵ごとに三分の一秒おき。
+const SHIGA_BOARD_CSS = `
+html:root body #hud#hud#hud.shiga-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.shiga-goals #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.shiga-goals #armybar { visibility:hidden !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+}
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
+@media (max-height:500px) {
+ html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode { max-width:min(330px, 38vw) !important; padding:5px 9px 6px 8px !important; }
+ html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li { font-size:12px !important; }
+ html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li.now { font-size:13px !important; }
+}`;
+function shigaGoalBoard(rt) {
+  const hud = rt.hud;
+  if (!hud?.root || typeof document === 'undefined') return;
+  hud.root.classList.add('shiga-goals');
+  const style = document.createElement('style');
+  style.textContent = SHIGA_BOARD_CSS;
+  document.head.appendChild(style);
+  const progress = hud.progress;
+  hud.progress = function (battle) {
+    const out = progress.call(this, battle);
+    if (battle === rt && this.prog && !rt.over) {
+      // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
+      const def = rt.def, one = def.missionSingleLine;
+      def.missionSingleLine = false;
+      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+    }
+    return out;
+  };
+  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 80) break;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      if (!(u._shgSeenAt > rt.t - .34 && u._shgSeenAt <= rt.t)) { u._shgSeen = sightUnit(rt, u); u._shgSeenAt = rt.t; }
+      if (!u._shgSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
+  const dispose = rt.dispose;
+  rt.dispose = function () {
+    hud.foeMarks = foeMarks; box.remove();
+    hud.progress = progress;
+    if (hud.prog) hud.prog.classList.remove('goal-mode');
+    hud.root.classList.remove('shiga-goals'); style.remove();
+    return dispose.call(this);
+  };
+}
 const shigaSetup = shiga.setup;
 shiga.setup = function (rt) {
   // 共通の戦況の声も、この戦では退却と木戸の守りを優先する。
@@ -4773,6 +4869,7 @@ shiga.setup = function (rt) {
   shigaSetup.call(this, rt);
   // 志賀専用の整列指定を有効にする。共通の画面は戦名の印を自動では付けない。
   rt.hud.root.classList.add('shiga');
+  shigaGoalBoard(rt);
   // 持ち場を残す指定と、構え釦を敵の脇へ動かす共通の指定が競わないようにする。
   // 志賀の札だけを一つの欄へ収める。支度時に一度作り、戦を離れる時に外す。
   const taskStyle = document.createElement('style');
@@ -5197,7 +5294,7 @@ html:root body #hud.shiga.prog-on.mission-only #battle-notices > :is(#battle-mes
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
 // AT3：義景・長政は本陣の陣幕の内に置く（campA・campB）。前の隊へ名を足すと前線で討てる所に出るので足さない。
-shiga.bushou = ['各務元正'];
+shiga.bushou = [{ name: '各務元正', g: /宇佐山城の守り/, loose: false, line: '木戸を固めよ！　寄せ手を一人も入れるな！' }];   // 各務元正は城に残った守将（battle_learn）。町口の隊へ混ぜない
 export { shiga };
 
 // 本丸の比高に合わせて山の地肌も上げる。盛りの裾を町口へ延ばさない。

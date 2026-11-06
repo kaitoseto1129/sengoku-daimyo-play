@@ -101,10 +101,10 @@ const OWN = {
     const dpi = (rt) => (rt.flags.dp ? (rt.flags.dp.on ? rt.flags.dp.i : 99) : -1);
     const cur = (k) => (rt) => (dpi(rt) === k ? rt.flags.dp.cur?.groups || [] : []);
     return [
-      { kind: 'stage', k: 0, text: '大手の曲輪で近藤出羽守の組を討つ', check: (rt) => won(rt) || dpi(rt) >= 1, groups: cur(0) },
+      { kind: 'stage', k: 0, text: '山下曲輪で近藤出羽守の組を討つ', check: (rt) => won(rt) || dpi(rt) >= 1, groups: cur(0) },
       { kind: 'stage', k: 1, text: '曳橋で打って出た北条勢を迎え撃つ', noun: '打って出た敵', check: (rt) => won(rt) || !!rt.flags.sallyBack, groups: (rt) => (rt.flags.sallyG && !rt.flags.sallyBack ? [rt.flags.sallyG] : []) },
       { kind: 'stage', k: 2, text: '退く敵に続き、冠木門から御主殿へ攻め入る', noun: '冠木門', check: (rt) => won(rt) || dpi(rt) >= 4 },
-      { kind: 'stage', k: 3, text: '金子丸・高丸・松木曲輪を落とす', check: (rt) => won(rt) || dpi(rt) >= 7, groups: (rt) => (dpi(rt) >= 4 && dpi(rt) <= 6 ? rt.flags.dp.cur?.groups || [] : []) },
+      { kind: 'stage', k: 3, text: '金子丸・高丸・小宮曲輪を落とす', check: (rt) => won(rt) || dpi(rt) >= 7, groups: (rt) => (dpi(rt) >= 4 && dpi(rt) <= 6 ? rt.flags.dp.cur?.groups || [] : []) },
       { ...bossGoal('中山勘解由'), k: 4 },
     ];
   },
@@ -158,12 +158,14 @@ const OWN = {
   // 高遠（11/4 p100）：山中城の付け入りの型。大手で打って出た城兵を受け、退く城兵に続いて門を抜け、曲輪を一つずつ奥へ。
   //   盛信は主殿で果てる（自分で討つ目標にしない）
   takato: () => [
-    // 11/5 五版：右上の②〜⑥（b_takato_siege.js の STAGE_TEXT）と同じ言い方の五つ。「敵を何人討つ」は使わない（三1）
-    { kind: 'stage', k: 0, text: '大手門の前で、打って出た城兵を受ける', noun: '大手門', check: (rt) => won(rt) || !!rt.flags.sallyReturning || !!rt.flags.sanFell || !!rt.flags.gates?.oteInner?.opened && !rt.flags.sallyOut && !rt.flags.sallyUntil },
-    { kind: 'stage', k: 0, text: '退く城兵に続き、大手門から三の丸へ入る', noun: '大手門', check: (rt) => won(rt) || !!rt.flags.sanFell },
-    { kind: 'stage', k: 1, text: '二の丸の土橋を渡り、二の丸の門から入る', noun: '二の丸の土橋', check: (rt) => won(rt) || !!rt.flags.niFell },
-    { kind: 'stage', k: 2, text: '本丸門を破り、主殿の奥の間へ進む', noun: '本丸門', check: (rt) => won(rt) || !!rt.flags.honFell },
-    { kind: 'stage', k: 2, text: '本丸の旗の下に集まり、味方と旗を守る', noun: '本丸の旗', check: won },
+    // 11/6 fix61（九1・十1）：右上に①〜⑥を最初から全部並べる。字は b_takato.js の TK_STAGE_TEXT と同じ（途中で言い替えない）。
+    //   段は takatoStageText が戻さずに進める F.tkStage で数える。「敵を何人討つ」は使わない（三1）
+    { kind: 'stage', k: 0, text: '東の大手道を進み、大手門へ寄せよ', noun: '大手門', check: (rt) => won(rt) || (rt.flags.tkStage || 0) >= 1 },
+    { kind: 'stage', k: 0, text: '大手門の前で、打って出た城兵を受けよ', noun: '大手門', check: (rt) => won(rt) || (rt.flags.tkStage || 0) >= 2 || !!rt.flags.sanFell },
+    { kind: 'stage', k: 0, text: '退く城兵に続き、大手門から三の丸へ入れ', noun: '大手門', check: (rt) => won(rt) || !!rt.flags.sanFell },
+    { kind: 'stage', k: 1, text: '二の丸の土橋を渡り、二の丸の門から入れ', noun: '二の丸の土橋', check: (rt) => won(rt) || !!rt.flags.niFell },
+    { kind: 'stage', k: 2, text: '本丸門を破り、主殿の奥の間へ進め', noun: '本丸門', check: (rt) => won(rt) || (rt.flags.tkStage || 0) >= 5 },
+    { kind: 'stage', k: 2, text: '本丸の旗の下に集まり、味方と旗を守れ', noun: '本丸の旗', check: won },
   ],
   // 三木・大村（11/3 p100_miki・11/4 jin）：夜の荷駄 → 平田の木戸で打って出た城兵 → 大村坂（史実の順）。
   //   どれも場所と行い（「崩す」「何人討つ」は使わない）。長治は城の本丸で囲まれたまま（翌年に自害）なので目標にしない。

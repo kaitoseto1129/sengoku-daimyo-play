@@ -1,7 +1,7 @@
 // ======================================================================
 // 徳川編 13　道明寺の戦い（慶長二十年＝元和元年 1615・五月六日・夏）　大坂夏の陣の野戦
 // 筋書きの正：docs/chapter3_tokugawa.md の「13. 道明寺」。史実の手本：docs/battle_refs/k13_domyoji.md
-// 大和口の徳川方（三万四千ほど。先鋒の大将 水野勝成・本多忠政・伊達政宗と先手の片倉重長）が国分の隘路を抜けて河内へ出る。
+// 大和口の徳川方（三万四千ほど。先鋒の大将 水野勝成・本多忠政・伊達政宗と先手の片倉重綱）が国分の隘路を抜けて河内へ出る。
 // 豊臣方の後藤又兵衛（約二千八百）は、後続を待たず石川を渡って小松山へ先に出た。薄田兼相・真田信繁・毛利勝永は霧で遅れ、
 // 又兵衛は十倍を越える敵に孤立して討死（必ず）。誉田から出た薄田兼相も道明寺で討死。
 // 昼に着いた信繁・勝永（一万二千ほど）は誉田で伊達勢と鉄砲を撃ち合って押し戻し、夕方、信繁が殿をして大坂へ退いた。徳川方は疲れて追わなかった。
@@ -24,6 +24,12 @@ import { sfx } from './audio.js';
 import { allyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import * as DP from './b_depth.js';
+import { GENERALS } from './units_data.js';
+import { KACCHU } from './kacchu_data.js';
+
+// 慶長二十年の名乗りは片倉重綱（「重長」へ改めたのは将軍家綱の諱を避けた晩年）。顔と具足は重長の物を使う
+if (GENERALS['片倉重長'] && !GENERALS['片倉重綱']) GENERALS['片倉重綱'] = GENERALS['片倉重長'];
+if (KACCHU['片倉重長'] && !KACCHU['片倉重綱']) KACCHU['片倉重綱'] = KACCHU['片倉重長'];
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
 import { buildHorse, horseStyleFor } from './units.js';
@@ -139,7 +145,7 @@ function matabeiDown(rt) {
   rt.award((t) => { t.special = { label: '後藤又兵衛が小松山に果てた', pts: 40 }; }, '後藤又兵衛が討死した');
   // 見出しは共通の「後藤又兵衛が討たれた」の一枚だけ（二枚重ねない。五6）
   sfx('horagai', 0.7);
-  rt.after(1.5, () => rt.say('後藤の侍', '殿は……殿は鉄砲に……！　薄田殿はまだか、真田殿は！', 3.6));
+  rt.after(1.5, () => rt.say('後藤の侍', '殿は鉄砲に……吉村が介錯つかまつった！　薄田殿はまだか、真田殿は！', 3.6));
   // 主を失った後藤勢は崩れる（頂の段を締める）
   for (const g of rt.army.groups) if (g.team === 1 && /後藤/.test(g.name || '') && g.count) { g.noRout = false; g.morale = 0; }
 }
@@ -153,13 +159,13 @@ function matabeiCharge(rt) {
   }
 }
 
-// 片倉重長の鉄砲が又兵衛を撃つ（伊達家の記録。胸を撃たれて家臣に介錯させた）。本人が先に討てばそれが手柄
+// 片倉重綱の鉄砲が又兵衛を撃つ（伊達家の記録。胸を撃たれて家臣に介錯させた）。本人が先に討てばそれが手柄
 function matabeiShot(rt) {
   const F = rt.flags;
   if (F.matabei) return;
   const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
-  const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重長');
-  rt.say('片倉重長', 'あの黒の具足、又兵衛ぞ。鉄砲、揃えて放て！', 3);
+  const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重綱');
+  rt.say('片倉重綱', 'あの黒の具足、又兵衛ぞ。鉄砲、揃えて放て！', 3);
   rt.after(2.4, () => {
     if (F.matabei) return;
     if (k) rt.army.play('volley', k.pos, 1.4);
@@ -168,14 +174,14 @@ function matabeiShot(rt) {
   });
 }
 
-// 伊達勢が国分を抜けて着く（片倉重長の鉄砲隊が先手。政宗はその後ろの旗本の中）
+// 伊達勢が国分を抜けて着く（片倉重綱の鉄砲隊が先手。政宗はその後ろの旗本の中）
 function datearrive(rt) {
   const F = rt.flags;
   if (F.date) return;
   F.date = allyGroup(rt, { faction: 'tokugawa', name: '伊達勢', fixed: true, speed: 4.2, anchor: { x: TOP.x + 26, z: 12 }, facing: -Math.PI / 2, width: 14, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8 },
     dress([uS(5), uA(16), uG(8)], DATE));
-  F.katakura = allyGroup(rt, { faction: 'tokugawa', name: '片倉重長の鉄砲隊', fixed: true, speed: 4.2, anchor: { x: TOP.x + 18, z: -14 }, facing: -Math.PI / 2, width: 12, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8, formation: 'line' },
-    dress([{ type: 'busho', n: 1, o: { name: '片倉重長', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uG(14)], DATE));
+  F.katakura = allyGroup(rt, { faction: 'tokugawa', name: '片倉重綱の鉄砲隊', fixed: true, speed: 4.2, anchor: { x: TOP.x + 18, z: -14 }, facing: -Math.PI / 2, width: 12, aggro: 14, order: 'attack', seekRange: 90, noRout: true, dmgMult: 0.8, formation: 'line' },
+    dress([{ type: 'busho', n: 1, o: { name: '片倉重綱', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uG(14)], DATE));
   // 政宗は伊達勢の後ろ（前へは出ない）
   F.masamune = allyGroup(rt, { faction: 'tokugawa', name: '伊達政宗の旗本', anchor: { x: TOP.x + 44, z: -20 }, facing: -Math.PI / 2, width: 8, aggro: 6, order: 'hold', noRout: true, fullStrength: true },
     dress([{ type: 'busho', n: 1, o: { name: '伊達政宗', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(7)], DATE));
@@ -357,7 +363,7 @@ const k13_domyoji = {
     rt.after(2, () => {
       [F.mizuno, F.mine, F.honda, F.tadaaki].forEach((g, i) => { if (g && g.count) { g.calm = false; g.order = 'attack'; g.seekRange = 45; g.anchor = { x: SLOPE.x + 14 + i * 4, z: SLOPE.z + (i - 1) * 10 }; } });
     });
-    rt.after(9, () => rt.say('水野勝成', '又兵衛は後続を待たずに一人先に出た。霧が晴れる前に叩く。かかれ！', 4));
+    rt.after(9, () => rt.say('水野勝成', '霧が晴れて大坂の後詰が着く前に、小松山を取る。かかれ！', 4));
     rt.after(13.5, () => this.begin(rt));
   },
 
@@ -408,7 +414,7 @@ const k13_domyoji = {
         say: [['伊達政宗', '真田が来た。誉田で鉄砲を並べて迎える。片倉、前へ！'], ['水野勝成', '遅れて着いたが、数は一万を越える。気を抜くな']] }),
       // ④ 誉田の鉄砲戦（伊達の片倉隊と並ぶ。真田の待ち伏せで伊達勢は一度押し戻される）
       DP.hold({ at: HONDA, dur: 70, r: 16, title: '誉田の戦い', sub: '伊達勢と真田・毛利が鉄砲を撃ち合う', label: '誉田の野', obj: GOALS[3], noRefill: true,
-        say: [['片倉重長', '放て！　撃ち続けよ。弾が尽きるまで野を渡らせるな！']],
+        say: [['片倉重綱', '放て！　撃ち続けよ。弾が尽きるまで野を渡らせるな！']],
         waves: [
           { t: 4, say: ['足軽', '毛利の手じゃ！　鉄砲を揃えて来る！'], foes: () => [keep('毛利勝永の手', HONDA, [{ type: 'busho', n: 1, o: { name: '毛利勝永', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(4), uA(10), uG(8)], { dx: -40, dz: 14, noRout: 30 })] },
           // 真田は誉田陵の堀と土手に折り敷いて伏せ、片倉の寄せを引きつけて一斉に撃つ。伊達勢は一度押し戻される
@@ -444,7 +450,7 @@ const k13_domyoji = {
     rt.army.play('volley', { x: HONDA.x - 20, z: HONDA.z + 22 }, 1.6);
     if (!g || !g.count) return;
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
-    rt.after(12, () => { if (g.count && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重長', '退くな！　列を立て直して撃ち返せ！', 3); } });
+    rt.after(12, () => { if (g.count && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
   },
   // ⑤：誉田の村の民家に火（夕暮れ）
   burnVillage(rt) {
@@ -576,7 +582,7 @@ k13_domyoji.sides = { a: { name: '徳川方', mon: 'tokugawa', faction: 'tokugaw
 k13_domyoji.date = (rt) => (rt.flags.dusk ? '慶長二十年五月六日　夕暮れ' : rt.flags.dp && rt.flags.dp.i >= 4 ? '慶長二十年五月六日　昼' : '慶長二十年五月六日　朝霧');
 k13_domyoji.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 k13_domyoji.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
-k13_domyoji.history = '慶長二十年（1615）五月六日、大坂夏の陣。大和路から大坂へ向かう徳川方（先鋒の大将 水野勝成・本多忠政・伊達政宗と片倉重長ら三万四千ほど。総大将は松平忠輝）を、豊臣方は国分の隘路の出口で迎え撃つ策を立てた。後藤又兵衛（約二千八百）は薄田兼相・真田信繁・毛利勝永らの到着を待たず、霧の中を石川を渡って小松山へ先に出た。寅の刻（午前四時ごろ）、又兵衛は山へ取り付いた松倉重政・奥田忠次の先手を崩して奥田を討ったが、水野勝成・堀直寄らが助けに入り、伊達勢も加わって山を囲んだ。後続が霧で遅れたため又兵衛は孤立し、十倍を越える徳川方と昼まで戦って討死した。そのあと着いた薄田兼相・山川賢信・明石全登らも道明寺の辺りで破れ、兼相は討たれた。昼に着いた信繁・勝永は誉田で伊達勢と鉄砲を撃ち合い、待ち伏せで伊達勢を押し戻した。十四時半ごろ八尾・若江の敗報が届き、十六時ごろ信繁が殿を務めて大坂へ退いた。徳川方は兵が疲れ、追わなかった。\n両軍の数や細かい陣の動きは史料により異なり、地形は遊びのために縮めて復元した推定である。';
+k13_domyoji.history = '慶長二十年（1615）五月六日、大坂夏の陣。大和路から大坂へ向かう徳川方（先鋒の大将 水野勝成・本多忠政・伊達政宗と片倉重綱ら三万四千ほど。総大将は松平忠輝）を、豊臣方は国分の隘路の出口で迎え撃つ策を立てた。後藤又兵衛（約二千八百）は薄田兼相・真田信繁・毛利勝永らの到着を待たず、霧の中を石川を渡って小松山へ先に出た。寅の刻（午前四時ごろ）、又兵衛は山へ取り付いた松倉重政・奥田忠次の先手を崩して奥田を討ったが、水野勝成・堀直寄らが助けに入り、伊達勢も加わって山を囲んだ。後続が霧で遅れたため又兵衛は孤立し、十倍を越える徳川方と昼まで戦って討死した。そのあと着いた薄田兼相・山川賢信・明石全登らも道明寺の辺りで破れ、兼相は討たれた。昼に着いた信繁・勝永は誉田で伊達勢と鉄砲を撃ち合い、待ち伏せで伊達勢を押し戻した。十四時半ごろ八尾・若江の敗報が届き、十六時ごろ信繁が殿を務めて大坂へ退いた。徳川方は兵が疲れ、追わなかった。\n両軍の数や細かい陣の動きは史料により異なり、地形は遊びのために縮めて復元した推定である。';
 k13_domyoji.bushou = [{ name: '後藤又兵衛', g: /後藤/ }, { name: '薄田兼相', g: /薄田/ }];
 
 k13_domyoji.botBrain = (b, inp, { goTo }) => {

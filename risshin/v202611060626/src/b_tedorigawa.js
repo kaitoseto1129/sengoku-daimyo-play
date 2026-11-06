@@ -30,6 +30,7 @@ import { depthStart, depthTick, hold, depthBot } from './b_depth.js';
 import { uS, uA, uC, round, gunLine, camp } from './b_mid.js';
 import { sightUnit } from './battle_sight.js';
 import { goalTarget } from './goals5.js';
+import { goalsTick } from './hud_goals.js';
 import { timeslipField } from './timeslip_field.js';
 import { liteMat, sway } from './world_vegetation_materials.js';
 import { TEDORIGAWA_KACCHU } from './kacchu_data.js';
@@ -45,15 +46,20 @@ function huntPlayer(rt, dt) {
   const P = rt.player.u;
   if (!P?.alive) return;
   const weak = P.hp < P.maxHp * 0.4;
+  // 11/6 kaito 一4：敵は味方の兵も攻める。本人へ向けるのは一番近い一組だけ。
+  let best = null, bestD = 30, held = null;
   for (const g of rt.army.groups) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 30) g.focus = P;
-    else if (mine && d > 45) g.focus = null;
+    if (mine && d > 45) { g.focus = null; continue; }
+    if (mine && !held) { held = g; continue; }
+    if (mine) g.focus = null;
+    if (d < bestD) { best = g; bestD = d; }
   }
+  if (!held && best) best.focus = P;
 }
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
@@ -98,6 +104,8 @@ const FLOW = RIVER.slice(1).map((b, i) => {
 });
 const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
 const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
+// 11/6 kaito 九1・十1：右上の目標は①〜④を初めから全部並べ、戦の間は言い替えない（stages.js の tedorigawa と同じ字）。
+const TEDO_GOALS = ['水島の柴田勝家の旗へ集まれ', '北岸の篝火で上杉の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ'];
 const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の火へ退け'];
 const BANK_Z = SOUTH.z - 8;                // 南岸の土手の登り（z 26 から乾いた土手。11/4：手前の斜面で守っても数えない食い違いをなくす）
 // 増水で水の回った手取川の古い流れ筋（霞堤の内へ逆流した分流）。持ち場から北を向いた画面の手前に見せる（10/28 点付け：川が画面に無い）。
@@ -1598,6 +1606,79 @@ function riverDangerText(rt) {
     '味方が減った。持ち場の火で列を守れ';
 }
 
+// 11/6 kaito 九1・九3・十二1：右上に目標①〜④（済んだ物に印）。両軍の今の兵の数の棒を上に常に出す。
+//   一行の任務札（missionSingleLine）の作りは残し、目標の札を描く時だけ外す（雑賀・志賀と同じ）。言い替わる一行の札は隠す。
+//   四十 m 内の見える敵には一人残らず赤い▼（共通の▼は近い数人だけ）。印は使い回し、毎コマ作らない。
+function installTedoGoals(rt) {
+  const hud = rt.hud, hudProgress = hud.progress, def = rt.def, dispose = rt.dispose;
+  hud.progress = function (battle) {
+    const out = hudProgress.apply(this, arguments);
+    if (battle === rt && this.prog && !rt.over) {
+      const one = def.missionSingleLine;
+      def.missionSingleLine = false;
+      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+    }
+    return out;
+  };
+  const style = document.createElement('style');
+  style.textContent = `
+html:root body #hud#hud#hud.tedo-goals:not(.photo) #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.tedo-goals #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.tedo-goals #armybar { visibility:hidden !important; }
+html:root body #hud#hud#hud.tedo-goals #battle-notices #objectives:not(.expand) { display:none !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+}
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+  document.head.appendChild(style); hud.root.classList.add('tedo-goals');
+  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 80) break;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
+          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
+      if (!u._skSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '\u25bc';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
+  rt.dispose = function () {
+    hud.progress = hudProgress; hud.foeMarks = foeMarks;
+    style.remove(); box.remove(); hud.root.classList.remove('tedo-goals');
+    this.dispose = dispose; return dispose.call(this);
+  };
+}
+
 const tedorigawa = {
   // 稲生と同じ一行・ピン一本。退き口なので謙信の討取りを任務にはしない。
   missionSingleLine: true,
@@ -1617,6 +1698,16 @@ const tedorigawa = {
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
   // 11/4：どこで何をするかを書く（AR1。「ここ」「待て」にしない）
   missions: ['水島の柴田勝家の旗へ集まれ', '渡り口の北の篝火へ退け', '北岸の篝火で上杉の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ', '寄せる上杉の足軽を討て', '渡り口の北の篝火へ退け'],
+  // 11/6 kaito 九1・十1：①〜④は初めから全部並べ、果たした物に印。段の長さは追手と渡河の流れで決まるので、目標ごとの時切れの ✕ は付けない。
+  goals5(rt) {
+    const F = rt.flags, won = () => rt.tracker?.main === true;
+    return [
+      { kind: 'stage', k: 0, sec: 900, text: TEDO_GOALS[0], check: () => won() || (F.step || 0) >= 1 },
+      { kind: 'stage', k: 1, sec: 900, text: TEDO_GOALS[1], check: () => won() || (F.step || 0) >= 3 && !F.failedHold, fail: () => !!F.failedHold },
+      { kind: 'stage', k: 2, sec: 900, text: TEDO_GOALS[2], check: () => won() || (F.step || 0) >= 4 },
+      { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[3], check: won },
+    ];
+  },
   missionOf(rt) {
     const F = rt.flags;
     if (F.step === 0 && F.shibaU && Math.hypot(rt.player.u.pos.x - F.shibaU.pos.x, rt.player.u.pos.z - F.shibaU.pos.z) < 8) return 6;
@@ -1989,7 +2080,7 @@ const tedorigawa = {
   noCouriers: true,  // 戦に加わらない伝令の騎馬は置かない（稲生の標準。kaito 10/24「動かない味方と敵は一切排除」）
   noControlsHelp: true, // 操作の字（なぞって動く・つく）は出さない（操作は尾張の戦で覚える。kaito 10/20）
   spawn: { x: 6, z: -48, heading: Math.PI },
-  hideArmyPeek: true, // 上の「織田軍・上杉軍」の字と棒を出さない（10/28 点付け）。
+  hideArmyPeek: false, // 11/6 kaito 九3・十二1：両軍の今の兵の数の棒を上に常に出す（史実の規模の数で）。
   noHorse: true, // 雨夜の増水の川原を徒歩で退く。左下に馬の息の帯（字）を出さない（10/28 資料との差）。
   // 身の回りの当時の場（timeslip_field.js）。天正五年九月二十三日は今の十一月初め・雨で川が増した夜。
   // 刈り取った後の田と枯れかけた尾花、岸には葦。渡り口へ退く道はぬかるみ、水たまりが続く。殿の持ち場ほど倒れた槍と矢が多い。
@@ -2213,6 +2304,7 @@ const tedorigawa = {
       this.hud.say = hudSay; this.hud.update = hudUpdate;
       this.dispose = dispose; return dispose.call(this);
     };
+    installTedoGoals(rt);
     riverSoldiers(rt);
     // 刺さった矢の長さは、共通の矢の行列更新で最後の骨の倍率に合わせる。
     riverRear(rt);
@@ -2403,6 +2495,8 @@ const tedorigawa = {
     W.def.moveWay = (army, u, want) => {
       if (u.team !== 0 || u.isPlayer || F.ending || u.pos.z < -42 || u.pos.z >= -24 || want.z <= -24 ||   // 本人は渡り口の順番待ちに入れない（数えの外なので、入れると北岸で止まったままになった。bot 10/26）
           u.tedoAdmitUntil > rt.t || Math.abs(u.pos.x - 2) > 12) return want;
+      // 11/6：入る枠は path の隊にだけ配る。先頭が南岸に着いて hold に変わった隊の遅れた者（丹羽長秀の馬など）を、北岸で待たせ続けない。
+      if (u.group?.order !== 'path') return want;
       const q = u.tedoWait;
       if (!q) return want;
       q.x = Math.max(2 - F.ford.width / 2, Math.min(2 + F.ford.width / 2, u.pos.x));
@@ -2559,7 +2653,8 @@ const tedorigawa = {
     for (const at of RETREAT_LINES) W.addFire(at.x + 8, at.z, { torch: true, h: 1.6 });
     for (const [x, z] of [[-20, -80], [24, -84]]) { rt.scene.add(campfire(W, x, z)); W.addFire(x, z); }
     // 闇の中の目じるし：北の岸の松明の列（B051）と、渡り口の旗と篝火（B053）
-    for (const [x, z] of [[-48, -52], [-30, -58], [30, -60], [48, -54], [-12, -40], [14, -42]]) W.addFire(x, z, { torch: true, h: 1.6 });
+    // 11/6：丹羽・前田の馬の鼻先の松明（-30,-58・30,-60）で馬上の将が向き直れず、戦の間ずっと動けなかった。柱を備えの脇へ外す。
+    for (const [x, z] of [[-48, -52], [-38, -54], [40, -57], [48, -54], [-12, -40], [14, -42]]) W.addFire(x, z, { torch: true, h: 1.6 });
     // 幟の間を浅瀬の中央にそろえる。三十歩の広い門で深みまで渡り道に見せない。
     for (const sd of [-1, 1]) {
       const x = 2 + sd * 6;
@@ -2575,7 +2670,16 @@ const tedorigawa = {
     // 本人の兜・陣羽織は名のある武将の装備表に揃える。
     const campStart = rt.scene.children.length;
     F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, tate: false, general: { name: '滝川一益' }, guard: 15, reserve: 0, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
-    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, general: { name: '上杉謙信' }, guard: 25, reserve: 0, runTo: { x: 0, z: -150 } });
+    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, guard: 25, reserve: 0, runTo: { x: 0, z: -150 } });
+    F.ehon.guard.name = '上杉謙信の旗本';
+    // 11/6 kaito 十二4：謙信は馬上で、自ら先頭に立って追い討ちに来る（陣幕の床几に座らせない）。
+    //   馬廻の騎馬を連れ、陣幕の前で待つ。討てない（伝わる討死は無い）。謙信が先頭で川岸まで追ったかは軍記と伝承の筋で、書状写は追い討ちを伝えるだけ。
+    F.kenshinG = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '上杉謙信の馬廻', anchor: { x: 60, z: -192 }, facing: 0, order: 'hold',
+      aggro: 4, seekRange: 0, width: 6, formation: 'line', morale: 100, noRout: true },
+    dress([{ type: 'busho', n: 1, o: { name: '上杉謙信', invuln: true, horse: true } }, uS(6, { horse: true })], UESUGI));
+    F.kenshinG.noHunt = true;
+    F.ehon.general = F.kenshinG.units.find((u) => u.name === '上杉謙信') || null;
+    if (F.ehon.general) F.kenshinG.leader = F.ehon.general;
     riverCampShelters(rt, [F.honjin, F.ehon], rt.scene.children.slice(campStart));
     riverFieldworks(rt);
     riverStores(rt);
@@ -2634,12 +2738,12 @@ const tedorigawa = {
     // 開戦25秒の画面（本人は殿の持ち場へ寄り、渡り口の方＝南を向く）の真ん中右に、川沿いを回り込んだ上杉の先手が、
     //   渡り口の手前へ下がる柴田の手（-8, -38）へ斬り込んで押し合う（10/30 実機の門：25秒の画面に敵が写らない）。
     //   軽い大軍はカメラの48m内に描かれないので本物の兵で。人数は十人に絞る（本物の兵は合わせて250人ほど）。渡り口の中ほど（x≈0〜4）は空ける。
-    F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '川沿いを回り込んだ上杉勢', anchor: { x: -3, z: -34 }, facing: Math.PI,
+    // 11/6 kaito 十二2：初めから渡り口（織田の背）に上杉勢を置かない。物見の先手は北の闇から、退く下知の後に寄せる。
+    F.fordFoe = enemyGroup(rt, { fixed: true, faction: 'uesugi', name: '上杉の物見の先手', anchor: { x: -14, z: -98 }, facing: 0,
       order: 'hold', width: 11, formation: 'yari', aggro: 10, seekRange: 14, morale: 100, noRout: true, fleeDir: { x: -1, z: -1 } },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], UESUGI));
     // 開戦25秒の乱戦（10/30 夜）：殿の列の背（持ち場の前五〜十歩）へ寄せ、殿と組み合わせる。二十八秒まで討たれにくく、先に退く足軽を追って離れない（兵の数は同じ）
     F.fordFoe.defMult = 2.2; rt.after(28, () => { if (F.fordFoe) F.fordFoe.defMult = 1; });
-    rt.after(3, () => { const g = F.fordFoe; if (g && g.count && !g.routed) { g.order = 'attack'; g.seekRange = 12; g.aggro = 12; } });
     {
       // 押し合いの外の脇を篝火で照らす（雨の夜）
       const fp = [[16, -28.5], [-15, -28]];
@@ -2737,6 +2841,8 @@ const tedorigawa = {
     });
     messengerNews(rt, rt.player.u, '渡り口が詰まった！　北岸で追手を止めよ！');
     for (const g of rt.squadGroups || []) { g.order = 'move'; g.dest = RG; g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; }; }
+    rt.after(6, () => kenshinRide(rt, 1));
+    if (F.fordFoe) advancePursuit(F.fordFoe, RG, true);
   },
 
   // ② 殿：追手を食い止める
@@ -2772,15 +2878,15 @@ const tedorigawa = {
     rt.unmark('shiba');
     for (let i = 0; i < RETREAT_LINES.length; i++) rt.unmark('line' + i);
     releaseShibata(rt, true);
-    // kaito 11/1 の紙：上杉謙信は必ず出す。退く織田を見て、謙信が自ら北岸の渡り口へ馬を進める。
-    if (!F.kenshinOut && F.ehon?.general?.group) {
-      F.kenshinOut = true;
-      for (const g of [F.ehon.general.group, F.ehon.guard]) if (g && g.count) {
-        g.fixed = false; g.order = 'path'; g.noHunt = true; g.pathIdx = 0;
-        g.path = g === F.ehon.guard ? [[40, -150], [24, -66]] : [[50, -150], [30, -72]];
-        g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; };
-      }
-      rt.after(8, () => { if (!rt.over) rt.say('上杉謙信', '織田は川を背に逃げ惑うておる。一人も渡すな、追い落とせ！', 5); });
+    // kaito 11/1 の紙・11/6 十二4：謙信が自ら馬廻の先頭で、背を向けて渡る織田へ渡り口まで突っ込む。
+    kenshinRide(rt, 2);
+    // 背を向けて渡る恐ろしさ（十二4）：北岸に残った追手も、渡り口から川の中まで追いすがる。
+    for (const g of F.pursuit || []) {
+      if (!g.tedoActive || g.routed || !g.count || g.tedoBow || g.tedoBank) continue;
+      g.order = 'path'; g.formation = 'column'; g.colW = 3; g.speed = 3; g.aggro = 8; g.seekRange = 16; g.focus = null;
+      g.path = [[g.anchor.x * 0.5, FORD.z - 6], [3, FORD.z + 10]]; g.pathIdx = 0;
+      g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor.x = 3; q.anchor.z = FORD.z + 10; };
+      g.signalSerial = (g.signalSerial || 0) + 1;
     }
     for (const g of F.rearFriends) if (!F.crossGroups.includes(g)) F.crossGroups.push(g);
     if (!F.crossGroups.includes(F.rgun)) F.crossGroups.push(F.rgun);
@@ -2888,13 +2994,8 @@ const tedorigawa = {
     // 11/4：旗に着いて使番の報せを聞いたら、すぐ退きを始める（待つだけの目標にしない・AW3）
     if (rt.flags.step === 0 && rt.t > 9 && rt.flags.shibaU && rt.player.u.alive &&
         Math.hypot(rt.player.u.pos.x - rt.flags.shibaU.pos.x, rt.player.u.pos.z - rt.flags.shibaU.pos.z) < 8) tedorigawa.retreat(rt);
-    // 回り込んだ上杉の先手を本人の見る先の前へ寄せる（本物の組だけ）。
-    // 11/4：本人の周りに付いて歩く軽い大軍（host）と、本物に替わらない乱戦（armyBackdrop）はやめる（AA・AF・AP9）
-    frontRig(rt, dt, { until: 40, defMult: 4, foes: () => [rt.flags.fordFoe],   // 追手の隊は殿の勘定と渡りの段に結ばれているので動かさない
-      // 先に退く足軽も寄せる間だけ斬り合い、その後は元の渡る道へ戻す
-      allies: () => [rt.flags.earlyRetreat],
-      release: () => { const g = rt.flags.earlyRetreat; if (g && g.count && !g.routed) { g.order = 'path'; g.path = [[2, 6], [2, SOUTH.z], [SOUTH.x - 18, SOUTH.z + 22], [-24, 92]]; g.pathIdx = 0; g.formation = 'column'; g.onArrive = (q) => { q.order = 'hold'; }; g.seekRange = 0; g.signalSerial = (g.signalSerial || 0) + 1; } },
- });
+    // 11/6 kaito 十二2：本人の見る先の前へ敵味方の組を寄せる作り（frontRig）はやめる。
+    //   敵は北、味方は南の渡り口の側に分かれたまま、戦の形（退く・追う）どおりに動かす。
     const F = rt.flags;
     // 川沿いの上杉勢は開戦四十秒まで崩れない（10/30 測り：弓組に削られ二十秒で崩れて逃げ、25秒の画面から消えた）。その後は普通に崩れる。
     if (F.fordFoe && F.fordFoe.noRout && rt.t > 40) F.fordFoe.noRout = false;
@@ -3321,6 +3422,33 @@ const RR = round(RG, Math.PI, 56);           // 北から来る上杉の寄せ�
 const PUSH = { x: 0, z: -48 };
 const RETREAT_LINES = [{ x: 0, z: -46 }, { x: 0, z: -36 }, { x: 0, z: -27 }];
 const RETREAT_NAMES = ['一つ目の火', '二つ目の火', '渡り口の火'];
+
+// 11/6 kaito 十二4：上杉謙信が馬廻の騎馬を連れ、自ら追手の先頭に立つ。
+//   1：陣幕から、北岸の殿の火の前（二十数歩）まで駆け、馬上で追手を差し向ける。
+//   2：殿が退き太鼓で渡り始めたら、背を向けて渡る織田へ渡り口の水際まで突っ込む。謙信は討てない。
+function kenshinRide(rt, phase) {
+  const F = rt.flags, g = F.kenshinG;
+  if (!g || !g.count || rt.over || F.ending || (F.kenshinPhase || 0) >= phase) return;
+  F.kenshinPhase = phase;
+  g.fixed = false; g.retreatOnly = false; g.noHunt = true; g.noRout = true; g.speed = 3;
+  g.signalSerial = (g.signalSerial || 0) + 1;
+  if (phase === 1) {
+    // 馬は走る兵よりはっきり速い（一8）。縦列の path は後ろの遅れを待って歩みになるので、隊の要を直に駆けさせる。
+    g.order = 'move'; g.formation = 'line'; g.aggro = 3; g.seekRange = 0; g.speed = 5.5; g.noRun = false;
+    g.dest = { x: 6, z: -64 }; g.path = null;
+    g.onArrive = (q) => { q.order = 'hold'; q.facing = 0; q.anchor.x = 6; q.anchor.z = -64; };
+    rt.after(16, () => {
+      if (rt.over || F.ending || F.step > 2) return;
+      rt.say('上杉謙信', '者ども、我に続け！　川を背にした織田を一人も渡すな！', 4.5);
+      rt.after(5, () => { if (!rt.over && !F.ending && F.step <= 2) tedoAside(rt, '足軽', '先頭の馬上は謙信じゃ！　謙信が自ら来よる！', 3.5); });
+    });
+  } else {
+    g.order = 'move'; g.formation = 'line'; g.aggro = 10; g.seekRange = 30; g.speed = 6;
+    g.dest = { x: 2, z: FORD.z - 3 }; g.path = null;
+    g.onArrive = (q) => { q.order = 'attack'; q.anchor.x = 2; q.anchor.z = FORD.z - 3; };
+    rt.after(3, () => { if (!rt.over && !F.ending) rt.say('上杉謙信', '背を見せたぞ、追い落とせ！　手取川へ叩き込め！', 4.5); });
+  }
+}
 
 function releaseShibata(rt, crossing = false) {
   const F = rt.flags, g = F.shiba;
@@ -3957,8 +4085,11 @@ function tedoHold(o) {
   s.end = (rt, C) => {
     rt.flags.postFlag.visible = false;
     rt.unmark('dp'); rt.unzone('dp');
-    const won = !C.timeout && !C.broken && !rt.flags.failedHold && (C.orderlyWithdrawal || tedoHeld(C, rt.flags) && C.inT >= o.dur * 0.5) && (!o.waitCross || rt.flags.crossRemaining === 0 || C.crossWaived) &&
-      (!o.push || rt.flags.playerHelp && rt.flags.pushTime >= 8) && (!o.readyMain || rt.flags.mainCross >= 100);
+    // 11/6 kaito 十二3・十一1：主人公のせいでない事（追手が来ない・本隊や遅れた味方が渡りきらない・列が破られた）で任務失敗にしない。
+    //   失敗は、主人公が持ち場を離れて守らなかった時だけ。列が破られたら、そこで持ち場を捨てて渡る（史実の崩れ）。
+    const present = C.orderlyWithdrawal || C.inT >= Math.min(o.dur * 0.5, 12);
+    const won = !rt.flags.failedHold && present;
+    if (won && C.broken) { rt.objDone('dp'); const D = rt.flags.dp; D.steps.length = D.i + 1; return; }   // 残りの火は飛ばし、done（渡河・勝ち）へ進む
     if (won) {
       if (C.at.z < 0) rt.flags.heldNorthLine = true;
       rt.objDone('dp'); rt.award((t) => t.side.push(o.reward), o.reward);
@@ -4049,11 +4180,17 @@ function tedoB() {
 }
 
 // 両軍の総勢（柴田勝家の軍 三万ほど、上杉勢 二万ほど。数と戦の大きさには諸説ある）
+// 11/6 kaito 十二1：描く兵の数（百数十）でなく史実の規模で出す。目の前の一人は、闇の中の何十人分の損と数える。
+//   謙信書状写の「千余人を討ち取り」に合わせ、織田の減りは討たれた数で千ほどになる重さ。
+tedorigawa.onKill = (rt, v) => {
+  const F = rt.flags;
+  if (!v || v.isStruct) return;
+  if (v.team === 1) F.ek = (F.ek || 0) + 1; else if (v.team === 0) F.ak = (F.ak || 0) + 1;
+};
 tedorigawa.force = (rt) => {
-  let a = 0, b = 0;
-  for (const u of rt.army.units) if (u.alive && !u.isStruct && !u.gone) { if (u.team === 0) a++; else if (u.team === 1) b++; }
-  const F = rt.flags; F.forceA0 ??= a; F.forceB0 ??= b;
-  return { a, a0: F.forceA0, b, b0: F.forceB0 };
+  const F = rt.flags, A0 = 30000, B0 = 20000;
+  const a = A0 - (F.ak || 0) * 14, b = B0 - (F.ek || 0) * 6;
+  return { a: Math.max(0, a), a0: A0, b: Math.max(0, b), b0: B0 };
 };
 tedorigawa.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '上杉軍', mon: 'uesugi' } };
 // 上杉の追撃隊の将名は補わない。出陣名簿の味方三将は、初期の侍を置き換えている。
@@ -4061,7 +4198,7 @@ tedorigawa.famous = [];
 tedorigawa.date = () => '天正五年九月二十三日とも　秋・夜';
 // 集合後は自動で退く下知へ進むため、待ちを切る操作札は出さない。
 // 出典：信長公記 巻十『柴田北国相働之事』。https://ja.wikisource.org/wiki/信長公記
-tedorigawa.history = '天正五年（1577）、信長は柴田勝家を大将として、丹羽長秀・前田利家・羽柴秀吉らを加賀へ出した。信長公記には、織田勢が手取川を越えて各地を焼き払い、秀吉が信長に届けず帰陣して怒りを買ったとある。秀吉は勝家と言い争って陣を離れたともいうが、言い争いの細かな経緯や台詞は同書にない。秀吉は本戦に置かず、離陣は組頭の知らせで振り返る。七尾城が落ちた後、織田勢が雨で増えた手取川で上杉勢に追われたとも伝わるが、信長公記には、この合戦や敗北の記述はない。下知が届かぬ混乱と殿の持ち場は、退き口を遊ぶための補い。斎藤朝信は謙信の書状写では末森の守りに置かれており、追撃の先手としては出さない。水島・松任の陣所と川岸の正確な距離は復元していない。謙信・滝川の局地の陣、各将の渡る順、殿の組頭、雨中の弓、渡り口や進行の間隔は創作。川の幅と傾きは局地の仮置きで、当時の実測ではない。目の前で戦う兵と、遠くに続く軽い作りの大軍で退き口を描く。兵数は織田三万・上杉二万を仮置きし、織田四万などの異説もある。戦の大きさ、日付、兵の数には諸説ある。';
+tedorigawa.history = '天正五年（1577）、信長は柴田勝家を大将として、丹羽長秀・前田利家・羽柴秀吉らを加賀へ出した。信長公記には、織田勢が手取川を越えて各地を焼き払い、秀吉が信長に届けず帰陣して怒りを買ったとある。秀吉は勝家と言い争って陣を離れたともいうが、言い争いの細かな経緯や台詞は同書にない。秀吉の離陣は合戦より前（八月の出陣のさなか）だが、遊びでは水島の陣を去る姿を開幕に縮めて見せ、本戦には置かない。七尾城が落ちた後、織田勢が雨で増えた手取川で上杉勢に追われたとも伝わるが、信長公記には、この合戦や敗北の記述はない。下知が届かぬ混乱と殿の持ち場は、退き口を遊ぶための補い。斎藤朝信は謙信の書状写では末森の守りに置かれており、追撃の先手としては出さない。水島・松任の陣所と川岸の正確な距離は復元していない。謙信が馬廻を連れて自ら追手の先頭に立つ姿は、書状写の夜の追撃を軍記と伝承の謙信像で描いた創作。謙信・滝川の局地の陣、各将の渡る順、殿の組頭、雨中の弓、渡り口や進行の間隔は創作。川の幅と傾きは局地の仮置きで、当時の実測ではない。目の前で戦う兵と、遠くに続く軽い作りの大軍で退き口を描く。兵数は織田三万・上杉二万を仮置きし、織田四万などの異説もある。戦の大きさ、日付、兵の数には諸説ある。';
 
 // 素直な遊び手：渡り口まで退き、岸で追手と戦い、川を渡る
 // 退く下知の間は共通の退避や性格の突進で、居残る味方・敵の方へ引き戻さない。

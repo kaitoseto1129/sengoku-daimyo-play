@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { KILLS, broke } from './stages.js';
+import { goalsTick } from './hud_goals.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 // ======================================================================
 // 織田家編　稲葉山城の戦い（永禄十年八月）
@@ -504,6 +505,9 @@ const INABA_TSUKE = { on: false };   // 付け入りの段の間は、搦手の�
 // 大手の寄せ手も喰違いの口の形どおりに入る（木戸の点へ直に向かうと、前の塀の外に溜まって口を塞いだ・11/4）
 // 付け入りの後、木戸の外から本丸の口までの道（喰違いの口→木戸の内→二つの折れ→入口曲輪→二ノ門→本丸の口）
 const TSUKE_UP = [...OTE_WAY, ...OTE_UP, ...TOP_ROAD.slice(0, -2), ...HON_IN];
+// 11/6 fix61：木戸が先に破れた時、藤吉郎がまだ七曲りの途中にいると、木戸の外の点へ山肌を斜めに向かって下の折れで止まった。
+//   本丸へ上がる道は七曲りの初めから本丸の口まで一つにつなぎ、居る所に近い点から続ける。
+const TSUKE_ALL = [...NANA, ...OTE_UP, ...TOP_ROAD.slice(0, -2), ...HON_IN];
 // 木戸の前の斬り合いで押されて道の脇の一段低い斜面へ落ちた兵（藤吉郎・安藤・氏家）は、段差を登れず木戸の外に立ち尽くした（11/5 check60 一5）。
 // 八秒動けず道から外れている者は、見えていない時（見えていても二十秒経てば）近い道の上へ戻す。戦っている者・遠く外れた者は戻さない。
 function inabaUnstick(rt, g, way) {
@@ -525,6 +529,19 @@ function inabaUnstick(rt, g, way) {
     if (u.mv) u.mv.x = u.mv.z = 0;
     s.x = bx; s.z = bz; s.t = rt.t;
   }
+}
+// 押し合いで道の外の斜面へ落ち、三秒歩けない本人を、近い道の上へ戻す（七曲りの段と本丸へ上がる段で使う）
+function inabaPlayerBackToRoad(rt, way, far = 12) {
+  if ((rt.player.blockedWalkT || 0) < 3) return;
+  const p = rt.player.u.pos;
+  let best = Infinity, bx = 0, bz = 0;
+  for (let i = 1; i < way.length; i++) {
+    const [ax, az] = way[i - 1], [cx, cz] = way[i], dx = cx - ax, dz = cz - az, l2 = dx * dx + dz * dz || 1;
+    const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / l2)), x = ax + dx * t, z = az + dz * t;
+    const d = Math.hypot(p.x - x, p.z - z) + Math.abs(p.y - rt.world.heightAt(x, z));
+    if (d < best) { best = d; bx = x; bz = z; }
+  }
+  if (best > 3 && best < far) { p.x = bx; p.z = bz; p.y = rt.world.heightAt(bx, bz); rt.player.blockedWalkT = 0; }
 }
 // 道の点の中で、その位置に一番近い物（高さの違いを重く見て、下の段・上の段の折れを取り違えない）
 function nearestWay(rt, p, way) {
@@ -1155,7 +1172,7 @@ export function flagColumn(g, text, x, y0, y1, size) {
 export const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 export const gone = (g) => !g || g.count === 0 || g.routed;
 
-// 旗から横へ離れても、さくの内で仲間と戦っていれば持ち場にいる。
+// 旗から横へ離れても、鹿垣の内で仲間と戦っていれば持ち場にいる。
 // 案内に使う守りの帯とそろえ、左右の味方へ寄っただけで集合へ戻さない。
 function inabaInsideHoldLine(rt) {
   const p = rt.player.u.pos, point = rt.flags.holdPoint;
@@ -1168,11 +1185,11 @@ function inabaSallyWait(rt, showSeconds = false) {
   const F = rt.flags;
   if (rt.t - F.stepT < 16 && !gone(F.ote)) return showSeconds
     ? `敵が動くまであと${Math.ceil(16 - (rt.t - F.stepT))}秒。坂へ追うな`
-    : 'さくの中で敵を待て';
+    : '鹿垣の中で敵を待て';
   if (gone(F.ote) && !F.ote2.sent) {
     const left = Math.max(0, Math.ceil(F.ote2Due - rt.t));
     return showSeconds ? left > 0 ? `新手が動くまであと${left}秒。坂へ追うな` : '新手が坂を下りてくる。坂へ追うな'
-      : 'さくの中で次の敵を待て';
+      : '鹿垣の中で次の敵を待て';
   }
   return '';
 }
@@ -2387,24 +2404,28 @@ function buildKaraRoadWorks(rt) {
 function buildInabayamaSteps(rt) {
   const W = rt.world, runs = [
     [[-26, -114], [-20, -114]],
+    // 11/6 fix61：入口曲輪（高さ約八十九）から中枢曲輪（約九十九）へ十三歩で十歩上がる坂は、歩ける傾きを越えて自分も藤吉郎も立ち往生した。
+    //   坂は一様に上がる（地形の高さがほぼ一直線）ので、段の板は置かず、地形に沿う見えない坂で歩けるようにする（宙に浮く段の箱は作り物に見えた）
+    [[0.6, -96], [-12.6, -94.1], 6, true],
     [[KARA[3][0] + (NI.x - KARA[3][0]) * 0.48, KARA[3][1] + (NI.z - KARA[3][1]) * 0.48], [KARA[3][0] + (NI.x - KARA[3][0]) * 0.8, KARA[3][1] + (NI.z - KARA[3][1]) * 0.8]],
     [[DEMARU.x, DEMARU.z - 14], [DEMARU.x, DEMARU.z - 6]],
   ];
   const steps = [];
-  for (const [a, b] of runs) {
+  for (const [a, b, wd = 3.4, plain = false] of runs) {
+    if (plain) { addRamp({ ax: a[0], az: a[1], bx: b[0], bz: b[1], w: wd, ya: W.heightAt(a[0], a[1]), yb: W.heightAt(b[0], b[1]) }); continue; }
     const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), n = Math.max(4, Math.ceil(len / 0.45));
     for (let i = 0; i < n; i++) {
       const t0 = i / n, t1 = (i + 1) / n;
       const ax = a[0] + dx * t0, az = a[1] + dz * t0, bx = a[0] + dx * t1, bz = a[1] + dz * t1;
       const y = Math.max(W.heightAt(ax, az), W.heightAt(bx, bz)) + 0.08;
-      addRamp({ ax, az, bx, bz, w: 3.4, ya: y, yb: y, step: true });
-      steps.push({ x: (ax + bx) / 2, z: (az + bz) / 2, y, len: len / n, rot: Math.atan2(dx, dz) });
+      addRamp({ ax, az, bx, bz, w: wd, ya: y, yb: y, step: true });
+      steps.push({ x: (ax + bx) / 2, z: (az + bz) / 2, y, len: len / n, rot: Math.atan2(dx, dz), w: wd });
     }
   }
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x827f70 }), steps.length);
   const dummy = new THREE.Object3D();
   steps.forEach((q, i) => {
-    dummy.position.set(q.x, q.y - 0.12, q.z); dummy.rotation.set(0, q.rot, 0); dummy.scale.set(3.4, 0.24, q.len);
+    dummy.position.set(q.x, q.y - 0.12, q.z); dummy.rotation.set(0, q.rot, 0); dummy.scale.set(q.w, 0.24, q.len);
     dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
   });
   mesh.instanceMatrix.needsUpdate = true;
@@ -2422,8 +2443,8 @@ const INABAYAMA_JIN = [
     ['ibSakai', '大手右の囲み', '坂井政尚', 1000, SAKAI_YOSE.x, SAKAI_YOSE.z, 'oteYose2', 'eiraku', 'oda', SAKAI_FACING],
     ['ibSaku', '南の控え', '佐久間信盛', 1500, SAKUMA_YOSE.x, SAKUMA_YOSE.z, 'sakuma', 'oda', 'oda', SAKUMA_FACING],
     ['ibIkeda', '東の山裾の控え', '池田恒興', 1000, IKEDA_YOSE.x, IKEDA_YOSE.z, 'ikeda', 'oda', 'ageha', IKEDA_FACING],
-    ['ibMino', '西麓の控え', '稲葉一鉄・氏家卜全・安藤守就', 2300, MINO_YOSE.x, MINO_YOSE.z, 'sannin', 'inaba', 'inaba', MINO_FACING],
-  ], '織田一万五千は仮の総数。瑞龍寺山への出兵は公記にあるが、各将の持ち場と兵数は推定。森・坂井の寄せ手は山腹へ先回りせず、麓のさくの南に置く。'),
+    ['ibMino', '西麓の控え', '稲葉良通・氏家直元・安藤守就', 2300, MINO_YOSE.x, MINO_YOSE.z, 'sannin', 'inaba', 'inaba', MINO_FACING],
+  ], '織田一万五千は仮の総数。瑞龍寺山への出兵は公記にあるが、各将の持ち場と兵数は推定。森・坂井の寄せ手は山腹へ先回りせず、麓の鹿垣の南に置く。'),
   battleJin('曲輪の守り（配置は推定）', 1, HON, 0, [
     // 仮の千人を山上・町・麓で共有し、出撃隊の敗走だけで山上の残兵まで消さない。
     ['ibHineno', '大手の曲輪', '日根野弘就', 1000, OTE.x, OTE.z - 6, 'oteB', 'saito'],
@@ -2722,7 +2743,7 @@ function buildInabaWallEaves(rt, batch) {
 
 function officer(rt) {
   const u = rt.flags.kinoU, p = rt.player.u.pos;
-  return u?.alive && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12 ? '藤吉郎（とうきちろう）' : '旗の人の使い';
+  return u?.alive && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12 ? '木下藤吉郎' : '使番';   // 11/6 fix61（九7）：ふりがな・「旗の人」の言い換えをやめる
 }
 
 // 切岸へ小石を貼ると、道側から腹が見えて宙の黒い板になる。
@@ -3468,7 +3489,7 @@ function installInabaPresentation(rt) {
     }
     // 迎撃が終わった後は、遅れた敵の出撃の声でも麓へ呼び戻さない。
     if (F.step >= 3 && /坂の上から(?:敵が来るぞ|新手じゃ)|町を焼いた織田の者ども|崩れてから突け|敵はまだ坂の上じゃ/.test(text)) return true;
-    if (F.step >= 3 && /さくの旗へ集まれ|さくの中で引きつけよ|さくの中で待ち構えよ|仲間と並んで新手に備えよ|鹿垣を破らせるな|ここで仲間と並べ|鉄砲は引きつけてから|さくの内で備えよ|新手が来る。仲間と並べ/.test(text)) return true;
+    if (F.step >= 3 && /鹿垣の旗へ集まれ|鹿垣の中で引きつけよ|鹿垣の中で待ち構えよ|仲間と並んで新手に備えよ|鹿垣を破らせるな|ここで仲間と並べ|鉄砲は引きつけてから|鹿垣の内で備えよ|新手が来る。仲間と並べ/.test(text)) return true;
     // 本丸に入った後は、列の後ろへ遅れて届いた物見・伏兵の声へ戻さない。
     if (F.step >= 4 && /道の印をたど|山の裏へ回る|裏道を登れ|木戸の守りじゃ|木戸の守りは退いた|先頭が木戸に着いた|仲間と槍をそろえよ|物見櫓じゃ|物見じゃ|先頭に物見が出た|先頭が岩場に着いた|木戸の先が本丸の裏じゃ|岩陰に伏兵じゃ|先頭が伏兵に会った/.test(text)) return true;
     // 登りの途中でも、すでに退いた相手へ引き返させない。
@@ -3775,7 +3796,39 @@ function installInabaPresentation(rt) {
     if (!this.u.naka && this.fpK < 0.5) clearMountainView(camera);
     this.camPos.copy(camera.position);
   };
+  // 11/6 fix61（kaito 九1・十1・九3）：右上は目標①〜⑤の並び（hud_goals の札）だけ。両軍の今の兵の数の棒は上に常に出す。
+  //   一行の札の作り（missionSingleLine）をやめ、比叡山と同じく毎コマ並びを書く。並びの中の字は場所と行いだけ。
+  const hudProgress = hud.progress, goalCss = document.createElement('style');
+  hud.root.classList.add('inaba-goals');
+  hud.progress = function (battle) {
+    const out = hudProgress.call(this, battle);
+    if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+    return out;
+  };
+  goalCss.textContent = `
+    html:root body #hud#hud#hud.inaba-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+    html:root body #hud#hud#hud.inaba-goals #armybar .clock { visibility:hidden !important; }
+    html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.inaba-goals #armybar { visibility:hidden !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode {
+      left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+      width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+      padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+    }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+    html:root body #hud#hud#hud.inaba-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
+    html:root body #hud#hud#hud.inaba-goals #battle-notices:not(.choosing) > #objectives:not(.expand) { display:none !important; }
+    #hud.inaba-goals #tugbar { display:none !important; }
+    /* 始まりの札は戦の名・年・味方対敵・二三行・「戦いを始める」だけ（五4）。人物と戦場の説明の開閉・「勝つには」の一行は出さない */
+    html:root body:has(#hud.inaba-goals) #intro .intro-people, html:root body:has(#hud.inaba-goals) #intro .intro-reading > p:not(#intro-wait) { display:none !important; }`;
+  document.head.appendChild(goalCss);
   rt.dispose = function () {
+    hud.progress = hudProgress; hud.root.classList.remove('inaba-goals'); goalCss.remove();
     W.addFire = addFire;
     for (const mat of F.townFlameMaterials.values()) mat.dispose();
     F.townFlameMaterials.clear();
@@ -4004,13 +4057,24 @@ const inabayama = {
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
   lendBow: true, // 美濃攻めは弓を覚える戦（kaito の役割分担）。問屋で買っていなくても弓を貸す。
   noSiegeCards: true, // 右の曲輪の札（未見・様子不明）は出さない。字は右上の一行だけ（kaito 10/23）。
-  // 稲生の水準（reports/inou-standard.md 10/25）：右上は任務の一行だけ。段の丸・味方の小旗・避ける札は出さない。
-  missionSingleLine: true,
-  hideMissionDots: true,
+  // 11/6 fix61（kaito 九1・十1・三1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印（一行の札・missionSingleLine はやめた）。
+  //   場所の名と行いだけ。「敵を何人討つ」「龍興を自分で討つ」（龍興は討たれず舟で長島へ退いた）は置かない。並びは信長公記の順（放火→鹿垣）と遊びの補い（七曲り→木戸→本丸）。
+  goals5: () => {
+    const F = (rt) => rt.flags, won = (rt) => !!rt.tracker?.main;
+    return [
+      { kind: 'stage', k: 0, text: '井口の町の印の家三軒に火を放つ', noun: '井口の町', check: (rt) => won(rt) || (F(rt).step || 0) >= 2 },
+      { kind: 'stage', k: 1, text: '麓の鹿垣で、打って出た城兵を退ける', noun: '麓の鹿垣', check: (rt) => won(rt) || (F(rt).step || 0) >= 3, groups: (rt) => [F(rt).ote, F(rt).ote2].filter(Boolean) },
+      { kind: 'stage', k: 2, text: '七曲りを登り、大手の木戸へ', noun: '七曲り', check: (rt) => won(rt) || !!F(rt).tsukeGate || (F(rt).step || 0) >= 4 },
+      { kind: 'stage', k: 2, text: '大手の木戸の守りを破る', noun: '大手の木戸', check: (rt) => won(rt) || (F(rt).step || 0) >= 4, groups: (rt) => (F(rt).oteGate ? [F(rt).oteGate] : []) },
+      { kind: 'stage', k: 3, text: '本丸の旗本を退け、小屋に合図の火を放つ', noun: '本丸', check: won },
+    ].map((g) => ({ ...g, sec: 900 }));
+  },
+  introSides: { a: '織田 約一万五千', b: '斎藤 約四千' },
+  nameRange: 60, // 藤吉郎・柴田・三人衆・日根野の名は遠くからも出す（九3・五2）
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   inouFeel: true, // 当たりは音・よろけ・血で返し、空振りは鳴らさない（player.js）。
-  missions: ['藤吉郎と話す', '井口の町の印の家に火を放つ', 'ふもとの鹿垣で城兵を迎え撃つ', '七曲りを登り、大手の木戸へ', '本丸の守りを仲間と退ける', '本丸の小屋に合図の火を放つ'],
+  missions: ['藤吉郎と話す', '井口の町の印の家に火を放つ', '麓の鹿垣で城兵を迎え撃つ', '七曲りを登り、大手の木戸へ', '本丸の守りを仲間と退ける', '本丸の小屋に合図の火を放つ'],
   // 右上の目標の下の数（kaito 11/2 W：何軒中何軒に火を付けたか）
   goalNowCount(rt) { const F = rt.flags; return F.step === 1 && !rt.G.lord && F.lit < NEED ? `家 ${F.lit || 0}／${NEED}` : ''; },
   missionHeading(rt) {
@@ -4020,7 +4084,7 @@ const inabayama = {
       if (F.step === 3 && !F.tsuke) return '声をひそめ、味方の後ろへ';
       return '仲間の後ろへ下がれ';
     }
-    if (F.regroup && F.step === 2) return 'さくの旗へ戻ろう。仲間と並ぼう';
+    if (F.regroup && F.step === 2) return '鹿垣の旗へ戻ろう。仲間と並ぼう';
     // 右上の一行も詳しい札と同じ判定を使い、済んだ仕事へ戻さない。
     return this.taskText(rt, this.missions[this.missionOf(rt)]);
   },
@@ -4225,9 +4289,9 @@ const inabayama = {
     const F = rt.flags;
     if (F.retreatMarked) return '退き口の印へ';
     if (F.step === 1 && F.townSoundWait) return '町の出口の印へ';
-    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵をたおせ' : '火の印の家へ';
+    if (F.step === 1 && F.lit < NEED) return rt.G.lord ? '家の敵を倒せ' : '火の印の家へ';
     if (F.step === 1 && F.lit >= NEED) return F.townTarget && !gone(F.townTarget) ? '印の守兵へ' : '味方の旗へ';
-    if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? inabaSallyWait(rt) || 'さくの中の敵をたおせ' : 'さくの旗へ';
+    if (F.step === 2) return F.regroup ? '味方の旗へ' : F.holdArrived ? inabaSallyWait(rt) || '鹿垣の中の敵を倒せ' : '鹿垣の旗へ';
     if (inabaWoodGateWait(rt)) return '木戸前で仲間と並ぼう';
     if (F.step === 3 && F.tsuke) return F.tsukeGate ? '木戸の守りへ' : '七曲りの次の角へ';
     if (F.step === 3) return F.karaGuideMarked
@@ -4242,12 +4306,8 @@ const inabayama = {
   mapPaths: (rt, small) => small && rt.flags.step === 3 ? (rt.flags.tsuke ? INABA_NANA_MAP : INABA_CLIMB_MAP) : INABA_PATHS,
   introTaskFirst: true, // 人物紹介より先に、初めの行き先と勝つ条件を読めるようにする。
   introPeopleFolded: true,
-  introText(rt) {
-    return 'まず印の人、藤吉郎（とうきちろう）と話そう。'
-      + (rt.G.lord ? '町では火付けの足軽を守ろう。' : '次は火の印の家を三軒焼こう。')
-      + '敵を坂へ追わず、仲間とさくを守ろう。山へ進む下知が出たら、道の印をたどろう。'
-      + '裏道攻めは後世の伝え。道筋と合図の火は遊びの補い。';
-  },
+  // 11/6 fix61（kaito 五4・九7）：始まりの札は二三行。操作の案内・ひらがなに開いた字・断り書きは書かない。
+  introText: () => '西美濃三人衆が織田に付いた。強い風の日、信長は瑞龍寺山へ駆け上がり、井口の町に火を放つ。翌日、鹿垣で稲葉山城を囲む。',
   immediateTaskChanges: true, // 道へ戻る下知は、携帯の畳んだ任務にもすぐ出す。
   // 合図は各段の下知から鳴らす。「敵を退けよ」を味方の退却と誤読せず、裏道で自動の太鼓を鳴らさない。
   // 忍び用の quiet は遠景の兵も隠すため使わず、兵の数と乱戦は保つ。
@@ -4261,8 +4321,8 @@ const inabayama = {
     return !!F.retreatMarked || !!F.regroup || F.step === 0 || F.step === 1 ||
       F.step === 3 && !inabaClimbGuideEnemy(rt) && (!F.guardOn || gone(F.kguard) || !inabaAtWoodGate(rt)) || F.step === 4 && !!F.sig;
   },
-  combatTaskLabel: (rt) => inabaClimbGuideEnemy(rt) ? 'この敵をたおそう' : '',
-  enemyTaskLabel: () => 'この人を たおす',
+  combatTaskLabel: (rt) => inabaClimbGuideEnemy(rt) ? 'この敵を倒そう' : '',
+  enemyTaskLabel: () => 'この人を倒す',
   noWake: true,   // 城の部隊が本物の兵を受け持ち、遠景から重ねて増やさない。
   goalSignBare: true,   // 真上の▼に「ここを攻める」「この人について行く」の字を添えない（kaito 11/4 BL3・字は使わない）
   // 行き先は頭上の金の▼一つだけ。共通の行き先のピン（旗の白い枠と下向きの矢印）を重ねない（藤吉郎の頭上に印が二つ出た・check60 五3・AV15。金ヶ崎・姉川と同じ）
@@ -4295,7 +4355,7 @@ const inabayama = {
   missionStyle: 'field',   // 敵は共通の刀、味方は旗。ピンは判定地点に固定する。
   noPlayerFoot: true,
   noFieldMap: true,
-  hideArmyPeek: true,
+  // 11/6 fix61（kaito 九3・十二1）：両軍の今の兵の数の棒は上に常に出す（hideArmyPeek をやめた）
   foeMarks: true,
   enemyTriangleSigns: true,
   missionPinCaption: '',
@@ -4303,7 +4363,7 @@ const inabayama = {
   goalTargetOverride(rt) { return this.missionPin(rt); },
   goalSignAction(rt, text) {
     return this.taskText(rt, text).replace(/木戸/g, '門').replace(/藤吉郎/g, '味方')
-      .replace(/印の守兵を仲間と追い払おう|近い敵を仲間と追い払おう|さくの中の敵をたおせ/g, '敵をたおせ');
+      .replace(/印の守兵を仲間と追い払おう|近い敵を仲間と追い払おう|鹿垣の中の敵を倒せ/g, '敵を倒せ');
   },
   keepTaskLabel: true,
   // 藤吉郎（28,104）と金華山の間を向いて立つ。両方が最初の画面に入る（10/28）。
@@ -4321,7 +4381,6 @@ const inabayama = {
   },
   taskText(rt, text) {
     const F = rt.flags, it = rt.nearestInteract();
-    text = text.replace(/藤吉郎の旗/g, '旗の人').replace(/鹿垣/g, 'さく').replace(/城兵/g, '城の敵').replace(/下知/g, '話');
     if (F.ending) return '任務は達成。仲間と持ち場を守ろう';
     if (F.retreatMarked || F.regroup && F.step !== 3) return text;
     if (F.step === 0) return it?.id === 'talk' ? '「話す」を押そう' : '近づいて話す';
@@ -4348,7 +4407,7 @@ const inabayama = {
       || F.step === 4 && !F.sig)) return 'まず「竹束を据える」を長押し';
     // 放火後も守兵がいる間は、その印へ案内する。
     if (F.step === 1 && F.lit >= NEED) return '印の守兵を仲間と追い払おう';
-    if (F.step === 1 && rt.G.lord) return '家の敵をたおせ';
+    if (F.step === 1 && rt.G.lord) return '家の敵を倒せ';
     // 最後の合図は、信長で遊ぶ時も本人が火を付ける。
     if ((F.step === 1 && F.lit < NEED && !rt.G.lord) || (F.step === 4 && F.sig)) {
       const fire = it && (F.step === 1 ? /^h[0-9]+$/.test(it.id) : it.id === 'sig');
@@ -4357,9 +4416,9 @@ const inabayama = {
         : inabaSignalDetour(rt) ? '建物の外の道を回って、小屋の印へ' : '火の印の小屋へ';
     }
     // 集合・新手待ち・交戦の下知を、畳んだ任務でも区別する。
-    if (F.step === 2 && F.karaWaiting) return 'さくの中で仲間を待て';
-    if (F.step === 2) return !F.holdArrived ? 'さくの旗へ進め'
-      : inabaSallyWait(rt) || 'さくの中の敵をたおせ';
+    if (F.step === 2 && F.karaWaiting) return '鹿垣の中で仲間を待て';
+    if (F.step === 2) return !F.holdArrived ? '鹿垣の旗へ進め'
+      : inabaSallyWait(rt) || '鹿垣の中の敵を倒せ';
     // 遠い先頭の状況より、自分の足元の道と守兵を案内する。
     if (F.step === 3 && F.karaGuideMarked) {
       const q = F.karaGuide;
@@ -4394,15 +4453,15 @@ const inabayama = {
     return text;
   },
   treatmentHouses(rt) { return rt.flags.houses; },
-  waitOrderLabel: (rt, reached) => reached ? inabaSallyWait(rt) || 'さくの中の敵をたおせ' : 'さくの旗へ進め',
-  waitTravelLabel: () => 'さくの旗へ進め',
+  waitOrderLabel: (rt, reached) => reached ? inabaSallyWait(rt) || '鹿垣の中の敵を倒せ' : '鹿垣の旗へ進め',
+  waitTravelLabel: () => '鹿垣の旗へ進め',
   // 案内だけに使う持ち場。兵の人数・動き・勝敗の判定は変えない。
   defenseLine(rt) {
     const F = rt.flags;
     if (F.step !== 2 || F.ending || F.regroup || !F.holdArrived) return null;
     return F.holdGuideLine || (F.holdGuideLine = {
       x: -4, z: SHIKA_Z, halfWidth: 34, depth: 14, flagZ: SHIKA_Z + 5,
-      keepVisibleWithEnemy: true, flagOnly: true, label: 'さくの内・ここを守ろう',
+      keepVisibleWithEnemy: true, flagOnly: true, label: '鹿垣の内・ここを守ろう',
     });
   },
   cornerEnemyGuide: true,
@@ -4504,7 +4563,7 @@ const inabayama = {
     pin.fire = marker.guideSymbol === 'fire';
     pin.gate = marker.guideSymbol === 'gate';
     pin.x = pin.unit ? pin.unit.pos.x : pos.x; pin.z = pin.unit ? pin.unit.pos.z : pos.z;
-    // 「さくを守れ」の段は、守る所に刺したまま。味方はその旗の下へ集まる（稲生 3）。
+    // 「鹿垣を守れ」の段は、守る所に刺したまま。味方はその旗の下へ集まる（稲生 3）。
     pin.defend = pin.waiting = id === 'holdFlag';
     // 最初は登り口、その後は今まで通りの曲がり角。案内だけを切り替える。
     if (id === 'karaGuide' && F.karaNext === 1 && !F.karaEntryShown) {
@@ -4592,7 +4651,7 @@ const inabayama = {
       if (F.step === 1) return F.lit < NEED
         ? rt.G.lord ? '家の間の道を通れ。印のそばで火付けの足軽を守れ' : '家の間の道を通れ。火を放つ家の印へ進め'
         : '家の間の道を通れ。印の守兵を仲間と追い払え';
-      if (F.step === 2) return 'さくを越えて追うな。内側の仲間と並べ';
+      if (F.step === 2) return '鹿垣を越えて追うな。内側の仲間と並べ';
       if (F.step === 3) return F.karaGuideMarked
         ? '急な山肌は登れない。道の印へ戻り、道の内を進め'
         : '切岸は登れない。道を通り、仲間と木戸の守りを追い払え';
@@ -5026,7 +5085,8 @@ const inabayama = {
     F.kino = allyGroup(rt, { fixed: true, name: '木下藤吉郎の手', anchor: { x: 28, z: 104 }, facing: Math.PI, width: 12, aggro: 8 },
       dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true } }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], ODA));
     F.kinoU = F.kino.units[0];
-    customFlag('inabaGuide', (g) => flagColumn(g, '藤吉郎', 64, 30, 224, 32), '#d5b44e');
+    // 11/6 fix61（時代考証）：「藤吉郎」と名を大書した幟は当時の旗印に無い作り物だった。組の目印は字の無い黄の幟（名は頭上の名札）。
+    customFlag('inabaGuide', () => {}, '#d5b44e');
     const guideFlag = nobori(W, 0, 0, 'inabaGuide', 5.5);
     guideFlag.position.set(-0.7, 0, -0.35); guideFlag.scale.set(1.5, 1, 1.5);
     F.kinoU.mesh.add(guideFlag);
@@ -5349,14 +5409,14 @@ const inabayama = {
     // 出兵して瑞龍寺山へ登った後の放火。時刻は不明なので夜襲にはせず、日のある場面にする。
     W.lookDark = false;
     rt.setPhase('brief');
-    rt.obj('main', '印の人、藤吉郎（とうきちろう）と話そう', 'main', true);
+    rt.obj('main', '藤吉郎と話す', 'main', true);
     // 背景は戦の前の説明へ残し、冒頭は今の行動を短く伝える。
     rt.say('', '印の人、藤吉郎と話そう', 3);
     rt.after(4, () => {
       if (F.step === 0 && !F.joinedKino && !F.ending && !rt.over) rt.say(officer(rt), '今日は風が強い。井口の町に火をかける。まず話を聞け', 4);
     });
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, 'とうきちろう', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'この人と話そう', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '木下藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'この人と話そう', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
     F.talkKino = () => {
       if (F.joinedKino || F.step !== 0) return;
       F.joinedKino = true; rt.uninteract('talk');
@@ -5685,13 +5745,13 @@ const inabayama = {
       rt.banner('翌日、城を取り籠める', readyCall ? '法螺貝と太鼓三つ。藤吉郎の手と鹿垣の内へ' : '仲間と鹿垣の内へ。城兵に備えよ');
       this.nextObj(rt, (readyCall ? '法螺貝と太鼓三つは備えの合図。' : '') + '藤吉郎の旗へ、鹿垣の内で城兵を迎えよ');
       rt.say(readyCall ? officer(rt) : '使番', (readyCall ? '法螺と太鼓三つは備えの合図じゃ。' : '') + '今日は麓に鹿垣を結い、城を取り籠める', 4);
-    }, '翌日、城を囲む\n仲間と、ふもとのさくの内へ');
+    }, '翌日、城を囲む\n仲間と、麓の鹿垣の内へ');
     // 焼け跡と炎・煙の切り替えは、翌日への暗転の中で一度だけ行う。
-    this.nextObj(rt, '翌日は城を囲む。ふもとのさくの旗へ');
+    this.nextObj(rt, '翌日は城を囲む。麓の鹿垣の旗へ');
     F.holdArrived = false;
     F.holdPoint = { x: -4, z: SHIKA_Z + 5 };
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎の旗・さくの内', { group: F.kino });
-    rt.marker('holdFlag', F.holdPoint, 'さくの旗', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideFlag: true, guideFlagFrame: true, guideRadius: 3, guideFlagMesh: () => F.kinoU.alive ? F.kinoFlag : null });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '藤吉郎の旗・鹿垣の内', { group: F.kino });
+    rt.marker('holdFlag', F.holdPoint, '鹿垣の旗', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideFlag: true, guideFlagFrame: true, guideRadius: 3, guideFlagMesh: () => F.kinoU.alive ? F.kinoFlag : null });
     // 足軽が鹿垣（枝を組んだ低い垣）を一間ずつ結っていく。三か所は打って出る口に空けておく
     for (let i = 0; i < 8; i++) rt.after(2 + i * 1.5, () => {
       if (F.step !== 2 || SHIKA_GAPS.includes(i)) return;
@@ -5711,18 +5771,11 @@ const inabayama = {
       F.attackers.push(F.sannin); F.attackTotal += F.sannin.nominal;
       // 紙（battle_events_1101）：藤吉郎の調略で西美濃三人衆が寝返る（必ず）。三人を本物の姿で置き、頭上に名を出す。
       F.sanninG = allyGroup(rt, { fixed: true, noGuard: true, name: '西美濃三人衆', anchor: { x: MINO_YOSE.x, z: MINO_YOSE.z }, facing: MINO_FACING, width: 6, aggro: 4, noRout: true },
-        [{ type: 'busho', n: 1, o: { name: '稲葉一鉄', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '氏家卜全', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '安藤守就', invuln: true, flag: 'inaba' } }, { type: 'ashigaru', n: 3, o: { flag: 'inaba' } }]);
+        [{ type: 'busho', n: 1, o: { name: '稲葉良通', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '氏家直元', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '安藤守就', invuln: true, flag: 'inaba' } }, { type: 'ashigaru', n: 3, o: { flag: 'inaba' } }]);
       F.sanninG.order = 'hold';
       rt.bark('西美濃三人衆が織田方へ寝返った');
       rt.say('木下藤吉郎', 'わしが口説いた稲葉・氏家・安藤が寝返ったぞ。稲葉山は孤立じゃ', 4);
-      // 公記の三人は稲葉・氏家・安藤。控え全体を稲葉一人の軍と見せない。
-      // 稲葉の隊旗は既存の兵に残し、別置き二本を氏家・安藤の名札に替える。
-      // 字の旗は識別用の補いで、当時の旗印の復元ではない。位置と本数は保つ。
-      // 設営時に一度だけ字を描き、共通の幟の形・布の仕組みを使い回す。
-      for (const [dx, dz, key, name] of [[6, 4, 'inabaUjiieGuide', '氏家'], [-2, 14, 'inabaAndoGuide', '安藤']]) {
-        customFlag(key, (g) => flagColumn(g, name, 64, 30, 224, 32), undefined, true);
-        rt.scene.add(nobori(rt.world, MINO_YOSE.x + dx, MINO_YOSE.z + dz, key, 6));
-      }
+      // 11/6 fix61（時代考証）：氏家・安藤の姓を大書した幟は当時の旗印に無い作り物だった。置かない。三人の名は頭上の名札で示す（十4）。
       // 初期化で空けておいた備え表の枠へ結ぶ。他の備や旗を作り直さない。
       const spec = INABAYAMA_JIN[0].sonae.find((s) => s.id === 'ibMino');
       F.sannin.jinkeiSpec = spec;
@@ -5757,8 +5810,8 @@ const inabayama = {
       lc({ x: -68, z: SHIKA_Z - 4, facing: Math.PI, w: 34, gap0: 18, closeSpeed: 2.6, seed: 15673, noRout: true, killRate: 0.1, A: side('oda', 0x33302a, 150, 0, 'oda'), B: side('saito', 0x3a3a30, 110, 1, 'saito') }),
       lc({ x: 62, z: SHIKA_Z - 6, facing: Math.PI, w: 32, gap0: 18, closeSpeed: 2.6, seed: 15674, noRout: true, killRate: 0.1, A: side('oda', 0x2a2622, 150, 0, 'oda'), B: side('saito', 0x3a3a30, 110, 1, 'saito') }),
     ];
-    rt.say(officer(rt), 'さくの旗へ集まれ。杭を打ち、枝を結べ', 3.5);
-    rt.after(4, () => { if (F.step === 2) rt.say(officer(rt), '敵はまだ坂の上じゃ。さくの内で備えよ', 3.5); });
+    rt.say(officer(rt), '鹿垣の旗へ集まれ。杭を打ち、枝を結べ', 3.5);
+    rt.after(4, () => { if (F.step === 2) rt.say(officer(rt), '敵はまだ坂の上じゃ。鹿垣の内で備えよ', 3.5); });
     rt.after(9, () => { if (F.step === 2) rt.say('鉄砲頭', '鉄砲は引きつけてから放つ。崩れてから突け', 3.5); });
     // 山の上で法螺と太鼓。坂の上に旗が並び、鬨の声とともに駆け下りてくる
     rt.after(12, () => {
@@ -5766,8 +5819,8 @@ const inabayama = {
       F.oteSignalT = rt.t;
       F.oteSignal = inabaGroupCall(rt, F.ote, 'sig_kakari', 1);
       rt.say('足軽', F.oteSignal
-        ? '坂の上の法螺と早打ちは敵の懸かれの合図じゃ！　さくの中で待ち構えよ！'
-        : '坂の上に城兵がおる！　さくの中で待ち構えよ！', 4);
+        ? '坂の上の法螺と早打ちは敵の懸かれの合図じゃ！　鹿垣の中で待ち構えよ！'
+        : '坂の上に城兵がおる！　鹿垣の中で待ち構えよ！', 4);
     });
     rt.after(16, () => {
       if (F.step !== 2 || gone(F.ote)) return;
@@ -5791,10 +5844,10 @@ const inabayama = {
       rt.marker('ote', centerOf(F.ote), '大手の斎藤勢', { red: true, group: F.ote });
       for (const C of F.footClash) C.go();
     });
-    // 新手の予定は四十五秒。合図が重なる時は、実際の出発時刻へ更新する
-    F.ote2Due = rt.t + 45;
-    rt.after(36, () => this.oteWarn(rt));
-    rt.after(45, () => this.ote2(rt));
+    // 新手の予定は三十秒（11/6 fix61：四十五秒では鹿垣の段が二分近くになり、一つの戦が七分を超えた）。合図が重なる時は、実際の出発時刻へ更新する
+    F.ote2Due = rt.t + 30;
+    rt.after(24, () => this.oteWarn(rt));
+    rt.after(30, () => this.ote2(rt));
   },
   oteWarn(rt) {
     const F = rt.flags;
@@ -5959,8 +6012,9 @@ const inabayama = {
     march(F.nigeru, [...NANA.slice(4), [OTE_IN.x, OTE_IN.z]], 'hold'); F.nigeru.speed = 3.4;
     // 道の中ほどと上の角の守り：逃げる味方を通し、追う織田勢を坂の上から突く
     // 下・中・上の三つの折れに守り。登るたびに坂の上から突き下ろし、押されると道を木戸へ退く（その背に付いて次の折れへ。登りの間ずっと戦う・check60 AT10）
-    F.nanaGuards = [4, 6, 8].map((i) => {
-      const g = enemyGroup(rt, { fixed: true, faction: 'saito', name: i === 4 ? '七曲りの下の守り' : i === 6 ? '七曲りの中の守り' : '七曲りの上の守り', anchor: { x: NANA[i][0], z: NANA[i][1] }, facing: face(i), order: 'hold', aggro: 0, width: 3, morale: 80, formation: 'yari', fleeDir: { x: 0, z: -1 } },
+    // 11/6 fix61：折れの守りは中と上の二つ（三つでは登りが四分を超え、一つの戦が七分に収まらなかった）
+    F.nanaGuards = [5, 8].map((i) => {
+      const g = enemyGroup(rt, { fixed: true, faction: 'saito', name: i === 5 ? '七曲りの中の守り' : '七曲りの上の守り', anchor: { x: NANA[i][0], z: NANA[i][1] }, facing: face(i), order: 'hold', aggro: 0, width: 3, morale: 80, formation: 'yari', fleeDir: { x: 0, z: -1 } },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }], { flag: 'saito' }));
       g.noRout = true; g.atIdx = i; g.startN = g.units.length;
       return g;
@@ -6002,7 +6056,8 @@ const inabayama = {
         const u = lu?.alive && !lu.fleeing ? lu : g.units.find((o) => o.alive && !o.fleeing);
         const k = u ? nearestWay(rt, u.pos, NANA) : g.pathIdx;
         // 自分を待って止まらない（自分が登らないと列も段も進まず、藤吉郎の手が五百秒立ち尽くした・11/5 check60 二5）。隊の行き先が兵より先へ行き過ぎた時だけ兵を待つ
-        g.speed = g.pathIdx > k + 2 ? 0 : k < F.nanaNext - 1 ? sp * 1.3 : sp;
+        // 11/6 fix61：待つ歩みを 0 にすると、列の兵も歩みを止め、隊の行き先と兵が互いを待って木戸の前で止まった。待つ時もゆっくり進める
+        g.speed = g.pathIdx > k + 2 ? sp * 0.35 : k < F.nanaNext - 1 ? sp * 1.3 : sp;
         if (g === F.kino) F.kinoAt = k;
       }
       if (!(F.unstickAt > rt.t)) { F.unstickAt = rt.t + 1; for (const g of [F.kino, F.shiba]) inabaUnstick(rt, g, NANA); }
@@ -6011,16 +6066,7 @@ const inabayama = {
       if (bend !== F.nanaBend && !F.tsukeGate) { F.nanaBend = bend; rt.objProgress('main', `七曲り ${bend}／7`); }
     }
     // 押し合いで折れの外の斜面へ落ち、三秒歩けない時は、近い七曲りの道の上へ戻す（下の段の切岸で詰まらない・BH8）
-    if ((rt.player.blockedWalkT || 0) >= 3) {
-      let best = Infinity, bx = 0, bz = 0;
-      for (let i = 1; i < NANA.length; i++) {
-        const [ax, az] = NANA[i - 1], [cx, cz] = NANA[i], dx = cx - ax, dz = cz - az, l2 = dx * dx + dz * dz || 1;
-        const t = Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / l2)), x = ax + dx * t, z = az + dz * t;
-        const d = Math.hypot(p.x - x, p.z - z) + Math.abs(p.y - rt.world.heightAt(x, z));
-        if (d < best) { best = d; bx = x; bz = z; }
-      }
-      if (best > 3 && best < 12) { p.x = bx; p.z = bz; p.y = rt.world.heightAt(bx, bz); rt.player.blockedWalkT = 0; }
-    }
+    inabaPlayerBackToRoad(rt, NANA);
     // 道の守りは、自分か藤吉郎の列が一つ下の折れまで来たら坂の上から突き下ろす。
     // 十二秒斬り合うか半分を討たれたら（登りを四〜七分の戦に収める・11/5 check60 AT10）、山肌へ散らず七曲りを木戸へ退く（その背に付いて次の折れへ・付け入り）。退いた者は木戸の守りに加わる
     const lead = F.kinoU?.alive ? F.kinoU.pos : p;
@@ -6032,9 +6078,9 @@ const inabayama = {
         const near = (q) => Math.hypot(q.x - a.x, q.z - a.z) < 20 && Math.abs(q.y - rt.world.heightAt(a.x, a.z)) < 9;
         if (F.nanaNext >= g.atIdx - 1 && near(p) || (F.kinoAt ?? 0) >= g.atIdx - 1 && near(lead)) {
           g.tsukeSent = true; g.sentAt = rt.t; g.order = 'attack'; g.aggro = 12; g.seekRange = 16;
-          rt.say('足軽', g.atIdx === 4 ? '坂の上から槍が来るぞ！' : g.atIdx === 6 ? '上の折れにも守りがおる！' : '木戸の下の折れじゃ。押し上げよ！', 2.5);
+          rt.say('足軽', g.atIdx === 5 ? '坂の上から槍が来るぞ！' : '木戸の下の折れじゃ。押し上げよ！', 2.5);
         }
-      } else if (!g.tsukeBack && (rt.t - g.sentAt > 12 || g.units.filter((u) => u.alive && !u.fleeing).length <= g.startN / 2)) {
+      } else if (!g.tsukeBack && (rt.t - g.sentAt > 7 || g.units.filter((u) => u.alive && !u.fleeing).length <= g.startN / 2)) {
         g.tsukeBack = true;
         const u = g.units.find((o) => o.alive && !o.fleeing);
         march(g, [...NANA.slice(Math.max(g.atIdx, u ? nearestWay(rt, u.pos, NANA) : g.atIdx)), [OTE_IN.x - 3, OTE_IN.z - 2]], 'hold');
@@ -6060,8 +6106,8 @@ const inabayama = {
       rt.say(officer(rt), '木戸の口へ押し込め！　閉まる前に入るのじゃ！', 3.5);
       this.nextObj(rt, '大手の木戸の守りを、仲間と追い払う');
     }
-    // 木戸の守りと二十五秒斬り合えば、背を取られた守りは本丸へ退く
-    if (F.tsukeGate && rt.t - F.tsukeGateT > 25) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
+    // 木戸の守りと十二秒斬り合えば、背を取られた守りは本丸へ退く（11/6 fix61：二十五秒→十二秒。一つの戦を七分に収める）
+    if (F.tsukeGate && rt.t - F.tsukeGateT > 12) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
     // 木戸の守りが崩れたら、本丸へ（自分が木戸の近くにいるか、味方の列が先に入って二十秒）
     if (F.tsukeGate && gone(F.oteGate) && (gone(F.nigeru) || F.nigeru.morale <= 0)) {
       if (dGate < 30 || (F.tsukeInT ??= rt.t) < rt.t - 20) this.signal(rt);
@@ -6072,15 +6118,40 @@ const inabayama = {
   tsukeUpTick(rt) {
     const F = rt.flags, K = F.kino, ku = F.kinoU;
     if (!K || gone(K)) return;
-    if (!(F.unstickAt > rt.t)) { F.unstickAt = rt.t + 1; inabaUnstick(rt, K, TSUKE_UP); }
+    if (!(F.unstickAt > rt.t)) { F.unstickAt = rt.t + 1; inabaUnstick(rt, K, TSUKE_ALL); }
     // 合図の火の段（F.sig）でも見張る。本丸の守りが先に崩れると見張りが止まり、藤吉郎の手が木戸の外に残った（11/5）
     if (!ku?.alive) return;
     const w = F.kinoWatch || (F.kinoWatch = { x: ku.pos.x, z: ku.pos.z, t: rt.t });
-    if (Math.hypot(ku.pos.x - w.x, ku.pos.z - w.z) > 2) { w.x = ku.pos.x; w.z = ku.pos.z; w.t = rt.t; return; }
+    if (Math.hypot(ku.pos.x - w.x, ku.pos.z - w.z) > 2) { w.x = ku.pos.x; w.z = ku.pos.z; w.t = rt.t; }
+    // 11/6 fix61：組み直しても馬出しと喰違いの柵の間で藤吉郎が五百秒立ち尽くした（目の前に敵がいない・歩みが出ない）。
+    //   十六秒動かない時は、見えていない間に限って（見えていても四十秒経てば）道の次の点へ進める。戦っている間は動かさない。
+    //   位置の揺れ（押し合いで二歩ほど行き来する）では詰まりと分からないので、道の点の番号が進んだかで見る。
+    const wk = nearestWay(rt, ku.pos, TSUKE_ALL);
+    // 斬り合いで道の外（木戸の東の斜面など）へ出て、道から六歩より離れたまま見えていない時は、近い道の点へ戻す（下の段へ転げて戻れなかった）
+    const wp = TSUKE_ALL[wk];
+    if (!ku.target && !ku.swing && Math.hypot(wp[0] - ku.pos.x, wp[1] - ku.pos.z) + Math.abs(ku.pos.y - rt.world.heightAt(wp[0], wp[1])) > 6 && !sightPoint(rt, ku.pos)) {
+      ku.pos.x = wp[0]; ku.pos.z = wp[1]; ku.pos.y = rt.world.heightAt(wp[0], wp[1]); ku.mesh?.position.copy(ku.pos);
+      if (ku.mv) ku.mv.x = ku.mv.z = 0;
+      w.t = rt.t - 8;
+    }
+    if (w.k == null || wk > w.k) { w.k = wk; w.since = rt.t; }
+    const meP = rt.player.u.pos, farMe = Math.hypot(ku.pos.x - meP.x, ku.pos.z - meP.z) > 45;   // 遠くの小さな姿は見えていても動かしてよい
+    if (!ku.swing && rt.t - w.since > 16 && wk < TSUKE_ALL.length - 1 && (farMe || !sightPoint(rt, ku.pos) || rt.t - w.since > 40)) {
+      const n = TSUKE_ALL[wk + 1], dn = Math.hypot(n[0] - ku.pos.x, n[1] - ku.pos.z), k8 = Math.min(1, 8 / (dn || 1));
+      const q = [ku.pos.x + (n[0] - ku.pos.x) * k8, ku.pos.z + (n[1] - ku.pos.z) * k8];   // 次の点へ八歩だけ（遠い点へ一息に飛ばさない）
+      if (dn < 60) {
+        ku.pos.x = q[0]; ku.pos.z = q[1]; ku.pos.y = rt.world.heightAt(q[0], q[1]); ku.mesh?.position.copy(ku.pos);
+        if (ku.mv) ku.mv.x = ku.mv.z = 0;
+        ku.target = null;
+        w.x = ku.pos.x; w.z = ku.pos.z; if (k8 >= 1) w.k = wk + 1; w.since = rt.t - 10; w.t = rt.t;
+        // 隊の行き先も同じ所から組み直す（行き先が元の所に残り、列の持ち場へすぐ引き戻された）
+        K.anchor = { x: ku.pos.x, z: ku.pos.z }; march(K, TSUKE_ALL.slice(Math.min(TSUKE_ALL.length - 1, wk + 1)), 'attack'); K.speed = 3.6;
+      }
+    }
     if (rt.t - w.t < 8 || Math.hypot(K.anchor.x - ku.pos.x, K.anchor.z - ku.pos.z) < 20) return;
     w.t = rt.t;
     K.anchor = { x: ku.pos.x, z: ku.pos.z };
-    march(K, TSUKE_UP.slice(nearestWay(rt, ku.pos, TSUKE_UP)), 'attack'); K.speed = 3.6;
+    march(K, TSUKE_ALL.slice(nearestWay(rt, ku.pos, TSUKE_ALL)), 'attack'); K.speed = 3.6;
   },
   // 搦手の登りの途中の出来事：岩場の足止め、藤吉郎の小声、物見との小競り合い
   climbEvents(rt) {
@@ -6211,6 +6282,18 @@ const inabayama = {
     if (F.step >= 4) return;
     F.step = 4; F.stepT = rt.t;
     rt.setPhase('honmaru');
+    // 11/6 fix61：木戸の守りを破ったら、寄せ手が木戸の扉を打ち破る。開いた扉の端に列が当たり、藤吉郎の手が喰違いの間を行き来して上がれなかった
+    const kit = rt.siegeKit?.kits?.[0], kd = kit?.gate?.struct;
+    if (F.tsuke && kd && kd.alive) { kd.alive = false; kd.hp = 0; kd.hitFrom = { x: OTE.x + 6, z: OTE.z + 4 }; rt.army.structFall(kd); }
+    //   喰違いの間の短い柵二枚も引き倒し、本丸へ上がる列の口を広げる（鹿垣の段と同じ。左右の塀と横矢の張り出しは残す）。
+    //   塀と塀の間が三〜六歩の喰違いで、列も遊び手も塀の外を滑って止まった（11/6 の流し・百秒）。
+    //   木戸の前の丸馬出しの柵も引き倒す（馬出しの弧と喰違いの間で、列と遊び手が口を探して塀の外を行き来した）。
+    if (F.tsuke) for (const st of kit?.umaWalls || []) if (st.alive) { st.alive = false; st.hp = 0; st.hitFrom = { x: OTE.x + 6, z: OTE.z + 12 }; rt.army.structFall(st); }
+    if (F.tsuke) for (const st of kit?.walls || []) {
+      if (!st.alive || !st.seg) continue;
+      const mx = (st.seg[0] + st.seg[2]) / 2, mz = (st.seg[1] + st.seg[3]) / 2;
+      if (Math.abs(mx - OTE.x - 0.2) < 3.6 && mz < OTE.z + 0.5 && mz > OTE.z - 7) { st.alive = false; st.hp = 0; st.hitFrom = { x: mx, z: OTE.z + 4 }; rt.army.structFall(st); }
+    }
     rt.unmark('kguard'); rt.unmark('kido');
     rt.unmark('karaGuide'); F.karaGuideMarked = false;
     // 裏道の働きは済んだ。本丸へ移った後に物見や伏兵へ呼び戻さない。
@@ -6246,7 +6329,7 @@ const inabayama = {
     // 付け入りで大手から入った時は、木戸の内から二ノ門を通る上の道で本丸の口へ（搦手の道へ山肌を斜めに越えない）
     // 木戸の外に残る隊は、喰違いの口の形どおりに回ってから（塀へ直進しない）
     // 藤吉郎の居る所に一番近い折れから（木戸の内に入った者を外へ戻さない）
-    const honWay = F.tsuke ? (F.kinoU?.alive ? TSUKE_UP.slice(nearestWay(rt, F.kinoU.pos, TSUKE_UP)) : TSUKE_UP.slice(OTE_WAY.length)) : [[HON_GATE_OUT.x, HON_GATE_OUT.z], KARA[KARA.length - 1]];
+    const honWay = F.tsuke ? (F.kinoU?.alive ? TSUKE_ALL.slice(nearestWay(rt, F.kinoU.pos, TSUKE_ALL)) : TSUKE_UP.slice(OTE_WAY.length)) : [[HON_GATE_OUT.x, HON_GATE_OUT.z], KARA[KARA.length - 1]];
     march(F.kino, honWay, 'attack');
     // 七曲りで自分を待たせた歩み（速さ 0）を戻す
     for (const g of [F.kino, F.shiba]) if (g && !gone(g)) g.speed = 3.6;
@@ -6357,7 +6440,7 @@ const inabayama = {
       // 大勢を西の裏道へ。池田と美濃三人衆が藤吉郎の手の後ろから登る（大手は手薄になる）
       setRoute(F.ikeda, R_MIZU, F); setRoute(F.sannin, R_MIZU, F);
       pin(F.oteYose1, -24); pin(F.oteYose2, 24);
-      rt.after(5, () => rt.say('稲葉一鉄', '西の裏道へは、わしらも続く。藤吉郎が先じゃ、わしらはその後ろを固める', 3.5));
+      rt.after(5, () => rt.say('稲葉良通', '西の裏道へは、わしらも続く。藤吉郎が先じゃ、わしらはその後ろを固める', 3.5));
     } else {
       // 七曲り（遊びの既定）：大手の寄せ手が七曲りを押し上げ、大手の木戸の前で城兵を引き付ける
       setRoute(F.oteYose1, R_NANA, F); setRoute(F.oteYose2, R_NANA, F); setRoute(F.sakuma, R_NANA, F);
@@ -6440,8 +6523,9 @@ const inabayama = {
     if (signalWait > 0) rt.after(signalWait, gather); else gather();
     // 二声目は三秒後から鳴り、余韻と山道を伝わる遅れもある。
     // 集合の七秒間と届く間を空け、返す鬨の意味も六秒伝えてから後日談へ移す。
-    const replyAt = signalWait + 8.5;
-    rt.after(replyAt + 6.5, () => {
+    // 11/6 fix61（kaito 三3「全部果たしたら、その場で締めて数秒で勝利」）：火から締めまで二十六秒あった。合図の後は八秒ほどで締める。
+    const replyAt = Math.min(signalWait, 6) + 2.5;
+    rt.after(replyAt + 1.5, () => {
       // 公記の開城・舟による退去は局地戦の後日談。合図直後と同じ日には見せない。
       // 原文：https://note.com/senmi/n/n2d9649c5ce53
       blackCut(rt, () => {
@@ -6449,14 +6533,12 @@ const inabayama = {
         // 舟が出ても城内に龍興が残っていた。討取りを起こさず、既存の退場処理で居所から外す。
         // 乗船地点・移動経路は未詳なので、城から川への瞬間移動は見せない。
         if (F.keep.lord && !F.keep.lord.gone) rt.army.despawn(F.keep.lord);
-        rt.banner('囲みの末、城が開く', '信長公記では八月十五日。龍興は舟で長島へ退いた');
+        rt.banner('囲みの末、城が開く', '八月十五日、龍興は舟で長島へ退いた');
         F.departBoat?.();
-        // 放火の日付が未詳なので、開城までの日数も確定しない。
-        rt.say('', '――後日の開城。包囲の日数は未詳。落城を九月とする説もある', 5);
-      }, '後日の開城\n囲みが続いたのち、龍興は舟で長島へ');
+      }, '八月十五日\n囲みの末、龍興は舟で長島へ');
     });
     // 龍興が逃げた知らせで終わる（次の戦の前ふりは置かない）
-    rt.after(replyAt + 13.5, () => rt.say('使番', '龍興は川を舟で下り、長島へ逃げたぞ！', 4));
+    rt.after(replyAt + 3.5, () => rt.say('使番', '龍興は川を舟で下り、長島へ逃げたぞ！', 3));
     // 合図の後も各備は持ち場を保つ。
     for (const b of F.attackers) b.order({ id: 'hold' });
     // 集合の二声の後、麓に残る味方の現在位置から返す。無人の大手口からは鳴らさない。
@@ -6467,10 +6549,10 @@ const inabayama = {
       rt.objProgress('signalHold', '麓の鬨は味方の返し。集合の合図に従い、組で持ち場を守れ');
       rt.say(F.kinoU.alive ? officer(rt) : '組頭', '麓の鬨は味方の返しじゃ。法螺貝の二声に従い、組をまとめて持ち場を守れ', 3);
     });
-    rt.after(replyAt + 10.5, () => rt.say('', '――信長は井口を「岐阜」と改め、「天下布武」の印を使い始めた', 3));
+    rt.after(replyAt + 5.5, () => rt.say('', '――信長は井口を「岐阜」と改め、「天下布武」の印を使い始めた', 3));
     rt.player.u.invuln = true;
     // 戦固有の終幕（開城・岐阜・箕作城への一行）を最後まで見せる。共通の追撃に替えて時計を消さない
-    rt.finish({ scriptedEnd: true }, replyAt + 17.5);
+    rt.finish({ scriptedEnd: true }, replyAt + 8.5);
   },
 
   update(rt, dt) {
@@ -6572,10 +6654,10 @@ const inabayama = {
       }
     }
     if (F.step === 2) {
-      // さくの左右で戦っている間は集合へ戻さない。持ち場の外へ離れた時だけ印を戻す。
+      // 鹿垣の左右で戦っている間は集合へ戻さない。持ち場の外へ離れた時だけ印を戻す。
       if (F.holdArrived && F.holdPoint && !inabaInsideHoldLine(rt) && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) > 18) {
         F.holdArrived = false;
-        rt.marker('holdFlag', F.holdPoint, 'さくの旗', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideFlag: true, guideFlagFrame: true, guideRadius: 3, guideFlagMesh: () => F.kinoU.alive ? F.kinoFlag : null });
+        rt.marker('holdFlag', F.holdPoint, '鹿垣の旗', { h: 0, guideAlways: true, guideArea: 'wait', guideWaitRing: true, guideFlag: true, guideFlagFrame: true, guideRadius: 3, guideFlagMesh: () => F.kinoU.alive ? F.kinoFlag : null });
       }
       // 左右の仲間と並んだ時も到着。旗の真下まで戻らせず、守りの帯と判定をそろえる。
       // 到着は案内だけの区切り。敵の動きや戦の進みはそのまま。
@@ -6594,15 +6676,15 @@ const inabayama = {
         this.oteWarn(rt); rt.after(5, () => this.ote2(rt));
       }
       if (rt.t - F.stepT > 3) {
-        this.nextObj(rt, F.regroup ? '藤吉郎の旗へ戻れ。さくの内で備えよ'
-          : !F.holdArrived ? 'さくの旗へ。仲間と並んで敵を迎えよ'
-          : inabaSallyWait(rt) || (F.carry ? 'まず「竹束を据える」を長押し。さくの内で仲間と押し返せ'
-          : 'さくの内で、城の敵を仲間と押し返せ'));
+        this.nextObj(rt, F.regroup ? '藤吉郎の旗へ戻れ。鹿垣の内で備えよ'
+          : !F.holdArrived ? '鹿垣の旗へ。仲間と並んで敵を迎えよ'
+          : inabaSallyWait(rt) || (F.carry ? 'まず「竹束を据える」を長押し。鹿垣の内で仲間と押し返せ'
+          : '鹿垣の内で、城の敵を仲間と押し返せ'));
         // まだ坂を下りていない新手も数え、全て倒したように見せない。
         const left = (gone(F.ote) ? 0 : 1) + (gone(F.ote2) ? 0 : 1);
         rt.objProgress('main', F.regroup ? '坂へ進まず、旗の印へ戻れ。仲間と並んで迎えよ' : inabaSallyWait(rt, true)
           || (F.ote2.sent ? `残る敵は${left}組。坂へ追わず、仲間と押し返せ`
-          : `坂の上の新手も含め、残り${left}組。さくの内で迎えよ`));
+          : `坂の上の新手も含め、残り${left}組。鹿垣の内で迎えよ`));
       }
       // 引きつけて一斉に放つ。麓の左右の鉄砲も同時に鳴る
       // 坂の待機位置も射程内。城兵が動く前に「引きつけた」と撃たせない。
@@ -6623,11 +6705,11 @@ const inabayama = {
       }
       // 「放て」の下知も、鳴っている法螺・太鼓・鬨と一緒に伝える。
       const call = oteSignalText(rt, true);
-      if (call) rt.objProgress('main', call + 'さくの内で仲間と迎えよ');
-      // 坂の上に残って矢玉を放つだけの数人を、いつまでも追わせない。新手が下りて七十秒か、残りが三人ずつ以下なら山へ退く
-      if (F.ote2.sent && !qs.every(gone) && (rt.t - F.ote2T > 70 || qs.every((q) => gone(q) || q.count <= 3))) for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; }
+      if (call) rt.objProgress('main', call + '鹿垣の内で仲間と迎えよ');
+      // 坂の上に残って矢玉を放つだけの数人を、いつまでも追わせない。新手が下りて二十二秒か、残りが三人ずつ以下なら山へ退く（11/6 fix61：七十秒→二十二秒）
+      if (F.ote2.sent && !qs.every(gone) && (rt.t - F.ote2T > 22 || qs.every((q) => gone(q) || q.count <= 3))) for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; }
       // 公記の順序を保ち、翌日の鹿垣と三人衆の参着を済ませてから山へ進む。
-      // 10/30：城兵が崩れても、本人がさくの持ち場で仲間と並んでいなければ裏道の段へ進めない（味方だけで段が進まないように）
+      // 10/30：城兵が崩れても、本人が鹿垣の持ち場で仲間と並んでいなければ裏道の段へ進めない（味方だけで段が進まないように）
       if (F.sannin && F.ote2.sent && qs.every(gone) && (F.holdArrived || rt.G.lord)) {
         // 坂の城兵が崩れ、麓の左右の城兵も山へ逃げ上る
         if (!F.karaWaiting) {
@@ -6640,7 +6722,7 @@ const inabayama = {
         this.tsukeiri(rt);
       }
     }
-    if (F.step === 4 && F.tsuke) this.tsukeUpTick(rt);
+    if (F.step === 4 && F.tsuke) { this.tsukeUpTick(rt); if (rt.player.u.pos.y < rt.world.heightAt(OTE.x, OTE.z) + 1) inabaPlayerBackToRoad(rt, TSUKE_ALL, 16); }
     if (F.step === 3 && F.tsuke) this.tsukeTick(rt);
     else if (F.step === 3) {
       inabaClimbClash(rt);
@@ -6923,7 +7005,7 @@ inabayama.force = (rt) => {
     INABAYAMA_FORCE.b += inabaRemaining(spec, F.earlyJin?.[spec.id], F.saitoForceGroups?.[spec.id]);
   return INABAYAMA_FORCE;
 };
-inabayama.sides = { a: { name: '織田軍（兵数は仮）', mon: 'oda' }, b: { name: '斎藤軍（兵数は仮）', mon: 'saito' } };
+inabayama.sides = { a: { name: '織田', mon: 'oda' }, b: { name: '斎藤', mon: 'saito' } };   // 断り書き（兵数は仮）は画面に出さない（五1）
 
 // 軍議（gungi.js）：金華山を回して見て、外の部隊の攻め口を三つから選ぶ（遊びの既定は七曲り）。
 // 自分（藤吉郎の手）は、どの作戦でも町を焼いてから搦手を登る。作戦で変わるのは、外の部隊の道・本丸の守りの厚さ・大手の手薄さ
@@ -6979,16 +7061,17 @@ inabayama.gungi = (rt) => {
 inabayama.onGungiStart = (rt, assign) => { rt.flags.strategy = STRATS[assign?.main] ? assign.main : 'nanamagari'; };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 inabayama.famous = [
-  { name: '稲葉良通', team: 0, g: /稲葉/, line: '稲葉一鉄じゃ。今日よりは織田の者として働く！' },
+  { name: '稲葉良通', team: 0, g: /稲葉/, line: '稲葉伊予守良通じゃ。今日よりは織田の者として働く！' },
   { name: '日根野弘就', g: /大手/, loose: 1, line: '日根野弘就なり！　稲葉山は落ちぬ。下がれ下がれ！' },
 ];
 // 公記の八月一日は内応の申し入れ。出兵・放火の日付までは断定しない。
 // 原文掲載：https://note.com/senmi/n/n2d9649c5ce53
-inabayama.date = (rt) => rt.flags.opened ? '永禄十年　開城（公記では八月十五日）' : rt.flags.step >= 2 ? '永禄十年　囲み（公記の放火翌日）' : '永禄十年　井口の放火・強風（日付未詳）';
+// 11/6 fix61（五4）：札の年の行に断り書き（日付未詳・公記では）を添えない。月は信長公記の八月
+inabayama.date = (rt) => rt.flags.opened ? '永禄十年（1567）八月十五日' : '永禄十年（1567）八月';
 // 裏道で深手の時、bot の退避は道の次の曲がり角（藤吉郎の列のいる側）へ。法面へ退こうとして二分余り立ち止まった（10/26）。
 inabayama.botRetreatWay = (rt, want) => (rt.flags.step === 3 && rt.flags.karaGuide ? rt.flags.karaGuide : want);
 inabayama.canSkip = () => '';
-inabayama.history = '『信長公記』は八月一日に美濃三人衆が内応を申し入れたと記す。続く出兵と井口の放火を同日とは断定せず、この戦では日付を未詳とする。放火翌日の囲みと八月十五日の開城は公記の記述に沿う。『岐阜市史』などには永禄十年九月の落城とする説があり、八月の落城を確定した事実とはしない。放火と包囲の時刻は不明で、日中の光は遊びの仮設定である。強風の記録は放火の日についてであり、翌日の囲みでは通常の風を仮に置く。永禄十年（1567）、西美濃の稲葉良通（一鉄）・氏家直元（卜全）・安藤守就の三人――美濃三人衆が織田方についた。内応の申し入れを受けた織田信長は、三人衆の人質がまだ来ないうちに兵を出し、稲葉山城と山続きの瑞龍寺山へ駆け上がった。瑞龍寺山は金華山から延びる山稜の南西端にある。この戦も本陣を南西へ置き、町の南から東の山裾へ回る低い尾根で金華山との峰続きを表す。尾根の線・幅・高さと町との距離は圧縮した推定で、実測復元ではない。本陣は城へ向く既存の配置に備え表の向きをそろえる。東の仮の尾根道の守兵は直前の折れから登ってくる側へ向け、備え表と兵で向きをそろえる。西の裏道の曲輪も、折り返した道の下り側へ備を向け、備え表と遠景の向きをそろえる。同じ仮道の物見・見回り・伏兵も、それぞれ直前の折れから登ってくる側を向く。物見櫓の射手も直下の登り道へ向け、木戸の守兵と上の段の鉄砲は、折り返し後の北の曲がり角へ備える。三か所の向きは仮道に合わせた推定で、兵数・持ち場・列幅と戦闘の下知は保つ。守備方向は道に沿う遊びの推定で、兵数・持ち場・列幅は保つ。位置は従来のままとし、攻め手に背を向ける向きだけを改める。いずれも細かな向きは遊びの推定である。本丸の馬廻・旗本・御殿前の控えも、一律の真西ではなく既存の西の虎口へ向ける。各持ち場と向きは史料にない遊びの推定で、位置・兵数・列幅は保つ。その日は風が強く、すぐに城下の井口の町を焼いて城を裸にした。翌日、普請を割り当て、四方に鹿垣を結って囲んだ。この戦でも組ごとの持ち場を台詞で伝え、高画質では囲みの後方に杭と柴の用材を置く。用材の集積場所・寸法・本数は推定である。そこへ美濃三人衆が参着し、進軍の早さに驚いて礼を述べた。この戦でも三人衆の備と旗は翌日の鹿垣完成後に現れる。鹿垣は南の戦列に加え、東西の山裾と北の川沿いにも置く。高画質では東西と北の柵にも織田の旗を添え、城方の防御柵ではなく包囲の持ち場として示す。旗の位置・高さ・本数は推定である。高画質では翌日に結べた東西・北の鹿垣の外へ、城を向く番兵も少人数の遠景で補う。番兵の持ち場・人数は推定で、総勢の一部を描くものであり、実兵と表示兵数へは加算しない。道・舟着き・川・急坂は避ける。外周の線は推定で、川・急坂・道・舟着きには通行口を残している。八月十五日、城主の斎藤龍興は降参し、舟で川を下って伊勢長島へ逃れた（信長公記は飛騨川続きと記す）。信長は井口を「岐阜」と改め、この城を新しい居城として、天下布武の印を使い始める。木下藤吉郎（のちの豊臣秀吉）が山の裏道から登った、と伝わる。これは後の『太閤記』などの話で、『信長公記』には城へ攻め上った記事はない。この戦では、放火の日と翌日の囲みを分け、八月十五日の開城は後日談で描く。搦手での局地戦と合図は遊びの補いで、これだけで城が降ったとはしない。総勢と各備の人数は仮の目安で、確定した兵数ではない。画面の兵数は備え表の仮数を基準とし、織田勢は三人衆の参着前に一万二千七百、参着後に一万五千、斎藤勢は四千を初期の目安とする。残存兵数には各備に結び付く部隊の残存率を掛けるが、これは遊びの損耗表示で、史実の戦死者数ではない。西の裏道の四百には道の守り・物見・伏兵・射手を、本丸の千二百には馬廻・控え・主殿内の守兵も含める。これらの別組の損耗も同じ仮数へ反映し、兵を重ねて加算しない。三人衆の二千三百も推定の割り振りであり、戦う兵や乱戦の数を増減させるものではない。参着する三人衆は西の乱戦へ重ねず、西麓の後方に控え、城へ向く。備え表・兵・旗の場所をそろえ、家並みと町の間へ同じ人数を並べる。稲葉だけの手と見せないよう、控えの呼び名を三人衆とし、稲葉の隊旗に加えて氏家・安藤の字の旗を置く。字の旗は識別用の補いで、当時の旗印の復元ではない。控えの位置・隊列の幅と奥行きは遊びの推定である。森・坂井の寄せ手は、放火と囲みの段では山腹へ先回りさせず、麓の鹿垣より南へ置く。両隊の位置は遊びのための推定で、兵数と左右の乱戦は保つ。曲輪の広さ、出丸と厩の位置、土塁・木戸・井楼・建物・小祠と斎藤期の山麓館は、絵図と同時代の美濃の土の城からの推定である。岐阜市歴史博物館の発掘成果では、斎藤氏の山麓館は永禄十年の攻略時に焼失したと考えられる。岐阜市の文化的景観の資料では城下町は金華山の西麓に広がる。この戦では遠景の二群を西麓へ置き、本陣の東の尾根上には家並みを置かない。移した家の煙と焼け跡も同じ位置へ追随させ、町人は家並みの川側を通って南へ逃れる。南の戦う町は遊びのために圧縮した仮配置とする。遠景の家の位置・道筋は推定である。遠景の家並みにも焼け焦げを反映し、翌日は低く崩れた壁と屋根を残す。遠景の焼失範囲と残り方は推定である。町の放火に合わせて館も燃え、翌日は焦げた建物と煙を残すが、出火時刻と焼け残り方は演出である。同館の報告で信長期の新設とされる二ノ門は置かず、その場所は遊びの通路として残した。東の小曲輪は後世の絵図を手掛かりにし、斎藤期の細かな姿まで確かとはしない。この戦では東の囲いを切岸と土塀で表し、後世の絵図の石垣を斎藤期の姿として置かない。ただし斎藤期にも石垣はあり、岐阜市の令和六年度発掘成果では一ノ門と上台所の巨石石垣が道三期とみられる。この戦では山頂入口の脇に自然石の石垣を部分的に補う。同調査で上台所に確認されたコの字状の巨石石垣も、高画質では大手の西の肩に補う。同調査は上台所の入口に道三期の城門があった可能性も示すため、この戦では石垣の開いた側に小さな冠木門を補う。門の位置・幅・形式と扉の開き方は推定で、瓦屋根は付けない。巨石と小さい石の石垣が同時に築かれた点を参考にするが、石垣の位置・高さ・石の割付は推定で、発掘遺構を実測復元したものではない。岐阜市の令和七年度調査では、一ノ門北側の竪堀の存在と幅約八・五メートルが確認された。同調査は大桑城の伝岩門との構造の類似から、斎藤期に竪堀を掘り、信長期に埋めて通路を造成したと推定する。斎藤期の登城路は、堀の手前から太鼓櫓の側へ登って尾根を通ったと考えられる。現在の通路を攻略時の道と同一視せず、この戦の道筋と堀の途中の通行口は遊びの補いとする。この戦では山頂入口の北側から東斜面へ延びる竪堀を補う。入口脇の短い窪みだけで終わらせず、東斜面の下方にも溝を続ける。下方の延長は岐阜市の調査成果を参考にした推定で、間の尾根道は遊びの通行口として掘り残す。配置・長さ・深さと永禄十年の攻略時に開いていた姿は推定で、発掘遺構の実測復元ではない。既存の大手道と東の尾根道は遊びの進路として残す。岐阜市の登山案内では水手道は山の北側を回り、山頂案内図では百曲りは西側に通じる。この戦の東の尾根道と西の裏道は、その二道の位置を再現したものではないため、実在の道名を当てず遊びの仮道として示す。仮道の道筋、川の幅と流れ、舟着きの場所は遊びの補いで、当時の道や川を確かに再現したものではない。長良川は金華山の北側を天然の堀として流れ、西へ回る地形に合わせた。北から西へ回る川床全体を山の持ち上げから外し、舟着き付近でも川が山腹を登る形にしない。ただし川幅と河道は縮めた戦場用の推定で、永禄十年当時の流路の実測復元ではない。本流には歩いて横断できない深みを設け、舟は城側の岸寄りで船底が川床に埋まらない位置へ寄せる。川床の掘り下げ量と舟の岸からの距離も遊びの仮値で、当時の実測水深ではない。山の高さは横の縮めと同じ割合（約二・六分の一）に縮め、坂の角度を実の山に近づけた。岐阜大学「岐阜の地学」の地質解説では、金華山は主に赤色・灰色のチャートからなる。高画質では地面の露岩と道脇の岩に共通の赤灰の斑を付ける。色の分布は推定で、地質境界の実測復元ではない。岐阜市の整備基本計画では、戦国期の金華山は大半の樹木が伐採されていたと推定される。この戦では城の斜面を疎らな林と切り株で表し、木は周辺へ寄せる。伐採範囲と切り株の位置・本数は推定の演出である。';
+inabayama.history = '『信長公記』は八月一日に美濃三人衆が内応を申し入れたと記す。続く出兵と井口の放火を同日とは断定せず、この戦では日付を未詳とする。放火翌日の囲みと八月十五日の開城は公記の記述に沿う。『岐阜市史』などには永禄十年九月の落城とする説があり、八月の落城を確定した事実とはしない。放火と包囲の時刻は不明で、日中の光は遊びの仮設定である。強風の記録は放火の日についてであり、翌日の囲みでは通常の風を仮に置く。永禄十年（1567）、西美濃の稲葉良通（一鉄）・氏家直元（卜全）・安藤守就の三人――美濃三人衆が織田方についた。内応の申し入れを受けた織田信長は、三人衆の人質がまだ来ないうちに兵を出し、稲葉山城と山続きの瑞龍寺山へ駆け上がった。瑞龍寺山は金華山から延びる山稜の南西端にある。この戦も本陣を南西へ置き、町の南から東の山裾へ回る低い尾根で金華山との峰続きを表す。尾根の線・幅・高さと町との距離は圧縮した推定で、実測復元ではない。本陣は城へ向く既存の配置に備え表の向きをそろえる。東の仮の尾根道の守兵は直前の折れから登ってくる側へ向け、備え表と兵で向きをそろえる。西の裏道の曲輪も、折り返した道の下り側へ備を向け、備え表と遠景の向きをそろえる。同じ仮道の物見・見回り・伏兵も、それぞれ直前の折れから登ってくる側を向く。物見櫓の射手も直下の登り道へ向け、木戸の守兵と上の段の鉄砲は、折り返し後の北の曲がり角へ備える。三か所の向きは仮道に合わせた推定で、兵数・持ち場・列幅と戦闘の下知は保つ。守備方向は道に沿う遊びの推定で、兵数・持ち場・列幅は保つ。位置は従来のままとし、攻め手に背を向ける向きだけを改める。いずれも細かな向きは遊びの推定である。本丸の馬廻・旗本・御殿前の控えも、一律の真西ではなく既存の西の虎口へ向ける。各持ち場と向きは史料にない遊びの推定で、位置・兵数・列幅は保つ。その日は風が強く、すぐに城下の井口の町を焼いて城を裸にした。翌日、普請を割り当て、四方に鹿垣を結って囲んだ。この戦でも組ごとの持ち場を台詞で伝え、高画質では囲みの後方に杭と柴の用材を置く。用材の集積場所・寸法・本数は推定である。そこへ美濃三人衆が参着し、進軍の早さに驚いて礼を述べた。この戦でも三人衆の備と旗は翌日の鹿垣完成後に現れる。鹿垣は南の戦列に加え、東西の山裾と北の川沿いにも置く。高画質では東西と北の柵にも織田の旗を添え、城方の防御柵ではなく包囲の持ち場として示す。旗の位置・高さ・本数は推定である。高画質では翌日に結べた東西・北の鹿垣の外へ、城を向く番兵も少人数の遠景で補う。番兵の持ち場・人数は推定で、総勢の一部を描くものであり、実兵と表示兵数へは加算しない。道・舟着き・川・急坂は避ける。外周の線は推定で、川・急坂・道・舟着きには通行口を残している。八月十五日、城主の斎藤龍興は降参し、舟で川を下って伊勢長島へ逃れた（信長公記は飛騨川続きと記す）。信長は井口を「岐阜」と改め、この城を新しい居城として、天下布武の印を使い始める。木下藤吉郎（のちの豊臣秀吉）が山の裏道から登った、と伝わる。これは後の『太閤記』などの話で、『信長公記』には城へ攻め上った記事はない。この戦では、放火の日と翌日の囲みを分け、八月十五日の開城は後日談で描く。搦手での局地戦と合図は遊びの補いで、これだけで城が降ったとはしない。総勢と各備の人数は仮の目安で、確定した兵数ではない。画面の兵数は備え表の仮数を基準とし、織田勢は三人衆の参着前に一万二千七百、参着後に一万五千、斎藤勢は四千を初期の目安とする。残存兵数には各備に結び付く部隊の残存率を掛けるが、これは遊びの損耗表示で、史実の戦死者数ではない。西の裏道の四百には道の守り・物見・伏兵・射手を、本丸の千二百には馬廻・控え・主殿内の守兵も含める。これらの別組の損耗も同じ仮数へ反映し、兵を重ねて加算しない。三人衆の二千三百も推定の割り振りであり、戦う兵や乱戦の数を増減させるものではない。参着する三人衆は西の乱戦へ重ねず、西麓の後方に控え、城へ向く。備え表・兵・旗の場所をそろえ、家並みと町の間へ同じ人数を並べる。稲葉だけの手と見せないよう、控えの呼び名を三人衆とし、三人の名は頭上の名札で示す（姓を大書した幟は当時の旗印に無いので置かない）。控えの位置・隊列の幅と奥行きは遊びの推定である。森・坂井の寄せ手は、放火と囲みの段では山腹へ先回りさせず、麓の鹿垣より南へ置く。両隊の位置は遊びのための推定で、兵数と左右の乱戦は保つ。曲輪の広さ、出丸と厩の位置、土塁・木戸・井楼・建物・小祠と斎藤期の山麓館は、絵図と同時代の美濃の土の城からの推定である。岐阜市歴史博物館の発掘成果では、斎藤氏の山麓館は永禄十年の攻略時に焼失したと考えられる。岐阜市の文化的景観の資料では城下町は金華山の西麓に広がる。この戦では遠景の二群を西麓へ置き、本陣の東の尾根上には家並みを置かない。移した家の煙と焼け跡も同じ位置へ追随させ、町人は家並みの川側を通って南へ逃れる。南の戦う町は遊びのために圧縮した仮配置とする。遠景の家の位置・道筋は推定である。遠景の家並みにも焼け焦げを反映し、翌日は低く崩れた壁と屋根を残す。遠景の焼失範囲と残り方は推定である。町の放火に合わせて館も燃え、翌日は焦げた建物と煙を残すが、出火時刻と焼け残り方は演出である。同館の報告で信長期の新設とされる二ノ門は置かず、その場所は遊びの通路として残した。東の小曲輪は後世の絵図を手掛かりにし、斎藤期の細かな姿まで確かとはしない。この戦では東の囲いを切岸と土塀で表し、後世の絵図の石垣を斎藤期の姿として置かない。ただし斎藤期にも石垣はあり、岐阜市の令和六年度発掘成果では一ノ門と上台所の巨石石垣が道三期とみられる。この戦では山頂入口の脇に自然石の石垣を部分的に補う。同調査で上台所に確認されたコの字状の巨石石垣も、高画質では大手の西の肩に補う。同調査は上台所の入口に道三期の城門があった可能性も示すため、この戦では石垣の開いた側に小さな冠木門を補う。門の位置・幅・形式と扉の開き方は推定で、瓦屋根は付けない。巨石と小さい石の石垣が同時に築かれた点を参考にするが、石垣の位置・高さ・石の割付は推定で、発掘遺構を実測復元したものではない。岐阜市の令和七年度調査では、一ノ門北側の竪堀の存在と幅約八・五メートルが確認された。同調査は大桑城の伝岩門との構造の類似から、斎藤期に竪堀を掘り、信長期に埋めて通路を造成したと推定する。斎藤期の登城路は、堀の手前から太鼓櫓の側へ登って尾根を通ったと考えられる。現在の通路を攻略時の道と同一視せず、この戦の道筋と堀の途中の通行口は遊びの補いとする。この戦では山頂入口の北側から東斜面へ延びる竪堀を補う。入口脇の短い窪みだけで終わらせず、東斜面の下方にも溝を続ける。下方の延長は岐阜市の調査成果を参考にした推定で、間の尾根道は遊びの通行口として掘り残す。配置・長さ・深さと永禄十年の攻略時に開いていた姿は推定で、発掘遺構の実測復元ではない。既存の大手道と東の尾根道は遊びの進路として残す。岐阜市の登山案内では水手道は山の北側を回り、山頂案内図では百曲りは西側に通じる。この戦の東の尾根道と西の裏道は、その二道の位置を再現したものではないため、実在の道名を当てず遊びの仮道として示す。仮道の道筋、川の幅と流れ、舟着きの場所は遊びの補いで、当時の道や川を確かに再現したものではない。長良川は金華山の北側を天然の堀として流れ、西へ回る地形に合わせた。北から西へ回る川床全体を山の持ち上げから外し、舟着き付近でも川が山腹を登る形にしない。ただし川幅と河道は縮めた戦場用の推定で、永禄十年当時の流路の実測復元ではない。本流には歩いて横断できない深みを設け、舟は城側の岸寄りで船底が川床に埋まらない位置へ寄せる。川床の掘り下げ量と舟の岸からの距離も遊びの仮値で、当時の実測水深ではない。山の高さは横の縮めと同じ割合（約二・六分の一）に縮め、坂の角度を実の山に近づけた。岐阜大学「岐阜の地学」の地質解説では、金華山は主に赤色・灰色のチャートからなる。高画質では地面の露岩と道脇の岩に共通の赤灰の斑を付ける。色の分布は推定で、地質境界の実測復元ではない。岐阜市の整備基本計画では、戦国期の金華山は大半の樹木が伐採されていたと推定される。この戦では城の斜面を疎らな林と切り株で表し、木は周辺へ寄せる。伐採範囲と切り株の位置・本数は推定の演出である。';
 // 信長で遊ぶ時：居場所の目安（bot の目が始まりの位置を確かめる） と立つ所
 inabayama.lordAt = { x: ZUI.x, z: ZUI.z + 6, r: 14, why: '瑞龍寺山の本陣（信長は瑞龍寺山に陣を取り、井口の町を焼かせた）' };
 inabayama.lordSpawn = { x: ZUI.x, z: ZUI.z + 14, heading: Math.atan2(28 - ZUI.x, 104 - (ZUI.z + 14)) };
@@ -7017,7 +7100,11 @@ function botRoad(b, inp, goTo, path, end) {
     }
   }
   while (b.botRoadIndex <= end) {
-    if (!roadCornerPassed(b.world, u.pos, path, b.botRoadIndex, 1.2)) {
+    // 11/6 fix61：喰違いの口は塀と塀の間が三〜六歩しかない。塀の外から次の区間へ近いだけで角を通った扱いにすると、
+    //   塀の向こうの点へ向かって塀の外を西へ滑り、四百秒止まった。角が塀の向こうなら、まだ通っていない。
+    const c = path[b.botRoadIndex], cq = b._botCornerQ || (b._botCornerQ = { x: 0, y: 0, z: 0 });
+    cq.x = c[0]; cq.z = c[1]; cq.y = u.pos.y;
+    if (!roadCornerPassed(b.world, u.pos, path, b.botRoadIndex, 1.2) || b.army.wallBetween(u.pos, -1, cq, false)) {
       const q = b.botRoadGoal || (b.botRoadGoal = { x: 0, z: 0 });
       roadApproach(b.world, u.pos, path, b.botRoadIndex, q);
       p._gtStuckT = 0; p._gtDetourT = 0;
@@ -7059,6 +7146,21 @@ inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   } else F.botBindUntil = 0;
   // 登りは中腹の折れから始まる。後ろの折れへ戻らないよう、次の角から道をたどる。
   if (F.step === 3 && !F.tsuke && !F.botKaraInit) { F.botKaraInit = true; b.botRoadPath = BOT_KARA; b.botRoadIndex = KARA_START + 1; }
+  // 11/6 fix61：木戸の斬り合いで守りへ直に寄った後、道の点の番号が塀の向こうの点のまま残り、塀に向かって四百秒歩き続けた。
+  //   本丸へ上がる時に、塀の外なら喰違いの口の手前の点から、内なら近い点から道をたどり直す。
+  //   段が替わった時は、居る所に近い道の区間から選び直す（藤吉郎の列が先に木戸を破ると、自分はまだ下の折れにいて、古い点の番号のまま下の段へ戻り続けた）。
+  if (F.step === 4 && !F.botHonInit) { F.botHonInit = true; b.botRoadPath = null; }
+  //   木戸の口の辺りでは、塀の外→口の前→引き倒した柵の跡→木戸の内の広場、と決めた点を順に歩く（塀の角や横矢の張り出しに当たらない）。
+  //   木戸の段（高さ）に上がってから使う。下の折れでは道の点をたどる。
+  if (F.step === 4 && F.tsuke && !F.botGateIn && Math.abs(u.pos.x - OTE.x) < 24 && u.pos.z > OTE.z - 9 && u.pos.z < OTE.z + 16 && Math.abs(u.pos.y - b.world.heightAt(OTE.x, OTE.z)) < 2) {
+    const out = u.pos.z > OTE.z - 0.6;
+    if (out && F.botGateK == null) { let k = 0, bd = Infinity; for (let i = 0; i < 4; i++) { const d = Math.hypot(OTE_WAY[i][0] - u.pos.x, OTE_WAY[i][1] - u.pos.z); if (d < bd) { bd = d; k = i; } } F.botGateK = k; }
+    if (out && F.botGateK < 4 && Math.hypot(OTE_WAY[F.botGateK][0] - u.pos.x, OTE_WAY[F.botGateK][1] - u.pos.z) < 1.5) F.botGateK++;
+    const q = out ? (F.botGateK < 4 ? { x: OTE_WAY[F.botGateK][0], z: OTE_WAY[F.botGateK][1] } : { x: 5.5, z: OTE.z - 4 })
+      : u.pos.z > OTE.z - 6 && u.pos.x > 2.5 ? { x: 1.5, z: OTE.z - 5 } : OTE_IN;
+    if (q === OTE_IN && Math.hypot(u.pos.x - OTE_IN.x, u.pos.z - OTE_IN.z) < 1.5) { F.botGateIn = true; b.botRoadPath = null; }
+    else { if (p.lock) inp.e.add('KeyQ'); goTo(p, inp, q.x, q.z, 0.5); b.botRoadPath = null; return; }
+  }
   // 敵の前での退避は共通の survive に任せ、上役へ背を向けない。
   const c = F.kino.center();
   if (F.step === 0) {

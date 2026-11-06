@@ -384,8 +384,45 @@ html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals li.no
 html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
   document.head.appendChild(style); hud.root.classList.add('saika-goals');
+  // 11/6 fix61（九3）：共通の▼は近い数人だけ。四十 m 内の見える敵（柵の鉄砲・寄せる組）には一人残らず同じ赤い▼を付ける。
+  //   使者は noTarget なので付かない。印は使い回し、毎コマ作らない。
+  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 80) break;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
+          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      // 近い兵は human の体で描き、元の形（u.mesh）は隠れている。見えるかは camHidden と見通しで決める。
+      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
+      if (!u._skSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
   rt.dispose = function () {
     if (hud.progress !== hudProgress) hud.progress = hudProgress;
+    if (hud.foeMarks !== foeMarks) hud.foeMarks = foeMarks;
+    box.remove();
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('saika-goals'); style.remove(); this.dispose = dispose;
     return dispose ? dispose.call(this) : undefined;
@@ -1800,8 +1837,7 @@ const saika = {
   // 11/4 jin（AR1・AW3）：場所と行いで言う。「ここ」「この敵」「印」の字は使わない
   // 11/6 fixc1753（三1・九1・十1）：右上の一行は段ごとに固め、途中で言い替えない。「待て」「印」は使わず、場所と行いだけ。
   //   ①〜⑤は stages.js の saika と goals5 と同じ字（SAIKA_LINE）。
-  missions: SAIKA_LINE.slice(),
-  goals5(rt) {
+  missions: SAIKA_LINE.slice(),  goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true;
     return [
       { kind: 'stage', k: 0, text: SAIKA_LINE[0], noun: '川べりの小旗', check: () => won() || (F.step || 0) >= 2 },
@@ -3654,7 +3690,7 @@ saika.liveForce = (rt) => {
 // 兵の気配は紀州の全軍でなく、目の前の持ち場を表す。史料の総兵数としない。
 saika.sides = { a: { name: '織田の山手勢', mon: 'oda' }, b: { name: '雑賀衆', mon: 'yatagarasu' } };
 // 始まりの札：味方対敵に史実の規模の数を添える（五4）。人物紹介と「勝つには」は出さない。
-saika.introSides = { a: '織田勢　三万', b: '雑賀衆　数千' };
+saika.introSides = { a: '織田の山手勢　三万', b: '雑賀衆　数千' };   // 三万は山手だけの数（浜手も三万）。全軍の数と読ませない
 saika.introPeople = [];
 // 公記は二十二日の分進後、二十八日の中野城開城前に渡河を記す。日付の断定は避ける。
 saika.date = () => '天正五年二月下旬　春';
@@ -3746,6 +3782,14 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 引く下知が出たら、届く一撃だけを受ける。敵へ詰めて川の口を離れない。
   // 結果待ちの終幕でも操作を止めず、味方と後ろの陣へ引く。
   if (F.step === 3 || F.ending) {
+    // 11/6 fix61：③で川上の寄せと打ち合い続け、口へ戻れず時切れになった（6回に2回）。川の中では構えたまま口へ歩く。
+    if (F.step === 3 && u.pos.x < -12) {
+      if (p.lock) inp.e.add('KeyQ');
+      const to = u.pos.x < -22 && Math.abs(u.pos.z) > 2 ? WEST_MOUTH : u.pos.x > EAST_MOUTH.x - 3 && Math.abs(u.pos.z) < 3 ? BACK : EAST_MOUTH;
+      goTo(p, inp, to.x, to.z, 1.5);
+      inp.guardHold = !!attacker && attackDist < reach;
+      return;
+    }
     if (attacker && attackDist < reach) {
       if (p.lock && p.lock !== attacker) inp.e.add('KeyQ');
       p.yaw = Math.atan2(attacker.pos.x - u.pos.x, attacker.pos.z - u.pos.z);
@@ -3879,6 +3923,9 @@ Object.defineProperty(saika, 'botDefendsFort', { configurable: true, get() {
   const rt = saikaLive, u = rt?.player?.u;
   if (!rt || rt.over || !u || rt.def?.botBrain !== saika.botBrain) return false;
   const F = rt.flags;
+  // 11/6 fix61：③の退きで、鉄砲の避け足（cover）が高岸の裾へ寄り続け、口へ戻れず時切れになった（6回に2回）。
+  //   川の中を戻る間も、命が三割を超えれば戦の頭（構えたまま口へ歩く）に任せる（bot だけ）。
+  if (F.step === 3 && u.pos.x < -10 && u.hp > u.maxHp * 0.3) return true;
   return F.step === 4 && !F.cover && u.hp > u.maxHp * 0.3 && Math.hypot(u.pos.x - COVER.x, u.pos.z - COVER.z) < 7;
 } });
 export { saika };

@@ -24,6 +24,9 @@ import { withGuard } from './toyo_bot.js';
 import { STAGES } from './stages.js';
 import { sfx } from './audio.js';
 import { revealName } from './battle_intel.js';
+import * as THREE from 'three';
+import { goalsTick } from './hud_goals.js';
+import { sightUnit } from './battle_sight.js';
 
 let dem = null;
 useTerrain('dem_yamazaki', (data) => { dem = data; });
@@ -111,6 +114,84 @@ function shoryujiFront(rt) {
   rt.scene.add(yagura(W, x - 18, z - 7, { mon: 'akechi', team: 1 }));
   rt.scene.add(yagura(W, x + 18, z - 7, { mon: 'akechi', team: 1 }));
 }
+// 11/6 fixc0328（kaito 九1・九3・十1・十二1）：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
+//   見える敵は一人残らず頭上に大きな赤い▼（共通の印は近い四人まで）。有岡・越前と同じ作り。時の字は出さない。
+const YAM_BOARD_CSS = `
+html:root body #hud#hud#hud.yam-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.yam-goals #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.yam-goals #armybar { visibility:hidden !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+}
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+function yamGoalBoard(rt) {
+  const hud = rt.hud;
+  if (!hud?.root || typeof document === 'undefined') return;
+  hud.root.classList.add('yam-goals');
+  const style = document.createElement('style');
+  style.textContent = YAM_BOARD_CSS;
+  document.head.appendChild(style);
+  const progress = hud.progress;
+  hud.progress = function (battle) {
+    const out = progress.call(this, battle);
+    if (battle === rt && this.prog && !rt.over) {
+      const def = rt.def, one = def.missionSingleLine;
+      def.missionSingleLine = false;
+      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+    }
+    return out;
+  };
+  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 90) break;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600) continue;
+      if (!(u._yamSeenAt > rt.t - .34 && u._yamSeenAt <= rt.t)) { u._yamSeen = sightUnit(rt, u); u._yamSeenAt = rt.t; }
+      if (!u._yamSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:22px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
+  const dispose = rt.dispose;
+  rt.dispose = function () {
+    hud.foeMarks = foeMarks; box.remove();
+    hud.progress = progress;
+    if (hud.prog) hud.prog.classList.remove('goal-mode');
+    hud.root.classList.remove('yam-goals'); style.remove();
+    return dispose.call(this);
+  };
+}
+
 // 本陣の旗本（陣幕の中と前）。動かず、前に出ない。大将は討てない
 function honjinGuard(rt, team, at, facing, name, lead, flag, n, horse = false) {
   const mk = team ? enemyGroup : allyGroup;
@@ -147,9 +228,12 @@ const t01_yamazaki = {
   frontlineDensity: false,    // 小勢を足さない（本物の兵の枠を段の備に残す）
   alwaysMelee: false,
   foeMarks: true,
+  nameRange: 70,              // 名のある将の名は遠くからも出す（既定の十八では斎藤・津田・御牧の名が一度も見えなかった。kaito 五2・九3）
   closeCombatAssist: true,
   noWinCrane: true,
   playerTaken: 0.3,           // 羽柴が二倍以上の戦。主人公だけが十秒で倒れない（kaito 十二3）
+  //   11/6 fixc0328：それでも①の斎藤勢・浅瀬の手前で十秒に百から一へ落ちた（共通の一太刀の下限）。一度に受ける槍は命の四割まで・一・二秒は次を通さない（越前と同じ口）
+  meleeGrace: { rate: 0.05, burst: 0.4, interval: 1.2 },
   sides: { a: { name: '羽柴勢', mon: HA }, b: { name: '明智勢', mon: 'akechi', faction: 'akechi' } },
   date: () => '天正十年（1582）六月十三日　申の刻',
   history: '本能寺の変の十一日後、備中高松から大返しの羽柴勢およそ四万が、明智勢およそ一万六千と天王山と淀川の間の狭い野でぶつかった。雨の夕方、伊勢貞興が中川清秀の隊に襲いかかって戦が始まり、斎藤利三も円明寺川を渡って高山右近の隊を押した。堀秀政が後詰に着いて支え、天王山の手では羽柴秀長・黒田官兵衛が松田政近・並河易家と戦った。やがて池田恒興らが淀川沿いの浅瀬を渡り、津田信春の隊を破って明智の横を突いた。明智勢は総崩れとなり、御牧兼顕が殿となって討死する間に、光秀は御坊塚の本陣から勝竜寺城へ退いた。光秀は夜に城を出て坂本へ向かう途中、小栗栖で討たれた。',
@@ -168,7 +252,9 @@ const t01_yamazaki = {
   },
   world: {
     seed: 1582,
-    time: 'dusk',
+    // 申の刻（午後四時ごろ。旧暦六月十三日＝七月二日で日の入りは七時過ぎ）の雨。夕焼けの赤い空は時刻にも雨にも合わない（critic60：④だけ空が赤い）。
+    //   雨雲の下の昼過ぎの暗さ（雨は小雨 0.3 のまま）
+    time: 'storm',
     height,
     waterSlow: true,
     riverCross: true,
@@ -206,6 +292,10 @@ const t01_yamazaki = {
     F.mitsuU = F.mitsuG.units.find((u) => u.name === '明智光秀');
     shoryujiFront(rt);
     for (const [x, z] of [[-80, 34], [-46, 30], [-14, 66]]) rt.scene.add(nobori(rt.world, x, z, HA));
+    // 天王山の裾の秀長・官兵衛の手の幟（川手の野から山の手の取り合いの場所が見える。critic60：天王山が霧の山の絵のまま）
+    for (const [x, z, m] of [[-112, 32, KU], [-116, 20, HA], [-108, 12, KU], [-120, 40, HA]]) rt.scene.add(nobori(rt.world, x, z, m));
+    // 後ろの秀吉の本陣の幟（振り返ると陣幕と旗が見える）
+    for (const [x, z] of [[HIDE.x - 12, HIDE.z - 10], [HIDE.x + 12, HIDE.z - 10], [HIDE.x, HIDE.z - 14]]) rt.scene.add(nobori(rt.world, x, z, HA));
     for (const [x, z] of [[-10, -50], [70, -64], [10, -130], [30, -130]]) rt.scene.add(nobori(rt.world, x, z, AK.flag));
     // 天王山の裾を押さえる秀長・官兵衛の手（鉄砲で撃ち下ろす）
     F.tenno = allyGroup(rt, { name: '羽柴秀長の隊', anchor: { x: -104, z: 26 }, facing: Math.PI, width: 10, aggro: 10, seekRange: 34, morale: 95, noRout: true, fullStrength: true, order: 'hold' },
@@ -234,6 +324,13 @@ const t01_yamazaki = {
     F.iseW = enemyGroup(rt, { name: '伊勢貞興の隊', faction: 'akechi', anchor: { x: -62, z: -38 }, facing: 0, width: 10, formation: 'line', order: 'hold', aggro: 6, seekRange: 10, morale: 88, dmgMult: 0.5 },
       ak(knot(14, [{ type: 'busho', n: 1, o: { name: '伊勢貞興', horse: true } }])));
     for (const n of KNOWN) revealName(rt, n);
+    yamGoalBoard(rt);
+    // 共通の「横槍が入ったぞ」は、池田勢が明智の横を突く③④の間に一度だけ（critic60：一つの戦で五回以上同じ台詞）
+    const say0 = rt.say;
+    rt.say = function (who, text, ...rest) {
+      if (typeof text === 'string' && /横槍/.test(text)) { if (F.yokoSaid || (F.stage || 0) < 3) return false; F.yokoSaid = true; }
+      return say0.call(this, who, text, ...rest);
+    };
     // 雨の夕方（公家の日記に雨。鉄砲は撃てる小雨）
     if (rt.world.setRainTarget) { rt.world.setRainTarget(0.3); rt.world.rainLevel = 0.3; }
     rt.say('羽柴秀吉', '備中から駆け通して来たぞ。上様の仇、日向を討つは今ぞ', 3.6);
@@ -285,11 +382,14 @@ const t01_yamazaki = {
       F.tsuda = enemyGroup(rt, { name: '津田信春の隊', faction: 'akechi', anchor: { x: TSUDA.x + 6, z: TSUDA.z - 44 }, facing: 0.3, width: 12, formation: 'line', order: 'move', aggro: 8, seekRange: 12, morale: 85, dmgMult: 0.55 },
         ak(knot(24, [{ type: 'busho', n: 1, o: { name: '津田信春', horse: true } }])));
       F.tsuda.dest = { ...TSUDA }; F.tsuda.onArrive = (g) => { g.order = 'hold'; };
+      //   池田勢が渡りきるまでは、敵の采配に呼ばれて浅瀬の南の岸まで寄せて来ない（川の上の鉄砲で撃つだけ。主人公一人が囲まれない）
+      F.tsuda.stay = F.bank.stay = true;
       F.tsudaGs = [F.tsuda, F.bank];
       F.tsudaN = allN(F.tsudaGs);
     } else if (n === 3) {
       rt.award((t) => t.side.push('東の浅瀬で円明寺川を渡った'), '東の浅瀬で円明寺川を渡った');
       F.tsuda.order = 'attack'; F.tsuda.aggro = 22; F.tsuda.seekRange = 34; F.tsuda.onArrive = null;
+      F.tsuda.stay = F.bank.stay = false;
       // 斎藤利三の本隊も主人公から遠い所で出て、中ほどの持ち場へ歩いて南を向いて構える（④で横から突く）
       F.saito = enemyGroup(rt, { name: '斎藤利三の隊', faction: 'akechi', anchor: { x: SAITO.x - 6, z: SAITO.z - 40 }, facing: 0, width: 14, formation: 'line', order: 'move', aggro: 10, seekRange: 14, morale: 85, dmgMult: 0.55 },
         ak(knot(28, [{ type: 'busho', n: 1, o: { name: '斎藤利三', invuln: true, horse: true } }])));
@@ -311,6 +411,7 @@ const t01_yamazaki = {
       // 殿の御牧兼顕の隊は、主人公から遠い御坊塚の前に先に出て構える（⑤で突きかかる）
       F.mimaki = enemyGroup(rt, { name: '御牧兼顕の殿', faction: 'akechi', anchor: { ...ISE }, facing: 0, width: 14, formation: 'line', order: 'hold', noRout: true, aggro: 8, seekRange: 12, morale: 99, dmgMult: 0.55 },
         ak(knot(26, [{ type: 'busho', n: 1, o: { name: '御牧兼顕', horse: true } }])));
+      F.mimaki.stay = true;   // ④の間は敵の采配に呼ばれて野へ出ない（⑤で御坊塚の前の行き先へ突きかかる）
       F.gobo = [F.mimaki];
       F.guardN = allN(F.gobo);
       // 前から中川・高山、中ほどから堀秀政の後詰も川を越えて押す（堀は①で着いている）
@@ -330,8 +431,11 @@ const t01_yamazaki = {
       rt.award((t) => t.side.push('斎藤利三の隊の横を突いて崩した'), '斎藤利三の隊の横を突いて崩した');
       for (const g of rt.army.groups) if (g.team === 1 && live(g) && !g.honjin && g !== F.mimaki) { g.routed = true; g.order = 'flee'; }
       // 総崩れ。御牧兼顕が殿となって御坊塚の前から突きかかる間に、光秀は旗本と勝竜寺城へ退く（学び 四・六）
-      F.mimaki.order = 'attack'; F.mimaki.aggro = 30; F.mimaki.seekRange = 44;
+      //   殿は御坊塚の前の行き先（⑤の▼）へ駆け出て、そこで槍を合わせる（野の奥で別の隊とだけ戦わない）
+      F.mimaki.stay = false;
+      F.mimaki.order = 'move'; F.mimaki.aggro = 12; F.mimaki.seekRange = 16;
       F.mimaki.dest = { x: GOBO_PIN.x, z: GOBO_PIN.z + 4 };
+      F.mimaki.onArrive = (g) => { g.order = 'attack'; g.aggro = 30; g.seekRange = 44; };
       // 光秀は御坊塚の古墳から降りて、旗本に囲まれて北東の勝竜寺城へ退く（目に見える所で。討てない）
       rt.after(6, () => {
         if (!F.mitsuG || F.ending) return;
@@ -356,8 +460,9 @@ const t01_yamazaki = {
     if (F.ending) return;
     F.ending = true;
     (F.log = F.log || []).push(['win', Math.round(rt.t), Math.round(rt.player.u.pos.x), Math.round(rt.player.u.pos.z)]);
-    rt.objDone('main');
-    rt.tracker.main = true;
+    // ⑤にも印を付ける（右の並びは段で見る）。主の任務の「済み」と勝ちの締めは、勝ち鬨と官兵衛の言葉の後に
+    //   （共通の finish は勝ちを四秒半で結果へ送り、共通の締め goalsDoneTick も二秒半で走るので、先に済みにすると勝ちの札と言葉が切れて昇進の画面へ飛んだ。critic60）
+    F.stage = 6;
     rt.player.u.invuln = true;
     rt.award((t) => { t.main = true; t.special = { label: '円明寺川を渡り、明智の横を突き破った', pts: 20 }; }, '御坊塚の前で御牧兼顕の殿を討ち破った');
     rt.banner('山崎の戦い　勝ち', '光秀は勝竜寺城へ退いた');
@@ -369,7 +474,7 @@ const t01_yamazaki = {
     // 光秀の最期（小栗栖）はこの夜より後の事。夕方のうちに「討たれた」と知らせない
     rt.after(8, () => rt.say('黒田官兵衛', '勝竜寺は小城。日向は夜のうちに城を抜け、坂本へ落ちましょう。道々の郷人が黙ってはおりますまい', 4.5));
     rt.after(13, () => rt.say('黒田官兵衛', 'さて、上様の跡目を巡って、柴田殿とはいずれ……', 4));
-    rt.finish({ scriptedEnd: true }, 18);
+    rt.after(16.5, () => { if (rt.over) return; rt.objDone('main'); rt.tracker.main = true; rt.finish({ scriptedEnd: true }, 4.5); });
   },
   lose(rt, why) {
     const F = rt.flags;
@@ -385,6 +490,8 @@ const t01_yamazaki = {
     if (F.ending || !F.stage) return;
     const P = rt.player.u.pos;
     if (F.stage <= 3 && broken(F.naka) && broken(F.taka)) { this.lose(rt, '前で支える中川・高山の隊が崩れた'); return; }
+    // 主人公が倒れている間（やり直しの札の間）は段を進めない。倒れたまま味方だけで勝ちにしない（critic60・三3）
+    if (!rt.player.u.alive || rt.retryOpen) return;
     // 池田勢は主人公の脇に付く（離れたら寄る・近ければ戦う）
     if (live(F.ikeda) && (F.escT = (F.escT || 0) - dt) <= 0) {
       F.escT = 0.5;
@@ -393,7 +500,8 @@ const t01_yamazaki = {
       // 遠く遅れた時は道々の小競り合いに足を止めず、主人公の所まで駆け寄る（kaito 一5：味方の隊も同じ速さで目標へ）
       //   主人公の駆け足（約5m/秒・player.js）に足軽の駆け足（4.3）は追いつけないので、離れた間だけ主人公と同じ速さにする
       for (const u of F.ikeda.units) { if (u._run0 == null) u._run0 = u.run; u.run = far > 12 ? Math.max(u._run0, 5) : u._run0; }
-      if (c && far > 9) { F.ikeda.order = 'move'; F.ikeda.dest = { x: P.x, z: P.z + 3 }; F.ikeda.onArrive = null; }
+      //   行き先は主人公が六歩より動いた時だけ置き直す（半秒ごとに置き直すと隊が組み直しを繰り返し、浅瀬の段で七十も遅れた）
+      if (c && far > 9) { if (F.ikeda.order !== 'move' || !F.ikeda.dest || dist(F.ikeda.dest, P) > 6) { F.ikeda.order = 'move'; F.ikeda.dest = { x: P.x, z: P.z + 3 }; } F.ikeda.onArrive = null; }
       else if (F.ikeda.order === 'move' && !F.ikeda.onArrive) { F.ikeda.order = 'attack'; F.ikeda.aggro = 24; F.ikeda.seekRange = 30; }
     }
     // 逃げて遠くへ去った明智勢は消す（本物の兵の数を次の備に残す）
@@ -408,7 +516,10 @@ const t01_yamazaki = {
       if (n <= F.w1N * 0.3 && rt.t - F.st0 > 60) this.stage(rt, 2);
     } else if (F.stage === 2) {
       if (!F.fordIn && dist(P, FORD_S) < 14) F.fordIn = true;
-      if (dist(P, FORD_N) < 14 || (F.fordIn && P.x > 30 && P.z < riverZ(P.x) - 5)) this.stage(rt, 3);
+      //   池田勢と一緒に渡る（馬の主人公だけが先に着いて段が進まない。隊の真ん中が北の岸の近くへ来るまで、長くても四十秒待つ）
+      const ic = live(F.ikeda) ? F.ikeda.center() : null;
+      const with_ = !ic || dist(ic, FORD_N) < 26 || rt.t - (F.fordAt ?? rt.t) > 40;
+      if (dist(P, FORD_N) < 14 || (F.fordIn && P.x > 30 && P.z < riverZ(P.x) - 5)) { F.fordAt ??= rt.t; if (with_) this.stage(rt, 3); }
     } else if (F.stage === 3) {
       if (aliveN(F.tsudaGs) <= F.tsudaN * 0.25 && rt.t - F.st0 > 45) this.stage(rt, 4);
     } else if (F.stage === 4) {
@@ -419,7 +530,7 @@ const t01_yamazaki = {
       if (late && live(F.mimaki) && (F.mkT = (F.mkT || 0) - dt) <= 0) { F.mkT = 3; F.mimaki.order = 'attack'; F.mimaki.dest = { x: P.x, z: P.z }; F.mimaki.aggro = 40; F.mimaki.seekRange = 60; }
       //   殿が討ち尽くされたら待たずに勝ち（右の目標が全部果たされて共通の締めが先に走ると、勝ち鬨が出ない）
       const left = aliveN(F.gobo);
-      if (left === 0 || (left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 55)) this.win(rt);
+      if (left === 0 || (left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 65)) this.win(rt);
     }
   },
 };
@@ -437,7 +548,9 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   const F = b.flags, p = b.player, u = p.u;
   if (!u.alive || F.ending || !F.stage || F.holdPlayer) return;
   const ok = (o) => !o.fleeing && !o.noTarget && !o.invuln && !o.group?.routed && Math.abs(o.pos.y - u.pos.y) < 3;
-  const e = b.army.nearestEnemy(u, F.stage === 2 ? 4 : 12, ok);
+  // ①は高山の陣の右の持ち場で受ける（逃げる斎藤勢を追って川の北へ一人で深入りしない。遊ぶ人も行き先の▼の所で戦う）
+  const inHold = (o) => F.stage !== 1 || dist(o.pos, HOLD) < 30;
+  const e = b.army.nearestEnemy(u, F.stage === 2 ? 4 : 12, (o) => ok(o) && inHold(o));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     if (p.lock && p.lock !== e) inp.e.add('KeyQ');
@@ -447,10 +560,16 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   inp.guardHold = false;
-  const c = (gs) => { const g = [].concat(gs || []).find(live); return g ? g.center() : null; };
+  // 隊の真ん中は、逃げる者を除いた構える者だけで取る（崩れて北へ逃げる隊を追って勝竜寺城まで行かない）
+  const c = (gs) => { const L = [].concat(gs || []).flatMap((g) => (g ? g.units : [])).filter((o) => o.alive && !o.gone && ok(o)); if (!L.length) return null;
+    return { x: L.reduce((s, o) => s + o.pos.x, 0) / L.length, z: L.reduce((s, o) => s + o.pos.z, 0) / L.length }; };
   let t = HOLD;
-  if (F.stage === 1) t = c(F.w1) || HOLD;
-  else if (F.stage === 2) t = F.fordIn || u.pos.z < riverZ(u.pos.x) + 3 ? FORD_N : FORD_S;
+  if (F.stage === 1) { const w = c(F.w1); t = w && dist(w, HOLD) < 30 ? w : HOLD; }
+  else if (F.stage === 2) {
+    // 浅瀬の南の岸で池田勢が寄るのを待ってから、一緒に渡る（馬で一人だけ先に渡らない）
+    const ic = live(F.ikeda) ? F.ikeda.center() : null, ready = !ic || dist(ic, u.pos) < 16 || b.t - F.st0 > 45;
+    t = F.fordIn && ready || u.pos.z < riverZ(u.pos.x) + 3 ? FORD_N : FORD_S;
+  }
   else if (F.stage === 3) t = c(F.tsudaGs) || TSUDA;
   else if (F.stage === 4) t = c(F.saiGs) || SAITO;
   else t = c(F.gobo) || GOBO;

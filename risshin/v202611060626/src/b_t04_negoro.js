@@ -83,6 +83,8 @@ const POND_L = { x: 46, z: -26, rx: 15, rz: 10 };   // 大門池（大門の外�
 const MONZEN_BO = [[-18, -84, Math.PI / 2], [-18, -66, Math.PI / 2], [-32, -76, Math.PI / 2], [18, -84, -Math.PI / 2], [18, -66, -Math.PI / 2], [32, -76, -Math.PI / 2], [-20, -40, Math.PI / 2], [20, -40, -Math.PI / 2]];
 const HASHIBA = { armor: 0x2a2420, flag: 'toyotomi' };
 const NEGORO = { armor: 0x3a342c, flag: 'maru' };
+// 先手の家ごとの旗（羽柴の桐で皆をそろえない。筒井は梅鉢・堀は三つ盛亀甲に花菱。textures の MON）
+const TSUTSUI = { ...HASHIBA, flag: 'umebachi' }, HORI = { ...HASHIBA, flag: 'hori' };
 // 上の身分（足軽大将より上）は先手を率いる部将の言い方
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
@@ -184,7 +186,7 @@ function height(x, z) {
   const e = ((L.x - POND_L.x) / POND_L.rx) ** 2 + ((L.z - POND_L.z) / POND_L.rz) ** 2;
   if (e < 1.3) h -= 1.8 * sm((1.3 - e) / 0.5);
   // 菩提川の流れ（橋の下の参道は削らない）
-  if (Math.abs(L.x) > 2.7 && Math.abs(L.z - 40) < 20) { const d = distToPolyline(L.x, L.z, BODAI_L); if (d < 2.8) h -= 1.1 * sm((2.8 - d) / 1.6); }
+  if (Math.abs(L.x) > 2.7 && Math.abs(L.z - 40) < 20) { const d = distToPolyline(L.x, L.z, BODAI_L); if (d < 4.6) h -= 1.1 * sm((4.6 - d) / 4.6); }   // 地面の網目（2.5m）でも谷が写る幅にする（細いと網目が谷を均し、水が土の上に浮いた）
   return h;
 }
 
@@ -237,8 +239,8 @@ let TOWER_MAT = null;
 function towerMats() {
   if (TOWER_MAT) return TOWER_MAT;
   const m = (c, r = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: 0 });
-  TOWER_MAT = { stone: m(0x8a857a), wood: m(0x4e3424), white: m(0xe2dccd), roof: m(0x3e3026, 0.95), bronze: new THREE.MeshStandardMaterial({ color: 0x5a4a2a, roughness: 0.5, metalness: 0.6 }),
-    lattice: m(0x2a1c12), water: new THREE.MeshStandardMaterial({ color: 0x3a4a4c, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.86 }) };
+  TOWER_MAT = { stone: m(0x8a857a), wood: m(0x4e3424), white: m(0xe2dccd), roof: m(0x4a4b4c, 0.85), bronze: new THREE.MeshStandardMaterial({ color: 0x5a4a2a, roughness: 0.5, metalness: 0.6 }),
+    lattice: m(0x2a1c12), water: new THREE.MeshStandardMaterial({ color: 0x26302a, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.82, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 }) };   // 山の小川の澄んだ浅い水（灰色の板に見えないよう暗く）
   return TOWER_MAT;
 }
 function daitoModel(world, x, z) {
@@ -247,6 +249,14 @@ function daitoModel(world, x, z) {
   const add = (geo, mat, py, ry = 0) => { const o = new THREE.Mesh(geo, mat); o.position.y = py; o.rotation.y = ry; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
   add(new THREE.BoxGeometry(17, 1.2, 17), M.stone, 0.6);                         // 基壇
   add(new THREE.BoxGeometry(14, 6, 14), M.white, 4.2);                           // 初重の壁
+  // 初重（裳階・方五間）の各面：中の間に板扉、その両脇に板、端の間に連子窓（白い壁だけの箱にしない）
+  for (let f = 0; f < 4; f++) {
+    const a = f * Math.PI / 2, c = Math.cos(a), s = Math.sin(a);
+    for (const [k, w, h, py, mat] of [[0, 2.6, 4.2, 3.7, M.wood], [-2.2, 1.1, 4.2, 3.7, M.wood], [2.2, 1.1, 4.2, 3.7, M.wood], [-4.4, 2.2, 1.6, 5.0, M.lattice], [4.4, 2.2, 1.6, 5.0, M.lattice]]) {
+      const o = add(new THREE.BoxGeometry(w, h, 0.2), mat, py, a);
+      o.position.x = s * 7.02 + c * k; o.position.z = c * 7.02 - s * k;
+    }
+  }
   for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) {                        // 柱
     add(new THREE.BoxGeometry(0.6, 6, 0.6), M.wood, 4.2).position.set(sx * 7, 4.2, k * 6.6);
     add(new THREE.BoxGeometry(0.6, 6, 0.6), M.wood, 4.2).position.set(k * 6.6, 4.2, sx * 7);
@@ -435,14 +445,17 @@ const t04_negoro = {
       let [ax, az] = BODAI_L[i], [bx, bz] = BODAI_L[i + 1];
       if (Math.abs(bx) < 2.7) { const t = (Math.abs(ax) - 2.7) / (Math.abs(ax) - Math.abs(bx)); bx = ax + (bx - ax) * t; bz = az + (bz - az) * t; }
       if (Math.abs(ax) < 2.7) { const t = (Math.abs(bx) - 2.7) / (Math.abs(bx) - Math.abs(ax)); ax = bx + (ax - bx) * t; az = bz + (az - bz) * t; }
-      // 水は流れの底に沿って短く刻む（長い一枚の水だと、坂の下の端で地面より上に浮いた。11/6）
-      const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 5));
-      for (let k = 0; k < n; k++) {
-        const A = P(ax + (bx - ax) * k / n, az + (bz - az) * k / n), B = P(ax + (bx - ax) * (k + 1) / n, az + (bz - az) * (k + 1) / n), len = Math.hypot(B.x - A.x, B.z - A.z);
-        const m = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.04, len + 0.4), towerMats().water);
-        m.position.set((A.x + B.x) / 2, Math.min(W.heightAt(A.x, A.z), W.heightAt(B.x, B.z), W.heightAt((A.x + B.x) / 2, (A.z + B.z) / 2)) + 0.3, (A.z + B.z) / 2);
-        m.rotation.y = Math.atan2(B.x - A.x, B.z - A.z); m.receiveShadow = true; rt.scene.add(m);
+      // 水は流れの底の地面に沿う一枚の帯（11/6 専門の目：短い板を段々に並べると、灰色の石段が宙に浮いて見えた）。
+      //   一歩半ごとに、帯の真ん中と両の縁を、その所の地面の少し上に置く（坂でも段にならず、縁が岸から浮かない）
+      const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 1.5)), du = dirL(bx - ax, bz - az), L = Math.hypot(du.x, du.z), sx = -du.z / L, sz = du.x / L;
+      const pos = [], idx = [];
+      for (let k = 0; k <= n; k++) {
+        const c = P(ax + (bx - ax) * k / n, az + (bz - az) * k / n);
+        for (const o of [-1.1, 0, 1.1]) { const x = c.x + sx * o, z = c.z + sz * o; pos.push(x, W.heightAt(x, z) + (o ? 0.04 : 0.12), z); }
+        if (k) { const a = (k - 1) * 3; idx.push(a, a + 3, a + 1, a + 1, a + 3, a + 4, a + 1, a + 4, a + 2, a + 2, a + 4, a + 5); }
       }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+      const m = new THREE.Mesh(geo, towerMats().water); m.receiveShadow = true; rt.scene.add(m);
     }
     {
       const q = P(BRIDGE_L.x, BRIDGE_L.z), y = W.heightAt(q.x, q.z), br = new THREE.Group();
@@ -496,7 +509,7 @@ const t04_negoro = {
     F.vanG = allyGroup(rt, { ...H, name: '秀次の先手', anchor: P(-4, -132), facing: ROT, width: 12, aggro: 9, noRout: true, formation: 'yari', dmgMult: 0.85 },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }], HASHIBA));
     F.tsutsuiG = allyGroup(rt, { ...H, name: '筒井定次の手', anchor: P(10, -136), facing: ROT, width: 12, aggro: 9, noRout: true, formation: 'yari', dmgMult: 0.85 },
-      dress([{ type: 'samurai', n: 1, o: { name: '筒井定次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], HASHIBA));
+      dress([{ type: 'samurai', n: 1, o: { name: '筒井定次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x2a2a3a } }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], TSUTSUI));
     F.hidetsugu = allyGroup(rt, { ...H, name: '羽柴秀次の旗本', anchor: P(-16, -152), facing: ROT, width: 8, aggro: 4, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '羽柴秀次', invuln: true, horse: true, hat: 'kabuto_m', haori: 0x6a4a1c } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 6 }], HASHIBA));
     F.hidetsuguU = F.hidetsugu.units[0];
@@ -516,7 +529,7 @@ const t04_negoro = {
       F.hatamoto.stay = true; }
     // 堀秀政：坊舎の前へ馬を進め、根来の鉄砲に狙われる侍大将（AY 2「侍大将が鉄砲に狙われ、それを守る」）。討たれはせず、深手で退く
     F.horiG = allyGroup(rt, { ...H, name: '堀秀政の手', anchor: P(-14, -140), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },
-      dress([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HASHIBA));
+      dress([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], HORI));
     F.horiU = F.horiG.units.find((u) => u.name === '堀秀政') || F.horiG.units[0];
     if (F.horiU) { F.horiU.maxHp *= 3; F.horiU.hp = F.horiU.maxHp; }
     F.sengokuG = allyGroup(rt, { ...H, name: '仙石秀久の手', anchor: P(30, -138), facing: ROT, width: 8, aggro: 9, noRout: true, dmgMult: 0.85 },

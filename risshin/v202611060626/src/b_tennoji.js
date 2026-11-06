@@ -33,6 +33,8 @@ import { lodSwap, muddyFlag } from './units_flags.js';
 import { dirtTex, mudTex } from './nature.js';
 import { makeNawabari } from './nawabari.js';
 import { timeslipField } from './timeslip_field.js';
+import { goalsTick } from './hud_goals.js';
+import { fiveGoals } from './goals5.js';
 import { TENNOJI_PLAN, T_GATE, T_HONGATE, SOTO_POLY, HON_POLY, T_HOUSES, T_ROADS } from './castles/tennoji.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
@@ -2078,8 +2080,8 @@ const JIN = [
   rosterPlan('織田方の備え（後詰・砦守備・木津口）', 0, { x: 8, z: 126 }, Math.PI, [
     ['first', '一段目', '佐久間信盛・松永久秀・細川藤孝・若江衆', null, -8, 72, 'oda', 'oda', 160, { w: 14, d: 8, bind: 'saku' }],
     // 公記の二段目は七将の手を合わせた備え。全員を滝川家の旗で描かない。
-    // 高画質の遠景も実兵と同じ織田方の共通旗へ。当日の旗の配分は不明。
-    ['second', '二段目', '滝川一益・蜂屋頼隆・羽柴秀吉・丹羽長秀・稲葉良通・氏家左京助・伊賀伊賀守', null, 16, 98, SETTINGS.quality === 'high' ? 'oda' : 'takigawa', SETTINGS.quality === 'high' ? 'oda' : 'takigawa', 160, { w: 14, d: 8, bind: 'taki' }],
+    // 遠景も画質を問わず実兵と同じ織田方の共通旗へ（11/6 fix61：携帯の低画質だけ滝川一色だった）。当日の旗の配分は不明。
+    ['second', '二段目', '滝川一益・蜂屋頼隆・羽柴秀吉・丹羽長秀・稲葉良通・氏家左京助・伊賀伊賀守', null, 16, 98, 'oda', 'oda', 160, { w: 14, d: 8, bind: 'taki' }],
     // 公記は馬廻の段を記すが、永楽銭の旗の所在・配分は記さない。
     // 高画質では実兵・本陣と同じ所属表示の共通旗へそろえる。旗の持ち場自体は推定。
     ['third', '三段目の馬廻', '織田信長の馬廻', null, 8, 126, SETTINGS.quality === 'high' ? 'oda' : 'eiraku', 'oda', 80, { bind: 'honjin.guard' }],
@@ -2157,8 +2159,8 @@ const tennoji = {
   // 10/30：城戸口まで追う最後の段は、八分の打ち切りで切らない（口の残兵は九十秒で退く）
   pacingWait: (rt) => !!rt.flags.ending || rt.phase === 'chase',
   // 11/4 p100：場所と行いで書く（AQ1・AR1・AW3）。待つだけの目標は書かない（BA3）。
-  missions: ['天王寺砦の南の門で寄せ手を防げ', '先手と天王寺砦の南の門へ攻め入れ', '南の門の内で明智勢と合流せよ', '南の門の内で組をそろえよ',
-    '南の門を出て、砦の東を北へ進め', '北の囲みの門徒を討て', '退く門徒を大坂の城戸口まで追え', '城戸口の前で踏みとどまれ'],
+  missions: ['天王寺砦の南の門で寄せ手を防げ', '先手と天王寺砦の南の門へ攻め入れ', '南の門の内で明智勢と合流せよ', '南の門の内で組を揃えよ',
+    '南の門を出て、砦の東を北へ進め', '北の囲みの門徒を討て', '退く門徒を大坂の城戸口まで追え', '城戸口の前で踏み止まれ'],
   hideNameTag: (u) => u.team === 1 && /侍大将$|鉄砲頭$|名は不明/.test(u.name), // 名の分からない本願寺方の役の侍は名札を出さない（名札は史料に名のある将だけ）。
   goalSignOff: () => true, // 行き先は自分のピン一本だけ。金の▼と段の呼び名（「大軍の囲み」）を重ねない（印は一つ・kaito AN・AV15）。
   missionOf(rt) {
@@ -2262,11 +2264,12 @@ const tennoji = {
   // 公記巻九（四）の三千は後詰の概数。砦守備・木津口を含む全軍の人数にはしない。
   // https://ja.wikisource.org/wiki/信長公記/我自刊我書
   // 出陣時の所属は全軍、兵力の帯は人数が記される後詰として区別する。
-  introSides: { a: '織田軍' },
+  // 11/6 fix61（五4「味方対敵」）：開戦の札に両軍の数（公記の後詰約三千・本願寺勢約一万五千）
+  introSides: { a: '織田の後詰 約三千', b: '本願寺勢 約一万五千' },
   // 11/4 p100：札は状況を二三行だけ。断り書きは書かない（kaito BE）。
   introText: (rt) => (rt.G.lord
     ? '一万五千の本願寺勢が天王寺砦を囲む。信長と三千の後詰で、住吉口から囲みを破れ。'
-    : '一万五千の本願寺勢が天王寺砦を四方から囲む。南の門を守り、信長の三千の後詰を待て。門の内を二十秒奪われると負け。'),
+    : '一万五千の本願寺勢が天王寺砦を四方から囲む。南の門を守り、信長の三千の後詰を待て。'),
   phaseBanners: true,
   noticeLimit: 3,
   taskDetails: false, // 補足の字は出さず、持ち場はピンで示す。
@@ -2373,8 +2376,8 @@ const tennoji = {
     gunAtMe: ['鉄砲がこちらを狙っておる！　物陰へ退け！'],
     // 籠城から追撃まで、斬り合いを邪魔する平時の呟きを混ぜない。
     ambient: ['隣を離れるな', '来るぞ、構えよ'],
-    encircle1: ['左右にも敵だがや！　槍をそろえるぞ！', '脇にもおるで！　味方を離れるな！'],
-    encircle2: ['囲まれたがや！　味方の旗へ退け！', '退き口をあけろ！　皆で抜けるで！'],
+    encircle1: ['左右にも敵じゃ！　槍を揃えよ！', '脇にもおるぞ！　味方を離れるな！'],
+    encircle2: ['囲まれたぞ！　味方の旗へ退け！', '退き口を開けよ！　皆で抜けるぞ！'],
   } } },
   jinkei: JIN,
   noWake: true,
@@ -2807,6 +2810,7 @@ const tennoji = {
     }
     rt.world.setTime('day');
     this.setupNotices(rt);
+    tennojiGoalBoard(rt);
     rt.setPhase('brief');
     rt.obj('main', rt.G.lord ? '先手と住吉口から天王寺砦へ進め' : HI(rt) ? '組と天王寺砦の南の門で寄せ手を防げ' : '天王寺砦の南の門で寄せ手を防げ', 'main');
     if (!rt.G.lord) rt.marker('defend', GATE_REAR, '南の門内の槍の列', { h: 3, guideAlways: true, waitGuide: true });
@@ -2946,7 +2950,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
         u.group?.order === 'retreat' || u.group?.order === 'flee') ? '使番' : name;
     };
     const words = (name, text) => {
-      if (name === '明智光秀' && /無念/.test(text)) return '南門の守りが薄い！　味方と槍をそろえよ！';
+      if (name === '明智光秀' && /無念/.test(text)) return '南門の守りが薄い！　味方と槍を揃えよ！';
       if (/木津で織田勢を退けた/.test(text)) return '木津では勝ったぞ。砦も押せ！';
       if (name === '使番' && /内からも突いて出る/.test(text)) return '後詰じゃ！　内からも突くぞ！';
       return text;
@@ -2966,7 +2970,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       // 一隊の敗走を追撃の下知にせず、籠城・救援・入城の間は門の持ち場を保つ。
       if (!F.ending && !rt.over && !rt.G.lord && F.step < 3 &&
           /敵が背を見せた！.*追え|敵が崩れた！.*押せ|弾込め.*詰めよ|撃ち終えた.*寄せよ/.test(text))
-        text = '敵が退いても門を出るな。味方と槍をそろえよ！';
+        text = '敵が退いても門を出るな。味方と槍を揃えよ！';
       if (/敵が退いても堤を下りるな/.test(text))
         text = F.step < 3 ? '敵が退いても門を離れるな。備えを保て！'
           : F.step === 3 ? '味方の列と進め。一人で敵を追うな！'
@@ -3184,16 +3188,17 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       return g;
     };
     // 本隊と本願寺の鉄砲衆は一度に構える。本隊の後ろには門徒の大軍（軽い作り）
-    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2, o: { flag: HONGAN_FLAG } }], IKKO));
-    mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 2 }], SAIKA));
-    F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 4 }], IKKO));
+    // 11/6 fix61（一1）：合流の後も本願寺勢は退かず（公記）、北の囲みと城戸口の実兵が味方の後詰より薄く見えた。各組の足軽・鉄砲を足す
+    mk(-20, -126, '本願寺勢の本隊', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 11 }, { type: 'bow', n: 3 }, { type: 'gun', n: 3, o: { flag: HONGAN_FLAG } }], IKKO));
+    mk(24, -130, '本願寺の鉄砲衆', dress([{ type: 'samurai', n: 2 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 3 }], SAIKA));
+    F.newHand = mk(-76, -120, '本願寺の後備え', dress([{ type: 'samurai', n: 2, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 8 }], IKKO));
     F.kidoG = [];
     const add = (x, z, name, list) => {
       const g = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name, anchor: { x, z }, facing: 0, order: 'hold', aggro: 20, seekRange: 30, width: 14, morale: 80, fleeDir: { x: 0, z: -1 }, dmgMult: 1 }, list);
       F.kidoG.push(g);
       return g;
     };
-    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 4 }], IKKO));
+    add(KIDO.x - 6, KIDO.z + 14, '城戸口の殿の門徒', dress([{ type: 'samurai', n: 1, o: { horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 8 }], IKKO));
     add(KIDO.x + 22, KIDO.z + 6, '木戸の本願寺の鉄砲', dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }], SAIKA));
     F.fighters = [...F.oda, F.fgun, F.rearGuard, F.honjin.guard];
     F.defenders = [F.ake, F.fgun, F.rearGuard];
@@ -3353,7 +3358,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     rt.unmark('gate'); rt.unzone('gate'); rt.unmark('nobu');
     sfx('kane', 0.8);
     rt.banner('囲まれた', SETTINGS.quality === 'high' ? '本願寺勢が四方から砦へ押し寄せる' : '本願寺勢が三方から砦へ押し寄せる');
-    rt.say(rt.G.lord ? '佐久間信盛' : '組頭', rt.G.lord ? '先手の列でお待ちを。合図で南の門へ進みます！' : '南の門を守れ。柵の内で槍をそろえよ！', 4);
+    rt.say(rt.G.lord ? '佐久間信盛' : '組頭', rt.G.lord ? '先手の列でお待ちを。合図で南の門へ進みます！' : '南の門を守れ。柵の内で槍を揃えよ！', 4);
     rt.after(8, () => { if (F.step === 2.5 && !rt.G.lord) rt.say('佐久間信栄', '鉄砲を避けよ。門内で救いを待て！', 4); });
     // 近い鉄砲頭の声だけ。史料にない実名や、遠い本陣から届く肉声は足さない。
     rt.after(24, () => {
@@ -3398,9 +3403,9 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     rt.setPhase('regroup'); rt.unmark('nobu'); rt.unmark('gate'); rt.unzone('gate');
     survival(rt, '天王寺砦を守り、救援と合流した');
     rt.banner('砦で合流', '敵はなお退かず。後詰と砦の兵を二段に立て直す');
-    rt.obj('main', '南の門の内で明智勢と組をそろえよ', 'main');
+    rt.obj('main', '南の門の内で明智勢と組を揃えよ', 'main');
     tennojiCue(rt, 'atsumare', '法螺の二声。門内へ集まれ', F.nobuU.pos);
-    rt.marker('join', F.gz, '番所の裏で列をそろえよ', { h: 3, guideAlways: true, guidePriority: 500, guideRadius: 10 });
+    rt.marker('join', F.gz, '番所の裏で列を揃えよ', { h: 3, guideAlways: true, guidePriority: 500, guideRadius: 10 });
     // 門の幟の内で列を立て直す。
     // 入城した兵を同じ地点へ重ねず、門内の二段で待つ。
     for (const g of F.fighters) if (!gone(g) && g.order !== 'path') { g.order = 'hold'; g.onArrive = null; g.formation = 'yari'; g.yariRanks = 3; }
@@ -3456,7 +3461,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       if (F.ending || F.step !== 3 || gone(F.newHand)) return;
       march(F.newHand, [[-48, -112], [24, -112]], 'attack', 0);
       F.newHand.seekRange = 60;
-      rt.say('足軽', '西から新手だがや！　先の衆と食い止めるぞ！', 3);
+      rt.say('足軽', '西から新手じゃ！　先の衆と食い止めよ！', 3);
     });
   },
 
@@ -3473,7 +3478,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     if (F.sortieHelp) rt.award((t) => t.side.push('二段の攻めに加わり、本願寺勢の本隊を崩した'), '自分の働きで本隊を押し崩した');
     sfx('horagai', 0.9);
     rt.banner('本願寺勢、崩れる', '石山の城戸口へ退いていく');
-    rt.say('足軽', '門徒が崩れたで！　石山へ逃げていくがや！', 3);
+    rt.say('足軽', '門徒が崩れたぞ！　石山へ逃げていく！', 3);
     rt.after(3.5, () => { if (!F.ending) rt.say('織田信長', '城戸口まで追い立てよ！　そこから先は追うでないぞ！', 3.5); });
     rt.obj('main', HI(rt) ? '組を率い、退く門徒を大坂の城戸口まで追え' : '退く門徒を大坂の城戸口まで追え', 'main');
     for (const [q, x] of [[F.nobu, 0], [F.saku, -12], [F.taki, 12], [F.ake, 6], [F.honjin.guard, -6]]) {
@@ -3523,7 +3528,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     // 10/31：城戸口の手前で共通の小勢が次々に寄せ、印から引き離されて口を押さえ終えられなかった。ここでは新しい小勢を出さない。
     if (rt.army.frontlineDensity) rt.army.frontlineDensity.clashAt = Infinity;
     rt.unmark('chaseWay');
-    rt.obj('main', '城戸口の手前で、味方と踏みとどまれ', 'main');
+    rt.obj('main', '城戸口の手前で、味方と踏み止まれ', 'main');
     rt.scene.visible = false;
     rt.banner('石山の城戸口へ', '時が過ぎた。崩れた本願寺勢を、大坂の城戸口まで追い立てた');
     const W = rt.world;
@@ -3603,7 +3608,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     rt.award((t) => { t.main = true; t.special = { label: '天王寺砦の囲みを破り、本願寺勢を城戸口まで押し戻した', pts: 20 }; }, '天王寺の囲みを破った');
     rt.obj('halt', '城戸口で止まれ。木戸の内へ入るな', 'order');
     tennojiCue(rt, 'tomare', '鉦の二つ打ち＝追撃を止めよ', rt.player.u.pos, 'halt');
-    rt.banner('城戸口まで押し戻した', '信長は天王寺砦を救った。本願寺との戦いは続く');
+    rt.banner('城戸口まで押し戻した', '本願寺勢二千七百余を討ち取り、天王寺砦を救った');
     // 追撃はここで終える。残った敵へ隊が走り続け、木戸の奥へ入らない。
     for (const g of F.fighters) {
       if (spent(g)) continue;
@@ -3613,8 +3618,8 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       for (const u of g.units) { u.target = null; u.moveTo = null; }
     }
     rt.say('佐久間信盛', '鉦の二つ打ちじゃ。追うのはここまで！　木戸の内へ入るな。砦を守り抜いたな', 5);
-    // 城戸口までの追撃は済んだ。共通の終戦後の追撃を重ねず、十二秒で戦後の札へ進む。
-    rt.finish({ scriptedEnd: true }, 12);
+    // 城戸口までの追撃は済んだ。共通の終戦後の追撃を重ねず、八秒で戦後の札へ進む（三3「その場で締めて数秒で勝利」）。
+    rt.finish({ scriptedEnd: true }, 8);
   },
 
   fail(rt, reason) {
@@ -3754,7 +3759,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       if (wave) {
         if (siegeFollowup) {
           F.siegeFollowupSent = true;
-          rt.say('組頭', '西の新手が門へ回るぞ。門内で槍をそろえよ！', 4);
+          rt.say('組頭', '西の新手が門へ回るぞ。門内で槍を揃えよ！', 4);
         }
         sendFortWave(wave);
       }
@@ -3948,7 +3953,7 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
       if (rt.t >= (F.sortieWarnAt || 0)) {
         F.sortieWarnAt = rt.t + 8;
         rt.say('使番', other.routed
-          ? `片方の段が退いた！　${name}も崩れれば負ける。味方と槍をそろえよ！`
+          ? `片方の段が退いた！　${name}も崩れれば負ける。味方と槍を揃えよ！`
           : `${name}の列が危うい！　二段とも退けば攻めは続かぬ。味方を離れるな！`, 4);
       }
       break;
@@ -4053,9 +4058,78 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
 
 // 史料に人数がある後詰だけを数える。人数不明の守備隊を足して四千と断定しない。
 // 局地の死者から全軍の残数を逆算しない。戦う兵と遠景の人数はこの値で変えない。
+// 11/6 fix61（kaito 九3・十二1）：両軍の棒は減っていく。本願寺勢は公記の「二千七百余討ち取る」を城戸口までの段に割って減らす。
+//   後詰の損は公記に数が無く、一割ほどの推定。局地の死者の数からは逆算しない（段の進みだけで決める）。
+const FORCE_FRAC = { 0: 0, 2.5: 0.04, 1: 0.18, 2: 0.32, 2.75: 0.36, 3: 0.5, 4: 0.8 };
 tennoji.force = (rt) => {
-  return { a: 3000, a0: 3000, b: 15000, b0: 15000 };
+  const F = rt.flags;
+  const want = F.ending && rt.tracker?.main === true ? 1 : FORCE_FRAC[F.step] ?? 0;
+  // 段が替わる時に一息で跳ばさず、十秒ほどで寄せる
+  const dt = Math.max(0, Math.min(1, rt.t - (F.forceT ?? rt.t)));
+  F.forceT = rt.t;
+  F.forceFrac = (F.forceFrac ?? 0) + Math.max(0, want - (F.forceFrac ?? 0)) * Math.min(1, dt * 0.25);
+  const k = F.forceFrac;
+  return { a: Math.round(3000 - 300 * k), a0: 3000, b: Math.round(15000 - 2700 * k), b0: 15000 };
 };
+
+// 11/6 fix61（kaito 九1・十1・三3）：右上は①〜⑤（stages.js の天王寺の五段）を最初から全部並べ、済んだ物に印。
+//   一行の札（missionSingleLine）の言い替え（「脇へ寄れ」「踏み止まれ」）は並べる札の下に隠す。桶狭間・箕作と同じ作り。
+const TN_GOALS = (lord) => [
+  lord ? '住吉口から、天王寺砦の南の門へ攻め寄せる' : '天王寺砦の南の門で、本願寺勢を防ぐ',
+  '南の門の前で、信長の後詰と囲みを破る',
+  '南の門の内で、明智光秀の兵と合流する',
+  '南の門を出て、砦の東から北の囲みを討つ',
+  '退く門徒を、大坂の城戸口まで追う',
+];
+const TN_ORDER = { 0: 0, 2.5: 0, 1: 1, 2: 2, 2.75: 2, 3: 3, 4: 4 };
+const TN_BOARD_CSS = `
+html:root body #hud#hud#hud.tennoji-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.tennoji-goals #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.tennoji-goals :is(#armybar, #h-prog, .field-names) { visibility:hidden !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(400px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.tennoji-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+function tennojiGoalBoard(rt) {
+  const hud = rt.hud;
+  if (!hud?.root || typeof document === 'undefined') return;
+  hud.root.classList.add('tennoji-goals');
+  const G5 = fiveGoals(rt) && rt._g5;
+  if (G5) {
+    const F = rt.flags;
+    G5.goals = TN_GOALS(!!rt.G.lord).map((text, k) => ({ kind: 'stage', k, text, sec: 0,
+      check: (r) => (r.over && r.tracker?.main === true) || (k === 4 ? !!F.ending && r.tracker?.main === true : (TN_ORDER[F.step] ?? 0) > k) }));
+    G5.done = []; G5.fail = []; G5.late = []; G5.pass = []; G5.nowI = -1;
+  }
+  const style = document.createElement('style');
+  style.textContent = TN_BOARD_CSS;
+  document.head.appendChild(style);
+  const progress = hud.progress;
+  hud.progress = function (battle) {
+    const out = progress.call(this, battle);
+    if (battle === rt && this.prog && !rt.over) {
+      const def = rt.def, one = def.missionSingleLine;
+      def.missionSingleLine = false;
+      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+    }
+    return out;
+  };
+  const dispose = rt.dispose;
+  rt.dispose = function () {
+    hud.progress = progress;
+    if (hud.prog) hud.prog.classList.remove('goal-mode');
+    hud.root.classList.remove('tennoji-goals'); style.remove();
+    return dispose.call(this);
+  };
+}
 // 公記巻九（四）の約三千は救援三段。人数不明の砦守備と木津口まで含む名で帯を示さない。
 // https://kininaruart.com/artist/shincho/n9.html
 tennoji.sides = { a: { name: SETTINGS.quality === 'high' ? '織田の後詰' : '織田軍', mon: 'oda' }, b: { name: '本願寺勢', mon: HONGAN_FLAG } };

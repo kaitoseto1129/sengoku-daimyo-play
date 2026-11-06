@@ -782,7 +782,7 @@ const ARIOKA_ATTACK = sonaePlan('惣構えの囲み', 0, { x: CAMP.x, z: CAMP.z 
   ['honjin', '西の攻め口の陣', '滝川一益', 5000, CAMP.x, CAMP.z + 4, Math.PI / 2, 'takigawa', 'takigawa'],
   ['taki', '南の仕寄り', '滝川一益の配下', 5000, -36, 70, Math.PI, 'takigawa', 'takigawa', 90, 30, 14],
   ['niwa', '西の付城の控え', '津田信澄', 6000, GATE.x - 32, -58, Math.PI / 2, 'oda', 'oda', 70, 20, 16],
-  ['north', '北の付城の控え', '名は伝わらない', 10000, -24, SOKAKU_N - 24, 0, 'oda', 'oda', 70, 28, 14],
+  ['north', '北の付城の控え', '付城の衆', 9000, -24, SOKAKU_N - 24, 0, 'oda', 'oda', 70, 28, 14],
 ]);
 // 木戸から東へ続く侍町の通りと、北へ上る町筋の両側に、低い板葺きの家を軒を連ねて並べる（清洲 CG の詰まった町並み）。
 // 戸数と並びは推定。道の幅・戦う辻・既にある建物と当たりには重ねず、全棟を一つの束へ結合する。
@@ -829,11 +829,11 @@ function ariStreetHouses(rt, W) {
   finalizeSimpleBatch(rt, batch);
 }
 const ARIOKA_DEFEND = sonaePlan('三砦と主郭の守り', 1, { x: HON_X - 2, z: HON_CENTER_Z - 6 }, 0, [
-  ['honjin', '本陣', '荒木久左衛門', 1200, HON_X - 2, HON_CENTER_Z - 6, 0, 'maru', 'maru'],
-  ['kishi', '岸の砦', '渡辺勘大夫', 500, 20, SOKAKU_N + 26, 0, 'maru', 'maru', 70, 28, 14],
+  ['honjin', '本陣', '荒木久左衛門', 2400, HON_X - 2, HON_CENTER_Z - 6, 0, 'maru', 'maru'],
+  ['kishi', '岸の砦', '渡辺勘大夫', 700, 20, SOKAKU_N + 26, 0, 'maru', 'maru', 70, 28, 14],
   ['joro', '上臈塚砦', '中西新八郎ら', 300, JORO_TORIDE.x + 12, JORO_TORIDE.z, -Math.PI / 2, 'maru', 'maru', 0, 8, 10],
-  ['hiyodori', '鵯塚砦', '野村丹後', 600, 28, WALL_Z - 10, 0, 'maru', 'maru', 35, 18, 10],
-  ['town', '侍町の控え', '荒木久左衛門の配下', 400, TOWN_X - 26, -76, 0, 'maru', 'maru', 0, 8, 6],
+  ['hiyodori', '鵯塚砦', '野村丹後', 900, 28, WALL_Z - 10, 0, 'maru', 'maru', 35, 18, 10],
+  ['town', '侍町の控え', '荒木久左衛門の配下', 700, TOWN_X - 26, -76, 0, 'maru', 'maru', 0, 8, 6],
 ]);
 
 // 11/6 kaito 四3：敵味方が同じ青灰の胴で見分けられなかった。どちらも黒漆の具足（四3 基本は黒）で、威の糸だけ替える（推定復元）。
@@ -2611,7 +2611,7 @@ const arioka = {
     rt.award((t) => { t.main = true; t.special = { label: '惣構えに入り、侍町の辻を守った', pts: 20 }; }, '任務達成・侍町の辻を守った');
     sfx('sig_atsumare', 0.6);
     rt.banner('侍町の辻を守り抜いた', '荒木勢は本丸へ退いた。侍町は焼け落ちる');
-    rt.say('滝川一益', `${nm(rt)}、辻を守った手柄、忘れぬ。夜のうちに牢を開けよ`, 4);
+    rt.say('滝川一益', `${nm(rt)}、辻を守った手柄、忘れぬ。栗山善助が城の牢へ走った`, 4);
     rt.player.u.invuln = true;
     // 紙：官兵衛を救い出すまでが勝ち。救い出したのは十月十六日、家臣の栗山善助（利安）（黒田孝高・有岡城の戦い）。
     // 本丸の開城（十一月十九日）までは飛ばさず、同じ夜の明けぬうち（十六日の未明）に城の牢へ。当時は小寺官兵衛と名乗る。
@@ -2632,8 +2632,8 @@ const arioka = {
       const kanbe = kg.units[0];
       F.kanbeAt = kanbe ? kanbe.pos : at;
       evReach(rt, 'kanbe', () => F.kanbeAt, 3.5, ARI_GOALS[4], '小寺官兵衛', () => {
-        rt.award((t) => { t.side.push('牢から官兵衛を救い出した'); }, '牢から官兵衛を救い出した');
-        rt.banner('官兵衛を救い出した', '一年の牢で足は弱ったが、命はある');
+        rt.award((t) => { t.side.push('牢を出た官兵衛を迎えた'); }, '牢を出た官兵衛を迎えた');
+        rt.banner('官兵衛を迎えた', '一年の牢で足は弱ったが、命はある');
         rt.say('小寺官兵衛', 'かたじけない……。この足では、もう走れぬがな', 4);
         rt.after(3.5, () => rt.say('栗山善助', '殿、お迎えに参りました。播磨へ帰りましょう', 3.5), true);
         rt.flags.kanbeMet = true;
@@ -3196,7 +3196,7 @@ function ariA() {
       say: [['滝川の組頭', '塀を盾に進め。町屋の鉄砲衆を先に崩せ', 4.5]],
       foes: (rt, m) => [{ name: '辻を固める荒木勢', from: { x: TOWN_X - 10, z: -40 }, list: [uS(2), uA(8)], morale: m.fire ? 40 : 90 }, gunLine('町屋の陰の鉄砲', { x: TOWN_X + 22, z: -30 }, 4, {})],
       later: [
-        { t: 18, title: '横槍', sub: '西の惣構えの内から、荒木勢が回り込む', say: ['足軽', '西から来よった！　横槍だがや！'], foes: (rt, m) => [{ name: '西から回る荒木勢', from: { x: -SOKAKU_X + 10, z: -4 }, list: [uS(1), uA(5)], morale: m.fire ? 40 : 90 }] },
+        { t: 18, title: '横槍', sub: '西の惣構えの内から、荒木勢が回り込む', say: ['足軽', '西から来たぞ！　横槍じゃ！'], foes: (rt, m) => [{ name: '西から回る荒木勢', from: { x: -SOKAKU_X + 10, z: -4 }, list: [uS(1), uA(5)], morale: m.fire ? 40 : 90 }] },
         { t: 36, say: ['滝川の組頭', '侍町から新手じゃ！　辻を渡すでない！'], foes: (rt, m) => [{ name: '侍町から出る新手', from: { x: TOWN_X + 10, z: -66 }, list: [uS(2), uA(5)], morale: m.fire ? 45 : 95 }] },
       ],
       max: 210, reward: '城下の辻を押し通った',
@@ -3209,14 +3209,14 @@ function ariA() {
 function ariC() {
   const at = ARI_JUNCTION;
   return [
-    rest({ dur: 6, at, say: [['滝川一益', '辻を押さえたぞ。本丸から荒木勢が寄せ返す。辻で槍をそろえよ'], ['滝川の組頭', '本丸へは進むな。辻を渡さねば、侍町は焼け落ちる', 4]] }),
+    rest({ dur: 6, at, say: [['滝川一益', '辻を押さえたぞ。本丸から荒木勢が寄せ返す。辻で槍をそろえよ'], ['滝川の組頭', '本丸へは進むな。辻を渡せば、木戸まで押し戻されるぞ', 4]] }),
     ariHold({ at, dur: 88, r: 16, fromSide: true, title: '侍町の辻', sub: '本丸の久左衛門の下知で、荒木勢が辻を取り返しに来る', label: '侍町の辻', obj: () => ARI_GOALS[3],
       waves: [
         { t: 4, say: ['足軽', '侍町から寄せるぞ！　辻で迎え撃て！'], foes: () => [{ name: '侍町から寄せ返す荒木勢', from: { x: TOWN_X + 20, z: -62 }, list: [uS(3), uA(9)] }] },
         { t: 18, say: ['滝川の組頭', '鉄砲衆が寄せるぞ！　町屋を盾にせよ！'], foes: () => [gunLine('侍町の鉄砲衆', { x: TOWN_X + 30, z: -60 }, 4, {})] },
         { t: 36, say: ['足軽', '南の通りから新手じゃ！'], foes: () => [{ name: '南の通りから来る荒木勢', from: { x: TOWN_X + 30, z: 32 }, list: [uS(2), uA(7)] }] },
         { t: 54, title: '村重が去った知らせ', sub: '家族と家臣を残して尼崎へ。城兵が動揺する',
-          say: ['荒木の足軽', '村重様は先月、家族も我らも残して城を出たそうじゃ……'],
+          say: ['荒木の足軽', '村重様は我らを捨てて尼崎へ去られた。何のための籠城じゃ……'],
           foes: () => [{ name: '荒木久左衛門の手', from: { x: TOWN_X + 48, z: 32 }, list: [uS(4), uA(8)] }],
           fn: (rt, C) => {
             if (rt.flags.murashigeNews) return;

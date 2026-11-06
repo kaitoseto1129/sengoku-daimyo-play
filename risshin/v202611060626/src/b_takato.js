@@ -17,6 +17,8 @@ import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
 import { enemyGroup } from './bhelp.js';
 import { dressStage } from './stage_dress.js';
 import { drawGroundAt } from './render_camera.js';
+import { goalsTick } from './hud_goals.js';
+import { sightUnit } from './battle_sight.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -38,7 +40,8 @@ Object.assign(takato, {
   // 11/4 p100（kaito AS・AV15）：行き先は金の▼一つ。ついていく相手の青い▼を重ねない。
   noLeaderFollow: true,
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。敵を指す札と矢印も出さない（敵は頭上の▼で分かる）。
-  goalSignNoLabel: true, goalSignBare: true, meleeGuide: () => false,
+  // 11/6 fix61（九1・五3）：行き先の▼には距離を m で添える（goalSignBare をやめる。名の字は goalSignNoLabel で出さない）。
+  goalSignNoLabel: true, goalSignBare: false, meleeGuide: () => false,
   goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（旗と矢印のピンを重ねない。AV15・BH6）
   // 共通の「味方の小勢・敵の小勢」は足さない（kaito AQ6・AW6：5人ほどの小隊を湧かせない）。
   frontlineDensity: false,
@@ -1431,6 +1434,98 @@ function takatoAssaultVoice(rt, text) {
   return '城兵が退く。深追いせず、味方の列を保て';
 }
 
+// 11/6 fix61（九1・九3・十1）：右上は目標①〜⑥（goals5.js の takato）を最初から全部並べ、済んだ物に印。
+//   一行の任務札（missionSingleLine）のまま、その後に目標の札を重ねて置き換える（雑賀と同じ作り）。両軍の今の兵の数の棒も常に出す。
+//   四十 m 内の見える城兵には一人残らず赤い▼（共通の▼は近い数人だけ）。印は使い回し、毎コマ作らない。
+function installTakatoGoals(rt) {
+  const hud = rt.hud, hudProgress = hud.progress, foeMarks = hud.foeMarks, def = rt.def, dispose = rt.dispose;
+  hud.progress = function (battle) {
+    const out = hudProgress.apply(this, arguments);
+    if (battle === rt && this.prog && !rt.over) {
+      const one = def.missionSingleLine;
+      def.missionSingleLine = false;
+      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+    }
+    return out;
+  };
+  const style = document.createElement('style');
+  style.textContent = `
+html:root body #hud#hud#hud.takato-goals:not(.photo) #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.takato-goals #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.takato-goals #armybar { visibility:hidden !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
+}
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
+html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+  document.head.appendChild(style); hud.root.classList.add('takato-goals');
+  const tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 80) break;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
+          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      // 近い兵は human の体で描き、元の形（u.mesh）は隠れている。見えるかは camHidden と見通しで決める。
+      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
+      if (!u._skSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
+  rt.dispose = function (...args) {
+    if (hud.progress !== hudProgress) hud.progress = hudProgress;
+    if (hud.foeMarks !== foeMarks) hud.foeMarks = foeMarks;
+    box.remove();
+    if (hud.prog) hud.prog.classList.remove('goal-mode');
+    hud.root.classList.remove('takato-goals'); style.remove(); this.dispose = dispose;
+    return dispose ? dispose.apply(this, args) : undefined;
+  };
+}
+// 11/6 fix61（九3・十二1）：両軍の人数の棒は史実の規模（信忠約三万・城兵約三千）から、描く兵の討たれた分だけ減らす。
+//   城兵は描いた者の生き残りの割合で三千を割り、寄せ手は描いた兵一人を同じ重み（三千÷描いた城兵）で引く。減る一方で戻らない。
+takato.force = (rt) => {
+  const F = rt.flags, K = F._tkForce || (F._tkForce = { seenA: new Set(), seenB: new Set(), a: 30000, b: 3000 });
+  let aliveA = 0, aliveB = 0;
+  for (const u of rt.army.units) {
+    if (u.isStruct || u.civ) continue;
+    if (u.team === 1) { K.seenB.add(u); if (u.alive && !u.gone) aliveB++; }
+    else if (u.team === 0) { K.seenA.add(u); if (u.alive && !u.gone) aliveA++; }
+  }
+  const nB = Math.max(1, K.seenB.size);
+  K.b = Math.min(K.b, Math.round(3000 * aliveB / nB));
+  K.a = Math.min(K.a, Math.round(30000 - Math.max(0, K.seenA.size - aliveA) * 3000 / nB));
+  if (rt.tracker?.main === true) K.b = 0;   // 城兵は降らずに最後まで戦い、その日のうちに落城した（信長公記）
+  return { a: K.a, a0: 30000, b: K.b, b0: 3000 };
+};
+
 takato.setup = function (rt) {
   // 本の足軽：弁柄の陣笠・漆の胴・紺の小袖。形を増やさず既存の装備を使う。
   const originalAddUnit = rt.army.addUnit;
@@ -1444,6 +1539,7 @@ takato.setup = function (rt) {
   };
   const bark = rt.bark;
   rt.bark = function (text, warn) { return bark.call(this, takatoAssaultVoice(this, text), warn); };
+  installTakatoGoals(rt);
   // 11/1：雪と土の平場が日なたで白く飛んでいた。元は地面の色でなく、この戦の光の強さ。
   // 日差し・空の照り返し・露出をこの戦だけ下げ、残雪と踏んだ泥の斑が読める明るさにする。
   const W = rt.world, lookOf = W.lookOf;
@@ -1819,16 +1915,11 @@ html:root body #hud.prog-on #battle-notices:not(.choosing) :is(#objectives:not(.
 
   // 共通の射線判定と三枠を使い、鉄砲の向きを矢印で示す。
   const threats = rt.hud.updateThreats;
+  // 11/6 fix61（五1・五3）：右上の頭などに「↓」「前から鉄砲」の札が出た。矢印と説明の字は使わない。
+  //   鉄砲の向きは塀の煙と音・敵の頭上の▼で分かるので、危険の札は出さない（射線の判定は共通のまま動かす）。
   rt.hud.updateThreats = function (battle) {
-    const before = this.threatAt;
     threats.call(this, battle);
-    if (before === this.threatAt) return;
-    for (const el of this.threatEls) {
-      if (el.hidden || !el.textContent.includes('鉄砲')) continue;
-      const text = el.textContent;
-      const arrow = text.includes('前') ? '↑' : text.includes('後ろ') ? '↓' : text.includes('左') ? '←' : '→';
-      el.textContent = arrow + text.slice(1);
-    }
+    if (battle === rt) for (const el of this.threatEls) el.hidden = true;
   };
   // 11/4 p100（kaito 10/23 Simple・AS の追い）：操作の案内の字は出さない。
 };

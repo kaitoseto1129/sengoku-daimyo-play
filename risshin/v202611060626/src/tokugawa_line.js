@@ -12,7 +12,7 @@ export const TOKUGAWA_LINE = [
   { id: 'k08_osaka_kizu', name: '大坂冬の陣・木津川口の戦い', year: 1614, file: './b_k08_osaka_kizu.js' },
   { id: 'k09_imafuku', name: '今福の戦い', year: 1614, file: './b_k09_imafuku.js' },
   { id: 'k10_shigino', name: '鴫野の戦い', year: 1614, file: './b_k10_shigino.js' },
-  { id: 'k11_sanadamaru', name: '真田丸の戦い', year: 1614, file: './b_k11_sanadamaru.js' },
+  { id: 'k11_sanadamaru', name: '真田丸の戦い', year: 1614, place: '大坂城の南、真田丸の前', file: './b_k11_sanadamaru.js' },
   { id: 'k12_kashii', name: '樫井の戦い', year: 1615, place: '和泉の樫井', file: './b_k12_kashii.js' },
   { id: 'k13_domyoji', name: '道明寺の戦い', year: 1615, file: './b_k13_domyoji.js' },
   { id: 'k14_yao_wakae', name: '八尾・若江の戦い', year: 1615, file: './b_k14_yao_wakae.js' },

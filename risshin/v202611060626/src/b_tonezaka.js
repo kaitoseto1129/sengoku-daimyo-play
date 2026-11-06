@@ -14,7 +14,7 @@ import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
 // ③山崎吉家・斎藤龍興の殿を破る ④刀根坂の峠を越え、街道から一乗谷の城下まで追う
 // 向き：東の柳ヶ瀬から西北西の刀根坂・敦賀へ上る峠道（実の地図の向き）。
 // ======================================================================
-import { hut, dou, tawara, nobori, kagaribi, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
+import { hut, dou, tawara, nobori, kagaribi, makeSimpleBatch, finalizeSimpleBatch, dorui, ishigaki, kabukimon, solidRect } from './props.js';
 import { goten } from './castle_parts.js';
 import { toneJourney, toneJourneyGroup } from './b_tonezaka_journey.js';
 import { RANKS } from './state.js';
@@ -185,6 +185,10 @@ function droppedKasa(rt, spots) {
   m.receiveShadow = true; rt.scene.add(m);
 }
 const TOWN_HOUSES = [[96, -108], [130, -120], [102, -78], [148, -96]].map(([x, z]) => xz(x, z));
+// 下城戸の口（土地の向きの座標）と、城戸から見た町屋の置き場［街道に沿う歩, 横の歩］。前の四つは城戸の外、後ろの三つは内。
+const TOWN_GATE = { x: 99.1, z: -123.3, tx: 0.735, tz: 0.678 };
+const TOWN_MACHIYA = [[-28.4, 14.2], [-23.3, -7.1], [-14.4, -8.7], [-10.8, 10.9], [7, -10], [16.1, -10], [16, 10]];
+const townMachiyaAt = (i) => { const [a, n] = TOWN_MACHIYA[i], k = TOWN_GATE; return xz(k.x + k.tx * a - k.tz * n, k.z + k.tz * a + k.tx * n); };
 // 家の足元だけを均す。街道と山腹の起伏は残し、高い束の上に民家を浮かせない。
 const HOME_PADS = [[-30, 70, 6, 4], [96, -108, 7, 5], [130, -120, 7, 5], [102, -78, 7, 5], [148, -96, 7, 5], [80, -102, 12, 10]];
 // 刀根の里と、数日後の一乗谷の暮らしを分ける。民は兵の中心や峠の殿に置かない。
@@ -1529,6 +1533,10 @@ const tonezaka = {
     5: ['一乗谷の城下の道から朝倉の兵を追い払え', '一乗谷の城下の道から朝倉の兵を追い払え', '一乗谷の城下の道から朝倉の兵を追い払え'],
     6: ['一乗谷の奥の道で寄せる朝倉の兵を防げ', '一乗谷の奥の道で寄せる朝倉の兵を防げ', '一乗谷の奥の道で寄せる朝倉の兵を防げ'],
   },
+  // 11/6 fix61（Z3・Z4）：共通の「〇〇の隊を助けに〇〇の隊が出てくる」は、退く義景の本隊を前へ出す言い方になり史実と違う（殿の向き直りはこの戦の COUNTER_PATHS）。
+  //   使番の「後方にて陣を移す」も追撃の言葉でない。後続の先手が追い付く事と信長の叱りはこの戦の台詞で一度だけ。
+  relief: false,
+  noAllyReports: true,
   noHatamotoMass: true, // 狭い峠道で、将の後ろの軽い旗本の塊に追い手の味方が埋もれる（AP9・AQ6）。旗本は本物の侍の輪だけ
   stageGoalsOnly: true, // 右上の五つは段だけ（「敵を何人討つ」「義景を討つ」で埋めない。AW3・AV16）
   goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（道の曲がりの名札・旗・輪を重ねない。AP12・AV15・BH6）
@@ -2578,7 +2586,8 @@ const tonezaka = {
       order: 'hold', formation: 'yari', yariRanks: toneYariRanks(30), width: 5, aggro: 8, morale: 78, guardOn: true, fleeDir: { ...NORTHWEST } },
       // 11/3 b100：龍興は朝倉の客将として朝倉の陣にいた。旗はこの戦の家（織田・朝倉）だけにする。
       dress([A(23), S(3), chief('斎藤龍興', false, true), S(3)], ASA));
-    F.r4 = foe('詫美越後守の殿', at(-4, -142), [A(23), S(3), chief('詫美越後守', false, true), S(3)]);
+    // 11/6 fix61（Z8）：詫美越後守は刀根坂を生き延び、疋壇城から朝倉景健らと逃れた。討てる将にせず、殿が崩れれば退く。
+    F.r4 = foe('詫美越後守の殿', at(-4, -142), [A(23), S(3), chief('詫美越後守', true, true), S(3)]);
     F.roadG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '街道で向き直る朝倉勢', anchor: { ...STREET }, facing: -Math.PI / 2 + TURN,
       order: 'hold', formation: 'yari', yariRanks: 3, aggro: 8, morale: 65, fleeDir: { ...EAST } }, dress([A(6), S(2)], ASA));
     F.townG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '城下に残った朝倉の兵', anchor: { ...TOWN }, // 備が動いても城下の行き先（TOWN）は動かさない facing: -Math.PI / 2 + TURN,
@@ -2727,6 +2736,30 @@ const tonezaka = {
         earth: 0x947b55, naka: true, noTarget: true, doorX: 0, profile: 'tonezaka',
         kind: residence ? 'yashiki' : 'machiya', name: residence ? '一乗谷の屋敷' : '一乗谷の町家' });
     }
+    // 11/6 fix61（専門家の目 Z7）：一乗谷が家四軒と堂一つでは、一万の人が住んだ城下に見えない。
+    //   谷を塞ぐ下城戸（土塁の表に大石を積み、口に冠木門）と、街道に沿う町屋の並びを足す。
+    //   下城戸の口は入口の先（入って十歩ほど）に縮めて置く推定。土塁は谷底を横切り、両の山裾へ消える。
+    {
+      const k = TOWN_GATE, tx = k.tx, tz = k.tz, nx = -tz, nz = tx;
+      const P = (a, n) => xz(k.x + tx * a + nx * n, k.z + tz * a + nz * n);
+      const rotN = Math.atan2(-nz, nx) + TURN;
+      for (const s of [1, -1]) {
+        const [ax, az] = P(0, 4 * s), [bx, bz] = P(0, 19 * s), [wx, wz] = xz(tx, tz);
+        for (const f of [1, -1]) rt.scene.add(dorui(W, [ax, az, bx, bz], wx * f, wz * f, { w: 3.2, h: 2.6, capEnds: true, bareSoil: true }));
+        const [cx, cz] = P(0, 11.5 * s);
+        solidRect(cx, cz, 15, 6.4, rotN);
+        // 攻め手の側の面だけ大石で固める（一乗谷の下城戸は巨石を組む）。
+        const [sx, sz] = P(-1.2, 4 * s), [ex, ez] = P(-1.2, 10 * s);
+        rt.scene.add(ishigaki(W, s > 0 ? [[sx, sz], [ex, ez]] : [[ex, ez], [sx, sz]], { kind: 'nozura', top: 2.1, minH: 2.1, maxH: 3, big: 2.2, noKit: true }));
+      }
+      { const [gx, gz] = P(0, 0); rt.scene.add(kabukimon(W, gx, gz, 7.2, rotN)); }
+      const homes = makeSimpleBatch();
+      for (let i = 0; i < TOWN_MACHIYA.length; i++) {
+        const [a, n] = TOWN_MACHIYA[i], [hx, hz] = townMachiyaAt(i), w = 6 + (i % 3) * 0.5;
+        hut(W, hx, hz, w, 4.2, Math.atan2(-tz, tx) + TURN, { wall: [0x5a4a38, 0x625240, 0x54473a][Math.abs(Math.round(a + n)) % 3], groundedHome: true, batch: homes });
+      }
+      finalizeSimpleBatch(rt, homes);
+    }
     // 11/4（AP12・BH6）：道の曲がり・合流・退き先の名札（字の印）は出さない。行き先は頭上の▼一つ。
     { const mk = rt.marker; rt.marker = function (id, pos, label, o) { return mk.call(this, id, pos, TONE_QUIET.has(id) ? '' : label, o); }; }
     rt.setPhase('brief');
@@ -2838,6 +2871,12 @@ const tonezaka = {
     const signaled = toneAdvanceCue(rt, 'kakari', F.late.center());
     rt.say('柴田勝家', signaled ? '掛かれの貝じゃ！　味方と坂の敵を突き破れ' : '道が開いた！　味方と坂の敵を突き破れ', 4);
     F.chiefNoteT = rt.t + 8;
+    // 信長公記巻六：先手（佐久間・丹羽・羽柴・滝川）は信長に遅れて追い付き、叱られた。共通の「陣を移す」の代わりに一度だけ。
+    if (!F.lateTold) {
+      F.lateTold = true;
+      rt.after(14, () => { if (!F.ending && F.step <= 3) rt.say('使番', '佐久間・丹羽・羽柴・滝川の先手、ようやく坂の下へ追い付きました', 4); });
+      rt.after(22, () => { if (!F.ending && F.step <= 3) rt.say('織田信長', '先手の者ども、遅いわ！　この好機を何と心得る', 4); });
+    }
     counterMarch(F.r2, COUNTER_PATHS[0]);
     march(F.uma, [...ROAD.slice(3, 6), xz(roadX(-98), -98)]);
     march(F.late, ROAD.slice(3, 6));
@@ -2862,7 +2901,8 @@ const tonezaka = {
     }
     if (!F.fallTold) {
       F.fallTold = true;
-      rt.after(2, () => { if (!F.ending) rt.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興・朝倉道景らが坂に倒れる'); });
+      // 11/6 fix61（Z1）：共通の見届けの取り次ぎに回ると、坂にいる本人にも重臣の討死が届かなかった。目の前の事なのでその場で大きく出す。
+      rt.after(2, () => { if (!F.ending && !rt.over) { rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興・朝倉道景らが坂に倒れる'); } });
       rt.after(6, () => { if (!F.ending) rt.say('柴田勝家', '朝倉の列は崩れた。名のある者が次々討たれておる。義景を逃がすな！', 4); });
       rt.after(13, () => { if (!F.ending) rt.say('滝川一益', '義景の旗が峠を越えた。一乗谷へ逃げる気じゃ', 3.5); });
     }
@@ -2870,7 +2910,8 @@ const tonezaka = {
   toIchijodani(rt) {
     const F = rt.flags;
     F.step = 4; F.stepT = rt.t; rt.setPhase('road');
-    rt.unmark('asakuraMain'); retreat(F.yoshikage);
+    // 11/6 fix61（Z2）：義景は崩れて討たれたのではなく、供と越前へ退いた。敗走にせず峠の先へ歩かせる（「義景と旗本、崩れたぞ」を出さない）。
+    rt.unmark('asakuraMain'); F.yoshikage.speed = 1.2; march(F.yoshikage, [xz(-4, -320)], (g) => { g.order = 'hold'; });
     for (const b of F.fleeB) b.order({ id: 'retreat', to: { x: b.pos.x + NORTHWEST.x * 100, z: b.pos.z + NORTHWEST.z * 100 }, form: 'column' });
     rt.unmark('pass'); rt.unmark('nobu');
     rt.world.setRainTarget(0);
@@ -2905,6 +2946,8 @@ const tonezaka = {
     rt.setPhase('fire'); rt.unmark('town'); rt.unzone('town');
     rt.say('使番', '奥の道で兵二人と守り通せ。離れたら守り直しじゃ', 4);
     TOWN_HOUSES.forEach(([x, z], i) => rt.after(i * 2, () => { rt.world.addFire(x, z, { h: 2, size: 2.4 }); }));
+    // 城戸の内の町屋にも火が移る（火は三日続いた）。
+    [4, 5, 6].forEach((j, i) => rt.after(9 + i * 3, () => { const [x, z] = townMachiyaAt(j); rt.world.addFire(x, z, { h: 2, size: 2 }); }));
     rt.banner('一乗谷の火', '城下に火が上がる。義景は大野へ逃れたという');
     F.guideTask = null;
     // 目の前の持ち場替えはその場で知らせ、前の任務を運ぶ使番も取り消す。
@@ -2932,8 +2975,8 @@ const tonezaka = {
     toneClearWaitSpeech(rt, INNER_WAIT_LINE);
     for (let i = 0; i < F.rears.length; i++) rt.unmark('rear' + i);
     rt.objDone('main'); rt.tracker.main = true;
-    rt.award((t) => { t.main = true; t.special = { label: '城下の道を押さえた', pts: 20 }; }, '城下の道を守り通した');
-    rt.banner('城下の道を押さえた', '後日、義景は大野で自害し、朝倉家は滅ぶ。織田勢は近江へ戻り、小谷城へ');
+    rt.award((t) => { t.main = true; t.special = { label: '一乗谷の奥の道を守り通した', pts: 20 }; }, '一乗谷の奥の道を守り通した');
+    rt.banner('一乗谷の奥の道を守り通した', '後日、義景は大野で自害し、朝倉家は滅ぶ。織田勢は近江へ戻り、小谷城へ');
     // 後日の自害は見出しの語りに留め、足軽の現在の下知とは分ける。
     rt.say('組頭', 'よし、道は守り通した。追い討ちはここまでじゃ', 4);
     // 終幕の見出しは後日の語り。共通の追撃を挟まず、この戦の余韻で閉じる。

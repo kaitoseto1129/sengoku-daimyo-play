@@ -77,7 +77,9 @@ const SP_H = siegeHeight(SP);
 // 大手門から本丸への攻め上りの筋：門・枡形の中・東へ折れた櫓門の外・三の丸・二の丸の虎口・本丸の土橋（枡形は東へ折れる。turn 1）
 const UP_ROUTE = [[SP.x, SP.z], [SP.x, SP.z - 4.5], [SP.x + 9, SP.z - 3], [SP.x + 9, SP.z - 20], [16, -20], [16, -46], [21, -68], [22, -80], [25, -94]];
 const HOJO = { flag: 'hojo', armor: 0x2e2a26, hatColor: 0x1e1b18, lace: 0x5a4632, cloth: 0x6a5a40 };
-const TOYO = { flag: 'toyotomi' };
+const TOYO = { flag: 'toyotomi' };   // 秀次の本陣・中村一氏の手（中村の紋は確かな物が無く、主家の桐）
+// 先手の諸将は自家の旗で寄せる（一柳の釘抜・山内の丸に三つ柏・堀の旗。textures。豊臣の旗だけで揃えない）
+const ICHI = { flag: 'kuginuki' }, YAMA = { flag: 'kashiwa' }, HORI = { flag: 'hori' };
 
 const NAT = (x, z) => (demSample(DEM, x, z) - 100) * 0.6;
 function kuruwaH(x, z, h) {
@@ -227,6 +229,8 @@ function itaYagura(rt, x, z, o = {}) {
 const nearKuruwa =(x, z, pad) => Object.values(KURUWA).some((k) => kNear(k, x, z)[0] < k.r + pad);
 
 const t09_yamanaka = {
+  // 見出しは大きな出来事だけ（指示の見出しは出さない。標準 五の1）
+  bannerAllowed: (rt, t) => ['一柳直末、撃たれる', '間宮康俊、討ち死に', '山中城、落つ', '先手が崩れた'].includes(t),
   noFrontFill: true,          // 城の外の思わぬ所に作りの乱戦を置かない（敵は城の中・味方は街道の坂。kaito AP 10）
   frontlineDensity: false,    // 数人の物見の組を湧かせない（kaito AW 6）
   goalSignOnly: true,         // 行き先は頭上の金の▼一つ（旗の印・輪・枠を重ねない。kaito AL・AV 15）
@@ -287,16 +291,16 @@ const t09_yamanaka = {
     for (const [x, z] of [[SP.x - 4, SP.z - 6], [SP.x + 5, SP.z - 10]]) { rt.scene.add(kagaribi(W, x, z)); W.addFire(x, z, { h: 1.3, size: 0.6 }); }
     // ---- 豊臣方の先手：街道の坂の下に、隊ごとの塊で並ぶ（一柳・中村は街道の西、堀秀政は東の尾根）。本物の兵 ----
     F.ichi = allyGroup(rt, { name: '一柳直末の隊', fullStrength: true, anchor: { x: 2, z: 204 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '一柳直末', invuln: true, hat: 'kabuto_m', haori: 0x3a2e24 } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 26 }, { type: 'gun', n: 8 }], TOYO));
+      dress([{ type: 'busho', n: 1, o: { name: '一柳直末', invuln: true, hat: 'kabuto_m', haori: 0x3a2e24, horo: 0xb8962a, mon: 'kuginuki' } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 26 }, { type: 'gun', n: 8 }], ICHI));   // 一柳は秀吉の黄母衣衆
     F.naka = allyGroup(rt, { name: '中村一氏の隊', fullStrength: true, anchor: { x: 30, z: 202 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '中村一氏', invuln: true, hat: 'kabuto_w', haori: 0x2a2a3a } }, { type: 'samurai', n: 1, o: { name: '渡辺勘兵衛', invuln: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }], TOYO));
     F.hori = allyGroup(rt, { name: '堀秀政の隊', fullStrength: true, anchor: { x: 66, z: 188 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, hat: 'kabuto_w', haori: 0x2a3a2a } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 5 }], TOYO));
+      dress([{ type: 'busho', n: 1, o: { name: '堀秀政', invuln: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 5 }], HORI));   // 姿は units_data の堀秀政
     F.toyo = [F.ichi, F.naka, F.hori];
     for (const g of F.toyo) { g.defMult = 1.2; g.dmgMult = 0.85; }
     // 山内一豊の隊（秀次の先手の一つ。史実：中村・一柳と並んで攻め上った）。一柳の隊の後ろに続く二陣
     F.yama = allyGroup(rt, { name: '山内一豊の隊', fullStrength: true, anchor: { x: -4, z: 220 }, facing: Math.PI, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '山内一豊', invuln: true, hat: 'kabuto_w', haori: 0x33302a } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }], TOYO));
+      dress([{ type: 'busho', n: 1, o: { name: '山内一豊', invuln: true, hat: 'kabuto_w', haori: 0x33302a, mon: 'kashiwa' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }], YAMA));
     F.toyo.push(F.yama);
     F.yama.defMult = 1.2; F.yama.dmgMult = 0.85;
     // 大将の豊臣秀次は街道の後ろの本陣の陣幕の中で床几に座り、旗本に囲まれて動かない（前に出ない。kaito AR 3・標準 一の2）
@@ -318,15 +322,19 @@ const t09_yamanaka = {
     const DA = (x, z, w, d, count, facing, seed) => W.addDistantArmy({ x, z, w, d, count, facing, armor: 0x2b2723, team: 0, flagTex: flagTexture('toyotomi'), mon: 'toyotomi', seed });
     F.host = [DA(16, 340, 70, 26, 420, Math.PI, 15901), DA(-60, 320, 40, 20, 220, Math.PI * 0.9, 15902)];
     for (const g of F.host) if (g && g.army) g.army.noWake = true;
+    // 段が進むごとに、遠くの本隊も街道の坂を城へ詰める（標準 十二の2。動ける所の外のまま）
+    F.hostUp = (d, secs) => { for (const g of F.host) if (g && g.advance) g.advance(d, secs); };
     // ---- 岱崎出丸の間宮康俊の隊（数百。柵の内に鉄砲、後ろに槍と騎馬） ----
     F.dai = enemyGroup(rt, { faction: 'hojo', name: '間宮康俊の隊', anchor: { x: D.x + 6, z: D.z }, facing: 0.8, order: 'hold', aggro: 20, width: 12, morale: 95, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
       dress([{ type: 'busho', n: 1, o: { name: '間宮康俊', hat: 'kabuto_m', haori: 0x4a3a28 } }, { type: 'gun', n: 22 }, { type: 'ashigaru', n: 52 + more(rt, 0.4) }, { type: 'samurai', n: 10 }, { type: 'cavalry', n: 8 }], HOJO));
     for (const u of F.dai.units) if (u.type === 'gun') u.dmg *= 0.5;
+    F.daiN = F.dai.units.length;
+    F.dai.noRout = true;   // 出丸の守りは間宮の最期の突き入りまで退かない（史実：出丸で討ち死に）
 
     W.setTime('day');
     rt.setPhase('brief');
     // 戦の前の会話（待つ目標は出さない。始めから出丸へ寄る。kaito AZ・BA 3）
-    rt.say('豊臣秀次', '半日で落とせ。先手は岱崎出丸から掛かれ', 4.5);
+    rt.say('豊臣秀次', '今日のうちに山中を揉み落とす。先手は岱崎出丸へ掛かれ', 4.5);
     rt.after(4.8, () => rt.say('一柳直末', '北条の鉄砲は多いぞ。出丸の前で足を止めるな', 4));
     rt.after(9.2, () => rt.say('堀秀政', '我らは東の尾根から三の丸の横へ回る。挟んで落とすぞ', 3.5));
     this.dai(rt);
@@ -362,8 +370,8 @@ const t09_yamanaka = {
     rt.setPhase('shoji'); rt.unmark('dai');
     if (!gone(F.dai)) { F.dai.noRout = false; F.dai.morale = 0; }
     rt.award((t) => t.side.push('岱崎出丸を抜いた'), '岱崎出丸を抜いた');
-    rt.banner('障子堀', '畝の上を渡れ');
-    rt.obj('main', '北の障子堀を畝の上で渡り、向こう岸へ出る', 'main');
+    rt.obj('main', '障子堀を畝の上で渡る', 'main');
+    F.hostUp(18, 30);
     rt.say('中村一氏', '堀へ落ちれば這い上がれぬ。畝から足を外すな', 4);
     // 堀の底に潜む槍（落ちた者を下から突く）と、向こうの縁の鉄砲
     const mz = (SHOJI.z0 + SHOJI.z1) / 2;
@@ -387,8 +395,15 @@ const t09_yamanaka = {
     rt.setPhase('koguchi'); rt.unmark('cross');
     for (const g of [F.pit, F.rim]) if (!gone(g)) { g.noRout = false; g.morale = 0; }
     rt.award((t) => t.side.push('障子堀を渡った'), '障子堀を渡った');
-    rt.obj('main', '三の丸の大手の馬出しへ攻め寄せる', 'main');
-    rt.banner('三の丸の大手', '馬出しへ攻め寄せよ');
+    rt.obj('main', '馬出しから出た北条の隊を迎え撃つ', 'main');
+    F.hostUp(18, 30);
+    // 北条氏勝の手（玉縄の援兵）は、間宮の勧めで城を捨てて北の箱根の道へ退く（史実。戦わずに去る隊として見せる）
+    F.ujikatsu = enemyGroup(rt, { faction: 'hojo', name: '北条氏勝の手', anchor: { x: 30, z: -30 }, facing: Math.PI, order: 'hold', aggro: 0, width: 8, morale: 60, fleeDir: { x: 0.2, z: -1 }, dmgMult: 0.5 },
+      dress([{ type: 'busho', n: 1, o: { name: '北条氏勝', hat: 'kabuto_m', horse: true } }, { type: 'samurai', n: 3 }, { type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 10 }], HOJO));
+    rt.after(4, () => {
+      if (!gone(F.ujikatsu)) { F.ujikatsu.order = 'move'; F.ujikatsu.dest = { x: 40, z: -200 }; F.ujikatsu.speed = 2.6; F.ujikatsu.onArrive = (q) => { q.morale = 0; }; }
+      rt.say('北条氏勝', '間宮の申す通り、玉縄へ退く。小田原の守りに回るぞ', 4);
+    });
     const A = SP.at, M = A.mouths;
     // 馬出しに詰める北条の隊（騎馬と槍）。寄せ手が来ると脇の口から打って出て、一柳の隊の横を突く
     F.uma = enemyGroup(rt, { faction: 'hojo', name: '馬出しの北条の隊', fixed: true, formation: 'yari', anchor: { ...A.uma }, facing: 0, width: 6, aggro: 4, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
@@ -396,6 +411,7 @@ const t09_yamanaka = {
     F.uma.historicalOrders = true;
     F.san = enemyGroup(rt, { faction: 'hojo', name: '三の丸の守り', anchor: { ...A.plaza }, facing: 0, order: 'hold', aggro: 12, width: 12, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.58 },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }], HOJO));
+    for (const u of F.san.units) if (u.type === 'gun') u.dmg *= 0.5;
     F.sortie = F.K.sortie(F.uma, { fight: 18, mouth: 1, R: 12,
       strike: () => { const g = gone(F.ichi) ? F.naka : F.ichi, c = g.center(); return { x: c.x, z: c.z }; },
       when: (r) => { const u = r.player.u; return r.flags.step === 3 && r.t - r.flags.stepT > 10 && u.alive && Math.hypot(u.pos.x - A.uma.x, u.pos.z - A.uma.z) < 46; },
@@ -411,18 +427,16 @@ const t09_yamanaka = {
     if (F.step !== 3 || F.sub !== 'yose') return;
     F.sub = 'sally';
     rt.unmark('ote');
-    rt.obj('main', '馬出しから打って出た北条の隊を、口の前で迎え撃つ', 'main');
-    rt.banner('打って出たぞ', '迎え撃て');
     rt.marker('uma', centerOf(F.uma), '', { red: true, group: F.uma });
-    rt.say('一柳直末', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);
+    rt.say('一柳直盛', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);   // 直末は出丸の前で討たれている。隊は弟の直盛が率いる
     for (const g of F.toyo) if (!gone(g)) { g.order = 'attack'; g.seekRange = 34; }
   },
   sallyBack(rt) {
     const F = rt.flags;
     if (F.step !== 3 || F.gateOpen) return;
-    F.sub = 'back';
+    F.sub = 'back'; F.backT = rt.t;
     rt.unmark('uma');
-    rt.obj('main', '退く北条の兵に続いて、大手門から三の丸へ入る', 'main');
+    rt.obj('main', '退く兵に続いて大手門から入る', 'main');
     rt.marker('gate', { ...SP.at.gate }, '', { red: true, h: 3 });
     rt.say('中村一氏', '退くぞ！　門を閉めさせるな。続いて入れ！', 3.5);
     // 寄せ手は退く兵の後ろについて、馬出しの口から土橋・門へ
@@ -438,8 +452,9 @@ const t09_yamanaka = {
     for (const id of ['gate', 'ote', 'uma']) rt.unmark(id);
     sfx('kane', 0.4);
     if (tsuke) rt.award((t) => t.side.push('退く敵に続いて大手門へ付け入った'), '大手門へ付け入った');
-    rt.banner(tsuke ? '付け入った' : '大手門を破った', '三の丸へなだれ込め');
-    rt.after(2, () => rt.say('堀秀政', '東の柵を越えた！　三の丸を挟め！', 3.5));
+    rt.say('渡辺勘兵衛', '中村が内、渡辺勘兵衛、一番乗り！', 3.5);
+    rt.after(4, () => rt.say('堀秀政', '東の柵を越えた！　三の丸を挟め！', 3.5));
+    F.hostUp(18, 30);
     this.honmaru(rt);
   },
 
@@ -457,7 +472,11 @@ const t09_yamanaka = {
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }], HOJO));
     F.hon = enemyGroup(rt, { faction: 'hojo', name: '松田康長の旗本', anchor: { x: H.x, z: H.z + 4 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 12, morale: 100, noRout: true, formation: 'yari', fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, defMult: 1.15 },
       dress([{ type: 'busho', n: 1, o: { name: '松田康長', invuln: true, hat: 'kabuto_m', haori: 0x5a2a1c, horse: false } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
+    // 松田康郷（康長の弟・「松田の赤鬼」）は本丸の奥にいて、兄の旗本が崩れかけると落ち延びる（史実：脱出して生き延びた）
+    F.kogo = enemyGroup(rt, { faction: 'hojo', name: '松田康郷の手', anchor: { x: H.x + 6, z: H.z - 10 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 6, morale: 100, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.55 },
+      dress([{ type: 'busho', n: 1, o: { name: '松田康郷', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }], HOJO));
     F.hon.historicalOrders = true;   // 城将の旗本は本丸を離れない（共通の寄せの下知で前へ出さない。kaito AR 3）
+    for (const g of [F.ni, F.hon]) for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.5;   // 城の中の鉄砲も出丸・堀の縁と同じ強さ（枡形で一発で倒れない）
     F.honU = F.hon.units[0];
     F.honN = F.hon.units.length;
     rt.marker('hon', centerOf(F.hon), '松田康長', { red: true, group: F.hon });
@@ -481,7 +500,7 @@ const t09_yamanaka = {
     sfx('kane', 0.5);
     rt.banner('山中城、落つ', '北条の西の守りは、半日で崩れた');
     // 戦の後の会話
-    rt.say('豊臣秀次', '一柳殿が撃たれた。だが城は落ちた', 4.5);
+    rt.say('豊臣秀次', '一柳伊豆を失うたは痛い。されど山中は落ちた', 4.5);
     rt.after(13.4, () => rt.say('使番', '松田康長、討ち死に。一番乗りは渡辺勘兵衛！', 3.4));
     rt.after(4.8, () => rt.say(nm(rt), '北条の西の門は、開きました', 4));
     rt.after(9, () => rt.say('豊臣秀次', '箱根を越えるぞ。小田原はもう目の前じゃ', 4));
@@ -494,7 +513,7 @@ const t09_yamanaka = {
     F.ending = true;
     rt.setPhase('end');
     rt.objFail('main'); rt.tracker.main = false;
-    rt.banner('先手が崩れた', '退け');
+    rt.banner('先手が崩れた');
     rt.player.u.invuln = true;
     rt.finish({ scriptedEnd: true, failureReason: why }, 8);
   },
@@ -512,11 +531,25 @@ const t09_yamanaka = {
       if (!F.daiOn && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) { F.daiOn = true; F.dai.order = 'attack'; F.dai.seekRange = 30; }
       // 一柳直末は出丸の鉄砲に当たって討ち死に（史実。『一柳家記』）。本当に倒れ、隊は旗を守って攻め続ける
       if (!F.ichiShot && T > 30 && F.dai.count > 0) {
-        F.ichiShot = true; rt.banner('一柳直末、撃たれる', '旗を倒すな'); rt.say('中村一氏', '一柳殿が鉄砲に当たられた！　隊は旗を守れ！', 4);
+        F.ichiShot = true; F.ichi.name = '一柳直盛の隊'; rt.banner('一柳直末、撃たれる'); rt.say('中村一氏', '伊豆守殿が鉄砲に当たられた！　一柳の者ども、旗を守れ！', 4);
+        rt.after(5, () => rt.say('一柳直盛', '兄の首は渡さぬ。一柳の旗は、この直盛が預かる！', 4));
         const iu = F.ichi.units.find((u) => u.type === 'busho' && u.alive);
         if (iu) { sfx('gun', 0.7); iu.invuln = false; iu.hp = 0; rt.army.kill(iu, F.dai.units.find((u) => u.type === 'gun' && u.alive) || null); }
       }
-      if (F.dai.count < 8 && !gone(F.dai)) F.dai.morale = Math.min(F.dai.morale, 20);
+      // 間宮康俊の最期（史実：氏勝と孫の直元を落とし、白髪を墨で染めて敵の中へ突き入り討ち死に。七十三歳）
+      const mu = F.dai.units.find((u) => u.type === 'busho');
+      if (!F.mamiya && mu && mu.alive && F.dai.count > 0 && (F.dai.count < F.daiN * 0.6 || T > 60)) {
+        F.mamiya = true; F.mamiyaT = rt.t;
+        F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
+        rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
+      }
+      if (F.mamiya && !F.mamiyaDead && (!mu || !mu.alive || rt.t - F.mamiyaT > 40)) {
+        F.mamiyaDead = true; F.dai.noRout = false; F.dai.morale = Math.min(F.dai.morale, 15);
+        // 突き入って四十秒のうちに討たれなければ、寄せ手の槍に囲まれて討ち死に（史実の最期を必ず見せる）
+        //   （討ち取りの大きな字が出る時は重ねない。見出しは時切れの討ち死にの時だけ）
+        if (mu && mu.alive) { mu.invuln = false; mu.hp = 0; rt.army.kill(mu, F.naka.units.find((u) => u.alive && u.type !== 'busho') || null); rt.banner('間宮康俊、討ち死に'); }
+      }
+      if (F.dai.count < 8 && !gone(F.dai) && (!F.mamiya || F.mamiyaDead)) F.dai.morale = Math.min(F.dai.morale, 20);
       if (gone(F.dai)) this.shoji(rt);
     }
     if (F.step === 2) {
@@ -535,7 +568,7 @@ const t09_yamanaka = {
       if (F.sub === 'sally' && gone(F.uma)) this.sallyBack(rt);
       if (!F.gateOpen && gate && (gate.alive === false || (gate.opened && F.K.tsukeiri))) this.openGate(rt, !!F.K.tsukeiri);
       // 付け入りが閉め切られた時は、寄せ手が門を打ち破る（長くかかる）
-      if (!F.gateOpen && F.sub === 'back' && T > 200) this.openGate(rt, false);
+      if (!F.gateOpen && F.sub === 'back' && rt.t - F.backT > 70) this.openGate(rt, false);
     }
     if (F.step === 4) {
       const g = F.hon;
@@ -547,6 +580,10 @@ const t09_yamanaka = {
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 旗本の半ばが討たれると、城将も討てるようになる
+      if (F.honOn && !F.kogoOut && F.kogo && g.count < F.honN * 0.65) {
+        F.kogoOut = true; F.kogo.fixed = false; F.kogo.morale = 0; F.kogo.order = 'move'; F.kogo.dest = { x: 52, z: -200 }; F.kogo.speed = 2.8;
+        rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
+      }
       if (F.honOn && g.count < F.honN * 0.4 && g.noRout) { g.noRout = false; g.morale = Math.min(g.morale, 25); if (F.honU) F.honU.invuln = false; }
       if (gone(g) || (F.honU && !F.honU.alive)) this.win(rt);
     }
@@ -557,7 +594,8 @@ const t09_yamanaka = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    if (g.team !== 1) return;
+    if (g.team !== 1 || g.routSaid) return;   // 同じ隊の退きは一度だけ言う
+    g.routSaid = true;
     rt.say('足軽', `${g.name}が奥へ退いた`, 2.5);
   },
 };

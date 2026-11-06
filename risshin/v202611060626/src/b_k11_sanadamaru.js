@@ -269,6 +269,9 @@ const k11_sanadamaru = {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const W = rt.world, F = rt.flags;
     F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.begun = false; F.shot = 0;
+    // 共通の「横槍が入ったぞ！敵が崩れる！」は言わせない：この日、崩れたのは寄せ手の方（11/6 遊んだら五秒おきに三度出た）
+    const say0 = rt.say;
+    rt.say = function (who, text, ...rest) { return typeof text === 'string' && /横槍/.test(text) ? false : say0.call(this, who, text, ...rest); };
     // ---- 真田丸：土塁の上の塀（壊せない）・外の柵（正面の一間だけ破れる）・櫓・空堀の縁の柵 ----
     const maru0 = rt.scene.children.length;
     const arc = (r, a0, a1, n) => { const pts = []; for (let i = 0; i <= n; i++) { const q = polar(a0 + (a1 - a0) * i / n, r); pts.push([q.x, q.z]); } return pts; };
@@ -366,7 +369,8 @@ const k11_sanadamaru = {
       dress([uS(2), uG(12), uB(8)], SANADA));
     F.towerU = [];
     TOWERS.forEach((a, i) => {
-      const q = polar(a, WALL_R - 3.5);
+      // 櫓（maruYagura）の床の上：塀に跨る櫓の真ん中に立ち、板壁の狭間から撃つ（屋根の上に浮かせない。11/6 遊んだ）
+      const q = polar(a, WALL_R - 0.6);
       const g = enemyGroup(rt, { faction: 'toyotomi', name: '櫓', anchor: q, facing: a, width: 2, spacing: 1.1, aggro: 0, noRout: true },
         dress([uG(2), i % 2 ? uG(1) : uB(1)], SANADA));
       g.units.forEach((u, k) => { u.pos.x = q.x + (k - 1) * 0.7; u.pos.z = q.z; u.speed = u.run = 0; u.tower = q; F.towerU.push(u); });
@@ -669,7 +673,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     KIT.backTick(rt);
     // 櫓の射手は櫓の床に立たせる
     for (const u of F.towerU) {
-      const y = rt.world.heightAt(u.tower.x, u.tower.z) + 5.58;
+      const y = rt.world.heightAt(u.tower.x, u.tower.z) + 2.5;   // 櫓の床（地面 -0.2 から 2.7 の板）
       u.pos.y = y;
       u.mesh.position.y = u.alive ? y : y - 0.1;
     }

@@ -70,7 +70,6 @@ const PEOPLE_BANDS = PEOPLE_PATHS.map((path, i) => ({
 }));
 // 持ち場から見える山すその茅葺きの家（土壁・曲輪の外）。民は置かず外観だけ。杉の木立が背と脇を囲む。
 const FOOT_HOMES = [[-31, 15, 0.12, 6, 4], [33, 14, -0.15, 5.5, 4], [-47, 21, 0.35, 5, 3.6]];
-const FOOT_CEDARS = [[-38, 8, 6], [-24, 6, 5], [27, 6, 5], [42, 8, 6], [-56, 14, 5], [-36, 25, 4], [44, 21, 4]];
 function peopleClearing(x, z) {
   if (igaFieldClearing(x, z)) return true;
   for (const [hx, hz] of FOOT_HOMES) if (Math.abs(x - hx) < 6 && Math.abs(z - hz) < 6) return true;
@@ -200,42 +199,16 @@ function igaVillage(rt) {
     rt.scene.add(next);
   }
 }
-// 山すその杉の木立：細い幹と尖った樹冠を二つの instanced で。材質・形は一度だけ作る。
+// 山すその小屋（村の者の家）。
 function igaFootDress(rt) {
   const W = rt.world;
   for (const [x, z, rot, w, d] of FOOT_HOMES) {
     const h = igaHut(W, x, z, w, d, rot, { wall: 0x7b6a55 });
     rt.scene.add(h);
   }
-  const pts = [];
-  let seed = 7;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [cx, cz, r] of FOOT_CEDARS) {
-    for (let i = 0; i < 9; i++) {
-      const a = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * r;
-      const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
-      if (FOOT_HOMES.some(([hx, hz]) => Math.abs(x - hx) < 5 && Math.abs(z - hz) < 5)) continue;
-      pts.push([x, z, 0.8 + rnd() * 0.6]);
-    }
-  }
-  const trunkG = new THREE.CylinderGeometry(0.22, 0.34, 1, 6); trunkG.translate(0, 0.5, 0);
-  const crownG = new THREE.ConeGeometry(1.5, 1, 7); crownG.translate(0, 0.5, 0);
-  const trunk = new THREE.InstancedMesh(trunkG, new THREE.MeshLambertMaterial({ color: 0x4a3a2a }), pts.length);
-  const crown = new THREE.InstancedMesh(crownG, new THREE.MeshLambertMaterial({ color: 0xffffff }), pts.length * 2);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
-  pts.forEach(([x, z, k], i) => {
-    const y = W.heightAt(x, z), th = 13 * k;
-    m.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, th * 0.45, 1) .multiplyScalar(1)); trunk.setMatrixAt(i, m);
-    for (let j = 0; j < 2; j++) {
-      const hh = th * (j ? 0.55 : 0.7), yy = y + th * (j ? 0.42 : 0.12);
-      m.compose(new THREE.Vector3(x, yy, z), q, new THREE.Vector3(k * (j ? 0.7 : 1), hh, k * (j ? 0.7 : 1)));
-      crown.setMatrixAt(i * 2 + j, m);
-      crown.setColorAt(i * 2 + j, c.setHSL(0.30 + rnd() * 0.03, 0.32, 0.14 + rnd() * 0.05));
-    }
-  });
-  for (const o of [trunk, crown]) { o.instanceMatrix.needsUpdate = true; if (o.instanceColor) o.instanceColor.needsUpdate = true; o.frustumCulled = false; rt.scene.add(o); }
+  // 11/6 fix61（八1）：麓の杉を緑の円錐の重ねで描いていた（一目で作り物）。林は共通の枝葉の木（world.trees）に任せる。
 }
-// 陣の大手の木戸（板と乳金物の扉を半ば開く）と、坂道の自然石の段。形と材質は一度だけ作り、石は一つの instanced にまとめる。
+// 陣の大手の木戸（板と乳金物の扉を半ば開く）。
 function igaSandoDress(rt) {
   const W = rt.world;
   // 屋根の無い黒い柱と冠木だけで箱の枠に見えた（10/31 採点 近道1）。切妻の屋根と控柱を持つ薬医門の形にする（城の薬医門と同じ部品）。
@@ -246,39 +219,7 @@ function igaSandoDress(rt) {
   // 門の両脇の松明が扉の板と乳金物を照らす。
   for (const sx of [-1, 1]) W.addFire(sx * 3.3, 13.8, { torch: true, h: 1.7, lightRadius: 9, lightColor: 0xffb070 });
   rt.scene.add(leaves);
-  const g = new THREE.DodecahedronGeometry(1, 0);
-  const pts = [];
-  let seed = 31;
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const last = Math.min(APPROACH.length - 1, 4);
-  for (let i = 1; i <= last; i++) {
-    const [ax, az] = APPROACH[i - 1], [bx, bz] = APPROACH[i];
-    const L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
-    let prevY = W.heightAt(ax, az);
-    for (let t = 1.1; t < L - 0.6; t += 0.5) {
-      const x = ax + ux * t, z = az + uz * t, y = W.heightAt(x, z);
-      if (Math.abs(y - prevY) < 0.24 && t > 1.1) continue;
-      prevY = y;
-      for (let k = -1; k <= 1; k++) {
-        if (rnd() < 0.18) continue;   // 欠けた石の間に土と草が出る
-        const o = k * 0.9 + (rnd() - 0.5) * 0.45, a = (rnd() - 0.5) * 0.3;
-        const sx = x - uz * o + ux * a, sz = z + ux * o + uz * a;
-        pts.push([sx, W.heightAt(sx, sz) - rnd() * 0.06, sz, Math.atan2(ux, uz) + (rnd() - 0.5) * 1.1, 0.38 + rnd() * 0.3, 0.3 + rnd() * 0.16]);
-      }
-    }
-  }
-  if (!pts.length) return;
-  const mesh = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial({ color: 0xffffff }), pts.length);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), c = new THREE.Color(), v = new THREE.Vector3(), sc = new THREE.Vector3();
-  pts.forEach(([x, y, z, r, w, d], i) => {
-    q.setFromEuler(e.set(0, r, 0));
-    m.compose(v.set(x, y + 0.02, z), q, sc.set(w, 0.13 + rnd() * 0.08, d));
-    mesh.setMatrixAt(i, m);
-    mesh.setColorAt(i, c.setHSL(0.12 + rnd() * 0.1, 0.06 + rnd() * 0.08, 0.17 + rnd() * 0.09));
-  });
-  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
-  mesh.receiveShadow = true;
-  rt.scene.add(mesh);
+  // 11/6 fix61（八1）：坂道の「自然石の段」は平たい十二面体を並べた灰色の六角の板に見えた。土の山城の大手道は踏み固めた土の道にする（土と踏み跡は共通の地面）。
 }
 // 伊賀の土だけ、端をまたぐ粒を描いてつなぐ。鏡写しにせず、小石の大きさもそろえる。
 function igaGroundDetail(rt) {
@@ -997,6 +938,7 @@ const NAGATA = { x: -150, z: -60 };               // 長田丸（伊賀衆を支
 const ASAYA = { x: 160, z: -40 };                 // 朝屋丸（同上。山から下りた伊賀衆の連絡先）
 import { jinkeiBuild } from './jinkei.js';
 import { timeslipField } from './timeslip_field.js';
+import { rainVolley } from './arrow_rain.js';
 // 大手の道は南の土橋を必ず通り、曲輪の口と同じ中心線を使う。
 const ROAD = [...APPROACH, ...RIDGE.slice(1)];
 
@@ -1373,7 +1315,7 @@ const NIWA = { flag: 'sujikai' };
 // 伊賀の地侍と足軽。装いと指物の省略は、両軍を見分けるための復元。
 // 夜の霧を白く照らしすぎず、兵の輪郭を読むための月明かりは残す。
 // 10/31 月が草地を昼のように照らし、兵だけ黒かった。月と空の返りを少し下げ、兵の面の補光（unitNightScale）で読ませる。
-const IGA_NIGHT = { ...NIGHT, sky: 0x27354c, fog: 0x29384c, top: 0x18273f, sun: 0xa4bbdf, sunI: 0.6, hs: 0x91a5c7, hg: 0x24242a, hI: 0.4, dir: [-0.55, 0.42, 0.72], mount: 0x354966 };
+const IGA_NIGHT = { ...NIGHT, sky: 0x27354c, fog: 0x29384c, top: 0x18273f, sun: 0xa4bbdf, sunI: 0.42, hs: 0x91a5c7, hg: 0x24242a, hI: 0.27, dir: [-0.55, 0.42, 0.72], mount: 0x354966 };
 function igaNight(rt) {
   // 共通の夜の時計を保ち、伊賀だけの色へ替える。光源の数は増やさない。
   applyLook(rt, NIGHT, false);
@@ -1390,7 +1332,8 @@ function igaNight(rt) {
   W.updateEnv(); W.lookDark = true;
 }
 // 本の足軽の写真：赤茶の漆胴、紺の小袖、低い円錐の陣笠と首布。形・材質は既存の物を共用する。
-const IGA = { armor: 0x51362d, lace: 0xb5aa8c, cloth: 0x26343b, hat: 'jingasa', hatColor: 0x57372c, doStyle: 'okegawa', flag: null };
+// 11/6 fix61：伊賀の国人の足軽は大名の御貸具足の陣笠ではなく鉢巻（織田の足軽と同じ灰の陣笠で見分けがつかなかった。一6・九3）。
+const IGA = { armor: 0x51362d, lace: 0xb5aa8c, cloth: 0x26343b, hat: 'hachimaki', hatColor: 0x57372c, doStyle: 'okegawa', flag: null };
 
 // 守備の範囲へ来た敵だけを案内し、林の待機兵や退く兵を追わせない。
 function igaMissionEnemy(rt, leader = false) {
@@ -1477,7 +1420,7 @@ function heightRaw(x, z) {
 
 // 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
 // 史実の順の目標（stages.js の iga の行と同じ字。場所と行い・行き先は固定）。
-const IGA_GOALS = ['麓の陣の火を消し、夜討ちを防げ', '陣の口で、林から出る伊賀衆を防げ',
+const IGA_GOALS = ['麓の陣の口で、夜討ちの伊賀衆を防げ', '陣の口で、林から出る伊賀衆を防げ',
   '南の土橋へ登り、伊賀衆を止めよ', '麓の陣へ退き、夜討ちを防げ', '空の主郭から北の曲輪を調べよ'];
 const igaPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 const iga = {
@@ -1621,7 +1564,8 @@ const iga = {
   keepOpeningTaskLabel: true, // 携帯でも最初の下知を指の絵へ置き換えない。
   introTaskFirst: true,
   introPeopleFolded: true,
-  introText: '味方の列を守ろう。火は味方が消す。',
+  introText: '着陣の夜、伊賀衆の夜討ちから麓の陣を守る。夜が明けたら南の土橋へ攻め上る。',
+  introSides: { a: '織田勢　一万二千', b: '伊賀衆　三千五百' },
   distanceUnit: 'steps',
   // 夜討ちを終えて山を往復する段は、戦全体の八分で途切れさせない。
   // 移動は実際の前進で猶予を更新する。立ち止まりと各段の上限は残す。
@@ -1684,7 +1628,8 @@ const iga = {
     prepareTerrain: igaRoadGround,
     time: 'night',
     unitNightScale: 0.6, // 10/31 草地だけ明るく兵が黒かった。縁の照りが出ない強さで、漆と布の面へ月の返りを残す。
-    nightFill: 0.38, // 月の向いた面は保ち、軒下と火から離れた土を一様に照らさない。
+    nightFill: 0.27, // 11/6 fix61（四6）：夜が曇りの昼の明るさに見えた。月と空の返りを下げ、篝火と燃える小屋で読ませる。
+    // 月の向いた面は保ち、軒下と火から離れた土を一様に照らさない。
     nightMoonMin: IGA_NIGHT.sunI, // 共通の最低値で月光を昼のように強めず、伊賀の夜色を保つ。
     contactShadows: true, // 味方・本人の足元にも、共通の柔らかい陰を使う。
     infantryWeight: true, // 前後の列へ膝と腰の踏ん張りを渡す。攻撃の間と兵数は保つ。
@@ -1854,18 +1799,16 @@ const iga = {
     igaFootDress(rt);
     igaSandoDress(rt);
     // 陣の輪郭は準備時に作る。大手・東西・裏の寄せ口を空け、夜討ちの筋を塞がない。
-    for (const seg of [[-38, 12, -10, 12], [10, 12, 38, 12], [-38, 26, -38, 42], [-38, 56, -38, 80],
+    // 11/6 fix61（八1・二1）：北の辺（z12）の杭柵は山裾の高まりに沿って上下し、写真で「崖に掛けた木の回廊の橋」に見えた。北の辺は竹束の列（z15.5）で守る。
+    for (const seg of [[-38, 26, -38, 42], [-38, 56, -38, 80],
       [38, 12, 38, 18], [38, 32, 38, 42], [38, 56, 38, 80], [-22, 80, -10, 80], [10, 80, 38, 80]]) {
       // 低く透ける杭柵を地面に沿わせる。厚い柵が陣の北の高まりを越えて、太い線の太鼓橋に見えていた（10/28）。
       rt.scene.add(cameraFence(W, seg, { h: 1.3, solid: true, openFence: true, lightFence: true, terrainRails: true, noBrace: true }));
     }
     for (const x of [-35, 35]) rt.scene.add(jinmaku(W, x, 66, 4, 10, 4, { mon: 'sujikai', solid: false }));
-    // 比自山の切岸の裾に、城方の外の土塁と柵（持ち場から最初に見える斜面。配置は推定）。坂道の口は空け、当たりは付けない。
+    // 比自山の裾の篝火（城方の見張り）。
+    // 11/6 fix61（四5・二1）：裾に横一直線に置いた土塁と柵は、坂に沿って上下して「崖に掛けた木の回廊の橋」に見えた。城の守りは山上の曲輪の柵と土塁に限る。
     {
-      for (const seg of [[-44, 9, -15, 9], [15, 9, 42, 9]]) {
-        rt.scene.add(dorui(W, seg, 0, 1, { w: 2.6, h: .9 }));
-        rt.scene.add(palisade(W, [seg[0], seg[1] - .4, seg[2], seg[3] - .4], { h: 2.1, solid: false }));
-      }
       const footFires = [[-15, 10.5], [15, 10.5], [-31, 10.5], [30, 10.5]];
       rt.scene.add(kagaribiBatch(W, footFires));
       // 土塁の肩と柵の杭が持ち場から読めるよう、裾の火は広く照らす。
@@ -2114,6 +2057,10 @@ const iga = {
     igaNight(rt);
     rt.setPhase('brief');
     F.bossName = '蒲生氏郷';   // 丹羽の本隊が着くまでの上役（褒め言葉の声。battle.js の flags.bossName）
+    // 11/6 fix61：同じ将が下知を言った十二秒の内に、続けて褒め言葉を言わない（「南の土橋へ進め」の二秒後に「よう働いた！」が出ていた）。
+    { const say0 = rt.say.bind(rt), PRAISE = /^(よう働いた|天晴れじゃ|その槍、見事なり|ようやった|見事じゃ|よい働きじゃ|それでこそ男じゃ)/;
+      rt.say = (who, text, dur) => { const by = F.lastSayBy || (F.lastSayBy = {});
+        if (PRAISE.test(text || '') && (by[who] ?? -99) > rt.t - 12) return; by[who] = rt.t; return say0(who, text, dur); }; }
     rt.banner('比自山に着いた夜', 'あなたは丹羽の先手。蒲生の下知で麓の陣を守れ');
     rt.obj('main', HI(rt) ? '麓の陣の口で、一手を率いて山から下りる伊賀衆に備える' : '麓の陣の口で、丹羽の兵の列に付いて山から下りる伊賀衆に備える', 'main');
     rt.say('蒲生氏郷', `${nm(rt)}、山へ追うな。味方のそばで夜討ちに備えよ`, 5);
@@ -2152,7 +2099,7 @@ const iga = {
     const alarm = rt.obj('main', '麓の陣の口で、丹羽の兵のそばに付いて夜討ちの伊賀衆を防ぐ', 'main');
     alarm.cue = '合図：鉦の三つ打ち＝夜討ちの警報'; alarm.cueT = rt.t;
     rt.say('足軽', '鉦だ、夜討ちだがね！　小屋が燃えとる！', 2.5);
-    rt.after(3, () => { if (F.step === 1 && !F.ending) rt.say('丹羽の組頭', '火は消火の組が消す。その方は敵を防げ', 4); });
+    rt.after(3, () => { if (F.step === 1 && !F.ending) rt.say('丹羽の組頭', '火は消火の組に任せよ。その方は陣の口で敵を防げ', 4); });
     const W = rt.world;
     battleEvent(rt, EVENT_FIRE_START, CAMP, F.niwa, 1, true, '夜討ちで陣に火の手が上がった');
     F.fires = [];
@@ -2175,8 +2122,8 @@ const iga = {
       };
       // 同じ白い火を二列に並べず、茅の軒へ小さい火と大きい火をずらす。
       // 根元の高さは各点で屋根へ当て直す。火の数と消火の判定は変えない。
-      F.fires.push(fireAt(side * 3.9, -1.15, 0.78 + i * 0.04));
-      h.roofFire = fireAt(side * 3.65, 1.25, 0.62 + i * 0.03);
+      F.fires.push(fireAt(side * 3.9, -1.15, 1.25 + i * 0.06));   // 11/6 fix61（四6）：軒の小さな火では「小屋が燃えとる」に見えなかった
+      h.roofFire = fireAt(side * 3.65, 1.25, 1.05 + i * 0.05);
       const roof = roofMeshes[0];
       h.burnMat = roof.material.clone();
       const compileRoof = roof.material.onBeforeCompile, roofKey = roof.material.customProgramCacheKey();
@@ -2201,6 +2148,8 @@ const iga = {
     });
     // 最初の三人は前の明るい陣口から歩いて寄せる。後の組の順番は変えない。
     igaAdvance(F.raiders[0], CAMP, true);
+    // 11/6 fix61（九2・一4）：陣口へ着いた最初の組は本人へも斬りかかる（530 秒で命が一度も減らなかった）。二人までの枠は共通のまま。
+    { const g = F.raiders[0], arrive = g.onArrive; g.onArrive = (q) => { arrive(q); if (rt.player.u.alive) { q.focus = rt.player.u; q.order = 'attack'; } }; }
     // 開戦25秒の乱戦（10/30 夜）：陣口から寄せる組は二十八秒まで崩れず討たれにくく、陣口で味方と揉み合い続ける。後からは常の通り（兵の数は同じ）
     { const g = F.raiders[0]; g.noRout = true; g.defMult = 2; rt.after(22, () => { g.noRout = false; g.defMult = 1; }); }
     rt.after(8, () => { if (F.step === 1 && !F.ending) rt.bark('陣の口に敵がおる！　前を向いて迎えよ'); });
@@ -2260,9 +2209,13 @@ const iga = {
     rt.banner('着陣の夜が明けた', '南の土橋へ攻め上れ');
     const advance = rt.obj('main', HI(rt) ? '南の土橋で、組を率いて城から出る伊賀衆を止める' : '南の土橋で、味方とともに城から出る伊賀衆を止める', 'main');
     advance.cue = '合図：法螺貝と進み太鼓＝土橋へ進め'; advance.cueT = rt.t;
-    rt.say('蒲生氏郷', '丹羽・滝川を待たずに攻める。南の土橋へ進め。木戸を破る組を守れ', 5);
+    // 陣を守った褒め言葉を下知の後に重ねない（下知の二秒後に「よう働いた」が出ていた）。褒めは下知の頭に入れる。
+    rt.praiseT = rt.t;
+    rt.say('蒲生氏郷', '夜討ちはよう防いだ。丹羽・滝川を待たずに攻める。南の土橋へ進め。木戸を破る組を守れ', 5);
     // 伊賀の国人衆の頭が主郭の口で衆を励ます（局地では強く抗う）。討つ筋にはしない。城を離れる時に消す。
     if (!F.momochi) F.momochi = evPerson(rt, 1, '百地丹波', { x: SHU.x + 3, z: SHU.z + 10 }, 0, { calm: true, guard: 3 });
+    // 11/6 fix61（一2・AT3）：頭は主郭の奥にいて前に出ない（共通の攻めの判断で山道を下り、土橋の本人の前まで来ていた）。
+    F.momochi.noAI = true; F.momochi.stay = true;
     rt.after(7, () => { if (!F.ending && F.step < 3) rt.say('伊賀の国人', '百地殿が主郭におられる。ここは我らの山じゃ、一歩も退くな', 4); });
     rt.after(3.2, () => {
       if (F.step === 2 && !F.ending && !rt.over) rt.army.play('toki', F.niwa.anchor, 0.8);
@@ -2277,7 +2230,23 @@ const iga = {
       { h: 2, guideAlways: true, guidePriority: 200 });
     rt.zone('bridge', 0, -48, 12);
     F.bridgeT = 0;
-    for (const [g, x, z] of [[F.ram, 0, -42], [F.niwa, ...APPROACH[4]], [F.tsutsui, ...APPROACH[3]], [F.igun, ...APPROACH[5]]]) {
+    // 11/6 fix61（十3・一5）：夜討ちで崩れた組も夜のうちに旗の下へ集め直し、朝は軍勢で坂を攻め上る（一列・数人ずつで、木戸の組は逃げたままだった）。
+    for (const g of [F.ram, F.tsutsui]) {
+      const keep = g.units.filter((u) => u.alive && !u.woundOut && !u.dropped);
+      if (!keep.length) continue;
+      let cx = 0, cz = 0; for (const u of keep) { cx += u.pos.x; cz += u.pos.z; u.fleeing = false; u.routIn = undefined; u.target = null; u.atk = null; }
+      g.routed = false; g.morale = 80; g.anchor = { x: cx / keep.length, z: cz / keep.length };
+    }
+    // 史実の第一戦は筒井父子の手が正面の門へ突っ込み、石と矢を浴びて潰走した（docs/battle_learn/iga.md）。長岡山から来た筒井定次の手（梅鉢）が西の道から加わる。
+    if (!F.sadatsugu) {
+      F.sadatsugu = allyGroup(rt, { fixed: true, name: '筒井定次の手', anchor: { x: -62, z: 18 }, facing: Math.PI, formation: 'column', width: 4, aggro: 10, noRout: false },
+        dress([{ type: 'busho', n: 1, o: { name: '筒井定次', horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 16 }], { flag: 'umebachi' }));
+      F.sadatsugu.leader = F.sadatsugu.units[0];
+      F.sadatsugu.defMult = 1; F.sadatsugu.dmgMult = 1;
+      F.oda.push(F.sadatsugu);
+      rt.after(4, () => { if (F.step === 2 && !F.ending) rt.say('筒井定次', '大手の門へ押し寄せよ！　筒井の名を上げるはこの時ぞ！', 4); });
+    }
+    for (const [g, x, z] of [[F.ram, 0, -42], [F.sadatsugu, 2, -45], [F.niwa, ...APPROACH[4]], [F.tsutsui, ...APPROACH[3]], [F.igun, ...APPROACH[5]]]) {
       g.formation = 'column'; g.colW = 2; g.roadColumn = true;
       g.followColumnRoad = true;
       // 後列の持ち場も折り返しをたどる。直線の縦隊を切岸へ押し付けない。
@@ -2313,10 +2282,28 @@ const iga = {
     for (const c of F.lines) { c.push('A', -0.5); c.shake('A', 12); }
     battleEvent(rt, EVENT_RETREAT, F.bridge, F.niwa, 0, true, '正面攻めをやめ、山の麓を囲む');
     if (F.sally) retireRaid(rt, [F.sally]);
+    // 11/6 fix61（九2・三2）：退く寄せ手を、土塁から打って出た伊賀衆が坂の途中まで追い討つ（史実：石と矢を浴びて潰走。帰りの坂がただの散歩だった）。四十秒で城へ戻る。
+    {
+      const g = igaEnemy(rt, 0, -56, 7, '追い討つ伊賀衆');
+      if (g.units.length) {
+        for (const u of g.units) { u._crouch = false; u.noTarget = false; }
+        g.ambush = false; g.noAI = false; g.fixed = false; g.order = 'attack'; g.aggro = 30; g.seekRange = 40; g.focus = rt.player.u;
+        rt.after(2, () => { if (!F.ending) rt.say('伊賀の地侍', '寄せ手が退くぞ！　坂の下まで追い落とせ！', 3); });
+        rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); });
+      }
+    }
     F.igun.order = 'retreat'; F.igun.anchor = { x: 14, z: 30 }; F.igun.holdFire = false;
     rt.say('蒲生氏郷', F.bridgeHeld
       ? 'そなたが土橋を保ち、木戸の組を救った。組と退け。今度は麓を囲むぞ'
       : '土塁は破れぬ。下がって麓を囲め。陣の口を守るぞ', 5);
+    // 11/6 fix61（九2・二2）：包囲の夜の夜討ち（第二戦）の組は、土橋で崩れた組を当てにしない（崩れた組は寄せられず、夜の陣に敵が一人も来なかった）。
+    //   本人から見えない東西の林の奥（夜の林で三十四歩より遠い所）に、夜のうちに山を下りた組を置く。
+    {
+      // 本人はまだ山の上。陣の東西の林の外れのうち、本人から四十歩より遠い二か所に伏せる（陣の裏は堀の本陣の旗本に近いので使わない）。
+      const p = rt.player.u.pos, spots = [[-48, 50, '西の林から寄せる伊賀衆'], [56, 48, '東の林から寄せる伊賀衆'], [48, 25, '城の道から下りた伊賀衆'], [-56, 20, '西の谷から寄せる伊賀衆']];
+      F.waveB = spots.filter(([x, z]) => Math.hypot(p.x - x, p.z - z) > 40).slice(0, 2).map(([x, z, name]) => igaEnemy(rt, x, z, 7, name));
+      F.igaBoss = F.waveB[1]?.units.find((u) => u.type === 'samurai') || null;
+    }
     depthStart(rt, igaCtx(rt), igaB(rt), () => { rt.objRemove('dp'); if (!F.ending) this.withdraw(rt); });
     // 帰陣の札にも同じ合図を残す。共通の間引きで太鼓を二重に鳴らさない。
     const returnTask = rt.objectives.find((o) => o.id === 'dp');
@@ -2350,6 +2337,7 @@ const iga = {
     F.gate.alive = false; F.gate.noTarget = true;
     rt.obj('main', '比自山城の主郭から北の曲輪へ進み、敵が残っていないか調べる', 'main');
     rt.banner('城が静まった朝', '空の比自山城の主郭へ登れ');
+    igaEmptyCastleMorning(rt);
     // 11/4 jin（kaito BO9・標準 二-6）：主郭へ瞬時に飛ばさない。夜が明けた麓の陣から、組と味方の手を連れて山道を歩いて登る。
     F.bossName = '丹羽長秀';
     rt.say('丹羽の組頭', '朝だ。丹羽様・滝川様の本隊も着いた。城兵は夜のうちに退いた。山道を登り、主郭を調べよ', 5);
@@ -2389,9 +2377,12 @@ const iga = {
     // 紙：最後は物量で制圧。諸口の大将が主郭へ集まり、国中の城が次々に開く。
     const me = rt.player.u.pos;
     // 総大将の織田信雄は伊勢地口にいて比自山へは来ない（docs/battle_refs/iga.md）。曲輪へ来るのは比自山を囲んだ筒井順慶と、遅れて着いた丹羽長秀。
-    evPerson(rt, 0, '筒井順慶', { x: me.x + 5, z: me.z + 7 }, Math.PI, { calm: true, guard: 2 });
+    // 11/6 fix61：目の前に湧かせず、主郭の側（南）から二十歩ほど歩いて来る。
+    const walkIn = (g, dx) => { if (!g) return; g.fixed = false; g.order = 'move'; g.dest = { x: me.x + dx, z: me.z + 6 }; g.onArrive = (q) => { q.order = 'hold'; }; };
+    walkIn(evPerson(rt, 0, '筒井順慶', { x: me.x + 5, z: me.z + 24 }, Math.PI, { calm: true, guard: 2 }), 4);
     // 丹羽長秀・滝川一益の本隊は第三戦の前に着いた（docs/battle_learn/iga.md 四）。自分の組の主として馬上で曲輪へ来る。
-    evPerson(rt, 0, '丹羽長秀', { x: me.x - 5, z: me.z + 8 }, Math.PI, { calm: true, guard: 3, u: { horse: true } });
+    evRemove(rt, F.niwaNagahide); evRemove(rt, F.takigawa); F.niwaNagahide = F.takigawa = null;
+    walkIn(F.niwaNagahide || evPerson(rt, 0, '丹羽長秀', { x: me.x - 5, z: me.z + 26 }, Math.PI, { calm: true, guard: 3, u: { horse: true } }), -4);
     rt.after(4.5, () => {
       if (rt.over) return;
       rt.banner('諸口の大軍が伊賀を覆う', '四万を超える軍勢に、伊賀の城は次々に開いた');
@@ -2408,6 +2399,8 @@ const iga = {
   update(rt, dt) {
     if (rt.flags.mouthRaid?.noRout && rt.t > 40) rt.flags.mouthRaid.noRout = false;
     const F = rt.flags;
+    if (F.momochi && F.momochi.order !== 'hold') { F.momochi.order = 'hold'; F.momochi.dest = null; F.momochi.focus = null; }
+    if (F.step === 2) igaWallVolley(rt, dt);
     rt.world.def.raidSenseDistance = igaHoldingRaid(rt) ? 32 : 0;
     // 戦の時計と兵の時計の差で、最後の寄せだけ五人枠に戻さない。
     rt.army.igaRaidFrontUntil = igaHoldingRaid(rt) ? rt.army.time + 1 : 0;
@@ -2623,8 +2616,9 @@ const iga = {
       if (!F.ram.count && !F.ramLost) { F.ramLost = true; rt.say('丹羽の組頭', '木戸の組が崩れた！　その方は土橋を保ち、味方が退く道を空けよ', 4); }
       if (F.sally && F.sally.count < 4 && !gone(F.sally)) { F.sally.noRout = false; F.sally.morale = Math.min(F.sally.morale, 20); }
       if (elapsed >= 45 || (elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0 && atBridge) ||
-          F.bridgeStarted == null && rt.t - F.stepT > 70 && igaPlayed(rt) && Math.hypot(rt.player.u.pos.x - F.bridge.x, rt.player.u.pos.z - F.bridge.z) < 90 ||
-          F.bridgeStarted == null && rt.t - F.stepT > 150) this.midB(rt);   // 本人が登らなくても、正面攻めは味方だけで押し返されて退く（物差し 二5）   // 坂で手間取っても、正面攻めは九十秒で引き上げる
+          // 11/6 fix61（十3）：寄せ手の先頭が土橋の下まで登り、石と矢を浴びるまでは退かない（七十秒で坂の下のまま「土塁は破れぬ」になっていた）。
+          F.bridgeStarted == null && rt.t - F.stepT > 110 && igaPlayed(rt) && F.ram.units.some((u) => u.alive && Math.hypot(u.pos.x - F.bridge.x, u.pos.z - F.bridge.z) < 26) ||
+          F.bridgeStarted == null && rt.t - F.stepT > 185) this.midB(rt);   // 本人が登らなくても、正面攻めは味方だけで押し返されて退く（物差し 二5）   // 坂で手間取っても、正面攻めは九十秒で引き上げる
     }
   },
 
@@ -2644,10 +2638,10 @@ const iga = {
 
 // 比自山周辺の設定兵力。退去を討死として減らさない。伊賀全土の四万余を、この一城の兵と混ぜない。
 iga.force = () => ({ a: 12000, a0: 12000, b: 3500, b0: 3500 });
-iga.sides = { a: { name: '織田の包囲勢（推定）', mon: 'oda' }, b: { name: '比自山の伊賀衆（推定）', mon: 'maru' } };
+iga.sides = { a: { name: '織田勢', mon: 'oda' }, b: { name: '比自山の伊賀衆', mon: 'maru' } };
 iga.famous = []; // 東の包囲陣の将を、南の木戸組へ重複して置かない。
 // 正面攻めから帰陣する間も朝。包囲の夜へ替わった時に、景色と同じ時計で札を替える。
-iga.date = (rt) => `天正九年九月　秋・${rt.world.timeKey === 'night' ? '夜' : '朝'}（攻防の復元）`;
+iga.date = (rt) => `天正九年九月　秋・${rt.world.timeKey === 'night' ? '夜' : '朝'}`;
 iga.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '見張りを始める' : '');
 iga.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) iga.raid(rt); };
 iga.history = '信長公記巻十四は、天正九年九月三日、信雄らが甲賀・信楽・加太・大和などの口から伊賀へ入ったと記す。九月十一日の夜間退去は佐奈具の城の記録で、比自山の落城日とは別である。比自山の詳しい攻防は後世の伊乱記で補い、蒲生忠三郎・堀秀政・筒井順慶らの包囲、繰り返す攻めへの抵抗、夜討ち、夜の城の放棄を描いた。守り手は柏原へ移ったとも伝わる。城跡は寺跡を使い、比高約百五十歩、縄張図の図読みでは南北約四百十五歩・東西約百八十五歩に曲輪と空堀が続く。南辺の土塁と空堀が強く、守りの正面と考えられる。丹羽・滝川の本隊は北の口で遅れ、第三戦の前に着いた。丹羽の先手の一組が蒲生の下知で先に戦う役割、着陣の夜の夜討ち（佐那具で蒲生の陣が受けた夜襲の型）、各隊の場所、陣の小屋の消火、土橋の鉄砲、時間配分は遊びのための復元。兵数には諸説あり、設定の味方一万二千・守り三千五百（伝わる数は織田一万〜一万三千、伊賀三千〜四千）は比自山周辺の推定で、伊賀全土の総勢でも、城に逃れた非戦の者を含む数でもない。 各備えの兵数と将ごとの細かな持ち場は、家中の組み方と地形から復元した目安で、史料に確かな布陣図が伝わるという意味ではない。 曲輪の守将の名と家紋は確定せず、丸の旗を代用した。朝と夜は数日にわたる攻防を縮めた景色で、当日の時刻・天気・月齢を確定するものではない。総本陣の信雄はこの狭い戦場には置かず、堀の局地の本陣と区別した。 城域と主な平場・南の小曲輪群・北の段数は伊賀市史の縮尺二千分の一の縄張図から読んだ目安。細かな輪郭と道、長田丸・朝屋丸の位置は推定で、読めない空堀の幅・深さ・標高は従来の復元値を保つ。近隣の川や旧河道を測量どおりに復元した地形ではない。';
@@ -2802,7 +2796,7 @@ function igaEnemy(rt, x, z, n, name, list = null) {
   let room = Math.max(0, 240 - live);
   const troops = [];
   for (const q of list || [{ type: 'samurai', n: 1, o: name === '林を回る伊賀衆'
-    ? { name: '伊賀の組頭', hat: 'kabuto_m', flag: 'maru' } : { hat: 'kabuto_m' } }, uA(n - 1)]) {
+    ? { hat: 'kabuto_m', flag: 'maru' } : { hat: 'kabuto_m' } }, uA(n - 1)]) {
     const count = Math.min(room, q.n); room -= count;
     if (count) troops.push({ ...q, n: count });
   }
@@ -2820,8 +2814,114 @@ function igaEnemy(rt, x, z, n, name, list = null) {
     facing, formation: 'column', colW: roadPost ? 1 : 2, width: 2,
     igaHome: { x, z }, order: 'hold', noAI: true, aggro: 8, morale: 85, fleeDir: { x: Math.sign(x), z: -1 }, dmgMult: 1 }, dress(troops, IGA));
   for (const u of g.units) if (u.type === 'samurai' || u.type === 'busho') u.nanori = '伊賀の地侍なり！';
+  // 11/6 fix61：林と道の脇で待つ伏兵は身を低くして潜む（槍を立てて突っ立つ兵に見えていた。一3）。寄せる時に igaAdvance で立つ。
+  if (!list) for (const u of g.units) u._crouch = true;
   return g;
 }
+// 11/6 fix61（二3・二7・十3：登る間に矢も石も来なかった）：第一戦の南の土橋は「石と矢を浴びて潰走」（docs/battle_learn/iga.md）。
+//   土橋の段の間、大手の小曲輪の土塁の上から、坂を登る寄せ手の固まりへ石を投げ下ろし、土塁の内の弓が四〜六秒ごとに一斉に射る。
+//   石は五つを使い回す（毎コマ new しない）。竹束の陰と、土塁の内の者には当てない。
+let igaStoneGeo = null, igaStoneMat = null;
+function igaWallVolley(rt, dt) {
+  const F = rt.flags, P = rt.player.u, A = rt.army, W = rt.world;
+  if (!F.igaStones) {
+    igaStoneGeo ||= new THREE.IcosahedronGeometry(0.2, 0);
+    igaStoneMat ||= new THREE.MeshStandardMaterial({ color: 0x6f675c, roughness: 1 });
+    F.igaStones = [];
+    for (let i = 0; i < 5; i++) {
+      const mesh = new THREE.Mesh(igaStoneGeo, igaStoneMat);
+      mesh.visible = false; mesh.castShadow = true; rt.scene.add(mesh);
+      F.igaStones.push({ mesh, t: -1, dur: 1, a: new THREE.Vector3(), b: new THREE.Vector3() });
+    }
+    F.igaStoneT = 2; F.igaVolleyT = 3;
+  }
+  // 飛んでいる石を進め、落ちた所の寄せ手を打つ。
+  for (const st of F.igaStones) if (st.t >= 0) {
+    st.t += dt;
+    const k = Math.min(1, st.t / st.dur);
+    st.mesh.position.lerpVectors(st.a, st.b, k);
+    st.mesh.position.y += Math.sin(k * Math.PI) * 3.2;
+    st.mesh.rotation.x += dt * 9; st.mesh.rotation.z += dt * 6;
+    if (k >= 1) {
+      st.t = -1; st.mesh.visible = false;
+      sfx('wood', 0.25);
+      for (const u of A.units) {
+        if (!u.alive || u.team !== 0 || u.isStruct || u.fleeing) continue;
+        if (Math.hypot(u.pos.x - st.b.x, u.pos.z - st.b.z) > 1.4 || Math.abs(u.pos.y - st.b.y) > 2.5) continue;
+        if (u === P && Math.random() > 0.5) continue;
+        A.damage(u, u === P ? 7 : 14, F.wallBow?.units.find((q) => q.alive) || null, { kind: 'blunt', y: u.pos.y + 1.4 });
+      }
+    }
+  }
+  if (!P?.alive || F.ending || rt.over) return;
+  const rimZ = -55, rimY = W.heightAt(0, rimZ) + 2.6;
+  // 寄せ手の固まり：土橋の下の坂（土塁から三十五歩の内）にいる味方。本人を含める。
+  // 石は土塁から三十五歩まで、弓は六十五歩まで届く。
+  const climbers = [], inBow = [];
+  for (const u of A.units) if (u.alive && u.team === 0 && !u.isStruct && !u.fleeing && u.pos.z > rimZ + 3 && Math.abs(u.pos.x) < 30) {
+    if (u.pos.z < rimZ + 36) climbers.push(u);
+    if (u.pos.z < rimZ + 66) inBow.push(u);
+  }
+  if (!inBow.length) return;
+  if (climbers.length && (F.igaStoneT -= dt) <= 0) {
+    F.igaStoneT = 1.2 + Math.random() * 1.4;
+    const st = F.igaStones.find((q) => q.t < 0);
+    const near = climbers.filter((u) => Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 14);
+    const pool = near.length ? near : climbers;
+    const u = pool[Math.floor(Math.random() * pool.length)];
+    if (st && u) {
+      const fx = Math.max(-12, Math.min(12, u.pos.x + (Math.random() - 0.5) * 6));
+      st.a.set(fx, rimY, rimZ);
+      const tx = u.pos.x + (Math.random() - 0.5) * 2.4, tz = u.pos.z + (Math.random() - 0.5) * 2.4;
+      st.b.set(tx, W.heightAt(tx, tz) + 0.2, tz);
+      st.dur = 0.7 + Math.hypot(tx - fx, tz - rimZ) / 30;
+      st.t = 0; st.mesh.position.copy(st.a); st.mesh.visible = true;
+    }
+  }
+  if ((F.igaVolleyT -= dt) <= 0) {
+    F.igaVolleyT = 4 + Math.random() * 2;
+    const bow = F.wallBow?.units.find((q) => q.alive && !q.fleeing && q.type === 'bow');
+    // 本人が届く内なら本人の周り、そうでなければ坂を登る味方の固まりへ。
+    const at = Math.hypot(P.pos.x, P.pos.z - rimZ) < 66 ? P : inBow[Math.floor(Math.random() * inBow.length)];
+    if (bow && at) {
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 2, x = at.pos.x + Math.cos(a) * r, z = at.pos.z + Math.sin(a) * r;
+      rainVolley(A, F.wallBow, bow, { x, y: W.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
+      rt.after(1.7, () => {
+        if (!P.alive || F.ending || rt.over || F.step !== 2 || Math.hypot(P.pos.x - x, P.pos.z - z) > 3 || Math.random() > 0.35) return;
+        A.damage(P, (bow.dmg || 9) * 0.8, bow, { kind: 'arrow', y: P.pos.y + 1.5 });
+      });
+    }
+  }
+}
+
+// 11/6 fix61（二1・二2・十二1・十二2）：空城の朝。城兵は夜のうちに柏原へ退いた（伊乱記）ので、山と曲輪に伊賀の兵を一人も残さない
+//   （朝の山道で伊賀の侍が斬り合い、櫓の守りが本人を撃っていた）。夜の間の場面替え（見出し「城が静まった朝」）の内に消す。
+//   着いた丹羽長秀・滝川一益の三万余は、麓の谷を埋めて山へ手探りで寄せる（軽い遠くの軍勢・本物の兵へは替えない）。
+function igaEmptyCastleMorning(rt) {
+  const F = rt.flags, W = rt.world;
+  for (const u of [...rt.army.units]) {
+    if (!u.alive || u.gone || u.team !== 1 || u.isStruct || u.group?.civ || u.group?.people) continue;
+    u.fleeing = false; rt.army.despawn(u);
+  }
+  for (const h of F.jinHosts || []) if (h.army.team === 1) { h.army.noWake = true; if (h.group) h.group.visible = false; if (h.visible != null) h.visible = false; }
+  F.momochi = null;
+  // 丹羽・滝川の本隊（北の柘植口から遅れて着いた）。南の谷の奥から山の麓へ、ゆっくり寄せる。
+  F.lateHosts = [];
+  for (const [x, z, flag, n, seed] of [[-46, 150, 'sujikai', 240, 15861], [44, 160, 'takigawa', 220, 15862], [-4, 196, 'sujikai', 200, 15863]]) {
+    const h = W.addDistantArmy({ x, z, w: 44, d: 22, count: n, facing: Math.PI, team: 0, armor: 0x2a2622,
+      flagTex: flagTexture(flag), mon: flag, flagRate: 0.18, banners: 0, kind: 'spear', seed });
+    if (!h) continue;
+    if (h.army) h.army.noWake = true;
+    h.moveTo?.(x * 0.8, z - 70, 120);
+    F.lateHosts.push(h);
+  }
+  // 丹羽長秀・滝川一益は麓の陣に馬上で着き、組を山へ送る（前の場面には出さない。一6）。
+  const me = rt.player.u.pos;
+  F.niwaNagahide = evPerson(rt, 0, '丹羽長秀', { x: me.x - 9, z: Math.max(me.z + 10, 44) }, Math.PI, { calm: true, guard: 3, u: { horse: true } });
+  F.takigawa = evPerson(rt, 0, '滝川一益', { x: me.x + 11, z: Math.max(me.z + 12, 46) }, Math.PI, { calm: true, guard: 3, u: { horse: true } });
+  rt.after(6, () => { if (!F.ending && !rt.over) rt.say('滝川一益', '罠があるやもしれぬ。山腹は手探りで登れ', 4); });
+}
+
 // 半秒ごとに近くの戦える敵を調べる。十二秒途切れたら、近い伏兵だけを寄せる。
 // 三十六メートル以内の二人組が歩いて来る余裕を残し、瞬間移動や毎コマの兵作りはしない。
 function igaRaidPatrol(rt) {
@@ -3248,15 +3348,20 @@ function igaB(rt) {
       rt.objRemove('dp');
       rt.obj('main', '麓の陣の口で組をそろえ、夜討ちの伊賀衆に備える', 'main');
       igaNight(rt);
+      // 11/6 fix61：昼の土橋の戦いで坂を追って来た組・追い討ちの組は、日暮れまでに城へ引き上げた（夜の場面替えの間に消す）。夜討ちの組だけが残る。
+      { const keep = new Set(rt.flags.waveB || []), me = rt.player.u.pos;
+        for (const u of [...rt.army.units]) if (u.alive && !u.gone && u.team === 1 && !u.isStruct && !u.group?.civ && !keep.has(u.group) && u.pos.z > -45) {
+          if (Math.hypot(u.pos.x - me.x, u.pos.z - me.z) > 18) { u.fleeing = false; rt.army.despawn(u); } else if (u.group && !u.group.retreatOnly) retireRaid(rt, [u.group]);
+        } }
       igaBeginCastleRetreat(rt);
       battleEvent(rt, EVENT_MESSENGER, CAMP, null, 0, true, '蒲生・堀・筒井の手が山の麓を囲んだ');
       for (const c of rt.flags.lines) c.push('A', 0.25);
     } }),
-    igaHold({ at: CAMP, dur: 38, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '麓の陣の口で、城から出る伊賀衆を防ぐ',
+    igaHold({ at: CAMP, dur: 70, r: 16, title: '包囲の夜', sub: '城から出た伊賀衆が、麓の陣へ切り込む', label: '陣の口', obj: '麓の陣の口で、城から出る伊賀衆を防ぐ',
       say: [['蒲生氏郷', '包囲を続け、また夜になった。陣の口で敵を防げ。追うな', 4]],
       waves: [
-        { t: 8, group: rt.flags.waveB[0], say: ['足軽', '城の道から下りてきよる！'] },
-        { t: 20, group: rt.flags.waveB[1], say: ['足軽', '西へ回りよった！　陣の脇が危ねえ！'] },
+        { t: 8, group: rt.flags.waveB[0], say: ['足軽', '長岡山の筒井様の陣にも松明じゃ！　こっちにも来よる！'] },
+        { t: 20, group: rt.flags.waveB[1], say: ['丹羽の組頭', '風で松明が消えた。合言葉を違えるな。味方を突くな'] },
       ], reward: '包囲の陣を夜討ちから守った', onEnd: (rt) => {
         retireRaid(rt, rt.flags.dp.cur.groups);
         battleEvent(rt, EVENT_UNIT_BREAK, CAMP, null, 1, true, '夜討ちの隊が、山へ退いた');
@@ -3267,7 +3372,8 @@ function igaB(rt) {
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。南の木戸組には置かず、西の押さえと陣の者にだけ。百地丹波は討つ筋にしない・滝野は柏原城なので出さない。
 // 総大将の織田信雄は伊勢地口から入り、比自山の前には出ない（docs/battle_refs/iga.md）。比自山を攻めたのは筒井・蒲生。
 // 11/4 jin（AV7・AR4）：名のある将は馬上に。
-iga.bushou = [{ name: '筒井順慶', g: /陣の者|西の押さえ/, loose: false, horse: true }, { name: '蒲生氏郷', g: /陣の者|西の押さえ/, loose: false, horse: true }];
+// 11/6 fix61：筒井順慶は西の長岡山の陣（遠い囲みの備え）にいる。麓の陣の口の織田の組へ置くと、木瓜の旗の中で「わしに続け」と先頭に立っていた（一2・十4）。
+iga.bushou = [{ name: '蒲生氏郷', g: /陣の者|西の押さえ/, loose: false, horse: true }];
 // 城攻めの部品（siege_kit.js。battle.js が組み、毎コマ動かす）：南の木戸の左右の曲輪の柵を狭間に借り、
 // 夜討ちから木戸を破るまで、柵の上の頭と銃口・閃光と白煙・矢を見せる（伊賀衆の鉄砲と弓）。兵・塀は足さない。
 // 11/4 jin（BJ3・標準 二-7）：矢弾は本当に当たる（開けた所の味方は倒れ、自分にも弱く当たる。竹束・塀の陰は当たらない）。

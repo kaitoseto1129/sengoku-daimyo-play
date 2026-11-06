@@ -14,13 +14,16 @@ import { enemyGroup, allyGroup } from './bhelp.js';
 import { closeGate } from './siege_gate.js';
 import { distToPolyline } from './world.js';
 import { RANKS } from './state.js';
-import { FACTION } from './units_data.js';
+import { FACTION, GENERALS } from './units_data.js';
+import { KACCHU } from './kacchu_data.js';
 import * as THREE from 'three';
-import { hashigo, nobori, jinmaku, yagura, kabukimon, castleBoardFence, hut, solidCircle, solidSeg, solidRect } from './props.js';
+import { hashigo, nobori, jinmaku, yagura, kabukimon, castleBoardFence, palisade, hut, solidCircle, solidSeg, solidRect } from './props.js';
 import { rockShape, groundRocks } from './rock_shape.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
 import { farSight } from './far_sight.js';
+import { STAGES } from './stages.js';
+import { goalsTick } from './hud_goals.js';
 
 // この戦の標高を支度で読ませる（共通の表は触らず、ここで一行足す）
 BATTLE_ASSETS.t07_ganjaku = Object.freeze([...assetsForBattle(''), 'dem_ganjaku']);
@@ -28,6 +31,9 @@ let dem = null;
 // 秋月方の家（黒の揃いの具足に撫子の紋。秋月の紋は撫子。共通の表は触らず、ここで足す）
 if (!FACTION.akizuki) FACTION.akizuki = { ...FACTION.tokugawa, flag: 'saito' };
 useTerrain('dem_ganjaku', (d) => { dem = d; });
+// 天正十五年の名乗りは前田利勝（勝興寺あての禁制。「利長」は後の名。kaito 十4）。顔と具足は利長の物を使う
+if (GENERALS['前田利長'] && !GENERALS['前田利勝']) GENERALS['前田利勝'] = GENERALS['前田利長'];
+if (KACCHU['前田利長'] && !KACCHU['前田利勝']) KACCHU['前田利勝'] = KACCHU['前田利長'];
 
 const XY = 1.4;      // ゲームの 1 が実の何 m か
 const SC = 0.4;      // 実の高さを縮める率（実の比高 270m → 約 100m。坂を登れる傾きに）
@@ -61,6 +67,8 @@ function gateZone(x, z) {
 const wantInside = (q) => gl(q.x, q.z)[1] < 0;
 // 梯子を掛ける岩肌（門の両脇の塀の外。足は外、上は塀の上）
 const LAD = [[-12, 3.2, -12, 0.3], [-16, 3.4, -16, 0.3], [14, 3.2, 14, 0.3]].map(([a, b, c, d]) => ({ foot: pt(a, b), top: pt(c, d) }));
+// 大手道の中ほどの坂の木戸（出曲輪の柵）。坂の守りと弓はこの柵の内から射る（城の外の坂に守り手を並べない。kaito 十一3）
+const KIDO = { x: -88, z: 89 }, KD = { x: 0.67, z: -0.74 }, KP = { x: 0.74, z: 0.67 };   // KD 坂の上り向き・KP 柵の向き
 
 // 竪堀の筋（大手の南西から左右へ二十八度ずつ開いた二筋）
 const TATE = [-1, 1].map((k) => { const a = 3 * Math.PI / 4 + k * 0.49; return { x: Math.cos(a), z: Math.sin(a) }; });
@@ -98,6 +106,7 @@ const height = (x, z) => shaped(x, z) + SIEGE_H(x, z);
 
 // 坂と門の段（時との勝負）は寄せの小勢を出さない。城の内へ入ってから乱戦（frontline_density の alwaysMelee を段で切り替える）
 let CALM = true;
+let STONES = [], STONE_GEO = null, STONE_MAT = null;   // 塀の上から投げ落とす石（三つを使い回す）
 const T_LIMIT = 400;   // 日が沈むまで（6分半ほど。矢倉と本丸で斬り合う時を残す）
 const KIRI = 0x2a2420, AKI = 0x2e2a26;
 
@@ -155,7 +164,7 @@ const t07_ganjaku = {
 
   setup(rt) {
     const F = rt.flags;
-    CALM = true;
+    CALM = true; STONES = [];
     F.stage = 0; F.ending = false; F.ek = 0; F.ak = 0; F.t0 = rt.t; F.stageT = rt.t; F.honT = 0;
     if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
     const W = rt.world, faceUp = Math.atan2(GATE.x - SPAWN.x, GATE.z - SPAWN.z);
@@ -163,13 +172,13 @@ const t07_ganjaku = {
     // ---- 攻め手（docs/battle_refs/t07_ganjaku.md）：大手は蒲生、搦手は前田。秀吉は馬ヶ岳の本陣にいて、この山には来ない ----
     // 蒲生の先手（主人公はこの列と坂を登る）。対い鶴の蒲生の旗は鶴の紋で代える
     F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'tsuru', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
-      [{ type: 'samurai', n: 1, o: { name: '蒲生の侍大将' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 40 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
+      [{ type: 'samurai', n: 1, o: { name: '蒲生の侍大将' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 4, o: { tatake: true } }, { type: 'ashigaru', n: 36 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
     F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'tsuru', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
-      [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);
+      [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 2, o: { tatake: true } }, { type: 'ashigaru', n: 28 }, { type: 'gun', n: 4 }]);   // 先頭は竹束を抱えて登る（持つ者の後ろには弾が通りにくい。kaito 二3・十3）
     F.allies = [F.gamo, F.gamo2];
     // 搦手（北東の尾根）から寄せる前田勢。本丸の段で搦手の守りを破って本丸へ入る
     F.maeda = allyGroup(rt, { name: '前田勢', faction: 'maeda', flag: 'maeda', anchor: { ...KARA_OUT }, facing: Math.atan2(-KARA_OUT.x, -KARA_OUT.z), width: 8, aggro: 12, noRout: true, fullStrength: true },
-      [{ type: 'busho', n: 1, o: { name: '前田利長', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);   // 利長は馬上で旗本の侍に囲まれる
+      [{ type: 'busho', n: 1, o: { name: '前田利勝', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);   // 利長は馬上で旗本の侍に囲まれる
     // 麓の蒲生の本陣：大手の大将の蒲生氏郷は旗本の侍に囲まれ、坂の下の幕の前で床几に座り、前に出ない
     F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'gamo', flag: 'tsuru', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
       [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI, mon: 'tsuru' } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
@@ -196,8 +205,8 @@ const t07_ganjaku = {
     // ---- 城方：秋月方の三千（大手は芥田悪六兵衛、搦手と本丸は城将の熊井越中守）----
     const foe = (name, at, list, o = {}) => enemyGroup(rt, { fixed: true, name, faction: 'akizuki', flag: 'saito', armor: AKI, anchor: { x: at.x, z: at.z }, facing: faceUp + Math.PI, order: 'hold', aggro: 9, width: 4, ...o }, list);
     F.slope = [
-      foe('坂の守り', { x: -100, z: 102 }, [{ type: 'ashigaru', n: 7 }, { type: 'samurai', n: 1 }]),
-      foe('坂の上の弓', { x: -80, z: 80 }, [{ type: 'bow', n: 4 }, { type: 'ashigaru', n: 3 }]),
+      foe('坂の木戸の守り', { x: KIDO.x + KD.x * 3, z: KIDO.z + KD.z * 3 }, [{ type: 'ashigaru', n: 7 }, { type: 'samurai', n: 1 }], { width: 6 }),
+      foe('坂の木戸の弓', { x: KIDO.x + KD.x * 8, z: KIDO.z + KD.z * 8 }, [{ type: 'bow', n: 4 }, { type: 'ashigaru', n: 3 }]),
     ];
     // 門の内で打って出る機を待つ芥田の手（段2で門を開けて坂へ突いて出る）
     F.sally = foe('芥田の手', INNER, [{ type: 'busho', n: 1, o: { name: '芥田悪六兵衛', horse: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 18 }], { aggro: 6, width: 6 });
@@ -210,11 +219,52 @@ const t07_ganjaku = {
     for (const g of [F.sally, F.gateGuard, F.yagura, F.kara, F.hon]) g.noFrontline = true;
     F.hon.noRout = true;   // 本丸の守りは崩れて逃げない（熊井越中守は本丸で討死した）
 
+    this.goalsHud(rt);
     rt.setPhase('brief');
     rt.say('蒲生氏郷', '殿下の命じゃ。島津に付いた秋月の岩石城を、今日のうちに落とす', 3.6);
     rt.after(3.9, () => rt.say(rt.G.name || '主人公', '一日で？　この岩山を', 2.4));
     rt.after(6.6, () => rt.say('蒲生氏郷', '大手は我ら、搦手は前田殿。先手は坂を登り、門の前へ出よ', 3.6));
     rt.after(10.4, () => this.go(rt, 1));
+  },
+
+  // 共通の任務札は今の一行だけなので、目標の札（hud_goals）で置き換え、①〜④を最初から全部並べて済んだ物に印。
+  //   両軍の兵の数の棒（armybar）も上に出す（kaito 九1・九3・十1）。根白坂・真田丸と同じ作り。戦が終われば元へ戻す
+  goalsHud(rt) {
+    const hud = rt.hud;
+    if (!hud || !hud.root || typeof document === 'undefined') return;
+    hud.root.classList.add('ganjaku-goals');
+    const st = document.createElement('style');
+    const H = 'html:root body #hud#hud#hud.ganjaku-goals', P = `${H} #h-prog#h-prog.goal-mode`;
+    st.textContent = `
+${H} #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+${H} #armybar .clock { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.ganjaku-goals :is(#armybar, #h-prog) { visibility:hidden !important; }
+${P} > :not(.pg-goals) { display:none !important; }
+${P} > .pg-goals { display:block !important; }
+${P} {
+ left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
+ width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
+${P} .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+${P} .pg-goals li i { margin-top:3px; }
+${P} .pg-goals li span { color:inherit !important; background:none !important; }
+${P} .pg-goals li.now { color:#fff !important; }
+${P} .pg-goals li.done { color:#cfc9bc !important; }
+${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
+    document.head.appendChild(st);
+    const hudProgress = hud.progress;
+    hud.progress = function (battle) {
+      const out = hudProgress.call(this, battle);
+      if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+      return out;
+    };
+    const dispose = rt.dispose;
+    rt.dispose = function () {
+      hud.progress = hudProgress;
+      if (hud.prog) hud.prog.classList.remove('goal-mode');
+      hud.root.classList.remove('ganjaku-goals'); st.remove();
+      return dispose.call(this);
+    };
   },
 
   // 岩石山の巨岩と本丸の囲い（docs/battle_refs/t07_ganjaku.md。天守は無い中世の山城）
@@ -236,9 +286,16 @@ const t07_ganjaku = {
       rt.scene.add(hut(W, 6, -6, 7, 4.5, Math.PI / 4, { solid: false }));
       solidRect(6, -6, 7, 4.5, Math.PI / 4);
       for (const [x, z] of [[-9, -6], [9, 7], [2, -12]]) rt.scene.add(nobori(W, x, z, 'saito', 6));
+      // 大手道の坂の木戸：道を横切る柵（道の筋に八 m の木戸口を空ける）。柵の内に坂の守りと弓。
+      //   冠木門は置かない（低い冠木の下を通る時にカメラの前を塞いだ）
+      for (const k of [-1, 1]) {
+        const a = 4, b = 12, seg = [KIDO.x + KP.x * a * k, KIDO.z + KP.z * a * k, KIDO.x + KP.x * b * k, KIDO.z + KP.z * b * k];
+        rt.scene.add(palisade(W, seg, { solid: true, h: 2.2 }));
+      }
+      rt.scene.add(nobori(W, KIDO.x + KD.x * 5 + KP.x * 6, KIDO.z + KD.z * 5 + KP.z * 6, 'saito', 6));
     } catch (e) { console.warn(e); }
     // 巨岩：本丸の縁・国見岩・大手の坂の両脇・上の斜面。坂と門と段の行き先は空ける
-    const keep = [[{ x: 5, z: 9 }, 4], [SPAWN, 16], [GATE, 30], [YAGURA, 12], [{ x: -168, z: 168 }, 34], [{ x: -98, z: 64 }, 8], [{ x: -84, z: 54 }, 8], [INNER, 10], [{ x: -84, z: 112 }, 10], [{ x: -112, z: 132 }, 10], [KARA_IN, 10], [{ x: 16, z: -16 }, 9], [{ x: 46, z: -46 }, 9], [KARA_OUT, 12], ...LAD.map((l) => [l.foot, 6])];
+    const keep = [[{ x: 5, z: 9 }, 4], [SPAWN, 16], [GATE, 30], [YAGURA, 12], [{ x: -168, z: 168 }, 34], [{ x: -98, z: 64 }, 8], [{ x: -84, z: 54 }, 8], [INNER, 10], [{ x: -84, z: 112 }, 10], [{ x: -112, z: 132 }, 10], [KARA_IN, 10], [{ x: 16, z: -16 }, 9], [{ x: 46, z: -46 }, 9], [KARA_OUT, 12], [KIDO, 13], ...LAD.map((l) => [l.foot, 6])];
     const free = (x, z, s) => distToPolyline(x, z, ROAD) > 8 + s && distToPolyline(x, z, ROAD_IN) > 9 + s && keep.every(([c, r]) => Math.hypot(x - c.x, z - c.z) > r + s);
     const list = [[15, -19, 8]];   // 国見岩（頂の東）
     let seed = 1587;
@@ -290,20 +347,34 @@ const t07_ganjaku = {
       rt.setPhase('assault');
       rt.obj('main', '大手の坂を登り、二の丸の門の前へ出る', 'main');
       rt.marker('t07', MOUTH, '二の丸の門', { h: 3 });
+      // 西の尾根の物見櫓は空に（共通の櫓の守り perch が上に射手を立てる。登れない櫓の上から坂の寄せ手を射続けて、門の前で倒れた）
+      const A = rt.army;
+      for (const u of A.units.slice()) if (u.alive && u.team === 1 && u.perch && [[-98, 64], [-84, 54]].some(([x, z]) => Math.hypot(u.pos.x - x, u.pos.z - z) < 6)) {
+        A.scene.remove(u.mesh); A.units.splice(A.units.indexOf(u), 1);
+        if (u.group) u.group.units.splice(u.group.units.indexOf(u), 1);
+        u.alive = false; u.gone = true;
+      }
       F.lead = 0;   // 蒲生の先手は自分と並んで坂を駆け上がる（update で坂の上へ持ち場を送る）
     } else if (s === 2) {
       rt.award((t) => t.side.push('大手の坂を一番に登った'), '大手の坂を一番に登った');
       try { rt.world.setTime('day'); } catch (e) { /* 空の切り替えが無い時はそのまま */ }
       rt.obj('main', '門から打って出た秋月勢を坂で迎え撃つ', 'main');
-      A(MOUTH.x - 7, MOUTH.z + 13);   // 寄せ手は櫓の真下に留まらず、門から坂へ出て来る秋月勢を少し下で受ける
+      // 寄せ手は櫓の真下に留まらず、門から二十 m ほど下の坂で、出て来る秋月勢を受ける（門の櫓の真下で撃たれ続けない）
+      F.meet = this.roadAt(this.along(MOUTH.x, MOUTH.z) - 22);
+      A(F.meet.x, F.meet.z);
       this.to(F.maeda, { x: 44, z: -44 });   // 搦手でも前田勢が寄せる
       // 門が開き、芥田の手が喰違の筋を抜けて坂へ突いて出る（山中城の馬出しの出撃の型）
       this.gateOpen(rt);
+      // 門の左右の櫓の射手も、打って出た味方の背越しには射ない（狭間と同じ。芥田の手と斬り合う所を櫓から撃ち続けない）
+      for (const q of rt.army.groups) {
+        const c = q.team === 1 && q.name === '物見櫓の守り' && this.centerOf(q);
+        if (c && Math.hypot(c.x - GATE.x, c.z - GATE.z) < 20) q.fire = false;
+      }
       const g = F.sally;
       g.aggro = 2; g.noRout = true; g.speed = (g.speed || 2.2) * 1.4;
-      F.sw = { route: [INSIDE, FRONT, MOUTH, { x: MOUTH.x - 8, z: MOUTH.z + 12 }], i: 0, aggro: 14 };
+      F.sw = { route: [INSIDE, FRONT, MOUTH, F.meet], i: 0, aggro: 14 };
       this.walk(g, F.sw, rt.t);
-      rt.marker('t07', MOUTH, '芥田の手', { h: 3, red: true });
+      rt.marker('t07', F.meet, '芥田の手', { h: 3, red: true });
       rt.say('蒲生の侍大将', '門が開いた！　打って出て来るぞ。坂で受け止めよ', 3.2);
       sfx('wood', 0.8);
     } else if (s === 3) {
@@ -337,7 +408,7 @@ const t07_ganjaku = {
       F.maeda.noFrontline = true;
       this.to(F.maeda, { x: HON.x + 6, z: HON.z - 6 });   // 搦手を破った前田勢も本丸へ
       rt.say('蒲生の侍大将', '城内じゃ！　岩の上の矢倉に構うな、本丸の熊井を討て', 3.2);
-      rt.after(4, () => { if (F.stage === 4) rt.say('前田利長', '搦手は破った！　本丸で落ち合おうぞ', 3); });
+      rt.after(4, () => { if (F.stage === 4) rt.say('前田利勝', '搦手は破った！　本丸で落ち合おうぞ', 3); });
     }
   },
   // 隊の持ち場を移す（歩かず走って寄せる）
@@ -412,6 +483,7 @@ const t07_ganjaku = {
     if (F.sw) this.stepWalk(F.sally, F.sw, rt.t);
     if (F.gw) this.stepWalk(F.gateGuard, F.gw, rt.t);
     for (const m of F.walks || []) this.stepWalk(m.g, m.w, rt.t);
+    this.stones(rt, dt);
     const sallyN = this.fighting(F.sally), sally0 = F.sally.units.length;
     if (F.stage === 1) {
       // 味方の先手と二番手は、自分の少し先と後ろを坂に沿って走る（一人で登らせない。止まれば味方も坂の途中で待つ）
@@ -421,7 +493,15 @@ const t07_ganjaku = {
         F.lead = k;
         this.to(F.gamo, this.roadAt(k + 8)); this.to(F.gamo2, this.roadAt(k - 6));
       }
-      if (Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20) this.go(rt, 2);
+      // 坂の木戸を抜かれたら、木戸の守りと弓は二の丸へ逃げ込む（抜かれた出曲輪に残って、登る寄せ手を背から射ない）
+      const kk = this.along(KIDO.x, KIDO.z);
+      if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || F.lead > kk + 22)) {
+        F.kidoFell = true;
+        for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
+      }
+      // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
+      const gc = this.centerOf(F.gamo);
+      if (Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
     } else if (F.stage === 2) {
       // 四割を討たれるか、芥田が討たれるか、斬り合って二十五秒（出てから六十五秒）で崩れて引く
       const boss = F.sally.units.find((u) => u.name === '芥田悪六兵衛');
@@ -454,15 +534,58 @@ const t07_ganjaku = {
         if (near) { st.hp -= dt * 2.2 * Math.min(near, 16); if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.bark('門が破れた'); } }
       }
       if (st && !st.alive && !F.breached) { F.breached = true; this.breach(rt); for (const g of F.allies) this.march(rt, g, [MOUTH, FRONT, INSIDE], 14); }
-      if (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4) this.go(rt, 4);
+      // 自分か、門を抜けた味方の先手が門の内へ入れば本丸の段へ
+      const gc = this.centerOf(F.gamo);
+      if (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && st && (!st.alive || F.tsukeiri) && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12)) this.go(rt, 4);
     } else if (F.stage === 4) {
-      // 熊井越中守が討たれれば落城（誰が討っても）。本丸に踏みとどまり守りが崩れても落ちる
+      // 熊井越中守が討たれれば落城（誰が討っても）。目標どおり、討つまでは勝ちにしない（kaito 三3・十1）
       const boss = F.hon.units.find((u) => u.name === '熊井越中守');
       const inHon = Math.hypot(p.x - HON.x, p.z - HON.z) < 13;
       const left = this.fighting(F.hon, HON, 24);
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
-      if (!boss || !boss.alive || F.honT >= 4) this.win(rt);
+      // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
+      if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; }
+      if (!boss || !boss.alive) this.win(rt);
     }
+  },
+  // 城そのものが武器：坂を登る間と、閉まった門の前では、二の丸の塀の上から石を投げ落とす（門を破るまで。kaito 十3）。
+  //   字は出さず、弧を描いて落ちる石・音・当たった味方の崩れで分からせる。石は三つを使い回す
+  stones(rt, dt) {
+    const F = rt.flags, p = rt.player.u.pos, W = rt.world;
+    for (const s of STONES) {
+      if (!s.on) continue;
+      s.t += dt;
+      const k = Math.min(1, s.t / s.dur);
+      if (s.landed) { if (s.t > s.dur + 2.5) { s.on = false; s.mesh.visible = false; } continue; }
+      s.mesh.position.set(s.ax + (s.bx - s.ax) * k, s.ay + (s.by - s.ay) * k + Math.sin(k * Math.PI) * 2.5, s.az + (s.bz - s.az) * k);
+      s.mesh.rotation.x += dt * 9; s.mesh.rotation.z += dt * 5;
+      if (k >= 1) {
+        s.landed = true;
+        rt.army.play('knock', { x: s.bx, z: s.bz }, 0.9);
+        rt.army.forNear(s.bx, s.bz, 1, (u) => { if (u.alive && u.team === 0 && !u.invuln && !u.isStruct) rt.army.damage(u, u.isPlayer ? 6 : 11, null, { kind: 'rock' }); });
+      }
+    }
+    if (F.ending || rt.t < (F.stoneAt || 0)) return;
+    const st = this.gateStruct(rt), dG = Math.hypot(p.x - GATE.x, p.z - GATE.z);
+    const on = (F.stage === 1 && dG < 34) || (F.stage === 3 && st && st.alive && !st.opened && dG < 30);
+    if (!on) return;
+    F.stoneAt = rt.t + (dG < 20 ? 2.2 : 3.6) + Math.random() * 1.5;
+    let stone = STONES.find((q) => !q.on);
+    if (!stone) {
+      if (STONES.length >= 3) return;
+      if (!STONE_GEO) { STONE_GEO = rockShape(0.28); STONE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }); }
+      stone = { mesh: new THREE.Mesh(STONE_GEO, STONE_MAT) }; stone.mesh.castShadow = true;
+      rt.scene.add(stone.mesh); STONES.push(stone);
+    }
+    // 狙いは本人の周りの味方（三度に一度は本人の足元）。石は門の両脇の塀の上から
+    let tx = p.x, tz = p.z;
+    if (Math.random() > 0.35) rt.army.forNear(p.x, p.z, 8, (u) => { if (u.team === 0 && u.alive && !u.isPlayer && Math.random() < 0.3) { tx = u.pos.x; tz = u.pos.z; } });
+    tx += (Math.random() - 0.5) * 2.4; tz += (Math.random() - 0.5) * 2.4;
+    const src = pt((Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 9), -0.8);
+    const ay = W.heightAt(src.x, src.z) + 3;
+    Object.assign(stone, { on: true, landed: false, t: 0, dur: 0.9 + Math.min(1.2, Math.hypot(tx - src.x, tz - src.z) / 40), ax: src.x, ay, az: src.z, bx: tx, by: W.heightAt(tx, tz) + 0.25, bz: tz });
+    stone.mesh.visible = true; stone.mesh.position.set(src.x, ay, src.z);
+    rt.army.play('eshout', { x: src.x, z: src.z }, 0.6);
   },
   // 大手の坂の筋（麓 → 門の外の口）で、何 m 登ったか・その所
   along(x, z) {
@@ -503,9 +626,9 @@ const t07_ganjaku = {
       try { for (const [x, z] of [[-3, 3], [3, -2]]) rt.scene.add(nobori(rt.world, x, z, 'tsuru', 6)); } catch (e) { console.warn(e); }
       try { rt.world.addFire(6, -6, { size: 2.6, blackSmoke: true }); } catch (e) { console.warn(e); }
     });
-    rt.after(4, () => rt.say('前田利長', 'この岩山が一日か。秋月も肝が冷えたであろう', 3.5));
-    rt.after(8, () => rt.say('蒲生氏郷', '殿下に申せ。秋月は降りましょう。九州の道が開けた', 4));
-    rt.finish({ scriptedEnd: true }, 13);
+    rt.after(3, () => rt.say('前田利勝', 'この岩山が一日か。秋月も肝が冷えたであろう', 2.6));
+    rt.after(5.8, () => rt.say('蒲生氏郷', '殿下に申せ。秋月は降りましょう', 2.6));
+    rt.finish({ scriptedEnd: true }, 9);   // 締めて数秒で勝利（kaito 三3）
   },
   lose(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
@@ -520,8 +643,11 @@ const t07_ganjaku = {
 t07_ganjaku.sides = { a: { name: '豊臣勢', mon: 'toyotomi' }, b: { name: '秋月方（島津方）', mon: 'saito', faction: 'akizuki' } };
 // 上に出す総勢（docs/battle_learn/t07_ganjaku.md：攻め手の蒲生・前田の隊はおよそ五千、城兵は三千）
 t07_ganjaku.force = (rt) => ({ a: Math.max(0, 5000 - (rt.flags.ak || 0) * 10), a0: 5000, b: Math.max(0, 3000 - (rt.flags.ek || 0) * 30), b0: 3000 });
+// 右上の①〜④（stages.js と同じ字）。段の長さは本丸の斬り合いで延びるので、目標ごとの時切れの ✕ は付けない
+t07_ganjaku.goals5 = () => (STAGES.t07_ganjaku || []).map((s, k) => ({ kind: 'stage', k, text: s[0], sec: 1e6,
+  check: (rt) => (rt.flags.stage || 0) > k + 1 || (!!rt.flags.ending && rt.tracker?.main !== false) }));
 t07_ganjaku.date = () => '天正十五年四月一日　初夏';
-t07_ganjaku.history = '天正十五年（1587）四月一日。九州へ入った豊臣秀吉の本隊は、秋月種実の持ち城である豊前の岩石城を攻めた。秀吉は馬ヶ岳に陣を置いて岩石山には来ず、養子の羽柴秀勝を大将に、蒲生氏郷が大手から、前田利長（このころの名は利勝）が搦手から攻めた。攻め手はおよそ五千。\n城は岩石山（454m）の頂にあり、大きな岩が天然の守りになる険しい山城だった。秋月方の城兵はおよそ三千、大手を芥田悪六兵衛、搦手を城将の熊井越中守が守ったと伝わる。未明に攻め懸かり、鉄砲を絶え間なく撃ちかけて、城は日の暮れる前に落ちた。城兵の四百ほどが討たれ、熊井越中守も討死した。\n堅い城がたちまち落ちたことで、秋月種実は益富城を捨てて古処山へ退き、やがて戦わずに降った。豊臣軍の九州の進撃は一気に速まった。';
+t07_ganjaku.history = '天正十五年（1587）四月一日。九州へ入った豊臣秀吉の本隊は、秋月種実の持ち城である豊前の岩石城を攻めた。秀吉は馬ヶ岳に陣を置いて岩石山には来ず、養子の羽柴秀勝を大将に、蒲生氏郷が大手から、前田利勝（のちの利長）が搦手から攻めた。攻め手はおよそ五千。\n城は岩石山（454m）の頂にあり、大きな岩が天然の守りになる険しい山城だった。秋月方の城兵はおよそ三千、大手を芥田悪六兵衛、搦手を城将の熊井越中守が守ったと伝わる。未明に攻め懸かり、鉄砲を絶え間なく撃ちかけて、城は日の暮れる前に落ちた。城兵の四百ほどが討たれ、熊井越中守も討死した。\n堅い城がたちまち落ちたことで、秋月種実は益富城を捨てて古処山へ退き、やがて戦わずに降った。豊臣軍の九州の進撃は一気に速まった。';
 
 // bot の頭：近い敵を突き、段の行き先へ。門が閉まった時は門を打つ
 t07_ganjaku.botBrain = (b, inp, { goTo }) => {
@@ -534,7 +660,7 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   // 深手の時は味方の陰へ下がって息を整える
   if (u.hp < u.maxHp * 0.35 && Math.hypot(u.pos.x - gc.x, u.pos.z - gc.z) > 4) { goTo(p, inp, gc.x, gc.z, 3); return; }
   const boss = F.hon.units.find((o) => o.name === '熊井越中守' && o.alive);
-  const goal = F.stage <= 2 ? MOUTH : F.stage === 3 ? INNER : boss ? boss.pos : HON;
+  const goal = F.stage <= 1 ? MOUTH : F.stage === 2 ? F.meet : F.stage === 3 ? INNER : boss ? boss.pos : HON;
   // 坂で届かない敵（斜面の上下）と睨み合って止まらない：行き先へ十五秒近づけなければ、六秒は敵を構わず進む
   const gd = Math.hypot(u.pos.x - goal.x, u.pos.z - goal.z), pr = F.botProg || (F.botProg = { s: 0, d: Infinity, t: 0, skip: 0 });
   if (pr.s !== F.stage || gd < pr.d - 3) { pr.s = F.stage; pr.d = gd; pr.t = b.t; }
@@ -549,7 +675,7 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   }
   const at = (q, r = 3) => goTo(p, inp, q.x, q.z, r);
   const nearTo = (q, r) => Math.hypot(u.pos.x - q.x, u.pos.z - q.z) < r;
-  if (F.stage <= 2) { at(MOUTH, 3); return; }
+  if (F.stage <= 2) { at(goal, 3); return; }
   if (F.stage === 3) {
     // 退く敵の後ろから喰違の筋（門の前 → 門の内）を追う。閉まった門は打つ
     const st = t07_ganjaku.gateStruct(b);

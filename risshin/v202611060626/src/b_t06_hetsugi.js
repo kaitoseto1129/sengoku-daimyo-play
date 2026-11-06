@@ -203,7 +203,7 @@ const t06_hetsugi = {
   talk: {
     before: [['大友の使者', '島津家久が豊後へ攻め入り、鶴賀の城を囲んでおります。なにとぞお救いを'], ['仙石秀久', '殿下の先手として九州へ渡ったのは、大友を救うためじゃ'],
       ['長宗我部元親', '島津は退くふりをする。殿下の本隊を待つべし'], ['十河存保', '待てば鶴賀が落ちる。わしは仙石殿に従う'], ['仙石秀久', '軍監はわしじゃ。皆、川を渡れ']],
-    after: [['主人公', '信親殿を、お救いできませなんだ'], ['長宗我部元親', '……生きて戻った者がおる。それでよい']],
+    after: [['主人公', '信親様を、お救いできませなんだ'], ['長宗我部元親', '……生きて戻った者がおる。それでよい']],
   },
   spawn: { x: START.x, z: START.z, heading: Math.PI },
   world: {
@@ -450,6 +450,10 @@ const t06_hetsugi = {
           fl([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }], flag));
         g.mon = flag; g.walkSpeed = 2.2; return g;   // 傷を負って足が遅い（追手に追い付かれる）
       });
+      // 11/9 七：フロイス「他国の者は浅瀬を知らず、多くが溺れた」。浅瀬を外れて深みへ入る土佐の者（本人の渡る浅瀬の川下、四十 m 余り）
+      F.deep = allyGroup(rt, { name: '浅瀬を外れた者', anchor: { x: -30, z: -16 }, facing: 0, width: 4, aggro: 0, seekRange: 0, speed: 2.4, order: 'move', noRout: true },
+        fl([{ type: 'ashigaru', n: 5, o: { flagScale: 1 } }], 'chosokabe'));
+      F.deep.mon = 'chosokabe'; F.deep.dest = { x: -30, z: 40 }; F.drown = 0;
       // 包みの島津は河原まで追う
       for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) this.go(b, { x: FORD.x + (b === B.honjo ? 30 : b === B.niiro ? -20 : 0), z: -18 }, 2.2, { charge: true });
     } else if (n === 5) {
@@ -702,6 +706,15 @@ const t06_hetsugi = {
         if (g.order === 'hold' && g.kind !== 'main' && !g.cut) { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
       }
       if (!F.breath) { F.breath = true; P.hp = Math.max(P.hp, P.maxHp * 0.7); }
+      // 浅瀬を外れた者は、川の真ん中（腰より深い所）で冬の速い流れに足を取られて沈む（四人まで。浅瀬の内では沈まない）
+      if (live(F.deep) && F.drown < 4 && !(F.drownT > rt.t)) {
+        const W = rt.world, offFord = (x) => Math.abs(x - FORD.x) > FORD.w && Math.abs(x - FORD2.x) > FORD2.w;
+        const u = F.deep.units.find((v) => v.alive && !v.gone && offFord(v.pos.x) && (W.waterDepthAt?.(v.pos.x, v.pos.z) || 0) > 0.7);
+        if (u) {
+          F.drownT = rt.t + 2.2; F.drown++; rt.army.kill(u, null);
+          if (F.drown === 1) rt.say('土佐の足軽', '深みじゃ！　足が届かぬ……！', 2.4);
+        }
+      }
     }
     // 遠く離れた本物の敵は去らせる（重さ）
     if (F.step === 5) for (const g of F.foes) if (!g.cut) for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, P.pos) > 110) rt.army.despawn(u);
@@ -721,7 +734,7 @@ const t06_hetsugi = {
     const A = this.talk.after;
     rt.after(1.2, () => rt.say(nm(rt), A[0][1], 3.2));
     rt.after(4.6, () => rt.say(A[1][0], A[1][1], 3.6));
-    rt.after(8.6, () => rt.say('大友の使者', '仙石殿は讃岐へ逃げられた由……。鶴賀も府内も、もう持たぬ', 3.4));
+    rt.after(8.6, () => rt.say('大友の使者', '仙石殿は豊前の小倉へ落ちられた由……。鶴賀も府内も、もう持たぬ', 3.4));
     rt.finish({ scriptedEnd: true }, 13);
   },
 

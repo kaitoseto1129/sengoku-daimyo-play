@@ -16,7 +16,7 @@ import { goten } from './castle_parts.js';
 import { tabaGeo, tabaMat } from './taketaba.js';
 import { sfx } from './audio.js';
 import { battleEvent, EVENT_VOLLEY, EVENT_MESSENGER, EVENT_RETREAT } from './battle_events.js';
-import { sightPoint } from './battle_sight.js';
+import { sightPoint, sightUnit } from './battle_sight.js';
 import { sendOrder } from './denrei.js';
 import { seasonOf, sky } from './b_shared.js';
 import { depthTick } from './b_depth.js';
@@ -860,17 +860,19 @@ function shFenceFoot(rt, fence, ground) {
   }
   const pose = new THREE.Object3D(), col = new THREE.Color();
   // 土の盛り：低く潰した塊を杭ごとに寄せ、続く畝に見せる。
-  const clodGeo = new THREE.DodecahedronGeometry(1, 0);
-  clodGeo.translate(0, -0.35, 0);
+  // 11/6 fixc0504（八1）：十二面の塊は近くで茶色の角ばった板に見えた。丸い低い盛りにして地に半分埋める
+  const clodGeo = new THREE.SphereGeometry(1, 9, 5);
+  clodGeo.translate(0, -0.5, 0);
   const soil = new THREE.InstancedMesh(clodGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), clods.length);
   clods.forEach(([x, z, r], i) => {
     pose.position.set(x, ground.heightAt(x, z), z);
     pose.rotation.set(0, Math.sin(z * 2.7) * 0.3, 0);
-    pose.scale.set(r * 1.0, r * 0.5, r * 1.6); pose.updateMatrix(); soil.setMatrixAt(i, pose.matrix);
+    pose.scale.set(r * 1.1, r * 0.4, r * 1.7); pose.updateMatrix(); soil.setMatrixAt(i, pose.matrix);
     const k = 0.5 + 0.5 * Math.sin(z * 1.9 + x * 0.7);
-    soil.setColorAt(i, col.setRGB(0.12 + k * 0.04, 0.10 + k * 0.03, 0.065 + k * 0.02));
+    soil.setColorAt(i, col.setRGB(0.20 + k * 0.05, 0.17 + k * 0.04, 0.10 + k * 0.03));
   });
-  soil.receiveShadow = true; soil.computeBoundingSphere(); rt.scene.add(soil);
+  // 11/6 fixc0504（八1）：丸めても柵の足もとで黄土の平たい板が並んで見えた（1600×900 の写真）。盛り土は地面の絵に任せて置かない
+  soil.receiveShadow = true; soil.computeBoundingSphere(); soil.dispose();
   // 逆茂木：伐った枝の幹を地に伏せ、尖らせた枝先を東（敵の側）へ斜めに突き出す。
   const parts = [], up = new THREE.Vector3(0, 1, 0);
   const stick = (a, b, r0, r1, color) => {
@@ -1406,6 +1408,26 @@ function nfTick(rt, dt) {
     }
     return;
   }
+  // 11/6 fixc0504（一5・九4）：追い討ちの組・槍組は本人の脇を同じ速さで進む（本人一人が先に殿へ当たらない）。
+  //   離れた隊だけ本人の脇へ行き先を出し直し、殿の近くでは隊ごと槍を向ける
+  if (N.step >= 4 && F.chaseOut && (N.escT = (N.escT || 0) - dt) <= 0) {
+    N.escT = 0.5;
+    const nearRear = N.step === 5 && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 45;
+    F.chaseOut.forEach((q, i) => {
+      if (!nfReady(q)) return;
+      if (q.isPlayerSquad) { if (q.order !== 'follow' && !nearRear) q.order = 'follow'; return; }
+      const c = q.center(), d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (nearRear && d < 30) { if (q.order !== 'attack') { q.order = 'attack'; q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false; q.seekRange = 40; q.aggro = 14; q.fire = true; q.holdFire = false; } return; }
+      if (d > 12 && p.x > SB.x0 + 2) {
+        // 本人の左右へ並ぶ（後ろに付けると、前を向く画面に味方が一人も映らなかった）
+        const goal = N.step === 5 ? NF_REAR : NF_BANK, gl = Math.hypot(goal.x - p.x, goal.z - p.z) || 1, fx = (goal.x - p.x) / gl, fz = (goal.z - p.z) / gl;
+        const s = i % 2 ? 1 : -1, side = s * (5 + (i >> 1) * 3), ahead = 2 - (i >> 1) * 2;
+        const tx = p.x + fx * ahead - fz * side, tz = p.z + fz * ahead + fx * side;
+        if (q.order !== 'move' || !q.dest || Math.hypot(q.dest.x - tx, q.dest.z - tz) > 8) { q.order = 'move'; q.path = null; q.dest = { x: tx, z: tz }; q.onArrive = null; }
+        q.speed = d > 24 ? 5.6 : 5;
+      }
+    });
+  }
   // ― 4：進み太鼓。柳田前の虎口を出て、連吾川を渡る ―
   if (N.step === 4) {
     if (p.x > rengoX(p.z) + 9) {
@@ -1422,8 +1444,10 @@ function nfTick(rt, dt) {
       rt.banner('馬場信春、討死', '退き口の殿が崩れた');
     }
     if (baba?.alive) baba.invuln = false;
-    if (Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 34) N.babaFight = (N.babaFight || 0) + dt;
-    if (!N.babaDead && baba?.alive && (nfRearNear(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 70)) rt.army.kill(baba, null);
+    // 11/6 fixc0504（三2・遊びの長さ）：殿は段丘の坂の下（退き口から四十メートルほど）で組と槍を合わせる。
+    //   退き口から三十四メートル内しか数えず、坂の下の斬り合いが四分続いて八分半の戦になった
+    if (Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60) N.babaFight = (N.babaFight || 0) + dt;
+    if (!N.babaDead && baba?.alive && (nfRearNear(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     if ((N.babaDead || nfRearNear(rt) <= 2) && !N.done[3]) {
       N.done[3] = true; N.step = 6;
@@ -1466,6 +1490,7 @@ function nfCollapse(rt) {
     F.chasers = [-10, 10].map((dz, i) => allyGroup(rt, { faction: 'oda', name: i ? '佐々の槍組' : '前田の槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: -26, z: gz + dz }, facing: Math.PI / 2, width: 10, aggro: 10, formation: 'column' },
       [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }]));
     const out = [...F.chasers, ...F.spears, ...F.guns.filter((q) => q.anchor.z < 200), ...(rt.squadGroups || [])].filter((q, i, a) => q && a.indexOf(q) === i && nfReady(q));
+    F.chaseOut = out;
     out.forEach((q, i) => {
       q.noRout = true; q.focus = null; q.roadColumn = true; q.formation = 'column'; q.colW = 2; q.speed = Math.max(q.speed || 3, 3.6);
       if (q.isPlayerSquad) { q.order = 'follow'; return; }
@@ -1520,10 +1545,48 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.sh-battle #armybar
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.sh-battle #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; }
-html:root body #hud#hud#hud.sh-battle :is(.threat.edge, #boss.edge) { display:none !important; }`;
+html:root body #hud#hud#hud.sh-battle :is(.threat.edge, #boss.edge) { display:none !important; }
+/* 11/6 fix61（五2・五1）：柵の陰へ寄る「隠」の盾と人形の丸は意味が読めない。柵の内の守りは組頭の声と▼で足りる */
+html:root body #hud#hud#hud.sh-battle .cover-guide { display:none !important; }`;
   document.head.appendChild(style);
+  // 11/6 fixc0504（九3）：共通の▼は近い数人だけ。四十 m 内の見える敵（寄せ手・殿の兵）には一人残らず同じ赤い▼を付ける。
+  //   印は使い回し、毎コマ作らない。
+  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
+  box.setAttribute('aria-hidden', 'true');
+  hud.root.appendChild(box);
+  hud.foeMarks = function (battle) {
+    const out = foeMarks.call(this, battle);
+    if (battle !== rt) return out;
+    const me = rt.player.u;
+    const on = me.alive && !rt.over && !rt.flags.ending && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    let n = 0;
+    if (on) for (const u of rt.army.units) {
+      if (n >= 80) break;
+      if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
+          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      if (!(u._shSeenAt > rt.t - .34 && u._shSeenAt <= rt.t)) { u._shSeen = sightUnit(rt, u); u._shSeenAt = rt.t; }
+      if (!u._shSeen) continue;
+      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
+      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      let el = tris[n];
+      if (!el) {
+        el = tris[n] = document.createElement('span');
+        el.textContent = '▼';
+        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
+        box.appendChild(el);
+      }
+      n++;
+      el.hidden = false;
+      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
+    return out;
+  };
   const dispose = rt.world.dispose.bind(rt.world);
   rt.world.dispose = () => {
+    if (hud.foeMarks !== foeMarks) hud.foeMarks = foeMarks;
+    box.remove();
     if (hud.progress !== hudProgress) hud.progress = hudProgress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     root?.classList.remove('sh-battle');
@@ -1553,6 +1616,7 @@ const shitaragahara = {
   noLeaderFollow: true,
   goalSignNoLabel: true, // 11/4 jin：▼の上に字を出さない（字は使わない・kaito 10/23）
   noTravelArrow: true, // 11/4 jin（AV15・BH6）：足元・画面の端の矢印は描かない
+  noGoalCount: true, // 11/6 fix61（五3）：目標の相手（馬場隊・真田隊）を指す画面の端の赤い矢印（goal_count.js）も出さない
   actionGuideTarget: () => null, // 11/4 jin：追い討ちで殿の兵の上に「ここを攻める」の札を出さない（敵は頭上の赤い▼、行き先は金の▼一つ）
   goalSignOnly: true, // 持ち場の旗・輪・枠のピンも重ねず、頭上の金の▼だけ（場所は missionPin が決め、goals5 の goalTarget が同じ所を指す）
   noDodgeCard: true,
@@ -1586,7 +1650,7 @@ const shitaragahara = {
   },
   // 民は war_people の共有する形で描く。兵の名簿・人数・当たり・戦功へ加えない。
   civilianCrowd: { bounds: { minX: -740, maxX: 740, minZ: -740, maxZ: 740 }, bands: PEOPLE_BANDS },
-  singlePassageArrow: true, // 次に通る柵のすき間を、一つの矢印で示す。
+  singlePassageArrow: false, // 11/6 fix61（五3）：柵のすき間を矢印で示さない
   compactHoldGuide: true, // 持ち場の中心には輪と矢印を置く。
   compactGroundGoalRing: true, // 輪の太さと最小径を抑え、足元の兵や落ちた武具を見せる。
   compactGuardPostRing: true, // 到着後の守備の輪にも小さい表示を適用する。
@@ -1707,48 +1771,11 @@ const shitaragahara = {
   retreatGuidePath: shRetreatPath,
   // 反撃を受ける間は敵への向きと守りを先に示し、札と矢印を揃える。
   routeGuidePriority: (rt) => !!rt.flags.pursuit && rt.flags.tsuigeki?.stage < 3 && !shChaseCounter(rt),
-  movePathDirection: true, // 浅瀬が画面外でも、旗だけでなく実際に進む向きを示す。
-  routeWaymarks: true, // 岸から渡り口まで、既存の経路へ矢印を並べる。
+  movePathDirection: false, // 11/6 fix61（五3）：浅瀬の道筋の矢印・柵の口の矢印は出さない（行き先は真上の▼一つ）
+  routeWaymarks: false,
   routeWaymarkLabel: 'ここを渡る',
-  guidePath(rt, marker) {
-    const F = rt.flags, T = F.tsuigeki;
-    if (!F.pursuit || F.ending || T?.stage !== 1 || marker?.id !== 'pursuit_road') return null;
-    if (F.fordGuidePath) return F.fordGuidePath;
-    const z = T.points[1].z;
-    for (let i = 1; i < RENGO.length; i++) {
-      const a = RENGO[i - 1], b = RENGO[i];
-      if (z < a[1] || z > b[1]) continue;
-      const x = a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]);
-      // 浅瀬の手前の岸から、実際の渡河先まで。経路と到着の判定は変えない。
-      const path = [{ x: x - 8, z }, { x: T.points[1].x, z }];
-      return F.fordGuidePath = path;
-    }
-    return null;
-  },
-  routeSignPoint(rt, fallback) {
-    const frame = this.placeFrame(rt);
-    if (!frame) return fallback;
-    const point = rt.flags.passagePoint || (rt.flags.passagePoint = { x: 0, y: 0, z: 0 });
-    point.x = (frame[2].x + frame[3].x) / 2;
-    point.y = (frame[2].y + frame[3].y) / 2;
-    point.z = (frame[2].z + frame[3].z) / 2;
-    return point;
-  },
-  placeFrame(rt) {
-    const F = rt.flags;
-    if (!F.pursuit || F.ending || F.tsuigeki?.stage !== 0) return null;
-    // 三重の柵で次に通る口を囲む。ずれた三列すべてを通れる幅に合わせる。
-    const p = rt.player.u.pos;
-    const row = p.x < SB.x0 - SB.gap - 1 ? 2 : p.x < SB.x0 - 1 ? 1 : 0;
-    const x = SB.x0 - row * SB.gap, z = F.tsuigeki.points[0].z;
-    const frame = F.pursuitFrame || (F.pursuitFrame = Array.from({ length: 4 }, () => ({ x: 0, y: 0, z: 0 })));
-    for (let i = 0; i < 4; i++) {
-      const q = frame[i];
-      q.x = x; q.z = z + (i === 0 || i === 3 ? -1.5 : 1.5);
-      q.y = drawGroundAt(rt.world, q.x, q.z) + (i < 2 ? 3.2 : .1);
-    }
-    return frame;
-  },
+  guidePath: () => null,
+  placeFrame: () => null,
   dodgeLabel: (rt, direction, rain) => direction || 'いまは さがれ',
   // けがの札は体への影響を示す。追撃の下知と逆向きの案内を常時出さない。
   retreatForLimbWounds: false, // 止血後の手足のけがだけでは退かせない。出血と瀕死の案内は残す。
@@ -2031,6 +2058,7 @@ const shitaragahara = {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
+    SH_RT = rt;
     const openingDetail = SETTINGS.quality === 'high';
     // 持ち場の正面、川向こうの田だけに低い畦を据える。道幅と兵の通り方は保つ。
     if (openingDetail) {
@@ -3215,6 +3243,13 @@ const shitaragahara = {
     F.nf = { step: 0, at: rt.t, done: [false, false, false, false] }; F.prepDone = true;
     rt.obj('pursue', NF_TEXT[0], 'main', true);
     shHud(rt);
+    // 11/6 fixc0504（一5・九6）：柵の内の槍の組頭は馬を下りて徒歩で組と並ぶ（柵の内に馬の通る幅は無い）。
+    //   馬の背の本人だけが柵の間の道と追い討ちを駆け抜け、組を百メートル後ろに置いて一人で殿に当たっていた
+    {
+      const P = rt.player;
+      if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; P.hspd = 0; }
+      P.canRide = false; P.horse = P.ownedHorse = null; P.loose = null;
+    }
     rt.say('侍大将', '長篠を救うぞ。柵の内で槍を揃えよ。柵は出るな！', 3.5);
     rt.after(2, () => {
       if (F.ending || F.pursuit || F.frontsStarted) return;
@@ -3527,6 +3562,13 @@ shitaragahara.force = (rt) => ({ a: 38000 - (rt?.flags?.ak || 0) * 40, a0: 38000
 // 持ち場へ着き、仲間と並べてから待ち時間だけを飛ばす。
 // 11/6 fixc1721：待ちを飛ばす釦は出さない（夜明けの知らせから九秒で寄せが始まる）
 shitaragahara.canSkip = () => '';
+// 11/6 fixc0504（二1・三1）：柵の守りの間に将の決まり声「敵は怯んだぞ！押し込め！」で柵の外へ誘わない（信長公記：柵から出ずに撃ち退けた）
+let SH_RT = null;   // 今の戦（generalLines は rt を受け取らない）
+shitaragahara.generalLines = (name, scene) => {
+  if (scene !== 'pushing' && scene !== 'enemyFlee') return undefined;
+  if (SH_RT?.flags?.pursuit) return scene === 'pushing' ? ['組と並べ！　殿の槍を崩せ！'] : ['離れるな！　組と並んで追え！'];
+  return scene === 'pushing' ? ['柵から出るな！　引き付けて放て！', '槍は柵の口で揃えよ！'] : ['追うな！　柵の内で進み太鼓を待て！'];
+};
 // 織田家編では、味方の紋を織田の木瓜に
 shitaragahara.sides = { a: { name: '織田・徳川軍', get mon() { return scenarioKey() === 'oda' ? 'oda' : 'tokugawa'; } }, b: { name: '武田軍', mon: 'takeda' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）

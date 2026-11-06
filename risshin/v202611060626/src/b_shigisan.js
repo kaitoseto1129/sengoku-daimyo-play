@@ -39,6 +39,30 @@ import { demRelief, demDetail } from './dem.js';
 import { dressStage } from './stage_dress.js';
 import { rainVolley } from './arrow_rain.js';
 import { castlePart } from './cgt_castle.js';
+import { addTaba, patchGunCover, placeTaba } from './taketaba.js';
+import { makeRockTraps } from './siege_rocks.js';
+
+// 11/6 fix61（十3・二3）：筒井の鉄砲組は竹束を前に立てて尾根道を登る。束は列の頭の二歩半先・道の片側の半分に付き
+//   （後から登る門を打つ組の列は道の中ほどを通る。束は当たりを持たないので、列の筋に置かない）、
+//   組が止まった所でそのまま据える。前からの矢玉は束の陰で防ぐ（共通の taketaba）。
+function tabaTick(rt, dt) {
+  const F = rt.flags;
+  for (const tb of F.sgTabas || []) {
+    const g = tb.sgVan;
+    if (F.step >= 3.2 || gone(g) || g.order !== 'path' || !g.path?.[g.pathIdx]) continue;
+    let lead = null, best = Infinity;
+    const aim = g.path[g.pathIdx];
+    for (const u of g.units) if (u.alive) { const d = Math.hypot(u.pos.x - aim[0], u.pos.z - aim[1]); if (d < best) { best = d; lead = u; } }
+    if (!lead || best < 3.5) continue;
+    const dx = aim[0] - lead.pos.x, dz = aim[1] - lead.pos.z, d = best;
+    const ux = dx / d, uz = dz / d, ahead = 2.5;
+    const tx = lead.pos.x + ux * ahead - uz * tb.sgOff, tz = lead.pos.z + uz * ahead + ux * tb.sgOff;
+    const k = Math.min(1, dt * 2.5);
+    tb.x += (tx - tb.x) * k; tb.z += (tz - tb.z) * k;
+    if (d > 1) tb.rot = Math.atan2(ux, uz);
+    placeTaba(rt, tb);
+  }
+}
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
 //   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
@@ -2830,6 +2854,21 @@ const shigisan = {
       g.path = ROAD.slice(0, start + 1); g.pathIdx = start; g.speed = 0;
       for (const u of g.units) u.moveTo = null;
     });
+    // 竹束：筒井の鉄砲組に二つ（玉込めの間を束の陰で凌ぐ）。門を打つ組は掛矢を抱えるので持たない。
+    patchGunCover(rt);
+    F.sgTabas = [[F.ake, 2], [F.ake, 4]].map(([g, off]) => {
+      // 始めは列の頭の先・登る向きの道の片側に立てておく。
+      const at = ROAD[g.pathIdx], to = ROAD[g.pathIdx + 1], d = Math.hypot(to[0] - at[0], to[1] - at[1]);
+      const ux = (to[0] - at[0]) / d, uz = (to[1] - at[1]) / d;
+      const tb = addTaba(rt, at[0] + ux * 4 - uz * off, at[1] + uz * 4 + ux * off, 0, { fixed: true, rot: Math.atan2(ux, uz) });
+      tb.sgVan = g; tb.sgOff = off;
+      return tb;
+    });
+    // 落石：木戸の脇の塀の内から、九十九折りの最後の二つの折れへ石を落とす（木戸が開くまで）。
+    //   筋は道を斜めに横切る一本だけにし、列の一人二人が巻き込まれる（列ごと倒さない。b_k03_gifu と同じ考え）。
+    F.rocks = makeRockTraps(rt, { posts: [
+      { id: 'east', team: 1, stock: 3, interval: [14, 20], lane: [[20, -61], [22, -50], [24, -38]], active: () => F.step >= 1 && F.step < 3.2 },
+      { id: 'west', team: 1, stock: 3, interval: [16, 22], lane: [[-6, -61], [-3, -52], [3, -43], [8, -34]], active: () => F.step >= 1 && F.step < 3.2 }] });
     // ---- 木戸の内の弓と鉄砲 ----
     F.arch = enemyGroup(rt, { fixed: true, faction: 'matsunaga', name: '木戸の弓', anchor: { x: 8, z: GATE.z - 3 }, facing: 0, width: 14, aggro: 40, noRout: false, morale: 100, fleeDir: { x: 0, z: -1 }, dmgMult: 1 },
       dress([{ type: 'bow', n: 10 }, { type: 'gun', n: 7 }], MATSU));
@@ -3442,6 +3481,8 @@ const shigisan = {
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
     gateVolley(rt, dt);
+    tabaTick(rt, dt);
+    if (rt.flags.rocks && !rt.over) rt.flags.rocks.tick(dt);
     // 11/6 fixc1429（critic60「灰紫の色の無い人形」「空に兵が浮く」・九5・十5）：持ち場の三十五歩先から置いていた描いただけの乱戦（addClash）をやめた。
     //   軽い兵は近くでは人形に見え、山の斜面の上で空に浮いた。合戦の広さは麓の包囲の備え（遠く）と、本物の兵で見せる。
     const F = rt.flags;

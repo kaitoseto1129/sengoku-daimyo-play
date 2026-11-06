@@ -22,9 +22,29 @@ function snapNode(o, out) {
   if (!o.matrixAutoUpdate && !frozenAutomatic.has(o)) { const e = o.matrix.elements; for (let i = 0; i < 16; i++) out.push(e[i]); }
 }
 
-function snapTree(root) {
+// 一つの大きな城・林も途中で区切る。子をまとめて積まず、巡回の入れ物は深さ分だけ。
+class TreeWalk {
+  constructor(root) { this.stack = [root]; this.indices = [-1]; }
+  next() {
+    const stack = this.stack, indices = this.indices;
+    while (stack.length) {
+      const at = stack.length - 1, o = stack[at];
+      if (indices[at] === -1) { indices[at] = 0; return o; }
+      if (indices[at] >= o.children.length) { stack.pop(); indices.pop(); continue; }
+      const child = o.children[indices[at]++];
+      stack.push(child); indices.push(-1);
+    }
+    return null;
+  }
+}
+function* snapTree(root) {
   const nodes = [], vals = [], offs = [], children = [], parents = [];
-  root.traverse((o) => { nodes.push(o); parents.push(o.parent); children.push(o.children.slice()); offs.push(vals.length); snapNode(o, vals); });
+  let count = 0;
+  const walk = new TreeWalk(root);
+  for (let o; (o = walk.next());) {
+    nodes.push(o); parents.push(o.parent); children.push(o.children.slice()); offs.push(vals.length); snapNode(o, vals);
+    if (++count % 32 === 0) yield;
+  }
   return { nodes, vals, offs, children, parents };
 }
 
@@ -46,22 +66,31 @@ function same(root, s) {
 
 // 幟（userData.flag）は風の向きが変わると向き直る。塊の中にあると、そのたびに塊の全部が「動いた」と見なされて戻る。
 //   凍らせる前に、塊の中の幟を舞台の直下へ移す（見た目の場所は変えない）
-function liftFlags(scene, root) {
+function* liftFlags(scene, root) {
   if (root._flagLift) return;
-  root._flagLift = true;
   const list = [];
-  root.traverse((o) => { if (o !== root && o.userData && o.userData.flag && o.userData.flag.isObject3D) list.push(o); });
-  for (const o of list) if (o.parent) scene.attach(o);
+  let count = 0;
+  const walk = new TreeWalk(root);
+  for (let o; (o = walk.next());) {
+    if (o !== root && o.userData && o.userData.flag && o.userData.flag.isObject3D) list.push(o);
+    if (++count % 32 === 0) yield;
+  }
+  for (const o of list) {
+    if (o.parent) scene.attach(o);
+    if (++count % 32 === 0) yield;
+  }
+  root._flagLift = true;
 }
 // 兵（動く物・まとめて描く時に行列を読まれる物）は凍らせない
-function unitLike(root, moving) {
+function* unitLike(root, moving) {
   if (root.userData?.flag) return true;
-  let hit = false;
-  root.traverse((o) => {
-    if (hit) return;
-    if (moving.has(o) || typeof o.userData?.open === 'function' || typeof o.userData?.fall === 'function' || o.isSkinnedMesh || o.isBone || (o.userData && (o.userData.lod || o.userData.noFreeze)) || (o.isMesh && o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender)) hit = true;
-  });
-  return hit;
+  let count = 0;
+  const walk = new TreeWalk(root);
+  for (let o; (o = walk.next());) {
+    if (moving.has(o) || typeof o.userData?.open === 'function' || typeof o.userData?.fall === 'function' || o.isSkinnedMesh || o.isBone || (o.userData && (o.userData.lod || o.userData.noFreeze)) || (o.isMesh && o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender)) return true;
+    if (++count % 32 === 0) yield;
+  }
+  return false;
 }
 
 // 材質の見た目の印：同じ作りの材質（物ごとに作り直した同じ色・同じ絵の材質）は一つにまとめてよい。
@@ -110,7 +139,7 @@ export class StaticFreezer {
       this.t2 = 0;
       this.observeJob = this.observeSteps();
     }
-    // 景物の調査と結合で二ミリ秒を目安に同じ枠を使う。一塊の途中では切らない。
+    // 景物の調査と結合で二ミリ秒を目安に同じ枠を使う。大きな塊の調査も32節ずつ区切る。
     const end = performance.now() + 2;
     if (this.observeJob && this.t >= this.observeAt) {
       // 時計が粗い端末でも一コマ八塊まで。兵の数・動き・影は変えない。
@@ -134,9 +163,9 @@ export class StaticFreezer {
     for (const c of this.scene.children.slice()) {
       if (c.parent === this.scene && !c._sf && !this.skip.has(c) &&
         !c.isLight && !c.isCamera && !c.isSprite && !c.isPoints && !c.isLine &&
-        c.name !== 'unitBatch' && !(c.userData && (c.userData.noFreeze || c.userData.staticMerged)) && !unitLike(c, moving)) {
-        liftFlags(this.scene, c);
-        candidates.push({ root: c, snap: snapTree(c) });
+        c.name !== 'unitBatch' && !(c.userData && (c.userData.noFreeze || c.userData.staticMerged)) && !(yield* unitLike(c, moving))) {
+        yield* liftFlags(this.scene, c);
+        candidates.push({ root: c, snap: yield* snapTree(c) });
       }
       yield;
     }
