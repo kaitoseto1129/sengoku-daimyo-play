@@ -54,18 +54,29 @@ class Sonae {
   mates() { return (this.rt.sonae || []).filter((s) => s !== this && s.team === this.team); }
   neighbor(side) {
     const want = SLOT_X[this.slot] + (side === 'left' ? -1 : 1);
-    return this.mates().find((s) => s.line === this.line && SLOT_X[s.slot] === want) || null;
+    // 定期判断と一斉敗走のたびに、全備の一時配列を作らない。
+    for (const s of this.rt.sonae || []) {
+      if (s !== this && s.team === this.team && s.line === this.line && SLOT_X[s.slot] === want) return s;
+    }
+    return null;
   }
   left() { return this.neighbor('left'); }
   right() { return this.neighbor('right'); }
   behind() {
     const i = LINE_ORDER.indexOf(this.line);
-    for (let j = i + 1; j < LINE_ORDER.length; j++) {
-      const L = this.mates().filter((s) => s.line === LINE_ORDER[j]);
-      if (!L.length) continue;
-      return L.find((s) => s.slot === this.slot) || L.find((s) => s.slot === 'center') || L[0];
+    let best = null, bestLine = LINE_ORDER.length, bestSlot = 3;
+    // 後ろの最初の線で、同じ持ち場→中央→先頭の優先順を保つ。
+    // 控えが空の時も全備を線ごとに拾い直さず、一度だけ読む。
+    for (const s of this.rt.sonae || []) {
+      if (s === this || s.team !== this.team) continue;
+      const line = LINE_ORDER.indexOf(s.line);
+      if (line <= i || line < 0 || line > bestLine) continue;
+      const slot = s.slot === this.slot ? 0 : s.slot === 'center' ? 1 : 2;
+      if (line < bestLine || slot < bestSlot) {
+        best = s; bestLine = line; bestSlot = slot;
+      }
     }
-    return null;
+    return best;
   }
 
   // ---- 数 ----

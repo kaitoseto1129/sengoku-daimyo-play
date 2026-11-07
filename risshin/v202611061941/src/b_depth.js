@@ -263,7 +263,8 @@ export function fight(o) {
       markFirst(rt, C);
       const g0 = alive(C.groups)[0];
       C.goal = g0 ? g0.center() : C.at;
-      rt.objProgress('dp', `敵 ${heads(C.groups)}人${C.later.length ? '・まだ来る' : ''}`);
+      // 何人中何人を倒したか（十八の2・BZ）
+      rt.objProgress('dp', `敵 ${Math.max(0, (C.nTot || 0) - heads(C.groups))}／${C.nTot || 0}人${C.later.length ? '・まだ来る' : ''}`);
       if (!C.later.length && !alive(C.groups).length && !o.preserveFoes && refill(rt, C, ctx, el, o)) return false;
       return !C.later.length && !alive(C.groups).length;
     },

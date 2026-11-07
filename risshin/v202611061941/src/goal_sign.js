@@ -1,9 +1,5 @@
-// 今の目標の相手が「どれで、どこか」を絵で示す（kaito 11/2 Q「本陣に迫る・後ろの弓組を討つ・林の二の備を退ける など、それがどれでどこにあるか分からない。
-//   地図の印・矢印（前の地面の矢印の方が分かりやすかった）・頭上の名前で、どれのことか必ず分かるように」）。全戦に効く。
-//   ・地面の矢印：自分の前の地面に、相手の方へ向く三つの矢印（地面に寝かせて描く。近づくと消える）
-//   ・頭上の印：相手の真上に金の▼。名のある武将は頭上の名前（field_signs.js）があるので▼だけ、隊や場所は呼び名（「後ろの弓組」）を添える
-//   ・画面の外：画面の縁に呼び名と、その方へ向く▼
-//   相手と場所は goals5.js の goalTarget（右上の地図のひし形も同じ物）。毎コマ new しない。
+// 今の目標の場所と敵を、物陰でも見える画面上の矢印で示す。
+// 画面外では方角を指し、印と投影用の点は使い回す。
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { groundAt } from './floors.js';
@@ -22,14 +18,14 @@ const CSS = `
 #goal-sign[hidden], #hud.photo #goal-sign, #hud.ending #goal-sign, #hud:has(#bigmap:not([hidden])) #goal-sign, body:has(#pause:not([hidden])) #goal-sign { display:none !important; }
 #goal-sign svg { position:absolute; left:0; top:0; width:100%; height:100%; overflow:visible; }
 #goal-sign .gs-tag { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:2px; will-change:transform; }
-#goal-sign .gs-tag span { padding:2px 9px 3px; background:#14120f; border:1.5px solid #e8c25a; border-radius:3px; color:#fff3ba; opacity:.9; font:700 17px/1.3 "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; letter-spacing:.06em; max-width:min(260px, 40vw); box-sizing:border-box; white-space:normal; text-align:center; text-shadow:0 1px 2px #000; }
+#goal-sign .gs-tag span { padding:2px 6px; background:#14120f; border:0; border-radius:3px; color:#fff3ba; font:700 17px/1.3 "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; letter-spacing:.06em; max-width:min(260px, 40vw); box-sizing:border-box; white-space:normal; text-align:center; text-shadow:0 1px 2px #000; }
 #goal-sign .gs-frame { position:absolute; box-sizing:border-box; border:4px solid #fff3ba; border-radius:8px; box-shadow:0 0 0 3px #14120f; }
 /* 命・任務・目印の三枚に収める。 */
 #hud:has(#goal-sign:not([hidden])) :is(#jk-map,#jk-chap,#battle-notices,#tugbar) { display:none !important; }   /* 両軍の兵の数の棒（#armybar）は消さない（九3） */
 #goal-sign .gs-tag span:empty { display:none; }
-#goal-sign .gs-tag i { width:0; height:0; border-left:17px solid transparent; border-right:17px solid transparent; border-top:26px solid #f0cf6a; filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+#goal-sign .gs-tag i { width:30px; height:36px; background:#fff3ba; clip-path:polygon(32% 0,68% 0,68% 52%,100% 52%,50% 100%,0 52%,32% 52%); transform-origin:center; filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
 #goal-sign .gs-sword { position:static; width:30px; height:38px; flex:none; }
-#goal-sign .gs-tag.bob i { animation:gs-bob 1.1s ease-in-out infinite; }
+#goal-sign .gs-tag.bob i { animation:none; }
 @keyframes gs-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(5px); } }
 body.rm #goal-sign .gs-tag i { animation:none !important; }
 @media (prefers-reduced-motion:reduce) { #goal-sign .gs-tag i { animation:none !important; } }
@@ -55,19 +51,11 @@ function proj(rt, x, y, z) {
   v.x = (v.x + 1) * VIEW.w / 2; v.y = (1 - v.y) * VIEW.h / 2;
   return Number.isFinite(v.x) && Number.isFinite(v.y);
 }
-// 行き先の呼び名：目標の相手の名（goals5 の noun）か、任務の印の名。「ここ」を含む言い方は使わない
-function placeName(rt, t) {
-  let n = t.label || '';
-  // 今の目標の相手が同じ所にいれば、その呼び名（「島左近の隊」）
-  if (!n) { const g = goalTarget(rt); if (g?.label && Math.hypot(g.x - t.x, g.z - t.z) < 30) n = g.label; }
-  if (!n) {
-    const m = rt.missionGuide?.marker;
-    const l = String((typeof m?.label === 'function' ? m.label() : m?.label) || '');
-    n = goalNoun(l) || (l.length <= 9 ? l : '');
-  }
-  return /ここ|この|そこ/.test(n) ? '' : n;
-}
 function hide() { if (el && !el.hidden) { el.hidden = true; el._tw = 0; } }
+
+function placeName(rt, t) {
+  return t.label || t.unit?.name || goalNoun(rt.missionGuide?.objective?.text);
+}
 
 export function goalSignTick(rt, root) {
   const hud = rt?.hud;
@@ -87,14 +75,14 @@ export function goalSignTick(rt, root) {
   const destination = off ? null : missionTarget(rt);
   const ownGuide = !off && rt.def?.goalSignOff?.(rt);
   const normal = off || ownGuide ? null :
-    rt.def.goalSignTarget ? rt.def.goalSignTarget(rt) : (rt.def.goalSignOnly && destination && !destination.enemy ? destination : null) || goalTarget(rt) ||
+    destination?.route ? destination : rt.def.goalSignTarget ? rt.def.goalSignTarget(rt) : (rt.def.goalSignOnly && destination && !destination.enemy ? destination : null) || goalTarget(rt) ||
     // 目標の表（goals5）を持たない戦は、任務の行き先（旗と矢印のピンが指していた所）へ▼を立てる（11/6 共通の係：ピンを全戦でやめた代わり）
     (destination && !destination.enemy && Number.isFinite(destination.x) ? destination : null);
   // 指定の敵・ついて行く本人を先にする。作業や守備の場所には割り込まない。
   const explicit = rt.def.actionGuideTarget;
   // 地面のピンを使う戦は、任務が選んだ一点だけ。見える敵の▼へ渡した後に別の人物印を復活させない。
-  // 任務で指定した敵は、通れる道の印と同時に本人の頭上へ示す。
-  const assigned = !off && !ownGuide && (!destination || destination.route || destination.enemy) ? markedEnemy(rt) : null;
+  // 回り道が要る時は通れる口を示し、近づいてから相手の頭上へ切り替える。
+  const assigned = !off && !ownGuide && (!destination || destination.enemy) ? markedEnemy(rt) : null;
   let unit = rt.def.goalSignGroundPin || off || ownGuide && !explicit ? null : explicit ? explicit.call(rt.def, rt) :
     assigned || destination?.followUnit || (destination?.follow ? destination.unit : null) ||
     (!destination || destination.enemy || destination.unit && destination.unit.team !== rt.player.u.team ? markedEnemy(rt) : null) ||
@@ -116,13 +104,13 @@ export function goalSignTick(rt, root) {
   const t = unit ? actionPoint : normal;
   if (!t || !unit && (hud?.notices?.picks.length || 0) >= 3) return hide();
   // 行き先に着いたら、その▼は消す（次の目標の行き先が決まれば、そこへ新しく立つ。kaito 11/5 九の1）
-  if (!unit && (t.arrived || Math.hypot(t.x - rt.player.u.pos.x, t.z - rt.player.u.pos.z) < (t.radius || 6))) return hide();
+  if (!unit && (t.arrived || Math.hypot(t.x - rt.player.u.pos.x, t.z - rt.player.u.pos.z) < (t.radius ?? t.r ?? 6))) return hide();
   if (!el) build(root);
   if (el.parentNode !== root) root.appendChild(el);
   el.hidden = false;
   const p = rt.player.u.pos;
   const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
-  // 地面の矢印は全戦でやめた（kaito 11/3 AP12）。行き先は頭上の▼だけ
+  // 矢印は画面へ重ね、地形や兵に隠れないようにする。
   let path = '';
   // 頭上の▼と呼び名
   const u = t.unit;
@@ -166,7 +154,8 @@ export function goalSignTick(rt, root) {
   const metres = `${Math.round(d / 5) * 5}メートル`;
   const shown = !unit && d >= 10 ? (label ? `${label} ${metres}` : metres) : label;
   const frame = enemy && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
-  el._frame.hidden = !frame;
+  // 名のある敵将を枠で囲わない（名は頭上の名札で出す。探して倒すのが良い。十八の3・BZ）。枠は印の高さ合わせにだけ使う
+  el._frame.hidden = true;
   if (frame) {
     el._frame.style.left = ((frame.left + frame.right - Math.max(44, frame.right - frame.left)) / 2) + 'px';
     el._frame.style.top = frame.top + 'px';

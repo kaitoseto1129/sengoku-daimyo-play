@@ -780,6 +780,9 @@ takato.botBrain = (rt, inp, helpers) => {
           axis.x = Math.sin(p.yaw - walk); axis.y = -Math.cos(walk - p.yaw);
           inp.axis = axis;
         }
+        // 構え歩きは毎秒二歩。調べた退路と出足の余裕があれば、追手を向いたまま駆けて離れる。
+        // 届く直前の刃・息切れ・塞がった退路では受けを残す。
+        if (moving && !p.winded && p.sta > .5 && soonest > .35) inp.guardHold = false;
         // 印へ着いても追手が次の突きへ入る前に、気力を待たず駆けて離れる。
         // 遠い敵や順番待ちの兵だけなら、その場で手当てを待つ。
         const closing = foe.target === p.u && !foe.playerQueue && gap <= (foe.reach || 2.8) + 1;

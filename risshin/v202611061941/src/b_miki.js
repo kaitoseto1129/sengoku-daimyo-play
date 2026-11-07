@@ -17,7 +17,6 @@ import { WIND_STATE } from './world.js';
 import { setCastleMask } from './castle_mask.js';
 import { monomi, horiboriHeight } from './castle_parts.js';
 import { denseCamp } from './castle_bldg.js';
-import { castlePart } from './cgt_castle.js';
 import { gradeOf, copyGrade } from './grade.js';
 import { MIKI_JO, MIKI_KURUWA, MIKI_HONJIN_OFFSET, MIKI_ROAD, TSUKESHIRO_CHAIN, MIKI_BRANCHES, MIKI_HORI, MIKI_FORTS as BASE_FORTS } from './castles/miki.js';
 import { placeGroup } from './b_opening.js';
@@ -950,7 +949,8 @@ function mikiFarFort(rt, q) {
   // 大きな付城の口に板の櫓門（冠木門の上に板壁の渡櫓・板葺きの屋根）。柵と井楼だけの囲いが箱と棒に見えた（10/31 採点 近道1・形は推定）。
   if (q.big) {
     const am = (Math.round(n / 4) + 0.5) / n * Math.PI * 2;
-    castlePart(W, 'yaguramon', { x: q.x + Math.sin(am) * q.r, z: q.z + Math.cos(am) * q.r, rot: am, w: 3.6, len: 7.4, D: 3.8 }, { era: 'early' });
+    // 11/7 miki_re（critic 寺のような御殿）：反った屋根の櫓門は奥で寺の楼門に見えた。急ぎの陣城の口は屋根の無い冠木門の木戸だけ
+    rt.scene.add(kabukimon(W, q.x + Math.sin(am) * q.r, q.z + Math.cos(am) * q.r, 3.6, am, { doors: false, roof: false }));
     // 11/6 fixc1901_miki（四5・十一2）：石の台の二重櫓（寺の御殿に見えた）はやめる。急ぎの陣城に石垣と二重の櫓は無い
   }
   // 11/6 fixc1901_miki（四5・十一2）：井楼は土の櫓台の上の低い物（人の五倍ほど）。十五倍の格子の塔を二本立てない
@@ -978,7 +978,8 @@ function mikiSlopeFields(rt) {
       if (W.inWaterAt((x0 + x1) / 2, (z0 + z1) / 2) || nearRoad((x0 + x1) / 2, (z0 + z1) / 2)) continue;
       // 端の一列は畦（暗い土）。中は刈り株の列と土の筋を交互に
       const edge = j === 0 || j === nz - 1 || i === 0 || i === nx - 1;
-      c.setHex(edge ? 0x4e4330 : j % 2 ? 0xb39c62 : 0x7d6a45).multiplyScalar(.92 + .08 * Math.sin(i * 1.7 + j * .9));
+      // 11/7 miki_re（critic 八1）：黄と黒の縞の板に見えた。刈り株と土の差を小さくし、畦も地の土に寄せる
+      c.setHex(edge ? 0x5f5139 : j % 2 ? 0x9a8659 : 0x85724d).multiplyScalar(.92 + .08 * Math.sin(i * 1.7 + j * .9));
       for (const [x, z] of [[x0, z0], [x0, z1], [x1, z1], [x0, z0], [x1, z1], [x1, z0]]) { pos.push(x, W.heightAt(x, z) + (edge ? .09 : .05), z); col.push(c.r, c.g, c.b); }
     }
   }
@@ -1274,8 +1275,11 @@ function mikiNearestFoe(rt) {
 }
 // 11/6 fix61_miki（九1・九3・十二1）：共通の戦の札（battle-order）は右上を今の一行にし、①〜⑤の並びと両軍の数の棒を隠す。
 //   箕作と同じ作りで、この戦の間だけ目標の五つ（goals5 の miki）を最初から並べ、上の両軍の数の棒を出し、四十メートル内の見える敵全員に赤い▼を付ける。
+//   11/7 miki_re：共通の札が今の一件だけ（「目標を開く」）になり、数の棒も金の▼が出る間は隠れたので、この戦では五つ全部と数の棒を出したままにする。
 const MIKI_BOARD_CSS = `
-html:root body #hud#hud#hud.miki-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud#hud#hud.miki-goals #armybar#armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; }
+html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals .goals-toggle { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #armybar .clock { visibility:hidden !important; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.miki-goals #armybar { visibility:hidden !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
@@ -1934,6 +1938,10 @@ const miki = {
         // 10/31：夜の仕上げ（色を二割抜き、陰を青く）で胴・陣笠の朱と茶が灰になっていた。三木の夜明けだけ色を残し、陰の青みを弱め、少し明るく。
         const g = look.grade = copyGrade(gradeOf('night'));
         g.saturation = .93; g.exposure = 1.4; g.shadow.set(.96, .98, 1.01); g.light.set(1.01, 1.0, .98);
+      } else if (key === 'morning') {
+        // 11/7 miki_re（critic 二2・九7）：未明から四分ほどの戦。真昼の白い空にせず、日の出すぐの低い光と朝靄のまま
+        look.sky.lerp(dawnSky, .35); look.fog.lerp(dawnSky, .3); look.top.lerp(dawnSky, .25);
+        look.sunI *= .75; look.hemiI *= .85; look.vis = Math.min(look.vis, 360); look.cloud *= .6;
       }
       return look;
     };
