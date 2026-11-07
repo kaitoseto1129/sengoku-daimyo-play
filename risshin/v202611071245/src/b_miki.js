@@ -83,10 +83,13 @@ function mikiCampStores(rt) {
   for (const [x, z] of [[HIRATA.x - 3, HIRATA.z - 9], [HONJIN.x - 7, HONJIN.z - 13]]) {
     const lod = new THREE.LOD(), near = new THREE.Group();
     const stores = new THREE.Mesh(geometry, material); stores.receiveShadow = true;
-    near.add(stores, pot.clone()); lod.addLevel(near, 0); lod.addLevel(new THREE.Group(), 65);
-    lod.position.set(x, W.heightAt(x, z), z); rt.scene.add(lod);
+    // 鍋は道具置き場の原点から離れる。斜面でも焚き火と同じ足元へ据える。
+    const ground = W.heightAt(x, z), potGround = W.heightAt(x + 1.3, z + .3);
+    const cooking = pot.clone(); cooking.position.y = potGround - ground;
+    near.add(stores, cooking); lod.addLevel(near, 0); lod.addLevel(new THREE.Group(), 65);
+    lod.position.set(x, ground, z); rt.scene.add(lod);
     // 炎上ではなく炊事の細い煙。既存の風・煙の共有枠へ二本だけ入れる。
-    W.addSmokeColumn(x + 1.3, W.heightAt(x, z) + .15, z + .3, { size: .22 });
+    W.addSmokeColumn(x + 1.3, potGround + .15, z + .3, { size: .22 });
     const f = W.addFire(x + 1.3, z + .3, { h: .08, size: .16, lightRadius: 2, smoke: false });
     W.batchFireFlames(f.flame, f.inner);
   }
@@ -2836,15 +2839,18 @@ const miki = {
       for (const g of [F.guard, F.hirata]) if (!gone(g)) g.morale = Math.max(0, g.morale - 6);
       return;
     }
-    // 城兵が木戸へ寄せて二十秒、大膳は木戸の前で城兵に討たれる（史実では平田で討死）。平田の守りが崩れた時も同じ
-    let killer = null, kd = 30;
+    // 討死の場面も実際に刃が届く所だけ。木戸の近くにいるだけの敵や柵越しの敵に討たせない。
+    let killer = null, kd = Infinity;
     for (const g of F.sallies) for (const e of g.units) {
-      if (!e.alive || e.fleeing || e.noTarget) continue;
-      const d = Math.hypot(e.pos.x - GATE.x, e.pos.z - GATE.z);
+      if (!e.alive || e.fleeing || e.woundOut || e.noTarget || e.downed || e.type === 'gun' || e.type === 'bow') continue;
+      const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      if (d > Math.min(3.2, (e.reach || 1.8) + .4) || Math.abs(e.pos.y - u.pos.y) > 1.5 ||
+        rt.army.terrainBlocks(e.pos, u.pos) || rt.army.wallBetween(e.pos, e.team, u.pos)) continue;
       if (d < kd) { kd = d; killer = e; }
     }
-    if (killer && F.taniNearT == null) F.taniNearT = rt.t;
-    if (killer && (rt.t - F.taniNearT > 20 || gone(F.hirata))) {
+    if (!killer) { F.taniNearT = null; return; }
+    if (F.taniNearT == null) F.taniNearT = rt.t;
+    if (rt.t - F.taniNearT > 20 || gone(F.hirata)) {
       u.fleeing = false; u.invuln = false; u.hp = 0; rt.army.kill(u, killer);
     }
   },
@@ -3271,7 +3277,11 @@ const miki = {
       if (left <= 10 || rt.t - (F.omuraGoT ?? rt.t) > 80) {
         F.lastStand = true; F.reserve.focus = rt.player.u; F.reserve.seekRange = 90; F.reserve.order = 'attack';
         for (const u of F.reserve.units) { u.target = null; u.watch = null; u.aiT = 0; }
-        rt.say('別所甚太夫', '城へは戻らぬ。ここで討死いたす！', 4);
+        const jin = F.reserve.units.find(u => u.name === '別所甚太夫');
+        if (jin?.alive && !jin.woundOut && !jin.noTarget && !jin.fleeing && !jin.downed &&
+          Math.hypot(jin.pos.x - p.x, jin.pos.z - p.z) < 24 &&
+          weatherSees(rt.world, p, jin.pos) && !rt.army.terrainBlocks(p, jin.pos) &&
+          !rt.army.wallBetween(p, -1, jin.pos)) rt.say('別所甚太夫', '城へは戻らぬ。ここで討死いたす！', 4);
       }
     }
     if (left <= 30 && !F.deadlineSaid) { F.deadlineSaid = true; rt.bark('退く下知が迫るぞ。味方と敵を押し返せ', true); }
@@ -3430,4 +3440,3 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 // 11/4 jin（一6）：秀長の当日の居場所は確かでない（JIN の注）。いない所に置かない
 miki.bushou = ['蜂須賀正勝', { name: '谷衛好', g: /平田/ }, { name: '別所吉親', g: /城から出た別所勢|大村の控え/ }, { name: '生石治家', g: /荷駄/ }];
 export { miki };
-

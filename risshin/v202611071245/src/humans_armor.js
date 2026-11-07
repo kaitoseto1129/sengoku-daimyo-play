@@ -206,6 +206,16 @@ function loadKabuto() {
     // 名のある武将の兜の材質を先に作っておく（戦の中で new しない）
     for (const nm of new Set([...Object.keys(GENERALS), ...Object.keys(KB_BY)])) { const st = kabutoStyle({ face: 'g:' + nm }); kabutoMat(st, !!st.mon && !!KB.fuki[0] && !!KB.fuki[1]); }
     KABUTO.ready = true;
+    // Rodin で作った武将の兜（メトロポリタン美術館の筋兜・阿古陀形 16世紀を手本。docs/rodin_1107.md）。RODIN_KB の武将だけ。読めなければ今の兜のまま
+    try {
+      const rg = await new GLTFLoader().parseAsync((await assetBytes('rodin_busho_kabuto')).buffer, '');
+      rg.scene.updateMatrixWorld(true);
+      let g = null, mat = null; rg.scene.traverse((o) => { if (o.isMesh && !g) { g = o.geometry.clone(); for (const k of ['position', 'normal', 'uv']) { const at = g.attributes[k]; if (at && !(at.array instanceof Float32Array)) { const n = at.itemSize, f = new Float32Array(at.count * n); for (let i = 0; i < at.count; i++) { f[i * n] = at.getX(i); f[i * n + 1] = at.getY(i); if (n > 2) f[i * n + 2] = at.getZ(i); } g.setAttribute(k, new THREE.BufferAttribute(f, n)); } } g.applyMatrix4(o.matrixWorld); mat = o.material; } });
+      g.computeBoundingBox(); const bb = g.boundingBox, s = RODIN_KB_W / (bb.max.x - bb.min.x);
+      g.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); g.scale(s, s, s); g.computeBoundingSphere();
+      mat.metalness = 0.3; mat.roughness = 0.5;
+      KB.rodin = { geo: g, mat };
+    } catch (e) { console.warn('Rodin の兜を読めませんでした（今の兜で描きます）', e); }
     // 面頬（denis_cliofas「Menpō - Samurai Mask」CC BY 4.0）：名のある武将で面頬を付ける人に。読めなければ今の打ち出しの面頬のまま
     try {
       const mbuf = await assetBytes('menpo');
@@ -352,6 +362,8 @@ function dressMenpo(h) {
 // ・スキャンの鉢の前の龍は、下の数人だけに残す（ほかの人は龍を鉢へ寄せて潰し、地の漆で塗る）
 // ・吹返しの金の丸は、家紋がある人はその家の紋（金）に替える
 // 龍はスキャンの兜の元の前立。華やかな兜で知られる今川義元だけに残す
+// Rodin（Hyper3D）で作った兜をかぶる武将と、兜の横幅（吹返しの端から端・m）
+const RODIN_KB = new Set(['明智光秀']), RODIN_KB_W = 0.5;
 const KB_DRAGON = new Set(['今川義元']);
 const KB_SABI = new Set(['saito', 'asakura', 'azai', 'rokkaku', 'maru']);
 // 名のある大将は史実の具足に寄せて決める。lac 鉢の漆・crest 前立・fuki 吹返し（lac 鉢と同じ・kin 金・shu 朱・kuro 黒・kawa 革）・odo 威の色
@@ -765,6 +777,13 @@ function shinobiMat(col) {
 }
 function dressKabuto(h) {
   const hd = SRC.rest.Head, k = KB_FIT.s, L = h.look || {};
+  // Rodin の兜の武将：鍬形・吹返しも形と絵に入っているので、前立・紋は足さない
+  if (KB.rodin && RODIN_KB.has(typeof L.face === 'string' ? L.face.slice(2) : '')) {
+    const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + KB_FIT.y + 0.03, hd.z + KB_FIT.z);   // 眉庇が目にかからない高さ
+    const m = attachBody(h, 'Head', KB.rodin.geo, fit, KB.rodin.mat);
+    m.userData.surfaceBase = m.material; m.frustumCulled = true; h.parts.kabuto = m;
+    return;
+  }
   const st = kabutoStyle(L);
   const fit = new THREE.Matrix4().makeTranslation(hd.x, hd.y + KB_FIT.y, hd.z + KB_FIT.z).multiply(new THREE.Matrix4().makeScale(k, k, k));
   // 吹返しの紋（家紋の絵は陣羽織と同じ作り。金で）

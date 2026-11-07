@@ -4289,7 +4289,8 @@ const echizen_ikko = {
               rt.obj('main', IKKO_GOALS[3], 'main', true);
             }
           }
-          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zoneNear(zones.hondo)) this.nextAttack(rt, 3);
+          // 一度取った本堂も、敵が戻れば奪い合い。斬り合いの途中で勝ちにしない。
+          if (!F.gateSanmon.struct.alive && zones.hondo.owner === ZONE_STATE.FRIEND && zones.hondo.enemies === 0 && zoneNear(zones.hondo)) this.nextAttack(rt, 3);
           else if (F.gateSanmon.struct.alive) {
             const text = templeSanmonTask(rt);
             if (F.sanmonGuide !== text) {
