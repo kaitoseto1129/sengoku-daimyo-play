@@ -50,7 +50,8 @@ import {
 } from './castles/echizen_ikko.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
-//   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
+//   （三歩半内の別の敵には先に応じる）。四十歩離れたら通常の相手探しへ戻す。
+//   本人が深手の時と、門・櫓へ向けた組、指揮役を含む組は外す。共通の兵の考えは触らない。
 function huntPlayer(rt, dt) {
   const F = rt.flags;
   if ((F._huntT = (F._huntT || 0) - dt) > 0) return;
@@ -62,10 +63,11 @@ function huntPlayer(rt, dt) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
-    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
+    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad || g.assault ||
+        g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord))) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 75) g.focus = P;
-    else if (mine && d > 110) g.focus = null;
+    if (!mine && d < 30) g.focus = P;
+    else if (mine && d > 40) g.focus = null;
   }
 }
 
@@ -4066,10 +4068,8 @@ const echizen_ikko = {
     F.treePlayer.value.copy(rt.player.u.pos);
     if (F.fireDots) F.fireDots.visible = rt.player.u.pos.z < GATE_SOMON.z - 40;
     if (F.templeFar && rt.camera) F.templeFar(rt.camera);
-    // 月光の青と補光を抑え、夏の土を雪のように白く照らさない。光源や影は増やさない。
-    W.sun.color.setHex(0xd2ccbf);
-    W.sun.intensity = Math.max(W.sun.intensity, .85);
-    W.hemi.intensity = Math.max(W.hemi.intensity, 1.2);
+    // 昼・夜・朝の光は時刻と雨の共通処理に任せる。
+    // 夜の半球光を毎コマ昼以上へ戻すと、門や具足の陰と篝火の明暗が消える。
     if (rt.t >= (F.flagLightAt || 0)) {
       F.flagLightAt = rt.t + 1;
       for (const u of rt.army.units) if (u.team === rt.player.u.team) {
@@ -4721,10 +4721,19 @@ echizen_ikko.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       if (F.botRoadStep !== F.step) { F.botRoadStep = F.step; F.botRoadI = 0; }
       let at = OKU_ROAD[F.botRoadI];
       if (F.botRoadI < OKU_ROAD.length - 1 && Math.hypot(u.pos.x - at[0], u.pos.z - at[1]) < 5) at = OKU_ROAD[++F.botRoadI];
-      goTo(p, inp, at[0], at[1], 3);
+      // 堂内で制圧が終わっても、戸口と石段を通って山道へ出る。
+      // 経由点は使い回し、戸口では案内側の小さい到着半径を守る。
+      const goal = F.botRoadGoal || (F.botRoadGoal = { x: 0, z: 0 });
+      goal.x = at[0]; goal.z = at[1];
+      const way = templeWay(b.army, u, goal);
+      goTo(p, inp, way.x, way.z, way.botRadius ?? (way === goal ? 3 : .35));
       return;
     }
-    if (Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) > 12) { goTo(p, inp, OKUYAMA.x, OKUYAMA.z, 3); return; }
+    if (Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) > 12) {
+      const way = templeWay(b.army, u, OKUYAMA);
+      goTo(p, inp, way.x, way.z, way.botRadius ?? (way === OKUYAMA ? 3 : .35));
+      return;
+    }
   }
   // 近いだけの敵より、今こちらへ打ち込む敵を受ける。向きと構えを当たるまで保つ。
   const gate = F.mode === 'attack' ? (F.step === 1 ? F.gateSomon.struct : F.step === 2 ? F.gateSanmon.struct : null) : null;
