@@ -487,32 +487,50 @@ html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st { display:flex !impor
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > b { display:block !important; flex:none; width:22px; height:26px; }
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > span { display:block !important; color:#fff3df; font-size:max(16px,calc(16px * var(--text-scale,1))) !important; line-height:1.4; white-space:normal !important; }
 html:root body #hud#hud.battle-order :is(#battle-notices:not(.choosing),#subtitle,#banner,#jk-rest,#tugbar) { display:none !important; }
-/* 目標は右に①から全部を並べ、済んだ物に印（九1）。両軍の今の兵の数は上に棒と数で常に出す（九3・十二1）。11/6 共通の係で全戦 */
+/* 今の目標・兵数を一枚へ。体力と行き先の目印を合わせて三枚に収める。 */
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode {
- left:auto !important; transform:none !important; width:auto !important; min-width:0 !important; max-width:min(380px, 34vw) !important; box-sizing:border-box;
- padding:7px 11px 8px 9px !important; background:rgba(14,12,10,.66) !important; border:none !important; border-radius:6px !important; }
-html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; line-break:strict; }
-html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+ left:auto !important; top:calc(12px + env(safe-area-inset-top,0px)) !important;
+ right:calc(8px + env(safe-area-inset-right,0px)) !important; transform:none !important;
+ width:min(320px,36vw) !important; min-width:0 !important; max-width:36vw !important;
+ box-sizing:border-box; padding:8px !important; background:#14120f !important;
+ border:1px solid #c2a25a !important; border-radius:6px !important; pointer-events:auto !important;
+ max-height:calc(100dvh - 32px); overflow-y:auto; touch-action:pan-y; overscroll-behavior:contain;
+}
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals h3 { display:none !important; }
-html:root body #hud#hud#hud.battle-order:not(.photo):not(.ending) #armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
-html:root body #hud#hud#hud.battle-order #armybar#armybar .clock { visibility:hidden !important; }
-html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm .n { display:inline !important; color:#fff3df; font-variant-numeric:tabular-nums; letter-spacing:.02em; }
-html:root body #hud#hud#hud.battle-order #armybar#armybar .gauge { min-height:6px; }
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li {
+ white-space:normal !important; align-items:flex-start; line-break:strict; font-size:16px !important; line-height:1.4 !important;
+ flex-wrap:wrap; gap:6px !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li span { flex:1; min-width:0; }
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals:not(.goals-expanded) li:not(.now) { display:none !important; }
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li.now {
+ font-size:max(22px,calc(22px * var(--text-scale,1))) !important; margin:0 !important; padding:4px !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:6px; }
+#hud .pg-goals.goals-expanded ul { max-height:min(34dvh,150px); overflow-y:auto; touch-action:pan-y; overscroll-behavior:contain; }
+#hud .goals-toggle { display:block; width:100%; min-height:44px; margin-top:8px; padding:6px 8px; border:1px solid #c2a25a; color:#fff3df; background:#242019; font:700 16px/1.4 sans-serif; cursor:pointer; }
+#hud .goals-toggle:focus-visible { outline:3px solid #fff3ba; outline-offset:2px; }
+html:root body #hud#hud#hud.battle-order:not(.photo):not(.ending) #armybar#armybar:not([hidden]) {
+ display:grid !important; visibility:visible !important; opacity:1 !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar {
+ position:static !important; inset:auto !important; transform:none !important; width:100% !important;
+ max-width:100% !important; max-height:none !important; margin:0 0 8px; padding:0 !important;
+ grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important; gap:8px !important;
+ background:none !important; border:0 !important; box-shadow:none !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar::before { content:none !important; }
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar .side.b { grid-column:2 !important; }
+html:root body #hud#hud#hud.battle-order #armybar#armybar :is(.clock,canvas,.gauge) { display:none !important; }
+html:root body #hud#hud#hud.battle-order #armybar#armybar .side { background:none !important; border:0 !important; min-width:0; }
+html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm { display:flex !important; justify-content:center; gap:6px; padding:0 !important; font-size:16px !important; color:#fff3df; background:none !important; border:0 !important; }
+html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm :is(.n,.army-side-label) { display:inline !important; color:#fff3df; font-variant-numeric:tabular-nums; }
 html:root body:is(:has(#intro:not([hidden]) > .card),:has(#pause:not([hidden])),:has(#screen:not([hidden])),:has(#cine.on)) #hud#hud#hud.battle-order :is(#armybar#armybar,#h-prog#h-prog) { visibility:hidden !important; }
 html:root body #hud#hud#hud.battle-order:has(#bigmap:not([hidden])) #armybar#armybar { visibility:hidden !important; }
 html:root body:has(#intro:not([hidden]) > *) #hud#hud#hud :is(#goal-sign,.field-names,#markers,#mission-goal) { visibility:hidden !important; }
 html:root body #hud#hud#hud.battle-order #crosshair:not(.aimtool) { visibility:hidden !important; }
-@media(max-height:500px) {
- html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode { max-width:min(330px, 38vw) !important; padding:4px 7px 5px 6px !important; }
- html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li { font-size:12px !important; line-height:1.25 !important; gap:5px !important; }
- html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li.now { font-size:13px !important; margin:0 -3px !important; padding:1px 3px !important; }
- html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { width:11px !important; height:11px !important; margin-top:2px; }
- html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals ul { gap:1px !important; }
- html:root body #hud#hud#hud.battle-order #armybar#armybar { width:min(420px, 46vw) !important; grid-template-columns:minmax(0,1fr) 0 minmax(0,1fr) !important; gap:6px !important; }
- html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm { padding:1px 8px !important; font-size:13px !important; gap:5px !important; }
-}
 html:root body #hud#hud.battle-order #h-prog#h-prog[hidden],
 html:root body #hud#hud.battle-order.photo #h-prog#h-prog,
 html:root body #hud#hud.battle-order:has(#bigmap:not([hidden])) #h-prog#h-prog { display:none !important; }
@@ -535,6 +553,20 @@ html:root body #hud#hud#hud.mission-one-line #h-prog#h-prog:not([data-battle="ok
 html:root body #hud#hud#hud.mission-one-line #h-prog#h-prog.goal-mode .pg-goals li.now {
  font-size:max(22px, calc(22px * var(--text-scale, 1))) !important; line-height:1.3 !important;
 }
+
+/* 目標・命・近くの一人（または行き先）の三枚。戦場の中央を空ける。 */
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog {
+ top:calc(12px + env(safe-area-inset-top,0px)) !important;
+ max-width:min(340px, 34vw) !important;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li.now {
+ font-size:max(24px,calc(24px * var(--text-scale,1))) !important;
+ line-height:1.4 !important; margin:0 !important; padding:0 !important; background:none;
+}
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { display:none !important; }
+html:root body #hud#hud#hud.battle-order :is(#jk-map,#fieldmap,#minimap,#maphint,#boss,#target,#h-units,#h-squad) { display:none !important; }
+html:root body #hud#hud#hud#hud.battle-order:has(#goal-sign:not([hidden]),.field-name:not([hidden])) #armybar#armybar { display:none !important; }
+
 ` ;
       root.appendChild(st);
       this.prog = el;

@@ -94,7 +94,8 @@ export class WorldSky {
             float nk2 = 1.0 - daylight, rk2 = clamp(max(rain, cov - 0.6) * 1.6, 0.0, 1.0);
             // 雲の層：同じ写真を大きく引き伸ばしてもう一度重ね、遠い雲の帯と近い雲の塊を分ける（低では一枚のまま）
             if (lowDetail < 0.5) {
-              vec3 pr2 = texture2D(tPhoto, vec2(fract(puv.x * 1.5 + 0.37 + cloudTime * 0.00003), puv.y * 0.8 + 0.1)).rgb;
+              // 全周を整数回で回す。半周分のずれを残すと、方位の境に雲の縦の切れ目が立つ。
+              vec3 pr2 = texture2D(tPhoto, vec2(fract(puv.x * 2.0 + 0.37 + cloudTime * 0.00003), puv.y * 0.8 + 0.1)).rgb;
               pr *= mix(vec3(1.0), clamp(pr2 * pr2 * 4.0, 0.4, 2.0), 0.4 * max(rk2, nk2));
             }
             // 曇り・雨・夜の写真は濃淡が薄い。比を強めて、雲の腹の暗さと切れ間の明るさを出す（平らな灰・一色の紺にしない）
@@ -152,8 +153,9 @@ export class WorldSky {
           c = mix(c, dot(c, vec3(0.3, 0.55, 0.15)) * vec3(0.92, 0.74, 0.56), pall * (0.45 + 0.4 * hgt));
           // 雨の日：空は暗く沈み、遠くの地平には斜めに垂れる灰色の雨脚
           if (rain > 0.01) {
-            float sx = atan(d.x, d.z) * 38.0 + d.y * 22.0;
-            float cur = n(vec2(sx, time * 0.04)) * n(vec2(sx * 0.27 + 5.0, time * 0.01));
+            // 方位角は背面で一周分飛ぶ。連続した視線の成分で同じ二回の雑音を読み、雨脚を全周でつなぐ。
+            vec2 rainP = d.xz * 38.0 + vec2(d.y * 22.0, time * 0.04);
+            float cur = n(rainP) * n(d.xz * 10.26 + vec2(d.y * 5.94 + 5.0, time * 0.01));
             c = mix(c, bottom * 0.78, rain * smoothstep(0.3, 0.75, cur) * exp(-max(d.y, 0.0) * 8.0) * 0.55);
             c *= 1.0 - rain * 0.2;
           }

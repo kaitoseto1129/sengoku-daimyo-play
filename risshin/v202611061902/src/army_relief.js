@@ -102,6 +102,7 @@ export function reliefTick(rt, dt) {
     // 助けが居なければ、次に見る時まで待つ（隊が空くかもしれない）
     if (best) send(rt, g, best);
   }
+  idleAllies(rt, groups);
   // 助けに行った隊は、着いて敵と斬り合えばふだんの頭へ戻す（崩れた隊は二度は助けない）
   for (const h of groups) {
     if (!h._reliefOf) continue;
@@ -112,4 +113,39 @@ export function reliefTick(rt, dt) {
       h._reliefOf = null;
     }
   }
+}
+
+// 味方の後ろでじっとする隊を無くす（十八・BZ「味方の後ろでじっとしている隊がいる」）：
+//   本人が斬り合っている間、四十秒より長く敵と当たらずに立つ味方の隊を、二十秒に一つずつ本人の前の敵へ押し出す。
+//   層は一度に剥がさず、時間差で前へ出す（二十四の3）。動かすのは movable な隊だけ（本陣・大将・伏兵・任務の隊は動かさない）
+const IDLE = 40, IDLE_GAP = 20;
+function idleAllies(rt, groups) {
+  const P = rt.player.u;
+  if (!P?.alive || rt.def.idlePush === false) return;
+  const foe = nearestFoe(rt, P.team, P.pos.x, P.pos.z);
+  const busy = foe && Math.hypot(foe.pos.x - P.pos.x, foe.pos.z - P.pos.z) < 25;
+  let pick = null, pd = 1e9;
+  for (const h of groups) {
+    if (h.team !== P.team || h.civ || h.people || h.isRunner || h.clash || h.hidden || h.isPlayerSquad || h.isTomo || h.isStruct || h._reliefOf || h.count < 4) continue;
+    const c = h.center(c1);
+    const near = nearestFoe(rt, h.team, c.x, c.z);
+    if (near && Math.hypot(near.pos.x - c.x, near.pos.z - c.z) < 35 || engaged(h) >= 0.1) { h._idleT = 0; continue; }
+    h._idleT = (h._idleT || 0) + SCAN;
+    if (!busy || h._idleT < IDLE || !movable(rt, h) || h.order === 'retreat' || h._ai?.mode === 'withdraw' || h.units.some((u) => u.isLord && u.alive)) continue;
+    const d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
+    if (d < 15 || d > FAR || d >= pd) continue;
+    pick = h; pd = d;
+  }
+  if (!pick || (rt.flags.idlePushAt ?? -99) + IDLE_GAP > rt.t) return;
+  rt.flags.idlePushAt = rt.t;
+  pick._idleT = 0;
+  // 本人と敵の間の少し本人寄りへ出て、敵の方を向いて攻める
+  pick.anchor.x = P.pos.x + (foe.pos.x - P.pos.x) * 0.6; pick.anchor.z = P.pos.z + (foe.pos.z - P.pos.z) * 0.6;
+  pick.facing = Math.atan2(foe.pos.x - pick.anchor.x, foe.pos.z - pick.anchor.z);
+  pick.order = 'attack';
+  pick.aggro = Math.max(pick.aggro || 0, 14);
+  const A = pick._ai;
+  if (A) { A.home = { x: pick.anchor.x, z: pick.anchor.z }; A.ax = null; A.spot = null; A.t = Math.min(A.t ?? 0, 0.4); }
+  for (const u of pick.units) if (u.alive) u.aiT = 0;
+  rt.army.play?.('shout', pick.anchor, 0.7);
 }

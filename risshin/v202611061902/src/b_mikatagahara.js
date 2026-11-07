@@ -2793,8 +2793,9 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       const guardLead = Math.cos(toward - u.heading) < 0.5 ? 1.3 : 0.9;
       // 遠い空振りに構え続けると、退く棒があっても駆け足にならない。
       // 突撃は手前から受け、普通の刃は一歩先の間合いから受ける。
+      const distance = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       inp.guardHold = soonest <= guardLead &&
-        (e.charging || Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= (e.reach || 2.8) + .8);
+        (e.charging || distance <= (e.reach || 2.8) + .8);
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
       if (!atPost && walking) {
         const fw = Math.cos(walkYaw - p.yaw);
@@ -2805,7 +2806,6 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       }
       // 侍の連続突きには、廃止済みの回避を押す代わりに普通の駆け足で離れる。
       // 殿の印で止まっている時も気力を条件にせず、途中の兵と横槍まで調べる。
-      const distance = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       const escaping = distance <= (e.reach || 2.8) + 1.5 &&
         retreatRunFromBlade(b, inp, null, !atPost && walking ? walkYaw : null);
       // 構えると駆け足が毎秒二歩へ落ちる。退路と出足の時間がある間に離れる。

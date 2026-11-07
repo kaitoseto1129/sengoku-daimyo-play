@@ -335,6 +335,8 @@ export function fieldSignsTick(rt, root) {
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone && !(special && defeated) || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    // 戦の相手は共通の大きな枠一つで示し、周囲の三角を重ねない。
+    if (foe && !rt.def.dojo) continue;
     if (foe && domFoeSigns && u !== focusEnemy) continue;
     // 目標の二重印は共通の案内へ任せ、周囲は近い四人までに絞る。
     if (u === rt.hud.actionGuideUnit) continue;
@@ -823,8 +825,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
   if (!(s.namesAt > rt.t - .25 && s.namesAt <= rt.t)) {
     s.namesAt = rt.t;
     const list = s.nameList || (s.nameList = []); list.length = 0;
-    // 名のある将の名は遠くからも出す（kaito 十三3・BU「近づかないと出ない」）。札は近い順に三枚までなので戦場は埋まらない
-    const nameR = Math.min(Math.max(rt.def.nameRange || 0, 90), NAME_R);
+    // 見えている近くの一人を候補にし、札を増やさない。
     for (const u of rt.army.units) {
       if (!general(u) || u.isPlayer || u.isStruct || u.civ || u.team > 1 || !live(u)) continue;
       if (rt.def.hideNameTag?.(u)) continue;   // 史料に名の無い役の侍（「〇〇の侍大将」など）に名札を出さない（kaito AY7・名札は名のある将だけ）
@@ -832,12 +833,12 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
       const ally = u.team === me.team;
       if (alliesOnly && !ally) continue;
       // 味方の名のある将は見える所まで名前を出す（kaito 11/5 九の3）。敵は近づいた時だけ
-      if (d2 > (ally ? NAME_R * NAME_R : nameR * nameR)) continue;
+      if (d2 > 18 * 18 || !sightScreenUnit(rt, u)) continue;
       u._fsNameD = d2;
       u._fsNameSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
       list.push(u);
     }
-    list.sort((a, c) => (a === commander ? -1 : 0) - (c === commander ? -1 : 0) || a._fsNameD - c._fsNameD);
+    list.sort((a, c) => a._fsNameD - c._fsNameD);
     // 外れた人の札を空け、新しい人を空いた札へ入れる。
     for (let i = 0; i < NAMES; i++) if (bound[i] && (!list.includes(bound[i]) || list.indexOf(bound[i]) >= NAMES)) bound[i] = null;
     for (let i = 0; i < list.length && i < NAMES; i++) {
@@ -868,7 +869,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
   for (let i = 0; i < NAMES; i++) {
     const e = s.labels[i], u = bound[i];
     // 行き先の▼が一人を指している間も、ほかの将の名は消さない（五2「名のある将の名は常に出す」）
-    if (!live(u) || !u._fsNameSeen || u === skip) { if (!e.hidden) e.hidden = true; continue; }
+    if (!live(u) || !u._fsNameSeen || u === skip || gs && !gs.hidden) { if (!e.hidden) e.hidden = true; continue; }
     const d = Math.sqrt((u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2);
     const k = Math.min(2.2, Math.max(1, d / 22));
     // 序盤の戦の赤い▼・総大将の大きな▼の上へ、間を空けて置く。
@@ -888,8 +889,8 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
     const it = items[i], y0 = it.y;
     let ok = false;
     // 11/1 Simple：画面の知らせは同時に三つまで（近い武将から。名札が群れて重ならないように）
-    // 名のある将の名は枠の数に入れず常に出す（kaito 五の2・11/5 九の3）。重なる札だけ下で隠す
-    if (shown >= NAMES) { if (!it.e.hidden) it.e.hidden = true; continue; }
+    // 命と目標に加える人名札は一枚まで。
+    if (shown >= 1) { if (!it.e.hidden) it.e.hidden = true; continue; }
     for (const dir of [-1, 1]) {
       it.y = y0;
       // 11/2：頭から二段（54点）より離して置かない。遠くへずらすと別の兵の名に見える（手取川で旗を避けた名が四段下の兵に付いた）

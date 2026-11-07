@@ -158,7 +158,13 @@ export class StaticLight {
       return { scene, bounds, meshes, instances };
     } finally {
       // 時刻の変更・戦の終了で途中の仕事を捨てても、共有する形と材質は返さない。
-      if (!complete) { for (const m of instances) m.dispose(); scene.clear(); }
+      if (!complete) {
+        // 時刻の切替で準備を取り消しても、戦中の返却を一コマへ集めない。
+        // 開戦前はその場で返し、戦の終了時は dispose が待ちも全て返す。
+        if (this.ready) for (const m of instances) this.retiredInstances.push(m);
+        else for (const m of instances) m.dispose();
+        scene.clear();
+      }
     }
   }
   bake(renderer, prepared = null) {

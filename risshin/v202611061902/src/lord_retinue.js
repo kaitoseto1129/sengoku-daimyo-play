@@ -32,7 +32,9 @@ export function lordRetinueTick(rt, dt) {
     if (!u.alive) continue;
     alive++;
     // 敵の名のある将は倒すのが大変（一度だけ。戦の定義が決めた命の割合は保つ）
-    if (!u._retHp && u.team !== P.team && isLord(u)) { u._retHp = true; u.maxHp *= 2; u.hp *= 2; }
+    if (!u._retHp && u.team !== P.team && isLord(u)) { u._retHp = true; u.maxHp *= 2.5; u.hp *= 2.5; }
+    // 敵の将の家臣（供回り）も豪の者：一太刀二太刀では倒れない（十八の3・BZ）
+    if (!u._retGuardHp && u.team !== P.team && u.officerGuard && isLord(u.officerGuard)) { u._retGuardHp = true; u.maxHp *= 1.5; u.hp *= 1.5; }
   }
   // 助けに呼んだ備の狙いを、時が過ぎたら解く
   for (const g of A.groups) if (g._retFocus && g._retFocus.until < t) { if (g.focus === g._retFocus.u) g.focus = null; g._retFocus = null; }
