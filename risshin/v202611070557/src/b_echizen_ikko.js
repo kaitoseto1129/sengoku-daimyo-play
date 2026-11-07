@@ -4721,10 +4721,19 @@ echizen_ikko.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       if (F.botRoadStep !== F.step) { F.botRoadStep = F.step; F.botRoadI = 0; }
       let at = OKU_ROAD[F.botRoadI];
       if (F.botRoadI < OKU_ROAD.length - 1 && Math.hypot(u.pos.x - at[0], u.pos.z - at[1]) < 5) at = OKU_ROAD[++F.botRoadI];
-      goTo(p, inp, at[0], at[1], 3);
+      // 堂内で制圧が終わっても、戸口と石段を通って山道へ出る。
+      // 経由点は使い回し、戸口では案内側の小さい到着半径を守る。
+      const goal = F.botRoadGoal || (F.botRoadGoal = { x: 0, z: 0 });
+      goal.x = at[0]; goal.z = at[1];
+      const way = templeWay(b.army, u, goal);
+      goTo(p, inp, way.x, way.z, way.botRadius ?? (way === goal ? 3 : .35));
       return;
     }
-    if (Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) > 12) { goTo(p, inp, OKUYAMA.x, OKUYAMA.z, 3); return; }
+    if (Math.hypot(u.pos.x - OKUYAMA.x, u.pos.z - OKUYAMA.z) > 12) {
+      const way = templeWay(b.army, u, OKUYAMA);
+      goTo(p, inp, way.x, way.z, way.botRadius ?? (way === OKUYAMA ? 3 : .35));
+      return;
+    }
   }
   // 近いだけの敵より、今こちらへ打ち込む敵を受ける。向きと構えを当たるまで保つ。
   const gate = F.mode === 'attack' ? (F.step === 1 ? F.gateSomon.struct : F.step === 2 ? F.gateSanmon.struct : null) : null;

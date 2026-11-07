@@ -3104,7 +3104,7 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after');
       rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;
-      rt.banner('雨が弱まった', '坂道の松井勢を破り、桶狭間山の本陣へ攻め上れ');
+      rt.banner('雨が上がった', '坂道の松井勢を破り、桶狭間山の本陣へ攻め上れ');
       // 視点を奪わず、目の前の仲間が一斉に動き出す様子を合図にする。
     }
     if (rt.t >= F.waitReadyAt && !F.kakare) {
