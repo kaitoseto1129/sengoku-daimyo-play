@@ -3059,10 +3059,10 @@ const nodafukushima = {
         ...plan, year: 1570,
         // 岸の広場も縁に長屋・小屋・蔵を並べる（本の CG の砦の密度。真ん中の戦う場は castle_bldg が空ける。10/28）
         kuruwa: plan.kuruwa.map(k => ({ ...k, wallOpt: { ...k.wallOpt, boardSeams: true,
-          // 10/31 野田の岸の広場の南の塀は、25秒の持ち場（堤の切れ目 z -20）から門の奥の三好勢を半分隠していた。透ける木柵にして、柵の間から広場の大軍と押し合いを見せる（形と数は同じ）。
+          // 10/31 福島の岸の広場の南の塀は、25秒の持ち場（堤の切れ目 z -20）から門の奥の三好勢を半分隠していた。透ける木柵にして、柵の間から広場の大軍と押し合いを見せる（形と数は同じ）。
           ...(plan.name === NODA_PLAN.name && k.id === 'kishi' ? { openFence: true } : {}) }, ...(k.id === 'kishi' ? { dense: true } : {}) })),
       };
-      // 元亀の河川砦としての推定。高の野田の表門だけ板葺きの渡櫓にする。
+      // 元亀の河川砦としての推定。高の福島の表門だけ板葺きの渡櫓にする。
       // 元の縄張りは保持し、共通の門作りで脇の塀の切れ目も合わせる。
       if (plan.name === NODA_PLAN.name) plan = {
         ...plan, year: 1570, exactGapEdges: true,
@@ -3124,7 +3124,7 @@ const nodafukushima = {
     nodaFieldTools(rt);
     const huts = makeSimpleBatch();
     for (const [x, z] of [[-40, FORT_Z - 3], [-12, FORT_Z - 3], [12, FORT_Z - 3], [40, FORT_Z - 3], [0, -70]]) rt.scene.add(nobori(W, x, z, 'miyoshi', 6));
-    // 福島の砦（西の島。遠く）
+    // 野田の砦（西の島。遠く）
     for (const [x, z] of [[-128, -62], [-104, -64], [-122, -92]]) rt.scene.add(nobori(W, x, z, 'miyoshi', 6));
     // 河口の民家。位置と間取りは推定。高では外形と同じ戸口から土間・板間へ入れる。
     // 閉じた外部素材には置き換えず、室内は近づいた時だけ共通部品で組む。
@@ -3548,6 +3548,7 @@ const nodafukushima = {
       rt.after(20, () => { if (F.step === 2 && !gone(F.sally)) charge(F.sally); });
       // 11/4 jin（AB）：打って出た列は三十秒は崩れず、浅瀬で槍を合わせる（総攻めの前に鉄砲で崩れ、この段が飛ばないように）。
       rt.after(30, () => { F.sally.noRout = false; });
+      for (const off of [-4, 0, 4]) addNodaTaba(rt, -4 + off, -34, 1, { van: F.sally, off, faceSign: 1, vanDist: 3, rot: 0, detailed: true });
       // 西では、福島から渡った三好の本隊と柴田の手が、堤の西の端の向こうで押し合う（軽い作り）
       F.bSally.order({ id: 'move', to: { x: -82, z: -26 } });
       F.bOdaW.order({ id: 'move', to: { x: -122, z: -40 } });
