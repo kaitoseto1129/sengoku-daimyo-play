@@ -722,7 +722,8 @@ const SHU_LEVEL = ROAD_LEVELS.find((q) => q.id === 'shu');
 function sstep01(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
 function medakeCap(x, z, h) {
   const d = Math.hypot(x - TOP.x, z - TOP.z);
-  const w = sstep01((-25 - x) / 25) * sstep01((z + 100) / 25) * (1 - sstep01((d - 200) / 60));
+  // 雌岳へ下げる境を五十歩でつなぐ。二十五歩では登城道の西に土の壁が戻る。
+  const w = sstep01((-25 - x) / 50) * sstep01((z + 100) / 25) * (1 - sstep01((d - 200) / 60));
   if (w <= 0) return h;
   const dm = Math.hypot(x - MEDAKE.x, z - MEDAKE.z);
   const cap = Math.max(SHU_LEVEL.h + 12 - 0.6 * Math.max(0, d - 60), SHU_LEVEL.h - 34 - 0.6 * Math.max(0, dm - 45));

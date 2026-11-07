@@ -3460,9 +3460,12 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
     }
     // 服部が義元に会う前に手傷で退いた時は、毛利だけで討つ（服部の接触を待ち続けない）。
     const hattoriDone = F.hattoriMet || !hat || !hat.alive || hat.woundOut || longDown;
+    const morCanFinish = F.yoshiDown && readyUnit(mor) &&
+      Math.abs(mor.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(mor.pos, 0, y.pos) &&
+      !rt.army.terrainBlocks(mor.pos, y.pos);
     // 深手から二十五秒たっても寄れない時は、毛利が数歩の間合いから飛び込む。
     const reachMori = F.yoshiDown && rt.t - F.yoshiDownT > 25 ? 6 : 3;
-    if (F.yoshiDown && F.koshiLeft && rt.t - F.yoshiDownT >= 5 && (guards <= 10 || longDown) && hattoriDone && mor && mor.alive && !mor.woundOut && !mor.fleeing && !mor.noTarget && Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < reachMori && !rt.army.wallBetween(mor.pos, 0, y.pos)) {
+    if (morCanFinish && F.koshiLeft && rt.t - F.yoshiDownT >= 5 && (guards <= 10 || longDown) && hattoriDone && Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < reachMori) {
       y.invuln = false; rt.army.kill(y, mor);
     }
     // 公記：旗本三百が五十ほどに討ち減らされて義元に槍が届く。退き始めて四十五秒で寄せた槍が届き、
@@ -3470,11 +3473,13 @@ html:root body #hud#hud#hud.oke-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 
     // 11/6 夜：退き始めから深手まで七十五秒かかっていた。二十秒で寄せた槍が届き、三十五秒で必ず届く。
     if (F.koshiLeft && !F.yoshiDown && y.alive && rt.t - F.koshiLeftT > 20 && (rt.t - F.koshiLeftT > 35 ||
         rt.army.nearestEnemy(y, 8, (u) => readyUnit(u) && !u.isPlayer))) y.onWound?.();
-    // 深手から十二秒で首を挙げる。任務の一行と段を長く止めない（稲生の型）。
+    // 深手と退却がそろって十二秒後は、六歩まで寄せた毛利が討つ。兵の押し合いで止めない。
+    // 遠方・手当て中や幕・地形越しでは首を挙げず、実際に討てる間合いを待つ。
     // 11/6：囲みが退き始める前（③④の間）に深手を負っても、首は旗本が五十に減ってから（史実の順を飛ばさない）。
-    if (y.alive && F.yoshiDown && F.koshiLeft && rt.t - Math.max(F.yoshiDownT, F.koshiLeftT) >= 12) {
+    if (y.alive && morCanFinish && F.koshiLeft && rt.t - Math.max(F.yoshiDownT, F.koshiLeftT) >= 12 &&
+        Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < 6) {
       // 将の踏みとどまり（officerStand）で首が挙がらず、深手から一分ほど止まっていた（11/6 夜）。この一度だけ外す。
-      y.invuln = false; y.officerSaved = true; rt.army.kill(y, mor?.alive ? mor : rt.player.u);
+      y.invuln = false; y.officerSaved = true; rt.army.kill(y, mor);
     }
     if (!y.alive) { this.returnHome(rt); return; }
     // 人数と任務の段が進まない時間を測る。敵が移動しただけでは数え直さない。

@@ -3649,7 +3649,8 @@ body:has(#hud.tennoji-tasks #intro:not([hidden])) :is(#side-ctl, #tc-sound, #tc-
     const F = rt.flags;
     // 柵の外の寄せ手の鉄砲の煙。竹束の陰から順に、砦へ向けて撃った硝煙を吹かせる。
     F.siegeSmokeT = (F.siegeSmokeT ?? 9) - dt;
-    if (F.siegeSmokeT <= 0 && !rt.over && !F.ending) {
+    // 本願寺勢が崩れて追撃に移った後は、無人の竹束から砦へ撃ち続けない。
+    if (F.siegeSmokeT <= 0 && F.step < 4 && !rt.over && !F.ending) {
       F.siegeSmokeT = .7;
       const [x, z] = SIEGE_SMOKE[F.siegeSmokeI = ((F.siegeSmokeI || 0) + 1) % SIEGE_SMOKE.length];
       const dx = FORT.x - x, dz = FORT.z - z, l = Math.hypot(dx, dz) || 1;
