@@ -3312,7 +3312,7 @@ const saika = {
     tickRaiders(rt, dt);
     // 雑賀衆の鉄砲の煙：撃った筒先のほか、本人から八十歩以内の雑賀衆の鉄砲を順に拾って煙を絶やさない（形は天王寺と同じ一つの束）。
     F.gunSmokeT = (F.gunSmokeT ?? 2) - dt;
-    if (F.gunSmokeT <= 0) {
+    if (F.step < 6 && F.gunSmokeT <= 0) {
       F.gunSmokeT = .8;
       const us = rt.army.units, me = rt.player.u, n = us.length;
       // 一つおきに、西岸の土手の柵ぎわ（雑賀衆の鉄砲の並ぶ所）から東の川へ向けて吹かせる。
@@ -3389,10 +3389,12 @@ const saika = {
         }
       }
     }
-    for (let i = 0; i < F.gunPosts.length; i++) F.gunPosts[i].fire = crossingFire || i === volley;
+    for (let i = 0; i < F.gunPosts.length; i++) F.gunPosts[i].fire = F.step < 6 && (crossingFire || i === volley);
     // 替わった味方の控えは東岸を見回る。敵は西岸の持ち場を守る。
     for (const g of rt.army.groups) if (g.woke && g.woke.jinkeiGuard && !g.saikaGuard) {
       g.saikaGuard = true; g.noGuard = false; g.guard = true; g.guardLeash = 6;
+      // 和議の使者が歩いている間に控えが実兵になっても、射撃を再開しない。
+      if (F.step >= 6) { g.fire = false; g.holdFire = true; }
       const guns = g.woke.kind === 'gun';
       g.guardSight = guns ? 68 : 14; g.aggro = guns ? 68 : 8; g.seekRange = g.guardSight;
       g.formation = guns ? 'line' : 'yari';
@@ -3407,7 +3409,7 @@ const saika = {
         F.defenders.push(g);
       }
     }
-    for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = g.id % F.gunPosts.length === volley;
+    for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = F.step < 6 && g.id % F.gunPosts.length === volley;
     reinforceBank(rt, dt);
     const el = rt.t - F.stepT, p = rt.player.u.pos;
     // 生きて任務を続けられる時間を確保する。七分以内に後陣へ引いて閉じる。
@@ -3618,7 +3620,9 @@ const saika = {
   parley(rt) {
     const F = rt.flags;
     if (F.step === 6 || F.ending) return;
-    phase(rt, 6, 'parley', SAIKA_LINE[4]);
+    phase(rt, 6, 'parley', SAIKA_LINE[4], () => F.lordCamp.units[0].pos, '佐久間信盛の陣');
+    // 両岸の射手と実兵になった控えも止める。以後の更新でも射撃と新しい煙を再開しない。
+    for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; }
     for (const g of F.gunPosts) for (const u of g.units) u.cd = 1e9;   // 西岸の鉄砲が止む
     for (const g of F.raiders || NO_HOSTS) if (!g.routed && g.count) { g.order = 'path'; g.path = g.fleePath; g.pathIdx = 0; g.retreatOnly = true; }
     // 11/6 fixc1753（二6）：使者は初めから川上の東岸の外れにいる。そこから道を歩いて佐久間の陣へ（飛ばさない）。

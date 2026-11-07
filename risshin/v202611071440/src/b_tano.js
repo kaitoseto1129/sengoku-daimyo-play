@@ -969,9 +969,11 @@ export function volleyAt(rt, o) {
     for (const g of groups) {
       if (!fighting(g)) continue;
       for (const u of g.units) {
-        if (!u.alive || u.fleeing || u.woundOut || u.noTarget || u.type !== 'gun' || u.gunAmmo === 0) continue;
-        able = true;
+        if (!u.alive || u.fleeing || u.woundOut || u.noTarget || u.type !== 'gun') continue;
+        // 最後の一発は発砲と同時に残弾が零になる。撃った事を先に拾う。
         if (released && u.fireT > 0) fired = true;
+        if (u.gunAmmo === 0) continue;
+        able = true;
         if (u.cd > 0 || u.reload || u.stagger > 0 || u.mounted) continue;
         for (const f of foes) {
           if (!fighting(f)) continue;
@@ -985,7 +987,6 @@ export function volleyAt(rt, o) {
         }
       }
     }
-    if (!able) { for (const g of guns) g.holdFire = false; return; }
     if (!released && ready) {
       released = true;
       for (const g of groups) g.holdFire = false;
@@ -997,6 +998,7 @@ export function volleyAt(rt, o) {
       if (o.onFire) o.onFire(rt, foes);
       return;
     }
+    if (!able) { for (const g of guns) g.holdFire = false; return; }
     if (!foes.some(fighting)) { for (const g of guns) g.holdFire = false; return; }
     rt.after(0.2, tick);
   };

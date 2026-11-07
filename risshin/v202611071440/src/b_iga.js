@@ -1424,7 +1424,7 @@ function heightRaw(x, z) {
 
 // 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
 // 史実の順の目標（stages.js の iga の行と同じ字。場所と行い・行き先は固定）。
-const IGA_GOALS = ['麓の陣の口で、夜討ちの伊賀衆を防げ', '陣の口で、林から出る伊賀衆を防げ',
+const IGA_GOALS = ['麓の陣の口で、消火の組を守り、夜討ちの伊賀衆を防げ', '陣の口で、林から出る伊賀衆を防げ',
   '南の土橋へ登り、伊賀衆を止めよ', '麓の陣へ退き、夜討ちを防げ', '空の主郭から北の曲輪を調べよ'];
 const igaPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 const iga = {
@@ -3007,7 +3007,8 @@ function igaAdvance(g, at, guardCamp = false) {
 // 持ち場を守った時間と、実際の敵の退き方で決める。秒数だけで敵の士気を落とさない。
 function igaHold(o) {
   return {
-    kind: 'hold', max: Infinity,
+    // 列で待つのは任務。共通の放置対策で味方を進撃させず、下の守備判定で終える。
+    kind: 'hold', max: Infinity, idleAdvance: false,
     start(rt, C) {
       C.at = o.at; C.goal = o.at; C.inT = 0; C.outT = 0; C.botRadius = o.r;
       C.waves = o.waves.slice(); C.nextWaveAt = 0; C.lastWaveT = 0; C.lastContactT = 0;
@@ -3218,6 +3219,8 @@ function igaGather(rt, g, at) {
 
 function igaMove(o) {
   const s = move(o), start = s.start;
+  // 未到着の調査を共通の放置対策で飛ばさない。到着と戦全体の猶予で進行を決める。
+  s.idleAdvance = false;
   s.start = (rt, C, m, ctx) => {
     rt.objRemove('main');
     rt.unmark('turn');
