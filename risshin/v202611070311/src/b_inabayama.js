@@ -2919,10 +2919,10 @@ function buildInabaMountain(rt) {
     // 10/30：町の前の崖は日も空の光もほぼ受けず（地の色を赤に替えても画素がほぼ同じ）、黒い面に霧が掛かった灰の一枚になっていた。
     //   林と岩の地の色を空の照り返しとして足し、斑が読めるようにする（町の前の斜面だけ。毎コマの計算は一行）。
     // 10/30：七十mほど先の崖が四割五分の青灰の霧で一色の岩に見えた（画素 5f6464）。町の前の斜面は二割二分まで薄め、林と岩の斑を見せる。
-    // 南の崖は日の陰で黒い壁に見えた（10/28 点付け：山を明るく）。山すそから上の山肌だけを最大五割五分明るくする。
+    // 崖の照り返しだけ補う。歩く道まで明るさを足すと、日なたで白く飛ぶ。
     sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', THREE.ShaderChunk.fog_fragment.replace(
       'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );',
-      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  fogFactor = min(fogFactor, mix(1.0, 0.22, (1.0 - smoothstep(60.0, 90.0, vWP.z)) * smoothstep(1.5, 10.0, vWP.y)));\n  gl_FragColor.rgb += sqrt(max(diffuseColor.rgb, vec3(0.0))) * 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb *= 1.0 + 0.55 * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
+      'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, vWP.y)));\n  fogFactor = min(fogFactor, mix(1.0, 0.22, (1.0 - smoothstep(60.0, 90.0, vWP.z)) * smoothstep(1.5, 10.0, vWP.y)));\n  gl_FragColor.rgb += sqrt(max(diffuseColor.rgb, vec3(0.0))) * 0.22 * smoothstep(0.15, 0.5, 1.0 - abs(gN.y)) * (1.0 - smoothstep(30.0, 70.0, vWP.z)) * smoothstep(4.0, 30.0, vWP.y) * (1.0 - smoothstep(120.0, 220.0, vWP.y));\n  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );'));
   };
   mat.addEventListener('dispose', () => trail.dispose());
 
@@ -4829,10 +4829,12 @@ const inabayama = {
       W.deferredGroundRocks = null;
     }
     buildInabaMountain(rt);
-    // 山の木も夏の明るい緑の一色だった。株ごとに暗い常緑・茶・橙の紅葉へ散らす（設営時に一度だけ。形・本数は変えない）。
+    // 山肌と木に同じ霞の上限を使い、濃い山の前へ白い木の輪郭を浮かせない。
+    inabaTreeHaze(W);
+    // 八月の林は緑の濃淡で散らす。紅葉の橙を三割混ぜない。
     {
-      const ever = [[0.3, 0.4, 0.24], [0.34, 0.44, 0.26], [0.26, 0.36, 0.22]], fall = [[0.66, 0.42, 0.22], [0.8, 0.44, 0.18], [0.56, 0.42, 0.26]];
-      inabaTintTrees(W, (i) => ((i * 0.6180339 + 0.13) % 1 < 0.32 ? fall[i % 3] : ever[i % 3]));
+      const ever = [[0.3, 0.4, 0.24], [0.34, 0.44, 0.26], [0.26, 0.36, 0.22], [0.38, 0.45, 0.27]];
+      inabaTintTrees(W, (i) => ever[i % ever.length]);
     }
     // 町から見上げる金華山の西の急な斜面（x −90〜−20・z 10〜55・高さ14m より上）の木は、五十五メートル先で葉の板一枚に替わり、
     // 霞の斜面の前に丸い木が宙に浮いて見えた（10/29 点付け）。この斜面の木だけ描かない（山肌の常緑と紅葉の斑は地面の色で見せる）。
@@ -7309,6 +7311,28 @@ KILLS.inabayama = { ...KILLS.inabayama, 3: (rt) => { const F = rt.flags; return 
 export { inabayama };
 
 // 林の株ごとの色を設営時に一度だけ替える。見える株を詰め直す時の元の色（cullList の orig.col）も同じに替え、詰め直しで元の色へ戻らないようにする。
+function inabaTreeHaze(W) {
+  const done = new Set();
+  for (const mesh of W.treeMeshes || []) {
+    const mat = mesh.material;
+    if (!mat || done.has(mat)) continue;
+    done.add(mat);
+    const compile = mat.onBeforeCompile, key = mat.customProgramCacheKey();
+    mat.onBeforeCompile = function (sh, renderer) {
+      compile.call(this, sh, renderer);
+      // 共通の葉の透かし・風・陰は残し、この戦の木の霞だけを山肌へ合わせる。
+      sh.fragmentShader = sh.fragmentShader.replace(
+        'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );',
+        'vec3 ibTreeWorld = cameraPosition + vFogOff;\n'
+        + 'fogFactor = min(fogFactor, mix(1.0, 0.5, smoothstep(6.0, 60.0, ibTreeWorld.y)));\n'
+        + 'fogFactor = min(fogFactor, mix(1.0, 0.22, (1.0 - smoothstep(60.0, 90.0, ibTreeWorld.z)) * smoothstep(1.5, 10.0, ibTreeWorld.y)));\n'
+        + 'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );');
+    };
+    mat.customProgramCacheKey = () => key + '|inabaTreeHaze';
+    mat.needsUpdate = true;
+  }
+}
+
 function inabaTintTrees(W, fn) {
   const done = new Set();
   const apply = (arr) => {

@@ -19,7 +19,7 @@ import { useTerrain, BATTLE_ASSETS, assetsForBattle } from './asset_manifest.js'
 import { demDetail } from './dem.js';
 import { enemyGroup, allyGroup, gauss } from './bhelp.js';
 import { distToPolyline } from './world.js';
-import { nabe, umajirushi } from './props.js';
+import { nabe, umajirushi, nobori } from './props.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
 import { STAGES } from './stages.js';
@@ -62,9 +62,9 @@ function campGuard(rt, at, facing, name, flag, n, faction, lord) {
 }
 
 // 水野の鉄砲組の一人の居場所（森長可を撃つ音の出所）
-function F_GUN(rt) {
-  const g = rt.flags.mizunoGun, u = g && g.units.find((q) => q.alive && !q.gone && q.type === 'gun');
-  return u ? u.pos : null;
+function F_GUN_U(rt) {
+  const g = rt.flags.mizunoGun;
+  return (g && g.units.find((q) => q.alive && !q.gone && q.type === 'gun')) || null;
 }
 
 let nkDem = null, heightDem = null, heightFixed = false;
@@ -296,6 +296,8 @@ const t03b_nagakute = {
       F.moriG = allyGroup(rt, { ...o, name: '森長可の旗本', anchor: { x: HOTOKE.x + 4, z: HOTOKE.z - 6 } },
         fl([{ type: 'busho', n: 1, o: { name: '森長可', horse: true } }, { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], 'tsuru'));
       F.moriU = F.moriG.units.find((u) => u.name === '森長可');
+      // 森の旗本の後ろに鶴丸の大きな幟（④の目標の「森長可様の旗」がどれか、遠くから分かるように）
+      if (rt.scene && rt.world && !F.moriNobori) { F.moriNobori = true; for (const [dx, dz] of [[-5, -3], [-5, 3]]) rt.scene.add(nobori(rt.world, HOTOKE.x + 4 + dx, HOTOKE.z - 6 + dz, 'tsuru', 7)); }
       for (const u of [...F.ikeG.units, ...F.ikeSaki.units, ...F.moriG.units]) if (u.type === 'busho') u.invuln = true;
     } else if (n === 5) {
       // 東から井伊の赤備え（正面）、北東の御旗山から家康の旗本の先手（右翼）。挟まれる
@@ -322,10 +324,17 @@ const t03b_nagakute = {
         F.waves.push(F.mizunoGun);
         rt.say('物見', '東の畑の際に水野の鉄砲！　武蔵守様を狙うておりまする！', 2.8);
       });
-      rt.after(62, () => { if (F.stage === 5) this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true); });
-      rt.after(80, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
-      rt.after(92, () => { if (F.stage === 5) this.fall(rt, F.ikeG, '池田恒興', '勝入様、永井直勝に討たれましてござる！'); });
-      rt.after(100, () => { if (F.stage === 5) this.stage(rt, 6); });
+      // 森長可の最期は主人公の目の前で：62 秒からは主人公が武蔵守の 35m 内に来た時、遅くとも 78 秒に、水野の鉄砲が火を吹いて撃ち倒す（十4）
+      const moriEnd = (k) => {
+        if (F.stage !== 5) return;
+        const m = F.moriU, P = rt.player.u.pos;
+        if (k < 16 && m && m.alive && dist(m.pos, P) > 35) { rt.after(1, () => moriEnd(k + 1)); return; }
+        this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true);
+        rt.after(16, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
+        rt.after(28, () => { if (F.stage === 5) this.fall(rt, F.ikeG, '池田恒興', '勝入様、永井直勝に討たれましてござる！'); });
+        rt.after(36, () => { if (F.stage === 5) this.stage(rt, 6); });
+      };
+      rt.after(62, () => moriEnd(0));
     } else if (n === 6) {
       // 大きな札は共通の「〇〇が討たれた」に任せる（重ねると共通の札が出られず毎コマ出し直す）。退く下知は台詞で
       rt.say('使番', '勝入様・之助様・武蔵守様、お討死！　西の細ヶ根の堀様の旗まで退かれよ！', 3.4);
@@ -365,7 +374,7 @@ const t03b_nagakute = {
     const F = rt.flags;
     if (F.honjin) return;
     KIT.honjin(rt, HONJIN.x, HONJIN.z + 6, { mon: 'tokugawa', fire: false, yoroi: false });
-    if (rt.scene && rt.world) rt.scene.add(umajirushi(rt.world, HONJIN.x - 3, HONJIN.z - 1, Math.PI, 'ogi'));
+    if (rt.scene && rt.world) { const um = umajirushi(rt.world, HONJIN.x - 3, HONJIN.z - 1, Math.PI, 'ogi'); um.scale.setScalar(1.6); rt.scene.add(um); }   // 金扇は仏ヶ根からも分かる大きさに（十二2）
     const face = Math.atan2(HOTOKE.x - HONJIN.x, HOTOKE.z - HONJIN.z);   // 仏ヶ根の方を見下ろす
     F.honjin = [campGuard(rt, { x: HONJIN.x - 2, z: HONJIN.z - 2 }, face, '徳川家康の旗本', 'tokugawa', 22, 'tokugawa', '徳川家康'),
       campGuard(rt, { x: HONJIN.x + 16, z: HONJIN.z - 8 }, face, '織田信雄の旗本', 'nobukatsu', 8, 'nobukatsu', '織田信雄')];
@@ -387,7 +396,13 @@ const t03b_nagakute = {
     const u = g.units.find((q) => q.name === name && q.alive);
     if (u) {
       // 撃たれた時は、東の鉄砲組の方から一発の音
-      if (shot) { const m = F_GUN(rt) || { x: u.pos.x + 24, z: u.pos.z - 10 }; rt.army.play('gun', m, 1.4); }
+      // 撃ち手が見える所にいれば、その筒先から火と白煙を吹かせる（どこから撃たれたかが絵で分かる）
+      if (shot) {
+        const gu = F_GUN_U(rt);
+        let fired = false;
+        if (gu) { gu.heading = Math.atan2(u.pos.x - gu.pos.x, u.pos.z - gu.pos.z); const wasNT = u.noTarget; u.noTarget = false; u.invuln = true; fired = rt.army.fireGun(gu, u); u.noTarget = wasNT; }
+        if (!fired) { const m = gu ? gu.pos : { x: u.pos.x + 24, z: u.pos.z - 10 }; rt.army.play('gun', m, 1.4); if (rt.army.smoke) rt.army.smoke(m.x, (rt.world.heightAt ? rt.world.heightAt(m.x, m.z) : 0) + 1.5, m.z, -1, 0, 1.35); }
+      }
       u.invuln = false; rt.army.kill(u);
       // 大きな札は共通の「〇〇が討たれた」一つに任せる（二つ重ねると共通の札が出られず、毎コマ出し直していた）
     }

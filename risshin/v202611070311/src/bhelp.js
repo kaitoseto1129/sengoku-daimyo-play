@@ -102,10 +102,18 @@ export function hiddenFrom(rt, pos) { return pos; }
 // o.ambush: true を付けると、見つかって動き出す（敵に気付く・u.target が付く）までしゃがんで旗を倒した姿で待つ（army_anim.js の u._crouch）
 // 兵の割合（kaito 10/28 の表・army_mix.js）：槍だけの大きな組（足軽 8 人から）の一部を、後ろの列の鉄砲と弓に。
 //   鉄砲は戦の年で（稲生・桶狭間は少なく、長篠から表どおり）。鉄砲・弓を既に持つ組・名のある者・o.keep・def.keepMix は替えない。人数の合計は変えない
-function mixList(rt, list, ally) {
+// 11/7 kaito（全戦）：家ごとの兵の作り。島津・伊達・織田・雑賀・明智は鉄砲が多い、武田は騎馬が多い、毛利・細川は弓が多い。
+//   家（faction）か旗（flag）の名で引く。戦の定義が鉄砲・弓・騎馬を自分で決めた組はそのまま
+const CLAN_MIX = {
+  shimazu: { gun: 0.12 }, date: { gun: 0.12 }, oda: { gun: 0.06 }, saika: { gun: 0.25 }, akechi: { gun: 0.1 },
+  takeda: { cav: 0.75 }, akazonae: { cav: 0.75 },
+  mori: { bow: 0.2 }, hosokawa: { bow: 0.2 },
+};
+function clanOf(g) { return CLAN_MIX[g?.faction] || CLAN_MIX[g?.flag] || null; }
+function mixList(rt, list, ally, g = null) {
   if (!Array.isArray(list) || rt.def?.keepMix || list.some((e) => e && (e.type === 'gun' || e.type === 'bow'))) return list;
   // 鉄砲・弓を多く（緊迫感。十八の7・BZ）：鉄砲はその年の割合どおり、弓は一割
-  const m = mixFor(rt.def?.key), gr = m.gun * (ally ? 1 : 0.9), br = 0.1;
+  const clan = clanOf(g), m = mixFor(rt.def?.key), gr = Math.min(0.5, m.gun * (ally ? 1 : 0.9) + (clan?.gun || 0)), br = 0.1 + (clan?.bow || 0);
   const out = [];
   for (const e of list) {
     if (!e || e.type !== 'ashigaru' || !(e.n >= 8) || (e.o && (e.o.name || e.o.keep))) { out.push(e); continue; }
@@ -118,12 +126,12 @@ function mixList(rt, list, ally) {
 }
 // 騎馬隊（十八の7・BZ「騎馬に乗るのが侍大将だけ」）：名の無い侍が三人より多い組は、その四割を騎馬武者に（馬廻・騎馬の組）。
 //   城や塀の内では units.js が馬を下りさせる。戦の定義が騎馬を決めている組（cavalry がある）と def.noCavalryMix の戦はそのまま
-function horseList(rt, list) {
+function horseList(rt, list, g = null) {
   if (!Array.isArray(list) || rt.def?.noCavalryMix || rt.def?.keepMix || list.some((e) => e && e.type === 'cavalry')) return list;
   const out = [];
   for (const e of list) {
     if (!e || e.type !== 'samurai' || !(e.n >= 4) || (e.o && (e.o.name || e.o.keep || e.o.ashiTaisho))) { out.push(e); continue; }
-    const nc = Math.round(e.n * 0.4);
+    const nc = Math.round(e.n * (clanOf(g)?.cav || 0.4));
     out.push({ ...e, n: e.n - nc }, { ...e, type: 'cavalry', n: nc });
   }
   return out;
@@ -141,7 +149,7 @@ export function enemyGroup(rt, o, list) {
   const { ambush, ...go } = o;
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 1, order: 'hold', aggro: 8, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(horseList(rt, mixList(rt, list, false))));
+  rt.army.spawn(g, taishoList(horseList(rt, mixList(rt, list, false, g), g)));
   const lead = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
   if (lead) g.leader = lead;
   if (ambush) { g.ambush = true; for (const u of g.units) u._crouch = true; }
@@ -171,7 +179,7 @@ export function allyGroup(rt, o, list) {
   // 味方の新手も、戦の定義が決めた持ち場から進む。
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 0, faction: 'oda', order: 'hold', aggro: 9, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(escortLook(horseList(rt, mixList(rt, scaleAllyList(list, fullStrength), true)))));
+  rt.army.spawn(g, taishoList(escortLook(horseList(rt, mixList(rt, scaleAllyList(list, fullStrength), true, g), g))));
   // 名のある武将の隊は、戦の秒数・合図で動く。自由な判断は g.ai = true で明示する。
   g.historicalOrders = list.some((e) => e.o && e.o.name && (e.type === 'busho' || e.type === 'samurai'));
   return g;

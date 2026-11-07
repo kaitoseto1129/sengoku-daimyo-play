@@ -302,8 +302,9 @@ const k01_fushimi = {
       //   追って行って三十人に囲まれ倒れた。城の外の野戦に見え、城を守る戦に見えなかった（critic60）。出所を門の前に寄せ、味方は門の内で構える
       DP.fight({ at: { x: 0, z: 74 }, title: '七月二十三日　島津勢', sub: '小早川と島津も着き、寄せ手は四万になった', obj: '大手門に取り付いた島津勢を討て', max: 110,
         say: [['島津の侍', '薩摩の鉄砲、撃ちかけよ！　築山の大筒に続け'], ['松平近正', '島津が大手門に取り付いたぞ。門の前で討て！']],
-        foes: () => [keep('島津勢の先手', { x: 6, z: 100 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], { morale: 97 })],
-        later: [{ t: 30, say: ['島津の侍', '新手じゃ！　退くな、押せ！'], foes: () => [keep('島津勢の二の手', { x: -4, z: 102 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }])] }],
+        foes: () => [keep('島津勢の先手', { x: 6, z: 100 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], { morale: 97, dmg: 0.3 })],
+        later: [{ t: 30, say: ['島津の侍', '新手じゃ！　退くな、押せ！'], foes: () => [keep('島津勢の二の手', { x: -4, z: 102 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], { dmg: 0.3 })] }],
+        // 一人ずつの斬りは弱める（三十人あまりに囲まれ、命九十から槍の叩きで一度に倒れた。11/7 描いて遊んで）
         // 新手（AB）は足さない。足すと島津勢が三度湧き（三十→百十四人）、この段だけで二分近くかかった（11/6 描いて遊んで）
         noRefill: true, reward: '島津勢を大手門から追い落とした' }),
       // 時が飛ぶ：画面の真ん中に日付と次の目標を出す（AT7）
@@ -319,9 +320,9 @@ const k01_fushimi = {
         // 四方から百人あまりが乗り込むので、一人ずつの斬りは弱め、鉄砲は減らす（四十人の鉄砲に囲まれ、主人公が十秒で倒れた。11/7 描いて遊んで二度）
         say: [['松平家忠', '松の丸が燃えておる！　甲賀衆が寝返ったぞ'], ['鳥居元忠', '四方から来るぞ。火に怯むな、まだ本丸がある']],
         waves: () => [
-          { t: 2, say: ['長束の侍', '甲賀衆が門を開けたぞ！　二の丸へ雪崩れ込め'], foes: () => [keep('寝返った甲賀衆', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 2 }], { dmg: 0.24 }), keep('長束勢', { x: MATSU.x + 6, z: MATSU.z + 4 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 3 }], { dmg: 0.24 })] },
+          { t: 2, say: ['長束の侍', '甲賀衆が門を開けたぞ！　二の丸へ雪崩れ込め'], foes: () => [keep('寝返った甲賀衆', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 1 }], { dmg: 0.24 }), keep('長束勢', { x: MATSU.x + 6, z: MATSU.z + 4 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 3 }], { dmg: 0.24 })] },
           { t: 12, say: ['上林竹庵', '西の太鼓の丸にも小早川が取り付いたぞ！'], foes: () => [keep('太鼓の丸へ寄せる小早川勢', { x: TAIKO.x - 22, z: TAIKO.z + 6 }, 'kobayakawa', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
-          { t: 20, say: ['島津の侍', '島津勢、二の丸の口を破れ！'], foes: () => [keep('二の丸の口へ寄せる島津勢', { x: 0, z: 40 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], { dmg: 0.24 })] },
+          { t: 20, say: ['島津の侍', '島津勢、二の丸の口を破れ！'], foes: () => [keep('二の丸の口へ寄せる島津勢', { x: 0, z: 40 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
           { t: 30, foes: () => [keep('長束勢の二の手', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
         ],
         noRefill: true, reward: '二の丸の東を守り抜いた' }),
@@ -332,21 +333,22 @@ const k01_fushimi = {
         fn: (rt2) => { for (const n of ['松平家忠', '松平近正', '上林竹庵']) this.fall(rt2, n); this.fallAll(rt2, [rt2.flags.ie, rt2.flags.chika, rt2.flags.chikuan]); this.naitoWest(rt2); } }),
       // ⑤ 本丸の口：寄せ手が四方から本丸へ。元忠は足が利かず、刀を杖に旗本の後ろで立つ（伝え）
       // 持ち場は本丸の口の内（櫓門の下に立つと後ろの目が門の中に入り、門の前に置いた火が画面を覆っていた）
-      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 40, title: '本丸', sub: '鳥居元忠、最後の抵抗', label: '本丸の口の内', obj: '本丸の口の内で元忠殿の旗本と並び、攻め入る寄せ手を食い止めよ',
+      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 32, title: '本丸', sub: '鳥居元忠、最後の抵抗', label: '本丸の口の内', obj: '本丸の口の内で元忠殿の旗本と並び、攻め入る寄せ手を食い止めよ',
         say: [['鳥居元忠', '足は利かぬが、刀を杖にまだ立てる。徳川の鳥居ここにあり！']],
         waves: () => [
-          { t: 2, say: ['宇喜多の侍', '本丸ぞ！　火の回らぬうちに乗っ取れ'], foes: () => [keep('本丸へ寄せる宇喜多勢', { x: 0, z: -6 }, 'ukita', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }])] },
+          { t: 2, say: ['宇喜多の侍', '本丸ぞ！　火の回らぬうちに乗っ取れ'], foes: () => [keep('本丸へ寄せる宇喜多勢', { x: 0, z: -16 }, 'ukita', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }], { dmg: 0.3 })] },
           { t: 12, say: ['鳥居の侍', '西の丸が破られ、内藤殿が討死！　東の塀からも来るぞ'], foes: () => { this.naitoFall(rt); return [keep('西の丸から寄せる長束勢', { x: -14, z: -27 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }]), keep('東から寄せる島津勢', { x: 16, z: -27 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }])]; } },
-          { t: 22, foes: () => [keep('本丸へ寄せる小早川勢', { x: 12, z: -10 }, 'kobayakawa', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }])] },
+          { t: 22, foes: () => [keep('本丸へ寄せる小早川勢', { x: 8, z: -18 }, 'kobayakawa', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], { dmg: 0.3 })] },
         ],
         // 孫一の斬り込みの前に一息（手当て）。息をつく間なく四十人の鉄砲に当たり、主人公が十秒で倒れた（11/7）
-        noRefill: true, reward: '本丸の口を守った', onEnd: (rt2) => rt2.player.treatWounds(0.5) }),
+        noRefill: true, reward: '本丸の口を守った', onEnd: (rt2) => rt2.player.treatWounds(0.8) }),
       // ⑥ 雑賀孫一の鉄砲衆が本丸に斬り込む
-      DP.fight({ at: HON, title: '雑賀孫一', sub: '鉄砲衆を連れて本丸へ斬り込む', obj: '本丸に斬り込んだ雑賀孫一の鉄砲衆を討て', max: 100,
+      DP.fight({ at: HON, title: '雑賀孫一', sub: '鉄砲衆を連れて本丸へ斬り込む', obj: '本丸に斬り込んだ雑賀孫一の鉄砲衆を討て', max: 70,
         say: [['雑賀孫一', '鳥居殿はいずこ！　雑賀の鈴木孫三郎、見参！'], ['鳥居元忠', '旗本ども、雑賀の鉄砲を防げ！　わしはここで受ける']],
         // 鉄砲衆は二十人ほど（三十人でも傷が重なって主人公が倒れた。11/6 描いて遊んで）。さらに前の四十人は、崩れて退く本丸の寄せ手と重なって七十人に囲まれ、主人公が十秒で倒れた。11/7）
+        // 出所は本丸の口のすぐ外（前は二の丸の中で、鉄砲衆が間合いを取って二の丸へ下がり、追った主人公が傷で倒れた。11/6 夜 描いて遊んで二度）
         // 孫一（鈴木重朝）は落城の後も生きた（1623 年没）。討てない将なので、倒す数を数える鉄砲衆とは別の組で本丸の口に立つ
-        foes: () => { this.magoichi(rt); return [keep('雑賀孫一の鉄砲衆', { x: 0, z: -25 }, 'yatagarasu', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 3 }, { type: 'gun', n: 3 }], { morale: 100, seek: 40, dmg: 0.24 })]; },
+        foes: () => { this.magoichi(rt); return [keep('雑賀孫一の鉄砲衆', { x: 0, z: -31 }, 'yatagarasu', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 1 }], { morale: 100, seek: 40, dmg: 0.16 })]; },
         // 新手は足さない（足すと主人公の手柄の数を待って新手の鉄砲衆が湧き続け、落城の札まで四分かかった）
         noRefill: true, reward: '雑賀孫一の鉄砲衆と戦い抜いた' }),
     ], (rt2) => this.win(rt2));

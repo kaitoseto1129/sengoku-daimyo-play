@@ -9,7 +9,7 @@ import { RIDE, bodyGeometry, MAT, makeWeapon, flexSpear, setBowDraw, kickSpear }
 import { lookKey, headOf } from './units_look.js';
 import { lodSwap, muddyFlag } from './units_flags.js';
 import * as THREE from 'three';
-import { moraleDeath, moralePlayerFight } from './army_morale.js';
+import { moraleDeath, moralePlayerFight, groupHead } from './army_morale.js';
 import { GENERALS, TYPES } from './units_data.js';
 import { INTERIOR_WALLS, interiorBlocked, interiorSwingScale } from './shironaka.js';
 import { markArmor } from './armor_wear.js';
@@ -312,6 +312,12 @@ export const ArmyCombat = {
     if ((t.bushoFightT > this.time || (t.target && t.target.alive && (t.type === 'busho' || t.mounted))) && t.name && !t.isPlayer && src && !src.isPlayer && !missile && kind !== 'gun') amount *= 0.55;
     // 普通の足軽の鎧でも、槍は三突き・刀は四太刀までで決着する。侍と武将は従来の甲冑の強さを保つ。
     if (closeHit) amount = Math.max(amount, t.maxHp * Math.max(this.world.def.playerMeleeFloor || 0, (src.wpnKind || src.lookWeapon || src.weapon) === 'sword' ? 0.25 : 1 / 3) + 0.01);
+    // 11/7 kaito（全戦）：本人の刃・槍で、足軽（槍・鉄砲・弓・小者）は一突きで倒れる。侍から上（侍・足軽大将・騎馬・武将・名のある者）は一突きでは倒れない
+    if (src?.isPlayer && melee && !t.isPlayer && !t.invuln && t.team !== src.team) {
+      const low = !t.name && !t.mounted && !t.ashiTaisho && !t.isTaisho && t !== t.group?.leader && t.type !== 'samurai' && t.type !== 'busho' && t.type !== 'cavalry';
+      if (low) amount = Math.max(amount, t.hp + 0.01);
+      else if (t.hp > t.maxHp * 0.6) amount = Math.min(amount, t.hp - t.maxHp * 0.15);
+    }
     // 横や背を突かれた：すぐそばの手の空いた味方（三人まで）が振り返って迎える
     if (from !== 'front' && !t.isPlayer && t.group && src && src.alive && !src.isStruct && src.pos && src.team !== t.team) {
       // 遊び手に突かれた時は一人だけ（三人が一度に向かってくると、横槍が割に合わなくなる）
@@ -907,6 +913,9 @@ export const ArmyCombat = {
         // 部隊長の死：一定確率で混乱
         for (const o of g.units) if (o.alive && Math.random() < 0.45) o.confused = 4 + Math.random() * 4;
       }
+      // 11/7 共通（背を向けるのは退く下知か、組の頭が討たれた時だけ）：頭を討たれた組は、その場で崩れて自分の城・本陣の方へ逃げる。
+      //   自分の組・不退転の組・町の者は除く（崩れは army_groups の updateGroups が次のコマで始める）
+      if (!g.isPlayerSquad && !g.noRout && !g.civ && (t === g.leader || t === groupHead(g))) g.morale = Math.min(g.morale, 15);
     }
     if (t.type === 'busho') {
       // 周りの隊は、隊ごとに一度だけ揺らぐ（兵一人ごとに下げると、一度に潰走してしまう）

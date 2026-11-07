@@ -21,6 +21,24 @@ export function moralePlayerFight(army, p, t) {
   }
 }
 
+// 11/7 共通（背を向けるのは退く下知か、組の頭が討たれた時だけ）：組の頭。戦が決めた頭（g.leader）が無い組も、
+//   武将・侍・足軽大将の順に頭を一人決めておく（討てる者だけ）。頭のいない組が士気の数だけで崩れて、
+//   寄せる前に背を向けて歩き去る事が無いように。頭が討たれれば、その組は自分の城・本陣の方へ崩れる（army_combat の kill）。
+export function groupHead(g) {
+  if (g.leader) return g.leader;
+  const h = g._head;
+  if (h && h.group === g) return h;   // 討たれた頭は替えない（頭を失った組のまま）
+  const ok = (u) => u.alive && !u.isPlayer && !u.invuln && !u.noTarget && u.type !== 'porter' && u.type !== 'dummy';
+  g._head = g.units.find((u) => ok(u) && u.type === 'busho') || g.units.find((u) => ok(u) && u.type === 'samurai') ||
+    g.units.find((u) => ok(u) && u.ashiTaisho) || null;
+  return g._head;
+}
+// 頭のいない足軽だけの組と、三人まで討ち減らされた組（壊滅）は今までどおり士気で崩れる
+export function headUp(g) {
+  const h = groupHead(g);
+  return !!(h && h.alive && !h.fleeing && !h.woundOut && g.order !== 'retreat' && g.count > 3);
+}
+
 // 兵一人の気持ち。近くの様子は間引いて調べ、行き先の入れ物は使い回す。
 export function moraleState(u) {
   const m = (u.group ? u.group.morale : 100) - (u.fright || 0);
@@ -109,8 +127,7 @@ export function moraleThink(army, u) {
   const m = moraleState(u);
   // 個人の逃亡は弱った無名の兵から。筋書きの不退転・武将・備の頭を守る。
   // 頭（侍大将・組頭）が生きていて退く下知も無い組の者は、一人で背を向けない（十八の4・二十二の1）
-  const headUp = g.leader && g.leader.alive && !g.leader.fleeing && !g.leader.woundOut && g.order !== 'retreat';
-  if (!g.noRout && !g.routed && !headUp && !u.invuln && !u.name && u.type !== 'busho' && !u.isTaisho && u !== g.leader && m < 22 && (runners || horse || sense.foes >= 3 || g.morale < 30)) {
+  if (!g.noRout && !g.routed && !headUp(g) &&!u.invuln && !u.name && u.type !== 'busho' && !u.isTaisho && u !== g.leader && m < 22 && (runners || horse || sense.foes >= 3 || g.morale < 30)) {
     const f = runner && (runner.moraleFleeDir || runner.group.fleeDir);
     u.moraleDir.x = f ? f.x : -Math.sin(g.facing);
     u.moraleDir.z = f ? f.z : -Math.cos(g.facing);

@@ -1165,23 +1165,25 @@ function hirataWay(army, u, want) {
 //   数は表に残す。描くのは城・平井山の本陣・南の付城など、動ける所から遠い陣だけ。
 const JIN = [
   rosterPlan('羽柴の囲み', 0, HONJIN, Math.PI, [
-    ['honjin', '本陣の備え', '羽柴秀吉の陣（留守役は不明）', 5000, HONJIN.x, HONJIN.z, 'oda', 'oda', 100, { w: 20, d: 14 }],
-    ['hide', '大村への手', '羽柴秀吉', 10400, -28, -60, 'oda', 'oda', 0, { bind: 'hide' }],
+    ['honjin', '本陣の備え', '羽柴秀吉の陣（留守役は不明）', 14400, HONJIN.x, HONJIN.z, 'oda', 'oda', 100, { w: 20, d: 14 }],
+    // 11/7 miki_jin：駆けつけた秀吉の手は千余騎（ミキのレキシ）。残りは平井山の本陣に置く。付城の名は方角を誤らない呼び名に
+    ['hide', '大村への手（千余騎）', '羽柴秀吉', 1000, -28, -60, 'oda', 'oda', 0, { bind: 'hide' }],
     ['hirata', '平田の持ち場', '谷大膳（谷衛好）の手', 200, HIRATA.x, HIRATA.z, 'oda', 'oda', 0, { bind: 'hirata' }],
-    ['west', '西の付城', '羽柴の配下（名は不明）', 150, -160, -140, 'oda', 'oda', 0],
-    ['south', '南西の付城', '羽柴の配下（名は不明）', 150, -100, 90, 'oda', 'oda', 60, { w: 8, d: 6 }],
-    ['north', '北の付城', '羽柴の配下（名は不明）', 150, 20, -110, 'oda', 'oda', 0],
+    ['west', '大村道の付城', '羽柴の配下（名は不明）', 150, -160, -140, 'oda', 'oda', 0],
+    ['south', '城下の付城', '羽柴の配下（名は不明）', 150, -100, 90, 'oda', 'oda', 60, { w: 8, d: 6 }],
+    ['north', '平井山道の付城', '羽柴の配下（名は不明）', 150, 20, -110, 'oda', 'oda', 0],
     ['east', '東の付城', '羽柴の配下（名は不明）', 150, TSUKESHIRO_CHAIN[4][0], TSUKESHIRO_CHAIN[4][1], 'oda', 'oda', 60, { w: 8, d: 6 }],
     ['reserve', '本陣の後備え', '羽柴の配下（名は不明）', 2000, HONJIN.x + 34, HONJIN.z + 20, 'oda', 'oda', 100],
     ['road', '道を押さえる手', '羽柴の配下（名は不明）', 1800, -126, -26, 'oda', 'oda', 0],
   ], '総勢二万は復元の目安。秀長の当日の留守役は確定しない'),
   rosterPlan('城の守りと搬入の手', 1, MIKI, Math.PI, [
     ['nagaharu', '本陣', '別所長治', 1000, MIKI.x + MIKI_JO.honmaru.dx, MIKI.z + MIKI_JO.honmaru.dz, 'maru', 'maru', 0, { bind: 'ehon' }],
-    ['ni', '二の丸', '別所の配下（名は不明）', 700, MIKI.x + MIKI_JO.ninomaru.dx, MIKI.z + MIKI_JO.ninomaru.dz, 'maru', 'maru', 40, { w: 6, d: 4 }],
-    ['shinjo', '新城', '別所の配下（名は不明）', 700, MIKI.x + MIKI_JO.shinjo.dx, MIKI.z + MIKI_JO.shinjo.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
-    ['takao', '鷹尾山城', '別所の配下（名は不明）', 700, MIKI.x + MIKI_JO.takao.dx, MIKI.z + MIKI_JO.takao.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
-    ['miyanoue', '宮の上要害', '別所の配下（名は不明）', 700, MIKI.x + MIKI_JO.miyanoue.dx, MIKI.z + MIKI_JO.miyanoue.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
-    ['sally', '城からの出撃', '別所の配下（名は不明）', 1700, -30, -48, 'maru', 'maru', 0, { bind: 'sally' }],
+    ['ni', '二の丸', '別所の配下（名は不明）', 375, MIKI.x + MIKI_JO.ninomaru.dx, MIKI.z + MIKI_JO.ninomaru.dz, 'maru', 'maru', 40, { w: 6, d: 4 }],
+    ['shinjo', '新城', '別所の配下（名は不明）', 375, MIKI.x + MIKI_JO.shinjo.dx, MIKI.z + MIKI_JO.shinjo.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
+    ['takao', '鷹尾山城', '別所の配下（名は不明）', 375, MIKI.x + MIKI_JO.takao.dx, MIKI.z + MIKI_JO.takao.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
+    ['miyanoue', '宮の上要害', '別所の配下（名は不明）', 375, MIKI.x + MIKI_JO.miyanoue.dx, MIKI.z + MIKI_JO.miyanoue.dz, 'maru', 'maru', 50, { w: 6, d: 4 }],
+    // 別所吉親の約三千が城を出て平田・大村へ（Wikipedia 三木合戦）
+    ['sally', '城からの出撃（平田・大村）', '別所吉親', 3000, -30, -48, 'maru', 'maru', 0, { bind: 'sally' }],
     ['supply', '兵糧隊の護衛', '搬入側の将（名は不明）', 2000, -154, -82, 'mori', 'mori', 0, { bind: 'escort' }],
   ], '城方五千五百と搬入側二千、合計七千五百は復元の目安。荷を担ぐ者は含めない'),
 ];
@@ -1767,7 +1769,7 @@ const miki = {
     // 三木は膝より深い流れへ踏み込ませない。浅瀬の三十五センチは渡れる。
     // 移動・押し合い・浅瀬への迂回で同じ上限を使う。ほかの戦は従来のまま。
     height, moveWay: hirataWay, riverCross: true, wadeDepth: .45,
-    blockedHint: (rt) => rt.player.u.pos.z > -35 ? '川は東の浅瀬を渡れ。平田は南の口へ回れ' : rt.flags.step === 2 ? '大村へは柵の外を西へ回れ。北の坂を登れ' : '南の道から西の槍組へ加われ。柵の口は南じゃ',
+    blockedHint: (rt) => rt.player.u.pos.z > -35 ? '川は東の浅瀬を渡れ。平田は南の口へ回れ' : rt.flags.step === 2 ? '大村へは柵の外を西へ回れ。大村坂を登れ' : '南の道から西の槍組へ加われ。柵の口は南じゃ',
     streams: [{ pts: [[-230, -35], [-100, -35], [0, -28], [100, -22], [230, -35]], w: 6, depth: 1.2, surfaceDrop: 0.95, // 水面を下げる：岸と浅瀬の兵の胴が水に隠れ、首だけが水面に並んで見えた（10/29 撮り）
       fords: [{ x: 10, w: 9 }] }],
     clear: (x, z) => (x < 30 && z > -150 && z < 30) || castleBlend(x, z) > 0 || roadBlend(x, z) > 0 || peopleClear(x, z),
@@ -2536,7 +2538,7 @@ const miki = {
       // すでに坂の北へ出ている者を、南の口へ戻さない。
       while (i < 4 && (Math.hypot(p.x - OMURA_TURNS[i].x, p.z - OMURA_TURNS[i].z) < 7 || p.z < OMURA_TURNS[i].z - 8)) i++;
       F.routeIndex = i; at = OMURA_TURNS[i];
-      text = i === 0 ? '西の道の印へ。柵の外で集まれ' : i < 3 ? '西の柵沿いを北へ進め' : i === 3 ? '坂の曲がり角へ進め。大村は北じゃ'
+      text = i === 0 ? '西の道の印へ。柵の外で集まれ' : i < 3 ? '西の柵沿いを北へ進め' : i === 3 ? '坂の曲がり角へ進め。大村坂は先じゃ'
         : F.foes.every(gone) ? '大村の印へ集まれ。列を固めよ' : '大村の旗で味方と寄せ手を退けよ';
     }
     if (at === F.routeAt && text === F.routeText) return;

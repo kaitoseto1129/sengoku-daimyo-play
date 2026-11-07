@@ -8,6 +8,7 @@ import { sfx, deafen } from './audio.js';
 import { S, DIFFICULTY, reduceMotion } from './settings.js';
 import { isTouch } from './touch.js';
 import { findPlayerTell } from './player.js';
+const MELEE_GRACE = { rate: 1, burst: 1, interval: 2.5 };
 
 export class PlayerHurt {
 
@@ -104,8 +105,11 @@ export class PlayerHurt {
     else if (tooFar) { this.helpBarkT = this.rt.t; this.rt.bark(arrow ? '組の者「矢は遠くから来る！　陰へ退かれよ！」' : '組の者「鉄砲は遠い！　身を低くなされ！」'); }
   }
   // 敵の攻撃を受けたとき（受け流し・防御・回避・具足）
+  // 11/7 共通（命・体力「十秒で百から二十六」）：戦が決めていない時も、刃を受けた後の二秒半は次の刃を通さない（一瞬に二太刀・三太刀で溶けない）。
+  //   難しいでは外す。戦ごとの def.meleeGrace があればそちら
+  meleeGraceOf() { return this.rt.def.meleeGrace || MELEE_GRACE; }
   meleeDamage(amount, src) {
-    const rt = this.rt, u = this.u, grace = rt.def.meleeGrace;
+    const rt = this.rt, u = this.u, grace = this.meleeGraceOf();
     if (!grace || rt.D === DIFFICULTY.hard || !src || src.isStruct || src.team === u.team) return amount;
     const cap = u.maxHp * grace.burst;
     const pool = Math.min(cap, (this.meleePool ?? cap) + Math.max(0, rt.t - (this.meleePoolAt ?? rt.t)) * u.maxHp * grace.rate);
@@ -132,7 +136,7 @@ export class PlayerHurt {
     }
     const missile = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow';
     // 重なった槍でよろめき続けない。矢玉・火傷は別の危険として残す。
-    if (!missile && this.rt.def.meleeGrace && this.rt.D !== DIFFICULTY.hard && src && !src.isStruct && src.team !== this.u.team && this.meleeGraceUntil > this.rt.t) {
+    if (!missile && this.meleeGraceOf() && this.rt.D !== DIFFICULTY.hard && src && !src.isStruct && src.team !== this.u.team && this.meleeGraceUntil > this.rt.t) {
       this.u.hitKind = null; this.u.hitHorse = false; return 0;
     }
     if (this.u.hitHorse && this.mounted) {

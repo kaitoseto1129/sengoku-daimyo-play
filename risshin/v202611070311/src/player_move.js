@@ -74,10 +74,11 @@ export class PlayerMove {
   escapeBlocked(vx, vz) {
     const u = this.u, W = this.rt.world, h = Math.atan2(vx, vz);
     for (let pass = 0; pass < 2; pass++) {
-      for (let i = 0; i < 8; i++) {
+      // 11/7 共通（門・篝火・砦の前で固まる）：一・二m で空きが無ければ、二m・三m まで探す（柱と篝火の間・人垣に挟まれた時）
+      for (let i = 0; i < 24; i++) {
         // まず横、次に後ろへ。閉じた門に向かう入力でも同じ所へ押し戻さない。
-        const a = h + Math.PI / 2 + i * Math.PI / 4;
-        const x = u.pos.x + Math.sin(a) * 1.2, z = u.pos.z + Math.cos(a) * 1.2;
+        const a = h + Math.PI / 2 + (i % 8) * Math.PI / 4, rr = i < 8 ? 1.2 : i < 16 ? 2 : 3;
+        const x = u.pos.x + Math.sin(a) * rr, z = u.pos.z + Math.cos(a) * rr;
         if (!this.clearWalkTo(x, z, this.mounted)) continue;
         const y = groundAt(W, x, z, u.pos.y);
         let empty = true;
@@ -212,7 +213,8 @@ export class PlayerMove {
     if (dt <= 0 || u.climb) { u.vel.x = 0; u.vel.z = 0; return; }
     if (W.def.playerVelocity) { const q = W.def.playerVelocity(this.rt, vx, vz); vx = q.x; vz = q.z; }
     // 歩こうとする向きへ先に道を譲ってもらう。敵と地形の当たりは保つ。
-    if (!u.mounted && W.def.yieldAlliedFoot && vx * vx + vz * vz > .01)
+    //   11/7 共通（始まり・門・砦の前で主人公が味方の人垣に挟まって固まる）：全戦で味方の徒歩が肩を引く（def.yieldAlliedFoot: false で止める）
+    if (!u.mounted && W.def.yieldAlliedFoot !== false && vx * vx + vz * vz > .01)
       army.makeHorseWay(u, Math.hypot(vx, vz), dt, Math.atan2(vx, vz));
     if (army.bodies) army.bodies(u, dt);
     const x0 = u.pos.x, z0 = u.pos.z;

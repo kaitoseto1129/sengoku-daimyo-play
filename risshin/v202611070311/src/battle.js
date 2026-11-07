@@ -2445,13 +2445,21 @@ export class Battle {
       this.player.updateLook(dt, input);
       practice.swipe += Math.abs(input.touchDx || input.dx || 0);
       this.player.updateCamera(dt, this.camera);
-      if (practice.swipe >= 64) { practice.active = false; practice.done = true; }
+      // 11/7 kaito（始まってすぐ動かせないとバグと思われ離脱）：棒・鍵で歩こうとした時と、三秒たった時も練習を閉じて動かす
+      practice.t = (practice.t || 0) + dt;
+      const walk = input.key?.('KeyW') || input.key?.('KeyA') || input.key?.('KeyS') || input.key?.('KeyD') || (input.axis && Math.hypot(input.axis.x, input.axis.y) > 0.18);
+      if (practice.swipe >= 64 || walk || practice.t > 3) { practice.active = false; practice.done = true; }
       this.hud.update(0, this);
       return;
     }
     if (!(window.__apx && window.__apx.noretry) && retryTick(this, input, RETRY_SPACE, dt)) return;   // x_noretry：実機で写しを切って比べる
     if ((this._spTick = (this._spTick | 0) + 1) % 120 === 1 || this._spWalk.nodes.length) singlePassSweep(this.scene, this._spWalk);
     this.environmentSound.tick(dt);
+    // 11/7 kaito（全戦）：戦の間は陣太鼓がどんどん鳴る（九〜十五秒ごとに遠くの備から。町・稽古・def.noWarDrum の戦は鳴らさない）
+    if (!this.over && !this.withdrawal && !this.def.town && !this.def.dojo && !this.def.noWarDrum) {
+      this._drumT = (this._drumT ?? 5) - dt;
+      if (this._drumT <= 0) { this._drumT = 9 + Math.random() * 6; sfx('jindaiko', 0.5); }
+    }
     if (!this.startTreesCleared && this.player?.u && this.world.clearTreesAround) { this.startTreesCleared = true; this.world.clearTreesAround(this.player.u.pos.x, this.player.u.pos.z, 22); }
     // 読んでいるだけの開戦で倒れたり、味方の崩れで終わったりしない（三戦の指定）。
     if (this.def.waitForPlayer && !this.flags.playerReady && !this.over) {
@@ -2628,7 +2636,14 @@ export class Battle {
     this.tutPauseTick(dt);
     this.coachTick(dt, input);
     // 台詞の間など、戦の定義が操作を止める時（rt.flags.holdPlayer）は空の入力を渡す
-    if (this.player.u.alive) this.player.update(dt, this.flags.holdPlayer ? (HOLD_INPUT || (HOLD_INPUT = botInput())) : input, controlDt);
+    //   11/7 kaito（始まってすぐ動かせないとバグと思われ離脱）：止めている間も、動こうとして一秒半たてば止めを解いて動かす（台詞は流れたまま）
+    let hold = !!this.flags.holdPlayer;
+    if (hold) {
+      const tryMove = input.key?.('KeyW') || input.key?.('KeyA') || input.key?.('KeyS') || input.key?.('KeyD') || (input.axis && Math.hypot(input.axis.x, input.axis.y) > 0.18);
+      this._holdTry = tryMove ? (this._holdTry || 0) + dt : Math.max(0, (this._holdTry || 0) - dt * 0.5);
+      if (this._holdTry > 1.5) hold = false;
+    } else this._holdTry = 0;
+    if (this.player.u.alive) this.player.update(dt, hold ? (HOLD_INPUT || (HOLD_INPUT = botInput())) : input, controlDt);
     this.army.playerRunning = this.player.running && Math.hypot(this.player.u.vel.x, this.player.u.vel.z) > 3;
     // 後に回したヒントを、手ほどきが済んでから一つずつ
     // 古くなったヒント（60秒より前の事）は捨てる

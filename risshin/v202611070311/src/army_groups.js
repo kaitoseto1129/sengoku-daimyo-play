@@ -3,6 +3,7 @@
 import { angleDiff } from './units.js';
 import { groupSignal, signalWait } from './army_signals.js';
 import { localClear, localPoint } from './army_local_way.js';
+import { headUp, groupHead } from './army_morale.js';
 
 const SIDES = [-1, 1];
 
@@ -55,9 +56,8 @@ export const ArmyGroups = {
       // 崩れた部隊は、戦の筋書きが号令を出しても逃げ続ける（bot の報告から。自分の組は号令で立て直せる）
       if (g.routed && g.order !== 'flee' && !g.isPlayerSquad) g.order = 'flee';
       // 背を向けてよいのは、退く下知が出た時と、その組の頭（侍大将・組頭）が討たれた時だけ。頭が生きている組は死ぬまで向かってくる（十八の4・二十二の1）。
-      //   頭の無い組と、三人まで減った組は今までどおり崩れる
-      const headUp = g.leader && g.leader.alive && !g.leader.fleeing && !g.leader.woundOut && g.order !== 'retreat' && g.count > 3;
-      if (!g.routed && !g.noRout && g.morale < 22 && !headUp) {
+      //   11/7 共通：頭を決めていない組も、武将・侍・足軽大将の順に頭を一人決めて同じ決まりに（groupHead）
+      if (!g.routed && !g.noRout && g.morale < 22 && !headUp(g)) {
         g.routed = true;
         g.order = 'flee';
         // 崩れは「ほつれ」から：後ろの段と端の者が先に逃げ出し、前の中ほどの者は 1〜3 秒遅れて背を向ける

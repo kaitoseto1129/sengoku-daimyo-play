@@ -73,7 +73,7 @@ const FROM_E = { x: 150, z: -110 };          // 岡部の隊が回り込んで�
 const OKA_WAIT = { x: 104, z: -78 };         // 岡部の隊が控える所（蟻通の松原の陰）
 const EXIT_N = { x: -4, z: -224 };           // 豊臣の退き口
 // 段の目安の時間（秒）。時が尽きても負けにはしない（主人公のせいでない失敗を作らない。十一1・十二3）。史実の流れで次へ進む
-const T1 = 160, T2 = 100, T3 = 210, T4 = 160;
+const T1 = 160, T2 = 100, T3 = 210, T4 = 110;
 // 目標の字は右上の①〜⑤・段の一覧（STAGES）・負けの札で同じ（十1：言い替えない）。場所は地図で分かる名で
 const STEP_TEXT = ['',
   '安松の八丁畷で亀田高綱と並び、畷を寄せる塙の先手を討て',
@@ -207,6 +207,22 @@ const k12_kashii = {
   closeCombatAssist: true,
   noWinCrane: true,
   // 見出しは「〇〇、討ち取ったり」と勝ち負けだけ（五1・五3）。一騎打ち・敵将が倒れた・塙と淡輪の「討たれた」は、討ち取ったりと重ねない
+  // 家の箱の中へ入ったカメラを、主人公のいる側の壁の外へ出す（根来の clampCamera と同じ作り）
+  clampCamera(rt, pos) {
+    const B = rt.flags.camBoxes, pu = rt.player && rt.player.u;
+    if (!B || !pu) return;
+    for (const b of B) {
+      if (pos.y < b.y0 || pos.y > b.y1) continue;
+      const fx = pos.x - b.x, fz = pos.z - b.z;
+      let p0 = fx * b.c - fz * b.s, p1 = fx * b.s + fz * b.c;
+      if (Math.abs(p0) >= b.hw || Math.abs(p1) >= b.hd) continue;
+      const gx = pu.pos.x - b.x, gz = pu.pos.z - b.z, q0 = gx * b.c - gz * b.s, q1 = gx * b.s + gz * b.c;
+      if (Math.abs(q0) >= b.hw && (Math.abs(q1) < b.hd || Math.abs(q0) - b.hw > Math.abs(q1) - b.hd)) p0 = Math.sign(q0) * (b.hw + 0.15);
+      else if (Math.abs(q1) >= b.hd) p1 = Math.sign(q1) * (b.hd + 0.15);
+      else continue;
+      pos.x = b.x + p0 * b.c + p1 * b.s; pos.z = b.z - p0 * b.s + p1 * b.c;
+    }
+  },
   bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵将が倒れた' && !/^(塙団右衛門|淡輪重政)が討たれた/.test(t),
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっていて動かない（AW3・BK4）。塙の段だけ本人の上
   missionPin(rt) {
@@ -215,7 +231,8 @@ const k12_kashii = {
     let p = YASU;
     if (F.step === 2) p = LINE;
     else if (F.step === 3) p = VILLAGE;
-    else if (F.step === 4) p = EAST;
+    // ④は岡部の隊が見えたらその隊へ（東の口で待つだけで敵が来ず、二分余り立ち尽くした。11/7 遊んで）
+    else if (F.step === 4) { const c = !F.okaBack && live(F.oka) && F.oka.center(); p = c && dist(c, EAST) < 70 ? c : EAST; }
     else if (F.step === 5) p = F.hanaU?.alive ? F.hanaU.pos : HATA;
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 ? 12 : 8;
     return PIN;
@@ -322,6 +339,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 安松の家もカメラを壁と屋根で止める（燃える家の中にカメラが入った。11/7 遊んで）
     F.yasuHouses = YASUMATSU.map(([x, z, r]) => { const h = hut(W, x, z, 7, 5, r); h.traverse((m) => { if (m.isMesh) m.userData.camBlock = true; }); rt.scene.add(h); return { x, z, r }; });
     rt.scene.add(paddyWater(W), pondWater(W));
+    // 家の中へカメラが入らないよう、壁と軒の箱で外へ押し出す（11/6 遊んで：村の辻と東の口で家の中・屋根の上から写った）
+    F.camBoxes = [...KASHII_HOUSES.map(([x, z, r]) => [x, z, r, 8, 5.5]), ...YASUMATSU.map(([x, z, r]) => [x, z, r, 7, 5])].map(([x, z, r, w, d]) => {
+      const y = W.heightAt(x, z); return { x, z, c: Math.cos(r), s: Math.sin(r), hw: w / 2 + 1.1, hd: d / 2 + 1.1, y0: y - 1, y1: y + 7.5 };
+    });
     { const g = dorui(W, [BANK_X + 1.5, POND.z - 10, BANK_X + 1.5, POND.z + 10], 1, 0, { w: 2.4, h: 0.55 }); if (g && !g.isBatchedPart) rt.scene.add(g); }
     rt.scene.add(jinmaku(W, ASANO_HON.x, ASANO_HON.z + 2, 14, 10, 4, { mon: 'asano' }));
     rt.scene.add(shogi(W, ASANO_HON.x, ASANO_HON.z - 0.6, Math.PI));
@@ -436,6 +457,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 団右衛門は侍衆を連れて村の北の口から辻へ斬り込む。討てるのは主人公の止めだけ（onWound）
       //   斬り込む先は村の辻のまわりだけ（広く追わせると馬で村の外の田まで駆け回り、主人公が四分も追い回した。11/7 遊んで）
       if (live(F.hata)) { F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.seekRange = 24; F.hata.noRout = true; F.hata.speed = 4; }
+      // 団右衛門の命は名のある将として強いが、一人の槍で討てる所まで（総大将の倍掛けが重なって千を超え、二分余り突いても討てなかった。11/7 遊んで）
+      const H = F.hanaU; if (H?.alive) { H.maxHp = Math.min(H.maxHp, 300); H.hp = Math.min(H.hp, H.maxHp); }
+      //   馬上の一撃も、組み合った主人公が三四合は受けられる強さに（十秒で命の四分の三を削られて二度討たれた。11/7 遊んで）
+      if (H?.alive) H.dmg = Math.min(H.dmg || 18, 12);
       for (const g of [F.ueda, F.tomo, F.kame]) if (live(g)) { g.order = 'attack'; g.seekRange = 60; g.anchor = { x: VILLAGE.x, z: VILLAGE.z - 4 }; }
       rt.after(1.2, () => rt.say('塙団右衛門', '塙団右衛門直之、これにあり！　首が欲しくば取りに来い！', 3.4));
       rt.after(5, () => rt.say('亀田高綱', 'あれが団右衛門よ。侍衆を剥がして、そなたの槍で止めを！', 3));
@@ -603,7 +628,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const H = F.hanaU;
       if (H?.alive) {
         const dp = dist(H.pos, P.pos);
-        if (dp < 18) { H.target = P; H.aiT = 0; }
+        // 侍衆が崩れても団右衛門は退かない（史実で村の中で討たれた。崩れて川の南まで馬で駆け去った。11/7 遊んで）
+        if (H.fleeing) { H.fleeing = false; F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; }
+        if (dp < 30) { H.target = P; H.aiT = 0; }
         else if (dist(H.pos, VILLAGE) > 26) { H.target = null; H.aiT = 0; F.hata.order = 'move'; F.hata.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.onArrive = (q) => { q.order = 'attack'; }; }
       }
     }

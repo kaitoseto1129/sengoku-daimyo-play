@@ -138,7 +138,7 @@ function millTick(army, u, dt, want) {
     !u.reload && !u.climb && !u.downed && !u.perch && !u.duelW && !u.isStruct && !u.civ && u.type !== 'dummy' &&
     !(u.idl?.sit > 0.5) && !(u.woundRest > 0.5) && !(u.pinT > army.time) && !(army.duel && army.duel.foe === u) &&
     !u.group?.hidden && !u._crouch && !(t?.alive && !t.isStruct && Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < Math.max(3, (u.reach || 2) + 1)) &&
-    Math.abs(u.pos.x - P.pos.x) + Math.abs(u.pos.z - P.pos.z) < 90;
+    Math.abs(u.pos.x - P.pos.x) + Math.abs(u.pos.z - P.pos.z) < 115;   // 11/7：八十m の内の敵も固まらない（④）
   if (!quiet) { M.t = 0; M.on = 0; return null; }
   if (M.st > 4) { M.st = 0; M.t = M.wait; M.hx = u.pos.x; M.hz = u.pos.z; }
   if (M.on > 0) {
@@ -156,6 +156,15 @@ function millTick(army, u, dt, want) {
   // 徒歩は敵（近くに無ければ組の向き）を見たまま足を運ぶ。騎馬は馬の向きごと変える。
   const foe = u.mounted ? null : t?.alive && !t.isStruct ? t : army.nearestEnemy(u, 40, o => !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 2);
   M.face = foe ? Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z) : u.mounted ? null : (u.group?._face ?? u.group?.facing ?? u.heading);
+  // 11/7 共通（一3「見える兵は必ず何かしている」・auto60 の④）：持ち場で待つ徒歩の兵も、彫像のように固まらない。
+  //   持ち場（M.hx・hz）から三十cm の内で足を踏みかえ、向きも少し振る（敵を見張る・隣を見る）。隊の並びは崩さない
+  if (!u.mounted && !u.stay) {
+    const a = Math.random() * Math.PI * 2, r = 0.12 + Math.random() * 0.18;
+    const q = M.q || (M.q = { x: 0, y: 0, z: 0 });
+    q.x = M.hx + Math.sin(a) * r; q.z = M.hz + Math.cos(a) * r; q.y = u.pos.y;
+    if (localClear(army, u.pos, q)) { M.x = q.x; M.z = q.z; }
+    if (M.face != null) M.face += (Math.random() - 0.5) * 0.5;
+  }
   return M;
 }
 
@@ -1836,6 +1845,14 @@ export const ArmyThink = {
       want = null; speed = 0; u.mv.x = u.mv.z = u.vel.x = u.vel.z = 0;
     }
     if (u.mounted && u.stagger > 0) { want = null; speed = 0; }
+    // 11/7 共通（総大将は前に出ない）：総大将（taisho.js の isTaisho）は、自分から本陣の床几を十m より離れて敵へ出ない。
+    //   退く・逃げる・道を行く下知と、戦が決めた先駆け（u.taishoFront）だけは動く
+    if (u.isTaisho && !u.isPlayer && !u.fleeing && !u.taishoFront && want && g.order !== 'retreat' && g.order !== 'flee' && g.order !== 'path' && g.order !== 'move') {
+      const seat = u._seat || (u._seat = { x: g.anchor.x, y: u.pos.y, z: g.anchor.z });
+      if (Math.hypot(want.x - seat.x, want.z - seat.z) > 10 && Math.hypot(want.x - seat.x, want.z - seat.z) > Math.hypot(u.pos.x - seat.x, u.pos.z - seat.z) - 0.5) {
+        want = seat; if (u.target?.alive && !u.target.isStruct) face = this.faceTo(u, u.target);
+      }
+    }
     const mill = millTick(this, u, dt, want);
     if (mill) { want = mill; speed = u.speed * (u.mounted ? 0.45 : 0.4); face = mill.face; }
     this.steer(u, dt, want, speed, face);

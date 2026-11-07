@@ -995,7 +995,10 @@ export const ArmyMove = {
     const shootReach = waitT && (u.lineBlk || 0) < 3 && Math.abs(u.target.pos.x - u.pos.x) + Math.abs(u.target.pos.z - u.pos.z) < (u.range || 40) * 1.3;
     const shootKneel = (w === 'gun' || w === 'bow') && !u.isPlayer && !u.mounted && u.moving < 0.15 && !u.fleeing && !flight && !u.hit
       && (shootReach || !!u.reload || !!(u.atk && (u.atk.ranged || u.atk.bow)) || u.gunPh === 'aim' || u.gunPh === 'fire' || u.gunPh === 'kiri' || (!!u.bowPh && u.bowPh !== 'rest'));
-    const sitWant = jinchu ? (sitting ? 1 : 0) : brace || reloadKneel || shootKneel ? 1 : camp ? I.sitW : 0;
+    // 11/7 kaito（全戦）：本陣の者は座る。本陣・旗本・居所の組と総大将は、敵が迫らない間は床几・地に腰を下ろして待つ
+    if (g && g._honjin === undefined) g._honjin = !!(g.honjin || /本陣|旗本|居所/.test(g.name || '') || g.units.some((o) => o.isTaisho));
+    const honjinSit = idle && !foe && g && g._honjin && g.order === 'hold' && !g.routed && !(g.formation === 'yari' && u.row === 0) && !u.isSub && !u.stdHeld && !u.banner && !u.mounted;
+    const sitWant = jinchu ? (sitting ? 1 : 0) : brace || reloadKneel || shootKneel || honjinSit ? 1 : camp ? I.sitW : 0;
     // 信貴山の敗走では込め直しの膝を早めに解き、座ったまま走り出す姿を避ける。
     const flightRise = this.world.def.ridgeCombatMotion && u.fleeing && !u.isPlayer && !u.mounted;
     I.sit += (sitWant - I.sit) * Math.min(1, dt * (flightRise || reloadMoving || jinchu?.standing ? 7 : brace || reloadKneel || shootKneel ? 4 : 2.2));

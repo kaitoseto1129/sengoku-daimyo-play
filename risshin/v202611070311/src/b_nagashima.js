@@ -49,7 +49,7 @@ function ngSoilNoise(x, z) {
   NG_SOIL.b = .5 + .34 * Math.sin(x * .29 - z * .11 + 1.3) * Math.cos(z * .26 + Math.sin(x * .09) * 1.6) + .16 * Math.cos(x * .61 + z * .53);
   return NG_SOIL;
 }
-const FORT = { x: 0, z: -74 };             // 中江の砦
+const FORT = { x: 0, z: -74 };             // 長島城（11/7：手前の砦。降って舟で退く。中江は西の x=104、屋長島は x=48）
 const GANSHO = { x: -44, z: -82 };         // 願証寺・寺内町（中江の砦とは別の、宗教の中心。軍事拠点と分ける）
 // 三川の輪中と願証寺の門徒の暮らしを踏まえる。個々の在所・人数・道筋は推定復元。
 // 三重県の県史あれこれ：https://www.bunka.pref.mie.lg.jp/rekishi/kenshi/asp/arekore/detail8.html
@@ -93,6 +93,8 @@ const AT_HQ = new Set(['inaba_ukyonosuke', 'inaba_kiroku', 'hachiya', 'ujiie', '
 // 11/6 専門家の目：公記の「津田大隅守」は織田信広その人。信広の姿と二人にしない（tsuda_osumi は本陣に出さない）。
 const CHECK_NAMES =['西の柵の縄（一つ目）', '西の柵の縄（二つ目）', '西の柵の縄（三つ目）'];
 // 本の足軽：黒漆の陣笠と胴（AV1：笠の赤茶をやめ黒に揃える）、紺の小袖。既存の具足の色だけを替える。
+// 11/7（critic60「門徒が肥えて元気に見える」）：三か月の兵糧攻めで飢えた顔（頬のこけ・細い顎）と、色の褪せたぼろの小袖（鳥取の飢えた城兵と同じ作り）。
+const HUNGRY_FACE = { w: 0.9, jaw: 0.65, chin: 1.05, cheek: 1.4, gaunt: 1.0, brow: 1.2, nose: 1.1, nw: 0.95, eye: 1.15 };
 const ODA = { flag: 'oda', armor: 0x28231f, hatColor: 0x1c1916, lace: 0x645545, cloth: 0x293b45, haori: 0 };
 const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, hat: 'hachimaki', hatColor: 0x2a2622, flag: 'namu', haori: 0 };
 
@@ -1233,9 +1235,10 @@ function fleetTick(rt, dt) {
 // 11/6 fixc1721：結末の火。岸（z=-14）から見える中江・屋長島の表（物見・番所・長屋・川向きの柵）を三度に分けて燃やす。
 //   n=0 は表の物見と番所、1 は長屋と柵の東西、2 は残る物見と柵の中ほど。炎・煙は共通の addBlaze／addFire を使い回す。
 const BANK_BLAZES = [
-  [{ x: -20, z: -60, w: 3, d: 3, h: 7.6, n: 1, size: 4.6 }, { x: -16, z: -68, w: 7, d: 5, h: 3.4, size: 5.5 }, { x: 60, z: -60, w: 3, d: 3, h: 7.6, n: 1, size: 4.6 }],
-  [{ x: 14, z: -72, w: 9, d: 5, h: 3.6, size: 6 }, { x: 42, z: -73, w: 6, d: 5, h: 3.4, size: 5.5 }, { fence: [[-28, -55.5], [-12, -52.4]] }, { fence: [[38, -54], [64, -54]] }],
-  [{ x: 20, z: -60, w: 3, d: 3, h: 7.6, n: 1, size: 4.6 }, { fence: [[12, -52.4], [28, -55.5]] }, { x: -23, z: -85, w: 6, d: 5, h: 3.2, size: 5 }],
+  // 11/7：手前の長島城は降った城なので燃やさない。西の屋長島（x≒48）と、その向こうの中江城（x≒104）の表を燃やす。
+  [{ x: 60, z: -60, w: 3, d: 3, h: 7.6, n: 1, size: 4.6 }, { x: 42, z: -73, w: 6, d: 5, h: 3.4, size: 5.5 }, { x: 96, z: -72, w: 3, d: 3, h: 9, n: 1, size: 5.5 }],
+  [{ x: 96, z: -84, w: 6, d: 5, h: 3.4, size: 6 }, { fence: [[38, -54], [64, -54]] }, { fence: [[92, -66], [122, -66]] }],
+  [{ x: 40, z: -86, w: 3, d: 3, h: 7.6, n: 1, size: 4.6 }, { x: 104, z: -102, w: 12, d: 8, h: 4.5, size: 7 }, { x: 118, z: -110, w: 3, d: 3, h: 9, n: 1, size: 5.5 }],
 ];
 function bankBlazes(rt, n) {
   const W = rt.world, F = rt.flags;
@@ -1274,7 +1277,8 @@ function allyBankGuard(rt, dt) {
     if (Math.abs(u.pos.x) > 70 || u.pos.z > -10 || u.pos.z < -45) continue;
     if (u.cover && u.cover !== u._bankCover && u.cover.t > A.time) continue;
     const to = u.moveTo;
-    const lim = (x) => Math.max(bankEdgeZ(W, x) + 1.2, BANK_Z - .8);
+    // 11/7（critic60「柵の内で守れなのに味方が柵の外の水際に並ぶ」）：岸の柵（z≒BANK_Z）より陸側に一歩余り下げる。
+    const lim = (x) => Math.max(bankEdgeZ(W, x) + 1.2, BANK_Z + 1.2);
     const wet = u.pos.z < lim(u.pos.x) - .3 || to && to !== u._bankCover && to.z < lim(to.x) - .3;
     if (!wet) continue;
     const c = u._bankCover || (u._bankCover = { x: 0, z: 0, t: 0 });
@@ -1430,24 +1434,25 @@ EMPTY_WEAPON.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
 function retreatBoats(rt) {
   const F = rt.flags;
   F.boats = []; F.last = [];
-  for (let k = 0; k < 3; k++) {
+  // 11/7（critic60「三分で終わる」）：四手目（東の四艘・二十人）を足す。後の舟を受けた後にもう一度寄せ、斬り込みを三度のぶつかりにする（公記「七、八百」）。
+  for (let k = 0; k < 4; k++) {
     // 11/6 fixc2220（critic60「八百のはずが二十人ほど」）：前の二手は四艘・二十人、後の舟は五艘・三十人（六人乗り）で、十三艘・七十人に増やす（本物の兵は二十五人増える）。着岸口は柵前へ寄せる。西の先陣も味方の槍が届く所で受ける。
-    const frontX = k === 2 ? 14 : (k - 1) * 12, nBoat = k === 2 ? 5 : 4, per = k === 2 ? 6 : 5;
+    const frontX = k === 3 ? -26 : k === 2 ? 14 : (k - 1) * 12, nBoat = k === 2 ? 5 : 4, per = k === 2 ? 6 : 5;
     const g = enemyGroup(rt, { fixed: true, faction: 'ikko', name: '退城した門徒',
       anchor: { x: frontX, z: -44 }, facing: 0, formation: 'column', colW: 3,
       order: 'hold', aggro: 0, seekRange: 0, morale: 60, noRout: true, fire: false, historicalOrders: true,
-      fleeDir: { x: k === 0 ? -1 : 1, z: 0.4 } },
+      fleeDir: { x: k === 0 || k === 3 ? -1 : 1, z: 0.4 } },
       // 刀で斬り込む強さは保つ。11/6 fixc2220：死に物狂いの斬り込み（公記「数多討死」）が一太刀二太刀で崩れ、斬り合いが一分で終わっていた。体力を五割増しに。
-      dress(Array.from({ length: nBoat * per }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 50, maxHp: 50, ...(k === 2 && i === 0 ? { name: '門徒の旗頭', flagScale: 1.8 } : {}), kosode: 1, kosodeCol: [0x34332e, 0x484339, 0x292c2b][i % 3], cloth: 0x34332e, hat: i % 5 === 3 ? 'none' : 'hachimaki', flag: k === 2 && i === 0 || i % 5 === 4 ? 'namu' : null, weapon: i % 5 === 4 ? 'spear' : 'sword', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
+      dress(Array.from({ length: nBoat * per }, (_, i) => ({ type: 'samurai', n: 1, o: { hp: 50, maxHp: 50, ...(k === 2 && i === 0 ? { name: '門徒の旗頭', flagScale: 1.8 } : {}), kosode: 1, kosodeCol: [0x6a604e, 0x575043, 0x7a6e58][i % 3], cloth: 0x5a5244, face: { ...HUNGRY_FACE, t: i % 7 }, skin: 0x9a7456, hat: i % 5 === 3 ? 'none' : 'hachimaki', flag: k === 2 && i === 0 || i % 5 === 4 ? 'namu' : null, weapon: i % 5 === 4 ? 'spear' : 'sword', spear: 'su', horse: false, sode: false, kote: 0, menpo: 0 } })), IKKO));
     F.last.push(g);
     if (k === 2) { F.sallyBoss = g.units[0]; g.leader = F.sallyBoss; }
     dressMonTo(g, true);
     for (let j = 0; j < nBoat; j++) {
-      const x = frontX + (j - (nBoat - 1) / 2) * (k === 2 ? 3 : 3.2), z = -42;
+      const x = frontX + (j - (nBoat - 1) / 2) * (k === 2 ? 3 : 3.2), z = k === 3 ? -36 : -42; // 四手目は東の深い筋に浮かべる（z=-42 の東は干上がった洲）
       const m = riverBoat(x, waterHeight(rt.world, x, z), z, 0, true);
       const pole = new THREE.Mesh(POLE_GEO, WOOD); pole.position.set(.55, 1.3, -2); m.add(pole);
       const shadow = new THREE.Mesh(BOAT_SHADOW_GEO, BOAT_SHADOW_MAT); shadow.scale.set(1.1, 1, 3.4); rt.scene.add(shadow);
-      const bt = { m, pole, shadow, x, z, group: g, second: k === 2, landed: false, passengers: [], hull: [], holes: 0, flood: 0, breath: 0 };
+      const bt = { m, pole, shadow, x, z, group: g, second: k >= 2, third: k === 3, landed: false, passengers: [], hull: [], holes: 0, flood: 0, breath: 0 };
       // 舷の線だけ矢玉を止める。船内を箱でふさいで乗員を守らない。
       for (const side of [-1, 1]) {
         const h = solidSeg(x + side * .72, z - 2.8, x + side * .72, z + 2.8, .05);
@@ -1463,6 +1468,12 @@ function retreatBoats(rt) {
       rt.scene.add(m); F.boats.push(bt);
     }
   }
+}
+// critic60「同じ文を五〜七秒おきに三回」：同じ下知は十五秒に一度まで（ui-guidelines は八秒）。
+function sayGap(rt, who, text, dur, gap = 15) {
+  const F = rt.flags; F.saidAt ||= {};
+  if (rt.t - (F.saidAt[text] ?? -1e9) < gap) return;
+  F.saidAt[text] = rt.t; rt.say(who, text, dur);
 }
 function nearTroops(rt, g) {
   const p = rt.player.u.pos;
@@ -1506,7 +1517,7 @@ function boatTick(rt, dt) {
     }
     // 同じ舟に残る者も一緒に退く。退く舟の同乗者を、岸へ寄せる敵に数え続けない。
     if (escaping) for (const q of bt.passengers) if (q.aboard) q.escape = true;
-    if (F.step >= 2 && (!bt.second || F.rearBoatAt != null) && !bt.landed && pilot && !escaping && bt.flood < .4) bt.z = Math.min(BOAT_LAND_Z, bt.z + dt * 1.5);
+    if (F.step >= 2 && (!bt.second || F.rearBoatAt != null) && (!bt.third || F.thirdBoatAt != null) && !bt.landed && pilot && !escaping && bt.flood < .4) bt.z = Math.min(BOAT_LAND_Z, bt.z + dt * 1.5);
     // 漕ぎ手を失った舟・退く舟は川筋へ戻り、流れに沿う。流向と速さは復元の目安。
     if (F.step >= 2 && (!pilot && !bt.landed || escaping) && bt.z > CH_Z) bt.z = Math.max(CH_Z, bt.z - dt * .65);
     if (F.step >= 2 && (!pilot && !bt.landed || escaping) && bt.z <= CH_Z) bt.x += dt * .45;
@@ -2300,7 +2311,7 @@ const nagashima = {
   siegeKit: {
     plan: { x: 0, z: -52, rot: 0, W: 26, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: { at: 1 }, shiyori: false },
     build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: .15, near: 80, close: 30, base: .8, peak: 3, arrows: .45, needMen: false } },
-    borrow: { r: 34, name: '中江の砦' },
+    borrow: { r: 34, name: '長島城' },
     when: (rt) => rt.flags.step < 3.5 && !rt.flags.ending,
   },
   // 身の回りの当時の場（timeslip_field.js）。天正二年九月二十九日は今の十一月の初め（晩秋）。輪中の岸はぬかるみ、葦が茂る。
@@ -2480,7 +2491,7 @@ const nagashima = {
       // 11/6 fixc2220（critic60 一2）：手の大将は足軽一人に直に下知しない。足軽への細かな下知は組頭の口から。大将は法螺・槍組の号令だけ。
       if (name === '柴田勝家' && !rt.G.lord && !/法螺|槍組を回す|わしの後ろ/.test(text)) name = '組頭';
       // 11/6 fixc2220（critic60）：降る前の小競り合いや火の場で、共通の「敵が崩れた・逃げ腰・横槍・朋輩が」を言わせない。
-      if ((F.step < 3 || F.ending) && name !== '伝令' && name !== '語り' && /逃げ腰|崩れた|崩した|逃げるぞ|背を見せ|横槍|朋輩|無念|追い散らす|持ち場を離れるな/.test(text)) return;
+      if ((F.step < 3 || F.ending) && name !== '伝令' && name !== '語り' && /逃げ腰|崩れた|崩した|逃げるぞ|背を見せ|横槍|朋輩|無念|追い散らす|持ち場を離れるな|死に場所|かかれ|突け、突け|ひるむな|槍を揃えよ|押せ|備えを固め/.test(text)) return; // 11/7：開戦の決まり文句（共通の openLow）も降る前・火の場では言わせない
       // 字幕を省いて声だけになる経路にも、同じ文の間隔を通す。言い回しだけ違う同じ下知（縄・杭・横木）も一つに数える。
       const key = /杭|縄を確か/.test(text) ? '杭' : /横木/.test(text) && name !== '柴田勝家' ? '横木' : String(text).replace(/[\s、。！!？?「」]/g, '');
       if ((speechTimes.get(key) ?? -Infinity) + 15 > this.t) return;
@@ -2659,7 +2670,7 @@ const nagashima = {
     // 五拠点の縄張りと地形を同じデータから作る。新しい守兵は置かない。
     F.C = buildCastlePlan(rt, NAGASHIMA_ALL_PLAN, { baseHeight, perch: false, life: false });
     for (const s of F.C.walls) { s.noTarget = true; s.wall = true; s.fireProof = true; s.hp = s.maxHp = 1e9; }
-    F.fwall = F.C.walls.filter(s => s.name === '中江の砦');
+    F.fwall = F.C.walls.filter(s => s.name === '長島城');
     F.ywall = F.C.walls.filter(s => s.name === '屋長島の砦');
     for (const gate of NAGASHIMA_ALL_PLAN.koguchi) {
       if (gate.id === 'nagashima_gate') {
@@ -2703,7 +2714,7 @@ const nagashima = {
       for (const seg of entryStones) seg.stone.visible = false;
     });
     const buildings = F.fortBuildings = fortRooms(rt);
-    F.kuraStruct = buildings.naka_kura.struct; F.kuraStruct2 = buildings.naka_hut.struct;
+    F.kuraStruct = buildings.castle_kura.struct; F.kuraStruct2 = buildings.castle_nagaya.struct; // 11/7：火は中江城（西の端）と屋長島
     F.yanaStruct = buildings.yana_kura.struct;
     F.karatoStruct = buildings.castle_hall.struct; F.tsutsumiStruct = buildings.bank_watch.struct; F.nakasuStruct = buildings.island_watch.struct;
     // 五巡目：写真の塀沿いの旗列。十本のまま、木戸・井楼の梯子・番所の戸口から離す。
@@ -2799,7 +2810,7 @@ const nagashima = {
     for (const q of [F.kuraStruct, F.kuraStruct2, F.yanaStruct, F.ganshoStruct, F.karatoStruct, F.tsutsumiStruct, F.nakasuStruct]) { q.noTarget = true; q.fireProof = true; }
     F.fireTargets = [];
     const fireBounds = new THREE.Box3();
-    for (const b of FORT_BUILDINGS) if (b.id.startsWith('naka_') || b.id.startsWith('yana_')) {
+    for (const b of FORT_BUILDINGS) if (b.id.startsWith('castle_') || b.id.startsWith('yana_')) {
       const q = buildings[b.id].struct; q.flammable = true;
       // 長屋は上で束ねた屋根の寸法、小屋は実際の屋根の上端を設営時に一度だけ調べる。
       q.bankFireRoof = b.enter ? 2.6 + (b.d / 2 + .6) * .4
@@ -2822,7 +2833,7 @@ const nagashima = {
     // 中江の守り。下間頼旦がこの砦で指揮したとは確定できない。
     // 守将も個人の馬印も未確認。共通の金扇を置かず、念仏の旗で所属を示す。
     F.ikkoCamp = camp(rt, { x: 0, z: -80, facing: 0, team: 1, faction: 'ikko', mon: 'namu', noUma: true, armor: IKKO.armor, guard: 15, reserve: 0, runTo: { x: 0, z: -58 } });
-    F.ikkoCamp.guard.name = '中江の守り';
+    F.ikkoCamp.guard.name = '長島城の守り';
     F.ikkoCamp.guard.formation = 'yari';
     F.ikkoCamp.guard.noAI = true; // 籠城の守兵は、退城する舟を追って砦から出ない。
     F.ikkoCamp.guard.historicalOrders = true; // 共通の寄せ直しでも砦を離れない。
@@ -3341,7 +3352,7 @@ const nagashima = {
     rt.setPhase('brief');
     rt.obj('main', rt.G.lord ? '岸の柵へ進み、柵は味方に任せよ' : '岸の横木へ進み、一か所直せ', 'main');
     rt.banner('川が砦を守る長島', '対岸は門徒の島。あなたの持ち場は、手前の柵');
-    rt.say('柴田勝家', rt.G.lord ? '殿、対岸は門徒の島。岸の柵を結わせ、舟に備えまする' : `${nm(rt)}、川を渡るな。目の前の横木を直し、舟に備えよ`, 4);
+    rt.say(rt.G.lord ? '柴田勝家' : '組頭', rt.G.lord ? '殿、対岸は門徒の島。岸の柵を結わせ、舟に備えまする' : `${nm(rt)}、川を渡るな。目の前の横木を直し、舟に備えよ`, 4);
     rt.after(18, () => { if (F.step < 2) rt.say('物見', '八月に大鳥居と篠橋が落ちた。島では食う物も尽きておる', 3); });
     rt.after(5, () => {
       // 下知を早送りして見張りへ移った後は、古い作業へ呼び戻さない。
@@ -3367,7 +3378,7 @@ const nagashima = {
     rt.unmark('shiba');
     rt.obj('main', rt.G.lord ? '岸の柵で舟に備え、柵は味方に任せよ' : '岸の横木へ進め。手伝いは一か所', 'main');
     if (rt.G.lord) rt.marker('workWatch', { x: 0, z: BANK_Z + 5 }, '舟の見張り場');
-    rt.say('柴田勝家', rt.G.lord ? '殿、柵は足軽が結びます。岸の柵で舟に備えてくだされ' : '杭に横木を渡せ！　縄を締め、川岸を固めよ', 3);
+    rt.say(rt.G.lord ? '柴田勝家' : '組頭', rt.G.lord ? '殿、柵は足軽が結びます。岸の柵で舟に備えてくだされ' : '杭に横木を渡せ！　縄を締め、川岸を固めよ', 3);
     F.teppo.fire = true;
     for (const g of F.bankBows) { g.fire = true; for (const u of g.units) u.noTarget = false; }
     // 信長で遊ぶ時：柵は足軽が結う（手柄にはしない）。当主は岸で門徒に備える
@@ -3459,7 +3470,7 @@ const nagashima = {
     // 人足を待つ間も、岸で実際に川を見ていた分は見張りに数える。
     if (F.watchTime >= WATCH_HOLD) { F.watchDone = true; this.boats(rt); return; }
     rt.obj('main', '岸で対岸の舟を見張れ', 'main');
-    rt.say('柴田勝家', F.watchTime > 0 ? '持ち場に戻り、川をよく見よ' : '川の向こうの島をよく見張れ', 4);
+    rt.say('組頭', F.watchTime > 0 ? '持ち場に戻り、川をよく見よ' : '川の向こうの島をよく見張れ', 4);
     rt.marker('watch', { x: SPOTS[F.watchSpot].x, z: BANK_Z + 5 }, '水路を見張る持ち場');
   },
 
@@ -3478,6 +3489,10 @@ const nagashima = {
     for (const g of F.last) campWear(g, 55, F.kakoi.morale);
     for (const g of F.bankBows) campWear(g, 55, F.kakoi.morale);
     campWear(F.ikkoCamp.guard, 55, F.kakoi.morale);
+    // 11/7（critic60 一3「対岸の柵の前の門徒が始めから終わりまで何もしない」）：長島城が降ったので、表の柵の守りは退く支度で奥の舟入へ下がる。
+    { const gd = F.ikkoCamp.guard; gd.noAI = false; gd.fire = false; gd.aggro = 0; gd.seekRange = 0; gd.noRout = true; gd.order = 'hold'; gd.formation = 'column';
+      gd.anchor = { x: FORT.x, z: FORT.z - 22 }; gd.facing = 0;
+      for (const u of gd.units) if (u.alive) { u.noTarget = true; u.target = null; u.atk = null; } }
     // 降伏の報せで岸の応酬を止める。退城舟への射撃と、その後の反撃を混ぜない。
     for (const g of F.bankBows) {
       g.fire = false;
@@ -3607,7 +3622,7 @@ const nagashima = {
   sallyWave(rt, i) {
     const F = rt.flags, g = F.last[i];
     if (F.step !== 3 || F.ending || g.sallyReleased) return;
-    g.sallyReleased = true; g.noRout = false;
+    g.sallyReleased = true; g.releasedAt = rt.t; g.noRout = false;
     // 深手や敗走で反撃できない隊には、上陸の声や立て直しを重ねない。
     if (!canCounterattack(g)) return;
     // 射撃への怒りで気力は戻るが、空腹の疲れや受けた傷は戻さない。
@@ -3627,7 +3642,7 @@ const nagashima = {
     // 11/6 fixc1439（九2）：斬り込みは本人の立つ岸の柵へ寄せる。味方の列の脇を素通りさせず、目標に書いた門徒と本人が必ず刃を合わせる。
     g.anchor.x = Math.max(-16, Math.min(16, rt.player.u.pos.x + (i - 1) * 5));
     if (i === 0 && nearTroops(rt, g)) rt.say('門徒', '退けると言うたではないか！　岸へ、道を開け！', 3);
-    if (i > 0) rt.bark(i === 2 ? '後の舟も来る！　西の岸も守れ' : '次の一団が来る！　柵の内で受け止めよ', true);
+    if (i > 0) rt.bark(i === 3 ? '東の舟が岸に着く！　柵の内で受けよ' : i === 2 ? '後の舟も来る！　西の岸も守れ' : '次の一団が来る！　柵の内で受け止めよ', true);
   },
 
   win(rt) {
@@ -3666,12 +3681,12 @@ const nagashima = {
     rt.after(3, () => {
       // 各砦の二か所から着火。ほかの建物へも燃え移るが、火は同時に四つまで。
       for (const s of F.fireTargets) s.fireProof = false;
-      for (const s of [F.kuraStruct, F.kuraStruct2, F.yanaStruct, F.fireTargets.find(q => q !== F.yanaStruct && q.x > 35)]) if (s && s.alive) {
+      for (const s of [F.kuraStruct, F.kuraStruct2, F.yanaStruct, F.fireTargets.find(q => q !== F.yanaStruct && q.x > 35 && q.x < 70)]) if (s && s.alive) {
         s.fireProof = false; s.burn = 3; rt.army.igniteStruct(s, s);
       }
-      battleEvent(rt, EVENT_FIRE_START, FORT, null, 1, true, '中江・屋長島に火がかけられた');
+      battleEvent(rt, EVENT_FIRE_START, YANAGASHIMA, null, 1, true, '中江・屋長島に火がかけられた');
       // 11/6 fixc2220（critic60 一3）：対岸の柵の前の守りが火の中でも立ち尽くしていた。火に追われ、柵の内を逃げ場を探して走る。
-      { const gd = F.ikkoCamp?.guard; if (gd) { gd.noAI = false; gd.fire = false; gd.aggro = 0; gd.seekRange = 0; gd.noRout = true; gd.order = 'hold'; gd.formation = 'ring'; gd.anchor = { x: FORT.x - 14, z: FORT.z - 4 }; gd.facing = 0;
+      { const gd = F.ikkoCamp?.guard; if (gd) { gd.noAI = false; gd.fire = false; gd.aggro = 0; gd.seekRange = 0; gd.noRout = true; gd.order = 'hold'; gd.formation = 'ring'; gd.anchor = { x: FORT.x, z: FORT.z - 22 }; gd.facing = 0;
         for (const u of gd.units) if (u.alive) { u.noTarget = true; u.target = null; u.atk = null; } } }
       rt.obj('aftermath', '岸に残り、中江・屋長島の火を見届けよ', 'order');
       rt.objProgress('aftermath', '川は渡るな。岸に残れ');
@@ -3858,7 +3873,7 @@ const nagashima = {
         if (F.buildTask !== task) {
           F.buildTask = task;
           rt.obj('main', '岸の横木に縄をかけよ', 'main');
-          rt.say('足軽', near ? 'この縄を頼む。しっかり締めてくれ' : '岸の中央の横木へ。縄を締めてくれ', 3);
+          sayGap(rt, '足軽', near ? 'この縄を頼む。しっかり締めてくれ' : '岸の中央の横木へ。縄を締めてくれ', 3);
         }
         rt.objProgress('main', '縄 ' + (F.personalBuilt || 0) + '／一か所');
         // 11/6 fixc1844：携帯では長押しの札が出ず、横木の前に立っても縄が締まらず 900 秒で負けた（描いて遊んで見た）。
@@ -3953,6 +3968,12 @@ const nagashima = {
       // 戦える者のいない舟を、反撃の待ち時間に数えない。
       // 11/6 fixc1439：一陣を退けてから後の舟まで息をつかせ過ぎず、早すぎもしない（一戦が二分半で終わっていた）。
       if (F.rearBoatAt != null && (rt.t - F.rearBoatAt >= 20 || !canCounterattack(F.last[2]))) this.sallyWave(rt, 2);
+      // 四手目：後の舟が岸で刃を合わせて二十五秒、または後の舟が崩れたら、東の舟も動く。
+      if (F.thirdBoatAt == null && F.last[2].sallyReleased && (rt.t - F.last[2].releasedAt >= 25 || !canCounterattack(F.last[2]))) {
+        F.thirdBoatAt = rt.t;
+        if (canCounterattack(F.last[3])) rt.say('物見', '東の葦の陰から、まだ舟が出る！', 3);
+      }
+      if (F.thirdBoatAt != null && (rt.t - F.thirdBoatAt >= 16 || !canCounterattack(F.last[3]))) this.sallyWave(rt, 3);
       const p = rt.player.u.pos;
       const atBank = onBank(p, F.sallyNear);
       F.sallyNear = atBank;
@@ -3980,7 +4001,7 @@ const nagashima = {
         if (u.pos.z >= BANK_Z - 12 && u.pos.z < BANK_Z + 36 && Math.abs(u.pos.x) < 60) pressing = shoreFoes = true;
       }
       // 全ての舟を受けてから川を見た八秒を数える。敵への応戦中も済んだ分は残す。
-      const shoreClear = !pressing && through === 0 && F.last[2].sallyReleased;
+      const shoreClear = !pressing && through === 0 && F.last[3].sallyReleased;
       const facingRiver = watchingRiver(rt);
       F.shoreFacing = facingRiver;
       if (shoreClear && atBank && !dangerProgress(rt) && facingRiver) F.shoreQuiet += dt;
@@ -3999,8 +4020,8 @@ const nagashima = {
         // 退避の秒数だけで、持ち場を失う押し込みの知らせを隠さない。
         const breach = through >= 4 && !F.broken;
         const behind = through > 0 && !F.broken;
-        const waiting = !shoreFoes && !landingFoes && (!F.last[2].sallyReleased || pressing);
-        const checkingShore = F.last[2].sallyReleased && !pressing && through === 0;
+        const waiting = !shoreFoes && !landingFoes && (!F.last[3].sallyReleased || pressing);
+        const checkingShore = F.last[3].sallyReleased && !pressing && through === 0;
         const eastBank = F.broken || F.rearBoatAt != null && F.rearBoatThreat;
         const eastAway = eastBank && Math.hypot(p.x - 24, p.z - (BANK_Z + 6)) >= 5;
         const task = dangerProgress(rt) ? 'retreat' : F.broken ? 'lost' : behind ? 'breach' : !atBank ? 'return' : shoreFoes || landingFoes ? 'hold' : waiting ? 'boats' : !facingRiver ? 'turn' : 'watch';
@@ -4012,11 +4033,11 @@ const nagashima = {
           F.sallyEastAway = eastAway;
           // 最後の舟が接岸する間も、さらに別の舟を待つ下知にはしない。
           rt.obj('main', task === 'lost' ? '岸を破られた。西の柵へ下がれ' : task === 'retreat' ? '危ない！　槍組の後ろへ下がれ' : task === 'breach' ? '振り向き、背後の敵を味方と止めよ' : task === 'return' ? eastBank ? '西の岸の柵へ戻れ' : '岸の柵へ戻り、柵の内で守れ' : task === 'boats' ? eastAway ? '西の柵へ進み、寄せる舟に備えよ' : eastBank ? '西の柵で、寄せる舟に備えよ' : '岸で川を見張り、寄せる舟に備えよ' : task === 'turn' ? 'この場で川の向こうへ向き直れ' : task === 'watch' ? '川を向き、舟を見張れ' : '柵の内で、味方と門徒を止めよ', 'main');
-          if (taskChanged && task === 'watch') rt.say('柴田勝家', '追うな。岸に立ち、川を見張れ', 3);
-          if (taskChanged && task === 'turn') rt.say('足軽', 'その場で川を向け。舟から目を離すな', 3);
+          if (taskChanged && task === 'watch') sayGap(rt, '組頭', '追うな。岸に立ち、川を見張れ', 3);
+          if (taskChanged && task === 'turn') sayGap(rt, '足軽', 'その場で川を向け。舟から目を離すな', 3);
           if (task === 'return') {
             rt.marker('bank', { x: eastBank ? 24 : 0, z: BANK_Z + (eastBank ? 6 : 5) }, eastBank ? '西の岸の持ち場' : '岸の持ち場');
-            rt.say('柴田勝家', eastBank ? '西の岸の柵へ戻れ。川へ敵を追うな' : '岸の柵へ戻れ。川へ敵を追うな', 3);
+            sayGap(rt, '組頭', eastBank ? '西の岸の柵へ戻れ。川へ敵を追うな' : '岸の柵へ戻れ。川へ敵を追うな', 3);
           }
           // 岸が静まったら今いる持ち場で見張る。東への移動は縄の確認から。
           if (task === 'watch') rt.unmark('bank');
@@ -4039,9 +4060,11 @@ const nagashima = {
         // 反撃を始める時刻と実際の着岸は別。舟の移動を秒読みで言い切らない。
         const boatNews = eastAway ? '西の柵へ進め。後の舟に備えよ'
           : !F.last[1].sallyReleased ? '次の一団に備え、柵の内で構えよ'
-          : F.rearBoatAt == null ? '最後の舟が川上に残る。岸で見張れ'
-          : !F.last[2].sallyReleased ? '最後の舟が動いた。西の柵で構えよ'
-          : '最後の舟が岸へ寄る。西の柵で構えよ';
+          : F.rearBoatAt == null ? '後の舟が川上に残る。岸で見張れ'
+          : !F.last[2].sallyReleased ? '後の舟が動いた。西の柵で構えよ'
+          : F.thirdBoatAt == null ? '東の葦の陰に舟が残る。岸で構えよ'
+          : !F.last[3].sallyReleased ? '東の舟が寄る。柵の内で構えよ'
+          : '最後の舟を受けた。岸で構えよ';
         // 全ての舟を受けた後の八秒だけを数える。着岸や二分の経過を待つ札にはしない。
         rt.objProgress('main', task === 'retreat' ? `槍組の後ろへ。残り${Math.ceil(15 - (rt.t - F.dangerAt))}秒${behind ? '　背後へ敵が抜けた' : ''}` : F.broken ? '岸の守りを破られた。西の柵へ下がれ' : breach ? `背後の押し込み ${Math.floor(F.pushTime)}／二十秒　続くと岸を失う` : behind ? '背後へ敵が抜けた。振り向き、味方と止めよ' : !atBank ? eastBank ? '西の岸の柵へ戻れ' : '岸の柵へ戻り、味方と川を見張れ' : checkingShore ? !facingRiver ? riverTurnText(rt) : `見張り　あと${Math.max(0, Math.ceil(SHORE_WATCH_HOLD - F.shoreQuiet))}秒` : eastAway && task === 'boats' ? '西の柵へ進め。味方と舟に備えよ' : landingFoes && !shoreFoes ? '着いた舟に敵がいる。柵の内で味方と止めよ' : waiting ? boatNews : pressing ? '岸に敵が残る。柵の内で味方と止めよ' : '岸で川を見張れ。静まったら西の縄を確かめる');
       }
@@ -4105,12 +4128,12 @@ const nagashima = {
         for (const id of ['check0', 'check1', 'check2', 'east', 'finalFacing', 'finalThreat']) rt.unmark(id);
         rt.obj('main', task === 'retreat' ? '危ない！　槍組の後ろへ下がれ' : task === 'fight' ? F.finalChecked < 3 ? '西の柵の手前で、門徒を味方と受け止めよ' : '西の柵で、味方と残る門徒を受け止めよ' : task === 'return' ? '西の柵へ戻り、味方と見張れ' : task === 'turn' ? 'この場で川の向こうへ向き直れ' : task === 'watch' ? '川を向き、舟を見張れ' : task === 'move' ? `柵の内から、西の${nextCheck + 1}つ目の杭へ進め` : '杭の前で縄を確かめよ', 'main');
         F.finalClock = null;
-        if (task === 'move') rt.say('足軽', '川へ出るな。柵の内から縄の杭へ', 3);
-        else if (task === 'return') rt.say('足軽', '西の柵へ戻れ。そこで舟を見張ろう', 3);
-        else if (task === 'turn') rt.say('足軽', 'その場で川を向け。舟から目を離すな', 3);
-        else if (task === 'fight') rt.say('足軽', F.finalChecked >= 3 ? '敵を味方と止めよう。見張りはその後じゃ' : '縄は後じゃ。まず敵を味方と止めよう', 3);
-        else if (task === 'check') rt.say('足軽', F.finalCheckT > 0 ? '縄の続きじゃ。その杭で確かめよう' : 'その杭で止まれ。縄を確かめよう', 3);
-        else if (task === 'watch') rt.say('足軽', '岸に立って、舟を見張ろう', 4);
+        if (task === 'move') sayGap(rt, '足軽', '川へ出るな。柵の内から縄の杭へ', 3);
+        else if (task === 'return') sayGap(rt, '足軽', '西の柵へ戻れ。そこで舟を見張ろう', 3);
+        else if (task === 'turn') sayGap(rt, '足軽', 'その場で川を向け。舟から目を離すな', 3);
+        else if (task === 'fight') sayGap(rt, '足軽', F.finalChecked >= 3 ? '敵を味方と止めよう。見張りはその後じゃ' : '縄は後じゃ。まず敵を味方と止めよう', 3);
+        else if (task === 'check') sayGap(rt, '足軽', F.finalCheckT > 0 ? '縄の続きじゃ。その杭で確かめよう' : 'その杭で止まれ。縄を確かめよう', 3);
+        else if (task === 'watch') sayGap(rt, '足軽', '岸に立って、舟を見張ろう', 4);
       }
       // 戦う間は止める敵の印一つ。静まれば縄や見張り場へ案内を戻す。
       if (task === 'fight') {
@@ -4351,9 +4374,9 @@ installBattleJinkei(nagashima, [
     ['nagashima_shimada', '東寄りの囲船', '島田所之助', null, { x: -141, z: CH_Z - 5 }, 'oda', 'oda', (r) => r.flags.shimadaShip],
   ], '七万は遊びの目安で諸説あり。陸三方向と水軍は史料の筋、陣の寸法と岸の将の担当は復元。各手の人数は不明。'),
   battleJin('輪中の砦ごとの守り', 1, FORT, 0, [
-    ['nagashima_nakae', '中江の砦・奥の守り', '門徒衆（将の名は不明）', null, { x: 18, z: -82 }, 'namu', 'honganji', (r) => r.flags.ikkoCamp?.guard, { named: false }],
+    ['nagashima_nakae', '長島城の守り（九月二十九日に降る）', '下間頼旦・願証寺の顕忍', null, { x: 18, z: -82 }, 'namu', 'honganji', (r) => r.flags.ikkoCamp?.guard, { named: false }],
     ['nagashima_yanagashima', '屋長島の砦', '門徒衆（将の名は不明）', null, { x: YANAGASHIMA.x, z: YANAGASHIMA.z - 4 }, 'namu', 'honganji', null, { named: false }],
-    ['nagashima_castle', '長島城の守り（九月二十九日に降る）', '下間頼旦・願証寺の顕忍', null, { x: NAGASHIMA.x, z: NAGASHIMA.z - 4 }, 'namu', 'honganji', null, { named: false }],
+    ['nagashima_castle', '中江城（揖斐川の西）', '門徒衆（将の名は不明）', null, { x: NAGASHIMA.x, z: NAGASHIMA.z - 4 }, 'namu', 'honganji', null, { named: false }],
     ['nagashima_tsutsumi', '堤の砦', '門徒衆（将の名は不明）', null, { x: TSUTSUMI.x, z: TSUTSUMI.z - 3 }, 'namu', 'honganji', null, { named: false }],
     ['nagashima_nakasu', '中洲の砦', '門徒衆（将の名は不明）', null, { x: NAKASU.x, z: NAKASU.z - 3 }, 'namu', 'honganji', null, { named: false }],
     ['nagashima_bank', '退城した門徒の反撃', '門徒衆（将の名は不明）', null, { x: -10, z: BANK_Z - 4 }, 'namu', 'honganji', (r) => r.flags.last?.[0], { named: false }],

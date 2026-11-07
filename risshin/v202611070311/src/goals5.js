@@ -259,7 +259,7 @@ OWN.t10_oshi = () => {
     { kind: 'stage', k: 2, text: '人夫と兵を連れ、丸墓山へ走る', noun: '丸墓山', check: st(3) },
     { kind: 'stage', k: 3, text: '浅野勢と浅瀬を渡り、佐間口の門前へ', noun: '佐間口の門前', check: st(4) },
     { kind: 'stage', k: 4, text: '門前で、打って出た城兵を押し返す', noun: '佐間口', check: st(5) },
-    { kind: 'stage', k: 5, text: '佐間口の枡形へ入り、二の丸の口を払う', noun: '二の丸の口', check: won },
+    { kind: 'stage', k: 5, text: '佐間口の門前に残る城兵を討つ', noun: '佐間口の門前', check: won },
   ];
 };
 
