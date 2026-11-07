@@ -87,7 +87,8 @@ function waveDefeated(g) {
 function shCavalry(rt, g) {
   const F = rt.flags, cav = g.cavalry;
   const footGone = g.routed || readyCount(g) === 0;
-  if (footGone && !g.opened && !g.cavSent && !g.escortsRetiring) {
+  // 柵を破った直後に徒歩が崩れた時も、まだ加勢していない騎馬を置き去りにしない。
+  if (footGone && !g.cavSent && !g.escortsRetiring) {
     g.escortsRetiring = true;
     for (const q of [cav, g.missiles]) if (readyCount(q) && !q.routed) {
       q.noRout = false; q.order = 'retreat'; q.dest = { x: 690, z: g.def.z }; q.fleeDir.x = 1;

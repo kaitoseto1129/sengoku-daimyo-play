@@ -83,10 +83,13 @@ function mikiCampStores(rt) {
   for (const [x, z] of [[HIRATA.x - 3, HIRATA.z - 9], [HONJIN.x - 7, HONJIN.z - 13]]) {
     const lod = new THREE.LOD(), near = new THREE.Group();
     const stores = new THREE.Mesh(geometry, material); stores.receiveShadow = true;
-    near.add(stores, pot.clone()); lod.addLevel(near, 0); lod.addLevel(new THREE.Group(), 65);
-    lod.position.set(x, W.heightAt(x, z), z); rt.scene.add(lod);
+    // 鍋は道具置き場の原点から離れる。斜面でも焚き火と同じ足元へ据える。
+    const ground = W.heightAt(x, z), potGround = W.heightAt(x + 1.3, z + .3);
+    const cooking = pot.clone(); cooking.position.y = potGround - ground;
+    near.add(stores, cooking); lod.addLevel(near, 0); lod.addLevel(new THREE.Group(), 65);
+    lod.position.set(x, ground, z); rt.scene.add(lod);
     // 炎上ではなく炊事の細い煙。既存の風・煙の共有枠へ二本だけ入れる。
-    W.addSmokeColumn(x + 1.3, W.heightAt(x, z) + .15, z + .3, { size: .22 });
+    W.addSmokeColumn(x + 1.3, potGround + .15, z + .3, { size: .22 });
     const f = W.addFire(x + 1.3, z + .3, { h: .08, size: .16, lightRadius: 2, smoke: false });
     W.batchFireFlames(f.flame, f.inner);
   }
@@ -368,7 +371,8 @@ function mikiCoverMaterial(base, kind) {
   const mat = base.clone(), compile = base.onBeforeCompile;
   mat.transparent = kind === 'bamboo'; mat.depthWrite = kind !== 'bamboo';
   if (kind !== 'bamboo') mat.userData.camNearSolid = true;
-  if (mat.emissive) { mat.emissive.setHex(0x514735); mat.emissiveIntensity = .12; }
+  // 土まで明るく自発光させると陰と雨筋が消え、斜面が一枚の板に見える。
+  if (mat.emissive) { mat.emissive.setHex(0x514735); mat.emissiveIntensity = kind === 'bamboo' ? .12 : .025; }
   mat.onBeforeCompile = function (sh, renderer) {
     compile.call(this, sh, renderer);
     // 前の戦の切り抜きを、法面にも小屋の土台にも残さない。
@@ -376,19 +380,17 @@ function mikiCoverMaterial(base, kind) {
     sh.vertexShader = 'varying vec3 vMikiCover;\n' + sh.vertexShader.replace('#include <project_vertex>',
       '#include <project_vertex>\n vMikiCover = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'varying vec3 vMikiCover;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float grain = fract(sin(dot(floor(vMikiCover * 24.0), vec3(12.9, 78.2, 37.7))) * 43758.5);
-      diffuseColor.rgb *= mix(0.88, 1.12, grain);
+      ${kind === 'bamboo' ? `float grain = fract(sin(dot(floor(vMikiCover * 24.0), vec3(12.9, 78.2, 37.7))) * 43758.5);
+      diffuseColor.rgb *= mix(0.88, 1.12, grain);` : ''}
       ${kind === 'bamboo' ? `float joint = smoothstep(0.88, 0.98, fract(vMikiCover.y * 2.8));
       diffuseColor.rgb *= 1.0 - joint * 0.22;` : ''}
       ${kind === 'bamboo' ? 'diffuseColor.a *= mix(0.15, 1.0, smoothstep(1.5, 4.5, length(vMikiCover - cameraPosition)));' : ''}
     `);
     if (kind !== 'bamboo') {
-      // 土の絵を掛けた後で道と同じ黄褐色へ寄せる。黒い別材の板に見せない。
-      // 元の土粒・雨筋は残し、月や松明の明暗はこの後の照明で受ける。
+      // 土粒・草の斑・雨筋の明暗を保ったまま、道と近い黄褐色へ寄せる。
+      // 明るさの下限を持つ単色への置換と細かな乱数の粒は、土の絵を白く均していた。
       sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', `
-        float mikiSoilLight = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-        vec3 mikiDrySoil = vec3(0.46, 0.40, 0.30) * clamp(mikiSoilLight / 0.32, 0.65, 1.25);
-        diffuseColor.rgb = mix(diffuseColor.rgb, mikiDrySoil, 0.55);
+        diffuseColor.rgb *= vec3(1.02, 0.99, 0.94);
         #include <alphamap_fragment>
       `);
     }
@@ -1799,6 +1801,10 @@ const miki = {
     const root = rt.hud.root, layout = document.createElement('style');
     root.dataset.miki = '';
     layout.textContent = `
+      /* 出陣待ちの最初の一枚でも、戦場の名札を題字の上に残さない。 */
+      html body #hud[data-miki]:has(#intro:not([hidden])) :is(.field-names,#goal-sign,#markers,#h-prog) {
+        visibility:hidden !important; pointer-events:none !important;
+      }
       html body #hud[data-miki] #intro:has(#intro-go) > .card.card {
         display:flex; flex-direction:column; align-items:stretch; gap:8px;
         width:min(600px, calc(100vw - 32px)); height:min(620px, 72dvh); max-height:min(620px, 72dvh);
@@ -2833,15 +2839,18 @@ const miki = {
       for (const g of [F.guard, F.hirata]) if (!gone(g)) g.morale = Math.max(0, g.morale - 6);
       return;
     }
-    // 城兵が木戸へ寄せて二十秒、大膳は木戸の前で城兵に討たれる（史実では平田で討死）。平田の守りが崩れた時も同じ
-    let killer = null, kd = 30;
+    // 討死の場面も実際に刃が届く所だけ。木戸の近くにいるだけの敵や柵越しの敵に討たせない。
+    let killer = null, kd = Infinity;
     for (const g of F.sallies) for (const e of g.units) {
-      if (!e.alive || e.fleeing || e.noTarget) continue;
-      const d = Math.hypot(e.pos.x - GATE.x, e.pos.z - GATE.z);
+      if (!e.alive || e.fleeing || e.woundOut || e.noTarget || e.downed || e.type === 'gun' || e.type === 'bow') continue;
+      const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      if (d > Math.min(3.2, (e.reach || 1.8) + .4) || Math.abs(e.pos.y - u.pos.y) > 1.5 ||
+        rt.army.terrainBlocks(e.pos, u.pos) || rt.army.wallBetween(e.pos, e.team, u.pos)) continue;
       if (d < kd) { kd = d; killer = e; }
     }
-    if (killer && F.taniNearT == null) F.taniNearT = rt.t;
-    if (killer && (rt.t - F.taniNearT > 20 || gone(F.hirata))) {
+    if (!killer) { F.taniNearT = null; return; }
+    if (F.taniNearT == null) F.taniNearT = rt.t;
+    if (rt.t - F.taniNearT > 20 || gone(F.hirata)) {
       u.fleeing = false; u.invuln = false; u.hp = 0; rt.army.kill(u, killer);
     }
   },
@@ -3268,7 +3277,11 @@ const miki = {
       if (left <= 10 || rt.t - (F.omuraGoT ?? rt.t) > 80) {
         F.lastStand = true; F.reserve.focus = rt.player.u; F.reserve.seekRange = 90; F.reserve.order = 'attack';
         for (const u of F.reserve.units) { u.target = null; u.watch = null; u.aiT = 0; }
-        rt.say('別所甚太夫', '城へは戻らぬ。ここで討死いたす！', 4);
+        const jin = F.reserve.units.find(u => u.name === '別所甚太夫');
+        if (jin?.alive && !jin.woundOut && !jin.noTarget && !jin.fleeing && !jin.downed &&
+          Math.hypot(jin.pos.x - p.x, jin.pos.z - p.z) < 24 &&
+          weatherSees(rt.world, p, jin.pos) && !rt.army.terrainBlocks(p, jin.pos) &&
+          !rt.army.wallBetween(p, -1, jin.pos)) rt.say('別所甚太夫', '城へは戻らぬ。ここで討死いたす！', 4);
       }
     }
     if (left <= 30 && !F.deadlineSaid) { F.deadlineSaid = true; rt.bark('退く下知が迫るぞ。味方と敵を押し返せ', true); }
@@ -3427,4 +3440,3 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 // 11/4 jin（一6）：秀長の当日の居場所は確かでない（JIN の注）。いない所に置かない
 miki.bushou = ['蜂須賀正勝', { name: '谷衛好', g: /平田/ }, { name: '別所吉親', g: /城から出た別所勢|大村の控え/ }, { name: '生石治家', g: /荷駄/ }];
 export { miki };
-

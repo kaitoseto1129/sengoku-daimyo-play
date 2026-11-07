@@ -3642,7 +3642,7 @@ function installInabaPresentation(rt) {
       look.copy(body);
       if (F.downHit) {
         foeBody.set(F.downHit.x, F.downHit.y + 1.1, F.downHit.z);
-        foeBody.sub(body).clampLength(0, 2); look.copy(body).addScaledVector(foeBody, 0.35);
+        look.copy(foeBody).sub(body).clampLength(0, 2).multiplyScalar(0.35).add(body);
       }
       safe.copy(body); safe.y += 3.5;
       // 真下を向くと上向きの軸が視線と重なる。体の斜め上から見る。
@@ -3676,6 +3676,7 @@ function installInabaPresentation(rt) {
           if (body.y + (candidate.y - body.y) * t < ground + 0.35) { clear = false; break; }
         }
         if (!clear) continue;
+        // 敵の胸は戦場の座標のまま保ち、原点近くへの方向量で壁を調べない。
         const foeClear = F.downHit && player.camBlockHit(foeBody, candidate) === null;
         const score = Math.min(25, candidate.distanceToSquared(body)) - side * 0.1 - lift
           + (foeClear ? 12 : 0);
@@ -3691,7 +3692,7 @@ function installInabaPresentation(rt) {
       const hit = F.downHit, foe = hit.source;
       const live = foe?.pos && !foe.gone && Math.hypot(foe.pos.x - hit.x, foe.pos.z - hit.z) < 12;
       foeBody.set(live ? foe.pos.x : hit.x, (live ? foe.pos.y : hit.y) + 1.1, live ? foe.pos.z : hit.z);
-      foeBody.sub(body).clampLength(0, 2); look.copy(body).addScaledVector(foeBody, 0.35);
+      look.copy(foeBody).sub(body).clampLength(0, 2).multiplyScalar(0.35).add(body);
     }
     look.y = Math.min(look.y, safe.y - 0.8);
     rt.camera.position.copy(safe); player.camPos.copy(safe);
