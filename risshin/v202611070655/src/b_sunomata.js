@@ -1997,7 +1997,12 @@ function yoseApproach(rt, g, r, side, n = 3) {
   g.onArrive = (gg) => { gg.order = 'assault'; gg.speed = sp0; gg.formation = 'yari'; gg.yariRanks = 3; gg.width = 6; gg.facing = Math.atan2(r.dir.x, r.dir.z); };
   g.assault = assaultFn(rt, side);
   const c = g.center();
-  for (let k = 0; k < n; k++) addTaba(rt, c.x + r.dir.x * 3, c.z + r.dir.z * 3, 1, { van: g, dir: r.dir, off: (k - (n - 1) / 2) * 3.4, vanDist: 3, rot: Math.atan2(r.dir.x, r.dir.z) });
+  for (let k = 0; k < n; k++) {
+    const tb = addTaba(rt, c.x + r.dir.x * 3, c.z + r.dir.z * 3, 1, { van: g, dir: r.dir, off: (k - (n - 1) / 2) * 3.4, vanDist: 3, rot: Math.atan2(r.dir.x, r.dir.z) });
+    // 動く竹束にも柵と同じ視線処理を使う。束の後ろに視点が入っても本人と槍先を隠さない。
+    // 車輪・押す位置・矢除けの判定はそのまま。遠近の形は同じ材質を使い回す。
+    sunoNearFrame(tb.m);
+  }
   // 寄せ場へ実際に着くまで隊列を保つ。時間だけで柵への突撃に切り替えない。
 }
 
@@ -3151,6 +3156,8 @@ const sunomata = {
     // 葦は深い黄緑に枯れ色が混ざる（明るい黄の板にしない。手本。10/29）
     grass: 0x6e7a45, grassTints: [0xffffff, 0xd8cf9e, 0xa9b07c], tallGrass: 1,
     grassShape: 'blade',   // 足元の草は絵の板でなく、細い葉の株（10/30 草の葉が板）
+    // 普請と守備で踏む柵内に背の高い株を重ねない。土塁には専用の低い草を残す。
+    noGrass: (x, z) => Math.max(Math.abs(x), Math.abs(z)) < FORT,
     flagColors: [0xe2ded2, 0x2a2826, 0x6b4a32],   // 紺の旗は青い味方に見えるので柿渋に（10/29）
     fights: [[0, -FORT - 12, 30], [-FORT - 12, 0, 30], [0, -FORT, 16], [-FORT, 0, 16]],
     skip: (x, z) => x > 56 || mizuhikiDist(x, z) < 3.2,   // 水を引いた溝の水面を草で隠さない
@@ -3526,10 +3533,13 @@ const sunomata = {
     // 刈田は既存の稲株と畦で表す。草地の色・草株を重ねず、田の外へ滑らかに戻す。
     // 自然堤防と水田の土地利用の参考は sunoFieldFloor の上の岐阜県教材。
     // 水際は砂泥を主にし、岸から離れるほど草地へ戻す。草の細かさや兵の数は保つ。
-    groundCover: (x, z) => (1 - sunoFieldFloor(x, z))
+    groundCover: (x, z) => Math.max(0, Math.min(1, (Math.max(Math.abs(x), Math.abs(z)) - FORT + 4) / 6))
+      * (1 - sunoFieldFloor(x, z))
       * (1 - .85 * sunoCampWear(x, z))
       * (1 - .9 * Math.max(sunoRiverBank(x, z), sunoBrookBank(x, z))) * Math.max(.12, Math.min(1,
       (Math.max(Math.abs(x), Math.abs(z)) - 9) / 12 + Math.sin(x * .39 + z * .28) * .24)),
+    // 砦際の刈り残しは短くし、川岸の葦と丈を分ける。設営時の縮尺だけを変える。
+    tuftHeight: (x, z) => Math.max(Math.abs(x), Math.abs(z)) < FORT + 6 ? .4 : 1,
     trees: 260,
     tufts: 3500,
     // 追加の林にも陣の伐開・道・水際の除外を適用する。通常の植樹だけでは控えに木が重なる。
