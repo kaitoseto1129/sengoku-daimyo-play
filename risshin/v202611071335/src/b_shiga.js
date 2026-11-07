@@ -3907,10 +3907,11 @@ const shiga = {
         F.retreatPoint.z = F.gateC.z - F.gateN.z * 5;
       }
       const d = Math.hypot(p.x - (F.gateC.x - F.gateN.x * 5), p.z - (F.gateC.z - F.gateN.z * 5));
-      const remaining = next ? Math.ceil((Math.hypot(p.x - next[0], p.z - next[1]) + F.retreatRemaining[F.retreatIdx]) / 10) * 10 : 0;
-      let retreatText = (d < 6 || F.C.kuruwa.san.test(p.x, p.z)) ? '木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `道沿いに木戸まであと約${remaining}メートル。角で折り返せ` : '開いた木戸から城へ入れ';
-      // 道の進みに合わせて一度だけ知らせる。歩く間に同じ下知を繰り返さない。
-      if (!F.climbHalf && F.retreatIdx >= 6) { F.climbHalf = true; rt.bark('坂道の半ばまで来た。道の外は急な崖だ'); }
+      const roadLeft = next ? Math.hypot(p.x - next[0], p.z - next[1]) + F.retreatRemaining[F.retreatIdx] : 0;
+      const remaining = Math.ceil(roadLeft / 10) * 10;
+      let retreatText = (d < 6 || F.C.kuruwa.san.test(p.x, p.z)) ? '木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `道沿いに木戸まであと約${remaining}メートル。印に沿って坂を上れ` : '開いた木戸から城へ入れ';
+      // 道の点の間隔は不ぞろい。点の番号ではなく、歩く道のりで半ばを知らせる。
+      if (!F.climbHalf && F.retreatIdx > 0 && roadLeft <= F.retreatRemaining[0] / 2) { F.climbHalf = true; rt.bark('坂道の半ばまで来た。道の外は急な崖だ'); }
       if (!F.climbTop && F.retreatIdx >= 12) { F.climbTop = true; rt.bark('城の木戸が近い。開いた口から中へ入れ'); }
       const inSan = F.C && F.C.kuruwa.san.test(p.x, p.z);
       let saved = 0;

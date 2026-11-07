@@ -5626,7 +5626,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           if (atGate && !F.retreatOn) rt.say('先手組頭', 'ここが西木戸じゃ！　木戸を打ち破れ！', 3);
         }
       }
-      if (updateHud) rt.objProgress('main', retShown(rt) ? '来た道の角へ戻れ。そこから木戸へ進め' : !F.onoDone && F.onoInGarden ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '南木戸へ戻り、道へ出た小隊を味方と退けよ' : '庭の敵を味方と退けよ。塀の外へ追うな' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : !F.onoDone ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '道へ出た敵の小隊を味方と退けよ' : '坂道を通り、屋敷の南木戸へ' : !breached ? F.westCanStrike ? `西木戸を向き、${westAttackControl(rt)}で打て` : '屋敷の南木戸から出て、坂道を進み、西木戸を向け' : left ? `曲輪の守りはあと${left}人。印の先の敵を味方と退けよ` : '自分を含め六人で、京極丸を十秒守れ');
+      if (updateHud) rt.objProgress('main', retShown(rt) ? '来た道の角へ戻れ。そこから木戸へ進め' : !F.onoDone && F.onoInGarden ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '南木戸へ戻り、道へ出た小隊を味方と退けよ' : '庭の敵を味方と退けよ。塀の外へ追うな' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : !F.onoDone ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '道へ出た敵の小隊を味方と退けよ' : '坂道を通り、屋敷の南木戸へ' : !breached ? F.westCanStrike ? `西木戸を向き、${westAttackControl(rt)}で打て` : '屋敷の南木戸から出て、坂道を進み、西木戸を向け' : left ? `曲輪の守りはあと${left}人。印の先の敵を味方と退けよ` : '京極丸の広場を押さえよ');
       // 打撃が木戸へ届いているかを同じ札で示す。守りの強さは変えない。
       if (updateHud && F.westCanStrike && !breached) {
         const remaining = Math.max(1, Math.ceil(gate.hp / gate.maxHp * 10));
@@ -5748,7 +5748,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         // 11/5（AR1・BA3）：南北の押さえの人数を待たせない。反撃を退ければ小丸へ。
         if (enemies === 0 && repelled && inside) F.holdT += dt;
         else F.holdT = 0;
-        if (updateHud) rt.objProgress('main', F.awayT > 0 ? `京極丸を取り返せ。猶予${Math.max(0, Math.ceil(35 - F.awayT))}秒` : !inside ? retShown(rt) ? '来た道の角へ戻れ。そこから京極丸へ' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : '京極丸へ戻れ。内で十二秒守る' : enemies > 0 ? `京極丸の敵あと${enemies}人。外へ追うな` : !repelled ? `南は${southRepelled ? '退いた' : F.south.odaniReachedKyo ? '反撃中' : '接近中'}、北は${northRepelled ? '退いた' : F.north.odaniReachedKyo ? '反撃中' : '接近中'}。内で迎えよ` : '反撃は退いた。尾根を北へ、小丸へ');
+        if (updateHud) rt.objProgress('main', F.awayT > 0 ? `京極丸を取り返せ。猶予${Math.max(0, Math.ceil(35 - F.awayT))}秒` : !inside ? retShown(rt) ? '来た道の角へ戻れ。そこから京極丸へ' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : '京極丸へ戻り、内で反撃を迎えよ' : enemies > 0 ? `京極丸の敵あと${enemies}人。外へ追うな` : !repelled ? `南は${southRepelled ? '退いた' : F.south.odaniReachedKyo ? '反撃中' : '接近中'}、北は${northRepelled ? '退いた' : F.north.odaniReachedKyo ? '反撃中' : '接近中'}。内で迎えよ` : '反撃は退いた。尾根を北へ、小丸へ');
         if (F.holdT === 0) F.restCalled = false;
         if (F.holdT > 0 && !F.restCalled && !F.retreatOn) {
           F.restCalled = true;

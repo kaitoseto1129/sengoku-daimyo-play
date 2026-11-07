@@ -377,6 +377,24 @@ function puddleRipple() {
   g.putImageData(im, 0, 0);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t;
 }
+// 水面は水平なまま、泥の縁まで実際に描く地面へ収まる場所だけを使う。
+// 中心と片側だけでは、反対側の坂や地面の穴を見落とす。開戦時だけ調べる。
+function puddleGround(W, x, z, sx, sz, rot, edge) {
+  const c = Math.cos(rot), s = Math.sin(rot);
+  let low = drawGroundAt(W, x, z), high = low;
+  if (!Number.isFinite(low)) return NaN;
+  for (let i = 1; i < edge.count; i++) for (let ring = 1; ring <= 2; ring++) {
+    const dx = edge.getX(i) * sx * 1.3 * ring / 2;
+    const dz = edge.getZ(i) * sz * 1.3 * ring / 2;
+    const px = x + c * dx + s * dz, pz = z - s * dx + c * dz;
+    const h = drawGroundAt(W, px, pz);
+    if (!Number.isFinite(h) || W.waterDepthAt?.(px, pz) > 0) return NaN;
+    low = Math.min(low, h); high = Math.max(high, h);
+    if (high - low > 0.04) return NaN;
+  }
+  return high + 0.006;
+}
+
 function rainPuddles(rt) {
   const W = rt.world, N = 130, put = [];
   // 11/6：描いて遊ぶと、整った楕円の灰の板（石の板）に見えた。縁を細かく刻み、踏み跡の凹みのような不揃いな形にする。
@@ -396,15 +414,15 @@ function rainPuddles(rt) {
     // 25秒で歩いた先（本陣へ上る道の始め）まで散らす。後の半分は25秒の立ち位置（-15, -46）の周り六〜二十八歩に、どの向きにも散らす（10/29：カメラの先に照りが無かった）。
     const t = (i * .618) % 1, side = Math.sin(i * 3.1) * 10, ring = i % 2, ang = i * 2.39996, rad = 2.5 + 25 * t;
     const q = ring ? fieldPoint(-15 + Math.cos(ang) * rad, -46 + Math.sin(ang) * rad) : fieldPoint(-12 + side + Math.sin(i * 1.9) * 3 + t * 24, -16 - t * 66);
-    const h = W.heightAt(q.x, q.z);
-    if (Math.abs(W.heightAt(q.x + 1.2, q.z) - h) > .3 || Math.abs(W.heightAt(q.x, q.z + 1.2) - h) > .3) continue;
     if (W.waterDepthAt && W.waterDepthAt(q.x, q.z) > 0) continue;
     const sx = 1 + 1.4 * (.5 + .5 * Math.sin(i * 4.3)), sz = sx * (.45 + .3 * (.5 + .5 * Math.cos(i * 2.2)));
     // 重ねて一本の灰の帯（川に見える）にしない。隣と間を空ける。
     if (put.some(([x, z, r]) => Math.hypot(x - q.x, z - q.z) < (r + sx) * 1.6 + 1.5)) continue;
+    const h = puddleGround(W, q.x, q.z, sx, sz, i * 2.4, p);
+    if (!Number.isFinite(h)) continue;
     put.push([q.x, q.z, sx]);
     at.rotation.set(0, i * 2.4, 0);
-    at.position.set(q.x, Math.max(drawGroundAt(W, q.x, q.z), W.heightAt(q.x, q.z)) + .07, q.z);
+    at.position.set(q.x, h, q.z);
     at.scale.set(sx * 1.3, 1, sz * 1.3); at.updateMatrix(); rim.setMatrixAt(n, at.matrix);
     at.position.y += .01; at.scale.set(sx, 1, sz); at.updateMatrix(); water.setMatrixAt(n, at.matrix);
     n++;

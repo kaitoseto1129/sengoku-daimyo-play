@@ -131,6 +131,38 @@ function sunoUmadashiReturn(p, point) {
 }
 // 門外の迎えが済んだら、閉じた柵越しの持ち場でなく南門への道を示す。
 // 曲がり角と門内の点は同じ入れ物を使い回す。
+function sunoUmadashiPoint(rt, x, z, out) {
+  const p = rt.player.u.pos, dx = x - p.x, dz = z - p.z;
+  let blocked = false;
+  for (const [ax, az, bx, bz] of UMADASHI_SEGS) {
+    let near = 0, far = 1;
+    const minX = Math.min(ax, bx) - 1.1, maxX = Math.max(ax, bx) + 1.1;
+    const minZ = Math.min(az, bz) - 1.1, maxZ = Math.max(az, bz) + 1.1;
+    if (Math.abs(dx) < .0001) { if (p.x < minX || p.x > maxX) continue; }
+    else {
+      const a = (minX - p.x) / dx, b = (maxX - p.x) / dx;
+      near = Math.max(near, Math.min(a, b)); far = Math.min(far, Math.max(a, b));
+    }
+    if (Math.abs(dz) < .0001) { if (p.z < minZ || p.z > maxZ) continue; }
+    else {
+      const a = (minZ - p.z) / dz, b = (maxZ - p.z) / dz;
+      near = Math.max(near, Math.min(a, b)); far = Math.min(far, Math.max(a, b));
+    }
+    if (near <= far) { blocked = true; break; }
+  }
+  if (!blocked) return null;
+  const hw = Math.abs(UMADASHI_SEGS[0][0]), front = UMADASHI_SEGS[0][1], back = UMADASHI_SEGS[1][1];
+  const side = (p.x || x) < 0 ? -1 : 1, outside = Math.abs(p.x) >= hw + 2;
+  out.x = side * (hw + 3);
+  if (p.z >= front + 1.1) out.z = outside ? back - 3 : front + 3;
+  else if (p.z <= back - 1.1) out.z = outside ? front + 3 : back - 3;
+  else {
+    // 馬出しの内にいる時は、開いている背面から出る。
+    if (Math.abs(p.x) < hw - 1.1) out.x = p.x;
+    out.z = outside && z > front ? front + 3 : back - 3;
+  }
+  return out;
+}
 function sunoReturnPoint(rt) {
   const F = rt.flags, p = rt.player.u.pos, point = F.returnPoint;
   if (F.ending || F.won || rt.over || !point ||
@@ -144,8 +176,9 @@ function sunoReturnPoint(rt) {
     point.z = Math.abs(p.x) < FORT + 3 ? p.z : FORT + 6;
   } else {
     point.x = 0;
-    point.z = Math.abs(p.x) < 2 && p.z < FORT + 4 ? FORT - 3 : FORT + 4;
+    point.z = Math.abs(p.x) < 2 && p.z < FORT + 4.6 ? FORT - 3 : FORT + 4;
   }
+  sunoUmadashiPoint(rt, point.x, point.z, point);
   return point;
 }
 // 回避中にも、済んだ迎えや古い北の守りへ指図を戻さない。
@@ -5188,6 +5221,8 @@ function sunomataWalk(b, inp, goTo, x, z, r) {
 // 人が遊ぶ時の足あとも、既存の門・破れ目・小屋を回る道を使う。兵の動きは変えない。
 function sunomataWay(b, inp, goTo, x, z, r) {
   const p = b.player, u = p.u, F = b.flags;
+  const detour = F.umadashiPoint || (F.umadashiPoint = { x: 0, z: 0 });
+  if (u.pos.z > FORT + 2 && sunoUmadashiPoint(b, x, z, detour)) return goTo(p, inp, detour.x, detour.z, .5);
   const me = Math.abs(u.pos.x) < FORT - 0.3 && Math.abs(u.pos.z) < FORT - 0.3;
   const to = Math.abs(x) < FORT - 0.3 && Math.abs(z) < FORT - 0.3;
   if (!me && to) {
