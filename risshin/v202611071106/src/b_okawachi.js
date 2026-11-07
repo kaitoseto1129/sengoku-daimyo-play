@@ -903,7 +903,8 @@ const okawachi = {
     if (rt.flags.dp?.cur?.shortLineThreat) return okShortLineOrder(rt, rt.flags.dp.cur);
     const task = rt.flags.dp?.cur;
     if (task && rt.t < task.signalUntil && task.signalCue === rt.flags.signalCue) return task.signalText;
-    const left = Math.max(0, Math.ceil(240 - (rt.t - rt.flags.stepT)));
+    // 交代は戦の開始から四百七秒。封鎖へ移った時刻では延ばさない。
+    const left = Math.max(0, Math.ceil(407 - rt.t));
     if (okAtSouthLine(rt)) {
       const C = rt.flags.dp?.cur;
       // 旗の範囲に入っただけでは、槍の列に合流したことにはしない。

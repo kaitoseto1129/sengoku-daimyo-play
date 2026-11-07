@@ -59,7 +59,9 @@ Object.assign(takato, {
       if (F.keep.down || F.lordDying) return 1;
       return takatoNearestFoe(rt) ? 2 : 5;
     }
-    if (F.sallyOut || F.sallyUntil || F.step < 1) return 1;
+    if (F.sallyOut || F.sallyUntil) return 1;
+    // 開戦直後も大手道を案内する。城兵の出撃前は味方の列で待たせない。
+    if (F.step < 1) return 0;
     const guide = baseGuide(rt);
     if (guide === '_gate') return 3;
     // 塀の外では道順を守り、中へ入ったら残る守兵を探す。

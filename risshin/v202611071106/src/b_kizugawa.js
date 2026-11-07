@@ -2625,7 +2625,8 @@ function seaAmbient(rt, dt) {
   if (on && rt.t >= A.gunAt) {
     A.gunAt = rt.t + 1.3 + Math.random() * 0.9;
     // 近い敵船（二十〜九十歩）と沖の船を交互に。近い船の煙ほど大きく写る。
-    const near = F.boats.filter((b) => b.alive && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) > 20 && Math.hypot(b.x - P.x, b.z - P.z) < 90);
+    // 撃たれて沈む舟や退く舟は、沖の撃ち合いの出所にしない。
+    const near = F.boats.filter((b) => b.alive && !b.damageStage && !b.withdrawing && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) > 20 && Math.hypot(b.x - P.x, b.z - P.z) < 90);
     const pool = A.k % 2 === 0 && near.length ? near.map((b) => ({ x: b.x, z: b.z }))
       : F.far.filter((m) => { const d = Math.hypot(m.position.x - P.x, m.position.z - P.z); return d > 40 && d < 200 && !m.userData.departed; }).map((m) => ({ x: m.position.x, z: m.position.z }));
     const m = pool[(A.k++ * 7) % Math.max(1, pool.length)];
@@ -2643,8 +2644,8 @@ function seaAmbient(rt, dt) {
   // 焙烙：近い小早から火の玉が弧を描き、自船の西の水面へ落ちて燃える（数秒で消える）。
   if (on && rt.t >= A.potAt) {
     A.potAt = rt.t + 2.8 + Math.random() * 1.4;
-    const src = F.boats.find((b) => b.alive && !b.big && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) < 90) || F.far.map((m) => ({ x: m.position.x, z: m.position.z }))
-      .find((b) => Math.hypot(b.x - P.x, b.z - P.z) < 120);
+    const src = F.boats.find((b) => b.alive && !b.damageStage && !b.withdrawing && !b.big && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) < 90) || F.far
+      .find((m) => !m.userData.departed && Math.hypot(m.position.x - P.x, m.position.z - P.z) < 120)?.position;
     const h = A.pots.find((q) => rt.t - q.start > 2.4);
     if (src && h) {
       h.start = rt.t; h.from.x = src.x; h.from.z = src.z;

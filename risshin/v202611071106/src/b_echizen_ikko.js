@@ -50,7 +50,8 @@ import {
 } from './castles/echizen_ikko.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
-//   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
+//   （三歩半内の別の敵には先に応じる）。四十歩離れたら通常の相手探しへ戻す。
+//   本人が深手の時と、門・櫓へ向けた組、指揮役を含む組は外す。共通の兵の考えは触らない。
 function huntPlayer(rt, dt) {
   const F = rt.flags;
   if ((F._huntT = (F._huntT || 0) - dt) > 0) return;
@@ -62,10 +63,11 @@ function huntPlayer(rt, dt) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
-    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
+    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad || g.assault ||
+        g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord))) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 75) g.focus = P;
-    else if (mine && d > 110) g.focus = null;
+    if (!mine && d < 30) g.focus = P;
+    else if (mine && d > 40) g.focus = null;
   }
 }
 

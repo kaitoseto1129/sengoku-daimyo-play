@@ -3264,6 +3264,8 @@ function igaMove(o) {
     if (C.arr) rt.unmark('turn');
     return arrived;
   };
+  // 共通の放置救済でも、未到着の曲輪を調べ終えた扱いにしない。
+  s.idleAdvance = false;
   s.max = Infinity; // 到着前の時間切れを、確認済みにはしない。
   return s;
 }
