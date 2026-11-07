@@ -83,9 +83,9 @@ export function odaniExtraHeight(x, z, h) {
     const edge = Math.min(1, (KOMARU.hw - 2 - Math.abs(x)) / 2, (z - KOMARU.z0) / 3);
     h += tier * Math.max(0, edge);
   }
-  // 本丸は上下二段（保存管理計画・北の上段に建物があったと伝わる）。上段は北の門の内から約1.2m上げ、縁は土の切岸で歩いて上がれる勾配。
-  //   上段は御殿（南の下段）の手前で終える。
-  if (z > HON.z0 && z < HON.z0 + 12 && Math.abs(x) < HON.hw - 2) {
+  // 高画質の本丸は上の南側の削平だけで上下二段を表す（保存管理計画表7）。
+  // 北側も盛り上げると三段になるため、高画質には旧来の盛土を重ねない。
+  if (SETTINGS.quality !== 'high' && z > HON.z0 && z < HON.z0 + 12 && Math.abs(x) < HON.hw - 2) {
     const t = Math.min(1, (z - HON.z0) / 3, (HON.z0 + 12 - z) / 3, (HON.hw - 2 - Math.abs(x)) / 3);
     if (t > 0) h += 1.2 * t * t * (3 - 2 * t);
   }

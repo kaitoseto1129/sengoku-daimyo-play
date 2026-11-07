@@ -68,7 +68,7 @@ const ODA_JOIN = { x: ODA_HONJIN.x, z: ODA_HONJIN.z - 16 };
 //   → 打って出た三好勢を浅瀬で防ぐ → 十二日夜半、本願寺の早鐘・門徒の寄せ（十三日の高潮・十四日の春日井堤）→ 二十二日、宇佐山・京の知らせ → 二十三日の退陣。
 // 11/6 作り直し（kaito BS）：城の中へは突撃しない。砦と櫓から撃ち潰す戦。竹束を押す段（押せない）と砦の口へ詰める段は外した。
 const NODA_STAGE_TEXT = ['堤の上で、前田利家の下知を受けよ', '堤の西の井楼へ、内の梯子で登れ', '井楼の上から、福島砦の塀の内へ鉄砲を三度撃ち込め',
-  '浅瀬の岸で、打って出た岩成友通の槍を防げ', '春日井堤で、本願寺の門徒を防げ', '信長の本陣へ退け', '信長の本陣へ退いた'];
+  '浅瀬の岸で、打って出た岩成友通の槍を防げ', '春日井堤で、本願寺の門徒を防げ', '信長の本陣へ退き、守兵に合流せよ', '味方の退く列へ合流した'];
 const SHOTS_NEED = 3;
 // 河口の在所と本願寺の門前。村・町の存在を踏まえ、細かな位置・人数・道筋は推定復元。
 // 大阪市福島区の沿革：https://www.city.osaka.lg.jp/fukushima/page/0000224266.html
@@ -2456,7 +2456,7 @@ function installNodaWater(rt) {
 }
 
 // 任務の札（rt.obj）も段の一行と同じ字にする（案内の字で書き換えない。AW3）。
-const nodaGoal = (rt) => NODA_STAGE_TEXT[nodafukushima.missionOf(rt)];
+const nodaGoal = (rt) => nodafukushima.missionHeading(rt);
 const nodafukushima = {
   // 稲生の型。兵数・寄せの五組は変えず、任務と行き先だけを一つにする。
   missionSingleLine: true,
@@ -2488,7 +2488,9 @@ const nodafukushima = {
   },
   missionHeading(rt) {
     const F = rt.flags, stage = this.missionOf(rt);
-    if (stage === 6 && !rt.tracker.main) return '信長の本陣へ退けなかった';
+    // 退く先が替われば、任務と失敗の一行も合流先にそろえる。
+    if (stage === 6 && !rt.tracker.main) return F.retreatAlt ? '佐久間の列へ合流できなかった' : '信長の本陣へ退き、守兵に合流できなかった';
+    if (stage === 5 && F.retreatAlt) return '佐久間の列へ退き、合流せよ';
     return this.missions[stage];
   },
   // 落城させない戦なので、砦の大将の印と、浅瀬で倒す相手を分ける。
@@ -3967,8 +3969,8 @@ const nodafukushima = {
       // 時間切れは成功にせず、味方が先に退いた結果として終える。
       const left = RETREAT_WAIT - (rt.t - F.retreatT);
       if (!F.ending && left <= 30) {
-        rt.objProgress('main', `味方が先に退くまで${Math.max(0, Math.ceil(left))}秒。信長の本陣へ急げ`);
-        if (!F.retreatLastCall) { F.retreatLastCall = true; rt.say('前田利家', '列が先に退くぞ！　本陣へ急げ、取り残されるな！', 3); }
+        rt.objProgress('main', `味方が先に退くまで${Math.max(0, Math.ceil(left))}秒。${F.retreatAlt ? '佐久間の列' : '詰め陣の守兵'}へ急げ`);
+        if (!F.retreatLastCall) { F.retreatLastCall = true; rt.say('前田利家', F.retreatAlt ? '列が先に退くぞ！　佐久間の列へ急げ、取り残されるな！' : '列が先に退くぞ！　詰め陣へ急げ、取り残されるな！', 3); }
         if (left <= 0 && rt.canFailMission()) {
           F.ending = true; rt.setPhase('end'); rt.objFail('main'); rt.tracker.main = false;
           rt.unmark('retreat'); rt.unzone('retreat');

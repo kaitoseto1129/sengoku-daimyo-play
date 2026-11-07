@@ -4272,7 +4272,8 @@ function kgHold(line, dur, waves, ambush = false) {
         C.nextReserve = el + 8;
         let live = 0;
         for (const g of C.groups) if (!gone(g)) for (const u of g.units) {
-          if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) live++;
+          // 後送中の傷兵を寄せ手に数えて、後続を止めない。
+          if (kgActive(u)) live++;
         }
         if (live < 6) { C.waves.push({ ...C.reserve, list: C.reserve.list.map(e => ({ ...e })) }); C.nextReserve = el + 28; }
       }
@@ -4287,7 +4288,7 @@ function kgHold(line, dur, waves, ambush = false) {
       if (ambush && !C.fired) {
         let entered = false;
         for (const g of C.groups) if (!gone(g)) for (const u of g.units) {
-          if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget && u.pos.z < L.z && Math.hypot(u.pos.x - L.x, u.pos.z - L.z) < 26) { entered = true; break; }
+          if (kgActive(u) && u.pos.z < L.z && Math.hypot(u.pos.x - L.x, u.pos.z - L.z) < 26) { entered = true; break; }
         }
         // 移動に手間取っても撃つ下知を閉じ込めない。
         if (entered && rt.flags.akechi.order === 'hold' && rt.flags.gunsEast.order === 'hold' || el >= 40) {
