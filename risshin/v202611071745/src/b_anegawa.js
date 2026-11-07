@@ -2539,11 +2539,15 @@ function anePost(rt) {
 // 一番近い残りの敵。半秒に一度だけ選び直し、三歩より近い別の兵が出た時だけ替える。
 function aneNearestFoe(rt) {
   const F = rt.flags;
-  if (rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe))) return F.aneFoe;
+  const k = F.aneStage || 0;
+  // 任務や追撃へ切り替わった時は、前の相手を半秒の控えや近さの判定で持ち越さない。
+  const sameTask = F.aneFoeStage === k && F.aneFoeStep === F.step;
+  if (sameTask && rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe))) return F.aneFoe;
+  F.aneFoeStage = k; F.aneFoeStep = F.step;
   F.aneFoeAt = rt.t + .5;
   const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
   // 11/5：磯野の段・横槍の段は、その隊の兵（どこにいても）を指す。持ち場の近くに限ると、段を破って本陣へ向かう磯野勢を指せなかった。
-  const k = F.aneStage || 0, own = !pursuit && (k === 1 || k === 2);
+  const own = !pursuit && (k === 1 || k === 2);
   let best = null, bd = Infinity, hqBest = null, hqD = Infinity;
   for (const u of rt.army.units) {
     if (!aneFoe(u)) continue;
@@ -2566,7 +2570,9 @@ function aneNearestFoe(rt) {
   }
   if (hqBest) { best = hqBest; bd = hqD; }
   const prev = F.aneFoe;
-  if (best && prev && best !== prev && aneFoe(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) &&
+  if (sameTask && best && prev && best !== prev && aneFoe(prev) &&
+      (!own || aneStageFoe(rt, k, prev) && prev.pos.z >= aneNorthBank(prev.pos.x)) &&
+      bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) &&
       (!pursuit || prev.group === F.rear || prev.group === F.counterChase)) best = prev;
   F.aneFoe = best;
   return best;

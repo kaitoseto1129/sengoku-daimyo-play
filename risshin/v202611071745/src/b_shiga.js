@@ -3906,34 +3906,34 @@ const shiga = {
         F.retreatPoint.x = F.gateC.x - F.gateN.x * 5;
         F.retreatPoint.z = F.gateC.z - F.gateN.z * 5;
       }
-      const d = Math.hypot(p.x - (F.gateC.x - F.gateN.x * 5), p.z - (F.gateC.z - F.gateN.z * 5));
+      // 木戸の外は、内側の着点から六歩以内でも退却完了にしない。
+      const inSan = F.C && F.C.kuruwa.san.test(p.x, p.z);
       const roadLeft = next ? Math.hypot(p.x - next[0], p.z - next[1]) + F.retreatRemaining[F.retreatIdx] : 0;
       const remaining = Math.ceil(roadLeft / 10) * 10;
-      let retreatText = (d < 6 || F.C.kuruwa.san.test(p.x, p.z)) ? '木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `道沿いに木戸まであと約${remaining}メートル。印に沿って坂を上れ` : '開いた木戸から城へ入れ';
+      let retreatText = inSan ? '木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `道沿いに木戸まであと約${remaining}メートル。印に沿って坂を上れ` : '開いた木戸から城へ入れ';
       // 道の点の間隔は不ぞろい。点の番号ではなく、歩く道のりで半ばを知らせる。
       if (!F.climbHalf && F.retreatIdx > 0 && roadLeft <= F.retreatRemaining[0] / 2) { F.climbHalf = true; rt.bark('坂道の半ばまで来た。道の外は急な崖だ'); }
       if (!F.climbTop && F.retreatIdx >= 12) { F.climbTop = true; rt.bark('城の木戸が近い。開いた口から中へ入れ'); }
-      const inSan = F.C && F.C.kuruwa.san.test(p.x, p.z);
       let saved = 0;
       if (F.moriRescue) for (const u of F.mori.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && F.C.kuruwa.san.test(u.pos.x, u.pos.z)) saved++;
       const moriReady = F.moriRescue ? F.moriU.alive && !F.moriU.woundOut &&
         F.C.kuruwa.san.test(F.moriU.pos.x, F.moriU.pos.z) && saved >= Math.ceil(F.mori.initial / 3) : F.moriDead;
-      if (F.moriRescue && (d < 6 || inSan)) retreatText = `城へ入った森隊 ${saved}／${Math.ceil(F.mori.initial / 3)}人以上。外の味方を守れ`;
+      if (F.moriRescue && inSan) retreatText = `城へ入った森隊 ${saved}／${Math.ceil(F.mori.initial / 3)}人以上。外の味方を守れ`;
       // 救出の筋だけに期限がある。通常の退きで零秒の札を出し続けない。
       const left = Math.max(0, Math.ceil(RETREAT_TIME + 30 - (rt.t - F.stepT)));
       if (F.moriRescue && left <= 60) {
-        const task = F.moriRescue && (d < 6 || inSan) ? `森隊 ${saved}／${Math.ceil(F.mori.initial / 3)}人。外の味方を守れ` :
-          d < 6 || inSan ? '木戸の内で退く味方を守れ' : '坂道を上り、木戸の内へ急げ';
+        const task = F.moriRescue && inSan ? `森隊 ${saved}／${Math.ceil(F.mori.initial / 3)}人。外の味方を守れ` :
+          inSan ? '木戸の内で退く味方を守れ' : '坂道を上り、木戸の内へ急げ';
         retreatText = `${task}。退く猶予あと${left}秒`;
         if (!F.retreatWarned) {
           F.retreatWarned = true;
-          rt.say('武藤五郎右衛門', d < 6 || inSan ? '追手が迫るぞ！　木戸の内で退く味方を守れ！' : '追手が迫るぞ！　坂道をたどり、木戸の内へ急げ！', 3);
+          rt.say('武藤五郎右衛門', inSan ? '追手が迫るぞ！　木戸の内で退く味方を守れ！' : '追手が迫るぞ！　坂道をたどり、木戸の内へ急げ！', 3);
         }
       }
       // 道案内を更新しても、法螺・退き太鼓・鉦の最後の響きまで札に残す。
       rt.objProgress('main', rt.t < F.retreatSoundUntil ? `退きの法螺・太鼓・鉦。${retreatText}` :
         rt.t < (F.retreatGunUntil || 0) ? `${F.retreatGunText}。${retreatText}` : retreatText);
-      if ((d < 6 || inSan) && moriReady && F.nobuDead && F.aochiDead) {
+      if (inSan && moriReady && F.nobuDead && F.aochiDead) {
         F.moriSaved = F.moriRescue;
         if (F.moriSaved) rt.award((t) => t.side.push('もしもの筋・森隊を救い、城へ退いた'), '森隊と宇佐山城へ退いた');
         this.siege(rt);

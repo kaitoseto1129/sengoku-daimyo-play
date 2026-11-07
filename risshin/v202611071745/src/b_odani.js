@@ -5127,6 +5127,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       path.length = 1; path.push([c.x, c.z]);
       F.splitOn = true; F.splitAt = rt.t;
       F.asano.odaniResume = true;
+      // 行軍を待っていた後続も、迎撃へ替える前に元の速さへ戻す。
+      // 待機の印だけ消すと、速さが零のまま残って番兵へ動けなくなる。
+      if (F.asano.odaniPlayerPause) F.asano.speed = F.asano.odaniMarchSpeed;
       F.asano.order = 'attack'; F.asano.seekRange = 16; F.asano.formation = 'yari'; F.asano.odaniPlayerPause = false;
       sfx('toki', 0.6);
       this.march(g, path, g.facing);

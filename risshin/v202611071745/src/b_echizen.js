@@ -1515,16 +1515,16 @@ echizen.setup = function (rt) {
   rt.after = function (seconds, fn) {
     if (seconds === 10 && this.phase === 'brief') fn = () => {
       if (!rt.over && !rt.flags.ending && !rt.flags.step && rt.player.u.alive)
-        rt.say('組頭', '穂先をそろえよ。列を離れず、味方と受けよ', 5);
+        rt.say('組頭', `穂先をそろえよ。${passGuardAction()}。列を離れず、味方と受けよ`, 5);
     };
     return after.call(this, seconds, fn);
   };
   try { kinome.setup.call(this, rt); } finally { rt.after = after; }
-  // 11/6 fixc0917_echizen（kaito「始まりの札の①は（0／24）、戦に入ると（0／36）」）：後から足す十二人を、始まりの札の前から数に入れる
-  sallyAdd(rt);
+  // 打って出る二十四人は passButai で始まりの札の前から準備し、後から重ねて足さない。
   // 開戦25秒（10/31）：木戸前に打って出た一揆勢は、先手と二十八秒まで崩れず揉み合い、互いの傷も浅い（兵の数は同じ）。後からは常の通り崩れて退く
   { const g = rt.flags.gateSally?.real;
-    if (g) { const dm = g.dmgMult; g.noRout = true; g.defMult = 1.8; g.dmgMult = (dm ?? 1) * 0.45;   // 長く揉み合う分、刃も浅く（本人が囲まれて倒れないように）
+    // 二十四人を本人一人へ集めない。後から兵を足す処理に頼らず、準備時に指定する。
+    if (g) { g.noHunt = true; const dm = g.dmgMult; g.noRout = true; g.defMult = 1.8; g.dmgMult = (dm ?? 1) * 0.45;   // 長く揉み合う分、刃も浅く（本人が囲まれて倒れないように）
       rt.after(28, () => { g.noRout = false; g.defMult = 1; g.dmgMult = dm; }); } }
   // 木戸を打つ手の釦は一語だけ。「掛矢で観音丸城の木戸を打つ」の長い札が画面に残っていた（10/28）。
   { const add = rt.addInteract; rt.addInteract = function (id, pos, label, fn, o) { if (typeof label === 'string' && label.startsWith('掛矢で')) label = '打つ'; return add.call(this, id, pos, label, fn, o); }; }
@@ -2226,14 +2226,13 @@ echizen.update = function (rt, dt) {
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || F.echAdv || !u.alive) return;
   huntPlayer(rt, dt);
+  // 打って出る二十四人は passButai で準備済み。更新時に十二人を重ねて足さない。
   // 11/6 fixc0917_echizen（kaito 九2「味方だけで片付く散歩ゲーム」）：打って出た一揆勢と郭の守兵は、本人が刃の届く所へ来るまで固く受ける。
   //   本人が寄れば常の固さに戻る（何もしなければ①③は進まない。負けにもしない）
   { const sg = F.gateSally?.real;
     if (sg?.count && rt.t > 28) { const c = sg.center(); sg.defMult = Math.hypot(c.x - u.pos.x, c.z - u.pos.z) < 16 ? 1 : 5; }
     const kg = F.d?.kannon?.real, zone = passZone(rt);
     if (kg?.count && !F.kannonFell) { const inside = !!zone?.test(u.pos.x, u.pos.z); kg.defMult = inside ? 1 : 5; kg.noRout = !inside; } }
-  // 10/31 mini の点付け：木戸の外の敵が十二人だけで、開戦25秒の画面に兵が数人。打って出た一揆勢を二十四人にする（守りと勝ちの数には入れない）。
-  sallyAdd(rt);
   // 郭の守兵は郭から引き出さない（引き出すと郭が空になり、一戦が一分半で終わった）。木戸が破れるまでの間だけ。
   heroFrontClash(rt, dt, { foeN: 42, allyN: 28, reach: 110, foeD: 12, allyD: 7, active: (r) => !!r.flags.gateKannon?.struct.alive,
     skip: (g, foe) => foe && (r => (r.flags.defenders || []).some((b) => b?.real === g))(rt) });
@@ -2510,23 +2509,6 @@ const TAIL_FRONT = { x: TAIL_AT.x + Math.sin(TAIL_FACING) * 9, z: TAIL_AT.z + Ma
 //   印と本人が北の柵越しに殿へ向き、柵に張り付いたまま一分余り出られなかった（遊んだ写真 210 秒）。郭の内にいる間は北口の外を指す
 const inKannon = (p) => p.z < EXIT_KANNON[1] + 1 && p.x > -112 && p.x < 12;
 const KANNON_OUT = { x: EXIT_KANNON[0], z: EXIT_KANNON[1] + 4 };
-function sallyAdd(rt) {
-  const F = rt.flags;
-  if (!F._sally2 && F.gateSally?.real?.count) {
-    F._sally2 = true;
-    const b = F.gateSally, g = b.real, c = g.center(), h = b.facing || 0, list = [];
-    for (let i = 0; i < 12; i++) {
-      const side = (i % 6 - 2.5) * 1.3, back = 3 + Math.floor(i / 6) * 1.6;
-      list.push({ type: i % 12 === 11 ? 'samurai' : 'ashigaru', n: 1, o: { ...(b.look || {}), armor: b.armor || undefined, flag: b.flag,
-        x: c.x + Math.cos(h) * side - Math.sin(h) * back, z: c.z - Math.sin(h) * side - Math.cos(h) * back, heading: h } });
-    }
-    b.nominal += 12;
-    b.maxReal = (b.maxReal || 12) + 12;
-    rt.army.spawn(g, list);
-    // 数を倍にした分、本人一人へは集めず（huntPlayer から外す）、一太刀も軽くする（bot の勝ち筋を前と同じに保つ）。
-    g.noHunt = true; g.dmgMult = 0.6;
-  }
-}
 function echizenAdvance(rt) {
   const F = rt.flags;
   if (F.echAdv || F.ending || rt.over || !rt.player.u.alive) return;

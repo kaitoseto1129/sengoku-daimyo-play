@@ -3358,22 +3358,7 @@ const shitaragahara = {
     if (F.lingerT0 == null) F.lingerT0 = rt.t;
     const lt = rt.t - F.lingerT0;
     const linger = F.ending || F.pursuit || lt > 45 ? 0 : 0.2 * Math.min(1, lt / 3) * Math.min(1, (45 - lt) / 10);
-    // 板の帯は柵に沿って立つので、柵の向きに見る画面では縁しか見えない。号令の前も近い鉄砲組から散発の一発を撃たせ、
-    // 筒先の硝煙を立体の粒で見せる（25秒の画面に煙が無かった。10/29）。粒の数は共通の上限で抑える。
-    if (SETTINGS.quality !== 'high' && linger > 0 && lt < 34 && rt.t >= (F.lingerSmokeAt ?? 0)) {
-      F.lingerSmokeAt = rt.t + 0.7 + Math.random() * 0.9;
-      const pp = rt.player.u.pos;
-      let best = null, bd = 70 * 70;
-      for (const g of F.guns) for (const u of g.units) {
-        if (u.hp <= 0) continue;
-        const dx = u.pos.x - pp.x, dz = u.pos.z - pp.z, d = dx * dx + dz * dz + Math.random() * 400;
-        if (d < bd) { bd = d; best = u; }
-      }
-      if (best) {
-        // 柵の内からの散発の一発。筒先から東へ噴く共通の硝煙の粒（名残の雲も共通の枠が一つ置く）。
-        rt.army.smoke(best.pos.x + 1.6, best.pos.y + 1.5, best.pos.z, 1, 0, 1.6);
-      }
-    }
+    // 筒先の煙は shSmoke の実際の発砲だけで出す。開戦前の名残は帯で表す。
     for (const smoke of F.smokeBands) {
       const age = rt.t - smoke.shotAt, fresh = age < 7;
       smoke.mesh.visible = (fresh || linger > 0) && !F.ending;

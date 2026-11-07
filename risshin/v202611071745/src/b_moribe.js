@@ -2934,7 +2934,7 @@ const moribe = {
   },
   missionOf(rt) {
     const F = rt.flags;
-    if (!F.signal) return F.pointReached ? 1 : 0;
+    if (!F.signal) return playerAtFord(rt.player.u.pos, rt.world) ? 1 : 0;
     if (F.stage === 'contact') return F.vBroken ? 3 : 2;
     if (F.stage === 'hold') return 3;
     if (F.stage === 'assemble') return 7;
@@ -2945,19 +2945,21 @@ const moribe = {
     return 6;
   },
   missionHeading(rt) {
+    // 上陸後に川へ戻った時も、今いる岸に合わせて案内する。
+    const beforeSignal = !rt.flags.signal;
+    const atFord = beforeSignal && playerAtFord(rt.player.u.pos, rt.world);
+    const openingText = beforeSignal ? rt.flags.fordThreat ? '楡俣川の岸で斎藤の先手を迎え撃て' :
+      atFord ? '北岸の畦で仲間を待て' : '楡俣川の浅瀬を渡れ' : null;
     // 11/4 moribe（標準 三-1・三-3）：右上は番号つきの目標（goals5）の今の一行を戦の間ずっと出す。
     //   「▼の敵を倒せ」「耐えろ」「仲間を待て」のような場所の無い言い方はやめる（11/6 fix3：質の直しで消えたのを戻した）。
     const f = fiveGoals(rt);
     if (f && f.rows.length) {
-      const i = f.now >= 0 ? f.now : f.rows.length - 1;
-      return `${i + 1}／${f.rows.length}　${f.rows[i].text}`;
+      const i = beforeSignal && !atFord ? 0 : f.now >= 0 ? f.now : f.rows.length - 1;
+      return `${i + 1}／${f.rows.length}　${openingText || f.rows[i].text}`;
     }
     // 目標の準備前は、今の行いを示す従来の案内を使う。
+    if (openingText) return openingText;
     const F = rt.flags, p = rt.player.u.pos;
-    // 渡河中でも敵が迫ったら、岸への移動より頭上の▼を優先する。
-    if (!F.signal && F.fordThreat) return '▼の敵を倒せ';
-    // 渡河済みのコマから待機へ替える。集合判定の更新を待たせない。
-    if (!F.signal && (F.pointReached || F.pointInside || playerAtFord(p, rt.world))) return '仲間を待て';
     // 集まる間と、その場で耐える間を同じ一行で区別する。向き・距離は書かない。
     if (F.stage === 'assemble') {
       if (F.gatherUnit || Math.hypot(p.x - F.asm.x, p.z - F.asm.z) >= 12) return '仲間と集まれ';
@@ -3088,7 +3090,7 @@ const moribe = {
       pos = POINT2; r = FORD_R; hide = 0;
       q.gatherArea = true; // ピンの根元に、到着できる範囲を描く。
       // 上陸したら同じ地点の待機へ替え、追う必要のないチェック印を挟まない。
-      q.arrived = !!(F.pointReached || F.pointInside || playerAtFord(rt.player.u.pos, rt.world));
+      q.arrived = playerAtFord(rt.player.u.pos, rt.world);
       q.waiting = q.arrived;
       q.crossing = !q.waiting;
       q.waitDuration = q.arrived ? Math.max(1, (F.fordWaitEnd ?? rt.t + 8) - (F.fordArrivedAt ?? rt.t)) : 0;
@@ -4416,10 +4418,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     }
     // 渡河の到着だけはピンと同じコマで反映する。隊の見直しの一秒を待たせない。
     if (!F.signal) {
-      // 一度渡った後は北岸全体を到着済みとする。小旗を通り越しても戻らせない。
-      F.pointInside = F.pointReached || playerAtFord(p, rt.world);
+      // 北岸全体で待てるが、川や南岸へ戻った時は到着扱いを解除する。
+      // 初回の上陸記録は残し、再上陸した時は待ちの上限だけ数え直す。
+      const wasInside = F.pointInside;
+      F.pointInside = playerAtFord(p, rt.world);
+      if (F.pointInside && !wasInside) { F.fordArrivedAt = rt.t; F.fordWaitEnd = rt.t + 8; }
       if (F.pointInside && !F.pointReached) {
-        F.pointReached = true; F.fordArrivedAt = rt.t; F.fordWaitEnd = rt.t + 8;
+        F.pointReached = true;
       }
     }
     // 迎撃中は少し敵へ踏み込んでも集合へ戻さない。戻りの印は合流まで保つ。
@@ -4558,7 +4563,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         rt.award((t) => { t.c.point = 1; }, '渡河して組をそろえた');
       }
       if (!F.fordNudge && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '浅瀬を渡り、向こう岸まで進め', 4); }
-      if (F.pointDone || (F.pointInside && F.fordThreat) || F.pointReached && rt.t >= F.fordWaitEnd) this.signal(rt);
+      if (F.pointInside && (F.pointDone || F.fordThreat || F.pointReached && rt.t >= F.fordWaitEnd)) this.signal(rt);
       return;
     }
     this.feedReserves(rt);

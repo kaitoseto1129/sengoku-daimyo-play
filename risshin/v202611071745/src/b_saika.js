@@ -2921,7 +2921,8 @@ const saika = {
     installSaikaRear(rt);
     installSaikaWork(rt);
     installSaikaGoals(rt);
-    rt.flags.gunSmoke = makeGunSmoke(rt, 64, .3);   // 川面と土手の前に低く這わせる（空へ上げると空の白に紛れる）。形と材質は支度の時に一度だけ
+    rt.flags.gunSmoke = makeGunSmoke(rt, 64, .3);   // 低く這う煙の形と材質は支度の時に一度だけ作り、使い回す。
+    F.gunSmokeMuzzle = new THREE.Vector3();
     // 口を開けた桶と二本の箍。同じ形を三か所で共用する。
     const bucketBody = new THREE.LatheGeometry([
       [0, -0.4], [0.48, -0.4], [0.56, 0.4], [0.515, 0.4], [0.435, -0.35], [0, -0.35],
@@ -3310,22 +3311,49 @@ const saika = {
     F.gunSmoke?.update(dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
     tickRaiders(rt, dt);
-    // 雑賀衆の鉄砲の煙：撃った筒先のほか、本人から八十歩以内の雑賀衆の鉄砲を順に拾って煙を絶やさない（形は天王寺と同じ一つの束）。
-    F.gunSmokeT = (F.gunSmokeT ?? 2) - dt;
-    if (F.step < 6 && F.gunSmokeT <= 0) {
-      F.gunSmokeT = .8;
-      const us = rt.army.units, me = rt.player.u, n = us.length;
-      // 一つおきに、西岸の土手の柵ぎわ（雑賀衆の鉄砲の並ぶ所）から東の川へ向けて吹かせる。
-      if ((F.gunSmokeK = (F.gunSmokeK || 0) + 1) % 2) {
-        const z = BANK_SMOKE_Z[(F.gunSmokeK >> 1) % BANK_SMOKE_Z.length], x = riverCenter(z) - 15.5;
-        F.gunSmoke?.emit(x, rt.world.heightAt(x, z) + 1.4, z, 1, 0, 4);
-      } else for (let j = 0; j < n; j++) {
-        const u = us[F.gunSmokeI = ((F.gunSmokeI || 0) + 1) % n];
-        if (!u || !u.alive || u.type !== 'gun' || u.team === me.team) continue;
-        if (Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) > 80) continue;
-        const f = u.heading ?? 0, fx = Math.sin(f), fz = Math.cos(f);
-        F.gunSmoke?.emit(u.pos.x + fx * .9, u.pos.y + 1.35, u.pos.z + fz * .9, fx, fz);
-        break;
+    if (SETTINGS.quality === 'high') {
+      // 高では実際に放った筒から一度だけ出す。無人の斜面や装填中の兵から煙を出さない。
+      F.gunSmokeT = (F.gunSmokeT || 0) - dt;
+      if (F.step < 6 && F.gunSmokeT <= 0) {
+        F.gunSmokeT = .16;
+        const me = rt.player.u, muzzle = F.gunSmokeMuzzle;
+        for (const u of rt.army.units) {
+          if (u.type !== 'gun' || u.team === me.team || u.gunShotAt === undefined ||
+              u.saikaSmokeShotAt === u.gunShotAt) continue;
+          u.saikaSmokeShotAt = u.gunShotAt;
+          if (rt.army.time - u.gunShotAt > .5 ||
+              Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) > 80) continue;
+          const f = u.heading ?? 0, fx = Math.sin(f), fz = Math.cos(f);
+          muzzle.set(u.pos.x + fx * 1.3, u.pos.y + 1.46, u.pos.z + fz * 1.3);
+          if (u.wpn?.parent) {
+            u.wpn.updateWorldMatrix(true, false);
+            muzzle.set(0, .034, 1.02).applyMatrix4(u.wpn.matrixWorld);
+          }
+          F.gunSmoke?.emit(muzzle.x, muzzle.y, muzzle.z, fx, fz);
+        }
+      }
+    } else {
+      // 雑賀衆の鉄砲の煙：撃った筒先のほか、本人から八十歩以内の雑賀衆の鉄砲を順に拾って煙を絶やさない（形は天王寺と同じ一つの束）。
+      F.gunSmokeT = (F.gunSmokeT ?? 2) - dt;
+      if (F.step < 6 && F.gunSmokeT <= 0) {
+        F.gunSmokeT = .8;
+        const us = rt.army.units, me = rt.player.u, n = us.length, muzzle = F.gunSmokeMuzzle;
+        // 一つおきに、西岸の土手の柵ぎわ（雑賀衆の鉄砲の並ぶ所）から東の川へ向けて吹かせる。
+        if ((F.gunSmokeK = (F.gunSmokeK || 0) + 1) % 2) {
+          const z = BANK_SMOKE_Z[(F.gunSmokeK >> 1) % BANK_SMOKE_Z.length], x = riverCenter(z) - 15.5;
+          F.gunSmoke?.emit(x, rt.world.heightAt(x, z) + 1.4, z, 1, 0, 4);
+        } else for (let j = 0; j < n; j++) {
+          const u = us[F.gunSmokeI = ((F.gunSmokeI || 0) + 1) % n];
+          if (!u || !u.alive || u.type !== 'gun' || u.team === me.team) continue;
+          if (Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) > 80) continue;
+          const f = u.heading ?? 0, fx = Math.sin(f), fz = Math.cos(f);
+          muzzle.set(u.pos.x + fx * 1.3, u.pos.y + 1.46, u.pos.z + fz * 1.3);
+          if (u.wpn?.parent) {
+            u.wpn.updateWorldMatrix(true, false);
+            muzzle.set(0, .034, 1.02).applyMatrix4(u.wpn.matrixWorld);
+          }
+          F.gunSmoke?.emit(muzzle.x, muzzle.y, muzzle.z, fx, fz);
+        }
       }
     }
     // 歩く兵の足踏みを既存の飛沫・波紋へ渡す。近くを順に拾い、配列を増やさない。

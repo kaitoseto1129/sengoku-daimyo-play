@@ -3578,15 +3578,17 @@ function fordTick(rt) {
   // 川中の先頭は後列を待つ。川中の人数で後列の入場まで止めると、
   // 両方が待ち続ける。入口の流量だけを絞り、浅瀬へ順に歩かせる。
   let room = relief ? 5 : cargo ? 1 : 3;
-  for (const g of rt.army.groups) {
+  // 後ろの隊の渡河許可も先に数える。隊の順で枠を超えて兵を入れない。
+  // 一巡目は残る許可を数え、二巡目だけ空いた枠を配る。
+  for (let pass = 0; pass < 2; pass++) for (const g of rt.army.groups) {
     if (!g.tedoCrossing && !F.crossGroups.includes(g)) continue;
     for (const u of g.units) {
       // 順番待ちをしない本人と、入口の外にいる兵には渡る枠を配らない。
       // moveWay の待機範囲にそろえ、離れた列が入口の三人分を使い切るのを防ぐ。
       if (!u.alive || u.gone || u.woundOut || u.isPlayer || g.order !== 'path' ||
           u.pos.z < -42 || u.pos.z >= -24 || Math.abs(u.pos.x - 2) > 12) continue;
-      if (u.tedoAdmitUntil > rt.t) { room--; continue; }
-      if (room > 0) { u.tedoAdmitUntil = rt.t + 6; room--; }
+      if (u.tedoAdmitUntil > rt.t) { if (pass === 0) room--; continue; }
+      if (pass === 1 && room > 0) { u.tedoAdmitUntil = rt.t + 6; room--; }
     }
   }
   // 殿が先に退く場合も、本隊の後続を川の途中で止めない。
