@@ -368,7 +368,8 @@ function mikiCoverMaterial(base, kind) {
   const mat = base.clone(), compile = base.onBeforeCompile;
   mat.transparent = kind === 'bamboo'; mat.depthWrite = kind !== 'bamboo';
   if (kind !== 'bamboo') mat.userData.camNearSolid = true;
-  if (mat.emissive) { mat.emissive.setHex(0x514735); mat.emissiveIntensity = .12; }
+  // 土まで明るく自発光させると陰と雨筋が消え、斜面が一枚の板に見える。
+  if (mat.emissive) { mat.emissive.setHex(0x514735); mat.emissiveIntensity = kind === 'bamboo' ? .12 : .025; }
   mat.onBeforeCompile = function (sh, renderer) {
     compile.call(this, sh, renderer);
     // 前の戦の切り抜きを、法面にも小屋の土台にも残さない。
@@ -376,19 +377,17 @@ function mikiCoverMaterial(base, kind) {
     sh.vertexShader = 'varying vec3 vMikiCover;\n' + sh.vertexShader.replace('#include <project_vertex>',
       '#include <project_vertex>\n vMikiCover = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'varying vec3 vMikiCover;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float grain = fract(sin(dot(floor(vMikiCover * 24.0), vec3(12.9, 78.2, 37.7))) * 43758.5);
-      diffuseColor.rgb *= mix(0.88, 1.12, grain);
+      ${kind === 'bamboo' ? `float grain = fract(sin(dot(floor(vMikiCover * 24.0), vec3(12.9, 78.2, 37.7))) * 43758.5);
+      diffuseColor.rgb *= mix(0.88, 1.12, grain);` : ''}
       ${kind === 'bamboo' ? `float joint = smoothstep(0.88, 0.98, fract(vMikiCover.y * 2.8));
       diffuseColor.rgb *= 1.0 - joint * 0.22;` : ''}
       ${kind === 'bamboo' ? 'diffuseColor.a *= mix(0.15, 1.0, smoothstep(1.5, 4.5, length(vMikiCover - cameraPosition)));' : ''}
     `);
     if (kind !== 'bamboo') {
-      // 土の絵を掛けた後で道と同じ黄褐色へ寄せる。黒い別材の板に見せない。
-      // 元の土粒・雨筋は残し、月や松明の明暗はこの後の照明で受ける。
+      // 土粒・草の斑・雨筋の明暗を保ったまま、道と近い黄褐色へ寄せる。
+      // 明るさの下限を持つ単色への置換と細かな乱数の粒は、土の絵を白く均していた。
       sh.fragmentShader = sh.fragmentShader.replace('#include <alphamap_fragment>', `
-        float mikiSoilLight = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-        vec3 mikiDrySoil = vec3(0.46, 0.40, 0.30) * clamp(mikiSoilLight / 0.32, 0.65, 1.25);
-        diffuseColor.rgb = mix(diffuseColor.rgb, mikiDrySoil, 0.55);
+        diffuseColor.rgb *= vec3(1.02, 0.99, 0.94);
         #include <alphamap_fragment>
       `);
     }
@@ -1799,6 +1798,10 @@ const miki = {
     const root = rt.hud.root, layout = document.createElement('style');
     root.dataset.miki = '';
     layout.textContent = `
+      /* 出陣待ちの最初の一枚でも、戦場の名札を題字の上に残さない。 */
+      html body #hud[data-miki]:has(#intro:not([hidden])) :is(.field-names,#goal-sign,#markers,#h-prog) {
+        visibility:hidden !important; pointer-events:none !important;
+      }
       html body #hud[data-miki] #intro:has(#intro-go) > .card.card {
         display:flex; flex-direction:column; align-items:stretch; gap:8px;
         width:min(600px, calc(100vw - 32px)); height:min(620px, 72dvh); max-height:min(620px, 72dvh);
