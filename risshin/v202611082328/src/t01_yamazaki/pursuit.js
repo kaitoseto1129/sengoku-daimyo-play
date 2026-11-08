@@ -1,0 +1,75 @@
+// ======================================================================
+// 山崎の戦い　⑦の段「追撃と光秀の敗走」（13〜15分）と戦の後の余韻
+//   御牧の殿が破れると日が暮れかかる。光秀は少ない近習と勝竜寺城へ退く（討たせない）。
+//   主人公は池田勢と、道に残る明智の後ろの兵を払いながら勝竜寺城の門の前まで追う。
+//   着くと門が閉じ、城の奥から松明の小勢が北へ抜けていく（夜のうちに坂本へ）。
+//   見出し「明智光秀、山崎より敗走」→ 使番の後の知らせ（小栗栖）→ 秀吉「上様の仇は討った」→「柴田勝家、北国にあり」。
+// ======================================================================
+import { enemyGroup } from '../bhelp.js';
+import { report } from './far.js';
+
+export const GATE = { x: 62, z: -164 };   // 勝竜寺城の門の前（堀の手前）
+const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
+
+export function start(rt, ctx) {
+  const F = rt.flags;
+  try { const W = rt.world; W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 24; } catch (e) { /* 空はそのまま */ }
+  if (rt.world.setRainTarget) rt.world.setRainTarget(0.12);
+  // 光秀と近習は勝竜寺城へ（もう退き始めている）
+  if (F.mitsuG) { F.mitsuG.fixed = false; F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: 64, z: -200 }; F.mitsuG.speed = 3; }
+  // 道に残る明智の後ろの兵（追う道の途中）
+  F.rear = enemyGroup(rt, { name: '明智の後ろの兵', faction: 'akechi', anchor: { x: 40, z: -132 }, facing: 0.6, width: 10, formation: 'line', order: 'hold', aggro: 18, seekRange: 26, morale: 80, dmgMult: 0.45 },
+    ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
+  F.rearGs = [F.rear];
+  try { const Y = F.yfar || {}; Y.akRes?.rout?.({ hideAfter: 30 }); Y.tenno?.rout?.('B', { minFight: 2, hideAfter: 30 }); } catch (e) { /* 遠景 */ }
+  for (const [g, d] of [[F.ikeda, { x: 50, z: -140 }], [F.kato, { x: 70, z: -146 }], [F.hori, { x: 30, z: -150 }]]) {
+    if (!ctx.live(g)) continue;
+    g.order = 'move'; g.dest = d; g.speed = 3.6; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 30; };
+  }
+  rt.after(1, () => report(rt, '敵右翼崩れました！　天王山の手も松田勢が退きまする！'));
+  rt.after(5, () => rt.say('池田恒興', '光秀、退きます！　勝竜寺へ追え、逃がすな！', 3));
+  rt.after(16, () => rt.say('足軽', '日が暮れる……桔梗の旗が城へ入っていくぞ', 3));
+  rt.after(30, () => report(rt, '津田・斎藤の兵、淀川を渡って散りまする！'));
+}
+
+export function tick(rt, dt, ctx) {
+  const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
+  if (F.pStep) return;
+  // 門の前に着くと、城の中から守りの兵が打って出る（光秀が抜ける時を稼ぐ）。払えば門が閉じる
+  if (!F.sortie && ((near(P, GATE, 18) && el > 20) || el > 110)) {
+    F.sortie = rt.t;
+    F.gateG = enemyGroup(rt, { name: '勝竜寺城の守り', faction: 'akechi', anchor: { x: 64, z: -178 }, facing: 0, width: 8, formation: 'line', order: 'attack', aggro: 26, seekRange: 34, morale: 85, dmgMult: 0.45 },
+      ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
+    F.rearGs.push(F.gateG);
+    rt.army.play('toki', { x: 64, z: -176 }, 1.0);
+    rt.say('明智の侍', '殿が落ちられるまで、門は渡さぬ！', 2.8);
+  }
+  if (F.sortie && (ctx.aliveN([F.gateG]) <= 2 || rt.t - F.sortie > 45)) {
+    F.pStep = 1;
+    finale(rt, ctx);
+  }
+}
+
+// 門が閉じ、光秀は夜のうちに抜けていく。戦の後の知らせと余韻
+function finale(rt, ctx) {
+  const F = rt.flags;
+  for (const g of [F.rear, F.gateG]) if (ctx.live(g)) { g.routed = true; g.order = 'flee'; }
+  rt.army.play('toki', { x: 62, z: -150 }, 1.4);
+  rt.say('池田恒興', '門を閉ざしたか。囲め！　城は小さい、今宵のうちに落ちるわ', 3.4);
+  // 光秀は近習と北の裏から抜ける（討たせない。見えるのは松明の小勢だけ）
+  rt.after(3, () => {
+    if (F.mitsuG) { F.mitsuG.order = 'retreat'; F.mitsuG.dest = { x: 80, z: -260 }; F.mitsuG.speed = 3.2; }
+    rt.banner('明智光秀、山崎より敗走', '');
+  });
+  rt.after(7, () => rt.say('黒田官兵衛', '日向は夜のうちに城を抜け、坂本へ落ちましょう。道々の郷人が黙ってはおりますまい', 4.4));
+  rt.after(12.5, () => report(rt, '後の知らせ：光秀、小栗栖の竹藪にて討たれたとの由！', 3.8));
+  rt.after(17, () => rt.say('羽柴秀吉', '……上様の仇は、討った', 3.6));
+  rt.after(21.5, () => report(rt, '柴田勝家様、北国にあり。清須へ向かわれるとの由', 3.6));
+  rt.after(25.5, () => rt.say('黒田官兵衛', 'さて、上様の跡目を巡って、柴田殿とはいずれ……', 3.6));
+  rt.after(30, () => ctx.done());
+}
+
+export function botTarget(rt) {
+  const F = rt.flags;
+  return F.pStep ? null : GATE;
+}
