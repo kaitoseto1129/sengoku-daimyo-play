@@ -1,6 +1,6 @@
 // ======================================================================
 // 河田・米野　渡河の厚みと戦況の移り（docs/toku15_plan_1108.md の 2）
-//  ・0〜3分：南岸に東軍の備が奥へ重なる（池田の二陣・本陣の後ろ、下流の尾越へ向かう福島、後ろに黒田・細川）。北の奥に織田の後詰
+//  ・0〜3分：南岸に河田の手の備が奥へ重なる（池田の二陣・本陣の後ろ、浅野・一柳・山内）。北の奥に織田の後詰
 //  ・6〜9分：米野。東軍が次々渡り、北岸に味方の旗が増える。米野の東の田で両軍の大きな押し合い（軽い作り）
 //  ・9〜12分：米野が崩れると織田勢は岐阜へ退く。騎馬が追うが、深追いはさせない
 //  ・12〜15分：使番「秀信、岐阜城へ籠もりました！」。東軍の備が金華山の麓へ動く
@@ -17,13 +17,13 @@ export function install(rt, ctx) {
   F.k02t = T;
   const di = () => F.dp?.i ?? -1;
   const N = Math.PI;   // 北（-z）を向く
-  // 南岸の東軍：池田の二陣・本陣の後ろ、浅野の後詰、下流の尾越へ向かう福島、その後ろの黒田・細川
+  // 南岸は河田の手だけ。尾越を渡る福島・黒田・細川の旗は置かない。
   T.south = [
     ...sonaeLayers(rt, { x: -10, z: 100, facing: N, mon: 'ageha', armor: BLACK, team: 0, seed: 21, layers: [{ back: 0, w: 40, d: 10, count: 160 }, { back: 50, w: 22, d: 10, count: 80, kind: 'honjin' }] }),
     ...sonaeLayers(rt, { x: -112, z: 96, facing: N, mon: 'asano', armor: BLACK, team: 0, seed: 22, layers: [{ back: 0, w: 34, d: 10, count: 130 }] }),
-    ...sonaeLayers(rt, { x: -200, z: 70, facing: N - 0.35, mon: 'maru', armor: BLACK, team: 0, seed: 23, layers: [{ back: 0, w: 44, d: 12, count: 180 }, { back: 22, w: 40, d: 12, count: 150 }] }),
-    ...sonaeLayers(rt, { x: 60, z: 128, facing: N, mon: 'kuroda', armor: BLACK, team: 0, seed: 24, layers: [{ back: 0, w: 36, d: 10, count: 140 }] }),
-    ...sonaeLayers(rt, { x: 120, z: 110, facing: N, mon: 'kuyo', armor: BLACK, team: 0, seed: 25, layers: [{ back: 0, w: 36, d: 10, count: 140 }] }),
+    ...sonaeLayers(rt, { x: -200, z: 70, facing: N - 0.35, mon: 'kuginuki', armor: BLACK, team: 0, seed: 23, layers: [{ back: 0, w: 44, d: 12, count: 180 }, { back: 22, w: 40, d: 12, count: 150 }] }),
+    ...sonaeLayers(rt, { x: 60, z: 128, facing: N, mon: 'ageha', armor: BLACK, team: 0, seed: 24, layers: [{ back: 0, w: 36, d: 10, count: 140 }] }),
+    ...sonaeLayers(rt, { x: 120, z: 110, facing: N, mon: 'kashiwa', armor: BLACK, team: 0, seed: 25, layers: [{ back: 0, w: 36, d: 10, count: 140 }] }),
   ];
   // 北の奥：織田秀信の後詰（岐阜への道の上）。米野が崩れると消える（岐阜へ退いた）
   T.north = sonaeLayers(rt, { x: -40, z: -200, facing: 0, mon: 'oda', armor: WEST, team: 1, seed: 26, layers: [{ back: 0, w: 36, d: 10, count: 130 }, { back: 22, w: 18, d: 10, count: 60, kind: 'honjin' }] });

@@ -566,7 +566,10 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
     // 柵越しの敵が五歩以内でも、外に留まらず木戸へ回る。寄る敵には斬り返す
     inp.leftPressed = !!b.army.nearestEnemy(u, 5, (o) => !o.fleeing); inp.runHeld = true;
     // 迂回中は道の線へ戻さない（柵の外から内側の道へ引かれると、柵に当たり続ける）
-    if (Math.abs(u.pos.x - FORT_GATE.x) > 3 && u.pos.z < FORT_GATE.z - 1) goTo(p, inp, u.pos.x, FORT_GATE.z + 3, 2, true);
+    // 北へ追った後は北の柵を横切らず、側面の外へ出てから南の木戸へ回る。
+    const side = FORT_IN.x + (u.pos.x < FORT_IN.x ? -25 : 25);
+    if (u.pos.z < SHINKANO.z - 14 && Math.abs(u.pos.x - FORT_IN.x) < 23) goTo(p, inp, side, u.pos.z, 1, true);
+    else if (Math.abs(u.pos.x - FORT_GATE.x) > 3 && u.pos.z < FORT_GATE.z - 1) goTo(p, inp, u.pos.x, FORT_GATE.z + 3, 2, true);
     else if (u.pos.z > FORT_GATE.z - 4 && Math.abs(u.pos.x - FORT_GATE.x) > 2) goTo(p, inp, FORT_GATE.x, FORT_GATE.z, 1.5, true);
     else goTo(p, inp, FORT_IN.x, FORT_IN.z, 3, true);
     return;

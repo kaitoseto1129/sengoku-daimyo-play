@@ -74,12 +74,18 @@ function pressPlayer(rt, dt) {
   const pick = F._pressPick || (F._pressPick = []);
   F._pressed ||= [];
   pick.length = 0;
+  // 前の選び直しで向けた者も数える。十八歩を外れたり本人が深手になった時に、
+  // 四秒残る狙いへ別の四人を重ねず、近い四人（深手なら二人）までに戻す。
+  for (const o of F._pressed) {
+    if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
+  }
+  F._pressed.length = 0;
   for (const o of A.units) {
     if (!o.alive || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.downed || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
     if (d > 18 || Math.abs(o.pos.y - P.pos.y) > 1.8) continue;   // 11/8 critic60 一行目：十二歩→十八歩
-    if (o.target === P && o.pullUntil > now) { held++; continue; }
+    if (o.target === P && o.pullUntil > now) { held++; F._pressed.push(o); continue; }
     o._pressD = d; pick.push(o);
   }
   if (held >= max || !pick.length) return;
