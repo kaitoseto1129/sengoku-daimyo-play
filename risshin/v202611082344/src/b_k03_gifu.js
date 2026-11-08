@@ -550,13 +550,14 @@ const k03_gifu = {
     rt.tracker.main = true;
     rt.player.u.invuln = true;
     for (const g of F.foes) if (g !== F.hide) this.fall(rt, g);
-    if (F.hide) for (const u of F.hide.units) u.invuln = true;   // 降る者は討たせない
-    if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; F.hide.peaceful = true; F.hide.keepMoveOrder = true; }
+    // 無敵だけでは双方が斬り合い続け、門前へ歩み出られない。降る者は狙いから外し、振りかけの刀も止める。
+    if (F.hide) for (const u of F.hide.units) { u.invuln = true; u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+    if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; F.hide.fire = false; F.hide.peaceful = true; F.hide.keepMoveOrder = true; F.hide.arriveNoncombat = true; }
     sfx('horagai', 0.9);
     F.k03s?.ending?.();   // 刀を置いた後、本丸の木瓜の旗が下りる（k03_gifu/kaijo.js）
     // 降る場は本丸の門の内。秀信は床几から立ち、近習とともに門の前へ歩み出る。福島正則も門の前へ（見える所で降る・critic60 二-4）
     if (F.hideU) F.hideU._crouch = false;
-    if (live(F.hide)) { F.hide.noAI = false; F.hide.order = 'move'; F.hide.dest = { x: -14, z: 0 }; F.hide.speed = 1.4; F.hide.onArrive = (q) => { q.order = 'hold'; }; }
+    if (live(F.hide)) { F.hide.noAI = true; F.hide.order = 'move'; F.hide.dest = { x: -14, z: 0 }; F.hide.speed = 1.4; F.hide.onArrive = (q) => { q.order = 'hold'; }; }
     if (F.hideU) rt.marker('hide', () => F.hideU.pos, '織田秀信', { person: true, guidePerson: () => F.hideU, guideName: '織田秀信' });
     if (live(F.fuku)) { F.fuku._gfTo = null; F.fuku.onArrive = (q) => { q.order = 'hold'; };
     F.fuku.order = 'move'; F.fuku.dest = { x: DAI.x + 1, z: DAI.z + 5 }; F.fuku.speed = 3; F.fuku.aggro = 0; F.fuku.peaceful = true; F.fuku.keepMoveOrder = true; }
@@ -565,7 +566,13 @@ const k03_gifu = {
     // 輝政は城下の本陣に座ったまま（物差し一-2）。降参は輝政を通して受けた（井伊直政の書状）ので、使番が殿の言葉を運ぶ
     rt.after(13, () => rt.say('池田輝政の使番', '殿の仰せ。中納言殿の降参を受けよ。一番乗りは福島殿と同じ時、とせよ', 4));
     // 秀信が刀を置く：近習は膝をつく
-    rt.after(18, () => { rt.say('織田秀信', '……城を明け渡す。者ども、刀を収めよ', 3.6); if (F.hide) for (const u of F.hide.units) if (u !== F.hideU && u.alive) u._crouch = true; });
+    rt.after(18, () => {
+      rt.say('織田秀信', '……城を明け渡す。者ども、刀を収めよ', 3.6);
+      if (F.hide) for (const u of F.hide.units) if (u.alive) {
+        rt.army.dropWeapon(u); u.wpnKind = 'none';
+        if (u !== F.hideU) u._crouch = true;
+      }
+    });
     rt.after(18.5, () => {
       rt.award((t) => { t.main = true; t.special = { label: '本丸の門の旗本を破り、岐阜城を開かせた', pts: 30 }; }, '岐阜城が開いた');
       rt.banner('岐阜城、開城', '織田秀信、降る');

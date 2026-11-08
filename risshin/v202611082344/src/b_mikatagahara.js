@@ -2319,7 +2319,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     F.aka0 = F.aka.count;
     F.yamaU = F.aka.units.find((u) => u.name === '山県昌景') || null;
     // 11/6 c0814：山県は三方ヶ原では討たれない（長篠で討死）。描かずの流しで「山県昌景、討死」が出た。手負い（三割五分）で止める。
-    if (F.yamaU) F.yamaU.invuln = true;
+    if (F.yamaU) { F.yamaU.invuln = true; F.yamaU.mustLive = true; }
     // 判断：赤備えをどう受けるか（時間切れは槍衾。受け方で傷と手柄が変わる）。赤備えは森の際で馬を揃えてから駆け出す
     const go = () => {
       if (F.ending || F.step !== 2 || F.dpOn || gone(F.aka) || F.aka.order !== 'hold') return;
@@ -2394,7 +2394,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     const fall = (name, passZ, late, ready) => {
       const tick = () => {
         if (F.ending || rt.over) return;
-        if (!ready() || F.dpOn || rt.t - lastFallT < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
+        if (!ready() || !F.dpR || F.dpOn || rt.t - lastFallT < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
         lastFallT = rt.t;
         F[name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid'] = true;
         const u = rt.army.units.find((q) => q.alive && q.name === name);
@@ -2637,10 +2637,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       if (!F.dpOn) rt.objProgress('main', F.mkFlank ? (F.mkFlankArrived ? '味方と赤備えの横腹へ当たれ' : '森の陰へ進め。味方から離れるな') : '右へ槍を向け、味方と列を保て');
       const yama = F.yamaU;
       if (yama && !F.yamaOut && (!yama.alive || yama.hp < yama.maxHp * 0.5)) {
-        // 史実でここでは討たれぬ大将は、手負いで退く。赤備えもその場で崩れる。
+        // 手負いの将だけ下がる。赤備え全体を士気零で敗走させない。
         F.yamaOut = true; yama.invuln = true;
-        F.aka.noRout = false; F.aka.morale = 0;
-        rt.say('足軽', '山県が手負いで下がったがや！　赤備えの寄せが止まったで！', 3);
+        rt.say('足軽', '山県が手負いで下がったがや！　赤備えはまだ寄せてくるで！', 3);
       }
       // 敵が残る間は本人の接敵を待つ。赤備えが退いた後は、空の持ち場へ呼び戻さない。
       const akaNear = Math.hypot(p.x - PIKE_POST.x, p.z - PIKE_POST.z) < 25 || F.mkFlankArrived;

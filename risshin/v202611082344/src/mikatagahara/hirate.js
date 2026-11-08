@@ -15,7 +15,7 @@ function hirateFalls(rt) {
   rt.say('平手汎秀', '我こそは平手監物汎秀なり！　織田の加勢の名を汚すな、続け！', 3.2);
   if (u?.alive && F.hirate) { F.hirate.order = 'attack'; F.hirate.aggro = 20; F.hirate.seekRange = 30; }
   rt.after(3.6, () => {
-    if (F.ending || rt.over) return;
+    if (F.ending || rt.over || F.hirateFallSaid) return;
     F.hirateFallSaid = true;
     F.bossName = '佐久間信盛';
     if (u?.alive) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
