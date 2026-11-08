@@ -101,7 +101,7 @@ function rawHeight(x, z) {
   const atGate = Math.hypot(x - GATE.x, z - GATE.z);
   h += 3 * trap(distToPolyline(x, z, SOGAMAE), 2.2, 2.5) * clamp01((atGate - 5) / 3);
   h += 2.6 * trap(distToPolyline(x, z, MASU), 1.6, 2);
-  h -= 2.4 * trap(distToPolyline(x, z, MOAT), 2.4, 1.6) * clamp01((atGate - 4) / 2);
+  h -= 2.4 * trap(distToPolyline(x, z, MOAT), 2.4, 1.6) * clamp01((Math.hypot(x - (GATE.x - 8), z - GATE.z) - 4) / 2);
   // 早川の河原と流れ
   h -= 1.4 * trap(distToPolyline(x, z, HAYAKAWA), 3, 4);
   // 東の総構え：土塁（高さ 3）と外の堀。山王口は土塁が切れ、堀は土橋で篠曲輪の西の口へ渡る
@@ -259,7 +259,11 @@ function sogamaeWall(rt) {
       }
     }
   };
-  solidLine(SOGAMAE_E.slice(1, 5), sannoGap);
+  // 見える板塀と同じ範囲を塞ぐ。西の総構え・枡形・本丸も、門だけを通す。
+  solidLine(SOGAMAE, (x, z) => Math.hypot(x - GATE.x, z - GATE.z) < 8);
+  solidLine(MASU, () => false);
+  solidLine(rectPts(HON, -1.4), (x, z) => Math.hypot(x - (HON.x0 + 6), z - HON.z1) < 3.5);
+  solidLine(SOGAMAE_E, sannoGap);
   solidLine(rectPts(SHINO, -0.9), atShinoGap);
   rt.scene.add(kabukimon(W, SANNO.x, SANNO.z, 7, Math.PI / 2));
   { const kido = kabukimon(W, KIDO.x - 0.9, KIDO.z, 4.6, Math.PI / 2); kido.traverse((o) => { if (o.isMesh) o.userData.camBlock = true; }); rt.scene.add(kido); }
@@ -498,7 +502,11 @@ const t12_odawara = {
     },
     clear: (x, z) => (x > -130 && x < 40 && z > -120 && z < 30) || (x > -92 && x < -36 && z > 76 && z < 125) || rectD(HON, x, z) < 7 || (x > 40 && x < 178 && z > -176 && z < -20),
     streams: [{ pts: HAYAKAWA, w: 5, depth: 1.0 }, { pts: HON_HORI, w: 2.2, depth: 1.6 }, { pts: SANNOGAWA, w: 4.4, depth: 1.1 },
-      ...SHINO_HORI.map((pts) => ({ pts, w: 2.4, depth: 1.2 }))],
+      ...SHINO_HORI.map((pts) => ({ pts, w: 2.4, depth: 1.2 })),
+      // 総構えの水堀。山王口と早川口の土橋には水を張らない。
+      ...[ [...MOAT_E.slice(0, 4), [100, -65]], [[100, -59], ...MOAT_E.slice(4)],
+        [...MOAT.slice(0, 5), [-36.6286, -27]], [[-37.6571, -33], ...MOAT.slice(5)]
+      ].map((pts) => ({ pts, w: 2.4, depth: 1.6 }))],
     trees: 380,
     tufts: 3600,
     // 石垣山の曲輪と北の面（小田原から見える側）は clear で伐られた後にする（伐る前の林は ichiyajo の杉）

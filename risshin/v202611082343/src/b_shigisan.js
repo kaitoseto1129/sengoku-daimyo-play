@@ -1978,7 +1978,9 @@ const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 // 南口を離れた後に、以前の滞在時間だけで城取りを認めない。
 function honmaruPostReached(rt) {
   const F = rt.flags, P = rt.player.u.pos, z = F.SZ?.byId.shu;
-  return F.step === 4 && F.lowerTaken &&
+  // 南口に居る時間だけで、まだ敵の本丸を取ったことにしない。
+  return F.step === 4 && F.lowerTaken && z?.owner === ZONE_STATE.FRIEND &&
+    F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12)) &&
     (z?.test(P.x, P.z) || Math.hypot(P.x - TOP.x, P.z - (TOP.z + TOP.r + 4)) < 10);
 }
 const shigisan = {
@@ -3397,7 +3399,7 @@ const shigisan = {
   win(rt, otherFront = false) {
     const F = rt.flags;
     if (F.ending || F.endPending) return;
-    if (otherFront && (!F.reachedShu || !honmaruPostReached(rt))) return;
+    if (!honmaruPostReached(rt) || otherFront && !F.reachedShu) return;
     // 諸口の決着が先でも、内通の段を父子の最期の知らせより前に見せる。
     if (!F.betrayed || rt.t - F.betrayalAt < 8) {
       this.betrayal(rt); F.endPending = true;
@@ -3405,7 +3407,7 @@ const shigisan = {
         F.endPending = false;
         // 待つ間に本丸を押し返された時は、本人の城取りをまだ認めない。
         const zone = F.SZ?.byId.shu;
-        const held = otherFront ? honmaruPostReached(rt) : zone?.owner === ZONE_STATE.FRIEND && zone.test(rt.player.u.pos.x, rt.player.u.pos.z);
+        const held = honmaruPostReached(rt) && (otherFront || zone.test(rt.player.u.pos.x, rt.player.u.pos.z));
         if (held && !F.ending && !rt.over && rt.player.u.alive) this.win(rt, otherFront);
       });
       return;
@@ -4090,8 +4092,14 @@ function march(rt, g, pts) {
       if (this.routed || !this.roadColumn || !this.path?.length) return slotPos.apply(this, arguments);
       // 11/6 fixc0814（描いて遊んだ 100〜170 秒）：門の下で遅れた味方は、要の後ろの持ち場へ切岸越しに真っ直ぐ向かって止まり、
       //   隊の要だけが本人と曲輪へ進んでいた（本人の三十歩内の味方は二〜四人）。十四歩より遅れた者は、通って来た道の次の角を追って登る。
-      if (this.order === 'path' && this.team === 0) {
-        const r = slotPos.apply(this, arguments), u = this.units.find((x) => x.slot === i && x.alive);
+      if (this.team === 0 && (this.order === 'path' || this.order === 'hold' || this.order === 'assault')) {
+        // 先頭が到着して止まった後も、遅れた後列は折り返しを通る。
+        const order = this.order, formation = this.formation;
+        this.order = 'path'; this.formation = 'column';
+        let r;
+        try { r = slotPos.apply(this, arguments); }
+        finally { this.order = order; this.formation = formation; }
+        const u = this.units.find((x) => x.slot === i && x.alive);
         if (!u) return r;
         const distance = Math.hypot(u.pos.x - r.x, u.pos.z - r.z);
         // 近い後列も、折り返しを横切れば切岸で止まる。半秒ごとに直進を調べる。

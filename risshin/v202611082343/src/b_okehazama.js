@@ -1111,6 +1111,8 @@ const okehazama = {
   },
   // 今の行き先と同じ旗持ちを示す。兵は増やさない。
   missionAlly(rt) {
+    // 引き揚げは固定の谷の出口へ。歩く旗持ちを別の行き先として示さない。
+    if (rt.flags.victory) return null;
     // 行軍は固定の集合ピン一つ。歩く兵を別の行き先に見せない。
     if (rt.phase === 'march' || rt.phase === 'wait') return null;
     if (rt.phase === 'brief') return null; // 集合先の地面のピン一本にそろえる。
@@ -3580,6 +3582,9 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     if (Math.hypot(F.returnPin.x - rt.player.u.pos.x, F.returnPin.z - rt.player.u.pos.z) < 30) F.returnPin = fieldPoint(-22, 0);
     F.returnT = rt.t;
     F.returnGroup = readyGroup(rt.hostGroup) ? rt.hostGroup : F.attackers.find(readyGroup);
+    // 行軍時の印を残さず、⑥の到着判定と同じ地点へそろえる。
+    rt.unmark('genpachi');
+    rt.marker('genpachi', F.returnPin, '組の旗', { guideFlag: true, guideRadius: 7 });
     rt.after(6, () => { if (!rt.over) for (const g of F.attackers) retreatGroup(g); });
     rt.after(3, () => { if (!rt.G.lord) localSay(rt, rt.hostGroup, '組頭', '今川勢が崩れたぞ。勝鬨を上げよ！', 3); });
     rt.after(6.5, () => { if (!rt.over && !rt.G.lord) localSay(rt, rt.hostGroup, '組頭', '義元の首は挙がった。来た道を谷の出口の旗へ引き揚げるぞ！', 4); });
