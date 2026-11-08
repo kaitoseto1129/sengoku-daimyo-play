@@ -2948,7 +2948,7 @@ const odani = {
     let pos, hold = false;
     if (F.retreatOn) pos = F.retreatPoint;
     else if (F.step === 0) pos = F.hideU?.pos;
-    else if (F.step === 1 && (F.climbWaiting || F.climbDefending) && !F.trailGuard) { pos = p; hold = true; }
+    else if (F.step === 1 && (F.climbWaiting || F.climbDefending) && !F.trailGuard) { pos = BELOW; hold = true; }
     else if (F.honAttack || F.komaDown) pos = HONC;
     else if (F.komaAttack) { pos = KOMC; hold = true; }
     else if (F.step === 3) { pos = KC; hold = true; }
@@ -4995,8 +4995,12 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       rt.say('浅井長政', '旗本ども、本丸の口を固めよ！　一人も通すな！', 3.5);
       F.nagaT = rt.t;
     }
-    // 最後の抵抗：二十秒ほど打ち合うか旗本が尽きると、長政は赤尾屋敷へ退き、そこで自害する
-    if (nu?.alive && F.nagaCharge && !F.akaoGo && F.honEntered && (rt.t - F.nagaT > 22 || left <= 0 && rt.t - F.nagaT > 8)) {
+    // 時間の後押しは旗本の退却まで。旗本が戦える間は⑤を果たした事にしない。
+    if (F.nagaCharge && !F.akaoGo && F.honEntered && rt.t - F.nagaT > 22) {
+      for (const g of [F.honGuard, F.south, F.kyoAid]) if (!gone(g)) { g.noRout = false; g.morale = 0; }
+    }
+    // 旗本が退いた後、長政は赤尾屋敷へ退き、そこで自害する。
+    if (nu?.alive && F.nagaCharge && !F.akaoGo && F.honEntered && left === 0 && rt.t - F.nagaT > 8) {
       F.akaoGo = true;
       const ng = F.nagamasa;
       ng.order = 'move'; ng.focus = null; ng.aggro = 0; ng.seekRange = 0;
@@ -6211,9 +6215,10 @@ installBattleJinkei(odani, [
 {
   const placeOf = (rt) => { const F = rt.flags; return F.retreatOn ? '退き口' : F.step <= 1 ? '清水谷' : F.step === 2 ? (F.onoDone ? '京極丸' : '大野木屋敷') : F.komaDown || F.honAttack ? '本丸' : F.komaAttack ? '小丸' : F.step === 3 ? '京極丸' : '本丸'; };
   odani.travelGuideLabel = (rt) => {
-    const F = rt.flags, q = F.retreatOn ? F.retreatPoint : F.trailPoint, p = rt.player.u.pos;
+    const F = rt.flags, q = odani.missionPin(rt), p = rt.player.u.pos;
     if (F.step === 0 || !q || !Number.isFinite(q.x)) return '';
-    return `${placeOf(rt)} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
+    const place = q.gate ? '西木戸' : placeOf(rt);
+    return `${place} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
   };
 }
 export { odani };

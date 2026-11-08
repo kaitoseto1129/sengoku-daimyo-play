@@ -157,6 +157,8 @@ const k09_imafuku = {
   noYaguraTask: true,      // 砦の櫓を脇の目標「物見櫓の中へ入り、守りを追い出せ」にしない（右上は①〜④だけ。三3・十1）
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   stageGoalsOnly: true,    // 右上は四つの段だけ（「敵を何人討つ」で埋めない。三の1・AW3）
+  goalsAllRows: true,      // 共通の既定は今の一件だけ。①〜④を最初から並べ、済みに印を付ける。
+  nameTagLimit: 12,        // 既存の名札の枠内で、見える将の名を二、三人だけに絞らない。
   gateGuide: false,        // 竹の矢来の木戸は、前に立てば組の者と縄で引き倒す（update）。「木戸を打て（長押し）」の操作の字と「門が開いた」は出さない（五の1）
   hidePlayerSign: true,    // 足元の白い輪（写真に無い作り物の印）を出さない（八の1）
   goalSignBare: true,      // 真上の▼に「この人について行く」の字を添えない（五の1）
@@ -543,7 +545,8 @@ const k09_imafuku = {
       }
     }
     // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙って撃つ（七〜十一秒に一発）
-    if (F.boats && !F.boatBack && !F.ending) for (const bt of F.boats) for (const u of bt.us) {
+    // 又兵衛の「退きながら撃て」の下知どおり、西へ漕ぎ戻る間も射程内では撃つ。
+    if (F.boats && !F.ending) for (const bt of F.boats) for (const u of bt.us) {
       if (!u.alive || (u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt) > 0) continue;
       u.k09Shot = 7 + Math.random() * 4;
       const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.fleeing && Math.abs(o.pos.z) < WADE);

@@ -4353,6 +4353,7 @@ function kgHold(line, dur, waves, ambush = false) {
       if (!away) C.inT += dt;
       // 追手が初めて当たるまでは守備時間に数えない。寄せを退けた後は半速で進める。
       const contacted = rt.flags.contactAt?.[line] != null;
+      C.contactT = (C.contactT || 0) + (contacted ? dt : 0);
       C.fightT = (C.fightT || 0) + (contacted ? rt.flags.engaged >= 3 ? dt : dt * 0.5 : 0);
       // 携帯で畳んだ札にも戻る下知を残す。札は増やさず、出入りの時だけ書き替える。
       if (away !== C.away) {
@@ -4363,14 +4364,14 @@ function kgHold(line, dur, waves, ambush = false) {
       rt.objProgress('dp', away ? `${L.mark}の旗へ戻れ。備を離れるな` : line === 2 && (rt.flags.prog || 0) < RETREAT_T ? rt.flags.breachT > 0 ? '追手が味方に迫る。退き道を守れ' : rt.flags.kino.count < rt.flags.kino.initial * 0.45 ? '殿が崩れかけている。旗のそばで槍をそろえよ' : '味方が山道を退いている。最後の列まで守れ' : '主力は退いている。槍列で追手を止めよ');
       // 退去が遅れ続けても、この段自身の期限で撤退へ進む。
       if (line === 2 && el >= dur + RETREAT_T && (rt.flags.prog || 0) < RETREAT_T) { m.kgFailed = true; return true; }
-      // 守りが長引きすぎないように、段の秒が守りの秒の一倍半を越えたら退く（一つの戦を四〜七分に）
-      return contacted && (C.fightT >= dur || el >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
+      // 接触前の待ち時間で守備を済ませない。寄せを退けた後も、接触後の秒が一倍半を越えたら退く。
+      return contacted && (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
     },
     end(rt, C, m) {
       rt.unmark('dp'); rt.unzone('dp');
       if (ambush) { rt.flags.akechi.holdFire = false; rt.flags.gunsEast.holdFire = false; }
       if (m.kgFailed) rt.objFail('dp');
-      else if (rt.flags.contactAt?.[line] == null || C.inT < dur * 0.6) { rt.objFail('dp'); m.kgFailed = true; }
+      else if (C.timeout || rt.flags.contactAt?.[line] == null || C.inT < dur * 0.6) { rt.objFail('dp'); m.kgFailed = true; }
       else rt.objDone('dp');
     },
   };

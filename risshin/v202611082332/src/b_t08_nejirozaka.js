@@ -77,7 +77,7 @@ function steps(rt) {
       say: [['宮部継潤', '来たぞ！　塀に取り付く者を突き落とせ！']],
       waves: [
         // 猿渡信光は史実で根白坂に討死した。手は崩れても退かず、塀の前で討たれるまで戦う（update が守る）
-        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 20 }] },
+        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 120 }] },
         { t: 24, say: ['鉄砲頭', '堀の中に詰まった！　放て！'], foes: () => [{ name: '島津の二の手', from: from(14), off: { x: 8, z: 2 }, list: [uS(2), uA(9), uG(3)] }] },
         { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 38, z: -14 }, list: [uS(2), uA(10)] }] },
       ],
@@ -474,6 +474,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 塀を守る段で、守る刻を十五秒過ぎても堀の外に残る島津の組は退かせる（低い気で立ち尽くし、段が終わらなかった。11/3 測り）
     const C = F.dp && F.dp.on && F.dp.cur;
     if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max - 20) for (const g of C.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
+    // 猿渡が生きている間は隊を退かせない。共通の持久戦処理は残り三人や刻限で退却禁止を解く。
+    // 出現時の退却禁止も塀の段の上限より長くし、軍の更新前に期限が切れる隙間を作らない。
+    if (di === 1 && C) for (const g of C.groups) {
+      if (g.units.some((u) => u.alive && u.name === '猿渡信光')) g.noRout = true;
+    }
     // 猿渡信光は根白坂で討死した（史実）。塀の段が終わっても生きていれば、退く前に塀の内の鉄砲に撃たれる
     if (di >= 2 && !F.saruDone) {
       F.saruDone = true;

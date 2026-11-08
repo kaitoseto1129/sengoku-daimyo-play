@@ -944,7 +944,8 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
     // 11/8 critic60 野田福島（九3・五2「利家の 8m 後ろでも味方の将の名が一度も出ない」）：敵の将が近いと枠を取られた。味方の将の名は枠の外で一枚足す
     let allyName = it.u.team === me.team;
     for (let j = 0; allyName && j < shown; j++) if (items[j].u.team === me.team) allyName = false;   // 毎コマ配列を作らない
-    if (shown >= (gs && !gs.hidden ? 1 : 2) + (allyName ? 1 : 0)) { if (!it.e.hidden) it.e.hidden = true; continue; }
+    const nameLimit = rt.def.nameTagLimit == null ? (gs && !gs.hidden ? 1 : 2) + (allyName ? 1 : 0) : Math.min(NAMES, rt.def.nameTagLimit);
+    if (shown >= nameLimit) { if (!it.e.hidden) it.e.hidden = true; continue; }
     // 11/6 共通の係：上へ積むと、遠くの小さな将の名が空に浮き、下に誰もいないように見えた（手取川・天王寺・久瀬川）。
     //   名札は頭の上か、本人の体へ下げる向きだけに動かす（上へは逃がさない）
     for (const dir of [1]) {
