@@ -127,6 +127,7 @@ const t06_hetsugi = {
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
   // 11/7 九1：一行の札（missionSingleLine）をやめ、①〜⑤を右上に始めから並べる（goals5）。行き先は頭上の▼一つ（missionPin）
   hideMissionDots: true,
+  goalsAllRows: true,       // 五つを最初から並べる。共通の目標欄はこの指定が無いと今の一件だけになる。
   kumiLead: false,           // 意味の分からない青い小旗の印を出さない（五2）
   noHatamotoMass: true,      // 将の周りに見せかけの兵を足さない（九5）
   goalSignOnly: true,
@@ -451,8 +452,8 @@ const t06_hetsugi = {
     rt.obj('main', STEP_TEXT[n - 1], 'main', true);
     if (n === 1) {
       rt.marker('go', () => shinkou.pin(rt), '戸次川の浅瀬');
-      // 軍議（十六秒）の後、土手の道を浅瀬の口へ進み、皆が揃ってから渡る（t06_hetsugi/shinkou.js）
-      rt.after(16, () => shinkou.march(rt, K));
+      // 軍議の最後の下知で進軍する。始まりの待ちは十五秒以内。
+      rt.after(13, () => shinkou.march(rt, K));
     } else if (n === 2) {
       rt.marker('go', { x: RING.x, z: RING.z + 6 }, '中津留の河原');   // 行き先は固定（AW の 3）。先手に当たり、退くのを追った先
       rt.say('仙石秀久', 'かかれ！　鶴賀の囲みを破れ！', 2.6);
@@ -715,7 +716,7 @@ const t06_hetsugi = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.feignDmg = g.dmgMult ?? 1; g.dmgMult = Math.min(g.feignDmg, 0.45); }
       // 替わった先手の兵は待たずに四国の衆と本人へ槍を入れる（退くふりの前は本当に当たる。九2）
       if (!F.feigned) for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 26; g.aggro = 12; }
-      if ((!F.feigned && (rt.stats.kills > F.ijKills0 || rt.stats.taken > F.ijTaken0) && el > 60) || (!F.feigned && el > 110)) this.feign(rt);   // 先手は当たって粘り、それから退く
+      if (!F.feigned && (rt.stats.kills > F.ijKills0 || rt.stats.taken > F.ijTaken0) && el > 60) this.feign(rt);   // 本人が先手と当たってから退く。時間だけで交戦を果たさない。
       if (F.feigned) tsuigeki.update(rt, K);
       if (F.feigned && tsuigeki.ready(rt, K)) this.toStep(rt, 3);
     } else if (F.step === 3) {

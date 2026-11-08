@@ -27,6 +27,11 @@ import { gauss, enemyGroup, allyGroup, nm, ringWall, wallLine } from './bhelp.js
 import { dress, gone as groupGone } from './b_inabayama.js';
 import { goalsTick } from './hud_goals.js';
 import { sightUnit } from './battle_sight.js';
+// 15分の段（kaito 11/8 夜・docs/oda15_plan_1108.md の 26）：段の中身は miki/ に一段一ファイル
+import * as MK_OPEN from './miki/kaimaku.js';
+import * as MK_YOIN from './miki/yoin.js';
+import * as MK_DESHIRO from './miki/deshiro.js';
+import * as MK_KIGA from './miki/kiga.js';
 // 深手で戦えない兵だけが残っても、敵の寄せが続くとは数えない。
 const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.noTarget);
 import { camp } from './b_mid.js';
@@ -756,7 +761,7 @@ function mikiHoro(rt) {
 }
 const HIRATA = { x: -80, z: -64, r: 14 };
 const OMURA = { x: -64, z: -118, r: 22 };
-const BATTLE_LIMIT = 540;   // 11/6 fixc1901_miki（二2）：大村坂の決戦まで遊んで五〜七分
+const BATTLE_LIMIT = 600;   // 11/6 fixc1901_miki（二2）：大村坂の決戦まで遊んで五〜七分（11/8 15分の段：荷駄の段から数えて十分）
 // 搬入を止める間の持ち場。遠景の城域まで一人で走り抜けさせない。
 const CONVOY_BOUNDS = { minX: -155, maxX: 35, minZ: -160, maxZ: 10, pushBack: 2 };
 const HONJIN = { x: MIKI.x + MIKI_JO.honmaru.dx + MIKI_HONJIN_OFFSET.dx,
@@ -1394,7 +1399,7 @@ const miki = {
     if (!F.reserve.units.every(u => u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
     return 4;
   },
-  missionHeading(rt) { return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
+  missionHeading(rt) { if (rt.flags.step === 3 && !rt.flags.mkYoin) return '⑤平田の木戸で、城の二度目の出撃を退ける'; if (rt.flags.step === 4 && !rt.flags.mkYoin) return '⑤止めた兵糧を、平田の蔵へ運ぶ'; return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
   // 城内にいる敵の大将は印だけ。荷の道を守る任務を城主討ちへ替えない。
   commanderSignTarget(rt) {
     const u = rt.flags.ehon?.general;
@@ -1416,6 +1421,8 @@ const miki = {
     const stage = this.missionOf(rt);
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す
+    const ip = MK_OPEN.pin(rt, this.mkCtx(rt)) || MK_DESHIRO.pin(rt, this.mkCtx(rt)) || MK_KIGA.pin(rt, this.mkCtx(rt));   // 開幕の段：井楼→西の槍組
+    if (ip) { q.unit = null; q.enemy = false; q.route = false; q.waiting = false; q.x = ip.x; q.z = ip.z; q.r = q.hide = 4; q.arrived = Math.hypot(me.x - q.x, me.z - q.z) < 4; return q; }
     let at = stage === 0 ? ESCORT_AT : stage === 1 ? GATE : stage === 2 ? OMURA_FOOT : OMURA;
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
     // 守る間は着いても持ち場のピンを残す。同じ槍組がここへ歩いて集まる。
@@ -1650,6 +1657,24 @@ const miki = {
     return this.omuraGuard(rt) || (!gone(F.hgun) ? F.hgun : !gone(F.hide) && !F.hideRetired ? F.hide : null);
   },
   // 生き残った列の中央に最も近い兵を指す。空いた整列位置へ印を残さない。
+  mkCtx(rt) {
+    const F = rt.flags;
+    return F.mkCtx || (F.mkCtx = {
+      look: { x: HIRATA.x + 8, z: HIRATA.z - 3 },
+      spearAt: () => this.spearAt(F.guard),
+      spearMark: (r) => r.marker('road', () => this.spearAt(F.guard), '西の槍組', { guideAlways: true }),
+      // 城の二度目の出撃（miki/deshiro.js）
+      castle: MIKI, gate: GATE, store: { x: HIRATA.x, z: HIRATA.z + 4 }, sallyFrom: { x: 24, z: -14 }, sallyPath: SALLY_PATH, bessho: BESSHO, gone, flee: (g) => flee(g, 1, 0.4),
+      rally: () => {
+        for (const [g, dx, dz] of [[F.guard, 0, -4], [F.hirata, -8, -2], [F.hgun, 8, -6], [F.hide, 4, -12]]) {
+          if (gone(g)) continue;
+          g.noRout = false; g.order = 'path'; g.march = true; g.dest = null; g.formation = 'line';
+          g.path = [[-80, -84], [-94, -78], [-100, -64], [-94, -50], [GATE.x + dx, GATE.z + dz]]; g.pathIdx = 0;
+          g.onArrive = (q) => { q.order = 'hold'; q.march = false; q.facing = Math.PI / 2; q.onArrive = null; q.seekRange = 30; q.aggro = 14; };
+        }
+      },
+    });
+  },
   spearAt(g) {
     let x = 0, z = 0, n = 0;
     for (const u of g.units) {
@@ -2263,9 +2288,9 @@ const miki = {
     };
     rt.obj('main', '西の槍組の旗へ行け', 'main');
     rt.banner('一年半続く三木の囲み', '夜明け前、付城を守れ。兵糧の道を断て');
-    rt.say('組頭', '西の旗へ進め。味方の槍組に加わり、荷の護衛を退けよ', 5);
-    rt.after(6, () => {
-      if (!F.ending && !rt.over) rt.say('組頭', '西の槍組で荷の護衛を受けよ。川の浅瀬から来る城兵は、平田の口で迎えよ', 5);
+    rt.say('組頭', '夜明け前じゃ。まず平田の井楼へ上がり、城と大村道を見て参れ', 5);
+    rt.after(140, () => {
+      if (!F.ending && !rt.over && !F.step) rt.say('組頭', '西の槍組で荷の護衛を受けよ。川の浅瀬から来る城兵は、平田の口で迎えよ', 5);
     });
     // 11/6 fixc1901_miki（十4）：六月に没した竹中半兵衛はこの場で喋らせない
     // 城内の飢え：毛利の兵糧が入らず、城兵は痩せている。
@@ -2281,7 +2306,8 @@ const miki = {
     // 番号の墨書きを外し、既存の織田の家紋で味方の指物を揃える。
     // 隊の番号は進行用に残し、旗の材質だけを共有された家紋へ戻す。
     for (const u of rt.army.units) if (u.team === 0 && u.flag && u.look?.flag) u.flag.material = flagMaterial(u.look.flag);
-    rt.after(12, () => this.convoy(rt));
+    MK_OPEN.install(rt, this.mkCtx(rt));   // 開幕の段（miki/kaimaku.js）：約2分40秒で荷駄の段へ
+    rt.unmark('road');
     // 木戸の外（持ち場から荷の護衛へ向かう所）の地面を一色にしない：踏み荒らした土の筋と湿った泥、半ば埋めた石と捨てた俵（10/28）。
     dressStage(rt, { at: { x: -84, z: -38 }, heading: 2.6, flag: false, huts: 0, fence: false, yagura: false, clutter: 4, rocks: 7, fire: false, wet: 0.9, trodden: 0.9, radius: 40 });
   },
@@ -2870,13 +2896,13 @@ const miki = {
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
     const hideHere = F.hide.units.some((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
       Math.hypot(u.pos.x - OMURA_FOOT.x, u.pos.z - OMURA_FOOT.z) < 42);
-    if (!hideHere) return;
+    if (!hideHere && rt.t - F.stepT < 120) return;   // 馬廻が道で詰まっても、二分で着いた事にする（11/8 bot：着かずに期限で負けた）
     if (!F.hideArrived) {
       F.hideArrived = true; F.hideArrivedT = rt.t;
       rt.say('使番', '秀吉様、平井山より千余騎で到着！　大村坂の下で秀吉様の手に並べ！', 5);
       return;
     }
-    if (rt.t - F.hideArrivedT < 6 || !here) return;
+    if (rt.t - F.hideArrivedT < 6 || !here && rt.t - F.hideArrivedT < 40) return;   // 四十秒待っても坂の下へ来ない時は、秀吉の下知で懸かる（11/8 bot：十五歩の所で待ち続けて負けた）
     F.omuraGo = true; F.omuraGoT = rt.t;
     rt.obj('main', GOAL_LINES[3], 'main');
     rt.say('羽柴秀吉', '者ども、懸かれ！　坂の上の別所を一人も城へ帰すな！', 4);
@@ -2908,7 +2934,9 @@ const miki = {
     // 荷の到着・両持ち場の崩れ・退く下知は決着。近くの敵との打ち合いで先延ばしにしない。
     const F = rt.flags;
     if (F.ending || rt.over) return;
-    if (won && !this.victoryReady(rt)) return;
+    if (won && !F.mkYoinDone && !this.victoryReady(rt)) return;
+    if (won && !F.mkYoinDone) { if (F.step === 2) MK_DESHIRO.start(rt, this.mkCtx(rt)); else if (!F.mkYoin) MK_YOIN.start(rt, this.mkCtx(rt)); return; }   // 大村坂の後は城の二度目の出撃、その後に三十秒の余韻
+    if (!won && F.mkYoin) return;
     F.ending = true;
     if (!F.clashRetired) { F.clashRetired = true; F.roadClash.rout(won ? 'B' : 'A', { hideAfter: 8 }); }
     for (const h of F.haulers) { h.g.order = 'hold'; h.g.onArrive = null; }
@@ -2963,7 +2991,7 @@ const miki = {
   update(rt, dt) {
     const F = rt.flags;
     // 並ぶだけの槍列の前へ、毛利の前備えを本人の見る先から押し寄せさせ、奥に別所勢の大軍（10/31 点付け70）
-    frontRig(rt, dt, { until: 45, foes: () => [F.escortFront],
+    frontRig(rt, dt, { until: F.step ? F.battleT + 33 : -1, hostUntil: (F.battleT ?? MK_OPEN.KAIMAKU_END) + 108, foes: () => [F.escortFront],   // 開幕の段の後へずらす
       host: { team: 1, flag: 'maru', armor: 0x3a3028, count: 130, w: 44, d: 14, flagRate: .55, seed: 15796 } });
     mikiKidoLight(rt, dt);
     // 空の色のしきい値だけで星が一斉に消えないよう、夜明けに合わせて薄くする。
@@ -2984,7 +3012,10 @@ const miki = {
     F.poll = 0.5;
     this.haulLoads(rt);
     this.roadTurn(rt);
-    if (!F.step) return;
+    if (F.mkYoin) { if (MK_YOIN.tick(rt)) { F.mkYoinDone = true; this.end(rt, true); } return; }   // 余韻の三十秒（miki/yoin.js）
+    if (!F.step) { if (MK_OPEN.tick(rt, this.mkCtx(rt))) this.convoy(rt); return; }
+    if (F.step === 3) { if (MK_DESHIRO.tick(rt, this.mkCtx(rt))) MK_KIGA.start(rt, this.mkCtx(rt)); return; }   // 出撃を退けたら、止めた兵糧と飢える城（miki/kiga.js）
+    if (F.step === 4) { if (MK_KIGA.tick(rt, this.mkCtx(rt))) MK_YOIN.start(rt, this.mkCtx(rt)); return; }
     // 持ち場を移す前に討死を拾い、最後の城兵と相討ちでも知らせを失わない。
     this.taniTick(rt);
     this.sortieTick(rt);
@@ -3311,9 +3342,34 @@ const miki = {
           !rt.army.wallBetween(p, -1, jin.pos)) rt.say('別所甚太夫', '城へは戻らぬ。ここで討死いたす！', 4);
       }
     }
+    // 甚太夫を討った後、坂の外へ散った一人二人を待ち続けない（11/8 bot：残り一人で五分止まり負けた）。
+    //   五十秒たっても残る雑兵は城へ逃げ帰り、名のある者は秀吉の追い討ちで討たれる（播磨別所記）
+    // 平田の城兵が三人四人だけ遠くに残り、段が進まないまま期限で負けない（11/8 bot：木戸で四百秒待った）。残りは城へ逃げ帰る
+    if (F.step === 1 && F.dropped && rt.t - F.stepT > 210) {
+      let n = 0;
+      for (const g of F.sallies) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) n++;
+      if (n <= 4) for (const g of F.sallies) if (!gone(g)) flee(g, 1, 0.4);
+    }
+    if (F.step === 2 && F.lastStand) {
+      F.lastStandT ??= rt.t;
+      // 百秒たっても本人が甚太夫を討てない時は、秀吉の馬廻が討つ（手柄は本人に付けない。負けにもしない）
+      const jin = F.jint;
+      if (!F.jintTaken && rt.t - F.lastStandT > 100 && jin) {
+        F.jintTaken = true;
+        if (jin.alive) { const k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u); jin.invuln = false; jin.hp = 0; rt.army.kill(jin, k || null); }
+        rt.say('使番', '別所甚太夫、秀吉様の馬廻が討ち取った！', 3.5);
+      }
+    }
+    if (F.step === 2 && F.lastStand && F.jintTaken) {
+      F.lastStandT ??= rt.t;
+      if (rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !(u.noTarget && !u.name)) {
+        if (u.name) { const k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u); u.invuln = false; u.hp = 0; rt.army.kill(u, k || null); }
+        else { u.noTarget = true; u.fleeing = true; u.target = null; }
+      }
+    }
     if (left <= 30 && !F.deadlineSaid) { F.deadlineSaid = true; rt.bark('退く下知が迫るぞ。味方と敵を押し返せ', true); }
     // 期限だけで勝たせない。長引けば荷駄を防ぐ持ち場を維持できなかった結果。
-    if (rt.t - F.battleT >= BATTLE_LIMIT) this.end(rt, false, !F.dropped
+    if (F.step <= 2 && rt.t - F.battleT >= BATTLE_LIMIT) this.end(rt, false, !F.dropped
       ? '兵糧の護衛を退けられず、道から退く'
       : F.step === 1 ? '平田の城兵が残り、退く下知を受けた'
         : F.foes.every(gone) ? '大村へ集まれず、備えが崩れた'
@@ -3333,6 +3389,9 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null; inp.k.delete('KeyW'); inp.k.delete('KeyE');
   inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false; inp.runHeld = false;
   if (!u.alive || F.ending) return;
+  if (!F.step && F.mkOpen && !F.mkOpen.done) { const g = MK_OPEN.pin(b, miki.mkCtx(b)); if (g) { goTo(p, inp, g.x, g.z, 2); return; } }
+  if (F.mkYoin) { inp.k.delete('KeyW'); return; }
+  if (F.step === 4) { const g = MK_KIGA.pin(b, miki.mkCtx(b)); if (g) goTo(p, inp, g.x, g.z, 2); return; }
   // 近い振りかぶりへ向き続けず、先に当たる打ち込みを受ける。
   let attacker = null, hitIn = Infinity, attackDist = 6;
   for (const q of b.army.units) {

@@ -31,9 +31,17 @@ export function install(rt, P) {
     // 敵の陣。南（+z）を向く
     mori: mk({ x: SHITENNO.x + 26, z: SHITENNO.z + 4, w: 34, d: 12, count: n(170, 300), facing: 0, team: 1, armor: 0x221f1c, flag: 'toyotomi', seed: 16206 }),
     sana: mk({ x: CHAUSU.x + 2, z: CHAUSU.z - 12, w: 28, d: 10, count: n(100, 170), facing: 0.6, team: 1, armor: 0x8e1f16, flag: 'sanada', seed: 16207 }),
+    // 左右の翼と後詰（docs/generals_toyo_toku_1108.md の15番。名のある大名の備を旗で見せる。戦わない）
+    todo: mk({ x: FRONT.x + 52, z: FRONT.z + 40, w: 36, d: 12, count: n(110, 200), facing: S, armor: 0x1f1e1c, flag: 'todo', seed: 16211 }),   // 右翼：藤堂高虎
+    date: mk({ x: FRONT.x + 70, z: HON.z - 10, w: 40, d: 14, count: n(130, 240), facing: S, armor: 0x1a1a22, flag: 'date', seed: 16212 }),   // 右翼の奥：伊達政宗・片倉重長
+    sakai: mk({ x: -128, z: HON.z + 4, w: 30, d: 12, count: n(90, 160), facing: S + 0.5, armor: 0x1f1e1c, flag: 'tokugawa', seed: 16213 }),   // 左翼：酒井家次・本多忠政
+    asano: mk({ x: HON.x + 34, z: HON.z + 70, w: 36, d: 12, count: n(100, 180), facing: S, armor: 0x1f1e1c, flag: 'asano', seed: 16214 }),   // 後詰：浅野長晟（寝返りの噂の的）
+    kuroda: mk({ x: HON.x - 40, z: HON.z + 66, w: 34, d: 12, count: n(90, 160), facing: S, armor: 0x1f1e1c, flag: 'kuroda', seed: 16215 }),   // 後詰：黒田長政・細川忠興
+    akashi: mk({ x: SHITENNO.x - 48, z: SHITENNO.z - 26, w: 32, d: 12, count: n(110, 200), facing: 0, team: 1, armor: 0x221f1c, flag: 'toyotomi', seed: 16216 }),   // 明石全登（船場口から）
+    ono: mk({ x: SHITENNO.x + 40, z: SHITENNO.z - 70, w: 40, d: 14, count: n(120, 220), facing: 0, team: 1, armor: 0x221f1c, flag: 'toyotomi', seed: 16217 }),   // 大野治長・城の前の備
     sanaK: mk({ x: CHAUSU.x + 16, z: CHAUSU.z - 4, w: 18, d: 10, count: n(40, 70), facing: 0.6, team: 1, armor: 0x8e1f16, flag: 'sanada', kind: 'cavalry', seed: 16208 }),
   };
-  const st = { M, step: -1, t0: 0, cl: null };
+  const st = { M, step: -1, t0: 0, cl: null, rep: {}, sd: 999, flagT: 0 };
   F._jin = st;
   return st;
 }
@@ -52,8 +60,9 @@ export function tick(rt, P) {
   const F = rt.flags, st = F._jin;
   if (!st || rt.over) return;
   const M = st.M, step = F.step || 0;
+  crisis(rt, st, P);
   if (step === st.step) return;
-  st.step = step; st.t0 = rt.t;
+  st.step = step; st.t0 = rt.t; st.sd = 999;   // 段ごとに、真田の遠さを知らせ直す
   const later = (s, fn) => rt.after(s, () => { if (!rt.over && F.step === step) { try { fn(); } catch (e) { /* 軽い大軍が無くても戦は進む */ } } });
   try {
     if (step === 1) {
@@ -96,4 +105,33 @@ export function tick(rt, P) {
       M.mori?.follow(null); M.mori?.moveTo(P.SHITENNO.x, P.SHITENNO.z - 40, 50);
     }
   } catch (e) { /* 軽い大軍が無くても戦は進む */ }
+}
+
+// 危機の重ね（docs/k15_crisis_spec_1108.md「危機は使番が実際に来て伝える。報告がどんどん悪くなる」「旗を減らす」「家康の周りの人数を減らす」）
+const say1 = (rt, st, key, who, text) => { if (st.rep[key]) return; st.rep[key] = true; rt.say(who, text, 3); };
+function crisis(rt, st, P) {
+  const F = rt.flags, step = F.step, M = st.M, dt = rt.t - st.t0;
+  if (F.ending) return;
+  const cnt = (g) => (g && !g.routed ? g.count : 0);
+  if (step === 1) {
+    if (dt > 25) say1(rt, st, 'p1', '使番', '前衛、押されております！');
+    if (F.honda && F.honda.initial && cnt(F.honda) < F.honda.initial * 0.6) say1(rt, st, 'p2', '使番', '本多隊、後退！　毛利勢、止まりませぬ！');
+    if (F.nijin && cnt(F.nijin) && F.mori && alive(F.mori)) { const c = centerOf(F.mori)(); if (c.z > P.NIJIN.z - 14) say1(rt, st, 'p3', '使番', '毛利勢、第一陣を突破！　二陣へかかります！'); }
+  }
+  if (step === 2 || step === 3) {
+    // 真田隊から家康までの遠さを、使番が近づくたびに知らせる（遊びの縮尺で、実の遠さに直して二百四十から六十まで）
+    const g = step === 2 ? F.sanada : F.sanada2, I = F.ieyasu;
+    if (alive(g) && I && I.alive) {
+      const c = centerOf(g)(), d = Math.hypot(c.x - I.pos.x, c.z - I.pos.z);
+      const marks = [[120, '真田隊、本陣まで二百四十！'], [95, '真田隊、百九十！　止まりませぬ！'], [70, '真田隊、百四十！　中央を抜けました！'], [45, '真田隊、九十！　本陣へ来るぞ！'], [30, '真田隊、六十！　上様、ここは危のうございます！']];
+      for (const [r, text] of marks) if (d < r && st.sd >= r) { st.sd = r; rt.say('使番', text, 3); if (r <= 45) M.waki?.retreat(10, 6); break; }
+    }
+    // 本陣の葵の幟が一本ずつ倒れる（十五秒に一本。四本は残す）
+    if (rt.t - st.flagT > 15 && F.honNobori && F.honNobori.length > 4) {
+      st.flagT = rt.t;
+      const nb = F.honNobori.splice(Math.floor(Math.random() * F.honNobori.length), 1)[0];
+      if (nb) { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; nb.position.y -= 0.3; }
+    }
+  }
+  if (step === 4) say1(rt, st, 'p4', '使番', '越前勢、参ります！　ここから押し返すぞ！');
 }

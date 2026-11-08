@@ -529,6 +529,10 @@ html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar {
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar::before { content:none !important; }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar .side.b { grid-column:2 !important; }
 html:root body #hud#hud#hud.battle-order #armybar#armybar :is(.clock,canvas,.gauge) { display:none !important; }
+/* 戸次川・信貴山：人数だけでなく、両軍それぞれの残りを一本の棒で示す。 */
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog:is([data-battle="t06_hetsugi"],[data-battle="shigisan"]) #armybar#armybar .gauge.one {
+ display:block !important; grid-column:1 / -1; width:100%;
+}
 html:root body #hud#hud#hud.battle-order #armybar#armybar .side { background:none !important; border:0 !important; min-width:0; }
 html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm { display:flex !important; justify-content:center; gap:6px; padding:0 !important; font-size:16px !important; color:#fff3df; background:none !important; border:0 !important; }
 html:root body #hud#hud#hud.battle-order #armybar#armybar .side .nm :is(.n,.army-side-label) { display:inline !important; color:#fff3df; font-variant-numeric:tabular-nums; }
