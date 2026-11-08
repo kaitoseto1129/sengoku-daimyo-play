@@ -296,7 +296,7 @@ const k05_ueda = {
     // 城の櫓門・塀・櫓はカメラを通さない（critic60：カメラが櫓門と家の中に入り、画面いっぱいに黒い壁）
     for (const o of S.children.slice(castle0)) camBlock(o);
     farSight(S.children.slice(castle0), { W, ground: { x: C.x + 10, z: C.z, r: 50 } });
-    S.add(F.door);
+    S.add(camBlock(F.door));
     const inner0 = S.children.length;
     // 門内は交互に口を空けた土塀で折れ、同じ道を戻れば必ず脱出できる。
     wallLine(rt, [[10, -60], [10, -27]], { team: 1, hp: 1e9, name: '門内の土塀', mesh: dobei, segLen: 5, h: 2.4 });
@@ -689,7 +689,7 @@ KILLS[ID] = (rt) => {
   if (F.step === 1) return cut(F.w1N, aliveN(F.sortie), F.w1N - Math.round(F.w1N * 0.6));
   if (F.step === 3) return cut(F.w3N, aliveN(F.yari), F.w3N - Math.round(F.w3N * 0.6));
   if (F.step === 4) return cut(F.w4N, aliveN(F.nobushige), F.w4N - Math.round(F.w4N * 0.5));
-  if (F.step === 5) return F.oi ? cut(F.w5N, aliveN(F.oi), F.w5N - Math.round(F.w5N * 0.5)) : null;
+  if (F.step === 5) return F.oi ? cut(F.w5N, aliveN(F.oi), F.w5N - Math.round(F.w5N * (F.oiHot ? 0.5 : 0.6))) : null;
   return null;
 };
 
