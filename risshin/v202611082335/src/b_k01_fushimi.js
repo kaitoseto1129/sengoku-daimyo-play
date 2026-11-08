@@ -548,7 +548,7 @@ const k01_fushimi = {
     rt.after(16, () => rt.banner('鳥居元忠、自刃', '孫一が首を取り、城方の多くが本丸で果てた'));
     F.k01s?.ending?.();   // 「伏見城　落城」→「任務達成　徳川軍の時間を稼いだ」（k01_fushimi/yose.js）
     // 戦固有の締め：落城で城方が勝鬨を上げず、共通の締めの四秒半の上限で「自刃」「血天井」の札が切れないように
-    rt.finish({ scriptedEnd: true }, 31);
+    rt.finish({ scriptedEnd: true }, 35);
   },
 
   lose(rt) {

@@ -30,6 +30,6 @@ export function update(rt) {
   if (!S || S.go) return;
   const el = rt.t - S.t0, atMouth = Math.hypot(P.x - MOUTH_N.x, P.z - MOUTH_N.z) < 16;
   if (atMouth) S.held = (S.held || 0) + 0.25;
-  // 口で三十秒余り防ぐか、来なくても七十秒で皆が渡り終える
-  if ((S.held > 45 && el > 55) || el > 85) release(rt);
+  // 浅瀬の口で殿を務めてから渡る。先に逃げても時間だけでは果たさない。
+  if (S.held > 45 && el > 55) release(rt);
 }
