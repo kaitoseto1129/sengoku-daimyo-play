@@ -221,13 +221,8 @@ function survive(b, inp) {
       const choose = !!attacker || !!pursuer || !(b._botEscapeAt > b.t) ||
         Math.hypot(u.pos.x - b._botEscapeFromX, u.pos.z - b._botEscapeFromZ) >= 0.35 ||
         Math.cos(walk - b._botEscapeWalk) < 0.95;
-      // 八方向が塞がった時だけ、その間の隙間も探す。列や斜めの口で
-      // 通れる退き道を見落とさず、普段の探索回数は増やさない。
-      for (let i = 0; choose && moving && i < 16; i++) {
-        if (i === 8 && best > -Infinity) break;
-        const turn = i < 8
-          ? i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4
-          : (2 * Math.floor((i - 8) / 2) + 1) * (i % 2 ? -1 : 1) * Math.PI / 8;
+      for (let i = 0; choose && moving && i < 8; i++) {
+        const turn = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4;
         const sx = Math.sin(walk + turn), sz = Math.cos(walk + turn);
         // 終点だけ平らでも、途中の切岸や戦ごとの退路の外へ踏み込まない。
         let clear = true;
@@ -305,12 +300,10 @@ function survive(b, inp) {
         retreatDodge(b, inp, Math.hypot(dx, dz) > 0.5 ? Math.atan2(dx, dz) : p.yaw + Math.PI,
           b.def.botRetreatStepAllowed);
       }
-      // 走る入力だけでは、構え中の本人は毎秒二歩になる。退路が開き、
-      // 刃が届くまで余裕のある間は構えを解き、突きの前に距離を取る。
-      // 届く直前の刃・息切れ・塞がった退路では受けを残す。
+      // 本人の構え・回避は廃止済みで、傷や気力でも駆け足は制限されない。
+      // 志賀の孤立・三方ヶ原の連続突きでは、調べた退路をすぐ走って離れる。
+      // 回避用の向きへ替えた時も駆け足を保ち、退路が無い時だけ止める。
       inp.runHeld = Math.hypot(inp.axis.x, inp.axis.y) > 0.5;
-      if (inp.runHeld && !p.winded && p.sta > .5 && attacker &&
-          (impact > .35 || ad > (attacker.reach || 2.8) + .6)) inp.guardHold = false;
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
       // 一人を相手にし、元気か、手当てを終えて味方の列へ戻れた時だけ隙を突く。
@@ -2430,6 +2423,7 @@ async function playPersona(game, spec, aud, c) {
   rep.timeout = t >= cap && !b.over;
   if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.note = '戦の任務とは別に、試験全体の持ち時間が尽きた'; rep.battle += '（試験の持ち時間で打ち切り）'; }
   rep.named = aud.endCheck(b, rep.timeout && cap >= 900);
+  rep.gunStats = window.__gunStats ? JSON.parse(JSON.stringify(window.__gunStats)) : null; rep.playerTeam = P.team; window.__gunStats = null;
   rep.time = rep.decisionTime ?? Math.round(b.t);
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
   rep.merit = b.tracker.total();

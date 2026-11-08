@@ -274,6 +274,7 @@ async function playOnce() {
   } catch (e) { cut = `途中で止まった：${String(e.message || e).slice(0, 160)}`; }
   finally { if (c) c.close(); }
   const sec = Math.round((Date.now() - t0) / 1000);
+  if (process.env.GUNDUMP) console.log('GUNSTATS ' + JSON.stringify(((data && data.battles) || []).map((r) => ({ b: r.battle, t: r.time, pt: r.playerTeam, g: r.gunStats }))));
   if (!data) { appendFileSync(join(PD, 'loop.log'), `${new Date().toISOString()} ${pname}：データが取れなかった（${cut}）\n`); console.log('データが取れなかった：' + cut); return; }
   // ---- その人の感想 ----
   const probs = (data.problems || []).map((p) => ({ ...p, shot: p.shot || p.shotNear || '' }));
