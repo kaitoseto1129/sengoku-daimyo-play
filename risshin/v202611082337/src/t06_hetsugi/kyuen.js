@@ -58,9 +58,10 @@ export function update(rt, K, el) {
   if (S.st === 0 && el > 145) toB(rt, K);
   if (S.st < 1) return;
   const bEl = rt.t - S.tB;
-  if (F.nobuU?.alive && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14) S.near += 0.25;
-  // 着いて二十秒（来なくても九十秒）で鈴木大膳が斬り込む
-  if (!S.ls && ((S.near > 20 && bEl > 90) || bEl > 130)) { S.ls = rt.t; K.lastStand(rt); }
-  // 斬り結んで四十秒（来なくても百六十秒）で信親が討たれる
-  if (S.ls && ((S.near > 50 && rt.t - S.ls > 55) || bEl > 185)) K.closeRing(rt);
+  const near = F.nobuU?.alive && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14;
+  if (near) S.near += 0.25;
+  // 本人が信親の側へ救援に来てから斬り込む。離れたまま最期を済ませない。
+  if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
+  // 防戦を果たし、最期が見える距離にいる時に討死へ進む。
+  if (S.ls && near && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
 }

@@ -625,7 +625,8 @@ const t04_negoro = {
       dress([{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], HASHIBA));
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad(P(4, -134), ROT, [{ kind: 'spear', n }]);
-    F.friends = () => [F.vanG, F.tsutsuiG, F.horiG].filter((g) => g && g.count);
+    // 手当てに退いた堀の手には、大門・境内へ進む下知を重ねない。
+    F.friends = () => [F.vanG, F.tsutsuiG, F.horiHurt ? null : F.horiG].filter((g) => g && g.count);
     // 十万の羽柴勢の後ろ（軽い作り）：田の向こうに控える。寺の中の見せかけの軍勢・目の前の作り物の乱戦は置かない（AF・AP 9）
     // 豊臣の旗は敵の紋の表にもあるので、側（team）をはっきり渡す
     [[-40, -206], [40, -206], [0, -226], [-60, -150], [60, -150]].forEach(([x, z], i) => {
@@ -817,6 +818,8 @@ const t04_negoro = {
         if (h && !F.horiHurt && h.hp < h.maxHp * 0.3) {
           F.horiHurt = true; h.invuln = true;
           F.horiG.order = 'move'; F.horiG.anchor = P(-14, -140);
+          F.horiG.stay = true; F.horiG.seekRange = 0; F.horiG.focus = null;
+          for (const u of F.horiG.units) u.target = null;
           for (const k of ['win', 'mono']) if (F.posts[k]) F.posts[k].focus = null;
           rt.say('堀秀政', '……不覚。いったん退く。あとは任せたぞ', 3.5);
         }

@@ -2570,9 +2570,9 @@ function aneNearestFoe(rt) {
       if (k === 2 && d < hqD && Math.hypot(u.pos.x - HQ.x, u.pos.z - HQ.z) < 75) { hqD = d; hqBest = u; }
       continue;
     }
-    // 追い討ちは、しんがりと残兵が尽きれば北岸に残る浅井の兵（四十歩まで）。
+    // 追い討ちは、しんがりと残兵が尽きれば北岸に残る浅井の兵（六十歩まで）。
     if (pursuit ? u.group !== F.rear && u.group !== F.counterChase &&
-        (!gone(F.rear) && F.rear?.count || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) > 60)
+        (!gone(F.rear) && F.rear?.count || u.pos.z >= aneNorthBank(u.pos.x) || Math.hypot(u.pos.x - me.x, u.pos.z - me.z) > 60)
       : Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 30 && Math.hypot(u.pos.x - me.x, u.pos.z - me.z) > 16) continue;
     const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
     if (d < bd) { bd = d; best = u; }
@@ -2580,7 +2580,12 @@ function aneNearestFoe(rt) {
   if (hqBest) { best = hqBest; bd = hqD; }
   const prev = F.aneFoe;
   if (sameTask && best && prev && best !== prev && aneFoe(prev) &&
-      (!own || aneStageFoe(rt, k, prev) && prev.pos.z >= aneNorthBank(prev.pos.x)) &&
+      (!own || aneStageFoe(rt, k, prev) && prev.pos.z >= aneNorthBank(prev.pos.x) &&
+        (Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) <= 45 ||
+         Math.hypot(prev.pos.x - post.x, prev.pos.z - post.z) <= 45 ||
+         Math.hypot(prev.pos.x - HQ.x, prev.pos.z - HQ.z) <= 60)) &&
+      (own || pursuit || Math.hypot(prev.pos.x - post.x, prev.pos.z - post.z) <= 30 ||
+        Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) <= 16) &&
       bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) &&
       (!pursuit || prev.group === F.rear || prev.group === F.counterChase)) best = prev;
   F.aneFoe = best;

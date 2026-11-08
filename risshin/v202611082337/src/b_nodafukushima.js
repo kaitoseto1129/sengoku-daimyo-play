@@ -46,6 +46,10 @@ import { fordWatch } from './toride.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
 import { tabaMat, tabaGeo, addTaba, patchGunCover, tickTabas } from './taketaba.js';
 import { timeslipField } from './timeslip_field.js';
+// 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md の 10）：段の中身は nodafukushima/ の一段一ファイル
+import * as SUIRO from './nodafukushima/suiro.js';     // 0〜3分：葦の水路の物見と三好の鉄砲
+import * as TEPPO from './nodafukushima/teppo.js';     // 6〜9分：竹束の鉄砲戦と野田砦の槍
+import * as EGUCHI from './nodafukushima/eguchi.js';   // 12〜15分：江口の渡しへ退く
 import { NODA_PLAN, FUKU_PLAN, NODA_GATE, FUKU_GATE, FORT_Z, LEVEE_Z, LEVEE_DORUI, LEVEE_TABA, LEVEE_ZONE, ODA_HONJIN, IKKO_ROUTES, RANKUI_LINES, SAKAMOGI_LINES, FORT_BUILDINGS, FORT_STORES } from './castles/nodafukushima.js';
 // 足軽大将より上の身分で出た時は、一手を預かる
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 4;
@@ -2478,10 +2482,19 @@ const nodafukushima = {
   missionTimeText: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|撤退|退き口を失|間に合わなかった/.test(text),
   // 11/4 jin（AR1・AW3・BA3）：史実の順（公記巻三）の一行を段ごとに固定する。「▼」「印」の字と、待つだけの言葉は使わない。
-  missions: NODA_STAGE_TEXT,
+  missions: [...SUIRO.MISSIONS, ...NODA_STAGE_TEXT.slice(0, 4), TEPPO.MISSION, ...NODA_STAGE_TEXT.slice(4), EGUCHI.MISSION],
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。行き先は頭上の▼一つだけ。
   goalSignBare: true, goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,
+  // 右上の一行の番号（15分の構成の段を挟んだ並び）。本の段は nodaBase
   missionOf(rt) {
+    const j = SUIRO.stageOf(rt);
+    if (j != null) return j;
+    const F = rt.flags, k = this.nodaBase(rt), n = SUIRO.MISSIONS.length;
+    if (F.nodaEguchi || F.ending && !rt.G.lord) return this.missions.length - 1;
+    if (TEPPO.active(rt) || F.nodaTeppo && k <= 3) return n + 4;
+    return k <= 3 ? n + k : n + k + 1;
+  },
+  nodaBase(rt) {
     const F = rt.flags;
     const k = F.ending ? 6 : F.retreating ? 5 : F.step === 3 ? 4 : F.step === 2 || F.shotsDone ? 3 : F.step === 1.5 ? 2 : F.step === 1 ? 1 : 0;
     // 段は戻さない（前の一行へ戻して迷わせない）。
@@ -2489,11 +2502,12 @@ const nodafukushima = {
     return F.nodaStage;
   },
   missionHeading(rt) {
-    const F = rt.flags, stage = this.missionOf(rt);
+    const F = rt.flags, stage = this.nodaBase(rt);
+    if (SUIRO.stageOf(rt) != null || TEPPO.active(rt) || F.nodaEguchi) return this.missions[this.missionOf(rt)];
     // 退く先が替われば、任務と失敗の一行も合流先にそろえる。
     if (stage === 6 && !rt.tracker.main) return F.retreatAlt ? '佐久間の列へ合流できなかった' : '信長の本陣へ退き、守兵に合流できなかった';
     if (stage === 5 && F.retreatAlt) return '佐久間の列へ退き、合流せよ';
-    return this.missions[stage];
+    return NODA_STAGE_TEXT[Math.min(5, stage)];
   },
   // 落城させない戦なので、砦の大将の印と、浅瀬で倒す相手を分ける。
   commanderSignTarget(rt) {
@@ -2521,7 +2535,8 @@ const nodafukushima = {
     return target;
   },
   missionPin(rt) {
-    const F = rt.flags, stage = this.missionOf(rt);
+    const F = rt.flags, stage = this.nodaBase(rt);
+    if (SUIRO.stageOf(rt) != null || TEPPO.active(rt) || F.nodaEguchi) return undefined;   // 15分の構成の段は、それぞれの印で示す
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     // 休息中は既存の「休む所」の印へ任せ、敵や堤への印を重ねない。
     if (!F.retreating && F.recoveryShown && F.recoveryFound) return undefined;
@@ -3466,9 +3481,14 @@ const nodafukushima = {
     rt.obj('main', nodaGoal(rt), 'main', true);
     rt.say('前田利家', '寄れ。今日は堤の井楼から砦の内へ撃ち込む', 4);
     // 印の前田に寄って話を聞く。寄らなくても二十秒で下知は来る（二5）
-    rt.marker('maeda', unitPos(F.maedaU), '前田利家', {});
-    rt.addInteract('talk', { x: 0, z: LEVEE_Z + 6 }, '前田利家の話を聞く', () => this.order(rt), { r: 5 });
-    rt.after(20, () => this.order(rt));
+    const ready = () => {
+      rt.marker('maeda', unitPos(F.maedaU), '前田利家', {});
+      rt.addInteract('talk', { x: 0, z: LEVEE_Z + 6 }, '前田利家の話を聞く', () => this.order(rt), { r: 5 });
+      rt.after(20, () => this.order(rt));
+    };
+    // 15分の構成：始まりの段（葦の水路の物見）を挟んでから前田の下知（nodafukushima/suiro.js）
+    if (rt.G.lord) ready();
+    else SUIRO.install(rt, { enemyGroup, dress, foe: MIYOSHI, ready });
     // 砦との撃ち合いの音（遠くで絶えず）
     F.shotT = 3;
     F.shotPos = { x: 0, z: 0 };
@@ -3842,6 +3862,15 @@ const nodafukushima = {
   winEnd(rt) {
     const F = rt.flags;
     if (F.ending) return;
+    // 15分の構成：詰め陣に合流したら、江口の渡しへ退く段（nodafukushima/eguchi.js）を挟む
+    if (!rt.G.lord && !F.nodaEguchiDone) {
+      if (!F.nodaEguchi) {
+        rt.unmark('retreat'); rt.unzone('retreat');
+        EGUCHI.start(rt, { enemyGroup, dress, ikko: IKKO, friends: [...(F.oda || []), F.namedGuards?.[1], F.campA?.guard, F.teppo],
+          done: () => { F.nodaEguchiDone = true; this.winEnd(rt); } });
+      }
+      return;
+    }
     rt.unmark('retreat'); rt.unzone('retreat');
     F.ending = true;
     rt.setPhase('end');
@@ -3861,6 +3890,7 @@ const nodafukushima = {
   update(rt, dt) {
     const F = rt.flags;
     const p = rt.player;
+    F.nodaSuiro?.tick?.(); F.nodaTeppo?.tick?.(dt); F.nodaEguchi?.tick?.();
     // 11/7：砦の柵と櫓を、遠目の粗い形へ替える所を 42m から 95m 先へ（束ができた後に一度ずつ）。
     if (!F.kitLodLate && rt.t > 5) { nodaKitLod(rt); F.kitLodLate = true; } else if (!F.kitLodEarly && rt.t > 0.2) { nodaKitLod(rt); F.kitLodEarly = true; }
     // 11/1：見た目だけの竹束（当たり無し）の中へ本人が踏み入ると、視点が束の内へ寄って画面が竹で塞がった。本人の足元の束だけ隠す。
@@ -3928,7 +3958,7 @@ const nodafukushima = {
     butaiTick(rt, dt);
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
-    if (F.retreating && !F.ending) {
+    if (F.retreating && !F.ending && !F.nodaEguchi) {
       const pp = rt.player.u.pos, d = Math.hypot(pp.x - ODA_JOIN.x, pp.z - ODA_JOIN.z);
       // 退く列の後方に追手がいても合流できる。槍の届く敵と斬り合う最中は終えない。
       // 塀・川の向こうや深手の兵を、退き口を塞ぐ追手に数えない。
@@ -4097,6 +4127,11 @@ const nodafukushima = {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         F.nightAt = rt.t + 8;
         rt.say('前田利家', '三好が塀の内へ退くぞ。追うな！', 3);
+      }
+      // 15分の構成：夜の前に竹束の鉄砲戦（nodafukushima/teppo.js）を挟む
+      if (F.nightAt && !F.nodaTeppo && !rt.G.lord) {
+        F.nightAt = Infinity;
+        TEPPO.start(rt, { enemyGroup, allyGroup, dress, foe: MIYOSHI, ally: ODA, done: () => { F.nightAt = rt.t + 4; } });
       }
       if (F.nightAt && rt.t >= F.nightAt) this.night(rt, !F.sallyDone);
 
@@ -4286,6 +4321,8 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  // 15分の構成の段（葦の水路・竹束の鉄砲戦・江口の渡し）
+  if (SUIRO.bot(b, goTo, p, inp, patientStrike) || TEPPO.bot(b, goTo, p, inp, patientStrike) || EGUCHI.bot(b, goTo, p, inp, patientStrike)) return;
   if (F.retreating) {
     // 注目と溜め突きが残ると、携帯のなぞりが退き口への向き直りに使えない。
     if (p.lock) inp.e.add('KeyQ');

@@ -281,16 +281,12 @@ OWN.odani = () => {
 
 // 野田・福島（11/6 作り直し・kaito BS）：城の中へ突撃せず、井楼から撃ち込む大鉄砲の戦。三好長逸は砦に籠もったまま討たれない（信長公記）。
 //   右上の六つは b_nodafukushima.js の NODA_STAGE_TEXT・stages.js と同じ字。始めから全部並べる。
-OWN.nodafukushima = () => {
-  const st = (rt) => rt.flags.nodaStage || 0;
-  return [
-    { kind: 'stage', k: 0, text: '堤の上で、前田利家の下知を受けよ', noun: '前田利家', check: (rt) => won(rt) || st(rt) >= 1 },
-    { kind: 'stage', k: 1, text: '堤の西の井楼へ、内の梯子で登れ', noun: '西の井楼', check: (rt) => won(rt) || st(rt) >= 2 },
-    { kind: 'stage', k: 2, text: '井楼の上から、福島砦の塀の内へ鉄砲を三度撃ち込め', noun: '福島砦の塀の内', check: (rt) => won(rt) || st(rt) >= 3 },
-    { kind: 'stage', k: 3, text: '浅瀬の岸で、打って出た岩成友通の槍を防げ', noun: '浅瀬の岸', check: (rt) => won(rt) || st(rt) >= 4 },
-    { kind: 'stage', k: 4, text: '春日井堤で、本願寺の門徒を防げ', noun: '春日井堤', check: (rt) => won(rt) || st(rt) >= 5 },
-    { kind: 'stage', k: 5, text: '信長の本陣へ退き、守兵に合流せよ', noun: '信長の本陣', check: won },
-  ].map((g) => ({ ...g, sec: 400 }));
+OWN.nodafukushima = (rt0) => {
+  // 11/8 夜：15分の構成（葦の水路・竹束の鉄砲戦・江口の渡しを挟んだ十）。字と番号は b_nodafukushima.js の missions
+  const list = rt0.def.missions || [];
+  const nouns = ['葦の水路', '三好の鉄砲', '前田利家', '西の井楼', '福島砦の塀の内', '浅瀬の岸', '竹束の列', '春日井堤', '信長の本陣', '江口の渡し'];
+  const at = (rt) => rt.def.missionOf?.(rt) ?? 0;
+  return list.map((text, k) => ({ kind: 'stage', k, text, noun: nouns[k] || '', check: k === list.length - 1 ? won : (rt) => won(rt) || at(rt) > k, sec: 400 }));
 };
 
 function build(rt) {
