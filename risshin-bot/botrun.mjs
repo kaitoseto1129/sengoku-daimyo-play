@@ -124,7 +124,7 @@ names.forEach((nm, i) => {
   lines.push(`| ${nm} | ${win}/${rs.length} | ${down} | ${avg(rs.map((r) => r.time))}秒 | ${avg(rs.map((r) => r.merit))} | ${sq.length ? Math.round(avg(sq.map((x) => x * 100))) + '%' : '—'} | ${rs.length ? (rs.reduce((x, r) => x + r.msPerFrame, 0) / rs.length).toFixed(2) : '—'}ms |`);
   if (rs.length && win < rs.length) warn.push(`${nm}：任務を落とした回がある（${rs.length - win}/${rs.length}）`);
   if (sq.length && avg(sq.map((x) => x * 100)) < 30) warn.push(`${nm}：組がほとんど生き残らない（平均 ${Math.round(avg(sq.map((x) => x * 100)))}%）`);
-  if (rs.some((r) => r.time >= 890 || r.timeout)) warn.push(`${nm}：900秒まで終わらなかった回がある（進行が止まっている疑い）`);
+  if (rs.some((r) => r.time >= 1250 || r.timeout)) warn.push(`${nm}：1260秒まで終わらなかった回がある（進行が止まっている疑い）`);
   rs.forEach((r) => { r.errors.forEach((e) => warn.push(`${nm}：不具合 ${e}`)); r.stuck.forEach((e) => warn.push(`${nm}：動けない ${e}`)); r.waits.forEach((e) => warn.push(`${nm}：待たされる ${e}`)); });
 });
 const dj = done.map((r) => r.data.dojo).filter(Boolean);

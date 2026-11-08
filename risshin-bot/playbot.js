@@ -833,7 +833,7 @@ async function playOne(game, i, G, aud, o = {}) {
   };
   const dt = 0.05;
   try {
-    while (game.battle === b && !b.ended && t < 900) {
+    while (game.battle === b && !b.ended && t < 1260) {   // 11/8 夜：一戦は約15分（docs/oda15_plan_1108.md）。18分の戦も最後まで
       if (!enterBattle(game)) { rep.errors.push('開戦の「出陣する」を押しても戦を始められなかった'); break; }
       // 日送りの札では本番と同じく戦を止め、実時間の時計だけを待つ。
       if (game.paused) { await wait(100); continue; }
@@ -871,7 +871,7 @@ async function playOne(game, i, G, aud, o = {}) {
     }
   } catch (e) { rep.errors.push(String(e && e.stack || e).split('\n').slice(0, 3).join(' ')); }
   window.removeEventListener('error', onErr);
-  rep.timeout = t >= 900 && !b.over;
+  rep.timeout = t >= 1260 && !b.over;
   rep.named = aud ? aud.endCheck(b, rep.timeout) : [];
   rep.time = rep.decisionTime ?? Math.round(b.t);
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
@@ -2301,7 +2301,7 @@ async function playPersona(game, spec, aud, c) {
   const touch = isTouch && !!pad.real;
   if (!touch && !V.pc) c.add('no-touch', '指の操作に切り替わらなかった（input を捕まえられない）', `isTouch=${isTouch}`, 1, { cat: '落ちた' });
   c.b = b;
-  const cap = spec.kind === 'dojo' ? 120 : (per.cap || 900);
+  const cap = spec.kind === 'dojo' ? 120 : (+Q.get('cap') || per.cap || 1260);   // ?cap=秒：15分の戦を確かめる時に延ばす（11/8）
   let t = 0, frames = 0, lastPos = { x: 0, z: 0 }, idle = 0, lastMain = '', midShot = false;
   const dt = 0.05;
   const onErr = (ev) => rep.errors.push(`${ev.message}（${(ev.filename || '').split('/').pop()}:${ev.lineno}）`);
@@ -2422,7 +2422,7 @@ async function playPersona(game, spec, aud, c) {
   b.update = step;
   rep.timeout = t >= cap && !b.over;
   if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.note = '戦の任務とは別に、試験全体の持ち時間が尽きた'; rep.battle += '（試験の持ち時間で打ち切り）'; }
-  rep.named = aud.endCheck(b, rep.timeout && cap >= 900);
+  rep.named = aud.endCheck(b, rep.timeout && cap >= 1260);
   rep.gunStats = window.__gunStats ? JSON.parse(JSON.stringify(window.__gunStats)) : null; rep.playerTeam = P.team; window.__gunStats = null;
   rep.time = rep.decisionTime ?? Math.round(b.t);
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
