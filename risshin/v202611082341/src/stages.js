@@ -49,8 +49,9 @@ export const STAGES = {
   anegawa: ['南岸の物見の高みから、浅井の陣立てを見よ', '瀬を渡って来た浅井の物見を、岸で追い返せ', '渡って来る浅井勢を森の備で迎え撃て', '段を破る磯野員昌の隊を食い止めよ', '浅井勢を信長本陣の前で押し返せ',
     '姉川の浅い瀬を北へ渡れ', '北岸の浅井の殿へ斬り込め', '野村の浅井本陣へ追い討て', '信長の首を狙う遠藤直経を止めよ'].map((t, k) => k ? [t, (rt) => (rt.def.missionOf?.(rt) ?? 0) >= k] : [t]),
   // 11/6 作り直し（kaito BS・十1・三1）：戦の中の一行（b_nodafukushima.js の NODA_STAGE_TEXT）と同じ字の六つ。結果の画面でも言い替えない
-  nodafukushima: [['堤の上で、前田利家の下知を受けよ'], ['堤の西の井楼へ、内の梯子で登れ', (rt) => (rt.flags.nodaStage || 0) >= 1], ['井楼の上から、福島砦の塀の内へ鉄砲を三度撃ち込め', (rt) => (rt.flags.nodaStage || 0) >= 2],
-    ['浅瀬の岸で、打って出た岩成友通の槍を防げ', (rt) => (rt.flags.nodaStage || 0) >= 3], ['春日井堤で、本願寺の門徒を防げ', (rt) => (rt.flags.nodaStage || 0) >= 4], ['信長の本陣へ退き、守兵に合流せよ', f('retreating')]],
+  nodafukushima: ['堤の東の端から葦の水路へ下り、野田・福島の砦を見よ', '葦に潜んで撃つ三好の鉄砲を、水路の岸から追い払え', '堤の上で、前田利家の下知を受けよ', '堤の西の井楼へ、内の梯子で登れ', '井楼の上から、福島砦の塀の内へ鉄砲を三度撃ち込め',
+    '浅瀬の岸で、打って出た岩成友通の槍を防げ', '竹束の列で、根来・雑賀の鉄砲衆を野田砦の槍から守れ', '春日井堤で、本願寺の門徒を防げ', '信長の本陣へ退き、守兵に合流せよ', '柴田の殿に続き、江口の渡しへ退け']
+    .map((t, k) => k ? [t, (rt) => (rt.def.missionOf?.(rt) ?? 0) >= k] : [t]),   // 11/8 夜：15分の構成（b_nodafukushima.js の missions と同じ十）
   shiga: [['坂本の町口で大軍を迎え撃つ'], ['森可成が討死。宇佐山城へ退く', s(2)], ['囲む大軍を、塀と門から押し返す', s(3)]],
   hieizan: [['燃える坂本から、本坂を登る'], ['文殊楼の門を抜ける', s(3)], ['根本中堂の前の僧兵を退ける', f('deep')]],
   // 11/6 fix61（九1・十1）：b_mikatagahara.js の missions と同じ五つ・同じ字。進みは def.missionOf（一度進んだら戻らない）
@@ -164,7 +165,7 @@ Object.assign(KILLS, {
   },
   inabayama: { 1: (rt) => (rt.flags.step === 2 ? broke([rt.flags.ote, rt.flags.ote2], cnt) : null) },
   anegawa: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false },   // 11/5：段は倒した数で進めない（X1）。数は出さない
-  nodafukushima: { 3: (rt) => (rt.flags.step === 2 && rt.flags.sally ? broke([rt.flags.sally], cnt) : null) },
+  nodafukushima: { 5: (rt) => (rt.flags.step === 2 && rt.flags.sally ? broke([rt.flags.sally], cnt) : null) },
   hieizan: { 1: (rt) => { const F = rt.flags; return F.step === 3 && !F.deep ? broke([F.gosei, F.gosei2], (u) => fitT(u) && !u.invuln) : null; } },
   tonezaka: {
     0: (rt) => (rt.flags.step === 1 ? broke([rt.flags.r1, rt.flags.r1b], (u) => fitT(u) && !u.dying && !u.evacuatedWound) : null),

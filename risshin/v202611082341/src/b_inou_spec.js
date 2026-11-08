@@ -355,7 +355,7 @@ const inou_spec = {
   // 柴田勢との乱戦で信長方は四百ほどに減る。柴田勢が崩れた後は林勢 七百が相手（減り方は本物の兵の減った割合）
   force(rt) {
     const F = rt?.flags;
-    if (!F || !F.l1N) return FORCE;
+    if (!F || !F.l1N) { FORCE.a = 700; FORCE.b = 1700; return FORCE; }
     if ((F.stage || 0) < 2) {
       const r1 = Math.max(0, Math.min(1, aliveIn(F.l1) / F.l1N));
       // 11/7 fixc2103：柴田勢との乱戦の後の信長方は四百ほど（台詞と『信長公記』）。前は 280 まで減り、台詞の「四百ほど」と合わなかった
@@ -365,7 +365,7 @@ const inou_spec = {
       const alive = aliveIn(F.l2) + aliveIn(F.bows) + aliveIn(F.bankG) + (F.guardG ? aliveIn([F.guardG]) : 0);
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
-      FORCE.a = round10((F.aLeft || 400) * Math.min(1, al / F.al2));
+      FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
       FORCE.b = round10(700 * Math.min(1, alive / Math.max(1, F.l2All || 1)));
     }
     return FORCE;
@@ -950,7 +950,7 @@ const inou_spec = {
     // 11/6 crit_inou（kaito 九2）：立っている主人公の所へ敵が一人も来なかった。主人公の九m 内に敵がいない間は、今の目標の敵の近い二人が主人公へかかる
     if ((F.foeT = (F.foeT || 0) - 0.25) <= 0 && !F.holdPlayer) {
       F.foeT = 5;
-      const list = F.stage === 1 ? F.l1 : F.stage === 2 && F.regrouped ? F.l2 : F.stage === 3 ? F.bankG : null;
+      const list = F.stage === 1 ? F.l1 : F.stage === 2 && F.regrouped ? F.l2 : F.stage === 3 ? [...(F.bankG || []), ...(F.guardG ? [F.guardG] : [])] : null;
       if (list && !rt.army.nearestEnemy(P, 9, (o) => !o.fleeing)) {
         const near = [];
         for (const g of list) if (live(g) && !g.routing) for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.mounted && u.type !== 'bow') near.push([Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z), u]);

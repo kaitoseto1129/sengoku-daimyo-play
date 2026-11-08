@@ -20,13 +20,22 @@ export function start(rt, def, C) {
   const F = rt.flags, v = F.v15;
   v.ph = 'march'; v.marchT = rt.t;
   F.holdPlayer = false;   // 始まりの十秒を立たせない（kaito 11/8「始めの5〜10秒動けない」）
-  // 列は持ち場で槍を立てて待つ。柴田勢と勝家は北の霞の向こうへ
-  for (const g of F.line) { g.order = 'hold'; g.dest = null; g.onArrive = null; }
+  // 渡河を終えた列が、始まりから持ち場へ走る。八秒後の前進まで立たせない。
+  for (const g of F.line) {
+    const home = { ...g.anchor };
+    shift(rt, g, 8); g.order = 'move'; g.speed = 3.4; g.dest = home;
+    g.onArrive = (q) => { q.order = 'hold'; q.anchor = home; };
+  }
   // 行軍の後に構える所は、本体の持ち場より二十四m 北（列との間を六十m 空け、物見や前衛との小戦に柴田勢を巻き込まない）
   v.l1Home = F.l1.map((g) => ({ ...g.anchor, z: g.anchor.z - 24 }));
-  for (const g of F.l1) { shift(rt, g, -DZ); g.order = 'hold'; g.dest = null; g.onArrive = null; }
+  F.l1.forEach((g, i) => {
+    shift(rt, g, -DZ); g.order = 'move'; g.speed = 3.4; g.dest = { ...v.l1Home[i] };
+    g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...v.l1Home[i] }; };
+  });
   v.shibaHome = { ...F.shibaG.anchor, z: F.shibaG.anchor.z - 24 };
   shift(rt, F.shibaG, -DZ);
+  F.shibaG.order = 'move'; F.shibaG.speed = 3.4; F.shibaG.dest = { ...v.shibaHome };
+  F.shibaG.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...v.shibaHome }; };
   const say = (t, who, s, d = 3) => rt.after(t, () => { if (v.ph === 'march' && !F.ending) rt.say(who, s, d); });
   const step = (t, z) => rt.after(t, () => {
     if (v.ph !== 'march') return;
@@ -86,8 +95,6 @@ export function start(rt, def, C) {
   // 北の霞から柴田勢が現れ、持ち場へ寄せて来る
   rt.after(88, () => {
     if (v.ph !== 'march') return;
-    F.l1.forEach((g, i) => { g.order = 'move'; g.speed = 2.2; g.dest = { ...v.l1Home[i] }; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...v.l1Home[i] }; }; });
-    const S = F.shibaG; S.order = 'move'; S.speed = 2.2; S.dest = { ...v.shibaHome }; S.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...v.shibaHome }; };
     rt.army.play('toki', { x: C.FRONT_X, z: v.lineZ - 90 }, 1.2);
     rt.after(1.2, () => sfx('horagai', 0.7));
   });

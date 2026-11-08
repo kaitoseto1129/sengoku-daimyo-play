@@ -125,7 +125,7 @@ function scenery(rt) {
   F.uma = umajirushi(W, HON.x + 3, HON.z - 2, 0, 'ogi');
   rt.scene.add(F.uma);
   // 本陣のまわりの旗本の葵の幟（数千の旗本の旗が並ぶ）
-  for (let i = 0; i < 14; i++) { const a = -1.2 + (i / 13) * 2.4, r = 15 + (i % 2) * 5; rt.scene.add(nobori(W, HON.x + Math.sin(a) * r, HON.z + 4 - Math.cos(a) * r * 0.8, 'tokugawa', 6)); }
+  F.honNobori = []; for (let i = 0; i < 14; i++) { const a = -1.2 + (i / 13) * 2.4, r = 15 + (i % 2) * 5, n = nobori(W, HON.x + Math.sin(a) * r, HON.z + 4 - Math.cos(a) * r * 0.8, 'tokugawa', 6); F.honNobori.push(n); rt.scene.add(n); }   // 本陣の危機で一本ずつ倒れる（k15/jindate.js）
   for (const [x, z] of [[HON.x - 5, HON.z - 6], [HON.x + 6, HON.z - 6]]) rt.scene.add(kagaribi(W, x, z));
   for (const [x, z] of [[FRONT.x - 10, FRONT.z + 5], [FRONT.x, FRONT.z + 7], [FRONT.x + 10, FRONT.z + 5]]) rt.scene.add(nobori(W, x, z, 'honda', 6));
   for (const [x, z] of [[CHAUSU.x - 5, CHAUSU.z - 3], [CHAUSU.x + 5, CHAUSU.z - 2], [CHAUSU.x, CHAUSU.z + 6], [CHAUSU.x + 9, CHAUSU.z + 7], [CHAUSU.x - 8, CHAUSU.z + 6]]) rt.scene.add(nobori(W, x, z, 'sanada', 6));
@@ -975,6 +975,8 @@ k15_tennoji_okayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) =
   if (!u.alive || F.ending) return;
   inp.leftPressed = false;
   inp.k.delete('KeyW');
+  // 岡山口の陣幕（将軍の本陣）の内に入ったまま天王寺口へ戻れず、②〜④の間ずっと止まった（11/8 通し）→ 後ろの口から出る
+  if (F.step !== 'oka' && F.step >= 2 && Math.abs(u.pos.x - 30) < 8.5 && u.pos.z > 83 && u.pos.z < 98) { goTo(p, inp, 30, 101, 1); return; }
   // 命が四割を切ったら、味方の後ろの退き場まで下がって息を整え（八秒当たらずにいると戻る）、八割五分で戻る（人の遊び方と同じ）
   const R = b._k15 || (b._k15 = { rest: false });
   // 囲まれた時（十メートルの内に敵が五人より多い）は早めに退く
