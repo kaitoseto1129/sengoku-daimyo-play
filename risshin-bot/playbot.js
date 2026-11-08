@@ -221,8 +221,13 @@ function survive(b, inp) {
       const choose = !!attacker || !!pursuer || !(b._botEscapeAt > b.t) ||
         Math.hypot(u.pos.x - b._botEscapeFromX, u.pos.z - b._botEscapeFromZ) >= 0.35 ||
         Math.cos(walk - b._botEscapeWalk) < 0.95;
-      for (let i = 0; choose && moving && i < 8; i++) {
-        const turn = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4;
+      // 八方向が塞がった時だけ、その間の隙間も探す。列や斜めの口で
+      // 通れる退き道を見落とさず、普段の探索回数は増やさない。
+      for (let i = 0; choose && moving && i < 16; i++) {
+        if (i === 8 && best > -Infinity) break;
+        const turn = i < 8
+          ? i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4
+          : (2 * Math.floor((i - 8) / 2) + 1) * (i % 2 ? -1 : 1) * Math.PI / 8;
         const sx = Math.sin(walk + turn), sz = Math.cos(walk + turn);
         // 終点だけ平らでも、途中の切岸や戦ごとの退路の外へ踏み込まない。
         let clear = true;
@@ -300,10 +305,12 @@ function survive(b, inp) {
         retreatDodge(b, inp, Math.hypot(dx, dz) > 0.5 ? Math.atan2(dx, dz) : p.yaw + Math.PI,
           b.def.botRetreatStepAllowed);
       }
-      // 本人の構え・回避は廃止済みで、傷や気力でも駆け足は制限されない。
-      // 志賀の孤立・三方ヶ原の連続突きでは、調べた退路をすぐ走って離れる。
-      // 回避用の向きへ替えた時も駆け足を保ち、退路が無い時だけ止める。
+      // 走る入力だけでは、構え中の本人は毎秒二歩になる。退路が開き、
+      // 刃が届くまで余裕のある間は構えを解き、突きの前に距離を取る。
+      // 届く直前の刃・息切れ・塞がった退路では受けを残す。
       inp.runHeld = Math.hypot(inp.axis.x, inp.axis.y) > 0.5;
+      if (inp.runHeld && !p.winded && p.sta > .5 && attacker &&
+          (impact > .35 || ad > (attacker.reach || 2.8) + .6)) inp.guardHold = false;
       // 深手や包囲から退く時は、振りが途切れても歩みを止めない。
       // 反撃のための半秒の待ちで止まると、次の打ち込みで退避をやり直し続ける。
       // 一人を相手にし、元気か、手当てを終えて味方の列へ戻れた時だけ隙を突く。
@@ -843,6 +850,8 @@ async function playOne(game, i, G, aud, o = {}) {
       const t0 = performance.now();
       b.update(dt, inp);
       if (!b.player) break;   // 勝ち負けが決まって戦が片付いた（battle.js が update の中で stopBattle する）
+      // 倒れた後のやり直しの札は、初めの戦では選ぶまで閉じない。読んだら結果へ進む（人と同じ。11/8 真田丸で900秒まで止まった）
+      if (b.retryOpen) { b.botRetryT ??= t; const go = t - b.botRetryT > 4 && document.querySelector('.battle-retry [data-result]'); if (go) { go.click(); b.botRetryT = null; } } else b.botRetryT = null;
       ms += performance.now() - t0; frames++;
       // 終幕の片付けで本人が外れたコマは、そこで見届けを終える（姉川で「null の u」が毎回出た。10/28）
       if (!b.player) break;
@@ -903,7 +912,8 @@ async function playMap(game, aud, k) {
   const J = window.__japan;
   const fail = (msg) => ({ battle: '日本地図の城攻め', note: mk, errors: [msg], stuck: [], waits: [], flow: [], named: [], time: 0, msPerFrame: 0, merit: 0, main: false, squad: '—', down: false, lines: '' });
   if (!J) return fail('日本地図が開かなかった（window.__japan が無い）');
-  let ids = Object.keys(J.J.own).filter((id) => J.attackable(id));
+  // 兵か兵糧が足りない城は攻めの釦が札を出すだけで戦が始まらない（11/8：小谷・芥川山・石山で「支度が終わらない」と誤って記していた）
+  let ids = Object.keys(J.J.own).filter((id) => J.attackable(id) && (!J.ready || J.ready(id)));
   // &ctype=toride|yama|hira：城の形を絞って試す（無ければ絞らない）
   const ct = Q.get('ctype');
   if (ct && ids.some((id) => J.D.byId[id].type === ct)) ids = ids.filter((id) => J.D.byId[id].type === ct);
@@ -1913,11 +1923,16 @@ async function shot(game, label) {
   if (Q.get('shots') !== '1' || shotN >= +(Q.get('maxshots') || 7)) return null;
   const id = ++shotN;
   const r = game.renderer;
-  // 一枚だけ描いて、すぐ描くのをやめる（混んだ機械では一枚描くのに何十秒もかかるので、描き続けない）
+  // 仕上げまで一枚を描き切る。最初の render で止めると、影や途中の絵だけで終わり黒い画面になる。
   let drawn = false;
-  if (r && r.__r0) r.render = (...x) => { r.render = () => {}; r.__r0(...x); drawn = true; };
-  for (let k = 0; k < 150 && !drawn; k++) await wait(100);
-  if (!drawn) { if (r) r.render = () => {}; return null; }
+  if (r && r.__r0 && game.drawNow) {
+    const pausedRender = r.render;
+    try {
+      r.render = (...x) => { r.__r0(...x); drawn = true; };
+      game.drawNow(true);
+    } finally { r.render = pausedRender; }
+  }
+  if (!drawn) return null;
   await wait(200);
   window.__shotWant = { id, label };
   for (let k = 0; k < 200 && !(window.__shotDone && id in window.__shotDone); k++) await wait(100);
@@ -2122,7 +2137,7 @@ async function playPersona(game, spec, aud, c) {
     game.japanMap('title', true); await wait(1500);
     aud.scanDom(`日本地図（${mk}）`);
     const J = window.__japan;
-    const ids = J ? Object.keys(J.J.own).filter((id) => J.attackable(id)) : [];
+    const ids = J ? Object.keys(J.J.own).filter((id) => J.attackable(id) && (!J.ready || J.ready(id))) : [];
     if (!ids.length) { rep.errors.push(`攻められる城が無い（${mk}）`); return rep; }
     const id = pick(ids); J.select(id); await wait(500);
     rep.note = `${mk}・${J.D.byId[id].name}`;
@@ -2130,7 +2145,7 @@ async function playPersona(game, spec, aud, c) {
   } else {
     // 織田家編を続けて遊ぶ時（spec.cont）は、城下の「出陣」から出た戦の前の札をそのまま使う
     if (!spec.cont) {
-      const G = spec.kind === 'lord' ? lordGame(spec.scn) : newGame(spec.kind === 'camp' ? pick(['藤吉', '弥五郎', '小六']) : 'bot', 'normal', spec.scn);
+      const G = spec.kind === 'lord' ? lordGame(spec.scn) : newGame(spec.kind === 'camp' ? pick(['与平', '弥五郎', '甚八']) : 'bot', 'normal', spec.scn); // 11/8 critic60 小谷・大河内：蜂須賀小六・木下藤吉郎と紛らわしい名を使わない
       G.practice = spec.kind !== 'camp';
       game.G = G;
       // 保存を替えると尾張統一戦の有無で番号がずれるため、鍵で引き直す。

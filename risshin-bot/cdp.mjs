@@ -82,7 +82,9 @@ async function acquireSlot() {
 
 // 開発用サーバーが動いていなければ起こす
 // 開発用サーバーのポート。RISSHIN_PORT で変えられる（git worktree で別の係が自分の置き場を見る時）
-export const PORT = +process.env.RISSHIN_PORT || 8765;
+// 前置きの環境変数を付けずに打てるよう、引数の --port=8766 でも変えられる
+const PORT_ARG = process.argv.find((a) => /^--port=\d+$/.test(a));
+export const PORT = +(PORT_ARG && PORT_ARG.slice(7)) || +process.env.RISSHIN_PORT || 8765;
 export async function ensureServer(port = PORT) {
   let up = false;
   try { await fetch(`http://localhost:${port}/`); up = true; } catch (e) { /* 起こす */ }
@@ -148,7 +150,30 @@ export async function openChrome({ width = 1600, height = 900, port = 9400 + Mat
     const evs = new Set();   // 知らせ（method のある便り）を受ける（Tracing など）
     ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); } else if (d.method) for (const f of evs) f(d); });
     const send = (method, params = {}) => new Promise((r) => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+    // THREE_LOCAL=<three の npm 展開先（package/）>：外へ出られない箱で、jsdelivr の three を手元の物で返す
+    if (process.env.THREE_LOCAL) {
+      const base = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
+      evs.add(async (d) => {
+        if (d.method !== 'Fetch.requestPaused') return;
+        const { requestId, request } = d.params;
+        try { const body = readFileSync(join(process.env.THREE_LOCAL, request.url.slice(base.length)));
+          await send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/javascript' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: body.toString('base64') });
+        } catch (e) { await send('Fetch.failRequest', { requestId, errorReason: 'Failed' }); }
+      });
+      await send('Fetch.enable', { patterns: [{ urlPattern: base + '*' }] });
+    }
     await send('Page.enable');
+    // THREE_LOCAL=three の package 置き場：外へ出られない箱で、CDN の three を手元の物に差し替える（確かめ専用）
+    if (process.env.THREE_LOCAL) {
+      await send('Fetch.enable', { patterns: [{ urlPattern: 'https://cdn.jsdelivr.net/npm/three@*' }] });
+      evs.add(async (d) => {
+        if (d.method !== 'Fetch.requestPaused') return;
+        const u = new URL(d.params.request.url); const rel = u.pathname.replace(/^\/npm\/three@[^/]+\//, '');
+        try { const body = readFileSync(join(process.env.THREE_LOCAL, rel)).toString('base64');
+          send('Fetch.fulfillRequest', { requestId: d.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/javascript' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body });
+        } catch (e) { send('Fetch.failRequest', { requestId: d.params.requestId, errorReason: 'Failed' }); }
+      });
+    }
     await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     return {
       send,

@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<!-- GitHub Pages 版（tools/mkpages.mjs が v202611071745 として写した） -->
+<!-- GitHub Pages 版（tools/mkpages.mjs が v202611081338 として写した） -->
 <title>戦国立身3D　足軽から天下へ、戦国の合戦アクション</title>
 <meta name="description" content="足軽から天下を目指す、戦国の三人称アクション。桶狭間から本能寺まで、織田信長の三十の合戦を、手に汗握る軍勢の中で戦い抜く。スマホでもパソコンでも遊べます。">
 <link rel="canonical" href="https://kaitoseto1129.github.io/sengoku-daimyo-play/risshin/">
@@ -69,7 +69,7 @@
 })();
 </script>
 <!-- /Meta Pixel -->
-<link rel="icon" type="image/png" sizes="32x32" href="./v202611071745/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611071745/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611071745/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611071745/assets/icon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./v202611081338/assets/icon/icon-32.png"><link rel="icon" type="image/png" sizes="16x16" href="./v202611081338/assets/icon/icon-16.png"><link rel="icon" type="image/png" sizes="192x192" href="./v202611081338/assets/icon/icon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="./v202611081338/assets/icon/apple-touch-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root {
@@ -545,9 +545,9 @@ body:has(#intro:not([hidden])) #tc { visibility: hidden; pointer-events: none; }
 #armybar .gauge b { position: absolute; top: 0; bottom: 0; transition: width .4s; }
 #armybar .a .gauge b { right: 0; background: linear-gradient(180deg, var(--ai-bright), var(--ai-deep)); }
 #armybar .b .gauge b { left: 0; background: linear-gradient(180deg, #e0553a, #8e2f1f); }
-#armybar .gauge.one { grid-column: 1 / -1; grid-row: 2; height: 10px; margin-top: -2px; background: #5d5b57; }
+#armybar .gauge.one { grid-column: 1 / -1; grid-row: 2; height: 10px; margin-top: -2px; background: #24221f; } /* 11/8 critic60（九3）：減った所は暗く、味方の棒は藍で灰色と見分ける */
 #armybar .gauge.one:after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #14120f; }
-#armybar .gauge.one #ab-ga { left: 0; background: linear-gradient(180deg, var(--ai-bright), var(--ai-deep)); }
+#armybar .gauge.one #ab-ga { left: 0; background: linear-gradient(180deg, #5b8ee0, #24468c); }
 #armybar .gauge.one #ab-gb { right: 0; background: linear-gradient(180deg, #e0553a, #8e2f1f); }
 #armybar .side.b .nm .n { color: #ffb2a2; }
 #armybar .clock { min-width: 86px; text-align: center; padding: 4px 12px; background: #0c0a08; box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 1px #000; font-family: var(--display); font-size: max(12px, calc(22px * var(--text-scale, 1))); font-weight: 800; letter-spacing: .06em; color: #f3e6c4; font-variant-numeric: tabular-nums; }
@@ -818,11 +818,12 @@ body:has(#hud.photo) #overlay { display: none; }
 body.rm #loading .ldmon::before { animation:none; }
 /* 初陣は推定秒数で円の完了分を覆わない。外周は処理中、内側は実際の進み。 */
 #loading:not(.first-battle) .ldmon[data-sec]::after { content: '約' attr(data-sec) '秒'; display:grid; place-items:center; background:radial-gradient(circle, var(--sumi) 0 64%, transparent 65%); font: 800 16px var(--display); color: var(--washi); }
-#loading .ldmon[data-sec="0"]::after, #loading.failed .ldmon::after { content: ''; }
+#loading:not(.first-battle) .ldmon[data-sec="0"]::after, #loading.failed .ldmon::after { content: ''; }
 #loading.first-battle #ld-stage > span:first-child { display:none; }
 @media (prefers-reduced-motion:reduce) { #loading .ldmon::before { animation:none; } }
 #loading.ready .ldmon::before { animation:none; border-color:var(--kin); }
 #loading.silent-preparation:not(.failed) .ld, #loading.silent-preparation:not(.failed) #ld-stage, #loading.silent-preparation:not(.failed) #ld-battle { display:none; }
+#loading.silent-preparation:not(.failed) #tip { display:none; }
 #loading .ldbar, #loading #ld-steps { display:none; }
 #ld-battle { font-family: var(--display); font-weight:800; text-align:center; letter-spacing:.14em; line-height:1.2; color: var(--washi); font-size: max(28px, calc(clamp(40px, 7vh, 64px) * var(--text-scale, 1))); margin:0 0 14px; text-shadow:0 2px 0 var(--sumi); }
 #loading.failed #ld-battle { display:none; }
@@ -909,7 +910,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 #vignette.side { animation: vside .7s ease-out; }
 /* 疲れの縁は、脈打たせると画面の端が黒く明滅して見える（kaito 報告）。動かさず一段暗くするだけにする */
 #vignette.winded:not(.hurt) { animation: none; box-shadow: inset 0 0 220px rgba(0,0,0,.62); }
-@keyframes vside { 0% { background: radial-gradient(circle at var(--hx) var(--hy), rgba(170,20,0,.55), transparent 45%); } 100% { background: radial-gradient(circle at var(--hx) var(--hy), rgba(170,20,0,0), transparent 45%); } }
+@keyframes vside { 0% { background: radial-gradient(circle at var(--hx) var(--hy), rgba(170,20,0,.3), transparent 12%); } 100% { background: radial-gradient(circle at var(--hx) var(--hy), rgba(170,20,0,0), transparent 12%); } }
 #hud.no-minimap #minimap, #hud.no-compass #compass, #hud.no-army #armybar, #hud.no-army #situation, #hud.no-squad .topc, #hud.no-bottom .bottom, #hud.no-objectives #objectives { display: none !important; }
 body.mincho, body.mincho button, body.mincho .note { font-family: var(--display); }
 #objectives li.justdone .tag { animation: jd .8s ease-out; background: var(--kin); color: var(--sumi); }
@@ -1835,7 +1836,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 #hud #cheat { box-sizing:border-box; pointer-events:auto; max-width:calc(100vw - 32px); max-height:calc(100dvh - 96px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; }
 #hud #cheat-close { position:sticky; top:0; background:var(--sumi-2); }
 </style>
-<link rel="stylesheet" href="./v202611071745/screens.css">
+<link rel="stylesheet" href="./v202611081338/screens.css">
 
 <canvas id="view"></canvas>
 <div id="lens" aria-hidden="true"></div>
@@ -1870,7 +1871,7 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
   <div id="killmark" hidden>討</div>
   <div id="staring" hidden></div>
   <div id="skiphint" hidden></div>
-  <div id="maphint" hidden>地図を押すと、組をその場所へ向かわせます（組頭から）</div>
+  <div id="maphint" hidden></div>
   <div id="cheat" hidden></div>
   <div id="tutorial" hidden></div>
   <div id="choice" hidden></div>
@@ -1984,5 +1985,5 @@ dialog.battle-retry .btn { box-sizing: border-box; width: 100%; min-width: 0; mi
 } }
 </script>
 <script type="module">
-import('./v202611071745/src/main.js').catch((error) => window.__bootFail(error));
+import('./v202611081338/src/main.js').catch((error) => window.__bootFail(error));
 </script>

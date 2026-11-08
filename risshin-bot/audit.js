@@ -145,7 +145,7 @@ export class Auditor {
     // 字幕（受け流し・反撃など）は遊び手の手応えなので数えない
     if (same.length >= 4 && kind !== '字幕') this.add('使いづらい', 'nag:' + text, '同じ知らせが20秒に4回以上', `「${text}」（${kind}）`, '一度出したら、しばらく同じ物を出さない');
     // 大見出しは順番待ちで一つずつ出るので、待ちが溜まりすぎた時だけ数える
-    if (kind === '見出し' && b.hud.bannerQ && b.hud.bannerQ.length >= 3) this.add('使いづらい', 'bannerQ:' + text, '大見出しが3つ以上たまっている（出るのが遅れる）', `「${text}」`, '重要でない見出しを字幕や報せに回す');
+    if (kind === '見出し' && b.hud?.bannerQ?.length >= 3) this.add('使いづらい', 'bannerQ:' + text, '大見出しが3つ以上たまっている（出るのが遅れる）', `「${text}」`, '重要でない見出しを字幕や報せに回す');
     if (BLAME.test(text)) this.add('使いづらい', 'blame:' + text, '遊び手を責める言い回し', `「${text}」（${kind}）`, '責めずに、次にどうすればよいかを言う');
     if (kind === '字幕' && REFUSE.test(text) && !/（|：|で |を押/.test(text)) this.add('使いづらい', 'refuse:' + text, '断られたのに、どうすればいいか書いていない', `「${text}」`, '「〜すれば〜できる」と一言添える');
     if (kind === '台詞' && text.length > 70) this.add('使いづらい', 'long:' + text.slice(0, 20), '字幕の台詞が長すぎる（70字超）', `${text.length}字：「${text.slice(0, 30)}…」`, '二つに分けるか、短くする');

@@ -190,7 +190,7 @@ async function playOnce() {
   mkdirSync(join(PD, 'shots'), { recursive: true });
   const [short, pname, who] = PNAME[PERSONA] || [PERSONA, PERSONA, ''];
   const d = new Date();
-  const st = PID ? `p${PID}` : `${d.toLocaleDateString('sv-SE')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+  const st = PID ? `p${PID}` : `${d.toLocaleDateString('sv-SE')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${ONLY && !PID ? '-' + ONLY.replace(/[^a-z0-9_]/g, '') : ''}`;
   const t0 = Date.now();
   // GitHub Actions（--out）は機械が空いていて後片付けも速いので、余りを短く（一人5〜6分の枠を遊びに使う）
   const deadline = t0 + LIMIT_MIN * 60e3 - (OUT ? 45e3 : 150e3);
