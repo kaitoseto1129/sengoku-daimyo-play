@@ -609,6 +609,17 @@ const MON = {
   toyotomi(g, bg) { kiriMon(g, bg, 7, 5, -0.97, -0.78); },
   // 五三桐（天正十三年の関白の前の羽柴の旗。中に五つ、左右に三つの花の房）
   kiri53(g, bg) { kiriMon(g, bg, 5, 3, -0.9, -0.72); },
+  // 久政の寿像（持明院）の交差した櫂。長政の亀甲とは別の紋。旗への転用は復元案。
+  hisamasa_kai(g) {
+    for (const a of [-Math.PI / 4, Math.PI / 4]) {
+      at(g, 0, 0, a, 1, () => {
+        g.fillRect(-0.045, -0.9, 0.09, 1.25);
+        g.beginPath(); g.moveTo(-0.045, 0.18); g.lineTo(-0.16, 0.42);
+        g.lineTo(-0.16, 0.88); g.quadraticCurveTo(0, 1.02, 0.16, 0.88);
+        g.lineTo(0.16, 0.42); g.lineTo(0.045, 0.18); g.closePath(); g.fill();
+      });
+    }
+  },
   // 三つ盛亀甲に花菱（浅井）：三つの亀甲を蜂の巣のように寄せ、それぞれに花菱
   azai(g, bg) {
     const s = 0.5, y1 = 0.375, dx = Math.sqrt(3) / 2 * s;
@@ -851,6 +862,13 @@ export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
       const size = Math.min(w * .6, h * .28);
       ctx.drawImage(coin, (w - size) / 2, h / 6 - size / 2, size, size);
     }
+    return;
+  }
+  // 内藤昌豊の伝承旗。胴赤は中央の横帯とし、裾赤や主家の菱紋にしない。
+  // 帯幅と染めの色は復元案。既存の旗の作成時に描き、材質を使い回す。
+  if (kind === '内藤の胴赤') {
+    ctx.fillStyle = '#ece6d6'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#a52b24'; ctx.fillRect(0, h / 3, w, h / 3);
     return;
   }
   // 東博の榊原康政像。対象三戦だけ日輪と「無」を組み合わせる。篆書の筆形は略復元。
