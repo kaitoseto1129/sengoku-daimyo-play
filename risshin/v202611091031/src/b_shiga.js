@@ -6,7 +6,7 @@ import * as MONOMI from './shiga/monomi.js';   // 0〜3分：湖の道の物見�
 import * as NEHARI from './shiga/nehari.js';   // 十九日：森隊の粘り・信治の最期・可成の最後の防衛
 import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
 import { timeslipField } from './timeslip_field.js';
-import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade, retreatLeavesBlades } from './bot_retreat.js';
 // ======================================================================
 // 織田家編　志賀の陣・宇佐山城（元亀元年九月）
 // 信長が摂津の野田・福島に出ている間に、浅井・朝倉の三万が湖の西を下って坂本へ出てきた。
@@ -4518,9 +4518,9 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   inp.guardHold = impact <= guardLead &&
     (attacker.charging || nearest <= (attacker.reach || 2.8) + .8);
   // 構えると駆け足が毎秒二歩へ落ちる。安全な隙間と出足の時間があれば先に離れる。
-  // 届く直前の刃・息切れ・塞がった退路では受けを残す。
+  // 届く直前の刃・息切れ・塞がった退路と、離れ切れない長槍には受けを残す。
   if (escaping && !p.winded && p.sta > .5 &&
-      (impact > .35 || nearest > (attacker.reach || 2.8) + .6)) inp.guardHold = false;
+      (impact > .35 || nearest > (attacker.reach || 2.8) + .6) && retreatLeavesBlades(b, inp)) inp.guardHold = false;
   // 木戸で待つ時や、通れる足場が無い時には足を出さない。
   inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
   inp.leftPressed = false; inp.chargeHold = false;

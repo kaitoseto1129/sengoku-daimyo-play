@@ -785,6 +785,11 @@ const k06_sekigahara = {
       }
       if (!F.shiAt && receiving) {
         F.shiAt = rt.t; F.shima.defMult = 1; F.shima.order = 'attack'; F.shima.aggro = 30; F.shima.seekRange = 30;
+      }
+      // 主人公が笹尾山から戻る前に味方だけで全滅させると、接触できず任務が止まる。
+      // 到着だけでは守りを外さず、主人公が退き口を受けた所から通常の戦いにする。
+      if (F.shiAt && F.shiMet && !F.shiEngaged) {
+        F.shiEngaged = true;
         for (const u of F.shima.units) u.campProtected = false;
       }
       // 到着後に離れた相手を追うと、受けの時計が止まったままになる。本陣前へ戻してから押し合いを続ける。
