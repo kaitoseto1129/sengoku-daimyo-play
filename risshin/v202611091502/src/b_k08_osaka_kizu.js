@@ -87,17 +87,20 @@ const northLeft = (F) => {
   }
   return n;
 };
-const flee = (g) => {
-  if (!alive(g)) return;
+const flee = (g, shore = false) => {
+  if (!g || g.count <= 0) return;
   // 岸の組は東の塀の外へ、それ以外は開いた北の口から博労淵へ退く。
   // 向きだけで逃がすと、東西の塀に当たって退き口へ出られない。
-  if (!g.fleeSet) {
-    g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
-    g.fleePath = g.center().z < WALL_N - 4
+  // 既に士気が崩れた組にも退路を渡す。共通処理の fleeSet は退路の指定済みとは限らない。
+  if (!g.k08RetreatSet) {
+    g.k08RetreatSet = true;
+    g.fleeDir = shore ? { x: 1, z: 0 } : { x: 0, z: -1 }; g.fleeSet = true;
+    const c = g.center();
+    g.fleePath = shore ? [[44, Math.max(4, c.z)], [132, 4]] : c.z < WALL_N - 4
       ? [[0, -164]] : [[NGATE.x, WALL_N + 4], [NGATE.x, WALL_N - 8], [0, -164]];
+    for (const u of g.units) { u.perch = null; u.fleePathIdx = 0; }
   }
   g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee';
-  for (const u of g.units) { u.perch = null; u.fleePathIdx = 0; }
 };
 
 // 低い平野。砦は少し盛り上がった土の上。木津川の東の堤と西の湿地だけ起伏を付ける
@@ -417,7 +420,7 @@ const k08_osaka_kizu = {
     rt.award((t) => t.side.push('入り江を渡り、岸の鉄砲組を討った'), '岸の鉄砲組を討った');
     rt.unmark('k08');
     // 岸の鉄砲組は砦の塀の外を東（大坂城の方）へ退く。北へ逃がすと閉じた大手門の脇の塀に詰まり、追う別手が塀の前で二十秒立ち尽くした（11/7 bot）
-    for (const g of F.s1) { if (!alive(g)) continue; g.fleeDir = { x: 0.96, z: -0.28 }; g.fleeSet = true; flee(g); }
+    for (const g of F.s1) flee(g, true);
     rt.obj('main', '砦の大手門を味方と打ち破る', 'main');
     rt.marker('k08', { x: GATE.x, z: GATE.z + 4 }, '砦の大手門', { h: 3, red: true });
     hold(F.saki, GATE.x, GATE.z + 9); F.saki.aggro = 24;

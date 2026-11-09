@@ -654,7 +654,10 @@ const k07_sawayama = {
       F.gateT0[id] ??= rt.t;
       // 門が破れるまで、段の守りは門の内に構えて待つ（閉じた門の扉越しに槍で突き出て、門前の主人公が十秒ほどで討たれていた）
       const hold = s.stage >= 5 && D.cur && D.cur.groups;
-      if (hold) for (const g of D.cur.groups) if (g.order !== 'hold' && !g._k07Gate) { g._k07Gate = { aggro: g.aggro, seek: g.seekRange }; g.order = 'hold'; g.aggro = 3; g.seekRange = 3; }
+      if (hold) for (const g of D.cur.groups) {
+        g._k07Gate ??= { aggro: g.aggro, seek: g.seekRange };
+        g.order = 'hold'; g.aggro = 3; g.seekRange = 3;
+      }
       let n = 0;
       for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isStruct && (u.pos.x - s.at[0]) ** 2 + (u.pos.z - s.at[1]) ** 2 < 100) n++;
       if (n >= 4) F.ramT[id] = (F.ramT[id] || 0) + dt;
@@ -775,7 +778,11 @@ const k07_sawayama = {
     //   主人公が本丸に一度も入らないまま⑤が済んだ（11/6 描いて遊んだ二回とも）
     //   宇多の隊も同じく、二の丸の門が破れた後は二の丸の上の段に留まる（本丸の西の口から本丸の内へ下がり、④が二百秒を超えた・11/6 流し）
     const holdAt = D && D.on && D.cur?.groups ? (D.i === 8 ? HON_YARD : D.i === 6 && F.gateOpen.ni1_n && rt.t - (D.cur.t0 ?? rt.t) > 33 ? NI1 : null) : null;
-    if (holdAt) for (const g of D.cur.groups) if (g.count && !g._k07Hold && !g._udaLost) { g._k07Hold = true; g.order = 'hold'; g.anchor = { x: holdAt.x, z: holdAt.z }; g.aggro = 9; g.seekRange = 9; }
+    // 共通の段の誘導が遠ざかった隊を攻めへ戻しても、守備の命令を保つ。
+    if (holdAt) for (const g of D.cur.groups) if (g.count && !g._udaLost) {
+      if (!g._k07Hold) { g._k07Hold = true; g.anchor = { x: holdAt.x, z: holdAt.z }; }
+      g.order = 'hold'; g.anchor.x = holdAt.x; g.anchor.z = holdAt.z; g.aggro = 9; g.seekRange = 9;
+    }
     // 櫓門の上の射手（中の窓の場所が無く、屋根の瓦の上に立っていた）は置かない。横矢は左右の隅櫓の窓から（十一の2・十一の3）
     if (!F.gatePerchOff && rt.perch?.started) {
       F.gatePerchOff = true;
@@ -827,7 +834,11 @@ k07_sawayama.force = (rt) => {
   // 天守に火が回っても、南の曲輪や櫓に残る守りまで零にはしない。
   let remaining = 0;
   for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.isStruct) remaining++;
-  const F = rt.flags, all = Math.max(320, (F.eMax || 0) + 60), b = F.burned ? remaining : Math.max(180, remaining, Math.round(2800 * (1 - (F.ek || 0) / all)));
+  const F = rt.flags, all = Math.max(320, (F.eMax || 0) + 60);
+  const estimate = F.burned ? remaining : Math.max(180, remaining, Math.round(2800 * (1 - (F.ek || 0) / all)));
+  // 後の曲輪の兵が出て延べ人数が増えても、討たれた城兵の数を巻き戻さない。
+  const b = Math.max(remaining, Math.min(F.forceEnemy ?? 2800, estimate));
+  F.forceEnemy = b;
   return { a: Math.round(15000 - (F.ak || 0) * 20), a0: 15000, b, b0: 2800 };
 };
 k07_sawayama.sides = { a: { name: '東軍', mon: 'kobayakawa' }, b: { name: '石田方', mon: 'ishida' } };
