@@ -568,6 +568,9 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
+  // 手当てのために下がっている間は、木戸や柵の口へ引き戻さない。
+  // 安全な味方の後ろまで退き、手当てと気力の回復を済ませてから進む。
+  if (F.dp && F.dp.on && F.dpBack) { depthBot(b, inp, goTo); return; }
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
   // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {

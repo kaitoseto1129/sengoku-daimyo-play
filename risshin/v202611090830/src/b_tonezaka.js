@@ -3323,7 +3323,9 @@ const tonezaka = {
       rt.obj('main', TONE_LINE[0], 'main', true);
       rt.objProgress('main', rt.G.lord ? '馬廻と共に、道をたどって追う' : hi(rt) ? '組を率い、信長公の馬のそばへ。寄ればすぐ出発' : '信長公の馬のそばへ。寄ればすぐ出発');
     }
-    if (F.dpOn) depthTick(rt, dt);
+    // この先は約〇・四秒ごとの確認。守った時間も前の確認からの経過で数える。
+    // 一コマの dt だけを渡すと、坂道と旗本を守っても守備の手柄が付かない。
+    if (F.dpOn) depthTick(rt, elapsed);
     if (F.step >= 1 && F.step <= 3 && !F.dpOn) {
       // 兵が一歩離れただけで進め／戻れを繰り返さない。敵が目前なら猶予を切る。
       const supported = toneSupported(rt, p);
