@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HISTORICAL_GENERALS } from './b_historical_generals.js';
 import { lostCauseNote } from './battle_lost_cause.js';
-import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade, retreatLeavesBlades } from './bot_retreat.js';
 import { contactLitter } from './army_ground.js';
 // ======================================================================
 // 織田家編　三方ヶ原の戦い（元亀三年十二月二十二日）
@@ -2895,9 +2895,9 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       const escaping = distance <= (e.reach || 2.8) + 1.5 &&
         retreatRunFromBlade(b, inp, null, !atPost && walking ? walkYaw : null);
       // 構えると駆け足が毎秒二歩へ落ちる。退路と出足の時間がある間に離れる。
-      // 届く直前の刃・息切れ・塞がった退路では受けを残す。
+      // 届く直前の刃・息切れ・塞がった退路と、離れ切れない長槍には受けを残す。
       if (escaping && !p.winded && p.sta > .5 &&
-          (soonest > .35 || distance > (e.reach || 2.8) + .6)) inp.guardHold = false;
+          (soonest > .35 || distance > (e.reach || 2.8) + .6) && retreatLeavesBlades(b, inp)) inp.guardHold = false;
       // 確かめた退路への駆け足を保つ。
       inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
     }

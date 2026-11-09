@@ -127,6 +127,31 @@ export function retreatRunFromBlade(b, inp, allowed, direction = null) {
   return true;
 }
 
+// 構えを解く前に、確かめた一歩で振り出された刃の外まで離れられるかを見る。
+// 長槍の内側や、半歩だけ空いた戸口では、時間が残っていても受けを残す。
+export function retreatLeavesBlades(b, inp) {
+  const p = b.player, u = p.u, axis = inp.axis, gap = b._botRetreatGap;
+  if (!axis || !gap?.open || !inp.runHeld) return false;
+  const dx = -Math.sin(p.yaw) * axis.y - Math.cos(p.yaw) * axis.x;
+  const dz = -Math.cos(p.yaw) * axis.y + Math.sin(p.yaw) * axis.x;
+  for (const o of b.army.units) {
+    if (!o.alive || o.team === u.team || o.fleeing || o.gone || o.downed || o.woundOut || o.rearWound ||
+        o.noTarget || o.isStruct || o.group?.hidden || Math.abs(o.pos.y - u.pos.y) >= 3) continue;
+    const swing = o.swing && !o.swing.done && o.swing.target === u;
+    const attack = o.atk && !o.atk.ranged && !o.atk.bow && o.atk.target === u;
+    const charge = o.charging && o.target === u;
+    if (!swing && !attack && !charge) continue;
+    const reach = (o.reach || 2.8) + .6;
+    if (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) > reach + 3 ||
+        b.army.wallBetween(u.pos, -1, o.pos, (o.wpnKind || o.lookWeapon) === 'spear')) continue;
+    const impact = charge ? 0 : swing ? Math.max(0, o.swing.dur * o.swing.at - o.swing.t) : o.atk.t;
+    // 指の出足に余裕を残す。確かめていない二歩目まで走れるとは見込まない。
+    const travel = Math.min(gap.stride, Math.max(0, impact - .12) * 4.4);
+    if (Math.hypot(o.pos.x - u.pos.x - dx * travel, o.pos.z - u.pos.z - dz * travel) <= reach) return false;
+  }
+  return true;
+}
+
 // 戸口や手当ての印で止まっていても、目前の刃には退路の側へかわす。
 // 一歩が空いているだけでは足りない。回避の三歩全部を調べる。
 export function retreatDodge(b, inp, walk, allowed) {
