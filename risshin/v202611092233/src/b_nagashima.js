@@ -4216,7 +4216,7 @@ const nagashima = {
       if (F.step === 1.25) {
         if (Math.floor(rt.t) !== F.watchClock) {
           F.watchClock = Math.floor(rt.t);
-          const detail = !near ? '岸の柵へ進め' : !facing ? riverTurnText(rt) : `見張り　あと${Math.max(0, Math.ceil(WATCH_HOLD - F.watchTime))}秒`;
+          const detail = !near ? '岸の柵へ進め' : !facing ? riverTurnText(rt) : '岸の柵で槍を構え、舟に備えよ';
           // 本人が岸で舟に備えるまで進めない。移動や向き直りに期限を設けない。
           rt.objProgress('main', detail);
         }
@@ -4235,10 +4235,10 @@ const nagashima = {
         F.boatsSpot = nearestBankSpot(p);
         rt.marker('bank', { x: SPOTS[F.boatsSpot].x, z: BANK_Z + 5 }, task === 'return' ? '岸の柵へ戻る' : task === 'watch' ? '岸の持ち場' : '柵の内で反撃に備える');
       }
-      // 舟を見届ける間にも、今の務めと次の段までの残りを伝える。
+      // 舟を見届ける間も、岸の場所と今の務めを伝える。
       if (Math.floor(w) !== F.boatsClock) {
         F.boatsClock = Math.floor(w);
-        rt.objProgress('main', !nearBank ? '岸へ戻り、味方と合流せよ' : w < 6 ? '退く舟は討つな。次の下知を待て' : w < 8 ? '鉄砲組に任せ、柵の内で待て' : `岸を守るまで　あと${Math.max(0, Math.ceil(16 - w))}秒`);
+        rt.objProgress('main', !nearBank ? '岸へ戻り、味方と合流せよ' : w < 6 ? '退く舟は討つな。次の下知を待て' : w < 8 ? '鉄砲組に任せ、柵の内で待て' : '岸の柵に槍を並べ、鉄砲衆を守れ');
       }
     }
     if (F.step === 3) {
@@ -4352,7 +4352,7 @@ const nagashima = {
           : !F.last[3].sallyReleased ? '東の舟が寄る。柵の内で構えよ'
           : '最後の舟を受けた。岸で構えよ';
         // 全ての舟を受けた後の八秒だけを数える。着岸や二分の経過を待つ札にはしない。
-        rt.objProgress('main', task === 'retreat' ? `槍組の後ろへ。残り${Math.ceil(15 - (rt.t - F.dangerAt))}秒${behind ? '　背後へ敵が抜けた' : ''}` : F.broken ? '岸の守りを破られた。西の柵へ下がれ' : breach ? `背後の押し込み ${Math.floor(F.pushTime)}／二十秒　続くと岸を失う` : behind ? '背後へ敵が抜けた。振り向き、味方と止めよ' : !atBank ? eastBank ? '西の岸の柵へ戻れ' : '岸の柵へ戻り、味方と川を見張れ' : checkingShore ? !facingRiver ? riverTurnText(rt) : `見張り　あと${Math.max(0, Math.ceil(SHORE_WATCH_HOLD - F.shoreQuiet))}秒` : eastAway && task === 'boats' ? '西の柵へ進め。味方と舟に備えよ' : landingFoes && !shoreFoes ? '着いた舟に敵がいる。柵の内で味方と止めよ' : waiting ? boatNews : pressing ? '岸に敵が残る。柵の内で味方と止めよ' : '岸で川を見張れ。静まったら西の縄を確かめる');
+        rt.objProgress('main', task === 'retreat' ? behind ? '槍組の後ろへ下がれ。背後へ敵が抜けた' : '槍組の後ろへ下がり、息を整えよ' : F.broken ? '岸の守りを破られた。西の柵へ下がれ' : breach ? '背後へ門徒が押し込む。味方と押し返せ' : behind ? '背後へ敵が抜けた。振り向き、味方と止めよ' : !atBank ? eastBank ? '西の岸の柵へ戻れ' : '岸の柵へ戻り、味方と川を見張れ' : checkingShore ? !facingRiver ? riverTurnText(rt) : '岸の柵で槍を構え、後の舟に備えよ' : eastAway && task === 'boats' ? '西の柵へ進め。味方と舟に備えよ' : landingFoes && !shoreFoes ? '着いた舟に敵がいる。柵の内で味方と止めよ' : waiting ? boatNews : pressing ? '岸に敵が残る。柵の内で味方と止めよ' : '岸で川を見張れ。静まったら西の縄を確かめる');
       }
       // 負傷して戦えない者が隊に残っていても、静まった岸で二分まで待たせない。
       // 後の舟まで受け、背後の敵も止めてから八秒見張る。戦える兵は減らさない。
@@ -4450,7 +4450,7 @@ const nagashima = {
       if (Math.floor(rt.t - F.stepT) !== F.finalClock) {
         F.finalClock = Math.floor(rt.t - F.stepT);
         // 縄の確認と見張りの進み具合を伝える。移動や応戦で期限切れにしない。
-        const detail = task === 'retreat' ? `退く間はあと${Math.max(0, Math.ceil(15 - (rt.t - F.dangerAt)))}秒` : task === 'turn' ? riverTurnText(rt) : F.finalChecked < 3 ? `縄 ${F.finalChecked}／三か所　${task === 'fight' ? 'まず敵を止めよ' : task === 'check' ? `その場で確認　あと${Math.max(0, Math.ceil(CHECK_HOLD - F.finalCheckT))}秒` : `${nextCheck + 1}つ目へ`}` : `${watching ? '見張り' : '見張り休止'}　あと${Math.max(0, Math.ceil(FINAL_HOLD - F.finalSafe))}秒`;
+        const detail = task === 'retreat' ? '槍組の後ろへ下がり、息を整えよ' : task === 'turn' ? riverTurnText(rt) : F.finalChecked < 3 ? `縄 ${F.finalChecked}／三か所　${task === 'fight' ? 'まず敵を止めよ' : task === 'check' ? '西の柵の縄を締め直せ' : `${nextCheck + 1}つ目へ`}` : watching ? '西の柵で槍を構え、舟に備えよ' : '西の柵へ戻り、舟に備えよ';
         // 再開の行動は任務本文にある。小さな札に同じ下知を重ねない。
         rt.objProgress('main', detail);
       }
