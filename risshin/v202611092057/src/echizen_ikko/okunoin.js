@@ -89,7 +89,7 @@ export function morning(rt) {
 }
 
 // 山狩りの山場：本堂を取って四十秒、奥の院の森から残党の一団が松明を捨てて斬り込む（残党の奇襲）。
-//   一の手が崩れて二十五秒で裏から二の手。二つとも崩すまで（立つ者が二人以下か八十秒）は戦を終えない。本体の nextAttack(4) が blockWin を見る。
+//   一の手が崩れて二十五秒で裏から二の手。二つとも立つ者が二人以下になるまで戦を終えない。本体の nextAttack(4) が blockWin を見る。
 export function ambushTick(rt, ctx) {
   const F = rt.flags;
   if (!F.ikOku || F.ending) return;
@@ -101,14 +101,15 @@ export function ambushTick(rt, ctx) {
     A.g = enemyGroup(rt, { faction: 'ikko', flag: 'namu', name: '森の残党', fixed: true, noGuard: true, anchor: { x: p.x + sx * 16, z: p.z + 12 }, facing: Math.PI,
       fleeDir: { x: sx, z: 0.5 }, aggro: 40, seekRange: 45, width: 8, formation: 'loose', morale: 100, noRout: true, speed: 3.6 },
     [{ type: 'samurai', n: 2, o: { ...ctx.look } }, { type: 'ashigaru', n: 6, o: { ...ctx.look } }]);
-    A.g.order = 'attack'; A.t0 = rt.t;
+    A.g.order = 'attack';
     try { sfx('toki', 0.9); } catch (e) { /* なし */ }
     rt.say('足軽', A.wave === 1 ? '森から来るぞ！　残党が斬り込んで来た！' : '奥の院の裏からも来るぞ！', 2.8);
     return;
   }
   if (A.done) return;
   const left = A.g.units.filter((u) => u.alive && !u.fleeing).length;
-  if (left > 2 && rt.t - A.t0 < 80) return;
+  // 時間だけで無傷の敵を敗走させ、撃退済みにしない。
+  if (left > 2) return;
   const g = A.g;
   A.done = A.wave >= 2; g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }

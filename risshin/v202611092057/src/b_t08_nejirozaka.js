@@ -328,6 +328,9 @@ const t08_nejirozaka = {
   lethal: true,   // 命懸けの戦場（lethal.js。先取り 11/9 豊臣B）
   foeHit: 1.0,
   minutes: 15, expectMin: 15,
+  // 持ち場での守備と忠隣への止め、夜明けの締めを共通の十八分打ち切りで飛ばさない。
+  // 敗北は主人公の討死か、砦へ敵がなだれ込んだ時に決める。
+  pacingWait: () => true,
   playerTaken: 0.35,   // 15分の長い守り（忠隣の坂で倒れた。11/8 bot）   // 15分の構成（docs/toyo15_plan_1108.md の 11）
   noWake: true,
   // 見せかけの軍勢は置かない（kaito AQ6・AF・AP9）：遠景の大軍・奥の乱戦の補い・前線の小勢を足さない。島津の大軍は松明の列と、寄せる本物の兵で見せる
