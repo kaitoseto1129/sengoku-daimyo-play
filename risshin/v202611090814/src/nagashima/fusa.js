@@ -14,7 +14,8 @@ export function steps(K) {
       sfx('horagai', 0.6);
       rt.banner('九鬼の船、川を塞ぐ', '兵糧を積んだ門徒の舟が、島へ渡れなくなる');
     }, say: [['使番', '九鬼の安宅船が川を塞いだ！　島への兵糧舟は一つも通さぬ'], ['組頭', '飢えた門徒が米を取り返しに来るぞ。西の舟入りへ！']] }),
-    K.hold({ at: WEST, dur: 90, r: 14, title: '西の舟入り', sub: '上流で岸へ上がった門徒が、米俵を取り返しに来る', label: '西の舟入り', obj: '西の舟入りで、兵糧を取り返しに来た門徒を止めよ',
+    // 決めた寄せだけを受ける。共通の補充で門徒を増やし続けない。
+    K.hold({ at: WEST, dur: 90, r: 14, noRefill: true, title: '西の舟入り', sub: '上流で岸へ上がった門徒が、米俵を取り返しに来る', label: '西の舟入り', obj: '西の舟入りで、兵糧を取り返しに来た門徒を止めよ',
       waves: [
         { t: 0, foes: () => [{ name: '兵糧を取り返しに来た門徒', from: { x: 74, z: K.BANK_Z + 10 }, list: K.monto(10, 2), mass: 0, dmg: 0.75 }] },
         { t: 30, say: ['足軽', '飢えて目がくぼんどる……それでも来よる'], foes: () => [{ name: '舟入りへ寄せる門徒', from: { x: 78, z: K.BANK_Z + 2 }, list: K.monto(9, 1), mass: 0, dmg: 0.75 }] },
@@ -27,7 +28,7 @@ export function steps(K) {
       sfx('kane', 0.4);
       rt.banner('大鳥居の砦、崩れる', '嵐の夜、囲みに耐えかねた門徒が砦を捨てて逃げ出す');
     }, say: [['伝令', '大鳥居から門徒が逃げ出した！　女も子も混じっておる。東の岸へ寄せてくるぞ！']] }),
-    K.hold({ at: EAST, dur: 90, r: 14, title: '東の岸', sub: '逃げ場の無い門徒が、岸の柵へ押し寄せる', label: '東の岸の柵', obj: '東の岸の柵で、砦から逃げ出した門徒を止めよ',
+    K.hold({ at: EAST, dur: 90, r: 14, noRefill: true, title: '東の岸', sub: '逃げ場の無い門徒が、岸の柵へ押し寄せる', label: '東の岸の柵', obj: '東の岸の柵で、砦から逃げ出した門徒を止めよ',
       waves: [
         { t: 0, foes: () => [{ name: '大鳥居から逃げ出した門徒', from: { x: -76, z: K.BANK_Z + 6 }, list: K.monto(12, 2), mass: 0, dmg: 0.7 }] },
         { t: 28, say: ['組頭', '篠橋からも来るぞ！　柵を破らせるな！'], foes: () => [{ name: '篠橋から逃げ出した門徒', from: { x: -78, z: K.BANK_Z + 14 }, list: K.monto(10, 1), mass: 0, dmg: 0.7 }] },
@@ -43,9 +44,9 @@ export function lastSteps(K) {
   const MID = { x: 8, z: K.BANK_Z + 5 };
   return [
     K.rest({ dur: 6, heal: 0, fn: (rt) => { rt.banner('囲みを締める', '中江・屋長島の柵を三方から閉じる'); }, say: [['柴田勝家', '囲みは閉じた。最後に死に物狂いで来るぞ、岸の真ん中を固めよ！']] }),
-    K.hold({ at: MID, dur: 75, r: 14, title: '岸の真ん中', sub: '中江・屋長島の門徒が、最後に柵へ寄せる', label: '岸の真ん中の柵', obj: '岸の真ん中の柵で、最後に寄せる門徒を止めよ',
+    K.hold({ at: MID, dur: 75, r: 14, noRefill: true, title: '岸の真ん中', sub: '中江・屋長島の門徒が、最後に柵へ寄せる', label: '岸の真ん中の柵', obj: '岸の真ん中の柵で、最後に寄せる門徒を止めよ',
       waves: [
-        { t: 0, foes: () => [{ name: '中江から寄せる門徒', from: { x: -40, z: K.BANK_Z + 4 }, list: K.monto(10, 2), mass: 0, dmg: 0.7 }] },
+        { t: 0, foes: () => [{ name: '中江から寄せる門徒', from: { x: 40, z: K.BANK_Z + 4 }, list: K.monto(10, 2), mass: 0, dmg: 0.7 }] },
         { t: 26, say: ['組頭', '屋長島からもじゃ！　鉄砲衆、撃て！'], foes: () => [{ name: '屋長島から寄せる門徒', from: { x: 48, z: K.BANK_Z + 4 }, list: K.monto(10, 2), mass: 0, dmg: 0.7 }] },
         { t: 56, say: ['足軽', '旗を掲げて……南無阿弥陀仏と叫んで来よる'], foes: () => [{ name: '旗を掲げて寄せる門徒', from: { x: -20, z: K.BANK_Z + 2 }, list: K.monto(9, 2), mass: 0, dmg: 0.7 }] },
       ],

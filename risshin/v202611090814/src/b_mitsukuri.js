@@ -4795,9 +4795,12 @@ const mitsukuri = {
       for (const b of F.defenders) {
         const g = b.real;
         if (!g || g.routed || g.order !== 'hold') continue;
-        for (const u of g.units) if (siegeFighter(u) && !u.target && !u.atk && !u.swing &&
-          Math.hypot(u.pos.x - pu.pos.x, u.pos.z - pu.pos.z) < 30 && Math.abs(u.pos.y - pu.pos.y) < 4) {
-          u.watch = pu; u.watchT = rt.army.time + 2;
+        // 坂の下から寄せる仲間も見張る。本人だけ・同じ高さだけに限ると、
+        // 四十五ｍ先の段の守兵が攻め手を見ずに休んだままになる。
+        // 攻撃の射程や持ち場は変えず、見張る相手だけを共通の索敵で選ぶ。
+        for (const u of g.units) if (siegeFighter(u) && !u.target && !u.atk && !u.swing) {
+          const foe = rt.army.nearestEnemy(u, 55, marchFighter);
+          if (foe) { u.watch = foe; u.watchT = rt.army.time + 2; }
         }
       }
     }
