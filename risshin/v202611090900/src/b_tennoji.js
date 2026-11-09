@@ -3921,12 +3921,16 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 入城がそろえば合流。列を整える十二秒は次の段で一度だけ待つ。
       // 10/31：傷を休める遊び手が印へ来ないと、救援が入っても戦が止まったままだった（bot が八分の時間切れ）。
       // 救援の到着で合流の下知を出す。出撃は本人と明智の列が門内で揃ってから。
-      let akeNear = 0, akeLive = 0;
+      let akeNear = 0, akeLive = 0, akeCommanderIn = false;
       for (const v of F.ake.units) if (v.alive && !v.fleeing && !v.woundOut) {
         akeLive++;
-        if (Math.hypot(v.pos.x + 5, v.pos.z - (T_GATE.z - 9)) < 12) akeNear++;
+        if (inPoly(SOTO_POLY, v.pos.x, v.pos.z) &&
+            Math.hypot(v.pos.x + 5, v.pos.z - (T_GATE.z - 9)) < 12) {
+          akeNear++;
+          if (v === F.ake.units[0]) akeCommanderIn = true;
+        }
       }
-      const akeIn = akeNear >= Math.min(3, akeLive) && akeNear > 0;
+      const akeIn = akeCommanderIn && akeNear >= Math.min(3, akeLive);
       const ready = nobuIn && inside >= 6;
       if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
       else if (joined && akeIn && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);

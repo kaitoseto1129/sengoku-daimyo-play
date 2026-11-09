@@ -1,3 +1,4 @@
+import { CollisionGrid } from './collision_grid.js';
 // 弾と矢に共通の当たり。線の途中で最初に触れた物だけを返す。
 // 升目と結果の入れ物は使い回す。形や材質を飛翔中に作らない。
 export function boxEntry(x, y, z, dx, dy, dz, x0, x1, y0, y1, z0, z1) {
@@ -45,6 +46,15 @@ export function scriptedShotBlocked(army, src, t) {
 }
 // 弾ごと・塀ごとに正規表現の字を書くと、通るたびに新しい物を作る（10/31 三木の iPhone の落ち）。一度だけ作って使い回す
 const RX_WALL = /塀|壁|門|石垣|櫓/, RX_EARTH = /土|石|堤/;
+// 四角を持たない置き物（升に入らない物）の番号。置き物の配列か数が変われば作り直す
+function freeSolids(army) {
+  const list = army.solids, F = army._freeSolids;
+  if (F && F.list === list && F.n === list.length) return F.ids;
+  const ids = [];
+  for (let i = 0; i < list.length; i++) if (!Number.isFinite(list[i].x0 + list[i].x1 + list[i].z0 + list[i].z1)) ids.push(i);
+  army._freeSolids = { list, n: list.length, ids };
+  return ids;
+}
 export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
   const h = army._missileHit || (army._missileHit = { q: 2, object: null, type: 'dust', host: null });
   h.q = 2; h.object = h.host = null; h.type = 'dust';
@@ -80,26 +90,38 @@ export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
   // 高さを書いていない塀・柵・竹束・建物の当たりも、矢玉を止める（十四3・BV kaito 11/6「竹束・塀・柵が本当に防ぎ、刺さる」）。
   //   ただし撃つ者の手元（2.5m の内）の物は狭間・柵の間から撃つとみなして抜ける（守り手は塀の内から撃てる）
   const ox = owner?.pos?.x, oz = owner?.pos?.z;
-  if (army.solids) for (const o of army.solids) {
-    if (o.struct && (!o.struct.alive || o.struct.opened)) continue;
-    if (o.x0 != null && (bx1 < o.x0 - 0.01 || bx0 > o.x1 + 0.01 || bz1 < o.z0 - 0.01 || bz0 > o.z1 + 0.01)) continue;
+  // 11/9 重さ：置き物（雑賀で 7000 余り）は 8m の升に分け、線の四角に掛かる升の物だけ調べる（玉ごとに全部を回していた。一コマの約 5%）。
+  //   四角を持たない物は毎回調べる。一番近い当たりは回る順に依らない
+  if (army.solids?.length) {
+    const list = army.solids;
+    const loop = (o) => {
+    if (o.struct && (!o.struct.alive || o.struct.opened)) return;
+    if (o.x0 != null && (bx1 < o.x0 - 0.01 || bx0 > o.x1 + 0.01 || bz1 < o.z0 - 0.01 || bz0 > o.z1 + 0.01)) return;
     const auto = !o.missileH && o.naka == null;
-    if (auto && (o.k === 'c' || o.k === 's' && o.r > 0.45 || o.noMissile)) continue;
+    if (auto && (o.k === 'c' || o.k === 's' && o.r > 0.45 || o.noMissile)) return;
     let q = 2;
     const mH = o.missileH || (o.yTop != null ? Math.max(1.2, o.yTop - W.heightAt(o.x ?? o.ax, o.z ?? o.az)) : o.k === 's' ? 2.2 : 2.6);
     if (o.k === 'r') {
-      if (rectEntry(x, 0, z, dx, 0, dz, o.x, o.z, o.c, o.s, o.hw, o.hd, -1, 1) >= h.q) continue;
+      if (rectEntry(x, 0, z, dx, 0, dz, o.x, o.z, o.c, o.s, o.hw, o.hd, -1, 1) >= h.q) return;
       const bottom = W.heightAt(o.x, o.z);
       q = rectEntry(x, y, z, dx, dy, dz, o.x, o.z, o.c, o.s, o.hw, o.hd, bottom, bottom + mH);
     } else if (o.k === 's') {
       const vx = o.bx - o.ax, vz = o.bz - o.az, L = Math.hypot(vx, vz) || 1;
       const cx = (o.ax + o.bx) * .5, cz = (o.az + o.bz) * .5;
-      if (rectEntry(x, 0, z, dx, 0, dz, cx, cz, vx / L, -vz / L, L * .5, o.r, -1, 1) >= h.q) continue;
+      if (rectEntry(x, 0, z, dx, 0, dz, cx, cz, vx / L, -vz / L, L * .5, o.r, -1, 1) >= h.q) return;
       const bottom = o.naka != null ? o.yBot : W.heightAt(cx, cz);
       q = rectEntry(x, y, z, dx, dy, dz, cx, cz, vx / L, -vz / L, L * .5, o.r, bottom, o.naka != null ? o.yTop : bottom + mH);
     }
-    if (auto && q < h.q && ox != null && Math.hypot(x + dx * q - ox, z + dz * q - oz) < 2.5) continue;
+    if (auto && q < h.q && ox != null && Math.hypot(x + dx * q - ox, z + dz * q - oz) < 2.5) return;
     accept(h, q, o.struct || o, o.missileType || 'wood');
+    };
+    // 升は兵の当たりと同じ表（army_move の collide がコマごとに動いた物を置き直す）。同じコマなら作り直さない
+    const WG = army.solidCollision || (army.solidCollision = new CollisionGrid());
+    WG.update(list, army.time, false);
+    for (const i of freeSolids(army)) loop(list[i]);
+    if (!WG.forBox(bx0 - 0.02, bz0 - 0.02, bx1 + 0.02, bz1 + 0.02, (i) => loop(list[i]))) {
+      for (const o of list) if (Number.isFinite(o.x0 + o.x1 + o.z0 + o.z1)) loop(o);
+    }
   }
   // 階を分ける板床も矢玉を止める。階段と石落としの穴は床の残りの四角から除かれている。
   for (const I of army.interiorRooms || []) {
@@ -122,7 +144,13 @@ export function projectileCover(army, x, y, z, ex, ey, ez, owner) {
     }
   }
   // 携行する竹束は向きと幅と高さで受ける。味方の束も弾を止める。
-  for (const o of army.units) {
+  // 11/9 重さ：竹束を持つ兵の一覧はコマに一度だけ作る（矢玉ごとに全員を回していた。雑賀で一コマの約 5%）
+  if (army._tatakeFrame !== army.frameNo || !army._tatakeList) {
+    army._tatakeFrame = army.frameNo;
+    const list = army._tatakeList || (army._tatakeList = []); list.length = 0;
+    for (const o of army.units) if (o.tatake) list.push(o);
+  }
+  for (const o of army._tatakeList) {
     if (!o.alive || !o.tatake || o === owner) continue;
     const c = Math.cos(o.heading), s = Math.sin(o.heading);
     const cx = o.pos.x + c * 0.05 + s * 0.62, cz = o.pos.z - s * 0.05 + c * 0.62;

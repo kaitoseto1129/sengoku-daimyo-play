@@ -365,11 +365,11 @@ const inou_spec = {
     } else {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
       // 退いた林勢を戦う数に残さない。旧版だけの修正では、総崩れでも敵の数が残っていた。
-      const alive = aliveIn(F.l2, true) + aliveIn(F.bows, true) + aliveIn(F.bankG, true) + (F.guardG ? aliveIn([F.guardG], true) : 0);
+      const alive = aliveIn(F.l2, true) + aliveIn(F.bows, true) + aliveIn(F.bankG, true) + (F.guardG ? aliveIn([F.guardG], true) : 0) + (F.bossG ? aliveIn([F.bossG], true) : 0);
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
       FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
-      FORCE.b = round10(700 * Math.min(1, alive / Math.max(1, F.l2All || 1)));
+      FORCE.b = Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, F.l2All || 1))));
     }
     return FORCE;
   },
@@ -683,7 +683,7 @@ const inou_spec = {
     F.bowN = F.bows.reduce((n, g) => n + g.units.length, 0);
     this.spawnBoss(rt); this.spawnBank(rt);
     F.groups.push(F.guardG); F.guardG.secKind = 'guard';
-    F.l2All = F.l2N + F.bowN + aliveIn([...F.bankG, F.guardG]);   // 林勢の七百の減り方の割合に使う
+    F.l2All = F.l2N + F.bowN + aliveIn([...F.bankG, F.guardG, F.bossG]);   // 美作守も林勢の残兵に数える
   },
 
   // 列が崩れて退く（本人から遠い者は去る）

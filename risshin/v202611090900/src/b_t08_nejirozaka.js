@@ -308,6 +308,7 @@ function reliefArrive(rt) {
   sfx('horagai', 0.7);
 }
 const t08_nejirozaka = {
+  lethal: true,   // 命懸けの戦場（lethal.js。先取り 11/9 豊臣B）
   foeHit: 1.0,
   minutes: 15, expectMin: 15,
   playerTaken: 0.35,   // 15分の長い守り（忠隣の坂で倒れた。11/8 bot）   // 15分の構成（docs/toyo15_plan_1108.md の 11）

@@ -49,7 +49,10 @@ export function step(H) {
       const left = live(C.spear) + live(C.spear2);
       // 坂の槍と駆け下りた新手を崩し、金子丸の下まで登ると次の段へ（上の段の弓は金子丸の段で一緒に落ちる）
       const top = Math.hypot(P.x - H.SLOPE_TOP.x, P.z - H.SLOPE_TOP.z) < 12;
-      return !!C.down && left <= 2 && top;
+      // 二巡 11/9：坂の槍がほぼ崩れたら、行き先を坂の上（金子丸の下）へ移す（行き先が坂の半ばのままで、上へ登らずに止まった）
+      if (C.down && (left <= 4 || el > 150) && C.at !== H.SLOPE_TOP) { C.at = H.SLOPE_TOP; C.goal = H.SLOPE_TOP; }
+      // 二巡 11/9：坂の脇の崖へ逃げた数人を討てず、十五分止まった。長引けば残りが少なくなった所で進む（味方が残りを払う）
+      return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || el > 220);
     },
     end(rt, C) {
       for (const g of [C.spear, C.spear2]) if (g) { g.noRout = false; g.morale = 0; }

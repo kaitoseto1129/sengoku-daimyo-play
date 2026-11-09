@@ -427,6 +427,8 @@ function nakayamaStep() {
       g.dmgMult = 0.6;
       C.groups.push(g);
       F.naka = g.units.find((u) => u.name === '中山勘解由');
+      // 二巡 11/9：bot が三分あまり斬り合っても討ち切れず、戦が終わらなかった（kaito「名のある武将の体力が高すぎて討てない」）
+      if (F.naka) { F.naka.maxHp *= 0.6; F.naka.hp = Math.min(F.naka.hp, F.naka.maxHp); }
       // 主人公が近くにいるだけで味方が討つのを防ぐ。この段の間だけ攻撃元を確かめる。
       C.damage = rt.army.damage;
       C.lastWords = false;
@@ -444,10 +446,19 @@ function nakayamaStep() {
         rt.after(3.4, () => { C.lastWords = true; g.dmgMult = 0.6; });
       });
     },
-    tick(rt, C) {
+    tick(rt, C, m, ctx, el, dt) {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
+      // 二巡 11/9：自分が中山の前で長く斬り結べば（六歩の内に四十秒・段は三分を過ぎて）、中山は力尽きて自刃する（史実：中山家範は奮戦の末に自刃）。
+      //   ただ待つだけでは済まない（前に立ち続けた時だけ）。bot が一歩前で討ち切れず、十五分止まった
+      const P = rt.player.u.pos;
+      if (n.alive && Math.hypot(P.x - n.pos.x, P.z - n.pos.z) < 6) C.nearT = (C.nearT || 0) + (dt || 0);
+      if (n.alive && el > 180 && (C.nearT || 0) > 40 && !C.jijin) {
+        C.jijin = true;
+        rt.say('中山勘解由', '……これまで。北条への義は、ここで果たす', 3.4);
+        rt.after(3.4, () => { if (n.alive) { n.invuln = false; n.hp = 0; C.damage.call(rt.army, n, 1, null, {}); if (n.alive) rt.army.kill(n, null); } });
+      }
       // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
       return !n.alive;
     },
