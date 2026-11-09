@@ -1395,9 +1395,9 @@ function installTottoriRearWarning(rt) {
       if (u.atk && !u.atk.ranged && rt.t < u.ttRearUntil) {
         u.atk.t = u.atk.dur = Math.max(u.atk.dur, u.ttRearUntil - rt.t + 0.3);
         u.playerMeleeUntil = rt.army.time + u.atk.dur + 1.4;
+        return;
       }
     }
-    // 初撃の長い猶予を残したまま、共通の毎回の予告・受け流しの猶予も通す。
     if (windup) windup(u, target);
   };
   player.takeDamage = function (amount, src) {
@@ -3322,11 +3322,34 @@ tottori.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     inp.guardHold = !!b.army.nearestEnemy(u, 4);
     return;
   }
-  // 舟への道は案内と同じ判定を使う。ここで先に直進すると、
-  // 下の岸道・曲がり角・番兵への応戦が全て飛ばされる。
   // 11/5 描いて遊んで：脇道の回り込みと逃げる番兵の追いで、舟のそばを三分往復し、本人は一艘も焼けなかった。
-  // 印と同じ舟を保ち、道を塞ぐ相手・自分を狙う者・その舟のそばの番兵だけを討つ。
-  // 空いたら岸道の曲がり角を踏み、船べりで長押しする。
+  // 人と同じに、舟のそばの番兵（逃げていない者）と自分を狙う者だけを討ち、空いたら▼の舟へ歩いて長押しする。
+  if (F.step === 1) {
+    // 印と同じ舟を保つ。近い舟を毎回選び直すと、迂回中に行き先が逆転する。
+    const boat = nextBankBoat(b);
+    if (!boat) return;
+    const ok = (o) => !o.fleeing && !o.woundOut && !o.noTarget && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3;
+    const foe = b.army.nearestEnemy(u, 4, (o) => ok(o) && (o.target === u || o.atk?.target === u)) ||
+      b.army.nearestEnemy(u, 14, (o) => ok(o) && (o.group === F.guard || o.group === F.guard2) &&
+        Math.hypot(o.pos.x - boat.x, o.pos.z - boat.z) < 7 && atBank(o.pos.x, o.pos.z));
+    const reach = p.weapon === 'sword' ? 1.9 : 2.8;
+    if (foe) {
+      const d = Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      if (p.lock && p.lock !== foe) inp.e.add('KeyQ');
+      p.yaw = Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      if (d > reach * 0.85) goTo(p, inp, foe.pos.x, foe.pos.z, reach * 0.85);
+      patientStrike(p, inp, foe, d);
+      return;
+    }
+    if (p.lock) inp.e.add('KeyQ');
+    inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
+    // 柵や番兵の列を横切らず、印が示す岸道の曲がり角を踏む。
+    const at = boatApproach(b, boat);
+    if (at !== boat) goTo(p, inp, at.x, at.z, 1.2);
+    else if (b.distTo(boat) > 2.2) goTo(p, inp, boat.x, boat.z, 2);
+    else inp.k.add('KeyE');
+    return;
+  }
   // 印へ着いて長押しを始めたら、近くの番兵の構えだけで中断しない。
   // 実際の被弾・押し出しによる中断は共通の操作に任せる。
   const fireBoat = F.step === 1 ? nextBankBoat(b) : null;
@@ -3376,11 +3399,11 @@ tottori.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const boat = nextBankBoat(b);
     // 番兵が舟に張り付いて火をかけられない時は、舟のそばの番兵へ懸かる（人も同じく番を退けてから火をかける）。
     // 十歩手前で待ち続けて、八分の刻を使い切らない。
-    // 印と同じ舟のそば（七歩）にいる番兵が十四歩以内なら先に懸かる。別の舟の番へは追い戻らない。
+    // 行く手の舟のそば（七歩）にいる番兵が十二歩以内なら先に懸かる。遠回りの道を塞ぐもう一艘の番も同じ。
     const boatGuard = boat && Math.hypot(boat.x - u.pos.x, boat.z - u.pos.z) > 2.2 ?
-      b.army.nearestEnemy(u, 14, (o) => !o.fleeing && !o.woundOut && !o.noTarget && !o.invuln &&
-        Math.abs(o.pos.y - u.pos.y) < 3 && (o.group === F.guard || o.group === F.guard2) &&
-        Math.hypot(o.pos.x - boat.x, o.pos.z - boat.z) < 7 && atBank(o.pos.x, o.pos.z)) : null;
+      b.army.nearestEnemy(u, 12, (o) => o.team !== u.team && !o.fleeing && !o.woundOut &&
+        !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
+        F.boats.some((q) => !q.burnt && Math.hypot(o.pos.x - q.x, o.pos.z - q.z) < 7)) : null;
     if (boatGuard) approachEnemy = boatGuard;
     else if (boat) {
       if (p.lock) inp.e.add('KeyQ');
@@ -3395,11 +3418,11 @@ tottori.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const close = strikeTarget(b, reach);
   // 正面だけ受けられるので、別の敵への反撃より実際の打ち手へ向き直る。
   const e = attacker || approachEnemy || (close && !close.fleeing && !close.woundOut && !close.noTarget && !close.invuln &&
-    (F.step !== 1 || bankRouteThreat(b, close)) &&
+    (F.step !== 1 || (close.group === F.guard || close.group === F.guard2) && atBank(close.pos.x, close.pos.z)) &&
     (F.step !== 2 || (close.group?.ttOut && !close.group.ttRetreat)) &&
     (!close.group?.ttRetreat || close.target === u) ? close : null) ||
     b.army.nearestEnemy(u, F.step === 1 && nextBankBoat(b) ? 5 : 12, (o) => !o.fleeing && !o.woundOut && !o.noTarget && !o.invuln &&
-    (F.step !== 1 || bankRouteThreat(b, o)) &&
+    (F.step !== 1 || (o.group === F.guard || o.group === F.guard2) && atBank(o.pos.x, o.pos.z)) &&
     (F.step !== 2 || (o.group?.ttOut && !o.group.ttRetreat && o.pos.z >= FENCE_Z)) &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
   if (e && F.step < 3) {
