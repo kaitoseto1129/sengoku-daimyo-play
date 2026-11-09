@@ -11,6 +11,24 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 山崎・賤ヶ岳の清秀。本人所用は未確認。土居家伝来の桃山期以来の型による復元案。
+  // 宇和島市の解説にある黒漆桃形・白糸素懸の二枚胴を借り、後補の前立は移さない。
+  // 織田編の従来指定は保つ。出所と補完：docs/generals_look_1108/中川清秀.md。
+  if (name === '中川清秀' && (year === 1582 || year === 1583) && KACCHU[name]) {
+    const key = name + '|山崎賤ヶ岳';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'momonari', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0xd8d0bc, odo: 0xd8d0bc, shikoroLace: 0xd8d0bc,
+      doStyle: 'sugake', doSugake: true, doOpening: 'nimai', plateDo: null,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake',
+      kusazuriColor: 0x1c1a1a, kusazuriBands: Array(5).fill(0xd8d0bc),
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, fur: 0, horo: 0,
+      mon: 'none', flag: 'sashi:字中川:#ece6d6:#201f1c', uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 小牧・長久手の長可：赤穂大石神社の伝所用「首無しの胴」を手本にした復元案。
   // 黒糸威伊予札二枚胴の伝承を既存の札胴で略復元。失われた兜の立物は補わない。
   // 頭形鉢・袖・錣・草摺は森家伝来品による補完。織田編の表と姿は保つ。
