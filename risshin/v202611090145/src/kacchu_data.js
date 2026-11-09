@@ -448,7 +448,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["松平忠吉", "eboshi", "shida", 0x1c1a1a, 0x413e32, "sugake", 0x4a3a22, 0, "tokugawa", ""],
   // 本多忠朝：本多家の黒具足。黒漆の六十二間筋兜に剣形の鍬形（父忠勝の鹿角は付けない）、黒糸の毛引威、立葵（復元案。docs/kacchu_k15_tokugawa.md）
   ["本多忠朝", "suji", "kuwa_ken", 0x1c1a1a, 0x1c1a1a, "kebiki", 0x2a2a2a, 0x1c1a1a, "honda", ""],
-  ["水野勝成", "namban", "kuwa", 0x24221f, 0x5a2a1c, "sugake", 0x3a2a1a, 0x24221f, "mizuno", ""],
+  // 賢忠寺蔵・革包茶糸威二枚胴具足による復元。大坂当日の着用は未確認（出所は docs/generals_look_1108/水野勝成.md）。
+  ["水野勝成", "zunari", "mizuno_shikami", 0x4a3222, 0x6a4026, "okegawa", 0, 0x3a2a20, "mizuno", ""],
   ["本多忠政", "namban", "moon", 0x151312, 0x2a2a2a, "kebiki", 0x2a2a2a, 0x151312, "honda", ""],
   ["京極高知", "namban", "sun", 0x29251f, 0x413e32, "kebiki", 0x4a3a22, 0x29251f, "tokugawa", ""],
   ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "tokugawa", ""],

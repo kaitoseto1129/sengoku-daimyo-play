@@ -28,9 +28,11 @@ export function install(rt, ctx) {
   rt.obj('main', '川下の堤の陰の鉄砲陣を、堀の先手と取れ', 'main', true);
   rt.objProgress('main', '');
   rt.marker('tsutsumi', () => (live() ? G.center() : null), '堤の鉄砲陣', { red: true, group: G });
-  for (const g of [F.hori, ...(F.escorts || [])].slice(0, 2)) if (g && !g.routed && g.count) {
+  let sent = 0;
+  for (const g of new Set([F.hori, ...(F.escorts || [])])) if (g && !g.routed && g.count) {
     moveGroup(g, { x: DIKE.x + 8, z: DIKE.z - 10 }, Math.PI);
     g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 30; };
+    if (++sent >= 2) break;
   }
 
   return {
@@ -66,7 +68,12 @@ export function install(rt, ctx) {
           rt.say('堀秀政', '堤は守った。……だが、川の向こうはまだ抜けぬ', 4);
         } else {
           rt.say('組頭', '堤の雑賀衆は川を渡って退いた。深追いするな', 3.5);
-          G.order = 'move'; G.dest = { x: DIKE.x - 4, z: DIKE.z + 40 }; G.retreatOnly = true; G.onArrive = (q) => { q.order = 'hold'; };
+          // 取り返しの組も引かせる。本人を狙ったまま和議へ持ち越さない。
+          for (const g of [G, R]) if (g && !g.routed && g.count) {
+            g.focus = null; g.retreatOnly = true;
+            g.order = 'move'; g.dest = { x: DIKE.x - 4, z: DIKE.z + 40 };
+            g.onArrive = (q) => { q.order = 'hold'; };
+          }
         }
         // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
         rt.after(6, () => { if (!F.ending) { for (const g of F.gunPosts || []) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });

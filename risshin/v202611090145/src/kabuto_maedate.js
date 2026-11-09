@@ -20,6 +20,7 @@ export const MAEDATE = {
   黒田官兵衛: 'kuroda_goshi', 黒田如水: 'kuroda_goshi',
   藤堂高虎: 'todo_tokan',
   本多忠勝: 'honda_shika',
+  水野勝成: 'mizuno_shikami',
   // 必須人物の表（kacchu_required.js）で伝来の兜の形に寄せた三人
   竹中半兵衛: 'ichinotani', 竹中重治: 'ichinotani',
   蒲生氏郷: 'tsubame',
@@ -273,6 +274,14 @@ function build(kind, hi, near) {
     else parts.push(ball(0.04, 0, 0.402, 0, 1, 0.25, 1, false));
     const g = join(parts); g.scale(1, 1, 1.06); g.translate(0, 0, -0.008);
     return [g, 'silver'];
+  }
+  if (kind === 'mizuno_shikami') {
+    // 賢忠寺蔵の熊毛植唐冠形兜。既存の冠部と獅噛だけを共用し、纓・鍬形は足さない。
+    // 木製漆塗の前立は共用の暗褐色漆材で略復元。形は近遠それぞれ一度だけ結合する。
+    // 出所と推定範囲：docs/generals_look_1108/水野勝成.md
+    const crown = maedateGeometry('todo_tokan', hi, true)[0];
+    const mask = maedateGeometry('niwa_shikami', hi)[0];
+    return [join([crown, mask]), 'black'];
   }
   if (kind === 'todo_tokan') {
     // 唐冠形：黒漆の冠形の鉢、後ろに丸く立つ巾子（こじ）、左右へ長く張った銀の纓（えい）。

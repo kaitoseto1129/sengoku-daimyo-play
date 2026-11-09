@@ -65,6 +65,12 @@ const polar = (a, r) => ({ x: C.x + Math.sin(a) * r * sq(a), z: C.z + Math.cos(a
 const angOf = (x, z) => Math.atan2(x - C.x, z - C.z);
 const rOf = (x, z) => Math.pow(Math.abs(x - C.x) ** PW + Math.abs(z - C.z) ** PW, 1 / PW);
 const gone = (g) => !g || g.count === 0 || g.routed;
+// 退きの下知では古い狙いも解く。移動だけ替えると、狙った敵へ寄り直して陣へ戻れない。
+function withdraw(g, dest) {
+  g.fixed = false; g.focus = null; g.keepMoveOrder = true; g.aggro = 3;
+  g.order = 'move'; g.dest = dest; g.anchor = dest;
+  for (const u of g.units) { u.target = null; u.aiT = 0; }
+}
 const PORT = (s) => polar(s * GATE, FENCE_R + 1);   // 丸の左右の口（真田はここから打って出る）
 
 // 家ごとの見た目（足軽は御貸具足の色。名のある武将は kacchu_data の甲冑）
@@ -568,7 +574,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // backing: false … 段の敵の後ろに見せかけの控えを付けない（AA）。数は本物の兵で出す
     // fixedSpawn：打って出る兵は丸の左右の口から出る（見えない所から湧かせない。11/6 遊んだ：大助の隊が遠くで湧いて竹束の陣まで来なかった。九2）
     const ctx = { faction: 'toyotomi', flag: 'sanada', armor: SANADA.armor, dmg: 0.4, mass: 0, backing: false, scale: 1.2, fixedSpawn: true, look: (l) => dress(l, SANADA),
-      friends: () => [F.yam, F.second].filter((g) => g && g.count && !g.routed), botSeek: 40,
+      // 帰陣の段は fallBack の移動命令を守る。共通の move が先手を「持ち場を守れ」に戻さない。
+      friends: () => F.step >= 5 ? [] : [F.yam, F.second].filter((g) => g && g.count && !g.routed), botSeek: 40,
       // 素直な遊び手：③は目の前に敵がいなければ柵へ寄り、柵の方を向いて打つ（持ち場で南を向いて立ち尽くさない。九7）
       botSteer: (b, inp) => {
         const T = F.target, u = b.player.u;
@@ -767,15 +774,15 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     sfx('taiko', 1); sfx('horagai', 0.7);
     // 史実の順：堀際で詰まった所へ大助・伊木が打って出る → そのあと大御所の退きの下知（Wikipedia・文春。専門家の目 11/6）
     rt.after(3.5, () => rt.say('山崎長徳', '堀際で詰まった所を突かれる！　篠山の麓まで下がって、組を立て直せ！', 4));
-    for (const g of F.rams) if (!gone(g)) { g.order = 'move'; g.dest = { x: 18, z: RETREAT.z + 14 }; }
+    for (const g of F.rams) if (!gone(g)) withdraw(g, { x: 18, z: RETREAT.z + 14 });
     rt.after(16, () => {
       if (F.ending) return;
       rt.say('使番', '大御所様の下知！　力攻めはやめよ、寄せ手は引き揚げよ！', 4);
       rt.after(4.5, () => rt.say('山崎長徳', `${nm(rt)}、しんがりじゃ！　味方が退くまで、真田を止めよ！`, 4));
       // 堀へ殺到した寄せ手は撃ち崩されて退く
       F.retreatOrder = true;
-      for (const g of F.surge || []) if (!gone(g)) { g.fixed = false; g.order = 'move'; g.dest = { x: g.anchor.x, z: RETREAT.z + 20 }; }
-      (F.waves || []).forEach((g, i) => { if (!gone(g)) { g.order = 'move'; g.dest = { x: RETREAT.x - 24 + (i % 4) * 16, z: RETREAT.z + 14 }; g.anchor = g.dest; } });
+      for (const g of F.surge || []) if (!gone(g)) withdraw(g, { x: g.anchor.x, z: RETREAT.z + 20 });
+      (F.waves || []).forEach((g, i) => { if (!gone(g)) withdraw(g, { x: RETREAT.x - 24 + (i % 4) * 16, z: RETREAT.z + 14 }); });
     });
     for (let i = 0; i < 10; i++) rt.world.addCarrion(C.x + (Math.random() - 0.5) * 70, C.z + MOAT.r1 + Math.random() * 10);
   },
@@ -785,7 +792,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     F.step = 5; F.backT = rt.t;
     const dest = (g, i) => ({ x: RETREAT.x - 30 + (i % 5) * 15, z: RETREAT.z + 6 + Math.floor(i / 5) * 6 });
-    rt.army.groups.filter((g) => g.team === 0 && !g.isPlayerSquad && g.count && !gone(g) && g.center().z < RETREAT.z).forEach((g, i) => { g.fixed = false; g.order = 'move'; g.dest = dest(g, i); g.anchor = g.dest; g.aggro = 3; });
+    rt.army.groups.filter((g) => g.team === 0 && !g.isPlayerSquad && g.count && !gone(g) && g.center().z < RETREAT.z).forEach((g, i) => withdraw(g, dest(g, i)));
     rt.after(14, () => {
       if (F.ending) return;
       F.sortieBack = true;
@@ -909,9 +916,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 寄せ続ける前田・本多の後の手：竹束の陣から次々に丸の柵へ寄せ、撃たれて倒れる（攻め手は一万を超える。BV・十四6）
     if (F.step >= 3 && F.step <= 4 && !F.retreatOrder) {
       F.waveT = (F.waveT ?? 4) - dt;
-      // 本物の兵は両軍で三百ほどまで（重くしない）。倒れた分だけ次の手が寄せる
+      // 本物の兵は両軍で二百五十ほどまで。追加する二十七人も数えてから寄せる。
       const live = rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
-      if (F.waveT <= 0 && live < 285) {
+      if (F.waveT <= 0 && live + 27 <= 250) {
         F.waveT = 16;
         F.waves = (F.waves || []).filter((g) => g.count);
         const k = F.waveN = (F.waveN || 0) + 1, x0 = [-34, 26, -8, 40, -22][k % 5];
@@ -941,7 +948,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.step === 3 && F.target.alive) {
       // 柵を破る組が減ったら、後ろから次の者が出る
       const left = F.rams.reduce((a, g) => a + g.count, 0);
-      if (left < 4 && F.rams.length < 7) {
+      const live = rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
+      if (left < 4 && F.rams.length < 7 && live + 12 <= 250) {
         rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3);
         const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: { x: 10, z: C.z + FENCE_R + 30 }, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
           dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));
