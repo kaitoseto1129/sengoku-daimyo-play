@@ -364,7 +364,7 @@ const k01_fushimi = {
     // 出所は道（x=0）から三十歩の内に置く。外だと道の曲がり角を辿らずに真っすぐ歩き、大手の曲輪の柵に突っかかって外に溜まった
     const SW = { x: -22, z: 116 }, S = { x: 0, z: 116 };
     // 打って出るのは家忠の手と主人公の手勢だけ。家長・近正まで出ると、戻る前に宇喜多勢と大手の外で組み合い、虎口が空になった
-    depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => (F.sortie ? [F.mine, F.ie] : [F.mine, F.ie, F.chika, ...(F.naiWest ? [] : [F.nai])]), scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
+    depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => (F.sortie ? [F.mine, F.ie] : [F.mine, ...(F.sanGuard ? [] : [F.ie, F.chika]), ...(F.naiWest ? [] : [F.nai])]), scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
       // 持ち場で寄せ手を待つ間は「動かない」と見なさない（四十五秒で段が飛び、虎口へ来る宇喜多勢と一度も当たらずに次へ進んでいた）
       idleWait: (r, C) => !!C.at && C.s.kind === 'hold' && Math.hypot(r.player.u.pos.x - C.at.x, r.player.u.pos.z - C.at.z) < (C.botRadius || 14) + 8 }, [
       // ⓪ 七月十九日：城方が打って出て、大手の外の長束・前田玄以の屋敷を焼く
@@ -404,7 +404,7 @@ const k01_fushimi = {
       // 時が飛ぶ：画面の真ん中に日付と次の目標を出す（AT7）
       DP.rest({ dur: 6, heal: 0.6, banner: ['七月二十九日', '石田三成が着き、総攻めが迫る。二の丸の口へ回れ'],
         say: [['松平家忠', '石田治部が伏見に着いた。明日から総攻めじゃ'], ['鳥居元忠', '三の丸は家忠と近正に任せる。そなたらは二の丸の口を固めよ']],
-        fn: (rt2) => this.camps(rt2, 3) }),
+        fn: (rt2) => { this.camps(rt2, 3); this.guardSan(rt2); } }),
       // ③ 三の丸は家忠・近正が八月一日まで守る（史実）。主人公の手勢は二の丸の口へ回る（後ろから宇喜多勢が付け入る）
       DP.move({ to: { x: NI.x, z: NI.z + 2 }, obj: '三の丸を家忠に任せ、二の丸の口へ回れ', label: '二の丸の口', r: 9, max: 60,
         ambush: { d: 26, say: ['宇喜多の侍', '城兵が奥へ下がるぞ！　追え、付け入れ！'], foes: () => [keep('宇喜多勢の追い手', { x: 0, z: 66 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }])] } }),
@@ -468,6 +468,16 @@ const k01_fushimi = {
   fall(rt, n) {
     const u = rt.army.units.find((x) => x.name === n && x.alive);
     if (u) { u.invuln = false; u.civ = true; rt.army.kill(u, null); }
+  },
+  // 三の丸を任された家忠・近正は、主人公の二の丸への移動に付いて行かない。
+  guardSan(rt) {
+    const F = rt.flags;
+    if (F.sanGuard) return;
+    F.sanGuard = true;
+    for (const [g, x] of [[F.ie, -8], [F.chika, 8]]) if (g) {
+      Object.assign(g, { anchor: { x: SAN.x + x, z: SAN.z + 4 }, order: 'hold', fixed: true,
+        noAI: true, stay: true, aggro: 10, facing: 0, focus: null });
+    }
   },
   // 内藤家長は「西の丸で死ぬ」と言って西の丸の持ち場へ戻る（主人公と本丸へは来ない。⑤で西の丸が破られて討死）
   naitoWest(rt) {
@@ -603,7 +613,7 @@ const k01_fushimi = {
     // 守る段の味方は持ち場（虎口・二の丸の西・本丸の口）に踏み止まる。共通の頭は七十歩の内の敵へ持ち場から出て行かせ、
     //   宇喜多勢と大手の外で組み合って、主人公の立つ虎口へ寄せ手が一人も来なかった（九2）
     const holding = D && D.on && D.cur && D.cur.s.kind === 'hold';
-    for (const g of [F.mine, F.ie, F.chika]) if (g) g.stay = !!holding;
+    for (const g of [F.mine, ...(F.sanGuard ? [] : [F.ie, F.chika])]) if (g) g.stay = !!holding;
     // 島津の段：味方は大手門の内で構えて迎える（打って出て門の外の野で組み合い、城を守る戦に見えなかった。11/7 描いて遊んで見つけた）
     if (D && D.on && D.i === 3) for (const g of [F.mine, F.ie, F.chika]) if (g && g.count && !g._k01Ote) { g._k01Ote = true; g.order = 'hold'; g.aggro = 14; g.anchor = { x: g === F.ie ? 8 : g === F.chika ? -8 : 0, z: g === F.mine ? 80 : 77 }; }
     // 八月一日の城方は全員討死の覚悟で退かない。士気が尽きかけると共通の頭が本丸の中で「味方の方へ下がって立て直す」に替え、

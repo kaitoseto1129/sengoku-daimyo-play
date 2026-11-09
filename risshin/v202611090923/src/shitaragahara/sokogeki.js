@@ -43,7 +43,7 @@ export function tick(rt, dt) {
   if (Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.there = true;
   const lord = g.units.find((u) => u.name === '土屋昌次');
   const left = c.ready(g);
-  const end = (S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35))) || rt.t - S.at > 170;
+  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || rt.t - S.at > 170);
   if (!end) return;
   S.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }

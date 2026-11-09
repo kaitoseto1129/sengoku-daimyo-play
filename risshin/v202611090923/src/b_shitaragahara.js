@@ -1515,7 +1515,7 @@ function nfTick(rt, dt) {
       // 虎口を抜けるまでは、柵の内の道順を保つ。本人へ直進すると柵に詰まる。
       if (c.x <= SB.x0 + 4 || q.order === 'path' && q.units.some((u) =>
           u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget && u.pos.x <= SB.x0 + 4)) return;
-      if (nearRear && d < 30) { if (q.order !== 'attack') { q.order = 'attack'; q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false; q.seekRange = 40; q.aggro = 14; q.fire = true; q.holdFire = false; } return; }
+      if (nearRear && d < 30) { if (q.order !== 'attack') { q.order = 'attack'; q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false; q.seekRange = 60; q.aggro = 14; q.fire = true; q.holdFire = false; } return; }
       if (d > 12 && p.x > SB.x0 + 2) {
         // 本人の左右へ並ぶ（後ろに付けると、前を向く画面に味方が一人も映らなかった）
         const goal = N.step === 5 ? NF_REAR : NF_BANK, gl = Math.hypot(goal.x - p.x, goal.z - p.z) || 1, fx = (goal.x - p.x) / gl, fz = (goal.z - p.z) / gl;
@@ -1608,8 +1608,9 @@ function nfCollapse(rt) {
       q.noRout = true; q.focus = null; q.roadColumn = true; q.formation = 'column'; q.colW = 2; q.speed = Math.max(q.speed || 3, 3.6);
       if (q.isPlayerSquad) { q.order = 'follow'; return; }
       q.order = 'path'; q.pathIdx = 0; q.dest = null;
-      q.path = [[SB.x0 - 2 * SB.gap - 3, gz], [SB.x0 + 6, gz], [NF_BANK.x, gz + (i % 2 ? 6 : -6)], [NF_REAR.x - 30, NF_REAR.z + 30 + i * 6]];
-      q.onArrive = (g) => { g.order = 'attack'; g.formation = g.kind === 'gun' ? 'line' : 'yari'; g.roadColumn = false; g.seekRange = 40; g.aggro = 14; g.fire = true; g.holdFire = false; };
+      // 隊の数で待機地点を遠ざけない。全隊が殿を探す範囲まで進んでから槍を向ける。
+      q.path = [[SB.x0 - 2 * SB.gap - 3, gz], [SB.x0 + 6, gz], [NF_BANK.x, gz + (i % 2 ? 6 : -6)], [NF_REAR.x - 18 - (i % 2) * 4, NF_REAR.z - 12 + (i % 5) * 6]];
+      q.onArrive = (g) => { g.order = 'attack'; g.formation = g.kind === 'gun' ? 'line' : 'yari'; g.roadColumn = false; g.seekRange = 60; g.aggro = 14; g.fire = true; g.holdFire = false; };
     });
   });
 }
