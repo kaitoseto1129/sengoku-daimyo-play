@@ -293,7 +293,7 @@ const k14_yao_wakae = {
     F.todoG = allyGroup(rt, { ...todoO, name: '藤堂高虎の旗本', fixed: true, fullStrength: true, anchor: { ...TODO_HQ }, width: 6, aggro: 5, seekRange: 8 },
       dress([named('藤堂高虎', 'busho', { invuln: true, horse: false }), { type: 'samurai', n: 10 }], TODO));
     const choO = { faction: 'toyotomi', facing: Math.PI / 2, fleeDir: { x: -1, z: 0 }, noRout: true, formation: 'yari', morale: 96, dmgMult: 0.4, defMult: 1.15 };
-    // 先手は藤堂の先手を崩す側。⑤で横を突かれるまでは固い（⑤の初めに 0.9 へ下げる）
+    // 先手は藤堂の先手を崩す側。主人公が堤の伏せ槍へ寄るまでは固い。
     F.choA = enemyGroup(rt, { ...choO, name: '長宗我部の先手', defMult: 1.8, anchor: { ...CHO_A }, width: 14, aggro: 12, seekRange: 22, order: 'hold', ambush: true },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], CHOSO));
     // 長瀬川の堤に伏せた槍（盛親は騎馬を下ろして槍を持たせ、堤に伏せた。battle_refs）。⑤で主人公が寄ると一斉に立つ（二3・十二4）
@@ -505,10 +505,11 @@ const k14_yao_wakae = {
       const u = F.sakiG.units.find((q) => q.name === '川手良列' && q.alive);
       if (u) { u.invuln = false; rt.army.kill(u); rt.say('井伊の侍', '川手良列殿、深入りして伏兵に討たれ、お討死！', 2.8); rt.after(3.2, () => rt.say('井伊の侍', '庵原朝昌殿が先手を継がれる。押せ！', 2.6)); }
     }
-    // ⑤：長瀬川の堤に伏せた槍が、主人公が寄るのを待って一斉に立つ（八尾の芯。二3）
+    // ①：長瀬川の堤に伏せた槍が、主人公が寄るのを待って一斉に立つ（八尾の芯。二3）
     if (F.step === 1 && F.fuseG?.ambush && dist(P.pos, FUSE) < 34) {
       F.fuseG.ambush = false; F.fuseG.fixed = false; F.fuseG.order = 'attack'; F.fuseG.seekRange = 40; F.fuseG.aggro = 14;
       for (const u of F.fuseG.units) u._crouch = false;
+      F.choA.defMult = 0.9;   // 伏兵を見届けた後は赤備えの横槍が通る。段の組み替えで切替が抜けていた（B3）。
       rt.army.play('toki', FUSE, 1.6);
       rt.say('足軽', '堤から槍が立った！ 伏せておったぞ！', 2.8);
     }

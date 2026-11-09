@@ -59,6 +59,11 @@ export function epilogue(rt, ctx) {
 
 // 夜の段「東の肩の道で秀吉の先手を迎える」：松明の道の上の口（JOIN）へ下り、上って来る先手を迎える。
 //   着くと、居座った盛政の夜討ちの小勢が北の藪から先手の列へ斬りかかる。払えば本陣で秀吉を迎える段へ。
+// 敗走した夜討ちの兵を、まだ道を塞いでいる人数に含めない。
+export function nightRaidLeft(g) {
+  return !g || g.routed ? 0 : g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0);
+}
+
 export function tickMeet(rt, ctx) {
   const F = rt.flags, P = rt.player.u.pos, st = rt.t - F.pt;
   const near = Math.hypot(P.x - ctx.JOIN.x, P.z - ctx.JOIN.z) < 16;
@@ -71,7 +76,7 @@ export function tickMeet(rt, ctx) {
     rt.say('羽柴の先手', '藪から夜討ちじゃ！　松明を消すな、槍を揃えよ！', 3);
   }
   // 迎える場所に着き、夜討ちを退けるまで達成しない。離れた砦で時を待つだけでは進めない。
-  if (near && F.yochi && rt.t - F.yochi > 30 && ctx.nLive(F.yochiG) <= 2) {
+  if (near && F.yochi && rt.t - F.yochi > 30 && nightRaidLeft(F.yochiG) <= 2) {
     if (ctx.live(F.yochiG)) { F.yochiG.order = 'retreat'; F.yochiG.dest = { x: ctx.JOIN.x + 20, z: ctx.JOIN.z - 80 }; F.yochiG.kind4 = 'gone'; }
     rt.say('羽柴の先手', '退いたか。筑前様は砦の本陣に入られた。参られよ', 3);
     ctx.next();

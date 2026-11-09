@@ -267,7 +267,7 @@ function inabaAtWoodGate(rt) {
 // 七曲りも本人の折れ・高さを確かめる。先に登った列や下の段の近さでは達成しない。
 function inabaAtOteGate(rt) {
   const p = rt.player.u.pos, q = OTE_WAY[0];
-  return rt.player.u.alive && !rt.retryOpen
+  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
     // 11/9 二巡（織田E）：木戸の十二歩前まで登っていても、馬出しの脇を回って最後の折れの角を「通った」と見なされず、
     //   木戸の斬り合いが始まらないまま三分余り止まった（流し：七曲りの角 8 で木戸から七〜十二歩）。木戸の二十二歩内なら着いた事にする
     && (rt.flags.nanaNext >= NANA.length - OTE_WAY.length + 1 || Math.hypot(p.x - OTE.x, p.z - OTE.z) < 22)
@@ -6877,7 +6877,8 @@ const inabayama = {
         for (const q of qs) if (!gone(q) && q.units.some((u) => u.alive && u.hp > 0 && !u.dying && !u.gone
           && !u.fleeing && !u.noTarget && !u.woundOut && !u.downed && !u.rearWound && !u.evacuatedWound
           && Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 10 && Math.abs(u.pos.y - pp.y) < 3
-          && !rt.army.wallBetween(u.pos, -1, pp))) { F.oteContactT = rt.t; break; }
+          && !rt.army.wallBetween(u.pos, -1, pp)
+          && !rt.army.terrainBlocks(u.pos, pp))) { F.oteContactT = rt.t; break; }
       }
       // 来ない城兵は、鹿垣の本人の前へ押し出す（坂の上で印だけ立たせない）
       // 持ち場を離れた本人や倒れた本人へ追わせず、鹿垣で迎える時だけ寄せる。
@@ -6885,7 +6886,8 @@ const inabayama = {
       if (F.ote2.sent && F.oteContactT == null && rt.t - F.ote2T > 8
         && rt.player.u.alive && !rt.retryOpen && inabaInsideHoldLine(rt) && rt.t >= (F.otePushAt || 0)) {
         F.otePushAt = rt.t + 0.5;
-        for (const q of qs) if (!gone(q) && q.order !== 'path') {
+        // 道順の途中で詰まった組も寄せる。道順の組を除くと、城兵が来ないまま救済も働かなかった。
+        for (const q of qs) if (!gone(q)) {
           q.noAI = false; q.order = 'attack'; q.aggro = 30; q.seekRange = 60;
           q.anchor.x = rt.player.u.pos.x; q.anchor.z = rt.player.u.pos.z - 6;
         }
