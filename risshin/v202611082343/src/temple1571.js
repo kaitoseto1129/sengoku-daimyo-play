@@ -89,7 +89,7 @@ function templeHip(G, r, material, ex, ez, rh, y, rl) {
   G.add(r, material, paint(hipGeo(ex, ez, rh, y, rl), 0xffffff));
   // 遠い谷では細い垂木を省く。木材の既存のまとめと燃焼の頂点範囲を使う。
   const far = r.lite || ['far', 'saito', 'yokawa'].includes(r.dist);
-  G.add(r, 'wood', hipEaveGeo(ex, ez, rh, y, rl, far ? true : undefined, r.profile === 'honnoji_shoro'));
+  G.add(r, 'wood', hipEaveGeo(ex, ez, rh, y, rl, far ? true : undefined, r.profile === 'honnoji_shoro' || r.openShoro));
 }
 
 // ---- 伽藍 ----
@@ -155,10 +155,11 @@ export class Garan {
     rec.M = new THREE.Matrix4().makeRotationY(b.rot || 0).setPosition(b.x, rec.y0, b.z);
     // 入れる棟を絞る。谷の遠景まで中を作らず、既存の伽藍・筋書きの位置は動かさない。
     const fn = KINDS[b.kind];
-    const solidStart = SOLIDS.length;
+    const solidStart = SOLIDS.length, deckStart = FL.decks.length;
     if (enter) buildOpenTemple(this, rec);
     else if (fn) fn(this, rec);
     if (!enter) rec.outerSolids = SOLIDS.slice(solidStart);
+    if (rec.openShoro) rec.outerDecks = FL.decks.slice(deckStart);
     // 門の下や中庭を箱で塞がず、柱・回廊・屋根にだけカメラの当たりを付ける。
     if (!b.lite && ['romon', 'chumon', 'kairo', 'roka', 'torii'].includes(b.kind)) {
       rec.cameraParts = [];
@@ -194,7 +195,15 @@ export class Garan {
         }
       }
     }
-    if (!enter && !b.lite && rec.top > 1.2 && !['romon', 'chumon', 'kairo', 'roka', 'torii'].includes(b.kind)) {
+    if (rec.openShoro) {
+      // 四方の柱間を視点でも通す。軒の当たりは梁より上だけに置く。
+      const roof = new THREE.Mesh(this.proxyGeo, this.proxyMat), low = 3.29;
+      roof.scale.set(b.w + 2.6, rec.top - low, b.d + 2.4);
+      roof.position.set(0, (low + rec.top) / 2, 0).applyMatrix4(rec.M);
+      roof.rotation.y = b.rot || 0; roof.userData.camBlock = true;
+      roof.matrixAutoUpdate = false; roof.updateMatrix();
+      this.rt.scene.add(roof); rec.cameraParts.push(roof);
+    } else if (!enter && !b.lite && rec.top > 1.2 && !['romon', 'chumon', 'kairo', 'roka', 'torii'].includes(b.kind)) {
       // カメラが建物にめり込まない当たり（描かない箱。大きな形を毎コマ調べない）
       const p = new THREE.Mesh(this.proxyGeo, this.proxyMat);
       p.scale.set(b.w * 1.08, rec.top * 1.1, b.d * 1.08); p.position.set(b.x, rec.y0 + rec.top * 0.55, b.z);
@@ -286,6 +295,7 @@ export class Garan {
   collapse(rec, k) {
     // 燃え落ちた閉じた棟にも、見えない元の壁を残さない。
     if (rec.outerSolids) for (const v of rec.outerSolids) v.yBot = v.yTop = -1e6;
+    if (rec.outerDecks) for (const v of rec.outerDecks) v.y = -1e6;
     if (rec.cameraParts) for (const p of rec.cameraParts) p.visible = false;
     // 崩れた棟に無傷の室内や入口を残さない。床の升目は同じ物を参照している。
     if (rec.naka) {
@@ -371,7 +381,12 @@ function buildOpenTemple(G, r) {
   // 本能寺の客殿は左奥に床の間、祖師堂は左奥、講堂は中央奥に須弥壇と来迎壁がある。
   // 背面の明かり窓は右の脇へ寄せ、造り付けの背後を窓にしない（間取りは推定）。
   // 回転前の位置を外壁・室内・兵と視点の当たりで共有する。
-  const rearWindowX = ['honnoji_kyakuden', 'honnoji_soshido', 'honnoji_kodo'].includes(r.profile) ? w * .25 : 0;
+  // 比叡山の堂も中央奥に須弥壇と本尊がある。背後の窓を右の脇へ寄せ、
+  // 本尊の背に格子と採光の穴を重ねない。窓割は推定で、数・幅・高さは保つ。
+  // 同じ定義から外壁・格子・室内と当たりを作り、堂の出入りには触れない。
+  const hieiHallRear = SETTINGS.quality === 'high' && r.profile === 'hieizan' && hall;
+  const rearWindowX = hieiHallRear ? w * .3
+    : ['honnoji_kyakuden', 'honnoji_soshido', 'honnoji_kodo'].includes(r.profile) ? w * .25 : 0;
   // 馬具蔵の奥中央には高さ一・二メートルの鞍掛けがある。
   // 背面は高窓にして鞍橋の上へ明かりを通し、窓枠も梁下へ収める（配置は推定）。
   // 窓の数・幅・高さは増やさず、外壁と室内・当たりへ同じ位置を渡す。
@@ -439,7 +454,13 @@ function buildOpenTemple(G, r) {
     for (let i = windows.length - 1; i >= 0; i--) {
       if (windows[i].face !== 'x') continue;
       if (width < .5) windows.splice(i, 1);
-      else { windows[i].t = (room.z0 + room.z1) / 2; windows[i].w = width; }
+      else {
+        windows[i].t = (room.z0 + room.z1) / 2; windows[i].w = width;
+        // 庫裏の炊事土間は正面と同じ板戸で煤・雨を避ける推定の納まり。
+        // 側窓だけ紙障子にせず、格子の内側を共通の札で横へ引く。
+        // 奥の食事の座敷の明かり障子は、部屋の用途に合わせて残す。
+        if (r.kind === 'kuri' && room.floor === 'earth') windows[i].doorKind = 'itado';
+      }
     }
   }
   if (r.profile === 'hieizan' && hall) {
@@ -463,6 +484,17 @@ function buildOpenTemple(G, r) {
     for (const side of [-1, 1]) windows.push({
       face: 'z', s: -1, t: side * w * .3, w: Math.min(.9, w * .12), y0: 1.0, y1: 1.8,
     });
+    if (SETTINGS.quality === 'high') {
+      // 正面を板壁だけにせず、縁に面する外陣の左右へ格子の明かり取りを設ける。
+      // 全開の表戸は中心から戸口幅まで滑る。そこから窓枠・柱を三十センチ離し、
+      // 隅柱との間に収まる棟だけへ置く。開口・格子・柱・当たりは共通の窓割を使う。
+      // 焼失前の窓割の断定ではない（手本と限界は docs/battle_refs/hieizan-front-light.md）。
+      const t = (door + hw) / 2;
+      const width = Math.min(.9, t - door - .3, hw - t - .3);
+      if (width >= .5) for (const side of [-1, 1]) windows.push({
+        face: 'z', s: 1, t: side * t, w: width, y0: 1.0, y1: 1.8,
+      });
+    }
   }
   // 僧坊の明かり取りは紙障子。堂の格子窓とは分け、射手の持ち場にしない。
   const paperWindows = r.profile === 'hieizan' && r.kind === 'sobo';
@@ -481,6 +513,18 @@ function buildOpenTemple(G, r) {
       for (const side of [-1, 1]) windows.push({
         face: 'x', s: side, t: (room.z0 + room.z1) / 2,
         w: width, y0: 1.0, y1: 1.8, shoji: true,
+      });
+    }
+    if (SETTINGS.quality === 'high') {
+      // 板敷きの入口にも軒下の明かり障子を納める推定配置。
+      // 開いた正面板戸の外端は戸口幅と同じ位置まで来るため、
+      // その外から隅柱までの間へ、障子の二倍幅の溝と竪枠を収める。
+      // 狭い僧坊には足さず、共通の窓割で開口・横滑り・当たり・小庇をそろえる。
+      const t = (door + hw) / 2;
+      const width = Math.min(.9, t - door - .3, hw - t - .3);
+      if (width >= .5) for (const side of [-1, 1]) windows.push({
+        face: 'z', s: 1, t: side * t, w: width,
+        y0: 1.0, y1: 1.8, shoji: true,
       });
     }
   }
@@ -565,7 +609,12 @@ function buildOpenTemple(G, r) {
         for (let i = windows.length - 1; i >= 0; i--) if (windows[i].face === 'x') windows.splice(i, 1);
         for (const room of lv.layout.rooms) {
           if (!['tatami', 'earth'].includes(room.floor) && !(nodaHall && room.floor === 'boards')) continue;
-          const width = Math.min(nodaHall ? 1.5 : 1.2, (room.z1 - room.z0 - .7) / 2);
+          // 内陣は幅九十センチまでの小窓とし、外陣の広い窓と分ける推定復元。
+          // 従来の一・四五メートル幅では全開の戸と竪枠が部屋端の約三十センチまで来る。
+          // 小窓でも開口・溝・戸の当たりを同じ幅で作り、柱際の余白を広げる。
+          // 手本と推定の範囲は docs/nodafukushima-sanctuary-windows.md。
+          const sanctuary = nodaHall && room.name === '内陣';
+          const width = Math.min(sanctuary ? .9 : nodaHall ? 1.5 : 1.2, (room.z1 - room.z0 - .7) / 2);
           if (width < .5) continue;
           // 炊事土間の側窓も正面と同じ高窓の板戸とする推定復元。
           // 紙障子で塞がず、竈・作業台より上で換気する。座敷の紙障子は保つ。
@@ -617,7 +666,35 @@ function buildOpenTemple(G, r) {
   // 戸口と窓の高さは従来のまま、設営時のまとめ描きだけで揃える。
   const wallHeight = r.profile === 'hieizan' || honnoji || nodaFrame || nagashimaEntry ? r.naka.levels[0].y - r.y0 - y + h : h;
   const P = [];
-  if (['honnoji_sobo', 'honnoji_hojo', 'honnoji_kyakuden', 'honnoji_kodo', 'honnoji_soshido'].includes(r.profile)) {
+  if (SETTINGS.quality === 'high' && r.profile === 'hieizan' && r.kind === 'sobo') {
+    // 僧坊の床下を石の塊で埋めず、束石・床束・大引・根太で支える推定の造作。
+    // 手本と限界は docs/battle_refs/hieizan-sobo-floor.md。畳・建具と歩行面は動かさない。
+    // 共通の箱を設営時だけ使い、既存の木部の束と焼失範囲へまとめる。
+    const member = (bw, bh, bd, x, cy, z, color = 0x4a3020) => {
+      const g = G.proxyGeo.clone();
+      g.scale(bw, bh, bd); g.translate(x, cy, z);
+      P.push(paint(g, color));
+    };
+    const nx = Math.max(1, Math.ceil((w - .32) / 1.8));
+    const nz = Math.max(1, Math.ceil((d - .32) / 1.8));
+    const beamBottom = y - .28, c = Math.cos(r.rot || 0), s = Math.sin(r.rot || 0);
+    for (let ix = 0; ix <= nx; ix++) {
+      const x = -hw + .16 + ix * (w - .32) / nx;
+      member(.16, .14, d - .14, x, beamBottom + .07, 0);
+      for (let iz = 0; iz <= nz; iz++) {
+        const z = -hd + .16 + iz * (d - .32) / nz;
+        const ground = G.W.heightAt(r.x + x * c + z * s, r.z - x * s + z * c) - r.y0;
+        // 高い地面でも束を逆さにせず、石の天端を大引より下に納める。
+        const foot = Math.min(ground + .06, beamBottom - .04);
+        member(.3, .18, .3, x, foot - .09, z, 0x756e60);
+        member(.12, beamBottom - foot, .12, x, (foot + beamBottom) / 2, z);
+      }
+    }
+    // 根太は大引と直交させ、既存の床板の下面へ接する。
+    const joists = Math.max(1, Math.ceil((d - .14) / .45));
+    for (let i = 0; i <= joists; i++)
+      member(w - .14, .08, .08, 0, y - .1, -hd + .07 + i * (d - .14) / joists);
+  } else if (['honnoji_sobo', 'honnoji_hojo', 'honnoji_kyakuden', 'honnoji_kodo', 'honnoji_soshido'].includes(r.profile)) {
     // 座敷・講堂・祖師堂の床下を石の塊にせず、礎石・束柱・大引で板床を受ける（床組は推定）。
     // 床高・戸口・歩行面は保ち、既存の木部へ設営時だけまとめる。
     const nx = Math.max(1, Math.ceil((w - .32) / 1.9));
@@ -837,9 +914,33 @@ function buildOpenTemple(G, r) {
         ...holes.map(v => v.y1 - .06 + .1)));
       // 正面・背面を通し、側面の木口を内面へ突き付ける。四隅で横木を重ねない。
       const length = len + (face === 'z' ? .42 : .22), off = side * (hd + .16);
-      P.push(face === 'z'
-        ? box(length, .1, .1, 0, y + .06 + nageshi, off, 0x4a3020)
-        : box(.1, .1, length, side * (hw + .16), y + .06 + nageshi, 0, 0x4a3020));
+      // 外の長押も室内と同じく柱上で継ぎ、長い一本材にしない。
+      // 手本と推定の範囲は docs/nodafukushima-nageshi.md。外周への適用も推定。
+      // 開口の上では継がず、十六センチの相欠きを上下で受ける。
+      // 既存の木部へ設営時だけまとめ、戸の引き代と通路には触れない。
+      const joints = [], divisions = Math.ceil(length / 3.6);
+      for (let j = 1; j < divisions; j++) {
+        const target = -length / 2 + length * j / divisions;
+        let best = null;
+        for (const t of posts) {
+          if (Math.abs(t) > length / 2 - .5 || Math.abs(t - target) >= 1
+            || joints.some(q => Math.abs(q - t) < .5)
+            || holes.some(v => t > v.t0 - .16 && t < v.t1 + .16)) continue;
+          if (best === null || Math.abs(t - target) < Math.abs(best - target)) best = t;
+        }
+        if (best !== null) joints.push(best);
+      }
+      joints.sort((a, b) => a - b);
+      const ends = [-length / 2, ...joints, length / 2];
+      for (let j = 0; j < ends.length - 1; j++) for (const upper of [false, true]) {
+        const shift = upper ? -.08 : .08;
+        const a = ends[j] + (j ? shift + .00075 : 0);
+        const b = ends[j + 1] + (j < ends.length - 2 ? shift - .00075 : 0);
+        const cy = y + .06 + nageshi + (upper ? .025 : -.025), t = (a + b) / 2;
+        P.push(face === 'z'
+          ? box(b - a, .05, .1, t, cy, off, 0x4a3020)
+          : box(.1, .05, b - a, side * (hw + .16), cy, t, 0x4a3020));
+      }
       timber(0, y + wallHeight - .1, len, .2, .24);
     }
   }
@@ -971,8 +1072,9 @@ function buildOpenTemple(G, r) {
     r.top = y + h + .4 + rh;
   } else {
     const rh = (hd + .8) * .65;
-    if (nodaFrame && r.kind === 'kuri') {
+    if (r.kind === 'kuri' && (nodaFrame || SETTINGS.quality === 'high' && r.profile === 'hieizan')) {
       // 庫裏の天井の煙抜きは小屋裏へ通じるが、元の屋根は棟まで閉じていた。
+      // 比叡山にも同じ共有部品を使う。手本と限界は docs/battle_refs/hieizan-kitchen-vent.md。
       // 棟の中央を実際に抜き、四本の束で支える雨除けを掛ける推定復元。
       // 茅と木は既存の束へ結合し、毎コマの処理や材質を増やさない。
       const length = w + 1.2, depth = d + 1.6, eave = y + h + .15;
@@ -1154,7 +1256,10 @@ const KINDS = {
   // 鐘楼：四本柱に梁、釣り鐘（鳴ると警戒）。倒れうる（55章）
   shoro(G, r) {
     const w = r.w, d = r.d, H = 3.2, P = [];
-    const open = r.profile === 'honnoji_shoro';
+    // 比叡山の高画質も開放式の鐘楼にする。焼失前の架構・寸法は推定。
+    // 現存の鐘楼の案内：https://www.hieizan.or.jp/grounds/toudou.html
+    const open = r.profile === 'honnoji_shoro' || (r.profile === 'hieizan' && SETTINGS.quality === 'high');
+    r.openShoro = r.profile === 'hieizan' && open;
     if (open) {
       // 四方が開いた鐘楼を一つの見えない壁で塞がない。柱だけを避け、石の基壇へ立てる。
       // 床の高さと外形は見える基壇と共用する。造り・段の位置は推定。
@@ -1215,6 +1320,13 @@ const KINDS = {
       // 撞木も鐘と同じだけ下げ、二本の綱は横木の上面から吊り梁の下面まで届かせる。
       for (const x of [.9, 1.4]) P.push(post(.018, .65 + bellDrop, x, H - .56 - bellDrop, 0, 0x8a7a50, 5));
     } else P.push(post(0.06, 1.2, 0.9, H - 1.3, 0, 0x8a7a50, 5));   // 撞木の綱
+    if (r.openShoro) {
+      // 基壇・柱・梁・鐘と同じ形で視点を止める。設営時の一組だけを共有材質で作る。
+      const camera = new THREE.Mesh(mergeGeometries(P), G.proxyMat);
+      camera.geometry.applyMatrix4(r.M); camera.userData.camBlock = true;
+      camera.matrixAutoUpdate = false; G.rt.scene.add(camera);
+      r.cameraParts = [camera];
+    }
     G.add(r, 'wood', P);
     templeHip(G, r, 'tile', w / 2 + 1.3, d / 2 + 1.2, 1.7, H + 0.35, 0.3);
     r.top = H + 2.2;

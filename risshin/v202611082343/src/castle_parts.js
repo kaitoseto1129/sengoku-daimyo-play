@@ -1158,13 +1158,15 @@ export function goten(rt, x, z, o = {}) {
   const bays = Math.max(2, Math.round(w / 3));
   // 指定した戸口が柱の位置でも、通れる口の中へ柱を描かない。
   const inabaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'inabayama';
+  const nodaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'nodafukushima';
+  const fittedEntry = inabaEntry || nodaEntry;
   const nagashimaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'nagashima';
   const lowBoardCeiling = SETTINGS.quality === 'high' && !tile && o.boardRoof && !fieldFort && o.profile?.startsWith('iwamura');
   const interiorH = o.interiorH ?? (lowBoardCeiling ? 2.7 : H - (inabaEntry ? .6 : .1));
-  // 稲葉山は外壁の開口も、室内の柱・引き戸と同じ内法にする。
+  // 稲葉山と野田福島は外壁の開口も、室内の柱・引き戸と同じ内法にする。
   // 外だけ二十センチ広い口や、鴨居の上の隙間を残さない。
-  const entryW = o.entryW ?? (nagashimaEntry ? 1.6 : 1.4), gapW = inabaEntry ? entryW : 1.6;
-  const entryH = Math.min(interiorH - .3, 2), entryTop = inabaEntry ? .55 + entryH : 2.6;
+  const entryW = o.entryW ?? (nagashimaEntry ? 1.6 : 1.4), gapW = fittedEntry ? entryW : 1.6;
+  const entryH = Math.min(interiorH - .3, 2), entryTop = fittedEntry ? .55 + entryH : 2.6;
   const ds = o.door ?? 1;
   const requestedDoorX = o.doorX ?? (o.profile && bays % 2 ? 0 : (w / bays) / 2);
   // 稲葉山の玄関は左右へ引き分ける。全開時の戸先・敷居まで妻壁の内へ納める。
@@ -1529,9 +1531,8 @@ export function goten(rt, x, z, o = {}) {
       // 稲葉山の濡れ縁は外壁から一・二歩まである。内寸との差十五センチを
       // 足した位置から段を下ろし、踏板とささら桁を縁の板へ埋めない。
       // 戸口までの上がり台は縁より十一センチ高く、見える板と歩く床を揃える。
-      // 中江城の館も共通の板戸で閉じる。外壁の口幅と、床から開口上端までの高さに合わせる。
-      // 表戸は長島の二筋の溝を使い、近づいて開ける札から左右へ滑らせる。
-      door: { side: ds, lx: doorX, w: entryW, ...(inabaEntry ? { h: entryH } : nagashimaEntry ? { h: entryTop - .55, sliding: 'itado' } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
+      // 長島の館の板戸も残し、野田福島は室内と外壁の内法を共有する。
+      door: { side: ds, lx: doorX, w: entryW, ...(fittedEntry ? { h: entryH } : nagashimaEntry ? { h: entryTop - .55, sliding: 'itado' } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
       templePaper: paperWalls,
       interiorUse: o.interiorUse,
       wins: shojiWindows ? () => shojiWindows : sideShojiWindows ? () => sideShojiWindows : utilityWindow ? () => [utilityWindow] : paperWindows ? () => paperWindows.concat(rearWindows || []) : null,
@@ -1568,7 +1569,7 @@ export function goten(rt, x, z, o = {}) {
   }
   if (paperWalls) B.templePaper = [];
   if (o.templeBoardRoof && !tile && SETTINGS.quality === 'high') B.templeBoard = [];
-  gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, o.naka ? { floorLayout: utilityWindows ? IN.levels[0].layout : null, world: rt.world, boardVeranda: SETTINGS.quality === 'high' && (o.profile === 'iwamura' || o.profile?.startsWith('iwamura_')), doorX, gapW, entryTop, recessedFloor: inabaEntry, slidingPaper: paperWindows && SETTINGS.quality === 'high', paperWindows: inabaEntry ? paperWindows : null, rearWindows } : null, tile, o.eave, B.templeBoard ? .1 : o.eaveThickness, fieldFort, o.boardRoof,
+  gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, o.naka ? { floorLayout: utilityWindows ? IN.levels[0].layout : null, world: rt.world, boardVeranda: SETTINGS.quality === 'high' && (o.profile === 'iwamura' || o.profile?.startsWith('iwamura_')), doorX, gapW, entryTop, recessedFloor: inabaEntry, alignedEntry: nodaEntry, slidingPaper: paperWindows && SETTINGS.quality === 'high', paperWindows: inabaEntry ? paperWindows : null, rearWindows } : null, tile, o.eave, B.templeBoard ? .1 : o.eaveThickness, fieldFort, o.boardRoof,
     SETTINGS.quality === 'high' && (o.profile?.startsWith('iwamura') || o.layeredBoardRoof === true), utilityBoardWalls, fieldBoards, SETTINGS.quality === 'high' && o.odaniBoards === true, utilityWindow, utilityWindows, sideShojiWindows, shojiWindows);
   const mesh = _kitMesh(B);
   if (!fieldFort && !(o.boardRoof && !tile)) {
@@ -1702,28 +1703,33 @@ function gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, door, tile, eave = 1.
     const spans = side === ds && door
       ? [[-w / 2, door.doorX - door.gapW / 2], [door.doorX + door.gapW / 2, w / 2]]
       : [[-w / 2, w / 2]];
-    // 稲葉山の板壁は外壁の上端まで張り、玄関の鴨居上も同じ板で閉じる。
+    // 稲葉山と野田福島は玄関の鴨居上も外壁と同じ板で閉じる。
     // 戸口を縦一列抜くと上だけ土壁が露出する。実際の開口上端から張り始め、
     // 共通室内の引き戸・鴨居・通れる高さには板を重ねない。
     const boardTop = door?.recessedFloor ? H * .925 : 2.625;
-    if (side === ds && door?.recessedFloor && door.entryTop < boardTop)
+    if (side === ds && (door?.recessedFloor || door?.alignedEntry) && door.entryTop < boardTop)
       spans.push([door.doorX - door.gapW / 2, door.doorX + door.gapW / 2, door.entryTop]);
     for (const [a, b, boardBottom = .475] of spans) {
       const count = Math.max(1, Math.ceil((b - a) / .3));
       if (b <= a) continue;
+      // 野田福島の鴨居上は指定した下端から張る。通常の壁と同じ高さで
+      // 張り直すと、引き戸を開けても入口に縦板と低い横桟が残ってしまう。
+      const bottom = door?.alignedEntry ? boardBottom : .475;
+      const height = door?.alignedEntry ? boardTop - bottom : 2.15;
       for (let j = 0; j < count; j++) {
         const mid = a + (j + .5) * (b - a) / count, width = (b - a) / count - .008;
         const holes = faceWindows.map(win => ({ t0: win.t - win.w / 2 - mid,
-          t1: win.t + win.w / 2 - mid, y0: .075 + win.y0, y1: .075 + win.y1 }));
+          t1: win.t + win.w / 2 - mid, y0: .55 - bottom + win.y0, y1: .55 - bottom + win.y1 }));
         if (side !== ds && utilityWindows) holes.push({ t0: -.39 - mid, t1: .39 - mid, y0: 1.345, y1: 1.805 });
-        for (const [l, r, low, high] of facePanels(width, 2.15, holes)) {
+        for (const [l, r, low, high] of facePanels(width, height, holes)) {
           const [px, pz] = P(mid + (l + r) / 2, fz0);
           // 本の CG（稲葉山・岡崎）の番所・長屋の茶の板壁。灰に寄せると霧の中で黒く沈む
           _box(B.wood, [0x8a6d4e, 0x7a5f44, 0x947656, 0x80664a][(j + (side > 0 ? 0 : 2)) % 4],
-            px, y + .475 + (low + high) / 2, pz, r - l, high - low, .06, rot);
+            px, y + bottom + (low + high) / 2, pz, r - l, high - low, .06, rot);
         }
       }
       for (const yy of [.72, 2.48]) {
+        if (door?.alignedEntry && (yy - .04 < bottom || yy + .04 > boardTop)) continue;
         const mid = (a + b) / 2;
         const holes = faceWindows.map(win => ({ t0: win.t - win.w / 2 - mid,
           t1: win.t + win.w / 2 - mid, y0: .55 + win.y0 - yy + .04, y1: .55 + win.y1 - yy + .04 }));
