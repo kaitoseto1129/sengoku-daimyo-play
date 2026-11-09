@@ -104,6 +104,7 @@ function chaseWaypoint(rt) {
   // 本隊が先に崩れても、まだ門の南にいる本人を堀や逆茂木へ直進させない。
   const exit = sortieWaypoint(rt);
   if (exit) return exit;
+  if (F.oiTail && !spent(F.oiTail)) return F.oiTail.center();
   return F.kz;
 }
 const GATE_DIRECTIONS = ['南', '南東', '東', '北東', '北', '北西', '西', '南西'];
@@ -2031,7 +2032,7 @@ function insideGate(pos) {
 function march(g, points, order = 'hold', facing = Math.PI, columns = 2) {
   if (gone(g)) return;
   // 道中と待機は決めた下知を守り、攻める地点に着いてから隊ごと前へ出る。
-  if (g.team === 0) g.ai = false;
+  g.ai = false;
   // 道中は守りの持ち場から離れ、曲がり角に沿って後列も門を通す。
   g.guard = false; g.guardOn = false; g.stay = false; g.noRing = true;
   g.roadColumn = true; g.spacing = columns > 2 ? 1.1 : Math.min(g.spacing || 0.8, 0.8);
@@ -2048,7 +2049,10 @@ function nudgeMarch(groups, span) {
     const a = g.anchor;
     if (!g._wd || g._wd.path !== g.path) g._wd = { x: a.x, z: a.z, t: 0, path: g.path };
     const W = g._wd;
-    if (Math.hypot(a.x - W.x, a.z - W.z) > 1) { W.x = a.x; W.z = a.z; W.t = 0; continue; }
+    // 自分で補った歩みを「詰まり解消」と数えず、通常の行軍が戻るまで補助を続ける。
+    const moved = Math.hypot(a.x - W.x, a.z - W.z);
+    W.x = a.x; W.z = a.z;
+    if (moved > (g.speed || 2) * span * 0.5) { W.t = 0; continue; }
     W.t += span;
     if (W.t < 5) continue;
     const pt = g.path[g.pathIdx];
@@ -3246,6 +3250,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     F.last = [];
     const mk = (x, z, name, list) => {
       const g = enemyGroup(rt, { fixed: true, formation: 'yari', guard: true, guardLeash: 6, faction: 'honganji', name, anchor: { x, z }, facing: 0, order: 'hold', seekRange: 90, aggro: 10, width: 16, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 1 }, list);
+      // 北の本隊は再攻撃を迎える控え。籠城中に南の敵を追い、砦の北柵へ固まらせない。
+      g.noAI = true;
       F.last.push(g);
       return g;
     };
@@ -3495,6 +3501,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     const F = rt.flags;
     if (F.step >= 3) return;
     F.step = 3; F.stepT = rt.t;
+    for (const g of F.last) g.noAI = false;
     F.saku.name = '再攻撃の一段目'; F.taki.name = '再攻撃の二段目';
     F.ake.name = '再攻撃の一段目・砦の守備勢';
     F.nobu.name = '再攻撃の二段目・信長の手';
@@ -3925,8 +3932,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 救援の到着で合流の下知を出す。出撃は本人と明智の列が門内で揃ってから。
       let akeNear = 0, akeLive = 0, akeCommanderIn = false;
       // 11/9 二巡（織田G）：光秀が崩れた手と退いて（fleeing）いると、頭が門内に居ないまま出撃が止まる。頭は列に残る一番前の者とする。
-      // 深手で列に残る頭を、無名の兵へ勝手に替えて集合済みにしない。
-      const akeHead = F.ake.units.find((v) => v.alive && !v.fleeing);
+      // 深手で手当てに残る者は出撃の集合から外し、戦える列の先頭を待つ。
+      const akeHead = F.ake.units.find((v) => v.alive && !v.fleeing && !v.woundOut);
       for (const v of F.ake.units) if (v.alive && !v.fleeing && !v.woundOut) {
         akeLive++;
         if (inPoly(SOTO_POLY, v.pos.x, v.pos.z) &&
@@ -3936,7 +3943,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         }
       }
       // 明智の手が崩れて残る者が無い時は、揃うのを待たない（11/9 二巡：全員が逃げたまま十分止まった）。
-      const akeIn = !akeHead?.woundOut && (akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive));
+      const akeIn = akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive);
       if (F.step === 2.75 && !akeIn && elapsed >= 120)
         return this.fail(rt, '明智の列が揃わぬ。味方と南へ退け');
       const ready = nobuIn && inside >= 6;
@@ -3991,10 +3998,21 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         }
       }
       // 自分が殿との戦いに加わってから口を押さえる。討取りの一撃は組の者でもよい。
-      const need = 6;
+      let available = 0;
+      // 砦に残した守備隊は、城戸口へ集まる人数に含めない。
+      for (const g of F.fighters) if (g === F.ake || F.relief.includes(g))
+        for (const mate of g.units) if (mate.alive && !mate.fleeing && !mate.woundOut) available++;
+      if (!available) return this.fail(rt, '追撃の列が崩れた。城戸口から味方と退け');
+      const need = Math.min(6, available);
+      // 先着した味方が殿を払い切った時も、本人が口で構えて押さえれば締めへ進む。
+      if (F.kidoCut && d < 10 && near >= need && (remaining === 0 || escaped) && rt.player.u.guard)
+        F.kidoHelp = true;
       threat = remaining && !escaped ? Math.max(1, threat) : threat;
       F.secured = F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
-      rt.objProgress('main', !F.kidoCut ? `${gateDirection(rt, F.kz)} 崩れた敵を北へ追え。味方と進め` : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな' : threat > 0 || !F.kidoHelp ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／六人。ここで構えよ` : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
+      rt.objProgress('main', !F.kidoCut && F.oiTail && !spent(F.oiTail) ? '北の道を塞ぐ殿を、味方と払え'
+        : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな'
+          : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。ここで構えよ`
+            : !F.kidoHelp ? '城戸口の手前で味方と構え、木戸を押さえよ' : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);
     }
     // 再攻撃は二隊とも退くと敗れる。信長の隊だけでなく、先の二段の危険も知らせる。

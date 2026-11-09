@@ -100,7 +100,9 @@ export function bot(b, goTo, p, inp, strike) {
   if (S.k >= 1 && S.u?.alive) {
     const e = S.u, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    if (d > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2);
+    // 刀へ持ち替えても、届かない二メートルで止まらない。
+    const approach = (p.weapon === 'sword' ? 1.9 : 2.8) * 0.85;
+    if (d > approach) goTo(p, inp, e.pos.x, e.pos.z, approach);
     else strike(p, inp, e, d);
     return true;
   }

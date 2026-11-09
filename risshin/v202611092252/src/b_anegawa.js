@@ -2839,8 +2839,8 @@ const anegawa = {
   // 史料の検討：https://www.library-archives.pref.fukui.lg.jp/tosyo/file/614648.pdf
   // 11/6（fix3・標準 五4）：札は二三行だけ。史料の違い（兵数・本陣の場所・巳の刻と卯の刻）は上の陣立ての注と戦後の史実欄に残す。
   introText: '浅井・朝倉が姉川の北に出た。西は徳川と朝倉、東は織田と浅井。森可成の備で、川を渡る浅井勢を岸で受け止める。',
-  openingMoveLabel: 'ここまで指でなぞれ',
-  openingLinkedLabel: 'ここまで指でなぞれ',
+  openingMoveLabel: '下知の旗まで指でなぞれ',
+  openingLinkedLabel: '下知の旗まで指でなぞれ',
   keepWaitFacingLabel: true, // 携帯でも向き直しを移動の案内に替えない。
   defendLocation: (rt) => rt.flags.step < 2 && !rt.flags.ending && rt.withdrawal?.losing !== 0 ? HQ : null,
   keepWaitOrderLabel: true, // 到着前も「輪に入る」で本陣や次の槍列への下知を消さない。

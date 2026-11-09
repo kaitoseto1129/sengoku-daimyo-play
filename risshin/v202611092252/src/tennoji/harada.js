@@ -57,8 +57,8 @@ export function install(rt, ctx) {
       }
       // 入城後の手当てを待つ間も閉門する。本人や門口の兵が戻るまでは毎回待つ。
       if (!shut && (!live || inside >= live)) st.shut();
-      // 皆が入った・追手が尽きて半ばが入った・二分半たった、のどれかで籠城へ
-      if ((live && inside >= live && el > 110) || (spent(P) && inside >= Math.ceil(live / 2) && el > 120) || el > 165 || !live) st.done(inside);
+      // 救出を終えたら籠城へ。全員が入った後に二分近く待たせない。
+      if ((live && inside >= live && el > 20) || (spent(P) && inside >= Math.ceil(live / 2) && el > 45) || el > 165 || !live) st.done(inside);
     },
     done(inside) {
       if (F.haradaDone) return;
