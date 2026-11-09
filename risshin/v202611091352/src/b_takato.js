@@ -1895,6 +1895,8 @@ function heroFrontClash(rt, dt, o = {}) {
     const list = [];
     for (const g of rt.army.groups) {
       if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
+      // 出撃・付け入り・開門後の進軍は、それぞれの下知に任せる。画面前の寄せで止めたり、古い下知へ戻したりしない。
+      if (g.butai || F.gateBrawl?.includes(g)) continue;
       if (g.assault || g.siegeAI || g.units.some((u) => u.alive && (u.type === 'busho' || u.isLord || u === rt.flags.nb))) continue;
       const c = g.center(), r = Math.hypot(c.x - x, c.z - z);
       // 塀・柵・門の向こうの組は寄せない（壁に詰まって突っ立つ）
