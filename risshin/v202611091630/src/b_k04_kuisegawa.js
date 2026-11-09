@@ -110,6 +110,7 @@ const k04_kuisegawa = {
   // 布陣図（docs/fujin/k04_kuisegawa.md）：西軍は大垣の側（西）、東軍は赤坂・岡山の側（東）。陣立ての表（docs/army_depth_howto.md）
   //   前の本物の隊は bind。明石全登の伏兵は「見せない」約束なので表に入れない。奥の備は軽い作り。各家の兵の分け方は推定。
   depth: (rt) => ({
+    byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/k04_kuisegawa.md）
     A: { name: '東軍', facing: Y(-Math.PI / 2), honjin: IEYASU, mpu: 6, formation: '鶴翼', terrain: 'river', flag: 'tokugawa', armor: 0x24221f, openAt: 9999, attrition: 0,
       sonae: [
         { id: 'kazu', layer: 'sakite', wing: 'center', men: 1500, taisho: '中村一栄', flag: 'maru', bind: (r) => r.flags.kazu },

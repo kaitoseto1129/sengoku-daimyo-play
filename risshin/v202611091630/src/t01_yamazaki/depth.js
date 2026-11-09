@@ -7,6 +7,7 @@
 const F = (k) => (rt) => rt.flags[k];
 
 export const T01_DEPTH = {
+  byMen: true,   // 軽い兵を布陣図の兵数の比で配る（docs/fujin/。豊臣A 11/9）
   A: { name: '羽柴', facing: Math.PI, honjin: { x: -34, z: 112 }, mpu: 6, formation: '鶴翼', terrain: 'marsh', flag: 'toyotomi', armor: 0x2a2622, openAt: 9999, attrition: 0.002,
     sonae: [
       { id: 'takayama', layer: 'sakite', wing: 'center', men: 2000, taisho: '高山右近', bind: F('taka') },
