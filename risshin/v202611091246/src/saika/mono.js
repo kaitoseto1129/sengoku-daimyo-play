@@ -52,7 +52,7 @@ export function install(rt, ctx) {
       if (raid) {
         let live = 0;
         for (const u of raid.units) if (u.alive && !u.fleeing && !u.woundOut) live++;
-        rt.objProgress('main', live ? `渡って来た雑賀衆 ${live}人` : '');
+        rt.objProgress('main', `渡って来た雑賀衆 ${raid.units.length}人中 残り${live}人`);
         if (!live) {
           done = true;
           rt.unmark('monoRaid');

@@ -1454,6 +1454,7 @@ const iga = {
   // 11/4 jin（標準 三-3・AV16）：右上に番号つきの目標五つを戦の間ずっと出す。段だけで埋め、「敵を何人討つ」は入れない。
   stageGoalsOnly: true,
   goalsAllRows: true, // 五つを最初から並べ、済んだ目標にも印を残す。
+  goalVisibleRows: 5, // 共通の札は表示行数も指定しないと一件だけになる。
   hideMissionDots: true, hideGuideSteps: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0,
   // 行き先は黄色の印一つだけ。ついていく相手の青い印と矢印は出さない（kaito AL の改め・AT2の「印は一つ」）。
@@ -2507,11 +2508,10 @@ const iga = {
     }
     if (guide && F.step === 1) {
       // 消火・迎撃の下知と、深手の者が向かう手当ての印を食い違わせない。
-      const task = rt.objectives.find((o) => o.id === 'main' && !o.state);
       if (F.bucketOn && igaNeedsDousing(rt)) F.bucketManual = true;
       const text = igaNeedsTreatment(rt) ? '味方の後ろへ下がり、血を止めよ' :
         igaNeedsDousing(rt) ? `小屋の火へ。水を八秒掛けよ（${F.doused}／3軒）` : '麓の陣の口で、丹羽の兵のそばに付いて夜討ちの伊賀衆を防ぐ';
-      if (task && task.text !== text) { task.text = text; rt.missionGuide && (rt.missionGuide.scan = 0); }
+      rt.objProgress('main', text);
       if (F.bucketOn && igaNeedsDousing(rt) && !igaNeedsTreatment(rt) && !F.douseHelp) {
         F.douseHelp = true;
         rt.say('丹羽の組頭', '消火の組が動けぬ。残る火へ水を掛けよ', 4);
@@ -2659,8 +2659,6 @@ const iga = {
           : !supported ? '木戸を破る味方のそばで守れ'
           : friends <= foes ? '土橋の味方と敵を押し返せ'
           : F.bridgeHeld ? '土橋を保ち、退く下知を待て' : '土橋で木戸を破る味方を守れ';
-        const task = rt.objectives.find((o) => o.id === 'main' && !o.state);
-        if (task && task.text !== text) { task.text = text; if (rt.missionGuide) rt.missionGuide.scan = 0; }
         rt.objProgress('main', F.bridgeHeld ? '退き道は保った。土橋を離れるな'
           : supported && nearBridge && friends > foes ? `味方を守った時間 ${Math.min(20, Math.floor(F.bridgeT))}／20秒`
           : text);
@@ -3229,27 +3227,7 @@ function igaHold(o) {
       C.guideT = (C.guideT || 0) - dt;
       if (C.guideT <= 0) {
         C.guideT = 0.5;
-        // 出撃の合図と陣への到着は別。まだ林にいる敵は、方角と実際の距離で知らせる。
-        let incoming = null, incomingD = Infinity;
-        if (prior && !C.raidGone(prior) && !enemy) for (const u of prior.units) if (igaReady(u)) {
-          const distance = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
-          if (distance < incomingD) { incoming = u; incomingD = distance; }
-        }
-        const incomingSide = incoming ? Math.abs(incoming.pos.x - C.at.x) > Math.abs(incoming.pos.z - C.at.z)
-          ? incoming.pos.x > C.at.x ? '東' : '西' : incoming.pos.z > C.at.z ? '南' : '北' : '';
-        // 手当ての印へ退く下知を、任務の見出しにも合わせる。
-        const task = rt.objectives.find((q) => q.id === 'dp' && !q.state);
-        // 携帯で補足が省かれても、今の危険と次の行動を見出しで伝える。
-        const text = igaNeedsTreatment(rt) ? '味方の後ろへ下がり、血を止めよ'
-          : d > o.r ? '陣の印へ戻り、味方の列を守れ'
-          : C.breachT > 0 ? `陣内は味方${friend}人・敵${enemy}人。あと${Math.max(1, Math.ceil(IGA_BREACH_LIMIT - C.breachT))}秒で押し負ける`
-          : el > deadline - 15 && !clear ? '敵が残る。味方の列で押し返せ'
-          : friend < 2 && !enemy ? '味方が帰陣中。陣の印で合流せよ'
-          : prior && !C.raidGone(prior) ? enemy ? o.obj : C.raidEntered.has(prior) ? '敵を押し返した。列を守れ'
-            : incoming ? `${incomingSide}から敵が来る。列で迎えよ` : '味方の列を守れ'
-          : C.waves.length ? prior ? '列を守れ。次の寄せを迎えよ' : '林から敵が来る。列で迎えよ'
-          : `あと${Math.max(1, Math.ceil(o.dur * 0.6 - C.inT))}秒、陣を守れ`;
-        if (task && task.text !== text) { task.text = text; if (rt.missionGuide) rt.missionGuide.scan = 0; }
+        // 場所と行いの本文は固定し、手当て・帰陣・敵の動きは補足で伝える。
         rt.objProgress('dp', igaNeedsTreatment(rt)
           ? rt.player.treatmentNext > rt.t ? '味方の後ろで休め。布を巻き直せるまで待て'
             : '敵から離れ、止まって「血を止める」を三秒長押し'

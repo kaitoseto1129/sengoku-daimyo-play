@@ -2813,7 +2813,7 @@ const arioka = {
     if (guide) F.guideT = 0.5;
     if (F.step === 1) {
       if (guide && !gone(F.g1)) {
-        const left = Math.max(0, Math.ceil(180 - (rt.t - F.stepT)));
+        const left = Math.max(0, Math.ceil(240 - (rt.t - F.stepT)));
         // 携帯で補足が隠れても、攻めの期限を本文から読めるようにする。
         rt.obj('main', ARI_GOALS[1], 'main', true);
         if (left <= 30 && !F.gateHurry) {
@@ -3003,7 +3003,7 @@ function ariStage(o, defending) {
     tick(rt, C, m, ctx, el, dt) {
       if (rt.flags.ending) return false;
       // 時間切れや木戸の陥落は、この段で理由を示して終える。
-      const limit = defending ? Math.max(o.dur + 60, 252 - C.t0) : o.max;
+      const limit = defending ? Math.max(o.dur + 60, 252 - C.t0) : o.lenient ? (o.limit ?? Infinity) : o.max;
       if (!o.lenient && el > limit) { C.timeout = true; return true; }
       // 10/31 小隊を一組ずつ順に出さない。段の初めに、この段の荒木勢を全部一斉に寄せる（大軍で押し寄せる）。
       // 台詞と見出しは元の刻みのまま流す。
@@ -3124,10 +3124,10 @@ function ariStage(o, defending) {
           C.guideAt = rt.t + 0.5;
           const instruction = o.obj(rt);
           rt.obj('dp', instruction, 'main', true);
-          const left = Math.max(0, Math.ceil(o.max - el));
+          const deadline = Number.isFinite(limit) ? `／期限あと${Math.max(0, Math.ceil(limit - el))}秒` : '';
           rt.objProgress('dp', present
-            ? `味方${friend}人・敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n期限あと${left}秒`
-            : `辻まで${Math.ceil(Math.hypot(p.x - C.at.x, p.z - C.at.z))}メートル／期限${left}秒`);
+            ? `味方${friend}人・敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}${deadline}`
+            : `${o.label || o.title} ${Math.ceil(Math.hypot(p.x - C.at.x, p.z - C.at.z))}m${deadline}`);
         }
         return C.inT >= 12 && el >= (o.minEl || 0);   // minEl：寄せ手が着く前に十二秒で済ませない段（arioka/ の段）
       }
@@ -3158,7 +3158,7 @@ function ariStage(o, defending) {
       else rt.objFail('dp');
       if (!won) m.ariFailure = C.failed ? (defending && o.fromSide ? '敵に辻を奪い返された' : '敵に木戸を奪われた')
         : defending ? '辻の守りが整わぬ。寄せを引くぞ'
-          : '期限までに辻を十二秒守れなかった';
+          : `期限までに${o.label || o.title}を十二秒押さえられなかった`;
       o.onEnd(rt, m, won);
       // 追加の段も、持ち場を取れないまま官兵衛を迎える所へ進めない。
       if (!won && !rt.flags.ending) arioka.lose(rt, m.ariFailure);
@@ -3191,7 +3191,7 @@ function rest(o) {
         C.at = o.at; C.goal = o.at;
         C.post = { x: o.at.x, y: rt.world.heightAt(o.at.x, o.at.z), z: o.at.z };
         ariMark(rt, 'dp', () => gateWay(rt.army, rt.player.u, C.at), () =>
-          o.hold ? ariReturnGuide(rt.player.u.pos) : '侍町の辻');
+          o.hold ? ariReturnGuide(rt.player.u.pos) : o.label || '侍町の辻');
         rt.obj('main', o.hold ? ariReturnGuide(rt.player.u.pos) : ariGoalText(rt), 'main', true);
         if (o.hold) rt.objProgress('main', `木戸へ戻るまで${ARI_RETURN_LIMIT}秒`);
         sendAriFriends(rt, o.at, !!o.hold);
