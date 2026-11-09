@@ -83,6 +83,18 @@ const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s
 const guardsNorth = (u) => fightable(u) && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4;
 // 印と自動操作も達成判定と同じ守兵を追う。北門の外から来る加勢は別に数える。
 const northTarget = (F, p) => fightingTarget(F.s4, p, F);
+// 北門をまたぐ時は、手当てに下がる場合も開いた門を通る。
+function goNorthTo(b, inp, goTo, target, radius) {
+  const p = b.player, pos = p.u.pos;
+  if ((target.z < WALL_N) !== (pos.z < WALL_N) && b.army.wallBetween(pos, -1, target)) {
+    const outside = pos.z < WALL_N;
+    const approach = outside ? WALL_N - 8 : WALL_N + 4;
+    const through = outside ? WALL_N + 4 : WALL_N - 8;
+    goTo(p, inp, NGATE.x, Math.abs(pos.x - NGATE.x) > 2.5 ? approach : through, 2);
+    return;
+  }
+  goTo(p, inp, target.x, target.z, radius);
+}
 const northLeft = (F) => {
   let n = 0;
   // 行き先と同じく、敗走した組・討死処理中・負傷して退場中の者は数えない。
@@ -690,7 +702,13 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (u.hp < u.maxHp * 0.45) F.botRest = true; else if (u.hp > u.maxHp * 0.85) F.botRest = false;
   //   竹束の列（GATE.z+15）は真ん中の通り道から抜ける（斜めに下がると竹束に詰まって門の前に立ち続けた）
   //   ③④は砦の内で、門の外まで下がる間に追ってきた侍に背から討たれた（11/6 fixc0823 の描いた通しで二度）。先手の列の八歩後ろで癒える
-  if (F.botRest && F.step >= 3 && F.step <= 4) { goTo(p, inp, gc.x, gc.z + 8, 2); return; }
+  if (F.botRest && F.step >= 3 && F.step <= 4) {
+    const rest = F.botRestAt || (F.botRestAt = { x: 0, z: 0 });
+    rest.x = gc.x; rest.z = gc.z + 8;
+    if (F.step === 4) goNorthTo(b, inp, goTo, rest, 2);
+    else goTo(p, inp, rest.x, rest.z, 2);
+    return;
+  }
   //   ②は通り道の真ん中に立つと門の内の鉄砲に撃ち抜かれた（同じ通しで 111 秒に討たれた）。通り道を抜けたら西の竹束の真後ろに隠れる
   if (u.hp < u.maxHp * 0.6 && F.step === 2) F.botRest = true;
   if (F.botRest && F.step === 2) {
@@ -727,14 +745,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     const target = northTarget(F, u.pos)?.pos || NGATE;
     // 加勢を迎えて門の外へ出た後も、内の守兵へは開いた北門を通って戻る。
     // 外へ出る時だけ迂回すると、帰りに北の塀へ斜めに寄って止まる。
-    if ((target.z < WALL_N) !== (u.pos.z < WALL_N) && b.army.wallBetween(u.pos, -1, target)) {
-      const outside = u.pos.z < WALL_N;
-      const approach = outside ? WALL_N - 8 : WALL_N + 4;
-      const through = outside ? WALL_N + 4 : WALL_N - 8;
-      at({ x: NGATE.x, z: Math.abs(u.pos.x - NGATE.x) > 2.5 ? approach : through }, 2);
-      return;
-    }
-    at(target, 2.2); return;
+    goNorthTo(b, inp, goTo, target, 2.2); return;
   }
   // ⑤は砦の真ん中の道を北へ（櫓の角へ真っすぐ向かって詰まらない）
   const f = F.flagAt || NGATE;
