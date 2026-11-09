@@ -58,7 +58,7 @@ export function oshiStep(NG) {
       if (C.ph === 4 && el > 135) { C.ph = 5; send(rt, UP); rt.after(18, () => rt.say('足軽', '城兵が門の内へ逃げ込む！　門が閉まる前じゃ！', 3)); rt.after(42, () => rt.say('使番', '大手の本隊、明神丸に取り付きました！　城は三方から囲まれております', 4)); }
       // 行き先は山道の持ち場のまま（門の下の鉄砲の前まで城兵を追わせない）
       const p = rt.player.u.pos;
-      return C.ph >= 5 && el > 200 && (heads(C.groups) <= 5 || el > 210) && Math.hypot(p.x - MID.x, p.z - MID.z) < 22;
+      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && Math.hypot(p.x - MID.x, p.z - MID.z) < 22;
     },
     end(rt, C) {
       for (const g of C.groups) if (g) { g.noRout = false; g.morale = 0; }

@@ -924,8 +924,8 @@ const okawachi = {
     if (rt.flags.dp?.cur?.shortLineThreat) return okShortLineOrder(rt, rt.flags.dp.cur);
     const task = rt.flags.dp?.cur;
     if (task && rt.t < task.signalUntil && task.signalCue === rt.flags.signalCue) return task.signalText;
-    // 交代は戦の開始から四百七秒。封鎖へ移った時刻では延ばさない。
-    const left = Math.max(0, Math.ceil(407 - rt.t));
+    // 前段に使った時間と迎撃の延長も、実際の交代判定と揃える。
+    const left = Math.max(0, Math.ceil(okBlockDeadline(rt) - rt.t));
     if (okAtSouthLine(rt)) {
       const C = rt.flags.dp?.cur;
       // 旗の範囲に入っただけでは、槍の列に合流したことにはしない。
@@ -2257,7 +2257,7 @@ const okawachi = {
     if (F.step === 2.5 || F.step === 3) okChaseTick(rt);
     okGateStones(rt, dt);
     // 11/8 critic60 大河内（十一2・十一3）：開いた木戸を本人がくぐって城の内へ入れた。夜攻めは木戸の外で押し返された戦なので、木戸の口から内へは入れない
-    if (F.step < 4) {
+    if (!F.peaceAnnounced) {
       const pu = rt.player.u;
       if (pu?.alive && Math.abs(pu.pos.x - GATE.x) < 7 && pu.pos.z < GATE.z + 1.5 && pu.pos.z > GATE.z - 12) pu.pos.z = GATE.z + 1.5;
     }

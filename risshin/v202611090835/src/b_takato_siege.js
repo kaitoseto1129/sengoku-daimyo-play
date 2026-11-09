@@ -2467,8 +2467,11 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   if (F.honFell && F.C.kuruwa.hon.test(u.pos.x, u.pos.z)) {
-    const target = F.keepFell || F.keep.down ? F.honPost : F.keep.guide();
-    goTo(p, inp, target.x, target.z, 1.5);
+    const rally = F.keepFell || F.keep.down;
+    const target = rally ? F.honPost : F.keep.guide();
+    // 主殿の道案内は曲がり角の六十五センチ以内で次へ進む。
+    // 一・五メートル手前で止めると、戸口や奥の間の途中で永久に待ってしまう。
+    goTo(p, inp, target.x, target.z, rally ? 1.5 : .35);
     return;
   }
   // 11/6：本丸を取った後に二の丸から本丸の土橋の間を行き来し、主殿へ着かなかった。土橋→本丸門の喰違い→主殿の順に歩く。
