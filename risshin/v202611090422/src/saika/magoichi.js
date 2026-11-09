@@ -12,7 +12,6 @@ import { sfx } from '../audio.js';
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, SHORE } = ctx;
-  const t0 = rt.t;
   let G = null, G2 = null, done = false, tick = 0, startT = 0;
   const cnt = (g) => { let n = 0; if (g) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) n++; return n; };
   const live = () => cnt(G) + cnt(G2);
@@ -53,8 +52,8 @@ export function install(rt, ctx) {
       if (done || F.ending || rt.over) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
-      const el = rt.t - t0;
-      if (!startT) { if (F.reached || el > 30) start(); return; }
+      // 渡河前に寄せを終わらせず、本人が西岸へ着いてから迎え撃つ。
+      if (!startT) { if (F.reached) start(); return; }
       if (!G2 && (rt.t - startT > 55 || !cnt(G))) second();
       const n = live(), held = rt.t - startT;
       rt.objProgress('mago', n ? `孫一の手 ${n}人` : '');

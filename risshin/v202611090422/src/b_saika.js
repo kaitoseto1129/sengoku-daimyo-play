@@ -3723,7 +3723,8 @@ const saika = {
           '川へ向き直って構えよ。退き太鼓で元の岸へ戻れ' : '坂の下へ戻り、退く合図を待て' :
         '中央の渡り口を通り、西岸の坂の下へ');
       // 坂の下へ着いてから待つ。渡河に掛かった時間で合図を即座に切り替えない。
-      if ((F.reached ? rt.t - F.bankWaitAt >= 16 : el >= 60) && (!F.paceMago || F.magoDone)) this.retreat(rt);
+      // 西岸へ届かないまま時間だけで③へ進むと、②を果たし直せず最後に必ず未達となる。
+      if (F.reached && rt.t - F.bankWaitAt >= 16 && (!F.paceMago || F.magoDone)) this.retreat(rt);
     } else if (F.step === 3) {
       // 川筋から横へ外れても、東岸へ着けば旗を案内する。
       if (p.x > -8) rt.unmark('riverTurn');

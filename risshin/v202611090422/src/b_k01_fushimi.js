@@ -234,12 +234,18 @@ const k01_fushimi = {
   noMiniMap: true,         // 11/8 critic60（N・五2）：右上の小さな地図が出たり消えたりした。地図は出さない
   // 11/8 critic60（三2）：持ち場に立っているのに▼が遠くの「100m」を指したまま。▼は今の段の持ち場（dp の印）だけを指し、着いたら消す
   goalSignTarget(rt) {
-    const m = rt.markers.find((q) => q.id === 'dp'), at = m && !m.red ? m.pos?.() : null;
+    const D = rt.flags.dp, C = D?.on ? D.cur : null;
+    const fighting = C?.s.kind === 'fight';
+    // 討つ段の印は敵の組を追う赤い印。これを除くと屋敷・大手門・
+    // 本丸への行き先まで消えるため、段に決めた場所を案内する。
+    const m = rt.markers.find((q) => q.id === 'dp');
+    const at = fighting ? C.at : m && !m.red ? m.pos?.() : null;
     if (!at) return null;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
-    T.x = at.x; T.z = at.z; T.label = typeof m.label === 'function' ? m.label() : m.label;
+    T.x = at.x; T.z = at.z;
+    T.label = fighting ? (D.i === 0 ? '長束と玄以の屋敷' : D.i === 3 ? '大手門' : '本丸') : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）

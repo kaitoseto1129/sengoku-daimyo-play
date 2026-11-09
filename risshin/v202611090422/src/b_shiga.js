@@ -4382,7 +4382,9 @@ shiga.force = (rt) => {
   const a = (F.step || 0) >= 2 ? Math.round((3000 - (F.akAtFall ?? ak)) * (1 - fallK) + 1000 * fallK) - Math.max(0, ak - (F.akAtFall ?? ak)) : 3000 - ak;
   // 11/8 critic60（九3）：押し返した先手は、逃げ散った兵も戦から抜けた数に入れる（倍率で増やさず、実の兵だけ）。
   let fled = 0;
-  for (const g of [F.w1, F.w1b, F.w2, F.chase]) for (const u of g?.units || []) if (u.alive && (u.fleeing || u.gone)) fled++;
+  // 両手の本隊・新手・四方の寄せ手も含める。遠景や建物は実兵の損失へ混ぜない。
+  for (const u of rt.army?.units || []) if (u.team === 1 && !u.farSim && !u.isStruct &&
+      u.type !== 'dummy' && u.alive && (u.fleeing || u.gone)) fled++;
   return { a: Math.max(0, a), a0: 3000, b: 30000 - ek - fled, b0: 30000 }; // AT4（11/3）：三千対三万（約十対一）。出陣時の目安。
 };
 shiga.sides = { a: { name: '織田軍（宇佐山城）', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'asakura' } };
