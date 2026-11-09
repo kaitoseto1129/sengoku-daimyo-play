@@ -186,6 +186,8 @@ function okeFoeSigns(rt) {
   const named = [], v = new THREE.Vector3();
   // 両軍の名将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
   const namePlaces = new Float32Array(names.length * 3);
+  // 十六画素の行高に縁取りと影も含める。二十四画素では隣の名札の縁が接する。
+  const nameGap = 28;
   let at = -1;
   const ready = (u) => u.alive && !u.gone && !u.dying && !u.woundOut && !u.civ && !u.isStruct && !u.noTarget && !u.fleeing && !u.group?.routed;
   return {
@@ -211,14 +213,20 @@ function okeFoeSigns(rt) {
           const half = u.name.length * 8 + 4;
           const x = Math.max(half + 4, Math.min(innerWidth - half - 4, (v.x + 1) * innerWidth / 2));
           const baseY = (1 - v.y) * innerHeight / 2 - 22;
-          let y = baseY;
+          // 端で座標を丸めると同じ候補を何度も試し、最後に重なる名を置いていた。
+          // 画面内の行を先に決め、上下端でも二十八画素の間隔を保つ。
+          const lastRow = Math.max(0, Math.floor((innerHeight - 4 - nameGap) / nameGap));
+          const baseRow = Math.max(0, Math.min(lastRow, Math.round((baseY - nameGap) / nameGap)));
+          let y = nameGap + baseRow * nameGap;
           for (let attempt = 0; attempt <= names.length * 2; attempt++) {
             const row = Math.ceil(attempt / 2) * (attempt % 2 ? -1 : 1);
-            y = Math.max(24, Math.min(innerHeight - 4, baseY + row * 24));
+            const slot = baseRow + row;
+            if (slot < 0 || slot > lastRow) continue;
+            y = nameGap + slot * nameGap;
             let overlaps = false;
             for (let j = 0; j < k; j++) {
               if (Math.abs(x - namePlaces[j * 3]) < half + namePlaces[j * 3 + 2] + 4 &&
-                  Math.abs(y - namePlaces[j * 3 + 1]) < 24) { overlaps = true; break; }
+                  Math.abs(y - namePlaces[j * 3 + 1]) < nameGap) { overlaps = true; break; }
             }
             if (!overlaps) break;
           }

@@ -3496,12 +3496,19 @@ const shigisan = {
       { size: 2, h: 0.45, blackSmoke: true });
     F.castleFireAt = rt.t;
     // 城内の自害は戦後の語りで知らせ、足軽による討取りにしない。
-    for (const u of [F.ehon.lord, F.hisamichi]) { u.alive = false; u.noTarget = true; if (u.mesh) u.mesh.visible = false; }
     // 天主の火（信長公記：久秀が自ら火をかけて焼死）。平蜘蛛・爆死の伝えは絵にしない。
     rt.marker('keep', { x: KEEP_AT.x, z: KEEP_AT.z }, '天主の上の階', { h: KEEP_AT.up + 2 });
     // kaito 11/1 の紙：平蜘蛛と爆死は後の脚色が強い。史実の演出にせず、天主の火と自害だけを見せる。
     rt.after(1.2, () => rt.say('松永久秀', '信長に頭は下げぬ。この城と共に果てるまでよ', 4));
     rt.after(3.4, () => {
+      // 最期の言葉の後、姿を消さず室内で倒す。田野と同じ自害の処理で、
+      // 通常の討取りの知らせや手柄を発生させず、室内の床を保つ。
+      for (const u of [F.ehon.lord, F.hisamichi]) {
+        u.alive = false; u.hp = 0; u.noTarget = true; u.deadT = 0;
+        u.atk = null; u.swing = null; u.target = null;
+        u.death = { kind: 'side', side: 1, t: 0, pace: 1, floor: true, fwd: false };
+        if (u.human) u.human.still = false;
+      }
       // 11/6 fixc2137：火が館の内（床から一歩余り）にあり、壁と屋根に隠れて本丸の南口から一度も見えなかった（描いて遊んだ写真）。屋根を抜けて炎と黒煙が立つ高さに。
       W.addFire(KEEP_AT.x, KEEP_AT.z, { size: 4.5, h: KEEP_AT.up + 0.5, blackSmoke: true });
       rt.banner('久秀の最期', '天主は燃え落ち、久秀は城内で自害した');
@@ -4029,8 +4036,9 @@ const shigisan = {
     }
     if (F.step === 3) {
       for (const u of F.ram.units) if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 10) {
-        rt.say('組頭', '打ち手よ、力を合わせよ！　門を押し開けるぞ！', 4);
-        rt.army.damage(F.gate, F.gate.hp / (1 - F.gate.armor) + 1, u);
+        // 停滞時も内から開門して打って出る。門を直接壊すと、
+        // 破壊の通知で城内へ進み、③の土橋の戦いを飛ばしてしまう。
+        this.sallyOut(rt);
         return;
       }
       this.gateFightApproach(rt);
