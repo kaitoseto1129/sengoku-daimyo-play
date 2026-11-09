@@ -2020,7 +2020,7 @@ const nagashima = {
     if (F.step === 3.5 && F.finalTask === 'fight') return '西の柵で、斬り込む門徒を味方と受け止めよ';
     if (stage === 0) {
       const q = bankWorkSpot(rt);
-      if (q && (p.z < BANK_Z - 1 || Math.hypot(p.x - q.x, p.z - q.z) >= 5.5)) return '岸の横木へ';
+      if (q && (p.z < BANK_Z || Math.hypot(p.x - q.x, p.z - (q.z + 2)) >= 3)) return '岸の横木へ';
       if (F.buildTask !== 'work') return watchingRiver(rt) ? '人足を待ち、川を見張れ' : '人足を待ち、川を向け';
       return '横木に縄を締めよ';
     }
@@ -2091,8 +2091,7 @@ const nagashima = {
     }
     if (stage === 0) spot = bankWorkSpot(rt);
     else if (stage === 4) spot = CHECK_SPOTS[F.finalChecks.indexOf(false)];
-    // 縄を締め始める場所と案内の中心・範囲をそろえる。
-    if (spot) { q.x = spot.x; q.z = spot.z; q.r = q.hide = stage === 0 ? 5.5 : 3; return q; }
+    if (spot) { q.x = spot.x; q.z = spot.z + (stage === 0 ? 2 : 0); q.r = q.hide = 3; return q; }
     const east = F.step === 3.5 || F.broken || F.step === 3 &&
       (F.sallyTask === 'boats' || F.sallyTask === 'return') && F.sallyEast;
     // 見張れる岸にいる時は中央へ歩き直させない。東への集結は下知のある間だけ。

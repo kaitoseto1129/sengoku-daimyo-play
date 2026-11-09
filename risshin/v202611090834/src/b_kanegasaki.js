@@ -2502,7 +2502,7 @@ const kanegasaki = {
     const won = () => rt.tracker?.main === true, F = rt.flags, at = (L) => () => ({ x: L.x, z: L.z });
     if (rt.G.lord) return [{ kind: 'stage', k: 0, text: '旗本と南の若狭への道の退き口へ退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won }];
     // 11/5 kanegasaki_re：先手・騎馬の追手は必ず来て当たる（contactAt）。当たらずに済んだ事にしない
-    const hit = (k) => F.contactAt?.[k] != null;
+    const hit = (k) => F.contactAt?.[k] != null && F.heldLines?.[k] === true;
     return [
       { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で、朝倉の先手を止める', noun: '一の備', action: '一の備で先手を止めよ', place: at(LINES[0]), check: () => (F.line || 0) >= 1 && hit(0) },
       { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => (F.step || 0) >= 3 || (F.line || 0) >= 2 },
@@ -3622,7 +3622,8 @@ const kanegasaki = {
     F.collapseCounts = kgFlagCounts(rt);
     // 時間だけで段が進んでも、三つの備で追手を受ける務めは省かない。
     F.exitReady = (F.prog || 0) >= RETREAT_T && !F.dpMem?.kgFailed &&
-      F.contactAt?.[0] != null && F.contactAt?.[1] != null && F.contactAt?.[2] != null;
+      F.contactAt?.[0] != null && F.contactAt?.[1] != null && F.contactAt?.[2] != null &&
+      F.heldLines?.[0] === true && F.heldLines?.[1] === true && F.heldLines?.[2] === true;
     if (!F.exitReady && F.collapseWarnAt === undefined) rt.bark('備が持たぬ。残った組を集め、退き道へ急げ', true);
     if (F.dp) F.dp.on = false; F.dpOn = false;
     if (F.akechi) F.akechi.holdFire = false; F.gunsEast.holdFire = false;
@@ -4436,6 +4437,9 @@ function kgHold(line, dur, waves, ambush = false) {
       if (m.kgFailed) rt.objFail('dp');
       else if (C.timeout || rt.flags.contactAt?.[line] == null || C.inT < dur * 0.6) { rt.objFail('dp'); m.kgFailed = true; }
       else rt.objDone('dp');
+      // 接触しただけで、守り切れなかった備に達成印を付けない。
+      const held = rt.flags.heldLines || (rt.flags.heldLines = [false, false, false]);
+      held[line] = !m.kgFailed;
     },
   };
 }
