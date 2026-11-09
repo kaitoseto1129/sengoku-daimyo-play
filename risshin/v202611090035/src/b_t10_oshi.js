@@ -850,8 +850,8 @@ const t10_oshi = {
         rt.after(6.4, () => this.ford(rt));
       }
     } else if (F.step === 7) {
-      // 門の前へ着く（または寄せ手の手が着く）と、城が門を開いて打って出る
-      if (near(P.pos, FRONT, 9) || rt.t - F.stepT > 70) this.sortie(rt, 0);
+      // 本人も門前へ寄せてから打って出を受ける。浅瀬の途中で任務を済ませない。
+      if (P.alive && near(P.pos, FRONT, 9)) this.sortie(rt, 0);
     } else if (F.step === 8) {
       // 打って出た二手の六割を討つと退く（右上の数と同じ数え方。なお粘れば八十五秒で退く。討てない正木丹波守と甲斐姫は数えない）
       const k = sortieCount(F);

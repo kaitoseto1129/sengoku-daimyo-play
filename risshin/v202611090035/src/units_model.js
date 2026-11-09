@@ -2785,6 +2785,20 @@ function bodyGeometry(key, o, hi, grp) {
     // 本人（munaitaGold 2）：手本 ref5 の胸板は鈍い金溜塗（金粉を漆で塗り込めた艶の浅い古金）。金属の照りで真っ黄色の帯に見せない。縁は擦れて下の黒漆
     parts.push(o.munaitaGold === 2 ? P(mg, 0x7a6634, { mk: MK.lac, reg: 'lacq', c2: 0x2a2218, mk2: MK.lac }) : P(mg, 0x947a3c, { mk: MK.gold, reg: 'lacq' }));
   }
+  if (o.mon === 'genjiguruma') {
+    // 東博の黒糸威二枚胴具足の源氏車金具。胸の二輪を輪と八本の輻で略復元。
+    for (const x of [-.10, .10]) {
+      const z = Math.sqrt(Math.max(0, (.2405 * r0) ** 2 - x * x)) * .8 + .005;
+      const rim = new THREE.TorusGeometry(.028, .004, 4, 16);
+      rim.translate(x, 1.36, z); parts.push(P(rim, 0xb39856, { mk: MK.gold, reg: 'lacq' }));
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        const spoke = new THREE.BoxGeometry(.003, .028, .004);
+        spoke.translate(0, .014, 0); spoke.rotateZ(a); spoke.translate(x, 1.36, z);
+        parts.push(P(spoke, 0xb39856, { mk: MK.gold, reg: 'lacq' }));
+      }
+    }
+  }
   if (o.ladderMon) {
     // 昇梯子文は薄い銀の線。胴の面に沿う基本形を結合し、共有形へ保存する。
     const point = (u, v) => {

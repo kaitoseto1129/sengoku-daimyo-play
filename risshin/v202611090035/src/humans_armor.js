@@ -420,7 +420,7 @@ function kabutoStyle(L) {
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
   const bowl = L.face === 'player' && L.kbBowl || (by.bowl === 'toppai' ? 'toppai' : '');
-  return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl };
+  return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl, sakakibaraLace: nm === '榊原康政' && by.flag === '榊原の日輪無' };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）
 const kbFront = (x, y) => { const R = 0.135 * Math.sqrt(Math.max(0, 1 - ((y - 0.13) / 0.155) ** 2)); return Math.sqrt(Math.max(0, R * R - x * x)); };
@@ -460,12 +460,12 @@ const KB_FUKI = { kin: 0xa8823a, shu: 0x8e2416, kuro: 0x16120f, kawa: 0x5c3a20 }
 // 材質は（漆・吹返し・威・紋）の組ごとに一つ。読み込みの時に名のある武将の分を先に作り、あとは使い回す（形の作りは一つ＝描き分けは uniform だけ）
 function kabutoMat(st, kill = false, fine = false) {
   const lk = st.lac, fk = st.fuki === 'lac' || !st.fuki ? lk : st.fuki, odo = st.odo ?? null, bw = st.bowl || '';
-  const key = lk + '|' + fk + '|' + (odo ?? '-') + (kill ? '|mon' : '') + (fine ? '|fine' : '') + (bw ? '|' + bw : '');
+  const key = lk + '|' + fk + '|' + (odo ?? '-') + (kill ? '|mon' : '') + (fine ? '|fine' : '') + (bw ? '|' + bw : '') + (st.sakakibaraLace ? '|康政所用' : '');
   if (KB.mats.has(key)) return KB.mats.get(key);
   const c = KB_LAC[lk], fc = KB_FUKI[fk] ?? KB_LAC[fk], foil = lk === 'kin' || lk === 'gin';
   // 11/8 critic60 刀根坂（八1・BR「土を被ったような茶色のもじゃもじゃの兜」）：漆の色の指定が無い兜もスキャンの茶の地のままにせず、黒漆を八割五分かける
   const lac = new THREE.Color(c ?? 0x16130f), disc = c == null ? new THREE.Color(0xa08a68) : foil ? new THREE.Color(0x2a1c12) : lac;
-  const fuki = new THREE.Color(fc ?? 0x3a2418), odoC = noBlue(new THREE.Color(odo ?? 0x3a2418));
+  const fuki = new THREE.Color(fc ?? 0x3a2418), odoC = st.sakakibaraLace ? new THREE.Color(odo ?? 0x3a2418) : noBlue(new THREE.Color(odo ?? 0x3a2418));
   const F = KB.fuki || [], far = new THREE.Vector3(9, 9, 9);
   // スキャンの絵は光が焼き込まれているので、照らしは控えめ（粗さ高め）。塗った漆は少し艶。金箔は金物らしく。裏（鉢の内・錣の裏）は暗く
   const mat = armorMaterial({ map: KB.col, roughness: c == null ? 0.62 : foil ? 0.38 : 0.5, metalness: foil ? 0.6 : 0.18, envMapIntensity: 0.8, side: THREE.DoubleSide  }, fine);
@@ -929,7 +929,7 @@ vec3 dmBump(vec3 sp, vec3 sn, vec2 dH, float fd) {
 const DM_WEAR = [[0.25, 0.7, 0.1, 0.0], [0.7, 1.0, 0.3, 3.1], [1.0, 1.35, 0.5, 5.7], [0.45, 0.85, 0.75, 8.3]];
 function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   // 絵の威糸はもとが紺。紺の武将も茶・黒へ塗り替える（青を残さない）
-  const lace = noBlue(new THREE.Color(look.lace ?? 0x3a2a20));
+  const lace = look.flag === '榊原の日輪無' && look.preserveLace ? new THREE.Color(look.lace ?? 0x3a2a20) : noBlue(new THREE.Color(look.lace ?? 0x3a2a20));
   const blueLace = false;
   // 本の写真の威糸は明るい部屋で鮮やかに見える。表の色（暗く沈めた値）のままだと黒い塊に見えるので、明るさと鮮やかさを少し上げる（白は上げない）
   { const hl = lace.getHSL({}); if (hl.s > 0.12) lace.setHSL(hl.h, Math.min(0.85, hl.s * 1.18), Math.min(0.5, Math.max(hl.l * 1.35, hl.l + 0.06))); }
