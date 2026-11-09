@@ -54,6 +54,9 @@ function yoru(rt) {
 function start(rt) {
   const F = rt.flags;
   const K = F.iwKaijo = { at: rt.t, s: 0 };
+  // 夜討ちの直後に降伏したように見せず、使者が出る前に日付を区切る。
+  rt.banner('十一日の後', '十一月二十一日、岩村城から白旗の使者');
+  rt.world.setTime('day');
   // 城方の残る兵は打ちかからない（使者が下りる間）
   for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.aggro = 0; g.seekRange = 0; g.order = 'hold'; }
   try { sfx('kane', 0.5); } catch (e) { /* なし */ }
@@ -93,12 +96,12 @@ export function tick(rt) {
   rt.after(4, () => { if (!rt.over && !F.ending) { F.joinHold = Math.max(F.joinHold || 0, 3); rt.def.win(rt); } });
 }
 
-// 本体の勝ちの後の場面：十一日の後、昼の麓で開城の列を見送る
+// 本体の勝ちの後の場面：使者を送った同じ日、昼の麓で開城の列を見送る
 export function epilogue(rt) {
   const F = rt.flags;
   rt.after(3.5, () => {
     if (rt.over) return;
-    rt.banner('十一日の後', '十一月二十一日、兵糧の尽きた岩村城は開かれた');
+    rt.banner('開城', '十一月二十一日、兵糧の尽きた岩村城は開かれた');
     rt.world.setTime('day');
     const P = rt.player.u, W = rt.world;
     const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); };
@@ -112,7 +115,7 @@ export function epilogue(rt) {
     col.onArrive = (q) => { q.order = 'hold'; };
     const L = F.keep?.lord;
     if (L?.alive) { put(L, 0, -108); L.noTarget = true; if (L.group) { quiet(L.group); L.group.order = 'path'; L.group.pathIdx = 0; L.group.dest = null; L.group.path = [[0, -96], [0, -64]]; L.group.speed = 1.4; L.group.onArrive = (q) => { q.order = 'hold'; }; } }
-    rt.say('語り', 'それから十一日。兵糧の尽きた岩村城は、城の者の命と引き替えに開かれた', 4.4);
+    rt.say('語り', '使者が戻ると、兵糧の尽きた岩村城は、城の者の命と引き替えに開かれた', 4.4);
   });
   rt.after(9, () => { if (!rt.over) rt.say('河尻秀隆', '先頭が秋山虎繁。後ろの輿が、おつやの方じゃ', 3.6); });
   rt.after(14, () => { if (!rt.over) rt.say('足軽', '……武田の兵も、こうして見ると、ただの痩せた男たちじゃな', 3.6); });
