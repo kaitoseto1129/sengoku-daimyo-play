@@ -44,10 +44,10 @@ export function tick(rt, ctx) {
     if (at) {
       next(rt, S);
       rt.army.playFar('kane', ctx.castle, 0.6);
-      rt.say('足軽', at ? '米じゃ、塩もある……。見よ、川向こうの柵に城兵が立っておる。骨と皮じゃ' : '川向こうの柵に城兵が立っておる。骨と皮じゃ', 4.5);
+      rt.say('足軽', S.atStore ? '蔵に米と塩を運び入れたぞ。城へは通さずに済んだ' : '米じゃ、塩もある……。見よ、川向こうの柵に城兵が立っておる。骨と皮じゃ', 4.5);
       rt.after(5, () => { if (F.mkKiga === S) rt.say('組頭', '城の内は草の根も食い尽くしたと聞く。この俵が入らねば、冬は越せまい', 4.5); });
       if (at) rt.award((t2) => { if (!t2.side.includes('止めた兵糧の俵を確かめた')) t2.side.push('止めた兵糧の俵を確かめた'); }, '止めた兵糧を確かめた');
-      rt.obj('main', '俵を担ぐ者と、平田の蔵へ戻れ', 'main');
+      rt.obj('main', S.atStore ? '平田の蔵で、秀吉の使番の下知を聞け' : '俵を担ぐ者と、平田の蔵へ進め', 'main');
     }
   } else if (S.k === 1) {
     const G = ctx.store;
