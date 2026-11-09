@@ -12,6 +12,8 @@ const CARGO = { x: -14, z: -64 };   // 払いかけの陣の荷駄（俵）
 
 export function install(rt, ctx) {
   const F = rt.flags;
+  // 討死・決着の後は、予約した下知や次の段で終幕を上書きしない。
+  const active = () => !F.ending && !rt.over && rt.player.u.alive;
   const { next } = ctx;
   let step = 0, t1 = rt.t, tick = 0, done = false;
   rt.setPhase('nanao');
@@ -26,10 +28,10 @@ export function install(rt, ctx) {
     // 北の闇の上杉の大軍が動き出す（軽い作りの軍勢を前へ）
     for (const h of F.host2 || []) h.advance?.(18, 40);
     for (const h of F.pursuitBackdrop || []) h.advance?.(14, 40);
-    rt.after(1.5, () => rt.say('物見の足軽', '松明が川のように南へ流れて来る……上杉の本隊じゃ！', 4));
+    rt.after(1.5, () => { if (active()) rt.say('物見の足軽', '松明が川のように南へ流れて来る……上杉の本隊じゃ！', 4); });
     rt.award((t) => t.side.push('北の塚で物見をし、上杉の本隊の動きを知らせた'), '上杉の動きを知らせた');
     rt.after(6, () => {
-      if (done) return;
+      if (done || !active()) return;
       rt.say('柴田勝家', '荷は焼き捨てよ！　人を先に渡す。急げ！', 4);
       rt.obj('main', '陣の荷駄に火を掛けて捨て、渡り口へ退け', 'main');
       rt.marker('nanaoCargo', CARGO, '捨てる荷駄', { h: 3, guideAlways: true, guidePriority: 400 });
@@ -42,7 +44,7 @@ export function install(rt, ctx) {
     sfx('wood', 0.6);
     rt.say('組頭', '火が付いた！　荷はくれてやれ。渡り口へ下がるぞ！', 3.5);
     done = true; F.nanaoDone = true;
-    rt.after(4, () => next());
+    rt.after(4, () => { if (active()) next(); });
   };
 
   return {
