@@ -25,6 +25,8 @@ export function install(rt, ctx = {}) {
   F.iriguchi = true;
   try {
     F.osakaFar = osakaFar(rt, { x: CASTLE.x, z: CASTLE.z, s: 1.05, big: 1.5, land: [[260, -780, 1000, -120]] });
+    // 午前三時の闇では数 km 先の城は見えない。④の夜明けから遠景を見せる。
+    F.osakaFar.group.visible = false;
   } catch (e) { console.warn(e); }
   const objs = [];
   let fires = 0;
