@@ -2275,7 +2275,8 @@ const shiga = {
   namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
   missionSignTarget(rt) {
     const F = rt.flags, me = rt.player.u;
-    if (F.ending || rt.over || F.step !== 1 && F.step !== 3 && F.step !== 3.5 || this.botEvacuating(rt)) return null;
+    // 十九日の両手の寄せも町口で戦う段。暗転と城への退きは敵へ誘わない。
+    if (F.ending || rt.over || F.step !== 1 && F.step !== 1.5 && F.step !== 3 && F.step !== 3.5 || this.botEvacuating(rt)) return null;
     // 奥へ退いた後は、下の曲輪の敵へ誘い戻さない。退きの段が替われば印も選び直す。
     const post = F.backed ? F.C.kuruwa.hon : F.backedNi ?
       (F.C.kuruwa.hon.test(me.pos.x, me.pos.z) ? F.C.kuruwa.hon : F.C.kuruwa.ni) : null;
