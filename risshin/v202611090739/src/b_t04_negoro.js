@@ -377,7 +377,10 @@ const t04_negoro = {
       const gx = pu.pos.x - b.x, gz = pu.pos.z - b.z, q0 = gx * b.c - gz * b.s, q1 = gx * b.s + gz * b.c;
       if (Math.abs(q0) >= b.hw && (Math.abs(q1) < b.hd || Math.abs(q0) - b.hw > Math.abs(q1) - b.hd)) p0 = Math.sign(q0) * (b.hw + 0.15);
       else if (Math.abs(q1) >= b.hd) p1 = Math.sign(q1) * (b.hd + 0.15);
-      else continue;   // 主人公が箱の中（踏み台・縁）の時は動かさない
+      // 軒下では主人公も屋根の真下にいる。平面の位置だけで箱の中とみなすと、屋根へ入ったカメラを戻せない。
+      else if (pu.pos.y < b.y0) pos.y = b.y0 - 0.15;
+      else if (pu.pos.y > b.y1) pos.y = b.y1 + 0.15;
+      else continue;   // 主人公も箱の中（踏み台・縁）の時は動かさない
       pos.x = b.x + p0 * b.c + p1 * b.s; pos.z = b.z - p0 * b.s + p1 * b.c;
     }
   },

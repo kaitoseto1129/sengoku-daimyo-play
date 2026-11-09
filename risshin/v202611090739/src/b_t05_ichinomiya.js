@@ -500,6 +500,8 @@ export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   noReserve: true, noTaishoRaid: true, stageGoalsOnly: true, goalsAllRows: true,
   goalSignTarget: destOf,
+  // 行き先の▼とは別に共通の段処理が出す「敵の隊」の札を重ねない。
+  dpNoMark: true,
   // 始まりの札に二三行の説明（前は年・名・両軍の名だけで、何をする戦か分からなかった。11/8 critic60 五4・十二1）
   introText: () => '羽柴秀長の五万が阿波へ攻め入った。一宮城には谷忠澄・江村親俊ら九千が籠もる。西の谷から城の水の手を断ち、城を開かせよ。',
   noGroundGuide: true,

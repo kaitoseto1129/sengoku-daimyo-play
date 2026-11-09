@@ -830,7 +830,11 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 続けて冬の陣の中間の場面（大筒・和議・堀が埋まる・丸の破却。k11/wagi.js）
     rt.after(12, () => {
       const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka });
-      rt.after((w && w.end) || 1, () => { rt.objDone('main'); rt.finish({ scriptedEnd: true }, 0); });
+      rt.after((w && w.end) || 1, () => {
+        // 結果には最初の登頂ではなく、最後に果たした帰陣の務めを残す。
+        rt.obj('main', STAGES.k11_sanadamaru[4][0], 'main');
+        rt.objDone('main'); rt.finish({ scriptedEnd: true }, 0);
+      });
     });
   },
 
