@@ -58,7 +58,9 @@ export function tick(rt, dt) {
     });
   }
   // 伊達の本隊が後ろに着く（片倉の鉄砲が先、政宗の旗本の後ろに大勢）
-  if (F.date && !M.dateH) {
+  // 軽い軍勢を作れない環境でも、毎コマ同じ生成を繰り返さない。
+  if (F.date && !st.dateTried) {
+    st.dateTried = true;
     M.dateH = st.mk({ x: 70, z: -30, w: 34, d: 12, count: n(120, 200), facing: WEST, armor: 0x24221f, flag: 'date', seed: 13205 });
   }
   // ④⑤の間、徳川方も大きく損じる（およそ四千）
