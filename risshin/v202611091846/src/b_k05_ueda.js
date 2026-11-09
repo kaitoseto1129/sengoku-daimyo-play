@@ -596,8 +596,8 @@ const k05_ueda = {
       if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; F.oi.noRout = false; }
       // 接敵してから半ばを討つか、主人公が岸で百十秒支えて果たす。
       if (F.oiHot && F.oiEngaged && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
-      // 追手が岸へ着く前に町屋の道で討ち減らされた時も、岸を守り切ったとみなす（11/9 関所：追手が岸に着かず段5が終わらなかった）
-      else if (F.oi && (!F.oiHot || !live(F.oi)) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
+      // 岸で構えた追手も、本人との接敵前に味方が六割押し返せば殿を果たす。隊の中心だけ岸へ届いた時も判定から漏らさない。
+      else if (F.oi && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
     } else if (F.step === 7) {
       if (P.pos.x > RET.x - 6 && dist(P.pos, RET) < 16) this.win(rt);
     }
@@ -641,9 +641,9 @@ const k05_ueda = {
         const last = u.type === 'gun' ? u.gunShotAt ?? -99 : u._wallShotAt ?? -99, every = u.type === 'gun' ? 7 : 4.5;
         if (A.time - last < every + ((u.id || 0) % 7) * 0.4) continue;
         // 的は門の前に寄せた兵から散らして選ぶ（一人に弾が集まらない。主人公だけを狙い撃ちにしない）
-        // 各隊の一人は、射程内の主人公も狙う。騎乗中も同じ的として扱う。
+        // 主人公を狙う一人以外は味方の兵を狙う。無作為の選択で全員が主人公へ撃つ抜け道も防ぐ。
         let t = g === aimG && u === g.units.find((v) => v.alive && !v.gone && v.type === 'gun') && foes.includes(P) && dist(u.pos, P.pos) < 50 ? P : null;
-        for (let k = 0; k < 4 && !t; k++) { const o = foes[Math.floor(Math.random() * foes.length)]; if (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 50) t = o; }
+        for (let k = 0; k < 4 && !t; k++) { const o = foes[Math.floor(Math.random() * foes.length)]; if (o !== P && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 50) t = o; }
         if (!t) continue;
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
         if (u.type === 'gun') A.fireGun(u, t); else { u._wallShotAt = A.time; A.shoot(u, t); }

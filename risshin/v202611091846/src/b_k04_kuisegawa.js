@@ -378,7 +378,7 @@ const k04_kuisegawa = {
     } else if (n === 4) {
       // 囮の実兵は隊列合わせを終え、退く先手を追う。追撃の下知を hold で上書きしない。
       F.follow = F.follow.filter(([g]) => g !== F.gamo);
-      rt.marker('ford', T(56, 4), '杭瀬川の赤坂の側の岸');
+      rt.marker('ford', T(64, 4), '杭瀬川の赤坂の側の岸');
       sfx('horagai', 0.8);
       // 史実：岡山で見ていた家康が兵を引かせた（内府＝内大臣。大御所は後の呼び名）
       rt.after(2.5, () => rt.say('使番', '岡山より下知。深追い無用、杭瀬川を越えて引けとの内府様の仰せ', 3.2));
@@ -497,11 +497,13 @@ const k04_kuisegawa = {
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && live(F.noi) && dist(F.noi.center(), P.pos) < 18) this.toStep(rt, 3);
     } else if (F.step === 3) {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
-      if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + 0.25;
+      // 防戦を始める前の待機時間を、後の一撃で達成扱いにしない。
+      if (F.defended && F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + 0.25;
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。
       if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
-    } else if (F.step === 4 && PL.x > 52) this.toStep(rt, 5);
+    // 川幅は中心線から両側十二。水中の x=52 で渡り終えた扱いにしない。
+    } else if (F.step === 4 && PL.x > 60) this.toStep(rt, 5);
     else if (F.step === 5 && dist(P.pos, ARIMA) < 14) this.win(rt);
     // 退く段：西軍は川まで追うが渡らない（史実：有馬の隊が岸で受け、西軍は大垣へ引いた）。近い追手は人の走りより少し遅い
     if (F.step >= 4) {
@@ -579,7 +581,7 @@ const k04_kuisegawa = {
     if (F.step === 1) q = lightPos(F.blk.bait);
     else if (F.step === 2) q = RING;
     else if (F.step === 3) q = F.noiU?.alive ? F.noiU.pos : RING;
-    else if (F.step === 4) q = T(58, 4);
+    else if (F.step === 4) q = T(64, 4);
     else q = ARIMA;
     goTo(p, inp, q.x, q.z, 2);
   },
@@ -588,7 +590,7 @@ const k04_kuisegawa = {
   goalTargetOverride(rt) {
     const F = rt.flags, s = F.step || 0;
     if (F.ending || s < 1) return null;
-    const q = s === 1 ? lightPos(F.blk.bait) : s === 2 ? RING : s === 3 ? (F.noiU?.alive ? F.noiU.pos : RING) : s === 4 ? T(56, 4) : ARIMA;
+    const q = s === 1 ? lightPos(F.blk.bait) : s === 2 ? RING : s === 3 ? (F.noiU?.alive ? F.noiU.pos : RING) : s === 4 ? T(64, 4) : ARIMA;
     const G = F._kTg || (F._kTg = { unit: null, boss: false });
     G.x = q.x; G.z = q.z;
     G.action = ['', '刈田の兵を追え', '川を東へ渡れ', '頼母の横で防げ', '川を西へ渡れ', '有馬の陣へ急げ'][s];

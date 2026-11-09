@@ -9,6 +9,11 @@ import { sfx } from '../audio.js';
 
 export const LEN = 34;
 
+// 狙える兵と残敵の数え方をそろえ、既に戦えない負傷兵を追わせない。
+export const fighter = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut &&
+  !u.rearWound && !u.invuln && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ &&
+  !u.group?.routed && u.group?.order !== 'flee';
+
 // ctx：{ at（踏みとどまる所）, look, win（本体の勝ち） }
 export function start(rt, ctx) {
   const F = rt.flags;
@@ -41,7 +46,7 @@ export function tick(rt) {
     }
     return;
   }
-  const left = g.units.filter((u) => u.alive && !u.fleeing).length;
+  const left = g.units.filter(fighter).length;
   // その場で待つだけで、残る一揆勢を討った事にしない。
   if (left > Math.ceil(P.n0 * 0.35)) return;
   P.s = 2;
