@@ -62,7 +62,8 @@ function start(rt) {
     [{ type: 'samurai', n: 1, o: { name: '城方の使者', flag: null } }, { type: 'ashigaru', n: 1, o: { flag: null } }]);
   quiet(K.g);
   K.g.order = 'path'; K.g.pathIdx = 0; K.g.dest = null; K.g.formation = 'column';
-  K.g.path = [[0, -96], [0, -60], [0, -20], [0, -6], [0, 10], [HONJIN.x, HONJIN.z - 4]];
+  // 麓から本陣へは、追撃で下った九十九折りを戻る。切岸を直進しない。
+  K.g.path = [[0, -96], ...(F.restPath || [[0, -90], [0, -6], [0, 10]]), [HONJIN.x, HONJIN.z - 4]];
   K.g.onArrive = (q) => { q.order = 'hold'; K.arrived = true; };
   rt.obj('main', GOAL, 'main', true);
   rt.after(5, () => rt.say('河尻秀隆', '槍を下げよ。使者は討つな。柵の内の本陣まで、おぬしが付いて送れ', 4));
@@ -70,11 +71,21 @@ function start(rt) {
 
 export function tick(rt) {
   const F = rt.flags, K = F.iwKaijo;
-  if (!K || K.ok) return;
+  if (!K || K.ok || rt.over || F.ending || !rt.player.u.alive) return;
+  const e = envoy(rt), p = rt.player.u.pos;
+  if (!e) return;
+  // 付き添いが離れたら道の途中で待つ。本人を置いて本陣へ着き、勝手に任務を済ませない。
+  const beside = Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 14 && Math.abs(e.pos.y - p.y) < 4;
+  if (!K.arrived) {
+    if (!beside && K.g.order === 'path') { K.waiting = true; K.g.order = 'hold'; }
+    else if (beside && K.waiting) { K.waiting = false; K.g.order = 'path'; }
+  }
   const T = rt.t - K.at;
   if (!K.l1 && T > 24) { K.l1 = true; rt.say('城方の使者', '城の者の命を助けてくださるなら、城を開くと秋山が申しております', 4); }
   if (!K.l2 && T > 40) { K.l2 = true; rt.say('足軽', '……城の兵は痩せこけておる。兵糧が尽きたのは本当じゃ', 3.4); }
-  if (!(K.arrived || T > 95)) return;
+  // 時間切れを達成扱いにせず、本陣に使者と本人がそろった事を確かめる。
+  if (!K.arrived || !beside || Math.hypot(e.pos.x - HONJIN.x, e.pos.z - HONJIN.z) >= 8 ||
+      Math.hypot(p.x - HONJIN.x, p.z - HONJIN.z) >= 10) return;
   K.ok = true;
   rt.objDone('main');
   rt.say('織田信忠', 'よかろう。城の者の命は助けると伝えよ', 3.6);

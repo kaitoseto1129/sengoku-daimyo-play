@@ -688,7 +688,7 @@ const k03_gifu = {
     //   上台所の奥の口を抜け、本丸の門へ続く通路に来た事も確かめる。
     //   距離だけだと、上台所の手前や南の石垣の下でも到着になり、秀信が見えないまま降伏した。
     const gateApproach = F.step !== 5 || (P.pos.x >= -26 && Math.abs(P.pos.z) < 7);
-    const atGate = gateApproach && dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : 24);
+    const atGate = gateApproach && dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : left <= -90 ? 40 : 24);   // 11/9 見回り 徳川D：④で敵を追って二の丸の櫓門より三十歩奥（上台所の側）へ出たまま十七分止まった
     if (!F.next && atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90)) {
       F.next = true;
       this.fall(rt, g);

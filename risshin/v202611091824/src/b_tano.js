@@ -1013,8 +1013,12 @@ export function volleyAt(rt, o) {
             const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z);
             if (d > 100 || rt.army.shotBlocked(u, v.pos) || rt.army.hiddenBehind(u, v) || rt.army.allyInLine(u, v, d)) continue;
             u.heading = Math.atan2(v.pos.x - u.pos.x, v.pos.z - u.pos.z);
+            const ammo = u.gunAmmo ?? 20;
             const shot = rt.army.fireGun(u, v);
-            rt.army.startReload(u); rt.army.gunRotate(u);
+            // 筒先を壁に遮られた時は弾を使っていない。不発で弾を使った時だけは装填する。
+            if (shot || (u.gunAmmo ?? 20) < ammo) {
+              rt.army.startReload(u); rt.army.gunRotate(u);
+            }
             if (shot) fired = true;
             break;
           }

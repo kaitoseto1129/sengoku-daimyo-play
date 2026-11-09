@@ -277,6 +277,8 @@ const k07_sawayama = {
   battleDialogue: true,
   // 11/8 五1：行き先の札が「この敵」の案内に替わった。段の一行のまま
   keepTaskLabel: true,
+  // 構えた敵の前でも、場所と相手を書いた五つの目標を操作の案内に替えない。
+  keepTaskPanel: true,
   // 11/8 五3：敵を指す印が▼でなく黄色い角の丸い枠になる時があった。行き先と相手の印は頭上の▼だけ
   goalSignOnly: true,
   goalSignTriangle: true,   // 行き先が画面の外でも、回る矢印へ替えず▼を保つ（五3）

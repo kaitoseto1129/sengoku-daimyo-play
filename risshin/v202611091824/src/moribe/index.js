@@ -43,7 +43,7 @@ export function tick(rt, dt) {
   if (v.azeT) aze.tick(rt, dt);
   if (F.stage === 'hold' || v.yumiT) yumi.tick(rt, dt);
 }
-function target(rt) {
+export function target(rt) {
   const v = S(rt);
   if (v.ph === 'aze') return aze.target(rt);
   if (v.ph === 'yumi') return yumi.target(rt);

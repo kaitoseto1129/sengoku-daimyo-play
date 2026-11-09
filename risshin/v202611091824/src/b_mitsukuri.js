@@ -5304,6 +5304,8 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     } else goTo(p, inp, KIDO.x, KIDO.z + 3, 1.5);
     return;
   }
+  // 郭に味方が足りない時は、遊ぶ人と同じく「味方を呼ぶ」を押す（11/9 見回り bot：一人で郭に立ったまま三の郭が落ちず刻限が尽きた）
+  if (nearIt(b, 'callFriends') && !(F._botCallT > b.t)) { F._botCallT = b.t + 4; inp.k.add('KeyE'); }
   const zone = F.SZ.byId[!F.sanFell ? 'san' : !F.niFell ? 'ni' : 'hon'];
   const enemy = zone._guideEnemy;
   const tgt = enemy && zoneGroundFighter(b, enemy) && zone.test(enemy.pos.x, enemy.pos.z) ? enemy.pos : zone.pos;

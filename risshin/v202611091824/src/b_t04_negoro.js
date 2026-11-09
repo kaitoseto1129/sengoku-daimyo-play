@@ -968,6 +968,8 @@ const t04_negoro = {
               const u = g && g.count && g.units.find((q) => q.alive && !q.name && Math.hypot(q.pos.x - GATE.x, q.pos.z - GATE.z) < 40);
               if (u) { wp.focus = u; break; }
             }
+            // 11/9 三巡（織田C）：塀の際の味方の足軽がいなくなると、十二挺の狙いが丸太の脇の本人へ移り、背から撃たれて四十秒で倒れた（act）。狙う寄せ手がいない間は撃ち下ろさない。
+            wp.holdFire = !wp.focus;
           }
         }
         if (!s.alive && C.openT == null) C.openT = el;
@@ -979,6 +981,7 @@ const t04_negoro = {
       },
       end(rt, C) {
         for (const g of C.groups) flee(g);
+        if (rt.flags.posts?.wall) rt.flags.posts.wall.holdFire = false;
         rt.unmark('dp');
         rt.objDone('dp');
         rt.award((t) => t.side.push('丸太の組と大門を破った'), '大門を破った');
