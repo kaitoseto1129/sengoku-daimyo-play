@@ -61,7 +61,15 @@ export function install(rt, ctx) {
       }
       let rl = 0;
       if (R) for (const u of R.units) if (ready(u)) rl++;
-      const n = live() + rl;
+      // 11/9 三巡（織田G）：取り返しの手は半ばを討たれたら舟へ逃げる。川の中に残る鉄砲一人を待って、刻限まで止まっていた（bot）。
+      if (R && !R.tsRouted && rl && rl <= Math.ceil(R.units.length / 2)) {
+        R.tsRouted = true; R.noRout = false; R.order = 'retreat'; R.morale = 0; R.fleeDir = { x: -1, z: 0.2 }; R.fleeSet = true;
+        rt.say('見張り', '取り返しの手が崩れた！　舟へ逃げていくぞ！', 3);
+      }
+      // 数えるのは堤の近く（二十二歩の内）の取り返しの者だけ。
+      let rNear = 0;
+      if (R) for (const u of R.units) if (ready(u) && Math.hypot(u.pos.x - DIKE.x, u.pos.z - DIKE.z) < 22) rNear++;
+      const n = live() + rNear;
       rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
       const p = rt.player.u.pos;
       if (R && !n && el > 100 && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {

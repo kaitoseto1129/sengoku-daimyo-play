@@ -635,6 +635,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 主人公が村の南の端に着き、殿も村まで退いたら③（殿が遅れても 20 秒で村の戦へ）。時が尽きても負けにしない（十一1）
       const here = P.pos.z > LINE.z - 12 && dist(P.pos, LINE) < 24;
       if (here) F.hereT ??= rt.t;
+      else F.hereT = null;  // 村を離れた間は殿を待った時間に含めない
       const kc = live(F.kame) && F.kame.center();
       if (here && (!kc || kc.z > VILLAGE.z - 6 || rt.t - F.hereT > 20)) this.toStep(rt, 3);
       // 殿が先に着いても、本人の帰着までは②を済ませない。知らせは一度だけ。
