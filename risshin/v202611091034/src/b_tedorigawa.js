@@ -3590,11 +3590,6 @@ const tedorigawa = {
     }
   },
 
-  onKill(rt, v, k) {
-    const F = rt.flags;
-    if (v.team === 1 && k === rt.player.u) F.playerHelp = true;
-    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
-  },
   onRout(rt, g) {
     if (g.team !== 1 || Math.hypot(g.center().x - rt.player.u.pos.x, g.center().z - rt.player.u.pos.z) > 35 || rt.t < (rt.flags.routSayT || 0)) return;
     rt.flags.routSayT = rt.t + 10;
@@ -3992,7 +3987,7 @@ function tedoHold(o) {
       C.closeFoes = 0; C.closeAllies = 0; C.closeFoeSectors = 0;
       C.lineCaller = null; C.lineCallerD = o.r || 14;
       C.faceYaw = null; C.faceDistance = 25;
-      for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.group?.routed &&
+      for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && !u.downed && !u.gone && !u.group?.routed &&
         (u.pos.z > 24) === (C.at.z > 0)) {
         const d = Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z);
         // 下がった先の火に実際の味方が着いてから、そこを鉦の発信元にする。
@@ -4370,9 +4365,11 @@ function tedoB() {
 // 両軍の総勢（柴田勝家の軍 三万ほど、上杉勢 二万ほど。数と戦の大きさには諸説ある）
 // 11/6 kaito 十二1：描く兵の数（百数十）でなく史実の規模で出す。目の前の一人は、闇の中の何十人分の損と数える。
 //   謙信書状写の「千余人を討ち取り」に合わせ、織田の減りは討たれた数で千ほどになる重さ。
-tedorigawa.onKill = (rt, v) => {
+tedorigawa.onKill = (rt, v, k) => {
   const F = rt.flags;
   if (!v || v.isStruct) return;
+  // 損害の数え直しで、本人が追手を討って押し返した働きを消さない。
+  if (v.team === 1 && k === rt.player.u) F.playerHelp = true;
   if (v.team === 1) F.ek = (F.ek || 0) + 1; else if (v.team === 0) F.ak = (F.ak || 0) + 1;
 };
 tedorigawa.force = (rt) => {

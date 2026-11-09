@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HISTORICAL_GENERALS } from './b_historical_generals.js';
 import { lostCauseNote } from './battle_lost_cause.js';
-import { retreatThroughGap, retreatRunFromBlade } from './bot_retreat.js';
+import { retreatThroughGap, retreatRunFromBlade, retreatLeavesBlades } from './bot_retreat.js';
 import { contactLitter } from './army_ground.js';
 // ======================================================================
 // 織田家編　三方ヶ原の戦い（元亀三年十二月二十二日）
@@ -2395,12 +2395,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     //   本多忠真は崖の東の道に残る姿を見せてから（主人公が崖の脇を過ぎた所で）、夏目吉信は城の近くで（布橋の碑）。
     let lastFallT = F.stepT + 7.5; // 平手の知らせからも六秒以上あける。
     const fall = (name, passZ, late, ready) => {
+      const key = name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid';
       const tick = () => {
         // 帰着の余韻の間も殿の後報を伝える。帰着で予約を捨てると、早く退いた時に知らせが消える。
-        if (rt.over || F.ending && F.returnedT === undefined) return;
-        if (!ready() || !F.dpR || F.dpOn || rt.t - lastFallT < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
-        lastFallT = rt.t;
-        F[name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid'] = true;
+        if (F[key] || rt.over || F.ending && F.returnedT === undefined) return;
+        if (!ready() || !F.dpR || F.dpOn || rt.t - Math.max(lastFallT, F.mkLastFallT || 0) < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
+        lastFallT = F.mkLastFallT = rt.t;
+        F[key] = true;
         const u = rt.army.units.find((q) => q.alive && q.name === name);
         if (u) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
         rt.banner(`${name}、討ち死に`, '');
@@ -2686,6 +2687,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 殿が実戦で先に討たれた時も、その場で一度だけ知らせ、後の予約で重ねない。
+    if (v.team === 0 && (v.name === '本多忠真' || v.name === '夏目吉信')) {
+      const key = v.name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid';
+      if (!F[key]) {
+        F[key] = true; F.mkLastFallT = rt.t;
+        rt.banner(`${v.name}、討ち死に`, '');
+      }
+    }
     if (v === F.hiraU && !F.hirateFallSaid) {
       F.hirateFallSaid = true;
       F.bossName = '佐久間信盛';
@@ -2895,9 +2904,9 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       const escaping = distance <= (e.reach || 2.8) + 1.5 &&
         retreatRunFromBlade(b, inp, null, !atPost && walking ? walkYaw : null);
       // 構えると駆け足が毎秒二歩へ落ちる。退路と出足の時間がある間に離れる。
-      // 届く直前の刃・息切れ・塞がった退路では受けを残す。
+      // 届く直前の刃・息切れ・塞がった退路と、離れ切れない長槍には受けを残す。
       if (escaping && !p.winded && p.sta > .5 &&
-          (soonest > .35 || distance > (e.reach || 2.8) + .6)) inp.guardHold = false;
+          (soonest > .35 || distance > (e.reach || 2.8) + .6) && retreatLeavesBlades(b, inp)) inp.guardHold = false;
       // 確かめた退路への駆け足を保つ。
       inp.runHeld = !!inp.axis && Math.hypot(inp.axis.x, inp.axis.y) > .5;
     }
