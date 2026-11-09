@@ -2416,7 +2416,9 @@ const okawachi = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
-    if (F.step === 2 && v.team === 1 && k === rt.player.u) F.s2Own = (F.s2Own || 0) + 1;
+    // ③の働きは、実際に坂へ打って出た組を止めた時だけ数える。
+    // 城内の守弓や別の曲輪の兵を討っても、坂の城兵を止めた代わりにはしない。
+    if (F.step === 2 && v.team === 1 && !v.isStruct && F.push?.includes(v.group) && k === rt.player.u) F.s2Own = (F.s2Own || 0) + 1;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
@@ -4422,7 +4424,8 @@ function okGateStones(rt, dt) {
   if (rt.t < (F.stoneAt || 0)) return;
   F.stoneAt = rt.t + 1;
   if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 35 || u.hp <= u.maxHp * 0.5) return;
-  if (Math.random() > 0.06) return;
+  // 木戸へ寄せた本人を確実に狙う。毎秒六パーセントの抽選では、
+  // 寄せている間に一度も投石されない回があった。次の石までは従来どおり十四秒空ける。
   F.stoneAt = rt.t + 14;
   if (!F.gateStone) {
     const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 0),

@@ -79,7 +79,8 @@ export function tickNight(rt, K) {
 
 export function startDawn(rt, K) {
   const F = rt.flags, W = rt.world;
-  try { W.setTime('morning'); if (W.fade) W.fade.dur = 40; } catch (e) { /* 空はそのまま */ }
+  // 四月六日の夜から九日の朝へは暗転で日が飛ぶ。夜の照明を次の朝へ持ち越さない。
+  try { W.dayClock = null; W.setTime('morning', true); } catch (e) { /* 空はそのまま */ }
   for (const g of [F.moriG, F.ikedaG]) if (K.live(g)) { g.order = 'move'; g.dest = { x: DAWN.x - 6 - (g === F.ikedaG ? 14 : 0), z: DAWN.z - 8 }; g.speed = 2.8; g.onArrive = (q) => { q.order = 'hold'; }; }
   say(rt, '池田恒興', '夜が白む。このまま岩崎城を抜いて岡崎へ', 3, 3);
 }
