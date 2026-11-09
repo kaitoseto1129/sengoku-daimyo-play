@@ -127,12 +127,15 @@ function flags(rt) {
 const GRAY = 0x74716b;
 function recoat(rt) {
   for (const u of rt.army.units) {
-    if (u._coatOk || !u.alive || !u.mounted || !u.horse || u.isPlayer) continue;
-    u._coatOk = true;
+    if (!u.alive || !u.mounted || !u.horse || u.isPlayer || u._coatHorse === u.horse) continue;
     const st = u.horse.userData && u.horse.userData.style;
-    if (!st || (st.coat !== GRAY && ((st.coat >> 16) & 255) + ((st.coat >> 8) & 255) + (st.coat & 255) < 300)) continue;
+    if (!st) continue;
+    // 確認済みの印は乗り手ではなく馬に結ぶ。控えの馬へ乗り直した時も色を確かめる。
+    u._coatHorse = u.horse;
+    if (st.coat !== GRAY && ((st.coat >> 16) & 255) + ((st.coat >> 8) & 255) + (st.coat & 255) < 300) continue;
     rt.army.setMounted(u, false);
     rt.army.setMounted(u, true, buildHorse({ ...st, coat: 0x2e1f16, mane: 0x0e0b09, points: 1 }));
+    u._coatHorse = u.horse;
   }
 }
 

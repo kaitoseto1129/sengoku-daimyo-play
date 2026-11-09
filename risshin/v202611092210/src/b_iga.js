@@ -1321,7 +1321,7 @@ function buildSonae(rt, plans) {
 // 11/1：南・東・西の遠い囲みの軽い兵は百六十から百十へ（陣口の乱戦と山すその群れを足した分。描く人数を増やさない）。
 const IGA_ATTACK = sonaePlan('比自山の囲み', 0, { x: CAMP.x + 24, z: CAMP.z + 56 }, Math.PI, [
   // 11/6 fix1841：四つの備えの和を iga.force の一万二千に合わせる（前は一万五千）。
-  ['honjin', '本陣', '堀秀政', 3000, CAMP.x + 24, CAMP.z + 56, Math.PI, 'oda', 'none'],
+  ['honjin', '本陣', '堀秀政', 3000, CAMP.x + 24, CAMP.z + 56, Math.PI, 'hori', 'hori'],
   ['niwa', '南の仕寄り', '丹羽の先手', 1000, -70, 70, Math.PI, 'sujikai', 'sujikai', 110, 28, 10],
   ['gamo', '東の包囲陣', '蒲生の手', 4000, 70, -40, -Math.PI / 2, 'oda', 'none', 110, 24, 10],
   ['tsutsui', '長岡山の陣', '筒井順慶', 4000, NAGAOKA.x, NAGAOKA.z, Math.PI * 0.75, 'umebachi', 'umebachi', 110, 24, 10],
@@ -1652,6 +1652,7 @@ const iga = {
   },
   world: {
     compactScenery: true,
+    strictFireOrders: true, // 帰陣の撃ち止め中は、近い本人にも矢を射直さない。
     seed: 15819, moveLim: 470, groundHalf: 480,
     // 切岸でも兵・木・視点の足場を描く面にそろえる。伊賀だけ標準の格子を保つ。
     keepTerrainGrid: true, terrainTriangles: true,
@@ -3395,6 +3396,7 @@ function retireRaid(rt, groups) {
 function igaCastleRetreat(g, path) {
   g.noRout = false; g.noAI = true; g.fixed = false; g.stay = false; g._fitAt = 0;
   g.guard = g.guardOn = false; g.focus = null; g.dest = null;
+  g.holdFire = true; g.fire = false; // 北へ退く射手も撃ち止め、列の道順を優先する。
   g.retreatOnly = true; g.igaRaidPost = null;
   g.formation = 'column'; g.colW = 2; g.march = true; g.roadColumn = true;
   g.followColumnRoad = true;

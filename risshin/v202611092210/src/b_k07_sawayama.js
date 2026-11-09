@@ -476,6 +476,7 @@ const k07_sawayama = {
       s.tick = (rt2, C, m, ctx, el, dt) => {
         const p = rt2.player.u.pos;
         const inside = !!yard && p.x > yard.poly[0][0] && p.x < yard.poly[1][0] && p.z > yard.poly[0][1] && p.z < yard.poly[2][1] && Math.abs(p.y - yard.level) < 3;
+        C.k07Inside = inside;
         if (inside) {
           C.k07Entered = true;
           C.k07EnteredAt ??= rt2.t;
@@ -874,8 +875,8 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 尾根の上の段（二の丸・本丸）では、斬り合いの場へ城の道（二の丸の奥の口→本丸の門）を通って行く。真っ直ぐ向かうと本丸の石垣に当たって外を回り、
   //   本丸に一度も入らないまま⑤が済んだ（11/6 描いて遊んだ二回とも）
   const D = F.dp, C = D && D.on && D.cur;
-  // 守りが崩れた後は追撃を止め、曲輪の中まで登る。共通の到着半径で石垣の下に止まらない。
-  if (C && C.s.kind === 'fight' && C.k07Cleared && !C.k07Entered) {
+  // 守りが崩れた後は追撃を止め、曲輪の中まで登る。一度入って外へ出た時も戻る。
+  if (C && C.s.kind === 'fight' && C.k07Cleared && !C.k07Inside) {
     const q = sawayamaWay(b.army, u, C.at);
     inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false;
     goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true;
