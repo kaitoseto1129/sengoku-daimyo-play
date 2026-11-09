@@ -216,6 +216,7 @@ const t03_komaki = {
   alwaysMelee: false,
   foeMarks: true,
   enemyTriangleSigns: true,
+  noAutoFoeCam: () => true,
   playerAtkMax: 3,
   playerTaken: 0.5,
   playerRegen: 0.025,
@@ -338,7 +339,7 @@ const t03_komaki = {
       F.sortie.dest = { x: FIELD.x, z: FIELD.z - 4 };
       rt.army.play('toki', { x: GATE.x, z: GATE.z + 4 }, 1.2);
     } else if (n === 4) {
-      if (live(F.guns)) { F.guns.order = 'retreat'; F.guns.dest = { x: FIELD.x, z: ZS + 20 }; }
+      for (const g of [F.guns, F.guns2]) if (live(g)) { g.order = 'retreat'; g.dest = { x: FIELD.x, z: ZS + 20 }; }
       if (live(F.sortie)) { F.sortie.order = 'move'; F.sortie.dest = { x: GATE.x, z: GATE.z - 8 }; F.sortie.onArrive = (q) => { q.order = 'hold'; }; }
       rt.award((t) => t.side.push('堀の前の鉄砲組を追い払った'), '堀の前の鉄砲組を追い払った');
       Council.startCouncil(rt, K);
@@ -431,7 +432,9 @@ const t03_komaki = {
         F.gunsN += aliveN(F.guns2);
         rt.say('物見', '奥にもう一列！　鉄砲が並び直したぞ', 2.6);
       }
-      if ((dist(P.pos, FIELD) < 45 && el > 60 && (n <= F.gunsN * 0.35 || F.guns.routed || el > 120)) || el > 200) this.stage(rt, 4);
+      const drivenOff = F.guns2 && (n <= F.gunsN * 0.35 ||
+        ((!live(F.guns) || F.guns.routed) && (!live(F.guns2) || F.guns2.routed)));
+      if (dist(P.pos, FIELD) < 45 && el > 60 && drivenOff) this.stage(rt, 4);
     } else if (F.stage === 4) Council.tickCouncil(rt, K);
     else if (F.stage === 5) Council.tickOrders(rt, K);
     else if (F.stage === 6) Night.tickNight(rt, K);

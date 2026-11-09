@@ -11,6 +11,24 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 岐阜県博物館館報第二号・出品三十三、住吉神社蔵の伝秀政所用・堀家伝来胴丸。
+  // 豊臣編だけ金小札・浅葱糸威へ寄せる。各戦の着用は未確認。織田編の指定は保つ。
+  // 鉢は従来の桃形による復元。立物・面頬・陣羽織は補わない。出所：docs/generals_look_1108/堀秀政.md。
+  if (name === '堀秀政' && year >= 1582 && KACCHU[name]) {
+    const key = name + '|金小札浅葱胴丸';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'momonari', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0xb99a4d, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x67a6ad, odo: 0x67a6ad, preserveLace: true,
+      doStyle: 'kebiki', doKebiki: true, plateDo: null,
+      domaru: true, doOpening: 'right', honkozane: true, goldKozane: true,
+      kusazuriColor: 0xb99a4d, kusazuriBands: Array(5).fill(0x67a6ad),
+      shikoroStyle: 'kebiki', shikoroLace: 0x67a6ad,
+      menpo: 0, menpoScan: null, haori: 0, horo: 0, fur: 0,
+      mon: 'hori', flag: 'hori', uma: null, ref: '',
+    });
+    return cache.get(key);
+  }
   // 東博の所用二領。小牧・長久手は黒糸威二枚胴による復元、上田は一六〇〇年拝領の南蛮胴。
   // 当日の着用は未確認。織田編へ戻さない。出所：docs/generals_look_1108/榊原康政.md。
   if (name === '榊原康政' && year >= 1584 && KACCHU[name]) {

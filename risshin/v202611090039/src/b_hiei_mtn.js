@@ -4078,8 +4078,10 @@ const hiei_mtn = {
         //   西塔の鐘（bellSaito）・p6・p7 は残す。
         F.courtT ??= rt.t;
         // 時間だけで守りを崩さず、本人が槍を合わせ、実際に道が開いてから締める。
+        // 大講堂の別働隊は中堂前の案内範囲の外。追って全滅させる隠れた条件にしない。
+        // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
         if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
-            [F.chudoG, F.courtBow, F.kodoG].every(gone) && rt.t - F.courtT > 15) {
+            [F.chudoG, F.courtBow].every(gone) && rt.t - F.courtT > 15) {
           this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
         }
       }

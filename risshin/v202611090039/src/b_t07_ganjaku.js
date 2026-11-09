@@ -682,9 +682,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       const left = this.fighting(F.hon, HON, 24);
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
       // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
-      // 15分の構成：熊井は本丸の奥に籠り、旗本を割って九十秒ほどで自ら斬って出る（それまでは奥で討てない）
-      if (boss && !F.lastStand) { boss.invuln = true; boss.noTarget = true; }
-      if (!F.lastStand && rt.t - F.stageT > 140 && (F.honT >= 4 || rt.t - F.stageT > 160)) { F.lastStand = true; F.hon.aggro = 40; if (boss) { boss.invuln = false; boss.noTarget = false; } rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
+      // 旗本を割って届けば最初から討てる。旗本が減るか百秒で自ら斬って出る。
+      if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
       if (boss && !boss.alive) this.win(rt);
     }
   },
