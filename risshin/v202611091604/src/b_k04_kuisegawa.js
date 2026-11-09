@@ -107,6 +107,30 @@ const k04_kuisegawa = {
   missionOf(rt) { return STEP_TEXT[Math.max(0, (rt.flags.step || 1) - 1)]; },
   introText: () => '関ヶ原の前の日。陣の目の前で刈田をする島左近の兵を追い、杭瀬川を越える。葦の原の伏兵から生きて岸へ戻れ。',
   minutes: 9,
+  // 布陣図（docs/fujin/k04_kuisegawa.md）：西軍は大垣の側（西）、東軍は赤坂・岡山の側（東）。陣立ての表（docs/army_depth_howto.md）
+  //   前の本物の隊は bind。明石全登の伏兵は「見せない」約束なので表に入れない。奥の備は軽い作り。各家の兵の分け方は推定。
+  depth: (rt) => ({
+    A: { name: '東軍', facing: Y(-Math.PI / 2), honjin: IEYASU, mpu: 6, formation: '鶴翼', terrain: 'river', flag: 'tokugawa', armor: 0x24221f, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'kazu', layer: 'sakite', wing: 'center', men: 1500, taisho: '中村一栄', flag: 'maru', bind: (r) => r.flags.kazu },
+        { id: 'noi', layer: 'sakite', wing: 'left', men: 500, taisho: '野一色頼母', flag: 'maru', bind: (r) => r.flags.noi },
+        { id: 'arima', layer: 'ichi', wing: 'right', men: 2000, taisho: '有馬豊氏', flag: 'maru', bind: (r) => r.flags.arimaG },
+        { id: 'nakamura2', layer: 'ni', wing: 'center', men: 2000, taisho: '', flag: 'maru', at: T(132, 10), hold: true },
+        { id: 'fukushima', layer: 'yobi', wing: 'left', men: 6000, taisho: '福島正則', flag: 'mizuno', at: T(170, -50), hold: true },
+        { id: 'ikeda', layer: 'yobi', wing: 'right', men: 4500, taisho: '池田輝政', flag: 'ageha', at: T(165, 100), hold: true },
+        { id: 'ieyasu', layer: 'hatamoto', wing: 'center', men: 600, taisho: '徳川家康', flag: 'tokugawa', bind: (r) => r.flags.ieyasu, hold: true },
+      ] },
+    B: { name: '西軍', facing: Y(Math.PI / 2), honjin: T(-228, -40), mpu: 6, formation: '鶴翼', terrain: 'river', flag: 'ishida', armor: 0x6b2e22, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'gamo', layer: 'sakite', wing: 'center', men: 200, taisho: '蒲生郷舎', flag: 'ishida', bind: (r) => r.flags.gamo },
+        { id: 'shima', layer: 'ichi', wing: 'left', men: 300, taisho: '島左近', flag: 'ishida', bind: (r) => r.flags.shimaG },
+        { id: 'ishida1', layer: 'ni', wing: 'left', men: 3000, taisho: '', flag: 'ishida', at: T(-170, -70), hold: true },
+        { id: 'ukita', layer: 'ni', wing: 'right', men: 8000, taisho: '宇喜多秀家', flag: 'ukita', at: T(-180, 40), hold: true },
+        { id: 'ukita2', layer: 'yobi', wing: 'right', men: 6000, taisho: '', flag: 'ukita', at: T(-204, 70), hold: true },
+        { id: 'ishida', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '石田三成', flag: 'ishida', at: T(-214, -46), hold: true },
+      ] },
+    honjinView: { A: false, B: false },
+  }),
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 二巡（徳川D）：弱めて入れる。もとは入れない（11/8 bot：入れると伏兵の段が十分あまり続き任務失敗）
   fearKind: { kind: '伏兵', note: '追っていた敵が葦の中から返し、横と後ろを突かれる', w: { flank: 1.8, iso: 1.5, routed: 1.3 }, line: '囲まれるぞ、川まで退け！' },
   // 身の回りの合戦の跡（timeslip_field.js）。九月半ば（今の十月半ば）の刈田と川岸の葦

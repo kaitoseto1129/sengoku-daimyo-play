@@ -312,6 +312,8 @@ NAMED_GEAR['土屋昌恒'].swordHand = 'right';
 
 // 旗印（隊の旗持ちが掲げる。textures.js の紋の種類）と馬印（units_flags.js の umaGeometry：fan 金扇・gourd 瓢箪・sun 日輪）。
 // 布と形は家の旗・馬印と同じ物を使い回す。馬印は本人でなく隊の徒が背負う。
+// 遠藤の個人旗・馬印は未確認。浅井方の所属旗だけを共用する（本人の調べ書き）。
+NAMED_GEAR['遠藤直経'] = { ...NAMED_GEAR['遠藤直経'], flag: 'azai', uma: null, campUma: null };
 // 孫一の八咫烏は地域の旗印伝承による復元。個人馬印は未確認なので隊にも陣所にも補わない。
 // https://wakayama-rekishi100.jp/story/006.html
 NAMED_GEAR['鈴木孫一'] = { ...(NAMED_GEAR['鈴木孫一'] || rosterGear('鈴木孫一')),

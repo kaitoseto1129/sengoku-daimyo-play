@@ -40,7 +40,7 @@ export function start(rt, ctx) {
     const p = rt.player.u.pos;
     const from = { x: p.x - 26, z: p.z - 18 };
     const g = ctx.enemyGroup(rt, { faction: 'azai', name: '遠藤直経の手', anchor: from, facing: Math.PI, fleeDir: ctx.AZAI_FLEE, aggro: 8, width: 8, morale: 100, noRout: true, speed: 3.6 },
-      ctx.dress([{ type: 'busho', n: 1, o: { name: '遠藤直経', hat: 'kabuto_r', haori: 0x3a2e22 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], ctx.AZAI));
+      ctx.dress([{ type: 'busho', n: 1, o: { name: '遠藤直経', hat: 'kabuto', haori: 0 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], ctx.AZAI));
     S.g = g; S.u = g.units.find((u) => u.name === '遠藤直経') || g.units[0];
     // 首を提げて南の本陣へ紛れ込む
     g.order = 'move'; g.dest = { x: ctx.HQ.x, z: ctx.HQ.z - 16 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
