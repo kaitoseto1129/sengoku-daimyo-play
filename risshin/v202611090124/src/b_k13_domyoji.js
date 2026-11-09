@@ -483,7 +483,7 @@ const k13_domyoji = {
       // ② 頂の後藤又兵衛（孤立しても侍衆が固く守る。必ず討たれる）
       DP.fight({ at: TOP, title: '後藤又兵衛', sub: '後続は霧で遅れ、小松山の頂は孤立している', obj: GOALS[1], max: 200, noRefill: true,
         say: [['後藤又兵衛', '薄田も真田も遅れたか。ならば我が手で、この山を墓所とする！'], ['足軽', '黒の甲冑、又兵衛じゃ！　侍衆が固めておる！']],
-        foes: () => [keep('後藤又兵衛の旗本', TOP, [{ type: 'busho', n: 1, o: { name: '後藤又兵衛', horse: true, hat: 'kabuto_t' } }, uS(10), uA(8), uG(5)], { dx: -6, morale: 100, noRout: 120, dmg: 0.6 })],   // 0.8 では十秒で命が四割まで減った（11/7 の遊び。十二3）
+        foes: () => [keep('後藤又兵衛の旗本', TOP, [{ type: 'busho', n: 1, o: { name: '後藤又兵衛', horse: true, hat: 'kabuto' } }, uS(10), uA(8), uG(5)], { dx: -6, morale: 100, noRout: 120, dmg: 0.6 })],   // 0.8 では十秒で命が四割まで減った（11/7 の遊び。十二3）
         later: [
           // 又兵衛は頂で待たず、隊を率いて東の斜面へ駆け下りる（何度も押し返した）
           { t: 14, say: ['後藤又兵衛', '下りて突き崩す！　我に続け！'], foes: () => { matabeiCharge(rt); return []; } },

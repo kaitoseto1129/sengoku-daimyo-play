@@ -152,7 +152,7 @@ const domyoji = {
     F.g1 = soften(enemyGroup(rt, { faction: 'toyotomi', name: '後藤の先手', anchor: { x: KOMA.x + 12, z: KOMA.z + 4 }, facing: Math.PI / 2, fleeDir: { x: -1, z: 0 }, aggro: 10, width: 14, noRout: true, formation: 'yari', dmgMult: 0.62, defMult: 1.2 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 5 }], GOTO)));
     F.gotoG = soften(enemyGroup(rt, { faction: 'toyotomi', name: '後藤又兵衛の旗本', anchor: { x: KOMA.x - 2, z: KOMA.z - 2 }, facing: Math.PI / 2, fleeDir: { x: -1, z: 0 }, aggro: 6, width: 10, noRout: true, dmgMult: 0.62, defMult: 1.4 },
-      dress([{ type: 'busho', n: 1, o: { name: '後藤又兵衛', invuln: true, horse: true, hat: 'kabuto_t', haori: 0x2a2a2a, flagScale: 1.3 } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }], GOTO)));
+      dress([{ type: 'busho', n: 1, o: { name: '後藤又兵衛', invuln: true, horse: true, hat: 'kabuto', haori: 0, flagScale: 1.3 } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }], GOTO)));
     F.gotoU = F.gotoG.units[0];
     F.gotoU.dmg *= 0.5;   // 馬上の将は、足軽ひとりを斬り伏せるより兵を率いて押す役
 

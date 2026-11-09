@@ -276,8 +276,8 @@ const NOBLUE_SKIP = new Set(['skin', 'face', 'tier', 'vi', 'flag', 'standard', '
 const _noBlueKacchu = new Map();   // 武将の具足の表は形の使い回しの鍵なので、直した写しも一人一つに保つ
 function allyNoBlue(look, deep = true) {
   for (const k in look) {
-    // 康政の南蛮胴の紺糸は史料の指定を保つ。織田編と他の武将は従来どおり。
-    if (look.flag === '榊原の日輪無' && look.preserveLace && ['lace', 'odo', 'kusazuriBands'].includes(k)) continue;
+    // 康政の南蛮胴と信繁の大坂の復元具足は紺糸を保つ。織田編と他の武将は従来どおり。
+    if ((look.flag === '榊原の日輪無' || look.flag === 'sashi:無地:#9a2a20:#9a2a20') && look.preserveLace && ['lace', 'odo', 'kusazuriBands'].includes(k)) continue;
     if (NOBLUE_SKIP.has(k)) continue;
     const v = look[k];
     if (typeof v === 'number') look[k] = unBlue(v);

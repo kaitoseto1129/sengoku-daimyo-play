@@ -392,7 +392,7 @@ const KB_BY = {
   上杉謙信: { lac: 'kuro', crest: 'mika', fuki: 'kin', odo: 0x4a3a62 },
   本多忠勝: { lac: 'kuro', crest: 'tsuno', fuki: 'kuro', odo: 0x24211e },
   井伊直政: { lac: 'shu', crest: 'tentsuki', fuki: 'shu', odo: 0xa8301f },
-  真田信繁: { lac: 'shu', crest: 'tsuno', fuki: 'shu', odo: 0xa8301f },
+  真田信繁: { lac: 'shu', crest: 'tsuno', fuki: 'lac', odo: 0x232c40 },
   山県昌景: { lac: 'shu', crest: 'kuwa', fuki: 'shu', odo: 0xa8301f },
   森可成: { lac: 'sabi', crest: 'nichiR', fuki: 'kawa' },
   丹羽長秀: { lac: 'sabi', crest: 'mika', fuki: 'kawa' },
