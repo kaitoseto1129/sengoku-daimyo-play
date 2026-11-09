@@ -2840,6 +2840,7 @@ const kizugawa = {
   // 11/4 jin（kaito 三3）：右上に番号つきの目標（stages.js の五段）を戦の間ずっと出す。一行の札（missionSingleLine）は
   //   jk の画面で隠れて何も出なかったので使わない。
   stageGoalsOnly: true,   // 段だけを目標に（「敵を何人討つ」で埋めない）
+  goalsAllRows: true,   // 目標の共通表示が一件になっても、五つを最初から並べる。
   // 11/6 fixc0504（kaito 九1・十1）：五つを最初から全部並べ、済んだ物に印。段（kzStage）は戻らないので印も戻らない。
   goals5: () => [0, 1, 2, 3, 4].map((k) => ({
     kind: 'stage', k, text: KZ_STAGE_TEXT[k].replace(/撃て$/, '撃つ').replace(/消せ$/, '消す').replace(/討て$/, '討つ').replace(/退かせよ$/, '退かせる').replace(/止めよ$/, '止める'),

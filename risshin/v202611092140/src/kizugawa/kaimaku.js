@@ -21,7 +21,7 @@ export function install(rt, ctx) {
     rt.army.play('volley', { x: e.x, z: e.z }, 1.3);
     rt.army.smoke(e.x - 3, 4, e.z + 2, -1, 0.4, 2.6);
     rt.after(1.4, () => {
-      if (!F.cannonSplash) return;
+      if (!alive() || !F.cannonSplash) return;
       F.cannonSplash.at = rt.t;
       F.cannonSplash.mesh.position.set(e.x - 70, 0.5, e.z + 45);
     });
@@ -37,7 +37,7 @@ export function install(rt, ctx) {
   rt.after(128, () => {
     if (!alive()) return;
     rt.army.playFar('sig_kakari', { x: -110, z: 90 }, 0.9);
-    rt.after(1.5, () => rt.army.playFar('toki', { x: -90, z: 70 }, 0.8));
+    rt.after(1.5, () => { if (alive()) rt.army.playFar('toki', { x: -90, z: 70 }, 0.8); });
     rt.say('物見', '小早が櫓を揃えた！　いっせいに漕ぎ寄せて来るぞ！', 3);
   });
 }
