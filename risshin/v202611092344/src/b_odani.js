@@ -58,6 +58,9 @@ import {
 // 保存管理計画表7：桜馬場は切岸で守られ、土塁は存在しない。柵・門の開口は保つ。
 // 切岸は歩行と同じ地面で描き、斜面から浮く上張りを作らない。
 const ODANI_PLAN = { ...ODANI_BASE_PLAN, terrainBanks: true,
+  // 物見は京極丸・小丸・本丸だけ。元の縄張りの六基をそのまま建て直さない。
+  yagura: ODANI_BASE_PLAN.yagura.filter((t) =>
+    t.id === 'monomi_kyo' || t.id === 'monomi_koma' || t.id === 'sumi_hon'),
   kuruwa: ODANI_BASE_PLAN.kuruwa.map((k) => k.id === SAKURABABA.id ? { ...k, dorui: 0 }
     : k.id === NAKAMARU.id ? { ...k, get poly() { return S.quality === 'high' ? NAKAMARU_YOKOYA : k.poly; } } : k),
   koguchi: ODANI_BASE_PLAN.koguchi.map((g) =>

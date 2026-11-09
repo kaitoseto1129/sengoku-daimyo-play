@@ -616,6 +616,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     const F = rt.flags;
     if (F.ending) return;
     if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
+    // 刻限と同じ更新で熊井を討った時も、果たした最後の目標を日没の負けで取り消さない。
+    if (F.stage === 5 && F.hon.units.some((u) => u.name === '熊井越中守' && !u.alive)) { this.win(rt); return; }
     const p = rt.player.u.pos, el = rt.t - F.t0;
     // 日が傾く：残りの時を空の色で知らせる（字は出さない）
     // 11/8 critic60 t07（四6・二2）：昼の時計（dayClock）が動く戦では setTime('dusk') が空を変えず、負けの時も真昼の青空だった。
@@ -707,15 +709,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       if (ninomaru.update(rt, K)) this.go(rt, 5);
     } else if (F.stage === 5) {
       // 熊井越中守が討たれれば落城（誰が討っても）。目標どおり、討つまでは勝ちにしない（kaito 三3・十1）
-      const boss = F.hon.units.find((u) => u.name === '熊井越中守');
       const inHon = Math.hypot(p.x - HON.x, p.z - HON.z) < 13;
       const left = this.fighting(F.hon, HON, 24);
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
       // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
       // 旗本を割って届けば最初から討てる。旗本が減るか百秒で自ら斬って出る。
       if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
-      // 旗本を割って届けば最初から討てる。戦の長さのために傷を無効にしない。
-      if (boss && !boss.alive) this.win(rt);
     }
   },
   // 城そのものが武器：坂を登る間と、閉まった門の前では、二の丸の塀の上から石を投げ落とす（門を破るまで。kaito 十3）。
