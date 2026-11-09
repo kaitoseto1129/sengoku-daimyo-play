@@ -219,7 +219,9 @@ function marchTo(rt, g, to, k = 0) {
   let rear = null;
   for (const u of g.units) if (u.alive && !u.fleeing && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 12 && (!rear || far(u) > far(rear))) rear = u;
   if (rear && far(rear) > 30 && unseenRejoin(rt, rear.pos.x, rear.pos.z)) for (const u of g.units) if (u.alive && !u.fleeing && !u.isPlayer && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45 && unseenRejoin(rt, u.pos.x, u.pos.z)) {
-    u.pos.x = rear.pos.x + (Math.random() - 0.5) * 3; u.pos.z = rear.pos.z + (Math.random() - 0.5) * 3; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.target = null; u.aiT = 0;
+    const x = rear.pos.x + (Math.random() - 0.5) * 3, z = rear.pos.z + (Math.random() - 0.5) * 3;
+    if (!unseenRejoin(rt, x, z)) continue;
+    u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.target = null; u.aiT = 0;
   }
   g.focus = null; g.dest = null; g.fixed = false;
   g.anchor = { x: c.x, z: c.z }; g.path = path; g.pathIdx = 0;
@@ -467,6 +469,7 @@ const t11_hachioji = {
   lethal: { soft: true },   // 命懸けの戦場（11/9 係A：bot が倒れる・止まるので soft）
   noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,
   goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
+  waitForPortrait: true,   // 顔を撮れるまで影の顔を出さず、本人の顔だけを一度表示する（critic60 五6）。
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 15,

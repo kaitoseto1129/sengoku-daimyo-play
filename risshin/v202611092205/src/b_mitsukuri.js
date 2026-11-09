@@ -4618,9 +4618,12 @@ const mitsukuri = {
       return;
     }
     if (F.sallyBack) return;
-    const alive = F.sally.units.filter((u) => u.alive).length;
-    // 待つだけで迎撃を果たさない。実際に半ばを失うまで城兵は押し寄せる。
-    if (alive > F.sallyN * 0.5) return;
+    let fighting = 0;
+    for (const u of F.sally.units) if (siegeFighter(u)) fighting++;
+    // 郭の守備人数と同じく、負傷して戦線を離れた兵は除く。
+    // 生存だけで数えると、重傷兵が半ばを占めた時に迎撃が終わらない。
+    // 待つだけでは進めず、実際に戦える城兵が半ばになるまで押し寄せる。
+    if (fighting > F.sallyN * 0.5) return;
     // 半ばを討たれて退く。木戸は閉め切れず、退く兵に続いて二の丸へなだれ込める。
     F.sallyBack = true;
     const g = F.sally;
