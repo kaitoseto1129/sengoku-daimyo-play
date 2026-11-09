@@ -145,7 +145,7 @@ function isTouchLd() { return document.documentElement.classList.contains('touch
 function ldBegin(keys, battle = '') {
   // 前の支度に失敗した札を、新しい戦の支度へ持ち越さない。
   document.querySelectorAll('#loading .ld-actions').forEach((el) => el.remove());
-  $('ld-stage').setAttribute('role', 'status');
+  $('ld-stage')?.setAttribute('role', 'status');   // 札がまだ無い時（初めの戦）に戦が始まらず落ちた（11/9）
   const L = { ...ldLearned(), ...ldLearned(battle) }, mul = isTouchLd() ? 1.6 : 1;
   ldPlan = { keys, battle, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, part: 0, t: performance.now(), t0: performance.now(), hidden: document.hidden, progress: 0 };
   ldPlan.total = ldPlan.est.reduce((sum, ms) => sum + ms, 0);
