@@ -498,6 +498,26 @@ const t12_odawara = {
   spawn: { x: II_JIN.x + 2, z: II_JIN.z + 4, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 17,
+  // 11/9 軍勢の厚み（docs/army_depth_howto.md）：囲みの陣立て。どちらの備も自分からは出ない（hold。秀吉の「城は攻めるな」）。
+  //   東の酒匂川の側は徳川勢の備が層をなし、総構えの内は北条の備が口ごとに固める。本物の隊は bind で結ぶ（描かず、本物から読む）
+  depth: {
+    A: { name: '豊臣', facing: -Math.PI / 2, honjin: { x: IE_JIN.x, z: IE_JIN.z }, mpu: 8, formation: '鶴翼', terrain: 'plain', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'ii', layer: 'sakite', wing: 'center', men: 3000, taisho: '井伊直政', flag: 'ii', bind: (rt) => rt.flags.ii, hold: true },
+        { id: 'yasu', layer: 'ichi', wing: 'right', men: 1500, taisho: '松平康頼', bind: (rt) => rt.flags.yasu, hold: true },
+        { id: 'honda', layer: 'ichi', wing: 'left', men: 3000, taisho: '本多忠勝', flag: 'honda', at: { x: 150, z: -186 }, hold: true },
+        { id: 'toku2', layer: 'ni', wing: 'right', men: 4000, taisho: '', at: { x: 178, z: -118 }, hold: true },
+        { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '徳川家康', bind: (rt) => rt.flags.ieyasu, hold: true },
+      ] },
+    B: { name: '北条', facing: Math.PI / 2, honjin: { x: CASTLE.x, z: CASTLE.z }, mpu: 8, formation: '方円', terrain: 'castle', flag: 'hojo', armor: 0x2e2a24, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'sanno', layer: 'ichi', wing: 'center', men: 3000, taisho: '', at: { x: SANNO_IN.x - 10, z: SANNO_IN.z }, hold: true },
+        { id: 'kita', layer: 'ichi', wing: 'left', men: 4000, taisho: '', at: { x: 74, z: -160 }, hold: true },
+        { id: 'umi', layer: 'ni', wing: 'right', men: 3000, taisho: '', at: { x: 66, z: -40 }, hold: true },
+        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 6000, taisho: '北条氏直', bind: (rt) => rt.flags.hojo, hold: true },
+      ] },
+    honjinView: { A: false, B: false },   // 陣幕と本丸は戦のファイルが作る
+  },
   pacingCap: 1500,   // 11/8 15分の構成（この戦だけ15〜18分）。共通の打ち切り（十八分）を二十五分へ
   noFrontFill: true,         // 見える兵は全部本物（奥の軽い乱戦を置かない。11/3 p100）
   kumiLead: false,           // 行き先の印は今の目標の金の▼一つだけ（kaito AV15）

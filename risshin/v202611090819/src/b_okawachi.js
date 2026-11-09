@@ -960,6 +960,24 @@ const okawachi = {
   armySignals: false, // 合図は各段の下知で鳴らす。任務の文から共通の退き合図を重ねない。
   nobiki: true, // 交代の終幕も、夜攻めの退きと同じ法螺・二つ打ちで知らせる。
   jinkei: OKAWACHI_JIN,
+  // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が城、南（+z）が搦手の囲みの陣。四方の囲みの大軍は戦のファイルの軽い作り（siege）が受け持つので、
+  //   ここは搦手の三手と南の番（本物の隊に結ぶ）と、川向こうの信長の本陣だけ。北畠は木戸の内の守り（本物）と、本丸の具教の旗本（描かない）。
+  depth: {
+    A: { name: '織田', facing: Math.PI, honjin: { x: 174, z: -190 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'oda', armor: 0x352d26, openAt: 30, attrition: 0.002,
+      sonae: [
+        { id: 'niwa', layer: 'sakite', wing: 'center', men: 3000, taisho: '丹羽長秀', bind: (rt) => rt.flags.niwa },
+        { id: 'ikeda', layer: 'ichi', wing: 'left', men: 2000, taisho: '池田恒興', bind: (rt) => rt.flags.ikeda },
+        { id: 'inaba', layer: 'ichi', wing: 'right', men: 2000, taisho: '稲葉良通', bind: (rt) => rt.flags.inaba },
+        { id: 'south', layer: 'ni', wing: 'center', men: 1000, taisho: '', bind: (rt) => rt.flags.blockGuard },
+        { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '織田信長', hold: true, show: false, at: { x: 174, z: -190 } },
+      ] },
+    B: { name: '北畠', facing: 0, honjin: { x: 0, z: -120 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'kitabatake', armor: 0x493028, openAt: 30, attrition: 0.002,
+      sonae: [
+        { id: 'gate', layer: 'sakite', wing: 'center', men: 800, taisho: '', bind: (rt) => rt.flags.gateDef?.real },
+        { id: 'tomonori', layer: 'hatamoto', wing: 'center', men: 6000, taisho: '北畠具教', hold: true, show: false, at: { x: 0, z: -120 } },
+      ] },
+    honjinView: { A: false, B: false },
+  },
   // 和睦まで定義が進める。具教を共通処理の討ち取り勝ちに替えない。
   taisho: { b: { def: true } },
   noTaishoRaid: true, // 城兵の出撃は下の有限の控えだけ。本陣救援の別任務を差し込まない。
