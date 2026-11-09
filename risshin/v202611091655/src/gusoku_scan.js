@@ -56,10 +56,15 @@ function wantsGusoku(L, u) {
 // 材質：スキャンの絵の濃淡と小札・威の目はそのまま、色をその人の具足の漆（L.armor）と威（L.lace）へ寄せる（赤備え・黒漆・家ごとの威）。
 //   飾り台の白い布（脇の下に写った物）は暗い鎧下の色に。青い威は寄せない（具足を青く塗らない）。描く仕組みは一つで、色は材質ごとの値
 const toLin = (hex, fb) => { const c = new THREE.Color(hex ?? fb); const h = c.getHSL({}); return h.h > 0.45 && h.h < 0.78 && h.s > 0.15 ? new THREE.Color(fb) : c; };
+// 11/9 kaito「侍イメージ」（docs/samurai_look_ref_1109.md）：名の無い侍（kacchu_generic）は、同じスキャンの形のまま絵だけ当世具足の量産形に。
+//   胴は横に板を重ねた桶側胴（板の継ぎ目・板の縁の照り・鋲）、威は使い込んだ暗い糸、全体に汚れと擦れ。袖は短く（小さい肩当て）。形と描く回数は同じ
+const isTosei = (L) => !!L.kacchu?.generic && !isNamed(L);
 function gusokuMaterial(L, seed) {
   const v = Math.floor(((seed || 0) * 7.13) % 1 * 3);
+  const tosei = isTosei(L);
   const lac = toLin(L.armor, 0x2a2420), odo = toLin(L.takedaRed ? 0xa8301f : L.lace, 0x5a3420);
-  const key = lac.getHexString() + odo.getHexString() + v;
+  if (tosei) odo.lerp(lac, 0.65).multiplyScalar(0.6);
+  const key = lac.getHexString() + odo.getHexString() + v + (tosei ? 't' : '');
   let m = GS.mats.get(key);
   if (m) return m;
   m = new THREE.MeshStandardMaterial({ map: GS.col, roughness: 0.66, metalness: 0.1, envMapIntensity: 0.7 });
@@ -67,6 +72,14 @@ function gusokuMaterial(L, seed) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = 'attribute float aUnder;\nvarying float vUnder;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vUnder = aUnder;');
+    if (tosei) {
+      // 袖（胴の外の肩から下がる板）を上へ縮めて小さい肩当てに。胴の座標の立ち姿で、肩の外だけ
+      sh.vertexShader = 'varying vec3 vGP;\n' + sh.vertexShader.replace('vUnder = aUnder;', `vUnder = aUnder; vGP = position;
+        { float sw = smoothstep(0.185, 0.225, abs(position.x)) * smoothstep(1.02, 1.12, position.y) * (1.0 - aUnder);
+          transformed.y = mix(transformed.y, 1.45 - (1.45 - transformed.y) * 0.5, sw);
+          transformed.x = mix(transformed.x, sign(transformed.x) * (0.2 + (abs(transformed.x) - 0.2) * 0.75), sw); }`);
+      sh.fragmentShader = '#define GS_TOSEI\nvarying vec3 vGP;\n' + sh.fragmentShader;
+    }
     sh.fragmentShader = 'uniform vec3 uLac; uniform vec3 uOdo; uniform float uGain;\nvarying float vUnder;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
       float gsOdo = 0.0;
       {
@@ -81,13 +94,35 @@ function gusokuMaterial(L, seed) {
         c = mix(c, vec3(0.03, 0.025, 0.022), cloth);
         diffuseColor.rgb = c * uGain;
         gsOdo = max(isOdo, cloth);
+#ifdef GS_TOSEI
+        {
+          // 桶側胴：胴（腰の上から胸）の前後と脇に、横の板を何段も。板の上の縁が照り、継ぎ目は暗い溝、板ごとに少し色が違う。鋲は板の縁に点々
+          float dw = smoothstep(1.0, 1.03, vGP.y) * (1.0 - smoothstep(1.39, 1.42, vGP.y)) * (1.0 - smoothstep(0.17, 0.2, abs(vGP.x)));
+          float py = (vGP.y - 1.0) / 0.046, f = fract(py), row = floor(py);
+          float hsh = fract(sin(row * 12.9898 + 4.1) * 43758.5453);
+          float seam = 1.0 - smoothstep(0.0, 0.16, f), lip = smoothstep(0.66, 0.9, f) * (1.0 - smoothstep(0.93, 1.0, f));
+          float ang = atan(vGP.x, vGP.z + 0.02);
+          float riv = (1.0 - smoothstep(0.0, 0.18, abs(fract(ang * 5.1) - 0.5) * 2.0 - 0.82)) * smoothstep(0.78, 0.86, f) * (1.0 - smoothstep(0.9, 0.96, f));
+          vec3 plateC = uLac * (0.45 + 0.3 * hsh + 1.25 * lip) + 0.025 * lip;
+          plateC = mix(plateC, vec3(0.006, 0.005, 0.004), seam);
+          plateC += vec3(0.05, 0.045, 0.04) * riv;
+          c = mix(c, plateC, dw * 0.92);
+          gsOdo = mix(gsOdo, seam * 0.6, dw);
+          // 使い込み：泥と擦れ（下ほど泥、角は擦れて地の鉄が出る）
+          float n = fract(sin(dot(floor(vGP * 38.0), vec3(12.99, 78.23, 37.71))) * 43758.55);
+          float mud = (1.0 - smoothstep(0.75, 1.15, vGP.y)) * 0.55 + n * 0.25;
+          c = mix(c, c * vec3(0.9, 0.78, 0.62) + vec3(0.01, 0.008, 0.005), clamp(mud, 0.0, 0.7));
+          c *= 0.88 + 0.16 * n;
+          diffuseColor.rgb = c * uGain;
+        }
+#endif
         // 具足の内の鎧下（addUnder）：暗い麻の直垂の色、艶なし
         if (vUnder > 0.5) { diffuseColor.rgb = vec3(0.032, 0.028, 0.025); gsOdo = 1.0; }
       }`).replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       // 漆の板は照る（現存の当世具足の黒漆・朱漆の艶。前は一面 0.66 で、板も糸も同じ鈍い樹脂に見えた）。威の絹糸と布は艶なし
       roughnessFactor = mix(0.34, 0.86, gsOdo);`);
   };
-  m.customProgramCacheKey = () => 'gusoku';
+  m.customProgramCacheKey = () => tosei ? 'gusoku_tosei' : 'gusoku';
   GS.mats.set(key, m);
   return m;
 }

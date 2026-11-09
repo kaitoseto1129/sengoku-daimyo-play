@@ -3279,7 +3279,7 @@ const shigisan = {
     });
     this.castleGuide(rt, ROAD.slice(ROAD.findIndex((p) => p[1] === GATE.z), ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z) + 1), 'rg1', '敵のいる下の曲輪');
     F.lowerBest = Infinity; F.lowerStallAt = rt.t;
-    if (!rt.G.lord) F.paceKaeshi = installKaeshi(rt, { dress, MATSU, TSUTSUI, RIDGE1, RIDGE2, GATE, next: () => { if (F.honmaruWanted) this.honmaru(rt); } });   // 城内の火・逆寄せ・筒井の後続
+    if (!rt.G.lord) F.paceKaeshi = installKaeshi(rt, { dress, MATSU, TSUTSUI, RIDGE1, RIDGE2, GATE, ROAD, march, next: () => { if (F.honmaruWanted) this.honmaru(rt); } });   // 城内の火・逆寄せ・筒井の後続
 
   },
   onZoneFall(rt, id) {

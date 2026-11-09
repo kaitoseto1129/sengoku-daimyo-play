@@ -13,10 +13,10 @@ import { nm } from '../bhelp.js';
 const CASTLE = { x: 620, z: -430 };
 // 囲む陣：砦の北東、城へ向かう道すじに。[x, z, 家, 篝火を焚くか]
 const CAMPS = [
-  [96, -128, 'tokugawa', true],
-  [138, -70, 'todo', true],
-  [70, -168, 'ii', false],
-  [150, -10, 'honda', true],
+  [96, -128, 'mori', true],
+  [138, -70, 'tokugawa', true],
+  [70, -168, 'inaba', false],
+  [150, -10, 'tokugawa', true],
 ];
 
 export function install(rt, ctx = {}) {

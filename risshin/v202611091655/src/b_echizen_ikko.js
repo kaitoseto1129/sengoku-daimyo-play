@@ -4963,4 +4963,6 @@ echizen_ikko.withdrawRoute = (rt, g) => {
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
 // 11/4 check60（一-2）：柴田勝家は鳥羽野城へ向かい大滝にはいない。前に出て叫ぶ将を足さない（滝川一益は麓の陣所）。
 echizen_ikko.bushou = [];
+// 命懸けの戦場（lethal.js・docs/lethal_howto.md。11/9 係A：山門と本堂で bot が倒れる回があるので soft）
+echizen_ikko.lethal = echizen_ikko.lethal ?? { soft: true };
 export { echizen_ikko };

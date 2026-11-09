@@ -280,7 +280,7 @@ function kbBowlGeo(base, kind) {
     if (r > (rbs[k] || 0.15) + 0.016) continue;
     const h = Math.min(1, (y - rim) / H), w = smooth01((y - rim - 0.006) / 0.03), zb = z / Math.max(0.05, rb[0] || 0.13);
     let ny = y;
-    if (kind === 'zunari') {
+    if (kind === 'zunari' || kind === 'zunari_s') {
       // 頂の肩を持ち上げて平らに、全体を少し低く、後ろへ下げて流す
       ny = rim + H * (0.78 * h + 0.38 * h * (1 - h)) - 0.045 * h * h * Math.max(0, -zb);
       if (z < 0) z *= 1 + 0.07 * h;
@@ -331,6 +331,18 @@ function kbBowlGeo(base, kind) {
   for (let i = 0; i < p.count; i++) {
     const id = gid[i], dx = P[id * 3] - p.getX(i), dy = P[id * 3 + 1] - p.getY(i), dz = P[id * 3 + 2] - p.getZ(i), d = Math.hypot(dx, dy, dz), s = d > 0.006 ? 0.006 / d : 1;
     p.setXYZ(i, p.getX(i) + dx * s, p.getY(i) + dy * s, p.getZ(i) + dz * s);
+  }
+  // 名の無い侍の兜（zunari_s）：錣を短く（垂れを六割）・吹返しと錣の張り出しを鉢へ寄せる。眉庇（前の真ん中）はそのまま。形は一度だけ作って皆で使う
+  if (kind === 'zunari_s') {
+    const r0 = rb[0] || 0.13;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      if (y > rim - 0.004 || (z > 0.05 && Math.abs(x) < 0.085 && y > rim - 0.035)) continue;
+      const r = Math.hypot(x, z);
+      if (r < r0 * 0.85) continue;
+      const s = r > r0 ? (r0 + (r - r0) * 0.5) / r : 1;
+      p.setXYZ(i, x * s, rim - (rim - y) * 0.6, z * s);
+    }
   }
   p.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingBox(); g.computeBoundingSphere();
   KB.bowls.set(key, g);
@@ -429,7 +441,8 @@ function kabutoStyle(L) {
   // 本人の前立は伝来の鍬形の作り（鍬形台から細い茎で立ち、先が剣の形に開く。HERO_CREST）
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
-  const bowl = L.face === 'player' && L.kbBowl || (['toppai', 'sengoku_kasa', 'kiyomasa_eboshi'].includes(by.bowl) ? by.bowl : '');
+  // 11/9 kaito「侍イメージ」（docs/samurai_look_ref_1109.md）：名の無い侍（kacchu_generic）は丸い椀の頭形の鉢に、短い錣・小さな吹返し（zunari_s）
+  const bowl = L.face === 'player' && L.kbBowl || (['toppai', 'sengoku_kasa', 'kiyomasa_eboshi'].includes(by.bowl) ? by.bowl : '') || (L.kacchu?.generic && !nm ? 'zunari_s' : '');
   return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl, sakakibaraLace: (nm === '榊原康政' && by.flag === '榊原の日輪無') || !!by.toriiFushimi };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）

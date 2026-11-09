@@ -3791,6 +3791,8 @@ KILLS.iwamura = { 1: (rt) => {
   }
   return [down, need];
 } };
+// 命懸けの戦場（lethal.js・docs/lethal_howto.md。11/9 係A：昼の出撃戦と夜討ち）
+iwamura.lethal = iwamura.lethal ?? true;
 export { iwamura };
 
 // 麓は水晶山へ続く東の鞍部（標高約645m）。本丸（約717m）との差は約72m（国土地理院の標高。docs/battle_refs/iwamura.md）。

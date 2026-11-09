@@ -4625,6 +4625,8 @@ tennoji.bushou = ['鈴木孫一'];
 tennoji.famous = [{ name: '鈴木孫一', g: /^本願寺の鉄砲衆$/, horse: true }];
 // 11/2 点付け「名札の重なり」：門の奥へ百歩以上見通すので、外で待つ後詰の将の名まで十枚が門の上に積み重なった。名札は近い五十五歩の内だけ。
 tennoji.nameRange = 55;
+// 命懸けの戦場（lethal.js・docs/lethal_howto.md。11/9 係A：本願寺の寄せと鉄砲）
+tennoji.lethal = tennoji.lethal ?? true;
 export { tennoji };
 
 // 大軍対大軍の奥の乱戦（10/29 夜「常に乱戦激戦」「大軍対大軍に見える」）。持ち場の四方、本物の兵の居ない乾いた所に、

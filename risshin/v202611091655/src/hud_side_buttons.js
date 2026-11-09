@@ -4,11 +4,14 @@
 //   形と字は一度だけ作り、毎コマは触らない（四分の一秒ごとに出す・隠すだけ）。
 import { S, saveSettings } from './settings.js';
 import { setVolume } from './audio.js';
+import { writeCheckpoint, resumable } from './battle_checkpoint.js';
 
 const SPEAKER = '<path d="M3 8h3.2L11 4v12l-4.8-4H3z" fill="currentColor"/>';
 const ICON_ON = `<svg viewBox="0 0 20 20" aria-hidden="true">${SPEAKER}<path d="M13.4 7.2a4 4 0 0 1 0 5.6M15.6 5a7 7 0 0 1 0 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const ICON_OFF = `<svg viewBox="0 0 20 20" aria-hidden="true">${SPEAKER}<path d="M13.5 7.5l5 5M18.5 7.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 const ICON_SET = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 20a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm0 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" fill="currentColor"/><path d="M29 6h6l1 7 5 2 6-4 4 4-4 6 2 5 7 1v6l-7 1-2 5 4 6-4 4-6-4-5 2-1 7h-6l-1-7-5-2-6 4-4-4 4-6-2-5-7-1v-6l7-1 2-5-4-6 4-4 6 4 5-2z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>';
+// 11/9 kaito：上の「音」の釦を「保存」に替える（音のオン・オフは設定の中の音量へ）。戦を止めずに途中保存する
+const ICON_SAVE = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3h11l3 3v11H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M6 3v5h7V3M6 17v-5h8v5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="3.2" height="12" fill="currentColor"/><rect x="11.8" y="4" width="3.2" height="12" fill="currentColor"/></svg>';
 
 const CSS = `
@@ -46,7 +49,7 @@ export function setupSideButtons({ game, setPause }) {
     b.addEventListener('pointerdown', (e) => e.stopPropagation());
     return b;
   };
-  const sound = btn('side-sound', '音を消す', ICON_ON, '音');
+  const sound = btn('side-sound', '戦を止めずに保存する', ICON_SAVE, '保存');
   const pause = btn('side-pause', '一時停止', ICON_PAUSE, '止める');
   const gear = btn('side-set', '設定を開く', ICON_SET, '設定');
   box.append(sound, pause, gear);
@@ -56,19 +59,16 @@ export function setupSideButtons({ game, setPause }) {
     const b = game.battle;
     return !!b && !b.ended && !game.paused && !document.getElementById('hud')?.hidden;
   };
+  let savedT = 0;
   const paint = () => {
-    const off = !(S.volume > 0);
-    sound.classList.toggle('muted', off);
-    sound.setAttribute('aria-pressed', String(off));
-    sound.setAttribute('aria-label', off ? '音を出す' : '音を消す');
-    sound.innerHTML = `${off ? ICON_OFF : ICON_ON}<span>${off ? '音なし' : '音'}</span>`;
+    sound.innerHTML = `${ICON_SAVE}<span>${savedT ? '保存済' : '保存'}</span>`;
+    sound.classList.toggle('muted', false);
   };
   sound.addEventListener('click', () => {
-    if (S.volume > 0) { S.volumeBeforeMute = S.volume; S.volume = 0; }
-    else S.volume = S.volumeBeforeMute > 0 ? S.volumeBeforeMute : 0.8;
-    setVolume(S.volume);
-    saveSettings();
-    paint();
+    const b = game.battle;
+    if (!b || b.over || b.ended || b.def.town || !resumable(b)) return;
+    try { writeCheckpoint(b); } catch (e) { return; }
+    clearTimeout(savedT); savedT = setTimeout(() => { savedT = 0; paint(); }, 1500); paint();
   });
   pause.addEventListener('click', () => {
     const b = game.battle;

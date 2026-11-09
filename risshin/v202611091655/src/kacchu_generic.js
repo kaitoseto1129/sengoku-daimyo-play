@@ -5,9 +5,7 @@
 // 11/9（kaito「侍の甲冑が室町時代っぽい」・手本 docs/tosei_gusoku_1109.md）：戦国後期〜江戸初めの名の無い侍は、頭形・桃形の鉢が多く、
 //   胴は横矧の桶側胴・板の仏胴・素懸威。毛引威（細かい小札を隙間なく威した室町の胴丸・腹巻の見え方）は名の無い侍に着せない
 const BOWL = ['zunari', 'zunari', 'suji', 'momonari', 'zunari', 'momonari'];
-const DO = ['okegawa', 'hotoke', 'sugake', 'okegawa', 'okegawa', 'hotoke'];
 // 名の無い侍の多くは立物を付けないか、小さな鍬形。侍大将（tier 2 以上）は鍬形の類
-const PLAIN = ['none', 'none', 'kuwa', 'none', 'kuwa_ken', 'none'];
 const CHIEF = ['kuwa', 'kuwa_wide', 'kuwa_ken', 'kuwa', 'kuwa_sun', 'kuwa_wide'];
 // 兵の兜の種類（units_model の作り物の前立）→ 本物の立物
 const BY_HAT = { kabuto_m: 'kuwa', kabuto_r: 'kuwa', kabuto_t: 'kuwa', kabuto_b: 'kuwa_wide', kabuto_g: 'kuwa_wide', kabuto_suwa: 'kuwa_wide', kabuto_w: 'sun', kabuto_s: 'sun', kabuto_f: 'moon', kabuto_shida: 'shida', kabuto_tentsuki: 'ii_tentsuki', kabuto_shika: 'horn', kabuto_sanada: 'horn' };
@@ -29,8 +27,9 @@ export function genericKacchu(look) {
   const keep = tier >= 2 || /^kabuto_(shida|tentsuki|sanada|shika)$/.test(hat);
   const armor = look.armor, helm = look.helm ?? (red ? 0x8a1d14 : armor);
   const st = {
-    bowl: BOWL[vi], crest: (keep && BY_HAT[hat]) || (tier >= 2 ? CHIEF[vi] : PLAIN[vi]),
-    armor, helm, lace: look.lace, odo: look.lace, doStyle: tier >= 2 ? (vi % 2 ? 'sugake' : 'okegawa') : DO[vi],
+    // 11/9 kaito「侍イメージ」（docs/samurai_look_ref_1109.md）：名の無い侍（tier 1）は丸い椀の頭形・飾り無し・桶側胴にそろえる（遠くの影も同じ形）
+    bowl: tier >= 2 ? BOWL[vi] : 'zunari', crest: (keep && BY_HAT[hat]) || (tier >= 2 ? CHIEF[vi] : 'none'),
+    armor, helm, lace: look.lace, odo: look.lace, doStyle: tier >= 2 ? (vi % 2 ? 'sugake' : 'okegawa') : 'okegawa',
     haori: look.haori || 0, menpo: look.menpo || 0, menpoStyle: look.menpoStyle || 'hanbo', mon: look.mon,
     hat: 'kabuto', hatFix: 1, lac: red ? 'shu' : 'kuro', fuki: 'kuro', ref: '', generic: 1,
   };

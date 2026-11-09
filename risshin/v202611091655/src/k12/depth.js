@@ -22,10 +22,11 @@ export const DEPTH12 = {
       { id: 'awa', layer: 'ichi', wing: 'center', men: 200, taisho: '淡輪重政', bind: F('awa') },
       { id: 'harufusa', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '大野治房', hold: true, at: { x: 26, z: -200 } },
       { id: 'harufusa2', layer: 'gozume', wing: 'left', men: 1500, taisho: '', hold: true, at: { x: -30, z: -206 } },
-      // 11/9 徳川C：治房の軍はおよそ二万（浅野の四倍）。突き出た先手の後ろに、大野治胤（道犬）の手と後続・荷駄を動かない備えで足す（場所は補完）
+      // 11/9 徳川C：治房の軍は数千（泉佐野市の資料）とも二万とも言われ、貝塚から動かなかった。突き出た先手の後ろに、大野治胤（道犬）の手と後続・荷駄を動かない備えで足す（場所と数は補完）
       { id: 'harutane', layer: 'ni', wing: 'right', men: 2000, taisho: '大野治胤', hold: true, at: { x: 66, z: -196 } },
       { id: 'harufusa3', layer: 'gozume', wing: 'right', men: 2000, taisho: '', hold: true, at: { x: 50, z: -226 } },
       { id: 'konidaB', layer: 'konida', wing: 'center', men: 500, hold: true, at: { x: 10, z: -238 } },
     ] },
+  byMen: true,   // 軽い兵を兵数の比で配る（11/9 徳川C。docs/fujin/k12_kashii.md）
   honjinView: { A: false, B: false },
 };

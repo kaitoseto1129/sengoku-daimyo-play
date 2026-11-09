@@ -9,7 +9,10 @@ import { sfx } from '../audio.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
-  const { dress, MATSU, TSUTSUI, RIDGE1, RIDGE2, GATE, next } = ctx;
+  const { dress, MATSU, TSUTSUI, RIDGE1, RIDGE2, GATE, ROAD, march, next } = ctx;
+  const gate = ROAD.findIndex(([x, z]) => x === GATE.x && z === GATE.z);
+  const lower = ROAD.findIndex(([x, z]) => x === RIDGE1.x && z === RIDGE1.z + RIDGE1.r);
+  const upper = ROAD.findIndex(([x, z]) => x === RIDGE2.x && z === RIDGE2.z + RIDGE2.r);
   const t0 = rt.t, W = rt.world;
   let K = null, T = null, done = false, tick = 0;
   // ① 上の曲輪の小屋に火（夜空を赤く）
@@ -22,9 +25,12 @@ export function install(rt, ctx) {
   // ② 松永の侍衆の逆寄せ（上の曲輪から下へ）
   rt.after(30, () => {
     if (done || F.ending || rt.over || !rt.player.u.alive) return;
-    K = enemyGroup(rt, { faction: 'matsunaga', name: '逆寄せの松永の侍衆', anchor: { x: RIDGE2.x - 6, z: RIDGE2.z + 6 }, facing: Math.PI, width: 8, order: 'hold', aggro: 28, seekRange: 36, morale: 90, fleeDir: { x: 0, z: -1 } },
+    K = enemyGroup(rt, { faction: 'matsunaga', name: '逆寄せの松永の侍衆', anchor: { x: ROAD[upper][0], z: ROAD[upper][1] }, facing: Math.PI, width: 8, order: 'hold', aggro: 28, seekRange: 36, morale: 90, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 3, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 6 }], MATSU));
-    K.fixed = false; K.order = 'move'; K.dest = { x: RIDGE1.x + 6, z: RIDGE1.z + 10 }; K.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
+    // 曲輪間の切岸を直進せず、南の口と尾根道を通って逆寄せする。
+    K.fixed = false;
+    march(rt, K, ROAD.slice(lower, upper + 1).reverse());
+    K.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
     rt.army.play?.('eshout', { x: RIDGE2.x, z: RIDGE2.z + 6 }, 1.5);
     rt.banner('松永勢の逆寄せ', '火を背に、侍衆が打って出る');
     rt.say('松永の侍', '筒井の小倅どもを追い落とせ！　ここは大和の松永の城ぞ！', 4);
@@ -36,7 +42,11 @@ export function install(rt, ctx) {
     if (done || F.ending || rt.over || !rt.player.u.alive) return;
     T = allyGroup(rt, { fixed: true, name: '筒井の後続', anchor: { x: GATE.x, z: GATE.z + 10 }, facing: Math.PI, width: 8, aggro: 18, seekRange: 30, formation: 'yari' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 7 }], TSUTSUI));
-    T.fixed = false; T.ai = true; T.order = 'move'; T.dest = { x: RIDGE1.x + 4, z: RIDGE1.z + 12 }; T.onArrive = (q) => { q.order = 'attack'; };
+    // 後続も木戸と西の帯道を通す。本丸への下知・停滞時の援護の対象に含める。
+    T.fixed = false; T.ai = true;
+    F.oda.push(T);
+    march(rt, T, ROAD.slice(gate, lower + 1));
+    T.onArrive = (q) => { q.order = 'attack'; };
     sfx('horagai', 0.6);
     rt.say('筒井の侍', '筒井の後続、ただいま着到！　梅鉢の旗に続け！', 3.5);
   });

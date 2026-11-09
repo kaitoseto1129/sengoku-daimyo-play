@@ -2878,4 +2878,6 @@ function echizenWin(rt) {
 echizen.bushou = [];
 // 峠口の大将は丹羽長秀（後ろの本陣で座る）。信長は敦賀、下間頼照は杉津口にいて峠にはいない（docs/battle_refs/echizen.md）
 echizen.taisho = { a: { name: '丹羽長秀' }, b: null };
+// 命懸けの戦場（lethal.js・docs/lethal_howto.md。11/9 係A：観音丸の前で bot が倒れる事があるので soft）
+echizen.lethal = echizen.lethal ?? { soft: true };
 export { echizen };

@@ -4194,7 +4194,10 @@ const nodafukushima = {
       // 11/4 jin（AW3・BH6）：添えの一行にも「印」「待て」を使わない。
       rt.objProgress('main', safe || resting ? '味方の槍の列の後ろへ下がれ' : '');
       // 11/6 作り直し：押し返したら浅瀬を渡って砦の口へ詰めない（城の中へ突撃する戦ではない）。岸で列を整え、その夜の早鐘へ。
-      if (gone(F.sally) && !F.nightAt) {
+      // 味方の鉄砲だけで退けても、本人が井楼に残ったまま防戦済みにはしない。
+      // 先に敵が退いた場合も、浅瀬の岸へ加われば次へ進める。
+      if (gone(F.sally) && !F.nightAt && p.u.alive && !F.onSeirou &&
+          Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
         F.nightAt = rt.t + 8; F.sallyDone = true;
         rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
         rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);

@@ -804,5 +804,7 @@ KILLS[ID] = (rt) => {
   return cut(F.stepN, aliveN(F.stepG), Math.round(F.stepN * KEEP));
 };
 
+// 命懸けの戦場（lethal.js・docs/lethal_howto.md。11/9 係A：家康の本陣へ迫る短い戦なので soft）
+k16_secret.lethal = k16_secret.lethal ?? { soft: true };
 export { k16_secret };
 export default k16_secret;

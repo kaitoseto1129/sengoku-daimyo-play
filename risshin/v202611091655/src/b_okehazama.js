@@ -3711,17 +3711,30 @@ okehazama.date = (rt) => `永禄３年（１５６０年）５月１９日　仲
 // 残りの人数（kaito 10/23 稲生 21）。戦う実兵の減り方の割合で、目安の総数を減らす。
 //   一人を何十人へ水増しせず、割合だけを使う。数え直しは一秒に一度。入れ物は使い回す。
 function remainingForce(rt, a0, b0, aKeep, bKeep, out) {
-  const F = rt.flags, c = F.forceCount || (F.forceCount = { at: -9, a: 0, b: 0, a0: 0, b0: 0 });
+  const F = rt.flags, c = F.forceCount || (F.forceCount = {
+    at: -9, a0: 0, b0: 0, lostA: 0, lostB: 0, units: [], seen: new WeakSet(), initialized: false,
+  });
   if (rt.t - c.at >= 1) {
     c.at = rt.t; let a = 0, b = 0;
     for (const u of rt.army.units) {
       if (u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter') continue;
-      if (!u.alive || u.gone || u.fleeing || u.woundOut) continue;
+      if (u.team !== rt.player.u.team && u.team !== 1 - rt.player.u.team) continue;
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || c.seen.has(u)) continue;
+      c.seen.add(u); c.units.push(u);
       if (u.team === rt.player.u.team) a++; else b++;
     }
-    c.a = a; c.b = b; c.a0 = Math.max(c.a0, a); c.b0 = Math.max(c.b0, b);
+    // 出陣時の実兵を物差しに固定する。増援で分母が増えると、次の討死まで帳消しになってしまう。
+    if (!c.initialized) { c.a0 = a; c.b0 = b; c.initialized = true; }
+    // 戦場から取り除かれた兵も覚え、一人の討死・負傷・離脱を重ねて数えない。
+    let n = 0;
+    for (const u of c.units) {
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget) {
+        if (u.team === rt.player.u.team) c.lostA++; else c.lostB++;
+      } else c.units[n++] = u;
+    }
+    c.units.length = n;
   }
-  const ra = c.a0 ? c.a / c.a0 : 1, rb = c.b0 ? c.b / c.b0 : 1;
+  const ra = c.a0 ? Math.max(0, 1 - c.lostA / c.a0) : 1, rb = c.b0 ? Math.max(0, 1 - c.lostB / c.b0) : 1;
   // 11/6 描いて遊ぶ：近づいて本物の兵が出ると数え直しの分母が増え、5,710 から 6,000 へ戻った（九3・十二1）。
   //   討たれた分は戻らない。出した数より増やさない。
   const na = Math.round(a0 * (aKeep + (1 - aKeep) * ra) / 10) * 10, nb = Math.round(b0 * (bKeep + (1 - bKeep) * rb) / 10) * 10;

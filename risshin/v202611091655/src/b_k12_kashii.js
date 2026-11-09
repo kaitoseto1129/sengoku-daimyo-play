@@ -246,7 +246,7 @@ const k12_kashii = {
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。時の数字は出さない（時が尽きても負けにしない）
   goals5() {
     return STEP_TEXT.slice(1).map((text, k) => ({ kind: 'stage', k, text,
-      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.hanaDown && !!rt.flags.hanaByMe) }));
+      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.hanaDown && !!(rt.flags.hanaByMe || rt.flags.hanaCut)) }));
   },
   // 共通の任務札は今の一行だけなので、目標の札（hud_goals）で置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
   //   真田丸（b_k11_sanadamaru.js）と同じ作り。戦が終われば元へ戻す
@@ -548,10 +548,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   // 塙団右衛門の最期（主人公が止めを刺した時だけ。onWound が呼ぶ。三4）
   hanawaFalls(rt) {
     const F = rt.flags;
-    if (F.hanaDown || !F.hanaByMe || F.step !== 5) return;
+    if (F.hanaDown || !(F.hanaByMe || F.hanaCut) || F.step !== 5) return;
     F.hanaDown = true;
-    if (!F.hanaBanner) rt.banner('塙団右衛門、討ち取ったり');
-    rt.award((t) => { t.special = { label: '塙団右衛門を討ち取った', pts: 32 }; }, '塙団右衛門を討ち取った');
+    if (!F.hanaBanner) rt.banner(F.hanaByMe ? '塙団右衛門、討ち取ったり' : '塙団右衛門、討ち死に');
+    if (F.hanaByMe) rt.award((t) => { t.special = { label: '塙団右衛門を討ち取った', pts: 32 }; }, '塙団右衛門を討ち取った');
     for (const g of [F.hata, F.hana, F.awa]) if (live(g)) { g.noRout = false; g.morale = Math.min(g.morale, 15); }
     // 淡輪重政は団右衛門の死を見て敵中へ斬り込み、永田治兵衛に首を取られた（史実の順。それまでは討たれない）。
     //   目標が全部済むと数秒で締まるので、その間に収める
@@ -640,6 +640,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (here) F.hereT ??= rt.t;
       const kc = live(F.kame) && F.kame.center();
       if (here && (!kc || kc.z > VILLAGE.z - 6 || rt.t - F.hereT > 20)) this.toStep(rt, 3);
+      // 11/9 徳川C：本人が畷の西の田で敵を追い続け、村へ戻らないまま十八分の打ち切りまで②が続いた（bot act）。
+      //   殿が村へ着いて刻を百五十秒過ぎたら、村の戦（③）を始める（③の行き先のピンが村へ呼び戻す）
+      else if (el > STEP_T[2] + 150 && (!kc || kc.z > VILLAGE.z - 6)) { rt.say('上田宗箇', '村の辻で迎え撃つ！　急ぎ戻られよ！', 3); this.toStep(rt, 3); }
       // 殿が先に着いても、本人の帰着までは②を済ませない。知らせは一度だけ。
       else if (!F.returnNotice && el > STEP_T[2] + 60 && (!kc || kc.z > VILLAGE.z - 6)) {
         F.returnNotice = true;
@@ -668,6 +671,13 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 11/9：東の口へ寄れないまま二分過ぎても、浅野の騎馬と上田の手で岡部は退く（史実でも横は破れなかった）
       else if (!F.okaBack && left <= -120) this.okabeBack(rt);
     } else if (F.step === 5) {
+      // 11/9 徳川C：馬上の団右衛門に本人の一撃が届かず、⑤が十八分の打ち切りまで続いた（bot act：団右衛門の傷 百三十五を受け続けた）。
+      //   三分たっても立っていれば、浅野の者が討ち取る（史実も浅野の兵の手。本人の手柄にはしない）
+      if (F.hanaU?.alive && el > 180 && !F.hanaCut) {
+        F.hanaCut = true; F.hanaU.invuln = false;
+        const by = rt.army.units.find((u) => u.alive && u.team === 0 && !u.isPlayer && !u.isStruct);
+        rt.army.kill(F.hanaU, by);
+      }
       // 団右衛門は名乗った相手（主人公）が近ければ主人公に打ち掛かる。他の兵を追って村の外の田まで馬で駆け回らせない（11/7 遊んで五分追い回した）
       const H = F.hanaU;
       if (H?.alive) {

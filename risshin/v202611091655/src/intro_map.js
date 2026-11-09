@@ -233,6 +233,13 @@ export function bakeGround(bg, rt, v) {
 }
 
 // 両軍の色（藍と朱。色の助けでは青と橙）
+// 戦ごとの色（docs/fujin_all_1109.md の 4「豊臣・西軍＝青、徳川・東軍＝赤」）：徳川編（kNN_）は本人が徳川方なので、味方を朱・敵を藍に入れ替える。
+//   def.mapSwap で戦ごとに上書きできる（true＝入れ替える）。11/9 徳川C
+export function sideColors(rt) {
+  const c = mapColors(), id = String(rt?.def?.key || rt?.def?.id || '');
+  const swap = rt?.def?.mapSwap ?? /^k\d\d_/.test(id);
+  return swap ? { COL: [c.COL[1], c.COL[0]], DOT: [c.DOT[1], c.DOT[0]] } : c;
+}
 export function mapColors() {
   const ca = S.colorAssist;
   return { COL: [ca ? '#2f8fd0' : '#3c62c0', ca ? '#e07a10' : '#cf4a30'], DOT: [ca ? '#7cc0ef' : '#7f9cf0', ca ? '#ffb15c' : '#ff8466'] };
@@ -253,7 +260,7 @@ export function loadingMap(rt, host) {
   let L;
   try { L = introLayout(rt); } catch (e) { return null; }
   if (!L.dots[0].length && !L.dots[1].length) return null;
-  const { COL, DOT } = mapColors();
+  const { COL, DOT } = sideColors(rt);
   const short = window.innerHeight < 520;
   const Wd = Math.min(window.innerWidth - 32, short ? 560 : 520), Ht = short ? 118 : 200, dpr = Math.min(2, window.devicePixelRatio || 1);
   const cv = document.createElement('canvas');
@@ -349,7 +356,7 @@ export function introMap(rt, camera, done) {
   const topPos = new THREE.Vector3(L.me.x - cfx * 4, W.heightAt(L.me.x, L.me.z) + 95, L.me.z - cfz * 4);
   const topRot = new THREE.Quaternion();
   { const m = new THREE.Matrix4().lookAt(topPos, new THREE.Vector3(L.me.x, W.heightAt(L.me.x, L.me.z), L.me.z), new THREE.Vector3(cfx, 0, cfz)); topRot.setFromRotationMatrix(m); }
-  const { COL, DOT } = mapColors();
+  const { COL, DOT } = sideColors(rt);
 
   const cv = document.createElement('canvas');
   cv.setAttribute('aria-hidden', 'true');
