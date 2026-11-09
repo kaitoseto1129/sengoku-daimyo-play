@@ -1943,11 +1943,11 @@ const tedorigawa = {
     // 働きを数える持ち場の端までを示す。中心まで歩き直させない。
     const remaining = distance - (marker.guideRadius || 8);
     const F = rt.flags;
-    const place = F.step === 0 ? '柴田勝家の旗まで' : F.step === 1 ? '北岸の篝火まで' :
-      F.step === 3 ? F.crossViaBank && F.crossGuideAt.x === rt.player.u.pos.x ? '北岸の道まで' :
-        F.crossViaBank || F.crossEntering ? '浅瀬の入口まで' : '南岸の篝火まで' :
-        F.step === 4 ? '南岸の篝火まで' : '北岸の篝火まで';
-    return remaining < 0 ? '' : `${place} あと${Math.max(1, Math.ceil(remaining / .75))}歩`;
+    const place = F.step === 0 ? '柴田勝家の旗' : F.step === 1 ? '北岸の篝火' :
+      F.step === 3 ? F.crossViaBank && F.crossGuideAt.x === rt.player.u.pos.x ? '北岸の道' :
+        F.crossViaBank || F.crossEntering ? '浅瀬の入口' : '南岸の篝火' :
+        F.step === 4 ? '南岸の篝火' : '北岸の篝火';
+    return remaining < 0 ? '' : `${place} ${Math.max(1, Math.ceil(remaining))}m`;
   },
   routeGuidePriority(rt) {
     const F = rt.flags;

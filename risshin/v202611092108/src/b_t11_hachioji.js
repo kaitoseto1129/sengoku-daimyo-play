@@ -645,8 +645,8 @@ const t11_hachioji = {
         reward: '本丸の守りを崩した' }),
       nakayamaStep(),
       rakujo.step(H),
-    // 城兵を崩す・袂へ着く条件を満たすまで待つ。共通の放置・時間切れの送りで未達の曲輪を落とした扱いにしない。
-    ].map((s) => Object.assign(s, { idleAdvance: false, limit: Infinity })), (rt2) => this.win(rt2));
+    // 城兵を崩す・袂へ着く条件を満たすまで待つ。共通の四〜七分の打ち切りも外し、中山の討死や到着を時間だけで済ませない。
+    ].map((s) => Object.assign(s, { idleAdvance: false, limit: Infinity, noHardCap: true })), (rt2) => this.win(rt2));
   },
 
   // 上杉勢：小宮曲輪の段で、搦手（北西）から攻め上る
