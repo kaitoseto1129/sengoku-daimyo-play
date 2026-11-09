@@ -16,6 +16,10 @@ export function startCouncil(rt, K) {
   rt.world.setTime('dusk', true);
   say(rt, '羽柴秀吉', '徳川殿は動かぬ。……戻って参れ、軍議じゃ', 0.6, 3.2);
   say(rt, '日根野弘就', '砦は我らが守る。本陣へ急がれよ', 5, 2.8);
+  // 本陣へ戻る道すがら（二巡 徳川A 11/9：戻り道の一分半に何も起きなかった）。夕の陣の間に、中入りの前触れを聞かせる
+  say(rt, '足軽', '小牧山の柵の内に、篝火が増えてゆく。徳川も眠らぬのう', 22, 3);
+  say(rt, '使番', '岩崎山より。森様、羽黒の負けの恥は必ず雪ぐと仰せでござる', 40, 3.2);
+  say(rt, '使番', '池田様の陣より。物見の報せでは、三河の岡崎は手薄とのこと', 58, 3.2);
   // 大手門の前の床几に将が集まる（秀吉・秀次・池田・森・堀。討てない・動かない）
   F.council = allyGroup(rt, { name: '軍議の衆', fullStrength: true, anchor: { x: K.COUNCIL.x, z: K.COUNCIL.z - 4 }, facing: 0, width: 8, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
     K.fl([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'busho', n: 1, o: { name: '三好信吉', invuln: true } }, { type: 'busho', n: 1, o: { name: '池田恒興', invuln: true, flag: 'ageha' } },

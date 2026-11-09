@@ -674,7 +674,9 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     // 振りを受けてから返す（共通の patientStrike）。くじの突きでは一人も討てず、先手が崩れて負けた（11/8）
-    if (d > 2.4) goTo(p, inp, e.pos.x, e.pos.z, 2.2);
+    // 刀は patientStrike の間合い（1.9m）より内へ寄る。槍と同じ 2.4m で止まると一度も斬れない。
+    const attackAt = p.weapon === 'sword' ? 1.6 : 2.2;
+    if (d > attackAt) goTo(p, inp, e.pos.x, e.pos.z, attackAt);
     patientStrike(p, inp, e, d);
     return;
   }

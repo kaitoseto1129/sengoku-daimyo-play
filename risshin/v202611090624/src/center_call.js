@@ -20,6 +20,8 @@ function css() {
 body.rm #center-call .cc, html.rm #center-call .cc { animation:none; }
 @media (prefers-reduced-motion:reduce) { #center-call .cc { animation:none; } }
 body:has(#pause:not([hidden])) #center-call, body:has(#intro:not([hidden])) #center-call { visibility:hidden; }
+/* 11/9 二巡（太田城）：中央の大きな字が出ている二秒の間は、行き先の▼の名札を薄く（字が重なって読めなかった） */
+body:has(#center-call .cc) #goal-sign .gs-tag { opacity:0; transition:opacity .2s; }
 `;
   document.head.appendChild(st);
 }
