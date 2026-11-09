@@ -3051,6 +3051,8 @@ const tonezaka = {
     const F = rt.flags;
     F.step = 5; F.stepT = rt.t; rt.setPhase('town'); rt.unmark('chase');
     F.guideTask = null;
+    // 五日後の城下へ移る。途中再開でも坂の雨量を残して地面を濡らし直さない。
+    rt.world.setRainTarget(0); rt.world.rainLevel = 0;
     rt.world.setTime('day');
     // 11/8 critic60（八1「城下の地面が雪か氷のように白くテカテカ光る」）：刀根坂の雨から五日後。濡れの照りを引き継がない
     rt.world.wetness = Math.min(rt.world.wetness || 0, 0.25);
