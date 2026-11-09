@@ -932,7 +932,9 @@ const okehazama = {
   goalSignOff: () => true,
   noGoalCount: true, // 遠くの武将への赤い端矢印を出さず、今の集合ピンか敵本人の▼だけを見せる。
   missionAlways: true, // 集合中も接敵中も、印の更新中も右上の任務一行を残す。
-  goalsAllRows: true, // 帰路の⑥も最初から並べ、済んだ目標の印を残す。
+  // 全十項目を並べると携帯で命の札に重なる。今の目標から五項目を順に示し、帰路も同じ札に残す。
+  goalVisibleRows: 5,
+  goalRowsAhead: true,
   jinkei: OKEHAZAMA_JIN,
   // 11/6：隊の後ろの軽い段（av_host）を付けない。中島砦の下で集まる組に信長の本陣の段（二百余り）が重なり、
   // 足軽が影の兵の中に埋もれていた（bot の目・四1）。織田の本隊と今川の控えはこの戦の遠景が受け持つ（小谷・三木・信貴山と同じ）。
