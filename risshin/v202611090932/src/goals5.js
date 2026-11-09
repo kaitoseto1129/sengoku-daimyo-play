@@ -298,7 +298,9 @@ OWN.t10_oshi = (rt) => {
   // 11/8 15分の構成：段の字は b_t10_oshi.js の MISSIONS（step − 1 が並びの番）。最後の段は勝ちで済む
   const M = rt.def.missions || [];
   const N = ['城の外の柵', '丸墓山', '浅瀬の口', '堰', '堤の岸', '丸墓山', '佐間口の門前', '佐間口', '佐間口の門前', '佐間口'];
-  return M.map((text, k) => ({ kind: 'stage', k, text, noun: N[k] || '', check: k === M.length - 1 ? won : (r) => won(r) || (r.flags.step ?? 0) > k + 1 }));
+  return M.map((text, k) => ({ kind: 'stage', k, text, noun: N[k] || '',
+    count: k === 5 ? (r) => r.flags.step === 6 ? KILLS.t10_oshi(r) : null : undefined,
+    check: k === M.length - 1 ? won : (r) => won(r) || (r.flags.step ?? 0) > k + 1 }));
 };
 
 // 小谷城（11/5 fix1_odani）：長政は本丸から赤尾屋敷へ退いて自害した（信長公記）。討てない大将を「自分で討つ」に、

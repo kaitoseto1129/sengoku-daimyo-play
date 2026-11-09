@@ -970,6 +970,13 @@ t10_oshi.history = '天正十八年（1590）、豊臣秀吉の小田原攻め�
 KILLS.t10_oshi = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
+  // 丸墓山へ着いた人数を、段の達成に必要な人数と同じ物差しで出す。
+  if (F.step === 6 && F.evac0 > 0) {
+    let safe = 0;
+    for (const g of F.evac || []) for (const u of g.units) if (u.alive && !u.gone && near(u.pos, MARU, 24)) safe++;
+    const need = Math.ceil(F.evac0 * 0.5);
+    return [Math.min(safe, need), need];
+  }
   if (F.step === 8) return sortieCount(F);
   if (F.step === 9 && F.rear0 > 0) return [F.rear.units.filter((u) => !u.alive).length, Math.ceil(F.rear0 * 0.7)];
   return null;
