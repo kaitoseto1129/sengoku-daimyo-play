@@ -729,8 +729,8 @@ function burnHouse(rt, h) {
   rt.army.smoke && rt.army.smoke(h.x, W.heightAt(h.x, h.z) + 4, h.z, 0, 0);
   // 元の家を地面の原点まわりに回すと屋根と三角の妻壁が浮くため、接地した焼け跡へ替える。
   // 11/5 遊んで直す：三十秒ほどで辻の四方の家が平たい焼け跡になり、④の辻が何も無い野原に見え、屋根の火が宙に浮いていた。
-  //   町家は一刻ほど燃え続ける。戦の間（七分まで）は柱と屋根を残して燃やし、焼け落ちるのはその後にする。
-  rt.after(440 + Math.random() * 40, () => {
+  //   町家は一刻ほど燃え続ける。追加された奥の木戸と官兵衛の迎えまで、柱と屋根を残す。
+  rt.after(1100 + Math.random() * 40, () => {
     if (h.collapsed) return;
     h.collapsed = true; h.m.visible = false; h.ruin.visible = true;
     // 軒が落ちたら、別の束にまとめた提灯と吊り紐も消す。
@@ -1535,7 +1535,8 @@ const arioka = {
     const won = () => rt.tracker?.main === true && !!rt.over, at = (k) => (q) => (arioka.missionOf(q) > k) || won();
     const place = [{ x: GATE.x - 30, z: GATE.z }, { x: GATE.x + 12, z: GATE.z }, ARI_JUNCTION, ARI_JUNCTION];
     return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text: '①②③④⑤'[k] + text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
-      place: k < 4 ? () => place[k] : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet, sec: 420 }));
+      // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
+      place: k < 4 ? () => place[k] : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },
   missionHeading(rt) {
     if (rt.flags.ending && !rt.flags.kanbePending && !rt.tracker.main) return '退き太鼓。木戸の外へ退け';

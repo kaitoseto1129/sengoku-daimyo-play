@@ -2663,8 +2663,11 @@ const iga = {
       // 本人が土橋へ着き、守備を始めてから押し返される。麓で待った時間だけで登る目標を済ませない。
       if (F.bridgeStarted != null && (elapsed >= 45 ||
           elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0 && atBridge)) this.midB(rt);
-      // 三分半たっても土橋へ着けない時は、坂の途中で退き鉦（史実でも正面攻めは石と矢に押し返された。11/8 bot：坂で十分止まった）
-      else if (F.bridgeStarted == null && rt.t - F.stepT > 210) this.midB(rt);
+      // 道に迷っても未到着の土橋を済ませない。折れ目の案内を更新し、実際の到着を待つ。
+      else if (F.bridgeStarted == null && rt.t - F.stepT > 210 && !F.bridgeDelayed) {
+        F.bridgeDelayed = true; F.bridgeGuideAt = 0;
+        rt.say('丹羽の組頭', '南の土橋はまだ先じゃ。坂の折れ目をたどり、味方の列に付け', 4);
+      }
     }
   },
 
@@ -3311,12 +3314,10 @@ function igaMove(o) {
   s.tick = (rt, C, m, ctx, el, dt) => {
     const distance = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
     if (!C.arr && distance < (o.r || 8) && Math.abs(rt.player.u.pos.y - rt.world.heightAt(C.at.x, C.at.z)) < 3) { C.arr = true; rt.unmark('dp'); rt.unzone('dp'); }
-    // giveUp：坂で道を失っても、その秒が過ぎたら組頭が拾って陣へ連れ戻した事にする（11/8 bot：土橋の坂で十分止まり時間切れ）
-    if (!C.arr && o.giveUp && el >= o.giveUp) {
-      // 列に拾われて陣の口へ着いた所から続ける（その間の歩みは省く。人が遊ぶ時は先に着くので、ほぼ起きない）
-      const u = rt.player.u, x = C.at.x + 2, z = C.at.z - 10;
-      u.pos.set(x, rt.world.heightAt(x, z), z);
-      C.arr = true; rt.unmark('dp'); rt.unzone('dp'); rt.say('丹羽の組頭', '道を外れたか。わしらの列に付いて陣へ戻れ', 3.5);
+    // 帰陣が遅れても瞬間移動させない。既存の折れ目の案内で来た道を歩いて戻す。
+    if (!C.arr && o.guideAfter && el >= o.guideAfter && !C.returnNoticed) {
+      C.returnNoticed = true; C.guideAt = 0;
+      rt.say('丹羽の組頭', '道を外れたか。道の折れ目をたどり、麓の陣へ戻れ', 3.5);
     }
     const arrived = !!C.arr;
     if (!C.arr && rt.t >= C.guideAt) {
@@ -3455,7 +3456,7 @@ function igaA(rt) {
 function igaB(rt) {
   return [
     // 帰りの道を歩く段を先に置く。休息が退却を止め、帰陣前に守備の失敗を数えない。
-    igaMove({ to: CAMP, r: 10, label: '包囲の陣', obj: '来た道を戻り、麓の陣へ退け', giveUp: 150 }),
+    igaMove({ to: CAMP, r: 10, label: '包囲の陣', obj: '来た道を戻り、麓の陣へ退け', guideAfter: 150 }),
     rest({ dur: 4, banner: ['包囲を続けた夜', '麓の陣の口で、夜討ちを防げ'], fn: (rt) => {
       rt.objRemove('dp');
       rt.obj('main', '麓の陣の口で組をそろえ、夜討ちの伊賀衆に備える', 'main');

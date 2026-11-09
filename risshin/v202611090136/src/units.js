@@ -276,8 +276,10 @@ const NOBLUE_SKIP = new Set(['skin', 'face', 'tier', 'vi', 'flag', 'standard', '
 const _noBlueKacchu = new Map();   // 武将の具足の表は形の使い回しの鍵なので、直した写しも一人一つに保つ
 function allyNoBlue(look, deep = true) {
   for (const k in look) {
+    // 元忠の伝所用具足の紺糸は錣も保つ。対象年以外は従来どおり。
+    if (look.toriiFushimi && look.preserveLace && k === 'shikoroLace') continue;
     // 康政の南蛮胴と信繁の大坂の復元具足は紺糸を保つ。織田編と他の武将は従来どおり。
-    if ((look.flag === '榊原の日輪無' || look.flag === 'sashi:無地:#9a2a20:#9a2a20') && look.preserveLace && ['lace', 'odo', 'kusazuriBands'].includes(k)) continue;
+    if ((look.flag === '榊原の日輪無' || look.flag === 'sashi:無地:#9a2a20:#9a2a20' || look.toriiFushimi) && look.preserveLace && ['lace', 'odo', 'kusazuriBands'].includes(k)) continue;
     if (NOBLUE_SKIP.has(k)) continue;
     const v = look[k];
     if (typeof v === 'number') look[k] = unBlue(v);
@@ -1064,8 +1066,8 @@ export class Army {
     let standardBearer = null;
     // 名のある武将の旗印と馬印（named_gear.js）。馬印は別の徒一人が背負う
     const chiefName = chiefSpec?.o.name.replace(/^.* /, '');
-    // 康政の対象年代だけ、所用具足と同じ指定の桔梗形馬印・日輪無の旗を使う。
-    const chiefGear = chiefName === '榊原康政' && this.hooks.year >= 1584
+    // 康政の対象年代と伏見の元忠は、具足の時代指定と同じ旗印・馬印を使う。
+    const chiefGear = (chiefName === '榊原康政' && this.hooks.year >= 1584) || (chiefName === '鳥居元忠' && this.hooks.year === 1600)
       ? eraKacchu(chiefName, this.hooks.year) : chiefName ? NAMED_GEAR[chiefName] : null;
     let umaBearer = null, umaKind = !g.isPlayerSquad && chiefGear?.uma && !g.units.some((u) => u.isUma) ? chiefGear.uma : null;
     // 羽柴期以降の秀吉だけ、単独の瓢箪を房状の千成瓢箪へ。織田編の指定は保つ。

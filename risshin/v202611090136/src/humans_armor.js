@@ -407,7 +407,7 @@ function kabutoStyle(L) {
   let hs = 0; for (const ch of nm) hs = (hs * 31 + ch.charCodeAt(0)) >>> 0;
   const hsl = new THREE.Color(gd.armor ?? L.armor ?? 0).getHSL({});
   const red = /^kabuto_(r|tentsuki|sanada)$/.test(hat) || (hsl.s > 0.5 && hsl.l > 0.2 && (hsl.h < 0.05 || hsl.h > 0.95));
-  const mon = gd.mon || L.mon;
+  const mon = by.toriiFushimi ? by.mon : gd.mon || L.mon;
   // 決まりの無い人は家ごと（具足の色・家紋）と名前の散らしで
   // kbLac・kbCrest：本人の見た目の品（cosmetics.js）。名のある武将の決まりより先にする
   // 11/6 共通：決まりの無い人は黒漆を基本に（錆地・スキャンの地の色が茶色の土の塊に見えた。kaito「基本は黒」）
@@ -420,7 +420,7 @@ function kabutoStyle(L) {
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
   const bowl = L.face === 'player' && L.kbBowl || (by.bowl === 'toppai' ? 'toppai' : '');
-  return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl, sakakibaraLace: nm === '榊原康政' && by.flag === '榊原の日輪無' };
+  return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl, sakakibaraLace: (nm === '榊原康政' && by.flag === '榊原の日輪無') || !!by.toriiFushimi };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）
 const kbFront = (x, y) => { const R = 0.135 * Math.sqrt(Math.max(0, 1 - ((y - 0.13) / 0.155) ** 2)); return Math.sqrt(Math.max(0, R * R - x * x)); };
@@ -929,7 +929,7 @@ vec3 dmBump(vec3 sp, vec3 sn, vec2 dH, float fd) {
 const DM_WEAR = [[0.25, 0.7, 0.1, 0.0], [0.7, 1.0, 0.3, 3.1], [1.0, 1.35, 0.5, 5.7], [0.45, 0.85, 0.75, 8.3]];
 function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   // 絵の威糸はもとが紺。紺の武将も茶・黒へ塗り替える（青を残さない）
-  const lace = look.flag === '榊原の日輪無' && look.preserveLace ? new THREE.Color(look.lace ?? 0x3a2a20) : noBlue(new THREE.Color(look.lace ?? 0x3a2a20));
+  const lace = (look.flag === '榊原の日輪無' || look.toriiFushimi) && look.preserveLace ? new THREE.Color(look.lace ?? 0x3a2a20) : noBlue(new THREE.Color(look.lace ?? 0x3a2a20));
   const blueLace = false;
   // 本の写真の威糸は明るい部屋で鮮やかに見える。表の色（暗く沈めた値）のままだと黒い塊に見えるので、明るさと鮮やかさを少し上げる（白は上げない）
   { const hl = lace.getHSL({}); if (hl.s > 0.12) lace.setHSL(hl.h, Math.min(0.85, hl.s * 1.18), Math.min(0.5, Math.max(hl.l * 1.35, hl.l + 0.06))); }
