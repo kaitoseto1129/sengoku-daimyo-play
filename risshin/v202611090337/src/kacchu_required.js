@@ -158,7 +158,9 @@ export const REQUIRED_KACCHU = [
   ['仙石秀久', 'momonari', 'kuwa_ken', D.tame, C.kuchiba, 'okegawa', 0x302b32, 'eiraku', mon('eiraku', '#1d1b18', W), null, '仙石の家紋は永楽銭。所用品は伝わらない。復元案'],
   ['津田監物', 'zunari', 'kuwa', D.sabi, C.cha, 'okegawa', 0, 'none', txt('根来'), null, '根来衆の鉄砲の頭。所用品は伝わらない。復元案'],
   ['蜂須賀家政', null, null, null, null, null, null, 'hachisuka', mon('hachisuka', '#1d1b18', W), null, '所用品は伝わらない。復元案'],
-  ['宇喜多秀家', null, null, null, null, null, null, null, 'ukita', null, '所用品は伝わらない。復元案'],
+  ['宇喜多秀家', 'zunari', 'none', D.kuro, C.kon, 'okegawa', 0, 'none', 'ukita',
+    { lac: 'kuro', fuki: 'kuro', doOpening: 'nimai', plateDo: null, menpo: D.kuro, menpoStyle: 'hanbo', uma: null },
+    '伝所用五枚胴は江戸期のため遡らせず、伝花房正成所用の桃山期紺糸威二枚胴による復元案。頭形兜・半頬は補完、立物なし。出所は docs/generals_look_1108/宇喜多秀家.md'],
   // 伝来の具足と陣羽織を組み合わせた復元。出所：docs/generals_look_1108/小早川秀秋.md
   ['小早川秀秋', 'suji', 'hideaki_ushiro', D.kuro, 0x6a3a62, 'kebiki', 0xa8281c, 'none', mon('kobayakawa'), { lac: 'kuro', doOpening: 'nimai', honkozane: true, menpo: 0, haoriMon: 'kobayakawa', haoriMonCol: 0x16140f, haoriCollar: 0xb5a06b, fur: 0, uma: null }, '遊就館の伝所用紫糸威二枚胴具足を参考に、三鍬形後立を既存の剣付鍬形で略復元。陣羽織は東博の伝所用品。戦当日の組合せは未確認'],
   ['小早川隆景', null, null, null, null, null, null, null, 'kobayakawa', null, '具足は前の表'],

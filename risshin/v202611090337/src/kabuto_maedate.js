@@ -31,7 +31,7 @@ export const MAEDATE = {
   丹羽長秀: 'niwa_shikami',
   滝川一益: 'takigawa_buffalo',
 };
-const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami', 'ukon_nanayo', 'sakai_shika']);
+const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami', 'ukon_nanayo', 'sakai_shika', 'kanbei_gousu']);
 export const isMaedate = (k) => KINDS.has(k);
 const cache = new Map();
 
@@ -85,6 +85,9 @@ const blade = (sd, p0, p1, p2, w0, w1, hi) => {
 };
 
 function build(kind, hi, near) {
+  // 銀箔押白檀塗は赤褐色の透漆。豊臣期だけ既存の合子形と赤漆材質を共用する。
+  // 共通の銀色指定は織田編のため保持。出所：docs/generals_look_1108/黒田官兵衛.md。
+  if (kind === 'kanbei_gousu') return [maedateGeometry('kuroda_goshi', hi, near)[0], 'red'];
   if (kind === 'hidetsugu_shikami') {
     // 伝秀次所用具足の獅噛と焔形脇立を略復元。寸法は推定（出所は秀次の調べ書き）。
     // 獅噛は既存形を共用。焔は左右各一枚だけ作り、近遠それぞれ保存する。

@@ -577,7 +577,7 @@ export function namedArmorGeometry(key, look, hi, part) {
         parts.push(P(extra.clone().scale(1.04, 1.04, 1.04).translate(0, 1.49, 0.012), ink === 'black' ? 0x14110f : ink === 'silver' ? 0xc7cbd0 : ink === 'white' ? 0xe8e4da : 0xc29a48,
           { mk: ink === 'black' ? MK.lac : ink === 'silver' ? MK.iron : ink === 'white' ? MK.cloth : MK.gold, reg: ink === 'white' ? 'fur' : 'lacq', dirt: 0.2 }));
       }
-      const cg = P(g.clone().scale(1.04, 1.04, 1.04).translate(0, 1.49, 0.012), col === 'silver' ? 0xc7cbd0 : col === 'black' ? 0x14110f : 0xc29a48, { mk: col === 'silver' ? MK.iron : col === 'black' ? MK.lac : MK.gold, reg: 'lacq', dirt: 0.2 });
+      const cg = P(g.clone().scale(1.04, 1.04, 1.04).translate(0, 1.49, 0.012), col === 'silver' ? 0xc7cbd0 : col === 'black' ? 0x14110f : col === 'red' ? 0x8e2416 : 0xc29a48, { mk: col === 'silver' ? MK.iron : col === 'black' || col === 'red' ? MK.lac : MK.gold, reg: 'lacq', dirt: 0.2 });
       if (st.crest === 'kenshin_nichirin') {
         const col = new THREE.Color(0x151312), a = cg.attributes.color, b = cg.attributes.col2;
         for (let i = g.userData.cloudStart; i < a.count; i++) { a.setXYZ(i, col.r, col.g, col.b); b.setXYZ(i, col.r, col.g, col.b); cg.attributes.mtl.setX(i, MK.lac + MK.lac * 8 + 0.18); }

@@ -1067,7 +1067,7 @@ export class Army {
     // 名のある武将の旗印と馬印（named_gear.js）。馬印は別の徒一人が背負う
     const chiefName = chiefSpec?.o.name.replace(/^.* /, '');
     // 康政の対象年代と伏見の元忠は、具足の時代指定と同じ旗印・馬印を使う。
-    const chiefGear = (chiefName === '高山右近' && (this.hooks.year === 1582 || this.hooks.year === 1583)) || (chiefName === '榊原康政' && this.hooks.year >= 1584) || (chiefName === '鳥居元忠' && this.hooks.year === 1600)
+    const chiefGear = (chiefName === '黒田官兵衛' && this.hooks.year >= 1582 && this.hooks.year <= 1590) || (chiefName === '高山右近' && (this.hooks.year === 1582 || this.hooks.year === 1583)) || (chiefName === '榊原康政' && this.hooks.year >= 1584) || (chiefName === '鳥居元忠' && this.hooks.year === 1600)
       ? eraKacchu(chiefName, this.hooks.year) : chiefName ? NAMED_GEAR[chiefName] : null;
     let umaBearer = null, umaKind = !g.isPlayerSquad && chiefGear?.uma && !g.units.some((u) => u.isUma) ? chiefGear.uma : null;
     // 蠅取形の伝来は関ヶ原または大坂。小牧・長久手・小田原へ遡らせない。
