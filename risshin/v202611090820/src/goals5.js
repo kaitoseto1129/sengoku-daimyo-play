@@ -206,7 +206,7 @@ const OWN = {
     // 11/6 fixc1901_miki：①荷駄の護衛 → ②木戸の城兵（谷大膳の討死）→ ③大村坂の下で秀吉の手と並ぶ → ④三太夫の勢 → ⑤甚太夫（大村で討たれた）。
     //   右上の一行（b_miki の GOAL_LINES）と同じ字。全部果たすまで勝ちにしない
     const F = (rt) => rt.flags, at = (k) => (rt) => rt.def.mikiAt?.[k] || null, L = rt0 => rt0.def.missions;
-    const foeOf = (rt) => (F(rt).reserve?.units || []).filter((u) => u.name !== '別所甚太夫');
+    const foeOf = (rt) => (F(rt).reserve?.units || []).filter((u) => u.name !== '別所甚太夫' && (!rt.def.omuraFoe || rt.def.omuraFoe(u)));
     return [
       { kind: 'stage', k: 0, text: '大村道で、毛利の荷駄の護衛を討つ', textOf: (rt) => L(rt)[0], noun: '荷駄の護衛', place: at('escort'), check: (rt) => won(rt) || !!F(rt).dropped || (F(rt).step || 0) >= 2,
         groups: (rt) => [F(rt).escort].filter(Boolean) },

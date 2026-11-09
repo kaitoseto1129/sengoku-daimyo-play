@@ -37,10 +37,13 @@ export function step(H) {
         rt.after(3.8, () => rt.say('井伊の侍', '総構えは二里余り。城の周りは、東は徳川、北は羽柴秀次殿と蒲生殿、西の早川口は宇喜多殿じゃ', 4.4));
         rt.after(8.6, () => rt.say('井伊の侍', '海には長宗我部と九鬼の船。……二十万が、この一つの城を囲んでおる', 4));
         rt.after(13, () => rt.say(me, '十年前は織田家の一手だった殿下が、日本中の大名を動かしておる', 3.6));
-        rt.after(16, () => { C.at = H.IE_WAY; C.goal = H.IE_FRONT; rt.unmark('dp'); rt.marker('dp', H.IE_FRONT, '家康の本陣', { h: 3 }); });
+        rt.after(16, () => { C.at = H.IE_WAY; C.goal = H.IE_WAY; rt.unmark('dp'); rt.marker('dp', H.IE_WAY, '本陣への道', { h: 3 }); });
       }
       // 康頼の陣の陣幕を回り込んでから本陣の前へ（bot が陣幕に突っかからない）
-      if (C.looked && el - C.looked > 16 && C.at === H.IE_WAY && Math.hypot(P.x - H.IE_WAY.x, P.z - H.IE_WAY.z) < 8) C.at = H.IE_FRONT;
+      if (C.looked && el - C.looked > 16 && C.at === H.IE_WAY && Math.hypot(P.x - H.IE_WAY.x, P.z - H.IE_WAY.z) < 8) {
+        C.at = H.IE_FRONT; C.goal = H.IE_FRONT;
+        rt.unmark('dp'); rt.marker('dp', H.IE_FRONT, '家康の本陣', { h: 3 });
+      }
       if (!C.arrived && C.looked && el - C.looked > 16 && Math.hypot(P.x - H.IE_FRONT.x, P.z - H.IE_FRONT.z) < 14) {
         C.arrived = el;
         rt.unmark('dp');
