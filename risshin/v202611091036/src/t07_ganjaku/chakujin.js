@@ -8,8 +8,8 @@ import { nobori, jinmaku } from '../props.js';
 import { sfx } from '../audio.js';
 
 // 麓の大軍：[x, z, 幅, 奥行き, 人数, 旗]
-const HOSTS = [[-196, 120, 44, 18, 420, 'tsuru'], [-118, 206, 50, 18, 460, 'toyotomi'], [-226, 168, 30, 30, 380, 'toyotomi'],
-  [-170, 228, 46, 16, 400, 'maeda'], [-236, 96, 34, 16, 300, 'tsuru'], [-92, 228, 40, 14, 320, 'toyotomi']];
+const HOSTS = [[-196, 120, 44, 18, 420, 'sashi:kuki:#ece6d6:#201f1c'], [-118, 206, 50, 18, 460, 'toyotomi'], [-226, 168, 30, 30, 380, 'toyotomi'],
+  [-170, 228, 46, 16, 400, 'maeda'], [-236, 96, 34, 16, 300, 'sashi:kuki:#ece6d6:#201f1c'], [-92, 228, 40, 14, 320, 'toyotomi']];
 
 export function install(rt, K) {
   const W = rt.world, F = rt.flags;

@@ -364,8 +364,9 @@ const inou_spec = {
       FORCE.a = round10(700 - 300 * (1 - r1)); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
     } else {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
-      // 退いた林勢を戦う数に残さない。旧版だけの修正では、総崩れでも敵の数が残っていた。
-      const alive = aliveIn(F.l2, true) + aliveIn(F.bows, true) + aliveIn(F.bankG, true) + (F.guardG ? aliveIn([F.guardG], true) : 0) + (F.bossG ? aliveIn([F.bossG], true) : 0);
+      // 総崩れの瞬間に零へ飛ばさず、退く兵も戦場を去るまでは数える。
+      // aliveIn は gone を除くので、退却先へ去った兵をいつまでも残さない。
+      const alive = aliveIn(F.l2) + aliveIn(F.bows) + aliveIn(F.bankG) + (F.guardG ? aliveIn([F.guardG]) : 0) + (F.bossG ? aliveIn([F.bossG]) : 0);
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
       FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));

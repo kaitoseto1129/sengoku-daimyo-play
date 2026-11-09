@@ -6,7 +6,7 @@
 import { nobori } from '../props.js';
 import { sfx } from '../audio.js';
 
-const FLAGS = [[-46, 46, 'tsuru'], [-24, 30, 'tsuru'], [40, 40, 'toyotomi'], [52, 30, 'toyotomi'], [-60, -20, 'tsuru'], [-50, -32, 'tsuru'],
+const FLAGS = [[-46, 46, 'sashi:kuki:#ece6d6:#201f1c'], [-24, 30, 'sashi:kuki:#ece6d6:#201f1c'], [40, 40, 'toyotomi'], [52, 30, 'toyotomi'], [-60, -20, 'sashi:kuki:#ece6d6:#201f1c'], [-50, -32, 'sashi:kuki:#ece6d6:#201f1c'],
   [30, -30, 'maeda'], [20, -40, 'maeda'], [-10, 20, 'toyotomi'], [12, 14, 'toyotomi']];
 
 export function play(rt) {
