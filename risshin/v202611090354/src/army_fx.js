@@ -475,7 +475,7 @@ export const ArmyFx = {
       if (H) H.loose = true;   // 主を失った馬だけ、立ち止まって草を嗅ぐ（humans_horse_animate の idle3）
       let want;
       o.shyT = (o.shyT || 0) - dt; o.neighT = (o.neighT || 0) - dt;
-      if (horseLooseDanger(this, o.h, this.time) && !(o.held > 0)) {
+      if (!o.tied && horseLooseDanger(this, o.h, this.time) && !(o.held > 0)) {   // 繋いだ馬（horse_more.js）は縄で逃げない
         o.kept = false; o.calm = false; o.shyT = Math.max(o.shyT, 3);
         o.shyDir = o.heading + 0.5;
       }

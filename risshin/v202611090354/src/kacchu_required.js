@@ -171,6 +171,12 @@ export const REQUIRED_KACCHU = [
   ['小早川秀秋', 'suji', 'hideaki_ushiro', D.kuro, 0x6a3a62, 'kebiki', 0xa8281c, 'none', mon('kobayakawa'), { lac: 'kuro', doOpening: 'nimai', honkozane: true, menpo: 0, haoriMon: 'kobayakawa', haoriMonCol: 0x16140f, haoriCollar: 0xb5a06b, fur: 0, uma: null }, '遊就館の伝所用紫糸威二枚胴具足を参考に、三鍬形後立を既存の剣付鍬形で略復元。陣羽織は東博の伝所用品。戦当日の組合せは未確認'],
   ['小早川隆景', null, null, null, null, null, null, null, 'kobayakawa', null, '具足は前の表'],
   ['長宗我部元親', 'momonari', null, null, null, null, null, null, 'chosokabe', null, '具足は前の表'],
+  ['長宗我部盛親', 'suji', 'none', D.kuro, C.hanada, 'sugake', 0, 'chosokabe', 'chosokabe',
+    { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'gomai', doSugake: true,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: C.hanada,
+      kusazuriBands: Array(5).fill(C.hanada), menpo: 0, noHaori: true,
+      fur: 0, horo: 0, uma: null, shinodare: false, fukigaeshiBadge: false },
+    '本人所用の一領は未確認。埼玉県立歴史と民俗の博物館・縹糸威最上胴丸具足の黒漆筋兜・板札五枚胴・縹糸素懸威を既存形で略復元。前立・脇立・面頬・陣羽織・個人馬印は補わない。七つ片喰は所属表示。出所は docs/generals_look_1108/長宗我部盛親.md'],
   ['長宗我部信親', 'suji', 'kuwa_wide', D.kuro, C.moegi, 'kebiki', 0x5a1a14, 'chosokabe', mon('chosokabe', '#1d1b18', W), null, '戸次川で討死。所用品は伝わらない。父の元親と威を分けた復元案'],
   ['十河存保', null, null, null, null, null, null, null, mon('miyoshi', W, '#9a2e20'), null, '戸次川で討死。所用品は伝わらない。復元案'],
   ['大友義統', null, null, null, null, null, null, null, 'otomo', null, '所用品は伝わらない。復元案'],
@@ -203,6 +209,13 @@ export const REQUIRED_KACCHU = [
   ['毛利勝永', 'momonari', 'bull', D.kuro, 0x2e3a52, 'sugake', 0x9a2418, 'none', 'toyotomi',
     { shikoroLace: C.shiro, shikoroStyle: 'kebiki', haoriMon: 'none', menpo: D.kuro, uma: null },
     '伝所用・白糸威水牛形兜の水牛脇立と白糸の錣。日輪前立は外す。鉢・胴・面頬は推定、緋色の羽織は伝来品の地色。桐は所属旗だけ。出所は docs/generals_look_1108/毛利勝永.md'],
+  // 樫井の団右衛門。伝来甲冑の細部は未確認なので、桃山期の桶側二枚胴の型で補う。
+  ['塙団右衛門', 'suji', 'none', D.kuro, C.kuro, 'okegawa', 0, 'none', txt('塙団右衛門'),
+    { helm: D.kuro, lac: 'kuro', fuki: 'kuro', doOpening: 'nimai', plateDo: null,
+      shikoroLace: C.kuro, shikoroStyle: 'sugake', sodeStyle: 'sugake',
+      kusazuriCount: 7, kusazuriLaceRows: 5, kusazuriColor: D.kuro, kusazuriBands: Array(5).fill(C.kuro),
+      menpo: 0, noHaori: true, haoriMon: 'none', fur: 0, horo: 0, uma: null, shinodare: false, fukigaeshiBadge: false },
+    '前田土佐守家資料館の桃山期・黒漆塗黒糸威二枚胴具足の胴と黒糸を借りた復元案。団右衛門の伝所用品の細部は未確認。筋兜は補完し、立物・面頬・羽織・個人紋・馬印は補わない。名入り旗の地色は推定。出所は docs/generals_look_1108/塙団右衛門.md'],
 ];
 // 同じ人の別名（戦の定義が使う名）。同じ具足を指す
 export const REQUIRED_ALIAS = {

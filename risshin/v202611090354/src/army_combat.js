@@ -1154,7 +1154,7 @@ export const ArmyCombat = {
       };
       // 本人のそば（15m）で主を失った馬は、少し駆けてから止まり、寄れば手綱を取って乗れる（kaito 10/23 稲生 12）
       // 乗れない身分（雑兵・足軽）のそばでは止まらず駆け去る。乱戦の真ん中に空馬を立たせない（11/6 共通 馬・乗り手）
-      const P0 = this.playerUnit, tame = !!(P0 && P0.alive && P0.mayRide !== false && Math.hypot(P0.pos.x - t.pos.x, P0.pos.z - t.pos.z) < 15);
+      const P0 = this.playerUnit, tame = !!(P0 && P0.alive && P0.mayRide !== false && Math.hypot(P0.pos.x - t.pos.x, P0.pos.z - t.pos.z) < (from.name ? 25 : 15));   // 名のある将の馬は 25m（11/9 kaito 13）
       // 本人のそばで討った馬は駆け去らず、すぐ横で足を止める（討った将の馬に乗れる。kaito 11/2 T）
       L.push({ h, heading: t.heading + (Math.random() - 0.5) * 0.9, spd: tame ? Math.min(spd, 1.2) : Math.max(spd, 4), t: 0, from, tame, calm: tame || undefined });
       // 多すぎる時は古い空馬から消す（プレイヤーが置いた馬は残す）

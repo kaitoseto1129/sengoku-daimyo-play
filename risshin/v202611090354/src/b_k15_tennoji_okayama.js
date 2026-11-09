@@ -25,6 +25,7 @@ import { osakaFar } from './osaka_far.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { allyGroup, enemyGroup, centerOf, nm } from './bhelp.js';
+import { tetherHorse } from './horse_more.js';
 import { distToPolyline } from './world.js';
 import { timeslipField } from './timeslip_field.js';
 import { KILLS, cut, STAGES } from './stages.js';
@@ -902,6 +903,8 @@ const k15_tennoji_okayama = {
       if (LH) for (let i = LH.length - 1; i >= 0; i--) {
         const o = LH[i], hp = o.h && o.h.position;
         // 主人公の乗る馬・手綱を取った馬は動かさない（乗った馬まで南東へ駆け去った）
+        // 11/9 kaito 13：討った敵将の馬・主人公のそば（20m）で落ち着いた馬は残す（R で乗れる）
+        if (o.tame && o.calm && (o.from?.name || Math.hypot(hp.x - P.x, hp.z - P.z) < 20) && o.t < 60) continue;
         if (!hp || o.kept || o.held > 0 || o.h === rt.player.horse || o === rt.player.loose || rt.player.u.horse === o.h || Math.hypot(hp.x - P.x, hp.z - P.z) < 2.5) continue;
         o.calm = false; o.tame = false; o.shyT = 2; o.shyDir = Math.atan2(160 - hp.x, 260 - hp.z);
         if (o.t > 14 && Math.hypot(hp.x - P.x, hp.z - P.z) > 45) { rt.scene.remove(o.h); LH.splice(i, 1); }
@@ -1028,7 +1031,7 @@ const k15_tennoji_okayama = {
       const NU = F.nobuU, NH = NU.horse;
       if (NU.mounted && rt.army.setMounted) {
         rt.army.setMounted(NU, false);
-        if (NH) { NH.position.set(YASUI.x - 3.5, rt.world.heightAt ? rt.world.heightAt(YASUI.x - 3.5, YASUI.z - 2) : NU.pos.y, YASUI.z - 2); NH.rotation.set(0, 0.6, 0); rt.scene.add(NH); NU.horse = null; }
+        if (NH) { NH.position.set(YASUI.x - 3.5, rt.world.heightAt ? rt.world.heightAt(YASUI.x - 3.5, YASUI.z - 2) : NU.pos.y, YASUI.z - 2); NH.rotation.set(0, 0.6, 0); rt.scene.add(NH); NU.horse = null; tetherHorse(rt.army, NH, YASUI.x - 3.5, YASUI.z - 2, 0.6, 1, '真田の馬'); }   // 繋いだ馬は乗れる（11/9 kaito 13）
       }
       if (alive(F.echizen)) { F.echizen.stay = false; F.echizen.order = 'move'; F.echizen.dest = { x: YASUI.x + 6, z: YASUI.z + 12 }; F.echizen.onArrive = (q) => { q.onArrive = null; hold(q, YASUI.x + 6, YASUI.z + 12); q.aggro = 14; }; }
       F.yasuiReached = near(P, YASUI, 20);

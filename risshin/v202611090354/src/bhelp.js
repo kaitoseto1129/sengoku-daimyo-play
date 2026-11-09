@@ -153,6 +153,21 @@ function horseList(rt, list, g = null, enemy = false) {
   }
   return out;
 }
+// 侍が多すぎる（kaito 11/9 天王寺の声 11「足軽を増やす。旗本は別」）：旗本・馬廻・本陣・近習・小姓の組と、大将のいる組の外では、
+//   名の無い徒歩の侍の三人に二人を槍足軽にする（一人以上は侍のまま。騎馬武者・名のある者・o.keep・足軽大将はそのまま）。人数の合計は変えない
+const GUARD_RE = /(旗本|馬廻|本陣|近習|小姓)/;
+function footList(rt, list, g) {
+  if (!Array.isArray(list) || rt.def?.keepMix || (g && (GUARD_RE.test(g.name || '') || g.lordHere))) return list;
+  if (list.some((e) => e && e.o && e.o.name && GENERALS[e.o.name.replace(/^.* /, '')]?.lord)) return list;
+  const out = [];
+  for (const e of list) {
+    if (!e || e.type !== 'samurai' || !(e.n >= 2) || (e.o && (e.o.name || e.o.keep || e.o.ashiTaisho || e.o.horse))) { out.push(e); continue; }
+    const keep = Math.max(1, Math.round(e.n / 3));
+    const { saya, sode, menpo, hat, ...o } = e.o || {};
+    out.push({ ...e, n: keep }, { ...e, type: 'ashigaru', n: e.n - keep, o });
+  }
+  return out;
+}
 // 足軽大将（kaito 11/1 の手本 docs/ashigaru_ref_1101 の ref5・6）：武将のいない足軽の組の、名の無い侍の一人目を足軽大将の姿に（units.js の o.ashiTaisho）
 function taishoList(list) {
   if (!Array.isArray(list) || list.some((e) => e && e.type === 'busho') || !list.some((e) => e && ['ashigaru', 'gun', 'bow'].includes(e.type))) return list;
@@ -166,7 +181,7 @@ export function enemyGroup(rt, o, list) {
   const { ambush, ...go } = o;
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 1, order: 'hold', aggro: 8, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(horseList(rt, mixList(rt, list, false, g), g, true)));
+  rt.army.spawn(g, taishoList(footList(rt, horseList(rt, mixList(rt, list, false, g), g, true), g)));
   const lead = g.units.find((u) => u.type === 'busho') || g.units.find((u) => u.type === 'samurai');
   if (lead) g.leader = lead;
   if (ambush) { g.ambush = true; for (const u of g.units) u._crouch = true; }
@@ -196,7 +211,7 @@ export function allyGroup(rt, o, list) {
   // 味方の新手も、戦の定義が決めた持ち場から進む。
   const anchor = (!go.fixed && go.anchor) ? hiddenFrom(rt, go.anchor) : go.anchor;
   const g = rt.army.addGroup({ team: 0, faction: 'oda', order: 'hold', aggro: 9, ...go, ...(anchor ? { anchor } : {}) });
-  rt.army.spawn(g, taishoList(escortLook(horseList(rt, mixList(rt, scaleAllyList(list, fullStrength), true, g), g))));
+  rt.army.spawn(g, taishoList(footList(rt, escortLook(horseList(rt, mixList(rt, scaleAllyList(list, fullStrength), true, g), g)), g)));
   // 名のある武将の隊は、戦の秒数・合図で動く。自由な判断は g.ai = true で明示する。
   g.historicalOrders = list.some((e) => e.o && e.o.name && (e.type === 'busho' || e.type === 'samurai'));
   return g;
