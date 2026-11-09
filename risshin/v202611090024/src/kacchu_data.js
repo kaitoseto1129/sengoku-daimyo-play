@@ -424,8 +424,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["藤堂高虎", "namban", "bellflower", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0, "none", ""],
   ["大谷吉継", "zunari", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0x5a5a5a, 0, "none", ""],
   ["島津忠恒", "zunari", "sun", 0x29251f, 0x493f34, "okegawa", 0xcfc8b4, 0, "shimazu", ""],
-  // 徳川秀忠：将軍家の当世具足。黒漆の六十二間筋兜に大鍬形と金の円い前立（葵の据え所）、紺糸の毛引威。父の歯朶・頭巾形と分ける（復元案。docs/kacchu_k15_tokugawa.md）
-  ["徳川秀忠", "suji", "kuwa_sun", 0x1c1a1a, 0x232c48, "kebiki", 0, 0x1c1a1a, "tokugawa", ""],
+  // 久能山東照宮の秀忠所用「茶糸威具足」に威の色を寄せる。鉢・胴・面頬は復元、立物は未確認のため付けない（docs/generals_look_1108/徳川秀忠.md）。
+  ["徳川秀忠", "suji", "none", 0x1c1a1a, 0x6a4026, "kebiki", 0, 0x1c1a1a, "tokugawa", "久能山東照宮・茶糸威具足"],
   // 本の写真：朱漆塗仏胴具足（井伊家伝来・直政所用）と金の天衝。
   ["井伊直政", "zunari", "ii_tentsuki", 0xa52b1c, 0xb8342a, "hotoke", 0, 0x96291e, "ii", "bd862d2e"],
   ["結城秀康", "eboshi", "kuwa_wide", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],

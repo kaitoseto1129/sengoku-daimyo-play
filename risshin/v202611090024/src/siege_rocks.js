@@ -106,7 +106,7 @@ export function makeRockTraps(rt, o) {
     if (guarded(u)) dmg *= 0.3;
     // 本人は一つの石で命の三分の一まで。何に打たれたかを札と一行に残す（満タン近くから一瞬で討たれ、訳が出なかった。11/8 critic60 八王子）
     if (u.isPlayer) {
-      dmg = Math.min(dmg, u.maxHp * 0.34);
+      dmg = Math.min(dmg, u.maxHp * 0.34) * (rt.def?.playerTaken ?? 1);   // 戦の受ける傷の倍率（def.playerTaken）を石にも（11/8 八王子の15分の構成）
       if (rt.player) rt.player.lastHit = { t: rt.t, name: '上から落ちた石', type: '', kind: 'rock' };
       if (rt.bark && u.hp - dmg > 0) rt.bark('上から石が落ちて来た！');
     }
