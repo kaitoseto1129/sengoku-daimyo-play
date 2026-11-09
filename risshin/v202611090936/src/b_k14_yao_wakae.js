@@ -430,7 +430,7 @@ const k14_yao_wakae = {
 
   update(rt, dt) {
     const F = rt.flags;
-    jin14.tick(rt, dt);
+    try { jin14.tick(rt, dt); } catch (e) { if (!rt.flags._jinErr) { rt.flags._jinErr = 1; console.warn("八尾若江の陣立て", e); } }
     if (F.ending || !F.begun) return;
     KIT.backTick(rt);
     const P = rt.player.u;

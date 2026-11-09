@@ -16,6 +16,9 @@ export const DEPTH14 = {
       { id: 'todogun', layer: 'ni', wing: 'left', men: 600, taisho: '藤堂氏勝', flag: 'todo', armor: 0x24221f, bind: F('todoGun') },
       { id: 'todo2', layer: 'ni', wing: 'left', men: 1500, taisho: '', flag: 'todo', armor: 0x24221f, at: { x: 104, z: 96 } },
       { id: 'todohata', layer: 'hatamoto', wing: 'left', men: 1000, taisho: '藤堂高虎', flag: 'todo', armor: 0x24221f, bind: F('todoG') },
+      // 11/9 先取り（大軍対大軍）：井伊と藤堂の予備
+      { id: 'ii3', layer: 'yobi', wing: 'right', men: 1200, taisho: '', flag: 'ii', at: { x: 152, z: -62 } },
+      { id: 'todo3', layer: 'yobi', wing: 'left', men: 1500, taisho: '', flag: 'todo', armor: 0x24221f, at: { x: 152, z: 70 } },
       { id: 'maeda', layer: 'gozume', wing: 'left', men: 3000, taisho: '前田利常', flag: 'maeda', armor: 0x24221f, hold: true, at: { x: 214, z: 40 } },
       { id: 'tadanao', layer: 'gozume', wing: 'right', men: 3000, taisho: '松平忠直', flag: 'tokugawa', armor: 0x24221f, hold: true, at: { x: 214, z: -40 } },
     ] },
@@ -29,6 +32,9 @@ export const DEPTH14 = {
       { id: 'choA', layer: 'sakite', wing: 'right', men: 1500, taisho: '', bind: F('choA') },
       { id: 'fuse', layer: 'ichi', wing: 'right', men: 800, taisho: '', bind: F('fuseG') },
       { id: 'choso2', layer: 'ni', wing: 'right', men: 1500, taisho: '', at: { x: -112, z: 128 } },
+      // 11/9 先取り：木村と長宗我部の予備（大坂の側の奥）
+      { id: 'kimura3', layer: 'yobi', wing: 'left', men: 1000, taisho: '', flag: 'toyotomi', armor: 0x2c2a2a, at: { x: -84, z: -126 } },
+      { id: 'choso3', layer: 'yobi', wing: 'right', men: 1500, taisho: '', at: { x: -146, z: 76 } },
       { id: 'chohata', layer: 'hatamoto', wing: 'right', men: 800, taisho: '長宗我部盛親', bind: F('choG') },
     ] },
   honjinView: { A: false, B: false },
