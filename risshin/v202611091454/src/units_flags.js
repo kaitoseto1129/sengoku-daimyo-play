@@ -230,7 +230,7 @@ function numberedFlag(kind) {
   return flagMaterial(kind);
 }
 
-// 馬印：金扇・紺地朱日の丸扇・瓢箪・日輪・三つ団子・白吹貫・金幣・竹に金短冊。結合した形を種類ごとに使い回す。
+// 馬印：金扇・紺地朱日の丸扇・逆さ瓢箪・三階笠・日輪・三つ団子・白吹貫・金幣・竹に金短冊。結合した形を種類ごとに使い回す。
 function umaGeometry(kind) {
   const k = 'uma' + kind;
   if (geoCache.has(k)) return geoCache.get(k);
@@ -335,12 +335,18 @@ function umaGeometry(kind) {
     }
     lower.dispose(); upper.dispose();
   } else if (kind === 'gourd') {
-    // 持ち手の頭幅ほどの実にする。倒れた時も人の胴より大きい金の球に見せない。
+    // 秀吉の小馬印「金の逆さ瓢箪に金の切裂」（Wikipedia「馬印」）。大きい実を上、小さい実を下にし、口の下から金の切裂を垂らす。
+    //   持ち手の頭幅ほどの実にする。倒れた時も人の胴より大きい金の球に見せない。
     const agedGold = 0xa8853d;
-    parts.push(paint(at(new THREE.SphereGeometry(0.19, 12, 8), 0, 3.3, 0), agedGold));
-    parts.push(paint(at(new THREE.SphereGeometry(0.12, 12, 8), 0, 3.57, 0), agedGold));
-    parts.push(paint(at(new THREE.CylinderGeometry(0.025, 0.045, 0.1, 8), 0, 3.72, 0), 0x752b21));
-    for (let i = 0; i < 8; i++) parts.push(paint(at(new THREE.BoxGeometry(0.018, 0.22, 0.018), Math.sin(i * 0.8) * 0.08, 3.04, Math.cos(i * 0.8) * 0.08), 0x752b21));
+    parts.push(paint(at(new THREE.SphereGeometry(0.19, 12, 8), 0, 3.5, 0), agedGold));
+    parts.push(paint(at(new THREE.SphereGeometry(0.12, 12, 8), 0, 3.23, 0), agedGold));
+    parts.push(paint(at(new THREE.CylinderGeometry(0.045, 0.025, 0.1, 8), 0, 3.08, 0), agedGold));
+    for (let i = 0; i < 8; i++) parts.push(paint(at(new THREE.BoxGeometry(0.03, 0.34, 0.006), Math.sin(i * 0.8) * 0.07, 2.86, Math.cos(i * 0.8) * 0.07, 0, i * 0.8), gold));
+  } else if (kind === 'sangaigasa') {
+    // 佐々成政の馬印「三階笠」：笠を三つ縦に重ねて竿を通す（Wikipedia「馬印」）。笠の色・寸法は復元案（黒漆の笠）。
+    const lac = 0x1c1a16;
+    for (let i = 0; i < 3; i++) parts.push(paint(at(new THREE.ConeGeometry(0.32 - i * 0.04, 0.16, 12, 1, true), 0, 2.95 + i * 0.34, 0), lac));
+    parts.push(paint(at(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 5), 0, 3.6, 0), 0x2a1c10));
   } else {
     parts.push(paint(at(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 20), 0, 3.5, 0, Math.PI / 2), gold));
     parts.push(paint(at(new THREE.CylinderGeometry(0.2, 0.2, 0.035, 18), 0, 3.5, 0.01, Math.PI / 2), 0xb8231a));
