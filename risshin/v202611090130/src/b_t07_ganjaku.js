@@ -497,7 +497,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.gateGuard.aggro = 3;   // 門の守りは逃げ込む味方を入れるので手一杯。門の外の筋まで突いて出ない
       // 打って出た手が崩れたのを見て、門の櫓と岩の上の矢倉の射手も持ち場を捨てて本丸へ逃げ込む（一日で落ちた城の崩れ。門の前で寄せ手を射続けない）
       for (const q of rt.army.groups) {
-        const c = q.team === 1 && q !== F.hon && q !== F.kara && q !== F.gateGuard && this.centerOf(q);
+        const c = q.team === 1 && q !== F.hon && q !== F.kara && q !== F.nino && q !== F.gateGuard && this.centerOf(q);
         if (!c || Math.hypot(c.x - GATE.x, c.z - GATE.z) > 45) continue;
         const dx = HON.x - c.x, dz = HON.z - c.z, dl = Math.hypot(dx, dz) || 1;
         q.fire = false; q.noRout = false; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0;
@@ -670,9 +670,10 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.bark('門が破れた'); }
       }
       if (st && !st.alive && !F.breached) { F.breached = true; this.breach(rt); for (const g of F.allies) this.march(rt, g, [MOUTH, FRONT, INSIDE], 14); }
-      // 自分か、門を抜けた味方の先手が門の内へ入れば本丸の段へ
+      // 自分が門を抜ければすぐ二の丸へ。閉まった門を時間だけで通過扱いにしない。
       const gc = this.centerOf(F.gamo);
-      if (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && st && (!st.alive || F.tsukeiri) && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && st && !st.alive) || rt.t - F.stageT > 160) { if (rt.t - F.stageT > 90) this.go(rt, 4); }   // 15分の構成：門で止まり続けない（後ろの寄せ手が門を破って入る）
+      const passable = st && (!st.alive || st.opened);
+      if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && !st.alive))) this.go(rt, 4);
     } else if (F.stage === 4) {
       if (ninomaru.update(rt, K)) this.go(rt, 5);
     } else if (F.stage === 5) {

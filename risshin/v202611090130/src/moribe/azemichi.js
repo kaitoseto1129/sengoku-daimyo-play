@@ -44,7 +44,14 @@ export function tick(rt) {
   if (!v.azeUp && (t > 25 || v.azeGs.some((g) => g.units.some((u) => ready(u) && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 12)))) wake(rt);
   const B = v.azeBoss;
   if (v.azeUp && !ready(B) && t > 20 || t > 90) {
-    if (ready(B)) { let k = null; for (const g of F.friends || []) for (const u of g.units) if (ready(u) && (!k || Math.hypot(u.pos.x - B.pos.x, u.pos.z - B.pos.z) < Math.hypot(k.pos.x - B.pos.x, k.pos.z - B.pos.z))) k = u; B.invuln = false; rt.army.kill(B, k); }
+    if (B?.alive && !B.gone) {
+      // 退いた印や近習の救出だけで「討った」と知らせない。
+      let k = null;
+      for (const g of F.friends || []) for (const u of g.units) if (ready(u) && (!k || Math.hypot(u.pos.x - B.pos.x, u.pos.z - B.pos.z) < Math.hypot(k.pos.x - B.pos.x, k.pos.z - B.pos.z))) k = u;
+      B.invuln = false; B.officerSaved = true;
+      rt.army.kill(B, k);
+      if (B.alive && !B.gone) return;
+    }
     v.azeDone = true; v.ph = null;
     rt.unmark('aze');
     for (const g of v.azeGs) { g.noRout = false; g.morale = 0; g.leader = null; g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 }; }
