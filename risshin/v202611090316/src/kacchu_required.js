@@ -174,6 +174,11 @@ export const REQUIRED_KACCHU = [
   ['北条氏邦', null, null, null, C.moegi, null, null, null, mon('hojo', '#6a7a2c', W), null, '所用品は伝わらない。兄の氏照と威を分けた復元案'],
   ['松田憲秀', null, 'kuwa_ken', null, null, null, null, null, txt('松田'), null, '所用品は伝わらない。前の十字は根拠が無いので外す'],
   ['大道寺政繁', null, 'kuwa', null, null, null, null, null, txt('大道寺'), null, '所用品は伝わらない。前の歯朶は根拠が無いので外す'],
+  // 忠直の伝大坂陣所用具足。名前による配色の散らしより後で、緋威と鉄五枚胴へそろえる。
+  ['松平忠直', 'suji', 'honda_shika', D.kuro, C.hi, 'sugake', 0, 'none', 'tokugawa',
+    { helm: D.kuro, lac: 'kuro', plateDo: 'sendai', shikoroLace: C.hi, shikoroStyle: 'sugake', sodeStyle: 'sugake',
+      menpo: D.kuro, menpoStyle: 'hanbo', fukigaeshiBadge: false, fur: 0, horo: 0, uma: null },
+    '井伊美術館寄託・伝忠直大坂陣所用の緋威鉄五枚胴具足。緋糸と鹿角脇立、既存の五枚胴で略復元。鉢・面頬・威の細部は推定。葵は所属旗だけ。出所は docs/generals_look_1108/松平忠直.md'],
   // 高知城歴史博物館の伝所用兜・陣羽織。所用品一領の再現ではなく、伝来品と同時代の型による復元案。
   ['毛利勝永', 'momonari', 'bull', D.kuro, 0x2e3a52, 'sugake', 0x9a2418, 'none', 'toyotomi',
     { shikoroLace: C.shiro, shikoroStyle: 'kebiki', haoriMon: 'none', menpo: D.kuro, uma: null },

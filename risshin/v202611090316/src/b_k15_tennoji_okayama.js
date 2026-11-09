@@ -298,7 +298,7 @@ const k15_tennoji_okayama = {
       [sq(TOKU, 'samurai', 4), sq(TOKU, 'ashigaru', 12), sq(TOKU, 'gun', 3)]);
     // 松平忠直の越前勢：初めから茶臼山の正面（南）に陣し、真田と向き合う（史実の布陣。忠直と西尾宗次は馬上）
     F.echizen = allyGroup(rt, { faction: 'tokugawa', name: '松平忠直の越前勢', anchor: { x: ECHI.x, z: ECHI.z }, facing: S, width: 12, aggro: 12, seekRange: 16, order: 'hold', noRout: true, fixed: true, fullStrength: true, formation: 'yari' },
-      [sq(TOKU, 'busho', 1, { name: '松平忠直', invuln: true, hat: 'kabuto_w', horse: true }), sq(TOKU, 'busho', 1, { name: '西尾宗次', invuln: true, hat: 'kabuto_m', horse: true }),
+      [sq(TOKU, 'busho', 1, { name: '松平忠直', invuln: true, hat: 'kabuto_shika', horse: true }), sq(TOKU, 'busho', 1, { name: '西尾宗次', invuln: true, hat: 'kabuto_m', horse: true }),
         sq(TOKU, 'samurai', 5), sq(TOKU, 'ashigaru', 8), sq(TOKU, 'gun', 4)]);
     F.echizen.dmgMult = 0.45;
     F.echizen.stay = true;   // 物見の主人公が茶臼山に寄っても、越前勢は持ち場を離れて真田へ掛からない（一緒に突っ込む ally_charge が正午前に越前と真田をぶつけた）

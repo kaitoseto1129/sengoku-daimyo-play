@@ -1744,7 +1744,7 @@ const iga = {
       // 陣を守る下知と、共通の追撃の掛け声を食い違わせない。
       if (igaHoldingRaid(rt) && /突け、突け|槍を揃えよ.*かかれ|腰を落とせ.*ひるむな|ここが死に場所/.test(text)) {
         return bark.call(this, igaNeedsTreatment(rt) ? '味方の後ろへ下がれ。旗本のそばで血を止めよ' :
-          F.step !== 1 || F.bucketOn ? '丹羽の列で迎えよ。林へ追うな' : '火の印へ寄れ。桶の水を掛けよ', false);
+          '丹羽の列で迎えよ。林へ追うな', false);
       }
       if ((igaHoldingRaid(rt) || F.step === 2 || F.step === 2.5) && /休ませるな|今のうちに寄せよ|背を見せた.*追え|備えが戻る前に押せ/.test(text)) {
         return bark.call(this, F.step === 2 ? '土橋の味方を守れ。敵を追って列を離れるな' :
@@ -2963,7 +2963,7 @@ function igaWallVolley(rt, dt) {
   }
   if ((F.igaVolleyT -= dt) <= 0) {
     F.igaVolleyT = 4 + Math.random() * 2;
-    const bow = F.wallBow?.units.find((q) => q.alive && !q.fleeing && q.type === 'bow');
+    const bow = F.wallBow?.units.find((q) => igaReady(q) && q.type === 'bow');
     // 本人が届く内なら本人の周り、そうでなければ坂を登る味方の固まりへ。
     const at = Math.hypot(P.pos.x, P.pos.z - rimZ) < 66 ? P : inBow[Math.floor(Math.random() * inBow.length)];
     if (bow && at) {
