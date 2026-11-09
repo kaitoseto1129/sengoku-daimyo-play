@@ -163,7 +163,7 @@ const START = { x: -204, z: 150 };   // 麓の大軍の中から坂の下へ歩�
 
 const t07_ganjaku = {
   minutes: 15, expectMin: 15,
-  lethal: { max: 4, firstAt: 120, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。蒲生・前田・熊井など名のある将は筋書きのまま
+  lethal: { max: 4, firstAt: 260, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。蒲生・前田・熊井など名のある将は筋書きのまま
   spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
   camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? { x: GATE.x, z: GATE.z, up: 3 } : null),   // 坂の下では目線を上げ、上の門と塀を見せる
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
@@ -648,7 +648,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         if (target) { F.fightT = rt.t; break; }
       }
       // 七十秒は戦いを見せるが、敵を全て討った後は空の坂で待たせない。
-      if (sallyN === 0 || (rt.t - F.stageT > 70 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
+      if ((sallyN === 0 && rt.t - F.stageT > 60) || (rt.t - F.stageT > 120 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;
@@ -703,7 +703,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
       // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
       // 旗本を割って届けば最初から討てる。旗本が減るか百秒で自ら斬って出る。
-      if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
+      if (!F.lastStand && ((F.honT >= 4 && rt.t - F.stageT > 90) || rt.t - F.stageT > 170)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
+      // 本丸に入って九十秒は、熊井は旗本の奥で討たれない（三巡 11/9：入って一分で討ち取り、落城まで七分だった）
+      if (boss && boss.alive) boss.invuln = !F.lastStand && rt.t - F.stageT < 90;
       if (boss && !boss.alive) this.win(rt);
     }
   },
@@ -721,7 +723,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       if (k >= 1) {
         s.landed = true;
         rt.army.play('knock', { x: s.bx, z: s.bz }, 0.9);
-        rt.army.forNear(s.bx, s.bz, 1, (u) => { if (u.alive && u.team === 0 && !u.invuln && !u.isStruct) rt.army.damage(u, u.isPlayer ? 4 : 11, null, { kind: 'rock' }); });
+        rt.army.forNear(s.bx, s.bz, 1, (u) => { if (u.alive && u.team === 0 && !u.invuln && !u.isStruct && !(u.isPlayer && u.hp < u.maxHp * 0.35)) rt.army.damage(u, u.isPlayer ? 4 : 11, null, { kind: 'rock' }); });
       }
     }
     if (F.ending || rt.t < (F.stoneAt || 0)) return;
