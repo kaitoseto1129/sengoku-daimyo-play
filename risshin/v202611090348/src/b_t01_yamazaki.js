@@ -610,8 +610,8 @@ const t01_yamazaki = {
     else if (F.stage === 2) {
       const n = aliveN(F.w1) + aliveN(F.iseW) + aliveN(F.namikawa);
       // 前衛の押し合いは三分ほど（斎藤の先手と、六十秒後の伊勢の第二波。学び 十2）。押し返せば主力が展開して浅瀬へ
+      // 時間だけでは押し返した事にしない。持ち場へ着き、寄せた敵が減ってから進む。
       if (F.fieldAt === 2 && n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 && rt.t - F.st0 > 170) this.stage(rt, 3);
-      else if (F.fieldAt === 2 && rt.t - F.st0 > 200) this.stage(rt, 3);
     } else if (F.stage === 3 && !F.forded) {
       if (!F.fordIn && dist(P, FORD_S) < 14) F.fordIn = true;
       //   池田勢と一緒に渡る（馬の主人公だけが先に着いて段が進まない。隊の真ん中が北の岸の近くへ来るまで、長くても四十秒待つ）

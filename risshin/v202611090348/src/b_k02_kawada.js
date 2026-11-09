@@ -268,6 +268,7 @@ const k02_kawada = {
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   stageGoalsOnly: true,   // 右上の目標は四つの段だけ（「敵を何人討つ」で埋めない。物差し三の1・11/6）
+  dpNoMark: true,         // 行き先の印と別に「敵の組・士気」の札を重ねない（五1・五3）
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」「一騎打ち」「敵将が倒れた」や段の見出しは案内の字。物差し五の1・11/6 流しで八つ出ていた）
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(t),
   world: {
@@ -403,7 +404,7 @@ const k02_kawada = {
         onEnd: (rt2) => { rt2.flags.gumasaDown = true; },
         say: [['木造長政', '渡らせるな。浅瀬に入った所を撃て！'], ['大塚権太夫', '一柳監物が家来、大塚権太夫。一番に上がるぞ！']],
         // 始めから北岸に構えていた組をそのまま段の敵にする（目の前に湧かせない）
-        foes: (rt2) => { const C = rt2.flags.dp.cur; for (const g of [F.northGun, F.northGuard]) if (g && g.count) { if (g === F.northGun) { g.order = 'attack'; g.seekRange = 50; } g.dmgMult = g._k02fire ? 0.7 : 0.3; C.groups.push(g); C.nTot = (C.nTot || 0) + g.count; } return []; },
+        foes: (rt2) => { const C = rt2.flags.dp.cur; for (const g of [F.northGun, F.northGuard]) if (g && g.count) { if (g === F.northGun) g.order = 'hold'; g.dmgMult = g._k02fire ? 0.7 : 0.3; C.groups.push(g); C.nTot = (C.nTot || 0) + g.count; } return []; },
         later: [{ t: 22, say: ['大塚権太夫', '武市善兵衛・忠左衛門の兄弟、大塚権太夫が討ち取った！'], foes: () => [] },
           { t: 40, say: ['木造長政','柵の内の者、出て槍を合わせよ！'], foes: () => [keep('柵の内の槍組', { x: -74, z: NORTH.z - 14 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }])] }],
         reward: '河田の渡しを渡った' }), 45, (p) => Math.abs(p.x - GUARD.x) < 34 && p.z < GATE.z && p.z > GUARD.z - 30),
