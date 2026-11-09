@@ -1489,13 +1489,12 @@ function withdrawStage(rt) {
     // 10/30：時の上限で退くのは、本人が近くで戦っている時だけ（立っているだけで段が進んで見えないように）
     // 10/30：味方が削っただけでは退かない。本人が近く（四十五歩）で戦っている時だけ崩れる
     const close = near(pp, g.center(), 45);
-    // 11/5（kaito の物差し 二5）：本人が来なくても、上限の二倍の時が経てば味方の押しで殿は退き、物語は進む。
-    //   峠・城下・奥の道は本人が着いて初めて次へ進むので、果たさずに勝ちにはならない。
     const remaining = fighters(g);
-    // 城下と奥の寄せ手は、無傷のまま時計だけで退かせない。
-    // 坂の殿の進行は保ち、一乗谷では実際に兵を失ってから時間の保険を使う。
-    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step] && (F.step <= 3 || remaining < g.initial);
-    const idleLate = F.step <= 3 && rt.t - F.stepT >= STAGE_LIMIT[F.step] * 2;
+    // 坂も城下も、無傷の備を時計だけで退かせない。
+    // 味方が戦って削った殿は退けるが、段送りには本人の持ち場への到着が要る。
+    const damaged = remaining < g.initial;
+    const late = damaged && rt.t - F.stepT >= STAGE_LIMIT[F.step];
+    const idleLate = damaged && F.step <= 3 && rt.t - F.stepT >= STAGE_LIMIT[F.step] * 2;
     // 自分と組が三人を倒すと、三割弱の損失でも守りが崩れる。無傷の備は退かせない。
     const threshold = g._toneHelp >= 3 ? 0.75 : 0.6;
     // 山崎・龍興の旗本は、時刻で退かせず討たれるまで踏みとどまる。
@@ -3532,11 +3531,11 @@ const tonezaka = {
     // 先鋒が減っても後続は残る。味方の残数だけで主人公の任務を失敗にしない。
     const shaky = (F.step >= 5 && !F.townFriends.some(fighting)) || (F.step > 0 && F.step < 5 && !fighting(F.uma) && !fighting(F.late));
     if (shaky && !F.shakyWarn) { F.shakyWarn = true; rt.say('組頭', F.step >= 5 ? '柴田の手が持たぬぞ！　旗の下へ寄り、踏みとどまれ' : '馬廻が押されておる！　信長公の旗を守れ', 4); }
-    // 殿が退いたら次の任務へ。列の後ろや逃げる残兵の到着を待たない。
+    // 殿を退け、本人も持ち場へ着いてから次の任務へ。放置で達成させない。
     if (F.dpOn) return;
-    if (F.step === 1 && !fighting(F.r1) && !fighting(F.r1b)) this.second(rt);
+    if (F.step === 1 && !fighting(F.r1) && !fighting(F.r1b) && near(p, FIRST_END, 14)) this.second(rt);
     // 坂の中ほどを破ったら、狭い坂道で詰まる朝倉の列（tonezaka/kuzure.js）を押し破ってから峠口へ
-    else if (F.step === 2 && !fighting(F.r2) && !fighting(F.r3) && !fighting(F.r2c) && !fighting(F.r3c)) this.toneDeep(rt, 'K', '坂の上の狭い道で、詰まった朝倉の列を押し破れ', kuzureSteps(this.kit()), () => this.toPass(rt));
+    else if (F.step === 2 && !fighting(F.r2) && !fighting(F.r3) && !fighting(F.r2c) && !fighting(F.r3c) && near(p, SAKA, 14)) this.toneDeep(rt, 'K', '坂の上の狭い道で、詰まった朝倉の列を押し破れ', kuzureSteps(this.kit()), () => this.toPass(rt));
     // 追撃の略図へ移るのは、本人が道をたどって峠へ着いてから。
     // 峠を越えたら義景の旗を追い、旗本の返しを破る（tonezaka/yoshikage.js）。義景は逃げ延びて一乗谷へ
     // 11/9 二巡（豊臣A）：討てない詫美越後守が一人残ると殿が「戦える」のまま崩れず、峠の口で十分止まった（act の流し三回）。討てる兵が尽きれば崩れた事にする
