@@ -1585,6 +1585,7 @@ export class Army {
     this.frameNo = (this.frameNo | 0) + 1;
     if (this.time >= (this._pruneAt || 0)) { this._pruneAt = this.time + 6; this.pruneGone(); }
     const noGate = !!(window.__apx && window.__apx.nogate);
+    this.midPose = !(window.__apx && (window.__apx.nogate || window.__apx.nomid));   // 実機の試し x_nomid：18m 先の手足の二コマに一度を切って比べる
     const hot = (window.__heatBackgroundLevel || 0) >= 2;   // 端末がかなり熱い（画面外の兵の判断だけ粗くする）   // 実機の試し x_nogate：コマ数の間引きを切って比べる
     this._viewFrustum = frustum;
     for (const u of this.units) {

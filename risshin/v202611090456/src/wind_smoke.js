@@ -32,10 +32,15 @@ export function smokeDepth(world, from, to = from, fromY = null, toY = null) {
   const S = world.smokeCol;
   if (S) {
     const wind = S.pts.material.uniforms.wind.value;
+    // 11/9 重さ：線の四角から三つの粒が全部外れる煙の柱は、一度の比べで飛ばす（答えは同じ。鉄砲の多い戦で兵の索敵ごとに全部の柱を見ていた）
+    const x0 = Math.min(from.x, to.x), x1 = Math.max(from.x, to.x), z0 = Math.min(from.z, to.z), z1 = Math.max(from.z, to.z);
+    const wx = Math.abs(wind.x) * 4.32 + 1.9, wz = Math.abs(wind.y) * 4.32 + 1.9;
     // 一本を三つの高さで近似。描く側と同じ上昇・風下への曲がり・薄まりを使う。
     for (let i = 0; i < S.n; i++) {
       const k = i * S.PER, p = k * 3, size = S.seed[k * 2 + 1];
       if (S.pos[p + 1] < -900) continue;
+      const as = Math.abs(size), px = S.pos[p], pz = S.pos[p + 2];
+      if (px + as * wx < x0 || px - as * wx > x1 || pz + as * wz < z0 || pz - as * wz > z1) continue;
       for (let j = 0; j < 3; j++) {
         const t = 0.12 + j * 0.24, drift = t * t * 12 * size;
         depth += puffDepth(from.x, ay, from.z, dx, dy, dz, len,
