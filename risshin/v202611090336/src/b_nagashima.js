@@ -1943,7 +1943,7 @@ const nagashima = {
   // 公記巻七・九月二十九日条の順：柵を結う → 舟を見張る → 退城の舟 → 裸の斬り込み → 中江・屋長島の柵 → 火。
   stageGoalsOnly: true,   // 11/6 fixc1721：勝ちの札に「敵を八人討つ」が出ていた（三1）。目標は段だけ
   // 11/6 fixc1844：勝ちの札は五つまでで、六つ目（火）が落ちていた。見張りの二段（見張り場・退く舟）を一つにまとめ五つに（critic60 三2・見張りばかり）。
-  missions: ['堤の上へ上がり、輪中と門徒の砦を見よ', '岸の横木に縄をかけよ', '西の舟入りで、兵糧を取り返しに来た門徒を止めよ', '東の岸の柵で、砦から逃げ出した門徒を止めよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', AFTERMATH_ORDER],
+  missions: ['堤の上へ上がり、輪中と門徒の砦を見よ', '岸の横木に縄をかけよ', '西の舟入りで、兵糧を取り返しに来た門徒を止めよ', '東の岸の柵で、砦から逃げ出した門徒を止めよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', '岸の真ん中の柵で、最後に寄せる門徒を止めよ', AFTERMATH_ORDER],
   taskLines: ['岸の横木に縄をかけよ', '岸の柵で槍を構え、寄る舟に備えよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', AFTERMATH_ORDER],
   // 味方が減った時の共通の声は「任務の札」と遊びの言葉を使う。岸の組頭の言葉に替える。
   missionDangerSpeech: (rt) => rt.flags.step >= 3.5 ? '西の柵の槍が減った！　柵の内へ寄り、列を詰めよ' : '岸の槍が減った！　柵の内へ寄り、列を詰めよ',
@@ -1953,7 +1953,7 @@ const nagashima = {
   // 右上の番号は時の順に進むだけで戻らない（kaito 三2・三3）。中の下知の選び分けは taskOf。
   missionOf(rt) {
     const F = rt.flags;
-    const base = F.ending ? 7 : F.step >= 3.5 ? 6 : F.step >= 3 ? 5 : F.step >= 2 ? 4 : F.dp?.i >= 2 && F.step === 1.5 || F.dpDone ? 3 : F.step === 1.5 ? 2 : F.step >= 1 ? 1 : 0;
+    const base = F.ending ? 8 : F.dpLast ? 7 : F.step >= 3.5 ? 6 : F.step >= 3 ? 5 : F.step >= 2 ? 4 : F.dp?.i >= 2 && F.step === 1.5 || F.dpDone ? 3 : F.step === 1.5 ? 2 : F.step >= 1 ? 1 : 0;
     F.missionMax = Math.max(F.missionMax || 0, base);
     return F.missionMax;
   },
@@ -1978,7 +1978,7 @@ const nagashima = {
   // 11/6 kaito 十1：一つの目標の間は言い替えない。右上は番号と決まった一行だけ（その場の下知は台詞と印で）。
   missionHeading(rt) {
     const k = this.missionOf(rt);
-    return '①②③④⑤⑥⑦⑧'[k] +'　' + (rt.flags.ending && rt.flags.failureReason ? '持ち場を守れなかった' : this.missions[k]);
+    return '①②③④⑤⑥⑦⑧⑨'[k] +'　' + (rt.flags.ending && rt.flags.failureReason ? '持ち場を守れなかった' : this.missions[k]);
   },
   // 場面ごとの下知の言い方（11/6 から右上には出さない。taskText などの控え）
   taskHeading(rt) {
@@ -3394,9 +3394,9 @@ const nagashima = {
 
     rt.world.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', rt.G.lord ? '岸の柵へ進み、柵は味方に任せよ' : '岸の横木へ進み、一か所直せ', 'main');
+    rt.obj('main', this.missions[0], 'main');
     rt.banner('川が砦を守る長島', '対岸は門徒の島。あなたの持ち場は、手前の柵');
-    rt.say(rt.G.lord ? '柴田勝家' : '組頭', rt.G.lord ? '殿、対岸は門徒の島。岸の柵を結わせ、舟に備えまする' : `${nm(rt)}、川を渡るな。目の前の横木を直し、舟に備えよ`, 4);
+    rt.say(rt.G.lord ? '柴田勝家' : '組頭', rt.G.lord ? '殿、まず岸の堤へ。対岸の輪中と砦を御覧くだされ' : `${nm(rt)}、川を渡るな。まず岸の堤へ上がり、輪中と砦を見よ`, 4);
     rt.after(18, () => { if (F.step < 2) rt.say('物見', '囲まれて二月、島では食う物が尽き始めておる', 3); });
     rt.after(5, () => {
       // 下知を早送りして見張りへ移った後は、古い作業へ呼び戻さない。

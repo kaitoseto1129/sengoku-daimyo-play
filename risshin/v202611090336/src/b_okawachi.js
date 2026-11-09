@@ -885,7 +885,7 @@ const okawachi = {
   missionDangerText: (rt) => rt.flags.step === 4 ? '南の鹿垣で番の組と合流し、道を守れ' :
     rt.flags.step === 3 ? '追っ手を防ぎ、道の印から南の陣へ退け' : '組が討ち減らされている。坂の旗で味方と槍を揃えよ',
   // 足元へ置き直す印までの六歩を、陣や柵までの残り距離として出さない。
-  distanceText: (rt, d) => rt.missionGuide?.marker?.id === 'sakamichi' ? '' : `${Math.round(d)}メートル`,
+  distanceText: (rt, d) => rt.missionGuide?.marker?.id === 'sakamichi' ? '' : `${Math.round(d)}m`,
   taskLabel(rt, text) {
     // 短い任務札にも、台詞と同じ合図を残す。北大手の陽動では動かせない。
     if (!rt.flags.ending) {
@@ -1426,7 +1426,7 @@ const okawachi = {
     // 11/6 九4・一5：三手の進退は搦手で鳴る法螺・太鼓・鉦と、手の将（丹羽・池田・稲葉）の下知で動く。
     // 川向こうの信長の本陣から使番を走らせる共通の段取り（script_orders）に載せると、退き太鼓の後も三手が坂で槍を振り続け、
     // 本人だけが南の陣へ退き、翌朝も三手が城の坂に残っていた（描いて遊んで確かめた）。その場の将の下知として、すぐ応じる。
-    for (const g of [F.niwa, F.ikeda, F.inaba, F.taki, F.blockGuard]) g.directOrders = true;
+    for (const g of [F.niwa, F.ikeda, F.inaba, F.ram, F.taki, F.blockGuard]) g.directOrders = true;
     rt.scene.add(nobori(W, SOUTH_BLOCK.x + 3.5, SOUTH_BLOCK.z + 4, 'oda', 3.5),
       nobori(W, CAMP_LINE.x + 5, CAMP_LINE.z, 'oda', 3.5),
       nobori(W, FRONT.x, FRONT.z, 'oda', 3.5));
@@ -4432,6 +4432,8 @@ function wallStop(b, inp) {
   if (inp.k.has('KeyW') && u.pos.z < GATE.z + 3 && Math.cos(p.yaw) < 0) inp.k.delete('KeyW');
 }
 function okReserveWatch(g) {
+  // 待機中の城兵も到着人数に数え、標的にしないまま見回りを折り返す。
+  g.arriveNoncombat = true;
   // 同じ二地点と下知を使い回し、人数も毎コマの割り当ても増やさない。
   const a = { x: g.anchor.x, z: g.anchor.z - 2.5 };
   const b = { x: g.anchor.x, z: g.anchor.z + 2.5 };

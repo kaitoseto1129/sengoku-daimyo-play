@@ -804,6 +804,24 @@ export function yoseFlagTexture(family) {
 }
 
 export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
+  // 官兵衛の中白旗。豊前入国前の上部の永楽銭は既存の紋を共用する。
+  // 帯の比率と染め色は復元案。出所：docs/generals_look_1108/黒田官兵衛.md。
+  if (kind === '官兵衛の中白' || kind === '官兵衛の中白永楽') {
+    ctx.fillStyle = '#201e22'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ece6d6'; ctx.fillRect(0, h / 3, w, h / 3);
+    if (kind === '官兵衛の中白永楽') {
+      // 既存の銭は墨描きなので透過の別面へ描き、白抜きに染め替える。
+      const coin = document.createElement('canvas'); coin.width = coin.height = 128;
+      const g = coin.getContext('2d');
+      g.translate(64, 64); g.scale(58, 58); g.fillStyle = INK; g.strokeStyle = INK;
+      MON.eiraku(g, 'rgba(0,0,0,0)');
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-in';
+      g.fillStyle = '#ece6d6'; g.fillRect(0, 0, 128, 128);
+      const size = Math.min(w * .6, h * .28);
+      ctx.drawImage(coin, (w - size) / 2, h / 6 - size / 2, size, size);
+    }
+    return;
+  }
   // 東博の榊原康政像。対象三戦だけ日輪と「無」を組み合わせる。篆書の筆形は略復元。
   if (kind === '榊原の日輪無') {
     ctx.fillStyle = '#efe9da'; ctx.fillRect(0, 0, w, h);

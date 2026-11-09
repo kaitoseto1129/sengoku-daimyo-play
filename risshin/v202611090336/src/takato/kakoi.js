@@ -63,9 +63,9 @@ function start(rt, done) {
       F.k15on = false;
       if (back) rt.obj('main', back, 'main', true);
       done();
-    }, { progress: '遠くで鉄砲の音。西の搦手でも寄せが始まった' }), stop);
-    }, { limit: 40 }), stop);
+    }, { limit: Infinity, progress: '遠くで鉄砲の音。西の搦手でも寄せが始まった' }), stop);
+    }, { limit: Infinity }), stop);
     // 走る間の遠い音（移動もイベントに）
     rt.after(22, () => { if (!stop()) { sfx('far', 0.6); rt.say('足軽', '西で鬨の声じゃ。中将様の手が搦手へ寄せた', 3.5); } }, true);
-  }), stop);
+  }, { limit: Infinity }), stop);
 }

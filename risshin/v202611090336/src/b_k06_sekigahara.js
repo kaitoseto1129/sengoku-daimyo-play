@@ -216,6 +216,8 @@ const k06_sekigahara = {
   ],
   resumeAt: (rt, s) => ({ 2: NUKE, 3: NUKE, 4: BACK, 6: { x: KURODA.x - 10, z: KURODA.z + 30 }, 7: { x: KURODA.x - 10, z: KURODA.z + 24 }, 8: { x: SASAO.x + 44, z: SASAO.z + 14 }, 9: { x: HOLD5.x + 8, z: HOLD5.z + 6 } })[s] || null,
   horseHurtMul: 0.4,   // 11/8 critic60（一8）：馬がすぐ死んで④〜⑤を一人で歩いた。馬の傷を軽く
+  // 行田市郷土博物館の合戦屏風解説・左隻四扇。ほかの戦の宇喜多旗へは遡らせない。
+  flagEra: { ukita: 'sashi:字兒:#243e62:#ece6d6' },
   foeHit: 0.5,        // 宇喜多の先手に当たると三十秒で命が尽きた（critic60）。打ち込みを軽く
   // 11/4 n2（AP12・AV15・BH6・AL）：行き先は頭上の金の▼一つだけ。字は添えない（10/23）
   goalSignOnly: true,
