@@ -617,7 +617,7 @@ const inou_spec = {
   foeLine(rt, x, z, i, n, name, lineX = x, haya = false) {
     const F = rt.flags, knot = foeKnot(i, n);
     const g = enemyGroup(rt, { faction: 'nobukatsu', name, anchor: { x, z }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 6,
-      noRout: true, noAI: true, formation: 'line', morale: 85, dmgMult: 0.42, order: 'hold', aggro: 0, speed: 1.8 }, haya ? knot.map((s) => ({ ...s, o: { ...s.o, ...HAYA } })) : knot);
+      noRout: true, noAI: true, formation: 'line', morale: 85, dmgMult: 0.42, order: 'hold', aggro: 0, speed: 3.4 }, haya ? knot.map((s) => ({ ...s, o: { ...s.o, ...HAYA } })) : knot);
     g.secKind = 'line'; g.lineX = lineX; F.groups.push(g);
     return g;
   },
@@ -663,11 +663,11 @@ const inou_spec = {
     const F = rt.flags;
     if (F.l2) return;
     const go = (g, x, z, sp) => { g.order = 'move'; g.speed = sp; g.dest = { x, z }; g.onArrive = (q) => { q.order = 'hold'; }; };
-    F.l2 = L2_X.map((x, i) => { const g = this.foeLine(rt, Math.min(XW - 4, x + L2_DX), L2_Z0 - (i % 2) * 3, i + 2, L2_N, '林勢の先手', x, true); g.dmgMult = 0.36; go(g, x, L2_HOLD, 1.5); return g; });
+    F.l2 = L2_X.map((x, i) => { const g = this.foeLine(rt, Math.min(XW - 4, x + L2_DX), L2_Z0 - (i % 2) * 3, i + 2, L2_N, '林勢の先手', x, true); g.dmgMult = 0.36; go(g, x, L2_HOLD, 3.4); return g; });
     F.bows = [-1, 1].map((sd) => {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林勢の弓', anchor: { x: FRONT_X + sd * 16, z: L2_Z0 - 12 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 4,
         noRout: true, noAI: true, formation: 'line', morale: 70, dmgMult: 0.45, order: 'hold', aggro: 0, fire: false }, dressH([{ type: 'bow', n: Math.round(5 * NK) }]));
-      g.secKind = 'bow'; F.groups.push(g); go(g, FRONT_X + sd * 16, BOW_Z, 1.5);
+      g.secKind = 'bow'; F.groups.push(g); go(g, FRONT_X + sd * 16, BOW_Z, 3.4);
       return g;
     });
     F.l2N = F.l2.reduce((n, g) => n + g.units.length, 0);
@@ -853,7 +853,7 @@ const inou_spec = {
     // 侍は大将を囲み、槍は前の一列
     F.guardG.units.forEach((u, i) => (u.type === 'samurai' ? put(u, BOSS.x + Math.sin(i * Math.PI / 3 + Math.PI / 6) * 2.4, BOSS.z + Math.cos(i * Math.PI / 3 + Math.PI / 6) * 2.4)
       : put(u, BOSS.x + (i - 7) * 2.4, BOSS.z + 4.2)));
-    for (const g of [F.bossG, F.guardG]) { const a = { ...g.anchor }; g.anchor = { x: a.x, z: a.z + dz }; g.order = 'move'; g.speed = 1.5; g.dest = a; g.onArrive = (q) => { q.order = 'hold'; q.anchor = a; }; }
+    for (const g of [F.bossG, F.guardG]) { const a = { ...g.anchor }; g.anchor = { x: a.x, z: a.z + dz }; g.order = 'move'; g.speed = 3.4; g.dest = a; g.onArrive = (q) => { q.order = 'hold'; q.anchor = a; }; }
     // 四十秒〜一分で倒せる強さ（仮）
     b.maxHp = b.hp = BOSS_HP;
   },

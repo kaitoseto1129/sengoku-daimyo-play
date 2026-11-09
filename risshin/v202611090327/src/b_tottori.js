@@ -1667,7 +1667,7 @@ function tottoriOnFoot(rt) {
 const tottori = {
   resumeSteps: [[1, 'boats'], [2, 'sortie'], [3, 'envoy']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の共通表示へそろえる。道順・放火・開城の判定と兵数はこの戦のものを使う。
-  missionSingleLine: true, hideMissionDots: true, hideGuideSteps: true,
+  missionSingleLine: true, goalsAllRows: true, hideMissionDots: true, hideGuideSteps: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true, noSiegeCards: true,
   noPlayerFoot: true, quietMiss: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
@@ -2266,7 +2266,10 @@ const tottori = {
     F.gateBar = rt.army.addStruct({ seg: [GATE.x - 3.5, GATE.z, GATE.x + 3.5, GATE.z], nx: 0, nz: 1, hp: 1e9, team: 1, name: '城の木戸', noTarget: true });
     // 閉じる木戸だけは従来の進行に結ぶ。ほかの虎口は常に開ける。
     buildTottoriCastles(rt, noT);
-    for (const [x, z] of [[GATE.x - 6, GATE.z - 4], [GATE.x + 6, GATE.z - 4]]) rt.scene.add(nobori(W, x, z, 'mori', 6));
+    for (const [x, z] of [[GATE.x - 6, GATE.z - 4], [GATE.x + 6, GATE.z - 4]]) {
+      const flag = nobori(W, x, z, 'mori', 6);
+      F.castleFlags.push(flag); rt.scene.add(flag);
+    }
     // ---- 岸の兵糧舟 ----
     F.boats = BOATS.map((b, i) => {
       const x = riverX(b.z);
@@ -2360,7 +2363,8 @@ const tottori = {
     }
     F.ehon = seatedCamp(rt, { x: CASTLE.x, z: CASTLE.z, facing: 0, team: 1, faction: 'mori', mon: 'sakuma', guardFlag: 'sakuma', general: { name: '吉川経家', hat: 'kabuto_m' }, guard: 15, reserve: 0, runTo: { x: GATE.x, z: GATE.z - 8 } });
     // 本の城図にある高い登り旗で城将の居所を示す。既存の材質を使い、支度時だけ置く。
-    rt.scene.add(nobori(W, CASTLE.x + 3, CASTLE.z + 3, 'mori', 9));
+    const castleFlag = nobori(W, CASTLE.x + 3, CASTLE.z + 3, 'sakuma', 9);
+    F.castleFlags.push(castleFlag); rt.scene.add(castleFlag);
     // 丸山方面の秀長は西の付城から城へ向く。既存の旗本・控えを移し、兵は増やさない。
     F.hidenaga = seatedCamp(rt, { x: -132, z: -210, compact: true, facing: Math.PI / 2, team: 0, faction: 'oda', mon: HF, guardFlag: HF, general: { name: '羽柴秀長' }, guard: 15, reserve: 0, runTo: { x: -132, z: -180 } });
     // 番所の戸口と襖に旗竿の束を重ねず、幕の外を通れる陣にする。
@@ -3581,6 +3585,7 @@ function gradedCastleHeight(x, z) {
 }
 function buildTottoriCastles(rt, noT) {
   const W = rt.world, batch = makeSimpleBatch();
+  rt.flags.castleFlags = [];
   // 遠い曲輪も柵・板葺き小屋を材質ごとにまとめる。実兵は追加しない。
   for (const k of SEATS) {
     const x0 = k.x - k.w, x1 = k.x + k.w, z0 = k.z - k.d, z1 = k.z + k.d;
@@ -3626,7 +3631,9 @@ function buildTottoriCastles(rt, noT) {
       if (['sanjo', 'maruyama', 'hidenaga'].includes(k.id)) flags.push([x0 + 3, z0 + 3, 4.6]);
       for (const [x, z, h] of flags) {
         if (roadDistance(x, z) < 2.6) continue;
-        rt.scene.add(nobori(W, x, z, k.team ? 'mori' : HF, h));
+        const flag = nobori(W, x, z, k.team ? 'mori' : HF, h);
+        if (k.team === 1 && k.id !== 'maruyama') rt.flags.castleFlags.push(flag);
+        rt.scene.add(flag);
       }
     }
     // 梯子の足と曲輪内の道をつなぐ（床・梯子の当たりは共通室内）。

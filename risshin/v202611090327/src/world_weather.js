@@ -311,7 +311,7 @@ export class WorldWeather {
     const scatter = THREE.MathUtils.smoothstep(Math.max(cover, rain), 0.35, 0.85);
     const dayFill = (0.48 + 0.34 * scatter) * (this.def.overcastFillScale ?? 1);
     // 夜の指定と雨・夕暮れの見やすさは保ち、移ろいの間も連続して変える。
-    this.nightFill.intensity = sunCut * 0.3 + dayFill * (1 - k) + Math.max(0.4, (this.def.nightFill ?? 0.85) * 0.65) * k * (1 + rain * 0.3) + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
+    this.nightFill.intensity = sunCut * 0.3 + dayFill * (1 - k) + Math.max(this.def.nightFillMin ?? 0.4, (this.def.nightFill ?? 0.85) * 0.65) * k * (1 + rain * 0.3) + (0.4 * dusk + 0.35 * rain * (1 - dusk) * (this.def.overcastFillScale ?? 1)) * (1 - k);
     // 夜の下向きの面は土からの弱い返りだけ。月は灰の銀（青く寄せると兵が青く見えた。kaito 10/31 青い味方は禁止）。空と霧の青は残す。
     // 11/6 夜の一様な散る光を三割五分落とした（小牧・鳥取・大坂木津・大河内の係：篝火の輪の外まで曇りの昼の明るさで、陰の面が平らな灰に塗られていた。月の直射と篝火の照りは残す）
     this.nightFill.color.setRGB(0.75 - 0.25 * k, 0.82 - 0.31 * k, 0.93 - 0.40 * k).lerp(this.hemi.color, 0.3 * (1 - k));

@@ -101,16 +101,16 @@ const OWN = {
     return [
       { kind: 'stage', k: 0, text: MG15.kishi, noun: '南岸の柳の陰', check: (rt) => !!F(rt).m15?.kishiDone || !!F(rt).signal },   // 11/8 十五分の構成（prototype/src/moribe/）
       { kind: 'stage', k: 0, text: '楡俣川を渡り、向こう岸へ上がる', noun: '向こう岸', check: (rt) => !!F(rt).pointReached || !!F(rt).signal },
-      { kind: 'stage', k: 1, text: '川岸で斎藤の敵を押し返す', noun: '川岸の敵', check: (rt) => !!F(rt).vBroken || F(rt).stage === 'hold' || F(rt).stage === 'press', groups: (rt) => [F(rt).V] },
+      { kind: 'stage', k: 1, text: '楡俣川の北岸の畦で斎藤の先手を押し返す', noun: '川岸の敵', check: (rt) => !!F(rt).vBroken || F(rt).stage === 'hold' || F(rt).stage === 'press', groups: (rt) => [F(rt).V] },
       { kind: 'stage', k: 1, text: MG15.aze, noun: '斎藤の物頭', check: (rt) => !!F(rt).m15?.azeDone || F(rt).stage === 'hold' || F(rt).stage === 'press' },
       { kind: 'stage', k: 1, text: MG15.yumi, noun: '弓・鉄砲衆', check: (rt) => !!F(rt).m15?.yumiDone || F(rt).stage === 'press' || !!F(rt).ending },
       { kind: 'stage', k: 1, text: '森部の野で敵の槍の列を止める', noun: '敵の槍の列', check: (rt) => F(rt).stage === 'press' || !!F(rt).ending,
         groups: (rt) => [F(rt).M, F(rt).N, ...(F(rt).reserves || [])] },
       // 11/6 fixc：公記の討ち手は長井＝服部平左衛門・日比野＝恒河久蔵。名の無い足軽の自分が両将を討つのは史料に合わない。
       //   自分の手柄は両将の旗本の侍を討つ事にし、果たすまで勝ちにしない（b_moribe.js）。
-      { kind: 'stage', k: 2, text: '長井・日比野の旗へ進み、守る侍を自分でたおす', noun: '旗を守る侍', check: (rt) => !!F(rt).ownHatamoto || bosses.some((n) => rt._g5?.own.has(n)),
+      { kind: 'stage', k: 2, text: '長井・日比野の旗本へ進み、旗本の侍を自分で討つ', noun: '旗を守る侍', check: (rt) => !!F(rt).ownHatamoto || bosses.some((n) => rt._g5?.own.has(n)),
         groups: (rt) => [F(rt).HM, F(rt).HN] },
-      { kind: 'stage', k: 2, text: '墨俣への道で退く敵をたおす', noun: '退く敵', check: (rt) => won(rt), groups: (rt) => F(rt).shingari || [] },
+      { kind: 'stage', k: 2, text: '墨俣への道で両将の殿を討ち破る', noun: '退く敵', check: (rt) => won(rt), groups: (rt) => F(rt).shingari || [] },
     // 11/6 fixc（kaito 五-1）：右上の並びに「（0／100）」の数や残りの時計を添えない。目標ごとの時切れの ✕ も付けない（戦の時は十分）。
     ].map((g) => ({ ...g, count: () => null, sec: 900 }));
   },

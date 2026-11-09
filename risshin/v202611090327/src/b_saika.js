@@ -3518,17 +3518,10 @@ const saika = {
             if (a && g.order === 'move' && Math.hypot(u.pos.x - a.workAt.x, u.pos.z - a.workAt.z) >= 3)
               workersMoving = true;
           }
-        // 今することは見出し一つにまとめ、補足には進み具合だけを残す。
-        // 手元で応戦中に長押しを勧めず、組が引ける間は護衛を案内する。
+        // 目標の文は段の初めから固定する。作業と応戦の案内は進み具合に出す。
         const fighting = rt.army.nearestEnemy(rt.player.u, 4.5, (u) =>
           bankReady(u) && !u.noTarget && !u.isStruct && u.type !== 'gun' && u.type !== 'bow' &&
           Math.abs(u.pos.y - p.y) < 3 && !rt.army.wallBetween(p, -1, u.pos));
-        const action = !a ? '中央の道を渡れ' : distance >= 8 ?
-          (a.playerVisited ? `${a.i + 1}つ目の小旗へ戻れ` : `${a.i + 1}つ目の小旗へ`) :
-          fighting ? '杭のそばで敵を払え' : working ? '杭抜き組を守れ' :
-          workersMoving ? '小旗で杭抜き組を迎え、守れ' :
-          distance < 2.6 ? '「杭を外す」を長押し' : '小旗の根元へ。着いたら長押し';
-        if (F.workTask !== action) { F.workTask = action; rt.obj('main', action, 'main', true); }
         // 離れた本人の応戦と、作業場の護衛を同じ指図にしない。
         // 組が引いている間は、遠くの本人へ長押しを勧めない。
         const workState = distance >= 8 ?
@@ -3557,7 +3550,7 @@ const saika = {
         F.bankWarned = true;
         F.bankWaitAt = rt.t;
         rt.unmark('riverTurn');
-        const objective = rt.obj('main', '坂を登らず、退く合図を待て', 'main', true);
+        const objective = rt.obj('main', SAIKA_LINE[1], 'main', true);
         // 渡り終えた後に「進め」の合図を残し、坂へ誘わない。
         objective.cue = ''; objective.cueT = 0;
         // 到着後は進む印を待つ印へ替える。高岸を登る任務と取り違えさせない。
@@ -3583,8 +3576,6 @@ const saika = {
       else F.inT = 0;
       const distance = Math.hypot(p.x - BACK.x, p.z - BACK.z);
       if (notice) {
-        const action = distance >= 16 ? '中央の口を戻れ。東岸の旗へ' : '東岸の旗で列を整えよ';
-        if (F.returnTask !== action) { F.returnTask = action; rt.obj('main', action, 'main', true); }
         rt.objProgress('main', distance >= 16 ? '中央の口から東岸へ' : `旗のそばで あと${Math.max(0, Math.ceil(5 - F.inT))}秒`);
       }
       if (F.inT >= 5) this.regroup(rt);
@@ -3598,9 +3589,6 @@ const saika = {
         const fighting = rt.army.nearestEnemy(rt.player.u, 4.5, (u) =>
           bankReady(u) && !u.noTarget && !u.isStruct && u.type !== 'gun' && u.type !== 'bow' &&
           Math.abs(u.pos.y - p.y) < 3 && !rt.army.wallBetween(p, -1, u.pos));
-        const action = fighting ? 'そばの敵を払え。竹束を守れ' :
-          close ? '「列を整える」を長押し' : '竹束の陰へ。止まって列を整えよ';
-        if (F.coverTask !== action) { F.coverTask = action; rt.obj('main', action, 'main', true); }
         rt.objProgress('main', fighting ? '整えた分は残る。敵を払って続けよ' :
           close ? `列を整える ${Math.min(6, Math.floor(F.coverWorkT || 0))}／6秒\n止まって、作業の札を押し続けよう。敵が来たら先に払え` : '竹束の陰へ。出た「列を整える」の札を六秒長押し');
       }

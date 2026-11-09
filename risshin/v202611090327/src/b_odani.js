@@ -165,7 +165,7 @@ function densify(pts, from, step = 10) {
 const VALLEY_ROUTE = densify([[MOUTH.x, MOUTH.z], ...CLIMB.slice(2, SHIMIZU.length + 2)], 4);
 const AMBUSH_IDS = ['yakata', 'watch', 'patrol'];
 const KYO_HOLD = 12;   // 京極丸を押さえて保つ秒（一戦を四〜七分に収める）
-const AMBUSH_TIMES = [12, 35, 58];
+const AMBUSH_TIMES = [2, 35, 58];
 const NO_VALLEY_PURSUIT = [];
 const AMBUSH_LINES = ['一組目じゃ！　道の見張りを味方と退けよ', '二組目じゃ！　屋敷の陰を見よ。列を離れるな', '最後の組じゃ！　登り口を味方と切り開け'];
 const LOOKOUT_WAY = [[KYO.x + 9, KYO.z0 + 15], [KYO.x + 9, KYO.z0 + 7.9]];
@@ -3207,6 +3207,7 @@ const odani = {
     // 共通の月光の下限で明るさが戻らないよう、夜の直射と補助光を一緒に抑える。
     nightMoonMin: .5,
     nightFill: .3,
+    nightFillMin: 0, // 共通の下限 .4 で戻さず、この夜襲の補助光 .3×.65 を使う。
     lowNightExposure: 1.1,   // 11/8 critic60 四6「夜は夜に」：曇りの昼に見えた。夜の増感を共通の下限まで下げる
     roundedFire: true, // 篝火を三角の板にせず、既存の丸い火の舌を使い回す。
     smoothGroundFire: true, // 坂の火明かりを画素ごとに測り、地面の三角形へ橙色を引き伸ばさない。
@@ -5144,7 +5145,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const cleared = wave === 0 || gone(F[AMBUSH_IDS[wave - 1]]);
     // 前の組が崩れ、次の持ち場に着いたら、登り口と同じ間で番兵を寄せる。
     // 近くの前の番兵との交戦は上で待つ。三組の兵と道順は保つ。
-    const ready = rt.t - (F.ambushWaveAt ?? F.stepT) >= (atMouth || atPost && cleared ? 3 : 12);
+    // 出発までの十二秒に、番兵の十二秒待ちを重ねない。
+    // 一組目は出発二秒後に動き、残る組も既存の順で続く。
+    const ready = rt.t - (F.ambushWaveAt ?? F.stepT) >= (wave === 0 ? AMBUSH_TIMES[0] : atMouth || atPost && cleared ? 3 : 12);
     if (!massGo && (!ready || rt.t - F.stepT < AMBUSH_TIMES[wave] && !((wave > 0 || atMouth || atPost || F.climbNudge) && cleared))) return;
     const id = AMBUSH_IDS[F.patrolWave++], g = F[id];
     F.ambushWaveAt = rt.t;
