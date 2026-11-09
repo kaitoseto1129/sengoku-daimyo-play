@@ -165,6 +165,7 @@ const t07_ganjaku = {
   spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
   camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? { x: GATE.x, z: GATE.z, up: 3 } : null),   // 坂の下では目線を上げ、上の門と塀を見せる
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
+  noCavalryMix: true,   // 坂と狭い虎口を登る隊は定義どおり徒歩。名のある将の馬上指定は残す
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
@@ -814,7 +815,7 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   const gd = Math.hypot(u.pos.x - goal.x, u.pos.z - goal.z), pr = F.botProg || (F.botProg = { s: 0, d: Infinity, t: 0, skip: 0 });
   if (pr.s !== F.stage || gd < pr.d - 3) { pr.s = F.stage; pr.d = gd; pr.t = b.t; }
   else if (b.t - pr.t > 15 && gd > 8 && F.stage !== 2) { pr.skip = b.t + 6; pr.t = b.t; pr.d = gd; }
-  const e = pr.skip > b.t ? null : b.army.nearestEnemy(u, F.stage === 2 ? 16 : F.stage === 3 ? 4 : 9, (o) => !o.noTarget && !o.isStruct && !o.fleeing && o.type !== 'dummy' && Math.abs(o.pos.y - u.pos.y) < 6 && !b.army.wallBetween(u.pos, -1, o.pos));
+  const e = pr.skip > b.t ? null : b.army.nearestEnemy(u, F.stage === 2 ? 16 : F.stage === 3 ? 4 : 9, (o) => !o.noTarget && !o.isStruct && !o.fleeing && !o.perch && o.type !== 'dummy' && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

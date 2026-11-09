@@ -1057,8 +1057,8 @@ function mikataGoals(rt, dt) {
   if (G.i >= 2 && G.i <= 5 && u.alive && phase === G.i) {
     const post = G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST;
     // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
-    const holdContact = () => F.dp?.cur?.s.kind === 'hold' && !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => q.alive && !q.gone && !q.fleeing && !q.woundOut && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22));
-    const contact = G.i === 2 ? !!mikataNearestFoe(rt) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => q.alive && !q.gone && !q.fleeing && !q.woundOut && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
+    const holdContact = () => F.dp?.cur?.s.kind === 'hold' && !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22));
+    const contact = G.i === 2 ? !!mikataNearestFoe(rt) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
     if (near(post, G.i === 2 ? 18 : G.i === 3 ? 40 : 28) && contact) G.tin += dt;
@@ -2392,7 +2392,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     let lastFallT = F.stepT + 7.5; // 平手の知らせからも六秒以上あける。
     const fall = (name, passZ, late, ready) => {
       const tick = () => {
-        if (F.ending || rt.over) return;
+        // 帰着の余韻の間も殿の後報を伝える。帰着で予約を捨てると、早く退いた時に知らせが消える。
+        if (rt.over || F.ending && F.returnedT === undefined) return;
         if (!ready() || !F.dpR || F.dpOn || rt.t - lastFallT < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
         lastFallT = rt.t;
         F[name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid'] = true;

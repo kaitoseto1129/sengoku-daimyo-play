@@ -481,7 +481,7 @@ const k05_ueda = {
       sfx('horagai', 0.9);
       rt.say('秀忠の使番', '中納言様のお下知！　先手は引け。神川を越えて本陣へ戻れ！', 3.6);
       rt.after(4.2, () => rt.say('本多忠政', '我らがしんがりじゃ。神川の岸で真田を止めよ！', 3.4));
-      for (const [g, p] of [[F.okubo, { x: RET.x + 6, z: -14 }], [F.makino, { x: RET.x + 10, z: 20 }]]) {
+      for (const [g, p] of [[F.okubo, { x: RET.x + 6, z: -14 }], [F.makino, { x: RET.x + 10, z: 20 }], [F.saka, { x: RET.x + 8, z: -24 }]]) {
         if (!live(g)) continue;
         g.order = 'move'; g.dest = p; g.speed = 3.7; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: p.x, z: p.z }; };
       }
@@ -502,7 +502,7 @@ const k05_ueda = {
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; F.won = true;
+    F.ending = true;
     rt.player.u.invuln = true;
     for (const g of F.foes) if (g !== F.masa && !g.wallShot) this.back(g);
     sfx('horagai', 0.8);
@@ -512,6 +512,7 @@ const k05_ueda = {
     // 11/8 kaito（toku15_plan 5）：急使の後、染屋台の諸隊が陣を払って木曽路へ急ぎ、「関ヶ原に間に合わず」で締める（k05/end.js が finish を呼ぶ）
     //   段の済み・勝ちの印・手柄は締めの直前に（共通の goalsDoneTick が二秒半で締め、急使の場面を切らないように）
     endScene(rt, { armies: F.sometai, talk: this.talk.after, done: () => {
+      F.won = true;
       rt.objDone('s' + LAST);
       rt.tracker.main = true;
       rt.award((t) => { t.main = true; t.special = { label: '上田城下でしんがりを務めた', pts: 20 }; }, '上田城下でしんがりを務めた');

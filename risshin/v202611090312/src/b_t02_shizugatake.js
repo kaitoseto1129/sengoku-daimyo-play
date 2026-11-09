@@ -191,7 +191,10 @@ Object.assign(SHIZU_KACCHU, {
   '羽柴秀吉': { ...KACCHU['羽柴秀吉'], crest: 'none', armor: 0x22201c, helm: 0x16120f, fur: 0, haori: 0, menpo: 0, horo: 0, mon: 'none', preserveLace: true, haidateGold: false, flag: HASHIBA, ref: '' },
   '前田利家': { ...KACCHU['前田利家'], bowl: 'suji', crest: 'none', doStyle: 'kebiki', armor: 0x22241e, helm: 0x22241e, lace: 0x554732, odo: 0x554732,
     goldKozane: false, suneateGold: false, suneateColor: 0x22241e, lac: 'kuro', haori: 0, menpo: 0, fur: 0, horo: 0, flag: 'maeda', ref: '' },
-  '佐久間盛政': { ...KACCHU['佐久間盛政'], flag: SAKUMA.flag, ref: '' },
+  // 盛政の所用品は未確認。甘棠院伝来の縹糸威最上胴丸具足を手本にした復元（docs/generals_look_1108/佐久間盛政.md）。
+  '佐久間盛政': { ...KACCHU['佐久間盛政'], bowl: 'suji', crest: 'none', doStyle: 'sugake',
+    armor: 0x24221f, helm: 0x24221f, lace: 0x3c5a8a, odo: 0x3c5a8a, lac: 'kuro',
+    haori: 0, menpo: 0, mon: 'sakuma', flag: SAKUMA.flag, ref: '' },
 });
 
 // 11/6 check60 六度目（九1・九3・十二1）：共通の任務札は今の一行だけ・両軍の棒は止めてある・敵の▼は近い数人まで。
