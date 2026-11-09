@@ -280,7 +280,7 @@ function ctxOf(rt) {
     idleWait: (r, C) => C.s.kind === 'hold',
     // bot：付け入りの段は門の正面（北）へ回ってから門をくぐる（敵の組の真ん中へ真っ直ぐ向かい、門の西の切岸の裾で立ち往生した。11/6 流し）
     botSteer: (b, inp) => {
-      if (b.flags.step !== 4 || !inp.k.has('KeyW')) return;
+      if (b.flags.step !== 5 || !inp.k.has('KeyW')) return;
       const p = b.player, u = p.u;
       if (inPoly(OGURA_POLY, u.pos.x, u.pos.z)) return;   // 小倉丸に入るまで門へ導く（前は z だけを見て、塀の西の外の坂へ回り込んで討たれた。11/6 描いた通し）
       const off = Math.abs(u.pos.x - HON_GATE.x) > 2.5 && u.pos.z > HON_GATE.z - 12;

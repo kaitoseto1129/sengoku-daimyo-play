@@ -1,6 +1,7 @@
 // 一宮城 ④ 9〜12分「狭い山道の押し戻し」：水脈を断たれた城兵が搦手の門から打って出る。狭い山道で味方は押し戻され、
 // いったん下で固める。讃岐から回った黒田・蜂須賀家政の手が上って来て、もう一度上へ押し上げる（段の長さは出来事で決める）。
 import { enemyGroup, allyGroup } from '../bhelp.js';
+import { breath } from '../toyo15/kit.js';
 
 export function oshiStep(NG) {
   const { CHOSO, GOALS, MID, LOW, UP } = NG;
@@ -26,7 +27,7 @@ export function oshiStep(NG) {
       for (const g of rt.flags.cGuns || []) g.dmgMult = 0.1;
       send(rt, MID);
       // 湧き水を取った後、一息つく（竹筒の水を回し、傷を縛る。b_depth の rest と同じ手当て）
-      rt.player.treatWounds?.(0.4);
+      breath(rt, 0.4);
       rt.say('蜂須賀正勝', '水を断たれた城兵は必ず打って出る。山道は狭い、二人と並べぬぞ', 4);
     },
     tick(rt, C, m, ctx, el) {
@@ -58,6 +59,8 @@ export function oshiStep(NG) {
     end(rt, C) {
       for (const g of C.groups) if (g) { g.noRout = false; g.morale = 0; }
       rt.flags.step = 5;
+      // 付け入りの前に、加勢の手から晒と水が回る（b_depth の rest と同じ手当て）
+      breath(rt, 0.4);
       rt.objDone('dp');
       rt.award((t) => t.side.push('狭い山道で押し戻され、また押し上げた'), '山道を押し返した');
       rt.say('足軽', '城兵が門へ逃げ込むぞ！　今なら付いて入れる！', 3);
