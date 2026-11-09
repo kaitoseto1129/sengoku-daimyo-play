@@ -285,8 +285,8 @@ const t03b_nagakute = {
       rt.after(8, () => { for (const g of F.waves) if (live(g) && !g.general && g.order === 'hold') { g.order = 'attack'; g.seekRange = 50; g.focus = F.hideU; } });
       for (const g of F.waves) if (live(g) && g.general) { g.order = 'hold'; g.seekRange = 4; }
       rt.after(3.2, () => rt.say('使番', '木下祐久様、お討死！　信吉様の馬も撃たれましてござる', 3));
-      rt.after(10, () => { if (F.stage === 2) { this.wave(rt, { x: 80, z: 34 }, 10, null, '水野忠重の手', F.hideU, MIZU); this.general(rt, '水野忠重', { x: 92, z: 46 }, MIZU); } });
-      rt.after(26, () => { if (F.stage === 2) { this.wave(rt, { x: 50, z: -64 }, 10, null, '丹羽氏次の手', F.hideU); this.general(rt, '丹羽氏次', { x: 60, z: -78 }, null, 0); } });
+      rt.after(10, () => { if (F.stage === 2) { this.wave(rt, { x: CAMP.x + 30, z: CAMP.z + 20 }, 10, null, '水野忠重の手', F.hideU, MIZU); this.general(rt, '水野忠重', { x: CAMP.x + 40, z: CAMP.z + 30 }, MIZU); } });
+      rt.after(26, () => { if (F.stage === 2) { this.wave(rt, { x: CAMP.x + 24, z: CAMP.z - 18 }, 10, null, '丹羽氏次の手', F.hideU); this.general(rt, '丹羽氏次', { x: CAMP.x + 34, z: CAMP.z - 28 }, null, 0); } });
     } else if (n === 3) {
       rt.say('堀秀政', '鉄砲、構えよ。坂の半ばまで引き付けて撃て！', 2.8);
       // 信吉は堀の陣の後ろで息をつく（守る相手が先へ去らない）。④で堀と共に西へ退く

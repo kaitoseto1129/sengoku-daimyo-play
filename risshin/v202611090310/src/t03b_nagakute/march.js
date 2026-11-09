@@ -11,8 +11,17 @@ import { nobori } from '../props.js';
 export const BANSHO = { x: 146, z: 10 };   // 道の東南の徳川方の番所（①の行き先）
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 
+function defending(g) {
+  if (!g || g.routed) return 0;
+  let n = 0;
+  for (const u of g.units) if (u.alive && !u.gone && !u.fleeing) n++;
+  return n;
+}
+
 export function start(rt, K) {
   const F = rt.flags, W = rt.world;
+  // 番所へ同行する組は朝飯をやめて立つ。林で待つ馬廻と本隊は座ったまま。
+  for (const u of F.men.units) if (u.alive) u._crouch = false;
   // 先を行く池田・森の列（遠く南東へ。軽い作り）と、後ろの堀の列（西）
   try {
     const A = (x, z, flag, seed, count, f) => W.addDistantArmy({ x, z, w: 12, d: 26, count, facing: f, armor: 0x2b2723, flagTex: flagTexture(flag), mon: flag, seed, team: 0, kind: 'mixed', host: false, farFill: true, flagRate: 0.2 });
@@ -55,7 +64,8 @@ export function tick(rt, K, dt) {
     });
   }
   // 守りを退け、番所のそばで十秒かけて火を付ける。離れている間は進めない。
-  if (!F.banFire && near && K.aliveN(F.banG) <= 1 && K.aliveN(F.banG2) <= 1 && F.banG2) F.banLit = (F.banLit || 0) + dt;
+  // 逃げ出した守り手は退けたものとする。生存人数だけでは、逃走中の加勢を追って火付けが止まる。
+  if (!F.banFire && near && defending(F.banG) <= 1 && defending(F.banG2) <= 1 && F.banG2) F.banLit = (F.banLit || 0) + dt;
   if (!F.banFire && near && (F.banLit || 0) >= 10) {
     F.banFire = rt.t;
     if (K.live(F.banG)) { F.banG.order = 'retreat'; F.banG.dest = { x: 170, z: 60 }; F.banG.aggro = 0; }

@@ -11,6 +11,26 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 小牧・長久手の長可：赤穂大石神社の伝所用「首無しの胴」を手本にした復元案。
+  // 黒糸威伊予札二枚胴の伝承を既存の札胴で略復元。失われた兜の立物は補わない。
+  // 頭形鉢・袖・錣・草摺は森家伝来品による補完。織田編の表と姿は保つ。
+  // 出所と未確認部分：docs/generals_look_1108/森長可.md。
+  if (name === '森長可' && year === 1584 && KACCHU[name]) {
+    const key = name + '|小牧長久手黒糸威';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'zunari', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x1c1a1a, odo: 0x1c1a1a, shikoroLace: 0x1c1a1a,
+      doStyle: 'sugake', doSugake: true, doOpening: 'nimai', plateDo: null,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake',
+      kusazuriCount: 7, kusazuriLaceRows: 5, kusazuriColor: 0x1c1a1a,
+      kusazuriBands: Array(5).fill(0x1c1a1a),
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, horo: 0, fur: 0,
+      mon: 'tsuru', flag: 'tsuru', uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 小牧の忠次：致道博物館蔵・朱塗黒糸威二枚胴具足を参考とする復元。
   // 当日の着用は未確認。織田編の共通表は保つ。出所：docs/generals_look_1108/酒井忠次.md。
   if (name === '酒井忠次' && year === 1584 && KACCHU[name]) {
