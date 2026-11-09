@@ -1175,13 +1175,15 @@ function honnoDoor(rt, u, to) {
 const ENTER_OFF = (() => { const L = []; for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) L.push([i * 0.8, j * 0.8]); return L.sort((a, b) => Math.hypot(...a) - Math.hypot(...b)); })();
 function enteredSpot(rt, at, used) {
   const from = { x: at.x, y: rt.world.heightAt(at.x, at.z), z: at.z };
+  const lim = rt.world.def.moveLim || 176;
   for (const [dx, dz] of ENTER_OFF) {
     const x = at.x + dx, z = at.z + dz;
-    if (used.some((p) => Math.hypot(p.x - x, p.z - z) < 0.8)) continue;
+    if (Math.abs(x) > lim - 1 || Math.abs(z) > lim - 1 || !rt.world.walkable(x, z, from.y)) continue;
+    if (used.some((p) => Math.hypot(p.x - x, p.z - z) < 0.79)) continue;
     if ((dx || dz) && !patrolClear(rt, x, z, from)) continue;
     return { x, z };
   }
-  return { x: at.x, z: at.z };
+  return null;
 }
 
 // 囲みから同じ位置で実兵へ替える。既存の兵を使い切れば架空の新手を作らない。
@@ -1203,6 +1205,24 @@ function akechi(rt, name, path, list, o = {}) {
     path = [...entry, ...path];
   }
   const at = { x: path[0][0], z: path[0][1] };
+  // 前の波や守り手の足元へ新手を重ねない。空きが無い間は外の備えで待つ。
+  // 人数を引く前に調べ、待ち直しで囲みの兵を減らさない。
+  const entrySpots = [];
+  if (o.entered) {
+    const y = rt.world.heightAt(at.x, at.z);
+    const used = rt.army.units.filter((u) => u.alive && !u.isStruct &&
+      Math.abs(u.pos.y - y) < 3 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 7).map((u) => u.pos);
+    for (let i = 0; i < n; i++) {
+      const spot = enteredSpot(rt, at, used);
+      if (!spot) {
+        rt.after(1, () => {
+          if (!F.ending && !rt.over && (rt.G.lord || F.step < 3)) akechi(rt, name, path, list, o);
+        });
+        return null;
+      }
+      entrySpots.push(spot); used.push(spot);
+    }
+  }
   const role = o.role || (at.x < TERA.x0 ? 'west' : at.z < TERA.z0 ? 'north' : at.z > TERA.z1 ? 'south' : 'east');
   // 囲みの寄せ手（o.far）は、その方角の塀の外の備えから人数を引く（寺の奥からは百歩より遠い）
   const R = o.far || 100;
@@ -1230,7 +1250,6 @@ function akechi(rt, name, path, list, o = {}) {
   const g = enemyGroup(rt, { fixed: true, fullStrength: true, noGuard: true, faction: 'akechi', name, anchor: o.entered ? at : pts[0], facing: o.entered ? 0 : host.rotation.y,
     width: o.width || 4, aggro: o.aggro || 9, morale: 100, noRout: true, fleeDir: { x: 0, z: 1 }, dmgMult: o.dmg ?? 1,
     order: 'path', seekRange: 22, formation: 'column', colW: 2, spacing: 1.4 }, dressed);
-  const used = [];
   for (let i = 0; i < g.units.length; i++) {
     const u = g.units[i], q = pts[i];
     u.nanori = `敵の兵。明智が家来、${u.name || '参る'}！`;
@@ -1238,7 +1257,7 @@ function akechi(rt, name, path, list, o = {}) {
     // 寺内の先鋒も外の備えから人数を引く。踏み込む口と同じ間（壁・柱の向こうでない所）に詰めて置く。
     //   前は口から北へ二列に並べ、御殿の北の壁の外に出た者が中へ入れず突っ立っていた（10/10 kaito「敵勢攻めてこない」）
     let x = q.x, z = q.z;
-    if (o.entered) { const s = enteredSpot(rt, at, used); x = s.x; z = s.z; used.push(s); }
+    if (o.entered) { const s = entrySpots[i]; x = s.x; z = s.z; }
     u.pos.set(x, rt.world.heightAt(x, z), z);
     u.heading = o.entered ? 0 : q.yaw;
   }
@@ -4986,15 +5005,14 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       }
       if (d >= 7 && t > 40 && !F.outCall) { F.outCall = true; honnoSay(rt, '御所の侍', '木戸はこの先じゃ！　足を止めるな、町を抜けよ！', 3.5); }
       if (d < 7 && rt.player.u.alive) this.toShisha(rt);
-      // 囲みの中で詰まり続けない：辻を二つ越えていれば、町の者が裏道へ引き入れて木戸の外へ出す
-      // 詰まった時の逃げ道は試し遊びの bot だけ（遊ぶ人は自分で木戸まで抜ける。kaito：何もしないのに段が進む作りは禁止）
-      else if (honnoBotPlay() && rt.player.u.alive && (t > 40 && p.z < KYO_TSUJI[0] + 4 || t > 65)) { teleport(rt, OUT.x, OUT.z - 4); this.toShisha(rt); }
+      // 試し遊びも木戸まで歩いて抜ける。時間だけで本人と供を移すと、
+      // 通し確認で兵が飛び、退路が詰まる不具合も見逃してしまう。
     }
     if (F.step === 6) {
       const d = Math.hypot(p.x - SHISHA_DOOR.x, p.z - SHISHA_DOOR.z);
       rt.objProgress('main', `あと ${Math.max(0, Math.round(d))}歩`);
       if (F.shishaU?.alive) F.shishaU.heading = Math.atan2(p.x - F.shishaU.pos.x, p.z - F.shishaU.pos.z);
-      if (d < 3.2 || honnoBotPlay() && rt.t - F.stepT > 25) this.shishaTalk(rt);
+      if (d < 3.2) this.shishaTalk(rt);
     }
   },
 

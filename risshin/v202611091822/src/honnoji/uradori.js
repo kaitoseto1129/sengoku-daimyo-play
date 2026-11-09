@@ -34,7 +34,6 @@ function start(rt, K, done) {
   const stop = () => F.k15stage !== 'uradori' || F.ending;
   const out = PT.uraOut, street = { x: out.x, z: out.z - 18 };
   k15Go(rt, 'ur-out', out, 5, '裏門を出て、西の通りへ', '裏門の外', () => {
-    rt.player.yaw = rt.player.u.heading = Math.PI / 2;
     rt.banner('本能寺、燃え落ちる', '御殿の屋根が崩れ、火の粉が空へ舞う');
     sfx('crash', 0.6);
     k15Scenes(rt, [

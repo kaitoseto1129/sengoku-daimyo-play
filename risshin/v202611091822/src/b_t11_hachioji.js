@@ -446,16 +446,10 @@ function nakayamaStep() {
         rt.after(3.4, () => { C.lastWords = true; g.dmgMult = 0.6; });
       });
     },
-    tick(rt, C, m, ctx, el) {
+    tick(rt, C) {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
-      // 11/9 見回り：bot が八分あまり討ち切れず、日の出の期限で負けた。三分たって討てなければ、家範は深手を負い自刃する（史実でも本丸で果てた）
-      if (n.alive && C.lastWords && el > 180 && !C.seppuku) {
-        C.seppuku = true;
-        rt.say('中山勘解由', '……これまで。北条の家臣として、ここで果てる', 3.4);
-        rt.after(3.6, () => { if (n.alive) { rt.army.damage = C.damage; n.invuln = false; n.hp = 0; rt.army.kill(n, null); } });
-      }
       // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
       return !n.alive;
     },
@@ -471,7 +465,8 @@ function nakayamaStep() {
 const t11_hachioji = {
   // 11/4 p100：行き先の印は今の目標の金の▼一つだけ（kaito AL・AN・AP12）。奥の軽い乱戦（front_fill）も置かない（AA）
   lethal: { soft: true },   // 命懸けの戦場（11/9 係A：bot が倒れる・止まるので soft）
-  noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,   // 11/9 iPhone 874×402：八つを並べた札が画面の高さを埋めたので、今の一件だけ
+  noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,
+  goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 15,

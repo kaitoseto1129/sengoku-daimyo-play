@@ -29,9 +29,9 @@ export function install(rt, ctx) {
     for (const g of groups()) { keep.set(g, g.noRout); g.noRout = true; g.morale = Math.min(g.morale || 100, 42); }
     const near = Math.hypot(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z) < 22;
     F.fushouNear = near;
-    rt.after(1.2, () => rt.say('馬廻', '殿が撃たれた！　御足に鉄砲が……！', 3));
-    rt.after(2.5, () => rt.army.play?.('eshout', { x: T_GATE.x, z: T_GATE.z + 14 }, 1.4));
-    rt.after(3.2, () => rt.say('門徒', '信長を撃ったぞ！　押せ、押し包め！', 3));
+    rt.after(1.2, () => { if (!F.ending && !rt.over) rt.say('馬廻', '殿が撃たれた！　御足に鉄砲が……！', 3); });
+    rt.after(2.5, () => { if (!F.ending && !rt.over) rt.army.play?.('eshout', { x: T_GATE.x, z: T_GATE.z + 14 }, 1.4); });
+    rt.after(3.2, () => { if (!F.ending && !rt.over) rt.say('門徒', '信長を撃ったぞ！　押せ、押し包め！', 3); });
   };
   const rise = () => {
     sfx('horagai', 0.9);

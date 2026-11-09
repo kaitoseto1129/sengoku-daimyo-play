@@ -2690,10 +2690,8 @@ const arioka = {
       if (g.team !== 1 || g.routed || g === F.ehon?.general?.group || g === F.ehon?.guard || !g.units.some((u) => u.alive && Math.hypot(u.pos.x - ARI_JUNCTION.x, u.pos.z - ARI_JUNCTION.z) < 120)) continue;
       g.routed = true; g.order = 'flee'; g.morale = 0; g.noRout = false; g.focus = null; g.fire = false; g.fleeDir = { x: 0, z: -1 };
     }
-    // 町屋の陰に挟まって逃げ出せない兵（八秒で一メートルも動かない）は、その場から退いた事にする（立ち尽くす敵を残さない）。
-    const stay = rt.army.units.filter((u) => u.alive && u.team === 1 && !u.isStruct && !u.civ && Math.hypot(u.pos.x - ARI_JUNCTION.x, u.pos.z - ARI_JUNCTION.z) < 120)
-      .map((u) => [u, u.pos.x, u.pos.z]);
-    rt.after(8, () => { for (const [u, x, z] of stay) if (u.alive && !u.gone && u.group !== F.ehon?.general?.group && u.group !== F.ehon?.guard && Math.hypot(u.pos.x - x, u.pos.z - z) < 1) { u.fleeing = false; rt.army.despawn(u); } }, true);
+    // 退く兵も既存の fleeWay で主郭南の土橋へ回す。立ち止まった時間だけでは消さず、
+    // 共通の leaveField が、画面外で追手を離して主郭へ逃げ切った時だけ退場させる。
     // 紙：官兵衛を救い出すまでが勝ち。救い出したのは十月十六日、家臣の栗山善助（利安）（黒田孝高・有岡城の戦い）。
     // 本丸の開城（十一月十九日）までは飛ばさず、同じ夜の明けぬうち（十六日の未明）に城の牢へ。当時は小寺官兵衛と名乗る。
     // 11/6 fix61：見出しは「夜が明ける」なのに空は夜のままだった。救い出した刻は史料に無いので、絵に合わせて未明とする。台詞も歩く姿に合わせ「肩を貸して」。

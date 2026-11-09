@@ -77,7 +77,7 @@ export function tick(rt, hidden = []) {
   const p = rt.player.u.pos, T = rt.t - H.at;
   // ① 本陣で信忠の下知
   if (H.s === 0) {
-    if (near(p, HONJIN, 7) || T > 60) {
+    if (near(p, HONJIN, 7)) {
       H.s = 1; H.at = rt.t;
       rt.say('織田信忠', '城の兵糧は尽きかけておる。夜に紛れて兵糧を入れようとするはず。一粒も入れるな', 4.2);
       rt.after(4.6, () => rt.say('河尻秀隆', 'はっ。……柵ぞいに物見の台の下へ。城を見ておけ', 3.4));
@@ -87,7 +87,7 @@ export function tick(rt, hidden = []) {
   // ② 物見の台の下から城を望む。麓に兵糧入れの小荷駄が見つかる
   if (H.s === 1) {
     if (T < 8) return;
-    if (near(p, LOOK, 6) || T > 70) {
+    if (near(p, LOOK, 6)) {
       H.s = 2; H.at = rt.t;
       rt.obj('main', GOALS[1], 'main', true);
       rt.say('河尻秀隆', 'あれが岩村城じゃ。秋山虎繁と、信長様の叔母御のおつやの方が籠る', 4);
@@ -110,7 +110,8 @@ export function tick(rt, hidden = []) {
     if (!H.esc) return;
     if (near(p, KOMODA, 26)) { H.esc.order = 'attack'; H.esc.aggro = 30; }
     const left = H.esc.units.filter((u) => u.alive && !u.fleeing && u.type !== 'porter').length;
-    if (left > 2 && T < 110) return;
+    // 待ち時間では兵糧入れを止めた事にしない。護りを実際に崩し、麓へ出た本人が確かめる。
+    if (left > 2 || !near(p, KOMODA, 26)) return;
     rout(H.esc);
     H.s = 3; H.at = rt.t;
     rt.say('足軽', '人足が俵を捨てて逃げたぞ！', 2.6);
@@ -126,7 +127,7 @@ export function tick(rt, hidden = []) {
   if (H.s === 3) return;
   // ④ 柵の口まで退くと、城方の出撃が口の前の野へ寄せる
   if (H.s === 4) {
-    if (near(p, MOUTH, 10) || T > 45) {
+    if (near(p, MOUTH, 10)) {
       H.s = 5; H.at = rt.t;
       try { sfx('toki', 0.8); } catch (e) { /* なし */ }
       H.g = sally(rt, H, 1); H.n = H.g.units.length; H.wave = 1; H.wt = rt.t;
@@ -139,7 +140,8 @@ export function tick(rt, hidden = []) {
     return;
   }
   if (!H.g) return;
-  if (standing(H.g) > Math.ceil(H.n * 0.35) && rt.t - H.wt < 100) return;
+  // 無傷の寄せ手を百秒で退かせず、口で実際に押し返した時だけ次の手へ渡す。
+  if (standing(H.g) > Math.ceil(H.n * 0.35) || !near(p, MOUTH, 26)) return;
   rout(H.g);
   if (H.wave < 3) {
     const w = H.wave + 1;
