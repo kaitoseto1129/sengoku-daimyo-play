@@ -3301,6 +3301,10 @@ const shigisan = {
     if (F.ending || rt.over || !rt.player.u.alive || F.SZ.byId[id].owner !== ZONE_STATE.FRIEND) return;
     if (id === 'ridge1') {
       if (F.lowerTaken) return;
+      // 別の先手だけで制圧しても、本人が曲輪の口へ着くまで④を済ませない。
+      const p = rt.player.u.pos;
+      if (rt.player.u.naka || !F.SZ.byId.ridge1.test(p.x, p.z) ||
+          Math.abs(p.y - rt.world.heightAt(p.x, p.z)) > 2.5) return;
       F.lowerTaken = true; F.stepT = rt.t;
       rt.award((t) => t.side.push('北尾根の下の曲輪を取った'), '下の曲輪を取った');
       rt.unmark('rg1'); F.innerDone = true; F.innerRoute = 'ridge2';
@@ -3735,7 +3739,7 @@ const shigisan = {
       if (F.step === 2) rt.objProgress('main', '門の右脇の印へ。そこで打ち手を守れ');
       if (F.step === 3.5 || F.step === 4) {
         const route = F.castleRoute, p = rt.player.u.pos, guideFrom = F.castleGuideI;
-        const id = F.step === 4 ? 'shu' : F.SZ.byId.ridge1.owner !== ZONE_STATE.FRIEND ? 'ridge1' : F.innerRoute === 'yashiki' ? 'yashiki' : 'ridge2';
+        const id = F.step === 4 ? 'shu' : !F.lowerTaken ? 'ridge1' : F.innerRoute === 'yashiki' ? 'yashiki' : 'ridge2';
         const zone = F.SZ.byId[id];
         const inside = zone.test(p.x, p.z);
         // 口を離れたら、同じ平場でも到着扱いを解く。
@@ -3936,6 +3940,8 @@ const shigisan = {
     if (F.step >= 3.5 && F.SZ) {
       F.SZ.tick(dt);
       const s = F.SZ.byId;
+      // 味方が先に取った曲輪にも、本人の到着後に達成を付ける。
+      if (F.step === 3.5 && !F.lowerTaken && s.ridge1.owner === ZONE_STATE.FRIEND) this.onZoneFall(rt, 'ridge1');
       if (F.step === 3.5) {
         const z = s.ridge1;
         // 11/6 fixc1429：本人が曲輪の口へ歩いて行く間は数えない（着いた途端に「別の先手が道を開いた」で④が済み、曲輪で一度も戦わずに本丸へ戻されていた）
