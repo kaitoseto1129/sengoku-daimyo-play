@@ -506,6 +506,12 @@ const k07_sawayama = {
     if (!u) return;
     F.sumiU = u; F.sumiT = rt.t;
     u.noTarget = true;
+    // 段の終わりの潰走は出現位置から逃げるだけなので、本丸へ続く尾根を退路にする。
+    // 狙っていた寄せ手への太刀も止め、「退いた」の知らせの後に斬り合いへ戻さない。
+    if (u.group) u.group.fleePath = [[-8, -96], [-8, -84], [-8, -72], [-8, -62], [-8, -50], [-8, -40], [-8, -28], [-8, -18]];
+    u.fleeing = true; u.fleePathIdx = 0;
+    u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null;
+    u.aiT = 0;
     rt.say('小早川の侍', '正澄は本丸へ退いたぞ！　三の丸は我らの物じゃ', 3.4);
   },
   sumiTick(rt) {
