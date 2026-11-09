@@ -454,13 +454,7 @@ function buildOpenTemple(G, r) {
     for (let i = windows.length - 1; i >= 0; i--) {
       if (windows[i].face !== 'x') continue;
       if (width < .5) windows.splice(i, 1);
-      else {
-        windows[i].t = (room.z0 + room.z1) / 2; windows[i].w = width;
-        // 庫裏の炊事土間は正面と同じ板戸で煤・雨を避ける推定の納まり。
-        // 側窓だけ紙障子にせず、格子の内側を共通の札で横へ引く。
-        // 奥の食事の座敷の明かり障子は、部屋の用途に合わせて残す。
-        if (r.kind === 'kuri' && room.floor === 'earth') windows[i].doorKind = 'itado';
-      }
+      else { windows[i].t = (room.z0 + room.z1) / 2; windows[i].w = width; }
     }
   }
   if (r.profile === 'hieizan' && hall) {
@@ -609,12 +603,7 @@ function buildOpenTemple(G, r) {
         for (let i = windows.length - 1; i >= 0; i--) if (windows[i].face === 'x') windows.splice(i, 1);
         for (const room of lv.layout.rooms) {
           if (!['tatami', 'earth'].includes(room.floor) && !(nodaHall && room.floor === 'boards')) continue;
-          // 内陣は幅九十センチまでの小窓とし、外陣の広い窓と分ける推定復元。
-          // 従来の一・四五メートル幅では全開の戸と竪枠が部屋端の約三十センチまで来る。
-          // 小窓でも開口・溝・戸の当たりを同じ幅で作り、柱際の余白を広げる。
-          // 手本と推定の範囲は docs/nodafukushima-sanctuary-windows.md。
-          const sanctuary = nodaHall && room.name === '内陣';
-          const width = Math.min(sanctuary ? .9 : nodaHall ? 1.5 : 1.2, (room.z1 - room.z0 - .7) / 2);
+          const width = Math.min(nodaHall ? 1.5 : 1.2, (room.z1 - room.z0 - .7) / 2);
           if (width < .5) continue;
           // 炊事土間の側窓も正面と同じ高窓の板戸とする推定復元。
           // 紙障子で塞がず、竈・作業台より上で換気する。座敷の紙障子は保つ。
@@ -914,33 +903,9 @@ function buildOpenTemple(G, r) {
         ...holes.map(v => v.y1 - .06 + .1)));
       // 正面・背面を通し、側面の木口を内面へ突き付ける。四隅で横木を重ねない。
       const length = len + (face === 'z' ? .42 : .22), off = side * (hd + .16);
-      // 外の長押も室内と同じく柱上で継ぎ、長い一本材にしない。
-      // 手本と推定の範囲は docs/nodafukushima-nageshi.md。外周への適用も推定。
-      // 開口の上では継がず、十六センチの相欠きを上下で受ける。
-      // 既存の木部へ設営時だけまとめ、戸の引き代と通路には触れない。
-      const joints = [], divisions = Math.ceil(length / 3.6);
-      for (let j = 1; j < divisions; j++) {
-        const target = -length / 2 + length * j / divisions;
-        let best = null;
-        for (const t of posts) {
-          if (Math.abs(t) > length / 2 - .5 || Math.abs(t - target) >= 1
-            || joints.some(q => Math.abs(q - t) < .5)
-            || holes.some(v => t > v.t0 - .16 && t < v.t1 + .16)) continue;
-          if (best === null || Math.abs(t - target) < Math.abs(best - target)) best = t;
-        }
-        if (best !== null) joints.push(best);
-      }
-      joints.sort((a, b) => a - b);
-      const ends = [-length / 2, ...joints, length / 2];
-      for (let j = 0; j < ends.length - 1; j++) for (const upper of [false, true]) {
-        const shift = upper ? -.08 : .08;
-        const a = ends[j] + (j ? shift + .00075 : 0);
-        const b = ends[j + 1] + (j < ends.length - 2 ? shift - .00075 : 0);
-        const cy = y + .06 + nageshi + (upper ? .025 : -.025), t = (a + b) / 2;
-        P.push(face === 'z'
-          ? box(b - a, .05, .1, t, cy, off, 0x4a3020)
-          : box(.1, .05, b - a, side * (hw + .16), cy, t, 0x4a3020));
-      }
+      P.push(face === 'z'
+        ? box(length, .1, .1, 0, y + .06 + nageshi, off, 0x4a3020)
+        : box(.1, .1, length, side * (hw + .16), y + .06 + nageshi, 0, 0x4a3020));
       timber(0, y + wallHeight - .1, len, .2, .24);
     }
   }

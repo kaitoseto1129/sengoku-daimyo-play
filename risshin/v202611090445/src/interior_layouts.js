@@ -146,10 +146,9 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       door = Math.max(x0 + gap * 2 + reserve, Math.min(x1 - gap * 2 - reserve, door));
     }
     if (SETTINGS.quality === 'high' && profile === 'nodafukushima' && ['goten', 'nagaya', 'bansho', 'kura'].includes(kind)) {
-      // 全開の戸は開口幅の二倍まで広がる。柱・長押の余白三十五センチに、
-      // naka_doors.js の戸当たり五センチと指掛けの逃げ五センチも足す。
-      // 幅五メートルの長屋でも、開いた板戸の端まで手を掛けて閉められる納まりにする。
-      gap = Math.min(gap, (Math.min(door + hw, hw - door) - .45) / 2);
+      // 全開の戸は開口幅の二倍まで広がる。小さな兵糧蔵でも側壁の柱へ
+      // 板戸と敷居を突き込まず、柱・長押の手前に引き代を残す。
+      gap = Math.min(gap, (Math.min(door + hw, hw - door) - .35) / 2);
     }
     if (SETTINGS.quality === 'high' && profile === 'nagashima') {
       // 全開の戸は開口の外へ片側半幅ずつ滑る。内陣の脇口も戸尻まで
@@ -519,9 +518,6 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     // 横向きの間仕切りにして、共通の引き戸と戸口の当たりを使う。
     const cut = -hd + d * .4;
     room('食事の座敷', -hw, hw, -hd, cut);
-    // 炊事土間と食事の座敷を同じ地面へ置かず、床組を上げる推定復元。
-    // 根拠と床高の推定範囲は docs/nodafukushima-kuri-floor.md。
-    if (SETTINGS.quality === 'high') rooms[rooms.length - 1].y = .16;
     room('炊事の土間', -hw, hw, cut, hd, 'earth');
     cross(cut, -hw + .1, hw - .1, entryX);
     portals[portals.length - 1].kind = 'shoji';
@@ -797,9 +793,6 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     // 河口の小さな民家の推定間取り。武家の座敷や兵舎の寝具で埋めず、土間と炉のある板間を分ける。
     const cut = hd - Math.min(2, d * .42);
     room('炉のある板間', -hw, hw, -hd, cut, 'boards');
-    // 土間から一段上がる板間。手本と推定の範囲は docs/nodafukushima-minka-floor.md。
-    // 共通の床・框・敷居と歩行面へ同じ下地高を渡す。
-    if (SETTINGS.quality === 'high') rooms[rooms.length - 1].y = .16;
     room('入口の土間', -hw, hw, cut, hd, 'earth');
     cross(cut, -hw + .1, hw - .1, entryX, false);
     portals[portals.length - 1].kind = 'itado';
@@ -829,10 +822,7 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 僧坊と同じ一・八メートルの薄い筵。奥壁から二十五センチ離し、
       // 足元を板間へ収めて、土間との板戸の引き代を保つ。
       if (w >= 6 && d >= 4.5) {
-        // 器棚と寝床の間は約五十七センチしかなく、器を取るには筵を踏む配置だった。
-        // 寝床を中央寄りへ分け、棚の正面へ回る一メートルほどの板間を残す。
-        // 炉・膳との間も空け、寝具の寸法と数は保つ。
-        props.push({ part: 'bedding', x: w * .13, z: -hd + 1.15, w: .75, d: 1.8, h: .12 });
+        props.push({ part: 'bedding', x: w * .2, z: -hd + 1.15, w: .75, d: 1.8, h: .12 });
         // 炉を置くだけでなく、火の世話をする側に座る筵を敷く推定復元。
         // 炉の縁から二十センチ離し、板戸の敷居より奥の板間へ収める。
         // 既存の薄い筵を共用し、踏んで通れる指定で中央の動線を保つ。
@@ -899,14 +889,6 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 兵糧蔵は片隅の三俵だけにせず、左右の板床へ分けて備える推定復元。
       // 反対側も同じ俵と台を使い、中央の運び道・土間・板戸の引き代を残す。
       if (grain) props.push({ part: 'riceBales', x: hw - .65, z: -hd + .65, w: .8, d: .7, h: .7 });
-      if (grain) {
-        // 奥行きのある兵糧蔵は壁沿いに荷台を続ける推定復元。
-        // 板床の端から二十五センチ離し、土間と中央の運び道は空ける。
-        // 小さい蔵には増やさず、既存の俵・荷台と当たりを共用する。
-        for (let z = -hd + 1.75; z + .35 <= cut - .25; z += 1.1)
-          for (const x of [-hw + .65, hw - .65])
-            props.push({ part: 'riceBales', x, z, w: .8, d: .7, h: .7 });
-      }
     }
     // 番所でも出入りや伝令の書付を扱う。高では詰所と同じ硯・筆・紙の文机を使い、
     // 空の台だけにしない。机の寸法・配置と戸口の通り幅は保つ推定復元。
@@ -947,12 +929,6 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
         props.push({ part, x, z: -hd + .8, w: utensils ? .8 : 1, d: .8,
           h: part === 'firewood' ? .5 : .8, rot: utensils ? (x < 0 ? Math.PI / 2 : -Math.PI / 2) : 0 });
       }
-      // 寺の兵糧置きも板床の長さに合わせる。器・薪の置き場へは積まない。
-      // 俵の列は壁際だけとし、入口から奥まで人と荷が通る中央を保つ。
-      if (use === 'templeGrain')
-        for (let z = -hd + 2; z + .4 <= cut - .25; z += 1.2)
-          for (const x of [-hw + .9, hw - .9])
-            props.push({ part: 'riceBales', x, z, w: 1, d: .8, h: .8 });
       // 器置きの水甕は板間へ置かず、入口の土間の端へ収める。
       if (use === 'templeUtensils')
         props.push({ part: 'waterJar', x: hw - .9, z: (cut + hd) / 2, w: .6, d: .5, h: .65 });
@@ -993,11 +969,7 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 一・八メートルの寝床を縮めず、配置の外寸も横向きにして通路と揃える。
       // 野田の二棟も奥行き四メートル。縦敷きの足元と槍掛け・箱の重なりを避ける。
       const crosswise = fullBed && w >= 4.7 && d <= 4;
-      // 福島砦の奥の長屋は内幅四・七メートル。左右一律の寄せ方では
-      // 筵の間が六十センチしかない。壁から二十センチを保ちつつ、
-      // 中央を七十センチ以上空ける。寝床の長さ・数と板戸の引き代は保つ。
-      const bedInset = crosswise ? Math.min(1.15, (w - 1.8 - .7) / 2) : .8;
-      for (const x of [-hw + bedInset, hw - bedInset])
+      for (const x of crosswise ? [-hw + 1.15, hw - 1.15] : [-hw + .8, hw - .8])
         props.push({ part: 'bedding', x, z: -hd + (crosswise ? .625 : fullBed ? 1.15 : 1),
           w: crosswise ? 1.8 : .75, d: crosswise ? .75 : fullBed ? 1.8 : 1.5, h: .12, crosswise });
       if (SETTINGS.quality === 'high') {
@@ -2043,34 +2015,10 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
   // 庫裏・民家の食事も低い筵を共用し、同じ部屋へ収まる時だけ敷く。
   // 戸口・家具の間を塞がず、室内を組む時だけ配置を決める。
   if (SETTINGS.quality === 'high' && profile === 'nodafukushima') {
-    // 夜も書状を扱う詰所・番所・寺務と、僧坊の各文机へ置き灯明を添える推定のしつらえ。
-    // 机の中央側へ八センチ離し、座る手前・窓の溝・戸口の立ち所は空ける。
-    // 光源や毎コマの処理は増やさず、調度の絵と当たりを同じ配置から作る。
-    if (kind === 'goten' || kind === 'bansho' || kind === 'sobo'
-      || kind === 'nagaya' && (use === 'templeService' || use === 'fortWatch')) {
-      // 野田砦の番所兼長屋も書付を扱う。寝所の分類でも文机の灯明を省かない。
-      // 奥の私室だけに灯明を置かず、控えの書写机にも同じ部品を使う。
-      // 調度を置き終えた位置で判定し、寝具や棚・二つの戸口の前へ重ねない。
-      for (const desk of props.filter(p => p.part === 'writingDesk')) {
-        const x = desk.x - Math.sign(desk.x) * (desk.w / 2 + .08 + .16), z = desk.z;
-        const room = rooms.find(r => x - .16 >= r.x0 + .6 && x + .16 <= r.x1 - .6
-          && z - .16 >= r.z0 + .3 && z + .16 <= r.z1 - .3);
-        if (room && portals.every(p => Math.abs(x - p.x) >= .61 || Math.abs(z - p.z) >= 1.21)
-          && props.every(p => Math.abs(x - p.x) >= (p.w || .85) / 2 + .16 + .05
-            || Math.abs(z - p.z) >= (p.d || .7) / 2 + .16 + .05))
-          props.push({ part: 'tomyo', x, z, w: .32, d: .32, h: .97 });
-      }
-    }
     // 長屋・僧坊・民家の寝床も薄い筵。座る筵と同じく踏んで通れ、
     // 人の幅を足した見えない家具の当たりで板間や座敷を塞がない。
     // 描く敷物と巻いた掛け物は残し、歩行・兵の経路・立ち所へ同じ指定を渡す。
-    for (const p of props) if (p.part === 'bedding' && ['nagaya', 'sobo', 'minka'].includes(kind)) {
-      p.walkable = true;
-      // 砦の横敷きの寝床は左右とも頭側を外壁へ向ける推定のしつらえ。
-      // 共通の筵は頭側に掛け物がある。右も同じ向きでは通路側へ来るので、
-      // 半回転させる。外寸・床の足場・板戸の引き代は動かさない。
-      if (kind === 'nagaya' && p.crosswise && p.x > 0) p.rot = Math.PI;
-    }
+    for (const p of props) if (p.part === 'bedding' && ['nagaya', 'sobo', 'minka'].includes(kind)) p.walkable = true;
     const seats = [];
     for (const desk of props) {
       const room = rooms.find(r => desk.x >= r.x0 && desk.x <= r.x1 && desk.z >= r.z0 && desk.z <= r.z1);

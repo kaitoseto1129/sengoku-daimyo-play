@@ -1849,38 +1849,6 @@ function nodaTimberBatch(rt, pieces) {
 
 // 本願寺周りは堂三棟だけの空地にせず、板囲い・木戸と裏方の家並みで区切る。
 // 元亀元年の詳しい町割りは不明。写真の囲い方を参考にした、この戦だけの推定配置。
-function nodaTempleGround(rt) {
-  const W = rt.world, source = W.terrain.geometry, parts = [], edge = W.half, end = W.def.moveLim;
-  // 元の地形の格子を粗くせず、寺の敷地だけ東と南へ継ぐ。
-  // 場の外で高さを端へ留める heightAt と同じ足場。地面の絵・材質も既存の物を共用する。
-  const start = Math.floor(133 / W.step) * W.step;
-  const gridWidth = Math.round(edge * 2 / W.step) + 1;
-  for (const [x0, x1, z0, z1] of [[edge, end, start, end], [start, edge, edge, end]]) {
-    const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0,
-      Math.ceil((x1 - x0) / W.step), Math.ceil((z1 - z0) / W.step));
-    g.rotateX(-Math.PI / 2); g.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
-    const pos = g.attributes.position;
-    for (const [name, attr] of Object.entries(source.attributes)) {
-      if (name === 'position' || name === 'normal' || name === 'uv') continue;
-      const values = new Float32Array(pos.count * attr.itemSize);
-      for (let i = 0; i < pos.count; i++) {
-        const gx = Math.max(0, Math.min(gridWidth - 1, Math.round((pos.getX(i) + edge) / W.step)));
-        const gz = Math.max(0, Math.min(gridWidth - 1, Math.round((pos.getZ(i) + edge) / W.step)));
-        for (let j = 0; j < attr.itemSize; j++) values[i * attr.itemSize + j] = attr.array[(gz * gridWidth + gx) * attr.itemSize + j];
-      }
-      g.setAttribute(name, new THREE.BufferAttribute(values, attr.itemSize));
-    }
-    for (let i = 0; i < pos.count; i++) pos.setY(i, W.heightAt(pos.getX(i), pos.getZ(i)));
-    g.computeVertexNormals(); parts.push(g);
-  }
-  const geometry = mergeGeometries(parts);
-  for (const part of parts) part.dispose();
-  const mesh = new THREE.Mesh(geometry, W.terrain.material);
-  mesh.receiveShadow = true; rt.scene.add(mesh);
-  const dispose = rt.dispose;
-  rt.dispose = function () { rt.scene.remove(mesh); geometry.dispose(); return dispose.call(this); };
-}
-
 function nodaTempleTown(rt) {
   const W = rt.world, pieces = [];
   // 西の木戸は門前の人が通る道（z=154）に合わせ、外の避難路（x=132）を空ける。
@@ -2379,11 +2347,7 @@ function installNodaWater(rt) {
   }
   // 膝より深い流れには入れない。歩く判定も、下げた水面を使う。
   const walkable = W.walkable;
-  W.walkable = function (x, z, y) {
-    // 広げるのは寺の敷地だけ。北・西の場の端と、ほかの野の通行範囲は保つ。
-    if ((Math.abs(x) > 176 || Math.abs(z) > 176) && !templeTownGround(x, z)) return false;
-    return this.waterFootDepthAt(x, z, y ?? this.heightAt(x, z)) <= 0.5 && walkable.call(this, x, z, y);
-  };
+  W.walkable = function (x, z, y) { return this.waterFootDepthAt(x, z, y ?? this.heightAt(x, z)) <= 0.5 && walkable.call(this, x, z, y); };
   // 浅瀬の口は空け、深みを横切る所だけに壊れない柵を置く。
   const st = W.def.streams[0];
   for (let i = 0; i + 1 < RIVER.length; i++) {
@@ -2869,10 +2833,6 @@ const nodafukushima = {
     noHaori: true, // 本の足軽主体の装束。既存の指定で陣羽織を出さない。
     namedKacchu: NODAFUKUSHIMA_KACCHU,
     seed: 1570,
-    // 庫裏（東百八十四歩）と裏方四棟（南百九十六歩）も、戸口から室内へ歩けるようにする。
-    // 既定の百七十六歩では内装と引き戸を作っても場の端へ押し戻される。
-    // 寺の板囲い（東二百四歩・南二百六歩）の外に四歩の余白を取り、形や兵は増やさない。
-    moveLim: 210,
     wind: [0.9, -0.3],   // 西の海から。風向きは復元
     time: 'after',
     naturalArrowRain: true, // 遠い矢を太い黒い棒にせず、霧と実寸に合わせる。
@@ -3296,7 +3256,6 @@ const nodafukushima = {
     }
     // ---- 石山本願寺（遠く、南東の台地の上） ----
     // 堂の個別の室内図は未確認。この戦の推定間取りで内陣・須弥壇・畳の外陣を復元する。
-    nodaTempleGround(rt);
     F.honganBuildings = new Garan(rt);
     F.honganBuildings.build({ id: 'noda_mieido', name: '本願寺の御影堂', kind: 'hondo', profile: 'nodafukushima', x: HONGAN.x, z: HONGAN.z, w: 15, d: 9, rot: 0.6 + Math.PI, h: 4.2, enterable: true });
     F.honganBuildings.build({ id: 'noda_sobo', name: '本願寺の僧坊', kind: 'sobo', profile: 'nodafukushima', x: HONGAN.x - 22, z: HONGAN.z + 10, w: 10, d: 7, rot: 0.6, h: 3.6, enterable: true });
