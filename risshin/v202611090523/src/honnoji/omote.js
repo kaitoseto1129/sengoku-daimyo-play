@@ -6,6 +6,7 @@
 // ======================================================================
 import { k15Freeze, k15Heal, k15Off, k15Go, k15Scenes, k15Track } from '../oda15_kit.js';
 import { PT, GATES } from '../honno_tera.js';
+import { evPerson } from '../b_ev6.js';
 
 export function wrap(def, K) {
   const p4 = def.p4;
@@ -24,6 +25,13 @@ function start(rt, K, done) {
   const stop = () => F.k15stage !== 'omote' || F.ending;
   const at = { x: PT.omote.x - 2, z: PT.omote.z + 2 }, gx = GATES.main.x, gz = GATES.main.z;
   rt.banner('表庭で踏み止まる', '上様が本堂へ退く時を、蘭丸と稼げ');
+  // 明智は光秀一人の軍にしない（docs/generals_oda_1108.md 32）：門の外の通りに、明智光忠・藤田伝五・溝尾茂朝がそれぞれの備で構える
+  if (!F.k15akechiGen) {
+    F.k15akechiGen = true;
+    [['明智光忠', -12], ['藤田伝五', 0], ['溝尾茂朝', 12]].forEach(([n, dz]) =>
+      evPerson(rt, 1, n, { x: gx + 10, z: gz + dz }, -Math.PI / 2, { guard: 3, ash: 4, aggro: 0, calm: true, g: { faction: 'akechi', flag: 'akechi' } }));
+    rt.say('小姓', '門の外に桔梗の旗がいくつも……　光秀の一門衆じゃ', 3.5);
+  }
   k15Scenes(rt, [
     [1, () => rt.say('森蘭丸', '上様が退かれるまで、この庭を一歩も通すな！', 3.5)],
   ], () => k15Go(rt, 'om-niwa', at, 5, '表庭で、森蘭丸と踏み止まれ', '表庭', () => {

@@ -40,6 +40,7 @@ import { install as installNanao } from './tedorigawa/nanao.js';   // 0〜3分�
 import { install as installKonzatsu } from './tedorigawa/konzatsu.js';   // 3〜6分：増水と渡り口の混雑・横から来る騎馬
 import { install as installYoin, YOIN_SEC } from './tedorigawa/yoin.js';
 import { kenshinStep } from './tedorigawa/kenshin.js';
+import { place as placeUesugiBushou } from './tedorigawa/bushou.js';   // 上杉景勝・直江景綱の持ち場
 import { install as installFurikiru } from './tedorigawa/furikiru.js';   // 最後の段：追手を振り切る（12〜13分）   // 北岸の殿の三つ目の持ち場：謙信の旗本（9〜11分）   // 渡った後の余韻（最後の30秒）
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
@@ -2837,6 +2838,7 @@ const tedorigawa = {
     F.northSteps = tedoA(); F.southSteps = tedoB();
     if (!rt.G.lord) F.northSteps.splice(1, 0, kenshinStep({ tedoHold, RG, RR }));   // 先手の後、後続の前に謙信の旗本（tedorigawa/kenshin.js）
     preparePursuit(rt, F.northSteps, 0); preparePursuit(rt, F.southSteps, 1);
+    F.uesugiBushou = placeUesugiBushou(rt, { dress, UESUGI });   // docs/generals_oda_1108 の必須の将（tedorigawa/bushou.js）
     // 先手の足軽・二の手・騎馬に一本ずつ。兵を増やさず、動く列を旗で見せる。
     // 手に結び付かない追手の松明は置かず、川岸の据えた火を道じるしにする。
     const cloth = document.createElement('canvas'); cloth.width = 128; cloth.height = 256;

@@ -30,7 +30,9 @@ export function install(rt, ctx) {
   rt.after(35, () => {
     if (F.ending || rt.over) return;
     sfx('kane', 0.5);
-    rt.say('原田の家来', '原田直政様は、木津で討死なされた……。馬印だけを持ち帰りました。', 4);
+    const HU = F.haradaU;
+    if (HU?.alive) { HU.invuln = false; HU.noTarget = false; rt.army.kill?.(HU, null); }
+    rt.say('原田の家来', HU ? '原田直政様、息を引き取られた……。木津の傷が深すぎた。' : '原田直政様は、木津で討死なされた……。馬印だけを持ち帰りました。', 4);
     for (const g of [F.ake, F.fgun, F.harada]) if (g && !spent(g)) g.morale = Math.min(g.morale || 100, 62);
     rt.after(5, () => { if (!F.ending) rt.say('明智光秀', '弔いは後じゃ。殿（信長）は必ず来られる。砦を守れ！', 4); });
     rt.after(9, () => { for (const g of [F.ake, F.fgun, F.harada]) if (g && !spent(g)) g.morale = Math.max(g.morale || 0, 85); });

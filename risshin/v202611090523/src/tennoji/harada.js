@@ -15,8 +15,11 @@ export function install(rt, ctx) {
   rt.setPhase('harada');
   // 原田の残りは十人ほど。半ばは手負い（足が遅い）。追う門徒は六人と鉄砲二。本物の兵を増やしすぎない（天王寺は携帯で重い戦）
   const H = allyGroup(rt, { name: '原田直政の手の残り', anchor: { x: -128, z: -14 }, facing: Math.PI / 2, width: 6, aggro: 4, morale: 55, noRout: true, formation: 'column' },
-    [{ type: 'samurai', n: 2, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 1 }]);
+    [{ type: 'busho', n: 1, o: { name: '原田直政', hat: 'kabuto_m', invuln: true } }, { type: 'samurai', n: 2, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 1 }]);
   for (const u of H.units) if (Math.random() < 0.5) { u.hp = Math.min(u.hp, u.maxHp * 0.55); u.speed = (u.speed || 3) * 0.85; }
+  // 原田直政（generals_oda_1108 の必須）：木津の鉄砲で深手を負い、家来に支えられて砦へ着く。籠城の初めに砦の内で息を引き取る（tennoji/yabure.js）
+  const HU = H.units.find((u) => u.name === '原田直政');
+  if (HU) { HU.hp = HU.maxHp * 0.3; HU.speed = (HU.speed || 3) * 0.75; HU.noTarget = true; F.haradaU = HU; }
   march(H, [[-70, -12], [-24, -18], [-4, -32], [T_GATE.x, T_GATE.z + 2], [T_GATE.x - 4, T_GATE.z - 12]], 'hold', 0);
   H.speed = 3.2;
   const P = enemyGroup(rt, { name: '原田勢を追う門徒', anchor: { x: -150, z: -10 }, facing: Math.PI / 2, width: 8, aggro: 22, seekRange: 30, morale: 70, faction: 'honganji', fleeDir: { x: -1, z: -0.4 } },
@@ -61,7 +64,7 @@ export function install(rt, ctx) {
       rt.unmark('harada'); rt.unmark('haradaChase');
       if (inside > 0) {
         rt.award((t) => t.side.push('木津から逃げた原田勢を砦へ収めた'), '原田勢を砦へ収めた');
-        rt.say('原田の侍', 'かたじけない……。殿（原田様）は、楼の岸の鉄砲に……。', 4);
+        rt.say('原田の侍', 'かたじけない……。殿（原田様）が楼の岸の鉄砲で深手じゃ。手当てを！', 4);
       }
       // 入った者は門の内の守りに加わる（籠城の段の味方の厚み）
       if (!spent(H)) { H.ai = false; H.order = 'hold'; H.guard = true; H.guardLeash = 4; H.noRout = false; H.name = '砦に入った原田勢'; H.anchor = { x: T_GATE.x - 6, z: T_GATE.z - 10 }; H.dest = null; H.path = null; }
