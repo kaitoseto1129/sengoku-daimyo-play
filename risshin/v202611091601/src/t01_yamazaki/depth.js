@@ -17,7 +17,10 @@ export const T01_DEPTH = {
       { id: 'kato', layer: 'ni', wing: 'right', men: 1000, taisho: '加藤光泰', bind: F('kato') },
       { id: 'niwa', layer: 'yobi', wing: 'left', men: 3000, taisho: '丹羽長秀', flag: 'sujikai', hold: true, at: { x: -70, z: 150 } },
       { id: 'nobutaka', layer: 'yobi', wing: 'right', men: 4000, taisho: '織田信孝', flag: 'toyotomi', hold: true, at: { x: 34, z: 150 } },
-      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 6000, taisho: '羽柴秀吉', bind: F('hideG') },
+      { id: 'kuroda', layer: 'yobi', wing: 'left', men: 2000, taisho: '黒田孝高', hold: true },
+      { id: 'nakamura', layer: 'gozume', wing: 'center', men: 3000, taisho: '中村一氏', hold: true },
+      // 布陣図（docs/fujin/t01_yamazaki.md）：羽柴勢およそ四万。秀吉の旗本と後詰を厚く
+      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '羽柴秀吉', bind: F('hideG') },
     ] },
   B: { name: '明智', facing: 0, honjin: { x: 18, z: -158 }, mpu: 6, formation: '鶴翼', terrain: 'marsh', flag: 'akechi', armor: 0x2c2a27, openAt: 9999, attrition: 0.003,
     sonae: [

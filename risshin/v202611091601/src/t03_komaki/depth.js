@@ -23,7 +23,12 @@ export const T03_DEPTH = {
       { id: 'motosuke', layer: 'ni', wing: 'right', men: 2000, taisho: '池田元助', flag: 'ageha', hold: true, at: { x: 118, z: -86 } },
       { id: 'hidetsugu', layer: 'ni', wing: 'center', men: 8000, taisho: '三好信吉', hold: true, at: { x: 40, z: -112 } },
       { id: 'hidenaga', layer: 'yobi', wing: 'left', men: 6000, taisho: '羽柴秀長', hold: true, at: { x: -112, z: -54 } },
-      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '羽柴秀吉', bind: F('rakuda') },
+      // 布陣図（docs/fujin/t03_komaki.md）：楽田のまわりの砦に諸将。羽柴勢はおよそ七万（十万とも）
+      { id: 'gamo', layer: 'yobi', wing: 'right', men: 3000, taisho: '蒲生氏郷', hold: true, at: { x: 150, z: -124 } },
+      { id: 'kato', layer: 'yobi', wing: 'right', men: 2000, taisho: '加藤光泰', hold: true, at: { x: 104, z: -150 } },
+      { id: 'hosokawa', layer: 'yobi', wing: 'left', men: 3000, taisho: '細川忠興', hold: true, at: { x: -150, z: -112 } },
+      { id: 'niwa', layer: 'gozume', wing: 'left', men: 3000, taisho: '丹羽長重', hold: true, at: { x: -164, z: -156 } },
+      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 30000, taisho: '羽柴秀吉', bind: F('rakuda') },
     ] },
   B: { name: '徳川・信雄', facing: Math.PI, honjin: { x: -100, z: 95 }, mpu: 10, formation: '方円', terrain: 'castle', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
     sonae: [

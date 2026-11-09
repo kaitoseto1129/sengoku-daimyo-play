@@ -3409,7 +3409,14 @@ const kizugawa = {
     guideMarkerWay: true,   // 画面の端の案内も、屋形を避ける地面の矢印と同じ向きにする
     guideWay(u, want) { return u.pos.y > DECK.y + 0.5 ? want : deckWay(u, want); },
     moveWay(army, u, want) {
-      if (u.shipPost) return u.shipBoat || u.shipTransit?.active ? u.shipPost : deckWay(u, u.shipPost);
+      if (u.shipPost) {
+        if (u.shipBoat || u.shipTransit?.active) return u.shipPost;
+        // 屋形の救援は持ち場へ戻すだけでは槍が届かない。近い甲板の敵には踏み込む。
+        const t = u.target;
+        if (u.group?.kzCabinGuard && t && deckEnemy(t) && deckMeleeThreat(t) &&
+            Math.hypot(t.pos.x - u.shipPost.x, t.pos.z - u.shipPost.z) <= 6) return deckWay(u, want);
+        return deckWay(u, u.shipPost);
+      }
       if ((u.fleeing || u.group?.boat?.withdrawing) && u.group?.boat?.exit) return deckWay(u, u.group.boat.landing);
       const q = deckWay(u, want);
       // 待機する鉄砲衆は筒の台と砲手の持ち場を空ける。敵を迎える時は従来どおり。
@@ -4530,9 +4537,14 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       // 10/30：乗り口を守る段で屋形の前が押されたら、屋形の中に控えた水夫と槍の者が一度だけ戸口から出て大将を囲む。
       //   開戦から艫で斬り合った鉄砲衆・水夫が減っても、南の乗り口を守る遊び手が屋形を奪われきらないようにする。人数は推定。
       if (F.roofDanger && F.step >= 3 && !F.cabinSally) {
-        F.cabinSally = allyGroup(rt, { name: '屋形の水夫', fixed: true, fullStrength: true, anchor: { x: F.roofPost.x, z: F.roofPost.z }, facing: Math.PI, formation: 'ring', spacing: 1, aggro: 5 },
+        F.cabinSally = allyGroup(rt, { name: '屋形の水夫', fixed: true, fullStrength: true, noAI: true, order: 'hold', seekRange: 6, anchor: { x: F.roofPost.x, z: F.roofPost.z }, facing: Math.PI, formation: 'ring', spacing: 1, aggro: 5 },
           dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], ODA));
-        for (const u of F.cabinSally.units) { u.pos.set(-1.2 + (u.slot % 3) * 1.2, DECK.y, 5.0 - Math.floor(u.slot / 3) * 0.8); u.shipPost = { x: F.roofPost.x, y: DECK.y, z: F.roofPost.z }; }
+        F.cabinSally.kzCabinGuard = true;
+        // 六人を一点へ集めず、屋形の前に二列の持ち場を割り当てる。
+        for (const u of F.cabinSally.units) {
+          const x = -1.6 + (u.slot % 3) * 1.2, z = 4.8 - Math.floor(u.slot / 3) * 1.4;
+          u.pos.set(x, DECK.y, z); u.shipPost = { x, y: DECK.y, z };
+        }
         rt.say('九鬼嘉隆', '屋形の者ども、出よ！　この前を通すな！', 3);
       }
       const kukiDanger = F.roofDanger || !!kukiThreat;
@@ -4761,6 +4773,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           if (e.t.x !== e.homeX) { e.t.x = e.homeX; e.t.z = e.homeZ; }
           else { e.sortie = false; e.nextSortie = rt.t + 12; }
         }
+      } else if (e.sortie && F.step === 6 && !F.kzYoin && !e.group.routed) {
+        // 兵糧船を追う下知の行き先を保つ。次のコマで帰航先へ上書きしない。
+        shipMove(e, dt, 1.4);
       } else if (e.sortie) { e.t.x = e.homeX; e.t.z = e.homeZ; if (shipMove(e, dt, 1.4)) e.sortie = false; }
       floatShip(e.m, motionT, e.sortie && !S.reduceMotion, true);
     }
@@ -4937,7 +4952,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     }
     if (F.step === 6 && !F.kzYoin && KZ_HYORO.tick(rt, dt, F.kzCtx || (F.kzCtx = this.kzCtx(rt)))) { KZ_YOIN.start(rt, F.kzCtx); return; }
     if (F.kzYoin && KZ_YOIN.tick(rt)) { this.win(rt); return; }   // 余韻の三十秒の後に締める（kizugawa/yoin.js）
-    if (!F.ending && !rt.over && rt.t >= 1080) { this.lose(rt, '船の守りを立て直せ。船を離せ！'); return; }
+    // 大将船を崩した後は、各段の上限で退き・兵糧船・余韻まで終える。
+    // 砲撃が刻限間際に決まった者を、達成後の見送り中に負けにしない。
+    if (!F.ending && !rt.over && !F.bigSunk && rt.t >= 1080) { this.lose(rt, '船の守りを立て直せ。船を離せ！'); return; }
     if (F.step === 1) {
       // 大筒へ来て待った者も、持ち場を守る行動として拾う。
       if (!F.cannonAttended) for (const c of F.guns) {
