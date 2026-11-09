@@ -5,11 +5,15 @@
 // 着くと元の谷道の段（valley）が始まる。
 // 入れ方：b_tano.js で wrap(tano) を一度。def.valley を包む。
 // ======================================================================
-import { k15Off, k15Squad, k15Go, k15Scenes, k15Fade, k15Live, k15Rout, k15Charge } from '../oda15_kit.js';
+import { k15Off, k15Squad, k15Go as timedGo, k15Scenes, k15Fade, k15Live, k15Rout, k15Charge } from '../oda15_kit.js';
 import { enemyGroup, centerOf } from '../bhelp.js';
 import { evPerson, evRemove } from '../b_ev6.js';
 import { placeGroup, placePlayer } from '../b_opening.js';
 import { sfx } from '../audio.js';
+
+// 持ち場へ実際に着くまで、時刻だけで次の出来事を始めない。
+const k15Go = (rt, id, pos, r, text, label, fn, o = {}) =>
+  timedGo(rt, id, pos, r, text, label, fn, { ...o, limit: Infinity });
 
 export function wrap(def) {
   const valley = def.valley;
@@ -47,7 +51,7 @@ function start(rt, done) {
       const g = enemyGroup(rt, { fixed: true, name: '武田の落ち武者', faction: 'takeda', anchor: { x: B.x + 10, z: B.z + 6 }, facing: -Math.PI / 2, width: 3, aggro: 20, morale: 80 },
         [{ type: 'samurai', n: 1, o: { name: '武田の落ち武者' } }, { type: 'ashigaru', n: 4 }]);
       g.noRout = true;
-      const N0 = k15Live(g), t0 = rt.t;
+      const N0 = k15Live(g);
       F.k15fight = true;
       rt.say('足軽', '藪に落ち武者じゃ！', 3);
       sfx('shout', 0.6);
@@ -58,7 +62,7 @@ function start(rt, done) {
         if (stop() || rt.over) return;
         const left = k15Live(g);
         rt.objProgress('main', `落ち武者 ${left}／${N0}`);
-        if (left <= 1 || rt.t - t0 > 70) {
+        if (left === 0) {
           k15Rout(rt, g, { x: 140, z: 0 }); rt.unmark('k15foe'); F.k15fight = false;
           rt.award((t) => t.side.push('谷道の落ち武者を退けた'), '谷道の落ち武者を退けた');
           // 置き去りにされた侍女たち（追う道の途中の出来事）

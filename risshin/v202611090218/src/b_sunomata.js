@@ -4066,7 +4066,7 @@ const sunomata = {
     // 上役が出した普請の順に、組で人足を守る。敵が迫れば作業を止める。
     sunoObj(rt, 'gate', '北の口で、人足の普請を守れ', 'side');
     rt.marker('gateGuard', { x: 6, z: -FORT + 1.4 }, () => !rt.over && !F.ending && F.sunoTask === 'gate' ? '守る柵' : '', SUNO_GUARD_GUIDE);
-    SU15.install(rt, this, { dock: F.C.kuruwa.kishi.centroid, FORT, enemyGroup });
+    SU15.install(rt, this, { dock: F.C.kuruwa.kishi.centroid, FORT, enemyGroup, walk: sunomataWalk });
     rt.after(4, () => SU15.afterIntro(rt, () => {   // 普請の段取りの前に、材木の運搬の護衛（sunomata/hakobi.js）
       if (rt.over || F.ending || F.won) return;
       const mark = (id, seg, label) => rt.marker(id, { x: (seg.seg[0] + seg.seg[2]) / 2, z: (seg.seg[1] + seg.seg[3]) / 2 }, label);

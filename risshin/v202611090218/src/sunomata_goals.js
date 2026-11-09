@@ -6,7 +6,7 @@ export function sunomataNorthStopped(F) {
   // 弓で柵の手前に討ち倒した時も、倒れた敵を柵へ歩かせる必要はない。
   return (!!F.northAtFence && (g.routed || !g.units.some((u) =>
     u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget))) ||
-    (g.units.length > 0 && g.units.every((u) => !u.alive || u.dying || u.woundOut));
+    (g.units.length > 0 && g.units.every((u) => (!u.alive && u.hp <= 0) || u.dying || u.woundOut));
 }
 
 export function sunomataPincerDone(F) {
@@ -15,7 +15,8 @@ export function sunomataPincerDone(F) {
 }
 
 export function sunomataBossKilled(F) {
-  return F.wave === 3 && !!F.yoseBoss && F.yoseBoss.alive === false;
+  // 生きて退場した兵も despawn で alive=false になる。討死は命が尽きた事まで確かめる。
+  return F.wave === 3 && !!F.yoseBoss && F.yoseBoss.alive === false && F.yoseBoss.hp <= 0;
 }
 
 export function sunomataFinalGoalsDone(F) {
