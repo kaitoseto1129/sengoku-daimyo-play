@@ -533,7 +533,11 @@ const k05_ueda = {
     if (F.step === 1 && dist(P.pos, KARI) < 18) F.kariJoined = true;
     if ((F.step === 3 || F.step === 4) && dist(P.pos, FRONT) < 35) F.frontJoined = F.step;
     if (F.step === 5 && dist(P.pos, FRONT) < 32) F.reAt += dt;
-    if (F.step === 6 && F.oiHot && dist(P.pos, FORD_W) < 30 && F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiHeld = (F.oiHeld || 0) + dt;
+    if (F.step === 6 && F.oiHot && dist(P.pos, FORD_W) < 30) {
+      // 一度接敵した後は岸を守った時間を数える。追手が間合いを離れるたびに止めると、岸に居続けても殿を果たせない。
+      if (F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiEngaged = true;
+      if (F.oiEngaged) F.oiHeld = (F.oiHeld || 0) + dt;
+    }
     // 手勢は本人の脇に付いて一緒に走る（AP5）
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
       F.mineT = 0.6;

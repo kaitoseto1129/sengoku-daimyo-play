@@ -115,7 +115,7 @@ const k04_kuisegawa = {
       sonae: [
         { id: 'kazu', layer: 'sakite', wing: 'center', men: 1500, taisho: '中村一栄', flag: 'maru', bind: (r) => r.flags.kazu },
         { id: 'noi', layer: 'sakite', wing: 'left', men: 500, taisho: '野一色頼母', flag: 'maru', bind: (r) => r.flags.noi },
-        { id: 'arima', layer: 'ichi', wing: 'right', men: 2000, taisho: '有馬豊氏', flag: 'maru', bind: (r) => r.flags.arimaG },
+        { id: 'arima', layer: 'ichi', wing: 'right', men: 2000, taisho: '有馬豊氏', flag: ARIMA_MON, bind: (r) => r.flags.arimaG },
         { id: 'nakamura2', layer: 'ni', wing: 'center', men: 2000, taisho: '', flag: 'maru', at: T(132, 10), hold: true },
         { id: 'fukushima', layer: 'yobi', wing: 'left', men: 6000, taisho: '福島正則', flag: 'mizuno', at: T(170, -50), hold: true },
         { id: 'ikeda', layer: 'yobi', wing: 'right', men: 4500, taisho: '池田輝政', flag: 'ageha', at: T(165, 100), hold: true },
@@ -365,6 +365,7 @@ const k04_kuisegawa = {
       rt.army.play('toki', T(80, 0), 1.3);
       this.go(B.saki, T(68, 0), 2.6, { charge: true });
       this.go(B.arima, T(70, -16), 1.6);   // 有馬の隊も田へ出て加わる（乱戦。川は越えない）
+      if (live(F.arimaG)) { F.arimaG.order = 'move'; F.arimaG.dest = T(70, -16); }
       F.baitN0 = B.bait.aliveNominal();
     } else if (n === 2) {
       rt.marker('go', RING, '退く島左近の兵');
@@ -484,7 +485,7 @@ const k04_kuisegawa = {
     const el = rt.t - F.stepT;
     if (F.step === 1) {
       // 刈田の足軽は、槍が迫ると稲を捨てて立ち上がる
-      if (!F.stood && (dist(lightPos(B.bait), P.pos) < 24 || dist(lightPos(B.bait), lightPos(B.saki)) < 18 || el > 14)) { F.stood = true; for (const u of F.gamo?.units || []) u._crouch = false; }
+      if (!F.stood && (dist(lightPos(B.bait), P.pos) < 24 || live(F.kazu) && dist(F.kazu.center(), lightPos(B.bait)) < 18 || el > 14)) { F.stood = true; for (const u of F.gamo?.units || []) u._crouch = false; }
       const hurt = B.bait && B.bait.aliveNominal() < F.baitN0 * 0.8;
       if (F.baitPlayerHit && el > 65 && (hurt || dist(lightPos(B.bait), P.pos) < 20)) this.feign(rt);   // 少し戦ってから退くふり（史実）
     } else if (F.step === 2) {
@@ -494,7 +495,7 @@ const k04_kuisegawa = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + 0.25;
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。
-      if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT) F.defended = true;
+      if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
     } else if (F.step === 4 && PL.x > 52) this.toStep(rt, 5);
     else if (F.step === 5 && dist(P.pos, ARIMA) < 14) this.win(rt);

@@ -127,7 +127,9 @@ const t03b_nagakute = {
   compactIntro: true,
   introText: () => '三河へ回り込む途中、白山林で朝飯の最中。',
   introSides: { a: '羽柴勢　二万', b: '徳川・信雄勢　一万四千' },   // 五4：始まりの札に味方対敵の数（battle_learn 二）
-  // 右上に番号つきの五つの目標（goals5）を戦の間ずっと出す（kaito 三の3）。一行の札（missionSingleLine）は隠れて出なかったので使わない
+  // 七件を順番に保ち、今する目標から五件を表示。終盤は済んだ印も残す。
+  goalVisibleRows: 5,
+  goalRowsAhead: true,
   hideGuideSteps: true,
   hideMissionDots: true,
   enemyTriangleSigns: true,
