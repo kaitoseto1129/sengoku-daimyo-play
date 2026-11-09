@@ -292,7 +292,7 @@ const k03_gifu = {
   noWake: true,
   minutes: 18,
   pacingWait: () => true,   // 時間だけでは退かない。各曲輪の到着と守りの突破、最後の降伏を待つ（G8）。
-  lethal: false,   // 命懸けの戦場は入れない（11/8 bot：入れると山道で手勢が減って進まず、十八分で任務失敗）
+  lethal: false,   // 命懸けの戦場は入れない（11/8 bot：入れると山道で手勢が減って十八分で任務失敗。11/9 徳川A：弱め（二つ・三分過ぎ）でも bot 四回とも段④⑤で斬られ続けて止まり任務失敗。共通の lethal の係へ）
   fearKind: { kind: '山城攻め', note: '狭い山道で上から撃たれ、石を落とされる', w: { losses: 1.3, flank: 1.3, iso: 1.2 }, line: '上から来るぞ、伏せよ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
@@ -436,11 +436,11 @@ const k03_gifu = {
     //   段が八十秒長引けば使番が知らせ、大将が味方の隊を出す
     F.stages = siegeStages(rt, [
       { groups: [F.g1], at: SHITA, done: () => F.step > 1 },
-      { groups: [F.pre[2]], at: OTE, done: () => F.step > 2, report: '居館の冠木門、まだ破れず！', orderLine: '鉄砲を前へ。門の上を撃ちすくめよ', order: () => { if (F.naga && F.naga.count) { F.naga.order = 'attack'; F.naga.anchor = { x: OTE.x, z: OTE.z }; } } },
-      { groups: [F.pre[3], F.amb], at: NANA, done: () => F.step > 3, report: '百曲りの先手、押し返されております！', orderLine: '二の手を出せ。浅野勢にも知らせよ', order: () => { if (F.asano && F.asano.count) { F.asano.order = 'attack'; F.asano.anchor = { x: NANA.x, z: NANA.z }; } } },
-      { groups: [F.pre[4]], at: NI, done: () => F.step > 4, report: '二の丸の櫓門、横矢が厳しく寄れませぬ！', orderLine: '控えを右へ回せ。福島に後れを取るな', order: () => { if (live(F.naga)) { F.naga.order = 'attack'; F.naga.anchor = { x: NI.x - 8, z: NI.z }; F.naga.dmgMult = 1.2; } } },
+      { groups: [F.pre[2]], at: OTE, done: () => F.step > 2, report: '居館の冠木門、まだ破れず！', orderLine: '殿の仰せ。鉄砲を前へ。門の上を撃ちすくめよ', order: () => { if (F.naga && F.naga.count) { F.naga.order = 'attack'; F.naga.anchor = { x: OTE.x, z: OTE.z }; } } },
+      { groups: [F.pre[3], F.amb], at: NANA, done: () => F.step > 3, report: '百曲りの先手、押し返されております！', orderLine: '殿の仰せ。二の手を出せ。浅野勢にも知らせよ', order: () => { if (F.asano && F.asano.count) { F.asano.order = 'attack'; F.asano.anchor = { x: NANA.x, z: NANA.z }; } } },
+      { groups: [F.pre[4]], at: NI, done: () => F.step > 4, report: '二の丸の櫓門、横矢が厳しく寄れませぬ！', orderLine: '殿の仰せ。控えを右へ回せ。福島に後れを取るな', order: () => { if (live(F.naga)) { F.naga.order = 'attack'; F.naga.anchor = { x: NI.x - 8, z: NI.z }; F.naga.dmgMult = 1.2; } } },
       { groups: [F.pre[5], F.hide], at: DAI, done: () => false },
-    ], { lord: '池田輝政', reportAfter: 80 });
+    ], { lord: '池田輝政の使番', reportAfter: 80 });
     const T = this.talk.before;
     T.forEach(([who, s], i) => rt.after(0.6 + i * 3.6, () => rt.say(who || nm(rt), s, 3.4)));
     rt.after(0.6 + T.length * 3.6, () => { F.holdPlayer = false; this.toStep(rt, 1); });
@@ -709,22 +709,28 @@ const k03_gifu = {
     const B = F._botIg || (F._botIg = { e: null, t: 0, skip: new Map() });
     // 今の段の持ち場から 30 歩より遠い敵は追わない（中腹の砦の段で退く敵を追って本丸の下まで登り、段の守りに戻らなかった。11/8 bot）
     const at = STEP_AT[F.step] || u.pos;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30;
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.group?._fallen && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4);   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
     const e = b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-      if (B.e !== e || d <= 2.4) { B.e = e; B.t = b.t; } else if (b.t - B.t > 12) { B.skip.set(e, b.t + 40); B.e = null; }
+      // 追った時間は敵ごとに足していく（近い敵が二人で入れ替わると数え直しになり、石垣の下で矢を受け続けて十五分止まった。11/9 bot）
+      const dt = Math.min(1, Math.max(0, b.t - (B.last ?? b.t))); B.last = b.t;
+      const c = B.chase || (B.chase = new Map());
+      c.set(e, (c.get(e) || 0) + (d <= 2.4 ? dt * 0.5 : dt));   // 間合いの内でも二十四秒討てなければ離れる（本丸の門の前で鉄砲と打ち合い続けた）
+      if (c.get(e) > 12) { B.skip.set(e, b.t + 40); c.set(e, 0); B.e = null; } else B.e = e;
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (d > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2.2); else inp.k.delete('KeyW');
       patientStrike(p, inp, e, d, true);
       return;
     }
-    inp.guardHold = false;
+    inp.guardHold = false; B.last = b.t;
     const t = this.missionPin(b) || STEP_AT[F.step];
     // 山道は道の点を一つずつ辿る（まっすぐ行き先へ向かうと、百曲りの下の斜面で石垣に突っかかって止まった）
     //   味方の隊と同じ wayNext で、道の一つ先の曲がり角へ
     const q = wayNext(u.pos, t, B.w || (B.w = { x: 0, z: 0 }));
+    // 上台所の内からは奥の口（-26, -1.5）の真ん中を通す（口の北の石垣に突っかかって十分止まった。11/9 bot）
+    if (F.step === 5 && u.pos.x > -40 && u.pos.x < -26.5 && Math.abs(u.pos.z) < 8 && Math.abs(u.pos.z + 1.5) > 1) { q.x = -28; q.z = -1.5; }
     goTo(p, inp, q.x, q.z, 2);
   },
 };

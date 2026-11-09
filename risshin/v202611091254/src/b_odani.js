@@ -2842,7 +2842,10 @@ function odaniGoalBoard(rt) {
     if (on) for (const u of rt.army.units) {
       if (n >= 250) break;
       // 討てない史実の将にも敵印は付ける。待機中の将は noTarget で除く。
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      // 近接印の候補から外れた兵には、以前の _nearSignOn が残る。十二メートル外や退却中まで印を省かない。
+      const nearMarked = u._nearSignOn && !u.fleeing && !u.group?.routed &&
+        (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 <= 144;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || nearMarked ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600) continue;
       if (!(u._odSeenAt > rt.t - .34 && u._odSeenAt <= rt.t)) { u._odSeen = sightUnit(rt, u); u._odSeenAt = rt.t; }
       if (!u._odSeen) continue;
@@ -6269,8 +6272,8 @@ installBattleJinkei(odani, [
   const placeOf = (rt) => { const F = rt.flags; return F.retreatOn ? '退き口' : F.step <= 1 ? '清水谷' : F.step === 2 ? (F.onoDone ? '京極丸' : '大野木屋敷') : F.komaDown || F.honAttack ? '本丸' : F.komaAttack ? '小丸' : F.step === 3 ? '京極丸' : '本丸'; };
   odani.travelGuideLabel = (rt) => {
     const F = rt.flags, q = odani.missionPin(rt), p = rt.player.u.pos;
-    if (F.step === 0 || !q || !Number.isFinite(q.x)) return '';
-    const place = q.gate ? '西木戸' : placeOf(rt);
+    if (!q || !Number.isFinite(q.x)) return '';
+    const place = F.step === 0 && !F.retreatOn ? '羽柴秀吉' : q.gate ? '西木戸' : placeOf(rt);
     return `${place} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
   };
 }

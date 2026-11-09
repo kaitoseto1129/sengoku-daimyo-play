@@ -3132,7 +3132,16 @@ function okSlopeDetail(W) {
     const r = 1 + .12 * Math.sin(x * 11 + z * 7) * Math.cos(y * 9);
     leaves.setXYZ(i, x * r, y * r, z * r);
   }
-  shrubGeo.computeVertexNormals();
+  // 重なった頂点にも同じ向きの法線を与え、房を三角の板の集まりに見せない。
+  // 形の作成時だけ整え、頂点数・描く回数・毎コマの処理は増やさない。
+  const leafNormals = shrubGeo.attributes.normal;
+  for (let i = 0; i < leaves.count; i++) {
+    const x = leaves.getX(i), y = leaves.getY(i), z = leaves.getZ(i);
+    const length = Math.hypot(x, y, z) || 1;
+    leafNormals.setXYZ(i, x / length, y / length, z / length);
+  }
+  leafNormals.needsUpdate = true;
+  shrubGeo.computeBoundingSphere();
   const shrubs = new THREE.InstancedMesh(shrubGeo, new THREE.MeshLambertMaterial({ color: 0x596044 }), (end - 1) * 6);
   const d = new THREE.Object3D(), up = new THREE.Vector3(0, 1, 0), normal = new THREE.Vector3();
   const rim = rocks.geometry.attributes.position, vertex = new THREE.Vector3();
