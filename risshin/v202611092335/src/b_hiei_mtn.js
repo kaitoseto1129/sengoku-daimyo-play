@@ -1449,9 +1449,9 @@ const attackFrom = (q, r = 16) => { q.order = 'attack'; q.seekRange = Math.min(r
 let hieiClock = 0;   // 今の戦の時刻（arrived の待ちを数える。update が毎コマ入れる）
 let hieiWho = null;  // 本人（arrived が、本人が持ち場に着いて先手を待つ間だけ数えるのに使う。update が毎コマ入れる）
 const arrived = (g, p, r, waitRadius = r + 2) => {
-  if (!g) return false;
+  if (!g) return true;
   let alive = 0, near = 0, front = 0;
-  for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget) {
+  for (const u of g.units) if (hieiReady(u)) {
     alive++;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
     if (d < r) front++;
@@ -1465,19 +1465,19 @@ const arrived = (g, p, r, waitRadius = r + 2) => {
   // 攻撃へ移った隊の要は敵を追って動く。到着は実際の前列と後続で判じる。
   // 前列三人と六割の後続が必要な条件は保ち、見えない要だけで待たせない。
   const full = !gone(g) && front >= Math.min(3, alive) && front > 0 && near >= Math.ceil(alive * 0.6);
-  // 先手の前列が一人でも着いて十五秒たてば進む。後続は山道で僧兵と打ち合いながら歩いて続く。
+  // 先手の前列が一人でも着いて八秒たてば進む。後続は山道で僧兵と打ち合いながら歩いて続く。
   //   後続の六割を待ち続けて本人が一分以上立ち尽くし、八分で打ち切られていた（10/27）。
   const key = p.x + ',' + p.z;
   if (full) { if (g._arrKey === key) g._arrSince = null; return true; }
   // 11/7：先手が討たれ尽くした時や、先手が皆よそで打ち合って前列が一人も着かない時に、文殊楼の前で段が進まず
-  //   bot の通しが二百秒以上止まった。待つ相手のいない時は待たせず、本人が持ち場に着いて前列の誰も来ない時も二十秒で次へ（後続は打ち合いながら続く）。
-  if (gone(g)) return true;
+  //   通しが二百秒以上止まった。待つ相手のいない時は待たせず、前列の誰も来ない時も本人の到着から十五秒で次へ。
+  if (gone(g) || alive === 0) return true;
   // 前列の誰も着かない間は、本人が持ち場に着いて待つ時だけ数える（本人が来る前から数えて、列を置いて先へ行かせない）。
   const waiting = hieiWho && Math.hypot(hieiWho.pos.x - p.x, hieiWho.pos.z - p.z) < waitRadius;
   if (front === 0 && !waiting) { if (g._arrKey === key) g._arrSince = null; return false; }
   if (g._arrKey !== key || g._arrSince == null) { g._arrKey = key; g._arrSince = hieiClock; }
   // 11/6 fixc1721（kaito 三2）：持ち場で何も起きないまま待たせない。前列が着いて八秒で次へ。
-  return hieiClock - g._arrSince >= (front === 0 ? 20 : 8);
+  return hieiClock - g._arrSince >= (front === 0 ? 15 : 8);
 };
 const columnWait = (g, place) => g?._hillAlive
   ? g._hillFront < Math.min(3, g._hillAlive)

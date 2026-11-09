@@ -809,8 +809,9 @@ const okawachi = {
     const pos = q.route ? next : at;
     q.x = pos.x; q.z = pos.z;
     if (q.route) { q.unit = null; q.enemy = false; q.defend = q.waiting = false; q.r = .5; }
+    // 隣の折り返し道や切岸の上では、任務と同じ高さの判定で未到着にする。
     q.arrived = !q.route && (F.step <= 1 && q.waiting ? okAtWaitCover(rt) :
-      Math.hypot(rt.player.u.pos.x - at.x, rt.player.u.pos.z - at.z) <= q.r);
+      okAtPost(rt, at, q.r));
     // 敵本人の印は missionSignTarget の▼。行き先は同じ地点への道のピンにする。
     // 間合いに入ったら▼だけを残し、近い敵に移動のピンを重ねない。
     if (q.enemy) {

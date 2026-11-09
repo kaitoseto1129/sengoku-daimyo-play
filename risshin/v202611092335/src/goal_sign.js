@@ -161,7 +161,7 @@ export function goalSignTick(rt, root) {
   if (el._edge !== edge) { el._edge = edge; el._tw = 0; el._tag.classList.remove('bob'); }
   // 人名の別札を出さず、目標の印に呼び名を添える。
   // 11/8 critic60（十三1・九1）：名の無い相手に「狙う敵」と書かない。字は名と「80m」だけ
-  const label = enemy ? (edge ? normal?.label || u?.name || 'ねらい' : 'ねらい' + (u?.name ? `・${u.name}` : '')) : placeName(rt, t) || '';
+  const label = enemy ? rt.def.goalSignUnitNoLabel ? '' : (edge ? normal?.label || u?.name || 'ねらい' : 'ねらい' + (u?.name ? `・${u.name}` : '')) : placeName(rt, t) || '';
   // 名前・距離を一つにまとめ、画面の内外で同じ相手を案内する。
   const metres = `${Math.round(d / 5) * 5}m`;   // 11/9 iPhone 874×402：「メートル」だと行き先の札が「40メー／トル」と二行に折れた（上の決まりどおり「80m」）
   // 味方の将へ向ける時は名だけ（距離の「m」は行き先の場所だけに付け、形で分ける。11/8 critic60 五3）

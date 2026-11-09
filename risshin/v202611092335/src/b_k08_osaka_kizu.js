@@ -85,9 +85,11 @@ const guardsNorth = (u) => fightable(u) && Math.abs(u.pos.x) < WALL_X - 0.5 && u
 const northTarget = (F, p) => fightingTarget(F.s4, p, F);
 const northLeft = (F) => {
   let n = 0;
-  // 討死処理中・負傷して退場中の者は、北の口を守る人数に残さない。
-  for (let i = 0; i < 2; i++) for (const u of (i ? F.zen : F.w3).units) {
-    if (guardsNorth(u)) n++;
+  // 行き先と同じく、敗走した組・討死処理中・負傷して退場中の者は数えない。
+  for (let i = 0; i < 2; i++) {
+    const g = i ? F.zen : F.w3;
+    if (!alive(g)) continue;
+    for (const u of g.units) if (guardsNorth(u)) n++;
   }
   return n;
 };
