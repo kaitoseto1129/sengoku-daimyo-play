@@ -430,10 +430,6 @@ NAMED_GEAR['上杉謙信'].uma = 'konOgi';
 // 勝頼の旗印：長篠合戦図屏風（大阪城天守閣本・犬山城白帝文庫本）で勝頼の本陣に描かれる白地に墨の「大」の字。
 //   屏風は江戸前期の作なので当日の物とは限らない（復元案）。本人の指物（朱地に割菱）は kacchu_required.js のまま
 NAMED_GEAR['武田勝頼'] = { ...(NAMED_GEAR['武田勝頼'] || {}), flag: 'sashi:字大:#ece6d6:#201f1c' };
-// 11/9 Wikipedia「馬印」（有名な武将の馬印・旗印）：今川義元の旗印「赤鳥」、佐々成政の馬印「三階笠」。
-//   https://ja.wikipedia.org/wiki/馬印 。秀吉の瓢箪は「金の逆さ瓢箪に金の切裂」の小馬印として形を直した（units_flags.js）
-NAMED_GEAR['今川義元'].flag = 'akadori';
-NAMED_GEAR['佐々成政'].uma = 'sangaigasa';
 // 一鉄の諱でも同じ得物・所属旗を使う。
 NAMED_GEAR['稲葉良通'] = NAMED_GEAR['稲葉一鉄'];
 
