@@ -673,8 +673,6 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const p = rt.player.u.pos;
       if (rt.player.u.alive && Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius + 8) C.sanadaHoldT = (C.sanadaHoldT || 0) + dt;
       const done = tick(rt, C, m, ctx, el, dt);
-      // 11/9 徳川C（見回り）：本人が持ち場から離れて戦い続けると④が十一分続いた（bot 中学生）。刻を三分過ぎたら味方の退きが済んだとみなす
-      if (el > dur + 180) return true;
       return done && (C.sanadaHoldT || 0) >= dur * 0.45;
     };
     return h;
@@ -688,8 +686,6 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     h.limit = Infinity;
     h.tick = (rt, C, m, ctx, el, dt) => {
       const done = t0(rt, C, m, ctx, el, dt), T = rt.flags.target;
-      // 11/9 徳川C（見回り）：柵が二分たっても倒れないと、本人が塀の下で撃たれ続けて必ず倒れた（bot 中学生 三回）。二分で破る組が柵を引き倒す
-      if (T.alive && el > 120) { T.hp = 0; T.alive = false; if (rt.army.structFall) rt.army.structFall(T); }
       if (!T.alive) return done;
       rt.objProgress('dp', `柵 残り${Math.max(1, Math.ceil(T.hp / T.maxHp * 100))}%`);
       return false;

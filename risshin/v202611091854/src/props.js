@@ -4186,7 +4186,8 @@ export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
     // 秀吉の小馬印「金の逆さ瓢箪に金の切裂」（Wikipedia「馬印」・『御馬印』）：大きい実を上、小さい実を下にし、口から金の切裂を垂らす。
     const fk = [new THREE.SphereGeometry(0.42, 10, 8).translate(0, 7.75, 0), new THREE.SphereGeometry(0.28, 10, 8).translate(0, 7.18, 0),
       new THREE.CylinderGeometry(0.09, 0.05, 0.22, 8).translate(0, 6.86, 0)];
-    for (let i = 0; i < 8; i++) fk.push(new THREE.BoxGeometry(0.07, 0.8, 0.012).translate(0, -0.4, 0).rotateY(i * 0.8).translate(Math.sin(i * 0.8) * 0.13, 6.78, Math.cos(i * 0.8) * 0.13));
+    for (let i = 0; i < 5; i++) fk.push(new THREE.BoxGeometry(0.2, 0.7 + (i % 2) * 0.1, 0.02).translate((i - 2) * 0.2, 6.4 - (i % 2) * 0.05, Math.abs(i - 2) * -0.04));   // 結んだ金の切裂の暖簾（旗馬印画図）
+    fk.push(new THREE.BoxGeometry(1.05, 0.05, 0.04).translate(0, 6.78, 0));
     g = mergeGeometries(fk.map((x) => x.toNonIndexed ? x.toNonIndexed() : x));
     for (const x of fk) x.dispose();
   } else if (kind === 'kasa') {
