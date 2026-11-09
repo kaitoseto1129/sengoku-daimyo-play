@@ -262,7 +262,7 @@ const OWN = {
       { kind: 'stage', k: 1, text: '本道を登り、木ノ芽峠城の主郭を押さえる', noun: '木ノ芽峠城', check: held('kinome_sou', 'kinome_fuku', 'kinome_hon'), place: court('kinome_sou', 'kinome_fuku', 'kinome_hon') },
       { kind: 'stage', k: 2, text: '東の別手と西光寺丸城を押さえる', noun: '西光寺丸城', check: held('saikoji_mae', 'saikoji_hon'), place: court('saikoji_mae', 'saikoji_hon') },
       { kind: 'stage', k: 3, text: '西の別手と鉢伏城を押さえる', noun: '鉢伏城', check: held('hachibuse_mae', 'hachibuse_hon'), place: court('hachibuse_mae', 'hachibuse_hon') },
-      { kind: 'stage', k: 4, text: '四城を押さえ、峠道の西光寺真敬を討つ', noun: '西光寺真敬の殿', check: won, place: (rt) => rt.flags.echTail?.center() },
+      { kind: 'stage', k: 4, text: '峠道の西光寺真敬を討ち、残る一揆勢を追って討つ', noun: '峠道の一揆勢', check: won, place: (rt) => rt.flags.echFuchu?.pos || rt.flags.echTail?.center() },
     ];
   },
 };

@@ -30,7 +30,11 @@ export function start(rt, C) {
     if (F.step !== 10) return;
     K.jump = rt.t;
     for (const g of rt.army.groups) if (g.team === 1) for (const u of g.units) if (u.alive && !u.gone && !u.invuln && C.near(u.pos, C.FRONT, 30)) rt.army.despawn(u);
-    for (const g of rt.army.groups) if (g.team === 1) { g.peaceful = true; g.fire = false; g.aggro = 0; }
+    // 月日が飛んだ後は寄せ手も攻め止める。敵だけ止めると、味方が前の相手への攻撃を続けた。
+    for (const g of rt.army.groups) if (g.team === 0 || g.team === 1) {
+      g.peaceful = true; g.fire = false; g.aggro = 0;
+      for (const u of g.units) { u.target = null; u.atk = null; }
+    }
     C.warp(rt, C.FRONT.x + 6, C.FRONT.z + 6, Math.atan2(C.GATE.x - C.FRONT.x, C.GATE.z - C.FRONT.z));
     rt.banner('七月　小田原開城', '佐間口で、城の明け渡しを見届けよ');
     sfx('taiko', 0.6);
@@ -78,7 +82,10 @@ export function tick(rt, dt, C) {
   const F = rt.flags, K = F.kai;
   if (!K || F.step !== 10) return;
   // 開城の後は誰も刃を交えない
-  if (K.jump) for (const u of rt.army.units) if (u.alive && u.team === 1) { u.target = null; u.atk = null; u.noTarget = true; }
+  if (K.jump) for (const u of rt.army.units) if (u.alive && (u.team === 0 || u.team === 1)) {
+    u.target = null; u.atk = null;
+    if (u.team === 1) u.noTarget = true;
+  }
   if (K.lower) {
     const k = Math.min(1, (rt.t - K.lower) / 6);
     for (const f of F.naritaFlags || []) { if (f.userData.y0 == null) f.userData.y0 = f.position.y; f.position.y = f.userData.y0 - k * 5; if (k >= 1) f.visible = false; }
