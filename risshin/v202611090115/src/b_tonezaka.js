@@ -2820,7 +2820,7 @@ const tonezaka = {
     // 11/4（AP12・BH6）：道の曲がり・合流・退き先の名札（字の印）は出さない。行き先は頭上の▼一つ。
     { const mk = rt.marker; rt.marker = function (id, pos, label, o) { return mk.call(this, id, pos, TONE_QUIET.has(id) ? '' : label, o); }; }
     rt.setPhase('brief');
-    rt.obj('main', rt.G.lord ? '馬廻と追撃へ。五秒後に出発' : '信長公の馬へ。五秒後には出発', 'main', true);
+    rt.obj('main', TONE_LINE[0], 'main', true);
     F.departureLine = rt.G.lord ? '馬廻がそろいます。追撃の支度を' : '前の馬が信長公じゃ。追う支度をせよ';
     rt.say(rt.G.lord ? '近習' : '組頭', F.departureLine, 4);
     if (!rt.G.lord) rt.marker('nobu', unitPos(F.nobuU), '馬に乗った信長公と供の兵', {});
@@ -3491,8 +3491,8 @@ const tonezaka = {
     // 下知どおりの場所で合流して進む。離れたまま時刻だけで達成にしない。
     else if (F.step === 5 && !fighting(F.townG) && near(p, TOWN, 14) && F.townJoined) this.townFire(rt);
     else if (F.step === 6) {
-      // 奥の道の守りも、寄せる兵が残って守り切れない時は二分で勝家の手が押さえ切る（十五分の流れ・二5）
-      if (F.secureT >= 3 || rt.t - F.stepT > 120) this.win(rt);
+      // 寄せ手を退け、本人が奥の道を守って初めて締める。時刻だけでは達成にしない。
+      if (F.secureT >= 3) this.win(rt);
     }
   },
   onKill(rt, v, k) {
