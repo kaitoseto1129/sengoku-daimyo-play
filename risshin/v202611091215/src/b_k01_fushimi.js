@@ -695,7 +695,10 @@ const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.f
 STAGES.k01_fushimi = [['打って出て長束と玄以の屋敷を焼く'], ['三の丸の虎口の前で宇喜多勢を押し返す', dpAt(2)], ['大手門に取り付いた島津勢を討つ', dpAt(3)], ['二の丸の口へ回る', dpAt(5)], ['二の丸の東で寝返った甲賀衆と長束勢を食い止める', dpAt(6)], ['本丸の口の内で最後まで戦う', dpAt(8)], ['本丸で雑賀孫一の鉄砲衆を討つ', dpAt(9)], ['天守の前で元忠殿の最後の盾になる', dpAt(10)]];
 
 // 目標の札に別の刻限を重ねず、実際の段の達成だけで判定する。
+// 守る段と日付の切り替えでは人数を出さない。字から相手を探す
+// 共通の補完に任せると、寄せの途中の人数や次の段の兵を数えてしまう。
 k01_fushimi.goals5 = () => STAGES.k01_fushimi.map((s, k) => ({ kind: 'stage', k, text: s[0],
+  count: (rt) => { const now = stageNow(rt); return !rt.over && now?.i === k && rt.flags.dp?.on && rt.flags.dp.cur?.s.kind === 'fight' ? now.count : null; },
   check: (rt) => (rt.over && rt.tracker?.main === true) || (stageNow(rt)?.i ?? 0) > k }));
 
 export { k01_fushimi };

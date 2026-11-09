@@ -66,7 +66,7 @@ const CHOSO = { armor: 0x2a2622, cloth: 0x3a4a2a, lace: 0x4a6a2a, flag: 'chosoka
 const dress = (list, kit) => list.map((s) => ({ ...s, o: { ...kit, ...(s.o || {}) } }));
 // 名のある武将の姿（その人だけの具足・兜・陣羽織）
 const LOOK = {
-  井伊直孝: { armor: 0xa52b1c, lace: 0xb8342a, hat: 'kabuto_tentsuki', haori: 0x7a1a12, mon: 'ii', horse: true },
+  井伊直孝: { armor: 0xa52b1c, lace: 0x6b5a40, hat: 'kabuto_tentsuki', mon: 'ii', horse: true },   // 手本：docs/generals_look_1108/井伊直孝.md（燻韋威・陣羽織は伝わらない）
   // 重成は白い母衣を負って馬上で戦い、庵原朝昌の十文字槍に母衣を掛けられて落ちたと伝わる（battle_learn）
   木村重成: { horo: 0xe8e2d4, horse: true }, // 具足・兜・紋は共通の復元案に揃える。母衣は従来の伝承表現。
   長宗我部盛親: { horse: true }, // 甲冑・兜・旗は共通表の復元案に揃える。
