@@ -1,7 +1,7 @@
 // ======================================================================
 // 越前一向一揆・木ノ芽峠　主防御線（9〜12分）「一揆の精鋭の逆襲」（docs/oda15_plan_1108.md 18）
 //   木ノ芽峠城の副郭を押さえた直後、主郭から一揆の精鋭（長刀の坊官と侍・鉄砲衆・槍）が念仏を唱えて打って出る。
-//   副郭で押し返すまで主郭へは入れない（主郭の押さえを待たせる）。将を討つか、隊が三分の一まで減るか、百秒で崩れ、残りは味方の鉄砲に倒れる。
+//   副郭で押し返すまで主郭へは入れない（主郭の押さえを待たせる）。将を討つか、隊が三分の一まで減るか、百二十秒で崩れ、残りは味方の鉄砲に倒れる。
 // 兵は十三人。字は台詞と任務の一行だけ。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
@@ -37,7 +37,7 @@ export function tick(rt) {
   if (!E || E.done) return;
   const g = E.g, lord = g.units.find((u) => u.type === 'busho');
   const left = g.units.filter((u) => u.alive && !u.fleeing).length;
-  if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.at < 100) return;
+  if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.at < 120) return;
   E.done = true;
   // 崩れた精鋭を主郭へ逃がすと、逃げる兵が主郭の口をふさいで本人が入れなかった（11/9 の流し）。
   //   残りは横から寄せた味方の鉄砲衆の一斉射に倒れる
@@ -45,6 +45,18 @@ export function tick(rt) {
   rt.say('前田利家', '鉄砲衆、横から放て！', 2.4);
   for (const u of g.units) if (u.alive) { u.invuln = false; rt.army.kill(u, null); }
   try { const c = F.SZ.byId.kinome_fuku.pos; rt.army.smoke(c.x - 12, rt.world.heightAt(c.x - 12, c.z) + 1.5, c.z, 1, 0); } catch (e) { /* なし */ }
+  // 主郭へは味方の手と一緒に入る（本人一人で主郭の三十余人に入って討たれた・11/9 の流し）。
+  //   遅れている前田・佐々・不破の手を副郭の後ろへ寄せ、主郭へ懸からせる。本人は息を整える
+  const fz = F.SZ.byId.kinome_fuku.pos, hz = F.SZ.byId.kinome_hon.pos;
+  for (const q of F.echGoryu?.groups || []) {
+    if (!q.count || q.routed) continue;
+    const c = q.center();
+    if (Math.hypot(c.x - fz.x, c.z - fz.z) > 40) for (const u of q.units) if (u.alive) { u.pos.x = fz.x + (Math.random() - 0.5) * 10; u.pos.z = fz.z + (Math.random() - 0.5) * 10; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
+    q.order = 'move'; q.dest = { x: hz.x, z: hz.z }; q.speed = 4.5;
+    q.onArrive = (g2) => { g2.order = 'attack'; g2.seekRange = 40; g2.aggro = 30; };
+  }
+  const me = rt.player.u;
+  if (me.maxHp) me.hp = Math.max(me.hp, me.maxHp * 0.6);
   rt.objDone('elite');
   rt.say('組頭', '精鋭が崩れた！　主郭へ付け入れ！', 3);
   rt.award((t) => { t.side.push('木ノ芽峠城の副郭で一揆の精鋭を押し返した'); }, '一揆の精鋭を押し返した', F.SZ.byId.kinome_fuku.pos);
