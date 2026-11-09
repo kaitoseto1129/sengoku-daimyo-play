@@ -790,7 +790,8 @@ function riverStores(rt) {
   const village = makeKit(false), kitchen = makeKit(true);
   for (const [x, z, angle, kit] of [
     [-121, -71, .12, village], [-145, -95, -.2, village],
-    [48, 113, Math.PI, kitchen], [78, -218, 0, kitchen],
+    // 南岸は撤去済みの陣屋を台所の小屋で戻さない。台所は上杉本陣の脇だけ。
+    [78, -218, 0, kitchen],
   ]) {
     const lod = new THREE.LOD(), near = new THREE.Mesh(kit.near, material);
     const far = new THREE.Mesh(kit.far, material);

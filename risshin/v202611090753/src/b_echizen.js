@@ -2198,12 +2198,7 @@ echizen.setup = function (rt) {
       }
     }
   };
-  // 最初は門外の二人を受ける。人数は共通の枠に任せ、郭内の兵をさらに減らさない。
-  rt.flags.echizenOpening = [];
-  for (const b of rt.flags.defenders) {
-    if (b._openingPost || !b.real) continue;
-    rt.flags.echizenOpening.push({ group: b.real, stay: b.real.stay, seekRange: b.real.seekRange, aggro: b.real.aggro });
-  }
+  // 郭の守兵も開戦から索敵する。塀と本来の持ち場を保ち、時計で応戦を止めない。
   // 深手は出血の共通札一つに任せ、同じ退避の声を重ねない。
   rt.player.treatmentHint = true;
   rt.retreatCallN = 4;
@@ -2300,9 +2295,10 @@ echizen.update = function (rt, dt) {
       if (kz.test(pu.pos.x, pu.pos.z) && pu.alive) FF.kannonIn = (FF.kannonIn || 0) + dt;
       if (FF.kannonHold0 == null) FF.kannonHold0 = kz.hold;
       // 郭に立っているだけでは守兵を退かせない。本人の一撃も必要。
-      // 味方が既に討ち切った場合は、いない守兵への攻撃を要求しない。
-      const open = (FF.kannonIn || 0) >= 30 &&
-        (!!FF.breachHit_kannon || kz.enemies === 0);
+      // 味方が既に討ち切った場合は、本人の入城後すぐ本来の制圧時間を数える。
+      // 空の郭で三十秒待たせず、郭の外にいる間は味方だけで制圧させない。
+      const open = pu.alive && kz.test(pu.pos.x, pu.pos.z) &&
+        (kz.enemies === 0 || (FF.kannonIn || 0) >= 30 && !!FF.breachHit_kannon);
       kz.hold = open ? FF.kannonHold0 : 1e9;
       if (!open) kz.holdT = 0;
       // 11/1：郭の内を味方が三倍で押さえたら、本道から駆け下りた小勢の残りは踏みとどまらず退く（郭が空かず時間切れになった）。
@@ -2419,19 +2415,6 @@ echizen.update = function (rt, dt) {
       if (order && (order.text !== text || order.progress)) { order.text = text; order.progress = ''; changed = true; }
       if (changed && rt.missionGuide) rt.missionGuide.scan = 0;
     }
-  }
-  // 開戦の待ちは十五秒まで。先手が進んだ時は、それより前でも本来の守備へ戻す。
-  // 一度戻した後は、待ち時間の条件だけで再び守兵を止めない。
-  if (F.echizenOpening && !F.step && rt.t < 15) for (const b of F.defenders) {
-    if (b._openingPost || !b.real) continue;
-    b.real.stay = true; b.real.seekRange = 0; b.real.aggro = 0;
-  }
-  else if (F.echizenOpening) {
-    for (const o of F.echizenOpening) {
-      o.group.stay = o.stay;
-      o.group.seekRange = o.seekRange; o.group.aggro = o.aggro;
-    }
-    F.echizenOpening = null;
   }
   if (u.hp <= u.maxHp * .4 && !F.dangerTip) {
     F.dangerTip = true;
@@ -2781,7 +2764,8 @@ function echizenAdvanceTick(rt) {
       }
       return;
     }
-    if (lord) F.echLordDown = true;   // 勝ちの札を「西光寺真敬、討ち取ったり」にする（echizenWin）
+    if (!(lord.hp <= 0)) return;
+    F.echLordDown = true;   // 勝ちの札を「西光寺真敬、討ち取ったり」にする（echizenWin）
     F.echTailBroke = true;
   }
   const g = F.echTail;

@@ -74,8 +74,9 @@ function start(rt, K, done) {
             const left = k15Live(help), el = rt.t - t0;
             rt.objProgress('main', `城兵 ${left}／${H0}`);
             // 11/9 二巡：崖の上に残った弓二人が下りて来ず、三人まで減らせずに十五分止まった。
-            //   半ばを討って一分余り経てば、残りは崖の上へ引き上げる（物語は時が経てば進む）
-            if (repelled(rt, left, 3, at) || (el > 75 && left <= Math.ceil(H0 / 2) && rt.player.u.alive) || el > 160) {
+            //   半ばを討って一分余り経てば、本人が持ち場を守っている時に残りが引き上げる。
+            //   放置や持ち場からの離脱を、時間だけで撃退の手柄にしない。
+            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at))) {
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');
