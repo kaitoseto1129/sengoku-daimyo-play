@@ -1193,6 +1193,7 @@ const mikatagahara = {
   noDodgeCard: true,
   noPlayerFoot: true,
   noTravelArrow: true, // 行き先は頭上の印だけにし、通し確認で残っていた足元の矢印を出さない。
+  noBattleDirection: true, // 構える向き・退避先の共通描画からも足元の矢印を出さない。
   quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
   missionPinCaption: '',
   missionDetail: () => '',
@@ -2804,7 +2805,18 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.mkStage === -1 || F.mkStage === 0 || F.mkStage === 1) { const q = F.mkStage <= 0 ? F.mkScout || HIRATE_POST : HIRATE_POST; goTo(p, inp, q.x, q.z, 2.5); return; }
   // 殿の持ち場へ着いた後の斬り合いは、元の段の頭で続ける。
   const toCover = F.dpOn && F.dpB && F.dp?.on && F.dp.cur?.s.kind !== 'hold';
-  if (F.dpOn && F.dp && F.dp.on && !toCover) { depthBot(b, inp, goTo); return; }
+  if (F.dpOn && F.dp && F.dp.on && !toCover) {
+    depthBot(b, inp, goTo);
+    const C = F.dp.cur;
+    // 槍の届く距離で持ち場の外に止まると、守った時間が増えず平手の囲みで止まる。
+    // 手当ての退避は保ち、それ以外は判定の内側へ二歩入ってから迎え撃つ。
+    if (!F.dpBack && C?.s.kind === 'hold' && C.at &&
+        Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= C.botRadius) {
+      if (p.lock) inp.e.add('KeyQ');
+      goTo(p, inp, C.at.x, C.at.z, Math.max(1, C.botRadius - 2));
+    }
+    return;
+  }
   if (toCover || F.step === 3) {
     inp.axis = null;
     // 殿の下知を優先する。深手や気力切れで、元の本陣へ手当てを探しに戻らない。

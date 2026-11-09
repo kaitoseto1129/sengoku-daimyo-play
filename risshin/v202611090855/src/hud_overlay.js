@@ -80,6 +80,7 @@ export class HudOverlay {
 
   // 向く先は足元から短い一本で示す。目的地の札や操作の矢印を足さない。
   drawBattleDirection(g, rt, pos) {
+    if (rt.def.noBattleDirection) return false;
     if (this.footDirectionDrawn) return false;
     const p = rt.player.u.pos, cue = this.battleMoveCue(rt, pos);
     const at = this.project(p, p.y + .12, rt,

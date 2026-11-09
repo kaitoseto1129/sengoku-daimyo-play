@@ -49,7 +49,7 @@ export function steps(K) {
         { t: 0, foes: () => [{ name: '馬場信春の手', from: { x: HIRA_LAST.x - 22, z: HIRA_LAST.z - 24 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 380, dmg: 0.75 }] },
         { t: 16, say: ['組頭', '右から赤備えの残りじゃ！　槍を向けよ！'], foes: () => [{ ...K.aka([{ type: 'samurai', n: 1, o: { horse: true } }, K.uC(2), K.uS(2)]), name: '赤備えの残り', from: { x: HIRA_LAST.x + 24, z: HIRA_LAST.z - 18 }, mass: 220, dmg: 0.75 }] },
         { t: 34, say: ['組頭', '後ろにも回ってきたぞ！　背を合わせよ！'], foes: () => [K.gunLine('馬場の鉄砲衆', { x: HIRA_LAST.x - 30, z: HIRA_LAST.z - 6 }, 5)] },
-        { t: 58, say: ['物見', '内藤の旗！　まだ新手が来る！'], foes: () => [{ name: '内藤昌豊の手', from: { x: HIRA_LAST.x - 4, z: HIRA_LAST.z - 34 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 400, dmg: 0.75 }] },
+        { t: 58, say: ['物見', '内藤の旗！　まだ新手が来る！'], foes: () => [{ name: '内藤昌秀の手', from: { x: HIRA_LAST.x - 4, z: HIRA_LAST.z - 34 }, list: [K.uS(2), K.uA(10)], formation: 'yari', mass: 400, dmg: 0.75 }] },
         { t: 88, say: ['足軽', '囲みが閉じる……！　武田の旗ばっかりだわ！'], foes: () => [{ name: '武田勝頼の手', from: { x: HIRA_LAST.x + 14, z: HIRA_LAST.z - 32 }, list: [{ type: 'samurai', n: 1, o: { horse: true } }, K.uA(9)], formation: 'yari', mass: 360, dmg: 0.75 }] },
       ],
       reward: '平手汎秀のそばで武田の囲みを支えた', lost: ['組頭', '囲みが破れん……！　平手の殿を守れ！'] }),
