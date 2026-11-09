@@ -16,7 +16,7 @@
 // ======================================================================
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
-import { enemyGroup, allyGroup, nm } from './bhelp.js';
+import { enemyGroup, allyGroup, nm, guardRecover } from './bhelp.js';
 import { naginata } from './humans.js';
 import { nobori, palisade, dorui, yagura, hut, jinmaku, shogi, kabukimon, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { KIT } from './b_nagashinojo.js';
@@ -117,6 +117,7 @@ function height(x, z) {
 }
 
 const live = (g) => g && g.count > 0;
+const HISTORICAL_RETURN = { historicalReturn: true };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const aliveReal = (rt) => { let n = 0; for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) n++; return n; };
 // 組の全員に家の旗を（allyGroup の既定は織田の旗）
@@ -126,6 +127,7 @@ const ARM = { shimazu: 0x1c1a1a, chosokabe: 0x2a2622, miyoshi: 0x2c2826, toyotom
 const t06_hetsugi = {
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
   // 11/7 九1：一行の札（missionSingleLine）をやめ、①〜⑤を右上に始めから並べる（goals5）。行き先は頭上の▼一つ（missionPin）
+  lethal: { max: 4, firstAt: 140, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。名のある四国の衆は invuln・史実の死は筋書きのまま
   hideMissionDots: true,
   goalsAllRows: true,       // 五つを最初から並べる。共通の目標欄はこの指定が無いと今の一件だけになる。
   kumiLead: false,           // 意味の分からない青い小旗の印を出さない（五2）
@@ -638,7 +640,7 @@ const t06_hetsugi = {
     [{ type: 'busho', n: 1, o: { name: '鈴木大膳', keep: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 5 }]);
     F.suzuki.kind = 'main'; F.suzuki.focus = u; F.foes.push(F.suzuki);
     F.suzukiU = F.suzuki.units.find((s) => s.type === 'busho');
-    if (F.suzukiU) { F.suzukiU.invuln = true; F.suzukiU.noTarget = false; }
+    if (F.suzukiU) { F.suzukiU.invuln = true; F.suzukiU.mustLive = true; F.suzukiU.noTarget = false; }
     rt.army.play('toki', at, 1.2);
     rt.say('長宗我部信親', '退かぬ。信親はここで斬り死にいたす！', 3);
     rt.after(6, () => rt.say(F.mine.leader?.name || '手勢の侍', '尾根の陰から新手じゃ！　信親様の馬印へ寄れ！', 3));
@@ -681,6 +683,13 @@ const t06_hetsugi = {
     const F = rt.flags, B = F.blk;
     if (F.ending || !F.step) return;
     const P = rt.player.u;
+    // 史実の斬り合いを進行条件にした二人だけは、深手で退いた後に戻す。
+    // 共通の深手は戦の間戻らず、信親を見失った鈴木の組は狙いも解くため、救援が終わらなくなっていた。
+    if (!F.ringClosed) {
+      guardRecover(rt, F.nobuU, dt, HISTORICAL_RETURN);
+      guardRecover(rt, F.suzukiU, dt, HISTORICAL_RETURN);
+      if (live(F.suzuki) && F.nobuU?.alive && !F.nobuU.noTarget) F.suzuki.focus = F.nobuU;
+    }
     butaiTick(rt, dt);
     // 塊どうしの押し合い（伊集院に当たる段から）
     if (F.step >= 2) fieldTick(rt, dt, { list: F.blocks, reach: 40, k: F.step === 2 ? 0.25 : F.step === 3 ? 0.55 : 0.4 });

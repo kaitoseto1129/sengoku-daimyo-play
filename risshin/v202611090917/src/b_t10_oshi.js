@@ -419,6 +419,23 @@ const t10_oshi = {
   speakerHouse: { narita: '成田', ishida: '石田', asano: '浅野', sanada_kuro: '真田', otani: '大谷', satake: '佐竹' },
   introText: () => '石田三成の下で、沼に浮かぶ忍城を囲む。まずは力で、浅瀬の土手から城の外の柵へ寄せる。',
   minutes: 16,
+  // 11/9 軍勢の厚み（docs/army_depth_howto.md）：沼を囲む寄せ手の陣立て（石田・大谷・佐竹と、湖の向こうの長束・中江の手）。城方は島の曲輪ごとに。
+  //   囲みと籠城なので、どちらの備も自分からは出ない（hold）。本物の隊は bind で結ぶ
+  depth: {
+    A: { name: '寄せ手', facing: -Math.PI * 0.75, honjin: { x: MARU.x, z: MARU.z }, mpu: 8, formation: '鶴翼', terrain: 'marsh', flag: 'ishida', armor: 0x24221f, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'guard', layer: 'sakite', wing: 'center', men: 1500, taisho: '', bind: (rt) => rt.flags.guard, hold: true },
+        { id: 'satake', layer: 'ichi', wing: 'left', men: 5000, taisho: '佐竹義宣', flag: 'satake', bind: (rt) => rt.flags.satake, hold: true },
+        { id: 'nagatsuka', layer: 'ichi', wing: 'right', men: 3000, taisho: '長束正家', at: { x: 40, z: -150 }, hold: true },
+        { id: 'otani', layer: 'ni', wing: 'center', men: 1500, taisho: '大谷吉継', flag: 'otani', bind: (rt) => rt.flags.otani, hold: true },
+        { id: 'honjin', layer: 'hatamoto', wing: 'center', men: 6000, taisho: '石田三成', bind: (rt) => rt.flags.mitsunari, hold: true },
+      ] },
+    B: { name: '成田', facing: Math.PI * 0.25, honjin: { x: CASTLE.x, z: CASTLE.z }, mpu: 8, formation: '方円', terrain: 'castle', flag: 'narita', armor: 0x2c2620, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 1500, taisho: '成田長親', bind: (rt) => rt.flags.narita, hold: true },
+      ] },
+    honjinView: { A: false, B: false },   // 陣幕と本丸は戦のファイルが作る
+  },
   spawn: { x: START.x, z: START.z, heading: Math.atan2(-1, -1) },
   world: {
     seed: 1590,

@@ -1874,7 +1874,9 @@ const tedorigawa = {
     const marker = tedoPaceMarker(rt);
     if (marker) {
       const at = marker.pos(), q = F.tedoPacePin || (F.tedoPacePin = {});
-      q.x = at.x; q.z = at.z; q.r = q.hide = 2; q.enemy = !!marker.red;
+      q.x = at.x; q.z = at.z;
+      // 退き口の旗は九歩以内で到着。実物の案内がある通常経路でも判定とそろえる。
+      q.r = q.hide = marker.id === 'furikiru' ? 9 : 2; q.enemy = !!marker.red;
       return q;
     }
     const q = F.tedoPin || (F.tedoPin = { x: 0, z: 0, r: 7, hide: 7 });

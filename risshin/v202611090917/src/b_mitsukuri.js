@@ -3018,6 +3018,23 @@ const mitsukuri = {
     }
   },
   jinkei: MITSUKURI_JIN,
+  // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が箕作の山城、南（+z）が麓の寄せ手。藤吉郎・浅井新八・佐久間の手（本物）と信長の本陣、
+  //   六角の三の郭の守り（本物）と城将 吉田出雲守の旗本（本物）。観音寺の六角承禎は遠景の城が受け持つので描かない。
+  depth: {
+    A: { name: '織田', facing: Math.PI, honjin: { x: 0, z: 90 }, mpu: 4, formation: '雁行', terrain: 'castle', flag: 'oda', armor: 0x302d29, openAt: 60, attrition: 0.002,
+      sonae: [
+        { id: 'kino', layer: 'sakite', wing: 'center', men: 2300, taisho: '木下藤吉郎', bind: (rt) => rt.flags.kino },
+        { id: 'asai', layer: 'ichi', wing: 'left', men: 1500, taisho: '浅井新八', bind: (rt) => rt.flags.niwa },
+        { id: 'saku', layer: 'ichi', wing: 'right', men: 2000, taisho: '佐久間信盛', bind: (rt) => rt.flags.saku },
+        { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '織田信長', hold: true, show: false, at: { x: 0, z: 90 } },
+      ] },
+    B: { name: '六角', facing: 0, honjin: { x: 0, z: -117 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'rokkaku', armor: 0x33291f, openAt: 60, attrition: 0.002,
+      sonae: [
+        { id: 'san', layer: 'sakite', wing: 'center', men: 800, taisho: '', bind: (rt) => rt.flags.sanDef?.real },
+        { id: 'yoshida', layer: 'hatamoto', wing: 'center', men: 700, taisho: '吉田出雲守', hold: true, bind: (rt) => rt.flags.commandGuard },
+      ] },
+    honjinView: { A: false, B: false },
+  },
   // 10/28：坂の矢と鉄砲で開始一分に命が三割まで減り、深手のまま郭を取れずに攻め止めになった（bot 5回に4敗）。受ける傷を七割、休む間は少し戻す。
   playerTaken: 0.7,
   playerRegen: 0.012,
