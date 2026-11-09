@@ -606,6 +606,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
           if (F.shot === 1 && !F.counterOrdered) {
             F.counterOrdered = true;
             rt.after(5, () => {
+              // 次の段や今福救援へ進んだ後は、古い突撃の下知で隊を戻さない。
+              if (F.ending || F.step !== 4 || F.back4) return;
               for (const g of [F.yasu, F.suda]) { g.order = 'attack'; g.seekRange = 30; g.aggro = 16; g.anchor = { x: F1 - 8, z: 0 }; }
               rt.army.play('toki', { x: MIZU.x, z: 0 }, 1.5);
               rt.say('安田能元', '今じゃ！ 煙の晴れぬうちに、槍を揃えて突き入れ！', 3.2);

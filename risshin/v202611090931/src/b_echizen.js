@@ -235,16 +235,16 @@ function passNearestFoe(rt) {
   if (!opening && (!zone?.test(me.pos.x, me.pos.z) || passGate(rt)?.struct.alive)) return null;
   // 四分の一秒ごとに探索し、討った瞬間は間引きを待たず選び直す。
   const previous = F.passFoe;
+  const openingGroup = F.roadGuards?.[0]?.real, sallyGroup = F.gateSally?.real;
   const previousReady = passFighter(previous) && (opening
-    ? previous.group === F.roadGuards?.[0]?.real : zone.test(previous.pos.x, previous.pos.z));
+    ? previous.group === openingGroup || previous.group === sallyGroup : zone.test(previous.pos.x, previous.pos.z));
   if (rt.t < F.passFoeAt && F.passFoeZone === zone && F.passFoeOpening === opening &&
       (previous === null || previousReady)) return previous;
   F.passFoeAt = rt.t + .25; F.passFoeZone = zone; F.passFoeOpening = opening;
   let best = Infinity, chosen = null;
-  const openingGroup = F.roadGuards?.[0]?.real;
   for (const u of rt.army.units) {
     if (!passFighter(u) || u.team === me.team || u.invuln ||
-        (opening ? u.group !== openingGroup : !zone.test(u.pos.x, u.pos.z))) continue;
+        (opening ? u.group !== openingGroup && u.group !== sallyGroup : !zone.test(u.pos.x, u.pos.z))) continue;
     // 同じ郭にいるなら、壁越しの近い兵より通れる所の守兵を先にする。
     const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 +
       (rt.army.wallBetween(me.pos, -1, u.pos, false) ? 1000000 : 0);
@@ -2504,6 +2504,44 @@ echizen.botBrain = function (rt, inp, helpers) {
     inp.runHeld = true;
     helpers.goTo(p, inp, next.x, next.z, next.botRadius ?? 1, true);
     return;
+  }
+  // 本人の一撃が付け入りの条件。下知待ちの共通処理へ渡す前に、
+  // 印と同じ打って出た隊へ寄る。味方が討ち切った時は木戸を打つ。
+  if (!F.step && !F.echOpeningHit) {
+    const p = rt.player, u = p.u;
+    inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
+    inp.leftPressed = false; inp.chargeHold = false; inp.quickCmd = null;
+    inp.guardHold = false; inp.runHeld = false;
+    if (!u.alive || rt.over || F.ending) return;
+    const foe = passNearestFoe(rt);
+    if (foe) {
+      if (passBotEnemyRoute(rt, inp, helpers, foe)) return;
+      const distance = Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      if (p.lock && p.lock !== foe) inp.e.add('KeyQ');
+      p.yaw = Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      helpers.goTo(p, inp, foe.pos.x, foe.pos.z, (p.weapon === 'sword' ? 1.9 : 2.8) * .85, true);
+      helpers.patientStrike(p, inp, foe, distance);
+      return;
+    }
+    const gate = F.gateKannon?.struct;
+    if (gate?.alive) {
+      if (p.lock) inp.e.add('KeyQ');
+      const at = F.passOpeningGatePoint || (F.passOpeningGatePoint = { x: 0, z: 0 });
+      at.x = (gate.seg[0] + gate.seg[2]) / 2 - gate.nx * 1.2;
+      at.z = (gate.seg[1] + gate.seg[3]) / 2 - gate.nz * 1.2;
+      const next = rt.world.def.runnerWay(rt.army, u, at);
+      inp.runHeld = true;
+      helpers.goTo(p, inp, next.x, next.z, .25, true);
+      if (Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < .6) {
+        inp.k.delete('KeyW'); inp.runHeld = false;
+        p.yaw = Math.atan2(gate.nx, gate.nz);
+        const ram = rt.interacts.find(it => /^(_g)?ram/.test(it.id));
+        const pos = ram && (typeof ram.pos === 'function' ? ram.pos() : ram.pos);
+        if (pos && Math.hypot(pos.x - u.pos.x, pos.z - u.pos.z) < ram.r) inp.k.add('KeyE');
+        else inp.leftPressed = !p.guard && p.time - (p.guardOffT ?? -9) > .45 && p.cd <= 0 && !p.pending;
+      }
+      return;
+    }
   }
   const gate = F.kannonFell ? F.gateKinome : F.gateKannon;
   const zone = !F.souFell && gate && !gate.struct.alive
