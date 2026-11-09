@@ -66,7 +66,7 @@ export function addNakaDoors(I, lv, y0, y1) {
     kind: ['hondo', 'shrine'].includes(I.kind) ? 'koshi' : ['goten', 'tamari'].includes(I.kind) ? 'shoji' : 'itado',
   });
   if (I.door.sliding && lv.k === 0 && I.profile !== 'inabayama') portals.push({
-    x: I.door.lx, z: I.door.side * (lv.d / 2 - .08), w: I.door.w,
+    x: I.door.lx, z: I.door.side * (lv.d / 2 - (I.profile === 'nagashima' ? .34 : .08)), w: I.door.w,
     exterior: true, entry: true, kind: I.door.sliding,
   });
   // 明かり障子は二枚の引き違い。柱間の中で重ね、端の戸を妻壁へ突き出さない。
@@ -89,24 +89,35 @@ export function addNakaDoors(I, lv, y0, y1) {
     const kind = p.kind || (temple ? 'koshi' : !paper ? 'itado' : ['goten', 'yashiki', 'shisha'].includes(I.kind) ? 'fusumaE' : 'shoji');
     const W = r - l, n = p.window ? 2 : Math.max(2, Math.round(W / 1.8) * 2);
     const inabaTrack = SETTINGS.quality === 'high' && I.profile === 'inabayama';
-    const sill = p.sill || 0;
+    let sill = p.sill || 0;
+    if (SETTINGS.quality === 'high' && I.profile === 'nagashima' && p.entry) {
+      // 本堂だけでなく、僧坊・庫裏・砦の表戸も入口の仕上げ床で受ける。
+      // 土間や板間でも下框と敷居の溝を床へ埋めず、鴨居の高さは保つ。
+      // 既存の戸・木枠・当たりへ同じ高さを渡し、開閉の通りもそろえる。
+      for (const room of lv.layout.rooms) if (p.x >= room.x0 && p.x <= room.x1
+        && p.z >= room.z0 && p.z <= room.z1) {
+        const finish = room.floor === 'tatami' ? .066 : room.floor === 'earth' ? .0255 : .012;
+        sill = Math.max(sill, (room.y || 0) + finish);
+      }
+    }
     // 用屋の梁下は天井から二十九センチ。内戸の鴨居（十センチ厚）も
     // その下へ納め、板戸が梁を貫いたまま左右へ滑らないようにする。
     // 戸・溝・鴨居と当たりは、この内法高を一緒に使う。
     // 小祠も梁を見せる造りなので、神前の格子戸の鴨居を梁下へ揃える。
     const beamHead = inabaTrack && ['kura', 'bansho', 'nagaya', 'shrine'].includes(I.kind) ? .4 : .2;
     // 高画質の稲葉山は鴨居と小壁の分を残す。固定の建具と同じ内法高を使う。
-    const doorH = p.window ? p.top : p.exterior ? I.door.h ?? Math.min(lv.h - .3, 2) : I.profile === 'inabayama' ? Math.min(2.3, lv.h - (SETTINGS.quality === 'high' ? beamHead : .02)) : lv.h > 3 ? 2.3 : lv.h - .02;
+    const nagashimaTrack = SETTINGS.quality === 'high' && I.profile === 'nagashima';
+    const doorH = p.window ? p.top : p.exterior ? I.door.h ?? Math.min(lv.h - .3, 2) : nagashimaTrack ? interiorDoorHeight(lv.layout, lv.h) : I.profile === 'inabayama' ? Math.min(2.3, lv.h - (SETTINGS.quality === 'high' ? beamHead : .02)) : lv.h > 3 ? 2.3 : lv.h - .02;
     // 稲葉山の戸は固定戸と同じく敷居へ五ミリ、鴨居へ八ミリ差し込む推定の納まり。
     // 溝底（下八ミリ・上十二ミリ）には余裕を残す。枠の基準高は動かさず、
     // 戸だけを伸ばして、開閉中も横框が溝の上に浮かないようにする。
-    const footInset = inabaTrack ? .005 : 0, headInset = inabaTrack ? .008 : 0;
+    const footInset = inabaTrack || nagashimaTrack ? .005 : 0, headInset = inabaTrack || nagashimaTrack ? .008 : 0;
     const [ax, az] = I.P(l, p.z), [bx, bz] = I.P(r, p.z), rad = .06;
     // 木格子を紙の襖扱いにしない。閉じた格子越しに槍が素通りせず、開いた戸と同じ木の当たりを使う。
-    const solid = { k: 's', ax, az, bx, bz, r: rad, yBot: inabaTrack || p.window ? lv.y + sill : y0, yTop: inabaTrack || p.window ? lv.y + doorH : y1, naka: I.id, fusuma: kind !== 'itado' && !(inabaTrack && kind === 'koshi'),
+    const solid = { k: 's', ax, az, bx, bz, r: rad, yBot: inabaTrack || p.window ? lv.y + sill : y0, yTop: inabaTrack || p.window ? lv.y + doorH : y1, naka: I.id, fusuma: kind !== 'itado' && !((inabaTrack || SETTINGS.quality === 'high' && I.profile === 'nagashima') && kind === 'koshi'),
       x0: Math.min(ax, bx) - rad, x1: Math.max(ax, bx) + rad, z0: Math.min(az, bz) - rad, z1: Math.max(az, bz) + rad };
     SOLIDS.push(solid); INTERIOR_WALLS.push(solid);
-    if (inabaTrack && !p.exterior && lv.y + doorH < y1) {
+    if ((inabaTrack || nagashimaTrack) && !p.exterior && lv.y + doorH < y1) {
       // 鴨居と小壁は壁の線に固定し、戸と一緒に左右へ動かさない。
       // 引き込んだ襖・障子の上に見えない壁を残さず、開いた口の頭上は塞ぐ。
       const cap = { ...solid, yBot: lv.y + doorH, yTop: y1, fusuma: false, bodyOverlap: true };
@@ -119,26 +130,41 @@ export function addNakaDoors(I, lv, y0, y1) {
     d.leafH = d.h;
     d.leafY = d.y;
     // 鴨居上の固定壁は従来の高さ。差し込む戸の当たりだけ絵の上下端へ合わせる。
-    if (inabaTrack) { solid.yBot = d.y - footInset; solid.yTop = d.y + d.h + headInset; }
+    if (inabaTrack || nagashimaTrack) { solid.yBot = d.y - footInset; solid.yTop = d.y + d.h + headInset; }
     // 稲葉山は柱と脇の建具の表を通る二本の溝。開閉中も前後へずらさない。
     // 前後の溝に入る戸は、召し合わせの縦框を三センチ重ねる。
     // 等分した幅のまま突き合わせると、斜めから紙の間に向こう側が見える。
     // 戸口と移動量は保ち、絵と一枚ごとの当たりに同じ実幅を渡す。
-    d.leafW = d.pw + (inabaTrack ? .03 : 0);
-    // この戦の戸は一枚ごとに当たりを持たせ、見える戸と同じ溝を滑らせる。
+    // 長島も二筋の縦框を重ね、斜めから召し合わせが透ける隙間を塞ぐ。
+    d.leafW = d.pw + (inabaTrack || nagashimaTrack ? .03 : 0);
+    // 稲葉山と高画質の長島は一枚ごとに当たりを持たせ、見える戸と同じ溝を滑らせる。
+    // 開け始めに当たりを消さず、半開きの板戸や内陣の格子戸を通り抜けさせない。
     // 設営時だけ作り、開閉中は座標を書き換える。
-    if (inabaTrack) {
+    if (inabaTrack || nagashimaTrack) {
       d.slidingSolids = [solid];
       for (let j = 1; j < n; j++) {
         const leaf = { ...solid };
         d.slidingSolids.push(leaf); SOLIDS.push(leaf); INTERIOR_WALLS.push(leaf);
       }
     }
-    d.track = inabaTrack ? (p.exterior ? .04 : .12) : 0;
+    d.track = inabaTrack ? (p.exterior ? .04 : .12) : nagashimaTrack && p.window ? .0475 : 0;
     // 玄関は内側の柱の裏へ引く。柱は外壁線から室内へ二十三センチ出るため、
     // 壁寄りの溝も三十センチ離す（戸の厚み六センチと当たりの半径も収まる）。
     // 敷居・鴨居と動く戸の当たりも、この同じ溝の位置を使う。
     d.trackZ = inabaTrack && p.exterior && !p.window ? -I.door.side * .34 : 0;
+    if (I.profile === 'nagashima' && p.entry) {
+      // 砦の表戸は外周柱の裏の二筋へ引く。格子窓・壁板と戸を重ねない。
+      // 戸口の上は外壁が受け持ち、戸の当たりを天井まで伸ばさない。
+      d.track = .0475;
+      solid.yBot = d.y - footInset; solid.yTop = d.y + d.h + headInset;
+    }
+    if (SETTINGS.quality === 'high' && I.profile === 'nagashima' && !p.exterior) {
+      // 内陣の格子戸・座敷の障子も二筋の同じ通りを滑る。
+      // 開き始めだけ壁芯へ寄せると、脇の固定建具へ戸板が食い込む。
+      // 脇戸の溝は前後四センチ。厚さ六センチの戸同士が
+      // 開閉中も重ならないよう、可動戸はその外の溝へ納める。
+      d.track = .12;
+    }
     if (I.profile === 'toride' && p.entry) {
       // 墨俣の板壁より外の二本の溝へ納め、全開まで壁や戸枠へ食い込ませない。
       // 戸の足は五センチの敷居の上。横へ滑っても溝の位置は変えない。
@@ -148,7 +174,8 @@ export function addNakaDoors(I, lv, y0, y1) {
     d.spot = { x, z };
     (I.doors || (I.doors = [])).push(d); DOORS.push(d);
     if (p.exterior && !p.window) I.entryDoor = d;
-    if (temple && !p.exterior) { d.open = d.want = 1; solidOff(d); }
+    // 長島の内陣は格子戸を閉めて始め、表口と同じ「開ける」で横へ引く。
+    if (temple && !p.exterior && !(nagashimaTrack && I.kind === 'hondo')) { d.open = d.want = 1; solidOff(d); }
     // 連子の内戸は片側へ重ねて始める。近づいて閉めても外の格子は残す。
     if (p.shutter) d.open = d.want = 1;
     if (d.slidingSolids) {
@@ -632,9 +659,27 @@ export function buildNakaDoorMeshes(I, grp) {
   if (I.profile === 'anegawa') return buildAnegawaDoorMeshes(I, grp);
   if ((['iga', 'hieizan', 'shitaragahara'].includes(I.profile) || I.profile?.startsWith('honnoji_'))) return buildNakaDoorMeshesHiei(I, grp);
   if (I.profile === 'nodafukushima' && SETTINGS.quality === 'high') return buildNodaDoorMeshes(I, grp);
+  if (I.profile === 'nagashima' && I.doors) {
+    const tracks = new THREE.Group();
+    for (const d of I.doors) if (d.entry || d.window) {
+      // 長島の表戸は外壁から室内へ三十四センチ引いてある。
+      // 溝だけを置くと鴨居が浮き、引き込み脇から壁裏が見えるため、
+      // 同じ木枠の受け材・脇板を外壁まで延ばす。回転した僧坊も局所座標で測る。
+      const side = d.window ? Math.sign(d.lz) : I.door.side;
+      const wallOffset = SETTINGS.quality === 'high' ? d.lz - side * d.lv.d / 2 : 0;
+      // 窓は窓幅の中で引き違い、上下の溝と縦枠で受ける。
+      // 表戸用の二倍長の溝を使わず、枠と戸の原形を共有する。
+      const track = slidingDoorTrack(d.W, d.h, d.window, wallOffset, d.entry);
+      track.position.set(d.x, d.y, d.z); track.rotation.y = I.rot;
+      tracks.add(track);
+    }
+    if (tracks.children.length) grp.add(batchInterior(tracks));
+  }
   if (!I.doors) return;
   const fitted = SETTINGS.quality === 'high' && I.profile === 'inabayama';
-  if (fitted && I.doors.length) {
+  // 長島も戸口の実寸で框・組子を組む。同じ種類・寸法の原形と材質は共有する。
+  const fittedPanels = fitted || SETTINGS.quality === 'high' && I.profile === 'nagashima';
+  if (fittedPanels && I.doors.length) {
     // 引き先を溝だけで終わらせず、戸尻を受ける縦の戸当たりを添える推定の納まり。
     // 引き分けは全開時の外端で受ける。
     // 窓は naka.js の戸じゃくり付き縦枠で受ける。角材を重ねると
@@ -648,6 +693,11 @@ export function buildNakaDoorMeshes(I, grp) {
     const groups = new Map();
     for (const d of I.doors) {
       if (d.window) continue;
+      // 長島の表口は上の slidingDoorTrack が戸当たりまで作る。
+      // 内陣の格子戸・館の襖・番所の障子・用屋の板戸だけ、
+      // 全開の戸尻を受ける縦材を補う。表口へ二重には置かない。
+      // 開口と引き代はそのまま、既存の原形・材質とまとめ描きを共用する。
+      if (I.profile === 'nagashima' && d.entry) continue;
       const painted = ['fusuma', 'fusumaE', 'koshi'].includes(d.kind);
       const material = painted ? inabaStopPaint : inabaStopWood;
       let group = groups.get(material);
@@ -665,10 +715,13 @@ export function buildNakaDoorMeshes(I, grp) {
         const end = d.W + overhang + .025;
         const lz = d.lz + d.trackZ;
         Q.setFromAxisAngle(Y, I.rot);
-        S.set(.05, d.h + .013, d.track * 2 + .08);
+        // 長島の内戸は敷居の溝底（下八ミリ）から鴨居の溝底（上十二ミリ）へ掛ける。
+        // 戸そのものの差し込み寸法を流用すると、戸当たりの上下に隙間が残る。
+        const nagashimaInner = I.profile === 'nagashima' && SETTINGS.quality === 'high';
+        S.set(.05, d.h + (nagashimaInner ? .02 : .013), d.track * 2 + .08);
         for (const side of [-1, 1]) {
           const lx = d.lx + side * end;
-          P.set(I.x + lx * I.c + lz * I.s, d.y + d.h / 2 + .0015,
+          P.set(I.x + lx * I.c + lz * I.s, d.y + d.h / 2 + (nagashimaInner ? .002 : .0015),
             I.z - lx * I.s + lz * I.c);
           M.compose(P, Q, S); stops.setMatrixAt(index, M);
           stops.setColorAt(index++, stopColor);
@@ -680,17 +733,17 @@ export function buildNakaDoorMeshes(I, grp) {
   }
   const by = new Map();
   for (const d of I.doors) {
-    const key = (fitted ? d.kind + ':' + d.leafW + ':' + d.leafH : d.kind)
+    const key = (fittedPanels ? d.kind + ':' + d.leafW + ':' + d.leafH : d.kind)
       + (I.door.buildPanels && d.entry ? ':entry' : '');
     if (!by.has(key)) by.set(key, []);
     by.get(key).push(d);
   }
   for (const list of by.values()) {
-    const kind = list[0].kind, w = fitted ? list[0].leafW : .9, h = fitted ? list[0].leafH : 1.8;
-    const pairedLeaves = fitted && ['itado', 'shoji', 'koshi'].includes(kind);
+    const kind = list[0].kind, w = fittedPanels ? list[0].leafW : .9, h = fittedPanels ? list[0].leafH : 1.8;
+    const pairedLeaves = fittedPanels && ['itado', 'shoji', 'koshi'].includes(kind);
     const count = list.reduce((s, d) => s + (pairedLeaves ? d.n / 2 : d.n), 0);
     const meshes = I.door.buildPanels && list[0].entry
-      ? I.door.buildPanels(count) : panelInstances(kind, count, fitted, w, h);
+      ? I.door.buildPanels(count) : panelInstances(kind, count, fittedPanels, w, h);
     // 右戸を半回転しても、板戸の裏桟・障子の紙・格子の相欠きを左右で同じ面へ揃える。
     // 右戸の形と材質も建物内で共有する。
     const rightMeshes = pairedLeaves ? panelInstances(kind + 'R', count, true, w, h) : null;
@@ -700,8 +753,9 @@ export function buildNakaDoorMeshes(I, grp) {
     for (const m of allMeshes) { m.count = count; grp.add(m); }
     for (const d of list) pose(d);
     // 閉じた位置だけの範囲では、脇へ引いた戸が視野の端で消える。
-    // 稲葉山の戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
-    const travel = SETTINGS.quality === 'high' && I.profile === 'inabayama'
+    // 長島も含め、戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
+    // 開け放って始める内陣の格子戸も、閉じる側まで範囲に含まれる。
+    const travel = SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)
       ? list.reduce((r, d) => Math.max(r, d.W / 2), 0) : 0;
     for (const m of allMeshes) { m.computeBoundingSphere(); m.boundingSphere.radius += travel; }
   }
@@ -1006,12 +1060,13 @@ function pose(d, open = d.open) {
     s.z0 = Math.min(s.az, s.bz) - s.r; s.z1 = Math.max(s.az, s.bz) + s.r;
   }
   if (!d.meshes) return;
-  if (d.slidingSolids) S.set(1, 1, 1);
+  // 実寸で組んだ長島・稲葉山の戸は等倍にし、框や組子の太さを保つ。
+  if (d.slidingSolids && SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)) S.set(1, 1, 1);
   else S.set(d.leafW / .9, d.leafH / 1.8, 1);
   // 稲葉山の襖・障子・板戸・格子戸は、左右の引手を召し合わせ側へ向ける。
   // 共通の一枚を半回転して使い、右の戸だけ引手が戸尻へ行くのを防ぐ。
   // 戸の幅・溝・当たりと、左右へ滑る距離は同じに保つ。
-  const pairedHandles = SETTINGS.quality === 'high' && I.profile === 'inabayama'
+  const pairedHandles = SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)
     && ['fusuma', 'fusumaE', 'shoji', 'itado', 'koshi'].includes(d.kind);
   // 正面側の外障子は紙を外へ、組子を室内へ向ける。
   // 右戸用の裏返した形を左へ、通常の形を右へ使えば、半回転する
@@ -1464,7 +1519,9 @@ let autoT = 0;
 // 毎コマ（naka.js の nakaTick の終わり）。flagged：中にいる兵
 export function nakaDoorTick(rt, dt, flagged) {
   if (rt.def.key === 'iwamura') return iwamuraDoors.nakaDoorTick(rt, dt, flagged);
-  if (rt.def.key === 'anegawa' || rt.def.battleKey === 'anegawa') return anegawaNakaDoorTick(rt, dt, flagged);
+  // 雑賀の屋敷・番所も姉川の二筋の溝と建具を使う。札・遮り・戸の当たりも同じ処理へ渡す。
+  if (rt.def.key === 'anegawa' || rt.def.battleKey === 'anegawa'
+    || rt.def.key === 'saika' || rt.def.battleKey === 'saika') return anegawaNakaDoorTick(rt, dt, flagged);
   if (rt.def.key === 'shitaragahara') return villageNakaDoorTick(rt, dt, flagged);
   if (rt.def.key === 'iga' || rt.def.battleKey === 'iga') return igaNakaDoorTick(rt, dt, flagged);
   if (rt.def.key === 'moribe') return moribeNakaDoorTick(rt, dt, flagged);
@@ -5386,4 +5443,3 @@ function anegawaNakaDoorTick(rt, dt, flagged) {
     moving.delete(d);
   }
 }
-

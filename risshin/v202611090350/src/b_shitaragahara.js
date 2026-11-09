@@ -1735,6 +1735,7 @@ const shitaragahara = {
   // 11/6 fixc1721（九1・十1）：右上は①〜④を最初から並べる（goals5.js の shitaragahara と同じ字）。今の一行も同じ字で、途中で言い替えない
   missions: NF_TEXT,
   goalsAllRows: true,
+  goalsVisibleRows: 5, // 六つの目標は今の段を含む五つずつ見せる。
   missionOf(rt) { const N = rt.flags.nf; return !N || ST_INTRO.active(rt) ? 0 : N.step <= 1 ? 1 : N.step === 2 && !N.breachDone ? 2 : N.step <= 3 ? 3 : N.step === 4 ? 4 : 5; },
   missionHeading(rt) { return NF_TEXT[shitaragahara.missionOf(rt)]; },
   commanderTarget: (rt) => null,
@@ -1761,7 +1762,7 @@ const shitaragahara = {
   subtleGroundGuides: true, // 持ち場の小さい印を残し、携帯でも兵と柵を見せる。
   keepOpeningTaskLabel: true, // 始まりの「ここへ」で、柵へ進んで槍を構える下知を消さない。
   keepWaitOrderLabel: true,
-  waitGuardButtonText: 'おして やりをかまえよう',
+  waitGuardButtonText: '押して槍を構える',
   compactWaitGuard: true, // 携帯横画面の防御釦は下端に置き、柵際の寄せ手を隠さない。
   meleeControlGuide: true, // 反撃の説明と、下端で押す「つく」「きる」の札をそろえる。
   hidePlayerSign: false, // 自分の足元のひし形を残し、行き先の旗と区別する。
