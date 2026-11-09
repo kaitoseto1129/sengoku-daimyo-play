@@ -30,7 +30,7 @@ export function startNight(rt, K) {
   try { F.farHashiba?.[4]?.moveTo?.(110, -70, 120); F.farHashiba?.[3]?.moveTo?.(60, -40, 120); } catch (e) { /* 遠景 */ }
   rt.banner('四月六日　夜', '');
   say(rt, '森長可', '声を立てるな。馬の口を縛れ', 2, 2.8);
-  say(rt, '使番', '秀次様の本隊、堀様の隊も続いて出られました', 24, 3);
+  say(rt, '使番', '孫七郎様の本隊、堀様の隊も続いて出られました', 24, 3);
 }
 export function tickNight(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
@@ -47,7 +47,7 @@ export function tickNight(rt, K) {
     // 討ち漏らした一人が小牧山へ走る
     const last = F.tScout.units.find((u) => u.alive && !u.gone);
     if (last) { F.tScout.order = 'retreat'; F.tScout.dest = { x: 60, z: 130 }; F.tScout.speed = 5; F.tScout.aggro = 0; F.tScout.seekRange = 0; }
-    rt.say('足軽', '一人逃げた……小牧山の方へ！', 2.6);
+    rt.say('足軽', last ? '物見が逃げた……小牧山の方へ！' : '徳川の物見を討ち取ったぞ！', 2.6);
     rt.after(3, () => rt.say('森長可', '構わぬ。夜が明ける前に川を越えるぞ', 2.8));
   }
   // 渡しの手前の藪に伏せた物見の鉄砲（二度目の接触。渡る列を撃つ）
@@ -59,7 +59,7 @@ export function tickNight(rt, K) {
     rt.army.play('volley', { x: FORD.x + 12, z: FORD.z + 16 }, 0.9);
     rt.say('森長可', '川向こうの藪から撃って来た！　押し渡って突け！', 2.8);
     say(rt, '池田恒興', '池田の列は上の浅瀬を渡る。森殿、下を頼む', 30, 3);
-    say(rt, '使番', '秀次様の本隊、無事に川を越えられました', 44, 3);
+    say(rt, '使番', '孫七郎様の本隊、無事に川を越えられました', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
   if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (K.aliveN(F.tAmb) <= 1 || rt.t - F.ambush > 60) && el > 140) {
@@ -79,7 +79,7 @@ export function tickDawn(rt, K) {
   // 渡った先の道で、別の戦線の知らせが続く（同じ時に別の所でも軍勢が動く）
   if (!F.dawnRep && el > 6) {
     F.dawnRep = true;
-    say(rt, '使番', '秀次様の本隊、白山林にて兵を休めておられまする', 6, 3.2);
+    say(rt, '使番', '孫七郎様の本隊、白山林にて兵を休めておられまする', 6, 3.2);
     say(rt, '使番', '堀様の隊は檜ヶ根の辺り。後ろを固めておられます', 20, 3.2);
     say(rt, '足軽', '三河はまだ遠いのう……', 34, 2.6);
     say(rt, '使番', '楽田の筑前様、小牧山の動きに目を光らせておられまする', 48, 3.2);
@@ -93,7 +93,7 @@ export function tickDawn(rt, K) {
     // 小牧山の陣が動き出す（南東へ。軽い作り）
     try { for (const A of F.farToku || []) A?.moveTo?.(A.position.x + 70, 118, 50); } catch (e) { /* 遠景 */ }
     rt.after(4, () => rt.say('森長可', '気取られたか。……かまわぬ、前へ進め', 3));
-    rt.after(8, () => rt.say('羽柴秀次', '後ろは堀が守る。岡崎を目指せ', 3));
+    rt.after(8, () => rt.say('三好信吉', '後ろは堀が守る。岡崎を目指せ', 3));
     rt.after(15, () => { if (!rt.over) rt.banner('徳川軍、追撃開始', ''); });
     rt.after(12, () => rt.say('池田恒興', '追うて来るなら来い。岩崎城はもう目の前じゃ', 3));
     rt.after(21, () => K.win());

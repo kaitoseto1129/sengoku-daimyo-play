@@ -1153,7 +1153,6 @@ function mikataBoard(rt) {
     const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
       if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
@@ -2654,7 +2653,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
           if (F.mkFlank && F.mkFlankArrived && F.mkFlankFought && F.aka.count <= F.aka0 * 0.6) rt.award((t) => { t.special = { label: '赤備えの横腹を突いた', pts: Math.max(t.special ? t.special.pts : 0, 20) }; }, '赤備えの横腹を突いた');
           else if (!F.mkFlank && F.akaEngaged && Math.hypot(p.x - PIKE_POST.x, p.z - PIKE_POST.z) < 18 && !gone(F.hirate)) rt.award((t) => t.side.push('槍衾で赤備えを受け止めた'), '槍衾で赤備えを受け止めた');
         }
-        rt.say('組頭', '赤備えは止めた！　平手の殿の手が危ない、戻れ！', 3.5);
+        rt.say('組頭', F.akaEngaged ? '赤備えを受けた！　平手の殿の手が危ない、戻れ！' : '赤備えが横を抜けた！　平手の殿の手が危ない、戻れ！', 3.5);
         // 平手汎秀の最期の段（mikatagahara/hirate.js）の後に、南の坂への退き口（B）
         this.deepRun(rt, 'H', '平手汎秀のそばで、武田の囲みを支えよ', hirateSteps(this.kit()), [null, null, null], () => this.deep(rt, 'B'));
       }
@@ -2779,7 +2778,9 @@ mikatagahara.famous = [
 ];
 mikatagahara.date = (rt) => `元亀三年十二月二十二日　冬・${rt.flags.step >= 3 ? '夜' : '夕暮れ'}`;
 mikatagahara.canSkip = (rt) => rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5 ? '結果へ進む' : rt.phase === 'brief' && rt.t > 3 ? '先手の下知まで待つ' : '';
-mikatagahara.skip = (rt) => { if (rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5) rt.finish({ scriptedEnd: true }, 0.2); else if (rt.phase === 'brief') mikatagahara.first(rt); };
+mikatagahara.skip = (rt) => { if (rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5) rt.finish({ scriptedEnd: true,
+  ...(rt.tracker.main === false ? { failureReason: '浜松城へ帰着したが、途中の持ち場の務めを果たせなかった' } : {}),
+}, 0.2); else if (rt.phase === 'brief') mikatagahara.first(rt); };
 mikatagahara.history = '元亀三年十二月二十二日（西暦1573年1月25日）、遠江の三方ヶ原で徳川・織田勢と武田勢が戦った。『信長公記』巻五は、信長が佐久間信盛・平手汎秀・水野信元を大将として浜松へ遣わしたと記す。同書にこの援軍の総数や滝川一益の名はない。二俣城を落とした信玄は堀江城へ向かって動き、浜松を出た家康の勢と三方ヶ原で戦った。先頭の約三百人に石を投げさせ、太鼓を打って寄せたとも記される。平手汎秀とその家臣、徳川家臣の成瀬藤蔵らが討ち死にし、家康は敵中を抜けて浜松城へ退いた。会戦を夕刻とする解説があり、魚鱗・鶴翼の陣や祝田坂での反転は『三河物語』『甲陽軍鑑』などに伝わる。各備の寄せる順、城門を開けて追手を惑わせた話、犀ヶ崖の夜討ちは、確定した出来事としては扱わない。兵数には諸説あり、武田二万七千（三万とも）、徳川・織田一万一千は一つの見積もりで、各備の人数・配置は遊びの復元である。降雪を伝える浜松市の解説もあるが、当日の天候は断定しない。地形・時間・浜松の城口は遊びのために縮めている。浜松城は台地の東縁にあり、西の曲輪を高く示したが、比高・木柵の線・屋形の位置は当時の縄張りを測って再現したものではない。武田勢はその後も西へ進んだが、元亀四年、信玄が病を重くすると帰国の途につき、信玄は四月にその途中で没した。';
 
 // 素直な遊び手：先手を受け、赤備えと戦い、浜松城へ走る
