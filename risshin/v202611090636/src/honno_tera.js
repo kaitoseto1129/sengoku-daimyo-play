@@ -15,7 +15,7 @@ import { kitReplace, kitDobeiSeg } from './cgt_castle.js';
 import { whenCgt, cgtMat } from './cgt.js';
 import { S as SETTINGS } from './settings.js';
 import { Garan, makeTempleFire } from './temple1571.js';
-import { panelInstances, furnishTemple, templeFloorClip } from './interior_parts.js';
+import { honnojiSaobuchiGeometry, panelInstances, furnishTemple, templeFloorClip, nageshiGeometry } from './interior_parts.js';
 
 // 寺域120m四方と各棟の配置は推定。発掘の実測値とはしない。建物の寸法は縮めない。
 export const TERA = { x0: -151, x1: -31, z0: -16, z1: 104 };
@@ -284,8 +284,9 @@ const pcyl = (r, h, x, y, z, hex, seg = 8) => { const g = new THREE.CylinderGeom
 // 本堂の丸柱は床際を薄い根巻金物で保護する推定の納まり。
 // 柱の細りに合わせ、黒い木目を貼らず既存の無地材へまとめる。
 // 外径は元の兵・視点の当たりに収め、設営後の処理は増やさない。
+const HONDO_POST = { radius: .17, raigoRadius: .15, wrapThickness: .003 };
 function hondoPost(put, r, top, x, base, z, color) {
-  const h = top - base, wrapH = .2, thickness = .003;
+  const h = top - base, wrapH = .2, thickness = HONDO_POST.wrapThickness;
   put('wood', pcyl(r, h, x, base, z, color));
   const wrap = new THREE.CylinderGeometry(r * (1 - .06 * wrapH / h) + thickness,
     r + thickness, wrapH, 8);
@@ -294,6 +295,66 @@ function hondoPost(put, r, top, x, base, z, color) {
 }
 // 本堂の格縁下面へ桁と来迎柱の斗を当てる。絵と視点の当たりで接合高を共有する（架構は推定）。
 const HONDO_FRAME = { beamTop: 3.24, ceilingBottom: 3.3, capitalH: .12 };
+// 本尊の構成の手本と推定の範囲は docs/honnoji-honzon-reference.md。
+// 紙面は一度だけ描き、燃焼時の頂点色も受ける共通材質にする。
+let honzonMaterial;
+function honnojiHonzonMaterial() {
+  if (honzonMaterial) return honzonMaterial;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 512;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#b9a77d'; c.fillRect(0, 0, 256, 512);
+  c.strokeStyle = '#807046'; c.lineWidth = 3; c.strokeRect(9, 9, 238, 494);
+  c.fillStyle = '#30251b'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  const column = (text, x, top, step, size) => {
+    c.font = `${size}px serif`;
+    for (let i = 0; i < text.length; i++) c.fillText(text[i], x, top + step * i);
+  };
+  column('南無妙法蓮華経', 128, 67, 60, 43);
+  column('南無釈迦牟尼仏', 53, 124, 40, 22);
+  column('南無多宝如来', 203, 144, 40, 22);
+  const map = new THREE.CanvasTexture(cv); map.colorSpace = THREE.SRGBColorSpace;
+  honzonMaterial = new THREE.MeshLambertMaterial({ map, vertexColors: true, side: THREE.DoubleSide });
+  return honzonMaterial;
+}
+// 書院・宿坊の釘隠し。金属座と鋲を一つの原形へまとめ、木目のない束で使う。
+// 手本と推定の範囲は docs/honnoji-nageshi-reference.md。
+let nageshiNailCover;
+function nageshiNailCoverGeometry() {
+  if (!nageshiNailCover) {
+    const seat = new THREE.CylinderGeometry(.034, .034, .003, 8);
+    const head = new THREE.CylinderGeometry(.005, .011, .006, 8);
+    seat.rotateX(Math.PI / 2); seat.translate(0, 0, .0015);
+    head.rotateX(Math.PI / 2); head.translate(0, 0, .006);
+    nageshiNailCover = mergeGeometries([
+      paintGeo(seat, 0x302b26), paintGeo(head, 0x49433b),
+    ]);
+    seat.dispose(); head.dispose();
+  }
+  return nageshiNailCover.clone();
+}
+// 虹梁は弓なりの梁。参考：大阪市教育委員会「統国寺大雄殿」用語解説。
+// https://www.city.osaka.lg.jp/kyoiku/cmsfiles/contents/0000674/674333/1.pdf
+// 本能寺の形は不明なので緩い反りの推定とし、元の角材の外寸へ納める。
+const HONDO_RAINBOW = { length: 5.8, bottom: 2.84, height: .26, rise: .06, divisions: 12 };
+function hondoBeamRise(z) {
+  const f = HONDO_RAINBOW, t = Math.max(0, Math.min(f.divisions, (z - 46 + f.length / 2) / f.length * f.divisions));
+  const i = Math.min(f.divisions - 1, Math.floor(t));
+  const a = 1 - (2 * i / f.divisions - 1) ** 2;
+  const b = 1 - (2 * (i + 1) / f.divisions - 1) ** 2;
+  return f.rise * (a + (b - a) * (t - i));
+}
+let hondoRainbow;
+function hondoRainbowGeometry(y) {
+  if (!hondoRainbow) {
+    const f = HONDO_RAINBOW;
+    hondoRainbow = new THREE.BoxGeometry(.22, f.height, f.length, 1, 1, f.divisions);
+    hondoRainbow.translate(-61.6, f.bottom + f.height / 2, 46);
+    const p = hondoRainbow.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + hondoBeamRise(p.getZ(i)));
+    hondoRainbow.computeVertexNormals();
+  }
+  return hondoRainbow.clone().translate(0, y, 0);
+}
 // 格縁と吊り仏具は同じ内寸割付を使う。外形からの概算で金具を格間へ浮かせない。
 function hondoCeilingGrid(H, x0, x1) {
   const nx = Math.ceil((x1 - x0) / .75), nz = Math.ceil((H.z1 - H.z0) / .75);
@@ -376,8 +437,9 @@ const GARAN = [
   { id: 'sobo_w5', name: '西の僧坊', kind: 'sobo', profile: 'honnoji_sobo', enterable: true, x: -118, z: 64, w: 8, d: 5, var: 0 },
   // 11/6 fix61（kaito 八1）：裏門へ落ちる道の北が広い空き地に見えた。一町の境内には子院・僧坊が建て込む（本能寺は法華宗の大寺）。
   //   道（z 76〜79）と厩の前（x -131〜-128, z 88〜91）を空けて、北の側に僧坊を二棟（配置は推定）。
-  { id: 'sobo_w6', name: '西の僧坊', kind: 'sobo', profile: 'honnoji_sobo', x: -112, z: 88, w: 8, d: 5, var: 2 },
-  { id: 'sobo_w7', name: '西の僧坊', kind: 'sobo', profile: 'honnoji_sobo', x: -143, z: 88, w: 6, d: 5, var: 0 },
+  // この二棟も共通室内へつなぐ。板間・畳・竿縁天井と、札で横へ滑る障子・襖をほかの僧坊と共有する。
+  { id: 'sobo_w6', name: '西の僧坊', kind: 'sobo', profile: 'honnoji_sobo', enterable: true, x: -112, z: 88, w: 8, d: 5, var: 2 },
+  { id: 'sobo_w7', name: '西の僧坊', kind: 'sobo', profile: 'honnoji_sobo', enterable: true, x: -143, z: 88, w: 6, d: 5, var: 0 },
   { id: 'kura_w', name: '飼葉と馬具の蔵', kind: 'kura', profile: 'honnoji_umagura', enterable: true, x: -100, z: 97, w: 4, d: 5 }, // 中央の通路を空けて飼葉を積む（推定）
 ];
 // 内の区切りの塀（x）と、その口（z の真ん中）。裏門から御殿への道（z 76〜79）を通す
@@ -487,6 +549,7 @@ export function buildTera(rt) {
   }
   // 区画で分かれた壁すべてへ、同じ古い漆喰の材質を渡す。
   for (const b of G.buckets.values()) if (b.dist === 'hall' && b.mk === 'plaster' && b.mesh) b.mesh.material = teraPlasterMat();
+  for (const b of G.buckets.values()) if (b.mk === 'honzon' && b.mesh) b.mesh.material = honnojiHonzonMaterial();
   // 燻し瓦：夜明けの低い空を浅い角度で照り返すと、宿坊の屋根が生成りの布の幕に見えた（10/31）。
   // この寺の瓦だけ、灰の濃い燻しの色・照りの弱い粗さにする（形と瓦の凹凸の絵は共通のまま）。
   const tileMats = new Map();
@@ -629,7 +692,7 @@ function buildHall(rt, G, H, T) {
     ? Math.abs(x + 56) < .01 ? H.H - .12 : HONDO_FRAME.ceilingBottom
     : H.H - .08;
   // 壁の隅・突き当たりは一本の通し柱を共用する。太い側を残し、同じ面を重ねない。
-  const wallPosts = new Map(), plasterHeads = [], wallInfill = [];
+  const wallPosts = new Map(), plasterHeads = [], wallInfill = [], railTimbers = [];
   const wallPost = (x, z, width, camera = true) => {
     const key = `${x.toFixed(5)}:${z.toFixed(5)}`, prev = wallPosts.get(key);
     if (prev) { prev.width = Math.max(prev.width, width); prev.camera ||= camera; }
@@ -673,9 +736,19 @@ function buildHall(rt, G, H, T) {
     const at = (s) => (alongX ? [s, fix] : [fix, s]);
     // 閉じた戸の当たりも、中央の壁芯でなく実際の溝へ置く。
     // 前後の引き違い戸・隅の引き込み戸とも、描く框と同じ面で体を止める。
-    const panelSolid = (x0, z0, x1, z1, depth) => solidSeg(
-      x0 + (alongX ? 0 : depth), z0 + (alongX ? depth : 0),
-      x1 + (alongX ? 0 : depth), z1 + (alongX ? depth : 0), .06);
+    const panelSolid = (x0, z0, x1, z1, depth) => {
+      // naka_doors.js と同じ六センチ厚。線の両端を半厚だけ内へ寄せ、
+      // 框の外へ当たりを膨らませて戸口や引き込み先を狭めない。
+      const half = .03;
+      const s = solidSeg(
+        x0 + (alongX ? half : depth), z0 + (alongX ? depth : half),
+        x1 + (alongX ? -half : depth), z1 + (alongX ? depth : -half), half);
+      // 敷居から鴨居までの戸だけを止める。上下の溝へ入る三ミリも
+      // 描画とそろえ、欄間や床下へ見えない戸の当たりを伸ばさない。
+      s.yBot = y + .13 - .003;
+      s.yTop = y + top + .003;
+      return s;
+    };
     const gaps = doors.map(([m, w]) => [m - w / 2, m + w / 2]).sort((p, q) => p[0] - q[0]);
     for (const [g0, g1] of gaps) hall.doors.push({ x: at((g0 + g1) / 2)[0], z: at((g0 + g1) / 2)[1], w: g1 - g0, alongX });
     const runs = [];
@@ -730,10 +803,20 @@ function buildHall(rt, G, H, T) {
     // 内法長押は柱の表裏へ抱かせる。柱を貫く二十センチ厚の角材にせず、
     // 十二センチ角の中柱へ接し、太い柱には欠き込んで三センチ厚の板を納める（造作は推定）。
     // 鴨居・戸の溝は保ち、二枚とも既存の木部へ設営時にまとめる。
+    // 書院・宿坊は上端を薄くした台形断面。手本と推定寸法は docs/honnoji-nageshi-reference.md。
+    const fineNageshi = SETTINGS.quality === 'high' && (H.id === 'goten' || H.id === 'shukuboA');
+    const nageshiSlope = Math.atan(.006 / .13);
     for (const side of [-1, 1]) {
       const [px, pz] = at(mid), depth = side * .075;
       const x = px + (alongX ? 0 : depth), z = pz + (alongX ? depth : 0);
-      put('wood', alongX
+      if (fineNageshi) {
+        // 共通原形を上下反転して上だけ削る。柱に付く背面と下端の厚みは保つ。
+        const rail = nageshiGeometry(L, .13, .03, -side);
+        rail.rotateX(Math.PI);
+        if (!alongX) rail.rotateY(Math.PI / 2);
+        rail.translate(x, y + top + .17, z);
+        put('wood', paintGeo(rail, 0x4a3826));
+      } else put('wood', alongX
         ? pb(L, .13, .03, x, y + top + .17, z, 0x4a3826)
         : pb(.03, .13, L, x, y + top + .17, z, 0x4a3826));
       bb(alongX ? L : .03, .13, alongX ? .03 : L, x, y + top + .17, z);
@@ -752,8 +835,18 @@ function buildHall(rt, G, H, T) {
       }
       for (const t of posts) for (const side of [-1, 1]) {
         const [px, pz] = at(t);
-        // 長押の表面へ薄い角座を据え、既存の木部の一括描画へまとめる。
-        put('wood', pb(alongX ? .065 : .008, .065, alongX ? .008 : .065,
+        // 長押の表面へ薄い鉄座を据え、既存の材質別の束へまとめる。
+        if (fineNageshi) {
+          // 原形の背面は奥行きゼロ。鋲を室内側へ向け、傾いた長押へ密着させる。
+          const boss = nageshiNailCoverGeometry();
+          boss.rotateY(alongX ? side < 0 ? Math.PI : 0 : side * Math.PI / 2);
+          if (alongX) boss.rotateX(-side * nageshiSlope);
+          else boss.rotateZ(side * nageshiSlope);
+          const depth = side * .087;
+          boss.translate(px + (alongX ? 0 : depth), y + top + .17,
+            pz + (alongX ? depth : 0));
+          put('plain', boss);
+        } else put('wood', pb(alongX ? .065 : .008, .065, alongX ? .008 : .065,
           px + (alongX ? 0 : side * .094), y + top + .17,
           pz + (alongX ? side * .094 : 0), 0x302b26));
       }
@@ -776,15 +869,23 @@ function buildHall(rt, G, H, T) {
     // 戸口から引き込み先まで同じ溝を通す。既存の木部へ設営時だけまとめる。
     const groovedRail = (bottom, height, upper) => {
       const cut = .006, half = .031;
-      bx3(L, height - cut, bottom + (height + (upper ? cut : -cut)) / 2,
-        mid, 0x3a2a1c, 'wood', railDepth);
+      const timber = (height, yy, d0, d1) => {
+        if (SETTINGS.quality === 'high') {
+          // 突き当たりの柱径が決まってから欠き込む。外の溝は柱の脇を通す。
+          railTimbers.push({ alongX, a, b, fix, height, yy, d0, d1 });
+          return;
+        }
+        const [px, pz] = at(mid), depth = (d0 + d1) / 2;
+        put('wood', alongX
+          ? pb(L, height, d1 - d0, px, y + yy, pz + depth, 0x3a2a1c)
+          : pb(d1 - d0, height, L, px + depth, y + yy, pz, 0x3a2a1c));
+      };
+      timber(height - cut, bottom + (height + (upper ? cut : -cut)) / 2,
+        -railDepth / 2, railDepth / 2);
       const surfaceY = bottom + (upper ? cut / 2 : height - cut / 2);
       const strip = (a, b) => {
         if (b <= a) return;
-        const [px, pz] = at(mid), depth = (a + b) / 2;
-        put('wood', alongX
-          ? pb(L, cut, b - a, px, y + surfaceY, pz + depth, 0x3a2a1c)
-          : pb(b - a, cut, L, px + depth, y + surfaceY, pz, 0x3a2a1c));
+        timber(cut, surfaceY, a, b);
       };
       let start = -railDepth / 2;
       for (const depth of tracks) {
@@ -820,7 +921,7 @@ function buildHall(rt, G, H, T) {
           ax: alongX ? 1 : 0, az: alongX ? 0 : 1,
           slide, travel, depth: i === 0 ? track : -track,
           open: 1, want: 1, doorway: true };
-        solidOff(p);
+        updatePanelSolid(p);
         T.panels.push(p); hall.panels.push(p);
       }
     }
@@ -835,9 +936,11 @@ function buildHall(rt, G, H, T) {
       if (kind === 'wall') {
         // 隅柱・突き当たり柱の太さが決まってから、柱間へ腰板と白壁を納める。
         wallInfill.push({ alongX, a: r0, b: r1, fix, top });
-        bx3(len, 0.08, 0.94, m, 0x2c2016, 'wood', 0.19);   // 腰長押（板壁と白壁の境）
-        const [footX, footZ] = at(m);
-        bx3(len, .12, floorFinish(footX, footZ) + .06, m, 0x2c2016, 'wood', .19);   // 幅木を床上へ出す
+        if (SETTINGS.quality !== 'high') {
+          bx3(len, 0.08, 0.94, m, 0x2c2016, 'wood', 0.19); // 腰長押（板壁と白壁の境）
+          const [footX, footZ] = at(m);
+          bx3(len, .12, floorFinish(footX, footZ) + .06, m, 0x2c2016, 'wood', .19);
+        }
         { const [px, pz] = at(m); bb(alongX ? len : 0.14, top, alongX ? 0.14 : len, px, y + top / 2, pz); }
         T.doorWalls.push(solidSeg(p0x, p0z, p1x, p1z, 0.1));
         for (let k = Math.ceil((r0 + 2.7) / 2.7) * 2.7; k < r1 - 0.8; k += 2.7) { const [qx, qz] = at(k); wallPost(qx, qz, .15, false); }
@@ -875,12 +978,44 @@ function buildHall(rt, G, H, T) {
           const p = leaves[i], mate = leaves[i + p.slide];
           // 柱の逃げで変わった中心間の距離だけ滑らせ、隣の一枚へ正しく重ねる。
           p.travel = Math.abs((mate.x - p.x) * p.ax + (mate.z - p.z) * p.az);
+          updatePanelSolid(p);
           mate.stacked.push(p);
         }
       }
     }
   }
   buildWallPosts();
+  // 敷居・鴨居を通し柱の側面へ突き付け、柱の中に角材を重ねない（納まりは推定）。
+  // 柱より外の引き違い溝は欠かず、戸口から引き込み先まで連続させる。
+  // 形は設営時だけ分けて既存の木部へ結合し、戸・兵・視点の当たりは保つ。
+  for (const rail of railTimbers) {
+    const { alongX, a, b, fix, height, yy, d0, d1 } = rail;
+    let pieces = [[a, b, d0, d1]];
+    for (const post of wallPosts.values()) {
+      if (Math.abs((alongX ? post.z : post.x) - fix) > .001) continue;
+      const center = alongX ? post.x : post.z, half = post.width / 2;
+      const left = center - half, right = center + half;
+      const next = [];
+      for (const [l, r, near, far] of pieces) {
+        if (right <= l || left >= r || half <= near || -half >= far) {
+          next.push([l, r, near, far]);
+          continue;
+        }
+        const lo = Math.max(l, left), hi = Math.min(r, right);
+        if (l < lo) next.push([l, lo, near, far]);
+        if (hi < r) next.push([hi, r, near, far]);
+        if (near < -half) next.push([lo, hi, near, -half]);
+        if (far > half) next.push([lo, hi, half, far]);
+      }
+      pieces = next;
+    }
+    for (const [l, r, near, far] of pieces) {
+      const center = (l + r) / 2, depth = (near + far) / 2;
+      put('wood', alongX
+        ? pb(r - l, height, far - near, center, y + yy, fix + depth, 0x3a2a1c)
+        : pb(far - near, height, r - l, fix + depth, y + yy, center, 0x3a2a1c));
+    }
+  }
   // 腰壁も通し柱の内面で止める。一枚板へ線を貼らず、幅木と腰長押の裏へ
   // 板端を掛けて縦板を張る（納まりは推定）。溝の奥には薄い実を残す。
   // 設営時だけ既存の材質へまとめ、歩行・視点の当たりは変えない。
@@ -896,6 +1031,19 @@ function buildHall(rt, G, H, T) {
     for (const [l, r] of spans) {
       const center = (l + r) / 2;
       const base = floorFinish(alongX ? center : fix, alongX ? fix : center);
+      // 高画質の幅木は腰板と同じ柱間へ納める。隅・突き当たりで太くなる
+      // 通し柱の内面を使い、柱脚を横切る帯や木部同士の重なりを残さない。
+      // 床からの高さと見付けは保ち、設営時に従来の木部へまとめる（納まりは推定）。
+      if (SETTINGS.quality === 'high') {
+        put('wood', alongX
+          ? pb(r - l, .12, .19, center, y + base + .06, fix, 0x2c2016)
+          : pb(.19, .12, r - l, fix, y + base + .06, center, 0x2c2016));
+        // 腰板の上を受ける横木も同じ柱間で止める。通し材のまま柱を貫かせず、
+        // 柱脚から内法まで木肌を見せる。高さ・厚み・当たりと既存の材質は保つ。
+        put('wood', alongX
+          ? pb(r - l, .08, .19, center, y + .94, fix, 0x2c2016)
+          : pb(.19, .08, r - l, fix, y + .94, center, 0x2c2016));
+      }
       const height = .94 - base, yy = y + (base + .94) / 2;
       const board = (width, depth, at, color) => put('wood', alongX
         ? pb(width, height, depth, at, yy, fix, color)
@@ -990,7 +1138,9 @@ function buildHall(rt, G, H, T) {
     const floorY = y + .101; // 内陣の畳の仕上げ面
     for (const [x, z] of [[-58, 42.4], [-58, 49.6], [-52, 42.4], [-52, 49.6]]) {
       const base = y + (x < -56 ? .101 : .095), top = y + 2.8;
-      bb(.4, top - base, .4, x, (base + top) / 2, z);
+      // 根巻きの外径までで視点を止める。柱頭の斗の幅を柱脚まで広げない。
+      const diameter = (HONDO_POST.radius + HONDO_POST.wrapThickness) * 2;
+      bb(diameter, top - base, diameter, x, (base + top) / 2, z);
     }
     // 柱頭は斗と肘木で梁を受ける簡素な舟肘木の納まり（細部は推定）。
     // 斗の上面と肘木の下面、肘木の上面と梁の下面をそれぞれ合わせる。
@@ -1034,31 +1184,110 @@ function buildHall(rt, G, H, T) {
       }
     }
     bb(2.8, 1.105, 5.2, -60, floorY + .5525, 46); // 須弥壇の下框から壇上まで
-    bb(1.25, 1.65, 1.8, -60.3, floorY + 2.025, 46); // 蓮台・本尊・光背
-    bb(.55, .83, 1.6, -58.2, floorY + .415, 46); // 前卓の天板まで
-    bb(.8, .345, .8, -56.6, floorY + .1725, 46); // 礼盤
-    bb(.4, .334, .7, -57.45, floorY + .167, 46); // 経机と折本
-    bb(.18, .93, .4, -57.2, floorY + .465, 44.9); // 磬の台
+    if (SETTINGS.quality === 'high') {
+      // 表装の下は二本の脚だけ。脚間の空所まで一枚の壁として視点を押し戻さない。
+      // 描いた板・縁・脚の外寸へ合わせ、設営時だけ既存の箱へまとめる。
+      bb(.08, 1.65, 1.25, -60.3, floorY + 2.025, 46);
+      for (const z of [45.405, 46.595])
+        bb(.035, 1.65, .06, -60.2425, floorY + 2.025, z);
+      for (const yy of [1.225, 2.825])
+        bb(.035, .05, 1.13, -60.2425, floorY + yy, 46);
+      for (const z of [45.5, 46.5])
+        bb(.12, .095, .12, -60.3, floorY + 1.1525, z);
+    }
+    else bb(1.25, 1.65, 1.8, -60.3, floorY + 2.025, 46); // 蓮台・本尊・光背
+    // 前卓・礼盤・経机の脚間は空所。視点を床から天板までの箱で押し戻さず、
+    // 描いた天板・四脚・貫だけで受ける。設営時に箱を控え、毎コマは作らない。
+    // 人の通行用の当たり・調度の位置・内陣の脇口はそのまま保つ。
+    bb(.55, .06, 1.6, -58.2, floorY + .8, 46);
+    for (const x of [-58.42, -57.98]) {
+      for (const z of [45.3, 46.7]) bb(.06, .78, .06, x, floorY + .39, z);
+      bb(.04, .06, 1.34, x, floorY + .24, 46);
+    }
+    for (const z of [45.3, 46.7]) bb(.38, .06, .04, -58.2, floorY + .24, z);
+    bb(.8, .055, .8, -56.6, floorY + .2725, 46);
+    bb(.7, .05, .7, -56.6, floorY + .325, 46); // 礼盤の敷物
+    bb(.4, .04, .7, -57.45, floorY + .28, 46);
+    bb(.28, .034, .5, -57.45, floorY + .317, 46); // 経机の折本
+    for (const [cx, dx, dz, leg, legH, tieW, tieH, tieY, apronW, apronH, apronY] of [
+      [-56.6, .32, .32, .075, .245, .055, .045, .08, .035, .08, .205],
+      [-57.45, .15, .28, .05, .26, .04, .04, .1, .03, .065, .2275],
+    ]) {
+      for (const side of [-1, 1]) {
+        const x = cx + side * dx, z = 46 + side * dz;
+        for (const end of [-1, 1]) bb(leg, legH, leg, x, floorY + legH / 2, 46 + end * dz);
+        bb(tieW, tieH, dz * 2 - leg, x, floorY + tieY, 46);
+        bb(dx * 2 - leg, tieH, tieW, cx, floorY + tieY, z);
+        bb(apronW, apronH, dz * 2 - leg, x, floorY + apronY, 46);
+        bb(dx * 2 - leg, apronH, apronW, cx, floorY + apronY, z);
+      }
+    }
+    if (SETTINGS.quality === 'high') {
+      // 磬の台も脚間を空ける。脚・足・横木・磬の板だけで視点を受ける。
+      for (const z of [44.75, 45.05]) {
+        bb(.05, .9, .05, -57.2, floorY + .45, z);
+        bb(.18, .05, .09, -57.2, floorY + .025, z);
+      }
+      bb(.07, .06, .4, -57.2, floorY + .9, 44.9);
+      bb(.025, .19, .32, -57.2, floorY + .745, 44.9);
+      for (const z of [44.79, 45.01])
+        bb(.12, .035, .035, -57.2, floorY + .0675, z);
+      bb(.025, .025, .28, -57.2, floorY + .0975, 44.9);
+    } else bb(.18, .93, .4, -57.2, floorY + .465, 44.9);
     const postTop = y + HONDO_FRAME.ceilingBottom - HONDO_FRAME.capitalH;
     for (const z of [43.2, 48.8]) {
-      bb(.3, postTop - floorY, .3, -61.6, (floorY + postTop) / 2, z);
+      const diameter = (HONDO_POST.raigoRadius + HONDO_POST.wrapThickness) * 2;
+      bb(diameter, postTop - floorY, diameter, -61.6, (floorY + postTop) / 2, z);
       bb(.4, HONDO_FRAME.capitalH, .4, -61.6, postTop + HONDO_FRAME.capitalH / 2, z);
     }
-    bb(.22, .32, 5.8, -61.6, y + 3, 46); // 来迎柱の虹梁
+    // 視点も反りに沿う短い箱で受け、角材だった時の空いた隅で止めない。
+    const rainbow = HONDO_RAINBOW, pitch = rainbow.length / rainbow.divisions;
+    for (let i = 0; i < rainbow.divisions; i++) {
+      const near = 46 - rainbow.length / 2 + i * pitch, far = near + pitch;
+      const low = Math.min(hondoBeamRise(near), hondoBeamRise(far));
+      const high = Math.max(hondoBeamRise(near), hondoBeamRise(far));
+      bb(.22, rainbow.height + high - low, pitch, -61.6,
+        y + rainbow.bottom + (low + high + rainbow.height) / 2, (near + far) / 2);
+      // 来迎壁の上端も梁の下面へ付ける。元の壁箱より上の細い帯だけを補う。
+      const wallNear = Math.max(43.35, near), wallFar = Math.min(48.65, far);
+      if (wallFar > wallNear && high > 0)
+        bb(.13, high, wallFar - wallNear, -61.6, y + rainbow.bottom + high / 2, (wallNear + wallFar) / 2);
+    }
     // 本堂にも来迎壁を納め、本尊の背後と西の戸口からの通路を分ける（しつらえは推定）。
     // 柱の内面から虹梁の下面までの板壁。両端の脇口は空け、光背や須弥壇へ重ねない。
     // 木部は既存のまとまりへ積み、歩行・戸の見通し・視点にも同じ範囲を渡す。
-    const screenBottom = floorY, screenTop = y + 2.84, screenH = screenTop - screenBottom;
+    const screenBottom = floorY, screenTop = y + rainbow.bottom, screenH = screenTop - screenBottom;
+    // 縦板の下端を畳へ直接立てず、来迎柱の間へ地覆を渡して受ける。
+    // 参考と推定の範囲は docs/honnoji-raigo-sill-reference.md。
+    // 上端に六ミリの溝を残し、板と実を溝底まで差し込む。壁の外寸は保つ。
+    const sillH = SETTINGS.quality === 'high' ? .1 : 0, groove = .006;
+    const boardBottom = screenBottom + (sillH ? sillH - groove : 0);
+    const boardH = screenTop - boardBottom;
+    if (sillH) {
+      put('wood', pb(.13, sillH - groove, 5.3, -61.6,
+        screenBottom + (sillH - groove) / 2, 46, 0x4a3826));
+      // 八センチ厚の板の両面へ一ミリずつ逃げを取り、溝の肩は地覆の内へ納める。
+      for (const side of [-1, 1]) put('wood', pb(.024, groove, 5.3,
+        -61.6 + side * .053, screenBottom + sillH - groove / 2, 46, 0x4a3826));
+    }
     // 一枚板の両面に線を貼らず、縦板の木口と二ミリの目透かしを作る。
     // 継ぎ目の奥には実を残す。元の板と表裏の線と同じ三十五片へ納める（仕口は推定）。
     const boardW = 5.3 / 18, joint = .002;
     for (let i = 0; i < 18; i++) {
       const near = 43.35 + i * boardW + (i ? joint / 2 : 0);
       const far = 43.35 + (i + 1) * boardW - (i < 17 ? joint / 2 : 0);
-      put('wood', pb(.08, screenH, far - near, -61.6,
-        (screenBottom + screenTop) / 2, (near + far) / 2, 0x604831));
-      if (i) put('wood', pb(.008, screenH, joint + .004, -61.6,
-        (screenBottom + screenTop) / 2, 43.35 + i * boardW, 0x3a2417));
+      const board = new THREE.BoxGeometry(.08, boardH, far - near, 1, 1, 2);
+      board.translate(-61.6, (boardBottom + screenTop) / 2, (near + far) / 2);
+      const p = board.attributes.position;
+      for (let k = 0; k < p.count; k++) if (p.getY(k) > boardBottom + boardH / 2)
+        p.setY(k, screenTop + hondoBeamRise(p.getZ(k)));
+      board.computeVertexNormals(); put('wood', paintGeo(board, 0x604831));
+      if (i) {
+        const z = 43.35 + i * boardW, rise = hondoBeamRise(z);
+        const g = new THREE.BoxGeometry(.008, boardH + rise, joint + .004);
+        g.translate(-61.6, (boardBottom + screenTop + rise) / 2, z);
+        put('wood', paintGeo(g, 0x3a2417));
+      }
     }
     for (const x of [-61.65, -61.55]) {
       for (const yy of [screenBottom + .24, screenTop - .16])
@@ -1119,16 +1348,36 @@ function buildHall(rt, G, H, T) {
     put('wood', pb(ceilingW + eave * 2, .012, eave, cx, y + H.H + .084, z, 0x281c12));
   for (const x of [H.x0 - eave / 2, H.x1 + eave / 2])
     put('wood', pb(eave, .012, ceilingD, x, y + H.H + .084, cz, 0x281c12));
+  // 参考と推定の範囲は docs/honnoji-eaves-reference.md。
+  // 二十メートルを超える一枚物にせず、四本おきの垂木の芯で板を継ぐ。
+  // 隣の列は二本ずらし、目透かしの奥は既存の下地で閉じる。
+  const eaveBoard = (alongX, row, off, width) => {
+    const wallStart = alongX ? H.x0 : H.z0;
+    const wallEnd = alongX ? H.x1 : H.z1;
+    const start = wallStart - (alongX ? eave : 0);
+    const end = wallEnd + (alongX ? eave : 0);
+    let a = start;
+    const piece = (b) => {
+      const near = a + (a > start ? .001 : 0), far = b - (b < end ? .001 : 0);
+      const color = (row + Math.round((a - start) / 3)) % 2 ? 0x3e2f22 : 0x3a2c20;
+      if (alongX) for (const z of [H.z0 - off, H.z1 + off])
+        put('wood', pb(far - near, .048, width, (near + far) / 2, y + H.H + .054, z, color));
+      else for (const x of [H.x0 - off, H.x1 + off])
+        put('wood', pb(width, .048, far - near, x, y + H.H + .054, (near + far) / 2, color));
+      a = b;
+    };
+    // 垂木は壁端から三十センチ、以後七十五センチ間隔。実在する芯だけを選ぶ。
+    for (let q = row % 2 ? 2 : 0; wallStart + .3 + q * .75 < wallEnd - .1; q += 4)
+      piece(wallStart + .3 + q * .75);
+    piece(end);
+  };
   const eaveRows = 5, eavePitch = eave / eaveRows;
   for (let i = 0; i < eaveRows; i++) {
     const near = i * eavePitch + (i ? .001 : 0);
     const far = (i + 1) * eavePitch - (i < eaveRows - 1 ? .001 : 0);
     const off = (near + far) / 2, width = far - near;
-    const color = i % 2 ? 0x3e2f22 : 0x3a2c20;
-    for (const z of [H.z0 - off, H.z1 + off])
-      put('wood', pb(ceilingW + eave * 2, .048, width, cx, y + H.H + .054, z, color));
-    for (const x of [H.x0 - off, H.x1 + off])
-      put('wood', pb(width, .048, ceilingD, x, y + H.H + .054, cz, color));
+    eaveBoard(true, i, off, width);
+    eaveBoard(false, i, off, width);
   }
   // 天井板（室内だけ明るい杉板。軒の裏は暗いまま）と、壁際を回る回縁
   // 格間の板は十二ミリ、書院・宿坊の杉板は二十四ミリ。その上面から下地を張る。
@@ -1208,7 +1457,7 @@ function buildHall(rt, G, H, T) {
       // 奥座敷は納戸を除いた鉤の手。壁のない床分割線で天井を二部屋にしない。
       // 一続きの板割り・竿縁を納戸の回縁の内面で切り、床の間も同じように除く。
       const cuts = alcoveRoom ? [alcove, { x0: -73, x1: -69.31, z0: 83.2, z1: 88.29 }] : [];
-      const ceilingPiece = (a, b, c, d, height, yy, color) => {
+      const ceilingPiece = (a, b, c, d, height, yy, color, rod = false) => {
         let pieces = [[a, b, c, d]];
         for (const cut of cuts) pieces = pieces.flatMap(([a, b, c, d]) => {
           // 天井板の端だけは回縁の上へ一・五センチ掛け、竿縁の木口は内面で止める。
@@ -1219,8 +1468,13 @@ function buildHall(rt, G, H, T) {
             ? [[a, left, c, d], [right, b, c, d], [left, right, c, near], [left, right, far, d]]
             : [[a, b, c, d]];
         });
-        for (const [l, r, n, f] of pieces) if (r - l > .001 && f - n > .001)
-          put('wood', pb(r - l, height, f - n, (l + r) / 2, yy, (n + f) / 2, color));
+        for (const [l, r, n, f] of pieces) if (r - l > .001 && f - n > .001) {
+          if (rod && SETTINGS.quality === 'high') {
+            const g = honnojiSaobuchiGeometry(r - l, height, f - n, rodsAlongX);
+            g.translate((l + r) / 2, yy, (n + f) / 2);
+            put('wood', paintGeo(g, color));
+          } else put('wood', pb(r - l, height, f - n, (l + r) / 2, yy, (n + f) / 2, color));
+        }
       };
       // 南北の材の内面で東西の木口を止める。奥座敷の西側も床の間の
       // 独立天井・側壁の範囲で切り、座敷の回縁をその中へ通さない（納まりは推定）。
@@ -1251,11 +1505,12 @@ function buildHall(rt, G, H, T) {
       const rodPitch = rodSpan / (rodCount + 1);
       if (rodsAlongX) {
         for (let q = 1; q <= rodCount; q++)
-          put('wood', pb(clearW, .04, .035, mx, y + H.H - .02, z0 + inset + q * rodPitch, 0x4a3624));
+          ceilingPiece(x0 + inset, x1 - inset, z0 + inset + q * rodPitch - .0175,
+            z0 + inset + q * rodPitch + .0175, .04, y + H.H - .02, 0x4a3624, true);
       } else {
         for (let q = 1; q <= rodCount; q++) {
           const x = x0 + inset + q * rodPitch;
-          ceilingPiece(x - .0175, x + .0175, z0 + inset, z1 - inset, .04, y + H.H - .02, 0x4a3624);
+          ceilingPiece(x - .0175, x + .0175, z0 + inset, z1 - inset, .04, y + H.H - .02, 0x4a3624, true);
         }
       }
       // 線を貼る代わりに厚みのある杉板を竿縁の上へ張る（割付は推定）。
@@ -1289,14 +1544,16 @@ function buildHall(rt, G, H, T) {
   // 軒裏の推定復元。垂木は四辺とも壁から軒先へ向け、隅では重ねない。
   // 縁側の柱上には桁を通し、その上へ垂木を掛ける。室内の張り天井とは分ける。
   // 設営時に既存の木部へまとめ、描く回数・毎コマの処理・通行の当たりは増やさない。
-  for (let x = H.x0 + .3; x < H.x1 - .1; x += .75) for (const z of [H.z0 - .7, H.z1 + .7])
-    put('wood', pb(.07, .1, 1.4, x, y + H.H - .02, z, 0x493321));
-  for (let z = H.z0 + .3; z < H.z1 - .1; z += .75) for (const x of [H.x0 - .7, H.x1 + .7])
-    put('wood', pb(1.4, .1, .07, x, y + H.H - .02, z, 0x493321));
+  // 鼻隠しの内面で木口を止める。垂木を八センチ埋め込まない。
+  const fasciaT = .08, rafterReach = eave - fasciaT;
+  for (let x = H.x0 + .3; x < H.x1 - .1; x += .75) for (const z of [H.z0 - rafterReach / 2, H.z1 + rafterReach / 2])
+    put('wood', pb(.07, .1, rafterReach, x, y + H.H - .02, z, 0x493321));
+  for (let z = H.z0 + .3; z < H.z1 - .1; z += .75) for (const x of [H.x0 - rafterReach / 2, H.x1 + rafterReach / 2])
+    put('wood', pb(rafterReach, .1, .07, x, y + H.H - .02, z, 0x493321));
   // 垂木の木口は鼻隠しで覆う。四辺の軒先を同じ高さへ納め、
   // 隅では南北の材を東西の材の内面で止める（納まりは推定）。
   // 本堂・書院・宿坊で寸法と木材を共用し、既存の天井のまとまりへ積む。
-  const fasciaT = .08, fasciaY = y + H.H - .04;
+  const fasciaY = y + H.H - .04;
   for (const x of [H.x0 - eave + fasciaT / 2, H.x1 + eave - fasciaT / 2])
     put('wood', pb(fasciaT, .14, ceilingD + eave * 2, x, fasciaY, cz, 0x493321));
   for (const z of [H.z0 - eave + fasciaT / 2, H.z1 + eave - fasciaT / 2])
@@ -1306,7 +1563,7 @@ function buildHall(rt, G, H, T) {
   // 木口を軒裏の外へ突き出さない。既存の天井木部へ一度だけまとめる。
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const x = sx < 0 ? H.x0 : H.x1, z = sz < 0 ? H.z0 : H.z1;
-    const halfWidth = .07, reach = 1.4 - halfWidth / Math.SQRT2;
+    const halfWidth = .07, reach = rafterReach - halfWidth / Math.SQRT2;
     const hip = pb(reach * Math.SQRT2, .14, halfWidth * 2, 0, 0, 0, 0x493321);
     hip.rotateY(-sx * sz * Math.PI / 4);
     hip.translate(x + sx * reach / 2, y + H.H - .04, z + sz * reach / 2);
@@ -1317,10 +1574,18 @@ function buildHall(rt, G, H, T) {
   if (H.engawa === 's') put('wood', pb(H.x1 - H.x0 + .2, .2, .18, cx, y + H.H - .17, H.z1 + 1.25, 0x4a3826));
   if (H.engawa === 'e') put('wood', pb(.18, .2, H.z1 - H.z0 + .2, H.x1 + 1.15, y + H.H - .17, cz, 0x4a3826));
   rec.dist = 'hall';
-  // 本堂は内外陣境の十二センチの格縁、座敷は八センチの回縁の下面で視点を止める。
-  // 天井板だけの高さへ寄せて格縁の中をのぞけないよう、既存の一枚の当たりを合わせる。
-  const ceilingDrop = H.id === 'hondo' ? .12 : .08;
-  bb(H.x1 - H.x0 + 2.8, ceilingDrop + .08, H.z1 - H.z0 + 2.8, cx, y + H.H + (.08 - ceilingDrop) / 2, cz);
+  // 室内は実際の格縁・回縁の下面で視点を止める。本堂の格縁は十センチ。
+  // 軒まで同じ低い箱で覆うと、縁側から見上げた時に何もない所で視点が押し戻される。
+  // 軒裏は野地板の下面へ分け、垂木・鼻隠し・隅木の当たりは見える木部で受ける。
+  // 箱は設営時だけ既存の視点用のまとまりへ足し、描画と毎コマの生成は増やさない。
+  const ceilingBottom = H.id === 'hondo' ? HONDO_FRAME.ceilingBottom : H.H - .08;
+  const ceilingTop = H.H + ceilingBoardH + .03;
+  bb(ceilingW, ceilingTop - ceilingBottom, ceilingD,
+    cx, y + (ceilingBottom + ceilingTop) / 2, cz);
+  for (const z of [H.z0 - eave / 2, H.z1 + eave / 2])
+    bb(ceilingW + eave * 2, .06, eave, cx, y + H.H + .06, z);
+  for (const x of [H.x0 - eave / 2, H.x1 + eave / 2])
+    bb(eave, .06, ceilingD, x, y + H.H + .06, cz);
   if (blk.length) {
     const bm = new THREE.Mesh(mergeGeometries(blk), G.proxyMat);
     bm.userData.camBlock = true; bm.matrixAutoUpdate = false; bm.updateMatrix();
@@ -1336,7 +1601,15 @@ const INTERIOR = {
     const floorY = y + .101;
     // 須弥壇（框・腰・上框の三段。腰は黒漆に金の格狭間）と本尊・光背
     put('wood', pb(2.8, 0.22, 5.2, -60, floorY + 0.11, 46, 0x1e140e));                 // 下框
-    put('wood', pb(2.4, 0.5, 4.8, -60, floorY + 0.47, 46, 0x241812));                  // 腰
+    const piercedWaist = SETTINGS.quality === 'high';
+    if (!piercedWaist) put('wood', pb(2.4, 0.5, 4.8, -60, floorY + 0.47, 46, 0x241812));
+    else {
+      // 手本と推定の範囲は docs/honnoji-shumidan-reference.md。
+      // 腰を中実の箱で塞がず、上下の受けと背板で厚い透かし板を受ける。
+      for (const yy of [.245, .695])
+        put('wood', pb(2.4, .05, 4.8, -60, floorY + yy, 46, 0x241812));
+      put('wood', pb(.04, .4, 4.8, -61.18, floorY + .47, 46, 0x241812));
+    }
     // 格狭間は金の四角い板で代用せず、繰形の縁と奥の黒漆を分ける（意匠は推定）。
     // 正面と両脇で同じ縁を使い、設営時に既存の仏具のまとまりへ焼き込む。
     {
@@ -1355,6 +1628,33 @@ const INTERIOR = {
       outline.holes.push(opening);
       const rim = new THREE.ExtrudeGeometry(outline, { depth: .025, bevelEnabled: false, curveSegments: 4 });
       const back = new THREE.ShapeGeometry(recess, 4);
+      if (piercedWaist) {
+        // 正面三枚と側面二枚で原形を共用。穴の内側にも厚みを付け、
+        // 奥板まで十センチ離す。既存の仏具へ結合し、毎コマの仕事を増やさない。
+        const waistPanel = (width, placements) => {
+          const plate = new THREE.Shape(), hole = new THREE.Path();
+          plate.moveTo(-width / 2, -.2); plate.lineTo(width / 2, -.2);
+          plate.lineTo(width / 2, .2); plate.lineTo(-width / 2, .2); plate.closePath();
+          contour(hole, .95, .85); plate.holes.push(hole);
+          const board = new THREE.ExtrudeGeometry(plate, { depth: .04, bevelEnabled: false, curveSegments: 4 });
+          const recess = new THREE.PlaneGeometry(width, .4);
+          for (const [x, z, turn] of placements) {
+            const nx = Math.sin(turn), nz = Math.cos(turn);
+            const add = (source, depth, color) => {
+              const g = source.clone(); g.rotateY(turn);
+              g.translate(x + nx * depth, floorY + .47, z + nz * depth);
+              put('plain', paintGeo(g, color));
+            };
+            add(board, -.04, 0x241812);
+            add(rim, .002, 0x5e4a22);
+            add(recess, -.1, 0x100c09);
+          }
+          board.dispose(); recess.dispose();
+        };
+        waistPanel(1.6, [44.4, 46, 47.6].map(z => [-58.8, z, Math.PI / 2]));
+        // 正面板の四センチ厚を避け、側板はその裏面へ突き付ける。
+        waistPanel(2.32, [[-60, 48.4, 0], [-60, 43.6, Math.PI]]);
+      } else {
       rim.rotateY(Math.PI / 2); back.rotateY(Math.PI / 2);
       for (const z of [44.2, 46, 47.8]) {
         const edge = rim.clone(), inset = back.clone();
@@ -1374,6 +1674,7 @@ const INTERIOR = {
         put('plain', paintGeo(edge, 0x5e4a22));
         put('plain', paintGeo(inset, 0x100c09));
       }
+      }
       rim.dispose(); back.dispose();
     }
     // 腰の上下は段を付けた繰形で框へつなぐ。角は木口を突き付け、
@@ -1390,8 +1691,21 @@ const INTERIOR = {
     }
     put('wood', pb(2.8, 0.14, 5.2, -60, floorY + 0.79, 46, 0x1e140e));                 // 上框
     put('wood', pb(2.2, 0.25, 4.4, -60, floorY + 0.98, 46, 0x5e4a22));                  // 壇上（金）
-    // 本尊は東向きの坐像。本堂を作る時だけ形を組み、既存のまとまりへ積む。
-    { const cx = -60.3, cz = 46, OLD = 0x5e4a22, DIM = 0x49391e, LIT = 0x76602e;
+    // 高画質では本能寺の文字曼荼羅を東向きに据える（表装・位置は推定）。
+    // 須弥壇上の従来の範囲へ納め、通路・内陣の戸・光源は増やさない。
+    if (SETTINGS.quality === 'high') {
+      const cx = -60.3, bottom = floorY + 1.2, top = floorY + 2.85;
+      put('wood', pb(.08, top - bottom, 1.25, cx, (bottom + top) / 2, 46, 0x39291a));
+      for (const z of [45.405, 46.595])
+        put('plain', pb(.035, top - bottom, .06, cx + .0575, (bottom + top) / 2, z, 0x5e4a22));
+      for (const yy of [bottom + .025, top - .025])
+        put('plain', pb(.035, .05, 1.13, cx + .0575, yy, 46, 0x5e4a22));
+      for (const z of [45.5, 46.5])
+        put('wood', pb(.12, .095, .12, cx, floorY + 1.1525, z, 0x39291a));
+      const paper = new THREE.PlaneGeometry(1.13, 1.55);
+      paper.rotateY(Math.PI / 2); paper.translate(cx + .041, (bottom + top) / 2, 46);
+      put('honzon', paintGeo(paper, 0xffffff));
+    } else { const cx = -60.3, cz = 46, OLD = 0x5e4a22, DIM = 0x49391e, LIT = 0x76602e;
       const round = new THREE.SphereGeometry(1, 16, 10);
       const curl = new THREE.SphereGeometry(1, 6, 4);
       const oval = (sx, sy, sz, dx, dy, dz, hex = OLD, rx = 0, source = round) => {
@@ -1446,34 +1760,59 @@ const INTERIOR = {
     // 来迎柱（朱塗り）と、柱の間の欄間に渡す虹梁
     // 来迎柱も畳の仕上げ面から立てる（納まりは推定）。
     // 来迎柱を天井板まで突き抜けさせず、柱頭の斗で格縁の下面を受ける。
-    // 既存の木部へ設営時にまとめ、左右の通路と兵の当たりは保つ。
+    // 既存の木部へ設営時にまとめ、根巻きの外径と歩行の当たりをそろえる。
     const postTop = y + HONDO_FRAME.ceilingBottom - HONDO_FRAME.capitalH;
     for (const z of [43.2, 48.8]) {
-      hondoPost(put, .15, postTop, -61.6, floorY, z, 0x8a2a1a);
+      hondoPost(put, HONDO_POST.raigoRadius, postTop, -61.6, floorY, z, 0x8a2a1a);
       put('wood', pb(.4, HONDO_FRAME.capitalH, .4, -61.6,
         postTop + HONDO_FRAME.capitalH / 2, z, 0x7a2416));
-      solidCircle(-61.6, z, .17);
+      solidCircle(-61.6, z, HONDO_POST.raigoRadius + HONDO_POST.wrapThickness);
     }
-    put('wood', pb(0.22, 0.32, 5.8, -61.6, y + 3.0, 46, 0x7a2416));
+    put('wood', paintGeo(hondoRainbowGeometry(y), 0x7a2416));
     // 天蓋：八角の笠（くすんだ古い金箔）に、透かし彫りの帯（小さな板を間をあけて並べ、上下に框）。
     // 八つの角から華鬘、縁から瓔珞（細い糸に玉を通した垂れ飾り）を長さ違いで垂らす。吊り金具で天井から下げる
     { const cx0 = hondoHangerX(-60.2), cz0 = 46, top = y + 3.12, R = 0.92, OLD = 0x5e4a22, DIM = 0x3e301a, LIT = 0x76602e;
       const lid = new THREE.CylinderGeometry(R * 0.55, R, 0.14, 8); lid.rotateY(Math.PI / 8); lid.translate(cx0, top, cz0); put('wood', paintGeo(lid, OLD));
-      const rimT = new THREE.CylinderGeometry(R + 0.02, R + 0.02, 0.035, 8); rimT.rotateY(Math.PI / 8); rimT.translate(cx0, top - 0.09, cz0); put('wood', paintGeo(rimT, LIT));
-      const rimB = new THREE.CylinderGeometry(R + 0.02, R + 0.02, 0.035, 8); rimB.rotateY(Math.PI / 8); rimB.translate(cx0, top - 0.33, cz0); put('wood', paintGeo(rimB, LIT));
-      const back = new THREE.CylinderGeometry(R - 0.03, R - 0.03, 0.2, 8, 1, true); back.rotateY(Math.PI / 8); back.translate(cx0, top - 0.21, cz0); put('wood', paintGeo(back, DIM));
-      for (let k = 0; k < 32; k++) {   // 透かしの桟（間から暗い裏が見える）
-        const a = (k + 0.5) / 32 * Math.PI * 2, g = new THREE.BoxGeometry(0.035, 0.2, 0.025);
-        g.rotateY(-a); g.translate(cx0 + Math.cos(a) * R, top - 0.21, cz0 + Math.sin(a) * R); put('wood', paintGeo(g, k % 2 ? OLD : LIT));
+      // 八角の上下框は中央を抜く。円盤と裏筒で透かしを塞がず、桟の間から内側を見せる。
+      // 八角の同じ辺を桟・吊り飾りで共用し、円周上へ置いて框から浮かせない（意匠は推定）。
+      const outline = new THREE.Shape(), opening = new THREE.Path();
+      for (const [path, radius] of [[outline, R + .02], [opening, R - .04]]) {
+        for (let k = 0; k < 8; k++) {
+          const a = Math.PI / 8 + k * Math.PI / 4;
+          if (k) path.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
+          else path.moveTo(Math.cos(a) * radius, Math.sin(a) * radius);
+        }
+        path.closePath();
       }
+      outline.holes.push(opening);
+      const rim = new THREE.ExtrudeGeometry(outline, { depth: .035, bevelEnabled: false });
+      rim.rotateX(Math.PI / 2);
+      for (const yy of [top - .09, top - .33]) {
+        const g = rim.clone(); g.translate(cx0, yy + .0175, cz0); put('wood', paintGeo(g, LIT));
+      }
+      rim.dispose();
+      const edgePoint = (k, t) => {
+        const a = Math.PI / 8 + k * Math.PI / 4, b = a + Math.PI / 4;
+        return [cx0 + R * ((1 - t) * Math.cos(a) + t * Math.cos(b)),
+          cz0 + R * ((1 - t) * Math.sin(a) + t * Math.sin(b))];
+      };
+      const slat = new THREE.BoxGeometry(.035, .205, .025);
+      for (let k = 0; k < 8; k++) for (let q = 0; q < 4; q++) {
+        const [px, pz] = edgePoint(k, (q + .5) / 4), g = slat.clone();
+        g.rotateY(-Math.PI / 4 - k * Math.PI / 4 - Math.PI / 2);
+        g.translate(px, top - .21, pz); put('wood', paintGeo(g, q % 2 ? OLD : LIT));
+      }
+      slat.dispose();
       for (let k = 0; k < 8; k++) {   // 角の華鬘（団扇形の飾り板）
-        const a = k / 8 * Math.PI * 2, g = new THREE.CylinderGeometry(0.11, 0.11, 0.02, 10);
-        g.rotateZ(Math.PI / 2); g.rotateY(-a); g.translate(cx0 + Math.cos(a) * (R + 0.04), top - 0.45, cz0 + Math.sin(a) * (R + 0.04)); put('wood', paintGeo(g, OLD));
+        const a = Math.PI / 8 + k * Math.PI / 4, g = new THREE.CylinderGeometry(0.11, 0.11, 0.02, 10);
+        const [px, pz] = edgePoint(k, 0);
+        g.rotateZ(Math.PI / 2); g.rotateY(-a); g.translate(px, top - 0.45, pz); put('wood', paintGeo(g, OLD));
       }
       for (let k = 0; k < 24; k++) {   // 瓔珞：糸と三つの玉
-        const a = (k + 0.5) / 24 * Math.PI * 2, len = 0.35 + (k % 3) * 0.12, px = cx0 + Math.cos(a) * (R - 0.02), pz = cz0 + Math.sin(a) * (R - 0.02);
-        put('wood', pb(0.012, len, 0.012, px, top - 0.35 - len / 2, pz, DIM));
-        for (let q = 1; q <= 3; q++) put('wood', pb(0.035, 0.035, 0.035, px, top - 0.35 - len * q / 3, pz, q === 3 ? 0x6a3a2a : LIT));
+        const len = 0.35 + (k % 3) * 0.12, [px, pz] = edgePoint(Math.floor(k / 3), (k % 3 + .5) / 3);
+        const start = top - .3475; // 下框の下面へ糸を留める。
+        put('wood', pb(0.012, len, 0.012, px, start - len / 2, pz, DIM));
+        for (let q = 1; q <= 3; q++) put('wood', pb(0.035, 0.035, 0.035, px, start - len * q / 3, pz, q === 3 ? 0x6a3a2a : LIT));
       }
       // 吊り位置は格縁の交点。座金を笠の上面と格縁の下面へ当て、
       // 棒を木へ突き刺さず、二枚の座金の間だけにつなぐ（納まりは推定）。
@@ -1652,8 +1991,8 @@ const INTERIOR = {
     // 柱脚はそれぞれ畳・板の仕上げ面へ据え、視点用の当たりも同じ寸法にする。
     for (const [x, z] of [[-58, 42.4], [-58, 49.6], [-52, 42.4], [-52, 49.6]]) {
       const base = y + (x < -56 ? .101 : .095);
-      hondoPost(put, .17, y + 2.8, x, base, z, 0x5a3e2a);
-      solidCircle(x, z, .2);
+      hondoPost(put, HONDO_POST.radius, y + 2.8, x, base, z, 0x5a3e2a);
+      solidCircle(x, z, HONDO_POST.radius + HONDO_POST.wrapThickness);
     }
     // 外陣の鰐口は東の入口へ面を向けて吊るす。細部と吊る位置は推定。
     // 共通のまとまりへ積み、光源や歩行の当たりは増やさない。
@@ -1843,10 +2182,20 @@ function panelPose(p) {
     if (m === p.cam) SL.M.compose(SL.P, SL.Q, SL.S);
   }
 }
-function solidOff(p) {
+function updatePanelSolid(p) {
   const s = p.solid;
-  if (!p.saved) p.saved = { x0: s.x0, x1: s.x1, z0: s.z0, z1: s.z1 };
-  s.x0 = s.x1 = s.z0 = s.z1 = 1e9;
+  if (!p.saved) p.saved = { ax: s.ax, az: s.az, bx: s.bx, bz: s.bz,
+    x0: s.x0, x1: s.x1, z0: s.z0, z1: s.z1 };
+  // 共通室内の引き戸と同じく、動く途中も框の位置で体を止める。
+  // 描く戸と同じ補間で既存の当たりを動かし、全開でも引き先に残す。
+  // 保存は最初の一度だけ。閉め直しや途中の反転で移動量を積み重ねない。
+  const e = p.open * p.open * (3 - 2 * p.open);
+  const travel = e * (p.travel ?? p.pw * .96) * p.slide;
+  const dx = p.ax * travel, dz = p.az * travel, closed = p.saved;
+  s.ax = closed.ax + dx; s.bx = closed.bx + dx;
+  s.az = closed.az + dz; s.bz = closed.bz + dz;
+  s.x0 = closed.x0 + dx; s.x1 = closed.x1 + dx;
+  s.z0 = closed.z0 + dz; s.z1 = closed.z1 + dz;
 }
 // 共通の引き戸と同じく、手元から戸の面までに間仕切りがあれば操作しない。
 // 白壁に加え、横へ滑った襖・障子・板戸も現在の面で調べる。
@@ -1921,8 +2270,7 @@ function addSlidingDoors(rt, T) {
     // 閉じた戸へ歩いて当たれば、自分で開けて通る（「戸を開ける」の札を探させない。Simple is the best）
     const v = P.vel;
     if (pick && !pick.want && bd < 1.2 && (v && Math.hypot(v.x, v.z) > 0.4 || rt.player.blockedWalkT > 0.25)) {
-      // 札から開けた時と同じく、横へ引き切るまでは戸口の当たりを残す。
-      // 引き先に人がいて戸が止まった時も、閉じた紙面を通り抜けさせない。
+      // 札から開けた時と同じ横滑りを使い、当たりも框へ追従させる。
       pick.want = 1; T.sliding.add(pick);
       rt.army.play('wood', { x: pick.x, z: pick.z }, 0.35);
     }
@@ -1932,12 +2280,9 @@ function addSlidingDoors(rt, T) {
     const p = find();
     // 同じ時刻に退却の段階が進んでも、退路の戸を古い候補のまま閉めない。
     if (!p || !p.alive || p.doorway && p.want && rt.def.doorCloseOK?.(rt) === false) return;
-    // 共通室内と同じく、人のいる戸口は閉めない。閉め始めから当たりを戻し、
-    // 開く時は引き切るまで残して、動いている建具を体が突き抜けないようにする。
-    if (p.want) {
-      if (panelDoorwayOccupied(rt, p)) return;
-      if (p.saved) Object.assign(p.solid, p.saved);
-    }
+    // 共通室内と同じく、人のいる戸口は閉めない。
+    // 当たりは閉め始めに戸口へ戻さず、框と一緒に溝の上を動かす。
+    if (p.want && panelDoorwayOccupied(rt, p)) return;
     p.want = p.want ? 0 : 1;
     T.sliding.add(p);
     rt.army.play('wood', { x: p.faceX, z: p.faceZ }, 0.35);
@@ -1946,11 +2291,21 @@ function addSlidingDoors(rt, T) {
   const entry = rt.interacts[rt.interacts.length - 1];
   Object.defineProperty(entry, 'label', { get: () => it.label, configurable: true });
 }
+// 高画質の本堂・書院・宿坊も、共通室内と同じく実際の体格と戸の上下端で調べる。
+// 壁芯から離れた引き戸の溝も含め、框の手前に立つ人を閉め直しで挟まない。
+function unitAtPanelHeight(p, u) {
+  if (!u || !u.alive) return false;
+  if (SETTINGS.quality !== 'high') return Math.abs(u.pos.y - p.y) <= 1.2;
+  return u.pos.y < p.y + p.sy * 1.8 + .003
+    && u.pos.y + (u.bodyHeight ?? 1.65) > p.y - .003;
+}
 function unitInPanelDoorway(p, u) {
-  if (!u || !u.alive || Math.abs(u.pos.y - p.y) > 1.2) return false;
+  if (!unitAtPanelHeight(p, u)) return false;
+  const radius = SETTINGS.quality === 'high' ? u.bodyRadius ?? .3 : .3;
+  const reach = SETTINGS.quality === 'high' ? Math.abs(p.depth) + radius + .03 : .35;
   const dx = u.pos.x - p.x, dz = u.pos.z - p.z;
-  return Math.abs(dx * p.ax + dz * p.az) < p.pw / 2 + .3
-    && Math.abs(dx * p.az + dz * p.ax) < .35;
+  return Math.abs(dx * p.ax + dz * p.az) < p.pw / 2 + radius
+    && Math.abs(dx * p.az + dz * p.ax) < reach;
 }
 function panelDoorwayOccupied(rt, p) {
   if (unitInPanelDoorway(p, rt.player && rt.player.u)) return true;
@@ -1959,10 +2314,11 @@ function panelDoorwayOccupied(rt, p) {
 }
 // naka_doors と同じく、開閉とも框の移動範囲を調べる。閉める時は戸口全体も空ける。
 function unitInPanel(p, u, nextOpen) {
-  if (!u || !u.alive || Math.abs(u.pos.y - p.y) > 1.2) return false;
+  if (!unitAtPanelHeight(p, u)) return false;
+  const radius = SETTINGS.quality === 'high' ? u.bodyRadius ?? .3 : .3;
   const dx = u.pos.x - p.x, dz = u.pos.z - p.z;
   const along = dx * p.ax + dz * p.az, across = dx * p.az + dz * p.ax;
-  if (!p.want && Math.abs(along) < p.pw / 2 + .3 && Math.abs(across) < .35) return true;
+  if (!p.want && unitInPanelDoorway(p, u)) return true;
   // 開く時も引き込み先の人へ框を通さず、人が離れたら同じ溝の上で動かし直す。
   // 開口の中央にいる人のために、左右へ離れていく戸まで止めない。
   const travel = (p.travel ?? p.pw * .96) * p.slide;
@@ -1970,11 +2326,11 @@ function unitInPanel(p, u, nextOpen) {
   const to = nextOpen * nextOpen * (3 - 2 * nextOpen) * travel;
   // 共通の引き戸と同じく、触れている框が体から離れる時は開ける。
   // 戸へ寄ったまま操作しても止まらず、引き込み先へ近づく動きは止める。
-  if (p.want && Math.abs(along - from) <= p.pw / 2 + .3
+  if (p.want && Math.abs(along - from) <= p.pw / 2 + radius
     && Math.abs(along - to) > Math.abs(along - from)) return false;
-  return Math.abs(across - p.depth) < .33
-    && along > Math.min(from, to) - p.pw / 2 - .3
-    && along < Math.max(from, to) + p.pw / 2 + .3;
+  return Math.abs(across - p.depth) < radius + .03
+    && along > Math.min(from, to) - p.pw / 2 - radius
+    && along < Math.max(from, to) + p.pw / 2 + radius;
 }
 function panelOccupied(rt, p, nextOpen) {
   if (unitInPanel(p, rt.player && rt.player.u, nextOpen)) return true;
@@ -1992,12 +2348,8 @@ function slideTick(rt, T, dt) {
     if (panelOccupied(rt, p, nextOpen)) continue;
     p.open = nextOpen;
     panelPose(p);
-    if (p.open === p.want) {
-      T.sliding.delete(p);
-      if (p.want) solidOff(p);
-      // 閉め切ったら当たりを戻す
-      if (!p.want && p.saved) Object.assign(p.solid, p.saved);
-    }
+    updatePanelSolid(p);
+    if (p.open === p.want) T.sliding.delete(p);
   }
 }
 // 襖・障子を一枚破る（quiet：燃えて消える時は音を出さない）

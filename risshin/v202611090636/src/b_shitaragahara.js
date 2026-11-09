@@ -1403,8 +1403,11 @@ function nfTick(rt, dt) {
   if (N.step === 0) {
     if (!N.tobi && rt.t > N.t0 + 2) {
       N.tobi = true;
-      // 酒井の別働（遠くの出来事・仕様29）：まず攻め上った知らせ。砦が落ちる知らせと煙は山県の柵破りの時
-      rt.say('使番', '酒井忠次殿の別手、鳶ヶ巣山の砦へ攻め上りました！', 4);
+      // 夜明けの落城を先に知らせ、背後を断たれた武田の寄せへ続ける。
+      rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の別手が長篠の囲みを解きました！', 4);
+      F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
+        rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
+      for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
     }
     if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
@@ -1443,14 +1446,6 @@ function nfTick(rt, dt) {
       ST_BREACH.start(rt, stCtx(rt));
       // 第三波の始まり：同じ時に柳田前へ原昌胤も寄せる（二つの区画を走る）
       ST_HARA.send(rt, stCtx(rt)); N.sent = true; F.jinkeiBound.shitara_hara?.advance(50, 22);
-      // 酒井の別働：鳶ヶ巣山の砦が落ちる。武田の後ろの気が落ちる
-      rt.after(9, () => {
-        if (F.ending) return;
-        rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の手柄にございます！', 3.6);
-        F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
-          rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
-        for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
-      });
       try { rt.world.setTime('day'); } catch (e) { /* 光が替えられなくても進む */ }
       F.jinkeiBound.shitara_sanada?.retreat(60, 20); F.jinkeiBound.shitara_sanada_masateru?.retreat(60, 20);
       // 組は本人に付いて柵の間の道を歩く（一5）。滝川の備の槍組も同じ道で柳田前へ

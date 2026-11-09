@@ -3576,7 +3576,7 @@ const nagashima = {
           const defended = tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
-          const atPost = u.alive && !rt2.player.mounted && u.pos.z >= BANK_Z &&
+          const atPost = u.alive && u.pos.z >= BANK_Z &&   // 馬の上でも持ち場（11/9 二巡）
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           return defended && atPost && C.inT >= (st.max - 35) * 0.45;
@@ -3611,7 +3611,7 @@ const nagashima = {
           const defended = tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
-          const atPost = u.alive && !rt2.player.mounted && u.pos.z >= BANK_Z &&
+          const atPost = u.alive && u.pos.z >= BANK_Z &&
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           return defended && atPost && C.inT >= (st.max - 35) * 0.45;
@@ -3883,7 +3883,7 @@ const nagashima = {
       const p = rt.player.u.pos;
       // 一つの場所で放置しても次の柵の確認にはならない。川側からも数えない。
       const near = p.z >= BANK_Z && Math.hypot(p.x - spot.x, p.z - spot.z) < 3;
-      let safe = near && !rt.player.mounted;
+      let safe = near;   // 馬の上からでも確かめられる（11/9 二巡：騎乗の bot が持ち場で止まり続けた）
       if (safe) for (const u of rt.army.units) {
         if (u.team !== rt.player.u.team && u.alive && !u.fleeing && !u.woundOut &&
             !u.rearWound && !u.gone && !u.noTarget && !u.isStruct && !u.civ &&

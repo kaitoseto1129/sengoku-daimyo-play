@@ -408,14 +408,17 @@ function autoKuruwaLife(rt, plan, C, o, shared = null) {
     }
     let n = 0;
     for (const kind of want) {
-      const [w, d] = SIZE[kind];
+      // 戦固有の入れる建物も、実際の外寸で空き地を探す。
+      const building = o.lifeBuildings?.[kind];
+      const [w, d] = building?.size || SIZE[kind];
       const off = (d - 4.4) / 2;
       const hit = cand.find((q) => !q.used && free(q.x - q.ix * off, q.z - q.iz * off, w, d, q.rot));
       if (!hit) continue;
       for (const q of cand) if (Math.hypot(q.x - hit.x, q.z - hit.z) < w / 2 + 6) q.used = true;
       // 共通の番所・蔵も、土の城では既存の板葺きと木造倉の部品を使う。
       const ita = (plan.year ?? 1575) <= 1582 && plan.name !== '安土城';
-      kuruwaBldg(rt.world, kind, hit.x - hit.ix * off, hit.z - hit.iz * off, hit.rot, {
+      if (building) building.build(hit.x - hit.ix * off, hit.z - hit.iz * off, w, d, hit.rot);
+      else kuruwaBldg(rt.world, kind, hit.x - hit.ix * off, hit.z - hit.iz * off, hit.rot, {
         batch, one: low, ita, boardRoof: ita,
         timberStore: ita && !k.stone && k.wall !== 'ishigaki',
       });

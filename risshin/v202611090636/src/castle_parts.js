@@ -1158,20 +1158,27 @@ export function goten(rt, x, z, o = {}) {
   const bays = Math.max(2, Math.round(w / 3));
   // 指定した戸口が柱の位置でも、通れる口の中へ柱を描かない。
   const inabaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'inabayama';
+  const tottoriEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'tottori';
+  // 鳥取も縁板と歩ける範囲をそろえ、中央の踏み段を板・縁框・束で覆わない。
+  const boardVeranda = SETTINGS.quality === 'high'
+    && (tottoriEntry || o.profile === 'iwamura' || o.profile?.startsWith('iwamura_'));
   const nagashimaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'nagashima';
   const lowBoardCeiling = SETTINGS.quality === 'high' && !tile && o.boardRoof && !fieldFort && o.profile?.startsWith('iwamura');
   const interiorH = o.interiorH ?? (lowBoardCeiling ? 2.7 : H - (inabaEntry ? .6 : .1));
   // 稲葉山は外壁の開口も、室内の柱・引き戸と同じ内法にする。
   // 外だけ二十センチ広い口や、鴨居の上の隙間を残さない。
-  const entryW = o.entryW ?? (nagashimaEntry ? 1.6 : 1.4), gapW = inabaEntry ? entryW : 1.6;
-  const entryH = Math.min(interiorH - .3, 2), entryTop = inabaEntry ? .55 + entryH : 2.6;
+  const closedEntry = inabaEntry || o.naka && o.profile === 'tottori';
+  const entryW = o.entryW ?? (nagashimaEntry ? 1.6 : 1.4), gapW = closedEntry ? entryW : 1.6;
+  const entryH = Math.min(interiorH - .3, 2), entryTop = closedEntry ? .55 + entryH : 2.6;
   const ds = o.door ?? 1;
   const requestedDoorX = o.doorX ?? (o.profile && bays % 2 ? 0 : (w / bays) / 2);
-  // 稲葉山の玄関は左右へ引き分ける。全開時の戸先・敷居まで妻壁の内へ納める。
+  // 稲葉山・鳥取の玄関は左右へ引き分ける。全開時の戸先・敷居まで妻壁の内へ納める。
   // 内寸は外幅から三十センチ引き、隅柱と戸の当たり用にさらに二十センチ空ける。
   // 小さな番所・板倉で、柱間の中心をそのまま使うと戸が妻壁を突き抜ける。
   const entryLimit = Math.max(0, (w - .3) / 2 - entryW - .2);
-  const doorX = inabaEntry ? Math.max(-entryLimit, Math.min(entryLimit, requestedDoorX)) : requestedDoorX;
+  // 鳥取の曲輪の物置は戸口位置が未指定。偶数の柱間から決めた位置のままでは、
+  // 幅四〜七メートルの物置で板戸が妻壁・隅柱へ入り込む。外の開口と室内へ同じ補正を渡す。
+  const doorX = inabaEntry || tottoriEntry ? Math.max(-entryLimit, Math.min(entryLimit, requestedDoorX)) : requestedDoorX;
   // 稲葉山の用屋は側面の障子を使わず、裏の連子窓を内外で共有する（高さは室内床から）。
   // 高画質では外の連子を一組だけ使い、室内側は壁厚を包む四方の木枠で納める。
   const utilityWindow = o.naka && utilityBoardWalls && o.profile === 'inabayama'
@@ -1183,16 +1190,18 @@ export function goten(rt, x, z, o = {}) {
       latticeStep: .12, latticeOffset: .34, latticeWidth: .045 } : null;
   // 稲葉山の主殿・館・遠侍も、本堂と同じく正面の柱間で明かりを取る。
   // 内外で同じ開口を使い、塞がった妻壁の内側に障子窓を描かない。
-  const paperWalls = o.templePaper || SETTINGS.quality === 'high' && o.profile === 'inabayama'
+  const tottoriPaper = tottoriEntry && ['goten', 'tamari'].includes(o.kind);
+  const paperWalls = o.templePaper || SETTINGS.quality === 'high' && (o.profile === 'inabayama' || tottoriPaper)
     && o.naka && ['goten', 'tamari'].includes(o.kind || 'goten');
-  const paperWindows = o.naka && paperWalls && o.profile === 'inabayama' ? [] : null;
+  // 鳥取の座敷も外壁と室内で同じ明かり障子の開口を使う。窓位置は用途からの推定。
+  const paperWindows = o.naka && paperWalls && (o.profile === 'inabayama' || tottoriPaper) ? [] : null;
   if (paperWindows) for (let i = 0; i < bays; i++) {
     let c0 = -w / 2 + i * w / bays + .12, c1 = c0 + w / bays - .24;
     const cm = (c0 + c1) / 2;
     // 稲葉山の高画質は戸口脇まで窓幅を詰めてから決める。
     // 先に開口幅の倍を除くと、主殿・館の両脇の柱間まで白壁になってしまう。
-    if (!inabaEntry && cm > doorX - gapW && cm < doorX + gapW) continue;
-    if (inabaEntry) {
+    if (!inabaEntry && !tottoriPaper && cm > doorX - gapW && cm < doorX + gapW) continue;
+    if (inabaEntry || tottoriPaper) {
       // 遠侍の中央玄関は柱間をまたぐ。窓の中心だけで避けると、
       // 障子と腰板が戸口へ重なるため、玄関の脇柱の分まで窓幅を詰める。
       if (cm < doorX) c1 = Math.min(c1, doorX - gapW / 2 - .18);
@@ -1202,7 +1211,7 @@ export function goten(rt, x, z, o = {}) {
     paperWindows.push({ bay: i, face: 'z', s: ds, t: (c0 + c1) / 2, w: c1 - c0, y0: .825, y1: 1.975, shoji: true, sliding: SETTINGS.quality === 'high' });
   }
   // 裏の連子窓も外形・内壁・当たりで同じ開口を使う。黒板を貼った飾り窓にしない。
-  const rearWindows = paperWindows && SETTINGS.quality === 'high' && !fieldFort && !utilityBoardWalls ? [] : null;
+  const rearWindows = paperWindows && !tottoriPaper && SETTINGS.quality === 'high' && !fieldFort && !utilityBoardWalls ? [] : null;
   // 主殿・山麓館の床の間と、本堂の須弥壇・来迎壁の背後は壁で納める。
   // 室内と同じ間取りから幅を取り、本尊の背後だけ連子窓から外が見える
   // 食い違いを防ぐ。窓の絵・内外の壁・当たりへ同じ結果を渡す。
@@ -1512,7 +1521,8 @@ export function goten(rt, x, z, o = {}) {
   // 稲葉山の正面壁は妻壁の内面まで通す。幅の六％を引くと、大きな館では
   // 隅柱でも隠れない縦の隙間が残る。妻壁の厚み十四センチだけを控え、
   // 障子・玄関の開口は同じ位置のまま、両端の壁を隅へ納める。
-  wallZ(d / 2 - 0.08, inabaEntry ? w - .14 : w * 0.94, 0.08, wallColor ?? 0xefe9da);
+  // 鳥取の幅九メートルの主殿も、正面壁を妻壁の内面まで通して隅の隙間を閉じる。
+  wallZ(d / 2 - 0.08, inabaEntry || tottoriEntry ? w - .14 : w * 0.94, 0.08, wallColor ?? 0xefe9da);
   const decks = [];
   let IN = null;
   if (o.naka) {
@@ -1529,9 +1539,10 @@ export function goten(rt, x, z, o = {}) {
       // 稲葉山の濡れ縁は外壁から一・二歩まである。内寸との差十五センチを
       // 足した位置から段を下ろし、踏板とささら桁を縁の板へ埋めない。
       // 戸口までの上がり台は縁より十一センチ高く、見える板と歩く床を揃える。
-      // 中江城の館も共通の板戸で閉じる。外壁の口幅と、床から開口上端までの高さに合わせる。
-      // 表戸は長島の二筋の溝を使い、近づいて開ける札から左右へ滑らせる。
-      door: { side: ds, lx: doorX, w: entryW, ...(inabaEntry ? { h: entryH } : nagashimaEntry ? { h: entryTop - .55, sliding: 'itado' } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
+      door: { side: ds, lx: doorX, w: entryW, ...(inabaEntry ? { h: entryH } : nagashimaEntry ? { h: entryTop - .55, sliding: 'itado' } : {}),
+        // 鳥取の表口も共通の引き戸で閉じる。用屋は板戸、座敷は障子、小祠は格子戸。
+        ...(o.profile === 'tottori' ? { h: entryH,
+          sliding: o.kind === 'shrine' ? 'koshi' : ['goten', 'tamari'].includes(o.kind) ? 'shoji' : 'itado' } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
       templePaper: paperWalls,
       interiorUse: o.interiorUse,
       wins: shojiWindows ? () => shojiWindows : sideShojiWindows ? () => sideShojiWindows : utilityWindow ? () => [utilityWindow] : paperWindows ? () => paperWindows.concat(rearWindows || []) : null,
@@ -1544,7 +1555,7 @@ export function goten(rt, x, z, o = {}) {
       decks.push(addDeck({ cx: vx, cz: vz, rot,
         x0: -(w + .6) / 2, x1: (w + .6) / 2, z0: -.6, z1: .6,
         y: y + .44, pad: 0, name: `${name}の縁側` }));
-    } else if (SETTINGS.quality === 'high' && (o.profile === 'iwamura' || o.profile?.startsWith('iwamura_'))) {
+    } else if (boardVeranda) {
       // 主殿の右寄りの戸口も、描いた板縁と同じ範囲だけ歩けるようにする。
       // 中央を決め打ちすると、階段を床で覆い、反対側には見えない穴が残る。
       const outer = w / 2 + .3;
@@ -1568,7 +1579,7 @@ export function goten(rt, x, z, o = {}) {
   }
   if (paperWalls) B.templePaper = [];
   if (o.templeBoardRoof && !tile && SETTINGS.quality === 'high') B.templeBoard = [];
-  gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, o.naka ? { floorLayout: utilityWindows ? IN.levels[0].layout : null, world: rt.world, boardVeranda: SETTINGS.quality === 'high' && (o.profile === 'iwamura' || o.profile?.startsWith('iwamura_')), doorX, gapW, entryTop, recessedFloor: inabaEntry, slidingPaper: paperWindows && SETTINGS.quality === 'high', paperWindows: inabaEntry ? paperWindows : null, rearWindows } : null, tile, o.eave, B.templeBoard ? .1 : o.eaveThickness, fieldFort, o.boardRoof,
+  gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, o.naka ? { floorLayout: utilityWindows ? IN.levels[0].layout : null, world: rt.world, boardVeranda, doorX, gapW, entryTop, recessedFloor: inabaEntry, slidingPaper: paperWindows && SETTINGS.quality === 'high', paperWindows: inabaEntry || tottoriPaper ? paperWindows : null, rearWindows } : null, tile, o.eave, B.templeBoard ? .1 : o.eaveThickness, fieldFort, o.boardRoof,
     SETTINGS.quality === 'high' && (o.profile?.startsWith('iwamura') || o.layeredBoardRoof === true), utilityBoardWalls, fieldBoards, SETTINGS.quality === 'high' && o.odaniBoards === true, utilityWindow, utilityWindows, sideShojiWindows, shojiWindows);
   const mesh = _kitMesh(B);
   if (!fieldFort && !(o.boardRoof && !tile)) {
@@ -1843,7 +1854,7 @@ function gotenDress(B, P, x, y, z, w, d, rot, H, bays, ds, door, tile, eave = 1.
     const [px, pz] = P(cm, fz0);
     _box(B.wood, 0x2e241c, px, y + 0.95, pz, c1 - c0, 0.8, 0.05, rot);
     for (const hy of [0.75, 1.05, 1.3]) _box(B.wood, 0x4a3a2c, px, y + hy, pz + 0, c1 - c0, 0.035, 0.07, rot);
-    if (rearWindows) {
+    if (rearWindows || door?.paperWindows) {
       // 岩村の正面は共通の動く障子だけを描く。外の固定紙・桟で開口を塞がない。
       const lz = side * (d / 2 - .04);
       for (const yy of [1.375, 2.525]) {

@@ -83,7 +83,7 @@ const OWN = {
     // 11/3 p100_inou（kaito AQ1・AR1）：どの目標も「誰を・どこで・どうする」が字と地図と頭上の▼で分かる言い方に。敵を何人討つは練習の一つだけ
     // 11/6 crit_inou（kaito 九2・十二3）：主人公が自分の槍で働いた時だけ済み（立っているだけで味方が果たして印が付いた）。字は b_inou_goals.js
     { kind: 'stage', k: 0, text: IG.GOALS15.march, check: (rt) => !!rt.flags.v15?.marchDone },   // 11/8 十五分の構成（prototype/src/inou/）
-    { kind: 'stage', k: 0, text: IG.GOALS[0], check: (rt) => (rt.flags.pk || 0) >= 3, groups: (rt) => (rt.flags.practice ? [rt.flags.practice] : []) },
+    { kind: 'stage', k: 0, text: IG.GOALS[0], count: (rt) => [Math.min(3, rt.flags.pk || 0), 3], check: (rt) => (rt.flags.pk || 0) >= 3, groups: (rt) => (rt.flags.practice ? [rt.flags.practice] : []) },
     { kind: 'stage', k: 0, text: IG.GOALS15.van, check: (rt) => !!rt.flags.v15?.vanDone },
     { kind: 'stage', k: 1, text: IG.GOALS15.flank, check: (rt) => !!rt.flags.v15?.flankDone },
     { kind: 'stage', k: 1, text: IG.GOALS[1], check: (rt) => !!rt.flags.line1Broken && IG.inouDid(rt, 1, 1), groups: (rt) => rt.flags.l1, total: (rt) => rt.flags.l1N },
@@ -251,12 +251,17 @@ const OWN = {
       const zone = rt.flags.SZ?.byId[id];
       return !!zone && zone.owner === 'friend' && zone.enemies === 0;
     });
-    const court = (id) => (rt) => rt.flags.SZ?.byId[id]?.pos;
+    // 奥の本郭へ飛ばさず、手前から未制圧の郭と残る守兵を案内する。
+    const court = (...ids) => (rt) => {
+      const zones = rt.flags.SZ?.byId;
+      const id = ids.find(id => zones?.[id]?.owner !== 'friend' || zones[id].enemies > 0) || ids[ids.length - 1];
+      return zones?.[id]?.pos;
+    };
     return [
       { kind: 'stage', k: 0, text: '観音丸の木戸を抜け、郭の守兵を討つ', noun: '観音丸', check: held('kannon'), place: court('kannon') },
-      { kind: 'stage', k: 1, text: '本道を登り、木ノ芽峠城の主郭を押さえる', noun: '木ノ芽峠城', check: held('kinome_sou', 'kinome_fuku', 'kinome_hon'), place: court('kinome_hon') },
-      { kind: 'stage', k: 2, text: '東の別手と西光寺丸城を押さえる', noun: '西光寺丸城', check: held('saikoji_mae', 'saikoji_hon'), place: court('saikoji_hon') },
-      { kind: 'stage', k: 3, text: '西の別手と鉢伏城を押さえる', noun: '鉢伏城', check: held('hachibuse_mae', 'hachibuse_hon'), place: court('hachibuse_hon') },
+      { kind: 'stage', k: 1, text: '本道を登り、木ノ芽峠城の主郭を押さえる', noun: '木ノ芽峠城', check: held('kinome_sou', 'kinome_fuku', 'kinome_hon'), place: court('kinome_sou', 'kinome_fuku', 'kinome_hon') },
+      { kind: 'stage', k: 2, text: '東の別手と西光寺丸城を押さえる', noun: '西光寺丸城', check: held('saikoji_mae', 'saikoji_hon'), place: court('saikoji_mae', 'saikoji_hon') },
+      { kind: 'stage', k: 3, text: '西の別手と鉢伏城を押さえる', noun: '鉢伏城', check: held('hachibuse_mae', 'hachibuse_hon'), place: court('hachibuse_mae', 'hachibuse_hon') },
       { kind: 'stage', k: 4, text: '四城を押さえ、峠道の西光寺真敬を討つ', noun: '西光寺真敬の殿', check: won, place: (rt) => rt.flags.echTail?.center() },
     ];
   },

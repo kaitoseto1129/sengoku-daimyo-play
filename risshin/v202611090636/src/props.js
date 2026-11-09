@@ -1681,6 +1681,18 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       const lx = -w / 2 + w * i / nx, lz = -d / 2 + d * j / nz;
       y = Math.max(y, world.heightAt(x + lx * c + lz * s, z - lx * s + lz * c));
     }
+    if (o.interior?.profile === 'iga') {
+      // 伊賀の戸口は外壁の外にも踏み板がある。開いた板戸の端と
+      // 戸当たりまで地面を測り、敷居や引きしろを斜面へ埋めない。
+      // 室内・外壁・踏み段は、この基準高を共用する。設営時だけ調べる。
+      const halfWidth = 1.25 + .04 + .03 + .03;
+      const cols = Math.ceil(halfWidth * 2 / .25);
+      for (let iz = 0; iz <= 3; iz++) for (let ix = 0; ix <= cols; ix++) {
+        const lx = -halfWidth + halfWidth * 2 * ix / cols;
+        const lz = (d - .18) / 2 + iz * (entryPad + .1) / 3;
+        y = Math.max(y, world.heightAt(x + lx * c + lz * s, z - lx * s + lz * c));
+      }
+    }
   }
   if (o.solid !== false && !o.interior) {
     const s = solidRect(x, z, w + 0.18, d + 0.18, rot);
@@ -1721,7 +1733,9 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   const DOOR = 1.25;   // 戸口の幅（+z の面の真ん中）
   // 姉川は徒歩の体の高さ（一・七メートル）に余裕を取る。
   // 外壁・鴨居・動く戸で床上の内法を共有し、開けたのに頭がつかえる戸口を作らない。
-  const doorHeight = o.interior?.profile === 'anegawa' ? 1.85 : 1.65;
+  const tottoriLodging = SETTINGS.quality === 'high'
+    && o.interior?.profile === 'tottori' && o.interior.kind === 'nagaya';
+  const doorHeight = o.interior?.profile === 'anegawa' || tottoriLodging ? 1.85 : 1.65;
   const doorTop = .25 + doorHeight;
   // 姉川の民家の格子窓は暗い板を貼るだけにせず、外壁と内壁に同じ穴を開ける。
   // 窓の位置は設営時に一度作り、室内の採光と当たりにも渡す。
@@ -1754,8 +1768,8 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   // 入れる民家の床・板戸・鴨居は同じ高さを使う。外だけ固定値にすると戸の上端とずれる。
   // 徒歩の通行判定は体高一・七メートル。開いた板戸でも鴨居に当たらない高さを残す。
   // 設楽原の高画質だけ六尺ほどにし、外の鴨居・動く戸・壁の当たりで共有する。
-  const interiorDoorH = o.interior?.profile === 'iga' ? 1.85 : villageInterior ? 1.8 : 1.65, interiorFloorY = .25;
-  const lintelY = (villageInterior || o.interior?.profile === 'iga') ? interiorFloorY + interiorDoorH + .06 : 1.95;
+  const interiorDoorH = o.interior?.profile === 'iga' || tottoriLodging ? 1.85 : villageInterior ? 1.8 : 1.65, interiorFloorY = .25;
+  const lintelY = (villageInterior || o.interior?.profile === 'iga' || tottoriLodging) ? interiorFloorY + interiorDoorH + .06 : 1.95;
   // 集落の民家にも採光口を設ける。戸口を避けた両端の柱間に納め、内外で同じ寸法を使う。
   const windowBay = w / Math.max(1, Math.round(w / 1.8));
   // 隅柱は内寸から十六センチ内側にも立つ。柱の内面（三十三センチ）に
@@ -1779,8 +1793,12 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   // 伊賀の背面に明かり取り。柱一間の中央に置き、外壁と室内で同じ穴を使う。
   // 個別の窓位置は不明のため推定。貫より上に小さな格子窓を納める。
   const igaBay = Math.max(1, Math.round(w / 1.8));
+  // 館の右奥には床の間がある。右寄りの窓では、開けた雨戸と
+  // 内障子が床の間の脇壁へ入り込むため、左隣の柱間へ納める。
+  // 外壁の穴と室内の窓は、この同じ位置から作る。
+  const igaWindowBay = Math.floor((igaBay - (igaPlaster ? 1 : 0)) / 2);
   const igaWindow = o.interior?.profile === 'iga' ? {
-    face: 'z', s: -1, t: -w / 2 + (Math.floor(igaBay / 2) + .5) * w / igaBay,
+    face: 'z', s: -1, t: -w / 2 + (igaWindowBay + .5) * w / igaBay,
     w: .7, y0: 1.4, y1: 2,
   } : null;
   const box = (hex, px, py, pz, bw, bh, bd, ry = 0, earth = false) => {
@@ -1922,7 +1940,13 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       // 設楽原の民家の隅柱は、次の壁の始点で一本だけ立てる。
       // 同じ隅に色の違う柱・束・礎石を重ねず、四方の壁と桁を一本で受ける。
       // 始点は必ず残すので、戸口脇や一間ごとの柱は欠かさない。
-      if (villageInterior && u === len) continue;
+      // 高画質の伊賀も隅柱は次の壁の始点で一本だけ立てる。
+      // 壁ごとに色を変えた柱を重ねると木肌がちらつき、床下の束と根石も二重になる。
+      if ((villageInterior || SETTINGS.quality === 'high' && igaEntry) && u === len) {
+        // 柱は隣の壁と共用しても、この壁の足固めは隅まで渡す。
+        if (igaUnderposts) igaUnderposts.push(u);
+        continue;
+      }
       if (front && u > (len - DOOR) / 2 && u < (len + DOOR) / 2) continue;
       if (windowCuts.some(v => u > v.t0 - .07 && u < v.t1 + .07)) continue;
       if (backWindow && Math.abs(u - windowU) < backWindow.w / 2 + .06) continue;
@@ -2019,7 +2043,9 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       }
       // 入れる姉川の家は、開口ごとの四方枠・連子・横貫を室内側で一組作る。
       // 古い中央固定の飾りを残すと格子が二重になり、宿小屋の裏の土壁にも窓が付いてしまう。
-      if (!front && !anegawaWindows && !nodaHome) {
+      // 伊賀は背面の開口・格子・動く板戸を共通の窓定義から作る。
+      // 中央固定の飾り窓を重ねると、壁に塞がれた偽の窓になってしまう。
+      if (!front && !anegawaWindows && !nodaHome && !igaEntry) {
         box(0x453d30, ax + tx * len / 2, 1.5, az + tz * len / 2, 0.85, 0.65, 0.1, ry);
         for (const offset of [-0.3, 0, 0.3]) box(0xaa9575, ax + tx * (len / 2 + offset), 1.5, az + tz * (len / 2 + offset), 0.06, 0.7, 0.13, ry);
       }
@@ -2059,7 +2085,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
       // 伊賀の入れる小屋・館は戸口を貫で横切らない。引き戸の前を空け、左右の柱へ納める。
       const nukiSpans = nodaHome && backWindow
         ? [[0, windowU - backWindow.w / 2], [windowU + backWindow.w / 2, len]]
-        : front && (o.interior?.profile === 'iga' || nodaHome)
+        : front && (o.interior?.profile === 'iga' || nodaHome || tottoriLodging)
         ? [[0, (len - DOOR) / 2], [(len + DOOR) / 2, len]] : [[0, len]];
       for (const [a, b] of nukiSpans) {
         const u = (a + b) / 2;
@@ -2115,7 +2141,7 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   // 戸口を壁の上まで抜いたままにせず、鴨居の上から軒桁の下まで小壁でつなぐ。
   // 内側だけ壁があると、外からは鴨居の上に深い穴が残ってしまう。
   const entryWallBottom = entryHeaderY + .06;
-  if ((igaEntry || villageInterior) && H - .1 > entryWallBottom)
+  if ((igaEntry || villageInterior || tottoriLodging) && H - .1 > entryWallBottom)
     box(wallHex, 0, (entryWallBottom + H - .1) / 2, d / 2, DOOR + .01, H - .1 - entryWallBottom, .06, 0, igaPlaster);
   if (nodaHome) {
     // 室内の戸の上端（床高 .25 ＋ 戸高 1.65）に合わせた鴨居の上を小壁で納める。
@@ -4895,7 +4921,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   if (!o.interior) solidRect(x, z, w + 3.4, d + 3.4, rot).civilianSite = 'temple';
   const y0 = 0.7, H = o.h || 3.6;
   let ground = world.heightAt(x, z), lowest = ground;
-  if (o.interior?.profile === 'anegawa') {
+  if (['anegawa', 'tottori'].includes(o.interior?.profile)) {
     // 基壇の九点だけでは、点の間の起伏が床や縁側へ食い込む。
     // 高画質では館と同じ一メートル以下の間隔で基壇全体を測る。
     // 設営時だけ測り、低い側の基壇・石段・室内・柱の当たりへ同じ高さを渡す。
@@ -4912,7 +4938,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   }
   // 姉川の小堂の採光は用途からの推定。須弥壇の背面を避け、外陣の両側に連子窓を置く。
   // 窓の高さは室内の床から測り、外壁の開口・内壁・当たりで同じ寸法を使う。
-  const hallWindows = SETTINGS.quality === 'high' && o.interior?.profile === 'anegawa'
+  const hallWindows = SETTINGS.quality === 'high' && ['anegawa', 'tottori'].includes(o.interior?.profile)
     ? [-1, 1].map(s => ({ face: 'x', s, t: (d - .18) * .17,
       w: Math.min(.9, (d - .18) * .24), y0: .85, y1: Math.min(1.65, H - .3) })) : [];
   // 基壇（まわりの地面の低い所に合わせて深めに）
@@ -4921,7 +4947,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   // 縁側と、正面の階
   const en = new THREE.BoxGeometry(w + 2.4, 0.12, d + 2.4); en.translate(0, y0 + 0.3, 0); parts.push(paint(en, 0x5a4230));
   const nx = Math.max(2, Math.round(w / 2.4)), nz = Math.max(2, Math.round(d / 2.4));
-  if (o.interior?.profile === 'anegawa' && SETTINGS.quality === 'high') {
+  if (['anegawa', 'tottori'].includes(o.interior?.profile) && SETTINGS.quality === 'high') {
     // 四辺の縁板は線だけでなく、木目のある板で張る推定復元。
     // 前後は横、脇は縦。四隅は前後の板を通し、身舎の床と戸口へは重ねない。
     // 既存の板面の高さと下地を使い、薄い表板だけ窓の木材へ一束にまとめる。
@@ -4954,7 +4980,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
     }
     joint.dispose();
   }
-  if (o.interior?.profile === 'anegawa') {
+  if (['anegawa', 'tottori'].includes(o.interior?.profile)) {
     // 小堂の石段は室内の登り坂と同じ両端を使い、縁板の上面までつなぐ。
     const near = (d - .18) / 2 + 1.3, far = near + 1.8;
     const low = world.heightAt(x + far * Math.sin(rot), z + far * Math.cos(rot)) - ground;
@@ -4982,7 +5008,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
         // 姉川の小堂は、室内の板壁上端（二・〇四メートル）と同じ高さで
         // 外壁も板と白い小壁に分ける。窓や戸口ごとの面の切れ目では色を決めない。
         // 外壁の原点は床より六センチ低いため、ここでは二・一メートルで切る。
-        const panels = o.interior.profile === 'anegawa'
+        const panels = ['anegawa', 'tottori'].includes(o.interior.profile)
           ? [[low, Math.min(high, 2.1), o.wall || 0x5a3e2a],
             [Math.max(low, 2.1), high, 0xcdc4b0]]
           : [[low, high, low >= 2.1 ? 0xcdc4b0 : o.wall || 0x5a3e2a]];
@@ -5016,7 +5042,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
       for (const py of [bottom - .04, top + .04]) frame(px, py, v.t, .22, .08, v.w + .16);
       for (const side of [-1, 1]) frame(px, (bottom + top) / 2,
         v.t + side * (v.w / 2 + .04), .22, top - bottom, .08);
-      if (o.interior.profile === 'anegawa' && SETTINGS.quality === 'high') {
+      if (['anegawa', 'tottori'].includes(o.interior.profile) && SETTINGS.quality === 'high') {
         // 框へ縦連子を差し、横貫で受ける推定復元。壁厚を通して組み、
         // 内側へ別の格子を重ねない。共通の寸法を当たりにも渡す。
         for (const [t, yy, ww, hh, depth] of windowLatticeMembers(v.w, top - bottom))
@@ -5036,7 +5062,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   // 縁の柱
   // 小堂の柱は縁板の途中で止めず、基壇上の礎石で受ける推定復元。
   // 柱頭の高さは保ち、床下へ柱脚を延ばす。形は全柱で共有して外装へ結合する。
-  const stoneFeet = o.interior?.profile === 'anegawa' && SETTINGS.quality === 'high';
+  const stoneFeet = ['anegawa', 'tottori'].includes(o.interior?.profile) && SETTINGS.quality === 'high';
   const pillarBottom = y0 + (stoneFeet ? .12 : .3), pillarTop = y0 + .3 + H + .4;
   // 小堂の縁柱も内陣と同じ丸み・実寸の縦木目にする。
   // 礎石と頭貫に隠れる端面を省き、十六分割でも元の八角柱と三角形数をそろえる。
@@ -5064,7 +5090,7 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   for (let i = 1; i < nz; i++) for (const sx of [-1, 1])
     porchPillar(sx * (w / 2 + .5), -d / 2 - .5 + i * (d + 1) / nz, i + 5);
   pillarShape.dispose(); footShape?.dispose();
-  if (o.interior?.profile === 'anegawa') {
+  if (['anegawa', 'tottori'].includes(o.interior?.profile)) {
     // 小堂の縁柱を長押と頭貫でつなぐ推定復元。戸口より上へ納め、正面の出入りを空ける。
     // 一本の箱を使い回して既存の外装へまとめ、描く束や毎コマの処理を増やさない。
     const timber = new THREE.BoxGeometry(1, 1, 1);
@@ -5177,9 +5203,9 @@ export function dou(world, x, z, w = 10, d = 7, rot = 0, o = {}) {
   if (o.interior) {
     const I = addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
       levels: [{ y: grp.position.y + y0 + .36, w: w - .18, d: d - .18, h: H - .06 }],
-      door: { w: 2.2, h: 2.04 }, approach: { pad: 1.3, len: 1.8 }, wins: () => hallWindows });
+      door: { w: 2.2, h: 2.04, ...(o.interior.profile === 'tottori' ? { sliding: 'koshi' } : {}) }, approach: { pad: 1.3, len: 1.8 }, wins: () => hallWindows });
     grp.userData.naka = I;
-    if (o.interior.profile === 'anegawa') {
+    if (['anegawa', 'tottori'].includes(o.interior.profile)) {
       // 縁板の上面と足場を一致させる。堂の周囲を歩いても板をすり抜けない。
       // 身舎の中は既存の床に任せ、四辺の縁側だけを登録する。
       const hw = w / 2, hd = d / 2, c = Math.cos(rot), s = Math.sin(rot);

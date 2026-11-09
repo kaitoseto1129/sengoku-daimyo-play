@@ -154,9 +154,9 @@ function riceField(rt) {
   rt.scene.add(im);
 }
 // 稲架（はさ）：杭を組み、横木に刈った稲束を掛けて干す。束は横木の両側へ厚く垂れて、遠くからは藁の壁に見える（critic60：尖った束が馬防柵に見えた）
-function hasaK(rt, x, z, rot = 0, len = 9) {
+function hasaK(rt, x, z, rot = 0, len = 9, solid = true) {
   const W = rt.world, wood = [], straw = [[], [], []];
-  solidRect(x, z, len + 0.4, 0.8, rot);
+  if (solid) solidRect(x, z, len + 0.4, 0.8, rot);
   const n = Math.max(2, Math.round(len / 2.3));
   for (let i = 0; i <= n; i++) {
     const lx = (i / n - 0.5) * len;
@@ -325,7 +325,8 @@ const k05_ueda = {
     for (const [x, z, w, d, r] of [[TOWN.x - 4, TOWN.z + 14, 9, 6, 0.2], [TOWN.x + 10, TOWN.z + 12, 8, 5, 0], [FRONT.x + 6, FRONT.z + 12, 8, 5, -0.05]]) S.add(camBlock(hut(W, x, z, w, d, r, { minka: false })));
     S.add(tawara(W, TOWN.x + 20, TOWN.z, 0.3, 4));
     // ---- 北の田：北の半分は稲が立ち、南の半分は刈った後で稲架に稲束を掛ける ----
-    try { riceField(rt); for (const [x, z, r] of [[57, -69, 0.05], [84, -64, -0.04], [81, -55, 0.02]]) hasaK(rt, x, z, r); } catch (e) { console.warn(e); }
+    // 小路の入口の脇の稲架（81,-55）は当たりを付けない（11/9 二巡：稲架と町屋の間の袋で十五分抜けられなかった）
+    try { riceField(rt); for (const [x, z, r, sd] of [[57, -69, 0.05, true], [84, -64, -0.04, true], [81, -55, 0.02, false]]) hasaK(rt, x, z, r, 9, sd); } catch (e) { console.warn(e); }
     // ---- 秀忠の本陣（神川の東・染屋台）：幕と葵の旗・篝火 ----
     S.add(jinmaku(W, HONJIN.x + 6, HONJIN.z, 18, 12, 6, { mon: 'tokugawa' }));
     for (const dz of [-10, -5, 0, 5, 10]) S.add(nobori(W, HONJIN.x - 6, HONJIN.z + dz, 'tokugawa', 6));
@@ -678,10 +679,16 @@ const k05_ueda = {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
     // ⑥⑦は神川の岸を守る：城の方へ追って門の上の鉄砲に撃たれに行かない（11/8 流しで門の前まで追い、討たれた）
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && o.pos.x > (F.step >= 6 ? 72 : GATE.x + 5);
+    // 寄れない敵（稲架・町屋・味方の列の向こう）を八秒追って近づけない時は、その敵を二十秒は相手にしない（11/9 二巡：段4で十五分立ち往生）
+    const IG = F._ign || (F._ign = new Map());
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && o.pos.x > (F.step >= 6 ? 72 : GATE.x + 5) && !((IG.get(o) || 0) > b.t);
     const e = F.step === 2 || F.step === LAST ? null : b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      const C = F._chase;
+      if (!C || C.e !== e) F._chase = { e, t: b.t, d };
+      else if (d < C.d - 0.8) { C.d = d; C.t = b.t; }
+      else if (d > 2.6 && b.t - C.t > 8) { IG.set(e, b.t + 20); F._chase = null; }
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (d > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2.2); else inp.k.delete('KeyW');
