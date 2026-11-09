@@ -486,7 +486,8 @@ const k06_sekigahara = {
     rt.obj('main', G[6], 'main');
     room(rt, 40);
     // 左近は柵の前へ打って出て、黒田・細川を幾度も押し返した（史実）。減ると柵の口から陣の内へ退く
-    F.sakon = foe(rt, '島左近の隊', { x: FENCE_X + 14, z: -170 }, [{ type: 'busho', n: 1, o: { name: '島左近', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '蒲生郷舎', horse: true } }, { type: 'samurai', n: 6 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 14 }], ISHIDA, { morale: 95, aggro: 30, seekRange: 40, order: 'attack', formation: 'yari', noRout: true });
+    // 左近の手傷と帰陣はこの戦で扱う。共通の討取り・戦場外への退場では虎口の目標が途中で済み、本人の帰陣も待てなくなる。
+    F.sakon = foe(rt, '島左近の隊', { x: FENCE_X + 14, z: -170 }, [{ type: 'busho', n: 1, o: { name: '島左近', invuln: true, mustLive: true, onWound: () => {}, horse: true } }, { type: 'busho', n: 1, o: { name: '蒲生郷舎', horse: true } }, { type: 'samurai', n: 6 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 14 }], ISHIDA, { morale: 95, aggro: 30, seekRange: 40, order: 'attack', formation: 'yari', noRout: true });
     F.sakN = F.sakon.count;
     goAttack(F.kuroda, { x: FENCE_X + 6, z: -186 });
     goAttack(F.hoso, { x: FENCE_X + 8, z: -150 });
