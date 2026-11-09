@@ -190,7 +190,12 @@ function flags(rt) {
   for (const [x, z] of [[HONJIN.x + 6, HONJIN.z - 8], [HONJIN.x + 6, HONJIN.z + 8], [START.x - 2, START.z - 7], [START.x - 2, START.z + 7]]) S.add(nobori(W, x, z, 'ageha', 6));
   for (const [x, z] of [[HONJIN.x + 4, HONJIN.z - 4], [HONJIN.x + 4, HONJIN.z + 5]]) S.add(kagaribi(W, x, z));
   // 城方の織田木瓜の旗（曲輪ごと）
-  for (const [x, z] of [[-170, -6], [-139, -10], [-138, 9], [-96, -14], [-64, 5], [-36, -6], [-3, 8], [8, 8]]) S.add(nobori(W, x, z, 'oda', 5));
+  for (const [x, z] of [[-170, -6], [-139, -10], [-138, 9], [-96, -14], [-64, 5], [-36, -6], [-3, 8], [8, 8]]) {
+    const m = nobori(W, x, z, 'oda', 5);
+    S.add(m);
+    // 開城で下ろす旗には、後から足した旗だけでなく元の本丸の旗も含める。
+    if (x >= -12) rt.flags.k03k?.flags.push({ m, y0: m.position.y });
+  }
   for (const [x, z] of [[OTE.x + 6, OTE.z - 6], [NI.x + 6, NI.z - 6], [HON.x - 6, HON.z + 4]]) S.add(kagaribi(W, x, z));
 }
 
@@ -557,6 +562,13 @@ const k03_gifu = {
     rt.tracker.main = true;
     rt.player.u.invuln = true;
     for (const g of F.foes) if (g !== F.hide) this.fall(rt, g);
+    // 降伏を見届ける寄せ手は追撃を止める。進軍先と到着後の攻撃命令も残さない。
+    for (const g of [F.naga, F.asano, F.mine, F.fuku]) if (live(g)) {
+      g._gfTo = null; g._gfGo = false; g.onArrive = null;
+      g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false;
+      g.noAI = true; g.peaceful = true; g.keepMoveOrder = true;
+      for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+    }
     // 無敵だけでは双方が斬り合い続け、門前へ歩み出られない。降る者は狙いから外し、振りかけの刀も止める。
     if (F.hide) for (const u of F.hide.units) { u.invuln = true; u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
     if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; F.hide.fire = false; F.hide.peaceful = true; F.hide.keepMoveOrder = true; F.hide.arriveNoncombat = true; }

@@ -491,7 +491,7 @@ html:root body #hud#hud.battle-order #h-prog#h-prog > :not(.pg-st),
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-stage { display:none !important; }
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st { display:flex !important; flex-direction:row !important; align-items:center !important; gap:6px; }
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > b { display:block !important; flex:none; width:22px; height:26px; }
-html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > span { display:block !important; color:#fff3df; font-size:max(22px,calc(22px * var(--text-scale,1))) !important; line-height:1.4; white-space:normal !important; }
+html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > span { display:block !important; color:#fff3df; font-size:max(16px,calc(16px * var(--text-scale,1))) !important; line-height:1.4; white-space:normal !important; }
 html:root body #hud#hud.battle-order :is(#battle-notices:not(.choosing),#subtitle,#banner,#jk-rest,#tugbar) { display:none !important; }
 /* 今の目標・兵数を一枚へ。体力と行き先の目印を合わせて三枚に収める。 */
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
@@ -575,7 +575,7 @@ html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li {
  font-size:max(15px,calc(15px * var(--text-scale,1))) !important; line-height:1.35 !important;
 }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li.now {
- font-size:max(22px,calc(22px * var(--text-scale,1))) !important;
+ font-size:max(17px,calc(17px * var(--text-scale,1))) !important;
  line-height:1.35 !important; margin:0 -4px !important; padding:2px 4px !important;
 }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }

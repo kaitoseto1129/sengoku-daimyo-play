@@ -517,8 +517,9 @@ export class Hud {
       hpEl.appendChild(this.hpRemaining);
     }
     // 名前と数字を残し、色や棒だけに頼らず残量を伝える。
-    setText(this.hpRemaining, `体力 ${hpShown}`);
-    setHidden(this.hpRemaining, false);
+    // 字は出さず、命の棒だけで残りを示す（読み上げ用の名だけ残す）。
+    setText(this.hpRemaining, '');
+    setHidden(this.hpRemaining, true);
     setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
     setAttr(hpTrack, 'role', 'progressbar');
@@ -552,13 +553,12 @@ export class Hud {
     const slowWound = u.woundSlow > woundEffectMin;
     const wound = woundText(u).replace('胴', '体').replace('腿', 'もも').replace('の骨の傷', 'の骨に けが').replace('に傷', 'に けが');
     const wounded = fallen || bloodLoss || deep || slowWound || u.armWound > woundEffectMin || !!wound;
-    // 体力と気力を同じ札にまとめ、棒にも数を添える。
-    const energy = Math.round(Math.max(0, Math.min(100, p.sta / p.maxSta * 100)));
-    setText(emEl, `${energy >= 75 ? '元気' : '気力'} ${energy}`);
+    // 命の状態は棒と縁で示し、傷や危険の文字は出さない。
+    setHtml(emEl, '');
     setClass(hpEl, 'healthy', hpPct >= 100 && !wounded);
     setClass(hpEl, 'blood-loss', bloodLoss);
     // 危険は同じ体力の札へ常時添える。繰り返す一時の知らせは作らない。
-    setHidden(emEl, false);
+    setHidden(emEl, true);
     // 深手（三割を切る）は棒の色と画面の縁で示す。
     setClass(hpEl, 'deep', deep);
     setClass(hpEl, 'bleeding', u.alive && !rt.over && u.hp < 40 && u.wounds?.bleed > 0.0001 && !S.reduceMotion);

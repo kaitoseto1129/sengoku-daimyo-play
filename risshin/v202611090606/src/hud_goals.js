@@ -83,7 +83,7 @@ html:root body #hud #h-prog .pg-goals #armybar {
 `;
 
 // 先手・一の手・寄せ手は戦の言葉のまま（kaito も「先手 18／30」と使う。「林勢の先手」が「林勢の敵」になっていた）
-const goalWords = (s) => s.includes('たおせ') ? screenWords(s).replace(/倒せ/g, 'たおせ') : screenWords(s);
+const goalWords = (s) => screenWords(s);
 
 // 語の切れ目（で・を・へ・に・と・の・から・まで の後）にだけ折れ目を置く。残りが三字より短い所では折らない
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -91,19 +91,17 @@ const phraseBreaks = (s) => esc(s).replace(/(から|まで|[でをへにとの�
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 let styled = false;
 // 一件の表示と一覧の開閉を共有する。達成・時間切れの判定は元の目標表のまま。
-// 済んだ目標の数と棒を同じ札に示す。経過時間を達成と混ぜない。
+// 戦の進み具合の棒（kaito 11/8・全戦）：時の進み（戦の見込みの長さに対して）と済んだ目標の割合の、多い方。親に一本だけ置く
 export function battleProgress(parent, rt, done, total) {
   let pg = parent._pg;
   if (!pg || pg.parentNode !== parent) {
-    pg = parent._pg = document.createElement('div'); pg.className = 'battle-progress'; pg.setAttribute('role', 'status');
-    pg.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:6px;color:#fff3df;font:700 16px/1.4 sans-serif';
-    const label = document.createElement('span'); pg.appendChild(label); pg._label = label;
-    const f = document.createElement('i'); f.style.cssText = 'display:block;height:100%;width:0;background:#e0b84c;border-radius:2px'; const track = document.createElement('span'); track.style.cssText = 'width:64px;height:5px;background:#514a40'; track.appendChild(f); pg.appendChild(track); pg._f = f;
+    pg = parent._pg = document.createElement('div'); pg.className = 'battle-progress'; pg.setAttribute('aria-hidden', 'true');
+    pg.style.cssText = 'height:4px;margin:6px 0 2px auto;width:min(120px,40%);background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden';
+    const f = document.createElement('i'); f.style.cssText = 'display:block;height:100%;width:0;background:#e0b84c;border-radius:2px'; pg.appendChild(f); pg._f = f;
     parent.appendChild(pg);
   }
-  const label = `達成 ${done}／${total}`;
-  if (pg._label.textContent !== label) pg._label.textContent = label;
-  const w = Math.round(total ? done / total * 100 : 0);
+  const exp = (rt.def.expectMin || (/k15|tennoji/.test(rt.def.id || rt.def.battleKey || '') ? 25 : 6)) * 60;
+  const w = Math.round((rt.over ? 1 : Math.min(0.97, Math.max(rt.t / exp, total ? done / total : 0))) * 100);
   if (pg._w !== w) { pg._w = w; pg._f.style.width = w + '%'; }
 }
 export function goalsTick(el, rt, stg, always) {
@@ -160,7 +158,7 @@ export function goalsTick(el, rt, stg, always) {
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
     li.lastChild.innerHTML = phraseBreaks(goalWords(rt.def.teach ? g.text : periodWords(g.text)));
     if (g.count && !g.done) {   // 敵の隊は赤い字・倒した数が一人ごとに上がる（kaito 11/3 AV16）
-      const em = document.createElement('em'); em.textContent = `（あと${Math.max(0, g.count[1] - g.count[0])}人）`;   /* 何を数えるか分かる字に（critic60 小田原 20） */ em.style.cssText = 'color:#ff6a58;font-weight:800';
+      const em = document.createElement('em'); em.textContent = `（討った ${g.count[0]}／${g.count[1]}）`;   /* 何を数えるか分かる字に（critic60 小田原 20） */ em.style.cssText = 'color:#ff6a58;font-weight:800';
       // 数は目標の字の後ろへ続けて置く（横の別の列に置くと、844×390 で目標の字が四行に押し込まれ「討／つ」と語の途中で折れた・11/8 天王寺の通し）
       const sp = li.lastChild; sp.style.color = '#ff8a78'; sp.appendChild(em);
     }

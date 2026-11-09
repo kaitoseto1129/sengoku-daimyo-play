@@ -25,7 +25,6 @@ const CSS = `
 /* 命・今の手順と兵数・目標の矢印の三枚。名前の札は矢印へまとめる。 */
 #hud.action-guide:not(.photo):not(.ending) #h-prog.goal-mode:not([hidden]) { display:block !important; }
 #hud.field-clean .field-names { display:none !important; }
-#hud:has(#goal-sign:not([hidden])) #armybar:not(#h-prog #armybar) { display:none !important; }
 #goal-sign .gs-tag span:empty { display:none; }
 #goal-sign .gs-tag i { width:30px; height:36px; background:#fff3ba; clip-path:polygon(32% 0,68% 0,68% 52%,100% 52%,50% 100%,0 52%,32% 52%); transform-origin:center; filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
 #goal-sign .gs-sword { position:static; width:30px; height:38px; flex:none; }
@@ -65,7 +64,6 @@ function placeName(rt, t) {
 
 export function goalSignTick(rt, root) {
   const hud = rt?.hud;
-  if (hud) hud.goalSignVisible = false;
   if (!root || !rt?.player?.u || !rt.camera || rt.def?.town || rt.def?.dojo) {
     if (hud) hud.actionGuideUnit = null;
     root?.classList.remove('action-guide', 'enemy-action-guide');
@@ -127,10 +125,10 @@ export function goalSignTick(rt, root) {
   let path = '';
   // 頭上の▼と呼び名
   const u = t.unit;
-  const enemy = !!u && u.team !== me.team || !!t.enemy;
+  const enemy = !!u && u.team !== me.team;
   if (el._enemy !== enemy) {
     el._enemy = enemy;
-    el._sword.style.display = enemy ? 'block' : 'none'; el._tw = 0;
+    el._sword.style.display = 'none'; el._tw = 0;
   }
   const gy = u ? u.pos.y : t.y ?? groundAt(rt.world, t.x, t.z, p.y);
   const groundPin = rt.def.goalSignGroundPin && !unit;
@@ -140,7 +138,7 @@ export function goalSignTick(rt, root) {
   const seen = proj(rt, t.x, top, t.z);
   if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
   // 前にあって画面の上へはみ出す行き先（高い本丸など）は、上向きの矢印にせず、上の縁の▼のまま示す（五3「矢印は使わない」。11/5 伏見）
-  else if (!rt.def.goalSignNoEdge && !(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; edge = true; ang = 0; }
+  else if (!rt.def.goalSignNoEdge && !(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; }
   else {
     if (rt.def.goalSignNoEdge) return hide();
     // 画面の外：自分から見た相手の向きを、画面の縁へ写す
@@ -148,7 +146,8 @@ export function goalSignTick(rt, root) {
     const yaw = Math.atan2(camDir.x, camDir.z);
     const right = -Math.cos(yaw) * dx + Math.sin(yaw) * dz, fwd = Math.sin(yaw) * dx + Math.cos(yaw) * dz;
     ang = Math.atan2(right, fwd);   // 0 が前（画面の上）
-    // 後ろの目標も、画面の縁の矢印で向きを伝える。
+    // 11/8 critic60（五3・山崎）：後ろの行き先を画面の下の縁や横の縁に張り付けない。後ろにある間は印を出さず、向き直れば頭上の▼に戻る
+    if (fwd < 0) return hide();
     const ex = Math.sin(ang), ey = -Math.cos(ang);
     const kx = ex ? ((ex > 0 ? W - m : m) - W / 2) / ex : Infinity, ky = ey ? ((ey > 0 ? H - 90 : 70) - H / 2) / ey : Infinity;
     const k = Math.min(Math.abs(kx), Math.abs(ky));
@@ -163,11 +162,11 @@ export function goalSignTick(rt, root) {
   // 11/8 critic60（十三1・九1）：名の無い相手に「狙う敵」と書かない。字は名と「80m」だけ
   const label = u ? u.name || '' : placeName(rt, t) || '';
   // 名前・距離を一つにまとめ、画面の内外で同じ相手を案内する。
-  const metres = `${Math.round(d / 5) * 5}メートル`;
+  const metres = `${Math.round(d / 5) * 5}m`;
   // 味方の将へ向ける時は名だけ（距離の「m」は行き先の場所だけに付け、形で分ける。11/8 critic60 五3）
   const ally = !!u && !enemy;
   const shown = d >= 10 && !ally ? (label ? `${label} ${metres}` : metres) : label;
-  const frame = enemy && u && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
+  const frame = enemy && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
   // 名のある敵将を枠で囲わない（名は頭上の名札で出す。探して倒すのが良い。十八の3・BZ）。枠は印の高さ合わせにだけ使う
   el._frame.hidden = true;
   if (frame) {
@@ -178,11 +177,11 @@ export function goalSignTick(rt, root) {
     x = (frame.left + frame.right) / 2; y = frame.top - 8;
   }
   if (shown !== el._label) { el._label = shown; el._name.textContent = shown; el._tw = 0; }
-  el._tri.style.display = enemy && !edge || groundPin && (!edge || t.arrived) ? 'none' : '';
+  el._tri.style.display = groundPin && (!edge || t.arrived) ? 'none' : '';
   // 遠い相手と画面外の相手は、同じ一人へ向く矢印で示す。
-  el._tri.style.transform = edge ? `rotate(${ang + Math.PI}rad)` : '';
-  // 画面外は同じ方向矢印。敵には剣を添えて行き先と分ける。
-  el._tri.style.clipPath = !edge && rt.def.goalSignTriangle ? 'polygon(0 0,100% 0,50% 100%)' : '';
+  el._tri.style.transform = edge && !rt.def.goalSignTriangle ? `rotate(${ang + Math.PI}rad)` : '';
+  // 11/8 critic60（五3「矢印は使わない」）：画面の外の相手も太い矢印にせず、向きへ傾けた▼一つで示す
+  el._tri.style.clipPath = rt.def.goalSignTriangle || edge ? 'polygon(0 0,100% 0,50% 100%)' : '';
   el._tri.style.width = edge ? '30px' : ''; el._tri.style.height = edge ? '26px' : '';
   el._tri.style.border = edge ? '0' : ''; el._tri.style.background = edge ? '#fff3ba' : '';
   if (!el._tw || el._twH !== VIEW.h) { el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20; el._twH = VIEW.h; }
@@ -216,6 +215,5 @@ export function goalSignTick(rt, root) {
   el._tag.style.transform = `translate(${(x - tw / 2).toFixed(1)}px,${(y - (edge ? th / 2 : th)).toFixed(1)}px)`;
   // 武将の名札（field_signs.js）がこの札を避けられるように、札の四角を控える（揺れの5点も含める）
   const r = el._rect || (el._rect = { left: 0, right: 0, top: 0, bottom: 0 });
-  hud.goalSignVisible = true;
   r.left = x - tw / 2; r.right = x + tw / 2; r.top = y - (edge ? th / 2 : th); r.bottom = y + (edge ? th / 2 : 5);
 }

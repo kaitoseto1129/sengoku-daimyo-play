@@ -339,11 +339,12 @@ const inou_spec = {
   // 名札は名のある将だけ。組頭の「味方 かしら」は出さない（字を足さない）。
   // 11/6 crit_inou：信長が突き伏せた美作守に、主人公の手柄のような大きな「林美作守 討ち取ったり」を出さない（『信長公記』）
   hideNameTag: (u) => u.name === '組頭' || !!u.inouNoWord,
-  // 場所は矢印、敵は剣。遠近と画面の内外で同じ目標を追う。
-  goalSignNavigation: true, // 遠近とも共通の目印一本で案内する。
-  goalSignOff: () => false,
-  goalSignTarget: (rt) => rt.flags.farPin || rt.flags.beginnerPinTarget || null,
-  actionGuideTarget: (rt) => rt.flags.farPin?.unit || rt.flags.beginnerPinTarget?.unit || null,
+  // 11/6 fixc1455：前は goalSignBare で▼の距離まで消していた。九1「距離は m」に従い外す（案内の字は共通で全戦から外れた）
+  // 11/7 crit_inou（九1「行き先は名と 80m」）：三十m より遠い行き先は、地面のピンを畳み、共通の金の▼に距離（m）を添えて示す。
+  //   近づけば今までどおり敵本人の赤い▼（または組頭の旗のピン）だけ。▼は一つだけ（actionGuideTarget で人物の金の▼を重ねない）
+  goalSignOff: (rt) => !rt.flags.farPin,
+  goalSignTarget: (rt) => rt.flags.farPin || null,
+  actionGuideTarget: () => null,
   noLeaderFollow: true,      // 同じく、ついていく相手の頭上の青い印・画面の端の青い矢印も出さない（金の▼と二つになった。11/3 p100_inou）
   playerAtkMax: 4,           // 四方から同時に打つのは四人まで（五人目からは後ろで待つ）
   enemyTactics: false,       // 敵の動きはこの定義が決める（退く槍・立つ弓）
@@ -421,7 +422,6 @@ const inou_spec = {
   // 人物の金の▼は使わず、遠い行き先のピンから敵本人の赤い▼へ渡す。
   missionPin(rt) {
     const F = rt.flags;
-    F.beginnerPinTarget = null;
     if (F.holdPlayer || F.ending) { F.farPin = null; return null; }
     { const p = I15.pin(rt); if (p !== undefined) return p; }
     const holding = F.stage === 1 || F.stage === 2 && !F.regrouped;
@@ -430,11 +430,10 @@ const inou_spec = {
     // 刃が届く直前まで同じ本人へ導く。遠くでピンだけ消さない。
     const r = holding ? 10 : 3, P = rt.player.u.pos;
     const d2 = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
-    if (holding && d2 <= r * r) { F.farPin = null; return null; }
+    if (d2 <= r * r) { F.farPin = null; return null; }
     if (d2 > INOU_FAR * INOU_FAR) {
       const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
       far.x = u.pos.x; far.z = u.pos.z; far.r = INOU_FAR - 2;
-      far.unit = holding ? null : u; far.enemy = !holding;
       // 呼び名は右上の目標と同じ地図の名（「名塚 70m」と別の所の名が出ていた）
       far.label = holding ? '信長の馬前' : F.stage === 0 ? '於多井川の岸' : F.stage === 2 ? '稲生村の田' : '名塚への田の道';
       F.farPin = far;
@@ -444,7 +443,6 @@ const inou_spec = {
     const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
     pin.x = u.pos.x; pin.z = u.pos.z; pin.r = r;
     pin.unit = holding ? null : u; pin.enemy = !holding; pin.flagDestination = holding;
-    F.beginnerPinTarget = pin;
     return pin;
   },
   missionPinCaption: '',

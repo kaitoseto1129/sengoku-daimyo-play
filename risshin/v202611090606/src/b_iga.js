@@ -71,7 +71,7 @@ const PEOPLE_BANDS = PEOPLE_PATHS.map((path, i) => ({
     : i === 2 ? ['townsman', 'merchant', 'monk', 'woman'] : ['farmer', 'woman', 'child', 'elder'],
   route: path.slice(1).map(([x, z]) => ({ x, z })), routeEnd: 'wait',
 }));
-// 持ち場から見える山すその茅葺きの家（曲輪の外）。民は置かず、中は麓の民家と同じ推定復元。杉の木立が背と脇を囲む。
+// 持ち場から見える山すその茅葺きの家（土壁・曲輪の外）。民は置かず外観だけ。杉の木立が背と脇を囲む。
 const FOOT_HOMES = [[-31, 15, 0.12, 6, 4], [33, 14, -0.15, 5.5, 4], [-47, 21, 0.35, 5, 3.6]];
 function peopleClearing(x, z) {
   if (igaFieldClearing(x, z)) return true;
@@ -206,10 +206,7 @@ function igaVillage(rt) {
 function igaFootDress(rt) {
   const W = rt.world;
   for (const [x, z, rot, w, d] of FOOT_HOMES) {
-    // 外観だけの箱で入口を塞がず、既存の民家の梁・板間・土間と開閉する板戸を使う。
-    // 室内は近づいた時に作る共通の仕組みに任せ、毎コマの処理は足さない。
-    const h = igaHut(W, x, z, w, d, rot, { wall: 0x7b6a55,
-      interior: { name: '山すその民家', kind: 'minka', profile: 'iga' } });
+    const h = igaHut(W, x, z, w, d, rot, { wall: 0x7b6a55 });
     rt.scene.add(h);
   }
   // 11/6 fix61（八1）：麓の杉を緑の円錐の重ねで描いていた（一目で作り物）。林は共通の枝葉の木（world.trees）に任せる。
@@ -1866,16 +1863,7 @@ const iga = {
     // 坂の逆茂木は枝先まで同じ足場に収まる所だけ。谷へ長い幹を架けず、道も空ける。
     const castlePlan = { ...HIJIYAMA_PLAN, terrainBanks: true, sakamogiMaxRise: 2, kuruwa: HIJIYAMA_PLAN.kuruwa.map(k =>
       southCourts.has(k.id) ? { ...k, wallMesh: cameraFence, wallOpt: { ...k.wallOpt, h: 1.4, openFence: true, lightFence: true, terrainRails: true, mound: false, noBrace: true } } : k) };
-    F.castleC = buildCastlePlan(rt, { ...castlePlan, lifeDense: 1.6, lifeFires: 8 }, {
-      baseHeight: castleTerrain, edgeW: 3, buildSeat: false, life: true,
-      // 自動配置の番所も外観だけの箱にせず、主郭と同じ推定復元を使う。
-      // 文机・槍掛けと板戸の引きしろが収まる外寸で配置判定し、道・口・兵を避ける。
-      // 梁・板間・土間と開閉する板戸は共通の室内へ任せ、内装は近づいた時だけ描く。
-      lifeBuildings: { bansho: { size: [8, 6], build: (x, z, w, d, rot) => {
-        rt.scene.add(igaHut(W, x, z, w, d, rot, { wall: 0x6e5a40,
-          interior: { name: '曲輪の番所', kind: 'bansho', profile: 'iga', team: 1 } }));
-      } } },
-    });
+    F.castleC = buildCastlePlan(rt, { ...castlePlan, lifeDense: 1.6, lifeFires: 8 }, { baseHeight: castleTerrain, edgeW: 3, buildSeat: false, life: true });   // 本の山城 CG のように段ごとに番所と蔵（道・口・兵は避ける）
     // 土塁は歩く地形に一度だけ盛る。柵の下へ別の土手を重ねない。
     for (const s of F.castleC.walls) { s.noTarget = true; s.wall = true; }
     // 北・東の木戸は退去路を開けた冠木門。南だけが台本で閉じる木戸。
