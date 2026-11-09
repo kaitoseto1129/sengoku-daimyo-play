@@ -155,8 +155,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["松平家忠", "zunari", "kuwa", 0x29251f, 0x413e32, "kebiki", 0x2e3a42, 0x29251f, "tokugawa", ""],
   ["内藤信成", "zunari", "moon", 0x29251f, 0x413e32, "okegawa", 0x7a1a12, 0x29251f, "tokugawa", ""],
   ["松平信康", "zunari", "sun", 0x29251f, 0x413e32, "okegawa", 0x4a3a22, 0, "tokugawa", ""],
-  // 本願寺の坊官。法体に具足を着けた復元案（所用品は未確認）。立物は付けない。
-  ["下間頼廉", "zunari", "none", 0x1c1a1a, 0x5a4a3a, "okegawa", 0x3a3a3a, 0x1c1a1a, "none", ""],
+  // 本人所用は未確認。室町末の現存胴丸による復元。詳しい型と出所は必須表。
+  ["下間頼廉", "suji", "none", 0x1c1a1a, 0x2e4468, "kebiki", 0, 0, "none", ""],
   // 地域の雑賀鉢と桃山期の桶側二枚胴による復元案。詳細は必須表と docs/generals_look_1108/鈴木孫一.md。
   ["鈴木孫一", "suji", "none", 0x1c1a1a, 0x1c1a1a, "okegawa", 0, 0x1c1a1a, "孫一の八咫烏", ""],
   // 信貴山の将。立物の伝来は未確認で、具足・威・羽織は復元案。
@@ -594,7 +594,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["荒木久左衛門", "momonari", "none", 0x24221f, 0x2e3a52, "okegawa", 0x4a5a22, 0x24221f, "none", ""],
   // 上ろう塚で内応した将。具足・陣羽織・紋は未確認。既存の筋兜・桶側胴を使い、立物と紋は付けない。
   ["中西新八郎", "suji", "none", 0x24221f, 0x6a7a2c, "okegawa", 0, 0, "none", ""],
-  ["六角義賢", "eboshi", "kuwa", 0x1c1a1a, 0x3a5a3a, "okegawa", 0x7a1a12, 0x1c1a1a, "none", ""],
+  // 承禎の所用品ではなく、近江の垣見家伝来品による同時代の型の復元案。詳しくは必須人物の表と調査記録。
+  ["六角義賢", "zunari", "none", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "none", ""],
   // 鳥取の守将。月・桔梗の立物は未確認。具足の色と羽織は復元案。
   ["吉川経家", "eboshi", "none", 0x24221f, 0x3a4a3a, "okegawa", 0x7a1a12, 0, "none", ""],
   ["羽柴秀長", "eboshi", "sun", 0x2a2420, 0x9a7a3a, "sugake", 0x6a4a1c, 0x2a2420, "toyotomi", ""],

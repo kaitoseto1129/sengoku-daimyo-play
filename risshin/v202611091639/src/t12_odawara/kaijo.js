@@ -47,6 +47,8 @@ export function step(H) {
       const P = rt.player.u.pos;
       C.near = Math.hypot(P.x - H.WATCH.x, P.z - H.WATCH.z) < 16;
       // 三番目の列も門外に着くまで、時間だけで見届けを済ませない。
+      // 11/9 三巡：列の一人が門の内で引っかかると onArrive が来ず、見届けの場で二十分止まった（bot）。七十五秒過ぎたら残りの列もその場で座らせる
+      if (el > 75 && C.groups.length === 3) for (const g of C.groups) if (!g.surrendered && g.onArrive) g.onArrive(g);
       return el > 38 && C.near && C.groups.length === 3 && C.groups.every((g) => g.surrendered);
     },
     end(rt) {

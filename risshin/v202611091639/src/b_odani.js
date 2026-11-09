@@ -662,7 +662,9 @@ function roadWay(army, u, want) {
     && !inOnogi && (onRidge(target) || westWay(target));
   const ridge = onRidge(u.pos) ? u.pos : target;
   const path = u.group?.order === 'path' && u.group.path ? u.group.path : inOnogi ? ROUTE_O : leavingOnogi ? ONO_WEST_ENTRY : westWay(u.pos) || westWay(target) ? ROUTE_W : onRidge(u.pos) && onRidge(target) ? ROAD_RIDGE : ridge.z > KC.z ? ROUTE_S : ROUTE_N;
-  roadPoint(path, u.pos, ROUTE_FROM, army, u); roadPoint(path, target, ROUTE_TO);
+  // 折り返す道の未到達区間へ合流させない。後列の持ち場と同じ、先頭が通った道だけを使う。
+  const hi = g?.order === 'path' && g.path === path ? Math.max(1, Math.min(g.pathIdx, path.length - 1)) : path.length - 1;
+  roadPoint(path, u.pos, ROUTE_FROM, army, u, 1, hi); roadPoint(path, target, ROUTE_TO, undefined, undefined, 1, hi);
   if (ROUTE_FROM.d > 40 || ROUTE_TO.d > 40) {
     if (!ROAD_PLAYERS.has(u)) return want;
     // 合流できない本人へ、歩けないと判定した目的地を返さない。
@@ -3690,6 +3692,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     flReset();
     const castleStart = rt.scene.children.length;
     const C = F.C = buildCastlePlan(rt, ODANI_PLAN, { life: false, perch: false, ladders: true, baseHeight: baseTerrain, edgeW: 4.8, skipWalls: UPPER.map((k) => k.id), buildGates: true, buildTowers: true, team: 1, measure: F.buildTimes });
+    // 櫓の室内兵は銃座の半減指定の外だった。届かない高所からの射撃にも夜襲の補正を揃える。
+    for (const g of rt.army.groups) if (g.team === 1 && g.interiorHold) g.dmgMult = .5;
     const lookout = C.towers.find(t => t.id === 'monomi_kyo')?.naka;
     if (lookout) lookout.entryApproach = { x: LOOKOUT_WAY[0][0], z: LOOKOUT_WAY[0][1] + .8 };
     F.kyoLookoutGuards = new Set();
@@ -4402,7 +4406,11 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     F.niban.historicalOrders = true;
     F.oda = [F.hide, F.hachi, F.asano];
     // 11/8 critic60 十3・一5：清水谷の屋敷を出た後、羽柴の手が谷で削られて二三人しか続かなかった。受ける傷を 1.8→2.6 分の一に
-    for (const g of [...F.oda, F.gozume, F.niban]) { g.defMult = 2.6; g.noRout = true; }   // 10/30：羽柴の先手が京極丸の前で尽きて負けが続いた（bot）
+    for (const g of [...F.oda, F.gozume, F.niban]) {
+      g.defMult = 2.6; g.noRout = true;
+      // 二番手も最初から道に沿う列にする。直線の後列を屋敷の塀や切岸へ置かない。
+      g.roadColumn = true;
+    }
     // 羽柴百四十・浅井六十八・信長の供三十・自分の組八・本人で最大二百四十七人。
     const n = Math.min(8, RANKS[rt.G.rank].squad);
     if (n) rt.makeSquad({ x: MOUTH.x + 4, z: MOUTH.z + 10 }, Math.PI, [{ kind: 'spear', n }]);
