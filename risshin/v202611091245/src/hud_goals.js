@@ -86,7 +86,7 @@ const goalWords = (s) => s.includes('たおせ') ? screenWords(s).replace(/倒�
 
 // 語の切れ目（で・を・へ・に・と・の・から・まで の後）にだけ折れ目を置く。残りが三字より短い所では折らない
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const phraseBreaks = (s) => esc(s).replace(/(から|まで|[でをへにとの、])(?=[^\s]{3,})/g, '$1<wbr>');
+const phraseBreaks = (s) => esc(s).replace(/(から|まで|[でをへにとの、])(?![、。」）])(?=[^\s]{3,})/g, '$1<wbr>');   // 11/9 iPhone 874×402：「斜面で、」の「で」の後で折れて行の頭が「、」になった。句読点の前では折らない
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 let styled = false;
 // 一件の表示と一覧の開閉を共有する。達成・時間切れの判定は元の目標表のまま。
