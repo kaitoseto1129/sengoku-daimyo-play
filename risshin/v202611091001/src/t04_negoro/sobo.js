@@ -56,7 +56,7 @@ export function soboStep(NG) {
       rt.objProgress('dp', '');
       // 後方で待つだけでは路地の討ち取りを果たさない。長引いても敵の数の条件を飛ばさない。
       const u = rt.player.u, at = P(0, 22);
-      return el > 140 && cleared && u.alive
+      return el > 140 && cleared && u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
         && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18;
     },
     end(rt, C) { for (const g of C.groups) flee(g); rt.objDone('dp'); rt.award((t) => t.side.push('僧坊の路地で鉄砲衆を追い詰めた'), '僧坊の鉄砲衆を討った'); },
