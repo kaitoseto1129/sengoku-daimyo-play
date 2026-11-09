@@ -671,6 +671,10 @@ const k06_sekigahara = {
     this.fog(rt);
     jindate.tick(rt);
     if (F.ending || !F.step) return;
+    // 平塚・戸田は藤川台の前を守る。応戦で敵を追っても、笹尾山への道まで出て行かない。
+    // 寝返り後の討死・敗走には帰陣の下知を重ねない。
+    if (!F.flipT && alive(F.otani) && F.otani.order !== 'move' &&
+      (!near(F.otani.center(), HIRA, 40) || F.otani.leader?.alive && !near(F.otani.leader.pos, HIRA, 40))) goTo(F.otani, HIRA);
     const P = rt.player.u.pos;
     if (F.step <= 4 && broken(F.ii) && broken(F.fuku)) { this.lose(rt, '井伊と福島の隊が崩れた'); return; }
     if (F.step === 1) {
