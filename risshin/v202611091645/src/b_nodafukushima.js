@@ -1313,7 +1313,7 @@ function dayCut(rt, day, time, title, word, ago) {
   cut.shade?.remove();
   cut.shade = shade; cut.t = 0; cut.changed = false;
   cut.day = day; cut.time = time; cut.still = reduceMotion();
-  shade.style.cssText = `position:fixed;inset:0;background:#14120f;color:#ece4d2;opacity:${cut.still ? 1 : 0};z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;box-sizing:border-box;text-align:center;pointer-events:auto`;
+  shade.style.cssText = `position:fixed;inset:0;background:#14120f;color:#ece4d2;opacity:${cut.still ? 1 : 0};z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;box-sizing:border-box;text-align:center;pointer-events:none`;
   shade.setAttribute('role', 'status');
   const date = document.createElement('div'), heading = document.createElement('div'), note = document.createElement('div');
   const passed = day - (rt.flags.day || 12);
@@ -3492,6 +3492,8 @@ const nodafukushima = {
     // 11/6（十一3・kaito BS「城の外に敵がいる」）：守り手は砦の塀の内に置き、打って出る時に門を開けて出る（城の外に並べない）
     F.sally = enemyGroup(rt, { faction: 'miyoshi', name: '砦の内の三好勢', anchor: { x: 0, z: -56 }, facing: 0, width: 10, aggro: 5, seekRange: 12, morale: 90, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '岩成友通', horse: true, invuln: true, allyOk: true, flagScale: 2.2 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }], MIYOSHI));
+    // 出撃の下知までは門内を守る。閉じた門へ攻め続けない。
+    F.sally.order = 'hold';
     // 開戦25秒の小競り合い（10/30）：竹束を据える間、浅瀬の中ほどで佐々の先手と三好の物見が槍を合わせる（持ち場の前10〜15m）。
     // 兵は足さない（佐々の足軽12→2・砦の前の三好勢の足軽14→4 の十人ずつを回す。10/30 夜：竹束の三つの置き場のどれへ向かっても写るよう、中と西の束の前へ横に広げた）。小競り合いなので双方の打ちは弱く、崩れない。
     // 10/31 kaito「小隊対小隊はチープ」：二か所の小競り合いをやめ、三好の物見十五人を一つの塊にして浅瀬の向こう（持ち場の前二十歩）に置く。
@@ -3874,9 +3876,21 @@ const nodafukushima = {
     rt.setPhase('retreat');
     rt.unmark('leveeHold');
     battleEvent(rt, EVENT_RETREAT, ODA_HONJIN, F.maeda, 0, true, '囲みを解き、詰め陣へ退く');
+    // 本物の殿を残す。軽い備だけを残すと、退く本人へ三組の槍が集中する。
+    F.nodaRear = F.sassa;
     for (const g of F.oda) {
+      if (g === F.nodaRear) continue;
       retreatColumn(g, { x: ODA_HONJIN.x + (g === F.sassa ? -14 : 12), z: ODA_HONJIN.z });
     }
+    const rear = F.nodaRear;
+    rear.onArrive = null; rear.noAI = true; rear.focus = null;
+    rear.commanderPush = null; rear.frontlineMobilize = false;
+    const rearAt = rear.center();
+    rear.anchor = { x: rearAt.x, z: rearAt.z }; rear.dest = rear.anchor;
+    rear.order = 'hold'; rear.fire = true; rear.aggro = 12; rear.seekRange = 18;
+    rt.after(55, () => {
+      if (!F.ending && !F.nodaEguchi) retreatColumn(rear, ODA_JOIN);
+    });
     retreatColumn(F.namedGuards[1], { x: 28, z: 96 });
     // 詰め陣の守兵も追撃をやめ、退く兵を迎える場所へ戻す。
     retreatColumn(F.campA.guard, ODA_JOIN);
@@ -3896,7 +3910,8 @@ const nodafukushima = {
       makeRoom(rt, 14);
       const g = enemyGroup(rt, { faction: 'honganji', name: '追い討つ門徒', anchor: { x: 34, z: 2 }, facing: -Math.PI * 0.6, aggro: 18, seekRange: 70, width: 8, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 2 }], IKKO));
-      g.ikko = true; g.order = 'attack'; g.speed = 3.4; g.focus = rt.player.u;
+      g.ikko = true; g.order = 'attack'; g.speed = 2.6; g.seekRange = 18;
+      g.focus = rear.units.find(canJoin) || null;
       F.chase = g;
       rt.army.play('eshout', { x: 34, z: 2 }, 1.8);
       rt.say('一揆の門徒', '退くぞ、追え！　仏敵を一人も帰すな！', 3.5);
@@ -3936,6 +3951,16 @@ const nodafukushima = {
     const F = rt.flags;
     const p = rt.player;
     F.nodaSuiro?.tick?.(); F.nodaTeppo?.tick?.(dt); F.nodaEguchi?.tick?.();
+    // 退く列を殿が受け渡す。堤の残兵も主人公だけを追い続けない。
+    if (F.retreating && !F.ending && rt.t >= (F.nodaRearAt || 0)) {
+      F.nodaRearAt = rt.t + 1;
+      const target = !F.nodaEguchi && rt.t - F.retreatT < 55 ? F.nodaRear?.units.find(canJoin) : null;
+      for (let i = 0; i <= F.waves.length; i++) {
+        const g = i < F.waves.length ? F.waves[i] : F.chase;
+        if (!g || gone(g)) continue;
+        g.focus = target; g.seekRange = 18; g.aggro = 12; g.speed = 2.6;
+      }
+    }
     // 11/7：砦の柵と櫓を、遠目の粗い形へ替える所を 42m から 95m 先へ（束ができた後に一度ずつ）。
     if (!F.kitLodLate && rt.t > 5) { nodaKitLod(rt); F.kitLodLate = true; } else if (!F.kitLodEarly && rt.t > 0.2) { nodaKitLod(rt); F.kitLodEarly = true; }
     // 11/1：見た目だけの竹束（当たり無し）の中へ本人が踏み入ると、視点が束の内へ寄って画面が竹で塞がった。本人の足元の束だけ隠す。

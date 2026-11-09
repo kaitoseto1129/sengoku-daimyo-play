@@ -746,7 +746,7 @@ const markZone = (rt, id) => {
       : (z.friends || 0) < z.need
           ? `${name}を守れ　呼び直しまで${Math.max(0, Math.ceil((rt.flags.callReadyAt || 0) - rt.t))}秒`
           : z.owner !== 'friend' && !z.enemies && (z.friends || 0) >= z.need
-          ? `${name}をあと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ` : name),
+          ? `${name}をあと${Math.max(1, Math.ceil(Math.max(0, 280 - (z._mkFightT || 0)) + z.hold - z.holdT))}秒守れ` : name),
     { zoneGuide: true, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 };
 
@@ -2109,7 +2109,7 @@ function zoneTask(rt, z, id = 'main', action = '') {
   const indoors = id === 'main' && courtyardHouse(rt, rt.player.u);
   const pause = id === 'main' ? zonePause(rt) : '';
   // 道の下知は郭の外だけ。到着したら、味方がまだ来ていなくても戦う手を示す。
-  const next = pause || (indoors ? '戸口から庭の旗へ戻れ' : approaching ? action || way : !enough ? gather : z.enemies ? '地上の敵を払え' : z.owner === 'friend' ? '味方を残し、旗を守れ' : `あと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ`);
+  const next = pause || (indoors ? '戸口から庭の旗へ戻れ' : approaching ? action || way : !enough ? gather : z.enemies ? '地上の敵を払え' : z.owner === 'friend' ? '味方を残し、旗を守れ' : `あと${Math.max(1, Math.ceil(Math.max(0, 280 - (z._mkFightT || 0)) + z.hold - z.holdT))}秒守れ`);
   const call = !pause && rt.flags.callSignalZone === z && rt.t < rt.flags.callSignalUntil
     ? rt.t < rt.flags.callSignalSecondAt ? '集合の法螺貝、一声目。' : '法螺貝の二声目、旗へ集合。' : '';
   // 「あと○人」は共通の知らせで「残る者」に変わる。制圧に要る人数は短い札にも残す。
@@ -2369,9 +2369,10 @@ function sanKuchiWay(army, u, goal) {
     const road = u._sanRoad || ROAD_OTE;
     const from = u._sanFrom || (u._sanFrom = { x: 0, z: 0, s: 0, d: 0 });
     const to = u._sanTo || (u._sanTo = { x: 0, z: 0, s: 0, d: 0 });
-    sanRoadPoint(road, u.pos, from); sanRoadPoint(road, goal, to);
+    sanRoadPoint(road, u.pos, from, army); sanRoadPoint(road, goal, to);
     const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
-  if (from.d > 9) { q.x = from.x; q.z = from.z; }
+    if (!Number.isFinite(from.d)) return u.pos;
+    if (from.d > 1.5) { q.x = from.x; q.z = from.z; }
     else {
       const up = to.s > from.s;
       let index = up ? Math.floor(from.s) + 1 : Math.ceil(from.s) - 1;
@@ -2379,6 +2380,7 @@ function sanKuchiWay(army, u, goal) {
       if (Math.hypot(u.pos.x - road[index][0], u.pos.z - road[index][1]) < 1.5) index += up ? 1 : -1;
       if (index < 0 || index >= road.length || (up ? index >= to.s : index <= to.s)) return goal;
       q.x = road[index][0]; q.z = road[index][1];
+      if (!sanGroundPassage(army, u.pos, q)) { q.x = from.x; q.z = from.z; }
     }
     return q;
   }
@@ -4222,7 +4224,7 @@ const mitsukuri = {
     // 15分の構成：寄せの前に物見の場で城の構えを見て、六角の物見を払い、丹羽の手と合流してから総懸かり。
     //   先手の列（openingColumn）は柵の前に並べたまま動かさない（段へ呼ぶと三の郭へ寄せる列が崩れた）。物見には藤吉郎の手の足軽が付く
     rt.after(0, () => k15Monomi.start(rt, { faction: 'rokkaku', flag: 'rokkaku', armor: RK.armor, look: (list) => dress(list, RK),
-      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
+      fixedSpawn: true, withdrawWay: sanKuchiWay, friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
      
       CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },
@@ -4450,8 +4452,8 @@ const mitsukuri = {
     const F = rt.flags;
     if (F.step >= 2 || F.ending || rt.over) return;
     F.step = 2; F.stepT = rt.t;
-    // 11/5 遊んで直す（十二3）：夜の攻めが長引いた時、本人が本丸に着いているのに七分で攻め止めの負けになった。史実は夜半まで攻め続けて落とす。十分まで待つ。
-    F.failDeadline = rt.t + 600;
+    // 三郭の攻防を含め、総懸かりから二十九分を上限にする。旧来の十分では途中で攻め止めになった。
+    F.failDeadline = rt.t + 1740;
     rt.setPhase('climb');
     // 紙（battle_events_1101）：上洛戦の始まりと、六角承禎方の支城を短い時間で急襲する事を台詞で示す。
     if (!rt.G.lord) rt.after(2, () => { if (!rt.over) sayKino(rt, '京へ上る道をふさぐ六角承禎の支城じゃ。日のあるうちに寄せ、夜のうちに落とすぞ', 4); });
@@ -4727,6 +4729,12 @@ const mitsukuri = {
   update(rt, dt) {
     const F = rt.flags;
     depthTick(rt, dt);   // 15分の構成の段（mitsukuri/）
+    if (F.dp?.on && F.dp.cur) for (const g of F.dp.cur.groups) {
+      if (!g._sanCastleRoad) {
+        g._sanCastleRoad = true;
+        for (const u of g.units) u._sanRoad = ROAD_OTE;
+      }
+    }
     if (!SETTINGS.reduceMotion) MK_CLOTH_T.value += dt;
     if (!F.clothSwept) { F.clothSwept = true; mkClothSweep(rt.scene); }
     if (!F.honDown && F.step >= 4 && rt.camera) honDown(rt);
@@ -4834,8 +4842,29 @@ const mitsukuri = {
         // 木戸が開いても、打って出た組を退けるまでは付け入り前。
         // 先に庭へ入った本人と仲間だけで二の丸を取り、迎撃を飛ばさない。
         const ready = present && (z.id !== 'ni' || F.gatePass);
-        z.hold = ready || z.owner === 'friend' ? z._mkHold : Infinity;
-        if (!ready && z.owner !== 'friend') z.holdT = 0;
+        // 三つの郭で各四分四十秒の攻防。退避で最初からやり直さず、本人と味方が守った時間だけ積む。
+        if (ready && z.owner !== 'friend' && z.friends >= z.need) z._mkFightT = (z._mkFightT || 0) + dt;
+        const elapsed = z._mkFightT || 0;
+        // 郭内の控えが三度押し返す。前の組が残る間は増やさず、実兵の上限も守る。
+        if (ready && z.owner !== 'friend' && elapsed >= 30 + (z._mkWaves || 0) * 60 &&
+          (z._mkWaves || 0) < 3 && (gone(z._mkReserve) || z._mkReserve.count <= 2)) {
+          let soldiers = 0;
+          for (const soldier of rt.army.units) if (soldier.alive && !soldier.isStruct) soldiers++;
+          if (soldiers <= 244) {
+            const at = z.id === 'san' ? { x: 0, z: -60 } : z.id === 'ni' ? { x: 0, z: -86 } : HON_DEFEND;
+            const g = enemyGroup(rt, { fixed: true, name: '六角の控え', anchor: at, order: 'attack',
+              width: 3, aggro: 12, seekRange: 18, morale: 65, fleeDir: { x: 0, z: -1 } },
+              dress([{ type: 'ashigaru', n: 5 }], RK));
+            g._sanCastleRoad = true; g.dmgMult = 0.5;
+            z._mkReserve = g;
+            rt.bark(`${z.name}の控えが押し返す`);
+          }
+          // 既に二百五十人近い時は既存の守りと戦い、追加待ちで制圧を止めない。
+          z._mkWaves = (z._mkWaves || 0) + 1;
+        }
+        const fought = elapsed >= 280 && (z._mkWaves || 0) >= 3;
+        z.hold = ready && fought || z.owner === 'friend' ? z._mkHold : Infinity;
+        if ((!ready || !fought) && z.owner !== 'friend') z.holdT = 0;
       }
       F.SZ.tick(dt);
       for (const z of F.SZ.zones) z.hold = z._mkHold;
@@ -5218,7 +5247,14 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       const q = nearIt(b, 't');
       if (q) { if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else { inp.k.add('KeyE'); inp.k.delete('KeyW'); } return; }
     }
-    depthBot(b, inp, goTo); return;
+    // 物見の追撃も味方と同じ曲がり角を通る。四歩の到着幅で角を飛ばさない。
+    const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r, run) => {
+      const goal = player._mkBotGoal || (player._mkBotGoal = { x: 0, z: 0 });
+      goal.x = x; goal.z = z;
+      const q = courtyardWay(b, goal);
+      goTo(player, input, q.x, q.z, q === goal ? r : 0.6, run);
+    });
+    depthBot(b, inp, move); return;
   }
   // 傷は自然には戻らない。退避と手当ては共通の試し役の判断に任せ、任務へ戻る。
   b.botRest = false;
