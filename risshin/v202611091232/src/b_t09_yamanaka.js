@@ -242,7 +242,7 @@ const nearKuruwa =(x, z, pad) => Object.values(KURUWA).some((k) => kNear(k, x, z
 const t09_yamanaka = {
   resumeSteps: [[1, 'dai'], [2, 'shoji'], [3, 'ote'], [4, 'honmaru']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   minutes: 15, expectMin: 15,
-  playerTaken: 0.25, playerRegen: 0.05,   // 15分の長い攻め（出丸の矢と鉄砲の前で倒れ続けた。11/8 bot）
+  playerTaken: 0.18, playerRegen: 0.07,   // 15分の長い攻め（出丸の矢と鉄砲の前で倒れ続けた。11/8 bot）
   // 始まりの札の二三行（critic60 山中 34「七万対四千がこの戦の芯なのに札では分からない」）
   introText: '豊臣のおよそ七万が、北条のおよそ四千の守る山中城へ攻め上る。岱崎出丸の鉄砲と障子堀を越え、三の丸から本丸の松田康長の旗本へ。',
   // 見出しは大きな出来事だけ（指示の見出しは出さない。標準 五の1）
@@ -318,7 +318,7 @@ const t09_yamanaka = {
     for (const s of F.daiWall) { s.noClimb = true; s.bodyPadding = 0.3; }
     // ---- 三の丸の大手（角馬出し・枡形・横矢・畝堀・狭間からの鉄砲）。出丸の柵からも撃つ（近づくほど弾が降る。kaito BA 5） ----
     F.K = buildSiege(rt, SP, { team: 1, earth: true, wall: 'saku', umadashiWall: 'saku', wallHp: 520, gateHp: 460, masuHp: 600,
-      fire: { hurt: 0.06, near: 90, close: 18, base: 0.8, peak: 4, rain: 0.3 },   // 寄せ手も撃たれて倒れるが、柵に着く前に一隊が消えない強さ
+      fire: { hurt: 0.03, near: 90, close: 18, base: 0.8, peak: 4, rain: 0.3 },   // 寄せ手も撃たれて倒れるが、柵に着く前に一隊が消えない強さ
       extraWalls: [{ structs: F.daiWall, inside: { x: D.x - 2, z: D.z } }] });
     shojiRibs(rt);
     // ---- 城の建物（北条の土の城：板の櫓と柵だけ。天守閣は無く、本丸の北西の高まりに天守櫓） ----
@@ -384,9 +384,9 @@ const t09_yamanaka = {
     // 段が進むごとに、遠くの本隊も街道の坂を城へ詰める（標準 十二の2。動ける所の外のまま）
     F.hostUp = (d, secs) => { for (const g of F.host) if (g && g.advance) g.advance(d, secs); };
     // ---- 岱崎出丸の間宮康俊の隊（数百。柵の内に鉄砲、後ろに槍と騎馬） ----
-    F.dai = enemyGroup(rt, { faction: 'hojo', name: '間宮康俊の隊', anchor: { x: D.x + 6, z: D.z }, facing: 0.8, order: 'hold', aggro: 20, width: 12, morale: 95, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.42 },
-      dress([{ type: 'busho', n: 1, o: { name: '間宮康俊', hat: 'kabuto_m', haori: 0x4a3a28 } }, { type: 'gun', n: 22 }, { type: 'ashigaru', n: 36 + more(rt, 0.3) }, { type: 'samurai', n: 5 }, { type: 'cavalry', n: 3 }], HOJO));   // 騎馬は三騎（八騎の当たりで出丸の前で倒れ続けた。11/8 bot）
-    for (const u of F.dai.units) if (u.type === 'gun') u.dmg *= 0.3;   // 15分の構成：出丸の鉄砲で倒れ続けた（11/8 bot）
+    F.dai = enemyGroup(rt, { faction: 'hojo', name: '間宮康俊の隊', anchor: { x: D.x + 6, z: D.z }, facing: 0.8, order: 'hold', aggro: 20, width: 12, morale: 95, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.3 },
+      dress([{ type: 'busho', n: 1, o: { name: '間宮康俊', hat: 'kabuto_m', haori: 0x4a3a28 } }, { type: 'gun', n: 16 }, { type: 'ashigaru', n: 28 + more(rt, 0.3) }, { type: 'samurai', n: 5 }, { type: 'cavalry', n: 3 }], HOJO));   // 騎馬は三騎（八騎の当たりで出丸の前で倒れ続けた。11/8 bot）
+    for (const u of F.dai.units) if (u.type === 'gun') u.dmg *= 0.22;   // 15分の構成：出丸の鉄砲で倒れ続けた（11/8 bot）
     // 寄せ手の竹束（critic60 山中 7「竹束は一つも無い」）：出丸の鉄砲に向けて、街道の坂の上り口に横へ並べる。玉と矢を本当に止める
     {
       const vx = START.x - D.x, vz = START.z - D.z, L = Math.hypot(vx, vz) || 1, ux = vx / L, uz = vz / L;
@@ -492,6 +492,8 @@ const t09_yamanaka = {
     const F = rt.flags;
     if (F.step >= 3) return;
     F.step = 3; F.stepT = rt.t; F.sub = 'yose';
+    // 堀を渡り切った所で一息（11/9 bot：堀の縁の鉄砲で削られたまま馬出しの突き出しに当たり、三度倒れた）
+    { const u = rt.player.u; if (u.alive && u.maxHp) u.hp = Math.max(u.hp, u.maxHp * 0.6); }
     rt.setPhase('koguchi'); rt.unmark('cross');
     tahoumen.step(rt, 3);
     for (const g of [F.pit, F.rim]) if (!gone(g)) { g.noRout = false; g.morale = 0; }
@@ -502,10 +504,10 @@ const t09_yamanaka = {
     //   障子堀の後に退く隊として出すと、退いた人の名札が本丸の前に残り、話の順も逆になった（critic60 山中 10）。ここでは出さない
     const A = SP.at, M = A.mouths;
     // 馬出しに詰める北条の隊（騎馬と槍）。寄せ手が来ると脇の口から打って出て、一柳の隊の横を突く
-    F.uma = enemyGroup(rt, { faction: 'hojo', name: '馬出しの北条の隊', fixed: true, formation: 'yari', anchor: { ...A.uma }, facing: 0, width: 6, aggro: 4, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
+    F.uma = enemyGroup(rt, { faction: 'hojo', name: '馬出しの北条の隊', fixed: true, formation: 'yari', anchor: { ...A.uma }, facing: 0, width: 6, aggro: 4, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.4 },
       dress([{ type: 'samurai', n: 3 }, { type: 'cavalry', n: 5 }, { type: 'ashigaru', n: 16 }], HOJO));
     F.uma.historicalOrders = true;
-    F.san = enemyGroup(rt, { faction: 'hojo', name: '三の丸の守り', anchor: { ...A.plaza }, facing: 0, order: 'hold', aggro: 12, width: 12, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.58 },
+    F.san = enemyGroup(rt, { faction: 'hojo', name: '三の丸の守り', anchor: { ...A.plaza }, facing: 0, order: 'hold', aggro: 12, width: 12, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42 },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }], HOJO));
     for (const u of F.san.units) if (u.type === 'gun') u.dmg *= 0.5;
     F.sortie = F.K.sortie(F.uma, { fight: 18, mouth: 1, R: 12,
@@ -544,7 +546,7 @@ const t09_yamanaka = {
   openGate(rt, tsuke) {
     const F = rt.flags;
     if (F.gateOpen) return;
-    F.gateOpen = true;
+    F.gateOpen = true; F.gateOpenT = rt.t;
     for (const G of [F.K.gate, F.K.masu && F.K.masu.inner]) if (G && G.struct && G.struct.alive !== false) { G.struct.opened = true; G.open && G.open(); }
     for (const id of ['gate', 'ote', 'uma']) rt.unmark(id);
     sfx('kane', 0.4);
@@ -686,6 +688,22 @@ const t09_yamanaka = {
       if (!F.daiLast && F.mamiyaDead && T > 180 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
         F.daiLast = true; F.dai.order = 'attack'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
       }
+      // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
+      if (!F.daiPulled && T > 120 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
+        F.daiPulled = true;
+        const c = F.naka.count ? F.naka.center() : p;
+        let best = null, bd = Infinity;
+        for (const s of F.daiWall) { const d = Math.hypot((s.seg[0] + s.seg[2]) / 2 - c.x, (s.seg[1] + s.seg[3]) / 2 - c.z); if (d < bd) { bd = d; best = s; } }
+        if (best && best.alive) { rt.army.damage(best, best.hp + 1, null); sfx('gateBreakWood', 0.8); rt.say('中村一氏', '縄を掛けよ！　柵を引き倒せ！', 3); }
+      }
+      // 手勢の七割を討てば、残りは三の丸へ落ちる（11/9 bot：六十余を一人ずつ討つと十分を超えた）。間宮が残っていれば最期を見せる
+      const daiLeft = F.dai.units.filter(cnt).length;
+      if (daiLeft > 0 && (daiLeft <= Math.ceil(F.daiN * 0.3) || T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
+        if (mu && mu.alive) { F.mamiyaDead = true; mu.invuln = false; mu.hp = 0; rt.army.kill(mu, F.naka.units.find((u) => u.alive && u.type !== 'busho') || null); rt.banner('間宮康俊、討ち死に'); }
+        if (daiLeft > Math.ceil(F.daiN * 0.3)) rt.say('山内一豊', '二陣、柵の破れから押し込め！　出丸を揉み潰せ！', 3); else rt.say('物見', '出丸の残兵、三の丸へ逃げていきます！', 3);
+        this.shoji(rt);
+        return;
+      }
       if (F.dai.units.every((u) => !cnt(u)) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) this.shoji(rt);
     }
     if (F.step === 2) {
@@ -708,7 +726,11 @@ const t09_yamanaka = {
         F.gatePress = (F.gatePress || 0) + dt;
         if (F.gatePress > 70) this.openGate(rt, false);
       }
-      if (F.gateOpen && Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z) < 10) this.honmaru(rt);
+      // 本人が門の前の三の丸の守りと斬り合い続け、寄せ手が門へ着けない時も、長くは止めない（11/9 bot：九分止まった）
+      if (!F.gateOpen && F.sub === 'back' && dg < 60 && rt.t - F.backT > 150) this.openGate(rt, false);
+      // 枡形の中で三の丸の守りに囲まれても、門をくぐって曲輪の中にいれば入ったとする（11/9 bot：広場の真ん中へ着けず九分止まった）
+      const dpz = Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z);
+      if (F.gateOpen && (dpz < 10 || (dpz < 24 && rt.t - F.gateOpenT > 60) || (dpz < 60 && rt.t - F.gateOpenT > 120))) this.honmaru(rt);
     }
     if (F.step === 4) {
       const g = F.hon;
@@ -731,6 +753,11 @@ const t09_yamanaka = {
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
       if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
+      // 本人が本丸で長く斬り合っても康長へ届かない時は、寄せ手の槍が康長を囲んで討つ（11/9 bot：本丸で十分止まった）
+      if (F.honOn && !F.honTimed && F.honU?.alive && T > 220 && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50) {
+        F.honTimed = true; const hu = F.honU; hu.invuln = false; hu.hp = 0;
+        rt.army.kill(hu, F.toyo.flatMap((q) => q.units).find((u) => u.alive && u.type !== 'busho') || null); rt.banner('松田康長、討ち死に');
+      }
       if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && (g.count === 0 || (F.honU && !F.honU.alive))) this.win(rt);
     }
   },
@@ -805,7 +832,10 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     if (F.sub !== 'back') { goTo(p, inp, M.far.x, M.far.z, 3); return; }
     const W = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut, A.plaza];
     b.botWp = Math.min(b.botWp || 0, W.length - 1);
-    if (Math.hypot(u.pos.x - W[b.botWp].x, u.pos.z - W[b.botWp].z) < 2.5 && b.botWp < W.length - 1) b.botWp++;
+    // 角や土塁の縁で行き先の点へ届かず止まったら、次の点へ（11/9 bot：馬出しの前で十分止まった）
+    const st = b.botStk ||= { x: u.pos.x, z: u.pos.z, t: b.t };
+    if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 1.5) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
+    if ((Math.hypot(u.pos.x - W[b.botWp].x, u.pos.z - W[b.botWp].z) < 2.5 || b.t - st.t > 8) && b.botWp < W.length - 1) { b.botWp++; st.t = b.t; }
     goTo(p, inp, W[b.botWp].x, W[b.botWp].z, 1.2); return;
   }
   if (F.step === 4 && F.hon && !gone(F.hon)) {

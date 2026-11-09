@@ -411,10 +411,20 @@ const t02_shizugatake = {
     for (const [dx, dz] of [[FORT.r + 3, -5], [FORT.r + 3, 5], [-8, -6], [6, 8]]) rt.scene.add(kagaribi(W, FORT.x + dx, FORT.z + dz));
     for (const [dx, dz] of [[-6, -10], [8, -11], [-11, 6]]) rt.scene.add(nobori(W, FORT.x + dx, FORT.z + dz, HASHIBA, 5));
     rt.scene.add(yagura(W, FORT.x + 5, FORT.z + 9, { mon: HASHIBA, team: 0 }));   // 南東の隅（東の口から北を見る目線をふさがない）
-    // ---- 対陣図の砦の並び：幟で示す（羽柴方は桐・柴田方は雁金・前田は梅鉢）。大岩山と岩崎山は、もう佐久間の旗 ----
-    const flags = [[TAGAMI, HASHIBA], [HIGASHINO, 'hori'], [DOGI, HASHIBA], [SHINMEI, HASHIBA], [OIWA, HASHIBA], [IWASAKI, 'kuroda'],
+    // ---- 対陣図の砦の並び：幟で示す（羽柴方は桐・柴田方は雁金・前田は梅鉢）。大岩山と岩崎山は陥落時に佐久間の旗へ替える ----
+    const flags = [[TAGAMI, HASHIBA], [HIGASHINO, 'hori'], [DOGI, HASHIBA], [SHINMEI, HASHIBA], [OIWA, HASHIBA], [IWASAKI, HASHIBA],
       [SHIGE, 'maeda'], [GYOICHI, SAKUMA.flag], [BESSHO, 'maeda']];
-    for (const [p, k] of flags) for (const [dx, dz] of [[0, 0], [-5, 3], [5, 3]]) rt.scene.add(nobori(W, p.x + dx, p.z + dz, k, 7));
+    F.fallenFortFlags = [];
+    for (const [p, k] of flags) for (const [dx, dz] of [[0, 0], [-5, 3], [5, 3]]) {
+      const guard = nobori(W, p.x + dx, p.z + dz, k, 7);
+      rt.scene.add(guard);
+      if (p === OIWA || p === IWASAKI) {
+        // 陥落前は羽柴方、陥落後は占領した佐久間の幟。燃える砦に守備側の旗を残さない。
+        const sakuma = nobori(W, p.x + dx, p.z + dz, SAKUMA.flag, 7);
+        sakuma.visible = false; rt.scene.add(sakuma);
+        F.fallenFortFlags.push({ guard, sakuma });
+      }
+    }
     // 11/8 陣立ての見せ場（幟の林。docs/army_depth_1106.md「兵数より旗」）：大岩山を落とした佐久間勢は、霧と尾根の坂で兵が見えなかった。
     //   大岩山から賤ヶ岳へ、先手・二陣・本陣の三つの備を幟の塊で縦に並べる（奥ほど幟が多い）。幟と足元の山肌だけ霧を抑える。並びと本数は推定
     {
@@ -474,6 +484,7 @@ const t02_shizugatake = {
   // 大岩山と岩崎山が燃える（②で盛政が落とす）
   burnOiwa(rt) {
     const W = rt.world;
+    for (const { guard, sakuma } of rt.flags.fallenFortFlags || []) { guard.visible = false; sakuma.visible = true; }
     for (const f of rt.flags.sakuForest || []) f.visible = true;
     for (const p of [OIWA, IWASAKI]) {
       // 11/6 critic60（十一4）：物見から見えない。燃える砦の火を大きく、黒い煙の柱を三本（大岩山は余呉湖の向こう一里の近さ）
