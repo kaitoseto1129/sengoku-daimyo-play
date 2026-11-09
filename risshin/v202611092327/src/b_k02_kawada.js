@@ -66,6 +66,7 @@ const FORT_IN = { x: -84, z: -186 };     // 新加納の砦の内（柵で囲っ
 const FORT_GATE = { x: -84, z: -166 };   // 新加納の砦の南の木戸の前
 const inFort = (p) => Math.abs(p.x - FORT_IN.x) < 19.5 && p.z < FORT_IN.z + 11.5 && p.z > FORT_IN.z - 11.5;
 const GATE = { x: -60, z: -48 };        // 北岸の柵の口
+const insideNorthGuard = (p) => Math.abs(p.x - GUARD.x) < 34 && p.z < GATE.z && p.z > GUARD.z - 30;
 const ROUTE = [[-60, 160], [-60, 110], [-60, 66], [-60, 46], [-58, 18], [ISLE.x, ISLE.z], [-60, -10], [NORTH.x, NORTH.z], [GATE.x, GATE.z], [-84, -60], [-112, -66], [YONENO.x, YONENO.z], [-118, -80], [-112, -112], [-104, -146], [SHINKANO.x, SHINKANO.z + 24], [SHINKANO.x, SHINKANO.z]];
 
 // 11/8 critic60 四3「甲冑の基本は黒」：池田の侍の具足が赤茶に出ていた。東軍の四家は黒漆の具足に紺の縅
@@ -424,7 +425,7 @@ const k02_kawada = {
         foes: (rt2) => { const C = rt2.flags.dp.cur; for (const g of [F.northGun, F.northGuard]) if (g && g.count) { if (g === F.northGun) g.order = 'hold'; g.dmgMult = g._k02fire ? 0.7 : 0.3; C.groups.push(g); C.nTot = (C.nTot || 0) + g.count; } return []; },
         later: [{ t: 22, say: ['大塚権太夫', '武市善兵衛・忠左衛門の兄弟、大塚権太夫が討ち取った！'], foes: () => [] },
           { t: 40, say: ['木造長政','柵の内の者、出て槍を合わせよ！'], foes: () => [keep('柵の内の槍組', { x: -74, z: NORTH.z - 14 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }])] }],
-        reward: '河田の渡しを渡った' }), 45, (p) => Math.abs(p.x - GUARD.x) < 34 && p.z < GATE.z && p.z > GUARD.z - 30),
+        reward: '河田の渡しを渡った' }), 45, insideNorthGuard),
       DP.rest({ dur: 5, heal: 0.9, fn: (rt2) => rt2.world.setTime('day') }),
       // ③ 北岸を下流の米野村へ。昼、百々綱家の隊と組み合う。飯沼長資が大塚権太夫を討って出て、ここで討ち死にする（討ったのは池田長吉とも）
       yoneno(DP.fight({ at: YONENO, title: '米野', sub: '百々綱家の隊が村の前に構える', obj: '北岸を西へ進み、米野村の百々綱家の隊を追い払え', max: 240, noRefill: true,   // 百々が退いた後に「新手の百々綱家の旗本」を湧かせない（11/6）
@@ -575,7 +576,7 @@ k02_kawada.guideMarker = (rt) => {
   if (!q) return null;
   // 距離だけで消すと、柵の九歩手前や砦の木戸の外で案内がなくなる。
   // 入口を通る目標は、柵を越え、砦の内へ入るまで案内を残す。
-  if (q[0] === GATE) return p.z < GATE.z ? null : 'k02go';
+  if (q[0] === GATE) return insideNorthGuard(p) ? null : 'k02go';
   if (q[0] === SHINKANO) return inFort(p) ? null : 'k02go';
   return Math.hypot(p.x - q[0].x, p.z - q[0].z) < q[2] ? null : 'k02go';
 };

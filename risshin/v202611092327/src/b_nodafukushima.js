@@ -2978,6 +2978,17 @@ const nodafukushima = {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
     // 野田福島は数千挺の鉄砲の戦（kaito 11/5 BS「主人公は鉄砲を使える」）。問屋で買っていなくても、鉄砲衆の筒を一挺貸す（3 で持ち替え）。
     { const P = rt.player; if (!P.hasGun) { P.hasGun = true; P.gunMesh = weaponMesh('gun'); P.u.gunRainCover = !!P.gunMesh?.userData.rainCover; P.weapons = null; } }
+    // 井楼の足元に落とし物があっても、登る長押しを別の作業に奪われない。
+    // 梯子の距離・高さ・生存の判定は、共通の受け付けをそのまま通す。
+    { const P = rt.player, use = P.updateLadderUse; P.updateLadderUse = function (dt) {
+      use.call(this, dt);
+      if (!this.ladderO) return;
+      for (const t of rt.flags.seirou || NO_GROUPS) {
+        if (FL.ladders[t.ladderId] !== this.ladderO) continue;
+        for (const it of rt.interacts) if (it.id === 'ladder-climb') it.prio = 3;
+        break;
+      }
+    }; }
     // 11/6 作り直し（kaito BS「建物や櫓の中に入るとカメラがおかしくなる」）：井楼の床の上では、肩越しの視点が囲いの板と室内の壁に塞がれた（写真 nr/p1 b020・p2 b040）。
     //   櫓の上にいる間だけ一人称の目（狭間から砦を見下ろす）。下りたら元の視点へ戻す。
     { const P = rt.player, fw = P.fpWanted; P.fpWanted = function () { return (!!rt.flags.onSeirou && !rt.flags.down && this.u.alive && !(rt.game && rt.game.photo)) || fw.call(this); }; }

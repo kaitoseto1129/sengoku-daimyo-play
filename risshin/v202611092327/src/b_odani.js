@@ -2717,10 +2717,12 @@ function stoneTick(rt, dt) {
         let shield = false;
         rt.army.forNear(u.pos.x, u.pos.z, 3.6, (q) => {
           if (shield || !q.alive || q.team !== u.team || !q.tatake || q.fleeing) return;
+          // 竹束を投石元へ向けた者だけが、自分と後ろの兵を守る。
+          if (-(Math.sin(q.heading) * dx + Math.cos(q.heading) * dz) <= .5) return;
           const along = (q.pos.x - s.ax) * dx + (q.pos.z - s.az) * dz;
           const side = Math.abs((q.pos.x - s.ax) * dz - (q.pos.z - s.az) * dx);
           if (along > len - 3.5 && along < len - .2 && side < .6 ||
-              Math.abs(along - len) < .2 && side < .2 && -(Math.sin(q.heading) * dx + Math.cos(q.heading) * dz) > .5) shield = true;
+              Math.abs(along - len) < .2 && side < .2) shield = true;
         });
         rt.army.damage(u, (u.isPlayer ? 6 : 11) * (shield ? .3 : 1), null, { kind: "rock" });
       });
