@@ -600,7 +600,12 @@ function farTemples(rt) {
   // 11/6 fixc1439：陸の側（織田の囲みの内）の東西の道場は外した。市江口・賀鳥口の手のすぐ脇に門徒の寺と南無の旗が立ち、
   //   遠目の作り（dist: 'far'）が四十歩で窓も戸も無い箱に見えた。門徒の寺は島の側だけ。
   const T = [{ id: 'oku_hondo', x: -18, z: -118, w: 16, d: 12, h: 8 }, { id: 'yana_dojo', x: 62, z: -108, w: 14, d: 11, h: 7.5 }];
-  for (const t of T) G.build({ id: t.id, name: '門徒の寺', kind: 'hondo', x: t.x, z: t.z, w: t.w, d: t.d, h: t.h, rot: t.rot || 0, roof: 'thatch', enterable: true, dist: 'far' });   // 共通の種類表に 'hondo' は無く、入れない棟では形が出来なかった（支坊と同じ作りにする）
+  // 島奥の二堂も、高画質では願証寺と同じ真宗の推定内装を使う。
+  // 畳の外陣・板敷きの内陣と須弥壇を備え、本尊背後の窓を閉じ、表口は開閉する格子戸にする。
+  // 建物の大きさと遠景の屋根の束は保ち、室内は既存の近づいた時だけ作る仕組みに任せる。
+  for (const t of T) G.build({ id: t.id, name: '門徒の寺', kind: 'hondo',
+    profile: SETTINGS.quality === 'high' ? 'nagashima' : undefined,
+    x: t.x, z: t.z, w: t.w, d: t.d, h: t.h, rot: t.rot || 0, roof: 'thatch', enterable: true, dist: 'far' });
   G.finish(); darkThatch(G);
   for (const t of T) { const L = Math.hypot(t.x, t.z), ux = -t.x / L, uz = -t.z / L, r = Math.max(t.w, t.d) / 2 + 3;   // 旗は岸の側の前に
     for (const s of [-5, 5]) rt.scene.add(nobori(W, t.x + ux * r - uz * s, t.z + uz * r + ux * s, 'namu', 7)); }
@@ -610,7 +615,11 @@ function farTemples(rt) {
 const SHIBO = { x: 14, z: 80 };   // 10/29：南を向いた画面でも霞に消えないよう寄せる。深夜：陣の向こうの真ん中寄りへ（陸を向いたどの画面にも棟が入る）
 function shiboTemple(rt) {
   const W = rt.world, S = SHIBO, G = new Garan(rt);
-  G.build({ id: 'shibo_hondo', name: '門徒の支坊', kind: 'hondo', x: S.x, z: S.z, w: 18, d: 13, h: 9.4, rot: Math.PI, roof: 'thatch', enterable: true, dist: 'far' });   // 深夜：陣の幕と旗の上に大屋根が抜ける高さ
+  // 支坊も島奥の堂と同じ推定内装。畳の外陣・須弥壇の内陣を使い、
+  // 本尊裏の窓を閉じ、表口を操作できる格子の引き戸にする。室内は接近時だけ作る。
+  G.build({ id: 'shibo_hondo', name: '門徒の支坊', kind: 'hondo',
+    profile: SETTINGS.quality === 'high' ? 'nagashima' : undefined,
+    x: S.x, z: S.z, w: 18, d: 13, h: 9.4, rot: Math.PI, roof: 'thatch', enterable: true, dist: 'far' });   // 深夜：陣の幕と旗の上に大屋根が抜ける高さ
   G.finish(); darkThatch(G);
   rt.scene.add(romon(W, S.x, S.z - 10, 5.2, Math.PI));
   const batch = makeKitBatch();
@@ -773,7 +782,7 @@ function fortRooms(rt) {
     const windows = detailed ? [-1, 1].map(side => ({ face: 'z', s: 1, t: side * (w + door) / 4,
       w: Math.min(1.1, (w - door) / 2 - .5), y0: 1.25 - .18, y1: 2.05 - .18 })) : [];
     const naka = addInterior(rt.world, { name: b.name, kind: b.kind || 'nagaya', profile: 'nagashima', x: b.x, z: b.z, team: 1,
-      levels: [{ y: y + .18, w, d, h: H - .18 }], door: { side: 1, lx: 0, w: door, h: 2.05 }, approach: { pad: .2, len: .9 }, wins: () => windows });
+      levels: [{ y: y + .18, w, d, h: H - .18 }], door: { side: 1, lx: 0, w: door, h: 2.05, sliding: 'itado' }, approach: { pad: .2, len: .9 }, wins: () => windows });
     // 共通の室内と同じ寸法の壁。入口を飾りの戸や大きな当たりで塞がない。
     box(b, 0, 0, .1, 0, w, .16, d);
     box(b, 0, 0, H / 2, -d / 2, w, H, .12);
@@ -844,12 +853,25 @@ function fortRooms(rt) {
         box(b, 2, side * (w + door) / 4, .16, d / 2 + .065, (w - door) / 2, .28, .025);
       }
     }
+    // 梁を見せる蔵・長屋だけ、小屋組を同じ屋根勾配へ納める推定復元。
+    // 梁割りは naka.js の nagashimaOpenRoof と合わせ、束を梁のない所へ立てない。
+    const openRoof = SETTINGS.quality === 'high' && ['kura', 'nagaya'].includes(b.kind);
+    if (openRoof) {
+      const bays = Math.max(2, Math.round(w / 1.9));
+      for (const lz of [-half / 2, 0, half / 2]) {
+        const top = H + rise * (1 - Math.abs(lz) / half) - .14;
+        box(b, 2, 0, top - .07, lz, w, .14, .14);
+        const bottom = H - .05, height = top - .14 - bottom;
+        if (height > 0) for (let j = 1; j < bays; j++)
+          box(b, 2, -w / 2 + j * w / bays, bottom + height / 2, lz, .12, height, .12);
+      }
+    }
     for (const side of [-1, 1]) {
       box(b, 1, 0, H + rise / 2, side * half / 2, w + 1.2, .12, slope, side * angle);
       if (detailed) {
         // 六巡目：写真の薄い板屋根を支える垂木と破風板。軒下を一枚板のままにしない。
-        // 壁より外の軒だけに短い垂木を出し、既存の材質の束に入れる。
-        const rafters = Math.ceil(w / 1.4), tail = .58, tailRise = tail * rise / half;
+        // 梁を見せる室内では棟まで通し、母屋の上に載せる。既存の木材の束へ結合する。
+        const rafters = Math.ceil(w / 1.4), tail = openRoof ? half : .58, tailRise = tail * rise / half;
         for (let n = 0; n <= rafters; n++)
           box(b, 2, -w / 2 + w * n / rafters, H + tailRise / 2 - .11,
             side * (half - tail / 2), .075, .1, Math.hypot(tail, tailRise), side * angle);
@@ -2811,7 +2833,7 @@ const nagashima = {
     // ---- 願証寺の寺内町（中江の砦とは別の、宗教の中心。本堂・門・門徒屋敷・倉・船着場。大天守は無い） ----
     // 願証寺の室内図は不明。輪中の寺として、外陣と内陣・僧坊の座敷を推定する。
     F.teranaka = new Garan(rt);
-    F.teranaka.build({ id: 'gansho_hondo', name: '願証寺の本堂', kind: 'hondo', x: GANSHO.x, z: GANSHO.z, w: 15, d: 12, h: 7, roof: 'thatch', enterable: true });   // 10/29 夜：対岸の柵と井楼の上に棟が抜けるよう一回り大きく（西の里道 x=-53 と包囲柵 x=-34 の間に収める）   // 輪中の門徒寺の茅の大屋根。瓦の灰は霞に溶けて薄く見えた（10/29）   // 柱を高くし、対岸から大屋根が柵の上に見えるように
+    F.teranaka.build({ id: 'gansho_hondo', name: '願証寺の本堂', kind: 'hondo', profile: 'nagashima', x: GANSHO.x, z: GANSHO.z, w: 15, d: 12, h: 7, roof: 'thatch', enterable: true });   // 10/29 夜：対岸の柵と井楼の上に棟が抜けるよう一回り大きく（西の里道 x=-53 と包囲柵 x=-34 の間に収める）   // 輪中の門徒寺の茅の大屋根。瓦の灰は霞に溶けて薄く見えた（10/29）   // 柱を高くし、対岸から大屋根が柵の上に見えるように
     rt.scene.add(romon(W, GANSHO.x, GANSHO.z + 11, 5.2, 0));
     // 11/6 fixc1439：陣の後ろ（早尾口の本陣の奥）の門徒の支坊も外す。織田の囲みの内に南無の旗を立てない（一6）。
     farTemples(rt);
@@ -2821,8 +2843,8 @@ const nagashima = {
     rt.scene.add(village(W, -134, -92, { n: 7, r: 16, rot: 0.05, seed: 15749, smoke: 0 }));
     rt.scene.add(village(W, -90, -112, { n: 4, r: 10, rot: -0.15, seed: 15750, smoke: 0 }));
     // 寺は中江の西の包囲柵（x=-34）より外。棟も石段も柵や本堂と重ねない。
-    F.teranaka.build({ id: 'gansho_sobo', name: '願証寺の僧坊', kind: 'sobo', x: GANSHO.x + 6, z: GANSHO.z - 10, w: 5, d: 4, rot: .15, enterable: true });
-    F.teranaka.build({ id: 'gansho_kuri', name: '願証寺の庫裏', kind: 'kuri', x: GANSHO.x + 6, z: GANSHO.z + 10, w: 5, d: 4, rot: -.1, enterable: true });
+    F.teranaka.build({ id: 'gansho_sobo', name: '願証寺の僧坊', kind: 'sobo', profile: SETTINGS.quality === 'high' ? 'nagashima' : undefined, x: GANSHO.x + 6, z: GANSHO.z - 10, w: 5, d: 4, rot: .15, enterable: true });
+    F.teranaka.build({ id: 'gansho_kuri', name: '願証寺の庫裏', kind: 'kuri', profile: 'nagashima', x: GANSHO.x + 6, z: GANSHO.z + 10, w: 5, d: 4, rot: -.1, enterable: true });
     F.teranaka.finish(); darkThatch(F.teranaka);
     for (const [dx, dz] of [[-4, 13], [4, 13]]) rt.scene.add(nobori(W, GANSHO.x + dx, GANSHO.z + dz, 'namu', 6));
     // 門前の市（床の低い小屋と俵の店。寺内町は門徒の暮らしの町で、長島城や屋長島の砦の軍事の曲輪とは分ける）

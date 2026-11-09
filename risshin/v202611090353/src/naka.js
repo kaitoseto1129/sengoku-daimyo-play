@@ -934,16 +934,17 @@ continue;
     });
     // 岩村の座敷は畳の上端を歩く。板床の高さのままでは足が畳へ六・六センチ沈む。
     // 上段も同じ厚さを足し、敷居と調度に合わせる。床片で切り、階段の穴を塞がない。
-    const tatamiWalk = S.quality === 'high' && ['iwamura', 'iwamura_yashiki'].includes(I.profile);
+    // 長島の本堂・館・番所・僧坊も、畳縁の上端を歩く。上段の高さも足す。
+    const tatamiWalk = S.quality === 'high' && ['iwamura', 'iwamura_yashiki', 'nagashima'].includes(I.profile);
     // 岩村の基本形の板床も、調度と同じ十二ミリの板厚を足元へ渡す。
     // 内陣・神座・長屋の上げ床だけでなく、外陣と屋敷の板縁も板の上を歩く。
     // 専用の板敷きの上端へ、設営時だけ歩行面を登録する。
-    const boardWalk = S.quality === 'high' && (I.profile === 'iwamura' || I.profile?.startsWith('iwamura_'));
+    const boardWalk = S.quality === 'high' && (I.profile === 'nagashima' || I.profile === 'iwamura' || I.profile?.startsWith('iwamura_'));
     // 用屋の土間も、描いた叩きの上端へ足元をそろえる。
     // 灯明・地覆と同じ二十五・五ミリを使い、床片の外へ歩行面を広げない。
     // 土間の仕上げは買った板床の有無によらず共通。毎コマの処理は増やさない。
-    const earthWalk = S.quality === 'high' && I.profile === 'iwamura_' + I.kind
-      && ['kura', 'bansho', 'nagaya'].includes(I.kind);
+    const earthWalk = S.quality === 'high' && (I.profile === 'nagashima'
+      || I.profile === 'iwamura_' + I.kind && ['kura', 'bansho', 'nagaya'].includes(I.kind));
     for (const room of lv.layout.rooms) if (tatamiWalk && room.floor === 'tatami'
       || boardWalk && room.floor === 'boards'
       || earthWalk && room.floor === 'earth') for (const piece of lv.pieces) {
@@ -1696,6 +1697,36 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
         seg(I, x, z, x, z, ground + .04, top, .06);
       }
     }
+    if (S.quality === 'high' && I.profile === 'nagashima'
+      && ['goten', 'sobo', 'bansho', 'hondo', 'kuri', 'kura', 'nagaya'].includes(I.kind)) {
+      // 畳際の敷居は戸口から両脇の固定戸まで続く。足場も同じ木の上面へ揃える。
+      // 庫裏の板戸も食事座敷の畳高で受け、土間側から踏む足を敷居へ沈めない。
+      lv.thresholds = [];
+      for (const p of lv.layout.portals) {
+        if (!(p.sill > 0)) continue;
+        // 内戸の敷居は見込み三十四センチ。端の溝を踏んでも足を沈めない。
+        // 蔵・長屋の四センチ高の敷居も同じ歩行面で受ける。
+        const halfW = hw - .1, halfD = .17;
+        lv.thresholds.push({ x0: -halfW, x1: halfW, z0: p.z - halfD, z1: p.z + halfD, y: p.sill });
+        const [cx, cz] = I.P(0, p.z);
+        const id = addDeck({ cx, cz, rot, x0: -halfW, x1: halfW, z0: -halfD, z1: halfD,
+          y: lv.y + p.sill, roof: lv.y + lv.h, name: '座敷の敷居', pad: 0 });
+        FL.decks[id].interior = true;
+      }
+      // 本堂以外の表戸にも同じ溝付き敷居がある。館・僧坊・庫裏・砦も
+      // 見える木の上端を歩き、窓の敷居には通行用の床を足さない。
+      for (const door of I.doors || []) {
+        if (door.lv !== lv || !door.entry) continue;
+        // 表戸の二倍幅の溝と同じ範囲を歩けるようにし、下框をまたぐ足を沈めない。
+        // 溝の岸は戸の基準高より二十五ミリ高い。開閉しても足場は固定する。
+        const halfW = door.W + .02, halfD = .11, top = door.y - lv.y + .025;
+        lv.thresholds.push({ x0: door.lx - halfW, x1: door.lx + halfW,
+          z0: door.lz - halfD, z1: door.lz + halfD, y: top });
+        const id = addDeck({ cx: door.x, cz: door.z, rot, x0: -halfW, x1: halfW,
+          z0: -halfD, z1: halfD, y: lv.y + top, roof: lv.y + lv.h, name: '表口の敷居', pad: 0 });
+        FL.decks[id].interior = true;
+      }
+    }
     if (S.quality === 'high' && I.profile === 'inabayama') {
       // 上段・内陣・板間の敷居は低い側にも十六センチ張り出す。
       // 部屋の境だけで床高を替えると、開いた戸を通る足が框へ沈む。
@@ -1796,14 +1827,23 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
           y1 - low, y1 - high, .12).bodyOverlap = true;
     };
     for (const v of lv.layout.walls) {
+      const nagashimaPanel = S.quality === 'high' && I.profile === 'nagashima' && v.paper;
       // 設楽原の固定建具も、動く戸と同じ鴨居の高さで区切る。
       // 小壁まで紙戸扱いにすると槍が木部を抜け、内陣の壁越しにも届いてしまう。
       const split = villagePartition && v.paper && partitionTop < y1;
       // 小堂の内陣境は木の格子。襖と同じ「紙を突き通せる壁」にはしない。
-      const paperPanel = v.paper && !(villagePartition && I.kind === 'hondo');
+      const paperPanel = v.paper && !((villagePartition || nagashimaPanel) && I.kind === 'hondo');
       const homePanel = villagePartition && I.kind === 'minka' && v.paper;
       // 民家の固定戸も動く戸と同じ見込み六センチ。十六センチの見えない厚みを残さない。
-      if (!homePanel) seg(I, v.ax, v.az, v.bx, v.bz, y0, split ? partitionTop : y1, .08).fusuma = paperPanel;
+      if (nagashimaPanel) {
+        // 長島は上段だけでなく、番所・僧坊・館の平床でも鴨居上を紙扱いにしない。
+        // 固定の格子も動く内陣の戸と同じ木製として槍を止める。
+        // 絵と可動戸で共有する内法高を使い、当たりは設営時だけ分ける。
+        const sillY = lv.y + (v.sill || 0), headY = lv.y + interiorDoorHeight(lv.layout, lv.h);
+        if (sillY > y0) seg(I, v.ax, v.az, v.bx, v.bz, y0, sillY, .105);
+        seg(I, v.ax, v.az, v.bx, v.bz, sillY, headY, .08).fusuma = paperPanel;
+        seg(I, v.ax, v.az, v.bx, v.bz, headY, y1, .08).bodyOverlap = true;
+      } else if (!homePanel) seg(I, v.ax, v.az, v.bx, v.bz, y0, split ? partitionTop : y1, .08).fusuma = paperPanel;
       // 固定の襖・障子も四周の框は紙扱いにしない。動く戸と同じ四センチの見付け。
       // 柱の内面へ納めた建具の木だけを受け、紙面の中央は従来どおり槍を通す。
       if (homePanel) {
@@ -1947,6 +1987,13 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
       }
     }
     for (const p of lv.layout.props) {
+      if (S.quality === 'high' && I.profile === 'nagashima' && p.part !== 'alcove') {
+        // 通路を空ける寄せ直しの後に、据え付ける部屋の仕上げ面へ合わせる。
+        // 畳の文机・庫裏の水甕を床へ埋めず、絵と当たりの脚元を共有する。
+        // 板間は十二ミリの仕上げ板の上面へ、須弥壇・経卓・寝具もそろえる。
+        const room = lv.layout.rooms.find(r => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1);
+        if (room) p.y = (room.y || 0) + (room.floor === 'tatami' ? .066 : room.floor === 'earth' ? .0255 : .012);
+      }
       if (S.quality === 'high' && I.profile === 'nodafukushima' && p.part !== 'hearth') {
         // 配置を寄せ終えてから床面へ載せる。畳・板床に脚や須弥壇を埋めず、
         // 当たりの上端にも同じ高さを使う。囲炉裏の灰床だけは床へ埋めたまま。
@@ -1960,12 +2007,23 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
         // 薄いむしろは踏める足場にする。寝床の高さには藁枕も含まれるため、
         // 全面を枕の高さへ持ち上げず、描く敷物の上端へ足をそろえる。
         const [cx, cz] = I.P(p.x, p.z);
-        const matH = p.part === 'bedding' ? Math.min(.025, p.h / 3) : p.h;
+        // 長島の共通寝具は六センチの敷物と、上端十五センチの枕。
+        // 伊賀の薄いむしろの寸法を流用せず、見える二つの面を別々に踏ませる。
+        const nagashimaBedding = S.quality === 'high' && I.profile === 'nagashima' && p.part === 'bedding';
+        const matH = nagashimaBedding ? .06 : p.part === 'bedding' ? Math.min(.025, p.h / 3) : p.h;
         // 伊賀の座と寝むしろの外では板間・畳へ戻す。敷物の周囲を浮かせない。
         const id = addDeck({ cx, cz, rot: rot + (p.rot || 0),
           x0: -p.w / 2, x1: p.w / 2, z0: -p.d / 2, z1: p.d / 2,
-          y: lv.y + (p.y || 0) + matH, roof: lv.y + lv.h, name: '敷きむしろ', pad: I.profile === 'iga' ? 0 : undefined });
+          y: lv.y + (p.y || 0) + matH, roof: lv.y + lv.h, name: '敷きむしろ', pad: I.profile === 'iga' || nagashimaBedding ? 0 : undefined });
         FL.decks[id].interior = true;
+        if (nagashimaBedding) {
+          const headZ = -p.d / 2 + .15, turn = p.rot || 0;
+          const [px, pz] = I.P(p.x + headZ * Math.sin(turn), p.z + headZ * Math.cos(turn));
+          const pillow = addDeck({ cx: px, cz: pz, rot: rot + turn,
+            x0: -p.w * .4, x1: p.w * .4, z0: -.11, z1: .11,
+            y: lv.y + (p.y || 0) + .15, roof: lv.y + lv.h, name: '寝所の枕', pad: 0 });
+          FL.decks[pillow].interior = true;
+        }
         continue;
       }
       // 稲葉山の床の間と槍掛けは、絵と当たりを同じ梁下の高さへ納める。
@@ -1982,7 +2040,7 @@ if (['hieizan', 'moribe', 'inabayama'].includes(I.profile) || I.profile?.startsW
       const dd = p.d ?? (p.part === 'alcove' ? .85 : p.part === 'altar' ? 1 : .7);
       // 岩村の板床上の調度は、描画側と同じ十二ミリの上張りから当たりを立てる。
       // 須弥壇・神座・筵も上げ床と板厚を含めて判定する。
-      const onBoards = boardWalk && !lv.layout.floorAligned && lv.layout.rooms.some(r => r.floor === 'boards'
+      const onBoards = boardWalk && I.profile !== 'nagashima' && !lv.layout.floorAligned && lv.layout.rooms.some(r => r.floor === 'boards'
         && p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1);
       // 岩村の須弥壇は壇座の上を空ける。像の高さまで幅いっぱいの箱にすると、
       // 本尊の左右の空間にも見えない壁ができる。上の像・光背は下で別に受ける。
@@ -2928,16 +2986,17 @@ export function nakaFind(x, z) {
 
 // 道しるべ（任務の印）：建物の外なら戸口、中なら上の階への階段の上り口、御殿は奥の間の口、着けば的（大将）。
 // rt.marker の pos に関数として渡す（印が一歩ずつ先を指す。真っすぐ寄せて壁に詰まらない）
-// 稲葉山の内陣・上段・板倉と、野田福島の部屋別の仕上げ床。
+// 稲葉山の内陣・上段・板倉と、野田福島・長島の部屋別の仕上げ床。
 // 入口や道案内も実際の床高へ揃え、板倉へ入った瞬間や敷居で足元を床下へ置かない。
 // 境では高い側を採り、設営済みの間取りを読むだけで座標や配列を作らない。
 function inabaFloorY(I, lv, x, z) {
-  if (S.quality !== 'high' || !['inabayama', 'nodafukushima'].includes(I.profile)) return lv.y;
+  if (S.quality !== 'high' || !(['inabayama', 'nodafukushima', 'nagashima'].includes(I.profile))) return lv.y;
   let raised = 0;
   for (const r of lv.layout.rooms) {
     if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1)
       raised = Math.max(raised, (r.y || 0) + (I.profile === 'nodafukushima'
-        ? r.floor === 'tatami' ? .06 : r.floor === 'boards' ? .018 : .025 : 0));
+        ? r.floor === 'tatami' ? .06 : r.floor === 'boards' ? .018 : .025
+        : I.profile === 'nagashima' ? r.floor === 'tatami' ? .066 : r.floor === 'earth' ? .0255 : .012 : 0));
   }
   if (lv.thresholds) for (const threshold of lv.thresholds) {
     if (x >= threshold.x0 && x <= threshold.x1 && z >= threshold.z0 && z <= threshold.z1)
@@ -3474,7 +3533,7 @@ function buildInside(rt, I) {
     // 玄関の柱・障子窓の縦枠は縦目。梁用の横目を回さず貼ると木口が側面へ出る。
     // 同じ箱と木目の束を共有し、戸じゃくりの細い木口にも材の向きを通す。
     const upright = alongX === 'y';
-    const scaled = S.quality === 'high' && I.profile === 'inabayama';
+    const scaled = S.quality === 'high' && I.profile === 'inabayama' || nagashimaBoards;
     const lengthScale = scaled ? (upright ? h : alongX ? w : d) / 2.4 : 1;
     for (let i = 0; i < p.count; i++) {
       if (upright) {
@@ -3580,6 +3639,9 @@ function buildInside(rt, I) {
   const paperWindows = I.templePaper || I.profile === 'moribe';
   // 稲葉山の用屋と小祠は板張りと貫で納め、座敷の白壁・長押を使わない。
   const boardInterior = I.profile === 'iwamura_' + I.kind && ['kura', 'bansho', 'nagaya'].includes(I.kind);
+  // 長島の砦は外観も板小屋。内側だけ座敷の塗り壁にはせず、同じ厚みの縦板で納める。
+  const nagashimaBoards = S.quality === 'high' && I.profile === 'nagashima'
+    && ['kura', 'bansho', 'nagaya'].includes(I.kind);
   // 八幡の社は、神座・板戸と外周の内壁も板張りでそろえる推定復元。
   // 用屋の床組とは分け、既存の壁片・窓の穴・木材の束を使う。
   const boardWalls = boardInterior || fineIwamura && I.profile === 'iwamura_shrine' && I.kind === 'shrine';
@@ -3598,8 +3660,14 @@ function buildInside(rt, I) {
     || honnojiUtility || fineIwamura && I.kind === 'shrine' || I.profile === 'nagashima' && ['kura', 'nagaya'].includes(I.kind);
   const coffered = ['hondo', 'chudo'].includes(I.kind) || I.profile === 'arioka' && I.kind === 'temple';
   const exposedIwamura = fineIwamura && plainCeiling;
+  // 輪中の軍用小屋は座敷の平天井を張らず、柱上の桁と梁を見せる推定の架構。
+  const nagashimaOpenRoof = S.quality === 'high' && I.profile === 'nagashima'
+    && ['kura', 'nagaya'].includes(I.kind);
   // 箕作の軍用の平屋は梁を見せ、屋敷の竿縁天井は残す。
-  const exposedBeams = I.profile === 'mitsukuri' && ['goten', 'bansho', 'kura', 'nagaya'].includes(I.kind);
+  // 願証寺の小さな炊事庫裏は、座敷用の竿縁天井で煙を閉じ込めず梁を見せる推定。
+  // 既存の梁・桁の束を使い、竈や入口、兵の数には手を加えない。
+  const exposedBeams = I.profile === 'mitsukuri' && ['goten', 'bansho', 'kura', 'nagaya'].includes(I.kind)
+    || nagashimaOpenRoof || S.quality === 'high' && I.profile === 'nagashima' && I.kind === 'kuri';
   const WOOD = 0x6a5038, DARK = 0x3a2a1c, WALL = toride ? 0x726552 : I.sgOverhead ? 0x817967 : boardWalls ? 0x716654 : goten ? 0xb8ab90 : 0xa89a80, FLOOR = 0x8a6a48, BOARD = I.sgOverhead ? 0x514b3d : 0x6a5238;
   for (let k = 0; k < Ls.length; k++) {
     const lv = Ls[k], hw = lv.w / 2, hd = lv.d / 2, h = lv.h, y = lv.y;
@@ -3678,7 +3746,9 @@ function buildInside(rt, I) {
     };
     // 本能寺の灯明は下で調度・引き戸を避けて据え、同じ位置から明かりを焼く。
     // 板縁の既定位置にも作ると、狭い棟で障子や配膳棚へ重なる。
-    const decor = furnishLayout(lv.layout, h, { partitions: true, dim: true, lamps: !fineIwamura && !I.profile?.startsWith('honnoji_') });
+    // 長島も調度側の灯明を重ねず、下で実際の引き戸の全移動範囲を避けて据える。
+    const nagashimaLamps = S.quality === 'high' && I.profile === 'nagashima';
+    const decor = furnishLayout(lv.layout, h, { partitions: true, dim: true, lamps: !nagashimaLamps && !fineIwamura && !I.profile?.startsWith('honnoji_') });
     decor.position.set(I.x, y, I.z); decor.rotation.y = I.rot; grp.add(decor);
     // 岩村の引分け戸は、引込み先を敷居から鴨居まで通した戸当たりで受ける推定復元。
     // 上下の小片だけで戸を止めず、縦框を全高で受ける。二筋とも同じ縦材の内へ納める。
@@ -3908,6 +3978,9 @@ function buildInside(rt, I) {
     };
     const villageHome = S.quality === 'high' && I.profile === 'shitaragahara' && I.kind === 'minka';
     const villageHall = S.quality === 'high' && I.profile === 'shitaragahara' && I.kind === 'hondo';
+    // 長島の本堂も内陣境で格縁・鏡板を止める推定。根拠と範囲は docs/nagashima-hondo-ceiling.md。
+    // 小堂の天井部品と結合処理だけ共用し、柱・戸・須弥壇の配置は各戦のまま使う。
+    const dividedHallCeiling = villageHall || S.quality === 'high' && I.profile === 'nagashima' && I.kind === 'hondo';
     const earth = villageHome ? lv.layout.rooms.find(r => r.floor === 'earth') : null;
     const woodPieces = earth ? lv.pieces.filter(v => v[3] <= earth.z0 || v[2] >= earth.z1) : lv.pieces;
     const hearth = villageHome ? lv.layout.props.find(p => p.part === 'hearth') : null;
@@ -4089,6 +4162,47 @@ function buildInside(rt, I) {
         }
       }
     }
+    }
+    if (S.quality === 'high' && I.profile === 'nagashima') {
+      // 長島の板間は外壁際の床框で受け、長い一枚板にせず木口を千鳥に継ぐ推定。
+      // 参考と範囲は docs/nagashima-floor-boards.md。共通の板形と木目を室内の束へ結合する。
+      // 十二ミリの上面は歩行面・須弥壇・経卓・寝具・灯明と共用する。
+      for (const r of lv.layout.rooms) if (r.floor === 'boards') {
+        const rim = .12;
+        const left = r.x0 + (Math.abs(r.x0 + hw) < .001 ? rim : 0);
+        const right = r.x1 - (Math.abs(r.x1 - hw) < .001 ? rim : 0);
+        const back = r.z0 + (Math.abs(r.z0 + hd) < .001 ? rim : 0);
+        const front = r.z1 - (Math.abs(r.z1 - hd) < .001 ? rim : 0);
+        // 板も框も同じ床片で切り、階段の穴を塞がない。
+        const floorBoard = (a, b, c, d, color) => {
+          for (const [px0, px1, pz0, pz1] of lv.pieces) {
+            const x0 = Math.max(px0, a), x1 = Math.min(px1, b);
+            const z0 = Math.max(pz0, c), z1 = Math.min(pz1, d);
+            if (x1 <= x0 || z1 <= z0) continue;
+            mainCeilingBoard((x0 + x1) / 2, y + (r.y || 0) + .006, (z0 + z1) / 2,
+              x1 - x0, .012, z1 - z0, color);
+          }
+        };
+        if (left > r.x0) floorBoard(r.x0, left, r.z0, r.z1, WOOD);
+        if (right < r.x1) floorBoard(right, r.x1, r.z0, r.z1, WOOD);
+        if (back > r.z0) floorBoard(left, right, r.z0, back, WOOD);
+        if (front < r.z1) floorBoard(left, right, front, r.z1, WOOD);
+        const count = Math.max(1, Math.ceil((right - left) / .3));
+        const width = (right - left) / count;
+        const bays = Math.max(1, Math.ceil((front - back) / .955));
+        const pitch = (front - back) / bays;
+        for (let j = 0; j < count; j++) {
+          let start = back;
+          for (let joint = 1 + j % 2; ; joint += 2) {
+            const end = Math.min(front, back + joint * pitch);
+            floorBoard(left + j * width + .001, left + (j + 1) * width - .001,
+              start + (start > back ? .001 : 0), end - (end < front ? .001 : 0),
+              j % 2 ? 0x806044 : 0x795b3b);
+            if (end >= front) break;
+            start = end;
+          }
+        }
+      }
     }
     if (I.profile?.startsWith('honnoji_')) {
       // 付属棟の板間は浮いた目地の線をやめ、厚さのある板を張る（割付は推定）。
@@ -5244,7 +5358,7 @@ if (nodaJoinery) {
       // 座敷の天井板は下の竿縁・回縁に合わせて張る。一枚の平板と目地の重ね描きにしない。
       const ceiling = parlor ? []
         : rectMinus(hw, hd, upSt ? upSt.hole : null);
-      if (villageHall) {
+      if (dividedHallCeiling) {
         // 小堂の裏板も一尺ほどの幅へ割る推定の納まり。一枚の平板で堂全体を覆わず、
         // 内陣境で板を切り、外周の柱頭の内側へ収める。格間の板との高さは保つ。
         // 上二センチは相欠きの重なりを表し、下四センチの目地から屋根へ光を抜かない。
@@ -5268,7 +5382,15 @@ if (nodaJoinery) {
       } else for (const [x0, x1, z0, z1] of ceiling)
         box((x0 + x1) / 2, y + h + .03, (z0 + z1) / 2, x1 - x0, .06, z1 - z0, goten ? 0x7a6448 : DARK);
     }
-    if (I.profile === 'inabayama') {
+    // 中江城の館も上段・広間・縁側で天井を区切る推定。根拠と範囲は
+    // docs/nagashima-hall-ceiling.md。既存の部屋別の竿縁・回縁・板継ぎを共用する。
+    // 願証寺の僧坊も座敷と板間で竿縁・板継ぎ・回縁を止める推定。
+    // docs/nagashima-sobo-ceiling.md。館と同じ木部の束へ結合し、障子の溝は保つ。
+    // 番所も座敷と入口土間の境で止め、障子上へ一本の竿縁を通さない。
+    // 仕口は上記の共通部品を使う推定。後代の参考例を長島の実測復元とはしない。
+    const nagashimaRoomCeiling = S.quality === 'high' && I.profile === 'nagashima'
+      && ['goten', 'sobo', 'bansho'].includes(I.kind);
+    if (I.profile === 'inabayama' || nagashimaRoomCeiling) {
     if (!I.open) {
       if (inabaBoards) {
         // 蔵・番所・長屋は化粧天井ではなく、梁の上に張った板の裏を見せる。
@@ -5304,7 +5426,7 @@ if (nodaJoinery) {
       }
       const inabaHall = S.quality === 'high' && I.profile === 'inabayama' && I.kind === 'hondo';
       const naijin = inabaHall ? lv.layout.rooms.find(r => r.name === '内陣') : null;
-      const roomCeiling = S.quality === 'high' && I.profile === 'inabayama' && goten && !plainCeiling && !upSt;
+      const roomCeiling = S.quality === 'high' && (I.profile === 'inabayama' || nagashimaRoomCeiling) && goten && !plainCeiling && !upSt;
       const hole = upSt ? upSt.hole : null, step = coffered ? .75 : goten && !plainCeiling ? .45 : .5;
       // 稲葉山の板倉・番所・長屋・小祠は、下で柱筋に合わせた梁と根太を組む。
       // 共通の半歩刻みの横木を重ねると、柱から外れた材が梁と二重に走る。
@@ -5323,12 +5445,13 @@ if (nodaJoinery) {
       if (goten && !roomCeiling) { for (const sd of [-1, 1]) { box(0, y + h - .05, sd * (hd - .16), lv.w - .2, .08, .08, DARK); box(sd * (hw - .16), y + h - .05, 0, .08, .08, lv.d - .2, DARK); } }
       if (roomCeiling) {
         // 一枚の平らな面で済ませず、各室で板継ぎを止め、間仕切りの上にも回縁を納める。
-        // 既存の束へ設営時だけまとめる。梁を見せる蔵・番所・長屋には加えない。
+        // 既存の束へ設営時だけまとめる。梁を見せる造りの用屋には加えない。
         for (const r of lv.layout.rooms) {
           // 座敷と本堂の間仕切りは厚さ六センチ。回縁の壁側を小壁の面へ合わせる。
           // 外周と同じ十二センチ逃がすと、襖・障子の上だけ細い帯が残る。
           // 外周は各室の回縁だけで納め、建物全体の回縁を二重に重ねない。
-          const partitioned = ['goten', 'tamari', 'hondo'].includes(I.kind);
+          const partitioned = ['goten', 'tamari', 'hondo'].includes(I.kind)
+            || nagashimaRoomCeiling && ['sobo', 'bansho'].includes(I.kind);
           const x0 = r.x0 + .12, x1 = r.x1 - .12;
           const z0 = r.z0 + (partitioned && r.z0 > -hd + .001 ? .06 : .12);
           const z1 = r.z1 - (partitioned && r.z1 < hd - .001 ? .06 : .12);
@@ -6188,7 +6311,7 @@ if (nodaJoinery) {
           box(x, floorY + .002, end, cuts[i] - cuts[i - 1], .006, .003, 0x4a3828);
         }
       }
-    } else for (const [x0, x1, z0, z1] of lv.pieces) for (let q = -hw + .9; q < x1 - .02; q += .9) if (q > x0 + .02) box(q, y + .002, (z0 + z1) / 2, .02, .006, z1 - z0, 0x4a3828);
+    } else if (!(S.quality === 'high' && I.profile === 'nagashima')) for (const [x0, x1, z0, z1] of lv.pieces) for (let q = -hw + .9; q < x1 - .02; q += .9) if (q > x0 + .02) box(q, y + .002, (z0 + z1) / 2, .02, .006, z1 - z0, 0x4a3828);
     } else if (I.profile === 'hieizan') {
     // 比叡山は堂の格天井と僧坊の竿縁を部屋ごとに組む推定復元。
     // 板は格縁・竿縁の上で受け、回縁の隅と梁の交点は突き付ける。
@@ -6403,7 +6526,7 @@ if (nodaJoinery) {
         const z0 = Math.max(-hd + .1, r.z0), z1 = Math.min(hd - .1, r.z1);
         return { z0, z1, grid: (z1 - z0) / Math.max(1, Math.round((z1 - z0) / step)) };
       }) : [{ z0: -hd, z1: hd, grid: step }];
-      if (villageHall) {
+      if (dividedHallCeiling) {
         // 推定の格天井は内陣・外陣ごとに納める。間仕切りを跨ぐ格間を作らない。
         // 境の小壁の真上にも回縁を通し、格縁の端を受ける。
         const ceilingColors = [0x7a6448, 0x756044, 0x80694c];
@@ -6512,7 +6635,7 @@ if (nodaJoinery) {
           }
         }
       }
-      for (let q = -hw + step; !villageHall && !parlor && q < hw - .1; q += step) {
+      for (let q = -hw + step; !dividedHallCeiling && !parlor && q < hw - .1; q += step) {
         if (hole && q > hole.x0 - .05 && q < hole.x1 + .05) continue;
         if (hieiHall) {
           // 格縁の上部を欠き、格間の板を受ける段を残す。細かな断面は推定。
@@ -6549,7 +6672,7 @@ if (nodaJoinery) {
         else box(q, y + h - .04, 0, .07, .08, lv.d - .2, 0x2e2216);
       }
       // 堂（本堂・中堂）は格天井：竿縁に直交する格縁を足して、格間を組む
-      if (!villageHall && coffered) for (let q = -hd + .75; q < hd - .1; q += .75) box(0, y + h - .02, q, lv.w - .2, .05, .05, 0x2a1c12);
+      if (!dividedHallCeiling && coffered) for (let q = -hd + .75; q < hd - .1; q += .75) box(0, y + h - .02, q, lv.w - .2, .05, .05, 0x2a1c12);
       if (parlor) {
         // 小座敷の四周の回縁を先に決め、竿縁の木口を仕口へ納める。
         // 壁まで貫く竿縁や、隅で突き抜ける回縁にせず、一尺五寸ほどの等間隔で納める。
@@ -6638,7 +6761,7 @@ if (nodaJoinery) {
           }
           ceilingPlank(left, boardRight, j, colors[(j + piece) % colors.length]);
         }
-      } else if (goten && !villageHall) { for (const sd of [-1, 1]) { box(0, y + h - .05, sd * (hd - .16), lv.w - .2, .08, .08, DARK); box(sd * (hw - .16), y + h - .05, 0, .08, .08, lv.d - .2, DARK); } }
+      } else if (goten && !dividedHallCeiling) { for (const sd of [-1, 1]) { box(0, y + h - .05, sd * (hd - .16), lv.w - .2, .08, .08, DARK); box(sd * (hw - .16), y + h - .05, 0, .08, .08, lv.d - .2, DARK); } }
     }
     }
     }
@@ -6813,6 +6936,53 @@ if (nodaJoinery) {
         }
       }
     }
+    } else if (nagashimaOpenRoof || S.quality === 'high' && I.profile === 'nagashima' && I.kind === 'kuri') {
+      // 庫裏の露出梁も汎用材の交差で済ませず、桁への掛かりと四隅の固めを共用する。
+      // docs/nagashima-kuri-frame.md の推定。蔵用の屋根勾配・小屋組は転用しない。
+      // 桁を外周柱の芯へ戻し、梁端を桁に欠き掛ける。中央の通路へ柱は増やさない。
+      // 天井用の細かな根太は省き、共有の木材の束へ設営時だけ結合する。
+      const bays = Math.max(2, Math.round(lv.w / 1.9));
+      for (const side of [-1, 1]) {
+        if (lv.w > 6) {
+          // 長い桁は既存の梁上で相欠きに継ぐ推定。一本材へ線を貼るだけにせず、
+          // 上下の材を分け、段の木口と角栓を残す。参考は docs/nagashima-timber-joints.md。
+          // 柱・梁の位置と桁の外形は保ち、共通の木部の束へ組立時だけ結合する。
+          const joint = -hw + Math.floor(bays / 2) * lv.w / bays;
+          const left = -hw + .06, right = hw - .06, lap = .16;
+          const timber = (a, b, bottom, height, shade) => exposedTimber((a + b) / 2,
+            y + bottom + height / 2, side * (hd - .06), b - a, height, .18, shade, true);
+          timber(left, joint - lap - .001, h - .2, .2, DARK);
+          timber(joint + lap + .001, right, h - .2, .2, 0x403020);
+          timber(joint - lap - .001, joint + lap - .001, h - .2, .1, DARK);
+          timber(joint - lap + .001, joint + lap + .001, h - .1, .1, 0x403020);
+          // 二本とも重なりの中を通し、下面の木口だけを梁の両脇へ見せる。
+          for (const offset of [-.11, .11])
+            box(joint + offset, y + h - .201, side * (hd - .06), .025, .004, .025, WOOD);
+        } else exposedTimber(0, y + h - .1, side * (hd - .06), lv.w - .12, .2, .18, DARK, true);
+        exposedTimber(side * (hw - .06), y + h - .1, 0, .18, .2, lv.d - .3, DARK);
+      }
+      for (let j = 1; j < bays; j++) {
+        const x = -hw + j * lv.w / bays;
+        // 下九センチは桁の下へ、上十五センチは桁の内面へ納める。
+        exposedTimber(x, y + h - .245, 0, .17, .09, lv.d - .12, DARK);
+        exposedTimber(x, y + h - .125, 0, .17, .15, lv.d - .3, DARK);
+        // 欠き掛けの肩を梁の両側面へ細く示す。桁の内面から下だけに納め、
+        // 上の桁へ線を突き抜けさせず、引き戸と窓より高い梁端に留める。
+        for (const end of [-1, 1]) for (const face of [-1, 1])
+          box(x + face * .0855, y + h - .245, end * (hd - .15),
+            .001, .09, .003, 0x241b12);
+      }
+      // 四隅を火打梁で固める推定。参考は docs/nagashima-roof-bracing.md。
+      // 両端は外周柱上の桁へ掛け、梁の厚みの内へ納めて戸・窓の上を空ける。
+      // 共通の木材を室内生成時に同じ束へ結合し、描画の束と歩く当たりは増やさない。
+      const braceRun = Math.min(.65, (lv.w - .3) / 3, (lv.d - .3) / 3);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        const ax = sx * (hw - .06), az = sz * (hd - .06 - braceRun);
+        const bx = sx * (hw - .06 - braceRun), bz = sz * (hd - .06);
+        const dx = bx - ax, dz = bz - az;
+        exposedTimber((ax + bx) / 2, y + h - .125, (az + bz) / 2,
+          Math.hypot(dx, dz), .12, .1, DARK, true, Math.atan2(-dz, dx));
+      }
     } else if (!nodaJoinery) {
     // 引き戸の引きしろの両端を敷居から鴨居までの戸当たりで結ぶ。
     // 外戸・間仕切り・明かり障子で同じ溝と開き幅を使い、
@@ -7802,6 +7972,24 @@ if (igaOpenRoof) {
       // 目地の奥には暗い裏面を残し、土間まで同じ板を下ろす。近づいた時だけ既存の束へまとめる。
       const wallPanel = (a, b, low, high) => {
         const mid = (a + b) / 2, cy = y + (low + high) / 2, height = high - low;
+        if (nagashimaBoards) {
+          // 既存の六センチの壁厚に裏板と縦板を収める推定の板組。
+          // 窓の上下も壁全体の板割りを共有し、表戸の二筋や柱の内側へ張り出さない。
+          // 木目・箱の原形と梁用の材質を使い回し、室内生成時に一束へ結合する。
+          if (face === 'z') box(mid, cy, sd * (off + .024), b - a, height, .012, DARK);
+          else box(sd * (off + .024), cy, mid, .012, height, b - a, DARK);
+          const step = .3;
+          for (let j = Math.floor((a + len / 2) / step); -len / 2 + j * step < b; j++) {
+            const left = Math.max(a, -len / 2 + j * step + .001);
+            const right = Math.min(b, -len / 2 + (j + 1) * step - .001);
+            if (right <= left) continue;
+            const t = (left + right) / 2;
+            const shade = j % 2 ? 0x756650 : 0x6d5c46;
+            if (face === 'z') exposedTimber(t, cy, sd * (off - .006), right - left, height, .048, shade, 'y');
+            else exposedTimber(sd * (off - .006), cy, t, .048, height, right - left, shade, 'y');
+          }
+          return;
+        }
         const color = villageHome ? 0x493b2e : WALL;
         if (face === 'z') box(mid, cy, sd * off, b - a, height, .06, color);
         else box(sd * off, cy, mid, .06, height, b - a, color);
@@ -8013,7 +8201,8 @@ if (igaOpenRoof) {
         else houseTimber(sd * (off - .06), y + (low + high) / 2, (a + b) / 2, .14, high - low, b - a, DARK, 'z');
       }
       } else {
-      for (const [t0, t1, a0, a1] of facePanels(len, h, holes.filter((o) => o.t1 > -len / 2 && o.t0 < len / 2))) {
+      const wallLen = nagashimaBoards && face === 'x' ? len - .26 : len;
+      for (const [t0, t1, a0, a1] of facePanels(wallLen, h, holes.filter((o) => o.t1 > -len / 2 && o.t0 < len / 2))) {
         wallPanel(t0, t1, a0, a1);
       }
       if (earth && earth.y < 0) {
@@ -8838,8 +9027,10 @@ if (igaOpenRoof) {
           // 比叡山の正面は戸柱と同じ奥行きに揃える。通常の柱の室内側の面は
           // 手前の溝を滑る戸へ重なっていた。開口と柱筋は保ち、壁側へ納める。
           const entryFrame = I.profile === 'hieizan' && k === 0 && face === 'z' && sd === ds;
-          if (face === 'z') box(t, y + h / 2, sd * (entryFrame ? hd - .22 : off - .06), .16, h, entryFrame ? .1 : .14, DARK);
-          else box(sd * (off - .06), y + h / 2, t, .14, h, .16, DARK);
+          // 長島の見せる小屋組では柱頭を桁の下面へ当て、桁を柱で貫かない。
+          const postH = nagashimaOpenRoof ? h - .2 : h;
+          if (face === 'z') box(t, y + postH / 2, sd * (entryFrame ? hd - .22 : off - .06), .16, postH, entryFrame ? .1 : .14, DARK);
+          else box(sd * (off - .06), y + postH / 2, t, .14, postH, .16, DARK);
         }
         // 正面の引き戸にも戸柱・鴨居・敷居を付ける。開口内へ柱を出さず、
         // 戸が左右へ滑る長さまで二本の溝を通す。室内の形と同じまとめ描きへ収める。
@@ -10062,7 +10253,7 @@ if (I.profile === 'hieizan' || I.profile?.startsWith('honnoji_')) {
       // 武具：槍掛けに数本（天守・櫓）。御殿の奥の間は一段高い上段
       // 伊賀は間取りに登録した番所の武具置きだけを使う。民家・兵舎・館へ
       // 共通の槍を足すと、炉や寝床・床の間と用途が混ざり、背面の明かり取りも塞ぐ。
-    } else if (nodaJoinery || I.profile === 'hieizan' || I.profile === 'inabayama') {
+    } else if (nagashimaLamps || nodaJoinery || I.profile === 'hieizan' || I.profile === 'inabayama') {
     const lampSpots = [];
     const lampLevel = S.quality === 'high' && I.profile === 'inabayama' && ['goten', 'tamari', 'hondo', 'shrine', 'kura', 'bansho', 'nagaya'].includes(I.kind) ? {
       ...lv, layout: { ...lv.layout, walls: lv.layout.walls.concat(
@@ -10092,10 +10283,10 @@ if (I.profile === 'hieizan' || I.profile?.startsWith('honnoji_')) {
       const [wx, wz] = I.P(lx, lz), sp = new THREE.Sprite(M.glow); sp.position.set(wx, ly, wz); sp.scale.setScalar(I.lampGlowScale ?? 0.8); sp.renderOrder = 4; grp.add(sp); I.glows.push(sp);
       continue;
       }
-if (nodaJoinery) {
+if (nodaJoinery || nagashimaLamps) {
       let lx = (q === 0 ? 1 : -1) * (hw - 0.6), lz = -sgS * (hd - 0.6) * (q === 0 ? 1 : 0.2);
       let floorY = 0;
-      if (nodaJoinery) {
+      if (nodaJoinery || nagashimaLamps) {
         // 灯明の台を家具・間仕切り・引き戸の全移動範囲から離す。
         // 文机の脇と部屋の隅を設営時だけ探し、狭い通路へは足さない。
         let found = false;
@@ -10126,7 +10317,10 @@ if (nodaJoinery) {
                 : Math.abs(x - d.lx) < d.W + .3 && Math.abs(z - d.lz) < .7))) continue;
               if (lamps.some(p => Math.hypot(x - p[0], z - p[2]) < .65)) continue;
               lx = x; lz = z;
-              floorY = (r.y || 0) + (r.floor === 'tatami' ? .06 : r.floor === 'earth' ? .025 : .018);
+              // 長島は畳・叩き・板間の歩行面と同じ高さへ据える。
+              floorY = (r.y || 0) + (nagashimaLamps
+                ? r.floor === 'tatami' ? .066 : r.floor === 'earth' ? .0255 : .012
+                : r.floor === 'tatami' ? .06 : r.floor === 'earth' ? .025 : .018);
               found = true; break;
           }
           if (found) break;
@@ -10134,7 +10328,7 @@ if (nodaJoinery) {
         if (!found) continue;
       }
       const [lampX, lampZ] = I.P(lx, lz);
-      if (nodaJoinery) {
+      if (nodaJoinery || nagashimaLamps) {
         const light = tomyo(false, false, true);
         light.position.set(lampX, y + floorY, lampZ); light.rotation.y = I.rot; lampParts.add(light);
         // 灯明も人や武器が木部をすり抜けないようにする。
@@ -10153,7 +10347,7 @@ if (nodaJoinery) {
         box(lx, y + 0.45, lz, 0.05, 0.9, 0.05, DARK); box(lx, y + 0.03, lz, 0.3, 0.06, 0.3, DARK);
         box(lx, y + 1.08, lz, 0.26, 0.36, 0.26, 0xffd49a, true);
       }
-      const lightY = y + (nodaJoinery ? floorY + .892 : 1.08);
+      const lightY = y + floorY + .892;
       // 油皿の炎は支柱の芯より手前。灯具の向きと同じ位置へ光も寄せる。
       const flameZ = lz + .077;
       lamps.push([lx, lightY, flameZ]);
@@ -10558,7 +10752,9 @@ if (nodaJoinery) {
       // 別素材を上へ重ねると三ミリの目地と継ぎ位置が隠れ、炉縁にも厚い床が食い込む。
       // 手作りの板床と歩行面をそのまま使い、二重の床と余分な描画を省く。
       if (villageFloor && ['minka', 'hondo'].includes(I.kind)) continue;
-      if (I.profile === 'inabayama' || I.profile?.startsWith('honnoji_')) {
+      if (S.quality === 'high' && I.profile === 'nagashima') {
+        // 部屋別の板床を上で張る。別素材を重ねて敷居・調度より高くしない。
+      } else if (I.profile === 'inabayama' || I.profile?.startsWith('honnoji_')) {
       // 本能寺の付属棟は、上で部屋ごとに張った厚い板を仕上げとする。
       // 別の床材を上へ重ねると、千鳥の継ぎ目を覆い、床だけ敷居や調度より高くなる。
       // 二条御所は外観側の床を使うため、従来の素材を部屋の境で切って納める。
@@ -10619,9 +10815,11 @@ if (nodaJoinery) {
         }
       }
       }
-      // 本能寺の堂・僧坊・庫裏・経蔵・馬舎には共通の武器棚を置かない。
+      // 長島の堂・僧坊・庫裏と、本能寺の付属棟には用途のない武器棚を置かない。
       // 内陣や僧の座敷を武具置き場にせず、物置と納屋だけに納める（調度は推定）。
-      const weaponStore = I.profile !== 'hieizan' && (!I.profile?.startsWith('honnoji_')
+      const weaponStore = I.profile !== 'hieizan'
+        && !(S.quality === 'high' && I.profile === 'nagashima' && ['hondo', 'sobo', 'kuri'].includes(I.kind))
+        && (!I.profile?.startsWith('honnoji_')
         || ['honnoji_kura', 'honnoji_naya'].includes(I.profile));
       if (!goten && weaponStore && Ls[k].w > 4) {
         const sg = (I.stairs[k] ? -I.stairs[k].sg : ds) > 0 ? -1 : 1, hdk = lv.d / 2;   // 槍掛けの反対の壁
@@ -11902,14 +12100,18 @@ function anegawaBuildInside(rt, I) {
   const goten = !['tenshu', 'yagura', 'gate'].includes(I.kind);
   // 姉川の板倉と番小屋は、外の板壁に合わせて内側も板張りにする。
   const boardWalls = I.profile === 'anegawa' && ['kura', 'bansho'].includes(I.kind);
+  // 雑賀の長屋九棟も外装は板張り。姉川の土壁を流用せず、既存の縦板で内側を仕上げる。
+  // 用途からの推定と出所は docs/battle_refs/saika.md。梁組と柱割りは長屋のまま保つ。
+  const boardCladding = boardWalls || I.profile === 'anegawa' && S.quality === 'high'
+    && I.kind === 'nagaya' && (rt.def.key === 'saika' || rt.def.battleKey === 'saika');
   // 民家と宿小屋の内壁は、外の土壁に合わせて藁すさを含む荒壁として補う。
   // 高画質の既存の壁面を置き換え、一棟一束・共有材質で納める。
-  const earthWalls = I.profile === 'anegawa' && S.quality === 'high' && ['minka', 'nagaya'].includes(I.kind);
+  const earthWalls = !boardCladding && I.profile === 'anegawa' && S.quality === 'high' && ['minka', 'nagaya'].includes(I.kind);
   const plainCeiling = I.profile === 'inabayama' && ['kura', 'bansho'].includes(I.kind)
     || I.profile === 'echizen_ikko' && I.kind === 'bansho'
     || ['nodafukushima', 'usayama', 'iga', 'takato', 'tottori', 'anegawa'].includes(I.profile) && ['kura', 'bansho', 'nagaya', 'minka'].includes(I.kind)
     || I.profile === 'iwamura_' + I.kind && ['kura', 'bansho', 'nagaya'].includes(I.kind);
-  const WOOD = 0x6a5038, DARK = 0x3a2a1c, WALL = boardWalls ? 0x79634a : earthWalls ? 0xb4a080 : I.sgOverhead ? 0x817967 : goten ? 0xb8ab90 : 0xa89a80, FLOOR = 0x8a6a48, BOARD = I.sgOverhead ? 0x514b3d : 0x6a5238;
+  const WOOD = 0x6a5038, DARK = 0x3a2a1c, WALL = boardCladding ? 0x79634a : earthWalls ? 0xb4a080 : I.sgOverhead ? 0x817967 : goten ? 0xb8ab90 : 0xa89a80, FLOOR = 0x8a6a48, BOARD = I.sgOverhead ? 0x514b3d : 0x6a5238;
   for (let k = 0; k < Ls.length; k++) {
     const lv = Ls[k], hw = lv.w / 2, hd = lv.d / 2, h = lv.h, y = lv.y;
     // 窓と柱の位置は床際の納まりにも使うため、内装を組む前にそろえる。
@@ -12123,8 +12325,37 @@ function anegawaBuildInside(rt, I) {
       for (const side of [-1, 1]) {
         // 妻梁を桁の内面へ突き付けるだけにせず、柱頭の上で上下半分ずつ掛ける。
         // 桁の下半分を通し、上半分は妻梁の内面で止める。外寸と梁下の高さは保つ。
-        timberBox(side * (hw - .16), y + h + .01, 0, .18, .1, lv.d - .14, DARK, 'z');
-        timberBox(side * (hw - .16), y + h + .11, 0, .18, .1, lv.d - .5, DARK, 'z');
+        // 雑賀の十六メートルの長屋と十メートルの兵糧小屋は、桁も側壁の柱上で継ぐ推定補修。
+        // 手本と推定の範囲は docs/battle_refs/saika.md。妻梁の相欠きは保つ。
+        const girderJoints = [];
+        if (['nagaya', 'kura'].includes(I.kind) && lv.d > 8
+          && (rt.def.key === 'saika' || rt.def.battleKey === 'saika')) {
+          const posts = wallPostPositions(I, wins, 'x', side, lv.d);
+          for (const target of [-lv.d / 6, lv.d / 6]) {
+            let best = null, distance = Infinity;
+            for (const z of posts) {
+              if (Math.abs(z) >= hd - .4 || girderJoints.includes(z)) continue;
+              const delta = Math.abs(z - target);
+              if (delta < distance) { best = z; distance = delta; }
+            }
+            if (best !== null) girderJoints.push(best);
+          }
+          girderJoints.sort((a, b) => a - b);
+        }
+        for (const upper of [false, true]) {
+          const end = hd - (upper ? .25 : .07);
+          let start = -end;
+          for (let q = 0; q <= girderJoints.length; q++) {
+            // 上下の木口を十六センチずらし、合わせ面は一ミリの目地にする。
+            const stop = q < girderJoints.length ? girderJoints[q] + (upper ? -.08 : .08) : end;
+            const finish = stop - (q < girderJoints.length ? .0005 : 0);
+            timberBox(side * (hw - .16), y + h + (upper ? .11 : .01), (start + finish) / 2,
+              .18, .1, finish - start, DARK, 'z');
+            start = stop + .0005;
+          }
+        }
+        for (const z of girderJoints)
+          timberBox(side * (hw - .16), y + h + .06, z, .025, .204, .025, WOOD, 'y');
         timberBox(0, y + h + .06, side * (hd - .16), lv.w - .5, .2, .18, DARK, 'x');
         for (const end of [-1, 1])
           timberBox(end * (hw - .16), y + h + .1105, side * (hd - .16),
@@ -12218,7 +12449,21 @@ function anegawaBuildInside(rt, I) {
       // 棟と母屋は寄棟の内側に納め、梁の上の束で支える。設営時にまとめる。
       for (const z of [-hd * .55, 0, hd * .55]) {
         const half = Math.min(hw - .12, ridge + (ex - ridge) * Math.abs(z) / ez);
-        timberBox(0, roofY(half, z) - .09, z, half * 2, .18, .14, DARK, 'x');
+        const centerY = roofY(half, z) - .09;
+        // 雑賀の民家の長い棟木・母屋は、中央の梁上の束頭で相欠きに継ぐ推定補修。
+        // 手本と推定の範囲は docs/battle_refs/saika.md。中央梁と束は下で同じ位置に作る。
+        // 木目・結合先と材の外寸を保ち、束のない短い棟木には継手を足さない。
+        const saikaJoint = S.quality === 'high' && I.kind === 'minka'
+          && (rt.def.key === 'saika' || rt.def.battleKey === 'saika')
+          && half > 1.8 && roofY(0, z) - .18 > y + h;
+        if (saikaJoint) {
+          for (const layer of [-1, 1]) {
+            const joint = layer * .06;
+            const yy = centerY + layer * .0455;
+            timberBox((-half + joint) / 2, yy, z, half + joint, .089, .14, DARK, 'x');
+            timberBox((joint + half) / 2, yy, z, half - joint, .089, .14, DARK, 'x');
+          }
+        } else timberBox(0, centerY, z, half * 2, .18, .14, DARK, 'x');
       }
       // 高画質の梁は外周の柱と同じ割付にする。別の間隔で並べると柱頭から外れる。
       // 窓と戸口の上は既存のまぐさ・鴨居で受け、隅は桁と妻梁の柱芯にそろえる。
@@ -12531,8 +12776,6 @@ function anegawaBuildInside(rt, I) {
         }
         gableWedge.dispose();
         gableNail?.dispose();
-        for (const lx of [-hw * .55, 0, hw * .55])
-          timberBox(lx, roofY(lx) - purlinHeight / 2, 0, .14, purlinHeight, lv.d - .16, DARK, 'z');
         // 左右の側壁で共通する柱の上へ梁を渡す。窓脇の柱も使い、採光口は保つ。
         // 柱と梁で位置を共有し、束と母屋を受ける小屋組を宙に浮かせない。
         const roofWins = windowsFor(I, lv, k);
@@ -12600,6 +12843,32 @@ function anegawaBuildInside(rt, I) {
                 put(wedge, wx, tieY + .061, z, WOOD);
               }
           }
+        }
+        // 雑賀の長屋と兵糧小屋の棟木・母屋は束の上で相欠きに継ぐ推定補修。
+        // 十六・十メートルの一本材を避け、外寸・束頭・垂木との高さは変えない。
+        // 出所と推定の範囲は docs/battle_refs/saika.md。既存の木目と結合先を共用する。
+        const jointedPurlins = S.quality === 'high' && ['nagaya', 'kura'].includes(I.kind)
+          && (rt.def.key === 'saika' || rt.def.battleKey === 'saika');
+        const purlinJoints = jointedPurlins ? beamRows.slice().sort((a, b) => a - b) : [];
+        for (const lx of [-hw * .55, 0, hw * .55]) {
+          const centerY = roofY(lx) - purlinHeight / 2;
+          let start = -hd + .08;
+          for (const z of purlinJoints) {
+            const end = z - .06;
+            if (end > start) timberBox(lx, centerY, (start + end) / 2,
+              .14, purlinHeight, end - start, DARK, 'z');
+            // 上下の合わせ面だけ一ミリ離し、材を二重に重ねない。
+            for (const side of [-1, 1]) timberBox(lx, centerY + side * .04525, z,
+              .14, .0895, .12, DARK, 'z');
+            // 相欠きの上下を木栓で留める推定補修（雑賀の参照記録）。
+            // 合わせ目をまたぎ、木口だけを左右へ一センチ出す。
+            // 共有する木材へ設営時に結合し、束頭・屋根面と梁下は変えない。
+            timberBox(lx, centerY, z, .16, .026, .026, WOOD, 'x');
+            start = z + .06;
+          }
+          const end = hd - .08;
+          if (end > start) timberBox(lx, centerY, (start + end) / 2,
+            .14, purlinHeight, end - start, DARK, 'z');
         }
         // 桁行にも小屋貫を通し、妻面と各梁上の束をつなぐ推定復元。
         // 母屋の直下に束が独立して並ぶだけにせず、既存の束の高さの中へ納める。
@@ -12675,7 +12944,9 @@ function anegawaBuildInside(rt, I) {
           // 野地板の裏を一枚の平板にせず、棟と平行な板の継ぎ目を入れる。
           // 母屋・垂木より上へ納め、共通の細い箱を設営時にだけ使い回す。
           const rows = Math.max(2, Math.round(roofLength / .24));
-          const boarded = S.quality === 'high' && ['kura', 'bansho'].includes(I.kind);
+          // 雑賀の長屋も板壁と同じ対象を使い、長い野地板の木口を垂木上で継ぐ。
+          // 十六メートルを一枚板にせず、既存の板割り・木肌・結合形を共用する。
+          const boarded = S.quality === 'high' && boardCladding;
           if (boarded) {
             // 板倉・番小屋の野地板は線だけの板割りにせず、板ごとの木肌を見せる推定復元。
             // 長手を棟へ向け、木口は垂木上で交互に継ぐ。目地の奥には既存の下地を残す。
@@ -12961,10 +13232,14 @@ function anegawaBuildInside(rt, I) {
               // 天井の共有木目・結合先を使い、設営時だけ作る。
               for (const side of [-1, 1]) {
                 const end = side < 0 ? z0 + .04 : z1 - .04;
-                ceilingTimber(x, y + h - .19, end - side * .06,
-                  .16, .04, .12, DARK);
-                ceilingTimber(x, y + h - .23, end - side * .03,
-                  .16, .04, .06, DARK);
+                // 雑賀の入口は、持送りの背を回縁の外面（壁面）まで届かせる。
+                // 元の短い二段は梁端から室内側だけにあり、壁から八センチ浮いていた。
+                // 梁側の先端・高さは保ち、壁側だけ延ばす。共有材と結合先を使う。
+                const wallBacked = rt.def.key === 'saika' || rt.def.battleKey === 'saika';
+                ceilingTimber(x, y + h - .19, end - side * (wallBacked ? .02 : .06),
+                  .16, .04, wallBacked ? .20 : .12, DARK);
+                ceilingTimber(x, y + h - .23, end - side * (wallBacked ? -.01 : .03),
+                  .16, .04, wallBacked ? .14 : .06, DARK);
                 // 持送りの上端を左右に残し、梁端を四センチの欠き込みへ納める推定復元。
                 // 梁の側面で止めた二枚の頬を共通の箱へ結合し、同じ面を重ねない。
                 // 梁下の高さと通路を保ち、木栓で左右の頬と梁をつなぐ。
@@ -13157,8 +13432,14 @@ function anegawaBuildInside(rt, I) {
         // 柱と同じ木材へ設営時だけ結合し、通行の当たりや毎コマの処理は増やさない。
         for (const side of [-1, 1]) {
           const end = side * (hd - .1);
-          timberBox(q, y + h - .29, end - side * .07, .21, .08, .14, DARK, 'z');
-          timberBox(q, y + h - .36, end - side * .035, .21, .06, .07, DARK, 'z');
+          // 雑賀では持送りの背も壁面へ届かせる。元の二段は梁端の内側だけにあり、
+          // 壁から十センチ浮いていた。先端と下面高を保ち、背側だけ延ばす推定補修。
+          // 出所と推定の範囲は docs/battle_refs/saika.md「番所と兵糧小屋の持送りの背」。
+          const wallBacked = rt.def.key === 'saika' || rt.def.battleKey === 'saika';
+          timberBox(q, y + h - .29, end - side * (wallBacked ? .02 : .07),
+            .21, .08, wallBacked ? .24 : .14, DARK, 'z');
+          timberBox(q, y + h - .36, end + side * (wallBacked ? .015 : -.035),
+            .21, .06, wallBacked ? .17 : .07, DARK, 'z');
           // 梁を受ける頬と込栓。梁の両脇で止め、同じ面を重ねない。
           for (const sx of [-1, 1])
             timberBox(q + sx * .095, y + h - .23, end - side * .07,
@@ -13213,7 +13494,10 @@ function anegawaBuildInside(rt, I) {
         box(q, y + h - .13, 0, .17, beamHeight, lv.d - .2, DARK);
       ;
     }
-    if (showBeams) {
+    // 雑賀の高の板倉・番所は、柱芯で受ける相欠きの横梁を上で組んでいる。
+    // 汎用の横木を重ねると窓や柱のない壁へ木口が入り、継手も埋まるため省く。
+    // 手本と推定の範囲は docs/battle_refs/saika.md。既存の梁と天井・戸は保つ。
+    if (showBeams && !(fittedBeams && (rt.def.key === 'saika' || rt.def.battleKey === 'saika'))) {
       // 稲葉山の板倉・番所・長屋・小祠では、桁を外周の柱の真上に載せる。
       // 室内へ寄せた二本の横木では柱がなく、梁も途中だけで受ける形になる。
       const girderZ = inabaBeamFrame ? hd - .16 : hd * .55;
@@ -13229,7 +13513,7 @@ function anegawaBuildInside(rt, I) {
       const holes = wins.filter((o) => o.face === face && o.s === sd && (!o.shoji || paperWindows)).map((o) => ({ t0: o.t - o.w / 2, t1: o.t + o.w / 2, y0: o.y0, y1: o.y1 }));
       if (k === 0 && face === 'z' && sd === ds) holes.push({ t0: I.door.lx - I.door.w / 2, t1: I.door.lx + I.door.w / 2, y0: I.door.rail || 0, y1: I.door.h ?? Math.min(h - 0.3, 2.0) });
       // 小堂は外と同じく戸口の上まで板壁、軒下だけ白い小壁にする。
-      const boardTop = smallHall ? Math.min(I.door.h, h) : boardWalls ? h : 0;
+      const boardTop = smallHall ? Math.min(I.door.h, h) : boardCladding ? h : 0;
       for (const [t0, t1, a0, a1] of facePanels(len, h, holes.filter((o) => o.t1 > -len / 2 && o.t0 < len / 2))) {
         const tm = (t0 + t1) / 2, tw = t1 - t0;
         for (const [low, high, hex] of [[a0, Math.min(a1, boardTop), smallHall ? BOARD : WALL], [Math.max(a0, boardTop), a1, WALL]]) {
@@ -13748,7 +14032,13 @@ function anegawaBuildInside(rt, I) {
         lx = lampPoint.x; lz = lampPoint.z;
       }
       const room = I.profile === 'anegawa' ? lv.layout.rooms.find(r => lx >= r.x0 && lx <= r.x1 && lz >= r.z0 && lz <= r.z1) : null;
-      const baseY = y + (room?.y || 0);
+      // 雑賀の灯明台も調度と同じ仕上げ面へ据える。土間では台の足が
+      // 二・五五センチ埋まっていた。上げ畳の六センチの落とし込みもそろえる。
+      // 台・皿・炎・焼き込む光へ同じ高さを渡し、設営時だけ補正する。
+      const saikaLamp = oilLamp && (rt.def.key === 'saika' || rt.def.battleKey === 'saika');
+      const lampFinish = saikaLamp && room ? room.floor === 'tatami'
+        ? .066 - (room.y > 0 ? .06 : 0) : room.floor === 'earth' ? .0255 : .0015 : 0;
+      const baseY = y + (room?.y || 0) + lampFinish;
       const flameY = altar ? y + (altar.y || 0) + 1.45 * altar.h / 1.5 : baseY + 1.08;
       const [lampX, lampZ] = I.P(lx, lz);
       if (oilLamp) {

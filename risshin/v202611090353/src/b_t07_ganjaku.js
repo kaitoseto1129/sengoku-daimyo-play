@@ -549,10 +549,18 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   // 味方の隊を喰違の筋に沿って進める（いちばん近い所から先へ。塀を突き抜けない）
   march(rt, g, route, aggro) {
+    if (!g || g.routed || !route.length) return;
     const F = rt.flags, c = this.centerOf(g);
-    if (!g || g.routed || !c) return;
+    if (!c) return;
     let i = 0, best = Infinity;
-    route.forEach((q, k) => { const d = Math.hypot(c.x - q.x, c.z - q.z); if (d < best) { best = d; i = k; } });
+    // 近い点だけで選ぶと、尾根や門の筋を進んだ隊まで通過済みの点へ戻る。
+    // 今いる道の区間を選び、その先の点から行軍を続ける（喰違の角は省かない）。
+    for (let k = 1; k < route.length; k++) {
+      const a = route[k - 1], b = route[k], dx = b.x - a.x, dz = b.z - a.z;
+      const t = clamp(((c.x - a.x) * dx + (c.z - a.z) * dz) / (dx * dx + dz * dz || 1), 0, 1);
+      const d = Math.hypot(c.x - a.x - dx * t, c.z - a.z - dz * t);
+      if (d < best) { best = d; i = t > 0 ? k : k - 1; }
+    }
     const w = { route, i, aggro };
     F.walks = (F.walks || []).filter((m) => m.g !== g);
     F.walks.push({ g, w });

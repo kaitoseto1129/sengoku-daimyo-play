@@ -69,7 +69,7 @@ const LOOK = {
   井伊直孝: { armor: 0xa52b1c, lace: 0xb8342a, hat: 'kabuto_tentsuki', haori: 0x7a1a12, mon: 'ii', horse: true },
   // 重成は白い母衣を負って馬上で戦い、庵原朝昌の十文字槍に母衣を掛けられて落ちたと伝わる（battle_learn）
   木村重成: { horo: 0xe8e2d4, horse: true }, // 具足・兜・紋は共通の復元案に揃える。母衣は従来の伝承表現。
-  長宗我部盛親: { armor: 0x1c1a1a, lace: 0x5a6a2a, hat: 'kabuto_w', haori: 0x2e3a24, mon: 'chosokabe', horse: true },
+  長宗我部盛親: { horse: true }, // 甲冑・兜・旗は共通表の復元案に揃える。
   藤堂高虎: { armor: 0x151312, lace: 0x3a3a2a, hat: 'kabuto_t', haori: 0x3a2a1a, mon: 'todo', horse: true },
   山口弘定: { armor: 0x2a2420, lace: 0x7a5a2a, hat: 'kabuto_f', haori: 0x4a3a22 },
   内藤長秋: { armor: 0x22241e, lace: 0x6a4a3a, hat: 'kabuto_w', haori: 0x3a2e24 },

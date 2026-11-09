@@ -1725,7 +1725,9 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   const doorTop = .25 + doorHeight;
   // 姉川の民家の格子窓は暗い板を貼るだけにせず、外壁と内壁に同じ穴を開ける。
   // 窓の位置は設営時に一度作り、室内の採光と当たりにも渡す。
-  const anegawaWindows = SETTINGS.quality === 'high' && o.groundedHome && !o.ita
+  // 戦ごとの窓割りも同じ経路へ渡し、飾りの窓だけが壁の表に残るのを防ぐ。
+  const anegawaWindows = SETTINGS.quality === 'high' && o.interior?.profile === 'anegawa' && o.interior.windows
+    ? o.interior.windows : SETTINGS.quality === 'high' && o.groundedHome && !o.ita
     && o.interior?.profile === 'anegawa' && o.interior.kind === 'minka' && w >= 4
     ? [
       { face: 'z', s: 1, t: -w * .3, w: .88, y0: 1.095, y1: 1.745 },
@@ -2637,12 +2639,18 @@ export function hut(world, x, z, w, d, rot = 0, o = {}) {
   }
   // まとめて描く小屋も室内を一度だけ登録する。姉川の屋根・戸口・採光窓の寸法も保つ。
   const anegawaInterior = o.interior?.profile === 'anegawa';
+  // 高い外形でも、指定した屋敷の地上階だけに天井を張れるようにする。
+  // 外装の軒高は保ち、天井・間仕切り・戸・当たりへ同じ内高を渡す。
+  const ceilingHeight = SETTINGS.quality === 'high' && anegawaInterior
+    && o.interior.kind === 'yashiki' && Number.isFinite(o.interior.ceilingHeight)
+    && o.interior.ceilingHeight >= doorHeight + .3
+    ? Math.min(H - interiorFloorY, o.interior.ceilingHeight) : H - interiorFloorY;
   const inside = o.interior ? addInterior(world, { ...o.interior, x, z, rot, hasExterior: true,
     ...(anegawaInterior ? { roof: { kind: 'gable', rise: rh, run: w / 2 + eave,
       lining: ita ? 'boards' : 'battens',
       // 屋根板の下面より内側へ垂木を納める。茅は厚みの分だけ深く取る。
       inset: ita ? .12 : .3 } } : {}),
-    levels: [{ y: y + interiorFloorY, w: w - .18, d: d - .18, h: H - interiorFloorY }],
+    levels: [{ y: y + interiorFloorY, w: w - .18, d: d - .18, h: ceilingHeight }],
     door: { w: DOOR, h: anegawaInterior ? doorHeight : interiorDoorH },
     approach: { pad: anegawaInterior ? entryPad : .25, len: 1.1 },
     wins: () => anegawaInterior

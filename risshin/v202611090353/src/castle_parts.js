@@ -1158,11 +1158,12 @@ export function goten(rt, x, z, o = {}) {
   const bays = Math.max(2, Math.round(w / 3));
   // 指定した戸口が柱の位置でも、通れる口の中へ柱を描かない。
   const inabaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'inabayama';
+  const nagashimaEntry = o.naka && SETTINGS.quality === 'high' && o.profile === 'nagashima';
   const lowBoardCeiling = SETTINGS.quality === 'high' && !tile && o.boardRoof && !fieldFort && o.profile?.startsWith('iwamura');
   const interiorH = o.interiorH ?? (lowBoardCeiling ? 2.7 : H - (inabaEntry ? .6 : .1));
   // 稲葉山は外壁の開口も、室内の柱・引き戸と同じ内法にする。
   // 外だけ二十センチ広い口や、鴨居の上の隙間を残さない。
-  const entryW = o.entryW ?? 1.4, gapW = inabaEntry ? entryW : 1.6;
+  const entryW = o.entryW ?? (nagashimaEntry ? 1.6 : 1.4), gapW = inabaEntry ? entryW : 1.6;
   const entryH = Math.min(interiorH - .3, 2), entryTop = inabaEntry ? .55 + entryH : 2.6;
   const ds = o.door ?? 1;
   const requestedDoorX = o.doorX ?? (o.profile && bays % 2 ? 0 : (w / bays) / 2);
@@ -1528,7 +1529,9 @@ export function goten(rt, x, z, o = {}) {
       // 稲葉山の濡れ縁は外壁から一・二歩まである。内寸との差十五センチを
       // 足した位置から段を下ろし、踏板とささら桁を縁の板へ埋めない。
       // 戸口までの上がり台は縁より十一センチ高く、見える板と歩く床を揃える。
-      door: { side: ds, lx: doorX, w: entryW, ...(inabaEntry ? { h: entryH } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
+      // 中江城の館も共通の板戸で閉じる。外壁の口幅と、床から開口上端までの高さに合わせる。
+      // 表戸は長島の二筋の溝を使い、近づいて開ける札から左右へ滑らせる。
+      door: { side: ds, lx: doorX, w: entryW, ...(inabaEntry ? { h: entryH } : nagashimaEntry ? { h: entryTop - .55, sliding: 'itado' } : {}) }, approach: { pad: inabaEntry ? 1.35 : .35, len: 1.1 }, oku: interiorOku, where: o.where,
       templePaper: paperWalls,
       interiorUse: o.interiorUse,
       wins: shojiWindows ? () => shojiWindows : sideShojiWindows ? () => sideShojiWindows : utilityWindow ? () => [utilityWindow] : paperWindows ? () => paperWindows.concat(rearWindows || []) : null,

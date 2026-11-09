@@ -408,7 +408,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["小島職鎮", "momonari", "kuwa", 0x1c1a1a, 0x66513b, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["芳賀高定", "eboshi", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["織田秀信", "zunari", "kuwa", 0x1c1a1a, 0x3c5a8a, "sugake", 0xcfc8b4, 0x1c1a1a, "oda", ""],
-  ["長宗我部盛親", "zunari", "kuwa", 0x29251f, 0xd8d0bc, "kebiki", 0x2e3a42, 0x29251f, "chosokabe", ""],
+  // 本人所用の一領は未確認。室町末の現存最上胴を型とする復元案（詳しくは必須表と出所の紙）。
+  ["長宗我部盛親", "suji", "none", 0x1c1a1a, 0x3c5a8a, "sugake", 0, 0, "chosokabe", ""],
   ["伊達政宗", "suji", "date_moon", 0x16191b, 0x232c40, "hotoke", 0, 0x16191b, "date", ""],
   ["最上義光", "namban", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0, 0, "none", ""],
   ["佐竹義宣", "suji", "shida", 0x1c1a1a, 0x3e5474, "kebiki", 0x8a6a2a, 0x1c1a1a, "satake", ""],

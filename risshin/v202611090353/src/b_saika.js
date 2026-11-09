@@ -26,6 +26,7 @@ import { sendOrder } from './denrei.js';
 import { timeslipField } from './timeslip_field.js';
 import { battleEvent, EVENT_RETREAT, EVENT_MESSENGER } from './battle_events.js';
 import { goalsTick } from './hud_goals.js';
+import { nakaFind } from './naka.js';
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
 //   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
@@ -748,12 +749,51 @@ function saikaFieldSurface(W) {
   mat.needsUpdate = true;
 }
 
+// 見張り用の小窓は用途からの推定（出所と範囲は雑賀の参照記録）。
+// 既存の側窓を保ち、東を向く表口の左右にも連子窓を置く。
+// 戸の引き込み先は中央に残す。外装・内装・当たりは同じ開口を共用する。
+function saikaWatchWindows(w, d) {
+  return [
+    ...[-1, 1].map(s => ({ face: 'x', s, t: -d * .18, w: .8, y0: 1.45, y1: 1.95 })),
+    ...[-1, 1].map(s => ({ face: 'z', s: 1, t: s * (w / 2 - .8), w: .6, y0: 1.45, y1: 1.95 })),
+  ];
+}
+// 長屋の板戸を閉めても、入口土間へ明かりを取る用途からの推定。
+// 内寸と土間の深さは interior_layouts の nagaya に合わせ、
+// 側壁の隅柱と間仕切りの横引き溝を避ける。出所と範囲は雑賀の参照記録。
+function saikaBarracksEntryWindows(d) {
+  if (SETTINGS.quality !== 'high') return [];
+  const innerD = d - .18, depth = Math.min(1.4, innerD * .3);
+  const t = (innerD - depth) / 2;
+  return [-1, 1].map(s => ({ face: 'x', s, t, w: .5, y0: 1.45, y1: 1.95 }));
+}
 // 板屋根の番所・長屋と、町の入口。新しい兵や城攻めの目標は作らない。
 function saikaSettlement(rt) {
   const W = rt.world, batch = makeSimpleBatch();
   // 本の古い板葺きは橙一色ではなく、灰褐色の古板に茶色の差し替え板が混じる。
   // 雑賀の家並みだけへ渡し、門・井楼や他の戦の屋根色は共通部品に任せる。
   const boardRoofColors = [0x786b57, 0x6d6252, 0x897354, 0x736b5d, 0x625b4e];
+  // 側窓を襖境へ掛けず、取次の中央に納める推定復元。
+  // 内寸・奥座敷の比率・板間の深さは interior_layouts の saikaHouse とそろえる。
+  // 外壁・枠・格子・採光と当たりは既存の共通処理へ渡す。
+  const houseSideWindows = d => {
+    const innerD = d - .18, cut = -innerD / 2 + innerD * .38, entry = innerD / 2 - 1.3;
+    const windows = [-1, 1].map(s => ({ face: 'x', s, t: (cut + entry) / 2, w: .8, y0: 1.45, y1: 1.95 }));
+    if (SETTINGS.quality === 'high') {
+      // 取次の窓だけでは、襖を閉めた奥座敷が無窓になる。
+      // 床の間と反対の側壁へ連子窓を補う推定（雑賀の参照記録）。
+      // 文机より上で採光し、奥壁の柱と襖の引き込み先から離す。
+      windows.push({ face: 'x', s: 1, t: (-innerD / 2 + cut) / 2,
+        w: .8, y0: 1.45, y1: 1.95 });
+      // 板戸と内障子を閉めても、板敷きの入口へ明かりを取る用途からの推定。
+      // 手本と推定の範囲は雑賀の参照記録「屋敷の板敷き入口の採光」。
+      // 一・三メートルの板間の中央へ小窓を納め、両端に四十センチ残す。
+      // 外壁・内壁・柱割りと当たりは既存の同じ開口を共用する。
+      for (const s of [-1, 1]) windows.push({ face: 'x', s, t: (entry + innerD / 2) / 2,
+        w: .5, y0: 1.45, y1: 1.95 });
+    }
+    return windows;
+  };
   const gateParts = [], cube = new THREE.BoxGeometry(1, 1, 1);
   const box = (x, y, z, w, h, d, rot = 0, rz = 0, color = 0x67513c) => {
     const g = cube.clone(); g.scale(w, h, d); g.rotateZ(rz); g.rotateY(rot); g.translate(x, y, z);
@@ -910,12 +950,23 @@ function saikaSettlement(rt) {
     }
   };
   // 写真の屋敷は土壁と腰板、格子戸が混じる。主屋だけ道側へ浅い下屋を出す。
-  // 戸口と屋敷境の間を空け、既存の閉じた家の当たりは変えない。
+  // 戸口と屋敷境の間を空け、主屋の板戸が横へ滑る範囲も残す。
   const houseFront = (x, z, w, rot) => {
     const c = Math.cos(rot), s = Math.sin(rot);
-    let y = W.heightAt(x, z);
+    let y = W.heightAt(x, z), eaveY = 2.05;
     for (const dx of [-w / 2, w / 2]) for (const dz of [-2.5, 2.5])
       y = Math.max(y, W.heightAt(x + dx * c + dz * s, z - dx * s + dz * c));
+    // 主屋は床下と戸の引き込み先まで測って建つ。庇も同じ基準高へ合わせる。
+    // 四隅だけで決め直すと、中央が高い敷地で庇が戸口へ下がってしまう。
+    if (SETTINGS.quality === 'high') {
+      const house = nakaFind(x, z);
+      if (house) {
+        y = house.levels[0].y - .25;
+        // 上がり床の上でも外戸より十五センチ高い梁下を取る推定補修。
+        // 柱・梁・庇は同じ高さへ上げる（手本と寸法の範囲は雑賀の参照記録）。
+        eaveY = Math.max(eaveY, house.levels[0].y - y + house.door.h + .15 + .065);
+      }
+    }
     const part = (px, py, pz, bw, bh, bd, rz = 0, col = 0x67513c) =>
       box(x + px * c + pz * s, y + py, z - px * s + pz * c,
         bw, bh, bd, rot, rz, col);
@@ -923,56 +974,116 @@ function saikaSettlement(rt) {
       // 土壁の足もとは雨跳ねを受ける横板。中央の戸を覆わない。
       for (let j = 0; j < 3; j++) part(side * (w / 4 + .4), .3 + j * .18, 2.56,
         w / 2 - .85, .17, .065, 0, [0x655747, 0x756450, 0x80705a][j]);
-      const wx = side * w * .29;
-      // 入れない家の閉じた格子戸。暗い戸板を奥に、枠と細い格子を手前に置く。
-      part(wx, 1.5, 2.58, 1.1, .65, .06, 0, 0x3f3b30);
-      for (let j = -3; j <= 3; j++) part(wx + j * .15, 1.5, 2.63,
-        .035, .66, .045, 0, 0x928064);
-      for (const yy of [1.15, 1.85]) part(wx, yy, 2.63, 1.22, .07, .09);
+      if (SETTINGS.quality !== 'high') {
+        const wx = side * w * .29;
+        part(wx, 1.5, 2.58, 1.1, .65, .06, 0, 0x3f3b30);
+        for (let j = -3; j <= 3; j++) part(wx + j * .15, 1.5, 2.63,
+          .035, .66, .045, 0, 0x928064);
+        for (const yy of [1.15, 1.85]) part(wx, yy, 2.63, 1.22, .07, .09);
+      }
       const px = side * (w / 2 - .25), pz = 3.35;
       const gy = W.heightAt(x + px * c + pz * s, z - px * s + pz * c) - y;
-      part(px, (gy + 2.05) / 2, pz, .12, 2.05 - gy, .12);
-      part(side * (w / 4 - .1), 2.05, pz, w / 2 - .6, .13, .14);
+      part(px, (gy + eaveY) / 2, pz, .12, eaveY - gy, .12);
+      part(side * (w / 4 - .1), eaveY, pz, w / 2 - .6, .13, .14);
     }
     // 柱を戸の両脇へ寄せず、下屋の端で受ける。軒先は灰褐色へ落とす。
     const roof = cube.clone(); roof.scale(w + .4, .07, 1.2); roof.rotateX(.15);
-    roof.translate(0, 2.16, 2.95); roof.rotateY(rot); roof.translate(x, y, z);
+    roof.translate(0, eaveY + .11, 2.95); roof.rotateY(rot); roof.translate(x, y, z);
     gateParts.push(paintGeo(roof, 0x6b6252)); roof.dispose();
   };
   // 射手の後ろを空け、低い切妻の番所と長屋を岸に平行に置く。
   for (const z of [-20, 20]) hut(W, -65, z, 7, 5, EAST,
-    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true, h: 2.3, minka: false, batch });
+    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
+      // 高の板間は十二センチ上がる。弓掛けの上端二・〇二メートルを
+      // 梁と持送りの下へ納める推定補修（雑賀の参照記録）。
+      h: SETTINGS.quality === 'high' ? 2.7 : 2.3, minka: false, batch,
+      interior: { name: '雑賀の番所', kind: 'bansho', profile: 'anegawa', interiorUse: 'saikaWatch', team: 1,
+        windows: saikaWatchWindows(7, 5) } });
   // 短辺に屋根勾配を掛け、長辺に棟を通す。敷地は同じまま棟高を約二メートル下げる。
   for (const z of [-48, 48]) hut(W, -76, z, 4.5, 16, 0,
-    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true, nagayaDoors: true,
-      h: 2.2, minka: false, batch });
-  // 番所の奥に二階の高い町屋の並び。東岸の持ち場から板塀越しに屋根の連なりが見える（位置・高さは推定）。
+    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
+      // 岸沿いの二棟も外観だけの箱にせず、共通の引き戸から共同寝所へ入れる。
+      // 土間・板床・梁組は姉川の仕組みを共用する推定。手本は雑賀の参照記録。
+      // 床上の弓掛け一・九メートルと梁下面の間に余裕を取る。
+      h: SETTINGS.quality === 'high' ? 2.6 : 2.4, minka: false, batch,
+      interior: { name: '雑賀の兵の長屋', kind: 'nagaya', profile: 'anegawa', interiorUse: 'saikaBarracks', team: 1,
+        // 十六メートルの寝所に対して共通の側窓一対だけでは採光が奥へ偏る。
+        // 前後に一対ずつ分け、入口の土間・間仕切り・奥の弓掛けを避ける推定復元。
+        windows: [
+          ...[-4, 4].flatMap(t => [-1, 1].map(s =>
+            ({ face: 'x', s, t, w: .8, y0: 1.45, y1: 1.95 }))),
+          ...saikaBarracksEntryWindows(16),
+        ] } });
+  // 番所の奥に二階の高い住まいの並び。東岸の持ち場から板塀越しに屋根の連なりが見える（位置・高さは推定）。
   // 中央の渡り道（奥行き±10）と長屋の脇は空け、退く道を塞がない。
   for (const [i, z] of [-38, -26, -14, 14, 26, 38].entries()) {
     hut(W, -88 - (i % 2) * 3, z, 7, 5.5, EAST,
       { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
-        wall: i % 3 ? 0x7e7464 : 0xb0a58d, h: 4.3 + (i % 3) * .3, minka: false, batch });
+        wall: i % 3 ? 0x7e7464 : 0xb0a58d, h: 4.3 + (i % 3) * .3, minka: false, batch,
+        // 地侍の住まいと仮定した地上階の補完。手本と推定の範囲は docs/battle_refs/saika.md。
+        // 外の高さを室内へ流用せず、既存の竿縁天井・畳・柱と長押を二・四メートルへ納める。
+        // 表の板戸、取次の障子、奥の襖は naka の札と横引きを共用し、内装は近づいた時だけ作る。
+        ...(SETTINGS.quality === 'high' ? { interior: {
+          name: '雑賀の奥の住まい', kind: 'yashiki', profile: 'anegawa',
+          interiorUse: 'saikaHouse', ceilingHeight: 2.4, team: 1,
+          windows: houseSideWindows(5.5),
+        } } : {}) });
   }
   // 西岸の柵のすぐ裏に二階の町屋を並べる。25秒の画面は杭の小旗から川下（z+）を向くので、
   // 右上の柵の上に屋根と白壁の連なりが大きく入る（10/28 採点：対岸の家並みを大きく。位置・高さは推定）。
   // 川上（z-）を向く画面でも柵の上に家並みが続くよう、同じ並びを川上へも置く（10/29 17:10 採点：川向こうの町並みが弱い）。
   for (const [i, z] of [44, 54, 64, 74, 84, 94, 104, 114, 124, 134, -44, -54, -64, -74, -84, -94, -104, -114, -124].entries()) {
-    hut(W, -48.5 - (i % 2) * 2, z, 7, 8.5, EAST,
+    // 高では十九軒とも地上階へ入れる。川側の軒先は柵と近いため、戸口と踏み段を集落側へ向ける。
+    // 一乗谷の復原武家屋敷を用途の手掛かりとした推定。雑賀当日の間取り・階高は不明。
+    // 出所・推定の区別は docs/battle_refs/saika.md「柵沿いの屋敷十九軒」に記録。
+    // https://asakura-museum.pref.fukui.lg.jp/site/walk
+    const enterable = SETTINGS.quality === 'high';
+    hut(W, -48.5 - (i % 2) * 2, z, 7, 8.5, enterable ? WEST : EAST,
       { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
         // 手前の四軒も本二階の高さに。川沿いを向く画面では対岸の家並みが小さく沈んでいた（10/29：家並みを大きく。高さは推定）。
-        wall: i % 2 ? 0x7e7464 : 0xb0a58d, h: Math.abs(z) < 80 ? 5.8 + (i % 2) * .5 : 6.6 + (i % 3) * .5, minka: false, batch });
+        wall: i % 2 ? 0x7e7464 : 0xb0a58d, h: Math.abs(z) < 80 ? 5.8 + (i % 2) * .5 : 6.6 + (i % 3) * .5, minka: false, batch,
+        // 外の高さを保ち、地上階の天井・畳・柱と長押・建具の当たりを共通の内高へそろえる。
+        // 中は接近時だけ作り、表の板戸・取次の障子・奥の襖は既存の「開ける」と横引きを使う。
+        ...(enterable ? { interior: {
+          name: '雑賀の柵沿いの屋敷', kind: 'yashiki', profile: 'anegawa',
+          interiorUse: 'saikaHouse', ceilingHeight: 2.4, team: 1,
+          windows: houseSideWindows(8.5),
+        } } : {}) });
   }
   // 西岸の鉄砲の小組（川下の端は z24）の裏、柵際に平屋の町屋を二軒。25秒の画面の右上に
   // 屋根の切れない大きさで入る（10/28 採点：対岸の家並みを大きく。位置・高さは推定）。
   for (const [i, [x, z]] of [[-53, 33], [-56.5, 25.5]].entries()) {
     hut(W, x, z, 7.5, 7.5, EAST,
       { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
-        wall: i ? 0xb0a58d : 0x7e7464, h: 4.6 + i * .4, minka: false, batch });
+        wall: i ? 0xb0a58d : 0x7e7464, h: 4.6 + i * .4, minka: false, batch,
+        // 柵裏の二軒も地上階へ入れる。外形の高さをそのまま室内高にせず、
+        // 小屋裏の下に竿縁天井を張る推定復元（手本は雑賀の参照記録）。
+        // 既存の畳・柱・長押と、札で開ける襖・障子・表の板戸を共用する。
+        ...(SETTINGS.quality === 'high' ? { interior: {
+          name: '雑賀の柵裏の屋敷', kind: 'yashiki', profile: 'anegawa',
+          interiorUse: 'saikaHouse', ceilingHeight: 2.4, team: 1,
+          windows: houseSideWindows(7.5),
+        } } : {}) });
   }
   // 佐久間の陣幕の脇に兵糧の覆いと普請材。中央の帰路・旗本の持ち場を空ける。
   hut(W, 88, 25, 4, 10, EAST,
-    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true, nagayaDoors: true,
-      h: 2.1, minka: false, batch });
+    { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
+      // 兵糧小屋も板戸から土間・板床へ入れる。俵と棚、梁・屋根裏は既存部品を共用する推定復元。
+      // 高では床下二十五センチと上がり床十二センチを差し引いても、
+      // 内戸の高さを一・八八メートル取る。梁・屋根と当たりも同じ高さで作る。
+      // 寸法は用途からの推定（雑賀の参照記録「兵糧小屋の内戸の高さ」）。
+      h: SETTINGS.quality === 'high' ? 2.5 : 2.3, minka: false, batch,
+      interior: { name: '佐久間勢の兵糧小屋', kind: 'kura', profile: 'anegawa', interiorUse: 'saikaGrain', team: 0,
+        // 長い荷置き場の入口寄りだけに採光を偏らせず、奥にも高い連子窓を分ける推定。
+        // 手本と推定の範囲は雑賀の参照記録「兵糧小屋の奥側の採光」。
+        // 奥の棚を避け、俵より上・間仕切りより奥へ納める。
+        // 外壁と内壁・格子・当たりは同じ開口を共用し、引き戸の引き代を空ける。
+        // 荷受けの土間にも明かり取りを分け、外戸と内戸を閉めた時に無窓にしない。
+        // 土間側の窓は間仕切りから二十九センチ、隅柱からも離す。
+        // 窓割りは用途からの推定（雑賀の参照記録「兵糧小屋の土間の採光」）。
+        ...(SETTINGS.quality === 'high' ? { windows: [-2.2, 1, 4.3].flatMap(t => [-1, 1].map(s =>
+          ({ face: 'x', s, t, w: .6, y0: 1.55, y1: 1.95 }))) } : {}),
+      } });
   timberCover(82.65, 32, 2, 5.5);
   workBench(79.5, 32);
   for (let i = 0; i < 3; i++) {
@@ -1139,7 +1250,37 @@ function saikaSettlement(rt) {
       const w = i % 3 ? 7 : 10, rot = i % 2 ? Math.PI : 0, mainHouse = i % 3 === 0;
       hut(W, x, z, w, 5, rot,
         { ita: true, boardRoof: true, boardRoofColors, weatheredBoards: true,
-          wall: mainHouse ? 0xb0a58d : 0x7e7464, h: 2.3, batch });
+          wall: mainHouse ? 0xb0a58d : 0x7e7464,
+          h: mainHouse || SETTINGS.quality === 'high' ? 2.6 : 2.4, batch,
+          // 一乗谷の復原主殿を手掛かりにした推定（出所は雑賀の参照記録）。
+          // 室内の形・材質・襖と障子の開閉は既存の平屋の仕組みを共用する。
+          // 付属の長屋も外形だけの塞がった箱にせず、土間・板間・寝所へ入れる。
+          // 梁下へ弓掛けが納まる高さを取り、戸口と板戸は共通の仕組みを使う。
+          interior: { name: mainHouse ? '雑賀の屋敷' : '雑賀の長屋',
+            kind: mainHouse ? 'yashiki' : 'nagaya', profile: 'anegawa', team: 1,
+            // 高の付属長屋七棟も雑賀用の寝所を共用。筵・弓・箱を板床へ載せ、
+            // 薄い筵を歩けるようにし、箱を壁際へ寄せて中央の通路を空ける。
+            ...(mainHouse ? { interiorUse: 'saikaHouse' }
+              : SETTINGS.quality === 'high' ? {
+                interiorUse: 'saikaBarracks',
+                // 付属長屋七棟は窓の指定がなく、閉じた板戸の奥が四方とも板壁だった。
+                // 寝所の左右に連子窓を一つずつ補う用途からの推定（雑賀の参照記録）。
+                // 奥の弓掛けと手前の箱・間仕切りを避け、筵より上で採光する。
+                // 外壁・内壁・格子・当たりには共通処理で同じ開口を渡す。
+                windows: [
+                  ...[-1, 1].map(s =>
+                    ({ face: 'x', s, t: -.8, w: .8, y0: 1.45, y1: 1.95 })),
+                  ...saikaBarracksEntryWindows(5),
+                ],
+              } : {}),
+            // 一乗谷の復原武家屋敷を用途の手掛かりとした推定。雑賀当日の窓割りは不明。
+            // https://asakura-museum.pref.fukui.lg.jp/site/walk
+            // 正面の格子を暗い板へ貼らず、外壁・内壁・当たりに同じ開口を渡す。
+            // 戸口の左右への引き代を空け、既存の連子・窓枠・採光を使い回す。
+            ...(mainHouse ? { windows: [
+              ...[-1, 1].map(s => ({ face: 'z', s: 1, t: s * w * .29, w: 1.1, y0: 1.175, y1: 1.825 })),
+              ...houseSideWindows(5),
+            ] } : {}) } });
       if (mainHouse) houseFront(x, z, w, rot);
       const s = i % 2 ? 1 : -1;
       yardFence(x - 7.5, z0 + s * 3, x - 7.5, z0 + s * 10.5);
@@ -1225,7 +1366,12 @@ function saikaMiroku(rt) {
   finalizeSimpleBatch(rt, batch);
   const tower = yagura(W, x - 2, z + 1, { rot: EAST, height: 8.8, boarded: false, logFrame: true, mon: 'yatagarasu' });
   tower.traverse((obj) => { if (obj.isMesh) obj.userData.noBatch = true; });
-  rt.scene.add(tower, hut(W, x - 4, z - 5, 6, 4.5, EAST));
+  rt.scene.add(tower, hut(W, x - 4, z - 5, 6, 4.5, EAST,
+    { ita: true, boardRoof: true, weatheredBoards: true,
+      // 川岸の番所と同じ上がり床・弓掛けを使うため、梁下もそろえる。
+      h: SETTINGS.quality === 'high' ? 2.7 : 2.6,
+      interior: { name: '弥勒寺山の陣小屋', kind: 'bansho', profile: 'anegawa', interiorUse: 'saikaWatch', team: 1,
+        windows: saikaWatchWindows(6, 4.5) } }));
   for (const [dx, dz] of [[4, -6], [5, 5], [-6, 6]]) rt.scene.add(nobori(W, x + dx, z + dz, 'yatagarasu', 6));
 }
 // 資料本の弾除け用竹束に合わせ、縦に束ねた竹を横木と縄で支える。
@@ -3018,9 +3164,18 @@ const saika = {
       saikaMiroku(rt);
       // 柵の内の雑賀の家並み（資料との差 10/28：広い砂地に小屋が四つだけだった）。川へ出る真ん中の道は空ける。
       // 柵の際へ寄せ、川の手前の持ち場から屋根と軒が見える所に置く（10/28 資料との差：家並みを大きく）。
-      for (const z of [-27, 27]) rt.scene.add(village(W, -66, z, { n: 4, r: 14, rot: WEST, seed: 15770 + z, smoke: 0, bamboo: 1 }));
+      // 高の集落は家全体の当たりで戸口を塞がず、村の民家の出入りと内装を共用する。
+      // 土間・竈・板間・炉・梁組は暮らしの用途からの推定（雑賀の参照記録）。
+      // 既存の板戸は「開ける」の札で横へ滑り、内装は近づいた時だけ作る。
+      const villageInterior = SETTINGS.quality === 'high' ? {
+        groundedHomes: true,
+        interior: { name: '雑賀の集落の民家', kind: 'minka', profile: 'anegawa', interiorUse: 'saikaHome', team: 1 },
+      } : {};
+      for (const z of [-27, 27]) rt.scene.add(village(W, -66, z,
+        { n: 4, r: 14, rot: WEST, seed: 15770 + z, smoke: 0, bamboo: 1, ...villageInterior }));
       // 川下の西岸の奥に雑賀の在所。東岸を川下へ歩く間、正面右奥に屋根の群れが見える（位置は推定）。
-      rt.scene.add(village(W, -62, 152, { n: 6, r: 18, rot: EAST, seed: 15743, smoke: 0 }));
+      rt.scene.add(village(W, -62, 152,
+        { n: 6, r: 18, rot: EAST, seed: 15743, smoke: 0, ...villageInterior }));
       // 本の野戦井楼に合わせ、足元まで横木の井桁を見せ、板囲いは上の射撃床に限る。
       for (const z of [-30, 30]) {
         const tower = yagura(W, -50, z,
