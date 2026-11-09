@@ -330,6 +330,8 @@ export class HudArmy {
   //   定めの数より、戦場で倒れた兵の数だけは必ず減らし、戦場に生きた兵がいる間は 0 にしない。入れ物は使い回す
   liveForce(rt, f) {
     if (!f) return f;
+    // 戦側で討死を数えた残数には、退去・援軍による画面内の増減を重ねない。
+    if (f.casualtiesCounted) return f;
     const c = this.countedForce(rt);
     const L = this.liveF && this.liveF.rt === rt ? this.liveF : (this.liveF = { rt, a: 0, b: 0, a0: 0, b0: 0, provisional: false });
     const ca = c ? c.a : 0, cb = c ? c.b : 0, da = c ? c.a0 - c.a : 0, db = c ? c.b0 - c.b : 0;
