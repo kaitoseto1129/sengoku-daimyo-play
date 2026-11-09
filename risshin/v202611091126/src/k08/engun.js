@@ -33,8 +33,11 @@ export function start(rt, K) {
   S(18, () => { sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3); });
   S(20, () => {
     if (!alive(F.engun)) return;
-    F.engun.noAI = false; F.engun.order = 'attack'; F.engun.aggro = 20; F.engun.seekRange = 40;
-    F.engun.anchor.x = K.NGATE.x; F.engun.anchor.z = K.NGATE.z + 8;
+    F.engun.noAI = false; F.engun.order = 'path'; F.engun.aggro = 4; F.engun.seekRange = 12;
+    // 北の塀へ斜めに寄せず、扉の外で中央へ揃えてから開いた北門を通す。
+    F.engun.path = [[K.NGATE.x, K.NGATE.z - 14], [K.NGATE.x, K.NGATE.z + 8]];
+    F.engun.pathIdx = 0;
+    F.engun.onArrive = (g) => { g.order = 'attack'; g.aggro = 20; g.seekRange = 40; };
     for (const u of F.engun.units) u.noTarget = false;
     F.engunOn = true;
     if (Array.isArray(F.s4) && !F.s4.includes(F.engun)) F.s4.push(F.engun);   // 印と bot の行き先に入れる
@@ -48,8 +51,11 @@ export function start(rt, K) {
   S(58, () => {
     const g = F.asano2;
     if (!alive(g)) return;
-    g.noAI = false; g.order = 'attack'; g.aggro = 24; g.seekRange = 40; g.speed = 4.2;
-    g.anchor.x = K.NGATE.x + 8; g.anchor.z = K.NGATE.z + 12;
+    g.noAI = false; g.order = 'path'; g.aggro = 4; g.seekRange = 12; g.speed = 4.2;
+    // 南東の陣から北の口へ直進すると東の塀を横切る。破れた南の塀から砦の内へ。
+    g.path = [[12, K.GATE.z + 24], [12, K.GATE.z - 8], [K.NGATE.x + 8, K.NGATE.z + 12]];
+    g.pathIdx = 0;
+    g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 40; };
     sfx('taiko', 0.6);
     rt.say('浅野長晟', '後備を出せ！　北の口へ押し返せ！', 3);
     rt.after(10, () => {

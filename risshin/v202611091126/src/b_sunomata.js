@@ -2720,7 +2720,7 @@ function finishBuild(rt, order, onDone, reinforce = false) {
     F.buildPoint = point;
     const { x, z } = point;
     wk.order = 'move'; wk.dest = point; wk.speed = 1.4; wk.onArrive = null;
-    let hands = 0, foe = false;
+    let hands = 0, workers = 0, foe = false;
     for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
       // 閉じた柵や小屋の向こうの控えだけで、普請を止め続けない。
@@ -2732,18 +2732,23 @@ function finishBuild(rt, order, onDone, reinforce = false) {
         if (Math.hypot(u.pos.x - hand.pos.x, u.pos.z - hand.pos.z) < 10 &&
             !rt.army.wallBetween(u.pos, -1, hand.pos, (u.wpnKind || u.lookWeapon || u.weapon) === 'spear')) { foe = true; break; }
       }
-      if (u.group === wk && Math.hypot(u.pos.x - x, u.pos.z - z) < 8) hands++;
+      if (u.group === wk) {
+        workers++;
+        if (Math.hypot(u.pos.x - x, u.pos.z - z) < 8) hands++;
+      }
     }
     // 敵が近い間は、人足を柵ぎわに立たせたままにしない。小屋の南の陰へ下げ、槍の列の後ろで待たせる。
     // 十メートルの境目をまたぐたびに前へ戻さず、危険が去って三秒は退避を続ける。
     if (foe) retreatUntil = rt.t + 3;
     const retreating = rt.t < retreatUntil;
     if (retreating) { wk.dest = F.workShelter || WORK_SHELTER; wk.speed = 2.2; }
-    F.workNotice = retreating ? '人足は退避中。破れ目で敵を止めよ' : hands < 2 ? '人足が柵へ向かう。道を空けよ' : '人足が柵を結んでいる。材木を渡せば早まる';
+    // 一人だけ残った時も、その人足が実際に着けば修理を続ける。全滅は別の救援処理へ渡す。
+    const needed = Math.min(2, workers);
+    F.workNotice = retreating ? '人足は退避中。破れ目で敵を止めよ' : hands < needed ? '人足が柵へ向かう。道を空けよ' : '人足が柵を結んでいる。材木を渡せば早まる';
     sunoProgress(rt, 'gate', F.workNotice);
     if (F.sunoTask === 'rescue') sunoProgress(rt, 'rescue', F.workNotice);
     // 人足が結んでいる間は、掛矢で杭を打つ音が柵ぎわから聞こえる（普請が進んでいる事を画面の字に頼らず伝える）。
-    F.workHands = !retreating && hands >= 2;
+    F.workHands = !retreating && needed > 0 && hands >= needed;
     if (F.workHands) { worked += F.buildStock > 0 ? 2 : 1; if (F.buildStock > 0) F.buildStock--; rt.army.play('knock', { x, z }, 0.55); rt.after(0.45, () => { if (!rt.over) rt.army.play('knock', { x: x + 1, z }, 0.4); }); }
     if (worked >= 5) {
       if (reinforce && !s.reinforced) { s.maxHp *= 1.25; s.reinforced = true; }
@@ -3184,7 +3189,8 @@ const sunomata = {
   noDodgeCard: true,
   hideGuideSteps: true, // 右上は一行だけ。「あと何歩」を足さない。
   noPlayerFoot: true, // 自分の足元の白い輪は出さない（稲生と同じ。ちらつきの元）。
-  goalSignOnly: true, // 行き先は共通の「ここへ」一つ。旗と矢印を重ねない。
+  goalSignOnly: true, // 行き先の印は一つ。旗と重ねない。
+  goalSignTriangle: true, // 画面の外の行き先も、回る矢印ではなく▼で示す。
   quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
   missionPinCaption: '',
   missionDetail: () => '',
@@ -4716,7 +4722,7 @@ const sunomata = {
     F.wave = 3; F.waveT = 0; F.nextWaveAt = 0; sunoRemove(rt, 'nida');
     sunoPost(rt, F.post3 === 'e' ? '東の柵で川並衆と舟の敵を止めよ' : '柵を守れ。舟は川並衆に任せよ', F.post3 || 'n');
     rt.setPhase('w3');
-    if (!F.s15?.yoruT) rt.world.setTime('dusk');   // 二の手で夜になっていれば夜のまま
+    if (!F.s15?.nightReached) rt.world.setTime('dusk');   // 二の手で実際に夜になっていれば夜のまま
     F.w3T = rt.t;
     // 紙（battle_events_1101）：斎藤龍興方の夜襲を朝まで守る。三の手の途中で日が落ち、夜討ちになる。
     rt.say('木下藤吉郎', '龍興方は夜討ちで来るぞ。朝まで柵を持たせよ', 4);
