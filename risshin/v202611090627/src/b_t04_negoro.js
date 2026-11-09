@@ -314,6 +314,7 @@ const t04_negoro = {
   minutes: 15, expectMin: 15,
   depth: () => negoroDepth(NG), lethal: true,   // 武将の備（t04_negoro/depth.js）と命懸けの戦場（lethal.js）
   forceBarAlways: true,   // 両軍の総勢と減りを、行き先の案内中も一本の棒で示す
+  nameTagLimit: 12,   // 見えている将の名を一、二人だけに絞らない（重なりは共通の判定で避ける）
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）
   playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
@@ -424,6 +425,15 @@ const t04_negoro = {
   setup(rt) {
     const W = rt.world, F = rt.flags;
     F.step = 0; F.ek = 0; F.ak = 0; F.towerHp = 100; F.ending = false;
+    // 行き先の共通の非表示指定が、人数の棒と将の名まで隠していた。この戦の表示判定を生かす。
+    if (typeof document !== 'undefined' && !document.getElementById('negoro-field-signs')) {
+      const st = document.createElement('style'); st.id = 'negoro-field-signs';
+      const scope = 'html body:not(:has(#pause:not([hidden]))) #hud:not(.photo):not(.ending):has(#h-prog[data-battle="t04_negoro"])';
+      st.textContent = scope + ' .field-names:not([hidden]){display:block!important}' +
+        scope + ':not(:has(#bigmap:not([hidden]))) #tugbar:not([hidden]){display:flex!important}';
+      document.head.appendChild(st);
+      rt.cleanupTasks?.add(() => st.remove());
+    }
     NG_RT = rt;
     // 戦を出たら手放す（持ったままだと戦がまるごと残った。11/8 docs/crash_1108.md）
     rt.cleanupTasks?.add(() => { if (NG_RT === rt) NG_RT = null; });
