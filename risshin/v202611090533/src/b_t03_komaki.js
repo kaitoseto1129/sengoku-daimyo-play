@@ -95,6 +95,7 @@ export const foeKnot = (n = 9, kit = TOKU) => dressT([{ type: 'ashigaru', n: Mat
   { type: 'gun', n: Math.max(1, Math.floor(n * 0.15)) }, { type: 'samurai', n: Math.max(1, n - Math.ceil(n * 0.5) - Math.floor(n * 0.2) - Math.max(1, Math.floor(n * 0.15))) }], kit);
 export const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 export const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone ? 1 : 0), 0) : 0);
+const drivenOffGroup = (g, total) => !live(g) || g.routed || aliveN(g) <= total * 0.35;
 // 本物の兵の数（壁の外の本陣は、描く数がほぼ要らないので数えない）
 export const aliveReal = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && !u.isStruct && u.type !== 'porter' && !u.group?.honjin ? 1 : 0), 0);
 export const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -307,8 +308,18 @@ const t03_komaki = {
     rt.after(1.2, () => { F.holdPlayer = false; this.stage(rt, 1); });
   },
 
-  stage(rt, n) {
+  stage(rt, n, cutDone = false) {
     const F = rt.flags;
+    const cuts = { 2: '四月初め　夜　二重堀の砦', 4: '四月四日　夕　楽田の本陣', 5: '四月六日　夕　中入りの支度' };
+    if (!cutDone && cuts[n]) {
+      if (F.transitioning) return;
+      F.transitioning = true; F.holdPlayer = true;
+      blackCut(rt, () => {
+        F.transitioning = false; F.holdPlayer = false;
+        if (!F.ending && !rt.over) this.stage(rt, n, true);
+      }, cuts[n]);
+      return;
+    }
     F.stage = n; F.st0 = rt.t;
     rt.obj('main', STAGE_TEXT[n], 'main');
     const K = this.ctx(rt);
@@ -379,7 +390,7 @@ const t03_komaki = {
       if (g.order !== 'retreat' || !g.dest) continue;
       for (const u of g.units) if (u.alive && !u.gone && (u.pos.z >= ZS - 2 || (u.pos.x < -XW + 4 && g.dest.x < -60))) rt.army.despawn(u);
     }
-    if (F.ending || !F.stage) return;
+    if (F.ending || !F.stage || F.transitioning) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
     // 連れた兵は主人公の脇に付く
@@ -430,17 +441,16 @@ const t03_komaki = {
         }
         if (shot && !F.volSaid) { F.volSaid = true; rt.say('物見', '鉄砲が来るぞ！　田の畦に身を低く', 2.4); }
       }
-      const n = aliveN(F.guns) + aliveN(F.guns2);
       //   二十五秒で田の奥から鉄砲の二の列が出て、前の列の退きを助ける（撃ち合いの山）
       if (!F.guns2 && el > 25) {
         F.guns2 = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の鉄砲の二の列', anchor: { x: FIELD.x + 14, z: FIELD.z + 22 }, facing: Math.PI, width: 8, formation: 'line', morale: 85, dmgMult: 0.32, order: 'hold', seekRange: 28, aggro: 10 },
           dressT([{ type: 'gun', n: 7 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }]));
         F.waves.push(F.guns2);
-        F.gunsN += aliveN(F.guns2);
+        F.guns2N = aliveN(F.guns2);
         rt.say('物見', '奥にもう一列！　鉄砲が並び直したぞ', 2.6);
       }
-      const drivenOff = F.guns2 && (n <= F.gunsN * 0.35 ||
-        ((!live(F.guns) || F.guns.routed) && (!live(F.guns2) || F.guns2.routed)));
+      // 前の列だけ崩しても、健在な二の列を残して達成にはしない。
+      const drivenOff = F.guns2 && drivenOffGroup(F.guns, F.gunsN) && drivenOffGroup(F.guns2, F.guns2N);
       if (dist(P.pos, FIELD) < 45 && el > 60 && drivenOff) this.stage(rt, 4);
     } else if (F.stage === 4) Council.tickCouncil(rt, K);
     else if (F.stage === 5) Council.tickOrders(rt, K);

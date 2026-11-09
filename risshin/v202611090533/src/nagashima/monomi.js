@@ -16,6 +16,7 @@ export function install(rt, ctx) {
   const live = () => !F.ending && !rt.over && F.ngMonomi;
   rt.after(8, () => { if (live()) rt.say('使番', '七月、上様は三方から長島を囲まれた。早尾口・賀鳥口・市江口、川は九鬼の船で塞ぐ', 4); });
   rt.after(19, () => { if (live()) { sfx('far', 0.5); rt.say('足軽', '川向こうの砦から、念仏が聞こえる……', 2.8); } });
+  rt.after(28, () => { if (live()) rt.say('柴田勝家', '島の門徒は大坂の顕如の檄で立った。指図は願証寺と下間の坊官じゃ', 3.6); });
   let done = false;
   const go = () => {
     if (done || F.ending || rt.over || !rt.player?.u?.alive) return; done = true;

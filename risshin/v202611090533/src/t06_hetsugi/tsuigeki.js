@@ -71,7 +71,7 @@ export function update(rt, K) {
   const S = rt.flags.s2, P = rt.player.u.pos;
   if (!S || S.leg !== 1) return;
   const el = rt.t - S.tA;
-  if ((el > 45 && Math.hypot(P.x - SIEGE.x, P.z - SIEGE.z) < 16) || el > 95) legB(rt, K);
+  if (el > 45 && Math.hypot(P.x - SIEGE.x, P.z - SIEGE.z) < 16) legB(rt, K);
 }
 
 // ③の伏せへ進めてよいか：B の足で河原に着き、少し経った
