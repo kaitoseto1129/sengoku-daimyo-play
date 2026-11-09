@@ -375,11 +375,12 @@ function requiredStep(step) {
       const done = tick(rt, C, m, ctx, el, dt);
       if (step.kind !== 'hold') return done;
       const p = rt.player.u.pos;
-      if (Math.hypot(p.x - C.at.x, p.z - C.at.z) < 17) C.flagHold = (C.flagHold || 0) + dt;
+      const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 17;
+      if (near) C.flagHold = (C.flagHold || 0) + dt;
       // 経過時間ではなく、旗の近くで実際に守った時間を知らせる。
       const left = Math.max(0, Math.ceil(80 - (C.flagHold || 0)));
-      rt.objProgress('dp', left ? `井伊の旗を守る あと${left}秒` : '山王口から来た残りの北条勢を押し返せ');
-      return done && C.flagHold >= 80;
+      rt.objProgress('dp', !near ? '篠曲輪の井伊の旗のそばへ戻れ' : left ? `井伊の旗を守る あと${left}秒` : '山王口から来た残りの北条勢を押し返せ');
+      return done && near && C.flagHold >= 80;
     },
   };
 }
