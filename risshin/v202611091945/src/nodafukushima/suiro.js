@@ -10,6 +10,8 @@ import { revealName } from '../battle_intel.js';
 export const MISSIONS = ['堤の東の端から葦の水路へ下り、野田・福島の砦を見よ', '葦に潜んで撃つ三好の鉄砲を、水路の岸から追い払え'];
 const MI = { x: 52, z: -17 };   // 堤の東の端の先、葦の岸（淀川の向こうに二つの砦）
 const MIN_T = 150;
+// 深手や退いた兵を残敵に数えず、戦える相手だけを防ぐ。
+const fighting = u => u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
 
 // ctx：{ enemyGroup, makeRoom, dress, foe（三好の具足）, ready()（前田の下知へ） }
 export function install(rt, ctx) {
@@ -43,7 +45,7 @@ export function install(rt, ctx) {
     if (!g || !g.count) return;
     S.g = g; S.k = 2; S.gT = rt.t;
     g.order = 'attack';
-    rt.marker('nodaSnipe', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '三好の鉄砲', { red: true, group: g });
+    rt.marker('nodaSnipe', () => { const u = g.units.find(fighting); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '三好の鉄砲', { red: true, group: g });
     try { sfx('gun', 1); } catch (e) { /* 音が無くても進む */ }
     rt.say('足軽', '葦の中から撃って来たぞ！　舟で渡って来おった！', 3);
     rt.after(3.2, () => live() && rt.say('前田利家', '込め替えの隙に寄って突け！　水路の岸から追い払え！', 3.4));
@@ -55,7 +57,7 @@ export function install(rt, ctx) {
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 7) seen();
     if (S.k === 1) snipers();
     if (S.k === 2) {
-      const left = S.g.units.filter((u) => u.alive).length;
+      const left = S.g.units.filter(fighting).length;
       if (left <= 2 || S.g.routed) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
@@ -87,7 +89,7 @@ export function bot(b, goTo, p, inp, strike) {
   const u = p.u;
   if (S.k === 2 && S.g) {
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (v.alive) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);

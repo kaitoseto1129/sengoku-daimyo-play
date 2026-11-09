@@ -897,7 +897,8 @@ function nodaGoalBoard(rt) {
       // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
       const def = rt.def, one = def.missionSingleLine, all = def.goalsAllRows, count = def.goalVisibleRows, ahead = def.goalRowsAhead;
       def.missionSingleLine = false;
-      def.goalsAllRows = true;
+      def.goalsAllRows = false;
+      // 全件表示を優先すると十件が出て、五件の指定が効かなくなる。
       // 共通側は生成する段階で一件に絞るため、出来た行の表示だけ変えても増えない。
       // 今の目標から先の五件を並べ、終盤は済んだ印も残す。
       def.goalVisibleRows = 5;

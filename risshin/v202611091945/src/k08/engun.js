@@ -57,7 +57,8 @@ export function start(rt, K) {
     g.pathIdx = 0;
     g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 40; };
     sfx('taiko', 0.6);
-    rt.say('浅野長晟', '後備を出せ！　北の口へ押し返せ！', 3);
+    // 長晟は遠い搦手の陣。北の口へは使番が下知を運ぶ。
+    rt.say('浅野の使番', '長晟様の下知。後備が参る、北の口へ押し返せ、と', 3);
     rt.after(10, () => {
       if (F.step !== 4) return;
       for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) { q.anchor.x = K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3); q.anchor.z = K.NGATE.z + 10; }
