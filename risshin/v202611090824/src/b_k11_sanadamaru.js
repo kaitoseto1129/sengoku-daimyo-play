@@ -300,7 +300,7 @@ const k11_sanadamaru = {
   spawn: { x: SASA.x - 6, z: SASA.z + 62, heading: Math.PI },
   noWake: true,
   stageGoalsOnly: true,        // 右上の目標は四つの段だけ（「敵を八人討つ」で埋めない。三1）
-  goalsAllRows: true,          // 共通の一件表示でも、この戦は最初から五つを並べる。
+  goalsAllRows: false,         // 11/9 二巡（豊臣A）：五つを並べると 874×402 で画面の四割を覆い中央の字と重なった。今の一件と進み具合の棒（開けば全部）
   nearbyAllySignLimit: 0,      // 味方の頭上に白い丸を出さない（意味の分からない印。五2）
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(t),
@@ -569,6 +569,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.begun) return;
     F.begun = true; F.t0 = rt.t; F.step = 1;
     rt.setPhase('siege');
+    // 11/9 二巡（豊臣A）：始まりの「篠山の頂まで登れ」が段の札（dp）と並んで戦の終わりまで残り、右上が「篠山の頂まで登れ／柵を破る組と…」の二行になった。段の札に任せる（締めで作り直す）
+    rt.objRemove('main');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
     // backing: false … 段の敵の後ろに見せかけの控えを付けない（AA）。数は本物の兵で出す
@@ -843,6 +845,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.ending || !rt.canFailMission()) return;
     F.ending = true;
     rt.setPhase('end');
+    if (!rt.objectives.some((o) => o.id === 'main')) rt.obj('main', STAGES.k11_sanadamaru[0][0], 'main');
     rt.objFail('main');
     rt.tracker.main = false;
     rt.banner('退き口を失った', '寄せ手は堀の前で崩れた');

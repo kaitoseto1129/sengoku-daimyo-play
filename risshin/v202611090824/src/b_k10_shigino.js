@@ -375,9 +375,15 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       F.ino = this.foe(rt, '井上頼次の鉄砲衆', { x: INOUE.x, z: 0 }, [uS(3), uA(6), uG(12)], { hold: true, width: 7, morale: 100 });
       // 井上頼次は鉄砲衆の列の後ろ（隊の段の奥）でなく、三の柵の内の井楼の下に馬を立てて指図する（11/6 遊んで：隊の段の奥へ下がり続け、三の柵から西へ六十も離れた）。
       //   近習二人だけの小さな組にして持ち場（INO_POST）を離れさせない
-      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: false, horse: true } }, uS(2)], { hold: true, width: 3, morale: 100 });
+      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: true, horse: true } }, uS(2)], { hold: true, width: 3, morale: 100 });
       F.inoG.seekRange = 7;
       F.inoU = F.inoG.units.find((u) => u.name === '井上頼次');
+      // 「井上を討て」は本人の止めで果たす。共通の四十五秒待ちの後に味方が討つ処理へ任せない。
+      F.inoU.onWound = (src) => {
+        if (!src?.isPlayer || F.step !== 2 || F.ending || !F.inoU.alive) return;
+        F.inoU.invuln = false; F.inoByMe = true;
+        rt.army.kill(F.inoU, src);
+      };
       F.suda.anchor = { x: F3 - 6, z: 0 }; F.suda.seekRange = 26;
       F.yasu.order = 'attack'; F.yasu.anchor = { x: F2, z: 0 }; F.yasu.seekRange = 30;
       // 柵が破れたと聞いて、城から来援の先手（渡辺糺・木村宗明）が西の堤を寄せて来て、三の柵の西（須田の手の届かない所）に詰めて待つ。
@@ -579,7 +585,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       for (const g of [F.wata, F.kimu]) if (live(g) && g._wait && g.order === 'attack') { g.order = 'hold'; g.anchor = { x: g._wait.x, z: g._wait.z }; g.seekRange = 8; g.aggro = 4; }
       if (live(F.ino) && F.ino.order !== 'hold') { F.ino.order = 'hold'; F.ino.anchor = { x: INOUE.x, z: 0 }; }
       if (live(F.inoG) && (F.inoG.order !== 'hold' || F.inoG.anchor.x !== INO_POST.x)) { F.inoG.order = 'hold'; F.inoG.anchor = { x: INO_POST.x, z: INO_POST.z }; }
-      if (F.inoU && !F.inoU.alive && !F.inoDown) {
+      if (F.inoU && !F.inoU.alive && F.inoByMe && !F.inoDown) {
         F.inoDown = true;
         rt.banner('井上頼次、討ち取ったり', '三の柵の鉄砲が止んだ');
         if (F.inoByMe) rt.award((t) => { t.special = { label: '井上頼次を討ち取った', pts: 24 }; }, '井上頼次を討ち取った');
@@ -619,7 +625,10 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     } else if (F.step === 5) {
       const k = F.w5N - aliveN(F.take);
       if (k >= Math.round(F.w5N * 0.6) && F.playerFight5 && !F.riverAid) this.riverAid(rt);
-      if (F.riverAid && (F.riverShots >= 1 || F.riverSecured) && rt.t >= 240 && !live(F.riverFoe)) this.win(rt);
+      // 崩れた瞬間は、まだ佐竹の目の前に寄せ手がいる。北岸を実際に退くまで救援を終えない。
+      const riverClear = F.riverAid && !live(F.riverFoe) && !F.riverFoe.units.some((u) =>
+        u.alive && !u.gone && u.pos.x > RIVER.x - 40);
+      if (riverClear && (F.riverShots >= 1 || F.riverSecured) && rt.t >= 240) this.win(rt);
     }
   },
 
