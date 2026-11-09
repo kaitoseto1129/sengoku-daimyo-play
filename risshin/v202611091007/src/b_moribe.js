@@ -2848,6 +2848,7 @@ const moribe = {
   noMiniMap: true,
   goalSignOnly: true,
   goalSignTriangle: true,   // 行き先は画面の内外とも▼一つにする。
+  goalsAllRows: true,   // 最初から目標を並べ、済んだ物にも印を残す。
   // 既存の相手選びを使い、共通の枠と方向の矢印を同じ本人へ出す。
   actionGuideTarget(rt) { return this.missionSignTarget(rt); },
   // 集団の中心でなく、目標の本人か行き先一つへ案内する。

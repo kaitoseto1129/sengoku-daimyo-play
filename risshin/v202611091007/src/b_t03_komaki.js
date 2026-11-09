@@ -334,6 +334,7 @@ const t03_komaki = {
       rt.world.setTime('night', true);
       for (const [x, z] of KAGARI) rt.world.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
       for (const [x, z] of F.campFires || []) rt.world.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
+      F.campFiresLit = true;
       countFallen(rt);
       F.nightDead0 = F.fallen[1]; F.nightAllyDead0 = F.fallen[0];
       rt.after(1, () => rt.say('日根野弘就', '徳川の先手が田を渡って寄せる。土橋の口を固めよ', 3.2));

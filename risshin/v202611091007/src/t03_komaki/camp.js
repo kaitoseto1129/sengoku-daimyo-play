@@ -39,7 +39,7 @@ export function campSetup(rt, K) {
     // 酒井・本多・榊原・井伊の備は軍勢の厚みの表（depth.js）が描く
   ];
   // 小牧山の陣の前の柵の幟（徳川が堀と土塁を固めた。旗の列で見せる）
-  for (let x = -150; x <= 60; x += 14) rt.scene.add(nobori(W, x, 92 + Math.sin(x * 0.07) * 3, x % 28 ? 'tokugawa' : 'oda', 6));
+  for (let x = -150; x <= 60; x += 14) rt.scene.add(nobori(W, x, 92 + Math.sin(x * 0.07) * 3, Math.abs(x - (HONJIN.x + 22)) < 14 ? 'oda' : 'tokugawa', 6));
   // 陣の間の羽柴の幟
   for (const [x, z, m] of [[-60, -72, 'toyotomi'], [-24, -70, 'toyotomi'], [-84, -40, 'hori'], [-30, -40, 'toyotomi'], [40, -70, 'ageha'], [80, -60, 'tsuru']]) rt.scene.add(nobori(W, x, z, m, 6));
   // 両陣の本陣の篝火
