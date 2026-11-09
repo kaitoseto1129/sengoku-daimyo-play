@@ -2004,6 +2004,7 @@ const ENVOY_AT = { x: 6, z: -84 };
 // 後陣（x72）の陣幕を抜けず、その北を回って佐久間の陣へ
 const ENVOY_ROAD = [[14, -60], [30, -38], [56, -27], [86, -20], [SAKUMA_AT.x + 2, -7]];
 const saika = {
+  playerTaken: 0.5,   // 11/9 二巡（織田H）：堤の段で川上・川下から囲まれ、bot が三回のうち二回倒れた（0.7 でも倒れた）。人数と斬り合いは減らさない
   jinkei: JIN,
   lethal: { max: 3, firstAt: 150, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は筋書きのまま
   namedKacchu: SAIKA_KACCHU,

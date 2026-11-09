@@ -103,16 +103,21 @@ function requiredStage(s) {
       }
       if ([rt.flags.gate, ...(rt.flags.outer || [])].some((st) => st && st.alive)) return false;
       // 11/9 徳川C：木戸が全部倒れても、味方の組が守兵を前に止まり、本人も守将に届かないと②が十四分止まった（bot）。
-      //   最後の木戸が倒れて七十五秒たっても守将が立っていれば、佐竹の組が討ち取る（本人の手柄にはしない）
+      //   七十五秒後は、実際に守将へ斬り込んだ佐竹の兵だけが討ち取れる。本陣の旗本による遠隔の討死にはしない。
       const F2 = rt.flags; F2.gatesDownT ??= rt.t;
-      if (leaderAlive && rt.t - F2.gatesDownT > 75 && !F2.leadersCut) {
-        F2.leadersCut = true;
-        const by = rt.army.units.find((u) => u.alive && u.team === 0 && !u.isPlayer && !u.isStruct);
-        F2.quietKill = true;   // 本人の手柄（onKill の「討ち取ったり」）にしない
-        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) rt.army.kill(u, by);
-        F2.quietKill = false;
-        rt.say('足軽', '佐竹の組が砦の守将を討ったぞ！', 3);
-        leaderAlive = false;
+      if (leaderAlive && rt.t - F2.gatesDownT > 75) {
+        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) {
+          const by = rt.army.units.find((a) => a.alive && a.team === 0 && !a.isPlayer && !a.isStruct &&
+            !a.fleeing && !a.dying && !a.woundOut && !a.perch &&
+            Math.abs(a.pos.y - u.pos.y) < 3 && Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4 &&
+            !rt.army.wallBetween(a.pos, a.team, u.pos, false));
+          if (!by) continue;
+          const quiet = F2.quietKill;
+          F2.quietKill = true;   // 本人の手柄にはしない
+          try { rt.army.kill(u, by); } finally { F2.quietKill = quiet; }
+          if (!u.alive) rt.say('足軽', `佐竹の組が${u.name}を討ったぞ！`, 3);
+        }
+        leaderAlive = C.groups.some((g) => g.units.some((u) => u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')));
       }
       // 共通の判定は残り二人以下でも組を済みとする。守将が残っている間は、討つ目標を済みにしない。
       if (leaderAlive) return false;
@@ -398,7 +403,8 @@ const k09_imafuku = {
       // 舟・櫓の射手は堤から斬れない。深みに向かって歩き続けず、堤の上の相手を追う。
       botFoeAllowed: (u) => !u.perch && !u.isStruct && Math.abs(u.pos.z) < BANK,
       // 中州の加勢を手当ての相手に選ぶと、渡れない川の手前で止まる。
-      botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK,
+      // 砦で踏みとどまる段（③）は、手当てに退く所も砦の東の口（KEEP から三十歩）まで。堤の東へ八十歩退いて持ち場を離れ、刻限で負けた（11/9 見回り 徳川D）
+      botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK && (rt2.flags?.dp?.cur?.s.kind !== 'hold' || Math.hypot(x - KEEP.x, z - KEEP.z) < 30),
       routeFight: true };
     // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆は隠れた所から
     const onBank = (l) => { ctx.fixedSpawn = true; return l; }, hidden = (l) => { ctx.fixedSpawn = false; return l; };
