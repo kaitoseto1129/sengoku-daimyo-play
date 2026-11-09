@@ -42,7 +42,8 @@ export function install(rt, ctx) {
     rt.after(2, () => rt.say('孫一の手の鉄砲頭', '織田の者を川へ追い落とせ！　一人も上げるな！', 3.5));
     rt.after(6, () => rt.say('堀秀政', '坂の下を離すな！　足場を保って、下りて来る槍を払え！', 4));
     rt.obj('mago', '坂の下の足場を保ち、下りて来る孫一の手を払え', 'order');
-    rt.marker('mago', () => (live() ? G.center() : null), '孫一の手', { red: true, group: G });
+    // 後の槍の組には mago2 の印がある。先の組が尽きたら、その持ち場の印を残さない。
+    rt.marker('mago', () => (cnt(G) ? G.center() : null), '孫一の手', { red: true, group: G });
     // 堀の先手も坂の下へ寄せて共に受ける
     if (F.hori && !F.hori.routed && F.hori.count) { F.hori.fixed = false; F.hori.order = 'move'; F.hori.dest = { x: SHORE.x + 2, z: SHORE.z + 3 }; F.hori.onArrive = (q) => { q.order = 'attack'; q.aggro = 18; }; }
   };
@@ -56,7 +57,7 @@ export function install(rt, ctx) {
       if (!startT) { if (F.reached) start(); return; }
       if (!G2 && (rt.t - startT > 55 || !cnt(G))) second();
       const n = live(), held = rt.t - startT;
-      rt.objProgress('mago', n ? `孫一の手 ${n}人` : '');
+      rt.objProgress('mago', `孫一の手 ${(G?.units.length || 0) + (G2?.units.length || 0)}人中 残り${n}人`);
       if ((G2 && !n && held > 110) || held > 180) {
         done = true; F.magoDone = true;
         rt.unmark('mago'); rt.unmark('mago2');

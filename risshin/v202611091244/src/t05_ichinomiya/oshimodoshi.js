@@ -9,11 +9,17 @@ export function oshiStep(NG) {
     list.map(([type, n]) => ({ type, n, o: CHOSO })));
   const alive = (g) => g && g.count > 0 && !g.routed;
   const heads = (gs) => gs.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
-  const send = (rt, at) => (rt.flags.allies || []).forEach((g, i) => {
+  const send = (rt, at) => {
+    // 共通の段で追いついた後続も、山道の退却・再進撃の下知に含める。
+    const groups = [...(rt.flags.allies || [])];
+    const aid = rt.flags.dp?.ctx?.aidG;
+    if (aid && !groups.includes(aid)) groups.push(aid);
+    groups.forEach((g, i) => {
     // 加勢の知らせまでは、黒田・家政の手を山道の下で待たせる。
     if ((rt.flags.dp?.cur?.ph ?? 0) < 3 && (g === rt.flags.kanbei || g === rt.flags.iemasa)) return;
     if (g && g.count) { g.order = 'attack'; g.seekRange = 20; g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 }; }
-  });
+    });
+  };
   return {
     // kind は 'hold'：自動の頭（depthBot）が持ち場（C.at）の輪の内の敵だけを相手にし、門の下まで一人で追わない
     kind: 'hold', max: Infinity, idleAdvance: false, needIn: 55,
