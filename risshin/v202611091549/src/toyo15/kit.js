@@ -8,6 +8,7 @@ import { flagTexture } from '../textures.js';
 import { allyGroup, enemyGroup } from '../bhelp.js';
 import { STAGES } from '../stages.js';
 import { withGuard } from '../toyo_bot.js';
+import { depthRout } from '../army_depth.js';
 
 export const near = (rt, p, r = 10) => Math.hypot(rt.player.u.pos.x - p.x, rt.player.u.pos.z - p.z) < r;
 export const living = (g) => g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0;
@@ -56,6 +57,11 @@ export function fallOne(rt, groups, zone) {
   return null;
 }
 
+// 落城・開城：城に残った軽い備（本物の隊に結んでいない敵の備）を崩して退かせる（布陣図の城兵が立ったまま残らない）
+export function fallB(rt) {
+  const D = rt.flags.depth && rt.flags.depth.B;
+  if (D) for (const s of D.sonae) if (!(s.o && s.o.bind)) { try { depthRout(D, s); } catch (e) { /* 無くても進む */ } }
+}
 // 段の替わり目に息を整える：十五分の戦は傷が積もるので、段が替わる時に命を少し戻す（手当ての数は使わない）
 export function breath(rt, k = 0.3) {
   const u = rt.player && rt.player.u;

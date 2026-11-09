@@ -1,7 +1,7 @@
 // 豊臣編 7　紀州征伐／太田城（約15分。docs/toyo15_plan_1108.md の 7）
 // 水攻め：巨大な包囲陣 → 築堤の護衛 → 堰を開いて水を入れる（夕・小舟）→ 堤が崩れ、崩れ目を守る → 白旗と開城。
 // 敵将を倒すのではなく、工事と包囲で勝つ。段の中身は s1〜s5、舞台は scene.js、段の運びは toyo15/kit.js。
-import { stageRun } from '../toyo15/kit.js';
+import { stageRun, fallB } from '../toyo15/kit.js';
 import { P, build, otaHeight, waterTick } from './scene.js';
 import s1 from './s1_hoi.js';
 import s2 from './s2_chikutei.js';
@@ -53,7 +53,7 @@ const def = {
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; rt.setPhase('end'); rt.objDone('main'); rt.player.u.invuln = true;
+    F.ending = true; rt.setPhase('end'); rt.objDone('main'); rt.player.u.invuln = true; fallB(rt);
     rt.award((t) => { t.main = true; }, '太田城の開城を迎えた');
     rt.banner('太田城、開城', '水に囲まれた城が門を開く');
     rt.say('太田左近', '太田城を明け渡します。城の者の命をお助けください', 4);

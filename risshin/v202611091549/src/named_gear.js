@@ -472,5 +472,10 @@ NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
 NAMED_GEAR['氏家卜全'].uma = null;
 NAMED_GEAR['氏家卜全'].campUma = null;
 NAMED_GEAR['氏家直元'] = NAMED_GEAR['氏家卜全'];
+// 墨俣の前野長康。旗は従来の織田方の所属表示で、本人の旗印の復元ではない。
+// 個人の旗印・馬印は未確認。秀吉の瓢箪も借りない（docs/generals_look_1108/前野長康.md）。
+NAMED_GEAR['前野長康'].flag = 'oda';
+NAMED_GEAR['前野長康'].uma = null;
+NAMED_GEAR['前野長康'].campUma = null;
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

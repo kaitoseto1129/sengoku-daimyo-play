@@ -14,6 +14,13 @@ export function negoroDepth(NG) {
         { id: 'hidenaga', layer: 'yobi', wing: 'center', men: 10000, taisho: '羽柴秀長', at: P(-30, -235), hold: true },
         { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '羽柴秀吉', at: P(10, -262), hold: true },
       ] },
-    honjinView: { A: true },
+    // 根来衆（docs/fujin/t04_negoro.md）：主力は和泉の城々へ出ていて、寺に残ったのは行人方と雑賀の加勢およそ千五百。勝つと fallB で崩れる
+    B: { name: '根来衆', facing: Math.PI + ROT, honjin: P(-40, 108), mpu: 4, formation: '長蛇', terrain: 'valley', flag: 'maru', armor: 0x302a24, openAt: 9999, attrition: 0,
+      sonae: [
+        { id: 'inner', layer: 'ichi', wing: 'center', men: 300, taisho: '', bind: F('innerG') },
+        { id: 'saika', layer: 'sakite', wing: 'left', men: 500, taisho: '', flag: 'yatagarasu', at: P(-52, -22), hold: true },
+        { id: 'oku', layer: 'honjin', wing: 'center', men: 700, taisho: '', at: P(-40, 108), hold: true },
+      ] },
+    honjinView: { A: true, B: false },
   };
 }
