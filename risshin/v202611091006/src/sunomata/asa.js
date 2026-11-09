@@ -44,6 +44,38 @@ export function tick(rt) {
     if (us.every((u) => outside(u, C.FORT))) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeSet = true; g.fleeDir = { x: 0, z: -1 }; n++; }
   }
   if (n && !v.asaSaid) { v.asaSaid = true; sfx('horagai', 0.6); rt.say('足軽', '夜が白んで来た……柵の外の寄せ手が退いてゆくぞ！', 3.2); }
+  // 11/9 bot が二十一分の打ち切りまで止まった所（三の手の後の点検は済んだのに、目標の二つが立たない）：
+  //   ・北の旗印の組が柵まで来ずに崩れて逃げた時は「止めた」とする（逃げた組はもう柵へ来ない）。
+  //   ・伏兵（南の控え）が道の途中で詰まって着いた知らせが来ない時は、刻限から二分で着いたとする（横を突く役は済んだ）。
+  if (late >= 60 && !F.northAtFence && F.W3a && (F.W3a.routed || !F.W3a.units.some(ready))) F.northAtFence = true;
+  if (late >= 120 && F.reinforceCalled && !F.reinforceArrived) F.reinforceArrived = true;
+  // 人足が皆討たれて破れた柵を直す手が無い時は、前野の足軽が杭を打ち直す（直す者がいないまま夜明けで止まらない）
+  if (late >= 60 && F.w3Clear && !F.buildBusy && !v.asaFix && (F.segs || []).some((q) => !q.alive) && !(F.wk?.units || []).some(ready)) {
+    v.asaFix = rt.t;
+    rt.say('前野長康', '人足が討たれた。わしらの手で杭を打ち直すぞ！', 3);
+    rt.after(15, () => {
+      if (rt.over || F.won || F.ending) return;
+      for (const q of F.segs || []) if (!q.alive) {
+        if (rt.army.falling) rt.army.falling = rt.army.falling.filter((f) => f.s !== q);
+        rt.army.structTilt?.(q, 0);
+        q.wearLv = 0; q.tiltA = 0; q.knock = 0;
+        q.alive = true; q.hp = q.maxHp; q.building = false; if (q.mesh) q.mesh.visible = true;
+        if (q.stumps) { rt.scene.remove(q.stumps); q.stumps = null; }
+      }
+      rt.army.play?.('knock', { x: 0, z: -C.FORT }, 0.8);
+      rt.say('足軽', '柵を結び直したぞ！', 2.4);
+    });
+  }
+  // 寄せ大将を体力で長引かせない（kaito：敵の体力で伸ばさない）。柵の内へ入ったら旗本と踏みとどまり、討ち合う相手として待つ
+  const B = F.yoseBoss;
+  if (B?.alive && !B.gone) {
+    if (!v.bossCap) { v.bossCap = true; B.maxHp = Math.min(B.maxHp || 220, 220); B.hp = Math.min(B.hp, B.maxHp); }
+    const g = B.group;
+    if (late >= 60 && !v.bossStand && g && !g.routed && Math.max(Math.abs(B.pos.x), Math.abs(B.pos.z)) < C.FORT + 2) {
+      v.bossStand = true; g.order = 'hold'; g.anchor = { x: B.pos.x, z: B.pos.z }; g.focus = null; g.seekRange = 6; g.aggro = 6;
+      rt.say('足軽', '寄せ大将が柵の内で踏みとどまったぞ！　討ち取れ！', 3);
+    }
+  }
   if (late < 120 || v.asaLast) return;
   v.asaLast = true;
   // 離れた敵を討死にせず、既存の兵を実際に柵へ歩かせる。進行中の経路は消さない。

@@ -480,7 +480,7 @@ function aimWord(b, c) {
     broadside(b, c) < 0.4 ? '船首が近いぞ。狙って放て！' : d > 30 ? '横腹が見えたぞ。筒先を合わせよ' : '横腹が近いぞ。放て！';
 }
 function cannonLabel(rt, c) {
-  if (rt.t < c.cd) return `西の大筒・弾込めあと${Math.ceil(c.cd - rt.t)}秒`;
+  if (rt.t < c.cd) return `西の大筒・玉込めあと${Math.ceil(c.cd - rt.t)}秒`;
   const b = cannonTarget(rt.flags, c);
   if (!b) return '西の大筒・寄る船を狙え';
   if (Math.hypot(b.x - c.x, b.z - c.z) > 55) return '西の大筒・近寄るのを待て';
@@ -2886,7 +2886,7 @@ const kizugawa = {
     return F.step === 4 ? 6 : 1;
   },
   // 11/4 p100：「ここを守れ」「敵船を待て」は何をするか分からない（AR1・BA3）。守る物と場所の名で言う。
-  // 11/4 jin（kaito AW3）：目標は史実の段ごとに一つの言い方で固定する。弾込め・近い敵・水桶の有無で書き換えない。
+  // 11/4 jin（kaito AW3）：目標は史実の段ごとに一つの言い方で固定する。玉込め・近い敵・水桶の有無で書き換えない。
   //   ①寄る小早を大筒で撃つ ②焙烙の火を消す ③乗り移る毛利勢を討つ ④引き付けた大将船を撃つ ⑤残る敵を討ち退かせる
   missionHeading(rt) {
     const F = rt.flags;
@@ -3129,15 +3129,15 @@ const kizugawa = {
       .replace(/^西の大筒で敵船を迎えよ$/, '船べりの大筒へ進め')
       .replace(/^西の大筒で(?:大船の横腹|迫る敵船)を撃て$/, '「大筒を撃つ」を長押し')
       .replace(/^西の大筒で敵船の横腹を撃て$/, '大筒で敵船の横腹を撃て')
-      .replace(/^弾込め中。西の船べりを見張れ$/, '弾込め中。西を見張れ')
+      .replace(/^玉込め中。西の船べりを見張れ$/, '玉込め中。西を見張れ')
       .replace(/^目の前の敵へ向き、構えて防げ$/, '敵へ向き、構えよ')
       .replace(/^敵の法螺貝と退き太鼓。甲板を守り、残る敵を押し返せ$/, '甲板に残る敵を退けよ')
       .replace(/^甲板を守り、退く(?:敵)?船を見張れ$/, '敵船を見張り、船を守れ');
   },
   // 見張る下知は見出しにある。補足には砲手の残り時間だけを置く。
   taskDetail(_rt, title, progress) {
-    return /^弾込め中。/.test(title) ?
-      progress.replace(/^弾込めあと(\d+)秒。西の船べりを見張れ$/, '砲手の弾込め あと$1秒') : progress;
+    return /^玉込め中。/.test(title) ?
+      progress.replace(/^玉込めあと(\d+)秒。西の船べりを見張れ$/, '大筒衆の玉込め あと$1秒') : progress;
   },
   // ひし形の意味を、回避する理由と一緒に示す。画面外の方向は保つ。
   dodgeLabel(_rt, direction, rain) {
@@ -4122,8 +4122,6 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   fire(rt, i, playerShot = true) {
     const F = rt.flags;
     const c = F.guns[i];
-    // 10/31：本人が大筒に手を掛けた印（立っているだけで段が進まないように）
-    if (playerShot && (F.step === 1 || F.step === 4)) F['pf' + F.step] = true;
     if (F.step === 2 || F.step === 3) { rt.bark('今は甲板の持ち場を守れ'); return; }
     if (F.ending || rt.over || !rt.player.u.alive || (F.step !== 1 && F.step !== 4 && F.step !== 6) || F.kzYoin) return;
     if (rt.t < c.cd) { rt.bark('玉込め中'); return; }
@@ -4137,6 +4135,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       rt.bark(F.cannonGuard || F.kukiDanger ? '先に甲板の敵を防げ' : bd > 55 ? '近寄るのを待て' : '船の横腹を待て');
       return;
     }
+    // 撃てない時の空押しを、本人が砲撃した働きに数えない。
+    if (playerShot && (F.step === 1 || F.step === 4)) F['pf' + F.step] = true;
     const word = aimWord(best, c);
     if (noticeReady(rt, word, 45)) rt.say('大筒の者', word, 2.5);   // 11/6 fixc0504：①の間に同じ「船首が近いぞ」が五回出た
     c.cd = rt.t + 30;
@@ -4824,7 +4824,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         }
         F.cannonPost = c;
         const b = cannonTarget(F, c);
-        // 弾込め中の守備札へ、大筒までの行き先を添えない。
+        // 玉込め中の守備札へ、大筒までの行き先を添えない。
         const guideBlocked = guarding || !!F.kukiDanger || rt.t < c.cd;
         for (const m of rt.markers) if (/^g[0-2]$/.test(m.id)) m.noGuide = guideBlocked;
         for (const gun of F.guns) if (gun.interact) gun.interact.r = F.step === 1 || F.step === 4 || F.step === 6 && !F.kzYoin ? 2.6 : 0;
@@ -4834,7 +4834,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         }
         // 屋形の脇にいる時は移動を先に示す。持ち場へ着いてから待機の札にする。
         const task = closeThreat ? closeGuardTask(F) : F.kukiDanger ? rescueTask(rt) : guarding ?
-          deckGuardTask(nearbyThreat) : rt.t < c.cd ? '弾込め中。西の船べりを見張れ' :
+          deckGuardTask(nearbyThreat) : rt.t < c.cd ? '玉込め中。西の船べりを見張れ' :
           deckRouteDistance(u, c.post) > 2.6 ? cannonApproachTask(rt, c) : !b ? '西の大筒へ。敵船を待て' :
           Math.hypot(b.x - c.x, b.z - c.z) > 55 ? '西の大筒へ。船が近寄るのを待て' : !cannonFacing(b, c) ?
             '西の大筒へ。船の横腹を待て' : F.step === 4 ? '西の大筒で大船の横腹を撃て' : '西の大筒で迫る敵船を撃て';
@@ -4847,7 +4847,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
             if (noticeReady(rt, word, 90)) rt.say('大筒の者', word, 3);
           }
         }
-        rt.objProgress('main', closeThreat ? F.kukiDanger ? '敵が振った後に槍で突け。退けたら九鬼嘉隆の守りへ' : '敵が振った後に槍で突け。離れたら大筒へ' : F.kukiDanger ? F.roofDanger ? '屋形の脇から前へ回れ。残る敵を押し返せ' : '屋形の脇を通って戻れ。九鬼嘉隆のそばで敵を防げ' : guarding ? '敵が振った後に槍で突け。離れたら大筒へ' : rt.t < c.cd ? `弾込めあと${Math.ceil(c.cd - rt.t)}秒。西の船べりを見張れ` : b ?
+        rt.objProgress('main', closeThreat ? F.kukiDanger ? '敵が振った後に槍で突け。退けたら九鬼嘉隆の守りへ' : '敵が振った後に槍で突け。離れたら大筒へ' : F.kukiDanger ? F.roofDanger ? '屋形の脇から前へ回れ。残る敵を押し返せ' : '屋形の脇を通って戻れ。九鬼嘉隆のそばで敵を防げ' : guarding ? '敵が振った後に槍で突け。離れたら大筒へ' : rt.t < c.cd ? `玉込めあと${Math.ceil(c.cd - rt.t)}秒。西の船べりを見張れ` : b ?
           deckRouteDistance(u, c.post) > 2.6 ? '甲板の印をたどり、大筒の持ち場へ' :
           `敵船まで約${Math.round(Math.hypot(b.x - c.x, b.z - c.z))}歩。${aimWord(b, c)}` : '敵船を待て。乗り込む敵を防げ');
       }

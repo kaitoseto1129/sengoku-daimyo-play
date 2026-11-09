@@ -501,6 +501,9 @@ export function fieldSignsTick(rt, root) {
       // 画面外の兵を端へ寄せると、見えている味方に敵の▼が付いて見える。
       signAt.copy(v).applyMatrix4(cam.projectionMatrix);
       if (!special && (Math.abs(signAt.x) > 1 || Math.abs(signAt.y) > 1)) continue;
+      // 森部の頭上の▼が画面端で切れ端にならないよう、印の余白を取る。
+      // 位置を縁へ移すと別の兵の印に見えるため、端に掛かる時だけ伏せる。
+      if (ford && (Math.abs(signAt.x) > 1 - 128 / VIEW.w || Math.abs(signAt.y) > 1 - 128 / VIEW.h)) continue;
       if (signRects && signRects.length) {
         const px = (signAt.x + 1) * VIEW.w / 2, py = (1 - signAt.y) * VIEW.h / 2;
         let under = false;

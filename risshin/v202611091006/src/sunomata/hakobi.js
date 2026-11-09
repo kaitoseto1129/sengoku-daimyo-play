@@ -91,7 +91,14 @@ export function tick(rt) {
     if (v.loadingT == null) v.loadingT = rt.t;
     if (rt.t - v.loadingT >= 12) back(rt);
   }
-  const raidGone = v.raid && !v.raid.units.some(ready);
+  // 11/9 bot が始まりで止まった所：物見の残りが柵の外で立ち往生し、荷の護衛が終わらなかった。
+  //   人足が戻って四十秒たっても柵の外に残る物見は、荷を諦めて退く（討死にはしない）
+  if (v.raid && v.wkHome && rt.t - v.wkHome > 40 && !v.raid.routed && v.raid.units.some(ready) &&
+      v.raid.units.every((u) => !ready(u) || Math.max(Math.abs(u.pos.x), Math.abs(u.pos.z)) > v.C.FORT + 1)) {
+    v.raid.noRout = false; v.raid.morale = 0; v.raid.routed = true; v.raid.order = 'flee'; v.raid.fleeSet = true; v.raid.fleeDir = { x: 0, z: -1 };
+    rt.say('足軽', '物見は荷を諦めて退いてゆくぞ', 2.6);
+  }
+  const raidGone = v.raid && (v.raid.routed || !v.raid.units.some(ready));
   // 人足が砦の内へ戻った（着いた知らせが押し合いで来ない時も、砦の内に入れば戻ったとみなす。11/9 bot が止まった）
   if (v.backT && !v.wkHome && F.wk?.units.some(ready)) {
     if (F.wk.units.filter(ready).every((u) =>
