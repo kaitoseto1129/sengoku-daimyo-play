@@ -467,7 +467,8 @@ const t11_hachioji = {
   // 曲輪の狭い所で四方から打たれやすい。本人へ同時に打ち込むのは二人まで（高遠の城攻めと同じ）
   playerAtkMax: 2,
   // 11/8 15分の構成：段が八つ続く長い山城攻め。傷が積もって途中で倒れ続けないよう、受ける傷を少し軽く・戦わない間の戻りを早く
-  playerTaken: 0.65, playerRegen: 0.012,
+  playerTaken: 0.5,   // 二巡 11/9：bot が山下曲輪で二回続けて倒れた（敵の打ち込みも 0.58→0.45）
+  playerRegen: 0.012,
   pacingCap: 1380,   // 共通の打ち切り（十八分）を二十三分へ。段が十二の十五分の戦（battle_pacing.js）
   world: {
     namedKacchu: TOYO_MAEDA_KACCHU,
@@ -492,6 +493,7 @@ const t11_hachioji = {
       // 山の杉と檜の下の暗い土と苔
       if (h > 12) c.setRGB(c.r * 0.72, c.g * 0.82, c.b * 0.7);
     },
+    moveLim: 200,   // 二巡 11/9：寄せ口（x 182）と前田の本陣が戦場の端（176）の外で、始めに兵が一息で端へ飛んでいた
     clear: (x, z) => distToPolyline(x, z, ROUTE) < 7 || PLAN.kuruwa.some((k) => x > k.poly[0][0] - 9 && x < k.poly[1][0] + 9 && z > k.poly[0][1] - 9 && z < k.poly[2][1] + 9),   // 曲輪の中で戦う時、後ろのカメラの前に木を置かない（11/4 p100：小宮曲輪で杉が画面をふさいだ）
     trees: 520,
     tufts: 2600,
@@ -576,7 +578,7 @@ const t11_hachioji = {
     // 段のファイル（t11_hachioji/*.js）へ渡す場所と道具
     const H = { GATE_FRONT: { x: 150, z: 52 }, AMBUSH: { x: 164, z: 70 }, KARAMETE, SLOPE_MID: { x: 71, z: -20 }, SLOPE_TOP: { x: 72, z: -36 },
       LAST: { x: HON.x - 2, z: HON.z - 6 }, HON, MATSUKI, TAKA, GOSHU, HOJO, dress, marchTo };
-    depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends: () => [F.mine, F.saki, F.ni], look: (list) => dress(list, HOJO), scale: 1.3, backing: false, fixedSpawn: true, dmg: 0.58, botSeek: 40 }, [
+    depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends: () => [F.mine, F.saki, F.ni], look: (list) => dress(list, HOJO), scale: 1.3, backing: false, fixedSpawn: true, dmg: 0.45, botSeek: 40 }, [
       sanroku.step(H),
       // ① 山下曲輪：大手の虎口を守った近藤出羽守（綱秀）の組。木戸の内から鉄砲を撃ちかけ、上の段から石弓（石落とし）で先手の降将の勢を押し返した（『北条記』）
       DP.fight({ at: OTE, title: '山下曲輪', sub: '近藤出羽守が守る', obj: '山下曲輪で、近藤出羽守の組を討て', max: 90, noRefill: true,
