@@ -4053,6 +4053,24 @@ const inabayama = {
     return best;
   },
   jinkei: INABAYAMA_JIN,
+  // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が稲葉山、南（+z）が井口の町と織田の囲み。山麓の囲みの大軍は戦のファイルの軽い作りが受け持つので、
+  //   ここは藤吉郎の手・その後備・丹羽の手（本物の隊に結ぶ）と信長の本陣、斎藤の大手の打って出・本丸の旗本・龍興の馬廻（本物）だけ。
+  depth: {
+    A: { name: '織田', facing: Math.PI, honjin: { x: 20, z: 150 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'oda', armor: 0x302d29, openAt: 60, attrition: 0.002,
+      sonae: [
+        { id: 'kino', layer: 'sakite', wing: 'center', men: 1500, taisho: '木下藤吉郎', bind: (rt) => rt.flags.kino },
+        { id: 'shiba', layer: 'ichi', wing: 'right', men: 1000, taisho: '', bind: (rt) => rt.flags.shiba },
+        { id: 'niwa', layer: 'ichi', wing: 'left', men: 2000, taisho: '丹羽長秀', bind: (rt) => rt.flags.niwa },
+        { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '織田信長', hold: true, show: false, at: { x: 20, z: 150 } },
+      ] },
+    B: { name: '斎藤', facing: 0, honjin: { x: 0, z: -116 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'saito', armor: 0x38352f, openAt: 60, attrition: 0.002,
+      sonae: [
+        { id: 'ote', layer: 'sakite', wing: 'center', men: 1500, taisho: '日根野弘就', bind: (rt) => rt.flags.ote },
+        { id: 'hata', layer: 'ni', wing: 'center', men: 800, taisho: '', bind: (rt) => rt.flags.hata?.[0] },
+        { id: 'tatsu', layer: 'hatamoto', wing: 'center', men: 1000, taisho: '斎藤龍興', hold: true, bind: (rt) => rt.flags.tatsu },
+      ] },
+    honjinView: { A: false, B: false },
+  },
   // 見出しは大きな出来事（討ち取り・勝ち負け・雨上がり・合図の火）だけ。行き先や構えの指示の見出しは出さない（kaito 10/23）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|城が開く|合図の火|雨が上がった|届かず|進めず/.test(t),
   // ミッション（kaito 10/23 1・49・50）。右上の一行は「何をするか」だけ。向き・行き先の字は書かない。
