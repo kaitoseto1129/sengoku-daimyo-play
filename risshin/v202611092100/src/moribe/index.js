@@ -53,7 +53,7 @@ export function bot(b, inp, { goTo, patientStrike }) {
   const v = S(b), u = b.player.u;
   if (v.ph === 'kishi') { const q = v.C.KISHI; if (Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 3) goTo(b.player, inp, q.x, q.z, 2.5); return true; }
   if (v.ph !== 'aze' && v.ph !== 'yumi') return false;
-  const e = b.army.nearestEnemy(u, 5, (o) => !o.fleeing && !o.invuln && !o.noTarget) || null;
+  const e = b.army.nearestEnemy(u, 5, (o) => o.hp > 0 && !o.dying && !o.downed && !o.fleeing && !o.woundOut && !o.rearWound && !o.invuln && !o.noTarget) || null;
   const t = e || target(b);
   if (!t) return false;
   const d = Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z);

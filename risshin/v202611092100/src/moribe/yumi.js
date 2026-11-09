@@ -6,7 +6,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
 // 隊の敗走印だけで済みにしない。まだ射る兵がいれば、実際に討つか退かせる。
 const live = (g) => g && g.units.some(ready);
 
@@ -34,7 +34,8 @@ export function tick(rt) {
   if (!v.yumiGs.some(live) && t > 20) {
     v.yumiDone = true; v.ph = null;
     rt.unmark('yumi');
-    for (const g of v.yumiGs) if (live(g)) { g.fire = false; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: -0.4, z: -1 }; }
+    // 射手が皆退いた時は live が偽なので、同じ判定で後始末を飛ばさない。
+    for (const g of v.yumiGs) { g.fire = false; g.noRout = false; g.order = 'retreat'; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: -0.4, z: -1 }; }
     rt.say('組頭 源八（げんぱち）', '射手を退けたぞ！　列へ戻れ、反撃の太鼓を待て！', 3.2);
     if (t <= 100) rt.award((tr) => tr.side.push('左の畦で斎藤の弓・鉄砲衆を討った'), '左の畦で斎藤の弓・鉄砲衆を討った');
   }
