@@ -560,7 +560,7 @@ export const t05_ichinomiya = {
     // 味方：秀長の旗本（本陣に残る）と、自分が率いる別の手の二組
     // 総大将の秀長は本陣に座り、旗本に囲まれて前に出ない（kaito AR3・AV7）
     // 本陣の後ろの軽い兵（出だしから三十七m）は外し、旗本を本物の兵で厚くした（kaito 四1）
-    allyGroup(rt, { name: '羽柴秀長の旗本', anchor: { x: HONJIN.x, z: HONJIN.z - 2 }, facing: 0, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 4 },
+    F.honjin = allyGroup(rt, { name: '羽柴秀長の旗本', anchor: { x: HONJIN.x, z: HONJIN.z - 2 }, facing: 0, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 4 },
       [{ type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, flag: 'toyotomi', horse: false } }, uS(6), uA(14), uG(4)]);
     // 敵は ctxOf の scale: 1 で定義どおり。味方も共通の六割五分への間引きを避け、谷へ進む三組の人数を保つ。
     F.allies = [

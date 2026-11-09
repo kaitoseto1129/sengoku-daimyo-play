@@ -111,7 +111,7 @@ const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, danger: false 
 // 段の中の組を名で探し、持ち場に留める（名のある将の旗本は前へ出ない・背を向けて歩かない。BK5）
 function holdGuard(C, name, at, facing) {
   const g = C && C.groups.find((q) => q.name === name);
-  if (g && !g.routed) { g.order = 'hold'; g.anchor = { x: at.x, z: at.z }; g.facing = facing; g.aggro = 9; }
+  if (g && !g.routed && g.order !== 'retreat') { g.order = 'hold'; g.anchor = { x: at.x, z: at.z }; g.facing = facing; g.aggro = 9; }
   return g;
 }
 
@@ -217,12 +217,12 @@ function yoneno(step) {
   const tick = step.tick;
   step.tick = (rt, C, ...a) => {
     const done = tick(rt, C, ...a);
-    if (!rt.flags.otsukaDone) {
+    // 共通の戦闘判定は三人になると不退転を外す。飯沼の討死までは毎回戻す。
+    if (!rt.flags.iinumaDown) {
       const g = C.groups.find((q) => q.name === '飯沼長資の手');
       if (g) { g.noRout = true; g.morale = 100; }
-      return false;
     }
-    return done && !!rt.flags.iinumaDown;
+    return done && !!rt.flags.otsukaDone && !!rt.flags.iinumaDown;
   };
   return step;
 }
@@ -468,7 +468,7 @@ const k02_kawada = {
       // 木造の旗本が五人を切ったら、木造は岐阜へ退き、北岸の守りは崩れて段が済む（木造は討たせない）
       if (F.gumasaDown && !F.northBroke) {
         F.northBroke = true; C.later.length = 0;
-        for (const q of C.groups) if (q.count) { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.morale = 0; }
+        for (const q of C.groups) if (q.count) { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.order = 'retreat'; q.morale = 0; }
         rt.say('木造長政', '柵は破れた。岐阜の城へ退け！', 3);
         rt.after(3.2, () => rt.say('浅野の侍', '木造が退くぞ！　北の岸は取った', 3.5));
         // 北岸を取ったら、味方の備はそのまま隊で米野の手前の堤へ押し出す（本人だけが先に一人で米野へ走らない）
@@ -489,7 +489,7 @@ const k02_kawada = {
       if (F.dodoDown && !F.yonenoBroke) {
         F.yonenoBroke = true;
         // 段の中心から出た旗本は、共通の生成で退く向きがゼロになる。岐阜へ向かう北を明示する。
-        for (const q of C.groups) if (q.count && q.name !== '飯沼長資の手') { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.morale = Math.min(q.morale, 20); }
+        for (const q of C.groups) if (q.count && q.name !== '飯沼長資の手') { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.order = 'retreat'; q.morale = Math.min(q.morale, 20); }
         rt.say('百々綱家', '米野は持たぬ。岐阜へ退け！', 3);
         rt.after(3.2, () => rt.say('池田の侍', '百々の旗が退くぞ！　米野は崩れた', 3.5));
       }
