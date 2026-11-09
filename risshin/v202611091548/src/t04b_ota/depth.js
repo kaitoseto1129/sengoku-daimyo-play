@@ -13,5 +13,14 @@ export const depth = {
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '羽柴秀吉', at: { x: -18, z: -126 }, hold: true },
       { id: 'konida', layer: 'konida', wing: 'center', men: 1500, at: { x: -60, z: -132 }, hold: true },
     ] },
-  honjinView: { A: false },
+  // 太田城の城兵（docs/fujin/t04b_ota.md）：太田左近宗正のもと雑賀の地侍と百姓およそ五千。城の囲みの中に四つ。開城で fallB
+  B: { name: '雑賀衆', facing: -Math.PI / 2, honjin: { x: -12, z: 16 }, mpu: 6, formation: '方円', terrain: 'castle', flag: 'maru', armor: 0x302a24, openAt: 9999, attrition: 0,
+    sonae: [
+      { id: 'hon', layer: 'honjin', wing: 'center', men: 1500, taisho: '', at: { x: -12, z: 17 }, hold: true },
+      { id: 'kita', layer: 'sakite', wing: 'center', men: 1000, taisho: '', at: { x: 9, z: -15 }, hold: true },
+      { id: 'higashi', layer: 'ichi', wing: 'right', men: 1200, taisho: '', at: { x: 14, z: 2 }, hold: true },
+      { id: 'nishi', layer: 'ichi', wing: 'left', men: 1000, taisho: '', at: { x: -14, z: 5 }, hold: true },
+      { id: 'minami', layer: 'ni', wing: 'center', men: 800, taisho: '', at: { x: 10, z: 19 }, hold: true },
+    ] },
+  honjinView: { A: false, B: false },
 };

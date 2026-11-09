@@ -60,4 +60,11 @@ export const DEPTH = {
       { id: 'chosokabe', layer: 'gozume', wing: 'right', men: 6600, taisho: '長宗我部盛親', flag: 'chosokabe', hold: true, at: { x: 478, z: 330 } },
     ] },
   honjinView: { A: false, B: false },   // 本陣の幕と総大将は戦のファイルが作る
+  byMen: true,   // 軽い兵を兵数の比で配る（家康の三万が一番大きく、二千の備は小さく。docs/fujin/k06_sekigahara.md）
 };
+// 布陣図の総数に合わせる（kaito 11/9：東軍約七万五千・西軍約八万二千）。各家の史料の数を足すと東軍は九万を越えるので、比を保って七万五千に縮める。
+// 西軍は表の六万と、表に入らない小早川一万五千・麓の四家・島津（k06/jindate.js の軽い大軍）で約八万二千。
+{
+  const tot = DEPTH.A.sonae.reduce((a, s) => a + s.men, 0), k = 75000 / tot;
+  for (const s of DEPTH.A.sonae) s.men = Math.round(s.men * k / 10) * 10;
+}

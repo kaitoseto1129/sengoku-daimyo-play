@@ -3176,4 +3176,6 @@ function hzRescue(def) {
   return step;
 }
 
+// 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
+hieizan.lethal = { max: 4, firstAt: 90, gap: 60 };
 export { hieizan };

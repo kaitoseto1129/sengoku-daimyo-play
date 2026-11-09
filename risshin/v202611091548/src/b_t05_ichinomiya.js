@@ -34,6 +34,7 @@ import { install as ichiIntro } from './t05_ichinomiya/intro.js';
 import { oshiStep } from './t05_ichinomiya/oshimodoshi.js';
 import { depth as ichiDepth } from './t05_ichinomiya/depth.js';
 import { withGuard } from './toyo_bot.js';
+import { fallB } from './toyo15/kit.js';
 
 // ---------------- 場所 ----------------
 const SPAWN = { x: 24, z: -168 };
@@ -643,7 +644,7 @@ export const t05_ichinomiya = {
   envoy(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true;
+    F.ending = true; fallB(rt);
     for (const g of rt.army.groups) if (g.team === 1 && g.count) { g.noRout = false; g.morale = 0; }
     // 塀に隠れない曲輪の内側で使者を迎え、台詞と帰城の動きを見せてから締める。
     const pp = rt.player.u.pos;

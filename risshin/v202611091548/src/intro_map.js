@@ -274,7 +274,8 @@ export function loadingMap(rt, host) {
   // 大将の絵（兜・前立・肩）と名前
   const sd = rt.def.sides || {}, team = rt.player?.u?.team || 0;
   const fallback = [sd[team === 0 ? 'a' : 'b']?.name, sd[team === 0 ? 'b' : 'a']?.name].map((n) => String(n || '').replace(/（.*?）/g, ''));
-  const who = [0, 1].map((side) => L.names.find((n) => n.side === side)?.name || fallback[side] || (side ? '敵の大将' : '味方の大将'));
+  // def.introLords：[味方, 敵] の大将の名を戦が決める（隊の並びの先頭が大将でない戦。天王寺岡山の敵は毛利でなく真田信繁）
+  const who = [0, 1].map((side) => rt.def.introLords?.[side] || L.names.find((n) => n.side === side)?.name || fallback[side] || (side ? '敵の大将' : '味方の大将'));
   const bust = (cx, side) => {
     const base = Ht - 26, c = COL[side], w = cardW * 0.62, top = 18;
     g.save(); g.lineJoin = 'round'; g.strokeStyle = '#14120f'; g.lineWidth = 2;
