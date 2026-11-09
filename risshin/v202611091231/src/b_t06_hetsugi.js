@@ -159,6 +159,8 @@ const t06_hetsugi = {
   nearbyAllySignLimit: 0,
   foeMarks: true,
   enemyTriangleSigns: true,
+  // 床几の家久と本陣の兵も敵。討てない者からも所属の赤い▼を消さない。
+  foeMarkVisible: (rt, u) => u.team === 1,
   nobiki: true,              // 負け戦の退き口：法螺貝と退き太鼓で退けを知らせる
   wakeRoom: 200,             // 塊から本物へ替える兵の上限（iPhone の重さ）
   // 11/7 九2・十二1：両軍で一万八千の「大軍の戦」と見なされ、本物の兵の付いていない塊（伊集院・伏せの三隊）は隠され、
