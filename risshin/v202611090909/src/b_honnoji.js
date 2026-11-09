@@ -5166,7 +5166,8 @@ function honnoTick(def, rt, dt) {
     const far = Math.hypot(NB.pos.x - F.nbG.anchor.x, NB.pos.z - F.nbG.anchor.z) > (F.nbSt === 'E' ? 4.5 : 7) || hotNb;
     F.nbG.aggro = far ? 1.5 : NBK[F.nbSt];
     // 最後の間から御殿の外（西の口の先）まで出た時は、目の前の敵とも斬り結ばず、持ち場へ戻る。
-    const outGoten = F.nbSt === 'E' && (NB.pos.x < -73 || NB.pos.x > -49 || NB.pos.z < 80.2 || NB.pos.z > 95);
+    // 本堂の共闘も E を使う。御殿の範囲を本堂へ当てると、届く敵との攻撃まで毎回取り消してしまう。
+    const outGoten = F.hp === 7 && F.nbSt === 'E' && (NB.pos.x < -73 || NB.pos.x > -49 || NB.pos.z < 80.2 || NB.pos.z > 95);
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
   // 上様のそばを離れない

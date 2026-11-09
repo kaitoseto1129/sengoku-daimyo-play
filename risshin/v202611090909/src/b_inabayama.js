@@ -5670,7 +5670,9 @@ const inabayama = {
     const spread = () => {
       if (rt.over || F.ending || F.step !== 1) return;
       const lit = F.houses.filter((q) => q.burnt || q.collapsed);
-      const rest = F.houses.filter((q) => !q.mine && !q.burnt && !q.collapsed);
+      // 足軽の目標は三軒だけ。残る二軒まで火付け用として除くと、印の無い家が燃え残る。
+      // 当主の時は松明の組が向かう家を残し、足軽の時は本人の三軒だけを守る。
+      const rest = F.houses.filter((q) => !(rt.G.lord ? q.mine : q.target) && !q.burnt && !q.collapsed);
       if (!rest.length) return;
       const d = (q) => Math.min(...lit.map((l) => Math.hypot(q.x - l.x, q.z - l.z)));
       rest.sort((p, q) => d(p) - d(q));
