@@ -2960,11 +2960,12 @@ const shitaragahara = {
     const odaZ = 190;   // これより北（-z）は織田の持ち場（通説どおり織田が北寄り、徳川が南）
     // 鉄砲組：一列目の柵のすぐ内。号令があるまで撃たない
     F.guns = [];
-    for (const mouth of MOUTHS) for (let i = 0; i < 3; i++) {
-      const z = mouth.z + (i - 1) * 12;
+    // 11/9 仕様（鉄砲の密度）：口ごとに五組。本人の近く（軽い兵を描かない 150m の内）を本物の鉄砲兵で厚くする。左右へ三十メートルずつ並ぶ
+    for (const mouth of MOUTHS) for (let i = 0; i < (mouth === MOUTHS[2] ? 3 : 5); i++) {   // 竹広（本人が行かない徳川の口）は三組のまま
+      const z = mouth.z + (i - 2) * 13;
       // 各組四挺。傷を人数で割らず、三つの口に本物の射手を残す。
       const gunN = 7;   // 11/9 設楽原の仕様（鉄砲の密度が最重要）：一組四挺から七挺へ。三組で一つの口に二十一挺
-      F.guns.push(allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: mouth === MOUTHS[0] ? '野々村の鉄砲組' : mouth === MOUTHS[1] ? ['佐々の鉄砲組', '前田の鉄砲組', '塙の鉄砲組'][i] : mouth.name + 'の鉄砲組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - i * 1.5, z }, facing: Math.PI / 2, width: gunN > 4 ? 14 : 8, spacing: gunN > 4 ? 1.4 : 2, ranks: 1, aggro: 44, holdFire: true, dmgMult: 0.8 }, [{ type: 'gun', n: gunN }]));
+      F.guns.push(allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: mouth === MOUTHS[0] ? '野々村の鉄砲組' : mouth === MOUTHS[1] ? (['佐々の鉄砲組', '前田の鉄砲組', '塙の鉄砲組'][i] || '柳田前の鉄砲組') : mouth.name + 'の鉄砲組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - (i % 3) * 1.5, z }, facing: Math.PI / 2, width: gunN > 4 ? 12 : 8, spacing: gunN > 4 ? 1.4 : 2, ranks: 1, aggro: 44, holdFire: true, dmgMult: 0.8 }, [{ type: 'gun', n: gunN }]));
       if (mouth === MOUTHS[0]) F.guns[F.guns.length - 1]._fieldWait = true;
     }
     // 五人の鉄砲奉行は、自分の備の控えとともに持ち場に残る。
@@ -2972,6 +2973,16 @@ const shitaragahara = {
     for (const [name, x, z, fac] of ALLIED_POSTS.slice(2, 7)) {
       const q = allyGroup(rt, { faction: fac, name: name + 'の控え', fixed: true, fullStrength: true, noGuard: true, anchor: { x, z }, facing: Math.PI / 2, width: 6, aggro: 6, formation: 'yari' },
         [{ type: 'busho', n: 1, o: { name, invuln: true } }, { type: 'samurai', n: 1 }]);
+      // 柵から離れた奉行の控えに供回りを足さない（本物の兵の枠を柵際の鉄砲へ回す）
+      q.noRetinue = true;
+      // 控えは奉行と侍二人だけ残す（共通の付き人で十五人になっていた）。枠は柵際の鉄砲組へ回す
+      for (const u of q.units.slice(3)) {
+        if (u.name) continue;
+        if (u.mesh) rt.scene.remove(u.mesh);
+        const ai = rt.army.units.indexOf(u); if (ai >= 0) rt.army.units.splice(ai, 1);
+        u.alive = false; u.gone = true;
+      }
+      q.units = q.units.filter((u) => !u.gone);
       F.officers.push(q);
       if (name === F.boss) F.okubo = q.units[0];
     }

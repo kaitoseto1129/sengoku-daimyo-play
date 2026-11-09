@@ -37,7 +37,7 @@ export function install(rt, ctx) {
   const tick = () => {
     if (done || F.ending || rt.over) return;
     const u = rt.player?.u;
-    if (u?.alive && !rt.player.mounted && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }
+    if (u?.alive && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }   // 馬の上からでも見える（11/9 二巡：騎乗の bot が堤で十八分止まった）
     rt.after(0.4, tick);
   };
   tick();
