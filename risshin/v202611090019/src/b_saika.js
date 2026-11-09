@@ -17,6 +17,10 @@ import { dress, customFlag } from './b_inabayama.js';
 import { camp } from './b_mid.js';
 import { makeGunSmoke } from './b_tennoji.js';
 import { NAMED_GEAR } from './named_gear.js';
+import { install as installMono } from './saika/mono.js';   // 0〜2分：川べりの物見と、川上から渡る小組
+import { install as installMago } from './saika/magoichi.js';   // 渡河の中：孫一の手、高岸を下る（この戦の一番の場面）
+import { install as installTsutsumi } from './saika/tsutsumi.js';   // 対陣の中：川下の堤の鉄砲陣
+import { install as installYoin, YOIN_SEC } from './saika/yoin.js';   // 和議の後の余韻（最後の30秒）
 import { KACCHU } from './kacchu_data.js';
 import { sendOrder } from './denrei.js';
 import { timeslipField } from './timeslip_field.js';
@@ -3188,7 +3192,8 @@ const saika = {
       if (F.step === 1 && !F.ending && F.gunPosts.some((g) => g.units.some((u) => bankReady(u) && sightUnit(rt, u))))
         rt.say('雑賀の組頭', '川を渡らせるな！　柵から狙え！', 4);
     });
-    rt.after(5, () => { if (F.step === 0 && !F.ending) this.stakes(rt); });
+    // 0〜2分：川べりの物見（saika/mono.js）。済んだら杭抜きの段へ
+    rt.after(5, () => { if (F.step === 0 && !F.ending) F.paceMono = installMono(rt, { dress, SAIKA, next: () => this.stakes(rt) }); });
   },
   stakes(rt) {
     const F = rt.flags;
@@ -3231,6 +3236,7 @@ const saika = {
   cross(rt) {
     const F = rt.flags;
     phase(rt, 2, 'cross', SAIKA_LINE[1], SHORE, '西岸の足場');
+    F.paceMago = installMago(rt, { dress, SAIKA, SHORE });   // 孫一の手、高岸を下る（retreat はこの段が済むまで待つ）
     bankSignal(rt, 'susume', '合図：法螺貝と進み太鼓＝渡河');
     rt.banner('小雑賀川を渡れ', '向こう岸は高い。銃声の切れ目に中央の口へ');
     rt.say('堀秀政', '法螺と進み太鼓じゃ！　渡れ！　敵が玉を込めるうちに取り付け', 5);
@@ -3331,6 +3337,7 @@ const saika = {
   },
   update(rt, dt) {
     huntPlayer(rt, dt);
+    { const F = rt.flags; F.paceMono?.update(dt); F.paceMago?.update(dt); F.paceTsutsumi?.update(dt); }   // 15分の段（prototype/src/saika/*.js）
     if (rt.flags.fordRaid?.noRout && rt.t > 40) rt.flags.fordRaid.noRout = false;
     // 11/4 jin（AP10・AF）：持ち場の四方に作り物の合戦（armyBackdrop）を置かない。いない所に軍勢を見せない
     const F = rt.flags;
@@ -3445,8 +3452,8 @@ const saika = {
     for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = F.step < 6 && g.id % F.gunPosts.length === volley;
     reinforceBank(rt, dt);
     const el = rt.t - F.stepT, p = rt.player.u.pos;
-    // 生きて任務を続けられる時間を確保する。七分以内に後陣へ引いて閉じる。
-    if (rt.t >= 400 && F.step !== 6) {
+    // 生きて任務を続けられる時間を確保する。十八分以内に後陣へ引いて閉じる（11/8 kaito 15分の構成で七分から延ばした）。
+    if (rt.t >= 1080 && F.step !== 6) {
       F.holdFailure = F.step === 1 ? '杭を外しきれず、渡る道を通せなかった' : F.step === 2 ? '西岸の足場へ届かなかった' : F.step === 3 ? '東岸の旗へ戻れなかった' : F.step === 4 ? '東岸の竹束の陰で列を整えられなかった' : '東岸の敵を払い、旗のそばで守りを保てなかった';
       return this.win(rt, false);
     }
@@ -3565,7 +3572,7 @@ const saika = {
           '川へ向き直って構えよ。退き太鼓で元の岸へ戻れ' : '坂の下へ戻り、退く合図を待て' :
         '中央の渡り口を通り、西岸の坂の下へ');
       // 坂の下へ着いてから待つ。渡河に掛かった時間で合図を即座に切り替えない。
-      if (F.reached ? rt.t - F.bankWaitAt >= 16 : el >= 60) this.retreat(rt);
+      if ((F.reached ? rt.t - F.bankWaitAt >= 16 : el >= 60) && (!F.paceMago || F.magoDone)) this.retreat(rt);
     } else if (F.step === 3) {
       // 川筋から横へ外れても、東岸へ着けば旗を案内する。
       if (p.x > -8) rt.unmark('riverTurn');
@@ -3631,7 +3638,7 @@ const saika = {
         F.holdFailure = '竹束の後ろへ入った敵を払いきれず、東岸の陣を押された';
         this.win(rt, false);
       }
-      else if (F.inT >= 6 && el >= 30) this.parley(rt);
+      else if (F.inT >= 6 && el >= 30 && !F.paceTsutsumi) F.paceTsutsumi = installTsutsumi(rt, { dress, SAIKA, moveGroup, next: () => this.parley(rt) });   // 川下の堤の鉄砲陣の後に和議
     } else if (F.step === 6) {
       // 11/6 fixc1753（三3・二6）：使者が歩いて佐久間の陣へ着き、本人もそばにいれば⑤を果たす。時間切れで勝ちにせず、途中で使者を飛ばさない。
       const m = F.envoy.units[0], L = F.lordCamp.units[0];
@@ -3723,7 +3730,7 @@ const saika = {
       '西岸へ届かず、先手は引いた。川を挟む対陣は続く', 4));
     rt.after(10, () => rt.say('語り', held ? '大軍でも川を越えられず、雑賀とは誓紙で和議を結んだ。次は北国、手取川の戦へ' : 'やがて雑賀とは和議を結ぶ。次は北国、手取川の戦へ', 4));
     // 勝ちの決着（finish）の後は戦の時計が止まる。和議の語りを流し終えてから結果へ渡す。
-    if (held) rt.after(14, () => rt.finish({ scriptedEnd: true }, 4));
+    if (held) { installYoin(rt); rt.after(14, () => rt.finish({ scriptedEnd: true }, YOIN_SEC - 14)); }   // 約30秒の余韻（saika/yoin.js）
     else rt.finish({ scriptedEnd: true, failureReason: reason }, 16);
   },
   onKill(rt, v) { if (v.team === 1) rt.flags.ek++; else rt.flags.ak++; },

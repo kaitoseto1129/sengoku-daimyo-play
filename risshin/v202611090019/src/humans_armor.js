@@ -930,7 +930,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   // 本の写真の威糸は明るい部屋で鮮やかに見える。表の色（暗く沈めた値）のままだと黒い塊に見えるので、明るさと鮮やかさを少し上げる（白は上げない）
   { const hl = lace.getHSL({}); if (hl.s > 0.12) lace.setHSL(hl.h, Math.min(0.85, hl.s * 1.18), Math.min(0.5, Math.max(hl.l * 1.35, hl.l + 0.06))); }
   // 具足の作り分け（kacchu_data.js の名のある武将）：kozaneColor は胴・袖の小札の漆の色だけを変える（兜の色は変えない）。
-  //   plateDo は胴の前後を一枚の板に描く（nanban：鎬の立つ南蛮胴・hotoke：鎬の無い仏胴・sendai：五段の横矧に鋲の仙台胴）。silver は金具を銀に
+  //   plateDo は胴の前後を一枚の板に描く（nanban：鎬の立つ南蛮胴・hotoke：鎬の無い仏胴・sendai：縦五枚矧ぎの仙台胴）。silver は金具を銀に
   const nk0 = namedKacchu(look);
   let tint = armorTint(nk0?.kozaneColor ?? look.kozaneColor ?? look.armor);
   // 足軽の作り分け（okeVar）は、家の茶の具足色で全員を塗りつぶさない（赤備えの朱だけは家の色を守る）
@@ -1120,12 +1120,13 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             vec3 base = ${'uArmAmt > 0.5 ? uArm * 0.55 : vec3(0.026, 0.024, 0.022)'};
             float h = 0.0, rim = 0.0, riv = 0.0;
             #if DM_PLATE == 3
-            // 仙台胴：横に五段の板。上の縁は照り、下の縁は重なりの影。板ごとに鋲が一列
-            float pv = (q.y - yB) / ((yT - yB) / 5.0), t = fract(pv);
-            base *= 0.92 + 0.16 * fract(sin(floor(pv) * 12.9898 + 4.1) * 43758.5453);
-            h = (smoothstep(0.0, 0.16, t) - 0.5) * 0.16 - smoothstep(0.86, 1.0, t) * 0.1;
-            vec2 rv = vec2(fract(atan(q.x, q.z + 0.03) * 5.1) - 0.5, (t - 0.8) * 3.2);
-            riv = 1.0 - smoothstep(0.08, 0.13, length(rv));
+            // 政宗所用具足は縦五枚矧ぎ。前一枚・左右各二枚の継ぎ目を側方へ置く。
+            // 正面に横五段や鋲列を描かず、蝶番の線を細く近似する。
+            float a = abs(atan(q.x, q.z));
+            float seam = min(min(abs(a - 0.84), abs(a - 1.93)), abs(a - 3.14159265));
+            float joint = 1.0 - smoothstep(0.012, 0.028, seam);
+            h = (dmVn(q * 55.0) - 0.5) * 0.035 - joint * 0.12;
+            base *= 1.0 - joint * 0.3;
             #else
             // 南蛮胴・仏胴：胸から腹へ一枚。南蛮胴は前の真ん中に鎬（縦の稜）が立ち、腰の上で前へ張り出す
             #if DM_PLATE == 1

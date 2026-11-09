@@ -62,6 +62,8 @@ function legB(rt, K) {
 
 export function pin(rt, K) {
   const S = rt.flags.s2;
+  // 先手に当たる前から追撃先を指すと、敵を素通りして進行が止まる。
+  if (!rt.flags.feigned) return K.lightPos(rt.flags.blk.ijuin);
   return S && S.leg === 1 ? SIEGE : { x: K.RING.x, z: K.RING.z + 6 };
 }
 

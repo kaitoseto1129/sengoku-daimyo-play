@@ -31,5 +31,9 @@ export function update(rt) {
   const el = rt.t - S.t0, atMouth = Math.hypot(P.x - MOUTH_N.x, P.z - MOUTH_N.z) < 16;
   if (atMouth) S.held = (S.held || 0) + 0.25;
   // 浅瀬の口で殿を務めてから渡る。先に逃げても時間だけでは果たさない。
-  if (S.held > 45 && el > 55) release(rt);
+  const F = rt.flags;
+  // 戦列を離れた負傷兵は隊の到着判定と同じく除き、動けない者で進行を止めない。
+  const remaining = [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])].some((g) =>
+    g?.units.some((u) => u.alive && !u.gone && !u.woundOut && !u.rearWound && u.pos.z <= 26));
+  if (S.held > 45 && el > 55 && !remaining) release(rt);
 }

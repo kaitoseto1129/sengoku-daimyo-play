@@ -239,7 +239,16 @@ function umaGeometry(kind) {
   // 竿の長さと先端の出は構造の復元。部品を増やさず、結合済みの形を使い回す。
   const poleBottom = .9, poleTop = kind === 'dango' ? 4.48 : kind === 'sennari' ? 3.95 : 3.3;
   parts.push(paint(at(new THREE.CylinderGeometry(0.02, 0.022, poleTop - poleBottom, 5), 0, (poleBottom + poleTop) / 2, 0), 0x2a1c10));
-  if (kind === 'fan') {
+  if (kind === 'date_torige') {
+    // 『御馬印』の黒鳥毛二段笠。寸法・毛の輪郭は復元案。結合済みの形と材質を共用する。
+    for (const [y, r] of [[2.88, .55], [3.35, .43]]) {
+      parts.push(paint(at(new THREE.ConeGeometry(r, .25, 12), 0, y, 0), 0x181818));
+      parts.push(paint(at(new THREE.CylinderGeometry(r, r * .94, .12, 12), 0, y - .16, 0), 0x181818));
+    }
+    const tuft = new THREE.SphereGeometry(.16, 8, 6); tuft.scale(1, 2.3, 1);
+    parts.push(paint(at(tuft, 0, 3.77, 0), 0x181818));
+    parts.push(paint(at(new THREE.CylinderGeometry(.02, .02, .65, 5), 0, 3.52, 0), 0x2a1c10));
+  } else if (kind === 'fan') {
     // 開いた扇：要（かなめ）を下にした半円。裏からも見えるよう両面に
     for (const ry of [0, Math.PI]) parts.push(paint(at(new THREE.CircleGeometry(0.7, 18, Math.PI * 0.12, Math.PI * 0.76), 0, 3.05, 0, 0, ry), gold));
     for (const ry of [0, Math.PI]) parts.push(paint(at(new THREE.CircleGeometry(0.17, 14), 0, 3.5, ry ? -0.01 : 0.01, 0, ry), 0xb8231a));
