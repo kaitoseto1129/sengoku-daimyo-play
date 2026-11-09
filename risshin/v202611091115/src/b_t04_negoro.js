@@ -1090,13 +1090,11 @@ const t04_negoro = {
     rt.say('足軽', '門扉が割れたぞ！　境内へ！', 2.5);
     // 史実：坊舎の多くが焼けた。境内の子院にも火が回る（大塔と大師堂は残る）
     const W = rt.world;
+    // 炎の描画を省く場合も、門を破った後は昼の時計を止めて夕へ移す。
+    if (W.setTime) { W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 30; }
     if (W.addBlaze && !F.blazes) {
       F.blazes = [];
       for (const q of [F.keidai[0], F.keidai[1], F.keidai[3], F.keidai[4], F.keidai[5], F.keidai[7]]) if (q) F.blazes.push(W.addBlaze(q.x, q.z, { w: 6.5, d: 5, h: 3.2 }));
-      // 寺の火は夜まで燃え続け、空の赤さが貝塚から見えたと伝わる（battle_learn）。境内へ入る頃から日が傾き、大塔の段は燃える子院の煙と夕の空にする
-      //   （11/6 kaito の目：最後まで晴れた昼のまま。燃える所は燃やす・四6）
-      //   11/6 描いて遊んで：晴れた戦の昼の時計（battle_time）が setTime('dusk') を受けず、勝ちまで昼のままだった。時計を外してから夕へ移す（箕作の夜と同じ）
-      if (W.setTime) { W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 30; }
       rt.after(5, () => rt.say('堀秀政', '坊舎に火が回った！　根来の寺が燃えるぞ。大塔へ火を渡すな', 3.5));
     }
   },
@@ -1190,13 +1188,13 @@ const t04_negoro = {
       }
     }
     if (F.ending) return;
-    // 大塔：近くに寄った根来衆の数だけ焦げる。焼け落ちたら負け
+    // 大塔：近くで戦える根来衆の数だけ焦げる。倒れた者や負傷して退く者は放火できない。
     if (F.step === 6) {
       F.towerScanT = (F.towerScanT || 0) - dt;
       if (F.towerScanT <= 0) {
         F.towerScanT = 0.5;
         let k = 0;
-        for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && !u.perch && Math.hypot(u.pos.x - DAITO.x, u.pos.z - DAITO.z) < 13) k++;
+        for (const u of rt.army.units) if (fighting(u) && u.team === 1 && !u.perch && !u.woundOut && Math.hypot(u.pos.x - DAITO.x, u.pos.z - DAITO.z) < 13) k++;
         if (k) {
           F.towerHp = Math.max(0, F.towerHp - k * 0.2);
           if (!F.towerWarn && F.towerHp < 60) { F.towerWarn = true; rt.say('羽柴秀次', '大塔の縁に火がついた！　行人方を寄せつけるな！', 3); }
