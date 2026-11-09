@@ -61,7 +61,7 @@ export class World {
         WET.value = this.wetness || 0;
         FIRE_FILL.map.value = this.fireFill.tex;
         this.armyBatch.restore();
-        const viewFar = this.def.landmarkViewFar ?? 150;
+        const viewFar = (this.def.landmarkViewFar ?? 150) + 90 * (this.fpView || 0);   // 一人称の間だけ遠くまで描く（11/9）
         if (cam?.isPerspectiveCamera && cam.far !== viewFar) { cam.far = viewFar; cam.updateProjectionMatrix(); }
         // 写真用の直接描画でも斜面の内側へ入らない。地面の面を選ぶ前に視点を補正する。
         if (this.def.terrainContactView && cam?.isPerspectiveCamera && this.terrain) {

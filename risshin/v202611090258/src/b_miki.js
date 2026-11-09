@@ -1266,12 +1266,13 @@ function mikiFighting(u) {
 // 今の段に出ている実兵だけ。城内の長治や、まだ川を渡らない控えへは走らせない。
 function mikiNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  const mode = F.step >= 2 ? 2 : F.dropped || gone(F.escort) ? 1 : 0;
+  const mode = F.step >= 3 ? F.step : F.step === 2 ? 2 : F.dropped || gone(F.escort) ? 1 : 0;
   if (F.mikiFoeMode === mode && rt.t >= F.mikiFoeAt && rt.t < F.mikiFoeAt + .25 &&
       mikiFighting(F.mikiFoe) && !gone(F.mikiFoe.group)) return F.mikiFoe;
   F.mikiFoeAt = rt.t; F.mikiFoeMode = mode;
   let nearest = null, best = Infinity;
-  for (const g of F.foes || []) {
+  // 二度目の出撃では、大村で倒れた組でなく今寄せる城兵を探す。
+  for (const g of (F.step === 3 ? F.mkSally?.waves : F.foes) || []) {
     if (gone(g)) continue;
     if (mode === 1 && !g.sortieStarted && g !== F.reserve) continue;
     if (mode === 0 && g !== F.escort && g !== F.egun) continue;
@@ -1666,6 +1667,8 @@ const miki = {
       // 城の二度目の出撃（miki/deshiro.js）
       castle: MIKI, gate: GATE, store: { x: HIRATA.x, z: HIRATA.z + 4 }, sallyFrom: { x: 24, z: -14 }, sallyPath: SALLY_PATH, bessho: BESSHO, gone, flee: (g) => flee(g, 1, 0.4),
       rally: () => {
+        // 大村への古い曲がり角を、平田へ戻る案内へ持ち越さない。
+        F.routeAt = null; F.joinGroup = null; F.withdrawGuide = false; F.roadTurn = -1;
         for (const [g, dx, dz] of [[F.guard, 0, -4], [F.hirata, -8, -2], [F.hgun, 8, -6], [F.hide, 4, -12]]) {
           if (gone(g)) continue;
           g.noRout = false; g.order = 'path'; g.march = true; g.dest = null; g.formation = 'line';
@@ -3479,6 +3482,11 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (p.lock) inp.e.add('KeyQ');
   // 集合の印と同じ列へ進む。柵を挟む時は既存の南の曲がり角をたどる。
   if (!F.step) {
+    const pin = miki.missionPin(b);
+    if (pin) goTo(p, inp, pin.x, pin.z, pin.r);
+    return;
+  }
+  if (F.step === 3) {
     const pin = miki.missionPin(b);
     if (pin) goTo(p, inp, pin.x, pin.z, pin.r);
     return;

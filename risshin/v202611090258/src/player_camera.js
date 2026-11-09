@@ -226,6 +226,7 @@ export class PlayerCamera {
     const e = this.fpK * this.fpK * (3 - 2 * this.fpK);
     // 体の側（humans.js）へ一人称の寄り具合を渡す（手と武器を目の下へ寄せ、柄を握らせる）
     u.fpk = u.alive ? e : 0;
+    this.rt.world.fpView = e;
     // 一人称では足もとの間合いの輪を出さない（目の真下に大きな白い輪が映るので）
     if (e > 0.5) this.reachT = 0;
     // 走ると視野が少し広がる。一人称も設定の狭い視野を保つ
@@ -428,7 +429,10 @@ export class PlayerCamera {
     if (inRoom) nakaCamClamp(want, this.fpK < 0.5);   // 部屋の壁・天井に埋もれない
     if (!this.camInit) { this.camPos.copy(want); this.camInit = true; }
     // 速い移動ほど追従を早め、曲がる時に視点だけ置き去りにしない。
-    const lagK = this.mounted && Math.abs(this.hspd || 0) > 6 ? 18 : running ? 20 : 22;
+    // 11/9 kaito（遊んだ声 9）：A・D で横へずれる時のガクガク。横の動きが主な間は追従をゆるめ、一コマごとの歩みの粗さを均す（横の割合はなめらかに変える）
+    const sp2 = Math.hypot(u.vel.x, u.vel.z), lat = sp2 > .5 && !this.mounted ? Math.min(1, Math.abs(u.vel.x * right.x + u.vel.z * right.z) / sp2) : 0;
+    this.latK = (this.latK || 0) + (lat - (this.latK || 0)) * Math.min(1, dt * 6);
+    const lagK = (this.mounted && Math.abs(this.hspd || 0) > 6 ? 18 : running ? 20 : 22) - 9 * this.latK;
     this.camPos.lerp(want, 1 - Math.exp(-dt * lagK));
     if (!inRoom && this.fpK < 0.5 && this.rt.def.nearAllySolidBody !== false && this.rt.def.nearAllyCameraAvoid !== false) {
       // 人が出入りしても視点が跳ねないよう、避けた分はなめらかに足す（揺れの元。kaito 11/3 BG 5）

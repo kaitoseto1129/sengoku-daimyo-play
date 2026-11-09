@@ -70,7 +70,10 @@ export function goalCountTick(rt, dt) {
       if (S && !own && !(m.person && S.units.length < 6)) {
         let dead = 0;
         for (const u of S.units) if (!u.alive) dead++;
-        o.count = `${S.label} ${dead}／${S.units.length}`;
+        // 11/9 分母は決めたら増やさない
+        const den = C.den || (C.den = new Map()), prev = den.get(S.label), tot = prev == null ? S.units.length : Math.min(prev, S.units.length);
+        if (prev == null) den.set(S.label, tot);
+        o.count = `${S.label} ${Math.min(dead, den.get(S.label))}／${den.get(S.label)}`;
       } else o.count = '';
       if (!person && live(m.person)) person = m.person;
     }
@@ -82,7 +85,7 @@ export function goalCountTick(rt, dt) {
       if (goal.done || !VERB.test(goal.text)) continue;
       let m = C.textMemo.get(goal.text);
       if (!m) { m = { set: matchGroups(rt, goal.text, me.team), person: KILL.test(goal.text) ? matchPerson(rt, goal.text, me.team) : null }; C.textMemo.set(goal.text, m); }
-      if (m.set) { let dead = 0; for (const u of m.set.units) if (!u.alive) dead++; C.byText.set(goal.text, `${m.set.label} ${dead}／${m.set.units.length}`); }
+      if (m.set) { let dead = 0; for (const u of m.set.units) if (!u.alive) dead++; const den = C.den || (C.den = new Map()); if (!den.has(m.set.label)) den.set(m.set.label, m.set.units.length); const dn = den.get(m.set.label); C.byText.set(goal.text, `${m.set.label} ${Math.min(dead, dn)}／${dn}`); }
       if (!person && live(m.person)) person = m.person;
     }
     C.person = person;

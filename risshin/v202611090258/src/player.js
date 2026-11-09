@@ -1187,7 +1187,11 @@ export class Player {
         want = this.assist.h;
         // 体だけ相手へ向け、視点は動かさない（勝手に視点を変えない。kaito 10/24）
         u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 22);
-      } else if (want !== null) u.heading += angleDiff(u.heading, want) * Math.min(1, dt * 16 * tf.turn);
+      } else if (want !== null) {
+        // 11/9 横ずれ（A・D）で体の向きが急に回ると画面がガクつく：一秒に 7 ラジアン（約400度）までの回り方に均す
+        const dh = angleDiff(u.heading, want) * Math.min(1, dt * 16 * tf.turn), mx2 = 7 * dt;
+        u.heading += this.fpK > 0 ? dh : Math.max(-mx2, Math.min(mx2, dh));
+      }
       // 踏み込み（照準補助で半歩先の敵へ）：一コマで跳ばず、0.12 秒かけて滑るように寄る
       if (this.lunge && this.lunge.t > 0) {
         const k = Math.min(dt, this.lunge.t) / 0.12;

@@ -7,6 +7,7 @@ import { sightUnit, sightScreenUnit } from "./battle_sight.js";
 import { taskText } from "./mission_guide.js";
 import { battleDialogueMuted } from './speech_clean.js';
 import { shownText } from './person_label.js';
+import { missionCall } from './center_call.js';
 
 // 戦の画面では、知らせ・見出し・連撃の字を出さない（kaito 10/23「無駄なものが多すぎる」）。
 const fieldScreen = (rt) => !!rt?.def && !rt.def.town && (!rt.def.dojo || rt.def.missionSingleLine);
@@ -186,6 +187,7 @@ export class HudFeedback {
     // 古い案内は待ち列から外し、史実の会話は会話の記録に残す。
     for (let i = this.subQ.length - 1; i >= 0; i--) if (this.subQ[i].goalKey) this.subQ.splice(i, 1);
     if (this.shownGoalKey && this.shownGoalKey !== key) { this.subT = 0; this.shownGoalKey = null; window.speechSynthesis?.cancel(); }
+    if (fieldScreen(rt) && this.shownGoalKey !== key && this._ccKey !== key) { this._ccKey = key; missionCall(rt, text); }   // 11/9 ミッションが変わったら中央に大きく・一瞬青く
     // 行き先や文が続けて変わっても、点灯と音は十秒以上あける。
     if (rt.t - (this.goalSignalAt ?? -99) >= 10) {
       this.goalSignalAt = rt.t; this.goalFlashUntil = rt.t + 1.6;

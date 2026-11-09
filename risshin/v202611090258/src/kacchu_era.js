@@ -11,6 +11,19 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 山崎・賤ヶ岳の右近。南蛮文化館の伝所用兜を手本にした復元で、当日の着用は未確認。
+  // 胴と縹の素懸威は従来の復元を保つ。織田編へ遡らせない。出所：docs/generals_look_1108/高山右近.md。
+  if (name === '高山右近' && (year === 1582 || year === 1583) && KACCHU[name]) {
+    const key = name + '|山崎賤ヶ岳';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'namban', crest: 'ukon_nanayo', hat: 'kabuto', hatFix: 1,
+      helm: 0x474239, lac: 'natural', fuki: 'lac',
+      shinodare: false, fukigaeshiBadge: false,
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, horo: 0, fur: 0,
+      mon: 'ukon_nanayo', flag: 'sashi:ukon_nanayo:#ece6d6:#201f1c', uma: null, ref: '',
+    });
+    return cache.get(key);
+  }
   // 伏見の元忠：精忠神社の椎実形兜と大阪城天守閣の伝所用二枚胴を合わせた復元。
   // 鉢は既存の突盔形で近似。紋と旗は鳥居家伝来の鶴丸による補完。織田編へ遡らせない。
   // 出所・不明部分：docs/generals_look_1108/鳥居元忠.md。

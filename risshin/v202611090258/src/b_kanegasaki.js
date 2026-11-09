@@ -2334,11 +2334,17 @@ function kgContactTick(rt, dt) {
   if (!(F.contactScanAt > rt.t)) {
     F.contactScanAt = rt.t + 0.5;
     const L = F.fleeing ? rt.player.u.pos : LINES[F.line || 0], R = F.fleeing ? 22 : (L.r || 10) + (F.line === 2 ? 22 : 14);   // 狭路は柵の外で寄せが止まるので、柵の前の打ち合いも当たりに数える
-    let n = 0;
-    for (const u of rt.army.units) if (u.team === 1 && kgActive(u) && !u.isStruct && Math.hypot(u.pos.x - L.x, u.pos.z - L.z) < R) n++;
+    const line = F.line || 0, wave = line === 0 ? F.w1 : line === 1 ? F.w2 : F.w3;
+    let n = 0, targetContact = false;
+    for (const u of rt.army.units) if (u.team === 1 && kgActive(u) && !u.isStruct && Math.hypot(u.pos.x - L.x, u.pos.z - L.z) < R) {
+      n++;
+      // 前の備の残兵だけで、まだ着いていない目標の追手を受けたことにしない。
+      // 川の砦では、騎馬の追手の馬上の兵が橋を渡って届くことも要る。
+      if (wave?.includes(u.group) && (line !== 1 || u.group === F.w2?.[0] && u.mounted)) targetContact = true;
+    }
     F.engaged = n;
     const ca = F.contactAt || (F.contactAt = [null, null, null]);
-    if (n >= 3 && !F.fleeing && ca[F.line || 0] == null && (F.step % 2 === 1 || F.dpOn)) ca[F.line || 0] = rt.t;
+    if (n >= 3 && targetContact && !F.fleeing && ca[line] == null && (F.step % 2 === 1 || F.dpOn)) ca[line] = rt.t;
     // 追手の寄せ（道に沿って次の備へ追う）は pursuersTick・kgChase に任せる。ここでは当たりと数の減りだけを見る。
   }
   // 斬り合いの間は、見えない所でも両軍が討たれていく（殿の戦は大きな損を出した。追手はもっと減る）

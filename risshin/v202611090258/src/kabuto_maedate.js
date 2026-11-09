@@ -30,7 +30,7 @@ export const MAEDATE = {
   丹羽長秀: 'niwa_shikami',
   滝川一益: 'takigawa_buffalo',
 };
-const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami']);
+const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami', 'ukon_nanayo']);
 export const isMaedate = (k) => KINDS.has(k);
 const cache = new Map();
 
@@ -84,6 +84,21 @@ const blade = (sd, p0, p1, p2, w0, w1, hi) => {
 };
 
 function build(kind, hi, near) {
+  if (kind === 'ukon_nanayo') {
+    // 伝右近所用の南蛮兜の七曜金具。中央と周囲六つの円で略復元し、脇立は補わない。
+    // 寸法・配列は実測ではない。基本形を一つの形へ結合し、近遠それぞれ一度だけ保存する。
+    const parts = [], disc = new THREE.CylinderGeometry(.022, .022, .004, hi ? 12 : 8);
+    disc.rotateX(Math.PI / 2);
+    parts.push(disc.clone().translate(0, .255, .19));
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;
+      parts.push(disc.clone().translate(Math.sin(a) * .058, .255 + Math.cos(a) * .058, .19));
+    }
+    disc.dispose();
+    const g = join(parts);
+    for (const p of parts) p.dispose();
+    return [g, 'gold'];
+  }
   if (kind === 'date_moon') {
     // 弦月：大きな円の下の細い弧を二つの円で切り抜いた三日月。鉢の幅の三倍に届き、真ん中で指二本ほど、両の先は針のように尖る。
     // 本人の右（-x）が少し短い（刀を振る邪魔にならないように、と伝わる）。台は黒漆の祓立
