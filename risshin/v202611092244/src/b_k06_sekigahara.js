@@ -360,8 +360,8 @@ const k06_sekigahara = {
     SEAT(F.hide, '宇喜多秀家');
     // 11/8 critic60（一2）：一万七千の総大将の守りに見えるよう、旗本を厚く
     F.hideG = foe(rt, '宇喜多の旗本', { x: UKITA_H.x + 16, z: UKITA_H.z + 2 }, [{ type: 'samurai', n: 12 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], UKITA, { order: 'hold', aggro: 10, seekRange: 14, width: 14, noRout: true, formation: 'yari' });   // 本陣の幕の前を固める
-    // 宇喜多の先手（明石全登）。霧の中、はじめから福島の前に槍衾を組んで構える。明石は先手と共に退く。
-    F.akashi = foe(rt, '明石全登の隊', UKITA_F, [{ type: 'busho', n: 1, o: { name: '明石全登', horse: true, invuln: true, mustLive: true } }, { type: 'samurai', n: 6 }, { type: 'bow', n: 4 }, { type: 'ashigaru', n: 16 }], UKITA, { morale: 90, width: 22, noRout: true, order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
+    // 宇喜多の先手（明石全登）。霧の中、はじめから福島の前に槍衾を組んで構える。手傷の退場を止め、明石は先手と共に退く。
+    F.akashi = foe(rt, '明石全登の隊', UKITA_F, [{ type: 'busho', n: 1, o: { name: '明石全登', horse: true, invuln: true, mustLive: true, onWound: () => {} } }, { type: 'samurai', n: 6 }, { type: 'bow', n: 4 }, { type: 'ashigaru', n: 16 }], UKITA, { morale: 90, width: 22, noRout: true, order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
     F.akaGun = foe(rt, '宇喜多の先手の鉄砲', { x: UKITA_F.x + 6, z: UKITA_F.z - 4 }, [{ type: 'gun', n: 6 }], UKITA, { order: 'hold', aggro: 16, seekRange: 20, width: 14 });
     F.akashiU = F.akashi.leader;
     F.konishi = foe(rt, '小西行長の隊', KONISHI, [{ type: 'busho', n: 1, o: { name: '小西行長', invuln: true, horse: true } }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 6 }], KONI, { order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
@@ -371,7 +371,8 @@ const k06_sekigahara = {
     F.koshi = shihoKoshi(W, seatO.x, seatO.z, 0); rt.scene.add(F.koshi);
     F.otaniH = foe(rt, '大谷吉継の本陣', seatO, [{ type: 'busho', n: 1, o: { name: '大谷吉継', invuln: true, horse: false } }, { type: 'samurai', n: 4 }], OTANI_LK, { order: 'hold', aggro: 0, seekRange: 0, noRout: true, width: 5, facing: Math.PI * 0.3 });
     F.otaniU = SEAT(F.otaniH, '大谷吉継');
-    F.otani = foe(rt, '平塚為広・戸田勝成の隊', HIRA, [{ type: 'busho', n: 1, o: { name: '平塚為広', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '戸田勝成', invuln: true, horse: true } },
+    // 二将の最期は寝返りの台本で扱う。共通の手傷による退場・討取りで、寝返り前の持ち場を省かない。
+    F.otani = foe(rt, '平塚為広・戸田勝成の隊', HIRA, [{ type: 'busho', n: 1, o: { name: '平塚為広', invuln: true, mustLive: true, onWound: () => {}, horse: true } }, { type: 'busho', n: 1, o: { name: '戸田勝成', invuln: true, mustLive: true, onWound: () => {}, horse: true } },
       { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], OTANI_LK, { order: 'hold', aggro: 12, seekRange: 16, noRout: true, facing: -Math.PI * 0.3 });
     for (const g of [F.todo, F.otani]) { g.dmgMult = 0.35; g.defMult = 1.4; }   // 藤堂・京極と平塚・戸田は朝から押し合う（寝返りまで決着しない）
     F.kobaE = foe(rt, '小早川秀秋の隊', MATSUO, [{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '平岡頼勝', invuln: true, horse: true } }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 4 }], KOBA, { order: 'hold', aggro: 0, seekRange: 0, facing: -Math.PI * 0.8, noRout: true, formation: 'yari' });
@@ -716,11 +717,11 @@ const k06_sekigahara = {
       // 二度の新手と藤下での主人公の接近は、引き続き必須。
       const need = Math.round(F.akaN * 0.4);
       F.ek = F.akaN - left2b;
-      // 明石全登が倒れた：先手が揺らぐ（討った者が誰でも進む・AV14）
+      // 遠景への切替などで明石が退場した時も、史実に反する討死の知らせは出さない。
       if (F.akashiU && (!F.akashiU.alive || F.akashiU.gone) && !F.akashiDown) {
         F.akashiDown = true; F.akashi.noRout = false;
         for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4]) if (alive(g)) g.morale -= 20;
-        rt.say('井伊直政', '明石掃部、倒れたり！　宇喜多の先手が揺らいだぞ、押せ！', 3.5);
+        rt.say('井伊直政', '明石掃部が退いていく。宇喜多の先手が揺らいだぞ、押せ！', 3.5);
       }
       // 先手と槍を合わせた後に遠くへ離れても、味方の戦果だけでは押し返した事にしない。
       if (F.wave2b && left2b <= need && near(P, UKITA_F, 55)) {
