@@ -631,7 +631,8 @@ const t01_yamazaki = {
       }
       // 遠くに散っただけの健在な殿も数える。移動の下知で呼び戻し、討たずに達成させない。
       const left = aliveN(F.gobo);
-      if (F.fieldAt === 6 && left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 80) this.mimakiBroken(rt);
+      // 11/9 徳川C（見回り）：本人が⑥の野へ着かないまま（手負いで後ろに留まる）刻限まで止まった（bot 中学生）。四分で御牧の殿が崩れたとみなす
+      if ((F.fieldAt === 6 && left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 80) || rt.t - F.st0 > 240) this.mimakiBroken(rt);
     } else if (F.stage === 7) Pursuit.tick(rt, dt, this.ctx(rt));
   },
 };

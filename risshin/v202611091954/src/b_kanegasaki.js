@@ -3692,8 +3692,8 @@ const kanegasaki = {
       for (let i = 0; i < gens.length; i++) {
         const { u, name } = gens[i];
         const distance = Math.hypot(u.pos.x - KUTSUKI.x, u.pos.z - KUTSUKI.z);
-        // 守備を果たした時は、光秀・池田の後方での合流も終戦判定とそろえる。
-        const range = F.exitReady && i > 0 ? 60 : 30;
+        // 三将とも退き口へ合流してから終える。知らせの距離も終戦判定とそろえる。
+        const range = 30;
         if (u.alive && !u.gone) gap += Math.max(0, distance - range);
         if (waiting) continue;
         if (!u.alive || u.gone) { waiting = `${name}は${u.gone ? '戦場を離れた' : '討たれた'}。残った組を集めよ`; continue; }
@@ -3741,7 +3741,9 @@ const kanegasaki = {
         const g = F.tono[i];
         if (!g || !g.count || g.routed) continue;
         const c = g.center();
-        if (Math.hypot(c.x - KUTSUKI.x, c.z - KUTSUKI.z) < 24) continue;
+        const general = kgGenerals(rt).find(e => e.u.group === g)?.u;
+        if (Math.hypot(c.x - KUTSUKI.x, c.z - KUTSUKI.z) < 24 &&
+          (!general || Math.hypot(general.pos.x - KUTSUKI.x, general.pos.z - KUTSUKI.z) < 30)) continue;
         kgPausePursuit(rt, c);
         g.noAI = false;
         const z = KUTSUKI.z - 6 + (i === 3 ? -8 : i * 8);
@@ -4092,9 +4094,8 @@ const kanegasaki = {
     const gens = lord ? [] : kgGenerals(rt);
     // 未合流の援軍は一覧に入らないため、人数も確かめて三将を省かない。
     if (!lord && (gens.length !== 3 || alive < Math.ceil(initial * 0.25) || gens.some(e => !e.u.alive || e.u.gone))) return false;
-    // 殿の大将の藤吉郎は退き口まで。加わった光秀・池田は後ろの道の上（六十m 内）まで来ていれば合流とみなす
-    //   （鉄砲組が道の折れで引っかかり、三将そろうのを待って毎回負けた。10/28 bot）
-    return alive > 0 && near >= Math.ceil(alive * 0.6) && gens.every((e, i) => Math.hypot(e.u.pos.x - KUTSUKI.x, e.u.pos.z - KUTSUKI.z) < (i === 0 ? 30 : 60));
+    // 隊の人数だけで済ませず、三将全員が退き口の味方と同じ範囲へ着くまで守る。
+    return alive > 0 && near >= Math.ceil(alive * 0.6) && gens.every(e => Math.hypot(e.u.pos.x - KUTSUKI.x, e.u.pos.z - KUTSUKI.z) < 30);
   },
 
   onKill(rt, v, k) {

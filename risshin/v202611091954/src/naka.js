@@ -5,6 +5,7 @@ import { INTERIOR_WALLS, makeInteriorGuards, interiorSafeSpot, interiorFloorBloc
 import { interiorLayout, interiorFloorAt, shitaragaharaTempleMats, shitaragaharaHomePanels, interiorPartitionHeight, interiorPartitionHeaders, interiorPartitionSpans, interiorWaypoint, prepareInteriorPaths, interiorPropBlocksWalk, igaFixedPanelRange, tottoriFixedPanelInset, interiorLampSpot } from './interior_layouts.js';
 import { HONNOJI_ALTAR_FRAME, honnojiSaobuchiGeometry, honnojiCeilingPieces, honnojiCeilingRims, honnojiCeilingGrid, honnojiAltarLamps, interiorPanelHeight, interiorHeadTieHeight, inabaBoardTexture, INABA_ALTAR_SUSPENSION_DROP, inabaAltarBackHeight, tomyo, lightPool, furnishLayout, nageshiGeometry, nageshiNail, templeCeilingBoard, templeRoundPost, timberBox, batchInterior, SHITARAGAHARA_CEILING_LIFT, hieiAltarLamps, hieiNageshiHeight, hieiPartitionHeight, HIEI_DOOR_TRACK, HIEI_ENTRY_TRACK, HIEI_SOBO_SILL, MORIBE_WRITING_TOOLS, nodaDoorHeight, nodaNageshiHeight, nodaPartitionPosts, koshiTimbers, paperDoorTimbers, nodaCanopySupport, ceilingWoodMaterial as nodaWoodMaterial, igaCeilingBoards, igaSootShade, igaPlasterWalls, igaShojiKoshi, IGA_DOOR_GROOVE_W, interiorDoorHeight, interiorDoorSill, interiorJinageshiHeight, hallBracketGeometry, hallPostGeometry, interiorPlasterMaterial } from './interior_parts.js';
 import { setInteriorSound } from './audio.js';
+import { camBlockRaycast } from './player.js';
 import { S } from './settings.js';
 import { thatchTex, woodTex } from './nature.js';
 import { addNaibu, addNaibuStairs } from './naibu_kit.js';
@@ -3444,7 +3445,9 @@ export function nakaCamClamp(v, overhead = true) {
       const L = CAM_D.length();
       if (list.length && L > .4) {
         CAM_D.multiplyScalar(1 / L); CAM_RAY.set(CAM_O, CAM_D); CAM_RAY.far = L; CAM_HITS.length = 0;
-        CAM_RAY.intersectObjects(list, false, CAM_HITS);
+        // 11/9 重さ：three の raycast は建物の面を全部見ていた（稲葉山の堂の中で一コマの約 1 割）。カメラの当たりと同じ升の判定で絞る
+        for (const o of list) camBlockRaycast(o, CAM_RAY, CAM_HITS);
+        if (CAM_HITS.length > 1) CAM_HITS.sort(byDistance);
         for (const h of CAM_HITS) {
           if (h.distance < .45 || !camShown(h.object)) continue;   // 頭の間近（壁ぎわの窓枠・本人の立つ所の柱）は見ない。カメラが頭の中へ入らない
           const t = Math.min(1, Math.max(.6, h.distance - .25) / L);
@@ -3456,6 +3459,7 @@ export function nakaCamClamp(v, overhead = true) {
   }
   return true;
 }
+const byDistance = (a, b) => a.distance - b.distance;
 const CAM_RAY = new THREE.Raycaster(), CAM_O = new THREE.Vector3(), CAM_D = new THREE.Vector3(), CAM_HITS = [];
 function nakaCamMeshes(I) {
   if (I._camMeshes && I._camMeshesOf === I.mesh && I._camN === I.mesh.children.length) return I._camMeshes;
