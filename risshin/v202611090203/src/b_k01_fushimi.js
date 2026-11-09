@@ -336,7 +336,8 @@ const k01_fushimi = {
     rt.after(14, () => rt.banner('七月十九日', '石田三成らの挙兵から二日。西の軍勢が伏見へ寄せる'));
     rt.after(14.4, () => rt.say('鳥居元忠', '城を明け渡せとの使いは追い返した。寄せ手が揃う前に打って出て、長束と玄以の屋敷を焼け', 4.2));
     rt.after(18.8, () => rt.say('松平家忠', '大手の門を出て、南西の屋敷へ！　火を掛けたら城へ戻るぞ', 4));
-    rt.after(23.2, () => this.begin(rt));
+    // 出撃の下知を受けたら動き出す。家忠の道案内は進軍中に聞く（始まりの待ちは十五秒まで）。
+    rt.after(14.8, () => this.begin(rt));
   },
 
   begin(rt) {
@@ -597,7 +598,7 @@ const k01_fushimi = {
     //   手勢と元忠の本陣だけ止めても、本丸の隅櫓の上の鉄砲衆が下がって同じ知らせを出したので、城方の隊は全部
     if (D && D.on && D.i >= 6) for (const g of rt.army.groups) if (g.team === 0 && !g.civ && g.count) g.morale = Math.max(g.morale ?? 100, 70);
     // 築山の大筒：宇喜多の着陣から落城まで、昼夜に城を撃つ
-    if (D && D.on && D.i >= 2 && D.i <= 9 && rt.t > (F.cannonT || 0)) {
+    if (D && D.on && D.i >= 2 && rt.t > (F.cannonT || 0)) {
       F.cannonT = rt.t + 7 + Math.random() * 5;
       const y = rt.world.heightAt(TSUKIYAMA.x, TSUKIYAMA.z) + 3;
       sfx('thunder', 0.55);

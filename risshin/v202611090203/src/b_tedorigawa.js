@@ -70,11 +70,19 @@ function huntPlayer(rt, dt) {
 //   持ち場の段（北岸・南岸）の間だけ、本人から十二歩内の上杉の足軽・侍のうち近い四人を本人へ向ける。深手の時は二人まで。
 function pressPlayer(rt, dt) {
   const F = rt.flags;
+  const P = rt.player.u, A = rt.army, now = A.time;
+  // 渡河へ移った時や決着時は、四秒の狙いを持ち場の外へ残さない。
+  if (!P?.alive || P.invuln || rt.over || F.ending || !(F.step === 2 || F.step === 4) || !F.dp?.on || A.duel) {
+    for (const o of F._pressed || []) {
+      if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
+    }
+    if (F._pressed) F._pressed.length = 0;
+    F._pressT = 0;
+    return;
+  }
   if ((F._pressT = (F._pressT || 0) - dt) > 0) return;
   F._pressT = 0.4;
-  const P = rt.player.u, A = rt.army;
-  if (!P?.alive || P.invuln || rt.over || F.ending || !(F.step === 2 || F.step === 4) || !F.dp?.on || A.duel) return;
-  const max = P.hp < P.maxHp * 0.35 ? 2 : 4, now = A.time;
+  const max = P.hp < P.maxHp * 0.35 ? 2 : 4;
   let held = 0;
   const pick = F._pressPick || (F._pressPick = []);
   F._pressed ||= [];
@@ -86,7 +94,7 @@ function pressPlayer(rt, dt) {
   }
   F._pressed.length = 0;
   for (const o of A.units) {
-    if (!o.alive || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.downed || o.noTarget || o.name || o.mounted ||
+    if (!o.alive || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.downed || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
     if (d > 18 || Math.abs(o.pos.y - P.pos.y) > 1.8) continue;   // 11/8 critic60 一行目：十二歩→十八歩
@@ -112,7 +120,7 @@ function pressStep(rt, dt) {
   const now = rt.army.time, W = rt.world, weak = P.hp < P.maxHp * 0.35;
   for (let i = list.length - 1; i >= 0; i--) {
     const o = list[i];
-    if (!o.alive || o.fleeing || o.woundOut || o.downed || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
+    if (!o.alive || o.gone || o.fleeing || o.woundOut || o.downed || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
     if (weak || o.swing && !o.swing.done) continue;
     // 深みにいる者を追加の歩みで岸へ引き上げず、川の押し流しに任せる。
     if (W.inWaterAt(o.pos.x, o.pos.z) && W.waterDepthAt(o.pos.x, o.pos.z) > 0.5) continue;
