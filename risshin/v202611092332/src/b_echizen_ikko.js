@@ -1773,6 +1773,8 @@ function prepareGateWorkers(rt) {
   F.gateWorkers = [];
   for (const b of F.attackers) {
     if (b === F.reserve || b.kind === 'gun' || b.kind === 'bow') continue;
+    // 後備えにも門の的を渡す。突撃だけでは門前で持ち場へ戻ってしまう。
+    b.assault = () => b._routeGate?.alive ? b._routeGate : null;
     const u = b.real?.units.find((u) => u.alive && !u.keep && u.hand && u.wpn);
     if (!u) continue;
     const tool = new THREE.Group(); tool.add(new THREE.Mesh(KAKeyaHandle, KAKeyaMat), new THREE.Mesh(KAKeyaHead, KAKeyaMat));
@@ -2375,7 +2377,7 @@ const echizen_ikko = {
   //   手負いの退きは足元の印が示し、右上の目標は替えない。
   missions: [IK_YAMA.GOAL, ...IKKO_GOALS],
   stageGoalsOnly: true, missionAlways: true,
-  goalVisibleRows: 6, // 六つとも最初から表示する。共通の既定は今の一つ。
+  goalsVisibleRows: 5, // 導入を含む六つは順番を保ち、今の目標を含む五つまで表示する。
   goalsAllRows: true, // 11/8 critic60：①〜④を最初から全部並べ、済んだ物に印（右上の「①1／4」の二重もやめる）
   missionOf(rt) {
     const F = rt.flags;
@@ -2840,7 +2842,20 @@ const echizen_ikko = {
   // 堂を取り合う最中に、通る仲間の前で戸を閉める案内を出さない。
   doorCloseOK: (rt) => rt.flags.mode === 'defend' || !(rt.flags.step >= 1 && rt.flags.step <= 3),
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); if (m && d > 0 && (rt.flags.step === 2 || rt.flags.step === 3)) return d * 0.4; if (d > 0 && rt.flags.step === 2 && s && !s.isStruct) return d * k * 0.7;   /* 11/9：夜の石段の斬り合いは闇で互いの太刀筋が浅い。木づちで門を打つ間に上から突かれ続けて討たれていた（bot） */   /* 11/9：夜の雨で火縄の狙いが定まらない。山門と本堂の前で本堂の鉄砲八人に討たれていた（bot） */ return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    const P = rt.player, takeDamage = P.takeDamage, cutFloor = rt.def.cutFloor;
+    P.takeDamage = function(amount, src) {
+      const kind = this.u.hitKind;
+      let damage = takeDamage.call(this, amount, src);
+      // 共通の一太刀の最低傷が矢にも掛かるため、小さな矢傷を侍の一太刀にしない。
+      // 鉄砲の部位別の傷と、接近戦の重さは従来どおり。
+      if (kind === 'arrow' && src && !src.isStruct && damage > 0)
+        damage = Math.min(damage, amount * rt.def.playerTaken);
+      if (kind === 'gun' || kind === 'arrow')
+        return damage > 0 && (rt.flags.step === 2 || rt.flags.step === 3) ? damage * .4 : damage;
+      if (src && !src.isStruct && damage > 0)
+        return damage * cutFloor * (rt.flags.step === 2 ? .7 : 1);
+      return damage;
+    };
     const W = rt.world;
     const F = rt.flags;
     rt.def.timeslip.skip =(x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 堂の板の間・台の上は床に隠れる
@@ -3997,7 +4012,11 @@ const echizen_ikko = {
       setRoute(F.mainGun, [...INNER_ROUTE.slice(0, -1), [0, 8]], true);
       if (F.reserveSent) {
         F.rearSupport._routeGate = F.gateSanmon.struct;
-        setRoute(F.rearSupport, INNER_ROUTE, true);
+        // 麓から行軍中なら、外堂までの参道も残す。段の変更で遠い石段へ直行させない。
+        const road = SANDO.slice(1);
+        let i = 0;
+        while (i < road.length - 1 && road[i][1] < F.rearSupport.pos.z - 4) i++;
+        setRoute(F.rearSupport, road.slice(i), true);
       }
       setRoute(F.scout, [...OUTER_ROUTE.slice(1, 3), [8, -46]], true);
       const route = F.strategy === 'front' ? INNER_ROUTE : F.strategy === 'forest' ? FOREST_ROAD.slice(3) : VALLEY_ROAD.slice(3);
@@ -4330,7 +4349,9 @@ const echizen_ikko = {
         let spears = 0;
         for (const b of F.attackers) {
           if (b === F.reserve || b === F.rearSupport || b.kind !== 'ashigaru') continue;
-          for (const u of b.real?.units || []) if (siegeFighter(u)) spears++;
+          // 麓や前の堂で止まった槍まで数えて、山門の先手を孤立させない。
+          for (const u of b.real?.units || []) if (siegeFighter(u) &&
+              (F.step < 2 || b !== F.scout && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 40)) spears++;
         }
         if (F.step <= 2 && P.z > -150 && spears <= 12 && !F.reserveSent &&
             !F.generalRetired && !F.rearSupport.real?.routed &&

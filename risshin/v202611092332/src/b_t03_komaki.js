@@ -40,13 +40,14 @@ function blackCut(rt, mid, text) {
   if (typeof document === 'undefined') { mid(); return; }
   const still = reduceMotion();
   const d = document.createElement('div');
-  d.style.cssText = `position:fixed;inset:0;background:#000;color:#ece4d2;display:grid;place-items:center;padding:24px;box-sizing:border-box;text-align:center;font-size:24px;line-height:1.6;opacity:0;pointer-events:none;z-index:1;transition:opacity ${still ? 0 : 0.6}s`;
+  // 任務や兵数の札も覆い、日が替わる前後の画面を重ねない。一時停止の幕（35）は操作できる位置に残す。
+  d.style.cssText = `position:fixed;inset:0;background:#000;color:#ece4d2;display:grid;place-items:center;padding:24px;box-sizing:border-box;text-align:center;font-size:24px;line-height:1.6;opacity:0;pointer-events:none;z-index:34;transition:opacity ${still ? 0 : 0.6}s`;
   d.textContent = text; d.setAttribute('role', 'status');
   document.body.appendChild(d);
   requestAnimationFrame(() => { d.style.opacity = '1'; });
-  const drop = () => d.remove();
+  const drop = () => { d.remove(); rt.cleanupTasks?.delete(drop); };
   rt.cleanupTasks?.add(drop);
-  setTimeout(drop, 6000);
+  // 一時停止中は戦の時刻も止まる。実時間だけで幕を消すと、再開時の日替わりが丸見えになる。
   rt.after(still ? 0.1 : 0.9, () => {
     try { mid(); } catch (e) { console.error(e); }
     d.style.opacity = '0'; rt.after(1.4, drop);

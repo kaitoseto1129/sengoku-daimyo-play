@@ -5891,7 +5891,12 @@ function makeSunomataBrain(b) {
     if (meIn && !eIn && e !== F.yoseBoss) {
       const [cx, cz] = clampIn(e.pos.x, e.pos.z, FORT - 1.1);
       walk(cx, cz, 0.5);
-    } else if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 2.4) walk(e.pos.x, e.pos.z, 2.2);
+    } else {
+      // 刀へ持ち替えても、槍用の間合いで止まらず一太刀の届く所まで寄る。
+      const stop = p.weapon === 'sword' ? 1.6 : 2.2;
+      const approach = p.weapon === 'sword' ? 1.8 : 2.4;
+      if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > approach) walk(e.pos.x, e.pos.z, stop);
+    }
     strike(e);
     // 持ち場への下知と突撃の往復で、同じ号令を何度も叫ばせない。
     if (b.squad.length && b.squadGroups[0].order !== 'attack' && !(b.botCmdT > b.t)) { inp.e.add('KeyC'); b.botCmdT = b.t + 30; }

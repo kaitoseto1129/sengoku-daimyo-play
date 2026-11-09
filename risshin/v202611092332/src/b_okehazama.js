@@ -211,25 +211,31 @@ function okeFoeSigns(rt) {
           v.set(u.pos.x, u.pos.y + (u.mounted ? 3.25 : 2.3), u.pos.z).project(rt.camera);
           if (v.z < -1 || v.z > 1 || Math.abs(v.x) > .95 || v.y > .8 || v.y < -1) continue;
           const half = u.name.length * 8 + 4;
-          const x = Math.max(half + 4, Math.min(innerWidth - half - 4, (v.x + 1) * innerWidth / 2));
+          const baseX = Math.max(half + 4, Math.min(innerWidth - half - 4, (v.x + 1) * innerWidth / 2));
           const baseY = (1 - v.y) * innerHeight / 2 - 22;
           // 端で座標を丸めると同じ候補を何度も試し、最後に重なる名を置いていた。
           // 画面内の行を先に決め、上下端でも二十八画素の間隔を保つ。
           const lastRow = Math.max(0, Math.floor((innerHeight - 4 - nameGap) / nameGap));
           const baseRow = Math.max(0, Math.min(lastRow, Math.round((baseY - nameGap) / nameGap)));
-          let y = nameGap + baseRow * nameGap;
-          for (let attempt = 0; attempt <= names.length * 2; attempt++) {
-            const row = Math.ceil(attempt / 2) * (attempt % 2 ? -1 : 1);
-            const slot = baseRow + row;
-            if (slot < 0 || slot > lastRow) continue;
-            y = nameGap + slot * nameGap;
-            let overlaps = false;
-            for (let j = 0; j < k; j++) {
-              if (Math.abs(x - namePlaces[j * 3]) < half + namePlaces[j * 3 + 2] + 4 &&
-                  Math.abs(y - namePlaces[j * 3 + 1]) < nameGap) { overlaps = true; break; }
+          let x = baseX, y = nameGap + baseRow * nameGap, placed = false;
+          // 縦の行が埋まった時だけ左右の列も探す。狭い横画面でも最後の候補へ重ねない。
+          for (let column = 0; column < 3 && !placed; column++) {
+            x = Math.max(half + 4, Math.min(innerWidth - half - 4,
+              baseX + (column === 1 ? -1 : column === 2 ? 1 : 0) * innerWidth / 3));
+            for (let attempt = 0; attempt <= lastRow * 2; attempt++) {
+              const row = Math.ceil(attempt / 2) * (attempt % 2 ? -1 : 1);
+              const slot = baseRow + row;
+              if (slot < 0 || slot > lastRow) continue;
+              y = nameGap + slot * nameGap;
+              let overlaps = false;
+              for (let j = 0; j < k; j++) {
+                if (Math.abs(x - namePlaces[j * 3]) < half + namePlaces[j * 3 + 2] + 4 &&
+                    Math.abs(y - namePlaces[j * 3 + 1]) < nameGap) { overlaps = true; break; }
+              }
+              if (!overlaps) { placed = true; break; }
             }
-            if (!overlaps) break;
           }
+          if (!placed) continue;
           namePlaces[k * 3] = x; namePlaces[k * 3 + 1] = y; namePlaces[k * 3 + 2] = half;
           const e = names[k++];
           if (e.textContent !== u.name) e.textContent = u.name;
@@ -1652,7 +1658,7 @@ const okehazama = {
     if (p.treatmentNext > rt.t) return '息を整えよ';
     return '止まって傷を縛れ';
   },
-  dodgeLabel: (_rt, direction, rain) => direction || (rain ? '矢をよけよ' : '敵から離れよ'),
+  dodgeLabel: (_rt, direction, rain) => direction || (rain ? '矢を避けよ' : '敵から離れよ'),
   // 回避先は実物の隊旗ではない。任務札と地面の案内で同じ動きを伝える。
   dodgeGuideLabel: (_rt, arrived, rain) => arrived ? '組のそばへ戻る' : rain ? '矢を避けて下がる' : '下がる',
   // 矢の回避は専用の入口へ渡し、この戦の指図を保つ。
