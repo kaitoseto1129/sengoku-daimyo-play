@@ -162,6 +162,10 @@ function bankFighterReady(u) {
   return !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
     !u.fleeing && !u.woundOut && !u.rearWound && !u.group?.routed;
 }
+// 本人が転倒中や致命傷の間は、縄の作業・守備の時間を進めない。
+function bankPlayerReady(rt) {
+  return bankFighterReady(rt.player.u) && !rt.player.u.downed;
+}
 // 三つの守備は九十・九十・七十五秒。寄せの間隔も各段で決めたままにする。
 function bankHold(o) {
   return dpHold(o);
@@ -3530,7 +3534,7 @@ const nagashima = {
         if (i === 0) rt.marker('s' + i, { x: s.x, z: s.z + 2 }, '柵の横木に縄を締める', { h: .6 });
         // 盛り土の上で輪の端が空へ浮くため、作業場所は案内札だけで示す。
         rt.addInteract('s' + i, () => F.step === 1 && F.workSpot === i && rt.player.u.pos.z >= BANK_Z && !F.raised?.[i] ? workSpot : null, '縄を締める', () => {
-          if (F.step !== 1 || rt.player.u.pos.z < BANK_Z || F.raised?.[i]) return;
+          if (F.step !== 1 || !bankPlayerReady(rt) || rt.player.u.pos.z < BANK_Z || F.raised?.[i]) return;
           F.participated = true; F.personalBuilt = (F.personalBuilt || 0) + 1; F.personalWork[i] = BUILD_HOLD; this.raise(rt, i);
         }, { r: 3, hold: HELP_HOLD });
       }
@@ -3984,17 +3988,17 @@ const nagashima = {
       if (at) { workHands(job.u, rt.t); if (job.mate) workHands(job.mate, rt.t); }
       // 本人の長押しも人足と一緒に行う。離したら済んだ結び目までを残す。
       if (!rt.G.lord && !F.helped) {
-        if (at && rt.holdId === 's' + job.i) F.personalWork[job.i] = Math.max(F.personalWork[job.i], rt.holdT || 0);
+        if (at && bankPlayerReady(rt) && rt.holdId === 's' + job.i) F.personalWork[job.i] = Math.max(F.personalWork[job.i], rt.holdT || 0);
         fenceProgress(F.fenceWork[job.i], F.personalWork[job.i], BUILD_HOLD);
       } else {
-        const helping = at && !rt.G.lord && rt.holdId === 's' + job.i;
+        const helping = at && bankPlayerReady(rt) && !rt.G.lord && rt.holdId === 's' + job.i;
         if (helping) F.personalWork[job.i] = Math.max(F.personalWork[job.i], (rt.holdT || 0) * BUILD_HOLD / HELP_HOLD);
         // 主人公の横木を人足だけで仕上げない。両脇の補修は並行して続ける。
         const limit = !rt.G.lord && !F.participated && job.i === F.workSpot ? BUILD_HOLD * .75 : BUILD_HOLD;
         job.t = at ? Math.min(limit, Math.max(job.t + dt, F.personalWork[job.i])) : job.t;
         fenceProgress(F.fenceWork[job.i], job.t, BUILD_HOLD);
         if (job.t >= BUILD_HOLD) {
-          if (!rt.G.lord && rt.holdId === 's' + job.i && (rt.holdT || 0) >= 2) {
+          if (!rt.G.lord && bankPlayerReady(rt) && rt.holdId === 's' + job.i && (rt.holdT || 0) >= 2) {
             F.participated = true; F.personalBuilt = (F.personalBuilt || 0) + 1;
           }
           this.raise(rt, job.i);
@@ -4165,13 +4169,13 @@ const nagashima = {
         rt.objProgress('main', '縄 ' + (F.personalBuilt || 0) + '／一か所');
         // 11/6 fixc1844：携帯では長押しの札が出ず、横木の前に立っても縄が締まらず 900 秒で負けた（描いて遊んで見た）。
         //   横木の前に立てば、本人も人足と縄を締める（長押しの時は早く済む）。
-        if (near && !F.raised?.[F.workSpot]) {
+        if (near && bankPlayerReady(rt) && !F.raised?.[F.workSpot]) {
           F.selfTie = (F.selfTie || 0) + dt * (rt.holdId === 's' + F.workSpot ? 2 : 1);
           F.personalWork[F.workSpot] = Math.max(F.personalWork[F.workSpot] || 0, F.selfTie * BUILD_HOLD / (HELP_HOLD + 2));
           if (F.selfTie >= HELP_HOLD + 2) { F.participated = true; F.personalBuilt = (F.personalBuilt || 0) + 1; this.raise(rt, F.workSpot); }
         }
       }
-      const lordAtBank = rt.G.lord && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z - (BANK_Z + 5)) < 5;
+      const lordAtBank = rt.G.lord && bankPlayerReady(rt) && Math.hypot(rt.player.u.pos.x, rt.player.u.pos.z - (BANK_Z + 5)) < 5;
       if (lordAtBank || F.participated) this.watch(rt);
     }
     if (F.step === 1.25) {
@@ -4203,7 +4207,7 @@ const nagashima = {
         else if (task === 'turn') rt.say('足軽', 'そこに立ったまま、川の向こうを向け', 3);
         F.watchClock = null;
       }
-      if (near && facing) F.watchTime += dt;
+      if (near && facing && bankPlayerReady(rt)) F.watchTime += dt;
       if (F.watchTime >= WATCH_HOLD) {
         F.watchAt++; F.watchTime = 0;
         if (F.watchAt >= 1) { F.watchDone = true; this.preBoats(rt); }
@@ -4256,7 +4260,7 @@ const nagashima = {
       }
       if (F.thirdBoatAt != null && (rt.t - F.thirdBoatAt >= 16 || !canCounterattack(F.last[3]))) this.sallyWave(rt, 3);
       const p = rt.player.u.pos;
-      const atBank = onBank(p, F.sallyNear);
+      const atBank = bankPlayerReady(rt) && onBank(p, F.sallyNear);
       F.sallyNear = atBank;
       if (atBank && !F.broken) { F.sallyHeld += dt; F.bankAway = 0; }
       else if (!F.broken) F.bankAway += dt;
@@ -4393,9 +4397,9 @@ const nagashima = {
       const facing = watchingRiver(rt);
       F.finalFacing = facing;
       // 持ち場の端でも、本人へ迫る敵がいる間は見張りを進めない。
-      const safe = rt.player.u.alive && atEast && foes === 0 && closeFoes === 0 && facing && !dangerProgress(rt);
+      const safe = bankPlayerReady(rt) && atEast && foes === 0 && closeFoes === 0 && facing && !dangerProgress(rt);
       // 味方が別の場所で受けている敵は、手元の確認を妨げない。見張りの達成は岸全体が静まってから。
-      F.finalReady = rt.player.u.alive && atEast && closeFoes === 0 && !dangerProgress(rt);
+      F.finalReady = bankPlayerReady(rt) && atEast && closeFoes === 0 && !dangerProgress(rt);
       const fighting = closeFoes > 0 || F.finalChecked >= 3 && atEast && foes > 0;
       const nextCheck = F.finalChecks.indexOf(false);
       const nextSpot = CHECK_SPOTS[nextCheck];
@@ -4493,8 +4497,9 @@ nagashima.force = (rt) => {
   // 着火は結末の三秒後。火が広がる間に減らし、着火前に半減させない。
   const fireProgress = rt.flags.ending ? Math.max(0, Math.min(1, (rt.t - rt.flags.endingAt - 3) / (END_SEC - 3))) : 0;
   const burnt = 1 - .55 * fireProgress;
-  S.out.a = 70000 - (S.a0 ? (S.a0 - a) / S.a0 * 2500 : 0);
-  S.out.b = (S.b0 ? 10000 * b / S.b0 : 10000) * burnt;
+  // 後続の組が加わって分母が増えても、既に減った兵数を戻さない。
+  S.out.a = Math.min(S.out.a, 70000 - (S.a0 ? (S.a0 - a) / S.a0 * 2500 : 0));
+  S.out.b = Math.min(S.out.b, (S.b0 ? 10000 * b / S.b0 : 10000) * burnt);
   return S.out;
 };
 nagashima.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '長島の一揆勢', mon: 'namu' } };

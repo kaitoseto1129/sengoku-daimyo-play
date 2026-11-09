@@ -32,6 +32,15 @@ export function start(rt, ctx) {
   rt.after(1.5, () => rt.say('河尻秀隆', '信忠様が本陣でお呼びじゃ。行くぞ', 3.2));
 }
 
+// 昼に加わる手も初期数と残数へ一緒に入れ、倒れた分を上の兵数へ反映する。
+function countForce(rt, g, ally = false) {
+  const F = rt.flags, groups = ally ? F.fieldAllies : F.rearGroups;
+  if (!groups || groups.includes(g)) return;
+  groups.push(g);
+  const key = ally ? 'forceA0' : 'forceB0';
+  F[key] += g.units.length;
+}
+
 function sally(rt, H, n) {
   const g = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: n === 1 ? '城方の出撃' : n === 2 ? '城方の二の手' : '大島杢之助の手', fixed: true, noGuard: true,
     anchor: { x: MOUTH.x + (n === 1 ? -6 : 8), z: -64 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 30, seekRange: 40, width: 10, formation: 'line', morale: 100, noRout: true, speed: 3.4 },
@@ -39,6 +48,7 @@ function sally(rt, H, n) {
     : n === 2 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }, { type: 'gun', n: 2, o: { flag: 'takeda' } }]
     // 三の手は城の侍大将・大島杢之助が率いる（後に開城の礼に出て磔にされる三将の一人。ここでは討たれずに退く）
       : [{ type: 'busho', n: 1, o: { name: '大島杢之助', flag: 'takeda' } }, { type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }]);
+  countForce(rt, g);
   g.order = 'path'; g.pathIdx = 0; g.dest = null; g.path = [[MOUTH.x + (n === 1 ? -3 : 4), MOUTH.z - 4]];
   g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; q.aggro = 40; };
   // 11/9 二巡（織田H）：杢之助を invuln にすると、斬りかかっても傷がつかず「不死身」に見えた。
@@ -98,6 +108,7 @@ export function tick(rt, hidden = []) {
         rt.after(3.6, () => rt.say('河尻秀隆', '組を連れて麓へ駆けよ。俵を城へ入れさせるな！', 3.2));
         H.esc = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: '兵糧入れの護り', fixed: true, noGuard: true, anchor: { x: KOMODA.x - 2, z: KOMODA.z - 8 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 20, seekRange: 26, width: 8, formation: 'loose', morale: 100, noRout: true, speed: 3.2 },
           [{ type: 'samurai', n: 1, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }, { type: 'porter', n: 3, o: { flag: null } }]);
+        countForce(rt, H.esc);
         H.esc.order = 'hold';
         for (const u of H.esc.units) if (u.type === 'porter') u.noTarget = true;
         H.escN = H.esc.units.filter((u) => u.type !== 'porter').length;
@@ -134,6 +145,7 @@ export function tick(rt, hidden = []) {
       // 口を守る味方の槍（足軽十人）
       H.ally = allyGroup(rt, { faction: 'oda', name: '柵の口の槍組', fixed: true, noGuard: true, anchor: { x: MOUTH.x, z: -2 }, facing: Math.PI, width: 10, formation: 'line', aggro: 20, seekRange: 30 },
         [{ type: 'ashigaru', n: 10, o: { flag: 'oda' } }]);
+      countForce(rt, H.ally, true);
       H.ally.order = 'move'; H.ally.dest = { x: MOUTH.x, z: MOUTH.z + 2 }; H.ally.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; q.aggro = 30; };
       rt.say('河尻秀隆', '槍をそろえよ。口の前で受け止める！', 3);
     }

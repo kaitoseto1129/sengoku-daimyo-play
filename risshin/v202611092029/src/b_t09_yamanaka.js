@@ -553,7 +553,7 @@ const t09_yamanaka = {
     rt.unmark('uma');
     rt.obj('main', '退く兵に続いて大手門から入る', 'main');
     rt.marker('gate', { ...SP.at.gate }, '大手門', { red: true, h: 3 });
-    rt.say('中村一氏', '退くぞ！　門を閉めさせるな。続いて入れ！', 3.5);
+    rt.say('中村一氏', gone(F.uma) ? '馬出しの敵は崩れた！　大手門へ掛かれ！' : '退くぞ！　門を閉めさせるな。続いて入れ！', 3.5);
     // 寄せ手は退く兵の後ろについて、馬出しの口から土橋・門へ
     const A = SP.at, M = A.mouths[1];
     const pts = [[M.lane.x, M.lane.z], [M.outer.x, M.outer.z], [M.inner.x, M.inner.z], [A.uma.x, A.uma.z], [A.bridgeOut.x, A.bridgeOut.z], [A.gateOut.x, A.gateOut.z]];
@@ -729,7 +729,7 @@ const t09_yamanaka = {
       const dg = Math.hypot(p.x - SP.at.gate.x, p.z - SP.at.gate.z);
       rt.objProgress('main', F.sub === 'back' ? `大手門まで あと${Math.round(dg)}m` : '');
       // 打って出た隊が皆討たれた時は、門へ攻め寄せる段へ
-      if (F.sub === 'sally' && gone(F.uma)) this.sallyBack(rt);
+      if ((F.sub === 'yose' || F.sub === 'sally') && gone(F.uma)) this.sallyBack(rt);
       if (!F.gateOpen && gate && (gate.alive === false || (gate.opened && F.K.tsukeiri))) this.openGate(rt, !!F.K.tsukeiri);
       // 本人と寄せ手が門へ詰めている間だけ数える。遠くで待つだけでは門を破らない。
       if (!F.gateOpen && F.sub === 'back' && dg < 40 && F.toyo.some((g) => g.units.some((u) => cnt(u) && Math.hypot(u.pos.x - SP.at.gate.x, u.pos.z - SP.at.gate.z) < 20))) {
@@ -753,7 +753,7 @@ const t09_yamanaka = {
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
-      if (F.honOn && !F.kogoOut && F.kogo && g.count < F.honN * 0.65) {
+      if (F.honOn && !F.kogoOut && F.kogo && (g.count < F.honN * 0.65 || (F.honU && !F.honU.alive))) {
         F.kogoOut = true; F.kogo.fixed = false; F.kogo.noRout = true; F.kogo.morale = 100;
         // 本丸の北と東は柵で閉じている。南の虎口から出て、東の尾根を回って落ちる。
         // 士気を零にすると敗走の下知がこの退路を上書きし、北の柵へ突き当たる。
