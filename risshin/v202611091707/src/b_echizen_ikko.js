@@ -827,14 +827,17 @@ function templeHallNeed(rt) {
   if (F.mode !== 'attack' || F.step < 1 || F.step > 3 || !F.SZ ||
       rt.t < (F.hallNeedAt || 0)) return;
   F.hallNeedAt = rt.t + 1;
+  const zone = F.SZ.byId[TEMPLE_HALL_IDS[F.step - 1]];
+  // 11/9 三巡（織田G）：谷道や森で止まった遠い組まで数えると、堂に本人と数人しか居ないまま
+  //   「組を呼び寄せよ」が刻限まで続いた（bot：本堂・奥の院で八分）。堂の中心から三十歩の内に居る味方だけを数える（敵を払い切る条件と守る秒数はそのまま）。
   let available = 0;
   for (const u of rt.army.units) {
     if (u.team !== rt.player.u.team || !siegeFighter(u)) continue;
     const b = u.group?.butai;
     if (b === F.reserve || F.step >= 2 && b === F.scout || F.step === 3 && b === F.flankBow) continue;
+    if (zone.pos && Math.hypot(u.pos.x - zone.pos.x, u.pos.z - zone.pos.z) > 30) continue;
     available++;
   }
-  const zone = F.SZ.byId[TEMPLE_HALL_IDS[F.step - 1]];
   zone.need = Math.max(1, Math.min(F.step === 1 ? 5 : F.step === 2 ? 7 : 4, available));
 }
 
