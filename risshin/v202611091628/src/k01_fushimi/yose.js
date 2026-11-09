@@ -78,6 +78,7 @@ export function install(rt, ctx) {
 // 城方（千八百）は本物の隊に結ぶ。寄せ手は軽い備（本物の兵は段ごとの寄せだけ）。各家の兵の分け方は推定（総数四万は諸書）。
 const Fk = (k) => (rt) => rt.flags[k];
 export const depthPlan = {
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/）
   A: { name: '徳川勢', facing: 0, honjin: { x: -2, z: -48 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
     sonae: [
       { id: 'mototada', layer: 'honjin', wing: 'center', men: 600, taisho: '鳥居元忠', bind: Fk('motochika'), hold: true },

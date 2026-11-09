@@ -4230,13 +4230,14 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       return bark.call(this, text, warn);
     };
     // 深手の退避中も、近くの敵は共通処理で戦い続ける。
-    // 公記の森部は織田の大勝。味方の兵（自分と組を除く）への打ち込みを少し浅くし、勝ち戦の芯が溶けないようにする。
+    // 公記の森部は織田の大勝。本人以外の味方への打ち込みを浅くし、勝ち戦の芯が溶けないようにする。
     const damage = rt.army.damage;
     rt.army.damage = function (t, amount, src, ...rest) {
       // 11/6 fixc（kaito 一-1）：速回しで味方が三分の二討たれた。公記の森部は織田の大勝なので、味方の兵への打ち込みは四割に。
       //   11/7 fixc0814：本人が旗本の侍を討つまで旗本は味方の槍で倒れにくく、その間（長い時は百五十秒）に味方が 94→36 人まで減った。
       //   旗本へ攻め入る段（press）では二割にする。
-      if (t && t.team === 0 && !t.isPlayer && !t.group?.isPlayerSquad && src?.team === 1) amount *= rt.flags.stage === 'press' ? 0.2 : 0.4;
+      // 組だけを軽減から外すと、長い押し合いで本人の五人だけが全滅する。
+      if (t && t.team === 0 && !t.isPlayer && src?.team === 1) amount *= rt.flags.stage === 'press' ? 0.2 : 0.4;
       // 11/6 fixc（目標④・⑤）：両将の旗本の侍は、自分が一人討つまで味方の槍では倒れにくい（自分で討つ間を残す）。
       //   旗本は殿に残る者なので、追い討ちまでは味方の槍で溶けない（目標⑤の殿が必ず来る）。
       const Fd = rt.flags;
@@ -4710,29 +4711,31 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (el >= 12) nearbyVoice(rt, F.Y, '森可成', 'moriVoice', '横はわしらが支える！　組で槍を合わせよ！');
       let together = 0;
       for (const u of rt.squad) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 16) together++;
-      const closeEnemy = rt.army.nearestEnemy(rt.player.u, 16, (u) => !u.fleeing && !u.woundOut && !u.noTarget);
       const insideLine = !F.lineReturning;
-      const lineReady = (together > 0 || squadAlive === 0) && insideLine && !gone(F.B);
+      const lineSupport = F.friends.some((g) => !gone(g) &&
+        g.units.some((a) => a.alive && !a.gone && !a.fleeing && !a.woundOut && !a.noTarget &&
+          Math.hypot(a.pos.x - p.x, a.pos.z - p.z) < 24));
+      const lineReady = (together > 0 || squadAlive === 0) && insideLine && lineSupport;
       F.lineTogether = together; F.lineReady = lineReady;
       // 退く下知と、旗で待つ秒読みを同時に出さない。退避中は働きの確認も休める。
-      const fallingBack = F.breathUntil > rt.t || u.mobbed || gone(F.B);
+      const fallingBack = F.breathUntil > rt.t || u.mobbed || !lineSupport;
       if (lineReady && !fallingBack) F.lineT += elapsed;
       // 敵がいる時もいない時も任務は守備。攻撃を禁じる「待て」は出さない。
       // AB（kaito 11/3）：時間では進めない。押し合いで本人が討った数で反撃へ移る
       const holdKills = (rt.stats?.kills || 0) - (F.holdK0 || 0);
-      const lineAction = F.breathUntil > rt.t ? '南の畦へ下がる' : gone(F.B) ? closeEnemy ? '構えながら、南の畦へ下がれ' : '南の畦へ下がる' : u.mobbed ? '味方と列をそろえ直せ' : !insideLine ? '前備の列で仲間と槍をそろえよ' : '前備の列で長井・日比野の槍列を受け止めよ';
+      const lineAction = F.breathUntil > rt.t ? '南の畦へ下がる' : !lineSupport || u.mobbed ? '前備の列で味方と列をそろえ直せ' : !insideLine ? '前備の列で仲間と槍をそろえよ' : '前備の列で長井・日比野の槍列を受け止めよ';
       const task = rt.objectives.find((o) => o.id === 'line');
       // 11/9 二巡（豊臣A）：右上の一行が数秒ごとに「そろえよ」「受け止めよ」「そろえ直せ」と入れ替わった（act の流しで十二回）。
       //   新しい言い方が六秒続いた時だけ替える（退く下知は危ないのですぐ出す）
       if (lineAction !== F.lineActCand) { F.lineActCand = lineAction; F.lineActT = rt.t; }
       if (!F.lineActShown || F.lineActCand === F.lineActShown || /下が/.test(F.lineActCand) || rt.t - F.lineActT >= 6) F.lineActShown = F.lineActCand;
       if (task) task.text = F.lineActShown;
-      const guardHelp = closeEnemy && lineReady && !fallingBack && !F.squadGuide ? '。印に到着。味方とこの場を守れ' : '';
       rt.objProgress('line', '');
       if (F.lineT >= 25 && !F.lineAwarded) { F.lineAwarded = true; rt.award((t) => t.side.push('槍の押し合いを支えた'), '槍列を支えた。控えにも備えよ'); }
       // 組で列を支え、二手の控えを受けた働きが反撃を早める。時間だけで手柄は付けない。
-      const counterattack = F.lineAwarded && el >= 90 && holdKills >= 6 &&
-        (F.wave1 || gone(F.reserves[0])) && (F.wave2 || gone(F.reserves[1]));
+      // 味方が敵を討った分も列の働き。本人用の十人が残らず止まる事を防ぐ。
+      const counterattack = F.lineAwarded && el >= 100 &&
+        F.reserves.every(gone) && (gone(F.M) || gone(F.N));
       // 前の槍列がすべて退けば、控える旗本だけを残して百秒待たせない。
       const frontBroken = gone(F.V) && gone(F.M) && gone(F.N) && F.reserves.every(gone);
       const enemyBroken = F.opposition.every(gone);
@@ -4890,7 +4893,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 11/6 fixc1824：描いて遊ぶと、殿が組へ寄せて来る途中（二十八メートル先）で「討ち破った」勝ちになった。
         //   殿が討たれるか背を向けて退くまで勝ちにしない（目標⑤「殿を討ち破る」を本当に果たす）。
         // 退く下知や経過時間だけでは済みにしない。殿の討死・実際の敗走を確かめる。
-        if (F.ownHatamoto && shN === 0 && el >= 15) {
+        if (F.ownHatamoto && shN === 0 && el >= 40) {
           rt.objDone('pursuit');
           this.endBattle(rt, true);
           return;
@@ -4905,10 +4908,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         return;
       }
     }
-    // 時の制限は目標ごと（goals5）。戦全体は長くてよい（kaito AP8）ので、川へ下げるのは十分後
-    // 11/8 十五分の構成で、川へ下げるのを十分から十六分へ
-    if (!F.longWarn && rt.t >= 930) { F.longWarn = true; orderSpeech(rt, '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
-    if (!F.ending && rt.t >= 960 && (!F.pursuit || !F.ownHatamoto)) this.endBattle(rt, false);
+    // 十五〜三十分の戦で、十六分に突然負けない。追い討ちにも同じ上限を適用する。
+    if (!F.longWarn && rt.t >= 1710) { F.longWarn = true; orderSpeech(rt, '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
+    if (!F.ending && rt.t >= 1770) this.endBattle(rt, false);
   },
 
   feedReserves(rt) {
@@ -4973,6 +4975,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     const F = rt.flags, p = rt.player.u.pos;
     if (F.stage === 'assemble') return;
     for (const g of F.friends) {
+      // 別の段で出した下知を、通常の押し上げで毎秒書き戻さない。
+      if ((F.m15?.ph === 'aze' && g === F.A) || (F.m15?.ph === 'yumi' && g === F.Y)) continue;
       if (gone(g) || (g.order !== 'attack' && g.order !== 'move') || g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
           u.target?.alive && !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
           Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 8)) continue;
@@ -5016,7 +5020,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const q = fightingCenter(foe), d = Math.hypot(q.x - c.x, q.z - c.z);
         if (d < distance) { nearest = q; distance = d; }
       }
-      if (!escort && (!nearest || distance <= 18)) {
+      if (!escort && (!nearest || distance <= 6)) {
         if (nearest) { g.order = 'attack'; g.seekRange = 35; g.onArrive = null; }
         continue;
       }
@@ -5025,8 +5029,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       else {
         // 横の備は敵の左右へ寄せ、中央の味方を横切って同じ一点へ詰めない。
         const flank = g === F.Y ? -10 : g === F.R3 ? 10 : 0;
-        dest.x = nearest.x + ((c.x - nearest.x) * 12 - (c.z - nearest.z) * flank) / distance;
-        dest.z = nearest.z + ((c.z - nearest.z) * 12 + (c.x - nearest.x) * flank) / distance;
+        dest.x = nearest.x + ((c.x - nearest.x) * 4 - (c.z - nearest.z) * flank) / distance;
+        dest.z = nearest.z + ((c.z - nearest.z) * 4 + (c.x - nearest.x) * flank) / distance;
       }
       g.order = 'move'; g.dest = dest; g.speed = 2.4;
       g.onArrive = g._moribePressArrive || (g._moribePressArrive = (arrived) => { arrived.order = 'attack'; arrived.seekRange = 35; });

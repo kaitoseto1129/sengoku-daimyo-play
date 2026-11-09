@@ -13,7 +13,7 @@ const LOOK = { x: -4, z: -18 };   // 物見の場（川べりの竹束の脇）
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, next, missionText } = ctx;
-  let seen = false, raid = null, done = false, tick = 0;
+  let seen = false, raid = null, raidT = 0, done = false, tick = 0;
   rt.setPhase('mono');
   rt.unmark('goal');
   rt.obj('main', missionText, 'main', true);
@@ -33,6 +33,7 @@ export function install(rt, ctx) {
       if (done) return;
       raid = enemyGroup(rt, { faction: 'saika', name: '川上から渡る雑賀の小組', anchor: { x: -30, z: -46 }, facing: Math.PI / 2, width: 6, order: 'attack', aggro: 24, seekRange: 34, morale: 80, fleeDir: { x: -1, z: 0 } },
         dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], SAIKA));
+      raidT = rt.t;
       raid.fixed = false; raid.order = 'move'; raid.dest = { x: -4, z: -14 };
       raid.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
       rt.army.play?.('eshout', { x: -26, z: -44 }, 1.3);
@@ -48,10 +49,17 @@ export function install(rt, ctx) {
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos;
-      if (!seen && (Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 7)) reveal();
+      // 竹束の脇は塞がれやすい。十二歩の内まで寄れば物見とする（11/9 bot が十一歩で止まり、段が進まず刻限切れ）
+      if (!seen && (Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 12)) reveal();
       if (raid) {
         let live = 0;
-        for (const u of raid.units) if (u.alive && !u.fleeing && !u.woundOut) live++;
+        // 川上の浅瀬に引っ掛かって来ない者は数えない（物見の場から四十五歩の外）。来てから一分半で残りは退く
+        for (const u of raid.units) if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - LOOK.x, u.pos.z - LOOK.z) < 45) live++;
+        if (live && rt.t - raidT > 90) {
+          raid.focus = null; raid.retreatOnly = true; raid.order = 'move'; raid.dest = { x: -40, z: -60 };
+          raid.onArrive = (q) => { q.order = 'hold'; };
+          live = 0;
+        }
         rt.objProgress('main', `渡って来た雑賀衆 ${raid.units.length}人中 残り${live}人`);
         if (!live) {
           done = true;
