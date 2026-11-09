@@ -3335,9 +3335,11 @@ const miki = {
     rt.objProgress('main', `${defenders}${enemyGuide && !guardThin && !hirataThin ? '\n' + enemyGuide : ''}${deadline ? '\n' + deadline.slice(1) : ''}`);
     // とどめは本人へ残してある。目標③と⑤を飛ばす勝利の抜け道は作らない。
     // ⑤は onKill で本人の討ち取りを確かめる。味方のとどめは heroFinishCap で残す。
-    // 甚太夫が討たれたら、大村の別所勢は大将を失って崩れ、城へ逃げ戻る（播磨別所記：三太夫・甚太夫が討たれ、別所勢は敗れた）。
+    // 三太夫・甚太夫の両名を討ってから崩れる。甚太夫だけで士気を落とすと、
+    // 生きている三太夫まで逃げ、④も勝利条件も果たせなくなる。
+    const omuraHeadsTaken = F.jintTaken && F.reserve.units.every(u => !u.name || !this.omuraFoe(u) || !u.alive);
     //   逃げて本人から二十五歩より離れた者は、城へ帰った者として数えない（11/9 bot：侍六人が残り、期限まで勝ちにならなかった）
-    if (F.step === 2 && F.jintTaken) {
+    if (F.step === 2 && omuraHeadsTaken) {
       if (!F.reserveBroke) { F.reserveBroke = true; F.reserve.noRout = false; F.reserve.morale = Math.min(F.reserve.morale ?? 100, 10); }
       for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget && u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 25) { u.noTarget = true; u.target = null; }
     }
@@ -3365,7 +3367,7 @@ const miki = {
       for (const g of F.sallies) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) n++;
       if (n <= 4) for (const g of F.sallies) if (!gone(g)) flee(g, 1, 0.4);
     }
-    if (F.step === 2 && F.lastStand && F.jintTaken) {
+    if (F.step === 2 && F.lastStand && omuraHeadsTaken) {
       F.lastStandT ??= rt.t;
       // 大勢が残る間は戦いを続ける。時間だけで④の残兵を全員退かせない。
       let remaining = 0;
