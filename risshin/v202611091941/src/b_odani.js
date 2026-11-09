@@ -252,6 +252,12 @@ const ONO_WEST_ENTRY = [...ONO_WEST_APPROACH, CLIMB_UP.at(-1), MASU.face, MASU.o
 const ONO_VIA_APPROACH = densify([[ONOGI.x, ONOGI.z + 4], [ONOGI.x, ONOGI.z + ONOGI.hd + 3], [-49, -77], ...WEST_APPROACH.slice(2)], 2);
 const ONO_VIA_ENTRY = [...ONO_VIA_APPROACH, CLIMB_UP.at(-1), MASU.face, MASU.out];
 const VIA_ROAD = { x: 0, z: 0, s: 0, d: 0 }, WEST_ROAD = { x: 0, z: 0, s: 0, d: 0 };
+// 屋敷側の隊も南木戸と分かれ目を通す。本道へ直接寄せると柵と切岸で後続が重なる。
+function westEntryPath(p) {
+  roadPoint(ONO_VIA_APPROACH, p, VIA_ROAD, null, null, 1, 3);
+  roadPoint(ONO_WEST_APPROACH, p, WEST_ROAD);
+  return VIA_ROAD.d + .5 < WEST_ROAD.d ? ONO_VIA_ENTRY : ONO_WEST_ENTRY;
+}
 // 枝道の方が近い時だけ屋敷側の道を使う（登り口より上の共通の道では、元の道と番号のまま）。
 function onoViaPath(rt, breached) {
   const F = rt.flags, p = rt.player.u.pos;
@@ -666,7 +672,7 @@ function roadWay(army, u, want) {
   const leavingOnogi = Math.abs(u.pos.x - ONOGI.x) < ONOGI.hw + 2 && Math.abs(u.pos.z - ONOGI.z) < ONOGI.hd + 3
     && !inOnogi && (onRidge(target) || westWay(target));
   const ridge = onRidge(u.pos) ? u.pos : target;
-  const path = u.group?.order === 'path' && u.group.path ? u.group.path : inOnogi ? ROUTE_O : leavingOnogi ? ONO_WEST_ENTRY : westWay(u.pos) || westWay(target) ? ROUTE_W : onRidge(u.pos) && onRidge(target) ? ROAD_RIDGE : ridge.z > KC.z ? ROUTE_S : ROUTE_N;
+  const path = u.group?.order === 'path' && u.group.path ? u.group.path : inOnogi ? ROUTE_O : leavingOnogi ? ONO_VIA_ENTRY : westWay(u.pos) || westWay(target) ? ROUTE_W : onRidge(u.pos) && onRidge(target) ? ROAD_RIDGE : ridge.z > KC.z ? ROUTE_S : ROUTE_N;
   // 折り返す道の未到達区間へ合流させない。後列の持ち場と同じ、先頭が通った道だけを使う。
   const hi = g?.order === 'path' && g.path === path ? Math.max(1, Math.min(g.pathIdx, path.length - 1)) : path.length - 1;
   roadPoint(path, u.pos, ROUTE_FROM, army, u, 1, hi); roadPoint(path, target, ROUTE_TO, undefined, undefined, 1, hi);
@@ -4693,9 +4699,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     for (const g of F.oda) {
       const c = g.center(), u = g.units.find(battleReady);
       if (!u) continue;
-      g.odaniPlayerPause = false; g.order = 'path'; g.path = ONO_WEST_ENTRY;
+      g.odaniPlayerPause = false; g.order = 'path'; g.path = westEntryPath(c);
       // 九十九折りの隣の段の角を選ばない（高さの違う角は遠いとみなす）。次の角から歩く。
-      g.pathIdx = Math.min(ONO_WEST_ENTRY.length - 1, nearWay(rt, ONO_WEST_ENTRY, c, u.pos.y) + 1);
+      g.pathIdx = Math.min(g.path.length - 1, nearWay(rt, g.path, c, u.pos.y) + 1);
       g.aggro = 4; g.speed = 4.2; g.formation = 'column';
       g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 40; gg.formation = 'yari'; gg.anchor = { x: KC.x, z: KC.z }; };
     }
@@ -5591,13 +5597,14 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           if (!v) continue;
           const c = g.center();
           if (Math.hypot(c.x - p.x, c.z - p.z) < 12) continue;
-          // 組の居る所に近い道の角から（本人より先の角へは飛ばさない）。
+          // 屋敷側と本道で角の番号が違う。本人の番号を使わず、組の位置と高さから選ぶ。
+          const path = westEntryPath(c);
           let best = 0, bd = Infinity;
-          for (let i = 0; i <= Math.min(F.kyoTrailIdx, ONO_WEST_ENTRY.length - 1); i++) {
-            const q = ONO_WEST_ENTRY[i], d = Math.hypot(q[0] - c.x, q[1] - c.z) + Math.abs(rt.world.heightAt(q[0], q[1]) - v.pos.y) * 3;
+          for (let i = 0; i < path.length; i++) {
+            const q = path[i], d = Math.hypot(q[0] - c.x, q[1] - c.z) + Math.abs(rt.world.heightAt(q[0], q[1]) - v.pos.y) * 3;
             if (d < bd) { bd = d; best = i; }
           }
-          g.order = 'path'; g.path = ONO_WEST_ENTRY; g.pathIdx = best; g.speed = 4.2; g.formation = 'column'; g.colW = 1; g.aggro = 5;
+          g.order = 'path'; g.path = path; g.pathIdx = best; g.speed = 4.2; g.formation = 'column'; g.colW = 1; g.aggro = 5;
           g.odaniPlayerPause = false;
           g.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 30; gg.formation = 'yari'; gg.anchor = { x: KC.x, z: KC.z }; gg.speed = 3; };
         }
@@ -6087,6 +6094,8 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  // この頭の打ち合いは槍と刀用。鉄砲のまま二メートルへ詰めて装填待ちを繰り返さない。
+  if (p.weapon === 'gun' || p.weapon === 'bow') inp.e.add('Digit1');
   if (F.odaMonomi) { goTo(p, inp, F.odaMonomi.x, F.odaMonomi.z, 2); return; }   // 始まりの物見の岩場へ
   // 傷は自然回復しない。短く退いて手当てを試し、全快を待たず任務へ戻る。
   const canTreat = p.treatmentLeft > 0 && !(p.treatmentNext > b.t) && !p.mounted &&
