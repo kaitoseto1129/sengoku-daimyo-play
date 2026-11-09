@@ -68,8 +68,8 @@ export const STAGES = {
   shitaragahara: [['大宮前と柳田前の柵で武田の寄せを止める'], ['退き口で馬場信春の殿を討ち破る', ph('pursuit')]],
   echizen: [['観音丸城の木戸を破る'], ['観音丸の郭の守兵を討つ', (rt) => rt.def.missionOf?.(rt) >= 3]],
   // 11/5 check60：信長公記巻八の順（十五日の風雨の昼 → 同夜の府中の夜襲 → 十六日からの山狩り）。大滝寺は言い伝えによる補い。
-  //   b_echizen_ikko.js の IKKO_GOALS と同じ字の四段（惣門 → 外堂 → 山門 → 本堂）
-  echizen_ikko: [['十六日の昼、竹束に続き惣門を木づちで破る'], ['雨の中、惣門の内の外堂を味方と押さえる', (rt) => rt.def.missionOf?.(rt) >= 1], ['その夜、石段の上の山門を木づちで破る', (rt) => rt.def.missionOf?.(rt) >= 2], ['十七日の朝、本堂を味方と押さえる', (rt) => rt.def.missionOf?.(rt) >= 3], ['奥の院の森へ逃げた一揆を、味方と狩り出す', (rt) => rt.def.missionOf?.(rt) >= 4]],
+  //   b_echizen_ikko.js の missions と同じ字（山狩り → 惣門 → 外堂 → 山門 → 本堂 → 奥の院）
+  echizen_ikko: [['雨の森と谷筋で、潜む一揆の残党を狩る'], ['十六日の昼、竹束に続き惣門を木づちで破る', (rt) => rt.def.missionOf?.(rt) >= 1], ['雨の中、惣門の内の外堂を味方と押さえる', (rt) => rt.def.missionOf?.(rt) >= 2], ['その夜、石段の上の山門を木づちで破る', (rt) => rt.def.missionOf?.(rt) >= 3], ['十七日の朝、本堂を味方と押さえる', (rt) => rt.def.missionOf?.(rt) >= 4], ['奥の院の森へ逃げた一揆を、味方と狩り出す', (rt) => rt.def.missionOf?.(rt) >= 5]],
   // 11/7：右上の一行（def.missions）と同じ四つ・同じ番号に（十1）。進みは def.missionOf（一度進んだら戻らない）
   iwamura: [['柵の南と北の篝火を焚け'], ...[1, 2, 3].map((k) => [['柵の口で武田の夜討ちを防げ', '山道を退く武田勢を城の麓まで追え', '城の麓の搦手道の登り口を固めよ'][k - 1], (rt) => (rt.def.missionOf?.(rt) ?? 0) >= k])],
   // 11/4 p100：場所と行いで書く（AR1・docs/battle_refs/tennoji.md）。籠城 → 後詰の突入 → 合流 → 打って出る → 追撃

@@ -729,7 +729,7 @@ const ARMOR_RESEARCH_1 = {
   "徳川家康": { lace: 0x1c1a1a, odo: 0x1c1a1a, suneateColor: 0x151312 },
   "柴田勝家": { lace: 0x6a4026, odo: 0x6a4026, suneateColor: 0x2c241c },
   "羽柴秀吉": { lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", haidateGold: true },
-  "明智光秀": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
+  "明智光秀": { crest: "none", lace: 0xa2271c, odo: 0xa2271c },   // 11/9 井伊美術館の伝光秀所用・紅糸縅本小札二枚胴具足に色を揃える（docs/generals_look_1108/明智光秀.md）
   "前田利家": { goldKozane: true, lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", suneateColor: 0xc9a24a, suneateGold: true },
   "黒田官兵衛": { lace: 0x1a1a1a, odo: 0x1a1a1a, suneateColor: 0x151312 },
   "山県昌景": { crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, suneateCloth: 0x8e1f16 },
@@ -797,7 +797,7 @@ for (const [n, v] of Object.entries(ARMOR_RESEARCH_3)) if (KACCHU[n]) Object.ass
 //   伝わらない人は鉢の地（黒漆・錆地・地鉄）・吹返の仕上げ（漆・革・金）・面頬の形の差で。形と材質は既存の物を使い回す
 const SABI = 0x5a3c28, JIGANE = 0x4a4a48;
 const BLACK_SPLIT = {
-  "明智光秀": { bowl: "suji", fuki: "kin", menpoStyle: "full", kusazuriBands: [0x2e3a5a, 0x1c1a1a, 0x2e3a5a, 0x1c1a1a, 0x2e3a5a] },
+  "明智光秀": { bowl: "suji", fuki: "kin", menpoStyle: "full", kusazuriBands: [0xa2271c, 0x1c1a1a, 0xa2271c, 0x1c1a1a, 0xa2271c] },
   "黒田官兵衛": { bowl: "momonari", lac: "sabi", helm: SABI, fuki: "kawa" },
   "黒田如水": { bowl: "momonari", lac: "sabi", helm: SABI, fuki: "kawa" },
   "馬場信春": { bowl: "momonari", lac: "natural", helm: JIGANE, fuki: "lac", shikoroRows: 3 },
