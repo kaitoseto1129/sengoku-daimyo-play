@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { sunomataFinalGoalsDone } from './sunomata_goals.js';
+import * as SU15 from './sunomata/index.js';   // 11/8 十五分の構成（材木の運搬・夜と火矢・夜明けの退き）
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -2813,6 +2814,7 @@ const sunomata = {
   },
   // 11/3 AR：「この はたを まもれ」では場所が分からない。今の持ち場の柵の名と行いで書く。
   missionHeading(rt) {
+    { const h = SU15.heading(rt); if (h !== undefined) return h; }
     if (sunomata.commanderTarget(rt)) return '斎藤方の寄せ大将を討ち取る';
     const side = rt.flags.guardSide || 'n';
     return `${SIDE_WORD[side]}の柵${side === 'n' ? 'の口' : ''}で斎藤の寄せ手を止める`;
@@ -4064,7 +4066,8 @@ const sunomata = {
     // 上役が出した普請の順に、組で人足を守る。敵が迫れば作業を止める。
     sunoObj(rt, 'gate', '北の口で、人足の普請を守れ', 'side');
     rt.marker('gateGuard', { x: 6, z: -FORT + 1.4 }, () => !rt.over && !F.ending && F.sunoTask === 'gate' ? '守る柵' : '', SUNO_GUARD_GUIDE);
-    rt.after(4, () => {
+    SU15.install(rt, this, { dock: F.C.kuruwa.kishi.centroid, FORT, enemyGroup });
+    rt.after(4, () => SU15.afterIntro(rt, () => {   // 普請の段取りの前に、材木の運搬の護衛（sunomata/hakobi.js）
       if (rt.over || F.ending || F.won) return;
       const mark = (id, seg, label) => rt.marker(id, { x: (seg.seg[0] + seg.seg[2]) / 2, z: (seg.seg[1] + seg.seg[3]) / 2 }, label);
       mark('buildGate', F.segs.gate[0], '北門の口');
@@ -4083,7 +4086,7 @@ const sunomata = {
       // 選び終えてから敵を動かす。時間切れでも最初の接敵は三十秒ほどに収める。
       F.nextWaveAt = Math.max(12, rt.t + 3);
       rt.after(F.nextWaveAt - rt.t, () => this.wave1(rt));
-    }, 5); });
+    }, 5); }));
     // 操作の案内は短く一件ずつ。接敵中に判断の札を重ねない。
     rt.after(18, () => rt.bark(bows ? `号令の相手を「弓隊」に替えると、弓 ${bows}人へ命じられる` : '組は槍だけ。柵の内から突け'));
     rt.after(20, () => rt.bark('「守る場所」の印へ歩き、柵の内から槍で突け。外へ出る時は南門の旗へ'));
@@ -4270,6 +4273,7 @@ const sunomata = {
     rt.setPhase('w2');
     // 波ごとに日が傾く：二の手は昼下がり、三の手で夕焼け
     rt.world.setTime('afternoon');
+    SU15.onWave2(rt);   // 夜と火矢（sunomata/yoru.js）
     // 二の手の道：寄せの頭が、一の手で守りが厚くなった側を避けて選ぶ（毎回変わる）
     // 二の手は控えていた側（一の手の反対）から寄せる。控えの場から遠い側へ百米以上歩かせると、戦の間が空く。
     const r = F.r2 || YOSE.kita, w = SIDE_WORD[r.side];
@@ -4323,7 +4327,7 @@ const sunomata = {
     F.wave = 3; F.waveT = 0; F.nextWaveAt = 0; sunoRemove(rt, 'nida');
     sunoPost(rt, F.post3 === 'e' ? '東の柵で川並衆と舟の敵を止めよ' : '柵を守れ。舟は川並衆に任せよ', F.post3 || 'n');
     rt.setPhase('w3');
-    rt.world.setTime('dusk');
+    if (!F.s15?.yoruT) rt.world.setTime('dusk');   // 二の手で夜になっていれば夜のまま
     F.w3T = rt.t;
     // 紙（battle_events_1101）：斎藤龍興方の夜襲を朝まで守る。三の手の途中で日が落ち、夜討ちになる。
     rt.say('木下藤吉郎', '龍興方は夜討ちで来るぞ。朝まで柵を持たせよ', 4);
@@ -4518,6 +4522,7 @@ const sunomata = {
 
   update(rt, dt) {
     const F = rt.flags;
+    SU15.tick(rt, dt);
     sunoArrowWarning(rt);
     sunoFooting(rt);
     SUNO_VIEW.value.copy(rt.player.u.pos); SUNO_VIEW.value.y += 1.4;
@@ -5612,7 +5617,9 @@ function makeSunomataBrain(b) {
   else walk(0, -10, 3);
   };
 }
-sunomata.botBrain = (b, inp, { goTo }) => {
+sunomata.botBrain = (b, inp, ctx) => {
+  const { goTo } = ctx;
+  if (SU15.bot(b, inp, ctx)) return;   // 材木の運搬の護衛（sunomata/hakobi.js）
   const brain = b.flags.botBrain || (b.flags.botBrain = makeSunomataBrain(b));
   brain(inp, goTo);
 };
@@ -5620,6 +5627,7 @@ sunomata.botBrain = (b, inp, { goTo }) => {
 sunomata.canSkip = () => '';
 sunomata.skip = () => {};
 sunomata.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '斎藤軍', mon: 'saito' } };
+sunomata.pacingCap = 1260;   // 11/8 十五分の構成（材木の運搬を足した）で、打ち切りを十八分から二十一分へ
 // すでに砦にいる三人を共通の武将の呼び口へ渡す。新しい兵は加えない。
 sunomata.famous = [
   { name: '前野長康', team: 0, g: /前野長康/, line: '西の柵を離れるな！' },

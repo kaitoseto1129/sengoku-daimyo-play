@@ -1471,8 +1471,8 @@ function ariGoalBoard(rt) {
     const me = rt.player.u;
     const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
+    // 近くで見える敵全員に付ける。印の要素は従来どおり使い回す。
     if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
       if (!(u._ariSeenAt > rt.t - .34 && u._ariSeenAt <= rt.t)) { u._ariSeen = sightUnit(rt, u); u._ariSeenAt = rt.t; }
@@ -1539,9 +1539,6 @@ const arioka = {
   },
   missionHeading(rt) {
     if (rt.flags.ending && !rt.flags.kanbePending && !rt.tracker.main) return '退き太鼓。木戸の外へ退け';
-    if (!rt.flags.ending && rt.flags.dpW && !rt.flags.dpA) return '②惣構えの通りの角を押さえよ';
-    if (!rt.flags.ending && rt.flags.dpU) return '④侍町の奥の木戸を押さえよ';
-    if (!rt.flags.ending && rt.flags.dpD) return '④侍町の焼け跡に残る荒木勢を退けよ';
     const k = this.missionOf(rt);
     return '①②③④⑤'[k] + this.missions[k];
   },
@@ -2772,15 +2769,14 @@ const arioka = {
         : p.x < TOWN_X - 24
           ? { x: TORIDE_WORKS[1].x1 - 1.8, z: GATE.z + (p.z < GATE.z ? -10 : 10) }
           : { x: TOWN_X + 5, z: -14 };
-      rt.obj('ariCover', '鉄砲の撃ち手から、柵の陰へ退け', 'side');
-      rt.marker('ariCover', F.coverAt, '柵の陰へ退く');
+      // 遮蔽の知らせは台詞だけにし、初めに並べた五つの目標と行き先を増やさない。
       rt.say('滝川の組頭', '町屋の陰から鉄砲じゃ。柵の陰へ横に退け', 4);
       const paused = [];
       for (const g of F.defenders.values()) if (g.fire !== false) { paused.push(g); g.fire = false; }
       rt.after(6, () => { for (const g of paused) g.fire = true; });
     }
     if (F.coverUntil && (rt.t >= F.coverUntil || rt.distTo(F.coverAt) < 3)) {
-      if (rt.distTo(F.coverAt) < 3) { rt.objDone('ariCover'); rt.bark('ここなら柵が盾になる。組と進め'); }
+      if (rt.distTo(F.coverAt) < 3) rt.bark('柵が盾になる。組と進め');
       rt.unmark('ariCover'); rt.objRemove('ariCover'); F.coverUntil = 0;
     }
     if (F.farRout && rt.t >= (F.farRoutT || 0)) {
