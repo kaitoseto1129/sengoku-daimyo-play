@@ -3,7 +3,7 @@
 // 史実：九月十五日に七尾城が落ち、救援に向かった柴田勝家の軍は手取川を越えた所で知らせを受け、退き始めた（謙信書状写・信長公記）。
 // 遊び：①北の塚へ上って物見をする（着くと北の闇に上杉の松明の列が動き出す）
 //   ②払いかけの陣の荷駄に火を掛けて捨てる（着くと火が上がり、柴田が「人を先に渡せ」と下知する）→ 渡り口へ退く（retreat）
-//   どちらも着いたら必ず何か起きる。着かなくても約七十秒ずつで先へ進む（待たせない）。字は出さない：印・火・松明の列で分からせる。
+//   どちらも本人が着いてから進む。待つだけで物見や焼き捨ての戦功を与えない。
 // ======================================================================
 import { sfx } from '../audio.js';
 
@@ -47,12 +47,12 @@ export function install(rt, ctx) {
 
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (done || F.ending || rt.over || !rt.player.u.alive) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t1;
-      if (step === 0 && (Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 9 || el > 60)) look();
-      else if (step === 1 && el > 6 && (Math.hypot(p.x - CARGO.x, p.z - CARGO.z) < 6 || el > 60)) burn();
+      if (step === 0 && Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 9) look();
+      else if (step === 1 && el > 6 && Math.hypot(p.x - CARGO.x, p.z - CARGO.z) < 6) burn();
     },
   };
 }
