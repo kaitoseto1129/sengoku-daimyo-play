@@ -33,7 +33,8 @@ export function install(rt, ctx) {
     // 後の二手は段を抜けて信長の本陣の前まで押し込む（狙われる本陣の緊張。本陣の前の大軍の押し合い hqClash も動く）
     g.order = 'path'; g.path = i < 2 ? [[10, -14], [8, 14], [ctx.mori.x + 18, F.holdAt.z - 6]] :
       [[10, -14], [8, 14], [ctx.mori.x + 18, ctx.mori.z], [ctx.HQ.x + 8, ctx.HQ.z - 34]]; g.pathIdx = 0;
-    g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
+    // 11/9 二巡：本陣の前まで来た後の二手は、前の旗本と斬り合う（四十歩の輪で本陣の内へなだれ込み、手当て中の本人の知らぬ間に負けになった）
+    g.onArrive = (q) => { q.order = 'attack'; q.seekRange = i < 2 ? 40 : 18; };
     F.waves.push(g);
     try { sfx('taiko', 0.9); } catch (e) { /* 音が無くても進む */ }
     rt.army.play('eshout', { x: 10, z: -20 }, 1.4);

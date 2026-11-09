@@ -14,7 +14,7 @@ import { GENERALS } from './units.js';
 const IDLE_OK_ORDERS = new Set(['hold', 'guard', 'yari', 'flee']);
 const IDLE_OK_TYPES = new Set(['dummy', 'porter', 'player']);
 // 画面の部品で、重なっていてよい物（全面の飾り・浮かぶ字・印）
-const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines']);
+const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines', 'follow-guide', 'leader-guide']);   // 後の二つは画面全体の透明な svg に端の矢印だけ（11/9：k02・k04・志賀で「札が 100% を覆う」と誤って数えた）
 // 遊び手を責める言い回し
 const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|下手|失格|情けない|しっかりせい)/;
 // 断るだけで、どうすればいいかを言わない言い回し

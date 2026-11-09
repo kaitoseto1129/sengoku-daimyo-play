@@ -114,7 +114,7 @@ function draw(rt, F, L) {
   if (hide) { F.badgeRect = null; if (el) el.style.display = 'none'; return; }
   if (!el || !el.isConnected) {
     el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('aria-hidden', 'true'); el.id = 'leader-guide';   // 画面全体の透明な入れ物（札の重なりの確かめ audit.js から外す）
     el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';
     el.innerHTML = '<path fill="#3b7dff" stroke="#0b1a33" stroke-width="3" stroke-linejoin="round"/><path fill="#3b7dff" stroke="#0b1a33" stroke-width="3" stroke-linejoin="round"/>';
     hud.root.appendChild(el); F.el = el;

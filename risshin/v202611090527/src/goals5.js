@@ -246,16 +246,17 @@ const OWN = {
   ],
   // 峠口を一城で終わらせず、本道と東西の別手が四城を押さえる。
   echizen: () => {
-    const held = (id) => (rt) => {
+    // 勝ちの条件と同じく、前郭・副郭に残敵がいれば城全体の達成にしない。
+    const held = (...ids) => (rt) => ids.every(id => {
       const zone = rt.flags.SZ?.byId[id];
       return !!zone && zone.owner === 'friend' && zone.enemies === 0;
-    };
+    });
     const court = (id) => (rt) => rt.flags.SZ?.byId[id]?.pos;
     return [
       { kind: 'stage', k: 0, text: '観音丸の木戸を抜け、郭の守兵を討つ', noun: '観音丸', check: held('kannon'), place: court('kannon') },
-      { kind: 'stage', k: 1, text: '本道を登り、木ノ芽峠城の主郭を押さえる', noun: '木ノ芽峠城', check: held('kinome_hon'), place: court('kinome_hon') },
-      { kind: 'stage', k: 2, text: '東の別手と西光寺丸城を押さえる', noun: '西光寺丸城', check: held('saikoji_hon'), place: court('saikoji_hon') },
-      { kind: 'stage', k: 3, text: '西の別手と鉢伏城を押さえる', noun: '鉢伏城', check: held('hachibuse_hon'), place: court('hachibuse_hon') },
+      { kind: 'stage', k: 1, text: '本道を登り、木ノ芽峠城の主郭を押さえる', noun: '木ノ芽峠城', check: held('kinome_sou', 'kinome_fuku', 'kinome_hon'), place: court('kinome_hon') },
+      { kind: 'stage', k: 2, text: '東の別手と西光寺丸城を押さえる', noun: '西光寺丸城', check: held('saikoji_mae', 'saikoji_hon'), place: court('saikoji_hon') },
+      { kind: 'stage', k: 3, text: '西の別手と鉢伏城を押さえる', noun: '鉢伏城', check: held('hachibuse_mae', 'hachibuse_hon'), place: court('hachibuse_hon') },
       { kind: 'stage', k: 4, text: '四城を押さえ、峠道の西光寺真敬を討つ', noun: '西光寺真敬の殿', check: won, place: (rt) => rt.flags.echTail?.center() },
     ];
   },

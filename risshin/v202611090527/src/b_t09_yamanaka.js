@@ -561,7 +561,7 @@ const t09_yamanaka = {
     F.ni = enemyGroup(rt, { faction: 'hojo', name: '二の丸の守り', anchor: { x: N.x, z: N.z + 8 }, facing: 0, order: 'hold', aggro: 14, width: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }], HOJO));
     F.hon = enemyGroup(rt, { faction: 'hojo', name: '松田康長の旗本', anchor: { x: H.x, z: H.z + 4 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 12, morale: 100, noRout: true, formation: 'yari', fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, defMult: 1.15 },
-      dress([{ type: 'busho', n: 1, o: { name: '松田康長', invuln: true, hat: 'kabuto_m', haori: 0x5a2a1c, horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
+      dress([{ type: 'busho', n: 1, o: { name: '松田康長', hat: 'kabuto_m', haori: 0x5a2a1c, horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
     // 松田康郷（康長の弟・「松田の赤鬼」）は本丸の奥にいて、兄の旗本が崩れかけると落ち延びる（史実：脱出して生き延びた）
     F.kogo = enemyGroup(rt, { faction: 'hojo', name: '松田康郷の手', anchor: { x: H.x + 6, z: H.z - 10 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 6, morale: 100, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.55 },
       dress([{ type: 'busho', n: 1, o: { name: '松田康郷', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }], HOJO));
@@ -704,13 +704,13 @@ const t09_yamanaka = {
         for (const q of F.toyo) if (!gone(q)) { q.order = 'path'; q.path = UP_ROUTE.slice(6); q.pathIdx = 0; q.speed = 2.4; q.onArrive = (r) => { r.order = 'attack'; r.seekRange = 40; }; }
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
-      // 旗本の半ばが討たれると、城将も討てるようになる
+      // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
       if (F.honOn && !F.kogoOut && F.kogo && g.count < F.honN * 0.65) {
         F.kogoOut = true; F.kogo.fixed = false; F.kogo.morale = 0; F.kogo.order = 'move'; F.kogo.dest = { x: 52, z: -200 }; F.kogo.speed = 2.8;
         rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
-      if (F.honOn && g.count < F.honN * 0.4 && F.honU?.invuln) { F.honU.invuln = false; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
+      if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
       if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && (g.count === 0 || (F.honU && !F.honU.alive))) this.win(rt);
     }
   },

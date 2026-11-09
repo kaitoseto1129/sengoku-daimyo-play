@@ -2420,9 +2420,9 @@ echizen.update = function (rt, dt) {
       if (changed && rt.missionGuide) rt.missionGuide.scan = 0;
     }
   }
-  // 門外の敵を退けて先手が進んだら、三十秒前でも共通の下知に従って守る。
+  // 開戦の待ちは十五秒まで。先手が進んだ時は、それより前でも本来の守備へ戻す。
   // 一度戻した後は、待ち時間の条件だけで再び守兵を止めない。
-  if (F.echizenOpening && !F.step && rt.t < 30) for (const b of F.defenders) {
+  if (F.echizenOpening && !F.step && rt.t < 15) for (const b of F.defenders) {
     if (b._openingPost || !b.real) continue;
     b.real.stay = true; b.real.seekRange = 0; b.real.aggro = 0;
   }
@@ -2627,9 +2627,10 @@ echizen.win = function (rt) {
   if (ids.some(id => F.SZ.byId[id].owner !== 'friend' || F.SZ.byId[id].enemies > 0)) {
     // 本道を先に落としても、別手の城が残っていれば勝ちにしない。
     if (F.SZ.byId.kinome_hon.owner === 'friend') {
-      const east = F.SZ.byId.saikoji_hon.owner === 'friend';
-      const west = F.SZ.byId.hachibuse_hon.owner === 'friend';
-      const text = `木ノ芽峠城を守り、別手と${!east && !west ? '西光寺丸・鉢伏城' : !east ? '西光寺丸' : '鉢伏城'}を押さえる`;
+      // 本郭の旗だけで判断すると、前郭の残敵を無視して別の城へ案内する。
+      const pending = ids.filter(id => F.SZ.byId[id].owner !== 'friend' || F.SZ.byId[id].enemies > 0);
+      const names = pending.map(id => F.SZ.byId[id].name || F.C.kuruwa[id].name);
+      const text = `${[...new Set(names)].join('・')}の残る守兵を討ち、味方と押さえる`;
       F.fourCastleTask = text;
       if (rt.objectives.find(o => o.id === 'main')?.text !== text) {
         rt.obj('main', text, 'main', true);

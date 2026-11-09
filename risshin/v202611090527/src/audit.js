@@ -14,7 +14,7 @@ import { GENERALS } from './units.js';
 const IDLE_OK_ORDERS = new Set(['hold', 'guard', 'yari', 'flee']);
 const IDLE_OK_TYPES = new Set(['dummy', 'porter', 'player']);
 // 画面の部品で、重なっていてよい物（全面の飾り・浮かぶ字・印）
-const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines']);
+const OVERLAP_OK = new Set(['vignette', 'overlay', 'floats', 'killmark', 'combo', 'banner', 'hurt', 'dirhit', 'target', 'wipe', 'staring', 'bigmap', 'radial', 'photoui', 'crosshair', 'reticle', 'compass-marks', 'dmgdir', 'prompt', 'mission-target-lines', 'follow-guide', 'leader-guide']);   // 後の二つは画面全体の透明な svg に端の矢印だけ（11/9：k02・k04・志賀で「札が 100% を覆う」と誤って数えた）
 // 遊び手を責める言い回し
 const BLAME = /(何をしておる|何をしている|愚か|たわけ|馬鹿|役立たず|だめだ|ダメだ|下手|失格|情けない|しっかりせい)/;
 // 断るだけで、どうすればいいかを言わない言い回し
@@ -495,8 +495,9 @@ export class Auditor {
       for (const el of hud.children) {
         if (!visible(el) || OVERLAP_OK.has(el.id) || getComputedStyle(el).position === 'static') continue;
         // 道しるべの親は画面全体に広がる透明な入れ物。印そのものの重なりと面積を調べる。
+        // 中央の大きな字（#center-call）も横いっぱいの透明な入れ物。字の行だけを測る（11/9 二巡 姉川：入れ物の幅で数えていた）
         // 行き先の▼（#goal-sign）も画面全体の透明な入れ物。▼と字の札（.gs-tag）だけを測る（11/5 姉川の bot が 100% と数えていた）
-        const cards = el.matches('.tl, .tr, #battle-notices, #markers') ? el.children : el.id === 'goal-sign' ? el.querySelectorAll('.gs-tag') : [el];
+        const cards = el.matches('.tl, .tr, #battle-notices, #markers, #center-call') ? el.children : el.id === 'goal-sign' ? el.querySelectorAll('.gs-tag') : [el];
         for (const card of cards) {
           // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
           const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target' || card.id === 'mission-dest-arrow';

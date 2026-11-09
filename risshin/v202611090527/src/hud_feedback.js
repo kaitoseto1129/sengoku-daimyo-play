@@ -187,7 +187,12 @@ export class HudFeedback {
     // 古い案内は待ち列から外し、史実の会話は会話の記録に残す。
     for (let i = this.subQ.length - 1; i >= 0; i--) if (this.subQ[i].goalKey) this.subQ.splice(i, 1);
     if (this.shownGoalKey && this.shownGoalKey !== key) { this.subT = 0; this.shownGoalKey = null; window.speechSynthesis?.cancel(); }
-    if (fieldScreen(rt) && this.shownGoalKey !== key && this._ccKey !== key) { this._ccKey = key; missionCall(rt, text); }   // 11/9 ミッションが変わったら中央に大きく・一瞬青く
+    // 11/9 二巡（姉川）：行き先の境目で二つの下知が行き来すると、中央の大きな字が五十回も出て戦場を塞いだ。
+    //   中央に出すのは十秒に一度まで、同じ文は三十秒の内に二度出さない
+    const ccSeen = this._ccSeen || (this._ccSeen = new Map()), ccLast = ccSeen.get(text);
+    if (fieldScreen(rt) && this.shownGoalKey !== key && this._ccKey !== key && rt.t - (this._ccAt ?? -99) >= 10 && !(ccLast != null && rt.t >= ccLast && rt.t - ccLast < 30)) {
+      this._ccKey = key; this._ccAt = rt.t; ccSeen.set(text, rt.t); missionCall(rt, text);
+    }   // 11/9 ミッションが変わったら中央に大きく・一瞬青く
     // 行き先や文が続けて変わっても、点灯と音は十秒以上あける。
     if (rt.t - (this.goalSignalAt ?? -99) >= 10) {
       this.goalSignalAt = rt.t; this.goalFlashUntil = rt.t + 1.6;

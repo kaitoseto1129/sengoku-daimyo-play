@@ -1957,6 +1957,9 @@ export function volleyScene(rt, o) {
 const shiga = {
   resumeSteps: [[1, 'first'], ['fall', 'fall'], [3, 'siege']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   syntheticBattleSound: true, // 鉄砲・法螺・馬・風も、既存の合成音を使い回す。
+  // 二巡（徳川A 11/9）：命懸けの戦場（docs/lethal_howto.md）と死守の怖さ。宇佐山の死守は数で押され、退き口を断たれるのが怖い
+  lethal: false,   // 11/9 bot：入れると寄せの段で刻限に掛かり任務失敗（入れずに十九分で達成）。共通の lethal の係へ
+  fearKind: { kind: '死守', note: '三万に押され、退き口を断たれる', w: { ratio: 1.4, flank: 1.4, losses: 1.2 }, line: '退き口を断たれるぞ！' },
   scriptedBattleVoices: true, // 鬨と退きの合図は、台詞・任務札を伴う下知にそろえる。
   // 共通の軽い民の仕組みだけで描く。兵の名簿・人数・戦功には加えない。
   // 城兵まで含む軍の中心ではなく、坂本の町口を遠巻きに見る。
@@ -4158,7 +4161,8 @@ const shiga = {
   // 史実の討死：近い敵との攻防を先に見せる。見える先手を倒しても、背後の軽い大軍による討死の報へ進む。
   doom(rt, o) {
     const F = rt.flags, u = o.u;
-    if (!u || F.step >= 3 || F[o.key + 'Dead']) return;
+    if (!u || !u.alive || F.step >= 3 || F[o.key + 'Dead'] || u._shigaDoomPending) return;
+    u._shigaDoomPending = true;
     // 時間切れで、敵のいない場所の将を倒さない。
     const c = { x: u.pos.x, z: u.pos.z };
     // 退き太鼓は町口を退く下知で一度だけ。討死の報に開戦の法螺を重ねない。
@@ -4166,7 +4170,9 @@ const shiga = {
       () => F.step < 3 && u.alive && !F[o.key + 'Dead'] && sightPoint(rt, u.pos, 80));
     
     const preferred = o.key === 'nobu' ? F.twoHands[0] : o.key === 'aochi' ? F.twoHands[1] : F.roster['城へ寄せる朝倉勢'];
-    let g = !gone(preferred) ? preferred : [F.w1, F.w1b, ...F.twoHands, F.w2].find((q) => q && !gone(q));
+    // 一つの手を生きている別の将から奪わない。寄せ先の交互更新で町口に届かなくなる。
+    const available = (q) => q && !gone(q) && (!q._shigaDoomTarget?.alive || q._shigaDoomTarget === u);
+    let g = available(preferred) ? preferred : [F.w1, F.w1b, ...F.twoHands, F.w2].find(available);
     // 11/8 mb1108：十六日の町口の戦で控えまで崩れ去ると、三将を討つ敵が一人も来ず、町口で十三分止まった。
     //   その時は北の寄せ場から両手の新手（三万の内の一手）を出し、同じ道で町口へ寄せる。
     if (!g || gone(g)) {
@@ -4176,6 +4182,7 @@ const shiga = {
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], look));
     }
     if (g && !gone(g)) {
+      g._shigaDoomTarget = u;
       // 湖側の平地から町口へ寄せる。山側の切岸へ直進させない。
       g.order = 'path'; g.path = [[g.anchor.x, g.anchor.z], [c.x, c.z]]; g.pathIdx = 0;
       g.fixed = false; g.morale = Math.max(g.morale, 80);
@@ -4194,7 +4201,7 @@ const shiga = {
     const fall = () => {
       if (rt.over || F.ending || F.step >= 3) return;
       tries++;
-      if (u.alive && gone(g)) { this.doom(rt, o); return; }
+      if (u.alive && gone(g)) { u._shigaDoomPending = false; this.doom(rt, o); return; }
       if (u.alive && tries % 8 === 0) {
         // 最期の持ち場から将が押し出された時も、現在地へ寄せ直す。
         g.order = 'path'; g.path = [[g.center().x, g.center().z], [u.pos.x, u.pos.z]]; g.pathIdx = 0;
@@ -4211,6 +4218,7 @@ const shiga = {
   reportDoom(rt, u, key, name) {
     const F = rt.flags;
     if (u.alive || F[key + 'Dead']) return;
+    u._shigaDoomPending = false;
     F[key + 'Dead'] = true;
     if (u.group) { u.group.noRout = false; u.group.morale = 0; u.group.fleeDir = { x: -0.4, z: 1 }; }
     if ((F.moriDead || F.moriRescue) && F.nobuDead && F.aochiDead) {
