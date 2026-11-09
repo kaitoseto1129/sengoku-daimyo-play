@@ -489,6 +489,10 @@ export function brain(b, inp) {
   if (b.over || b.ended || b.flags.ending) {
     inp.k.clear(); inp.e.clear(); inp.leftPressed = false;
     inp.runHeld = false; inp.chargeHold = false; inp.quickCmd = null;
+    // 淀の野では家康討死の後も、主人公が秀忠の陣へ歩いて降伏を勧める。
+    if (!b.over && !b.ended && u.alive && b.def.botDuringEnding?.(b)) {
+      b.def.botBrain?.(b, inp, { goTo, patientStrike, strikeTarget, canStrike });
+    }
     return;
   }
   if (!u.alive) return;
