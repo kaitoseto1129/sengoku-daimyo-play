@@ -3517,7 +3517,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         //   総矢倉の脇の通路（|x| 2.6〜5.6）に居る間は、視点を壁ぎわ・本人の一歩半後ろ・頭の上に置き、視線を舷の外の沖と艫の乗り口へ向ける。
         //   壁は視点の後ろへ回り、寄せる小早・乗り口の斬り合い・退く船団が画面の真ん中に入る。
         const ax = Math.abs(u.pos.x);
-        if (ax >= 2.6 && ax <= 5.6 && Math.abs(u.pos.z) < 12.6) {
+        // 追従側で手動の向きを守っても、描く直前に同じ構図へ戻してはいけない。
+        if (S.autoCam && !rt.flags.seaViewManual && (rt.player.lookIdle ?? 99) >= 3 &&
+            ax >= 2.6 && ax <= 5.6 && Math.abs(u.pos.z) < 12.6) {
           const sd = Math.sign(u.pos.x);
           p.set(sd * 2.75, u.pos.y + 2.6, u.pos.z - 3);
           cameraLook.set(u.pos.x + sd * 2.5, u.pos.y + 0.9, u.pos.z + 5);   // 本人は画面の下の真ん中寄り、外の沖が右（西は左）に入る

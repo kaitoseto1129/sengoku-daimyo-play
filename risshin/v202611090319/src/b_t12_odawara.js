@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { useTerrain, BATTLE_ASSETS, assetsForBattle } from './asset_manifest.js';
 import { demRelief } from './dem.js';
-import { TOYO_MAEDA_KACCHU } from './kacchu_data.js';
+import { TOYO_MAEDA_KACCHU, TOYO_GAMO_KACCHU } from './kacchu_data.js';
 import { nobori, jinmaku, hut, kagaribi, kobune, yagura, castleMat, ishigaki, tenshu, dobei, sumiyagura, kabukimon, solidSeg, dou, kuruwaBldg, yaguramon } from './props.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -496,7 +496,7 @@ const t12_odawara = {
   keepMix: true,
   missionPin: () => null,     // 白い旗のピンは出さない。行き先は今の目標の▼と名の札の一つだけ（kaito AV15・⑧）
   world: {
-    namedKacchu: TOYO_MAEDA_KACCHU,
+    namedKacchu: { ...TOYO_MAEDA_KACCHU, ...TOYO_GAMO_KACCHU },
     // 夜の篠曲輪で、倒れた兵から外れた陣笠が黒い皿のように散らばって見えた（critic60 小田原 29）。この戦は笠を落とさない
     hatDropRate: 0,
     // 東の端の陣も、旗本の後列まで戦場の内に収めて出す（全戦の通し確認）。

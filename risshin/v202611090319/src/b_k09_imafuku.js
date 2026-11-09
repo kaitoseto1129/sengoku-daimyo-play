@@ -391,7 +391,7 @@ const k09_imafuku = {
           // 重成（討死は翌年の若江）と又兵衛（道明寺）は今福では死なない。深手も又兵衛の脇腹の傷だけ（学び 六）
           // 二人の隊は上杉の横撃まで崩れない（前は又兵衛の隊が加わって四十秒で、重成の隊も上杉の前に退いていた。史実は上杉の横撃で初めて支えきれず退く。二2）。
           //   上杉の鉄砲は段の終わりの六秒前に中州へ並び（t 94）、段の終わりに共通の hold が本隊の気を挫く。堤に残る殿は④で追い払う
-          { t: 6, say: ['足軽', '旗は木村長門守！　若い大将が自ら出てきた！'], foes: () => onBank([{ name: '木村重成の隊', from: { x: FORT.x - 62, z: 0 }, list: [busho('木村重成', { hat: 'kabuto_f', invuln: true }), uS(6), uA(20), uG(8)], width: 6, mass: 150, noRout: 9999, dmg: 0.25 }]) },
+          { t: 6, say: ['足軽', '旗は木村長門守！　若い大将が自ら出てきた！'], foes: () => onBank([{ name: '木村重成の隊', from: { x: FORT.x - 62, z: 0 }, list: [busho('木村重成', { invuln: true }), uS(6), uA(20), uG(8)], width: 6, mass: 150, noRout: 9999, dmg: 0.25 }]) },
           { t: 28, say: ['足軽', '堤の両側から鉄砲が並んだ！　横から撃たれる！'], foes: () => hidden([gunLine('大和川べりの鉄砲衆', { x: FORT.x - 20, z: 11 }, 5), gunLine('鯰江川べりの鉄砲衆', { x: FORT.x - 20, z: -11 }, 5)]) },
           { t: 48, say: ['足軽', '後藤又兵衛じゃ！　川からも舟で鉄砲が寄せてくる！'], foes: () => { this.gotoBoats(rt); rt.world.setTime('afternoon'); return onBank([{ name: '後藤又兵衛の隊', from: { x: FORT.x - 66, z: 2 }, list: [busho('後藤又兵衛', { invuln: true }), uS(6), uA(22), uG(6)], width: 6, mass: 200, noRout: 9999, dmg: 0.25 }]); } },
           // 史実：渋江の討死は重成の指図した狙い撃ち。撃たれる六秒前に下知の声

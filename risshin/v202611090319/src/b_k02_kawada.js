@@ -98,6 +98,13 @@ function height(x, z) {
 const { way: wayRaw } = routeTools(ROUTE, 'k02');
 // 道の角は 1.5 歩の内で次へ送るが、着いたとみなす輪が 2 歩で、角の 2 歩手前で止まったままになった（11/6 流しで新加納の手前に四分）。輪を 1 歩に
 const kawadaWay = (army, u, want) => { const q = wayRaw(army, u, want); if (q !== want) q.botRadius = 1; return q; };
+// 手当ての退避先は、今いる側から歩いて寄れる味方の後ろだけにする。
+// 砦の柵越しの味方や川の深みを選ぶと、退避と木戸への入り直しを繰り返す恐れがある。
+function kawadaBackAllowed(b, x, z) {
+  const q = b.flags.k02BackProbe || (b.flags.k02BackProbe = { x: 0, y: 0, z: 0 });
+  q.x = x; q.z = z; q.y = b.world.heightAt(x, z);
+  return b.world.walkable(x, z, q.y) && !b.army.wallBetween(b.player.u.pos, -1, q, false);
+}
 const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 10, list, seek: o.seek || 50, morale: o.morale || 90 });
 // 本陣の総大将は床几に腰を掛けたまま（army_move の陣中の座り。立つのは敵が寄った時だけ）
 const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, danger: false }; };
@@ -383,7 +390,7 @@ const k02_kawada = {
     rt.setPhase('siege');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true }, [
+    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true, botBackAllowed: kawadaBackAllowed, withdrawWay: kawadaWay }, [
       // ① 明け方、南の筋を渡って中洲の小屋場島へ。北岸の鉄砲が浅瀬を撃つ
       island(DP.move({ to: ISLE, obj: '南の筋の浅瀬を渡り、中洲の小屋場島へ行け', label: '小屋場島', r: 9, max: 120,
         say: [['一柳直盛', '浅瀬はここじゃ。島まで止まるな']],
