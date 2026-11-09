@@ -10,6 +10,9 @@ function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending)
 
 export function startCouncil(rt, K) {
   const F = rt.flags;
+  // 夜討ちの後とは日が違う軍議。日付の「夕」と空の明るさを揃える。
+  rt.world.dayClock = null;
+  rt.world.setTime('dusk', true);
   say(rt, '羽柴秀吉', '徳川殿は動かぬ。……戻って参れ、軍議じゃ', 0.6, 3.2);
   say(rt, '日根野弘就', '砦は我らが守る。本陣へ急がれよ', 5, 2.8);
   // 大手門の前の床几に将が集まる（秀吉・秀次・池田・森・堀。討てない・動かない）

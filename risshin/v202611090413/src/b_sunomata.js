@@ -26,7 +26,7 @@ import { sky } from './b_shared.js';
 import { makeSiegeZones, ZONE_STATE, WIN } from './siege_zones.js';
 import { buildCastlePlan } from './castle_plan.js';
 import { horiboriHeight } from './castle_parts.js';
-import { reset as flReset, FL } from './floors.js';
+import { reset as flReset, FL, addDeck } from './floors.js';
 import { makeButai, butaiTick, adoptGroup } from './butai.js';
 import { chooseRoute } from './siege_ai.js';
 import { addTaba, tickTabas, patchGunCover } from './taketaba.js';
@@ -1581,13 +1581,15 @@ function sunoShedPlank(i, seed) {
   return seed < .72 ? SUNO_NEW_PLANK[i] : PLANK[i];
 }
 // 二枚の板戸は同じ形と木材を共用し、既存の引き戸の行列だけで動かす。
-let sunoShedDoorGeometry;
-function sunoShedDoorPanels(count) {
-  if (!sunoShedDoorGeometry) {
+const sunoShedDoorGeometry = [];
+function sunoShedDoorPanels(count, right = false) {
+  const high = SETTINGS.quality === 'high';
+  const index = (right ? 1 : 0) + (high ? 2 : 0);
+  if (!sunoShedDoorGeometry[index]) {
     const parts = [];
     const box = (x, y, z, w, h, d, hex) => {
       const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
-      g.translate(x, y, z);
+      g.translate(right ? -x : x, y, z);
       const c = new THREE.Color(hex), colors = new Float32Array(g.attributes.position.count * 3);
       for (let k = 0; k < colors.length; k += 3) {
         colors[k] = c.r; colors[k + 1] = c.g; colors[k + 2] = c.b;
@@ -1602,31 +1604,61 @@ function sunoShedDoorPanels(count) {
       const h = .13 + h01s(k, 5) * .12;
       box(x, h / 2, .034, w - .016, h, .008, 0x584e3d);
     }
+    // 板同士の六ミリの目地を貫通させず、裏の押縁で雨風を避ける推定の造作。
+    // 手本と限界は docs/battle_refs/sunomata.md。裏桟より薄くし、戸の溝と当たりを保つ。
+    // 左右の専用形へ設営時だけ結合し、開閉中に部品や描画を増やさない。
+    if (high) for (let k = 1; k < edges.length - 1; k++)
+      box(edges[k], .9, -.04, .04, 1.8, .02, 0x65533e);
     for (const yy of [.33, 1.47]) box(0, yy, -.05, .9, .095, .04, 0x51412f);
-    // 戸をまたぐ掛け桟にはせず、各戸の手掛かりを木で添える。
+    // 左右とも手掛かりを召し合わせ側へ向ける。裏桟の表裏は替えない。
     box(.3, .98, .06, .08, .2, .06, 0x51412f);
-    sunoShedDoorGeometry = mergeGeometries(parts, false);
+    if (high) {
+      // 室内側にも指を掛ける浅いくぼみを付ける推定の造作。
+      // 手本と限界は docs/battle_refs/sunomata.md。裏桟の厚さの内に
+      // 納め、二筋の戸同士や壁へ張り出さず、左右共用の形へ結合する。
+      box(.3, .98, -.031, .05, .14, .002, 0x30271d);
+      for (const side of [-1, 1]) {
+        box(.3 + side * .0325, .98, -.04, .015, .17, .02, 0x65533e);
+        box(.3, .98 + side * .0775, -.04, .05, .015, .02, 0x65533e);
+      }
+    }
+    sunoShedDoorGeometry[index] = mergeGeometries(parts, false);
     for (const g of parts) g.dispose();
   }
   shedMat ||= castleMat('wood');
-  const mesh = new THREE.InstancedMesh(sunoShedDoorGeometry, sunoNearMaterial(shedMat), count);
+  const mesh = new THREE.InstancedMesh(sunoShedDoorGeometry[index], sunoNearMaterial(shedMat), count);
   mesh.castShadow = true; mesh.receiveShadow = true;
   return [mesh];
 }
 function fortShed(rt, p, parts) {
   const y = rt.world.heightAt(p.x, p.z) + .14, H = 2.15;
+  // 小屋の細部は推定（手本は docs/battle_refs/sunomata.md）。
+  // 狭い妻壁でも左右に半幅の板戸を引ける窓幅にし、隅柱の手前に二十二センチ残す。
+  const windowWidth = (face) => Math.min(1.1, ((face === 'z' ? p.w : p.d) - .5) / 2);
   const kind = p.name === '材木の蔵' ? 'lumber' : p.name === '兵糧小屋' ? 'granary'
     : p.name === '南門の番所' ? 'bansho' : p.kind === 'nagaya' ? 'nagaya' : 'workshop';
   const I = addInterior(rt.world, { name: p.name, kind, profile: 'toride', x: p.x, z: p.z, rot: p.rot, team: 0,
     levels: [{ y, w: p.w, d: p.d, h: H }], door: { w: 1.4, h: 1.9, sliding: 'itado', buildPanels: sunoShedDoorPanels },
     approach: { pad: .2, len: .8 }, hasExterior: true, entryFire: false,
-    wins: () => [{ face: 'z', s: -1, t: 0, w: 1.1, y0: .95, y1: 1.7 },
-      ...[-1, 1].map((s) => ({ face: 'x', s, t: 0, w: 1.1, y0: .95, y1: 1.7 }))],
+    wins: () => [{ face: 'z', s: -1, t: 0, w: windowWidth('z'), y0: .95, y1: 1.7 },
+      ...[-1, 1].map((s) => ({ face: 'x', s, t: 0, w: windowWidth('x'), y0: .95, y1: 1.7 }))],
   });
   let roofTurn = 0;
-  const box = (x, yy, z, w, h, d, hex, tilt = 0) => {
+  const box = (x, yy, z, w, h, d, hex, tilt = 0, ridgeSide = 0) => {
     const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
-    g.rotateZ(tilt); g.translate(x, yy, z); g.rotateY(p.rot + roofTurn); g.translate(p.x, y, p.z);
+    g.rotateZ(tilt); g.translate(x, yy, z);
+    if (ridgeSide && SETTINGS.quality === 'high') {
+      // 垂木の棟側の木口を、幅十八センチの棟木の側面へ垂直に切る。
+      // 勾配に沿って端を詰め、左右の垂木を棟木の中で交差させない。
+      // 仕口は推定（docs/battle_refs/sunomata.md）。軒先と材の厚さは保つ。
+      const pos = g.attributes.position, end = ridgeSide * .09, pitch = Math.tan(tilt);
+      for (let k = 0; k < pos.count; k++) if (ridgeSide * pos.getX(k) < .09) {
+        const shift = end - pos.getX(k);
+        pos.setXYZ(k, end, pos.getY(k) + shift * pitch, pos.getZ(k));
+      }
+      g.computeVertexNormals();
+    }
+    g.rotateY(p.rot + roofTurn); g.translate(p.x, y, p.z);
     const color = new THREE.Color(hex), a = new Float32Array(g.attributes.position.count * 3);
     for (let k = 0; k < a.length; k += 3) { a[k] = color.r; a[k + 1] = color.g; a[k + 2] = color.b; }
     g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
@@ -1637,11 +1669,118 @@ function fortShed(rt, p, parts) {
     for (let k = 0; k < a.length; k += 3) { a[k] = c.r; a[k + 1] = c.g; a[k + 2] = c.b; }
     g.setAttribute('color', new THREE.BufferAttribute(a, 3)); parts.push(g);
   };
+  // 敷居の台を床基準で止めると、地面との十四センチの間で浮く。
+  // 丸太小屋程度という手本に基づく推定（docs/battle_refs/sunomata.md）。
+  // 両端と中央の前後を測り、下面だけ地中へ納める。溝底と歩行面は保つ。
+  const groundedSill = (x, z, width, depth, top = .025, tone = 0x51412f) => {
+    let bottom = 0;
+    for (const dx of [-width / 2, 0, width / 2]) for (const dz of [-depth / 2, depth / 2]) {
+      const [wx, wz] = I.P(x + dx, z + dz);
+      bottom = Math.min(bottom, rt.world.heightAt(wx, wz) - y - .04);
+    }
+    box(x, (bottom + top) / 2, z, width, top - bottom, depth, tone);
+  };
+  // 全開の戸尻を受ける戸当たり。入口も内戸も二筋の端で止める推定の納まり。
+  // 戸の移動量から位置を取り、通る口へ柱を足さず既存の木材の束へ結合する。
+  for (const d of I.doors || []) if (d.entry || !d.exterior) {
+    const bottom = d.leafY - y, top = d.y + d.h - y;
+    if (SETTINGS.quality === 'high') {
+      // 描いた五センチの敷居へ足を載せる。引き込み先も同じ高さで受け、
+      // 戸を開けた時に足が押縁を貫かないようにする。設営時だけ登録する。
+      const span = d.entry ? 2.9 : d.W * 2 + d.leafW - d.pw;
+      const [cx, cz] = I.P(d.lx, d.lz + d.trackZ);
+      const deck = addDeck({ cx, cz, rot: I.rot,
+        x0: -span / 2, x1: span / 2, z0: -.115, z1: .115,
+        y: d.y + .05, roof: y + H, pad: 0, name: '板戸の敷居' });
+      FL.decks[deck].interior = true;
+      {
+        // 入口の台は板壁の芯まで延び、押縁より室内側へ七センチ広い。
+        // 内戸の台も壁の裏面までつなぎ、奥の十二センチを同じ上端で受ける。
+        // 手本と推定の範囲は docs/battle_refs/sunomata.md。
+        const halfDepth = d.entry ? .035 : .06;
+        const [backX, backZ] = I.P(d.lx, d.lz + d.trackZ - .115 - halfDepth);
+        const back = addDeck({ cx: backX, cz: backZ, rot: I.rot,
+          x0: -span / 2, x1: span / 2, z0: -halfDepth, z1: halfDepth,
+          y: d.y + .025, roof: y + H, pad: 0, name: '板戸の敷居の奥' });
+        FL.decks[back].interior = true;
+      }
+    }
+    // 召し合わせで広げた戸の外端へ戸当たりをそろえ、全開で木へ食い込ませない。
+    const overlap = (d.leafW - d.pw) / 2;
+    // 従来の背は壁から四センチ以上離れていた。表を動かさず壁の裏面まで延ばす。
+    // 簡素な板屋としての推定（docs/battle_refs/sunomata.md）。既存の二本を使う。
+    const stopBack = SETTINGS.quality === 'high' ? -.05 : d.trackZ - .1;
+    const stopFront = d.trackZ + .1;
+    for (const side of [-1, 1]) box(d.lx + side * (d.W + overlap + .025),
+      (bottom + top) / 2, d.lz + (stopBack + stopFront) / 2,
+      .05, top - bottom, stopFront - stopBack, 0x51412f);
+  }
+  // 兵舎の内戸にも、引き切った戸を受ける敷居と鴨居を渡す。
+  // 共通の引き戸と同じ二筋を使い、梁下に納まる板戸の上を木で受ける推定の造作。
+  for (const d of I.doors || []) if (!d.exterior) {
+    const span = d.W * 2 + d.leafW - d.pw, z = d.lz + d.trackZ;
+    const fitted = SETTINGS.quality === 'high';
+    // 三本の押縁だけでは敷居の溝が土間まで抜け、鴨居にも溝底がない。
+    // 簡素な板屋としての推定の納まり。既存の二筋と戸の引き代は保ち、
+    // 下は地面へ届く台、上は厚さ二十五ミリの背で溝を閉じる。
+    // 既存の木材の束へ設営時だけ結合する（手本は docs/battle_refs/sunomata.md）。
+    if (fitted) {
+      // 溝底の背（壁芯から七センチ）と木枠の表（五センチ）の間を閉じる。
+      // 表の端と二筋は保ち、台と背板だけを壁の裏面まで十二センチ延ばす。
+      groundedSill(d.lx, z - .06, span, .35);
+      box(d.lx, d.h + .0725, z - .06, span, .025, .35, 0x51412f);
+    }
+    for (const offset of [-.1, 0, .1]) {
+      box(d.lx, fitted ? .0375 : .025, z + offset, span, fitted ? .025 : .05, .03, 0x51412f);
+      box(d.lx, d.h + .03, z + offset, span, .06, .03, 0x51412f);
+    }
+    // 内戸の上だけ梁まで穴が残っていた。簡素な縦板の小壁と
+    // 戸脇柱で受ける推定の納まり（手本は docs/battle_refs/sunomata.md）。
+    // 柱は開口の外、鴨居は二筋の後ろへ置き、戸の引き代を塞がない。
+    // 新しい部品も既存の木材の束へ結合し、設営時だけ当たりを登録する。
+    if (SETTINGS.quality === 'high') {
+    const fixedTimber = (x, yy, width, height, depth, tone) => {
+      box(x, yy, d.lz, width, height, depth, tone);
+      const radius = Math.min(width, depth) / 2;
+      const dx = width / 2 - radius, dz = depth / 2 - radius;
+      const [ax, az] = I.P(x - dx, d.lz - dz), [bx, bz] = I.P(x + dx, d.lz + dz);
+      const solid = { k: 's', ax, az, bx, bz, r: radius,
+        yBot: y + yy - height / 2, yTop: y + yy + height / 2,
+        naka: I.id, bodyOverlap: true,
+        x0: Math.min(ax, bx) - radius, x1: Math.max(ax, bx) + radius,
+        z0: Math.min(az, bz) - radius, z1: Math.max(az, bz) + radius };
+      SOLIDS.push(solid); INTERIOR_WALLS.push(solid);
+    };
+    // 近い溝は壁芯から十三・五センチ、裏桟の背はそこから七センチ戻る。
+    // 木枠の表を五センチで止め、裏桟との間を一・五センチ空ける推定の納まり。
+    // 手本と限界は docs/battle_refs/sunomata.md。絵と当たりを一緒に薄くする。
+    for (const side of [-1, 1]) {
+      const x = d.lx + side * (d.W / 2 + .05), [wx, wz] = I.P(x, d.lz);
+      // 内戸の柱も床面で終わらせず、隅柱と同じ地表下まで根入れする推定。
+      // 手本と限界は docs/battle_refs/sunomata.md。柱頭・溝・開口は保ち、
+      // 既存の二本の木部と当たりを同じ下端へ延ばす。
+      const bottom = Math.min(0, rt.world.heightAt(wx, wz) - y - .08);
+      fixedTimber(x, (bottom + d.h) / 2, .1, d.h - bottom, .1, 0x65533e);
+    }
+    fixedTimber(d.lx, d.h + .03, d.W + .2, .06, .1, 0x51412f);
+    const capH = H - d.h - .06, count = Math.ceil(d.W / .3), boardW = d.W / count;
+    for (let k = 0; k < count; k++) box(d.lx - d.W / 2 + (k + .5) * boardW,
+      d.h + .06 + capH / 2, d.lz, boardW, capH, .08,
+      sunoShedPlank(k % 4, h01s(k + p.x, p.z)));
+    const [ax, az] = I.P(d.lx - d.W / 2 + .04, d.lz);
+    const [bx, bz] = I.P(d.lx + d.W / 2 - .04, d.lz);
+    const cap = { k: 's', ax, az, bx, bz, r: .04,
+      yBot: y + d.h + .06, yTop: y + H, naka: I.id, bodyOverlap: true,
+      x0: Math.min(ax, bx) - .04, x1: Math.max(ax, bx) + .04,
+      z0: Math.min(az, bz) - .04, z1: Math.max(az, bz) + .04 };
+    SOLIDS.push(cap); INTERIOR_WALLS.push(cap);
+    }
+  }
   // 細い板を縦に並べ、戸口と明かり窓を外壁にも抜く。
   for (const face of ['z', 'x']) for (const side of [-1, 1]) {
     const len = face === 'z' ? p.w : p.d, off = (face === 'z' ? p.d : p.w) / 2 - .08;
     const holes = face === 'z' && side === 1 ? [{ t0: -.7, t1: .7, y0: 0, y1: 1.9 }]
-      : [{ t0: -.55, t1: .55, y0: .95, y1: 1.7 }];
+      : [{ t0: -windowWidth(face) / 2, t1: windowWidth(face) / 2, y0: .95, y1: 1.7 }];
     for (const [a, b, low, high] of facePanels(len, H, holes)) {
       const n = Math.ceil((b - a) / .45), w = (b - a) / n;
       for (let k = 0; k < n; k++) {
@@ -1651,6 +1790,16 @@ function fortShed(rt, p, parts) {
           h01s(t + p.x, p.z + side));
         if (face === 'z') box(t, (low + high) / 2, side * off, w - .006, high - low, .08, tone);
         else box(side * off, (low + high) / 2, t, .08, high - low, w - .006, tone);
+        // 六ミリの目地から雨風と外の光が室内まで抜けていた。
+        // 裏側の細板で覆う推定の納まり（docs/battle_refs/sunomata.md）。
+        // 面の分割内だけへ足し、窓と戸口をふさがず既存の木材の束へ結合する。
+        if (SETTINGS.quality === 'high' && k > 0) {
+          const joint = a + k * w;
+          if (face === 'z') box(joint, (low + high) / 2, side * (off - .05),
+            .04, high - low, .02, 0x65533e);
+          else box(side * (off - .05), (low + high) / 2, joint,
+            .02, high - low, .04, 0x65533e);
+        }
         // 裾の泥と雨じみ。薄い板をまとめて描き、窓と戸口には重ねない。
         const stain = Math.min(high - low, .14 + h01s(t, p.z + side) * .25);
         if (low === 0) {
@@ -1661,50 +1810,170 @@ function fortShed(rt, p, parts) {
     }
   }
   for (const x of [-p.w / 2 + .1, p.w / 2 - .1]) for (const z of [-p.d / 2 + .1, p.d / 2 - .1]) {
-    box(x, H / 2, z, .22, H, .22, 0x65533e);
+    // 床の基準面は地表より十四センチ上。柱までここで止めると土台ごと浮く。
+    // 高画質は各柱の地表下八センチまで延ばす掘立柱の推定とし、柱頭と通路は保つ。
+    // 手本と推定の範囲は docs/battle_refs/sunomata.md。既存の四本だけで受ける。
+    const [postX, postZ] = I.P(x, z);
+    const postBottom = SETTINGS.quality === 'high' ? Math.min(0, rt.world.heightAt(postX, postZ) - y - .08) : 0;
+    box(x, (H + postBottom) / 2, z, .22, H - postBottom, .22, 0x65533e);
     for (const yy of [.45, H - .25]) for (let k = 0; k < 3; k++) box(x, yy + k * .035, z, .26, .025, .26, 0xb2a079);
   }
   // 土台（地に据えた太い角材）と、壁の上の桁。柱と横の材が前に出て、板壁の箱に見せない
+  // 高画質では敷居と同じ地表測定で土台の下面も接地させる。
+  // 丸太小屋程度という手本に基づく推定で、当時の基礎の復元ではない。
+  // https://geo-gifu.org/tour/12_tour/tour_12_4.html
+  // 上端と戸口の欠き取りを保ち、既存の五本だけを同じ木材の束へ納める。
+  const groundPlate = (x, z, width, depth) => {
+    if (SETTINGS.quality === 'high') groundedSill(x, z, width, depth, .18, 0x3e3226);
+    else box(x, .09, z, width, .18, depth, 0x3e3226);
+  };
   for (const side of [-1, 1]) {
-    box(0, .09, side * (p.d / 2 - .08), p.w + .1, .18, .16, 0x3e3226);
-    box(side * (p.w / 2 - .08), .09, 0, .16, .18, p.d + .1, 0x3e3226);
+    // 表の土台を戸口へ通すと、五センチの敷居より十三センチ高い材をまたぐ事になる。
+    // 戸口の柱間だけ欠き、板戸の二筋の敷居へ平らにつなぐ。
+    if (side === 1) {
+      for (const s of [-1, 1]) {
+        const end = p.w / 2 + .05;
+        groundPlate(s * (end + .7) / 2, side * (p.d / 2 - .08), end - .7, .16);
+      }
+    } else groundPlate(0, side * (p.d / 2 - .08), p.w + .1, .16);
+    groundPlate(side * (p.w / 2 - .08), 0, .16, p.d + .1);
     box(0, H - .08, side * (p.d / 2 - .08), p.w + .2, .16, .18, 0x45372a);
     box(side * (p.w / 2 - .08), H - .08, 0, .18, .16, p.d + .2, 0x45372a);
   }
-  for (const x of [-.78, .78]) box(x, .95, p.d / 2 - .08, .14, 1.9, .16, 0x51412f);
-  box(0, 1.98, p.d / 2 - .08, 1.7, .16, .16, 0x51412f);
+  if (SETTINGS.quality === 'high') {
+    // 隅柱と桁を短い方杖でつなぐ、仮設板屋としての推定の補い。
+    // 手本と限界は docs/battle_refs/sunomata.md。窓の上端より上、
+    // 戸口より外の隅だけに納め、板戸の二筋や室内の通路へ出さない。
+    // 既存の静止した木材の束へ結合し、材質や毎コマの処理を増やさない。
+    const run = .32, drop = .19, braceLength = Math.hypot(run, drop) + .04;
+    for (const face of ['z', 'x']) {
+      roofTurn = face === 'z' ? 0 : Math.PI / 2;
+      const len = face === 'z' ? p.w : p.d, depth = face === 'z' ? p.d : p.w;
+      for (const wallSide of [-1, 1]) for (const side of [-1, 1])
+        box(side * (len / 2 - .1 - run / 2), H - .16 - drop / 2,
+          wallSide * (depth / 2 - .19), braceLength, .07, .09,
+          0x65533e, -side * Math.atan2(drop, run));
+    }
+    roofTurn = 0;
+  }
+  // 高画質では戸脇柱の内面を幅一・四メートルの開口端へそろえる。
+  // 一センチの縦の隙間を残さず、既存の戸口の幅と当たりは保つ。
+  const jambX = SETTINGS.quality === 'high' ? .77 : .78;
+  // 近い溝の裏桟は外端から一・五センチ内側まで戻る。
+  // 木枠の表を板壁の表と同じ四センチ内側へ納め、滑る戸との間を空ける。
+  // 柱とまぐさの背は板壁へつなぐ推定（docs/battle_refs/sunomata.md）。
+  const jambZ = p.d / 2 - (SETTINGS.quality === 'high' ? .1 : .08);
+  const jambDepth = SETTINGS.quality === 'high' ? .12 : .16;
+  for (const x of [-jambX, jambX]) {
+    // 戸脇も隅柱と同じ地表まで届かせる推定。戸の溝と開口へは張り出さない。
+    // 手本と限界は docs/battle_refs/sunomata.md。既存の柱の下端だけを延ばす。
+    const z = jambZ, [wx, wz] = I.P(x, z);
+    const bottom = SETTINGS.quality === 'high' ? Math.min(0, rt.world.heightAt(wx, wz) - y - .08) : 0;
+    box(x, (bottom + 1.9) / 2, z, .14, 1.9 - bottom, jambDepth, 0x51412f);
+  }
+  box(0, 1.98, jambZ, 1.7, .16, jambDepth, 0x51412f);
   // 二本の溝を持つ敷居と鴨居。動く板戸は naka_doors.js に任せる。
+  if (SETTINGS.quality === 'high') {
+    // 内戸と同じく溝底を閉じ、外へ張り出す敷居も一枚の台で受ける。
+    // 壁の表（外端から四センチ内側）と台の背の間に三センチの空隙があった。
+    // 台と背板を板壁の芯まで延ばす推定の納まり（docs/battle_refs/sunomata.md）。
+    // 外端・二筋の溝・高さを保ち、既存の二つの箱だけで壁へつなぐ。
+    groundedSill(0, p.d / 2 + .07, 2.9, .3);
+    box(0, 1.9625, p.d / 2 + .07, 2.9, .025, .3, 0x51412f);
+  }
   for (const z of [p.d / 2 + .005, p.d / 2 + .105, p.d / 2 + .205]) {
-    box(0, .025, z, 2.9, .05, .03, 0x51412f);
+    box(0, SETTINGS.quality === 'high' ? .0375 : .025, z, 2.9,
+      SETTINGS.quality === 'high' ? .025 : .05, .03, 0x51412f);
     box(0, 1.92, z, 2.9, .06, .03, 0x51412f);
   }
   if (true) {
     // 写真の長屋は長い壁の途中にも柱と貫が見える。戸口と窓は空けたまま木組みを出す。
     if (p.kind === 'nagaya') for (const side of [-1, 1]) {
-      const z = side * (p.d / 2 + .015), bays = Math.ceil(p.w / 1.4);
+      // 正面の柱と貫が外の二筋へ張り出し、開いた板戸の裏桟を貫いていた。
+      // 高画質では木組みを壁側へ納める推定の仕口。近い溝の裏桟より
+      // 二センチ以上奥へ退け、既存の戸幅・引き代・木材の本数を保つ。
+      const entryFrame = SETTINGS.quality === 'high' && side === 1;
+      const z = side * (p.d / 2 + (entryFrame ? -.12 : .015));
+      const railZ = z + side * (entryFrame ? .04 : .075);
+      const bays = Math.ceil(p.w / 1.4);
       for (let k = 1; k < bays; k++) {
         const x = -p.w / 2 + k * p.w / bays;
         if (Math.abs(x) < .85) continue;
-        box(x, H / 2, z, .14, H, .14, 0x594b39);
+        // 床基準で浮いていた中間柱も、各足元の地表下まで根入れする推定。
+        // 手本と限界は docs/battle_refs/sunomata.md。柱頭と板戸の引き代は保つ。
+        const [wx, wz] = I.P(x, z);
+        const bottom = SETTINGS.quality === 'high' ? Math.min(0, rt.world.heightAt(wx, wz) - y - .08) : 0;
+        box(x, (bottom + H) / 2, z, .14, H - bottom, .14, 0x594b39);
       }
       const spans = side > 0 ? [[-p.w / 2, -.8], [.8, p.w / 2]] : [[-p.w / 2, p.w / 2]];
       for (const [a, b] of spans) for (const yy of [.72, 1.85]) {
-        box((a + b) / 2, yy, z + side * .075, b - a, .095, .075, 0x60503c);
+        box((a + b) / 2, yy, railZ, b - a, .095, .075, 0x60503c);
       }
     }
     // 写真の番所の小さな明かり窓。裸の四角い穴にせず、木枠・縦格子・引き板を添える。
     // 戸口には置かず、室内が開けた三つの窓と同じ位置・幅を使う。
     for (const [face, side] of [['z', -1], ['x', -1], ['x', 1]]) {
       const off = (face === 'z' ? p.d : p.w) / 2 + .015;
-      const frame = (t, yy, w, h, depth, col) => {
-        if (face === 'z') box(t, yy, side * off, w, h, depth, col);
-        else box(side * off, yy, t, depth, h, w, col);
+      const width = windowWidth(face);
+      // 外の枠だけでは内側の板壁との間に見込みがなく、窓穴に壁の裏が露出する。
+      // 高画質では四方の枠を室内へ延ばし、内壁の板面までつなぐ推定の納まり。
+      // 手本と限界は docs/battle_refs/sunomata.md。格子・引き板の位置は共通の窓幅で保つ。
+      const reveal = SETTINGS.quality === 'high' ? .18 : 0;
+      const frame = (t, yy, w, h, depth, col, inward = 0, outward = 0) => {
+        const center = side * (off - inward / 2 + outward);
+        if (face === 'z') box(t, yy, center, w, h, depth + inward, col);
+        else box(center, yy, t, depth + inward, h, w, col);
       };
-      for (const yy of [.94, 1.72]) frame(0, yy, 1.27, .09, .14, 0x51412f);
-      for (const t of [-.59, .59]) frame(t, 1.33, .09, .86, .12, 0x51412f);
-      for (const t of [-.36, -.12, .12, .36]) frame(t, 1.33, .035, .7, .055, 0x67553f);
-      // 引き板は壁の上に寄せて開け、窓や兵の視線をふさがない。
-      for (let k = 0; k < 3; k++) frame(.72 + k * .19, 1.33, .18, .71, .065, PLANK[(k + 1) % 4]);
+      for (const yy of [.94, 1.72]) frame(0, yy, width + .17, .09, .14, 0x51412f, reveal);
+      for (const s of [-1, 1]) {
+        const t = s * (width / 2 + .04);
+        let bottom = .9, top = 1.76;
+        if (SETTINGS.quality === 'high') {
+          // 窓だけの短い縦枠を地中から桁下面まで通し、窓台とまぐさを受ける。
+          // 簡素な小屋としての推定（docs/battle_refs/sunomata.md）。
+          // 既存の二本の寸法だけを変え、窓穴・格子・外の引き板の溝は保つ。
+          const [wx, wz] = face === 'z' ? I.P(t, side * (off - reveal / 2))
+            : I.P(side * (off - reveal / 2), t);
+          bottom = Math.min(0, rt.world.heightAt(wx, wz) - y - .08);
+          top = H - .16;
+        }
+        frame(t, (bottom + top) / 2, .09, top - bottom, .12, 0x51412f, reveal);
+      }
+      for (const t of [-.36, -.12, .12, .36]) frame(t * width / 1.1, 1.33, .035, .7, .055, 0x67553f);
+      // 左右へ半幅ずつ引いた板戸。窓一枚分を片側だけへ突き出さず、隅柱を避ける。
+      // 手本の簡素な板屋を保つ用途からの推定。窓の引き板の細部の史料はない。
+      // https://geo-gifu.org/tour/12_tour/tour_12_4.html
+      // 高画質では板を枠の表へ出し、上下の溝と戸当たりで受ける。
+      // 窓枠へ埋まった板だけを宙に置かず、既存の木材の束へまとめる。
+      const shutterTrack = SETTINGS.quality === 'high' ? .12 : 0;
+      if (SETTINGS.quality === 'high') {
+        const span = width * 2 + .13;
+        // 押縁の間を下へ抜かず、引き板の全幅を木の溝底で受ける。
+        // 上も背板で閉じる推定の納まり（docs/battle_refs/sunomata.md）。
+        // 押縁の外側へ納め、板・裏桟の位置を保って既存の束へ結合する。
+        for (const yy of [.93, 1.73])
+          frame(0, yy, span, .02, .12, 0x51412f, 0, shutterTrack);
+        for (const yy of [.96, 1.7]) for (const trackSide of [-1, 1])
+          frame(0, yy, span, .04, .025, 0x51412f, 0,
+            shutterTrack + trackSide * .0475);
+        // 戸当たりの背は板壁まで届かせ、長い溝の両端も受ける。
+        for (const s of [-1, 1]) frame(s * (width + .065), 1.33,
+          .04, .78, .3, 0x51412f, 0, shutterTrack - .09);
+      }
+      const plank = width / 6;
+      // 上下の溝底は高さ〇・九四と一・七二メートル。
+      // 七十一センチの板では下が浮き、上下の溝への掛かりも浅いため、
+      // 高画質では両方の溝底に届く長さへ合わせる推定の納まり。
+      // 手本は docs/battle_refs/sunomata.md の簡素な板屋。
+      // https://geo-gifu.org/tour/12_tour/tour_12_4.html
+      // 既存の板の寸法だけを変え、格子と引き込み先は保つ。
+      const shutterHeight = SETTINGS.quality === 'high' ? .78 : .71;
+      for (const s of [-1, 1]) {
+        for (let k = 0; k < 3; k++) frame(s * (width / 2 + .03 + (k + .5) * plank),
+          1.33, plank - .004, shutterHeight, .065, PLANK[(k + 1) % 4], 0, shutterTrack);
+        for (const yy of [1.1, 1.56]) frame(s * (width * .75 + .03), yy,
+          width / 2, .055, .085, 0x51412f, 0, shutterTrack + (shutterTrack ? .055 : 0));
+      }
     }
   }
   // 板葺きの番所・長屋。新旧の板を二段に重ね、押さえ木と小石で留める。
@@ -1719,12 +1988,26 @@ function fortShed(rt, p, parts) {
       // 写真の板屋の軒下：屋根板を支える垂木を外壁から出す。
       // 棟の向きと一緒に回し、既存の建物の束に結合する。
       const rafters = Math.ceil(roofD / .65);
+      // 葺き板の下面と垂木の上面を同じ勾配で合わせる。
+      // 上段の重ね葺きの下は薄い添え木で受ける推定の納まり。
+      // 手本と限界は docs/battle_refs/sunomata.md。高画質の静止した束だけを使う。
+      const rafterLift = SETTINGS.quality === 'high' ? .1 - .0875 / Math.cos(ang) : 0;
       for (let k = 0; k <= rafters; k++) {
         const z = -roofD / 2 + k * roofD / rafters;
-        box(side * half / 2, H + rise / 2 - .18, z,
-          slope + .09, .11, .09, PLANK[(k + 1) % 4], -side * ang);
+        // 下面は母屋に接したまま、上側だけ厚くして板を受ける。
+        box(side * half / 2, H + rise / 2 - .18 + rafterLift / 2, z,
+          slope + .09, .11 + rafterLift * Math.cos(ang), .09, PLANK[(k + 1) % 4], -side * ang, side);
+        if (SETTINGS.quality === 'high') {
+          // 下段が始まる位置で止め、添え木を葺き板へ通さない。
+          const start = .09, end = half / 2 - .065 * Math.cos(ang);
+          const x = (start + end) / 2;
+          box(side * x, H + rise - x * .25 - .08 - .0325 / Math.cos(ang) + .0175,
+            z, (end - start) / Math.cos(ang), .035 * Math.cos(ang), .09,
+            PLANK[(k + 1) % 4], -side * ang, side);
+        }
         // 切り口だけ明るくし、軒の下面に等間隔の木口を見せる。
-        box(side * (half + .025), H - .185, z, .035, .11, .09, 0x978367, -side * ang);
+        box(side * (half + .025), H - .185 + rafterLift / 2, z,
+          .035, .11 + rafterLift * Math.cos(ang), .09, 0x978367, -side * ang);
       }
       for (let row = 0; row < 2; row++) for (let k = 0; k < n; k++) {
         const f = (row + .5) / 2, z = -RD / 2 + (k + .5) * RD / n;
@@ -1735,6 +2018,14 @@ function fortShed(rt, p, parts) {
         box(side * half * (1 - f), H + rise * f - .08 + row * .035, z,
           slope / 2 + .13, .065, RD / n - .012,
           tone.getHex(), -side * ang);
+        // 板の目地を室内まで貫通させず、裏の細板で雨仕舞する推定の納まり。
+        // 手本と限界は docs/battle_refs/sunomata.md。天井は張らず小屋組を見せ、
+        // 同じ静止した木材の束へ結合する。軒端には余分な細板を出さない。
+        if (SETTINGS.quality === 'high' && k > 0) {
+          box(side * half * (1 - f), H + rise * f - .121 + row * .035,
+            -RD / 2 + k * RD / n, slope / 2 + .13, .018, .04,
+            0x65533e, -side * ang);
+        }
       }
     } else {
       for (let row = 0; row < 4; row++) for (let k = 0; k < n; k++) {
@@ -1754,17 +2045,112 @@ function fortShed(rt, p, parts) {
   }
   // 天井を張らない普請小屋。棟木・垂木を板葺きの下へ渡し、室内から小屋組が見える。
   box(0, H + rise - .27, 0, .18, .18, RD, 0x45372a);
-  for (let z = -roofD / 2 + .2; z < roofD / 2; z += .6) for (const side of [-1, 1]) {
-    box(side * half / 2, H + rise / 2 - .28, z, slope, .08, .09, 0x65533e, -side * ang);
+  // 桁を横につなぐ小屋梁と、棟木を受ける束。屋根と同じ向きに組む推定の補い。
+  // 梁下は戸口の上端より高くし、中央へ柱を下ろして室内の通り道を塞がない。
+  // 外壁と同じ束へ結合するため、描く回数や開閉時の処理は増えない。
+  // 妻側の梁は隅柱の芯（壁端から十センチ）へそろえる。
+  // 二十センチ内側では柱の縁へ偏って掛かり、梁と棟束の列も柱筋から外れていた。
+  // 簡素な小屋という手本に基づく架構の推定で、実物の復元ではない。
+  // https://geo-gifu.org/tour/12_tour/tour_12_4.html
+  // 高画質だけ補正し、既存の梁・束・中間柱を同じ割付で組む。
+  const tieInset = SETTINGS.quality === 'high' ? .1 : .2;
+  const tieSpan = roofD - tieInset * 2;
+  const tieBays = Math.max(1, Math.ceil(tieSpan / 1.8));
+  // 高画質では母屋を棟寄りへ置き、低い屋根でも梁の下面へ突き出さない。
+  // 梁上の受け欠きへ載せる推定の納まり（docs/battle_refs/sunomata.md）。
+  const fittedPurlin = SETTINGS.quality === 'high';
+  // 幅広い小屋では棟からの比率だけで置くと、母屋の下面が梁上へ出て、
+  // 受け欠きの二か所だけが梁から盛り上がっていた。
+  // 垂木下面へ接する高さを保ちつつ軒側へ寄せ、梁上から最低四センチ欠いて受ける。
+  // 簡素な板屋の仕口としての推定。手本と限界は docs/battle_refs/sunomata.md。
+  // 既存の材の位置と受け欠きだけを合わせ、通路・材の数・毎コマの処理は保つ。
+  const purlinSeatX = half - (.18 + .055 / Math.cos(ang) + .14 - .04) / .25;
+  const purlinX = fittedPurlin ? Math.max(half * .25, purlinSeatX) : half * .5;
+  const purlinY = H + (half - purlinX) * .25 - .18 - .055 / Math.cos(ang) - .07;
+  for (let k = 0; k <= tieBays; k++) {
+    const z = -roofD / 2 + tieInset + k * tieSpan / tieBays;
+    if (fittedPurlin) {
+      // 母屋と梁を貫通させず、母屋の下面まで梁の上側を欠く。
+      // 梁下と通路は保ち、木部は設営時に既存の束へまとめる。
+      const edge = roofW / 2 - .08, seat = .07;
+      const cuts = [-edge, -purlinX - seat, -purlinX + seat,
+        purlinX - seat, purlinX + seat, edge];
+      for (let j = 0; j < cuts.length - 1; j++) {
+        const bottom = H - .16, top = j === 1 || j === 3 ? purlinY - .07 : H;
+        box((cuts[j] + cuts[j + 1]) / 2, (bottom + top) / 2, z,
+          cuts[j + 1] - cuts[j], top - bottom, .18, 0x65533e);
+      }
+    } else box(0, H - .08, z, roofW - .16, .16, .18, 0x65533e);
+    if (SETTINGS.quality === 'high' && k > 0 && k < tieBays) {
+      // 中間の梁端を板壁だけで受けず、壁の内側に柱を添える推定の造作。
+      // 手本と限界は docs/battle_refs/sunomata.md。妻側の梁は既存の隅柱で受ける。
+      // 屋根の回転後の壁面へ対応させ、窓・戸口に柱を通さない。
+      const face = longRidge ? 'z' : 'x', t = z;
+      // 土間の梁受けも隅柱と同じく地中まで届かせる推定の納まり。
+      // 床の基準面で止めると、地表との十四センチの間で柱が浮く。
+      // 手本は docs/battle_refs/sunomata.md の簡素な板屋。根入れの深さは推定。
+      // 棟の回転と建物の回転を戻して各足元の地表を取り、柱頭と開口は保つ。
+      const supportPost = (x, z, top) => {
+        const c = Math.cos(roofTurn), s = Math.sin(roofTurn);
+        const [wx, wz] = I.P(x * c + z * s, -x * s + z * c);
+        const bottom = Math.min(0, rt.world.heightAt(wx, wz) - y - .08);
+        box(x, (bottom + top) / 2, z, .14, top - bottom, .14, 0x65533e);
+      };
+      for (const side of [-1, 1]) {
+        const wallSide = longRidge ? -side : side;
+        const entry = face === 'z' && wallSide === 1;
+        const halfOpening = entry ? .7 : windowWidth(face) / 2;
+        const postX = side * (roofW / 2 - .2), beamBottom = H - .16;
+        if (Math.abs(t) < halfOpening + .07) {
+          // 開口で柱を上下に切るだけでは、梁下の短い束が宙に浮く。
+          // 戸口・窓の両脇の柱とまぐさで受ける推定の架構とし、
+          // 開口内へ柱を出さず、外側の引き戸の溝も保つ。
+          // 手本と限界は docs/battle_refs/sunomata.md。既存の木材の束へ結合する。
+          const headH = Math.min(.12, beamBottom - (entry ? 1.9 : 1.765));
+          const postH = beamBottom - headH, jamb = halfOpening + .07;
+          for (const end of [-1, 1]) supportPost(postX, end * jamb, postH);
+          box(postX, beamBottom - headH / 2, 0,
+            .14, headH, (jamb + .07) * 2, 0x65533e);
+        } else supportPost(postX, t, beamBottom);
+      }
+    }
+    const postH = rise - .36;
+    if (postH > .02) box(0, H + postH / 2, z, .14, postH, .14, 0x65533e);
   }
+  // 垂木を二重に並べず、その下面へ棟と平行な母屋を渡す推定の木組み。
+  // 母屋は小屋梁の上端へ掛け、屋根板から桁まで荷重を受ける。既存の束へ一度だけ結合する。
+  for (const side of [-1, 1]) box(side * purlinX, purlinY, 0,
+    .14, .14, roofD - .2, 0x65533e);
   // 妻の破風板（屋根の縁に沿った板）
   for (const zs of [-1, 1]) for (const side of [-1, 1]) box(side * half / 2, H + rise / 2 - .14, zs * RD / 2, slope + .1, .22, .06, 0x3e3226, -side * ang);
   if (true) {
     const gableN = Math.ceil(roofW / .4), gableStep = roofW / gableN;
-    for (let k = 0; k < gableN; k++) {
-      const x = -roofW / 2 + (k + .5) * gableStep;
-      const h = Math.max(.05, rise * (1 - Math.abs(x) / half));
-      for (const z of [-roofD / 2 + .08, roofD / 2 - .08]) box(x, H + h / 2 - .1, z, gableStep, h, .08, 0x6e604c);
+    // 妻板を中央の高さだけで切ると、勾配に対して階段状の穴と突出が残る。
+    // 棟と葺き板の重ね端でも割り、左右の木口を屋根板の下面へ納める推定の造作。
+    // 既存の木材の束へ結合し、戸口・内装の当たりや毎コマの処理は増やさない。
+    const lapX = half / 2 - .065 * Math.cos(ang);
+    const cuts = Array.from({ length: gableN + 1 }, (_, k) => -roofW / 2 + k * gableStep);
+    cuts.push(-lapX, 0, lapX); cuts.sort((a, b) => a - b);
+    for (let k = 0; k < cuts.length - 1; k++) {
+      const left = cuts[k], right = cuts[k + 1];
+      if (right - left < .001) continue;
+      const row = Math.abs((left + right) / 2) < lapX ? 1 : 0;
+      for (const z of [-roofD / 2 + .08, roofD / 2 - .08]) {
+        const g = new THREE.BoxGeometry(right - left, 1, .08).toNonIndexed();
+        const a = g.attributes.position;
+        for (let j = 0; j < a.count; j++) {
+          const x = (left + right) / 2 + a.getX(j);
+          const top = H + rise - Math.abs(x) * .25 - .08 + row * .035 - .0325 / Math.cos(ang);
+          a.setXYZ(j, x, a.getY(j) > 0 ? top : H - .1, a.getZ(j) + z);
+        }
+        g.computeVertexNormals();
+        g.rotateY(p.rot + roofTurn); g.translate(p.x, y, p.z);
+        const color = new THREE.Color(0x6e604c), colors = new Float32Array(a.count * 3);
+        for (let j = 0; j < colors.length; j += 3) {
+          colors[j] = color.r; colors[j + 1] = color.g; colors[j + 2] = color.b;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); parts.push(g);
+      }
     }
     box(0, H + rise + .02, 0, .16, .09, RD + .12, 0x514333);
   } else for (let x = -p.w / 2; x < p.w / 2; x += .4) {

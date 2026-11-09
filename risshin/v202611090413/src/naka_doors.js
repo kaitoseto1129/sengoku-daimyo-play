@@ -171,6 +171,29 @@ export function addNakaDoors(I, lv, y0, y1) {
       d.track = .05; d.trackZ = I.door.side * .185;
       d.leafY = d.y + .05; d.leafH = d.h - .05;
     }
+    if (I.profile === 'toride' && !p.exterior) {
+      // 兵舎の内戸は梁下へ納める。固定の板壁の手前を二筋で滑らせ、
+      // 戸の絵と一枚ずつの当たりを同じ高さ・引き先で動かす。
+      d.h = Math.min(1.85, lv.h - .3);
+      d.leafY = d.y + .05; d.leafH = d.h - .05;
+      d.track = .05; d.trackZ = .185;
+    }
+    if (I.profile === 'toride' && (!p.exterior || p.entry)) {
+      // 簡素な板屋を保った推定の納まり（docs/battle_refs/sunomata.md）。
+      // 二筋の戸を突き合わせるだけでは斜めから隙間が見えるため、
+      // 召し合わせを三センチ重ねる。上下は溝へ五ミリ差し込み、
+      // 敷居の上に浮かず、鴨居からも外れない。移動量は従来どおり。
+      d.leafW = d.pw + .03;
+      d.leafY -= .005; d.leafH += .01;
+      // 入口も内戸と同じく一枚ずつ当たりを動かす。開け始めに
+      // 板戸をすり抜けず、引き込み先でも見える戸の厚みを残す。
+      solid.yBot = d.leafY; solid.yTop = d.leafY + d.leafH;
+      d.slidingSolids = [solid];
+      for (let j = 1; j < n; j++) {
+        const leaf = { ...solid };
+        d.slidingSolids.push(leaf); SOLIDS.push(leaf); INTERIOR_WALLS.push(leaf);
+      }
+    }
     d.spot = { x, z };
     (I.doors || (I.doors = [])).push(d); DOORS.push(d);
     if (p.exterior && !p.window) I.entryDoor = d;
@@ -731,31 +754,40 @@ export function buildNakaDoorMeshes(I, grp) {
       stops.computeBoundingSphere(); grp.add(stops);
     }
   }
+  // 墨俣の高画質の内戸も、入口と同じ簡素な縦板・裏桟・左右の手掛かりで組む。
+  // 手本と推定の範囲は docs/battle_refs/sunomata.md。形と材質を共用し、
+  // 同じ兵舎の入口と内戸を一束へまとめる。溝・戸幅・当たり・開閉は既存のまま。
+  const fortPanels = d => I.profile === 'toride' && I.door.buildPanels
+    && d.kind === 'itado' && (d.entry || SETTINGS.quality === 'high' && !d.exterior);
+  const customPanels = d => I.door.buildPanels && (d.entry || fortPanels(d));
   const by = new Map();
   for (const d of I.doors) {
     const key = (fittedPanels ? d.kind + ':' + d.leafW + ':' + d.leafH : d.kind)
-      + (I.door.buildPanels && d.entry ? ':entry' : '');
+      + (customPanels(d) ? ':entry' : '');
     if (!by.has(key)) by.set(key, []);
     by.get(key).push(d);
   }
   for (const list of by.values()) {
     const kind = list[0].kind, w = fittedPanels ? list[0].leafW : .9, h = fittedPanels ? list[0].leafH : 1.8;
-    const pairedLeaves = fittedPanels && ['itado', 'shoji', 'koshi'].includes(kind);
+    // 墨俣の入口と内戸は左右の専用板戸を使い、右の手掛かりも召し合わせ側へ向ける。
+    const fortPair = fortPanels(list[0]);
+    const pairedLeaves = fortPair || fittedPanels && ['itado', 'shoji', 'koshi'].includes(kind);
     const count = list.reduce((s, d) => s + (pairedLeaves ? d.n / 2 : d.n), 0);
-    const meshes = I.door.buildPanels && list[0].entry
+    const meshes = customPanels(list[0])
       ? I.door.buildPanels(count) : panelInstances(kind, count, fittedPanels, w, h);
     // 右戸を半回転しても、板戸の裏桟・障子の紙・格子の相欠きを左右で同じ面へ揃える。
     // 右戸の形と材質も建物内で共有する。
-    const rightMeshes = pairedLeaves ? panelInstances(kind + 'R', count, true, w, h) : null;
+    const rightMeshes = fortPair ? I.door.buildPanels(count, true)
+      : pairedLeaves ? panelInstances(kind + 'R', count, true, w, h) : null;
     const allMeshes = rightMeshes ? meshes.concat(rightMeshes) : meshes;
     let i = 0;
     for (const d of list) { d.meshes = meshes; d.rightMeshes = rightMeshes; d.base = i; i += pairedLeaves ? d.n / 2 : d.n; }
     for (const m of allMeshes) { m.count = count; grp.add(m); }
     for (const d of list) pose(d);
     // 閉じた位置だけの範囲では、脇へ引いた戸が視野の端で消える。
-    // 長島も含め、戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
+    // 墨俣・長島・稲葉山の戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
     // 開け放って始める内陣の格子戸も、閉じる側まで範囲に含まれる。
-    const travel = SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)
+    const travel = SETTINGS.quality === 'high' && ['inabayama', 'nagashima', 'toride'].includes(I.profile)
       ? list.reduce((r, d) => Math.max(r, d.W / 2), 0) : 0;
     for (const m of allMeshes) { m.computeBoundingSphere(); m.boundingSphere.radius += travel; }
   }
@@ -1436,10 +1468,10 @@ function genericNearest(rt) {
   for (const d of DOORS) {
     if (d.I.disabled || (!d.exterior && d.I.id + 1 !== u.naka) || (u.naka && d.I.id + 1 !== u.naka) || Math.abs(u.pos.y - (d.window ? d.lv.y : d.y)) > 1.2) continue;
     let passageAhead = false;
-    // 稲葉山は開いた襖・障子の引き込み先でも操作できるよう、動く戸の表へ札を寄せる。
+    // 稲葉山と墨俣は引き込み先でも操作できるよう、動く戸の手掛かりへ札を寄せる。
     // 閉じた戸口だけを的にすると、脇へ滑った戸の前に立っても「閉める」が出ない。
     // 絵・当たりと同じ幅と溝を使い、毎コマの配列・ベクトル生成は避ける。
-    if (d.I.profile === 'inabayama' && SETTINGS.quality === 'high') {
+    if ((d.I.profile === 'inabayama' || d.I.profile === 'toride') && SETTINGS.quality === 'high') {
       const I = d.I, dx = u.pos.x - I.x, dz = u.pos.z - I.z;
       const ux = dx * I.c - dz * I.s, uz = dx * I.s + dz * I.c;
       // 玄関や内戸の口に立った時は、脇の明かり窓より通る戸を選ぶ。
@@ -1462,7 +1494,10 @@ function genericNearest(rt) {
         // 板面や格子の空隙を的にせず、引き込んだ後も実際の引手から閉める。
         // 毎コマの配列やベクトルは増やさない。
         const inset = Math.max(0, d.leafW / 2 - .08);
-        const gripInset = Math.max(0, d.leafW / 2 - (timberGrip ? .02 : shojiGrip ? .035 : .13));
+        // 墨俣の手掛かりは原形の中心から三十センチ。戸幅に合わせた
+        // 拡縮を絵とそろえ、稲葉山の縦框の端をそのまま的にしない。
+        const gripInset = I.profile === 'toride' ? d.leafW * .3 / .9
+          : Math.max(0, d.leafW / 2 - (timberGrip ? .02 : shojiGrip ? .035 : .13));
         for (let point = 0; point < (shojiGrip ? 2 : fittedGrip ? 1 : 4); point++) {
           const lx = fittedGrip
             ? center + (shojiGrip ? (point ? 1 : -1) : (j < d.n / 2 ? 1 : -1)) * gripInset

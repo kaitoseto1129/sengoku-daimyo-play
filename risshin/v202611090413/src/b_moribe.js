@@ -4268,7 +4268,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 小勢が横に広がりすぎず、槍の前線へ合流する（細かな隊の位置は復元）。
     // 右手は津島衆（公記：津島の服部平左衛門が長井甲斐守を、恒河久蔵が日比野下野守を、河村久五郎が神戸将監を討つ）。
     //   佐久間信盛は森部の記事に名が無い。三人は徒の侍で、馬上の将にしない。
-    rt.flags.R3 = allyGroup(rt, { name: '津島衆', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 5 }, { type: 'samurai', n: 1, o: { name: '河村久五郎', invuln: true } }, { type: 'samurai', n: 1, o: { name: '服部平左衛門', invuln: true } }, { type: 'samurai', n: 1, o: { name: '恒川久蔵', invuln: true } }, { type: 'samurai', n: 1 }]);
+    rt.flags.R3 = allyGroup(rt, { name: '津島衆', fixed: true, anchor: { x: 52, z: 104 }, facing: Math.PI, aggro: 10, morale: 100, noRout: false, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 5 }, { type: 'samurai', n: 1, o: { name: '河村久五郎', invuln: true } }, { type: 'samurai', n: 1, o: { name: '服部平左衛門', invuln: true } }, { type: 'samurai', n: 1, o: { name: '恒河久蔵', invuln: true } }, { type: 'samurai', n: 1 }]);
     rt.flags.Y = allyGroup(rt, { name: '森の横備え', fixed: true, anchor: { x: -48, z: 108 }, facing: Math.PI, aggro: 10, morale: 100, noRout: true, fullStrength: true, fleeDir: { x: 0, z: 1 }, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 7 }, { type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true } }, { type: 'samurai', n: 3 }]);
     // 斎藤の先手は北岸の畦へ寄せ、渡る織田勢へ矢を射かけてから槍で受ける（弓の数は復元）。
     // 渡り口の正面に同じ先手を寄せ、印だけを追って野を歩く時間を短くする。
@@ -4746,7 +4746,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 11/6 fixc1824：共通の kill は名のある将（isOfficer）を一度「近習が退かせる」で生かして返す（命が三割五分より多いと何もしない）。
         //   そのため公記の討ち手の槍で何度討っても両将が死なず、旗本が崩れた所で「両将が討たれ」の嘘の勝ちになり⑤の殿が来なかった。
         //   近習の一度の救いは済んだ事にしてから討つ。
-        if (u) { F.bossFallAt = rt.t + 5; u.officerSaved = true; rt.army.kill(u,F.R3.units.find((x) => x.alive && x.name === (u.group === F.HM ? '恒川久蔵' : '服部平左衛門')) || null); }
+        if (u) { F.bossFallAt = rt.t + 5; u.officerSaved = true; rt.army.kill(u,F.R3.units.find((x) => x.alive && x.name === (u.group === F.HM ? '恒河久蔵' : '服部平左衛門')) || null); }
       }
       if (!F.standDown && fall >= 2 && !F.pursuit) { F.standDown = true; for (const g of F.opposition) g.noRout = false; }
       // 総大将の討死・側面攻撃・逃亡の連鎖は共通の士気の仕組みに任せる。
@@ -4812,7 +4812,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const pp = rt.player.u.pos;
         for (const g of F.shingari) if (!gone(g) && rearHolding) {
           const c = fightingCenter(g);
-          if (Math.hypot(c.x - pp.x, c.z - pp.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = pp.x; d.z = pp.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }; }
+          if (Math.hypot(c.x - pp.x, c.z - pp.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = pp.x; d.z = pp.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = g._moribeShArrive || (g._moribeShArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }); }
           else { g.order = 'attack'; g.seekRange = 30; }
         }
         if (rearHolding) for (const g of F.shingari) {
