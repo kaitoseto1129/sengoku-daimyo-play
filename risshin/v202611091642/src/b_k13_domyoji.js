@@ -232,7 +232,8 @@ function matabeiShot(rt) {
   const gunner = () => F.katakura?.units.find((u) => u.alive && u.weapon === 'gun' &&
     !u.gone && !u.woundOut && !u.downed && !u.noTarget && !u.fleeing && !u.rearWound &&
     Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60);
-  const ready = () => v?.alive && k?.alive && rt.player.u.alive &&
+  const ready = () => v?.alive && k?.alive && !k.gone && !k.woundOut && !k.downed &&
+    !k.noTarget && !k.fleeing && !k.rearWound && rt.player.u.alive &&
     Math.hypot(p.x - TOP.x, p.z - TOP.z) < 32 &&
     Math.hypot(p.x - v.pos.x, p.z - v.pos.z) <= 50 && gunner();
   // 時刻だけで見えない所の最期を済ませない。本人が頂へ寄り、片倉の隊が届くまで待つ。
