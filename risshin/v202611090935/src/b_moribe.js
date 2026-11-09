@@ -4209,6 +4209,13 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       //   旗本は殿に残る者なので、追い討ちまでは味方の槍で溶けない（目標⑤の殿が必ず来る）。
       const Fd = rt.flags;
       if (t && t.team === 1 && src && !src.isPlayer && src.team === 0 && (t.group === Fd.HM || t.group === Fd.HN)) {
+        // 減傷だけでは長い押し合いで全員討たれる。本人の手柄と殿の相手を各備に一人残す。
+        // 大将の討死は妨げず、本人の槍と追い討ちが始まった後の味方の槍はそのまま通す。
+        if (t.type === 'samurai' && (!Fd.ownHatamoto || !Fd.pursuit) &&
+            !t.group.units.some((u) => u !== t && u.type === 'samurai' && moribeRemainFoe(u))) {
+          if (rest[0]?.out) rest[0].out.res = 'block';
+          return;
+        }
         if (!Fd.ownHatamoto && (t.type === 'samurai' || t.type === 'busho')) amount *= 0.12;
         else if (!Fd.pursuit) amount *= 0.2;
       }

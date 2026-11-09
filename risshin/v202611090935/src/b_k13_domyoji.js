@@ -333,23 +333,13 @@ function goalBoard(rt) {
     for (let i = n; i < tris.length; i++) tris[i].hidden = true;
     return out;
   };
-  // 両軍の今の兵の数を棒の上に字でも出す（三万四千対一万八千六百。共通の棒は字を消すので、この戦で書き足す。十二1）
-  const updateArmy = hud.updateArmy, fmt = (n) => `${Math.max(0, Math.round(n)).toLocaleString('ja-JP')}人`;
-  hud.updateArmy = function (battle) {
-    const out = updateArmy.call(this, battle);
-    if (battle === rt && rt.def.force) {
-      const f = rt.def.force(rt), a = document.getElementById('ab-a'), b = document.getElementById('ab-b');
-      if (a && a.textContent !== fmt(f.a)) a.textContent = fmt(f.a);
-      if (b && b.textContent !== fmt(f.b)) b.textContent = fmt(f.b);
-    }
-    return out;
-  };
+  // 人数と棒は共通の updateArmy にそろえる。旧欄へも書くと人数が二重になる。
   // 戦の途中で上下に黒い帯を出さない（何もしていないのに映画の画面に替わる。九7）
   const cineFlash = hud.cineFlash, shotBars = hud.shotBars;
   hud.cineFlash = function () {}; hud.shotBars = function () {};
   const dispose = rt.dispose;
   rt.dispose = function () {
-    hud.updateArmy = updateArmy; hud.cineFlash = cineFlash; hud.shotBars = shotBars;
+    hud.cineFlash = cineFlash; hud.shotBars = shotBars;
     hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
@@ -612,7 +602,7 @@ const k13_domyoji = {
 
   update(rt, dt) {
     const F = rt.flags;
-    jin13.tick(rt, dt);
+    try { jin13.tick(rt, dt); } catch (e) { if (!rt.flags._jinErr) { rt.flags._jinErr = 1; console.warn("道明寺の陣立て", e); } }
     if (F.ending) return;
     depthTick(rt, dt);
     this.keepUp(rt, dt);
