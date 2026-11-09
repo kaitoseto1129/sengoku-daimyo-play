@@ -2595,7 +2595,7 @@ const iga = {
       if (guide) rt.objProgress('main', igaNeedsTreatment(rt) ? rt.player.treatmentNext > rt.t
         ? '味方の後ろで休め。布を巻き直せるまで待て'
         : '敵から離れ、「血を止める」を三秒長押し' :
-        F.doused < 3 ? `消火 ${F.doused}／3軒・あと${Math.max(0, Math.ceil(150 - (rt.t - F.stepT)))}秒。${igaNeedsDousing(rt) ? '火のそばで水を掛けよ' : F.bucketAble >= 2 ? '消火の組を守れ' : '味方と敵を防げ'}` : '火は消えた。味方の列で陣を守れ');
+        F.doused < 3 ? `消火 ${F.doused}／3軒。${igaNeedsDousing(rt) ? '火のそばで水を掛けよ' : F.bucketAble >= 2 ? '消火の組を守れ' : '味方と敵を防げ'}` : '火は消えた。味方の列で陣を守れ');
       for (const q of L) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
       // 組頭が消火の場所を知らせる。離れた場所の火を味方の台詞だけで消さない。
       const w = rt.t - F.stepT, foes = L.length >= 3 && L.every(gone);
