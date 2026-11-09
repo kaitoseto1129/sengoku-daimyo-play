@@ -14,9 +14,9 @@ export function start(rt, K) {
   rt.after(10, () => rt.say('物見', '井伊直政の赤備えの後ろに、榊原の「無」の旗も！', 3));
 }
 export function tick(rt, K) {
-  const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0, A = at(F, K.HOTOKE);
+  const F = rt.flags, P = rt.player.u.pos, A = at(F, K.HOTOKE);
   const near = Math.hypot(P.x - A.x, P.z - A.z) < 14;
-  if (!F.ikeArr && (near || el > 50)) {
+  if (!F.ikeArr && near) {
     F.ikeArr = rt.t;
     rt.after(1, () => rt.say('池田恒興', '来てくれたか……だが、もう遅い', 3));
     rt.after(12, () => rt.say('池田恒興', '退け！　お主らは生きて筑前に伝えよ。この首、くれてやるわ', 3.4));

@@ -61,7 +61,7 @@ export function tick(rt, dt) {
   if (Math.hypot(p.x - (c.SB.x0 - c.SB.gap - 3), p.z - gz) < 30) H.there = true;
   const lord = g.units.find((u) => u.name === '原昌胤');
   const left = c.ready(g), atGate = H.arrive != null ? rt.t - H.arrive : -1;
-  const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45) || rt.t - H.at > 160;
+  const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45 || rt.t - H.at > 160);
   if (!end) return true;
   H.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }

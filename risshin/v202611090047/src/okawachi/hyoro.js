@@ -34,5 +34,8 @@ export function start(rt, ctx, done) {
       },
     }),
     DP.rest({ dur: 6, heal: 0.3, say: [[speaker, 'よし、退け。夜が明けたら南の鹿垣で囲みを続ける', 3.6]] }),
-  ], () => { F.k15Hyoro = 'done'; F.k15Shift = (F.k15Shift || 0) + (rt.t - t0); done(); });
+  ], () => {
+    // 夜の荷置き場の働きを終えて味方の陣へ戻った（陣へ退く務めを果たした事にする）
+    if (rt.player.u.alive) F.campReached = true;
+    F.k15Hyoro = 'done'; F.k15Shift = (F.k15Shift || 0) + (rt.t - t0); done(); });
 }

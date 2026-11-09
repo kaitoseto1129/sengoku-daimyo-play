@@ -168,8 +168,8 @@ const FLOW = RIVER.slice(1).map((b, i) => {
 });
 const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
 const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
-// 11/6 kaito 九1・十1：右上の目標は①〜④を初めから全部並べ、戦の間は言い替えない（stages.js の tedorigawa と同じ字）。
-const TEDO_GOALS = ['水島の柴田勝家の旗へ集まれ', '北岸の篝火で謙信の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ'];
+// 右上の目標は退き口の旗まで初めから並べ、戦の間は言い替えない。
+const TEDO_GOALS = ['水島の柴田勝家の旗へ集まれ', '北岸の篝火で謙信の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ', '南の退き口の旗まで退け'];
 const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の火へ退け'];
 const BANK_Z = SOUTH.z - 8;                // 南岸の土手の登り（z 26 から乾いた土手。11/4：手前の斜面で守っても数えない食い違いをなくす）
 // 増水で水の回った手取川の古い流れ筋（霞堤の内へ逆流した分流）。持ち場から北を向いた画面の手前に見せる（10/28 点付け：川が画面に無い）。
@@ -1681,7 +1681,7 @@ function riverDangerText(rt) {
     '味方が減った。持ち場の火で列を守れ';
 }
 
-// 11/6 kaito 九1・九3・十二1：右上に目標①〜④（済んだ物に印）。両軍の今の兵の数の棒を上に常に出す。
+// 右上に目標①〜⑤（済んだ物に印）。両軍の今の兵の数の棒を上に常に出す。
 //   一行の任務札（missionSingleLine）の作りは残し、目標の札を描く時だけ外す（雑賀・志賀と同じ）。言い替わる一行の札は隠す。
 //   四十 m 内の見える敵には一人残らず赤い▼（共通の▼は近い数人だけ）。印は使い回し、毎コマ作らない。
 function installTedoGoals(rt) {
@@ -1777,14 +1777,15 @@ const tedorigawa = {
   victoryCaption: '上杉が手取川を制した。柴田勢は南へ退いた',
   // 11/4：どこで何をするかを書く（AR1。「ここ」「待て」にしない）
   missions: ['水島の柴田勝家の旗へ集まれ', '渡り口の北の篝火へ退け', '北岸の篝火で謙信の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ', '寄せる上杉の足軽を討て', '渡り口の北の篝火へ退け'],
-  // 11/6 kaito 九1・十1：①〜④は初めから全部並べ、果たした物に印。段の長さは追手と渡河の流れで決まるので、目標ごとの時切れの ✕ は付けない。
+  // ①〜⑤は初めから全部並べ、果たした物に印。追手と渡河の流れで進み、目標ごとの時切れの ✕ は付けない。
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true;
     return [
       { kind: 'stage', k: 0, sec: 900, text: TEDO_GOALS[0], check: () => won() || (F.step || 0) >= 1 },
       { kind: 'stage', k: 1, sec: 900, text: TEDO_GOALS[1], check: () => won() || (F.step || 0) >= 3 && !F.failedHold, fail: () => !!F.failedHold },
       { kind: 'stage', k: 2, sec: 900, text: TEDO_GOALS[2], check: () => won() || (F.step || 0) >= 4 },
-      { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[3], check: won },
+      { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[3], check: () => won() || !!F.paceFurikiru },
+      { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[4], check: won },
     ];
   },
   missionOf(rt) {
@@ -1794,9 +1795,12 @@ const tedorigawa = {
     if (F.step === 3 && Math.hypot(rt.player.u.pos.x - SOUTH.x, rt.player.u.pos.z - SOUTH.z) < 8 && !rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)) return 4;
     return F.step === 2 && this.missionSignTarget(rt) ? 5 : Math.min(F.step || 0, 4);
   },
-  missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
+  missionHeading(rt) { return rt.flags.paceFurikiru ? TEDO_GOALS[4] : this.missions[this.missionOf(rt)]; },
   // 11/4：頭上の札は「篝火」の火の字で「印へ進め」にならないよう、段ごとの行いで書く（AR1）。
   goalTargetOverride(rt) {
+    if (rt.flags.paceFurikiru && !rt.flags.furikiruDone) {
+      return rt.flags.paceFurikiru.target;
+    }
     const d = rt.def, own = d.goalTargetOverride;
     d.goalTargetOverride = null;
     try {
@@ -1832,17 +1836,17 @@ const tedorigawa = {
     if (rt.over || F.ending || !rt.player.u.alive) return null;
     const q = F.tedoPin || (F.tedoPin = { x: 0, z: 0, r: 7, hide: 7 });
     const u = this.missionSignTarget(rt), p = rt.player.u.pos;
-    const at = F.step === 3 ? crossingTarget(rt) : F.dp?.on && C?.at ? C.at :
+    const at = F.paceFurikiru ? F.paceFurikiru.target : F.step === 3 ? crossingTarget(rt) : F.dp?.on && C?.at ? C.at :
       F.step === 0 ? F.shibaU?.pos : F.step === 1 ? RG : SOUTH;
     if (!at) return null;
-    const hold = F.step !== 3;
+    const hold = F.step !== 3 && !F.paceFurikiru;
     // 持ち場の範囲を画面上の太い破線の輪で囲まない（10/28 白い太線が川原を横切って見えた）。行き先は小旗と足元の印で示す。
     q.unit = u; q.enemy = !!u; q.defend = false;
     q.waiting = hold && !u; q.always = hold && !u; q.silent = true;
     q.x = u ? u.pos.x : at.x; q.z = u ? u.pos.z : at.z;
     // 南岸の持ち場は、岸へ上がって初めて着いた扱い（川原の手前で「着いた」と見せて守りを数えない食い違いをなくす。bot 11/4）。
     const offBank = C?.s.tedoWaitCross && (p.z < BANK_Z || rt.world.inWaterAt(p.x, p.z));
-    q.r = q.hide = u ? 2 : F.dp?.on && C ? offBank ? 2 : C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;
+    q.r = q.hide = u ? 2 : F.paceFurikiru ? 9 : F.dp?.on && C ? offBank ? 2 : C.botRadius : F.step === 3 ? .75 : F.step === 0 ? 8 : 7;
     q.arrived = !u && hold && !offBank && Math.hypot(p.x - at.x, p.z - at.z) < q.r;
     return u && rt.player.inRange && rt.player.rangeCueTarget === u ? null : q;
   },
@@ -4336,7 +4340,7 @@ tedorigawa.history = '天正五年（1577）、信長は柴田勝家を大将と
 const NO_FRIENDS = [];
 tedorigawa.botEvacuating = (b) => {
   const C = b.flags.dp?.cur;
-  return b.flags.step === 1 || b.flags.step === 3 || (b.flags.step === 2 && C?.at &&
+  return !!b.flags.paceFurikiru || b.flags.step === 1 || b.flags.step === 3 || (b.flags.step === 2 && C?.at &&
     // 包囲の警告中は近い敵を追わず、持ち場の味方へ構えたまま下がる。
     (C.isolatedT >= 0.5 ||
     // 追手を探す範囲より狭い、実際の火の持ち場まで移る。札と同じ距離を使う。
@@ -4352,7 +4356,7 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
   if (!u.alive || F.ending) return;
   if (tedorigawa.botEvacuating(b)) {
     b.botRest = false; F.dpBack = false;
-    const q = F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
+    const q = F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
     const z = F.step === 1 ? FORD.z - 10 : q.z;
     const stopRadius = F.step === 3 ? 0.75 : 2;
     goTo(p, inp, q.x, z, stopRadius);

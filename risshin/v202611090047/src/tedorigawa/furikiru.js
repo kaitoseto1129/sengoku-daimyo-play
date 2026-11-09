@@ -2,18 +2,20 @@
 // 手取川の戦い　最後の段「追手を振り切る」（約12〜13分。b_tedorigawa.js の south の後、win の前に入れる）
 // 史実：渡った柴田勢は南へ退き、御幸塚・大聖寺に兵を残して帰陣した。上杉勢は川を越えて深追いはしなかった。
 // 遊び：南岸の殿を果たすと、濁流を押し渡った上杉の騎馬が数騎、背後から追いすがる。南の退き口の旗まで退く（追いつかれたら払う）。
-//   旗に着くか約九十秒で、戦の終わり（win）へ。字は出さない：旗の印・蹄の音・赤い印で分からせる。
+//   退き口の旗へ着いてから戦の終わりへ進む。待つだけでは退いた働きにしない。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { uS, uC } from '../b_mid.js';
 import { sfx } from '../audio.js';
+import { nobori } from '../props.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, UESUGI, SOUTH, FORD, next } = ctx;
-  const FLAG = { x: SOUTH.x, z: SOUTH.z + 62 };
+  const FLAG = { x: SOUTH.x, z: SOUTH.z + 62, name: '南の退き口の旗', action: '南の退き口の旗まで退け' };
   const t0 = rt.t;
   let done = false, tick = 0;
+  rt.scene.add(nobori(rt.world, FLAG.x, FLAG.z, 'oda', 5));
   rt.setPhase('furikiru');
   rt.obj('main', '南の退き口の旗まで退け。追いすがる騎馬に背を見せきるな', 'main');
   rt.objProgress('main', '');
@@ -27,7 +29,7 @@ export function install(rt, ctx) {
   // 濁流を押し渡った上杉の騎馬（数騎）
   let C = null;
   rt.after(8, () => {
-    if (done) return;
+    if (done || F.ending || rt.over || !rt.player.u.alive) return;
     C = enemyGroup(rt, { name: '濁流を渡った上杉の騎馬', anchor: { x: FORD.x + 6, z: FORD.z + 8 }, facing: 0, width: 4, order: 'attack', aggro: 40, seekRange: 50, morale: 80, faction: 'uesugi', fleeDir: { x: 0, z: -1 } },
       dress([uS(1, { horse: true }), uC(3)], UESUGI));
     sfx('hooves', 1);
@@ -35,19 +37,20 @@ export function install(rt, ctx) {
     rt.marker('furikiruC', () => (C.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? C.center() : null), '追いすがる騎馬', { red: true, group: C });
   });
   return {
+    target: FLAG,
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (done || F.ending || rt.over || !rt.player.u.alive) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t0, d = Math.hypot(p.x - FLAG.x, p.z - FLAG.z);
       rt.objProgress('main', d > 10 ? `退き口の旗まで約${Math.ceil(d / 5) * 5}歩` : '');
-      if ((d < 9 && el > 20) || el > 95) {
+      if (d < 9 && el > 20) {
         done = true; F.furikiruDone = true;
         rt.unmark('furikiru'); rt.unmark('furikiruC');
         if (C) for (const u of C.units) if (u.alive) { u.fleeing = true; u.moraleFleeDir = { x: 0, z: -1 }; }
         if (d < 9) rt.award((t) => t.side.push('追いすがる上杉の騎馬を振り切り、南の退き口へ退いた'), '追手を振り切った');
         rt.say('組頭', '追手は川へ引き返した……。振り切ったぞ', 3.5);
-        rt.after(3, () => next());
+        rt.after(3, () => { if (!F.ending && !rt.over && rt.player.u.alive) next(); });
       }
     },
   };
