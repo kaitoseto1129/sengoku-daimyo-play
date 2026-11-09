@@ -15,7 +15,11 @@ export const DAWN = { x: 146, z: 96 };      // 渡った先の南東の道（⑦
 export function startNight(rt, K) {
   const F = rt.flags, W = rt.world;
   try { W.dayClock = null; W.setTime('night'); if (W.fade) W.fade.dur = 8; } catch (e) { /* 空はそのまま */ }
-  for (const [x, z] of F.campFires || []) W.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
+  // 夜討ちで点けた篝火を残す。同じ場所に火と光を重ねない。
+  if (!F.campFiresLit) {
+    for (const [x, z] of F.campFires || []) W.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
+    F.campFiresLit = true;
+  }
   // 陣の間の備は帰す（本物の兵の枠を夜の列に回す）
   for (const g of [...(F.campBi || []), F.council, F.porters, F.sortie]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
   // 森勢の列（本物の兵）：主人公と五条川の渡しへ。松明は持たない

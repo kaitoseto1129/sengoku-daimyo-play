@@ -179,10 +179,9 @@ export function goalSignTick(rt, root) {
   }
   if (shown !== el._label) { el._label = shown; el._name.textContent = shown; el._tw = 0; }
   el._tri.style.display = enemy && !edge || groundPin && (!edge || t.arrived) ? 'none' : '';
-  // 遠い相手と画面外の相手は、同じ一人へ向く矢印で示す。
-  el._tri.style.transform = edge ? `rotate(${ang + Math.PI}rad)` : '';
-  // 画面外は同じ方向矢印。敵には剣を添えて行き先と分ける。
-  el._tri.style.clipPath = !edge && rt.def.goalSignTriangle ? 'polygon(0 0,100% 0,50% 100%)' : '';
+  // ▼指定の戦では、画面外でも形を回さず縁の位置で行き先を示す。
+  el._tri.style.transform = edge && !rt.def.goalSignTriangle ? `rotate(${ang + Math.PI}rad)` : '';
+  el._tri.style.clipPath = rt.def.goalSignTriangle ? 'polygon(0 0,100% 0,50% 100%)' : '';
   el._tri.style.width = edge ? '30px' : ''; el._tri.style.height = edge ? '26px' : '';
   el._tri.style.border = edge ? '0' : ''; el._tri.style.background = edge ? '#fff3ba' : '';
   if (!el._tw || el._twH !== VIEW.h) { el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20; el._twH = VIEW.h; }

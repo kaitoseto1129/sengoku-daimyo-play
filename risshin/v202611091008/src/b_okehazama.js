@@ -922,7 +922,7 @@ function quietOtherFlags(rt, keep) {
 
 // 史料に名の残る将（名札を常に出す）。
 const OKE_NAMED = new Set(['織田信長', '服部小平太', '毛利新介', '前田利家', '木下雅楽助', '中川金右衛門',
-  '今川義元', '山田新右衛門', '松井宗信', '井伊直盛', '由比正信']);
+  '今川義元', '山田新右衛門', '松井宗信', '井伊直盛', '由比正信', '簗田政綱']);
 const okehazama = {
   namedKacchu: OKEHAZAMA_KACCHU,
   // 10/31 iPhone の作りだけ：動く影は二コマに一度描き直す（main.js drawScene。稲葉山と同じ。fps 12→20 の軽く）
@@ -3039,7 +3039,6 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       // 公記「俄に急雨石氷を投げ打つ様に」：雹まじりの雨。共通の雹の粒（白い粒が跳ねる）をこの時から二十秒ほど降らせる。
       rt.world.hailT = 22;
     }
-    F.marchAwayT = distance > 24 ? (F.marchAwayT || 0) + dt : 0;
     if (!F.marchFollowNotice && rt.t >= 15 && distance > 8) {
       F.marchFollowNotice = true;
       localSay(rt, host, '組頭', '遅れるな。旗について来い！', 3);
@@ -3064,10 +3063,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     const goalDistance = goalP ? Math.hypot(me.x - goalP.x, me.z - goalP.z) : Infinity;
     const atGoal = this.squadFlagReached(rt) || (host?.arrived && goalDistance <= 12) ||
       (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && goalDistance < 30);
-    if (!atGoal && F.marchAwayT >= 120) {
-      F.ending = true; rt.tracker.main = false; rt.objFail('col'); rt.unmark('genpachi');
-      rt.banner('谷の出口へ届かず', '残る組と元の道へ退く'); rt.finish({ failureReason: '組から離れ、谷の出口で組に加われなかった。' }, 7); return;
-    }
+    // 本人が遅れても時間だけで敗北にしない。旗の案内を残し、出口への合流を待つ。
     if (host?.arrived && rt.t >= (F.marchNoticeAt || 0)) {
       F.marchNoticeAt = rt.t + 1;
       const late = F.cols.find((g) => g.count && !g.routed && !g.arrived && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget));

@@ -1115,8 +1115,8 @@ const okawachi = {
     terrainContactView: true, // 近い視点も描く直前に四隅を調べ、切岸の内側へ入れない。
     keepTerrainGrid: true, // 携帯でも足場と同じ格子。切り通しで地面の下へ目線が入るのを防ぐ。
     // 既定の半幅百八十では、北陣・西陣・桂瀬山・矢津川が地面の外へ出る。
-    // 高だけ移動範囲と両岸まで地面を延ばす。既存の分割数・兵数・材質は増やさない。
-    groundHalf: S.quality === 'high' ? 280 : undefined,
+    // 携帯でも移動範囲と両岸まで地面を延ばす。既存の分割数・兵数・材質は増やさない。
+    groundHalf: 280,
     moveLim: 260,
     moveWay: karameteWay,
     runnerWay: karameteWay,
