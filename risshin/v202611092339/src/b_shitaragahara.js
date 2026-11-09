@@ -1750,7 +1750,13 @@ function shCp3(rt) {
   const F = rt.flags, N = F.nf;
   if (N.step < 2) shCp2(rt);
   const B = F.shBreach;
-  if (B && !B.done) { B.s = 1; B.at1 = B.at1 || rt.t; B.there = true; const l = B.g.units.find((u) => u.name === '山県昌景'); if (l?.alive) rt.army.kill(l, null); }
+  if (B && !B.done) {
+    // 再開でも実際に柵を倒す。段だけ進めると、続く土屋隊の道に柵が残る。
+    if (B.s === 0) { B.arrived = true; ST_BREACH.tick(rt, 0.05); }
+    B.there = true;
+    const l = B.g.units.find((u) => u.name === '山県昌景');
+    if (l?.alive) rt.army.kill(l, null);
+  }
   nfTick(rt, 0.05); nfTick(rt, 0.05);
   const H = F.shHara;
   if (H && !H.done) { H.there = true; const l = H.g.units.find((u) => u.name === '原昌胤'); if (l?.alive) rt.army.kill(l, null); }
