@@ -70,7 +70,8 @@ export function tickMeet(rt, ctx) {
     rt.army.play('toki', { x: ctx.JOIN.x, z: ctx.JOIN.z - 24 }, 1.0);
     rt.say('羽柴の先手', '藪から夜討ちじゃ！　松明を消すな、槍を揃えよ！', 3);
   }
-  if (F.yochi && rt.t - F.yochi > 30 && (ctx.nLive(F.yochiG) <= 2 || rt.t - F.yochi > 75)) {
+  // 迎える場所に着き、夜討ちを退けるまで達成しない。離れた砦で時を待つだけでは進めない。
+  if (near && F.yochi && rt.t - F.yochi > 30 && ctx.nLive(F.yochiG) <= 2) {
     if (ctx.live(F.yochiG)) { F.yochiG.order = 'retreat'; F.yochiG.dest = { x: ctx.JOIN.x + 20, z: ctx.JOIN.z - 80 }; F.yochiG.kind4 = 'gone'; }
     rt.say('羽柴の先手', '退いたか。筑前様は砦の本陣に入られた。参られよ', 3);
     ctx.next();

@@ -84,8 +84,8 @@ export function tick(rt, dt, C) {
     if (K.flag) K.flag.position.y = K.flag.userData.y1 + k * 5;
   }
   const P = rt.player.u;
-  if (K.open && rt.t - K.open > WATCH && C.near(P.pos, C.FRONT, 18)) C.def.win(rt);
-  else if (K.open && rt.t - K.open > WATCH + 30) C.def.win(rt);
+  // 門前で見届けるまで締めない。離れた本人や討たれた本人を時刻だけで勝ちにしない。
+  if (P.alive && K.open && rt.t - K.open > WATCH && C.near(P.pos, C.FRONT, 18)) C.def.win(rt);
 }
 
 export function pin(rt, C) {

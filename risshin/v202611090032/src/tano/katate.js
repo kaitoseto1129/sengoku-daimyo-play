@@ -16,9 +16,13 @@ export function wrap(def) {
     const F = r.flags, D = F.dp, nx = D?.steps?.[D.i + 1];
     if (k15Off(r) || !nx) return next.call(this, r);
     if (F.k15stage === 'katate' || F.k15stage === 'gyaku') return;
-    const go = () => { F.k15on = false; F.k15stage = null; D.on = true; next.call(this, r); };
-    if (nx.phase === 'fence' && !F.katateDone) { F.katateDone = true; D.on = false; katate(r, go); return; }
-    if (nx.phase === 'tano' && !F.gyakuDone) { F.gyakuDone = true; D.on = false; gyaku(r, go); return; }
+    const go = () => {
+      if (F.k15stage === 'katate') F.katateDone = true;
+      if (F.k15stage === 'gyaku') F.gyakuDone = true;
+      F.k15on = false; F.k15stage = null; D.on = true; next.call(this, r);
+    };
+    if (nx.phase === 'fence' && !F.katateDone) { D.on = false; katate(r, go); return; }
+    if (nx.phase === 'tano' && !F.gyakuDone) { D.on = false; gyaku(r, go); return; }
     return next.call(this, r);
   };
 }

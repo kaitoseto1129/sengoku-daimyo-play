@@ -3298,7 +3298,7 @@ const kanegasaki = {
     rt.say(rt.G.lord ? '木下藤吉郎' : '織田信長', rt.G.lord ? '金ヶ崎は開き申した。木ノ芽峠の先は一乗谷にござる' : '金ヶ崎は開いた。木ノ芽峠を越え、一乗谷へ進むぞ', 4);
     F.t0 = 0;
     // 15分の構成：はじめの三分は攻める（峠道の朝倉を押し返し、柵を取る・kanegasaki/kosen.js）。済んだら浅井離反の急報と追手
-    rt.after(1, () => k15Kosen.start(rt, { ...kgCtx(rt), faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, look: (list) => dress(list, ASAKURA),
+    rt.after(1, () => k15Kosen.start(rt, { ...kgCtx(rt), friends: () => [], aid: { name: '先手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }] }, aidBacking: false, faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, look: (list) => dress(list, ASAKURA),
       LINE0: LINES[0], ARMOR: { oda: KIT.ARMOR.oda, asakura: ASAKURA.armor } }, () => {
       if (rt.over || F.ending) return;
       this.betrayed(rt);
@@ -4195,7 +4195,7 @@ kanegasaki.famous = [];
 // 殿は追手を止めて退く。首取りの札と案内を出さず、証人のある働きは残す。
 kanegasaki.uchisute = true;
 kanegasaki.date = () => '元亀元年四月の退き口';
-kanegasaki.canSkip = (rt) => rt.phase === 'brief' && rt.t > 3 ? '朝倉の寄せまで待つ' : '';
+kanegasaki.canSkip = (rt) => rt.phase === 'brief' && rt.flags.k15Kosen === 'done' && rt.t > 3 ? '朝倉の寄せまで待つ' : '';
 kanegasaki.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) kanegasaki.wave1(rt); };
 kanegasaki.history = '元亀元年四月、織田信長は越前の朝倉義景を攻め、天筒山（手筒山）城を攻め落とし、金ヶ崎城を降参させた。ところが妹・お市の夫である北近江の浅井長政が朝倉方につき、織田勢は前後を挟まれる形になった。信長はわずかな供で朽木越えに京へ逃れた。信長公記は金ヶ崎に木下藤吉郎を残したと記し、同時期の一色藤長書状は、伝聞として明智光秀・池田勝正らが後衛を務めたと伝える（金ヶ崎の退き口）。殿が細い道で鉄砲を使って追手を止めたとも言われるが、細かな布陣は確かではない。お市が両端を縛った小豆の袋を送って危うさを知らせたという話は、後の書物に出るもので確かではない。この戦の後、信長は兵を立て直し、六月に姉川で浅井・朝倉と戦った。追いすがった朝倉の将の名は伝えによって違い、この戦では無名の侍大将とする。局地の三つの備、笙の川の橋と渡り、谷の射撃、朝から夕への日の移りと風は復元であり、当日の記録ではない。浅井の離反は知らせで扱い、敦賀で浅井本隊と直接戦ったとは断定しない。地点の間隔を縮めており、最後の退き道は若狭方面への出口で、朽木谷そのものではない。信長は朽木の案内で谷を越え、四月晦日に京へ入った。殿が前もって柵を結った砦へ順に退いた形と、池田・明智が南の道から助けに戻る形は復元である。徳川家康が若狭で秀吉の軍を救ったという話は『東遷基業』など江戸時代の書物の伝えで、同時代の史料では確かめられない。';
 

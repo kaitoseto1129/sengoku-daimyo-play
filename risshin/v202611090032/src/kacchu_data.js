@@ -458,7 +458,9 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["平野長泰", "zunari", "kuwa", 0x24221f, 0xb0a890, "sugake", 0, 0, "tokugawa", ""],
   ["糟屋武則", "zunari", "moon", 0x24221f, 0xa88a3a, "sugake", 0, 0x24221f, "tokugawa", ""],
   ["真田信之", "zunari", "sun", 0x24221f, 0xa88a3a, "kebiki", 0, 0x24221f, "tokugawa", ""],
-  ["小西行長", "zunari", "sun", 0x1c1a1a, 0xb0a890, "okegawa", 0, 0x1c1a1a, "ishida", ""],
+  // 伝所用・皺革包胴丸具足を参考にした略復元。革包は既存の平滑な胴で近似し、未確認の日輪は付けない。
+  // 黒と威の色・頭形の鉢は復元案。出所：docs/generals_look_1108/小西行長.md
+  ["小西行長", "zunari", "none", 0x1c1a1a, 0xb0a890, "hotoke", 0, 0, "konishi", ""],
   ["相良頼房", "zunari", "kuwa_wide", 0x1c1a1a, 0xa88a3a, "sugake", 0, 0x1c1a1a, "ishida", ""],
   ["脇坂安治", "momonari", "kuwa_wide", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0x1c1a1a, "none", ""],
   ["長束正家", "suji", "cross", 0x1c1a1a, 0xb39a61, "sugake", 0x2e3a42, 0, "toyotomi", ""],

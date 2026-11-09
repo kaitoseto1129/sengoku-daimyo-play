@@ -151,6 +151,7 @@ export const REQUIRED_KACCHU = [
   ['渡辺勘兵衛', 'momonari', 'horn', D.kuro, C.suou, 'okegawa', 0, 'none', txt('渡辺'), null, '了。槍の勘兵衛。所用品は伝わらない。復元案'],
   ['松田康長', 'suji', 'kuwa', D.kuro, C.uguisu, 'kebiki', 0, 'hojo', mon('hojo'), null, '山中城の将。所用品は伝わらない。復元案'],
   ['石田三成', 'suji', 'sun', D.kuro, C.kurenai, 'sugake', 0, 'none', 'ishida', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, doOpening: 'nimai', menpo: 0, fur: 0, kusazuriFur: 0x1a1816, kusazuriLaceRows: 5 }, '宇治田家伝来・伝三成所用の紅糸素懸威二枚胴具足。鉄錆地六十二間筋兜と日輪前立、草摺裾の熊毛。脇立は補わない。当日着用は未確認の復元案。出所は docs/generals_look_1108/石田三成.md'],
+  ['小西行長', 'zunari', 'none', D.kuro, 0xb0a890, 'hotoke', 0, 'konishi', 'konishi', { domaru: true, doOpening: 'right', plateDo: 'hotoke', menpo: 0, fur: 0, uma: null }, '八代市立博物館公開の伝所用・皺革包胴丸具足を参考に、既存の平滑胴で革包を略復元。鉢と黒・威の色は推定。立物・面頬・陣羽織は補わない。中結祇園守は所属表示で当日の旗の断定ではない。出所は docs/generals_look_1108/小西行長.md'],
   ['成田長親', 'suji', 'kuwa_wide', D.kuro, C.kobai, 'kebiki', 0, 'none', txt('成田'), null, '忍城の将。所用品は伝わらない。復元案'],
   ['上杉景勝', null, null, null, null, null, null, null, 'uesugi', null, '具足は前の表（写真）'],
   ['直江兼続', 'suji', 'naoe_ai', D.kin, 0x5a9aa0, 'sugake', 0, 'none', 'uesugi', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, shinodare: false, fukigaeshiBadge: false, doubleShikoro: true, doOpening: 'nimai', honkozane: true, goldKozane: true, menpo: 0, fur: 0, horo: 0, uma: null }, '上杉神社の伝兼続所用・金小札浅葱糸威二枚胴具足と鉄錆地塗六十二間筋兜。愛字と瑞雲は既存形。陣羽織・脇立・個人馬印は補わない。所属旗で示す復元案。当日の着用は未確認。出所は docs/generals_look_1108/直江兼続.md'],
