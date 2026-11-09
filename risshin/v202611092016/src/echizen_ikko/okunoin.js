@@ -49,7 +49,7 @@ export function yoin(rt) {
 
 // 山狩りの段：本堂の備えから後で補われた兵や、堂の中・切岸の上で動けなくなった兵が一人残ると、
 //   「堂に敵が残る」で終わらず九分止まった（11/9 の流し：本堂の鉄砲一人）。
-//   五秒ごとに堂の区域を見て、本堂の衆徒は逃がし、三十秒動かない者は味方の手に討たれた事にする。ctx：{ zones（堂の区域） }
+//   五秒ごとに堂の区域を見て、本堂の衆徒は逃がす。交戦も移動も三十秒止まった者だけを詰まりとする。ctx：{ zones（堂の区域） }
 export function tick(rt, dt, ctx) {
   const F = rt.flags;
   if (!F.ikOku || F.ending || (F.ikOkuT = (F.ikOkuT || 0) - dt) > 0) return;
@@ -58,6 +58,14 @@ export function tick(rt, dt, ctx) {
   for (const u of rt.army.units) {
     if (u.team !== 1 || !u.alive || u.fleeing || u.isStruct || !ctx.zones.some((z) => z.test(u.pos.x, u.pos.z))) continue;
     if (hondo.includes(u.group)) { u.fleeing = true; u.target = null; u.aiT = 0; continue; }
+    // 弓・鉄砲や持ち場の槍は、その場で戦う。立ち止まっているだけで討死にしない。
+    const target = u.target;
+    if (u.atk || u.swing || u.charging || target?.alive && !target.fleeing &&
+        Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) <= (u.range || 4) &&
+        !rt.army.wallBetween(u.pos, -1, target.pos)) {
+      u._ikStill = null;
+      continue;
+    }
     const s = u._ikStill;
     if (!s || Math.hypot(u.pos.x - s.x, u.pos.z - s.z) > 1.5) { u._ikStill = { x: u.pos.x, z: u.pos.z, t: rt.t }; continue; }
     if (rt.t - s.t > 30) rt.army.kill(u, null);
