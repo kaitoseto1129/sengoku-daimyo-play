@@ -227,6 +227,7 @@ export class HudCards {
     const markedGroup = on ? rt.def.enemyTriangleGroup?.(rt) : null;
     if (on) for (const u of rt.army.units) {
       if (n === this.enemyTriangles.length) break;
+      if (rt.def.enemySignVisible?.(rt, u) === false) continue;
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget && !(markedGroup && u.group === markedGroup) || u.isStruct || u.team === me.team ||
           u.mesh?.visible === false || u.camHidden ||
           (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600 || !sightUnit(rt, u)) continue;   // 11/8：40m→60m（付いている兵と付いていない兵が混じった）

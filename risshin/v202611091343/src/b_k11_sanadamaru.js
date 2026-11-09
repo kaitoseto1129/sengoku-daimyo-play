@@ -351,7 +351,7 @@ const k11_sanadamaru = {
   setup(rt) {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const W = rt.world, F = rt.flags;
-    F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.begun = false; F.shot = 0;
+    F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.returned = false; F.begun = false; F.shot = 0;
     // 共通の「横槍が入ったぞ！敵が崩れる！」は言わせない：この日、崩れたのは寄せ手の方（11/6 遊んだら五秒おきに三度出た）
     const say0 = rt.say;
     rt.say = function (who, text, ...rest) { return typeof text === 'string' && /横槍/.test(text) ? false : say0.call(this, who, text, ...rest); };
@@ -524,7 +524,7 @@ const k11_sanadamaru = {
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。段の刻限の時計は出さない（段は柵を破るまで続く）
   goals5() {
     return STAGES.k11_sanadamaru.map(([text], k) => ({ kind: 'stage', k, text,
-      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.ending && rt.tracker?.main === true) }));
+      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.returned) }));
   },
   // 共通の任務札は今の一行だけなので、この戦では目標の札（hud_goals）を重ねて置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
   //   森部（b_moribe.js）と同じ作り。戦が終われば元へ戻す
@@ -818,9 +818,10 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true;
+    F.returned = F.step === 5;
     rt.setPhase('end');
-    // 主任務の札は和議と破却の後に閉じる。先に済ませると共通の終了判定が終幕を途中で切る。
-    rt.award((t) => { t.main = true; t.special = { label: '真田丸の前で殿を務めた', pts: 40 }; }, '真田の打って出を食い止め、生きて戻った');
+    // 帰陣の印と勝ちの確定を分ける。段の任務は既に済んでいるため、ここで勝ちを立てると共通判定が和議の前に締めてしまう。
+    rt.award((t) => { t.special = { label: '真田丸の前で殿を務めた', pts: 40 }; }, '真田の打って出を食い止め、生きて戻った');
     rt.player.u.invuln = true;
     F.victoryShown = true;   // 撃ち崩されて退いた日。勝鬨と「合戦に勝利」は上げない（札は「務めを果たした」。victory_card の DUTY）
     rt.banner('真田丸攻略　失敗', '部隊撤収　成功');   // 合戦の結果と任務の結果を分ける（docs/rank_interlude_retry_spec_1108.md）
@@ -835,6 +836,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka });
       rt.after((w && w.end) || 1, () => {
         // 結果には最初の登頂ではなく、最後に果たした帰陣の務めを残す。
+        rt.award((t) => { t.main = true; });
         rt.obj('main', STAGES.k11_sanadamaru[4][0], 'main');
         rt.objDone('main'); rt.finish({ scriptedEnd: true }, 0);
       });

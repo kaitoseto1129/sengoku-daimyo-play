@@ -311,6 +311,7 @@ export function fieldSignsTick(rt, root) {
     for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.isPlayer || u.isStruct || u.civ || u.noTarget ||
           u.fleeing || u.group?.routed || u.mesh?.visible === false || u.camHidden || u.team > 1 || u.type === 'dummy' || u.type === 'porter') continue;
+      if (u.team !== me.team && rt.def.enemySignVisible?.(rt, u) === false) continue;
       const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       const foe = u.team !== me.team;
       if (d > (foe ? 12 * 12 : 6 * 6) ||!sightScreenUnit(rt, u)) continue;
@@ -358,6 +359,8 @@ export function fieldSignsTick(rt, root) {
     if ((!u.alive || u.dying || u.woundOut || u.rearWound || u.downed) && !defeated || u.gone && !(special && defeated) || u.isPlayer || u.isStruct || u.civ || u.type === 'dummy' || u.type === 'porter' || u.team > 1) continue;
     const dx = u.pos.x - P.x, dz = u.pos.z - P.z, d2 = dx * dx + dz * dz;
     const foe = u.team !== me.team;
+    // 出発前の控えは、所属の印だけを先に出さない。
+    if (foe && rt.def.enemySignVisible?.(rt, u) === false) continue;
     // 11/8 critic60 長島（九3・九6）：舟に座って戦えない者（perch・noTarget）は体が舟べりに隠れ、▼だけが川の上に並んで浮いた。岸へ上がってから▼を付ける
     if (foe && u.noTarget && u.perch && u.boatSeat) continue;
     // 敵には一人残らず赤い▼（kaito 物差し「敵には全員赤い▼」）。大きな枠一つに絞って周りの敵の▼を全部消すのはやめた（11/6 共通の係・▼）
