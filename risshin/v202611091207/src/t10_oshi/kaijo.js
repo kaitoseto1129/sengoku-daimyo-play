@@ -85,7 +85,9 @@ export function tick(rt, dt, C) {
   }
   const P = rt.player.u;
   // 門前で見届けるまで締めない。離れた本人や討たれた本人を時刻だけで勝ちにしない。
-  if (P.alive && K.open && rt.t - K.open > WATCH && C.near(P.pos, C.FRONT, 18)) C.def.win(rt);
+  const watching = P.alive && K.open && C.near(P.pos, C.FRONT, 18);
+  K.watch = watching ? (K.watch || 0) + dt : 0;
+  if (K.watch >= WATCH) C.def.win(rt);
 }
 
 export function pin(rt, C) {

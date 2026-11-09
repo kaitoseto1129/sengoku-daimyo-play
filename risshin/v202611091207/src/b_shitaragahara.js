@@ -1515,7 +1515,20 @@ function nfTick(rt, dt) {
       // 虎口を抜けるまでは、柵の内の道順を保つ。本人へ直進すると柵に詰まる。
       if (c.x <= SB.x0 + 4 || q.order === 'path' && q.units.some((u) =>
           u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget && u.pos.x <= SB.x0 + 4)) return;
-      if (nearRear && d < 30) { if (q.order !== 'attack') { q.order = 'attack'; q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false; q.seekRange = 60; q.aggro = 14; q.fire = true; q.holdFire = false; } return; }
+      if (nearRear && d < 30) {
+        // 探す範囲だけ広げても、各兵の交戦範囲の外では元の持ち場で止まる。
+        // 殿の生きた兵を指定し、坂で見通せない間もそこへ歩いて寄せる。
+        let foe = null, dist = Infinity;
+        for (const u of F.rear.units) {
+          if (!shFoeOK(u, P)) continue;
+          const r = Math.hypot(u.pos.x - c.x, u.pos.z - c.z);
+          if (r < dist) { dist = r; foe = u; }
+        }
+        q.order = 'attack'; q.focus = foe; q.path = null; q.dest = null; q.onArrive = null;
+        q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false;
+        q.seekRange = 60; q.aggro = 14; q.fire = true; q.holdFire = false;
+        return;
+      }
       if (d > 12 && p.x > SB.x0 + 2) {
         // 本人の左右へ並ぶ（後ろに付けると、前を向く画面に味方が一人も映らなかった）
         const goal = N.step === 5 ? NF_REAR : NF_BANK, gl = Math.hypot(goal.x - p.x, goal.z - p.z) || 1, fx = (goal.x - p.x) / gl, fz = (goal.z - p.z) / gl;
@@ -1568,6 +1581,8 @@ function nfTick(rt, dt) {
 // 内藤が崩れ、武田の全軍が退く（未の刻）。勝頼は討てず、馬場が殿に残る。
 function nfCollapse(rt) {
   const F = rt.flags;
+  // 柵の定位置からの斉射を終え、追撃する鉄砲組の射撃を妨げない。
+  ST_WALL.stop(rt);
   F.nf.crossWest = false;
   rt.setPhase('pursuit');
   F.pursuit = rt.t;

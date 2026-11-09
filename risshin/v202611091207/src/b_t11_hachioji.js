@@ -464,7 +464,7 @@ function nakayamaStep() {
 
 const t11_hachioji = {
   // 11/4 p100：行き先の印は今の目標の金の▼一つだけ（kaito AL・AN・AP12）。奥の軽い乱戦（front_fill）も置かない（AA）
-  noFrontFill: true, kumiLead: false, noGoalCount: true, goalsAllRows: true, goalSignNameOnly: true, noLeaderFollow: true,
+  noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,   // 11/9 iPhone 874×402：八つを並べた札が画面の高さを埋めたので、今の一件だけ
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 15,
