@@ -493,7 +493,9 @@ html:root body #hud#hud.battle-order #h-prog#h-prog .pg-stage { display:none !im
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st { display:flex !important; flex-direction:row !important; align-items:center !important; gap:6px; }
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > b { display:block !important; flex:none; width:22px; height:26px; }
 html:root body #hud#hud.battle-order #h-prog#h-prog .pg-st > span { display:block !important; color:#fff3df; font-size:max(22px,calc(22px * var(--text-scale,1))) !important; line-height:1.4; white-space:normal !important; }
-html:root body #hud#hud.battle-order :is(#battle-notices:not(.choosing),#subtitle,#banner,#jk-rest,#tugbar) { display:none !important; }
+/* 佐和山の内応・開城・落城は台詞と札で伝える。台詞の親枠ごと隠さない。 */
+html:root body #hud#hud.battle-order:not(:has(#h-prog[data-battle="k07_sawayama"])) :is(#battle-notices:not(.choosing),#subtitle,#banner),
+html:root body #hud#hud.battle-order :is(#jk-rest,#tugbar) { display:none !important; }
 /* 今の目標・兵数を一枚へ。体力と行き先の目印を合わせて三枚に収める。 */
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
