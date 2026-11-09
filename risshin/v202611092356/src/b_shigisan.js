@@ -3663,7 +3663,11 @@ const shigisan = {
       for (const w of F.withdraw) if (!gone(w.g) && (!w.sent || w.g.order === 'path') && (w.g.count <= w.g.initial * 0.55 || w.g.morale < 55)) {
         if (!withdrawalOpen(rt, w)) { w.sent = false; w.g.order = 'hold'; w.g.formation = 'yari'; w.g.aggro = 14; w.g.onArrive = null; continue; }
         if (w.sent) continue;
-        w.sent = true; march(rt, w.g, w.path); w.g.pathIdx = w.start + 1; w.g.facing = 0; w.g.onArrive = (q) => { q.order = 'hold'; q.formation = 'yari'; q.width = 7; q.facing = 0; q.aggro = 14; };
+        w.sent = true; march(rt, w.g, w.path);
+        // march が先頭に残した通過済みの道を飛ばし、退却路の現在地から進む。
+        // 退却路だけの番号で上書きすると、古い道へ戻って曲輪の手前で止まる。
+        w.g.pathIdx += w.start;
+        w.g.facing = 0; w.g.onArrive = (q) => { q.order = 'hold'; q.formation = 'yari'; q.width = 7; q.facing = 0; q.aggro = 14; };
       }
     }
     if (F.amb.noRout && rt.t > 40) F.amb.noRout = false;
