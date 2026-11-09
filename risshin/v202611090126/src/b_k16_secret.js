@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { nobori, tawara, umajirushi, bobosaku } from './props.js';
 import { stopMusic } from './audio.js';
 import { RANKS } from './state.js';
-import { STAGES, KILLS, cut } from './stages.js';
+import { STAGES, KILLS, cut, standing } from './stages.js';
 import { GENERALS } from './units_data.js';
 import { sfx } from './audio.js';
 import { victoryMoment } from './victory_moment.js';
@@ -84,8 +84,9 @@ const HONDA = { armor: 0x1c1a18, flag: 'honda' };
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n }), uC = (n) => ({ type: 'cavalry', n });
 const busho = (name, o = {}) => ({ type: 'busho', n: 1, o: { name, horse: true, ...o } });
-const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
-const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
+// 負傷して戦列を離れた兵は、達成判定・人数・行き先のどれにも残さない。
+const live = (g) => g && g.units.some(standing);
+const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (standing(u) ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -293,7 +294,9 @@ const k16_secret = {
     // ほかの段：段の隊が立っている間は、その隊の自分に一番近い兵（隊の真ん中が空の野に落ちない）
     let p = STEP_AT[F.step];
     if (F.step === 5) { if (F.ieyasu && F.ieyasu.alive && inCamp(P.pos)) p = F.ieyasu.pos; }
-    else if (live(g)) { let bd = 1e9; for (const u of g.units) if (u.alive && !u.gone && !u.fleeing) { const d = dist(u.pos, P.pos); if (d < bd) { bd = d; p = u.pos; } } }
+    else if (live(g)) { let bd = 1e9; for (const u of g.units) if (standing(u)) { const d = dist(u.pos, P.pos); if (d < bd) { bd = d; p = u.pos; } } }
+    // 柵越しの敵へ直進させず、実際に抜けられる京街道の口を指す。
+    p = viaGap(P.pos, p) || p;
     PIN.x = p.x; PIN.z = p.z;
     return PIN;
   },
@@ -662,7 +665,7 @@ const k16_secret = {
     const gone = F.stepN - aliveN(g);
     // 段の隊の残りが散って、自分の周り三十五 m に一人もいないまま十秒（その場の戦いが済んだ）：崩れたとみなして次へ（空の野で立ち尽くさない。三2）
     let near = false;
-    if (live(g)) for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 35) { near = true; break; }
+    if (live(g)) for (const u of g.units) if (standing(u) && dist(u.pos, P.pos) < 35) { near = true; break; }
     if (!live(g) && dist(P.pos, STEP_AT[F.step]) < 35) near = true;
     if (near && !F.stepSeen) { F.stepSeen = true; F.engagedT = rt.t; }   // 主人公がその隊に寄るまで段は済まない（kaito CB：何もしていないのに目標が終わる）
     F.farT = near || rt.t - F.stepT < 25 || gone < F.stepN * 0.3 ? 0 : (F.farT || 0) + 0.25;
@@ -702,7 +705,7 @@ const k16_secret = {
     }
     if (F.holdPlayer || !F.step || F.ending || !u.alive) return;
     // 陣幕の外から幕越しに内の者を狙わない（布の前で止まらない）
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && !(o.group && (o.group.order === 'retreat' || o.group === F.takatora || o.group === F.hide)) && inCamp(o.pos) === inCamp(u.pos) &&
+    const ok = (o) => standing(o) && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3 && !(o.group && (o.group.order === 'retreat' || o.group === F.takatora || o.group === F.hide)) && inCamp(o.pos) === inCamp(u.pos) &&
       // 家康の段は本陣の近くの敵だけ（後ろの野へ追って戻らない）
       (F.step !== 5 || dist(o.pos, HQ) < 34 || dist(o.pos, u.pos) < 3);
     // 陣幕の内では、まわりの近習より床几の家康を狙う（奥の樽や太鼓の脇で近習を追い回さない）

@@ -488,8 +488,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 小笠原秀政：信濃守護の家（三階菱）。頭形兜に大鍬形、萌黄糸の桶側胴、鼠の陣羽織。葵は付けない（復元案）
   ["小笠原秀政", "zunari", "kuwa_wide", 0x24221f, 0x6a7a2c, "okegawa", 0x5a5a5a, 0x24221f, "none", ""],
   ["後藤又兵衛", "zunari", "moon", 0x2a2624, 0xa88a3a, "okegawa", 0x2a2a2a, 0x2a2624, "toyotomi", ""],
-  // 毛利勝永：桃形兜に日輪の前立、紺糸の素懸威、猩々緋の陣羽織（大坂夏の陣図屏風の豊臣方の騎馬武者の型。復元案。docs/kacchu_k15_toyotomi.md）
-  ["毛利勝永", "momonari", "sun", 0x1c1a1a, 0x2e3a52, "sugake", 0x9a2418, 0x1c1a1a, "toyotomi", ""],
+  // 毛利勝永：伝所用の白糸威水牛形兜を既存の水牛脇立で略復元。錣と伝来品の注意は必須表で重ねる（docs/generals_look_1108/毛利勝永.md）。
+  ["毛利勝永", "momonari", "bull", 0x1c1a1a, 0x2e3a52, "sugake", 0x9a2418, 0x1c1a1a, "none", ""],
   // 木村宗明：重成の一族。頭形兜に小鍬形、木村家の萌黄糸を桶側胴に（復元案）
   ["木村宗明", "zunari", "kuwa", 0x2a2420, 0x5a7a3a, "okegawa", 0, 0x2a2420, "toyotomi", ""],
   // 真田大助（幸昌）：十五歳。赤備えの朱漆の頭形兜に大鍬形と六文銭、白糸の毛引威。父の鹿角・陣羽織は付けない（復元案）
@@ -831,6 +831,13 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 大阪城天守閣の伝又兵衛所用・日月竜文蒔絵仏胴具足。出所と補完範囲は docs/generals_look_1108/後藤又兵衛.md。
+// 配色の散らし・必須表より後で戻す。獅噛と毛植は既存の共有形を使う（脇立は付けない）。
+Object.assign(KACCHU["後藤又兵衛"], { bowl: "zunari", crest: "niwa_shikami",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro",
+  lace: 0x34302a, odo: 0x34302a, doStyle: "hotoke", plateDo: "hotoke",
+  fur: 0x171512, kumage: true, menpo: 0x1c1a1a, menpoStyle: "hanbo",
+  haori: 0, mon: "none", flag: "toyotomi", uma: null, fukigaeshiBadge: false });
 // 杭瀬川・関ヶ原の左近。名前による配色の散らしの後で、伝来兜の鉄色・紺絲へ戻す。
 // 脇立・家紋・個人の馬印は未確認。旗は石田方の所属表示として残す。
 // 出所と復元範囲：docs/generals_look_1108/島左近.md

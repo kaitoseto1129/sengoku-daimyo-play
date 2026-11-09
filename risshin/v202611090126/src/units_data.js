@@ -158,7 +158,7 @@ export const GENERALS = {
     face: { w: 1.08, jaw: 1.2, chin: 0.9, cheek: 1.1, gaunt: 0.2, brow: 1.2, nose: 0.95, nw: 1.2, eye: 1.15, t: 6, hair: 0x4a4640, age: 51, beard: { mus: 0.75, musW: 0.95, droop: 0.65, goat: 0.6, goatW: 0.9, side: 0.25, stub: 0.9 } } },
   '吉田出雲守': { armor: 0x24221f, lace: 0x5a4630, hat: 'kabuto_m', haori: 0x3a2e24, horo: 0, mon: 'none', skin: 0xa87f5c, tack: 0x3a2a1c,
     face: { w: 1.0, jaw: 1.05, chin: 1.0, cheek: 1.25, gaunt: 0.9, brow: 1.2, nose: 1.1, nw: 1.0, eye: 1.2, t: 6, hair: 0x5a5650, age: 55, beard: { mus: 0.65, musW: 0.85, droop: 0.7, goat: 0.7, goatW: 0.7, side: 0.1, stub: 0.9 } } },
-  '後藤又兵衛': { armor: 0x2a2624, lace: 0x5a2a1c, hat: 'kabuto_t', haori: 0x2a2a2a, horo: 0, mon: 'toyotomi', haoriMonCol: 0xe6dfcf, skin: 0x8e6446, tack: 0x3a2018,
+  '後藤又兵衛': { armor: 0x1c1a1a, lace: 0x34302a, hat: 'kabuto', haori: 0, horo: 0, mon: 'none', flag: 'toyotomi', haoriMonCol: 0xe6dfcf, skin: 0x8e6446, tack: 0x3a2018,
     face: { w: 1.08, jaw: 1.3, chin: 0.9, cheek: 1.35, gaunt: 0.8, brow: 1.45, nose: 0.95, nw: 1.25, eye: 1.3, t: 7, hair: 0x6a665e, age: 55, esp: 0.96, beard: { mus: 1, musW: 1.1, musH: 1.1, droop: 0.6, goat: 0.9, goatW: 1.05, side: 0.8, stub: 1.3 } } },
   // 三つ盛亀甲に花菱。具足・得物の表と同じ紋を、近い兜・陣羽織と指物にも使う。
   // 当日の装いは復元案：https://blog.livedoor.jp/jidai2005/archives/57811288.html

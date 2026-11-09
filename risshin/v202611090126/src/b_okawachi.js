@@ -2845,8 +2845,20 @@ function okYardRing(rt, bushSrc, tuftSrc) {
       { vec3 q = floor(vOkCrown * 3.0); float n = fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
         diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(0.15, 1.0, vOkCrown.y)) * mix(0.74, 1.06, n); }`);
   } }) : null;
-  const crowns = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 72) : null;
-  const bushes = bushSrc ? new THREE.InstancedMesh(bushSrc.geometry, leafMat, 110) : null;
+  // 葉の輪郭を保ったまま面を湾曲させ、横からも厚みと陰影を持たせる。
+  // 元の野の株は変更せず、この戦の雑木と低木で一つの形を共有する。
+  const leafGeo = bushSrc?.geometry.clone();
+  if (leafGeo) {
+    const pos = leafGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      pos.setXYZ(i, x + 0.12 * Math.sin(y * 2.8 + z * 2), y,
+        z + 0.18 * Math.sin(x * 2.6 + y * 1.7));
+    }
+    leafGeo.computeVertexNormals(); leafGeo.computeBoundingSphere();
+  }
+  const crowns = bushSrc ? new THREE.InstancedMesh(leafGeo, leafMat, 72) : null;
+  const bushes = bushSrc ? new THREE.InstancedMesh(leafGeo, leafMat, 110) : null;
   const tufts = tuftSrc ? new THREE.InstancedMesh(tuftSrc.geometry, tuftSrc.material, 640) : null;
   let nt = 0, nc = 0, nb = 0, nf = 0;
   // 秋の雑木（楢・櫟・山桜・漆）の葉色：褐色・黄・朱を主に、常緑のくすんだ緑を少し。
@@ -3166,7 +3178,7 @@ function okLandscape(W) {
   // 一株六十四面の形と材質を共有し、株数・位置・描画回数は増やさない。
   if (W.farTreeMeshes?.length) {
     // 六角の球は遠くでも角ばった塊に見えた（10/29 点付け）。凸凹のある丸い房にして、株ごとに秋の褐色と常緑の深緑を混ぜる。
-    const parts = [new THREE.CylinderGeometry(.22, .34, 4, 5), okCrownGeo(11), okCrownGeo(23)];
+    const parts = [new THREE.CylinderGeometry(.22, .34, 4, 10), okCrownGeo(11), okCrownGeo(23)];
     parts[0].translate(0, 2, 0);
     parts[1].scale(3.2, 2.8, 2.9); parts[1].translate(-.8, 5.2, .3);
     parts[2].scale(2.7, 2.5, 2.6); parts[2].translate(.9, 7.1, -.3);
@@ -3206,7 +3218,7 @@ function okLandscape(W) {
   }
   // 野と場外の地形の継ぎ目を、起伏のある土手と二列の林で覆う。道と川の中には置かない。
   const edge = W.half, segments = 48, trees = segments * 4 * 2;
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 4, 5), new THREE.MeshLambertMaterial({ color: 0x3c3025 }), trees);
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 4, 10), new THREE.MeshLambertMaterial({ color: 0x3c3025 }), trees);
   // 縁の林も七角の球をやめ、凸凹の房に秋の褐色と常緑の深緑を株ごとに混ぜる（10/29 点付け：角ばった塊・秋の林なし）。
   const crowns = new THREE.InstancedMesh(okCrownGeo(37), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees);
   const d = new THREE.Object3D(), pos = [], idx = [];
