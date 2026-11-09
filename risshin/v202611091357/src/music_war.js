@@ -13,12 +13,28 @@ const TUNES = [
   { mode: 'dor', chords: ['Dm', 'Gm', 'Dm', 'A'] },
   { mode: 'phr', chords: ['Dm', 'Eb', 'Dm', 'A'] },
   { mode: 'hmin', chords: ['Dm', 'Bb', 'Gm', 'A'] },
+  // 4 勇ましい主題（kaito 11/9「真田丸のような雰囲気」）：下がっていく和音（Dm→C→Bb→A）の上を、高い弦の速い刻みが走り、金管が跳ねて上がる。旋律は自作
+  { mode: 'min', chords: ['Dm', 'C', 'Bb', 'A'], motif: 3, drive: true },
 ];
+// 戦ごとの曲（徳川C 11/9）：戦の性格で当てる。0 野の合戦／1 渡河・若い戦／2 暗い・悲しい（焼き討ち・落城・退き口・夜）／3 張りつめた城攻め・籠城／4 勇ましい決戦。
+// 表に無い戦は名前から決める（前と同じ）
+const BATTLE_TUNE = {
+  inou: 1, okehazama: 1, moribe: 1, sunomata: 1, k02_kawada: 1, k02_kisogawa: 1, k04_kuisegawa: 1, kizugawa: 1, k08_kizugawaguchi: 1, k08_osaka_kizu: 1, t03_komaki: 1,
+  hieizan: 2, hiei_mtn: 2, nagashima: 2, honnoji: 2, arioka: 2, tottori: 2, takato: 2, takato_siege: 2, tano: 2, iga: 2, echizen: 2, echizen_ikko: 2, kinome: 2,
+  kanegasaki: 2, mikatagahara: 2, tonezaka: 2, odani: 2, miki: 2, tobinosu: 2, t11_hachioji: 2, t06_hetsugi: 2, k16_secret: 2,
+  inabayama: 3, mitsukuri: 3, okawachi: 3, iwamura: 3, shigisan: 3, nagashinojo: 3, sune: 3, suwahara: 3, k01_fushimi: 3, k03_gifu: 3, k07_sawayama: 3,
+  t04_negoro: 3, t05_ichinomiya: 3, t07_ganjaku: 3, t08_nejirozaka: 3, t09_yamanaka: 3, t10_oshi: 3, t12_odawara: 3, k09_imafuku: 3, k10_shigino: 3, mvp_rojo: 3, mvp_shiro: 3, mvp_toride: 3,
+  anegawa: 0, nodafukushima: 0, shiga: 0, saika: 0, tedorigawa: 0, mvp_yasen: 0,
+  sanadamaru: 4, k11_sanadamaru: 4, k05_ueda: 4, k15_tennoji: 4, k15_tennoji_okayama: 4, k12_kashii: 4, k13_domyoji: 4, domyoji: 4, k14_yao_wakae: 4,
+  sekigahara: 4, k06_sekigahara: 4, shitaragahara: 4, tennoji: 4, t01_yamazaki: 4, t02_shizugatake: 4,
+};
 // 主題：四小節 [音階の番号/拍]。r は休み。三つの形を戦ごとに選ぶ
 const MOTIFS = [
   ['0/1 0/.5 2/.5 4/2', '5/1.5 4/.5 2/2', '0/1 0/.5 2/.5 4/1 7/1', '6/1.5 4/.5 3/1 2/1'],
   ['4/1.5 2/.5 0/1 2/1', '4/1 5/1 7/2', '7/1.5 5/.5 4/1 2/1', '0/1 2/1 0/2'],
   ['0/.5 0/.5 4/1 3/1 2/1', '2/1 3/1 4/2', '4/.5 4/.5 7/1 6/1 4/1', '5/1 4/1 2/1 0/1'],
+  // 3 勇ましい形：一小節目で一気に駆け上がり、Bb で一番高く、A で息をつく
+  ['0/.5 2/.5 4/1 7/2', '6/1.5 7/.5 6/1 4/1', '5/.5 4/.5 5/1 7/1 9/1', '8/1.5 7/.5 4/2'],
 ];
 function parse(s, mode, base) {
   let b = 0; const out = [];
@@ -32,11 +48,12 @@ function parse(s, mode, base) {
 const cache = {};
 function motif(tune, bar) {
   const key = tune + ':' + bar;
-  return cache[key] ||= parse(MOTIFS[tune % 3][bar], TUNES[tune].mode, 62);   // D4 から
+  return cache[key] ||= parse(MOTIFS[TUNES[tune].motif ?? tune % 3][bar], TUNES[tune].mode, 62);   // D4 から
 }
 export function tuneOf(id) {
+  if (BATTLE_TUNE[id] != null) return BATTLE_TUNE[id];
   let h = 0; for (const ch of String(id || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h % TUNES.length;
+  return h % 4;
 }
 
 // 戦の一小節。mode：'pre'（行軍→睨み合い）／'war'（激突）／'clx'（山場）。rise：music.js の場面の移りの太鼓
@@ -81,6 +98,11 @@ function warBar(a, t, n, mode, rise) {
     a.low(t + j * q * B, rootF * (j === dens - 1 && m4 === 3 ? 1.5 : 1), q * B * 0.62, (0.32 + 0.4 * xs) * accent * boost * hit, { prio: 1 });
   }
   a.pad(t, ch, B * 4, (0.45 + 0.4 * xs) * hit, { a: 0.4, r: 0.5 });
+  // 勇ましい主題：高い弦の速い刻み（十六分。根音・五度・八度を行き来する）。激しいほど強い。押されると細る
+  if (T.drive && xs > 0.15) {
+    const up = [1, 1.5, 2, 1.5];
+    for (let j = 0; j < 16; j++) a.low(t + j * B / 4, rootF * 2 * up[j % 4], B / 4 * 0.55, (0.16 + 0.22 * xs) * (j % 4 ? 0.7 : 1) * hit, { prio: 2, cut: 1800 + 1200 * xs });
+  }
   // 太鼓：一・三拍に大きく。激しいほど裏と四拍目も
   a.taiko(t, (0.7 + 0.25 * xs) * boost * hit, { big: n % 2 === 0 });
   a.taiko(t + 2 * B, (0.55 + 0.2 * xs) * boost * hit);
