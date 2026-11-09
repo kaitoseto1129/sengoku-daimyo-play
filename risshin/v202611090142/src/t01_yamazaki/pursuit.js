@@ -20,7 +20,11 @@ export function start(rt, ctx) {
   // 道に残る明智の後ろの兵（追う道の途中）
   F.rear = enemyGroup(rt, { name: '明智の後ろの兵', faction: 'akechi', anchor: { x: 40, z: -132 }, facing: 0.6, width: 10, formation: 'line', order: 'hold', aggro: 18, seekRange: 26, morale: 80, dmgMult: 0.45 },
     ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
-  F.rearGs = [F.rear];
+  // 門へ近づいた瞬間に兵を作らず、追撃が始まる時から門前で待たせる。
+  F.gateG = enemyGroup(rt, { name: '勝竜寺城の守り', faction: 'akechi', anchor: { x: 64, z: -178 }, facing: 0, width: 8, formation: 'line', order: 'hold', aggro: 8, seekRange: 12, morale: 85, dmgMult: 0.45 },
+    ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
+  F.gateG.stay = true;
+  F.rearGs = [F.rear, F.gateG];
   try { const Y = F.yfar || {}; Y.akRes?.rout?.({ hideAfter: 30 }); Y.tenno?.rout?.('B', { minFight: 2, hideAfter: 30 }); } catch (e) { /* 遠景 */ }
   for (const [g, d] of [[F.ikeda, { x: 50, z: -140 }], [F.kato, { x: 70, z: -146 }], [F.hori, { x: 30, z: -150 }]]) {
     if (!ctx.live(g)) continue;
@@ -43,9 +47,8 @@ export function tick(rt, dt, ctx) {
   // 門の前に着くと、城の中から守りの兵が打って出る（光秀が抜ける時を稼ぐ）。払えば門が閉じる
   if (!F.sortie && (near(P, GATE, 18) && el > 20)) {
     F.sortie = rt.t;
-    F.gateG = enemyGroup(rt, { name: '勝竜寺城の守り', faction: 'akechi', anchor: { x: 64, z: -178 }, facing: 0, width: 8, formation: 'line', order: 'attack', aggro: 26, seekRange: 34, morale: 85, dmgMult: 0.45 },
-      ctx.ak([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
-    F.rearGs.push(F.gateG);
+    F.gateG.stay = false;
+    F.gateG.order = 'attack'; F.gateG.aggro = 26; F.gateG.seekRange = 34;
     rt.army.play('toki', { x: 64, z: -176 }, 1.0);
     rt.say('明智の侍', '殿が落ちられるまで、門は渡さぬ！', 2.8);
   }

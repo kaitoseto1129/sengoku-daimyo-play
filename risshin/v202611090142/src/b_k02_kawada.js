@@ -383,7 +383,7 @@ const k02_kawada = {
     rt.setPhase('siege');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40 }, [
+    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true }, [
       // ① 明け方、南の筋を渡って中洲の小屋場島へ。北岸の鉄砲が浅瀬を撃つ
       island(DP.move({ to: ISLE, obj: '南の筋の浅瀬を渡り、中洲の小屋場島へ行け', label: '小屋場島', r: 9, max: 120,
         say: [['一柳直盛', '浅瀬はここじゃ。島まで止まるな']],
@@ -554,12 +554,14 @@ k02_kawada.travelGuideLabel = (rt) => {
   return q ? `${q[1]} ${Math.round(Math.hypot(p.x - q[0].x, p.z - q[0].z))}m` : '';
 };
 
+const reachableFoe = (b, u, o) => !o.fleeing && !o.invuln && !b.army.wallBetween(u.pos, u.team, o.pos, false);
 k02_kawada.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
-  if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => !o.fleeing)) {
+  // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
+  if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {
     inp.leftPressed = false; inp.runHeld = true;
     goTo(p, inp, GATE.x, GUARD.z, 2);
     return;
@@ -567,7 +569,7 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   // 砦の段：柵を回って南の木戸から入る（柵の東の外で止まっていた。11/6 夜の流し）
   if (F.dp && F.dp.on && F.dp.i === 6 && !inFort(u.pos)) {
     // 柵越しの敵が五歩以内でも、外に留まらず木戸へ回る。寄る敵には斬り返す
-    inp.leftPressed = !!b.army.nearestEnemy(u, 5, (o) => !o.fleeing); inp.runHeld = true;
+    inp.leftPressed = !!b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o)); inp.runHeld = true;
     // 迂回中は道の線へ戻さない（柵の外から内側の道へ引かれると、柵に当たり続ける）
     // 北へ追った後は北の柵を横切らず、側面の外へ出てから南の木戸へ回る。
     const side = FORT_IN.x + (u.pos.x < FORT_IN.x ? -25 : 25);

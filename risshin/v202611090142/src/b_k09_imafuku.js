@@ -156,6 +156,8 @@ const k09_imafuku = {
   minutes: 14,
   // 堤の上の徒の寄せ（史料「通れるのは堤だけ」）。本人だけ馬で駆け抜け、組を二十も後ろに置いて砦へ一人で入っていた（一5）。名のある将は馬上のまま（busho の horse）
   noHorse: true,
+  // 段の共通操作より先に、下の木戸の口へ寄せる操作を通す。省くと袖の柵で止まり続ける。
+  botBrainDepth: true,
   noCouriers: true,   // 乗り手の無い伝令の馬が堤と川べりを走っていた（BL7）
   noYaguraTask: true,      // 砦の櫓を脇の目標「物見櫓の中へ入り、守りを追い出せ」にしない（右上は①〜④だけ。三3・十1）
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
@@ -345,7 +347,12 @@ const k09_imafuku = {
     // 主の札は段の目標（①〜④）に任せる。残すと段の合間に組頭が済んだ①②の言葉を言い直していた（十1）
     rt.objRemove('main');
     const ctx = { faction: 'toyotomi', flag: 'toyotomi', armor: KIMURA.armor, dmg: 0.21, backing: false, scale: 1.4, look: (l) => dress(l, KIMURA),
-      friends: () => [F.satake, F.shibue, F.tomura, ...(F.reinf || [])].filter((g) => g && g.count && !g.routed), botSeek: 40 };
+      friends: () => [F.satake, F.shibue, F.tomura, ...(F.reinf || [])].filter((g) => g && g.count && !g.routed), botSeek: 40,
+      // 舟・櫓の射手は堤から斬れない。深みに向かって歩き続けず、堤の上の相手を追う。
+      botFoeAllowed: (u) => !u.perch && !u.isStruct && Math.abs(u.pos.z) < BANK,
+      // 中州の加勢を手当ての相手に選ぶと、渡れない川の手前で止まる。
+      botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK,
+      routeFight: true };
     // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆は隠れた所から
     const onBank = (l) => { ctx.fixedSpawn = true; return l; }, hidden = (l) => { ctx.fixedSpawn = false; return l; };
     depthStart(rt, ctx, [

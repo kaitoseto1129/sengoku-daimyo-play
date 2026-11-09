@@ -60,7 +60,7 @@ const NIJIN = { x: -44, z: 80 };          // 二陣（榊原康勝）。先手�
 // 大坂城（遠景）。四天王寺から北へ実の二キロ半ほど。前は台地のすぐ先に見え、何の建物か分からなかった（critic60）ので遠くへ
 const CASTLE = { x: 60, z: -470 };
 // 段ごとの時間の限り（秒）。11/8 kaito「天王寺は一戦20〜30分の濃い戦」で延ばし、⑥茶臼山の旗を足す（docs/atsumi_k15.md）
-const LIMIT = [0, 400, 400, 380, 380, 360, 300, 240];   // 11/8 陣ごとの新手で段が厚くなった分を延ばす（段の進みの時の保険は、この限りより前）
+const LIMIT = [0, 400, 400, 380, 380, 360, 300, 240];   // 11/8 陣ごとの新手で段が厚くなった分を延ばす（段の進みの時の保険は、この限りより前）。11/9 一戦は15〜18分で最後まで（docs/k15_crisis_spec_1108.md）
 const TOP = { x: -106, z: 4 };
 const SHINGARI = { x: -40, z: -46 };
 const MIRU = { x: -80, z: 28 };   // 0.7 茶臼山の麓の畦（真田の鉄砲の届く所）   // ⑥毛利勝永の殿（四天王寺の北の道。城への退き口）   // 茶臼山の頂（⑥葵の旗を立てる。CHAUSU と同じ所）
@@ -690,7 +690,7 @@ const k15_tennoji_okayama = {
     if (!(F.shT > rt.t) && alive(F.shin)) { F.shT = rt.t + 20; const c = centerOf(F.shin)(); if (c.z > SHINGARI.z - 30) hold(F.shin, SHINGARI.x, c.z - 3); }
     const left = sum(F.s6);
     // 残り一割ほどの鉄砲が退きながら撃ち続け、討ち切れず百秒ほど止まった（11/8 通し）→ 三分の一で城へ入る
-    if (left <= F.n6 * 0.34 || F.nearDone || (rt.t - F.tS > 120 && left <= F.n6 * 0.6) || rt.t - F.tS > 180) {   // 殿の鉄砲が退きながら撃ち、「討った 14／31」のまま百秒止まった（11/8 夜の通し）
+    if (left <= F.n6 * 0.34 || F.nearDone || (rt.t - F.tS > 90 && left <= F.n6 * 0.6) || rt.t - F.tS > 140) {   // 殿の鉄砲が退きながら撃ち、「討った 14／31」のまま百秒止まった（11/8 夜の通し）
       rt.award((t) => t.side.push('毛利勝永の殿を打ち破った'), '毛利の殿を打ち破った');
       rt.say(NAMES.katsunaga, '……ここまでじゃ。城へ入る', 3);
       flee([F.shin]);
@@ -879,7 +879,7 @@ const k15_tennoji_okayama = {
       // 11/8：一戦20〜30分。毛利・木村・二の手を三割まで斬り減らすまで（動かない人には時の保険）
       // 本多の先手と手勢が尽きたら、史実どおり天王寺口の先手は崩れ、毛利はひと息ついて次の段へ（一人で五十人に囲まれて討たれた）
       const wiped = rt.t - F.tS > 120 && sum([F.honda, F.mine]) <= 8;
-      if (F.tadaDone && (((sum(F.s1) <= F.n1 * 0.3 || F.nearDone) && rt.t - F.tS > 150) || wiped || (rt.t - F.tS > 210 && sum(F.s1) <= F.n1 * 0.5) || rt.t - F.tS > 320)) this.stage2(rt);
+      if (F.tadaDone && (((sum(F.s1) <= F.n1 * 0.3 || F.nearDone) && rt.t - F.tS > 120) || wiped || (rt.t - F.tS > 170 && sum(F.s1) <= F.n1 * 0.5) || rt.t - F.tS > 250)) this.stage2(rt);
     } else if (F.step === 2) {
       // 赤備えと毛利の手を四割五分まで減らし、大谷吉治が討たれたら。大谷が残っても時が経てば二の突撃へ
       const od = !F.otaniU?.alive;
@@ -896,7 +896,7 @@ const k15_tennoji_okayama = {
         else if (come) { if (rt.t - F.tS > 90 && alive(F.sanada) && !F.otaniGo) { F.otaniGo = true; F.sanada.stay = false; F.sanada.order = 'attack'; F.sanada.aggro = 30; F.sanada.seekRange = 40; rt.say(NAMES.otani, '者ども、あの者を討て！', 2.8); } const dx = P.x - O.pos.x, dz = P.z - O.pos.z, dd = Math.hypot(dx, dz), k = Math.min(1, 1.4 / dd); O.pos.x += dx * k; O.pos.z += dz * k; if (rt.world.heightAt) O.pos.y = rt.world.heightAt(O.pos.x, O.pos.z); O.target = rt.player.u; }
       }
       // 目標の数（赤備え）を討ち尽くし大谷も討ったら、毛利の手が残っていても進む（数の札と進みを合わせる）
-      if ((od && rt.t - F.tS > 220 && (sum(F.s2) <= F.n2 * 0.4 || sum([F.sanada]) <= 2 || F.nearDone)) || (rt.t - F.tS > 210 && sum(F.s2) <= F.n2 * 0.55) || rt.t - F.tS > 320) this.stage3(rt);
+      if ((od && rt.t - F.tS > 140 && (sum(F.s2) <= F.n2 * 0.4 || sum([F.sanada]) <= 2 || F.nearDone)) || (rt.t - F.tS > 170 && sum(F.s2) <= F.n2 * 0.55) || rt.t - F.tS > 240) this.stage3(rt);
     } else if (F.step === 3) {
       if (!F.umaUp && near(P, F.uma.position, 4)) { F.umaUp = true; rt.say(nm(rt), '馬印を起こした！　大御所はご無事ぞ！', 3); sfx('taiko', 0.6); }
       F.umaSt?.update(dt);
@@ -905,11 +905,11 @@ const k15_tennoji_okayama = {
         F.echi3 = true; F.echizen.order = 'attack'; F.echizen.aggro = 26; F.echizen.seekRange = 50; F.echizen.dmgMult = 0.7;
         rt.say('使番', '越前勢が真田の二番手の後ろを突いた！', 3);
       }
-      if ((F.umaUp && (sum(F.s3) <= F.n3 * 0.3 || F.nearDone) && rt.t - F.tS > 200) || (rt.t - F.tS > 200 && sum(F.s3) <= F.n3 * 0.5) || rt.t - F.tS > 300) this.stage4(rt);
+      if ((F.umaUp && (sum(F.s3) <= F.n3 * 0.3 || F.nearDone) && rt.t - F.tS > 130) || (rt.t - F.tS > 160 && sum(F.s3) <= F.n3 * 0.5) || rt.t - F.tS > 230) this.stage4(rt);
     } else if (F.step === 4) {
       const left = this.guards(rt);
       // 一つの戦は 4〜7 分（二5）：天神への追いの分、三の突撃は短めに切り上げる
-      if (((left <= F.n4 * 0.3 || F.nearDone) && rt.t - F.tS > 180) || (rt.t - F.tS > 190 && left <= F.n4 * 0.55) || rt.t - F.tS > 300) this.stage5(rt);
+      if (((left <= F.n4 * 0.3 || F.nearDone) && rt.t - F.tS > 120) || (rt.t - F.tS > 150 && left <= F.n4 * 0.55) || rt.t - F.tS > 220) this.stage5(rt);
     } else if (F.step === 5 && !F.atYasui && F.nobuU?.alive && !near(F.nobuU.pos, YASUI, 16)) {
       // 天神の杜へ退く道を外れないように、二秒ごとに行き先を言い直す
       const g = F.nobu;
@@ -1004,6 +1004,8 @@ k15_tennoji_okayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) =
   if (F.step >= 5 && Math.abs(u.pos.x - HON.x) < 11 && u.pos.z > HON.z - 2 && u.pos.z < HON.z + 16) { goTo(p, inp, u.pos.z > HON.z + 13 ? HON.x - 18 : HON.x, HON.z + 17, 1.5); return; }
   // ⑥ 茶臼山の頂：残兵を退けて頂へ
   if (F.step === 6) { const e6 = b.army.nearestEnemy(u, 14, (o) => !o.fleeing && !o.invuln); if (e6) { hit(e6); return; } const c6 = alive(F.shin) ? centerOf(F.shin)() : null; if (c6) { goTo(p, inp, c6.x, c6.z, 3); return; } goTo(p, inp, SHINGARI.x, SHINGARI.z + 8, 3); return; }   // 北へ退く殿を追う（行き先に立ったまま、三十八メートル先の殿を三分見ていた・11/8 通し）
+  // ⑦ 殿を追って四天王寺の北に出ていたら、焼け跡と寺の森（茶臼山へまっすぐの線の上）を避け、東から回って南の道へ出てから頂へ（森の木に挟まって百秒止まった・11/9 通し）
+  if (F.step === 7 && u.pos.z < -8 && u.pos.x > -80) { goTo(p, inp, -24, -4, 3); return; }
   if (F.step === 7) { const g = F.last; if (alive(g) && near(u.pos, TOP, 14)) { let q = null, qd = 1e9; for (const x of g.units) if (x.alive && !x.fleeing) { const d = Math.hypot(x.pos.x - u.pos.x, x.pos.z - u.pos.z); if (d < qd) { qd = d; q = x; } } if (q && qd < 8) { hit(q); return; } } goTo(p, inp, TOP.x, TOP.z, 1.5); return; }
   // ② 大谷吉治の首を狙う（近ければ）
   if (F.step === 2 && F.otaniU?.alive && near(F.otaniU.pos, u.pos, 45)) { hit(F.otaniU); return; }
