@@ -667,6 +667,8 @@ const k16_secret = {
       for (const g of [F.hon, F.camp.guard, F.takatora, F.hide]) if (g && g.order !== 'retreat') for (const u of g.units) if (u.alive && u.target && dist(u.pos, g.anchor) > 30) u.target = null;
     }
     if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
+    // 陣幕の内の近習は、幕の外を通る主人公を布越しに斬らない（11/9 bot：口へ回る途中で布越しに打たれ、押し戻されて刻限が尽きた）
+    if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u.target === P && inCamp(u.pos) !== inCamp(P.pos)) u.target = null;
     // 家康の段：家康が倒れれば勝ち（旗本が減っても家康は床几から逃げない）
     if (F.step === 5) {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
@@ -702,7 +704,9 @@ const k16_secret = {
     if (near && !F.stepSeen && dist(P.pos, STEP_AT[F.step]) < 35) { F.stepSeen = true; F.engagedT = rt.t; }
     // 主人公が戦場から離れただけでは「敵が散った」にしない。目標の場所で残兵が来ない時だけ数える。
     F.farT = near || dist(P.pos, STEP_AT[F.step]) >= 35 || rt.t - F.stepT < 25 || gone < F.stepN * 0.3 ? 0 : (F.farT || 0) + 0.25;
-    if (!F.next && F.stepSeen && (gone >= Math.round(F.stepN * (1 - KEEP)) || F.farT > 10)) {
+    // 刻限の六割を過ぎて段の隊の四割を討っていれば、崩れたとみなす（11/9 bot：本多の旗本の散り残りを追い回して刻限が尽きた）
+    const late = F.stepSeen && left < STEP_T[F.step] * 0.4 && gone >= Math.round(F.stepN * 0.4);
+    if (!F.next && F.stepSeen && (gone >= Math.round(F.stepN * (1 - KEEP)) || F.farT > 10 || late)) {
       F.farT = 0;
       F.next = true;
       this.fall(rt, g);
