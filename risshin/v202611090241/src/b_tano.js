@@ -7,10 +7,6 @@ import { dirtTex, mudTex } from './nature.js';
 import { pressureTick } from './battle_pressure.js';
 import { localClear } from './army_local_way.js';
 import { evPerson } from './b_ev6.js';
-import { wrap as k15Tsuiseki } from './tano/tsuiseki.js';   // 15分の構成：追跡の段
-import { wrap as k15Kakomi } from './tano/kakomi.js';   // 包囲の段と余韻
-import { wrap as k15Katate } from './tano/katate.js';   // 崖道の土屋昌恒・柵の口の逆寄せ
-import { k15WrapBot } from './oda15_kit.js';
 // ======================================================================
 // 織田家編　田野の戦い・天目山（天正十年三月十一日）
 // 高遠城が落ちると、武田の家臣は次々に離れていった。武田勝頼は新府城を焼いて、小山田信茂の岩殿城を頼ったが、
@@ -2282,7 +2278,5 @@ tano.botBrain = (b, inp, { goTo }) => {
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
 tano.nameRange = 55;   // 11/2 点付け（田野84：名札の重なり）：谷道の奥まで見通すと、崖道と柵の遠い将の名が重なって積み上がった。近づいた将だけ名を出す
 tano.bushou = [{ name: '滝川益重', g: /滝川/, loose: false }];   // 11/2：土屋昌恒の衆にも入れると、崖道で二人の名札が重なった。11/3：小宮山は柵の守り（setup）に直に置く
-// 15分の構成（docs/oda15_plan_1108.md 31）：段は prototype/src/tano/ に一段一ファイル
-k15Tsuiseki(tano); k15Kakomi(tano); k15Katate(tano);
-tano.botBrain = k15WrapBot(tano.botBrain);
+// 四十一人と最初に示す五つの目標を保つ。別の敵や任務を途中へ挟まない。
 export { tano };
