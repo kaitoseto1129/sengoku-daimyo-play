@@ -635,8 +635,11 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (here) F.hereT ??= rt.t;
       const kc = live(F.kame) && F.kame.center();
       if (here && (!kc || kc.z > VILLAGE.z - 6 || rt.t - F.hereT > 20)) this.toStep(rt, 3);
-      // 畷の途中で迷っても、殿が村まで退いて一分たてば村の戦へ進める（二巡：bot が北の端で八分さまよった）
-      else if (el > STEP_T[2] + 60 && (!kc || kc.z > VILLAGE.z - 6)) { rt.say('上田宗箇', '殿は村へ着いた。急ぎ村の辻へ戻られよ！', 3); this.toStep(rt, 3); }
+      // 殿が先に着いても、本人の帰着までは②を済ませない。知らせは一度だけ。
+      else if (!F.returnNotice && el > STEP_T[2] + 60 && (!kc || kc.z > VILLAGE.z - 6)) {
+        F.returnNotice = true;
+        rt.say('上田宗箇', '殿は村へ着いた。急ぎ村の南の端へ戻られよ！', 3);
+      }
     } else if (F.step === 3) {
       const k = F.w3N - sumN(F.hana, F.awa), need = Math.round(F.w3N * 0.5);
       rt.objProgress('s3', `塙・淡輪の隊 ${Math.min(k, need)}／${need}人`);
@@ -682,7 +685,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut && !o.rearWound && Math.abs(o.pos.y - u.pos.y) < 3;
     // ⑤：団右衛門が近ければ本人へ（侍衆が間にいればそちらから）
     const H = F.step === 5 && F.hanaU?.alive && Math.hypot(F.hanaU.pos.x - u.pos.x, F.hanaU.pos.z - u.pos.z) < 14 ? F.hanaU : null;
     const e = F.step === 2 ? null : (b.army.nearestEnemy(u, H ? 3 : 9, ok) || H);
