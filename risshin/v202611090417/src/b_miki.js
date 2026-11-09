@@ -2212,7 +2212,7 @@ const miki = {
     });
     F.sally = F.sallies[0];
     // 11/6 fixc1901_miki（二1・三4）：別所吉親の手の甚太夫・三太夫は大村坂で秀吉に討たれた（播磨別所記）。二人とも大村の控えに置き、退かずに戦う
-    F.reserve = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '大村の別所勢', anchor: { x: OMURA.x, z: OMURA.z }, facing: 0, formation: 'yari', aggro: 12, noRout: true, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'samurai', n: 1, o: { name: '別所三太夫', horse: true } }, { type: 'samurai', n: 1, o: { name: '別所甚太夫', horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 24 }, { type: 'bow', n: 4 }], BESSHO));
+    F.reserve = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '大村の別所勢', anchor: { x: OMURA.x, z: OMURA.z }, facing: 0, formation: 'yari', aggro: 12, noRout: true, fleeDir: { x: (MIKI.x - OMURA.x) / Math.hypot(MIKI.x - OMURA.x, MIKI.z - OMURA.z), z: (MIKI.z - OMURA.z) / Math.hypot(MIKI.x - OMURA.x, MIKI.z - OMURA.z) } }, dress([{ type: 'samurai', n: 1, o: { name: '別所三太夫', horse: true } }, { type: 'samurai', n: 1, o: { name: '別所甚太夫', horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 24 }, { type: 'bow', n: 4 }], BESSHO));
     // 自分で討つ目標の相手は、味方の攻撃で弱らせてもとどめを残す。
     F.jint = F.reserve.units.find(u => u.name === '別所甚太夫');
     const finishCap = rt.army.heroFinishCap;
@@ -3355,7 +3355,10 @@ const miki = {
     }
     if (F.step === 2 && F.lastStand && F.jintTaken) {
       F.lastStandT ??= rt.t;
-      if (rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget) {
+      // 大勢が残る間は戦いを続ける。時間だけで④の残兵を全員退かせない。
+      let remaining = 0;
+      for (const u of F.reserve.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) remaining++;
+      if (remaining <= 4 && rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget) {
         u.noTarget = true; u.fleeing = true; u.target = null;
       }
     }
