@@ -35,5 +35,6 @@ export function update(rt) {
   // 戦列を離れた負傷兵は隊の到着判定と同じく除き、動けない者で進行を止めない。
   const remaining = [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])].some((g) =>
     g?.units.some((u) => u.alive && !u.gone && !u.woundOut && !u.rearWound && u.pos.z <= 26));
-  if (S.held > 45 && el > 55 && !remaining) release(rt);
+  // 殿を務めた後でも、味方を残して先に渡った時は口へ戻るまで下知を出さない。
+  if (atMouth && S.held > 45 && el > 55 && !remaining) release(rt);
 }
