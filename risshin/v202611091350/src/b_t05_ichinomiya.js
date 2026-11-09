@@ -371,6 +371,19 @@ function steps(rt) {
       // noGroundGuide は画面の案内だけに効く。守備範囲の輪も消し、坑道の口の▼だけを残す。
       const start = stage.start;
       stage.start = (r, C, m, ctx) => { start(r, C, m, ctx); r.unzone('dp'); };
+      if (!stage.needIn) {
+        // 待機の扱いだけでは共通の采配が味方を攻め出させる。金掘り衆を守る間は持ち場の下知を保つ。
+        const begin = stage.start, end = stage.end;
+        stage.start = (r, C, m, ctx) => {
+          begin(r, C, m, ctx);
+          C.waterGuards = [...ctx.friends(r), ctx.aidG].filter((g) => g && g.count).map((g) => [g, g.noAI]);
+          for (const [g] of C.waterGuards) g.noAI = true;
+        };
+        stage.end = (r, C, m, ctx) => {
+          for (const [g, noAI] of C.waterGuards || []) g.noAI = noAI;
+          end(r, C, m, ctx);
+        };
+      }
     }
     if (stage.kind === 'fight' || stage.kind === 'hold') {
       // 討ち終わる前や入城前に、停止・時間切れだけで目標を果たしたことにしない。
@@ -599,7 +612,12 @@ export const t05_ichinomiya = {
     if (F.step >= 3 && !F.ending) castleGuns(rt);
     // 二陣は竹束の下側を順に通り、陰で射撃してから次の竹束へ進む。
     const cover = F.allies[2];
+    if (cover && F.coverControlled && (F.step !== 5 || F.ending || F.coverLeg >= COVER_ROUTE.length)) {
+      cover.noAI = F.coverAI; F.coverControlled = false;
+    }
     if (F.step === 5 && cover?.count && !F.ending && (F.coverLeg || 0) < COVER_ROUTE.length) {
+      // 竹束で止まる三秒も、共通の采配で敵へ走り出さない。
+      if (!F.coverControlled) { F.coverAI = cover.noAI; F.coverControlled = true; cover.noAI = true; }
       const leg = F.coverLeg || 0, at = COVER_ROUTE[leg];
       if (cover._coverAt !== at) {
         cover._coverAt = at; cover.anchor = at; cover.order = 'move'; cover.aggro = 6; F.coverWait = 0;
