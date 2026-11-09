@@ -775,10 +775,8 @@ const t02_shizugatake = {
       const atFoot = dist(P.pos, SHIGE) < 40, mainIn = [F.yari, F.uma].some((q) => live(q) && dist(q.center(), SHIGE) < 45);
       // 11/6 critic60（二1・十二2）：麓に敵が残るのに勝たない。殿を崩し（残り二人まで）、残りが北へ逃げ出すのを見せてから勝ち
       // 討ち取りの表示と同じ残り四人まで崩し、前田の退きを見届けてから締める。時間だけで殿を退かせない。
-      // 11/9 二巡（徳川A）：麓で殿が四人を切らないまま、味方が麓へ追い着かずに四百秒止まり刻限で負けた（bot）。
-      //   前田が退いて百二十秒たち、本人が麓にいれば、前田の退きに続いて柴田勢は総崩れ（史実の流れ）
-      const stalled = atFoot && F.maedaGo && rt.t - (F.maedaGoT ?? rt.t) > 120;
-      if ((atFoot && mainIn && F.maedaGo && left <= 4 || stalled) && !F.routAt) {
+      // 麓で待つだけでは殿を崩したことにしない。味方の到着と殿の損耗をともに確かめる。
+      if (atFoot && mainIn && F.maedaGo && left <= 4 && !F.routAt) {
         F.routAt = rt.t;
         for (const g of F.groups) if (live(g) && g.units[0]?.team === 1 && g !== F.maedaG) { g.order = 'retreat'; g.fixed = false; g.focus = null; g.dest = { x: g.center().x - 10, z: -220 }; g.speed = 3.6; g.aggro = 0; g.seekRange = 0; g.kind4 = 'gone'; }
         rt.say('福島正則', '柴田勢が崩れたぞ。追え、追え', 2.6);
