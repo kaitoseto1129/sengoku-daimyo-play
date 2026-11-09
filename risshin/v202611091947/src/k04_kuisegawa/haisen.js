@@ -25,6 +25,11 @@ export function install(rt, ctx, { T, Y }) {
   // 締め：左近が追うのを止め、西軍が勝鬨。負けの札の後、その夜へ
   ctx.ending = () => {
     rt.after(12.4, () => {
+      // 実兵だけでなく、まだ進んでいる西軍の備にも追撃停止を伝える。
+      for (const b of F.blocks || []) if (b.team === 1 && !b.routedL) {
+        b.light?.halt();
+        b.cmd = { id: 'hold', to: null, target: null, form: 'line' };
+      }
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.routed) { const c = g.center?.(); if (c) { g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.seekRange = 0; g.aggro = 0; } }
       rt.say('島左近', '追うな。川を越えれば有馬の鉄砲が待つ。引き上げよ', 3.4);
     });

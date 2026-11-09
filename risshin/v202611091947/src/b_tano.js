@@ -2065,14 +2065,8 @@ const tano = {
     const passed = clear && (C.s.phase === 'valley' || C.s.phase === 'narrow') &&
       p.x >= C.at.x && p.x < 104 && distToPolyline(p.x, p.z, ROAD) < 8;
     const near = inside && (distance < (C.s.kind === 'move' ? 8 : 12) || passed);
-    // 合流に来ない、または寄せが止まったままなら閉じる。交戦中に時刻だけで負けにしない。
-    if (!advantage && rt.t - C.t0 >= 180 && (!near || !clear) && rt.player.inCombatT <= 0 &&
-        !rt.army.nearestEnemy(rt.player.u, 28, (u) => !u.isStruct && !u.noTarget && u.type !== 'dummy')) {
-      D.on = false; F.ending = true; rt.setPhase('end'); rt.unmark('dp'); rt.unzone('dp'); rt.unmark('turn');
-      rt.objProgress('main', ''); rt.objFail('main'); rt.tracker.main = false;
-      rt.banner('寄せが止まった', '味方が減り、持ち場へ進めぬ');
-      rt.player.u.invuln = true; rt.finish({ scriptedEnd: true, failureReason: '味方が減り、寄せが止まった' }, 8); return;
-    }
+    // 劣勢でも、持ち場へ戻れる間は時刻だけで任務を失敗にしない。
+    // 敗北は上の先手・後詰の壊滅と、本人の討死で判定する。
     C.enemyCount = 0; C.enemyDistance = Infinity;
     for (const g of C.s.phase === 'tano' ? F.defenders : C.groups) {
       for (const u of g.units) {

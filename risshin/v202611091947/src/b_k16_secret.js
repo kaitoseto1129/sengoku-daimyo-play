@@ -197,6 +197,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.k16-goals :is(#arm
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode {
+ /* 行き先の印（重なり順三・四）と敵の▼より手前に置き、目標の字を覆わせない。 */
+ z-index:5 !important;
  left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
  width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
