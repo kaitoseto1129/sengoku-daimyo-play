@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { KILLS, broke } from './stages.js';
 import { porterTrain } from './porters.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { dirtTex, leafTex } from './nature.js';
+import { dirtTex, bankTex, mudTex, leafTex } from './nature.js';
 import { sway } from './world_vegetation_materials.js';
 import { camNearMaterials } from './player.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
@@ -3006,10 +3006,11 @@ function okSlopeDetail(W) {
   // 遠くでは杉の側面や松の房が欠け、柱と宙に浮く板だけに見える。
   // 既存の土・岩・草の絵を使う。低画質でも雨で模様を失わず、空き地にも落ち葉を残す。
   const mat = W.terrain.material, compile = mat.onBeforeCompile, key = mat.customProgramCacheKey;
-  // 土・道肩・泥で同じ細粒の土を共有し、明け方に白い砂地へ見えるのを抑える。
-  // 入れ物は保ち、既に照明へ渡した絵も同時に替える。足跡と濡れの処理は残す。
-  const soil = dirtTex(true, true);
-  W.groundU.tDirt.value = W.groundU.tBank.value = W.groundU.tMud.value = soil;
+  // 道・切岸・泥を同じ模様で塗ると粘土の一枚になる。既存の共有画像を用途ごとに使う。
+  // 画像の読み出し数と足跡・濡れの処理は保ち、準備時だけ差し替える。
+  W.groundU.tDirt.value = dirtTex(true);
+  W.groundU.tBank.value = bankTex();
+  W.groundU.tMud.value = mudTex(true);
   mat.color.setHex(0xb5a38a);
   // 壁用の透かしは切岸も抜いてしまう。地面は常に残し、既存の視点の地面判定に任せる。
   mat.userData.camNearSolid = true;
@@ -3023,7 +3024,7 @@ function okSlopeDetail(W) {
         'vec3 okFaceNormal = normalize(cross(dFdx(vWP), dFdy(vWP)));\n      vec3 gN = normalize(vWN);')
       .replace('vec3 mud = texture2D(tMud, wuv * 0.26).rgb;',
         // 切岸の泥も横から貼った土を使う。上からの絵を縦へ伸ばさず、読み出しも増やさない。
-        'vec3 mud = mix(texture2D(tMud, wuv * 0.26).rgb, dirt, slopeK) * vec3(0.46, 0.45, 0.43);')
+        'vec3 mud = mix(texture2D(tMud, wuv * 0.26).rgb, dirt * vec3(0.46, 0.45, 0.43), slopeK);')
       // 小石をまばらにする直しは残す。共通の土塊の種を使い、
       // 古い葉の宣言にしかない乱数名を参照しない。
       .replace('pebble * (w.y + bareSoil)', 'pebble * step(0.55, clodSeed) * (w.y + bareSoil)')
