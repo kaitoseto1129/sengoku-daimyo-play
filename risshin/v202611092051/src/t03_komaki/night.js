@@ -72,6 +72,11 @@ export function tickNight(rt, K) {
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
   if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (!K.live(F.tAmb) || F.tAmb.routed || K.aliveN(F.tAmb) <= 1) && el > 140) {
+    // 払った伏せ鉄砲の残兵を夜明けの列へ追わせない。物見と同じく小牧山へ退かせる。
+    if (K.live(F.tAmb)) {
+      F.tAmb.order = 'retreat'; F.tAmb.dest = { x: K.HONJIN.x, z: 140 };
+      F.tAmb.aggro = 0; F.tAmb.seekRange = 0;
+    }
     rt.award((t) => t.side.push('夜の道で徳川の物見を払い、五条川の渡しに着いた'), '五条川の渡しに着いた');
     K.next();
   }
