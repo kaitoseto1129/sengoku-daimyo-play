@@ -408,6 +408,9 @@ const k04_kuisegawa = {
   // 伏兵：葦から明石全登、林の陰から左近の本隊。刈田の兵も向き直る
   ambush(rt) {
     const F = rt.flags, B = F.blk;
+    // 囮も向き直って戦う。備への隊列合わせで攻撃を待機に戻さない。
+    F.follow = F.follow.filter(([g]) => g !== F.gamo);
+    F.gamo.order = 'attack'; F.gamo.seekRange = 30;
     rt.unmark('go');
     B.akashi = this.block(rt, { key: 'akashi', name: '明石全登の伏兵', team: 1, flag: 'ukita', at: AKASHI_HIDE, facing: Y(-0.6), w: 36, d: 12 });
     B.shima = this.block(rt, { key: 'shima', name: '島左近の本隊', team: 1, flag: 'ishida', at: SHIMA_HIDE, facing: Y(Math.PI - 0.6), w: 26, d: 10 });
@@ -418,6 +421,7 @@ const k04_kuisegawa = {
     const guns = enemyGroup(rt, { faction: 'ukita', name: '明石全登の鉄砲衆', anchor: T(-26, 26), facing: Y(-0.4), width: 8, formation: 'line', noRout: true,
       morale: 90, dmgMult: 0.8, order: 'hold', aggro: 10, seekRange: 40, speed: 2.6 },
     fl([{ type: 'gun', n: 14 }, { type: 'samurai', n: 1 }], 'ukita'));   // もっと鉄砲を（BK の 3）
+    F.guns = guns;
     F.foes.push(guns);
     // 明石全登と左近（本物の旗本に囲まれる。討てない。翌日の関ヶ原に出る）
     F.akashiG = enemyGroup(rt, { faction: 'ukita', name: '明石全登の旗本', anchor: { ...AKASHI_HIDE }, facing: Y(-0.6), width: 6, formation: 'line', noRout: true,
@@ -492,7 +496,7 @@ const k04_kuisegawa = {
       // 退く島の兵を追い、先手と一緒に川を東へ渡ってから伏兵が出る
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && live(F.noi) && dist(F.noi.center(), P.pos) < 18) this.toStep(rt, 3);
     } else if (F.step === 3) {
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12) F.nearT = (F.nearT || 0) + 0.25;
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。
       if (F.noiU?.alive && dist(F.noiU.pos, P.pos) < 12 && rt.player.lastHit?.blocked && rt.player.lastHit.t >= F.stepT && rt.t - rt.player.lastHit.t <= 0.5) F.defended = true;
@@ -506,7 +510,7 @@ const k04_kuisegawa = {
         const to = T(Math.min(PL.x, 30), PL.z);
         for (const b of [B.shima, B.akashi, B.bait]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g.kind !== 'main') {
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g.kind !== 'main' && g !== F.guns) {
         // 退却だけを理由に打撃を弱めず、追手は人の走りに近い速さで背へ迫る。
         g.chaseSoft = true; g.speed = 3;
         if (g.order === 'hold') { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }

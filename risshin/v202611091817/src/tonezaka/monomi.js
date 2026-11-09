@@ -6,7 +6,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const WAIT = 60;   // 物見に上がらない時も、この秒で追撃へ
+const WAIT = 10;   // 開戦五秒後に始まる物見。行かなくても開戦から十五秒で追撃へ。
 
 // ctx：{ at, roadX, next }。at は戦の向きへ回した座標、next は本体の chase
 export function install(rt, ctx) {
@@ -49,8 +49,8 @@ export function install(rt, ctx) {
   const tick = () => {
     if (done || F.ending || rt.over) return;
     const u = rt.player?.u;
-    if (u && rt.t - t0 > 21 && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 7) { report(); return; }
-    if (rt.t - t0 > WAIT) { go(); return; }
+    if (u && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 7) { report(); return; }
+    if (rt.t - t0 >= WAIT) { go(); return; }
     rt.after(0.4, tick);
   };
   tick();
