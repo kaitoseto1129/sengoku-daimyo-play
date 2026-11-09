@@ -785,6 +785,13 @@ export function yoseFlagTexture(family) {
 }
 
 export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
+  // 伊達家伝来の白地赤日の丸旗。竹雀の家紋とは別に、政宗の旗持ちだけが使う。
+  if (kind === 'date_hinomaru') {
+    ctx.fillStyle = '#ece6d6'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#b52a20'; ctx.beginPath();
+    ctx.arc(w * .5, h * .36, w * .29, 0, TAU); ctx.fill();
+    return;
+  }
   // 『信長公記』巻三・志賀御陣之事：道家（道豪）兄弟の白い指物。
   // 染め色や家紋を足さず、記された字を残す。筆跡と字配りは推定復元。
   if (kind === '天下一の勇士') {

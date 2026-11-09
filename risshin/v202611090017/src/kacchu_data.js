@@ -124,7 +124,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["本庄繁長", "suji", "sun", 0x1c1a1a, 0x703d78, "okegawa", 0, 0x1c1a1a, "uesugi", ""],
   ["上杉景勝", "suji", "manji", 0x242222, 0x35435a, "kebiki", 0, 0x8e3724, "uesugi", "a7c70e25"],
   ["上杉景虎", "suji", "horn", 0x1c1a1a, 0x703d78, "sugake", 0, 0x1c1a1a, "uesugi", ""],
-  ["直江兼続", "suji", "cross", 0x1c1a1a, 0x703d78, "sugake", 0x2e3a42, 0, "uesugi", ""],
+  // 上杉神社伝来の金小札浅葱糸威二枚胴具足による復元。細部は必須表と出所の文書へ。
+  ["直江兼続", "suji", "naoe_ai", 0xb08a3a, 0x5a9aa0, "sugake", 0, 0, "none", ""],
   ["北条氏照", "suji", "moon", 0x1c1a1a, 0x66513a, "okegawa", 0, 0x1c1a1a, "hojo", ""],
   ["北条氏規", "suji", "sun", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0x1c1a1a, "hojo", ""],
   ["北条氏邦", "suji", "kuwa_wide", 0x1c1a1a, 0x66513a, "sugake", 0, 0x1c1a1a, "hojo", ""],
@@ -407,7 +408,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["芳賀高定", "eboshi", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["織田秀信", "zunari", "kuwa", 0x1c1a1a, 0x3c5a8a, "sugake", 0xcfc8b4, 0x1c1a1a, "oda", ""],
   ["長宗我部盛親", "zunari", "kuwa", 0x29251f, 0xd8d0bc, "kebiki", 0x2e3a42, 0x29251f, "chosokabe", ""],
-  ["伊達政宗", "suji", "date_moon", 0x16191b, 0x2d4058, "okegawa", 0x252a35, 0, "date", ""],
+  ["伊達政宗", "suji", "date_moon", 0x16191b, 0x232c40, "hotoke", 0, 0x16191b, "date", ""],
   ["最上義光", "namban", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0, 0, "none", ""],
   ["佐竹義宣", "suji", "shida", 0x1c1a1a, 0x3e5474, "kebiki", 0x8a6a2a, 0x1c1a1a, "satake", ""],
   ["石田三成", "suji", "sun", 0x1c1a1a, 0xa8281c, "sugake", 0, 0, "none", ""],
@@ -711,8 +712,11 @@ const ARMOR_RESEARCH_2 = {
     kusazuriBands: [0xe6e0d0, 0xb02a1c, 0xe6e0d0, 0xb02a1c, 0xe6e0d0] },
   "浅井長政": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
   "朝倉義景": { crest: "none", doStyle: "kebiki", lace: 0x1f2638, odo: 0x1f2638 },
-  // 黒漆五枚胴（仙台胴）：威の無い黒漆。弦月の前立
-  "伊達政宗": { lace: 0x16191b, odo: 0x16191b, kusazuriColor: 0x16191b, suneateColor: 0x16191b },
+  // 黒漆五枚胴：縦五枚矧ぎの平滑な胴、紺糸素懸威、萌黄の耳糸。出所は docs/generals_look_1108/伊達政宗.md。
+  "伊達政宗": { lace: 0x232c40, odo: 0x232c40, sujiPlates: 62, shinodare: false,
+    shikoroLace: 0x232c40, shikoroStyle: "sugake", shikoroRows: 4, sode: false,
+    menpoStyle: "full", haori: 0, flag: "date_hinomaru", kusazuriLaceRows: 6,
+    kusazuriMimiito: 0x6a7a2c, kusazuriColor: 0x16191b, suneateColor: 0x16191b },
   // 宇治田家伝来・伝三成所用の紅糸素懸威二枚胴具足（長浜城歴史博物館収蔵）。出所と補完は docs/generals_look_1108/石田三成.md。
   "石田三成": { crest: "sun", lace: 0xa8281c, odo: 0xa8281c },
   "藤堂高虎": { bowl: "suji", crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },

@@ -217,7 +217,7 @@ function datearrive(rt) {
     dress([{ type: 'busho', n: 1, o: { name: '片倉重綱', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uG(14)], DATE));
   // 政宗は伊達勢の後ろ（前へは出ない）
   F.masamune = allyGroup(rt, { faction: 'tokugawa', name: '伊達政宗の旗本', anchor: { x: TOP.x + 44, z: -20 }, facing: -Math.PI / 2, width: 8, aggro: 6, order: 'hold', noRout: true, fullStrength: true },
-    dress([{ type: 'busho', n: 1, o: { name: '伊達政宗', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(7)], DATE));
+    dress([{ type: 'busho', n: 1, o: { name: '伊達政宗', invuln: true, horse: true, hat: 'kabuto', flag: 'date_hinomaru' } }, uS(7)], DATE));
   F.masamune.noFrontline = true;
   for (const g of [F.katakura, F.masamune]) for (const u of g.units) if (u.alive && u.name && u.mounted) F.riders.push({ u, speed: u.speed, run: u.run, g });
   for (const [x, z] of [[TOP.x + 48, -28], [TOP.x + 22, -22], [TOP.x + 30, 20]]) rt.scene.add(nobori(rt.world, x, z, 'date', 6));

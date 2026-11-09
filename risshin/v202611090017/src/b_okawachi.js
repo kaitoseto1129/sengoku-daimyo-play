@@ -34,6 +34,11 @@ import { localPoint } from './army_local_way.js';
 import { projectileCover } from './projectile_cover.js';
 import { monomi, kabukimon } from './castle_parts.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
+// 15分の構成（docs/oda15_plan_1108.md 7）：段の中身は okawachi/ に一段一ファイル。時で決まる締めは F.k15Shift だけ後ろへずらす
+import * as k15Kakoi from './okawachi/kakoi.js';
+import * as k15Hyoro from './okawachi/hyoro.js';
+import * as k15Shutsu from './okawachi/shutsugeki.js';
+import * as k15Yoin from './okawachi/yoin.js';
 import { yamaLift, benchRoads } from './yamalift.js';
 import { heightOf, buildCastlePlan, makeLordKeep } from './castle_plan.js';
 import { horiboriHeight } from './castle_parts.js';
@@ -1711,7 +1716,8 @@ const okawachi = {
     rt.marker('mkHon', HON_C, '本丸', { h: 8 });
     // 囲みの紹介は短く送り、夜攻めと城兵の打って出を開戦25秒の画面に間に合わせる（10/30 夜。兵の数は同じ）
     rt.after(2.5, () => { rt.unmark('mkHon'); this.oteDay(rt); });
-    rt.after(5.5, () => this.nightDay(rt));
+    // 15分の構成：夜攻めの前に、物見の場で城の大きさを見て北畠の物見と小競り合い（okawachi/kakoi.js）
+    rt.after(5.5, () => k15Kakoi.start(rt, { ...okCtx(rt), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_KARAMETE[4][0], z: ROAD_KARAMETE[4][1] }, speaker: okSpeaker(rt) }, () => this.nightDay(rt)));
     buildBattleJin(rt);
     okReflect(rt);
   },
@@ -2060,6 +2066,8 @@ const okawachi = {
   siegeDays(rt) {
     const F = rt.flags;
     if (F.step >= 4 || F.ending) return;
+    // 15分の構成：翌朝の前に、同じ夜のうちに北畠の荷置き場を焼く（okawachi/hyoro.js）
+    if (F.k15Hyoro !== 'done') { if (!F.k15Hyoro) { F.step = 3.5; k15Hyoro.start(rt, { ...okCtx(rt), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, DEPOT: { x: 50, z: 34 }, speaker: okSpeaker(rt) }, () => this.siegeDays(rt)); } return; }
     F.step = 4; F.stepT = rt.t; F.day = 13;
     // 読み残した夜攻めの待機命令を、翌朝の封鎖の札へ重ねない。
     okHideSpeech(rt);
@@ -2161,7 +2169,8 @@ const okawachi = {
       rt.say(okSpeaker(rt), '和睦が成った。槍を収めよ。城は滝川左近殿と津田掃部殿へ渡す', 4);
     }
     rt.player.u.invuln = true;
-    rt.finish({ scriptedEnd: true }, 5);
+    // 15分の構成：和睦の後、すぐ結果へ行かず三十秒ほど余韻（okawachi/yoin.js）
+    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { speaker: okSpeaker(rt) }, 0));
   },
 
   update(rt, dt) {
@@ -2192,14 +2201,15 @@ const okawachi = {
     if (F.ending || rt.over) return;
     // 七分以内に決着。成功は四分以後、最後の和睦十三秒を含める。
     // 封鎖は実際に平場で守った時間を見る。迎撃では城兵が坂を下る間も四百五十秒まで待つ。
-    if (rt.t >= okBlockDeadline(rt)) {
+    if (F.k15Shutsu !== 'on' && rt.t >= okBlockDeadline(rt)) {
       const C = F.dp?.cur;
       // 一度合流しただけでは達成にしない。封鎖は城兵の到着を条件にせず、番と七十五秒守る。
       // 迎撃では静かな守りか、押し返した後の帰城の見届けまで果たす。
       const held = C?.joinedLine && okAtSouthLine(rt) && C.lineCount >= 3 && (C.blockade
         ? C.inT >= 75 : C.holding && (C.repelling
           ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
-      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; this.peace(rt); return; }
+      // 15分の構成：封鎖を保ったら、和睦の前に北畠の大きな打って出を退ける（okawachi/shutsugeki.js）
+      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); return; }
       const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
         !C?.joinedLine ? '南の鹿垣で番の組と合流できず、交代の下知が出た' :
         !okAtSouthLine(rt) ? '南の鹿垣の持ち場を離れ、交代の下知が出た' :
@@ -4511,7 +4521,7 @@ function okBlockDeadline(rt) {
   const F = rt.flags, C = F.dp?.cur;
   const fighting = F.step === 4 && C && !C.blockade && !C.repelling &&
     (C.engaged || F.blockers?.some((g) => g._sortieSent && !g._okReturning && !sortieBroken(g)));
-  return fighting ? 450 : 407;
+  return (fighting ? 450 : 407) + (F.k15Shift || 0);
 }
 // 判定の縁を一瞬出ても、破られかけた守りは元に戻らない。
 // 槍が三人揃うか敵を押し返して、二秒保った時だけ猶予を戻す。
@@ -4879,11 +4889,11 @@ function okHold(o) {
         return C.dangerT >= 10 || el >= o.limit || C.secured;
       }
       // 実際に城兵を止め、列を固めたら封鎖完了。新手が来ていない間は早送りしない。
-      if (o.sortie && rt.t >= 227 && el >= 140 && C.quietHoldT >= o.dur) {
+      if (o.sortie && rt.t >= 227 + (rt.flags.k15Shift || 0) && el >= 140 && C.quietHoldT >= o.dur) {
         rt.say('組頭', '交代じゃ。道は守り通した。囲みを続けよ', 4);
         return true;
       }
-      return (!o.sortie || rt.t >= 227) && held && (C.repelling ? repelled : clear) && (!o.sortie || C.sortieReleased && C.engaged) && C.inT >= holdTime;
+      return (!o.sortie || rt.t >= 227 + (rt.flags.k15Shift || 0)) && held && (C.repelling ? repelled : clear) && (!o.sortie || C.sortieReleased && C.engaged) && C.inT >= holdTime;
     },
     end(rt, C) {
       // 柵へ行かずに時が過ぎた（idleAdvance）だけでは封鎖を果たした事にしない（三3）。
@@ -4994,6 +5004,7 @@ okawachi.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dp && F.dp.on && F.step < 1) { depthBot(b, inp, goTo); return; }   // 15分の構成：夜攻めの前の物見の段
   if (F.step === 0 || F.step === 1 && !F.assaultMoving) {
     if (!okAtWaitCover(b)) goTo(p, inp, F.waitCover.x, F.waitCover.z, 0.2);
     inp.guardHold = false;
