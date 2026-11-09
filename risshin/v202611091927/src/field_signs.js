@@ -861,9 +861,9 @@ export function fieldSignsTick(rt, root) {
     }
   }
   s.bars.count = b; s.bars.instanceMatrix.needsUpdate = true; if (s.bars.instanceColor) s.bars.instanceColor.needsUpdate = true;
-  // 森部・桶狭間は味方の名だけ（敵の将の名は右上の任務一行へ集める）。稲生は名のある武将の名を赤い▼の上に出す。
+  // 森部と稲生は敵将の名も赤い▼の上へ。桶狭間の味方だけの指定は保つ。
   if (ford || lesson || raid) {
-    drawNames(rt, s, me, cam, commander, true, rt.hud?.hudRects?.() || null, null, ford || raid);
+    drawNames(rt, s, me, cam, commander, true, rt.hud?.hudRects?.() || null, null, raid);
     return;
   }
   // 今の相手・合流する隊（体力の棒を出す一人）を選ぶ。名は武将全員に出す。

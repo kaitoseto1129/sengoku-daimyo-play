@@ -70,7 +70,8 @@ const campRoute = (p, to) => {
   if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6) return to;
   if (p.z >= HQ.z + 6 && Math.abs(p.x - MOUTH.x) <= 1.5) return to;
   if (p.z < HQ.z + 6.5) {
-    const x = HQ.x + (p.x >= HQ.x ? 15 : -15);
+    // 角の外の道は判定の帯（14 m）より三 m 外。15 では 14 m の際で行き先が着いた扱いの半径に入り、bot が幕の横で止まった（11/9）
+    const x = HQ.x + (p.x >= HQ.x ? 17 : -17);
     return Math.abs(p.x - HQ.x) < 14 ? { x, z: p.z } : { x, z: MOUTH.z + 3 };
   }
   if (Math.abs(p.x - MOUTH.x) > 1.5) return { x: MOUTH.x, z: MOUTH.z + 1.5 };
@@ -787,6 +788,8 @@ k16_secret.force = (rt) => {
   const F = rt.flags, st = Math.max(0, (F.step || 1) - 1);
   return { a: Math.max(40000, Math.round(87420 - (F.ak || 0) * 90 - st * 2600)), a0: 87420, b: Math.max(20000, Math.round(143650 - (F.ek || 0) * 140 - st * 17000)), b0: 143650 };
 };
+// bot の跡に家康の段の様子を足す（試し役の report。遊びには出ない）
+k16_secret.botDbg = (b) => { const F = b.flags, u = b.player.u; if (F.step !== 5) return ''; const t = campRoute(u.pos, F.ieyasu?.alive ? F.ieyasu.pos : MOUTH); return `r${t.x.toFixed(0)},${t.z.toFixed(0)}${inCamp(u.pos) ? 'I' : ''}${F.talk ? 'T' : ''}${F.holdPlayer ? 'H' : ''}${b.botRest ? 'R' : ''}${u.moveTo ? 'M' : ''}`; };
 k16_secret.ownEnding = true;   // 内府討死・秀忠降伏・天下静謐は win/kankoku/tenka が流す（castle_fall_data の落城の流れと重ねない）
 k16_secret.winWord = '天下静謐';
 k16_secret.victoryCaption = '秀忠が刀を置き、戦が終わった';   // 勝ちの札は「勝利」でなく天下静謐（docs/if_final_genna.md 戦闘終了）
