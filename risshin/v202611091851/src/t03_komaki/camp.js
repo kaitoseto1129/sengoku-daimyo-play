@@ -9,7 +9,10 @@ import { enemyGroup, allyGroup } from '../bhelp.js';
 import { KIT } from '../b_nagashinojo.js';
 import { dobeiLine, yaguraGate, monomi } from '../castle_parts.js';
 
-function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
+function say(rt, who, s, t, sec = 3) {
+  const stage = rt.flags.stage;
+  rt.after(t, () => { if (!rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
+}
 
 // 床几の将も名前のある本人にする。旗本とは別の一人の組で、幕の内から動かさない。
 function commander(rt, K, team, name, at, flag, faction) {

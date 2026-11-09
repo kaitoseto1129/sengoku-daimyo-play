@@ -2612,7 +2612,7 @@ const hiei_mtn = {
     if (F.step <= 1) return HIEI_GOALS[F.hiyoDone ? 1 : 0];
     if (F.step === 2) return HIEI_GOALS[1];
     if (F.step === 3) return HIEI_GOALS[2];
-    if (F.step === 4) return HIEI_GOALS[F.courtDone ? 4 : 3];
+    if (F.step === 4) return F.bell2 ? '西塔への山道の入口へ進む' : HIEI_GOALS[F.courtDone ? 4 : 3];
     return F.step === 5 ? '西塔の釈迦堂の前へ進む' : '横川中堂の前へ進む';
   },
 
@@ -3616,7 +3616,7 @@ const hiei_mtn = {
       [...dress([{ type: 'ashigaru', n: 2 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI), ...dress([{ type: 'bow', n: 1 }], SOHEI)]);
     // 11/6 fixc1721（kaito 九2）：文殊楼と根本中堂の前の守りは、下の持ち場が崩れても先に逃げ散らない。
     //   その持ち場へ寄せ手が来た時に打って出て、戦って崩れる（p3・中堂の前で noRout を外す）。
-    for (const g of [F.monjuG, F.monjuBow, F.remG]) g.noRout = true;
+    for (const g of [F.monjuG, F.monjuBow, F.remG, F.shakadoG, F.saitoBow2, F.yokawaG]) g.noRout = true;
     for (const [x, z] of [[12, -19], [16, 4]]) {
       const g = this.foe(rt, { name: '杉林の僧兵', anchor: { x, z }, facing: Math.PI / 2, order: 'hold', ambush: true, seekRange: 16, width: 3, aggro: 12, morale: 70, fleeDir: { x: -1, z: 0 } }, dress([{ type: 'ashigaru', n: 3 }], SOHEI));
       F.ambG = (F.ambG || []).concat(g);
@@ -4215,7 +4215,13 @@ const hiei_mtn = {
       const byJodoin = near(u, P.jodoin, 18);
       if (byJodoin && !F.jodoinShown) { F.jodoinShown = true; rt.bark('浄土院の御廟を荒らすな。本道の列に続け'); }
       rt.objProgress('main', rallyProgress(rt, P.saito, 12, '釈迦堂の前', '印をたどり、釈迦堂の前へ'));
-      if (near(u, P.saito, 12) && arrived(F.akechi, P.saito, 12) && guardedRoad(rt, P.saito)) this.p7(rt);
+      // 堂の前が十メートルだけ空いても、打って出た守りを残して次へ進ませない。
+      // 脇の射手は中堂と同じく前へ出し、森の中を探す条件にしない。
+      if (!F.saitoSortie && near(u, P.saito, 18)) {
+        F.saitoSortie = true;
+        if (!hieiDefeated(F.saitoBow2)) walk(F.saitoBow2, [[-125, -48], [-123, -46]], 2.4, (q) => attackFrom(q, 16));
+      }
+      if ([F.shakadoG, F.saitoBow2].every(hieiDefeated) && near(u, P.saito, 12) && arrived(F.akechi, P.saito, 12) && guardedRoad(rt, P.saito)) this.p7(rt);
     } else if (advanceStep === 6) {
       // 尾根道へ早く着いても、進みの合図が終わってから敵の鬨と札を出す。
       // 毎回の判定で今も戦える兵を探し、声の予約や位置を毎コマ作らない。
@@ -4225,7 +4231,7 @@ const hiei_mtn = {
         if (F.dangerAt === undefined) rt.say('横川の僧兵頭', '鬨を上げよ！　尾根道を守れ！　中堂へは通さぬ！', 3);
       }
       rt.objProgress('main', rallyProgress(rt, P.yokawa, 12, '横川中堂の前', roadProgress(rt, '横川中堂の前')));
-      if (near(u, P.yokawa, 12) && arrived(F.akechi, P.yokawa, 12) && guardedRoad(rt, P.yokawa)) this.win(rt, '燃える堂の間を抜け、横川への山道の掃討を終えた');
+      if (hieiDefeated(F.yokawaG) && near(u, P.yokawa, 12) && arrived(F.akechi, P.yokawa, 12) && guardedRoad(rt, P.yokawa)) this.win(rt, '燃える堂の間を抜け、横川への山道の掃討を終えた');
     }
     // 勝ったコマで深手の札や前進の声を出し直さず、引き継ぎの下知を残す。
     if (F.ending) return;
