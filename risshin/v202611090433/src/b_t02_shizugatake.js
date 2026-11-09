@@ -824,10 +824,13 @@ const t02_shizugatake = {
       return;
     }
     inp.guardHold = false;
-    const q = b.def.missionPin(b);
+    let q = b.def.missionPin(b);
     // 砦の柵の内から外の行き先へは、東の口を通って出る（柵へ真っすぐ当たって止まらない）
     const dF = dist(u.pos, FORT);
-    if (q && dF < FORT.r + 9 && dist(q, FORT) > FORT.r + 2) {
+    const returning = q && dist(q, FORT) < FORT.r && dF > FORT.r + 1.5;
+    // 夜の本陣へ戻る時も、柵の外を東の口まで回ってから入る。
+    if (returning && !(Math.abs(u.pos.z - FORT.z) < 3 && u.pos.x > FORT.x)) q = { x: MOUTH.x + 7, z: MOUTH.z };
+    if (q && (returning || dF < FORT.r + 9) && dist(q, FORT) > FORT.r + 2) {
       const atMouth = Math.abs(u.pos.z - FORT.z) < 3 && u.pos.x > FORT.x + FORT.r - 5;
       const inside = dF < FORT.r + 1.5 && !b.army.wallBetween(u.pos, -1, FORT);
       if (inside) { goTo(p, inp, FORT.x + FORT.r + (atMouth ? 7 : -3), FORT.z, 1.5); return; }
