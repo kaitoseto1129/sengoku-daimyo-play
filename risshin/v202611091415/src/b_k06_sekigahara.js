@@ -555,7 +555,10 @@ const k06_sekigahara = {
         u.invuln = false; u.hp = 0; rt.army.kill(u, null);
       }
       rout(F.otani); rout(F.otaniH);
-      if (F.otaniU?.alive && !F.otaniU.gone) rt.army.despawn(F.otaniU);   // 自害した吉継は逃げ走らない（陣の内で消える）
+      if (F.otaniU?.alive && !F.otaniU.gone) {
+        F.otaniU.invuln = false; F.otaniU.hp = 0;
+        rt.army.kill(F.otaniU, null);   // 自害した吉継も陣の内で倒れる
+      }
       rt.after(5, () => {
         for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4, F.hideG]) rout(g);
         rt.say('宇喜多秀家', '金吾めっ……！　刺し違えてくれる！', 3);
@@ -616,7 +619,8 @@ const k06_sekigahara = {
   },
   shimaStep(rt) {
     const F = rt.flags, g = F.shima;
-    if (!alive(g)) return;
+    // 到着前に予約した次の移動も、受け合いを始めた後には進めない。
+    if (!alive(g) || F.shiAt || F.ending) return;
     F.shiI = (F.shiI ?? -1) + 1;
     const q = SHIMA_PATH[Math.min(F.shiI, SHIMA_PATH.length - 1)];
     // 本陣の前（三つ目）で押し合い、捨て奸を残して伊勢路へ抜ける
@@ -795,6 +799,7 @@ const k06_sekigahara = {
       }
       if (!F.shiAt && receiving) {
         F.shiAt = rt.t; F.shima.defMult = 1; F.shima.order = 'attack'; F.shima.aggro = 30; F.shima.seekRange = 30;
+        F.shima.onArrive = null;
       }
       // 主人公が笹尾山から戻る前に味方だけで全滅させると、接触できず任務が止まる。
       // 到着だけでは守りを外さず、主人公が退き口を受けた所から通常の戦いにする。
