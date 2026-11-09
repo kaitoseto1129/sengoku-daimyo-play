@@ -175,7 +175,7 @@ function height(x, z) {
 }
 
 // 右上の目標の札：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。両軍の兵の数の棒（armybar）も上に常に出す（九3・十二1）。
-//   見える敵の兵には一人残らず頭上に赤い▼（四十 m 内・見通しのある者。九3）。道明寺（b_k13_domyoji.js）と同じ作り。戦が終われば元へ戻す
+//   見える敵の兵には一人残らず頭上に赤い▼（距離で省かず、見通しのある者。九3）。道明寺（b_k13_domyoji.js）と同じ作り。戦が終われば元へ戻す
 const BOARD_CSS = `
 html:root body #hud#hud#hud.k16-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.k16-goals #armybar .clock { visibility:hidden !important; }
@@ -217,7 +217,7 @@ function goalBoard(rt) {
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+          u.mesh?.visible === false || u.camHidden) continue;
       if (!(u._k16SeenAt > rt.t - .34 && u._k16SeenAt <= rt.t)) { u._k16Seen = sightUnit(rt, u); u._k16SeenAt = rt.t; }
       if (!u._k16Seen) continue;
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
@@ -368,6 +368,7 @@ const k16_secret = {
     F.hide = foe('徳川秀忠の陣', HIDE, dress([busho('徳川秀忠', { horse: false, invuln: true }), uS(8), uG(2)], TK), { width: 6, morale: 100, seek: 6, aggro: 6 });
     F.hide.fire = false;
     F.hidetada = F.hide.units.find((u) => u.name === '徳川秀忠');
+    if (F.hidetada) F.hidetada._crouch = true;
     for (const u of F.hide.units) if (u.isUma) rt.army.despawn(u);
     for (const [x, z] of [[HIDE.x - 8, HIDE.z + 6], [HIDE.x + 8, HIDE.z + 6], [HIDE.x, HIDE.z - 8]]) rt.scene.add(nobori(W, x, z, 'tokugawa', 6));
     // 藤堂高虎の縄張りの馬防柵（docs/if_final_genna.md：高虎が作った柵を最後まで攻める）。鉄砲衆の前と本陣の旗本の前の二重。口は京街道の上の八 m だけ

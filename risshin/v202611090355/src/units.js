@@ -843,7 +843,9 @@ export class Army {
     // 10月初めの侍（kaito 11/3 old_good_14・15「侍も1か月前の姿に」）：徒歩侍・旗本・馬廻・騎馬武者・名だけの侍大将は 10/7 の版（2fde947c1）の作り。
     //   胴は家の漆と黒・焦げ茶の六組、威は家の三色、三人に一人は桶側胴。当世具足の共通の作り（genericKacchu）は使わない。
     //   兜は 10/7 の六組のうち作り物の前立（鍬形・月・日輪。11/2 で外した）だけ無地の兜に。赤備え・足軽大将・顔のある武将はそのまま
-    const oldSam = privateArmor && !gen.face && !o.ashiTaisho && !look.kosode && !look.sohei && !look.takedaRed && !look.nanban && !redRider && /^kabuto/.test(look.hat || '');
+    // 11/9 kaito（天王寺の声 12「侍の甲冑が室町時代っぽい」）：10/7 の侍（大袖と胴丸寄りの胴・丸い兜）は戦の定義が def.oldSam を立てた時だけ。
+    //   ほかは下の genericKacchu（真田幸村と同じ作りの当世具足：頭形・桃形の鉢、桶側胴・仏胴、当世袖。手本 docs/tosei_gusoku_1109.md）
+    const oldSam = !!this.world.def.oldSam && privateArmor && !gen.face && !o.ashiTaisho && !look.kosode && !look.sohei && !look.takedaRed && !look.nanban && !redRider && /^kabuto/.test(look.hat || '');
     if (oldSam) {
       const F = OLD_SAM_FAC[fac.flag] || OLD_SAM_FAC[g.faction] || OLD_SAM_FAC.oda;
       const oa = o.rt ? null : o.armor, ol = o.rt ? null : o.lace;

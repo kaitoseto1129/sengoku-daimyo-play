@@ -209,6 +209,13 @@ export const REQUIRED_KACCHU = [
   ['毛利勝永', 'momonari', 'bull', D.kuro, 0x2e3a52, 'sugake', 0x9a2418, 'none', 'toyotomi',
     { shikoroLace: C.shiro, shikoroStyle: 'kebiki', haoriMon: 'none', menpo: D.kuro, uma: null },
     '伝所用・白糸威水牛形兜の水牛脇立と白糸の錣。日輪前立は外す。鉢・胴・面頬は推定、緋色の羽織は伝来品の地色。桐は所属旗だけ。出所は docs/generals_look_1108/毛利勝永.md'],
+  // 樫井の団右衛門。伝来甲冑の細部は未確認なので、桃山期の桶側二枚胴の型で補う。
+  ['塙団右衛門', 'suji', 'none', D.kuro, C.kuro, 'okegawa', 0, 'none', txt('塙団右衛門'),
+    { helm: D.kuro, lac: 'kuro', fuki: 'kuro', doOpening: 'nimai', plateDo: null,
+      shikoroLace: C.kuro, shikoroStyle: 'sugake', sodeStyle: 'sugake',
+      kusazuriCount: 7, kusazuriLaceRows: 5, kusazuriColor: D.kuro, kusazuriBands: Array(5).fill(C.kuro),
+      menpo: 0, noHaori: true, haoriMon: 'none', fur: 0, horo: 0, uma: null, shinodare: false, fukigaeshiBadge: false },
+    '前田土佐守家資料館の桃山期・黒漆塗黒糸威二枚胴具足の胴と黒糸を借りた復元案。団右衛門の伝所用品の細部は未確認。筋兜は補完し、立物・面頬・羽織・個人紋・馬印は補わない。名入り旗の地色は推定。出所は docs/generals_look_1108/塙団右衛門.md'],
 ];
 // 同じ人の別名（戦の定義が使う名）。同じ具足を指す
 export const REQUIRED_ALIAS = {

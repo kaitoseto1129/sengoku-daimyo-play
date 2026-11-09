@@ -2497,7 +2497,7 @@ const nodafukushima = {
   missionTimeText: () => '',
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|崩れ|撤退|退き口を失|間に合わなかった/.test(text),
   // 11/4 jin（AR1・AW3・BA3）：史実の順（公記巻三）の一行を段ごとに固定する。「▼」「印」の字と、待つだけの言葉は使わない。
-  missions: [...SUIRO.MISSIONS, ...NODA_STAGE_TEXT.slice(0, 4), TEPPO.MISSION, ...NODA_STAGE_TEXT.slice(4), EGUCHI.MISSION],
+  missions: [...SUIRO.MISSIONS, ...NODA_STAGE_TEXT.slice(0, 4), TEPPO.MISSION, ...NODA_STAGE_TEXT.slice(4, 6), EGUCHI.MISSION],
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。行き先は頭上の▼一つだけ。
   goalSignBare: true, goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,
   // 右上の一行の番号（15分の構成の段を挟んだ並び）。本の段は nodaBase
@@ -2507,7 +2507,7 @@ const nodafukushima = {
     const F = rt.flags, k = this.nodaBase(rt), n = SUIRO.MISSIONS.length;
     if (F.nodaEguchi || F.ending && !rt.G.lord) return this.missions.length - 1;
     if (TEPPO.active(rt) || F.nodaTeppo && k <= 3) return n + 4;
-    return k <= 3 ? n + k : n + k + 1;
+    return k <= 3 ? n + k : n + Math.min(k, 5) + 1;
   },
   nodaBase(rt) {
     const F = rt.flags;
@@ -4341,6 +4341,15 @@ function restBackstep(b, inp, goTo, x, z, r) {
     else if (side < -0.38) inp.k.add('KeyA');
   }
 }
+// 井楼の戸口は経由点で壁を避けてある。共通の詰まり回避を重ねると、
+// 長押しの直前や狭い戸口で横へ逸れるため、この短い経路は向きと歩みだけを決める。
+function seirouWalk(p, inp, x, z, r) {
+  inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+  inp.runHeld = false;
+  if (Math.hypot(x - p.u.pos.x, z - p.u.pos.z) <= r) return;
+  p.yaw = Math.atan2(x - p.u.pos.x, z - p.u.pos.z);
+  inp.k.add('KeyW');
+}
 nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
@@ -4383,11 +4392,12 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
   if (F.down) return;
   const tw = F.seirou?.[0];
   if (tw && (F.step === 1 || (F.step === 1.5 && !F.shotsDone) || ((F.step === 2 || F.shotsDone) && F.onSeirou))) {
-    inp.guardHold = false; inp.leftPressed = false;
+    inp.guardHold = false; inp.leftPressed = false; inp.runHeld = false;
+    inp.k.delete('KeyA'); inp.k.delete('KeyD');
     const l = FL.ladders[tw.ladderId];
     if (F.onSeirou) {
       if (F.step === 2 || F.shotsDone) {
-        if (Math.hypot(u.pos.x - l.topX, u.pos.z - l.topZ) > 0.5) goTo(p, inp, l.topX, l.topZ, 0.3);
+        if (Math.hypot(u.pos.x - l.topX, u.pos.z - l.topZ) > 0.5) seirouWalk(p, inp, l.topX, l.topZ, 0.3);
         else inp.k.add('KeyE');
         return;
       }
@@ -4412,16 +4422,16 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
       // 駆け足一コマの幅より細かく合わせると、戸口の前で左右へ往復する。
       const dx = u.pos.x - fx;
       if (Math.abs(dx) <= 0.3 && u.pos.z > tw.z + TH.z1 - 0.1) {
-        goTo(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15, true);
+        seirouWalk(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15);
       } else if (u.pos.z < fz - 0.2) {
         const side = dx < 0 ? -1 : 1, sx = fx + side * (TH.x1 + 1.2);
-        if (Math.abs(dx) < TH.x1 + 0.8) goTo(p, inp, sx, u.pos.z, 0.15, true);
-        else goTo(p, inp, u.pos.x, fz, 0.15, true);
-      } else if (Math.abs(dx) > 0.3) goTo(p, inp, fx, u.pos.z, 0.25, true);
-      else goTo(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15, true);
+        if (Math.abs(dx) < TH.x1 + 0.8) seirouWalk(p, inp, sx, u.pos.z, 0.15);
+        else seirouWalk(p, inp, u.pos.x, fz, 0.15);
+      } else if (Math.abs(dx) > 0.3) seirouWalk(p, inp, fx, u.pos.z, 0.25);
+      else seirouWalk(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15);
       return;
     }
-    if (Math.hypot(u.pos.x - l.x, u.pos.z - l.z) > 0.9) goTo(p, inp, l.x, l.z + 0.5, 0.3);
+    if (Math.hypot(u.pos.x - l.x, u.pos.z - l.z) > 0.9) seirouWalk(p, inp, l.x, l.z + 0.5, 0.3);
     else inp.k.add('KeyE');
     return;
   }
@@ -4430,8 +4440,8 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
   const TW = tw?.hut || HUT;
   if (tw && !F.onSeirou && Math.abs(u.pos.x - tw.x) < TW.x1 && u.pos.z > tw.z + TW.z0 && u.pos.z < tw.z + TW.z1 + .4) {
     inp.guardHold = false;
-    if (Math.abs(u.pos.x - tw.x) > 0.35 && u.pos.z < tw.z + TW.z1 - .5) goTo(p, inp, tw.x, u.pos.z + .3, 0.2);
-    else goTo(p, inp, tw.x, tw.z + TW.z1 + 1.5, 0.3);
+    if (Math.abs(u.pos.x - tw.x) > 0.35 && u.pos.z < tw.z + TW.z1 - .5) seirouWalk(p, inp, tw.x, u.pos.z + .3, 0.2);
+    else seirouWalk(p, inp, tw.x, tw.z + TW.z1 + 1.5, 0.3);
     return;
   }
   // 布は二回使える。巻いた印は残るため、再負傷の手当てをその印で止めない。

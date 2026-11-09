@@ -36,7 +36,7 @@ import { DEPTH12 } from './k12/depth.js';   // 陣立ての表（army_depth.js�
 // ---- 名のある武将の甲冑（ここだけで足す。無ければ足す）。黒を基本に、威しの色だけで分ける（AV1） ----
 const face = (o) => ({ w: 1.05, jaw: 1.1, chin: 1, cheek: 1, gaunt: 0.2, brow: 1.2, nose: 1, nw: 1.1, eye: 1.1, t: 5, hair: 0x15110d, age: 40, ...o });
 const give = (name, g) => { GENERALS[name] ||= { horo: 0, haoriMonCol: 0xe6dfcf, skin: 0x9c7453, ...g }; };
-give('塙団右衛門', { armor: 0x1c1614, lace: 0x8a1e18, hat: 'kabuto_g', haori: 0x2a1c18, mon: 'toyotomi', tack: 0x3a1a14,
+give('塙団右衛門', { armor: 0x1c1a1a, lace: 0x1c1a1a, hat: 'kabuto', haori: 0, mon: 'none', flag: 'sashi:字塙団右衛門:#ece6d6:#201f1c', tack: 0x3a1a14,
   face: face({ age: 50, brow: 1.5, jaw: 1.3, beard: { mus: 1, musW: 1.2, droop: 0.6, goat: 0.8, side: 0.8, stub: 1.2 } }) });
 give('岡部則綱', { armor: 0x1e1e20, lace: 0x4a4a52, hat: 'kabuto_w', haori: 0x2a2a30, mon: 'toyotomi', tack: 0x2a2a30,
   face: face({ age: 48, gaunt: 0.4, beard: { mus: 0.7, musW: 1, droop: 0.5, goat: 0.1, side: 0.2, stub: 0.5 } }) });
@@ -521,7 +521,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.awaU.noTarget = true; F.awaU.mustLive = true;
     for (const g of [F.hana, F.awa]) { g.speed = 4.4; g.seekRange = 12; }
     // 塙団右衛門は侍衆を連れて村の北の口に構える（⑤まで前に出ない）。止めは主人公の手だけ（三4）
-    F.hata = this.foe(rt, '塙団右衛門の侍衆', { x: HATA.x, z: -220 }, [{ type: 'busho', n: 1, o: { name: '塙団右衛門', invuln: true, horse: true } }, { type: 'samurai', n: 10 }, { type: 'gun', n: 2 }], { aim: HATA, hold: true, morale: 100 });
+    F.hata = this.foe(rt, '塙団右衛門の侍衆', { x: HATA.x, z: -220 }, [{ type: 'busho', n: 1, o: { name: '塙団右衛門', flag: 'sashi:字塙団右衛門:#ece6d6:#201f1c', invuln: true, horse: true } }, { type: 'samurai', n: 10 }, { type: 'gun', n: 2 }], { aim: HATA, hold: true, morale: 100 });
     F.hata.seekRange = 0; F.hata.aggro = 0;   // ⑤まで村の北の口から動かない（村の乱戦に先に紛れ込まない）
     F.hanaU = F.hata.units.find((u) => u.name === '塙団右衛門');
     F.hanaU.onWound = (src) => {

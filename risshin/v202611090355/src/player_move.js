@@ -10,6 +10,7 @@ import { isTouch } from './touch.js';
 import { groundAt, rampAt, ladderNear } from './floors.js';
 import { ladderAlive, startClimb } from './siege_ladder.js';
 import { yieldToPlayerHorse } from './player.js';
+import { borrowAllyHorse, spareHorses } from './horse_more.js';
 
 export class PlayerMove {
 
@@ -126,6 +127,8 @@ export class PlayerMove {
       return;
     }
     if (!this.canRide) { rt.hud.flash('まだ馬に乗れる身分ではない（足軽大将から）', 'dim'); return; }
+    // 11/9 kaito 13：自分の馬がそばにいない時は、すぐそばの名の無い味方の騎馬武者から馬を借りて乗る（乗り手は下りて徒歩で戦う）
+    if ((!L || L.mode === 'fled' || Math.hypot(L.x - u.pos.x, L.z - u.pos.z) >= 3.2) && borrowAllyHorse(this)) return;
     if (L && (L.mode === 'fled' || (L.mode === 'flee' && Math.hypot(L.x - u.pos.x, L.z - u.pos.z) >= 3.2))) { rt.hud.flash(L.mode === 'flee' ? `${this.horseName}は怯えて逃げている。逃げる先を見る` : `${this.horseName}は逃げ去った。近くの空馬を探す`, 'dim'); return; }
     if (!L) { rt.hud.flash(`${this.horseName}がいない`, 'dim'); return; }
     const d = Math.hypot(L.x - u.pos.x, L.z - u.pos.z);
@@ -619,12 +622,16 @@ export class PlayerMove {
 
   updateTake(dt) {
     const rt = this.rt, u = this.u, L = rt.army.looseHorses;
+    // 本陣の替え馬（一戦に一度。11/9 kaito 13）
+    if (!this.spareDone && rt.t > 4) { this.spareDone = true; if (this.canRide) { try { spareHorses(rt); } catch (e) { console.warn('替え馬を置けませんでした', e); } } }
     let best = null, bd = 3.4;
     if (!this.mounted && u.alive && L && this.mayRide !== false) {
       for (const o of L) {
         if (!o.from || !this.horseAlive(o) || Math.abs(o.h.position.y - u.pos.y) > 0.9) continue;
         const d = Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z);
-        if (d < bd && this.horseReachable(o.h.position)) { bd = d; best = o; }
+        // 11/9 kaito 13「討った敵将の馬に R で乗りにくい」：落ち着いた馬（討った将の馬・繋いだ馬・置いた馬）は 5m から手綱を取れる
+        const reach = o.calm || o.tame || o.kept ? 5 : 3.4;
+        if (d < Math.min(bd, reach) && this.horseReachable(o.h.position)) { bd = d; best = o; }
       }
     }
     // 主を失った空馬が近く（15m）にいる事を、一戦に一度だけ知らせる（捕らえて乗れる事が分かるように）
@@ -666,7 +673,7 @@ export class PlayerMove {
     const c = this.catching;
     if (c) {
       const q = c.o.h.position;
-      if (this.mounted || !u.alive || u.climb || this.knockT > 0 || this.staggerT > 0 || !this.horseAlive(c.o) || !this.horseReachable(q) || Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 3.4) {
+      if (this.mounted || !u.alive || u.climb || this.knockT > 0 || this.staggerT > 0 || !this.horseAlive(c.o) || !this.horseReachable(q) || Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > (c.o.calm || c.o.tame || c.o.kept ? 5.2 : 3.4)) {
         this.catching = null;
         if (u.alive && !this.mounted && !rt.over) {
           const why = !this.horseAlive(c.o) ? '馬がいなくなった。別の空馬を探す'
@@ -701,7 +708,7 @@ export class PlayerMove {
   takeHorse(o) {
     const rt = this.rt, u = this.u, army = rt.army;
     if (!o || this.mounted || this.mayRide === false || !this.horseAlive(o) || !u.alive || rt.over || u.climb ||
-        Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z) > 3.4 ||
+        Math.hypot(o.h.position.x - u.pos.x, o.h.position.z - u.pos.z) > (o.calm || o.tame || o.kept ? 5.2 : 3.4) ||
         !this.horseReachable(o.h.position)) {
       if (o && !this.mounted) rt.hud.flash('馬の横へ回る。同じ高さで手綱を取る', 'dim');
       return;

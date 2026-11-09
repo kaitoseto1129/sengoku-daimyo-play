@@ -236,8 +236,9 @@ export function retryTick(rt, input, extra, dt) {
   if (m.pending) {
     m.pending.left -= dt;
     if (m.pending.left <= 0) {
-      const pending = m.pending; m.pending = null;
+      const pending = m.pending; m.pending = null; m.unskip?.();
       offerRetry(rt, pending.info, pending.delay);
+      if (pending.toResult) m.accept?.();
     }
     return !!rt.def.pauseRetry && !!m.dialog;
   }
@@ -373,6 +374,16 @@ export function offerRetry(rt, info, delay) {
   if (rt.tracker.main === true && (rt.over || rt._closing || rt.flags.ending)) return false;
   if (info.down && !m.downShown) {
     m.downShown = true; m.pending = { info, delay, left: rt.army?.lethal ? 4.5 : rt.index === 0 ? 3 : 4 }; rt.retryOpen = true;   // 倒れてから 3〜5 秒は戦場が続く（音は playerDown が遠のかせる）
+    // 11/9 kaito（全戦）：続く数秒は何も押さない時だけ。キー・画面を押したらすぐ札を出す（Q はそのまま結果へ）
+    const skip = (e) => {
+      if (!m.pending || e.repeat) return;
+      if (e.type === 'keydown' && (e.ctrlKey || e.metaKey || e.altKey)) return;
+      m.pending.left = 0; m.pending.toResult = e.type === 'keydown' && e.key?.toLowerCase() === 'q';
+      unskip();
+    };
+    const unskip = () => { document.removeEventListener('keydown', skip, true); document.removeEventListener('pointerdown', skip, true); m.unskip = null; };
+    m.unskip?.(); m.unskip = unskip;
+    setTimeout(() => { if (m.pending && m.unskip === unskip) { document.addEventListener('keydown', skip, true); document.addEventListener('pointerdown', skip, true); } }, 300);   // 倒れた瞬間の押しっぱなしは数えない
     return true;
   }
   const first = rt.index === 0 && !rt.G.lord && !rt.def.dojo;
@@ -433,7 +444,7 @@ export function offerRetry(rt, info, delay) {
   d.querySelector('[data-start]').onclick = () => { if (!rt.resumedFrom) clearCheckpoint(rt); m.goal = null; m.cp = null; m.cpAt = -1; m.win = 0; restore(m.start); };
   m.accept = () => {
     close(); m.accepting = true;
-    rt.finish(m.info, m.delay);
+    rt.finish(m.info, Math.min(m.delay ?? 1, 1));   // 結果を選んだら待たせない（kaito 11/9：Q から敗北の画面までが長い）
   };
   d.querySelector('[data-result]').onclick = m.accept;
   if (first) {
@@ -447,6 +458,7 @@ export function offerRetry(rt, info, delay) {
 export function disposeRetry(rt) {
   const m = memories.get(rt);
   if (m?.onKey) document.removeEventListener('keydown', m.onKey, true);
+  m?.unskip?.();
   if (m?.dialog) { m.dialog.close(); m.dialog.remove(); }
   memories.delete(rt); rt.retryOpen = false;
 }
