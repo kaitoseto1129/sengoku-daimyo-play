@@ -32,6 +32,7 @@ import { depthStart, depthTick, depthBot, rest as dpRest, hold as dpHold } from 
 import { install as ngMonomi } from './nagashima/monomi.js';   // 0〜3分：堤から見る輪中と砦
 import { steps as fusaSteps, lastSteps } from './nagashima/fusa.js';      // 6〜11分：川の封鎖・砦から逃げ出す門徒
 import { STAGES } from './stages.js';
+import { depthPlan as nagashimaDepth } from './nagashima/fujin.js';   // 布陣図の陣立て（docs/fujin/nagashima.md）
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
 import { attachFireSpread } from './siege_fire.js';
@@ -2533,6 +2534,7 @@ const nagashima = {
   },
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
+  depth: nagashimaDepth,   // 布陣図（docs/fujin/nagashima.md）：織田七万の三方の陣を川の手前に（nagashima/fujin.js）
   setup(rt) {
     {
       const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor;
