@@ -179,6 +179,7 @@ const k09_imafuku = {
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   stageGoalsOnly: true,    // 右上は四つの段だけ（「敵を何人討つ」で埋めない。三の1・AW3）
   goalsAllRows: true,      // 共通の既定は今の一件だけ。①〜④を最初から並べ、済みに印を付ける。
+  forceBarAlways: true,   // 人数を渡すだけでは共通の棒が隠れる。佐竹・豊臣の残りを戦の間ずっと示す。
   nameTagLimit: 12,        // 既存の名札の枠内で、見える将の名を二、三人だけに絞らない。
   gateGuide: false,        // 竹の矢来の木戸は、前に立てば組の者と縄で引き倒す（update）。「木戸を打て（長押し）」の操作の字と「門が開いた」は出さない（五の1）
   hidePlayerSign: true,    // 足元の白い輪（写真に無い作り物の印）を出さない（八の1）
@@ -715,6 +716,15 @@ k09_imafuku.botBrain = (b, inp, tools) => {
       const st = i >= 0 ? F.outer[i] : F.gate;
       if (!st || !st.alive) continue;
       const fx = st.seg[0];
+      // ②で柵の奥の守兵を追うと、袖に当たり続けて木戸へ戻れない（全戦の通し）。
+      // 東から残る木戸へ順に寄り、縄で倒すまで前に留まる。倒した木戸へは戻らない。
+      if (F.step === 2 && p.x > fx - 0.5) {
+        inp.quickCmd = null;
+        inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+        inp.axis = null;
+        tools.goTo(b.player, inp, fx + 4, 0, 1.2);
+        return;
+      }
       if (p.x > fx - 0.5 && p.x < fx + 10 && Math.abs(p.z) > 2.6) { inp.quickCmd = null; tools.goTo(b.player, inp, Math.abs(p.z) > 5 ? fx + 4 : fx - 3, 0, 1.2); return; }
     }
   }
