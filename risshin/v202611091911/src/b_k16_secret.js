@@ -399,6 +399,8 @@ const k16_secret = {
     F.takatora.fire = false;   // 高虎の本陣は座ったまま。供の鉄砲が獲物を追って野へ出ない
     const tk = F.takatora.units.find((u) => u.name === '藤堂高虎');
     if (tk) tk._crouch = true;
+    // invuln だけでは共通の深手処理で本人に討たれる。筋書きで生かす間は退去も討死もさせない。
+    for (const u of [F.ieyasu, tk, F.hidetada]) if (u) u.onWound = () => { u.hp = u.maxHp; };
     for (const [x, z] of [[-52, -38], [-36, -38], [-56, -48], [-32, -48], [-44, -54]]) rt.scene.add(nobori(W, x, z, 'todo', 6));
     // 徳川方の備は段ごとの下知だけで動く（共通の敵の頭 ai.js に任せると、家康の本陣・旗本・高虎の本陣まで持ち場を出て前線へ来る。一2）
     //   後ろの備は自分の段まで持ち場を動かない（stay：本人を見て一人ずつ駆け出さない）。本陣・旗本・高虎の本陣は最後まで動かない
@@ -543,7 +545,7 @@ const k16_secret = {
     F.ending = true; F.endPhase = 'hide'; F.winT = rt.t;
     rt.setPhase('end');
     rt.player.u.invuln = true;
-    if (F.ieyasu && F.ieyasu.alive) { F.ieyasu.invuln = false; rt.army.damage(F.ieyasu, F.ieyasu.maxHp * 9, rt.player.u, { pierce: true }); }
+    if (F.ieyasu && F.ieyasu.alive) { F.ieyasu.invuln = false; F.ieyasu.onWound = null; rt.army.damage(F.ieyasu, F.ieyasu.maxHp * 9, rt.player.u, { pierce: true }); }
     for (const g of F.foes) if (g !== F.takatora && g !== F.hide) this.fall(rt, g);
     for (const g of [F.takatora, F.hide]) if (live(g)) { g.order = 'hold'; g.aggro = 0; g.seekRange = 0; }
     sfx('horagai', 1); rt.after(1, () => sfx('taiko', 1));
@@ -680,7 +682,7 @@ const k16_secret = {
       // 会話済みなら立ち上がりと討てる状態も戻す（不死身のまま詰まらせない）。
       if (F.talk && ie && ie.alive) {
         ie._crouch = false;
-        if (rt.t - F.talk >= 10) ie.invuln = false;
+        if (rt.t - F.talk >= 10) { ie.invuln = false; ie.onWound = null; }
       }
       // 立った家康は陣幕の内から出ない（太刀を抜いても幕の裏の野へ歩き出さない。11/8 描いて遊んだ：幕の外へ出て口から届かなくなった）
       if (!F.talk && ie && ie.alive && inCamp(P.pos) && dist(ie.pos, P.pos) < 13) {
@@ -689,7 +691,7 @@ const k16_secret = {
         rt.after(3.6, () => rt.say('徳川家康', '治めるものよ', 2));
         rt.after(5.8, () => rt.say(nm(rt), 'ならば、俺が治める', 2));
         rt.after(8, () => rt.say('徳川家康', '……そうか', 2));
-        rt.after(10, () => { if (ie.alive && !F.ending) ie.invuln = false; });
+        rt.after(10, () => { if (ie.alive && !F.ending) { ie.invuln = false; ie.onWound = null; } });
       }
       if (live(F.hon)) { F.hon.noRout = true; F.hon.morale = Math.max(F.hon.morale, 60); }
       if (F.ieyasu && !F.ieyasu.alive) { this.win(rt); return; }
