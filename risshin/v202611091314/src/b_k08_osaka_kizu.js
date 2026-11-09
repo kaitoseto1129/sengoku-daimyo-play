@@ -16,7 +16,7 @@
 // 地形：大坂の低い平野と木津川の河口を手で復元（平らな低地。川筋・砦の置き場は推定）。
 // 座標：南が +z（蜂須賀勢）、北が −z（砦の北の口と博労淵・大坂城）、東が +x（大坂城の方）、西が −x（木津川・大坂湾）。
 // ======================================================================
-import { enemyGroup, allyGroup, centerOf, nm, wallLine } from './bhelp.js';
+import { enemyGroup, allyGroup, nm, wallLine } from './bhelp.js';
 import { siegeStages } from './siege_stages.js';
 import { nobori, yagura, kabukimon, yaguramon, tobira, kagaribi, kobune, jinmaku, shogi, hut, takataba, lookoutDeckHeight, castleBoardFence, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { RANKS } from './state.js';
@@ -402,7 +402,7 @@ const k08_osaka_kizu = {
     F.step = 1; F.tS = rt.t;
     rt.setPhase('assault');
     rt.obj('main', '入り江を渡り、岸の鉄砲組を討つ', 'main');
-    rt.marker('k08', () => { const g = F.s1.find(alive); return g ? centerOf(g)() : SHORE; }, '岸の鉄砲組', { red: true, group: F.front });
+    rt.marker('k08', () => fightingTarget(F.s1, rt.player.u.pos)?.pos || SHORE, '岸の鉄砲組', { red: true, group: F.front });
     hold(F.saki, SHORE.x - 2, SHORE.z + 4); F.saki.aggro = 22;
     hold(F.east, 48, 40);
     hold(F.ikeda, -28, 30);
@@ -473,7 +473,7 @@ const k08_osaka_kizu = {
     rt.after(0.6, () => { if (F.step === 3) rt.say('明石全延', '入ってきたぞ。射て、射て！', 2.4); });
     for (const g of F.allies) g.dmgMult = 0.4;   // 逃げ場の無い砦の内の守兵は死に物狂い（③が一息で済まない）
     F.s3 = [F.garrison, F.wallG, F.inner]; F.gN = sum(F.s3);
-    rt.marker('k08', () => { const g = F.s3.find(alive); return g ? centerOf(g)() : INSIDE; }, '明石の守兵', { red: true, group: F.garrison });
+    rt.marker('k08', () => fightingTarget(F.s3, rt.player.u.pos)?.pos || INSIDE, '明石の守兵', { red: true, group: F.garrison });
     rt.say(SHISHA, '殿の仰せ。門が開いた、内へ攻め入れ、と', 3.2);
     rt.after(3.6, () => { if (F.step === 3) rt.say('浅野長晟', '浅野も着いた。東から挟み込め', 3); });
     rt.after(7.4, () => { if (F.step === 3) rt.say('池田の物頭', '池田の手、西の柵を破った。乗り込め', 3); });

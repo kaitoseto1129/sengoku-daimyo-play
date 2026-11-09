@@ -3600,12 +3600,14 @@ const nagashima = {
           const defended = tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
-          const atPost = u.alive && u.pos.z >= BANK_Z &&   // 馬の上でも持ち場（11/9 二巡）
+          const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&   // 馬の上でも持ち場（11/9 二巡）
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
           // 共通処理は二人以下の組を崩れた扱いにする。戦える残兵がいれば守備を続ける。
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
+          rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
           return defended && !remaining && atPost && C.inT >= st.max - 35;
         };
       }
@@ -3630,7 +3632,7 @@ const nagashima = {
     const steps = lastSteps({ rest: dpRest, hold: dpHold, BANK_Z, monto });
     for (const st of steps) {
       const start = st.start;
-      st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
+      st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (st.kind === 'hold') for (const g of bankDepthFriends(rt2)) g.fire = true; const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
       if (st.kind === 'hold') {
         st.idleAdvance = false; st.limit = Infinity;
         const tick = st.tick;
@@ -3639,12 +3641,14 @@ const nagashima = {
           const defended = tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
-          const atPost = u.alive && u.pos.z >= BANK_Z &&
+          const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
           // 最後の寄せも、人数だけで残兵を退けた事にしない。
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
+          rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
           return defended && !remaining && atPost && C.inT >= st.max - 35;
         };
       }

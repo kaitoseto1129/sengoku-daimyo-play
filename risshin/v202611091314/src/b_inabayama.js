@@ -6092,7 +6092,7 @@ const inabayama = {
       g.noRout = true; g.atIdx = i; g.startN = g.units.length;
       // 11/8 critic60 一3：持ち場で突っ立たせず、坂の上から下の折れへ矢玉を放ち続ける
       g.fire = true; g.holdFire = false;
-      g.dmgMult = 0.5;   // 11/9 お客さんの声「稲葉山がクリアできない」：坂の上の矢玉と槍の一打を軽く（数は同じ）。初めての人が登りで倒れ続けないように
+      g.dmgMult = 0.35;   // 11/9 二巡：0.5 でも bot が中の折れで槍に囲まれて倒れた。11/9 お客さんの声「稲葉山がクリアできない」：坂の上の矢玉と槍の一打を軽く（数は同じ）。初めての人が登りで倒れ続けないように
       return g;
     });
     // 大手の木戸の守り（喰違いの口の内）。木戸の上の井楼と馬出しの兵（siegeKit）と合わせて迎える
@@ -6100,6 +6100,8 @@ const inabayama = {
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], { flag: 'saito' }));
     F.oteGate.noRout = true; F.oteGate.dmgMult = 0.6;   // 11/9 同上：木戸の上の鉄砲と槍を軽く
     F.climbFoes = [F.nigeru, ...F.nanaGuards, F.oteGate];
+    // 11/9 二巡：共通の加勢（army_relief）と大軍の寄せ（mass_assault）が折れの守りの持ち場を麓の町（54,78）へ書き替え、守りが七曲りに残らず退きもしなかった。筋書きの隊として外す
+    for (const g of F.climbFoes) if (g) g.noFrontline = true;
     F.climbFriends = [F.kino];
     // 藤吉郎の手は自分と同じ道を、同じ速さで登る（味方も道で登る）。柴田の手は少し後から続く
     const K = F.kino;
