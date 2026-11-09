@@ -153,7 +153,7 @@ function tadaStep(s, rt) {
     if (done) rt.flags.tadaHandDone = true;
     const u = rt.flags.tadaU;
     if (u?.alive) C.goal = u.pos;
-    return done && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');
+    return rt.flags.tadaHandDone && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');
   };
   s.idleAdvance = false;   // 止まっていても段は先へ飛ばない（忠隣は寄せ続ける。⑤を果たさずに勝ちにしない。kaito 三3）
   s.max = 900;
@@ -519,7 +519,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 15分の構成：忠隣の段で手の者と九十秒斬り合ったら、手の者は崩れて退き、忠隣ひとりが土橋へ寄る（手の者を討ち尽くすまで十分続いた。11/8 bot）
     if (C && di === 7 && rt.t - C.t0 > 90 && !F.tadaHandDone) {
       F.tadaHandDone = true;
-      for (const g of C.groups) if (g !== F.tada && g.count) { g.noRout = false; g.morale = 0; }
+      // 組頭が生きている組は士気を下げるだけでは退かない。下知で坂の下へ退かせる。
+      for (const g of C.groups) if (g !== F.tada && g.count) {
+        g.noRout = false; g.morale = 0;
+        g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
+        g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
+      }
       rt.say('宮部の侍', '忠隣の手が崩れた！　残るは忠隣ただ一人！', 3);
     }
     // 忠隣は刻限で味方に討たせない。主人公の止めまで斬り込みを続け、目標を未達のまま先へ進めない。
