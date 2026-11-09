@@ -20,6 +20,12 @@ const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ?
 const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
 
 export const REQUIRED_KACCHU = [
+  // 大坂城内の秀頼。成人の所用具足は未確認。桃山～江戸初期の型による復元案。
+  ['豊臣秀頼', 'momonari', 'none', D.kuro, C.shiro, 'sugake', 0, 'toyotomi', 'toyotomi',
+    { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'nimai', doSugake: true,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: C.shiro,
+      menpo: 0, fur: 0, horo: 0, kumage: false, uma: null, shinodare: false, fukigaeshiBadge: false },
+    '宇和島市蔵・土居家伝来の桃山～江戸初期の二枚胴具足を型の手本とする復元案。黒漆桃形兜・白糸素懸威。秀頼所用品ではない。立物・面頬・陣羽織・馬印は補わず、桐は豊臣家の所属表示。出所は docs/generals_look_1108/豊臣秀頼.md'],
   // 本人所用の具足は未確認。桃山～江戸初期の現存品から、黒漆・桃形兜・白糸素懸の二枚胴を借りる。
   ['木村重成', 'momonari', 'none', D.kuro, C.shiro, 'sugake', 0, 'none', 'toyotomi',
     { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'nimai', doSugake: true,

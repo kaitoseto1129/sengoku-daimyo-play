@@ -413,7 +413,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["最上義光", "namban", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0, 0, "none", ""],
   ["佐竹義宣", "suji", "shida", 0x1c1a1a, 0x3e5474, "kebiki", 0x8a6a2a, 0x1c1a1a, "satake", ""],
   ["石田三成", "suji", "sun", 0x1c1a1a, 0xa8281c, "sugake", 0, 0, "none", ""],
-  ["豊臣秀頼", "zunari", "kuwa", 0x1c1a1a, 0x6a6a6a, "okegawa", 0, 0, "toyotomi", ""],
+  // 大坂城内の復元案。本人の初着甲冑と成人の具足を混同しない（出所は docs/generals_look_1108/豊臣秀頼.md）。
+  ["豊臣秀頼", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0, "toyotomi", ""],
   ["宇喜多秀家", "zunari", "kuwa_wide", 0x1c1a1a, 0x9a2e20, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["小早川秀秋", "suji", "hideaki_ushiro", 0x1c1a1a, 0x6a3a62, "kebiki", 0xa8281c, 0, "none", ""],
   ["前田利長", "zunari", "kuwa", 0x1c1a1a, 0x5a2a1c, "okegawa", 0, 0, "maeda", ""],
