@@ -43,6 +43,11 @@ import { makeSiegeZones, siegeFighter } from './siege_zones.js';
 import { makeGate, updateGates, resetGates } from './siege_gate.js';
 import { makeDefenseAI } from './siege_ai.js';
 import { siegeStages } from './siege_stages.js';
+// 15分の構成（docs/oda15_plan_1108.md 6）：段の中身は mitsukuri/ に一段一ファイル
+import { depthTick, depthBot } from './b_depth.js';
+import * as k15Monomi from './mitsukuri/monomi.js';
+import * as k15Honmae from './mitsukuri/honmae.js';
+import * as k15Yoin from './mitsukuri/yoin.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
 import { addRamp, groundAt } from './floors.js';
 import { timeslipField } from './timeslip_field.js';
@@ -4161,7 +4166,11 @@ const mitsukuri = {
     mkGoalBoard(rt);
     mkSiegeHeat(rt);
     rt.setPhase('brief');
-    rt.after(0, () => this.climb(rt));
+    // 15分の構成：寄せの前に物見の場で城の構えを見て、六角の物見を払い、丹羽の手と合流してから総懸かり。
+    //   先手の列（openingColumn）は柵の前に並べたまま動かさない（段へ呼ぶと三の郭へ寄せる列が崩れた）。物見には藤吉郎の手の足軽が付く
+    rt.after(0, () => k15Monomi.start(rt, { faction: 'rokkaku', flag: 'rokkaku', armor: RK.armor, look: (list) => dress(list, RK),
+      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_OTE[6][0], z: ROAD_OTE[6][1] },
+      CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },
 
   callFriends(rt) {
@@ -4598,6 +4607,7 @@ const mitsukuri = {
     for (const g of F.oda) if (!gone(g)) routeOld(g, path, 2.8);
     if (F.ram2 && !gone(F.ramNext)) { F.ramNext.assault = null; routeOld(F.ramNext, path, 2.8); }
     markZone(rt, F.sanFell ? 'hon' : 'san');
+    if (F.sanFell) k15Honmae.install(rt, { HON: HON_DEFEND, EAST: { x: 62, z: -99 }, dress, sayKino });   // 15分の構成：東の口・別働の手・城将の打って出
     // 城将も郭の「残る敵」の印で案内する。別の印で旗の守りから引き離さない。
   },
 
@@ -4661,7 +4671,8 @@ const mitsukuri = {
       rt.after(1.5, () => { F.wadaFlag.visible = false; });
       rt.after(3.5, () => { for (const flag of F.kanFlags) flag.visible = false; });
     });
-    rt.after(cryWait + 5, () => rt.finish({ scriptedEnd: true }, 0));
+    // 15分の構成：旗を立てたらすぐ結果へ行かず、燃える城と観音寺の火が消えるのを三十秒ほど見せる（mitsukuri/yoin.js）
+    rt.after(cryWait + 5, () => rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { sayKino }, 0)));
     rt.banner('六角勢、退く', '箕作城、落つ。本丸の守りを固めよ');
     // 落城を見た観音寺・和田山の兵が、松明を掲げて麓から南東（甲賀の方）へ去る列（遠景）。
     F.flee = [
@@ -4685,6 +4696,7 @@ const mitsukuri = {
 
   update(rt, dt) {
     const F = rt.flags;
+    depthTick(rt, dt);   // 15分の構成の段（mitsukuri/）
     if (!SETTINGS.reduceMotion) MK_CLOTH_T.value += dt;
     if (!F.clothSwept) { F.clothSwept = true; mkClothSweep(rt.scene); }
     if (!F.honDown && F.step >= 4 && rt.camera) honDown(rt);
@@ -5159,6 +5171,7 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }   // 15分の構成の段
   // 傷は自然には戻らない。退避と手当ては共通の試し役の判断に任せ、任務へ戻る。
   b.botRest = false;
   if (F.step < 2) {

@@ -124,7 +124,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["本庄繁長", "suji", "sun", 0x1c1a1a, 0x703d78, "okegawa", 0, 0x1c1a1a, "uesugi", ""],
   ["上杉景勝", "suji", "manji", 0x242222, 0x35435a, "kebiki", 0, 0x8e3724, "uesugi", "a7c70e25"],
   ["上杉景虎", "suji", "horn", 0x1c1a1a, 0x703d78, "sugake", 0, 0x1c1a1a, "uesugi", ""],
-  ["直江兼続", "suji", "cross", 0x1c1a1a, 0x703d78, "sugake", 0x2e3a42, 0, "uesugi", ""],
+  // 上杉神社伝来の金小札浅葱糸威二枚胴具足による復元。細部は必須表と出所の文書へ。
+  ["直江兼続", "suji", "naoe_ai", 0xb08a3a, 0x5a9aa0, "sugake", 0, 0, "none", ""],
   ["北条氏照", "suji", "moon", 0x1c1a1a, 0x66513a, "okegawa", 0, 0x1c1a1a, "hojo", ""],
   ["北条氏規", "suji", "sun", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0x1c1a1a, "hojo", ""],
   ["北条氏邦", "suji", "kuwa_wide", 0x1c1a1a, 0x66513a, "sugake", 0, 0x1c1a1a, "hojo", ""],

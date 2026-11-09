@@ -10,6 +10,7 @@ import { goalCountText } from './goal_count.js';
 import { HIST_OUTCOME } from './battle_outcome.js';
 import * as IG from './b_inou_goals.js';
 import { GOALS15 as OG15 } from './okehazama/goals.js';
+import { GOALS15 as MG15 } from './moribe/goals.js';
 import { sunomataNorthStopped, sunomataPincerDone, sunomataBossKilled } from './sunomata_goals.js';
 
 const KILL_N = 8;          // 「敵を何人討つ」の数
@@ -97,8 +98,11 @@ const OWN = {
     const F = (rt) => rt.flags;
     const bosses = ['長井甲斐守', '日比野下野守'];
     return [
+      { kind: 'stage', k: 0, text: MG15.kishi, noun: '南岸の柳の陰', check: (rt) => !!F(rt).m15?.kishiDone || !!F(rt).signal },   // 11/8 十五分の構成（prototype/src/moribe/）
       { kind: 'stage', k: 0, text: '楡俣川を渡り、向こう岸へ上がる', noun: '向こう岸', check: (rt) => !!F(rt).pointReached || !!F(rt).signal },
       { kind: 'stage', k: 1, text: '川岸で斎藤の敵を押し返す', noun: '川岸の敵', check: (rt) => !!F(rt).vBroken || F(rt).stage === 'hold' || F(rt).stage === 'press', groups: (rt) => [F(rt).V] },
+      { kind: 'stage', k: 1, text: MG15.aze, noun: '斎藤の物頭', check: (rt) => !!F(rt).m15?.azeDone || F(rt).stage === 'hold' || F(rt).stage === 'press' },
+      { kind: 'stage', k: 1, text: MG15.yumi, noun: '弓・鉄砲衆', check: (rt) => !!F(rt).m15?.yumiDone || F(rt).stage === 'press' || !!F(rt).ending },
       { kind: 'stage', k: 1, text: '森部の野で敵の槍の列を止める', noun: '敵の槍の列', check: (rt) => F(rt).stage === 'press' || !!F(rt).ending,
         groups: (rt) => [F(rt).M, F(rt).N, ...(F(rt).reserves || [])] },
       // 11/6 fixc：公記の討ち手は長井＝服部平左衛門・日比野＝恒河久蔵。名の無い足軽の自分が両将を討つのは史料に合わない。
