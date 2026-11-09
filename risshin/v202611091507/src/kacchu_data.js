@@ -595,6 +595,17 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["筒井定次", "suji", "none", 0x1c1a1a, 0x4a6a8a, "okegawa", 0, 0, "umebachi", ""],
   // 阿波一宮城の城将（長宗我部方）。所用の具足・紋は未確認（docs/generals_look_1108/江村親俊.md）。筋兜・毛引威の朽葉糸の復元案、立物と紋は付けない。
   ["江村親俊", "suji", "none", 0x1c1a1a, 0x8a5a2a, "kebiki", 0, 0, "none", ""],
+  // 11/9 豊臣B：豊臣編の戦に名のある武将として出るのに見た目の無かった人。所用の具足は見つからず（docs/generals_look_1108/豊臣編_復元案_1109.md）。
+  //   筋兜・立物なしの復元案。威の色は同じ鉢の人と重ならない色、紋は家の旗が既にある時だけ。
+  ["一柳直末", "suji", "none", 0x1c1a1a, 0x6a2a4a, "okegawa", 0, 0, "none", ""],
+  ["間宮康俊", "suji", "none", 0x1c1a1a, 0x3a6a5a, "kebiki", 0, 0, "hojo", ""],
+  ["北条氏勝", "suji", "none", 0x1c1a1a, 0x8a7a3a, "okegawa", 0, 0, "hojo", ""],
+  ["池田元助", "suji", "none", 0x1c1a1a, 0x2a4a6a, "okegawa", 0, 0, "none", ""],
+  ["島津忠隣", "suji", "none", 0x1c1a1a, 0x7a3a2a, "kebiki", 0, 0, "shimazu", ""],
+  ["戸川達安", "suji", "none", 0x1c1a1a, 0x5a5a7a, "okegawa", 0, 0, "none", ""],
+  ["柴田勝政", "suji", "none", 0x1c1a1a, 0x4a5a2a, "kebiki", 0, 0, "none", ""],
+  ["桑山重晴", "suji", "none", 0x1c1a1a, 0x9a6a5a, "okegawa", 0, 0, "none", ""],
+  ["伊勢貞興", "suji", "none", 0x1c1a1a, 0x3a3a6a, "kebiki", 0, 0, "akechi", ""],
   ["木下雅楽助", "eboshi", "kuwa_wide", 0x24221f, 0x66513b, "sugake", 0xcfc8b4, 0x24221f, "none", ""],
   ["中川金右衛門", "eboshi", "horn", 0x24221f, 0x3c5a8a, "sugake", 0x4a3a22, 0, "none", ""],
   ["山田新右衛門", "eboshi", "cross", 0x24221f, 0x66513b, "kebiki", 0xcfc8b4, 0x24221f, "none", ""],

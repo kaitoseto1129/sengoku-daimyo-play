@@ -2544,7 +2544,8 @@ const hiei_mtn = {
   resumeSteps: [[1, 'p1'], [2, 'p2'], [3, 'p3'], [4, 'p4'], [5, 'p6'], [6, 'p7']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   stageGoalsOnly: true, // 勝利の星も、戦場と同じ場所・行いの五つだけ。
   goalsAllRows: true, // 共通の目標札にも五つを最初から並べる。
-  goalsVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
+  goalVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
+  goalRowsAhead: true, // 最初から五件を並べ、後半は今の目標と続きが見えるようにする。
   armySignals: false, // 合図は各段の下知で出す。任務の文からは推測しない。
   // 11/6 fixc1721（kaito 九1・十1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印。途中で言い替えない。
   //   場所の名と行いだけ（三1）。数を討つ・深手の目標は置かない。並びは信長公記の順（坂本の火→本坂→文殊楼→根本中堂）。
@@ -4202,14 +4203,8 @@ const hiei_mtn = {
       }
       if (F.bell2) {
         rt.objProgress('main', rallyProgress(rt, P.westGate, 12, '西の道の入口', '組と西の山道の印へ'));
-        // 11/9 二巡：明智の先手が燃える堂の間で詰まって西の道の入口へ着かず、本人が待ち続けて十二分止まった → 百秒で、見えない所の先手を入口へ寄せる
-        if (rt.t - F.westT > 100 && !F.westWarp && F.akechi && !gone(F.akechi) && !arrived(F.akechi, P.westGate, 12)) {
-          F.westWarp = true;
-          for (const q of F.akechi.units) if (q.alive && Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z) > 30) { q.pos.x = P.westGate.x + (Math.random() - 0.5) * 6; q.pos.z = P.westGate.z + (Math.random() - 0.5) * 6; if (rt.world.heightAt) q.pos.y = rt.world.heightAt(q.pos.x, q.pos.z); }
-          rt.say('明智光秀', '先手は西の道の入口に着いた。続け！', 2.8);
-        }
-        const westLate = rt.t - F.westT > 160 && near(u, P.westGate, 18);
-        if (westLate || near(u, P.westGate, 12) && arrived(F.akechi, P.westGate, 12) && guardedRoad(rt, P.westGate)) this.p6(rt);
+        // 先手の待ちは arrived の二十秒上限で解く。兵を飛ばしたり、時間だけで残敵を飛ばしたりしない。
+        if (near(u, P.westGate, 12) && arrived(F.akechi, P.westGate, 12) && guardedRoad(rt, P.westGate)) this.p6(rt);
       }
     } else if (advanceStep === 5) {
       const byJodoin = near(u, P.jodoin, 18);

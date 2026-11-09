@@ -29,7 +29,8 @@ export function start(rt, ctx, done) {
       },
     }),
     DP.fight({
-      at: SPOT, title: '六角の物見', sub: '脇から寄せる小勢', obj: '六角の物見を追い払え', max: 100, noRefill: true,
+      // 増援のない物見戦に、共通の七分の増援待ちを適用しない。
+      at: SPOT, title: '六角の物見', sub: '脇から寄せる小勢', obj: '六角の物見を追い払え', max: 100, limit: 100, noRefill: true,
       foes: () => [{ name: '六角の物見の後詰', from: { x: SPOT.x + 16, z: SPOT.z - 10 }, list: [{ type: 'ashigaru', n: 5 }, { type: 'gun', n: 1 }], mass: 0 }],
       reward: '六角の物見を追い払った',
     }),
