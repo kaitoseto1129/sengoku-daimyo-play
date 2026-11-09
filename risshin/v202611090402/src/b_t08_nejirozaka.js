@@ -119,7 +119,10 @@ function defendHold(o) {
   s.limit = Infinity;
   s.idleAdvance = false;
   s.tick = (rt, C, m, ctx, el, dt) => {
+    const inT = C.inT;
     tick(rt, C, m, ctx, el, dt);
+    const p = rt.player.u.pos;
+    C.inT = inT + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14) ? dt : 0);
     return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
   };
   return s;
@@ -447,7 +450,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending || !rt._g5?.own.has('島津忠隣')) return;
+    if (F.ending || !this.goals5().every((g) => g.check(rt))) return;
     F.ending = true;
     rt.setPhase('end');
     rt.world.setTime('morning');
@@ -463,7 +466,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     rt.after(4.5, () => rt.say('使番', '島津勢、都於郡と佐土原へ退いていきまする！', 4));
     rt.after(9, () => rt.say('宮部継潤', '追うな。中納言様の陣からの下知じゃ。この砦が落ちなんだ事が、何よりの手柄よ', 5));
     // 余韻：北の高城も囲みのまま。島津は降る道へ（義久が降るのは五月）
-    rt.after(14.5, () => { rt.banner('根白坂　島津勢退く', ''); rt.say('使番', '高城の山田有信、城を開くと申してまいりました', 3.6); });
+    rt.after(14.5, () => rt.say('使番', '高城の山田有信、城を開くと申してまいりました', 3.6));
     rt.after(18.5, () => rt.say('藤堂高虎', '島津が降るのも遠くはあるまい。九州が平らぐぞ', 3.6));
     rt.player.u.invuln = true;
     rt.after(23, () => {
@@ -588,7 +591,7 @@ t08_nejirozaka.goals5 = () => [
   { kind: 'stage', k: 1, text: STEP_TEXT[1], noun: '破れ口', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 7, groups: curG(6) },
   { kind: 'boss', k: 2, name: '島津忠隣', text: STEP_TEXT[2], check: (rt) => !!rt._g5?.own.has('島津忠隣') },
   { kind: 'stage', k: 3, text: STEP_TEXT[3], noun: '右の堀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 10, groups: curG(9) },
-  { kind: 'stage', k: 4, text: STEP_TEXT[4], noun: '土橋の塀', check: won5, groups: curG(11) },
+  { kind: 'stage', k: 4, text: STEP_TEXT[4], noun: '土橋の塀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 12, groups: curG(11) },
 ];
 
 export { t08_nejirozaka };

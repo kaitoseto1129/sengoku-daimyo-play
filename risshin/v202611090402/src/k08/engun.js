@@ -27,6 +27,7 @@ export function install(rt, K) {
 
 export function start(rt, K) {
   const F = rt.flags;
+  F.engunPushedBack = false;
   F.engunN = F.engun ? F.engun.count : 0;
   const S = (t, fn) => rt.after(t, () => { if (F.step === 4 && !F.ending) fn(); });
   S(18, () => { sfx('horagai', 0.45); rt.say('足軽', '北に桐の旗！　城の方から加勢が来るぞ！', 3); });
@@ -54,6 +55,7 @@ export function start(rt, K) {
     rt.after(10, () => {
       if (F.step !== 4) return;
       for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) { q.anchor.x = K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3); q.anchor.z = K.NGATE.z + 10; }
+      F.engunPushedBack = true;
     });
   });
 }
@@ -70,12 +72,18 @@ export function remaining(rt) {
 export function cleared(rt) {
   const F = rt.flags;
   if (!F.engun) return true;
-  if (!F.engunOn) return false;
+  // 加勢が早く倒れても、後備の前進と味方の押し返しを飛ばさない。
+  // 後備が既に倒れている時は、残る味方だけで押し返せる。
+  if (!F.engunOn || (!F.engunPushedBack && alive(F.asano2))) return false;
   return remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3);
 }
 // ⑤へ移る時：残る加勢も博労淵へ退く
 export function fleeAll(rt) {
   const g = rt.flags.engun;
   if (!alive(g)) return;
+  // 東西の塀に突き当たらず、開いた北の口から博労淵へ退く。
+  g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+  g.fleePath = g.center().z < -62 ? [[0, -164]] : [[0, -54], [0, -66], [0, -164]];
+  for (const u of g.units) u.fleePathIdx = 0;
   g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee';
 }
