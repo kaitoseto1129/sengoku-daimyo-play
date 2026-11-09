@@ -662,10 +662,12 @@ const t09_yamanaka = {
         if (mu && mu.alive) { mu.invuln = false; mu.hp = 0; rt.army.kill(mu, F.naka.units.find((u) => u.alive && u.type !== 'busho') || null); rt.banner('間宮康俊、討ち死に'); }
       }
       // 味方だけが出丸を抜いても、主人公が寄るまでは次の目標を達成扱いにしない。
-      // 15分の構成：間宮が討たれて三分たち、手勢が四分の一を切れば、残りは崩れて出丸を捨てる（残る数人を探し回って時が延びた。11/8 bot）
-      const daiLeft = F.dai.units.filter(cnt).length;
-      if (!F.daiBroke && ((F.mamiyaDead && T > 180 && daiLeft < F.daiN * 0.4) || T > 260)) { F.daiBroke = true; F.dai.noRout = false; F.dai.morale = 0; for (const s of F.daiWall) if (s.alive !== false) { s.hp = 0; s.alive = false; } rt.say('中村一氏', '出丸の兵が崩れた！　柵を越えよ！', 3); }
-      if ((F.dai.units.every((u) => !cnt(u)) || (F.daiBroke && T > 195)) && (Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 || T > 300) && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) this.shoji(rt);
+      // 残兵を探し回らせず、間宮を失った手勢が近くの寄せ手へ突き入る。
+      // 時間だけで敗走・柵の破壊・討ち取りの達成を起こさない。
+      if (!F.daiLast && F.mamiyaDead && T > 180 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
+        F.daiLast = true; F.dai.order = 'attack'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
+      }
+      if (F.dai.units.every((u) => !cnt(u)) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) this.shoji(rt);
     }
     if (F.step === 2) {
       const d = Math.hypot(p.x - F.cross.x, p.z - F.cross.z);

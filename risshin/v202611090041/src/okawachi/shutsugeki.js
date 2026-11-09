@@ -29,11 +29,13 @@ export function start(rt, ctx, done) {
         } catch (e) { F.k15FieldClash = null; }
       } }),
     DP.fight({
-      at: field, title: '鹿垣の外の野戦', sub: '北畠具教の打って出', obj: '鹿垣の外で北畠の打って出を退けよ', max: 170,
+      at: field, title: '鹿垣の外の野戦', sub: '北畠具教の打って出', obj: '鹿垣の外で北畠の打って出を退けよ', max: 220,
       say: [[speaker, '柵の内に籠もるな。押し出して横から突け！', 3.4]],
       foes: () => [{ name: '北畠の打って出', from: { x: field.x - 4, z: field.z - 26 }, formation: 'yari', list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'bow', n: 2 }], mass: 140 }],
       later: [{ t: 40, title: '騎馬の横槍', sub: '西の田から北畠の騎馬', say: ['足軽', '西から騎馬じゃ！　槍を立てよ！'],
-        foes: () => [{ name: '北畠の騎馬', from: { x: field.x - 26, z: field.z - 6 }, list: [{ type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 4 }], mass: 60 }] }],
+        foes: () => [{ name: '北畠の騎馬', from: { x: field.x - 26, z: field.z - 6 }, list: [{ type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 4 }], mass: 60 }] },
+        { t: 85, title: '具教の旗本', sub: '城の最後の打って出', say: ['使番', '笹竜胆の旗本が下りて来る！　北畠の最後の押しじゃ！'],
+          foes: () => [{ name: '北畠の旗本', from: { x: field.x + 8, z: field.z - 24 }, formation: 'yari', list: [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 6 }], mass: 100 }] }],
       reward: '北畠の打って出を退けた',
       onEnd: (rt2) => {
         F.k15FieldClash?.rout?.('B', { from: 0, minFight: 0 });

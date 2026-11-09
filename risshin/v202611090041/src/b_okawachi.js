@@ -1717,7 +1717,7 @@ const okawachi = {
     // 囲みの紹介は短く送り、夜攻めと城兵の打って出を開戦25秒の画面に間に合わせる（10/30 夜。兵の数は同じ）
     rt.after(2.5, () => { rt.unmark('mkHon'); this.oteDay(rt); });
     // 15分の構成：夜攻めの前に、物見の場で城の大きさを見て北畠の物見と小競り合い（okawachi/kakoi.js）
-    rt.after(5.5, () => k15Kakoi.start(rt, { ...okCtx(rt), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_KARAMETE[4][0], z: ROAD_KARAMETE[4][1] }, speaker: okSpeaker(rt) }, () => this.nightDay(rt)));
+    rt.after(5.5, () => k15Kakoi.start(rt, { ...okCtx(rt), look: (list) => KB(list), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_KARAMETE[4][0], z: ROAD_KARAMETE[4][1] }, speaker: okSpeaker(rt) }, () => this.nightDay(rt)));
     buildBattleJin(rt);
     okReflect(rt);
   },
@@ -2067,7 +2067,7 @@ const okawachi = {
     const F = rt.flags;
     if (F.step >= 4 || F.ending) return;
     // 15分の構成：翌朝の前に、同じ夜のうちに北畠の荷置き場を焼く（okawachi/hyoro.js）
-    if (F.k15Hyoro !== 'done') { if (!F.k15Hyoro) { F.step = 3.5; k15Hyoro.start(rt, { ...okCtx(rt), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, DEPOT: { x: 50, z: 34 }, speaker: okSpeaker(rt) }, () => this.siegeDays(rt)); } return; }
+    if (F.k15Hyoro !== 'done') { if (!F.k15Hyoro) { F.step = 3.5; k15Hyoro.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, DEPOT: { x: 50, z: 34 }, speaker: okSpeaker(rt) }, () => this.siegeDays(rt)); } return; }
     F.step = 4; F.stepT = rt.t; F.day = 13;
     // 読み残した夜攻めの待機命令を、翌朝の封鎖の札へ重ねない。
     okHideSpeech(rt);
@@ -2118,7 +2118,7 @@ const okawachi = {
     depthStart(rt, okCtx(rt), [okHold({ at: SOUTH_BLOCK, dur: 75, r: 18,
       title: '南の鹿垣の旗', obj: '集まれの法螺：南の鹿垣の旗で、番の組と道を守れ',
       groups: F.blockers, sortie: true, blockade: true, reward: '南の道を保ち、城へ兵糧を通さなかった',
-    })], () => { if (!F.ending) this.peace(rt); });
+    })], () => { if (!F.ending && F.blockHeld) k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); else if (!F.ending) this.peace(rt); });   // 15分の構成：和睦の前に北畠の打って出
     okHoldSignal(rt, F.dp.cur, '長い法螺二声は集まれ。南の鹿垣の旗で、番の組と槍を揃えよ', ASSEMBLY_LISTEN);
     rt.after(30, () => {
       if (F.ending || rt.over || F.step !== 4 || rt.phase !== 'siege') return;
@@ -2209,7 +2209,7 @@ const okawachi = {
         ? C.inT >= 75 : C.holding && (C.repelling
           ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
       // 15分の構成：封鎖を保ったら、和睦の前に北畠の大きな打って出を退ける（okawachi/shutsugeki.js）
-      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); return; }
+      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); return; }
       const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
         !C?.joinedLine ? '南の鹿垣で番の組と合流できず、交代の下知が出た' :
         !okAtSouthLine(rt) ? '南の鹿垣の持ち場を離れ、交代の下知が出た' :
@@ -4280,6 +4280,12 @@ function okFootTick(rt) {
 }
 
 // 新手を出す時だけ人数を数える。死体も数えない。
+// 15分の構成の段の敵：全体で二百三十五人ほどまで（cappedList は後の本陣の枠を空けるので、序盤の段では零人になった）
+function okK15Cap(rt, list) {
+  let room = 235;
+  for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;
+  return list.map((q) => { const n = Math.max(q.n > 0 ? 1 : 0, Math.min(q.n, room)); room -= n; return { ...q, n }; });
+}
 function cappedList(rt, list) {
   let room = 160; // 後で置く本陣・自分の組・近習の枠を七十五人分空ける。
   for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;
@@ -4944,7 +4950,7 @@ okawachi.date = (rt) => {
   // 11/6 critic60：札ごとに日付が違わないよう、遊ぶ場面の日（九月八日・四方を囲んで十一日目）で示す。布陣の日は史実の説明に残す。
   return '永禄十二年九月八日　秋・夕暮れ　囲みの十一日目';
 };
-okawachi.canSkip = (rt) => (rt.phase === 'brief' && rt.flags.day < 12 && rt.t > 3 ? '夜攻めの下知を聞く' : '');
+okawachi.canSkip = (rt) => (rt.phase === 'brief' && rt.flags.k15Kakoi !== 'on' && rt.flags.day < 12 && rt.t > 3 ? '夜攻めの下知を聞く' : '');
 okawachi.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) okawachi.nightDay(rt); };
 // 戦後の史実説明。実装の修正履歴を混ぜず、史料の記述と遊びの補いを明記する。
 // 『信長公記』巻二「阿坂の城退散之事」「大河内国司退城之事」

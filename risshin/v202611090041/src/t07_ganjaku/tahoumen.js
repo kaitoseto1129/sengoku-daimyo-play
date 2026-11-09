@@ -8,7 +8,7 @@ import { clash } from '../b_sekigahara.js';
 
 const FRONTS = {
   east: { x: 54, z: 46, seed: 15701, A: 'toyotomi', n: 240 },   // 東の尾根（羽柴秀勝の手）
-  west: { x: -74, z: -26, seed: 15702, A: 'kuroda', n: 200 },   // 西の尾根から北曲輪へ（黒田の手）
+  west: { x: -74, z: -26, seed: 15702, A: 'tsuru', n: 200 },   // 西の尾根から北曲輪へ（蒲生の手）
 };
 
 export function install(rt) {
@@ -26,12 +26,12 @@ export function install(rt) {
 // 段ごとの別の口の知らせ
 export function stage(rt, s) {
   const F = rt.flags, E = F.fronts || {}, say = (t, who, line) => rt.after(t, () => { if (!F.ending) rt.say(who, line, 3); });
-  if (s === 1) { E.west?.go?.(); say(20, '使番', '西の尾根、黒田の手が梯子を掛けました！'); }
+  if (s === 1) { E.west?.go?.(); say(20, '使番', '西の尾根、蒲生の手が梯子を掛けました！'); }
   else if (s === 2) { E.east?.push?.('A', 0.5); say(10, '物見', '東の尾根の塀に、羽柴の旗が上がっていく'); }
   else if (s === 3) {
     say(4, '使番', '東門突破！　羽柴秀勝様の手、城内へ！');
     rt.after(4, () => E.east?.rout?.('B', { from: 0, hideAfter: 40 }));
-    say(16, '使番', '北曲輪も入りました！　黒田の手でござる！');
+    say(16, '使番', '北曲輪も入りました！　蒲生の手でござる！');
     rt.after(16, () => E.west?.rout?.('B', { from: 0, hideAfter: 40 }));
   } else if (s === 4) { say(8, '使番', '搦手の前田勢、本丸の下へ取り付きました！'); say(40, '物見', '城のあちこちに豊臣の旗が立っていく……！'); }
   else if (s === 5) say(6, '使番', '城方の三の丸、もう誰もおりませぬ！');
