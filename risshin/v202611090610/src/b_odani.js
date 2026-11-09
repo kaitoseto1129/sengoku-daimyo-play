@@ -5145,6 +5145,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       if (g.odaniPlayerPause) g.pressureWait = 0;
     }
     if (F.step !== 1) return;
+    // 出撃前に崩れた番兵は飛ばす。空の隊を進軍させたり、先頭の兵の印を作らない。
+    while (F.patrolWave < AMBUSH_IDS.length && gone(F[AMBUSH_IDS[F.patrolWave]])) F.patrolWave++;
     if (F.patrolWave >= AMBUSH_IDS.length) return;
     const wave = F.patrolWave;
     // 時刻だけで次の六人を重ねない。退く間と、前の番兵が近くで戦う間は待つ。
