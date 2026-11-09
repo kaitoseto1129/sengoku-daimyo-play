@@ -349,6 +349,24 @@ function fleet(rt) {
 
 // ---- 段 ⑦：官兵衛に付き添い、井伊の陣から本丸の門まで送り届ける ----
 // 場所へ着く・寄せを返す・旗を守る目標は、放置や時間切れで済ませない。
+const castleViewPoint = new THREE.Vector3();
+function castleReveal(step) {
+  return { ...step, idleAdvance: false, max: Infinity, limit: Infinity,
+    tick(rt, C, m, ctx, el, dt) {
+      const I = rt.flags.ichiya, p = rt.player.u.pos;
+      let visible = false;
+      if (I?.castle.visible && rt.camera && Math.hypot(p.x - II_JIN.x, p.z - II_JIN.z) < 20) {
+        // 遠景として縮めた城の天守を、現在のカメラで測る。視点は動かさない。
+        castleViewPoint.set(ISHI.x - 4, rt.world.heightAt(ISHI.x, ISHI.z) + 24, ISHI.z)
+          .multiplyScalar(I.castle.scale.x).add(I.castle.position).project(rt.camera);
+        visible = Math.abs(castleViewPoint.x) < 0.85 && Math.abs(castleViewPoint.y) < 0.85 && Math.abs(castleViewPoint.z) < 1;
+      }
+      C.castleSeen = visible ? (C.castleSeen || 0) + dt : 0;
+      return step.tick(rt, C, m, ctx, el, dt) && C.castleSeen >= 2;
+    },
+  };
+}
+
 function requiredStep(step) {
   if (step.kind === 'rest') return step;
   const tick = step.tick;
@@ -670,10 +688,10 @@ const t12_odawara = {
       DP.move({ to: { x: II_JIN.x - 4, z: II_JIN.z + 2 }, obj: '井伊直政の下知で、山王川の東の井伊の陣へ退け', label: '井伊の陣', r: 8, max: 80,
         say: [['井伊直政', '後押しが来ぬ。旗は立てた、これまでじゃ。退け！'], ['足軽', '一番首は近藤殿と長野殿じゃ！']] }),
       ishigakiSt.step(H),
-      // ⑥ 六月二十六日：石垣山の城が姿を見せる（何もしなくてよい場面。目標は出さない）
+      // ⑥ 六月二十六日：井伊の陣から石垣山の城を見届ける。
       // 11/6 kaito 二4：前は 12 秒で過ぎ、城が写らなかった（陣から石垣山は約三百 = 実の二・四km で、全戦で描く遠さ 150 の外だった）。
       //   場面を長くし、城は視点から同じ向き・同じ見かけの大きさのまま百の内へ縮めて置く（update の ichiyaView）
-      DP.rest({ dur: 26, banner: ['六月二十六日', '石垣山の林が伐られ、山の上に白い城が現れた'],
+      castleReveal(DP.rest({ dur: 26, banner: ['六月二十六日', '石垣山の林が伐られ、山の上に白い城が現れた'],
         fn: (rt2) => {
           rt2.flags.day = 1; rt2.world.setTime('morning', true); rt2.world.setRainTarget(0); rt2.world.rainLevel = 0;   // 雨は上がり、土だけ湿る
           if (rt2.world.mountains) rt2.world.mountains.visible = true;
@@ -683,7 +701,7 @@ const t12_odawara = {
           sfx('horagai', 0.7);
           rt2.award((t) => t.side.push('篠曲輪を攻めた（翌日、殿下から褒美）'), '殿下から褒美');
         },
-        say: [['使番', '殿下は篠曲輪の一番首の近藤殿・長野殿を召して、褒美を下された'], ['手勢の侍', '南西の山の上を見よ。一夜で城が建ったようじゃ'], ['使番', '八王子も韮山も落ちた。松田殿の内通も露見し、城の中は割れておる']] }),
+        say: [['使番', '殿下は篠曲輪の一番首の近藤殿・長野殿を召して、褒美を下された'], ['手勢の侍', '南西の山の上を見よ。一夜で城が建ったようじゃ'], ['使番', '八王子も韮山も落ちた。松田殿の内通も露見し、城の中は割れておる']] })),
       kuzure.step(H),
       junkai.step(H),
       // ⑦ 七月の初め：時が飛ぶ。官兵衛が井伊の陣に来て、主人公と城へ歩く

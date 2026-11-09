@@ -2334,7 +2334,8 @@ const iga = {
         for (const u of g.units) { u._crouch = false; u.noTarget = false; }
         g.ambush = false; g.noAI = false; g.fixed = false; g.order = 'attack'; g.aggro = 30; g.seekRange = 40; g.focus = rt.player.u;
         rt.after(2, () => { if (!F.ending) rt.say('伊賀の地侍', '寄せ手が退くぞ！　坂の下まで追い落とせ！', 3); });
-        rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); });
+        // 追い討ちが城へ引き上げる時、土塁の射手も撃ち止める（坂の下へ退く寄せ手を撃ち続けると、坂の途中で斬り合いと手当てを繰り返して陣へ戻れない。11/9 bot）
+        rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); if (!F.ending && F.wallBow) F.wallBow.holdFire = true; });
       }
     }
     F.igun.order = 'retreat'; F.igun.anchor = { x: 14, z: 30 }; F.igun.holdFire = false;
@@ -2726,8 +2727,12 @@ iga.botBrain = (b, inp, { goTo, patientStrike }) => {
       // 折れ目は踏むまで寄る（案内は八十センチ内で次の折れ目へ移る）。六秒動けなければ四秒だけ行き先へ直に向かう（11/8 陣の口で十分止まった）
       const st = b._igaWalk || (b._igaWalk = { x: u.pos.x, z: u.pos.z, t: b.t, direct: -1 });
       if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 1) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
-      else if (b.t - st.t > 6) { st.direct = b.t + 4; st.t = b.t; }
-      const tg = b.t < st.direct ? C.at : C.goal;
+      else if (b.t - st.t > 6) { st.direct = b.t + 5; st.t = b.t; st.n = (st.n || 0) + 1; }
+      // 詰まった時は、一度目は近い山道（同じ高さの段）へ戻り、二度目は行き先へ直に向かう。
+      //   道を外れた尾根の上（23,-33）から陣へ直に向かうと切岸に当たり続けた（11/9 bot）
+      const road = st.road || (st.road = { x: 0, z: 0, d: 0, s: 0 });
+      if (b.t < st.direct && st.n % 2) roadPoint(u.pos, road);
+      const tg = b.t < st.direct ? st.n % 2 ? road : C.at : C.goal;
       goTo(p, inp, tg.x, tg.z, tg === C.at ? 4 : 0.4, true);
       return;
     }
