@@ -220,6 +220,9 @@ STAGES.t04_negoro = GOALS.map((g, i) => (i ? [g, atStep(i + 1)] : [g]));
 const NG = { GOALS };
 const stepped = (n, st) => ({ ...st, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
 const fighting = (u) => u && u.alive && !u.fleeing && !u.downed && !u.dying;
+// 塀の撃ち手は門前に残る寄せ手だけを狙う。後送中・退却中の兵を狙いに残さない。
+const gateTarget = (u) => fighting(u) && !u.name && !u.noTarget && !u.woundOut && !u.rearWound
+  && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 40;
 // 深手で退く者は生存数には残るが、討つべき敵と行き先には数えない。
 // 一時的に倒れている者は起き上がるため、残兵の数には残す。
 const remaining = (u) => u && u.alive && !u.fleeing && !u.dying && !u.woundOut;
@@ -965,15 +968,15 @@ const t04_negoro = {
           // 塀の上の鉄砲衆は、塀の際に寄った先手の足軽を撃ち下ろす（11/6：塀の上の十二挺が皆、丸太の脇の自分を撃ち、門の前で討たれた。
           //   担ぎ手を狙わせると丸太が三度止まって門が破れなかったので、塀の際の寄せ手を狙う）
           const wp = F.posts.wall;
-          if (wp && !(wp.focus && wp.focus.alive)) {
+          if (wp && !gateTarget(wp.focus)) {
             wp.focus = null;
             for (const g of [F.vanG, F.tsutsuiG, F.horiG]) {
-              const u = g && g.count && g.units.find((q) => q.alive && !q.name && Math.hypot(q.pos.x - GATE.x, q.pos.z - GATE.z) < 40);
+              const u = g && g.count && g.units.find(gateTarget);
               if (u) { wp.focus = u; break; }
             }
             // 11/9 三巡（織田C）：塀の際の味方の足軽がいなくなると、十二挺の狙いが丸太の脇の本人へ移り、背から撃たれて四十秒で倒れた（act）。狙う寄せ手がいない間は撃ち下ろさない。
-            wp.holdFire = !wp.focus;
           }
+          if (wp) wp.holdFire = !wp.focus;
         }
         if (!s.alive && C.openT == null) C.openT = el;
         // 自分は丸太の脇について押す（丸太の組の真横）
