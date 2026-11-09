@@ -846,7 +846,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.ending || !rt.canFailMission()) return;
     F.ending = true;
     rt.setPhase('end');
-    if (!rt.objectives.some((o) => o.id === 'main')) rt.obj('main', STAGES.k11_sanadamaru[0][0], 'main');
+    // 始まりの札は begin で外している。途中で失敗した時は、その段の場所と行いを結果へ残す。
+    const k = Math.max(0, Math.min(4, (F.step || 1) - 1));
+    if (!rt.objectives.some((o) => o.id === 'main')) rt.obj('main', STAGES.k11_sanadamaru[k][0], 'main');
     rt.objFail('main');
     rt.tracker.main = false;
     rt.banner('退き口を失った', '寄せ手は堀の前で崩れた');
