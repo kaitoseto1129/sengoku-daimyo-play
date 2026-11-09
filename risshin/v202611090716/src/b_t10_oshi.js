@@ -37,7 +37,8 @@ import { takatabaRow } from './castle_parts.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 13）で足した段。中身は t10_oshi/ に一段一ファイル
 import * as chikara from './t10_oshi/chikara.js';   // 始め：力攻めで城の外の柵へ寄せ、押し返されて丸墓山へ退く
 import * as kobuneSt from './t10_oshi/kobune.js';   // 水が満ち、城の小舟が堤の岸へ寄せる
-import * as kaijo from './t10_oshi/kaijo.js';       // 終幕：小田原開城の知らせで忍城が明け渡される
+import * as kaijo from './t10_oshi/kaijo.js';
+import * as shoshou from './t10_oshi/shoshou.js';   // 二巡：長束正家・関東の諸将の遠景・成田泰季の病の知らせ       // 終幕：小田原開城の知らせで忍城が明け渡される
 const ID = 't10_oshi';
 // 標高の素材（行田）を支度で読ませ、手柄の点と右上の段にこの戦を入れる（共通の表は直さず、ここから足す）
 BATTLE_ASSETS[ID] = Object.freeze([...assetsForBattle(''), 'dem_oshi']);
@@ -498,6 +499,7 @@ const t10_oshi = {
       [{ type: 'busho', n: 1, o: { name: '大谷吉継', invuln: true, horse: true, hat: 'kabuto_m', flag: 'otani', mon: 'otani', armor: ISHI.armor, lace: ISHI.lace } },
         { type: 'samurai', n: 3, o: { flag: 'otani', mon: 'otani', armor: ISHI.armor, lace: ISHI.lace } }, { type: 'ashigaru', n: 3, o: { flag: 'otani', mon: 'otani', armor: ISHI.armor, lace: ISHI.lace } }]);
     // 11/6 専門家の目：寄せ手の半ばは佐竹義宣ら北関東の大名衆（battle_learn）。石田の旗だけの寄せ手にしない。佐竹の手は堰の西の堤の外（川との間）に陣取る
+    shoshou.install(rt, { MARU, ISHI });
     F.satake = allyGroup(rt, { faction: 'satake', name: '佐竹義宣の手', fullStrength: true, anchor: { ...SATAKE }, facing: Math.atan2(-0.3, -1), width: 6, aggro: 0, fixed: true, noAI: true },
       [{ type: 'busho', n: 1, o: { name: '佐竹義宣', invuln: true, horse: true, hat: 'kabuto', flag: 'sashi:satake:#202638:#c9a653', mon: 'satake' } },
         { type: 'samurai', n: 3, o: { flag: 'satake', mon: 'satake', armor: ISHI.armor, lace: ISHI.lace } }, { type: 'ashigaru', n: 6, o: { flag: 'satake', mon: 'satake', armor: ISHI.armor, lace: ISHI.lace } }]);

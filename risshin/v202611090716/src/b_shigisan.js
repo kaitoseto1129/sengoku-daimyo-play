@@ -3417,7 +3417,8 @@ const shigisan = {
     if (F.ending || F.endPending) return;
     // 降伏の勧めと本丸の打って出（shigisan/kousan.js）が済むまで落城にしない（まだ本丸の段に入っていなければ入れる）
     if (!rt.G.lord && (F.paceKaeshi || F.paceKousan) && !(F.kousanDone && F.enjouDone)) { if (F.kaeshiDone && F.step < 4) this.honmaru(rt); return; }
-    if (!honmaruPostReached(rt) || otherFront && !F.reachedShu) return;
+    // 本丸の制圧から直接呼ばれる時も、南口を二十秒守る条件を省略しない。
+    if (!honmaruPostReached(rt) || !F.reachedShu) return;
     // 諸口の決着が先でも、内通の段を父子の最期の知らせより前に見せる。
     if (!F.betrayed || rt.t - F.betrayalAt < 8) {
       this.betrayal(rt); F.endPending = true;
