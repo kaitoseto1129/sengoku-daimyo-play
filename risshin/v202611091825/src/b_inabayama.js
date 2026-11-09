@@ -6428,6 +6428,12 @@ const inabayama = {
     // 藤吉郎の居る所に一番近い折れから（木戸の内に入った者を外へ戻さない）
     const honWay = F.tsuke ? (F.kinoU?.alive ? TSUKE_ALL.slice(nearestWay(rt, F.kinoU.pos, TSUKE_ALL)) : TSUKE_UP.slice(OTE_WAY.length)) : [[HON_GATE_OUT.x, HON_GATE_OUT.z], KARA[KARA.length - 1]];
     march(F.kino, honWay, 'attack');
+    // 後備も木戸前に残さず、本丸へ続かせる。先頭の居場所から道を切ると、
+    // 遅れた後備が未通過の折れを飛ばして切岸へ向かうため、自分の列から選ぶ。
+    if (F.tsuke && F.shiba && !gone(F.shiba)) {
+      const rear = F.shiba.units.find((u) => u.alive && !u.fleeing && !u.noTarget);
+      if (rear) march(F.shiba, TSUKE_ALL.slice(Math.max(0, nearestWay(rt, rear.pos, TSUKE_ALL) - 1)), 'attack');
+    }
     // 七曲りで自分を待たせた歩み（速さ 0）を戻す
     for (const g of [F.kino, F.shiba]) if (g && !gone(g)) g.speed = 3.6;
     // 木戸が破れ、裏道に残った鉄砲・射手も本丸の奥へ退く（背中から撃ち続けさせない）
@@ -7295,7 +7301,10 @@ function botRoad(b, inp, goTo, path, end) {
     // 11/9 二巡（織田C）：指の操作の bot は七曲りの西の折れ（-32,-20 など）で角の一・二歩の内へ入り切れず、百二十秒進まず付け入りが切れた。
     //   角の三歩の内で六秒進めなければ、塀を挟まない時に限り通った扱いにする。
     if (b._botRoadIdx !== b.botRoadIndex || b._botRoadPathK !== path) { b._botRoadIdx = b.botRoadIndex; b._botRoadPathK = path; b._botRoadIdxT = b.t; }
-    const cornerLate = b.t - b._botRoadIdxT > 6 && Math.hypot(u.pos.x - c[0], u.pos.z - c[1]) < 3;
+    // 崖下や別の折れで三歩以内に見えても通過にしない。足場と角の高さを確かめる。
+    const cornerLate = b.t - b._botRoadIdxT > 6 && Math.hypot(u.pos.x - c[0], u.pos.z - c[1]) < 3
+      && Math.abs(u.pos.y - b.world.heightAt(u.pos.x, u.pos.z)) < 2
+      && Math.abs(u.pos.y - b.world.heightAt(c[0], c[1])) < 2;
     if ((!cornerLate && !roadCornerPassed(b.world, u.pos, path, b.botRoadIndex, 1.2)) || b.army.wallBetween(u.pos, -1, cq, false)) {
       const q = b.botRoadGoal || (b.botRoadGoal = { x: 0, z: 0 });
       roadApproach(b.world, u.pos, path, b.botRoadIndex, q);

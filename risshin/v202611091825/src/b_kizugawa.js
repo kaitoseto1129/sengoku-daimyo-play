@@ -4861,8 +4861,13 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           deckRouteDistance(u, c.post) > 2.6 ? cannonApproachTask(rt, c) : !b ? '西の大筒へ。敵船を待て' :
           Math.hypot(b.x - c.x, b.z - c.z) > 55 ? '西の大筒へ。船が近寄るのを待て' : !cannonFacing(b, c) ?
             '西の大筒へ。船の横腹を待て' : F.step === 4 ? '西の大筒で大船の横腹を撃て' : '西の大筒で迫る敵船を撃て';
-        if (F.cannonTask !== task || F.cannonGuardStep !== F.step) {
-          F.cannonTask = task; F.cannonGuardStep = F.step;
+        // 大筒へ寄る札と撃つ札は、持ち場の縁で二三秒ごとに入れ替わった（11/9 見回り act）。急ぎでない入れ替えは四秒保つ。
+        const calm = !closeThreat && !F.kukiDanger && !guarding && !(rt.t < c.cd);
+        const walk = /大筒へ進め|^屋形の/;
+        const hold = calm && F.cannonCalm && F.cannonGuardStep === F.step && (walk.test(task) || walk.test(F.cannonTask || '')) &&
+          rt.t - (F.cannonTaskT || 0) < 4;
+        if ((F.cannonTask !== task || F.cannonGuardStep !== F.step) && !hold) {
+          F.cannonTask = task; F.cannonGuardStep = F.step; F.cannonTaskT = rt.t; F.cannonCalm = calm;
           rt.obj('main', task, 'main');
           if (!guarding && !F.kukiDanger && rt.t < c.cd) {
             // 11/6 fixc0823（critic60「①の段で乗り込みの下知」）：段に合う見張りだけを言う。

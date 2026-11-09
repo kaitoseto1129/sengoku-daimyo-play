@@ -77,7 +77,9 @@ export function update(rt, K, el) {
   if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
   // 鈴木大膳が旗本に阻まれている間は、遠くから信親を討った事にしない。
   const n = F.nobuU, s = F.suzukiU;
-  const crossed = S.ls && n?.alive && s?.alive && !s.gone && !s.woundOut && !s.rearWound &&
+  // 深手で戦列を離れている信親のそばに敵が来ても、斬り結んだ事にはしない。
+  const crossed = S.ls && n?.alive && !n.gone && !n.dying && !n.woundOut && !n.rearWound && !n.noTarget &&
+    s?.alive && !s.gone && !s.dying && !s.woundOut && !s.rearWound && !s.noTarget &&
     Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
     !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
   if (crossed && near) S.clash = (S.clash || 0) + 0.25;
