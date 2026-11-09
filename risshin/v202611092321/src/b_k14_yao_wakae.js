@@ -528,9 +528,9 @@ const k14_yao_wakae = {
       F.pushed = true;
       const g = F.stepG;
       for (const q of [g, F.step === 1 && F.fuseG]) if (q) { q.morale = Math.min(q.morale || 100, 40); q.dmgMult = (q.dmgMult || 1) * 0.6; }
-      // 若江の刻限で藤堂勢を強めたり、八尾へ移動中の隊を呼び戻したりしない。
+      // 若江の刻限で藤堂勢を強めたり、八尾へ移動中の隊を呼び戻したりしない。討死後の退く下知も守る。
       const pushing = F.step === 1 ? [F.mine, F.kibaG, F.todoGun, F.takanoriG, F.kuwanaG] : [F.mine, F.sakiG, F.iharaG, F.andoG, F.kibaG];
-      for (const a of pushing) if (live(a) && !(F.step <= 2 && a.order === 'move')) { a.order = 'attack'; a.seekRange = 80; a.dmgMult = Math.max(a.dmgMult || 1, 1.2); }
+      for (const a of pushing) if (live(a) && a.order !== 'retreat' && !(F.step <= 2 && a.order === 'move')) { a.order = 'attack'; a.seekRange = 80; a.dmgMult = Math.max(a.dmgMult || 1, 1.2); }
       if (F.step >= 2 && F.step <= 3) rt.say('井伊直孝', '先手が押しておる。遅れるな！', 2.6);
     }
     if (F.step === 4) {

@@ -31,6 +31,7 @@ import * as honjin from './t08_nejirozaka/honjin.js';       // 二巡：秀長�
 const WALL_Z = 0;                 // 板塀の線
 const WALL_X = 46;                // 塀の東西の端
 const MOAT = { z: 7, hw: 3.6, d: 2.2 };   // 塀の前の空堀（土橋は x の ±4）
+const EAST_MOAT = { x: WALL_X + 7, z0: -50, z1: 7, hw: 3.6, d: 1.6 }; // 右の堀は東の板塀の外（寸法は推定）
 const BREACH = { x: 0, z: WALL_Z };       // 破られる塀（土橋の奥）
 const POST = { x: 0, z: -5 };             // 自分の受け持ちの塀の内
 const ROAD = [[0, 150], [2, 100], [0, 60], [0, 14], [0, -70]];
@@ -43,6 +44,12 @@ const KOBA = { armor: 0x24221f, flag: 'kuki' };   // 左三つ巴（小早川家
 const dress = (list, lk) => list.map((s) => ({ ...s, o: { ...lk, ...(s.o || {}) } }));
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n });
 const sstep = (t) => { const v = Math.max(0, Math.min(1, t)); return v * v * (3 - 2 * v); };
+const eastMoatDepth = (x, z) => {
+  const dx = Math.abs(x - EAST_MOAT.x);
+  if (dx >= EAST_MOAT.hw || z <= EAST_MOAT.z0 || z >= EAST_MOAT.z1) return 0;
+  return EAST_MOAT.d * Math.cos(dx / EAST_MOAT.hw * Math.PI / 2)
+    * sstep((z - EAST_MOAT.z0) / 4) * sstep((EAST_MOAT.z1 - z) / 4);
+};
 
 // 台地（砦）は高さ二十二。塀の前から南へ下り、坂の下は田（高さ二）。砦の後ろは丘へ緩く上る
 function height(x, z) {
@@ -57,7 +64,7 @@ function height(x, z) {
     const across = Math.cos((dz / MOAT.hw) * Math.PI / 2);
     h -= MOAT.d * across * sstep((ax - 4) / 1.5) * sstep((WALL_X + 4 - ax) / 2);
   }
-  return h;
+  return h - eastMoatDepth(x, z);
 }
 const inFort = (p) => p.z < WALL_Z - 1.5 && p.z > -60 && Math.abs(p.x) < WALL_X;
 
@@ -364,7 +371,7 @@ const t08_nejirozaka = {
     height,
     tint(x, z, h, c) {
       // 砦の中と空堀は踏まれた土。坂は夏草、坂の下は田
-      if (Math.abs(z - MOAT.z) < MOAT.hw && Math.abs(x) > 4 && Math.abs(x) < WALL_X + 4)
+      if ((Math.abs(z - MOAT.z) < MOAT.hw && Math.abs(x) > 4 && Math.abs(x) < WALL_X + 4) || eastMoatDepth(x, z) > 0)
         c.setRGB(0.19, 0.14, 0.09);
       else if (z > 2 && z < 72 && Math.abs(x) < 4) c.setRGB(0.32, 0.25, 0.14);
       else if (z < WALL_Z + 12 && z > -60 && Math.abs(x) < WALL_X + 4) c.setRGB(c.r * 0.55 + 0.16, c.g * 0.5 + 0.13, c.b * 0.45 + 0.08);
