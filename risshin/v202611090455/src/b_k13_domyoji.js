@@ -204,22 +204,32 @@ function matabeiCharge(rt) {
   for (const g of rt.army.groups) {
     if (g.team !== 1 || !/後藤/.test(g.name || '') || !g.count) continue;
     const p = rt.player.u.pos;
-    g.calm = false; g.order = 'attack'; g.seekRange = 70; g.aggro = 30; g.anchor = { x: p.x - 4, z: p.z };
+    // 石川へ下りた本人を追って西へ突撃せず、頂から東の斜面を押し返す。
+    g.calm = false; g.order = 'attack'; g.seekRange = 35; g.aggro = 30;
+    g.anchor = { x: Math.max(TOP.x, Math.min(SLOPE.x, p.x - 4)), z: Math.max(-16, Math.min(16, p.z)) };
   }
 }
 
 // 片倉重綱の鉄砲が又兵衛を撃つ（伊達家の記録。胸を撃たれて家臣に介錯させた）。本人が先に討てばそれが手柄
 function matabeiShot(rt) {
   const F = rt.flags;
-  if (F.matabei) return;
+  if (F.matabei || F.ending || rt.over) return;
   const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
   const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重綱');
+  const p = rt.player.u.pos;
+  // 時刻だけで見えない所の最期を済ませない。本人が頂へ寄り、片倉の隊が届くまで待つ。
+  if (!v || !k || Math.hypot(p.x - TOP.x, p.z - TOP.z) >= 32 ||
+      Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > 50 ||
+      Math.hypot(k.pos.x - v.pos.x, k.pos.z - v.pos.z) > 60) {
+    rt.after(1, () => matabeiShot(rt));
+    return;
+  }
   rt.say('片倉重綱', 'あの黒の具足、又兵衛ぞ。鉄砲、揃えて放て！', 3);
   rt.after(2.4, () => {
-    if (F.matabei) return;
+    if (F.matabei || F.ending || rt.over) return;
     if (k) rt.army.play('volley', k.pos, 1.4);
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
-    rt.after(1.2, () => matabeiDown(rt));
+    rt.after(1.2, () => { if (!F.ending && !rt.over) matabeiDown(rt); });
   });
 }
 
