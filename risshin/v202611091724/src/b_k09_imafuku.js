@@ -398,7 +398,8 @@ const k09_imafuku = {
       // 舟・櫓の射手は堤から斬れない。深みに向かって歩き続けず、堤の上の相手を追う。
       botFoeAllowed: (u) => !u.perch && !u.isStruct && Math.abs(u.pos.z) < BANK,
       // 中州の加勢を手当ての相手に選ぶと、渡れない川の手前で止まる。
-      botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK,
+      // 砦で踏みとどまる段（③）は、手当てに退く所も砦の東の口（KEEP から三十歩）まで。堤の東へ八十歩退いて持ち場を離れ、刻限で負けた（11/9 見回り 徳川D）
+      botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK && (rt2.flags?.dp?.cur?.s.kind !== 'hold' || Math.hypot(x - KEEP.x, z - KEEP.z) < 30),
       routeFight: true };
     // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆は隠れた所から
     const onBank = (l) => { ctx.fixedSpawn = true; return l; }, hidden = (l) => { ctx.fixedSpawn = false; return l; };

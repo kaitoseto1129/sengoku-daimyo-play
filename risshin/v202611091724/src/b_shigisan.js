@@ -2042,12 +2042,22 @@ const shigisan = {
   },
   missionPin(rt) {
     const F = rt.flags, p = rt.player;
-    if (F.ending || rt.over || !p.u.alive) return null;
+    if (rt.over || !p.u.alive) return null;
     const q = F.missionPin || (F.missionPin = { always: true, silent: true, arrow: false });
     const enemy = shigisanFoe(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
     q.defend = false; q.route = false; q.gate = false; q.marker = null;
     q.r = q.hide = .5; q.y = undefined;
+    // 落城の語りの間も、燃える天主を見上げる案内を残す。
+    // 通常の行き先は終幕で止めるため、天主の印をここで直接返す。
+    if (F.ending) {
+      const keep = rt.markers.find((m) => m.id === 'keep');
+      if (!keep) return null;
+      q.key = 'keep'; q.marker = keep; q.route = true;
+      q.x = KEEP_AT.x; q.z = KEEP_AT.z;
+      q.y = rt.world.heightAt(q.x, q.z) + KEEP_AT.up + 2;
+      return q;
+    }
     if (enemy) {
       if (p.inRange && p.rangeCueTarget === enemy) return null;
       q.key = 'foe'; q.unit = enemy; q.enemy = true;
@@ -2349,7 +2359,9 @@ const shigisan = {
   // 文と印の名が違っても、今の段の行き先を必ず選ぶ。敵の印へ直進させない。
   guideMarker(rt) {
     const F = rt.flags;
-    if (F.ending || rt.over || F.castleGuideBlocked) return null;
+    if (rt.over) return null;
+    if (F.ending) return rt.markers.some((m) => m.id === 'keep') ? 'keep' : null;
+    if (F.castleGuideBlocked) return null;
     // 尾根で戦う間は敵の奥へ進ませない。道へ戻る時と門前待機は印を残す。
     if (this.taskLabel(rt, '') === '先手と尾根の敵を退けよ' || this.castleFightNeeded(rt)) return null;
     return F.step === 1 ? 'climb' : F.step === 2 ? 'tower' : F.step === 3 ? 'gate'
@@ -3239,8 +3251,10 @@ const shigisan = {
     rt.banner('門、破れる', '先手に続き、北尾根の下の曲輪へ進む');
     rt.obj('main', F.sallyOpen ? '退く松永勢に続いて門を抜け、北尾根の下の曲輪を取る' : '門を抜け、北尾根の下の曲輪を取る', 'main');
     rt.say('組頭', '早打ちは懸かれの合図じゃ！　門を抜け、北の曲輪へ寄せよ！', 4);
-    for (const q of F.oda) march(rt, q, ROAD.slice(ROAD.findIndex((p) => p[1] === GATE.z), ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z) + 1));
+    // 門を破る組は掛矢を置いて門の内の口を固める（三組が同じ尾根道に重なって止まっていた。二巡 豊臣A 11/9）
+    for (const q of F.oda) if (q !== F.ram) march(rt, q, ROAD.slice(ROAD.findIndex((p) => p[1] === GATE.z), ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z) + 1));
     F.ram.assault = null;
+    if (!gone(F.ram)) { F.ram.order = 'move'; F.ram.dest = { x: GATE.x - 8, z: GATE.z - 6 }; F.ram.onArrive = (q) => { q.order = 'hold'; q.aggro = 12; q.seekRange = 16; }; }
     // kaito 10/31：曲輪ごとに一組ずつ待たせない。上と下の曲輪の兵が木戸脇の控えと一つの群れになり、
     //   門を抜けた寄せ手へ尾根道を一斉に駆け下りて打ちかかる（屋敷と本丸の守りは残す）。
     // 付け入りの時は、打って出た兵がもう退いている。曲輪の兵は持ち場で槍をそろえて受ける。
