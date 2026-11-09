@@ -495,7 +495,8 @@ const t09_yamanaka = {
       // 東の二陣は戻さず、それぞれの畝へ続く。
       const c = g.center();
       g.path = c.x < -11 ? [[Math.min(c.x, -32), 176], [-6, 176]] : [];
-      g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 - 5]);
+      // 対岸の柵は z0−3。柵の向こうを到着点にすると、攻撃へ切り替わる前に列が柵へ詰まる。
+      g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 + 2]);
       g.pathIdx = 0; g.speed = 3;
       g.onArrive = (q) => { q.order = 'assault'; q.assault = () => F.rimWall.find((s) => s.alive !== false) || F.cross; q.seekRange = 30; };
     };
@@ -668,13 +669,14 @@ const t09_yamanaka = {
       // 一柳直末は出丸の鉄砲に当たって討ち死に（史実。『一柳家記』）。本当に倒れ、隊は旗を守って攻め続ける
       // 主人公が一柳の旗の近く（45m）にいる時に撃たれる。時間だけでは遠くで討たない。
       const iu0 = F.ichi.units.find((u) => u.type === 'busho' && u.alive);
+      const ichiShooter = F.dai.units.find((u) => u.type === 'gun' && cnt(u) && !u.gone && !u.fleeing);
       const ichiNear = iu0 && Math.hypot(iu0.pos.x - p.x, iu0.pos.z - p.z) < 45;
-      if (!F.ichiShot && T > 30 && F.dai.count > 0 && ichiNear) {
+      if (!F.ichiShot && T > 30 && ichiShooter && ichiNear) {
         F.ichiShot = true; F.ichi.name = '一柳直盛の隊'; rt.banner('一柳直末、撃たれる'); rt.say('中村一氏', '伊豆守殿が鉄砲に当たられた！　一柳の者ども、旗を守れ！', 4);
         rt.after(5, () => rt.say('一柳直盛', '兄の首は渡さぬ。一柳の旗は、この直盛が預かる！', 4));
         const iu = F.ichi.units.find((u) => u.type === 'busho' && u.alive);
         if (iu) {
-          const shooter = F.dai.units.find((u) => u.type === 'gun' && u.alive) || null;
+          const shooter = ichiShooter;
           // 撃った出丸の鉄砲の煙と、一柳の倒れる所を同じ時に見せる
           if (shooter) rt.world.gunSmoke?.(shooter.pos.x, shooter.pos.z);
           sfx('gun', 0.9); iu.invuln = false; iu.hp = 0; rt.army.kill(iu, shooter);

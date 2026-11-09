@@ -1562,7 +1562,7 @@ const arioka = {
   // 行き先の▼は目標の場所に一つだけ（①木戸の外の竹束 ②木戸の内 ③④辻 ⑤官兵衛）。一人の敵を行き先にしない（三1）。
   missionPin(rt) {
     const F = rt.flags, C = F.dpOn && F.dp?.cur;
-    if (rt.over || !rt.player.u.alive || F.ending && !F.kanbeAt) return null;
+    if (rt.over || !rt.player.u.alive || F.ending && (!F.kanbePending || !F.kanbeAt)) return null;
     const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3 });
     const stage = this.missionOf(rt);
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
