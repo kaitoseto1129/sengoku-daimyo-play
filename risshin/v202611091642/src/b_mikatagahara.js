@@ -637,6 +637,11 @@ function retreatGroup(g, speed = 3) {
     while (g.pathIdx < g.path.length - 1 && c.z > g.path[g.pathIdx][1]) g.pathIdx++;
   }
   g.order = 'path'; g.speed = speed; g.noRout = true;
+  // 名簿から供が加わった本陣も、一人用の幅のまま道へ押し込まない。
+  if (g.team === 0) {
+    g.width = Math.max(g.width || 1, 6);
+    for (const u of g.units) if (u.alive) u._crouch = false;
+  }
   g.retreatOnly = g.team === 0; // 味方は遠い追手へ引き返さず、手の届く敵だけ受ける。
   g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; };
 }
@@ -2058,6 +2063,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     for (const H of [F.campA, F.campB]) for (const g of [H.guard, H.general && H.general.group]) if (g && g.count) { g.order = 'hold'; g.formation = 'line'; g.aggro = 6; g.seekRange = 10; }
     // 共通の本陣は護衛を南側に置く。北向きの家康の護衛は敵側へ戻す。
     F.campA.guard.anchor.z = -11;
+    // 本陣には後から名のある供も加わる。一人用の列に重ねない。
+    if (F.campA.general) F.campA.general.group.width = 6;
     for (const u of F.campA.guard.units) { u.pos.z -= 22; u.pos.y = W.heightAt(u.pos.x, u.pos.z); }
     // 信玄の護衛は高坂の三陣の遠景の中に立っていた（実兵と軽い兵が重なる・11/5）。幕の前の三陣の後ろへ寄せる。
     F.campB.guard.anchor.z -= 6;
@@ -2824,6 +2831,8 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     // 手当ての退避は保ち、それ以外は判定の内側へ二歩入ってから迎え撃つ。
     if (!F.dpBack && C?.s.kind === 'hold' && C.at &&
         Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= C.botRadius) {
+      inp.axis = null; inp.leftPressed = false; inp.chargeHold = false;
+      inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
       if (p.lock) inp.e.add('KeyQ');
       goTo(p, inp, C.at.x, C.at.z, Math.max(1, C.botRadius - 2));
     }
@@ -3061,7 +3070,8 @@ function withstand(o) {
       for (const g of C.coverGroups) for (const u of g.units) {
         // 実際に通った者だけ数える。逃げ足で下る者も含め、通過後の離脱で数を戻さない。
         if (u.alive && !u.gone && u.pos.z > 104) C.coverPassedUnits.add(u);
-        else if (u.alive && !u.gone && !C.coverPassedUnits.has(u)) C.coverRemaining++;
+        // 深手で離脱した者や倒れた者は隊の道順で歩けない。通過した人数には足さず、待つ人数から外す。
+        else if (u.alive && !u.gone && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !C.coverPassedUnits.has(u)) C.coverRemaining++;
       }
       for (const g of C.groups) if (!g.routed) for (const u of g.units)
         if (u.alive && !u.gone && !u.fleeing && !u.woundOut &&
@@ -3083,13 +3093,13 @@ function withstand(o) {
     // 本人が守らずに刻限だけ過ぎても段を終えない。全滅による早仕舞いも達成に要る守りの時間を待つ。
     const defended = C.inT >= o.dur * 0.45;
     // 味方が一人下っただけで殿を解かない。刻限を過ぎても、生きて坂に残る味方を先に通す。
-    const covered = !o.cover || C.coverSent && C.coverPassed > 0 && C.coverRemaining === 0;
+    const covered = !o.cover || C.coverRemaining === 0;
     const waitingAllies = o.cover && C.coverRemaining > 0;
     return defended && covered && !waitingAllies && C.waves.length === 0 && (el >= o.dur || cleared || o.cover && C.inT >= 20 && el >= 26);
   };
   s.end = (rt, C, m) => {
     rt.unmark('dp'); rt.unzone('dp');
-    const won = C.inT >= o.dur * 0.45 && (!o.cover || C.coverSent && C.coverPassed > 0 && C.coverRemaining === 0);
+    const won = C.inT >= o.dur * 0.45 && (!o.cover || C.coverRemaining === 0);
     if (won) { rt.objDone('dp'); if (o.reward) rt.award((t) => t.side.push(o.reward), o.reward); }
     else { rt.objFail('dp'); if (o.lost) rt.say(o.lost[0], o.lost[1], 3); }
     if (o.onEnd) o.onEnd(rt, m, won);

@@ -58,6 +58,11 @@ import {
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 const CAMP = { x: 4, z: 70 };
 const CAMP_LINE = { x: CAMP.x, z: CAMP.z - 6 };
+// 坂の迎撃・殿・封鎖を実際に務めてから和睦へ進む。
+const PUSH_HOLD = 180;
+const BACK_HOLD = 90;
+const BLOCK_HOLD = 360;
+const PEACE_AT = 900;
 const FAILED_WITHDRAWAL = '低い法螺と二つ打ちは退き太鼓じゃ。持ち場を交代する。組を崩さず南の陣へ退け！';
 // 搦手へ登ってきた所から始め、長い道は地形として残す。
 const OPEN_PT = ROAD_KARAMETE[5];
@@ -972,7 +977,7 @@ const okawachi = {
   armySignals: false, // 合図は各段の下知で鳴らす。任務の文から共通の退き合図を重ねない。
   nobiki: true, // 交代の終幕も、夜攻めの退きと同じ法螺・二つ打ちで知らせる。
   jinkei: OKAWACHI_JIN,
-  lethal: { max: 4, firstAt: 60, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）。夜の坂の矢玉
+  lethal: { soft: true, max: 4, firstAt: 60, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）。夜の坂の矢玉
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が城、南（+z）が搦手の囲みの陣。四方の囲みの大軍は戦のファイルの軽い作り（siege）が受け持つので、
   //   ここは搦手の三手と南の番（本物の隊に結ぶ）と、川向こうの信長の本陣だけ。北畠は木戸の内の守り（本物）と、本丸の具教の旗本（描かない）。
   depth: {
@@ -1862,6 +1867,11 @@ const okawachi = {
         rt.after(F.signalQuietUntil - rt.t + 0.1, go);
         return;
       }
+      // 竹束へ付く前に進発すると、最初の目標を取り戻せなくなる。
+      if (!F.coverReached) {
+        if (!okAtWaitCover(rt)) { rt.after(1, go); return; }
+        F.coverReached = true;
+      }
       F.assaultSignalT = rt.t;
       // 誘いの手を待つ間には鳴らさず、法螺を聞き終えてから三手を動かす。
       const cue = okSignal(rt, 'kakari', okCommandAt(rt, F.niwa, FRONT), 0.8);
@@ -2027,7 +2037,7 @@ const okawachi = {
     okStopSignal(rt, F.niwa, 0.8);
     rt.say(okSpeaker(rt), '鉦二つは止まれじゃ！　竹束と退路の組を先に退かせる。坂を固め、追っ手を食い止めよ！', okSignalListen(rt));
     rt.objRemove('main');
-    depthStart(rt, okCtx(rt), [okHold({ at: FRONT, dur: 45, limit: 60, r: 18, title: '坂の旗', obj: '止まれの鉦：坂の旗で、先に退く組を守れ', groups: F.push, reward: '坂の退路を保った' })], () => this.retreat(rt));
+    depthStart(rt, okCtx(rt), [okHold({ at: FRONT, dur: BACK_HOLD, limit: 150, r: 18, title: '坂の旗', obj: '止まれの鉦：坂の旗で、先に退く組を守れ', groups: F.push, reward: '坂の退路を保った' })], () => this.retreat(rt));
     okHoldSignal(rt, F.dp.cur, '鉦二つは止まれ。返事を聞き、坂の旗で先に退く組を守れ', 4);
   },
 
@@ -2143,7 +2153,7 @@ const okawachi = {
     // 多芸谷は別の土地。城のすぐ裏へ火を置かず、届いた下知で伝える。
     // 翌朝の出撃は史料に無い。城兵は城内に残し、番と封鎖を保つ。
     F.blockers = [];
-    depthStart(rt, okCtx(rt), [okHold({ at: SOUTH_BLOCK, dur: 75, r: 18,
+    depthStart(rt, okCtx(rt), [okHold({ at: SOUTH_BLOCK, dur: BLOCK_HOLD, r: 18,
       title: '南の鹿垣の旗', obj: '集まれの法螺：南の鹿垣の旗で、番の組と道を守れ',
       groups: F.blockers, sortie: true, blockade: true, reward: '南の道を保ち、城へ兵糧を通さなかった',
     })], () => { if (!F.ending) this.peace(rt); });
@@ -2225,17 +2235,7 @@ const okawachi = {
     { const g = F.gateDef && F.gateDef.real; if (g && !g._rain) { g._rain = true; g._okBaseDmg = g.dmgMult || 1; }
       if (g) g.dmgMult = g._okBaseDmg * nightAccuracyMult(rt.world); }
     if (F.ending || rt.over) return;
-    // 締めの目安を過ぎても未達成を敗北にしない。遅れて着いた本人も封鎖を続けられる。
-    if (!F.blockHeld && rt.t >= okBlockDeadline(rt)) {   // 封鎖を果たして和睦へ移った後は、締めの時を見ない
-      const C = F.dp?.cur;
-      // 一度合流しただけでは達成にしない。封鎖は城兵の到着を条件にせず、番と七十五秒守る。
-      // 迎撃では静かな守りか、押し返した後の帰城の見届けまで果たす。
-      const held = C?.joinedLine && okAtSouthLine(rt) && C.lineCount >= 3 && (C.blockade
-        ? C.inT >= 75 : C.holding && (C.repelling
-          ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
-      // 封鎖を果たしたら和睦へ。目標に無い出撃や使者の護衛を後から足さない。
-      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; this.peace(rt); return; }
-    }
+    // 封鎖の完了は深い段の判定だけで扱い、別の七十五秒の判定で短縮しない。
     // 崩れた小勢の残兵を坂に置き去りにしない。生きた城兵が道を通って帰る。
     for (const g of F.sorties) if (g._sortieSent && !g._okReturning && !gone(g) && sortieBroken(g)) returnSortie(g);
     if ((F.kbT = (F.kbT || 0) - dt) <= 0) { F.kbT = 1.5; this.kbThink(rt); }
@@ -2320,9 +2320,9 @@ const okawachi = {
       const defended = repelled && atFlag;
       // 段の時間切れと②への到着だけでは、③の働きを果たした印を付けない。
       if (rt.t - F.stepT >= 12 && atFlag && (defended || F.s2Own > 0)) F.pushHeld = true;
-      // 本人が坂にいなくても、一分半で鉦が鳴り次の段へ（二5）。
-      if (((rt.t - F.stepT >= 12 && repelled) || rt.t - F.stepT > 60) &&
-          (F.s2Own > 0 || defended) && d < 40 || rt.t - F.stepT > 90) this.midA(rt);
+      // 時間だけで次へ送ると、未達成のまま和睦の入口で永久に止まる。
+      if (atFlag && (defended || F.s2Own > 0)) F.pushHoldT = (F.pushHoldT || 0) + dt;
+      if (F.coverReached && F.gateReached && F.pushHeld && F.pushHoldT >= PUSH_HOLD) this.midA(rt);
     }
     if (F.step === 3) {
       const d = Math.hypot(p.x - CAMP_LINE.x, p.z - CAMP_LINE.z);
@@ -2341,13 +2341,7 @@ const okawachi = {
       // 退き太鼓と九・四秒後の返事を聞き終えてから翌朝へ。集合の法螺を重ねない。
       // 遅れた組の割合では足止めしない。
       if (okAtPost(rt, CAMP_LINE, 8) && rt.t - F.stepT >= 12 && rt.t >= F.signalQuietUntil && rt.player.u.alive) this.siegeDays(rt);
-      // 帰陣が遅れても翌朝へ進める。本人は陣へ飛ばさず、今の所から南の鹿垣へ歩く（二5・二6）。
-      else if ((rt.t - F.stepT >= 70 && d < 40 || rt.t - F.stepT >= 100) && rt.player.u.alive) {
-        // 日は送っても、陣の手前や別の高さの道を帰陣の達成に数えない。
-        if (okAtPost(rt, CAMP_LINE, 8)) F.campReached = true;
-        this.siegeDays(rt);
-        if (F.campReached) rt.say('組頭', '夜明けまでに、味方と南の陣へ退いた。次は南の鹿垣を守るぞ', 5);
-      }
+      // 遅れた本人も陣へ帰れる。未帰陣のまま翌朝へ送らない。
 
     }
     // 封鎖の旗への枝道も、直線の印だけで切岸へ誘わない。
@@ -4646,8 +4640,10 @@ function okSortieContact(rt, g, at, radius) {
   return false;
 }
 function okHold(o) {
-  return { kind: 'hold', max: Infinity,
+  return { kind: 'hold', max: Infinity, idleAdvance: false,
     start(rt, C) {
+      // 早く夜攻めを終えた回も、封鎖を務めて十五分を満たす。
+      C.duration = o.blockade ? Math.max(o.dur, PEACE_AT - rt.t) : o.dur;
       C.blockade = !!o.blockade; C.at = C.goal = o.at; C.botRadius = o.r; C.inT = 0; C.dangerT = 0; C.groups = o.groups; C.joinedLine = false; C.clearT = 0;
       C.shortLineT = 0; C.shortLineSafeT = 0; C.shortLineThreat = false;
       C.reliefWaitT = 0; C.reliefGroup = null; C.engagedHoldT = 0; C.repelling = false;
@@ -4745,13 +4741,27 @@ function okHold(o) {
       // 本人が鹿垣の平場で番の槍と並んだ時間だけ封鎖の働きに数える。
       // 道中・放置・城兵の出撃を、達成の条件にしない。
       if (o.blockade) {
+        if (line < 3 && (C.reliefWaitT += dt) >= 8) {
+          const g = okReliefGroup(C.reliefGroups);
+          if (g) {
+            C.reliefGroups.splice(C.reliefGroups.indexOf(g), 1);
+            C.reliefWaitT = 0; C.reliefSent.push(g);
+            g.calm = false; g.retreatOnly = false; g.focus = null; g.assault = null;
+            g.dest = { x: o.at.x, z: o.at.z + 9 };
+            g.order = 'path'; g.path = blockRoad(g, g.dest); g.pathIdx = 0;
+            g.formation = 'column'; g.colW = 3; g.roadColumn = true; g.speed = 2.6;
+            g.noPursue = true; g.spacing = 1.1; g.yariRanks = 3; g.aggro = 3;
+            g.onArrive = (q) => { q.order = 'hold'; q.anchor = q.dest; q.facing = Math.PI; q.formation = 'yari'; };
+            if (!rt.flags.lineGroups.includes(g)) rt.flags.lineGroups.push(g);
+          }
+        }
         const held = near && line >= 3 && friends >= foes;
         C.holding = held;
         if (held) { C.joinedLine = true; C.inT += dt; }
-        C.holdLeft = Math.max(0, Math.ceil(o.dur - C.inT));
+        C.holdLeft = Math.max(0, Math.ceil(C.duration - C.inT));
         rt.objProgress('dp', !near ? '南の鹿垣の旗へ進め' :
           line < 3 ? '南の鹿垣で番の組と槍を揃えよ' : '南の鹿垣で囲みを保ち、兵糧を断つ');
-        return held && C.inT >= o.dur;
+        return held && C.inT >= C.duration;
       }
       const angle = closeFoe ? Math.atan2(closeFoe.pos.x - p.x, closeFoe.pos.z - p.z) - rt.player.yaw - (rt.player.camYawOff || 0) : 0;
       // 先頭が柵の列に触れたら槍を返す。全員の整列を待つと、味方に
@@ -4951,8 +4961,8 @@ function okHold(o) {
         }
         // 城兵を押し返し、先の組が抜けたら待ちを短くする。時間切れだけでは手柄にしない。
         C.returned = returned;
-        C.secured = held && returned && C.inT >= (clear ? 35 : o.dur);
-        const left = Math.max(0, Math.ceil((clear ? 35 : o.dur) - C.inT));
+        C.secured = held && returned && C.inT >= o.dur;
+        const left = Math.max(0, Math.ceil(o.dur - C.inT));
         const waitLeft = Math.max(0, Math.ceil(o.limit - el));
         const order = !near ? '坂の旗へ戻れ' : line < 3 ? `槍の仲間 ${line}人／三人。味方のそばへ` : foes > friends ? face :
           !returned ? `陣へ${backArrived}／${backAlive}人。あと${waitLeft}秒、坂の旗を守れ` :
@@ -4977,7 +4987,7 @@ function okHold(o) {
     end(rt, C) {
       // 柵へ行かずに時が過ぎた（idleAdvance）だけでは封鎖を果たした事にしない（三3）。
       // 封鎖は今も平場で番と七十五秒守った場合だけ。迎撃も一度の合流や時間切れでは達成にしない。
-      const earned = o.blockade ? C.inT >= o.dur && okAtSouthLine(rt) && C.lineCount >= 3 : o.sortie ? !C.timeout : C.secured;
+      const earned = o.blockade ? C.inT >= C.duration && okAtSouthLine(rt) && C.lineCount >= 3 : o.sortie ? !C.timeout : C.secured;
       if (earned) rt.objDone('dp'); else rt.objRemove('dp');
       rt.unmark('dp'); rt.unzone('dp');
       if (rt.flags.step === 2.5) {

@@ -516,5 +516,8 @@ NAMED_GEAR['安藤守就'] = { ...NAMED_GEAR['安藤守就'], flag: 'oda', uma: 
 NAMED_GEAR['前野長康'].flag = 'oda';
 NAMED_GEAR['前野長康'].uma = null;
 NAMED_GEAR['前野長康'].campUma = null;
+// 頼廉個人の旗印・馬印は未確認。念仏旗を所属表示として使う復元案。
+// 長圓寺の石山名号旗の伝存を参考にするが、本人の旗とはしない。
+NAMED_GEAR['下間頼廉'] = { ...NAMED_GEAR['下間頼廉'], flag: 'namu', uma: null, campUma: null };
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

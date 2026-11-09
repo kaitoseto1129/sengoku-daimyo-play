@@ -2423,10 +2423,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       F.litCall = true; rt.say('組頭', F.scoutNear ? '火は味方も焚く。おぬしは口を守れ' : '残る篝火へ向かえ。火がそろえば口を守れ', 4);
     }
     // 10/31：本人が歩き出すまで夜討ちを始めない（立っているだけで段が進まないように）
-    // critic60：夜討ちは自分が二つの篝火を焚いて四秒後から（焚かずに何もしない時も、七十五秒で味方が焚いて物語を進める＝二5）。
-    if (F.step === 1 && (F.lit >= POSTS.length && rt.t >= Math.max(F.raidAt, F.litAt + 4) || rt.t - F.stepT >= 75)) {
-      if (F.lit < POSTS.length) rt.say('組頭', '残る火は味方が焚いた。口を守れ', 3);
-      for (let i = 0; i < POSTS.length; i++) this.light(rt, i, true, false);
+    // 篝火の任務は本人が二つとも焚くまで保つ。待ち時間だけで味方に済ませさせない。
+    if (F.step === 1 && F.lit >= POSTS.length && rt.t >= Math.max(F.raidAt, F.litAt + 4)) {
       this.raid(rt);
     }
     // 10/30：本人が柵から四十歩の内で夜討ちの者に槍を当てるか討つまで、敵を退かせず追撃の段へ進めない（立っているだけで段が進まない）
@@ -2739,7 +2737,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         let fighting = 0;
         for (const u of S.units) if (chaseReady(u)) fighting++;
         const leaderDown = S.units.filter((u) => u.type === 'samurai').every((u) => !chaseReady(u));
-        if (rt.t - F.footSallyOut > 18 && (fighting <= S.iwInitial * 0.4 || leaderDown && fighting <= S.iwInitial * 0.6) || rt.t - F.footSallyOut > 40) {
+        if (rt.t - F.footSallyOut > 18 && (fighting <= S.iwInitial * 0.4 || leaderDown && fighting <= S.iwInitial * 0.6)) {
           S.noRout = false; S.iwWithdraw = true; S.order = 'path'; S.formation = 'column'; S.path = IWA_ROAD.slice(0, 9); S.pathIdx = 1;
           S.speed = 2.6; S.aggro = 0; S.seekRange = 1.8; S.retreatOnly = true; S.noAI = true; S.focus = null;
           for (const u of S.units) { u.target = null; u.watch = null; }
@@ -2748,7 +2746,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           rt.say('河尻秀隆', '城兵は木戸の内へ逃げ込んだ。登り口を固めよ', 3.5);
         }
       }
-      const sallyDone = !F.footSallySent ? false : gone(S) || S.iwWithdraw || rt.t - F.footSallyAt > 60;
+      // 木戸の城兵を実際に退けた時だけ固め終える。時間切れを達成として扱わない。
+      const sallyDone = F.footSallySent && (gone(S) || S.iwWithdraw);
       rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。

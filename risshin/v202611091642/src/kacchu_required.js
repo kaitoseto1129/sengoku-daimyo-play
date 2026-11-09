@@ -174,6 +174,15 @@ export const REQUIRED_KACCHU = [
       menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, uma: null, fukigaeshiBadge: false },
     '金ヶ崎・姉川・志賀・刀根坂の復元案。建勲神社の室町末の紺糸威胴丸を型だけ借り、本人所用とはしない。立物・面頬・陣羽織は補わず、三つ盛木瓜は所属表示。出所は docs/generals_look_1108/朝倉景健.md'],
   // 野田・福島・志賀・比叡山
+  // 本願寺の坊官。建勲神社伝来品から同時代の型だけ借り、織田の立物・家紋は移さない。
+  ['下間頼廉', 'suji', 'none', D.kuro, 0x2e4468, 'kebiki', 0, 'none', 'namu',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108,
+      domaru: true, doOpening: 'right', plateDo: null, honkozane: true, doSugake: false, doKebiki: true,
+      sodeStyle: 'osode', shikoroStyle: 'compact', shikoroLace: 0x2e4468,
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriBands: Array(5).fill(0x2e4468),
+      menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '所用具足・軍装肖像は未確認。建勲神社伝来の室町末期の黒漆本小札・紺糸毛引威胴丸と四十間筋兜を型の手本とする復元案。右脇引合・大袖・十二間草摺。立物・面頬・陣羽織・個人紋・馬印は補わない。念仏旗は本願寺方の所属表示。出所は docs/generals_look_1108/下間頼廉.md'],
   ['三好長逸', null, 'kuwa', null, null, null, null, null, 'miyoshi', null, '三好三人衆。所用品は伝わらない。復元案'],
   ['三好宗渭', 'momonari', 'kuwa_ken', D.tame, C.asagi, 'kebiki', 0, 'miyoshi', mon('miyoshi', '#1d1b18', W), null, '政康。三人衆の長逸と鉢・威を分けた復元案'],
   ['岩成友通', 'zunari', 'kuwa_sun', D.tame, C.hanada, 'kebiki', 0x4a5a22, 'miyoshi', txt('岩成'), null, '三人衆。所用品は伝わらない。復元案'],
