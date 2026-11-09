@@ -343,9 +343,13 @@ const k09_imafuku = {
       // 夜明け前の忍び寄り（渋江「声を立てるな」）に、総大将の大声の「進め！」と寄せの法螺貝は合わない。貝は見つかって柵へかかる時に吹く
       // 主君は家臣を通称・官途名で呼ぶ（梅津半右衛門憲忠・渋江内膳政光）
       rt.say('佐竹義宣', '大坂城は目と鼻の先。半右衛門、内膳、先陣は任せた。音を立てずに寄せよ', 3.4);
-      // 先に堤へ出ていた佐竹・渋江の列が「進め」で西へ歩き出す（本人が追いつくと、堤の上に味方の列が続いて見える）
-      // 渋江の組は堤の南の肩（北の今福村から見て陰の側）を寄せる（学び 四の3「堤の陰に隠れて近づく」。堤の真ん中を堂々と歩いていた。二2）
-      [F.satake, F.shibue, F.tomura].forEach((g, i) => { if (g && g.count) { g.calm = false; g.anchor = { x: FORT.x + 60 + i * 14, z: g === F.shibue ? 4.5 : 0 }; } });
+    });
+    // 下知を待って八秒以上止まらず、始まりから堤の陰を寄せる。
+    // 北の今福村から見えにくい南の肩へ渋江の列を通す。
+    [F.satake, F.shibue, F.tomura].forEach((g, i) => {
+      if (!g || !g.count) return;
+      g.calm = false; g.order = 'move';
+      g.dest = g.anchor = { x: FORT.x + 60 + i * 14, z: g === F.shibue ? 4.5 : 0 };
     });
     rt.after(11.5, () => this.begin(rt));
   },
@@ -701,7 +705,13 @@ const baseBot = makeBot({ x: START.x, z: START.z });
 k09_imafuku.botBrain = (b, inp, tools) => {
   const u = b.player && b.player.u, p = u && u.pos;
   if (p && u.alive && (b.flags.step || 0) >= 2 && !b.flags.ending) {
-    for (const fx of [FORT.x + 42, FORT.x + 32, FORT.x + 22, FORT.x + 12]) {
+    // 倒した木戸の跡で中央へ戻し続けると、守将を追えず刻限切れになる。
+    // まだ立つ木戸だけを迂回の対象にする。毎コマ配列は作らない。
+    const F = b.flags, n = F.outer ? F.outer.length : 0;
+    for (let i = n - 1; i >= -1; i--) {
+      const st = i >= 0 ? F.outer[i] : F.gate;
+      if (!st || !st.alive) continue;
+      const fx = st.seg[0];
       if (p.x > fx - 0.5 && p.x < fx + 10 && Math.abs(p.z) > 2.6) { inp.quickCmd = null; tools.goTo(b.player, inp, Math.abs(p.z) > 5 ? fx + 4 : fx - 3, 0, 1.2); return; }
     }
   }
