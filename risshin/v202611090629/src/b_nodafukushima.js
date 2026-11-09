@@ -1276,6 +1276,8 @@ function seirouDownTick(rt, dt) {
   const F = rt.flags, D = F.down;
   if (!D) return;
   const u = rt.player.u, l = D.l;
+  // 討死や転落で登降が解かれた時は、斃れた体を梯子へ戻さない。
+  if (!u.alive || !u.climb?.down) { F.down = null; return; }
   D.t += dt;
   const k = Math.min(1, D.t / D.dur);
   u.climb.frac = 1 - k; u.climb.t = D.t;
@@ -3567,6 +3569,7 @@ const nodafukushima = {
   },
   shotLanded(rt) {
     const F = rt.flags;
+    if (F.step !== 1.5 || F.shotsDone || F.ending || rt.over || !rt.player.u.alive) return;
     F.shots++;
     rt.objProgress('main', `${F.shots}／${SHOTS_NEED}`);
     if (F.shots < SHOTS_NEED) return;
@@ -4104,16 +4107,7 @@ const nodafukushima = {
       }
       if (F.step === 1 && F.onSeirou) this.shootStart(rt);
     }
-    // 11/9 二巡（徳川D）：井楼へ登れないまま三分たっても、段で止まり続けない（bot が十五分ここで止まった）。
-    //   井楼の上の鉄砲衆が代わりに塀の内へ撃ち込み、総攻めへ進む
-    if ((F.step === 1 || (F.step === 1.5 && !F.shotsDone)) && !F.onSeirou) {
-      F._s1T ??= rt.t;
-      if (rt.t - F._s1T > 180 && !F._s1Skip) {
-        F._s1Skip = true;
-        rt.say('前田利家', '井楼の鉄砲衆が撃ち込んだ。総攻めじゃ、堤へ戻れ！', 3.4);
-        F.shots = Math.max(F.shots || 0, SHOTS_NEED - 1); this.shotLanded(rt);
-      }
-    }
+    // 登る・三度撃つ目標は本人の操作を待つ。時刻や味方の射撃では済ませない。
     if (F.step === 1.5 && !F.shotsDone) {
       rt.objProgress('main', `${F.shots}／${SHOTS_NEED}`);
       // 井楼を下りてしまったら、もう一度登る印を出す
@@ -4415,6 +4409,11 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
   if (tw && (F.step === 1 || (F.step === 1.5 && !F.shotsDone) || ((F.step === 2 || F.shotsDone) && F.onSeirou))) {
     inp.guardHold = false; inp.leftPressed = false; inp.runHeld = false;
     inp.k.delete('KeyA'); inp.k.delete('KeyD');
+    // 騎乗したままでは梯子の操作が出ず、戸口にも入れない。囲いの外で下馬する。
+    if (p.mounted) {
+      if (!(p.mountT > 0)) inp.e.add('KeyR');
+      return;
+    }
     const l = FL.ladders[tw.ladderId];
     if (F.onSeirou) {
       if (F.step === 2 || F.shotsDone) {

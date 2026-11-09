@@ -22,7 +22,8 @@ export function kyotenStep(NG) {
     tick(rt, C, m, ctx, el) {
       const n = heads(C.groups);
       const g0 = C.groups.find(alive);
-      C.goal = g0 ? g0.center() : OKU;
+      // 守りを崩した後は、達成に必要な奥の院へ案内する。遠い残兵を追わせない。
+      C.goal = n <= 5 || !g0 ? OKU : g0.center();
       const u = rt.player.u;
       const arrived = u.alive && Math.hypot(u.pos.x - OKU.x, u.pos.z - OKU.z) < 18;
       // 奥の院まで攻め入り、守りを崩してから退却の知らせを出す。時刻だけでは勝ちにしない。

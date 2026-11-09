@@ -2422,6 +2422,8 @@ const kanegasaki = {
   },
   missionHeading(rt) {
     const F = rt.flags, k = kanegasaki.missionOf(rt), L = LINES[F.line || 0];
+    if (!F.betrayed && F.k15Kosen === 'on') return F.dp?.cur?.s.kind === 'move'
+      ? '峠道の手前の柵へ進め' : F.dp?.cur?.s.kind === 'fight' ? '峠道で朝倉勢を押し返せ' : '峠道の柵で隊を整えよ';
     if (rt.G.lord || F.fleeing) return k === 1 ? '退き口で来た道へ槍を向けよ' : kanegasaki.missions[4];
     if (k === 0) return `${L.at}へ${F.step === 2 || F.step === 4 ? '退け' : '進め'}`;
     if (k === 1) return `${L.mark}の旗の前で追手を止めよ`;
@@ -2455,7 +2457,17 @@ const kanegasaki = {
     if (rt.over || F.ending || !rt.player.u.alive) return null;
     const q = F.missionPin || (F.missionPin = { x: 0, z: 0, r: 0, hide: 0 });
     const stage = kanegasaki.missionOf(rt), enemy = stage === 3 ? kgNearestFoe(rt) : null;
-    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false; q.label = ''; q.action = '';
+    // 攻める段では、殿の一の備へ戻さず、いま攻めている峠道と柵を示す。
+    if (!F.betrayed && F.k15Kosen === 'on') {
+      const C = F.dp?.on && F.dp.cur;
+      if (!C?.at || C.s.kind === 'rest') return null;
+      const moving = C.s.kind === 'move', at = C.at;
+      if (moving && rt.distTo(at) < 7) return null;
+      q.x = at.x; q.z = at.z; q.r = q.hide = moving ? 7 : .5; q.route = true;
+      q.label = moving ? '峠道の柵' : '峠道'; q.action = kanegasaki.missionHeading(rt);
+      return q;
+    }
     if (enemy) {
       if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
       q.x = enemy.pos.x; q.z = enemy.pos.z; q.r = q.hide = .5;
@@ -2481,7 +2493,7 @@ const kanegasaki = {
     // 毎コマ呼ばれる行き先は戦ごとに使い回し、携帯で不要な回収を増やさない。
     const target = rt.flags.goalTarget || (rt.flags.goalTarget = { x: 0, z: 0, action: '', unit: null, label: '', boss: false });
     target.x = q.x; target.z = q.z;
-    target.action = g?.action || ''; target.label = g?.noun || '';
+    target.action = q.action || g?.action || ''; target.label = q.label || g?.noun || '';
     return target;
   },
   // 11/4 jin（docs/battle_refs/kanegasaki.md）：史実の順の五つ（金ヶ崎の麓で朝倉の先手を止める → 笙の川の南へ繰り引く →
@@ -2577,6 +2589,7 @@ const kanegasaki = {
   compactGuardGuide: true,
   guardLabel(rt) {
     const F = rt.flags, L = LINES[F.line || 0];
+    if (!F.betrayed && F.k15Kosen === 'on') return kanegasaki.missionHeading(rt);
     const holding = !rt.G.lord && !F.fleeing && F.step % 2 === 1;
     const arrived = holding ? kgInHold(L, rt.player.u.pos.x, rt.player.u.pos.z) : rt.distTo(L) < L.r;
     return arrived ? `${L.mark}で追手を止めよ` : `${L.mark}の旗へ戻れ`;
@@ -3863,6 +3876,8 @@ const kanegasaki = {
     F.breachT = caught ? (F.breachT || 0) + dt : 0;
     if (!rt.G.lord && caught && !(F.breachWarnAt > rt.t)) { F.breachWarnAt = rt.t + 8; rt.bark('追手が主力の列へ！　味方と退き道を守れ！', true); }
     if (!rt.G.lord && !F.fleeing && F.breachT > 23) { this.lose(rt, '追手が主力の列へ取り付き、退き道を守れなかった'); return; }
+    // 離反前の攻めは信長でも進める。殿の崩壊や退却は急報の後から判定する。
+    if (!F.betrayed && F.k15Kosen === 'on') { depthTick(rt, dt); return; }
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     if (F.fleeing) { this.fleeTick(rt); return; }
     let ready = 0;
@@ -4243,6 +4258,7 @@ kanegasaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
+  if (!F.betrayed && F.k15Kosen === 'on' && F.dp?.on) { depthBot(b, inp, goTo); return; }
   if (F.fleeing || b.G.lord) { botRetreat(b, inp, goTo, KUTSUKI, 6); return; }
   const L = LINES[F.line];
   // 近い打ち手へ向き直る共通の頭は、持ち場の外へも踏み込む。
