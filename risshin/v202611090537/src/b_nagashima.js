@@ -3567,8 +3567,16 @@ const nagashima = {
     for (const st of steps) {
       const start = st.start;
       st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
-      // 守る段は刻限を五秒過ぎたら次へ（十五分の流れを止めない）
-      if (st.kind === 'hold' && st.max) { st.idleAdvance = false; const tk = st.tick, cap = st.max + 5; st.tick = (rt2, C, m, ctx, el, dt) => tk(rt2, C, m, ctx, el, dt) || el > cap; }
+      // 守る段は、敵を退け本人が持ち場を守るまで終えない。
+      if (st.kind === 'hold') {
+        st.idleAdvance = false; st.limit = Infinity;
+        const tick = st.tick;
+        st.tick = (rt2, C, m, ctx, el, dt) => {
+          const defended = tick(rt2, C, m, ctx, el, dt);
+          // 敵を退けても、本人が持ち場を守らなければ次の務めへ送らない。
+          return defended && C.inT >= (st.max - 35) * 0.45;
+        };
+      }
     }
     depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.3, dmg: 0.75, calmRest: false,
       look: (l) => dress(l, IKKO), friends: () => [] }, steps, () => {
@@ -3590,7 +3598,15 @@ const nagashima = {
     for (const st of steps) {
       const start = st.start;
       st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
-      if (st.kind === 'hold' && st.max) { st.idleAdvance = false; const tk = st.tick, cap = st.max + 5; st.tick = (rt2, C, m, ctx, el, dt) => tk(rt2, C, m, ctx, el, dt) || el > cap; }
+      if (st.kind === 'hold') {
+        st.idleAdvance = false; st.limit = Infinity;
+        const tick = st.tick;
+        st.tick = (rt2, C, m, ctx, el, dt) => {
+          const defended = tick(rt2, C, m, ctx, el, dt);
+          // 敵を退けても、本人が持ち場を守らなければ次の務めへ送らない。
+          return defended && C.inT >= (st.max - 35) * 0.45;
+        };
+      }
     }
     depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.3, dmg: 0.75, calmRest: false,
       look: (l) => dress(l, IKKO), friends: () => [] }, steps, () => { F.dpOn = false; rt.objRemove('dp'); this.win(rt); });

@@ -3465,6 +3465,14 @@ const nodafukushima = {
     //   それでも百十m の見通しの外で、遊ぶ間に一度も見えなかった（写真 np/north）。公記は十二日に信長と義昭が並んで詰陣したと記すので、
     //   退き口の信長の本陣の西脇にも将軍の奉行衆の幟を立てる（⑤で本陣へ退く時に、織田の木瓜と並ぶ二つ引両が見える）。
     for (const [dx, dz] of [[-16, -6], [-19, 2], [-16, 10]]) rt.scene.add(nobori(W, ODA_HONJIN.x + dx, ODA_HONJIN.z + dz, 'imagawa', 7));
+    // 11/9 二巡（徳川D・docs/generals_place/nodafukushima.md）：将軍の詰陣の脇に、明智光秀（幕府方の奉行・桔梗）と丹羽長秀（筋違い）の小さな備。
+    //   後方の連絡の役（局地の働きは史料で確かめられない）なので前へは出ず、旗と名で「海老江にも織田と幕府の陣が並ぶ」と分かるだけにする
+    for (const [name, x, z, flag] of [['明智光秀', 28, -160, 'akechi'], ['丹羽長秀', 52, -160, 'sujikai']]) {
+      const g = allyGroup(rt, { fixed: true, fullStrength: true, name: name + 'の旗本', anchor: { x, z }, facing: 0, formation: 'yari', width: 5, aggro: 0, seekRange: 0, order: 'hold', noRout: true, faction: 'oda' },
+        dress([{ type: 'busho', n: 1, o: { name, invuln: true, allyOk: true, horse: true, flag } }, { type: 'samurai', n: 2, o: { flag } }], ODA));
+      g.stay = true; g.noFrontline = true;
+      rt.scene.add(nobori(W, x - 4, z + 6, flag, 7));
+    }
     for (const c of [F.campA, F.campB, F.campY]) if (c && c.guard) { c.guard.stay = true; c.guard.formation = 'yari'; if (c.general) c.general.allyOk = true; }
     // 11/4 jin（AV7）：総大将の信長と三好長逸は、本陣の幕の前で床几に座る（寄せられる・動くと立つ。army_anim）
     for (const c of [F.campA, F.campB, F.campY]) if (c?.general) c.general._crouch = true;
@@ -4096,6 +4104,16 @@ const nodafukushima = {
       }
       if (F.step === 1 && F.onSeirou) this.shootStart(rt);
     }
+    // 11/9 二巡（徳川D）：井楼へ登れないまま三分たっても、段で止まり続けない（bot が十五分ここで止まった）。
+    //   井楼の上の鉄砲衆が代わりに塀の内へ撃ち込み、総攻めへ進む
+    if ((F.step === 1 || (F.step === 1.5 && !F.shotsDone)) && !F.onSeirou) {
+      F._s1T ??= rt.t;
+      if (rt.t - F._s1T > 180 && !F._s1Skip) {
+        F._s1Skip = true;
+        rt.say('前田利家', '井楼の鉄砲衆が撃ち込んだ。総攻めじゃ、堤へ戻れ！', 3.4);
+        F.shots = Math.max(F.shots || 0, SHOTS_NEED - 1); this.shotLanded(rt);
+      }
+    }
     if (F.step === 1.5 && !F.shotsDone) {
       rt.objProgress('main', `${F.shots}／${SHOTS_NEED}`);
       // 井楼を下りてしまったら、もう一度登る印を出す
@@ -4308,6 +4326,9 @@ const nodafukushima = {
 nodafukushima.force = (rt) => { const F = rt?.flags || {}; return { a: 30000 - (F.ak || 0) * 6, a0: 30000, b: Math.max(6000, 8000 - (F.ek || 0) * 10), b0: 8000 }; };
 // 11/7 fixc1711（五4・十二1）：始まりの札にも両軍の数（信長公記：織田三万余・三好八千余。本願寺の門徒は数が伝わらない）
 nodafukushima.sides = { a: { name: '織田軍 約三万', mon: 'oda' }, b: { name: '三好勢 約八千・本願寺の門徒', mon: 'miyoshi' } };
+// 11/9 二巡（徳川D）：命懸けの戦場（lethal.js）と、この戦の怖さ（水路と砦の鉄砲・夜の門徒の寄せ・横から）
+nodafukushima.lethal = true;
+nodafukushima.fearKind = nodafukushima.fearKind || { kind: '水路の鉄砲', note: '砦の鉄砲と夜の門徒', w: { losses: 1.3, flank: 1.3 }, line: '撃たれるぞ、身を低うせよ！' };
 nodafukushima.noWake = true;   // 遠景を本物に替えず、組を含めて約二百人に収める
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 nodafukushima.famous = []; // 頼廉の局地配置は確認できず、軽い備と本物への重複配置も避ける。
