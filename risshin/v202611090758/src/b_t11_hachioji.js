@@ -172,6 +172,8 @@ function routeAt(x, z, out) {
 }
 const RF = { d: 0, s: 0, x: 0, z: 0 }, RT = { d: 0, s: 0, x: 0, z: 0 };
 function hachiojiWay(army, u, want) {
+  // 搦手の兵は北の間道を使う。大手の道への補正で、別の攻め口へ引き戻さない。
+  if (u.group?.t11Karamete) return want;
   const q = u._t11Way || (u._t11Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
   if (q.t > army.time && q.active && Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 1.2) return q;
   if (q.t > army.time && !q.active) return want;
@@ -631,12 +633,14 @@ const t11_hachioji = {
     //   手を率いたのは藤田信吉。景勝は後ろの陣に残り、山の上に名だけ浮かせない（誰もいない芝の上に名が浮いた。11/8 critic60）
     F.uesugi = allyGroup(rt, { faction: 'uesugi', name: '上杉勢', anchor: { x: KARAMETE.x, z: KARAMETE.z }, facing: Math.PI, width: 6, aggro: 12, noRout: true, order: 'path', path: KARAMETE_PATH, pathIdx: 0, formation: 'column', colW: 2, speed: 3.4, seekRange: 30 },
       dress([{ type: 'busho', n: 1, o: { name: '藤田信吉', invuln: true, horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], UESUGI));
+    F.uesugi.t11Karamete = true;
     F.uesugi.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor = { x: MATSUKI.x - 6, z: MATSUKI.z + 4 }; };
     // 真田昌幸の手：上杉勢の脇から尾根を登る
     //   真田の兵は赤備えにしない（朱の揃いは大坂の陣の信繁の物。1590 の昌幸の手は黒い具足に六文銭の旗。11/8 critic60）
     const SAN = { flag: 'sanada', noRed: true, armor: 0x2a2724, hatColor: 0x1c1916 };
     F.sanada = allyGroup(rt, { faction: 'sanada', name: '真田昌幸の手', anchor: { x: KARAMETE.x - 4, z: KARAMETE.z - 6 }, facing: Math.PI, width: 4, aggro: 12, noRout: true, order: 'path', path: KARAMETE_PATH, pathIdx: 0, formation: 'column', colW: 2, speed: 3.2, seekRange: 30 },
       [{ type: 'busho', n: 1, o: { ...SAN, name: '真田昌幸', invuln: true, horse: false } }, { type: 'samurai', n: 1, o: SAN }, { type: 'ashigaru', n: 6, o: SAN }]);
+    F.sanada.t11Karamete = true;
     F.sanada.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.anchor = { x: MATSUKI.x + 4, z: MATSUKI.z - 8 }; };
     F.sanada.dmgMult = 0.7;
     rt.after(1.5, () => rt.say('藤田信吉', '水の手の間道から曲輪の裏へ出た！　搦手は上杉が破る', 3.4));

@@ -267,9 +267,15 @@ export function camGrid(o) {
   if (o.isInstancedMesh || o.isSkinnedMesh || o.isBatchedMesh || triN < 400 || gm.morphAttributes?.position ||
       gm.drawRange.start !== 0 || gm.drawRange.count < (idx ? idx.count : pos.count)) { CAM_GRID.set(gm, null); return null; }
   if (!gm.boundingBox) gm.computeBoundingBox();
-  const bb = gm.boundingBox, x0 = bb.min.x, z0 = bb.min.z;
+  G = buildCamGrid(pos, idx, 0, triN, gm.boundingBox);
+  CAM_GRID.set(gm, G);
+  return G;
+}
+// 面の升の表（first は index の始まり。束ねた形の一つ分も同じ作りで持つ）
+function buildCamGrid(pos, idx, first, triN, bb) {
+  const x0 = bb.min.x, z0 = bb.min.z;
   const nx = Math.max(1, Math.ceil((bb.max.x - x0) / CAM_CELL)), nz = Math.max(1, Math.ceil((bb.max.z - z0) / CAM_CELL));
-  const vi = (t, k) => idx ? idx.getX(t * 3 + k) : t * 3 + k;
+  const vi = (t, k) => idx ? idx.getX(first + t * 3 + k) : first + t * 3 + k;
   // 一度目に升ごとの数を数え、二度目に詰める（入れ物を一つにまとめる）
   const count = new Int32Array(nx * nz + 1), span = new Int32Array(triN * 4);
   for (let t = 0; t < triN; t++) {
@@ -283,15 +289,40 @@ export function camGrid(o) {
   for (let c = 1; c <= nx * nz; c++) count[c] += count[c - 1];
   const fill = count.slice(0, nx * nz), list = new Int32Array(count[nx * nz]);
   for (let t = 0; t < triN; t++) for (let j = span[t * 4 + 2]; j <= span[t * 4 + 3]; j++) for (let i = span[t * 4]; i <= span[t * 4 + 1]; i++) list[fill[j * nx + i]++] = t;
-  G = { x0, z0, nx, nz, start: count, list, seen: new Uint32Array(triN), stamp: 0, vi, pos };
-  CAM_GRID.set(gm, G);
-  return G;
+  return { x0, z0, nx, nz, start: count, list, seen: new Uint32Array(triN), stamp: 0, vi, pos };
+}
+// 11/9 重さ：束ねた建物（BatchedMesh）は three の raycast が中の形ごとに面を全部見ていた（越前で一コマの約 2 割）。
+//   形ごと（drawRange ごと）に升の表を作り、同じ線の判定を升で絞る。表は形の位置の版が変われば作り直す
+const CAM_BATCH_GRID = new WeakMap(), _cbBox = new THREE.Box3(), _cbSph = new THREE.Sphere(), _cbMat = new THREE.Matrix4();
+function camBatchRaycast(o, ray, hits) {
+  const gm = o.geometry, pos = gm.attributes?.position, idx = gm.index, vis = o._visibility, act = o._active, ranges = o._drawRanges;
+  if (!pos || !vis || !act || !ranges || gm.morphAttributes?.position) return false;
+  let byRange = CAM_BATCH_GRID.get(gm);
+  if (!byRange || byRange.version !== pos.version || byRange.idxVersion !== (idx ? idx.version : 0)) {
+    byRange = new Map(); byRange.version = pos.version; byRange.idxVersion = idx ? idx.version : 0;
+    CAM_BATCH_GRID.set(gm, byRange);
+  }
+  o.updateMatrixWorld?.();
+  for (let i = 0, n = o._geometryCount; i < n; i++) {
+    if (!vis[i] || !act[i]) continue;
+    const r = ranges[i], triN = Math.floor(r.count / 3);
+    if (triN < 1) continue;
+    o.getMatrixAt(i, _cbMat).premultiply(o.matrixWorld);
+    o.getBoundingSphereAt(i, _cbSph);
+    _cbSph.applyMatrix4(_cbMat);
+    if (!ray.ray.intersectsSphere(_cbSph)) continue;
+    const key = r.start + ":" + r.count;
+    let G = byRange.get(key);
+    if (!G) { o.getBoundingBoxAt(i, _cbBox); G = buildCamGrid(pos, idx, r.start, triN, _cbBox); byRange.set(key, G); }
+    camGridRaycast(o, G, ray, hits, _cbMat, i);
+  }
+  return true;
 }
 // 当たりの点は同時に複数残るため、一覧の位置ごとに別の入れ物を使う。
 const camGridHitPools = new WeakMap(), _cgWorld = new THREE.Vector3();
-function camGridRaycast(o, G, ray, hits) {
-  o.updateMatrixWorld?.();
-  _cgInv.copy(o.matrixWorld).invert();
+function camGridRaycast(o, G, ray, hits, mw = null, batchId = undefined) {
+  if (!mw) { o.updateMatrixWorld?.(); mw = o.matrixWorld; }
+  _cgInv.copy(mw).invert();
   _cgRay.copy(ray.ray).applyMatrix4(_cgInv);
   const far = Number.isFinite(ray.far) ? ray.far : 200;
   // 線の両端（形の内の向き）。縮尺のある物も、終わりの点を写して長さを合わせる。
@@ -311,14 +342,14 @@ function camGridRaycast(o, G, ray, hits) {
       const a = vi(t, 0), b = vi(t, 1), d = vi(t, 2);
       _cgA.fromBufferAttribute(pos, a); _cgB.fromBufferAttribute(pos, b); _cgC.fromBufferAttribute(pos, d);
       if (!_cgRay.intersectTriangle(_cgA, _cgB, _cgC, false, _cgP)) continue;
-      const point = _cgWorld.copy(_cgP).applyMatrix4(o.matrixWorld);
+      const point = _cgWorld.copy(_cgP).applyMatrix4(mw);
       const distance = ray.ray.origin.distanceTo(point);
       if (distance < ray.near || distance > ray.far) continue;
       let pool = camGridHitPools.get(hits);
       if (!pool) { pool = []; camGridHitPools.set(hits, pool); }
       let hit = pool[hits.length];
       if (!hit) hit = pool[hits.length] = { distance: 0, point: new THREE.Vector3(), object: null, faceIndex: 0 };
-      hit.distance = distance; hit.point.copy(point); hit.object = o; hit.faceIndex = t;
+      hit.distance = distance; hit.point.copy(point); hit.object = o; hit.faceIndex = t; hit.batchId = batchId;
       hits.push(hit);
     }
   }
@@ -327,6 +358,7 @@ export function camBlockRaycast(o, ray, hits) {
   if (o.isSprite || o.isPoints || o.isLine) return;   // 板の絵や点は当たりにしない（Sprite は camera が要り例外になる）
   const G = o.isMesh ? camGrid(o) : null;
   if (G) { try { camGridRaycast(o, G, ray, hits); } catch { /* 一つの部品の誤りで戦を止めない */ } return; }
+  if (o.isBatchedMesh) { const count = hits.length; try { if (camBatchRaycast(o, ray, hits)) return; } catch { hits.length = count; return; } }
   const mat = o.material;
   const count = hits.length;
   o.material = CAM_BLOCK_MAT;
