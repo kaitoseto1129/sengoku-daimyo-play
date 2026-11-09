@@ -24,9 +24,7 @@ import { withGuard } from './toyo_bot.js';
 import { STAGES } from './stages.js';
 import { sfx } from './audio.js';
 import { revealName } from './battle_intel.js';
-import * as THREE from 'three';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit } from './battle_sight.js';
 // 15分の段（kaito 11/8 夜 docs/toyo15_plan_1108.md）：段の中身は t01_yamazaki/ に一段一ファイル
 import { farArmies, report } from './t01_yamazaki/far.js';
 import * as March from './t01_yamazaki/march.js';
@@ -169,40 +167,9 @@ function yamGoalBoard(rt) {
     }
     return out;
   };
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600) continue;
-      if (!(u._yamSeenAt > rt.t - .34 && u._yamSeenAt <= rt.t)) { u._yamSeen = sightUnit(rt, u); u._yamSeenAt = rt.t; }
-      if (!u._yamSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:22px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
+  // 敵全員の▼は共通の field_signs が付ける。山崎だけ重ねて描かない。
   const dispose = rt.dispose;
   rt.dispose = function () {
-    hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('yam-goals'); style.remove();

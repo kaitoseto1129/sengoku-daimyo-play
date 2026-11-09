@@ -15,10 +15,11 @@ export function tick(rt) {
     const P = rt.player.u.pos, q = F.returnPin || P;
     // 主人公と旗の間の道の脇（西の深田の側）
     const mx = (P.x + q.x) / 2, mz = (P.z + q.z) / 2;
-    v.kaeriG = C.enemyGroup(rt, { faction: 'imagawa', name: '今川の残兵', anchor: { x: mx - 14, z: mz + 6 }, facing: 0, width: 3, morale: 70, aggro: 18, seekRange: 26,
+    const side = C.fieldVector(-14, 6), anchor = { x: mx + side.x, z: mz + side.z };
+    v.kaeriG = C.enemyGroup(rt, { faction: 'imagawa', name: '今川の残兵', anchor, facing: C.FIELD_TURN, width: 3, morale: 70, aggro: 18, seekRange: 26,
       dmgMult: 0.35, noRout: true, fleeDir: C.fieldVector(-0.862, 0.507) }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }]);
     v.kaeriG.order = 'attack'; v.kaeriG.focus = rt.player.u;
-    rt.army.playFar?.('eshout', { x: mx - 14, z: mz + 6 }, 1.3);
+    rt.army.playFar?.('eshout', anchor, 1.3);
     rt.say('今川の侍', '御屋形様の仇じゃ！　せめて一人でも道連れに！', 3);
     rt.after(3.2, () => rt.say('組頭 源八', '深田へ逃げ損ねた残兵じゃ。首を守って払え！', 3));
     return;

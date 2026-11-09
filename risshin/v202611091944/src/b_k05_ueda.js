@@ -597,8 +597,9 @@ const k05_ueda = {
       if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; F.oi.noRout = false; }
       // 接敵してから半ばを討つか、主人公が岸で百十秒支えて果たす。
       if (F.oiHot && F.oiEngaged && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
-      // 岸で構えた追手も、本人との接敵前に味方が六割押し返せば殿を果たす。隊の中心だけ岸へ届いた時も判定から漏らさない。
-      else if (F.oi && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
+      // 岸へ届いた追手を味方が押し返した時も数える。道中で六割倒れただけでは、残る追手を待たずに川を渡らせない。
+      // 全員が討たれた時は、岸へ届く相手が残っていないので退ける。
+      else if (F.oi && (F.oiHot || aliveN(F.oi) === 0) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
     } else if (F.step === 7) {
       if (P.pos.x > RET.x - 6 && dist(P.pos, RET) < 16) this.win(rt);
     }

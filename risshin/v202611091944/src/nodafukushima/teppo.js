@@ -10,6 +10,8 @@ import { sfx } from '../audio.js';
 export const MISSION = '竹束の列で、根来・雑賀の鉄砲衆を野田砦の槍から守れ';
 const POST = { x: -22, z: -20 };    // 竹束の列（堤の下の岸、西寄り）
 const MIN_T = 120;
+// 深手や退いた兵を残敵に数えず、戦える相手だけを防ぐ。
+const fighting = u => u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
 
 // ctx：{ enemyGroup, makeRoom, allyGroup, dress, foe, ally, levZ, done() }
 export function start(rt, ctx) {
@@ -43,16 +45,16 @@ export function start(rt, ctx) {
     if (!g || !g.count) return;
     S.g = g; S.k = 1; S.gT = rt.t;
     g.order = 'move'; g.dest = { x: POST.x - 4, z: POST.z + 2 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
-    rt.marker('nodaTabaFoe', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '野田砦の槍', { red: true, group: g });
+    rt.marker('nodaTabaFoe', () => { const u = g.units.find(fighting); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '野田砦の槍', { red: true, group: g });
     rt.army.play('eshout', { x: POST.x - 34, z: POST.z - 12 }, 1.5);
     rt.say('足軽', '西の野田砦から槍が出たぞ！　鉄砲衆の横を突く気じゃ！', 3.2);
     rt.after(3.4, () => live() && rt.say('前田利家', '鉄砲衆の前に出よ！　込め替えの間を守れ！', 3.2));
   }
   S.tick = (dt) => {
-    if (!live()) return;
+    if (!live() || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - POST.x, p.z - POST.z) < 12) S.joined = true;
-    if (S.g?.units.some(u => u.alive && Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18)) S.contested = true;
+    if (S.g?.units.some(u => fighting(u) && Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18)) S.contested = true;
     if (!S.g && rt.t - S.t0 >= 40) sally();
     S.fireT -= dt;
     if (S.fireT <= 0) {
@@ -61,7 +63,7 @@ export function start(rt, ctx) {
       try { rt.army.smoke(x, rt.world.heightAt(x, z) + 2.2, z, 0, 1); rt.army.play('gun', { x, z }, 0.8); } catch (e) { /* 煙が無くても進む */ }
     }
     if (S.k === 1 && S.g) {
-      const left = S.g.units.filter((u) => u.alive).length;
+      const left = S.g.units.filter(fighting).length;
       if (S.joined && (left <= 3 || S.g.routed)) {
         S.k = 2; S.okT = rt.t;
         rt.unmark('nodaTabaFoe');
@@ -94,9 +96,9 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.nodaTeppo;
   if (!S || S.done) return false;
   const u = p.u;
-  if (S.g) {
+  if (S.k === 1 && S.g && !S.g.routed) {
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (v.alive) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e && best < 40) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);

@@ -23,7 +23,7 @@ export function start(rt, ctx) {
   rt.obj('chase', '峠道を追い、踏みとどまる一揆勢を崩す', 'main', true);
   try { sfx('sig_kakari', 0.8); } catch (e) { /* なし */ }
   P.g = enemyGroup(rt, { faction: 'ikko', flag: 'namu', name: '崩れた一揆勢', fixed: true, noGuard: true, anchor: { ...ctx.at }, facing: Math.PI,
-    fleeDir: { x: 0, z: -1 }, aggro: 14, seekRange: 16, width: 9, formation: 'line', morale: 100, noRout: true, speed: 3.2 },
+    fleeDir: { x: 0, z: 1 }, aggro: 14, seekRange: 16, width: 9, formation: 'line', morale: 100, noRout: true, speed: 3.2 },
   [{ type: 'samurai', n: 2, o: { ...ctx.look } }, { type: 'ashigaru', n: 10, o: { ...ctx.look } }]);
   P.g.order = 'hold';
   P.n0 = P.g.units.length;
