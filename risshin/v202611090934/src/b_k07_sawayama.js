@@ -241,7 +241,8 @@ function flags(rt) {
   for (const [x, z] of [[OTE.x - 6, OTE.z + 6], [SAN.x + 4, SAN.z - 4], [NI1.x + 6, NI1.z], [HON.x + 8, HON.z - 8], [TAIKO.x + 6, TAIKO.z]]) rt.scene.add(kagaribi(W, x, z));
 }
 
-const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 8, list, seek: o.seek || 45, morale: o.morale || 92, dmg: o.dmg ?? 0.28, ...(o.noRout ? { noRout: o.noRout } : {}), ...(o.noGuard ? { noGuard: true } : {}) });
+// 城内の守りは曲輪ごとの持ち場に置く。共通の出現位置の補正で塀の外や別の尾根へ移さない。
+const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 8, list, seek: o.seek || 45, morale: o.morale || 92, dmg: o.dmg ?? 0.28, noGuard: o.noGuard !== false, ...(o.noRout ? { noRout: o.noRout } : {}) });
 
 const k07_sawayama = {
   // 身の回りの合戦の跡（timeslip_field.js）。佐和山：旧暦九月十七日（新暦十月下旬）の山城。乾いた土と落ちた矢・槍、秋の草

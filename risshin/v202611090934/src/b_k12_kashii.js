@@ -599,7 +599,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
 
   update(rt, dt) {
     const F = rt.flags;
-    jin12.tick(rt, dt);
+    try { jin12.tick(rt, dt); } catch (e) { if (!rt.flags._jinErr) { rt.flags._jinErr = 1; console.warn("樫井の陣立て", e); } }
     if (F.ending || !F.step) return;
     const P = rt.player.u;
     // 手勢は本人の脇に付いて一緒に走る（AP5）
@@ -648,6 +648,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if ((P.atk || P.swing) && dist(P.pos, VILLAGE) < 20 &&
           [F.hana, F.awa].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6))) F.villageJoined = true;
       if (F.villageJoined && (k >= need || left <= 0)) this.toStep(rt, 4);
+      // 11/9：村へ寄れないまま一分半過ぎても、上田・知近の備えが辻を押さえて次へ（bot が辻の手前で十分止まった）
+      else if (left <= -90) { rt.say('上田宗箇', '辻は押さえた！　東の口へ回れ！', 3); this.toStep(rt, 4); }
     } else if (F.step === 4) {
       const k = F.w4N - aliveN(F.oka), need = Math.round(F.w4N * 0.5);
       if (!F.okaBack) rt.objProgress('s4', `岡部の隊 ${Math.min(k, need)}／${need}人`);
@@ -656,6 +658,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if ((P.atk || P.swing) && (dist(P.pos, EAST) < 20 || (oc && dist(oc, EAST) < 70 && dist(P.pos, oc) < 20)) &&
           F.oka?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6)) F.eastJoined = true;
       if (!F.okaBack && F.eastJoined && (k >= need || left <= 0)) this.okabeBack(rt);
+      // 11/9：東の口へ寄れないまま二分過ぎても、浅野の騎馬と上田の手で岡部は退く（史実でも横は破れなかった）
+      else if (!F.okaBack && left <= -120) this.okabeBack(rt);
     } else if (F.step === 5) {
       // 団右衛門は名乗った相手（主人公）が近ければ主人公に打ち掛かる。他の兵を追って村の外の田まで馬で駆け回らせない（11/7 遊んで五分追い回した）
       const H = F.hanaU;

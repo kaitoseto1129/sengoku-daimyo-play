@@ -13,6 +13,11 @@ export const DEPTH13 = {
       { id: 'date', layer: 'ni', wing: 'right', men: 6000, taisho: '', flag: 'date', bind: F('date') },
       { id: 'katakura', layer: 'ni', wing: 'center', men: 1000, taisho: '片倉重綱', flag: 'date', bind: F('katakura') },
       { id: 'mizuno2', layer: 'ni', wing: 'left', men: 2000, taisho: '', flag: 'mizuno', at: { x: 150, z: 26 } },
+      // 11/9 先取り（大軍対大軍）：三万四千の厚み。堀直寄の手・本多と松平の後備え・伊達の後備え
+      { id: 'hori', layer: 'ichi', wing: 'left', men: 1500, taisho: '堀直寄', at: { x: 128, z: 34 } },
+      { id: 'honda2', layer: 'ni', wing: 'right', men: 2500, taisho: '', flag: 'honda', at: { x: 140, z: -34 } },
+      { id: 'tadaaki2', layer: 'ni', wing: 'left', men: 2000, taisho: '', at: { x: 168, z: 52 } },
+      { id: 'date2', layer: 'yobi', wing: 'right', men: 4000, taisho: '', flag: 'date', hold: true, at: { x: 118, z: -56 } },
       { id: 'masamune', layer: 'yobi', wing: 'right', men: 3000, taisho: '伊達政宗', flag: 'date', hold: true, bind: F('masamune') },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 2000, taisho: '松平忠輝', bind: F('tadateru') },
       { id: 'pass', layer: 'gozume', wing: 'center', men: 10000, taisho: '', hold: true, at: { x: 214, z: 2 } },
@@ -24,6 +29,10 @@ export const DEPTH13 = {
       { id: 'akashi', layer: 'ichi', wing: 'right', men: 2000, taisho: '明石全登', bind: N(/明石/) },
       { id: 'mori', layer: 'ni', wing: 'right', men: 4000, taisho: '毛利勝永', bind: N(/毛利/) },
       { id: 'sanada', layer: 'ni', wing: 'left', men: 3500, taisho: '真田信繁', flag: 'sanada', bind: N(/真田/) },
+      // 11/9 先取り：豊臣の後ろの層（後藤の残り・薄田の後ろ・大坂へ続く後備え）
+      { id: 'goto2', layer: 'ni', wing: 'center', men: 800, taisho: '', at: { x: -76, z: -34 } },
+      { id: 'susukida2', layer: 'yobi', wing: 'center', men: 1500, taisho: '', at: { x: -150, z: -24 } },
+      { id: 'ato', layer: 'gozume', wing: 'left', men: 3000, taisho: '', hold: true, at: { x: -214, z: 80 } },
     ] },
   honjinView: { A: false, B: false },
 };

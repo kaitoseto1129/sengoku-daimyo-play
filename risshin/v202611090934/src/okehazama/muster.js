@@ -15,6 +15,7 @@ export function start(rt, def, C) {
   if (rt.over || F.ending || rt.phase !== 'brief') return false;
   v.musterT = rt.t;
   F.zenshojiSaid = true;   // 本体の行軍の始めの二言（二千に足らぬ・先駆けの討死）は、ここで目の前の事として言う
+  F.briefWaitDuration = DUR;   // 集まりの間も、待つ輪を実際の長さで満たす
   F.briefReadyAt = rt.t + DUR;
   const lord = !!rt.G.lord, NOB = lord ? '自分' : '織田信長';
   const live = () => !rt.over && !F.ending && rt.phase === 'brief' && !v.musterDone;

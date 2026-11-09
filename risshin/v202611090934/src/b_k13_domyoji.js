@@ -612,7 +612,7 @@ const k13_domyoji = {
 
   update(rt, dt) {
     const F = rt.flags;
-    jin13.tick(rt, dt);
+    try { jin13.tick(rt, dt); } catch (e) { if (!rt.flags._jinErr) { rt.flags._jinErr = 1; console.warn("道明寺の陣立て", e); } }
     if (F.ending) return;
     depthTick(rt, dt);
     this.keepUp(rt, dt);
