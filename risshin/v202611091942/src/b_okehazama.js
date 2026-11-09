@@ -1668,6 +1668,8 @@ const okehazama = {
   // 11/1 merge_1101d：共通の一太刀五割・六割（kaito 11/1 C）はそのまま、この戦だけ刃の一太刀を0.6倍に（刃の後の間は meleeGrace。bot が一太刀・続けての太刀で倒れて負けた）
   cutFloor: 0.6,
   world: {
+    // 豪雨で火縄が湿った鉄砲衆と、かかれ前の備えは、本人が近くても撃たせない。
+    strictFireOrders: true,
     yieldAlliedFoot: true, // 徒歩でも進む先の味方が肩を引き、敵までの通り道を空ける。
     allyPersonalSpace: 1.5, // 自分の肩の周りを空け、同じ姿の味方に埋もれない。
     // 既存の近景十八人の足合わせと、間引いた槍の肩避けを使う。

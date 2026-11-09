@@ -1796,8 +1796,9 @@ const shitaragahara = {
   // 11/3 b100 ①：どこで・何をするかの一行（「持ち場へ」「柵を守れ」では場所が分からない）
   // 11/6 fixc1721（九1・十1）：右上は①〜④を最初から並べる（goals5.js の shitaragahara と同じ字）。今の一行も同じ字で、途中で言い替えない
   missions: NF_TEXT,
-  goalsAllRows: true,
-  goalsVisibleRows: 5, // 六つの目標は今の段を含む五つずつ見せる。
+  goalsAllRows: false,
+  goalVisibleRows: 5, // 六つの目標は今の段を含む五つずつ見せる。
+  goalRowsAhead: true, // 開戦時から先の目標も並べ、最後の殿も順に見せる。
   missionOf(rt) { const N = rt.flags.nf; return !N || ST_INTRO.active(rt) ? 0 : N.step <= 1 ? 1 : N.step === 2 && !N.breachDone ? 2 : N.step <= 3 ? 3 : N.step === 4 ? 4 : 5; },
   missionHeading(rt) { return NF_TEXT[shitaragahara.missionOf(rt)]; },
   commanderTarget: (rt) => null,
