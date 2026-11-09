@@ -6,6 +6,13 @@
 // ======================================================================
 const F = (k) => (rt) => rt.flags[k];
 
+// 備を名前で選び、陣立ての行き先も更新する。描く群だけ動かすと、次の更新で元の陣へ戻される。
+export function moveSonae(rt, side, id, x, z) {
+  const s = rt.flags.depth?.[side]?.sonae.find((q) => q.id === id);
+  if (!s || s.bound || s.gone) return;
+  s.hx = s.tx = x; s.hz = s.tz = z;
+}
+
 export const T03_DEPTH = {
   A: { name: '羽柴', facing: 0, honjin: { x: -40, z: -104 }, mpu: 10, formation: '鶴翼', terrain: 'plain', flag: 'toyotomi', armor: 0x2b2723, openAt: 9999, attrition: 0,
     sonae: [
@@ -14,7 +21,7 @@ export const T03_DEPTH = {
       { id: 'ikeda', layer: 'ichi', wing: 'right', men: 6000, taisho: '池田恒興', flag: 'ageha', hold: true, at: { x: 70, z: -92 } },
       { id: 'mori', layer: 'ichi', wing: 'right', men: 3000, taisho: '森長可', flag: 'tsuru', hold: true, at: { x: 96, z: -44 } },
       { id: 'motosuke', layer: 'ni', wing: 'right', men: 2000, taisho: '池田元助', flag: 'ageha', hold: true, at: { x: 118, z: -86 } },
-      { id: 'hidetsugu', layer: 'ni', wing: 'center', men: 8000, taisho: '羽柴秀次', hold: true, at: { x: 40, z: -112 } },
+      { id: 'hidetsugu', layer: 'ni', wing: 'center', men: 8000, taisho: '三好信吉', hold: true, at: { x: 40, z: -112 } },
       { id: 'hidenaga', layer: 'yobi', wing: 'left', men: 6000, taisho: '羽柴秀長', hold: true, at: { x: -112, z: -54 } },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '羽柴秀吉', bind: F('rakuda') },
     ] },

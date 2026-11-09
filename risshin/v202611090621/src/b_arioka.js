@@ -2976,6 +2976,9 @@ function ariStage(o, defending) {
   return {
     // 辻も木戸も持ち場を守る段。試し役が遠い射手を追って印から離れない。
     kind: 'hold', max: defending ? 410 : o.max,
+    // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
+    // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
+    limit: o.lenient ? Infinity : undefined,
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
@@ -3001,7 +3004,7 @@ function ariStage(o, defending) {
       if (rt.flags.ending) return false;
       // 時間切れや木戸の陥落は、この段で理由を示して終える。
       const limit = defending ? Math.max(o.dur + 60, 252 - C.t0) : o.max;
-      if (el > limit) { C.timeout = true; return true; }
+      if (!o.lenient && el > limit) { C.timeout = true; return true; }
       // 10/31 小隊を一組ずつ順に出さない。段の初めに、この段の荒木勢を全部一斉に寄せる（大軍で押し寄せる）。
       // 台詞と見出しは元の刻みのまま流す。
       if (!C.dispatched) {
@@ -3142,8 +3145,8 @@ function ariStage(o, defending) {
       return held;
     },
     end(rt, C, m) {
-      // lenient：15分の段で足した段（arioka/ の通り・焼け跡・奥の木戸）は、期限が来たら味方の手が押さえた事にして先へ（負けにしない）
-      const won = (!C.timeout || o.lenient) && !C.failed && !rt.flags.ending;
+      // 追加の段も、期限だけで未確保の場所を達成扱いにしない。
+      const won = !C.timeout && !C.failed && !rt.flags.ending;
       rt.unmark('dp'); rt.unzone('dp'); rt.unmark('turn');
       if (won) {
         // 取った辻の守りは退き、未出動の控えは主郭の守りに残る。

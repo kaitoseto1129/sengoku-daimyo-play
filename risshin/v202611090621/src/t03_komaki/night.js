@@ -6,6 +6,7 @@
 //     決着はつかない。見出し「徳川軍、追撃開始」→ 次の戦（小牧・長久手 二）へ続く。
 // ======================================================================
 import { enemyGroup, allyGroup } from '../bhelp.js';
+import { moveSonae } from './depth.js';
 
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 export const FORD = { x: 132, z: 30 };      // 五条川の渡し（⑥の行き先）
@@ -27,7 +28,8 @@ export function startNight(rt, K) {
   F.ikedaG.dest = { x: FORD.x - 16, z: FORD.z - 10 };
   F.ikedaG.onArrive = (q) => { q.order = 'hold'; };
   // 秀次・堀の列（遠景）も東へ動く
-  try { F.farHashiba?.[4]?.moveTo?.(110, -70, 120); F.farHashiba?.[3]?.moveTo?.(60, -40, 120); } catch (e) { /* 遠景 */ }
+  moveSonae(rt, 'A', 'hidetsugu', 110, -70);
+  moveSonae(rt, 'A', 'hori', 60, -40);
   rt.banner('四月六日　夜', '');
   say(rt, '森長可', '声を立てるな。馬の口を縛れ', 2, 2.8);
   say(rt, '使番', '孫七郎様の本隊、堀様の隊も続いて出られました', 24, 3);
@@ -92,6 +94,9 @@ export function tickDawn(rt, K) {
     rt.say('使番', '徳川勢、小牧山より動きました！　小幡城へ向かう由！', 3.4);
     // 小牧山の陣が動き出す（南東へ。軽い作り）
     try { for (const A of F.farToku || []) A?.moveTo?.(A.position.x + 70, 118, 50); } catch (e) { /* 遠景 */ }
+    for (const s of F.depth?.B?.sonae || []) {
+      if (!s.bound) moveSonae(rt, 'B', s.id, s.x + 70, 118);
+    }
     rt.after(4, () => rt.say('森長可', '気取られたか。……かまわぬ、前へ進め', 3));
     rt.after(8, () => rt.say('三好信吉', '後ろは堀が守る。岡崎を目指せ', 3));
     rt.after(15, () => { if (!rt.over) rt.banner('徳川軍、追撃開始', ''); });
