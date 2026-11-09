@@ -30,7 +30,13 @@ export function soboStep(NG) {
     tick(rt, C, m, ctx, el) {
       const F = rt.flags;
       // 鉄砲衆が持ち場を替える（撃っては移る）
-      if (el > C.hop) {
+      // 四分を過ぎても残る鉄砲衆・行人方は持ち場を捨てて斬りかかる（届かない縁に残って段が十分止まった。豊臣A 11/9 三巡）
+      if (el > 240 && !C.charge) {
+        C.charge = true;
+        for (const g of C.groups) if (alive(g)) { g.fixed = false; g.stay = false; g.order = 'attack'; g.dest = null; g.onArrive = null; g.aggro = 40; g.seekRange = 60; for (const q of g.units) q.perch = null; }
+        rt.say('組頭', '鉄砲衆が筒を捨てて斬って出たぞ！　ここで討ち取れ！', 3);
+      }
+      if (el > C.hop && !C.charge) {
         C.hop = el + 20 + Math.random() * 6;
         for (const g of C.gunG) if (alive(g)) {
           g._spot = (g._spot + 1 + (Math.random() * 2 | 0)) % SPOTS.length;
