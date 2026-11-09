@@ -1538,7 +1538,7 @@ const tonezaka = {
   // 稲生の水準：任務一行・ピン・敵の▼だけで現在の一手を示す。
   missionSingleLine: true,
   goalsAllRows: true, // 最初から場所と行いの五件を並べ、果たした目標に印を付ける。
-  goalsVisibleRows: 5,
+  goalVisibleRows: 5,
   battleDialogue: true, // 刀根坂は短い下知も使う。八秒の間引きと三枠の上限は共通処理に任せる。
   hideMissionDots: true,
   hideGuideSteps: true,
@@ -1553,7 +1553,7 @@ const tonezaka = {
   missionDetail: () => '',
   missionStatus: () => '',
   // 追撃を始める理由の見出しも通す。呼び出しがあっても、この制限で消していた。
-  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || title === '朝倉が退く。信長公が追う' || /討ち取|討死|勝|一乗谷の火|越前への追撃|一乗谷の城下/.test(title),
+  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /^(朝倉が退く。信長公が追う|朝倉の列、詰まる|義景の旗本、返す|義景、逃げ延びる|朝倉軍、壊滅)$/.test(title) || /討ち取|討死|勝|一乗谷の火|越前への追撃|一乗谷の城下/.test(title),
   // 11/3 b100（AQ1・AR1）：「味方と進め」のような分からない言い方をやめ、段ごとに場所と行いを書く。
   // 11/4 史実の流れ（docs/battle_refs/tonezaka.md）：段ごとの目標は場所と行いの一つの言い方に固め、途中で言い替えない（AW3）。
   missions: ['坂の下で河合吉統の殿を突き破れ', '坂の下で河合吉統の殿を突き破れ', '坂の下で河合吉統の殿を突き破れ', '一乗谷の奥の道で寄せる朝倉の兵を防げ'],
@@ -2913,6 +2913,8 @@ const tonezaka = {
           const tick = st.tick;
           st.tick = (rt2, C, m, ctx, el, dt) => {
             const cleared = tick(rt2, C, m, ctx, el, dt);
+            // 共通の守備処理が書く残り秒数を、追加した追撃の段にも残さない。
+            rt2.objProgress('dp', '');
             return cleared && near(rt2.player.u.pos, C.at, C.botRadius);
           };
         }

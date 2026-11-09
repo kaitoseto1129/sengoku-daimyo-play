@@ -58,7 +58,7 @@ export function install(rt, ctx) {
       }
       const rl = R ? R.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length : 0;
       const n = live() + rl;
-      rt.objProgress('main', n ? `堤の雑賀衆 ${n}人` : '');
+      rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
       const p = rt.player.u.pos;
       if (R && !n && el > 100 && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
         done = true; F.tsutsumiDone = true;
