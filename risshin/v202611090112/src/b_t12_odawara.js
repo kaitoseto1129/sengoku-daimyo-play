@@ -22,6 +22,14 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { withGuard } from './toyo_bot.js';
+// 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 15）で足した段。中身は t12_odawara/ に一段一ファイル
+import * as jinmawari from './t12_odawara/jinmawari.js';   // 始め：六月の初めの昼、陣の間を家康の本陣へ（城は攻めるな）
+import * as sortieSt from './t12_odawara/sortie.js';        // 北条の打って出を山王川で返す（深追いしない）・六月二十二日の夜へ
+import * as ishigakiSt from './t12_odawara/ishigaki.js';    // 六月二十五日の夜、石垣山の普請を物見から守る
+import * as kuzure from './t12_odawara/kuzure.js';          // 六月二十六日の朝、城から逃げて来る北条の兵を迎え、追っ手を討つ
+import * as junkai from './t12_odawara/junkai.js';          // 七月の初め、前田・上杉の陣と浜の長宗我部の船陣を回る
+import * as kaijoSt from './t12_odawara/kaijo.js';          // 官兵衛の後、槍を置いて城を出る北条の兵を見届ける
+import * as tenka from './t12_odawara/tenka.js';            // 終幕：開城・天下統一の日本地図・家康「次は、関八州か。」
 
 // ---- 場所（ゲームの座標） ----
 const CASTLE = { x: 51, z: -131 };       // 小田原城の本丸
@@ -208,8 +216,9 @@ function sogamae(rt) {
   const W = rt.world;
   for (const [x, z] of [[-24, -2], [-31, -48], [-38, -90], [-44, -128]]) rt.scene.add(nobori(W, x + 2, z, 'hojo', 5));
   for (const [x, z, r] of [[-6, -48, 0.2], [4, -58, -0.3], [-2, -74, 0.4], [10, -70, 0.1], [16, -88, -0.2], [-10, -88, 0.3], [6, -40, 0.5], [22, -66, 0]]) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
-  rt.scene.add(nobori(W, KGATE.x + 4, KGATE.z - 3, 'hojo', 7));
-  rt.scene.add(nobori(W, KGATE.x - 4, KGATE.z - 3, 'hojo', 7));
+  // 開城の時に下げる北条の旗（t12_odawara/tenka.js）
+  rt.flags.hojoFlags = [nobori(W, KGATE.x + 4, KGATE.z - 3, 'hojo', 7), nobori(W, KGATE.x - 4, KGATE.z - 3, 'hojo', 7)].filter(Boolean);
+  for (const f of rt.flags.hojoFlags) rt.scene.add(f);
 }
 
 // ---- 総構えの土塁の上の板塀（史実の目玉：町ごと囲む九km の総構え）。柱と板を一つの形にまとめて一回で描く。早川口は開ける ----
@@ -429,6 +438,15 @@ function escort() {
 }
 
 // 篠曲輪の守り：東の木戸の内の板塀に鉄砲と槍が並び、寄せる者を撃つ（城そのものが兵器・kaito BA5）
+// 暗転の間に、本人と組を次の場所へ置き直す（t12_odawara/ の段。時が飛ぶ所だけ）
+function warpTo(rt, x, z, heading) {
+  const P = rt.player, u = P.u;
+  const put = (o, px, pz) => { o.pos.set(px, rt.world.heightAt(px, pz), pz); if (o.vel) o.vel.x = o.vel.y = o.vel.z = 0; if (o.mesh) o.mesh.position.copy(o.pos); o.target = null; };
+  put(u, x, z);
+  u.heading = heading; P.yaw = heading; P.camYawOff = 0;
+  (rt.squad || []).forEach((o, i) => { if (o.alive && !o.gone) put(o, x - Math.sin(heading) * (2 + (i >> 2)) + ((i % 4) - 1.5) * 1.3, z - Math.cos(heading) * (2 + (i >> 2))); });
+}
+
 function shinoGuard(rt) {
   const F = rt.flags;
   F.shinoGuns = enemyGroup(rt, { faction: 'hojo', name: '篠曲輪の鉄砲', anchor: { x: SHINO.x1 - 2.2, z: SHINO_C.z }, facing: Math.PI / 2, width: 12, fixed: true,
@@ -466,6 +484,8 @@ const t12_odawara = {
   victoryCaption: '北条氏直が降伏',
   spawn: { x: II_JIN.x + 2, z: II_JIN.z + 4, heading: -Math.PI / 2 },
   noWake: true,
+  minutes: 17,
+  pacingCap: 1500,   // 11/8 15分の構成（この戦だけ15〜18分）。共通の打ち切り（十八分）を二十五分へ
   noFrontFill: true,         // 見える兵は全部本物（奥の軽い乱戦を置かない。11/3 p100）
   kumiLead: false,           // 行き先の印は今の目標の金の▼一つだけ（kaito AV15）
   noGoalCount: true,
@@ -550,15 +570,18 @@ const t12_odawara = {
     shinoGuard(rt);
     seats(rt);
 
-    rt.world.setTime('night', true);
-    rt.world.setRainTarget(0.85); rt.world.rainLevel = 0.85;
+    // 11/8 15分の構成：始めは六月の初めの昼（陣を回る段）。六月二十二日の雨の夜は sortie.js の night の段で
+    rt.world.setTime('day', true);
+    rt.world.setRainTarget(0); rt.world.rainLevel = 0;
+    if (W.mountains) W.mountains.visible = true;
+    F.day = -1;
+    this.shinoArm(rt, false);
     rt.setPhase('brief');
     rt.obj('main', '篠曲輪に井伊の旗を立て、のち黒田官兵衛を本丸の門まで守り届けよ', 'main');
     // 戦の前（使番が石垣山の殿下の下知を伝える。秀吉はここにいない）
     rt.say('使番', `殿下の下知じゃ。${nm(rt)}殿は井伊直政殿の手に加わり、城の東を攻めよ`, 4.5);
-    rt.after(5, () => rt.say('井伊直政', '今宵は雨。山王口の外の出丸、篠曲輪を取る。松平康頼殿の手と、川と堀を渡って続け', 4.5));
-    rt.after(10, () => rt.say('手勢の侍', '囲んで二月半、初めて城へ寄せる夜じゃ', 3.5));
-    rt.after(14, () => this.begin(rt));
+    rt.after(5, () => rt.say('井伊直政', '天正十八年の夏。殿下の囲みは、もう二月になる', 4));
+    rt.after(9.5, () => this.begin(rt));
   },
 
   begin(rt) {
@@ -568,7 +591,15 @@ const t12_odawara = {
     rt.setPhase('siege');
     sfx('taiko', 0.8);
     const friends = () => [F.mine, F.ii, F.ii2, F.yasu].filter((g) => !gone(g));
+    // 段のファイル（t12_odawara/*.js）へ渡す場所と道具
+    const H = F.endH = { IE_FRONT: { x: IE_JIN.x - 18, z: IE_JIN.z + 6 }, IE_WAY: { x: 146, z: -114 }, LOOKOUT: { x: 138, z: -96 }, KGATE, WATCH: { x: KGATE.x + 6, z: KGATE.z + 10 }, II_JIN, ISHI, CASTLE, SANNO_IN, KIDO_F, BANK: { x: 136, z: -78 }, RIVER_X: 131,
+      FUSHIN: { x: -64, z: 82 }, SCOUT_FROM: [{ x: -36, z: 56 }, { x: -24, z: 74 }, { x: -46, z: 50 }],
+      MAEDA_JIN: { x: 142, z: -150 }, UJINORI: { x: 152, z: -170 }, UESUGI_JIN: { x: 150, z: -134 }, BEACH: { x: 150, z: -58 }, IE_VIEW: { x: 140, z: -100 },
+      HOJO, TOYO, dress, clearFoes, warp: (rt2, x, z, h) => warpTo(rt2, x, z, h), shinoArm: (rt2, on) => this.shinoArm(rt2, on) };
     depthStart(rt, { faction: 'hojo', flag: 'hojo', armor: HOJO.armor, friends, look: (list) => dress(list, HOJO), scale: 1.4, mass: 0, backing: false, fixedSpawn: true, dmg: 0.6 }, [
+      jinmawari.step(H),
+      sortieSt.step(H),
+      sortieSt.night(H),
       // ① 山王川を渡り、篠曲輪の木戸の前へ（板塀の狭間から鉄砲が来る）
       DP.move({ to: KIDO_F, obj: '山王川を渡り、篠曲輪の木戸の前まで寄せよ', label: '篠曲輪の木戸', r: 6, max: 90,
         say: [['井伊直政', '赤備え、続け！　川を渡って木戸へ寄せよ！'], ['足軽', '雨で火縄が湿っておる。狭間から来るのは矢じゃ']] }),
@@ -605,6 +636,7 @@ const t12_odawara = {
       // ⑤ 後押しが無く、直政の下知で退く（史実）
       DP.move({ to: { x: II_JIN.x - 4, z: II_JIN.z + 2 }, obj: '井伊直政の下知で、山王川の東の井伊の陣へ退け', label: '井伊の陣', r: 8, max: 80,
         say: [['井伊直政', '後押しが来ぬ。旗は立てた、これまでじゃ。退け！'], ['足軽', '一番首は近藤殿と長野殿じゃ！']] }),
+      ishigakiSt.step(H),
       // ⑥ 六月二十六日：石垣山の城が姿を見せる（何もしなくてよい場面。目標は出さない）
       // 11/6 kaito 二4：前は 12 秒で過ぎ、城が写らなかった（陣から石垣山は約三百 = 実の二・四km で、全戦で描く遠さ 150 の外だった）。
       //   場面を長くし、城は視点から同じ向き・同じ見かけの大きさのまま百の内へ縮めて置く（update の ichiyaView）
@@ -619,6 +651,8 @@ const t12_odawara = {
           rt2.award((t) => t.side.push('篠曲輪を攻めた（翌日、殿下から褒美）'), '殿下から褒美');
         },
         say: [['使番', '殿下は篠曲輪の一番首の近藤殿・長野殿を召して、褒美を下された'], ['手勢の侍', '南西の山の上を見よ。一夜で城が建ったようじゃ'], ['使番', '八王子も韮山も落ちた。松田殿の内通も露見し、城の中は割れておる']] }),
+      kuzure.step(H),
+      junkai.step(H),
       // ⑦ 七月の初め：時が飛ぶ。官兵衛が井伊の陣に来て、主人公と城へ歩く
       //   官兵衛（孝高）は六月二十四日から滝川雄利と開城を説き、肩衣・袴で刀を帯びずに城へ入って氏政・氏直に会った（黒田家譜）。日は伝わらないので「七月の初め」。開城の申し出は七月五日
       DP.rest({ dur: 5, heal: 1, banner: ['七月の初め', '井伊の陣へ黒田官兵衛が来た'],
@@ -630,7 +664,9 @@ const t12_odawara = {
         },
         say: [['使番', '黒田勘解由殿が刀を帯びず、氏直殿に城を開くよう説きに参られる', 4]] }),
       escort(),
+      kaijoSt.step(H),
     ].map(requiredStep), (rt2) => this.win(rt2));
+    F.dpIx = Object.fromEntries(F.dp.steps.map((s0, i) => [s0.key || i, i]));
   },
 
   win(rt) {
@@ -643,20 +679,11 @@ const t12_odawara = {
     rt.objDone('main');
     rt.award((t) => { t.main = true; t.special = { label: '小田原開城', pts: 60 }; }, '小田原城が開いた');
     sfx('horagai', 0.9);
-    rt.banner('小田原城、開城', '天正十八年七月五日　氏直が城を出て降る');
+    rt.banner('小田原城　開城', '天正十八年七月五日　氏直が城を出て降る');
     rt.player.u.invuln = true;
-    // 戦の後（筋書きの一枚の言葉）
-    rt.say('北条氏直', '城を開く。わしの腹ひとつで、城の者の命を助けてくだされ', 4.4);
-    rt.after(4.8, () => rt.say('黒田官兵衛', 'そのお覚悟、しかと殿下に申し上げまする', 4.2));
-    // 降った場は滝川雄利の陣（官兵衛の前で城を出たのではない）
-    rt.after(9.4, () => rt.say('使番', '五日、氏直殿が滝川雄利殿の陣へ出て、降られた', 4.2));
-    // 氏政・氏照の切腹は七月十一日、秀吉の入城と家康の関東は十三日（7/5 の場で決まった事のように言わない）
-    rt.after(14, () => rt.say('使番', '十一日、氏政殿と氏照殿が腹を召された。氏直殿は高野山へ送られる', 4.6));
-    rt.after(19, () => rt.say('使番', '十三日、殿下が城に入られた。北条の関東は徳川殿に任せる、との仰せじゃ', 4.6));
-    rt.after(23.8, () => rt.say('徳川家康', '……ありがたく、お受けいたしまする', 3.6));
-    rt.after(27.8, () => rt.say('井伊直政', `${nm(rt)}殿、篠曲輪の働き、殿下もお喜びじゃ`, 4));
-    rt.after(32.2, () => rt.say('使番', '殿下より：篠曲輪の夜討ちと使いの供、見事であった。追って沙汰する', 4.6));   // 11/6 kaito 三3：身分は昇進の札に任せ、台詞で「大名」と言わない
-    rt.finish({}, 37.6);
+    // 戦の後：北条の旗が下がり、天下統一の日本地図、家康の「次は、関八州か。」（t12_odawara/tenka.js）
+    tenka.ending(rt, F.endH || { IE_VIEW: { x: 140, z: -100 }, CASTLE, warp: warpTo });
+    rt.finish({}, 47);
   },
 
   lose(rt, why = 'dead') {
@@ -673,9 +700,18 @@ const t12_odawara = {
     rt.finish({ failureReason: late ? '官兵衛を本丸の門まで届けられなかった' : '開城の使いの官兵衛が討たれた' }, 6);
   },
 
+  // 篠曲輪の鉄砲：昼の段（陣を回る・打って出）は撃たせず、六月二十二日の夜討ちから撃つ（army_ranged の gunAmmo）
+  shinoArm(rt, on) {
+    const G = rt.flags.shinoGuns;
+    if (!G) return;
+    G.fire = !!on;
+    for (const u of G.units) if (u.type === 'gun') u.gunAmmo = on ? 20 : 0;
+  },
+
   update(rt, dt) {
     const F = rt.flags;
     ichiyaView(rt);
+    tenka.tick(rt);
     if (F.ending) return;
     depthTick(rt, dt);
     // 本陣の将と旗本は持ち場を離れない（共通の寄せ・助けの下知が掛かっても、毎コマ本丸・本陣へ戻す。kaito AR3）
@@ -686,7 +722,7 @@ const t12_odawara = {
     }
     // 木戸から味方が打って出たら、篠曲輪の鉄砲は撃ち止めて槍で守る（味方の背を撃たない）
     const G = F.shinoGuns;
-    if (G && F.dp && F.dp.i >= 1 && G.fire !== false) G.fire = false;
+    if (G && F.dp && F.dpIx && F.dp.i >= F.dpIx.sortie + 3 && G.fire !== false) G.fire = false;   // 夜討ちの二つ目の段（木戸の前の迎え撃ち）から
     if (F.kanU && !F.kanU.alive) this.lose(rt);
   },
 
@@ -704,7 +740,7 @@ const t12_odawara = {
 t12_odawara.force = (rt) => ({ a: Math.round(210000 - (rt.flags.ak || 0) * 30), a0: 210000, b: Math.max(0, 50000 - (rt.flags.ek || 0) * 40), b0: 50000 });
 t12_odawara.noTaishoRaid = true;   // 本丸の当主の旗本は本丸を出ない（本陣の将は前に出ない・kaito AR3）
 t12_odawara.sides = { a: { name: '豊臣軍', mon: 'toyotomi' }, b: { name: '北条軍', mon: 'hojo' } };
-t12_odawara.date = (rt) => (rt.flags.day === 2 ? '天正十八年（1590）七月の初め　初秋・晴' : rt.flags.day === 1 ? '天正十八年　六月二十六日　朝' : '天正十八年　六月二十二日　雨の夜');
+t12_odawara.date = (rt) => { const d = rt.flags.day; return d === 2 ? '天正十八年（1590）七月の初め　初秋・晴' : d === 1 ? '天正十八年　六月二十六日　朝' : d === 0.5 ? '天正十八年　六月二十五日　夜' : d === -1 ? '天正十八年（1590）六月の初め　昼' : '天正十八年　六月二十二日　雨の夜'; };
 t12_odawara.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 t12_odawara.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 t12_odawara.history = '天正十八年（1590）、豊臣秀吉はおよそ二十一万の軍で関東の北条氏を攻めた。前の年、北条方が真田の名胡桃城を奪ったことが、秀吉の裁き（惣無事）を破ったとされ、戦の発端となった。徳川家康・前田利家・上杉景勝・宇喜多秀家・小早川隆景ら全国の大名が加わり、九鬼嘉隆・長宗我部元親らの水軍が海を塞いだ。北条氏政・氏直は、城下の町ごと堀と土塁で囲んだ小田原城の総構え（およそ九km）に、五万余りで籠もった。秀吉は総攻めをせず、城を見下ろす石垣山に城を築いた。家康は城の東、山王川と酒匂川の間に陣を置いた。六月二十二日の雨の夜、家康の家臣の井伊直政と松平康頼が堀を渡り、山王口の外の出丸・篠曲輪を攻めて旗を立てたが、城中から出た北条勢に防がれ、後押しも無く退いた。小田原の陣で城へ攻め入ったのは、ほぼこの一度だけである。二十六日ごろ、石垣山の城のまわりの木を伐り、一夜で現れたように見せたと伝わる（実は八十日ほどかけて築いた）。その間に山中・韮山・松井田・鉢形・八王子などの支城が次々に落ち、重臣の松田憲秀の内通も露見して城の中は揺れた。黒田官兵衛（孝高）・滝川雄利らが開城を説き（官兵衛は肩衣と袴で刀を帯びずに城へ入ったと伝わる）、七月五日に氏直が自らの命と引き換えに城の者を助けるよう申し出て降った。十一日に氏政と弟の氏照は腹を切り、氏直は高野山へ送られた。十三日に秀吉が城に入り、北条の旧領の関東は徳川家康に与えられ、家康は江戸へ移った。\n篠曲輪の形、井伊勢と篠曲輪の守りの人数、主人公が井伊の手に加わること、官兵衛を本丸の門まで送る道筋は遊びのための復元である。両軍の人数は推定で、北条方の数には別の伝えもある。';
