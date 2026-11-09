@@ -456,7 +456,10 @@ function lurkTick(rt) {
 function intoOgura(f) {
   const t0 = f.tick;
   f.tick = (rt, C, m, ctx, el) => {
-    if (!t0(rt, C, m, ctx, el)) return false;
+    const cleared = t0(rt, C, m, ctx, el);
+    // 共通の戦闘処理は敵の中心へ目当てを動かす。付け入りでは門を目指し、城外へ守兵を追わない。
+    C.goal = C.at;
+    if (!cleared) return false;
     C.at = OGURA_IN; C.goal = OGURA_IN;
     const p = rt.player.u.pos;
     if (inOgura(p.x, p.z)) return true;
