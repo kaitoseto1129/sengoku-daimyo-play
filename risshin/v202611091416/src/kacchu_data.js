@@ -176,7 +176,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["織田信包", "suji", "none", 0x1c1a1a, 0x8a6a2a, "sugake", 0x4a3a22, 0, "oda", ""],
   ["前田利久", "eboshi", "bellflower", 0x1c1a1a, 0x3c5a8a, "sugake", 0x4a3a22, 0x1c1a1a, "oda", ""],
   ["生駒家長", "namban", "kuwa", 0x29251f, 0x3c5a8a, "sugake", 0x4a3a22, 0x29251f, "oda", ""],
-  ["山内一豊", "namban", "moon", 0x29251f, 0x3c5a8a, "kebiki", 0x4a3a22, 0x29251f, "kashiwa", ""],   // 丸に三つ柏（山内家の紋。11/6 共通の係）
+  ["山内一豊", "zunari", "yamauchi_biwa", 0x29251f, 0x3c5a8a, "kebiki", 0x4a3a22, 0x29251f, "kashiwa", ""],   // 枇杷耳形脇立（docs/generals_look_1108/山内一豊.md）。南蛮鉢・三日月は根拠が無いので頭形に   // 丸に三つ柏（山内家の紋。11/6 共通の係）
   ["中川重政", "namban", "sun", 0x29251f, 0x3c5a8a, "kebiki", 0x4a3a22, 0x29251f, "oda", ""],
   ["織田長益", "namban", "kuwa_wide", 0x29251f, 0x3c5a8a, "kebiki", 0x302b32, 0, "oda", ""],
   ["前野長康", "suji", "none", 0x2a2420, 0x5a4630, "okegawa", 0x5a5a5a, 0x2a2420, "none", ""],

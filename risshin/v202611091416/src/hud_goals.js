@@ -135,7 +135,7 @@ export function goalsTick(el, rt, stg, always) {
   // 今の一件を表示し、ほかの目標は一覧を開いた時だけ見せる。
   const now = f.now >= 0 ? f.now : f.rows.findIndex(g => !g.done && !g.fail);
   // 六段以上の戦でも、今の目標を含む五件までを順番どおりに残す。
-  const firstRow = Math.max(0, now - visibleRows + 1);
+  const firstRow = rt.def.goalRowsAhead ? Math.min(now, Math.max(0, f.rows.length - visibleRows)) : Math.max(0, now - visibleRows + 1);
   const key = now + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === now ? 'n' : '0') + goalWords(g.text) + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
   // 残り時間は今の目標の行だけ。秒が変わる時だけ書き、並びは作り直さない
   const tm = box.querySelector('li.now .tm');
