@@ -10,7 +10,7 @@ import { sfx } from '../audio.js';
 import { enemyGroup } from '../bhelp.js';
 import { dress } from '../b_inabayama.js';
 
-export const DESHIRO_LEN = 300;   // この段の長さの上限（秒）
+export const DESHIRO_LEN = 300;   // 長引いた時に木戸の守備を知らせる秒
 
 export function start(rt, ctx) {
   const F = rt.flags;
@@ -81,14 +81,13 @@ export function tick(rt, ctx) {
     rt.after(4, () => { if (F.mkSally === S && !S.done) { wave(rt, ctx, 12, 2); rt.army.playFar('toki', ctx.sallyFrom, 0.9); rt.say('組頭', '煙に紛れて三の手じゃ！　木戸を渡すな！', 3.5); } });
     rt.after(60, () => { if (S.fire) { rt.world.removeFire?.(S.fire); S.fire = null; } });
   }
-  if (S.w3 && S.waves.length >= 3 && S.waves.every(ctx.gone) && rt.t - S.w3T >= 20) {
+  if (S.arrived && S.w3 && S.waves.length >= 3 && S.waves.every(ctx.gone) && rt.t - S.w3T >= 20) {
     once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
     S.done = true; return true;
   }
   if (t >= DESHIRO_LEN) {
-    for (const g of S.waves) if (!ctx.gone(g)) ctx.flee(g);   // 退き鐘で城へ逃げ戻る
-    rt.army.playFar('kane', ctx.castle, 0.8);
-    S.done = true; return true;
+    // 時間だけで敵を退かせて達成にしない。木戸への帰着と三度の寄せの決着を待つ。
+    once('long', () => rt.say('組頭', '平田の木戸を守れ！　城兵を退けるまで持ち場を離れるな！', 4));
   }
   return false;
 }
