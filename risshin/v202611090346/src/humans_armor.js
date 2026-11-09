@@ -285,6 +285,12 @@ function kbBowlGeo(base, kind) {
       ny = rim + H * (0.78 * h + 0.38 * h * (1 - h)) - 0.045 * h * h * Math.max(0, -zb);
       if (z < 0) z *= 1 + 0.07 * h;
       x *= 1 + 0.03 * h * (1 - h);
+    } else if (kind === 'sengoku_kasa') {
+      // 上田市の伝秀久所用具足の編笠形。鉢だけを円錐に寄せ、頂を折る略復元。
+      const cone = (1 - h) / Math.max(0.06, Math.sqrt(Math.max(0, 1 - h * h)));
+      const fold = Math.max(0, (h - 0.72) / 0.28);
+      x *= cone; z = z * cone - H * 0.36 * fold * fold;
+      ny = rim + H * (1.62 * h - 0.25 * fold * fold);
     } else if (kind === 'toppai') {
       // 昌幸の突盔鉢。鉢だけを円錐へ寄せ、錣・眉庇と頂点数は保つ。
       const cone = (1 - h) / Math.max(.06, Math.sqrt(Math.max(0, 1 - h * h)));
@@ -419,7 +425,7 @@ function kabutoStyle(L) {
   // 本人の前立は伝来の鍬形の作り（鍬形台から細い茎で立ち、先が剣の形に開く。HERO_CREST）
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
-  const bowl = L.face === 'player' && L.kbBowl || (by.bowl === 'toppai' ? 'toppai' : '');
+  const bowl = L.face === 'player' && L.kbBowl || (['toppai', 'sengoku_kasa'].includes(by.bowl) ? by.bowl : '');
   return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl, sakakibaraLace: (nm === '榊原康政' && by.flag === '榊原の日輪無') || !!by.toriiFushimi };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）

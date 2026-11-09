@@ -276,6 +276,8 @@ const NOBLUE_SKIP = new Set(['skin', 'face', 'tier', 'vi', 'flag', 'standard', '
 const _noBlueKacchu = new Map();   // 武将の具足の表は形の使い回しの鍵なので、直した写しも一人一つに保つ
 function allyNoBlue(look, deep = true) {
   for (const k in look) {
+    // 仙石家伝来具足の紺糸威は、本人の鉢の指定がある時だけ保つ。
+    if (look.bowl === 'sengoku_kasa' && look.preserveLace && ['lace', 'odo', 'shikoroLace', 'kusazuriBands'].includes(k)) continue;
     // 元忠の伝所用具足の紺糸は錣も保つ。対象年以外は従来どおり。
     if (look.toriiFushimi && look.preserveLace && k === 'shikoroLace') continue;
     // 康政の南蛮胴と信繁の大坂の復元具足は紺糸を保つ。織田編と他の武将は従来どおり。
