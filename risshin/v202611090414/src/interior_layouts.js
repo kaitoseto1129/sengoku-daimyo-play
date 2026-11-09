@@ -1165,14 +1165,28 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       const cut = hd - .8;
       room('兵の休む板間', -hw, hw, -hd, cut, 'boards');
       room('入口の土間', -hw, hw, cut, hd, 'earth');
-      cross(cut, -hw + .1, hw - .1, entryX, false);
-      for (const x of [-hw + .65, hw - .65]) props.push({ part: 'bedding', x, z: -hd + .9, w: .7, d: 1.4, h: .12 });
+      // 全開の板戸と側壁の柱の間に二十四センチ残す。
+      cross(cut, -hw + .1, hw - .1, entryX, false, 0, (w - .2 - .48) / 4);
+      // 短い板間でも人が横になれる長さを取り、奥壁に二十センチ、板戸まで九センチ残す。
+      // 薄い寝具は踏んで通れ、家具の当たりで内戸の手前を塞がない。
+      const beddingD = Math.min(1.8, cut + hd - .29);
+      for (const x of [-hw + .65, hw - .65]) props.push({ part: 'bedding', x,
+        z: -hd + .2 + beddingD / 2, w: .7, d: beddingD, h: .12, walkable: true });
     } else {
       room(kind === 'granary' ? '兵糧を置く板間' : kind === 'lumber' ? '材木の土間'
         : kind === 'bansho' ? '番兵の板間' : '普請の道具を置く土間', -hw, hw, -hd, hd,
         kind === 'granary' || kind === 'bansho' ? 'boards' : 'earth');
       props.push({ part: kind === 'granary' ? 'rice' : kind === 'lumber' ? 'timber' : kind === 'bansho' ? 'ammo' : 'desk',
         x: -hw + .65, z: -hd + .55, w: .85, d: .55, h: kind === 'workshop' ? .46 : .55 });
+      if (raisedTatami && (kind === 'granary' || kind === 'lumber')) {
+        // 高画質の保管物は、共通の形の実寸を間取りと当たりにも渡す。
+        // 俵を長さだけ引き伸ばさず、材木の上に見えない壁も残さない。
+        // 保管の細部は推定（docs/battle_refs/sunomata.md）。奥壁から二十センチ空ける。
+        const stored = props[props.length - 1];
+        stored.d = kind === 'granary' ? .748 : .48;
+        stored.h = kind === 'granary' ? .758 : .332;
+        stored.z = -hd + .2 + stored.d / 2;
+      }
       if (kind === 'workshop') props.push({ part: 'chest', x: hw - .6, z: -hd + .5, w: .7, d: .5, h: .45 });
     }
   } else if (profile === 'okehazama' && kind === 'bansho') {

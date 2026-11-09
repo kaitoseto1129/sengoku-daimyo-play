@@ -67,7 +67,7 @@ function huntPlayer(rt, dt) {
   if (!held && best) best.focus = P;
 }
 // 11/6 critic60：殿と南岸の持ち場で、三十歩内に上杉が二十人いても本人へ斬りかかる者がいなかった（命が一度も減らない）。
-//   持ち場の段（北岸・南岸）の間だけ、本人から十二歩内の上杉の足軽・侍のうち近い四人を本人へ向ける。深手の時は二人まで。
+//   持ち場の段（北岸・南岸）の間だけ、本人から十八歩内の上杉の足軽・侍のうち近い四人を本人へ向ける。深手の時は二人まで。
 function pressPlayer(rt, dt) {
   const F = rt.flags;
   const P = rt.player.u, A = rt.army, now = A.time;
@@ -98,7 +98,8 @@ function pressPlayer(rt, dt) {
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
     if (d > 18 || Math.abs(o.pos.y - P.pos.y) > 1.8) continue;   // 11/8 critic60 一行目：十二歩→十八歩
-    if (o.target === P && o.pullUntil > now) { held++; F._pressed.push(o); continue; }
+    // 通常の戦いで既に本人を狙う者も、距離順と追加追撃の人数制限を通す。
+    // 先に数えると、深手でも四人以上へ追加の歩みを与えてしまう。
     o._pressD = d; pick.push(o);
   }
   if (held >= max || !pick.length) return;
@@ -1167,7 +1168,7 @@ function crossingRoute(rt) {
   return F.crossViaBank ? F.crossGuideAt.x === rt.player.u.pos.x ?
     '川から離れ、北岸の道へ' : '戦わず、北岸を通って二本の旗へ' :
     F.crossEntering ? '戦わず、二本の旗の間から川へ' :
-      F.crossInFord ? '向こう岸の二本の旗へ渡れ' : '川を出て、南岸の火へ';
+      F.crossInFord ? '向こう岸の二本の旗へ渡れ' : '川を出て、南岸の篝火へ';
 }
 
 function riverRecoveryText(rt) {
@@ -1180,7 +1181,7 @@ function riverRecoveryText(rt) {
   crossingTarget(rt);
   return F.crossViaBank ? '立ったら、岸に沿って浅瀬へ' :
     F.crossEntering ? '立ったら、川辺の二本の旗の間へ' :
-      F.crossInFord ? '立ったら、浅瀬をまっすぐ渡れ' : '立ったら、南岸の火へ';
+      F.crossInFord ? '立ったら、浅瀬をまっすぐ渡れ' : '立ったら、南岸の篝火へ';
 }
 
 // 手取川だけの見た目。兵の数・戦力・任務の数え方は変えない。
@@ -1344,7 +1345,7 @@ function waterActions(rt) {
         rt.flags.deepWallAt = rt.t + 8;
         const step = rt.flags.step;
         rt.say('組頭', step === 3 ? 'そこは深い！　幟の間の浅瀬を通れ' :
-          step >= 4 ? 'そこは深い！　南岸の火へ戻れ' :
+          step >= 4 ? 'そこは深い！　南岸の篝火へ戻れ' :
             step === 0 ? 'そこは深い！　まだ渡るな。柴田様の旗へ戻れ' :
               'そこは深い！　まだ渡るな。北岸の火を守れ', 4);
       }
@@ -1693,7 +1694,7 @@ function riverPushText(rt, C) {
 function riverDangerText(rt) {
   // 渡った後に、共通の人数警告で北岸の旗へ呼び戻さない。
   return rt.flags.step === 3 ? '味方が減った。戦わず浅瀬を渡れ' :
-    rt.flags.step === 4 ? '味方が減った。南岸の火で追手を止めよ' :
+    rt.flags.step === 4 ? '味方が減った。南岸の篝火で追手を止めよ' :
     '味方が減った。持ち場の火で列を守れ';
 }
 
@@ -1977,7 +1978,7 @@ const tedorigawa = {
       // 南岸の守りでも、流されて川へ戻ったら上陸を先にする。
       if (F.dp?.on && C?.s.tedoWaitCross &&
           (rt.player.u.pos.z < BANK_Z || rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)))
-        return '川から上がり、南岸の火へ戻れ';
+        return '川から上がり、南岸の篝火へ戻れ';
       // 列が危ない時は、普段の待機や槍の案内より立て直しを先に伝える。
       if (F.dp?.on && C?.isolatedT > 0) return '囲まれるぞ！　槍を向けたまま味方へ下がれ';
       if (F.dp?.on && C?.breachT > 0) return '追手が列を割る！　組と押し返せ';
@@ -2024,8 +2025,8 @@ const tedorigawa = {
       if (F.dp?.on && C?.s.tedoWaitCross) {
         if (C.frontThreat && !rt.player.guard) return riverGuardText();
         if (F.mainCross >= 100 && !F.crossRemaining)
-          return F.crossStranded > 0 ? '動ける者は渡った。南岸の火で追手を止めよ' :
-            '味方は渡った。南岸の火で追手を止めよ';
+          return F.crossStranded > 0 ? '動ける者は渡った。南岸の篝火で追手を止めよ' :
+            '味方は渡った。南岸の篝火で追手を止めよ';
         return text;
       }
       if (F.dp?.on && C?.s.tedoMain && F.mainCross >= 100)
@@ -2049,7 +2050,7 @@ const tedorigawa = {
       // 11/6 BT：渡る刻限は無い（十二3）。注意だけを出す。
       const hint = rt.player.u.wounds?.bleed > 0.0001 ? '血が出ている。戦わず南岸へ急げ' :
         F.crossInFord ? '左右は深い。浅瀬を外れるな' :
-          F.failedHold ? '殿は支えきれぬ。戦わず南岸へ退け' : '追手と戦わず、南岸の火へ';
+          F.failedHold ? '殿は支えきれぬ。戦わず南岸へ退け' : '追手と戦わず、南岸の篝火へ';
       return hint;
     }
     if (!F.dp?.on || !C) return progress;
@@ -2526,7 +2527,7 @@ const tedorigawa = {
       if (who === '使番' && /殿より。[「『]/.test(text)) return;
       // 局地の敵が逃げても、退き太鼓の後に共通の居残りの下知を重ねない。
       if (F.step === 3 && who === '柴田勝家' && fleeingLines.has(text))
-        text = '深追いするな！　幟の間を渡り、南岸の火へ退け！';
+        text = '深追いするな！　幟の間を渡り、南岸の篝火へ退け！';
       const key = String(text).replace(/[\s、。！!？?「」]/g, '');
       if (rt.t - (spoken.get(key) ?? -Infinity) < 8) return;
       spoken.set(key, rt.t);
@@ -2591,7 +2592,7 @@ const tedorigawa = {
       }
       if (kind === 'warn' && text.startsWith('危ない！')) {
         if (!F.nearThreat) return;
-        text = F.step === 3 ? '追手が迫る！　浅瀬を渡り、南岸の火へ' :
+        text = F.step === 3 ? '追手が迫る！　浅瀬を渡り、南岸の篝火へ' :
           F.step === 2 ? '味方の列へ寄れ！　追手へ槍を向けよ' : '追手が迫る！　組頭のそばへ';
         const before = valid;
         const step = F.step;
@@ -3030,7 +3031,7 @@ const tedorigawa = {
     // kaito 11/1 の紙・11/6 十二4：謙信が自ら馬廻の先頭で、背を向けて渡る織田へ渡り口まで突っ込む。
     kenshinRide(rt, 2);
     // 背を向けて渡る恐ろしさ（十二4）：北岸に残った追手も、渡り口から川の中まで追いすがる。
-    //   11/6 BT：一番近い二組は浅瀬を渡りきって南岸の火まで追い、ほかは増水の川の手前の水際で止まって喚く（上杉の大軍は濁流を越えない）。
+    //   11/6 BT：一番近い二組は浅瀬を渡りきって南岸の篝火まで追い、ほかは増水の川の手前の水際で止まって喚く（上杉の大軍は濁流を越えない）。
     const chasers = (F.pursuit || []).filter((g) => g.tedoActive && !g.routed && g.count && !g.tedoBow && !g.tedoBank);
     const P0 = rt.player.u.pos, cd = (g) => { const c = g.center(); return Math.hypot(c.x - P0.x, c.z - P0.z); };
     chasers.sort((a, b) => cd(a) - cd(b));
@@ -3050,7 +3051,7 @@ const tedorigawa = {
     // 本隊が川の中なら、殿の残り人数だけで「味方は渡った」と知らせない。
     const stillCrossing = F.mainCross < 100 || F.crossRemaining > 0;
     rt.banner(F.woundedRetreat ? '手負いは浅瀬へ退け' : F.lineBroken ? '殿の列が切れた' : stillCrossing ? '殿も退け' : '残る味方は渡った', F.woundedRetreat ? '持ち場へ戻らず、組と南岸へ渡れ' : F.lineBroken ? '持ち場を捨て、南岸へ渡って生きて退け' : stillCrossing ? '旗の間を渡れ。南岸で味方を迎えよ' : '殿も渡れ。浅瀬にも濁流が走る');
-    rt.obj('main', F.woundedRetreat ? '手負いは浅瀬を渡り、南岸へ退け' : F.lineBroken ? '列が破られた。浅瀬を渡り、南岸へ退け' : '浅瀬を渡り、南岸の火へ退け', 'main');
+    rt.obj('main', F.woundedRetreat ? '手負いは浅瀬を渡り、南岸へ退け' : F.lineBroken ? '列が破られた。浅瀬を渡り、南岸へ退け' : '浅瀬を渡り、南岸の篝火へ退け', 'main');
     // 渡る下知は札と台詞で伝える。古い持ち場へ戻す補足は残さない。
     rt.objectives.find((o) => o.id === 'main').cue = '';
     const crossOrder = F.woundedRetreat ? '持ち場へ戻るな。組と浅瀬を渡れ！' : F.lineBroken ? '列が切れた！　押し返すな。組と幟の間へ退け！' : F.failedHold ? '支えきれぬ！　持ち場へ戻らず、組と浅瀬を渡れ！' : F.crossRemaining ? '殿も渡れ。南岸で遅れた者を迎えよ！' : 'よう支えた。殿も渡れ、互いに腕を取れ！';
@@ -4194,7 +4195,7 @@ function tedoHold(o) {
     }
     if (!onSouthBank && rt.t >= (F.bankCallAt || 0)) {
       F.bankCallAt = rt.t + 12;
-      rt.say('組頭', '川から上がれ！　南岸の火で北を向け！', 3.5);
+      rt.say('組頭', '川から上がれ！　南岸の篝火で北を向け！', 3.5);
     }
     if (inRing && el >= 8 && !C.postCalled && !F.tedoQueuedSignal.kind &&
         rt.t >= (F.tedoSignalUntil || 0) && rt.t >= (F.tedoCallUntil || 0)) {
@@ -4235,9 +4236,9 @@ function tedoHold(o) {
       if (C.waitingCross !== waiting) {
         const wasWaiting = C.waitingCross;
         C.waitingCross = waiting;
-        rt.obj('dp', waiting ? '南岸の火で北を向き、渡る味方を守れ' : '南岸の火で北を向き、追手を止めよ', 'main');
-        if (wasWaiting && !waiting) rt.say('組頭', !onSouthBank ? '川から上がれ！　南岸の火へ戻れ！' :
-          !inRing ? '動ける者は渡った。南岸の火へ戻れ！' :
+        rt.obj('dp', waiting ? '南岸の篝火で北を向き、渡る味方を守れ' : '南岸の篝火で北を向き、追手を止めよ', 'main');
+        if (wasWaiting && !waiting) rt.say('組頭', !onSouthBank ? '川から上がれ！　南岸の篝火へ戻れ！' :
+          !inRing ? '動ける者は渡った。南岸の篝火へ戻れ！' :
           F.crossStranded > 0 ? '動ける者は渡った。火のそばで追手を止めよ！' :
           tedoHeld(C, F) && holdLeft > 0 ? '味方は渡った！　合図までは火を守れ！' :
             '味方は渡った！　残る追手を止め、列をそろえよ！', 3.5);
@@ -4254,7 +4255,7 @@ function tedoHold(o) {
     const returnProgress = (o.push ? '組と押し返す持ち場へ進め。' : `${o.label || '持ち場の火'}へ戻れ。`) +
       (o.waitCross ? o.readyMain && F.mainCross < 100 ? `本隊の渡河は${Math.floor(F.mainCross / 10)}割。岸で守れ` : F.crossRemaining > 0 ? `渡る味方はあと${F.crossRemaining}人` : F.crossStranded > 0 ? '動ける味方は渡った。北の追手を止めよ' : '味方は渡った。北の追手を止めよ' :
         o.readyMain ? `本隊の渡河 ${Math.floor(F.mainCross / 10)}割` : '北を向き、組と追手を止めよ');
-    const progress = !onSouthBank ? '川から上がり、南岸の火へ戻れ' : C.isolatedT > 0 ? '囲まれるぞ！　槍を向けたまま味方へ下がれ' : C.breachT > 0 ? '追手が列を割る！　組と押し返せ' : !inRing ? returnProgress :
+    const progress = !onSouthBank ? '川から上がり、南岸の篝火へ戻れ' : C.isolatedT > 0 ? '囲まれるぞ！　槍を向けたまま味方へ下がれ' : C.breachT > 0 ? '追手が列を割る！　組と押し返せ' : !inRing ? returnProgress :
       // 近い追手へ向き直り、渡河の残りと守る働きを同じ札で伝える。
       riverFacingHint(rt, C) ? riverTurnText(rt, C) :
       C.frontThreat && !rt.player.guard ? riverGuardText(!!o.push && !F.playerHelp) :
@@ -4348,9 +4349,9 @@ function tedoB() {
   const S = { x: SOUTH.x, z: SOUTH.z - 2 };
   return [
     tedoHold({ at: S, dur: 100, waitCross: true, readyMain: true, stopSignal: true, r: 14, title: '南の岸の殿', sub: '北へ槍を向け、退き道を守る', label: '南岸の篝火',
-      obj: (rt) => rt.flags.mainCross < 100 || rt.flags.crossRemaining > 0 ? '南岸の火で北を向き、渡る味方を守れ' : '南岸の火で北を向き、追手を止めよ',
-      say: [['組頭', (rt) => rt.flags.mainCross < 100 || rt.flags.crossRemaining > 0 ? '南岸の火で北を向け！　遅れた味方を守れ！' :
-        rt.flags.crossStranded > 0 ? '動ける者は渡った！　南岸の火で追手を止めよ！' : '味方は渡った！　南岸の火で追手を止めよ！']],
+      obj: (rt) => rt.flags.mainCross < 100 || rt.flags.crossRemaining > 0 ? '南岸の篝火で北を向き、渡る味方を守れ' : '南岸の篝火で北を向き、追手を止めよ',
+      say: [['組頭', (rt) => rt.flags.mainCross < 100 || rt.flags.crossRemaining > 0 ? '南岸の篝火で北を向け！　遅れた味方を守れ！' :
+        rt.flags.crossStranded > 0 ? '動ける者は渡った！　南岸の篝火で追手を止めよ！' : '味方は渡った！　南岸の篝火で追手を止めよ！']],
       waves: [
         { t: 5, say: ['足軽', '追手も渡ってきよる！'], foes: () => [{ name: '渡ってくる上杉勢', from: { x: -10, z: -24 }, list: [uS(1), uA(8)], mass: 220 }] },
         { t: 8, say: ['足軽', '北の岸から矢じゃ！　川へ戻らず、味方の列へ！'], foes: () => [gunLine('北の岸の弓衆', { x: 10, z: -34 }, S, 5, { list: [uS(1), { type: 'bow', n: 5 }], kind: 'bow' })] },

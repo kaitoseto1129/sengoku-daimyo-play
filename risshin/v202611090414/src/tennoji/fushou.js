@@ -51,6 +51,9 @@ export function install(rt, ctx) {
       const u = N();
       if (!u?.alive) { done = true; F.fushouDone = true; return; }
       if (!shotT) {
+        // 実弾で先に撃たれた時は、その場面を済んだものとする。
+        // 六十秒の合図で再び体力を削り、同じ負傷の声と斉射を重ねない。
+        if (F.nobuShotSaid) { done = true; F.fushouDone = true; return; }
         const el = rt.t - t0, d = Math.hypot(u.pos.x - T_GATE.x, u.pos.z - T_GATE.z);
         if (el > 60 || (el > 40 && d < 45)) shoot();
       } else if (rt.t - shotT > 7 && !F.fushouRise) { F.fushouRise = true; rise(); }

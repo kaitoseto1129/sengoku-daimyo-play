@@ -3949,7 +3949,10 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         // 殿が討ち減らされたら、背後の木戸へ走って退く。
         if (F.kidoCut && !g.kidoRetreat && live <= Math.ceil(g.units.length / 2)) {
           g.kidoRetreat = true; g.noRout = false;
+          // 迎撃の考えと交戦相手を外し、木戸へ退く下知を途中で攻めに戻さない。
+          g.ai = false;
           g.guard = false; g.aggro = 0; g.seekRange = 0; g.fire = false;
+          for (const enemy of g.units) { enemy.target = null; enemy.aiT = 0; }
           march(g, [[g.anchor.x, KIDO.z - 26]], 'hold', 0, 4);
         }
       }

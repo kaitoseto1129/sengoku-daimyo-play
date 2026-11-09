@@ -11,6 +11,23 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 土佐神社の伝元親所用・黒漆突盔形兜と紺糸威胴取五枚胴による略復元。
+  // 豊臣期だけで使い、織田編の姿は保つ。出所と補完：docs/generals_look_1108/長宗我部元親.md。
+  if (name === '長宗我部元親' && year >= 1585 && year <= 1599 && KACCHU[name]) {
+    const key = name + '|伝突盔五枚胴';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'toppai', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x232c40, odo: 0x232c40, shikoroLace: 0x232c40, preserveLace: true,
+      doStyle: 'okegawa', doOpening: 'gomai', plateDo: null,
+      sodeStyle: 'kebiki', shikoroStyle: 'kebiki',
+      kusazuriColor: 0x1c1a1a, kusazuriBands: Array(5).fill(0x232c40),
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, horo: 0, fur: 0,
+      mon: 'chosokabe', flag: 'chosokabe', uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 林原美術館の伝恒興所用・黒塗黒糸威桶側胴具足。三戦の着用は未確認。
   // 山崎・小牧・長久手だけで使い、織田編の共通表・専用指定は保つ。
   // 出所と省略箇所：docs/generals_look_1108/池田恒興.md。

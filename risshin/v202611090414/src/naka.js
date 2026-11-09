@@ -3582,6 +3582,7 @@ function buildInside(rt, I) {
     timberBox(ceilingBoards, w, h, d, x, y, z, color);
   const Ls = I.levels, ds = I.door.side, boardFloors = [];
   const toride = I.profile === 'toride';
+  const torideJoinery = toride && S.quality === 'high';
   // 天井板の長手へ木目を通す。切った板も局所座標から続け、全棟で同じ絵を使う。
   // 既存の板を置き換えるだけにし、形の枚数や毎コマの仕事は増やさない。
   const ceilingBoard = (left, right, back, front, yy, alongZ, hex) => {
@@ -6993,7 +6994,10 @@ if (nodaJoinery) {
     // 御殿・堂は梁を天井の上に隠す（書院造）。櫓・天守と、天井を張らない建物だけ梁と桁を見せる
     // 設楽原の民家は外観側の小屋梁・叉首・母屋・垂木を室内からも使う。
     // 別の柱割りと勾配の木組みを重ねず、座敷の竿縁天井だけをここで作る。
-    const showBeams = !templeCeiling && !villageHome && (!goten || I.open || plainCeiling || exposedBeams || (I.profile === 'anegawa' && I.kind === 'nagaya')
+    // 墨俣の高画質は外観側の柱筋に載る梁・桁を室内でも共用する。
+    // 別割りの梁と室内へ寄せた桁を重ねず、小屋組の向きと受けをそろえる。
+    // 簡素な板屋としての推定。手本と限界は docs/battle_refs/sunomata.md。
+    const showBeams = !torideJoinery && !templeCeiling && !villageHome && (!goten || I.open || plainCeiling || exposedBeams || (I.profile === 'anegawa' && I.kind === 'nagaya')
       || (I.profile === 'kanegasaki' && ['bansho', 'kura', 'nagaya'].includes(I.kind)));
     // 稲葉山の用屋は壁の柱筋へ梁を載せる。等間隔の別割りで柱間へ浮かせない。
     const inabaBeamFrame = inabaBoards && plainCeiling;
@@ -7972,6 +7976,23 @@ if (igaOpenRoof) {
       // 目地の奥には暗い裏面を残し、土間まで同じ板を下ろす。近づいた時だけ既存の束へまとめる。
       const wallPanel = (a, b, low, high) => {
         const mid = (a + b) / 2, cy = y + (low + high) / 2, height = high - low;
+        if (torideJoinery) {
+          // 墨俣の簡素な板屋は内側も縦板。細部は推定（docs/battle_refs/sunomata.md）。
+          // 六センチの壁厚内で裏板と表板を分け、窓・戸口の穴と当たりを保つ。
+          // 木目・原形は共用し、近づいた時に既存の木部の束へ一度だけ結合する。
+          if (face === 'z') box(mid, cy, sd * (off + .024), b - a, height, .012, DARK);
+          else box(sd * (off + .024), cy, mid, .012, height, b - a, DARK);
+          const step = .4, colors = [0x9b805c, 0x8b7251, 0xa58b66, 0x79644b];
+          for (let j = Math.floor((a + len / 2) / step); -len / 2 + j * step < b; j++) {
+            const left = Math.max(a, -len / 2 + j * step + .002);
+            const right = Math.min(b, -len / 2 + (j + 1) * step - .002);
+            if (right <= left) continue;
+            const t = (left + right) / 2, tone = colors[(j % 4 + 4) % 4];
+            if (face === 'z') entryTimber(t, cy, sd * (off - .006), right - left, height, .048, tone);
+            else entryTimber(sd * (off - .006), cy, t, .048, height, right - left, tone);
+          }
+          return;
+        }
         if (nagashimaBoards) {
           // 既存の六センチの壁厚に裏板と縦板を収める推定の板組。
           // 窓の上下も壁全体の板割りを共有し、表戸の二筋や柱の内側へ張り出さない。
@@ -9474,6 +9495,13 @@ if (igaOpenRoof) {
         if (k === 0 && face === 'z' && sd === ds && Math.abs(t - I.door.lx) < I.door.w / 2 + .2) continue;
         const postZ = face === 'z' ? sd * hd : t;
         const bottom = earth && postZ >= earth.z0 && postZ <= earth.z1 ? earth.y : 0;
+        if (torideJoinery) {
+          // 墨俣は外観側の隅柱・梁受け柱・開口脇の柱を室内からも共用する。
+          // 室内だけ別の柱割りを重ねると梁筋から外れ、窓の上に短い束が浮く。
+          // 窓台・まぐさを受ける架構は b_sunomata.js の fortShed が組む。
+          // 簡素な板屋としての推定（docs/battle_refs/sunomata.md）。
+          continue;
+        }
         // 民家と小堂の隅は二面で一本の柱を共有する。
         // 壁端のまま各面へ柱を立てると、芯が十六センチずれた二本になり、
         // 両面の長押も同じ隅柱を抱けない。正背面で内側の芯へ一度だけ立てる。
@@ -9546,6 +9574,22 @@ if (igaOpenRoof) {
         } else {
           const end = hd - .1 - .18 - .05;
           box(inner, y + nageshiY, 0, .1, .1, end * 2, DARK);
+        }
+      } else if (torideJoinery) {
+        // 板壁の中へ埋まっていた横木を柱の室内側へ掛ける推定の納まり。
+        // 手本と限界は docs/battle_refs/sunomata.md。腰の横木も柱をつなぎ、
+        // 窓・戸口は壁と同じ穴で切る。高画質の既存の木材の束だけを使う。
+        const inner = sd * (off - .16), end = len / 2 - (face === 'z' ? .1 : .31);
+        for (const railY of [.65, nageshiY]) {
+          for (const [a, b, low, high] of facePanels(len, h, holes)) {
+            const left = Math.max(a, -end), right = Math.min(b, end);
+            const bottom = Math.max(low, railY - .05), top = Math.min(high, railY + .05);
+            if (right <= left || top <= bottom) continue;
+            const t = (left + right) / 2, yy = y + (bottom + top) / 2;
+            // 側面の木口は正背面の横木の内面へ突き付け、隅で面を重ねない。
+            if (face === 'z') entryTimber(t, yy, inner, right - left, top - bottom, .1, DARK);
+            else entryTimber(inner, yy, t, .1, top - bottom, right - left, DARK);
+          }
         }
       } else if (face === 'z') box(0, y + nageshiY, sd * (off - 0.06), len, 0.1, 0.1, DARK);
       else box(sd * (off - 0.06), y + nageshiY, 0, 0.1, 0.1, len, DARK);
