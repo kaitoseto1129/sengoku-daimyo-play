@@ -2216,10 +2216,10 @@ function anegawaTask(rt) {
   const hurtHq = F.step === 1 && F.taskHurt && (F.hqThreat || F.hqDefend);
   const returnHq = anegawaHqReturnPriority(rt);
   const text = returnHq ? anegawaHqReturnText(rt) : hurtHq ? anegawaHurtHqText(rt, F.retreatReached) : F.taskHurt ? !F.retreatSafe ? '槍を構え、南へ下がれ' : canTreat ?
-    F.retreatReached ? 'ここで布を巻き、手当てせよ' : '退き先へ下がり、布で手当てせよ' : F.retreatReached ? rt.player.treatmentLeft > 0 ? '味方の後ろで構え、息を整えよ' : '傷は残る。味方の後ろで構えよ' : '印へ下がり、槍を構えよ' : F.step === 2 ? anegawaPursuitText(rt) :
+    F.retreatReached ? '南の退き先で布を巻き、手当てせよ' : '退き先へ下がり、布で手当てせよ' : F.retreatReached ? rt.player.treatmentLeft > 0 ? '味方の後ろで構え、息を整えよ' : '傷は残る。味方の後ろで構えよ' : '印へ下がり、槍を構えよ' : F.step === 2 ? anegawaPursuitText(rt) :
     F.hqThreat || F.hqDefend ? atHq ? anegawaHqWatchText(rt) : near >= 3 ? '槍を構え、味方と本陣前へ退け' : '本陣前へ戻り、抜けた敵を止めよ' : east ? '東の瀬で別手を止めよ' : pushing ?
     Math.hypot(P.pos.x - F.pushAt.x, P.pos.z - F.pushAt.z) > 18 ? '押し返す味方の槍列へ合流せよ' : '横槍に合わせ、味方と浅井を押せ' :
-    !hasLine ? F.atHold ? near ? '本陣前で構え、敵を通すな' : 'ここで構え、味方の旗を守れ' : '本陣前へ戻り、残る味方と守れ' : holding || (F.breach >= 3 ? '印の槍列で槍を揃え直せ' : F.holdAt.z > POST.z + 4 ? '印の槍列へ戻り、浅井を止めよ' : '川を渡らず、岸で浅井を止めよ');
+    !hasLine ? F.atHold ? near ? '本陣前で構え、敵を通すな' : '本陣前で構え、味方の旗を守れ' : '本陣前へ戻り、残る味方と守れ' : holding || (F.breach >= 3 ? '印の槍列で槍を揃え直せ' : F.holdAt.z > POST.z + 4 ? '印の槍列へ戻り、浅井を止めよ' : '川を渡らず、岸で浅井を止めよ');
   // 槍列を失った時と本陣前へ着いた時も、古い下知を十秒残さない。
   const guide = returnHq ? 'hq' : F.taskHurt ? 'hurt' : F.step === 2 ? gone(F.rear) ? 'cross' : 'pursue' : F.hqThreat || F.hqDefend ? 'hq' : east ? 'east' : pushing ? 'push' : !hasLine ? F.atHold ? near ? 'rallyFight' : 'rallyWait' : 'regroup' : F.atHold ? F.holdWaiting ? 'wait' : 'line' : 'hold';
   // 下知と行き先が替わる時は、古い札を十秒残さない。
@@ -2254,6 +2254,8 @@ function deploy(rt, team, o, list) {
   source.real = g;
   const fill = () => {
     if (rt.over || F.ending) return;
+    // 枠待ちの間に崩れた隊は寄せ直さない。退く下知が出た後も控えを抜いていた。
+    if (g.routed || g.order === 'retreat') { g.anePending = false; return; }
     KIT.freeRoom(rt, list.reduce((v, q) => v + q.n, 0));
     // 11/6（fix3）：横槍の稲葉の手は枠待ちで一分以上出なかった。この手だけ十六人まで上乗せ（戦う本物は二百五十人ほどまでに収まる）。
     //   11/6（fixc1803）：十六人の上乗せでも枠待ちが百秒続いた（描かない通しで確かめた）。三十二人に（横槍の間だけ二百五十人をわずかに越える）。
@@ -3019,7 +3021,7 @@ const anegawa = {
     line.threat = threat;
     line.showFacingFlag = false; // 本陣も任務の旗を使い、向きのための二本目を足さない。
     line.keepVisibleWithEnemy = threat;
-    line.label = threat ? '本陣前・ここを守る' : F.holdAt.z <= POST.z + 4 ? '川岸・ここで待つ' : '味方の列・ここで守る';
+    line.label = threat ? '本陣前の旗を守れ' : F.holdAt.z <= POST.z + 4 ? '姉川の南岸で待て' : '味方の槍列を守れ';
     return line;
   },
   // 届く相手の打ち終わりには反撃を案内する。傷・退却・射撃の案内は共通の判断を先にする。
