@@ -21,7 +21,7 @@ export function startNight(rt, K) {
     F.campFiresLit = true;
   }
   // 陣の間の備は帰す（本物の兵の枠を夜の列に回す）
-  for (const g of [...(F.campBi || []), F.council, F.porters, F.sortie]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+  for (const g of [...(F.campBi || []), F.council, F.moriOrders, F.porters, F.sortie]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
   // 森勢の列（本物の兵）：主人公と五条川の渡しへ。松明は持たない
   F.moriG = allyGroup(rt, { name: '森長可の隊', fullStrength: true, anchor: { x: K.MORIJIN.x - 6, z: K.MORIJIN.z + 6 }, facing: 0, width: 6, formation: 'column', aggro: 8, seekRange: 12, speed: 2.8, order: 'move', noRout: true, dmgMult: 0.5 },
     K.fl([{ type: 'busho', n: 1, o: { name: '森長可', horse: true, invuln: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 12, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], 'tsuru'));
@@ -68,7 +68,7 @@ export function tickNight(rt, K) {
     say(rt, '使番', '孫七郎様の本隊、無事に川を越えられました', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
-  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (K.aliveN(F.tAmb) <= 1 || rt.t - F.ambush > 60) && el > 140) {
+  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (!K.live(F.tAmb) || F.tAmb.routed || K.aliveN(F.tAmb) <= 1) && el > 140) {
     rt.award((t) => t.side.push('夜の道で徳川の物見を払い、五条川の渡しに着いた'), '五条川の渡しに着いた');
     K.next();
   }
