@@ -20,6 +20,12 @@ const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ?
 const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
 
 export const REQUIRED_KACCHU = [
+  // 本人所用の具足は未確認。桃山～江戸初期の現存品から、黒漆・桃形兜・白糸素懸の二枚胴を借りる。
+  ['木村重成', 'momonari', 'none', D.kuro, C.shiro, 'sugake', 0, 'none', 'toyotomi',
+    { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'nimai', doSugake: true,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: C.shiro,
+      menpo: 0, fur: 0, kumage: false, uma: null, shinodare: false, fukigaeshiBadge: false },
+    '宇和島市蔵・愛媛県歴史文化博物館寄託の土居家伝来「黒糸威二枚胴具足」による同時代の型の復元案。本人所用品ではない。後補の前立・脇立・陣羽織・個人紋・馬印は補わない。旗は豊臣方の所属表示。出所と補完は docs/generals_look_1108/木村重成.md'],
   // 関ヶ原着用伝承の現存具足を大坂の陣へ用いる復元。冠・獅噛・熊毛は共用の形。
   ['水野勝成', 'zunari', 'mizuno_shikami', D.chaurushi, C.cha, 'okegawa', 0, 'mizuno', 'mizuno', { lac: 'sabi', fuki: 'lac', doOpening: 'nimai', plateDo: null, sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: C.cha, kusazuriCount: 6, kusazuriLaceRows: 5, kusazuriColor: D.chaurushi, kusazuriBands: Array(5).fill(C.cha), menpo: 0x3a2a20, menpoStyle: 'hanbo', fur: 0x171512, kumage: true, horo: 0, uma: null, shinodare: false, fukigaeshiBadge: false }, '賢忠寺蔵・革包茶糸威二枚胴具足。熊毛植唐冠形兜・漆塗獅噛・茶漆の横矧桶側二枚胴・茶糸威・六間五段草摺。大坂当日の着用と面頬の細部は未確認。旗は所属表示、陣羽織・脇立・個人馬印は補わない。出所と補完は docs/generals_look_1108/水野勝成.md'],
   // ── 織田編 ──
