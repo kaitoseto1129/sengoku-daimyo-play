@@ -317,7 +317,8 @@ function flags(rt) {
 
 // 曲輪の守り（段の敵の組の形）：鉄砲は上から撃つ
 //   守り手は柵・虎口の内に留まる（柵の外の平地へぞろぞろ出て来た。11/8 critic60）：寄せ手が内へ入るまで追わない（追う輪を十六歩に）
-const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 8, list, seek: o.seek || 16, morale: o.morale || 92 });
+// 出す位置だけでなく持ち場も同じ所へ。b_depth は off が無いと曲輪の中央を持ち場にし直す。
+const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, off: { x: o.dx || 0, z: o.dz || 0 }, width: o.width || 8, list, seek: o.seek || 16, morale: o.morale || 92 });
 
 // 付け入り（docs/kaito_refs_1103 の山中城の型・kaito 11/3）：御主殿の城兵が冠木門を開いて石段を下り、曳橋を渡って打って出る。
 //   ① 曳橋の南の袂で迎え撃つ → 半ばを討つと石段を退く ② 退く敵に紛れて冠木門へ駆け込めば、門を閉める間を与えず御主殿へなだれ込む（F.tsukeiri）。
@@ -355,6 +356,8 @@ function sallyStep() {
     },
     tick(rt, C, m, ctx, el) {
       const F = rt.flags, g = F.sallyG, p = rt.player.u.pos;
+      // 本人が門か御主殿へ着くまで、味方だけで付け入り・虎口突破を済ませない。
+      const entered = Math.hypot(p.x - KOGUCHI.x, p.z - KOGUCHI.z) < TSUKE_R || (p.x > 20 && p.x < KOGUCHI.x && p.z > -20 && p.z < 14);
       // ① 迎え撃つ：半ばを討てば石段を退く
       if (!F.sallyBack) {
         rt.objProgress('dp', `敵 ${live(g)}人`);
@@ -372,13 +375,11 @@ function sallyStep() {
         }
         return false;
       }
-      // ② 付け入り：退く敵に追いすがって冠木門へ（自分か、味方の先の者）
+      // ② 付け入り：本人が退く敵に追いすがって冠木門へ
       if (!F.tsukeiri && !F.gateShut) {
         rt.objProgress('dp', '');   // 残りの秒の字は出さない（画面の字は名前・数・目標だけ。11/8 critic60）
         // 冠木門をくぐらずに石垣の脇から御主殿の内へ入った時も付け入りとする（行き先の門が後ろへ遠ざかった。11/8 critic60）
-        let inn = Math.hypot(p.x - KOGUCHI.x, p.z - KOGUCHI.z) < TSUKE_R || (p.x > 20 && p.x < KOGUCHI.x && p.z > -20 && p.z < 14);
-        if (!inn) for (const f of ctx.friends(rt)) for (const u of f?.units || []) if (u.alive && Math.hypot(u.pos.x - KOGUCHI.x, u.pos.z - KOGUCHI.z) < 3) { inn = true; break; }
-        if (inn) {
+        if (entered) {
           F.tsukeiri = true;
           rt.banner('付け入り', '門を閉める間を与えず、御主殿へなだれ込む');
           sfx('horagai', 0.8);
@@ -399,7 +400,7 @@ function sallyStep() {
       // 門を固められた時：冠木門の守りを討てば虎口を抜ける（虎口の鉄砲は上の段にいて、門の内からしか届かない。抜ければ崩れる）
       const rest = live(F.gateG);
       rt.objProgress('dp', `冠木門の敵 ${rest}人`);
-      return rest <= 2;
+      return rest <= 2 && entered;
     },
     end(rt, C) {
       for (const q of C.groups) if (q) { q.noRout = false; q.morale = Math.min(q.morale, 10); }
