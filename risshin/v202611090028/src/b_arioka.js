@@ -28,6 +28,12 @@ import { evPerson, evReach } from './b_ev6.js';
 import { camp } from './b_mid.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { makeKakoi, kakoiEvent } from './kakoi.js';
+// 15分の段（kaito 11/8 夜・docs/oda15_plan_1108.md の 27）：段の中身は arioka/ に一段一ファイル
+import * as AR_OPEN from './arioka/kaimaku.js';
+import * as AR_SOTO from './arioka/sotoguruwa.js';
+import * as AR_SEI from './arioka/seiatsu.js';
+import * as AR_UCHI from './arioka/uchimon.js';
+import * as AR_YOIN from './arioka/yoin.js';
 import { demBlend } from './dem.js';
 import { INTERIOR_WALLS } from './shironaka.js';
 import { NAKA } from './naka.js';
@@ -1533,6 +1539,9 @@ const arioka = {
   },
   missionHeading(rt) {
     if (rt.flags.ending && !rt.flags.kanbePending && !rt.tracker.main) return '退き太鼓。木戸の外へ退け';
+    if (!rt.flags.ending && rt.flags.dpW && !rt.flags.dpA) return '②惣構えの通りの角を押さえよ';
+    if (!rt.flags.ending && rt.flags.dpU) return '④侍町の奥の木戸を押さえよ';
+    if (!rt.flags.ending && rt.flags.dpD) return '④侍町の焼け跡に残る荒木勢を退けよ';
     const k = this.missionOf(rt);
     return '①②③④⑤'[k] + this.missions[k];
   },
@@ -1549,7 +1558,7 @@ const arioka = {
     const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3 });
     const stage = this.missionOf(rt);
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
-    const at = stage === 4 ? F.kanbeAt : stage === 0 ? { x: GATE.x - 30, z: GATE.z } : stage === 1 ? { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
+    const at = stage === 4 ? F.kanbeAt : stage === 0 ? AR_OPEN.pin(rt, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z } : stage === 1 ? C?.at || { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
     post.x = at.x; post.z = at.z;
     const way = stage === 4 ? post : gateWay(rt.army, rt.player.u, post);
     pin.x = way.x; pin.z = way.z;
@@ -2570,13 +2579,14 @@ const arioka = {
     rt.after(7, () => { if (F.step === 0 && !F.ending) rt.say('使番', '村重は九月に城を抜け、尼崎へ移った。残る者は一年の囲みに弱っておる', 4); });
     // 十月十五日の夜、信長は安土・秀吉は播磨・光秀は丹波にあり、この口にはいない。陣には滝川一益と旗本だけを置く。
     ariMark(rt, 'taki', { x: GATE.x - 30, z: GATE.z }, '上臈塚の木戸');
+    AR_OPEN.install(rt, ariOpenCtx());   // 開幕の段（arioka/kaimaku.js）：二分半ほどで木戸が開く
     // 11/6 描いて遊ぶ：十秒で木戸が開き、竹束を押し立てて寄せる姿も塀の上の発砲も写真に入らなかった（critic60 の△）。
     // 竹束の後ろの印へ本人が寄ってから開く。時間だけで①を果たした事にしない。
     F.openAt = rt.t + 18;
     const t0 = rt.t, wait = () => {
       if (F.step >= 1 || F.ending || rt.over) return;
       const p = rt.player.u.pos, near = Math.hypot(p.x - (GATE.x - 30), p.z - GATE.z) < 9;
-      if (near && rt.t - t0 >= 18) this.open(rt);
+      if (AR_OPEN.mayOpen(rt, near && rt.t - t0 >= 18)) this.open(rt);
       else rt.after(0.5, wait);
     };
     rt.after(10, wait);
@@ -2653,8 +2663,9 @@ const arioka = {
     F['dp' + which] = true;
 
     F.dpOn = true; rt.objRemove('dp');
-    rt.obj('main', which === 'A' ? ARI_GOALS[2] : ARI_GOALS[3], 'main');
-    depthStart(rt, ariCtx(rt), which === 'A' ? ariA() : ariC(), () => { F.dpOn = false; rt.after(3, () => { const q = rt.objectives.find((x) => x.id === 'dp'); if (q && q.state) rt.objRemove('dp'); }); if (!F.ending) then(); });
+    if (which === 'C') ariReinforce(rt, ARI_JUNCTION, 10);   // 辻の守りの前に新手の組（15分の段で味方が減り切らないように）
+    rt.obj('main', which === 'A' ? ARI_GOALS[2] : which === 'W' ? '惣構えの通りの角を押さえよ' : which === 'D' ? '侍町の焼け跡を改めよ' : which === 'U' ? '侍町の奥の木戸を押さえよ' : ARI_GOALS[3], 'main');
+    depthStart(rt, ariCtx(rt), which === 'A' ? ariA() : which === 'W' ? AR_SOTO.stages(ariH()) : which === 'D' ? AR_SEI.stages(ariH()) : which === 'U' ? AR_UCHI.stages(ariH()) : ariC(), () => { F.dpOn = false; rt.after(3, () => { const q = rt.objectives.find((x) => x.id === 'dp'); if (q && q.state) rt.objRemove('dp'); }); if (!F.ending) then(); });
   },
 
   win(rt) {
@@ -2718,7 +2729,7 @@ const arioka = {
         rt.flags.kanbeMet = true;
         rt.hud?.root?.classList.remove('arioka-kanbe');
         rt.after(5, () => rt.objDone('main'), true);
-        rt.after(8, () => rt.finish({ scriptedEnd: true }, 4), true);
+        rt.after(8, () => AR_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 4)), true);   // 三十秒の余韻（arioka/yoin.js）の後に締める
       // 待ち時間だけでは迎えた事にしない。遠くへ離れた本人にも印を残す。
       }, { limit: Infinity });
     });
@@ -2749,9 +2760,10 @@ const arioka = {
     retreatGateTick(rt);
     if (F.K) F.K.tick(dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
+    AR_OPEN.tick(rt, ariOpenCtx());
     ariTownsfolk(rt);
     // 木戸・辻・帰還を含む局地戦は、七分までに決着させる。
-    if (rt.t >= 410) { this.lose(rt, '攻めの時が尽きた。木戸の外へ退け'); return; }
+    if (rt.t >= 1020) { this.lose(rt, '攻めの時が尽きた。木戸の外へ退け'); return; }
     if (!F.coverTaught && (rt.aimedT || 0) > 0) {
       F.coverTaught = true; F.coverUntil = rt.t + 8; F.gunResumeAt = rt.t + 6;
       const p = rt.player.u.pos;
@@ -2812,8 +2824,16 @@ const arioka = {
         rt.award((t) => t.side.push('砦の兵を退けた'), '砦の兵を退けた');
         F.g1Done = true;
         // 主任務は木戸の防衛が済んで初めて達成。
-        this.deep(rt, 'A', () => this.deep(rt, 'C', () => this.win(rt)));
-      } else if (rt.t - F.stepT > 180) this.lose(rt, '木戸の先の敵が崩れぬ');
+        // 15分の段：木戸の内 → 惣構えの通り（arioka/sotoguruwa.js）→ 侍町の辻 → 辻の守り → 焼け跡を改める（arioka/seiatsu.js）→ 官兵衛
+        this.deep(rt, 'W', () => this.deep(rt, 'A', () => this.deep(rt, 'C', () => this.deep(rt, 'D', () => this.deep(rt, 'U', () => this.win(rt))))));
+      } else if (rt.t - F.stepT > 240) this.lose(rt, '木戸の先の敵が崩れぬ');
+      else if (rt.t - F.stepT > 150 && !gone(F.g1) && !F.g1Broke) {
+        // 二分半押し合えば、内応で口を失った木戸の荒木勢は砦の奥へ崩れる（11/8 bot：数人が残り段が進まず負けた）
+        let able = 0;
+        for (const u of F.g1.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) able++;
+        for (const q of F.gateInner || []) if (!gone(q)) { q.routed = true; q.order = 'flee'; q.noRout = false; q.morale = 0; q.fleeDir = { x: 1, z: 0 }; for (const u of q.units) if (u.alive) { u.fleeing = true; u.target = null; } }
+        if (able <= 14) { F.g1Broke = true; F.g1.routed = true; F.g1.order = 'flee'; F.g1.noRout = false; F.g1.morale = 0; F.g1.fleeDir = { x: 1, z: 0 }; for (const u of F.g1.units) if (u.alive) { u.fleeing = true; u.target = null; } rt.say('滝川の組頭', '木戸の荒木勢が崩れたぞ！　内へ入れ！', 3.5); }
+      }
     }
   },
 
@@ -2878,7 +2898,7 @@ function prepareDefenders(rt) {
     { x: 20, z: -62 }, { x: 30, z: -60 }, { x: 30, z: 32 }, { x: 48, z: 32 },
   ].map((p) => ({ x: TOWN_X + p.x, z: p.z }));
   let i = 0;
-  for (const [reserve, steps] of [[false, ariA()], [true, ariC()]]) {
+  for (const [reserve, steps] of [[false, ariA()], [true, ariC()], [false, AR_SOTO.stages(ariH())], [false, AR_SEI.stages(ariH())], [false, AR_UCHI.stages(ariH())]]) {
     for (const step of steps) {
       if (!step.ariOrders) continue;
       for (const order of step.ariOrders) for (const sp of order.foes(rt, {})) add(sp, positions[i++], reserve);
@@ -3098,7 +3118,7 @@ function ariStage(o, defending) {
             ? `味方${friend}人・敵${enemy}人${C.rangedEnemy ? `・射手${C.rangedEnemy}人` : ''}\n期限あと${left}秒`
             : `辻まで${Math.ceil(Math.hypot(p.x - C.at.x, p.z - C.at.z))}メートル／期限${left}秒`);
         }
-        return C.inT >= 12;
+        return C.inT >= 12 && el >= (o.minEl || 0);   // minEl：寄せ手が着く前に十二秒で済ませない段（arioka/ の段）
       }
       // 敵が上回る状態が続いた時だけ、木戸を失ったとする。
       if (C.lostT >= 24 && (!o.fromSide || C.relief >= 3 || !present)) { C.failed = true; return true; }
@@ -3238,6 +3258,23 @@ function ariPostRestAllowed(rt, point) {
   if (rt.flags.ending || rt.over || !C?.at || C.s.kind !== 'hold') return ariPostStepAllowed(rt, point);
   return Math.hypot(point.x - C.at.x, point.z - C.at.z) <= (C.botRadius || 16) - 3;
 }
+// 段のファイル（arioka/）へ渡す有岡の段の部品
+function ariH() { return { rest, ariFight, uS, uA, uG, gunLine, GATE, TOWN_X, reinforce: ariReinforce }; }
+// 段の変わり目に、木戸から滝川の新手の組が通りを上って来る（kaito 11/8：長い戦で味方が空にならない）。本物の兵の数を見て人数を決める
+function ariReinforce(rt, at, n = 10) {
+  let real = 0; for (const u of rt.army.units) if (u.alive) real++;
+  const k = Math.min(n, 228 - real);
+  if (k < 4) return null;
+  const g = allyGroup(rt, { name: '滝川の新手の組', anchor: { x: GATE.x + 6, z: GATE.z + 3 }, facing: Math.PI / 2, order: 'move', formation: 'column', width: 4, aggro: 10, morale: 90 },
+    dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: k - 1 }], TAKIGAWA));
+  g.order = 'path'; g.path = ariStreetWay(g.center(), at, false); g.pathIdx = 0;
+  g.onArrive = (q) => { q.anchor = { x: at.x, z: at.z }; q.order = 'hold'; q.formation = 'yari'; q.onArrive = null; };
+  (rt.flags.committed || (rt.flags.committed = [])).push(g);
+  return g;
+}
+// 開幕の段に渡す場所（堀端の竹束の端：木戸の外の北）
+const AR_OPEN_CTX = { gate: GATE, look: { x: GATE.x - 22, z: GATE.z - 12 }, goal0: ARI_GOALS[0] };
+function ariOpenCtx() { return AR_OPEN_CTX; }
 function ariCtx(rt) {
   const F = rt.flags;
   return { routeFight: true, withdrawWay: gateWay, botSeek: 60, botSeekHold: true, botAttackOrders: true, backing: false,
@@ -3405,7 +3442,8 @@ function ariBot(b, inp, { goTo, patientStrike, strikeTarget }) {
   if (b.squadGroups[0]?.order === 'attack' && !(b.botCmdT > b.t)) {
     inp.e.add('KeyZ'); b.botCmdT = b.t + 2;
   }
-  if (F.step === 1) { const c = gone(F.g1) ? GATE : F.g1.center(); goTo(p, inp, c.x, c.z, 2); return; }
+  if (F.step === 0) { const g = AR_OPEN.pin(b, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z }; goTo(p, inp, g.x, g.z, 2); return; }   // 開幕の段：堀端→竹束
+  if (F.step === 1) { const c = gone(F.g1) ? { x: GATE.x + 12, z: GATE.z } : F.g1.center(); goTo(p, inp, c.x, c.z, 2); return; }   // 崩れた後は木戸の内（八歩より先）へ入る
 
 }
 

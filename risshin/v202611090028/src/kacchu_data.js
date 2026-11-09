@@ -431,7 +431,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["結城秀康", "eboshi", "kuwa_wide", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],
   ["大久保忠隣", "eboshi", "horn", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],
   ["酒井家次", "eboshi", "cross", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],
-  ["島左近", "zunari", "moon", 0x1c1a1a, 0x3c5a8a, "okegawa", 0, 0x1c1a1a, "ishida", ""],
+  // 久能山東照宮の伝所用・五十二間筋兜と紺絲威。三鈷剣は既存形で補う（胴以下は復元案）。
+  ["島左近", "suji", "sankoken", 0x1c1a1a, 0x232c40, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["片桐且元", "zunari", "moon", 0x1c1a1a, 0x9a2e20, "okegawa", 0, 0x1c1a1a, "toyotomi", ""],
   ["大野治長", "zunari", "sun", 0x1c1a1a, 0xd8d0bc, "okegawa", 0, 0x1c1a1a, "toyotomi", ""],
   ["加藤嘉明", "zunari", "kuwa_wide", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "toyotomi", ""],
@@ -826,6 +827,13 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 杭瀬川・関ヶ原の左近。名前による配色の散らしの後で、伝来兜の鉄色・紺絲へ戻す。
+// 脇立・家紋・個人の馬印は未確認。旗は石田方の所属表示として残す。
+// 出所と復元範囲：docs/generals_look_1108/島左近.md
+Object.assign(KACCHU["島左近"], { bowl: "suji", sujiPlates: 52, crest: "sankoken",
+  armor: 0x1c1a1a, helm: 0x3b322b, lace: 0x232c40, odo: 0x232c40,
+  lac: "kuro", helmLac: "sabi", fuki: "kuro", shinodare: false, fukigaeshiBadge: false,
+  doStyle: "okegawa", haori: 0, menpo: 0x1c1a1a, menpoStyle: "hanbo", mon: "none", flag: "ishida" });
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];
