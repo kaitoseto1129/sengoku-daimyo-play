@@ -3579,7 +3579,7 @@ const anegawa = {
         }
       });
     }
-    rt.marker('campExit', rt.G.lord ? { x: HQ.x, z: HQ.z + 10 } : { x: POST.x + 16, z: POST.z + 5 }, rt.G.lord ? '本陣の幕の口・ここから回って北へ' : '備えの右の脇・ここから川へ', { h: 2 });
+    rt.marker('campExit', rt.G.lord ? { x: HQ.x, z: HQ.z + 10 } : { x: POST.x + 16, z: POST.z + 5 }, rt.G.lord ? '本陣の幕の口から北へ回れ' : '森の備の右脇から姉川へ進め', { h: 2 });
     F.hqCamp.guard.anchor.z = HQ.z - 14;
     for (const u of F.hqCamp.guard.units) { u.pos.z -= 25; u.pos.y = W.heightAt(u.pos.x, u.pos.z); }
     F.holdRows.push(F.hqCamp.guard);

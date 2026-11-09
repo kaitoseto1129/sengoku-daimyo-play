@@ -2,14 +2,13 @@
 // 姉川の戦い　終わりの段「野村への追い討ち」（12〜15分。docs/oda15_plan_1108.md の 9）
 // - 北岸の殿を崩した後、すぐに勝ちにせず、野村の浅井本陣へ追い討つ（大規模追撃）。長政の本陣は小谷の方へ退いていく。
 // - 追う途中、浅井の遠藤直経（喜右衛門）が首を提げて味方に紛れ、信長の本陣を狙う（姉川の名高い話）。主人公が止める。
-//   止められなくても竹中久作（重矩）が討つ（主人公のせいでない失敗にしない）。
+//   味方が討った時も、主人公がその場まで進んで止めた事を確かめる。
 // - 済んだら本の締め（anegawa.ending：法螺貝・横山城の戦後）へ渡す。余韻は削らない。
 // ======================================================================
 import { sfx } from '../audio.js';
 
 export const MISSIONS = ['野村の浅井本陣へ追い討て', '信長の首を狙う遠藤直経を止めよ'];
 const DEST = { x: 40, z: -78 };   // 野村の手前（浅井の二の手・三の手がいた所）
-const ENDO_MAX = 70;              // 遠藤が出てこの秒で、竹中久作が討つ
 
 // ctx：{ enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, ending(), HQ }
 export function start(rt, ctx) {
@@ -60,22 +59,18 @@ export function start(rt, ctx) {
       S.k = 0.5;
     }
     if (S.k === 1) {
-      const dead = !S.u || !S.u.alive;
-      if (dead) return close(true);
-      if (rt.t - S.endoT > ENDO_MAX) {
-        S.u.invuln = false; S.u.hp = 0; try { rt.army.kill(S.u, null); } catch (e) { /* 既に倒れた */ }
-        return close(false);
-      }
+      // 時計で遠藤を討たず、実際の戦闘を待つ。遠い味方の討ち取りだけで勝ちにしない。
+      if (S.u && !S.u.alive && Math.hypot(p.x - S.u.pos.x, p.z - S.u.pos.z) < 12) return close();
     }
   };
 
-  function close(byAnyone) {
+  function close() {
     if (S.done) return;
     S.done = true; S.k = 2;
     rt.unmark('aneEndo');
     if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
-    if (byAnyone) rt.award((t) => { t.side.push('遠藤直経を止めた'); t.special = { label: '遠藤直経を止めた', pts: 15 }; }, '遠藤直経を止めた');
-    rt.say('竹中久作', byAnyone ? '遠藤喜右衛門、ここに果てたり！' : '遠藤喜右衛門、この竹中久作が討ち取った！', 3.6);
+    rt.award((t) => { t.side.push('遠藤直経を止めた'); t.special = { label: '遠藤直経を止めた', pts: 15 }; }, '遠藤直経を止めた');
+    rt.say('竹中久作', '遠藤喜右衛門、ここに果てたり！', 3.6);
     rt.after(4, () => live() && rt.say('森可成', '浅井は小谷へ退いた。追い討ちはここまでじゃ', 3.4));
     rt.after(8, () => live() && ctx.ending());
   }
@@ -91,6 +86,7 @@ export function pin(rt, q) {
   const S = rt.flags.aneTsui;
   if (!S || S.done) return undefined;
   if (S.k >= 1 && S.u?.alive) { q.unit = S.u; q.enemy = true; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 2; return q; }
+  if (S.k >= 1 && S.u) { q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 8; return q; }
   if (S.k < 1) { q.x = DEST.x; q.z = DEST.z; q.r = 8; q.hide = 8; return q; }
   return undefined;
 }
@@ -100,6 +96,7 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.aneTsui;
   if (!S || S.done) return !!S;
   const u = p.u;
+  if (S.k >= 1 && S.u && !S.u.alive) { goTo(p, inp, S.u.pos.x, S.u.pos.z, 8); return true; }
   if (S.k >= 1 && S.u?.alive) {
     const e = S.u, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
