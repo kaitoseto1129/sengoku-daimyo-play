@@ -177,7 +177,7 @@ const sekigahara = {
     [[-14, -8, 'maru', TK, 'gun'], [4, -40, 'ii', 0x8e1f16, 'cavalry'], [-30, -100, 'kuroda', TK, 'spear'], [0, -76, 'kuroda', TK, 'gun'], [66, 44, 'todo', TK, 'spear'], [50, 16, 'tokugawa', TK, 'gun'], [70, -30, 'tokugawa', TK, 'spear'], [132, 16, 'tokugawa', TK, 'spear'], [150, -30, 'tokugawa', TK, 'cavalry'], [100, 120, 'tokugawa', TK, 'mixed']]
       .forEach(([x, z, f, c, kind], i) => DA(x, z, 26, kind === 'gun' ? 6 : 14, kind === 'cavalry' ? 130 : 200, -Math.PI / 2, c, f, 101 + i, kind));
     // 西軍：笹尾山の石田の本陣、島津、小西の鉄砲、天満山の宇喜多、大谷の本隊
-    F.west = [[-118, -110, 'ishida', 30, 'honjin'], [-88, -60, 'shimazu', 18, 'mixed'], [-96, -26, 'toyotomi', 26, 'gun'], [-112, 10, 'ukita', 36, 'spear'], [-80, 72, 'otani', 24, 'spear']]
+    F.west = [[-118, -110, 'ishida', 30, 'honjin'], [-88, -60, 'shimazu', 18, 'mixed'], [-96, -26, 'konishi', 26, 'gun'], [-112, 10, 'ukita', 36, 'spear'], [-80, 72, 'otani', 24, 'spear']]
       .map(([x, z, f, w, kind], i) => DA(x, z, w, kind === 'gun' ? 6 : (kind === 'honjin' ? 24 : 14), 240, Math.PI / 2, f === 'shimazu' ? SHIMAZU.armor : WS, f, 121 + i, kind));
     F.west[0].m.army.lord = '石田三成';   // 笹尾山へ寄れば旗本が迎え撃つ（b_nagashinojo.js の wake）
     // 南宮山の毛利（動かない）
