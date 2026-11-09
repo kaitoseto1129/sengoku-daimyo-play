@@ -311,10 +311,10 @@ function daitoModel(world, x, z) {
 const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
   minutes: 15, expectMin: 15,
+  forceBarAlways: true,   // 両軍の総勢と減りを、行き先の案内中も一本の棒で示す
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）
   playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
-  nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   noWake: true, noTaishoRaid: true, noDespair: true,
   // 11/6 描いて遊んで：大門が破れた直後、門の内の行人方の槍を二秒に二度受けて（一突き四割）討たれ、負けた。
   //   刃を受けた後の三秒は次の刃を通さない（澤山・伊能と同じ。一太刀の重さはそのまま。十一1・十二3）
@@ -871,7 +871,7 @@ const t04_negoro = {
         // 鉄砲衆が退いても、後方に居たままで堀の護衛を果たした事にはしない。
         const p = rt.player.u.pos;
         // 縁の撃ち手の前に長く立たせない（15分の戦でも、この段は撃ち手を討てば進む）
-        return ((guns <= 4 && foes <= 4 && !C.later.length) || el > 130) && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
+        return guns <= 4 && foes <= 4 && !C.later.length && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
       },
       end(rt, C) {
         const F = rt.flags;
