@@ -3058,7 +3058,7 @@ function withstand(o) {
     // 味方が一人下っただけで殿を解かない。刻限を過ぎても、生きて坂に残る味方を先に通す。
     const covered = !o.cover || C.coverSent && C.coverPassed > 0 && C.coverRemaining === 0;
     const waitingAllies = o.cover && C.coverRemaining > 0;
-    return defended && !waitingAllies && C.waves.length === 0 && (el >= o.dur || covered && (cleared || o.cover && C.inT >= 20 && el >= 26));
+    return defended && covered && !waitingAllies && C.waves.length === 0 && (el >= o.dur || cleared || o.cover && C.inT >= 20 && el >= 26);
   };
   s.end = (rt, C, m) => {
     rt.unmark('dp'); rt.unzone('dp');
@@ -3115,9 +3115,11 @@ function withdraw(o) {
   return s;
 }
 // 共通の段が作る細かな札を主の札へ移す。表示する任務は一つにする。
-// 守る段は刻限（max）を五秒過ぎたら次へ（味方の列が坂で詰まっても十五分の流れを止めない。守りの足りなさは✕のまま）
+// 刻限で進めてよい段だけ五秒の猶予を付ける。持ち場と味方の通過を待つ段は除く。
 function capHolds(steps) {
   for (const st of steps) if (st.kind === 'hold' && st.max && !st.capped) {
+    // 守りを果たすまで待つ段は、刻限の包みで勝手に終えない。
+    if (st.idleAdvance === false || st.limit === Infinity) continue;
     const tk = st.tick, cap = st.max + 5;
     st.capped = true;
     st.tick = (rt, C, m, ctx, el, dt) => tk(rt, C, m, ctx, el, dt) || el > cap;
