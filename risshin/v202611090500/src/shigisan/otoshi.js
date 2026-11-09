@@ -13,19 +13,19 @@ export function install(rt, ctx) {
   const t0 = rt.t;
   let G = null, done = false, tick = 0;
   rt.after(20, () => {
-    if (done || F.ending) return;
+    if (done || F.ending || rt.over || !rt.player.u.alive) return;
     const a = ROAD[Math.max(0, CLIMB_END - 1)] || ROAD[ROAD.length - 1];
     G = enemyGroup(rt, { faction: 'matsunaga', name: '切岸の石落としの組', anchor: { x: a[0] + 3, z: a[1] }, facing: Math.PI, width: 5, order: 'hold', guard: true, guardLeash: 6, aggro: 20, seekRange: 26, morale: 80, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }, { type: 'bow', n: 1 }], MATSU));
-    sfx('crash', 0.9); rt.after(1.4, () => sfx('crash', 0.7));
+    sfx('crash', 0.9); rt.after(1.4, () => { if (!F.ending && !rt.over && rt.player.u.alive) sfx('crash', 0.7); });
     rt.say('足軽', '上から石じゃ！　丸太も落として来よる！', 3.5);
-    rt.after(4, () => rt.say('組頭', '上の切岸の石落としを払え！　あれを黙らせねば木戸へ寄れぬ！', 4));
+    rt.after(4, () => { if (!F.ending && !rt.over && rt.player.u.alive) rt.say('組頭', '上の切岸の石落としを払え！　あれを黙らせねば木戸へ寄れぬ！', 4); });
     rt.obj('otoshi', '尾根道の上の、石落としの組を払え', 'order');
     rt.marker('otoshiG', () => (G.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? G.center() : null), '石落としの組', { red: true, group: G });
   });
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (done || F.ending || rt.over || !rt.player.u.alive) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const el = rt.t - t0;

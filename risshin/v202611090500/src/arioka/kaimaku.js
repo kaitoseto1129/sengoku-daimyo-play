@@ -50,12 +50,12 @@ export function tick(rt, ctx) {
   if (F.step >= 1) S.done = true;
 }
 
-// 木戸を開けてよいか（竹束の後ろへ寄った上で、時が来たか。来ない時も四十秒の後に開く）
+// 木戸を開けてよいか。時が来ても、本人が竹束の後ろへ寄るまで①を終えない。
 export function mayOpen(rt, near) {
   const S = rt.flags.arOpen;
   if (!S) return near;
   const t = rt.t - S.t0;
-  return S.atLook && t >= KAIMAKU_END && near || t >= KAIMAKU_END + 40;
+  return S.atLook && t >= KAIMAKU_END && near;
 }
 
 export function pin(rt, ctx) {
