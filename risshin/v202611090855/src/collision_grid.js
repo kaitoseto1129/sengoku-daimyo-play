@@ -71,6 +71,18 @@ export class CollisionGrid {
       }
     }
   }
+  // 四角（x0..x1, z0..z1）に掛かる升の物を一度ずつ fn(i) に渡す（順は升の順。11/9 矢玉の当たり用）。升の数が多すぎる時は false
+  forBox(x0, z0, x1, z1, fn) {
+    const i0 = Math.floor(x0 / CELL), i1 = Math.floor(x1 / CELL), j0 = Math.floor(z0 / CELL), j1 = Math.floor(z1 / CELL);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > this.cells.size + 16) return false;
+    if (++this.stamp >= 0xffffffff) { this.marks.fill(0); this.stamp = 1; }
+    for (let ix = i0; ix <= i1; ix++) for (let iz = j0; iz <= j1; iz++) {
+      const cell = this.cells.get(keyOf(ix, iz));
+      if (!cell) continue;
+      for (const i of cell) if (this.marks[i] !== this.stamp) { this.marks[i] = this.stamp; fn(i); }
+    }
+    return true;
+  }
   query(x, z) {
     // 二メートルの余裕も含めた同じ升なら、兵ごと・二度の当たりごとに集め直さない。
     const x0 = Math.floor((x - 2) / CELL), x1 = Math.floor((x + 2) / CELL);

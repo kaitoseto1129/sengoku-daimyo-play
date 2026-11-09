@@ -511,6 +511,7 @@ function clearFoes(rt) {
   for (const u of rt.army.units.slice()) if (u.team === 1 && !u.gone && !keep.has(u)) rt.army.despawn(u);
 }
 const t12_odawara = {
+  lethal: true,   // 命懸けの戦場（lethal.js。先取り 11/9 豊臣B）
   victoryTitle: '小田原城、開城',
   victoryCaption: '北条氏直が降伏',
   spawn: { x: II_JIN.x + 2, z: II_JIN.z + 4, heading: -Math.PI / 2 },

@@ -2018,8 +2018,10 @@ const shigisan = {
   missionPinCaption: '',
   missionDetail: () => '',
   missionStatus: () => '',
-  speechAllowed: (rt) => rt.over || !!rt.flags.ending,
-  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|崩れ/.test(text),
+  // 使番の知らせ・諸将の声・降伏拒否は、火の手や打って出の理由として戦の途中にも伝える。
+  speechAllowed: (rt, who) => rt.over || !!rt.flags.ending ||
+    /^(使番|信忠の使番|織田信忠|筒井順慶|明智光秀|松永久秀|松永久通|組頭|足軽)$/.test(who),
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|崩れ|三の丸から火の手/.test(text),
   // 11/6 fixc1429：右上の目標は①〜⑤を始めから全部並べ（stages.js の段・goals5）、段の中で言い替えない（九1・十1）。
   //   「敵を何人討つ」で埋めない（三1）。一行の札も今の段の字をそのまま出す。
   stageGoalsOnly: true,
