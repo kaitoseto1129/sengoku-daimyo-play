@@ -29,7 +29,7 @@ import { routeTools } from './b_k_route.js';
 import { timeslipField } from './timeslip_field.js';
 import { customFlag } from './b_inabayama.js';
 import { revealName } from './battle_intel.js';
-import { install as installYose } from './k01_fushimi/yose.js';   // 寄せ手の備の層・梯子・櫓の火・落城の締め（toku15 の 1）
+import { install as installYose, depthPlan as fushimiDepth } from './k01_fushimi/yose.js';   // 寄せ手の備の層・梯子・櫓の火・落城の締め（toku15 の 1）
 
 // ---- 場所（ゲームの座標） ----
 const SAN = { x: 0, z: 32 };          // 三の丸（家忠・近正の持ち場。名護屋丸は別の曲輪で、遊びでは置いていない）。主人公の持ち場の始まり
@@ -267,6 +267,7 @@ const k01_fushimi = {
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 二巡（徳川D）：弱めて入れる（突然の討死は二つまで・三分過ぎから）
   fearKind: { kind: '籠城', note: '曲輪を一つずつ失い、本丸へ追い詰められる', w: { honjin: 1.8, losses: 1.3 }, line: '本丸まで来るぞ！' },  // 籠城で新手の味方は来ない（減った城方の所へ「新手が追いついた」と足軽八人が湧いていた）
   // 始まりの札：軍の名に兵の数を添え、二三行の筋（「味方 徳川勢 対 敵 西軍」だけで千八百対四万が分からなかった。critic60・五4）
+  depth: fushimiDepth,   // 布陣図（docs/fujin/k01_fushimi.md）：寄せ手四万の備を城の三方に（k01_fushimi/yose.js）
   introSides: { a: '徳川勢　千八百', b: '寄せ手　四万' },
   introText: '家康が会津へ発ち、鳥居元忠が伏見城を預かった。七月、石田三成らが兵を挙げ、宇喜多秀家らの寄せ手が城を囲む。城を出て長束の屋敷を焼き、三の丸・二の丸・本丸の口を順に守って時を稼ぐ。',      // 隅櫓の「中へ入り、守りを追い出せ」の脇の目標を出さない（櫓は城方の持ち場。番号の目標と二つ目の▼になっていた）
   minutes: 9,

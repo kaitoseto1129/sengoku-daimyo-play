@@ -360,7 +360,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 久政の所用具足は未確認。長政と見分ける朽葉の威の復元案。
   ["浅井久政", "suji", "moon", 0x2e2a26, 0x8a6a2a, "okegawa", 0x4a3a22, 0x2e2a26, "azai", ""],
   ["磯野員昌", "suji", "none", 0x2a1c18, 0x7a5a2a, "okegawa", 0x1f2a44, 0x2a1c18, "azai", ""],
-  ["遠藤直経", "suji", "kuwa_wide", 0x1c1a1a, 0x6a1c14, "sugake", 0x7a1a12, 0x1c1a1a, "azai", ""],
+  // 本人所用は未確認。室町末の紺糸威胴丸を型とする復元案。細部は必須表、出所は本人の調べ書き。
+  ["遠藤直経", "suji", "kuwa", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "none", "https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/"],
   ["海北綱親", "zunari", "horn", 0x1c1a1a, 0xa88a3a, "sugake", 0, 0x1c1a1a, "azai", ""],
   // 景健の所用具足・立物は未確認。浅井長政と見分ける頭形の兜・紺の威・茶の陣羽織の復元案で、立物は付けない。
   ["朝倉景健", "zunari", "none", 0x24221f, 0x2e3a52, "okegawa", 0x8a5a2a, 0x24221f, "asakura", ""],

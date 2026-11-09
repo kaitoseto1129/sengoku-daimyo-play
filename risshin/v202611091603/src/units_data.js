@@ -67,7 +67,7 @@ export const GENERALS = {
     face: { w: 1.05, jaw: 1.2, chin: 0.9, cheek: 1.15, gaunt: 0.4, brow: 1.3, nose: 0.9, nw: 1.2, eye: 1.25, t: 5, hair: 0x15110d, age: 40, beard: { mus: 0.8, musW: 1, droop: 0.5, goat: 0.5, side: 0.5, stub: 1.1 } } },
   '磯野員昌': { armor: 0x2a1c18, lace: 0x7a5a2a, hat: 'kabuto_t', haori: 0x5a3a1a, horo: 0, skin: 0x9c7453, tack: 0x4a2a1c,
     face: { w: 1.08, jaw: 1.25, chin: 0.95, cheek: 1.2, gaunt: 0.4, brow: 1.35, nose: 1.0, nw: 1.2, eye: 1.3, t: 4, hair: 0x15110d, age: 47, beard: { mus: 0.85, musW: 1.05, droop: 0.4, goat: 0.5, side: 0.3, stub: 1.0 } } },
-  '遠藤直経': { armor: 0x1c1a1a, lace: 0x6a1c14, hat: 'kabuto_namazu', haori: 0x2a2a2a, horo: 0, skin: 0xa87f5c,
+  '遠藤直経': { armor: 0x1c1a1a, lace: 0x232c40, hat: 'kabuto', haori: 0, horo: 0, skin: 0xa87f5c,
     face: { w: 0.95, jaw: 1.0, chin: 1.1, cheek: 1.3, gaunt: 1.1, brow: 1.2, nose: 1.1, nw: 0.95, eye: 1.3, t: 3, hair: 0x15110d, age: 34, beard: { mus: 0.5, musW: 0.8, droop: 0.3, goat: 0.2, side: 0, stub: 0.8 } } },
   '朝倉景健': { armor: 0x24221f, lace: 0x3a5a3a, hat: 'kabuto_w', haori: 0x3a4a2a, horo: 0, skin: 0xb88e6a, tack: 0x2a3a2a,
     face: { w: 1.02, jaw: 0.9, chin: 1.0, cheek: 1.0, gaunt: 0.3, brow: 1.0, nose: 1.0, nw: 1.05, eye: 1.05, t: 3, hair: 0x15110d, age: 34, beard: { mus: 0.4, musW: 0.8, musH: 0.5, droop: 0.2, goat: 0.2, side: 0, stub: 0.4 } } },

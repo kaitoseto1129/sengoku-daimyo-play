@@ -20,6 +20,15 @@ const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ?
 const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
 
 export const REQUIRED_KACCHU = [
+  // 姉川の遠藤。建勲神社蔵の室町末の胴丸を型だけ借りる復元案。本人所用とはしない。
+  // 出所と補完：docs/generals_look_1108/遠藤直経.md。紋は旗で浅井方の所属だけ示す。
+  ['遠藤直経', 'suji', 'kuwa', D.kuro, C.kon, 'kebiki', 0, 'none', 'azai',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108, shinodare: false,
+      domaru: true, doOpening: 'right', plateDo: null, honkozane: true, doSugake: false, doKebiki: true,
+      sodeStyle: 'osode', shikoroStyle: 'compact', shikoroLace: C.kon,
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, uma: null, fukigaeshiBadge: false },
+    '本人の所用具足は未確認。室町末の黒漆本小札・紺糸毛引威胴丸と筋兜による復元案。鍬形は略形、脇立・面頬・陣羽織・個人紋・馬印は補わない'],
   // 伊賀市蔵の伝高虎拝領兜。胴・紺糸威は同時代の土居家伝来具足による復元案。
   // 出所と未確認範囲：docs/generals_look_1108/藤堂高虎.md。
   ['藤堂高虎', 'tokan', 'todo_tokan', D.kuro, C.kon, 'okegawa', 0, 'todo', '高虎の三つ丸餅',

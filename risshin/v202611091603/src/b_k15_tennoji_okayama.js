@@ -1167,5 +1167,24 @@ STAGES.k15_tennoji_okayama = [['物見の場で茶臼山の敵の陣立てを見
 k15_tennoji_okayama.namedKacchu = K15_KACCHU;
 // 支度の画面の布陣図の大将（敵は真田信繁。隊の並びの先頭の毛利勝永ではなく。11/9 kaito 朝の声）
 k15_tennoji_okayama.introLords = ['徳川家康', '真田信繁'];
+k15_tennoji_okayama.introYou = true;
+// 開戦前の布陣図（docs/k15_fujinzu_ref_1109.md・docs/fujin/k15_tennoji_okayama.md）：北に大坂城、南に阿倍野。team 0＝徳川・1＝豊臣
+k15_tennoji_okayama.introFujin = [
+  { team: 1, name: '真田信繁', x: -106, z: 4, men: 3500 }, { team: 1, name: '毛利勝永', x: -46, z: -14, men: 6500 },
+  { team: 1, name: '木村宗明', x: -84, z: -46, men: 1500 }, { team: 1, name: '大野治長', x: -30, z: -104, men: 13000 }, { team: 1, name: '大野治房', x: 40, z: -84, men: 10000 },
+  { team: 0, name: '伊達政宗', x: -156, z: 54, men: 10000 }, { team: 0, name: '松平忠輝', x: -156, z: 112, men: 12000 },
+  { team: 0, name: '本多忠朝', x: -46, z: 34, men: 3000 }, { team: 0, name: '浅野長重', x: -46, z: 76, men: 3000 }, { team: 0, name: '松平忠直', x: -98, z: 70, men: 15000 },
+  { team: 0, name: '徳川家康', x: -40, z: 132, men: 15000 },
+  { team: 0, name: '前田利常', x: 44, z: 40, men: 15000 }, { team: 0, name: '藤堂高虎', x: 92, z: 54, men: 5000 }, { team: 0, name: '細川忠興', x: 66, z: 80, men: 2000 },
+  { team: 0, name: '井伊直孝', x: 26, z: 80, men: 3200 }, { team: 0, name: '徳川秀忠', x: 46, z: 124, men: 20000 },
+];
+k15_tennoji_okayama.introMapPlaces = [{ name: '大坂城', x: -10, z: -150 }, { name: '茶臼山', x: -126, z: 16 }, { name: '四天王寺', x: -22, z: -26 }, { name: '阿倍野', x: -78, z: 150 }];
+k15_tennoji_okayama.introMapLines = [
+  { kind: 'road', pts: [[-176, -150], [-150, 0], [-156, 176]] },   // 紀州街道
+  { kind: 'road', pts: [[-40, -150], [-60, -20], [-46, 60], [-42, 176]] },   // 谷町口の道（左）
+  { kind: 'road', pts: [[0, -150], [-20, -20], [-10, 80], [0, 176]] },   // 谷町口の道（右）
+  { kind: 'river', pts: [[70, -170], [74, 0], [80, 176]] },   // 平野川
+  { kind: 'road', pts: [[100, -40], [120, 80], [176, 176]] },   // 奈良街道
+];
 export { k15_tennoji_okayama };
 export default k15_tennoji_okayama;
