@@ -838,6 +838,8 @@ const t10_oshi = {
       if (cur && F.raid < 4 && fighting(cur) && rt.t - F.raidT > 34) { F.nextT = 0; this.raid(rt); }
       else if (cur && !fighting(cur)) { if (F.raid < 4) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 140 && P.alive && near(P.pos, RAIDAT, 18)) this.weir(rt); }
       // 時刻だけで夜討ちを消さない。四度とも退け、本人も浅瀬の口を守ってから夜明けへ。
+      // 二巡（11/9 bot）：四度目の後、浅瀬の口から二十 m より遠くで立ち尽くす夜討ちの残りが段を十分止めた。四度出て百九十秒過ぎたら、遠くの残りは城へ戻す
+      if (F.raid >= 4 && rt.t - F.stepT > 190) for (const g of F.raids) if (fighting(g)) for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
     } else if (F.step === 4) {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 30)) this.weirRaid(rt);
