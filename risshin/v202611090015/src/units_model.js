@@ -4685,7 +4685,10 @@ function bodyGeometry(key, o, hi, grp) {
 // part：'armor' 佩楯と膝の紐だけ（骨の入った人に着せるため）
 function thighGeometry(o, hi, part) {
   if (o.nanban && !o.kosode) return nanbanGeometry('thigh', hi, part, 0, { P, at, merge, MK, limb, ball });
-  if (o.sohei) return soheiThigh(o, hi);
+  // 吉継の関ヶ原姿だけ、白い衣の上に朱の佩楯（既存の武者の部品）。
+  if (o.sohei) return o.face === 'g:大谷吉継' && o.kosode && o.menpo
+    ? thighGeometry({ ...o, sohei: 0, tier: 2, armor: o.menpo, lace: o.menpo }, hi, part)
+    : soheiThigh(o, hi);
   // 11/8 critic60 信貴山 25：本人の脚が黒い筒二本に見えた。布の色の指定が無い本人の裁着袴は、墨でなく煤けた茶に
   const cloth = o.cloth || (o.face === 'player' ? 0x4a3c2e : 0x2b2622), T = o.tier || 0;
   const hd0 = hi && T === 0 && (o.vi || 0) % 2 === 0 && o.lacquer == null;   // 足軽の半分は布の佩楯（伊予佩楯）を前に垂らす（簡素な貸し具足は無し）
@@ -6307,6 +6310,8 @@ function soheiBody(ck, o, hi, grp) {
   // 頭：裹頭は頭の形に合わせて作る。鉢巻・兜は兵と同じ形
   if (o.hat === 'kato') PT.head.push(katoUnit(o, hi).clone());
   else hatParts(o, PT.head, hi);
+  // 容斎屏風に見える朱の頬当。ほかの小袖・僧兵には付けない。
+  if (o.face === 'g:大谷吉継' && o.kosode && o.menpo) menpoParts(o, PT.head, hi);
   const list = grp === 'nohead' ? [...PT.base, ...PT.torso, ...PT.hips] : grp ? PT[grp] : [...PT.base, ...PT.torso, ...PT.hips, ...PT.head];
   const g = list.length ? merge(list) : null;
   geoCache.set(ck, g);

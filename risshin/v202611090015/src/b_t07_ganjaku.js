@@ -25,6 +25,11 @@ import { withGuard } from './toyo_bot.js';
 import { farSight } from './far_sight.js';
 import { STAGES } from './stages.js';
 import { goalsTick } from './hud_goals.js';
+// 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 10）：段の中身は t07_ganjaku/ に一段一ファイル
+import * as chakujin from './t07_ganjaku/chakujin.js';   // 着陣：麓を埋める秀吉の本隊・鉄砲の撃ちかけ
+import * as tahoumen from './t07_ganjaku/tahoumen.js';   // 別の口：東の尾根・西の尾根の攻城と使番の知らせ
+import * as ninomaru from './t07_ganjaku/ninomaru.js';   // ④二の丸の曲輪の乱戦と火
+import * as rakujo from './t07_ganjaku/rakujo.js';       // 落城の後：山じゅうに豊臣の旗・「九州を南へ」
 
 // この戦の標高を支度で読ませる（共通の表は触らず、ここで一行足す）
 BATTLE_ASSETS.t07_ganjaku = Object.freeze([...assetsForBattle(''), 'dem_ganjaku']);
@@ -146,11 +151,18 @@ float gN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return (GRANITE = m);
 }
 let STONES = [], STONE_GEO = null, STONE_MAT = null;   // 塀の上から投げ落とす石（三つを使い回す）
-const T_LIMIT = 400;   // 日が沈むまで（6分半ほど。矢倉と本丸で斬り合う時を残す）
+const T_LIMIT = 1100;   // 日が沈むまで（15分の構成で十八分ほど。坂に懸かってから数える）
 const KIRI = 0x2a2420, AKI = 0x2e2a26;
 
+// 右上の①〜⑤（15分の構成で二の丸の曲輪の段を足した）
+const TEXT = ['大手の坂を登り、二の丸の門の前へ出る', '門から打って出た秋月勢を坂で迎え撃つ', '退く秋月勢を追い、二の丸の門を抜けて城内へ入る',
+  '二の丸の曲輪で、火の中の城兵を討ち払う', '本丸へ攻め入り、熊井越中守を討つ'];
+STAGES.t07_ganjaku = TEXT.map((t, k) => (k ? [t, (rt) => (rt.flags.stage || 0) >= k + 1] : [t]));
+const START = { x: -204, z: 150 };   // 麓の大軍の中から坂の下へ歩く（蒲生の本陣の陣幕を横切らない筋。11/8 bot が幕に詰まった）
+
 const t07_ganjaku = {
-  spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.atan2(GATE.x - SPAWN.x, GATE.z - SPAWN.z) },
+  minutes: 15, expectMin: 15,
+  spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
   camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? { x: GATE.x, z: GATE.z, up: 3 } : null),   // 坂の下では目線を上げ、上の門と塀を見せる
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
@@ -159,12 +171,12 @@ const t07_ganjaku = {
   goalSignOnly: true, stageGoalsOnly: true,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   sideTaskAfter: Infinity,   // 門の櫓を取る別の目標と字の案内（「櫓の入口から中へ」）を出さない。段の四つの目標だけ
-  goalSignAction: (rt) => ['', '門の前へ進め', '坂で迎え撃て', '門の内へ入れ', '本丸へ攻め入れ'][rt.flags.stage || 0] || '',
+  goalSignAction: (rt) => ['', '門の前へ進め', '坂で迎え撃て', '門の内へ入れ', '二の丸を討ち払え', '本丸へ攻め入れ'][rt.flags.stage || 0] || '',
   // 奥の軽い作りの乱戦（見せかけの軍勢）は置かない。戦うのは場にいる本物の兵だけ（kaito AP9・AQ6・⑥）
   noFrontFill: true,
   camPull: 4.5,   // 11/2 カメラが兵に寄りすぎ：後ろへ引いて、坂の上の城と味方の列を一緒に写す
   // 部将として先頭を駆ける戦。受ける傷を六割に、戦っていない間は少しずつ息が戻る
-  playerTaken: 0.6, playerRegen: 0.02,
+  playerTaken: 0.33, playerRegen: 0.04,   // 15分の長い攻めなので、受ける傷を軽く（坂と門の矢で倒れ続けた。11/8 bot）
   // 乱戦の濃さは控えめに（段の的の隊は寄せに引き抜かない）
   // 坂と門の段は時との勝負なので寄せの小勢を出さない（城の内へ入ってから乱戦）
   get alwaysMelee() { return CALM ? false : undefined; },
@@ -202,7 +214,7 @@ const t07_ganjaku = {
     },
   },
   // 二の丸の門・塀・狭間の射撃（siege_kit）。守り手の矢と鉄砲は門へ近づくほど激しい
-  siegeKit: { plan: SP, build: { team: 1, wall: 'dobei', gateHp: 260, fire: { hurt: 0.016, rain: 0.35, peak: 4, near: 60 } }, when: (rt) => (rt.flags.stage || 0) <= 1 },   // 門が開いて打って出た後は、狭間から味方越しに撃たない
+  siegeKit: { plan: SP, build: { team: 1, wall: 'dobei', gateHp: 260, fire: { hurt: 0.011, rain: 0.35, peak: 4, near: 60 } }, when: (rt) => (rt.flags.stage || 0) <= 1 },   // 門が開いて打って出た後は、狭間から味方越しに撃たない
 
   setup(rt) {
     const F = rt.flags;
@@ -258,7 +270,8 @@ const t07_ganjaku = {
     F.kara = foe('搦手の守り', KARA_IN, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], { facing: Math.atan2(KARA_OUT.x, KARA_OUT.z), aggro: 9 });
     // 本丸：城将の熊井越中守は旗本に囲まれて本丸の奥にいる（陣を割らないと届かない）
     F.hon = foe('本丸の守り', { x: HON.x - 3, z: HON.z - 9 }, [{ type: 'busho', n: 1, o: { name: '熊井越中守', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 2 }], { aggro: 8, width: 6 });
-    F.foes = [...F.slope, F.sally, F.gateGuard, F.yagura, F.kara, F.hon];
+    F.nino = ninomaru.make(rt, K);   // ④二の丸の曲輪の城兵（段4まで曲輪の奥で構える）
+    F.foes = [...F.slope, F.sally, F.gateGuard, F.yagura, F.nino, F.kara, F.hon];
     // 城の守りと寄せ手を別の乱戦へ抜かず、決めた道筋と持ち場を守る。
     for (const g of [...F.foes, ...F.allies, F.maeda]) g.noFrontline = true;
     F.hon.noRout = true;   // 本丸の守りは崩れて逃げない（熊井越中守は本丸で討死した）
@@ -268,15 +281,18 @@ const t07_ganjaku = {
       { groups: F.slope, at: INNER, done: () => F.stage >= 2, report: '坂の木戸、まだ抜けませぬ！', reportAfter: 70 },
       { groups: [F.sally], at: INNER, done: () => F.stage >= 3 },
       { groups: [F.gateGuard, F.yagura], at: { x: HON.x - 3, z: HON.z - 9 }, done: () => F.stage >= 4, report: '門、まだ破れず！　矢倉から射られております！', reportAfter: 60 },
+      { groups: [F.nino], at: { x: HON.x - 3, z: HON.z - 9 }, done: () => F.stage >= 5 },
       { groups: [F.hon, F.kara], done: () => false },
     ], { runner: '使番' });
 
     this.goalsHud(rt);
     rt.setPhase('brief');
+    // 着陣（段0）：麓を埋める本隊と鉄砲の撃ちかけを見て、坂の下の蒲生の先手まで歩く（t07_ganjaku/chakujin.js）
+    tahoumen.install(rt);
+    chakujin.install(rt, K);
+    rt.marker('t07', SPAWN, '大手の坂の下', { h: 3 });
     rt.say('蒲生氏郷', '殿下の命じゃ。島津に付いた秋月の岩石城を、今日のうちに落とす', 3.6);
     rt.after(3.9, () => rt.say(rt.G.name || '主人公', '一日で？　この岩山を', 2.4));
-    rt.after(6.6, () => rt.say('蒲生氏郷', '大手は我ら、搦手は前田殿。先手は坂を登り、門の前へ出よ', 3.6));
-    rt.after(10.4, () => this.go(rt, 1));
   },
 
   // 共通の任務札は今の一行だけなので、目標の札（hud_goals）で置き換え、①〜④を最初から全部並べて済んだ物に印。
@@ -425,6 +441,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 果たした段を済みにする（目標ごとに別の札。「少し前からやり直す」は最後に果たした段の所から始まる。kaito 五5）
     if (s > 1) rt.objDone('s' + (s - 1));
     rt.unmark('t07');
+    tahoumen.stage(rt, s);   // 別の口の攻城と使番の知らせ
     // 味方の隊は持ち場を前へ移すだけ（兵は走って付いてくる。出し直さない）
     const A = (x, z) => {
       const m = this.along(x, z);
@@ -488,7 +505,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       rt.say('蒲生郷成', '引くぞ！　門が閉まる前に、追って城内へ紛れ込め！', 3.2);
     } else if (s === 4) {
       rt.award((t) => t.side.push(F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた'), F.tsukeiri ? '退く敵に付け入って門を抜けた' : '二の丸の門を抜けた');
-      rt.obj('s4', '本丸へ攻め入り、熊井越中守を討つ', 'main');
+      this.breach(rt); F.walks = [];
+      F.allies.forEach((ga, i) => this.march(rt, ga, [MOUTH, FRONT, INSIDE, INNER, { x: ninomaru.NINO.x - 4 - i * 6, z: ninomaru.NINO.z + 6 + i * 6 }], 14));
+      ninomaru.start(rt, K);   // 二の丸の曲輪の乱戦と火（t07_ganjaku/ninomaru.js）
+    } else if (s === 5) {
+      rt.award((t) => t.side.push('二の丸の曲輪を討ち払った'), '二の丸の曲輪を討ち払った');
+      rt.obj('s5', TEXT[4], 'main');
       rt.marker('t07', HON, '本丸', { h: 3 });
       // 門の脇の塀は押し倒され、大手の寄せ手は本丸の口へなだれ込む（喰違の細い筋に詰まらない）
       this.breach(rt); F.walks = [];
@@ -498,7 +520,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       for (const q of F.maeda.units) if (q.alive && q.name === '前田利勝') q.speed = Math.min(q.speed || 3, 2.6);
       this.march(rt, F.maeda, [KARA_OUT, KARA_IN, { x: 16, z: -16 }, { x: 10.6, z: -10.6 }, { x: HON.x + 5, z: HON.z - 5 }], 12);
       rt.say('蒲生郷成', '城内じゃ！　岩の上の矢倉に構うな、本丸の熊井を討て', 3.2);
-      rt.after(4, () => { if (F.stage === 4) rt.say('前田利勝', '搦手は破った！　本丸で落ち合おうぞ', 3); });
+      rt.after(4, () => { if (F.stage === 5) rt.say('前田利勝', '搦手は破った！　本丸で落ち合おうぞ', 3); });
     }
   },
   // 隊の持ち場を移す（歩かず走って寄せる）
@@ -570,7 +592,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   update(rt, dt) {
     const F = rt.flags;
-    if (F.ending || !F.stage) return;
+    if (F.ending) return;
+    if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
     const p = rt.player.u.pos, el = rt.t - F.t0;
     // 日が傾く：残りの時を空の色で知らせる（字は出さない）
     // 11/8 critic60 t07（四6・二2）：昼の時計（dayClock）が動く戦では setTime('dusk') が空を変えず、負けの時も真昼の青空だった。
@@ -598,7 +621,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       }
       // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
       const gc = this.centerOf(F.gamo);
-      if (Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
+      // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
+      if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
     } else if (F.stage === 2) {
       // 四割を討たれるか、芥田が討たれるか、寄せ手と接触して二十五秒で崩れて引く。
       // 行軍の到着や出撃からの秒数だけでは、戦っていない目標を済みにしない。
@@ -608,7 +632,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
         if (target) { F.fightT = rt.t; break; }
       }
-      if (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)) this.go(rt, 3);
+      // 15分の構成：坂の斬り合いは七十秒は続く
+      if (rt.t - F.stageT > 70 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25))) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;
@@ -647,15 +672,19 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       if (st && !st.alive && !F.breached) { F.breached = true; this.breach(rt); for (const g of F.allies) this.march(rt, g, [MOUTH, FRONT, INSIDE], 14); }
       // 自分か、門を抜けた味方の先手が門の内へ入れば本丸の段へ
       const gc = this.centerOf(F.gamo);
-      if (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && st && (!st.alive || F.tsukeiri) && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && st && !st.alive)) this.go(rt, 4);
+      if (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && st && (!st.alive || F.tsukeiri) && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && st && !st.alive) || rt.t - F.stageT > 160) { if (rt.t - F.stageT > 90) this.go(rt, 4); }   // 15分の構成：門で止まり続けない（後ろの寄せ手が門を破って入る）
     } else if (F.stage === 4) {
+      if (ninomaru.update(rt, K)) this.go(rt, 5);
+    } else if (F.stage === 5) {
       // 熊井越中守が討たれれば落城（誰が討っても）。目標どおり、討つまでは勝ちにしない（kaito 三3・十1）
       const boss = F.hon.units.find((u) => u.name === '熊井越中守');
       const inHon = Math.hypot(p.x - HON.x, p.z - HON.z) < 13;
       const left = this.fighting(F.hon, HON, 24);
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
       // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
-      if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; }
+      // 15分の構成：熊井は本丸の奥に籠り、旗本を割って九十秒ほどで自ら斬って出る（それまでは奥で討てない）
+      if (boss && !F.lastStand) { boss.invuln = true; boss.noTarget = true; }
+      if (!F.lastStand && rt.t - F.stageT > 140 && (F.honT >= 4 || rt.t - F.stageT > 160)) { F.lastStand = true; F.hon.aggro = 40; if (boss) { boss.invuln = false; boss.noTarget = false; } rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
       if (boss && !boss.alive) this.win(rt);
     }
   },
@@ -732,7 +761,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     const F = rt.flags; if (F.ending) return; F.ending = true;
     rt.unmark('t07');
     rt.award((t) => { t.main = true; t.special = { label: '岩石城を一日で落とした', pts: 20 }; }, '熊井越中守を討ち、本丸を取った');
-    rt.objDone('s4'); rt.setPhase('end');
+    rt.objDone('s5'); rt.setPhase('end');
     rt.banner('岩石城、落城', '一日で落ちた');
     rt.player.u.invuln = true;
     rt.say('蒲生郷成', '熊井越中守、討ち取ったり！　本丸に旗を立てよ', 3.5);
@@ -746,7 +775,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     rt.after(3.4, () => { try { rt.world.addFire(5, 9, { size: 2, blackSmoke: true }); } catch (e) { console.warn(e); } });
     rt.after(4, () => rt.say('前田利勝', 'この岩山が一日か。秋月も肝が冷えたであろう', 3));
     rt.after(7.6, () => rt.say('蒲生氏郷', '殿下に申せ。秋月は降りましょう', 3));
-    rt.finish({ scriptedEnd: true }, 13);   // 旗と火を見届けてから締める（九秒では一日で落とした手応えが残らなかった。kaito 三3）
+    // 余韻：山じゅうの尾根に豊臣の旗・本陣から「九州を南へ」（t07_ganjaku/rakujo.js）
+    rt.after(8, () => { if (rt.over) return; rakujo.play(rt); });
+    rt.finish({ scriptedEnd: true }, 29);   // 旗と火を見届けてから締める（九秒では一日で落とした手応えが残らなかった。kaito 三3）
   },
   lose(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
@@ -778,7 +809,7 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   // 深手の時は味方の陰へ下がって息を整える
   if (u.hp < u.maxHp * 0.35 && Math.hypot(u.pos.x - gc.x, u.pos.z - gc.z) > 4) { goTo(p, inp, gc.x, gc.z, 3); return; }
   const boss = F.hon.units.find((o) => o.name === '熊井越中守' && o.alive);
-  const goal = F.stage <= 1 ? MOUTH : F.stage === 2 ? F.meet : F.stage === 3 ? INNER : boss ? boss.pos : HON;
+  const goal = !F.stage ? SPAWN : F.stage <= 1 ? MOUTH : F.stage === 2 ? F.meet : F.stage === 3 ? INNER : F.stage === 4 ? ninomaru.NINO : boss ? boss.pos : HON;
   // 坂で届かない敵（斜面の上下）と睨み合って止まらない：行き先へ十五秒近づけなければ、六秒は敵を構わず進む
   const gd = Math.hypot(u.pos.x - goal.x, u.pos.z - goal.z), pr = F.botProg || (F.botProg = { s: 0, d: Infinity, t: 0, skip: 0 });
   if (pr.s !== F.stage || gd < pr.d - 3) { pr.s = F.stage; pr.d = gd; pr.t = b.t; }
@@ -793,7 +824,7 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   }
   const at = (q, r = 3) => goTo(p, inp, q.x, q.z, r);
   const nearTo = (q, r) => Math.hypot(u.pos.x - q.x, u.pos.z - q.z) < r;
-  if (F.stage <= 2) { at(goal, 3); return; }
+  if (F.stage <= 2 || (F.stage === 4 && F.botPast)) { at(goal, 3); return; }
   if (F.stage === 3) {
     // 退く敵の後ろから喰違の筋（門の前 → 門の内）を追う。閉まった門は打つ
     const st = t07_ganjaku.gateStruct(b);
@@ -817,6 +848,18 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 withGuard(t07_ganjaku);
+
+// 段のファイルへ渡す物（t07_ganjaku/*.js）
+const K = {
+  GATE, SPAWN, HON, TEXT,
+  foe: (name, at, list, o = {}) => {
+    const g = enemyGroup(K.rt, { fixed: true, name, faction: 'akizuki', flag: 'saito', armor: AKI, anchor: { x: at.x, z: at.z }, facing: Math.atan2(GATE.x - at.x, GATE.z - at.z), order: 'hold', aggro: 9, width: 4, ...o }, list);
+    g.noFrontline = true; return g;
+  },
+  fighting: (g) => t07_ganjaku.fighting(g),
+};
+const setup0 = t07_ganjaku.setup;
+t07_ganjaku.setup = function (rt) { K.rt = rt; return setup0.call(this, rt); };
 
 export { t07_ganjaku };
 export default t07_ganjaku;

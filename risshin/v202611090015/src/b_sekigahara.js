@@ -141,8 +141,8 @@ const sekigahara = {
     // ---- 陣と旗 ----
     // 本陣：大谷吉継（藤川台）と家康（桃配山）。陣幕の内に床几の大将と諸将、後ろに馬印と旗本
     // 見に行けば大将と旗本がいる（camp：大将・旗本・控え・使番）
-    F.otaniH = camp(rt, { x: -104, z: 62, facing: Math.PI / 2, team: 1, faction: 'otani', mon: 'otani', armor: OTANI.armor, uma: 'fukube',
-      general: { name: '大谷吉継', hat: 'kabuto_w', haori: 0xd8d2c0 }, guard: 15, reserve: 160, runTo: { x: -60, z: 60 } });
+    F.otaniH = camp(rt, { x: -104, z: 62, facing: Math.PI / 2, team: 1, faction: 'otani', mon: 'otani', armor: OTANI.armor, noUma: true,
+      general: { name: '大谷吉継' }, guard: 15, reserve: 160, runTo: { x: -60, z: 60 } });
     camp(rt, { x: 150, z: -6, facing: -Math.PI / 2, team: 0, faction: 'tokugawa', mon: 'tokugawa', armor: 0x24221f,
       general: { name: '徳川家康', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 15, reserve: 200, runTo: { x: 60, z: 20 } });
     for (const [x, z, k] of [[-96, 50, 'toyotomi'], [-112, 50, 'toyotomi'], [-122, -116, 'ishida'], [-116, -126, 'ishida'], [-86, -58, 'shimazu'], [-116, 4, 'ukita']]) rt.scene.add(nobori(W, x, z, k, 6));

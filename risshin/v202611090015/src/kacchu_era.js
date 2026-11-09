@@ -11,6 +11,24 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 所用具足は未確認。関ヶ原だけ敦賀市立博物館蔵の容斎屏風に寄せる（後世の描写）。
+  // 忍城・小田原へ頭巾姿を持ち込まない。出所：docs/generals_look_1108/大谷吉継.md。
+  if (name === '大谷吉継' && year >= 1582 && KACCHU[name]) {
+    const late = year >= 1600, key = name + (late ? '|浅葱頭巾' : '|当世具足');
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'zunari', crest: 'none', hat: late ? 'kato' : 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x1c1a1a, odo: 0x1c1a1a, preserveLace: true,
+      doStyle: 'okegawa', plateDo: null, haori: 0, horo: 0,
+      menpo: late ? 0x9c2e21 : 0, menpoStyle: 'hanbo', menpoScan: null,
+      mon: 'none', flag: 'otani', ref: '',
+      // 小袖と裹頭の既存部品を共用。袈裟・剃髪・兜・胴鎧は付けない。
+      ...(late ? { sohei: 1, soheiV: 9, kosode: 1, monk: 0, tier: 0,
+        cloth: 0xe6e0d0, kosodeCol: 0xe6e0d0, kato: 0x78aeb8,
+        kesa: 0, kote: 0, sode: false, haramaki: false, tenugui: false, trim: 0, left: null } : {}),
+    });
+    return cache.get(key);
+  }
   // 秀吉だけ、織田編の後から分ける。出所と復元の範囲は docs/generals_look_1108/羽柴秀吉.md。
   // 銀伊予札の具足は天正十八年の政宗拝領品。以前の戦での着用は断定しない。
   if ((name === '羽柴秀吉' || name === '豊臣秀吉') && year >= 1582 && KACCHU[name]) {

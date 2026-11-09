@@ -17,13 +17,17 @@ import { WIND_STATE, distToPolyline, rippleWater } from './world.js';
 import { liteMat } from './world_vegetation_materials.js';
 import { S } from './settings.js';
 import { RANKS } from './state.js';
-import { sfx } from './audio.js';
+import { sfx, stopMusic, playMusic } from './audio.js';
 import { sightPoint, cameraWallBlocked } from './battle_sight.js';
 import { guardDrawCamera, drawGroundAt } from './render_camera.js';
 import { gauss, enemyGroup as spawnEnemy, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import { clash } from './b_sekigahara.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
+// 15分の構成（docs/oda15_plan_1108.md 8）：段の中身は kanegasaki/ に一段一ファイル
+import * as k15Kosen from './kanegasaki/kosen.js';
+import * as k15Shingari from './kanegasaki/shingari.js';
+import * as k15Yoin from './kanegasaki/yoin.js';
 import { battleEvent, EVENT_RETREAT } from './battle_events.js';
 import { goten, horiboriHeight, monomi } from './castle_parts.js';
 import { fiveGoals } from './goals5.js';
@@ -3292,12 +3296,14 @@ const kanegasaki = {
     rt.banner('金ヶ崎の城は開いた', '木ノ芽峠を越え、一乗谷へ進む支度');
     rt.obj('main', '金ヶ崎の麓の一の備で、木ノ芽峠へ進む支度をする', 'main', true);
     rt.say(rt.G.lord ? '木下藤吉郎' : '織田信長', rt.G.lord ? '金ヶ崎は開き申した。木ノ芽峠の先は一乗谷にござる' : '金ヶ崎は開いた。木ノ芽峠を越え、一乗谷へ進むぞ', 4);
-    rt.after(2, () => this.wave1(rt));   // 開戦の乱戦を25秒の内に（10/31。元は9秒→5秒）
     F.t0 = 0;
-    rt.after(KG_BETRAY_T, () => {
+    // 15分の構成：はじめの三分は攻める（峠道の朝倉を押し返し、柵を取る・kanegasaki/kosen.js）。済んだら浅井離反の急報と追手
+    rt.after(1, () => k15Kosen.start(rt, { ...kgCtx(rt), faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, look: (list) => dress(list, ASAKURA),
+      LINE0: LINES[0], ARMOR: { oda: KIT.ARMOR.oda, asakura: ASAKURA.armor } }, () => {
       if (rt.over || F.ending) return;
       this.betrayed(rt);
-    });
+      rt.after(KG_BETRAY_T, () => { if (!rt.over && !F.ending) this.wave1(rt); });
+    }));
   },
 
   // 浅井の離反の知らせ：目的を「攻める」から「逃げる（殿）」へ替える
@@ -3306,6 +3312,8 @@ const kanegasaki = {
     if (F.betrayed) return;
     F.betrayed = true;
     rt.objRemove('main');
+    // 15分の構成：急報で楽を止め、しばらく無音の後に追われる楽へ
+    try { stopMusic(1.2); rt.after(14, () => { if (!rt.over && !F.ending) playMusic('climax'); }); } catch (e) { /* 音の無い時も続ける */ }
     // 攻城から撤退へ：浅井の寝返りの知らせで、織田の陣は攻めの形から総崩れ気味の退き陣へ変わる
     rt.banner('浅井が離反、全軍退け', '攻めをやめ、朝倉の追手を止めて味方を逃がせ');
     messengerOrder(rt, F.kinoU, '伝令', '浅井備前守、朝倉方へ寝返りにござる！　退き道が危うい！');
@@ -3336,6 +3344,7 @@ const kanegasaki = {
   retreatPct(rt) { return Math.min(100, Math.round((rt.flags.prog ?? rt.t) / RETREAT_T * 100)); },
   tickProg(rt, dt) {
     const F = rt.flags;
+    if (!F.betrayed) return;   // 15分の構成：攻めている間は主力の退去を数えない
     F.prog = F.prog ?? 0;
     const cur = F.dpOn ? F.dp?.cur?.groups : F.step === 1 ? F.w1 : F.step === 3 ? F.w2 : F.step === 5 ? F.w3 : null;
     let cleared = !!cur && cur.length > 0;
@@ -3432,7 +3441,8 @@ const kanegasaki = {
       if (which === 'A') {
         if (F.cl) F.cl.rout('A', { hideAfter: 30, from: -1 });
         this.fallBack(rt, 1);
-      } else if (which === 'B') this.fallBack(rt, 2);
+      } else if (which === 'B') k15Shingari.start(rt, { ...kgCtx(rt), faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, LINE1: LINES[1], LOOK: (list) => dress(list, ASAKURA) },
+        () => { if (!F.ending && !F.fleeing) this.fallBack(rt, 2); });   // 15分の構成：川の砦の殿（一番の見せ場）
       else this.collapse(rt);
     };
     depthStart(rt, kgCtx(rt), which === 'A' ? kgA() : which === 'B' ? kgB() : kgC(), after);
@@ -3746,9 +3756,9 @@ const kanegasaki = {
     sfx('horagai', 0.8);
     rt.banner('退き口成る', how);
     rt.say('木下藤吉郎', `${nm(rt)}、よう守った。手負いを支え、皆で帰るぞ`, 3);
-    this.epilogue(rt);
     rt.player.u.invuln = true;
-    rt.finish({ scriptedEnd: true }, 11);
+    // 15分の構成：脱出の知らせと帰京の一言を三十秒ほど見せてから結果へ（kanegasaki/yoin.js）
+    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, {}, 0));
   },
 
   // 史実の帰京と、次の姉川を間をあけた一言で残す。
