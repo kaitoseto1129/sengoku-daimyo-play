@@ -637,12 +637,13 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       }
       // 坂の木戸を抜かれたら、木戸の守りと弓は二の丸へ逃げ込む（抜かれた出曲輪に残って、登る寄せ手を背から射ない）
       const kk = this.along(KIDO.x, KIDO.z);
-      if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || F.lead > kk + 22)) {
+      // 持ち場の指示（F.lead）は時間でも進む。実際に登った先手の位置で木戸を抜いたか確かめる。
+      const gc = this.centerOf(F.gamo);
+      if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || (gc && this.along(gc.x, gc.z) > kk + 22))) {
         F.kidoFell = true;
         for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
       }
       // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
-      const gc = this.centerOf(F.gamo);
       // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
       if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
     } else if (F.stage === 2) {

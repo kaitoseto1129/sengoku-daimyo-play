@@ -155,6 +155,9 @@ const RAID_PATHS = [
   [[8, -30], [0, -24], [0, FENCE_Z + 3]],
   [[0, -36], [0, FENCE_Z + 3]],
 ];
+// 柵外の押し合いも、寄せる道と持ち場を共有して切岸の一点へ詰めない。
+const FENCE_FIGHTS = [[-16, true, 6, -8], [11, false, 5, -8], [-5, true, 7, -12]];
+const FENCE_RAID_PATHS = FENCE_FIGHTS.map(([x, , , z]) => [[x, z - 23.5], [x, z - 12.5], [x, z - 3.5]]);
 // 柵の東の開口（z6〜20）を通り、陣幕より手前で両口をつなぐ。
 // 自動操作も寄せ手も同じ道を使う。道と高さは初めに一度だけ作る。
 const MOUTH_LINK = [[0, FENCE_Z + 3], [0, 14], [52, 14], [66, 12]];
@@ -219,7 +222,7 @@ const PEOPLE_BANDS = [
 ];
 let FIELD_PATHS_ = null; // 下で決まる道の並びを使うので、初めて要る時に組む
 // 両口を結ぶ往来も、兵の道順・地ならしと同じ線で描き、草木を除ける。
-const fieldPaths = () => FIELD_PATHS_ || (FIELD_PATHS_ = [[[0, 120], [0, FENCE_Z], ...CHASE_PATH.slice(1), ...IWA_ROAD], ...IWA_SIDE_ROADS, ...(SETTINGS.quality === 'high' ? [...HOUSE_APPROACH_PATHS, ...CAMP_HOUSE_PATHS] : []), ...RAID_PATHS, MOUTH_LINK, SCOUT_PATH, ...RETURN_PATHS, ...CAMP_ENTER, ...CAMP_EXIT, ...PEOPLE_ROADS, PEOPLE_TEMPLE_APPROACH]);
+const fieldPaths = () => FIELD_PATHS_ || (FIELD_PATHS_ = [[[0, 120], [0, FENCE_Z], ...CHASE_PATH.slice(1), ...IWA_ROAD], ...IWA_SIDE_ROADS, ...(SETTINGS.quality === 'high' ? [...HOUSE_APPROACH_PATHS, ...CAMP_HOUSE_PATHS] : []), ...RAID_PATHS, ...FENCE_RAID_PATHS, MOUTH_LINK, SCOUT_PATH, ...RETURN_PATHS, ...CAMP_ENTER, ...CAMP_EXIT, ...PEOPLE_ROADS, PEOPLE_TEMPLE_APPROACH]);
 // 道の色と木の除け方は読み込み時だけ調べる。道の配列は共用する。
 function fieldRoadDistance(x, z) {
   let d = Infinity;
@@ -1870,7 +1873,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     F.fenceSallies = []; F.fenceRaids = [];
     // 11/1 点付け（岩村66「乱戦が薄い」）：二つの組み合いは画面の左右の端に分かれ、真ん中が空いた。
     //   25秒の持ち場の正面（口の西、柵の外の十五〜二十歩）にもう一組、十対十の本物の兵の押し合いを置く。その分、遠景の軽い兵を減らす。
-    for (const [x, lead, n, zs] of [[-16, true, 6, -8], [11, false, 5, -8], [-5, true, 7, -12]]) {
+    for (const [i, [x, lead, n, zs]] of FENCE_FIGHTS.entries()) {
       const sally = allyGroup(rt, { fixed: true, fullStrength: true, name: '柵の外へ出た河尻の足軽', anchor: { x, z: zs }, facing: Math.PI, width: 5, spacing: 0.85, formation: 'yari', aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, noRout: true },
         battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], ODA));
       // critic60：開戦すぐ（篝火の前）から柵の外で斬り合い、夜討ちの前に戦が始まっていた。槍組は柵の外で構えて待ち、
@@ -1878,6 +1881,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       const raid = enemyGroup(rt, { fixed: true, faction: 'takeda', name: '柵に取り付いた武田勢', anchor: { x, z: zs - 23.5 }, facing: 0, order: 'hold', formation: 'yari', width: 5, spacing: 0.85, aggro: 7, seekRange: 7, guard: true, guardLeash: 2.5, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.6 },
         battleLook(rt, [...(lead ? [{ type: 'samurai', n: 1 }] : []), { type: 'ashigaru', n }], NIGHT_RAID));
       raid.iwPost = { x, z: zs - 3.5 };
+      raid.iwApproach = FENCE_RAID_PATHS[i];
       creep(raid, { x, z: zs - 12.5 });
       raid.noRout = true;   // 取り付いて三十五秒は崩れず柵の外で組み合う（update で解く）
       raid.defMult = sally.defMult = 3;   // 二十五秒の前に討ち尽くさず、押し合いを長く見せる（四十秒で戻す）
@@ -2066,7 +2070,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       const g = F.waves[i]; g.iwSent = true; g.iwSentAt = rt.t; F.sentWaves.push(g);
       if (!g.count || g.routed) return;
       // 出現位置だけを固定する。行軍中は道幅に合わせて後列の持ち場を詰める。
-      g.fixed = false; g.fire = true;
+      g.fixed = false; g.fire = true; g.followColumnRoad = true;
       // 中央は柵の口、東は脇の口まで寄せる。柵の外で止めない。
       g.order = 'path'; g.path = RAID_PATHS[i]; g.pathIdx = 1; g.speed = i === 2 ? 3.6 : 2.8; g.march = true; g.keepMoveOrder = false;
       for (const u of g.units) if (!u.civ) u.noTarget = false;
@@ -2078,10 +2082,12 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 柵に取り付く手：忍び上がった闇から柵の外の槍組へ駆け寄り、そこで組み合う。
     for (const g of F.fenceRaids) {
       const post = g.iwPost;
-      g.fixed = false; g.order = 'move'; g.dest = { x: post.x, z: post.z }; g.speed = 2.6; g.march = true; g.keepMoveOrder = true;
+      g.fixed = false; g.order = 'path'; g.path = g.iwApproach; g.pathIdx = 1; g.dest = null;
+      g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true;
+      g.speed = 2.6; g.march = true; g.keepMoveOrder = true;
       g.aggro = 7; g.seekRange = 7;
       for (const u of g.units) u.noTarget = false;
-      g.onArrive = (q) => { q.keepMoveOrder = false; q.fixed = true; q.anchor.x = post.x; q.anchor.z = post.z; q.order = 'hold'; q.march = false; };
+      g.onArrive = (q) => { q.keepMoveOrder = false; q.fixed = true; q.anchor.x = post.x; q.anchor.z = post.z; q.formation = 'yari'; q.order = 'hold'; q.march = false; };
     }
     // 山道の夜討ちを先に受け、城方の合流を二つ目の山場にする。
     // 時機と台詞は復元。既存の十人を歩かせ、兵を増やさない。
@@ -2306,6 +2312,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       F.scout.iwSent = true; F.scout.order = 'path'; F.scout.march = true; F.scout.keepMoveOrder = false;
       for (const u of F.scout.units) u.noTarget = false;
       F.scout.fixed = false; F.scout.path = SCOUT_PATH; F.scout.pathIdx = 0; F.scout.speed = 2.8; F.scout.onArrive = F.scout.iwAttack;
+      F.scout.followColumnRoad = true;
       F.scout.aggro = 4; F.scout.seekRange = 32;
       for (const g of F.oda) g.fire = true;
       F.fgun.fire = true;

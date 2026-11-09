@@ -17,8 +17,10 @@ export function pin(rt) { const K = rt.flags.iwKaijo; return K && !K.ok && K.g ?
 export function envoy(rt) { const K = rt.flags.iwKaijo; return K?.g?.units.find((u) => u.alive) || null; }
 
 function quiet(g) {
-  g.aggro = 0; g.seekRange = 0; g.noAI = false;
-  for (const u of g.units) { u.noTarget = true; u.target = null; u.invuln = true; }
+  g.aggro = 0; g.seekRange = 0; g.noAI = true; g.noHunt = true; g.peaceful = true;
+  // 戦わない者も、実際に歩いて持ち場へ着いたかを数える。
+  g.arriveNoncombat = true;
+  for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.invuln = true; }
 }
 
 // 本体の win の頭で呼ぶ。true の間は勝ちにしない
@@ -33,7 +35,7 @@ export function hold(rt) {
 function yoru(rt) {
   const F = rt.flags;
   F.iwYoru = { at: rt.t };
-  for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.aggro = 0; g.seekRange = 0; g.order = 'hold'; }
+  for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { quiet(g); g.order = 'hold'; }
   rt.say('河尻秀隆', '登り口は固めた。……城の太鼓が止んだな', 3.2);
   rt.after(6, () => { if (!rt.over) rt.say('足軽', '城の中から、泣く声が聞こえる……', 3); });
   rt.after(12, () => {
@@ -58,15 +60,16 @@ function start(rt) {
   rt.banner('十一日の後', '十一月二十一日、岩村城から白旗の使者');
   rt.world.setTime('day');
   // 城方の残る兵は打ちかからない（使者が下りる間）
-  for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.aggro = 0; g.seekRange = 0; g.order = 'hold'; }
+  for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { quiet(g); g.order = 'hold'; }
   try { sfx('kane', 0.5); } catch (e) { /* なし */ }
   rt.say('物見', '城の木戸が開きます……白い旗じゃ！　使者が下りて来ます', 3.6);
   K.g = enemyGroup(rt, { faction: 'takeda', flag: null, name: '城方の使者', fixed: true, noGuard: true, anchor: { x: 0, z: -120 }, facing: 0, width: 2, formation: 'column', morale: 100, noRout: true, speed: 2.2 },
     [{ type: 'samurai', n: 1, o: { name: '城方の使者', flag: null } }, { type: 'ashigaru', n: 1, o: { flag: null } }]);
   quiet(K.g);
+  K.g.roadColumn = true; K.g.followColumnRoad = true; K.g.colW = 1; K.g.noRun = true;
   K.g.order = 'path'; K.g.pathIdx = 0; K.g.dest = null; K.g.formation = 'column';
   // 麓から本陣へは、追撃で下った九十九折りを戻る。切岸を直進しない。
-  K.g.path = [[0, -96], ...(F.restPath || [[0, -90], [0, -6], [0, 10]]), [HONJIN.x, HONJIN.z - 4]];
+  K.g.path = [[0, -120], [0, -96], ...(F.restPath || [[0, -90], [0, -6], [0, 10]]), [HONJIN.x, HONJIN.z - 4]];
   K.g.onArrive = (q) => { q.order = 'hold'; K.arrived = true; };
   rt.obj('main', GOAL, 'main', true);
   rt.after(5, () => rt.say('河尻秀隆', '槍を下げよ。使者は討つな。柵の内の本陣まで、おぬしが付いて送れ', 4));
@@ -80,9 +83,12 @@ export function tick(rt) {
   // 付き添いが離れたら道の途中で待つ。本人を置いて本陣へ着き、勝手に任務を済ませない。
   const beside = Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 14 && Math.abs(e.pos.y - p.y) < 4;
   if (!K.arrived) {
-    if (!beside && K.g.order === 'path') { K.waiting = true; K.g.order = 'hold'; }
-    else if (beside && K.waiting) { K.waiting = false; K.g.order = 'path'; }
+    // 待つ間も道に沿う列を保つ。構えへ替えると折れの後列が切岸へ出る。
+    K.waiting = !beside;
+    K.g.speed = beside ? 2.2 : 0;
   }
+  rt.objProgress('main', K.arrived ? '使者と信忠様の本陣へ進め' : K.waiting ?
+    '山道で待つ白旗の使者のそばへ戻れ' : '白旗の使者に付き添い、山道から柵の口を通れ');
   const T = rt.t - K.at;
   if (!K.l1 && T > 24) { K.l1 = true; rt.say('城方の使者', '城の者の命を助けてくださるなら、城を開くと秋山が申しております', 4); }
   if (!K.l2 && T > 40) { K.l2 = true; rt.say('足軽', '……城の兵は痩せこけておる。兵糧が尽きたのは本当じゃ', 3.4); }
@@ -126,10 +132,11 @@ export function epilogue(rt) {
   rt.after(42, () => { if (!rt.over) try { sfx('farHorn', 0.5); } catch (e) { /* なし */ } });
 }
 
-// 使者を送る間の bot：使者の後ろ三歩を歩く
+// 使者を送る間の bot：道の上の使者に付く（固定の横ずれで切岸へ出ない）
 export function bot(b, inp, { goTo }) {
   const e = envoy(b), p = b.player;
   if (!e) return;
+  if (p.lock) inp.e.add('KeyQ');
   inp.runHeld = Math.hypot(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z) > 10;
-  goTo(p, inp, e.pos.x + 2, e.pos.z - 3, 2);
+  goTo(p, inp, e.pos.x, e.pos.z, 2);
 }

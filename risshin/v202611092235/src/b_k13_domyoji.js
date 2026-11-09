@@ -624,6 +624,8 @@ const k13_domyoji = {
     try { jin13.tick(rt, dt); } catch (e) { if (!rt.flags._jinErr) { rt.flags._jinErr = 1; console.warn("道明寺の陣立て", e); } }
     if (F.ending) return;
     depthTick(rt, dt);
+    // 最後の段で終戦したら、追撃停止の下知を追従処理で攻撃へ戻さない。
+    if (F.ending) return;
     this.keepUp(rt, dt);
     const D = F.dp;
     // 夕暮れは六十秒かけて移ろうので、④（午後の誉田）の始めから暮れさせ、⑤の殿の時に夕日になるように（⑤の始めからでは昼のまま終わった。11/7）
