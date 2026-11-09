@@ -21,7 +21,7 @@ export function stages(H) {
       later: [
         { t: 26, say: ['足軽', '本丸の櫓から鉄砲じゃ！　遠いぞ、気にするな！'], foes: () => [gunLine('本丸の通りの鉄砲', { x: TOWN_X + 44, z: GATE.z + 6 }, 2, {})] },
       ],
-      max: 170, minEl: 60, reward: '侍町の奥の木戸を押さえた',
-      onEnd: () => {} }),
+      max: 120, minEl: 60, reward: '侍町の奥の木戸を押さえた',
+      lenient: true, onEnd: () => {} }),
   ];
 }

@@ -12,9 +12,9 @@ import { evPerson } from '../b_ev6.js';
 
 export function wrap(def, K) {
   const fall = def.onZoneFall;
-  def.onZoneFall = function (r, id) {
+  def.onZoneFall = function (r, id, ...rest) {   // rest：先へ進める印（force）をそのまま渡す
     const F = r.flags, was = { san: F.sanFell, ni: F.niFell };
-    const out = fall.call(this, r, id);
+    const out = fall.call(this, r, id, ...rest);
     if (k15Off(r) || F.ending) return out;
     if (id === 'san' && !was.san && F.sanFell && !F.k15san) { F.k15san = true; sanStage(r, K); }
     if (id === 'ni' && !was.ni && F.niFell && !F.k15ni) { F.k15ni = true; niStage(r, K); }

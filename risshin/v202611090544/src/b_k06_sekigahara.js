@@ -756,6 +756,8 @@ const k06_sekigahara = {
       F.shiK = F.shiN - n;
       // 島津が本陣の前に来て押し合い、主人公がその前に立って受け続ける（島津は勝ち負けに関わらず伊勢路へ抜けていく＝史実）
       const receiving = alive(F.shima) && near(F.shima.center(), HOLD5, 45);
+      // 本陣を挟んで遠くに立つだけでは、退き口を受けた事にしない。
+      if (receiving && near(P, HOLD5, 40) && F.shima.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.noTarget && near(P, u.pos, 26))) F.shiMet = true;
       // 本陣まで来た島津を受け切った後、残兵が尽きても守備の時計を止めない。
       // 到着前に減っただけでは果たさず、主人公が本陣の前にいる間だけ数える。
       const repelled = !!F.shiAt && (!alive(F.shima) || !F.shima.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.noTarget));
@@ -780,8 +782,8 @@ const k06_sekigahara = {
       }
       // 味方が島津を減らしただけでは果たさない。本陣の前で主人公が受けた時間だけを数える。
       // 主人公の到着が遅れても、受け終えるまでは島津を伊勢路へ進めない。
-      if (F.shiAt && (receiving || repelled) && near(P, HOLD5, 40)) F.shiHeld = (F.shiHeld || 0) + dt;
-      if ((receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
+      if (F.shiAt && F.shiMet && (receiving || repelled) && near(P, HOLD5, 40)) F.shiHeld = (F.shiHeld || 0) + dt;
+      if (F.shiMet && (receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
     }
   },
 

@@ -2253,6 +2253,9 @@ const tano = {
 tano.force = (rt) => ({ a: Math.max(0, 4000 - (rt.flags.ak || 0)), a0: 4000, b: Math.max(0, 41 - (rt.flags.ek || 0) - (rt.flags.principalsDead ? 2 : 0)), b0: 41 });
 tano.sides = { a: { name: '滝川の織田軍', mon: 'oda' }, b: { name: '武田の残る侍', mon: 'takeda' } };
 tano.famous = [];
+// 11/9 二巡（徳川D）：命懸けの戦場（lethal.js）と、この戦の怖さ（狭い谷道・柵の口から打って出る最後の抵抗）
+tano.lethal = true;
+tano.fearKind = tano.fearKind || { kind: '最後の抵抗', note: '狭い谷道と柵の口', w: { losses: 1.3, iso: 1.3 }, line: '死に物狂いで来るぞ！' };
 tano.date = () => '天正十年三月十一日　春・午前';
 tano.canSkip = (rt) => rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '';
 tano.skip = (rt) => {

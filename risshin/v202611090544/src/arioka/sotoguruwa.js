@@ -21,6 +21,6 @@ export function stages(H) {
           foes: () => [{ name: '北の塀沿いの荒木勢', from: { x: TOWN_X - 12, z: -74 }, list: [uS(1), uA(5)], morale: 75 }] },
       ],
       max: 200, reward: '惣構えの通りを押さえた',
-      onEnd: () => {} }),
+      lenient: true, onEnd: () => {} }),
   ];
 }
