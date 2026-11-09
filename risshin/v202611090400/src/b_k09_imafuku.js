@@ -85,13 +85,22 @@ function requiredStage(s) {
     }
     // 共通の段は守兵が崩れると済むが、四つの木戸を破る目標は省かない。
     if (s.kind === 'fight' && rt.flags.step === 2) {
+      let leaderAlive = false;
+      for (const g of C.groups) if (g.units.some((u) => u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || ''))) {
+        leaderAlive = true;
+        // 守将を討つ前に退かせると、川の向こうまで追えず目標が行き詰まる。
+        g.noRout = true;
+      }
       if ([rt.flags.gate, ...(rt.flags.outer || [])].some((st) => st && st.alive)) return false;
+      // 共通の判定は残り二人以下でも組を済みとする。守将が残っている間は、討つ目標を済みにしない。
+      if (leaderAlive) return false;
     }
     // 少人数になった時に共通処理が noRout を外すため、横撃前の本隊と未交戦・出た直後の殿は保護を戻す。
     const protect = (s.kind === 'hold' && el < 100) || (s.kind === 'fight' && rt.flags.step === 4 && (el < 30 || !C.engaged));
     if (protect) for (const g of C.groups) if (!gone(g) && /^(木村重成|後藤又兵衛)の(隊|二の手|殿)$/.test(g.name || '')) g.noRout = true;
     // 持ち場に戻らず反撃だけが終わった場合も、守った時間を満たしてから済みにする。
-    return done && (s.kind !== 'hold' || C.inT >= 45) &&
+    return done && (s.kind !== 'hold' || (C.inT >= 45 && rt.player.u.alive &&
+      Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius)) &&
       (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged));
   };
   return s;
@@ -292,7 +301,7 @@ const k09_imafuku = {
     // 総大将は本陣の床几に座り、旗本に囲まれて前に出ない。camp の大将は名のある将として馬に乗り、馬の上で床几に座る形になって
     //   堤の東の宙に浮いて見えた（描いて遊んで、③の間に振り返るたび。一2・九6）→ 徒の義宣を陣幕の内に据える
     const hqG = rt.army.addGroup({ team: 0, faction: 'tokugawa', name: '佐竹義宣の本陣', order: 'hold', anchor: { x: 194, z: -4 }, facing: WESTWARD, aggro: 4, width: 1, morale: 100, noRout: true });
-    rt.army.spawn(hqG, dress([busho('佐竹義宣', { horse: false, invuln: true, hat: 'kabuto_m', haori: 0x3a3228 })], SATAKE));
+    rt.army.spawn(hqG, dress([busho('佐竹義宣', { horse: false, invuln: true, hat: 'kabuto', haori: 0, flag: 'sashi:satake:#202638:#c9a653' })], SATAKE));
     if (hqG.units[0]) { hqG.leader = hqG.units[0]; hqG.units[0]._crouch = true; }
     if (hq) hq.general = hqG.units[0] || null;
     for (const g of rt.army.groups) if (g.team === 0 && !g.mon) g.mon = 'satake';   // 本陣の旗本の隊旗も佐竹の扇に月（徳川の葵にしない）
@@ -377,8 +386,8 @@ const k09_imafuku = {
       Object.assign(DP.fight({ at: { x: FORT.x + 2, z: 0 }, title: '今福の砦', sub: '堤をふさぐ四重の柵', obj: '四つの柵の木戸を破り、矢野正倫と飯田家貞を討て', max: 360, noRefill: true,   // 守兵は史実の六百（各三百）だけ。新手は湧かせない
         say: [['梅津憲忠', '木戸を破れ！　柵を一つずつ越えて砦へ迫れ！']],
         // 守兵は砦の中に籠る（見えない所から湧かせず、柵の内で待つ）。この段だけ出す所を決めたままにする
-        foes: () => { ctx.fixedSpawn = true; return [{ name: '矢野正倫の守兵', from: { x: FORT.x - 4, z: 0 }, list: [busho('矢野正倫', { horse: false }), uS(2), uA(6), uG(4)], dmg: 0.19, noRout: 60 },
-          { name: '飯田家貞の守兵', from: { x: FORT.x - 12, z: -6 }, list: [busho('飯田家貞', { horse: false }), uS(2), uA(6), uG(4)], dmg: 0.19, noRout: 60 }]; },   // 矢野・飯田は各三百（ja.wikipedia「矢野正倫」）で同じ数   // 二分半は柵の内で崩れずに戦う（崩れても段の終わりに討死：taken）
+        foes: () => { ctx.fixedSpawn = true; return [{ name: '矢野正倫の守兵', from: { x: FORT.x - 4, z: 0 }, list: [busho('矢野正倫', { horse: false }), uS(2), uA(6), uG(4)], dmg: 0.19, noRout: 9999 },
+          { name: '飯田家貞の守兵', from: { x: FORT.x - 12, z: -6 }, list: [busho('飯田家貞', { horse: false }), uS(2), uA(6), uG(4)], dmg: 0.19, noRout: 9999 }]; },   // 矢野・飯田は各三百で同じ数。守将が討たれた組から西の仮橋へ退く。
         reward: '今福の砦を奪った', onEnd: (rt2) => { ctx.fixedSpawn = false; this.taken(rt2); } }), { idleAdvance: false }),
       DP.rest({ dur: 5, heal: 0.7 }),
       // ③ 木村重成の反撃：堤の上で受け止める。後藤又兵衛が加わる

@@ -498,7 +498,7 @@ const t10_oshi = {
         { type: 'samurai', n: 3, o: { flag: 'otani', mon: 'otani', armor: ISHI.armor, lace: ISHI.lace } }, { type: 'ashigaru', n: 3, o: { flag: 'otani', mon: 'otani', armor: ISHI.armor, lace: ISHI.lace } }]);
     // 11/6 専門家の目：寄せ手の半ばは佐竹義宣ら北関東の大名衆（battle_learn）。石田の旗だけの寄せ手にしない。佐竹の手は堰の西の堤の外（川との間）に陣取る
     F.satake = allyGroup(rt, { faction: 'satake', name: '佐竹義宣の手', fullStrength: true, anchor: { ...SATAKE }, facing: Math.atan2(-0.3, -1), width: 6, aggro: 0, fixed: true, noAI: true },
-      [{ type: 'busho', n: 1, o: { name: '佐竹義宣', invuln: true, horse: true, hat: 'kabuto_m', flag: 'satake', mon: 'satake', armor: ISHI.armor, lace: ISHI.lace } },
+      [{ type: 'busho', n: 1, o: { name: '佐竹義宣', invuln: true, horse: true, hat: 'kabuto', flag: 'sashi:satake:#202638:#c9a653', mon: 'satake' } },
         { type: 'samurai', n: 3, o: { flag: 'satake', mon: 'satake', armor: ISHI.armor, lace: ISHI.lace } }, { type: 'ashigaru', n: 6, o: { flag: 'satake', mon: 'satake', armor: ISHI.armor, lace: ISHI.lace } }]);
     KIT.backOf(rt, F.satake, { flag: 'satake', armor: ISHI.armor, kind: 'spear', w: 14, depth: 6, count: 120, gap: 3, seed: 10906 });
     // 城代の成田長親は本丸の屋形の前を動かない

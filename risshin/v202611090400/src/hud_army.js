@@ -161,7 +161,7 @@ export class HudArmy {
   updateTug(rt) {
     let tb = this.tugEl;
     // 上に急に出て消える兵力の棒は出さない（kaito 11/3 AP4）。両軍の人数は別の所に常にある
-    if (true) { if (tb) tb.hidden = true; return; }
+    if (!rt.def.forceBarAlways) { if (tb) tb.hidden = true; return; }
     // 稲生は所属の分からない裸の数字を出さず、戦場の兵と敵の▼で見せる。
     //   ただし def.forceBar の戦（稲生の 700 対 1700）は、字の無い兵の絵の棒で開戦と節目にだけ見せる。
     if (rt.def.missionStyle === 'lesson' && !rt.def.forceBar) { if (tb) tb.hidden = true; return; }
@@ -193,7 +193,7 @@ export class HudArmy {
     }
     const guided = !!rt.missionGuide?.marker || this.missionEnemyShown;
     const needed = rt.t < 4 || rt.t < (rt.missionDangerUntil || 0) || rt.t < (rt.flags?.forceShowUntil || 0);
-    const off = !f || guided || !needed || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
+    const off = !f || (!rt.def.forceBarAlways && (guided || !needed)) || this.introWaiting || !!rt.choice || !!rt.def.town || !!rt.def.dojo;
     tb.hidden = off;
     if (off) return;
     // 稲生は七百対千七百の兵力差を、そのまま棒の長さにする。
