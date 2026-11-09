@@ -3058,7 +3058,11 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     //   組が着いて九十秒過ぎたら、近くにいれば着いたと見なす（時が経てば物語が進む）
     const goalP = F.marchPinPos || F.marchGoal, me = rt.player.u.pos;
     if (host?.arrived && F.hostArrivedAt == null) F.hostArrivedAt = rt.t;
-    const atGoal = this.squadFlagReached(rt) || (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && !!goalP && Math.hypot(me.x - goalP.x, me.z - goalP.z) < 30);
+    // 組が到着済みなら、兵に押されて五歩の輪へ入れなくても十二歩以内で合流とする。
+    // 谷の途中では広げず、旗について出口まで来た本人を九十秒待たせない。
+    const goalDistance = goalP ? Math.hypot(me.x - goalP.x, me.z - goalP.z) : Infinity;
+    const atGoal = this.squadFlagReached(rt) || (host?.arrived && goalDistance <= 12) ||
+      (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && goalDistance < 30);
     if (!atGoal && F.marchAwayT >= 120) {
       F.ending = true; rt.tracker.main = false; rt.objFail('col'); rt.unmark('genpachi');
       rt.banner('谷の出口へ届かず', '残る組と元の道へ退く'); rt.finish({ failureReason: '組から離れ、谷の出口で組に加われなかった。' }, 7); return;

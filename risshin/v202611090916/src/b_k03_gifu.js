@@ -411,8 +411,8 @@ const k03_gifu = {
     // 山道の落石：百曲りの坂へ中腹の砦の守りが（③の間）、一の門の巨石の通路へ二の丸の守りが（④の間）石を落とす。落ちる筋は道の脇の斜面
     F.rocks = makeRockTraps(rt, { posts: [
       //   道の脇の筋を二歩寄せ、列の端へ届かせる。道の真上へは置かず、石の数を増やして登る間の脅威を保つ（G30）。
-      { id: 'hyaku', team: 1, stock: 6, interval: [11, 16], lane: [[-96, -13], [-104, -12.5], [-112, -10.5], [-118, -9]], active: () => F.step === 3 && !F.next && noMelee(rt) },
-      { id: 'ichi', team: 1, stock: 3, interval: [14, 20], lane: [[-72, -7], [-77, -9], [-84, -11.5]], active: () => F.step === 4 && !F.next && noMelee(rt) }] });
+      { id: 'hyaku', team: 1, stock: 6, interval: [11, 16], lane: [[-96, -13], [-104, -12.5], [-112, -10.5], [-118, -9]], active: () => F.step === 3 && !F.next && !F.ending && noMelee(rt) },
+      { id: 'ichi', team: 1, stock: 3, interval: [14, 20], lane: [[-72, -7], [-77, -9], [-84, -11.5]], active: () => F.step === 4 && !F.next && !F.ending && noMelee(rt) }] });
 
     // ---- 城方：城下の総門口の津田藤三郎と鉄砲衆 ----
     F.g1 = this.foe(rt, '津田藤三郎の鉄砲衆', SHITA, [busho('津田藤三郎'), uS(3), uA(7), uG(10)], { hold: true });
@@ -613,11 +613,12 @@ const k03_gifu = {
 
   update(rt, dt) {
     const F = rt.flags;
+    // 締めの間も、既に落ちた石は転がし終える（空中に止めない）。新しい落石は active で止める。
+    if (F.rocks) F.rocks.tick(dt);
     if (F.ending || !F.step) return;
     const P = rt.player.u;
     tickTabas(rt, dt);
     F.k03s?.tick?.(dt);
-    if (F.rocks) F.rocks.tick(dt);
     // 手勢は本人の脇に付いて一緒に走る（AP5）
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
       F.mineT = 0.6;
