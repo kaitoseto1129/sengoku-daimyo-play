@@ -549,7 +549,9 @@ export const t05_ichinomiya = {
     // 印は一つだけ（kaito AS・AT・AV15）：行き先は頭上の金の▼（#goal-sign）に任せ、白い旗のピンは描かない。この戦の間だけ効く
     if (typeof document !== 'undefined' && !document.getElementById('t05-one-mark')) {
       const st = document.createElement('style'); st.id = 't05-one-mark';
-      st.textContent = 'html body #hud:has(#h-prog[data-battle="t05_ichinomiya"]):has(#goal-sign:not([hidden])) #mission-goal:not(.fire-action):not(.talk-action) svg{display:none!important}';
+      // 共通の行き先表示と field-clean は名札の親まで隠す。将ごとの表示判定を生かし、この戦では名前を残す。
+      st.textContent = 'html body #hud:has(#h-prog[data-battle="t05_ichinomiya"]):has(#goal-sign:not([hidden])) #mission-goal:not(.fire-action):not(.talk-action) svg{display:none!important}' +
+        'html body #hud:not(.photo):not(.ending):has(#h-prog[data-battle="t05_ichinomiya"]) .field-names{display:block!important}';
       document.head.appendChild(st);
     }
     buildStage(rt);

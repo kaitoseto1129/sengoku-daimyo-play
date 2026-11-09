@@ -4379,7 +4379,8 @@ const inabayama = {
   taskText(rt, text) {
     const F = rt.flags, it = rt.nearestInteract();
     if (F.ending) return '任務は達成。仲間と持ち場を守ろう';
-    if (F.retreatMarked || F.regroup && F.step !== 3) return text;
+    // 曲輪の任務中は、済んだ町や木戸の下知で今の目標を覆わない。
+    if (F.dp?.on || F.retreatMarked || F.regroup && F.step !== 3) return text;
     if (F.step === 0) return it?.id === 'talk' ? '「話す」を押そう' : '近づいて話す';
     // 全ての守兵が退いた後は、新手待ちや交戦の案内で出口への下知を隠さない。
     if (F.step === 1 && F.townSoundWait) return '町の出口で仲間と並ぼう。合図の後、翌日の囲みへ';
@@ -4464,6 +4465,12 @@ const inabayama = {
   cornerEnemyGuide: true,
   objectiveEnemies(rt) {
     const F = rt.flags, marks = F.holdEnemyMarks || (F.holdEnemyMarks = []);
+    if (F.dp?.on) {
+      const enemy = F.dp.cur?.s.kind === 'move' && !F.dp.cur.arr ? null : nearestFoeOf(rt, F.dp.cur?.groups || []);
+      marks.length = enemy ? 1 : 0;
+      if (enemy) marks[0] = enemy;
+      return marks;
+    }
     if (F.step === 3) {
       const enemy = inabaClimbGuideEnemy(rt);
       marks.length = enemy ? 1 : 0;
@@ -4493,6 +4500,7 @@ const inabayama = {
   missionSignTarget(rt) {
     const F = rt.flags;
     if (F.ending || F.retreatMarked) return null;
+    if (F.dp?.on) return this.objectiveEnemies(rt)[0] || null;
     if (F.step === 4) {
       // 柵の向こうの相手は、口を通るまで▼で指さない（ピンが口を指す）。
       const u = nearestFoeOf(rt, honTargetGroup(rt));
@@ -4516,6 +4524,15 @@ const inabayama = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending) return null;
+    // 二ノ門へ移っても段番号は三のまま。七曲りの古い印へ戻さず、今の曲輪の印を使う。
+    if (F.dp?.on) {
+      const marker = rt.markers.find((m) => m.id === 'dp');
+      const pos = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+      if (!pos) return null;
+      const pin = F.depthPin || (F.depthPin = { key: 'dp', r: 1.5, hide: -2, always: true, silent: true, arrow: false });
+      pin.marker = marker; pin.x = pos.x; pin.z = pos.z;
+      return pin;
+    }
     // 倒す段は、ピンを一番近い残りの敵の足元へ（稲生 4）。柵の向こうなら口を先に指す。
     // 槍が届いたら頭上の▼に任せ、ピンは消す。
     if (!F.retreatMarked && !F.regroup && (F.step === 4 && !F.sig || F.step === 1 && F.clearT !== undefined || F.step === 2 && F.holdArrived && F.oteCharging ||
@@ -4573,6 +4590,7 @@ const inabayama = {
   guideMarker(rt) {
     const F = rt.flags;
     if (F.ending) return null;
+    if (F.dp?.on) return 'dp';
     if (F.retreatMarked) return 'retreat';
     if (F.step === 0) return 'kino';
     // 持ち場にいる間は旗へ引き返させず、鹿垣の前の城兵を迎える。
@@ -6072,6 +6090,8 @@ const inabayama = {
   },
   tsukeTick(rt) {
     const F = rt.flags, p = rt.player.u.pos;
+    // 木戸を抜けた後は二ノ門の任務が道を案内する。七曲りへ引き戻さない。
+    if (F.k15Nino === 'on') return;
     // 七歩手前で印を次へ移すと、折れの内側の切岸へ直進させてしまう。
     // 搦手と同じく、角へ着くか次の区間へ踏み出してから、順に進める。
     while (F.nanaNext < NANA.length && roadCornerPassed(rt.world, p, NANA, F.nanaNext, 1.2)) F.nanaNext++;

@@ -349,7 +349,10 @@ export class HudCards {
   // 任務の札。右上に今することを大きく一行、必要な進みと残り時間を小さく添える。
   //   戦の定義に missions（または stages）と missionOf（または stageOf）があればそれを使う。無い戦は、主の任務が変わるたびに一つ進める。
   //   字が変わる時だけ書く（setText）。毎コマ作らない。
-  progress(rt) {
+  progress(rt, force = false) {
+    // 11/9 重さ：任務の札の字の組み立ては十分の一秒に一度で足りる（毎コマだと兵が集まった時の一コマの数%）。戦が替われば待たない
+    if (!force && this.progTickRt === rt && rt.t >= this.progTickT && rt.t - this.progTickT < 0.1) return;
+    this.progTickRt = rt; this.progTickT = rt.t;
     const def = rt.def, root = this.root;
     root.classList.toggle('mission-one-line', !!def.missionSingleLine);
     const battleOrder = !def.town && !def.dojo;

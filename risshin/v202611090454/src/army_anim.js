@@ -246,6 +246,14 @@ export const ArmyAnim = {
         return;
       }
       dt = u.qualityAnimDt; u.qualityAnimDt = 0;
+    } else if (MEM_TIGHT && this.midPose && u.alive && !u.dying && u.qualityTier === 1 && !u.isPlayer && !u.name && !u.isSub && u.camD > 18 &&
+        !u.hit && !u.downed && !u.climb && !u.dragging && !u.dodging && !(u.stagger > 0) && !u._crouch && !u.vatWant &&
+        !(u.horse?.userData.horse?.spook) && ((this.frameNo + u.id) & 1) === 1 && (u.qualityAnimDt || 0) < 0.12) {
+      // 11/9 kaito「みんなが集まると動けなくなる」：18m より先で戦う兵の手足と得物の構えは二コマに一度（経過はためて次のコマへ渡す）。
+      //   体の位置と向きは毎コマ。近い兵・名のある者・打たれた者・倒れる者は毎コマ。馬の骨は下の lazy と同じ拍子
+      u.qualityAnimDt = (u.qualityAnimDt || 0) + dt;
+      u.mesh.position.set(u.pos.x, u.pos.y, u.pos.z); u.mesh.rotation.y = u.heading;
+      return;
     } else if (u.qualityAnimDt) { dt += u.qualityAnimDt; u.qualityAnimDt = 0; }
     // 画面外から向き直った時も、直前の姿勢と時計を保つ。
     u.animDt = (u.animDt || 0) + dt;
