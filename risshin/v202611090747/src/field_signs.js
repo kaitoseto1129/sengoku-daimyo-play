@@ -884,7 +884,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
     // 見えている近くの一人を候補にし、札を増やさない。
     for (const u of rt.army.units) {
       if (!general(u) || u.isPlayer || u.isStruct || u.civ || u.team > 1 || !live(u)) continue;
-      if (rt.def.hideNameTag?.(u)) continue;   // 史料に名の無い役の侍（「〇〇の侍大将」など）に名札を出さない（kaito AY7・名札は名のある将だけ）
+      if (rt.def.hideNameTag?.(u, rt)) continue;   // 戦ごとの距離と、名の無い役の侍を隠す指定を守る。
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       const ally = u.team === me.team;
       if (alliesOnly && !ally) continue;
