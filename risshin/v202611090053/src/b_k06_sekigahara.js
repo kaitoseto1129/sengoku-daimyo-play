@@ -11,7 +11,10 @@
 //   中心は北緯35.3655・東経136.4720（関ヶ原の盆地の真ん中）。陣の位置は陣跡の緯度経度を写した（docs/battle_refs/k06_sekigahara.md の布陣表の座標 × 2.5）。
 //   島津だけは陣跡より後ろ（西）の林の陰に置き、退き口まで兵を出さない（BU「島津はずっと後ろ、退き口の時まで見えない」）。
 // 座標：西が −x（笹尾山・天満山）、北が −z、南の +z に松尾山。東の +x に家康の本陣（桃配山）。
-// 兵：全部本物（同時に二百五十まで）。軽い作りの大軍は霧の内に描かれない（flat_rule.js）ので置かない。振り返った所には中ほどの二の備え（金森・加藤）を本物で置く。
+// 兵：戦う兵は全部本物（同時に二百五十まで）。振り返った所には中ほどの二の備え（金森・加藤）を本物で置く。
+//   11/8 kaito（toku15_plan 6・army_depth_spec）：各家の備・二陣・旗本・南宮山の毛利は共通の軍勢の厚みに表で渡す（k06/depth_plan.js）。
+//   第一線の激突・小早川の一万五千の下山・段ごとの下知は k06/jindate.js（霧が晴れると遠くまで旗が見える）。
+//   勝った後は霧の晴れた野の余韻と首実検の支度（k06/yoin.js）。
 //   名のある将は馬上で旗本の侍に囲む。総大将（家康・三成・秀家）と大谷吉継（輿）は本陣で座る。旗はその家の物だけ。
 // 史実と一説：問鉄砲（家康が松尾山へ鉄砲を撃たせた）は一説。「勝って兜の緒を締めよ」は伝承。history に分けて書く。
 // ======================================================================
@@ -26,6 +29,9 @@ import { sfx } from './audio.js';
 import { KILLS, cut } from './stages.js';
 import { timeslipField } from './timeslip_field.js';
 import { setStages } from './b_k_help.js';
+import * as jindate from './k06/jindate.js';   // 台本の動き（第一線の激突・小早川の下山・段ごとの下知）
+import { DEPTH } from './k06/depth_plan.js';   // 陣立て表（共通の army_depth.js が描く）
+import * as yoin from './k06/yoin.js';         // 勝った後の余韻（倒れた旗・逃げる兵・首実検の支度）
 
 let dem = null;
 useTerrain('dem_sekigahara', (data) => { dem = data; });
@@ -76,7 +82,8 @@ const HOKKOKU = sc([[-60, 6], [-110, -30], [-150, -70], [-180, -150], [-200, -23
 const ISE = sc([[-6, 8], [2, 60], [12, 130], [30, 240]]);
 const SHIMA_PATH = [{ x: -300, z: -70 }, { x: -200, z: -48 }, { x: -112, z: -36 }, { x: -60, z: 40 }, { x: -10, z: 170 }, { x: 20, z: 360 }, { x: 60, z: 560 }];
 const FOG_T0 = 12, FOG_T1 = 80;
-const HOLD_S = 45;   // ⑨ 島津が本陣の前へ来てから受け続ける秒
+const HOLD_S = 32;
+const FLIP_AT = 46;   // ⑧に入ってから小早川が動くまでの秒（11/8 kaito「松尾山の小早川が動かず家康側が焦る」）   // ⑨ 島津が本陣の前へ来てから受け続ける秒
 // 右上の目標（goals5・obj・setStages で同じ文）。行き先は地図で分かる名で（BU「ここ」は使わない）
 //   討てる将（明石全登・島津豊久）の名は目標の文に入れない（victory_flow の namedKill が名を含む札を済みにし、段の途中で勝ちに締まる）
 const G = [
@@ -128,6 +135,8 @@ const front = (P, at, g0, g1, g2, g3, g4) => {
 };
 const rout = (g) => { if (alive(g)) { g.routed = true; g.order = 'flee'; } KIT.markRecyclable(g); };
 const nOf = (...gs) => gs.reduce((n, g) => n + (alive(g) ? g.count : 0), 0);
+// 笹尾山の旗本のうち、山（本陣）から七十歩の内で踏みとどまる兵だけ（遠くへ散った兵を追い回させない・11/8 流しで西の山奥まで追った）
+const nAt = (at, ...gs) => gs.reduce((n, g) => n + (alive(g) ? g.units.filter((u) => u.alive && !u.gone && !u.fleeing && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 70).length : 0), 0);
 // 本物の兵は同時に REAL_CAP まで。新手を出す前に、逃げた隊・遠い隊から遠くの姿へ戻す（近づけばまた本物）
 const REAL_CAP = 250;
 const realCount = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && u.type !== 'porter' ? 1 : 0), 0);
@@ -184,6 +193,7 @@ const k06_sekigahara = {
     grass: 0x8a9456, grassTints: [0xffffff, 0xe0dcb0, 0xc4c494], grassH: 1.1, grassLift: 0.2, grassShape: 'blade', tallGrass: 0.8,
     flagColors: [0x24211e, 0x8e1f16, 0x3a3630],   // 模様の無い白い幟を地に立てない（critic60）
   },
+  depth: DEPTH,   // 各家の備・二陣・旗本・南宮山の毛利（k06/depth_plan.js・docs/army_depth_howto.md）
   noCouriers: true,
   noTaisho: true,
   noReserve: true,
@@ -218,7 +228,7 @@ const k06_sekigahara = {
   compactIntro: true,
   prelude: false,      // 霧の中の会話が開戦の溜め。共通の溜め（十五秒）を重ねると、三十秒近く立ち尽くす（newbie60）
   introText: () => '慶長五年九月十五日の朝。霧の関ヶ原で、東西およそ十五万が向き合う。井伊直政の手に付き、天下分け目の口火を切る。',
-  minutes: 14,
+  minutes: 17,
   spawn: { x: START.x, z: START.z, heading: -Math.PI / 2 },
   sides: { a: { name: '東軍', mon: 'tokugawa', faction: 'tokugawa' }, b: { name: '西軍', mon: 'ishida', faction: 'toyotomi' } },
   date: () => '慶長五年（1600）九月十五日　朝・霧　美濃国 関ヶ原',
@@ -275,9 +285,14 @@ const k06_sekigahara = {
     const lead = (g, at) => (g?.leader?.alive && !g.leader.gone ? g.leader.pos : alive(g) ? g.center() : at);
     const s = F.step, P = rt.player.u.pos;
     // 左近との接近が済むまでは本人へ。旗本を退かせ終えたら、残兵を追わず笹尾山へ登る。
-    const climbing = s === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
+    const climbing = s === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
     const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : s === 6 ? lead(F.kuroda, KURODA)
       : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
+    // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
+    if (s === 8 && P.x > FENCE_X - 1 && P.z > -214 && P.z < -128) {
+      const g = near(P, GAP, 9) ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z };
+      q.x = g.x; q.z = g.z; return q;
+    }
     q.x = T.x; q.z = T.z;
     return q;
   },
@@ -342,6 +357,7 @@ const k06_sekigahara = {
     F.kobaE = foe(rt, '小早川秀秋の隊', MATSUO, [{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '平岡頼勝', invuln: true, horse: true } }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 4 }], KOBA, { order: 'hold', aggro: 0, seekRange: 0, facing: -Math.PI * 0.8, noRout: true, formation: 'yari' });
     F.wakiE = foe(rt, '脇坂安治らの隊', WAKI_P, [{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: true } }, { type: 'ashigaru', n: 5 }], WAKI, { order: 'hold', aggro: 0, seekRange: 0, facing: -Math.PI * 0.7, noRout: true, formation: 'yari' });
     for (const g of [F.kobaE, F.wakiE, F.hide, F.mitsu, F.otaniH]) g.noFrontline = true;
+    jindate.install(rt, { UKITA_H, UKITA_F, KONISHI, SASAO, SAKON, KURODA, HOSOKAWA, KATO_P, IEYASU0, IEYASU1, HONDA, TODO_P, MATSUO, WAKI_P, OTANI, HIRA, FUKU, START, HOLD5, SHIMAZU });
     // 戦の前の会話（霧の中の対陣）
     rt.after(0.5, () => rt.say('井伊直政', '霧が深い。先陣は福島殿と決まっておるが……徳川の手で口火を切らねば、この戦は豊臣の家の戦で終わる', 5));
     rt.after(6, () => rt.say('松平忠吉', '物見と申して、福島の脇を抜けましょう。鉄砲衆も連れてゆく', 3.5));
@@ -485,7 +501,7 @@ const k06_sekigahara = {
       rt.say('徳川家康', '松尾山へ鉄砲を撃ちかけよ。どちらに付くか、はっきりさせてやれ', 4);
       rt.army.play('volley', { x: MATSUO.x + 60, z: MATSUO.z - 120 }, 1.2);
     });
-    rt.after(32, () => this.flip(rt));
+    rt.after(FLIP_AT, () => this.flip(rt));   // 松尾山が動かない焦り（jindate の野の声もこの間に）
   },
   // 小早川の寝返り（必ず）。大谷隊が崩れ、脇坂らも東軍へ
   flip(rt) {
@@ -554,18 +570,23 @@ const k06_sekigahara = {
     goAttack(F.ii, { x: HOLD5.x + 8, z: HOLD5.z - 26 }, 10, 12);
     goAttack(F.iiGun, { x: HOLD5.x + 24, z: HOLD5.z - 34 }, 20, 20);
     goAttack(F.honda, { x: HOLD5.x + 14, z: HOLD5.z + 8 }, 10, 12);
+    // 島津の通り道の脇にいる金森・加藤の手は道を空ける（11/8 流し：金森の手と組み合い、島津が陣場野の百十歩手前で五分止まった）
+    for (const g of [F.kanamori, F.kato]) if (alive(g)) { goTo(g, { x: -246, z: 14 }); g.aggro = 0; g.seekRange = 0; }
     rt.after(4, () => {
       sfx('horagai', 1);
       rt.say('島津義弘', '退くは前じゃ。家康の本陣の前を突き抜けよ！', 4);
       room(rt, 40);
       // 島津の隊はここで初めて林の陰から出る（朝から一日、陣を動かなかった）
-      F.shima = foe(rt, '島津義弘の隊', SHIMAZU, [{ type: 'busho', n: 1, o: { name: '島津義弘', invuln: true, mustLive: true, horse: true } }, { type: 'busho', n: 1, o: { name: '島津豊久', horse: true } },
+      // 11/8：林の陰から野へ出た所で現す（林の奥から歩かせると、本陣の前に来るまでに三分かかった）
+      F.shima = foe(rt, '島津義弘の隊', { x: SHIMAZU.x + 106, z: SHIMAZU.z + 32 }, [{ type: 'busho', n: 1, o: { name: '島津義弘', invuln: true, mustLive: true, horse: true } }, { type: 'busho', n: 1, o: { name: '島津豊久', horse: true } },
         { type: 'samurai', n: 6 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 14 }], SHIMA, { order: 'move', aggro: 10, seekRange: 12, morale: 100, noRout: true, width: 10 });
       F.shiN = F.shima.count; F.shiK = 0;
+      F.shima.speed = 4.6;   // 11/8 流し：歩みが遅く（一秒に一歩足らず）、本陣の前に来るまで四分かかっていた。駆け抜ける速さに
       // 11/8 critic60（九2・三2）：道の途中で主人公とぶつかって減り切り、陣場野へ来ないまま勝っていた。本陣の前に着くまでは討たれにくい
       F.shima.defMult = 6;
       // 倍率だけでは主人公の一撃や鉄砲で尽きる。本陣へ着くまでは旗本が守る。
       for (const u of F.shima.units) u.campProtected = true;
+      F.shiI = 0;   // 野へ出た所から（道の一つ目は林の出口なので飛ばす）
       this.shimaStep(rt);
       rt.marker('foe', () => (F.shima.leader?.alive ? F.shima.leader.pos : F.shima.center()), '島津義弘', { red: true, group: F.shima });
       rt.after(16, () => rt.say('本多忠勝', '島津の捨て奸じゃ。殿の陣へは一歩も入れるな！', 3.5));
@@ -586,16 +607,16 @@ const k06_sekigahara = {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true; F.won = true;
-    rt.objDone('main'); rt.unmark('foe');
-    rt.award((t) => { t.main = true; t.special = { label: '関ヶ原で井伊の先に立ち、島津の退き口を受けた', pts: 60 }; }, '島津の退き口を受けた');
-    rt.banner('関ヶ原の戦い　勝ち');
+    rt.unmark('foe');
     rt.player.u.invuln = true;
     if (alive(F.shima)) { F.shima.order = 'move'; F.shima.dest = { ...SHIMA_PATH[SHIMA_PATH.length - 1] }; F.shima.onArrive = null; F.shima.aggro = 0; }
     for (const g of rt.army.groups) if (g.team === 1 && g !== F.shima) rout(g);
-    // 11/5（三3）：果たしたらその場で締め、数秒で勝利の札へ
-    rt.after(1.5, () => rt.say('徳川家康', '皆の者、大儀。勝って兜の緒を締めよ。まだ佐和山が残っておる', 3.5));
-    rt.after(5.5, () => rt.say('井伊直政', `${nm(rt)}、ようやった。徳川の先陣の槍、見事であった`, 3));
-    rt.finish({ scriptedEnd: true }, 9);
+    // 11/8 kaito：すぐ札へ行かず、霧の晴れた野の余韻と首実検の支度を二十秒（k06/yoin.js が締めの finish を呼ぶ）
+    //   主の任務の済みと手柄は締めの直前に（共通の goalsDoneTick が二秒半で勝ちに締め、余韻を切らないように）
+    yoin.start(rt, { UKITA_F, SAKON, KONISHI, done: () => {
+      rt.objDone('main');
+      rt.award((t) => { t.main = true; t.special = { label: '関ヶ原で井伊の先に立ち、島津の退き口を受けた', pts: 60 }; }, '島津の退き口を受けた');
+    } });
   },
   lose(rt, why) {
     const F = rt.flags;
@@ -615,6 +636,8 @@ const k06_sekigahara = {
     if (F.koshi && F.otaniU?.alive && !F.otaniU.gone) { const u = F.otaniU; F.koshi.position.set(u.pos.x, rt.world.heightAt(u.pos.x, u.pos.z), u.pos.z); F.koshi.rotation.y = u.heading || 0; }
     F.uma?.update(dt);
     this.fog(rt);
+    jindate.tick(rt);
+    yoin.tick(rt, dt);
     if (F.ending || !F.step) return;
     const P = rt.player.u.pos;
     if (F.step <= 4 && broken(F.ii) && broken(F.fuku)) { this.lose(rt, '井伊と福島の隊が崩れた'); return; }
@@ -711,7 +734,7 @@ const k06_sekigahara = {
         F.mitsu3 = foe(rt, '石田の旗本の二の手', { x: SASAO.x + 8, z: SASAO.z - 8 }, [{ type: 'samurai', n: 6 }, { type: 'gun', n: 4 }], ISHIDA, { aggro: 24, seekRange: 30, formation: 'yari' });
         F.mitN += F.mitsu3.count;
       }
-      if (!F.mitsuGate && n <= need && rt.t - F.flipT > 30 && near(P, SASAO, 45)) this.stage9(rt);
+      if (!F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= need && rt.t - F.flipT > 30 && near(P, SASAO, 45)) this.stage9(rt);
     } else if (F.step === 9 && F.shima) {
       const n = nOf(F.shima);
       if (alive(F.shima)) F.shima.morale = 100;   // 島津は退き口の間、崩れて逃げ戻らない（前へ抜けるだけ）
@@ -721,6 +744,16 @@ const k06_sekigahara = {
       // 本陣まで来た島津を受け切った後、残兵が尽きても守備の時計を止めない。
       // 到着前に減っただけでは果たさず、主人公が本陣の前にいる間だけ数える。
       const repelled = !!F.shiAt && (!alive(F.shima) || !F.shima.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.noTarget));
+      // 本陣の前に着く前に兵に揉まれて止まったら、少しずつ前へ押し出す（足止めで退き口が来ないまま終わらない）
+      if (!F.shiAt && alive(F.shima) && (F.shiChkT = (F.shiChkT || 0) - dt) <= 0) {
+        F.shiChkT = 5;
+        const c = F.shima.center(), d = F.shima.dest;
+        if (F.shiLast && d && dist(c, F.shiLast) < 8) {
+          const L = Math.max(1, dist(c, d)), ux = (d.x - c.x) / L, uz = (d.z - c.z) / L;
+          for (const u of F.shima.units) if (u.alive && !u.gone) { u.pos.x += ux * 4; u.pos.z += uz * 4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
+        }
+        F.shiLast = { x: c.x, z: c.z };
+      }
       if (!F.shiAt && receiving) {
         F.shiAt = rt.t; F.shima.defMult = 1; F.shima.order = 'attack'; F.shima.aggro = 30; F.shima.seekRange = 30;
         for (const u of F.shima.units) u.campProtected = false;
@@ -760,7 +793,8 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
   if (!u.alive || F.ending) return;
   const q = b.def.missionPin(b);
   // 退く段・虎口の横断・登頂・本陣への移動を、脇の敵への寄り道で止めない。
-  const moving = F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
+  // ⑧で柵の外（東）にいる間も寄り道しない（柵越しに斬り合い、騎馬に討たれた・11/9 流し）
+  const moving = F.step === 8 && u.pos.x > FENCE_X - 1 && u.pos.z > -214 && u.pos.z < -128 || F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
   const ok = (o) => !moving && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
   const prev = pl.botStrikeFoe;
   const r = F.step === 1 || F.step === 3 || F.step === 6 ? 3 : F.step === 2 ? 6 : 9;
