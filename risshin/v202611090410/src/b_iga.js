@@ -3335,9 +3335,8 @@ function igaMove(o) {
         }
         next = C.corner;
       }
-      // 着いた折れ目を印に残し続けない。陣の小屋を避ける角の探しが同じ角を返し、陣の口で印が足もとから動かなかった（11/8）
-      if (next !== C.at && Math.hypot(next.x - rt.player.u.pos.x, next.z - rt.player.u.pos.z) < 1.2) { C.passed = { x: next.x, z: next.z }; next = C.at; }
-      else if (next !== C.at && C.passed && Math.hypot(next.x - C.passed.x, next.z - C.passed.z) < 0.6) next = C.at;
+      // 小屋を回る角の到着と次の角への切替は igaCampWay に任せる。
+      // その手前の1.2歩で目的地へ戻すと、出口の角を飛ばして壁へ直進してしまう。
       if (next !== C.at) {
         // 目的地と折れ目の矢印を重ねず、次に歩く所だけを同じ印で示す。
         rt.marker('dp', next, '道の折れ目', { h: 3 }); C.goal = next;

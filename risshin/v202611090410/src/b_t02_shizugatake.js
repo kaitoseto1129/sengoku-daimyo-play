@@ -188,6 +188,8 @@ const SHIZU_KACCHU = Object.fromEntries(KOSHO.map((name, i) => [name, { ...KACCH
 // 11/6 check60 fix4（時代考証）：秀吉の馬藺の後立と馬毛、利家の金鯰尾と金小札は、伝来の品が安土桃山の後の物で、天正十一年の着用は裏付けがない。
 //   秀吉は筋兜・立物なし・黒漆に白糸の威、利家は筋兜・黒漆・毛引威（ほかの戦の復元と同じ考え）。盛政の指物は佐久間の旗（共通の表は織田）
 Object.assign(SHIZU_KACCHU, {
+  // 清正の後年の仏胴指定を若い小姓の具足へ持ち込まない。
+  '加藤清正': { ...SHIZU_KACCHU['加藤清正'], plateDo: null },
   '羽柴秀吉': { ...KACCHU['羽柴秀吉'], crest: 'none', armor: 0x22201c, helm: 0x16120f, fur: 0, haori: 0, menpo: 0, horo: 0, mon: 'none', preserveLace: true, haidateGold: false, flag: HASHIBA, ref: '' },
   '前田利家': { ...KACCHU['前田利家'], bowl: 'suji', crest: 'none', doStyle: 'kebiki', armor: 0x22241e, helm: 0x22241e, lace: 0x554732, odo: 0x554732,
     goldKozane: false, suneateGold: false, suneateColor: 0x22241e, lac: 'kuro', haori: 0, menpo: 0, fur: 0, horo: 0, flag: 'maeda', ref: '' },

@@ -3239,19 +3239,26 @@ const tonezaka = {
     const elapsed = Math.max(0, rt.t - F.pollAt); F.pollAt = rt.t; F.poll = 0.4;
     const p = rt.player.u.pos;
     // 11/6 fixc2220（九2・一3）：noAI の組は「攻めよ」の下知だけでは動かない。押し出す組は三秒ごとに主人公の居る所へ道を引き直し、着けば槍を合わせる。
-    //   向かう先は主人公か、より近い味方の組の先頭（主人公が離れていても軍勢どうしで当たる）。間合い十四歩に入れば構えて槍を合わせる。
+    //   向かう先は主人公か、より近い戦える味方。六歩まで寄せ、槍が届く前に列を止めない。
     for (const g of [F.r1, F.r1b, F.r2, F.r3, F.r2c, F.r3c, F.r4, F.townG, F.innerG]) {
       if (!g || !g._charge || !fighting(g) || rt.t < (g._chargeAt || 0)) continue;
       g._chargeAt = rt.t + 3; g.aggro = 20; g.seekRange = 40;
-      const c = g.center(); let to = p, best = Math.hypot(c.x - p.x, c.z - p.z) - 10;
+      const c = g.center(), groundY = rt.world.heightAt(c.x, c.z);
+      let to = Math.abs(p.y - groundY) < 6 ? p : null;
+      let best = to ? Math.hypot(c.x - p.x, c.z - p.z) - 10 : Infinity;
       // 城下でも近い攻め手と戦う。主人公だけを追って勝家の手を素通りしない。
       const allies = g === F.townG || g === F.innerG ? F.townFriends : [F.uma, F.late, ...F.followers];
       for (const a of allies) {
         if (!fighting(a)) continue;
-        const q = a.center(), d = Math.hypot(c.x - q.x, c.z - q.z);
-        if (d < best && Math.abs(rt.world.heightAt(q.x, q.z) - rt.world.heightAt(c.x, c.z)) < 6) { best = d; to = q; }
+        // 組の中心は深手の兵や山腹へ残った兵に引かれる。実際に戦える兵へ寄せる。
+        for (const u of a.units) {
+          if (!fighter(u) || u.rearWound || u.downed || u.climb || Math.abs(u.pos.y - groundY) >= 6) continue;
+          const d = Math.hypot(c.x - u.pos.x, c.z - u.pos.z);
+          if (d < best) { best = d; to = u.pos; }
+        }
       }
-      if (near(c, to, 14)) { if (g.order === 'path') { g.path = null; toneHold(g); } g.aggro = 20; continue; }
+      if (!to) continue;
+      if (near(c, to, 6)) { if (g.order === 'path') { g.path = null; toneHold(g); } g.aggro = 20; continue; }
       march(g, [[to.x, to.z]], (q) => { toneHold(q); q.aggro = 20; });
       g.speed = 2.4;
     }

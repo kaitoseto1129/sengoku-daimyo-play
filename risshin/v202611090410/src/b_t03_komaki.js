@@ -314,6 +314,10 @@ const t03_komaki = {
     const K = this.ctx(rt);
     if (n === 1) Camp.startCamp(rt, K);
     else if (n === 2) {
+      // 夜討ちは朝の光のまま始めない。時の変わり目で夜の照明を確定し、砦にも火を入れる。
+      rt.world.dayClock = null;
+      rt.world.setTime('night', true);
+      for (const [x, z] of KAGARI) rt.world.addFire(x, z, { h: 1.3, size: 0.6, lightRadius: 10, smoke: false });
       countFallen(rt);
       F.nightDead0 = F.fallen[1]; F.nightAllyDead0 = F.fallen[0];
       rt.after(1, () => rt.say('日根野弘就', '徳川の先手が田を渡って寄せる。土橋の口を固めよ', 3.2));
@@ -408,18 +412,21 @@ const t03_komaki = {
       }
     } else if (F.stage === 3) {
       // 六秒ごとに射撃の機会をそろえる。発射・射線の確認・弾込めは共通の構えの処理へ渡す。
-      if (live(F.guns) && !F.guns.routed && F.guns.order !== 'retreat' && (F.volT = (F.volT ?? 2) - dt) <= 0) {
+      if ((F.volT = (F.volT ?? 2) - dt) <= 0) {
         F.volT = 6;
         const tg = [P, ...(F.sortie?.units || [])].filter((u) => u.alive && !u.gone);
         let shot = 0;
-        for (const u of F.guns.units) {
-          if (u.type !== 'gun' || !u.alive || u.gone || u.fleeing || u.sidearm || u.atk || u.swing || u.reload || u.cd > 0 || u.stagger > 0) continue;
-          const t = tg.reduce((b, q) => (!b || dist(q.pos, u.pos) < dist(b.pos, u.pos) ? q : b), null);
-          if (!t || dist(t.pos, u.pos) > 55 || dist(t.pos, u.pos) < 4) continue;
-          u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
-          u.atk = { t: 1.2, dur: 1.2, target: t, ranged: true };
-          if (t.isPlayer) u.shotWarnUntil = Math.max(u.shotWarnUntil || 0, rt.army.time + 1.2);
-          shot++;
+        for (const g of [F.guns, F.guns2]) {
+          if (!live(g) || g.routed || g.order === 'retreat') continue;
+          for (const u of g.units) {
+            if (u.type !== 'gun' || !u.alive || u.gone || u.fleeing || u.sidearm || u.atk || u.swing || u.reload || u.cd > 0 || u.stagger > 0) continue;
+            const t = tg.reduce((b, q) => (!b || dist(q.pos, u.pos) < dist(b.pos, u.pos) ? q : b), null);
+            if (!t || dist(t.pos, u.pos) > 55 || dist(t.pos, u.pos) < 4) continue;
+            u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
+            u.atk = { t: 1.2, dur: 1.2, target: t, ranged: true };
+            if (t.isPlayer) u.shotWarnUntil = Math.max(u.shotWarnUntil || 0, rt.army.time + 1.2);
+            shot++;
+          }
         }
         if (shot && !F.volSaid) { F.volSaid = true; rt.say('物見', '鉄砲が来るぞ！　田の畦に身を低く', 2.4); }
       }
@@ -507,7 +514,7 @@ t03_komaki.force = (rt) => {
 };
 t03_komaki.date = (rt) => {
   const s = rt?.flags?.stage || 0;
-  return s >= 7 ? '天正十二年四月七日　夜明け' : s >= 6 ? '天正十二年四月六日　夜' : s >= 4 ? '天正十二年四月四日　夕' : '天正十二年四月初め';
+  return s >= 7 ? '天正十二年四月七日　夜明け' : s >= 6 ? '天正十二年四月六日　夜' : s >= 5 ? '天正十二年四月六日　夕' : s >= 4 ? '天正十二年四月四日　夕' : s >= 2 ? '天正十二年四月初め　夜' : '天正十二年四月初め';
 };
 t03_komaki.history = '天正十二年（1584）、織田信雄は徳川家康と組んで羽柴秀吉と手を切った。秀吉方に付いた池田恒興が犬山城を落とすと、家康は小牧山を押さえて堀と土塁で固めさせた。三月十七日の夜明け、小牧山を狙って羽黒に陣を張った森長可は、奥平信昌・榊原康政の先手に前から、回り込んだ酒井忠次の手に横から襲われ、三百ほどを失って犬山へ退いた（羽黒の戦い・徳川方およそ五千）。退く時、母衣衆の野呂助左衛門父子が引き返して討死した。三月の末、秀吉は楽田に本陣を置き、二重堀などの砦を並べて小牧山の家康・信雄とにらみ合った。どちらも砦から出ず、最前線の二重堀の砦（守将 日根野弘就）への夜討ちのような小競り合いが続いた。膠着を破ろうと、池田恒興は家康の留守の三河を突く中入りを言い出す。羽黒と二重堀の間隔は縮めた復元で、主人公の組の動きは遊びのための筋書き。';
 t03_komaki.famous = [];
