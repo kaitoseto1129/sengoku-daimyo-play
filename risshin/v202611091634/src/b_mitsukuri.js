@@ -4222,7 +4222,7 @@ const mitsukuri = {
     // 15分の構成：寄せの前に物見の場で城の構えを見て、六角の物見を払い、丹羽の手と合流してから総懸かり。
     //   先手の列（openingColumn）は柵の前に並べたまま動かさない（段へ呼ぶと三の郭へ寄せる列が崩れた）。物見には藤吉郎の手の足軽が付く
     rt.after(0, () => k15Monomi.start(rt, { faction: 'rokkaku', flag: 'rokkaku', armor: RK.armor, look: (list) => dress(list, RK),
-      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 12 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）
+      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
      
       CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },

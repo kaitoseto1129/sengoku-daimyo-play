@@ -7,15 +7,17 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-export const EXTRA = 290;   // 本の押し合いの時計（下限・見切り）をこれだけ延ばす
-const TK_AT = 335;          // 渡河からこの秒で西の徳川の別手が動く
-const YOKO_AT = 390;        // 渡河からこの秒より前には稲葉の横槍は駆け出さない（九分半ごろ）
+// 三巡の記録は全九段を766秒で達成。後続を分散し、押し合いを二分半延ばす。
+// 横槍だけ遅らせず、徳川の別手と長引いた時の見切りも同じ幅で動かす。
+export const EXTRA = 440;   // 本の押し合いの時計（下限・見切り）をこれだけ延ばす
+const TK_AT = 485;          // 渡河からこの秒で西の徳川の別手が動く
+const YOKO_AT = 540;        // 渡河からこの秒より前には稲葉の横槍は駆け出さない
 // 浅井の新手（渡河からの秒・名・兵）。川向こうの控えから同じ瀬を渡り、前の塊に続く
 const WAVES = [
   [140, '浅井の新手・浅井政澄の手', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }]],
-  [215, '浅井の新手・阿閉の手', [{ type: 'samurai', n: 2 }, { type: 'cavalry', n: 2 }, { type: 'ashigaru', n: 12 }]],
-  [280, '浅井の新手・新庄の手', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }]],
-  [345, '浅井の新手・長政の旗本', [{ type: 'samurai', n: 3 }, { type: 'cavalry', n: 2 }, { type: 'ashigaru', n: 10 }]],
+  [250, '浅井の新手・阿閉の手', [{ type: 'samurai', n: 2 }, { type: 'cavalry', n: 2 }, { type: 'ashigaru', n: 12 }]],
+  [390, '浅井の新手・新庄の手', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }]],
+  [480, '浅井の新手・長政の旗本', [{ type: 'samurai', n: 3 }, { type: 'cavalry', n: 2 }, { type: 'ashigaru', n: 10 }]],
 ];
 
 // ctx：{ enemyGroup, dress, AZAI, AZAI_FLEE, mori:{x}, tokugawa() }

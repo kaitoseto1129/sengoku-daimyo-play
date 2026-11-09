@@ -364,8 +364,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 本人所用は未確認。室町末の紺糸威胴丸を型とする復元案。細部は必須表、出所は本人の調べ書き。
   ["遠藤直経", "suji", "kuwa", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "none", "https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/"],
   ["海北綱親", "zunari", "horn", 0x1c1a1a, 0xa88a3a, "sugake", 0, 0x1c1a1a, "azai", ""],
-  // 景健の所用具足・立物は未確認。浅井長政と見分ける頭形の兜・紺の威・茶の陣羽織の復元案で、立物は付けない。
-  ["朝倉景健", "zunari", "none", 0x24221f, 0x2e3a52, "okegawa", 0x8a5a2a, 0x24221f, "asakura", ""],
+  // 景健本人所用は未確認。室町末の現存胴丸を型とする復元案。細部と出所は docs/generals_look_1108/朝倉景健.md。
+  ["朝倉景健", "suji", "none", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "asakura", "https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/"],
   ["朝倉景鏡", "suji", "none", 0x24221f, 0x3a5a3a, "okegawa", 0x8a6a2a, 0x24221f, "asakura", ""],
   ["山崎吉家", "suji", "none", 0x24221f, 0x2e3a52, "sugake", 0x3a6a72, 0x24221f, "asakura", ""],
   ["三好義継", "suji", "shida", 0x1c1a1a, 0x466270, "kebiki", 0xcfc8b4, 0x1c1a1a, "miyoshi", ""],
