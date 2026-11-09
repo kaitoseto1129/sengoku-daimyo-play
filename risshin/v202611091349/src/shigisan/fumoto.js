@@ -12,6 +12,8 @@ export function install(rt, ctx) {
   const { dress, MATSU, ROAD, OPEN_I, next } = ctx;
   const t0 = rt.t, W = rt.world;
   let S = null, done = false, tick = 0;
+  // 麓の段でも先手は物見を迎え撃つ。登りの下知まで全員を停止させない。
+  for (const g of F.oda) { g.noAI = false; g.order = 'hold'; g.speed = 3.4; }
   rt.setPhase('fumoto');
   const P0 = { x: rt.player.u.pos.x, z: rt.player.u.pos.z };
   rt.obj('main', '尾根道の口で筒井の先手と構え、夜攻めの下知を待て', 'main');
@@ -23,7 +25,8 @@ export function install(rt, ctx) {
     rt.say('足軽', '火矢じゃ！　城から火矢を射掛けてくる！', 3.5);
   });
   // ② 松永の物見の小組（尾根道の上から）
-  rt.after(24, () => {
+  // 開戦五秒でこの段へ入り、十三秒には物見が動き始める。
+  rt.after(8, () => {
     if (done || F.ending || rt.over || !rt.player.u.alive) return;
     const a = ROAD[Math.min(ROAD.length - 1, OPEN_I + 2)] || [P0.x, P0.z - 30];
     S = enemyGroup(rt, { faction: 'matsunaga', name: '松永の物見の組', anchor: { x: a[0], z: a[1] }, facing: Math.PI, width: 5, order: 'hold', aggro: 26, seekRange: 34, morale: 80, fleeDir: { x: 0, z: -1 } },
