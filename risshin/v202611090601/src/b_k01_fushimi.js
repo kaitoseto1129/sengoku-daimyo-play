@@ -86,7 +86,9 @@ function requirePresence(s) {
       contact: for (const g of C.groups) {
         if (g.routed) continue;
         for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut &&
-          Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 30) {
+          Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 30 &&
+          Math.abs((u.pos.y ?? 0) - (p.pos.y ?? 0)) < 3 &&
+          !rt.army.wallBetween(p.pos, p.team, u.pos, false)) {
           C.k01Engaged = true;
           break contact;
         }
