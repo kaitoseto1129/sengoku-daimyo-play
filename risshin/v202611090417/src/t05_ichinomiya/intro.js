@@ -3,9 +3,11 @@
 import { host, reports } from '../toyo15/kit.js';
 
 export function install(rt) {
-  const A = host(rt, { x: 120, z: -150, w: 60, d: 26, count: 800, facing: -0.3, seed: 5101 });   // 秀長の本隊、東の大手へ
-  const B = host(rt, { x: -40, z: -230, w: 70, d: 24, count: 700, facing: 0.2, seed: 5102 });    // 後から渡ってくる手
-  host(rt, { x: 190, z: -40, w: 50, d: 30, count: 600, facing: -1.6, seed: 5103 });            // 大手の麓の囲み
+  // 隊の幅と移動先も含め、西の谷へ進む本人から百五十m以上離す。
+  // 後詰めが出だしの八十m以内に見える配置では、近くに軽い兵を出さない直しが戻ってしまう。
+  const A = host(rt, { x: 260, z: -150, w: 60, d: 26, count: 800, facing: -0.3, seed: 5101 });   // 秀長の本隊、東の大手へ
+  const B = host(rt, { x: 240, z: -260, w: 70, d: 24, count: 700, facing: 0.2, seed: 5102 });    // 後から渡ってくる手
+  host(rt, { x: 260, z: -40, w: 50, d: 30, count: 600, facing: -1.6, seed: 5103 });            // 大手の麓の囲み
   A.advance(60, 160); B.advance(50, 180);
   reports(rt, [
     [20, '使番', '讃岐の宇喜多秀家・黒田官兵衛の勢、屋島から阿波へ回ります！'],

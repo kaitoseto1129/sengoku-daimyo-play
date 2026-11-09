@@ -2466,7 +2466,7 @@ function mkGoalBoard(rt) {
     if (battle !== rt) return out;
     const me = rt.player.u;
     const intro = document.getElementById('intro');
-    const on = !(intro && !intro.hidden && intro.firstElementChild) && me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const on = !(intro && !intro.hidden && intro.firstElementChild) && me.alive && !rt.over && !rt.choice && !this.introWaiting && !this.openingActive && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (n >= 80) break;
@@ -4240,7 +4240,7 @@ const mitsukuri = {
     rt.banner(rt.world.timeKey === 'night' ? '夜攻めの支度' : '日が傾く', '麓から松明の火が上がる');
     mkSlopeTorches(rt);
     torchTask(rt);
-    rt.obj('keepSan', '三の郭に味方六人以上を残せ', 'side');
+    rt.obj('keepSan', `三の郭に味方${F.SZ.byId.san.need}人以上を残せ`, 'side');
     // 深手や救援で火入れを止める札が出ている時は、逆の下知を重ねない。
     if (rt.G.lord || !torchPause(rt)) sayKino(rt, rt.G.lord ? '火を灯す組を守れ。仲間はここに残せ' : '印の松明に火を移せ。仲間はここを守れ', 3.5);
     armySignal(rt, 'atsumare', 0.8, 'keepSan', () => {
@@ -4415,7 +4415,7 @@ const mitsukuri = {
       rt.bark(`下知、${F.strategy === 'tani' ? '西の谷' : '大手'}より寄せよ`);
     }
     rt.banner(F.strategy === 'tani' ? '西の谷から攻めよ' : '柵の口を抜け', '仲間と坂の守りを退け、足場を取れ');
-    assaultOrder(rt, '柵の口を抜け、味方六人で三の郭を取れ', F.strategy === 'tani'
+    assaultOrder(rt, `柵の口を抜け、味方${F.SZ.byId.san.need}人で三の郭を取れ`, F.strategy === 'tani'
       ? '法螺貝じゃ。続く陣太鼓の早打ちでかかれ！　旗を伏せ、西の谷から守りの脇を突け'
       : '法螺貝じゃ。続く陣太鼓の早打ちでかかれ！　槍をそろえ、狭い柵の口を突き崩せ！');
     this.runStrategy(rt, F.strategy);
@@ -4593,7 +4593,7 @@ const mitsukuri = {
     rt.banner(F.sanFell ? '本丸へ押し上がれ' : '三の郭を取り戻せ', F.sanFell ? '二の丸を取った。最後の守りは坂の上' : '二の丸は取った。先に三の郭の旗を守れ');
     if (F.sanFell && !zonePause(rt)) {
       // 合図待ちの間に別の前進台詞を出さず、音が届く時の下知にまとめる。
-      assaultOrder(rt, '本丸の敵を払い、味方十人以上で旗を守れ',
+      assaultOrder(rt, `本丸の敵を払い、味方${F.SZ.byId.hon.need}人以上で旗を守れ`,
         '法螺貝じゃ。続く陣太鼓の早打ちでかかれ！　槍の列を崩すな。隣を守り、本丸へかかれ！');
     } else {
       sayKino(rt, zonePause(rt) || '先に三の郭へ戻れ。三の郭の旗を守れ！', 3.5);

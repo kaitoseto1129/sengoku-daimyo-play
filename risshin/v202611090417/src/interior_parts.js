@@ -8966,7 +8966,20 @@ for (const p of layout.props) {
         box(part, .025, p.h, p.d, x * (p.w / 2 - .0125), p.h / 2, 0, 0x6a5e48);
     }
     else if (p.part === 'bedding') {
-      if (layout.profile === 'iga') {
+      if (S.quality === 'high' && layout.profile === 'toride' && layout.kind === 'nagaya') {
+        // 墨俣の寝支度は推定（手本と限界は docs/battle_refs/sunomata.md）。
+        // 厚い箱状の寝具を薄い筵へ替え、枕も脚と天板を分ける。
+        // 既存の寝床の外寸・高さへ納め、踏んで通れる通路を保つ。
+        const matH = Math.min(.018, p.h / 4), topH = .022;
+        const pillowZ = -p.d / 2 + .15, legH = p.h - matH - topH;
+        box(part, p.w, matH, p.d, 0, matH / 2, 0, 0xffffff, 'iwamuraMushiro');
+        for (const side of [-1, 1]) {
+          box(part, .018, .004, p.d, side * (p.w / 2 - .009), matH - .002, 0, 0x625337);
+          box(part, .035, legH, .13, side * p.w * .15,
+            matH + legH / 2, pillowZ, 0x604831);
+        }
+        box(part, p.w * .5, topH, .16, 0, p.h - topH / 2, pillowZ, 0x80613d);
+      } else if (layout.profile === 'iga') {
         // 陣小屋の寝床は薄い敷きむしろと藁の枕で推定復元する。
         // 編み目は座と同じ縮尺の共有材質。枕まで間取りの高さの内側へ納める。
         const matH = Math.min(.025, p.h / 3), pillowH = p.h - matH;
@@ -10982,24 +10995,52 @@ for (const p of layout.props) {
       place(part, lightPool(), 0, 0, 0, .09);
     }
     else if (p.part === 'rice') {
-      // 俵は共通の円筒と縄の輪で組み、床から上げた簀の子に積む。
-      box(part, p.w, .06, p.d, 0, .03, 0, 0x6a5038);
+      // 二俵の上に一俵を載せ、縄の外径まで見込んで互いの胴を食い込ませない。
+      // 簀の子も同じ基準寸法で組んでから全体を合わせ、絵を当たりの外へ出さない。
+      if (S.quality === 'high' && layout.profile === 'toride') {
+        // 低湿地の兵糧置きとして、厚板一枚でなく敷木と隙間のある簀の子で受ける推定。
+        // 手本と限界は docs/battle_refs/sunomata.md。上端六センチと家具の範囲は保ち、
+        // 俵・縄を浮かせず、既存の箱と材質を室内の束へ設営時だけまとめる。
+        for (const x of [-.28, .28])
+          box(part, .09, .025, .748, x, .0125, 0, 0x594735);
+        for (let k = 0; k < 5; k++)
+          box(part, .85, .035, .12, 0, .0425, (k - 2) * .15, 0x6a5038);
+      } else box(part, .85, .06, .748, 0, .03, 0, 0x6a5038);
       if (!shapes.has('toride-rice')) {
         const geo = new THREE.CylinderGeometry(.17, .17, .5, 8); geo.rotateZ(Math.PI / 2);
         shapes.set('toride-rice', geo);
         const rope = new THREE.TorusGeometry(.175, .012, 3, 8); rope.rotateY(Math.PI / 2);
         shapes.set('toride-rice-rope', rope);
       }
-      for (const [y, z] of [[.23, -.12], [.23, .12], [.49, 0]]) {
+      for (const [y, z] of [[.247, -.187], [.247, .187], [.571, 0]]) {
         const bale = new THREE.Mesh(shapes.get('toride-rice'), mat(0xb39b69)); bale.position.set(0, y, z); cacheUsers.push(new WeakRef(bale)); part.add(bale);
         for (const x of [-.16, .16]) {
           const rope = new THREE.Mesh(shapes.get('toride-rice-rope'), mat(0x726044)); rope.position.set(x, y, z); cacheUsers.push(new WeakRef(rope)); part.add(rope);
         }
       }
-      part.scale.set(p.w / .85, p.h / .66, p.d / .58);
+      part.scale.set(p.w / .85, p.h / .758, p.d / .748);
     } else if (p.part === 'timber') {
+      if (S.quality === 'high' && layout.profile === 'toride') {
+        // 湿地の急設小屋で材木を土へ直置きしない用途からの補い。
+        // 墨俣の実物の復元ではない（docs/battle_refs/sunomata.md）。
+        // 二本の枕木に六本の材を載せ、結び縄も上下左右へ回す。
+        // 既存の家具の範囲と当たりを保ち、共通の箱・材質へまとめる。
+        const footH = .08, timberH = .12, pitch = .14;
+        const halfD = pitch + timberH / 2, top = footH + timberH * 2;
+        for (const x of [-p.w * .3, p.w * .3]) {
+          box(part, .1, footH, halfD * 2 + .08, x, footH / 2, 0, 0x594735);
+          for (const yy of [footH - .006, top + .006])
+            box(part, .025, .012, halfD * 2 + .024, x, yy, 0, 0xb2a079);
+          for (const side of [-1, 1])
+            box(part, .025, top - footH, .012, x, (footH + top) / 2,
+              side * (halfD + .006), 0xb2a079);
+        }
+        for (let q = 0; q < 6; q++) box(part, p.w, timberH, timberH, 0,
+          footH + (Math.floor(q / 3) + .5) * timberH, (q % 3 - 1) * pitch, 0x80613d);
+      } else {
       for (let q = 0; q < 6; q++) box(part, p.w, .12, .12, 0, .06 + Math.floor(q / 3) * .13, (q % 3 - 1) * .14, 0x80613d);
       for (const x of [-p.w * .3, p.w * .3]) box(part, .025, .3, .45, x, .15, 0, 0xb2a079);
+      }
     }
     else if (p.part === 'prayerMat' && layout.profile === 'hieizan' && S.quality === 'high') {
       // 堂の礼拝座は薄い筵。既存の織り・箱・材質を共有し、設営時にまとめる。

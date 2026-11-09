@@ -20,6 +20,14 @@ const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ?
 const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
 
 export const REQUIRED_KACCHU = [
+  // 伊賀市蔵の伝高虎拝領兜。胴・紺糸威は同時代の土居家伝来具足による復元案。
+  // 出所と未確認範囲：docs/generals_look_1108/藤堂高虎.md。
+  ['藤堂高虎', 'tokan', 'todo_tokan', D.kuro, C.kon, 'okegawa', 0, 'todo', '高虎の三つ丸餅',
+    { lac: 'kuro', fuki: 'kuro', doOpening: 'nimai', plateDo: null,
+      shikoroLace: C.kon, kusazuriBands: Array(5).fill(C.kon),
+      haori: 0, noHaori: true, menpo: 0, fur: 0, horo: 0, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '伊賀市蔵・唐冠形兜の黒漆鉢と木製黒漆後立。胴は土居家伝来の桶側二枚胴・紺糸威を借りる復元案。旗は今治城展示解説の三つ丸餅。各戦当日の着用・面頬・陣羽織・馬印は未確認'],
   // 大坂城内の秀頼。成人の所用具足は未確認。桃山～江戸初期の型による復元案。
   ['豊臣秀頼', 'momonari', 'none', D.kuro, C.shiro, 'sugake', 0, 'toyotomi', 'toyotomi',
     { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'nimai', doSugake: true,
