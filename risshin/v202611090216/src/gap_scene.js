@@ -13,12 +13,14 @@ export function seeded(seed) {
 }
 
 // road：[[x, z], ...]。step ごとに左右へ交互に off（m）離して小物の山を置く。
-// o.kinds：一つの山に使う形の名前。o.skip(x, z) が真の所には置かない。o.clear：道の中心から空ける幅
+// o.kinds：一つの山に使う形の名前。o.exclude：主の荷とこぼれた荷の両方から外す形。o.skip(x, z) が真の所には置かない。o.clear：道の中心から空ける幅
 export function wayLitter(rt, road, o = {}) {
   const W = rt.world, rnd = seeded(o.seed || 7), step = o.step || 16, off = o.off || 5.2;
   const kinds = o.kinds || ['cart', 'sack', 'barrel', 'box_a', 'crate', 'sack'];
   const by = {};
-  const put = (n, x, z, rot, s = 1) => (by[n] ||= []).push({ x, z, rot, s });
+  const put = (n, x, z, rot, s = 1) => {
+    if (!o.exclude?.includes(n)) (by[n] ||= []).push({ x, z, rot, s });
+  };
   let side = 1, carry = rnd() * step;
   for (let i = 1; i < road.length; i++) {
     const [ax, az] = road[i - 1], [bx, bz] = road[i];

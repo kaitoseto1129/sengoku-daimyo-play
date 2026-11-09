@@ -1998,10 +1998,11 @@ const tonezaka = {
     const W = rt.world, F = rt.flags;
     timeslipField(rt);   // 身の回りの雨のぬかるみ・水たまり・捨てられた旗と槍（def.timeslip）
     // 退く朝倉勢が道に捨てた荷駄（荷車・俵・樽・箱）と、倒れた荷駄馬（資料との差 10/28：退く軍の見た目）
-    wayLitter(rt, LOCAL_ROAD.filter(([, z]) => z < 150 && z > -175).map(([x, z]) => xz(x, z)), { seed: 1573, step: 15, off: 5.4, clear: 3.6,
+    // 橙の桶に見える外の樽は、主の荷だけでなく周りへこぼす荷からも外す。
+    wayLitter(rt, LOCAL_ROAD.filter(([, z]) => z < 150 && z > -175).map(([x, z]) => xz(x, z)), { seed: 1573, step: 15, off: 5.4, clear: 3.6, exclude: ['barrel'],
       // 持ち場の近く（z 28〜95）は外の素材の角ばった袋（橙の箱に見えた）を置かず、下の丸い俵と倒れた馬で荷駄の崩れを見せる。
       skip: (x, z) => { const lz = z * CS + x * SN; return lz > 28 && lz < 95; } });
-    wayLitter(rt, CHASE_ROAD.slice(0, 4), { seed: 813, step: 18, off: 5.6, clear: 3.8, kinds: ['cart', 'sack', 'barrel', 'sack'] });
+    wayLitter(rt, CHASE_ROAD.slice(0, 4), { seed: 813, step: 18, off: 5.6, clear: 3.8, kinds: ['cart', 'sack', 'sack'], exclude: ['barrel'] });
     // 一頭目は持ち場から十数歩先の道の左の肩に、二頭目は右の肩に倒し、こぼれた俵と脱げた笠を添える（最初の画面に荷駄の崩れを。10/28 二度目）。
     // 25秒の時、主人公は持ち場から十五歩ほど進み（z≈55）、カメラは南（z の小さい方）を向く。崩れはその先 z 33〜46 の道の両肩へ。
     // 25秒の時、主人公は道の右（x≈-3, z≈56）に立ち、画面の右半分が空いた草地になる。その右の肩（x 2〜7, z 44〜50）にも倒れた荷駄馬と俵・笠を（10/29）。
@@ -3364,7 +3365,7 @@ const tonezaka = {
         : closeRear ? seenRear && !F.guideBend ? '前の敵が道を塞ぐ。味方と近づけ' : '近くに別の敵がいる。味方の列を離れるな'
         : F.guideBend ? '行き先は道の曲がり。山へ入るな'
         : seenRear ? `${direction}の敵を味方と追い払え` : '敵はまだ見えぬ。道をたどれ';
-      rt.objProgress('main', F.guideJoin || n || closeRear ? remaining : F.step === 3 ? '道をたどり、刀根坂の峠へ' : !joined ? '近い味方の兵へ寄り、列に続け' : F.step === 1 ? '敵は崩れた。北西の坂へ進め' : '坂の敵は崩れた。街道を北西へ');
+      rt.objProgress('main', F.guideJoin || n || closeRear ? remaining : F.step === 3 ? '道をたどり、刀根坂の峠へ' : !joined ? '近い味方の兵へ寄り、列に続け' : F.step === 1 ? '敵は崩れた。坂の中ほどへ進め' : '坂の敵は崩れた。街道をたどり、刀根坂の峠へ');
     }
     else if (F.step === 5) {
       const cleared = !fighting(F.townG), atTown = near(p, TOWN, 14);
@@ -3522,10 +3523,12 @@ const tonezaka = {
 };
 // 総勢は参考値。局地の一人の死を三十人・六十人の死へ換算しない。
 // 11/8 critic60（九3・十二1「三千余り討たれた大負けなのに数が減らない」）：段が進むごとに朝倉の数を減らす（討死・逃げ散り）。織田も少し減る
-const TONE_LOSS_B = [0, 900, 1800, 2600, 3300, 6500, 9000];
-const TONE_LOSS_A = [0, 60, 150, 260, 340, 420, 480];
+// 段を始めただけで損失を先取りしない。河合の殿と戦う前は三万対二万を保つ。
+// 略図から城下への移動でも減らさず、奥の道の損失は守り通した時に加える。
+const TONE_LOSS_B = [0, 0, 900, 1800, 3300, 3300, 6500, 9000];
+const TONE_LOSS_A = [0, 0, 60, 150, 340, 340, 420, 480];
 tonezaka.force = (rt) => {
-  const F = rt?.flags || {}, s = Math.max(0, Math.min(6, F.step || 0));
+  const F = rt?.flags || {}, s = F.ending && rt.tracker?.main ? 7 : Math.max(0, Math.min(6, F.step || 0));
   return { a: 30000 - TONE_LOSS_A[s] - (F.ak || 0), a0: 30000, b: Math.max(0, 20000 - TONE_LOSS_B[s] - (F.ek || 0)), b0: 20000 };
 };
 tonezaka.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '朝倉軍', mon: 'asakura' } };

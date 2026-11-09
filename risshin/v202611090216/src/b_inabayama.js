@@ -1211,7 +1211,8 @@ function nearGuard(rt, group) {
   const p = rt.player.u.pos;
   let target = null, nearest = Infinity;
   for (const u of group.units) {
-    if (!u.alive || u.fleeing || u.noTarget) continue;
+    if (!u.alive || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
+      || u.evacuatedWound || u.rearWound || u.downed) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
     if (d < nearest) { target = u; nearest = d; }
   }
@@ -5619,8 +5620,9 @@ const inabayama = {
     const F = rt.flags, p = rt.player.u.pos;
     let target = null, nearest = Infinity;
     for (const g of F.townGuards) if (!gone(g) && (g !== F.town2 || g.sent)) {
-      const c = g.center();
-      const d = Math.hypot(c.x - p.x, c.z - p.z) - (g === F.townTarget ? 8 : 0);
+      const c = nearGuard(rt, g);
+      if (!c) continue;
+      const d = Math.hypot(c.x - p.x, c.z - p.z) + Math.abs(c.y - p.y) * 4 - (g === F.townTarget ? 8 : 0);
       if (d < nearest) { target = g; nearest = d; }
     }
     if (F.townTarget !== target) {
@@ -6410,9 +6412,10 @@ const inabayama = {
     for (const g of F.honGuards) if (!gone(g)) {
       left++;
       // 11/8 critic60 五2：戦える兵の居ない組（逃げる者・奥へ入った者だけ）を「この敵」に指さない（空の枠を指した）
-      if (!nearGuard(rt, g)) continue;
-      const c = g.center();
-      const d = Math.hypot(c.x - p.x, c.z - p.z) - (g === F.honTarget ? 8 : 0);
+      const c = nearGuard(rt, g);
+      if (!c) continue;
+      // 尾根の別の段や退却兵を含む中心でなく、印を付ける守兵の足場で比べる。
+      const d = Math.hypot(c.x - p.x, c.z - p.z) + Math.abs(c.y - p.y) * 4 - (g === F.honTarget ? 8 : 0);
       if (d < nearest) { target = g; nearest = d; }
     }
     if (!target) { F.honTarget = null; rt.unmark('honGuard'); return; }
@@ -6972,8 +6975,9 @@ const inabayama = {
         const p = rt.player.u.pos;
         for (const g of qs) if (!gone(g) && (g !== F.town2 || g.sent)) {
           left++;
-          const c = g.center();
-          const d = Math.hypot(c.x - p.x, c.z - p.z) - (g === F.townTarget ? 8 : 0);
+          const c = nearGuard(rt, g);
+          if (!c) continue;
+          const d = Math.hypot(c.x - p.x, c.z - p.z) + Math.abs(c.y - p.y) * 4 - (g === F.townTarget ? 8 : 0);
           if (d < nearest) { target = g; nearest = d; }
         }
         if (target && F.townTarget !== target) {

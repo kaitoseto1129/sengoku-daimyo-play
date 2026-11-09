@@ -1,6 +1,7 @@
 // 根来寺 ⑤ 12〜15分「最後の拠点」：大塔を守り切った後、奥の院の平場に残った根来の鉄砲衆と行人方の拠点を潰す。
 // 逃げる根来衆は奥の谷へ走る。遠くで寺の坊舎が燃え続ける中、「太田城に残党が集まる」の知らせで次へ。
 import { enemyGroup } from '../bhelp.js';
+import { breath } from '../toyo15/kit.js';
 
 export function kyotenStep(NG) {
   const { P, dirL, ROT, NEGORO, dress, flee, alive, heads, OKU } = NG;
@@ -13,6 +14,7 @@ export function kyotenStep(NG) {
         dress([{ type: 'gun', n: 5 }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], NEGORO)));
       F.friends().forEach((g, i) => { g.order = 'attack'; g.seekRange = 30; g.anchor = { x: OKU.x + dirL(i % 2 ? 6 : -6, -8).x, z: OKU.z + dirL(i % 2 ? 6 : -6, -8).z }; });
       rt.obj('dp', NG.GOALS[6], 'main');
+      breath(rt, 0.35);   // 段の替わり目に息を整える
       rt.say('羽柴秀次', '奥の院にまだ鉄砲が残っておる！　あれを潰せば寺は終いじゃ', 4);
       rt.after(60, () => { if (!C.over) rt.say('組頭', '奥の院の縁の下からも撃ってくる！　回り込め！', 3); });
       rt.after(30, () => { if (!C.over) { C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '奥の谷から戻った行人方', anchor: P(20, 128), facing: Math.PI + ROT, order: 'attack', seekRange: 40, aggro: 14, width: 5, morale: 80, fleeDir: dirL(0, 1), dmgMult: 0.3 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 7 }], NEGORO))); rt.say('足軽', '谷から戻って来たぞ！', 2.5); } });

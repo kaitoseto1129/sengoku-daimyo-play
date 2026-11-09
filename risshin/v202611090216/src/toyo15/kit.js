@@ -56,6 +56,12 @@ export function fallOne(rt, groups, zone) {
   return null;
 }
 
+// 段の替わり目に息を整える：十五分の戦は傷が積もるので、段が替わる時に命を少し戻す（手当ての数は使わない）
+export function breath(rt, k = 0.3) {
+  const u = rt.player && rt.player.u;
+  if (!u || !u.alive) return;
+  u.hp = Math.min(u.maxHp, u.hp + u.maxHp * k);
+}
 // 段を運ぶ。def に右上の一行・行き先・途中の保存・bot を付ける。setup の最後に K.start(rt)、update で K.tick(rt, dt)
 export function stageRun(def, id, stages, o = {}) {
   STAGES[id] = stages.map((s, i) => (i ? [s.goal, (rt) => (rt.flags.step || 0) >= i + 1] : [s.goal]));
