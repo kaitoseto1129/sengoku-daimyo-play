@@ -2711,11 +2711,22 @@ function stoneTick(rt, dt) {
       rt.army.play('knock', { x: s.bx, z: s.bz }, .9);
       rt.army.forNear(s.bx, s.bz, 1, (u) => {
         if (!u.alive || u.team !== 0 || u.invuln || u.isStruct) return;
-        rt.army.damage(u, u.isPlayer ? 6 : 11, null, { kind: "rock" });
+        // 弾と同じく、落ちる側へ向けた竹束と、そのすぐ後ろを守る。
+        const len = Math.hypot(u.pos.x - s.ax, u.pos.z - s.az) || 1;
+        const dx = (u.pos.x - s.ax) / len, dz = (u.pos.z - s.az) / len;
+        let shield = false;
+        rt.army.forNear(u.pos.x, u.pos.z, 3.6, (q) => {
+          if (shield || !q.alive || q.team !== u.team || !q.tatake || q.fleeing) return;
+          const along = (q.pos.x - s.ax) * dx + (q.pos.z - s.az) * dz;
+          const side = Math.abs((q.pos.x - s.ax) * dz - (q.pos.z - s.az) * dx);
+          if (along > len - 3.5 && along < len - .2 && side < .6 ||
+              Math.abs(along - len) < .2 && side < .2 && -(Math.sin(q.heading) * dx + Math.cos(q.heading) * dz) > .5) shield = true;
+        });
+        rt.army.damage(u, (u.isPlayer ? 6 : 11) * (shield ? .3 : 1), null, { kind: "rock" });
       });
     }
   }
-  if (F.ending || rt.t < (F.stoneAt || 0)) return;
+  if (F.ending || !rt.player.u.alive || rt.t < (F.stoneAt || 0)) return;
   const closed = !!F.masuClosed || F.step < 2;
   const dB = Math.hypot(p.x - BELOW.x, p.z - BELOW.z), dG = Math.hypot(p.x - GATE_WEST.x, p.z - GATE_WEST.z);
   // 11/8 critic60 二3・二7：屋敷を出た後の斜面で石が見えなかった。投げ落とす間合いを登り口 16→30・西の口 14→24 に広げる
@@ -5294,6 +5305,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       else { delete rt.world.def.battleViewDistance; delete rt.world.def.nightFogFar; delete rt.world.def.fogFar; }
     }
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
+    // 投石は間合いの定義だけで終わらせず、飛翔・着弾まで毎コマ進める。
+    stoneTick(rt, dt);
     // 兵の傷の処理で先に倒れた場合も、共通の重傷・やり直し・結果へ渡す。
     // 終幕の下知が始まっていても、まだ結果が出ていなければ倒れた事を先に渡す。
     // やり直しの札が出ている間は、その十五秒の期限と選択を保つ。
