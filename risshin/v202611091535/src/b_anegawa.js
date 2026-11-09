@@ -4146,7 +4146,7 @@ const anegawa = {
     const c = tg ? tg.center() : { x: 20, z: 20 };
     const g = allyGroup(rt, { faction: 'saito', name: '稲葉良通の隊', anchor: { x: MINO.x, z: MINO.z }, facing: -Math.PI / 2, width: 12, aggro: 10, noRout: false, speed: 3.8 },
       dress([{ type: 'samurai', n: 1, o: { name: '稲葉良通', invuln: true, horse: true, hat: 'kabuto_w', haori: 0x3a3022 } },
-        { type: 'samurai', n: 1, o: { name: '氏家卜全', invuln: true } },
+        { type: 'samurai', n: 1, o: { name: '氏家卜全', invuln: true, flag: 'oda' } },
         { type: 'samurai', n: 1, o: { name: '安藤守就', invuln: true } },
         { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }], INABA));
     // 開戦時から置いた東の備えから、今いる敵の横へ進む。
@@ -4761,7 +4761,7 @@ anegawa.reserve = [
   { team: 1, faction: 'azai', type: 'busho', o: { ...AZAI, name: '磯野員昌', horse: true, hat: 'kabuto_r', haori: 0x4a3a22 } },
   { team: 0, faction: 'oda', type: 'samurai', o: { name: '柴田勝家', invuln: true, horse: true, hat: 'kabuto_b', haori: 0x3a2a1c } },
   { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '稲葉良通', invuln: true, horse: true, hat: 'kabuto_w', haori: 0x3a3022 } },
-  { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '氏家卜全', invuln: true } },
+  { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '氏家卜全', invuln: true, flag: 'oda' } },
   { team: 0, faction: 'saito', type: 'samurai', o: { ...INABA, name: '安藤守就', invuln: true } },
 ];
 anegawa.sides = { a: { name: '織田・徳川軍', mon: 'oda' }, b: { name: '浅井・朝倉軍', mon: 'azai' } };

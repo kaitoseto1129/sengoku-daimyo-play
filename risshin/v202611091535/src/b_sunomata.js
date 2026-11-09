@@ -416,7 +416,7 @@ function sunoMarchTick(rt) {
   F.marchAt = rt.t + 1;
   for (const g of rt.army.groups) {
     if (g.team === rt.player.u.team || !g.count || g.routed || g.noAI || g.isStruct || g === F.KE || g.focus) continue;
-    if (g.order !== 'assault') { if (g.order !== 'path' || !g._sunoMarch) g._sunoStallAt = null; continue; }
+    if (g.order !== 'assault' && !(g.order === 'path' && g._sunoMarch)) { g._sunoStallAt = null; continue; }
     const c = g.center(), r = Math.max(Math.abs(c.x), Math.abs(c.z));
     if (r < FORT + 3) { g._sunoStallAt = null; continue; }
     const march = (viaNorth = false) => {
@@ -425,11 +425,12 @@ function sunoMarchTick(rt) {
       const end = g.path[g.path.length - 1], side = end[0] > FORT ? 'e' : end[0] < -FORT ? 'w' : 'n';
       g.onArrive = (q) => { q.order = 'assault'; q.onArrive = null; q.assault = assaultFn(rt, side); };
     };
-    if (r > FORT + 20 && !g._sunoMarch) { march(); continue; }
+    if (g.order === 'assault' && r > FORT + 20 && !g._sunoMarch) { march(); continue; }
     const st = g._sunoStallAt;
     if (!st || Math.hypot(c.x - st.x, c.z - st.z) > 3) { g._sunoStallAt = { x: c.x, z: c.z, t: rt.t }; continue; }
     if (F.wave !== 3 || rt.t - st.t < 15) continue;
-    if (g === F.W3a && !F.northAtFence) { march(); continue; }
+    // 迂回の縦隊も後列待ちで止まる。北の接敵前と、生きた寄せ大将は退却で済ませず歩き直す。
+    if (g === F.W3a && !F.northAtFence || g === F.W3b && F.yoseBoss?.alive) { march(g === F.W3b); continue; }
     if (F.foughtWave === 3 && rt.t - st.t >= 20 && !(g === F.W3b && F.yoseBoss?.alive)) { g.noRout = false; g.morale = 0; }
     else if (!g._sunoDetour && c.x < -FORT - 3 && c.z > -FORT - 6 && sunoGapLoad(rt) < 8) { g._sunoDetour = true; march(true); }
   }
@@ -2816,7 +2817,7 @@ function retreatFort(rt) {
 
 // 砦内でまだ戦える敵だけを調べる。退く者を討ち尽くす条件にはしない。
 function fortSafe(rt) {
-  for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed && Math.abs(u.pos.x) < FORT + 3 && Math.abs(u.pos.z) < FORT + 3) return false;
+  for (const u of rt.army.units) if (u.alive && u.hp > 0 && !u.dying && !u.gone && u.team === 1 && !u.fleeing && !u.woundOut && !u.noTarget && !u.group?.routed && Math.abs(u.pos.x) < FORT + 3 && Math.abs(u.pos.z) < FORT + 3) return false;
   return true;
 }
 
@@ -5305,6 +5306,18 @@ const sunomata = {
     sunoMarchTick(rt);
     if (F.wave === 3) {
       if (F.waveT >= 40 && !F.reinforced) { F.reinforced = true; this.callReinforce(rt); }
+      // 伏兵が横へ出ても縦隊の最後尾待ちで到着通知が来ない事がある。
+      // 実際に戦える過半数が寄せ手の横へ着いた時だけ、同じ到着処理を呼ぶ。
+      const reserve = F.reinforceReserve;
+      if (F.reinforceCalled && !F.reinforceArrived && reserve && !reserve.routed) {
+        let ready = 0, arrived = 0;
+        for (const u of reserve.units) {
+          if (!u.alive || u.dying || u.gone || u.fleeing || u.woundOut || u.noTarget) continue;
+          ready++;
+          if (Math.hypot(u.pos.x + FORT + 12, u.pos.z - 10) < 10) arrived++;
+        }
+        if (ready && arrived > ready / 2) reserve.onArrive?.(reserve);
+      }
       const left = Math.max(0, Math.ceil(F.finishAt - rt.t));
       const workGuide = F.carryingWood ? '担いだ材木を印の人足へ渡せ'
         : F.buildBusy && !F.workHands ? F.workNotice || '柵を直す人足を守れ'
@@ -5445,6 +5458,7 @@ const sunomata = {
     r.stay = false; r.order = 'path'; r.pathIdx = 0; r.path = [[-64, 112], [-60, 44], [at.x, 24], [at.x, at.z]]; r.speed = 3;
     r.onArrive = (g) => {
       g.order = 'hold'; g.anchor = at; g.facing = Math.PI; g.aggro = 16; g.seekRange = 24;
+      g.onArrive = null;
       if (rt.over || F.won || F.ending) return;
       F.reinforceArrived = true;
       rt.bark('南の伏兵が西の寄せ手の横へ出た。柵の内からも押せ');
