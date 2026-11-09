@@ -2829,11 +2829,15 @@ const arioka = {
     const guide = F.guideT <= 0;
     if (guide) F.guideT = 0.5;
     if (F.step === 1) {
+      const post = F.gatePost || (F.gatePost = { x: GATE.x + 10, z: GATE.z,
+        y: rt.world.heightAt(GATE.x + 10, GATE.z) });
+      const p = rt.player.u.pos;
+      // 番兵が崩れても、遠い町筋や柵の外から東へ回っただけでは木戸へ入った事にしない。
+      const entered = p.x >= GATE.x + 8 && Math.hypot(p.x - post.x, p.z - post.z) <= 12
+        && Math.abs(p.y - post.y) <= 3 && !rt.army.wallBetween(p, -1, post);
       // 木戸を組と押さえた後、奥の射手一人を追うためだけに攻めを止めない。
       // 柵越しの兵は数えず、本人が木戸の内で十二秒、二倍の兵力を保つ必要がある。
       if (guide) {
-        const post = F.gatePost || (F.gatePost = { x: GATE.x + 10, z: GATE.z,
-          y: rt.world.heightAt(GATE.x + 10, GATE.z) });
         let friend = 0, enemy = 0;
         for (const u of rt.army.units) {
           if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ
@@ -2841,9 +2845,7 @@ const arioka = {
             || Math.abs(u.pos.y - post.y) > 3 || rt.army.wallBetween(u.pos, -1, post)) continue;
           if (u.team === 0) friend++; else enemy++;
         }
-        const p = rt.player.u.pos;
-        const secure = p.x >= GATE.x + 8 && Math.hypot(p.x - post.x, p.z - post.z) <= 12
-          && friend >= 2 && friend >= enemy * 2;
+        const secure = entered && friend >= 2 && friend >= enemy * 2;
         if (!secure) F.gateHeldAt = null;
         else F.gateHeldAt ??= rt.t;
       }
@@ -2856,7 +2858,7 @@ const arioka = {
           rt.say('滝川の組頭', '攻めの時が尽きるぞ。組と木戸の内へ押し入れ', 4);
         }
       }
-      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && rt.player.u.pos.x >= GATE.x + 8) {
+      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && entered) {
         // 木戸を失った番兵は本丸へ退く。残兵を無かった事にはしない。
         if (!gone(F.g1)) { F.g1.noRout = false; F.g1.morale = 0; }
         rt.unmark('g1');

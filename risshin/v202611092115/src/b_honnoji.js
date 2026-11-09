@@ -1013,17 +1013,9 @@ function gateFight(rt) {
   return F.gateFight && F.gateEnemyVisible;
 }
 
-function patrolLabel(rt) {
-  const p = rt.player.u.pos;
-  if (rt.flags.hp === 2 && Math.hypot(p.x - GATES.main.x, p.z - GATES.main.z) < 6) {
-    const blocker = gateBlocker(rt);
-    if (blocker) return blocker.team === 1 ? '門の敵を押し返す' : '門の内へ下がる';
-    return '門を閉める';
-  }
-  if (rt.flags.hp !== 2) return '門の内へ';
-  if (p.z > 79) return '印へ進もう';
-  if (p.z > 55) return '回廊を ぬけて おもて門へ';
-  return 'おもて門の内へ';
+function patrolLabel() {
+  // 行き先は場所の名だけ。門の口の人で下知を入れ替えない。
+  return '表門';
 }
 // 門の内まで来て斬り結んでいる人を、距離の札だけで再び門へ走らせない。
 function gateDefending(rt) {
@@ -3347,13 +3339,13 @@ const honnoji = {
     if (F.hp === 1) return F.waitReached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め';
     if (F.hp === 4 || F.hp === 5) {
       if (F.hp === 4 && Math.hypot(rt.player.u.pos.x - HONDO_IN.x, rt.player.u.pos.z - HONDO_IN.z) < 6)
-        return '部屋で信長を待て';
+        return '本堂の東の縁で上様を待て';
       const door = rt.nearestInteract();
       return door?.id === 'naka_tobira' && door.label !== '戸を開ける' ? '東の戸を通る' : '東の戸を開ける';
     }
     if (F.routeSign?.door && this.routeGuidePriority(rt)) return this.doorGuideLabel(rt);
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '表門へ走り、門を閉めて明智勢を入れない';
-    if (gateDefending(rt)) return '門の内で信長を守れ';
+    if (gateDefending(rt)) return '表門の内で上様を守れ';
     if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '表門へ走り、門を閉めて明智勢を入れない';
     if (F.routeSign?.corridor && this.routeGuidePriority(rt)) {
       return F.hp === 4 || F.hp === 5 ? '廊下の先から 本堂へ' : '廊下の先から 表門へ';

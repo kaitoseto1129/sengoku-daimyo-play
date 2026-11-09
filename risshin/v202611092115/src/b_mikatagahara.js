@@ -3138,6 +3138,8 @@ function slopeGroup(g) {
 // 退く段では、待ち伏せを追わせず、残った敵も時間だけで敗走させない。
 function withdraw(o) {
   const s = move(o), start = s.start, tick = s.tick;
+  // 到着していない主人公を、放置や刻限だけで到着・失敗にしない。
+  s.idleAdvance = false; s.limit = Infinity; s.noHardCap = true;
   s.start = (rt, C, m, ctx) => {
     start(rt, C, m, ctx);
     for (const g of ctx.friends(rt)) {
@@ -3152,12 +3154,7 @@ function withdraw(o) {
   s.tick = (rt, C, m, ctx, el, dt) => {
     const done = tick(rt, C, m, ctx, el, dt);
     C.goal = C.at;
-    // 11/9 二巡（徳川D）：道を塞ぐ武田勢と斬り合ううちに坂へ着けず、六分この段で止まった（bot）。
-    //   一分半たって坂の三十歩の内なら着いた事にし、三分たてば坂の手前で殿の段へ移る（退く戦を止め続けない）
-    if (!C.arr) {
-      const d0 = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
-      if ((el > 90 && d0 < 30) || el > 180) C.arr = true;
-    }
+    // 到着は move の距離判定だけで決める。遠くで斬り合っている間は坂への下知を保つ。
     if (C.arr && !C.arrOrderShown) {
       C.arrOrderShown = true;
       renewOrders(rt);
