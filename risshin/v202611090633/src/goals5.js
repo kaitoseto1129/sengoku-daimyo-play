@@ -83,7 +83,7 @@ const OWN = {
     // 11/3 p100_inou（kaito AQ1・AR1）：どの目標も「誰を・どこで・どうする」が字と地図と頭上の▼で分かる言い方に。敵を何人討つは練習の一つだけ
     // 11/6 crit_inou（kaito 九2・十二3）：主人公が自分の槍で働いた時だけ済み（立っているだけで味方が果たして印が付いた）。字は b_inou_goals.js
     { kind: 'stage', k: 0, text: IG.GOALS15.march, check: (rt) => !!rt.flags.v15?.marchDone },   // 11/8 十五分の構成（prototype/src/inou/）
-    { kind: 'stage', k: 0, text: IG.GOALS[0], check: (rt) => (rt.flags.pk || 0) >= 3, groups: (rt) => (rt.flags.practice ? [rt.flags.practice] : []) },
+    { kind: 'stage', k: 0, text: IG.GOALS[0], count: (rt) => [Math.min(3, rt.flags.pk || 0), 3], check: (rt) => (rt.flags.pk || 0) >= 3, groups: (rt) => (rt.flags.practice ? [rt.flags.practice] : []) },
     { kind: 'stage', k: 0, text: IG.GOALS15.van, check: (rt) => !!rt.flags.v15?.vanDone },
     { kind: 'stage', k: 1, text: IG.GOALS15.flank, check: (rt) => !!rt.flags.v15?.flankDone },
     { kind: 'stage', k: 1, text: IG.GOALS[1], check: (rt) => !!rt.flags.line1Broken && IG.inouDid(rt, 1, 1), groups: (rt) => rt.flags.l1, total: (rt) => rt.flags.l1N },

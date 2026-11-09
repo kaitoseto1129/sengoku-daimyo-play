@@ -427,14 +427,20 @@ function nakayamaStep() {
       F.naka = g.units.find((u) => u.name === '中山勘解由');
       // 主人公が近くにいるだけで味方が討つのを防ぐ。この段の間だけ攻撃元を確かめる。
       C.damage = rt.army.damage;
+      C.lastWords = false;
+      g.dmgMult = 0;
       rt.army.damage = function (target, amount, source, opts = {}) {
-        if (target === F.naka && source !== rt.player.u) { if (opts.out) opts.out.res = 'armor'; return; }
+        if (target === F.naka && (!C.lastWords || source !== rt.player.u)) { if (opts.out) opts.out.res = 'armor'; return; }
         return C.damage.call(this, target, amount, source, opts);
       };
       rt.obj('dp', '中山勘解由を、自ら討て', 'main');
       // 印は頭上の名札と金の▼だけ（赤い札を重ねない）
       rt.say('前田の侍', '中山殿、降られよ！　前田様が、命は助けると仰せじゃ！', 3.4);
-      rt.after(3.6, () => rt.say('中山勘解由', '二心は持たぬ。北条の城、ただでは渡さぬ！', 3.4));
+      rt.after(3.6, () => {
+        rt.say('中山勘解由', '二心は持たぬ。北条の城、ただでは渡さぬ！', 3.4);
+        // 助命を断る返答を見せてから斬り合う。返答前の討死や、話の間の一方的な攻撃を防ぐ。
+        rt.after(3.4, () => { C.lastWords = true; g.dmgMult = 0.6; });
+      });
     },
     tick(rt, C) {
       const n = rt.flags.naka;
@@ -751,10 +757,12 @@ const t11_hachioji = {
         order: 'path', path: [[-100, -148], [-114, -156], [-124, -166], [-128, -182]], pathIdx: 0, speed: 3.2 },
       dress([{ type: 'busho', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 3, o: { invuln: true } }], HOJO));
       F.yokochi.onArrive = (q) => {
-        const A = rt.army;
-        for (const u of q.units.slice()) if (u.alive) { A.scene.remove(u.mesh); const i = A.units.indexOf(u); if (i >= 0) A.units.splice(i, 1); u.alive = false; u.gone = true; }
-        q.units.length = 0;
+        q.order = 'hold'; q.path = null; F.yokochiArrived = true;
       };
+    }
+    // 逃げ道の終わりを見ていても目の前で消さない。姿が画面外に出てから共通の退場処理へ渡す。
+    if (F.yokochiArrived) for (const u of F.yokochi.units) {
+      if (u.alive && !u.gone && unseenRejoin(rt, u.pos.x, u.pos.z)) rt.army.despawn(u);
     }
     if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
     else if (F.begun && !F.warned && rt.t - F.t0 > LIMIT - 60) { F.warned = true; rt.say('前田の侍', '東の空が白んできた！　急げ', 3.5); }

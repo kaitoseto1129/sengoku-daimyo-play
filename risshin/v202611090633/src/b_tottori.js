@@ -622,9 +622,8 @@ function tottoriCampTools(rt) {
   });
 }
 // 太閤ヶ平の内陣は百日余りの兵糧攻めの本陣。陣幕の外の北と東の縁に板葺きの陣小屋を並べ、脇に兵糧の俵を積む（本の春日山 CG の段の小屋の詰まり方）。
-// 棟数と位置は推定。登り道・櫓台への坂・旗本と控えの場は空け、小屋は一つの束へ結合する。
+// 棟数と位置は推定。登り道・櫓台への坂・旗本と控えの場は空ける。
 function taikoBarracks(rt, W) {
-  const batch = makeSimpleBatch();
   const spots = [[-6, -23, 0], [3, -23, 0], [12, -23, 0], [21, -23, 0], [-15, -23, 0],
     [22, -13, Math.PI / 2], [-15, -8, Math.PI / 2]];
   const placed = [];
@@ -637,10 +636,16 @@ function taikoBarracks(rt, W) {
       if (roadDistance(px, pz) < 2.8 || Math.abs(px - TAIKO.x) > TX - 1.5 || Math.abs(pz - TAIKO.z) > TZ - 1.5) clear = false;
     }
     if (!clear || high - low > .6) continue;
-    hut(W, x, z, w, d, rot, { ita: true, minka: false, h: 2.1, wall: placed.length % 2 ? 0x746957 : 0x82735e, batch });
+    // 塞がった箱を、鳥取の長屋と同じ土間・板間・柱梁を持つ陣小屋へ替える。
+    // 手本と推定範囲は docs/tottori-interior-reference.md。表口も内戸も共通の板戸で横に滑る。
+    // 部材と材質は既存の用屋を共用し、中の細工は近づいた時だけ作る。
+    goten(rt, x, z, { w, d, rot, doorX: 0, team: 0, tile: false,
+      naka: true, noTarget: true, kind: 'nagaya', profile: 'tottori', name: '本陣の陣小屋',
+      interiorH: 2.4, entryW: 1.6, fieldFort: true, weatheredBoards: true, boardRoof: true,
+      boardRoofColors: [0x79705e, 0x696354, 0x897960, 0x726655],
+      eave: .65, eaveThickness: .08 });
     placed.push([x, z, rot]);
   }
-  finalizeSimpleBatch(rt, batch);
   // 兵糧は小屋の妻側に二山だけ。俵の形と材質は共通の物を使い回す。
   for (const [x, z, rot] of placed.filter((_, i) => i % 3 === 1)) {
     const px = x + Math.cos(rot) * 5.2, pz = z - Math.sin(rot) * 5.2;
@@ -653,13 +658,26 @@ function tottoriBankHuts(rt, W) {
   const batch = makeSimpleBatch(), placed = [];
   for (const [x, z, rot] of [[-89, 2, 1.45], [-91, -9, 1.6], [-88, 13, 1.35], [-93, 22, 1.5]]) {
     let low = Infinity, high = -Infinity, clear = true;
-    for (const ex of [-3.2, 0, 3.2]) for (const ez of [-2.2, 0, 2.2]) {
+    // 屋根の軒先と表口の踏段まで、水際・道・急斜面を避ける。
+    const highQuality = SETTINGS.quality === 'high';
+    const xs = highQuality ? [-4.2, 0, 4.2] : [-3.2, 0, 3.2];
+    const zs = highQuality ? [-2.7, 0, 4.8] : [-2.2, 0, 2.2];
+    for (const ex of xs) for (const ez of zs) {
       const px = x + ex * Math.cos(rot) + ez * Math.sin(rot), pz = z - ex * Math.sin(rot) + ez * Math.cos(rot), y = W.heightAt(px, pz);
       low = Math.min(low, y); high = Math.max(high, y);
       if (roadDistance(px, pz) < 2.8 || W.waterDepthAt(px, pz) > 0) clear = false;
     }
     if (!clear || high - low > 1.1) continue;
-    hut(W, x, z, 7, 4, rot, { ita: true, minka: false, h: 2.1, wall: placed.length % 2 ? 0x746957 : 0x82735e, batch });
+    if (highQuality) {
+      // 対岸の控え小屋も箱で塞がず、鳥取の陣小屋と同じ土間・板間・柱梁で組む。
+      // 板壁の手本と推定範囲は docs/tottori-interior-reference.md。
+      // 表戸・内戸は naka.js・naka_doors.js 共通の板戸。室内は接近時だけ作る。
+      goten(rt, x, z, { w: 7, d: 4, rot, doorX: 0, team: 0, tile: false,
+        naka: true, noTarget: true, kind: 'nagaya', profile: 'tottori', name: '西岸の陣小屋',
+        interiorH: 2.4, entryW: 1.6, fieldFort: true, weatheredBoards: true, boardRoof: true,
+        boardRoofColors: [0x79705e, 0x696354, 0x897960, 0x726655],
+        eave: .65, eaveThickness: .08 });
+    } else hut(W, x, z, 7, 4, rot, { ita: true, minka: false, h: 2.1, wall: placed.length % 2 ? 0x746957 : 0x82735e, batch });
     placed.push([x, z, rot]);
   }
   finalizeSimpleBatch(rt, batch);
@@ -754,8 +772,9 @@ function hisamatsuTerraces(rt, W) {
   }
 }
 // 曲輪の奥に低い物置を添え、屋敷一棟だけが広い空地に立つ並びを避ける。
-// 細かな位置は推定。道・屋敷・民のいる木戸内には増やさず、板小屋を既存の束へ結合する。
-function tottoriOutbuildings(W, batch) {
+// 細かな位置は推定。道・屋敷・民のいる木戸内には増やさず、共通の用屋で中まで作る。
+function tottoriOutbuildings(rt) {
+  const W = rt.world;
   for (const [id, x, z, w, d, rot] of [
     ['sanjo', -4, -149, 5, 3, 0],
     ['maruyama', -28, -232, 6, 3, 0],
@@ -772,8 +791,14 @@ function tottoriOutbuildings(W, batch) {
       if (seatEdge(k, px, pz) > -2 || roadDistance(px, pz) < 2.8) clear = false;
     }
     if (!clear || high - low > .65) continue;
-    hut(W, x, z, w, d, rot, { ita: true, minka: false, h: 2.1,
-      wall: id === 'sanjo' ? 0x746957 : 0x82735e, batch });
+    // 奥行の浅い物置は一室。表戸を開けて板間に入れ、梁・柱も既存の用屋と共用する。
+    // 手本と推定範囲は docs/tottori-interior-reference.md。空腹の城に兵糧は増やさない。
+    goten(rt, x, z, { w, d, rot, team: k.team, tile: false, naka: true, noTarget: true,
+      kind: 'kura', profile: 'tottori', interiorUse: 'fieldStorage', name: `${k.name}の物置`,
+      interiorH: 2.4, entryW: Math.min(1.6, (w - .3) / 2 - .2),
+      fieldFort: true, weatheredBoards: true, boardRoof: true,
+      boardRoofColors: [0x79705e, 0x696354, 0x897960, 0x726655],
+      eave: .65, eaveThickness: .08 });
   }
 }
 // 本の山城の板塀を参考に、上端を薄い笠板で覆う。鳥取の上段だけに適用する。
@@ -859,7 +884,10 @@ function tottoriRoofWeights(rt) {
 // 主殿と山上の長屋の縁側に、写真のような柱付きの板葺き下屋を掛ける。
 // 二棟ぶんの板・桁・柱を一つの基本形と材質で描く。戸口と既存の床は保つ。
 function tottoriLeanTo(rt) {
-  const houses = TOTTORI_HOUSES.filter(b => b.seat === 'sanjo' && (b.residence || !b.kind));
+  // 長屋には kind があるので、未指定だけを選ぶと下屋が抜け落ちる。
+  // 高画質では既存の長屋の板縁も覆い、表戸・踏段の中央は空ける。
+  const houses = TOTTORI_HOUSES.filter(b => b.seat === 'sanjo'
+    && (b.residence || !b.kind || SETTINGS.quality === 'high' && b.kind === 'nagaya'));
   const parts = [], pitch = Math.atan2(.3, 1.65);
   for (const b of houses) {
     const y = interiorBase(rt.world, b.x, b.z, b.w, b.d);
@@ -2214,8 +2242,20 @@ const tottori = {
       const walls = noT(wallLine(rt, corners, { team: 0, hp: 1e9, name: '付城の柵', segLen: 8, meshOpt: { batch: siegeBatch } }));
       for (const pts of [[[x - 10, z + 10], [x - 4, z + 10]], [[x + 4, z + 10], [x + 10, z + 10]]]) walls.push(...noT(wallLine(rt, pts, { team: 0, hp: 1e9, name: '付城の柵', meshOpt: { batch: siegeBatch } })));
       for (const s of walls) dorui(W, s.seg, s.nx, s.nz, { h: .8, w: 1.8, batch: siegeBatch });
-      hut(W, x - 4, z, 4, 3, 0, { ita: true, batch: siegeBatch });
-      hut(W, x + 4, z + 3, 4, 3, 0, { ita: true, batch: siegeBatch });
+      // 包囲陣の小物置も板戸を開けて入れる一室の板間にする。
+      // 板壁・貫の手本と推定範囲は docs/tottori-interior-reference.md。
+      // 奥行三メートルに内戸を重ねず、共通の柱梁と接近時だけ作る内装を使う。
+      for (const [px, pz] of [[x - 4, z], [x + 4, z + 3]]) {
+        if (SETTINGS.quality === 'high') goten(rt, px, pz, {
+          w: 4, d: 3, doorX: 0, team: 0, tile: false, naka: true, noTarget: true,
+          kind: 'kura', profile: 'tottori', interiorUse: 'fieldStorage', name: '包囲陣の物置',
+          interiorH: 2.4, entryW: 1.6,
+          fieldFort: true, weatheredBoards: true, boardRoof: true,
+          boardRoofColors: [0x79705e, 0x696354, 0x897960, 0x726655],
+          eave: .65, eaveThickness: .08,
+        });
+        else hut(W, px, pz, 4, 3, 0, { ita: true, batch: siegeBatch });
+      }
       // 高画質では小屋の北に控えの庭を取り、陣幕の裾を斜面へ沿わせる。南の口は道に合わせる。
       const high = true;
       rt.scene.add(jinmaku(W, x - 4, z + (high ? -1 : 0), high ? 8 : 7, high ? 8 : 6, 4,
@@ -3638,8 +3678,18 @@ function buildTottoriCastles(rt, noT) {
         rt.scene.add(flag);
       }
     }
-    // 梯子の足と曲輪内の道をつなぐ（床・梯子の当たりは共通室内）。
-    if (!['obi', 'kido', 'east'].includes(k.id)) hut(W, x1 - 5, z0 + 4, 5, 3, 0, { ita: true, minka: false, batch });
+    if (!['obi', 'kido', 'east'].includes(k.id)) {
+      // 曲輪隅の板小屋も全体を塞ぐ箱にせず、表の板戸を開けて入れる物置にする。
+      // 既存の小物置と同じ一室の板間・柱梁を使い、浅い奥行に内戸を重ねない。
+      // 板壁の手本は docs/tottori-interior-reference.md の旧山下家板倉。用途・位置は推定。
+      goten(rt, x1 - 5, z0 + 4, { w: 5, d: 3, doorX: 0, team: k.team,
+        tile: false, naka: true, noTarget: true, kind: 'kura', profile: 'tottori',
+        interiorUse: 'fieldStorage', name: `${k.name}の隅の物置`,
+        interiorH: 2.4, entryW: 1.6,
+        fieldFort: true, weatheredBoards: true, boardRoof: true,
+        boardRoofColors: [0x79705e, 0x696354, 0x897960, 0x726655],
+        eave: .65, eaveThickness: .08 });
+    }
   }
   for (const b of TOTTORI_HOUSES) {
     const k = SEATS.find(k => k.id === b.seat);
@@ -3647,7 +3697,7 @@ function buildTottoriCastles(rt, noT) {
     // 既存の板葺き・板戸・連子窓を使い、材質別に結合する。床と戸口の寸法は保つ。
     const high = true, plain = !b.residence && b.kind !== 'shrine';
     goten(rt, b.x, b.z, { w: b.w, d: b.d, doorX: 0, team: k?.team ?? 0, tile: false,
-      naka: true, noTarget: true,
+      naka: true, noTarget: true, interiorH: 2.4, entryW: Math.min(1.6, (b.w - .3) / 2 - .2),
       // 番所・長屋・空蔵は灰茶の重ね板葺きと縦板の妻壁。主殿と小祠は従来の葺き方。
       // 既存の部品の指定だけを変え、床・戸口・押さえ桟と重石の高さを保つ。
       ...(high ? { earth: b.kind === 'kura' ? 0xb8a88a : 0xc7b899, fieldFort: plain,
@@ -3656,7 +3706,7 @@ function buildTottoriCastles(rt, noT) {
       eave: .65, eaveThickness: .08, kind: b.kind || 'house', profile: 'tottori', name: b.name });
   }
   if (true) {
-    tottoriOutbuildings(W, batch);
+    tottoriOutbuildings(rt);
     tottoriRoofWeights(rt);
     tottoriLeanTo(rt);
     tottoriResidenceFence(rt, noT, batch);
@@ -3664,11 +3714,20 @@ function buildTottoriCastles(rt, noT) {
   // 木戸の脇は閉門の幅を残し、土塁と柵で外の縁へ結ぶ。
   for (const sd of [-1, 1]) noT(wallLine(rt, [[GATE.x + sd * 3.6, GATE.z], [GATE.x + sd * 30, GATE.z]],
     { team: 1, hp: 1e9, name: '柵', meshOpt: { batch } }));
-  for (const [x, z] of [[-138, 168], [-154, 158], [-143, 147], [62, 145], [77, 154]])
-    hut(W, x, z, 7, 4, 0, { batch });
+  for (const [x, z] of [[-138, 168], [-154, 158], [-143, 147], [62, 145], [77, 154]]) {
+    // 茅屋根と外寸を保ち、在所の宿小屋にも土間・板間・柱梁と横へ滑る板戸を通す。
+    // 用途と内装は推定。手本は docs/tottori-interior-reference.md。
+    hut(W, x, z, 7, 4, 0, { batch,
+      ...(SETTINGS.quality === 'high' ? {
+        interior: { name: '在所の宿小屋', kind: 'nagaya', profile: 'tottori' },
+      } : {}),
+    });
+  }
   // 寺名・規模・位置は未確定。後世の大寺院を写さず、在所の小堂を一つだけ置く。
   // 正面を西の避難道へ向ける。民の立つ所へ階段・建物の当たりを重ねない。
-  rt.scene.add(dou(W, PEOPLE_TEMPLE.x, PEOPLE_TEMPLE.z, 6, 4, -Math.PI / 2));
+  rt.scene.add(dou(W, PEOPLE_TEMPLE.x, PEOPLE_TEMPLE.z, 6, 4, -Math.PI / 2, {
+    interior: { name: '在所の小堂', kind: 'hondo', profile: 'tottori' },
+  }));
   // 空の井戸の口。二基を同じ形・材質で描き、円の当たりを見た目に合わせる。
   const wells = [[-6, -157], [160, -134]], ring = new THREE.CylinderGeometry(.8, 1, .65, 10, 1, true);
   const mouths = new THREE.InstancedMesh(ring, new THREE.MeshStandardMaterial({ color: 0x655b49, roughness: 1 }), wells.length);

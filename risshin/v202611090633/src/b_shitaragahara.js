@@ -1403,8 +1403,11 @@ function nfTick(rt, dt) {
   if (N.step === 0) {
     if (!N.tobi && rt.t > N.t0 + 2) {
       N.tobi = true;
-      // 酒井の別働（遠くの出来事・仕様29）：まず攻め上った知らせ。砦が落ちる知らせと煙は山県の柵破りの時
-      rt.say('使番', '酒井忠次殿の別手、鳶ヶ巣山の砦へ攻め上りました！', 4);
+      // 夜明けの落城を先に知らせ、背後を断たれた武田の寄せへ続ける。
+      rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の別手が長篠の囲みを解きました！', 4);
+      F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
+        rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
+      for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
     }
     if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
@@ -1443,14 +1446,6 @@ function nfTick(rt, dt) {
       ST_BREACH.start(rt, stCtx(rt));
       // 第三波の始まり：同じ時に柳田前へ原昌胤も寄せる（二つの区画を走る）
       ST_HARA.send(rt, stCtx(rt)); N.sent = true; F.jinkeiBound.shitara_hara?.advance(50, 22);
-      // 酒井の別働：鳶ヶ巣山の砦が落ちる。武田の後ろの気が落ちる
-      rt.after(9, () => {
-        if (F.ending) return;
-        rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の手柄にございます！', 3.6);
-        F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
-          rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
-        for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
-      });
       try { rt.world.setTime('day'); } catch (e) { /* 光が替えられなくても進む */ }
       F.jinkeiBound.shitara_sanada?.retreat(60, 20); F.jinkeiBound.shitara_sanada_masateru?.retreat(60, 20);
       // 組は本人に付いて柵の間の道を歩く（一5）。滝川の備の槍組も同じ道で柳田前へ
@@ -2960,11 +2955,12 @@ const shitaragahara = {
     const odaZ = 190;   // これより北（-z）は織田の持ち場（通説どおり織田が北寄り、徳川が南）
     // 鉄砲組：一列目の柵のすぐ内。号令があるまで撃たない
     F.guns = [];
-    for (const mouth of MOUTHS) for (let i = 0; i < 3; i++) {
-      const z = mouth.z + (i - 1) * 12;
+    // 11/9 仕様（鉄砲の密度）：口ごとに五組。本人の近く（軽い兵を描かない 150m の内）を本物の鉄砲兵で厚くする。左右へ三十メートルずつ並ぶ
+    for (const mouth of MOUTHS) for (let i = 0; i < (mouth === MOUTHS[2] ? 3 : 5); i++) {   // 竹広（本人が行かない徳川の口）は三組のまま
+      const z = mouth.z + (i - 2) * 13;
       // 各組四挺。傷を人数で割らず、三つの口に本物の射手を残す。
       const gunN = 7;   // 11/9 設楽原の仕様（鉄砲の密度が最重要）：一組四挺から七挺へ。三組で一つの口に二十一挺
-      F.guns.push(allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: mouth === MOUTHS[0] ? '野々村の鉄砲組' : mouth === MOUTHS[1] ? ['佐々の鉄砲組', '前田の鉄砲組', '塙の鉄砲組'][i] : mouth.name + 'の鉄砲組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - i * 1.5, z }, facing: Math.PI / 2, width: gunN > 4 ? 14 : 8, spacing: gunN > 4 ? 1.4 : 2, ranks: 1, aggro: 44, holdFire: true, dmgMult: 0.8 }, [{ type: 'gun', n: gunN }]));
+      F.guns.push(allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: mouth === MOUTHS[0] ? '野々村の鉄砲組' : mouth === MOUTHS[1] ? (['佐々の鉄砲組', '前田の鉄砲組', '塙の鉄砲組'][i] || '柳田前の鉄砲組') : mouth.name + 'の鉄砲組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - (i % 3) * 1.5, z }, facing: Math.PI / 2, width: gunN > 4 ? 12 : 8, spacing: gunN > 4 ? 1.4 : 2, ranks: 1, aggro: 44, holdFire: true, dmgMult: 0.8 }, [{ type: 'gun', n: gunN }]));
       if (mouth === MOUTHS[0]) F.guns[F.guns.length - 1]._fieldWait = true;
     }
     // 五人の鉄砲奉行は、自分の備の控えとともに持ち場に残る。
@@ -2972,6 +2968,16 @@ const shitaragahara = {
     for (const [name, x, z, fac] of ALLIED_POSTS.slice(2, 7)) {
       const q = allyGroup(rt, { faction: fac, name: name + 'の控え', fixed: true, fullStrength: true, noGuard: true, anchor: { x, z }, facing: Math.PI / 2, width: 6, aggro: 6, formation: 'yari' },
         [{ type: 'busho', n: 1, o: { name, invuln: true } }, { type: 'samurai', n: 1 }]);
+      // 柵から離れた奉行の控えに供回りを足さない（本物の兵の枠を柵際の鉄砲へ回す）
+      q.noRetinue = true;
+      // 控えは奉行と侍二人だけ残す（共通の付き人で十五人になっていた）。枠は柵際の鉄砲組へ回す
+      for (const u of q.units.slice(3)) {
+        if (u.name) continue;
+        if (u.mesh) rt.scene.remove(u.mesh);
+        const ai = rt.army.units.indexOf(u); if (ai >= 0) rt.army.units.splice(ai, 1);
+        u.alive = false; u.gone = true;
+      }
+      q.units = q.units.filter((u) => !u.gone);
       F.officers.push(q);
       if (name === F.boss) F.okubo = q.units[0];
     }

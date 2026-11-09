@@ -186,7 +186,7 @@ export function updateMissionPin(rt) {
 }
 function drawMissionPin(rt) {
   // 行動の札と矢印が指す本人へ統一し、別の案内を重ねない。
-  if (rt.hud.actionGuideUnit && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && target(rt)?.route)) {
+  if (rt.def.goalSignNavigation && rt.hud.goalSignVisible || rt.hud.actionGuideUnit && !(rt.hud.actionGuideUnit.team !== rt.player.u.team && target(rt)?.route)) {
     rt.hud.missionPinLabelShown = false;
     rt.hud.missionEnemyShown = false;
     rt.hud.missionPinOutside = false;
