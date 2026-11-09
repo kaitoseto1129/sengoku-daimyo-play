@@ -137,6 +137,8 @@ function saruStep(s) {
     if (sa) {
       const gun = rt.flags.guns?.units.find((u) => u.alive);
       rt.army.play('volley', sa.pos, 1);
+      // この段の討死は確定。近習が将を一度救う共通処理で生き残らせない。
+      sa.officerSaved = true;
       rt.army.kill(sa, gun || null);
       rt.after(0.8, () => rt.say('鉄砲頭', '猿渡信光、鉄砲に倒れたり！', 3));
     }
@@ -318,6 +320,8 @@ const t08_nejirozaka = {
   noGroundGuide: true,
   // 東の尾根から来る黒田・小早川の名も、砦の奥から分かる距離にする。
   nameRange: 140,
+  // 距離だけでなく名札の枠も確保し、近くの将で後詰二人の名を消さない。
+  nameTagLimit: 12,
   spawn: { x: -4, z: -30, heading: 0 },
   world: {
     namedKacchu: NEJIROZAKA_MIYABE_KACCHU,

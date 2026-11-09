@@ -3,7 +3,7 @@
 //   柴田の物見を討った直後、左の葦原の脇道から林勢の前衛（物頭と足軽の二組）が列の左の端へ駆け寄る。
 //   組と左の二組が向きを変えて受ける。物頭（頭）を討つと、頭を失った足軽が背を向けて逃げる（敗走を初めて見せる）。
 //   その間、正面の柴田勢は太鼓に合わせてじりじりと寄せて来る（見える敵は必ず動く）。
-//   二分半で決まらなければ、味方の侍が物頭を討つ（主人公のせいでない事で止めない）。
+//   物頭は主人公が討つまで残し、時間経過だけで前衛を退けた事にしない。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
@@ -99,13 +99,7 @@ export function tick(rt) {
   const F = rt.flags, v = F.v15;
   if (v.vanDone || F.ending) return;
   if (!v.vanRout && v.boss && (!v.boss.alive || v.boss.gone)) routAll(rt);
-  // 二分半の保険：味方の侍が物頭を討つ
-  if (!v.vanRout && rt.t - v.vanT > 170 && v.boss?.alive) {
-    let k = null;
-    for (const g of v.vanAllies || []) for (const u of g.units) if (u.alive && !u.isPlayer && (!k || u.type === 'samurai')) k = u;
-    v.boss.invuln = false; v.boss.hp = 0; rt.army.kill(v.boss, k);
-    if (!v.boss.alive) routAll(rt); else routAll(rt);
-  }
+  // 物頭は主人公が討つ相手として残す。時間だけで済ませない。
 }
 export function onKill(rt, victim) {
   const v = rt.flags.v15;
