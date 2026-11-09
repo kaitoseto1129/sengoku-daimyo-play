@@ -141,8 +141,9 @@ const PLAN = {
     { id: 'hon', name: '本丸', level: 66, wall: 'saku', dorui: 1.8, kind: 'hon', floor: false, dense: false, poly: rectPoly(-96, -66, -150, -122), gapAt: [[-66, -134]], gapW: 5 },
   ],
   koguchi: [
-    { id: 'ote_e', name: '大手の木戸', from: 'out', to: 'ote', kind: 'hira', at: [165, 52], rot: Math.PI / 2, w: 5 },
-    { id: 'ote_w', name: '大手の奥の木戸', from: 'ote', to: 'out', kind: 'hira', at: [140, 52], rot: -Math.PI / 2, w: 5 },
+    // 道探しの木戸も柵の開口と同じ位置・幅にする。古い位置だと曲輪の外を入口として扱っていた。
+    { id: 'ote_e', name: '大手の木戸', from: 'out', to: 'ote', kind: 'hira', at: [133, 52], rot: Math.PI / 2, w: 10 },
+    { id: 'ote_w', name: '大手の奥の木戸', from: 'ote', to: 'out', kind: 'hira', at: [108, 52], rot: -Math.PI / 2, w: 10 },
     { id: 'goshu', name: '御主殿の虎口', from: 'out', to: 'goshu', kind: 'hira', at: [60, 4], rot: Math.PI / 2, w: 5 },
     { id: 'kaneko_s', name: '金子丸の口', from: 'out', to: 'kaneko', kind: 'hira', at: [72, -34], rot: 0, w: 5.6 },
     { id: 'kaneko_n', name: '金子丸の奥の口', from: 'kaneko', to: 'out', kind: 'hira', at: [66, -58], rot: Math.PI, w: 5.6 },

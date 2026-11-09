@@ -2184,8 +2184,9 @@ function gatherZone(rt, z) {
   z._gatherFriends = Math.max(z._gatherFriends || 0, z.friends || 0);
   let ready = 0;
   for (const g of F.oda) for (const u of g.units) if (marchFighter(u)) ready++;
-  // 人数が足りる時の控えは木戸突破後だけ。木戸破りに残した控えを先に使い切らない。
-  const callReserve = ready < z.need || (F.gatePass && rt.t - z._gatherSince >= 24);
+  // 三の郭でも先手が坂に留まれば控えを寄せる。総人数だけでは郭への到着を保証できない。
+  // 火入れ・木戸破りの間は、掛矢の控えを残す。
+  const callReserve = ready < z.need || ((z.id === 'san' || F.gatePass) && rt.t - z._gatherSince >= 24);
   for (let i = 0; i < F.oda.length + (callReserve ? 1 : 0); i++) {
     const g = i < F.oda.length ? F.oda[i] : F.ramNext;
     if (gone(g) || g === F.torchHelp?.group) continue;
@@ -4917,6 +4918,19 @@ const mitsukuri = {
           F.sanSally = true;
           routeOld(F.sanReserve, [ROAD_OTE[7], [0, -35], [0, -49], [SAN_C.x, SAN_C.z]], 2.2);
           sayKino(rt, '柵の口から敵が来るぞ。仲間と迎えよ', 3);
+        }
+      }
+    }
+    // 三の郭も、本人と先手が庭で押し続けた時だけ残兵を崩す。
+    // 柵際の残兵一人を追えず刻限まで止まる事を防ぎ、郭外で待つだけでは進めない。
+    if (F.step === 2 && !F.sanFell && F.SZ) {
+      const z = F.SZ.byId.san;
+      const present = zoneGroundFighter(rt, pu) && z.test(pu.pos.x, pu.pos.z);
+      F.sanPressT = present && z.friends >= z.need ? (F.sanPressT || 0) + dt : 0;
+      if (F.sanPressT >= 120 && z.enemies > 0 && rt.t >= (F.sanRoutAt || 0)) {
+        F.sanRoutAt = rt.t + 4;
+        for (const u of rt.army.units) if (u.team === 1 && u.group && zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z)) {
+          u.group.noRout = false; u.group.morale = 0;
         }
       }
     }
