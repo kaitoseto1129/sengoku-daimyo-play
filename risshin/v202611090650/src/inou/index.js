@@ -40,6 +40,7 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   F.farPin = null;
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = r;
+  pin.label = label;
   pin.unit = unit; pin.enemy = !!unit; pin.flagDestination = !unit;
   F.beginnerPinTarget = pin;
   return pin;

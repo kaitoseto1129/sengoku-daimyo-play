@@ -368,6 +368,8 @@ function siegeNight(world, force = false) {
 }
 
 const marchFighter = (u) => siegeFighter(u) && !u.rearWound && !u.climb;
+const atKido = (rt, u) => marchFighter(u) && Math.hypot(u.pos.x - KIDO.x, u.pos.z - KIDO.z) <= 10 &&
+  Math.abs(u.pos.y - rt.world.heightAt(KIDO.x, KIDO.z)) < 4;
 // 担い手や動けない兵を、鬨の声の出どころにしない。
 const cryReady = (rt, u) => marchFighter(u) && !u.dragging && !u.death?.aid && !u.bind &&
   !(u.stagger > 0) && !(u.pinT > rt.army.time);
@@ -2641,7 +2643,7 @@ const mitsukuri = {
   //   勝ちの札の五つも同じ（敵を何人討つ・自分で討つは置かない。城将の討ち手は伝わらない）。
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true && !!rt.over;
-    const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, () => !!F.sally || !!F.gatePass, () => (F.step ?? 0) >= 4, () => won()];
+    const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, () => !!F.sally || !!F.gatePass, () => (F.step ?? 0) >= 4, () => !!F.ending && rt.tracker?.main === true];
     return MK_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: MK_GOAL_NOUN[k], action: text, check: () => won() || done[k](), sec: 900, count: () => null }));
   },
   // 11/5 kaito 九3・十二1：両軍の今の兵の数の棒を常に出す。攻め手一万二千・城兵三千（後の書き物）。
@@ -4565,6 +4567,12 @@ const mitsukuri = {
     if (!F.sally) {
       // 11/4 夜：掛矢で木戸が先に破れると付け入りの段が飛ぶ（bot）。木戸が半ば傷んだ所でも打って出る。
       const st = gate.struct, worn = st && st.hp < st.maxHp * 0.55;
+      // 時間だけで木戸の目標を済ませない。本人か掛矢の組が木戸前へ詰めてから打って出る。
+      if (!worn && !atKido(rt, rt.player.u)) {
+        let pressed = false;
+        for (const u of F.ram.units) if (atKido(rt, u)) { pressed = true; break; }
+        if (!pressed) return;
+      }
       // 11/5 遊んで直す（十一4・芯の付け入り）：木戸の内の番兵が退くと木戸が先に開き、打って出る城兵が一度も来ないまま二の丸へ入れた。
       //   木戸を抜ける前（gatePass の前）なら、開いていても二の丸の兵が打って出る。
       if (F.gatePass || F.step < 3 || !F.sanFell || F.ending || rt.over || (!worn && rt.t < (F.sallyAt ?? Infinity))) return;
