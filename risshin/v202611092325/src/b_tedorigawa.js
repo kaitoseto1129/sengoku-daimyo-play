@@ -133,6 +133,8 @@ function pressStep(rt, dt) {
     if (d < 2 || d > 20) continue;
     const step = Math.min(d - 2, 3.4 * dt), nx = o.pos.x + dx / d * step, nz = o.pos.z + dz / d * step;
     if (W.inWaterAt(nx, nz) && W.waterDepthAt(nx, nz) > 0.5) continue;
+    // 通常移動と同じく、歩ける岸から急斜面へは踏み込まない。
+    if (!W.walkable(nx, nz) && W.walkable(o.pos.x, o.pos.z)) continue;
     o.pos.x = nx; o.pos.z = nz;
     // 通常の歩みと同じ当たりを通し、薪・柵・川岸をすり抜けない。
     rt.army.collide(o, dt);

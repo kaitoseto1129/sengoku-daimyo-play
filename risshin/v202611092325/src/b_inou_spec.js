@@ -381,7 +381,10 @@ const inou_spec = {
       const al = aliveIn(F.line);
       const allyLost = F.line.reduce((n, g) => n + g.units.length, 0) - al;
       // 後詰は生き残った信長方の内訳。追加人数で過去の討死を埋め戻さない。
-      FORCE.a = round10((F.aLeft ?? 400) * Math.max(0, 1 - Math.max(0, allyLost - F.al2Lost) / F.al2));
+      // 基準の無い記録でも人数を数値に保ち、全滅後に四百へ戻さない。
+      const lost = Math.max(0, allyLost - (F.al2Lost ?? 0));
+      const base = Math.max(1, F.al2 ?? al + lost);
+      FORCE.a = round10((F.aLeft ?? 400) * Math.max(0, 1 - lost / base));
       // 林の二の備・伏兵も同じ七百の内訳。姿を現しても棒は回復させない。
       FORCE.b = F.bLeft = Math.min(F.bLeft ?? 700, Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, total)))));
     }

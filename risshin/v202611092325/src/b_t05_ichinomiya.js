@@ -630,11 +630,17 @@ export const t05_ichinomiya = {
     // 二陣は竹束の下側を順に通り、陰で射撃してから次の竹束へ進む。
     const cover = F.allies[2];
     if (cover && F.coverControlled && (F.step !== 5 || F.ending || F.coverLeg >= COVER_ROUTE.length)) {
-      cover.noAI = F.coverAI; F.coverControlled = false;
+      cover.noAI = F.coverAI; cover.keepMoveOrder = F.coverKeepMoveOrder;
+      cover.aggro = F.coverAggro; cover.dest = null; F.coverControlled = false;
     }
     if (F.step === 5 && cover?.count && !F.ending && (F.coverLeg || 0) < COVER_ROUTE.length) {
       // 竹束で止まる三秒も、共通の采配で敵へ走り出さない。
-      if (!F.coverControlled) { F.coverAI = cover.noAI; F.coverControlled = true; cover.noAI = true; }
+      if (!F.coverControlled) {
+        F.coverAI = cover.noAI; F.coverKeepMoveOrder = cover.keepMoveOrder; F.coverAggro = cover.aggro;
+        F.coverControlled = true; cover.noAI = true;
+        // 武将に続く共通の前進も止め、竹束を順に使う下知を保つ。
+        cover.keepMoveOrder = true; cover.dest = null;
+      }
       const leg = F.coverLeg || 0, at = COVER_ROUTE[leg];
       if (cover._coverAt !== at) {
         cover._coverAt = at; cover.anchor = at; cover.order = 'move'; cover.aggro = 6; F.coverWait = 0;

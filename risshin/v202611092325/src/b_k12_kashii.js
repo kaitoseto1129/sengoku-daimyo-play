@@ -247,6 +247,8 @@ const k12_kashii = {
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。時の数字は出さない（時が尽きても負けにしない）
   goals5() {
     return STEP_TEXT.slice(1).map((text, k) => ({ kind: 'stage', k, text,
+      // 段を進める数と同じ表を使う。名前から控えの別隊まで数え直さない。
+      count: (rt) => rt.flags.step === k + 1 ? KILLS.k12_kashii(rt) : null,
       check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.hanaDown && !!rt.flags.hanaByMe) }));
   },
   // 共通の任務札は今の一行だけなので、目標の札（hud_goals）で置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
@@ -273,12 +275,20 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals li i
 html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em.tm) { display:none !important; }`;
     document.head.appendChild(st);
     const hudProgress = hud.progress;
     hud.progress = function (battle) {
       const out = hudProgress.call(this, battle);
-      if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+      if (battle === rt && this.prog && !rt.over) {
+        goalsTick(this.prog, rt);
+        const count = KILLS.k12_kashii(rt);
+        const em = this.prog.querySelector('.pg-goals li.now em:not(.tm)');
+        if (count && em) {
+          const text = `（${count[0]}／${count[1]}人）`;
+          if (em.textContent !== text) em.textContent = text;
+        }
+      }
       return out;
     };
     const dispose = rt.dispose;
