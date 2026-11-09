@@ -13,7 +13,8 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
 export function lethalOn(def) {
   if (!def || def.town || def.dojo || def.duel || def.mapCastle) return false;
-  return def.lethal === true || def.lethal !== false && ON.has(def.key || def.id);
+  // 細かい値の物（lethal: { max… }）でも入る（docs/lethal_howto.md）。11/9 徳川D：前は物で書いた十七戦で入っていなかった
+  return def.lethal === true || (!!def.lethal && typeof def.lethal === 'object') || def.lethal !== false && ON.has(def.key || def.id);
 }
 
 // 戦の始め（battle.js が Army を作った後）に一度。戦の定義の lethal の細かい値も読む。
