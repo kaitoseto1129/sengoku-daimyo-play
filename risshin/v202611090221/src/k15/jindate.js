@@ -133,5 +133,17 @@ function crisis(rt, st, P) {
       if (nb) { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; nb.position.y -= 0.3; }
     }
   }
+  // 真田が家康の退いた後の旧本陣へ着く：倒れた幟・空の床几。「逃したか……！」（完璧に守っても間に合わない所）
+  if ((step === 3 || step === 4) && !st.rep.nige && F.ieyasu?.alive) {
+    const I = F.ieyasu, far = Math.hypot(I.pos.x - P.HON.x, I.pos.z - P.HON.z) > 18;
+    let got = false;
+    for (const g of [F.sanada2, F.sanada3, F.nobu, ...(F.newE || [])]) if (alive(g)) for (const u of g.units) if (u.alive && !u.fleeing && Math.hypot(u.pos.x - P.HON.x, u.pos.z - P.HON.z) < 9) { got = true; break; }
+    if (got && far) {
+      st.rep.nige = true;
+      rt.say('真田信繁', '逃したか……！　家康を追え！', 3);
+      for (const nb of F.honNobori || []) { nb.rotation.z = (Math.random() < 0.5 ? -1 : 1) * 1.45; }
+      F.honNobori = [];
+    }
+  }
   if (step === 4) say1(rt, st, 'p4', '使番', '越前勢、参ります！　ここから押し返すぞ！');
 }

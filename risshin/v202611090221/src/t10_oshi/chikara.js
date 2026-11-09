@@ -75,7 +75,7 @@ export function start(rt, C) {
 }
 
 // 段の終わり：先手を下げ、柵の守りは柵の内に留める（追っては来ない）
-function retreat(rt, C) {
+export function retreat(rt, C) {
   const F = rt.flags, K = F.chi;
   if (F.step >= 2) return;
   F.step = 2; F.stepT = rt.t;

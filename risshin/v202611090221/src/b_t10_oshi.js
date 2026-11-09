@@ -358,7 +358,37 @@ function openDoor(rt) {
 const C = { MISSIONS, FORD, GATE, NI, KU, CAMP, MARU, START, RAIDAT, BASIN, FRONT, INSIDE, LAKE_HI, ISHI, HOJO, KIT, dress, live, fighting, near, warp, openDoor, def: null };
 
 const t10_oshi = {
-  resumeSteps: [[1, 'night'], [2, 'weir'], [3, 'storm'], [4, 'ford'], [5, function (rt) { this.sortie(rt, 0); }], [6, 'tsukeiri']],   // 戦の途中の保存（battle_checkpoint.js）：段の関数を順に流して段の始まりを作り直す
+  // 任務と同じ十段で再開する。前の段の after は再開時には流れないため、
+  // 水を入れる処理と、時が飛ぶ時の兵の片付けも各段の入口で行う。
+  resumeSteps: [
+    [1, (rt) => chikara.start(rt, C)],
+    [2, (rt) => chikara.retreat(rt, C)],
+    [3, function (rt) {
+      const K = rt.flags.chi;
+      for (const g of [K?.foe, K?.foe2, ...(K?.shot || []), K?.ally]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      if (K?.clash?.mesh) K.clash.mesh.visible = false;
+      this.night(rt);
+    }],
+    [4, 'weir'],
+    [5, function (rt) { this.openWeir(rt); kobuneSt.start(rt, C); }],
+    [6, function (rt) {
+      const K = rt.flags.kob;
+      for (const g of [...(K?.groups || []), K?.guns]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      for (const b of K?.boats || []) b.mesh.visible = false;
+      this.storm(rt);
+    }],
+    [7, 'ford'],
+    [8, function (rt) { this.sortie(rt, 0); }],
+    [9, 'tsukeiri'],
+    [10, (rt) => kaijo.start(rt, C)],
+  ],
+  resumeAt(rt, step) {
+    // 前段の印へ自動的に戻すと、避難再開時に西の堰へ置かれてしまう。
+    const at = step === 2 ? RAIDAT : step === 4 ? { x: START.x - 4, z: START.z + 4 } :
+      step === 5 ? { x: KU.x + 2, z: KU.z + 4 } : step === 6 ? { x: EVAC0.x + 4, z: EVAC0.z + 2 } :
+      step === 7 ? { x: FORD.x + 6, z: FORD.z + 8 } : step >= 8 ? FRONT : START;
+    return { x: at.x, z: at.z };
+  },
   missionStyle: 'lesson',
   noCouriers: true, noTaisho: true, noReserve: true, noWake: true,
   frontlineDensity: false,

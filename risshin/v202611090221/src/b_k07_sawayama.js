@@ -471,6 +471,8 @@ const k07_sawayama = {
         if (yard && p.x > yard.poly[0][0] && p.x < yard.poly[1][0] && p.z > yard.poly[0][1] && p.z < yard.poly[2][1] && Math.abs(p.y - yard.level) < 3) {
           C.k07Entered = true;
           C.k07EnteredAt ??= rt2.t;
+          // 曲輪を離れて待つ時間は、宇多との斬り合いに含めない。
+          C.k07FightTime = (C.k07FightTime || 0) + dt;
         }
         const cleared = tick(rt2, C, m, ctx, el, dt);
         // 乱入を告げた後の正継・朝成・東雲斎の言葉を終えてから落城へ進む。
@@ -530,7 +532,7 @@ const k07_sawayama = {
     if (F.udaDead) { for (const g of D.cur.groups) if (g.count && !g._udaLost) { g._udaLost = true; g.noRout = false; g.morale = Math.min(g.morale ?? 50, 8); } }
     // 段の初めの十五秒は数えない：出た一コマで宇多が「南へ抜けた」と見なされて果て、④の斬り合いが無いまま段が済んだ（11/6 流しで再び出た）
     // 門の外で待った時間では討死させない。主人公が曲輪に入ってからの斬り合いを数える。
-    const el = rt.t - (D.cur.k07EnteredAt ?? rt.t);
+    const el = D.cur.k07FightTime || 0;
     if (el < 15) return;
     // 二分の斬り合いで主人公が討てなければ、宇多は寄せ手の槍に果てる（史実も落城の中で果てた。④を長く引きずらない）
     if (!F.udaDead && el > 120) { this.udaEnd(rt); return; }

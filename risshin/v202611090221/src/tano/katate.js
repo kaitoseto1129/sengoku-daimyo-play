@@ -6,9 +6,13 @@
 // ②柵の口を破った後、屋敷から武田の残る兵が逆寄せに出る。柵の口で受けると → 元の「田野の平屋敷」へ。
 // 入れ方：b_tano.js で wrap(tano) を一度。def.next を包む（段の間に挟む）。
 // ======================================================================
-import { k15Off, k15Go, k15Scenes, k15Wave } from '../oda15_kit.js';
+import { k15Off, k15Go as timedGo, k15Scenes, k15Wave } from '../oda15_kit.js';
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+
+// 持ち場へ実際に着くまで、時刻だけで次の出来事を始めない。
+const k15Go = (rt, id, pos, r, text, label, fn, o = {}) =>
+  timedGo(rt, id, pos, r, text, label, fn, { ...o, limit: Infinity });
 
 export function wrap(def) {
   const next = def.next;
@@ -41,8 +45,16 @@ function katate(rt, done) {
   ], () => k15Go(rt, 'kt-cliff', front, 6, '崖の細道を進め', '崖の細道', () => {
     rt.banner('土屋昌恒、道を塞ぐ', '藤蔓を片手に崖へ身を支え、片手の刀で寄せ手を斬る');
     sfx('shout', 0.7);
-    const tsuchiya = enemyGroup(rt, { fixed: true, noAI: true, name: '土屋昌恒', faction: 'takeda', anchor: { x: cliff.x + 6, z: cliff.z }, facing: -Math.PI / 2, width: 1, aggro: 0 },
-      [{ type: 'samurai', n: 1, o: { name: '土屋昌恒', invuln: true, horse: false, hat: 'kabuto_m' } }]);
+    // 屋敷の土屋本人を使い、同じ将を二人作らない。
+    const tsuchiya = F.defenders[4].units.find((u) => u.name === '土屋昌恒');
+    const guard = tsuchiya.group, slotPos = guard.slotPos;
+    const home = { x: tsuchiya.pos.x, z: tsuchiya.pos.z, heading: tsuchiya.heading };
+    const stand = { x: cliff.x + 6, z: cliff.z };
+    guard.slotPos = function (slot, initial) {
+      return slot === tsuchiya.slot ? stand : slotPos.call(this, slot, initial);
+    };
+    tsuchiya.pos.set(cliff.x + 6, rt.world.heightAt(cliff.x + 6, cliff.z), cliff.z);
+    tsuchiya.heading = -Math.PI / 2;
     k15Scenes(rt, [
       [3.5, () => rt.say('土屋昌恒', 'ここは土屋惣蔵が通さぬ。御屋形様のもとへは、一人も行かせぬ！', 5)],
       [5, () => rt.say('滝川の組頭', '一人ずつ懸かっては斬られる。槍をそろえて押せ！', 4)],
@@ -56,13 +68,15 @@ function katate(rt, done) {
           rt.banner('土屋昌恒、屋敷へ退く', '細道を破られ、主のもとへ戻った');
           rt.say('足軽', 'あれが土屋惣蔵か……　片手で、何人斬ったか', 4);
           rt.award((t) => t.side.push('崖の細道を破った'), '崖の細道を破った');
-          for (const u of tsuchiya.units) if (u.alive) rt.army.despawn(u);
+          guard.slotPos = slotPos;
+          tsuchiya.pos.set(home.x, rt.world.heightAt(home.x, home.z), home.z);
+          tsuchiya.heading = home.heading;
           rt.after(5, () => { if (!stop()) done(); }, true);
           return;
         }
         if (n > 1) rt.say('土屋昌恒', n === 2 ? 'まだじゃ、次の者、懸かれ！' : '最後の者ども、続け！', 3.5);
         k15Wave(rt, { make: enemyGroup, name: '土屋の衆', faction: 'takeda', at: { x: cliff.x + 3, z: cliff.z }, to: front,
-          list: takeda(n === 3 ? 4 : 3, '土屋の家来'), label: '土屋の衆', width: 2, sec: 60, left: 1, flee: { x: 130, z: -6 },
+          list: takeda(n === 3 ? 4 : 3, '土屋の家来'), label: '土屋の衆', width: 2, sec: Infinity, left: 0, flee: { x: 130, z: -6 },
           reward: n === 3 ? '土屋の衆を細道で破った' : null }, () => rt.after(2.5, one, true));
       };
       one();
@@ -82,7 +96,7 @@ function gyaku(rt, done) {
   ], () => k15Go(rt, 'gy-gate', gate, 7, '柵の口で、武田の逆寄せを受けよ', '柵の口', () => {
     rt.obj('main', '柵の口で、武田の逆寄せを受けよ', 'main', true);
     k15Wave(rt, { make: enemyGroup, name: '武田の逆寄せ', faction: 'takeda', at: { x: 118, z: -2 }, to: gate,
-      list: takeda(7, '跡部の侍'), label: '逆寄せ', width: 4, sec: 90, flee: { x: 134, z: -6 }, reward: '柵の口で武田の逆寄せを受けた' }, () => {
+      list: takeda(7, '跡部の侍'), label: '逆寄せ', width: 4, sec: Infinity, left: 0, flee: { x: 134, z: -6 }, reward: '柵の口で武田の逆寄せを受けた' }, () => {
       k15Scenes(rt, [
         [2, () => rt.say('滝川の組頭', '押し返した。屋敷へ入るぞ。勝頼の旗は奥じゃ', 4)],
         [4.5, () => {}],
