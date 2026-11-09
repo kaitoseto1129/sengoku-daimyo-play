@@ -150,9 +150,7 @@ const k08_osaka_kizu = {
   touchBattleControls: true,   // 拾った鉄砲へ指でも持ち替える（通し確認で武器の丸が出なかった）
   // 敵の兵には一人残らず頭上に赤い▼（九3。11/5 crit：門の内の斬り合いでどれが明石の兵か分からなかった）。④は討てない全延にも付ける
   enemyTriangleSigns: true,
-  arrowRainPerBow: 3,
   siegeNoStones: true,   // 土の砦では落石を作らず、門の上からは矢だけを落とす
-  arrowRainGroundCue: false,   // 矢の落ちる所の地面の輪（線路のような弧）を出さない（五1）     // 門の内の弓組の一斉射ちを、矢の雨に見せる（11/7 kaito）
   enemyTriangleGroup: (rt) => (rt.flags.step === 4 ? rt.flags.zen : null),
   noTravelArrow: true,    // 行き先は真上の▼一つ（足元・端の矢印を描かない。五3）
   nameRange: 45,          // 浅野長晟・明石全延の名を、組が見える所から出す（九3）
@@ -179,6 +177,9 @@ const k08_osaka_kizu = {
   },
   world: {
     seed: 1614,
+    // 矢の雨は戦の直下でなく、地形の設定を読む（arrow_rain.js）。
+    arrowRainPerBow: 3,   // 門の内の弓組の一斉射ちを、矢の雨に見せる
+    arrowRainGroundCue: false,   // 矢の落ちる所の地面の輪を出さない
     time: 'night',   // 午前三時の抜け駆け。夜の戦は夜に（四の6）
     muddy: 0.35,
     height,
