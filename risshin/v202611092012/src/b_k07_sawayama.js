@@ -468,6 +468,7 @@ const k07_sawayama = {
     for (const s of F.dp.steps) if (s.kind === 'fight' || s.kind === 'move') {
       s.idleAdvance = false;
       s.limit = Infinity;
+      s.noHardCap = true;
       if (s.kind !== 'fight') continue;
       const yardId = { 0: 'ote', 3: 'san', 5: 'ni3', 6: 'ni1', 8: 'hon' }[F.dp.steps.indexOf(s)];
       const yard = PLAN.kuruwa.find((k) => k.id === yardId);
@@ -481,9 +482,8 @@ const k07_sawayama = {
           C.k07FightTime = (C.k07FightTime || 0) + dt;
         }
         const cleared = tick(rt2, C, m, ctx, el, dt);
-        // 11/9 徳川C（見回り）：曲輪の守りが崩れても、本人が曲輪の段の上へ上がれず斜面の下に留まると、三の丸が十八分の打ち切りまで止まった（bot 中学生）。
-        //   守りが崩れて六十秒たてば、味方が曲輪を取ったとみなす（本丸は田中勢の乱入を待つ決まりはそのまま）
-        if (cleared && !C.k07Entered) { C.k07ClearT ??= rt2.t; if (rt2.t - C.k07ClearT > 60) C.k07Entered = true; }
+        C.k07Cleared = !!cleared;
+        // 味方が守りを崩しても、主人公が曲輪へ入るまでは達成しない。
         // 乱入を告げた後の正継・朝成・東雲斎の言葉を終えてから落城へ進む。
         const enteredAt = rt2.flags.tanakaInT;
         return cleared && !!C.k07Entered && (C.at !== HON_YARD ||
@@ -869,6 +869,13 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 尾根の上の段（二の丸・本丸）では、斬り合いの場へ城の道（二の丸の奥の口→本丸の門）を通って行く。真っ直ぐ向かうと本丸の石垣に当たって外を回り、
   //   本丸に一度も入らないまま⑤が済んだ（11/6 描いて遊んだ二回とも）
   const D = F.dp, C = D && D.on && D.cur;
+  // 守りが崩れた後は追撃を止め、曲輪の中まで登る。共通の到着半径で石垣の下に止まらない。
+  if (C && C.s.kind === 'fight' && C.k07Cleared && !C.k07Entered) {
+    const q = sawayamaWay(b.army, u, C.at);
+    inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false;
+    goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true;
+    return;
+  }
   if (C && C.s.kind === 'fight' && D.i >= 5 && C.goal && !b.army.nearestEnemy(u, 7, (o) => !o.fleeing && !o.noTarget && !o.perch)) {
     // ④（二の丸の上の段）で本丸の門の前（南）まで上がってしまった時は、二の丸の中へ戻る（11/9 流し：本丸の門の前で矢を受けながら八分立ち往生）
     //   門の外（北）の口で立ち止まった時も、門をくぐって中へ（11/9 流し：破れた門の外で九分矢を受けていた）
