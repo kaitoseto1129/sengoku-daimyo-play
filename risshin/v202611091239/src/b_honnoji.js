@@ -3357,7 +3357,7 @@ const honnoji = {
     }
     // 印と任務札では同じ短い行き先を使う。
     if (!keepDestination) {
-      if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
+      if (F.hp === 6) return F.escortShown ? '御殿へ退く上様の所へ戻る' : '上様と御殿へ退く';
       if (F.hp === 8) return this.escapeGuideLabel(rt);
     }
     // 戸口の印にも行き先を添える。守りへの合流と退却を同じ「ここへ」にしない。
@@ -3370,7 +3370,7 @@ const honnoji = {
       return '次の印へ進む';
     }
     if (F.hp === 4 || F.hp === 5) return '本堂の上様のもとへ進む';
-    if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
+    if (F.hp === 6) return F.escortShown ? '御殿へ退く上様の所へ戻る' : '上様と御殿へ退く';
     if (F.hp === 7) return '奥の信長へ';
     if (F.hp === 8) return this.escapeGuideLabel(rt);
     return F.hp === 1 ? '次の印へ進む' : '印へ進め';
@@ -3435,6 +3435,7 @@ const honnoji = {
   // ---- 稲生の水準（10/25）。信長で遊ぶ時は今まで通り ----
   missionSingleLine: true,
   goalsAllRows: true, // 本能寺の五つの目標と達成印を、共通の札でも最初から並べる。
+  goalVisibleRows: 5,
   hideMissionDots: true,
   // 二条御所が落ちた後は一人で京を落ちる。御所に残って討死した村井貞勝らを組頭として呼び戻さない（kumi_lead.js）
   get kumiLead() { return !(honnoLive?.flags?.step >= 5); },
@@ -3498,7 +3499,7 @@ const honnoji = {
   taskLabel(rt, text) {
     const F = rt.flags;
     if (rt.G.lord || F.step >= 3 || F.k15on) return text;
-    if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
+    if (F.hp === 6) return F.escortShown ? '御殿へ退く上様の所へ戻る' : '上様と御殿へ退く';
     // 火の知らせを一時の台詞だけに任せず、熱を受けている間は行き先と一緒に残す。
     if (F.T?.heatWarm > 0 && F.hp >= 4 && F.hp <= 8) {
       return this.routeGuidePriority(rt) ? this.travelGuideLabel(rt) : '火から離れろ';
