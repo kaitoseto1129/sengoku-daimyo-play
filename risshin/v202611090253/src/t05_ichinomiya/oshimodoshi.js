@@ -9,7 +9,11 @@ export function oshiStep(NG) {
     list.map(([type, n]) => ({ type, n, o: CHOSO })));
   const alive = (g) => g && g.count > 0 && !g.routed;
   const heads = (gs) => gs.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
-  const send = (rt, at) => (rt.flags.allies || []).forEach((g, i) => { if (g && g.count) { g.order = 'attack'; g.seekRange = 20; g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 }; } });
+  const send = (rt, at) => (rt.flags.allies || []).forEach((g, i) => {
+    // 加勢の知らせまでは、黒田・家政の手を山道の下で待たせる。
+    if ((rt.flags.dp?.cur?.ph ?? 0) < 3 && (g === rt.flags.kanbei || g === rt.flags.iemasa)) return;
+    if (g && g.count) { g.order = 'attack'; g.seekRange = 20; g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 }; }
+  });
   return {
     // kind は 'hold'：自動の頭（depthBot）が持ち場（C.at）の輪の内の敵だけを相手にし、門の下まで一人で追わない
     kind: 'hold', max: Infinity, idleAdvance: false, needIn: 55,
@@ -18,7 +22,7 @@ export function oshiStep(NG) {
       C.at = C.goal = LOW; C.groups = []; C.ph = 0; C.botRadius = 14; C.inT = 0;
       rt.obj('dp', GOALS[4], 'main');
       // 湧き水を取り返しに来た組の残りは、水脈を断たれて門へ退く（段の替わり目に敵が重ならない）
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !(rt.flags.cGuns || []).includes(g)) { g.noRout = false; g.morale = 0; g.anchor = { x: -16, z: 96 }; g.order = 'move'; }
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g !== rt.flags.emura && !(rt.flags.cGuns || []).includes(g)) { g.noRout = false; g.morale = 0; g.anchor = { x: -16, z: 96 }; g.order = 'move'; }
       // 秀長の手の後続が谷から上がって来て、山道の下を固める（押し戻される時に本人だけにしない）
       const aid = allyGroup(rt, { name: '秀長の手の後続', flag: 'toyotomi', anchor: { x: LOW.x - 4, z: LOW.z - 10 }, facing: 0, noRout: true, aggro: 12, morale: 95, dmgMult: 0.7, fullStrength: true },
         [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 }]);

@@ -338,7 +338,7 @@ for (const [name, flag, uma] of [
   // 「無」の旗印。使用時期・篆書の筆形は確定せず、読める字で補う。
   // https://crd.ndl.go.jp/reference/entry/index.php?id=1000203968&page=ref_view
   ['榊原康政', 'sakakibara', ''],
-  ['井伊直政', 'ii', ''],
+  ['井伊直政', 'ii', 'ii_haetori'], // 彦根城博物館の蠅取形馬印の写しによる復元。関ヶ原以後だけ（units.js）。
   ['山県昌景', 'akazonae', ''],
   ['真田信綱', 'sanada', ''],
   ['真田昌輝', 'sanada', ''],

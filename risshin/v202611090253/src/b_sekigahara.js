@@ -391,7 +391,7 @@ const sekigahara = {
     rt.after(26, () => {
       if (F.ending) return;
       const ii = allyGroup(rt, { faction: 'akazonae', name: '井伊直政の赤備え', anchor: { x: 22, z: -18 }, facing: Math.PI, width: 8, aggro: 12, noRout: true, speed: 4 },
-        dress([{ type: 'busho', n: 1, o: { name: '井伊直政', invuln: true, horse: true, hat: 'kabuto_r', haori: 0x7a1a12 } }, { type: 'cavalry', n: 6 }, { type: 'samurai', n: 4 }], II));
+        dress([{ type: 'busho', n: 1, o: { name: '井伊直政', invuln: true, horse: true, hat: 'kabuto', haori: 0 } }, { type: 'cavalry', n: 6 }, { type: 'samurai', n: 4 }], II));
       ii.order = 'move'; ii.dest = { x: 10, z: 50 };
       ii.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 50; };
       F.ii = ii;
