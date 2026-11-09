@@ -908,6 +908,9 @@ const inou_spec = {
     F.scanT = 0.25;
     // 段の進み（kaito 11/1 B 節）：練習 → 林の先手 → 二の備 → 土手の林美作守
     I15.tick(rt, 0.25);
+    // 行軍から最後まで同じ任務文を残さず、今の場所と行いを記録にも渡す。
+    const heading = this.missionHeading(rt);
+    if (F.mainHeading !== heading) { F.mainHeading = heading; rt.obj('main', heading, 'main'); }
     if (F.stage === 0 && F.practice && F.pk >= 3 && I15.linesReady(rt, this)) this.startLines(rt);
     if (F.stage === 1) {
       // 列どうしが組み合った時、自分が味方の列のそばにいれば「味方の列と並んで進む」
@@ -990,10 +993,13 @@ const inou_spec = {
       if (g.order === 'move' && g.onArrive && g.units.some((u) => u.alive && !u.gone && rt.army.nearestEnemy(u, 9, (o) => !o.fleeing))) { const f = g.onArrive; g.onArrive = null; f(g); }
       if (g.order !== 'attack') continue;
       for (const u of g.units) {
-        if (!u.alive || u.gone || u.target || u.atk || u.fleeing || u.mounted || u.type === 'bow' || Math.hypot(u.vel.x, u.vel.z) > 0.15) { u._inouIdle = 0; continue; }
+        if (!u.alive || u.gone || u.downed || u.woundOut || u.rearWound || u.target || u.atk || u.swing || u.fleeing || u.mounted || Math.hypot(u.vel.x, u.vel.z) > 0.15) { u._inouIdle = 0; continue; }
         if ((u._inouIdle = (u._inouIdle || 0) + 0.25) < 4) continue;
         u._inouIdle = 0;
-        const e = rt.army.nearestEnemy(u, 12, (o) => !o.fleeing && !o.isPlayer && !o.invuln);
+        // 十二メートルだけでは三十七メートル先の列へ戻れず、弓は処理からも外れていた。
+        // 控え・退却の下知は上で除き、攻撃中の兵だけを次の相手へ向かわせる。
+        const e = rt.army.nearestEnemy(u, u.type === 'bow' ? BOW_RANGE : 80,
+          (o) => o.hp > 0 && !o.gone && !o.dying && !o.downed && !o.woundOut && !o.rearWound && !o.fleeing && !o.noTarget && !o.invuln);
         if (e) { e._tgtN = (e._tgtN || 0) + 1; u.target = e; u.watch = null; u.moveTo = null; }
       }
     }

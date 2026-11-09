@@ -2025,6 +2025,7 @@ const shigisan = {
   // 11/6 fixc1429：右上の目標は①〜⑤を始めから全部並べ（stages.js の段・goals5）、段の中で言い替えない（九1・十1）。
   //   「敵を何人討つ」で埋めない（三1）。一行の札も今の段の字をそのまま出す。
   stageGoalsOnly: true,
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（11/9 徳川A：弱めて入れる。突然の討死は二つまで・三分過ぎから）
   missions: SG_GOALS,
   missionOf(rt) {
     const F = rt.flags;
@@ -2136,6 +2137,7 @@ const shigisan = {
     P.camPos.copy(camera.position);
   },
   jinkei: JIN,
+  lethal: { max: 3, firstAt: 150, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は筋書きのまま
   // 共通の民の描画・兵と火の接近判定を使う。兵数・当たり・戦功には入れない。
   // 山の高低差と個別の再避難路を使い、小谷の里道専用の逃走へ切り替えない。
   // 地面の焚火（大きさ1.3）も避け、篝火（大きさ0.7）は見物を妨げない。

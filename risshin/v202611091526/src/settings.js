@@ -1,4 +1,4 @@
-import { TIER, ANDROID } from './device_tier.js';
+import { TIER, ANDROID, IPAD } from './device_tier.js';
 // 設定（このブラウザに保存）
 const KEY = 'sengoku-risshin-settings-v1';
 const HINT_KEY = 'sengoku-risshin-hints-v1';
@@ -139,7 +139,7 @@ Object.defineProperty(S, 'flagMotion', { get: () => false, set: () => {}, enumer
 for (const k of ['skyMotion', 'skyBirds']) Object.defineProperty(S, k, { get: () => false, set: () => {}, enumerable: true });
 // 記憶のきつい機械：iPhone（GPU process が約 600MB・WebContent が 2048MB で切られる）。
 //   実機の確かめで iPad に同じ作りをさせる時は -autoplay tight,戦,… か ?tight=1（10/20）
-export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent) || TIER.weak
+export const MEM_TIGHT = typeof navigator !== 'undefined' && (/iPhone/.test(navigator.userAgent) || IPAD || TIER.weak
   || (typeof window !== 'undefined' && (/\btight\b/.test(String(window.__autoplay || '')) || /[?&]tight=1/.test(location.search))));
 // 計算の軽い作り：iPhone と Android。Android の高性能タブレット（Xiaomi Pad 8 など）は記憶は足りるが、JS の速さはパソコンの半分ほどで
 //   乱戦がずっとカクカクした（Lancers 10/26）。兵の密度を保ち、iPhone と同じ骨の人数上限と「考えと骨と小さな置き物のコマ分け」を使う。
