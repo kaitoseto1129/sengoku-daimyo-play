@@ -27,7 +27,7 @@ export const T02_DEPTH = {
     sonae: [
       { id: 'sakuma', layer: 'sakite', wing: 'center', men: 8000, taisho: '佐久間盛政', flag: 'sakuma', bind: F('saku') },
       { id: 'katsumasa', layer: 'ichi', wing: 'left', men: 3000, taisho: '柴田勝政', bind: F('kmG') },
-      { id: 'maeda', layer: 'ichi', wing: 'right', men: 2000, taisho: '前田利家', flag: 'maeda', hold: true, at: { x: -180, z: -10 } },
+      { id: 'maeda', layer: 'ichi', wing: 'right', men: 2000, taisho: '前田利家', flag: 'maeda', bind: F('maedaG') },
       { id: 'toshinaga', layer: 'ni', wing: 'right', men: 1000, taisho: '前田利長', flag: 'maeda', hold: true, at: { x: -216, z: -334 } },
       { id: 'fuwa', layer: 'ni', wing: 'center', men: 1500, taisho: '不破勝光', flag: 'sakuma', hold: true, at: { x: -306, z: -285 } },
       { id: 'kanamori', layer: 'yobi', wing: 'center', men: 1500, taisho: '金森長近', flag: 'kanamori', hold: true, at: { x: -250, z: -330 } },

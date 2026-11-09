@@ -51,10 +51,11 @@ function rout(g) {
 export function tick(rt) {
   const F = rt.flags, Y = F.ikYama;
   if (!Y || Y.done || F.ending) return;
-  const p = rt.player.u.pos, T = rt.t - Y.at;
+  const p = rt.player.u.pos;
+  // 時間だけで発見・撃退・帰還を済ませない。本人の到着と守りの損耗を待つ。
   // ① 森の小道へ。着くと藪から残党が立つ
   if (Y.s === 0) {
-    if (near(p, A, 10) || T > 75) {
+    if (near(p, A, 10)) {
       Y.s = 1; Y.at = rt.t;
       Y.g = band(rt, Y, { x: A.x - 4, z: A.z + 10 }, [['ashigaru', 6], ['samurai', 1]], '山に潜む一揆の残党');
       Y.n = Y.g.units.length;
@@ -65,7 +66,7 @@ export function tick(rt) {
     return;
   }
   if (Y.s === 1) {
-    if (standing(Y.g) > 2 && T < 70) return;
+    if (standing(Y.g) > 2) return;
     rout(Y.g);
     Y.s = 2; Y.at = rt.t;
     rt.say('組頭', '残りは谷へ逃げた。右の谷筋へ回れ！', 3.2);
@@ -74,7 +75,7 @@ export function tick(rt) {
   }
   // ② 右の谷筋へ。坂の上から一団が突き下ろす
   if (Y.s === 2) {
-    if (near(p, B, 12) || T > 80) {
+    if (near(p, B, 12)) {
       Y.s = 3; Y.at = rt.t;
       Y.g = band(rt, Y, { x: B.x + 8, z: B.z + 12 }, [['ashigaru', 6], ['samurai', 1], ['bow', 1]], '谷に潜む一揆勢');
       Y.g.aggro = 40; Y.g.seekRange = 45;
@@ -84,7 +85,7 @@ export function tick(rt) {
     return;
   }
   if (Y.s === 3) {
-    if (standing(Y.g) > 2 && T < 75) return;
+    if (standing(Y.g) > 2) return;
     rout(Y.g);
     Y.s = 4; Y.at = rt.t;
     rt.say('組頭', '生け捕った者が言うには、千余りが大滝寺に籠ったそうじゃ', 3.6);
@@ -93,7 +94,7 @@ export function tick(rt) {
     return;
   }
   // ③ 麓の参道へ戻ると寺攻め
-  if (Y.s === 4 && (near(p, BACK, 12) || T > 50)) finish(rt);
+  if (Y.s === 4 && near(p, BACK, 12)) finish(rt);
 }
 
 function finish(rt) {
