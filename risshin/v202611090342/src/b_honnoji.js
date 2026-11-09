@@ -2316,12 +2316,12 @@ function blaze(rt, id) {
   // 遠い延焼は共通の炎を使い、近い棟の追加の火も六棟までにする。
   if (r.x < -80 || (F.blazeCount || 0) >= 6) return;
   F.blazeCount = (F.blazeCount || 0) + 1;
-  // 11/8 critic60 四6・十一4：御殿の奥で火が回る見せ場。御殿だけ屋根の火を倍にし、黒煙の柱と火の粉を上げる
-  const roofCount = id === 'goten' ? 4 : 2;
-  if (id === 'goten') try { rt.world.addSmokeColumn(r.x, rt.world.heightAt(r.x, r.z) + (r.top || 4) + 2, r.z, { size: 3.2 }); } catch (e) { console.error(e); }
+  // 御殿は共通の上限の三つ、ほかの棟は二つの屋根の火。黒煙も共通の火と一緒に消す。
+  const roofCount = id === 'goten' ? 3 : 2;
   const b = F.blazes[id] = rt.world.addBlaze(r.x, r.z, { w: r.w || 8, d: r.d || 6, h: r.top || 4, rot: r.rot || 0, n: roofCount });
   // 共通の屋根の火と、下の柱の火だけを残す。側面の大きな炎も戸口を覆うので除く。
-  for (const f of b.fires.splice(0)) rt.world.removeFire(f);
+  // addBlaze の最後の一つだけが戸口の炎。全部取り除くと屋根の火まで消えてしまう。
+  rt.world.removeFire(b.fires.pop());
   // 屋根の上だけでなく、軒下の柱にも火を置く。室内から炎・煙・火の粉が見える高さ。
   const geo = F.charGeo ||= new THREE.BoxGeometry(0.18, 2.8, 0.18);
   // 火元の足元は七角の焼け跡と明るい縁。煙の中でも形で位置を読める。
@@ -3300,7 +3300,7 @@ const honnoji = {
       const door = rt.nearestInteract();
       return door?.id === 'naka_tobira' && door.label !== '戸を開ける' ? '東の戸を通る' : '東の戸を開ける';
     }
-    if (F.routeSign?.door && this.routeGuidePriority(rt)) return 'ここを通る';
+    if (F.routeSign?.door && this.routeGuidePriority(rt)) return this.doorGuideLabel(rt);
     if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '表門へ走り、門を閉めて明智勢を入れない';
     if (gateDefending(rt)) return '門の内で信長を守れ';
     if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '表門へ走り、門を閉めて明智勢を入れない';
@@ -3335,7 +3335,7 @@ const honnoji = {
     // 戸口の印にも行き先を添える。守りへの合流と退却を同じ「ここへ」にしない。
     if (F.hp === 2 || F.hp === 3) {
       const sign = F.routeSign;
-      if (sign?.door) return 'ここを通る';
+      if (sign?.door) return this.doorGuideLabel(rt);
       if (sign && !sign.door && !sign.indoor) return '表門へ走り、門を閉めて明智勢を入れない';
       if (!(F.patrolDistance > 10 && sign?.indoor)) return '表門へ走り、門を閉めて明智勢を入れない';
       // 敵の増減で札を切り替えず、いま通る戸口の動作を短く保つ。
@@ -3346,6 +3346,14 @@ const honnoji = {
     if (F.hp === 7) return '奥の信長へ';
     if (F.hp === 8) return this.escapeGuideLabel(rt);
     return F.hp === 1 ? '次の印へ進む' : '印へ すすめ';
+  },
+  doorGuideLabel(rt) {
+    const hp = rt.flags.hp;
+    if (hp <= 3) return '表門へ出る戸を通る';
+    if (hp <= 5) return '本堂へ入る戸を通る';
+    if (hp === 6) return '御殿へ退く戸を通る';
+    if (hp === 7) return '御殿の奥へ通る';
+    return '裏門へ退く戸を通る';
   },
   waitOrderLabel(rt, reached) {
     if (!rt.G.lord && rt.flags.hp === 1) return reached ? '本堂の東の縁で待て' : '本堂の東の縁へ進め';
@@ -4549,7 +4557,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   },
   fallen(rt) {
     const F = rt.flags;
-    if (F.hp >= 9) return;
+    // 早く裏門へ着いても、奥の戸を閉める下知より先に上様の最期を告げない。
+    if (F.hp >= 9 || rt.t - F.pT < 17.5) return;
     F.hp = 9;
     rt.obj('main', '町へ退き、織田の者と合流せよ', 'main', true);
     rt.unmark('next'); rt.unmark('uraG'); rt.unmark('nb');
@@ -4950,7 +4959,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     const F = rt.flags;
     if (v.isStruct || v.group?.civ || v.type === 'porter') return;
     // 11/8 critic60 十二1：倒れた数を両軍の数から引く（ずっと百と一万三千のままだった）
-    if (!v.isPlayer) { if (v.team === 0) { if ((F.step || 0) >= 3) F.lostA3 = (F.lostA3 || 0) + 1; else F.lostA = (F.lostA || 0) + 1; } else if (v.team === 1) F.lostB = (F.lostB || 0) + 1; }
+    if (!v.isPlayer) { if (v.team === 0) { if (!rt.G.lord && (F.step || 0) >= 3) F.lostA3 = (F.lostA3 || 0) + 1; else F.lostA = (F.lostA || 0) + 1; } else if (v.team === 1) F.lostB = (F.lostB || 0) + 1; }
     honnoFall(rt, v);
     if (v.team === 1 && v.group?.honnoStand && v.type === 'samurai' && killer?.isPlayer) {
       const n = v.group.honnoStand;
@@ -5705,7 +5714,7 @@ function lordBot(b, inp, goTo, patientStrike) {
 }
 
 // 両軍の総勢（京にいた織田の者 千五百ほど。明智 一万三千ほど。数には諸説ある）
-honnoji.force = (rt) => { const F = rt.flags, n = F.step >= 3; return { a: Math.max(1, (n ? 500 : 100) - (n ? F.lostA3 || 0 : F.lostA || 0)), a0: n ? 500 : 100, b: 13000 - (F.lostB || 0), b0: 13000 }; };
+honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(1, (n ? 500 : 100) - (n ? F.lostA3 || 0 : F.lostA || 0)), a0: n ? 500 : 100, b: 13000 - (F.lostB || 0), b0: 13000 }; };
 honnoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '明智軍', mon: 'akechi' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 honnoji.famous = []; // 小姓は設営時に置く。敵将は囲みの後ろで指揮し、寺内の波へ混ぜない。
