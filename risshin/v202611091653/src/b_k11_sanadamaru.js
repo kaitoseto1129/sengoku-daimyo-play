@@ -301,6 +301,7 @@ const k11_sanadamaru = {
   noWake: true,
   stageGoalsOnly: true,        // 右上の目標は四つの段だけ（「敵を八人討つ」で埋めない。三1）
   goalsAllRows: true,          // 九1・十1：五つの場所と行いを最初から並べ、済んだ物に印を付ける。
+  goalVisibleRows: 5,
   nearbyAllySignLimit: 0,      // 味方の頭上に白い丸を出さない（意味の分からない印。五2）
   noFlankCry: true,            // 撃ち崩された寄せ手に、共通の側面攻撃の声を重ねない。
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
@@ -582,9 +583,26 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 素直な遊び手：③は目の前に敵がいなければ柵へ寄り、柵の方を向いて打つ（持ち場で南を向いて立ち尽くさない。九7）
       botSteer: (b, inp) => {
         const T = F.target, u = b.player.u;
-        if (F.step !== 3 || !T || !T.alive || inp.leftPressed) return;
-        const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2 + (rOf(u.pos.x, u.pos.z) < FENCE_R ? -1.2 : 1.2), d = Math.hypot(tx - u.pos.x, tz - u.pos.z);
-        b.player.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
+        if (F.step !== 3 || !T || !T.alive) return;
+        const fx = (T.seg[0] + T.seg[2]) / 2, fz = (T.seg[1] + T.seg[3]) / 2;
+        // 柵へ一人で突っ込まず、柵に取り付く竹束の南側へ寄る。近い束を一つ選ぶだけで、配列を毎コマ作らない。
+        let cover = null, best = Infinity;
+        for (const g of F.rams) for (const a of g.units) {
+          if (!a.alive || !a.tatake || a.fleeing || a.woundOut || a.pos.z < fz || Math.hypot(a.pos.x - fx, a.pos.z - fz) > 12) continue;
+          const d = Math.hypot(a.pos.x - u.pos.x, a.pos.z + 1.6 - u.pos.z);
+          if (d < best) { best = d; cover = a; }
+        }
+        if (inp.leftPressed && !cover) return;
+        const tx = cover ? cover.pos.x : fx, tz = cover ? cover.pos.z + 1.6 : fz + 1.2, d = Math.hypot(tx - u.pos.x, tz - u.pos.z);
+        if (cover && d > 0.8) {
+          inp.leftPressed = false;
+          b.player.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
+          inp.k.add('KeyW');
+          return;
+        }
+        const fenceD = Math.hypot(fx - u.pos.x, fz - u.pos.z);
+        if (cover && fenceD > 3) { inp.k.delete('KeyW'); inp.leftPressed = false; return; }
+        b.player.yaw = Math.atan2(fx - u.pos.x, fz - u.pos.z);
         if (d > 2.2) inp.k.add('KeyW'); else { inp.k.delete('KeyW'); inp.leftPressed = b.player.cd <= 0 && !b.player.pending && b.player.sta >= 18; }
       } };
     depthStart(rt, ctx, [
@@ -819,7 +837,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (F.ending || F.step !== 5 || F.target.alive || Math.hypot(rt.player.u.pos.x - RETREAT.x, rt.player.u.pos.z - (RETREAT.z - 4)) > 9) return;
     F.ending = true;
     F.returned = F.step === 5;
     rt.setPhase('end');
@@ -984,8 +1002,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
     KIT.carrion(rt, v);
-    // 敵の大将を討てば、それで勝ちにしてよい（十四8）
-    if (v.name === '真田信繁' && !F.ending) { rt.say(nm(rt), '真田左衛門佐、討ち取ったり！', 3); rt.after(1.5, () => this.win(rt)); return; }
+    // 将を討っても、柵破り・殿・帰陣の務めは飛ばさない。
+    if (v.name === '真田信繁' && !F.ending) { rt.say(nm(rt), '真田左衛門佐、討ち取ったり！', 3); return; }
     if (v.type === 'busho' && v.team === 1) {
       rt.say('足軽', `${v.name}が深手じゃ！　真田の者が担いで丸へ引いていく！`, 3);
       if (v.group) { v.group.noRout = false; v.group.morale -= 40; }

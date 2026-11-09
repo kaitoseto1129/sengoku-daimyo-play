@@ -219,14 +219,17 @@ STAGES.t04_negoro = GOALS.map((g, i) => (i ? [g, atStep(i + 1)] : [g]));
 // 足した段のファイルへ渡す道具（NG）は setup の後で埋める
 const NG = { GOALS };
 const stepped = (n, st) => ({ ...st, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
-const alive = (g) => !!g && g.count > 0 && !g.routed;
-const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
 const fighting = (u) => u && u.alive && !u.fleeing && !u.downed && !u.dying;
+// 深手で退く者は生存数には残るが、討つべき敵と行き先には数えない。
+// 一時的に倒れている者は起き上がるため、残兵の数には残す。
+const remaining = (u) => u && u.alive && !u.fleeing && !u.dying && !u.woundOut;
+const alive = (g) => !!g && g.count > 0 && !g.routed && g.units.some(remaining);
+const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.units.reduce((n, u) => n + (remaining(u) ? 1 : 0), 0) : 0), 0);
 function nearestFighter(g, p, current) {
   if (!alive(g)) return null;
-  if (fighting(current) && g.units.includes(current)) return current;
+  if (fighting(current) && remaining(current) && g.units.includes(current)) return current;
   let best = null, bd = Infinity;
-  for (const u of g.units) if (fighting(u)) {
+  for (const u of g.units) if (fighting(u) && remaining(u)) {
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
     if (d < bd) { bd = d; best = u; }
   }
