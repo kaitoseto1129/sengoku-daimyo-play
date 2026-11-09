@@ -122,8 +122,9 @@ function start(rt, K, done) {
         if (stop() || rt.over) return;
         const left = k15Live(g), el = rt.t - t0;
         rt.objProgress('main', `城兵 ${left}／${N0}`);
-        // 11/9 二巡：坂に残った城兵が柵へ寄らず、二人まで減らせずに六分止まった。半ばを討って一分余り経てば、残りは城へ引く
-        if (repelled(rt, left, 2, post) || (el > 75 && left <= Math.ceil(N0 / 2) && rt.player.u.alive) || el > 160) {
+        // 坂に残った城兵を待ち続けない。半ばを討って一分余り経ち、本人が柵を守っていれば残りは城へ引く。
+        // 時間だけで、放置や持ち場からの離脱を成功にしない。
+        if (repelled(rt, left, 2, post) || (el > 75 && repelled(rt, left, Math.ceil(N0 / 2), post))) {
           k15Rout(rt, g, K.CASTLE); rt.unmark('k15foe'); F.k15fight = false;
           starve(rt, walls, 4);
           rt.award((t) => t.side.push('夜の寄せを柵で止めた'), '夜の寄せを柵で止めた');
