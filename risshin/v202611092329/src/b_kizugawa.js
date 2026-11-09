@@ -2871,7 +2871,7 @@ const kizugawa = {
     cam.rotateZ(0.016 * Math.sin(t * 0.62) + 0.006 * Math.sin(t * 1.37 + 1.1));
     cam.rotateX(0.006 * Math.sin(t * 0.81 + 0.4));
   },
-  missions: ['船べりの大筒へ走れ', '大筒で寄る敵船を撃て', 'ここを守れ', '船べりの水桶を取れ', '甲板の火を消せ', '甲板に上がった毛利勢を討て', '大将船を撃て', '敵船を待て'],
+  missions: ['船べりの大筒へ走れ', '大筒で寄る敵船を撃て', '甲板の乗り口を守れ', '船べりの水桶を取れ', '甲板の火を消せ', '甲板に上がった毛利勢を討て', '大将船を撃て', '敵船を待て'],
   missionOf(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || F.kzYoin) return 2;
@@ -4171,7 +4171,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       return;
     }
     rt.after(0.6, () => {
-      if (!best.alive || F.ending) return;
+      // 別の大筒が先に崩した船を二度数えず、沈み始めた時刻も戻さない。
+      if (!best.alive || best.damageStage || F.ending || rt.over) return;
       F.cannonHits++;
       // 大将船への命中を合図に、ほかの大船も一斉に放つ。
       if (best.big) { this.breakFlagship(rt, playerShot); return; }
