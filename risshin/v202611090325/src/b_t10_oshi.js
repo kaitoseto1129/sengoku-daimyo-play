@@ -826,28 +826,27 @@ const t10_oshi = {
       // 区の足軽は浅瀬の口から離れて追わない（前は夜討ちの残り一人を城の口まで追い、次の夜討ちとそこで斬り合って、主人公の前に敵が来なかった）
       for (const u of F.guard.units) if (u.alive && !u.gone && !near(u.pos, F.guard.anchor, 14)) { u.target = null; u.watch = null; }
       // 夜討ちが一人二人になったら城へ引き揚げ、次の夜討ちが来る（残り一人を待って一分止まらない）
-      if (cur && fighting(cur) && cur.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && cur.units.length > 4) {
-        cur.noRout = false; cur.morale = 0; cur.order = 'move'; cur.dest = { x: GATE.x, z: GATE.z }; cur.aggro = 0;
-        for (const u of cur.units) if (u.alive && !u.gone) u.fleeing = true;   // 討てない正木丹波守も、手と一緒に城へ退く
+      for (const g of F.raids) if (fighting(g) && g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && g.units.length > 4) {
+        g.noRout = false; g.morale = 0; g.order = 'move'; g.dest = { x: GATE.x, z: GATE.z }; g.aggro = 0;
+        for (const u of g.units) if (u.alive && !u.gone) u.fleeing = true;   // 前の手も残さず、討てない正木丹波守も城へ退く
       }
       // 次の夜討ちは、前が崩れて五秒後か、前が粘っても三十秒で浅瀬に寄せる（夜討ちは間を空けず次々と来る）
       // 11/8 15分の構成：夜討ちは四度。間に普請の進む間（十二秒）を置き、段は二分半から三分
       if (cur && F.raid < 4 && fighting(cur) && rt.t - F.raidT > 34) { F.nextT = 0; this.raid(rt); }
-      else if (cur && !fighting(cur)) { if (F.raid < 4) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 140) this.weir(rt); }
-      if (rt.t - F.stepT > 170) this.weir(rt);
+      else if (cur && !fighting(cur)) { if (F.raid < 4) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 140 && P.alive && near(P.pos, RAIDAT, 18)) this.weir(rt); }
+      // 時刻だけで夜討ちを消さない。四度とも退け、本人も浅瀬の口を守ってから夜明けへ。
     } else if (F.step === 4) {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 30)) this.weirRaid(rt);
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
-        const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1 && rt.t - F.weirRaidT < 45;
+        const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1;
         if (F.weirRaid && !raidOn && fighting(F.weirRaid)) { F.weirRaid.noRout = false; F.weirRaid.morale = 0; for (const u of F.weirRaid.units) if (u.alive && !u.gone) u.fleeing = true; }
         F.weirT = near(P.pos, WEIR, 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
         if (F.weirT >= 2) this.openWeir(rt);
       }
     } else if (F.step === 6) {
       if (!F.broken) return;
-      // 人夫と兵は、主人公がそばにいる間だけ付いて来る。離れると水に足を取られて流される
-      const leading = F.evac.some((g) => g.units.some((u) => u.alive && !u.gone && near(u.pos, P.pos, 36)));
+      // 人夫と兵は主人公の呼ぶ方へ付いて来る。離れただけで無作為に討死させない。
       let alive = 0, safe = 0;
       for (const g of F.evac) {
         // 主人公のそばの組は丸墓山へ。離れた組（堤の西の端の人夫・浅瀬で斬り合う足軽）は、呼ぶ声の方へ寄って来る
@@ -859,9 +858,6 @@ const t10_oshi = {
         g.order = 'move'; g.dest = to; g.speed = 5.2; g.aggro = 0;
         for (const u of g.units) {
           if (!u.alive || u.gone) continue;
-          const deep = F.floodY - rt.world.heightAt(u.pos.x, u.pos.z);
-          // 離れても一息には流されない（呼びに戻る間がある）
-          if (deep > 0.4 && !near(u.pos, P.pos, 40) && !near(u.pos, MARU, 30) && Math.random() < 0.004) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); continue; }
           alive++;
           if (near(u.pos, MARU, 24)) safe++;
         }
@@ -883,9 +879,9 @@ const t10_oshi = {
       // 本人も門前へ寄せてから打って出を受ける。浅瀬の途中で任務を済ませない。
       if (P.alive && near(P.pos, FRONT, 9)) this.sortie(rt, 0);
     } else if (F.step === 8) {
-      // 打って出た二手の六割を討つと退く（右上の数と同じ数え方。なお粘れば八十五秒で退く。討てない正木丹波守と甲斐姫は数えない）
+      // 打って出た二手の六割を討つと退く（右上の数と同じ数え方。討てない正木丹波守と甲斐姫は数えない）
       const k = sortieCount(F);
-      if ((k && k[0] >= k[1]) || (F.sorties.length >= 2 && rt.t - F.stepT > 85)) this.tsukeiri(rt);
+      if (k && k[0] >= k[1] && P.alive && near(P.pos, FRONT, 18)) this.tsukeiri(rt);
     } else if (F.step === 9) {
       // 退く手の残りは門の内へ入ったら消える（門の内に城兵が溜まらない）
       for (const g of F.sorties) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && near(u.pos, INSIDE, 3)) rt.army.despawn(u);

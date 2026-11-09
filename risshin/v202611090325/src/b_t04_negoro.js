@@ -220,6 +220,17 @@ const NG = { GOALS };
 const stepped = (n, st) => ({ ...st, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
 const alive = (g) => !!g && g.count > 0 && !g.routed;
 const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
+const fighting = (u) => u && u.alive && !u.fleeing && !u.downed && !u.dying;
+function nearestFighter(g, p, current) {
+  if (!alive(g)) return null;
+  if (fighting(current) && g.units.includes(current)) return current;
+  let best = null, bd = Infinity;
+  for (const u of g.units) if (fighting(u)) {
+    const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+    if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
 
 // ---- 根来の鉄砲の持ち場（AY 2）：本物の鉄砲の兵を持ち場の床（u.perch）に据える。持ち場を離れず、撃つ度に硝煙を出す ----
 // 撃ち手の姿は、具足の兵・白い裹頭の行人・剃った頭の小袖の僧・小柄な若い行人を順に混ぜる（根来衆は地侍の子弟が山内に入った僧兵の集団）
@@ -328,11 +339,18 @@ const t04_negoro = {
     // ① 竹束の陰：▼は押し進む竹束の列のすぐ後ろ（11/6 描いて遊んで：▼が門前に立ち、自分だけ馬で竹束を追い越して坊舎の窓から撃たれた）
     if (s === 1 && F.tabaSet) { const q = P(0, Math.min(-99, t04_negoro.tabaFront(F) - 3)); T.x = q.x; T.z = q.z; }
     // 鉄砲衆は参道の左右の縁に分かれて据わる。真ん中の道を指さず、近い撃ち手の持ち場（動かない）を指す
-    if (s === 2 && alive(F.posts.win) && !(T.unit && T.unit.alive)) {
+    if (s === 2) {
       const p = rt.player.u.pos;
-      let best = null, bd = 1e9;
-      for (const u of F.posts.win.units) if (u.alive) { const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z); if (d < bd) { bd = d; best = u; } }
-      if (best) { T.unit = best; T.x = best.pos.x; T.z = best.pos.z; }
+      let best = nearestFighter(F.posts.win, p, T.unit);
+      if (!best && F.dp?.cur?.groups) for (const g of F.dp.cur.groups) {
+        best = nearestFighter(g, p, T.unit);
+        if (best) break;
+      }
+      // 縁が崩れた後は残る雑賀衆へ、皆退いた後は段の合流場所へ案内する。逃げる撃ち手を追わせない。
+      T.unit = best;
+      T.x = best ? best.pos.x : MONZEN.x; T.z = best ? best.pos.z : MONZEN.z;
+      T.label = best ? '坊舎の鉄砲衆' : '門前の坊舎';
+      T.action = best ? '鉄砲衆を討て' : '味方と合流せよ';
     }
     return T;
   },
