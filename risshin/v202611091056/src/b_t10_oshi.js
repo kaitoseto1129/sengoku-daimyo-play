@@ -885,7 +885,8 @@ const t10_oshi = {
         }
       }
       // 堤が切れて二十秒は、散った組を呼び集める間（すぐ負けにしない）。
-      if (!F.arrived && rt.t - F.breakT > 20 && alive < F.evac0 * 0.4) { this.lose(rt, 'evac'); if (F.ending) return; }
+      // 到着に必要な半数を失った時も判定する。四割を境にすると、四割以上・半数未満で進めず終われなくなる。
+      if (!F.arrived && rt.t - F.breakT > 20 && alive < Math.ceil(F.evac0 * 0.5)) { this.lose(rt, 'evac'); if (F.ending) return; }
       // 時が来ただけでは済ませない。主人公が丸墓山の上に着き、組が付いて来たら、三成が迎えて次へ（11/7・critic60「着いたら何かが起きて次へ」）
       if (!F.arrived && P.alive && near(P.pos, MARU, 18) && safe > 0 && safe >= Math.ceil(F.evac0 * 0.5)) {
         F.arrived = true;

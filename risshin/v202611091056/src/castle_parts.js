@@ -148,10 +148,18 @@ export function bobosakuLine(rt, pts, o = {}) {
 export function horiboriHeight(pts, o = {}) {
   const { depth = 1.6, width = 4.5, closed = false } = o;
   const P = closed ? [...pts, pts[0]] : pts;
+  // 11/9 重さ：高さを読むたびに全部の辺を回していた（有岡で一コマの約 3%）。堀の四角の外は 0、
+  //   今の一番近さより遠い辺の四角は飛ばす（半幅より遠い所は 0 なので、答えは同じ）
+  const half = width / 2;
+  let X0 = Infinity, X1 = -Infinity, Z0 = Infinity, Z1 = -Infinity;
+  for (const [px, pz] of P) { X0 = Math.min(X0, px); X1 = Math.max(X1, px); Z0 = Math.min(Z0, pz); Z1 = Math.max(Z1, pz); }
+  X0 -= half; X1 += half; Z0 -= half; Z1 += half;
   return (x, z) => {
-    let best = Infinity;
+    if (x < X0 || x > X1 || z < Z0 || z > Z1) return 0;
+    let best = half;
     for (let i = 0; i < P.length - 1; i++) {
       const [ax, az] = P[i], [bx, bz] = P[i + 1];
+      if (x < Math.min(ax, bx) - best || x > Math.max(ax, bx) + best || z < Math.min(az, bz) - best || z > Math.max(az, bz) + best) continue;
       const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1e-6;
       const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2));
       const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t));
