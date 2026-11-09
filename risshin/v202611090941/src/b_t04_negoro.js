@@ -824,7 +824,7 @@ const t04_negoro = {
         // 寄せ手だけで進んでも、本人が門前へ着くまでは達成にしない。
         const p = rt.player.u.pos;
         // 15分の戦（11/8）：寄せる間は使番の知らせと遠くの大軍で埋め、二分足らずで門前へ着かせない
-        return el > 100 && (z >= -101 || !F.tabaSet.some((t) => t.g.count)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
+        return fighting(rt.player.u) && !rt.retryOpen && el > 100 && (z >= -101 || !F.tabaSet.some((t) => t.g.count)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -888,7 +888,7 @@ const t04_negoro = {
         // 鉄砲衆が退いても、後方に居たままで堀の護衛を果たした事にはしない。
         const p = rt.player.u.pos;
         // 縁の撃ち手の前に長く立たせない（15分の戦でも、この段は撃ち手を討てば進む）
-        return guns <= 4 && foes <= 4 && !C.later.length && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
+        return fighting(rt.player.u) && !rt.retryOpen && guns <= 4 && foes <= 4 && !C.later.length && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -972,7 +972,7 @@ const t04_negoro = {
         const mm = F.ram.mesh;
         C.goal = s.alive ? (mm.visible ? { x: mm.position.x + dirL(1, 0).x * 1.6, z: mm.position.z + dirL(1, 0).z * 1.6 } : P(0, -9)) : P(0, 8);
         rt.objProgress('dp', s.alive ? `門扉 ${Math.round(100 * (1 - s.hp / s.maxHp))}%` : '');
-        return C.openT != null && el - C.openT > 2 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 14;
+        return fighting(pu) && !rt.retryOpen && C.openT != null && el - C.openT > 2 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 14;
       },
       end(rt, C) {
         for (const g of C.groups) flee(g);
@@ -1024,7 +1024,7 @@ const t04_negoro = {
         C.goal = p.z < 6 ? P(0, 8) : p.z < 34 ? P(0, 36) : TOWER_FRONT;
         rt.objProgress('dp', `大塔の前まで あと ${Math.max(0, Math.round(Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z)))}m`);
         // 火が燃え移る間（二分半）は、橋の手前で退く根来衆を追う。それから大塔の前へ
-        return el > 150 && Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
+        return fighting(pu) && !rt.retryOpen && el > 150 && Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -1059,7 +1059,7 @@ const t04_negoro = {
         const fin = h.tick(rt, C, m, ctx, el, dt);
         // 共通の守備は範囲の外三十歩も数える。大塔では範囲内で守った時間だけ数え、離れて待って最後に戻るだけでは果たせない。
         const u = rt.player.u;
-        const defending = u.alive && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 16;
+        const defending = fighting(u) && !rt.retryOpen && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 16;
         C.inT = held + (defending ? dt : 0);
         if (C.inT < 45) rt.objProgress('dp', `守る あと${Math.max(0, Math.ceil(45 - C.inT))}秒`);
         return fin && el >= 45 && C.inT >= 45 && defending

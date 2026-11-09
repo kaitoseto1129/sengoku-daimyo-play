@@ -1418,7 +1418,7 @@ function ariTownsfolk(rt) {
 }
 
 // 右上の目標（①〜⑤）。場所は地図で分かる名で言う（十1）。
-const ARI_GOALS = ['上臈塚の木戸へ寄れ', '木戸の内の番兵を押し出せ', '侍町の辻を取れ', '辻で寄せ返す荒木勢を防げ', '牢を出た官兵衛を迎えよ'];
+const ARI_GOALS = ['上臈塚の木戸へ寄れ', '木戸の内の番兵を押し出し、惣構えの通りを押さえよ', '侍町の辻を取れ', '辻で寄せ返す荒木勢を防ぎ、侍町の焼け跡と奥の木戸を押さえよ', '牢を出た官兵衛を迎えよ'];
 const ARI_JUNCTION = { x: TOWN_X - 2, z: -14 };
 const ariGoalText = (rt) => ARI_GOALS[arioka.missionOf(rt)];
 // 11/5 kaito 九1・九3・十1：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
@@ -2765,8 +2765,8 @@ const arioka = {
     if (F.ending || rt.over || !rt.player.u.alive) return;
     AR_OPEN.tick(rt, ariOpenCtx());
     ariTownsfolk(rt);
-    // 木戸・辻・帰還を含む局地戦は、七分までに決着させる。
-    if (rt.t >= 1020) { this.lose(rt, '攻めの時が尽きた。木戸の外へ退け'); return; }
+    // 開門前に動かず待った時間で敗北させない。開門後の攻めに残り十四分半を与える。
+    if (F.step >= 1 && rt.t - F.stepT >= 1020 - AR_OPEN.KAIMAKU_END) { this.lose(rt, '攻めの時が尽きた。木戸の外へ退け'); return; }
     if (!F.coverTaught && (rt.aimedT || 0) > 0) {
       F.coverTaught = true; F.coverUntil = rt.t + 8; F.gunResumeAt = rt.t + 6;
       const p = rt.player.u.pos;

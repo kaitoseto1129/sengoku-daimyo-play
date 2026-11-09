@@ -651,6 +651,12 @@ const k16_secret = {
     if (F.step === 5) {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
       const ie = F.ieyasu;
+      // 途中から再開すると会話済みの時刻だけが戻り、十秒後の約束は残らない。
+      // 会話済みなら立ち上がりと討てる状態も戻す（不死身のまま詰まらせない）。
+      if (F.talk && ie && ie.alive) {
+        ie._crouch = false;
+        if (rt.t - F.talk >= 10) ie.invuln = false;
+      }
       // 立った家康は陣幕の内から出ない（太刀を抜いても幕の裏の野へ歩き出さない。11/8 描いて遊んだ：幕の外へ出て口から届かなくなった）
       if (!F.talk && ie && ie.alive && inCamp(P.pos) && dist(ie.pos, P.pos) < 13) {
         F.talk = rt.t; F.engagedT = rt.t; ie._crouch = false;
