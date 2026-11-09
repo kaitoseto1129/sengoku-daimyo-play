@@ -1215,7 +1215,8 @@ function autoLock() {
 function beginPlay(afterView = false) {
   // 全部の戦の始めに、真上から見た陣立ての地図を五秒ほど流して今のカメラへ降りる（intro_map.js。kaito 11/3）
   // 11/6 crit_inou（kaito 五-4）：稲生も布陣図を出す（前は稲生だけ省いていた）
-  if (!afterView && game.battle && !isNorender()) {
+  // 途中から続ける時（battle_checkpoint.js）は布陣図を出さない（kaito 11/9 天王寺「また最初からかと思う」）
+  if (!afterView && game.battle && !isNorender() && !game.battle.resumeCp && !game.battle.resumedFrom) {
     game.paused = true;
     game.hud.show(false);
     lockHint(false);

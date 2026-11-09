@@ -39,7 +39,7 @@ export function install(rt, P) {
     kuroda: mk({ x: HON.x - 40, z: HON.z + 66, w: 34, d: 12, count: n(90, 160), facing: S, armor: 0x1f1e1c, flag: 'kuroda', seed: 16215 }),   // 後詰：黒田長政・細川忠興
     akashi: mk({ x: SHITENNO.x - 48, z: SHITENNO.z - 26, w: 32, d: 12, count: n(110, 200), facing: 0, team: 1, armor: 0x221f1c, flag: 'toyotomi', seed: 16216 }),   // 明石全登（船場口から）
     ono: mk({ x: SHITENNO.x + 40, z: SHITENNO.z - 70, w: 40, d: 14, count: n(120, 220), facing: 0, team: 1, armor: 0x221f1c, flag: 'toyotomi', seed: 16217 }),   // 大野治長・城の前の備
-    sanaK: mk({ x: CHAUSU.x + 16, z: CHAUSU.z - 4, w: 18, d: 10, count: n(40, 70), facing: 0.6, team: 1, armor: 0x8e1f16, flag: 'sanada', kind: 'cavalry', seed: 16208 }),
+    sanaK: mk({ x: CHAUSU.x + 12, z: CHAUSU.z - 16, w: 26, d: 12, count: n(80, 140), facing: 0.6, team: 1, armor: 0x8e1f16, flag: 'sanada', kind: 'cavalry', seed: 16208 }),
   };
   const st = { M, step: -1, t0: 0, cl: null, rep: {}, sd: 999, flagT: 0 };
   F._jin = st;
@@ -73,6 +73,10 @@ export function tick(rt, P) {
         A: { flag: 'honda', armor: 0x1c1a18, count: isTouch ? 70 : 120, flagRate: 0.2 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: isTouch ? 80 : 140, flagRate: 0.25, guns: true } });
       st.cl?.go?.(); later(20, () => st.cl?.push?.('B', 0.5));
     } else if (step === 2) {
+      // 城の方から三方面：北西の明石・北東の大野の大勢も本陣の方へ押し出す（11/9 kaito）
+      M.akashi?.moveTo(P.HON.x - 50, P.HON.z - 70, 120, { charge: true });
+      M.ono?.moveTo(P.HON.x + 46, P.HON.z - 60, 120, { charge: true });
+      M.hata?.moveTo(P.HON.x, P.HON.z + 16, 30);   // 本陣の後ろの旗本も前へ（後ろでくすぶらない）
       // 先手が崩れる。毛利の塊は家康の本陣へ、茶臼山の赤備えと騎馬も真田の突撃に付いて走る
       M.sen?.rout({ hideAfter: 40 });
       st.cl?.rout?.('A', { from: -1, minFight: 2 });

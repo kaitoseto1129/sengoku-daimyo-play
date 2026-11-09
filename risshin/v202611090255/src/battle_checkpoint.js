@@ -81,11 +81,44 @@ export function writeCheckpoint(rt, stageStart = false) {
     t0: stageStart || !same ? Math.round(rt.flags?.tS ?? rt.t) : prev.t0,
     t: Math.round(rt.t), hp: Math.round(u.hp / (u.maxHp || 100) * 100) / 100,
     dead: [...new Set(dead)].slice(0, 60), alive, at: Date.now(),
+    flags: flagsOf(rt), groups: groupsOf(rt),
   };
   mem = cp;
   try { localStorage.setItem(KEY, JSON.stringify(cp)); } catch (e) { memOnly = true; }   // 書けなければ覚えの方だけ
   rt._cpStep = step;
   return true;
+}
+
+// 11/9 kaito 天王寺「途中から始めると兵力の数が戻り、倒した備・馬印が元に戻る」（全戦）：
+//   段を流し直すだけでは、その段の中で倒した数（flags の ek・ak など）と、減らした備が戻ってしまう。
+//   保存の時の flags の素の値（数・真偽・字）と、備ごとの生きている数を書いておき、流し直した後に戻す
+function flagsOf(rt) {
+  const o = {}, F = rt.flags || {};
+  for (const k of Object.keys(F)) {
+    const v = F[k];
+    if (typeof v === 'boolean' || typeof v === 'string' && v.length < 40 || typeof v === 'number' && Number.isFinite(v)) o[k] = v;
+  }
+  return o;
+}
+const groupKey = (g) => `${g.team}|${g.name || g.label || ''}`;
+const liveIn = (g) => (g.units || []).filter((u) => u.alive && !u.gone && !u.isPlayer && !u.civ && !u.isStruct);
+function groupsOf(rt) {
+  const o = {};
+  for (const g of rt.army.groups || []) { const k = groupKey(g); o[k] = (o[k] || 0) + liveIn(g).length; }
+  return o;
+}
+// 備の数を保存の時まで減らす（増やしはしない）。要の将（invuln）と名のある将は残し、後ろの兵から片付ける
+function trimGroups(rt, saved) {
+  const byKey = new Map();
+  for (const g of rt.army.groups || []) { const k = groupKey(g); if (!(k in saved)) continue; (byKey.get(k) || byKey.set(k, []).get(k)).push(...liveIn(g)); }
+  const out = [];
+  for (const [k, list] of byKey) {
+    let extra = list.length - saved[k];
+    if (extra <= 0) continue;
+    const order = [...list].sort((a, b) => (a.name ? 1 : 0) - (b.name ? 1 : 0) || (a === a.group?.leader ? 1 : 0) - (b === b.group?.leader ? 1 : 0));
+    for (const u of order) { if (extra <= 0) break; if (u.invuln) continue; out.push(u); extra--; }
+  }
+  return out;
 }
 
 // 隊を音もなく片付ける（段を流した時に逃げた敵・保存の時に討たれていた名のある将）
@@ -115,7 +148,7 @@ export function applyCheckpoint(rt, cp) {
   const loud = () => { rt.say = keep.say; rt.banner = keep.banner; hud.bark = keep.bark; hud.banner = keep.hbanner; };
   // 戦の前の話・開戦の約束（setup の after）は流さない
   rt.timers.length = 0;
-  rt.t = Math.max(rt.t, cp.t0 || 0);
+  rt.t = Math.max(rt.t, cp.t ?? cp.t0 ?? 0);   // 保存した時の時刻（flags の時刻と合わせる）
   rt.setPhase?.('battle');
   const pinOf = () => { try { const g = rt.def.goalSignTarget?.(rt) || rt.def.missionPin?.(rt); return g && Number.isFinite(g.x) ? { x: g.x, z: g.z } : null; } catch (e) { return null; } };
   let from = null;   // 段の始まりの所＝前の段の行き先（行き先の手前に置くと、着けば済む段がすぐ済んでしまう）
@@ -131,6 +164,9 @@ export function applyCheckpoint(rt, cp) {
   // 保存の時に討たれていた名のある将（不死身の要の将は除く）
   const dead = new Set(cp.dead || []);
   if (dead.size) vanish(rt, rt.army.units.filter((u) => u.name && u.alive && dead.has(u.name) && !u.invuln));
+  // 倒した数・旗・馬印などの flags の素の値と、減らした備の数を保存の時に戻す（段の番号は流した段のまま）
+  if (cp.flags) for (const [k, v] of Object.entries(cp.flags)) { const cur = rt.flags[k]; if (k !== 'step' && (cur === undefined || cur === null || typeof cur !== 'object' && typeof cur !== 'function')) rt.flags[k] = v; }
+  if (cp.groups) vanish(rt, trimGroups(rt, cp.groups));
   // 主人公：体力は保存の時（少なくとも四割）。置き場は定義の resumeAt、無ければ前の段の行き先
   const u = rt.player.u;
   u.hp = Math.max((u.maxHp || 100) * 0.4, (u.maxHp || 100) * (cp.hp || 1));

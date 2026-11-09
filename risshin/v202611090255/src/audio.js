@@ -1,6 +1,7 @@
 // WebAudio で合成する効果音（音源ファイルなし）
 import { S } from './settings.js';
 import { createMusic } from './music_sep.js'; // 11/4 kaito「9月のやつ気に入ってた」：曲は9月の自作の和の曲に戻す
+import { tuneOf } from './music_war.js';
 import { createRealBgm, REAL_WAR } from './bgm_real.js';
 import { createSoundPath, sampleSoundPath } from './audio_path.js';
 import { fieldState } from './world_fields.js';
@@ -228,6 +229,7 @@ export function initAudio() {
     pressure: () => { live(); return ends.length * 2; },
   });
   real = null; // 本物の曲（魔王魂）は使わない（kaito 11/4）
+  if (tuneWant != null) music.setTune(tuneOf(tuneWant));
   if (musicWant) { const [n, o] = musicWant; musicWant = null; playMusic(n, o); }
   // 残響：野の広がり。耳の遠のき（muffle）の前に入れて、こもる時は残響も一緒にこもる
   try {
@@ -279,6 +281,10 @@ function jinDaiko() {
 }
 export function stopMusic(fade = 2) { musicWant = null; stopWarMusic(fade); if (real) real.stop(fade); if (music) music.stop(fade); }
 // 楽の音の厚み。戦の節は ambience から静か・寄せ・激しいを選ぶ。
+// 戦の曲の段（天王寺の BGM 五段階など）と、戦ごとの曲の形。tuneKey は戦の名
+export function setWarStage(n) { if (music) music.setStage(n); }
+export function setWarTune(key) { if (music) music.setTune(tuneOf(key)); else tuneWant = key; }
+let tuneWant = null;
 export function setMusicIntensity(x) { if (music) music.setIntensity(x); }
 export function musicNow() { return warMusic.name || (real && real.now()) || (music ? music.now() : (musicWant ? musicWant[0] : null)); }
 

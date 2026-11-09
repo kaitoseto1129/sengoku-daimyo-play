@@ -411,6 +411,16 @@ export function fiveGoals(rt) {
     const g = G.goals[now];
     if ((!g.count || g.stageCount) && !g.groups && g.kind === 'stage' && FOE_VERB.test(rows[now].text)) rows[now].count = foeCount(rt, rows[now].text);
   }
+  // 11/9 kaito（遊んだ声 7）：「何人中」の分母は決めたら増やさない。最初に出た数を覚え、増えても分子を分母までに収める
+  {
+    const L = G.lockDen || (G.lockDen = {});
+    for (let i = 0; i < rows.length; i++) {
+      const c = rows[i].count;
+      if (!Array.isArray(c) || !(c[1] > 0)) continue;
+      if (L[i] == null) L[i] = c[1];
+      else if (c[1] > L[i]) rows[i].count = [Math.min(c[0], L[i]), L[i]];
+    }
+  }
   if (now !== G.nowI) { G.nowI = now; G.nowT0 = G.endT ?? rt.t; }
   if (now >= 0 && G.goals[now].sec && !G.done[now] && !G.fail[now]) {
     const left = G.goals[now].sec - ((G.endT ?? rt.t) - G.nowT0);

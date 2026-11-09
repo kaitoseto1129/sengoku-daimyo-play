@@ -276,7 +276,8 @@ export class WorldUpdate {
     // 霧の手前の兵はすべて立体で描く（flat_rule.js）。その数を抑えるため、戦の見通しは 110m までに寄せる（遠くは描かない。kaito 10/22・10/28）
     // 遠い山の霞は、描く距離の制限ではなく本当の空気の見通しで決める（晴れた日は遠くの山が青くかすんで見える）
     const airVis = vis;
-    const viewLimit = Math.max(80, Math.min(FLAT.on ? 110 : 320, this.def.battleViewDistance ?? 80));
+    // 11/9 kaito（遊んだ声 10）：一人称の間は見える遠さを 60m 先まで延ばす（三人称は変えない。重さは一人称の間だけ増える）
+    const viewLimit = Math.max(80, Math.min(FLAT.on ? 110 : 320, this.def.battleViewDistance ?? 80)) + 60 * (this.fpView || 0);
     vis = Math.min(Math.max(140, viewLimit), vis);
     // 身の回りを優先する。近い乱戦を残し、遠い地形は八十メートルまでに霞ませる。
     if (!this.def.town && !this.def.dojo && !this.detailCam?.isOrthographicCamera)
