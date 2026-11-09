@@ -8,6 +8,9 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
+// 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
+const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+
 const LOOK = { x: -4, z: -18 };   // 物見の場（川べりの竹束の脇）
 
 export function install(rt, ctx) {
@@ -30,7 +33,7 @@ export function install(rt, ctx) {
     rt.award((t) => t.side.push('川べりの物見で、対岸の鉄砲の並びを見届けた'), '対岸の鉄砲の並びを見た');
     // 川上の浅瀬から雑賀の小組が渡って来る（杭抜き組を狙う）
     rt.after(6, () => {
-      if (done) return;
+      if (done || F.ending || rt.over) return;
       raid = enemyGroup(rt, { faction: 'saika', name: '川上から渡る雑賀の小組', anchor: { x: -30, z: -46 }, facing: Math.PI / 2, width: 6, order: 'attack', aggro: 24, seekRange: 34, morale: 80, fleeDir: { x: -1, z: 0 } },
         dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], SAIKA));
       raidT = rt.t;
@@ -53,8 +56,8 @@ export function install(rt, ctx) {
       if (!seen && (Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 12)) reveal();
       if (raid) {
         let live = 0;
-        // 川上の浅瀬に引っ掛かって来ない者は数えない（物見の場から四十五歩の外）。来てから一分半で残りは退く
-        for (const u of raid.units) if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - LOOK.x, u.pos.z - LOOK.z) < 45) live++;
+        // 遠ざかっただけの敵は払ったことにしない。一分半後に残兵へ退く下知を出す。
+        for (const u of raid.units) if (ready(u)) live++;
         if (live && rt.t - raidT > 90) {
           raid.focus = null; raid.retreatOnly = true; raid.order = 'move'; raid.dest = { x: -40, z: -60 };
           raid.onArrive = (q) => { q.order = 'hold'; };
@@ -66,7 +69,7 @@ export function install(rt, ctx) {
           rt.unmark('monoRaid');
           if (!live) rt.award((t) => t.side.push('川上から渡った雑賀の小組を払った'), '渡った雑賀の小組を払った');
           rt.say('堀秀政', 'よし。今のうちに川底の杭を抜くぞ！', 3.5);
-          rt.after(3, () => next());
+          rt.after(3, () => { if (!F.ending && !rt.over) next(); });
         }
       }
     },
