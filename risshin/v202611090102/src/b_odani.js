@@ -1,7 +1,7 @@
 import { siegeStages } from './siege_stages.js';
 // 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md 15）：段の中身は odani/ に一段一ファイル
 import { install as odaniMonomi } from './odani/monomi.js';   // 0〜3分：清水谷から見上げる小谷城
-import { tick as nagareTick } from './odani/nagare.js';       // 分断・小丸・本丸の刻限の保険
+import { tick as nagareTick } from './odani/nagare.js';       // 進軍が遅れた時の知らせ
 import { fireGlow } from './fire_glow.js';
 import { pressureTick } from './battle_pressure.js';
 import { dressSlope } from './terrain_slope.js';
@@ -4877,7 +4877,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   // 小丸が落ちる：孤立した久政は館で自害。小丸の残りは逃げ、戦線は本丸へ移る。
   komaFall(rt) {
     const F = rt.flags;
-    if (F.ending || F.komaDown || !F.komaForce && !F.C.kuruwa.koma.test(rt.player.u.pos.x, rt.player.u.pos.z)) return;
+    if (F.ending || F.komaDown || !F.C.kuruwa.koma.test(rt.player.u.pos.x, rt.player.u.pos.z)) return;
     F.komaDown = true;
     nextObj(rt, '尾根を南へ、本丸へ進め');
     rt.award((t) => t.side.push('小丸を落とした'), '小丸を落とした');
@@ -5228,7 +5228,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     const F = rt.flags;
     // 谷の口に忍んで集まる間と、谷道の下の方を登る間は撃たれない（出曲輪の櫓門から七十メートル余り。夜で見えない。11/6）。
     //   屋敷へ攻めかかる下知（法螺と鬨）か、本人の列が出曲輪の五十五メートル内へ来た時から撃ち始める。
-    nagareTick(rt, this);   // 分断・小丸・本丸の刻限の保険（odani/nagare.js）
+    nagareTick(rt);   // 刻限で到着や占領を代行せず、進軍の声だけ渡す。
     if (F.K && !F.ending && (F.step >= 2 || F.step === 1 && Math.hypot(rt.player.u.pos.x - SIEGE.x, rt.player.u.pos.z - SIEGE.z) < 55)) F.K.tick(dt);
     // 始まりの見上げる間だけ霧を遠くへ。終わったら共通の近い霧へ戻す。
     const vista = F.step === 0 && rt.t < VISTA_T;

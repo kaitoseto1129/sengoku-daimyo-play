@@ -38,6 +38,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import * as k15Kakoi from './okawachi/kakoi.js';
 import * as k15Hyoro from './okawachi/hyoro.js';
 import * as k15Shutsu from './okawachi/shutsugeki.js';
+import * as k15Waboku from './okawachi/waboku.js';
 import * as k15Yoin from './okawachi/yoin.js';
 import { yamaLift, benchRoads } from './yamalift.js';
 import { heightOf, buildCastlePlan, makeLordKeep } from './castle_plan.js';
@@ -2118,7 +2119,7 @@ const okawachi = {
     depthStart(rt, okCtx(rt), [okHold({ at: SOUTH_BLOCK, dur: 75, r: 18,
       title: '南の鹿垣の旗', obj: '集まれの法螺：南の鹿垣の旗で、番の組と道を守れ',
       groups: F.blockers, sortie: true, blockade: true, reward: '南の道を保ち、城へ兵糧を通さなかった',
-    })], () => { if (!F.ending && F.blockHeld) k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); else if (!F.ending) this.peace(rt); });   // 15分の構成：和睦の前に北畠の打って出
+    })], () => { if (!F.ending && F.blockHeld) k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => k15Waboku.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, CAMP, speaker: okSpeaker(rt), dress: (list) => okDress(list, KITABATAKE) }, () => this.peace(rt))); else if (!F.ending) this.peace(rt); });   // 15分の構成：和睦の前に北畠の打って出
     okHoldSignal(rt, F.dp.cur, '長い法螺二声は集まれ。南の鹿垣の旗で、番の組と槍を揃えよ', ASSEMBLY_LISTEN);
     rt.after(30, () => {
       if (F.ending || rt.over || F.step !== 4 || rt.phase !== 'siege') return;
@@ -2201,7 +2202,7 @@ const okawachi = {
     if (F.ending || rt.over) return;
     // 七分以内に決着。成功は四分以後、最後の和睦十三秒を含める。
     // 封鎖は実際に平場で守った時間を見る。迎撃では城兵が坂を下る間も四百五十秒まで待つ。
-    if (F.k15Shutsu !== 'on' && rt.t >= okBlockDeadline(rt)) {
+    if (!F.blockHeld && rt.t >= okBlockDeadline(rt)) {   // 15分の構成：封鎖を保った後（打って出・和睦の使者の段）は締めの時を見ない
       const C = F.dp?.cur;
       // 一度合流しただけでは達成にしない。封鎖は城兵の到着を条件にせず、番と七十五秒守る。
       // 迎撃では静かな守りか、押し返した後の帰城の見届けまで果たす。
@@ -2209,7 +2210,7 @@ const okawachi = {
         ? C.inT >= 75 : C.holding && (C.repelling
           ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
       // 15分の構成：封鎖を保ったら、和睦の前に北畠の大きな打って出を退ける（okawachi/shutsugeki.js）
-      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => this.peace(rt)); return; }
+      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => k15Waboku.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, CAMP, speaker: okSpeaker(rt), dress: (list) => okDress(list, KITABATAKE) }, () => this.peace(rt))); return; }
       const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
         !C?.joinedLine ? '南の鹿垣で番の組と合流できず、交代の下知が出た' :
         !okAtSouthLine(rt) ? '南の鹿垣の持ち場を離れ、交代の下知が出た' :

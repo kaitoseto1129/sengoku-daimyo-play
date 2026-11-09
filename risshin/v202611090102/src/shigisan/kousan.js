@@ -18,7 +18,7 @@ export function install(rt, ctx) {
     if (done) return;
     for (const g of rt.army.groups) if (g.team === 1) { g._kousanFire = g.fire; g.fire = false; }
     sfx('kane', 0.6);
-    rt.say('信忠の使番', '松永弾正殿に申す！　今のうちに城を開き、降られよ。中将様（信忠）は命までは取らぬと仰せじゃ！', 5);
+    rt.say('信忠の使番', '松永弾正殿に申す！　今のうちに城を開き、降られよ。城介様（信忠）は命までは取らぬと仰せじゃ！', 5);
   });
   rt.after(13, () => { if (!done) rt.say('松永久秀', '降れと申すか。信長に二度も頭を下げるつもりは無い！　帰って伝えよ！', 4.5); });
   rt.after(19, () => {
