@@ -11,6 +11,24 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 伏見の元忠：精忠神社の椎実形兜と大阪城天守閣の伝所用二枚胴を合わせた復元。
+  // 鉢は既存の突盔形で近似。紋と旗は鳥居家伝来の鶴丸による補完。織田編へ遡らせない。
+  // 出所・不明部分：docs/generals_look_1108/鳥居元忠.md。
+  if (name === '鳥居元忠' && year === 1600 && KACCHU[name]) {
+    const key = name + '|伏見';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'toppai', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x2e2420, lac: 'sabi', fuki: 'kuro',
+      lace: 0x232c40, odo: 0x232c40, shikoroLace: 0x232c40,
+      doStyle: 'sugake', doSugake: true, doOpening: 'nimai', plateDo: null,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake',
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, fur: 0, horo: 0,
+      mon: 'tsuru', flag: 'sashi:tsuru:#ece6d6:#201f1c', uma: null,
+      sujiPlates: 0, shinodare: false, fukigaeshiBadge: false,
+      preserveLace: true, toriiFushimi: true, ref: '',
+    });
+    return cache.get(key);
+  }
   // 大坂の赤備え・鹿角を八王子城などへ遡らせない。上田の官途名の別指定はそのまま。
   // 所用品を特定できないため黒漆の桶側二枚胴で復元。出所：docs/generals_look_1108/真田信繁.md。
   if (name === '真田信繁' && year >= 1590 && KACCHU[name]) {
