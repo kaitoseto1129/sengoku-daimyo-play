@@ -551,9 +551,14 @@ const t02_shizugatake = {
     F.phase = 2.3; F.pt = rt.t;
     rt.objDone('s2');
     rt.award((t) => t.side.push('賤ヶ岳の砦を守り通した'), '賤ヶ岳の砦を守った');
-    // 二十日の寄せ手は暗くなって退いた（場から下げる）
-    for (const g of F.groups) if (g !== F.saku && g !== F.mori && g !== F.maedaG && live(g)) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
-    if (live(F.nakaG)) for (const u of F.nakaG.units) if (u.alive && !u.gone) rt.army.despawn(u);
+    // 夜になった瞬間に目の前の兵を消さず、下知で坂を下る。古い到着命令で攻撃に戻さない。
+    for (const g of F.groups) if (g !== F.saku && g !== F.mori && g !== F.maedaG && live(g)) {
+      g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
+      g.dest = { x: 30, z: 180 }; g.speed = 3; g.aggro = 0; g.seekRange = 0;
+      g.kind4 = 'gone'; g.nightWithdraw = true;
+    }
+    // 落ち武者は既に砦へ逃げ込んだ味方。消さずに砦の守りへ残す。
+    if (live(F.nakaG)) { F.nakaG.order = 'move'; F.nakaG.focus = null; F.nakaG.onArrive = (q) => { q.order = 'hold'; }; F.nakaG.dest = { x: FORT.x, z: FORT.z }; }
     W.setTime('night', true);
     rt.banner('四月二十日　夜', '大垣から筑前様の本隊が戻る');
     rt.obj('s2m', ST(2.3), 'main');
@@ -681,6 +686,7 @@ const t02_shizugatake = {
       let near = Infinity;
       for (const u of g.units) {
         if (!u.alive || u.gone) continue;
+        if (g.nightWithdraw && g.order === 'retreat' && dist(u.pos, P.pos) > 90) { rt.army.despawn(u); continue; }
         if (g.order === 'retreat' && F.phase >= 4 && u.pos.z < -40 && dist(u.pos, P.pos) > 70) { rt.army.despawn(u); continue; }
         near = Math.min(near, dist(u.pos, P.pos));
       }
