@@ -2422,6 +2422,9 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 城外では逃げる兵を坂へ追わない。道の外から実際に打つ兵には上の判定で応戦する。
     (here || (o.pos.x >= OTE.x && o.pos.x <= 119 && Math.abs(o.pos.z - OTE.z) < 4)) &&
     (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4 ||
+      (F.honFell && !F.keep.down && F.C.kuruwa.hon.test(u.pos.x, u.pos.z) &&
+        F.C.kuruwa.hon.test(o.pos.x, o.pos.z) && (o === F.hana || F.lastGuards?.includes(o)) &&
+        Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 8) ||
       ((F.sallyOut || F.sallyUntil) && o.group === F.reserveDef.real && o.pos.x >= OTE.x && Math.abs(o.pos.z - OTE.z) < 4) ||
       (here && mateDistance < 6 && here.test(o.pos.x, o.pos.z) &&
         Math.hypot(o.pos.x - mate.pos.x, o.pos.z - mate.pos.z) < 6)));
@@ -2432,10 +2435,11 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 四歩以内の敵にも列の支えを確かめる。近いだけで追うと塀際へ誘い出される。
     // 退き先が見つからない深手・息切れでも、ここから追撃を再開しない。
     const reach = p.weapon === 'sword' ? 1.6 : 2.5;
-    // 本丸を取った後は、主殿の近い守兵へも進む。味方が戸口で離れると、
-    // 届かない相手へ空振りするだけで奥の間へ進めなくなっていた。
+    // 最後の守兵は八歩まで詰める。味方が離れた時、四歩外の近習を
+    // 無視して城主の前で待つと、守兵を倒す決着条件を果たせない。
     const inHon = F.honFell && F.C.kuruwa.hon.test(u.pos.x, u.pos.z) &&
-      F.C.kuruwa.hon.test(e.pos.x, e.pos.z) && d < 4;
+      F.C.kuruwa.hon.test(e.pos.x, e.pos.z) &&
+      (d < 4 || !F.keep.down && (e === F.hana || F.lastGuards?.includes(e)) && d < 8);
     if (!attacker && d > reach && here && (inHon || mateDistance < 6) &&
         ((F.honFell && F.C.kuruwa.hon.test(u.pos.x, u.pos.z)) || !nakaFind(e.pos.x, e.pos.z)) &&
         here.test(e.pos.x, e.pos.z) && (inHon || Math.hypot(e.pos.x - mate.pos.x, e.pos.z - mate.pos.z) < 6) &&

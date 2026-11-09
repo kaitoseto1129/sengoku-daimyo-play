@@ -6,7 +6,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-// ctx：{ at（堤の上）, bell（砦の寺の所）, next }
+// ctx：{ at（堤の上）, bell（砦の寺の所）, ready（本人が行動できるか）, next }
 export function install(rt, ctx) {
   const F = rt.flags, MI = ctx.at;
   F.ngMonomi = MI;
@@ -19,7 +19,10 @@ export function install(rt, ctx) {
   rt.after(28, () => { if (live()) rt.say('柴田勝家', '島の門徒は大坂の顕如の檄で立った。指図は願証寺と下間の坊官じゃ', 3.6); });
   let done = false;
   const go = () => {
-    if (done || F.ending || rt.over || !rt.player?.u?.alive) return; done = true;
+    if (done || F.ending || rt.over || !rt.player?.u?.alive) return;
+    // 報告の後に倒れた時も、起き上がるまで進めず、回復後は再開する。
+    if (!ctx.ready(rt)) { rt.after(0.4, go); return; }
+    done = true;
     F.ngMonomi = null; rt.unmark('ngMonomi');
     ctx.next();
   };
@@ -37,7 +40,7 @@ export function install(rt, ctx) {
   const tick = () => {
     if (done || F.ending || rt.over) return;
     const u = rt.player?.u;
-    if (u?.alive && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }   // 馬の上からでも見える（11/9 二巡：騎乗の bot が堤で十八分止まった）
+    if (ctx.ready(rt) && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }   // 馬の上からでも見える（11/9 二巡：騎乗の bot が堤で十八分止まった）
     rt.after(0.4, tick);
   };
   tick();

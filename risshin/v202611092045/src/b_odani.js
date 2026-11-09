@@ -2891,7 +2891,9 @@ function odaniGoalBoard(rt) {
 const odani = {
   lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
   resumeSteps: [[1, 'climb'], [2, 'assault']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
-  hideNameTag: (u) => /組頭|使番|物頭/.test(u?.name || ''),   // 11/6 fixc2041（critic60）：名の伝わらない組頭に名札を出さない
+  // 名の無い役の札と、本丸へ向かう前の長政の札を隠す。共通の名札は討てない将も候補にする。
+  hideNameTag: (u, rt) => /組頭|使番|物頭/.test(u?.name || '') ||
+    u?.name === '浅井長政' && !rt.flags.honAttack,
   // 稲生と同じ共通の札・ピン・印。道順と兵数、史実の終幕はこの戦のまま。
   missionSingleLine: true,
   missionDialogue: true,
