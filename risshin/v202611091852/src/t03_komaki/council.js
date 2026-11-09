@@ -8,7 +8,10 @@ import { allyGroup } from '../bhelp.js';
 import { moveSonae } from './depth.js';
 import { seatCommander } from './camp.js';
 
-function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
+function say(rt, who, s, t, sec = 3) {
+  const stage = rt.flags.stage;
+  rt.after(t, () => { if (!rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
+}
 
 export function startCouncil(rt, K) {
   const F = rt.flags;

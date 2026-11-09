@@ -3927,7 +3927,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 救援の到着で合流の下知を出す。出撃は本人と明智の列が門内で揃ってから。
       let akeNear = 0, akeLive = 0, akeCommanderIn = false;
       // 11/9 二巡（織田G）：光秀が崩れた手と退いて（fleeing）いると、頭が門内に居ないまま出撃が止まる。頭は列に残る一番前の者とする。
-      const akeHead = F.ake.units.find((v) => v.alive && !v.fleeing && !v.woundOut);
+      // 深手で列に残る頭を、無名の兵へ勝手に替えて集合済みにしない。
+      const akeHead = F.ake.units.find((v) => v.alive && !v.fleeing);
       for (const v of F.ake.units) if (v.alive && !v.fleeing && !v.woundOut) {
         akeLive++;
         if (inPoly(SOTO_POLY, v.pos.x, v.pos.z) &&
@@ -3937,7 +3938,9 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         }
       }
       // 明智の手が崩れて残る者が無い時は、揃うのを待たない（11/9 二巡：全員が逃げたまま十分止まった）。
-      const akeIn = akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive);
+      const akeIn = !akeHead?.woundOut && (akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive));
+      if (F.step === 2.75 && !akeIn && elapsed >= 120)
+        return this.fail(rt, '明智の列が揃わぬ。味方と南へ退け');
       const ready = nobuIn && inside >= 6;
       if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
       else if (joined && akeIn && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);

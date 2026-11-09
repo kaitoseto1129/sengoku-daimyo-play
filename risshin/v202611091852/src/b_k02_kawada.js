@@ -609,7 +609,9 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
     // 北の柵の境目と側面の柵ぎわでも、先に横へ離す。南へ直進すると柵に当たり続ける。
     const edge = Math.abs(u.pos.x - FORT_IN.x);
     // 達成判定より外でも柵の内にいる細い縁では、中へ寄る。外へ迂回すると側面の柵に当たり続ける。
-    if (edge < 20 && u.pos.z > SHINKANO.z - 14 && u.pos.z < SHINKANO.z + 10) goTo(p, inp, FORT_IN.x, FORT_IN.z, 1, true);
+    // 北柵と同じ位置から横へ回ると、搦手の口の端や柵に当たる。先に北へ四歩離してから側面へ回る。
+    if (edge < 23 && u.pos.z <= SHINKANO.z - 14 && u.pos.z > SHINKANO.z - 18.5) goTo(p, inp, u.pos.x, SHINKANO.z - 19, 0.5, true);
+    else if (edge < 20 && u.pos.z > SHINKANO.z - 14 && u.pos.z < SHINKANO.z + 10) goTo(p, inp, FORT_IN.x, FORT_IN.z, 1, true);
     else if ((u.pos.z <= SHINKANO.z - 12 || (edge >= 19.5 && u.pos.z < FORT_GATE.z - 1)) && edge < 23) goTo(p, inp, side, u.pos.z, 1, true);
     else if (Math.abs(u.pos.x - FORT_GATE.x) > 3 && u.pos.z < FORT_GATE.z - 1) goTo(p, inp, u.pos.x, FORT_GATE.z + 3, 2, true);
     else if (u.pos.z > FORT_GATE.z - 4 && Math.abs(u.pos.x - FORT_GATE.x) > 2) goTo(p, inp, FORT_GATE.x, FORT_GATE.z, 1.5, true);
