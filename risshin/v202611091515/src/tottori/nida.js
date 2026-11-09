@@ -26,7 +26,7 @@ export function wrap(def, K) {
 function start(rt, K, done) {
     const F = rt.flags;
     F.k15stage = 'nida'; F.k15on = true; F.step = 1.2;   // 1.2：元の update のどの段にも当たらない
-    const at = { x: -50, z: -66 }, cliff = { x: -40, z: -84 };
+    const at = { x: -50, z: -66 }, cliff = { x: -45, z: -77 };   // 11/9 織田H：崖の上（-40,-84）からは下りて来ず止まったので、崖の裾から出る
     const porters = enemyGroup(rt, { fixed: true, name: '俵を担ぐ人足', faction: 'mori', anchor: { x: at.x + 4, z: at.z - 6 }, facing: 0, width: 4, aggro: 0, morale: 20 },
       dress([{ type: 'ashigaru', n: 8, o: { keep: true } }], K.HUNGRY));
     for (const u of porters.units) u.noTarget = false;
@@ -76,7 +76,7 @@ function start(rt, K, done) {
             // 11/9 二巡：崖の上に残った弓二人が下りて来ず、三人まで減らせずに十五分止まった。
             //   半ばを討って一分余り経てば、本人が持ち場を守っている時に残りが引き上げる。
             //   放置や持ち場からの離脱を、時間だけで撃退の手柄にしない。
-            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at))) {
+            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at)) || (el > 150 && repelled(rt, H0, H0, at))) {   // 二分半、持ち場で受け続ければ飢えた城兵は崖を引き上げる
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');

@@ -424,7 +424,9 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["加藤清正", "zunari", "none", 0xae945d, 0xb38a60, "katahada", 0, 0x875749, "none", "a5a1c499"],
   ["黒田長政", "zunari", "kuwa", 0x1c1a1a, 0x6a2a5a, "okegawa", 0, 0, "kuroda", ""],
   ["立花宗茂", "momonari", "cross", 0x1c1a1a, 0x3c5a8a, "okegawa", 0, 0, "none", ""],
-  ["池田輝政", "eboshi", "shida", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0, "none", ""],
+  // 林原美術館の伝池田輝政所用「黒漆塗黒糸威菱綴桶側二枚胴具足」（光政が先祖顕彰で仕立てた見込み）。黒漆の桶側胴に黒糸威。
+  //   兜の形は確かめられず、前からの烏帽子形を復元案として残す（頭形・筋・桃形は同じ見た目の将と重なる）。根拠の無い羊歯の前立は外した（docs/generals_look_1108/池田輝政.md）
+  ["池田輝政", "eboshi", "none", 0x1c1a1a, 0x2a2622, "okegawa", 0, 0, "ageha", ""],
   ["細川忠興", "zunari", "feather", 0x181717, 0x2c2b29, "kebiki", 0, 0x28201e, "none", "48e4b5c5"],
   ["藤堂高虎", "tokan", "todo_tokan", 0x1c1a1a, 0x232c40, "okegawa", 0, 0, "todo", ""],
   ["大谷吉継", "zunari", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0x5a5a5a, 0, "none", ""],
@@ -598,6 +600,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 11/9 豊臣B：豊臣編の戦に名のある武将として出るのに見た目の無かった人。所用の具足は見つからず（docs/generals_look_1108/豊臣編_復元案_1109.md）。
   //   筋兜・立物なしの復元案。威の色は同じ鉢の人と重ならない色、紋は家の旗が既にある時だけ。
   ["一柳直末", "suji", "none", 0x1c1a1a, 0x6a2a4a, "okegawa", 0, 0, "none", ""],
+  // 一柳直盛（河田・米野で池田と渡る）。所用の具足は確かめられず、兄の直末と分けた復元案。紋は一柳の釘抜（docs/generals_look_1108/一柳直盛.md）
+  ["一柳直盛", "zunari", "none", 0x1c1a1a, 0x6a7a2c, "okegawa", 0, 0, "kuginuki", ""],
   ["間宮康俊", "suji", "none", 0x1c1a1a, 0x3a6a5a, "kebiki", 0, 0, "hojo", ""],
   ["北条氏勝", "suji", "none", 0x1c1a1a, 0x8a7a3a, "okegawa", 0, 0, "hojo", ""],
   ["池田元助", "suji", "none", 0x1c1a1a, 0x2a4a6a, "okegawa", 0, 0, "none", ""],
