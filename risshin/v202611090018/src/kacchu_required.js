@@ -153,6 +153,7 @@ export const REQUIRED_KACCHU = [
   ['石田三成', 'suji', 'sun', D.kuro, C.kurenai, 'sugake', 0, 'none', 'ishida', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, doOpening: 'nimai', menpo: 0, fur: 0, kusazuriFur: 0x1a1816, kusazuriLaceRows: 5 }, '宇治田家伝来・伝三成所用の紅糸素懸威二枚胴具足。鉄錆地六十二間筋兜と日輪前立、草摺裾の熊毛。脇立は補わない。当日着用は未確認の復元案。出所は docs/generals_look_1108/石田三成.md'],
   ['成田長親', 'suji', 'kuwa_wide', D.kuro, C.kobai, 'kebiki', 0, 'none', txt('成田'), null, '忍城の将。所用品は伝わらない。復元案'],
   ['上杉景勝', null, null, null, null, null, null, null, 'uesugi', null, '具足は前の表（写真）'],
+  ['直江兼続', 'suji', 'naoe_ai', D.kin, 0x5a9aa0, 'sugake', 0, 'none', 'uesugi', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, shinodare: false, fukigaeshiBadge: false, doubleShikoro: true, doOpening: 'nimai', honkozane: true, goldKozane: true, menpo: 0, fur: 0, horo: 0, uma: null }, '上杉神社の伝兼続所用・金小札浅葱糸威二枚胴具足と鉄錆地塗六十二間筋兜。愛字と瑞雲は既存形。陣羽織・脇立・個人馬印は補わない。所属旗で示す復元案。当日の着用は未確認。出所は docs/generals_look_1108/直江兼続.md'],
   ['真田昌幸', null, null, null, null, null, null, null, 'sanada', null, '錆地の筋兜（前の表）。旗は六文銭'],
   ['横地監物', 'momonari', 'kuwa', D.sabi, C.nezu, 'okegawa', 0, 'hojo', mon('hojo', '#1d1b18', W), null, '吉信。八王子城の守将。所用品は伝わらない。復元案'],
   ['毛利輝元', null, null, null, null, null, null, null, 'mori', null, '具足は前の表'],

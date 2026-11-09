@@ -313,6 +313,7 @@ NAMED_GEAR['土屋昌恒'].swordHand = 'right';
 // 旗印（隊の旗持ちが掲げる。textures.js の紋の種類）と馬印（units_flags.js の umaGeometry：fan 金扇・gourd 瓢箪・sun 日輪）。
 // 布と形は家の旗・馬印と同じ物を使い回す。馬印は本人でなく隊の徒が背負う。
 for (const [name, flag, uma] of [
+  ['伊達政宗', 'date_hinomaru', 'date_torige'], // 日の丸大龍と黒鳥毛二段笠。出所は docs/generals_look_1108/伊達政宗.md。
   ['徳川家康', 'onri', 'fan'],        // 厭離穢土欣求浄土の旗と金扇の馬印
   ['織田信長', 'eiraku', ''],         // 永楽通宝の旗
   ['織田信広', 'oda', ''],           // 長島では織田方の所属のみ。個人の旗印・馬印は未詳

@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
+import * as M15 from './moribe/index.js';   // 11/8 十五分の構成（南岸の下知・田の畦の物頭・左の畦の弓鉄砲・余韻）
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -2977,6 +2978,7 @@ const moribe = {
     return 6;
   },
   missionHeading(rt) {
+    { const h = M15.heading(rt); if (h !== undefined) { const f = fiveGoals(rt), i = f?.rows.findIndex((r) => r.text === h) ?? -1; return i >= 0 ? `${i + 1}／${f.rows.length}　${h}` : h; } }
     // 上陸後に川へ戻った時も、今いる岸に合わせて案内する。
     const beforeSignal = !rt.flags.signal;
     const atFord = beforeSignal && playerAtFord(rt.player.u.pos, rt.world);
@@ -4343,6 +4345,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.marker('point', POINT2, () => rt.flags.pointInside ? '北岸の畦で組を待つ' : '楡俣川の北岸の畦',
       { guideArea: 'wait', guideRadius: FORD_R });
     rt.zone('point', POINT2.x, POINT2.z, FORD_R);
+    M15.install(rt, this, { KISHI: { x: START2.x - 2, z: START2.z + 8 }, POINT2, FORD_R, enemyGroup });   // 南岸で渡河の下知を待つ（moribe/kishi.js）
     rt.say('組頭 源八（げんぱち）', '浅瀬は腿までじゃ。足を取られるな。向こう岸の畦まで渡れ', 5);
     // 11/6 fix3（身分）：勘当の身の前田又左衛門は手勢を持たず、組へ下知する立場にない。共通の将の声（lines_data.js の toshiie）を森部では言わせない。
     rt._generalSaid = rt._generalSaid || {};
@@ -4427,6 +4430,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     nagashinojo.kit.backTick(rt);
     moribeStainTick(rt, dt);
     if (rt.over || F.ending || !rt.player.u.alive) return;
+    M15.tick(rt, dt);
     // 11/7 fixc0814（kaito critic「命が三百秒ずっと 100 のまま。槍列の中に入っても突かれない」）：槍を合わせる段では、
     //   本人の十二メートル内で手の空いた斎藤の槍が、六秒ごとに二人まで本人へ向き直る（同時に打つ数は playerAtkMax の二人のまま）。
     if (F.signal && (F.stage === 'hold' || F.stage === 'press') && !(F.pullAt > rt.t)) {
@@ -4591,8 +4595,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.pointDone = true; rt.objDone('point'); rt.objRemove('point'); rt.unmark('point'); rt.unzone('point');
         rt.award((t) => { t.c.point = 1; }, '渡河して組をそろえた');
       }
-      if (!F.fordNudge && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '浅瀬を渡り、向こう岸まで進め', 4); }
-      if (F.pointInside && (F.pointDone || F.fordThreat || F.pointReached && rt.t >= F.fordWaitEnd)) this.signal(rt);
+      if (!F.fordNudge && M15.crossOk(rt) && rt.t > 20 && !F.pointReached) { F.fordNudge = true; orderSpeech(rt, '浅瀬を渡り、向こう岸まで進め', 4); }
+      if (M15.crossOk(rt) && F.pointInside && (F.pointDone || F.fordThreat || F.pointReached && rt.t >= F.fordWaitEnd)) this.signal(rt);
       return;
     }
     this.feedReserves(rt);
@@ -4618,7 +4622,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (!F.vBroken && gone(F.V)) this.onRout(rt, F.V);
       rt.objProgress(F.vBroken ? 'support' : 'break', '');
       // 先手が退いた時点で本備と控えを寄せる。次の斬り合いを待ってから下知しない。
-      if (F.vBroken) {
+      if (F.vBroken && M15.holdOk(rt)) {   // 田の畦の物頭（moribe/azemichi.js）を討ってから
         rt.objRemove('break'); rt.unmark('V');
         rt.objRemove('support'); rt.unmark('support');
         moribeHoldPoint(rt);
@@ -4666,7 +4670,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 前の槍列がすべて退けば、控える旗本だけを残して百秒待たせない。
       const frontBroken = gone(F.V) && gone(F.M) && gone(F.N) && F.reserves.every(gone);
       const enemyBroken = F.opposition.every(gone);
-      if (el >= 100 && holdKills >= 10 || counterattack || frontBroken || enemyBroken) {
+      if ((el >= 100 && holdKills >= 10 || counterattack || frontBroken || enemyBroken) && M15.pressOk(rt)) {   // 左の畦の弓・鉄砲衆（moribe/yumi.js）を討ってから
         if (F.lineT >= 25) { rt.objDone('line'); }
         else rt.objFail('line');
         rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
@@ -4824,8 +4828,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       }
     }
     // 時の制限は目標ごと（goals5）。戦全体は長くてよい（kaito AP8）ので、川へ下げるのは十分後
-    if (!F.longWarn && rt.t >= 570) { F.longWarn = true; orderSpeech(rt, '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
-    if (!F.ending && rt.t >= 600 && (!F.pursuit || !F.ownHatamoto)) this.endBattle(rt, false);
+    // 11/8 十五分の構成で、川へ下げるのを十分から十六分へ
+    if (!F.longWarn && rt.t >= 930) { F.longWarn = true; orderSpeech(rt, '攻めが長引いておる。備が崩れねば、組を川へ下げるぞ', 4); }
+    if (!F.ending && rt.t >= 960 && (!F.pursuit || !F.ownHatamoto)) this.endBattle(rt, false);
   },
 
   feedReserves(rt) {
@@ -5061,7 +5066,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       ? '味方の列が崩れ、川岸を守れなくなった'
       : '時間内に敵を押し返せなかった';
     // 11/4 jin（BD）：勝鬨のあと数秒で結果へ（十六秒は長い）。
-    rt.finish({ scriptedEnd: true, failureReason }, won ? 12 : 11);   // 11/6 fixc：首実検の下知まで聞かせてから結果へ
+    if (won) M15.ending(rt, () => rt.finish({ scriptedEnd: true, failureReason }, 12));   // 勝鬨と墨俣への伏線（moribe/yoin.js）
+    else rt.finish({ scriptedEnd: true, failureReason }, 11);   // 11/6 fixc：首実検の下知まで聞かせてから結果へ
     // 終幕の共通音が鳴った後に札を出す。同じ退けの音を札からもう一度鳴らさない。
     if (!won) rt.obj('withdraw', '低い法螺貝と退き太鼓で、仲間と川へ退け', 'main', true);
   },
@@ -5140,6 +5146,7 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
   if (!u.alive || F.ending) return;
+  if (M15.bot(b, inp, { goTo, patientStrike })) return;   // 足した段（moribe/）の行き先
   const sq = b.squadGroups[0];
   const gathering = !F.signal || F.stage === 'assemble';
   const liningUp = !F.signal && F.pointInside && F.pointReady;
