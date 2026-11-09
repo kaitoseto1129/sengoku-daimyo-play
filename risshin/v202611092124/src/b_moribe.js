@@ -4826,12 +4826,11 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       //   commanders > 0 の時だけだと、印の大将を自分で討った三秒後に主の札が全部済みに見え、勝ちの印の無いまま「果たせなかった」で閉じた。
       // 両将を味方が討った後も、本人が旗本の侍を討つまでは済みにしない。
       if (cm?.state === 'done' && ((F.bossDown || 0) < 2 || !F.ownHatamoto)) {
-        const rest = remainingName || [F.HM, F.HN].flatMap((g) => g?.units || []).find((u) => u.type === 'busho' && u.alive)?.name || '';
-        rt.objRemove('commanders'); rt.obj('commanders', rest ? `${rest}を討て` : '味方と両将の旗本を攻めよ', 'main'); F.marked = null;
+        rt.objRemove('commanders'); rt.obj('commanders', '長井・日比野の旗本へ進み、旗本の侍を自分で討て', 'main'); F.marked = null;
       }
       // 敗走を確かめる八秒も、任務の見出しと下知をそろえる。
       const task = rt.objectives.find((o) => o.id === 'commanders');
-      if (task) task.text = (F.bossDown || 0) < 2 ? commanders > 1 ? '長井甲斐守・日比野下野守を討て' : commanders === 1 ? `${remainingName}を討て` : '味方と両将の旗本を攻めよ' : !F.ownHatamoto ? '長井・日比野の旗本の侍を自分で討て' : !left ? '薬師堂の前で組をまとめよ' : '墨俣への道で殿を討ち破れ';
+      if (task) task.text = !F.ownHatamoto ? '長井・日比野の旗本へ進み、旗本の侍を自分で討て' : (F.bossDown || 0) < 2 ? '味方と長井・日比野の旗本を攻めよ' : !left ? '薬師堂の前で組をまとめよ' : '墨俣への道で殿を討ち破れ';
       // 本人の手柄が残る間は、頭上の▼と同じ旗本の侍へ案内する。
       for (const g of F.opposition) if (!gone(g) && g.units.some((u) => u.type === 'busho' && moribeRemainFoe(u))) { target = g; break; }
       const hatamoto = this.hatamotoTarget(rt);
@@ -4844,11 +4843,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         else if (target) rt.marker('commanders', centerOf(target), '斎藤の旗', { red: true, group: target });
         else rt.unmark('commanders');
       }
-      // 両将が生きていても、本人の目標を大将討ちへ言い替えない。
-      if (task && !F.squadGuide) {
-        if (!F.ownHatamoto) task.text = '長井・日比野の旗本へ進み、旗本の侍を自分で討て';
-        else if (guide) task.text = `${guide.name}を仲間と討て`;
-      }
+      // 仲間へ戻る案内中も、本人が果たす目標の場所と行いを変えない。
       rt.objProgress('commanders', '');
       // 紙（battle_events_1101）：勝ちは「敵将を討って斎藤方が崩れる」。両将が討たれたら残る備も崩れ、勝ちにする（全滅を待たない）。
       // 両将が討たれてすぐには終わらない（kaito 11/2 Q「終わり方に厚みを」）：斎藤勢は崩れて墨俣へ退き、

@@ -792,6 +792,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   win(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
+    // 終了後は石を更新しないため、投石を宙に残さない。
+    for (const s of STONES) { s.on = false; s.mesh.visible = false; }
     rt.unmark('t07');
     rt.award((t) => { t.main = true; t.special = { label: '岩石城を一日で落とした', pts: 20 }; }, '熊井越中守を討ち、本丸を取った');
     rt.objDone('s5'); rt.setPhase('end');
@@ -814,6 +816,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   lose(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
+    for (const s of STONES) { s.on = false; s.mesh.visible = false; }
     rt.unmark('t07');
     rt.objFail('s' + Math.max(1, F.stage || 1)); rt.tracker.main = false; rt.setPhase('end');
     rt.banner('日が沈んだ', '岩石城は落ちなかった');
