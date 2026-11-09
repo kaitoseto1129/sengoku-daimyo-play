@@ -82,7 +82,7 @@ const LOOK = {
 const named = (name, type = 'samurai', o = {}) => ({ type, n: 1, o: { name, ...LOOK[name], ...o } });
 
 const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
-const stepAlive = (F) => aliveN(F.stepG) + (F.step === 5 ? aliveN(F.fuseG) : 0);   // ⑤は堤の前の先手と伏せ槍を合わせて数える
+const stepAlive = (F) => aliveN(F.stepG) + (F.step === 1 ? aliveN(F.fuseG) : 0);   // 八尾では横の備と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -124,7 +124,7 @@ function height(x, z) {
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const k14_yao_wakae = {
-  resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
+  resumeSteps: 4,   // 現在の四段の始まりを順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。八尾・若江：五月初めの田と堤。水を張った田の畦、ぬかるみ・水たまり、堤の葦
   timeslip: {
     wet: 0.6, dust: 0.1, trample: 0.3, debris: 1.2, arrows: 0.9, reeds: 0.45, maxSlope: 0.22,
@@ -427,7 +427,7 @@ const k14_yao_wakae = {
   // 長宗我部が退く（勝ち）
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (F.ending || F.step !== 4 || !F.kimuraDone) return;
     F.ending = true;
     rt.setPhase('end');
     rt.objDone('s4');
@@ -515,7 +515,7 @@ const k14_yao_wakae = {
     if (left <= 0 && !F.pushed && !F.next) {
       F.pushed = true;
       const g = F.stepG;
-      for (const q of [g, F.step === 5 && F.fuseG]) if (q) { q.morale = Math.min(q.morale || 100, 40); q.dmgMult = (q.dmgMult || 1) * 0.6; }
+      for (const q of [g, F.step === 1 && F.fuseG]) if (q) { q.morale = Math.min(q.morale || 100, 40); q.dmgMult = (q.dmgMult || 1) * 0.6; }
       // 若江の刻限で藤堂勢を強めたり、八尾へ移動中の隊を呼び戻したりしない。
       const pushing = F.step === 1 ? [F.mine, F.kibaG, F.todoGun, F.takanoriG, F.kuwanaG] : [F.mine, F.sakiG, F.iharaG, F.andoG, F.kibaG];
       for (const a of pushing) if (live(a) && !(F.step <= 2 && a.order === 'move')) { a.order = 'attack'; a.seekRange = 80; a.dmgMult = Math.max(a.dmgMult || 1, 1.2); }
@@ -533,7 +533,6 @@ const k14_yao_wakae = {
     const gone = F.stepN - stepAlive(F);
     if (F.stepNear && gone >= Math.round(F.stepN * (1 - KEEP)) && (F.step !== 1 || !F.fuseG.ambush)) {
       F.next = true;
-      if (F.step === 5) { this.win(rt); return; }
       for (const q of g.units) if (q.alive && q.name && !q.invuln) { rt.army.kill(q); break; }   // 隊の将も崩れの中で討たれる
       g.order = 'flee'; g.routed = true;
       if (F.step === 1) { rt.award((t) => t.side.push('八尾で長宗我部の横を突いた'), '長宗我部の横を突いた'); rt.after(2.5, () => this.toStep(rt, 2)); }

@@ -2307,6 +2307,22 @@ const enemyGroup = (rt, o, list) => deploy(rt, 1, o, list);
 const allyGroup = (rt, o, list) => deploy(rt, 0, o, list);
 const returnLine = (g) => { g.order = 'hold'; g.anchor.x = g.center().x; g.anchor.z = g.center().z; g.formation = 'yari'; };
 
+// 川岸の後続を実兵へ替えた後も、元の備えと同じ渡河の下知を届ける。
+// 共通の置換は持ち場を守る隊を作るため、軽い備えだけ動かすと実兵が北岸に残った。
+function aneBankMarch(rt) {
+  const F = rt.flags;
+  if (F.step !== 1 || rt.t < (F.aneBankCheckAt || 0)) return;
+  F.aneBankCheckAt = rt.t + 1;
+  for (const g of rt.army.groups) {
+    const at = g.woke?.aneBankDest;
+    if (!at || !g.count || g.routed || g.order === 'retreat' || g.aneBankMarch) continue;
+    g.aneBankMarch = true;
+    g.guard = false; g.fleeDir = AZAI_FLEE;
+    g.order = 'move'; g.dest = { x: at.x, z: at.z };
+    g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
+  }
+}
+
 // 川原の石（見た目だけ）：川の両岸の帯に、大小の丸い石を散らす
 function kawara(W) {
   // 黒く平たい塊を避け、形と材質を一つずつ共用した明るい丸石にする。
@@ -3930,7 +3946,8 @@ const anegawa = {
       const halfWidth = Math.ceil(army.hw0 + 2);
       let south = -Infinity;
       for (let dx = -halfWidth; dx <= halfWidth; dx++) south = Math.max(south, aneSouthBank(x + dx));
-      group.moveTo(x, south + army.hd0 + 2, i === 0 ? 26 : 30);
+      army.aneBankDest = { x, z: south + army.hd0 + 2 };
+      group.moveTo(x, army.aneBankDest.z, i === 0 ? 26 : 30);
     }
     rt.unmark('campExit');
     rt.setPhase('charge');
@@ -4334,6 +4351,7 @@ const anegawa = {
     if (rt.over || !rt.player?.u?.alive) return;
     F.aneJin?.tick?.(); F.aneTsui?.tick?.();
     anegawaRiverTick(rt, dt);
+    aneBankMarch(rt);
     if (!rt.over && !F.ending && rt.player?.u) aneAdvance(rt);
     // 11/6（critic60・二2）：本陣への寄せは磯野の突進の間だけ。横槍が取り付いた後・追い討ちの間は出さない。
     if ((F.inabaT || F.step >= 2) && rt.taisho) rt.taisho.nextRaid = Infinity;
@@ -4750,8 +4768,9 @@ const anegawa = {
 // https://www.library-archives.pref.fukui.lg.jp/tosyo/file/614648.pdf
 // 11/6 fixc0834（九3・描いて遊んだ通し）：ここで数を据え置きにしていたので、上の棒が勝ちまで二万八千 対 一万三千のまま動かなかった。
 //   定義の force（討ち取りで減り、崩れた後は退く兵の分だけ浅井・朝倉が減る）を使う。
-anegawa.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '浅井の寄せまで待つ' : '');
-anegawa.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) anegawa.charge(rt); };
+// 主人公の物見と槍合わせは、待つ操作でも未達成のまま飛ばさない。
+anegawa.canSkip = (rt) => (rt.G.lord && rt.phase === 'brief' && rt.t > 3 && !rt.over && !rt.flags.ending ? '浅井の寄せまで待つ' : '');
+anegawa.skip = (rt) => { if (anegawa.canSkip(rt)) anegawa.charge(rt); };
 // 美濃三人衆は東の備えの同じ手に置く。森・佐久間への共通追加を防ぐ。
 anegawa.famous = HISTORICAL_GENERALS.anegawa.filter((e) => e.team !== 0);
 // 必須の人物（docs/battle_events_1101 の9）：滝川一益は名簿に姉川の欄が無いので、ここで織田の後ろの段に足す。

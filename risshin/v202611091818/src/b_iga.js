@@ -1256,6 +1256,8 @@ function igaFleeWay(army, u, goal) {
   const path = u.group?.igaRetreat;
   if (!path?.length) return goal;
   const q = u._igaFlee || (u._igaFlee = { x: 0, z: 0, i: 0 });
+  // 下知で退き道が替わったら、前の道の通過位置を持ち越さない。
+  if (q.path !== path) { q.path = path; q.i = 0; }
   if (q.i >= path.length) return goal;
   while (q.i < path.length && Math.hypot(u.pos.x - path[q.i][0], u.pos.z - path[q.i][1]) < 2) q.i++;
   if (q.i >= path.length) return goal;
@@ -3390,6 +3392,8 @@ function igaCastleRetreat(g, path) {
   // 最初の持ち場も道順へ残し、折れ目の後列が切岸へ直進しない。
   g.order = 'path'; g.path = [[g.anchor.x, g.anchor.z], ...path]; g.pathIdx = 0;
   g.igaRetreat = g.path;
+  // 北の曲輪だけを離れても、さらに奥の曲輪にはまだ城兵がいる。
+  g.igaCastleExitZ = RIDGE[RIDGE.length - 1][1] + 2;
   g.fleeDir = { x: 0, z: -1 };
   for (const u of g.units) {
     u.target = null; u.atk = null; u.swing = null; u.bind = null; u.moveTo = null; u.aiT = 0;
@@ -3433,6 +3437,8 @@ function igaCastleCleared(rt) {
   for (const u of F.wallBow.units) if (igaReady(u) && u.pos.z > KITA.z - 22) return false;
   for (const u of rt.army.units) {
     if (u.team !== 1 || !igaReady(u) || u.isStruct || u.group?.civ || u.group?.ambush) continue;
+    // 曲輪の間や北の奥段を歩く列も、城外の出口へ届くまで空城にしない。
+    if (u.group?.igaCastleExitZ != null && u.pos.z > u.group.igaCastleExitZ) return false;
     for (const at of F.castleChecks) {
       // 平面で重なる下段の兵は、上の曲輪を塞いでいない。
       if (Math.abs(u.pos.y - at.y) < 3 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < at.r) return false;

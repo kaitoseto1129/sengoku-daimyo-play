@@ -537,9 +537,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       if (go) for (const g of [F.miyabe, F.todo, F.togawa]) if (g && g.count && !g.routed) { g.anchor = { ...go }; g.order = di === 7 ? 'attack' : 'hold'; g.seekRange = di === 7 ? 22 : Math.max(g.seekRange || 0, 12); }
       if (di >= 12) for (const g of [F.relief, F.koba]) if (g && g.count && !g.routed) { g.order = 'hold'; g.seekRange = 18; }
     }
-    // 塀を守る段で、守る刻を十五秒過ぎても堀の外に残る島津の組は退かせる（低い気で立ち尽くし、段が終わらなかった。11/3 測り）
     const C = F.dp && F.dp.on && F.dp.cur;
-    if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max - 20) for (const g of C.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
     // 猿渡が生きている間は隊を退かせない。共通の持久戦処理は残り三人や刻限で退却禁止を解く。
     // 出現時の退却禁止も塀の段の上限より長くし、軍の更新前に期限が切れる隙間を作らない。
     if (di === 4 && C) for (const g of C.groups) {
