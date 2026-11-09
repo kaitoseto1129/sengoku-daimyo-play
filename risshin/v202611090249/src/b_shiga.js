@@ -915,6 +915,25 @@ const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 const HON_HOLD_SECONDS = 70;
 const AID_WAIT_SECONDS = 30;
 
+// 曲輪の奥に立つだけでは、木戸で寄せ手を防いだことにしない。
+// 閉じた木戸の外の敵も数え、門を開けて斬りに出る必要は設けない。
+function innerGateDefended(rt, p) {
+  const F = rt.flags;
+  const atHon = F.C.kuruwa.hon.test(p.x, p.z);
+  const atNi = !atHon && F.C.kuruwa.ni.test(p.x, p.z);
+  if (!atHon && !atNi) return false;
+  const zone = atHon ? F.SZ.byId.hon : F.SZ.byId.ni;
+  if (zone.owner !== ZONE_STATE.FRIEND || atHon && !F.honGuarded) return false;
+  const gate = atHon ? GATE_HON : GATE_NI;
+  if (Math.hypot(p.x - gate.x, p.z - gate.z) > 12) return false;
+  for (const u of rt.army.units) {
+    if (!siegeFighter(u) || u.team !== 1) continue;
+    if (Math.hypot(u.pos.x - gate.x, u.pos.z - gate.z) <= 18 &&
+        Math.abs(u.pos.y - rt.player.u.pos.y) <= 6) return true;
+  }
+  return false;
+}
+
 function oldTownSpeech(step, line) {
   if (line.speaker !== '森可成' && line.speaker !== '織田信治' && line.speaker !== '青地茂綱') return false;
   const text = line.text;
@@ -3856,6 +3875,8 @@ const shiga = {
       F.honHeldT = hon.owner !== ZONE_STATE.FRIEND || guards < 3 ? 0 :
         (F.honHeldT || 0) + (F.honGuarded ? dt : 0);
       hon.friendHeldT = F.honHeldT;
+      // 後詰を待つ段へ移る前の木戸の攻防も、同じ目標の守備時間に含める。
+      if (innerGateDefended(rt, rt.player.u.pos)) F.innerHeld = (F.innerHeld || 0) + dt;
     }
     if (F.step === 3 || F.step === 3.5) {
       const hon = F.SZ.byId.hon;
@@ -3919,10 +3940,7 @@ const shiga = {
     if (F.step === 3.5) {
       const hon = F.SZ.byId.hon;
       const inCastle = F.C.kuruwa.san.test(p.x, p.z) || F.C.kuruwa.ni.test(p.x, p.z) || F.C.kuruwa.hon.test(p.x, p.z);
-      // 11/8 critic60（三3・十1）：④は二の丸・本丸の木戸で守った時だけ。大手木戸に立ったままでは勝ちにしない。
-      if (F.C.kuruwa.ni.test(p.x, p.z) && F.SZ.byId.ni.owner === ZONE_STATE.FRIEND ||
-          F.C.kuruwa.hon.test(p.x, p.z) && hon.owner === ZONE_STATE.FRIEND && F.honGuarded)
-        F.innerHeld = (F.innerHeld || 0) + dt;
+      // ④は二の丸・本丸の木戸で寄せ手を受けた時間だけ。到着や時刻だけでは果たさない。
       castleProgress(rt, hon.owner === ZONE_STATE.ENEMY ? `本丸を取り返せ。猶予はあと${Math.max(0, Math.ceil(45 - (F.honLostT || 0)))}秒` : !inCastle ? '城の木戸の内へ戻れ' : (F.innerHeld || 0) < 10 ? '二の丸・本丸の木戸へ上がって守れ' : !F.honGuarded ? F.honGuards < 3 ? '本丸に味方を三人以上集めよ' : '本丸の敵を押し返せ。味方の列で受けよ' : F.aidMoving ? `信長の後詰が着くまであと${Math.max(0, Math.ceil(20 - (rt.t - F.aidT)))}秒` : `信長の後詰が出るまであと${Math.max(0, Math.ceil(AID_WAIT_SECONDS - (rt.t - F.stepT)))}秒`);
       // 最後の出発待ちを十五秒縮める。後詰が移動する二十秒は保つ。
       if (rt.t - F.stepT >= AID_WAIT_SECONDS && !F.aidMoving) {
