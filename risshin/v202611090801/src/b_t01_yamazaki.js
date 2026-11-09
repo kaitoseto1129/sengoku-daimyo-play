@@ -592,9 +592,9 @@ const t01_yamazaki = {
     // 主人公が倒れている間（やり直しの札の間）は段を進めない。倒れたまま味方だけで勝ちにしない（critic60・三3）
     if (!rt.player.u.alive || rt.retryOpen) return;
     if (F.stage >= 2 && F.stage <= 3 && broken(F.naka) && broken(F.taka)) { this.lose(rt, '前で支える中川・高山の隊が崩れた'); return; }
-    // 味方だけで敵を破っても、主人公が持ち場へ着くまでは果たした事にしない。
+    // 一度着いても、持ち場を離れた後に味方だけで敵を破って果たした事にしない。
     const field = [null, null, HOLD, F.forded ? TSUDA : null, Counter.STAND, SAITO, GOBO_PIN, null][F.stage];
-    if (field && dist(P, field) < 30) F.fieldAt = F.stage;
+    F.fieldAt = field && dist(P, field) < 30 ? F.stage : 0;
     // 池田勢は主人公の脇に付く（離れたら寄る・近ければ戦う）
     if (live(F.ikeda) && (F.escT = (F.escT || 0) - dt) <= 0) {
       F.escT = 0.5;
