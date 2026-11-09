@@ -2357,6 +2357,8 @@ const okawachi = {
       if (d <= 8 && rt.t - F.stepT >= 12 && rt.t >= F.signalQuietUntil && rt.player.u.alive) this.siegeDays(rt);
       // 帰陣が遅れても翌朝へ進める。本人は陣へ飛ばさず、今の所から南の鹿垣へ歩く（二5・二6）。
       else if ((rt.t - F.stepT >= 70 && d < 40 || rt.t - F.stepT >= 100) && rt.player.u.alive) {
+        // 陣の四十歩内まで退けたなら帰陣と数える（「退いた」と告げてから、最後に「退けず」で負けにしない）。
+        if (d < 40) F.campReached = true;
         this.siegeDays(rt);
         if (d < 40) rt.say('組頭', '夜明けまでに、味方と南の陣へ退いた。次は南の鹿垣を守るぞ', 5);
       }
@@ -5100,6 +5102,7 @@ okawachi.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     // 案内の六歩先の印を行き先へ戻すと、道の補正を二度かけて同じ角へ引き戻す。
     // 陣を行き先に保ち、共通の歩行が一度だけ坂の道順を選ぶ。
     goTo(p, inp, CAMP_LINE.x, CAMP_LINE.z, 3);
+    inp.runHeld = inp.k.has('KeyW');   // 退き太鼓の後は走って陣へ戻る（歩くと坂の折れで刻限に遅れた）
     return;
   }
   // 深手の退避と手当ては共通の頭に任せる。傷は自然に戻らず、全快待ちは戦へ戻れない。
