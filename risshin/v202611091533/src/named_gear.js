@@ -358,6 +358,8 @@ for (const [name, flag, uma] of [
   ['稲葉喜六', 'oda', ''],           // 所属のみ。個人紋・馬印や右京助との同定は補わない
   ['蜂屋頼隆', 'oda', ''],           // 織田方の所属旗。本人固有の旗印・馬印は未詳
   ['氏家直昌', 'oda', ''],           // 木瓜は織田方の所属旗。本人固有の旗印・馬印は未詳
+  ['氏家卜全', 'oda', ''],           // 稲葉山合流後の所属表示。個人の旗印・馬印は未確認
+  ['氏家直元', 'oda', ''],           // 卜全と同一人。稲葉家の旗・姓の大書は使わない
   ['安藤守就', 'oda', ''],           // 織田方の所属旗。本人固有の旗印・馬印は未詳
   ['不破光治', 'oda', ''],           // 織田方の所属旗。本人固有の旗印・馬印は未詳
   ['不破彦三', 'oda', ''],           // 織田方の所属旗。本人固有の旗印・馬印は未詳
@@ -461,5 +463,9 @@ NAMED_GEAR['丹羽長秀'].campUma = 'bamboo_tanzaku';
 NAMED_GEAR['織田信勝'].uma = null;
 NAMED_GEAR['織田信勝'].campUma = null;
 NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
+// 卜全の個人馬印は未確認。隊・陣所とも既存の馬印を流用しない。
+NAMED_GEAR['氏家卜全'].uma = null;
+NAMED_GEAR['氏家卜全'].campUma = null;
+NAMED_GEAR['氏家直元'] = NAMED_GEAR['氏家卜全'];
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

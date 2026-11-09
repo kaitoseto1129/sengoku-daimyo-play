@@ -1525,6 +1525,7 @@ const arioka = {
   bannerAllowed: (rt) => !!rt.over || !!rt.flags.ending,
   // 11/6 kaito 九1・十1：目標は史実の時の順の五つ。番号と一行は戦の間ずっと言い替えない（場の下知は台詞と印に任せる）。
   //   亥の刻に上臈塚の木戸が内から開き、滝川の手が惣構えの内へ入り、侍町を焼いた。本丸は持ちこたえ、翌十六日に官兵衛が牢から出た。
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（11/9 徳川A：弱めて入れる。突然の討死は二つまで・三分過ぎから）
   missions: ARI_GOALS,
   missionOf(rt) {
     const F = rt.flags;

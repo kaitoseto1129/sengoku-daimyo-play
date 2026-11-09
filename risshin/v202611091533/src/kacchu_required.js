@@ -81,7 +81,15 @@ export const REQUIRED_KACCHU = [
   ['丹羽長秀', null, 'niwa_shikami', null, null, null, null, null, 'sujikai', null, '二本松の丹羽家に伝わる獅子頭（しかみ）の前立に寄せた形（前の表の形）。旗は直違'],
   ['滝川一益', null, 'takigawa_buffalo', null, null, null, null, null, 'takigawa', null, '時代祭の銀水牛脇立を参考にした形（前の表の形）。旗は丸に竪木瓜'],
   ['稲葉一鉄', null, 'kuwa', null, null, null, null, null, 'inaba', null, '良通。所用品は伝わらない。前の表の色に鍬形'],
-  ['氏家卜全', 'suji', 'kuwa_wide', D.sabi, C.hi, 'kebiki', 0, 'none', txt('氏家'), null, '直元。所用品は伝わらない。三人衆の稲葉・安藤と鉢・威を分けた復元案'],
+  // 本人所用品は未確認。建勲神社伝来の十六世紀の胴丸を型の手本とし、木瓜前立は借りない。
+  ['氏家卜全', 'suji', 'kuwa_wide', D.kuro, C.kon, 'kebiki', 0, 'none', 'oda',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108,
+      doOpening: 'right', honkozane: true, plateDo: null, sodeStyle: 'osode',
+      shikoroStyle: 'compact', shikoroLace: C.kon,
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriColor: D.kuro, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '直元。建勲神社の紺糸威胴丸による同時代の型の復元案。黒漆本小札・紺糸毛引威・右脇引合・大袖・十二間草摺・四十間筋兜と小形の錣。鍬形は既存形で補い、脇立・面頬・陣羽織・個人紋・馬印は補わない。旗は織田方の所属表示。出所は docs/generals_look_1108/氏家卜全.md'],
   ['安藤守就', 'momonari', 'kuwa_ken', D.chaurushi, C.kon, 'kebiki', 0xcfc8b4, 'none', txt('安藤'), null, '所用品は伝わらない。復元案'],
   // 箕作・大河内・金ヶ崎・姉川
   ['六角義賢', null, null, null, null, null, null, null, txt('六角'), null, '承禎。具足は前の表。旗は名の字'],

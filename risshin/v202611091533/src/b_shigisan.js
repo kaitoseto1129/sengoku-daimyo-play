@@ -2025,6 +2025,7 @@ const shigisan = {
   // 11/6 fixc1429：右上の目標は①〜⑤を始めから全部並べ（stages.js の段・goals5）、段の中で言い替えない（九1・十1）。
   //   「敵を何人討つ」で埋めない（三1）。一行の札も今の段の字をそのまま出す。
   stageGoalsOnly: true,
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（11/9 徳川A：弱めて入れる。突然の討死は二つまで・三分過ぎから）
   missions: SG_GOALS,
   missionOf(rt) {
     const F = rt.flags;

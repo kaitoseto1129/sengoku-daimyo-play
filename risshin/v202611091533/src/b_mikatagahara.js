@@ -1185,6 +1185,7 @@ function mikataBoard(rt) {
 }
 
 const mikatagahara = {
+  lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
   resumeSteps: [[1, 'first'], [2, 'crash'], [3, 'retreat']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // ---- 稲生の型：右上は任務の一行・行き先はピン一本・敵は頭上の▼・大将は印 ----
   missionSingleLine: true,
