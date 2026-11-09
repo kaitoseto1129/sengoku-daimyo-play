@@ -1,0 +1,174 @@
+// 全44戦の必須人物（docs/battle_events_1101.md）の具足を一人ずつ決める表（kaito 11/1）。読むだけの表で、三角も材質も持たない。
+// kacchu_data.js が名簿・調べの表を入れた後に重ねる。null は前の表の値（写真や伝来品で決めた物）をそのまま使う。
+// [名, 鉢, 立物, 胴の色, 威, 胴の作り, 陣羽織, 家紋, 旗印, 足し, 根拠]
+//   鉢：suji 筋兜・zunari 頭形・momonari 桃形・eboshi 烏帽子形・namazu 鯰尾・noshi_eboshi 熨斗烏帽子・namban 南蛮
+//   立物：kabuto_maedate.js・named_kacchu.js の形。伝わらない人は鍬形の類（当時ふつうの金物）にして、その人だけの立物を作らない
+//   旗印：textures.js の旗の鍵。sashi:紋:地色:墨色 は一人ずつの染め分け（紋は家紋の鍵か「字」で始まる字）
+// 根拠：伝来の具足・兜（博物館・社寺の所蔵）、肖像画、『信長公記』などの通説。確かめられない色と組み合わせは復元案で、根拠の欄に書く。
+// 同じ見た目の人を二人作らない（10/28 の決まり）：鉢・立物が同じ人は、威か胴の色を大きく変える（tools の確かめで数える）。
+
+// 威の色（伝統の色の名）
+const C = {
+  kon: 0x232c40, hanada: 0x3c5a8a, moegi: 0x6a7a2c, murasaki: 0x5a3a6a, hi: 0x9a2e20, kuchiba: 0x8a6a3a, cha: 0x6a4026,
+  shiro: 0xd8d0bc, kuro: 0x1c1a1a, asagi: 0x4a7a86, kurenai: 0xa8281c, ki: 0xa88a3a, nezu: 0x5a5650, kaki: 0x7a4a2a,
+  fuji: 0x7a6a9a, suou: 0x6a1e2a, uguisu: 0x5a6a3a, kobai: 0xa85a5a, hiwada: 0x6a3a2a, konjo: 0x1e3a6a, wakamoegi: 0x8a9a3a,
+};
+// 胴の塗り
+const D = { kuro: 0x1c1a1a, tame: 0x3a1e16, chaurushi: 0x4a3222, sabi: 0x4a3a2e, shutame: 0x5e2418, shu: 0x8e1f16, kintame: 0x5e4a2c, kin: 0xb08a3a, gin: 0x9a9a98 };
+const W = '#ece6d6', K = '#201f1c';
+const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ? ':' + band : '');
+const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
+
+export const REQUIRED_KACCHU = [
+  // ── 織田編 ──
+  // 稲生・桶狭間
+  ['織田信長', null, null, null, null, null, null, null, 'eiraku', null, '旗印は永楽通宝（通説）。具足は建勲神社の紺糸威胴丸と銀の南蛮胴の作り（前の表）'],
+  ['佐久間大学', 'suji', 'kuwa', D.shutame, C.asagi, 'kebiki', 0, 'sakuma', mon('sakuma', W, K, '#67a6ad'), null, '盛重。丸根砦で討死。所用品は伝わらない。佐久間の白・黒・浅葱に寄せた復元案'],
+  ['織田信勝', 'suji', 'kuwa_wide', D.kuro, C.moegi, 'kebiki', 0x3a2a3e, 'oda', 'aka_oda', null, '信行。稲生の信勝方。所用品は伝わらない。信長と同じ木瓜に萌黄の威の復元案。旗は稲生の信勝方の朱の木瓜'],
+  ['柴田勝家', null, null, null, null, null, null, null, mon('kari'), null, '二つ雁金の旗。立物の伝来は未確認なので付けない。馬印の金の御幣は得物の表'],
+  ['林秀貞', 'suji', 'kuwa_ken', D.chaurushi, C.hanada, 'kebiki', 0x2e3a42, 'oda', txt('林'), null, '通勝。所用品は伝わらない。復元案'],
+  ['林美作守', 'momonari', 'kuwa_wide', D.tame, C.kaki, 'sugake', 0, 'none', txt('林', '#8e2a1e', W), null, '通具。稲生で討死。兄の秀貞と鉢・威・旗の地を変えた復元案'],
+  ['毛利新介', 'zunari', 'kuwa', D.kuro, C.hi, 'sugake', 0, 'none', txt('毛利'), null, '良勝。義元を討った馬廻。馬廻の頭形兜に緋の素懸の復元案'],
+  ['服部小平太', 'zunari', 'none', D.tame, C.hanada, 'okegawa', 0, 'none', txt('服部', '#1d1b18', W), null, '一忠。義元へ最初に槍を付けた馬廻。立物なしの頭形兜の復元案'],
+  ['今川義元', null, null, null, null, null, null, null, mon('imagawa'), null, '赤地錦の直垂に胸白の具足と伝わる姿（前の表）。旗は今川の二つ引'],
+  ['松平元康', 'zunari', 'none', D.kin, C.kon, 'okegawa', 0, 'tokugawa', mon('tokugawa', '#1d1b18', '#d8c690'), { lac: 'kin', helm: D.kin }, '久能山東照宮の金陀美塗具足（大高城の兵糧入れの時と伝わる）。金の塗りの胴と頭形兜'],
+  ['朝比奈泰朝', 'suji', 'kuwa_sun', D.kuro, C.moegi, 'kebiki', 0x2e3a2a, 'imagawa', txt('朝比奈'), null, '鷲津砦を攻めた今川の将。所用品は伝わらない。復元案'],
+  // 森部・墨俣・稲葉山
+  ['前田利家', null, null, null, null, null, null, null, mon('maeda', '#1d1b18', W), null, '金小札の具足（前の表・写真）。旗は梅鉢'],
+  ['日比野下野守', 'momonari', 'kuwa', D.kuro, C.asagi, 'kebiki', 0x3a4632, 'saito', txt('日比野', '#dfe3e6'), null, '清実。森部で討死。所用品は伝わらない。復元案'],
+  ['長井甲斐守', 'eboshi', 'kuwa_ken', D.tame, C.kuchiba, 'okegawa', 0x4a5a22, 'saito', txt('長井', '#685391', W), null, '衛安。森部で討死。所用品は伝わらない。復元案'],
+  ['木下藤吉郎', null, null, null, null, null, null, null, 'oda', null, '若い頃の簡素な具足（前の表）。後の瓢箪の馬印・馬藺の兜はまだ使わない'],
+  ['蜂須賀小六', 'momonari', 'manji', D.chaurushi, C.hi, 'sugake', 0x7a1a12, 'hachisuka', 'hachisuka', null, '正勝。家紋の卍を前立にした復元案（所用の兜は伝わらない）'],
+  ['斎藤龍興', null, null, null, null, null, null, null, mon('saito'), null, '具足は前の表。旗は斎藤の紋'],
+  ['丹羽長秀', null, 'niwa_shikami', null, null, null, null, null, 'sujikai', null, '二本松の丹羽家に伝わる獅子頭（しかみ）の前立に寄せた形（前の表の形）。旗は直違'],
+  ['滝川一益', null, 'takigawa_buffalo', null, null, null, null, null, 'takigawa', null, '時代祭の銀水牛脇立を参考にした形（前の表の形）。旗は丸に竪木瓜'],
+  ['稲葉一鉄', null, 'kuwa', null, null, null, null, null, 'inaba', null, '良通。所用品は伝わらない。前の表の色に鍬形'],
+  ['氏家卜全', 'suji', 'kuwa_wide', D.sabi, C.hi, 'kebiki', 0, 'none', txt('氏家'), null, '直元。所用品は伝わらない。三人衆の稲葉・安藤と鉢・威を分けた復元案'],
+  ['安藤守就', 'momonari', 'kuwa_ken', D.chaurushi, C.kon, 'kebiki', 0xcfc8b4, 'none', txt('安藤'), null, '所用品は伝わらない。復元案'],
+  // 箕作・大河内・金ヶ崎・姉川
+  ['六角義賢', null, null, null, null, null, null, null, txt('六角'), null, '承禎。具足は前の表。旗は名の字'],
+  ['北畠具教', null, 'kuwa_wide', null, null, null, null, null, 'kitabatake', null, '公家大名。大鍬形の古式の兜に寄せた復元案。旗は北畠の笹竜胆'],
+  ['北畠具房', 'eboshi', 'kuwa', D.chaurushi, C.konjo, 'okegawa', 0x4a2a5a, 'kitabatake', mon('kitabatake', '#1d1b18', W), null, '父の具教と鉢と旗の地を変えた復元案'],
+  ['織田信雄', null, null, null, null, null, null, null, mon('oda', '#1d1b18', '#d8c690'), null, '具足は前の表。旗は黒地に金の木瓜（復元案）'],
+  ['明智光秀', null, 'sankoken', null, null, null, null, null, 'akechi', null, '伝光秀所用具足の三鈷剣の前立（前の表の形）。旗は水色桔梗'],
+  ['池田勝正', null, 'kuwa_sun', null, null, null, null, null, txt('池田'), null, '摂津池田の城主。所用品は伝わらない。復元案'],
+  ['徳川家康', null, null, null, null, null, null, null, 'onri', null, '関ヶ原以後は久能山東照宮の歯朶具足（伊予札・黒糸素懸威・黒漆の面頬）。以前の姿は年代別の復元案。旗は厭離穢土欣求浄土'],
+  ['浅井長政', null, null, null, null, null, null, null, 'azai', null, '具足は前の表。旗は三つ盛亀甲'],
+  ['朝倉義景', null, null, null, null, null, null, null, 'asakura', null, '具足は前の表。旗は三つ盛木瓜'],
+  ['森可成', null, null, null, null, null, null, null, 'tsuru', null, '具足は前の表。旗は鶴丸'],
+  ['佐久間信盛', null, null, null, null, null, null, null, null, null, '具足と旗は前の表（佐久間の旗）'],
+  ['酒井忠次', null, null, null, null, null, null, null, 'katabami', null, '具足は前の表（写真）。旗は片喰'],
+  ['本多忠勝', null, null, null, null, null, null, null, 'honda', null, '黒糸威に鹿角の脇立と大数珠（前の表・写真）。旗は立葵'],
+  ['磯野員昌', null, 'kuwa_ken', null, null, null, null, null, mon('azai', '#1d1b18', W), null, '姉川の浅井の先手。所用品は伝わらない。復元案'],
+  ['朝倉景健', null, 'kuwa_wide', null, null, null, null, null, mon('asakura', '#b76a30', W), null, '姉川の朝倉の大将。所用品は伝わらない。復元案'],
+  // 野田・福島・志賀・比叡山
+  ['三好長逸', null, 'kuwa', null, null, null, null, null, 'miyoshi', null, '三好三人衆。所用品は伝わらない。復元案'],
+  ['三好宗渭', 'momonari', 'kuwa_ken', D.tame, C.asagi, 'kebiki', 0, 'miyoshi', mon('miyoshi', '#1d1b18', W), null, '政康。三人衆の長逸と鉢・威を分けた復元案'],
+  ['岩成友通', 'zunari', 'kuwa_sun', D.tame, C.hanada, 'kebiki', 0x4a5a22, 'miyoshi', txt('岩成'), null, '三人衆。所用品は伝わらない。復元案'],
+  ['本願寺顕如', null, null, null, null, null, null, null, mon('sagarifuji', W, '#5a2e60'), null, '門主。紫の威（前の表）。旗は本願寺の下がり藤'],
+  ['鈴木孫一', 'suji', 'kuwa_ken', D.kintame, C.kuro, 'okegawa', 0x7a1a12, 'none', txt('雑賀', '#1d1b18', W), null, '雑賀の鉄砲頭。所用品は伝わらない。黒の威の復元案'],
+  ['織田信治', null, 'kuwa', null, null, null, null, null, mon('oda'), null, '信長の弟。宇佐山で討死。所用品は伝わらない。復元案'],
+  ['平手汎秀', null, 'kuwa_ken', null, null, null, null, null, txt('平手'), null, '三方ヶ原で討死。所用品は伝わらない。復元案'],
+  // 三方ヶ原・刀根坂・小谷・長島
+  ['武田信玄', null, null, null, null, null, null, null, 'furin', null, '諏訪法性の兜と白熊（前の表）。旗は孫子の旗'],
+  ['山県昌景', null, null, null, null, null, null, null, 'akazonae', null, '赤備え（前の表）'],
+  ['馬場信春', null, null, null, null, null, null, null, txt('馬場'), null, '地鉄の桃形（前の表）。旗は名の字'],
+  ['高坂昌信', null, 'horn', null, C.moegi, null, null, null, txt('高坂'), null, '春日虎綱。所用品は伝わらない。萌黄の威の復元案'],
+  ['羽柴秀吉', null, null, null, null, null, null, null, 'toyotomi', null, '一の谷馬藺後立の兜（前の表・写真）'],
+  ['浅井久政', null, null, null, null, null, null, null, mon('azai', '#408553', W), null, '長政の父。所用品は伝わらない。復元案'],
+  ['下間頼旦', null, null, null, null, null, null, null, 'namu', null, '長島の坊官。旗は南無阿弥陀仏'],
+  // 設楽原・越前・岩村
+  ['武田勝頼', null, null, null, null, null, null, null, mon('takeda', '#b52c20', W), null, '紅の威（前の表）。旗は朱地に割菱（復元案）'],
+  ['内藤昌豊', null, 'kuwa', null, null, null, null, null, txt('内藤'), null, '昌秀。設楽原で討死。所用品は伝わらない。復元案'],
+  ['真田信綱', null, 'kuwa_wide', null, null, null, null, null, 'sanada', null, '設楽原で討死。所用品は伝わらない。旗は六文銭'],
+  ['真田昌輝', null, 'kuwa', null, null, null, null, null, 'sanada2', null, '設楽原で討死。兄の信綱と鉢と威を分けた復元案'],
+  ['佐々成政', null, null, null, null, null, null, null, 'shuro', null, '具足は前の表。旗は棕櫚'],
+  ['不破光治', null, 'kuwa_sun', null, null, null, null, null, txt('不破'), null, '府中三人衆。所用品は伝わらない。復元案'],
+  ['織田信忠', null, 'kuwa_wide', null, null, null, null, null, mon('oda', '#cdac50', K), null, '所用品は伝わらない。黄の地に木瓜の旗の復元案'],
+  ['秋山虎繁', null, 'kuwa_ken', null, null, null, null, null, mon('takeda'), null, '信友。岩村城の将。所用品は伝わらない。復元案'],
+  ['河尻秀隆', null, 'kuwa', null, null, null, null, null, txt('河尻'), null, '所用品は伝わらない。復元案'],
+  // 天王寺・雑賀・手取川・信貴山・木津川口
+  ['塙直政', null, 'kuwa_wide', null, null, null, null, null, txt('塙'), null, '原田直政。天王寺で討死。所用品は伝わらない。復元案'],
+  ['上杉謙信', null, null, null, null, null, null, null, 'uesugi_bi', null, '飯綱の前立と色々威（前の表・写真）。旗は毘'],
+  ['松永久秀', null, null, null, null, null, null, null, txt('松永'), null, '具足は前の表。旗は名の字'],
+  ['筒井順慶', null, 'kuwa', null, null, null, null, null, 'umebachi', null, '所用品は伝わらない。復元案'],
+  ['九鬼嘉隆', null, 'kuwa_wide', null, null, null, null, 'kuki', 'kuki', null, '九鬼水軍。所用品は伝わらない。復元案'],
+  ['乃美宗勝', null, null, null, null, null, null, null, mon('mori'), null, '毛利水軍の将。復元案'],
+  ['村上元吉', null, null, null, null, null, null, null, txt('上'), null, '村上水軍。旗は丸に上の字に寄せた復元案'],
+  // 三木・有岡・伊賀・鳥取・高遠・田野
+  ['別所長治', null, 'kuwa_ken', null, null, null, null, null, txt('別所'), null, '三木城主。所用品は伝わらない。復元案'],
+  ['黒田官兵衛', null, null, null, null, null, null, null, 'kuroda', null, '銀白檀塗合子形兜（前の表）'],
+  ['竹中半兵衛', 'zunari', 'ichinotani', D.kuro, C.nezu, 'kebiki', 0x7a1a12, 'none', txt('竹中'), null, '重治。伝竹中重治所用の一の谷形兜に寄せた形'],
+  ['荒木村重', null, 'kuwa_sun', null, null, null, null, null, txt('荒木'), null, '有岡城主。所用品は伝わらない。復元案'],
+  ['蒲生氏郷', 'suji', 'tsubame', null, null, null, null, null, mon('tsuru'), null, '伝蒲生氏郷所用の燕尾形兜に寄せた形。旗は対い鶴に寄せた鶴'],
+  ['吉川経家', null, 'kuwa_sun', null, null, null, null, null, txt('吉川'), null, '鳥取城将。所用品は伝わらない。復元案'],
+  ['宮部継潤', null, 'kuwa_ken', null, null, null, null, null, txt('宮部'), null, '所用品は伝わらない。復元案'],
+  ['仁科盛信', null, 'kuwa_wide', null, null, null, null, null, txt('仁科', '#b52c20', W), null, '高遠城主。所用品は伝わらない。復元案'],
+  ['森長可', null, null, null, null, null, null, null, mon('tsuru', '#1d1b18', W), null, '具足は前の表。父の可成と旗の地を分ける'],
+  ['毛利長秀', null, null, null, null, null, null, null, txt('毛利', '#3c5a8a', W), null, '秀頼。所用品は伝わらない。復元案'],
+  ['武田信勝', 'zunari', 'kuwa', D.kuro, C.shiro, 'kebiki', 0x7a1a12, 'takeda', mon('takeda'), null, '勝頼の子。若武者の白糸威の復元案。父と鉢・威を分ける'],
+  ['土屋昌恒', null, 'kuwa_ken', null, null, null, null, null, txt('土屋'), null, '田野で討死。所用品は伝わらない。復元案'],
+  ['小山田信茂', null, null, null, null, null, null, null, txt('小山田'), null, '所用品は伝わらない。復元案'],
+  // 本能寺
+  ['森蘭丸', 'suji', 'kuwa', D.sabi, C.kurenai, 'kebiki', 0, 'tsuru', mon('tsuru'), null, '成利。信長の小姓。所用品は伝わらない。三兄弟で鉢と威を分けた復元案'],
+  ['森坊丸', 'zunari', 'kuwa_sun', D.tame, C.hanada, 'kebiki', 0, 'tsuru', mon('tsuru', '#3c5a8a', W), null, '長隆。復元案'],
+  ['森力丸', 'momonari', 'none', D.chaurushi, C.wakamoegi, 'sugake', 0, 'tsuru', mon('tsuru', '#6a7a2c', W), null, '長氏。復元案'],
+  ['斎藤利治', null, 'kuwa_wide', null, null, null, null, null, txt('斎藤'), null, '二条御所で討死。所用品は伝わらない。復元案'],
+  ['明智秀満', null, null, null, null, null, null, null, mon('akechi', '#1d1b18', '#8fb3c9'), null, '伝明智秀満所用の兎耳の兜（前の表・写真）'],
+  ['斎藤利三', null, 'kuwa_ken', null, null, null, null, null, txt('斎藤', '#3c5a8a', W), null, '所用品は伝わらない。復元案'],
+  // ── 豊臣編 ──
+  ['羽柴秀長', null, null, null, null, null, null, null, mon('toyotomi', '#1d1b18', '#d8c690'), null, '所用品は伝わらない。復元案（前の表の色）'],
+  ['中川清秀', null, 'kuwa_wide', null, null, null, null, 'none', txt('中川'), null, '賤ヶ岳で討死。所用品は伝わらない。前の桔梗の立物は根拠が無いので外す'],
+  ['高山右近', null, 'kuwa', null, null, null, null, 'none', txt('十', W, '#a8281c'), null, '重友。十字を旗に用いたと伝わる。兜の立物は根拠が無いので鍬形'],
+  ['池田恒興', null, null, null, null, null, null, null, 'ageha', null, '具足は前の表。旗は揚羽蝶'],
+  ['堀秀政', null, null, null, null, null, null, null, 'hori', null, '具足は前の表'],
+  ['加藤清正', null, null, null, null, null, null, null, txt('南無妙法蓮華経'), null, '長烏帽子形兜（前の表・写真）。旗印の題目は通説'],
+  ['福島正則', 'momonari', 'bull', null, null, null, null, 'mizuno', mon('mizuno'), null, '福岡市博物館の黒漆塗桃形大水牛脇立兜の系統で復元（交換伝承があり、正則所用の現存品とは断定しない）。前立なしの既存形、沢瀉は既存の紋で代用。胴・威・面頬は復元案。賤ヶ岳の若年指定は戦の表を優先。出所は docs/generals_look_1108/福島正則.md'],
+  ['脇坂安治', null, null, null, null, null, null, 'none', txt('脇坂'), null, '七本槍。所用品は伝わらない。復元案'],
+  ['加藤嘉明', 'zunari', 'fuji', null, null, null, null, 'none', txt('加藤', '#1d1b18', W), null, '伝加藤嘉明所用の富士山形兜に寄せた形'],
+  ['平野長泰', null, null, null, null, null, null, 'none', txt('平野'), null, '七本槍。所用品は伝わらない。復元案'],
+  ['片桐且元', null, null, null, null, null, null, 'none', txt('片桐'), null, '七本槍。所用品は伝わらない。復元案'],
+  ['糟屋武則', 'suji', null, null, null, null, null, 'none', txt('糟屋'), null, '七本槍。所用品は伝わらない。復元案'],
+  ['佐久間盛政', null, null, null, null, null, null, 'sakuma', mon('sakuma', '#1d1b18', W), null, '鬼玄蕃。所用品は伝わらない。復元案'],
+  ['羽柴秀次', 'suji', 'kuwa_wide', D.kuro, C.cha, 'kebiki', 0x3a2a24, 'toyotomi', mon('toyotomi'), null, '所用品は伝わらない。茶の威の復元案（11/8 critic60 長久手 四3：紫を出さない。藤の威と馬の房が紫に見えた）'],
+  ['井伊直政', null, null, null, null, null, null, null, 'ii', null, '朱漆の赤備えと天衝の脇立（前の表・写真）'],
+  ['榊原康政', null, null, null, null, null, null, null, 'sakakibara', null, '黒糸威に白熊（前の表・写真）。旗は無'],
+  ['仙石秀久', 'momonari', 'kuwa_ken', D.tame, C.kuchiba, 'okegawa', 0x302b32, 'eiraku', mon('eiraku', '#1d1b18', W), null, '仙石の家紋は永楽銭。所用品は伝わらない。復元案'],
+  ['津田監物', 'zunari', 'kuwa', D.sabi, C.cha, 'okegawa', 0, 'none', txt('根来'), null, '根来衆の鉄砲の頭。所用品は伝わらない。復元案'],
+  ['蜂須賀家政', null, null, null, null, null, null, 'hachisuka', mon('hachisuka', '#1d1b18', W), null, '所用品は伝わらない。復元案'],
+  ['宇喜多秀家', null, null, null, null, null, null, null, 'ukita', null, '所用品は伝わらない。復元案'],
+  // 伝来の具足と陣羽織を組み合わせた復元。出所：docs/generals_look_1108/小早川秀秋.md
+  ['小早川秀秋', 'suji', 'hideaki_ushiro', D.kuro, 0x6a3a62, 'kebiki', 0xa8281c, 'none', mon('kobayakawa'), { lac: 'kuro', doOpening: 'nimai', honkozane: true, menpo: 0, haoriMon: 'kobayakawa', haoriMonCol: 0x16140f, haoriCollar: 0xb5a06b, fur: 0, uma: null }, '遊就館の伝所用紫糸威二枚胴具足を参考に、三鍬形後立を既存の剣付鍬形で略復元。陣羽織は東博の伝所用品。戦当日の組合せは未確認'],
+  ['小早川隆景', null, null, null, null, null, null, null, 'kobayakawa', null, '具足は前の表'],
+  ['長宗我部元親', 'momonari', null, null, null, null, null, null, 'chosokabe', null, '具足は前の表'],
+  ['長宗我部信親', 'suji', 'kuwa_wide', D.kuro, C.moegi, 'kebiki', 0x5a1a14, 'chosokabe', mon('chosokabe', '#1d1b18', W), null, '戸次川で討死。所用品は伝わらない。父の元親と威を分けた復元案'],
+  ['十河存保', null, null, null, null, null, null, null, mon('miyoshi', W, '#9a2e20'), null, '戸次川で討死。所用品は伝わらない。復元案'],
+  ['大友義統', null, null, null, null, null, null, null, 'otomo', null, '所用品は伝わらない。復元案'],
+  ['島津家久', null, null, null, null, null, null, null, 'shimazu', null, '所用品は伝わらない。復元案'],
+  ['前田利長', 'namazu', 'none', D.gin, C.kon, 'kebiki', 0, 'maeda', mon('maeda'), { lac: 'gin', helm: 0xb8bcc0 }, '前田家に伝わる銀の鯰尾形兜に寄せた形'],
+  ['島津義弘', 'suji', 'kuwa_ken', D.kuro, 0x703d78, 'kebiki', 0, 'shimazu', mon('shimazu', '#1d1b18', W), { helm: D.kuro, lac: 'kuro', menpo: 0, domaru: true, honkozane: true, doOpening: 'right', sodeStyle: 'osode' }, '貴久寄進の現存胴丸による復元案。義弘所用品ではない。出所は docs/generals_look_1108/島津義弘.md'],
+  ['中村一氏', 'zunari', 'kuwa_ken', D.tame, C.asagi, 'sugake', 0, 'none', txt('中村'), null, '山中城の寄せ手。所用品は伝わらない。復元案'],
+  ['渡辺勘兵衛', 'momonari', 'horn', D.kuro, C.suou, 'okegawa', 0, 'none', txt('渡辺'), null, '了。槍の勘兵衛。所用品は伝わらない。復元案'],
+  ['松田康長', 'suji', 'kuwa', D.kuro, C.uguisu, 'kebiki', 0, 'hojo', mon('hojo'), null, '山中城の将。所用品は伝わらない。復元案'],
+  ['石田三成', 'suji', 'sun', D.kuro, C.kurenai, 'sugake', 0, 'none', 'ishida', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, doOpening: 'nimai', menpo: 0, fur: 0, kusazuriFur: 0x1a1816, kusazuriLaceRows: 5 }, '宇治田家伝来・伝三成所用の紅糸素懸威二枚胴具足。鉄錆地六十二間筋兜と日輪前立、草摺裾の熊毛。脇立は補わない。当日着用は未確認の復元案。出所は docs/generals_look_1108/石田三成.md'],
+  ['成田長親', 'suji', 'kuwa_wide', D.kuro, C.kobai, 'kebiki', 0, 'none', txt('成田'), null, '忍城の将。所用品は伝わらない。復元案'],
+  ['上杉景勝', null, null, null, null, null, null, null, 'uesugi', null, '具足は前の表（写真）'],
+  ['直江兼続', 'suji', 'naoe_ai', D.kin, 0x5a9aa0, 'sugake', 0, 'none', 'uesugi', { helm: 0x4a3a2e, lac: 'sabi', sujiPlates: 62, shinodare: false, fukigaeshiBadge: false, doubleShikoro: true, doOpening: 'nimai', honkozane: true, goldKozane: true, menpo: 0, fur: 0, horo: 0, uma: null }, '上杉神社の伝兼続所用・金小札浅葱糸威二枚胴具足と鉄錆地塗六十二間筋兜。愛字と瑞雲は既存形。陣羽織・脇立・個人馬印は補わない。所属旗で示す復元案。当日の着用は未確認。出所は docs/generals_look_1108/直江兼続.md'],
+  ['真田昌幸', null, null, null, null, null, null, null, 'sanada', null, '錆地の筋兜（前の表）。旗は六文銭'],
+  ['横地監物', 'momonari', 'kuwa', D.sabi, C.nezu, 'okegawa', 0, 'hojo', mon('hojo', '#1d1b18', W), null, '吉信。八王子城の守将。所用品は伝わらない。復元案'],
+  ['毛利輝元', null, null, null, null, null, null, null, 'mori', null, '具足は前の表'],
+  ['北条氏直', 'suji', 'kuwa_wide', D.kuro, C.hanada, 'kebiki', 0x1f2a44, 'hojo', 'hojo', null, '所用品は伝わらない。父の氏政と鉢と威を分けた復元案'],
+  ['北条氏政', null, null, null, null, null, 0x4a3a22, null, mon('hojo', '#bca25c', K), null, '具足は前の表'],
+  ['北条氏照', null, null, null, null, null, null, null, mon('hojo', '#1d1b18', '#d8c690'), null, '所用品は伝わらない。復元案'],
+  ['北条氏邦', null, null, null, C.moegi, null, null, null, mon('hojo', '#6a7a2c', W), null, '所用品は伝わらない。兄の氏照と威を分けた復元案'],
+  ['松田憲秀', null, 'kuwa_ken', null, null, null, null, null, txt('松田'), null, '所用品は伝わらない。前の十字は根拠が無いので外す'],
+  ['大道寺政繁', null, 'kuwa', null, null, null, null, null, txt('大道寺'), null, '所用品は伝わらない。前の歯朶は根拠が無いので外す'],
+];
+// 同じ人の別名（戦の定義が使う名）。同じ具足を指す
+export const REQUIRED_ALIAS = {
+  島津義珍: '島津義弘',
+  織田信行: '織田信勝', 佐久間盛重: '佐久間大学', 六角承禎: '六角義賢', 原田直政: '塙直政', 竹中重治: '竹中半兵衛',
+  森成利: '森蘭丸', 豊臣秀長: '羽柴秀長', 豊臣秀次: '羽柴秀次', 三好信吉: '羽柴秀次', 蜂須賀正勝: '蜂須賀小六', 氏家直元: '氏家卜全',
+  稲葉良通: '稲葉一鉄', 渡辺了: '渡辺勘兵衛', 横地吉信: '横地監物', 毛利秀頼: '毛利長秀', 春日虎綱: '高坂昌信',
+};
+// 具足を着せない必須人物：お市（小谷を出る人。小袖のまま）。おつやの方は岩村の女城主で、名簿の具足のまま
