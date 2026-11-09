@@ -7,12 +7,12 @@ const N = (n) => (rt) => rt.army.groups.find((g) => g.name === n && g.count > 0 
 export default {
   A: { name: '佐竹', facing: -Math.PI / 2, honjin: { x: 194, z: -4 }, mpu: 4, formation: '長蛇', terrain: 'road', flag: 'satake', armor: 0x24221f, uma: 'ogi', openAt: 40, attrition: 0.002,
     sonae: [
-      { id: 'umezu', layer: 'sakite', wing: 'center', men: 400, taisho: '梅津憲忠', flag: 'satake', bind: F('satake') },
-      { id: 'shibue', layer: 'ichi', wing: 'center', men: 400, taisho: '渋江政光', flag: 'satake', bind: F('shibue') },
-      { id: 'tomura', layer: 'ni', wing: 'center', men: 300, taisho: '戸村義国', flag: 'satake', bind: F('tomura') },
-      { id: 'ato', layer: 'yobi', wing: 'center', men: 500, taisho: '', flag: 'satake', show: false, at: { x: 176, z: 0 } },
-      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 400, taisho: '佐竹義宣', flag: 'satake', bind: N('佐竹義宣の本陣') },
-      { id: 'konida', layer: 'konida', wing: 'center', men: 200, show: false, at: { x: 232, z: 0 } },
+      { id: 'umezu', layer: 'sakite', wing: 'center', men: 300, taisho: '梅津憲忠', flag: 'satake', bind: F('satake') },
+      { id: 'shibue', layer: 'ichi', wing: 'center', men: 300, taisho: '渋江政光', flag: 'satake', bind: F('shibue') },
+      { id: 'tomura', layer: 'ni', wing: 'center', men: 200, taisho: '戸村義国', flag: 'satake', bind: F('tomura') },
+      { id: 'ato', layer: 'yobi', wing: 'center', men: 300, taisho: '', flag: 'satake', show: false, at: { x: 176, z: 0 } },
+      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 300, taisho: '佐竹義宣', flag: 'satake', bind: N('佐竹義宣の本陣') },
+      { id: 'konida', layer: 'konida', wing: 'center', men: 100, show: false, at: { x: 232, z: 0 } },
     ] },
   B: { name: '豊臣', facing: Math.PI / 2, honjin: { x: -240, z: 0 }, mpu: 4, formation: '長蛇', terrain: 'road', flag: 'toyotomi', armor: 0x2c2a26, openAt: 40, attrition: 0.003,
     sonae: [

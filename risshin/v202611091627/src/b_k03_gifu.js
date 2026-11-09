@@ -711,7 +711,8 @@ const k03_gifu = {
     const B = F._botIg || (F._botIg = { e: null, t: 0, skip: new Map() });
     // 今の段の持ち場から 30 歩より遠い敵は追わない（中腹の砦の段で退く敵を追って本丸の下まで登り、段の守りに戻らなかった。11/8 bot）
     const at = STEP_AT[F.step] || u.pos;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.group?._fallen && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4);   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
+    const near4 = (o) => Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 4;
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && (!o.group?._fallen || near4(o) && (o.atk || o.swing)) && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && (Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30 || near4(o));   // 斬り掛かってくる敵は持ち場の外でも払う（突かれ続けて十分止まった。11/9 bot）
     const e = b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -732,7 +733,18 @@ const k03_gifu = {
     //   味方の隊と同じ wayNext で、道の一つ先の曲がり角へ
     const q = wayNext(u.pos, t, B.w || (B.w = { x: 0, z: 0 }));
     // 上台所の内からは奥の口（-26, -1.5）の真ん中を通す（口の北の石垣に突っかかって十分止まった。11/9 bot）
-    if (F.step === 5 && u.pos.x > -40 && u.pos.x < -26.5 && Math.abs(u.pos.z) < 8 && Math.abs(u.pos.z + 1.5) > 1) { q.x = -28; q.z = -1.5; }
+    if (F.step === 5 && u.pos.x > -40 && u.pos.x < -26.5 && Math.abs(u.pos.z) < 8 && Math.abs(u.pos.z + 1.5) > 1) {
+      // 口の北（z>0.5）の x -31 より東は南へ出られない当たりがある（11/9 描かずの確かめ）。一度西へ下がってから口の筋へ
+      if (u.pos.z > 0.5 && u.pos.x > -31.5) { q.x = -33; q.z = -0.5; } else { q.x = -28; q.z = -1.5; }
+    }
+    // 足が止まったら（十二秒で二歩も動かない）、三秒だけ横へ外して回り込む（居館の門の脇で十五分止まった。11/9 bot）
+    const sp = B.sp || (B.sp = { x: u.pos.x, z: u.pos.z, t: b.t, side: 0, until: 0 });
+    if (Math.hypot(u.pos.x - sp.x, u.pos.z - sp.z) > 2) { sp.x = u.pos.x; sp.z = u.pos.z; sp.t = b.t; }
+    else if (b.t - sp.t > 12 && b.t > sp.until) { sp.side = sp.side > 0 ? -1 : 1; sp.until = b.t + 3; sp.t = b.t; }
+    if (b.t < sp.until) {
+      const dx = q.x - u.pos.x, dz = q.z - u.pos.z, d = Math.hypot(dx, dz) || 1;
+      q.x = u.pos.x - dz / d * 6 * sp.side + dx / d * 2; q.z = u.pos.z + dx / d * 6 * sp.side + dz / d * 2;
+    }
     goTo(p, inp, q.x, q.z, 2);
   },
 };

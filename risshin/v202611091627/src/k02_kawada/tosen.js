@@ -50,6 +50,7 @@ export function install(rt, ctx) {
 // 織田（岐阜方）：北岸の木造長政・東の浅瀬の鉄砲は本物。奥に秀信の旗本と後詰（最前線に出しすぎない）
 const Fk = (k) => (rt) => rt.flags[k];
 export const depthPlan = {
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/）
   A: { name: '東軍', facing: Math.PI, honjin: { x: -24, z: 132 }, mpu: 6, formation: '雁行', terrain: 'river', flag: 'ageha', armor: BLACK, openAt: 9999, attrition: 0.002,
     sonae: [
       { id: 'mine', layer: 'sakite', wing: 'center', men: 300, taisho: '', bind: Fk('mine') },
