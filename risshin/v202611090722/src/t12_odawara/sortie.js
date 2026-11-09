@@ -22,7 +22,7 @@ export function step(H) {
       C.foe = enemyGroup(rt, { faction: 'hojo', name: '打って出た北条勢', anchor: { ...H.KIDO_F }, facing: Math.PI / 2, width: 8, formation: 'line', aggro: 6, morale: 90, noRout: true,
         order: 'move', dest: { x: H.BANK.x - 2, z: H.BANK.z }, speed: 3 },
       H.dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }], H.HOJO));
-      C.foe.dmgMult = 0.4;
+      C.foe.dmgMult = 0.55;
       C.foe.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
       C.n0 = C.foe.units.length;
       C.groups.push(C.foe);
@@ -41,7 +41,7 @@ export function step(H) {
         C.foe2 = enemyGroup(rt, { faction: 'hojo', name: '北条の二の手', anchor: { x: H.KIDO_F.x, z: H.KIDO_F.z + 4 }, facing: Math.PI / 2, width: 6, formation: 'line', aggro: 8, morale: 90, noRout: true,
           order: 'move', dest: { x: H.BANK.x - 2, z: H.BANK.z - 6 }, speed: 3.2 },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], H.HOJO));
-        C.foe2.dmgMult = 0.4;
+        C.foe2.dmgMult = 0.55;
         C.foe2.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
         C.groups.push(C.foe2);
         rt.say('井伊の足軽', '木戸からまた出て来る！', 2.6);
@@ -51,7 +51,7 @@ export function step(H) {
         C.foe3 = enemyGroup(rt, { faction: 'hojo', name: '北条の三の手', anchor: { x: H.KIDO_F.x, z: H.KIDO_F.z - 10 }, facing: Math.PI / 2, width: 6, formation: 'line', aggro: 8, morale: 90, noRout: true,
           order: 'move', dest: { x: H.BANK.x - 2, z: H.BANK.z - 14 }, speed: 3.2 },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 3 }], H.HOJO));
-        C.foe3.dmgMult = 0.4;
+        C.foe3.dmgMult = 0.55;
         C.foe3.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
         C.groups.push(C.foe3);
         rt.army.play('eshout', C.foe3.anchor, 1.2);
