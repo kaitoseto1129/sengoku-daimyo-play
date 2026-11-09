@@ -164,7 +164,8 @@ export function k15Track(rt, g, label, o, done) {
     const left = k15Live(g);
     rt.objProgress('main', `${label} ${left}／${N0}`);
     if (left <= (o.left ?? 1) || rt.t - t0 > (o.sec || 90)) {
-      if (o.flee) k15Rout(rt, g, o.flee);
+      // 残りは退く（次の段へ持ち越して数を積み上げない）
+      if (o.flee) k15Rout(rt, g, o.flee); else for (const u of [...g.units]) if (u.alive && !u.gone) rt.army.despawn(u);
       rt.unmark('k15foe'); F.k15fight = false;
       if (o.reward) rt.award((t) => t.side.push(o.reward), o.reward);
       done?.();
@@ -173,4 +174,14 @@ export function k15Track(rt, g, label, o, done) {
     rt.after(0.5, tick, true);
   };
   rt.after(1, tick, true);
+}
+
+// 段の合間に息を整える（長くした戦で、前の段の傷だけで倒れきらないように）
+export function k15Heal(rt, k = 0.85) { const u = rt.player.u; if (u.alive) u.hp = Math.max(u.hp, u.maxHp * k); }
+
+// 段の間、前の段の時計（F[key]）を止める（前の段の「何秒たったら失敗・先へ」を、挟んだ段の長さで踏まない）
+export function k15Freeze(rt, stage, key = 'pT') {
+  const F = rt.flags, t0 = rt.t, base = F[key];
+  const keep = () => { if (F.k15stage !== stage || rt.over) return; if (base != null) F[key] = base + (rt.t - t0); rt.after(0.5, keep, true); };
+  keep();
 }
