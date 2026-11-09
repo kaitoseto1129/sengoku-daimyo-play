@@ -302,7 +302,9 @@ const k06_sekigahara = {
     const s = F.step, P = rt.player.u.pos;
     // 左近との接近が済むまでは本人へ。旗本を退かせ終えたら、残兵を追わず笹尾山へ登る。
     const climbing = s === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
-    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : s === 6 ? lead(F.kuroda, KURODA)
+    // 必要な数を押し返した後は藤下へ。遠くの残兵を指し続けると、完了に必要な先手の陣前へ戻れない。
+    const pushed = s === 5 && F.wave2b && nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) <= Math.round(F.akaN * 0.4);
+    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? (pushed ? UKITA_F : front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4)) : s === 6 ? lead(F.kuroda, KURODA)
       : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
     // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
     if (s === 8 && P.x > FENCE_X - 1 && P.z > -214 && P.z < -128) {
