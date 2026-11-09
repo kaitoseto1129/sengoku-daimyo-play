@@ -484,8 +484,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["池田忠雄", "namban", "cross", 0x1c1a1a, 0x66513b, "okegawa", 0xb17c4d, 0x1c1a1a, "none", ""],
   // 井伊直孝：井伊の赤備え。朱漆の頭形兜に金の天衝、朱漆の桶側胴に紺糸威（直政の仏胴・赤糸とは分ける。彦根城博物館の井伊家伝来の朱具足の型。復元案）
   ["井伊直孝", "zunari", "ii_tentsuki", 0xa52b1c, 0x2e3a52, "okegawa", 0, 0xa52b1c, "ii", ""],
-  // 松平忠直：越前勢の大将。黒漆の六十二間筋兜に日輪付きの鍬形、白糸の毛引威、葵（父結城秀康の烏帽子形とは分ける。復元案）
-  ["松平忠直", "suji", "kuwa_sun", 0x1c1a1a, 0xd8d0bc, "kebiki", 0, 0x1c1a1a, "tokugawa", ""],
+  // 松平忠直：伝大坂陣所用の緋威鉄五枚胴具足。鹿角と五枚胴は既存形で略復元（細部は必須表、出所は docs/generals_look_1108/松平忠直.md）。
+  ["松平忠直", "suji", "honda_shika", 0x1c1a1a, 0x9a2e20, "sugake", 0, 0x1c1a1a, "none", ""],
   // 小笠原秀政：信濃守護の家（三階菱）。頭形兜に大鍬形、萌黄糸の桶側胴、鼠の陣羽織。葵は付けない（復元案）
   ["小笠原秀政", "zunari", "kuwa_wide", 0x24221f, 0x6a7a2c, "okegawa", 0x5a5a5a, 0x24221f, "none", ""],
   ["後藤又兵衛", "zunari", "moon", 0x2a2624, 0xa88a3a, "okegawa", 0x2a2a2a, 0x2a2624, "toyotomi", ""],

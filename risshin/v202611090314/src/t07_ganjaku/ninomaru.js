@@ -37,10 +37,9 @@ export function start(rt, K) {
 export function update(rt, K) {
   const F = rt.flags, el = rt.t - F.n4.t0;
   const left = (F.nino ? K.fighting(F.nino) : 0) + (F.nino2 ? K.fighting(F.nino2) : 0);
-  if (el > 150 && left <= 3 && (F.nino2 || el > 45)) return true;
-  // 長引けば城兵は本丸へ逃げ込む（いつまでも曲輪に残らない）
-  if (el > 185) {
-    for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
+  // 討ち減らされた時も、長引いた時も、残兵は本丸へ退く。少数だけ曲輪で戦い続けない
+  if ((el > 150 && left <= 3) || el > 185) {
+    for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.fire = false; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
     return true;
   }
   return false;

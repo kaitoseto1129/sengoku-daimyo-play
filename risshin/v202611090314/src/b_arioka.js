@@ -2942,7 +2942,7 @@ function sendAriFriends(rt, at, hold) {
     g.ariMarchWidth ??= g.width;
     g.width = hold ? g.ariMarchWidth : 5;
     g.dest = hold ? { x: at.x - (ranged ? 9 : 4 + Math.floor(offset / 21) * 6), z: at.z + (ranged ? 0 : (offset % 21) - 7) }
-      : { x: TOWN_X + (ranged ? 0 : (offset / 7 % 2 ? 1 : -5)),
+      : { x: at.x + (ranged ? 2 : (offset / 7 % 2 ? 3 : -3)),
         z: at.z + (ranged ? 10 : 3 - Math.floor(offset / 14) * 7) };
     // 辻の西の町屋と東の柵の間へ収める。幅十四メートルの列で壁を押し続けない。
     // 辻を取る役目は追撃ではない。後詰も輪の内に収め、十二秒の確保に加わる。
@@ -2957,11 +2957,14 @@ const ARI_STREET = [[GATE.x - 6, GATE.z], [GATE.x + 4, GATE.z], [TOWN_X - 24, GA
 const ARI_TOWN_WAY = ARI_STREET.slice(1), ARI_TOWN_WAY_BACK = ARI_TOWN_WAY.slice().reverse();
 function ariStreetWay(c, dest, back) {
   const road = back ? ARI_STREET.slice().reverse() : ARI_STREET;
-  let k = 0, best = Infinity;
+  let k = 0, end = 0, best = Infinity, destBest = Infinity;
   road.forEach(([x, z], i) => { const d = Math.hypot(x - c.x, z - c.z); if (d < best) { best = d; k = i; } });
+  road.forEach(([x, z], i) => { const d = Math.hypot(x - dest.x, z - dest.z); if (d < destBest) { destBest = d; end = i; } });
   // 既に通りの終わり近く（行き先まで二十メートル以内）なら角をたどらない。
   if (Math.hypot(dest.x - c.x, dest.z - c.z) < 20) return [[dest.x, dest.z]];
-  return [...road.slice(k + 1), [dest.x, dest.z]];
+  // 途中の角を押さえる段では、辻まで通り越してから引き返さない。
+  const corners = end >= k ? road.slice(k + 1, end + 1) : road.slice(end, k).reverse();
+  return [...corners, [dest.x, dest.z]];
 }
 function ariStage(o, defending) {
   const orders = defending ? o.waves : [{ t: 0, foes: o.foes }, ...o.later];
@@ -3096,12 +3099,13 @@ function ariStage(o, defending) {
       //   滝川の手は数千。辻が押されたら三度まで、木戸から来た通り（辻の南）を後詰の組が駆け付ける（史実の侍町はほぼ抵抗なく取れた）。
       //   辻を失うのは、後詰を出し尽くした後か、本人が辻を離れている時だけ。
       if ((C.friendLowT >= 10 || defending && o.fromSide && C.lostT >= 10) && (C.relief || 0) < 3 && el >= (C.reliefAt || 0)) {
-        C.relief = (C.relief || 0) + 1; C.lostT = 0; C.friendLowT = 0; C.reliefAt = el + 30;
-        const g = allyGroup(rt, { name: '滝川の後詰の組', anchor: { x: ARI_JUNCTION.x + 3, z: ARI_JUNCTION.z - 62 }, facing: 0, order: 'move', formation: 'column', width: 4, aggro: 10, morale: 90 },
-          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }], TAKIGAWA));
-        g.dest = { x: C.at.x, z: C.at.z }; g.onArrive = (q) => { q.anchor = q.dest; q.order = 'hold'; q.formation = 'yari'; q.onArrive = null; };
-        (rt.flags.committed || (rt.flags.committed = [])).push(g);
-        if (C.relief === 1) rt.say('滝川一益', '辻が押されておる。後詰を出せ！', 3.5);
+        const g = ariReinforce(rt, C.at, 11);
+        C.reliefAt = el + 30;
+        if (g) {
+          C.relief = (C.relief || 0) + 1; C.lostT = 0; C.friendLowT = 0;
+          g.name = '滝川の後詰の組';
+          if (C.relief === 1) rt.say('滝川一益', '辻が押されておる。後詰を出せ！', 3.5);
+        }
       }
       if (!defending) {
         // 全滅を求めず、一つの辻を組と十二秒確保すれば次の下知へ。
@@ -3265,7 +3269,9 @@ function ariReinforce(rt, at, n = 10) {
   const g = allyGroup(rt, { name: '滝川の新手の組', anchor: { x: GATE.x + 6, z: GATE.z + 3 }, facing: Math.PI / 2, order: 'move', formation: 'column', width: 4, aggro: 10, morale: 90 },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: k - 1 }], TAKIGAWA));
   g.order = 'path'; g.path = ariStreetWay(g.center(), at, false); g.pathIdx = 0;
-  g.onArrive = (q) => { q.anchor = { x: at.x, z: at.z }; q.order = 'hold'; q.formation = 'yari'; q.onArrive = null; };
+  g.noAI = true; g.noRout = true; g.seekRange = 14;
+  g.ariSpeed0 = g.speed; g.speed = Math.max(g.speed || 0, 3.6);
+  g.onArrive = (q) => { q.anchor = { x: at.x, z: at.z }; q.order = 'hold'; q.formation = 'yari'; q.seekRange = 35; q.speed = q.ariSpeed0; q.onArrive = null; };
   (rt.flags.committed || (rt.flags.committed = [])).push(g);
   return g;
 }
