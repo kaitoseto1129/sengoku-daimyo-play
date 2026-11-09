@@ -22,10 +22,15 @@ export function wrap(def, K) {
         for (const g of [...(F.sallies || []), ...(F.k15walls || [])]) {
           if (!g.units.some((u) => u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) continue;
           // 麓へ直進すると急斜面を横切る。使いが登った折れ道を逆に下る。
-          g.noAI = false; g.order = 'path';
+          // 助命後の列を、飢餓による士気低下や出撃時の敗走へ戻さない。
+          g.routed = false; g.ttRetreat = false; g.noRout = true;
+          g.noAI = false; g.order = 'path'; g.arriveNoncombat = true;
           g.path = [[G.x, G.z + 10], ...K.CASTLE_ROADS[0].slice().reverse(), [G.x, K.FENCE_Z - 4]];
           g.pathIdx = 0; g.aggro = 0; g.onArrive = null; g.followColumnRoad = true;
-          for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; }
+          for (const u of g.units) {
+            u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.dmg = 0;
+            if (u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound) u.fleeing = false;
+          }
         }
       }],
       [5, () => r.say('足軽', 'あれが……　百日籠もった者たちか', 3.5)],

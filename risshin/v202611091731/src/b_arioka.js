@@ -2815,6 +2815,24 @@ const arioka = {
     const guide = F.guideT <= 0;
     if (guide) F.guideT = 0.5;
     if (F.step === 1) {
+      // 木戸を組と押さえた後、奥の射手一人を追うためだけに攻めを止めない。
+      // 柵越しの兵は数えず、本人が木戸の内で十二秒、二倍の兵力を保つ必要がある。
+      if (guide) {
+        const post = F.gatePost || (F.gatePost = { x: GATE.x + 10, z: GATE.z,
+          y: rt.world.heightAt(GATE.x + 10, GATE.z) });
+        let friend = 0, enemy = 0;
+        for (const u of rt.army.units) {
+          if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ
+            || Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 12
+            || Math.abs(u.pos.y - post.y) > 3 || rt.army.wallBetween(u.pos, -1, post)) continue;
+          if (u.team === 0) friend++; else enemy++;
+        }
+        const p = rt.player.u.pos;
+        const secure = p.x >= GATE.x + 8 && Math.hypot(p.x - post.x, p.z - post.z) <= 12
+          && friend >= 2 && friend >= enemy * 2;
+        if (!secure) F.gateHeldAt = null;
+        else F.gateHeldAt ??= rt.t;
+      }
       if (guide && !gone(F.g1)) {
         const left = Math.max(0, Math.ceil(240 - (rt.t - F.stepT)));
         // 携帯で補足が隠れても、攻めの期限を本文から読めるようにする。
@@ -2824,7 +2842,9 @@ const arioka = {
           rt.say('滝川の組頭', '攻めの時が尽きるぞ。組と木戸の内へ押し入れ', 4);
         }
       }
-      if (gone(F.g1) && rt.player.u.pos.x >= GATE.x + 8) {
+      if ((gone(F.g1) || F.gateHeldAt != null && rt.t - F.gateHeldAt >= 12) && rt.player.u.pos.x >= GATE.x + 8) {
+        // 木戸を失った番兵は本丸へ退く。残兵を無かった事にはしない。
+        if (!gone(F.g1)) { F.g1.noRout = false; F.g1.morale = 0; }
         rt.unmark('g1');
         rt.award((t) => t.side.push('砦の兵を退けた'), '砦の兵を退けた');
         F.g1Done = true;
@@ -3041,12 +3061,18 @@ function ariStage(o, defending) {
             // 10/31 槍の組は着いたら本人を目がけて押す（一組おきに。残りは口を固める）。
             const hunt = !ranged && C.groups.length % 2 === 0;
             g.onArrive = (q) => { q.ariEngaged = true; q.order = 'hold'; q.formation = sp.formation || (ranged ? 'line' : 'yari'); if (defending) q.facing = o.fromSide ? Math.atan2(C.at.x - q.anchor.x, C.at.z - q.anchor.z) : -Math.PI / 2;
-              if (hunt && rt.player.u.alive) { q.order = 'attack'; q.focus = rt.player.u; q.seekRange = Math.max(q.seekRange || 0, 30); } };
+              // 混成の組の弓まで本人だけに固執させず、射線の通る近い敵にも応戦する。
+              if (hunt && rt.player.u.alive) { q.order = 'attack'; q.focus = null; q.seekRange = Math.max(q.seekRange || 0, 30); } };
             g.aggro = 16;
             // 11/6 fix61：町屋の陰の鉄砲衆が、塀の角の持ち場へ寄れず五人が一点に重なったまま止まった。
-            //   十四秒で着かなければ、今いる所を持ち場にして横に開き、撃ち始める。
+            //   十四秒で兵の展開だけが遅れた時は横に開く。遠い道中で進軍を打ち切らない。
             const arrive = g.onArrive;
-            rt.after(14, () => { if (g.onArrive !== arrive || g.order !== 'move' || ariSpent(g)) return; const c = g.center(); g.dest = g.anchor = { x: c.x, z: c.z }; g.onArrive = null; arrive(g); });
+            rt.after(14, () => {
+              if (g.onArrive !== arrive || g.order !== 'move' || ariSpent(g)) return;
+              const c = g.center();
+              if (Math.hypot(c.x - g.dest.x, c.z - g.dest.z) > 6) return;
+              g.dest = g.anchor = { x: c.x, z: c.z }; g.onArrive = null; arrive(g);
+            });
             C.groups.push(g);
           }
         }
@@ -3102,9 +3128,11 @@ function ariStage(o, defending) {
       const ready = !C.orders.length && (C.groups.every((g) => ariSpent(g) || g.ariEngaged)
         || (defending ? el >= o.dur : el - C.lastOrderT >= 30));
       // 攻めの辻は、敵の倍の味方で押さえる。敵が三人残るだけで大勢の味方を無効にしない。
-      // 木戸の守りは従来の条件。射手が口を狙う間は、どちらも確保を進めない。
-      const advantage = defending ? friend > enemy && enemy <= 2 : friend >= enemy * 2;
-      const secure = ready && present && friend > 1 && advantage && !C.rangedEnemy;
+      // 外から撃つ射手も敵の兵力に含むが、一人だけで大勢の味方の確保を永久に止めない。
+      // 射撃と傷の強さは保ち、持ち場の人数と本人の十二秒の踏みとどまりで決める。
+      const opposition = enemy + C.rangedEnemy;
+      const advantage = defending ? friend > opposition && enemy <= 2 : friend >= opposition * 2;
+      const secure = ready && present && friend > 1 && advantage;
       const lastRepelled = !C.orders.length && C.groups.every(ariSpent);
       C.inT = secure ? C.inT + dt : Math.max(0, C.inT - dt);
       C.lostT = enemy > friend ? C.lostT + dt : 0;
