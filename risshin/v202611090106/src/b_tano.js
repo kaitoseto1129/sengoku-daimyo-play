@@ -1110,7 +1110,16 @@ const tano = {
   },
   missionHeading(rt) {
     if (rt.flags.ending || rt.over) return rt.flags.lastView || rt.tracker.main ? '味方と集まれ' : '味方と退け';
-    const i = rt.flags.dp?.cur ? rt.flags.dp.i : 0;
+    const F = rt.flags, C = F.dp?.cur;
+    // 射撃待ちの間は、待機の印と同じ下知を出す。攻めの文へ戻すのは合図か槍の寄せの後。
+    if (C?.waiting && C.s.phase === 'narrow' && !F.volley && !F.narrowPush &&
+        fighting(F.tgun) && fighting(F.defenders[2])) {
+      const p = rt.player.u.pos;
+      if (Math.hypot(p.x - C.waitAt.x, p.z - C.waitAt.z) > 4)
+        return `四郎作の崖道の待ち場へ${p.x > C.waitAt.x + 2 ? '下がれ' : '進め'}`;
+      return F.tgun.order !== 'hold' ? '四郎作の崖道で射手を待て' : '四郎作の崖道で鉄砲の合図を待て';
+    }
+    const i = C ? F.dp.i : 0;
     return this.missions[Math.max(0, Math.min(this.missions.length - 1, i))];
   },
   // 勝頼は自害する大将。印だけを付け、討ち取りの的へ変えない。

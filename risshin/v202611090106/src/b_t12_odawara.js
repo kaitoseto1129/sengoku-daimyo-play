@@ -356,6 +356,14 @@ function requiredStep(step) {
 
 // 11/6 kaito（史実・二2・一3）：開城を説く使いの道で斬り合いにしない（前は「抗う北条の侍」が三度寄せ、門の前で血と死体が出た）。
 //   北条方は使いを通す：山王口の番が道を開け、本丸の門から出迎えの侍が来て先に立つ。本丸の旗本は門の前に並んで迎える
+function ceasefire(rt) {
+  for (const u of rt.army.units) if (u.alive) {
+    u.target = null; u.atk = null; u.swing = null;
+    u.noTarget = true; u.invuln = true;
+    if (u.group) { u.group.peaceful = true; u.group.fire = false; }
+  }
+}
+
 function escort() {
   return {
     kind: 'escort', max: 300, idleAdvance: false,   // 使いは自分が付き添う間だけ歩く。止まった間に段を飛ばして負けにしない
@@ -373,6 +381,7 @@ function escort() {
       F.sannoBan = enemyGroup(rt, { faction: 'hojo', name: '山王口の番', anchor: { x: SANNO_IN.x - 2, z: SANNO_IN.z - 6 }, facing: Math.PI / 2, width: 6, fixed: true, noAI: true, noRout: true, order: 'hold', aggro: 0 },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }], HOJO));
       for (const u of F.sannoBan.units) u.invuln = true;
+      ceasefire(rt);
       sfx('horagai', 0.6);
       rt.say('黒田官兵衛', '刀は預けて参る。氏政殿・氏直殿に会うて、城を開くよう説く', 4);
       rt.after(4.6, () => rt.say('井伊直政', `${nm(rt)}殿、黒田殿の供をいたせ。こちらから手を出すな`, 4));
@@ -397,11 +406,7 @@ function escort() {
       // 出迎えの侍は使いの少し先を歩いて本丸の門へ案内する
       if (F.demukae && C.i >= 6) { const nx = ENVOY[Math.min(C.i + 1, ENVOY.length - 1)]; F.demukae.anchor = { x: nx.x, z: nx.z }; }
       // 使いの道では誰も刃を交えない（北条方は使いを通し、こちらも手を出さない）。狙いを毎コマ外す
-      for (const u of rt.army.units) if (u.alive) {
-        u.target = null; u.atk = null; u.swing = null;
-        u.noTarget = true; u.invuln = true;
-        if (u.group) { u.group.peaceful = true; u.group.fire = false; }
-      }
+      ceasefire(rt);
       // 自分が近くにいる間だけ、使いは前へ進む
       const p = rt.player.u.pos, tgt = ENVOY[Math.min(C.i, ENVOY.length - 1)];
       const near = C.near = Math.hypot(p.x - k.pos.x, p.z - k.pos.z) < 18;
@@ -621,6 +626,7 @@ const t12_odawara = {
           const F2 = rt2.flags; F2.day = 2; rt2.world.setTime('day');
           rt2.unmark('dp');
           clearFoes(rt2);   // 瞬時に移さない（kaito 二6）。夜討ちの残りの北条勢は城へ引き揚げた。主人公は井伊の陣のまま
+          ceasefire(rt2);   // 使いの到着の札を出す五秒間も、夜討ちの狙いと振りかぶりを残さない
         },
         say: [['使番', '黒田勘解由殿が刀を帯びず、氏直殿に城を開くよう説きに参られる', 4]] }),
       escort(),
