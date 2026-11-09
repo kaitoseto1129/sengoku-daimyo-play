@@ -1291,11 +1291,15 @@ function mikiNearestFoe(rt) {
 //   11/7 miki_re：共通の札が今の一件だけ（「目標を開く」）になり、数の棒も金の▼が出る間は隠れたので、この戦では五つ全部と数の棒を出したままにする。
 const MIKI_BOARD_CSS = `
 html body:has(#hud.miki-goals) #tc .mzone { background:none !important; box-shadow:none !important; border:0 !important; }
-html:root body #hud#hud#hud#hud#hud.miki-goals #armybar#armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud#hud#hud.miki-goals:not(.photo):not(.ending) #armybar#armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+/* 共通の任務札は人数だけを残すため、三木では一本の残兵の棒も表示する。 */
+html:root body #hud#hud#hud#hud.miki-goals #armybar#armybar#armybar .gauge.one { display:block !important; grid-column:1 / -1; width:100%; }
 html:root body #hud#hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals .goals-toggle { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #armybar .clock { visibility:hidden !important; }
-html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud#hud#hud.miki-goals #armybar#armybar#armybar { visibility:hidden !important; }
+/* 専用の強い表示指定も、中断・地図・語り・結果の札を開く間は隠す。 */
+html:root body:is(:has(#intro:not([hidden]) > .card),:has(#pause:not([hidden])),:has(#screen:not([hidden])),:has(#cine.on)) #hud#hud#hud#hud#hud.miki-goals :is(#armybar#armybar#armybar,#h-prog#h-prog) { visibility:hidden !important; }
+html:root body #hud#hud#hud#hud#hud.miki-goals:is(.photo,.ending,:has(#bigmap:not([hidden]))) :is(#armybar#armybar#armybar,#h-prog#h-prog) { visibility:hidden !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode {
