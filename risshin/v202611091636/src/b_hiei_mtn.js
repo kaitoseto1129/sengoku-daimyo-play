@@ -2232,6 +2232,10 @@ function hieiPostRadius(F) {
 function hieiReady(u) {
   return u?.alive && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
 }
+// 隊の人数には深手で戦列を離れた兵も残る。突破は戦える守り手で判じる。
+function hieiDefeated(g) {
+  return !g || g.routed || !g.units.some(hieiReady);
+}
 // 11/6 fixc1721（kaito 九3・BQ「敵の全ての兵の頭上の赤い▼」）：共通の印は近い敵四人まで。
 //   四十メートル内の見える僧兵・山の衆に、同じ色と形の▼を頭上へ付ける（逃げる者・里の者には付けない）。
 //   候補と見通しは四分の一秒ごと。実兵の上限分の印を初めに作り、毎コマは位置だけ書く。
@@ -4142,13 +4146,13 @@ const hiei_mtn = {
       rt.objProgress('main', rallyProgress(rt, P.monjuro, 6, '門の前', '石段を上り、文殊楼の門へ'));
       // 門脇の弓も突破の条件に含まれる。前の守りが崩れたら門前へ出し、
       // 道の外の射手を探して立ち尽くす隠れた全滅条件にしない。
-      if (!F.monjuSortie && near(u, P.monjuro, 12) && gone(F.monjuG) && !gone(F.monjuBow)) {
+      if (!F.monjuSortie && near(u, P.monjuro, 12) && hieiDefeated(F.monjuG) && !hieiDefeated(F.monjuBow)) {
         F.monjuSortie = true;
-        walk(F.monjuBow, [[-16, -8], [-9, -6]], 2.4, (q) => attackFrom(q, 16));
+        walk(F.monjuBow, [[-16, -8], [-17, -6]], 2.4, (q) => attackFrom(q, 16));
         rt.say('文殊楼の僧兵頭', '弓の衆も門前へ出よ！　石段を守れ！', 3);
       }
       // 門前の十メートルが空いただけでは、離れた弓や打って出た守りを破った事にしない。
-      const gateCleared = [F.monjuG, F.monjuBow, F.remG].every(gone);
+      const gateCleared = [F.monjuG, F.monjuBow, F.remG].every(hieiDefeated);
       if (gateCleared && near(u, P.monjuro, 6) && arrived(F.akechi, P.monjuro, 10) && guardedRoad(rt, P.monjuro)) this.p4(rt);
     } else if (advanceStep === 4) {
       if (!F.courtDone) arrived(F.akechi, P.court, 10);
@@ -4179,19 +4183,20 @@ const hiei_mtn = {
         rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '根本中堂の前へ。味方と道を開け'));
         // 根本中堂の守りを退けてから、西塔・横川への進軍を始める。
         F.courtT ??= rt.t;
-        // 時間だけで守りを崩さず、本人が槍を合わせ、実際に道が開いてから締める。
+        // 時間だけで守りを崩さず、本人が攻め上り、実際に道が開いてから締める。
         // 大講堂の別働隊は中堂前の案内範囲の外。追って全滅させる隠れた条件にしない。
         // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
         // 廻廊に残った弓で通しが止まる時は、中庭へ打って出させる。
-        // 時間だけで敗走・達成にせず、本人の命中と守りの敗退を最後まで確かめる。
-        const courtLate = near(u, P.court, 20) && (gone(F.chudoG) || rt.t - F.courtT > 8);
+        // 時間だけで敗走・達成にせず、守りの敗退を最後まで確かめる。
+        const courtLate = near(u, P.court, 20) && (hieiDefeated(F.chudoG) || rt.t - F.courtT > 8);
         if (courtLate && !F.courtSortie) {
           F.courtSortie = true;
-          if (!gone(F.courtBow)) walk(F.courtBow, [[-36, -7], [-36, -5]], 2.4, (q) => attackFrom(q, 16));
+          if (!hieiDefeated(F.courtBow)) walk(F.courtBow, [[-36, -7], [-36, -5]], 2.4, (q) => attackFrom(q, 16));
           rt.say('根本中堂の僧兵頭', '廻廊の衆も前へ出よ！　中堂を渡すな！', 3);
         }
-        if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
-            [F.chudoG, F.courtBow].every(gone) && rt.t - F.courtT > 15) {
+        // 本人が攻め上り、味方と守りを破れば進む。味方の最後の一撃で命中の機会が消えても詰ませない。
+        if (near(u, P.court, 12) && guardedRoad(rt, P.court) &&
+            [F.chudoG, F.courtBow].every(hieiDefeated) && rt.t - F.courtT > 15) {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
           else {
@@ -4465,7 +4470,9 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 近い打ち手は受けるが、通り過ぎた守りを追って登る列から引き返さない。
   // 石段の下に着いた後は、印が足元でも、道を塞ぐ近い敵へ向かう。
   const ahead = candidate && !F.guideReturn.active && F._gp
-    && (stairsBlocked || (candidate.pos.x - u.pos.x) * (F._gp.x - u.pos.x) + (candidate.pos.z - u.pos.z) * (F._gp.z - u.pos.z) > 0);
+    // 持ち場へ着いたら、脇や背後の射手も退ける。足元の印との内積だけでは永遠に攻められない。
+    && (stairsBlocked || near(u, hieiPost(b), Math.max(12, hieiPostRadius(F)))
+      || (candidate.pos.x - u.pos.x) * (F._gp.x - u.pos.x) + (candidate.pos.z - u.pos.z) * (F._gp.z - u.pos.z) > 0);
   // 石段で列を待つ時や、本道から届かぬ法面の敵を見た時に、僧坊の裏まで追わない。
   // 目前の打ち込みは受ける。遠い敵への接近は、実際に通れる本道だけにする。
   // 石段の敵が道を塞ぐ間は戦う。先手待ちを優先して射手の前で立ち尽くさない。

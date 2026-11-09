@@ -429,6 +429,10 @@ for (const [name, flag, uma] of [
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
 
+// 景健の旗は朝倉方の所属表示。個人の実旗・馬印は未確認なので、隊と陣所に固有の馬印を補わない。
+// 出所と復元範囲：docs/generals_look_1108/朝倉景健.md。
+NAMED_GEAR['朝倉景健'] = { ...NAMED_GEAR['朝倉景健'], flag: 'asakura', uma: null, campUma: null };
+
 // 小谷の久政。固有の馬印は未確認で、隊にも陣所にも他家の物を補わない。
 // 出所と推定範囲：docs/generals_look_1108/浅井久政.md。
 NAMED_GEAR['浅井久政'] = { ...NAMED_GEAR['浅井久政'], uma: null, campUma: null };

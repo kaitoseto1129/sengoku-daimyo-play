@@ -17,9 +17,9 @@ export function start(rt, ctx, done) {
   const n = (k) => Math.round(k * (TIER.weak ? 0.6 : 1));
   const A1 = { x: LINE0.x - 2, z: LINE0.z - 14 };   // 一の備のすぐ先の坂
   const A2 = { x: LINE0.x - 4, z: LINE0.z - 30 };   // 峠道の手前の柵
-  depthStart(rt, { ...ctx, scale: 1.2 }, [
+  const stages = [
     DP.fight({
-      at: A1, title: '峠道の朝倉勢', sub: '城を捨てた兵が峠から押し返して来る', obj: '坂を下りて来る朝倉勢を押し返せ', max: 110, noRefill: true,
+      at: A1, title: '峠道の朝倉勢', sub: '城を捨てた兵が峠から押し返して来る', obj: '坂を下りて来る朝倉勢を押し返せ', max: 110, limit: 240, noRefill: true,
       say: [['木下藤吉郎', '城は開いた。残りの朝倉を峠へ押し戻せ！　勢いはこちらにあるぞ', 3.6]],
       foes: () => [{ name: '峠から下りた朝倉勢', from: { x: A1.x + 2, z: A1.z - 26 }, list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 2 }], mass: 140 }],
       later: [{ t: 30, say: ['足軽', '東の疋田の道からも来るぞ！'], foes: () => [{ name: '疋田の朝倉勢', from: { x: A1.x + 26, z: A1.z - 8 }, list: [{ type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }], mass: 60 }] }],
@@ -42,7 +42,30 @@ export function start(rt, ctx, done) {
     }),
     DP.rest({ dur: 6, heal: 0.25, banner: ['峠道の柵を取った', '朝倉勢は峠の奥へ退く'],
       say: [['足軽', '柵を取ったぞ！　次は木ノ芽峠じゃ！', 3], ['木下藤吉郎', 'よし、今宵は峠の下で陣を張る……ん、あの早馬は何じゃ', 3.6]] }),
-  ], () => {
+  ];
+  for (const stage of stages) {
+    // 目標に沿って待つ間に、共通の放置判定で戦いを打ち切らない。
+    stage.idleAdvance = false;
+    if (stage.kind !== 'fight' && stage.kind !== 'move') continue;
+    const start = stage.start;
+    stage.start = (rt2, C, m, context) => {
+      start(rt2, C, m, context);
+      const g = context.aidG;
+      if (!g || g.routed || !g.count) return;
+      // 横長の攻めの持ち場は木戸脇の斜面へ掛かる。森の手は道の二列で
+      // 木戸の開口を通り、目標へ着いてから打ち合う。兵の位置は飛ばさない。
+      const c = g.center(), at = C.at || C.goal;
+      if (!at) return;
+      g.path = [[8, c.z], [8, at.z], [at.x, at.z]];
+      g.pathIdx = 0; g.dest = { x: at.x, z: at.z };
+      g.order = 'path'; g.formation = 'column'; g.colW = 2; g.roadColumn = true; g._fitAt = 0;
+      g.onArrive = (group) => {
+        group.order = 'attack'; group.path = null; group.onArrive = null;
+        group.roadColumn = false; group.seekRange = 45;
+      };
+    };
+  }
+  depthStart(rt, { ...ctx, scale: 1.2 }, stages, () => {
     F.k15Kosen = 'done';
     F.k15KosenClash?.rout?.('A', { hideAfter: 30, from: 0 });
     done();
