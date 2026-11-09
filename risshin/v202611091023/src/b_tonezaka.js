@@ -1573,6 +1573,7 @@ const tonezaka = {
   noHatamotoMass: true, // 狭い峠道で、将の後ろの軽い旗本の塊に追い手の味方が埋もれる（AP9・AQ6）。旗本は本物の侍の輪だけ
   stageGoalsOnly: true, // 右上の五つは段だけ（「敵を何人討つ」「義景を討つ」で埋めない。AW3・AV16）
   goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（道の曲がりの名札・旗・輪を重ねない。AP12・AV15・BH6）
+  goalSignTriangle: true, // 画面外でも矢印へ替えず、縁の位置で行き先を示す。
   // ▼の添え字に行き先までの道のり（十メートル刻み。BK1）。
   goalSignAction: (rt) => {
     const step = toneGoalStep(rt), say = TONE_SIGN[step], to = TONE_GOAL[step], p = rt.player.u.pos;
