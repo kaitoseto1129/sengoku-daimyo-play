@@ -198,7 +198,7 @@ function okeFoeSigns(rt) {
         for (const u of rt.army.units) {
           if (u === me || u.team > 1 || !ready(u) || !OKE_NAMED.has(u.name)) continue;
           const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-          if (d2 > 14400 || !sightScreenUnit(rt, u)) continue;
+          if (d2 > (u.team === me.team ? 90000 : 40000) || !sightScreenUnit(rt, u)) continue;
           if (named.length < names.length) named.push(u);
         }
       }
@@ -944,7 +944,7 @@ const okehazama = {
   nearbyAllySignLimit: 0,
   noMiniMap: true, // 行き先は戦場のピン一本。小地図の輪を別の目的に見せない。
   // 名のある将の名は常に出す（kaito 五2）。名の無い役の侍だけ伏せる。
-  hideNameTag: (u) => !OKE_NAMED.has(u?.name),
+  hideNameTag: () => true, // 名のある将は okeFoeSigns で両軍とも出す。共通の札を重ねない。
   noPlayerFoot: true, // 集合先のピンと紛らわしい白い足元の輪を出さない。
   noLeaderFollow: true, // ピンが消える段の切り替わりにも、別の味方への青い案内を出さない。
   nearSelfHatFadeRadius: 4.8, // 肩越しの笠だけを既存の材質で透かし、正面の敵と地面を空ける。
@@ -2708,7 +2708,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       const g = rt.flags.attackers[i];
       g.yariRanks = 3; g.okeSide = [-12, 12, 0, -6, 4][i]; g.okeBack = i === 4 ? 9 : 3;
     }
-    O15.install(rt, this, { fieldPoint, fieldVector, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT, FAR: { ZENSHOJI, WASHIZU, NARUMI_JO, ODAKA } });
+    O15.install(rt, this, { fieldPoint, fieldVector, honjinWay, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT, FAR: { ZENSHOJI, WASHIZU, NARUMI_JO, ODAKA } });
   },
 
   // 軽い本隊は行軍だけを表す。接触域へは押し込まず、実兵と重ねない。
