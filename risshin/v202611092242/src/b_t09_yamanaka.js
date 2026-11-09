@@ -686,8 +686,9 @@ const t09_yamanaka = {
       const mu = F.dai.units.find((u) => u.type === 'busho');
       // 間宮の突き入りは主人公の見える所（60m）で始める。柵の内で突っ立ったまま字だけで死なない（critic60 山中 8）
       const muNear = mu && Math.hypot(mu.pos.x - p.x, mu.pos.z - p.z) < 60;
-      // 一柳が撃たれる所に本人がいなくても、二分半で間宮は突き入る（11/9 見回り：突き入らず出丸に籠もった残りが討てず十八分止まった）
-      if ((F.ichiShot || T > 150) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
+      // 鉄砲が残る間は一柳の討死を先に見せる。鉄砲を全て討った時だけ、二分半で突き入りへ進む。
+      // 時間だけで突き入らせると、後から近づいた一柳が間宮の最期の後に撃たれてしまう。
+      if ((F.ichiShot || T > 150 && !ichiShooter) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
         F.mamiya = true; F.mamiyaT = rt.t;
         F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
         rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
@@ -742,8 +743,10 @@ const t09_yamanaka = {
       if (!F.gateOpen && F.sub === 'back' && dg < 60 && rt.t - F.backT > 150) this.openGate(rt, false);
       // 三の丸の広場に入って果たす。時間で半径を広げると門の外でも達成してしまう。
       const dpz = Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z);
-      // 広場の真ん中に三の丸の守りが固まって着けない時も、門をくぐって三の丸の内に入れば入ったとする（11/9 見回り：門の内で九分止まった）
-      if (F.gateOpen && (dpz < 10 || (Math.hypot(p.x - KURUWA.san.x, p.z - KURUWA.san.z) < 30 && p.z < SP.at.gate.z - 3))) this.honmaru(rt);
+      // 門の内側を実際に通ったことを記録する。曲輪の外の斜面へ回っただけでは果たさない。
+      if (F.gateOpen && Math.abs(p.x - SP.at.gate.x) < 5 && p.z < SP.at.gate.z - 1 && p.z > SP.at.gate.z - 12) F.oteEntered = true;
+      // 広場が守りで詰まっていても、門を抜けて三の丸へ入れば果たす。
+      if (F.gateOpen && F.oteEntered && (dpz < 10 || (Math.hypot(p.x - KURUWA.san.x, p.z - KURUWA.san.z) < 30 && p.z < SP.at.gate.z - 3))) this.honmaru(rt);
     }
     if (F.step === 4) {
       const g = F.hon;
