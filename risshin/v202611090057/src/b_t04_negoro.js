@@ -28,6 +28,11 @@ import { addTaba, placeTaba, tickTabas, patchGunCover } from './taketaba.js';
 import { STAGES } from './stages.js';
 import { withGuard } from './toyo_bot.js';
 import { farSight } from './far_sight.js';
+// 約15分の段（docs/toyo15_plan_1108.md の 6）：足した段の中身は src/t04_negoro/ の各ファイル
+import { install as negoroIntro } from './t04_negoro/intro.js';
+import { soboStep } from './t04_negoro/sobo.js';
+import { fireStart, fireTick } from './t04_negoro/fire.js';
+import { kyotenStep } from './t04_negoro/kyoten.js';
 import { MEM_TIGHT } from './settings.js';
 import { routeTools } from './b_k_route.js';
 
@@ -202,11 +207,15 @@ const GOALS = [
   '竹束の陰について、門前の坊舎まで寄せよ',
   '坊舎の縁から堀秀政を狙う鉄砲衆を討て',
   '丸太の組と大門へ寄り、扉を打ち破れ',
-  '大門をくぐり、菩提川の橋を渡って大塔の前へ',
+  '僧坊の路地で、持ち場を替えて撃つ鉄砲衆を討て',
+  '火の回る境内を抜け、菩提川の橋を渡って大塔の前へ',
   '大塔の前で行人方を討ち、大塔を守り抜け',
+  '奥の院に残る鉄砲衆を潰し、根来衆を追い払え',
 ];
 STAGES.t04_negoro = GOALS.map((g, i) => (i ? [g, atStep(i + 1)] : [g]));
 // 段に入った時に step を進める包み
+// 足した段のファイルへ渡す道具（NG）は setup の後で埋める
+const NG = { GOALS };
 const stepped = (n, st) => ({ ...st, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
 const alive = (g) => !!g && g.count > 0 && !g.routed;
 const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.count : 0), 0);
@@ -227,7 +236,7 @@ function gunPost(rt, name, spots, armored = false) {
   const W = rt.world;
   // armored：遠くから見上げる所（大門の楼）は具足の撃ち手だけ（白い裹頭が並ぶと白い人形に見えた）
   const list = spots.map((s, i) => ({ type: 'gun', n: 1, o: { ...NEGORO, ...(armored ? {} : GUN_LOOKS[i % GUN_LOOKS.length]) } }));
-  const g = enemyGroup(rt, { faction: 'saika', fixed: true, name, anchor: P(spots[0].x, spots[0].z), facing: Math.PI + ROT, order: 'hold', aggro: 2, seekRange: 0, noRout: true, morale: 100, dmgMult: 0.32 }, list);
+  const g = enemyGroup(rt, { faction: 'saika', fixed: true, name, anchor: P(spots[0].x, spots[0].z), facing: Math.PI + ROT, order: 'hold', aggro: 2, seekRange: 0, noRout: true, morale: 100, dmgMult: 0.12 }, list);   // 15分の戦（11/8）：持ち場の撃ち手は数で厚く、一発は軽く（0.32 から。十五分のあいだ撃たれ続ける）
   // 11/6 描いて遊んで：縁・塀・子院の撃ち手が一発も撃たなかった。持ち場の撃ち手は隊の段の並び（gunGated の slotPos）から離れて据わるので、
   //   「段の所へ着いていない」と見なされ構えなかった。持ち場ごとに一人一人が撃つ（段を組まない）
   g.gunRanks = () => 1;
@@ -289,7 +298,9 @@ function daitoModel(world, x, z) {
 
 const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
-  minutes: 5,
+  minutes: 15, expectMin: 15,
+  noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
+  playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   noWake: true, noTaishoRaid: true, noDespair: true,
   // 11/6 描いて遊んで：大門が破れた直後、門の内の行人方の槍を二秒に二度受けて（一突き四割）討たれ、負けた。
@@ -306,10 +317,12 @@ const t04_negoro = {
     if (F.ending || s < 1) return null;
     const T = F._ngTg || (F._ngTg = {});
     if (T.s !== s) {
-      const at = s === 1 ? YOSE : s === 2 ? (F.posts.win ? centerOf(F.posts.win) : MONZEN) : s === 3 ? P(0, -3) : TOWER_FRONT;
+      const at = s === 1 ? YOSE : s === 2 ? (F.posts.win ? centerOf(F.posts.win) : MONZEN) : s === 3 ? P(0, -3) : s === 4 ? P(0, 18) : s === 7 ? NG.OKU : TOWER_FRONT;
       Object.assign(T, { s, x: at.x, z: at.z, unit: null, boss: false,
-        action: ['', '竹束について寄せよ', '鉄砲衆を討て', '大門を破れ', '大塔の前へ', '大塔を守れ'][s], label: ['', '竹束の陰', '坊舎の鉄砲衆', '大門', '大塔の前', '大塔の前'][s] });
+        action: ['', '竹束について寄せよ', '鉄砲衆を討て', '大門を破れ', '鉄砲衆を討て', '大塔の前へ', '大塔を守れ', '奥の院を潰せ'][s], label: ['', '竹束の陰', '坊舎の鉄砲衆', '大門', '僧坊の路地', '大塔の前', '大塔の前', '奥の院'][s] });
     }
+    // 足した段（④僧坊・⑦奥の院）は▼を段の今の的（動く鉄砲衆）に付ける
+    if ((s === 4 || s === 7) && F.dp?.cur?.goal) { T.x = F.dp.cur.goal.x; T.z = F.dp.cur.goal.z; }
     // ① 竹束の陰：▼は押し進む竹束の列のすぐ後ろ（11/6 描いて遊んで：▼が門前に立ち、自分だけ馬で竹束を追い越して坊舎の窓から撃たれた）
     if (s === 1 && F.tabaSet) { const q = P(0, Math.min(-99, t04_negoro.tabaFront(F) - 3)); T.x = q.x; T.z = q.z; }
     // 鉄砲衆は参道の左右の縁に分かれて据わる。真ん中の道を指さず、近い撃ち手の持ち場（動かない）を指す
@@ -661,8 +674,8 @@ const t04_negoro = {
     const wall = [];
     for (const s of [-1, 1]) for (const x of (lowQ ? [10, 18, 26] : [9, 13, 17, 21, 25, 29])) wall.push({ x: s * x, z: 1.1, dy: 1.5, f: [0, -1] });
     F.posts.wall = gunPost(rt, '築地塀の鉄砲衆', wall);
-    F.posts.wall.dmgMult = 0.14;   // 十二挺が撃ち下ろす（数で厚く見せ、一発は軽く。11/6：門の前で十秒ごとに討たれた）
-    F.posts.deck.dmgMult = 0.2;
+    F.posts.wall.dmgMult = 0.08;   // 15分の戦（11/8）：0.14 から   // 十二挺が撃ち下ろす（数で厚く見せ、一発は軽く。11/6：門の前で十秒ごとに討たれた）
+    F.posts.deck.dmgMult = 0.1;
     // 11/6 描いて遊んで：塀の上の撃ち手は自分の塀に射線を塞がれて撃てず、足元の足場は黒い箱が並んで見えた。
     //   一人ずつ、塀の笠の上へ筒が出る高さまで足場を上げ、足場は板の踏み台（板と二本の脚）にする
     for (const u of F.posts.wall.units) {
@@ -729,9 +742,12 @@ const t04_negoro = {
       stepped(1, this.tabaStep()),
       stepped(2, this.horiStep()),
       stepped(3, this.gateStep()),
-      stepped(4, this.enterStep()),
-      stepped(5, this.towerStep()),
+      stepped(4, soboStep(NG)),
+      stepped(5, this.enterStep()),
+      stepped(6, this.towerStep()),
+      stepped(7, kyotenStep(NG)),
     ], () => this.win(rt));
+    negoroIntro(rt, NG);
   },
 
   // 生きている竹束の、谷の道の向きの位置の平らし（押す者がいない束は数えない）
@@ -769,7 +785,8 @@ const t04_negoro = {
         if (el > 8 && !C.said) { C.said = true; rt.say('足軽', '弾が竹に当たっておる！　束の陰なら抜けぬぞ', 3); }
         // 寄せ手だけで進んでも、本人が門前へ着くまでは達成にしない。
         const p = rt.player.u.pos;
-        return (z >= -101 || !F.tabaSet.some((t) => t.g.count)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
+        // 15分の戦（11/8）：寄せる間は使番の知らせと遠くの大軍で埋め、二分足らずで門前へ着かせない
+        return el > 100 && (z >= -101 || !F.tabaSet.some((t) => t.g.count)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -800,7 +817,7 @@ const t04_negoro = {
         for (const k of ['win', 'mono']) if (F.posts[k] && F.horiU) F.posts[k].focus = F.horiU;
         // 坊舎の戸口から行人方が斬って出る（参道の側から。裏や蔵の間には出さない。AJ）
         for (const [x, z] of [[-10, -64], [10, -66]]) {
-          C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '坊舎の行人方', anchor: P(x, z), facing: Math.PI + ROT, order: 'attack', seekRange: 50, aggro: 12, width: 6, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.5 },
+          C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '坊舎の行人方', anchor: P(x, z), facing: Math.PI + ROT, order: 'attack', seekRange: 50, aggro: 12, width: 6, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.35 },
             dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }], NEGORO)));
         }
         rt.obj('dp', GOALS[1], 'main');
@@ -811,7 +828,7 @@ const t04_negoro = {
         if (C.later.length && el > 20) {
           C.later.length = 0;
           rt.say('足軽', '雑賀の鉄砲衆じゃ！　奥の坊舎の縁から撃ってくるぞ、伏せよ！', 3);
-          C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '雑賀の鉄砲衆', anchor: SAIKA_EN, facing: Math.PI + ROT, order: 'attack', seekRange: 50, aggro: 10, width: 5, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.4 },
+          C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '雑賀の鉄砲衆', anchor: SAIKA_EN, facing: Math.PI + ROT, order: 'attack', seekRange: 50, aggro: 10, width: 5, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.2 },
             dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 6, o: { sohei: 1, armor: 0x2a2622, lace: 0xcfc7b4, cloth: 0xd8d2c2, hat: 'hachimaki', flag: null } }], NEGORO)));
         }
         // 堀が深手を負えば、旗本が抱えて退く（討たれはしない。目標は鉄砲衆を討つ事なので、退いても失敗にはしない。十一1）
@@ -832,7 +849,7 @@ const t04_negoro = {
         if ((guns <= 4 || el > 95) && !C.broke) { C.broke = true; for (const g of [...C.groups, F.posts.win]) if (g) { g.noRout = false; g.morale = Math.min(g.morale, 15); } if (el > 95) flee(F.posts.win); }
         // 鉄砲衆が退いても、後方に居たままで堀の護衛を果たした事にはしない。
         const p = rt.player.u.pos;
-        return ((guns <= 4 && foes <= 4 && !C.later.length) || el > 130) && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
+        return el > 100 && ((guns <= 4 && foes <= 4 && !C.later.length) || el > 140) && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -950,11 +967,13 @@ const t04_negoro = {
         for (const g of [F.ramG, F.sengokuG]) if (g && g.count) { g.order = 'attack'; g.seekRange = 24; g.anchor = P(10, 18); }
         C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '橋の行人方', anchor: P(0, 50), facing: Math.PI + ROT, order: 'attack', seekRange: 30, aggro: 12, width: 8, morale: 80, fleeDir: dirL(0, 1), dmgMult: 0.5 },
           dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }], NEGORO)));
-        rt.obj('dp', GOALS[3], 'main');
+        rt.obj('dp', GOALS[4], 'main');
         rt.marker('dp', TOWER_FRONT, '大塔の前', { h: 4 });
+        fireStart(rt, NG);
       },
-      tick(rt, C, m, ctx, el) {
+      tick(rt, C, m, ctx, el, dt) {
         const F = rt.flags, pu = rt.player.u, p = toL(pu.pos.x, pu.pos.z);
+        fireTick(rt, dt || 0, el, NG);
         // 門の内の守りが崩れたら、味方は橋を渡って大塔の前へ
         if (!C.over && (!alive(F.innerG) || F.innerG.count <= 4 || el > 40)) {
           C.over = true;
@@ -964,7 +983,8 @@ const t04_negoro = {
         }
         C.goal = p.z < 6 ? P(0, 8) : p.z < 34 ? P(0, 36) : TOWER_FRONT;
         rt.objProgress('dp', `大塔の前まで あと ${Math.max(0, Math.round(Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z)))}m`);
-        return Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
+        // 火が燃え移る間（二分半）は、橋の手前で退く根来衆を追う。それから大塔の前へ
+        return el > 150 && Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -978,7 +998,7 @@ const t04_negoro = {
   //   11/6：前は時が過ぎるだけで済み、行人方と一度も当たらずに勝った（九2・三3）
   towerStep() {
     const self = this;
-    const h = DP.hold({ at: TOWER_FRONT, r: 16, dur: 45, noRefill: true, label: '大塔の前', obj: GOALS[4],
+    const h = DP.hold({ at: TOWER_FRONT, r: 16, dur: 45, noRefill: true, label: '大塔の前', obj: GOALS[5],
       title: '大塔を焼かせるな', sub: '行人方が火をかけに来る',
       say: [['羽柴秀次', '大塔に火をかけさせるな！　あれは残せと上様の仰せじゃ', 4]],
       waves: () => [
@@ -1131,7 +1151,7 @@ const t04_negoro = {
     }
     if (F.ending) return;
     // 大塔：近くに寄った根来衆の数だけ焦げる。焼け落ちたら負け
-    if (F.step >= 5) {
+    if (F.step === 6) {
       F.towerScanT = (F.towerScanT || 0) - dt;
       if (F.towerScanT <= 0) {
         F.towerScanT = 0.5;
@@ -1166,7 +1186,9 @@ const t04_negoro = {
     rt.after(7, () => rt.say('羽柴秀次', '弾の跡は残ろうと、塔は立っておる。よう働いた', 3.5));
     // 紀州征伐の続き（史実：二十四日から紀の川を西へ。雑賀の残りは太田城に籠もり、堤を築いた水攻めで四月に開城）
     rt.after(11, () => rt.say('羽柴秀吉', '残るは雑賀の太田城じゃ。堤を築いて水で囲め', 3.5));
-    rt.finish({}, 15);
+    // 余韻：谷の坊舎は夜まで燃え続ける（空の赤さが貝塚から見えたと伝わる）
+    rt.after(15.5, () => rt.say('組頭', '坊舎の火は夜まで消えますまい。何百年の寺が、一日で', 4));
+    rt.finish({}, 22);
   },
 
   lose(rt, why) {
@@ -1213,6 +1235,10 @@ t04_negoro.botBrain = (b, inp, { goTo }) => {
   }
   depthBot(b, inp, goTo);
 };
+
+// 足した段（src/t04_negoro/）へ渡す道具
+Object.assign(NG, { P, dirL, ROT, NEGORO, dress, flee, alive, heads, OKU: P(48, 98),
+  chain: [SITES[2], P(-18, -66), SITES[6], P(18, -84), P(-20, -40), P(20, -40)] });
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 withGuard(t04_negoro);
