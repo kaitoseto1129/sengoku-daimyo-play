@@ -24,6 +24,7 @@ export function install(rt, ctx) {
   P.ai = false; P.guard = false; P.noRing = true;
   march(P, [[-80, -12], [-30, -18], [-6, -30]], 'attack');
   F.harada = H; F.haradaChase = P;
+  F.foes.push(P);
 
   rt.say('織田の使番', '木津攻めは崩れた！　原田様の手の者が、西から砦へ逃げて来る！', 4);
   rt.after(5, () => { if (F.step === 0 && !rt.G.lord) rt.say('明智光秀', '門を半ば開けよ。原田の者を入れ、追う門徒は門前で払え！', 4); });

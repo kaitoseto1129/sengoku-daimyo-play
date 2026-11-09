@@ -73,7 +73,11 @@ function requiredStage(s) {
       C.engaged = rt.player.u.alive && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
         C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12));
     }
+    const inT = C.inT || 0;
     const done = tick.call(this, rt, C, m, ctx, el, dt);
+    // 共通の守備は持ち場から四十四メートルまで数えるが、今福は砦の西口で反撃を受ける。
+    // 離れて立っている時間や、倒れている時間を「守った時間」に含めない。
+    if (s.kind === 'hold' && (!rt.player.u.alive || Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) >= C.botRadius)) C.inT = inT;
     // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
     if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at) {
       const u = rt.player.u;
@@ -674,7 +678,7 @@ const k09_imafuku = {
 // 両軍の総勢（史実）：佐竹勢は千五百ほど、砦の守兵は六百ほど。重成・又兵衛の反撃で豊臣方は三千六百ほど（推定）、上杉の加勢で味方は三千ほどに
 k09_imafuku.force = (rt) => {
   const F = rt.flags, st = F.step || 0;
-  const a0 = 1500 + (st >= 4 ? 1500 : 0), b0 = st >= 3 ? 3600 : 600;
+  const a0 = 1500 + (F.uesugi ? 1500 : 0), b0 = st >= 3 ? 3600 : 600;
   return { a: Math.max(0, Math.round(a0 - (F.ak || 0) * 8)), a0, b: Math.max(0, b0 - (F.ek || 0) * 6), b0 };
 };
 k09_imafuku.sides = { a: { name: '佐竹勢', mon: 'satake' }, b: { name: '豊臣方', mon: 'toyotomi' } };

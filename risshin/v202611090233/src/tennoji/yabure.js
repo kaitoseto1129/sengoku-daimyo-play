@@ -40,6 +40,7 @@ export function install(rt, ctx) {
   // 柵の外の寄せ（火を掛ける者。外の空堀の際に留まる背景の組）と、柵が倒れた所から入る組（破れ口で現れる）
   const O = enemyGroup(rt, { name: '西の柵に火を掛ける門徒', anchor: { x: BREACH.x - 16, z: BREACH.z + 4 }, facing: Math.PI / 2, width: 6, order: 'hold', guard: true, guardLeash: 4, aggro: 6, morale: 85, faction: 'honganji', fleeDir: { x: -1, z: -0.3 } },
     dress([{ type: 'ashigaru', n: 3 }, { type: 'bow', n: 2 }], IKKO));
+  F.foes.push(O);
   let B = null;
 
   // 60秒：西の柵に火が付く。燃え落ちる（約一分）か、85秒で破れ口から雪崩れ込む
@@ -69,6 +70,7 @@ export function install(rt, ctx) {
     B = enemyGroup(rt, { name: '破れ口から入る門徒', anchor: { x: BREACH.x + 2.5, z: BREACH.z }, facing: Math.PI / 2, width: 4, order: 'hold', aggro: 20, morale: 85, faction: 'honganji', fleeDir: { x: -1, z: -0.3 } },
       dress([{ type: 'samurai', n: 1, o: { hat: 'hachimaki' } }, { type: 'ashigaru', n: 5 }], IKKO));
     F.breachG = B;
+    F.foes.push(B);
     B.ai = false; B.guard = false; B.noRing = true;
     march(B, [[BREACH.x + 8, BREACH.z], [GATE_REAR.x - 6, GATE_REAR.z - 8]], 'attack');
     B.seekRange = 24; B.aggro = 20;
@@ -90,6 +92,7 @@ export function install(rt, ctx) {
       north = enemyGroup(rt, { name: '北の空堀を登った門徒', anchor: { x: 6, z: -86.5 }, facing: 0, width: 6, order: 'hold', aggro: 20, morale: 85, faction: 'honganji', fleeDir: { x: 0, z: -1 } },
         dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 5 }], IKKO));
       F.northClimb = north;
+      F.foes.push(north);
       rt.army.play?.('eshout', { x: 6, z: -95 }, 1.4);
       rt.say('砦の足軽', '北じゃ！　空堀を登って来るぞ！　主郭の裏が破られる！', 3.5);
       march(north, [[GATE_REAR.x + 4, GATE_REAR.z - 14]], 'attack');
