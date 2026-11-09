@@ -68,6 +68,8 @@ function realGuard(rt, L) {
   // 本陣に大将一人だけ（設楽原の信長・家康の本陣など）で兵の上限に届いている時も、四人は必ず囲む（大将が一人で立たない。kaito_play O）
   const alone = (g0?.units || []).filter((o) => o.alive && o !== u).length < 3;
   if (alone && near < 4) n = Math.max(n, 4);
+  // 枠（CAP）を越えている時、大将の隊に十人を越す兵がいれば、その隊を輪とみなして足さない（天王寺岡山で本物の兵が 270 を越えた。11/9 重さ）
+  if (live >= CAP && (g0?.units || []).filter((o) => o.alive && o !== u).length >= 10) return null;
   if (n < 3) return null;
   const g = army.addGroup({
     team: u.team, faction: g0?.faction || 'oda', name: '', order: 'hold', formation: 'ring',

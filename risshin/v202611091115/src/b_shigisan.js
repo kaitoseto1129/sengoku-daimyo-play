@@ -3482,16 +3482,16 @@ const shigisan = {
     //   東を向いたまま、北の天主の火を一度も見ずに勝ちの札になっていた（四6・二4）。▼「天主の上の階」を残し、本人が天主の方を向いて
     //   二秒見るまで締めを待つ（二十秒で締める）。
     F.keepSeen = 0;
+    // 左右が合っていても、空や足元を見ている間は火を見たことにしない。
+    const keepView = new THREE.Vector3();
     const settle = () => {
       if (rt.over) return;
       const pl = rt.player, P = pl?.u?.pos;
       if (P && pl.u.alive && rt.t - F.castleFireAt < 27) {
-        const want = Math.atan2(KEEP_AT.x - P.x, KEEP_AT.z - P.z);
-        // 三人称の見回しも含め、兵の向きではなく実際に見ている方角で確かめる。
-        const viewYaw = (pl.yaw ?? pl.u.heading ?? 0) + (pl.camYawOff || 0);
-        let d = (want - viewYaw) % (Math.PI * 2);
-        if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
-        F.keepSeen = Math.abs(d) < 0.6 ? F.keepSeen + 0.5 : 0;
+        rt.camera.updateMatrixWorld();
+        keepView.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z).project(rt.camera);
+        const visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1;
+        F.keepSeen = visible ? F.keepSeen + 0.5 : 0;
         if (F.keepSeen < 2) { rt.after(0.5, settle); return; }
       }
       rt.unmark('keep');
@@ -3499,7 +3499,8 @@ const shigisan = {
       rt.finish({ scriptedEnd: true, failureReason: otherFront && !F.reachedShu
         ? '本丸の持ち場を取る前に、別の攻め口の味方が城を落とした。' : undefined }, 15);
     };
-    rt.after(7.2, settle);
+    // 六・四秒後に始まる四・五秒の語りを、勝利の札で遮らない。
+    rt.after(11.4, settle);
   },
 
   update(rt, dt) {
