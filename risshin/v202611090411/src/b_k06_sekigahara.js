@@ -536,7 +536,10 @@ const k06_sekigahara = {
     rt.after(26, () => {
       rt.say('使番', '大谷刑部殿、陣中にて自害！　平塚・戸田も討ち死に！', 4);
       rt.banner('大谷吉継　自害');
-      for (const u of F.otani?.units || []) if (u.alive && u.type === 'busho') u.invuln = false;
+      // 討死の知らせと実際の最期を揃える。無敵を外すだけでは二人とも敗走してしまう。
+      for (const u of F.otani?.units || []) if (u.alive && !u.gone && u.type === 'busho') {
+        u.invuln = false; u.hp = 0; rt.army.kill(u, null);
+      }
       rout(F.otani); rout(F.otaniH);
       if (F.otaniU?.alive && !F.otaniU.gone) rt.army.despawn(F.otaniU);   // 自害した吉継は逃げ走らない（陣の内で消える）
       rt.after(5, () => {
