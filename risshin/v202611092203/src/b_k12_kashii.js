@@ -561,7 +561,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     //   討死と勝ちは固定の秒数で先取りせず、村で浅野勢と槍を合わせてから締める。
     const awa = F.awaU;
     if (awa?.alive) {
-      awa.noTarget = false; awa.mustLive = false; awa.invuln = false;
+      // 村へ斬り込む前に、北の口で味方の槍に討たれたり手傷で退いたりさせない。
+      awa.noTarget = false; awa.mustLive = true; awa.invuln = true;
+      awa.onWound = () => {};
       if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.seekRange = 40; F.awaG.aggro = 16; F.awaG.speed = 4.6; }
       rt.after(0.4, () => { if (awa.alive) rt.say('淡輪重政', '団右衛門殿が果てたか。六郎兵衛も続くぞ！', 2); });
     } else rt.after(1.2, () => rt.say('浅野の侍', '団右衛門、討ち取ったり！', 2.6));
@@ -634,7 +636,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 北の口から辻までは三十歩余り。斬り込む前に倒さず、敵と接した後に永田の槍で討たせる。
       if (awa?.alive) {
         if (F.awaContactT == null && dist(awa.pos, VILLAGE) < 20 &&
-            rt.army.nearestEnemy(awa, 6, (u) => !u.gone && !u.fleeing && !u.noTarget)) F.awaContactT = rt.t;
+            rt.army.nearestEnemy(awa, 6, (u) => !u.gone && !u.fleeing && !u.noTarget)) {
+          F.awaContactT = rt.t;
+          awa.mustLive = false; awa.invuln = false; delete awa.onWound;
+        }
         if (F.awaContactT != null && rt.t - F.awaContactT >= 1.9) { awa.hp = 0; rt.army.kill(awa, null); }
       }
       if (!awa?.alive && rt.t - F.hanaDownT >= 2.6) this.win(rt);
