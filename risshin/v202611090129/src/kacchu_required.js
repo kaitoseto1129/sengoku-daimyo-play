@@ -164,6 +164,10 @@ export const REQUIRED_KACCHU = [
   ['北条氏邦', null, null, null, C.moegi, null, null, null, mon('hojo', '#6a7a2c', W), null, '所用品は伝わらない。兄の氏照と威を分けた復元案'],
   ['松田憲秀', null, 'kuwa_ken', null, null, null, null, null, txt('松田'), null, '所用品は伝わらない。前の十字は根拠が無いので外す'],
   ['大道寺政繁', null, 'kuwa', null, null, null, null, null, txt('大道寺'), null, '所用品は伝わらない。前の歯朶は根拠が無いので外す'],
+  // 高知城歴史博物館の伝所用兜・陣羽織。所用品一領の再現ではなく、伝来品と同時代の型による復元案。
+  ['毛利勝永', 'momonari', 'bull', D.kuro, 0x2e3a52, 'sugake', 0x9a2418, 'none', 'toyotomi',
+    { shikoroLace: C.shiro, shikoroStyle: 'kebiki', haoriMon: 'none', menpo: D.kuro, uma: null },
+    '伝所用・白糸威水牛形兜の水牛脇立と白糸の錣。日輪前立は外す。鉢・胴・面頬は推定、緋色の羽織は伝来品の地色。桐は所属旗だけ。出所は docs/generals_look_1108/毛利勝永.md'],
 ];
 // 同じ人の別名（戦の定義が使う名）。同じ具足を指す
 export const REQUIRED_ALIAS = {

@@ -618,6 +618,16 @@ export function fieldSignsTick(rt, root) {
         dummy.scale.y = ford || lesson ? k * (still ? .25 : Math.min(1, (defeatUntil - rt.t) / (ford ? .8 : 1))) : okeScale * (still ? 1 : closing);
       } else dummy.scale.multiplyScalar(still ? 1 : closing);
     }
+    // 森部の画面端では、頭上の先端を保ったまま▼全体が収まる大きさにする。
+    // 画面外の兵を端へ集めず、上端に赤い切れ端だけ残さない。
+    if (ford && foe) {
+      const px = (signAt.x + 1) * VIEW.w / 2, py = (1 - signAt.y) * VIEW.h / 2;
+      if (px <= 2 || px >= VIEW.w - 2 || py <= 2 || py >= VIEW.h - 2) continue;
+      const toPixels = VIEW.h * cam.projectionMatrix.elements[5] / (-v.z * 2);
+      const halfWidth = .17 * dummy.scale.x * toPixels, height = .34 * dummy.scale.y * toPixels;
+      const fit = Math.min(1, (px - 2) / halfWidth, (VIEW.w - 2 - px) / halfWidth, (py - 2) / height);
+      dummy.scale.multiplyScalar(fit);
+    }
     // 目当て以外も刀の形を読める大きさに保つ。
     // 森部は上で決めた間合い・命中の形を保つ。選び直しで同じ大きさへ潰さない。
     // ほかの戦は目当ての一人だけ大きくし、周囲は小さい所属印にそろえる。

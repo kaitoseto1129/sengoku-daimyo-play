@@ -636,8 +636,8 @@ html:root body #hud#hud#hud.battle-order :is(#jk-map,#fieldmap,#minimap,#maphint
       // 森部の一般兵は誰を攻撃してもよい。一人ずつ指定された任務に見せない。
       if (!def.missionStyle && rt.t < this.nextEnemyUntil) headline = 'つぎの敵を たおせ';
     }
-    // 桶狭間は任務を保つ。行き先のピンと敵の▼を同じ「矢印」と呼ばない。
-    if (attacking && !def.missionSingleLine && def.missionStyle !== 'raid' && this.enemySignOffscreen && this.missionEnemyShown) headline = '矢印の先へ進め';
+    // 桶狭間・森部は任務を保つ。行き先のピンと敵の▼を同じ「矢印」と呼ばない。
+    if (attacking && !def.missionSingleLine && def.missionStyle !== 'raid' && def.missionStyle !== 'ford' && this.enemySignOffscreen && this.missionEnemyShown) headline = '矢印の先へ進め';
     // 攻撃の任務でも、本人が見えるまでは同じ一行で移動を案内する。
     else if (attacking && !def.missionSingleLine && pinGuideOn(rt) && def.missionStyle !== 'raid' && def.missionStyle !== 'ford' && def.missionStyle !== 'practice' &&
         (enemy || missionTarget(rt)) && !(this.missionEnemyShown && !this.enemySignOffscreen))

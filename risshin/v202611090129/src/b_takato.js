@@ -18,6 +18,11 @@ import { enemyGroup } from './bhelp.js';
 import { dressStage } from './stage_dress.js';
 import { goalsTick } from './hud_goals.js';
 import { sightUnit } from './battle_sight.js';
+import { wrap as k15Kakoi } from './takato/kakoi.js';   // 15分の構成：包囲の段
+import { wrap as k15Nobutada } from './takato/nobutada.js';   // 曲輪突破の段
+import { wrap as k15Rakujo } from './takato/rakujo.js';   // 落城の余韻
+import { k15WrapBot } from './oda15_kit.js';
+import { OTE as K15_OTE, GATE_NI as K15_NI, GATE_HON as K15_HON } from './castles/takato.js';
 
 const baseSetup = takato.setup;
 const baseUpdate = takato.update;
@@ -2241,4 +2246,7 @@ takato.siegeKit = {
 takato.bushou = [{ name: '団忠正', g: /森長可|大手/ }];
 // 四将と小笠原の名は組が見える遠さから出す（近くにいる時だけ出て、離れると消えた。11/8 critic60 高遠・五2・十三3）
 takato.nameRange = 95;
+// 15分の構成（docs/oda15_plan_1108.md 30）：段は prototype/src/takato/ に一段一ファイル
+k15Kakoi(takato, { OTE: K15_OTE, GATE_NI: K15_NI }); k15Nobutada(takato, { GATE_NI: K15_NI, GATE_HON: K15_HON }); k15Rakujo(takato, { GATE_HON: K15_HON });
+takato.botBrain = k15WrapBot(takato.botBrain);
 export { takato };
