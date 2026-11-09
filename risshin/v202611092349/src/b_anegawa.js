@@ -2311,11 +2311,20 @@ const returnLine = (g) => { g.order = 'hold'; g.anchor.x = g.center().x; g.ancho
 // 共通の置換は持ち場を守る隊を作るため、軽い備えだけ動かすと実兵が北岸に残った。
 function aneBankMarch(rt) {
   const F = rt.flags;
-  if (F.step !== 1 || rt.t < (F.aneBankCheckAt || 0)) return;
+  if (F.step < 1 || rt.t < (F.aneBankCheckAt || 0)) return;
   F.aneBankCheckAt = rt.t + 1;
   for (const g of rt.army.groups) {
     const at = g.woke?.aneBankDest;
-    if (!at || !g.count || g.routed || g.order === 'retreat' || g.aneBankMarch) continue;
+    if (!at || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
+    // 総崩れの後は北岸の後続も退く。南岸だけの掃き出しでは、
+    // 渡河前に実兵へ替わった隊が残り、後から近づいた隊も棒立ちになった。
+    if (F.step >= 2) {
+      g.guard = false; g.fleeDir = AZAI_FLEE;
+      g.noRout = false; g.morale = 0; g.order = 'retreat';
+      g.onArrive = null;
+      continue;
+    }
+    if (g.aneBankMarch) continue;
     g.aneBankMarch = true;
     g.guard = false; g.fleeDir = AZAI_FLEE;
     g.order = 'move'; g.dest = { x: at.x, z: at.z };

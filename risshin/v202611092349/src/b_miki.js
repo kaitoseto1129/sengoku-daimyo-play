@@ -3377,7 +3377,7 @@ const miki = {
     // 残りが少なくなった別所勢（甚太夫を含む）は本人へ打ち掛かる。坂の外で迷わせず、目標⑤を自分で果たせる
     if (F.step === 2 && F.omuraGo && !F.lastStand) {
       let left = 0;
-      for (const u of F.reserve.units) if (u.alive && !u.noTarget) left++;
+      for (const u of F.reserve.units) if (this.omuraFoe(u) && mikiFighting(u)) left++;
       // 坂の外へ散った残りを待たせて空き時間を作らない（11/6 描いた遊びで百秒空いた）。十人以下か懸かれから八十秒
       if (left <= 10 || rt.t - (F.omuraGoT ?? rt.t) > 80) {
         F.lastStand = true; F.reserve.focus = rt.player.u; F.reserve.seekRange = 90; F.reserve.order = 'attack';
@@ -3401,7 +3401,8 @@ const miki = {
       F.lastStandT ??= rt.t;
       // 大勢が残る間は戦いを続ける。時間だけで④の残兵を全員退かせない。
       let remaining = 0;
-      for (const u of F.reserve.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) remaining++;
+      // 討伐対象外の吉親や後送中の兵を、残る四人の戦闘員へ加えない。
+      for (const u of F.reserve.units) if (this.omuraFoe(u) && mikiFighting(u)) remaining++;
       if (remaining <= 4 && rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget) {
         u.noTarget = true; u.fleeing = true; u.target = null;
       }
