@@ -11,6 +11,21 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 大坂の赤備え・鹿角を八王子城などへ遡らせない。上田の官途名の別指定はそのまま。
+  // 所用品を特定できないため黒漆の桶側二枚胴で復元。出所：docs/generals_look_1108/真田信繁.md。
+  if (name === '真田信繁' && year >= 1590 && KACCHU[name]) {
+    const late = year >= 1614, key = name + (late ? '|大坂' : '|大坂以前');
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'zunari', crest: late ? 'honda_shika' : 'none', hat: 'kabuto', hatFix: 1,
+      armor: late ? 0x8e1f16 : 0x1c1a1a, helm: late ? 0x8e1f16 : 0x1c1a1a,
+      lac: late ? 'shu' : 'kuro', fuki: late ? 'lac' : 'kuro',
+      doStyle: 'okegawa', doOpening: 'nimai', plateDo: null,
+      kusazuriColor: late ? 0x8e1f16 : 0x1c1a1a, suneateColor: late ? 0x8e1f16 : 0x1c1a1a,
+      menpo: late ? 0x8e1f16 : 0, haori: 0, noHaori: true,
+      preserveLace: late, flag: late ? 'sashi:無地:#9a2a20:#9a2a20' : 'sanada', uma: null,
+    });
+    return cache.get(key);
+  }
   // 岐阜県博物館館報第二号・出品三十三、住吉神社蔵の伝秀政所用・堀家伝来胴丸。
   // 豊臣編だけ金小札・浅葱糸威へ寄せる。各戦の着用は未確認。織田編の指定は保つ。
   // 鉢は従来の桃形による復元。立物・面頬・陣羽織は補わない。出所：docs/generals_look_1108/堀秀政.md。

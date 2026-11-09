@@ -521,8 +521,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["日比野下野守", "momonari", "moon", 0x22241e, 0x6b6a4a, "kebiki", 0x3a4632, 0x22241e, "none", ""],
   ["長井甲斐守", "momonari", "sun", 0x22241e, 0x5a5a3a, "okegawa", 0x4a5a22, 0x22241e, "none", ""],
   ["戸田勝成", "momonari", "kuwa_wide", 0x24221f, 0x4a4a2a, "okegawa", 0x4a5a22, 0x24221f, "none", ""],
-  // 真田信繁（大坂の陣）：朱漆塗の頭形兜に黒漆の鹿角の脇立と金の六文銭の前立、朱漆塗の五枚胴を紺糸の素懸威、朱漆の半頬、猩々緋の陣羽織（復元案。docs/kacchu_k15_tokugawa.md）
-  ["真田信繁", "zunari", "honda_shika", 0x8e1f16, 0x232c40, "sugake", 0x7a1a12, 0x8e1f16, "sanada", ""],
+  // 大坂夏の陣図屏風の鹿角・赤備えと同時代の桶側二枚胴による復元案。出所：docs/generals_look_1108/真田信繁.md。
+  ["真田信繁", "zunari", "honda_shika", 0x8e1f16, 0x232c40, "okegawa", 0, 0x8e1f16, "sanada", ""],
   ["今福浄閑", "momonari", "cross", 0x2a2420, 0x7a2a1c, "sugake", 0x3a2a1a, 0x2a2420, "takeda", ""],
   ["河窪信実", "momonari", "shida", 0x2a2420, 0x9a2e20, "sugake", 0x3a2a22, 0x2a2420, "takeda", ""],
   ["島津豊久", "momonari", "bellflower", 0x1c1a1a, 0x2a2a2a, "sugake", 0x2a2a2a, 0x1c1a1a, "shimazu", ""],
@@ -730,7 +730,8 @@ const ARMOR_RESEARCH_2 = {
 for (const [n, v] of Object.entries(ARMOR_RESEARCH_2)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
 // 三つ目から五つ目の十人（詳しい50人の残り）
 const ARMOR_RESEARCH_3 = {
-  "真田信繁": { kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, kusazuriBands: Array(5).fill(0x232c40), fuki: "kin" },
+  "真田信繁": { kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, kusazuriBands: Array(5).fill(0x232c40), fuki: "lac",
+    doOpening: "nimai", plateDo: null, flag: "sashi:無地:#9a2a20:#9a2a20", uma: null },
   "木下藤吉郎": { crest: "none", lace: 0x4a3020, odo: 0x4a3020 },
   "豊臣秀吉": { lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: "sugake", haidateGold: true },
   "北条氏政": { bowl: "zunari", crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
@@ -830,6 +831,13 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 大阪城天守閣の伝又兵衛所用・日月竜文蒔絵仏胴具足。出所と補完範囲は docs/generals_look_1108/後藤又兵衛.md。
+// 配色の散らし・必須表より後で戻す。獅噛と毛植は既存の共有形を使う（脇立は付けない）。
+Object.assign(KACCHU["後藤又兵衛"], { bowl: "zunari", crest: "niwa_shikami",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro",
+  lace: 0x34302a, odo: 0x34302a, doStyle: "hotoke", plateDo: "hotoke",
+  fur: 0x171512, kumage: true, menpo: 0x1c1a1a, menpoStyle: "hanbo",
+  haori: 0, mon: "none", flag: "toyotomi", uma: null, fukigaeshiBadge: false });
 // 杭瀬川・関ヶ原の左近。名前による配色の散らしの後で、伝来兜の鉄色・紺絲へ戻す。
 // 脇立・家紋・個人の馬印は未確認。旗は石田方の所属表示として残す。
 // 出所と復元範囲：docs/generals_look_1108/島左近.md

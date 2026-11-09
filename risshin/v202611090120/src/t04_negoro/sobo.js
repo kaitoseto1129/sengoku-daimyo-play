@@ -44,7 +44,10 @@ export function soboStep(NG) {
       C.goal = C.at = g0 ? g0.center() : P(0, 22);
       const gunsLeft = heads(C.gunG), foes = heads(C.groups);
       rt.objProgress('dp', '');
-      return el > 140 && ((gunsLeft <= 2 && foes <= 6) || el > 200);
+      // 後方で待つだけでは路地の討ち取りを果たさない。長引いても敵の数の条件を飛ばさない。
+      const u = rt.player.u, at = P(0, 22);
+      return el > 140 && gunsLeft <= 2 && foes <= 6 && u.alive
+        && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18;
     },
     end(rt, C) { for (const g of C.groups) flee(g); rt.objDone('dp'); rt.award((t) => t.side.push('僧坊の路地で鉄砲衆を追い詰めた'), '僧坊の鉄砲衆を討った'); },
   };
