@@ -315,10 +315,11 @@ function reliefArrive(rt) {
   // 黒田は藤巴、小早川隆景は左三つ巴（違い鎌は後の秀秋の物で、この年には使わない）
   F.relief = allyGroup(rt, { name: '黒田官兵衛の手', anchor: { x: 96, z: 30 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uA(5), uG(2)], KURODA));
-  F.relief.anchor = { x: BREACH.x + 14, z: 28 };
+  // 土橋前の坂へ斜めに下ろさず、東の尾根から横を突いて止まる。
+  F.relief.anchor = { x: 80, z: 30 };
   F.koba = allyGroup(rt, { name: '小早川隆景の手', anchor: { x: 100, z: 42 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '小早川隆景', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(3), uA(5), uG(1)], KOBA));
-  F.koba.anchor = { x: BREACH.x + 20, z: 36 };
+  F.koba.anchor = { x: 84, z: 42 };
   KIT.backOf(rt, F.relief, { flag: 'kuroda', armor: KURODA.armor, kind: 'mixed', w: 16, depth: 8, count: 120, seed: 1588 });
   rt.say('黒田官兵衛', '島津の横を突く。宮部殿の砦は、もう落ちぬ', 4);
   rt.after(4.5, () => rt.say('小早川隆景', '小早川の者ども、尾根を下って島津の横腹へ！', 3.5));

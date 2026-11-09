@@ -402,8 +402,8 @@ const k05_ueda = {
       // 城の内から出る隊は、まず大手門をくぐって門の前へ（土塀に沿って滑らせない）
       if (at.x < GATE.x) { g.order = 'move'; g.dest = { x: GATE.x + 7, z: GATE.z }; g.anchor = { ...g.dest }; g.onArrive = (q) => { if (q.order === 'move') go(q); }; } else go(g);
     }
-    // 追い討ちは岸へ届くまで退かない。道中で四十秒経っただけで散ると、殿の相手が来なくなる。
-    if (!o.hold) rt.after(40, () => { if (g !== F.oi || F.oiHot || F.step !== 6) g.noRout = false; });
+    // 追い討ちは岸の本人と接敵するまで退かない。隊の中心だけが岸へ着いて散ると、殿の相手が来なくなる。
+    if (!o.hold) rt.after(40, () => { if (g !== F.oi || F.oiEngaged || F.step !== 6) g.noRout = false; });
     g._bornT = rt.t;
     F.foes.push(g);
     return g;
@@ -537,7 +537,7 @@ const k05_ueda = {
     if (F.step === 6 && F.oiHot && dist(P.pos, FORD_W) < 30) {
       // 一度接敵した後は岸を守った時間を数える。追手が間合いを離れるたびに止めると、岸に居続けても殿を果たせない。
       if (F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiEngaged = true;
-      if (F.oiEngaged) F.oiHeld = (F.oiHeld || 0) + dt;
+      if (F.oiEngaged) { F.oi.noRout = false; F.oiHeld = (F.oiHeld || 0) + dt; }
     }
     // 手勢は本人の脇に付いて一緒に走る（AP5）
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
@@ -594,7 +594,7 @@ const k05_ueda = {
       if (oc && !F.oiHot && F.oiT && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) { F.oi.onArrive = null; F.oi.order = 'attack'; F.oi.seekRange = 120; F.oi.aggro = 30; F.oi.anchor = { ...FORD_W }; }
       // 時間だけで接敵済みにしない。先頭が岸の本人へ届いた時も、隊の中心を待たず交戦に移る。
       const reached = F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, FORD_W) < 30 && dist(u.pos, P.pos) < 16);
-      if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; F.oi.noRout = false; }
+      if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; }
       // 接敵してから半ばを討つか、主人公が岸で百十秒支えて果たす。
       if (F.oiHot && F.oiEngaged && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
       // 岸へ届いた追手を味方が押し返した時も数える。道中で六割倒れただけでは、残る追手を待たずに川を渡らせない。
