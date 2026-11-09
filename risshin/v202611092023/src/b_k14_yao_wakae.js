@@ -348,7 +348,8 @@ const k14_yao_wakae = {
     F.next = false; F.pushed = false; F.stepNear = false;
     F.step = n; F.st0 = rt.t; F.stepT = rt.t;
     F.stepG = [null, F.choSide, F.naitoG, F.yamaG, F.kimuraG][n];
-    F.stepN = Math.max(1, stepAlive(F));
+    // 伝令を待つ間に味方が討った兵も数える。残兵だけを始めの数にすると、全滅済みの隊で段が止まる。
+    F.stepN = Math.max(1, F.stepG.units.length + (n === 1 ? F.fuseG.units.length : 0));
     rt.obj('s' + n, STEP_TEXT[n], 'main');
     if (n === 1) {
       // 八尾へ：手勢と井伊の騎馬は主人公の脇を南へ駆ける（update が主人公の脇へ寄せ続ける。一5・九4）
@@ -531,7 +532,7 @@ const k14_yao_wakae = {
     }
     if (F.next) return;
     const g = F.stepG;
-    if (!F.stepN) F.stepN = Math.max(1, stepAlive(F));   // 数えるのは段の始めに立っていた兵
+    if (!F.stepN) F.stepN = Math.max(1, g.units.length + (F.step === 1 ? F.fuseG.units.length : 0));
     const gone = F.stepN - stepAlive(F);
     if (F.stepNear && gone >= Math.round(F.stepN * (1 - KEEP)) && (F.step !== 1 || !F.fuseG.ambush)) {
       F.next = true;

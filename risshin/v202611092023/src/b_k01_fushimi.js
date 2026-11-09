@@ -76,6 +76,9 @@ function requirePresence(s, contactNames = null) {
   if (s.kind === 'rest') return s;
   s.idleAdvance = false;
   s.limit = Infinity;
+  // 共通の四分・七分の打ち切りでも未達の段を飛ばさない。
+  // 在陣・接敵を待つ伏見では、刻だけで屋敷の放火や落城へ進めない。
+  s.noHardCap = true;
   const tick = s.tick;
   s.tick = (rt, C, m, ctx, el, dt) => {
     const p = rt.player.u;
