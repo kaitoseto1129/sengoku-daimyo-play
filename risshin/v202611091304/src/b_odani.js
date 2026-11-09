@@ -234,7 +234,7 @@ function nearWay(rt, path, c, y) {
 // 門前（半径 r）に着いている羽柴方の人数（掛矢の打ち手）。
 function gateCrew(rt, x, z, r) {
   let n = 0;
-  rt.army.forNear(x, z, r, (u) => { if (u.team === 0 && u.alive && !u.fleeing && !u.isStruct) n++; });
+  rt.army.forNear(x, z, r, (u) => { if (u.team === 0 && u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.noTarget && !u.isStruct) n++; });
   return n;
 }
 function inMasu(x, z) {
@@ -4546,7 +4546,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       rt.say('組頭', '大手は南の尾根じゃ。我らは谷から京極丸を取る。秀吉の旗に続け', 4);
     }, { r: 6 });
     rt.after(TALK_WAIT, () => this.preClimb(rt));
-    rt.after(.4, () => { if (F.step === 0 && !rt.player.lock) rt.player.cine = { x: -12, z: NAKAMARU.cz - 10, t: VISTA_T - 1, up: 16, vista: true, encounter: true }; });
+    // 出発前も本人の視点を保ち、尾根を見下ろす視点へ自動で切り替えない。
   },
 
   // 登る前に谷道の岩場から城を見上げる（odani/monomi.js）
@@ -5555,17 +5555,15 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     }
     if (F.step === 2) {
       this.ambushTick(rt);
-      // 10/30：屋敷と西木戸で四分止まる事が続いた（bot）。段に入って七十秒で屋敷の兵は崩れ、屋敷を取って四十五秒で西木戸は羽柴の手が破る
-      if (!F.onoDone && rt.t - F.stepT > 30 && !F.onoRout) { F.onoRout = true; for (const g of [F.ono, F.relief]) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
+      // 屋敷の守りは交戦と組頭の討死で退く。段の経過時間だけで士気を消さない。
       if (F.onoDone && F.onoDoneT === undefined) F.onoDoneT = rt.t;
-      if (F.onoDone && rt.t - F.onoDoneT > 18) { const wg = F.westGate?.struct; if (wg && !wg.opened && wg.hp > 0) rt.army.damage(wg, wg.hp + 1, null, { kind: 'gateWork' }); }
+
       if (!F.onoDone && gone(F.ono) && gone(F.relief)) this.onoFall(rt);
       const gate = F.westGate?.struct, inner = F.innerGate?.struct;
-      // 先手の掛矢も西木戸を打つ。本人が門前へ着けなくても、三十秒を過ぎた木戸は少しずつ傷む（一戦を四〜七分に）。
-      // 木戸は、門前に着いた味方（本人を含む）の掛矢で傷む。誰も着かないまま七十五秒を過ぎた時だけ、後ろの組が打つ（後押し）。
+      // 本人か先手が門前へ着いて掛矢を打つ。無人の木戸は時間だけで壊さない。
       if (gate?.alive && !gate.opened && gate.hp > 0) {
         const at = gateCrew(rt, GATE_WEST.x, GATE_WEST.z, 7);
-        if (at || rt.t - F.stepT > 35) rt.army.damage(gate, (at ? 3 + Math.min(5, at) : 6) * dt, null, { kind: 'gateWork' });
+        if (at) rt.army.damage(gate, (3 + Math.min(5, at)) * dt, null, { kind: 'gateWork' });
       }
       const outerOpen = !gate || gate.opened || gate.hp <= 0;
       // 一の門を破ると枡形の広場。正面の二の門は閉じ、三方の塀の上から石と矢、門兵の槍が待つ。二の門も掛矢で破る。
@@ -5601,7 +5599,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       }
       if (outerOpen && inner?.alive && !inner.opened && inner.hp > 0) {
         const at = gateCrew(rt, MASU.ix, MASU.iz, 6);
-        if (at || rt.t - F.outerOpenT > 15) rt.army.damage(inner, (at ? 4 + Math.min(6, at) : 8) * dt, null, { kind: 'gateWork' });
+        if (at) rt.army.damage(inner, (4 + Math.min(6, at)) * dt, null, { kind: 'gateWork' });
       }
       const breached = outerOpen && (!inner || inner.opened || inner.hp <= 0);
       F.masuClosed = !breached;

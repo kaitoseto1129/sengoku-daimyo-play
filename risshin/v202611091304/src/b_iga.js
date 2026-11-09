@@ -2933,7 +2933,7 @@ function igaWallStones(rt, dt) {
         if (!u.alive || u.team !== 0 || u.isStruct || u.fleeing) continue;
         if (Math.hypot(u.pos.x - st.b.x, u.pos.z - st.b.z) > 1.4 || Math.abs(u.pos.y - st.b.y) > 2.5) continue;
         if (u === P && Math.random() > 0.5) continue;
-        A.damage(u, u === P ? 7 : 14, F.wallBow?.units.find((q) => q.alive) || null, { kind: 'blunt', y: u.pos.y + 1.4 });
+        A.damage(u, u === P ? 7 : 14, st.source, { kind: 'blunt', y: u.pos.y + 1.4 });
       }
     }
   }
@@ -2948,11 +2948,16 @@ function igaWallVolley(rt, dt) {
     for (let i = 0; i < 5; i++) {
       const mesh = new THREE.Mesh(igaStoneGeo, igaStoneMat);
       mesh.visible = false; mesh.castShadow = true; rt.scene.add(mesh);
-      F.igaStones.push({ mesh, t: -1, dur: 1, a: new THREE.Vector3(), b: new THREE.Vector3() });
+      F.igaStones.push({ mesh, t: -1, dur: 1, source: null, a: new THREE.Vector3(), b: new THREE.Vector3() });
     }
     F.igaStoneT = 2; F.igaVolleyT = 3;
   }
   if (!P?.alive || F.ending || rt.over) return;
+  // 土塁の守り手が倒れた後や、撃ち止め・退去の下知の後に無人の投石を続けない。
+  // 投げ終えた石は別の更新で着地まで進め、投げた本人を記録しておく。
+  if (!F.wallBow || F.wallBow.holdFire || F.wallBow.retreatOnly) return;
+  const thrower = F.wallBow.units.find(igaReady);
+  if (!thrower) return;
   const rimZ = -55, rimY = W.heightAt(0, rimZ) + 2.6;
   // 寄せ手の固まり：土橋の下の坂（土塁から三十五歩の内）にいる味方。本人を含める。
   // 石は土塁から三十五歩まで、弓は六十五歩まで届く。
@@ -2977,6 +2982,7 @@ function igaWallVolley(rt, dt) {
       const tx = u.pos.x + (Math.random() - 0.5) * 2.4, tz = u.pos.z + (Math.random() - 0.5) * 2.4;
       st.b.set(tx, W.heightAt(tx, tz) + 0.2, tz);
       st.dur = 0.7 + Math.hypot(tx - fx, tz - rimZ) / 30;
+      st.source = thrower;
       st.t = 0; st.mesh.position.copy(st.a); st.mesh.visible = true;
     }
   }
