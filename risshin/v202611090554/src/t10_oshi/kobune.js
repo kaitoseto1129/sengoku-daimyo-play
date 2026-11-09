@@ -10,7 +10,6 @@ import { allyGroup, enemyGroup, nm } from '../bhelp.js';
 import { kobune } from '../props.js';
 import { sfx } from '../audio.js';
 
-const LIMIT = 160;                                // 段の長さの限り（秒）
 const DIKE_PTS = [[-22, 14], [0, 0], [20, -13]];  // 舟が寄せる堤の三か所（区の西・真ん中・東）
 const WAVES = [[0, 1], [2], [0, 1, 2]];           // 寄せの度ごとに使う岸（三度目は三か所から）
 const WAVE_AT = [6, 62, 118];                     // 段の始めからの秒
@@ -129,7 +128,10 @@ export function tick(rt, dt, C) {
   // 退いた城兵は水際で消える（舟に戻った）
   for (const g of K.groups) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && rt.world.heightAt(u.pos.x, u.pos.z) < F.lakeY + 0.3) rt.army.despawn(u);
   const done = K.wave >= WAVES.length && K.boats.every((B) => B.landed) && !K.groups.some(C.fighting);
-  if (!K.end && (done || t > LIMIT)) {
+  // 最後の舟が着き、城兵が退くまで迎え撃つ。時刻だけで残る城兵を消して済ませない。
+  const P = rt.player.u;
+  const atShore = K.spots.some((S) => C.near(P.pos, S.land, 24));
+  if (!K.end && done && P.alive && atShore) {
     K.end = rt.t;
     for (const g of K.groups) if (C.live(g)) { g.noRout = false; g.morale = 0; for (const u of g.units) if (u.alive && !u.gone) u.fleeing = true; }
     rt.award((tr) => { tr.side.push('舟で寄せた城兵を岸で退けた'); }, '舟で寄せた城兵を退けた');

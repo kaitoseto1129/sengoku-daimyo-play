@@ -3572,9 +3572,14 @@ const nagashima = {
         st.idleAdvance = false; st.limit = Infinity;
         const tick = st.tick;
         st.tick = (rt2, C, m, ctx, el, dt) => {
+          const held = C.inT;
           const defended = tick(rt2, C, m, ctx, el, dt);
-          // 敵を退けても、本人が持ち場を守らなければ次の務めへ送らない。
-          return defended && C.inT >= (st.max - 35) * 0.45;
+          // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
+          const u = rt2.player.u;
+          const atPost = u.alive && !rt2.player.mounted && u.pos.z >= BANK_Z &&
+            Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
+          C.inT = held + (atPost ? dt : 0);
+          return defended && atPost && C.inT >= (st.max - 35) * 0.45;
         };
       }
     }
@@ -3602,9 +3607,14 @@ const nagashima = {
         st.idleAdvance = false; st.limit = Infinity;
         const tick = st.tick;
         st.tick = (rt2, C, m, ctx, el, dt) => {
+          const held = C.inT;
           const defended = tick(rt2, C, m, ctx, el, dt);
-          // 敵を退けても、本人が持ち場を守らなければ次の務めへ送らない。
-          return defended && C.inT >= (st.max - 35) * 0.45;
+          // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
+          const u = rt2.player.u;
+          const atPost = u.alive && !rt2.player.mounted && u.pos.z >= BANK_Z &&
+            Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
+          C.inT = held + (atPost ? dt : 0);
+          return defended && atPost && C.inT >= (st.max - 35) * 0.45;
         };
       }
     }

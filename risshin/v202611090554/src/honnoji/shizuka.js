@@ -33,6 +33,9 @@ function start(rt, done) {
   rt.banner('天正十年六月二日　夜明け前', '京の本能寺。上様の供は、わずか百ほど');
   // 御殿の近臣（docs/generals_oda_1108.md 32：湯浅直宗）。広間の縁に控える
   evPerson(rt, 0, '湯浅直宗', { x: PT.hiroma.x + 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, u: { kosode: 1, honnoCloth: true } });
+  // 11/9 二巡（徳川D）：ほかの近臣も縁に控える（docs/generals_oda_1108.md 32：小倉松寿・金森長則。本能寺で討死）
+  evPerson(rt, 0, '小倉松寿', { x: PT.hiroma.x - 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, u: { kosode: 1, honnoCloth: true } });
+  evPerson(rt, 0, '金森長則', { x: PT.hiroma.x + 5, z: PT.hiroma.z - 1 }, Math.PI, { calm: true, u: { kosode: 1, honnoCloth: true } });
   k15Scenes(rt, [
     [2, () => rt.say('森蘭丸', '見回りじゃ。まず広間の戸締まりを見よ', 4)],
   ], () => k15Go(rt, 'sz-hiroma', PT.hiroma, 4, '御殿の広間の戸締まりを見よ', '広間', () => {
