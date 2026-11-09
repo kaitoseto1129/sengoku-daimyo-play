@@ -3097,6 +3097,12 @@ function withdraw(o) {
   s.tick = (rt, C, m, ctx, el, dt) => {
     const done = tick(rt, C, m, ctx, el, dt);
     C.goal = C.at;
+    // 11/9 二巡（徳川D）：道を塞ぐ武田勢と斬り合ううちに坂へ着けず、六分この段で止まった（bot）。
+    //   一分半たって坂の三十歩の内なら着いた事にし、三分たてば坂の手前で殿の段へ移る（退く戦を止め続けない）
+    if (!C.arr) {
+      const d0 = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
+      if ((el > 90 && d0 < 30) || el > 180) C.arr = true;
+    }
     if (C.arr && !C.arrOrderShown) {
       C.arrOrderShown = true;
       renewOrders(rt);
