@@ -188,11 +188,14 @@ function fushimiWay(army, u, want) {
   }
   // 回り道は三の丸より南（大手の脇）の外だけ。前は二の丸と本丸の間の空堀の脇に立つ者まで大手門の前へ回され、
   //   本丸へ寄せる寄せ手が二の丸の北の石垣に溜まって、本丸の口へ一人も来なかった（11/7 描いて遊んで見つけた）
-  // 空堀の土橋は左右七歩まで通れる。中央から三歩外れただけで
-  // 城外扱いにすると、橋を渡る味方まで大手門の外へ引き返してしまう。
-  if (z < 92 && z > 16 && Math.abs(x) > 7 && !inKuruwa(x, z) && inKuruwa(want.x, want.z)) {
+  // 大手の石垣の幅の内なら、道案内で土橋の中央へ戻す。
+  // 土橋の脇（例 x=8,z=53）から南へ戻すと、大手の北の石垣に突き当たる。
+  // 城外を回る者も、三の丸の幅（左右28歩）より外へ出てから南下する。
+  if (z < 92 && z > 16 && Math.abs(x) > 22 && !inKuruwa(x, z) && inKuruwa(want.x, want.z)) {
     const q = u._k01Out || (u._k01Out = { x: 0, z: 0, botRadius: 1.2 });
-    if (z < 90) { q.x = x; q.z = 97; } else { q.x = 0; q.z = 97; }
+    if (z >= 90) { q.x = 0; q.z = 97; }
+    else if (Math.abs(x) < 31) { q.x = Math.sign(x) * 32; q.z = z; }
+    else { q.x = x; q.z = 97; }
     return q;
   }
   const q = routeWay(army, u, want);

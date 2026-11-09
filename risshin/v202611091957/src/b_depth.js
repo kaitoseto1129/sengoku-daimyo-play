@@ -76,6 +76,11 @@ export function depthTick(rt, dt) {
   // 保険：どの段も、長引けば時間切れで次の段へ（斬り合いの段は AB の新手が尽きるまで待つので、七分まで延ばす）
   //   limit：戦の側が段の長さの上限を決めた時はそれを使う（関ヶ原は段が五つ重なり、七分ずつ延びると15分を超えた。11/8）
   if (!fin && el > (s.limit ?? (s.kind === 'fight' || s.kind === 'hold' ? Math.max(s.max, AB_LIMIT) : s.max)) && rt.canFailMission()) { C.timeout = true; fin = true; }
+  // 11/9 徳川C（見回り）：戦ごとの待ち（本人が段の場へ着く・本人が戦う・limit = Infinity）で、段が十八分の打ち切りまで止まる戦が多かった
+  //   （bot 中学生：伏見・道明寺・河田米野・根来寺・一宮城など）。どの段も七分（AB_LIMIT）を越えたら、味方の働きで段が済んだとみなして先へ進める。
+  //   s.noHardCap で戦の側が外せる
+  //   本人がその段で戦っていない（canFailMission が偽）時は四分で進める。戦っている時は七分まで待つ
+  if (!fin && !s.noHardCap && el > (rt.canFailMission() ? AB_LIMIT : 240)) { C.timeout = true; fin = true; }
   if (fin) {
     if (s.end) s.end(rt, C, D.mem, D.ctx);
     nextStep(rt);
