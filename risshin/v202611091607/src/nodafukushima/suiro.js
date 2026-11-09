@@ -37,7 +37,12 @@ export function install(rt, ctx) {
     S.spawnAt = rt.t + 5;
     const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '葦に潜む三好の鉄砲', anchor: { x: MI.x + 24, z: MI.z - 3 }, facing: -Math.PI / 2, aggro: 16, seekRange: 40, width: 8, morale: 70 },
       ctx.dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], ctx.foe));
-    if (!g || !g.count) return;
+    if (!g || !g.count) {
+      // 11/9 見回り（織田C）：兵の上限で出せない時が続くと物見の段のまま十八分止まった。二十五秒出せなければ鉄砲の段を飛ばして下知へ。
+      S.failT = S.failT || rt.t;
+      if (rt.t - S.failT > 25) { S.k = 3; S.backT = rt.t; rt.say('前田利家', '葦の鉄砲は舟で退いたか。堤へ戻れ、今日の下知を言うぞ', 3.5); }
+      return;
+    }
     S.g = g; S.k = 2; S.gT = rt.t;
     g.order = 'attack';
     rt.marker('nodaSnipe', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '三好の鉄砲', { red: true, group: g });

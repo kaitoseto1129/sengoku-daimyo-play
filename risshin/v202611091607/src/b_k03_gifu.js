@@ -33,7 +33,7 @@ import { routeTools } from './b_k_route.js';
 import { addTaba, patchGunCover, tickTabas } from './taketaba.js';
 import { makeRockTraps } from './siege_rocks.js';
 import { timeslipField } from './timeslip_field.js';
-import { install as installKaijo } from './k03_gifu/kaijo.js';   // 東軍の厚み・連続の知らせ・木瓜の旗が下りる（toku15 の 3）
+import { install as installKaijo, depthPlan as gifuDepth } from './k03_gifu/kaijo.js';   // 東軍の厚み・連続の知らせ・木瓜の旗が下りる（toku15 の 3）
 
 const ID = 'k03_gifu';
 TEGARA_ON.add(ID);
@@ -292,6 +292,7 @@ const k03_gifu = {
   noWake: true,
   minutes: 18,
   pacingWait: () => true,   // 時間だけでは退かない。各曲輪の到着と守りの突破、最後の降伏を待つ（G8）。
+  depth: gifuDepth,   // 布陣図（docs/fujin/k03_gifu.md）：東軍三万四千の備を城山の西・南西・南に（k03_gifu/kaijo.js）
   lethal: { soft: true },   // 11/9 係A：倒れすぎない強さ（soft）で入れ直す。前の書き：命懸けの戦場は入れない（11/8 bot：入れると山道で手勢が減って十八分で任務失敗。11/9 徳川A：弱め（二つ・三分過ぎ）でも bot 四回とも段④⑤で斬られ続けて止まり任務失敗。共通の lethal の係へ）
   fearKind: { kind: '山城攻め', note: '狭い山道で上から撃たれ、石を落とされる', w: { losses: 1.3, flank: 1.3, iso: 1.2 }, line: '上から来るぞ、伏せよ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物

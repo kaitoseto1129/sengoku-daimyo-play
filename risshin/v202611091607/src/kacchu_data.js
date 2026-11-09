@@ -1055,7 +1055,7 @@ export const TEDORIGAWA_KACCHU = {
   // 同資料に草摺の段数の明記はなく、形・寸法と当日の着用は従来どおり復元案。
   '稲葉良通': { ...KACCHU['稲葉良通'], crest: 'none', haori: 0,
     doStyle: 'sugake', sodeStyle: 'sugake', shikoroStyle: 'sugake', rightOpening: true, kusazuriLaceRows: 5 },
-  // 安藤の当日の所用具足と立物は未確認。大鍬形を断定せず、既存の配色で補う。
+  // 安藤は室町末の黒漆・紺糸威胴丸の型による復元案。本人の立物・個人紋は未確認。
   '安藤守就': { ...KACCHU['安藤守就'], crest: 'none', mon: 'none' },
   // 伊賀伊賀守は安藤守就の別名。別人の角付き兜を割り当てず、同じ復元を使う。
   '伊賀伊賀守': { ...KACCHU['安藤守就'], crest: 'none', mon: 'none' },

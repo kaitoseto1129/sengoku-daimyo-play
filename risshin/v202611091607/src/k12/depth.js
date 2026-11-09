@@ -12,7 +12,7 @@ export const DEPTH12 = {
       { id: 'ni', layer: 'ni', wing: 'center', men: 1200, taisho: '', at: { x: 4, z: -2 } },
       { id: 'ni2', layer: 'ni', wing: 'left', men: 600, taisho: '', at: { x: -34, z: 18 } },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 1000, taisho: '浅野長晟', bind: F('honjin') },
-      { id: 'ato', layer: 'gozume', wing: 'center', men: 800, taisho: '', at: { x: -26, z: 150 } },
+      { id: 'ato', layer: 'gozume', wing: 'center', men: 500, taisho: '', at: { x: -26, z: 150 } },
       { id: 'konida', layer: 'konida', wing: 'center', men: 300, at: { x: 30, z: 160 } },
     ] },
   B: { name: '豊臣', facing: 0, honjin: { x: 26, z: -206 }, mpu: 4, formation: '長蛇', terrain: 'road', flag: 'toyotomi', armor: 0x2a2622, uma: 'fukube', openAt: 9999, attrition: 0.003,

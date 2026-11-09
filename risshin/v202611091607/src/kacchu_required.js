@@ -80,6 +80,17 @@ export const REQUIRED_KACCHU = [
       menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
       shinodare: false, fukigaeshiBadge: false },
     '桶狭間の鷲津攻め。根津美術館蔵・黒韋肩取威腹巻の黒漆本小札・背面引合せ・紅白紅の肩取威を借りる復元案。黒韋は濃藍色で近似。兜は既存の筋兜で補い、立物・面頬・陣羽織・個人紋・馬印は未確認なので補わない。旗は今川方の所属表示。出所は docs/generals_look_1108/朝比奈泰朝.md'],
+  // 鳴海城の守将。静岡浅間神社の室町末期の腹巻を型だけ借りる復元案。
+  // 本人所用品とはしない。出所と省略：docs/generals_look_1108/岡部元信.md。
+  ['岡部元信', 'suji', 'none', D.kuro, C.kurenai, 'kebiki', 0, 'none', 'imagawa',
+    { helm: D.kuro, lac: 'kuro', fuki: 'kuro', sujiPlates: 62,
+      plateDo: null, doOpening: null, backOpening: true, domaru: false,
+      honkozane: true, doSugake: false, doKebiki: true,
+      sodeStyle: 'kebiki', shikoroStyle: 'kebiki', shikoroLace: C.kurenai,
+      kusazuriBands: Array(5).fill(C.kurenai),
+      menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '桶狭間の鳴海城守備。本人所用品は未確認。静岡浅間神社蔵・室町末期の紅糸威腹巻の細かな札と紅糸威・背面引合せを借りる復元案。黒漆と成人の寸法は補完、九間草摺は既存の七間で略す。兜は東博の十六世紀・六十二間筋兜鉢を型の参考とする。立物・面頬・陣羽織・個人紋・馬印は補わず、旗は今川方の所属表示'],
   // 森部・墨俣・稲葉山
   ['前田利家', null, null, null, null, null, null, null, mon('maeda', '#1d1b18', W), null, '金小札の具足（前の表・写真）。旗は梅鉢'],
   ['日比野下野守', 'momonari', 'kuwa', D.kuro, C.asagi, 'kebiki', 0x3a4632, 'saito', txt('日比野', '#dfe3e6'), null, '清実。森部で討死。所用品は伝わらない。復元案'],
@@ -108,7 +119,15 @@ export const REQUIRED_KACCHU = [
       menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
       shinodare: false, fukigaeshiBadge: false },
     '直元。建勲神社の紺糸威胴丸による同時代の型の復元案。黒漆本小札・紺糸毛引威・右脇引合・大袖・十二間草摺・四十間筋兜と小形の錣。鍬形は既存形で補い、脇立・面頬・陣羽織・個人紋・馬印は補わない。旗は織田方の所属表示。出所は docs/generals_look_1108/氏家卜全.md'],
-  ['安藤守就', 'momonari', 'kuwa_ken', D.chaurushi, C.kon, 'kebiki', 0xcfc8b4, 'none', txt('安藤'), null, '所用品は伝わらない。復元案'],
+  // 本人所用品は未確認。室町末の現存胴丸を型だけ借りる（docs/generals_look_1108/安藤守就.md）。
+  ['安藤守就', 'suji', 'none', D.kuro, C.kon, 'kebiki', 0, 'none', 'oda',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108,
+      domaru: true, doOpening: 'right', rightOpening: true, honkozane: true, plateDo: null,
+      doSugake: false, doKebiki: true, sodeStyle: 'osode', shikoroStyle: 'compact', shikoroLace: C.kon,
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriColor: D.kuro, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '本人所用は未確認。建勲神社蔵の十六世紀の紺糸威胴丸による型の復元案。黒漆本小札・右脇引合・大袖・十二間草摺・四十間筋兜。前立・脇立・面頬・陣羽織・個人紋・馬印は補わず、旗は合流後の織田方の所属表示'],
   // 箕作・大河内・金ヶ崎・姉川
   ['六角義賢', null, null, null, null, null, null, null, txt('六角'), null, '承禎。具足は前の表。旗は名の字'],
   // 義治本人の所用品は未確認。近江・同時代の垣見家伝来品を型の手本にする復元案。

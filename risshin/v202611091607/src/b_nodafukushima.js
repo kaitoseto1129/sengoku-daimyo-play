@@ -648,7 +648,8 @@ function makeRoom(rt, need) {
   }
 }
 function cappedList(rt, list) {
-  let room = 225; // 新手を出す時だけ数え、味方の追いつく分を空ける。
+  // 11/9 見回り（織田C）：二巡で武将の旗本（各十五人）が増え、始まりから 246 人で 225 の枠が尽き、葦の鉄砲・夜の寄せが一人も出なかった。枠を 258 へ。
+  let room = 258; // 新手を出す時だけ数え、味方の追いつく分を空ける。
   for (const u of rt.army.units) if (u.alive && !u.isStruct && !u.farSim && u.type !== 'dummy') room--;
   return list.map((q) => { const n = Math.max(0, Math.min(q.n, room)); room -= n; return { ...q, n }; });
 }
@@ -2782,7 +2783,8 @@ const nodafukushima = {
   spacedCombatCues: true, // 届く札は照準の上。斜面の敵の頭上や空へ離さない。
   reserveCombatCues: true, // 休む印が気力・間合いの札に重ならないよう、既存の回避を使う。
   edgeBehindWaymarks: true, // 後ろへ退く印を画面の端へ寄せ、槍の列を見せる。
-  botEvacuating: rt => rt.flags.retreating && !rt.flags.ending,
+  // 11/9 見回り（織田C）：井楼の段（登る・撃つ）は戦の頭の動きを保つ。アクション好きの癖が近くの槍へ構え直して「登る」の長押しを毎回放し、梯子の下で十五分止まった。
+  botEvacuating: rt => (rt.flags.retreating && !rt.flags.ending) || rt.flags.step === 1 || (rt.flags.step === 1.5 && !rt.flags.shotsDone),
   compactIntro: true,
   introTaskFirst: true,
   introKeepControls: true, // 開戦前は長押しの説明を省かず、そのまま読ませる。

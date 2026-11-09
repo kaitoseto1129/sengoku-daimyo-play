@@ -5,15 +5,12 @@
 // 本物の兵は足さない。呼び方：setup で install(rt, ctx, { T, Y })、win で ctx.ending()（finish はその後 26 秒）
 // ======================================================================
 import { sfx } from '../audio.js';
-import { sonaeLayers } from '../k_toku_a/sonae.js';
 import { jinmaku, nobori } from '../props.js';
 
 export function install(rt, ctx, { T, Y }) {
   const F = rt.flags, W = rt.world;
   // 川の向こう（大垣の側）：石田と宇喜多。前＝赤坂の側（局所の +x）
-  const west = (lx, lz, mon, armor, seed, layers) => { const p = T(lx, lz); return sonaeLayers(rt, { x: p.x, z: p.z, facing: Y(Math.PI / 2), mon, armor, team: 1, seed, layers }); };
-  west(-170, -70, 'ishida', 0x6b2e22, 41, [{ back: 0, w: 40, d: 10, count: 150 }, { back: 22, w: 40, d: 12, count: 150 }, { back: 42, w: 20, d: 10, count: 70, kind: 'honjin' }]);
-  west(-180, 40, 'ukita', 0x5e3222, 42, [{ back: 0, w: 44, d: 10, count: 170 }, { back: 22, w: 44, d: 12, count: 170 }, { back: 42, w: 22, d: 10, count: 80, kind: 'honjin' }]);
+  // 川の向こうの石田・宇喜多の備と赤坂の側の東軍の備は、陣立ての表（b_k04_kuisegawa.js の depth・布陣図 docs/fujin/k04_kuisegawa.md）で置く
   // 石田三成の本陣（generals_toyo_toku 4：後方本陣。前へは出ない）：大垣の側の奥、宇喜多と石田の備の後ろに陣幕と床几
   try {
     const h = T(-228, -40), f = Y(Math.PI / 2);
@@ -25,11 +22,6 @@ export function install(rt, ctx, { T, Y }) {
         people: [{ k: 'seated', general: 1, x: h.x, z: h.z + 1, facing: f }, ...[[-1.6, 0.6], [1.6, 0.6], [-1, -1.4], [1, -1.4]].map(([dx, dz]) => ({ k: 'samurai', x: h.x + dx, z: h.z + 1 + dz, facing: f }))] });
     } finally { W.lastFocus = lf; }
   } catch (e) { /* 置けない時は置かない */ }
-  // 赤坂の側：岡山の家康の本陣の前に並ぶ東軍の諸隊（福島・池田など。この日は動かない）
-  const east = (lx, lz, mon, seed, layers) => { const p = T(lx, lz); return sonaeLayers(rt, { x: p.x, z: p.z, facing: Y(-Math.PI / 2), mon, armor: 0x24221f, team: 0, seed, layers }); };
-  east(170, -50, 'maru', 43, [{ back: 0, w: 40, d: 10, count: 150 }, { back: 22, w: 36, d: 10, count: 120 }]);
-  east(165, 100, 'ageha', 44, [{ back: 0, w: 40, d: 10, count: 150 }, { back: 22, w: 36, d: 10, count: 120 }]);
-
   // 締め：左近が追うのを止め、西軍が勝鬨。負けの札の後、その夜へ
   ctx.ending = () => {
     rt.after(12.4, () => {
