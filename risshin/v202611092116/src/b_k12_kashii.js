@@ -694,7 +694,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   onKill(rt, v, k) {
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
-    if (F.step === 1 && k?.isPlayer && (v.group === F.hana1 || v.group === F.oka1)) F.vanguardJoined = true;
+    if (F.step === 1 && k?.isPlayer && (v.group === F.hana1 || v.group === F.oka1) && dist(rt.player.u.pos, YASU) < 28) F.vanguardJoined = true;
     if (F.step === 3 && k?.isPlayer && (v.group === F.hana || v.group === F.awa) && dist(rt.player.u.pos, VILLAGE) < 20) F.villageJoined = true;
     if (F.step === 4 && k?.isPlayer && v.group === F.oka && dist(rt.player.u.pos, v.pos) < 6 && dist(v.pos, EAST) < 70) F.eastJoined = true;
     if (v.name === '塙団右衛門') F.hanaByMe = !!k?.isPlayer;

@@ -746,7 +746,7 @@ const markZone = (rt, id) => {
       : (z.friends || 0) < z.need
           ? `${name}を守れ　呼び直しまで${Math.max(0, Math.ceil((rt.flags.callReadyAt || 0) - rt.t))}秒`
           : z.owner !== 'friend' && !z.enemies && (z.friends || 0) >= z.need
-          ? `${name}をあと${Math.max(1, Math.ceil(Math.max(0, 280 - (z._mkFightT || 0)) + z.hold - z.holdT))}秒守れ` : name),
+          ? `${name}をあと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ` : name),
     { zoneGuide: true, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 };
 
@@ -2109,7 +2109,7 @@ function zoneTask(rt, z, id = 'main', action = '') {
   const indoors = id === 'main' && courtyardHouse(rt, rt.player.u);
   const pause = id === 'main' ? zonePause(rt) : '';
   // 道の下知は郭の外だけ。到着したら、味方がまだ来ていなくても戦う手を示す。
-  const next = pause || (indoors ? '戸口から庭の旗へ戻れ' : approaching ? action || way : !enough ? gather : z.enemies ? '地上の敵を払え' : z.owner === 'friend' ? '味方を残し、旗を守れ' : `あと${Math.max(1, Math.ceil(Math.max(0, 280 - (z._mkFightT || 0)) + z.hold - z.holdT))}秒守れ`);
+  const next = pause || (indoors ? '戸口から庭の旗へ戻れ' : approaching ? action || way : !enough ? gather : z.enemies ? '地上の敵を払え' : z.owner === 'friend' ? '味方を残し、旗を守れ' : `あと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ`);
   const call = !pause && rt.flags.callSignalZone === z && rt.t < rt.flags.callSignalUntil
     ? rt.t < rt.flags.callSignalSecondAt ? '集合の法螺貝、一声目。' : '法螺貝の二声目、旗へ集合。' : '';
   // 「あと○人」は共通の知らせで「残る者」に変わる。制圧に要る人数は短い札にも残す。
@@ -4843,7 +4843,7 @@ const mitsukuri = {
         // 木戸が開いても、打って出た組を退けるまでは付け入り前。
         // 先に庭へ入った本人と仲間だけで二の丸を取り、迎撃を飛ばさない。
         const ready = present && (z.id !== 'ni' || F.gatePass);
-        // 三つの郭で各四分四十秒の攻防。退避で最初からやり直さず、本人と味方が守った時間だけ積む。
+        // 本人と味方が郭で戦った時間だけ、控えが出る目安に数える。制圧に固定の待ち時間は足さない。
         if (ready && z.owner !== 'friend' && z.friends >= z.need) z._mkFightT = (z._mkFightT || 0) + dt;
         const elapsed = z._mkFightT || 0;
         // 郭内の控えが三度押し返す。前の組が残る間は増やさず、実兵の上限も守る。
@@ -4863,9 +4863,10 @@ const mitsukuri = {
           // 既に二百五十人近い時は既存の守りと戦い、追加待ちで制圧を止めない。
           z._mkWaves = (z._mkWaves || 0) + 1;
         }
-        const fought = elapsed >= 280 && (z._mkWaves || 0) >= 3;
-        z.hold = ready && fought || z.owner === 'friend' ? z._mkHold : Infinity;
-        if ((!ready || !fought) && z.owner !== 'friend') z.holdT = 0;
+        // 守りを払って味方がそろえば、既存の十秒・十二秒で旗を立てる。
+        // 控えの出現回数を待つためだけに、空の郭で足止めしない。
+        z.hold = ready || z.owner === 'friend' ? z._mkHold : Infinity;
+        if (!ready && z.owner !== 'friend') z.holdT = 0;
       }
       F.SZ.tick(dt);
       for (const z of F.SZ.zones) z.hold = z._mkHold;
