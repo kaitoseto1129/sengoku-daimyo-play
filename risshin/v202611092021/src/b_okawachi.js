@@ -4631,6 +4631,7 @@ function okHold(o) {
       // 早く夜攻めを終えた回も、封鎖を務めて十五分を満たす。
       C.duration = o.blockade ? Math.max(o.dur, PEACE_AT - rt.t) : o.dur;
       C.blockade = !!o.blockade; C.at = C.goal = o.at; C.botRadius = o.r; C.inT = 0; C.dangerT = 0; C.groups = o.groups; C.joinedLine = false; C.clearT = 0;
+      C.holdPoint = { x: o.at.x, y: rt.world.heightAt(o.at.x, o.at.z), z: o.at.z };
       C.shortLineT = 0; C.shortLineSafeT = 0; C.shortLineThreat = false;
       C.reliefWaitT = 0; C.reliefGroup = null; C.engagedHoldT = 0; C.repelling = false;
       C.quietHoldT = 0;
@@ -4709,7 +4710,7 @@ function okHold(o) {
       let foes = 0, sortieFoes = 0, friends = 0, line = 0, closeFoe = null, closeD = 18;
       rt.army.forNear(o.at.x, o.at.z, o.r, (u) => {
         if (!u.alive || u.dying || u.gone || u.isStruct || u.fleeing || u.woundOut || u.dropped || u.noTarget) return;
-        if (o.sortie && Math.abs(u.pos.y - holdY) > 3) return;
+        if (o.sortie && (Math.abs(u.pos.y - holdY) > 3 || rt.army.wallBetween(C.holdPoint, -1, u.pos))) return;
         if (u.team === 1) {
           foes++;
           if (o.groups.includes(u.group)) {
@@ -4719,8 +4720,8 @@ function okHold(o) {
           // 木戸の内の弓や壁越しの兵へ、振り向く案内を出さない。
           if (d < closeD && u.pos.z > GATE.z + 0.8 && !rt.army.wallBetween(p, 0, u.pos)) { closeFoe = u; closeD = d; }
         } else { friends++;
-          // 印が示す持ち場の中の槍を数える。字のない小さな長方形を別の合流条件にしない。
-          if (!u.isPlayer && u.group && !u.group.routed && (u.type === 'ashigaru' || u.type === 'samurai') && (u.group.order === 'hold' || u.group.order === 'attack' || u.group.order === 'move' || o.sortie && u.group.order === 'path')) line++;
+          // 持ち場で実際に槍を構える仲間だけを数える。刀への持ち替えや壁の向こうの兵で列を満たさない。
+          if (!u.isPlayer && u.group && !u.group.routed && (u.wpnKind || u.lookWeapon || u.weapon) === 'spear' && (u.type === 'ashigaru' || u.type === 'samurai') && (u.group.order === 'hold' || u.group.order === 'attack' || u.group.order === 'move' || o.sortie && u.group.order === 'path')) line++;
         }
       });
       C.lineCount = line;
