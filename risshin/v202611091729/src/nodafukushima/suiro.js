@@ -11,7 +11,7 @@ export const MISSIONS = ['堤の東の端から葦の水路へ下り、野田・
 const MI = { x: 52, z: -17 };   // 堤の東の端の先、葦の岸（淀川の向こうに二つの砦）
 const MIN_T = 150;
 
-// ctx：{ enemyGroup, dress, foe（三好の具足）, ready()（前田の下知へ） }
+// ctx：{ enemyGroup, makeRoom, dress, foe（三好の具足）, ready()（前田の下知へ） }
 export function install(rt, ctx) {
   const F = rt.flags, S = F.nodaSuiro = { k: 0, t0: rt.t, done: false, at: MI };
   const live = () => !S.done && !F.ending && !rt.over && !F.step;
@@ -35,14 +35,12 @@ export function install(rt, ctx) {
   function snipers() {
     if (!live() || S.g || rt.t < (S.spawnAt || 0)) return;
     S.spawnAt = rt.t + 5;
+    // 名の無い遠い控えを退かせ、鉄砲四人を含む十人の枠を先に確保する。
+    // 出せなかった敵を、時刻だけで追い払った事にはしない。
+    if (ctx.makeRoom(rt, 10) < 10) return;
     const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '葦に潜む三好の鉄砲', anchor: { x: MI.x + 24, z: MI.z - 3 }, facing: -Math.PI / 2, aggro: 16, seekRange: 40, width: 8, morale: 70 },
       ctx.dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], ctx.foe));
-    if (!g || !g.count) {
-      // 11/9 見回り（織田C）：兵の上限で出せない時が続くと物見の段のまま十八分止まった。二十五秒出せなければ鉄砲の段を飛ばして下知へ。
-      S.failT = S.failT || rt.t;
-      if (rt.t - S.failT > 25) { S.k = 3; S.backT = rt.t; rt.say('前田利家', '葦の鉄砲は舟で退いたか。堤へ戻れ、今日の下知を言うぞ', 3.5); }
-      return;
-    }
+    if (!g || !g.count) return;
     S.g = g; S.k = 2; S.gT = rt.t;
     g.order = 'attack';
     rt.marker('nodaSnipe', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '三好の鉄砲', { red: true, group: g });

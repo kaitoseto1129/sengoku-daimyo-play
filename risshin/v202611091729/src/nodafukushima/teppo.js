@@ -15,6 +15,8 @@ const MIN_T = 120;
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.nodaTeppo) return;
+  // 味方の鉄砲衆にも増援と同じ人数枠を空ける。足りない時は次の更新で試す。
+  if (ctx.makeRoom(rt, 12) < 12) return;
   const S = F.nodaTeppo = { t0: rt.t, done: false, k: 0, at: POST };
   const live = () => !S.done && !F.ending && !rt.over && !F.retreating;
   const guns = ctx.allyGroup(rt, { name: '根来・雑賀の鉄砲衆', anchor: { x: POST.x, z: POST.z + 3 }, facing: Math.PI, width: 14, aggro: 80, seekRange: 90, noRout: true, formation: 'line' },
@@ -35,7 +37,7 @@ export function start(rt, ctx) {
   function sally() {
     if (!live() || S.g || rt.t < (S.spawnAt || 0)) return;
     S.spawnAt = rt.t + 5;
-    ctx.makeRoom(rt, 14);
+    if (ctx.makeRoom(rt, 14) < 14) return;
     const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '野田砦の三好の槍', anchor: { x: POST.x - 34, z: POST.z - 12 }, facing: Math.PI / 2, aggro: 14, seekRange: 60, width: 12, morale: 90 },
       ctx.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ctx.foe));
     if (!g || !g.count) return;

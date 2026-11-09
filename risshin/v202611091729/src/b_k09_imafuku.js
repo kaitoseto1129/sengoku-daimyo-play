@@ -103,16 +103,21 @@ function requiredStage(s) {
       }
       if ([rt.flags.gate, ...(rt.flags.outer || [])].some((st) => st && st.alive)) return false;
       // 11/9 徳川C：木戸が全部倒れても、味方の組が守兵を前に止まり、本人も守将に届かないと②が十四分止まった（bot）。
-      //   最後の木戸が倒れて七十五秒たっても守将が立っていれば、佐竹の組が討ち取る（本人の手柄にはしない）
+      //   七十五秒後は、実際に守将へ斬り込んだ佐竹の兵だけが討ち取れる。本陣の旗本による遠隔の討死にはしない。
       const F2 = rt.flags; F2.gatesDownT ??= rt.t;
-      if (leaderAlive && rt.t - F2.gatesDownT > 75 && !F2.leadersCut) {
-        F2.leadersCut = true;
-        const by = rt.army.units.find((u) => u.alive && u.team === 0 && !u.isPlayer && !u.isStruct);
-        F2.quietKill = true;   // 本人の手柄（onKill の「討ち取ったり」）にしない
-        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) rt.army.kill(u, by);
-        F2.quietKill = false;
-        rt.say('足軽', '佐竹の組が砦の守将を討ったぞ！', 3);
-        leaderAlive = false;
+      if (leaderAlive && rt.t - F2.gatesDownT > 75) {
+        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) {
+          const by = rt.army.units.find((a) => a.alive && a.team === 0 && !a.isPlayer && !a.isStruct &&
+            !a.fleeing && !a.dying && !a.woundOut && !a.perch &&
+            Math.abs(a.pos.y - u.pos.y) < 3 && Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4 &&
+            !rt.army.wallBetween(a.pos, a.team, u.pos, false));
+          if (!by) continue;
+          const quiet = F2.quietKill;
+          F2.quietKill = true;   // 本人の手柄にはしない
+          try { rt.army.kill(u, by); } finally { F2.quietKill = quiet; }
+          if (!u.alive) rt.say('足軽', `佐竹の組が${u.name}を討ったぞ！`, 3);
+        }
+        leaderAlive = C.groups.some((g) => g.units.some((u) => u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')));
       }
       // 共通の判定は残り二人以下でも組を済みとする。守将が残っている間は、討つ目標を済みにしない。
       if (leaderAlive) return false;

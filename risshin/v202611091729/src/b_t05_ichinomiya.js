@@ -401,7 +401,7 @@ function steps(rt) {
           C.inT = held + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius ? dt : 0);
           // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。15分の戦（11/8）：坑道は七十五秒守る
           const need = stage.needIn ?? 75;
-          if (!stage.needIn) r.objProgress('dp', C.inT < need ? '坑道の口で金掘り衆を守る' : '坑道の口の寄せを退ける');
+          if (!stage.needIn) r.objProgress('dp', '');
           return done && C.inT >= need;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
@@ -409,8 +409,8 @@ function steps(rt) {
           // 画面の▼だけでなく、隊と自動操作の目当ても場所に留める。
           C.goal = C.at;
           const p = r.player.u.pos;
-          // 15分の戦（11/8）：一つの段を一分で済ませない（加勢・知らせの間を取る。敵の体力は増やさない）
-          return done && el > ([0, 130, 120, 115][i] || 0) && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
+          // 加勢まで退け、本人も着いたら済む。敵のいない場所で時間だけ待たせない。
+          return done && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
         }
         return done;
       };
