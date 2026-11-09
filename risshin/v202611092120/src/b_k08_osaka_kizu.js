@@ -721,9 +721,13 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (F.step === 3) { at(fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
   if (F.step === 4) {
     const target = northTarget(F, u.pos)?.pos || NGATE;
-    // 城からの加勢は北門の外にも残る。北の塀を斜めに横切らず、開いた門を通って迎える。
-    if (target.z < WALL_N && u.pos.z > WALL_N - 4 && b.army.wallBetween(u.pos, -1, target)) {
-      at({ x: NGATE.x, z: u.pos.z > WALL_N + 4 ? WALL_N + 4 : WALL_N - 8 }, 2);
+    // 加勢を迎えて門の外へ出た後も、内の守兵へは開いた北門を通って戻る。
+    // 外へ出る時だけ迂回すると、帰りに北の塀へ斜めに寄って止まる。
+    if ((target.z < WALL_N) !== (u.pos.z < WALL_N) && b.army.wallBetween(u.pos, -1, target)) {
+      const outside = u.pos.z < WALL_N;
+      const approach = outside ? WALL_N - 8 : WALL_N + 4;
+      const through = outside ? WALL_N + 4 : WALL_N - 8;
+      at({ x: NGATE.x, z: Math.abs(u.pos.x - NGATE.x) > 2.5 ? approach : through }, 2);
       return;
     }
     at(target, 2.2); return;

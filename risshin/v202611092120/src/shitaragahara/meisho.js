@@ -33,13 +33,15 @@ export function onKill(rt, v, ctx) {
   // 近くの隊の気が落ち、一部が逃げ出す
   const p = v.pos;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || g.routed || !g.count) continue;
+    // 下知前の本隊と、渡河後に戦う殿へ敗走を先取りさせない。
+    if (g.team !== 1 || g.routed || !g.count || g.shWaiting ||
+        !g.units.some((u) => u.alive && !u.noTarget && !u.invuln)) continue;
     const c = g.center(), d = Math.hypot(c.x - p.x, c.z - p.z);
     if (d > N.r) continue;
     const own = g === v.group;
     g.morale = Math.max(0, (g.morale ?? 100) - (own ? 55 : 30));
     let k = 0;
-    for (const u of g.units) if (u.alive && !u.fleeing && u.type !== 'busho' && Math.random() < (own ? 0.3 : 0.15) && k++ < 6) { u.fleeing = true; u.target = null; }
+    for (const u of g.units) if (u.alive && !u.fleeing && !u.noTarget && !u.invuln && u.type !== 'busho' && Math.random() < (own ? 0.3 : 0.15) && k++ < 6) { u.fleeing = true; u.target = null; }
   }
   rt.after(0.6, () => { if (!F.ending) rt.say('武田の足軽', N.cry, 2.2); });
   try { sfx('toki', 0.5); } catch (e) { /* なし */ }
