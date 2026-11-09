@@ -530,6 +530,8 @@ export const t05_ichinomiya = {
   // 共通の一覧は既定一行。始まりから五件を並べ、六段目も今の目標と一緒に見せる。
   goalVisibleRows: 5, goalRowsAhead: true,
   goalSignTarget: destOf,
+  // 行き先は矢印でなく▼一つ。画面の外でも矢印へ戻したり回したりしない。
+  goalSignTriangle: true,
   // 行き先の▼があっても、六人の将の名を近い一〜二人だけに絞らない。
   // 重なり・塀の遮り・画面の外は共通の名札の判定に任せる。
   nameTagLimit: 6,

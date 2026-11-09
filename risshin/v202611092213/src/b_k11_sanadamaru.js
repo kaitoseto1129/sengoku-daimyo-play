@@ -802,7 +802,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const p = rt.player.u;
     const rp = rOf(p.pos.x, p.pos.z);
     // 柵の組の竹束の陰（三歩の内）に入れば弾はほとんど当たらない（「竹束の陰に入れ」の言葉どおり。柵を打つ務めで、ただ撃ち殺されない。十二3）
-    const cover = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 3 && rOf(u.pos.x, u.pos.z) < rp + 0.5));
+    const cover = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 3 && rOf(u.pos.x, u.pos.z) < rp + 0.5));
     // 堀の中は逃げ場が無い。ただし一斉射だけで討たれはしない（命を二割は残す。柵の前で何度遊んでも倒れた 11/6）
     const vd = Math.min(p.maxHp * (rp < FENCE_R ? 0.24 : 0.16), p.hp - p.maxHp * 0.2);
     if (p.alive && !p.invuln && vd > 0 && rp < FENCE_R + 6 && Math.abs(angOf(p.pos.x, p.pos.z)) < SPAN && Math.random() < (cover ? 0.12 : rp < FENCE_R ? 0.7 : 0.4)) rt.army.damage(p, vd, shooter, { kind: 'gun' });
@@ -1008,10 +1008,11 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     }
     if (F.fireOn && F.step >= 2 && rt.t > F.volT) { F.volT = rt.t + (F.step === 3 ? 9 : 13) + Math.random() * 3; this.volley(rt); }
     if (F.step === 3 && F.target.alive) {
-      // 柵を破る組が減ったら、後ろから次の者が出る
+      // 竹束を持つ者だけが倒れた時も補う。槍の者が残っているだけでは、竹束の陰へ寄れなくなる。
       const left = F.rams.reduce((a, g) => a + g.count, 0);
+      const covered = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut));
       const live = rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
-      if (left < 4 && F.rams.length < 7 && live + 12 <= 250) {
+      if ((left < 4 || !covered) && F.rams.length < 7 && live + 12 <= 250) {
         rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3);
         const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: { x: 10, z: C.z + FENCE_R + 30 }, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
           dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));
