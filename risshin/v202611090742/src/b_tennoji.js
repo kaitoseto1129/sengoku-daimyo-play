@@ -3529,7 +3529,12 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       });
     }
     rt.after(16, () => { if (F.step === 3 && !F.ending) battleEvent(rt, EVENT_COMMANDER_ADVANCE, F.nobuU.pos, F.nobu, 0, true, '二段目も旗を進め、本願寺勢を押す'); });
-    for (let i = 0; i < 2; i++) { F.last[i].guard = false; F.last[i].order = 'attack'; F.last[i].seekRange = 55; }
+    // 探索の届かない遠い持ち場で待ち続けず、北の柵の外を回って東の戦場へ寄せる。
+    for (let i = 0; i < 2; i++) {
+      const q = F.last[i];
+      march(q, [[42, q.anchor.z], [42, -112]], 'attack', 0);
+      q.seekRange = 55;
+    }
     // 後備えも二段の攻めへ寄せる。西の遠い持ち場に残して待たせない。
     rt.after(20, () => {
       if (F.ending || F.step !== 3 || gone(F.newHand)) return;
