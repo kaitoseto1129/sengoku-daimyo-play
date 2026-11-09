@@ -49,12 +49,6 @@ export class WorldSky {
         // 低でも雲の大きな形と縁は残す。細かい三段だけ省き、濃さをそろえる
         float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 5; k++) { if (lowDetail > 0.5 && k >= 2) break; v += a * n(p); p *= 2.03; a *= 0.5; } return v * mix(1.0, 0.96875 / 0.75, lowDetail); }
         float fbm3(vec2 p){ float v = 0.0, a = 0.5; for (int k = 0; k < 3; k++) { v += a * n(p); p *= 2.03; a *= 0.5; } return v / 0.875; }
-        // 写真の両端は平均の濃さへ溶かす。前後の天気と二層目も同じ処理を使う。
-        // 読む回数を増やさず、方位の境に立つ縦の板を消す。
-        vec4 cloudPhoto(sampler2D photo, vec2 uv) {
-          float edge = min(fract(uv.x), 1.0 - fract(uv.x));
-          return mix(vec4(0.5), texture2D(photo, uv), smoothstep(0.0, 0.025, edge));
-        }
         void main(){
           vec3 d = normalize(vP);
           // 雨の日は雲が空を覆い、暗く重い
@@ -98,14 +92,14 @@ export class WorldSky {
           if (d.y > 0.0 && photoK > 0.0) {
             float az0 = atan(d.z, d.x), az = az0 - photoAz;
             vec2 puv = vec2(fract(az * 0.15915494 + photoSun + cloudTime * 0.00002), clamp(asin(clamp(d.y, 0.0, 1.0)) * 0.63661977, 0.004, 0.996));
-            vec3 pr = cloudPhoto(tPhoto, puv).rgb;
-            if (photoB > 0.002) pr = mix(pr, cloudPhoto(tPhotoB, vec2(fract((az0 - photoAzB) * 0.15915494 + photoSunB + cloudTime * 0.00002), puv.y)).rgb, photoB);
+            vec3 pr = texture2D(tPhoto, puv).rgb;
+            if (photoB > 0.002) pr = mix(pr, texture2D(tPhotoB, vec2(fract((az0 - photoAzB) * 0.15915494 + photoSunB + cloudTime * 0.00002), puv.y)).rgb, photoB);
             pr = pr * pr * 4.0;
             float nk2 = 1.0 - daylight, rk2 = clamp(max(rain, cov - 0.6) * 1.6, 0.0, 1.0);
             // 雲の層：同じ写真を大きく引き伸ばしてもう一度重ね、遠い雲の帯と近い雲の塊を分ける（低では一枚のまま）
             if (lowDetail < 0.5) {
               // 全周を整数回で回す。半周分のずれを残すと、方位の境に雲の縦の切れ目が立つ。
-              vec3 pr2 = cloudPhoto(tPhoto, vec2(fract(puv.x * 2.0 + 0.37 + cloudTime * 0.00003), puv.y * 0.8 + 0.1)).rgb;
+              vec3 pr2 = texture2D(tPhoto, vec2(fract(puv.x * 2.0 + 0.37 + cloudTime * 0.00003), puv.y * 0.8 + 0.1)).rgb;
               pr *= mix(vec3(1.0), clamp(pr2 * pr2 * 4.0, 0.4, 2.0), 0.4 * max(rk2, nk2));
             }
             // 曇り・雨・夜の写真は濃淡が薄い。比を強めて、雲の腹の暗さと切れ間の明るさを出す（平らな灰・一色の紺にしない）
