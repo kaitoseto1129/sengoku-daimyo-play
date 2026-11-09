@@ -413,6 +413,8 @@ export function introMap(rt, camera, done) {
     g.globalAlpha = fade;
     // 名は重ねない：先に置いた名と重なる時は一段上へ（それでも重なれば出さない。上の人数の札にも重ねない）
     const put = draw.put || (draw.put = []); put.length = 0;
+    // 11/9 iPhone 874×402（大河内）：焼いた地名（大河内城など）の上にも武将の名が重なった。地名も先に置いた札として数える
+    for (const place of rt.def.introMapPlaces || []) { toS(place.x, place.z, q); put.push([q[0], q[1] - 7, place.name.length * 15 * 1.05, 19]); }
     // 行き先の旗も先に場所を取る。後から描く旗で将の名を隠さない。
     if (L.pin) {
       toS(L.pin.x, L.pin.z, q);

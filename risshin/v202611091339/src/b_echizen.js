@@ -20,7 +20,10 @@ import { NAKA } from './naka.js';
 import { dressStage } from './stage_dress.js';
 import { allyGroup, enemyGroup } from './bhelp.js';
 import { goalsTick } from './hud_goals.js';
-import * as EC_GORYU from './echizen/goryu.js';   // 15分の構成（docs/oda15_plan_1108.md 18）：段の中身は echizen/ に一段一ファイル
+import * as EC_GORYU from './echizen/goryu.js';
+import * as EC_KURUWA from './echizen/kuruwa.js';
+import * as EC_SEIEI from './echizen/seiei.js';
+import * as EC_FUCHU from './echizen/fuchu.js';   // 15分の構成（docs/oda15_plan_1108.md 18）：段の中身は echizen/ に一段一ファイル
 
 // 11/5 fix61（kaito 九1・九3・十1）：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
 //   共通の任務札は一行だけ（missionSingleLine）なので、その後に目標の札を重ねて置き換える（有岡と同じ作り）。時の字は出さない。
@@ -224,7 +227,7 @@ const passFighter = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.wo
 function passZone(rt) {
   const F = rt.flags;
   return F.SZ?.byId[!F.kannonFell ? 'kannon' : !F.souFell ? 'kinome_sou'
-    : F.SZ.byId.kinome_fuku.owner !== 'friend' ? 'kinome_fuku' : 'kinome_hon'];
+    : (F.SZ.byId.kinome_fuku.owner !== 'friend' || EC_SEIEI.active(rt)) ? 'kinome_fuku' : 'kinome_hon'];
 }
 function passGate(rt) {
   const F = rt.flags;
@@ -2321,6 +2324,8 @@ echizen.update = function (rt, dt) {
   // 観音丸の寄せが七十秒を過ぎても郭が落ちない時、前田・佐々・不破の手が上がって来る（echizen/goryu.js）
   if (rt.flags.step && !rt.flags.kannonFell && !rt.flags.echGoryu && rt.t - (rt.flags.stepT ?? rt.t) > 70) EC_GORYU.start(rt, echGoryuCtx(rt));
   EC_GORYU.tick(rt, dt);
+  EC_KURUWA.tick(rt, dt);   // 届かない守兵が残って郭が落ちない時（echizen/kuruwa.js）
+  EC_SEIEI.tick(rt);        // 副郭へ打って出る一揆の精鋭（echizen/seiei.js）
   echizenAdvanceTick(rt);
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || F.echAdv || !u.alive) return;
@@ -2397,7 +2402,7 @@ echizen.update = function (rt, dt) {
     }
     // 奥の二郭でも、守兵・味方の人数・守る時間を同じ任務札で伝える。
     const zoneId = !F.kannonFell ? 'kannon' : !F.souFell ? 'kinome_sou'
-      : F.SZ.byId.kinome_fuku.owner !== 'friend' ? 'kinome_fuku' : 'kinome_hon';
+      : (F.SZ.byId.kinome_fuku.owner !== 'friend' || EC_SEIEI.active(rt)) ? 'kinome_fuku' : 'kinome_hon';
     const zone = F.SZ?.byId[zoneId];
     const gate = !F.kannonFell ? F.gateKannon : !F.souFell ? F.gateKinome : null;
     const name = zoneId === 'kannon' ? '観音丸' : zoneId === 'kinome_sou' ? '木戸内'
@@ -2644,6 +2649,7 @@ echizen.onZoneFall = function (rt, id) {
   // 観音丸だけで追撃へ飛ばさず、本道と東西の尾根を既存の隊で攻める。
   // 尾根道で前田・佐々・不破の手が合流し、崩れた先手に代わって木ノ芽峠城の木戸を破る（echizen/goryu.js）
   if (id === 'kannon' && rt.flags.kannonFell) EC_GORYU.onKannonFell(rt, echGoryuCtx(rt));
+  if (id === 'kinome_fuku') EC_SEIEI.start(rt, { look: IKKO_KOSODE });   // 主防御線：主郭から一揆の精鋭が逆襲（echizen/seiei.js）
   if (id === 'kannon' && rt.flags.kannonFell) {
     this.releaseEast(rt);
     this.releaseWest(rt);
@@ -2756,12 +2762,24 @@ function echizenAdvance(rt) {
   // 四城攻略後は本道の奥にいる。観音丸へ戻さず、通れる本道で殿へ向かう。
   F.echWay = [TAIL_FRONT];
   F.echWayI = 0; F.echExitAt = F.echWay[0];
+  EC_KURUWA.chaseCut(rt, { front: TAIL_FRONT });   // 殿の手前まで場面替え（echizen/kuruwa.js）
 }
 // 殿の兵で、まだ戦える者
 const tailFighters = (F) => (F.echTail?.units || []).filter(passFighter);
 // 殿に当たった後、殿のうち本人にいちばん近い者（印・bot が同じ相手を指す）
 function echTailTarget(rt) {
   const F = rt.flags;
+  if (F.echTailBroke && F.echFuchu?.s === 1) {
+    // 峠道で最後に踏みとどまる一揆勢（echizen/fuchu.js）
+    const me = rt.player.u.pos;
+    let best = Infinity, chosen = null;
+    for (const q of F.echFuchu.g.units) {
+      if (!passFighter(q)) continue;
+      const d = (q.pos.x - me.x) ** 2 + (q.pos.z - me.z) ** 2;
+      if (d < best) { best = d; chosen = q; }
+    }
+    return chosen;
+  }
   if (!F.echGateReached || F.echTailBroke) return null;
   if (rt.t < F.echTailAt && passFighter(F.echTailU)) return F.echTailU;
   F.echTailAt = rt.t + .25;
@@ -2798,6 +2816,7 @@ function echizenAdvanceTick(rt) {
     }
     return;
   }
+  if (F.echFuchu) { EC_FUCHU.tick(rt); return; }   // 殿の後の追撃と余韻（echizen/fuchu.js）
   if (F.echExitAt && !inKannon(u.pos)) F.echExitAt = null;
   if (!F.echTailBroke) {
     // 六割を討てば殿は崩れて府中へ退く（残りが散って斜面へ離れ、討ち切るまで終わらない事があった）
@@ -2831,7 +2850,9 @@ function echizenAdvanceTick(rt) {
     for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
   }
   rt.objDone('tail');
-  echizenWin(rt);
+  // すぐ結果へ行かず、峠道を追って最後に踏みとどまる一揆勢を崩し、余韻の後で勝ち（echizen/fuchu.js）
+  rt.banner(F.echLordDown ? '西光寺真敬、討ち取ったり' : '峠道の殿を破った', '一揆勢は府中へ崩れる');
+  EC_FUCHU.start(rt, { at: { x: KX(0), z: KZ(-60) }, look: IKKO_KOSODE, win: echizenWin });
 }
 function echizenWin(rt) {
   const F = rt.flags;
@@ -2843,14 +2864,14 @@ function echizenWin(rt) {
   rt.tracker.main = true;
   rt.award((t) => { t.main = true; t.special = { label: '峠口を破った', pts: 20 }; }, '任務達成・木ノ芽峠の四城と峠道の殿を破り、府中へ道を開いた');
   sfx('kane', 0.5);
-  rt.banner(F.echLordDown ? '西光寺真敬、討ち取ったり' : '峠口を破った', F.echLordDown ? '峠口を破った。一揆勢は府中へ敗走' : '一揆勢は府中へ敗走');
-  rt.say('柴田勝家', '峠は開いた。このまま府中へ追え！', 4);
-  rt.after(4.5, () => {
+  rt.after(15, () => { if (!rt.over) rt.banner('木ノ芽峠を越えた', '一揆勢は府中へ敗走'); });
+  rt.after(17.5, () => { if (!rt.over) rt.say('柴田勝家', '峠は開いた。夜が明けたら府中へ下るぞ', 4); });
+  rt.after(22.5, () => {
     if (rt.tracker.main) rt.say('史実', '峠から府中へ逃げた一揆勢は、その夜に羽柴・明智の手に討たれた（二千余）。府中は後に前田利家・佐々成政・不破光治が預かる。越前では多くの命が失われた', 7);
   });
   for (const b of F.attackers || []) if (b?.real && !b.real.routed && b.order) { b._route = null; b.assault = null; b.order({ id: 'hold' }); }
   rt.player.u.invuln = true;
-  rt.finish({ scriptedEnd: true }, 12);
+  rt.finish({ scriptedEnd: true }, EC_FUCHU.LEN);
 }
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。海側の明智・羽柴は出さない。杉浦玄任を足すと bot が負けたので出さない。
 // 11/4 jin_echizen：名簿から足すと徒で旗本も無く本人の脇に立っていた（AV7）。峠口の将は setup で馬上・旗本付きで置く（滝川・蜂屋は二陣、柴田は観音丸の後に上がる）。

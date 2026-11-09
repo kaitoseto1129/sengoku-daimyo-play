@@ -225,10 +225,10 @@ const OWN = {
     const broken = (k) => (rt) => { const g = rt.flags.waveGroups?.[k]; if (!g) return null; const all = g.units.length + g.cavalry.units.length; return [all - aliveIn([g, g.cavalry]), all]; };
     return [
       // 11/8 15分の構成（shitaragahara/*.js）：導入の誘い出し・土屋の柵破り・原の寄せを足す
-      { kind: 'stage', k: 0, text: '柵の外で武田の物見を誘い、柵へ引く', noun: '武田の物見', check: (rt) => !!rt.flags.nf?.t0 },
+      { kind: 'stage', k: 0, text: '大宮前の柵の外で武田の物見を誘い、柵へ引く', noun: '武田の物見', check: (rt) => !!rt.flags.nf?.t0 },
       { kind: 'stage', k: 0, text: '大宮前の柵で真田隊を止める', noun: '大宮前の柵', check: (rt) => !!N(rt).done[0], count: broken(0) },
-      { kind: 'stage', k: 0, text: '破られた柵で山県昌景の赤備えを討つ', noun: '柵の破れ目', check: (rt) => !!N(rt).breachDone },
-      { kind: 'stage', k: 0, text: '柳田前の柵へ移り、原・内藤隊を止める', noun: '柳田前の柵', check: (rt) => !!N(rt).done[1], count: broken(1) },
+      { kind: 'stage', k: 0, text: '大宮前と柳田前の間の破れ目で山県昌景の赤備えを討つ', noun: '柵の破れ目', check: (rt) => !!N(rt).breachDone },
+      { kind: 'stage', k: 0, text: '柳田前の柵へ移り、原・内藤隊を止め、破れ目の土屋隊を討つ', noun: '柳田前の柵', check: (rt) => !!N(rt).done[1], count: broken(1) },
       { kind: 'stage', k: 1, text: '柳田前の虎口を出て、連吾川を渡る', noun: '連吾川', check: (rt) => !!N(rt).done[2] },
       { kind: 'stage', k: 1, text: '退き口で馬場信春の殿を討ち破る', noun: '馬場信春の殿', check: (rt) => !!N(rt).done[3], groups: (rt) => [rt.flags.rear] },
     ].map((g) => ({ ...g, sec: 99999 }));   // 目標ごとの時切れの ✕ は付けない（時計の字は b_shitaragahara の札で隠す）

@@ -97,17 +97,14 @@ function sortieWaypoint(rt) {
   if (p.x >= 36) return SORTIE_NORTH;
   return p.z < SORTIE_EXIT.z - 2 ? SORTIE_EXIT : SORTIE_TURN;
 }
-// 二キロ先の札を重ねず、追撃中は少し先の道を示す。同じ座標を使い回す。
+// 砦の出口までは道順を示し、野へ出た後は城戸口の同じ場所を示す。
 function chaseWaypoint(rt) {
   const F = rt.flags;
   if (F.step !== 4 || F.kidoCut || F.ending || !F.chaseWay) return null;
   // 本隊が先に崩れても、まだ門の南にいる本人を堀や逆茂木へ直進させない。
   const exit = sortieWaypoint(rt);
   if (exit) return exit;
-  const p = rt.player.u.pos, dx = F.kz.x - p.x, dz = F.kz.z - p.z;
-  const scale = Math.min(1, 45 / (Math.hypot(dx, dz) || 1));
-  F.chaseWay.x = p.x + dx * scale; F.chaseWay.z = p.z + dz * scale;
-  return F.chaseWay;
+  return F.kz;
 }
 const GATE_DIRECTIONS = ['南', '南東', '東', '北東', '北', '北西', '西', '南西'];
 function gateDirection(rt, at = T_GATE) {
@@ -4523,8 +4520,8 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   const e = p.botStrikeUntil > p.time && previous && canFight(previous) && !previous.invuln &&
     Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < reach ? previous :
     b.army.nearestEnemy(u, weak ? reach : F.step === 2 ? 5 : siege ? 9 : 12, (o) => canFight(o) && !o.invuln &&
-      // 城戸口では木戸の内へ追わない。印の近くの敵だけを払う。
-      (F.step !== 4 || !F.kidoCut || Math.hypot(o.pos.x - F.kz.x, o.pos.z - F.kz.z) < 16) &&
+      // 印へ着く前に迎撃する殿も払う。退く下知の出た組と木戸の奥は追わない。
+      (F.step !== 4 || !F.kidoCut || F.kidoG.includes(o.group) && !o.group.kidoRetreat && o.pos.z > KIDO.z - 12) &&
       (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < reach || botRoadClear(b, u.pos, o.pos)) &&
       (!siege || inPoly(SOTO_POLY, o.pos.x, o.pos.z) || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 3.5) &&
       // 救援と呼応する段では、門を離れて西の囲みや鉄砲組へ一人で斬り込まない。
@@ -4622,7 +4619,7 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。塙直政は五月三日に討死・荒木は木津口の押さえ・顕如は本願寺の内。下間頼廉は城戸口の控えの陣の将（F.ehon）として出す。
 tennoji.bushou = ['鈴木孫一'];
 // 鈴木孫一は雑賀の鉄砲衆の頭。門前の斬り合いの群れではなく、砦の東の鉄砲の隊に馬上で付ける（11/4）。
-tennoji.famous = [{ name: '鈴木孫一', g: /^本願寺の鉄砲$/, horse: true }];
+tennoji.famous = [{ name: '鈴木孫一', g: /^本願寺の鉄砲衆$/, horse: true }];
 // 11/2 点付け「名札の重なり」：門の奥へ百歩以上見通すので、外で待つ後詰の将の名まで十枚が門の上に積み重なった。名札は近い五十五歩の内だけ。
 tennoji.nameRange = 55;
 export { tennoji };

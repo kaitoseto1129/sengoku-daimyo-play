@@ -194,7 +194,7 @@ function checkedStep(step) {
 }
 
 // 後藤又兵衛の討死（必ず）。鉄砲に撃たれ、麾下の兵に見取られる
-function matabeiDown(rt) {
+function matabeiDown(rt, shot = false) {
   const F = rt.flags;
   if (F.matabei) return;
   F.matabei = true;
@@ -202,7 +202,10 @@ function matabeiDown(rt) {
   rt.award((t) => { t.special = { label: '後藤又兵衛が小松山に果てた', pts: 40 }; }, '後藤又兵衛が討死した');
   // 見出しは共通の「後藤又兵衛が討たれた」の一枚だけ（二枚重ねない。五6）
   sfx('horagai', 0.7);
-  rt.after(1.5, () => rt.say('後藤の侍', '殿は鉄砲に……吉村が介錯つかまつった！　薄田殿はまだか、真田殿は！', 3.6));
+  // 本人や味方が先に討った時は、鉄砲と介錯で果てた事にしない。
+  rt.after(1.5, () => rt.say('後藤の侍', shot
+    ? '殿は鉄砲に……吉村が介錯つかまつった！　薄田殿はまだか、真田殿は！'
+    : '殿が討たれた！　薄田殿はまだか、真田殿は！', 3.6));
   // 主を失った後藤勢は崩れる（頂の段を締める）
   for (const g of rt.army.groups) if (g.team === 1 && /後藤/.test(g.name || '') && g.count) { g.noRout = false; g.morale = 0; }
 }
@@ -245,7 +248,7 @@ function matabeiShot(rt) {
     if (!shooter) { rt.after(1, () => matabeiShot(rt)); return; }
     rt.army.play('volley', shooter.pos, 1.4);
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
-    rt.after(1.2, () => { if (!F.ending && !rt.over) matabeiDown(rt); });
+    rt.after(1.2, () => { if (!F.ending && !rt.over) matabeiDown(rt, true); });
   });
 }
 
@@ -376,6 +379,7 @@ const k13_domyoji = {
   meleeGrace: { rate: 1, burst: 1, interval: 3 },
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   goalsAllRows: true,     // 共通の札でも①〜⑤を作り、今の一つ以外も最初から並べる（九1・十1）
+  goalVisibleRows: 5,     // 共通の札が実際に作る行数も五つにする（既定の一行では残りが消える）。
   // 歩こうとした強さを覚える（動けなくなった時に抜け出す。BH8）。速さはそのまま返す
   playerVelocity(rt, vx, vz) { const F = rt.flags, q = F.pv || (F.pv = { x: 0, z: 0 }); F.want = Math.hypot(vx, vz); q.x = vx; q.z = vz; return q; },
   // 作り物の遠景の軍勢・奥の乱戦を出さない（kaito 11/3 AA・AF・AQ6）
