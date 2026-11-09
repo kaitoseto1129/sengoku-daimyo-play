@@ -1070,7 +1070,12 @@ function mikataGoals(rt, dt) {
     const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
-    if (near(post, G.i === 2 ? 18 : G.i === 3 ? 40 : 28) && contact) G.tin += dt;
+    const inPost = near(post, G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
+    // 赤備えを持ち場で受けた記録は、最後の寄せ手を退けても失わない。
+    // 本人が来る前に味方が退けた場合や、まだ遠くに敵が残る間は足さない。
+    if (G.i === 3 && inPost && contact) G.contact = true;
+    const repelled = G.i === 3 && G.contact && F.aka?.units?.every((q) => !mikataFoeOk(q, u.team));
+    if (inPost && (contact || repelled)) G.tin += dt;
     if (G.tin >= MK_GOAL_HOLD[G.i] || G.hit && G.tin >= 2) G.ok = true;
   }
   if (phase === 7) G.st[6] = 1;
@@ -1078,7 +1083,7 @@ function mikataGoals(rt, dt) {
   // 戻らず先手の段へ進んでも③の防戦を数える。後から戻って②まで達成にしない。
   while (G.i < 6 && (G.i === 0 ? G.st[0] || phase >= 1 : G.i === 1 ? G.st[1] || phase >= 2 : phase > G.i)) {
     if (!G.st[G.i]) G.st[G.i] = G.ok ? 1 : -1;
-    G.i++; G.tin = 0; G.hit = false; G.ok = false;
+    G.i++; G.tin = 0; G.hit = false; G.ok = false; G.contact = false;
   }
   return G;
 }

@@ -504,7 +504,7 @@ const k04_kuisegawa = {
       if (F.defended && F.nearT > 130 && el > 130) this.closeRing(rt);   // 渡河・防戦・退却を合わせ四分以上遊ぶ
     // 川幅は中心線から両側十二。水中の x=52 で渡り終えた扱いにしない。
     } else if (F.step === 4 && PL.x > 60) this.toStep(rt, 5);
-    else if (F.step === 5 && dist(P.pos, ARIMA) < 14) this.win(rt);
+    else if (F.step === 5 && dist(P.pos, ARIMA) < 14 && this.returnedMen(rt) > 0) this.win(rt);
     // 退く段：西軍は川まで追うが渡らない（史実：有馬の隊が岸で受け、西軍は大垣へ引いた）。近い追手は人の走りより少し遅い
     if (F.step >= 4) {
       if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
@@ -532,6 +532,15 @@ const k04_kuisegawa = {
     }
   },
 
+  // 生き残っていても川の向こうに残った兵は、生還した人数に含めない。
+  returnedMen(rt) {
+    let n = 0;
+    const mine = rt.flags.mine?.units || [], squad = rt.squad || [];
+    for (const u of mine) if (u.alive && !u.gone && !u.downed && !u.woundOut && dist(u.pos, ARIMA) < 20) n++;
+    for (const u of squad) if (!mine.includes(u) && u.alive && !u.gone && !u.downed && !u.woundOut && dist(u.pos, ARIMA) < 20) n++;
+    return n;
+  },
+
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
@@ -540,7 +549,7 @@ const k04_kuisegawa = {
     rt.objDone('main');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    const n = (F.mine?.count || 0) + (rt.squad || []).filter((s) => s.alive).length;
+    const n = this.returnedMen(rt);
     rt.award((t) => { t.main = true; t.special = { label: '杭瀬川から兵を連れて退いた', pts: 30 }; }, '杭瀬川から生きて退いた');
     rt.banner('東軍、退く', `西軍は勝鬨を上げた　連れた兵 ${n}人`);
     const A = this.talk.after;

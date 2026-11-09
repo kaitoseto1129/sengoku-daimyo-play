@@ -610,7 +610,8 @@ const t11_hachioji = {
         say: [['前田の侍', '木戸の内に北条の兵！　霧の中から撃ってくるぞ'], ['前田の侍', '先手の大道寺勢が、上からの石に押し返された！　竹束の陰から寄れ', 4]],
         foes: () => [keep('近藤出羽守の組', OTE, [{ type: 'busho', n: 1, o: { name: '近藤出羽守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }]),
           keep('大手の木戸の鉄砲', OTE, [{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], { dx: -10, width: 6 })],
-        later: [{ t: 25, say: ['前田の侍', '奥の木戸から新手じゃ！'], foes: () => [keep('大手の奥の新手', OTE, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dx: -18 })] }],
+        // 西の柵は x=108。新手も柵の内に出し、木戸の外から寄せ手へ回り込ませない。
+        later: [{ t: 25, say: ['前田の侍', '奥の木戸から新手じゃ！'], foes: () => [keep('大手の奥の新手', OTE, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dx: -7, width: 6 })] }],
         reward: '山下曲輪を破った',
         // 曲輪が落ちた時に近藤出羽守も討死する（落ちた後も曲輪で生き、御主殿の戦の最中に「討ち取ったり」が出た。11/8 critic60）
         onEnd: (rt2) => { const k = rt2.army.units.find((u) => u.name === '近藤出羽守' && u.alive); if (k) { k.officerSaved = true; rt2.army.kill(k, null); rt2.say('前田の侍', '近藤出羽守、討死！　山下曲輪は落ちたぞ', 3.2); } } }),
@@ -862,7 +863,7 @@ const oteCount = (rt) => {
   const C = rt.flags.dp?.on && rt.flags.dp.i === IX.ote && rt.flags.dp.cur;
   if (!C || !C.groups) return null;
   let left = C.later?.length ? OTE_LATER : 0;
-  for (const g of C.groups) if (!(g.count <= 2 || g.routed)) for (const u of g.units) if (u.alive && !u.dying && !u.fleeing && !u.evacuatedWound) left++;
+  for (const g of C.groups) if (!(g.count <= 2 || g.routed)) for (const u of g.units) if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound) left++;
   return [Math.max(0, OTE_ALL - left), OTE_ALL];
 };
 STAGES.t11_hachioji = [['霧の谷を進み、山下曲輪の木戸の前へ', null, null, false], ['山下曲輪で近藤出羽守の組を討つ', dpAt(IX.ote), null, oteCount], ['曳橋で打って出た北条勢を迎え撃つ', dpAt(IX.sally), null, false], ['退く敵に続き、冠木門から御主殿へ攻め入る', (rt) => !!rt.flags.sallyBack, null, false],

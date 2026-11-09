@@ -355,6 +355,21 @@ function openDoor(rt) {
   sfx('taiko', 0.9);
 }
 
+// 打って出るために扉の当たりを外しても、寄せ手の本人は城内へ入れない。
+// 門の口だけを押し戻し、城兵の出入りや開城後の通行は妨げない。
+function holdOutsideGate(rt) {
+  const F = rt.flags, u = rt.player.u;
+  if (F.step < 7 || F.step > 9 || !u.alive) return;
+  const dx = u.pos.x - (GATE.x - 1.1), dz = u.pos.z - (GATE.z - 1.1);
+  const forward = (dx + dz) * Math.SQRT1_2, side = (dx - dz) * Math.SQRT1_2;
+  if (Math.abs(side) > 3.3 || forward >= 1 || forward < -9) return;
+  const push = (1 - forward) * Math.SQRT1_2;
+  u.pos.x += push; u.pos.z += push;
+  u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
+  if (rt.player.vel) rt.player.vel.x = rt.player.vel.z = 0;
+  if (u.mesh) u.mesh.position.copy(u.pos);
+}
+
 // 段のファイル（t10_oshi/*.js）へ渡す座標と道具
 const C = { MISSIONS, FORD, GATE, NI, KU, CAMP, MARU, START, RAIDAT, BASIN, FRONT, INSIDE, LAKE_HI, ISHI, HOJO, KIT, dress, live, fighting, near, warp, openDoor, def: null };
 
@@ -832,6 +847,7 @@ const t10_oshi = {
       if (u.pos.z > XW) u.pos.z = XW; else if (u.pos.z < -XW) u.pos.z = -XW;
     }
     chikara.tick(rt, dt, C); kobuneSt.tick(rt, dt, C); kaijo.tick(rt, dt, C);   // 足した段（t10_oshi/）
+    holdOutsideGate(rt);
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.5;
     // 11/4 jin：門が開いて城兵が打って出た後は、塀の上からの矢の雨（siege_feel の volley）を止める（味方を射る事になる。前は門の前で矢の雨と打って出の挟みで数秒で倒れた）
