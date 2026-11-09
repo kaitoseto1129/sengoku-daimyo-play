@@ -28,6 +28,9 @@ import { RANKS } from './state.js';
 import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, depthBot, rest, fight, hold, move } from './b_depth.js';
 import { STAGES } from './stages.js';
+// 約15分の段（docs/toyo15_plan_1108.md の 8）：足した段の中身は src/t05_ichinomiya/ の各ファイル
+import { install as ichiIntro } from './t05_ichinomiya/intro.js';
+import { oshiStep } from './t05_ichinomiya/oshimodoshi.js';
 import { withGuard } from './toyo_bot.js';
 
 // ---------------- 場所 ----------------
@@ -56,9 +59,9 @@ const VALLEY_ROAD = [[FORT.x, FORT.z], [-20, -34], [VALLEY.x, VALLEY.z], [WATER.
 // 搦手の道：水の手から尾根の裾を斜めに上り、門の正面（北）へ回り込む（前は門の西の切岸の裾へ突き当たり、そこで立ち往生した。11/6 遊び）
 const KARAMETE = [[WATER.x, WATER.z], [-62, 68], [-40, 79], [-18, 81], [HON_GATE.x, HON_GATE.z]];
 // 右上の目標は戦の間ずっと同じ五つの一行（言い替えない。地図で分かる場所の名と行い。kaito 三1・九1・十1）
-const NUM = '①②③④⑤';
+const NUM = '①②③④⑤⑥';
 // 右上の一行が二行に折れて「攻め入／る」と一字だけ落ちた（11/8 critic60 五）。一行に収まる短さに
-const GOALS = ['鮎喰川を渡り麓の砦を落とす', '西の谷の口で伏兵を討つ', '谷の湧き水の番兵を追い払う', '谷の湧き水で金掘り衆を守る', '搦手の門から小倉丸へ入る'];
+const GOALS = ['鮎喰川を渡り麓の砦を落とす', '西の谷の口で伏兵を討つ', '谷の湧き水の番兵を追い払う', '谷の湧き水で金掘り衆を守る', '山道で城兵の打ち出しを押し返す', '搦手の門から小倉丸へ入る'];
 // 二つ目の竹束から曲輪へ直進すると門の西の塀に当たる。門の正面を経由する。
 const COVER_ROUTE = [{ x: -46, z: 69 }, { x: -30, z: 73 }, { x: HON_GATE.x, z: 81 }, OGURA_IN];
 const OTE = [[150, 50], [104, 70], [74, 88], [56, 106]];   // 大手道（東の麓から明神丸の東の口へ。見せるだけ）
@@ -285,6 +288,8 @@ function ctxOf(rt) {
       p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
     } };
 }
+// 足した段（src/t05_ichinomiya/）へ渡す道具。搦手の山道の下・中・上
+const NG = { CHOSO, GOALS, LOW: { x: -72, z: 50 }, MID: { x: -58, z: 68 }, UP: { x: -44, z: 76 } };
 function steps(rt) {
   const F = rt.flags, me = (r) => nm(r);
   return [
@@ -318,7 +323,7 @@ function steps(rt) {
       later: [{ t: 24, say: ['足軽', '尾根の陰から伏兵じゃ！'], foes: () => [{ name: '尾根の伏兵', from: { x: WATER.x - 26, z: WATER.z - 10 }, list: [uS(1), uA(9)], mass: 80 }] }],
       max: 120, reward: '水の手の番兵を追い払った', onEnd: () => { F.step = 3; } }),
     // 新手の継ぎ足し（b_depth の AB）はしない：本人が二人討つまで新手が来続け、坂の上で止まる新手を待って守る段が七分に延びた（11/6 流し）
-    hold({ at: ADIT_FRONT, dur: 55, r: 14, noRefill: true, title: '水脈を断つ', sub: '金掘り衆が坑道を掘る', label: '坑道の口',
+    hold({ at: ADIT_FRONT, dur: 75, r: 14, noRefill: true, title: '水脈を断つ', sub: '金掘り衆が坑道を掘る', label: '坑道の口',
       obj: GOALS[3],
       say: [['羽柴秀長の使番', '金掘り衆が水脈を断つまで、ここを渡すな。城の池が干上がる', 3.5]],
       waves: [
@@ -342,16 +347,20 @@ function steps(rt) {
         F.iemasa = allyGroup(r, { name: '蜂須賀家政の手', flag: 'hachisuka', anchor: { x: WATER.x + 28, z: WATER.z - 16 }, facing: 0, noRout: true, aggro: 10, fullStrength: true }, [uS(2), uA(12)]);
         // 二つの手の兵は付け入りの段の味方の組に入れ、搦手の門へ一緒に攻め上らせる（前は湧き水に残り、門の前で本人が一人になった。11/6 遊び・十3）
         F.allies.push(F.kanbei, F.iemasa);
+        // 二つの手は少し後ろ（谷の下）から上って来る（押し戻しの段で加わる）
+        for (const g of [F.kanbei, F.iemasa]) { g.order = 'hold'; g.anchor = { x: WATER.x + 10, z: WATER.z - 34 }; }
       } }),
+    // 押し戻し（城兵の出撃・味方の増援）は src/t05_ichinomiya/oshimodoshi.js
+    oshiStep(NG),
     // 付け入り（docs/kaito_refs_1103 の山中城の型）：水を断たれて退く城兵が搦手の門へ逃げ込む。門が閉まる前に紛れて入り、小倉丸を取る
     // 付け入りは門が閉まる前の一押し。新手の継ぎ足し（AB）はしない（継ぎ足しで門の前の斬り合いが六分を超えた。11/6 流し）
-    intoOgura(fight({ at: HON_GATE, title: '付け入り', noRefill: true, sub: '退く城兵に紛れて、搦手の門へ', obj: GOALS[4],
+    intoOgura(fight({ at: HON_GATE, title: '付け入り', noRefill: true, sub: '退く城兵に紛れて、搦手の門へ', obj: GOALS[5],
       say: [['黒田官兵衛', '讃岐から回って参った。退く者の背に付いて、門が閉まる前に入れ', 3.4], ['足軽', '城の内は水が尽きて騒いでおるぞ', 2.8]],
       // 水を断たれて気の挫けた城兵（士気を低く・傷を浅く）。門を背に崩れやすい
       // 曲輪の中は軽い控え（mass）を付けない：本丸の塀の内で目覚めた控えが切岸の上に残り、段が終わらなかった（11/3 測り）
       foes: () => [{ name: '搦手の門の守兵', from: { x: HON_GATE.x, z: HON_GATE.z + 8 }, list: [uS(2), uA(8), uG(3)], mass: 0, morale: 55, dmg: 0.4 }],   // 門の内の守り（前は足軽十二＝二十人で、逃げ込む城兵と合わせ本人の周り十五m に四十人が重なった。11/6 流し）
       later: [{ t: 22, say: ['足軽', '小倉丸の奥から加勢が来る！'], foes: () => [{ name: '小倉丸の加勢', from: { x: -6, z: 100 }, list: [uS(1), uA(6)], mass: 0, morale: 60, dmg: 0.4 }] }],
-      max: 130, reward: '搦手の門を破り、小倉丸を取った', onEnd: () => { F.step = 5; } })),
+      max: 130, reward: '搦手の門を破り、小倉丸を取った', onEnd: () => { F.step = 6; } })),
   ].map((stage, i) => {
     if (stage.kind === 'hold') {
       // noGroundGuide は画面の案内だけに効く。守備範囲の輪も消し、坑道の口の▼だけを残す。
@@ -371,16 +380,18 @@ function steps(rt) {
           // 共通の守備判定は半径に三十mの余裕がある。この戦は坑道の前で守った時間だけ数える。
           const p = r.player.u.pos;
           C.inT = held + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius ? dt : 0);
-          // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。
-          r.objProgress('dp', C.inT < 55 ? '坑道の口で金掘り衆を守る' : '坑道の口の寄せを退ける');
-          return done && C.inT >= 55;
+          // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。15分の戦（11/8）：坑道は七十五秒守る
+          const need = stage.needIn ?? 75;
+          if (!stage.needIn) r.objProgress('dp', C.inT < need ? '坑道の口で金掘り衆を守る' : '坑道の口の寄せを退ける');
+          return done && C.inT >= need;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
         if (i <= 3) {
           // 画面の▼だけでなく、隊と自動操作の目当ても場所に留める。
           C.goal = C.at;
           const p = r.player.u.pos;
-          return done && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
+          // 15分の戦（11/8）：一つの段を一分で済ませない（加勢・知らせの間を取る。敵の体力は増やさない）
+          return done && el > ([0, 130, 120, 115][i] || 0) && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
         }
         return done;
       };
@@ -438,17 +449,19 @@ function castleGuns(rt) {
   if (F.cGuns) return;
   F.cGuns = [[-25, 93.5], [-6, 93.5]].map(([x, z]) => enemyGroup(rt, { name: '小倉丸の鉄砲', anchor: { x, z }, facing: Math.PI, fixed: true, order: 'hold', noRout: true, aggro: 60, seekRange: 60, width: 4 }, look([uG(3), uB(2)])));
   // 遠い撃ち下ろしで当たりは浅い（本人が門の前で数発で倒れない。寄せ手の足軽はばたばた倒れる）
-  for (const g of F.cGuns) g.dmgMult = 0.3;
+  for (const g of F.cGuns) g.dmgMult = 0.2;
 }
 // 目付の蜂須賀正勝は旗本と後ろから見届ける（前は六十歳の目付が本人の足元に付いて門の斬り合いまで来た。11/6 critic60 一2）
-const MASAKATSU_AT = [{ x: SPAWN.x - 10, z: SPAWN.z + 12 }, { x: FORT.x - 8, z: FORT.z - 16 }, { x: FORT.x - 18, z: FORT.z + 6 }, { x: -60, z: -16 }, { x: -64, z: 8 }, { x: -64, z: 8 }];
+const MASAKATSU_AT = [{ x: SPAWN.x - 10, z: SPAWN.z + 12 }, { x: FORT.x - 8, z: FORT.z - 16 }, { x: FORT.x - 18, z: FORT.z + 6 }, { x: -60, z: -16 }, { x: -64, z: 8 }, { x: -64, z: 8 }, { x: -64, z: 8 }];
 // 右上の目標と同じ場所の名で、行き先の▼を固定の場所に立てる（前は逃げる番兵と一緒に動き、⑤は▼が出ず目付の名札が行き先に見えた。11/6 critic60）
 const DEST = [{ ...FORT, label: '麓の砦' }, { ...VALLEY, label: '西の谷の口' }, { ...WATER_FRONT, label: '谷の湧き水' }, { ...ADIT_FRONT, label: '坑道の口' }];
 function destOf(rt) {
   const F = rt.flags;
   if (F.ending) return null;
-  const k = Math.min(4, F.step || 0);
+  const k = Math.min(5, F.step || 0);
   if (k < 4) return { ...DEST[k] };
+  // ⑤押し戻しの段は、山道の今の持ち場（下がる・また上る）
+  if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道' }; }
   const u = rt.player.u.pos;
   if (inPoly(OGURA_POLY, u.x, u.z)) return { ...OGURA_IN, label: '小倉丸' };
   // 守兵を崩した後は、門の外で止まらず入城する場所を示す。
@@ -492,11 +505,11 @@ export const t05_ichinomiya = {
   bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵の隊が崩れた' && t !== '味方の隊が崩れた',       // 地面の楕円の輪を描かない（印は真上の▼一つ。11/8 critic60 五3）
   actionGuideTarget: () => null,
   // 右上は①〜⑤の決まった一行（始めの「味方の旗へ」・段ごとの別の言い方・櫓を取る脇の目標を出さない。kaito 三1・十1）
-  missionHeading: (rt) => { const k = Math.min(4, Math.max(0, rt.flags.step || 0)); return NUM[k] + GOALS[k]; },
+  missionHeading: (rt) => { const k = Math.min(5, Math.max(0, rt.flags.step || 0)); return NUM[k] + GOALS[k]; },
   missionSingleLine: true,
   noYaguraTask: true,
   // 付け入りの門の前は城兵が三十人を超えて囲む。本人だけが数秒で倒れないよう、受ける傷を少し軽く（kaito 十二3）
-  playerTaken: 0.6,
+  playerTaken: 0.45,   // 15分の戦（11/8）：山道の押し戻しと付け入りで囲まれる。0.6 から軽く
   hidePlayerSign: true,      // 足もとの白い輪は写真に無い作り物の印（標準 五1・八）。肩越しで本人は見える
   noFrontFill: true,         // 奥の作り物の乱戦（front_fill.js）を置かない：始めの河原の左に、近づくと無い軽い軍勢の列が見えた（kaito AA・AF）
   frontlineDensity: false,   // 共通の小勢を足さない（織田の旗の小勢・見せかけの軍勢を出さない。kaito AQ4・AT）
@@ -524,6 +537,8 @@ export const t05_ichinomiya = {
     fleeOut: (x, z, team) => team === 1 && z > 170,
   },
   sides: { a: { name: '羽柴秀長の軍', mon: 'toyotomi', faction: 'oda' }, b: { name: '長宗我部方（一宮城）', mon: 'chosokabe' } },
+  minutes: 15, expectMin: 15,
+  noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   date: () => '天正十三年七月　初秋・晴れ',   // 旧暦の七月は秋（七〜九月が秋）。暑さは残る
 
   setup(rt) {
@@ -556,6 +571,7 @@ export const t05_ichinomiya = {
     if (n) rt.makeSquad({ x: SPAWN.x + 2, z: SPAWN.z - 4 }, 0, [{ kind: 'spear', n }]);
     rt.after(10, () => { if (!F.ending) F.t0 = rt.t; });
     depthStart(rt, ctxOf(rt), steps(rt), () => ichinomiya.envoy(rt));
+    ichiIntro(rt);
   },
 
   update(rt, dt) {
@@ -566,7 +582,7 @@ export const t05_ichinomiya = {
     if (F.step >= 3 && !F.ending) castleGuns(rt);
     // 二陣は竹束の下側を順に通り、陰で射撃してから次の竹束へ進む。
     const cover = F.allies[2];
-    if (F.step === 4 && cover?.count && !F.ending && (F.coverLeg || 0) < COVER_ROUTE.length) {
+    if (F.step === 5 && cover?.count && !F.ending && (F.coverLeg || 0) < COVER_ROUTE.length) {
       const leg = F.coverLeg || 0, at = COVER_ROUTE[leg];
       if (cover._coverAt !== at) {
         cover._coverAt = at; cover.anchor = at; cover.order = 'move'; cover.aggro = 6; F.coverWait = 0;
@@ -579,12 +595,12 @@ export const t05_ichinomiya = {
       }
     }
     // 付け入りで寄せ手が門に取り付いたら、門の脇の鉄砲は小倉丸の奥へ退く（撃たれ続けて門の前で物陰に釘付けになり、四十五秒で段が流れた。11/6 描いた通し）
-    if (F.step === 4 && F.cGuns && !F.gunsOff && Math.hypot(rt.player.u.pos.x - HON_GATE.x, rt.player.u.pos.z - HON_GATE.z) < 12) {
+    if (F.step === 5 && F.cGuns && !F.gunsOff && Math.hypot(rt.player.u.pos.x - HON_GATE.x, rt.player.u.pos.z - HON_GATE.z) < 12) {
       F.gunsOff = true;
       for (const g of F.cGuns) if (g.count) { g.noRout = false; g.morale = 0; }
     }
     if (F.step <= 2) lurkTick(rt);
-    const ma = MASAKATSU_AT[Math.min(5, F.step || 0)];
+    const ma = MASAKATSU_AT[Math.min(6, F.step || 0)];
     if (F.masakatsu && F.masakatsu.count && F.masakatsu._at !== ma) { F.masakatsu._at = ma; F.masakatsu.anchor = { x: ma.x, z: ma.z }; F.masakatsu.order = 'hold'; }
   },
 
@@ -599,7 +615,7 @@ export const t05_ichinomiya = {
     const envoy = allyGroup(rt, { name: '開城の使者', anchor: { x: Math.max(-24, Math.min(-8, pp.x)), z: pp.z < 98 ? 101 : 94 }, facing: pp.z < 98 ? Math.PI : 0, width: 2, fixed: true, order: 'hold', noRout: true, aggro: 0, fullStrength: true },
       [{ type: 'busho', n: 1, o: { ...CHOSO, name: '谷忠澄', invuln: true } }, { type: 'samurai', n: 2, o: { ...CHOSO, keep: true } }]);
     // 共通の勝鬨で開城の会話を上書きせず、十二秒間は主人公を動かせる。
-    rt._closing = { at: rt.t + 12, info: { scriptedEnd: true }, delay: 1 };
+    rt._closing = { at: rt.t + 30, info: { scriptedEnd: true }, delay: 1 };
     rt.banner('一宮城、開城', '谷忠澄が城を開き、白地城の元親へ降伏を説きに戻る');
     // 元親は阿波の西の白地城にいて、ここにはいない。谷は白地へ戻って降伏を説き、元親は怒ったが重臣に諫められて降った（七月下旬）
     rt.after(0.5, () => rt.say('谷忠澄', '水が尽きた。これ以上は兵が死ぬだけじゃ', 2.6));
@@ -608,6 +624,11 @@ export const t05_ichinomiya = {
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '水の手を断ち、一宮城を開かせた', pts: 15 }; }, '一宮城を開かせた');
     rt.after(9, () => { envoy.fixed = false; envoy.order = 'move'; envoy.anchor = { x: -16, z: 105 }; });
+    // 城主を討って終わらせない：防衛線が崩れ、元親が継戦を諦めて降る（七月）。四国平定
+    rt.after(12, () => rt.say('羽柴秀長の使番', '白地の元親、降伏を申し出ました！　阿波・讃岐・伊予を返し、土佐一国を守るとの事', 4));
+    rt.after(16.5, () => rt.banner('四国平定', '羽柴の大軍が四国を一つにした'));
+    rt.after(18, () => rt.say('羽柴秀長', '戦わずに済む所は戦わぬ。上様の天下は、もう目の前じゃ', 4));
+    rt.after(23, () => rt.say('蜂須賀正勝', '次は九州か。島津は長宗我部より手強いと聞く', 4));
   },
 
   lose(rt, why) {
@@ -640,7 +661,10 @@ t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
   depthBot(b, inp, goTo);
   // 付け入り：遊ぶ人と同じく行き先の▼（搦手の門→小倉丸）へ向かい、斬るのは目の前の敵だけ（逃げる城兵を追って塀の西の外へ回り込み、討たれた。11/6 描いた通し）
   const u = b.player.u;
-  if (b.flags.step === 4 && !inPoly(OGURA_POLY, u.pos.x, u.pos.z)) {
+  // ⑤押し戻し：山道の持ち場（下・中ほど）から離れて門の下まで上らない
+  const cur = b.flags.dp?.cur;
+  if (b.flags.step === 4 && cur?.at && Math.hypot(u.pos.x - cur.at.x, u.pos.z - cur.at.z) > 16) { inp.leftPressed = false; goTo(b.player, inp, cur.at.x, cur.at.z, 3); return; }
+  if (b.flags.step === 5 && !inPoly(OGURA_POLY, u.pos.x, u.pos.z)) {
     const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
     if (!near) {
       const d = destOf(b);
