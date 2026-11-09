@@ -2334,9 +2334,10 @@ const iga = {
         for (const u of g.units) { u._crouch = false; u.noTarget = false; }
         g.ambush = false; g.noAI = false; g.fixed = false; g.order = 'attack'; g.aggro = 30; g.seekRange = 40; g.focus = rt.player.u;
         rt.after(2, () => { if (!F.ending) rt.say('伊賀の地侍', '寄せ手が退くぞ！　坂の下まで追い落とせ！', 3); });
-        // 追い討ちが城へ引き上げる時、土塁の射手も撃ち止める（坂の下へ退く寄せ手を撃ち続けると、坂の途中で斬り合いと手当てを繰り返して陣へ戻れない。11/9 bot）
-        rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); if (!F.ending && F.wallBow) F.wallBow.holdFire = true; });
       }
+      // 兵数の上限で追撃兵を出せなくても、四十秒後の撃ち止めは必ず行う。
+      // 退く坂で射撃と手当てを繰り返し、帰陣できなくなるのを防ぐ。
+      rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); if (!F.ending && F.wallBow) F.wallBow.holdFire = true; });
     }
     F.igun.order = 'retreat'; F.igun.anchor = { x: 14, z: 30 }; F.igun.holdFire = false;
     rt.say('蒲生忠三郎', F.bridgeHeld

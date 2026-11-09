@@ -47,6 +47,8 @@ const VALLEY = { x: -70, z: -18 };              // 谷の口
 const KNOLL_W = { x: -108, z: -8 }, KNOLL_E = { x: -40, z: 6 };   // 谷の口の両脇の小山（林）
 const OGURA_IN = { x: -16, z: 98 };             // 小倉丸の中（搦手の門をくぐった所）
 const OGURA_POLY = rectPoly(-32, 0, 90, 106);
+// 曲輪の輪郭には門の敷居も含まれる。門から三m進むまで入城扱いにしない。
+const inOgura = (x, z) => z >= 93 && inPoly(OGURA_POLY, x, z);
 const WATER = { x: -86, z: 40 };                // 水の手（城へ水を引く湧き水）
 const WATER_FRONT = { x: -86, z: 30 };          // 溜めの前（溜めは石積みで入れない。行き先と守る所はその北の前）
 const ADIT = { x: -78, z: 50 };                 // 金掘り衆の坑道の口（水脈を断つ）
@@ -284,7 +286,7 @@ function ctxOf(rt) {
     botSteer: (b, inp) => {
       if (b.flags.step !== 5 || !inp.k.has('KeyW')) return;
       const p = b.player, u = p.u;
-      if (inPoly(OGURA_POLY, u.pos.x, u.pos.z)) return;   // 小倉丸に入るまで門へ導く（前は z だけを見て、塀の西の外の坂へ回り込んで討たれた。11/6 描いた通し）
+      if (inOgura(u.pos.x, u.pos.z)) return;   // 門の敷居で止まらず、小倉丸の内側まで導く。
       const off = Math.abs(u.pos.x - HON_GATE.x) > 2.5 && u.pos.z > HON_GATE.z - 12;
       const tx = HON_GATE.x, tz = off ? HON_GATE.z - 9 : HON_GATE.z + 6;
       p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
@@ -303,7 +305,8 @@ function steps(rt) {
         { name: '麓の砦の鉄砲組', from: { x: FORT.x + 5, z: FORT.z + 4 }, list: [uG(4)], mass: 0, width: 3 }],
       // 守兵は柵の内に留まって鉄砲と槍で守る（前は柵の外へ出て横一列に突っ立った。11/6 critic60 十一3）
       onShout: (rt, C) => { for (const g of C.groups) {
-        g.order = 'hold'; g.fixed = true; g.facing = Math.PI;
+        // fixed は出現位置の指定でも使われ、共通の采配までは止めない。
+        g.order = 'hold'; g.fixed = true; g.noAI = true; g.facing = Math.PI;
         g.anchor = { x: FORT.x + (g.isGun ? 5 : 0), z: FORT.z + (g.isGun ? 4 : 0) };
         g.aggro = g.isGun ? 55 : 5; g.seekRange = g.aggro;
       } },
@@ -436,7 +439,7 @@ function intoOgura(f) {
     if (!t0(rt, C, m, ctx, el)) return false;
     C.at = OGURA_IN; C.goal = OGURA_IN;
     const p = rt.player.u.pos;
-    if (inPoly(OGURA_POLY, p.x, p.z)) return true;
+    if (inOgura(p.x, p.z)) return true;
     if (!C.inSaid) { C.inSaid = true; rt.say('黒田官兵衛', '門の守りは崩れた。小倉丸へ踏み込め', 3); }
     return false;
   };
@@ -447,14 +450,14 @@ function intoOgura(f) {
 function emuraOut(rt) {
   const F = rt.flags;
   if (F.emura) return;
-  F.emura = enemyGroup(rt, { name: '江村親俊の旗本', anchor: { x: -22, z: 101 }, facing: Math.PI, fixed: true, order: 'hold', noRout: true, aggro: 3, width: 6 },
+  F.emura = enemyGroup(rt, { name: '江村親俊の旗本', anchor: { x: -22, z: 101 }, facing: Math.PI, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 3, seekRange: 3, width: 6 },
     look([{ type: 'busho', n: 1, o: { name: '江村親俊', horse: true, invuln: true } }, uS(3)]));
 }
 // 城から撃ち下ろす鉄砲：小倉丸の塀の内、搦手の門の脇から坂を撃つ（前は坂を上る間、城から鉄砲も矢も来なかった。11/6 critic60 二3・十3）
 function castleGuns(rt) {
   const F = rt.flags;
   if (F.cGuns) return;
-  F.cGuns = [[-25, 93.5], [-6, 93.5]].map(([x, z]) => enemyGroup(rt, { name: '小倉丸の鉄砲', anchor: { x, z }, facing: Math.PI, fixed: true, order: 'hold', noRout: true, aggro: 60, seekRange: 60, width: 4 }, look([uG(3), uB(2)])));
+  F.cGuns = [[-25, 93.5], [-6, 93.5]].map(([x, z]) => enemyGroup(rt, { name: '小倉丸の鉄砲', anchor: { x, z }, facing: Math.PI, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 60, seekRange: 60, width: 4 }, look([uG(3), uB(2)])));
   // 遠い撃ち下ろしで当たりは浅い（本人が門の前で数発で倒れない。寄せ手の足軽はばたばた倒れる）
   for (const g of F.cGuns) g.dmgMult = 0.2;
 }
@@ -470,7 +473,7 @@ function destOf(rt) {
   // ⑤押し戻しの段は、山道の今の持ち場（下がる・また上る）
   if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道' }; }
   const u = rt.player.u.pos;
-  if (inPoly(OGURA_POLY, u.x, u.z)) return { ...OGURA_IN, label: '小倉丸' };
+  if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸' };
   // 守兵を崩した後は、門の外で止まらず入城する場所を示す。
   if (F.dp?.cur?.inSaid && Math.abs(u.x - HON_GATE.x) <= 4) return { ...OGURA_IN, label: '小倉丸', r: 2 };
   // 門の正面（北の坂）から入る。脇から寄ると塀の外の細い段へ入り、狭間の下で囲まれた（11/6 描いた通し）。脇にいる間は▼を門の正面の坂に立てる
@@ -626,7 +629,7 @@ export const t05_ichinomiya = {
     for (const g of rt.army.groups) if (g.team === 1 && g.count) { g.noRout = false; g.morale = 0; }
     // 塀に隠れない曲輪の内側で使者を迎え、台詞と帰城の動きを見せてから締める。
     const pp = rt.player.u.pos;
-    const envoy = allyGroup(rt, { name: '開城の使者', anchor: { x: Math.max(-24, Math.min(-8, pp.x)), z: pp.z < 98 ? 101 : 94 }, facing: pp.z < 98 ? Math.PI : 0, width: 2, fixed: true, order: 'hold', noRout: true, aggro: 0, fullStrength: true },
+    const envoy = allyGroup(rt, { name: '開城の使者', anchor: { x: Math.max(-24, Math.min(-8, pp.x)), z: pp.z < 98 ? 101 : 94 }, facing: pp.z < 98 ? Math.PI : 0, width: 2, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 0, seekRange: 0, fullStrength: true },
       [{ type: 'busho', n: 1, o: { ...CHOSO, name: '谷忠澄', invuln: true } }, { type: 'samurai', n: 2, o: { ...CHOSO, keep: true } }]);
     // 共通の勝鬨で開城の会話を上書きせず、十二秒間は主人公を動かせる。
     rt._closing = { at: rt.t + 30, info: { scriptedEnd: true }, delay: 1 };
@@ -678,7 +681,7 @@ t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
   // ⑤押し戻し：山道の持ち場（下・中ほど）から離れて門の下まで上らない
   const cur = b.flags.dp?.cur;
   if (b.flags.step === 4 && cur?.at && Math.hypot(u.pos.x - cur.at.x, u.pos.z - cur.at.z) > 16) { inp.leftPressed = false; goTo(b.player, inp, cur.at.x, cur.at.z, 3); return; }
-  if (b.flags.step === 5 && !inPoly(OGURA_POLY, u.pos.x, u.pos.z)) {
+  if (b.flags.step === 5 && !inOgura(u.pos.x, u.pos.z)) {
     const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
     if (!near) {
       const d = destOf(b);
