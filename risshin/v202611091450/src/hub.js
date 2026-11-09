@@ -215,16 +215,17 @@ export function toyoRows(from) {
   return chain(TOYOTOMI_LINE.map((b, n) => ({ b, k: from + n, j: -1, state: 'next', won: won.has(b.id), grade: null, best: 0, pay: isBattleLocked('toyotomi', b.id), scn: 'toyotomi' })));
 }
 // 第三章「徳川編」の行（kaito 11/1）：15戦ぜんぶのサムネを見せる。まだできていない戦は買った後も錠（soon）、できた戦はアプリで買った人だけ開く
-export function tokuRows(from) {
+// IF の最後の戦は、織田家編・豊臣編・徳川編の戦にすべて勝つと開く（kaito 11/8）。otherLeft は織田・豊臣のまだ勝っていない戦の数
+export function tokuRows(from, otherLeft = 0) {
   const won = new Set(tokuWon().map((id) => id.slice(0, 3)));
   return chain(TOKUGAWA_PLAN.map((p, n) => {
     const made = TOKUGAWA_LINE.find((e) => e.id.slice(0, 3) === p.id.slice(0, 3));
     const b = made ? { cap: 240, place: '', ...made } : p;
     return { b, k: from + n, j: -1, state: made ? 'next' : 'lock', soon: !made, won: !!made && won.has(p.id.slice(0, 3)), grade: null, best: 0, pay: made ? isBattleLocked('tokugawa', b.id) : false, scn: 'tokugawa' };
   })).concat(TOKUGAWA_LINE.filter((e) => e.secret).map((e, n) => {
-    // 秘密の最後の戦：15戦すべてに勝つと開く（tokugawa_secret.js）
-    const open = secretOpen();
-    return { b: { cap: 240, place: '', ...e }, k: from + TOKUGAWA_PLAN.length + n, j: -1, state: open || isWebOpen() ? 'next' : 'lock', secret: true, won: tokuWon().includes(e.id), grade: null, best: 0, pay: open || isWebOpen() ? isBattleLocked('tokugawa', e.id) : false, scn: 'tokugawa' };
+    // 秘密の最後の戦：三つの編の戦すべてに勝つと開く（tokugawa_secret.js。?secret は今までどおり開く）
+    const open = secretOpen(otherLeft);
+    return { b: { cap: 240, place: '', ...e }, left: otherLeft + secretLeft(), k: from + TOKUGAWA_PLAN.length + n, j: -1, state: open || isWebOpen() ? 'next' : 'lock', secret: true, won: tokuWon().includes(e.id), grade: null, best: 0, pay: open || isWebOpen() ? isBattleLocked('tokugawa', e.id) : false, scn: 'tokugawa' };
   }));
 }
 
@@ -287,7 +288,7 @@ export function pickScreen(G, game, o) {
   const toyo = toyoRows(oda);
   rows.push(...toyo);
   const toku = rows.length;
-  rows.push(...tokuRows(toku));
+  rows.push(...tokuRows(toku, rows.filter((r) => r.state !== 'done' && !r.soon).length));
   const recommended = rows.find((r) => r.state === 'next' && !r.pay && !r.soon);
   const cardHtml = (r) => {
     const lock = r.state === 'lock';
@@ -322,7 +323,7 @@ export function pickScreen(G, game, o) {
     if (head) prev = null;
     // 完全版が要る錠の戦：完全版を買い、かつ前の戦に勝って開く。札から買える（kaito 11/3 AC）
     const buyable = r.pay && !r.soon && !(r.secret && r.state === 'lock');
-    const text = r.secret && r.state === 'lock' ? `徳川編の十五の戦に、すべて勝つと開きます（あと${secretLeft()}）` : r.soon ? 'まだできていません' : buyable ? (r.state === 'lock' && prev ? `完全版を買い、「${prev.b.name}」に勝つと開きます` : '完全版で開きます') : head ? '前の章の戦に、すべて勝つと開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
+    const text = r.secret && r.state === 'lock' ? `織田・豊臣・徳川の三つの編の戦に、すべて勝つと開きます（あと${r.left}）` : r.soon ? 'まだできていません' : buyable ? (r.state === 'lock' && prev ? `完全版を買い、「${prev.b.name}」に勝つと開きます` : '完全版で開きます') : head ? '前の章の戦に、すべて勝つと開きます' : prev ? `「${prev.b.name}」に勝つと開きます` : '前の戦に勝つと開きます';
     row.insertAdjacentHTML('beforeend', `<div class="pk-why" role="status">${prev && !buyable ? `<img src="${thumbURL(prev.b.id)}" alt="">` : LOCK}<span>${esc(text)}</span>${buyable ? '<button type="button" class="btn small primary" id="pk-why-buy">完全版を買う</button>' : ''}${prev && !buyable && prev.state !== 'lock' ? '<button type="button" class="btn small" id="pk-why-go">その戦へ</button>' : ''}</div>`);
     const gb = row.querySelector('#pk-why-buy');
     if (gb) gb.onclick = () => { sfx('ui'); clearTimeout(whyT); row.querySelector('.pk-why')?.remove(); showPaywall(() => { release(); pickScreen(G, game, o); }, () => {}, r.scn || 'oda'); };

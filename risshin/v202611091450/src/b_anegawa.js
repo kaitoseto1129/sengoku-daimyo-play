@@ -4154,7 +4154,8 @@ const anegawa = {
     //   駆け足の移動（move）で、北の川岸の高さまで上がってから浅井の横へ回る（二つの足取り）。
     F.inabaGoal = { x: c.x + 10, z: Math.max(c.z, aneSouthBank(c.x + 10) + 2) };
     const attach = (gg) => {
-      if (F.inabaT) return;
+      // 出現待ちの空の隊や、終戦後の遅れた到着を横槍に数えない。
+      if (F.inabaT || gg.anePending || !gg.count || F.step !== 1 || F.ending || rt.over) return;
       gg.noAI = false; gg.stay = false;
       gg.order = 'attack'; gg.seekRange = 50; gg.aggro = 10; F.inabaT = rt.t;
       // 11/6 fixc0454：横槍の手（史実は千ほど）が十六人のまま磯野の三十余と当たり、取り付いて二十秒で逆に崩れて東へ逃げた。
@@ -4195,7 +4196,8 @@ const anegawa = {
   // 11/6（fixc1803）：前の段が破れた時、控えた稲葉の手が浅井の横へ駆ける（史実の順：段が破れる→美濃三人衆の横槍）。
   inabaGo(rt) {
     const F = rt.flags, g = F.inaba;
-    if (F.inabaGoT || !g || gone(g) || F.step !== 1 || rt.over) return;
+    // 枠待ち中は駆け出しの時計も始めない（空の隊が四十五秒で取り付いていた）。
+    if (F.inabaGoT || !g || g.anePending || gone(g) || F.step !== 1 || F.ending || rt.over) return;
     F.inabaGoT = rt.t;
     // 11/6 fixc0454：横槍の的は段を破って南岸を本陣へ進む磯野の隊（三の手は川向こうで、先に選ぶと川の方へ向かった）。
     const tg = aneInabaTarget(rt);

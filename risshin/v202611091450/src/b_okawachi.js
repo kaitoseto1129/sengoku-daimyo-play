@@ -3274,7 +3274,7 @@ function okLandscape(W) {
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 4, 10), new THREE.MeshLambertMaterial({ color: 0x3c3025 }), trees);
   // 縁の林も七角の球をやめ、凸凹の房に秋の褐色と常緑の深緑を株ごとに混ぜる（10/29 点付け：角ばった塊・秋の林なし）。
   const crowns = new THREE.InstancedMesh(okCrownGeo(37), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees);
-  const d = new THREE.Object3D(), pos = [], idx = [];
+  const d = new THREE.Object3D(), pos = [], uv = [], idx = [];
   let count = 0;
   for (let side = 0; side < 4; side++) {
     for (let i = 0; i <= segments; i++) {
@@ -3287,6 +3287,9 @@ function okLandscape(W) {
         const h = Math.max(Math.abs(x), Math.abs(z)) > edge ? W.farH(x, z) : W.heightAt(x, z);
         const bank = river ? 0 : row === 1 ? 2.8 + Math.sin(t * 0.07 + side) * 1.2 : -0.5;
         pos.push(x, h + bank, z);
+        // 外周の土手にも野と同じ土を張り、一色の粘土の帯にしない。
+        // 斜面方向は高さを含め、立った面で土の模様が引き延ばされるのを抑える。
+        uv.push(t / 3, (out + h + bank) / 3);
         if (i < segments && row < 2) {
           const k = side * (segments + 1) * 3 + i * 3 + row;
           idx.push(k, k + 3, k + 1, k + 1, k + 3, k + 4);
@@ -3304,7 +3307,8 @@ function okLandscape(W) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  W.scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x494936, side: THREE.DoubleSide })));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  W.scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: W.groundU?.tDirt?.value || null, color: 0x494936, side: THREE.DoubleSide })));
   trunks.count = crowns.count = count;
   okForestColors(crowns, count, 0.24);
   trunks.instanceMatrix.needsUpdate = crowns.instanceMatrix.needsUpdate = true;
