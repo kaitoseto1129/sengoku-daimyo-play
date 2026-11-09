@@ -82,6 +82,17 @@ export function tick(rt, dt) {
     S.empty = (S.empty || 0) + dt;
     if (S.empty > 15 && z.initialNeed > 1) z.initialNeed = 1;
   } else S.empty = 0;
+  // 守兵の無い郭の口の外で、本人が六十秒入れずにいた（11/9 の流し：主郭の口の外で七百秒）。郭の真ん中へ移す
+  const P = rt.player.u.pos;
+  if (!z.enemies && !z.test(P.x, P.z) && Math.hypot(P.x - z.pos.x, P.z - z.pos.z) < 160 && (!z.enabled || z.enabled())) {
+    S.out = (S.out || 0) + dt;
+    if (S.out > 60) {
+      S.out = 0;
+      const u = rt.player.u;
+      u.pos.x = z.pos.x; u.pos.z = z.pos.z; u.pos.y = rt.world.heightAt(z.pos.x, z.pos.z);
+      for (const q of rt.squadGroups || []) for (const v of q.units) if (v.alive) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
+    }
+  } else S.out = 0;
   if (!z.friends || !z.enemies) return;
   if (S.t == null) S.t = rt.t;          // 味方が初めて郭に入った時から数える（数が少しずつ揺れても止まらない）
   if (rt.t - S.t < 75) return;

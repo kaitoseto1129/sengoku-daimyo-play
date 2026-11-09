@@ -21,7 +21,7 @@ import { nobori, tawara, hut, stumps, ishigaki, dobei, sumiyagura, kabukimon, to
 import { osakaFar } from './osaka_far.js';
 import { RANKS } from './state.js';
 import { STAGES } from './stages.js';
-import { sfx } from './audio.js';
+import { sfx, setWarStage } from './audio.js';
 import { gauss, enemyGroup, allyGroup, nm, wallLine } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
@@ -691,6 +691,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   fenceStart(rt) {
     const F = rt.flags;
     F.step = 3; F.fenceT = rt.t;
+    setWarStage(1);   // 戦の曲：柵へ寄せる所でテンポが上がる（music_war.js の段）
     this.openFire(rt);
     const T = F.target, R = F.ram;
     R.order = 'assault'; R.formation = 'line'; R.aggro = 2; R.dmgMult = 2.2; R.assault = () => (T.alive ? T : null);
@@ -776,6 +777,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   sortie(rt) {
     const F = rt.flags;
     F.step = 4; F.sortieT = rt.t;
+    setWarStage(2);   // 真田が打って出る：低音と太鼓が前へ
     rt.unmark('fence');
     // 目標に名を挙げた大助・伊木は、出てきた時に「見えぬ敵の陣」と伏せない（使番が名を伝えた。十1）
     revealName(rt, '真田大助'); revealName(rt, '伊木遠雄');
@@ -799,6 +801,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   fallBack(rt) {
     const F = rt.flags;
     F.step = 5; F.backT = rt.t;
+    setWarStage(0);
     const dest = (g, i) => ({ x: RETREAT.x - 30 + (i % 5) * 15, z: RETREAT.z + 6 + Math.floor(i / 5) * 6 });
     rt.army.groups.filter((g) => g.team === 0 && !g.isPlayerSquad && g.count && !gone(g) && g.center().z < RETREAT.z).forEach((g, i) => withdraw(g, dest(g, i)));
     rt.after(14, () => {
@@ -833,6 +836,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.after(8.4, () => rt.say(nm(rt), '……あの丸は、ついに落ちなんだ', 3));
     // 続けて冬の陣の中間の場面（大筒・和議・堀が埋まる・丸の破却。k11/wagi.js）
     rt.after(12, () => {
+      setWarStage(3);   // 中間の場面：曲はほぼ黙り、大筒の音を聞かせる
       const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka });
       rt.after((w && w.end) || 1, () => {
         // 結果には最初の登頂ではなく、最後に果たした帰陣の務めを残す。

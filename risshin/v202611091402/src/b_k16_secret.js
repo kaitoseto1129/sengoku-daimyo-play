@@ -278,7 +278,7 @@ const k16_secret = {
   // 総大将の主人公が自ら前に出る訳を一行で（天王寺口の真田信繁と同じ、旗本を率いた本陣への決死の突き）
   // 騎馬の隊旗は筒の吹流しにせず幟に（固い円錐が宙に横に突き出たまま揺れなかった。11/8 critic60 八1・三方ヶ原と同じ）
   standardKinds: { cavalry: 'spear' },
-  introText: () => '大坂落城の後、毛利・島津・上杉が起った。京へ戻る家康を淀の野で討て。',
+  introText: () => '大坂落城の後、毛利・島津・上杉が起った。旗本と全軍の先頭に立ち、京へ戻る家康を淀の野で討て。',
   hideGuideSteps: true,
   goalsAllRows: true,      // 共通の一件表示に隠されず、五つを始めから並べる
   goalVisibleRows: 5,     // 共通の目標札は表示件数も指定しないと、今の一件だけを作る
@@ -573,7 +573,15 @@ const k16_secret = {
     rt.after(6.8, () => {
       rt.say('徳川秀忠', '……これまでか', 2.4);
       // 秀忠が刀を置き、供の者も膝をつく
-      if (live(F.hide)) for (const u of F.hide.units) if (u.alive) { u._crouch = true; u.target = null; }
+      if (live(F.hide)) {
+        F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0;
+        F.hide.fire = false; F.hide.peaceful = true; F.hide.keepMoveOrder = true;
+        // 狙いだけ消しても次の判断で斬り合いを再開する。降った者を双方の攻撃から外す。
+        for (const u of F.hide.units) if (u.alive) {
+          u._crouch = true; u.invuln = true; u.noTarget = true;
+          u.target = null; u.atk = null; u.swing = null; u.bind = null;
+        }
+      }
     });
     rt.after(9.4, () => {
       victoryMoment(rt, '天下静謐');

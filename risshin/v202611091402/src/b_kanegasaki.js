@@ -2628,12 +2628,12 @@ const kanegasaki = {
   treatmentGuideLabel(rt, cue) {
     const p = rt.player;
     if (p.mounted) return '馬を降りて手当て';
-    if (p.treatmentNext > rt.t) return 'ここで待て。手当ての支度中';
+    if (p.treatmentNext > rt.t) return '構えて身を守れ。手当ての支度中';
     if (p.treatmentReady) return p.treating ? '「手当て」を押し続けよ' : '「手当て」を三秒長押し';
     if (!cue?.valid) return '構えて、味方の後ろへ下がれ';
     if (Math.hypot(cue.x - p.u.pos.x, cue.z - p.u.pos.z) >= cue.radius)
       return '十字の印へ下がって手当て';
-    return 'ここで止まれ。敵が離れたら手当て';
+    return '構えて身を守り、敵が離れたら手当て';
   },
   hideEdgeGoalDistance: true, // 札の歩数は道のりで示し、画面外の案内点への直線距離を添えない。
   retreatTaskLabel(rt, guide) {
@@ -3946,7 +3946,7 @@ const kanegasaki = {
         const foe = rt.army.nearestEnemy(rt.player.u, 24, u => kgActive(u) && u.type === 'busho');
         if (foe && sightPoint(rt, foe.pos)) {
           F.enemyVoice[F.line] = true;
-          rt.say(foe.name, F.line === 0 ? '横の道へ回れ！　織田の退き道を断て！' : '殿を押し崩せ！　退く織田を逃がすな！', 2.8);
+          rt.say(foe.name, F.line === 0 ? '横の道へ回れ！　織田の退き道を断て！' : '殿を破れ！　退く織田を逃がすな！', 2.8);
         }
       }
     }

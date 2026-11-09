@@ -3,7 +3,7 @@
 // 本丸の段（signal）に入った後に重ねる：
 //   ・東の百曲りと西の二の丸の斜面で、柴田・丹羽の手が別の道から登って来る（軽い作り addClash。本物の兵は増やさない）
 //   ・龍興の近習の精鋭が本丸の奥から打って出る（本物の兵。本丸の守りに数え、退けるまで合図の火は付けられない）
-//   ・一番の見せ場：本丸の旗が揺らぎ、龍興が本丸を捨てて落ちる知らせ（裸城になった稲葉山の終わり）
+//   ・本丸の旗が揺らぎ、守兵が主殿の奥へ退く知らせ。龍興の退去は開城後の幕。
 // 呼び方：b_inabayama.js の signal() の終わりで install(rt, ctx)。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
@@ -54,13 +54,14 @@ export function install(rt, ctx) {
     rt.marker('k15elite', () => (gone(g) ? null : g.center()), '龍興の近習衆', { red: true, group: g });
   });
 
-  // 見せ場：本丸の旗が揺らぎ、龍興が本丸を捨てる
+  // 本丸の守りが崩れる。城主の退去と開城は、合図後の幕まで先取りしない。
   const fall = () => {
     if (H.fell || rt.over || F.ending) return;
     H.fell = true;
-    rt.banner('龍興、本丸を捨てる', '裸城となった稲葉山');
-    rt.say('使番', '龍興、裏の口から長良川へ落ちてゆきます！', 3.4);
-    rt.after(3.8, () => { if (!rt.over && !F.ending) rt.say(officer(rt), '城主は逃げた。あとは本丸の旗を倒し、合図の火を上げよ！', 3.6); });
+    // 龍興の舟による退去は、合図後の八月十五日の開城で知らせる。
+    rt.banner('本丸の守りが揺らぐ', '主殿の奥へ退く斎藤勢');
+    rt.say('使番', '本丸の守りが主殿の奥へ退いてゆきます！', 3.4);
+    rt.after(3.8, () => { if (!rt.over && !F.ending) rt.say(officer(rt), '守りが崩れた。城主は追うな。合図の火を上げよ！', 3.6); });
     for (const C of H.C || []) C.push?.('A', 0.7);
     for (const g of F.hata || []) if (!gone(g) && g !== H.elite) g.morale = Math.min(g.morale, 45);
   };

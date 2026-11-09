@@ -89,18 +89,32 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ---- 地形：平らな河内の田。二本の川の堤だけが高い。国土地理院の起伏は丸めて薄く ----
 // 旧大和川の分かれは天井川：細い流れの両岸に、田より背丈ほど高い堤（八3）
+// 11/9 重さ：地面の高さを読むたびに三本の線への距離を五回測っていた（一コマの約 4%）。どの項も 24m より遠ければ同じ値なので、
+//   線の四角から 24m 外なら測らずに遠い（Infinity）とする（sm は端で 0／1 に張り付くので答えは同じ）
+const NEAR_BOX = new WeakMap();
+function nearDist(x, z, line) {
+  const pts = line.pts || line;
+  let b = NEAR_BOX.get(pts);
+  if (!b) {
+    b = [Infinity, -Infinity, Infinity, -Infinity];
+    for (const [px, pz] of pts) { b[0] = Math.min(b[0], px); b[1] = Math.max(b[1], px); b[2] = Math.min(b[2], pz); b[3] = Math.max(b[3], pz); }
+    b[0] -= 24; b[1] += 24; b[2] -= 24; b[3] += 24; NEAR_BOX.set(pts, b);
+  }
+  if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) return Infinity;
+  return distToPolyline(x, z, line);
+}
 function levee(x, z, line, a = 3, b = 5, c = 7.5, e = 12) {
-  const d = distToPolyline(x, z, line);
+  const d = nearDist(x, z, line);
   return 2.4 * sm(a, b, d) * (1 - sm(c, e, d));
 }
 function height(x, z) {
   let h = 0.5 + 0.18 * Math.sin(x * 0.031 + 0.7) * Math.cos(z * 0.027) + 0.12 * Math.sin(z * 0.06 - x * 0.02);
   h += levee(x, z, TAMA) + levee(x, z, NAGASE, 3.5, 5.5, 8, 13) * 1.1;
-  { const d = distToPolyline(x, z, WAKAE_DIKE); h += 1.6 * (1 - sm(2.5, 7, d)); }
+  { const d = nearDist(x, z, WAKAE_DIKE); h += 1.6 * (1 - sm(2.5, 7, d)); }
   // 東の端は生駒の麓へゆるく上がる
   h += 0.06 * Math.max(0, x - 200);
   if (dem) {
-    const away = sm(12, 24, Math.min(distToPolyline(x, z, TAMA), distToPolyline(x, z, NAGASE)));
+    const away = sm(12, 24, Math.min(nearDist(x, z, TAMA), nearDist(x, z, NAGASE)));
     const r = demDetail(dem, x, z, { xy: DEM_XY, win: 14, scale: 0.22 });
     h += away * Math.max(-0.6, Math.min(0.6, r));
   }
@@ -187,9 +201,10 @@ const k14_yao_wakae = {
     height,
     fieldStage: 'seedling',   // 旧暦五月六日（今の六月の初め）：植えたばかりの稲と水の張った田
     paddy(x, z) {
-      if (Math.min(distToPolyline(x, z, TAMA), distToPolyline(x, z, NAGASE)) < 12 || distToPolyline(x, z, WAKAE_DIKE) < 6 || distToPolyline(x, z, ROAD) < 5) return 0;
+      // 11/9 重さ：兵の足元の水の深さのたびに呼ばれる。安い外し（端・畦の升）を先にし、線は四角の外なら測らない（答えは同じ）
       if (Math.abs(x) > 230 || Math.abs(z) > 230) return 0;
       if ((Math.floor(x / 14) + Math.floor(z / 12)) % 4 === 1) return 0;
+      if (Math.min(nearDist(x, z, TAMA), nearDist(x, z, NAGASE)) < 12 || nearDist(x, z, WAKAE_DIKE) < 6 || nearDist(x, z, ROAD) < 5) return 0;
       const ex = Math.min(((x % 14) + 14) % 14, 14 - ((x % 14) + 14) % 14), ez = Math.min(((z % 12) + 12) % 12, 12 - ((z % 12) + 12) % 12);
       return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.8) / 0.6)) * 0.95;
     },

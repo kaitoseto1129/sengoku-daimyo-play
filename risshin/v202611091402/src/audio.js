@@ -2,6 +2,11 @@
 import { S } from './settings.js';
 import { createMusic } from './music_sep.js'; // 11/4 kaito「9月のやつ気に入ってた」：曲は9月の自作の和の曲に戻す
 import { tuneOf } from './music_war.js';
+// 戦の曲（kaito 11/9「戦と戦以外で曲を分ける。戦ごとに合う曲」）：戦の三段（prebattle・battle・climax）だけ music.js の戦の曲（music_war.js）で鳴らし、
+// ほかの場面は今の曲（music_sep.js・9月の曲）のまま。11/9 徳川C：前は audio.js が music_sep.js しか作らず、戦の曲が鳴らないうえ setWarTune・setWarStage が落ちていた
+import { createMusic as createWarMusic } from './music.js';
+const WAR_CUE = new Set(['prebattle', 'battle', 'climax']);
+let warEng = null;
 import { createRealBgm, REAL_WAR } from './bgm_real.js';
 import { createSoundPath, sampleSoundPath } from './audio_path.js';
 import { fieldState } from './world_fields.js';
@@ -229,7 +234,11 @@ export function initAudio() {
     pressure: () => { live(); return ends.length * 2; },
   });
   real = null; // 本物の曲（魔王魂）は使わない（kaito 11/4）
-  if (tuneWant != null) music.setTune(tuneOf(tuneWant));
+  try { warEng = createWarMusic(ctx, musicBus, {
+    mark: (delay, dur, w) => { const n = ctx.currentTime * 1000 + delay * 1000; mIv.push([n, n + dur * 1000 + 60, w]); live(); },
+    pressure: () => { live(); return ends.length * 2; },
+  }); } catch (e) { warEng = null; }
+  if (tuneWant != null && warEng) warEng.setTune(tuneOf(tuneWant));
   if (musicWant) { const [n, o] = musicWant; musicWant = null; playMusic(n, o); }
   // 残響：野の広がり。耳の遠のき（muffle）の前に入れて、こもる時は残響も一緒にこもる
   try {
@@ -266,7 +275,8 @@ export function playMusic(name, o = {}) {
   if (real) real.stop(o.fadeOut ?? 1.5);
   // 戦も9月の曲で鳴らす（WAR_SCORES の短い節は使わない）
   stopWarMusic(o.fadeOut ?? 1);
-  music.play(name, o);
+  if (warEng && WAR_CUE.has(name)) { music.stop(o.fadeOut ?? 1.5); warEng.play(name, o); }
+  else { if (warEng) warEng.stop(o.fadeOut ?? 1.5); music.play(name, o); }
   // 戦の始まる前に陣太鼓（kaito BU）。曲は替えず、上に重ねて一度だけ打つ
   if (name === 'prebattle' && S.volMusic > 0) jinDaiko();
 }
@@ -279,14 +289,14 @@ function jinDaiko() {
   jinDaikoAt = now;
   for (const [t, v] of JIN_DAIKO) drum(v, t + .3, .4);
 }
-export function stopMusic(fade = 2) { musicWant = null; stopWarMusic(fade); if (real) real.stop(fade); if (music) music.stop(fade); }
+export function stopMusic(fade = 2) { musicWant = null; stopWarMusic(fade); if (real) real.stop(fade); if (music) music.stop(fade); if (warEng) warEng.stop(fade); }
 // 楽の音の厚み。戦の節は ambience から静か・寄せ・激しいを選ぶ。
 // 戦の曲の段（天王寺の BGM 五段階など）と、戦ごとの曲の形。tuneKey は戦の名
-export function setWarStage(n) { if (music) music.setStage(n); }
-export function setWarTune(key) { if (music) music.setTune(tuneOf(key)); else tuneWant = key; }
+export function setWarStage(n) { if (warEng) warEng.setStage(n); }
+export function setWarTune(key) { tuneWant = key; if (warEng) warEng.setTune(tuneOf(key)); }
 let tuneWant = null;
-export function setMusicIntensity(x) { if (music) music.setIntensity(x); }
-export function musicNow() { return warMusic.name || (real && real.now()) || (music ? music.now() : (musicWant ? musicWant[0] : null)); }
+export function setMusicIntensity(x) { if (music) music.setIntensity(x); if (warEng) warEng.setIntensity(x); }
+export function musicNow() { return warMusic.name || (real && real.now()) || (warEng && warEng.now()) || (music ? music.now() : (musicWant ? musicWant[0] : null)); }
 
 // 戦の短い節。太鼓・笛・琵琶を主にし、節の後には長い休みを置く。
 // 譜面：[秒、楽器（0＝太鼓・1＝笛・2＝法螺・3＝琵琶）、高さ、長さ、強さ]。
@@ -2516,7 +2526,7 @@ export function setCrowd(level) {
   if (!ctx) return;
   // 声に見立てた雑音のループは作らず、戦の強さだけを楽へ渡す。
   crowdLv = level;
-  if (music) music.setIntensity(Math.max(level, heatLv));
+  setMusicIntensity(Math.max(level, heatLv));
 }
 let heatLv = 0;
 let crowdLv = 0, farTokiT = 6, farWarT = 12;
@@ -2922,7 +2932,7 @@ export function ambience(dt, o, world = null, pos = null, wind = 1, heading = 0)
     tenseNode.g.gain.setTargetAtTime(0.03 * ten, now, 1.5);
     tenseNode.lg.gain.setTargetAtTime(0.012 * ten, now, 1.5);
     tenseNode.f.frequency.setTargetAtTime(220 + ten * 400, now, 2);
-    if (music && ten > 0.3) music.setIntensity(Math.min(1, Math.max(heatLv, crowdLv) + ten * 0.4));
+    if (music && ten > 0.3) setMusicIntensity(Math.min(1, Math.max(heatLv, crowdLv) + ten * 0.4));
   }
   // 味方が崩れかけた瞬間：後ろの本陣から法螺貝が鳴り、味方の叫びが上がる（二十五秒に一度まで）
   // 警告中の崩れを後から合図として返さない。信貴山の退却は固有の下知に任せる。
@@ -3022,7 +3032,7 @@ export function ambience(dt, o, world = null, pos = null, wind = 1, heading = 0)
   }
   warMusicMood(dt, o);
   const cue = musicNow();
-  if (music && !warMusic.name) music.setIntensity(Math.max(heatLv, crowdLv));
+  if (music && !warMusic.name) setMusicIntensity(Math.max(heatLv, crowdLv));
   // 楽の音：平時は尺八のような長い息、戦いが激しくなるほど太鼓が重なる（戦の後は太鼓を止める）
   // 曲が鳴っている間は、曲に任せる
   if (!cue && !o.aftermath) onBus(musicBus, () => {
