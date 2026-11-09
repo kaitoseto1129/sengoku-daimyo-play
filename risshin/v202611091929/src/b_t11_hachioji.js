@@ -133,7 +133,7 @@ const PLAN = {
   mon: 'hojo', name: '八王子城', type: 'yama', year: 1590, gateSlope: 7, lifeNoFlags: true,
   continuousEdges: true,   // 11/8 critic60（八1）：曲輪の縁の外で地面が段に落ち、盛り土の斜面が平たい大きな三角の面に見えた。縁から切岸へ続けて下ろす
   kuruwa: [
-    { id: 'ote', name: '山下曲輪', level: 5.9, wall: 'saku', kind: 'san', poly: rectPoly(108, 133, 40, 64), gapAt: [[133, 52], [108, 52]], gapW: 6, floor: false },
+    { id: 'ote', name: '山下曲輪', level: 5.9, wall: 'saku', kind: 'san', poly: rectPoly(108, 133, 40, 64), gapAt: [[133, 52], [108, 52]], gapW: 10, floor: false },   // 11/9 見回り：木戸が六歩で味方の組が詰まり、bot が東の木戸の前で十八分止まった。十歩に
     { id: 'goshu', name: '御主殿', level: 15, wall: 'ishigaki', kind: 'yakata', dense: false, poly: rectPoly(20, 60, -20, 14), gapAt: [[60, 4]] },
     { id: 'kaneko', name: '金子丸', level: 30, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(60, 84, -58, -34), gapAt: [[72, -34], [66, -58]], gapW: 5 },
     { id: 'taka', name: '高丸', level: 42, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(12, 38, -92, -68), gapAt: [[38, -76], [18, -92]], gapW: 5 },

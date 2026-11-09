@@ -436,10 +436,22 @@ const t09_yamanaka = {
     const D = KURUWA.dai;
     rt.marker('dai', centerOf(F.dai), '間宮康俊', { red: true, group: F.dai });
     // 先手は柵の前へ寄り、柵を打ち破って出丸へ斬り込む（柵の向こうの敵を追って立ち往生しない）
+    const inside = { x: D.x, z: D.z };
+    // 破れ口の少し内側まで進んでから城内へ向かう。残った柵を全部壊すまで足止めしない。
+    const mouths = F.daiWall.map((s) => {
+      const x = (s.seg[0] + s.seg[2]) / 2, z = (s.seg[1] + s.seg[3]) / 2;
+      const dx = D.x - x, dz = D.z - z, d = Math.hypot(dx, dz) || 1;
+      return { s, x: x + dx / d * 3, z: z + dz / d * 3, dx, dz };
+    });
     const fence = (u) => {
-      let best = null, bd = Infinity;
-      for (const s of F.daiWall) if (s.alive !== false) { const d = Math.hypot((s.seg[0] + s.seg[2]) / 2 - u.pos.x, (s.seg[1] + s.seg[3]) / 2 - u.pos.z); if (d < bd) { bd = d; best = s; } }
-      return best && bd < 40 ? best : { x: D.x, z: D.z };
+      let best = null, bd = Infinity, mouth = null, md = Infinity;
+      for (const m of mouths) {
+        const s = m.s, d = Math.hypot(m.x - u.pos.x, m.z - u.pos.z);
+        if (s.alive === false || s.hp <= 0) { if (d < md) { md = d; mouth = m; } }
+        else if (d < bd) { bd = d; best = s; }
+      }
+      if (mouth) return (u.pos.x - mouth.x) * mouth.dx + (u.pos.z - mouth.z) * mouth.dz >= 0 ? inside : mouth;
+      return best && bd < 40 ? best : inside;
     };
     // 全員の整列を待つと、柵に阻まれた後列が着けず攻撃へ移れない。先頭から柵を攻める。
     const go = (g, x, z) => { g.formation = 'column'; g.colW = 3; g.order = 'assault'; g.assault = fence; g.anchor = { x, z }; g.speed = 3; g.onArrive = null; };
