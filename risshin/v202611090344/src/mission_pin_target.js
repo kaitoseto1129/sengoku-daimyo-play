@@ -43,7 +43,7 @@ export function target(rt) {
   // 火付けの到着点も、実際に作業できる戸口の足場にそろえる。
   const destination = m.guideDestination?.() || g.pos;
   // 最終地点へ直進させず、戦が選んだ通れる戸口・曲がり角を共通のピンでも使う。
-  const route = !tmp.fire && rt.def.routeGuidePriority?.(rt)
+  const route = !tmp.fire && (!person || person.team === rt.player.u.team) && rt.def.routeGuidePriority?.(rt)
     ? rt.def.routeSignPoint?.(rt, destination) : null;
   const pos = route || destination;
   // 人へ向かう下知でも、まず通れる口を示す。壁の裏の人へ直進させない。

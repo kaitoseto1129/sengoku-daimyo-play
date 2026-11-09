@@ -2980,7 +2980,7 @@ function ariStage(o, defending) {
       C.post = { x: o.at.x, y: rt.world.heightAt(o.at.x, o.at.z), z: o.at.z };
       C.botRadius = o.r || 16; C.scanAt = 0; C.enemy = 0; C.friend = 0; C.rangedEnemy = 0;
       rt.banner(o.title, o.sub); rt.objRemove('main'); rt.obj('dp', o.obj(rt), 'main', true);
-      ariMark(rt, 'dp', () => gateWay(rt.army, rt.player.u, C.at), () => '侍町の辻');
+      ariMark(rt, 'dp', () => gateWay(rt.army, rt.player.u, C.at), () => o.label || o.title);
       const reserve = rt.flags.reserves[defending ? 1 : 0];
       if (!ariSpent(reserve)) {
         (rt.flags.committed || (rt.flags.committed = [])).push(reserve);
@@ -3149,6 +3149,8 @@ function ariStage(o, defending) {
         : defending ? '辻の守りが整わぬ。寄せを引くぞ'
           : '期限までに辻を十二秒守れなかった';
       o.onEnd(rt, m, won);
+      // 追加の段も、持ち場を取れないまま官兵衛を迎える所へ進めない。
+      if (!won && !rt.flags.ending) arioka.lose(rt, m.ariFailure);
     },
   };
 }

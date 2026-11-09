@@ -3134,7 +3134,12 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 11/6：待つ間の六割は石氷の豪雨のまま。残りで急に弱まり、晴れ間で「かかれ」。
     const waitK = this.missionWaitProgress(rt);
     const rainLeft = waitK < 0.6 ? 1 : 1 - (waitK - 0.6) / 0.4;
-    if (!F.clear) rt.world.setRainTarget(rainLeft);
+    if (!F.clear) {
+      rt.world.setRainTarget(rainLeft);
+      // 行軍中の二十二秒だけで雹が尽きないよう、雨待ちの豪雨にも石氷を保つ。
+      // 鉄砲衆と戦う間（待ち時刻が未定）も降らせ、晴れ始めたら三秒で収める。
+      if (waitK == null || waitK < 0.6) rt.world.hailT = 3;
+    }
     // 円が満ちた時に雨を止め、同じ時刻に仲間が攻め始める。
     if (rt.t >= F.waitReadyAt && !F.clear) {
       F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after');
@@ -3497,7 +3502,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 深手と退却がそろって十二秒後は、六歩まで寄せた毛利が討つ。兵の押し合いで止めない。
     // 遠方・手当て中や幕・地形越しでは首を挙げず、実際に討てる間合いを待つ。
     // 11/6：囲みが退き始める前（③④の間）に深手を負っても、首は旗本が五十に減ってから（史実の順を飛ばさない）。
-    if (y.alive && morCanFinish && F.koshiLeft && rt.t - Math.max(F.yoshiDownT, F.koshiLeftT) >= 12 &&
+    if (y.alive && morCanFinish && F.koshiLeft && hattoriDone && rt.t - Math.max(F.yoshiDownT, F.koshiLeftT) >= 12 &&
         Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) < 6) {
       // 将の踏みとどまり（officerStand）で首が挙がらず、深手から一分ほど止まっていた（11/6 夜）。この一度だけ外す。
       y.invuln = false; y.officerSaved = true; rt.army.kill(y, mor);

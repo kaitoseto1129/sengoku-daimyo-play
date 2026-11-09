@@ -569,9 +569,19 @@ const t02_shizugatake = {
     F.kmU = F.kmG.units.find((u) => u.type === 'busho');
     if (F.kmU) F.kmU.maxHp = F.kmU.hp = 110;
     // 盛政の本隊は湖の西の岸を北へ退く（盛政は落ちのびる＝討てない）。後ろの一隊が岸の道を塞ぐ
-    placeGroup(rt, F.saku, SHORE_W[2][0], SHORE_W[2][1]);
-    F.saku.order = 'retreat'; F.saku.dest = { ...SHIGE }; F.saku.speed = 0.6; F.saku.kind4 = 'flee';
-    if (live(F.mori)) { placeGroup(rt, F.mori, SHORE_W[3][0], SHORE_W[3][1]); F.mori.order = 'retreat'; F.mori.dest = { ...SHIGE }; F.mori.speed = 0.6; F.mori.kind4 = 'flee'; }
+    // 湖の南を回って西岸へ歩く。夜明けに隊を置き直すと、見えていた盛政が突然消えていた。
+    for (const g of [F.saku, F.mori]) if (live(g)) {
+      const way = [[-8, 236], [-60, 236], ...SHORE_W];
+      let i = 0;
+      const next = (q) => {
+        if (F.phase >= 4 || F.ending) { q.onArrive = null; return; }
+        if (i >= way.length) { q.order = 'retreat'; q.dest = { ...SHIGE }; q.onArrive = null; return; }
+        const [x, z] = way[i++];
+        q.order = 'move'; q.dest = { x, z }; q.onArrive = next;
+      };
+      g.kind4 = 'flee'; g.aggro = 0; g.seekRange = 0; g.focus = null; g.speed = g === F.mori ? 3.6 : 2.6;
+      next(g);
+    }
     F.mmG = enemyGroup(rt, { ...SAKUMA, name: '佐久間盛政の後備', anchor: { x: SHORE_W[1][0], z: SHORE_W[1][1] }, facing: 2.6, fleeDir: { x: -0.3, z: -1 }, width: 5, morale: 70, dmgMult: 0.4,
       order: 'retreat', dest: { ...SHIGE }, speed: 0.6, aggro: 0 }, foeList(14, { flag: SAKUMA.flag }));
     F.mmG.kind4 = 'flee'; F.groups.push(F.mmG);
@@ -604,7 +614,7 @@ const t02_shizugatake = {
     rt.award((t) => { t.special = { label: '切通しの口で柴田勝政の殿を破った', pts: 15 }; }, '柴田勝政の殿を破った');
     F.phase = 4; F.pt = rt.t; F.k0 = F.kills;
     rt.obj('s4', ST(4), 'main');
-    for (const g of [F.kmG, F.mmG, F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.dest = { ...GONGEN }; g.speed = g === F.mori ? 3.6 : 2.2; g.kind4 = 'flee'; }   // 盛政は馬で先に落ちる
+    for (const g of [F.kmG, F.mmG, F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.dest = { ...GONGEN }; g.onArrive = null; g.speed = g === F.mori ? 3.6 : 2.2; g.kind4 = 'flee'; }   // 盛政は馬で先に落ちる
     // 殿の残りは切通しから権現坂へ落ちる（持ち場に縛らず、振り向いて主人公に絡まない。味方の本隊が残りに足を取られて岸の道へ出遅れた・11/5 の流し）
     if (live(F.kmG)) { F.kmG.fixed = false; F.kmG.kind4 = 'gone'; F.kmG.aggro = 0; F.kmG.seekRange = 0; F.kmG.speed = 3; for (const u of F.kmG.units) u.noTarget = true; }   // 落ちる殿の残りに味方の隊が足を取られない
     // 前田利家の隊：戦わずに茂山の陣を払い、権現坂から北へ去る（討てない）

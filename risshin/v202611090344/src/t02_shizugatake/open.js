@@ -12,7 +12,10 @@ import { enemyGroup, allyGroup } from '../bhelp.js';
 
 export const RELIEF = { x: 18, z: 226 };   // ②の行き先：大岩山へ下る坂の途中（余呉湖の南東の岸の上）
 
-function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
+function say(rt, who, s, t, sec = 3) {
+  const phase = rt.flags.phase;
+  rt.after(t, () => { if (!rt.flags.ending && rt.flags.phase === phase) rt.say(who, s, sec); });
+}
 
 // 余呉湖のまわりの砦の備（軽い作り）。砦の場所は戦の定義から
 export function fortArmies(rt, P) {
@@ -61,7 +64,7 @@ export function tickOpen(rt, dt, ctx) {
     rt.award((t) => t.side.push('東の物見で砦の並びを見届けた'), '砦の並びを見届けた');
   }
   // 砦の並びを見届けてから敵襲へ進む。未到着を時間だけで達成扱いにしない。
-  if (!F.raid && F.sawForts && rt.t - F.sawT > 26 && st > 105) {
+  if (!F.raid && F.sawForts && rt.t - F.sawT > 12 && st > 15) {
     F.raid = true;
     rt.army.play('horagai', { x: ctx.OIWA.x, z: ctx.OIWA.z - 30 }, 1.3);
     rt.army.play('toki', { x: ctx.OIWA.x, z: ctx.OIWA.z - 20 }, 1.2);

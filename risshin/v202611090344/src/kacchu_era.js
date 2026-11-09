@@ -11,6 +11,27 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 草野本家の伝秀長所用・金小札紫糸威二枚胴具足。所用の確定品ではない。
+  // 兜内の札の天正十五年から採用し、それ以前は黒漆の当世具足で補う。
+  // 織田編の共通表・専用指定は保つ。出所と補完：docs/generals_look_1108/豊臣秀長.md。
+  if ((name === '羽柴秀長' || name === '豊臣秀長') && year >= 1582 && year <= 1591 && KACCHU[name]) {
+    const late = year >= 1587, key = name + (late ? '|金小札紫糸' : '|羽柴期黒漆');
+    const armor = late ? 0xb99a4d : 0x1c1a1a, lace = late ? 0x5a3a6a : 0x9a7a3a;
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'suji', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace, odo: lace, shikoroLace: lace, preserveLace: true,
+      doStyle: late ? 'kebiki' : 'sugake', plateDo: null, doOpening: 'nimai',
+      doKebiki: late, doSugake: !late, honkozane: late, goldKozane: late,
+      kozaneFinish: late ? 'gold' : undefined,
+      sodeStyle: late ? 'kebiki' : 'sugake', shikoroStyle: late ? 'kebiki' : 'sugake',
+      kusazuriColor: armor, kusazuriBands: Array(5).fill(lace), kusazuriLaceRows: 5,
+      menpo: 0, menpoScan: null, haori: 0, noHaori: true, fur: 0, horo: 0,
+      mon: 'none', flag: 'sashi:toyotomi:#1d1b18:#d8c690', uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 伝官兵衛所用の白檀塗合子形兜と福岡市博物館の黒糸威五枚胴。
   // 豊臣期だけに適用し、織田編と小田原の交渉時の小袖姿は従来のまま。
   // 出所・補完範囲：docs/generals_look_1108/黒田官兵衛.md。
