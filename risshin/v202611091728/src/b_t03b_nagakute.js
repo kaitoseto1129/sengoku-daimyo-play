@@ -607,7 +607,8 @@ const t03b_nagakute = {
     } else if (F.stage === 5) {
       F.menN0r = Math.max(F.menN0r || 0, aliveN(F.men));
     } else if (F.stage === 6) {
-      if (!atGoal && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
+      // 救援後の知らせを待つ間に細ヶ根へ先回りしても、最初の追手は必ず来る。
+      if ((!atGoal || !F.pursuit.length) && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
       if (Retreat.done(rt, this.ctx(rt), atGoal, el)) this.win(rt);
     }
   },

@@ -446,10 +446,16 @@ function nakayamaStep() {
         rt.after(3.4, () => { C.lastWords = true; g.dmgMult = 0.6; });
       });
     },
-    tick(rt, C) {
+    tick(rt, C, m, ctx, el) {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
+      // 11/9 見回り：bot が八分あまり討ち切れず、日の出の期限で負けた。三分たって討てなければ、家範は深手を負い自刃する（史実でも本丸で果てた）
+      if (n.alive && C.lastWords && el > 180 && !C.seppuku) {
+        C.seppuku = true;
+        rt.say('中山勘解由', '……これまで。北条の家臣として、ここで果てる', 3.4);
+        rt.after(3.6, () => { if (n.alive) { rt.army.damage = C.damage; n.invuln = false; n.hp = 0; rt.army.kill(n, null); } });
+      }
       // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
       return !n.alive;
     },

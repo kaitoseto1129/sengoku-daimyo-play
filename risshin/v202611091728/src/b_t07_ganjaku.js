@@ -283,11 +283,12 @@ const t07_ganjaku = {
     F.hon.noRout = true;   // 本丸の守りは崩れて逃げない（熊井越中守は本丸で討死した）
     // 城攻めの段（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：坂の木戸 → 打って出た芥田の手 → 門 → 本丸。
     //   今の段の守りだけが打って出て、奥は持ち場で構えて待つ。段が長引けば使番が知らせる（11章）
+    // 退く先と行軍は go・ninomaru が指示する。共通の at を重ねると、四割未満の残兵の退く下知が hold に戻される。
     F.stages = siegeStages(rt, [
-      { groups: F.slope, at: INNER, done: () => F.stage >= 2, report: '坂の木戸、まだ抜けませぬ！', reportAfter: 70 },
-      { groups: [F.sally], at: INNER, done: () => F.stage >= 3 },
-      { groups: [F.gateGuard, F.yagura], at: { x: HON.x - 3, z: HON.z - 9 }, done: () => F.stage >= 4, report: '門、まだ破れず！　矢倉から射られております！', reportAfter: 60 },
-      { groups: [F.nino], at: { x: HON.x - 3, z: HON.z - 9 }, done: () => F.stage >= 5 },
+      { groups: F.slope, done: () => F.stage >= 2, report: '坂の木戸、まだ抜けませぬ！', reportAfter: 70 },
+      { groups: [F.sally], done: () => F.stage >= 3 },
+      { groups: [F.gateGuard, F.yagura], done: () => F.stage >= 4, report: '門、まだ破れず！　矢倉から射られております！', reportAfter: 60 },
+      { groups: [F.nino], done: () => F.stage >= 5 },
       { groups: [F.hon, F.kara], done: () => false },
     ], { runner: '使番' });
 
