@@ -233,7 +233,7 @@ const k12_kashii = {
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっていて動かない（AW3・BK4）。塙の段だけ本人の上
   missionPin(rt) {
     const F = rt.flags;
-    if (!F.step || F.ending) return null;
+    if (!F.step || F.ending || (F.step === 5 && (F.hanaDown || !F.hanaU?.alive))) return null;
     let p = YASU;
     if (F.step === 2) p = LINE;
     else if (F.step === 3) p = VILLAGE;
@@ -663,8 +663,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         const dp = dist(H.pos, P.pos);
         // 侍衆が崩れても団右衛門は退かない（史実で村の中で討たれた。崩れて川の南まで馬で駆け去った。11/7 遊んで）
         if (H.fleeing) { H.fleeing = false; F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; }
-        if (dp < 30) { H.target = P; H.aiT = 0; }
-        else if (dist(H.pos, VILLAGE) > 26) { H.target = null; H.aiT = 0; F.hata.order = 'move'; F.hata.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.onArrive = (q) => { q.order = 'attack'; }; }
+        // 近い主人公でも村の外までは追わない。帰る途中も目標を取り直して引き返さない。
+        if (dist(H.pos, VILLAGE) > 26 || dist(P.pos, VILLAGE) > 30) { H.target = null; H.aiT = 0; F.hata.order = 'move'; F.hata.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.onArrive = (q) => { q.order = 'attack'; }; }
+        else if (dp < 30) { H.target = P; H.aiT = 0; }
       }
     }
   },

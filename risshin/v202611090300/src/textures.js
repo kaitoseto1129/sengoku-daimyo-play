@@ -814,6 +814,12 @@ export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
     return;
   }
   // 伊達家伝来の白地赤日の丸旗。竹雀の家紋とは別に、政宗の旗持ちだけが使う。
+  if (kind === '景勝の白丸') {
+    ctx.fillStyle = '#232c40'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ece6d6'; ctx.beginPath();
+    ctx.arc(w * .5, h * .36, w * .29, 0, TAU); ctx.fill();
+    return;
+  }
   if (kind === 'date_hinomaru') {
     ctx.fillStyle = '#ece6d6'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#b52a20'; ctx.beginPath();

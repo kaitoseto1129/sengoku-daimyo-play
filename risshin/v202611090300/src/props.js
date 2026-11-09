@@ -4123,6 +4123,7 @@ export function hyoro(world, x, z, rot = 0) {
 const GOLD = lazy(() => liteMat({ color: 0xc9a040, roughness: 0.35, metalness: 0.75, side: THREE.DoubleSide }));
 // 扇の金箔の紙：金物ほど暗く映らないよう、金属の度を下げ、少し自ら明るい（陰の側でも茶にならない）
 const OGI_LEAF = lazy(() => liteMat({ color: 0xe3bd4c, roughness: 0.45, metalness: 0.3, emissive: 0x3a2a08, side: THREE.DoubleSide }));
+const KAGEKATSU_OGI = lazy(() => liteMat({ color: 0xe4d68e, roughness: 0.9, metalness: 0, side: THREE.DoubleSide }));
 let sennariUmaGeo;
 export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
   const grp = new THREE.Group();
@@ -4167,9 +4168,12 @@ export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
     g.computeVertexNormals(); g.translate(0, 6.6, 0.06);
     const ribs = mergeGeometries(Array.from({ length: 16 }, (_, i) => { const a = Math.PI * 0.1 + i / 15 * Math.PI * 0.8, b = new THREE.BoxGeometry(0.035, 1.45, 0.025); b.translate(0, 0.725, 0); b.rotateZ(a - Math.PI / 2); return b.translate(0, 6.6, 0.02); }));
     grp.add(merged([paint(ribs, 0x2a1a0e)]));
-    const sun = new THREE.CircleGeometry(0.34, 20); sun.translate(0, 7.55, 0.12);
-    const sm = new THREE.Mesh(sun, liteMat({ color: 0xb3201a, roughness: 0.8, side: THREE.DoubleSide })); grp.add(sm);
-    const leaf = new THREE.Mesh(g, OGI_LEAF()); leaf.castShadow = true; grp.add(leaf);
+    // 景勝の浅黄の扇は無紋。既存の扇と骨を共用し、材質も一度だけ作る。
+    if (kind !== 'kagekatsu_ogi') {
+      const sun = new THREE.CircleGeometry(0.34, 20); sun.translate(0, 7.55, 0.12);
+      const sm = new THREE.Mesh(sun, liteMat({ color: 0xb3201a, roughness: 0.8, side: THREE.DoubleSide })); grp.add(sm);
+    }
+    const leaf = new THREE.Mesh(g, kind === 'kagekatsu_ogi' ? KAGEKATSU_OGI() : OGI_LEAF()); leaf.castShadow = true; grp.add(leaf);
     grp.position.set(x, world.heightAt(x, z), z);
     grp.rotation.y = rot;
     return grp;

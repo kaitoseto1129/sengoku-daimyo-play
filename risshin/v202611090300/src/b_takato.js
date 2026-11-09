@@ -512,13 +512,13 @@ takato.botCoverBlocked = (rt, from, to) => {
 const restingTreatmentLabel = (rt) => {
   const p = rt.player;
   if (p.treating) return 'そのまま押し続けよう';
-  if (p.treatmentReady) return '「手当て」を三秒長押し';
+  if (p.treatmentReady) return '手当て';
   if (p.treatmentLeft <= 0) return p.treatmentShelter(p.u.pos)
     ? '布は使い切った。血が落ち着くまで、ここで休もう'
     : '布は使い切った。敵から離れ、味方の後ろへ';
   if (!p.treatmentShelter(p.u.pos)) return '敵から離れ、戦える味方のすぐ後ろへ下がろう';
-  if (p.treatmentNext > rt.t) return `次の手当てまであと${Math.ceil(p.treatmentNext - rt.t)}秒`;
-  if (p.u.lastHitT <= 6) return `手当ての支度。あと${Math.max(1, Math.ceil(6 - p.u.lastHitT))}秒`;
+  if (p.treatmentNext > rt.t) return '味方の後ろで手当てを待て';
+  if (p.u.lastHitT <= 6) return '味方の後ろで手当ての支度';
   if (p.inCombatT > 0) return '敵から離れたまま、戦いの息が静まるのを待とう';
   return '足を止め、狙いと攻撃をやめて手当ての支度をしよう';
 };
@@ -2181,7 +2181,7 @@ takato.update = function (rt, dt) {
   } else if (!F.ending && !rt.over && (player.treating || player.treatmentReady)) {
     this.guideAssault(rt);
     // 道へ戻る補足も残さず、長押しの間は足を止める案内にそろえる。
-    rt.objProgress('main', '足を止めたまま「手当て」を三秒長押し');
+    rt.objProgress('main', player.treating ? '手当てを続けよ' : '手当て');
   } else if (guide === 'fallBack') {
     this.guideAssault(rt);
     rt.objProgress('main', player.treating || player.treatmentReady ? restingTreatmentLabel(rt)
