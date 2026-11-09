@@ -1828,7 +1828,13 @@ html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals l
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
+/* 任務の復唱は右上と二重に出さない。戦況の声は左半分に収める。 */
+html:root body #hud#hud#hud.anegawa-notices #center-call .cc.blue { display:none !important; }
+html:root body #hud#hud#hud.anegawa-notices #center-call { right:auto; width:48%; }
+html:root body #hud#hud#hud.anegawa-notices #center-call .cc {
+ box-sizing:border-box; max-width:100%; font-size:18px; letter-spacing:.04em; padding:2px 8px;
+}`;
   document.head.appendChild(style);
   const dispose2 = rt.world.dispose.bind(rt.world);
   rt.world.dispose = () => {
@@ -4407,6 +4413,7 @@ const anegawa = {
       // 接近の報せと、実際に守りを抜かれた危険を分ける。敗北直前まで無言にしない。
       if (F.hqLostT > 0 && (F.hqBreachWarnAt ?? -99) + 8 <= rt.t) {
         F.hqBreachWarnAt = rt.t;
+        rt.hud.say('使番', '敵が本陣の幕へ入った！　本陣の旗へ戻り、奥の敵を討て！', 4, true);
       }
     }
     // 追手を受けた声にも、この更新で読んだ本陣の危険を使う。
@@ -4536,7 +4543,10 @@ const anegawa = {
         this.counter(rt); return;
       }
       // 11/6 fixc0454：横槍が取り付いたその秒に総崩れにしない（取り付いて斬り合う間を十五秒は見せる）。
-      if ((F.third && F.westBroken && F.inabaT && rt.t - F.inabaT >= 15 || F.aneStage >= 3 || F.inabaBroke) && gone(iso) && gone(F.second) && (!F.third || gone(F.third)) && rt.t - F.stepT >= 125) { this.counter(rt); return; }   // 11/6 fixc0834：③の下限（百二十五秒）とそろえる
+      // 前の三隊だけで判定すると、後続が戦っている最中にも追撃へ進んでいた。
+      if (F.inabaT && rt.t - F.inabaT >= 15 &&
+          (F.westBroken || F.aneStage >= 3 || F.inabaBroke) && spent &&
+          rt.t - F.stepT >= 125) { this.counter(rt); return; }
       // 長引いた押し合いで突然退き太鼓にしない。残る一分の前に、理由と下知を知らせる。
       if (!F.longFightWarned && rt.t - F.stepT > 270 + (F.aneExtra || 0)) {
         F.longFightWarned = true;
