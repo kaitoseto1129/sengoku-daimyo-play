@@ -196,6 +196,9 @@ const camp = (rt, name, at, flag, lead, list, facing, seat = false) => {
   const banner = lead === '小早川秀秋' ? 'sashi:kobayakawa:#ece6d6:#16140f' : flag;
   const g = enemyGroup(rt, { fixed: true, faction: flag, name, anchor: at, facing, order: 'hold', aggro: 3, width: 10, morale: 100, noRout: true },
     dress([{ type: 'busho', n: 1, o: { name: lead, invuln: true, horse: !seat } }, ...list], { ...WEST, flag: banner }));
+  // 日付の札と使番で着陣を知った将は、遠い本陣でも既知の相手にする。
+  // 頭上の名とは別に、案内の相手選びに残っていた未発見の判定をそろえる。
+  revealName(rt, lead);
   if (seat) { const u = g.units.find((x) => x.name === lead); if (u) u._crouch = true; }
   // 陣は大将の頭（ai.js）に任せない。任せると「攻めよ」に替わり、床几の宇喜多秀家が本陣ごと大手の前まで出て来た（11/5 描いて遊んで見つけた）
   g.noAI = true; g.stay = true; g._home = { x: at.x, z: at.z };
