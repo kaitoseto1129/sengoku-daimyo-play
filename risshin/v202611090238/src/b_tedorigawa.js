@@ -190,6 +190,14 @@ const ODA = { flag: 'oda' };
 const UESUGI = { flag: 'uesugi', armor: 0x24221f };   // 11/8 critic60 四3：上杉の足軽の貸し具足を赤茶でなく黒の漆に
 let niwaUmaMat;
 
+// 追加の下知が出ている間は、集合済みの柴田の旗や北岸の火へ呼び戻さない。
+function tedoPaceMarker(rt) {
+  if (rt.over || rt.flags.ending) return null;
+  return rt.markers.find((m) =>
+    (m.id === 'nanaoLook' || m.id === 'nanaoCargo' || m.id === 'konzatsuW' ||
+     m.id === 'konzatsuR' || m.id === 'konzatsuC' || m.id === 'furikiru') && m.pos()) || null;
+}
+
 // 下知の音は生きた味方から。退陣済みの将や無人の火を音源にしない。
 // 合図の時だけ探し、座標と合成音は既存のものを使う。
 function tedoSignal(rt, kind, at, vol = 0.8, leader = null, speech = null) {
@@ -1766,6 +1774,7 @@ const tedorigawa = {
   resumeSteps: [[1, 'retreat'], [2, 'rearguard'], [3, 'cross'], [4, 'south']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ一行・ピン一本。退き口なので謙信の討取りを任務にはしない。
   missionSingleLine: true,
+  goalsAllRows: true,
   goalSignOnly: true, // 行き先と下知は一つの札へ。大きい矢印でその文字を覆わない。
   hideMissionDots: true,
   hideGuideSteps: true,
@@ -1803,9 +1812,24 @@ const tedorigawa = {
     if (F.step === 3 && Math.hypot(rt.player.u.pos.x - SOUTH.x, rt.player.u.pos.z - SOUTH.z) < 8 && !rt.world.inWaterAt(rt.player.u.pos.x, rt.player.u.pos.z)) return 4;
     return F.step === 2 && this.missionSignTarget(rt) ? 5 : Math.min(F.step || 0, 4);
   },
-  missionHeading(rt) { return rt.flags.paceFurikiru ? TEDO_GOALS[4] : this.missions[this.missionOf(rt)]; },
+  missionHeading(rt) {
+    const marker = tedoPaceMarker(rt);
+    if (marker) {
+      const id = marker.id.startsWith('nanao') || marker.id === 'furikiru' ? 'main' :
+        marker.id === 'konzatsuW' ? 'konzatsu' : marker.id === 'konzatsuR' ? 'konzatsu2' : 'konzatsu3';
+      const objective = rt.objectives.find((o) => o.id === id && !o.state);
+      if (objective) return objective.text;
+    }
+    return rt.flags.paceFurikiru ? TEDO_GOALS[4] : this.missions[this.missionOf(rt)];
+  },
   // 11/4：頭上の札は「篝火」の火の字で「印へ進め」にならないよう、段ごとの行いで書く（AR1）。
   goalTargetOverride(rt) {
+    const marker = tedoPaceMarker(rt);
+    if (marker) {
+      const at = marker.pos();
+      return { x: at.x, z: at.z, label: typeof marker.label === 'function' ? marker.label() : marker.label,
+        action: this.missionHeading(rt) };
+    }
     if (rt.flags.paceFurikiru && !rt.flags.furikiruDone) {
       return rt.flags.paceFurikiru.target;
     }
@@ -1842,6 +1866,12 @@ const tedorigawa = {
   missionPin(rt) {
     const F = rt.flags, C = F.dp?.cur;
     if (rt.over || F.ending || !rt.player.u.alive) return null;
+    const marker = tedoPaceMarker(rt);
+    if (marker) {
+      const at = marker.pos(), q = F.tedoPacePin || (F.tedoPacePin = {});
+      q.x = at.x; q.z = at.z; q.r = q.hide = 2; q.enemy = !!marker.red;
+      return q;
+    }
     const q = F.tedoPin || (F.tedoPin = { x: 0, z: 0, r: 7, hide: 7 });
     const u = this.missionSignTarget(rt), p = rt.player.u.pos;
     const at = F.paceFurikiru ? F.paceFurikiru.target : F.step === 3 ? crossingTarget(rt) : F.dp?.on && C?.at ? C.at :
@@ -1893,6 +1923,11 @@ const tedorigawa = {
   distanceText(rt, distance) {
     const marker = rt.missionGuide?.marker;
     if (!marker) return '';
+    const pace = tedoPaceMarker(rt);
+    if (pace) {
+      const name = typeof pace.label === 'function' ? pace.label() : pace.label;
+      return `${name} ${Math.max(1, Math.ceil(distance))}m`;
+    }
     // 働きを数える持ち場の端までを示す。中心まで歩き直させない。
     const remaining = distance - (marker.guideRadius || 8);
     const F = rt.flags;
@@ -1914,6 +1949,8 @@ const tedorigawa = {
   guideMarker(rt) {
     const F = rt.flags;
     if (!rt.player.u.alive || F.ending) return null;
+    const pace = tedoPaceMarker(rt);
+    if (pace) return pace.id;
     if (F.shallowMarked) return 'shallow';
     if (F.dp?.on) {
       // 到着後は火へ進ませず、追手を見る場所を空ける。離れたら同じ印へ戻す。
@@ -4362,6 +4399,15 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
   // 前の構えで押した後ろ・横の足が残ると、前進と打ち消し合って動かなくなる。
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
+  const pace = tedoPaceMarker(b);
+  if (pace) {
+    const at = pace.pos();
+    b.botRest = false; inp.guardHold = false;
+    inp.runHeld = !pace.red; inp.leftPressed = false; inp.chargeHold = false;
+    goTo(p, inp, at.x, at.z, pace.red ? 2 : 3);
+    if (pace.red && Math.hypot(at.x - u.pos.x, at.z - u.pos.z) < 3.2) inp.leftPressed = true;
+    return;
+  }
   if (tedorigawa.botEvacuating(b)) {
     b.botRest = false; F.dpBack = false;
     const q = F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;

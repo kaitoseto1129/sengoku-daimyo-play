@@ -1983,6 +1983,8 @@ const shiPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20;
 // 南口を離れた後に、以前の滞在時間だけで城取りを認めない。
 function honmaruPostReached(rt) {
   const F = rt.flags, P = rt.player.u.pos, z = F.SZ?.byId.shu;
+  // 上階や切岸の下は、平面の座標が重なっても南口の持ち場ではない。
+  if (rt.player.u.naka || Math.abs(P.y - rt.world.heightAt(P.x, P.z)) > 2.5) return false;
   // 南口に居る時間だけで、まだ敵の本丸を取ったことにしない。
   return F.step === 4 && F.lowerTaken && z?.owner === ZONE_STATE.FRIEND &&
     F.last.every((g) => gone(g) || !g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - TOP.x, u.pos.z - TOP.z) < TOP.r + 12)) &&

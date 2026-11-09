@@ -77,5 +77,6 @@ export function update(rt, K) {
 // ③の伏せへ進めてよいか：B の足で河原に着き、少し経った
 export function ready(rt, K) {
   const S = rt.flags.s2, P = rt.player.u.pos;
-  return S && S.leg === 2 && P.z < K.RING.z + 14 && rt.t - S.tB > 40;
+  // 北へ進んだだけでは追撃を果たさない。行き先の印と同じ河原へ着いてから伏せが出る。
+  return S && S.leg === 2 && Math.hypot(P.x - K.RING.x, P.z - (K.RING.z + 6)) < 14 && rt.t - S.tB > 40;
 }
