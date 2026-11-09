@@ -4191,15 +4191,16 @@ export function umajirushi(world, x, z, rot = 0, kind = 'ogi') {
     g = mergeGeometries(fk.map((x) => x.toNonIndexed ? x.toNonIndexed() : x));
     for (const x of fk) x.dispose();
   } else if (kind === 'kasa') {
-    // 金の唐傘（信長の馬印）：半ば窄めた傘が竿の頭から下へ垂れる。骨ごとに紙が折れて縦の襞。頂に赤い毛の出し
-    const prof = [[0.05, 7.62], [0.2, 7.58], [0.46, 7.42], [0.5, 7.3], [0.44, 6.95], [0.36, 6.55], [0.3, 6.32]].map(([r, y]) => new THREE.Vector2(r, y));
-    g = new THREE.LatheGeometry(prof.reverse(), 48);
+    // 金の唐傘（信長の馬印。Wikipedia「馬印」の「金塗りの唐傘」）：『旗馬印画図』（1800 年頃・BYU 蔵・Commons「Oda Nobunaga Banner and Battle Standard.jpg」）の
+    //   「信長」の頁は、浅く開いた金の傘で、下から骨と轆轤（ろくろ）が見える。表と裏の二重の殻で、骨ごとに紙が山と谷に折れる。寸法は絵の割合から
+    const prof = [[0.03, 7.62], [0.5, 7.47], [1.0, 7.22], [1.3, 6.98], [1.27, 6.95], [0.98, 7.17], [0.5, 7.41], [0.06, 7.52]].map(([r, y]) => new THREE.Vector2(r, y));
+    g = new THREE.LatheGeometry(prof, 48);
     const P = g.attributes.position;
-    for (let k = 0; k < P.count; k++) { const x = P.getX(k), z = P.getZ(k), a = Math.atan2(x, z), f = 1 + 0.07 * Math.abs(Math.sin(a * 12)) - 0.035; P.setX(k, x * f); P.setZ(k, z * f); }
+    for (let k = 0; k < P.count; k++) { const x = P.getX(k), z = P.getZ(k), a = Math.atan2(x, z), f = 1 + 0.05 * Math.abs(Math.sin(a * 12)) - 0.025; P.setX(k, x * f); P.setZ(k, z * f); }
     g.computeVertexNormals();
-    const dashi = mergeGeometries(Array.from({ length: 9 }, (_, i) => { const a = i / 9 * Math.PI * 2, c = new THREE.ConeGeometry(0.05, 0.42, 4); c.translate(0, 0.21, 0); c.rotateX(Math.sin(a) * 0.5); c.rotateZ(Math.cos(a) * 0.5); return c.translate(0, 7.7, 0); }));
-    const dm = new THREE.Mesh(dashi, liteMat({ color: 0x9a1e16, roughness: 0.9 })); dm.castShadow = true; grp.add(dm);
-    grp.add(merged([paint(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 6).translate(0, 7.66, 0), 0x241a12)]));
+    // 傘の裏の骨（轆轤から地紙の裏へ広がる細い骨の束を、淡い竹色の浅い円錐で）と、頂の黒い頭
+    const ribs = new THREE.ConeGeometry(0.62, 0.42, 24, 1, true); ribs.rotateX(Math.PI); ribs.translate(0, 7.18, 0);
+    grp.add(merged([paint(ribs, 0xcdbf98), paint(new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8).translate(0, 7.0, 0), 0x241a12), paint(new THREE.CylinderGeometry(0.04, 0.04, 0.1, 6).translate(0, 7.66, 0), 0x241a12)]));
   } else {
     // 開いた扇（11/8 critic60 k16 八1：茶色い半円の板一枚に見えた）。金箔の地紙を骨ごとに山と谷へ折り（蛇腹）、
     //   要から骨が透け、真ん中に朱の日の丸。遠くからも本陣の目印に見える大きさ（半径 1.5m）。紙は要の近くを抜く

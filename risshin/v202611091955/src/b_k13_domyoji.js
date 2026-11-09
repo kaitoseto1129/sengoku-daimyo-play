@@ -155,17 +155,8 @@ function checkedStep(step) {
     const p = rt.player.u.pos;
     const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 32;
     if (near && C.arrivedAt == null) C.arrivedAt = rt.t;
-    // 誉田へ本人が着く前に寄せと鉄砲戦を終えない。到着前の移動時間は守備の刻に入れない。
-    if (holdTime && C.arrivedAt == null) { C.approachTime = el; return false; }
-    const done = tick(rt, C, m, ctx, el - (C.approachTime || 0), dt);
-    // 共通の激突は残り三人で敗走を許すが、兼相が逃げると討死待ちの段が終わらない。
-    // 討つべき将が生きている組は、最後の一人まで持ち場で戦う。
-    for (const g of C.groups) if (g.units.some((u) => u.alive &&
-      (u.name === '後藤又兵衛' || u.name === '薄田兼相'))) {
-      g.noRout = true;
-      g.morale = Math.max(g.morale, 60);
-    }
-    // 誉田は本人だけが近くにいれば済む待機にしない。味方の列と共に受けた刻だけ数える。
+    // 本人と味方の列がそろう前に寄せを消化すると、先に敵が倒れて
+    // 受け止めた記録を付けられず止まる。列を離れた時間も守備に含めない。
     if (holdTime) {
       let friends = 0;
       const line = rt.flags.dp?.i === 5 ? [rt.flags.date, rt.flags.katakura] : ctx.friends?.(rt) || [];
@@ -175,15 +166,26 @@ function checkedStep(step) {
           !u.gone && !u.rearWound && !u.downed && !u.noTarget &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 32) friends++;
       }
+      if (!near || friends < 3) return false;
+      C.holdElapsed = (C.holdElapsed || 0) + dt;
+    }
+    const done = tick(rt, C, m, ctx, holdTime ? C.holdElapsed : el, dt);
+    // 共通の激突は残り三人で敗走を許すが、兼相が逃げると討死待ちの段が終わらない。
+    // 討つべき将が生きている組は、最後の一人まで持ち場で戦う。
+    for (const g of C.groups) if (g.units.some((u) => u.alive &&
+      (u.name === '後藤又兵衛' || u.name === '薄田兼相'))) {
+      g.noRout = true;
+      g.morale = Math.max(g.morale, 60);
+    }
+    // 誉田は本人だけが近くにいれば済む待機にしない。味方の列と共に受けた刻だけ数える。
+    if (holdTime) {
       // 寄せが列へ届く前の待機だけで「受け止めた」にしない。
       // 鉄砲戦も含め、本人と味方の列がいる持ち場の射程内へ敵が来た事を残す。
       // 敵を早く退けても、その後に列を保つ時間は数える。
-      if (near && friends >= 3) {
-        if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed && g.units.some((u) =>
-          u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
-          !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
-        if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
-      }
+      if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed && g.units.some((u) =>
+        u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
+        !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
+      if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
     }
     if (!done || !near || (holdTime && (C.lineTime || 0) < holdTime)) return false;
     // 残り二人や敗走でも共通の段は済むが、又兵衛と兼相は討死まで待つ。

@@ -1537,10 +1537,16 @@ const arioka = {
   goals5(rt) {
     const won = () => rt.tracker?.main === true && !!rt.over, at = (k) => (q) => (arioka.missionOf(q) > k) || won();
     const place = [{ x: GATE.x - 30, z: GATE.z }, { x: GATE.x + 12, z: GATE.z }, ARI_JUNCTION, ARI_JUNCTION];
+    // ②の通り、④の焼け跡・奥の木戸も、今の段の持ち場を指す。
+    // 初めの木戸や辻を固定で返すと、追加された段で案内先が食い違う。
+    const currentPlace = (k) => {
+      const F = rt.flags;
+      return arioka.missionOf(rt) === k && F.dpOn && F.dp?.cur?.at ? F.dp.cur.at : place[k];
+    };
     // 11/9 iPhone 874×402：右上の札が「1　①上臈塚の…」と番号を二重に出した。番号は札（hud_goals）が付ける
     return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
       // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
-      place: k < 4 ? () => place[k] : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
+      place: k < 4 ? () => currentPlace(k) : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },
   missionHeading(rt) {
     if (rt.flags.ending && !rt.flags.kanbePending && !rt.tracker.main) return '退き太鼓。木戸の外へ退け';
