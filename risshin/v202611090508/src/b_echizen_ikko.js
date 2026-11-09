@@ -2418,13 +2418,19 @@ const echizen_ikko = {
     const route = Math.hypot(way.x - goal.x, way.z - goal.z) > .5;
     pin.x = way.x; pin.z = way.z;
     pin.unit = enemy && !route && !defend ? enemy : null;
+    pin.flagDestination = !pin.unit;
     pin.enemy = !!pin.unit; pin.route = route;
     pin.r = pin.hide = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
     pin.waiting = defend && !route;
     // 山の斜面や堂の向こうへ囲みを透かさず、持ち場は一つの印で示す。
     pin.defend = false;
     pin.arrived = pin.waiting && Math.hypot(p.x - goal.x, p.z - goal.z) < pin.r;
-    pin.silent = true; pin.name = ''; pin.approach = false; pin.arrow = false;
+    pin.silent = true;
+    pin.destinationName = F.mode === 'defend' ? '本堂' : F.step >= 4 ? '奥山道'
+      : gate?.struct.alive ? F.step === 1 ? '惣門' : '山門'
+        : TEMPLE_HALL_NAMES[TEMPLE_HALL_IDS[F.step - 1]];
+    pin.destinationDistance = Math.round(Math.hypot(goal.x - p.x, goal.z - p.z));
+    pin.name = ''; pin.approach = false; pin.arrow = false;
     return pin;
   },
   get battleVoices() { return mode() === 'defend' ? DEFEND_VOICES : ATTACK_VOICES; },
