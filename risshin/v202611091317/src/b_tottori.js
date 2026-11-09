@@ -222,7 +222,8 @@ function bankBoatGuarded(rt, boat) {
   for (let i = 0; i < 2; i++) {
     const g = i ? rt.flags.guard2 : rt.flags.guard;
     if (gone(g)) continue;
-    for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
+    for (const u of g.units) if (u.alive && !(u.hp <= 0) && !u.dying && !u.downed && !u.gone &&
+        !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
         Math.hypot(u.pos.x - boat.x, u.pos.z - boat.z) < 4) return true;
   }
   return false;
@@ -262,7 +263,8 @@ function bankDirectApproach(rt, boat) {
   for (let i = 0; i < 2; i++) {
     const g = i ? rt.flags.guard2 : rt.flags.guard;
     for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+      if (!u.alive || u.hp <= 0 || u.dying || u.downed || u.gone ||
+          u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
       const along = ((u.pos.x - p.x) * dx + (u.pos.z - p.z) * dz) / (length2 || 1);
       // 本人より後ろの乱戦から離れる道まで塞がれたと数えない。
       // 手元へ届く敵は残し、正面の番兵は従来どおり回り込む。
@@ -334,7 +336,9 @@ function boatApproach(rt, boat) {
 // 舟へ回る案内と自動操作で同じ間合いを使う。
 function bankRouteThreat(rt, o) {
   const u = rt.player.u;
-  if (o.fleeing || o.woundOut || o.noTarget || o.invuln || Math.abs(o.pos.y - u.pos.y) >= 3) return false;
+  // 倒れた番の古い狙いや、深手で退く番で、放火と岸道を塞がない。
+  if (!o.alive || o.hp <= 0 || o.dying || o.downed || o.gone || o.fleeing ||
+      o.woundOut || o.rearWound || o.noTarget || o.invuln || Math.abs(o.pos.y - u.pos.y) >= 3) return false;
   const distance = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
   // 狙いだけが残る八歩先の兵で、空いた脇道から味方の乱戦へ戻さない。
   // 銃・弓の射程を安全な岸道の全域へ広げず、実際の射撃案内は既存の警告に任せる。

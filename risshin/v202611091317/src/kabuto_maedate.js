@@ -25,6 +25,7 @@ export const MAEDATE = {
   羽柴秀次: 'hidetsugu_shikami',
   // 必須人物の表（kacchu_required.js）で伝来の兜の形に寄せた三人
   竹中半兵衛: 'ichinotani', 竹中重治: 'ichinotani',
+  黒田長政: 'ichinotani',   // 関ヶ原で着た一の谷兜（福岡市博物館）
   蒲生氏郷: 'tsubame',
   加藤嘉明: 'fuji',
   // 図鑑の肖像で板の絵に見えた三人（11/2 zukan_fill。出所は docs/zukan150_portraits.md）
