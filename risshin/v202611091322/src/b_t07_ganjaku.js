@@ -496,8 +496,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 支えきれず背を向けて城の奥（本丸の方）へ崩れ退く。振り返って斬り合わない（追い討ちされる側）
       const fx = HON.x - GATE.x, fz = HON.z - GATE.z, fl = Math.hypot(fx, fz);
       F.sw = null;
+      // 組頭が生きていても退く下知を出す。士気を零にするだけでは共通の隊の決まりで踏みとどまる。
       // 坂に残った守りも、門の前が崩れたのを見て城の奥へ逃げ込む
-      for (const q of [g, ...F.slope]) if (!q.routed) { q.noRout = false; q.fleeSet = true; q.fleeDir = { x: fx / fl, z: fz / fl }; q.morale = 0; }
+      for (const q of [g, ...F.slope]) if (!q.routed) { q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: fx / fl, z: fz / fl }; q.morale = 0; }
       F.allies.forEach((ga, i) => this.march(rt, ga, i ? [MOUTH, FRONT, INSIDE] : [MOUTH, FRONT, INSIDE, INNER], 14));
       F.gateGuard.aggro = 3;   // 門の守りは逃げ込む味方を入れるので手一杯。門の外の筋まで突いて出ない
       // 打って出た手が崩れたのを見て、門の櫓と岩の上の矢倉の射手も持ち場を捨てて本丸へ逃げ込む（一日で落ちた城の崩れ。門の前で寄せ手を射続けない）
@@ -505,7 +506,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         const c = q.team === 1 && q !== F.hon && q !== F.kara && q !== F.nino && q !== F.gateGuard && this.centerOf(q);
         if (!c || Math.hypot(c.x - GATE.x, c.z - GATE.z) > 45) continue;
         const dx = HON.x - c.x, dz = HON.z - c.z, dl = Math.hypot(dx, dz) || 1;
-        q.fire = false; q.noRout = false; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0;
+        q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0;
       }
       rt.say('蒲生郷成', '引くぞ！　門が閉まる前に、追って城内へ紛れ込め！', 3.2);
     } else if (s === 4) {
@@ -631,7 +632,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       const kk = this.along(KIDO.x, KIDO.z);
       if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || F.lead > kk + 22)) {
         F.kidoFell = true;
-        for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
+        for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
       }
       // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
       const gc = this.centerOf(F.gamo);
@@ -770,7 +771,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   gateRef(rt) { return rt.siegeKit?.kits?.[0]?.gate || null; },
   onKill(rt, v) {
-    const F = rt.flags; if (v.team === 1) F.ek++; else F.ak++;
+    const F = rt.flags;
+    // 門や塀、町の者を総勢の討死に数えない（残人数の分母と揃える）。
+    if (!v.isStruct && !v.civ) { if (v.team === 1) F.ek++; else if (v.team === 0) F.ak++; }
     // 討たれた相手を見続けず、次の思考で生きた敵か持ち場へ向き直る。
     for (const u of rt.army.units) if (u.alive && u.target === v) { u.target = null; u.aiT = 0; }
     // 主人公の固定した狙いは兵の target とは別。残すと次の敵にも死者の方を向く。
@@ -788,7 +791,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     rt.player.u.invuln = true;
     rt.say('蒲生郷成', '熊井越中守、討ち取ったり！　本丸に旗を立てよ', 3.5);
     // 本丸に蒲生の旗が立ち、本丸の小屋に火が掛かる（火を放って一気に畳みかけた伝え）。残る城兵は崩れて搦手の方へ落ちる
-    for (const q of F.foes) if (!q.routed) { q.noRout = false; q.fire = false; q.fleeSet = true; q.fleeDir = { x: 0.7, z: -0.7 }; q.morale = 0; }
+    for (const q of F.foes) if (!q.routed) { q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: 0.7, z: -0.7 }; q.morale = 0; }
     rt.after(0.8, () => {
       try { for (const [x, z] of [[-3, 3], [3, -2], [-8, -4]]) rt.scene.add(nobori(rt.world, x, z, 'sashi:kuki:#ece6d6:#201f1c', 6)); } catch (e) { console.warn(e); }
       try { rt.world.addFire(6, -6, { size: 2.6, blackSmoke: true }); } catch (e) { console.warn(e); }
