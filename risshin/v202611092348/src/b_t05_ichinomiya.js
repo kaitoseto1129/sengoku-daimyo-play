@@ -603,6 +603,10 @@ export const t05_ichinomiya = {
     // 本陣の後ろの軽い兵（出だしから三十七m）は外し、旗本を本物の兵で厚くした（kaito 四1）
     F.honjin = allyGroup(rt, { name: '羽柴秀長の旗本', anchor: { x: HONJIN.x, z: HONJIN.z - 2 }, facing: 0, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 4, fullStrength: true },
       [{ type: 'busho', n: 1, o: { name: '羽柴秀長', invuln: true, flag: 'toyotomi', horse: false } }, uS(6), uA(14), uG(4)]);
+    // 本陣に留めるだけでは立ったままになる。総大将だけを既存の座る姿勢にする。
+    const hidenaga = F.honjin.units.find((u) => u.name === '羽柴秀長');
+    if (hidenaga) hidenaga._crouch = true;
+    F.hidenaga = hidenaga;
     // 敵は ctxOf の scale: 1 で定義どおり。味方も共通の六割五分への間引きを避け、谷へ進む三組の人数を保つ。
     F.allies = [
       // 阿波口の目付は蜂須賀正勝（小六）。子の家政は官兵衛と讃岐から回り、後から加わる
@@ -623,6 +627,8 @@ export const t05_ichinomiya = {
 
   update(rt, dt) {
     const F = rt.flags;
+    // 配置につく歩きで座る姿勢が解けても、本陣で止まれば座り直す。
+    if (F.hidenaga?.alive && !F.hidenaga.target && !(F.hidenaga.moving > 0.15)) F.hidenaga._crouch = true;
     KIT.backTick(rt);
     depthTick(rt, dt);
     if (F.step === 3) waterTick(rt);

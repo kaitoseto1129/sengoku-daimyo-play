@@ -4632,6 +4632,8 @@ const sunomata = {
     F.supplyReserve.stay = true;
     F.reinforceReserve = guard('南の控え', { x: -64, z: 112 }, [{ type: 'ashigaru', n: 9 }], 'column');
     F.reinforceReserve.stay = true;
+    // 控え・行軍中の士気だけで伏兵を消さず、西の横へ出てから通常の崩れ判定へ戻す。
+    F.reinforceReserve.noRout = true;
     // 柵へ取り付く寄せ手は、三割ほど討たれると竹束の陰へ崩れる（城攻めの寄せは長く持たない）。
     // 柵の内の守り手は足場と柵の陰の分だけ傷が浅い。数で劣る組が持ち場を守れる釣り合いにする。
     for (const g of [F.reserveW1, F.reserveW2, F.reserveW3a, F.reserveW3b, F.reserveW3d, ...F.duskWaves.map((q) => q.group), ...F.boatWaves]) g.morale = 72;
@@ -4645,6 +4647,7 @@ const sunomata = {
     F.flagbearer = F.reserveW3a.units[0];
     F.yoseBoss = F.reserveW3b.units.find((u) => u.name === '斎藤方の寄せ大将') || null;
     // 寄せ大将は旗本と踏みとどまり、討ち取りの目標を残して逃走しない。
+    F.reserveW3a.noRout = true;
     F.reserveW3b.noRout = true;
     this.boats(rt, null);
   },
@@ -5326,6 +5329,10 @@ const sunomata = {
     sunoMarchTick(rt);
     if (F.wave === 3) {
       if (F.waveT >= 40 && !F.reinforced) { F.reinforced = true; this.callReinforce(rt); }
+      if (F.reinforced && !F.reinforceArrived && rt.t >= (F.reinforceRetryAt || 0)) {
+        F.reinforceRetryAt = rt.t + 3;
+        this.callReinforce(rt);
+      }
       // 伏兵が横へ出ても縦隊の最後尾待ちで到着通知が来ない事がある。
       // 実際に戦える過半数が寄せ手の横へ着いた時だけ、同じ到着処理を呼ぶ。
       const reserve = F.reinforceReserve;
@@ -5468,15 +5475,30 @@ const sunomata = {
   callReinforce(rt) {
     const F = rt.flags;
     // 伏兵が出るのは三の手の時だけ（伝承の筋：最後の寄せを外と内で挟む）。砦の区域の呼び出しで二の手の間に出さない
-    if (F.reinforceCalled || F.won || F.ending || rt.over || F.wave !== 3) return;
+    if (F.reinforceArrived || F.won || F.ending || rt.over || F.wave !== 3) return;
+    const ready = (g) => g && !g.routed && g.units.some((u) =>
+      u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
+    if (F.reinforceCalled && ready(F.reinforceReserve)) return;
+    let r = F.reinforceReserve;
+    const relief = !ready(r);
+    if (relief) {
+      // 伏兵が討たれ尽くした時は、既存の守り手を南門から回す。兵を復活・追加しない。
+      r = [F.gunReserve, F.bowReserve].find(ready);
+      if (!r) return;
+      F.reinforceReserve = r;
+    }
     F.reinforceCalled = true;
-    const r = F.reinforceReserve;
-    if (!r.count || r.routed) return;
     // 伝承の筋（docs/battle_refs/sunomata.md）：外に伏せた兵が寄せ手の横を突き、柵の内の兵と挟んで退ける。
     //   南の控えは砦へ入らず、西の柵の外（寄せ手の南の横）へ出て打ちかかる。
     const at = { x: -FORT - 12, z: 10 };
-    r.stay = false; r.order = 'path'; r.pathIdx = 0; r.path = [[-64, 112], [-60, 44], [at.x, 24], [at.x, at.z]]; r.speed = 3;
+    r.stay = true; r.noRout = true; r.focus = null; r.noAI = false;
+    r.order = 'path'; r.pathIdx = 0;
+    r.path = relief ? [[0, 10], [0, 24], [-13, 26.5], [-36, 44], [-60, 44], [at.x, 24], [at.x, at.z]]
+      : [[-64, 112], [-60, 44], [at.x, 24], [at.x, at.z]];
+    r.speed = 3;
     r.onArrive = (g) => {
+      if (!ready(g)) return;
+      g.stay = false; g.noRout = false;
       g.order = 'hold'; g.anchor = at; g.facing = Math.PI; g.aggro = 16; g.seekRange = 24;
       g.onArrive = null;
       if (rt.over || F.won || F.ending) return;
@@ -5484,7 +5506,8 @@ const sunomata = {
       rt.bark('南の伏兵が西の寄せ手の横へ出た。柵の内からも押せ');
       battleEvent(rt, EVENT_REINFORCEMENT, at, r, 0, true, '伏兵が寄せ手の横を突く');
     };
-    rt.say('木下藤吉郎', '今じゃ、伏せた兵を出せ！　寄せ手を外と内から挟め！', 3.5);
+    rt.say('木下藤吉郎', relief ? '伏兵が崩れた。控えの射手は南門を回り、西の寄せ手の横を突け！'
+      : '今じゃ、伏せた兵を出せ！　寄せ手を外と内から挟め！', 3.5);
   },
 
   onKill(rt, v, k) {

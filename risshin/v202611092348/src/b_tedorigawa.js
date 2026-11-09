@@ -2789,7 +2789,8 @@ const tedorigawa = {
       const tex = new THREE.CanvasTexture(c);
       // 11/8 critic60 八1：霧の掛からない九歩の光の板が、遠くで空に浮く赤い大きなしみに見えた。霧を掛け、六歩に
       const halo = new THREE.SpriteMaterial({ map: tex, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: true });
-      const pool = new THREE.MeshBasicMaterial({ map: tex, color: 0xff9a50, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+      // 炎の暈だけでなく地面の照り返しも霧に隠す。遠い篝火の下だけ赤い板を残さない。
+      const pool = new THREE.MeshBasicMaterial({ map: tex, color: 0xff9a50, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, fog: true });
       const disc = new THREE.PlaneGeometry(1, 1); disc.rotateX(-Math.PI / 2);
       for (const [x, z] of beacons) {
         const y = W.heightAt(x, z);
