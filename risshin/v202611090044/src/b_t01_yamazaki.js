@@ -244,6 +244,7 @@ const t01_yamazaki = {
   noReserve: true,
   noFrontFill: true,
   goalSignOnly: true,         // 行き先は頭上の金の▼一つだけ（持ち場の旗・輪・地面の矢印を重ねない）
+  goalSignNoEdge: true,       // 見えない行き先の印を画面の縁へ貼り付けない
   noLeaderFollow: true,
   noHatamotoMass: true,       // 将の後ろの軽い作りの備も置かない（近づける所に見せかけの兵を置かない。AA・AF）       // 印は行き先の一つだけ（青い『ついていく相手』の印を出さない。AL・AV15）          // 作り物の乱戦を足さない（AA・AR7）
   frontlineDensity: false,    // 小勢を足さない（本物の兵の枠を段の備に残す）
@@ -437,13 +438,13 @@ const t01_yamazaki = {
       rt.after(30, () => rt.say('松田政近', '山を取られてなるものか。登れ、登れ！', 3));
     } else if (n === 3) {
       rt.award((t) => t.side.push('高山の陣の前で斎藤勢を押し返した'), '高山の陣の前で斎藤勢を押し返した');
-      if (live(F.iseW)) { F.iseW.routed = true; F.iseW.order = 'flee'; }
-      for (const g of F.w1) if (live(g)) { g.routed = true; g.order = 'flee'; }
+      // 前衛に加わった並河の手も退かせ、渡河の間に味方を引き留めない。
+      for (const g of [...F.w1, F.iseW, F.namikawa]) if (live(g)) { g.routed = true; g.order = 'flee'; }
       rt.say('池田恒興', '今じゃ。東の浅瀬を渡り、日向の左手を突く。ついて参れ！', 3.6);
       F.ikeda.order = 'move'; F.ikeda.dest = { ...FORD_S }; F.ikeda.onArrive = null;
       //   逃げる斎藤勢を追って持ち場に残らず、主人公と一緒に東へ駆ける（critic60：浅瀬へ主人公が一人で七十 m 先を走った）
       F.ikeda.aggro = 5; F.ikeda.seekRange = 6;
-      for (const u of F.ikeda.units) if (u.alive && u.target && u.target.fleeing) u.target = null;
+      for (const u of F.ikeda.units) if (u.alive && u.target && (u.target.fleeing || u.target.group?.routed)) u.target = null;
       // 川向こうの見張りの鉄砲（渡る時に撃たれる）
       F.bank = enemyGroup(rt, { name: '津田勢の鉄砲', faction: 'akechi', anchor: { x: 70, z: -28 }, facing: 0, width: 10, formation: 'line', order: 'hold', aggro: 14, seekRange: 30, dmgMult: 0.3 },
         ak([{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
@@ -609,7 +610,7 @@ const t01_yamazaki = {
     else if (F.stage === 2) {
       const n = aliveN(F.w1) + aliveN(F.iseW) + aliveN(F.namikawa);
       // 前衛の押し合いは三分ほど（斎藤の先手と、六十秒後の伊勢の第二波。学び 十2）。押し返せば主力が展開して浅瀬へ
-      if (F.fieldAt === 2 && n <= (F.w1N + allN(F.iseW)) * 0.3 && rt.t - F.st0 > 170) this.stage(rt, 3);
+      if (F.fieldAt === 2 && n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 && rt.t - F.st0 > 170) this.stage(rt, 3);
       else if (F.fieldAt === 2 && rt.t - F.st0 > 200) this.stage(rt, 3);
     } else if (F.stage === 3 && !F.forded) {
       if (!F.fordIn && dist(P, FORD_S) < 14) F.fordIn = true;
@@ -644,7 +645,7 @@ const t01_yamazaki = {
 const at = (n) => (rt) => (rt.flags.stage ?? 0) > n;
 t01_yamazaki.goals5 = () => TEXT.slice(1).map((text, i) => {
   const k = i + 1, gs = [null, null, 'w1', 'tsudaGs', 'cntGs', 'saiGs', 'gobo', null][k];
-  return { kind: 'stage', k: i, text, noun: NOUN[k], check: at(k), ...(gs ? { groups: (rt) => [].concat(rt.flags[gs] || [], k === 2 ? [rt.flags.iseW] : []) } : {}) };
+  return { kind: 'stage', k: i, text, noun: NOUN[k], check: at(k), ...(gs ? { groups: (rt) => [].concat(rt.flags[gs] || [], k === 2 ? [rt.flags.iseW, rt.flags.namikawa].filter(Boolean) : []) } : {}) };
 });
 STAGES.t01_yamazaki = TEXT.slice(1).map((t, i) => (i ? [t, (rt) => (rt.flags.stage ?? 0) >= i + 1] : [t]));
 

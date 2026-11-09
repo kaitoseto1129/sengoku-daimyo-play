@@ -138,8 +138,9 @@ export function goalSignTick(rt, root) {
   const seen = proj(rt, t.x, top, t.z);
   if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
   // 前にあって画面の上へはみ出す行き先（高い本丸など）は、上向きの矢印にせず、上の縁の▼のまま示す（五3「矢印は使わない」。11/5 伏見）
-  else if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; }
+  else if (!rt.def.goalSignNoEdge && !(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; }
   else {
+    if (rt.def.goalSignNoEdge) return hide();
     // 画面の外：自分から見た相手の向きを、画面の縁へ写す
     const camDir = rt.camera.getWorldDirection(dir);
     const yaw = Math.atan2(camDir.x, camDir.z);

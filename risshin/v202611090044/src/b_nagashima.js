@@ -2878,7 +2878,11 @@ const nagashima = {
         order: 'hold', aggro: 0, fire: false, noAI: true, noPursue: true, historicalOrders: true,
         fleeDir: { x: 0, z: -1 } },
         dress([{ type: 'bow', n: 1, o: { range: 40, dmg: 5 } }, { type: 'gun', n: 1, o: { range: 48, dmg: 5 } }], IKKO));
-      for (const u of g.units) { u.perch = { x: u.pos.x, y: u.pos.y, z: u.pos.z }; u.noTarget = true; }
+      for (const u of g.units) {
+        u.perch = { x: u.pos.x, y: u.pos.y, z: u.pos.z };
+        u.bankPost = { x: u.pos.x, z: u.pos.z };
+        u.noTarget = true;
+      }
       F.bankBows.push(g);
     }
     // ---- こちらの岸：織田の陣（信長と旗本。後ろの大軍が控え） ----
@@ -3829,6 +3833,21 @@ const nagashima = {
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
+    // 対岸の射手も、射撃の合間は柵沿いを見回る。降伏後は射撃を止めて奥へ下がる。
+    // perch を残したまま隊の行き先だけ変えても兵は動かないため、足場そのものを進める。
+    for (const g of F.bankBows || []) for (const u of g.units) {
+      if (!boatPassengerReady(u) || u.fleeing || u.atk || u.reload || !u.bankPost || !u.perch) continue;
+      const post = u.bankPost, at = u.perch;
+      const x = post.x + (F.step < 2 ? Math.sin(rt.t * .65 + u.id) * 1.5 : 0);
+      const z = post.z - (F.step >= 2 ? 6 : 0);
+      const dx = x - at.x, dz = z - at.z, d = Math.hypot(dx, dz);
+      const move = Math.min(d, Math.max(0, dt) * 1.2);
+      if (d > .01 && move > 0) {
+        at.x += dx / d * move; at.z += dz / d * move;
+        at.y = rt.world.heightAt(at.x, at.z);
+        u.pos.set(at.x, at.y, at.z); u.moving = move / dt;
+      } else u.moving = 0;
+    }
     // 11/8 critic60 長島（一3）：降る前の対岸の柵の守りも立ち尽くさない。柵の内を左右へ見回りして歩く（追って川へは出ない）
     { const gd = F.ikkoCamp?.guard;
       if (gd && F.step < 2 && !F.ending && rt.t >= (F.gdPatrolT ?? 6)) {

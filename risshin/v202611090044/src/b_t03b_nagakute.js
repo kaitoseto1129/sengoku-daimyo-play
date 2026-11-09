@@ -256,13 +256,13 @@ const t03b_nagakute = {
       for (const g of [F.camp, F.men, F.hideG]) for (const u of g.units) if (u.alive) u._crouch = false;
       // 布陣図どおり：大須賀の手が後ろ（東・行軍の来た道の林）から、十八秒後に榊原の手が横（北）から（挟まれる）。水野・丹羽は②で後ろから続く
       sfx('horagai', 0.9);
-      F.w1 = [0, 1, 2].map((i) => this.wave(rt, { x: CAMP.x + 38, z: CAMP.z - 12 + i * 14 }, 12, CAMP, '大須賀康高の手'));
+      F.w1 = [0, 1, 2].map((i) => this.wave(rt, { x: CAMP.x + 38, z: CAMP.z - 12 + i * 14 }, 12, CAMP, '大須賀康高の手')).filter(Boolean);
       this.general(rt, '大須賀康高', { x: CAMP.x + 42, z: CAMP.z + 22 }, null, W);
       rt.army.play('toki', { x: CAMP.x + 34, z: CAMP.z }, 1.4);
       F.camp.order = 'attack'; F.camp.seekRange = 16;
       rt.after(18, () => {
         if (F.stage !== 1) return;
-        F.w1.push(...[0, 1].map((i) => this.wave(rt, { x: CAMP.x - 10 + i * 18, z: ZN + 8 }, 12, CAMP, '榊原康政の手', null, SAKA)));
+        F.w1.push(...[0, 1].map((i) => this.wave(rt, { x: CAMP.x - 10 + i * 18, z: ZN + 8 }, 12, CAMP, '榊原康政の手', null, SAKA)).filter(Boolean));
         this.general(rt, '榊原康政', { x: CAMP.x + 6, z: ZN + 2 }, SAKA, 0);
         //   五十五秒で南の田から丹羽氏次の手も（三方から。信吉隊の前衛が崩れる）
         rt.after(37, () => { if (F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 20, z: CAMP.z + 44 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '南の田からも！　前の組が崩れるぞ！', 2.6); } } });
@@ -298,7 +298,7 @@ const t03b_nagakute = {
       if (live(F.camp)) for (const u of F.camp.units) if (u.alive) rt.army.despawn(u);
       // 榊原の手は南東の香流川を渡り、檜ヶ根の坂を登って来る（白山林からの道は信吉様と連れた兵が走って来るので、その背を突かせない。
       //   同じ日に別の係が見つけた形・11/6 fixc1753 の版から取り込み）。着いてすぐ見える四十〜六十 m に
-      F.w3 = [0, 1, 2].map((i) => this.wave(rt, { x: HINOKI.x + 34 + i * 12, z: HINOKI.z + 52 - i * 6 }, 9, HINOKI, '榊原康政の手', null, SAKA));
+      F.w3 = [0, 1, 2].map((i) => this.wave(rt, { x: HINOKI.x + 34 + i * 12, z: HINOKI.z + 52 - i * 6 }, 9, HINOKI, '榊原康政の手', null, SAKA)).filter(Boolean);
       this.general(rt, '榊原康政', { x: HINOKI.x + 56, z: HINOKI.z + 62 }, SAKA, -Math.PI * 0.75);
       F.hori.facing = Math.PI / 4;   // 南東の坂へ向く
       F.w3N = F.w3.reduce((s, g) => s + aliveN(g), 0);
@@ -554,7 +554,7 @@ const t03b_nagakute = {
     const el = rt.t - F.st0;
     const atGoal = dist(P.pos, goalOf(F.stage)) < goalR(F.stage);
     if (!F.there && atGoal) { F.there = true; F.at0 = rt.t; }
-    if (F.stage === 0.5) { March.tick(rt, this.ctx(rt)); return; }
+    if (F.stage === 0.5) { March.tick(rt, this.ctx(rt), dt); return; }
     if (F.stage === 5.5) { Ikeda.tick(rt, this.ctx(rt)); return; }
     if (F.stage === 1) {
       // 総大将の信吉は馬印の前から出ない（離れたら馬廻ごと戻る）

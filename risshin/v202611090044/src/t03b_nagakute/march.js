@@ -39,8 +39,8 @@ export function start(rt, K) {
   say(rt, '使番', '池田様の先手、岩崎城に取りかかられました！', 32, 3.2);
 }
 
-export function tick(rt, K) {
-  const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
+export function tick(rt, K, dt) {
+  const F = rt.flags, P = rt.player.u.pos;
   const near = Math.hypot(P.x - BANSHO.x, P.z - BANSHO.z) < 14;
   // 番所に着くと、岩崎の方から番所の加勢が駆けて来る（小さな戦の二つ目）
   if (near && !F.banHelp) {
@@ -54,9 +54,9 @@ export function tick(rt, K) {
       rt.say('信吉隊の侍', '南から加勢が来る！　番所に火をかける間、防げ！', 2.8);
     });
   }
-  // 火をかける：守りが尽きた番所のそばに十秒立つ（火付けの間）。時が経てば焼ける
-  if (!F.banFire && near && K.aliveN(F.banG) <= 1 && K.aliveN(F.banG2) <= 1 && F.banG2) F.banLit = (F.banLit || 0) + 0.25; 
-  if (!F.banFire && ((near && (F.banLit || 0) >= 10 && el > 100) || el > 170)) {
+  // 守りを退け、番所のそばで十秒かけて火を付ける。離れている間は進めない。
+  if (!F.banFire && near && K.aliveN(F.banG) <= 1 && K.aliveN(F.banG2) <= 1 && F.banG2) F.banLit = (F.banLit || 0) + dt;
+  if (!F.banFire && near && (F.banLit || 0) >= 10) {
     F.banFire = rt.t;
     if (K.live(F.banG)) { F.banG.order = 'retreat'; F.banG.dest = { x: 170, z: 60 }; F.banG.aggro = 0; }
     try { rt.world.addFire(BANSHO.x, BANSHO.z, { size: 2.6, h: 0.4, blackSmoke: true }); rt.world.addFire(BANSHO.x + 4, BANSHO.z - 2, { size: 1.8, h: 0.3 }); } catch (e) { /* 火 */ }
