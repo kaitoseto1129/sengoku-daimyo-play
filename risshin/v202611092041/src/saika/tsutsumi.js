@@ -66,10 +66,9 @@ export function install(rt, ctx) {
         R.tsRouted = true; R.noRout = false; R.order = 'retreat'; R.morale = 0; R.fleeDir = { x: -1, z: 0.2 }; R.fleeSet = true;
         rt.say('見張り', '取り返しの手が崩れた！　舟へ逃げていくぞ！', 3);
       }
-      // 数えるのは堤の近く（二十二歩の内）の取り返しの者だけ。
-      let rNear = 0;
-      if (R) for (const u of R.units) if (ready(u) && Math.hypot(u.pos.x - DIKE.x, u.pos.z - DIKE.z) < 22) rNear++;
-      const n = live() + rNear;
+      // 渡河中の取り返しも数える。遠いだけで「払った」とせず、討つか退くまで続ける。
+      // 半数を失って退く下知が出た組は、川の中の残兵を追わせない。
+      const n = live() + (R?.tsRouted ? 0 : rl);
       rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
       const p = rt.player.u.pos;
       if (R && !n && el > 100 && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
