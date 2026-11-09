@@ -61,7 +61,8 @@ const _kc = new WeakMap();   // 生きている元の表と赤の可否ごとに
 
 export function uniformArmor(look, { flag, named, busho }) {
   if (!look || look.hero || look.kosode || look.sohei || look.nanban || look.oldGood) return look;
-  const redOk = RED_HOUSE.has(String(flag || '')) || !!look.takedaRed;
+  // 忠次の年代別指定など、所用具足に根拠のある本人の朱漆だけ保つ。家の兵へは広げない。
+  const redOk = RED_HOUSE.has(String(flag || '')) || !!look.takedaRed || !!(named && look.kacchu?.preserveShu);
   const pick = (look.vi || 0) % 3;
   fixAll(look, pick, redOk, named, true);
   if (look.hatColor != null) look.hatColor = fix(look.hatColor, LAC, pick, redOk, named);

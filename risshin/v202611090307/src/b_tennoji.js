@@ -4115,7 +4115,7 @@ tennoji.force = (rt) => {
   const base = FORCE_FRAC[F.step] ?? 0;
   let allyDead = 0, allyTotal = 0, enemyDead = 0;
   for (const g of rt.army?.groups || []) for (const u of g.units) if (!u.isStruct) {
-    if (g.team === 0) { allyTotal++; if (!u.alive) allyDead++; }
+    if (g.team === 0 && F.relief?.includes(g)) { allyTotal++; if (!u.alive) allyDead++; }
     else if (g.team === 1 && !u.alive) enemyDead++;
   }
   if (F.forceStep !== F.step) {
