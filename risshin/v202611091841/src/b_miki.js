@@ -2912,7 +2912,8 @@ const miki = {
     if (here && F.footT == null) F.footT = rt.t;
     // 秀吉（組の頭）か馬廻の誰かが坂へ着けば着いたとする。組の真ん中だけで見ると、田の東に残った者に引かれて
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
-    const hideHere = F.hide.units.some((u) => u.alive && !u.downed && !u.fleeing && !u.woundOut && !u.noTarget &&
+    // 命が尽きた直後や後送中の騎馬は、まだ alive が残っていても援軍の到着に数えない。
+    const hideHere = F.hide.units.some((u) => mikiFighting(u) &&
       Math.hypot(u.pos.x - OMURA_FOOT.x, u.pos.z - OMURA_FOOT.z) < 42);
     // 別所勢が先に崩れても、未着の騎馬や倒れている馬廻を到着の代わりにしない。
     // 実際に着いた知らせは保持する。合流を待つ六秒の間に馬廻が動いても、到着前へ戻さない。

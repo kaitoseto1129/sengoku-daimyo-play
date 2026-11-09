@@ -4426,11 +4426,6 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     }
     seaRemains(rt, dt, motionT);
     F.foeSigns?.tick();
-    // 崩れた大将船：十二秒かけて西へ傾き、舷まで沈む。陣幕と大将旗も一緒に傾く
-    if (F.bigSunk && F.big?.m) {
-      const k = Math.min(1, (rt.t - (F.flagshipHitAt || rt.t)) / 12), e = k * (2 - k);
-      F.big.m.rotation.z = -0.32 * e; F.big.m.position.y = -0.45 * e;
-    }
     // 11/6 fixc0823（kaito 九4・九6）：玉込めの間に座らせると、床几の無い甲板で脚が消え、胴だけが板に置かれて見えた。
     //   鉄砲衆は楯板の陰に立ったまま玉を込める。
     for (const u of F.teppo.units) u._crouch = false;
@@ -4711,6 +4706,12 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         }
 
       }
+    }
+    // 通常の沈没処理の後で姿勢を決め、退場後も逆向きに起こさない。
+    // 崩れた大将船：十二秒かけて西へ傾き、舷まで沈む。陣幕と大将旗も一緒に傾く
+    if (F.bigSunk && F.big?.m) {
+      const k = Math.min(1, (rt.t - (F.flagshipHitAt ?? rt.t)) / 12), e = k * (2 - k);
+      F.big.m.rotation.z = -0.32 * e; F.big.m.position.y = -0.45 * e;
     }
     // 毛利の船は、大筒・消火・甲板防衛の間は途切れず寄せてくる
     if (F.step >= 1 && F.step <= 4 && !F.bigSunk && rt.t > (F.nextBoat || 1e9)) {
