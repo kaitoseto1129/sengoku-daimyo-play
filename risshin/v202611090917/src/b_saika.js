@@ -3807,14 +3807,16 @@ const saika = {
       const near = Math.min(Math.hypot(p.x - L.pos.x, p.z - L.pos.z), Math.hypot(p.x - SAKUMA_AT.x, p.z - SAKUMA_AT.z)) < 22;
       // 使者は本人を置いて先へ行き過ぎない（送る役目）。会った後、本人が三十歩より遠い間は道の途中で止まって待つ。
       if (Math.hypot(p.x - m.pos.x, p.z - m.pos.z) < 12) F.envoyMet = true;
-      const far = !F.envoyMet || Math.hypot(p.x - m.pos.x, p.z - m.pos.z) > 30;
+      // 会う前から止めると、川上の外れで待ち続けて「歩いて来る」使者にならない。
+      // 初対面までは道を進み、会った後だけ護送の間隔を保つ。
+      const far = !!F.envoyMet && Math.hypot(p.x - m.pos.x, p.z - m.pos.z) > 30;
       const E = F.envoy;
       if (E.order === 'path') F.envoyIdx = E.pathIdx;
       // 陣の口でも本人を待つ。別々の到着半径だけでは、三十歩以上離れても護送完了になった。
       if (far && E.order === 'path') E.order = 'hold';
       // 待ちの後や、共通の頭が止めた時も、道の続きから歩き直す
       else if (!atLord && !far && E.order !== 'path') { E.fixed = false; E.order = 'path'; E.path = ENVOY_ROAD; E.pathIdx = F.envoyIdx || 0; }
-      if (!far && atLord && near) this.win(rt, true);
+      if (F.envoyMet && !far && atLord && near) this.win(rt, true);
     }
   },
   // 紙の22：大軍でも進めず、最後は政治の妥協・降伏。川岸を保ったら、雑賀は誓紙を出して降る。
