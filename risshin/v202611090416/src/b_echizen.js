@@ -2331,9 +2331,11 @@ echizen.update = function (rt, dt) {
     if (kg?.count && !F.kannonFell) { const inside = !!zone?.test(u.pos.x, u.pos.z); kg.defMult = inside ? 1 : 5; kg.noRout = !inside; } }
   // 郭の守兵は郭から引き出さない（引き出すと郭が空になり、一戦が一分半で終わった）。木戸が破れるまでの間だけ。
   heroFrontClash(rt, dt, { foeN: 42, allyN: 28, reach: 110, foeD: 12, allyD: 7, active: (r) => !!r.flags.gateKannon?.struct.alive,
-    skip: (g, foe) => foe && (r => (r.flags.defenders || []).some((b) => b?.real === g))(rt) });
+    // 打って出る隊まで正面の待機へ借りると、攻撃の下知が半秒後に上書きされる。
+    skip: (g, foe) => foe && (g === F.gateSally?.real || (F.defenders || []).some((b) => b?.real === g)) });
   // kaito 10/31：門外の二人と打って出た一揆勢を別々に当てず、開戦の下知と同時に一つの群れで先手へ打ちかかる。
-  if (!F.waveOpen && rt.t >= 12 && F.gateSally?.aliveNominal() > 0) { F.waveOpen = true; F.gateSally.order({ id: 'attack' }); }
+  // 開戦直後から打って出る。十二秒の待機では、木戸前の兵が五秒以上立ち尽くしていた。
+  if (!F.waveOpen && F.gateSally?.aliveNominal() > 0) { F.waveOpen = true; F.gateSally.order({ id: 'attack' }); }
   // 本道に四十五歩おきに立つ小勢も、一組ずつ待たせない。観音丸の木戸が破れたら、全部が一斉に本道を駆け下りる。
   if (!F.waveRoad && F.gateKannon && !F.gateKannon.struct.alive) {
     F.waveRoad = true;
@@ -2739,7 +2741,7 @@ function echizenAdvanceTick(rt) {
     if (w && F.echWayI < F.echWay.length - 1 && Math.hypot(u.pos.x - w.x, u.pos.z - w.z) < 12) F.echExitAt = F.echWay[++F.echWayI];
     // 本人が殿の前へ着いたら（味方の先手が先に着いても）、殿が槍を向ける
     const near = (q, r) => Math.hypot(q.x - TAIL_AT.x, q.z - TAIL_AT.z) < r;
-    if ((near(u.pos, 28) && !inKannon(u.pos)) || (F.ake?.real?.units || []).some(q => q.alive && near(q.pos, 14))) {
+    if (near(u.pos, 28) && !inKannon(u.pos)) {
       F.echGateReached = true;
       rt.objDone('fuchu');
       rt.obj('tail', '峠道の登り口で、西光寺真敬の殿を討つ', 'main', true);
