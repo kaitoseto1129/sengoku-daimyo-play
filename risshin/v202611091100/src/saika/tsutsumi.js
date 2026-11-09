@@ -2,7 +2,7 @@
 // 雑賀攻め・小雑賀川　対陣の中の段「川下の堤の鉄砲陣」（約10〜12分。b_saika.js の hold の後、parley の前に入れる）
 // 史実：川を挟む対陣は半月に及び、雑賀衆は夜ごとに小勢で渡っては鉄砲を撃ち掛けた（信長公記巻十の対陣の記事を、遊びの局地に縮めた補完）。
 // 遊び：川上・川下の寄せを払った後、川下の堤の陰に雑賀の鉄砲衆が入り込み、竹束の列の横から撃ち掛ける。
-//   堀の先手と堤へ寄せ、鉄砲陣を取る。取ると堤の小屋に火を掛けて潰す。取るか約二分半で和議（parley）へ。
+//   堀の先手と堤へ寄せ、鉄砲陣を取る。取ると堤の小屋に火を掛けて潰す。本人が堤へ寄り、取り返しも払ってから和議（parley）へ。
 // 字は出さない：堤の上の硝煙・赤い印・燃える小屋で分からせる。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
@@ -12,7 +12,7 @@ const DIKE = { x: -4, z: 58 };   // 川下の堤の陰（東岸）
 
 export function install(rt, ctx) {
   const F = rt.flags;
-  const { dress, SAIKA, moveGroup, next } = ctx;
+  const { dress, SAIKA, moveGroup, next, missionText } = ctx;
   const t0 = rt.t;
   let done = false, tick = 0, fire = null, R = null, takenT = 0;
   rt.setPhase('tsutsumi');
@@ -25,7 +25,7 @@ export function install(rt, ctx) {
   rt.army.play?.('volley', DIKE, 1.1);
   rt.say('見張り', '川下の堤の陰から撃って来る！　竹束の横を狙われておるぞ！', 4);
   rt.after(5, () => rt.say('堀秀政', '堤の鉄砲陣を取れ！　横から回って、玉込めの間に寄せよ！', 4));
-  rt.obj('main', '川下の堤の陰の鉄砲陣を、堀の先手と取れ', 'main', true);
+  rt.obj('main', missionText, 'main', true);
   rt.objProgress('main', '');
   rt.marker('tsutsumi', () => (live() ? G.center() : null), '堤の鉄砲陣', { red: true, group: G });
   let sent = 0;
@@ -59,22 +59,13 @@ export function install(rt, ctx) {
       const rl = R ? R.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length : 0;
       const n = live() + rl;
       rt.objProgress('main', n ? `堤の雑賀衆 ${n}人` : '');
-      if ((R && !n && el > 100) || el > 200) {
+      const p = rt.player.u.pos;
+      if (R && !n && el > 100 && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
         done = true; F.tsutsumiDone = true;
         rt.unmark('tsutsumi'); rt.unmark('tsutsumiR');
-        if (!n) {
-          sfx('horagai', 0.6);
-          rt.award((t) => t.side.push('川下の堤の雑賀の鉄砲陣を取り、取り返しも払った'), '堤の鉄砲陣を取った');
-          rt.say('堀秀政', '堤は守った。……だが、川の向こうはまだ抜けぬ', 4);
-        } else {
-          rt.say('組頭', '堤の雑賀衆は川を渡って退いた。深追いするな', 3.5);
-          // 取り返しの組も引かせる。本人を狙ったまま和議へ持ち越さない。
-          for (const g of [G, R]) if (g && !g.routed && g.count) {
-            g.focus = null; g.retreatOnly = true;
-            g.order = 'move'; g.dest = { x: DIKE.x - 4, z: DIKE.z + 40 };
-            g.onArrive = (q) => { q.order = 'hold'; };
-          }
-        }
+        sfx('horagai', 0.6);
+        rt.award((t) => t.side.push('川下の堤の雑賀の鉄砲陣を取り、取り返しも払った'), '堤の鉄砲陣を取った');
+        rt.say('堀秀政', '堤は守った。……だが、川の向こうはまだ抜けぬ', 4);
         // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
         rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });
         rt.after(13, () => { if (!F.ending) rt.say('堀秀政', '撃ち返すな。何か言うて来るつもりじゃ', 3.5); });

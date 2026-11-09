@@ -1990,10 +1990,10 @@ function saikaNearestFoe(rt) {
 }
 // 右上の①〜⑤（stages.js の saika と同じ字。段ごとに一つ）
 const SAIKA_LINE = [
-  '川べりの三つの小旗で、杭を外す組を守れ',
+  '川上の竹束で物見し、川べりの三つの小旗で杭を外す組を守れ',
   '中央の渡り口から川を渡り、西岸の高岸の下へ取り付け',
   '退き太鼓で中央の口を戻り、東岸の竹束の陰で列を組め',
-  '竹束の陰で、川上・川下から寄せる雑賀衆を払え',
+  '竹束の陰で川上・川下の寄せを払い、川下の堤の鉄砲陣を取れ',
   '雑賀の使者を、佐久間信盛の陣まで送れ',
 ];
 // 佐久間信盛の陣（誓紙の取り次ぎ。信長は鳥取郷の本陣で、この川岸にはいない）
@@ -3362,7 +3362,7 @@ const saika = {
         rt.say('雑賀の組頭', '川を渡らせるな！　柵から狙え！', 4);
     });
     // 0〜2分：川べりの物見（saika/mono.js）。済んだら杭抜きの段へ
-    rt.after(5, () => { if (F.step === 0 && !F.ending) F.paceMono = installMono(rt, { dress, SAIKA, next: () => this.stakes(rt) }); });
+    rt.after(5, () => { if (F.step === 0 && !F.ending) F.paceMono = installMono(rt, { dress, SAIKA, missionText: SAIKA_LINE[0], next: () => this.stakes(rt) }); });
   },
   stakes(rt) {
     const F = rt.flags;
@@ -3798,7 +3798,7 @@ const saika = {
         F.holdFailure = '竹束の後ろへ入った敵を払いきれず、東岸の陣を押された';
         this.win(rt, false);
       }
-      else if (F.inT >= 6 && el >= 30 && !F.paceTsutsumi) F.paceTsutsumi = installTsutsumi(rt, { dress, SAIKA, moveGroup, next: () => this.parley(rt) });   // 川下の堤の鉄砲陣の後に和議
+      else if (F.inT >= 6 && el >= 30 && !F.paceTsutsumi) F.paceTsutsumi = installTsutsumi(rt, { dress, SAIKA, moveGroup, missionText: SAIKA_LINE[3], next: () => this.parley(rt) });   // 川下の堤の鉄砲陣の後に和議
     } else if (F.step === 6) {
       // 11/6 fixc1753（三3・二6）：使者が歩いて佐久間の陣へ着き、本人もそばにいれば⑤を果たす。時間切れで勝ちにせず、途中で使者を飛ばさない。
       const m = F.envoy.units[0], L = F.lordCamp.units[0];
@@ -4033,6 +4033,32 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     if (attacking && d < attackDist) { attacker = o; attackDist = d; }
   }
   const reach = p.weapon === 'sword' ? 1.9 : 2.8;
+  // 物見と堤の下知では、旧来の杭・竹束へ戻らず、追加された持ち場へ進む。
+  if (b.phase === 'mono' || b.phase === 'tsutsumi') {
+    const raidId = b.phase === 'mono' ? 'monoRaid' : 'tsutsumiR';
+    const placeId = b.phase === 'mono' ? 'mono' : 'tsutsumi';
+    const marker = b.markers.find((m) => m.id === raidId) || b.markers.find((m) => m.id === placeId);
+    const group = marker?.group;
+    let foe = attacker;
+    let distance = Infinity;
+    for (const o of group?.units || NO_HOSTS) if (saikaFoe(o)) {
+      const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
+      if (d < distance) { distance = d; foe = o; }
+    }
+    if (foe) {
+      const d = Math.hypot(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      p.yaw = Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z);
+      if (d > reach * .85) goTo(p, inp, foe.pos.x, foe.pos.z, reach * .85);
+      patientStrike(p, inp, foe, d);
+    } else {
+      if (p.lock) inp.e.add('KeyQ');
+      const at = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+      if (at) goTo(p, inp, at.x, at.z, 3);
+      else if (b.phase === 'tsutsumi') goTo(p, inp, -4, 58, 3);
+    }
+    return;
+  }
+
   // 引く下知が出たら、届く一撃だけを受ける。敵へ詰めて川の口を離れない。
   // 結果待ちの終幕でも操作を止めず、味方と後ろの陣へ引く。
   if (F.step === 3 || F.ending) {
