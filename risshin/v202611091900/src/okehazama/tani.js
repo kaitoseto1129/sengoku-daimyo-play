@@ -33,7 +33,7 @@ export function tick(rt) {
     }
   } else if (!g.units.some(ready) || rt.t - v.taniUp > 60) {
     v.taniDone = true;
-    for (const u of g.units) if (ready(u)) { g.noRout = false; g.morale = 0; }
+    if (g.units.some(ready)) { g.order = 'retreat'; g.noRout = false; g.morale = 0; }
     if (rt.t - v.taniUp <= 60) rt.say('組頭 源八', 'よし。今川はまだ気付いておらぬ。旗について谷を下れ！', 3);
   }
 }

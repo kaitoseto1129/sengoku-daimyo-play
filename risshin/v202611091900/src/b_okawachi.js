@@ -2623,20 +2623,6 @@ function okRoadCamera(rt) {
       return;
     }
   };
-  // 寄せの前は、立ち止まって見回していない間、視点をゆっくり搦手の木戸と櫓の方へ戻す。
-  // 竹束の陰で後ろの坂や味方の背だけを見て待たない。
-  const last = { x: 0, z: 0 };
-  const gateLook = (dt) => {
-    const u = player.u, p = u.pos, F = rt.flags;
-    const still = Math.hypot(p.x - last.x, p.z - last.z) < dt * .6;
-    last.x = p.x; last.z = p.z;
-    if (player.camFixed || !still || !(F.step <= 1) || !u.alive || rt.over || player.lock || player.inCombatT > 0 || player.aiming ||
-      player.guard || player.fpK >= .5 || player.cine || (player.lookIdle ?? 9) < 1.5 || S.reduceMotion ||
-      p.z < GATE.z + 14 || p.z > CAMP_LINE.z + 3) return;
-    const want = Math.atan2(GATE.x - p.x, GATE.z - p.z);
-    let d = want - player.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-    player.yaw += d * Math.min(1, dt * 1.4);
-  };
   // 肩越しの視点の真下に味方が立つと、笠が画面の半分をふさぐ。視点の足元からは一歩退かせる。
   const cam2 = { x: 0, z: 0 };
   const clearCamFoot = (dt, camera) => {
@@ -2655,7 +2641,8 @@ function okRoadCamera(rt) {
       v.pos.x += ux * (1.6 - d) * k; v.pos.z += uz * (1.6 - d) * k;
     }
   };
-  player.updateCamera = function(dt, camera) { gateLook(dt); update.call(this, dt, camera); clamp(camera); clearCamFoot(dt, camera); };
+  // 向きは本人の操作に任せる。狙いを解いた直後も、木戸へ自動で回さない。
+  player.updateCamera = function(dt, camera) { update.call(this, dt, camera); clamp(camera); clearCamFoot(dt, camera); };
   W.clampDrawCamera = clamp;
 }
 
@@ -3386,7 +3373,8 @@ function okNight(W) {
       if (this.moon) this.moon.visible = false;
       // 白く太い手前の筋は隠し、細い遠雨と足元の跳ねだけを闇に残す。
       // 11/8 critic60 大河内（四6・二2）：雨の筋がほとんど見えず「雨で鉄砲が使えぬ」夜が絵で分からなかった。手前の筋も暗い灰で残し、遠雨と跳ねを濃くする
-      this._okWetNight = true; this.rainNear.visible = true;
+      // 進発前の乾いた夜には、手前の雨だけを先に出さない。
+      this._okWetNight = true; this.rainNear.visible = this.rainLevel > 0.03;
       this.rainNear.material.uniforms?.color?.value.setHex(0x6a747e);
       this.rain.material.color.setHex(0x56606a); this.rain.material.opacity = 0.32 * this.rainLevel;
       this.splashPts.material.color.setHex(0x56606a); this.splashPts.material.opacity = 0.3 * this.rainLevel;
@@ -3395,6 +3383,7 @@ function okNight(W) {
     if (this._okWetNight) {
       this._okWetNight = false;
       this.rain.material.color.setHex(0xc9d2d6); this.rain.material.opacity = 0.45 * this.rainLevel;
+      this.rainNear.material.uniforms?.color?.value.setHex(0xd4dce0);
       this.splashPts.material.color.setHex(0xd8e0e4); this.splashPts.material.opacity = 0.5;
     }
     return k;
