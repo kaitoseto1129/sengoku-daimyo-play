@@ -4940,14 +4940,15 @@ shiga.setup = function (rt) {
     camera.up.set(0, 1, 0); camera.lookAt(look);
   };
   // 近い視点の切り替えや直接描画は updateCamera を通らないことがある。
-  // 描画の直前にも同じ坂よけを通し、地面を上げるだけで本人を見失わせない。
+  // 描画の直前にも坂と壁の両方を調べ、建物越しに本人を映さない。
   const clampDrawCamera = rt.world.clampDrawCamera;
   rt.world.clampDrawCamera = function (camera) {
     clampDrawCamera?.call(this, camera);
     const u = player.u;
     if (!camera.isPerspectiveCamera || !u.alive || u.naka || player.fpK >= .5) return;
     slopeLook.set(u.pos.x, u.pos.y + 1.5, u.pos.z);
-    if (slopeHit(slopeLook, camera.position) === null) return;
+    if (slopeHit(slopeLook, camera.position) === null &&
+        player.camBlockHit(slopeLook, camera.position) === null) return;
     limitView(camera, slopeLook);
     player.camPos.copy(camera.position);
     camera.updateMatrixWorld();
