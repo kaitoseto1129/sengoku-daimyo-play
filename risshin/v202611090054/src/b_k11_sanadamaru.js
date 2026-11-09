@@ -35,6 +35,7 @@ import { GENERALS } from './units_data.js';
 import { KACCHU } from './kacchu_data.js';
 import { addMissileCover } from './projectile_cover.js';
 import { install as wagi } from './k11/wagi.js';   // 冬の陣の中間の場面（大筒・和議・堀が埋まる・丸の破却）
+import { lethalNearMiss } from './lethal.js';   // 命懸けの戦場：一斉射の制圧
 
 // 慶長十九年の名乗りは前田筑前守利光（利常に改めたのは寛永六年。高岡市立博物館の「筑前守利光」の書状）。顔と具足は利常の物を使う（専門家の目 11/6）
 if (GENERALS['前田利常'] && !GENERALS['前田利光']) GENERALS['前田利光'] = GENERALS['前田利常'];
@@ -281,6 +282,7 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 import DEPTH_K11 from './k11/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k11_sanadamaru = {
   depth: DEPTH_K11,
+  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
   resumeSteps: [[1, 'begin'], [2, 'taunt'], [3, 'fenceStart'], [4, 'sortie'], [5, 'fallBack']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。真田丸：十二月初めの冬の朝。霜枯れの草、撃ち込まれた矢・倒れた槍と旗
   timeslip: {
@@ -734,6 +736,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     }
     rt.army.play('gun', polar(0, WALL_R), 1.5);
     const shooter = F.wallG.units.find((u) => u.alive) || null;
+    // 命懸けの戦場（lethal.js）：塀の前の堀と柵の前に、弾の筋の制圧を乗せる（身をすくめる・下がる）
+    for (const a2 of [-0.5, 0, 0.5]) { const q = polar(a2, FENCE_R - 2); try { lethalNearMiss(rt.army, q.x, q.z, 1, 'volley', 9); } catch (e) { /* 無くても一斉射は撃つ */ } }
     let fell = 0;
     for (const u of rt.army.units) {
       if (!u.alive || u.team !== 0 || u.isPlayer || u.invuln || fell >= 11) continue;

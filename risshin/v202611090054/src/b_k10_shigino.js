@@ -147,6 +147,7 @@ function fenceDown(rt, list) {
 import DEPTH_K10 from './k10/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k10_shigino = {
   depth: DEPTH_K10,
+  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。鴫野：冬の朝の堤と湿地。枯れ葦・ぬかるみ、鉄砲で撃ち合った跡
   timeslip: {

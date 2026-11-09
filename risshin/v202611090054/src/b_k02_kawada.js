@@ -36,7 +36,7 @@ import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
 import { GENERALS } from './units_data.js';
 import { KACCHU } from './kacchu_data.js';
-import { install as installTosen } from './k02_kawada/tosen.js';   // 渡河の厚み・米野の押し合い・追撃・岐阜への知らせ（toku15 の 2）
+import { install as installTosen, depthPlan as kawadaDepth } from './k02_kawada/tosen.js';   // 渡河の厚み・米野の押し合い・追撃・岐阜への知らせ（toku15 の 2）
 
 // 慶長五年の名乗りは池田照政（井伊直政の書状。「輝政」に改めたのは慶長十二年頃）。顔と具足は輝政の物を使う
 if (GENERALS['池田輝政'] && !GENERALS['池田照政']) GENERALS['池田照政'] = GENERALS['池田輝政'];
@@ -255,6 +255,9 @@ const k02_kawada = {
   spawn: { x: START.x + 2, z: START.z, heading: Math.PI },
   noWake: true,
   minutes: 25,
+  depth: kawadaDepth,   // 陣立て（army_depth.js）：河田の本物の隊の後ろと翼に、福島・黒田・細川・秀信の備（k02_kawada/tosen.js）
+  lethal: true,         // 命懸けの戦場（docs/lethal_howto.md）
+  fearKind: { kind: '渡河', note: '浅瀬で足を取られ、対岸の鉄砲に撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '川の中で止まるな！' },
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   stageGoalsOnly: true,   // 右上の目標は四つの段だけ（「敵を何人討つ」で埋めない。物差し三の1・11/6）

@@ -138,6 +138,7 @@ function height(x, z) {
 import DEPTH_K09 from './k09/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k09_imafuku = {
   depth: DEPTH_K09,
+  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
   // 身の回りの合戦の跡（timeslip_field.js）。今福：冬の堤と湿地。枯れ葦・ぬかるみ・水たまり、堤の上の倒れた槍
   timeslip: {
     wet: 0.55, dust: 0.1, trample: 0.3, debris: 1.2, arrows: 1, reeds: 0.5, maxSlope: 0.22,

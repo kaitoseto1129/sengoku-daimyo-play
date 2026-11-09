@@ -26,7 +26,8 @@ import { timeslipField } from './timeslip_field.js';
 import { KILLS, cut } from './stages.js';
 import { setStages } from './b_k_help.js';
 import { makeRam } from './hajo.js';
-import * as iriguchi from './k08/iriguchi.js';   // 大坂城を囲む陣と「これはまだ入口」の締め
+import * as iriguchi from './k08/iriguchi.js';
+import * as engun from './k08/engun.js';   // ④の間：城からの加勢で一時押され、浅野の後備で押し返す   // 大坂城を囲む陣と「これはまだ入口」の締め
 
 const HACHI = { flag: 'hachisuka', armor: 0x1c1b1a };   // 蜂須賀（卍）
 const ASANO = { flag: 'asano', armor: 0x1f1e1c };       // 浅野長晟（搦手）
@@ -108,6 +109,7 @@ function perch(g, x, y, z, f) {
 import DEPTH_K08 from './k08/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k08_osaka_kizu = {
   depth: DEPTH_K08,
+  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを stage1〜5 を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。木津川口：十一月半ば（今の十二月）の夜の湿地。枯れ葦・ぬかるみ・暗い土
   // 抜け駆けの夜襲の始まりで、まだ誰も戦っていない。倒れた槍・陣笠・矢は撒かない（debris・arrows 0）
@@ -339,6 +341,7 @@ const k08_osaka_kizu = {
     F.s1 = [F.front]; F.fN = F.front.count;
 
     // 戦の前の話（蜂須賀の陣）。家康は住吉の陣（茶臼山へ移るのは十二月六日）、全登は城の評定にいて、この場にはいない
+    engun.install(rt, { TOYO, ASANO, ASANO_AT });   // 城からの加勢と浅野の後備（始めから控える。k08/engun.js）
     iriguchi.install(rt, { W });   // 遠くの大坂城と、城を囲む徳川方の陣（k08/iriguchi.js）
     rt.setPhase('brief');
     // 話の間も行き先を出す。出陣の下知が届いたら十五秒以内に先手が動く
@@ -469,6 +472,7 @@ const k08_osaka_kizu = {
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
     rt.after(7, () => { if (F.step === 4) rt.say('浅野長晟', '夜が白んできた。明け六つの約束の刻じゃ', 3.2); });
+    engun.start(rt, { NGATE, GATE });   // 城からの加勢・一時押される・浅野の後備（k08/engun.js）
   },
   // ⑤ 北の口に卍の幟を立てる（守兵は博労淵へ退く）
   stage5(rt) {
@@ -478,6 +482,7 @@ const k08_osaka_kizu = {
     rt.unmark('k08');
     // 北の口の二つの櫓の鉄砲と弓は、幟が立つまで撃ち続ける（退く守兵の殿。幟の所へ寄るのに撃たれる。勝てば皆逃げる）
     for (const g of [...F.s4, ...F.towers.slice(0, 2), F.zen]) flee(g);
+    engun.fleeAll(rt);
     rt.say('明石全延', 'もはや持たぬ。博労淵へ引け', 3);
     rt.obj('main', '砦の北の口に卍の幟を立てる', 'main');
     F.flagAt = { x: NGATE.x, z: NGATE.z + 3 };
@@ -605,7 +610,7 @@ const k08_osaka_kizu = {
     } else if (F.step === 4) {
       // 柵の外へ押し出された守兵は北の口の守りから外れた者（博労淵へ逃げる）。残りが追えずに④が止まらないように
       //   退き口を守る組は四十五秒は粘る（11/5 crit：④が二十秒で済んだ）
-      if (northLeft(F) <= Math.floor(F.nN * 0.2) && rt.t - F.tS > 45) this.stage5(rt);
+      if (northLeft(F) <= Math.floor(F.nN * 0.2) && rt.t - F.tS > 45 && engun.cleared(rt)) this.stage5(rt);
     } else if (F.step === 5) {
       // 幟は主人公が北の口に来て立てる。待つだけで最後の目標を果たさない。
       // 主人公は北の口に着いて幟の竿を土に突き立てる（櫓から撃たれながら五秒ほど留まる。着いた途端に勝ちにしない）

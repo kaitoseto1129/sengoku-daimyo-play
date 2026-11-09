@@ -240,7 +240,11 @@ const k01_fushimi = {
   kumiLead: false,         // 組頭の印も出さない（AV15）
   noHatamotoMass: true,    // 将の後ろの軽い作りの備を置かない（AF）
   noYaguraTask: true,
-  noReinforcements: true,  // 籠城で新手の味方は来ない（減った城方の所へ「新手が追いついた」と足軽八人が湧いていた）
+  noReinforcements: true,
+  // 命懸けの戦場（docs/lethal_howto.md）。籠城の怖さは本丸へ迫る寄せ手と、討ち減らされる城方
+  // lethal は入れない（11/8 bot：入れると三の丸の虎口の段で止まり、十八分で任務失敗になった。入れずに流すと九分半で達成）
+  lethal: false,
+  fearKind: { kind: '籠城', note: '曲輪を一つずつ失い、本丸へ追い詰められる', w: { honjin: 1.8, losses: 1.3 }, line: '本丸まで来るぞ！' },  // 籠城で新手の味方は来ない（減った城方の所へ「新手が追いついた」と足軽八人が湧いていた）
   // 始まりの札：軍の名に兵の数を添え、二三行の筋（「味方 徳川勢 対 敵 西軍」だけで千八百対四万が分からなかった。critic60・五4）
   introSides: { a: '徳川勢　千八百', b: '寄せ手　四万' },
   introText: '家康が会津へ発ち、鳥居元忠が伏見城を預かった。七月、石田三成らが兵を挙げ、宇喜多秀家らの寄せ手が城を囲む。城を出て長束の屋敷を焼き、三の丸・二の丸・本丸の口を順に守って時を稼ぐ。',      // 隅櫓の「中へ入り、守りを追い出せ」の脇の目標を出さない（櫓は城方の持ち場。番号の目標と二つ目の▼になっていた）
@@ -491,6 +495,8 @@ const k01_fushimi = {
       F.moriCamp = camp(rt, '毛利秀元の陣', CAMPS[4], 'mori', '毛利秀元', [{ type: 'samurai', n: 8 }, { type: 'gun', n: 4 }], -Math.PI * 0.5);
     }
     // 七月二十九日：石田三成が伏見に着き、総攻めを下知する（床几に座る。旗は大一大万大吉）
+    // 長束正家（generals_toyo_toku 1：必須）：屋敷を焼かれた長束の陣は大手の南西。松の丸の甲賀衆の内応を仕掛けた（『落穂集』）
+    if (k >= 2 && !F.natsukaCamp) F.natsukaCamp = camp(rt, '長束正家の陣', { x: -46, z: 186 }, 'maru', '長束正家', [{ type: 'samurai', n: 8 }, { type: 'gun', n: 4 }], Math.atan2(46, -186));
     if (k >= 3 && !F.ishidaCamp) F.ishidaCamp = camp(rt, '石田三成の陣', CAMPS[3], 'ishida', '石田三成', [{ type: 'samurai', n: 10 }, { type: 'gun', n: 4 }], Math.atan2(-CAMPS[3].x, -CAMPS[3].z), true);
   },
 
@@ -576,7 +582,7 @@ const k01_fushimi = {
     // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた（二の丸の西で二百秒）。残りは崩れて退く
     if (D && D.on && D.cur && D.cur.s.kind === 'hold' && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
     if (D && D.i >= 1) this.camps(rt, D.i >= 5 ? 3 : D.i >= 3 ? 2 : 1);
-    for (const g of [F.ukitaCamp, F.kobaCamp, F.shimaCamp, F.ishidaCamp, F.moriCamp]) if (g && g.count && g.order !== 'hold') { g.order = 'hold'; g.anchor = { ...g._home }; }
+    for (const g of [F.ukitaCamp, F.kobaCamp, F.shimaCamp, F.ishidaCamp, F.moriCamp, F.natsukaCamp]) if (g && g.count && g.order !== 'hold') { g.order = 'hold'; g.anchor = { ...g._home }; }
     // 守る段の味方は持ち場（虎口・二の丸の西・本丸の口）に踏み止まる。共通の頭は七十歩の内の敵へ持ち場から出て行かせ、
     //   宇喜多勢と大手の外で組み合って、主人公の立つ虎口へ寄せ手が一人も来なかった（九2）
     const holding = D && D.on && D.cur && D.cur.s.kind === 'hold';

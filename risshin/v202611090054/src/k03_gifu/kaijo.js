@@ -21,6 +21,11 @@ export function install(rt, ctx) {
   sonaeLayers(rt, { x: -158, z: 176, facing: Math.PI * 0.85, mon: 'asano', armor: BLACK, team: 0, seed: 32, layers: [{ back: 0, w: 30, d: 10, count: 110 }] });
   sonaeLayers(rt, { x: 22, z: 112, facing: Math.PI, mon: 'mizuno', armor: BLACK, team: 0, seed: 33, layers: [{ back: 0, w: 34, d: 10, count: 130 }, { back: 22, w: 18, d: 10, count: 60, kind: 'honjin' }] });
   sonaeLayers(rt, { x: -64, z: 150, facing: Math.PI, mon: 'ii', armor: 0x7a2c1e, team: 0, seed: 34, layers: [{ back: 0, w: 30, d: 10, count: 110 }] });
+  // 別の戦線（generals_toyo_toku 3：黒田・細川・山内は麓・別戦線）：北西の長良川の向こう、合渡川を渡って大垣の後詰を追った黒田・細川の備と、
+  //   南の麓の道を固める山内の備。城へは登らない
+  sonaeLayers(rt, { x: -262, z: -150, facing: Math.PI * 0.75, mon: 'kuroda', armor: BLACK, team: 0, seed: 35, layers: [{ back: 0, w: 34, d: 10, count: 120 }, { back: 20, w: 18, d: 10, count: 50, kind: 'honjin' }] });
+  sonaeLayers(rt, { x: -226, z: -196, facing: Math.PI * 0.75, mon: 'kuyo', armor: BLACK, team: 0, seed: 36, layers: [{ back: 0, w: 32, d: 10, count: 110 }] });
+  sonaeLayers(rt, { x: -40, z: 196, facing: Math.PI, mon: 'kashiwa', armor: BLACK, team: 0, seed: 37, layers: [{ back: 0, w: 28, d: 10, count: 100 }] });
   // 本丸の織田木瓜の旗（開城で下りる）
   for (const [dx, dz] of [[4, -5], [4, 5]]) {
     try { const m = nobori(W, 2 + dx, dz, 'oda', 6); rt.scene.add(m); T.flags.push({ m, y0: m.position.y }); } catch (e) { /* 立てられない時は置かない */ }

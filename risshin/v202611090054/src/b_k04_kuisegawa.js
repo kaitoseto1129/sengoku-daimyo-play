@@ -54,7 +54,7 @@ const SC = MEM_TIGHT ? 20 : 12;                 // 塊の一人が史実の何�
 const HIST = { saki: 1500, naka: 2500, arima: 2000, bait: 200, shima: 300, akashi: 800, hata: 600 };   // hata は岡山の家康の旗本（戦わない。数に入れない）
 const A0 = HIST.saki + HIST.naka + HIST.arima, B0 = HIST.bait + HIST.shima + HIST.akashi;
 const STEP_TEXT = ['陣の前の田で刈田をする島左近の兵に槍を入れ、追い立てる', '退く島左近の兵を追い、杭瀬川を東へ渡る',
-  '野一色頼母の旗の横に立ち、葦から出る明石全登の伏兵を食い止める', '杭瀬川を西へ渡って赤坂の側へ退く', '赤坂の側の岸の有馬豊氏の陣まで逃げ込む'];
+  '野一色頼母の旗の横に立ち、葦から出る明石全登の伏兵を食い止める', '手勢と味方を連れて杭瀬川を西へ渡り、赤坂の側へ退く', '赤坂の側の岸の有馬豊氏の陣まで逃げ込む'];
 // 11/8 critic60（九3・五3）：両軍みな同じ黒い具足で、乱戦で敵味方が見分けられなかった。西軍（石田・宇喜多）は朱を帯びた茶の漆に（遊びの見分け。東軍は黒のまま）
 const ARM = { tokugawa: 0x24221f, maru: 0x24221f, kuki: 0x22201e, ishida: 0x6b2e22, ukita: 0x5e3222 };
 const WEST = new Set(['ishida', 'ukita']);
@@ -107,6 +107,8 @@ const k04_kuisegawa = {
   missionOf(rt) { return STEP_TEXT[Math.max(0, (rt.flags.step || 1) - 1)]; },
   introText: () => '関ヶ原の前の日。陣の目の前で刈田をする島左近の兵を追い、杭瀬川を越える。葦の原の伏兵から生きて岸へ戻れ。',
   minutes: 9,
+  lethal: false,   // 命懸けの戦場は入れない（11/8 bot：入れると伏兵の段が十分あまり続き任務失敗）
+  fearKind: { kind: '伏兵', note: '追っていた敵が葦の中から返し、横と後ろを突かれる', w: { flank: 1.8, iso: 1.5, routed: 1.3 }, line: '囲まれるぞ、川まで退け！' },
   // 身の回りの合戦の跡（timeslip_field.js）。九月半ば（今の十月半ば）の刈田と川岸の葦
   timeslip: {
     wet: 0.35, dust: 0.3, trample: 0.3, debris: 0.8, arrows: 0.6, reeds: 0.45,

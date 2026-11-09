@@ -286,6 +286,8 @@ const k03_gifu = {
   spawn: { x: START.x + 4, z: START.z, heading: Math.PI / 2 },
   noWake: true,
   minutes: 18,
+  lethal: false,   // 命懸けの戦場は入れない（11/8 bot：入れると山道で手勢が減って進まず、十八分で任務失敗）
+  fearKind: { kind: '山城攻め', note: '狭い山道で上から撃たれ、石を落とされる', w: { losses: 1.3, flank: 1.3, iso: 1.2 }, line: '上から来るぞ、伏せよ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ
@@ -467,6 +469,8 @@ const k03_gifu = {
     if (F.step >= n || F.ending) return;
     if (F.step) rt.objDone('s' + F.step);
     F.step = n; F.stepT = rt.t;
+    // 曲輪を一つ破るごとに、次の口の下で息を整え傷を縛る（山道の段が続き、深手のまま味方の陰で動けなくなった。11/8 bot）
+    if (n >= 2) rt.player.treatWounds?.(0.45, 0.8);
     rt.obj('s' + n, STEP_TEXT[n], 'main');
     const go = (g, p, seek = 30) => { if (!live(g)) return; g.order = 'attack'; g.anchor = { x: p.x, z: p.z }; g.seekRange = seek; g._gfTo = { x: p.x, z: p.z, seek }; g._gfGo = false; g.onArrive = null; };   // 前の段の onArrive が後から着いて行き先を戻さないように
     if (n === 1) {
@@ -682,7 +686,9 @@ const k03_gifu = {
     if (F.holdPlayer || !F.step || F.ending) return;
     // 届かない敵（柵・石垣の向こう）を十二秒追っても寄れなければ、しばらく相手にしない（中腹の砦の残りの鉄砲に掛かって本丸へ行かなかった）
     const B = F._botIg || (F._botIg = { e: null, t: 0, skip: new Map() });
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t);
+    // 今の段の持ち場から 30 歩より遠い敵は追わない（中腹の砦の段で退く敵を追って本丸の下まで登り、段の守りに戻らなかった。11/8 bot）
+    const at = STEP_AT[F.step] || u.pos;
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && !((B.skip.get(o) || 0) > b.t) && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < 30;
     const e = b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);

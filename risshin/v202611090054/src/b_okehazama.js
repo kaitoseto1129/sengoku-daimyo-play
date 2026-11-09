@@ -3603,7 +3603,8 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     const F = rt.flags, p = rt.player.u.pos, q = F.returnPin;
     if (F.ending || !q) return;
     const arrived = Math.hypot(p.x - q.x, p.z - q.z) <= 7;
-    if (!arrived || rt.t - F.returnT < 8) return;
+    // 帰路の残兵は討取りの九秒後に寄せる。先に旗へ着いても、この場面を飛ばして締めない。
+    if (!arrived || rt.t - F.returnT < 8 || !F.o15?.kaeriDone) return;
     F.returnDone = arrived; F.ending = true; rt.tracker.main = true;
     rt.objDone('return'); rt.unmark('genpachi');
     if (arrived && !rt.G.lord) rt.say('組頭 源八', '皆、よう戦った。首を持って清洲へ帰るぞ！', 3);
@@ -3703,7 +3704,8 @@ okehazama.force = (rt) => rt?.army && rt.player?.u ? remainingForce(rt, 2000, 60
 okehazama.history = '義元のねらいは上洛ではなく、国境で信長を押さえ、大高・鳴海の城を助けることだったと見る説がある。昼までに丸根・鷲津を落とし、今川は優勢だった。『信長公記』は、信長勢が近づいた後に石や氷を投げつけるような雨が降り、空が晴れてから攻めたと記す。義元の背後へ迂回したという記述はない。信長本人が攻めに出ることが今川の計算になかったために崩れた、と見る説もある。義元の旗本は囲みを保って退き、何度も向き直って戦った。服部小平太が手傷を負い、毛利新介が義元を討ち取った。義元が自ら刀を抜き、服部の膝を斬ったと後世の本に伝わる。義元を討った織田勢は、来た道をたどって帰った。尾張を守った信長は、やがて美濃へ進む。織田の攻撃兵は二千に足らずという。本陣周辺の今川六千は後世の推定を参考にした目安で、全軍の数ではない。今川全軍は二万五千ともいい、公記の数とは異なる。両軍の備えの割り振り、細かな配置、小川、砦の形、短い待ち時間は推定復元。本陣は桶狭間山説に置いた。北東の田楽窪と東の高い丘は別の場所として残した。戦場の位置と接近路にも諸説がある。';
 
 // 自分の組へ続く。物陰越しの敵・遠い敵を追わず、帰陣では旗へ戻る。
-okehazama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
+okehazama.botBrain = (b, inp, ctx) => {
+  const { goTo, patientStrike, strikeTarget } = ctx;
   const F = b.flags, p = b.player, u = p.u;
   if (!u.alive) return;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
@@ -3712,6 +3714,8 @@ okehazama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.runHeld = false;
   // 手綱を取る間は止まる。組への追従で走り抜けると、手綱取りが取り消される。
   if (p.catching || p.mountT > 0) return;
+  // 後から定義するこの処理でも、林・麓・井伊・弓組の段を引き受ける。
+  if (O15.bot(b, inp, ctx)) return;
   if (b.phase === 'brief' && !F.briefed && !b.G.lord) {
     const q = F.genpachi.pos; goTo(p, inp, q.x, q.z, 2);
     if (Math.hypot(q.x - u.pos.x, q.z - u.pos.z) < 3) inp.e.add('KeyE');
