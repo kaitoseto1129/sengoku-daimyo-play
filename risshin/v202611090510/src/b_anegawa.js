@@ -2629,7 +2629,7 @@ function aneStageFoe(rt, k, u) {
 }
 function aneStageHit(rt, u) {
   const F = rt.flags, k = aneMissionOf(rt);
-  if (F.aneJin && !F.aneJin.done) return;   // 始まりの段（物見の小勢）の槍合わせは①に数えない
+  if (F.aneJin && !F.aneJin.done) { JIN.hit(rt, u); return; }   // 物見の槍合わせは本手の①に重ねて数えない
   if (!ANE_HITS[k] || !aneStageFoe(rt, k, u)) return;
   // 11/6 fixc0454：一振りで固まった五人に当たると、一つの段が一振りで済んだ。当て数は一振りに一つ（〇・三五秒に一度）。
   if (rt.t - (F.aneHitT ?? -9) < 0.35) return;
@@ -4849,7 +4849,7 @@ anegawa.botBrain = (b, inp, { goTo: goStraight, patientStrike }) => {
     return;
   }
   // 15分の構成の段（物見の高み・野村への追い討ち・遠藤直経）
-  if (JIN.bot(b, goTo, p, inp)) return;
+  if (JIN.bot(b, goTo, p, inp, patientStrike)) return;
   if (TSUI.bot(b, goTo, p, inp, patientStrike)) return;
   // 下知の前は川のこちら側だけ
   const ok = (o) => aneFoe(o) && !o.dropped && !o.invuln &&
