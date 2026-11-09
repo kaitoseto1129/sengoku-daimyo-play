@@ -67,7 +67,11 @@ const viaGap = (from, to) => { for (const fz of FENCE_Z) if (from.z > fz + 0.4 &
 const inCamp = (p) => Math.abs(p.x - HQ.x) < 7 && p.z < HQ.z + 5.5 && p.z > HQ.z - 6;   // 幕の際（角）は外と見る（11/8：角で幕越しに止まった）   // 陣幕の内（16×12 の幕）
 // 幕の横・裏からは外の角を回り、南の口の正面へ寄る。案内と自動操作で同じ道を使う。
 const campRoute = (p, to) => {
-  if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6) return to;
+  if (inCamp(p)) return to;
+  // 会話の境目と幕の際の間では、まず内側の中央へ入る。
+  if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6) return HQ;
+  // 後ろの幕に接したまま横へ進むと布の当たりに捕まる。先に北へ離れて角を回る。
+  if (p.z <= HQ.z - 6 && p.z > HQ.z - 9 && Math.abs(p.x - HQ.x) < 14) return { x: p.x, z: HQ.z - 11 };
   if (p.z >= HQ.z + 6 && Math.abs(p.x - MOUTH.x) <= 1.5) return to;
   if (p.z < HQ.z + 6.5) {
     // 角の外の道は判定の帯（14 m）より三 m 外。15 では 14 m の際で行き先が着いた扱いの半径に入り、bot が幕の横で止まった（11/9）
@@ -82,6 +86,7 @@ const hideRoute = (p, to) => {
   // 幕内の端から口へ斜めに進むと南の布を横切る。先に内側で口の中心へ寄せる。
   // 会話の判定より広い、実際の幕（幅十六 m）の内側で判定する。
   if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6 && Math.abs(p.x - HQ.x) > 1.2) return { x: MOUTH.x, z: p.z };
+  if (p.z <= HQ.z - 6 && p.z > HQ.z - 9 && Math.abs(p.x - HQ.x) < 14) return { x: p.x, z: HQ.z - 11 };
   if (p.z <= HQ.z - 6 && Math.abs(p.x - HQ.x) < 14) return { x: HQ.x + (p.x < HQ.x ? -16 : 16), z: p.z };
   // 幕の横にいる時は、その側の角を回る。口へ斜めに寄せると布を横切る。
   if (p.z < MOUTH.z + 2 && Math.abs(p.x - HQ.x) < 14) {

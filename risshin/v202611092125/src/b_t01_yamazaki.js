@@ -224,6 +224,8 @@ const t01_yamazaki = {
   foeMarks: true,
   nearbyAllySignLimit: 0,     // 共通の近距離の丸印も出さない（critic60 五2）。
   nameRange: 90,              // 名のある将の名は遠くからも出す（既定の十八では斎藤・津田・御牧の名が一度も見えなかった。kaito 五2・九3）
+  nameTagLimit: 12,           // 既存の十二枚を使い、並河・松田などの名を近い一、二人だけの枠で消さない。
+  nameTagsAtHead: true,       // 本人が隠れた時は名も隠し、頭から離れた宙へずらさない。
   closeCombatAssist: true,
   noWinCrane: true,
   playerTaken: 0.3,           // 羽柴が二倍以上の戦。主人公だけが十秒で倒れない（kaito 十二3）
