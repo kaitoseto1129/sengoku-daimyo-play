@@ -5187,7 +5187,14 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
-  if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }   // 15分の構成の段
+  if (F.dp && F.dp.on) {   // 15分の構成の段
+    // 二巡 11/9 豊臣B：三の郭の火入れ（「火を移す」の長押し）は段の頭が押さず、松明の前で十五分止まった。遊ぶ人と同じく松明へ寄って長押しする
+    if (F.sanFell && (F.lit || 0) < TORCH.length && !u.mounted) {
+      const q = nearIt(b, 't');
+      if (q) { if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else { inp.k.add('KeyE'); inp.k.delete('KeyW'); } return; }
+    }
+    depthBot(b, inp, goTo); return;
+  }
   // 傷は自然には戻らない。退避と手当ては共通の試し役の判断に任せ、任務へ戻る。
   b.botRest = false;
   if (F.step < 2) {
