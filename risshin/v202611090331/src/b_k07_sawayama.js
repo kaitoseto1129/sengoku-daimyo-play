@@ -566,7 +566,9 @@ const k07_sawayama = {
     if (F.tanakaIn || !F.tanaka) return;
     const since = rt.t - (F.tanakaT ?? rt.t);
     if (since < 6) return;   // 出たばかりの兵の位置はまだ定まらない。使いの話の後に告げる
-    const near = F.tanaka.units.some((u) => u.alive && u.pos.x >= -24 && u.pos.x <= 4 && u.pos.z >= -18 && u.pos.z <= 16);
+    // 石垣の下を通る兵を、本丸へ入った兵として数えない。
+    const level = PLAN.kuruwa.find((k) => k.id === 'hon').level;
+    const near = F.tanaka.units.some((u) => u.alive && u.pos.x >= -24 && u.pos.x <= 4 && u.pos.z >= -18 && u.pos.z <= 16 && Math.abs(u.pos.y - level) < 3);
     if (!near) return;
     F.tanakaIn = true;
     F.tanakaInT = rt.t;

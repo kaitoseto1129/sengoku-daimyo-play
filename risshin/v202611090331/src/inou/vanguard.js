@@ -51,7 +51,7 @@ export function start(rt, def, C) {
   rt.after(40, () => {
     if (v.vanDone) return;
     sfx('taiko', 0.6); rt.army.play('toki', { x: C.FRONT_X, z: C.L1_MEET - 30 }, 0.9);
-    for (const g of F.l1 || []) if (live(g)) { const c = g.center(), to = { x: c.x, z: Math.min(c.z + 6, C.L1_MEET - 22) }; g.order = 'move'; g.speed = 1.2; g.dest = to; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...to }; }; }
+    for (const g of F.l1 || []) if (live(g)) { const c = g.center(), to = { x: c.x, z: Math.min(c.z + 6, C.L1_MEET - 22) }; g.order = 'move'; g.speed = 3.4; g.dest = to; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...to }; }; }
   });
 }
 

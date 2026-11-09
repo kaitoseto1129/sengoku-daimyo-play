@@ -41,7 +41,7 @@ export function start(rt, def, C) {
     if (v.ph !== 'march') return;
     sfx('taiko', 0.9); rt.after(0.5, () => sfx('taiko', 0.8)); rt.after(1, () => sfx('taiko', 0.8));
     v.lineZ = z;
-    for (const g of F.line) if (live(g)) { g.order = 'move'; g.speed = 1.3; g.dest = { x: g.slotX, z }; g.onArrive = (q) => { q.order = 'hold'; }; }
+    for (const g of F.line) if (live(g)) { g.order = 'move'; g.speed = 3.4; g.dest = { x: g.slotX, z }; g.onArrive = (q) => { q.order = 'hold'; }; }
     if (live(F.nobuG) && !v.ride) F.nobuGo = { x: C.FRONT_X + 10, z: z + 12 };
   });
   v.lineZ = C.ALLY_Z0;
@@ -101,13 +101,8 @@ export function start(rt, def, C) {
   say(90, '組頭', '雁金の旗……柴田勢じゃ。数は向こうが多い。', 3);
   say(95, '柴田勝家', '上総介殿の勢は少ないぞ。押し包め！', 3);
   step(98, C.ALLY_Z0 - 20);
-  // 柴田の物見三人（本体の練習）
-  rt.after(116, () => {
-    if (v.ph !== 'march') return;
-    v.ph = null; v.marchDone = true;
-    rt.say('組頭', '柴田の物見が三人、川岸へ寄って来たぞ。討て！', 2.8);
-    def.spawnPractice(rt);
-  });
+  // 物見の接近時刻だけでは行軍を果たさない。組頭に追い付いてから接敵する。
+  rt.after(116, () => { if (v.ph === 'march') v.marchReady = true; });
 }
 
 // 行き先：組頭の後ろ（組と一緒に歩く）
@@ -121,6 +116,14 @@ export function pin(rt) {
 
 export function tick(rt) {
   const F = rt.flags, v = F.v15;
+  if (v.ph === 'march' && v.marchReady && F.kumiU?.alive) {
+    const P = rt.player.u.pos, K = F.kumiU.pos;
+    if (Math.hypot(K.x - P.x, K.z - P.z) <= 10) {
+      v.ph = null; v.marchDone = true;
+      rt.say('組頭', '柴田の物見が三人、川岸へ寄って来たぞ。討て！', 2.8);
+      v.def.spawnPractice(rt);
+    }
+  }
   // 使番は着いたら信長の脇に、一分で列の後ろへ去る
   if (v.tsukai && rt.t - v.marchT > 100 && !v.tsukaiGone) { v.tsukaiGone = true; for (const u of v.tsukai.units) if (u.alive) { v.tsukai.order = 'move'; v.tsukai.dest = { x: 60, z: 150 }; v.tsukai.onArrive = (q) => { for (const o of q.units) if (o.alive) rt.army.despawn(o); }; } }
 }

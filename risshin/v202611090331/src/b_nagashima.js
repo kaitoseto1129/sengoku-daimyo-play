@@ -2472,6 +2472,8 @@ const nagashima = {
     raggedNeedles: true,
     unevenCrowns: true, // 松と雑木の丸い房も崩す。既存の頂点を動かし、木や描画の数は増やさない。
     softFarNeedles: true, // 遠い杉も既存の枝先の形を使う。木の本数は増やさない。
+    // 遠景だけ灰白色に浮かないよう、既存の葉色へ緑の濃淡を掛ける。
+    farTreeTint: new THREE.Color(0.8, 0.95, 0.7),
     tufts: 6000,
     treeDensity: (x, z) => (z > -110 && z < 60 ? 0.08 : 0.5),
     groves: [{ x: -90, z: 30, r: 12, n: 14 }, { x: 96, z: 40, r: 12, n: 12 }],
