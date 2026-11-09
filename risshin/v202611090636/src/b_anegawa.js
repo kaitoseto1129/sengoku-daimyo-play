@@ -4319,6 +4319,8 @@ const anegawa = {
 
   update(rt, dt) {
     const F = rt.flags;
+    // 討死後は追加された物見・追撃も含め、固有の進行を止める。
+    if (rt.over || !rt.player?.u?.alive) return;
     F.aneJin?.tick?.(); F.aneTsui?.tick?.();
     anegawaRiverTick(rt, dt);
     if (!rt.over && !F.ending && rt.player?.u) aneAdvance(rt);

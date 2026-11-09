@@ -18,7 +18,7 @@ export function install(rt, ctx) {
   const F = rt.flags, S = F.aneJin = { k: 0, t0: rt.t, done: false };
   const MI = { x: 30, z: ctx.south(30) + 9 };
   S.at = MI;
-  const live = () => !S.done && !F.ending && !rt.over && F.step === 0;
+  const live = () => !S.done && !F.ending && !rt.over && rt.player?.u?.alive && F.step === 0;
   rt.say('森可成', '浅井の陣立てを見て来い。岸の高みから川向こうがよう見える', 4);
   rt.after(4.5, () => live() && rt.say('組頭', '旗の数を数えよ。どの手が先に渡るか、見極めるのじゃ', 3.5));
   // 西の一番合戦：徳川と朝倉の銃声と使番（物見に行く間の出来事）
@@ -64,7 +64,7 @@ export function install(rt, ctx) {
 
   // 毎コマ（b_anegawa.js の update から）
   S.tick = () => {
-    if (S.done || rt.over || F.ending) return;
+    if (S.done || rt.over || F.ending || !rt.player?.u?.alive) return;
     if (F.step !== 0) { S.done = true; return; }
     const p = rt.player.u.pos, el = rt.t - S.t0;
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 7) seen();

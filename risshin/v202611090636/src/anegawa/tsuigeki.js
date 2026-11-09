@@ -16,6 +16,7 @@ export function start(rt, ctx) {
   const F = rt.flags;
   if (F.aneTsui) return;
   const S = F.aneTsui = { k: 0, t0: rt.t, done: false };
+  const live = () => !F.ending && !rt.over && rt.player?.u?.alive;
   rt.marker('aneNomura', DEST, '野村');
   for (const g of [F.mori, F.shibata, F.inaba, F.kino, F.vanguard]) if (g && g.count && !g.routed) {
     g.order = 'move'; g.dest = { x: DEST.x + (Math.random() - 0.5) * 20, z: DEST.z + 8 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
@@ -28,10 +29,10 @@ export function start(rt, ctx) {
   } catch (e) { /* 遠景が無くても進む */ }
   try { sfx('horagai', 0.8); } catch (e) { /* 音が無くても進む */ }
   rt.say('森可成', '浅井は総崩れじゃ！　野村の長政の本陣まで追い討て！', 4);
-  rt.after(9, () => !S.done && rt.say('足軽', '長政の馬印が退いていくぞ！　小谷の方じゃ！', 3));
+  rt.after(9, () => live() && !S.done && rt.say('足軽', '長政の馬印が退いていくぞ！　小谷の方じゃ！', 3));
 
   function endo() {
-    if (S.k !== 0.5 || S.done || rt.over) return;
+    if (S.k !== 0.5 || S.done || !live()) return;
     // 空の隊で「遠藤を止めた」と果たさない。七人の枠が空いてから出す。
     if (!ctx.canDeploy(7)) { rt.after(1, endo); return; }
     S.k = 1; S.endoT = rt.t;
@@ -45,12 +46,12 @@ export function start(rt, ctx) {
     g.order = 'move'; g.dest = { x: ctx.HQ.x, z: ctx.HQ.z - 16 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
     rt.marker('aneEndo', () => (S.u?.alive ? { x: S.u.pos.x, z: S.u.pos.z } : null), '遠藤直経', { red: true, group: g });
     rt.say('竹中久作', 'あれは遠藤喜右衛門！　首を提げて味方に紛れ、殿の本陣を狙う気じゃ！', 4);
-    rt.after(4.5, () => !S.done && rt.say('森可成', '討て！　本陣へ行かすな！', 2.6));
+    rt.after(4.5, () => live() && !S.done && rt.say('森可成', '討て！　本陣へ行かすな！', 2.6));
     try { sfx('taiko', 1); } catch (e) { /* 音が無くても進む */ }
   }
 
   S.tick = () => {
-    if (S.done || rt.over) return;
+    if (S.done || !live()) return;
     const p = rt.player.u.pos;
     if (S.k === 0 && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) {
       rt.award((t) => t.side.push('野村の浅井本陣まで追い討った'), '野村まで追い討った', DEST);
@@ -75,8 +76,8 @@ export function start(rt, ctx) {
     if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
     if (byAnyone) rt.award((t) => { t.side.push('遠藤直経を止めた'); t.special = { label: '遠藤直経を止めた', pts: 15 }; }, '遠藤直経を止めた');
     rt.say('竹中久作', byAnyone ? '遠藤喜右衛門、ここに果てたり！' : '遠藤喜右衛門、この竹中久作が討ち取った！', 3.6);
-    rt.after(4, () => rt.say('森可成', '浅井は小谷へ退いた。追い討ちはここまでじゃ', 3.4));
-    rt.after(8, () => ctx.ending());
+    rt.after(4, () => live() && rt.say('森可成', '浅井は小谷へ退いた。追い討ちはここまでじゃ', 3.4));
+    rt.after(8, () => live() && ctx.ending());
   }
 }
 

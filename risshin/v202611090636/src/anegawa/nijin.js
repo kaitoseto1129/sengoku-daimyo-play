@@ -23,7 +23,7 @@ export function install(rt, ctx) {
   const F = rt.flags, t0 = rt.t;
   if (rt.G.lord) return;
   F.aneExtra = EXTRA; F.aneTkAt = t0 + TK_AT; F.aneYokoAt = t0 + YOKO_AT;
-  const live = () => F.step === 1 && !F.ending && !rt.over;
+  const live = () => F.step === 1 && !F.ending && !rt.over && rt.player?.u?.alive;
   WAVES.forEach(([at, name, list], i) => rt.after(at, () => {
     if (!live() || F.inabaT) return;
     const g = ctx.enemyGroup(rt, { faction: 'azai', name, anchor: { x: 14, z: -40 }, facing: 0, fleeDir: ctx.AZAI_FLEE, aggro: 12, width: 14, morale: 90, speed: 3.4 },
