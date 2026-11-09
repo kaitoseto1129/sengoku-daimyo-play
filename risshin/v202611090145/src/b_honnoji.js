@@ -4704,7 +4704,13 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.setPhase('shisha');
     rt.unmark('out'); rt.unmark('north'); rt.unmark('chase'); rt.unzone('out');
     rt.award((t) => t.side.push('明智の囲みを抜け、京の外れまで落ちのびた'), '京の囲みを抜けた');
-    for (const g of [...(F.kyoFoes || []), ...(F.foes || [])]) if (g && !gone(g)) { g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4; g.anchor = { x: KYO_ST, z: OUT.z + 14 }; }
+    // 追手は今いる辻で足を止める。寺と御所の残兵まで木戸の一点へ集めない。
+    for (const g of new Set([...(F.kyoFoes || []), ...(F.foes || [])])) if (g && !gone(g)) {
+      const c = g.center();
+      g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4;
+      g.anchor = { x: c.x, z: c.z };
+      for (const u of g.units) { u.target = null; u.moveTo = null; }
+    }
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
       [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x544a3e, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];
@@ -4794,7 +4800,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     honnoClothes(rt, dt);
     // 表庭の段は、視点の向く先の十歩で斬り合わせる。押し合いは表庭の内に置く（本堂の中へ引き込まない）。
     if (!rt.G.lord) heroFrontClash(rt, dt, { foeD: 12, allyD: 7, foeN: 30, allyN: 24, active: (r) => (r.flags.hp || 0) <= 2,
-      clamp: (x, z) => ({ x: Math.max(-46, Math.min(-29, x)), z }) });
+      clamp: (x, z, foe) => ({ x: Math.max(-46, Math.min(foe ? -29 : -34, x)), z }) });
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     const F = rt.flags;
     if (!rt.player.u.alive) return;
@@ -4988,9 +4994,9 @@ function heroFrontClash(rt, dt, o = {}) {
   if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
   const pick = (foe, want, d) => {
     let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
-    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    if (o.clamp) ({ x, z } = o.clamp(x, z, foe));
     // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
-    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z, foe)); }
     const list = [];
     for (const g of rt.army.groups) {
       if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
@@ -5007,7 +5013,10 @@ function heroFrontClash(rt, dt, o = {}) {
       const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
       g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
       if (g.focus && g.focus !== P) g.focus = null;
-      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      let ax = x + fz * side, az = z - fx * side;
+      // 隊を横へずらした後にも表庭の範囲を守る。中心だけの制限では門外へ出ていた。
+      if (o.clamp) ({ x: ax, z: az } = o.clamp(ax, az, foe));
+      g.anchor.x = ax; g.anchor.z = az;
       g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
     });
   };
