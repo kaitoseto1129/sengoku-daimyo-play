@@ -588,7 +588,10 @@ const k05_ueda = {
     } else if (F.step === 6) {
       if (!F.oi && (dist(P.pos, FORD_W) < 24 || rt.t - F.stepT > 45)) this.spawnOi(rt);
       const oc = live(F.oi) && F.oi.center();
-      if (oc && !F.oiHot && dist(oc, FORD_W) < 16) { F.oiHot = true; F.oiHotT = rt.t; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; F.oi.noRout = false; }
+      // 追手が町屋の道で詰まって岸へ来ない時（11/9 見回り 徳川D：本人が岸で八百秒待った）は、七十秒で岸の本人へ向かわせる
+      if (F.oi) F.oiT ??= rt.t;
+      if (oc && !F.oiHot && F.oiT && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) { F.oi.order = 'attack'; F.oi.seekRange = 120; F.oi.aggro = 30; F.oi.anchor = { ...FORD_W }; }
+      if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || (F.oiT && rt.t - F.oiT > 130 && dist(P.pos, FORD_W) < 30))) { F.oiHot = true; F.oiHotT = rt.t; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; F.oi.noRout = false; }
       // 接敵してから半ばを討つか、主人公が岸で百十秒支えて果たす。
       if (F.oiHot && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
       // 追手が岸へ着く前に町屋の道で討ち減らされた時も、岸を守り切ったとみなす（11/9 関所：追手が岸に着かず段5が終わらなかった）
@@ -626,6 +629,8 @@ const k05_ueda = {
     // 誘われて門内へ入った本人も射程内なら狙う。門から十二歩より奥が安全地帯にならないようにする。
     if (P.alive && !P.invuln && P.pos.x > C.x - 30 && P.pos.x < GATE.x + 46 && Math.abs(P.pos.z - GATE.z) < 34 && !foes.includes(P)) foes.push(P);
     if (!foes.length) return;
+    // 本人を狙う一人は、門の正面の組（無ければ次の組）の一人だけ（11/9 見回り 徳川D：四つの組が一人ずつ狙い、⑤の門の前で三十秒で倒れた）
+    const aimG = [F.wallG, F.wallG2, F.wallN, F.wallS].find((g) => g && g.units.some((v) => v.alive && !v.gone && v.type === 'gun'));
     for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) {
       if (!g) continue;
       for (const u of g.units) {
@@ -635,7 +640,7 @@ const k05_ueda = {
         if (A.time - last < every + ((u.id || 0) % 7) * 0.4) continue;
         // 的は門の前に寄せた兵から散らして選ぶ（一人に弾が集まらない。主人公だけを狙い撃ちにしない）
         // 各隊の一人は、射程内の主人公も狙う。騎乗中も同じ的として扱う。
-        let t = u === g.units.find((v) => v.alive && !v.gone && v.type === 'gun') && foes.includes(P) && dist(u.pos, P.pos) < 50 ? P : null;
+        let t = g === aimG && u === g.units.find((v) => v.alive && !v.gone && v.type === 'gun') && foes.includes(P) && dist(u.pos, P.pos) < 50 ? P : null;
         for (let k = 0; k < 4 && !t; k++) { const o = foes[Math.floor(Math.random() * foes.length)]; if (Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 50) t = o; }
         if (!t) continue;
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
@@ -708,7 +713,7 @@ const k05_ueda = {
       if (x > 76 && x < 92 && z > -55 && z < -44) t = x < 87.5 ? { x: 90, z: -53 } : { x: 90, z: -59.5 };
       else if (x > 76 && z > -63.6 && z <= -55) t = { x: 71, z: -59.5 };
       else if (x > 78 && z <= -64.4) t = { x: 74, z: -66.5 };
-      else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 5) t = LANE_A;   // 家並みの外（脇）へ出た時も入口へ戻る（11/9 流し：小路の東の家の裏で九分止まった）   // 入口の三歩手前で何かに当たって九分止まった（11/9 流し）。五歩に入れば小路の中へ
+      else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 2) t = LANE_A;   // 11/9 見回り 徳川D：入口の五歩横（64,-63）で、五歩ちょうどの所で目当てが行き先と入口を行き来して十五分止まった   // 家並みの外（脇）へ出た時も入口へ戻る（11/9 流し：小路の東の家の裏で九分止まった）   // 入口の三歩手前で何かに当たって九分止まった（11/9 流し）。五歩に入れば小路の中へ
     }
     // 何かに当たって四秒動けない時は、行き先と直角に三秒よける（稲架・町屋の角・味方の列。11/9 流しで段2に九分止まった）
     const B = F._bs || (F._bs = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, sgn: 1 });

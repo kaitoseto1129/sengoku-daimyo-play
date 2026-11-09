@@ -31,7 +31,14 @@ export function waveTick(rt) {
 
 export function tick(rt) {
   const F = rt.flags, v = F.s15, C = v.C;
-  if (rt.over || F.won || F.ending || F.wave < 3 || !F.finishAt) return;
+  if (rt.over || F.won || F.ending || F.wave < 3) return;
+  // 寄せ大将を体力で長引かせない（kaito：敵の体力で伸ばさない）。三の手の刻限を待たず、柵へ寄せた時から
+  //   （11/9 見回り：刻限の前に柵の内へ入り、体力 456 のまま 1260 秒の打ち切りまで討てなかった）
+  const B0 = F.yoseBoss;
+  if (B0?.alive && !B0.gone && !v.bossCap && Math.max(Math.abs(B0.pos.x), Math.abs(B0.pos.z)) < C.FORT + 30) {
+    v.bossCap = true; B0.maxHp = Math.min(B0.maxHp || 220, 220); B0.hp = Math.min(B0.hp, B0.maxHp);
+  }
+  if (!F.finishAt) return;
   const late = rt.t - F.finishAt;
   if (late < 25 || rt.t < (v.asaNext || 0)) return;
   v.asaNext = rt.t + 8;
