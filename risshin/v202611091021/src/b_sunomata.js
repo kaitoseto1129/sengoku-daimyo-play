@@ -4999,6 +4999,7 @@ const sunomata = {
       if (!rt.world.walkable(F.insideThreat.x, F.insideThreat.z) || rt.army.wallBetween(handPos, -1, F.insideThreat)) {
         F.insideThreat.x = handPos.x; F.insideThreat.z = handPos.z;
       }
+      F.rescueT = rt.t;
       sunoObj(rt, 'rescue', '人足へ迫る敵を止め、普請を守れ', 'main');
       sunoProgress(rt, 'rescue', `普請の人足${F.wk.count}人。印の所で味方と槍を並べよ`);
       // 普請中の退避は作業先と人足の実際の間合いで決める。
@@ -5008,7 +5009,8 @@ const sunomata = {
         F.wk.order = 'move'; F.wk.dest = work; F.wk.speed = 2.2;
         F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = g.dest; };
       }
-    } else if (F.sunoTasks?.has('rescue')) sunoRemove(rt, 'rescue');
+    // 11/9 二巡（豊臣A）：敵が人足から一歩離れるたびに札が消え、右上が「人足へ…」と「柵の内から…」を数秒ごとに入れ替えた（act の流しで八回）。八秒は残す
+    } else if (F.sunoTasks?.has('rescue') && rt.t - (F.rescueT || 0) > 8) sunoRemove(rt, 'rescue');
     for (const g of [F.tk, F.ally, F.ally2]) {
       if (!g || !g.count || g.routed || g.order !== 'hold') continue;
       if (inN >= 1 && threat) {
