@@ -21,6 +21,7 @@ export function stages(H) {
           foes: () => [{ name: '北の塀沿いの荒木勢', from: { x: TOWN_X - 12, z: -74 }, list: [uS(1), uA(5)], morale: 75 }] },
       ],
       max: 200, reward: '惣構えの通りを押さえた',
-      lenient: true, onEnd: () => {} }),
+      // 11/9 二巡（豊臣A）：塀の陰の鉄砲衆を討ち尽くすまで続き、act の流しで七分半この段に止まった（15分の構成で三分の所）。四分で次へ
+      lenient: true, limit: 240, onEnd: () => {} }),
   ];
 }
