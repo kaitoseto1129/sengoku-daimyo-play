@@ -831,6 +831,9 @@ k07_sawayama.force = (rt) => {
   return { a: Math.round(15000 - (F.ak || 0) * 20), a0: 15000, b, b0: 2800 };
 };
 k07_sawayama.sides = { a: { name: '東軍', mon: 'kobayakawa' }, b: { name: '石田方', mon: 'ishida' } };
+// 落城の場面だけでなく、最後の結果の札にも佐和山の結末を残す。
+k07_sawayama.winWord = '佐和山城、落城';
+k07_sawayama.victoryCaption = '正継・正澄・朝成、天守に果つ';
 // 始まりの札で折れないように短く（「秋・払／暁」と折れていた・五4）
 k07_sawayama.date = (rt) => (rt.flags.day18 ? '慶長五年（1600）九月十八日　朝' : rt.flags.night ? '慶長五年（1600）九月十七日　夜' : rt.flags.dusk ? '慶長五年（1600）九月十七日　日暮れ' : '慶長五年（1600）九月十七日　払暁');
 // 始まりの札：題は一行に収まる名、二三行の本文（五4）

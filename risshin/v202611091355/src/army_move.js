@@ -910,6 +910,9 @@ export const ArmyMove = {
       for (let i = 0; (full ? i < SO.length : i < ids.length || Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2); i++) {
         if (!full && (Math.abs(u.pos.x - x0) > 2 || Math.abs(u.pos.z - z0) > 2)) { i = i ? ids[i - 1] + 1 : 0; full = true; if (i >= SO.length) break; }
         const w = SO[full ? i : ids[i]];
+        // 11/9 重さ：城の中は一升に何百の置き物がある（伏見で一人あたり平均 52・最大 383）。体の幅の最大 1.25m で先に四角を外す
+        //   （下の四角の比べは rr ≤ 1.25 なので、ここで外れる物は下でも必ず外れる。答えは同じ）
+        if (u.pos.x < w.x0 - 1.25 || u.pos.x > w.x1 + 1.25 || u.pos.z < w.z0 - 1.25 || u.pos.z > w.z1 + 1.25) continue;
         // 室内では体の幅で通す。幅九十センチの戸口にも壁の厚みを残して通れる。
         let rr = u.mounted ? 0.7 : w.naka != null ? 0.3 : 0.45;
         if (u.mounted && w.k !== 'r' && w.k !== 'c') {
