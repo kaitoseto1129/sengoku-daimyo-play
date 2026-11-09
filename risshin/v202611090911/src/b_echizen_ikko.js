@@ -290,6 +290,15 @@ function templeNightLights(night) {
   for (const m of farGlowMats) m.visible = night;
   if (lanternPaper) lanternPaper.color.setHex(night ? 0xffd99a : 0x8a8270);
 }
+// 露天の松明と篝火は雨で弱まる。堂の焼き討ちの火とは分ける。
+function templeRainTorches(world) {
+  const wet = Math.max(0, Math.min(1, world.rainLevel || 0));
+  for (const fire of world.fires) {
+    if (!fire.torch) continue;
+    fire.templeDrySize ??= fire.size;
+    fire.size = fire.templeDrySize * (1 - wet * .75);
+  }
+}
 // この寺だけの石段。踏面と暗い蹴上げを分け、斜面の下まで石を埋めて隙間を塞ぐ。
 let templeStoneGeo, templeStoneMats, templePoleGeo;
 function templeSteps(W, ax, az, bx, bz, width = 3.2) {
@@ -3942,6 +3951,10 @@ const echizen_ikko = {
     if (step === 4) {
       // 奥の院を先に取っても、山道の守りが着いただけでは終戦にしない。
       // 三組とも退け、本堂の焼き討ちを見る間を残す。奥山道を守る経路と同じく四分未満では終えない。
+      // 制圧後に敵が戻った場合も、堂の守りを取り戻すまで終えない。
+      if (TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].owner !== ZONE_STATE.FRIEND) ||
+          rt.army.units.some((u) => u.team !== rt.player.u.team && siegeFighter(u) &&
+            TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].test(u.pos.x, u.pos.z)))) return;
       if (rt.t < 240 || rt.t - F.stepT < 15 || F.huntWavesPending > 0 || F.roadWaves.some((b) =>
         !b.real?.routed && (b._route && b.aliveNominal() > 0 || b.aliveNominal() > b.nominal * 0.3))) return;
       this.win(rt, true); return;
@@ -4128,6 +4141,8 @@ const echizen_ikko = {
       skip: (g, foe) => foe ? !!g.stay : g.taishoGuard || g.butai === rt.flags.reserve || g === rt.flags.reserve?.real });
     // 11/4 check60（一-6）：山寺の四方に作り物の乱戦（addClash）を置かない。戦うのは登録した備えだけ。
     const F = rt.flags, W = rt.world;
+    // 共通の炎の更新は size を読み、近くの炎も遠くの炎も同じ雨量で縮める。
+    templeRainTorches(W);
     F.treePlayer.value.copy(rt.player.u.pos);
     if (F.fireDots) F.fireDots.visible = rt.player.u.pos.z < GATE_SOMON.z - 40;
     if (F.templeFar && rt.camera) F.templeFar(rt.camera);
@@ -4377,29 +4392,8 @@ const echizen_ikko = {
           if (!available && !F.attackers.some((b) => b.aliveNominal() > 0)) { this.lose(rt, '山道を守る味方が尽きた'); return; }
         }
 
-        // 門の傷みは、門前へ届いた本人か先手の掛矢だけで進める。
-        // 打ち手が倒れた時の交代は tickGateWorkers に任せ、時間だけでは門を壊さない。
-        // 門を破られた堂の守りは長く踏みとどまらない。破れて三十秒で残りを奥へ退かせ、堂を取れるようにする（人数と斬り合いは減らさない）。
-        { const id = TEMPLE_HALL_IDS[F.step - 1], zone = F.SZ?.byId?.[id], gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
-          if (zone && gate && !gate.struct.alive) {
-            const key = 'hallBreach_' + id, at = F[key] ??= rt.t;
-            if (rt.t - at > 30) {   // 一秒ごと。後から入った守りも崩す
-              const me = rt.player.u.team;
-              for (const q of rt.army.units) {
-                if (!q.alive || q.fleeing || q.civ || q.team === me || q.isStruct || q.noTarget || !zone.test(q.pos.x, q.pos.z)) continue;
-                const g = q.group;
-                if (g && !g.routed) { g.routed = true; g.order = 'flee'; g.morale = 0; if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; } }
-                q.fleeing = true; q.target = null; q.aiT = 0;
-              }
-              // 守りが退いた堂に本人が着けば、味方の列が遅れても堂を取った扱いにする（一秒ごと・六秒）。
-              const near = zone.test(P.x, P.z) || Math.hypot(P.x - zone.pos.x, P.z - zone.pos.z) < 14;
-              F.hallClearT = zone.enemies === 0 && near ? (F.hallClearT || 0) + 1 : 0;
-              if (F.hallClearT >= 6 && zone.owner !== ZONE_STATE.FRIEND) {
-                F.hallClearT = 0; zone.owner = ZONE_STATE.FRIEND; zone.state = ZONE_STATE.FRIEND; zone.holdT = 0;
-                this.onZoneFall(rt, id);
-              }
-            }
-          } }
+        // 門は届いた掛矢、堂は味方の人数と保持で取る。
+        // 経過時間だけで守りを逃がしたり、本人だけで制圧済みにしたりしない。
       }
       // 道へ入った兵をその回に数える。堂が奪い返された間も守り直す。
       if (F.step === 5) {
