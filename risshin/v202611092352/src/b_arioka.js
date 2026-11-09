@@ -3446,7 +3446,7 @@ function ariC() {
 // 両軍の総勢は上の force（二万五千 対 五千から、段と討った数で減る）。11/6 fix61：ここで一定の数に上書きして棒が減らなかったのを外した。
 // 陣立ての厚み（arioka/depth.js・army_depth.js）・命懸けの戦場（lethal.js）・この戦の怖さ（狭い町筋で、塀と町屋の陰から撃たれる）
 arioka.depth = DEPTH_ARIOKA;
-arioka.lethal = true;
+// 討死の開始・間隔・上限は定義内の設定を保つ。真偽値で上書きすると共通の強い既定値へ戻る。
 arioka.fearKind = { kind: '町筋', note: '狭い町筋で、塀と町屋の陰から撃たれる', w: { iso: 1.4 }, line: '町屋の陰から撃たれるぞ！' };
 arioka.sides = { a: { name: '織田勢', mon: 'oda' }, b: { name: '荒木勢', mon: 'maru' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）

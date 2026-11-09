@@ -8,7 +8,7 @@ export const MOUTH_N = { x: 20, z: -18 };   // 北の岸の浅瀬の口
 
 export function start(rt, K) {
   const F = rt.flags;
-  F.s4 = { t0: rt.t, go: false };
+  F.s4 = { t0: rt.t, tickT: rt.t, go: false };
   rt.after(2, () => { if (F.step === 4) rt.say('手勢の侍', '浅瀬の口で殿じゃ！　皆が渡り切るまで、ここを通すな！', 3); });
   rt.after(18, () => { if (F.step === 4 && !F.s4.go) rt.say('長宗我部の足軽', '押すな！　浅瀬は狭い、一列で渡れ！', 2.8); });
   rt.after(32, () => { if (F.step === 4 && !F.s4.go) rt.say('手勢の侍', 'もう少しじゃ！　島津の槍を止めよ！', 2.6); });
@@ -28,8 +28,11 @@ export function pin(rt, K) { return crossNow(rt) ? { x: K.FORD.x, z: 34 } : MOUT
 export function update(rt) {
   const S = rt.flags.s4, P = rt.player.u.pos;
   if (!S || S.go) return;
+  // 固定の加算では見回りが遅い時に殿の務めまで長くなる。
+  const dt = Math.max(0, rt.t - (S.tickT ?? rt.t));
+  S.tickT = rt.t;
   const el = rt.t - S.t0, atMouth = Math.hypot(P.x - MOUTH_N.x, P.z - MOUTH_N.z) < 16;
-  if (atMouth) S.held = (S.held || 0) + 0.25;
+  if (atMouth) S.held = (S.held || 0) + dt;
   // 浅瀬の口で殿を務めてから渡る。先に逃げても時間だけでは果たさない。
   const F = rt.flags;
   // 戦列を離れた負傷兵は隊の到着判定と同じく除き、動けない者で進行を止めない。

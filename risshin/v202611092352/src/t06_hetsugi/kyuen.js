@@ -11,7 +11,7 @@ const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる
 
 export function install(rt, K) {
   const F = rt.flags, B = F.blk;
-  F.s3 = { st: 0, near: 0, held: 0, kills0: rt.stats.kills, taken0: rt.stats.taken };
+  F.s3 = { st: 0, near: 0, held: 0, tickT: rt.t, kills0: rt.stats.kills, taken0: rt.stats.taken };
   // 信親は西の新納勢へ馬を入れ、本人から離れる
   rt.after(6, () => {
     if (F.step !== 3) return;
@@ -64,16 +64,19 @@ export function pin(rt) {
 export function update(rt, K, el) {
   const F = rt.flags, S = F.s3, P = rt.player.u.pos;
   if (!S) return;
+  // 見回りの間隔はコマの刻みで変わる。滞在時間は実際の戦の秒で数える。
+  const dt = Math.max(0, rt.t - (S.tickT ?? rt.t));
+  S.tickT = rt.t;
   if (S.st === 0) {
     // 河原を離れて待つだけでは防戦を果たさない。包みの内で二分持ちこたえ、本人も敵と当たってから救援へ進む。
-    if (Math.hypot(P.x - K.RING.x, P.z - K.RING.z) < 60) S.held = (S.held || 0) + 0.25;
+    if (Math.hypot(P.x - K.RING.x, P.z - K.RING.z) < 60) S.held = (S.held || 0) + dt;
     const fought = rt.stats.kills > S.kills0 || rt.stats.taken > S.taken0;
     if (el > 145 && S.held >= 120 && fought) toB(rt, K);
   }
   if (S.st < 1) return;
   const bEl = rt.t - S.tB;
   const near = F.nobuU?.alive && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14;
-  if (near) S.near += 0.25;
+  if (near) S.near += dt;
   // 本人が信親の側へ救援に来てから斬り込む。離れたまま最期を済ませない。
   if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
   // 鈴木大膳が旗本に阻まれている間は、遠くから信親を討った事にしない。
@@ -83,7 +86,7 @@ export function update(rt, K, el) {
     s?.alive && !s.gone && !s.dying && !s.woundOut && !s.rearWound && !s.noTarget &&
     Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
     !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
-  if (crossed && near) S.clash = (S.clash || 0) + 0.25;
+  if (crossed && near) S.clash = (S.clash || 0) + dt;
   // 六 m 内にいるだけでは、刀も長刀も届かないまま最期が進んでしまう。
   // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
   if (crossed && near && (landed(n, s) || landed(s, n))) S.bladesMet = true;

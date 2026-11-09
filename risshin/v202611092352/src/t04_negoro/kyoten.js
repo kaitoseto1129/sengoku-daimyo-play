@@ -4,7 +4,7 @@ import { enemyGroup } from '../bhelp.js';
 import { breath } from '../toyo15/kit.js';
 
 export function kyotenStep(NG) {
-  const { P, dirL, ROT, NEGORO, dress, flee, alive, heads, OKU } = NG;
+  const { P, dirL, ROT, NEGORO, dress, flee, heads, nearestFighter, OKU } = NG;
   return {
     kind: 'kyoten', max: Infinity, idleAdvance: false,
     start(rt, C) {
@@ -21,9 +21,13 @@ export function kyotenStep(NG) {
     },
     tick(rt, C, m, ctx, el) {
       const n = heads(C.groups);
-      const g0 = C.groups.find(alive);
+      let target = null;
+      for (const g of C.groups) {
+        target = nearestFighter(g, rt.player.u.pos);
+        if (target) break;
+      }
       // 守りを崩した後は、達成に必要な奥の院へ案内する。遠い残兵を追わせない。
-      C.goal = n <= 5 || !g0 ? OKU : g0.center();
+      C.goal = n <= 5 || !target ? OKU : target.pos;
       const u = rt.player.u;
       const arrived = u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
         && Math.hypot(u.pos.x - OKU.x, u.pos.z - OKU.z) < 18;
