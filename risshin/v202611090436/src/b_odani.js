@@ -2833,7 +2833,8 @@ function odaniGoalBoard(rt) {
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (n >= 250) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn || u.invuln ||
+      // 討てない史実の将にも敵印は付ける。待機中の将は noTarget で除く。
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600) continue;
       if (!(u._odSeenAt > rt.t - .34 && u._odSeenAt <= rt.t)) { u._odSeen = sightUnit(rt, u); u._odSeenAt = rt.t; }
       if (!u._odSeen) continue;

@@ -2509,7 +2509,14 @@ const nagashima = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    {
+      const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor;
+      P.takeDamage = function (a, s) {
+        const missile = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow';
+        // 命を減らす前に刃の被害を調整する。戻り値だけ縮めても実際の傷は軽くならない。
+        return td.call(this, s && !s.isStruct && !missile ? a * k : a, s);
+      };
+    }
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの岸のぬかるみ・葦・矢（def.timeslip）

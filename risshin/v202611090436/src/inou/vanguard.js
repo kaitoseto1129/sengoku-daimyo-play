@@ -8,6 +8,7 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 import { pinAt } from './index.js';
+import { inouEnemyAlive } from '../b_inou_goals.js';
 
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 const LOOK = { armor: 0x2e2822, hatColor: 0x1c1916, lace: 0x6a4a30, cloth: 0x7a5236, flag: 'nobukatsu', flagShape: 1 };
@@ -57,11 +58,11 @@ export function start(rt, def, C) {
 
 export function target(rt) {
   const v = rt.flags.v15;
-  if (v.boss?.alive && !v.boss.gone) return v.boss;
+  if (inouEnemyAlive(v.boss)) return v.boss;
   let best = null, bd = Infinity;
   const P = rt.player.u.pos;
   for (const g of [v.vg1, v.vg2]) if (g && !g.routed) for (const u of g.units) {
-    if (!u.alive || u.gone || u.fleeing) continue;
+    if (!inouEnemyAlive(u)) continue;
     const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
     if (d < bd) { bd = d; best = u; }
   }

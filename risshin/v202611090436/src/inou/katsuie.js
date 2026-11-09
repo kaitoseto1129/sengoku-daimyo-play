@@ -6,6 +6,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 import { pinAt } from './index.js';
+import { inouEnemyAlive } from '../b_inou_goals.js';
 
 const HP = 150;
 
@@ -32,7 +33,7 @@ export function start(rt, def, C) {
   return true;
 }
 
-export function target(rt) { const K = rt.flags.v15?.K; return K?.alive && !K.gone ? K : null; }
+export function target(rt) { const K = rt.flags.v15?.K; return inouEnemyAlive(K) ? K : null; }
 export function pin(rt) { const K = target(rt); return K ? pinAt(rt, K.pos, '信長の馬前', K, 3) : pinAt(rt, null); }
 
 function end(rt, by) {
