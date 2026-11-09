@@ -1053,7 +1053,7 @@ function mikataGoals(rt, dt) {
   // 段の流れ：0 物見 ／ 1 持ち場へ ／ 2 先手と後詰 ／ 3 赤備え ／ 4 平手の囲み ／ 5 坂の殿 ／ 6 城へ退く ／ 7 帰着
   const phase = F.returnedT !== undefined ? 7 : F.step >= 3 ? 6 : F.dpB ? 5 : F.dpH ? 4 : F.step >= 2 ? 3 : F.step >= 1 ? 2 : (F.mkStage || 0) >= 1 ? 1 : 0;
   if (G.i === 0 && F.scoutDone) G.st[0] = 1;
-  if (G.i === 1 && u.alive && near(HIRATE_POST, 8)) G.st[1] = 1;
+  if (G.i === 1 && phase === 1 && u.alive && near(HIRATE_POST, 8)) G.st[1] = 1;
   if (G.i >= 2 && G.i <= 5 && u.alive && phase === G.i) {
     const post = G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST;
     // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
@@ -1067,8 +1067,9 @@ function mikataGoals(rt, dt) {
     if (G.tin >= MK_GOAL_HOLD[G.i] || G.hit && G.tin >= 2) G.ok = true;
   }
   if (phase === 7) G.st[6] = 1;
-  // ①は物見を果たすか、持ち場の段まで。②は着くか、赤備えの段まで。③〜⑥は段が過ぎたら次へ（務めていなければ✕）
-  while (G.i < 6 && (G.i === 0 ? G.st[0] || phase >= 1 : G.i === 1 ? G.st[1] || phase >= 3 : phase > G.i)) {
+  // ①は物見を果たすか、持ち場の段まで。②は着くか、先手の段まで。③〜⑥は段が過ぎたら次へ（務めていなければ✕）
+  // 戻らず先手の段へ進んでも③の防戦を数える。後から戻って②まで達成にしない。
+  while (G.i < 6 && (G.i === 0 ? G.st[0] || phase >= 1 : G.i === 1 ? G.st[1] || phase >= 2 : phase > G.i)) {
     if (!G.st[G.i]) G.st[G.i] = G.ok ? 1 : -1;
     G.i++; G.tin = 0; G.hit = false; G.ok = false;
   }

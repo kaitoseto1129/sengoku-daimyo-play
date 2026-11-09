@@ -2,7 +2,7 @@
 // 箕作城 15分の構成（docs/oda15_plan_1108.md 6）　④「本丸前・六角方守将戦・別働隊が側面侵入」（10〜13分）
 // 本丸の段（inside）に入ってから重ねる：
 //   ・東の口で丹羽の手と六角勢が押し合う（軽い作り addClash）
-//   ・別働の浅井新八の手が東の尾根から本丸の脇へ入る（本物の兵・少数）
+//   ・別働の丹羽長秀の手が東の尾根から本丸の脇へ入る（本物の兵・少数）
 //   ・城将 吉田出雲守が旗本と自ら打って出る（討つ役ではない。退けると城兵が崩れる。最期は史料に無いので逃がす）
 // 呼び方：b_mitsukuri.js の inside() で install(rt, ctx)。
 // ======================================================================
@@ -35,13 +35,14 @@ export function install(rt, ctx) {
   // 別働隊：東の尾根から本丸の脇へ
   rt.after(20, () => {
     if (rt.over || F.ending) return;
-    const g = allyGroup(rt, { fixed: true, name: '浅井新八の手', anchor: { x: EAST.x - 8, z: EAST.z }, facing: -Math.PI / 2, width: 4, aggro: 14, seekRange: 30, order: 'move', formation: 'yari' },
+    // 東の口は丹羽、西の谷は浅井。追加の攻め手も既存の四手と同じく崩れて戻らなくならない。
+    const g = allyGroup(rt, { fixed: true, name: '丹羽長秀の別働隊', anchor: { x: EAST.x - 8, z: EAST.z }, facing: -Math.PI / 2, width: 4, aggro: 14, seekRange: 30, order: 'move', formation: 'yari', noRout: true },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 8 }], { flag: 'oda' }));
     g.dest = { x: HON.x + 6, z: HON.z }; g.speed = 3.2;
     g.onArrive = (gg) => { gg.order = 'attack'; gg.anchor = { x: HON.x, z: HON.z }; };
     H.flank = g;
     rt.banner('別働の手、脇から', '東の尾根から本丸の脇へ');
-    rt.say('使番', '浅井新八殿の手、東の尾根から本丸の脇へ回りました！', 3.4);
+    rt.say('使番', '丹羽長秀殿の手、東の尾根から本丸の脇へ回りました！', 3.4);
     H.C?.push?.('A', 0.5);
   });
 
