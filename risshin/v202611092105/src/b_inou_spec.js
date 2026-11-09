@@ -1032,7 +1032,7 @@ const inou_spec = {
         if (g.order === 'retreat' && u.pos.z < -128 && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) > 70) { rt.army.despawn(u); continue; }
         near = Math.min(near, Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z));
       }
-      if (g.secKind === 'bow') { const on = near < BOW_RANGE; g.fire = on; g.aggro = on ? BOW_RANGE : 0; }
+      if (g.secKind === 'bow') { const on = !g.routing && !g.routed && g.order !== 'retreat' && near < BOW_RANGE; g.fire = on; g.aggro = on ? BOW_RANGE : 0; }
       else if (g.secKind === 'lurk' && g.order === 'hold' && near < 7) { g.order = 'attack'; g.focus = P; g.aggro = 10; g.speed = 3.4; rt.army.play('eshout', P.pos, 1); }
       else if (g.order === 'retreat' && !g.routing && near < TURN) { g.order = 'attack'; g.focus = P; g.aggro = 10; g.speed = 3; }
     }
