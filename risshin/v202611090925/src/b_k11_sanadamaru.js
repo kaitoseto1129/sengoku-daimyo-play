@@ -300,8 +300,9 @@ const k11_sanadamaru = {
   spawn: { x: SASA.x - 6, z: SASA.z + 62, heading: Math.PI },
   noWake: true,
   stageGoalsOnly: true,        // 右上の目標は四つの段だけ（「敵を八人討つ」で埋めない。三1）
-  goalsAllRows: false,         // 11/9 二巡（豊臣A）：五つを並べると 874×402 で画面の四割を覆い中央の字と重なった。今の一件と進み具合の棒（開けば全部）
+  goalsAllRows: true,          // 九1・十1：五つの場所と行いを最初から並べ、済んだ物に印を付ける。
   nearbyAllySignLimit: 0,      // 味方の頭上に白い丸を出さない（意味の分からない印。五2）
+  noFlankCry: true,            // 撃ち崩された寄せ手に、共通の側面攻撃の声を重ねない。
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(t),
   minutes: 14,
