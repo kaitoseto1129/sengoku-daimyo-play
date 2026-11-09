@@ -1181,6 +1181,7 @@ const tano = {
       eye.y = Math.max(shoulder + (eye.y - shoulder) * 0.75, rt.world.heightAt(eye.x, eye.z) + 0.65);
     }
   },
+  battleDialogue: true, // 鉄砲の下知と最期の知らせ・語りを、音を消していても読めるようにする。
   noticeOnce: true, noAllyReports: true, // 同じ声は一戦一度。遠い将の独り言は運ばない。
   readableLogEntry: true, // 携帯で裸の数字だけを出さず、下知を読む入口と分かるようにする。
   immediateTaskChanges: true, immediatePhaseTasks: true,

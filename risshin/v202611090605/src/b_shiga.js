@@ -186,7 +186,14 @@ function enemyGroup(rt, o, list) {
     if (n) limited.push({ ...e, n });
     room -= n;
   }
-  return spawnEnemy(rt, { ...spawnOrders, fixed: true, dmgMult: 1, formation: 'yari', width: 4 }, limited);
+  const g = spawnEnemy(rt, { ...spawnOrders, fixed: true, dmgMult: 1, formation: 'yari', width: 4 }, limited);
+  // 新しい隊にも寄せ先を渡し、索敵の外で出た隊を出発地点に残さない。
+  if (marchTo && o.order === 'attack' && !g.routed) {
+    const speed = g.speed;
+    g.order = 'move'; g.dest = { x: marchTo.x, z: marchTo.z }; g.speed = 2.8;
+    g.onArrive = (q) => { q.order = 'attack'; q.speed = speed; };
+  }
+  return g;
 }
 
 function keepRoad(g, path, facing) {
@@ -2986,7 +2993,7 @@ const shiga = {
     // 15分の構成：始まりの段（湖の道の物見）を挟んでから十六日の町口（shiga/monomi.js）
     const ready = () => { if (!F.ending && !rt.over) this.first(rt); };
     if (rt.G.lord) rt.after(8, ready);
-    else MONOMI.install(rt, { at: { x: TOWN.x + 6, z: TOWN.z - 42 }, enemyGroup, dress, look: ASA, ready });
+    else MONOMI.install(rt, { at: { x: TOWN.x + 6, z: TOWN.z - 42 }, home: TOWN_POST, enemyGroup, dress, look: ASA, ready });
   },
 
   // ① 浅井・朝倉の先手を迎え撃つ
