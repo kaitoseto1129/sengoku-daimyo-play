@@ -371,10 +371,14 @@ function steps(rt) {
           // 共通の守備判定は半径に三十mの余裕がある。この戦は坑道の前で守った時間だけ数える。
           const p = r.player.u.pos;
           C.inT = held + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius ? dt : 0);
+          // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。
+          r.objProgress('dp', C.inT < 55 ? '坑道の口で金掘り衆を守る' : '坑道の口の寄せを退ける');
           return done && C.inT >= 55;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
         if (i <= 3) {
+          // 画面の▼だけでなく、隊と自動操作の目当ても場所に留める。
+          C.goal = C.at;
           const p = r.player.u.pos;
           return done && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
         }

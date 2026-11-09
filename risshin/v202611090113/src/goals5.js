@@ -263,18 +263,27 @@ const OWN = {
 
 // 小田原征伐（11/3 p100_t12_odawara）：篠曲輪の夜討ち（付け入り）→ 旗を守る → 官兵衛を本丸の門へ。段は b_depth の段の番（F.dp.i）で進む
 OWN.t12_odawara = () => {
-  const at = (n) => (rt) => won(rt) || (rt.flags.dp?.i ?? -1) >= n || (rt.flags.dp && !rt.flags.dp.on);
-  const foes = (n) => (rt) => (rt.flags.dp?.i === n ? rt.flags.dp.cur?.groups || [] : []);
+  // 11/8 15分の構成：段の番は戦の側の名の表（rt.flags.dpIx。段のファイルの段は名、元の段は夜への移り yoru の後ろから数える）
+  const X = (rt) => rt.flags.dpIx || {};
+  const ix = (k) => (rt) => (typeof k === 'number' ? (X(rt).yoru ?? -9) + 1 + k : X(rt)[k] ?? 99);
+  const at = (k) => (rt) => won(rt) || (rt.flags.dp?.i ?? -1) > ix(k)(rt) || (rt.flags.dp && !rt.flags.dp.on);
+  const foes = (k) => (rt) => (rt.flags.dp?.i === ix(k)(rt) ? rt.flags.dp.cur?.groups || [] : []);
   return [
-    { kind: 'stage', k: 0, text: '山王川を渡り、篠曲輪の木戸へ寄せる', noun: '篠曲輪の木戸', check: at(1) },
-    { kind: 'stage', k: 1, text: '木戸から打って出た北条勢を返す', check: at(2), groups: foes(1) },
-    { kind: 'stage', k: 2, text: '退く敵に続いて篠曲輪へ入る', noun: '篠曲輪', check: at(3) },
-    { kind: 'stage', k: 3, text: '篠曲輪の井伊の旗を守る', noun: '井伊の旗', check: at(4), groups: foes(3) },
-    { kind: 'stage', k: 4, text: '山王川の東の井伊の陣へ退く', noun: '井伊の陣', check: at(5) },
+    { kind: 'stage', k: 0, text: '井伊の陣から、家康の本陣へ下知を受けに行く', noun: '家康の本陣', check: at('jinmawari') },
+    { kind: 'stage', k: 1, text: '山王川の東の岸で、打って出た北条勢を押し返す', noun: '山王川の岸', check: at('sortie'), groups: foes('sortie') },
+    { kind: 'stage', k: 2, text: '山王川を渡り、篠曲輪の木戸へ寄せる', noun: '篠曲輪の木戸', check: at(0) },
+    { kind: 'stage', k: 3, text: '木戸から打って出た北条勢を返す', check: at(1), groups: foes(1) },
+    { kind: 'stage', k: 4, text: '退く敵に続いて篠曲輪へ入る', noun: '篠曲輪', check: at(2) },
+    { kind: 'stage', k: 5, text: '篠曲輪の井伊の旗を守る', noun: '井伊の旗', check: at(3), groups: foes(3) },
+    { kind: 'stage', k: 6, text: '山王川の東の井伊の陣へ退く', noun: '井伊の陣', check: at(4) },
+    { kind: 'stage', k: 7, text: '石垣山の普請場で、忍び寄る北条の物見を討つ', noun: '石垣山の普請場', check: at('ishigaki'), groups: foes('ishigaki') },
     // 11/6：二十六日の朝は南西の石垣山の城を見る段（前は次の官兵衛の目標が先に出て、まだいない官兵衛の行き先の印が出た）
-    { kind: 'stage', k: 5, text: '井伊の陣から南西の石垣山に現れた城を見る', noun: '石垣山', check: at(6) },
+    { kind: 'stage', k: 8, text: '井伊の陣から南西の石垣山に現れた城を見る', noun: '石垣山', check: (rt) => won(rt) || (rt.flags.dp?.i ?? -1) > (X(rt).ishigaki ?? 99) + 1 },
+    { kind: 'stage', k: 9, text: '山王川の岸で、城から逃げて来る北条の兵を迎え、追っ手を討つ', noun: '山王川の岸', check: at('kuzure'), groups: foes('kuzure') },
+    { kind: 'stage', k: 10, text: '包囲の陣を回り、前田・上杉と浜の船陣へ言葉を伝える', noun: '前田の陣', check: at('junkai') },
     // 開城を説く使いの供（戦わない。11/6）
-    { kind: 'stage', k: 6, text: '官兵衛に付き添い、本丸の門まで送り届ける', noun: '本丸の門', check: won },
+    { kind: 'stage', k: 11, text: '官兵衛に付き添い、本丸の門まで送り届ける', noun: '本丸の門', check: (rt) => won(rt) || (rt.flags.dp?.i ?? -1) >= (X(rt).kaijo ?? 99) },
+    { kind: 'stage', k: 12, text: '本丸の門の前で、槍を置いて城を出る北条の兵を見届ける', noun: '本丸の門の前', check: won },
   ];
 };
 

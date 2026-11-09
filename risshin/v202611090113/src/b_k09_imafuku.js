@@ -487,6 +487,14 @@ const k09_imafuku = {
         g.noRout = false; g.morale = 0;
       }
     });
+    // 加勢から九秒で又兵衛が負傷し、舟も退く。③が長引いても④への移行を待たない。
+    // 史実：又兵衛は上杉の鉄砲の弾で脇腹に傷（左腕とも）。討たれはしない。舟は西へ漕ぎ戻る
+    rt.after(9, () => {
+      const g = rt.army.groups.find((q) => q.team === 1 && q.name === '後藤又兵衛の隊');
+      const u = g && g.units.find((q) => q.alive && q.type === 'busho');
+      if (u) { u.hp = Math.max(1, Math.round(u.hp * 0.6)); g.morale -= 30; rt.say('後藤又兵衛', '上杉の弾か……脇腹をやられた。構わぬ、退きながら撃て！', 3.6); }
+      F.boatBack = true;
+    });
     F.reinf = F.reinf || [];
     // 上杉は川を渡らず、水原親憲の鉄砲衆が南の大和川の中州（鴫野の側）に並んで川越しに横から撃つ（史実の横撃）。
     const mz = allyGroup(rt, { faction: 'tokugawa', name: '水原親憲の鉄砲衆', anchor: { x: KEEP.x - 6, z: 46 }, facing: Math.PI, width: 10, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
@@ -510,13 +518,7 @@ const k09_imafuku = {
       dress([uS(4), uA(18), uG(6)], SATAKE).map(kasa));
     su.mon = 'satake'; su.order = 'move'; su.dest = { x: KEEP.x + 14, z: 0 };
     F.reinf.push(su);
-    // 史実：又兵衛は上杉の鉄砲の弾で脇腹に傷（左腕とも）。討たれはしない。舟は西へ漕ぎ戻る
-    rt.after(9, () => {
-      const g = rt.army.groups.find((q) => q.team === 1 && q.name === '後藤又兵衛の隊');
-      const u = g && g.units.find((q) => q.alive && q.type === 'busho');
-      if (u) { u.hp = Math.max(1, Math.round(u.hp * 0.6)); g.morale -= 30; rt.say('後藤又兵衛', '上杉の弾か……脇腹をやられた。構わぬ、退きながら撃て！', 3.6); }
-      F.boatBack = true;
-    });
+
   },
 
   win(rt) {
