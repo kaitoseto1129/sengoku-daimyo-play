@@ -5833,7 +5833,7 @@ const inabayama = {
       F.attackers.push(F.sannin); F.attackTotal += F.sannin.nominal;
       // 紙（battle_events_1101）：藤吉郎の調略で西美濃三人衆が寝返る（必ず）。三人を本物の姿で置き、頭上に名を出す。
       F.sanninG = allyGroup(rt, { fixed: true, noGuard: true, name: '西美濃三人衆', anchor: { x: MINO_YOSE.x, z: MINO_YOSE.z }, facing: MINO_FACING, width: 6, aggro: 4, noRout: true },
-        [{ type: 'busho', n: 1, o: { name: '稲葉良通', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '氏家直元', invuln: true, flag: 'oda' } }, { type: 'busho', n: 1, o: { name: '安藤守就', invuln: true, flag: 'inaba' } }, { type: 'ashigaru', n: 3, o: { flag: 'inaba' } }]);
+        [{ type: 'busho', n: 1, o: { name: '稲葉良通', invuln: true, flag: 'inaba' } }, { type: 'busho', n: 1, o: { name: '氏家直元', invuln: true, flag: 'oda' } }, { type: 'busho', n: 1, o: { name: '安藤守就', invuln: true, flag: 'oda' } }, { type: 'ashigaru', n: 3, o: { flag: 'inaba' } }]);
       F.sanninG.order = 'hold';
       // 内応は戦の前（公記：八月一日の申し入れ）。ここは参着の知らせだけにし、寝返りの知らせと同時に言わない（critic60 二2・十4）。
       F.sanninT = rt.t;

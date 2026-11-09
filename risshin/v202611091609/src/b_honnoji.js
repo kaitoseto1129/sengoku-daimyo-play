@@ -38,6 +38,7 @@ import { wrap as k15Omote } from './honnoji/omote.js';   // 表庭の踏み止�
 import { wrap as k15Kairo } from './honnoji/kairo.js';   // 火の回る回廊
 import { wrap as k15Saigo } from './honnoji/saigo.js';   // 信長の最後の防衛
 import { wrap as k15Uradori } from './honnoji/uradori.js';   // 裏通りを落ちる
+import { HONNOJI_DEPTH } from './honnoji/fujin.js';   // 布陣図どおりの明智の厚み（docs/fujin/honnoji.md）
 import { k15WrapBot } from './oda15_kit.js';
 
 // 箕作と同じ箱の当たりで、束ねた面の測り直しを待たず壁・柱・戸の手前へ寄せる。
@@ -6244,4 +6245,5 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 k15Shizuka(honnoji); k15Shuen(honnoji);
 { const K15 = { akechi, uS, uA }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
 honnoji.botBrain = k15WrapBot(honnoji.botBrain);
+honnoji.depth = (rt) => (rt.G?.lord ? null : HONNOJI_DEPTH);   // 寺を囲む明智一万三千（軽い備）
 export { honnoji };

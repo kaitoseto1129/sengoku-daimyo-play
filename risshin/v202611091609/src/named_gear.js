@@ -439,6 +439,11 @@ NAMED_GEAR['六角義治'] = { ...(NAMED_GEAR['六角義治'] || rosterGear('六
 // 出所と未確認範囲：docs/generals_look_1108/朝比奈泰朝.md。
 NAMED_GEAR['朝比奈泰朝'] = { ...(NAMED_GEAR['朝比奈泰朝'] || {}), flag: 'imagawa', uma: null, campUma: null };
 
+// 鳴海城の岡部元信。個人の実旗・馬印は未確認。今川方の所属表示だけを使う。
+// 出所と復元範囲：docs/generals_look_1108/岡部元信.md。得物は名簿の従来値を保つ。
+NAMED_GEAR['岡部元信'] = { ...(NAMED_GEAR['岡部元信'] || rosterGear('岡部元信')),
+  flag: 'imagawa', uma: null, campUma: null };
+
 // 「信長記」に金の三つ団子と伝わる馬印。大滝寺での使用は復元案。
 // https://blog.livedoor.jp/jidai2005/archives/24142639.html
 // 山の戦では陣所に据える。専用の徒へ兵を替えて、斬り合う人数を減らさない。
@@ -461,7 +466,11 @@ NAMED_GEAR['河尻秀隆'] = { ...(NAMED_GEAR['河尻秀隆'] || {}), uma: 'tsur
 // 11/9 『旗馬印画図』（1800 年頃・BYU 蔵）の「筒井順慶」：金の分銅の馬印。江戸後期の画帖なので当日の物とは限らない。
 NAMED_GEAR['筒井順慶'].uma = 'fundo';
 NAMED_GEAR['筒井順慶'].honjinUma = 'fundo';   // 信貴山の麓の陣（b_mid.js の camp）に据える
-// 一鉄の諱でも同じ得物・所属旗を使う。
+// 折敷に三文字は館山市立博物館の江戸後期の稲葉家旗指物を参考にした所属表示。
+// 一鉄当日の実旗とは断定しない。個人の馬印は未確認なので本陣にも補わない。
+// https://tateyama-field-museum.jp/archives/9087
+NAMED_GEAR['稲葉一鉄'] = { ...NAMED_GEAR['稲葉一鉄'], flag: 'inaba', uma: null, campUma: null };
+// 一鉄の諱でも同じ得物・所属旗を使う。出所と補完範囲：docs/generals_look_1108/稲葉一鉄.md。
 NAMED_GEAR['稲葉良通'] = NAMED_GEAR['稲葉一鉄'];
 
 // 信盛の馬印は『信長記』に白吹貫と伝わる。雑賀当日の使用・寸法は未確認の復元案。
@@ -483,6 +492,8 @@ NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
 NAMED_GEAR['氏家卜全'].uma = null;
 NAMED_GEAR['氏家卜全'].campUma = null;
 NAMED_GEAR['氏家直元'] = NAMED_GEAR['氏家卜全'];
+// 安藤の旗は合流後の織田方の所属表示。個人の旗印・馬印は未確認。
+NAMED_GEAR['安藤守就'] = { ...NAMED_GEAR['安藤守就'], flag: 'oda', uma: null, campUma: null };
 // 墨俣の前野長康。旗は従来の織田方の所属表示で、本人の旗印の復元ではない。
 // 個人の旗印・馬印は未確認。秀吉の瓢箪も借りない（docs/generals_look_1108/前野長康.md）。
 NAMED_GEAR['前野長康'].flag = 'oda';
