@@ -703,8 +703,11 @@ const t11_hachioji = {
         }
         let moved = 0;
         for (const g of [F.saki, F.mine, F.ni]) if (g && g.count) for (const u of g.units) {
-          if (moved >= 8 || !u.alive || u.fleeing || u.isPlayer || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50 || !unseenRejoin(rt, u.pos.x, u.pos.z) || !unseenRejoin(rt, bx, bz)) continue;
-          u.pos.x = bx + (Math.random() - 0.5) * 4; u.pos.z = bz + (Math.random() - 0.5) * 4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.aiT = 0; moved++;
+          if (moved >= 8 || !u.alive || u.fleeing || u.isPlayer || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50 || !unseenRejoin(rt, u.pos.x, u.pos.z)) continue;
+          // 散らす前の中心だけでなく、実際に戻す場所が見えないことを確かめる。
+          const x = bx + (Math.random() - 0.5) * 4, z = bz + (Math.random() - 0.5) * 4;
+          if (!unseenRejoin(rt, x, z)) continue;
+          u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.aiT = 0; moved++;
         }
       }
     }

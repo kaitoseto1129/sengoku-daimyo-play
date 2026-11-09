@@ -17,6 +17,7 @@ import { dress, customFlag } from './b_inabayama.js';
 import { camp } from './b_mid.js';
 import { makeGunSmoke } from './b_tennoji.js';
 import { NAMED_GEAR } from './named_gear.js';
+import { place as placeSaikaBushou } from './saika/bushou.js';   // 浜手の三将と雑賀の顔（孫一・土橋）の持ち場
 import { install as installMono } from './saika/mono.js';   // 0〜2分：川べりの物見と、川上から渡る小組
 import { install as installMago } from './saika/magoichi.js';   // 渡河の中：孫一の手、高岸を下る（この戦の一番の場面）
 import { install as installTsutsumi } from './saika/tsutsumi.js';   // 対陣の中：川下の堤の鉄砲陣
@@ -3331,6 +3332,7 @@ const saika = {
     F.lordCamp = allyGroup(rt, { name: '佐久間信盛の陣', fixed: true, noHunt: true, fullStrength: true, anchor: { x: SAKUMA_AT.x + 4, z: 0 }, facing: WEST, width: 6, order: 'hold', aggro: 4, noRout: true },
       dress([{ type: 'busho', n: 1, o: { name: '佐久間信盛', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }], { flag: 'sakuma' }));
     rt.scene.add(nobori(W, 104, -6, 'sakuma', 7)); rt.scene.add(nobori(W, 104, 6, 'sakuma', 7));
+    F.bushou = placeSaikaBushou(rt, { dress, SAIKA, WEST, EAST });   // docs/generals_oda_1108 の必須の将（saika/bushou.js）
     // 誓紙の使者（雑賀の年寄りの使い）。川上で川を渡った東岸の外れに初めからいて、⑤で道を下って来る。
     F.envoy = enemyGroup(rt, { faction: 'saika', fixed: true, noHunt: true, name: '雑賀の使者', anchor: { ...ENVOY_AT }, facing: Math.PI, width: 3, order: 'hold', aggro: 0, noRout: true, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1, o: { name: '雑賀の使者', invuln: true, haori: 0 } }, { type: 'ashigaru', n: 2 }], SAIKA));

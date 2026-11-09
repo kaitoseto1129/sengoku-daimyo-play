@@ -4046,13 +4046,6 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (F.ehon?.general?.mounted) rt.army.setMounted(F.ehon.general, false);
     applyLook(rt, HONNO_DAWN); honnoPreDawn(rt);
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
-    // 市内へ広がる遠景：町のあちこちで鐘が鳴り、叫びが起き、火の手が上がる（本能寺の騒ぎが町へ伝わる）
-    [[34, -60, -90], [48, 100, 10], [62, -30, 130], [80, 130, -70]].forEach(([t, x, z], i) => rt.after(t, () => {
-      if (rt.flags.ending || rt.flags.k15stage === 'shizuka') return;   // 静かな見回りの間は町は鳴らない
-      sfx('kane', 0.28); rt.army.play('eshout', { x, z }, 0.8);
-
-      if (i === 0) rt.bark('遠くの町で鐘が鳴り、人の叫びが広がる');
-    }));
     rt.setPhase('brief');
     this.p1(rt);
   },
@@ -4061,6 +4054,12 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   p1(rt) {
     const F = rt.flags;
     F.hp = 1; F.pT = rt.t;
+    // 町への騒ぎは襲撃から数える。見回り中に時刻を迎えて消えてしまわないようにする。
+    [[34, -60, -90], [48, 100, 10], [62, -30, 130], [80, 130, -70]].forEach(([t, x, z], i) => rt.after(t, () => {
+      if (F.ending || rt.over) return;
+      sfx('kane', 0.28); rt.army.play('eshout', { x, z }, 0.8);
+      if (i === 0) rt.bark('遠くの町で鐘が鳴り、人の叫びが広がる');
+    }));
     rt.obj('main', '本堂の東の縁へ進め', 'main', true);
     F.waitReached = false;
     // 待つ輪は表庭の始まりから表門の方へ三歩（屋根の外）。御殿の廊下に置くと、始まってすぐ廊下へ戻って
