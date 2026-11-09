@@ -525,7 +525,7 @@ const k13_domyoji = {
       DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: GOALS[2], max: LIMIT[3], noRefill: true,
         say: [['足軽', '薄田隼人の旗じゃ！　川の向こうから来るぞ！']],
         foes: () => [keep('薄田兼相の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '薄田兼相', horse: true, hat: 'kabuto_g' } }, uS(6), uA(12), uG(4)], { dx: -26, dz: -6, noRout: Infinity })],
-        later: [{ t: 35, say: ['足軽', '山川賢信と明石全登の手じゃ！　霧の中から！'], foes: () => [keep('山川賢信・明石全登の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(2), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
+        later: [{ t: 35, say: ['足軽', '山川賢信と明石全登の手じゃ！　霧の中から！'], foes: () => [keep('山川賢信・明石全登の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'busho', n: 1, o: { name: '山川賢信' } }, uS(1), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
         reward: '道明寺の野で薄田兼相の手を破った' }),
       DP.rest({ dur: 6, heal: 0.3, fn: () => { rt.world.setTime?.('day'); this.dateToHonda(rt); },
         banner: ['真田信繁・毛利勝永が着く', '霧が晴れ、誉田の野に赤い旗が並ぶ'],
