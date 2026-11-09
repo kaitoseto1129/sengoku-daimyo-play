@@ -316,7 +316,7 @@ export function makeSamaFire(rt, groups, o = {}) {
     let nx = -(bz - az) / l, nz = (bx - ax) / l;
     if ((mx - G.inside.x) * nx + (mz - G.inside.z) * nz < 0) { nx = -nx; nz = -nz; }
     const list = ms.length ? ms : [{ x: mx, z: mz, kind: 'gun' }];
-    for (const m of list) src.push({ i: src.length, s, x: m.x, z: m.z, nx, nz, kind: m.kind || 'gun', flank: !!G.flank, h: s.h || 2.3, top: G.top, men: true, cool: 0 });
+    for (const m of list) src.push({ i: src.length, s, x: m.x, z: m.z, nx, nz, kind: o.guns === false ? 'bow' : m.kind || 'gun', flank: !!G.flank, h: s.h || 2.3, top: G.top, men: true, cool: 0 });
   }
   const F = { src, t: 0, acc: 0, menT: 0, shots: 0 };
   if (!src.length) { F.tick = () => {}; return F; }

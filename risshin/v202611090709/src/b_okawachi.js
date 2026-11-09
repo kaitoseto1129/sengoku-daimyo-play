@@ -47,7 +47,7 @@ import { nightAccuracyMult } from './siege_vis.js';
 import { battleEvent, EVENT_RETREAT } from './battle_events.js';
 import { sendOrder } from './denrei.js';
 import { addRamp } from './floors.js';
-import { distToPolyline } from './world_common.js';
+import { distToPolyline, isNoRender } from './world_common.js';
 import {
   OKAWACHI_PLAN, OKAWACHI_HIGH_PLAN, OKAWACHI_HIST, GATE, OTE_GATE, MAE_C, JO_C, ROAD_KARAMETE, ROAD_OTE, ROAD_NISHI,
   HON_C, NISHI_C, NI_C, ONANDO_C, BABA_C, OTE_C,
@@ -3373,6 +3373,8 @@ function okNight(W) {
   const update = W.update;
   W.update = function(dt, focus) {
     update.call(this, dt, focus);
+    // 描かないコマでは元の雨粒も更新されない。古い筋を繰り返し縮めない。
+    if (isNoRender()) return;
     if (this.timeKey !== 'night') {
       if (this._okWetNight) {
         this._okWetNight = false;
@@ -3390,7 +3392,8 @@ function okNight(W) {
     this.splashPts.material.color.setHex(0x56606a); this.splashPts.material.opacity = 0.3 * this.rainLevel;
     const pos = this.rain.geometry.attributes.position;
     this.rain.material.linewidth = 1;
-    const count = Math.floor(this.rain.geometry.drawRange.count / 2 * (S.quality === 'high' ? 1 : 0.45)) * 2;
+    // 共通の雨が画質と雨量で調整した本数を保つ。携帯だけ再び間引かない。
+    const count = this.rain.geometry.drawRange.count;
     this.rain.geometry.setDrawRange(0, count);
     const arr = pos.array, end = Math.min(arr.length, count * 3);
     for (let i = 0; i < end; i += 6) {
@@ -5084,7 +5087,7 @@ okawachi.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 // 門へ寄せて押し込むまで、塀の上の陣笠と銃口・閃光と白煙・矢を見せる（左右の折れが十字に撃つ）。兵・塀・門は足さない。当てない。
 okawachi.siegeKit = {
   plan: { x: GATE.x, z: GATE.z, rot: 0, W: 36, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
-  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 95, close: 16, base: .8, peak: 4, arrows: .35 } },
+  build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: 0, near: 95, close: 16, base: .8, peak: 4, arrows: 1, guns: false } },
   borrow: { r: 40, flank: true },
   when: (rt) => { const F = rt.flags; return F.step < 3 && !F.ending && !rt.over; },
 };
