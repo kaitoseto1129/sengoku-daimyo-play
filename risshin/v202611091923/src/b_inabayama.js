@@ -3113,7 +3113,7 @@ function inabaPacingWait(rt) {
   if (F.step === 3 && rt.player.u.alive && !rt.retryOpen && (rt.t - (F.pacingClimbT || F.stepT) > 60 || rt.t - F.nudgeKeyT > 75) && rt.t >= (F.climbNudgeAt || 0)) {
     const trail = F.tsuke ? NANA : KARA_TRAIL;
     const i = Math.min((F.tsuke ? F.nanaNext : F.karaNext) || 0, trail.length - 1), c = trail[i], pp = rt.player.u.pos;
-    if (c && Math.hypot(pp.x - c[0], pp.z - c[1]) < 25) {
+    if (c && Math.hypot(pp.x - c[0], pp.z - c[1]) < 45) {   // 細道の折れ（-37,4）は次の角から三十歩余り離れていた
       F.nudgeKeyT = rt.t;
       F.climbNudgeAt = rt.t + 30; F.pacingClimbT = rt.t;
       const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
@@ -4869,7 +4869,7 @@ const inabayama = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (m && s && INABA_TSUKE.on && !INABA_TSUKE.gate && s.pos && s.pos.y - this.u.pos.y > 6) a *= 0.05; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (m && s && INABA_TSUKE.on && !INABA_TSUKE.gate && s.pos && s.pos.y - this.u.pos.y > 6) a *= 0.05; const d = td.call(this, a, s); /* 11/9 二巡（織田E）：登り（③）は上の段から矢玉と槍が続き、act が七曲り・細道の斬り合いで倒れた。登りの間は矢玉を半分、刃を八割に */ const up = rt.flags.step === 3 && d > 0 && s && !s.isStruct; return up ? (m ? d * 0.5 : d * k * 0.8) : s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     // 11/9 二巡（織田C）：付け入りの登りの間、馬出しの兵の狭間の矢が六歩より上から本人へ降り続け、七曲りの上の折れで倒れた（act・素の bot とも）。木戸の斬り合いまでは上からの矢玉を五分に（二割でも数で倒れた。矢は飛び、音と怖さは残る）。
     const W = rt.world;
     const F = rt.flags;
@@ -6235,6 +6235,11 @@ const inabayama = {
     }
     // 木戸の守りと十二秒斬り合えば、背を取られた守りは本丸へ退く（11/6 fix61：二十五秒→十二秒。一つの戦を七分に収める）
     if (F.tsukeGate && rt.t - F.tsukeGateT > 12) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
+    // 11/9 二巡（織田E）：気が零になっても木戸の口で崩れず、馬出しの兵と一緒に木戸の上から撃ち続けて act が倒れた。二十五秒で本丸へ逃げ上らせる
+    if (F.tsukeGate && rt.t - F.tsukeGateT > 25) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards, ...rt.army.groups.filter((q) => q.name === '馬出しの兵')]) if (g && !gone(g)) {
+      g.routed = true; g.order = 'flee'; g.focus = null; g.fleeDir = { x: 0, z: -1 };
+      for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
+    }
     // 木戸の守りが崩れたら、本丸へ（自分が木戸の近くにいるか、味方の列が先に入って二十秒）
     if (F.tsukeGate && gone(F.oteGate) && (gone(F.nigeru) || F.nigeru.morale <= 0)) {
       if (dGate < 30 && meUp) this.signal(rt);

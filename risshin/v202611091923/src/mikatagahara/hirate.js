@@ -43,7 +43,7 @@ export function steps(K) {
       for (const id of ['baba', 'naito', 'katsuyori']) K.adv(F.bT?.[id], 12, 16, true);
       if (F.hiraU) rt.marker('hiraMe', () => (F.hiraU?.alive ? { x: F.hiraU.pos.x, z: F.hiraU.pos.z } : null), '平手汎秀', { h: 3 });
     }, say: [['足軽', '平手の殿の手が囲まれとる！　馬場の旗と赤備えに挟まれたがや！'], ['平手汎秀', 'ここで退けば徳川殿に顔向けできぬ。踏みとどまれ！']] }),
-    K.withstand({ at: HIRA_LAST, dur: 120, r: 14, title: '平手のそばで囲みを支える', sub: '三方から武田の手が押し包む', label: '平手汎秀のそば',
+    K.withstand({ at: HIRA_LAST, dur: 120, r: 22,   /* 11/9 見回り：囲みの斬り合いは平手の周り二十歩に広がる。十四歩では守りの秒が貯まらず四百五十秒止まった */ title: '平手のそばで囲みを支える', sub: '三方から武田の手が押し包む', label: '平手汎秀のそば',
       obj: '平手汎秀のそばで、武田の囲みを支えよ',
       waves: [
         // 囲みは寄せる手の数と向きで見せる。一手ずつ強くはしない（敵の命・打ちは増やさない。dmg は並の 0.75）
