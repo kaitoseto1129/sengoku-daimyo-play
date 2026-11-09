@@ -52,7 +52,8 @@ export function tick(rt, dt, ctx) {
   }
   if (F.mStep === 1 && F.scouts) {
     const left = F.scouts.units.filter((u) => u.alive && !u.gone && !u.fleeing).length;
-    if (left <= 2 || rt.t - F.mScT > 70) {
+    // 時間だけで健在の物見を撃退した事にしない。
+    if (left <= 2) {
       F.mStep = 2;
       for (const u of F.scouts.units) if (u.alive) { F.scouts.routed = true; F.scouts.order = 'flee'; break; }
       rt.award((t) => t.side.push('街道で明智の物見を追い払った'), '明智の物見を追い払った');
@@ -68,7 +69,7 @@ export function tick(rt, dt, ctx) {
   // 着いた（物見を払った後、先陣の陣に着き、池田勢も近い）：高山右近が迎え、川向こうから斎藤勢が寄せる
   const ic = F.ikeda?.center?.();
   const skLeft = F.skirm ? F.skirm.units.filter((u) => u.alive && !u.gone && !u.fleeing).length : 0;
-  if (F.mStep === 2 && near(P, JOIN, 18) && (skLeft <= 1 || rt.t - F.st0 > 160) && (!ic || near(ic, JOIN, 34) || rt.t - F.st0 > 170)) {
+  if (F.mStep === 2 && near(P, JOIN, 18) && skLeft <= 1 && (!ic || near(ic, JOIN, 34) || rt.t - F.st0 > 170)) {
     F.mStep = 3;
     if (F.skirm && skLeft) { F.skirm.routed = true; F.skirm.order = 'flee'; }
     // 着いた：川向こうで明智の備が岸へ出て並ぶ（桔梗の旗の列）。鉄砲が川越しに鳴り、斎藤勢が川へ下りる
