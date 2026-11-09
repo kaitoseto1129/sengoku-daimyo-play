@@ -10,8 +10,8 @@ import { sfx } from '../audio.js';
 
 export const LINE = { x: 14, z: 204 };   // 先手の列の前（出丸の鉄砲の届く外）
 
-// 諸将の陣：[x, z, 幅, 奥行き, 人数, 旗]（街道の坂の下の左右。動ける所の内でも本物にはならない）
-const CAMPS = [[-40, 236, 34, 14, 260, 'kuginuki'], [70, 222, 30, 14, 240, 'hori'], [-14, 236, 26, 12, 220, 'kashiwa'], [96, 200, 28, 16, 260, 'toyotomi']];
+// 諸将の陣：[x, z, 幅, 奥行き, 人数, 旗]（街道の坂の下の左右。動ける範囲の外に置き、近くに絵の兵を出さない）
+const CAMPS = [[-40, 280, 34, 14, 260, 'kuginuki'], [70, 280, 30, 14, 240, 'hori'], [-14, 310, 26, 12, 220, 'kashiwa'], [96, 310, 28, 16, 260, 'toyotomi']];
 
 export function install(rt, K) {
   const W = rt.world, F = rt.flags;
@@ -34,5 +34,6 @@ export function install(rt, K) {
 export function update(rt, K) {
   const F = rt.flags, el = rt.t - F.s0.t0, P = rt.player.u.pos;
   const near = Math.hypot(P.x - LINE.x, P.z - LINE.z) < 12;
-  return (el > 108 && near) || el > 140;
+  // 先手の列へ来た本人を長く待たせず、離れたまま時間だけで開戦しない。
+  return el > 5 && near;
 }
