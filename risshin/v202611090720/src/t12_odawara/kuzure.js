@@ -62,7 +62,7 @@ function runners(rt, C, H, i) {
   const ch = enemyGroup(rt, { faction: 'hojo', name: '北条の追っ手', anchor: { x: H.KIDO_F.x - 6, z: from.z }, facing: Math.PI / 2, width: 5, aggro: 12, morale: 95, noRout: true,
     order: 'move', dest: { x: H.BANK.x - 1, z: H.BANK.z + (i ? 4 : -4) }, speed: 3.4 },
   H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: i ? 9 : 7 }], H.HOJO));
-  ch.dmgMult = 0.4; ch.chaser = true;
+  ch.dmgMult = 0.55; ch.chaser = true;
   ch.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 20; q.aggro = 14; };
   C.groups.push(ch);
   rt.army.play('eshout', from, 1.2);

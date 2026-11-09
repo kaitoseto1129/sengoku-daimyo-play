@@ -50,7 +50,7 @@ export function step(H) {
         const g = enemyGroup(rt, { faction: 'hojo', name: '北条の物見', anchor: { ...from }, facing: Math.atan2(H.FUSHIN.x - from.x, H.FUSHIN.z - from.z), width: 3, aggro: 10, morale: 85, noRout: true,
           order: 'move', dest: { x: H.FUSHIN.x, z: H.FUSHIN.z - 6 }, speed: 2.6 },
         H.dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: C.w >= 2 ? 4 : 3 }], { ...H.HOJO, flag: null }));
-        g.dmgMult = 0.4;
+        g.dmgMult = 0.55;
         g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 20; q.aggro = 14; };
         C.scouts.push(g); C.groups.push(g);
         rt.say('普請の番', ['林の中に人影！　北条の物見じゃ。生かして帰すな', 'また来た！　東の沢からじゃ', '三方から来る！　一人も城へ戻すな', '夜明け前の最後の物見じゃ！'][C.w], 3.2);
