@@ -23,7 +23,8 @@ export function install(rt, ctx) {
   rt.after(6, () => {
     if (rt.over || F.ending) return;
     try {
-      H.C = clash(rt, { x: (HON.x + EAST.x) / 2 + 6, z: (HON.z + EAST.z) / 2, facing: -Math.PI / 2, w: 18, gap0: 8, seed: 156901, noRout: true, noWake: true, nearHide: 14, killRate: 0.02,
+      // 本丸へ寄る本人の周りは本物の兵だけ。東の押し合いの絵は遠方に限る。
+      H.C = clash(rt, { x: (HON.x + EAST.x) / 2 + 6, z: (HON.z + EAST.z) / 2, facing: -Math.PI / 2, w: 18, gap0: 8, seed: 156901, noRout: true, noWake: true, nearHide: 60, killRate: 0.02,
         A: { flag: 'oda', armor: 0x302d29, count: n(100), team: 0, faction: 'oda', flagRate: 0.4 },
         B: { flag: 'rokkaku', armor: 0x33291f, count: n(80), team: 1, faction: 'rokkaku', flagRate: 0.4 } });
       H.C?.go?.();

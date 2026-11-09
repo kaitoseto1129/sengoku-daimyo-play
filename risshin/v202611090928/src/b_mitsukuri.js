@@ -47,7 +47,6 @@ import { siegeStages } from './siege_stages.js';
 import { depthTick, depthBot } from './b_depth.js';
 import * as k15Monomi from './mitsukuri/monomi.js';
 import * as k15Honmae from './mitsukuri/honmae.js';
-import * as k15Yoin from './mitsukuri/yoin.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
 import { addRamp, groundAt, rampAt } from './floors.js';
 import { timeslipField } from './timeslip_field.js';
@@ -4676,8 +4675,8 @@ const mitsukuri = {
       rt.after(1.5, () => { F.wadaFlag.visible = false; });
       rt.after(3.5, () => { for (const flag of F.kanFlags) flag.visible = false; });
     });
-    // 15分の構成：旗を立てたらすぐ結果へ行かず、燃える城と観音寺の火が消えるのを三十秒ほど見せる（mitsukuri/yoin.js）
-    rt.after(cryWait + 5, () => rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { sayKino }, 0)));
+    // 勝鬨・落城の知らせ・旗を下ろす場面で締める。同じ後日談と二十八秒の待ちを重ねない。
+    rt.after(cryWait + 5, () => rt.finish({ scriptedEnd: true }, 0));
     rt.banner('六角勢、退く', '箕作城、落つ。本丸の守りを固めよ');
     // 落城を見た観音寺・和田山の兵が、松明を掲げて麓から南東（甲賀の方）へ去る列（遠景）。
     F.flee = [
