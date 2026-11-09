@@ -691,7 +691,15 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   if (F.step === 3) { at(fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
-  if (F.step === 4) { at(fightingTarget(F.s4, u.pos)?.pos || NGATE, 2.2); return; }
+  if (F.step === 4) {
+    const target = fightingTarget(F.s4, u.pos)?.pos || NGATE;
+    // 城からの加勢は北門の外にも残る。北の塀を斜めに横切らず、開いた門を通って迎える。
+    if (target.z < WALL_N && u.pos.z > WALL_N - 4 && b.army.wallBetween(u.pos, -1, target)) {
+      at({ x: NGATE.x, z: u.pos.z > WALL_N + 4 ? WALL_N + 4 : WALL_N - 8 }, 2);
+      return;
+    }
+    at(target, 2.2); return;
+  }
   // ⑤は砦の真ん中の道を北へ（櫓の角へ真っすぐ向かって詰まらない）
   const f = F.flagAt || NGATE;
   if (Math.abs(u.pos.x - f.x) > 5 && u.pos.z > f.z + 8) { at({ x: f.x, z: u.pos.z - 4 }, 2); return; }

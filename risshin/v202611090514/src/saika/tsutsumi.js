@@ -76,7 +76,7 @@ export function install(rt, ctx) {
           }
         }
         // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
-        rt.after(6, () => { if (!F.ending) { for (const g of F.gunPosts || []) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });
+        rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });
         rt.after(13, () => { if (!F.ending) rt.say('堀秀政', '撃ち返すな。何か言うて来るつもりじゃ', 3.5); });
         rt.after(20, () => next());
       }

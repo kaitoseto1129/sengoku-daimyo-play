@@ -52,6 +52,6 @@ export function install(rt, ctx) {
     rt.banner('城将、打って出る', '吉田出雲守の旗本');
     rt.say('吉田出雲守', '六角の名を汚すな！　本丸は渡さぬ！', 3.2);
     rt.after(3.6, () => { if (!rt.over && !F.ending) sayKino(rt, '城将の旗本じゃ。囲んで押し返せ！　旗を守れ', 3.2); });
-    rt.marker('k15yoshida', () => (gone(g) ? null : g.center()), '城将の旗本', { red: true, group: g });
+    // 城将は名前と共通の敵印で示す。本丸の行き先に別の印を重ねない。
   });
 }

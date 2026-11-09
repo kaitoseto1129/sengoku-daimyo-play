@@ -9,7 +9,6 @@ import { sfx } from '../audio.js';
 
 export const MISSIONS = ['野村の浅井本陣へ追い討て', '信長の首を狙う遠藤直経を止めよ'];
 const DEST = { x: 40, z: -78 };   // 野村の手前（浅井の二の手・三の手がいた所）
-const ENDO_WAIT = 75;             // 野村へ着かなくても、この秒で遠藤が出る
 const ENDO_MAX = 70;              // 遠藤が出てこの秒で、竹中久作が討つ
 
 // ctx：{ enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, ending(), HQ }
@@ -30,10 +29,9 @@ export function start(rt, ctx) {
   try { sfx('horagai', 0.8); } catch (e) { /* 音が無くても進む */ }
   rt.say('森可成', '浅井は総崩れじゃ！　野村の長政の本陣まで追い討て！', 4);
   rt.after(9, () => !S.done && rt.say('足軽', '長政の馬印が退いていくぞ！　小谷の方じゃ！', 3));
-  rt.after(ENDO_WAIT, () => endo());
 
   function endo() {
-    if (S.k >= 1 || S.done || rt.over) return;
+    if (S.k !== 0.5 || S.done || rt.over) return;
     // 空の隊で「遠藤を止めた」と果たさない。七人の枠が空いてから出す。
     if (!ctx.canDeploy(7)) { rt.after(1, endo); return; }
     S.k = 1; S.endoT = rt.t;
@@ -92,7 +90,7 @@ export function pin(rt, q) {
   const S = rt.flags.aneTsui;
   if (!S || S.done) return undefined;
   if (S.k >= 1 && S.u?.alive) { q.unit = S.u; q.enemy = true; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 2; return q; }
-  if (S.k === 0) { q.x = DEST.x; q.z = DEST.z; q.r = 8; q.hide = 8; return q; }
+  if (S.k < 1) { q.x = DEST.x; q.z = DEST.z; q.r = 8; q.hide = 8; return q; }
   return undefined;
 }
 
