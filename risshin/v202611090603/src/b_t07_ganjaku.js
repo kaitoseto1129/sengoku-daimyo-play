@@ -771,6 +771,10 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     const F = rt.flags; if (v.team === 1) F.ek++; else F.ak++;
     // 討たれた相手を見続けず、次の思考で生きた敵か持ち場へ向き直る。
     for (const u of rt.army.units) if (u.alive && u.target === v) { u.target = null; u.aiT = 0; }
+    // 主人公の固定した狙いは兵の target とは別。残すと次の敵にも死者の方を向く。
+    const p = rt.player;
+    if (p.lock === v) { p.lock = null; p.wheelAcc = 0; }
+    if (p.aimed === v) { p.aimed = null; p.aimT = 0; }
   },
 
   win(rt) {

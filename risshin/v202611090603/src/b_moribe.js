@@ -4683,7 +4683,11 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const holdKills = (rt.stats?.kills || 0) - (F.holdK0 || 0);
       const lineAction = F.breathUntil > rt.t ? '南の畦へ下がる' : gone(F.B) ? closeEnemy ? '構えながら、南の畦へ下がれ' : '南の畦へ下がる' : u.mobbed ? '味方と列をそろえ直せ' : !insideLine ? '前備の列で仲間と槍をそろえよ' : '前備の列で長井・日比野の槍列を受け止めよ';
       const task = rt.objectives.find((o) => o.id === 'line');
-      if (task) task.text = lineAction;
+      // 11/9 二巡（豊臣A）：右上の一行が数秒ごとに「そろえよ」「受け止めよ」「そろえ直せ」と入れ替わった（act の流しで十二回）。
+      //   新しい言い方が六秒続いた時だけ替える（退く下知は危ないのですぐ出す）
+      if (lineAction !== F.lineActCand) { F.lineActCand = lineAction; F.lineActT = rt.t; }
+      if (!F.lineActShown || F.lineActCand === F.lineActShown || /下が/.test(F.lineActCand) || rt.t - F.lineActT >= 6) F.lineActShown = F.lineActCand;
+      if (task) task.text = F.lineActShown;
       const guardHelp = closeEnemy && lineReady && !fallingBack && !F.squadGuide ? '。印に到着。味方とこの場を守れ' : '';
       rt.objProgress('line', '');
       if (F.lineT >= 25 && !F.lineAwarded) { F.lineAwarded = true; rt.award((t) => t.side.push('槍の押し合いを支えた'), '槍列を支えた。控えにも備えよ'); }
