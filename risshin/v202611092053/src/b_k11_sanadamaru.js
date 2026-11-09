@@ -681,6 +681,12 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   // 柵の段：守る刻が過ぎても、柵を打ち倒すまでは済まない（時間で勝手に進めない。AB）。札に柵の残りを出す
   fenceStep(h) {
     this.holdStep(h, 80);
+    const start = h.start;
+    h.start = (rt, C, m, ctx) => {
+      start(rt, C, m, ctx);
+      // 持ち場の印と破る柵の印を重ねない。柵が既に倒れていれば持ち場の印を使う。
+      if (rt.flags.target.alive) rt.unmark('dp');
+    };
     const t0 = h.tick;
     h.max = 360;
     h.limit = Infinity;

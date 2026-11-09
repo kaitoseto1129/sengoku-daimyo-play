@@ -610,8 +610,14 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       F.mineT = 0.6;
       const g = F.mine, c = live(g) && g.center();
       if (c) {
-        if (dist(c, P.pos) > 8) { g.order = 'move'; g.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; g.speed = 3.9; }
-        else { g.order = 'attack'; g.seekRange = 14; }
+        if (dist(c, P.pos) > 8) {
+          // 遠くの敵への狙いを解き、走る主人公へ手勢も駆けて追い付く。
+          g.focus = null; g.order = 'move'; g.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; g.speed = 5;
+        } else {
+          // 追い付いた場所で戦う。出発点や途中の古い拠点へ戻らせない。
+          g.anchor.x = P.pos.x + 2; g.anchor.z = P.pos.z + 3;
+          g.order = 'attack'; g.seekRange = 14;
+        }
       }
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
