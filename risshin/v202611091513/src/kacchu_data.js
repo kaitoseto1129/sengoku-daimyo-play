@@ -424,7 +424,9 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["加藤清正", "zunari", "none", 0xae945d, 0xb38a60, "katahada", 0, 0x875749, "none", "a5a1c499"],
   ["黒田長政", "zunari", "kuwa", 0x1c1a1a, 0x6a2a5a, "okegawa", 0, 0, "kuroda", ""],
   ["立花宗茂", "momonari", "cross", 0x1c1a1a, 0x3c5a8a, "okegawa", 0, 0, "none", ""],
-  ["池田輝政", "eboshi", "shida", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0, "none", ""],
+  // 林原美術館の伝池田輝政所用「黒漆塗黒糸威菱綴桶側二枚胴具足」（光政が先祖顕彰で仕立てた見込み）。黒漆の桶側胴に黒糸威。
+  //   兜の形は確かめられず、前からの烏帽子形を復元案として残す（頭形・筋・桃形は同じ見た目の将と重なる）。根拠の無い羊歯の前立は外した（docs/generals_look_1108/池田輝政.md）
+  ["池田輝政", "eboshi", "none", 0x1c1a1a, 0x2a2622, "okegawa", 0, 0, "ageha", ""],
   ["細川忠興", "zunari", "feather", 0x181717, 0x2c2b29, "kebiki", 0, 0x28201e, "none", "48e4b5c5"],
   ["藤堂高虎", "tokan", "todo_tokan", 0x1c1a1a, 0x232c40, "okegawa", 0, 0, "todo", ""],
   ["大谷吉継", "zunari", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0x5a5a5a, 0, "none", ""],
@@ -606,6 +608,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["柴田勝政", "suji", "none", 0x1c1a1a, 0x4a5a2a, "kebiki", 0, 0, "none", ""],
   ["桑山重晴", "suji", "none", 0x1c1a1a, 0x9a6a5a, "okegawa", 0, 0, "none", ""],
   ["伊勢貞興", "suji", "none", 0x1c1a1a, 0x3a3a6a, "kebiki", 0, 0, "akechi", ""],
+  // 11/9 豊臣B：徳川編の戦に名のある武将として出るのに見た目の無かった七人。所用の具足は見つからず、筋兜・立物なしの復元案（docs/generals_look_1108/徳川編_復元案_1109.md）。
+  ["有馬豊氏", "suji", "none", 0x1c1a1a, 0x5a7a4a, "okegawa", 0, 0, "none", ""],
+  ["浅野幸長", "suji", "none", 0x1c1a1a, 0x8a4a6a, "okegawa", 0, 0, "asano", ""],
+  ["淡輪重政", "suji", "none", 0x1c1a1a, 0x4a3a2a, "kebiki", 0, 0, "none", ""],
+  ["百々綱家", "suji", "none", 0x1c1a1a, 0x6a6a3a, "kebiki", 0, 0, "none", ""],
+  ["石田正澄", "suji", "none", 0x1c1a1a, 0x2a5a5a, "okegawa", 0, 0, "ishida", ""],
+  ["石田正継", "suji", "none", 0x1c1a1a, 0x7a5a7a, "kebiki", 0, 0, "ishida", ""],
+  ["蜂須賀至鎮", "suji", "none", 0x1c1a1a, 0x9a4a3a, "okegawa", 0, 0, "hachisuka", ""],
   ["木下雅楽助", "eboshi", "kuwa_wide", 0x24221f, 0x66513b, "sugake", 0xcfc8b4, 0x24221f, "none", ""],
   ["中川金右衛門", "eboshi", "horn", 0x24221f, 0x3c5a8a, "sugake", 0x4a3a22, 0, "none", ""],
   ["山田新右衛門", "eboshi", "cross", 0x24221f, 0x66513b, "kebiki", 0xcfc8b4, 0x24221f, "none", ""],

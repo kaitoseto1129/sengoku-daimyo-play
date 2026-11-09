@@ -41,7 +41,7 @@ TEGARA_ON.add(ID);
 // ---- 名のある武将の甲冑（無ければ足す）。黒を基本に威しの色だけで分ける（AV1） ----
 const face = (o) => ({ w: 1.05, jaw: 1.1, chin: 1, cheek: 1, gaunt: 0.2, brow: 1.2, nose: 1, nw: 1.1, eye: 1.1, t: 5, hair: 0x15110d, age: 40, ...o });
 const give = (name, g) => { GENERALS[name] ||= { horo: 0, haoriMonCol: 0xe6dfcf, skin: 0x9c7453, ...g }; };
-give('池田輝政', { armor: 0x1e1c1a, lace: 0x2e3a52, hat: 'kabuto_s', haori: 0x2e3a52, mon: 'ageha', tack: 0x2a2a38, lord: true,
+give('池田輝政', { armor: 0x1e1c1a, lace: 0x2a2622, hat: 'kabuto_s', haori: 0x2e3a52, mon: 'ageha', tack: 0x2a2a38, lord: true,
   face: face({ age: 36, jaw: 1, beard: { mus: 0.5, musW: 0.9, droop: 0.2, goat: 0.1, side: 0, stub: 0.4 } }) });
 give('池田長吉', { armor: 0x201e1c, lace: 0x2e3a52, hat: 'kabuto_m', haori: 0x2a2a3a, mon: 'ageha',
   face: face({ age: 30, beard: { mus: 0.4, musW: 0.9, droop: 0.2, goat: 0, side: 0, stub: 0.3 } }) });

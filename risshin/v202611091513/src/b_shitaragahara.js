@@ -3822,4 +3822,6 @@ KILLS.shitaragahara = { 0: (rt) => {
   const g = N && N.step <= 3 && !ST_INTRO.active(rt) ? F.waveGroups[N.step <= 1 ? 0 : 1] : null;
   return g && g.units ? broke([g, g.cavalry], (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget, (q) => q.routed) : null;
 } };
+// 命懸けの戦場（docs/lethal_howto.md）。柵の前の鉄砲と騎馬の突き。開戦の二分は静かに、間を広く（11/9 先取りの列）
+shitaragahara.lethal = { max: 5, firstAt: 120, gap: 55 };
 export { shitaragahara };
