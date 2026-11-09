@@ -15,14 +15,11 @@ export function farArmies(rt) {
   const W = rt.world, F = rt.flags, Y = (F.yfar = {});
   if (!W?.addDistantArmy) return Y;
   const A = (o) => { try { return W.addDistantArmy({ host: false, farFill: true, kind: 'mixed', flagTex: flagTexture(o.flag), mon: o.flag, ...o }); } catch (e) { console.warn('t01 far', e); return null; } };
-  // 南の街道を上る羽柴の後ろ備え（初めは遠く南。②から北へ歩いて来て、後ろを埋める）
-  Y.nobutaka = A({ x: 34, z: 168, w: 26, d: 10, count: 300, facing: Math.PI, armor: HA_ARMOR, flag: 'toyotomi', seed: 15821, team: 0 });
-  Y.niwa = A({ x: -70, z: 166, w: 24, d: 10, count: 260, facing: Math.PI, armor: HA_ARMOR, flag: 'toyotomi', seed: 15822, team: 0 });
+  // 丹羽長秀・織田信孝の後詰と勝竜寺の明智秀満は、軍勢の厚みの表（depth.js）が備として描く
   // 秀吉の本陣の後ろの旗本の備え（巨大な本陣の厚み）
   Y.hon = A({ x: -36, z: 132, w: 22, d: 8, count: 200, facing: Math.PI, armor: HA_ARMOR, flag: 'toyotomi', seed: 15823, team: 0 });
   // 明智の控え（御坊塚の後ろ）と勝竜寺城の前
   Y.akRes = A({ x: -20, z: -176, w: 26, d: 10, count: 260, facing: 0, armor: AK_ARMOR, flag: 'akechi', seed: 15824, team: 1 });
-  Y.shoR = A({ x: 40, z: -196, w: 18, d: 6, count: 120, facing: 0, armor: AK_ARMOR, flag: 'akechi', seed: 15825, team: 1 });
   // 天王山の裾の取り合い（秀長・官兵衛の手と松田・並河の手。軽い合戦）
   try {
     Y.tenno = clash(rt, {

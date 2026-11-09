@@ -33,6 +33,7 @@ import { battleEventsStart } from './battle_events.js';
 import * as Camp from './t03_komaki/camp.js';
 import * as Council from './t03_komaki/council.js';
 import * as Night from './t03_komaki/night.js';
+import { T03_DEPTH } from './t03_komaki/depth.js';
 
 // 時の飛ぶ所の短い暗転（11/8 二6・十二1：羽黒の松林から一瞬で夜の砦の中へ飛んだ）。動きを減らす設定ではすぐ替える
 function blackCut(rt, mid, text) {
@@ -198,6 +199,9 @@ const t03_komaki = {
   spawn: { x: RAKUDA.x - 4, z: RK.z1 + 8, heading: 0 },   // 楽田城の大手門の前（秀吉の本陣の下知を受けて出る）
   minutes: 15,
   expectMin: 15,
+  depth: T03_DEPTH,   // 軍勢の厚み・陣立て（t03_komaki/depth.js）
+  lethal: { max: 3, firstAt: 150, gap: 70 },   // 命懸けの戦場（docs/lethal_howto.md）
+  fearKind: { kind: 'standoff', note: '十万の陣でも、動かぬ家康を崩せない', w: { flank: 1.2, iso: 1.4 }, line: '柵の向こうから撃たれておる！' },
   compactIntro: true,
   introText: () => '楽田の秀吉の本陣と、小牧山の家康の陣。両軍は砦を並べて睨み合う。',
   stageGoalsOnly: true,

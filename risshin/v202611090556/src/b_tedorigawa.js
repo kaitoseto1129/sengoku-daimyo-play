@@ -95,6 +95,8 @@ function pressPlayer(rt, dt) {
   }
   F._pressed.length = 0;
   for (const o of A.units) {
+    // 待機中は▼も出さない追手。本人が近づいても、出発の下知より先に引き出さない。
+    if (o.group?.tedoFrom && !o.group.tedoActive) continue;
     if (!o.alive || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.downed || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
