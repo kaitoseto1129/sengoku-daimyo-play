@@ -415,7 +415,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["石田三成", "suji", "sun", 0x1c1a1a, 0xa8281c, "sugake", 0, 0, "none", ""],
   // 大坂城内の復元案。本人の初着甲冑と成人の具足を混同しない（出所は docs/generals_look_1108/豊臣秀頼.md）。
   ["豊臣秀頼", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0, "toyotomi", ""],
-  ["宇喜多秀家", "zunari", "kuwa_wide", 0x1c1a1a, 0x9a2e20, "okegawa", 0, 0x1c1a1a, "none", ""],
+  // 当日所用は未確認。宇喜多家臣・伝花房正成所用の桃山期紺糸威二枚胴を手本とする復元案。
+  ["宇喜多秀家", "zunari", "none", 0x1c1a1a, 0x232c40, "okegawa", 0, 0x1c1a1a, "none", ""],
   ["小早川秀秋", "suji", "hideaki_ushiro", 0x1c1a1a, 0x6a3a62, "kebiki", 0xa8281c, 0, "none", ""],
   ["前田利長", "zunari", "kuwa", 0x1c1a1a, 0x5a2a1c, "okegawa", 0, 0, "maeda", ""],
   ["加藤清正", "zunari", "none", 0xae945d, 0xb38a60, "katahada", 0, 0x875749, "none", "a5a1c499"],

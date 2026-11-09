@@ -782,11 +782,11 @@ const t10_oshi = {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     for (const st of [chikara, kobuneSt, kaijo]) { const q = st.pin(rt, C); if (q !== undefined) return q; }
-    if (F.step <= 3) return { x: RAIDAT.x, z: RAIDAT.z, r: 10 };
-    if (F.step === 4) return F.weirOpen ? null : { x: WEIR.x, z: WEIR.z, r: 4 };
-    if (F.step === 6) return F.broken ? { x: MARU.x, z: MARU.z, r: 14 } : null;
-    if (F.step <= 8) return { x: FRONT.x, z: FRONT.z, r: 6 };
-    return { x: REAR.x, z: REAR.z, r: 5 };
+    if (F.step <= 3) return { x: RAIDAT.x, z: RAIDAT.z, r: 10, label: '浅瀬の口' };
+    if (F.step === 4) return F.weirOpen ? null : { x: WEIR.x, z: WEIR.z, r: 4, label: '堤の西の堰' };
+    if (F.step === 6) return F.broken ? { x: MARU.x, z: MARU.z, r: 14, label: '丸墓山' } : null;
+    if (F.step <= 8) return { x: FRONT.x, z: FRONT.z, r: 6, label: '佐間口の門前' };
+    return { x: REAR.x, z: REAR.z, r: 5, label: '佐間口の門前' };
   },
 
   update(rt, dt) {
@@ -865,7 +865,7 @@ const t10_oshi = {
       // 堤が切れて二十秒は、散った組を呼び集める間（すぐ負けにしない）。
       if (!F.arrived && rt.t - F.breakT > 20 && alive < F.evac0 * 0.4) { this.lose(rt, 'evac'); if (F.ending) return; }
       // 時が来ただけでは済ませない。主人公が丸墓山の上に着き、組が付いて来たら、三成が迎えて次へ（11/7・critic60「着いたら何かが起きて次へ」）
-      if (!F.arrived && near(P.pos, MARU, 18) && safe > 0 && safe >= Math.ceil(F.evac0 * 0.5)) {
+      if (!F.arrived && P.alive && near(P.pos, MARU, 18) && safe > 0 && safe >= Math.ceil(F.evac0 * 0.5)) {
         F.arrived = true;
         rt.award((t) => { t.side.push('人夫と兵を逃がした'); }, '人夫と兵を逃がした');
         for (const g of F.evac) { g.order = 'hold'; g.anchor = { x: MARU.x - 6, z: MARU.z - 6 }; }
