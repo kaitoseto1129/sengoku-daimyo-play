@@ -472,30 +472,32 @@ const k03_gifu = {
     // 曲輪を一つ破るごとに、次の口の下で息を整え傷を縛る（山道の段が続き、深手のまま味方の陰で動けなくなった。11/8 bot）
     if (n >= 2) rt.player.treatWounds?.(0.45, 0.8);
     rt.obj('s' + n, STEP_TEXT[n], 'main');
-    const go = (g, p, seek = 30) => { if (!live(g)) return; g.order = 'attack'; g.anchor = { x: p.x, z: p.z }; g.seekRange = seek; g._gfTo = { x: p.x, z: p.z, seek }; g._gfGo = false; g.onArrive = null; };   // 前の段の onArrive が後から着いて行き先を戻さないように
+    // 前の曲輪の知らせを、次の段や秀信の降伏へ持ち越さない。
+    const afterStep = (delay, fn) => rt.after(delay, () => { if (!F.ending && F.step === n) fn(); });
+    const go = (g, p, seek = 30) => { if (!live(g)) return; if (g._gfGo && g._gfForm) [g.formation, g.width] = g._gfForm; g.order = 'attack'; g.anchor = { x: p.x, z: p.z }; g.seekRange = seek; g._gfTo = { x: p.x, z: p.z, seek }; g._gfGo = false; g.onArrive = null; };   // 前の段の onArrive が後から着いて行き先を戻さないように
     if (n === 1) {
       sfx('horagai', 0.8);
-      rt.after(1.2, () => sfx('taiko', 0.8));
+      afterStep(1.2, () => sfx('taiko', 0.8));
       F.stepG = F.g1;
       go(F.naga, { x: SHITA.x - 4, z: SHITA.z - 4 }, 26);
       rt.army.play('toki', { x: START.x + 8, z: START.z }, 1.4);
-      rt.after(2, () => rt.say('池田長吉', '総門に津田藤三郎の鉄砲じゃ！　固まって押せ', 3.4));
-      rt.after(6, () => rt.say('津田藤三郎', '総門は津田が預かった。一人も通すな、放て！', 3));
+      afterStep(2, () => rt.say('池田長吉', '総門に津田藤三郎の鉄砲じゃ！　固まって押せ', 3.4));
+      afterStep(6, () => rt.say('津田藤三郎', '総門は津田が預かった。一人も通すな、放て！', 3));
     } else if (n === 2) {
       rt.banner('総門を破った', '山麓の居館に百々綱家の手勢');
       // 御殿と百曲口は百々綱家の受け持ち（battle_learn）。麓の御殿は家来が守り、綱家は百曲りの中腹で待つ
       F.stepG = F.pre[2];
       go(F.naga, { x: OTE.x - 4, z: OTE.z - 3 }, 30);
-      rt.after(1, () => rt.say('百々の侍', '御殿を捨てるな。巨石の道で足を止めよ！', 3));
-      rt.after(5, () => rt.say('池田長吉', '石垣の狭間から撃ってくる。竹束の陰を伝え', 3));
+      afterStep(1, () => rt.say('百々の侍', '御殿を捨てるな。巨石の道で足を止めよ！', 3));
+      afterStep(5, () => rt.say('池田長吉', '石垣の狭間から撃ってくる。竹束の陰を伝え', 3));
       // 浅野幸長の手：瑞龍寺山の砦を落とし、南西から寄せて来る（言った物は本当に来る）
       F.asano = allyGroup(rt, { faction: 'oda', name: '浅野幸長の手', anchor: { x: ZUIRYU.x, z: ZUIRYU.z }, facing: Math.PI, width: 9, aggro: 12, speed: 3.8, noRout: true, fixed: true, fullStrength: true, formation: 'yari' },
         asD([busho('浅野幸長'), uS(4), uA(14), uG(4)]));
       F.asano.defMult = 1.3; F.asano.dmgMult = 0.8;
       F.asano.order = 'move'; F.asano.dest = { x: OTE.x - 14, z: OTE.z + 10 }; F.asano.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; q.anchor = { x: OTE.x, z: OTE.z }; };
-      rt.after(10, () => rt.say('足軽', '南に違い鷹の羽の旗！　瑞龍寺山を落とした浅野勢じゃ！', 3));
+      afterStep(10, () => rt.say('足軽', '南に違い鷹の羽の旗！　瑞龍寺山を落とした浅野勢じゃ！', 3));
       // 井伊直政（家康の目付）は稲葉山・権現山の砦を攻めた（ウィキペディア「岐阜城の戦い」）。南の尾根の話として台詞で
-      rt.after(16, () => rt.say('池田長吉', '南の権現山の砦には井伊殿の手が寄せておる。外の砦は、もう持つまい', 3.4));
+      afterStep(16, () => rt.say('池田長吉', '南の権現山の砦には井伊殿の手が寄せておる。外の砦は、もう持つまい', 3.4));
     } else if (n === 3) {
       rt.banner('居館を破った', '百曲りの中腹の砦に百々綱家');
       rt.world.setTime('day');
@@ -504,8 +506,8 @@ const k03_gifu = {
       go(F.naga, { x: NANA.x - 6, z: NANA.z }, 30);
       go(F.asano, { x: NANA.x - 10, z: NANA.z + 2 }, 30);
       if (live(F.amb)) { F.amb.order = 'attack'; F.amb.seekRange = 20; }   // 曲がり角の伏兵が打って出る
-      rt.after(1, () => rt.say('池田の侍', '稲葉山は急じゃ。曲がり角ごとに伏せておるぞ、足元に気を付けよ', 3.4));
-      rt.after(5, () => rt.say('百々綱家', '百曲りは百々が守る。石を落とせ、坂の上から放て！', 3));
+      afterStep(1, () => rt.say('池田の侍', '稲葉山は急じゃ。曲がり角ごとに伏せておるぞ、足元に気を付けよ', 3.4));
+      afterStep(5, () => rt.say('百々綱家', '百曲りは百々が守る。石を落とせ、坂の上から放て！', 3));
       // 福島勢は南の七曲りを登り始める（沢瀉の旗が南の尾根を登るのが百曲りから見える。一番乗りの争い）
       this.fukushima(rt);
     } else if (n === 4) {
@@ -513,20 +515,20 @@ const k03_gifu = {
       F.stepG = F.pre[4];
       go(F.naga, { x: NI.x - 8, z: NI.z }, 30);
       go(F.asano, { x: NI.x - 12, z: NI.z + 2 }, 30);
-      rt.after(1, () => rt.say('木造長政', '七曲りは福島に破られた。二の丸で食い止めよ！　石垣の上から放て！', 3.2));
+      afterStep(1, () => rt.say('木造長政', '七曲りは福島に破られた。二の丸で食い止めよ！　石垣の上から放て！', 3.2));
       this.fukushima(rt);
       go(F.fuku, { x: -19, z: 13 }, 6);   // 七曲りを登り切った所（本丸の門の南の下）で待つ（門の旗本へは⑤まで掛からない。福島勢が先に旗本を討って、主人公が着いた途端に⑤が済んだ）
-      rt.after(8, () => rt.say('池田の侍', '右手に沢瀉の旗！　福島勢が七曲りを登り切って、本丸の門の下へ上がって来た', 3.4));
+      afterStep(8, () => rt.say('池田の侍', '右手に沢瀉の旗！　福島勢が七曲りを登り切って、本丸の門の下へ上がって来た', 3.4));
       // 同じ日の朝、合渡川で黒田長政らが霧の中を渡り、大垣からの後詰（舞兵庫）を破った（昼の二の丸には知らせとして届く）
-      rt.after(40, () => rt.say('池田の侍', '今朝、合渡川で黒田殿らが大垣の後詰を追い散らしたそうな。大垣からの助けは来ぬ', 3.6));
+      afterStep(40, () => rt.say('池田の侍', '今朝、合渡川で黒田殿らが大垣の後詰を追い散らしたそうな。大垣からの助けは来ぬ', 3.6));
     } else if (n === 5) {
       rt.banner('二の丸を落とした', '本丸の門に秀信の旗本');
       F.stepG = F.pre[5];
       go(F.naga, { x: DAI.x - 8, z: DAI.z }, 26);
       go(F.asano, { x: DAI.x - 12, z: DAI.z + 2 }, 26);
       go(F.fuku, { x: DAI.x + 2, z: DAI.z + 3 }, 20);   // 本丸の門の前で池田勢と並ぶ（一番乗りの争いが見える）
-      rt.after(1, () => rt.say('池田輝政の使番', '殿の仰せ。福島より先に本丸の門を破れ、と', 3));
-      rt.after(5, () => rt.say('織田秀信', '亡き祖父の城、たやすくは渡さぬ！', 3));
+      afterStep(1, () => rt.say('池田輝政の使番', '殿の仰せ。福島より先に本丸の門を破れ、と', 3));
+      afterStep(5, () => rt.say('織田秀信', '亡き祖父の城、たやすくは渡さぬ！', 3));
     }
   },
 

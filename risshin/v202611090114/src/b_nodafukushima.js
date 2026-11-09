@@ -873,7 +873,8 @@ html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode {
  width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
 html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
-html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
+html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li i { display:block !important; margin-top:3px; }
+html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li.now::before { content:none !important; }
 html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.noda-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
@@ -891,9 +892,24 @@ function nodaGoalBoard(rt) {
     const out = progress.call(this, battle);
     if (battle === rt && this.prog && !rt.over) {
       // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
-      const def = rt.def, one = def.missionSingleLine;
+      const def = rt.def, one = def.missionSingleLine, all = def.goalsAllRows;
       def.missionSingleLine = false;
-      try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
+      def.goalsAllRows = true;
+      try {
+        goalsTick(this.prog, rt);
+        // 共通側が今の一行だけを作るため、装飾だけでは一覧にならない。
+        // 順番と済んだ印を保ち、今の目標から五件を見せる。終盤は済んだ行も残す。
+        const rows = this.prog.querySelector('.pg-goals ul')?.children;
+        if (rows) {
+          let now = 0;
+          for (let i = 0; i < rows.length; i++) if (rows[i].classList.contains('now')) { now = i; break; }
+          const first = Math.min(now, Math.max(0, rows.length - 5));
+          for (let i = 0; i < rows.length; i++) {
+            const display = i >= first && i < first + 5 ? 'flex' : 'none';
+            if (rows[i].style.display !== display) rows[i].style.setProperty('display', display, 'important');
+          }
+        }
+      } finally { def.missionSingleLine = one; def.goalsAllRows = all; }
     }
     return out;
   };
@@ -910,7 +926,6 @@ function nodaGoalBoard(rt) {
     const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo') && !nodaCardOpen();
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
       // 11/7：束で描く兵は一人ずつの形（mesh）を隠しているので、見え隠れで外すと近い門徒に▼が付かなかった（写真 np/c b235）。見通しは sightUnit で見る。
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
@@ -3480,11 +3495,11 @@ const nodafukushima = {
     rt.setPhase('brief');
     rt.obj('main', nodaGoal(rt), 'main', true);
     rt.say('前田利家', '寄れ。今日は堤の井楼から砦の内へ撃ち込む', 4);
-    // 印の前田に寄って話を聞く。寄らなくても二十秒で下知は来る（二5）
+    // 印の前田に寄って話を聞く。寄らなくても十五秒で下知は来る（二5）
     const ready = () => {
       rt.marker('maeda', unitPos(F.maedaU), '前田利家', {});
       rt.addInteract('talk', { x: 0, z: LEVEE_Z + 6 }, '前田利家の話を聞く', () => this.order(rt), { r: 5 });
-      rt.after(20, () => this.order(rt));
+      rt.after(15, () => this.order(rt));
     };
     // 15分の構成：始まりの段（葦の水路の物見）を挟んでから前田の下知（nodafukushima/suiro.js）
     if (rt.G.lord) ready();
