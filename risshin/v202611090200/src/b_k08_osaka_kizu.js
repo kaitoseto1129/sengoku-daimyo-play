@@ -56,6 +56,20 @@ const OSAKA ={ x: 260, z: -260 };             // 大坂城の方角（遠く）
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 const sum = (gs) => gs.reduce((s, g) => s + (alive(g) ? g.count : 0), 0);
+// 討てない大将だけの組や退場中の兵を追わず、まだ戦っている兵へ寄せる。
+const fightable = (u) => u.alive && !u.noTarget && !u.invuln && !u.fleeing && !u.dying && !u.woundOut && !u.evacuatedWound;
+function fightingTarget(groups, p) {
+  let best = null, distance = Infinity;
+  for (const g of groups) {
+    if (!alive(g)) continue;
+    for (const u of g.units) {
+      if (!fightable(u)) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < distance) { best = u; distance = d; }
+    }
+  }
+  return best;
+}
 // 味方の隊は持ち場（anchor）を移すだけ。兵は走って付いてくる（名のある武将の隊は order の move で動かない）
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
 const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s);
@@ -122,6 +136,7 @@ const k08_osaka_kizu = {
   // 池田の手の旗持ちは家の旗（ikeda）を持つが、その絵が無く白地に黒い丸だけの旗になっていた（11/6 fixc0823 で描いて見た）。池田家の揚羽蝶に
   flagEra: { hachisuka: 'manji', ikeda: 'ageha' },
   noMiniMap: true,        // 右上の小さな地図を出さない（五の1）
+  touchBattleControls: true,   // 拾った鉄砲へ指でも持ち替える（通し確認で武器の丸が出なかった）
   // 敵の兵には一人残らず頭上に赤い▼（九3。11/5 crit：門の内の斬り合いでどれが明石の兵か分からなかった）。④は討てない全延にも付ける
   enemyTriangleSigns: true,
   arrowRainPerBow: 3,
@@ -337,11 +352,11 @@ const k08_osaka_kizu = {
       perch(g, x, W.heightAt(x, z) + lookoutDeckHeight() + 0.08, z, f);   // 櫓の床の上に立つ（宙に浮かせない）
       F.towers.push(g);
     }
-    F.e0 = rt.army.units.filter((u) => u.team === 1 && !u.isStruct).length;   // 櫓の八人も含め、八百の内の一人の重みをそろえる
     F.s1 = [F.front]; F.fN = F.front.count;
 
     // 戦の前の話（蜂須賀の陣）。家康は住吉の陣（茶臼山へ移るのは十二月六日）、全登は城の評定にいて、この場にはいない
     engun.install(rt, { TOYO, ASANO, ASANO_AT });   // 城からの加勢と浅野の後備（始めから控える。k08/engun.js）
+    F.e0 = rt.army.units.filter((u) => u.team === 1 && !u.isStruct).length;   // 櫓と城からの加勢も八百の内に数える
     iriguchi.install(rt, { W });   // 遠くの大坂城と、城を囲む徳川方の陣（k08/iriguchi.js）
     rt.setPhase('brief');
     // 話の間も行き先を出す。出陣の下知が届いたら十五秒以内に先手が動く
@@ -467,7 +482,7 @@ const k08_osaka_kizu = {
     for (const g of F.allies) g.dmgMult = 0.3;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない。11/6 描いた通しで 0.45 では三十七秒で済み、戦が三分で終わった）
     hold(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
     hold(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
-    rt.marker('k08', () => { const g = F.s4.find(alive); return g ? centerOf(g)() : NGATE; }, '明石全延の組', { red: true, group: F.zen });
+    rt.marker('k08', () => fightingTarget(F.s4, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
@@ -663,8 +678,8 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     inp.leftPressed = Math.random() < 0.6;
     return;
   }
-  if (F.step === 3) { const g = F.s3.find(alive); at(g ? g.center() : INSIDE, 3); return; }
-  if (F.step === 4) { const g = F.s4.find(alive); at(g ? g.center() : NGATE, 3); return; }
+  if (F.step === 3) { at(fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
+  if (F.step === 4) { at(fightingTarget(F.s4, u.pos)?.pos || NGATE, 2.2); return; }
   // ⑤は砦の真ん中の道を北へ（櫓の角へ真っすぐ向かって詰まらない）
   const f = F.flagAt || NGATE;
   if (Math.abs(u.pos.x - f.x) > 5 && u.pos.z > f.z + 8) { at({ x: f.x, z: u.pos.z - 4 }, 2); return; }
@@ -677,7 +692,13 @@ KILLS.k08_osaka_kizu = (rt) => {
   if (F.ending) return null;
   if (F.step === 1) return cut(F.fN, sum(F.s1), F.fN * 0.15);
   if (F.step === 3) return cut(F.gN, sum(F.s3), F.gN * 0.15);
-  if (F.step === 4) return cut(F.nN, northLeft(F), Math.floor(F.nN * 0.2));
+  if (F.step === 4) {
+    const north = cut(F.nN, northLeft(F), Math.floor(F.nN * 0.2));
+    const reinforcements = cut(F.engunN, engun.remaining(rt), Math.ceil(F.engunN * 0.3));
+    // 城からの加勢も退けるまで④は続く。守兵だけを数えて達成済みに見せない。
+    if (north && reinforcements) return [north[0] + reinforcements[0], north[1] + reinforcements[1]];
+    return north || reinforcements;
+  }
   return null;
 };
 // 戦の進行の札（段）：F.step の 1〜5（五つ。史実の時刻の順。goals5.js が「敵を何人討つ」で埋めない）

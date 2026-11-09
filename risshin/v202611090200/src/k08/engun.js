@@ -59,11 +59,19 @@ export function start(rt, K) {
 }
 
 // ④を終えてよいか：加勢を放った後は、加勢が三割まで減るか崩れるまで待つ（放つ前なら待つ）
+export function remaining(rt) {
+  const g = rt.flags.engun;
+  if (!alive(g)) return 0;
+  let n = 0;
+  for (const u of g.units) if (u.alive && !u.dying && !u.woundOut && !u.evacuatedWound && !u.fleeing && !u.invuln) n++;
+  return n;
+}
+
 export function cleared(rt) {
   const F = rt.flags;
   if (!F.engun) return true;
   if (!F.engunOn) return false;
-  return !alive(F.engun) || F.engun.count <= Math.ceil((F.engunN || 1) * 0.3);
+  return remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3);
 }
 // ⑤へ移る時：残る加勢も博労淵へ退く
 export function fleeAll(rt) {

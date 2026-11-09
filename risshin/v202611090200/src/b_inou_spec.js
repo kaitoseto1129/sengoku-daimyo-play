@@ -235,7 +235,7 @@ function reeds(rt) {
 
 const aliveFoes = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && u.team === 1 && !u.civ ? 1 : 0), 0);
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
-const aliveIn = (list) => (list || []).reduce((n, g) => n + g.units.reduce((m, u) => m + (u.alive && !u.gone ? 1 : 0), 0), 0);
+const aliveIn = (list, fightingOnly = false) => (list || []).reduce((n, g) => n + g.units.reduce((m, u) => m + (u.alive && !u.gone && (!fightingOnly || !g.routing && !g.routed && !u.fleeing) ? 1 : 0), 0), 0);
 // 横の列の真ん中（生きた組の中心の平均）。後ろの軽い大軍が付いて歩く
 const lineFront = (list, facing) => {
   let x = 0, z = 0, n = 0;
@@ -362,7 +362,8 @@ const inou_spec = {
       FORCE.a = round10(700 - 300 * (1 - r1)); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
     } else {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
-      const alive = aliveIn(F.l2) + aliveIn(F.bows) + aliveIn(F.bankG) + (F.guardG ? aliveIn([F.guardG]) : 0);
+      // 退いた林勢を戦う数に残さない。旧版だけの修正では、総崩れでも敵の数が残っていた。
+      const alive = aliveIn(F.l2, true) + aliveIn(F.bows, true) + aliveIn(F.bankG, true) + (F.guardG ? aliveIn([F.guardG], true) : 0);
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
       FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
