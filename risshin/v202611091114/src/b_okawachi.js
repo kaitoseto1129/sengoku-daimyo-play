@@ -37,6 +37,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 // 冒頭の囲みと和睦の余韻。夜攻め後は五つの目標のまま、帰陣・封鎖・和睦へ進む。
 import * as k15Kakoi from './okawachi/kakoi.js';
 import * as k15Yoin from './okawachi/yoin.js';
+import * as tage from './okawachi/tage.js';
 import { yamaLift, benchRoads } from './yamalift.js';
 import { heightOf, buildCastlePlan, makeLordKeep } from './castle_plan.js';
 import { horiboriHeight } from './castle_parts.js';
@@ -2175,10 +2176,14 @@ const okawachi = {
     rt.objDone('dp');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '南の道を保ち、兵糧を止めて和睦まで囲みに加わった', pts: 18 }; }, '任務達成・和睦');
-    // 九月九日の局地戦が、その日のうちに和睦を決めたように見せない。札の一枚で約一月を送り、十月四日の開城を見せる。
+    // 任務を果たしてから別の土地の多芸焼きを見せ、十月の開城へ日を送る。
+    rt.player.u.invuln = true;
+    const tageDuration = tage.play(rt);
+    // 九月九日の局地戦が、その日のうちに和睦を決めたように見せない。
     // 勝ちの締めは共通の作りで四秒半に詰まる（kaito 11/2「待ちが長すぎる」）。前は五秒の日送りの後に開城を置き、
     // 締めの前に一度も出ていなかった（11/5 流しで確かめた）。日送りと開城を一つにし、締めの間に全部を見せる。
-    {
+    rt.after(tageDuration, () => {
+      if (rt.disposed) return;
       F.peaceAnnounced = true;
       rt.banner('十月四日　開城', '一月の囲みで城は飢えた。三日に和睦し、茶筅丸を具房の養子に迎え、城を滝川・津田へ渡す');
       F.gates.karamete._openNow(false);
@@ -2194,10 +2199,9 @@ const okawachi = {
       okSignal(rt, 'atsumare', okCommandAt(rt, F.blockGuard, SOUTH_BLOCK), 0.7);
       // 全部の目標を果たした後に新しい目標の札は足さない（三3）。和睦では勝鬨や突撃の声にしない。
       rt.say(okSpeaker(rt), '和睦が成った。槍を収めよ。城は滝川左近殿と津田掃部殿へ渡す', 4);
-    }
-    rt.player.u.invuln = true;
+    });
     // 15分の構成：和睦の後、すぐ結果へ行かず三十秒ほど余韻（okawachi/yoin.js）
-    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { speaker: okSpeaker(rt) }, 0));
+    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { speaker: okSpeaker(rt) }, tageDuration));
   },
 
   update(rt, dt) {

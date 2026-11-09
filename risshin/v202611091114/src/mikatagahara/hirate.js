@@ -8,13 +8,13 @@ import { sfx } from '../audio.js';
 
 export const HIRA_LAST = { x: 30, z: -8 };   // 平手が最後に踏みとどまる所（右の森の際から南西へ下がった野）
 
-// 平手の討死（名を大きく一度・onKill と重ねない）と、退く下知
+// 退く下知の後に平手の討死（名を大きく一度・onKill と重ねない）
 function hirateFalls(rt) {
   const F = rt.flags;
   const u = F.hiraU;
   rt.say('平手汎秀', '我こそは平手監物汎秀なり！　織田の加勢の名を汚すな、続け！', 3.2);
   if (u?.alive && F.hirate) { F.hirate.order = 'attack'; F.hirate.aggro = 20; F.hirate.seekRange = 30; }
-  rt.after(3.6, () => {
+  rt.after(7.6, () => {
     if (F.ending || rt.over || F.hirateFallSaid) return;
     F.hirateFallSaid = true;
     F.bossName = '佐久間信盛';
@@ -23,8 +23,9 @@ function hirateFalls(rt) {
     sfx('kane', 0.45);
     if (F.hirate && F.hirate.count) { F.hirate.morale = Math.min(F.hirate.morale || 60, 30); }
   });
-  rt.after(6.4, () => { if (!F.ending && !rt.over) rt.say('足軽', '平手の殿が……！　殿が討たれたがや！', 2.8); });
-  rt.after(9.4, () => {
+  rt.after(10.4, () => { if (!F.ending && !rt.over) rt.say('足軽', '平手の殿が……！　殿が討たれたがや！', 2.8); });
+  // 総崩れの下知を先に聞かせ、退く味方を支える中で平手が討たれる順にする。
+  rt.after(3.6, () => {
     if (F.ending || rt.over) return;
     sfx('horagai', 0.5);
     rt.say('使番', '御大将より下知！　総崩れじゃ、浜松へ退け！　南の坂へ集まれ！', 3.4);
