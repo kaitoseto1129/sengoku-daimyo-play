@@ -4078,7 +4078,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   // 毛利の荷駄船（石山本願寺へ兵糧を運ぶ）：西から来て、織田船団の脇を通り東（石山の方）へ抜けようとする
   launchSupply(rt) {
     const F = rt.flags;
-    // 近い関船から寄せ、消火に移る前に二艘とも大筒で狙えるようにする。
+    // ⑤の兵糧船の段で、近い関船から二艘を寄せる。
     let m = null, nearest = Infinity;
     for (let i = 6; i < F.far.length; i += 6) {
       const ship = F.far[i];
@@ -4123,8 +4123,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     this.surge(rt);
     rt.say('大筒の者', '小早が寄せて来る！　十分に引き付けてから、西の大筒で撃て！', 4);
     F.nextBoat = rt.t + 42;
-    this.launchSupply(rt);
-    rt.after(24, () => { if (!F.ending && F.step <= 3) this.launchSupply(rt); });
+    // 荷船は⑤で二艘を寄せる。①にも出すと四艘になり、小早を撃つ前に
+    // 荷船への命中だけで①が済み、消火中にも目標外の船が大坂へ抜けてしまう。
   },
   fire(rt, i, playerShot = true) {
     const F = rt.flags;

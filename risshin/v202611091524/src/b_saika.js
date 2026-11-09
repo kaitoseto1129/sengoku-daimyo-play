@@ -2005,6 +2005,7 @@ const ENVOY_AT = { x: 6, z: -84 };
 const ENVOY_ROAD = [[14, -60], [30, -38], [56, -27], [86, -20], [SAKUMA_AT.x + 2, -7]];
 const saika = {
   jinkei: JIN,
+  lethal: { max: 3, firstAt: 150, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は筋書きのまま
   namedKacchu: SAIKA_KACCHU,
   // 稲生の型。右上の任務一行・ピン・敵の▼・大将の印だけを使う。
   // 共通の一件表示へ戻さず、最初から五件と達成の印を並べる。

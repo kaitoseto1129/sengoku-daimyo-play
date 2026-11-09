@@ -2136,6 +2136,7 @@ const shigisan = {
     P.camPos.copy(camera.position);
   },
   jinkei: JIN,
+  lethal: { max: 3, firstAt: 150, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は筋書きのまま
   // 共通の民の描画・兵と火の接近判定を使う。兵数・当たり・戦功には入れない。
   // 山の高低差と個別の再避難路を使い、小谷の里道専用の逃走へ切り替えない。
   // 地面の焚火（大きさ1.3）も避け、篝火（大きさ0.7）は見物を妨げない。

@@ -312,10 +312,15 @@ NAMED_GEAR['土屋昌恒'].swordHand = 'right';
 
 // 旗印（隊の旗持ちが掲げる。textures.js の紋の種類）と馬印（units_flags.js の umaGeometry：fan 金扇・gourd 瓢箪・sun 日輪）。
 // 布と形は家の旗・馬印と同じ物を使い回す。馬印は本人でなく隊の徒が背負う。
+// 孫一の八咫烏は地域の旗印伝承による復元。個人馬印は未確認なので隊にも陣所にも補わない。
+// https://wakayama-rekishi100.jp/story/006.html
+NAMED_GEAR['鈴木孫一'] = { ...(NAMED_GEAR['鈴木孫一'] || rosterGear('鈴木孫一')),
+  flag: 'sashi:孫一の八咫烏:#ece6d6:#201f1c', uma: null, campUma: null };
 for (const [name, flag, uma] of [
   ['伊達政宗', 'date_hinomaru', 'date_torige'], // 日の丸大龍と黒鳥毛二段笠。出所は docs/generals_look_1108/伊達政宗.md。
   ['徳川家康', 'onri', 'fan'],        // 厭離穢土欣求浄土の旗と金扇の馬印
   ['織田信長', 'eiraku', ''],         // 永楽通宝の旗
+  ['織田信勝', 'aka_oda', ''],       // 稲生の所属表示の復元。朱地の木瓜は本人の実旗と断定しない。
   ['織田信広', 'oda', ''],           // 長島では織田方の所属のみ。個人の旗印・馬印は未詳
   ['織田信次', 'oda', ''],           // 津田孫十郎。所属旗を共用し、個人の馬印は補わない
   ['織田信雄', 'oda', ''],           // 長島では織田方の所属のみ。個人の旗印・馬印は未詳
@@ -417,6 +422,10 @@ for (const [name, flag, uma] of [
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
 
+// 桶狭間の鷲津攻め。個人の旗印・馬印は未確認。今川方の所属だけ示す復元案。
+// 出所と未確認範囲：docs/generals_look_1108/朝比奈泰朝.md。
+NAMED_GEAR['朝比奈泰朝'] = { ...(NAMED_GEAR['朝比奈泰朝'] || {}), flag: 'imagawa', uma: null, campUma: null };
+
 // 「信長記」に金の三つ団子と伝わる馬印。大滝寺での使用は復元案。
 // https://blog.livedoor.jp/jidai2005/archives/24142639.html
 // 山の戦では陣所に据える。専用の徒へ兵を替えて、斬り合う人数を減らさない。
@@ -448,5 +457,9 @@ NAMED_GEAR['佐久間信盛'].campFlag = '佐久間の段染め';
 // https://www.city.nihonmatsu.lg.jp/data/doc/1527481349_doc_18_0.pdf
 // 手取川での使用・形・短冊の数は未確認。陣所に据える復元案とし、戦う兵を馬印持ちへ替えない。
 NAMED_GEAR['丹羽長秀'].campUma = 'bamboo_tanzaku';
+// 信勝の個人馬印は未確認。兄の唐傘や勝家の金幣を流用しない。出所と補完は本人の調査記録。
+NAMED_GEAR['織田信勝'].uma = null;
+NAMED_GEAR['織田信勝'].campUma = null;
+NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

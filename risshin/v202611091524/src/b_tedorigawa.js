@@ -2103,6 +2103,7 @@ const tedorigawa = {
     canSend: (_rt, g) => !g.tedoFrom || g.tedoActive && !g.tedoRelieved,
   },
   jinkei: JIN,
+  lethal: { max: 3, firstAt: 150, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は筋書きのまま
   noAllyReports: true, // 遠い武将の独り言を使番に読み直させない。下知はこの戦の使いが届ける。
   noTaisho: true, // 本人と護衛はこの戦で置く。謙信の討取りで決着させない。
   teamSignsOnly: true, // 丸と三角で両軍を示す。屈む兵や騎馬を立った足軽の線で覆わない。
@@ -4285,9 +4286,8 @@ function tedoHold(o) {
     // 11/6 kaito 十二3・十一1：主人公のせいでない事（追手が来ない・本隊や遅れた味方が渡りきらない・列が破られた）で任務失敗にしない。
     //   失敗は、主人公が持ち場を離れて守らなかった時だけ。列が破られたら、そこで持ち場を捨てて渡る（史実の崩れ）。
     //   11/6 BT：上杉の大きな寄せに押し出され、川へ追われるのは主人公のせいではない。持ち場に一度でも四秒立てば守った事にする。
-    const present = o.waitCross ? tedoSouthPost(rt, C) && C.inT >= o.dur * 0.5 &&
-      tedoHeld(C, rt.flags) && C.waveIdx === C.waves.length &&
-      (!o.readyMain || rt.flags.mainCross >= 100) && (C.crossWaived || rt.flags.crossRemaining === 0) :
+    //   11/9 織田F：南岸も同じ。篝火の持ち場に刻限の半ばまで立てば守った事にする（本隊や遅れた味方が渡りきらない・追手が来ないのは主人公のせいでない）。
+    const present = o.waitCross ? tedoSouthPost(rt, C) && C.inT >= o.dur * 0.5 :
       C.orderlyWithdrawal || C.broken || C.inT >= Math.min(o.dur * 0.5, 4);
     const won = !rt.flags.failedHold && present;
     if (won && C.broken) { rt.objDone('dp'); const D = rt.flags.dp; D.steps.length = D.i + 1; return; }   // 残りの火は飛ばし、done（渡河・勝ち）へ進む
@@ -4295,7 +4295,8 @@ function tedoHold(o) {
       if (C.at.z < 0) rt.flags.heldNorthLine = true;
       rt.objDone('dp'); rt.award((t) => t.side.push(o.reward), o.reward);
     }
-    else { rt.flags.holdReason ||= o.push && !rt.flags.playerHelp ? '追手を押し返す前に、退く刻限が来た' : !tedoHeld(C, rt.flags) ? '追手を抑えきれず、列が乱れた' : o.push && rt.flags.pushTime < 8 ? '押せず、渡り口が詰まった' : o.readyMain && rt.flags.mainCross < 100 ? '本隊が川に取り残された' : C.timeout && o.waitCross && rt.flags.crossRemaining > 0 ? '遅れた味方が川に取り残された' : '持ち場が空き、殿の列が乱れた'; rt.flags.failedHold = true; rt.objFail('dp'); rt.say('組頭', rt.flags.holdReason + '。残る列と退け！', 4); }
+    else { if (C.at.z >= 0) rt.flags.holdReason = o.waitCross ? '南岸の篝火を離れ、渡る味方を守れなかった' : '';   // 北岸の崩れの字を南岸の失敗に持ち越さない
+      rt.flags.holdReason ||= o.push && !rt.flags.playerHelp ? '追手を押し返す前に、退く刻限が来た' : !tedoHeld(C, rt.flags) ? '追手を抑えきれず、列が乱れた' : o.push && rt.flags.pushTime < 8 ? '押せず、渡り口が詰まった' : o.readyMain && rt.flags.mainCross < 100 ? '本隊が川に取り残された' : C.timeout && o.waitCross && rt.flags.crossRemaining > 0 ? '遅れた味方が川に取り残された' : '持ち場が空き、殿の列が乱れた'; rt.flags.failedHold = true; rt.objFail('dp'); rt.say('組頭', rt.flags.holdReason + '。残る列と退け！', 4); }
     if (!won) { const D = rt.flags.dp; D.steps.length = D.i + 1; D.done = null; }
     // 段が替わっても追手を消さず、損害による敗走も回復させない。
   };
