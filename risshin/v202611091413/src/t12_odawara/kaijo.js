@@ -14,6 +14,8 @@ export function step(H) {
     start(rt, C) {
       const F = rt.flags;
       C.at = H.WATCH; C.goal = H.WATCH; C.groups = []; C.say = 0;
+      F.day = 3;
+      rt.banner('七月五日', '北条氏直が降り、小田原城が開く');
       rt.obj('dp', '本丸の門の前で、槍を置いて城を出る北条の兵を見届ける', 'main');
       rt.marker('dp', H.WATCH, '本丸の門の前', { h: 3 });
       // 北条の旗が下がり始める（t12_odawara/tenka.js の tick が下げる）
@@ -27,12 +29,14 @@ export function step(H) {
       // 城を出る兵の列（槍を伏せ、門の外で座る）
       for (const [t, k] of [[4, 0], [16, 1], [28, 2]]) if (el >= t && !C['out' + k]) {
         C['out' + k] = true;
-        const g = enemyGroup(rt, { faction: 'hojo', name: '城を出る北条の兵', anchor: { x: H.KGATE.x - 2, z: H.KGATE.z - 6 }, facing: Math.PI / 2, width: 4, aggro: 0, morale: 100, noRout: true, noAI: true,
-          order: 'move', dest: { x: H.WATCH.x - 8 + k * 5, z: H.WATCH.z + 6 }, speed: 1.4 },
+        // 本丸の門は KGATE より北。門外に現れず、門内から細い列で出る。
+        const g = enemyGroup(rt, { faction: 'hojo', name: '城を出る北条の兵', anchor: { x: H.KGATE.x, z: H.KGATE.z - 13 }, facing: 0, width: 3, formation: 'column', aggro: 0, morale: 100, noRout: true, noAI: true,
+          order: 'move', dest: { x: H.WATCH.x - 8 + k * 5, z: H.WATCH.z + 6 }, speed: 1.4, arriveNoncombat: true },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], H.HOJO));
         g.peaceful = true; g.fire = false;
+        g.arriveCount = g.units.length;
         for (const u of g.units) { u.noTarget = true; u.invuln = true; }
-        g.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; for (const u of q.units) if (u.alive) u._crouch = true; };
+        g.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; q.surrendered = true; for (const u of q.units) if (u.alive) u._crouch = true; };
         C.groups.push(g);
       }
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
@@ -42,7 +46,8 @@ export function step(H) {
       line(32, () => rt.say('黒田官兵衛', '氏直殿は滝川殿の陣へ参られる。……北条の百年が、今日で終わる', 4));
       const P = rt.player.u.pos;
       C.near = Math.hypot(P.x - H.WATCH.x, P.z - H.WATCH.z) < 16;
-      return el > 38 && C.near;
+      // 三番目の列も門外に着くまで、時間だけで見届けを済ませない。
+      return el > 38 && C.near && C.groups.length === 3 && C.groups.every((g) => g.surrendered);
     },
     end(rt) {
       rt.unmark('dp');
