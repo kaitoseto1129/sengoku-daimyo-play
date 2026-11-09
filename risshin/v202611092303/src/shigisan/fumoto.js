@@ -9,7 +9,7 @@ import { sfx } from '../audio.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
-  const { dress, MATSU, ROAD, OPEN_I, next } = ctx;
+  const { dress, MATSU, ROAD, OPEN_I, march, next } = ctx;
   const t0 = rt.t, W = rt.world;
   let S = null, done = false, tick = 0;
   // 麓の段でも先手は物見を迎え撃つ。登りの下知まで全員を停止させない。
@@ -31,7 +31,10 @@ export function install(rt, ctx) {
     const a = ROAD[Math.min(ROAD.length - 1, OPEN_I + 2)] || [P0.x, P0.z - 30];
     S = enemyGroup(rt, { faction: 'matsunaga', name: '松永の物見の組', anchor: { x: a[0], z: a[1] }, facing: Math.PI, width: 5, order: 'hold', aggro: 26, seekRange: 34, morale: 80, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 1 }], MATSU));
-    S.fixed = false; S.order = 'move'; S.dest = { x: P0.x, z: P0.z - 6 }; S.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
+    // 物見も尾根の折り返しを下る。麓へ直進すると切岸で止まって接敵しない。
+    S.fixed = false;
+    march(rt, S, ROAD.slice(OPEN_I, Math.min(ROAD.length, OPEN_I + 3)).reverse());
+    S.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
     rt.army.play?.('eshout', { x: a[0], z: a[1] }, 1.2);
     rt.say('組頭', '尾根道を下りて来る者がおる！　松永の物見じゃ、払え！', 4);
     rt.obj('main', '尾根道を下りて来た松永の物見を、筒井の先手と払え', 'main');

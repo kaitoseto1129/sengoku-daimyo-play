@@ -4119,10 +4119,11 @@ function tedoHold(o) {
       s.max = Math.min(o.dur + 90, Math.max(s.max, C.clashAt - C.t0 + 24));
     if (el > s.max) {
       // 南岸で追手を止め続けたのに、川で詰まった遅れの数人だけで負けにしない（bot 10/26）。残りは岸の味方が引き上げる。
-      // 南岸へ遅れて着いた時も、八秒だけで防戦を終えず、接敵の働きを作り足さない。
-      // 追手の到着待ちを本人の失敗にせず、岸の持ち場で実際に守るまで続ける。
+      // 南岸へ遅れて着いた時も、八秒だけで防戦を終えず、持ち場を守る時間は保つ。
+      // 追手が川で止まった時は接敵を求め続けない。全ての寄せを出し、本隊を渡し、
+      // 岸の持ち場を刻限の半ばまで守った本人へ退く下知を出す。
       if (o.waitCross && tedoSouthPost(rt, C)) {
-        if (C.inT >= o.dur * 0.5 && tedoHeld(C, rt.flags) && C.waveIdx === C.waves.length &&
+        if (C.inT >= o.dur * 0.5 && C.waveIdx === C.waves.length &&
             (!o.readyMain || rt.flags.mainCross >= 100)) { C.crossWaived = true; return true; }
         // 下の滞在時間・呼び戻し・働きの案内も更新し、遅れて着いた者の防戦を数え続ける。
       }
