@@ -1514,14 +1514,15 @@ const toneGoalStep = (rt) => rt.flags.step;
 function toneMissionEnemy(rt) {
   const F = rt.flags, step = toneMissionStep(rt), p = rt.player.u.pos;
   if (F.ending || rt.over) return null;
+  const groups = F.dpOn ? F.dp?.cur?.groups || [] : F.stageDefenders[step] || [];
   const old = F.missionEnemy;
   // 崩れた備の兵を覚えていても、守り場から追い出す印にはしない。
   if (F.missionEnemyStep === step && F.missionEnemyAt > rt.t && old &&
-      fighting(old.group) && fighter(old) && !old.downed && !old.rearWound &&
+      groups.includes(old.group) && fighting(old.group) && fighter(old) && !old.downed && !old.rearWound &&
       near(p, old.pos, VISIBLE_REAR) && Math.abs(old.pos.y - p.y) < 3 && sightScreenUnit(rt, old)) return old;
   F.missionEnemyAt = rt.t + .2; F.missionEnemyStep = step;
   let best = null, distance = Infinity;
-  for (const g of F.stageDefenders[step] || []) {
+  for (const g of groups) {
     if (!fighting(g)) continue;
     for (const u of g.units) {
       if (!fighter(u) || u.downed || u.rearWound || !near(p, u.pos, VISIBLE_REAR) ||
@@ -1576,7 +1577,10 @@ const tonezaka = {
   goalSignTriangle: true, // 画面外でも矢印へ替えず、縁の位置で行き先を示す。
   // ▼の添え字に行き先までの道のり（十メートル刻み。BK1）。
   goalSignAction: (rt) => {
-    const step = toneGoalStep(rt), say = TONE_SIGN[step], to = TONE_GOAL[step], p = rt.player.u.pos;
+    const F = rt.flags, step = toneGoalStep(rt), p = rt.player.u.pos;
+    // 追加の追撃では、印だけ先へ進んで添え字と距離が元の坂へ戻らないようにする。
+    const to = F.toneMonomi || (F.dpOn ? F.dp?.cur?.at : TONE_GOAL[step]);
+    const say = F.toneMonomi || F.dpOn ? F.toneHead : TONE_SIGN[step];
     if (!say || !to) return say || '';
     const d = Math.round(Math.hypot(to.x - p.x, to.z - p.z) / 10) * 10;
     return d >= 20 ? `${say} ${d}メートル` : say;
@@ -1623,6 +1627,8 @@ const tonezaka = {
     // 足した段：物見の高み・段の持ち場
     const dpAt = F.toneMonomi || (F.dpOn && F.dp?.cur?.at);
     if (dpAt) { pin.x = dpAt.x; pin.z = dpAt.z; pin.r = 3; pin.hide = 0; pin.arrived = near(rt.player.u.pos, dpAt, 3); return pin; }
+    // 追撃の合間の知らせでは、済んだ坂や峠へ行き先を戻さない。
+    if (F.dpOn) return null;
     const shelter = toneShelter(rt);
     if (shelter) {
       // 退き先も道の曲がりへ動かさず、息を整える所そのものを指す。
