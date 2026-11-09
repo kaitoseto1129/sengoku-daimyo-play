@@ -624,7 +624,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       }
     } else if (F.step === 3) {
       // 鉄砲の列（x 70・z ±9）に並べば後ろに付いたとみなす。堤の真ん中は須田の先手（x 74）がふさぎ、列の奥（x 72 超）へは抜けにくい（11/9 関所：列の脇で七十秒止まって負けた）
-      if (P.pos.x > MIZU.x + 1 && Math.abs(P.pos.z) < 16) this.toStep(rt, 4);
+      if (P.pos.x > MIZU.x + 1 && P.pos.x <= MIZU.x + 22 && Math.abs(P.pos.z) < 16) this.toStep(rt, 4);
       // 時間だけで敗北にせず、追手との実際の戦闘を続ける。
     } else if (F.step === 4 && !F.back4) {
       // 追う敵が一の柵の跡へ詰めたら、堤の左右の鉄砲が一斉に火を吹く（遅くとも十五秒で。11/6 遊んで：追う隊が先に先手と組み合って崩れ、一斉射が一度も出なかった）

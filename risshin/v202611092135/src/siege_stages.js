@@ -23,7 +23,8 @@ export function siegeStages(rt, stages, o = {}) {
   const calm = o.calmAggro ?? 5;
   for (const st of stages) for (const g of st.groups || []) if (g && g._stAggro == null) g._stAggro = g.aggro ?? 8;
   const tick = () => {
-    if (rt.ended || rt.over) return;
+    // 岐阜城などの降伏中は、守りの段替えや本陣の下知を重ねない。
+    if (rt.ended || rt.over || rt.flags?.ending) return;
     let cur = stages.findIndex((st) => !(st.done ? st.done() : broken(st.gate)));
     if (cur < 0) cur = stages.length - 1;
     if (cur !== S.cur) {
@@ -44,7 +45,7 @@ export function siegeStages(rt, stages, o = {}) {
     if (!S.reported && st0 && st0.report && rt.t - S.curT > (st0.reportAfter ?? o.reportAfter ?? 90)) {
       S.reported = true;
       rt.say(o.runner || '使番', st0.report, 2.6);
-      if (st0.order) rt.after(2.8, () => { if (!rt.ended && S.cur === cur) { if (st0.orderLine && o.lord) rt.say(o.lord, st0.orderLine, 2.6); st0.order(); } });
+      if (st0.order) rt.after(2.8, () => { if (!rt.ended && !rt.over && !rt.flags?.ending && S.cur === cur) { if (st0.orderLine && o.lord) rt.say(o.lord, st0.orderLine, 2.6); st0.order(); } });
     }
     stages.forEach((st, i) => {
       for (const g of st.groups || []) {
