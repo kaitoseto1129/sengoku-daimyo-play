@@ -4080,6 +4080,9 @@ const shigisan = {
 
 // 総勢は諸説ある。見える一人の死から全軍の死者を作らない。
 shigisan.force = () => ({ a: 40000, a0: 40000, b: 8000, b0: 8000 });
+// 命懸けの戦場（lethal.js・11/9 織田G）・この戦の怖さ（燃える山城の狭い曲輪で、上から撃たれる）
+shigisan.lethal = true;
+shigisan.fearKind = { kind: '炎上', note: '燃える山城の狭い曲輪で、上から撃たれる', w: { iso: 1.3 }, line: '火が回るぞ！' };
 shigisan.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '松永軍', mon: 'todo' } };
 // 父子は高櫓の内。架空の名乗り・討取りの段は設けない。
 shigisan.famous = []; // 海老名は片岡城の討死記事。久通を木戸外の討取り役にしない。

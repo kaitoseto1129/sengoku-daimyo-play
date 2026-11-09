@@ -93,6 +93,14 @@ export const REQUIRED_KACCHU = [
   ['安藤守就', 'momonari', 'kuwa_ken', D.chaurushi, C.kon, 'kebiki', 0xcfc8b4, 'none', txt('安藤'), null, '所用品は伝わらない。復元案'],
   // 箕作・大河内・金ヶ崎・姉川
   ['六角義賢', null, null, null, null, null, null, null, txt('六角'), null, '承禎。具足は前の表。旗は名の字'],
+  // 義治本人の所用品は未確認。近江・同時代の垣見家伝来品を型の手本にする復元案。
+  ['六角義治', 'zunari', 'none', D.kuro, C.kon, 'kebiki', 0, 'rokkaku', 'rokkaku',
+    { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'right', honkozane: true,
+      doSugake: false, doKebiki: true, sodeStyle: 'kebiki', shikoroStyle: 'kebiki',
+      shikoroLace: C.kon, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '箕作の戦の六角方。長浜城歴史博物館蔵・垣見家伝来の黒漆塗紺糸威胴丸と頭形兜による同時代の型の復元案。本人所用品ではない。黒漆本小札・紺糸毛引威・右脇引合。前立・脇立・面頬・陣羽織・馬印は補わず、隅立て四つ目結の旗は既存の六角方の所属表示。出所は docs/generals_look_1108/六角義治.md'],
   ['北畠具教', null, 'kuwa_wide', null, null, null, null, null, 'kitabatake', null, '公家大名。大鍬形の古式の兜に寄せた復元案。旗は北畠の笹竜胆'],
   ['北畠具房', 'eboshi', 'kuwa', D.chaurushi, C.konjo, 'okegawa', 0x4a2a5a, 'kitabatake', mon('kitabatake', '#1d1b18', W), null, '父の具教と鉢と旗の地を変えた復元案'],
   ['織田信雄', null, null, null, null, null, null, null, mon('oda', '#1d1b18', '#d8c690'), null, '具足は前の表。旗は黒地に金の木瓜（復元案）'],

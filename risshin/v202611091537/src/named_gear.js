@@ -424,6 +424,11 @@ for (const [name, flag, uma] of [
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
 
+// 箕作の六角義治。旗は既存の六角方の所属表示で、本人の実旗とは断定しない。
+// 個人の馬印は未確認。得物と動きは名簿の従来値を保つ。出所：docs/generals_look_1108/六角義治.md。
+NAMED_GEAR['六角義治'] = { ...(NAMED_GEAR['六角義治'] || rosterGear('六角義治')),
+  flag: 'rokkaku', uma: null, campUma: null };
+
 // 桶狭間の鷲津攻め。個人の旗印・馬印は未確認。今川方の所属だけ示す復元案。
 // 出所と未確認範囲：docs/generals_look_1108/朝比奈泰朝.md。
 NAMED_GEAR['朝比奈泰朝'] = { ...(NAMED_GEAR['朝比奈泰朝'] || {}), flag: 'imagawa', uma: null, campUma: null };
