@@ -410,6 +410,12 @@ const k04_kuisegawa = {
   // 伏兵：葦から明石全登、林の陰から左近の本隊。刈田の兵も向き直る
   ambush(rt) {
     const F = rt.flags, B = F.blk;
+    // 渡河の移動下知を残さず、頼母と中村の組もその場で伏兵を迎え撃つ。
+    // 旗の横で防ぐ間に、古い行き先へ隊の要だけが進み続けないようにする。
+    for (const g of [F.noi, F.kazu]) if (live(g)) {
+      const c = g.center();
+      g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.seekRange = 14;
+    }
     // 囮も向き直って戦う。備への隊列合わせで攻撃を待機に戻さない。
     F.follow = F.follow.filter(([g]) => g !== F.gamo);
     F.gamo.order = 'attack'; F.gamo.seekRange = 30;

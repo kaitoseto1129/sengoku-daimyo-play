@@ -2067,7 +2067,7 @@ const takato_siege = {
       }
       // 時間だけで未達にしない。寄せ手の備えが全て崩れた時に退く。
       if (F.step >= 1 && rt.canFailMission() && deadB(F.oteSpear) && deadB(F.reserve) &&
-          deadB(F.karameteSpear) && deadB(F.nobutada)) {
+          deadB(F.karameteSpear) && deadB(F.nobutada) && (F.attackers || []).every(deadB)) {
         F.ending = true;
         rt.setPhase('end'); rt.objRemove('support'); rt.objProgress('main', ''); rt.objFail('main'); rt.tracker.main = false;
         for (const id of ['san', 'hon', 'next', 'rally', 'gateOte', 'gateHon', 'sally']) rt.unmark(id);
