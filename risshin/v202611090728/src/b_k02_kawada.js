@@ -263,7 +263,7 @@ const k02_kawada = {
   noWake: true,
   minutes: 25,
   depth: kawadaDepth,   // 陣立て（army_depth.js）：河田の本物の隊の後ろと翼に、福島・黒田・細川・秀信の備（k02_kawada/tosen.js）
-  lethal: true,         // 命懸けの戦場（docs/lethal_howto.md）
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。11/9 二巡（徳川D）：既定では北の筋で bot が十七分止まった。弱める
   fearKind: { kind: '渡河', note: '浅瀬で足を取られ、対岸の鉄砲に撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '川の中で止まるな！' },
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
