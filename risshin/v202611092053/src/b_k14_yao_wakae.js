@@ -42,7 +42,7 @@ const NAITO = { x: 14, z: -66 };           // 木村の左翼・内藤長秋（�
 const YAO = { x: -84, z: 108 };            // 長宗我部盛親の本陣（長瀬川の堤の向こう）
 const YAO_FRONT = { x: 2, z: 100 };        // 八尾の前線（藤堂勢と長宗我部勢がぶつかる所）
 const CHO_A = { x: -22, z: 100 };          // 長宗我部の先手（長瀬川の堤の前）
-const FUSE = { x: -42, z: 98 };            // 長瀬川の堤に伏せた槍（⑤で主人公の目の前で一斉に立つ）
+const FUSE = { x: -48, z: 98 };            // 長瀬川の東岸の堤上に伏せた槍（①で主人公の目の前で一斉に立つ）
 const FLANK = { x: -22, z: 70 };           // 長宗我部の横の備（先手の北の端。北から突く所）
 const FLANK_GO = { x: FLANK.x + 10, z: FLANK.z - 16 };   // ④で井伊の隊が駆ける先（一度だけ出す。行き先を替え続けると隊は合図を待って動かない）
 const TODO_HQ = { x: 118, z: 118 };        // 藤堂高虎の本陣
@@ -171,7 +171,9 @@ const k14_yao_wakae = {
     const g = F.stepG;
     let p = live(g) && dist(g.center(), STEP_AT[F.step]) < 40 ? g.center() : STEP_AT[F.step];
     // 横の備が退いても、堤の伏せ槍を見届けるまでは八尾を離れない。
-    if (F.step === 1 && F.fuseG?.ambush && F.stepN - stepAlive(F) >= Math.round(F.stepN * (1 - KEEP))) p = FUSE;
+    // 横の備だけが六割減ったら伏せ槍へ案内する。両隊の合計を条件にすると、
+    // 横の備の全十八人が倒れても合計三十二人の六割に届かず、印が切り替わらない。
+    if (F.step === 1 && F.fuseG?.ambush && aliveN(g) <= Math.floor(g.units.length * KEEP)) p = FUSE;
     if (F.step === 4 && F.kimuraU?.alive) p = F.kimuraU.pos;
     PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
     return PIN;
@@ -179,6 +181,7 @@ const k14_yao_wakae = {
   // 右上の小さな地図の赤いひし形：今の目標の隊の居場所
   mapMarks(rt) {
     const F = rt.flags;
+    if (F.step === 1 && F.fuseG?.ambush && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP)) return [FUSE];
     if (F.step === 4 && F.kimuraU?.alive) return [F.kimuraU.pos];
     if (F.step && live(F.stepG)) return [F.stepG.center()];
     return null;
@@ -201,6 +204,11 @@ const k14_yao_wakae = {
     groundHalf: 260,
     moveLim: 248,
     mountainScale: 0.2, mountainHaze: 0.85,   // 河内の平らな田：四方を高い山で囲まない。生駒は遠く霞む（八1・四5）
+    mountainProfile(a, layer) {
+      // 高さを縮めるだけでは四方の山の輪が残る。東の生駒だけを立て、ほかは裾（-12）へ沈める。
+      const east = sm(0.5, 0.9, Math.sin(a));
+      return -60 + (60 + [28, 62, 118][layer] * (0.8 + 0.2 * Math.cos(a * 5))) * east;
+    },
     patchyGround: true,
     height,
     fieldStage: 'seedling',   // 旧暦五月六日（今の六月の初め）：植えたばかりの稲と水の張った田
@@ -508,6 +516,7 @@ const k14_yao_wakae = {
     }
     // ①：長瀬川の堤に伏せた槍が、主人公が寄るのを待って一斉に立つ（八尾の芯。二3）
     if (F.step === 1 && F.fuseG?.ambush && dist(P.pos, FUSE) < 34) {
+      F.stepNear = true;   // 印に従って堤へ着いた場合も、八尾の戦場へ到着したと数える。
       F.fuseG.ambush = false; F.fuseG.fixed = false; F.fuseG.order = 'attack'; F.fuseG.seekRange = 40; F.fuseG.aggro = 14;
       for (const u of F.fuseG.units) u._crouch = false;
       F.choA.defMult = 0.9;   // 伏兵を見届けた後は赤備えの横槍が通る。段の組み替えで切替が抜けていた（B3）。
