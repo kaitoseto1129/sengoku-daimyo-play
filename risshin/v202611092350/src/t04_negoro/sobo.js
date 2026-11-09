@@ -4,7 +4,7 @@ import { enemyGroup } from '../bhelp.js';
 import { breath } from '../toyo15/kit.js';
 
 export function soboStep(NG) {
-  const { P, dirL, ROT, NEGORO, dress, flee, alive, heads } = NG;
+  const { P, dirL, ROT, NEGORO, dress, flee, alive, heads, nearestFighter } = NG;
   // 鉄砲衆の持ち場（子院の縁・塀の角・石段の上）。二十秒ほどで次の持ち場へ移る
   const SPOTS = [[-20, 12], [22, 16], [-30, 26], [28, 30], [-8, 30], [12, 26]].map(([x, z]) => P(x, z));
   const guns = (rt, name, at) => enemyGroup(rt, { faction: 'saika', fixed: true, name, anchor: at, facing: Math.PI + ROT, order: 'hold', seekRange: 26, aggro: 8, width: 4, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.25 },
@@ -63,9 +63,19 @@ export function soboStep(NG) {
       }
       const gunsLeft = heads(C.gunG), foes = heads(C.groups);
       const cleared = C.wave === W.length && gunsLeft <= 2 && foes <= 6;
-      const g0 = C.gunG.find(alive) || C.groups.find(alive);
+      const p = rt.player.u.pos;
+      let target = null;
+      for (const g of C.gunG) {
+        target = nearestFighter(g, p);
+        if (target) break;
+      }
+      if (!target) for (const g of C.groups) {
+        target = nearestFighter(g, p);
+        if (target) break;
+      }
       // 守りが崩れたら、達成判定と同じ路地の合流場所を示す。残兵を追わせ続けない。
-      C.goal = C.at = cleared || !g0 ? P(0, 22) : g0.center();
+      // 隊の中心は後送中の者にも引かれる。斬れる撃ち手本人へ案内する。
+      C.goal = C.at = cleared || !target ? P(0, 22) : target.pos;
       rt.objProgress('dp', '');
       // 後方で待つだけでは路地の討ち取りを果たさない。長引いても敵の数の条件を飛ばさない。
       const u = rt.player.u, at = P(0, 22);

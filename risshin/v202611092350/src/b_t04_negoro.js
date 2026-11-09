@@ -1295,7 +1295,7 @@ t04_negoro.botBrain = (b, inp, { goTo }) => {
 };
 
 // 足した段（src/t04_negoro/）へ渡す道具
-Object.assign(NG, { P, dirL, ROT, NEGORO, dress, flee, alive, heads, OKU: P(48, 98),
+Object.assign(NG, { P, dirL, ROT, NEGORO, dress, flee, alive, heads, nearestFighter, OKU: P(48, 98),
   chain: [SITES[2], P(-18, -66), SITES[6], P(18, -84), P(-20, -40), P(20, -40)] });
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
