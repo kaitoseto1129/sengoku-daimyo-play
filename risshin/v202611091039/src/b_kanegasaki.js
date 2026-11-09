@@ -151,7 +151,7 @@ const AZAI_LOOK = { armor: 0x2b2b2e, lace: 0x3a4a6a, cloth: 0x45464c, flag: 'aza
 function kgNamedFar(rt) {
   const F = rt.flags;
   if (F.yoshikage) return;
-  F.yoshikage = spawnEnemy(rt, { fixed: true, faction: 'asakura', name: '朝倉義景の本隊', anchor: { x: -8, z: -168 }, facing: 0, width: 4, aggro: 0, noRout: true },
+  F.yoshikage = spawnEnemy(rt, { fixed: true, faction: 'asakura', name: '朝倉義景の本隊', anchor: { x: -8, z: -160 }, facing: 0, width: 4, aggro: 0, noRout: true },
     dress([{ type: 'busho', n: 1, o: { name: '朝倉義景', invuln: true, horse: false } }, { type: 'samurai', n: 4, o: { invuln: true } }], ASAKURA));
   // 11/4 jin（AV7）：総大将は後方の本陣で床几に座る（寄せられる・動くと立つ。army_anim）
   for (const u of F.yoshikage.units) if (u.type === 'busho') u._crouch = true;
@@ -2533,7 +2533,7 @@ const kanegasaki = {
         { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '織田信長', hold: true, at: { x: -50, z: 172 } },
         { id: 'konida', layer: 'konida', wing: 'center', men: 800, hold: true, at: { x: -34, z: 140 } },
       ] },
-    B: { name: '朝倉', facing: 0, honjin: { x: -8, z: -168 }, mpu: 4, formation: '魚鱗', terrain: 'mountain', flag: 'asakura', armor: 0x33291f, openAt: 200, attrition: 0.003,
+    B: { name: '朝倉', facing: 0, honjin: { x: -8, z: -160 }, mpu: 4, formation: '魚鱗', terrain: 'mountain', flag: 'asakura', armor: 0x33291f, openAt: 200, attrition: 0.003,
       sonae: [
         { id: 'kagetake', layer: 'sakite', wing: 'center', men: 6000, taisho: '朝倉景健', at: { x: 2, z: -112 } },
         { id: 'ni_l', layer: 'ni', wing: 'left', men: 4000, taisho: '', at: { x: -46, z: -126 } },
