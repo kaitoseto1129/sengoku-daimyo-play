@@ -19,6 +19,8 @@ export function wrap(def) {
     start(r, () => {
       // 見回りの間だけ静かに控える。襲撃後まで攻撃対象外のまま残さない。
       for (const g of F.templeCourtiers || []) {
+        // 近臣は御殿の戸口を守る。隊の判断で門外の敵へ直進させない。
+        g.order = 'hold'; g.noAI = true; g.noPursue = true;
         g.aggro = 6;
         for (const u of g.units) u.noTarget = false;
       }

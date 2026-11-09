@@ -1386,6 +1386,8 @@ const miki = {
   // 11/3 p100_miki（AR1・AW3）：どこで何をするかを言う。抽象の「集まれ・倒せ」をやめる
   // 11/6 fixc1901_miki（九1・十1・三1）：右上の一行は goals5 の五つと同じ字・同じ番号。途中で言い替えない（「持ち場へ戻れ」をやめる）
   missions: GOAL_LINES,
+  // 共通の目標欄は既定で一件分しか作らない。表示の指定だけでなく五件分の行を作る。
+  goalVisibleRows: 5, goalRowsAhead: true, goalsAllRows: true,
   // 11/6 fixc1901_miki（一2）：主人公は平田の付城の槍組の足軽。夜の付城の守りは徒歩（馬に乗り降りしない）
   noHorse: true,
   // 11/4 jin（三2・三3）：右上の五つは goals5.js の miki。行き先は固定の三か所
@@ -1404,7 +1406,12 @@ const miki = {
     if (!F.reserve.units.every(u => !this.omuraFoe(u) || u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
     return 4;
   },
-  missionHeading(rt) { return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
+  missionHeading(rt) {
+    // 大村坂の五件を果たした後は、使番が知らせた新たな下知を示す。
+    // 討ち取り済みの甚太夫を、木戸や蔵へ進む間も討つよう案内し続けない。
+    if (rt.flags.step >= 3) return rt.objectives.find(o => o.id === 'main' && !o.state)?.text || '';
+    return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)];
+  },
   // 城内にいる敵の大将は印だけ。荷の道を守る任務を城主討ちへ替えない。
   commanderSignTarget(rt) {
     const u = rt.flags.ehon?.general;

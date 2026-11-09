@@ -76,7 +76,7 @@ function start(rt, K, done) {
             // 11/9 二巡：崖の上に残った弓二人が下りて来ず、三人まで減らせずに十五分止まった。
             //   半ばを討って一分余り経てば、本人が持ち場を守っている時に残りが引き上げる。
             //   放置や持ち場からの離脱を、時間だけで撃退の手柄にしない。
-            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at)) || (el > 150 && repelled(rt, H0, H0, at))) {   // 二分半、持ち場で受け続ければ飢えた城兵は崖を引き上げる
+            if (repelled(rt, left, 3, at) || (el > 75 && repelled(rt, left, Math.ceil(H0 / 2), at))) {
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');

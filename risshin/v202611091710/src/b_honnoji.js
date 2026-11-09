@@ -658,8 +658,9 @@ function honnoPressure(rt) {
         best = Math.min(best, Math.hypot(u.pos.x - end[0], u.pos.z - end[1]));
         // 廊下への先鋒は、門番を見ただけで進路を捨てない。
         // 本人と斬り結ぶ時か、廊下まで踏み込んだ時に隊を開く。
-        if (!close && rt.army.nearestEnemy(u, 3.5, (o) => !o.fleeing &&
-            (!g.honnoPatrolAdvance || o.isPlayer && !rt.army.wallBetween(u.pos, -1, o.pos)))) close = true;
+        if (!close && rt.army.nearestEnemy(u, 3.5, (o) => !o.fleeing && !o.woundOut &&
+            !rt.army.wallBetween(u.pos, -1, o.pos) && !rt.army.terrainBlocks(u.pos, o.pos) &&
+            (!g.honnoPatrolAdvance || o.isPlayer))) close = true;
       }
       const pr = g.honnoProg || (g.honnoProg = { d: best, t: rt.t });
       if (best < pr.d - 0.3) { pr.d = best; pr.t = rt.t; }
@@ -940,6 +941,7 @@ function guardClear(rt, x, z, from = rt.player.u.pos) {
 }
 function guardGuide(rt) {
   const F = rt.flags, p = rt.player.u.pos, nb = F.nb.pos, q = F.guardGuide;
+  F.guardDistance = Infinity;
   F.guardDirect = guardClear(rt, nb.x, nb.z);
   if (F.guardDirect) { q.x = nb.x; q.z = nb.z; F.guardDistance = Math.hypot(p.x - nb.x, p.z - nb.z); return; }
   const nodes = F.guardNodes, dist = F.guardDist, used = F.guardUsed, open = F.guardOpen;
@@ -1241,6 +1243,7 @@ function akechi(rt, name, path, list, o = {}) {
     u.heading = o.entered ? 0 : q.yaw;
   }
   g.honnoMainEntry = role === 'east' && !o.hold && !o.entered;
+  g.honnoFollowPath = !!o.followPath;
   if (g.honnoMainEntry) for (const u of g.units) u.honnoEntryWant = { x: 0, z: 0 };
   // 門を破った後も、口を通ってから敵を追う。塀越しに本堂へ直進させない。
   g.entryPath = path.map((p) => [p[0], p[1]]);
@@ -4520,7 +4523,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     at(8, () => { akechi(rt, '廊下から来る明智勢', GOTEN_IN.north, [uS(2), uA(2)]); honnoSay(rt, '小姓', '北の廊下から来る！', 2.5); });
     at(15, () => { akechi(rt, '東の口の明智勢', GOTEN_IN.east, [uS(1), uA(3)], { nb: true }); honnoSay(rt, '森蘭丸', '襖を破って来るぞ！　広間じゃ！', 2.5); });
     at(26, () => { akechi(rt, '縁側から来る明智勢', GOTEN_IN.south, [uS(2), uA(2), uB(1)]); honnoSay(rt, '小姓', '縁側の障子が破られた！', 2.5); });
-    at(36, () => { fireStage(rt, 6); nbSet(rt, 'E', { at: { ...PT.kyoshitsu } }); nbSay(rt, '火が回る、奥へ！　控えの間で防げ', 3); rt.zone('gt', PT.hikae.x, PT.hikae.z, 5); });
+    at(36, () => { if (F.k15stage === 'saigo') return; fireStage(rt, 6); nbSet(rt, 'E', { at: { ...PT.kyoshitsu } }); nbSay(rt, '火が回る、奥へ！　控えの間で防げ', 3); rt.zone('gt', PT.hikae.x, PT.hikae.z, 5); });
     at(46, () => { akechi(rt, '裏から入った明智勢', GOTEN_IN.west, [uS(2), uA(3)], { nb: true }); honnoSay(rt, '森蘭丸', '裏からも！　居室の口を固めよ！', 3); });
   },
   // P8 終局：本能寺は落ちる。信長は奥へ入り、火をかける。自分は信長の命で裏門から出る
@@ -5235,6 +5238,8 @@ function honnoTick(def, rt, dt) {
   // 火で倒れた直後は、新しい下知や敵の波を始めない。
   if (!P.alive || rt.over || F.ending) return;
   // ---- 段の進み ----
+  // 挟んだ防衛の間は、その段の持ち場と任務を保つ。元の段の下知で上書きしない。
+  if (F.k15on) return;
   if (F.hp >= 1 && F.hp <= 3 && (F.patrolScan -= dt) <= 0) {
     F.patrolScan = 0.5; patrolGuide(rt);
   }
@@ -5365,8 +5370,8 @@ function honnoTick(def, rt, dt) {
     } else if (t > 16 && !F.mv) def.p6go(rt, F.mvKeys[0]);
   } else if (F.hp === 7) {
     if (!(F.guardScanAt > rt.t)) { F.guardScanAt = rt.t + 0.5; guardGuide(rt); }
-    // 壁越しに近いだけでは最後の間を守ったことにしない。
-    if (dNb < 12 && Math.abs(p.y - NB.pos.y) < 3 && !rt.army.wallBetween(p, -1, NB.pos)) F.lastHold = (F.lastHold || 0) + dt;
+    // 開いた戸口を回って十二歩以内なら守備。閉じた壁越しの近さは数えない。
+    if (F.guardDistance < 12 && Math.abs(p.y - NB.pos.y) < 3) F.lastHold = (F.lastHold || 0) + dt;
     rt.objProgress('main', F.heatZone
       ? p.x > F.heatZone.x0 && p.x < F.heatZone.x1 && p.z > F.heatZone.z0 && p.z < F.heatZone.z1
         ? '広間は火の中じゃ。道の印で控えの間へ退け'
@@ -6243,7 +6248,7 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 
 // 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
 k15Shizuka(honnoji); k15Shuen(honnoji);
-{ const K15 = { akechi, uS, uA }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+{ const K15 = { akechi, uS, uA, nbSet }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
 honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 honnoji.depth = (rt) => (rt.G?.lord ? null : HONNOJI_DEPTH);   // 寺を囲む明智一万三千（軽い備）
 export { honnoji };
