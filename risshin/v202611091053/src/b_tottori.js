@@ -1702,9 +1702,10 @@ const tottori = {
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true, noSiegeCards: true,
   noPlayerFoot: true, quietMiss: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
-  speechAllowed: (rt) => !!rt.flags.ending || rt.over,
-  // 場面を移した理由と次の行いは消さない（夜討ち・開城の朝）。
-  bannerAllowed: (rt, title) => !!rt.flags.ending || rt.over ||
+  // 追加の段の下知・使者の返答は、目標や年月が変わる理由として残す。
+  speechAllowed: (rt) => !!rt.flags.k15on || !!rt.flags.ending || rt.over,
+  // 場面を移した理由と次の行いは消さない（軍議・荷駄・飢餓・夜討ち・開城の朝）。
+  bannerAllowed: (rt, title) => !!rt.flags.k15on || !!rt.flags.ending || rt.over ||
     title === '幾日か後の夜討ち' || title === '十月二十五日　開城の朝',
   compactMapAllies: true, mapCommanderAlways: true,
   // 11/4：場所と行いの言い方に（kaito AR1・AW3）。「味方と集まれ」「▼の敵を倒せ」は何をする所か分からない。

@@ -742,6 +742,7 @@ const okawachi = {
   //   前は戦の番号「1〜6」と共通の丸数字が「①1」「④6」と重なっていた。全部を並べる札（hud_goals の goal-mode）は共通の札が
   //   どの戦でも外している（hud_cards の battleOrder）ので、一行の型の後に okScreen が並べ直す（有岡と同じ・九1）。
   missionSingleLine: true,
+  goalsAllRows: true, // 共通の一件表示でも①〜⑤を隠さず、済んだ目標の印を残す。
   missions: ['搦手の坂下の竹束に付け', '竹束と搦手の木戸へ寄せよ', '坂の旗で、打って出た城兵を止めよ', '追っ手を防ぎ、南の陣へ退け', '南の鹿垣で囲みを保ち、兵糧を断つ'],   // 11/8：翌朝は城兵が寄せない回もある（城兵を止めよと書くと来ない敵を待つ）
   missionOf(rt) {
     const F = rt.flags;
