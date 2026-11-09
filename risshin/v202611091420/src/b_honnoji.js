@@ -4954,15 +4954,17 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       const holdLeft = Math.max(0, Math.ceil(HOLD_NEED - F.nHold));
       const task = !atPost ? '西の門の内へ戻れ。御所の侍と口を支えよ'
         : friend < 2 ? '門の内の御所の侍へ寄れ。一緒に口を支えよ'
+        : !F.nEngaged ? '二条御所の西の門で、明智勢を迎えよ'
         : holdLeft > 0 ? `西の門の内で、あと${holdLeft}秒守れ`
         : `門を支えた。あと${Math.max(0, Math.ceil(HOLD_END - t))}秒防げ`;
       if (F.nTask !== task) { F.nTask = task; rt.obj('main', task, 'main', true); }
       rt.objProgress('main', F.nHold >= HOLD_NEED
         ? `門を支えた。あと${Math.max(0, Math.ceil(HOLD_END - t))}秒、寄せ手を防げ`
         : !atPost
-        ? '御所の門へ戻り、味方と口を支えよ'
+        ? '二条御所の西の門へ戻り、御所の侍と口を支えよ'
         : friend < 2 ? '門の内の御所の侍へ寄れ。一人では守りを支えられぬ'
-        : `門の内で味方と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
+        : !F.nEngaged ? '二条御所の西の門で、明智勢を迎えよ'
+        : `西の門の内で御所の侍と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
       // 門外で一人討っただけでは守備を果たさない。札に出した時間、門の内で寄せ手を迎えてから退く。
       if (t > HOLD_END && F.nHold >= HOLD_NEED) this.escape(rt);
 
