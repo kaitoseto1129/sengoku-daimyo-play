@@ -3484,7 +3484,9 @@ const shigisan = {
       const pl = rt.player, P = pl?.u?.pos;
       if (P && pl.u.alive && rt.t - F.castleFireAt < 27) {
         const want = Math.atan2(KEEP_AT.x - P.x, KEEP_AT.z - P.z);
-        let d = (want - (pl.yaw ?? pl.u.heading ?? 0)) % (Math.PI * 2);
+        // 三人称の見回しも含め、兵の向きではなく実際に見ている方角で確かめる。
+        const viewYaw = (pl.yaw ?? pl.u.heading ?? 0) + (pl.camYawOff || 0);
+        let d = (want - viewYaw) % (Math.PI * 2);
         if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
         F.keepSeen = Math.abs(d) < 0.6 ? F.keepSeen + 0.5 : 0;
         if (F.keepSeen < 2) { rt.after(0.5, settle); return; }
