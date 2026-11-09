@@ -55,6 +55,8 @@ export function install(rt, ctx) {
         rt.say('砦の足軽', '原田の衆は皆入った！　門を閉めよ、閂を掛けよ！', 3.5);
         rt.after(8, () => { if (!F.haradaDone) { sfx('volley', 0.7); rt.say('組頭', '寄せ手の鉄砲じゃ！　柵の陰で頭を下げよ！', 3.5); } });
       }
+      // 入城後の手当てを待つ間も閉門する。本人や門口の兵が戻るまでは毎回待つ。
+      if (!shut && (!live || inside >= live)) st.shut();
       // 皆が入った・追手が尽きて半ばが入った・二分半たった、のどれかで籠城へ
       if ((live && inside >= live && el > 110) || (spent(P) && inside >= Math.ceil(live / 2) && el > 120) || el > 165 || !live) st.done(inside);
     },
