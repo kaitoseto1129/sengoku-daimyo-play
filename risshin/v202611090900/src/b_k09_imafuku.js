@@ -66,6 +66,14 @@ const D0 = demSample(DEM, 0, 0);
 function requiredStage(s) {
   s.idleAdvance = false;
   s.limit = Infinity;
+  if (s.kind === 'fight') {
+    const start = s.start;
+    s.start = function (rt, C, m, ctx) {
+      start.call(this, rt, C, m, ctx);
+      // 敵の組の中心は湿地へ動く。行き先は通れる砦と西の堤に据える。
+      rt.marker('dp', C.at, rt.flags.step === 2 ? '今福の砦' : '砦の西の堤', { h: 3 });
+    };
+  }
   const tick = s.tick;
   s.tick = function (rt, C, m, ctx, el, dt) {
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
@@ -176,6 +184,7 @@ const k09_imafuku = {
   botBrainDepth: true,
   noCouriers: true,   // 乗り手の無い伝令の馬が堤と川べりを走っていた（BL7）
   noYaguraTask: true,      // 砦の櫓を脇の目標「物見櫓の中へ入り、守りを追い出せ」にしない（右上は①〜④だけ。三3・十1）
+  dpNoMark: true,         // 行き先を敵部隊の中心へ替えず、堤の上の一か所に保つ。
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   stageGoalsOnly: true,    // 右上は四つの段だけ（「敵を何人討つ」で埋めない。三の1・AW3）
   goalsAllRows: true,      // 共通の既定は今の一件だけ。①〜④を最初から並べ、済みに印を付ける。
