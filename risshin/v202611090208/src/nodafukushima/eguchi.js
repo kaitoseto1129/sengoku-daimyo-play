@@ -7,9 +7,8 @@ import { sfx } from '../audio.js';
 
 export const MISSION = '柴田の殿に続き、江口の渡しへ退け';
 const DEST = { x: 40, z: 150 };
-const MAX_T = 170;
 
-// ctx：{ enemyGroup, dress, ikko, friends[], done() }
+// ctx：{ enemyGroup, makeRoom, dress, ikko, friends[], done() }
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.nodaEguchi) return;
@@ -21,22 +20,23 @@ export function start(rt, ctx) {
   try { sfx('sig_nobiki', 0.6); } catch (e) { /* 音が無くても進む */ }
   rt.say('前田利家', 'よう戻った。だが、ここも長くは持たぬ。殿の柴田殿に続き、江口の渡しへ退くぞ！', 4.2);
   rt.after(10, () => !S.done && rt.say('柴田勝家', '殿は柴田が受け持つ。振り返るな、走れ！', 3.2));
-  rt.after(MAX_T, () => finish());
+  // 時間だけでは渡しへ着いた事にしない。待ち伏せを払い、本人が着くまで待つ。
   function ambush() {
-    if (S.k || S.done) return;
-    S.k = 1; S.aT = rt.t;
+    if (S.k || S.done || rt.t < (S.spawnAt || 0)) return;
+    S.spawnAt = rt.t + 5;
+    ctx.makeRoom(rt, 12);
     const g = ctx.enemyGroup(rt, { faction: 'honganji', name: '舟を隠した門徒', anchor: { x: DEST.x + 20, z: DEST.z - 34 }, facing: -Math.PI / 2, aggro: 16, seekRange: 50, width: 10, morale: 90 },
       ctx.dress([{ type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], ctx.ikko));
-    if (g && g.count) {
-      g.ikko = true; g.order = 'attack'; g.focus = rt.player.u; S.g = g;
-      rt.marker('nodaAmbush', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '舟を隠した門徒', { red: true, group: g });
-    }
+    if (!g || !g.count) return;
+    S.k = 1; S.aT = rt.t;
+    g.ikko = true; g.order = 'attack'; g.focus = rt.player.u; S.g = g;
+    rt.marker('nodaAmbush', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '舟を隠した門徒', { red: true, group: g });
     rt.army.play('eshout', { x: DEST.x + 20, z: DEST.z - 34 }, 1.6);
     rt.say('足軽', '舟が無い！　一揆が舟を隠して待ち伏せしておったぞ！', 3.4);
     rt.after(3.6, () => !S.done && rt.say('前田利家', '道を開けよ！　払って渡しへ抜けるぞ！', 3));
   }
   S.tick = () => {
-    if (S.done || rt.over) return;
+    if (S.done || rt.over || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     if (!S.k && (p.z > DEST.z - 60 || rt.t - S.t0 > 45)) ambush();
     const clear = !S.g || S.g.routed || S.g.units.filter((u) => u.alive).length <= 3;

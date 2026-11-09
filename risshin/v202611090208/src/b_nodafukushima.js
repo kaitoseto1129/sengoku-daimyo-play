@@ -3881,7 +3881,7 @@ const nodafukushima = {
     if (!rt.G.lord && !F.nodaEguchiDone) {
       if (!F.nodaEguchi) {
         rt.unmark('retreat'); rt.unzone('retreat');
-        EGUCHI.start(rt, { enemyGroup, dress, ikko: IKKO, friends: [...(F.oda || []), F.namedGuards?.[1], F.campA?.guard, F.teppo],
+        EGUCHI.start(rt, { enemyGroup, makeRoom, dress, ikko: IKKO, friends: [...(F.oda || []), F.namedGuards?.[1], F.campA?.guard, F.teppo],
           done: () => { F.nodaEguchiDone = true; this.winEnd(rt); } });
       }
       return;
@@ -4146,7 +4146,7 @@ const nodafukushima = {
       // 15分の構成：夜の前に竹束の鉄砲戦（nodafukushima/teppo.js）を挟む
       if (F.nightAt && !F.nodaTeppo && !rt.G.lord) {
         F.nightAt = Infinity;
-        TEPPO.start(rt, { enemyGroup, allyGroup, dress, foe: MIYOSHI, ally: ODA, done: () => { F.nightAt = rt.t + 4; } });
+        TEPPO.start(rt, { enemyGroup, makeRoom, allyGroup, dress, foe: MIYOSHI, ally: ODA, done: () => { F.nightAt = rt.t + 4; } });
       }
       if (F.nightAt && rt.t >= F.nightAt) this.night(rt, !F.sallyDone);
 
@@ -4399,14 +4399,15 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
       const fx = tw.x, fz = tw.z + TH.z1 + 1.2;
       // 北や横から戸口へ斜めに向かうと板壁を横切る。外を南へ回り、
       // 戸口の中心へ横に揃えてから入る。狭い入口では回り道の判断を重ねない。
+      // 駆け足一コマの幅より細かく合わせると、戸口の前で左右へ往復する。
       const dx = u.pos.x - fx;
-      if (Math.abs(dx) <= 0.15 && u.pos.z > tw.z + TH.z1 - 0.1) {
+      if (Math.abs(dx) <= 0.3 && u.pos.z > tw.z + TH.z1 - 0.1) {
         goTo(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15, true);
       } else if (u.pos.z < fz - 0.2) {
         const side = dx < 0 ? -1 : 1, sx = fx + side * (TH.x1 + 1.2);
         if (Math.abs(dx) < TH.x1 + 0.8) goTo(p, inp, sx, u.pos.z, 0.15, true);
         else goTo(p, inp, u.pos.x, fz, 0.15, true);
-      } else if (Math.abs(dx) > 0.15) goTo(p, inp, fx, u.pos.z, 0.1, true);
+      } else if (Math.abs(dx) > 0.3) goTo(p, inp, fx, u.pos.z, 0.25, true);
       else goTo(p, inp, fx, tw.z + TH.z1 - 0.8, 0.15, true);
       return;
     }

@@ -33,25 +33,18 @@ export function install(rt, ctx) {
   say(128, '使番', '湖側の信治様の手、押されておりまする！', 3.2);
   rt.after(NOBU_AT, () => { if (live()) ctx.doomNobu(); });
   // 信治の討死を見届けてから、森隊は町口の後ろへ下がり、可成が退き口を守る
-  const mourn = (n = 0) => {
+  const mourn = () => {
     if (!live()) return;
     if (!F.nobuDead) {
-      // 討つ敵が届かず長引く時は、湖側の乱戦の中で果てる（史実の討死。四十五秒まで待つ）
-      if (n === 15) fall(F.nobuU);
-      rt.after(3, () => mourn(n + 1)); return;
+      // 本の doom が新手を寄せ、見える敵との接触を確かめる。時刻だけで討死にしない。
+      rt.after(3, mourn); return;
     }
     rt.say('森可成', '信治殿……！　森隊、町口の後ろまで下がれ。退き口だけは渡すな！', 4);
     rt.after(22, () => live() && rt.say('森可成', 'わしはここで退き口を守る。皆を城へ通すまで、一歩も引かぬ', 4.2));
   };
   rt.after(NOBU_AT + 8, () => mourn());
   say(HOLD - 12, '青地茂綱', '森殿、浅井の本隊が山を下りて来る！', 3.2);
-  // 最期の攻防（本の lastStand）が長引いても、一分で可成・青地は果てる（宇佐山城へ退く段を待たせ過ぎない）
-  rt.after(HOLD + 60, () => { if (live()) { fall(F.aochiU); rt.after(4, () => live() && fall(F.moriU)); } });
-  function fall(u) {
-    if (!u || !u.alive) return;
-    u.invuln = false; u.hp = 0;
-    try { rt.army.kill(u, null); } catch (e) { /* 既に倒れた */ }
-  }
+  // 可成・青地も lastStand の doom に任せ、敵のいない所では倒さない。
 }
 // 右上の一行：信治が討たれた後は「可成の退き口を守れ」
 export function late(rt) { const F = rt.flags; return !!F.shigaNehari && F.step === 1.5 && rt.t - F.shigaNehari.t0 >= NOBU_AT; }
