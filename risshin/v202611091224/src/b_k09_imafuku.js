@@ -87,7 +87,9 @@ function requiredStage(s) {
     // 離れて立っている時間や、倒れている時間を「守った時間」に含めない。
     if (s.kind === 'hold' && (!rt.player.u.alive || Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) >= C.botRadius)) C.inT = inT;
     // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
-    if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at) {
+    // 共通の済み判定は残り二人も含む。まだ踏みとどまる殿がいる時は、到着だけを交戦の代わりにしない。
+    if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at &&
+      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.woundOut))) {
       const u = rt.player.u;
       C.engaged = u.alive && Math.abs(u.pos.z) < BANK && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 12;
     }
