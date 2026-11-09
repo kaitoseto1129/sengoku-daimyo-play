@@ -1727,7 +1727,7 @@ TIPS_BATTLE_BY.tokugawa.k02_kawada = '河田の浅瀬で木曽川の二筋を渡
   '岐阜へ入るには、まず木曽川を越えねばならない。池田照政・浅野幸長らは上の河田の渡しから、福島正則らは下の尾越から渡ると決まった。',
   `夜明け前の河田の河原に、${RANKS[G.rank].name}として組を率いる${G.name}がいた。北の岸には、木瓜の旗と鉄砲が並んでいる。`,
 ], button: '河原へ出る' });
-TIPS_BATTLE_BY.tokugawa.k14_yao_wakae = '若江の田の山口・内藤の隊を追い払い、堤の木村重成を討ち、八尾へ駆けて長宗我部を長瀬川の向こうへ退かせる';
+TIPS_BATTLE_BY.tokugawa.k14_yao_wakae = '南の八尾で長宗我部の横の備を突き、堤の伏せ槍を見届け、使番の知らせで北の若江へ戻り、内藤・山口の隊を追い払い、堤の木村重成を討つ';
 // 戦の並びは筋書きの「作り終えた戦」で変わるので、物語の札と心得は戦の id で引く
 const IDS_BY = {
   nagashino: ['nagashinojo', 'sune', 'tobinosu', 'shitaragahara', 'suwahara'],

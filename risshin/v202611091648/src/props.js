@@ -3743,6 +3743,7 @@ export function tobira(world, x, z, w, rot = 0, o = {}) {
   // 閂（内の面に横一本。開くと外す）
   const k = new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.22, 0.2), MAT()); k.position.set(0, h * 0.5, -0.2); grp.add(k);
   grp.userData.open = () => { k.visible = false; grp.userData.leaves.forEach((pv, i) => { pv.rotation.y = (i ? -1 : 1) * 1.25; }); };
+  grp.userData.close = () => { k.visible = true; grp.userData.leaves.forEach((pv) => { pv.rotation.y = 0; }); };
   grp.userData.fall = () => {
     grp.visible = true; k.visible = false;
     grp.userData.leaves.forEach((pv, i) => {

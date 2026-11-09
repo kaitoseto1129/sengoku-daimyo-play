@@ -137,6 +137,8 @@ const k14_yao_wakae = {
   noLeaderFollow: true,      // 行き先の印は段ごとの一つだけ
   stageGoalsOnly: true,      // 目標の札は五つの段だけ（段が五つあるので、埋めの「敵を八人討つ」で一段目が札から落ちていた。n6 X6）
   goalsAllRows: true,        // 五つを開戦前から並べ、果たした目標にも印を残す
+  goalVisibleRows: 4,        // 現在の四段を最初から全部並べる（共通の札の既定は一行）
+  goalRowsAhead: true,
   goalSignNoLabel: true,     // ▼の上に「印へ進め」を出さない（何の印か分からない。三の1・AR1。n6 X7）
   noTaishoRaid: true,
   noCouriers: true,
@@ -168,6 +170,8 @@ const k14_yao_wakae = {
     if (!F.step || F.ending) return null;
     const g = F.stepG;
     let p = live(g) && dist(g.center(), STEP_AT[F.step]) < 40 ? g.center() : STEP_AT[F.step];
+    // 横の備が退いても、堤の伏せ槍を見届けるまでは八尾を離れない。
+    if (F.step === 1 && F.fuseG?.ambush && F.stepN - stepAlive(F) >= Math.round(F.stepN * (1 - KEEP))) p = FUSE;
     if (F.step === 4 && F.kimuraU?.alive) p = F.kimuraU.pos;
     PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
     return PIN;
@@ -527,7 +531,7 @@ const k14_yao_wakae = {
     const g = F.stepG;
     if (!F.stepN) F.stepN = Math.max(1, stepAlive(F));   // 数えるのは段の始めに立っていた兵
     const gone = F.stepN - stepAlive(F);
-    if (F.stepNear && gone >= Math.round(F.stepN * (1 - KEEP)) && (F.step !== 5 || !F.fuseG.ambush)) {
+    if (F.stepNear && gone >= Math.round(F.stepN * (1 - KEEP)) && (F.step !== 1 || !F.fuseG.ambush)) {
       F.next = true;
       if (F.step === 5) { this.win(rt); return; }
       for (const q of g.units) if (q.alive && q.name && !q.invuln) { rt.army.kill(q); break; }   // 隊の将も崩れの中で討たれる
