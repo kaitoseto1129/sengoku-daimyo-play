@@ -168,7 +168,8 @@ function bankPlayerReady(rt) {
 }
 // 三つの守備は九十・九十・七十五秒。寄せの間隔も各段で決めたままにする。
 function bankHold(o) {
-  return dpHold(o);
+  // 共通の四分・七分の打ち切りでも、未完の守備を済んだことにしない。
+  return { ...dpHold(o), noHardCap: true };
 }
 // 柵や地形に残兵が掛かっても無限の守備にしない。
 // 本人が必要な時間守り、最後の寄せも出尽くした後だけ、残る隊に退却を起こす。
