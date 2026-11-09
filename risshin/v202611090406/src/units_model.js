@@ -60,7 +60,7 @@ const faceReg = (t) => [1024 + (t % 4) * 256, Math.floor(t / 4) * 256, 256, 256]
 // 上段に堀・佐久間を残し、無地欄の端に金森・九鬼・滝川を置く。
 // 下段は柴田・丹羽・佐々・池田と、一益の陣羽織の紋。桶側・色々威・陣笠と重ねず、絵や描画回数は増やさない。
 // 具足表と旗で使う所属の紋を補う。当日の着用を断定しない。
-const MONS = ['tokugawa', 'takeda', 'oda', 'imagawa', 'saito', 'okudaira', 'katabami', 'okubo', 'akechi', 'honda', 'mizuno', 'ii', 'sanada', 'maeda', 'hori', 'sakuma', 'kanamori', 'kuki', 'takigawa', 'kari', 'sujikai', 'shuro', 'ageha', 'takigawa_haori', 'kobayakawa'];
+const MONS = ['tokugawa', 'takeda', 'oda', 'imagawa', 'saito', 'okudaira', 'katabami', 'okubo', 'akechi', 'honda', 'mizuno', 'ii', 'sanada', 'maeda', 'hori', 'sakuma', 'kanamori', 'kuki', 'takigawa', 'kari', 'sujikai', 'shuro', 'ageha', 'takigawa_haori', 'kobayakawa', 'janome'];
 // 陣笠の家紋を朱で描く家（ほかは金）
 const KASA_SHU = new Set(['imagawa', 'saito', 'okudaira', 'katabami', 'akechi', 'mizuno', 'maeda']);
 export const monReg = (k) => { const i = MONS.indexOf(k === 'akazonae' ? 'takeda' : k); return i < 0 ? null : i < 19 ? [i * 64, 768, 64, 64] : [512 + (i - 19) * 64, 832, 64, 64]; };
@@ -1628,8 +1628,9 @@ function hatParts(look, parts, hi, fallen = false) {
   const zunari = kind ? kind === 'zunari' : hat === 'kabuto' && (look.vi || 0) % 2 === 1;
   const lacqHelm = !!kind || hat === 'kabuto_r' || hat === 'kabuto_suwa' || hat === 'kabuto_t' || hat === 'kabuto_shida' || hat === 'kabuto_tentsuki' || hat === 'kabuto_sanada' || hat === 'kabuto_shika' || hat === 'kabuto_bari';
   // 名将の鉢は六種類。錣と眉庇は共通で、頂点数を増やさず輪郭を変える。
+  const kiyomasa = kind === 'kiyomasa_eboshi';
   const noshi = kind === 'noshi_eboshi', coveredSuji = kind === 'suji' && look.sujiPlates === 61;
-  const tall = kind === 'eboshi' || kind === 'namazu' || kind === 'toppai' || noshi, height = kind === 'toppai' ? 0.24 : noshi ? 0.6 : kind === 'namazu' ? 0.73 : 0.38;
+  const tall = kiyomasa || kind === 'eboshi' || kind === 'namazu' || kind === 'toppai' || noshi, height = kiyomasa ? 0.6 : kind === 'toppai' ? 0.24 : noshi ? 0.6 : kind === 'namazu' ? 0.73 : 0.38;
   // 伝来具足の間数を指定した筋兜は、板の継ぎ目を実際の隆起にする。
   // 一間を三分割し、鉢へまとめる。近景・遠景とも同じ本数で、形は既存の仕組みで共有する。
   const sujiPlates = kind === 'suji' && [12, 40, 52, 62].includes(look.sujiPlates) ? look.sujiPlates : 0;
