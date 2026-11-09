@@ -3267,7 +3267,9 @@ const sunomata = {
     q.enemy = !q.route; q.unit = q.route ? null : u;
     return q;
   },
-  routeFootsteps: true,
+  // 行き先は既存の▼一つ。南門への回り道にも地面の矢印を重ねない。
+  routeFootsteps: false,
+  noGroundGuide: true,
   // 砦にいる本人を使う。名の確かでない敵将や、台本外の寄せは増やさない。
   taisho: { a: { name: '木下藤吉郎', use: true }, b: null },
   noTaishoRaid: true,
@@ -4222,9 +4224,9 @@ const sunomata = {
       }
       if (k !== -1) sakamogi.e.push(sunoSakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));   // -7 は水を引いた溝の切れ目
     }
-    rt.scene.add(lumber(W, 10.5, -12.8, 0.2));   // 水を引いた溝の手前を塞がない所へ（10/30）
-    rt.scene.add(lumber(W, 10, 4, -0.1));
-    rt.scene.add(lumber(W, -9, 7, 1.4));
+    rt.scene.add(sunoNearFrame(lumber(W, 10.5, -12.8, 0.2)));   // 水を引いた溝の手前を塞がない所へ（10/30）
+    rt.scene.add(sunoNearFrame(lumber(W, 10, 4, -0.1)));
+    rt.scene.add(sunoNearFrame(lumber(W, -9, 7, 1.4)));
     // 完成した西の守り場には足場を残さず、敵の顔と槍先を見通せるようにする。
     // 開いた北の口の両脇には足場を重ねない。北東の普請用の足場は残す。
     // 未完成の柵ぎわの資材：丸太の山・足場・俵（普請の途中の跡。A049）
