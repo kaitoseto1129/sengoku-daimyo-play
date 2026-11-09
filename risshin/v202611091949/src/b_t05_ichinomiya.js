@@ -521,7 +521,7 @@ function waterTick(rt) {
 
 export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
-  noReserve: true, noTaishoRaid: true, stageGoalsOnly: true, goalsAllRows: true,
+  noReserve: true, noTaishoRaid: true, stageGoalsOnly: true,
   // 共通の一覧は既定一行。始まりから五件を並べ、六段目も今の目標と一緒に見せる。
   goalVisibleRows: 5, goalRowsAhead: true,
   goalSignTarget: destOf,
@@ -535,7 +535,7 @@ export const t05_ichinomiya = {
   actionGuideTarget: () => null,
   // 右上は①〜⑤の決まった一行（始めの「味方の旗へ」・段ごとの別の言い方・櫓を取る脇の目標を出さない。kaito 三1・十1）
   missionHeading: (rt) => { const k = Math.min(5, Math.max(0, rt.flags.step || 0)); return NUM[k] + GOALS[k]; },
-  missionSingleLine: true,
+  missionSingleLine: false,
   noYaguraTask: true,
   // 付け入りの門の前は城兵が三十人を超えて囲む。本人だけが数秒で倒れないよう、受ける傷を少し軽く（kaito 十二3）
   playerTaken: 0.45,   // 15分の戦（11/8）：山道の押し戻しと付け入りで囲まれる。0.6 から軽く
@@ -651,7 +651,10 @@ export const t05_ichinomiya = {
     for (const g of rt.army.groups) if (g.team === 1 && g.count) { g.noRout = false; g.morale = 0; }
     // 塀に隠れない曲輪の内側で使者を迎え、台詞と帰城の動きを見せてから締める。
     const pp = rt.player.u.pos;
-    const envoy = allyGroup(rt, { name: '開城の使者', anchor: { x: Math.max(-24, Math.min(-8, pp.x)), z: pp.z < 98 ? 101 : 94 }, facing: pp.z < 98 ? Math.PI : 0, width: 2, fixed: true, noAI: true, order: 'hold', noRout: true, aggro: 0, seekRange: 0, fullStrength: true },
+    // 奥へ踏み込んだ時も背後へ出さず、主人公の向いている先で迎える。
+    const yaw = rt.player.yaw || 0;
+    const meet = { x: Math.max(-26, Math.min(-6, pp.x + Math.sin(yaw) * 6)), z: Math.max(94, Math.min(103, pp.z + Math.cos(yaw) * 6)) };
+    const envoy = allyGroup(rt, { name: '開城の使者', anchor: meet, facing: Math.atan2(pp.x - meet.x, pp.z - meet.z), width: 2, fixed: true, noAI: true, peaceful: true, keepMoveOrder: true, order: 'hold', noRout: true, aggro: 0, seekRange: 0, fullStrength: true },
       [{ type: 'busho', n: 1, o: { ...CHOSO, name: '谷忠澄', invuln: true } }, { type: 'samurai', n: 2, o: { ...CHOSO, keep: true } }]);
     // 共通の勝鬨で開城の会話を上書きせず、十二秒間は主人公を動かせる。
     rt._closing = { at: rt.t + 30, info: { scriptedEnd: true }, delay: 1 };
@@ -662,7 +665,7 @@ export const t05_ichinomiya = {
     rt.after(6.2, () => rt.say('谷忠澄', '白地の城へ戻り、殿に降るよう説きまする', 2.6));
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '水の手を断ち、一宮城を開かせた', pts: 15 }; }, '一宮城を開かせた');
-    rt.after(9, () => { envoy.fixed = false; envoy.order = 'move'; envoy.anchor = { x: -16, z: 105 }; });
+    rt.after(9, () => { envoy.fixed = false; envoy.order = 'move'; envoy.dest = { x: -16, z: 105 }; });
     // 城主を討って終わらせない：防衛線が崩れ、元親が継戦を諦めて降る（七月）。四国平定
     rt.after(12, () => rt.say('羽柴秀長の使番', '白地の元親、降伏を申し出ました！　阿波・讃岐・伊予を返し、土佐一国を守るとの事', 4));
     rt.after(16.5, () => rt.banner('四国平定', '羽柴の大軍が四国を一つにした'));
