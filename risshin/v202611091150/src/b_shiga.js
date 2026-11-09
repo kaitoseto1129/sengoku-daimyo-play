@@ -159,6 +159,17 @@ function batchShigaFlags(rt) {
   flags.length = 0;
 }
 
+// 控えは寄せ場の短い区間を警戒する。出撃の下知で道が替われば引き継がない。
+function watchReserve(g) {
+  const path = [[g.anchor.x, g.anchor.z - 6], [g.anchor.x, g.anchor.z]];
+  const turn = (q) => {
+    if (q.order !== 'path' || q.path !== path || q.routed) return;
+    path.reverse(); q.pathIdx = 0; q.onArrive = turn;
+  };
+  g.order = 'path'; g.path = path; g.pathIdx = 0; g.onArrive = turn;
+  g.formation = 'column'; g.colW = 2;
+}
+
 function enemyGroup(rt, o, list) {
   const { marchTo, ...spawnOrders } = o;
   // 後の段の兵も開戦時から控えに置く。位置と死傷者を引き継ぎ、補充しない。
@@ -2922,6 +2933,7 @@ const shiga = {
         // 狭い北の街道でも全員を道幅へ収め、二十日の出発まで同じ列で待つ。
         roster[name].formation = 'column'; roster[name].colW = 2;
       }
+      if (waiting || name === '浅井の手' || name === '追いすがる浅井勢' || name === '街道を南へ抜ける朝倉の手') watchReserve(roster[name]);
     }
     F.roster = roster;
     // 先手に続く控えも民には兵。描画中の位置を借り、在所の民が列を横切らないようにする。
@@ -4674,7 +4686,7 @@ html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode {
  width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
 }
-html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
 html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
 html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shiga-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }

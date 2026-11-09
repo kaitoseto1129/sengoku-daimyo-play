@@ -47,7 +47,15 @@ export function install(rt, ctx) {
       if (d < 9 && el > 20) {
         done = true; F.furikiruDone = true;
         rt.unmark('furikiru'); rt.unmark('furikiruC');
-        if (C) for (const u of C.units) if (u.alive) { u.fleeing = true; u.moraleFleeDir = { x: 0, z: -1 }; }
+        // 上杉は戦場を制した側。主人公の到着で敗走させず、浅瀬を通って川へ引き返す。
+        if (C) {
+          C.focus = null; C.noHunt = true; C.fixed = false; C.retreatOnly = true;
+          C.order = 'path'; C.path = [[4, SOUTH.z - 4], [3, FORD.z + 10], [FORD.x + 6, FORD.z - 8]]; C.pathIdx = 0;
+          C.onArrive = (g) => { g.order = 'hold'; g.facing = 0; };
+          for (const u of C.units) if (u.alive) {
+            u.target = null; u.pullUntil = rt.army.time; u.watch = null; u.moveTo = null;
+          }
+        }
         if (d < 9) rt.award((t) => t.side.push('追いすがる上杉の騎馬を振り切り、南の退き口へ退いた'), '追手を振り切った');
         rt.say('組頭', '追手は川へ引き返した……。振り切ったぞ', 3.5);
         rt.after(3, () => { if (!F.ending && !rt.over && rt.player.u.alive) next(); });
