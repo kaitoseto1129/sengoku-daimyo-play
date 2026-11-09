@@ -331,15 +331,16 @@ const k06_sekigahara = {
       [OTANI.x + 10, OTANI.z - 8, 'otani'], [MATSUO.x + 10, MATSUO.z - 10, KOBA.flag], [WAKI_P.x + 6, WAKI_P.z - 6, 'wakisaka'], [IEYASU0.x - 8, IEYASU0.z - 6, 'onri'], [IEYASU0.x + 14, IEYASU0.z + 8, 'tokugawa'], [HONDA.x + 4, HONDA.z + 6, 'honda']]) rt.scene.add(nobori(W, x, z, f));
     // ---- 兵：戦う所の兵は本物。各家の陣跡に、その家の旗と具足で置く ----
     // 東軍：井伊・松平（主人公が付く。鉄砲衆を引き連れる）・福島・家康の本陣（桃配山）・本多・藤堂と京極・加藤と田中
+    // 11/9 重さ：始まりの本物の兵が 296 で枠（250）を大きく越えたので、名の無い兵を少し減らした（厚みは遠くの大軍で見せる）
     F.ii = ally(rt, '井伊直政の手', { x: START.x - 4, z: START.z - 6 }, [
       { type: 'busho', n: 1, o: { name: '井伊直政', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '松平忠吉', invuln: true, horse: true, flag: 'tokugawa', armor: TK } },
-      { type: 'samurai', n: 8 }, { type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 12 }], II, { fullStrength: true, formation: 'yari' });
-    F.iiGun = ally(rt, '井伊の鉄砲衆', { x: START.x + 2, z: START.z + 6 }, [{ type: 'gun', n: 20 }], II, { fullStrength: true, width: 16, aggro: 10, seekRange: 12 });
+      { type: 'samurai', n: 8 }, { type: 'cavalry', n: 4 }, { type: 'ashigaru', n: 9 }], II, { fullStrength: true, formation: 'yari' });
+    F.iiGun = ally(rt, '井伊の鉄砲衆', { x: START.x + 2, z: START.z + 6 }, [{ type: 'gun', n: 14 }], II, { fullStrength: true, width: 16, aggro: 10, seekRange: 12 });
     F.fuku = ally(rt, '福島正則の隊', FUKU, [
       { type: 'busho', n: 1, o: { name: '福島正則', invuln: true, horse: true } }, { type: 'samurai', n: 1, o: { name: '可児才蔵', invuln: true, horse: false } },
-      { type: 'samurai', n: 7 }, { type: 'gun', n: 10 }, { type: 'ashigaru', n: 22 }], FUKUSHIMA, { fullStrength: true, order: 'hold', formation: 'yari', width: 20, facing: -Math.PI / 2 });
+      { type: 'samurai', n: 7 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 16 }], FUKUSHIMA, { fullStrength: true, order: 'hold', formation: 'yari', width: 20, facing: -Math.PI / 2 });
     F.ieyasu = ally(rt, '徳川家康の本陣', seatI, [
-      { type: 'busho', n: 1, o: { name: '徳川家康', invuln: true, horse: false } }, { type: 'samurai', n: 10 }, { type: 'gun', n: 3 }], TOKU, { fullStrength: true, order: 'hold', aggro: 6, seekRange: 10, facing: -Math.PI / 2 - 0.4, width: 8 });   // 旗本の侍に囲まれ床几に座る（O・AR3）
+      { type: 'busho', n: 1, o: { name: '徳川家康', invuln: true, horse: false } }, { type: 'samurai', n: 8 }, { type: 'gun', n: 3 }], TOKU, { fullStrength: true, order: 'hold', aggro: 6, seekRange: 10, facing: -Math.PI / 2 - 0.4, width: 8 });   // 旗本の侍に囲まれ床几に座る（O・AR3）
     F.ieyasuU = SEAT(F.ieyasu, '徳川家康');
     if (F.ieyasuU) F.uma = umaFollow(W, rt.scene, F.ieyasuU, 'ogi');
     // 本陣が陣場野へ進んだ後も、桃配山の幕には留守の旗本が残る（人のいない幕を作らない）
@@ -356,10 +357,10 @@ const k06_sekigahara = {
     F.hide = foe(rt, '宇喜多秀家の本陣', seatU, [{ type: 'busho', n: 1, o: { name: '宇喜多秀家', invuln: true, horse: false } }, { type: 'samurai', n: 5 }], UKITA, { order: 'hold', aggro: 0, seekRange: 0, width: 5, noRout: true, facing: Math.PI / 2 });
     SEAT(F.hide, '宇喜多秀家');
     // 11/8 critic60（一2）：一万七千の総大将の守りに見えるよう、旗本を厚く
-    F.hideG = foe(rt, '宇喜多の旗本', { x: UKITA_H.x + 16, z: UKITA_H.z + 2 }, [{ type: 'samurai', n: 12 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 8 }], UKITA, { order: 'hold', aggro: 10, seekRange: 14, width: 14, noRout: true, formation: 'yari' });   // 本陣の幕の前を固める
+    F.hideG = foe(rt, '宇喜多の旗本', { x: UKITA_H.x + 16, z: UKITA_H.z + 2 }, [{ type: 'samurai', n: 12 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], UKITA, { order: 'hold', aggro: 10, seekRange: 14, width: 14, noRout: true, formation: 'yari' });   // 本陣の幕の前を固める
     // 宇喜多の先手（明石全登）。霧の中、はじめから福島の前に槍衾を組んで構える。明石は先手と共に退く。
-    F.akashi = foe(rt, '明石全登の隊', UKITA_F, [{ type: 'busho', n: 1, o: { name: '明石全登', horse: true, invuln: true, mustLive: true } }, { type: 'samurai', n: 6 }, { type: 'bow', n: 4 }, { type: 'ashigaru', n: 22 }], UKITA, { morale: 90, width: 22, noRout: true, order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
-    F.akaGun = foe(rt, '宇喜多の先手の鉄砲', { x: UKITA_F.x + 6, z: UKITA_F.z - 4 }, [{ type: 'gun', n: 8 }], UKITA, { order: 'hold', aggro: 16, seekRange: 20, width: 14 });
+    F.akashi = foe(rt, '明石全登の隊', UKITA_F, [{ type: 'busho', n: 1, o: { name: '明石全登', horse: true, invuln: true, mustLive: true } }, { type: 'samurai', n: 6 }, { type: 'bow', n: 4 }, { type: 'ashigaru', n: 16 }], UKITA, { morale: 90, width: 22, noRout: true, order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
+    F.akaGun = foe(rt, '宇喜多の先手の鉄砲', { x: UKITA_F.x + 6, z: UKITA_F.z - 4 }, [{ type: 'gun', n: 6 }], UKITA, { order: 'hold', aggro: 16, seekRange: 20, width: 14 });
     F.akashiU = F.akashi.leader;
     F.konishi = foe(rt, '小西行長の隊', KONISHI, [{ type: 'busho', n: 1, o: { name: '小西行長', invuln: true, horse: true } }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 6 }], KONI, { order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
     F.mitsu = foe(rt, '石田三成の本陣', seatM, [{ type: 'busho', n: 1, o: { name: '石田三成', invuln: true, horse: false } }, { type: 'samurai', n: 4 }], ISHIDA, { order: 'hold', aggro: 0, seekRange: 0, width: 5, noRout: true, facing: Math.PI / 2 });

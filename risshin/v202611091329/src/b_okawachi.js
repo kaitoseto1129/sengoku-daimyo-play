@@ -2160,13 +2160,8 @@ const okawachi = {
     const F = rt.flags;
     if (F.ending || !F.blockHeld || !rt.player.u.alive) return;
     // 段が時で進んでも、本人が果たさなかった目標を和睦で埋めない。
-    if (!F.coverReached || !F.gateReached || !F.pushHeld || !F.campReached) {
-      this.lose(rt, !F.coverReached ? '搦手の竹束に付けず、交代の下知が出た' :
-        !F.gateReached ? '搦手の木戸へ寄せられず、交代の下知が出た' :
-        !F.pushHeld ? '坂の旗で城兵を止められず、交代の下知が出た' :
-        '南の陣へ退けず、交代の下知が出た', true);
-      return;
-    }
+    // 未達成は勝ちにも負けにも替えない。時が過ぎただけの交代で敗北させない。
+    if (!F.coverReached || !F.gateReached || !F.pushHeld || !F.campReached) return;
     // 「五十日ほど」の籠城伝承を、八月二十八日から十月四日までの厳密な日数にしない。
     F.ending = true;
     rt.setPhase('end');
@@ -2230,8 +2225,7 @@ const okawachi = {
     { const g = F.gateDef && F.gateDef.real; if (g && !g._rain) { g._rain = true; g._okBaseDmg = g.dmgMult || 1; }
       if (g) g.dmgMult = g._okBaseDmg * nightAccuracyMult(rt.world); }
     if (F.ending || rt.over) return;
-    // 七分以内に決着。成功は四分以後、最後の和睦十三秒を含める。
-    // 封鎖は実際に平場で守った時間を見る。迎撃では城兵が坂を下る間も四百五十秒まで待つ。
+    // 締めの目安を過ぎても未達成を敗北にしない。遅れて着いた本人も封鎖を続けられる。
     if (!F.blockHeld && rt.t >= okBlockDeadline(rt)) {   // 封鎖を果たして和睦へ移った後は、締めの時を見ない
       const C = F.dp?.cur;
       // 一度合流しただけでは達成にしない。封鎖は城兵の到着を条件にせず、番と七十五秒守る。
@@ -2241,15 +2235,6 @@ const okawachi = {
           ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
       // 封鎖を果たしたら和睦へ。目標に無い出撃や使者の護衛を後から足さない。
       if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; this.peace(rt); return; }
-      const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
-        !C?.joinedLine ? '南の鹿垣で番の組と合流できず、交代の下知が出た' :
-        !okAtSouthLine(rt) ? '南の鹿垣の持ち場を離れ、交代の下知が出た' :
-        C.lineCount < 3 ? '南の番の槍が足りず、交代の下知が出た' :
-        !C?.blockade && !C?.engaged ? '南の鹿垣へ城兵が届かず、交代の下知が出た' :
-        C.holdLeft > 0 || C.blockade && C.inT < 75 ? '南の鹿垣を守る時間が足りず、交代の下知が出た' :
-        '南の鹿垣への城兵を押し返せず、交代の下知が出た';
-      this.lose(rt, reason, true);
-      return;
     }
     // 崩れた小勢の残兵を坂に置き去りにしない。生きた城兵が道を通って帰る。
     for (const g of F.sorties) if (g._sortieSent && !g._okReturning && !gone(g) && sortieBroken(g)) returnSortie(g);
