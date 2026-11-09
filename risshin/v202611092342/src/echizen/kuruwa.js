@@ -88,9 +88,11 @@ export function tick(rt, dt) {
       const u = rt.player.u, ox = u.pos.x, oz = u.pos.z;
       u.pos.x = z.pos.x; u.pos.z = z.pos.z; u.pos.y = rt.world.heightAt(z.pos.x, z.pos.z);
       // 11/9 二巡：逃げた・手負いで下がった・遠くに残った組の者まで郭へ移すと、八百歩先から一息に飛んだ（流しの指摘 455 回）。本人のそばの者だけ連れて行く
-      for (const q of rt.squadGroups || []) for (const v of q.units) if (v.alive && !v.fleeing && !v.woundOut && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
+      for (const q of rt.squadGroups || []) for (const v of q.units) if (!q.routed && v.alive && !v.fleeing && !v.woundOut && !v.rearWound && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
     }
   } else S.out = 0;
+  // 木戸内では本人の一撃を待つ本体の条件を、七十五秒の退きで迂回しない。
+  if (id === 'kinome_sou' && (!F.breachHit_kinome_sou || !z.test(P.x, P.z))) { S.t = null; return; }
   if (!z.friends || !z.enemies) return;
   if (S.t == null) S.t = rt.t;          // 味方が初めて郭に入った時から数える（数が少しずつ揺れても止まらない）
   if (rt.t - S.t < 75) return;

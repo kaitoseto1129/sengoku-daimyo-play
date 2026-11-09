@@ -54,6 +54,9 @@ useTerrain('dem_tottori', (data) => { ttDem = data; });
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 // 羽柴の手の旗と指物は五三桐（天正十三年の関白の後に五七桐。山崎・賤ヶ岳と同じ。織田の木瓜は信長・信忠の直の手だけ）
 const HF = 'kiri53';
+// 柵の夜は、追加の夜襲でも月を背にして城道を見渡す。
+const FENCE_NIGHT = { ...NIGHT, time: 'night', dir: [-0.25, 0.32, 0.9], sunI: 0.95, hI: 1.45, sun: 0xb8b4ae, hs: 0x8e8478, hg: 0x2e241c,
+  sky: 0x121317, fog: 0x18171a, top: 0x08090c, mount: 0x0d0e10, glow: 0 };
 
 const RIVER = [[-70, 200], [-72, 80], [-66, 0], [-74, -90], [-90, -200]];
 // 山麓南西の低湿地と、袋川の流れの分かれ（水路）・湿った田（HIST_B。袋川の氾濫原を思わせる）
@@ -2751,8 +2754,7 @@ const tottori = {
     this.siegeScene(rt, '幾日か後の夜討ち', '飢えた城兵が打って出た。柵の口を守れ');
     // 11/6 kaito の目（四6・二3）：九月末の夜なのに、柵の段は昼の曇り空に見えた。柵から北の城道を見ると、月（北東の高み）を正面に
     //   見上げる形で、月に照らされた山肌と雲が白く光っていた。夜の月は南（柵の後ろ）の低い所へ移し、城道の山肌は月の陰に沈める。
-    applyLook(rt, { ...NIGHT, time: 'night', dir: [-0.25, 0.32, 0.9], sunI: 0.95, hI: 1.45, sun: 0xb8b4ae, hs: 0x8e8478, hg: 0x2e241c,
-      sky: 0x121317, fog: 0x18171a, top: 0x08090c, mount: 0x0d0e10, glow: 0 });
+    applyLook(rt, FENCE_NIGHT);
     rt.world.lookDark = true;
     rt.world.mountU.hazeCol.value.copy(rt.world.scene.fog.color);
     rt.setPhase('sortie');
@@ -3478,7 +3480,7 @@ tottori.siegeKit = {
   when: (rt) => { const F = rt.flags; return F.step < 3 && !F.ending && !rt.over; },
 };
 // 15分の構成（docs/oda15_plan_1108.md 29）：段は prototype/src/tottori/ に一段一ファイル
-const K15 = { TAIKO, CASTLE, GATE, FENCE_Z, CASTLE_ROADS, HUNGRY, KIKKAWA, hungryLook };
+const K15 = { TAIKO, CASTLE, GATE, FENCE_Z, FENCE_NIGHT, CASTLE_ROADS, HUNGRY, KIKKAWA, hungryLook };
 k15Nida(tottori, K15); k15Hunger(tottori, K15); k15Kaijo(tottori, K15);
 tottori.botBrain = k15WrapBot(tottori.botBrain);
 export { tottori };

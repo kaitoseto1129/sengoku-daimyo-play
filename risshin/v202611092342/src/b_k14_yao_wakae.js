@@ -51,7 +51,7 @@ const TAMA = [[46, -260], [40, -150], [48, -60], [40, 30], [46, 140], [40, 260]]
 const NAGASE = [[-62, -260], [-56, -150], [-64, -40], [-52, 60], [-58, 160], [-52, 260]]; // 長瀬川（八尾の堤）
 const WAKAE_DIKE = [[-8, -150], [-6, -120], [-8, -96], [-5, -70], [-8, -44]];   // 若江の堤（村の東を南北に通る。木村の本隊が立つ）
 const ROAD = [[250, -40], [160, -60], [90, -20], [44, 0], [-10, 10], [-60, 6], [-250, 0]];  // 東西の道（八尾と若江の間）
-const STEP_TEXT = ['', '南の八尾へ駆け、藤堂勢を押す長宗我部の横の備を突き破る', '北の若江へ戻り、南の田の内藤長秋の隊を追い払う',
+const STEP_TEXT = ['', '南の八尾へ駆け、藤堂勢を押す長宗我部の横の備を突き破り、長瀬川の堤の伏せ槍を退ける', '北の若江へ戻り、南の田の内藤長秋の隊を追い払う',
   '若江の北の田で、山口弘定の隊を追い払う', '若江の堤に立つ木村重成を討つ'];   // 「崩す」は使わない（kaito_standard 三1）
 const STEP_T = [0, 110, 100, 90, 100];   // この秒を過ぎると味方の押しが強まり、主人公が遅れても物語は進む（負けにも、果たせなかった印にもしない。二5・三3・十二3）
 const STEP_AT = [null, FLANK, NAITO, YAMA, WAKAE];
@@ -168,12 +168,15 @@ const k14_yao_wakae = {
   missionPin(rt) {
     const F = rt.flags;
     if (!F.step || F.ending) return null;
-    const g = F.stepG;
-    let p = live(g) && dist(g.center(), STEP_AT[F.step]) < 40 ? g.center() : STEP_AT[F.step];
+    const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && live(F.fuseG) ? F.fuseG : F.stepG;
+    const at = g === F.fuseG ? FUSE : STEP_AT[F.step];
+    let p = live(g) && dist(g.center(), at) < 40 ? g.center() : at;
+    // 横の備が崩れた後は、立ち上がった伏せ槍も退けるまで案内する。
+    // 伏兵が立った瞬間に、空になった横の備へ印を戻さない。
     // 横の備が退いても、堤の伏せ槍を見届けるまでは八尾を離れない。
     // 横の備だけが六割減ったら伏せ槍へ案内する。両隊の合計を条件にすると、
     // 横の備の全十八人が倒れても合計三十二人の六割に届かず、印が切り替わらない。
-    if (F.step === 1 && F.fuseG?.ambush && aliveN(g) <= Math.floor(g.units.length * KEEP)) p = FUSE;
+    if (F.step === 1 && F.fuseG?.ambush && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP)) p = FUSE;
     if (F.step === 4 && F.kimuraU?.alive) p = F.kimuraU.pos;
     PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
     return PIN;
@@ -181,7 +184,7 @@ const k14_yao_wakae = {
   // 右上の小さな地図の赤いひし形：今の目標の隊の居場所
   mapMarks(rt) {
     const F = rt.flags;
-    if (F.step === 1 && F.fuseG?.ambush && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP)) return [FUSE];
+    if (F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && (F.fuseG?.ambush || live(F.fuseG))) return [this.missionPin(rt)];
     if (F.step === 4 && F.kimuraU?.alive) return [F.kimuraU.pos];
     if (F.step && live(F.stepG)) return [F.stepG.center()];
     return null;

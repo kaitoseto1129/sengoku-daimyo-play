@@ -66,37 +66,17 @@ export function onKannonFell(rt, ctx) {
   const G = F.echGoryu || start(rt, ctx);
   if (G.up) return;
   G.up = true;
-  G.groups.forEach((g, i) => {
-    if (!g.count) return;
-    const dx = HANDS[i][3];
-    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.speed = 4.5; g.roadColumn = true;
-    g.path = [[G.ctx.kannonIn.x + dx, G.ctx.kannonIn.z], ...G.route.map(([x, z], k) => [x + dx * (k % 2 ? 0.5 : 1), z])];
+  G.groups.forEach((g) => {
+    if (!g.count || g.routed) return;
+    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 1; g.dest = null; g.speed = 4.5; g.roadColumn = true; g.followColumnRoad = true;
+    const c = g.center();
+    g.anchor.x = c.x; g.anchor.z = c.z; g._fitAt = 0;
+    // 郭の北口を通り、後列も九十九折りの道の芯をたどる。
+    g.path = [[c.x, c.z], [0, G.ctx.kannonIn.z], ...G.route.map(([x, z]) => [x, z])];
     g.onArrive = (q) => { q.order = 'assault'; q.assault = () => { const s = G.ctx.gate(); return s && s.alive ? s : null; }; q.seekRange = 40; q.aggro = 20; };
   });
   rt.say('佐々成政', '観音丸は押さえた。この尾根の先が木ノ芽峠の城じゃ。並んで上れ！', 3.6);
-  // 九十九折りの尾根道（左右百四十メートルの折り返し）は本人も手も登り切れず、十分以上止まっていた。
-  //   合流の台詞の後、場面替えで木ノ芽峠城の木戸の前（二十メートル手前）へ移す（設楽原の柵の内の移動と同じ省き方）
-  rt.after(22, () => {
-    if (F.ending || rt.over || !rt.player.u.alive || G.cut) return;
-    const s = G.ctx.gate();
-    if (!s || !s.alive) return;
-    G.cut = true;
-    const gz = GATE_KINOME.z, gx = GATE_KINOME.x;
-    const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.target = null; };
-    const P = rt.player.u;
-    const ox = P.pos.x, oz = P.pos.z;
-    put(P, gx, gz - 26);
-    // 退いた者はその場に残す。本人と一緒に上っている組の者だけを連れる。
-    for (const q of rt.squadGroups || []) q.units.forEach((u, k) => { if (!q.routed && u.alive && !u.fleeing && !u.woundOut && !u.rearWound && Math.hypot(u.pos.x - ox, u.pos.z - oz) < 40) put(u, gx - 3 + (k % 4) * 2, gz - 30 - Math.floor(k / 4) * 2); });
-    G.groups.forEach((g, i) => {
-      const dx = HANDS[i][3] * 2;
-      g.units.forEach((u, k) => { if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound) put(u, gx + dx + (k % 3) * 1.6, gz - 22 - Math.floor(k / 3) * 1.8); });
-      const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z; g.dest = null; g.onArrive = null; g._fitAt = 0;
-      g.order = 'assault'; g.assault = () => { const t = G.ctx.gate(); return t && t.alive ? t : null; }; g.seekRange = 40; g.aggro = 20; g.path = null;
-    });
-    try { sfx('sig_kakari', 0.9); } catch (e) { /* なし */ }
-    rt.say('前田利家', '峠の城の木戸じゃ！　打ち破れ！', 3);
-  });
+  // 二十二秒後の座標の書き替えは行わず、本人と組の者も尾根道を歩く。
 }
 
 // 毎コマ。木戸が開いたら手を郭の中の斬り合いへ回す
@@ -104,21 +84,8 @@ export function tick(rt, dt) {
   const F = rt.flags, G = F.echGoryu;
   if (!G || G.done || !G.up) return;
   const s = G.ctx.gate();
-  // 斬り合いの後に道の初めへ戻らないよう、四秒ごとに「今いる所より先の道の点」から辿り直させる
-  if (s && s.alive && !G.cut && (G.reT = (G.reT || 0) - dt) <= 0) {
-    G.reT = 4;
-    G.groups.forEach((g, i) => {
-      if (!g.count || g.order === 'assault' || g.order === 'attack' && g.focus) return;
-      const c = g.center(), dx = HANDS[i][3];
-      let k = G.route.findIndex(([, z]) => z > c.z + 3);
-      if (k < 0) k = G.route.length - 1;
-      const next = G.route[k];
-      if (g.order === 'path' && g.path?.[g.pathIdx] && Math.abs(g.path[g.pathIdx][1] - next[1]) < 4) return;
-      g.order = 'path'; g.pathIdx = 0; g.dest = null; g.speed = 4.5;
-      g.path = G.route.slice(k).map(([x, z]) => [x + dx * 0.5, z]);
-      g.onArrive = (q) => { q.order = 'assault'; q.assault = () => { const t = G.ctx.gate(); return t && t.alive ? t : null; }; q.seekRange = 40; q.aggro = 20; };
-    });
-  }
+  // 道の途中を高さ（南北の座標）だけで選び直すと、折れ角を飛ばして
+  // 山肌へ直進する。歩いている列の道順と通った角を保つ。
   if (s && s.alive) return;
   G.done = true;
   for (const g of G.groups) toCourt(rt, g, F.SZ.byId.kinome_sou);

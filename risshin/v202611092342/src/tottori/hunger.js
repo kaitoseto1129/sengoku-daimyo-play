@@ -10,7 +10,7 @@ import { k15Off, k15Squad, k15Go as timedGo, k15Scenes, k15Fade, k15Rout, k15Cha
 import { fightingCount as k15Live, repelled } from './combat.js';
 import { enemyGroup, centerOf } from '../bhelp.js';
 import { evPerson, evRemove } from '../b_ev6.js';
-import { applyLook, NIGHT, DAWN, dress } from '../b_inabayama.js';
+import { applyLook, DAWN, dress } from '../b_inabayama.js';
 import { placeGroup, placePlayer } from '../b_opening.js';
 import { campWear } from '../kakoi.js';
 import { sfx } from '../audio.js';
@@ -100,8 +100,9 @@ function start(rt, K, done) {
   // その夜：死に物狂いの城兵が柵へ寄せる
   function night() {
     k15Fade(rt, () => {
-      applyLook(rt, { ...NIGHT, time: 'night' });
+      applyLook(rt, K.FENCE_NIGHT);
       rt.world.lookDark = true;
+      rt.world.mountU.hazeCol.value.copy(rt.world.scene.fog.color);
       placePlayer(rt, G.x + 4, FZ + 12, Math.PI);
       if (F.hachi && !F.hachi.routed) placeGroup(rt, F.hachi, G.x, FZ + 12);
       k15Squad(rt, G.x + 10, FZ + 18);
