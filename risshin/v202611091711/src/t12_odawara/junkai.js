@@ -55,8 +55,8 @@ export function step(H) {
     },
     tick(rt, C, m, ctx, el) {
       const P = rt.player.u.pos, S = C.stops[C.i];
+      rt.objProgress('dp', `伝え終えた先 ${C.i}／${C.stops.length}か所`);
       if (!S) return el - C.t > 6;
-      rt.objProgress('dp', `${C.i + 1}／${C.stops.length}`);
       // 各陣へ着いて将の言葉を聞いてから次へ進む。
       if (!C.talk && Math.hypot(P.x - S.at.x, P.z - S.at.z) < 10) {
         C.talk = true; C.tt = el;
