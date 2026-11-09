@@ -24,7 +24,7 @@ export function install(rt, ctx) {
   rt.after(30, () => { if (live()) { sfx('taiko', 0.3); rt.say('足軽', '刀根坂の峠で太鼓が鳴っとる……雨で松明が揺れとるがや', 2.8); } });
   let done = false;
   const go = () => {
-    if (done) return; done = true;
+    if (done || F.ending || rt.over) return; done = true;
     F.toneMonomi = null; F.toneHead = null;
     rt.unmark('toneMonomi');
     ctx.next();
@@ -44,7 +44,9 @@ export function install(rt, ctx) {
     rt.say('組頭', '松明が峠へ連なっとる！　朝倉が退いていくぞ！', 3);
     rt.after(3.4, () => { if (!F.ending) rt.say('織田信長', '今じゃ、追え！　一人も越前へ帰すな！', 3.2); });
     rt.after(8, () => { if (!F.ending) rt.say('柴田勝家', '馬廻が出るぞ！　遅れるな、信長公の馬を追え！', 3); });
-    rt.after(14, go);
+    // 物見へ着いた時も、開戦五秒後からの十秒を延ばさない。
+    // 到着のたびに十四秒待つと、開戦から最大二十九秒まで追撃が始まらない。
+    rt.after(Math.min(14, Math.max(0, WAIT - (rt.t - t0))), go);
   };
   const tick = () => {
     if (done || F.ending || rt.over) return;

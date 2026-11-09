@@ -824,7 +824,11 @@ t11_hachioji.goalSignAction = (rt) => {
 // 行き先の▼に必ず場所の名を添える（「40m」だけで名が無かった。11/8 critic60）
 const GOAL_T = { x: 0, z: 0, label: '' };
 t11_hachioji.goalSignTarget = (rt) => {
-  const D = rt.flags.dp, C = D?.on && D.cur, g = C && (C.goal || C.at);
+  const D = rt.flags.dp, C = D?.on && D.cur;
+  // 曲輪の名を付けた印は曲輪に固定する。敵の組の中心は斬り合いで動くため使わない。
+  // 付け入り・坂の途中の行き先と、中山本人を追う段だけは段が更新する場所を使う。
+  const moving = D && (D.i === IX.sally || D.i === IX.sakamichi || D.i === IX.naka);
+  const g = C && (moving ? C.goal || C.at : C.at || C.goal);
   if (!g || !Number.isFinite(g.x)) return null;
   GOAL_T.x = g.x; GOAL_T.z = g.z;
   GOAL_T.label = { sanroku: '大手の木戸', ote: '山下曲輪', bridge: '曳橋', sally: rt.flags.sallyBack ? '冠木門' : '曳橋', goshu: '御主殿', sakamichi: '尾根の坂', kaneko: '金子丸', taka: '高丸', matsuki: '小宮曲輪', hon: '本丸', naka: '中山勘解由', rakujo: '本丸の奥' }[ORDER[D.i]] || '';

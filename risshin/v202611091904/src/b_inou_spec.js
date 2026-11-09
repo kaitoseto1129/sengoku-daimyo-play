@@ -361,7 +361,7 @@ const inou_spec = {
     if ((F.stage || 0) < 2) {
       const r1 = Math.max(0, Math.min(1, aliveIn(F.l1) / F.l1N));
       // 11/7 fixc2103：柴田勢との乱戦の後の信長方は四百ほど（台詞と『信長公記』）。前は 280 まで減り、台詞の「四百ほど」と合わなかった
-      FORCE.a = round10(700 - 300 * (1 - r1)); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
+      FORCE.a = round10(Math.max(400, 700 - 600 * (1 - r1))); FORCE.b = round10(700 + 1000 * r1); F.aLeft = FORCE.a;
     } else {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
       // 総崩れの瞬間に零へ飛ばさず、退く兵も戦場を去るまでは数える。
@@ -377,8 +377,11 @@ const inou_spec = {
       }
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line);
-      FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
-      FORCE.b = Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, total))));
+      const allyLost = F.line.reduce((n, g) => n + g.units.length, 0) - al;
+      // 後詰は生き残った信長方の内訳。追加人数で過去の討死を埋め戻さない。
+      FORCE.a = round10((F.aLeft ?? 400) * Math.max(0, 1 - Math.max(0, allyLost - F.al2Lost) / F.al2));
+      // 林の二の備・伏兵も同じ七百の内訳。姿を現しても棒は回復させない。
+      FORCE.b = F.bLeft = Math.min(F.bLeft ?? 700, Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, total)))));
     }
     return FORCE;
   },
@@ -733,7 +736,7 @@ const inou_spec = {
     const F = rt.flags;
     if (F.stage !== 1 || !inouDid(rt, 1, 1)) return;
     // 数の棒を描く時機に頼らず、柴田戦の残数を段の切り替え時に保存する。
-    F.aLeft = this.force(rt).a;
+    F.aLeft = Math.min(400, this.force(rt).a);
     F.stage = 2; F.stageT = rt.t; F.line1Broken = true; F.forceShowUntil = rt.t + 6;
     this.routLine(rt, F.l1, true);
     // 『信長公記』：信長の大声に、柴田の兵は主の声を恐れて逃げた。勝家も手負うて東の街道へ退く
@@ -755,6 +758,7 @@ const inou_spec = {
     }
     // 後詰を含む人数を先に固定し、最初の表示までの討死も差し引く。
     F.al2 = Math.max(1, aliveIn(F.line));
+    F.al2Lost = F.line.reduce((n, g) => n + g.units.length, 0) - aliveIn(F.line);
     // 林勢が土手の前から南へ押し出す（走る。kaito AP13「戦では兵は歩かず走る」）
     for (const g of [...F.l2, ...F.bows]) if (live(g)) { g.order = 'move'; g.speed = g.secKind === 'bow' ? 3.4 : 3.6; g.dest = { x: g.dest?.x ?? g.anchor.x, z: g.secKind === 'bow' ? BOW_Z + 30 : L2_HOLD + 40 }; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 11; q.seekRange = 26; }; }
     for (const g of F.bows) g.onArrive = (q) => { q.order = 'hold'; };
