@@ -696,7 +696,8 @@ export class PlayerMove {
   updateLadderUse(dt) {
     const rt = this.rt, u = this.u;
     const l = (!this.mounted && u.alive && !u.climb) ? ladderNear(u.pos.x, u.pos.z, 1.6, u.pos.y) : null;
-    const ok = l && ladderAlive(l) && (l.team == null || l.team === u.team);
+    // 同じ梯子の札は残す。真偽値と梯子を比べると毎コマ札を作り直してしまう。
+    const ok = l && ladderAlive(l) && (l.team == null || l.team === u.team) ? l : null;
     if (ok !== this.ladderO) {
       rt.uninteract('ladder-climb');
       this.ladderO = ok ? l : null;

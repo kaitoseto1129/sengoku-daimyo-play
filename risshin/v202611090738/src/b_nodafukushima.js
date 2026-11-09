@@ -2615,6 +2615,8 @@ const nodafukushima = {
   uchisute: true, // 矢玉の下では首を拾わせず、帰った味方の証言で討ち取りを認める。
   battleVoices: { lines: { ally: { reload: [], encircle2: ['囲まれた！　味方へ退け'] } } }, // 携帯でも退く先を一行で読める。
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
+  // 井楼へ向かう下馬を、性格の騎乗で取り消さない。梯子を下りるまでは徒歩。
+  botMountAllowed: rt => !(rt.flags.step === 1 || rt.flags.step === 1.5 || rt.flags.onSeirou || rt.flags.down),
   // 板囲いの内と井楼の上では、共通の避け足で梯子の長押しや鉄砲の狙いを取り消さない。
   botCoverBlocked(rt) {
     const F = rt.flags, u = rt.player.u;

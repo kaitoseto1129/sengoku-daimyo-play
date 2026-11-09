@@ -1551,7 +1551,8 @@ const HABIT = {
     // 性格で構え直すと、突きを消し、鉄砲へ横に逃げる向きまで変えてしまう。
     if (b.def.botOrders) {
       // 持ち場のすぐそばの馬には、敵が迫っていない時だけ手を伸ばす。馬を追って持ち場は離れない。
-      if (!p.mounted && p.mountT <= 0 && p.takeO && p.takeO === seenHorse &&
+      if (!p.mounted && !u.climb && !p.ladderO && !inp.k.has('KeyE') &&
+          b.def.botMountAllowed?.(b) !== false && p.mountT <= 0 && p.takeO && p.takeO === seenHorse &&
           !b.army.nearestEnemy(u, 6) && t - (c.mountT || -9) > 4) {
         inp.e.add('KeyR'); c.mountT = t; c.mountTry = (c.mountTry || 0) + 1;
         inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');

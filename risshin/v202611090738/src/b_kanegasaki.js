@@ -3483,7 +3483,11 @@ const kanegasaki = {
         if (F.cl) F.cl.rout('A', { hideAfter: 30, from: -1 });
         this.fallBack(rt, 1);
       } else if (which === 'B') k15Shingari.start(rt, { ...kgCtx(rt), faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, LINE1: LINES[1], LOOK: (list) => dress(list, ASAKURA) },
-        () => { if (!F.ending && !F.fleeing) this.fallBack(rt, 2); });   // 15分の構成：川の砦の殿（一番の見せ場）
+        () => {
+          if (F.ending || F.fleeing) return;
+          if (F.dpMem?.kgFailed) this.collapse(rt);
+          else this.fallBack(rt, 2);
+        });   // 15分の構成：川の砦の殿（一番の見せ場）
       else this.collapse(rt);
     };
     depthStart(rt, kgCtx(rt), which === 'A' ? kgA() : which === 'B' ? kgB() : kgC(), after);
@@ -3819,9 +3823,11 @@ const kanegasaki = {
         const c = g.center?.();
         if (!c || c.z < 150) continue;
         // 退き太鼓の一時停止が解けても、古い追撃の下知を復元しない。
-        g.edgeHeld = true; g.kgPause = null; g.path = null;
+        g.edgeHeld = true; g.noAI = true; g.kgPause = null; g.path = null;
         g.order = 'hold'; g.dest = null; g.onArrive = null; g.focus = null;
-        g.anchor = { x: Math.max(-70, Math.min(70, c.x)), z: 146 }; g.facing = Math.PI; g.seekRange = Math.min(g.seekRange || 12, 12);
+        g.anchor = { x: Math.max(-70, Math.min(70, c.x)), z: 146 }; g.facing = Math.PI;
+        // 共通の回り込みで下知を替えず、守る兵も近くの相手だけに応戦する。
+        g.aggro = Math.min(g.aggro || 0, 12); g.seekRange = Math.min(g.seekRange || 12, 12);
       }
     }
     F.clothTime.value = rt.world.time;
@@ -4126,7 +4132,7 @@ kanegasaki.sides = { a: { name: '織田・徳川の軍', mon: 'oda' }, b: { name
 // 右上の目標の並び（①〜⑤を最初から全部・果たした物に✓・今の物を明るく）。字が変わる時だけ書く。
 // 11/7 kaito 九3：敵の兵には一人残らず頭上に赤い▼。共通の印（近い四人まで）は止め、この戦では見える敵全員に付ける。
 //   印は使い回しの DOM 一揃い。見通しは五分の一秒ごと、位置は毎コマ。遠いほど小さく。
-const KG_FOE_SIGN_R = 120, KG_FOE_SIGN_N = 160, kgSignV = new THREE.Vector3();
+const KG_FOE_SIGN_R = 120, KG_FOE_SIGN_N = 250, kgSignV = new THREE.Vector3();
 // 印の見通しはカメラから頭上まで。地面と壁だけで隠す（硝煙や霞では敵の印を消さない。乱戦で▼が数人にしか付かなかった）。
 function kgSignSeen(rt, u) {
   const a = rt.camera.position, W = rt.world, by = u.pos.y + (u.mounted ? 3 : 2.1);
@@ -4177,9 +4183,9 @@ function kgFoeSigns(rt) {
     cam.updateMatrixWorld();
     for (const u of F.foeSignList) {
       if (n === els.length) break;
-      if (!u.alive || u.dying || u.downed) continue;
+      if (!u.alive || u.dying || u.downed || u.gone || u.woundOut || u.mesh?.visible === false || u.camHidden) continue;
       kgSignV.set(u.pos.x, u.pos.y + (u.mounted ? 3.3 : 2.35), u.pos.z).project(cam);
-      if (kgSignV.z > 1 || Math.abs(kgSignV.x) > 1 || Math.abs(kgSignV.y) > 1) continue;
+      if (kgSignV.z < -1 || kgSignV.z > 1 || Math.abs(kgSignV.x) > 1 || Math.abs(kgSignV.y) > 1) continue;
       const e = els[n++], k = Math.max(.6, Math.min(1.25, 1.35 - u._kgSignD / 90));
       e.hidden = false;
       e.style.transform = `translate(${((kgSignV.x + 1) * W / 2).toFixed(1)}px,${((1 - kgSignV.y) * H / 2).toFixed(1)}px) scale(${k.toFixed(2)})`;

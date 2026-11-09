@@ -48,6 +48,9 @@ export function start(rt, ctx) {
   }
   S.tick = (dt) => {
     if (!live()) return;
+    const p = rt.player.u.pos;
+    if (Math.hypot(p.x - POST.x, p.z - POST.z) < 12) S.joined = true;
+    if (S.g?.units.some(u => u.alive && Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18)) S.contested = true;
     if (!S.g && rt.t - S.t0 >= 40) sally();
     S.fireT -= dt;
     if (S.fireT <= 0) {
@@ -57,7 +60,7 @@ export function start(rt, ctx) {
     }
     if (S.k === 1 && S.g) {
       const left = S.g.units.filter((u) => u.alive).length;
-      if (left <= 3 || S.g.routed) {
+      if (S.joined && (left <= 3 || S.g.routed)) {
         S.k = 2; S.okT = rt.t;
         rt.unmark('nodaTabaFoe');
         if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
@@ -65,15 +68,14 @@ export function start(rt, ctx) {
         rt.say('雑賀の鉄砲衆', '助かった！　これで心置きなく撃てる！', 3);
       }
     }
-    // 11/9 二巡（徳川D）：寄せた槍が水際で詰まって来ない・槍が出せなかった時も、段で止まり続けない（bot が十三分ここで止まった）。
-    //   槍の組が二分たっても崩れなければ、鉄砲衆の撃ちすくめで退かせる。槍が出せないまま一分半なら、撃ち合いだけで日暮れへ
-    if (S.k === 1 && S.g && rt.t - S.gT > 120) {
+    // 本人が持ち場へ加わり、槍が実際に竹束へ寄せた後だけ、撃ちすくめて退く。
+    // 出せなかった敵や、水際で止まった敵を時刻だけで防いだ事にしない。
+    if (S.k === 1 && S.g && S.joined && S.contested && rt.t - S.gT > 120) {
       S.k = 2; S.okT = rt.t;
       rt.unmark('nodaTabaFoe');
       if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
       rt.say('雑賀の鉄砲衆', '撃ちすくめた！　野田砦の槍が退くぞ！', 3);
     }
-    if (!S.g && rt.t - S.t0 > 90) { S.k = 2; S.okT = rt.t - 14; }
     if (S.k === 2 && rt.t - S.okT > 14 && rt.t - S.t0 > MIN_T) finish();
   };
   function finish() {
