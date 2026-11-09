@@ -523,7 +523,7 @@ const k11_sanadamaru = {
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。段の刻限の時計は出さない（段は柵を破るまで続く）
   goals5() {
     return STAGES.k11_sanadamaru.map(([text], k) => ({ kind: 'stage', k, text,
-      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.over && rt.tracker?.main === true) }));
+      check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.ending && rt.tracker?.main === true) }));
   },
   // 共通の任務札は今の一行だけなので、この戦では目標の札（hud_goals）を重ねて置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
   //   森部（b_moribe.js）と同じ作り。戦が終われば元へ戻す

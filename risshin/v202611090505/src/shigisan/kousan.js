@@ -13,17 +13,22 @@ export function install(rt, ctx) {
   const { dress, MATSU, TOP, onDone } = ctx;
   const t0 = rt.t;
   let L = null, done = false, tick = 0;
+  const stopped = () => done || F.ending || rt.over || !rt.player.u.alive;
+  // 勧告中に討死・終戦しても、止めた射撃の設定を残さない。
+  const resumeFire = () => {
+    for (const g of rt.army.groups) if ('_kousanFire' in g) { g.fire = g._kousanFire; delete g._kousanFire; }
+  };
   // 本丸の口で矢玉が止む（数秒）
   rt.after(6, () => {
-    if (done) return;
+    if (stopped()) return;
     for (const g of rt.army.groups) if (g.team === 1) { g._kousanFire = g.fire; g.fire = false; }
     sfx('kane', 0.6);
     rt.say('信忠の使番', '松永弾正殿に申す！　今のうちに城を開き、降られよ。城介様（信忠）は命までは取らぬと仰せじゃ！', 5);
   });
-  rt.after(13, () => { if (!done) rt.say('松永久秀', '降れと申すか。信長に二度も頭を下げるつもりは無い！　帰って伝えよ！', 4.5); });
+  rt.after(13, () => { if (!stopped()) rt.say('松永久秀', '降れと申すか。信長に二度も頭を下げるつもりは無い！　帰って伝えよ！', 4.5); });
   rt.after(19, () => {
-    if (done) return;
-    for (const g of rt.army.groups) if (g.team === 1 && '_kousanFire' in g) { g.fire = g._kousanFire; delete g._kousanFire; }
+    resumeFire();
+    if (stopped()) return;
     sfx('volley', 0.9);
     // 本丸の最後の打って出
     L = enemyGroup(rt, { faction: 'matsunaga', name: '本丸から打って出た松永の衆', anchor: { x: TOP.x + 6, z: TOP.z + TOP.r - 2 }, facing: 0, width: 8, order: 'attack', aggro: 30, seekRange: 34, morale: 95, fleeDir: { x: 0, z: -1 } },
@@ -35,7 +40,7 @@ export function install(rt, ctx) {
   });
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (stopped()) { resumeFire(); return; }
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const el = rt.t - t0;
