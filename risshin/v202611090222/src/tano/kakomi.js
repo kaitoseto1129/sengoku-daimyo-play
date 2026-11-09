@@ -4,10 +4,14 @@
 // 退けると武田の兵が次々に倒れ、屋敷が静まる → 元の最期（win）。最後に武田の旗が倒れ、勝鬨、伏線の二十秒余り。
 // 入れ方：b_tano.js で wrap(tano) を一度。def.win を包む。
 // ======================================================================
-import { k15Off, k15Go, k15Scenes, k15Live, k15Rout, k15Charge, k15Afterglow } from '../oda15_kit.js';
+import { k15Off, k15Go as timedGo, k15Scenes, k15Live, k15Rout, k15Charge, k15Afterglow } from '../oda15_kit.js';
 import { enemyGroup, centerOf } from '../bhelp.js';
 import { flagTexture } from '../textures.js';
 import { sfx } from '../audio.js';
+
+// 持ち場へ実際に着くまで、時刻だけで次の出来事を始めない。
+const k15Go = (rt, id, pos, r, text, label, fn, o = {}) =>
+  timedGo(rt, id, pos, r, text, label, fn, { ...o, limit: Infinity });
 
 export function wrap(def) {
   const win = def.win;
@@ -53,7 +57,7 @@ function start(rt, done) {
     // 兵の姿と徒歩の編成は保ち、同じ名札は頭の一人だけに出す。
     for (let i = 1; i < 6; i++) g.units[i].name = '';
     g.noRout = true;
-    const N0 = k15Live(g), t0 = rt.t;
+    const N0 = k15Live(g);
     F.k15fight = true;
     rt.banner('勝頼の旗本、斬って出る', '主の最期の時を稼ぐため、残る者が死に物狂いで');
     rt.say('武田の旗本', '御屋形様には指一本触れさせぬ！', 3.5);
@@ -64,7 +68,7 @@ function start(rt, done) {
       if (stop() || rt.over) return;
       const left = k15Live(g);
       rt.objProgress('main', `旗本 ${left}／${N0}`);
-      if (left <= 1 || rt.t - t0 > 100) {
+      if (left === 0) {
         k15Rout(rt, g, { x: 150, z: -6 }); rt.unmark('k15foe'); F.k15fight = false;
         rt.award((t) => t.side.push('勝頼の旗本の斬り込みを受けた'), '勝頼の旗本の斬り込みを受けた');
         k15Scenes(rt, [

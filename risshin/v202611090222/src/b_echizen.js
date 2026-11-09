@@ -2293,7 +2293,10 @@ echizen.update = function (rt, dt) {
     if (kz && !FF.kannonFell) {
       if (kz.test(pu.pos.x, pu.pos.z) && pu.alive) FF.kannonIn = (FF.kannonIn || 0) + dt;
       if (FF.kannonHold0 == null) FF.kannonHold0 = kz.hold;
-      const open = (FF.kannonIn || 0) >= 30;
+      // 郭に立っているだけでは守兵を退かせない。本人の一撃も必要。
+      // 味方が既に討ち切った場合は、いない守兵への攻撃を要求しない。
+      const open = (FF.kannonIn || 0) >= 30 &&
+        (!!FF.breachHit_kannon || kz.enemies === 0);
       kz.hold = open ? FF.kannonHold0 : 1e9;
       if (!open) kz.holdT = 0;
       // 11/1：郭の内を味方が三倍で押さえたら、本道から駆け下りた小勢の残りは踏みとどまらず退く（郭が空かず時間切れになった）。
@@ -2391,7 +2394,10 @@ echizen.update = function (rt, dt) {
     const place = zoneId === 'kannon' ? `${name}の中` : name;
     if (F.step && zone && (!gate || !gate.struct.alive)) {
       const inside = zone.test(u.pos.x, u.pos.z);
-      const text = !inside ? `${place}へ。開いた口を通れ`
+      // 本道を取り終えた後の、別手を待つ下知を守備の秒数で上書きしない。
+      const text = zoneId === 'kinome_hon' && zone.owner === 'friend' && F.fourCastleTask
+        ? F.fourCastleTask
+        : !inside ? `${place}へ。開いた口を通れ`
         : zone.enemies > 0 ? `${place}の守兵を討て（残り${zone.enemies}人）`
         : zone.friends < zone.need ? rt.squad.length
           ? `${name}で「ついて来い」。あと${zone.need - zone.friends}人集めよ`
@@ -2615,8 +2621,8 @@ echizen.win = function (rt) {
       const east = F.SZ.byId.saikoji_hon.owner === 'friend';
       const west = F.SZ.byId.hachibuse_hon.owner === 'friend';
       const text = `木ノ芽峠城を守り、別手と${!east && !west ? '西光寺丸・鉢伏城' : !east ? '西光寺丸' : '鉢伏城'}を押さえる`;
-      if (F.fourCastleTask !== text) {
-        F.fourCastleTask = text;
+      F.fourCastleTask = text;
+      if (rt.objectives.find(o => o.id === 'main')?.text !== text) {
         rt.obj('main', text, 'main', true);
       }
     }

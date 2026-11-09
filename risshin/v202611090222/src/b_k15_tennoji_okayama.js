@@ -276,10 +276,12 @@ const k15_tennoji_okayama = {
 
     // ---- 徳川方：大御所の本陣（旗本の侍に囲まれて床几に座る。床几の主の前で近臣の正純は馬を下りる）・旗本の二の備・本多忠朝の先手・自分の手勢 ----
     F.hon = allyGroup(rt, { faction: 'tokugawa', name: '大御所の旗本', anchor: { x: HON.x, z: HON.z }, facing: S, width: 9, aggro: 16, seekRange: 20, order: 'hold', fixed: true, noRout: true, fullStrength: true, morale: 100 },
-      [sq(TOKU, 'busho', 1, { name: '徳川家康', invuln: true, horse: false }), sq(TOKU, 'busho', 1, { name: '本多正純', invuln: true, horse: false, hat: 'kabuto_m', flag: 'honda' }),
+      [sq(TOKU, 'busho', 1, { name: '徳川家康', invuln: true, horse: true }), sq(TOKU, 'busho', 1, { name: '本多正純', invuln: true, horse: false, hat: 'kabuto_m', flag: 'honda' }),
         sq(TOKU, 'samurai', 24), sq(TOKU, 'gun', 6)]);   // 本物の兵の枠（二百五十）の内で二陣を置くため少し減らし、厚みは後ろの軽い大軍で見せる
     F.ieyasu = F.hon.units.find((u) => u.name === '徳川家康');
     if (F.ieyasu) F.ieyasu._crouch = true;   // 床几に腰を下ろす
+    // 馬は後ろに引かせておき（降りて床几へ）、本陣が危うくなったら乗って退く（docs/k15_crisis_spec_1108.md「家康が実際に馬で退く」）
+    if (F.ieyasu?.mounted && rt.army.setMounted) { try { rt.army.setMounted(F.ieyasu, false); } catch (e) { /* 馬が無くても戦は進む */ } }
     // 11/8 kaito：家康が討たれたら負け（本陣が破られた数で負けにしない）。旗本に守られ、厚い具足で討たれにくい
     if (F.ieyasu) { F.ieyasu.invuln = false; F.ieyasu.hp = F.ieyasu.maxHp = Math.round((F.ieyasu.maxHp || 190) * 9); }
     F.hata2 = allyGroup(rt, { faction: 'tokugawa', name: '旗本の二の備', anchor: { x: HON.x - 8, z: HON.z - 24 }, facing: S, width: 10, aggro: 16, seekRange: 20, order: 'hold', fixed: true, noRout: true, fullStrength: true, formation: 'yari' },
@@ -515,7 +517,7 @@ const k15_tennoji_okayama = {
     rt.after(2.8, () => rt.say('本多正純', '大御所様、お退きくだされ！', 3));
     rt.after(3.4, () => rt.say('徳川家康', '退かぬ……いや、ここは退く。旗本、支えよ！', 3.4));
     rt.after(7.2, () => rt.say(nm(rt), '本陣を空けるな！　馬印を起こせ！', 3));
-    if (F.ieyasu) F.ieyasu._crouch = false;
+    if (F.ieyasu) { F.ieyasu._crouch = false; if (!F.ieyasu.mounted && F.ieyasu.horse && rt.army.setMounted) { try { rt.army.setMounted(F.ieyasu, true); } catch (e) { /* そのまま */ } } }   // 家康が馬に乗り、旗本に囲まれて退く
     hold(F.hon, HON2.x, HON2.z);
     hold(F.mine, HON.x - 4, HON.z - 6); hold(F.hata2, HON.x - 12, HON.z);
     // 本陣の崩れを知った越前勢が城の手前から引き返し、真田の後ろへ迫る
@@ -738,11 +740,14 @@ const k15_tennoji_okayama = {
     rt.player.u.invuln = true;
     rt.after(3, () => rt.say('使番', '毛利豊前は殿をして城へ退く。明石掃部は水野勢へ突き掛かり、姿を消した', 4.4));
     rt.after(8, () => rt.banner('大坂城、炎上', '岡山口も大野治房が崩れ、豊臣方は総崩れ'));
-    rt.after(12, () => rt.say(NAMES.ieyasu, '真田左衛門佐、見事な最期であった', 3.6));
+    // 新しい本陣で家康が馬を降り、息を整える。大げさに喜ばない（docs/k15_crisis_spec_1108.md の終わり）
+    rt.after(9.5, () => { if (F.ieyasu?.alive && F.ieyasu.mounted && rt.army.setMounted) { try { rt.army.setMounted(F.ieyasu, false); } catch (e) { /* そのまま */ } } rt.say('旗本', '上様、ご無事で……！', 2.6); });
+    rt.after(12.4, () => rt.say('使番', '真田左衛門佐、討ち取りましてござる！', 2.8));
+    rt.after(15.4, () => rt.say(NAMES.ieyasu, '……そうか。', 2.6));
     // 秀頼の自害は翌日の事。七日の使番は知り得ないので、語りの札で書く
-    rt.after(16, () => rt.banner('翌五月八日', '秀頼公と御母君、山里曲輪にて御自害。大野修理も共に'));
-    rt.after(21, () => rt.banner('豊臣家、滅ぶ', '七月、元号は元和に改まる'));
-    rt.after(23, () => rt.say(NAMES.ieyasu, 'これで、戦の世は終わりじゃ', 3.6));
+    rt.after(18.4, () => rt.banner('翌五月八日', '秀頼公と御母君、山里曲輪にて御自害。大野修理も共に'));
+    rt.after(22.6, () => rt.banner('豊臣家、滅ぶ', '七月、元号は元和に改まる'));
+    rt.after(25, () => rt.say(NAMES.ieyasu, 'これで、戦の世は終わりじゃ', 3.6));
     rt.finish({ scriptedEnd: true }, 29);
   },
   lose(rt, why) {

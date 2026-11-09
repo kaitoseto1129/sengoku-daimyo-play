@@ -19,7 +19,7 @@ import { revealName } from '../battle_intel.js';
 const OKA_HON = { x: 30, z: 86 };      // 将軍秀忠の本陣（陣幕の内）
 const OKA_SIDE = { x: 14, z: 72 };     // 本陣の脇（西の口）。主人公の持ち場
 const OKA_FRONT = { x: 44, z: 40 };    // 前田勢と大野治房の本隊が押し合う前線
-const OKA_LIMIT = 200;                // 段の長さの限り（秒）。過ぎたら天王寺口へ戻る（負けにはしない）。11/8 kaito「天王寺は一戦20〜30分」で75から延ばす
+const OKA_LIMIT = 150;   // 11/9 一戦十五〜十八分に収める。             // 段の長さの限り（秒）。過ぎたら天王寺口へ戻る（負けにはしない）。11/8 kaito「天王寺は一戦20〜30分」で75から延ばす
 const S = Math.PI;
 
 const TOKU = { armor: 0x1f1e1c, flag: 'tokugawa' };

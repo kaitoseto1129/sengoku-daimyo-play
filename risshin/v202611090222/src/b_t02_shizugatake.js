@@ -207,11 +207,23 @@ html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode {
  width:auto !important; min-width:0 !important; max-width:min(300px, 40vw) !important; box-sizing:border-box;
  padding:7px 11px 8px 9px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
 }
-html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li { white-space:normal !important; color:#e6dfd2 !important; }
+html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; white-space:normal !important; color:#e6dfd2 !important; font-size:14px !important; }
+html:root body #hud#hud#hud.shizu-goals[data-shizu-window="0"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(n+6),
+html:root body #hud#hud#hud.shizu-goals[data-shizu-window="1"] #h-prog#h-prog.goal-mode .pg-goals li:first-child,
+html:root body #hud#hud#hud.shizu-goals[data-shizu-window="1"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(n+7),
+html:root body #hud#hud#hud.shizu-goals[data-shizu-window="2"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(-n+2) { display:none !important; }
+html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li::before { content:var(--shizu-number) !important; }
+.shizu-goals .pg-goals li:nth-child(1) { --shizu-number:'①'; }
+.shizu-goals .pg-goals li:nth-child(2) { --shizu-number:'②'; }
+.shizu-goals .pg-goals li:nth-child(3) { --shizu-number:'③'; }
+.shizu-goals .pg-goals li:nth-child(4) { --shizu-number:'④'; }
+.shizu-goals .pg-goals li:nth-child(5) { --shizu-number:'⑤'; }
+.shizu-goals .pg-goals li:nth-child(6) { --shizu-number:'⑥'; }
+.shizu-goals .pg-goals li:nth-child(7) { --shizu-number:'⑦'; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3, li em) { display:none !important; }`;
+html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals h3 { display:none !important; }`;
 function shizuBoard(rt) {
   const hud = rt.hud;
   if (!hud?.root || typeof document === 'undefined') return;
@@ -223,6 +235,9 @@ function shizuBoard(rt) {
   hud.progress = function (battle) {
     const out = progress.call(this, battle);
     if (battle === rt && this.prog && !rt.over) {
+      // 七つの順序を保ち、今の段を含む五つだけを並べる。
+      const windowAt = String(Math.max(0, stageIx(rt.flags.phase) - 4));
+      if (hud.root.getAttribute('data-shizu-window') !== windowAt) hud.root.setAttribute('data-shizu-window', windowAt);
       // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
       const def = rt.def, one = def.missionSingleLine;
       def.missionSingleLine = false;
@@ -268,15 +283,19 @@ function shizuBoard(rt) {
   rt.dispose = function () {
     hud.foeMarks = foeMarks; hud.progress = progress; box.remove();
     if (hud.prog) hud.prog.classList.remove('goal-mode');
-    hud.root.classList.remove('shizu-goals'); style.remove();
+    hud.root.classList.remove('shizu-goals'); hud.root.removeAttribute('data-shizu-window'); style.remove();
     return dispose.call(this);
   };
 }
 
 const t02_shizugatake = {
-  // 戦の途中の保存（battle_checkpoint.js）：段は F.phase（夜 2.5・夜明け 2.8 も段）
+  // 七段と夜明けの移りを、実際の入口から順に作り直す。
   checkpointStep: (rt) => rt.flags.phase,
-  resumeSteps: [[1, 'phase1'], [2, 'phase2'], [2.5, 'night'], [2.8, 'dawn'], [3, 'phase3'], [4, 'phase4']],
+  resumeSteps: [
+    [0.5, function (rt) { rt.flags.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); }],
+    [1, function (rt) { Open.startRelief(rt, this.ctx(rt)); }],
+    [2, 'phase2'], [2.3, 'night'], [2.5, 'meetDone'], [2.8, 'dawn'], [3, 'phase3'], [4, 'phase4'],
+  ],
   noCouriers: true,
   // 11/6 六度目（時代考証）：共通の使番の「加藤清正殿の備え、前方にて陣を移す」を出さない（天正十一年の小姓は備を持たない。段の知らせは台詞で足りる）
   noAllyReports: true,
@@ -289,6 +308,7 @@ const t02_shizugatake = {
   noFieldMap: true,
   // 11/6 九3：両軍の棒は出す（shizuBoard）。hideArmyPeek を外す
   missionSingleLine: true,
+  goalsAllRows: true,
   // 11/5 check60（三3）：右上の一行に段の番号（①〜④）を付けて戦の間ずっと出す。始めの台詞の間も①を出す（「味方の旗へ」に替わらない）
   missionHeading: (rt) => { const i = stageIx(rt.flags.phase); return '①②③④⑤⑥⑦'[i] + STAGE_TEXT[i]; },
   hidePlayerSign: true,       // 足元の白い輪は出さない（意味の分からない印・標準 五2。本人は縁の光で分かる）
@@ -317,7 +337,7 @@ const t02_shizugatake = {
   compactIntro: true,
   // 11/6 九度目（critic60 五4）：共通の溜め（十五秒）で、始まってから十六秒も台詞が出ず霧の野を見るだけだった。煙と桑山の声が開戦の溜め
   prelude: false,
-  introText: () => '柴田勝家と羽柴秀吉が、余呉湖のまわりの砦で睨み合う。秀吉は大垣にいる。賤ヶ岳の砦から、大岩山に上がる煙が見えた。',
+  introText: () => '柴田勝家と羽柴秀吉が、余呉湖のまわりの砦で睨み合う。秀吉は大垣にいる。賤ヶ岳の東の物見から、湖を挟む砦の並びを見届けよ。',
   minutes: 15,
   expectMin: 15,             // 進み具合の棒は十五分で（11/8 夜）
   spawn: { x: START.x, z: START.z, heading: Math.atan2(LOOK.x - START.x, LOOK.z - START.z) },

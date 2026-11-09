@@ -106,9 +106,10 @@ export function terrainFx(world, u, x, z, uphill) {
   const tag = tagAt(world, x, z, footY);
   if (footY > world.heightAt(x, z) + 0.3) uphill = false;
   const mounted = !!u.mounted;
+  const wade = world.def.wadeSlowAt?.(x, z) ?? 1;
   let spd = 1, turn = 1, tire = 0, acc = 1, def = 1, defHigh = false, loose = false;
   if (tag === 'water') { spd = world.waterSpeedAt ? world.waterSpeedAt(x, z, mounted, footY) : mounted ? 0.45 : 0.82; tire = mounted ? 1.3 : 0.4; turn = 0.75; loose = true; }
-  else if (world.def.wadeSlowAt && world.def.wadeSlowAt(x, z) < 1) { spd = world.def.wadeSlowAt(x, z) * (mounted ? 0.8 : 1); tire = 0.4; turn = 0.8; loose = true; }   // 浅い瀬・飛び石（水の深さの無い川の渡り）
+  else if (wade < 1) { spd = wade * (mounted ? 0.8 : 1); tire = 0.4; turn = 0.8; loose = true; }   // 浅い瀬・飛び石（水の深さの無い川の渡り）
   else if (tag === 'hori') { spd = mounted ? 0.4 : 0.6; tire = uphill ? 1.6 : 0.6; turn = 0.7; def = 1.3; defHigh = true; loose = true; }
   // 虎口は歩み・向き変えが重く、上から狙われる。歩みをゼロにはしない。
   else if (tag === 'koguchi') { spd = mounted ? 0.45 : 0.8; turn = 0.55; tire = 0.7; def = 1.2; defHigh = true; }
@@ -128,7 +129,7 @@ export function terrainFx(world, u, x, z, uphill) {
   spd *= mudSpeed(world, mounted, tag);
   // 11/6 kaito BX「W を二回押しても走れない・動きが重い」：雨の泥・ぬかるみの登りが重なって、駆け足が歩きの速さ（半分）まで落ちていた（手取川）。
   //   川・堀・切岸・虎口のほかは、重なっても七割（馬は六割）より遅くしない。遅くはなるが、走っていると分かる速さは残す。
-  if (tag !== 'water' && tag !== 'hori' && tag !== 'steep' && tag !== 'koguchi' && !(mounted && (tag === 'forest' || tag === 'stairs'))) spd = Math.max(spd, mounted ? 0.6 : 0.72);
+  if (wade >= 1 && tag !== 'water' && tag !== 'hori' && tag !== 'steep' && tag !== 'koguchi' && !(mounted && (tag === 'forest' || tag === 'stairs'))) spd = Math.max(spd, mounted ? 0.6 : 0.72);
   if (fog > 0) acc *= 0.85;
   if (night) acc *= 0.9;
   const fx = u._terrainFx || (u._terrainFx = {});

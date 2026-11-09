@@ -31,6 +31,14 @@ export function sogoFall(rt, K) {
   rt.banner('十河存保、討死', '');
   rt.say('物見', '十河様、お討死！　右の備が崩れまする', 2.6);
   K.routButai(B.sogo, 30);
+  // 塊だけでなく本物の旗本も崩れる。備への追従を切り、浅瀬を通って退く。
+  F.follow = F.follow.filter(([g]) => g !== F.sogo);
+  if (live(F.sogo)) {
+    const g = F.sogo;
+    g.order = 'move'; g.focus = null; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+    g.dest = { x: K.FORD.x, z: -24 };
+    g.onArrive = (q) => { q.order = 'move'; q.dest = { x: K.FORD.x, z: 40 }; q.onArrive = null; };
+  }
 }
 
 function toB(rt, K) {

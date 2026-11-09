@@ -33,7 +33,8 @@ export function bot(b, inp, { goTo, patientStrike }) {
   if (!T) return false;
   const d = Math.hypot(T.x - u.pos.x, T.z - u.pos.z);
   if (e) b.player.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-  if (d > 2.2) goTo(b.player, inp, T.x, T.z, 2.2);
+  // 運搬の護衛も守備と同じ南門の道を使う。舟着きへ直進すると東の柵で止まる。
+  if (d > 2.2) v.C.walk(b, inp, goTo, T.x, T.z, 2.2);
   else if (e) patientStrike?.(b.player, inp, e, d, true);
   return true;
 }
