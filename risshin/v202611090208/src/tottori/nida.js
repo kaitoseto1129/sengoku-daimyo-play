@@ -4,7 +4,8 @@
 // 続いて城から助けの兵が崖道を降りて来る。押し返すと、元の退き太鼓（midA）へ戻る。
 // 入れ方：b_tottori.js で定義の後に wrap(def, K) を一度（読み込みの時）。def.midA を包む。
 // ======================================================================
-import { k15Off, k15Go as timedGo, k15Scenes, k15Live, k15Rout, k15Charge } from '../oda15_kit.js';
+import { k15Off, k15Go as timedGo, k15Scenes, k15Rout, k15Charge } from '../oda15_kit.js';
+import { fightingCount as k15Live, repelled } from './combat.js';
 import { enemyGroup, centerOf } from '../bhelp.js';
 import { dress } from '../b_inabayama.js';
 import { sfx } from '../audio.js';
@@ -45,10 +46,10 @@ function start(rt, K, done) {
         if (rt.over || F.k15stage !== 'nida') return;
         const left = k15Live(escort);
         rt.objProgress('main', `護衛 ${left}／${N0}`);
-        if (left <= 3 || rt.t - F.ndT > 110) return phase2();
+        if (repelled(rt, left, 3, at)) return phase2();
         rt.after(0.5, tick, true);
       };
-      F.ndT = rt.t; tick();
+      tick();
     }, { limit: 60 });
     function phase2() {
       k15Rout(rt, escort, K.CASTLE); k15Rout(rt, porters, K.CASTLE);
@@ -67,12 +68,11 @@ function start(rt, K, done) {
           k15Charge(rt, help, at);
           rt.marker('k15foe', centerOf(help), '城の助けの兵', { red: true, group: help });
           rt.obj('main', '崖道から降りる城兵を押し返せ', 'main', true);
-          const t0 = rt.t;
           const tick = () => {
             if (rt.over || F.k15stage !== 'nida') return;
             const left = k15Live(help);
             rt.objProgress('main', `城兵 ${left}／${H0}`);
-            if (left <= 3 || rt.t - t0 > 100) {
+            if (repelled(rt, left, 3, at)) {
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');

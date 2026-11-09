@@ -6,7 +6,8 @@
 // 城の兵は段ごとに減っていく（坂の上に並ぶ城兵が少しずつ倒れ、消える）。終わると元の開城の段（envoy）へ。
 // 入れ方：b_tottori.js で定義の後に wrap(def, K) を一度。def.envoy を包む。
 // ======================================================================
-import { k15Off, k15Squad, k15Go as timedGo, k15Scenes, k15Fade, k15Live, k15Rout, k15Charge } from '../oda15_kit.js';
+import { k15Off, k15Squad, k15Go as timedGo, k15Scenes, k15Fade, k15Rout, k15Charge } from '../oda15_kit.js';
+import { fightingCount as k15Live, repelled } from './combat.js';
 import { enemyGroup, centerOf } from '../bhelp.js';
 import { evPerson, evRemove } from '../b_ev6.js';
 import { applyLook, NIGHT, DAWN, dress } from '../b_inabayama.js';
@@ -107,20 +108,20 @@ function start(rt, K, done) {
       dress([{ type: 'samurai', n: 1, o: { name: '城兵の組頭' } }, { type: 'ashigaru', n: 11 }], K.HUNGRY));
     K.hungryLook?.(g); campWear(g, 70, 90); g.noRout = true;
     const N0 = k15Live(g);
+    const post = { x: G.x, z: FZ + 4 };
     F.k15fight = true;
     rt.after(2, () => {
       if (stop()) return;
       rt.army.play?.('eshout', g.center(), 0.8);
       rt.say('足軽', '坂から城兵じゃ！　死ぬ気で来るぞ！', 3.5);
-      k15Charge(rt, g, { x: G.x, z: FZ + 4 });
+      k15Charge(rt, g, post);
       rt.marker('k15foe', centerOf(g), '死に物狂いの城兵', { red: true, group: g });
       rt.obj('main', '柵の口で、死に物狂いの城兵を止めよ', 'main', true);
-      const t0 = rt.t;
       const tick = () => {
         if (stop() || rt.over) return;
         const left = k15Live(g);
         rt.objProgress('main', `城兵 ${left}／${N0}`);
-        if (left <= 2 || rt.t - t0 > 100) {
+        if (repelled(rt, left, 2, post)) {
           k15Rout(rt, g, K.CASTLE); rt.unmark('k15foe'); F.k15fight = false;
           starve(rt, walls, 4);
           rt.award((t) => t.side.push('夜の寄せを柵で止めた'), '夜の寄せを柵で止めた');

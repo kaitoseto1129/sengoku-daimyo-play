@@ -2861,11 +2861,12 @@ const tottori = {
     rt.after(1, () => rt.world.setTime('morning'));
     // 日送りや戦功で、経家の自害と城内の助命という史実の結末を変えない。
     F.terms = '城将自害・残る城兵助命';
-    this.siegeScene(rt, '十月二十五日　開城の朝', 'ひと月の後。槍を収め、秀吉方の使いと木戸へ');
+    this.siegeScene(rt, '十月二十五日　開城の朝', F.hungerDone
+      ? '槍を収め、秀吉方の使いと木戸へ' : 'ひと月の後。槍を収め、秀吉方の使いと木戸へ');
     rt.after(10, () => { if (F.step === 3 && !F.ending && !rt.over)
       rt.say('使いの侍', '殿は式部少輔殿の願いを容れられた。城を受け取りに参る。わしのそばを離れるな', 5); });
     rt.obj('main', '使いの後ろを歩き、木戸へ', 'main', true);
-    rt.objProgress('main', 'ひと月の後の朝。開城の返事を届ける');
+    rt.objProgress('main', F.hungerDone ? '開城の朝。城を受け取りに向かう' : 'ひと月の後の朝。開城の返事を届ける');
     battleEvent(rt, EVENT_MESSENGER, GATE, null, 0, true, '秀吉方の使いが城へ返答に向かう');
     const g = F.env;
     if (g.units[0] && F.envName) g.units[0].name = F.envName;
@@ -3228,7 +3229,9 @@ tottori.force = (rt) => {
 tottori.sides = { a: { name: '羽柴勢', mon: HF }, b: { name: '毛利勢', mon: 'mori' } };   // 城方は毛利方の寄せ集め（吉川元春の軍は因幡へ来ていない）
 // 名将を無名の前線隊へ自動追加しない。経家と秀吉は各本陣に一人ずつ。
 // 兵糧舟は九月（松井康之の河口の勝ちは九月の黒印状）、出撃はその後の夜、開城は十月二十五日の朝（旧暦十月は冬）。
-tottori.date = (rt) => rt.flags.step >= 3 ? '天正九年十月二十五日　冬・開城' : rt.flags.step >= 2 ? '天正九年九月末　秋・夜' : '天正九年九月　秋・夜';
+tottori.date = (rt) => rt.flags.step >= 3 ? '天正九年十月二十五日　冬・開城'
+  : rt.flags.k15stage === 'hunger' ? '天正九年十月　冬・包囲'
+    : rt.flags.step >= 2 ? '天正九年九月末　秋・夜' : '天正九年九月　秋・夜';
 tottori.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 tottori.skip = (rt) => {
   if (rt.phase !== 'brief' || rt.over || rt.flags.ending) return;

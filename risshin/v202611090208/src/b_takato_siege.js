@@ -1654,7 +1654,7 @@ const takato_siege = {
     }
     // 人数で押し崩した場合も、縄張りの記録と下知を同じ状態にする。
     const zone = F.SZ.byId[id];
-    if (zone && (id === 'san' || (id === 'ni' && (F.sanFell || F.gates.karamete.opened)))) {
+    if (zone && (id === 'san' || (id === 'ni' && F.sanFell))) {
       zone.owner = zone.state = 'friend'; zone.fallen = true;
     }
     if (id === 'san' && !F.sanFell) {
@@ -1698,7 +1698,7 @@ const takato_siege = {
     } else if (id === 'hodoin') {
       F.hodoinFell = true;
     } else if (id === 'ni' && !F.niFell) {
-      if (!F.sanFell && !F.gates.karamete.opened) { F.pendingNi = true; return; }
+      if (!F.sanFell) { F.pendingNi = true; return; }
       F.niFell = true; F.niT = rt.t;
       // 数分の攻城で昼へ飛ばさず、開戦時の払暁の光と朝靄を保つ。
       rt.unmark('next'); rt.unmark('gateOte'); rt.unmark('sally');
@@ -1982,7 +1982,7 @@ const takato_siege = {
         }
       }
       if (F.pendingSan && receivedSally(F)) { F.pendingSan = false; this.onZoneFall(rt, 'san'); }
-      if (F.pendingNi && (F.sanFell || F.gates.karamete.opened)) this.onZoneFall(rt, 'ni');
+      if (F.pendingNi && F.sanFell) { F.pendingNi = false; this.onZoneFall(rt, 'ni'); }
       if (F.pendingHon && F.niFell) this.honTaken(rt);
       // 森の家中・各務元正の一番乗り（和樂 web・諸説あり）。大手の奥の門が開いた時に一度だけ。
       if (!F.kagamiSaid && F.gates.oteInner.opened && !F.sanFell) {
@@ -2017,8 +2017,10 @@ const takato_siege = {
       }
       if (F.keep.down && !F.lordDown) {
         F.lordDown = true;
+        // 城主が果てても降らずに戦う。旗を守る⑥の途中で敗走させない。
         for (const b of F.defenders) if (b.real) {
-          b.real.noRout = false; b.real.morale = Math.min(b.real.morale, 15);
+          b.real.noRout = true;
+          b.order({ id: 'attack' });
         }
         rt.marker('rally', { x: -52, z: 0 }, '味方と本丸の旗を守る');
         if (F.honFell) mainObj(rt, 5);
