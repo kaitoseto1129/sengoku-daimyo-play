@@ -474,13 +474,13 @@ const t11_hachioji = {
   depth: {
     A: { name: '前田・上杉', facing: -Math.PI / 2, honjin: { x: START.x + 9, z: START.z }, mpu: 8, formation: '長蛇', terrain: 'valley', flag: 'maeda', armor: 0x24221f, openAt: 20, attrition: 0,
       sonae: [
-        { id: 'saki', layer: 'sakite', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.saki },
+        { id: 'saki', layer: 'sakite', wing: 'center', men: 5000, taisho: '', bind: (rt) => rt.flags.saki },
         { id: 'mine', layer: 'ichi', wing: 'center', men: 1500, taisho: '', bind: (rt) => rt.flags.mine },
-        { id: 'ni', layer: 'ni', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.ni },
+        { id: 'ni', layer: 'ni', wing: 'center', men: 5000, taisho: '', bind: (rt) => rt.flags.ni },
         { id: 'naga', layer: 'yobi', wing: 'center', men: 1000, taisho: '前田利長', bind: (rt) => rt.flags.naga },
-        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 4000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
-        { id: 'ato', layer: 'gozume', wing: 'center', men: 1500, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
-        { id: 'honjin', layer: 'honjin', wing: 'center', men: 2000, taisho: '前田利家', bind: (rt) => rt.flags.honjin, hold: true },
+        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 10000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
+        { id: 'ato', layer: 'gozume', wing: 'center', men: 3000, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
+        { id: 'honjin', layer: 'honjin', wing: 'center', men: 8000, taisho: '前田利家', bind: (rt) => rt.flags.honjin, hold: true },
       ] },
     honjinView: { A: false },   // 利家の陣幕は戦のファイルが作る
   },

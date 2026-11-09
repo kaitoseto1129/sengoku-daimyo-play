@@ -109,7 +109,15 @@ export const REQUIRED_KACCHU = [
   ['斎藤龍興', null, null, null, null, null, null, null, mon('saito'), null, '具足は前の表。旗は斎藤の紋'],
   ['丹羽長秀', null, 'niwa_shikami', null, null, null, null, null, 'sujikai', null, '二本松の丹羽家に伝わる獅子頭（しかみ）の前立に寄せた形（前の表の形）。旗は直違'],
   ['滝川一益', null, 'takigawa_buffalo', null, null, null, null, null, 'takigawa', null, '時代祭の銀水牛脇立を参考にした形（前の表の形）。旗は丸に竪木瓜'],
-  ['稲葉一鉄', null, 'kuwa', null, null, null, null, null, 'inaba', null, '良通。所用品は伝わらない。前の表の色に鍬形'],
+  // 清水神社伝来の素懸威鎧兜（岐阜県指定）。当日の着用・鉢の細形・威の色は復元案。
+  // 出所と補完範囲：docs/generals_look_1108/稲葉一鉄.md。良通の別名にも同じ具足を使う。
+  ['稲葉一鉄', 'zunari', 'none', D.kuro, 0x5a4a2a, 'sugake', 0, 'none', 'inaba',
+    { lac: 'kuro', fuki: 'kuro', domaru: true, plateDo: null, rightOpening: true, doSugake: true,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: 0x5a4a2a,
+      kusazuriLaceRows: 5, kusazuriBands: Array(5).fill(0x5a4a2a),
+      haori: 0, noHaori: true, menpo: 0, fur: 0, horo: 0, uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '' },
+    '清水神社の一鉄着領・伊予小札素懸威最上胴丸を既存部品で略す。頭形鉢と茶系の威・袖錣の威・草摺五段は復元案。前立・脇立・面頬・陣羽織・甲冑の個人紋・馬印は未確認なので補わない。旗の折敷に三文字は後世の稲葉家伝来品による所属表示'],
   // 本人所用品は未確認。建勲神社伝来の十六世紀の胴丸を型の手本とし、木瓜前立は借りない。
   ['氏家卜全', 'suji', 'kuwa_wide', D.kuro, C.kon, 'kebiki', 0, 'none', 'oda',
     { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108,

@@ -24,5 +24,6 @@ export const DEPTH_MORIBE = {
       { id: 'hikae2', layer: 'yobi', wing: 'right', men: 600, taisho: '', flag: 'saito', bind: G('reserves', 1) },
       { id: 'ato', layer: 'gozume', wing: 'center', men: 1500, taisho: '', flag: 'saito', hold: true, at: { x: -20, z: -200 } },
     ] },
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/moribe.md）
   honjinView: { A: false, B: false },
 };

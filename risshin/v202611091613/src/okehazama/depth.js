@@ -27,6 +27,7 @@ export function depthOkehazama(rt) {
         ...(far.NARUMI_JO ? [{ id: 'okabe', layer: 'gozume', wing: 'right', men: 700, taisho: '岡部元信', flag: 'imagawa', hold: true, at: far.NARUMI_JO }] : []),
         ...(far.ODAKA ? [{ id: 'motoyasu', layer: 'gozume', wing: 'left', men: 2500, taisho: '松平元康', flag: 'tokugawa', hold: true, at: far.ODAKA }] : []),
       ] },
+    byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/okehazama.md）
     honjinView: { A: false, B: false },
   };
 }
