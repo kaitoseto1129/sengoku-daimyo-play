@@ -25,7 +25,7 @@ export function start(rt, ctx) {
     sfx('toki', 0.8);
     rt.after(2.6, () => { if (on()) rt.army.play('eiei', rt.player.u.pos, 1); });
   });
-  rt.after(16, () => { if (on()) rt.say('水夫', '大将の船が傾いていく……あれではもう浮かぶまい', 3); });
+  rt.after(16, () => { if (on()) rt.say('水夫', '大将の船も崩れた。寄せていた小早も退いていくぞ', 3); });
   rt.after(22, () => { if (on()) rt.say('九鬼嘉隆', '大坂の海の道は、これで細る。上様へ急ぎ知らせよ', 4); });
 }
 

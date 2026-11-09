@@ -19,7 +19,7 @@ export function start(rt, ctx) {
   rt.obj('main', '西の大筒で、大坂へ抜ける兵糧船を止めよ', 'main');
   rt.army.playFar('sig_kakari', { x: -90, z: 60 }, 0.7);
   rt.say('物見', '退く船の陰に荷船じゃ！　俵を積んで大坂へ抜ける気ぞ！', 3.5);
-  rt.after(4, () => { if (!F.ending) rt.say('九鬼嘉隆', '一粒も本願寺へ入れるな。大筒で横腹を撃て！', 3.5); });
+  rt.after(4, () => { if (!F.ending && !rt.over && F.kzHyoro === S && !S.done) rt.say('九鬼嘉隆', '一粒も本願寺へ入れるな。大筒で横腹を撃て！', 3.5); });
   const b = ctx.launchSupply(rt);
   if (b) S.ships.push(b);
   ctx.armCannons(rt);
