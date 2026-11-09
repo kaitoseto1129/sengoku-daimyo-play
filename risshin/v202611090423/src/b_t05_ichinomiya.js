@@ -22,6 +22,7 @@ import { demDetail } from './dem.js';
 import { distToPolyline } from './world.js';
 import { nobori, hut, yagura, jinmaku, palisade, takataba } from './props.js';
 import { allyGroup, enemyGroup, nm } from './bhelp.js';
+import { TOYO_HACHISUKA_KACCHU } from './kacchu_data.js';
 import { heightOf, buildCastlePlan, rectPoly, inPoly } from './castle_plan.js';
 import { castleBoardFence, ishigaki, solidRect } from './props.js';
 import { RANKS } from './state.js';
@@ -514,6 +515,7 @@ export const t05_ichinomiya = {
   noFrontFill: true,         // 奥の作り物の乱戦（front_fill.js）を置かない：始めの河原の左に、近づくと無い軽い軍勢の列が見えた（kaito AA・AF）
   frontlineDensity: false,   // 共通の小勢を足さない（織田の旗の小勢・見せかけの軍勢を出さない。kaito AQ4・AT）
   world: {
+    namedKacchu: TOYO_HACHISUKA_KACCHU,
     seed: 1585, time: 'day', muddy: 0.15, fogFar: 440,
     waterSlow: true,  // 鮎喰川を渡る間は遅くなる（地面と同じ速さで歩けた。11/8 critic60 一8）
     hatDropRate: 0,   // 持ち主の無い陣笠が地面に転がって残った（11/8 critic60 九4）
