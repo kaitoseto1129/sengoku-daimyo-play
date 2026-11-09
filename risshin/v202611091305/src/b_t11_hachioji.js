@@ -618,30 +618,29 @@ const t11_hachioji = {
         reward: '御主殿を取った' }),
       sakamichi.step(H),
       // ④ 尾根の曲輪を一つずつ落とす（上からの鉄砲）
-      DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true, limit: 200,
+      DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
         say: [['前田の侍', '上の曲輪から鉄砲じゃ！　身を低くして登れ']],
         foes: () => [keep('金子家重の組', KANEKO, [{ type: 'busho', n: 1, o: { name: '金子家重', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '金子丸を落とした' }),
-      DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true, limit: 200,
+      DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '高丸を落とした' }),
-      DP.fight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true, limit: 200,
+      DP.fight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true,
         // 上杉の藤田信吉は、城の普請奉行だった平井無辺を寝返らせ、その案内で水の手の間道から小宮曲輪を衝いた。内応の者が櫓に火を掛けた
         say: [['前田の侍', '搦手に竹に雀の旗！　上杉勢が裏の間道から来たぞ'], ['前田の侍', '曲輪の櫓に火が上がった！　内から寝返った者がおる', 3.6]],
         foes: () => [keep('狩野一庵の組', MATSUKI, [{ type: 'busho', n: 1, o: { name: '狩野一庵', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }])],
         reward: '小宮曲輪を落とした' }),
       // ⑤ 頂の本丸：利家は中山勘解由（家範）に命を助けると伝えたが、家範は断って討死。大石信濃守（照基）は城代の横地監物を城から落とし、
       //   自分は打って出て討死。横地は西の詰の城の方へ落ちる（update の yokochi）
-      DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true, limit: 240,
+      DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['大石信濃守', '監物殿は西へ落ちられよ。ここは我らが防ぐ！', 3.6]],
         foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
           keep('大石信濃守の手', HON, [{ type: 'busho', n: 1, o: { name: '大石信濃守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 95, seek: 24 })],
         reward: '本丸の守りを崩した' }),
       nakayamaStep(),
       rakujo.step(H),
-    // 尾根の三つの曲輪（金子丸・高丸・小宮）と本丸の守りは、本人が斬り合ったまま三〜四分経てば次へ（11/9 bot：金子丸に六分、本丸の守りで十分止まり切り上げ二十一分）
     // 城兵を崩す・袂へ着く条件を満たすまで待つ。共通の放置・時間切れの送りで未達の曲輪を落とした扱いにしない。
-    ].map((s) => Object.assign(s, { idleAdvance: false, limit: s.limit ?? Infinity })), (rt2) => this.win(rt2));
+    ].map((s) => Object.assign(s, { idleAdvance: false, limit: Infinity })), (rt2) => this.win(rt2));
   },
 
   // 上杉勢：小宮曲輪の段で、搦手（北西）から攻め上る

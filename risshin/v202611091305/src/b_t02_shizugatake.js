@@ -776,6 +776,14 @@ const t02_shizugatake = {
         rt.after(3, () => rt.say('使番', '茂山の前田勢、陣を払うて退きまする', 3));
         rt.after(6.5, () => rt.say('佐久間盛政', '前田殿が退いたじゃと……。権現坂まで退け', 3));
       }
+      // 主人公が茂山へ抜けたら、岸に残った殿も麓へ下がって合流する。
+      // 遠い岸に残った兵まで減らす判定と、麓だけを守る行き先が食い違い、達成できずに待つのを防ぐ。
+      if (dist(P.pos, SHIGE) < 40) for (const g of F.chase5) {
+        if (!live(g) || g.joinFoot || dist(g.center(), SHIGE) < 45) continue;
+        g.joinFoot = true; g.order = 'move'; g.focus = null; g.path = null;
+        g.dest = { x: SHIGE.x + 12, z: SHIGE.z + 18 }; g.speed = 3;
+        g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 18; q.aggro = 10; };
+      }
       const footG = F.chase5[1];
       //   11/6 六度目：打ちかかるのは味方の隊が主人公の 25 の内に追い着いてから（一人で先へ出た主人公を麓でまとめて囲まない・一5）
       if (live(footG) && dist(footG.center(), P.pos) < 16 && [F.yari, F.uma, F.niwaG].some((q) => live(q) && dist(q.center(), P.pos) < 25)) { footG.aggro = 10; footG.seekRange = 16; }
@@ -866,6 +874,16 @@ const t02_shizugatake = {
     }
     // ④は岸の道に沿って北へ
     if (F.phase === 4 && q && u.pos.z > 180) { goTo(p, inp, -104, 176, 3); return; }
+    // 麓へ着いた後も残る殿を見届ける。印の真下で待つだけでは、離れた残兵を討てない。
+    if (F.phase === 4 && dist(u.pos, SHIGE) < 40 && !F.routAt) {
+      let target = null, nearest = Infinity;
+      for (const g of F.chase5 || []) for (const foe of g.units) {
+        if (!foe.alive || foe.gone || !ok(foe)) continue;
+        const d = dist(foe.pos, u.pos);
+        if (d < nearest) { nearest = d; target = foe; }
+      }
+      if (target) { goTo(p, inp, target.pos.x, target.pos.z, 2.2); return; }
+    }
     if (q) goTo(p, inp, q.x, q.z, 2);
   },
 };
