@@ -6,6 +6,7 @@
 // ======================================================================
 import { allyGroup } from '../bhelp.js';
 import { moveSonae } from './depth.js';
+import { seatCommander } from './camp.js';
 
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 
@@ -14,6 +15,8 @@ export function startCouncil(rt, K) {
   // 夜討ちの後とは日が違う軍議。日付の「夕」と空の明るさを揃える。
   rt.world.dayClock = null;
   rt.world.setTime('dusk', true);
+  // 日を改めた軍議には本陣の秀吉本人を移す。二人の秀吉を同時に置かない。
+  seatCommander(rt, F.hideyoshi, { x: K.COUNCIL.x, z: K.COUNCIL.z - 7 });
   say(rt, '羽柴秀吉', '徳川殿は動かぬ。……戻って参れ、軍議じゃ', 0.6, 3.2);
   say(rt, '日根野弘就', '砦は我らが守る。本陣へ急がれよ', 5, 2.8);
   // 本陣へ戻る道すがら（二巡 徳川A 11/9：戻り道の一分半に何も起きなかった）。夕の陣の間に、中入りの前触れを聞かせる
@@ -22,9 +25,9 @@ export function startCouncil(rt, K) {
   say(rt, '使番', '池田様の陣より。物見の報せでは、三河の岡崎は手薄とのこと', 58, 3.2);
   // 大手門の前の床几に将が集まる（秀吉・秀次・池田・森・堀。討てない・動かない）
   F.council = allyGroup(rt, { name: '軍議の衆', fullStrength: true, anchor: { x: K.COUNCIL.x, z: K.COUNCIL.z - 4 }, facing: 0, width: 8, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
-    K.fl([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true } }, { type: 'busho', n: 1, o: { name: '三好信吉', invuln: true } }, { type: 'busho', n: 1, o: { name: '池田恒興', invuln: true, flag: 'ageha' } },
+    K.fl([{ type: 'busho', n: 1, o: { name: '三好信吉', invuln: true } }, { type: 'busho', n: 1, o: { name: '池田恒興', invuln: true, flag: 'ageha' } },
       { type: 'busho', n: 1, o: { name: '森長可', invuln: true, flag: 'tsuru' } }, { type: 'busho', n: 1, o: { name: '堀秀政', invuln: true, flag: 'hori' } }], 'toyotomi'));
-  for (const u of F.council.units) { u.noTarget = true; u.invuln = true; }
+  for (const u of F.council.units) { u.noTarget = true; u.invuln = true; u._crouch = true; }
 }
 export function tickCouncil(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
@@ -47,9 +50,10 @@ export function tickCouncil(rt, K) {
 
 export function startOrders(rt, K) {
   const F = rt.flags;
+  seatCommander(rt, F.hideyoshi, { x: K.RAKUDA.x, z: K.RAKUDA.z - 4 });
   // 日を改めた届け先には、軍議を終えた森長可と旗本を置く。
   for (const u of F.council?.units || []) if (u.name === '森長可' && u.alive && !u.gone) rt.army.despawn(u);
-  F.moriOrders = allyGroup(rt, { name: '森長可の陣の旗本', fullStrength: true, anchor: { x: K.MORIJIN.x, z: K.MORIJIN.z - 4 }, facing: 0, width: 5, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
+  F.moriOrders = allyGroup(rt, { name: '森長可の陣の旗本', fullStrength: true, anchor: { x: K.MORIJIN.x, z: K.MORIJIN.z + 8 }, facing: 0, width: 5, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
     K.fl([{ type: 'busho', n: 1, o: { name: '森長可', horse: true, invuln: true } }, { type: 'samurai', n: 4 }], 'tsuru'));
   for (const u of F.moriOrders.units) u.noTarget = true;
   // 日が傾く（夜の出陣へ）
