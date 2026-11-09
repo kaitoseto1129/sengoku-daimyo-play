@@ -42,8 +42,10 @@ export const STAGES = {
   mitsukuri: [['申の刻、柵の口から三の郭へ攻め上る'], ['日暮れ、三の郭の松明に火を移す', s(2.5)], ['二の丸の木戸へ詰め、掛矢で打つ', s(2.8)],
     ['打って出た城兵を討ち、木戸から二の丸へ入る', (rt) => !!rt.flags.sally || !!rt.flags.gatePass], ['夜半、本丸の城兵を退け、旗を立てる', s(4)]],
   // 11/6 fixc1230（kaito 九1・十1）：右上の①〜⑤（b_okawachi.js の goals5）と同じ字・同じ順。前は四段の別の字で、戦の一行の番号と「①1」「④6」に重なった
-  okawachi: [['搦手の坂下の竹束に付け'], ['竹束と搦手の木戸へ寄せよ', (rt) => (rt.flags.step ?? 0) >= 2 || rt.flags.step === 1 && !!rt.flags.assaultMoving],
-    ['坂の旗で、打って出た城兵を止めよ', s(2)], ['追っ手を防ぎ、南の陣へ退け', s(3)], ['南の鹿垣で囲みを保ち、兵糧を断つ', s(4)]],
+  okawachi: [['搦手の坂下の竹束に付け'], ['竹束と搦手の木戸へ寄せよ', (rt) => !!rt.flags.coverReached],
+    ['坂の旗で、打って出た城兵を止めよ', (rt) => (rt.flags.step ?? 0) >= 2 && !!rt.flags.gateReached],
+    ['追っ手を防ぎ、南の陣へ退け', (rt) => (rt.flags.step ?? 0) >= 3 && !!rt.flags.pushHeld],
+    ['南の鹿垣で囲みを保ち、兵糧を断つ', (rt) => (rt.flags.step ?? 0) >= 4 && !!rt.flags.campReached]],
   kanegasaki: [['金ヶ崎の麓の一の備で朝倉の先手を止める'], ['笙の川の橋で騎馬の追手を受ける', s(3)], ['南の狭路で後続を止め、若狭への道へ退く', s(5)]],
   // 11/4：場所と行いを書く（AR1）。「浅井を…討つ」は goal_count が後ろの浅井長政へ端の矢印を出すので、しんがりの組を崩す形に
   // 11/5（check60 X1）：本人がその場所でその隊と槍を合わせた時だけ進む（b_anegawa.js の aneAdvance・ANE_MISSIONS と同じ字）
