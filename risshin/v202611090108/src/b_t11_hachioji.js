@@ -429,18 +429,17 @@ function nakayamaStep() {
       rt.say('前田の侍', '中山殿、降られよ！　前田様が、命は助けると仰せじゃ！', 3.4);
       rt.after(3.6, () => rt.say('中山勘解由', '二心は持たぬ。北条の城、ただでは渡さぬ！', 3.4));
     },
-    tick(rt, C, m, ctx, el) {
+    tick(rt, C) {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
-      // 11/8 15分の構成：三分討てずにいると、中山は供が尽きて自ら腹を切る（物語は時が経てば進む・kaito 二5。自ら討つ目標は果たせない）
-      if (n.alive && el > 180) { C.selfEnd = true; n.officerSaved = true; rt.army.kill(n, null); rt.say('前田の侍', '中山勘解由、自ら腹を切られた……', 3.2); }
+      // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
       return !n.alive;
     },
     end(rt, C) {
       rt.army.damage = C.damage;
       rt.unmark('dp'); rt.objDone('dp');
-      rt.banner(C.selfEnd ? '中山勘解由、自刃' : '中山勘解由、討ち取ったり', '助命を断り、本丸に果てる');
+      rt.banner('中山勘解由、討ち取ったり', '助命を断り、本丸に果てる');
       sfx('horagai', 0.8);
     },
   };
@@ -448,7 +447,7 @@ function nakayamaStep() {
 
 const t11_hachioji = {
   // 11/4 p100：行き先の印は今の目標の金の▼一つだけ（kaito AL・AN・AP12）。奥の軽い乱戦（front_fill）も置かない（AA）
-  noFrontFill: true, kumiLead: false, noGoalCount: true, goalSignNameOnly: true, noLeaderFollow: true,
+  noFrontFill: true, kumiLead: false, noGoalCount: true, goalsAllRows: true, goalSignNameOnly: true, noLeaderFollow: true,
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   noWake: true,
   minutes: 15,
@@ -584,14 +583,14 @@ const t11_hachioji = {
         reward: '御主殿を取った' }),
       sakamichi.step(H),
       // ④ 尾根の曲輪を一つずつ落とす（上からの鉄砲）
-      DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true, limit: 240,
+      DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
         say: [['前田の侍', '上の曲輪から鉄砲じゃ！　身を低くして登れ']],
         foes: () => [keep('金子家重の組', KANEKO, [{ type: 'busho', n: 1, o: { name: '金子家重', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '金子丸を落とした' }),
-      DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true, limit: 240,
+      DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '高丸を落とした' }),
-      DP.fight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true, limit: 240,
+      DP.fight({ at: MATSUKI, title: '小宮曲輪', sub: '搦手から上杉勢が攻め上る', obj: '上杉勢と、小宮曲輪の狩野一庵の組を討て', max: 70, noRefill: true,
         // 上杉の藤田信吉は、城の普請奉行だった平井無辺を寝返らせ、その案内で水の手の間道から小宮曲輪を衝いた。内応の者が櫓に火を掛けた
         say: [['前田の侍', '搦手に竹に雀の旗！　上杉勢が裏の間道から来たぞ'], ['前田の侍', '曲輪の櫓に火が上がった！　内から寝返った者がおる', 3.6]],
         foes: () => [keep('狩野一庵の組', MATSUKI, [{ type: 'busho', n: 1, o: { name: '狩野一庵', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }])],
@@ -606,7 +605,6 @@ const t11_hachioji = {
       nakayamaStep(),
       rakujo.step(H),
     // 城兵を崩す・袂へ着く条件を満たすまで待つ。共通の放置・時間切れの送りで未達の曲輪を落とした扱いにしない。
-    // 11/8 15分の構成：尾根の三つの曲輪だけは四分で上限（bot が小宮曲輪で七分止まった。物語は時が経てば進む・kaito 二5）
     ].map((s) => Object.assign(s, { idleAdvance: false, limit: s.limit ?? Infinity })), (rt2) => this.win(rt2));
   },
 

@@ -30,7 +30,7 @@ export function step(H) {
       C.say = 0;
     },
     tick(rt, C, m, ctx, el) {
-      if (!C.quiet && (live(C.last) <= 1 || el > 80)) {
+      if (!C.quiet && live(C.last) <= 1) {
         C.quiet = el;
         C.last.noRout = false; C.last.morale = 0;
         // 城方は崩れ、戦の音が止む（残りの城兵の組も崩す）
