@@ -2071,7 +2071,7 @@ const shigisan = {
     const defending = sgHolding(rt);
     const postArrived = defending && F.step === 2 && towerPostReached(rt);
     // 着いた後も持ち場のピンを残す。敵が消えた同じコマで守りへ替える。
-    if (defending) pos = F.step === 2 ? F.approachByRoad && !postArrived ? F.approachGuide : TOWER_POST
+    if (defending && id !== 'enjou') pos = F.step === 2 ? F.approachByRoad && !postArrived ? F.approachGuide : TOWER_POST
       : F.step === 1 ? F.gateGather : F.castleGuidePoint;
     if (!pos) return null;
     q.key = id; q.marker = marker; q.x = pos.x; q.z = pos.z; q.y = pos.y;
@@ -2362,6 +2362,8 @@ const shigisan = {
     const F = rt.flags;
     if (rt.over) return null;
     if (F.ending) return rt.markers.some((m) => m.id === 'keep') ? 'keep' : null;
+    // 炎上中は館の前から南口の外へ退く。古い道の終点で待たせない。
+    if (F.paceEnjou && !F.enjouDone) return 'enjou';
     if (F.castleGuideBlocked) return null;
     // 尾根で戦う間は敵の奥へ進ませない。道へ戻る時と門前待機は印を残す。
     if (this.taskLabel(rt, '') === '先手と尾根の敵を退けよ' || this.castleFightNeeded(rt)) return null;
@@ -4347,6 +4349,11 @@ function sgBot(b, inp, { goTo, patientStrike, strikeTarget }) {
   }
   if (F.step === 3.2) { goTo(p, inp, GATE.x, GATE.z + 6, 1.5); return; }
   if (F.step === 3.5 || F.step === 4) {
+    // 人に示す炎上時の持ち場と同じ所へ退き、館の前で待ち続けない。
+    if (F.paceEnjou && !F.enjouDone) {
+      const post = b.markers.find((m) => m.id === 'enjou');
+      if (post) { goTo(p, inp, post.pos.x, post.pos.z, 1.5); return; }
+    }
     if (u.pos.z > GATE.z + 9) { climbBotWay(p, inp, GATE.x, GATE.z + 6, 1, goTo); return; }
     if (u.pos.z > GATE.z - 4) {
       if (u.pos.z > GATE.z && Math.abs(u.pos.x - GATE.x) > 3.5) goTo(p, inp, GATE.x, GATE.z + 6, 1);
