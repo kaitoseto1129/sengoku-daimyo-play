@@ -4083,7 +4083,7 @@ const kanegasaki = {
 // 11/6 kanegasaki_re（BQ「両軍の兵の数が減っていくのが見える」）：討たれた数に加え、殿が追手と当たっている間の見えない所の損（lossA・lossB）も減らす。
 kanegasaki.force = (rt) => {
   const F = rt?.flags || {};
-  return { a: Math.round(30000 - (F.ak || 0) * 20 - (F.lossA || 0) * 3), a0: 30000, b: Math.round(20000 - (F.ek || 0) * 20 - (F.lossB || 0) * 3), b0: 20000 };
+  return { a: Math.max(0, Math.round(30000 - (F.ak || 0) * 20 - (F.lossA || 0) * 3)), a0: 30000, b: Math.max(0, Math.round(20000 - (F.ek || 0) * 20 - (F.lossB || 0) * 3)), b0: 20000 };
 };
 kanegasaki.sides = { a: { name: '織田・徳川の軍', mon: 'oda' }, b: { name: '朝倉の追手', mon: 'asakura' } };
 // 右上の目標の並び（①〜⑤を最初から全部・果たした物に✓・今の物を明るく）。字が変わる時だけ書く。
