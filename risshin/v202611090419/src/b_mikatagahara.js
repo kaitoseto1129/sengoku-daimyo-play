@@ -1058,7 +1058,9 @@ function mikataGoals(rt, dt) {
     const post = G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST;
     // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
     const holdContact = () => F.dp?.cur?.s.kind === 'hold' && !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22));
-    const contact = G.i === 2 ? !!mikataNearestFoe(rt) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
+    // 行き先用の敵探しは持ち場から三十四 m 先も含む。遠い敵を見つけただけで防戦を果たした事にしない。
+    const foe = G.i === 2 ? mikataNearestFoe(rt) : null;
+    const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
     if (near(post, G.i === 2 ? 18 : G.i === 3 ? 40 : 28) && contact) G.tin += dt;

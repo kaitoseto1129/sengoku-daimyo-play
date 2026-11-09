@@ -253,12 +253,12 @@ function buildStage(rt) {
   // 城を囲む羽柴の本隊（東の大手・北東の川べり）。遊ぶ所から百五十m より遠い所だけに置く（kaito AA・AQ6）。
   // 前は始めの河原の目の前に軽い大軍と作り物の斬り合い（toyoClash）があり、近づくと何も無かったので外した。
   // 明神丸の軽い城兵（近づくと本物に替わった）と、出だしの三十七m 先の本陣の軽い兵も外した（kaito 四1「近づいて替わらない」）
-  KIT.farHost(rt, 175, 62, 34, 16, 300, -Math.PI / 2, KIT.ARMOR.oda, 'toyotomi', 1585, 'spear');   // 大手を攻める秀長の本隊
+  KIT.farHost(rt, 195, 62, 34, 16, 300, -Math.PI / 2, KIT.ARMOR.oda, 'toyotomi', 1585, 'spear');   // 大手を攻める秀長の本隊
   KIT.farHost(rt, 200, -10, 30, 14, 240, Math.atan2(-200, 122), KIT.ARMOR.oda, 'toyotomi', 1586, 'mixed');  // 北東から囲む藤堂高虎・増田長盛らの手（秀次は岩倉城へ）
-  KIT.farHost(rt, 150, -262, 30, 14, 220, 0, KIT.ARMOR.oda, 'toyotomi', 1587, 'mixed');        // 本陣の後ろの後詰め
+  KIT.farHost(rt, 175, -280, 30, 14, 220, 0, KIT.ARMOR.oda, 'toyotomi', 1587, 'mixed');        // 本陣の後ろの後詰め
   // 東の大手の口で、秀長の本隊と城兵が組み合う（河原からも尾根からも見える遠い斬り合い。前は五万のはずが百人の小競り合いに見えた。11/8 critic60 十二1・十二2）
   try {
-    const C = W.addClash({ x: 122, z: 60, facing: Math.atan2(-38, 22), w: 40, bw: 6, gap: 2.6, seed: 1588, rt,
+    const C = W.addClash({ x: 175, z: 60, facing: Math.atan2(-38, 22), w: 40, bw: 6, gap: 2.6, seed: 1588, rt,
       play: (k, p, v) => rt.army?.play(k, p, v), smoke: (x, y, z, ax, az) => rt.army?.smoke(x, y, z, ax, az),
       noRout: true, killRate: 0.004, maxDrift: 3, host: false, corpses: 10,
       A: { flag: 'toyotomi', armor: KIT.ARMOR.oda, count: 120, flagRate: 0.25, guns: true },

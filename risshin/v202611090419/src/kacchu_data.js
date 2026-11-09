@@ -426,7 +426,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["立花宗茂", "momonari", "cross", 0x1c1a1a, 0x3c5a8a, "okegawa", 0, 0, "none", ""],
   ["池田輝政", "eboshi", "shida", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0, "none", ""],
   ["細川忠興", "zunari", "feather", 0x181717, 0x2c2b29, "kebiki", 0, 0x28201e, "none", "48e4b5c5"],
-  ["藤堂高虎", "namban", "bellflower", 0x1c1a1a, 0x2e3a52, "okegawa", 0, 0, "none", ""],
+  ["藤堂高虎", "tokan", "todo_tokan", 0x1c1a1a, 0x232c40, "okegawa", 0, 0, "todo", ""],
   ["大谷吉継", "zunari", "moon", 0x1c1a1a, 0x66513b, "okegawa", 0x5a5a5a, 0, "none", ""],
   ["島津忠恒", "zunari", "sun", 0x29251f, 0x493f34, "okegawa", 0xcfc8b4, 0, "shimazu", ""],
   // 久能山東照宮の秀忠所用「茶糸威具足」に威の色を寄せる。鉢・胴・面頬は復元、立物は未確認のため付けない（docs/generals_look_1108/徳川秀忠.md）。
@@ -729,7 +729,7 @@ const ARMOR_RESEARCH_2 = {
     kusazuriMimiito: 0x6a7a2c, kusazuriColor: 0x16191b, suneateColor: 0x16191b },
   // 宇治田家伝来・伝三成所用の紅糸素懸威二枚胴具足（長浜城歴史博物館収蔵）。出所と補完は docs/generals_look_1108/石田三成.md。
   "石田三成": { crest: "sun", lace: 0xa8281c, odo: 0xa8281c },
-  "藤堂高虎": { bowl: "suji", crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
+  "藤堂高虎": { bowl: "tokan", crest: "todo_tokan", lace: 0x232c40, odo: 0x232c40 },
   "大谷吉継": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
   "今川義元": { lace: 0x9e241b, odo: 0x9e241b },
 };
@@ -775,7 +775,7 @@ const BLACK_SPLIT = {
   "馬場信春": { bowl: "momonari", lac: "natural", helm: JIGANE, fuki: "lac", shikoroRows: 3 },
   "酒井忠次": { bowl: "zunari", fuki: "kawa", menpoStyle: "full", kusazuriBands: Array(5).fill(0x6a4428) },
   "浅井長政": { bowl: "suji", fuki: "kin", sujiPlates: 62, kusazuriBands: Array(5).fill(0x34466e) },
-  "藤堂高虎": { bowl: "tokan", fuki: "kawa" },
+  "藤堂高虎": { bowl: "tokan", fuki: "kuro" },
   // 白い頭巾（関ヶ原の吉継）：白い布で包んだ丸い頭
   "大谷吉継": { bowl: "zunari", lac: "natural", helm: 0xd8d2c4, fuki: "lac", menpoStyle: "full" },
   "吉川元春": { bowl: "zunari", lac: "sabi", helm: SABI, fuki: "kin" },

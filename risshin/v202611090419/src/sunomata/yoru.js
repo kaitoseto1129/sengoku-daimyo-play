@@ -11,7 +11,7 @@ export function start(rt, def, C) {
   if (v.yoruT) return;
   v.yoruT = rt.t; v.fires = 0;
   rt.after(20, () => { if (!rt.over && !F.won && F.wave === 2) { rt.world.setTime('dusk'); rt.say('前野長康', '日が傾いた。暗くなる前に柵を結び切れ！', 3); } });
-  rt.after(75, () => { if (!rt.over && !F.won && F.wave === 2) { rt.world.setTime('night'); rt.bark('日が落ちた。夜の寄せじゃ'); } });
+  rt.after(160, () => { if (!rt.over && !F.won && F.wave === 2) { rt.world.setTime('night'); rt.bark('日が落ちた。夜の寄せじゃ'); } });
 }
 
 function fireArrow(rt) {
@@ -36,6 +36,11 @@ export function tick(rt) {
   if (rt.over || F.won || F.wave !== 2) return;
   const t = rt.t - v.yoruT;
   // 夜になってから四十秒の間に三度、火矢が射込まれる
-  const at = [80, 96, 112];
-  while (v.fires < at.length && t >= at[v.fires]) fireArrow(rt);
+  const at = [165, 181, 197];
+  while (v.fires < at.length && t >= at[v.fires]) {
+    const before = v.fires;
+    fireArrow(rt);
+    // 柵が全て破れている時は撃つ先がない。修理を待ち、同じコマで回り続けない。
+    if (v.fires === before) break;
+  }
 }
