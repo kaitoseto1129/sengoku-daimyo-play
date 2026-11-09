@@ -1,8 +1,8 @@
 // ======================================================================
-// 設楽原の決戦　戦況の変わり目（6〜9分）「土屋昌次の柵破り」（docs/oda15_plan_1108.md 17：第二波・一部柵突破・近接戦へ）
-//   真田が大宮前で崩れた直後、大宮前と柳田前の間の柵（口の無い所）へ土屋昌次の隊が取り付き、一の柵・二の柵を押し倒す。
-//   破れ目から柵の内へ入った土屋勢を、組と予備の槍組で押し返す（柵の内の斬り合い）。
-//   土屋昌次は柵際で討死したと伝わる（甲陽軍鑑）。将を討つか、隊が三分の一を切るか、二分で鉄砲に倒れる。
+// 設楽原の決戦　戦況の変わり目（6〜9分）「山県昌景の赤備えの柵破り」（docs/shitaragahara_spec_1109.md 19 第二波）
+//   真田が大宮前で崩れた直後、大宮前と柳田前の間の柵（口の無い所）へ山県昌景の赤備え（騎馬と徒歩）が寄せ、一の柵・二の柵を押し倒す。
+//   破れ目から柵の内へ入った赤備えを、組と予備の槍組で押し返す（柵の内の斬り合い）。同じ時に柳田前へ原昌胤が寄せる（二つの区画を走る）。
+//   山県昌景は中盤の最大の強敵。討てば赤備えの大旗が倒れ、隊の気が崩れる（meisho.js）。命は普通の将のまま（体力で時を伸ばさない）。
 // 兵は十八人だけ。破れ目は柵の二つの区画（三十メートル）。字は台詞と任務の一行だけ。
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
@@ -25,13 +25,14 @@ export function group(rt) { const B = rt.flags.shBreach; return B && !B.done ? B
 export function start(rt, ctx) {
   const F = rt.flags;
   const B = F.shBreach = { at: rt.t, ctx, s: 0, IN: { x: ctx.SB.x0 - ctx.SB.gap - 3, z: BZ }, done: false };
-  B.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '土屋昌次隊', fixed: true, noGuard: true, anchor: { x: 96, z: BZ }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 14, formation: 'line', morale: 100, noRout: true, speed: 3.6 },
-    [{ type: 'busho', n: 1, o: { name: '土屋昌次', flag: 'takeda' } }, { type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 15, o: { flag: 'takeda' } }]));
+  B.g = enemyGroup(rt, { faction: 'akazonae', name: '山県昌景隊（赤備え）', fixed: true, noGuard: true, anchor: { x: 96, z: BZ }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 14, formation: 'line', morale: 100, noRout: true, speed: 3.6 },
+    [{ type: 'busho', n: 1, o: { name: '山県昌景', horse: true, flag: 'akazonae' } }, { type: 'samurai', n: 2, o: { flag: 'akazonae' } }, { type: 'cavalry', n: 4, o: { horseBattle: 'mounted', flag: 'takeda_kiba' } }, { type: 'ashigaru', n: 13, o: { flag: 'akazonae' } }]);
   B.g.order = 'path'; B.g.pathIdx = 0; B.g.path = [[ctx.SB.x0 + 6, BZ]]; B.g.dest = null;
   B.g.onArrive = () => { B.arrived = true; };
   B.n0 = ctx.ready(B.g);
   rt.after(1.5, () => { try { sfx('toki', 0.8); } catch (e) { /* なし */ } });
-  rt.say('使番', '土屋昌次の隊が、口の無い所の柵へ取り付いたぞ！', 3.4);
+  rt.say('使番', '赤備えだ！　山県勢が、口の無い所の柵へ来るぞ！', 3.4);
+  rt.after(3.8, () => { if (!F.ending) rt.say('使番', '柳田前にも原昌胤の隊が寄せております！', 3.2); });
   return B;
 }
 
@@ -58,7 +59,7 @@ export function tick(rt, dt) {
     if (B.arrived || T > 35 || g.center().x < c.SB.x0 + 10) {
       B.s = 1; B.at1 = rt.t;
       breakFence(rt, B);
-      rt.say('土屋昌次', '柵を引き倒せ！　中へ入れ！', 2.8);
+      rt.say('山県昌景', '柵を引き倒せ！　赤備え、中へ入れ！', 2.8);
       rt.after(3, () => rt.say('組頭', '柵が破られた！　破れ目で押し返せ！', 3));
       g.order = 'attack'; g.seekRange = 40; g.aggro = 30; g.anchor.x = B.IN.x; g.anchor.z = B.IN.z;
       const R = c.reserve();
@@ -72,9 +73,9 @@ export function tick(rt, dt) {
     rt.say('前田利家', '鉄砲組、破れ目へ向き直れ！　放て！', 2.8);
     try { sfx('volley', 1); } catch (e) { /* なし */ }
     let k = 0;
-    for (const u of g.units) if (u.alive && u.name !== '土屋昌次' && k < 3) { rt.army.kill(u, null); k++; }
+    for (const u of g.units) if (u.alive && u.name !== '山県昌景' && k < 3) { rt.army.kill(u, null); k++; }
   }
-  const lord = g.units.find((u) => u.name === '土屋昌次');
+  const lord = g.units.find((u) => u.name === '山県昌景');
   if (Math.hypot(p.x - B.IN.x, p.z - B.IN.z) < 32) B.there = true;
   const left = c.ready(g);
   // 将が味方の鉄砲に倒れても、本人が破れ目へ来るまでは任務達成にしない。
@@ -85,9 +86,9 @@ export function tick(rt, dt) {
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: BZ }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   try { sfx('volley', 0.9); } catch (e) { /* なし */ }
-  rt.banner('土屋昌次、討死', '柵の破れ目を押し返した');
+  rt.banner('山県昌景、討死', '赤備えの大旗が倒れた');
   rt.say('組頭', '破れ目は守った！　柵の内の道を、組と柳田前へ移るぞ！', 3.8);
-  rt.award((t) => { t.side.push('柵の破れ目で土屋昌次の隊を押し返した'); t.special = { label: '柵の破れ目を守った', pts: 12 }; }, '破れ目を守った', B.IN);
+  rt.award((t) => { t.side.push('柵の破れ目で山県昌景の赤備えを押し返した'); t.special = { label: '赤備えの柵破りを止めた', pts: 14 }; }, '破れ目を守った', B.IN);
   const R = c.reserve();
   if (R && !R.routed) { R.order = 'hold'; R.anchor.x = B.IN.x; R.anchor.z = BZ; R.facing = Math.PI / 2; }
   return false;

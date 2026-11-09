@@ -3304,7 +3304,7 @@ const kanegasaki = {
     rt.say(rt.G.lord ? '木下藤吉郎' : '織田信長', rt.G.lord ? '金ヶ崎は開き申した。木ノ芽峠の先は一乗谷にござる' : '金ヶ崎は開いた。木ノ芽峠を越え、一乗谷へ進むぞ', 4);
     F.t0 = 0;
     // 15分の構成：はじめの三分は攻める（峠道の朝倉を押し返し、柵を取る・kanegasaki/kosen.js）。済んだら浅井離反の急報と追手
-    rt.after(1, () => k15Kosen.start(rt, { ...kgCtx(rt), friends: () => [], aid: { name: '先手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }] }, aidBacking: false, faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, look: (list) => dress(list, ASAKURA),
+    rt.after(1, () => k15Kosen.start(rt, { ...kgCtx(rt), friends: () => [], aid: { name: '森可成の手', faction: 'oda', flag: 'tsuru', list: [{ type: 'busho', n: 1, o: { name: '森可成', invuln: true, horse: true, hat: 'kabuto_m', flag: 'tsuru' } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }] }, aidBacking: false, faction: 'asakura', flag: 'asakura', armor: ASAKURA.armor, look: (list) => dress(list, ASAKURA),
       LINE0: LINES[0], ARMOR: { oda: KIT.ARMOR.oda, asakura: ASAKURA.armor } }, () => {
       if (rt.over || F.ending) return;
       this.betrayed(rt);
