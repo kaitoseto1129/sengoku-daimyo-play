@@ -475,7 +475,8 @@ const k07_sawayama = {
       const tick = s.tick;
       s.tick = (rt2, C, m, ctx, el, dt) => {
         const p = rt2.player.u.pos;
-        if (yard && p.x > yard.poly[0][0] && p.x < yard.poly[1][0] && p.z > yard.poly[0][1] && p.z < yard.poly[2][1] && Math.abs(p.y - yard.level) < 3) {
+        const inside = !!yard && p.x > yard.poly[0][0] && p.x < yard.poly[1][0] && p.z > yard.poly[0][1] && p.z < yard.poly[2][1] && Math.abs(p.y - yard.level) < 3;
+        if (inside) {
           C.k07Entered = true;
           C.k07EnteredAt ??= rt2.t;
           // 曲輪を離れて待つ時間は、宇多との斬り合いに含めない。
@@ -483,10 +484,10 @@ const k07_sawayama = {
         }
         const cleared = tick(rt2, C, m, ctx, el, dt);
         C.k07Cleared = !!cleared;
-        // 味方が守りを崩しても、主人公が曲輪へ入るまでは達成しない。
+        // 一度入って外へ戻った時も、曲輪へ入り直すまでは達成しない。
         // 乱入を告げた後の正継・朝成・東雲斎の言葉を終えてから落城へ進む。
         const enteredAt = rt2.flags.tanakaInT;
-        return cleared && !!C.k07Entered && (C.at !== HON_YARD ||
+        return cleared && inside && (C.at !== HON_YARD ||
           (rt2.flags.tanakaIn && enteredAt != null && rt2.t - enteredAt >= 15.4));
       };
     }

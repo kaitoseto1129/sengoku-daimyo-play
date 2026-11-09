@@ -1573,7 +1573,7 @@ function hieiTreatmentProgress(rt) {
 // 使番は隊の要へ直進せず、坂本の通りと本坂の折れを通って下知を届ける。
 // 道と投影用の入れ物は使い回し、歩けるかの調べも三分の一秒ごとにする。
 const RUNNER_ROAD = [...pts('sakamoto'), ...pts('honzaka', 1), ...pts('todo', 1, 3),
-  [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1), ...pts('yokawa', 1)];
+  [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1), ...pts('yokawa', 1)];
 const RUNNER_SHRINE_E = [...pts('hiyoshi').reverse(), [158, 5], [170, 7], [184, 7]];
 const RUNNER_SHRINE_W = [...pts('hiyoshi').reverse(), [146, 4], ...RUNNER_ROAD.slice(4)];
 // 里坊の北へ押し出された兵は、家の裏を通って参道か東の通りへ戻る。
@@ -2548,7 +2548,7 @@ const hiei_mtn = {
   resumeSteps: [[1, 'p1'], [2, 'p2'], [3, 'p3'], [4, 'p4'], [5, 'p6'], [6, 'p7']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   stageGoalsOnly: true, // 勝利の星も、戦場と同じ場所・行いの五つだけ。
   goalsAllRows: true, // 共通の目標札にも五つを最初から並べる。
-  goalVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
+  goalsVisibleRows: 5, // 西塔・横川を含む七目標も、画面には今の五件まで。
   goalRowsAhead: true, // 最初から五件を並べ、後半は今の目標と続きが見えるようにする。
   armySignals: false, // 合図は各段の下知で出す。任務の文からは推測しない。
   // 11/6 fixc1721（kaito 九1・十1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印。途中で言い替えない。
@@ -3816,7 +3816,7 @@ const hiei_mtn = {
     walk(F.akechi, pts('todo', 0, 3), 2.5, (q) => attackFrom(q, 30));
     walk(F.teppo, pts('honzaka', 18, 22), 2.4, (q) => { q.order = 'hold'; q.anchor = { x: -18, z: -8 }; });
     // 煙で道を見失った味方。救い出しの任務にはしない
-    walk(F.akechi2, [...pts('todo', 0, 1), [-19, -9], ...pts('todo_n', 1, 2)], 2.3);
+    walk(F.akechi2, [...pts('todo', 0, 1), [-17, -6], [-18, -11], ...pts('todo_n', 1, 2)], 2.3);
     F.lostT = rt.t + 8; F.lostN = 0;
     rt.after(8, () => { if (!F.ending) F.fireJobs[2].ready = true; });
     // 11/6 fix4：後ろの隊の行き先を選ぶ札はやめた（選ぶ画面は足さない。台詞の「本人の組」も遊びの言葉だった）。
@@ -3839,8 +3839,8 @@ const hiei_mtn = {
     const F = rt.flags;
     if (F.bell2) return;
     F.bell2 = true; F.westT = rt.t;
-    walk(F.akechi, [[-30, -5], [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.3);
-    walk(F.teppo, [[-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+    walk(F.akechi, [[-30, -5], [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.3);
+    walk(F.teppo, [[-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
     rt.banner('西塔の加勢が来る', '西の山道から加勢が来る');
     rt.unmark('court');
     rt.obj('main', '燃える東塔を抜け、西塔へ続く山道の僧兵を明智の先手と崩す', 'main');
@@ -4200,7 +4200,7 @@ const hiei_mtn = {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
           else {
-            if (F.hieiBack) walk(F.hieiBack, [[-30, -5], [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+            if (F.hieiBack) walk(F.hieiBack, [[-30, -5], [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
             rt.say('明智光秀', '中堂は押さえた。後続と西塔へ続くぞ', 3);
             this.bellSaito(rt);
           }
@@ -4382,7 +4382,7 @@ const ROUTE = {
   3: () => [...pathById('honzaka').pts.slice(17), [-20, -6]],
   // 中堂に着いただけでは西へ案内しない。守りを退けた鐘の合図を待つ。
   4: (F) => (!F.bell2 ? [[-8, -6], [-12, -6], [-17, -6], [-22, -5.5], [-26, -5], [-30, -5], [-38, -5]]
-    : [[-30, -5], [-24, -5], [-19, -9], [-21, -18], [-28, -25], [-38, -29], [-50, -24], [-60, -22], [-70, -20], [-76, -21]]),
+    : [[-30, -5], [-24, -5], [-17, -6], [-18, -11], [-21, -18], [-28, -25], [-38, -29], [-50, -24], [-60, -22], [-70, -20], [-76, -21]]),
   5: () => [...pts('saito', 4)],
   6: () => [...pts('yokawa')],
 };

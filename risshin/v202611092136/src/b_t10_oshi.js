@@ -359,7 +359,8 @@ function openDoor(rt) {
 // 門の口だけを押し戻し、城兵の出入りや開城後の通行は妨げない。
 function holdOutsideGate(rt) {
   const F = rt.flags, u = rt.player.u;
-  if (F.step < 7 || F.step > 9 || !u.alive) return;
+  // 開城の段に入っても、明け渡しで実際に門が開くまでは城内へ入れない。
+  if (F.step < 7 || F.step > 10 || (F.step === 10 && F.kai?.open) || !u.alive) return;
   const dx = u.pos.x - (GATE.x - 1.1), dz = u.pos.z - (GATE.z - 1.1);
   const forward = (dx + dz) * Math.SQRT1_2, side = (dx - dz) * Math.SQRT1_2;
   if (Math.abs(side) > 3.3 || forward >= 1 || forward < -9) return;
