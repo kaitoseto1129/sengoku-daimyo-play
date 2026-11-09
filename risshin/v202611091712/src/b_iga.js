@@ -947,7 +947,7 @@ const NAGAOKA = { x: -215, z: 55 };
 import { jinkeiBuild } from './jinkei.js';
 import { timeslipField } from './timeslip_field.js';
 import { rainVolley } from './arrow_rain.js';
-import { scriptedShotBlocked, projectileCover } from './projectile_cover.js';
+import { projectileCover } from './projectile_cover.js';
 // 大手の道は南の土橋を必ず通り、曲輪の口と同じ中心線を使う。
 const ROAD = [...APPROACH, ...RIDGE.slice(1)];
 
@@ -2997,10 +2997,7 @@ function igaWallVolley(rt, dt) {
     if (bow && at) {
       const a = Math.random() * Math.PI * 2, r = Math.random() * 2, x = at.pos.x + Math.cos(a) * r, z = at.pos.z + Math.sin(a) * r;
       rainVolley(A, F.wallBow, bow, { x, y: W.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
-      rt.after(1.7, () => {
-        if (!P.alive || F.ending || rt.over || F.step !== 2 || Math.hypot(P.pos.x - x, P.pos.z - z) > 3 || Math.random() > 0.35 || scriptedShotBlocked(A, bow, P)) return;
-        A.damage(P, (bow.dmg || 9) * 0.8, bow, { kind: 'arrow', y: P.pos.y + 1.5 });
-      });
+      // 命中は飛ぶ矢の当たりに任せる。時刻と着弾点からの距離だけで追加の傷を与えない。
     }
   }
 }
