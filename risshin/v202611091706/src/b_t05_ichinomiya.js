@@ -521,6 +521,8 @@ function waterTick(rt) {
 export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   noReserve: true, noTaishoRaid: true, stageGoalsOnly: true, goalsAllRows: true,
+  // 共通の一覧は既定一行。始まりから五件を並べ、六段目も今の目標と一緒に見せる。
+  goalVisibleRows: 5, goalRowsAhead: true,
   goalSignTarget: destOf,
   // 行き先の▼とは別に共通の段処理が出す「敵の隊」の札を重ねない。
   dpNoMark: true,

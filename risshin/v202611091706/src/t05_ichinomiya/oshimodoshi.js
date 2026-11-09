@@ -1,7 +1,6 @@
 // 一宮城 ④ 9〜12分「狭い山道の押し戻し」：水脈を断たれた城兵が搦手の門から打って出る。狭い山道で味方は押し戻され、
 // いったん下で固める。讃岐から回った黒田・蜂須賀家政の手が上って来て、もう一度上へ押し上げる（段の長さは出来事で決める）。
 import { enemyGroup, allyGroup } from '../bhelp.js';
-import { breath } from '../toyo15/kit.js';
 
 export function oshiStep(NG) {
   const { CHOSO, GOALS, MID, LOW, UP } = NG;
@@ -15,9 +14,18 @@ export function oshiStep(NG) {
     const aid = rt.flags.dp?.ctx?.aidG;
     if (aid && !groups.includes(aid)) groups.push(aid);
     groups.forEach((g, i) => {
-    // 加勢の知らせまでは、黒田・家政の手を山道の下で待たせる。
-    if ((rt.flags.dp?.cur?.ph ?? 0) < 3 && (g === rt.flags.kanbei || g === rt.flags.iemasa)) return;
-    if (g && g.count) { g.order = 'attack'; g.seekRange = 20; g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 }; }
+      if (!g || !g.count) return;
+      const C = rt.flags.dp.cur;
+      if (!C.orders.has(g)) C.orders.set(g, { noAI: g.noAI, keepMoveOrder: g.keepMoveOrder });
+      // 共通の采配で退却・加勢待ちの下知を上書きさせない。
+      g.noAI = true;
+      // 加勢の知らせまでは、黒田・家政の手を山道の下で待たせる。
+      if (C.ph < 3 && (g === rt.flags.kanbei || g === rt.flags.iemasa)) { g.order = 'hold'; return; }
+      g.anchor = { x: at.x + (i % 2 ? 5 : -5), z: at.z - 4 - (i % 3) * 2 };
+      g.seekRange = 20;
+      g.keepMoveOrder = C.ph === 2;
+      g.order = C.ph === 2 ? 'retreat' : 'attack';
+      g.dest = C.ph === 2 ? g.anchor : null;
     });
   };
   return {
@@ -25,7 +33,7 @@ export function oshiStep(NG) {
     kind: 'hold', max: Infinity, idleAdvance: false, needIn: 55,
     start(rt, C) {
       // 本人は初め山道の下（湧き水の前）。味方の手が山道の中ほどで受け、押し戻されて下へ退いて来る
-      C.at = C.goal = LOW; C.groups = []; C.ph = 0; C.botRadius = 14; C.inT = 0;
+      C.at = C.goal = LOW; C.groups = []; C.ph = 0; C.botRadius = 14; C.inT = 0; C.orders = new Map();
       rt.obj('dp', GOALS[4], 'main');
       // 湧き水を取り返しに来た組の残りは、水脈を断たれて門へ退く（段の替わり目に敵が重ならない）
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g !== rt.flags.emura && !(rt.flags.cGuns || []).includes(g)) { g.noRout = false; g.morale = 0; g.anchor = { x: -16, z: 96 }; g.order = 'move'; }
@@ -36,8 +44,7 @@ export function oshiStep(NG) {
       // 小倉丸の鉄砲は、山道の下までは届いても当たりは浅い
       for (const g of rt.flags.cGuns || []) g.dmgMult = 0.1;
       send(rt, MID);
-      // 湧き水を取った後、一息つく（竹筒の水を回し、傷を縛る。b_depth の rest と同じ手当て）
-      breath(rt, 0.4);
+      // 命は共通の非戦闘時の手当てに任せる。段の切り替えだけで四割戻さない。
       rt.say('蜂須賀正勝', '水を断たれた城兵は必ず打って出る。山道は狭い、二人と並べぬぞ', 4);
     },
     tick(rt, C, m, ctx, el) {
@@ -55,6 +62,8 @@ export function oshiStep(NG) {
       }
       if (C.ph === 2 && el > 62) {
         C.ph = 3;
+        // 退く組は下で守り、加勢だけが先に上る。
+        for (const g of C.orders.keys()) if (g.count) { g.order = 'hold'; g.keepMoveOrder = false; g.dest = null; }
         for (const g of [rt.flags.kanbei, rt.flags.iemasa]) if (g && g.count) { g.order = 'attack'; g.seekRange = 30; g.anchor = { x: MID.x, z: MID.z }; }
         rt.say('黒田官兵衛', '黒田・蜂須賀の手、上るぞ！　狭い道は横から崩せ！', 3.5);
         rt.after(4, () => rt.say('足軽', '加勢じゃ！　もう一度、上へ！', 2.5));
@@ -67,10 +76,9 @@ export function oshiStep(NG) {
       return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && Math.hypot(p.x - MID.x, p.z - MID.z) < 22;
     },
     end(rt, C) {
+      for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }
       for (const g of C.groups) if (g) { g.noRout = false; g.morale = 0; }
       rt.flags.step = 5;
-      // 付け入りの前に、加勢の手から晒と水が回る（b_depth の rest と同じ手当て）
-      breath(rt, 0.4);
       rt.objDone('dp');
       rt.award((t) => t.side.push('狭い山道で押し戻され、また押し上げた'), '山道を押し返した');
       rt.say('足軽', '城兵が門へ逃げ込むぞ！　今なら付いて入れる！', 3);

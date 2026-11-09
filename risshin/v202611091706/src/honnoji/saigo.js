@@ -24,24 +24,32 @@ function start(rt, K, done) {
   k15Freeze(rt, 'saigo');   // 前の段の時計を止める
   const stop = () => F.k15stage !== 'saigo' || F.ending;
   const hiroma = PT.hiroma, hikae = PT.hikae;
-  rt.banner('上様と並んで', '小袖の信長が、自ら槍を取って広間に立つ');
+  // 広間が既に燃えていれば、控えの間で受ける。火の中へ戻る任務にしない。
+  const post = F.heatZone ? hikae : hiroma, place = F.heatZone ? '控えの間' : '広間';
+  K.nbSet(rt, 'E', { at: { ...post } });
+  rt.banner('上様と並んで', `小袖の信長が、自ら槍を取って${place}に立つ`);
   k15Scenes(rt, [
     [1, () => rt.say('織田信長', 'そこの者、わしの横に付け。一人も奥へ通すな', 4)],
-  ], () => k15Go(rt, 'sg-hiroma', hiroma, 4, '広間で、上様の横に付け', '上様の横', () => {
-    const w1 = K.akechi(rt, '広間へ踏み込む明智勢', [[hiroma.x + 10, hiroma.z + 2], [hiroma.x + 2, hiroma.z]], [K.uS(2), K.uA(3)], { entered: true, player: true, dmg: 0.5 });
+  ], () => k15Go(rt, 'sg-hiroma', post, 4, `${place}で、上様の横に付け`, '上様の横', () => {
+    // 東壁へ斜めに突っ込まず、北の廊下と襖の開口から座敷へ入る。
+    const entryX = F.heatZone ? -62 : -54;
+    const w1 = K.akechi(rt, '御殿へ踏み込む明智勢', [[-52, 81.8], [entryX, 82.2], [entryX, 86], [entryX, 89], [post.x, post.z]], [K.uS(2), K.uA(3)], { entered: true, followPath: true, player: true, dmg: 0.5 });
     // 寄せ手の頭は安田作兵衛（蘭丸を討ったと伝わる明智の侍）
     const lead = w1?.units.find((u) => u.alive && u.type === 'samurai'); if (lead) { lead.name = '安田作兵衛'; lead.nameOpen = true; }
-    rt.say('森蘭丸', '広間へ来るぞ！　上様をお守りせよ！', 3);
-    k15Track(rt, w1, '広間の明智勢', { sec: 70, reward: '広間で上様と並んで戦った' }, () => k15Scenes(rt, [
+    rt.say('森蘭丸', `${place}へ来るぞ！　上様をお守りせよ！`, 3);
+    k15Track(rt, w1, `${place}の明智勢`, { sec: 70, reward: `${place}で上様と並んで戦った` }, () => k15Scenes(rt, [
       [1, () => { rt.banner('上様、肘に傷', '明智の槍が、信長の肘を裂いた'); sfx('hit', 0.6); }],
       [3, () => rt.say('織田信長', '……かすり傷じゃ。蘭丸、控えの間を固めよ', 4)],
       [4, () => rt.say('森蘭丸', '上様を奥へ！　最後の口は、我らが守る！', 3.5)],
-    ], () => k15Go(rt, 'sg-hikae', hikae, 4, '控えの間の口で、最後の明智勢を受けよ', '控えの間の口', () => {
-      const w2 = K.akechi(rt, '奥へ迫る明智勢', [[hiroma.x + 6, hiroma.z], [hikae.x + 2, hikae.z]], [K.uS(2), K.uA(4)], { entered: true, player: true, dmg: 0.5 });
+    ], () => {
+      K.nbSet(rt, 'E', { at: { ...hikae } });
+      k15Go(rt, 'sg-hikae', hikae, 4, '控えの間の口で、最後の明智勢を受けよ', '控えの間の口', () => {
+      const w2 = K.akechi(rt, '奥へ迫る明智勢', [[-52, 81.8], [-62, 82.2], [-62, 86], [hikae.x + 2, hikae.z]], [K.uS(2), K.uA(4)], { entered: true, followPath: true, player: true, dmg: 0.5 });
       k15Track(rt, w2, '奥へ迫る明智勢', { sec: 70, reward: '控えの間の口で最後の明智勢を受けた' }, () => k15Scenes(rt, [
         [1, () => rt.say('小姓', '火が奥まで来た！', 3)],
         [3, () => {}],
       ], done, stop));
-    }, { limit: 30 }), stop));
+      }, { limit: 30 });
+    }, stop));
   }, { limit: 30 }), stop);
 }
