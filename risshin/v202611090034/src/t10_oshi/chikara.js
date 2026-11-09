@@ -153,7 +153,8 @@ export function tick(rt, dt, C) {
   } else if (F.step === 2) {
     // 柵の守りは柵の内から出ない
     for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; for (const u of g.units) if (u.alive && !u.gone && !C.near(u.pos, K.saku, 9)) u.target = null; }
-    if (!K.council && (C.near(P.pos, C.MARU, 40) || rt.t - F.stepT > 80)) council(rt, C);
+    // 本陣の印まで戻ってから軍議へ。遠くに残ったまま時刻だけで済ませない。
+    if (!K.council && P.alive && C.near(P.pos, C.MARU, 16)) council(rt, C);
   }
 }
 

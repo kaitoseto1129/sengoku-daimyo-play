@@ -194,7 +194,7 @@ const k05_ueda = {
   },
   spawn: { x: START.x, z: START.z, heading: -Math.PI * 0.75 },
   minutes: 16,
-  flagEra: { sanada1600: 'sanada' },   // 真田の兵の旗の鍵（SA）を六文銭で描く
+  flagEra: { sanada1600: 'sanada', sakakibara: '榊原の日輪無' },   // 真田の兵の旗の鍵（SA）を六文銭で描く
   noWake: true,
   noFrontFill: true,       // 見せかけの軍勢を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,

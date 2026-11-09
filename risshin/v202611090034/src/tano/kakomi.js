@@ -41,15 +41,17 @@ function start(rt, done) {
   ], () => k15Go(rt, 'kk-look', look, 6, '斜面の上から、屋敷の内を見よ', '屋敷を見下ろす斜面', () => {
     // 物見に着いたら：屋敷の庭に勝頼父子と北条夫人
     rt.player.yaw = rt.player.u.heading = Math.atan2(138 - rt.player.u.pos.x, -6 - rt.player.u.pos.z);
-    rt.banner('屋敷の庭', '勝頼・信勝の父子と北条夫人。そばに残る者は四十あまり');
+    rt.banner('屋敷の庭', '勝頼・信勝の父子と北条夫人が、屋敷の奥に残っている');
     rt.award((t) => t.side.push('屋敷の内の勝頼父子を見届けた'), '屋敷の内の勝頼父子を見届けた');
     k15Scenes(rt, [
-      [3.5, () => rt.say('足軽', 'あれが武田の御屋形か……　鎧も着ておらぬ', 4)],
+      [3.5, () => rt.say('足軽', 'あれが武田の御屋形か……　父子ともに奥におられる', 4)],
       [4.5, () => rt.say('滝川の組頭', '旗本が斬って出るぞ。屋敷の口へ詰めよ', 4)],
     ], () => k15Go(rt, 'kk-yashiki', at, 7, '屋敷の口へ詰め、囲みを締めよ', '屋敷の口', () => {
     // 勝頼の旗本の最後の斬り込み
     const g = enemyGroup(rt, { fixed: true, name: '勝頼の旗本', faction: 'takeda', anchor: { x: 140, z: -2 }, facing: -Math.PI / 2, width: 4, aggro: 22, morale: 99 },
       [{ type: 'samurai', n: 6, o: { name: '武田の旗本' } }, { type: 'ashigaru', n: 4 }]);
+    // 兵の姿と徒歩の編成は保ち、同じ名札は頭の一人だけに出す。
+    for (let i = 1; i < 6; i++) g.units[i].name = '';
     g.noRout = true;
     const N0 = k15Live(g), t0 = rt.t;
     F.k15fight = true;

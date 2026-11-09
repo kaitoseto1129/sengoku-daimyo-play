@@ -203,6 +203,17 @@ function kiriMon(g, bg, nc, ns, tc, ts) {
 }
 
 const MON = {
+  // 榊原家の源氏車。所用具足の金具に合わせる八輻の輪郭の略復元。
+  genjiguruma(g) {
+    g.save(); g.strokeStyle = g.fillStyle; g.lineWidth = .10;
+    for (const r of [.19, .77, .91]) { g.beginPath(); g.arc(0, 0, r, 0, TAU); g.stroke(); }
+    for (let i = 0; i < 8; i++) {
+      const a = i * TAU / 8; g.beginPath();
+      g.moveTo(Math.cos(a) * .19, Math.sin(a) * .19);
+      g.lineTo(Math.cos(a) * .77, Math.sin(a) * .77); g.stroke();
+    }
+    g.restore();
+  },
   // 今川の赤鳥（馬の垢を取る櫛。Commons「Japanese crest Imagawa Akadori.svg」の形）：上に穴のある三つ葉の摘み、丸い背、先の尖った七本の歯。赤で染める
   akadori(g, bg) {
     g.fillStyle = '#a3261c';
@@ -785,6 +796,15 @@ export function yoseFlagTexture(family) {
 }
 
 export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
+  // 東博の榊原康政像。対象三戦だけ日輪と「無」を組み合わせる。篆書の筆形は略復元。
+  if (kind === '榊原の日輪無') {
+    ctx.fillStyle = '#efe9da'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#b52a20'; ctx.beginPath();
+    ctx.arc(w * .5, h * .22, w * .27, 0, TAU); ctx.fill();
+    ctx.fillStyle = INK;
+    column(ctx, '無', w * .5, h * .4, h * .83, w * .75);
+    return;
+  }
   // 伊達家伝来の白地赤日の丸旗。竹雀の家紋とは別に、政宗の旗持ちだけが使う。
   if (kind === 'date_hinomaru') {
     ctx.fillStyle = '#ece6d6'; ctx.fillRect(0, 0, w, h);

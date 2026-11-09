@@ -116,6 +116,7 @@ const goalR = (n) => (n === 0.5 || n === 5.5 ? 14 : GOAL_R[n]);
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const t03b_nagakute = {
+  flagEra: { sakakibara: '榊原の日輪無' }, // 東博の康政像の日輪と無（当日の使用は復元）
   spawn: { x: 0, z: -12, heading: E },   // 中入りの列の中（西の道）。白山林の陣へ追い付き、番所へ
   minutes: 15,
   expectMin: 15,

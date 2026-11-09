@@ -193,6 +193,7 @@ const COUNCIL = { x: RAKUDA.x + 6, z: RK.z1 + 9 };   // 楽田城の大手門の
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const t03_komaki = {
+  flagEra: { sakakibara: '榊原の日輪無' }, // 東博の康政像の日輪と無（当日の使用は復元）
   spawn: { x: RAKUDA.x - 4, z: RK.z1 + 8, heading: 0 },   // 楽田城の大手門の前（秀吉の本陣の下知を受けて出る）
   minutes: 15,
   expectMin: 15,
