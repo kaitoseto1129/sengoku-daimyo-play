@@ -2456,7 +2456,7 @@ const iga = {
     if (F.momochi && !F.momochi.retreatOnly && F.momochi.order !== 'hold') { F.momochi.order = 'hold'; F.momochi.dest = null; F.momochi.focus = null; }
     // 退く下知の後も、投げた石は着地まで進める。空中に止めない。
     igaWallStones(rt, dt);
-    if (F.step === 2) igaWallVolley(rt, dt);
+    if (F.step === 2 || F.step === 2.5) igaWallVolley(rt, dt);
     rt.world.def.raidSenseDistance = igaHoldingRaid(rt) ? 32 : 0;
     // 戦の時計と兵の時計の差で、最後の寄せだけ五人枠に戻さない。
     rt.army.igaRaidFrontUntil = igaHoldingRaid(rt) ? rt.army.time + 1 : 0;
@@ -2977,7 +2977,8 @@ function igaWallVolley(rt, dt) {
     if (u.pos.z < rimZ + 66) inBow.push(u);
   }
   if (!inBow.length) return;
-  if (climbers.length && (F.igaStoneT -= dt) <= 0) {
+  // 退く間は矢だけを続け、新たな投石は正面攻めの間に限る。
+  if (F.step === 2 && climbers.length && (F.igaStoneT -= dt) <= 0) {
     F.igaStoneT = 1.2 + Math.random() * 1.4;
     const st = F.igaStones.find((q) => q.t < 0);
     const pool = near.length ? near : climbers;

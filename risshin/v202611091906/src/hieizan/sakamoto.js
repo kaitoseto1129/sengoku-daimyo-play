@@ -8,6 +8,8 @@ import { sfx } from '../audio.js';
 
 export const HEADINGS = ['坂本の湖岸の辻から、山の上の三塔を見上げよ', '打って出た里坊の僧兵を、坂本の通りで退けよ'];
 const MI = { x: 182, z: 7 };   // 坂本の通りの東の端（湖の側）
+// 深手で戦列を離れた者や逃げた者を残敵・攻撃先として数えない。
+const ready = (u) => u?.alive && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
 
 // ctx：{ foe(rt, o, list), list（里坊の僧兵）, vista（三塔を見せる視点）, ready() }
 export function install(rt, ctx) {
@@ -35,7 +37,7 @@ export function install(rt, ctx) {
     if (!g || !g.count) { S.k = 3; S.backT = rt.t; return; }
     S.g = g; S.k = 2; S.gT = rt.t;
     g.order = 'move'; g.dest = { x: MI.x + 2, z: MI.z }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
-    rt.marker('hieiSally', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '里坊の僧兵', { red: true, group: g });
+    rt.marker('hieiSally', () => { const u = g.units.find(ready); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '里坊の僧兵', { red: true, group: g });
     try { sfx('bellRapid', 0.4); } catch (e) { /* 音が無くても進む */ }
     rt.army.play('eshout', { x: 196, z: -4 }, 1.3);
     rt.say('足軽', '湖の側の里坊から僧兵が打って出たぞ！　薙刀じゃ！', 3);
@@ -46,8 +48,8 @@ export function install(rt, ctx) {
     const p = rt.player.u.pos;
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 6) seen(true);
     if (S.k === 2) {
-      const left = S.g.units.filter((u) => u.alive).length;
-      if (rt.t - S.gT > 10 && (left === 0 || S.g.routed)) {
+      const fighting = S.g.units.some(ready);
+      if (rt.t - S.gT > 10 && (!fighting || S.g.routed)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('hieiSally');
         if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
@@ -77,7 +79,7 @@ export function bot(b, goTo, p, inp, strike) {
   const u = p.u;
   if (S.k === 2 && S.g) {
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (v.alive) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (ready(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
