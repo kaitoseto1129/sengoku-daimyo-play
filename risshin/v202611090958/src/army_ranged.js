@@ -1065,8 +1065,17 @@ export const ArmyRanged = {
   // o が u から見て、敵方の塀の向こうに隠れているか（狭間に付いた者・塀より高い所の者は見える。柵は透けて見える）
   hiddenBehind(u, o) {
     if (o.isStruct) return false;
-    for (const s of this.structs) {
-      if (!s.alive || s.opened || !s.seg || s.team === u.team || s.team !== o.team || RX_FENCE.test(s.name || '')) continue;
+    // 11/9 重さ：柵でない塀の一覧はコマに一度だけ作る（敵探しの候補ごとに全部の塀の名を正規表現で調べていた。高遠で一コマの約 2.5%）
+    if (this._hbFrame !== this.frameNo || this._hbSrc !== this.structs || this._hbN !== this.structs.length) {
+      this._hbFrame = this.frameNo; this._hbSrc = this.structs; this._hbN = this.structs.length;
+      const w = this._hbWalls || (this._hbWalls = []); w.length = 0;
+      for (const s of this.structs) if (s.seg && !RX_FENCE.test(s.name || '')) w.push(s);
+    }
+    const lx0 = Math.min(u.pos.x, o.pos.x), lx1 = Math.max(u.pos.x, o.pos.x), lz0 = Math.min(u.pos.z, o.pos.z), lz1 = Math.max(u.pos.z, o.pos.z);
+    for (const s of this._hbWalls) {
+      if (!s.alive || s.opened || s.team === u.team || s.team !== o.team) continue;
+      const g = s.seg;
+      if (Math.max(g[0], g[2]) < lx0 || Math.min(g[0], g[2]) > lx1 || Math.max(g[1], g[3]) < lz0 || Math.min(g[1], g[3]) > lz1) continue;
       const q = segHit(u.pos.x, u.pos.z, o.pos.x, o.pos.z, s.seg);
       if (q < 0) continue;
       const cx = u.pos.x + (o.pos.x - u.pos.x) * q, cz = u.pos.z + (o.pos.z - u.pos.z) * q;

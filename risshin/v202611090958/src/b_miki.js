@@ -2820,9 +2820,9 @@ const miki = {
     // 11/6 fixc1901_miki（一5・九4・二4）：味方は隊のまま坂の下（OMURA_FOOT）へ走って並ぶ。懸かるのは秀吉が着いてから（omuraTick）
     // 駆けつけの途中なら、まだ通っていない曲がり角から続ける。
     // 平田が早く決着した時も東の道を飛ばさず、十二秒後の下知を待たずに騎馬の速さで来る。
-    const hidePath = F.hide.path
-      ? F.hide.path.slice(F.hide.pathIdx).concat(HIDE_PATH.slice(3))
-      : HIDE_PATH.slice();
+    // 縦隊の後列は通り過ぎた道もたどる。前半を切ると後列の持ち場が道から外れ、到着待ちが続く。
+    const hidePath = HIDE_PATH.slice();
+    const hidePathIdx = F.hide.path ? Math.min(F.hide.pathIdx, 3) : 0;
     for (const [g, x, z, then] of [
       [F.guard, OMURA_FOOT.x + 2, OMURA_FOOT.z, 'hold'],
       [F.hirata, OMURA_FOOT.x - 10, OMURA_FOOT.z + 4, 'hold'],
@@ -2835,7 +2835,7 @@ const miki = {
       g.path = g === F.hirata ? [[GATE.x, GATE.z], [-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]]
         : g === F.hide ? hidePath
           : [[-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]];
-      g.pathIdx = 0;
+      g.pathIdx = g === F.hide ? hidePathIdx : 0;
       if (g === F.hide) { g.speed = Math.max(g.speed || 0, 5); g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; }
       g.onArrive = (q) => { q.order = then; q.march = false; q.facing = Math.PI; q.onArrive = null; if (q === F.hide) q.formation = 'line'; };
     }
