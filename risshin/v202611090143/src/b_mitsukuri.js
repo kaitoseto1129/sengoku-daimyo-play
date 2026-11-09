@@ -4613,33 +4613,7 @@ const mitsukuri = {
     const F = rt.flags;
     if (F.ending || !rt.player.u.alive || !F.sanFell || !F.niFell || !F.honFell) return;
     if (F.SZ) for (const z of F.SZ.zones) if (z.owner !== 'friend') return;
-    // 味方が先に押さえても、足軽は本丸へ入り、持ち場を固めてから終える。
-    const indoors = !rt.G.lord && courtyardHouse(rt, rt.player.u);
-    // 11/2 oda_bot_1102：本丸の館の中や石段の脇で詰まり、三つの郭を取ったまま攻め止めの期限で負けた（bot）。
-    //   待って三十秒たち、本人が本丸の旗から四十五歩の内にいれば、そこで締める。
-    const pp = rt.player.u.pos;
-    // 11/6：本人が石段から離れた所で迷っても、味方が三つの郭を取って一分たてば旗を立てて締める（落城の後に七分待たせない）。
-    const waited = F.honWait && (rt.t - F.honWaitAt >= 60 || rt.t - F.honWaitAt >= 30 && Math.hypot(pp.x - HON_GATHER.x, pp.z - HON_GATHER.z) < 45);
-    if (!rt.G.lord && !waited && (!F.C.kuruwa.hon.test(pp.x, pp.z) || indoors)) {
-      F.callZone = null;
-      if (!F.honWait) {
-        F.honWait = true; F.honWaitAt = rt.t;
-        rt.unmark('commander');
-        markZone(rt, 'hon');
-      }
-      // すでに館へ入った本人には、登り終えた石段へ戻る下知を出さない。
-      const way = indoors ? '戸口から庭の旗へ戻れ' : '城は取った。本丸の旗へ';
-      if (F.honWaitWay !== way) {
-        F.honWaitWay = way;
-        nextObj(rt, way);
-        rt.objProgress('main', '味方は三つの郭を取った。庭の旗を仲間と守れ');
-        if (rt.t >= (F.honWaitSayAt || 0)) {
-          F.honWaitSayAt = rt.t + 8;
-          sayKino(rt, indoors ? '城は取った。戸口から庭へ戻れ' : '味方が本丸を取ったぞ。西の石段を上がれ', 3);
-        }
-      }
-      return;
-    }
+    // 制圧は本人が庭に入っている時だけ進む。全郭を取った後の集合待ちは重ねない。
     F.step = 4.5; F.stepT = rt.t;
     this.win(rt);
   },
