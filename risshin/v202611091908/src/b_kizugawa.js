@@ -2864,6 +2864,7 @@ const kizugawa = {
   bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
   // 11/8 critic60（kaito 11/7「船が動いていない」）：自船の上の視点を、うねりに合わせてゆっくり傾け・上下させる（床と当たりは動かさない）
   camSway(rt, cam) {
+    if (S.reduceMotion) return;
     const t = rt.t;
     cam.rotateZ(0.016 * Math.sin(t * 0.62) + 0.006 * Math.sin(t * 1.37 + 1.1));
     cam.rotateX(0.006 * Math.sin(t * 0.81 + 0.4));
