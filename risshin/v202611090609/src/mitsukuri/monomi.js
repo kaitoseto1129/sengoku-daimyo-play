@@ -35,5 +35,13 @@ export function start(rt, ctx, done) {
     }),
     DP.rest({ dur: 6, heal: 0.25, banner: ['丹羽の手、着到', '四方から寄せる'],
       say: [['丹羽長秀', '丹羽の手、ただいま着いた。わしらは東の口から寄せる', 3.4], ['木下藤吉郎', 'よし、総懸かりじゃ。持ち場へ戻れ', 2.8]] }),
-  ], () => { F.k15Monomi = 'done'; done(); });
+  ].map((s) => {
+    // 物見へ着かないまま待ち時間だけで合流・総懸かりを済ませない。
+    // 移動は到着、迎撃は敵の撤退を確かめる。休息の短い待ちは残す。
+    if (s.kind === 'move' || s.kind === 'fight') {
+      s.idleAdvance = false;
+      s.limit = Infinity;
+    }
+    return s;
+  }), () => { F.k15Monomi = 'done'; done(); });
 }
