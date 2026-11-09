@@ -239,7 +239,22 @@ function umaGeometry(kind) {
   // 竿の長さと先端の出は構造の復元。部品を増やさず、結合済みの形を使い回す。
   const poleBottom = .9, poleTop = kind === 'dango' ? 4.48 : kind === 'sennari' ? 3.95 : 3.3;
   parts.push(paint(at(new THREE.CylinderGeometry(0.02, 0.022, poleTop - poleBottom, 5), 0, (poleBottom + poleTop) / 2, 0), 0x2a1c10));
-  if (kind === 'date_torige') {
+  if (kind === 'sakakibara_kikyo') {
+    // 東博の金箔押桔梗形馬印。高さ六十二・幅六十センチを目安に下に開く筒を略復元。
+    const bell = new THREE.CylinderGeometry(.075, .3, .62, 20, 3, true);
+    const p = bell.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const t = (.31 - p.getY(i)) / .62, a = Math.atan2(p.getX(i), p.getZ(i));
+      const f = 1 + .12 * t * Math.cos(a * 5);
+      p.setXYZ(i, p.getX(i) * f, p.getY(i) - .04 * t * Math.cos(a * 5), p.getZ(i) * f);
+    }
+    bell.computeVertexNormals();
+    // 内面も同じ金の材質。既存の形の保存先へ結合し、毎コマ作らない。
+    const inner = bell.clone(), ix = inner.index.array;
+    for (let i = 0; i < ix.length; i += 3) { const t = ix[i]; ix[i] = ix[i + 2]; ix[i + 2] = t; }
+    inner.computeVertexNormals();
+    parts.push(paint(at(bell, 0, 3.25, 0), gold), paint(at(inner, 0, 3.25, 0), gold));
+  } else if (kind === 'date_torige') {
     // 『御馬印』の黒鳥毛二段笠。寸法・毛の輪郭は復元案。結合済みの形と材質を共用する。
     for (const [y, r] of [[2.88, .55], [3.35, .43]]) {
       parts.push(paint(at(new THREE.ConeGeometry(r, .25, 12), 0, y, 0), 0x181818));

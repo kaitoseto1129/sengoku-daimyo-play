@@ -11,6 +11,26 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 東博の所用二領。小牧・長久手は黒糸威二枚胴による復元、上田は一六〇〇年拝領の南蛮胴。
+  // 当日の着用は未確認。織田編へ戻さない。出所：docs/generals_look_1108/榊原康政.md。
+  if (name === '榊原康政' && year >= 1584 && KACCHU[name]) {
+    const late = year >= 1600, key = name + (late ? '|南蛮胴' : '|黒糸二枚胴');
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: late ? 'namban' : 'suji', sujiPlates: late ? 0 : 62,
+      crest: late ? 'feather' : 'sankoken', hat: 'kabuto', hatFix: 1,
+      armor: late ? 0x474239 : 0x1c1a1a, helm: late ? 0x474239 : 0x1c1a1a,
+      lac: late ? 'natural' : 'kuro', fuki: 'kuro', shinodare: false, fukigaeshiBadge: false,
+      lace: late ? 0x232c40 : 0x1c1a1a, odo: late ? 0x232c40 : 0x1c1a1a, preserveLace: true,
+      doStyle: late ? 'hotoke' : 'sugake', plateDo: late ? 'nanban' : null, doOpening: 'nimai',
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroRows: 5,
+      kusazuriCount: 7, kusazuriLaceRows: 5,
+      kusazuriBands: Array(5).fill(late ? 0x232c40 : 0x1c1a1a),
+      menpo: late ? 0x1c1a1a : 0, menpoStyle: 'hanbo', menpoScan: null,
+      haori: 0, horo: 0, fur: late ? 0xe4dfcc : 0, kumage: false,
+      mon: late ? 'none' : 'genjiguruma', flag: '榊原の日輪無', uma: 'sakakibara_kikyo', ref: '',
+    });
+    return cache.get(key);
+  }
   // 真田宝物館の伝昌幸所用・昇梯子具足による復元。織田編の表へは戻さない。
   // 江戸期の修理色と当初の推定を区別する。出所：docs/generals_look_1108/真田昌幸.md。
   if (name === '真田昌幸' && year >= 1590 && KACCHU[name]) {
