@@ -877,7 +877,8 @@ Object.assign(KACCHU["大野治房"], { sujiPlates: 62, doOpening: "nimai", plat
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];
-KACCHU["加藤清正"].skinDo = 0x875749;
+// 清正の片肌脱ぎは採用せず、本妙寺の仏胴による指定を保つ。
+KACCHU["加藤清正"].skinDo = 0;
 KACCHU["前田利家"].fur = 0x9c9584;
 // 11/2 bushou_real2：鉢の色を伝来品・本物の鉄の色へ（docs/bushou_look_1102.md）。
 //   秀吉：銀伊予札白糸威胴丸具足（重文・仙台市博物館）の兜は黒い熊毛、一の谷馬藺の兜も黒漆。胴の銀を鉢に移さない

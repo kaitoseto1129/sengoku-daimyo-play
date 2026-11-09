@@ -34,6 +34,18 @@ export function namedArmorLook(look) {
 }
 const crests = new Map();
 export function namedCrestGeometry(kind, hi = true) {
+  if (kind === 'kiyomasa_janome') {
+    if (!crests.has(kind)) {
+      // 蛇の目は脇立ではなく、長烏帽子の両側の紋。前立は補わない。
+      const parts = [-1, 1].map(sd => new THREE.RingGeometry(0.035, 0.065, 16)
+        .rotateY(sd * Math.PI / 2).translate(sd * 0.098, 0.3, 0));
+      const g = mergeGeometries(parts); g.computeBoundingSphere();
+      for (const part of parts) part.dispose();
+      crests.set(kind, [g, 'gold']);
+    }
+    return crests.get(kind);
+  }
+
   // 上田市立博物館の伝秀久所用具足。既存の歯朶を脇へ広げ、前立を加えない。
   if (kind === 'sengoku_shida') {
     const key = kind + (hi ? '|近' : '|遠');

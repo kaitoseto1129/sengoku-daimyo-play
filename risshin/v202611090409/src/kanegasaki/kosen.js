@@ -26,7 +26,8 @@ export function start(rt, ctx, done) {
       reward: '峠道の朝倉勢を押し返した',
       onEnd: (rt2) => {
         try {
-          F.k15KosenClash = clash(rt2, { x: A2.x + 22, z: A2.z - 6, facing: Math.PI, w: 24, gap0: 8, seed: 157101, noRout: false, noWake: true, nearHide: 14, killRate: 0.02,
+          // 近くの戦いは本物の兵だけ。絵の軍勢はほかの遠景と同じ九十メートルの外へ限る。
+          F.k15KosenClash = clash(rt2, { x: A2.x + 22, z: A2.z - 6, facing: Math.PI, w: 24, gap0: 8, seed: 157101, noRout: false, noWake: true, nearHide: 90, killRate: 0.02,
             A: { flag: 'oda', armor: ARMOR.oda, count: n(170), team: 0, faction: 'oda', flagRate: 0.4 },
             B: { flag: 'asakura', armor: ARMOR.asakura, count: n(90), team: 1, faction: 'asakura', flagRate: 0.4 } });
           F.k15KosenClash?.go?.();
