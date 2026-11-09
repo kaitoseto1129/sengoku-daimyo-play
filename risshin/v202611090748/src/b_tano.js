@@ -1093,7 +1093,8 @@ const tano = {
     check: (rt) => k === 4 ? !!rt.flags.principalsDead : (rt.flags.dp?.i ?? -1) > k,
   })),
   // 勝頼父子は平屋敷の奥。柵の口を破って屋敷へ入るまでは、手前の兵の頭の上に名札を出さない（critic60 田野 12）
-  hideNameTag: (u) => u.group?.name === '武田父子の居所' && !u.nameOpen,
+  hideNameTag: (u, rt) => u.group?.name === '武田父子の居所' && !u.nameOpen ||
+    !!rt && u.team === 1 && Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) > tano.nameRange,
   // 民家はカメラを寄せる当たり（camBlock）を持つので、カメラと本人の間の家の面を抜かない（critic60 田野 23「近づくと家が透けて欠ける」）
   nearSlab: false,
   missionOf(rt) {
@@ -1372,7 +1373,7 @@ const tano = {
       : rt.phase === 'narrow' ? '崖道の先手へ' : '谷道の先手へ';
   },
   armySignals: false, // 下知は田野の段取りで鳴らす。敵を退ける任務に退き太鼓を鳴らさない。
-  distanceUnit: 'ken', arrivalLabel: 'すぐ近く',
+  distanceUnit: 'metres',
   // 通常の距離欄へまとめ、「旗まで何歩」と「約何間」を重ねない。
   // 手当ての退き先は床の印と指図で示し、文末へ歩数を継ぎ足さない。
   hideGuideSteps: true,

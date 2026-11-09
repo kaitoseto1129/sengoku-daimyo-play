@@ -4662,7 +4662,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         stopShipOverlap(rt, b);
       }
       else if (b.approach) { b.approach = null; b.t = b.dock; }
-      else if (b.withdrawing && F.bigSunk && !b.passed && !b.damageStage) { b.t.x = 430; b.t.z = 0; }
+      // 大坂へ向かうのは荷船だけ。退いた小早を川口へ向き直らせない。
+      else if (b.supply && b.withdrawing && F.bigSunk && !b.passed && !b.damageStage) { b.t.x = 430; b.t.z = 0; }
       else if (b.supply) {
         if (b.withdrawing) { b.landed = true; continue; }
         if (b.stopped || b.stopping) continue;
