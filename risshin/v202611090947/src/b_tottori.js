@@ -32,7 +32,10 @@ import { denseCamp } from './castle_bldg.js';
 import { TAIKOGAHIRA, TOTTORI_TAIKOGANARA_PLAN, TOTTORI_SEATS, TOTTORI_HOUSES, TOTTORI_DITCHES } from './castles/tottori.js';
 import { applyLook, NIGHT, DAWN, dress, gone as groupGone } from './b_inabayama.js';
 // 深手で戦えない兵だけが残っても、敵の寄せが続くとは数えない。
-const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget);
+// 討死の処理中や転倒中の兵も、突破人数や開城前に待つ残兵に数えない。
+const outOfFight = (u) => !u.alive || u.hp <= 0 || u.dying || u.gone || u.downed ||
+  u.fleeing || u.woundOut || u.rearWound || u.noTarget;
+const gone = (g) => groupGone(g) || g.units.every(outOfFight);
 import { volleyAt } from './b_tano.js';
 import { placeGroup, placePlayer } from './b_opening.js';
 import { camp } from './b_mid.js';
@@ -3094,7 +3097,7 @@ const tottori = {
         let fighting = 0;
         // 手当てへ退く兵は寄せ・突破・接触に数えない。退避先を守り場へ上書きもしない。
         // 回復して戻った兵は次の更新から再び数え、隊が消えた扱いにはしない。
-        for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget) {
+        for (const u of g.units) if (!outOfFight(u)) {
           fighting++;
           // 守りの参加は一度、退避の案内は半秒ごと。毎コマ同じ柵の当たりを調べない。
           if ((!F.defended || guide) && g.ttOut && !g.ttRetreat && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 18 &&
@@ -3187,7 +3190,7 @@ const tottori = {
       if (F.defended && allBack && rt.t - F.allBackT >= 10 && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 30) this.midB(rt);
       else if (F.defended && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 24 &&
           L.every((g) => gone(g) || g.routed || g.ttOut && (g.ttReturned ||
-            g.ttRetreat && g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget ||
+            g.ttRetreat && g.units.every((u) => outOfFight(u) ||
               u.pos.z < FENCE_Z - 16 && Math.hypot(u.pos.x - GATE.x, u.pos.z - FENCE_Z) > 26)))) this.midB(rt);
     }
     if (F.step === 2.5 && rt.t - F.stepT >= 6) this.envoy(rt);

@@ -160,7 +160,18 @@ const goTo = (g, dest) => { if (!g) return; g.order = 'move'; g.dest = { ...dest
 const foe = (rt, name, at, list, lk, o = {}) => enemyGroup(rt, { name, faction: 'toyotomi', anchor: { ...at }, facing: Math.PI / 2, order: 'attack', aggro: 36, seekRange: 60, width: 10, ...o }, dress(list, lk));
 const ally = (rt, name, at, list, lk, o = {}) => allyGroup(rt, { name, faction: 'tokugawa', anchor: { ...at }, facing: -Math.PI / 2, width: 10, aggro: 14, morale: 92, noRout: true, ...o }, dress(list, lk));
 // 総大将は本陣で床几に座る（update が座り直させる）。幕の内から出ない（aggro 0・その場に留まる）
-const SEAT = (g, name) => { const u = g?.units.find((o) => o.name === name); if (u) { u._crouch = true; u.noTarget = true; } return u; };
+const SEAT = (g, name) => { const u = g?.units.find((o) => o.name === name); if (u) { u._crouch = true; u.noTarget = true; u._k06Seat = { ...u.pos }; } return u; };
+// 索敵距離が零でも共通の応戦は働く。総大将だけを床几に留め、旗本は戦わせる。
+const sit = (u) => {
+  if (!u?.alive || u.gone || u.fleeing || u.group?.routed) return;
+  if (u.group?.order === 'move') { u._crouch = false; return; }
+  const p = u._k06Seat;
+  if (!p) return;
+  u.pos.x = p.x; u.pos.y = p.y; u.pos.z = p.z;
+  u.target = null; u.watch = null; u.moveTo = null;
+  u.atk = null; u.swing = null; u.bind = null;
+  u.moving = 0; u._crouch = true;
+};
 // 寝返った隊：同じ場所・同じ人数で東軍の隊に入れ替える（旗も具足もその家のまま）
 const turnover = (rt, g) => { const n = g ? g.units.filter((u) => u.alive && !u.gone).length : 0; for (const u of g?.units || []) rt.army.despawn(u); if (g) g.routed = true; return n; };
 // 本陣：幕（jinCamp）を張り、幕の線に沿って当たりを置く（幕は抜けられない。BU「敵の本陣に歩いて入れてしまう」）。
@@ -458,6 +469,7 @@ const k06_sekigahara = {
     F.ieyasu.order = 'move'; F.ieyasu.dest = { ...IEYASU1 };
     F.ieyasu.onArrive = (g) => {
       g.order = 'hold'; g.anchor = { ...IEYASU1 }; g.onArrive = null;
+      if (F.ieyasuU?.alive) F.ieyasuU._k06Seat = { ...F.ieyasuU.pos };
       if (!F.jinba) { F.jinba = true; rt.scene.add(jinmaku(rt.world, IEYASU1.x, IEYASU1.z - 2, 16, 12, 6, { mon: 'tokugawa' })); rt.scene.add(nobori(rt.world, IEYASU1.x - 10, IEYASU1.z - 10, 'onri', 7)); }
     };
   },
@@ -640,7 +652,7 @@ const k06_sekigahara = {
   update(rt, dt) {
     const F = rt.flags;
     // 総大将は床几に座ったまま（幕の内から出ない）
-    for (const u of [F.ieyasuU, F.hide?.leader, F.mitsuU, F.otaniU]) if (u?.alive && !(u.moving > 0.1) && !u.fleeing) u._crouch = true;
+    for (const u of [F.ieyasuU, F.hide?.leader, F.mitsuU, F.otaniU]) sit(u);
     // 吉継は輿の床に座る（輿は吉継に付く）
     if (F.koshi && F.otaniU?.alive && !F.otaniU.gone) { const u = F.otaniU; F.koshi.position.set(u.pos.x, rt.world.heightAt(u.pos.x, u.pos.z), u.pos.z); F.koshi.rotation.y = u.heading || 0; }
     F.uma?.update(dt);

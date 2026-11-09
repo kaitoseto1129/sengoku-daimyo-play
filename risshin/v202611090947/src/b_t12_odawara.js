@@ -351,7 +351,7 @@ function fleet(rt) {
 // 場所へ着く・寄せを返す・旗を守る目標は、放置や時間切れで済ませない。
 const castleViewPoint = new THREE.Vector3();
 function castleReveal(step) {
-  return { ...step, idleAdvance: false, max: Infinity, limit: Infinity,
+  return { ...step, key: 'ichiya', idleAdvance: false, max: Infinity, limit: Infinity,
     tick(rt, C, m, ctx, el, dt) {
       const I = rt.flags.ichiya, p = rt.player.u.pos;
       let visible = false;
@@ -805,6 +805,21 @@ t12_odawara.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
+  // 人が印を見て振り向くのと同じく、自動の遊び手だけが城へ向く。
+  // 休む段には歩く行き先が無いため、段の頭だけでは城を見ないまま止まる。
+  if (F.dp?.on && F.dp.cur?.s.key === 'ichiya') {
+    inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
+    inp.leftPressed = false; inp.guardHold = false; inp.runHeld = false; inp.chargeHold = false;
+    if (Math.hypot(u.pos.x - II_JIN.x, u.pos.z - II_JIN.z) >= 20) {
+      goTo(p, inp, II_JIN.x - 2, II_JIN.z + 6, 4);
+    } else {
+      p.yaw = Math.atan2(ISHI.x - 4 - u.pos.x, ISHI.z - u.pos.z);
+      p.camYawOff = 0;
+      p.pitch = Math.atan2(b.world.heightAt(ISHI.x, ISHI.z) + 24 - u.pos.y - 1.6,
+        Math.hypot(ISHI.x - 4 - u.pos.x, ISHI.z - u.pos.z));
+    }
+    return;
+  }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   inp.k.delete('KeyW');
   goTo(p, inp, II_JIN.x, II_JIN.z + 4, 3);
