@@ -106,7 +106,9 @@ function paddy(x, z) {
 // 堤の上の道：田の帯（x が −175〜178）では、兵の行き先の z を堤の幅（±7.5）に収める。行き先の入れ物は兵ごとに使い回す
 const DIKE_Z = 7.5;
 function dikeWay(army, u, want) {
-  if (!want || u.isPlayer || u.group?.riverAid || want.x < -175 || want.x > 178) return want;
+  if (!want || u.isPlayer || u.group?.riverAid) return want;
+  // 退き先や来援の出発点が田の外でも、途中で田の帯を通る間は堤を使う。
+  if (Math.max(u.pos.x, want.x) < -175 || Math.min(u.pos.x, want.x) > 178) return want;
   // 水原の筒だけは堤の肩まで開く。中央の道へ戻すと左右の射列が組めない。
   const edge = u.group?.dikeShoulder ? 11.5 : DIKE_Z;
   const out = Math.abs(u.pos.z) > edge + 1.5;

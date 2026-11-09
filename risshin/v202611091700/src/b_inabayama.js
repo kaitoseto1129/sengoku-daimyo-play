@@ -4848,7 +4848,8 @@ const inabayama = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (m && s && INABA_TSUKE.on && !INABA_TSUKE.gate && s.pos && s.pos.y - this.u.pos.y > 6) a *= 0.05; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    // 11/9 二巡（織田C）：付け入りの登りの間、馬出しの兵の狭間の矢が六歩より上から本人へ降り続け、七曲りの上の折れで倒れた（act・素の bot とも）。木戸の斬り合いまでは上からの矢玉を五分に（二割でも数で倒れた。矢は飛び、音と怖さは残る）。
     const W = rt.world;
     const F = rt.flags;
     installInabaPresentation(rt);
@@ -7288,7 +7289,11 @@ function botRoad(b, inp, goTo, path, end) {
     //   塀の向こうの点へ向かって塀の外を西へ滑り、四百秒止まった。角が塀の向こうなら、まだ通っていない。
     const c = path[b.botRoadIndex], cq = b._botCornerQ || (b._botCornerQ = { x: 0, y: 0, z: 0 });
     cq.x = c[0]; cq.z = c[1]; cq.y = u.pos.y;
-    if (!roadCornerPassed(b.world, u.pos, path, b.botRoadIndex, 1.2) || b.army.wallBetween(u.pos, -1, cq, false)) {
+    // 11/9 二巡（織田C）：指の操作の bot は七曲りの西の折れ（-32,-20 など）で角の一・二歩の内へ入り切れず、百二十秒進まず付け入りが切れた。
+    //   角の三歩の内で六秒進めなければ、塀を挟まない時に限り通った扱いにする。
+    if (b._botRoadIdx !== b.botRoadIndex || b._botRoadPathK !== path) { b._botRoadIdx = b.botRoadIndex; b._botRoadPathK = path; b._botRoadIdxT = b.t; }
+    const cornerLate = b.t - b._botRoadIdxT > 6 && Math.hypot(u.pos.x - c[0], u.pos.z - c[1]) < 3;
+    if ((!cornerLate && !roadCornerPassed(b.world, u.pos, path, b.botRoadIndex, 1.2)) || b.army.wallBetween(u.pos, -1, cq, false)) {
       const q = b.botRoadGoal || (b.botRoadGoal = { x: 0, z: 0 });
       roadApproach(b.world, u.pos, path, b.botRoadIndex, q);
       p._gtStuckT = 0; p._gtDetourT = 0;

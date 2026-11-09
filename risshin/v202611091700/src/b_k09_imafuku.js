@@ -79,7 +79,7 @@ function requiredStage(s) {
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
       const p = rt.player.u.pos;
       C.engaged = rt.player.u.alive && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
-        C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12));
+        C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.dying && !u.woundOut && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12));
     }
     const inT = C.inT || 0;
     const done = tick.call(this, rt, C, m, ctx, el, dt);
@@ -204,6 +204,7 @@ const k09_imafuku = {
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   stageGoalsOnly: true,    // 右上は四つの段だけ（「敵を何人討つ」で埋めない。三の1・AW3）
   goalsAllRows: true,      // 共通の既定は今の一件だけ。①〜④を最初から並べ、済みに印を付ける。
+  goalVisibleRows: 4,      // 一覧を有効にするだけでは一件に絞られる。四段とも初めから描く。
   forceBarAlways: true,   // 人数を渡すだけでは共通の棒が隠れる。佐竹・豊臣の残りを戦の間ずっと示す。
   nameTagLimit: 12,        // 既存の名札の枠内で、見える将の名を二、三人だけに絞らない。
   gateGuide: false,        // 竹の矢来の木戸は、前に立てば組の者と縄で引き倒す（update）。「木戸を打て（長押し）」の操作の字と「門が開いた」は出さない（五の1）
@@ -699,18 +700,19 @@ const k09_imafuku = {
     if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt, '刻限までに今福を保てなかった');
   },
 
-  onKill(rt, v) {
+  onKill(rt, v, by) {
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
     // 屍に寄る烏（KIT.carrion）は置かない：遠目に黒い多面体の岩が空に浮いて見えた（八1）
     if (F.quietKill) return;
     if (v.type === 'busho' && v.team === 1 && /矢野正倫|飯田家貞/.test(v.name)) {
       rt.say('足軽', `${v.name}、討ち取ったり！`, 3);
-      rt.award((t) => { t.special = { label: `${v.name}を討った`, pts: 30 }; }, `${v.name}を討った`);
+      // 味方が討った守将を、本人の手柄にはしない。討死の知らせと両軍の減りは残す。
+      if (by && by.isPlayer) rt.award((t) => { t.special = { label: `${v.name}を討った`, pts: 30 }; }, `${v.name}を討った`);
     } else if (v.type === 'busho' && v.team === 1) {
       rt.say('足軽', `${v.name}が深手じゃ！　豊臣の者が担いで引いていく！`, 3);
       if (v.group) { v.group.noRout = false; v.group.morale -= 40; }
-      rt.award((t) => { t.special = { label: `${v.name}に深手を負わせた`, pts: 30 }; }, `${v.name}に深手を負わせた`);
+      if (by && by.isPlayer) rt.award((t) => { t.special = { label: `${v.name}に深手を負わせた`, pts: 30 }; }, `${v.name}に深手を負わせた`);
     }
   },
   onRout(rt, g) {

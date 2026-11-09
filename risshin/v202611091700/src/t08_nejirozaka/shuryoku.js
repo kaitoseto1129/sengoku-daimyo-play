@@ -16,9 +16,10 @@ export function main(rt, H) {
     hold({ at: EAST, dur: 100, limit: 135, r: 13, label: '右の堀', obj: STEP_TEXT[3],
       say: [['宮部継潤', '右の堀を守れ！　家久の手が東から来る！']],
       waves: [
-        { t: 3, say: ['足軽', '十文字の旗が堀に飛び込んだ！'], foes: () => [{ name: '島津家久の先手', from: { x: 90, z: 30 }, off: { x: 40, z: 10 }, list: [uS(3), uA(12)], noRout: 20 }] },
-        { t: 28, say: ['鉄砲頭', '堀の底に詰まった。狭間から放て！'], foes: () => { rt.army.play('volley', { x: 36, z: 8 }, 1.3); return [{ name: '島津家久の二の手', from: { x: 84, z: 46 }, off: { x: 34, z: 12 }, list: [uS(2), uA(10), uG(2)] }]; } },
-        { t: 56, say: ['足軽', '塀を越えた者がおる！　槍を入れよ！'], foes: () => [{ name: '塀を越えた島津勢', from: { x: 70, z: -20 }, off: { x: 42, z: -12 }, list: [uS(3), uA(8)], noRout: 15 }] },
+        // off は持ち場 EAST からの差。絶対座標を入れると東の塀より外へ二重にずれる。
+        { t: 3, say: ['足軽', '十文字の旗が堀に飛び込んだ！'], foes: () => [{ name: '島津家久の先手', from: { x: 90, z: 30 }, off: { x: 4, z: 14 }, list: [uS(3), uA(12)], noRout: 20 }] },
+        { t: 28, say: ['鉄砲頭', '堀の底に詰まった。狭間から放て！'], foes: () => { rt.army.play('volley', { x: 36, z: 8 }, 1.3); return [{ name: '島津家久の二の手', from: { x: 84, z: 46 }, off: { x: -2, z: 16 }, list: [uS(2), uA(10), uG(2)] }]; } },
+        { t: 56, say: ['足軽', '塀を越えた者がおる！　槍を入れよ！'], foes: () => [{ name: '塀を越えた島津勢', from: { x: 70, z: -20 }, off: { x: 6, z: -8 }, list: [uS(3), uA(8)], noRout: 15 }] },
       ],
       noRefill: true, reward: '右の堀で家久の手を押し返した' }),
     rest({ dur: 5, heal: 0.25, say: [['使番', '土橋に義珍の旗本が！　中央が破られまする！'], ['宮部継潤', '中央へ戻れ！　土橋を守れ！']] }),
