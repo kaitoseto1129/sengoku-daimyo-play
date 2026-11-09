@@ -1664,6 +1664,7 @@ const tonezaka = {
     pin.arrived = reached;
     return pin;
   },
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。11/9 先取り（織田D）：弱めて入れる（突然の討死は二つまで・三分過ぎから）
   compactIntro: true,
   introKeepControls: false, // 始まりの札には操作の説明を足さない。
   introTaskFirst: true, // 横持ちでも人物紹介より先に、進み方と勝つ条件を読めるようにする。

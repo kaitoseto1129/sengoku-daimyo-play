@@ -1397,14 +1397,15 @@ const takato_siege = {
     F.hana.perch = { x: F.hana.pos.x, z: F.hana.pos.z };
 
     // ---- 攻めは信忠の約三万。城の近くでは小さな部隊だけを動かす ----
-    F.oteSpear = mkB(rt, { name: '東の大手先手（森長可）', general: '森長可', n: 24, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: TAKATO_ATTACK.sonae[1].flag, mon: TAKATO_ATTACK.sonae[1].mon, at: { x: 127, z: 0 }, facing: -Math.PI / 2 });
+    F.oteSpear = mkB(rt, { name: '東の大手先手（森長可）', general: '森長可', n: 18, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: TAKATO_ATTACK.sonae[1].flag, mon: TAKATO_ATTACK.sonae[1].mon, at: { x: 127, z: 0 }, facing: -Math.PI / 2 });
     F.oteGun = mkB(rt, { name: '大手の先手（鉄砲）', team: 0, faction: 'oda', kind: 'gun', paperNominal: 400, armor: ODA.armor, flag: TAKATO_ATTACK.sonae[1].flag, mon: TAKATO_ATTACK.sonae[1].mon, at: { x: 135, z: -8 }, facing: -Math.PI / 2 });
     F.karameteSpear = mkKarameteTroops(rt, { name: '西の搦手の手（槍）', team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 500, armor: ODA.armor, flag: ODA.flag, at: { x: -108, z: 0 }, facing: Math.PI / 2 });
     F.karameteBow = mkKarameteTroops(rt, { name: '西の搦手の手（弓）', team: 0, faction: 'oda', kind: 'bow', paperNominal: 300, armor: ODA.armor, flag: ODA.flag, at: { x: -116, z: 0 }, facing: Math.PI / 2 });
     F.nishiLadder = mkB(rt, { name: '西の切岸の手（梯子）', team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 300, armor: ODA.armor, flag: ODA.flag, at: { x: -102, z: 12 }, facing: Math.PI / 2 });
     F.yodou = mkB(rt, { name: '南の押さえの手', team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 200, armor: ODA.armor, flag: ODA.flag, at: { x: -52, z: -78 }, facing: 0 });
-    F.reserve = mkB(rt, { name: '大手の後詰（河尻秀隆）', general: '河尻秀隆', n: 24, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: ODA.flag, at: { x: 109, z: 4 }, facing: -Math.PI / 2 });
-    F.nobutada = mkKarameteTroops(rt, { name: '西の織田信忠の旗本', general: '織田信忠', n: 20, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 1500, armor: ODA.armor, flag: ODA.flag, at: { x: -124, z: 0 }, facing: Math.PI / 2 });
+    // 11/9 重さ：始まりの本物の兵が 287 で枠（250）を越えたので、寄せ手の名の無い兵を少し減らした（紙の上の数は paperNominal のまま）
+    F.reserve = mkB(rt, { name: '大手の後詰（河尻秀隆）', general: '河尻秀隆', n: 16, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: ODA.flag, at: { x: 109, z: 4 }, facing: -Math.PI / 2 });
+    F.nobutada = mkKarameteTroops(rt, { name: '西の織田信忠の旗本', general: '織田信忠', n: 15, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 1500, armor: ODA.armor, flag: ODA.flag, at: { x: -124, z: 0 }, facing: Math.PI / 2 });
     // 信忠は西の搦手から塀際へ進む。taisho.js の adopt() は invuln 持ちの味方の総大将に
     // 深手（討たれない）の退きを与えるので、ここで立てておく（kaito 10/1。滝川一益の手と同じ作り）
     if (F.nobutada.taishoU) F.nobutada.taishoU.invuln = true;
@@ -1422,7 +1423,7 @@ const takato_siege = {
     for (const u of F.nobutada.real?.units || []) { u.maxHp *= 2.5; u.hp = u.maxHp; }
     // 11/6 描いて遊んで：総懸かりの法螺から本隊が塀を越えるまでの六十秒に、大手の先手と後詰が門前で討ち減り、本人が城兵の群れに一人で向き合った。
     // 寄せ手は三万。大手の第二陣（団忠正の手）を寄せ道の奥に控えさせ、総懸かりで大手へ続かせる（後続が来る城攻め。kaito 十の3）。
-    F.dan2 = mkB(rt, { name: '大手の第二陣（団忠正の手）', n: 18, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: ODA.flag, at: { x: 150, z: -12 }, facing: -Math.PI / 2 });
+    F.dan2 = mkB(rt, { name: '大手の第二陣（団忠正の手）', n: 12, team: 0, faction: 'oda', kind: 'ashigaru', paperNominal: 900, armor: ODA.armor, flag: ODA.flag, at: { x: 150, z: -12 }, facing: -Math.PI / 2 });
     if (F.dan2.real) F.dan2.real.noRout = true;
     for (const b of [F.oteSpear, F.oteGun, F.reserve, F.dan2]) { b.directOrders = true; if (b.real) b.real.directOrders = true; }
     F.attackers = [F.oteSpear, F.oteGun, F.karameteSpear, F.karameteBow, F.nishiLadder, F.yodou, F.reserve, F.dan2, F.nobutada];
