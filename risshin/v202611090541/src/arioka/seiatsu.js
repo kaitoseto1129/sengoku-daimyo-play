@@ -22,6 +22,6 @@ export function stages(H) {
           foes: () => [{ name: '本丸へ落ちそこねた荒木勢', from: { x: TOWN_X - 4, z: -130 }, list: [uS(1), uA(5)], morale: 40 }] },
       ],
       max: 210, minEl: 80, reward: '侍町の焼け跡を改めた',
-      onEnd: () => {} }),
+      lenient: true, onEnd: () => {} }),
   ];
 }

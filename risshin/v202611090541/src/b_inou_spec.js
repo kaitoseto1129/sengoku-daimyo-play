@@ -22,7 +22,8 @@ import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { goalsTick } from './hud_goals.js';
 import { GOALS, inouDid } from './b_inou_goals.js';
-import * as I15 from './inou/index.js';   // 11/8 十五分の構成（行軍・林の前衛・横槍・勝家・余韻）
+import * as I15 from './inou/index.js';
+import { DEPTH_INOU } from './inou/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（行軍・林の前衛・横槍・勝家・余韻）
 
 const XW = 74, ZS = 146, ZN = -146;           // 見えない壁（東西 ±74・南北 ±146）
 const START = { x: 12, z: 136 };
@@ -1115,6 +1116,7 @@ const inou_spec = {
   },
 };
 inou_spec.history = OLD.history;
+inou_spec.depth = DEPTH_INOU;   // 11/9 軍勢の厚み（docs/army_depth_spec_1108.md）
 // def.sides のある戦は開戦の札に日付を出す。11/5：当日の天気は史料に無く、空は薄雲（前日の大雨）なので「晴」をやめ「曇」に
 inou_spec.date = () => OLD.date().replace('晴', '曇');
 // 11/6 fix4 時代考証：前日の大雨で川が増え、田はぬかるむ（組頭の第一声）のに、身の回りは乾いた土と土埃（dust 0.85）だった。湿った土にし、土埃を抑える

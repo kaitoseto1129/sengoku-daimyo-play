@@ -34,6 +34,7 @@ import * as AR_SOTO from './arioka/sotoguruwa.js';
 import * as AR_SEI from './arioka/seiatsu.js';
 import * as AR_UCHI from './arioka/uchimon.js';
 import * as AR_YOIN from './arioka/yoin.js';
+import { DEPTH_ARIOKA } from './arioka/depth.js';
 import { demBlend } from './dem.js';
 import { INTERIOR_WALLS } from './shironaka.js';
 import { NAKA } from './naka.js';
@@ -2701,7 +2702,9 @@ const arioka = {
       //   牢のある本丸の方（辻の北の通り）から辻へ歩いて来る。行き先の▼も出す（勝ちの見出しで隠れる共通の札を、迎えるまで戻す）。
       // 奥の木戸まで進んだ後も、二人は安全な辻で迎える。本人の現在地へ
       // 直進させると、町屋を横切って詰まり、⑤を終えられなくなる。
-      const me = ARI_JUNCTION, at = { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
+      // 奥の木戸（辻の北の真っすぐな通り x=TOWN_X の上）にいる時は、同じ通りの南から二人が歩いて来る（町屋を横切らない。11/8 bot：辻まで戻れず時間切れ）
+      const onRoad = F.dpU && Math.abs(rt.player.u.pos.x - TOWN_X) < 6 && rt.player.u.pos.z < ARI_JUNCTION.z - 30;
+      const me = onRoad ? { x: TOWN_X, z: rt.player.u.pos.z } : ARI_JUNCTION, at = onRoad ? { x: TOWN_X + 0.5, z: me.z + 24 } : { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
       const ul = Math.hypot(at.x - me.x, at.z - me.z) || 1, ux = (at.x - me.x) / ul, uz = (at.z - me.z) / ul;
       // 勝ちの後は共通の札が毎コマ「終わり」の印で行き先の▼を隠す。⑤の間だけ有岡の印で戻す。
       rt.hud?.root?.classList.add('arioka-kanbe');
@@ -3139,7 +3142,8 @@ function ariStage(o, defending) {
       return held;
     },
     end(rt, C, m) {
-      const won = !C.timeout && !C.failed && !rt.flags.ending;
+      // lenient：15分の段で足した段（arioka/ の通り・焼け跡・奥の木戸）は、期限が来たら味方の手が押さえた事にして先へ（負けにしない）
+      const won = (!C.timeout || o.lenient) && !C.failed && !rt.flags.ending;
       rt.unmark('dp'); rt.unzone('dp'); rt.unmark('turn');
       if (won) {
         // 取った辻の守りは退き、未出動の控えは主郭の守りに残る。
@@ -3378,6 +3382,10 @@ function ariC() {
 }
 
 // 両軍の総勢は上の force（二万五千 対 五千から、段と討った数で減る）。11/6 fix61：ここで一定の数に上書きして棒が減らなかったのを外した。
+// 陣立ての厚み（arioka/depth.js・army_depth.js）・命懸けの戦場（lethal.js）・この戦の怖さ（狭い町筋で、塀と町屋の陰から撃たれる）
+arioka.depth = DEPTH_ARIOKA;
+arioka.lethal = true;
+arioka.fearKind = { kind: '町筋', note: '狭い町筋で、塀と町屋の陰から撃たれる', w: { iso: 1.4 }, line: '町屋の陰から撃たれるぞ！' };
 arioka.sides = { a: { name: '織田勢', mon: 'oda' }, b: { name: '荒木勢', mon: 'maru' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 // 渡辺勘大夫は岸の砦を退いた後に処刑されたと公記にある。この夜の討取り相手にはしない。
