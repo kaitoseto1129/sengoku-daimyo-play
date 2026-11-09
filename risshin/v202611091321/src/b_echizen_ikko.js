@@ -807,7 +807,8 @@ function templeOccupation(rt, zone, name) {
     : zone.friends < zone.need ? `${name}で味方を待て（あと${zone.need - zone.friends}人）`
     : rt.t < zone.quietUntil ? `${name}で反撃に備えよ（あと${Math.ceil(zone.quietUntil - rt.t)}秒）`
     : `${name}を守れ（あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒）`;
-  rt.obj('main', text, 'main', true);
+  // 行き方や残敵の変化では目標の場所と行いを言い替えない。
+  rt.obj('main', rt.def.missionHeading(rt), 'main', true);
   // 接近戦の手ほどきが出ても、堂の制圧がどこまで進んだか残す。
   rt.objProgress('main', zone.test(P.x, P.z) && zone.enemies > 0 ? `残る敵 ${zone.enemies}人。味方と押し返せ`
     : zone.owner !== ZONE_STATE.FRIEND && zone.friends < zone.need
@@ -3762,7 +3763,7 @@ const echizen_ikko = {
       rt.world.setRainTarget(0.85); rt.world.rainLevel = 0.85;
       templeNightLights(false);
       rt.setPhase('brief');
-      rt.obj('main', hi(rt) ? '先手を率い、参道の最初の門へ' : '先手の旗に続き、参道の最初の門へ', 'main');
+      rt.obj('main', IKKO_GOALS[0], 'main');
       F.target = GATE_SOMON;
       templeSay(rt, '滝川一益', '府中は落ちた。山の寺へ逃げ込んだ一揆を狩り出す', 5);
       rt.after(5.5, () => templeSay(rt, '滝川一益', `${nm(rt)}、惣門を打ち破れ。先手と外堂の旗へ進め`, 5));
@@ -3868,7 +3869,7 @@ const echizen_ikko = {
     rt.unmark('main');
     rt.banner('麓から寄せる', '惣門を破り、外堂へ入る');
     templeSay(rt, '組頭', '声を潜めよ。竹束の陰から惣門へ寄せるぞ', 4);
-    rt.obj('main', '惣門を破れ。味方と外堂を取れ', 'main');
+    rt.obj('main', IKKO_GOALS[0], 'main');
     rt.marker('path', () => templeTaskPoint(rt), () => F.gateSomon.struct.alive ? templeGateLabel(rt, templeTabaFollow(rt) ? '竹束の後ろへ' : templeGateEntry(rt) ? '竹束の間を通る' : '惣門を破る') : F.hallEntry ? F.hallEntry.returning ? '参道へ戻る' : '外堂への参道' : F.hallFoe && siegeFighter(F.hallFoe) ? F.hallExit ? '堂を出て、残る敵へ' : F.hallDoor ? '堂の戸口へ' : F.hallAround ? '堂の脇を回る' : '外堂の敵へ' : '外堂へ', { groundGuide: true });
     setRoute(F.scout, [[20, -150], [24, -106]]);
     const strat = F.strategy = F.strategy || 'valley';
@@ -3923,7 +3924,7 @@ const echizen_ikko = {
     if (F.mode === 'attack') {
       templeSignal(rt, F.mainSpear, 'sig_susume');
       templeSay(rt, '組頭', '進み太鼓と法螺じゃ。鬨を上げ、竹束に続け！', 4);
-      if (F.step === 1) rt.obj('main', '進み太鼓・法螺の合図。竹束に続き、惣門を破れ', 'main', true);
+      if (F.step === 1) rt.obj('main', IKKO_GOALS[0], 'main', true);
       const epoch = F.speechEpoch;
       rt.after(2, () => {
         if (!F.ending && !rt.over && rt.player.u.alive && epoch === F.speechEpoch)
@@ -3970,7 +3971,7 @@ const echizen_ikko = {
       F.target = GATE_SANMON;
       gateWork(rt, F.gateSanmon.struct, GATE_SANMON);
       templeSignal(rt, F.mainSpear, 'sig_susume');
-      rt.obj('main', '進み太鼓・法螺の合図。石段を上り、山門を破れ', 'main', true);
+      rt.obj('main', IKKO_GOALS[2], 'main', true);
       rt.marker('path', () => templeTaskPoint(rt), () => F.gateSanmon.struct.alive ? templeGateLabel(rt, '山門を破る') : F.hallEntry ? F.hallEntry.returning ? '参道へ戻る' : '本堂への参道' : F.hallFoe && siegeFighter(F.hallFoe) ? F.hallExit ? '堂を出て、残る敵へ' : F.hallDoor ? '堂の戸口へ' : F.hallAround ? '堂の脇を回る' : '本堂の敵へ' : '本堂へ', { groundGuide: true });
       // 史実：十五日の夜、府中の龍門寺に夜襲と火。背後を突かれた一揆は崩れた。
       rt.world.setTime('night', true);
@@ -4324,7 +4325,7 @@ const echizen_ikko = {
             rt.uninteract('templeGate');
             if (!F.somonTaskChanged) {
               F.somonTaskChanged = true;
-              rt.obj('main', '外堂の旗へ行き、中の敵を討て', 'main', true);
+              rt.obj('main', IKKO_GOALS[1], 'main', true);
             }
           }
           // 別手が外堂を取っても、惣門の打ち手を置き去りにして次の門へ向かわせない。
@@ -4593,7 +4594,7 @@ const echizen_ikko = {
     if (!somon) echizenIkkoMorning(rt);
     F.target = somon ? OUTER_POS : INNER_POS;
     rt.uninteract('templeGate');
-    rt.obj('main', somon ? '外堂の旗へ行き、中の敵を討て' : '本堂の旗へ行き、中の敵を討て', 'main', true);
+    rt.obj('main', IKKO_GOALS[somon ? 1 : 3], 'main', true);
   },
 
   onKill(rt, v, k) {

@@ -597,10 +597,12 @@ export function settle(G, tr, battleIndex) {
   const ceil = RANK_CEIL[battleIndex] ?? RANKS.length - 1;
   const next = RANKS[G.rank + 1];
   // 手柄の点（merit.js）を使う戦は、点で位を決める（今の戦功・上官の評価の条件は使わない）
-  const tg = tegaraSettle(G, tr, BATTLES[battleIndex]?.id);
+  const tg = tegaraSettle(G, tr, BATTLES[battleIndex]?.id, ceil, battleIndex > 0 ? RANK_CEIL[battleIndex - 1] ?? ceil : 0);
   if (tg) {
     promoted = tg.stepAfter > tg.stepBefore;
     if (tg.rank > G.rank && G.rank < ceil) G.rank = Math.min(tg.rank, ceil);
+    // 初めて組を預かる戦（森部）は、位の名が変わらなくても召し出しの場面を出す（仕様「五人の者を預ける」）
+    if (before.rank === 0 && G.rank >= 1 && RANKS[G.rank].squad > 0) promoted = true;
   } else if (next && G.rank < ceil) {
     if (G.merit < next.min) reason = `累計戦功が${next.min}に届かず`;
     else if (G.superior < 50) reason = '上官の評価が足りぬ';

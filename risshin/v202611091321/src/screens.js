@@ -1828,7 +1828,7 @@ function resultCardHtml(G, r, lost, sq) {
   // 11/8 critic60 本能寺（常識）：主が討たれた戦では「組の兵」を褒美の列に出さない（誰が付いて来るのか分からない）
   if (men > 0 && !['honnoji'].includes(BATTLES[r.battleIndex]?.id)) rows.push({ ic: 'men', k: '預かる組', v: `${men}人${menUp > 0 ? `（＋${menUp}）` : ''}` });
   // 何から何になったか（kaito 11/2 P「足軽 → 足軽組頭」）
-  if (r.promoted) rows.push({ face: G.name || '自分', self: true, k: '出世', v: `${r.rankNameBefore || RANKS[before]?.name || ''} → ${r.rankNameAfter || RANKS[after]?.name || ''}` });
+  if (r.promoted) { const n0 = r.rankNameBefore || RANKS[before]?.name || '', n1 = r.rankNameAfter || RANKS[after]?.name || ''; rows.push({ face: G.name || '自分', self: true, k: '出世', v: n0 === n1 && RANKS[after]?.squad ? `${n1}（${RANKS[after].squad}人の組頭）` : `${n0} → ${n1}` }); }   // 11/9 森部：名が同じ時は「足軽 → 足軽」にしない
   const hy = G.hyojoLog && G.hyojoLog.at === G.battle ? G.hyojoLog : null;
   if (hy && hy.k === 'hire') { const k = (G.kerai || [])[(G.kerai || []).length - 1]; if (k && k.name) rows.push({ face: k.name, k: '武将加入', v: k.name }); }
   const gear = hy && hy.k === 'gear' ? String(hy.msg || '').replace(/を賜った$/, '') : (r.granted || []).map((id) => ITEMS[id]?.name).filter(Boolean)[0];
