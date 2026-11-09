@@ -2578,7 +2578,7 @@ const arioka = {
     rt.after(7, () => { if (F.step === 0 && !F.ending) rt.say('使番', '村重は九月に城を抜け、尼崎へ移った。残る者は一年の囲みに弱っておる', 4); });
     // 十月十五日の夜、信長は安土・秀吉は播磨・光秀は丹波にあり、この口にはいない。陣には滝川一益と旗本だけを置く。
     ariMark(rt, 'taki', { x: GATE.x - 30, z: GATE.z }, '上臈塚の木戸');
-    AR_OPEN.install(rt, ariOpenCtx());   // 開幕の段（arioka/kaimaku.js）：二分半ほどで木戸が開く
+    AR_OPEN.install(rt, ariOpenCtx());   // 合図と硝煙の後、本人が木戸の印へ寄れば開く。
     // 11/6 描いて遊ぶ：十秒で木戸が開き、竹束を押し立てて寄せる姿も塀の上の発砲も写真に入らなかった（critic60 の△）。
     // 竹束の後ろの印へ本人が寄ってから開く。時間だけで①を果たした事にしない。
     F.openAt = rt.t + 18;
@@ -2978,7 +2978,7 @@ function ariStage(o, defending) {
     kind: 'hold', max: defending ? 410 : o.max,
     // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
     // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
-    limit: o.lenient ? (o.limit ?? Infinity) : undefined,   // 11/9 二巡：lenient でも o.limit があればその秒で次の段へ（惣構えの角で七分止まった）
+    limit: o.lenient ? (o.limit ?? Infinity) : undefined,   // 上限を過ぎた未確保の段は、共通処理の C.timeout で失敗にする。
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
@@ -3051,8 +3051,10 @@ function ariStage(o, defending) {
         const order = C.orders[0];
         if (el < order.t && !(C.groups.length && C.groups.every(ariSpent) && el - C.lastOrderT >= 8)) break;
         C.orders.shift();
-        const coming = order.foes(rt, m).some((sp) => !ariSpent(rt.flags.defenders.get(sp.name)));
-        if (coming || order.fn) {
+        const foes = order.foes(rt, m);
+        const coming = foes.some((sp) => !ariSpent(rt.flags.defenders.get(sp.name)));
+        // 牢番・捕虜の知らせには新手が付かない。兵の有無だけで物語の台詞を消さない。
+        if (coming || order.fn || !foes.length && order.say) {
           if (order.title) rt.banner(order.title, order.sub);
           if (order.say) rt.say(order.say[0], order.say[1], 4);
         }

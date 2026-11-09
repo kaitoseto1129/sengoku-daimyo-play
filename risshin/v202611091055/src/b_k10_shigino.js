@@ -375,7 +375,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       F.ino = this.foe(rt, '井上頼次の鉄砲衆', { x: INOUE.x, z: 0 }, [uS(3), uA(6), uG(12)], { hold: true, width: 7, morale: 100 });
       // 井上頼次は鉄砲衆の列の後ろ（隊の段の奥）でなく、三の柵の内の井楼の下に馬を立てて指図する（11/6 遊んで：隊の段の奥へ下がり続け、三の柵から西へ六十も離れた）。
       //   近習二人だけの小さな組にして持ち場（INO_POST）を離れさせない
-      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: true, horse: true } }, uS(2)], { hold: true, width: 3, morale: 100 });
+      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: true, horse: false } }, uS(2)], { hold: true, width: 3, morale: 100 });
       F.inoG.seekRange = 7;
       F.inoU = F.inoG.units.find((u) => u.name === '井上頼次');
       // 「井上を討て」は本人の止めで果たす。共通の四十五秒待ちの後に味方が討つ処理へ任せない。
