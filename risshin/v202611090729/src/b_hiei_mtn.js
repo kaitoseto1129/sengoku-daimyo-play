@@ -4141,9 +4141,9 @@ const hiei_mtn = {
     } else if (advanceStep === 4) {
       if (!F.courtDone) arrived(F.akechi, P.court, 10);
       if (!F.courtDone) rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '堂の間の道をたどり、根本中堂の前へ'));
-      // 明智の手が燃える堂の間で詰まって着かない時も、本人が中堂の前に四十秒いれば守りが打って出る（11/9 二巡）
+      // 明智の手が堂の間で詰まっても、本人が中堂の前に着いて八秒で守りが打って出る。
       if (!F.courtDone && near(u, P.court, 12)) F.courtNearT ??= rt.t; else if (!F.courtDone) F.courtNearT = undefined;
-      if (!F.courtDone && ((near(u, P.court, 9) && arrived(F.akechi, P.court, 10)) || (F.courtNearT !== undefined && rt.t - F.courtNearT > 40))) {
+      if (!F.courtDone && ((near(u, P.court, 9) && arrived(F.akechi, P.court, 10)) || (F.courtNearT !== undefined && rt.t - F.courtNearT >= 8))) {
         this.courtDefenders(rt);
         F.courtDone = true;
         rt.objProgress('main', '根本中堂の前で槍を向ける僧兵を退ける');

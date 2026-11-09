@@ -1505,7 +1505,7 @@ function ariGoalBoard(rt) {
 }
 const arioka = {
   missionSingleLine: true,
-  goalsAllRows: true, // 共通の一件表示へ戻さず、済んだ物も含めて五つを最初から並べる。
+  goalsAllRows: false, // 11/9 二巡（豊臣A）：全部並べると 874×402 で画面の四割を覆い、中央の大きな字と重なった（act の流しで 42 回）。今の一件と進み具合の棒（開けば全部）
   hideMissionDots: true,
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,
@@ -2978,7 +2978,7 @@ function ariStage(o, defending) {
     kind: 'hold', max: defending ? 410 : o.max,
     // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
     // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
-    limit: o.lenient ? Infinity : undefined,
+    limit: o.lenient ? (o.limit ?? Infinity) : undefined,   // 11/9 二巡：lenient でも o.limit があればその秒で次の段へ（惣構えの角で七分止まった）
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
