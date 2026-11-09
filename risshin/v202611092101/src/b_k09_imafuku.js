@@ -76,22 +76,24 @@ function requiredStage(s) {
   }
   const tick = s.tick;
   s.tick = function (rt, C, m, ctx, el, dt) {
+    const player = rt.player.u;
+    const fighting = player.alive && !player.dying && !player.woundOut;
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
       const p = rt.player.u.pos;
-      C.engaged = rt.player.u.alive && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
+      C.engaged = fighting && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
         C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.dying && !u.woundOut && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12));
     }
     const inT = C.inT || 0;
     const done = tick.call(this, rt, C, m, ctx, el, dt);
     // 共通の守備は持ち場から四十四メートルまで数えるが、今福は砦の西口で反撃を受ける。
     // 離れて立っている時間や、倒れている時間を「守った時間」に含めない。
-    if (s.kind === 'hold' && (!rt.player.u.alive || Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) >= C.botRadius)) C.inT = inT;
+    if (s.kind === 'hold' && (!fighting || Math.hypot(player.pos.x - C.at.x, player.pos.z - C.at.z) >= C.botRadius)) C.inT = inT;
     // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
     // 共通の済み判定は残り二人も含む。まだ踏みとどまる殿がいる時は、到着だけを交戦の代わりにしない。
     if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at &&
-      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.woundOut))) {
+      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.dying && !u.woundOut))) {
       const u = rt.player.u;
-      C.engaged = u.alive && Math.abs(u.pos.z) < BANK && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 12;
+      C.engaged = fighting && Math.abs(u.pos.z) < BANK && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 12;
     }
     // 共通の段は守兵が崩れると済むが、四つの木戸を破る目標は省かない。
     if (s.kind === 'fight' && rt.flags.step === 2) {
@@ -131,7 +133,7 @@ function requiredStage(s) {
     //   刻を大きく過ぎたら、残る寄せ手は城へ退かせる（重成・又兵衛の隊も退く。討たれはしない）
     if (s.kind === 'hold' && el >= 200 && !C.waves?.length) for (const g of C.groups) if (!gone(g) && !g.routed) { g.noRout = false; g.routed = true; g.order = 'flee'; }
     // 持ち場に戻らず反撃だけが終わった場合も、守った時間を満たしてから済みにする。
-    return done && (s.kind !== 'hold' || (C.inT >= 45 && rt.player.u.alive &&
+    return done && (s.kind !== 'hold' || (C.inT >= 45 && fighting &&
       Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius)) &&
       (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged));
   };
