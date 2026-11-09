@@ -2234,16 +2234,16 @@ function hieiReady(u) {
 }
 // 11/6 fixc1721（kaito 九3・BQ「敵の全ての兵の頭上の赤い▼」）：共通の印は近い敵四人まで。
 //   四十メートル内の見える僧兵・山の衆に、同じ色と形の▼を頭上へ付ける（逃げる者・里の者には付けない）。
-//   候補と見通しは四分の一秒ごと。印は初めに六十だけ作り、毎コマは位置だけ書く。
+//   候補と見通しは四分の一秒ごと。実兵の上限分の印を初めに作り、毎コマは位置だけ書く。
 function hieiFoeSigns(rt) {
   const box = document.createElement('div');
   box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   const els = [];
-  for (let i = 0; i < 60; i++) { const e = document.createElement('span'); e.className = 'hiei-foe'; e.textContent = '▼'; e.hidden = true; box.appendChild(e); els.push(e); }
+  for (let i = 0; i < 250; i++) { const e = document.createElement('span'); e.className = 'hiei-foe'; e.textContent = '▼'; e.hidden = true; box.appendChild(e); els.push(e); }
   rt.hud.root.appendChild(box);
   const list = [], v = new THREE.Vector3();
-  let at = -1;
+  let at = -1, shown = 0;
   return {
     remove() { box.remove(); },
     tick() {
@@ -2252,10 +2252,9 @@ function hieiFoeSigns(rt) {
       if (on && (rt.t >= at || rt.t < at - .3)) {
         at = rt.t + .25; list.length = 0;
         for (const u of rt.army.units) {
-          if (u.team === me.team || !u.alive || u.gone || u.dying || u.woundOut || u.civ || u.isStruct || u.noTarget || u.fleeing || u.group?.routed) continue;
+          if (u.team === me.team || !hieiReady(u) || u.civ || u.isStruct) continue;
           if ((u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightScreenUnit(rt, u)) continue;
           list.push(u);
-          if (list.length === els.length) break;
         }
       }
       let n = 0;
@@ -2263,11 +2262,14 @@ function hieiFoeSigns(rt) {
         if (!hieiReady(u) || u.dying || u._nearSignOn || u.mesh?.visible === false || u.camHidden) continue;
         v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
         if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+        if (n === els.length) break;
         const e = els[n++];
         e.hidden = false;
         e.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
       }
-      for (; n < els.length; n++) if (!els[n].hidden) els[n].hidden = true;
+      // 前のコマで出ていた印だけを隠し、未使用の二百五十枚を毎コマ調べない。
+      for (let i = n; i < shown; i++) els[i].hidden = true;
+      shown = n;
     },
   };
 }
@@ -2557,7 +2559,8 @@ const hiei_mtn = {
       // 織田家編は西塔・横川へ続く。信長の戦は中堂までなので後の二件を出さない。
       { kind: 'stage', k: 3, text: '燃える西塔の釈迦堂の前へ進む', noun: '西塔の釈迦堂', check: (rt) => won(rt) || (F(rt).step || 0) >= 6 },
       { kind: 'stage', k: 3, text: '逃げる人々を追わず、横川中堂の前へ進む', noun: '横川中堂', check: won },
-    ].slice(0, rt?.G?.lord ? 5 : 7).map((g) => ({ ...g, count: () => null, sec: 900 }));
+    // 登山や戦闘に手間取っても、知らせのない時間切れで目標を失敗にしない。
+    ].slice(0, rt?.G?.lord ? 5 : 7).map((g) => ({ ...g, count: () => null, sec: Infinity }));
   },
   introSides: { a: '織田軍 約三万', b: '延暦寺の衆 約四千' },
   introPeople: [],
