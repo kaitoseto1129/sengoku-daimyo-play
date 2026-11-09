@@ -90,7 +90,7 @@ export function startCamp(rt, K) {
   say(rt, '使番', '岩崎山の稲葉様の砦、柵を二重に結い申した', 34, 3);
   say(rt, '足軽', '見ろ、小牧山まで旗が続いておる。あれが徳川の陣か', 62, 3);
   say(rt, '使番', '田楽の砦より。小牧山の南、蟹清水に徳川の新しい砦', 78, 3.2);
-  say(rt, '日根野弘就', '物見櫓へ上がって参れ。小牧山がよう見える', 92, 3);
+  say(rt, '日根野弘就', '二重堀の物見櫓の下へ参れ。小牧山の陣を見よ', 92, 3);
 }
 export function tickCamp(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;

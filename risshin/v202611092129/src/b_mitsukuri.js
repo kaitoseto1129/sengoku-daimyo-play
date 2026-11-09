@@ -2646,7 +2646,13 @@ const mitsukuri = {
   //   勝ちの札の五つも同じ（敵を何人討つ・自分で討つは置かない。城将の討ち手は伝わらない）。
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true && !!rt.over;
-    const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, () => !!F.sally || !!F.gatePass, () => (F.step ?? 0) >= 4, () => !!F.ending && rt.tracker?.main === true];
+    // 打って出た組の出現だけでは「掛矢で打つ」を果たさない。
+    // 木戸への実際の打撃、または迎撃を終えた付け入りを確かめる。
+    const gateStruck = () => {
+      const gate = F.gates?.kido?.struct;
+      return !!F.gatePass || !!(gate && gate.hp < gate.maxHp);
+    };
+    const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, gateStruck, () => (F.step ?? 0) >= 4, () => !!F.ending && rt.tracker?.main === true];
     return MK_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: MK_GOAL_NOUN[k], action: text, check: () => won() || done[k](), sec: 900, count: () => null }));
   },
   // 11/5 kaito 九3・十二1：両軍の今の兵の数の棒を常に出す。攻め手一万二千・城兵三千（後の書き物）。
