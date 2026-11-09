@@ -21,7 +21,7 @@ export function install(rt, ctx) {
   // 歩く間の出来事：使番の急報・遠い太鼓
   rt.after(8, () => { if (live()) { sfx('horagai', 0.4); rt.say('使番', '申し上げる！　大嶽の砦、落ちました！　朝倉の兵は砦を捨てて逃げ散っておりまする！', 3.8); } });
   rt.after(19, () => { if (live()) rt.say('織田信長', '義景は今夜のうちに退くぞ。馬を引け。わしが先に出る', 3.4); });
-  rt.after(30, () => { if (live()) { sfx('taiko', 0.3); rt.say('足軽', '北の峠で太鼓が鳴っとる……雨で松明が揺れとるがや', 2.8); } });
+  rt.after(30, () => { if (live()) { sfx('taiko', 0.3); rt.say('足軽', '刀根坂の峠で太鼓が鳴っとる……雨で松明が揺れとるがや', 2.8); } });
   let done = false;
   const go = () => {
     if (done) return; done = true;
@@ -39,7 +39,7 @@ export function install(rt, ctx) {
     }));
     sfx('horagai', 0.7);
     rt.after(1.4, () => sfx('taiko', 0.7));
-    rt.banner('朝倉、陣を払う', '雨の峠へ、松明の列が北へ退いていく');
+    rt.banner('朝倉、陣を払う', '雨の刀根坂へ、松明の列が西北西へ退いていく');
     rt.award((t) => { t.side.push('朝倉の松明の列を見届けて知らせた'); t.special = { label: '朝倉の退きを物見した', pts: Math.max(t.special ? t.special.pts : 0, 10) }; }, '朝倉の退きを見届けた', MI);
     rt.say('組頭', '松明が峠へ連なっとる！　朝倉が退いていくぞ！', 3);
     rt.after(3.4, () => { if (!F.ending) rt.say('織田信長', '今じゃ、追え！　一人も越前へ帰すな！', 3.2); });
