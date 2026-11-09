@@ -392,6 +392,8 @@ function steps(rt) {
       // 金掘り衆も、本人が持ち場を守るまで勝手に失敗させない。
       stage.idleAdvance = false;
       stage.limit = Infinity;
+      // 共通の四分・七分の自動送りでも、未到着・未入城の目標を飛ばさない。
+      stage.noHardCap = true;
       const tick = stage.tick;
       stage.tick = (r, C, m, ctx, el, dt) => {
         const held = C.inT || 0;
@@ -402,10 +404,11 @@ function steps(rt) {
           if (stage.needIn) return done;
           // 共通の守備判定は半径に三十mの余裕がある。この戦は坑道の前で守った時間だけ数える。
           const p = r.player.u.pos;
-          C.inT = held + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius ? dt : 0);
+          const inPlace = Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius;
+          C.inT = held + (inPlace ? dt : 0);
           // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。15分の戦（11/8）：坑道は七十五秒守る
           r.objProgress('dp', '');
-          return done && C.inT >= 75;
+          return done && inPlace && C.inT >= 75;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
         if (i <= 3) {
