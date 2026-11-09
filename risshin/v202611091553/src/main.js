@@ -278,10 +278,15 @@ const guarded = (fn, retry) => { const seq = game.startSeq; return async () => {
 const loadFail = (what) => (e) => { console.error(e); game.lastError = `${e && e.message}\n${what}を開けなかった`; hideLoading(); notice(`${what}を開けませんでした。通信を確かめて、もう一度開いてください`); };
 const hideLoading = () => { game.loadingReader?.dispose(); game.loadingReader = null; clearInterval(ldIv); ldIv = 0; ldPlan = null; const l = $('loading'); if (l) l.hidden = true; };
 // 不具合の知らせ（window の error・unhandledrejection・戦の輪の失敗で同じ文と lastError を作る）
-function reportBug(message, where) {
+// 11/9 kaito 天王寺岡山：戦の途中の一度きりの誤りで一時停止の札を出し、「再開」で少し前へ巻き戻す（下馬・向き・時に話から）のをやめる。
+//   誤りは記録して自動で送る（metrics.js が window の error を拾う）だけで、戦は止めずに続ける。
+//   戦の輪が続けて投げて本当に進めない時（stuck）だけ、札を出して立て直す
+function reportBug(message, where, stuck = false) {
   const b = game.battle;
+  const msg = `${message}\n${where}\n戦：${b ? (BATTLES[b.index] ? BATTLES[b.index].name : '稽古') : '-'}　経過 ${b ? Math.round(b.t) : 0}秒　場面 ${b ? b.phase : '-'}`;
+  if (!stuck) { (window.__battleErrors ||= []).push(msg.slice(0, 300)); if (window.__battleErrors.length > 20) window.__battleErrors.shift(); return; }
+  game.lastError = msg;
   game.battleFault = b;
-  game.lastError = `${message}\n${where}\n戦：${b ? (BATTLES[b.index] ? BATTLES[b.index].name : '稽古') : '-'}　経過 ${b ? Math.round(b.t) : 0}秒　場面 ${b ? b.phase : '-'}`;
   crashNotice();
 }
 // 戦の定義・仕組みは、出陣する時に読み始める。
@@ -3332,9 +3337,12 @@ function loop() {
           if (b.disposed || b.over || game.paused || game.hud.introWaiting || game.deployment || game.battle !== b || (!RMm() && game.hitstop > 0)) break;
         }
         stepMs = (performance.now() - tS0) / steps;
+        b.loopFaults = 0;
       } catch (e) {
         console.error(e);
-        reportBug(e.message, (e.stack || '').split('\n')[1] || '');
+        // 一度の誤りでは止めない。続けて五コマ投げた（同じ所で毎コマ落ちて画面が固まる）時だけ札で立て直す
+        b.loopFaults = (b.loopFaults || 0) + 1;
+        reportBug(e.message, (e.stack || '').split('\n')[1] || '', b.loopFaults >= 5);
       }
     }
     if (b.disposed || game.battle !== b) { input.endFrame(); return; }

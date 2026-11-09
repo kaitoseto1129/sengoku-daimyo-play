@@ -1773,6 +1773,9 @@ function shCp3(rt) {
   nfTick(rt, 0.05);
 }
 const shitaragahara = {
+  // 11/9 kaito「なんで鉄砲を持ってないの俺は」：柵の内の鉄砲の戦。火縄銃を持って始め、敵が近づいたら槍・刀へ持ち替える（spec 24〜25）。
+  //   携帯でも「持替」の丸を出す（touch.js の touchBattleControls）
+  touchBattleControls: true,
   checkpointStep(rt) {
     const N = rt.flags.nf;
     if (!N || rt.flags.ending) return null;
@@ -2237,6 +2240,7 @@ const shitaragahara = {
 
   setup(rt) {
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    rt.player.startGun = true;   // 火縄銃を持って始める（player.js が最初のコマで持ち替える）
     const W = rt.world;
     const F = rt.flags;
     SH_RT = rt;

@@ -424,6 +424,10 @@ for (const [name, flag, uma] of [
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
 
+// 設楽原の真田隊。六連銭は所属表示の復元で、当日の実旗の断定ではない。
+// 個人の馬印は未確認。信繁や昌幸の馬印を流用しない。出所：docs/generals_look_1108/真田信綱.md。
+NAMED_GEAR['真田信綱'] = { ...NAMED_GEAR['真田信綱'], flag: 'sanada', uma: null, campUma: null };
+
 // 箕作の六角義治。旗は既存の六角方の所属表示で、本人の実旗とは断定しない。
 // 個人の馬印は未確認。得物と動きは名簿の従来値を保つ。出所：docs/generals_look_1108/六角義治.md。
 NAMED_GEAR['六角義治'] = { ...(NAMED_GEAR['六角義治'] || rosterGear('六角義治')),
@@ -472,5 +476,10 @@ NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
 NAMED_GEAR['氏家卜全'].uma = null;
 NAMED_GEAR['氏家卜全'].campUma = null;
 NAMED_GEAR['氏家直元'] = NAMED_GEAR['氏家卜全'];
+// 墨俣の前野長康。旗は従来の織田方の所属表示で、本人の旗印の復元ではない。
+// 個人の旗印・馬印は未確認。秀吉の瓢箪も借りない（docs/generals_look_1108/前野長康.md）。
+NAMED_GEAR['前野長康'].flag = 'oda';
+NAMED_GEAR['前野長康'].uma = null;
+NAMED_GEAR['前野長康'].campUma = null;
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

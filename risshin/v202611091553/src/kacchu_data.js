@@ -106,7 +106,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["高坂昌信", "suji", "horn", 0x1c1a1a, 0x9a2e20, "sugake", 0, 0x1c1a1a, "takeda", ""],
   // 真田兄弟の十字・月の立物は未確認。六文銭を使い、主家の武田菱を個人紋にしない復元。
   // 上田市： https://www.city.ueda.nagano.jp/uploaded/attachment/12750.pdf
-  ["真田信綱", "suji", "none", 0x1c1a1a, 0x9a2e20, "sugake", 0x3a2622, 0, "sanada", ""],
+  // 信綱寺伝来の鉄製胴を中心にした復元。形式と補完範囲：docs/generals_look_1108/真田信綱.md。
+  ["真田信綱", "suji", "none", 0x1c1a1a, 0x9a2e20, "hotoke", 0, 0, "none", ""],
   ["真田昌幸", "suji", "shida", 0x1c1a1a, 0x9a2e20, "kebiki", 0x2e3a42, 0x1c1a1a, "sanada", ""],   // 独り立ちの後（天正十年より後）の戦だけに出るので六文銭（11/6 忍城）
   ["穴山信君", "suji", "bellflower", 0x1c1a1a, 0x9a2e20, "kebiki", 0x2e3a42, 0x1c1a1a, "takeda", ""],
   ["小山田信茂", "zunari", "kuwa", 0x3a2622, 0x9a2e20, "kebiki", 0x3a2a22, 0x3a2622, "takeda", ""],
@@ -180,7 +181,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["山内一豊", "zunari", "yamauchi_biwa", 0x29251f, 0x3c5a8a, "kebiki", 0x4a3a22, 0x29251f, "kashiwa", ""],   // 枇杷耳形脇立（docs/generals_look_1108/山内一豊.md）。南蛮鉢・三日月は根拠が無いので頭形に   // 丸に三つ柏（山内家の紋。11/6 共通の係）
   ["中川重政", "namban", "sun", 0x29251f, 0x3c5a8a, "kebiki", 0x4a3a22, 0x29251f, "oda", ""],
   ["織田長益", "namban", "kuwa_wide", 0x29251f, 0x3c5a8a, "kebiki", 0x302b32, 0, "oda", ""],
-  ["前野長康", "suji", "none", 0x2a2420, 0x5a4630, "okegawa", 0x5a5a5a, 0x2a2420, "none", ""],
+  // 墨俣の伝承枠。所用品は未確認。十六世紀の紺糸威胴丸による復元案（詳しくは必須人物の表）。
+  ["前野長康", "suji", "none", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "none", ""],
   ["菅屋長頼", "namban", "cross", 0x29251f, 0x3c5a8a, "okegawa", 0x302b32, 0x29251f, "oda", ""],
   ["福富秀勝", "namban", "shida", 0x29251f, 0x3c5a8a, "okegawa", 0x302b32, 0x29251f, "oda", ""],
   ["野々村正成", "namban", "bellflower", 0x29251f, 0x3c5a8a, "sugake", 0x302b32, 0x29251f, "oda", ""],

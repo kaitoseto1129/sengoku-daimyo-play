@@ -47,6 +47,7 @@ import { makeButai, butaiTick } from './butai.js';
 import { tickTabas, tabaInteractTick, makeTabaAdvance } from './taketaba.js';
 import * as IK_YAMA from './echizen_ikko/yamagari.js';
 import * as IK_OKU from './echizen_ikko/okunoin.js';
+import { tick as hondoSweep } from './echizen_ikko/hondo_sweep.js';   // 本堂に動けない衆徒が残って止まらないように（二巡）
 import * as IK_SANMON from './echizen_ikko/sanmon.js';
 import {
   ECHIZEN_IKKO_PLAN, VILLAGE, GOKA_MURA, GATE_SOMON, GATE_SANMON, OKUYAMA,
@@ -2679,7 +2680,7 @@ const echizen_ikko = {
     fights: [[GATE_SOMON.x, GATE_SOMON.z, 26], [OUTER_POS.x, OUTER_POS.z, 22], [GATE_SANMON.x, GATE_SANMON.z, 24], [INNER_POS.x, INNER_POS.z, 22], [OKU_POS.x, OKU_POS.z, 20]],
   },
   playerRegen: 0.025,   // 10/28：近くで止まった敵が構え直す直しの後、山門の前で囲まれて倒れる回が増えた   // 斬り合いの合間は命が少しずつ戻る
-  playerTaken: 0.42,   // 狭い惣門の前で四方から突かれ、二分で倒れていた（bot 10/26）。人数と斬り合いは減らさない
+  playerTaken: 0.32,   // 11/9 二巡（織田H）：本堂の段で bot が二回続けて倒れたので 0.42→0.32。狭い惣門の前で四方から突かれ、二分で倒れていた（bot 10/26）。人数と斬り合いは減らさない
   // 麓の参道を登る間、惣門の切妻の屋根と奥の本堂の大屋根が画面の上で切れていた（10/28 採点）。
   // 惣門の屋根が画面の上四分の一に入るまで、目線だけを上げる（本人が画面に残る角度まで。位置は変えない）。
   frameCamera(rt, pos, look) {
@@ -4383,6 +4384,7 @@ const echizen_ikko = {
               ? '' : near(GATE_SANMON, 4) ? '味方と門を打とう' : '門の前に着いたら、木づちを使おう');
           }
           else templeOccupation(rt, zones.hondo, '本堂');
+          if (!F.gateSanmon.struct.alive) hondoSweep(rt, 1, zones.hondo, zoneNear(zones.hondo));
         } else if (F.step === 3) {
           if (zones.oku.owner === ZONE_STATE.FRIEND && zones.oku.test(P.x, P.z)) this.nextAttack(rt, 4);
           else templeOccupation(rt, zones.oku, '奥の院');
