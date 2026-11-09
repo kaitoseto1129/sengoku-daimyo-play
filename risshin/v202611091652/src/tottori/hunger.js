@@ -103,6 +103,8 @@ function start(rt, K, done) {
       applyLook(rt, { ...NIGHT, time: 'night' });
       rt.world.lookDark = true;
       placePlayer(rt, G.x + 4, FZ + 12, Math.PI);
+      if (F.hachi && !F.hachi.routed) placeGroup(rt, F.hachi, G.x, FZ + 12);
+      k15Squad(rt, G.x + 10, FZ + 18);
     }, 'その夜', '飢えた城兵が、死に物狂いで柵へ寄せる');
     const g = enemyGroup(rt, { fixed: true, name: '死に物狂いの城兵', faction: 'mori', anchor: { x: G.x, z: FZ - 26 }, facing: 0, width: 5, aggro: 20, morale: 90 },
       dress([{ type: 'samurai', n: 1, o: { name: '城兵の組頭' } }, { type: 'ashigaru', n: 11 }], K.HUNGRY));
@@ -114,17 +116,37 @@ function start(rt, K, done) {
       if (stop()) return;
       rt.army.play?.('eshout', g.center(), 0.8);
       rt.say('足軽', '坂から城兵じゃ！　死ぬ気で来るぞ！', 3.5);
-      k15Charge(rt, g, post);
+      // 見回り先の本人へ直進すると、左右の柵に掛かる。開いた口を通ってから寄せる。
+      g.fixed = false; g.order = 'path'; g.formation = 'column'; g.followColumnRoad = true;
+      g.path = [[G.x, FZ - 6], [post.x, post.z]]; g.pathIdx = 0;
+      g.onArrive = () => { g.onArrive = null; k15Charge(rt, g, post); };
       rt.marker('k15foe', centerOf(g), '死に物狂いの城兵', { red: true, group: g });
       rt.obj('main', '柵の口で、死に物狂いの城兵を止めよ', 'main', true);
       const t0 = rt.t;
+      let held = 0, lastT = rt.t;
       const tick = () => {
         if (stop() || rt.over) return;
         const left = k15Live(g), el = rt.t - t0;
+        const me = rt.player.u;
+        const guarding = repelled(rt, 0, 0, post) && me.pos.z >= FZ &&
+          Math.hypot(me.pos.x - G.x, me.pos.z - FZ) <= 24;
+        let contact = false, inside = 0;
+        for (const u of g.units) {
+          if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.downed || u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
+          if (u.pos.z > FZ + 22) inside++;
+          if (Math.hypot(u.pos.x - post.x, u.pos.z - post.z) <= 18 &&
+              Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) <= 18 &&
+              !rt.army.wallBetween(u.pos, -1, me.pos)) contact = true;
+        }
+        // 残数だけを待つと、柵で押し合う寄せが終わらない。実際に迎え撃った刻も数える。
+        // 離脱・四人以上の突破で数え直し、放置や行軍の時間は手柄にしない。
+        if (!guarding || inside >= 4) held = 0;
+        else if (contact) held += rt.t - lastT;
+        lastT = rt.t;
         rt.objProgress('main', `城兵 ${left}／${N0}`);
         // 坂に残った城兵を待ち続けない。半ばを討って一分余り経ち、本人が柵を守っていれば残りは城へ引く。
         // 時間だけで、放置や持ち場からの離脱を成功にしない。
-        if (repelled(rt, left, 2, post) || (el > 75 && repelled(rt, left, Math.ceil(N0 / 2), post))) {
+        if (guarding && (left <= 2 || el > 75 && left <= Math.ceil(N0 / 2) || held >= 90 && left < N0)) {
           k15Rout(rt, g, K.CASTLE); rt.unmark('k15foe'); F.k15fight = false;
           starve(rt, walls, 4);
           rt.award((t) => t.side.push('夜の寄せを柵で止めた'), '夜の寄せを柵で止めた');

@@ -478,7 +478,8 @@ const k06_sekigahara = {
   stage7(rt) {
     const F = rt.flags;
     if (F.step >= 7) return;
-    F.step = 7; F.s7t = rt.t; F.crossed = false; F.sakonSeen = false; F.prevSakonX = rt.player.u.pos.x;
+    F.step = 7; F.s7t = rt.t; F.crossed = false; F.sakonSeen = false;
+    F.prevSakonX = rt.player.u.pos.x; F.prevSakonZ = rt.player.u.pos.z;
     rt.objDone('main');
     rt.obj('main', G[6], 'main');
     room(rt, 40);
@@ -730,8 +731,13 @@ const k06_sekigahara = {
         F.sakon.order = 'move'; F.sakon.dest = { ...SK };
         F.sakon.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; q.seekRange = 40; q.onArrive = null; };
       }
-      if (F.prevSakonX >= FENCE_X - 1 && P.x < FENCE_X - 1 && Math.abs(P.z - GAP.z) < 8) F.crossed = true;
-      F.prevSakonX = P.x;
+      // 移動の終点だけでなく、柵の線を横切った場所が虎口の内かを確かめる。
+      if (F.prevSakonX >= FENCE_X - 1 && P.x < FENCE_X - 1) {
+        const k = (F.prevSakonX - (FENCE_X - 1)) / (F.prevSakonX - P.x);
+        const z = F.prevSakonZ + (P.z - F.prevSakonZ) * k;
+        if (Math.abs(z - GAP.z) < 8) F.crossed = true;
+      }
+      F.prevSakonX = P.x; F.prevSakonZ = P.z;
       const left = nOf(F.sakon);
       if (!F.wave3 && left <= Math.round(F.sakN * 0.6)) {
         F.wave3 = true; room(rt, 30);

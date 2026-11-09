@@ -1657,7 +1657,7 @@ function fortGate(world, x, z, w, watch = false, closed = false) {
     // 原田勢を入れた後に閉め直す（tennoji/harada.js）
     const yTop0 = solid.yTop;
     gate.userData.closeGate = () => {
-      doors.userData.leaves.forEach((leaf) => { leaf.rotation.y = 0; });
+      doors.userData.close();
       solid.yTop = yTop0; shut.disabled = false;
     };
   }
@@ -4424,6 +4424,7 @@ tennoji.botWithdraw = (b, inp, { goTo }) => botWalk(b.player, inp, 145, 55, 3, g
 tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
+  inp.runHeld = false;
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
   // 息切れの休みと傷の手当ては、互いの終了条件で打ち切らない。
@@ -4611,6 +4612,8 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
     const exit = !F.kidoCut ? sortieWaypoint(b) : null;
     if (exit) { botWalk(p, inp, exit.x, exit.z, 1, goTo); return; }
     const [kx, kz] = botAround(u, F.kz.x, F.kz.z);
+    // 砦の出口と戦闘では歩き、長い追撃路では駆ける。息切れ時の歩きは本人の移動処理で扱う。
+    inp.runHeld = !F.kidoCut && Math.hypot(kx - u.pos.x, kz - u.pos.z) > 30;
     botWalk(p, inp, kx, kz, 2, goTo); return;
   }
   botWalk(p, inp, c.x + 2, c.z + 4, 3, goTo);

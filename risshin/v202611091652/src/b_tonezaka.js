@@ -163,7 +163,7 @@ const xz = (x, z) => [x * CS + z * SN, z * CS - x * SN];
 const along = (x, z) => x * SN + z * CS;
 const NORTHWEST = at(0, -1), EAST = at(1, 0);
 // 地形の元の座標と、実際に歩く北西向きの道を分ける。
-const LOCAL_ROAD = [[4, 170], [0, 110], [-10, 60], [-4, 10], [10, -40], [6, -90], [-8, -140], [-4, -190]];
+const LOCAL_ROAD = [[4, 170], [0, 110], [-10, 60], [-4, 10], [10, -40], [6, -90], [-8, -140], [-4, -190], [-4, -240]];
 const ROAD = LOCAL_ROAD.map(([x, z]) => xz(x, z));
 const PASS = at(-6, -150);           // 刀根坂の峠
 // 敦賀・府中を経る数日の追撃を、場の内に縮める。実際の距離・方角を表す道ではない。
@@ -1587,6 +1587,7 @@ const tonezaka = {
   },
   // 11/2 bot（アクション好き）：峠を越えて一乗谷へ着いた後、城下と奥の道の段の途中で共通の八分打ち切りに掛かり、三回に二回負けた。
   //   一乗谷の段（略図・城下・奥の道）だけ十分まで待つ。勝つ条件と敵・味方の数は変えない。
+  pacingCap: 1800, // 追加の追撃・城下まで、三十分の内で本人が任務を果たす。
   pacingWait: (rt) => !!rt.flags.ending || rt.flags.step >= 4 && rt.t < 600,
   missionOf(rt) {
     const F = rt.flags, step = toneMissionStep(rt);
@@ -2911,7 +2912,22 @@ const tonezaka = {
     rt.obj('main', head, 'main', true);
     for (const st of steps) {
       const start = st.start;
-      st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (F.toneHead) { rt.obj('main', F.toneHead, 'main', true); rt.objProgress('main', ''); } };
+      st.start = (rt2, C, m, ctx) => {
+        start(rt2, C, m, ctx);
+        if (C.at) {
+          // 共通の横並びは曲がった峠道の山腹へ広がる。各組を街道上の縦列に戻し、
+          // 本人の到着点を兵の体で塞がないよう、後ろから順に支える。
+          const end = along(C.at.x, C.at.z);
+          ctx.friends(rt2).forEach((g, i) => {
+            const z = end + 12 + i * 16;
+            g.path = null; g.onArrive = null;
+            g.formation = 'column'; g.colW = 2; g.width = 5;
+            g.facing = Math.PI + TURN;
+            g.anchor = at(roadX(z), z);
+          });
+        }
+        if (F.toneHead) { rt.obj('main', F.toneHead, 'main', true); rt.objProgress('main', ''); }
+      };
       // 狭い坂道・旗本・荷駄は、本人が目当てへ着き、敵を退けてから進む。
       // 共通の放置・時間切れによる段送りで、未達成の目標を飛ばさない。
       if (st.kind === 'hold' || st.kind === 'move') {
@@ -2927,8 +2943,8 @@ const tonezaka = {
         }
       }
     }
-    depthStart(rt, { faction: 'asakura', flag: 'asakura', fixedSpawn: true, backing: false, scale: 1.2, dmg: 0.8, calmRest: false,
-      look: (l) => dress(l, ASA), friends: () => [F.late, ...(F.followers || [])].filter(fighting) }, steps, () => {
+    depthStart(rt, { faction: 'asakura', flag: 'asakura', fixedSpawn: true, backing: false, scale: 1.2, dmg: 0.8, calmRest: false, routeFight: true,
+      look: (l) => dress(l, ASA), friends: () => [F.uma, F.late, ...(F.followers || [])].filter(fighting) }, steps, () => {
       F.dpOn = false; F.toneHead = null; F.guideTask = null; rt.objRemove('dp'); done();
     });
   },
