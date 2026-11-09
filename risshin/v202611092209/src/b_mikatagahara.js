@@ -2395,7 +2395,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     sfx('kane', 0.4);
     rt.banner('織田の援軍、退く', F.flankBroken ? '隣の備えが崩れ、浜松城へ退く' : '武田の寄せを受け、浜松城へ退く');
     rt.after(8, () => { if (!F.ending) rt.say('組頭', '散るな！　組の者と連れ立って下れ！', 3); });
-    rt.say('組頭', '浜松へ退け！　崖へ寄るな。崖の東の道を下って城の口へ走れ！', 4);
+    rt.say('組頭', '浜松へ退け！　犀ヶ崖へは寄るな。崖の東の道を、浜松城の口へ走れ！', 4);
     // 紙 13：徳川の敗走・平手汎秀の討死・家康が浜松城へ逃げ帰る（家康は負ける）
     rt.after(2, () => { if (!F.ending) rt.say('本多忠真', '殿、ここは某が支えまする。浜松へお退きくだされ！', 3.5); });
     rt.after(5, () => { if (!F.ending) rt.say('徳川家康', '……退け、浜松へ退け！', 3); });
@@ -2618,9 +2618,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     // 東の押し合いも、実際に残った兵と士気で崩れる。武田の強制敗走はしない。
     if (F.step >= 2 && F.cl && !F.cl.A.routed && F.cl.phase === 'fight' &&
         (F.cl.A.alive <= F.cl.A.n0 * 0.6 || F.cl.A.m < 35)) F.cl.rout('A', { hideAfter: 20, from: 1 });
-    // 台本の隊が崩れたら、同じ備の部隊も揺らぐ（先手→小山田の備、赤備え→山県の備）
-    if (!F.w1Hit && F.w1 && gone(F.w1)) { F.w1Hit = true; F.bT.oyamada.morale = Math.min(F.bT.oyamada.morale, 20); }
-    if (!F.akaHit && F.aka && gone(F.aka)) { F.akaHit = true; F.bT.yamagata.morale = Math.min(F.bT.yamagata.morale, 22); }
+    // 目の前の小隊を退けても、武田の備全体の士気を落とさない。
+    // 三方ヶ原では小山田の先手も山県の赤備えも崩れず、後続が寄せ続ける。
     depthTick(rt, dt);
     // 家康と供は同じ道を退く。供が遅れた時は大将の歩みを落とす。
     const guard = F.campA.guard, chief = F.campA.general;

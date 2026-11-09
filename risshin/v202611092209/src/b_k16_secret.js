@@ -607,7 +607,8 @@ const k16_secret = {
     });
     rt.after(12.4, () => this.tenka(rt));
     // ⑤の済み・勝ちの印は締めの後（全部の目標が済むと共通の goalsDoneTick が二秒半で結果へ締め、締めの場面を切る）
-    rt.after(20.5, () => {
+    // 最後の「淀」が光り終わるまで出世の道を残す（開始から八・二八秒）。
+    rt.after(21.5, () => {
       rt.tracker.main = true;
       rt.award((t) => { t.main = true; t.special = { label: '徳川家康を討ち取った', pts: 100 }; }, '徳川家康を討ち取った');
       rt.objDone('s5');
@@ -711,6 +712,8 @@ const k16_secret = {
       return;
     }
     const g = F.stepG;
+    // 最初の号令前は相手の隊がまだ決まっていない。空の隊を全滅と数えない。
+    if (!g) return;
     if (!F.stepN || F.stepNg !== g) { F.stepNg = g; F.stepN = Math.max(1, aliveN(g)); }   // 数えるのは段の始めに立っていた兵（前の段で味方が削った分は数えない）
     const gone = F.stepN - aliveN(g);
     // 段の隊の残りが散って、自分の周り三十五 m に一人もいないまま十秒（その場の戦いが済んだ）：崩れたとみなして次へ（空の野で立ち尽くさない。三2）
