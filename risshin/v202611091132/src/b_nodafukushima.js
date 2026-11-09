@@ -1264,6 +1264,16 @@ function nodaOpenSeirou(rt, x, z, name) {
 }
 // 井楼の上に立っているか（床の高さで見る）
 function onTower(u, t) { return Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
+// 照準の仮の的は七十m先。砦を越えた的でも、砦の内へ向けて放った一発は数える。
+function seirouShotIntoFort(rt, shot) {
+  const at = shot?.t?.pos, from = rt.player.u.pos, fort = rt.flags.noda.kuruwa.kishi;
+  if (!at) return false;
+  const dx = at.x - from.x, dz = at.z - from.z;
+  const steps = Math.ceil(Math.hypot(dx, dz));
+  if (!steps || steps > 100) return false;
+  for (let i = 1; i <= steps; i++) if (fort.test(from.x + dx * i / steps, from.z + dz * i / steps)) return true;
+  return false;
+}
 // 梯子を下りる（共通の梯子は登るだけなので、この戦の井楼だけ。上の端から足もとまで二・五秒で下りる）
 function seirouDown(rt, t) {
   const F = rt.flags, u = rt.player.u, l = FL.ladders[t.ladderId];
@@ -2970,10 +2980,10 @@ const nodafukushima = {
     // ③は実際に弾が出て、砦の内を狙った時だけ数える。湿った火薬の不発は数えない。
     { const P = rt.player, fire = P.fireShot; P.fireShot = function (...a) {
       const loaded = this.gunLoaded, previous = rt.army.lastGun, r = fire.apply(this, a), F = rt.flags;
-      const shot = rt.army.lastGun, at = shot?.t?.pos;
+      const shot = rt.army.lastGun;
       if (loaded && !this.gunLoaded && shot !== previous && shot?.u === this.u && shot.flying &&
-          at && F.noda.kuruwa.kishi.test(at.x, at.z) && F.step === 1.5 && !F.shotsDone &&
-          F.seirou?.some(t => onTower(this.u, t))) rt.def.shotLanded(rt);
+          F.step === 1.5 && !F.shotsDone && F.seirou?.some(t => onTower(this.u, t)) &&
+          seirouShotIntoFort(rt, shot)) rt.def.shotLanded(rt);
       return r;
     }; }
     const W = rt.world;
@@ -4439,7 +4449,7 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
         const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
         if (d < best) { best = d; foe = o; }
       }
-      const tx = foe ? foe.pos.x : tw.x, tz = foe ? foe.pos.z : FORT_Z - 4;
+      const tx = foe ? foe.pos.x : 0, tz = foe ? foe.pos.z : FORT_Z - 12;
       p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
       if (p.gunLoaded && !p.shot && !(b._ndShot > b.t)) { b._ndShot = b.t + 0.6; inp.leftPressed = true; }
       return;
