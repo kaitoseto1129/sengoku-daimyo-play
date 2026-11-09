@@ -304,7 +304,10 @@ function drawMissionPin(rt) {
     pin._talk = talk; pin._person.innerHTML = talk ? TALK_SIGN : pin._personShape;
   }
   const waiting = want.treatment || (want.waiting ?? (!want.unit && !!marker && (marker.waitAction || marker.waitGuide || /^(wait|guard)$/.test(marker.guideArea))));
-  const arrived = want.treatment ? d <= (want.r ?? 3) : waiting ? (want.arrived ?? missionWaitReached(rt)) === true : !!want.arrived;
+  const arrivedRaw = want.treatment ? d <= (want.r ?? 3) : waiting ? (want.arrived ?? missionWaitReached(rt)) === true : !!want.arrived;
+  // 着いた・離れたの境で出たり消えたりしない：到着は 0.8 秒は保つ（設楽原のチカチカ）
+  if (arrivedRaw) U.arrSeen = rt.t;
+  const arrived = arrivedRaw || (!changed && U.arrived === true && rt.t - (U.arrSeen ?? -9) < 0.8);
   // 同じ集合地点へ着いた瞬間を記録し、到着表示を保つ。
   if (changed || U.arrived !== arrived) { U.arrivalAt = arrived ? rt.t : undefined; U.arrived = arrived; }
   // 着いた・離れたの境で毎コマ出たり消えたりしない（チカチカ。kaito 10/23 稲生 27）。消えた後は一歩半離れてから出す。

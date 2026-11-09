@@ -344,7 +344,9 @@ function umaGeometry(kind) {
     parts.push(paint(at(new THREE.SphereGeometry(0.19, 12, 8), 0, 3.5, 0), agedGold));
     parts.push(paint(at(new THREE.SphereGeometry(0.12, 12, 8), 0, 3.23, 0), agedGold));
     parts.push(paint(at(new THREE.CylinderGeometry(0.045, 0.025, 0.1, 8), 0, 3.08, 0), agedGold));
-    for (let i = 0; i < 8; i++) parts.push(paint(at(new THREE.BoxGeometry(0.03, 0.34, 0.006), Math.sin(i * 0.8) * 0.07, 2.86, Math.cos(i * 0.8) * 0.07, 0, i * 0.8), gold));
+    // 『旗馬印画図』の秀吉の小馬印：口の下に紐で結んだ金の切裂の暖簾（横に広く、裾が切れて波打つ）。五枚の布で
+    for (let i = 0; i < 5; i++) parts.push(paint(at(new THREE.BoxGeometry(0.085, 0.3 + (i % 2) * 0.04, 0.008), (i - 2) * 0.085, 2.86 - (i % 2) * 0.02, Math.abs(i - 2) * -0.015), gold));
+    parts.push(paint(at(new THREE.BoxGeometry(0.44, 0.025, 0.02), 0, 3.02, 0), agedGold));
   } else if (kind === 'sangaigasa') {
     // 佐々成政の馬印「三階笠」：浅い菅笠を三つ縦に重ねて竿を通す。色は『旗馬印画図』（1800 年頃・ブリガムヤング大学蔵・Wikimedia Commons の写し・パブリックドメイン）の「カキ」＝柿色の笠に黒い竿
     //   （Wikipedia「佐々成政」は逸話で「金の三階菅笠」とするが、絵のある画図に従う）。寸法は絵の割合から
