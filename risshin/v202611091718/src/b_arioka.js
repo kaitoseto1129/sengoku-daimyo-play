@@ -3153,7 +3153,8 @@ function ariStage(o, defending) {
     },
     end(rt, C, m) {
       // 追加の段も、期限だけで未確保の場所を達成扱いにしない。
-      const won = !C.timeout && !C.failed && !rt.flags.ending;
+      // passOnLimit：期限で次の下知へ進む段（惣構えの通り。塀の陰の鉄砲が残っても四分で次へ）。期限切れを負けにしない。
+      const won = (!C.timeout || o.passOnLimit) && !C.failed && !rt.flags.ending;
       rt.unmark('dp'); rt.unzone('dp'); rt.unmark('turn');
       if (won) {
         // 取った辻の守りは退き、未出動の控えは主郭の守りに残る。

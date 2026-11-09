@@ -464,6 +464,12 @@ const t02_shizugatake = {
     // ---- 砦の守り（桑山重晴の手。千ほど） ----
     F.fortG = allyGroup(rt, { name: '桑山の手', fullStrength: true, anchor: { x: FORT.x + 7, z: FORT.z }, facing: Math.PI / 2, width: 5, aggro: 14, order: 'hold', noRout: true },
       [{ type: 'busho', n: 1, o: { name: '桑山重晴', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }]);
+    // 前田隊は開戦時から茂山に置く。遠景もこの隊を読み、陣払いの後に別の隊を残さない。
+    F.maedaG = enemyGroup(rt, { faction: 'nobukatsu', flag: 'maeda', name: '前田利家の隊', anchor: { x: SHIGE.x - 4, z: SHIGE.z - 24 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5, morale: 90,
+      order: 'hold', aggro: 0, seekRange: 0 },
+    [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true, flag: 'maeda' } }, { type: 'samurai', n: 3, o: { flag: 'maeda' } }, { type: 'ashigaru', n: 10, o: { flag: 'maeda', flagScale: 1 } }]);
+    F.maedaG.kind4 = 'maeda'; F.groups.push(F.maedaG);
+    for (const u of F.maedaG.units) u.noTarget = true;
     rt.after(1.2, () => { F.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); });
   },
 
@@ -545,7 +551,7 @@ const t02_shizugatake = {
     rt.objDone('s2');
     rt.award((t) => t.side.push('賤ヶ岳の砦を守り通した'), '賤ヶ岳の砦を守った');
     // 二十日の寄せ手は暗くなって退いた（場から下げる）
-    for (const g of F.groups) if (g !== F.saku && g !== F.mori && live(g)) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+    for (const g of F.groups) if (g !== F.saku && g !== F.mori && g !== F.maedaG && live(g)) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
     if (live(F.nakaG)) for (const u of F.nakaG.units) if (u.alive && !u.gone) rt.army.despawn(u);
     W.setTime('night', true);
     rt.banner('四月二十日　夜', '大垣から筑前様の本隊が戻る');
@@ -638,13 +644,6 @@ const t02_shizugatake = {
     for (const g of [F.kmG, F.mmG, F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.dest = { ...GONGEN }; g.onArrive = null; g.speed = g === F.mori ? 3.6 : 2.2; g.kind4 = 'flee'; }   // 盛政は馬で先に落ちる
     // 殿の残りは切通しから権現坂へ落ちる（持ち場に縛らず、振り向いて主人公に絡まない。味方の本隊が残りに足を取られて岸の道へ出遅れた・11/5 の流し）
     if (live(F.kmG)) { F.kmG.fixed = false; F.kmG.kind4 = 'gone'; F.kmG.aggro = 0; F.kmG.seekRange = 0; F.kmG.speed = 3; for (const u of F.kmG.units) u.noTarget = true; }   // 落ちる殿の残りに味方の隊が足を取られない
-    // 前田利家の隊：戦わずに茂山の陣を払い、権現坂から北へ去る（討てない）
-    F.maedaG = enemyGroup(rt, { faction: 'nobukatsu', flag: 'maeda', name: '前田利家の隊', anchor: { x: SHIGE.x + 6, z: SHIGE.z + 4 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5, morale: 90,
-      order: 'hold', aggro: 0, seekRange: 0 },
-    [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true, flag: 'maeda' } }, { type: 'samurai', n: 3, o: { flag: 'maeda' } }, { type: 'ashigaru', n: 10, o: { flag: 'maeda', flagScale: 1 } }]);
-    F.maedaG.kind4 = 'maeda'; F.groups.push(F.maedaG);
-    for (const u of F.maedaG.units) u.noTarget = true;
-    F.maedaG.anchor = { x: SHIGE.x - 4, z: SHIGE.z - 24 }; placeGroup(rt, F.maedaG, SHIGE.x - 4, SHIGE.z - 24);
     rt.after(8.5, () => rt.say('福島正則', '遅れるな、岸の道を茂山まで押すぞ', 2.8));   // fix4：小姓は兵に下知する身分でない。仲間を励ます言い方に
     // 岸の道で振り向いて踏みとどまる二つの塊。湖の西の岸を退くのは盛政の手と勝政の残り（家ごとの旗。勝家の旗本は狐塚で岸にはいない）
     F.chase5 = [[-128, 112, 12, SAKUMA, '佐久間の手'], [-158, 36, 12, SHIBATA, '柴田勢']].map(([x, z, n, house, name]) => {
@@ -829,7 +828,7 @@ const t02_shizugatake = {
     const F = rt.flags;
     if (F.ending || !rt.canFailMission()) return;
     F.ending = true;
-    rt.objFail('s' + Math.max(1, Math.floor(F.phase)));
+    rt.objFail(['s0', 's1', 's2', 's2m', 's2n', 's3', 's4'][stageIx(F.phase)]);
     rt.tracker.main = false;
     rt.banner('果たせず', why);
     rt.finish({ failureReason: why }, 4);
