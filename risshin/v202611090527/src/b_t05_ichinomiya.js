@@ -32,6 +32,7 @@ import { STAGES } from './stages.js';
 // 約15分の段（docs/toyo15_plan_1108.md の 8）：足した段の中身は src/t05_ichinomiya/ の各ファイル
 import { install as ichiIntro } from './t05_ichinomiya/intro.js';
 import { oshiStep } from './t05_ichinomiya/oshimodoshi.js';
+import { depth as ichiDepth } from './t05_ichinomiya/depth.js';
 import { withGuard } from './toyo_bot.js';
 
 // ---------------- 場所 ----------------
@@ -540,6 +541,7 @@ export const t05_ichinomiya = {
   },
   sides: { a: { name: '羽柴秀長の軍', mon: 'toyotomi', faction: 'oda' }, b: { name: '長宗我部方（一宮城）', mon: 'chosokabe' } },
   minutes: 15, expectMin: 15,
+  depth: ichiDepth, lethal: true,   // 武将の備（t05_ichinomiya/depth.js）と命懸けの戦場（lethal.js）
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   date: () => '天正十三年七月　初秋・晴れ',   // 旧暦の七月は秋（七〜九月が秋）。暑さは残る
 

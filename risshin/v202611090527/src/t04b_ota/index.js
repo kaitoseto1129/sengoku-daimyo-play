@@ -8,6 +8,7 @@ import s2 from './s2_chikutei.js';
 import s3 from './s3_seki.js';
 import s4 from './s4_kekkai.js';
 import s5 from './s5_kaijo.js';
+import { depth } from './depth.js';
 
 // 堤の輪（半径六十五歩）の上を回って歩く（輪の内の水と城へ斬り込まない）
 function route(u, want) {
@@ -24,6 +25,7 @@ const def = {
   spawn: { x: P.spawn.x, z: P.spawn.z, heading: 0.3 },
   noWake: true, noTaishoRaid: true, noDespair: true, noFrontFill: true,
   keepMix: true, noCavalryMix: true, stageGoalsOnly: true, nearbyAllySignLimit: 0, playerTaken: 0.6,
+  depth, lethal: true,   // 囲みの備（depth.js）と命懸けの戦場（lethal.js）
   meleeGrace: { rate: 1, burst: 1, interval: 3 }, flagEra: { toyotomi: 'kiri53' },
   meleeGuide: () => false, guardGuideAllowed: () => false, castleFall: false,
   date: () => '天正十三年四月　春・晴',
@@ -54,7 +56,7 @@ const def = {
     F.ending = true; rt.setPhase('end'); rt.objDone('main'); rt.player.u.invuln = true;
     rt.award((t) => { t.main = true; }, '太田城の開城を迎えた');
     rt.banner('太田城、開城', '水に囲まれた城が門を開く');
-    rt.say('開城の使者', '太田城を明け渡します。城の者の命をお助けください', 4);
+    rt.say('太田左近', '太田城を明け渡します。城の者の命をお助けください', 4);
     rt.after(4.5, () => rt.say('羽柴秀長', '城の者は助けよ。刀を置いて出よ', 3.5));
     rt.after(9, () => rt.say('羽柴秀吉', '一人も斬らずに城が開いた。これで紀州は収まる。次は四国じゃ', 4));
     rt.finish({ scriptedEnd: true }, 18);
