@@ -4911,6 +4911,14 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.step === 5 && elapsed >= 20) {
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
+      // 11/9 二巡：甲板の端や屋根に残った敵（本人の槍が届かない所）が一人でもいると、退きの段のまま七分止まった。
+      //   船団が退いて九十秒たてば、甲板に残る毛利勢も味方の舟へ飛び移って退く。
+      if (contested && elapsed >= 90 && F.bigSunk && !F.deckLeft) {
+        F.deckLeft = true;
+        for (const u of [...rt.army.units]) if (deckEnemy(u)) { try { rt.army.despawn(u); } catch (e) { u.alive = false; } }
+        rt.say('物見', '残った敵が海へ飛び込み、退く舟へ泳いで行く！', 3);
+        contested = false;
+      }
       if (!contested && F.bigSunk && F.doused >= 3 && F.cannonHits >= 1 && rt.player.u.alive) {
         KZ_HYORO.start(rt, F.kzCtx || (F.kzCtx = this.kzCtx(rt))); return;   // 兵糧船の段（kizugawa/hyorobune.js）
       }

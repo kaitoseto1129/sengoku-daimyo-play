@@ -3561,9 +3561,9 @@ const saika = {
       F.bankShotAt = rt.t + 2 + Math.random() * 1.8;
       let shooter = null, target = null, best = Infinity;
       const pick = (rt.t * 7.3) % 5 | 0;
-      for (const u of F.gunPosts[pick].units) if (u.alive && !u.fleeing && u.type === 'gun') { shooter = u; break; }
+      for (const u of F.gunPosts[pick].units) if (bankReady(u) && u.type === 'gun') { shooter = u; break; }
       if (shooter) for (const u of rt.army.units) {
-        if (!u.alive || u.gone || u.team !== 0 || u.isPlayer || u.name || u.invuln || u.isStruct || u.mounted || u.noTarget) continue;
+        if (!bankReady(u) || u.team !== 0 || u.isPlayer || u.name || u.invuln || u.isStruct || u.mounted || u.noTarget) continue;
         if (u.pos.x > -10 || u.pos.x < -36 || Math.abs(u.pos.z) > 26) continue;
         const d = Math.abs(u.pos.z - shooter.pos.z) + Math.random() * 12;
         if (d < best) { best = d; target = u; }
@@ -3584,7 +3584,7 @@ const saika = {
       const me = rt.player.u;
       if (me.alive && me.pos.x < -10 && me.pos.x > -36 && Math.abs(me.pos.z) < 26) {
         let shooter = null;
-        for (const g of F.gunPosts) for (const u of g.units) if (!shooter && u.alive && !u.fleeing && u.type === 'gun' && Math.abs(u.pos.z - me.pos.z) < 20) shooter = u;
+        for (const g of F.gunPosts) for (const u of g.units) if (!shooter && bankReady(u) && u.type === 'gun' && Math.abs(u.pos.z - me.pos.z) < 20) shooter = u;
         if (shooter) {
           const A = rt.army, fx = Math.sin(shooter.heading), fz = Math.cos(shooter.heading);
           const mx = shooter.pos.x + fx * 1.2, my = shooter.pos.y + 1.45, mz = shooter.pos.z + fz * 1.2;
@@ -3810,12 +3810,11 @@ const saika = {
       const far = !F.envoyMet || Math.hypot(p.x - m.pos.x, p.z - m.pos.z) > 30;
       const E = F.envoy;
       if (E.order === 'path') F.envoyIdx = E.pathIdx;
-      if (!atLord) {
-        if (far && E.order === 'path') E.order = 'hold';
-        // 待ちの後や、共通の頭が止めた時も、道の続きから歩き直す
-        else if (!far && E.order !== 'path') { E.fixed = false; E.order = 'path'; E.path = ENVOY_ROAD; E.pathIdx = F.envoyIdx || 0; }
-      }
-      if (F.envoyMet && atLord && near) this.win(rt, true);
+      // 陣の口でも本人を待つ。別々の到着半径だけでは、三十歩以上離れても護送完了になった。
+      if (far && E.order === 'path') E.order = 'hold';
+      // 待ちの後や、共通の頭が止めた時も、道の続きから歩き直す
+      else if (!atLord && !far && E.order !== 'path') { E.fixed = false; E.order = 'path'; E.path = ENVOY_ROAD; E.pathIdx = F.envoyIdx || 0; }
+      if (!far && atLord && near) this.win(rt, true);
     }
   },
   // 紙の22：大軍でも進めず、最後は政治の妥協・降伏。川岸を保ったら、雑賀は誓紙を出して降る。

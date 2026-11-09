@@ -467,6 +467,8 @@ function shinoGuard(rt) {
   // 狭い出丸の守りなので康定は徒（馬は曲輪に入らない）。そばに子と家来の侍を固めて置く（kaito 一2）
   dress([{ type: 'busho', n: 1, o: { name: '山角康定', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 5 }, { type: 'bow', n: 6 }, { type: 'gun', n: 3 }], HOJO));
   F.shinoGuns.secKind = 'bow';
+  // 11/9 二巡：討てない康定に斬りかかっても傷がつかず「不死身」に見えた。狙いの的にせず、旗本の後ろに置く（斬り合う相手は供の侍と弓）
+  for (const u of F.shinoGuns.units) if (u.name === '山角康定') u.noTarget = true;
 }
 
 // 本陣の将は後ろで旗本に守られ、前へ出ない（kaito AR3・AV7）。家康は東の本陣、北条の当主は本丸
