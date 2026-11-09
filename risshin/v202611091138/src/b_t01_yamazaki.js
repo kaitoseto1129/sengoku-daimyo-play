@@ -650,7 +650,8 @@ const t01_yamazaki = {
       // 殿が散って残りが行き先から離れた時も、主人公の方へ突きかからせる（勝ちまで行き詰まらない）
       const late = rt.t - F.st0 > 100;
       if (late && live(F.mimaki) && (F.mkT = (F.mkT || 0) - dt) <= 0) { F.mkT = 3; F.mimaki.order = 'attack'; F.mimaki.dest = { x: P.x, z: P.z }; F.mimaki.aggro = 40; F.mimaki.seekRange = 60; }
-      const left = aliveN(F.gobo);
+      // 散って御坊塚から遠く離れた兵は数えない（追って持ち場を出たまま進まない事を防ぐ。豊臣A 11/9）
+      const left = [].concat(F.gobo || []).flatMap((g) => (g ? g.units : [])).filter((o) => o.alive && !o.gone && !o.fleeing && dist(o.pos, GOBO_PIN) < 60).length;
       if (F.fieldAt === 6 && left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 80) this.mimakiBroken(rt);
     } else if (F.stage === 7) Pursuit.tick(rt, dt, this.ctx(rt));
   },
@@ -696,7 +697,7 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   else if (F.stage === 4) t = c(F.cntGs) || Counter.STAND;
   else if (F.stage === 5) t = c(F.saiGs) || SAITO;
   // 殿が先に倒れた時も、⑥の達成を確かめる御坊塚の前へ進む。本陣の前は印から四十四歩離れている。
-  else if (F.stage === 6) t = c(F.gobo) || GOBO_PIN;
+  else if (F.stage === 6) t = (aliveN(F.gobo) > (F.guardN || 0) * 0.4 && c(F.gobo)) || GOBO_PIN;
   else t = (!F.pStep && c(F.rearGs)) || Pursuit.GATE;
   goTo(p, inp, t.x, t.z, 2.5);
 };
