@@ -49,26 +49,8 @@ export function install(rt, ctx) {
         F.oiTailSaid = true;
         rt.award((t) => t.side.push('追撃の道を塞いだ殿の門徒を払った'), '道を塞いだ殿を払った');
         rt.say('足軽', '殿が崩れた！　城戸口まで駆けろ！', 3);
-        // 11/9 二巡（織田G）：殿を払った後も城戸口まで六百歩余りを歩き、追撃の段が七分半あった（bot）。
-        //   殿を払った台詞の後、場面替えで城戸口の手前（約百五十歩）へ。味方の列も一緒に並べる（木ノ芽峠・設楽原と同じ省き方）。
-        rt.after(6, () => {
-          if (F.ending || rt.over || F.step !== 4 || F.kidoCut || !rt.player.u.alive) return;
-          const P = rt.player.u, gx = F.kz.x, gz = F.kz.z + 150;
-          if (Math.hypot(P.pos.x - gx, P.pos.z - gz) < 60) return;
-          const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); u.target = null; if (u.vel) u.vel.x = u.vel.z = 0; };
-          cut = true; rt.unmark('oiTail');
-          if (rt.player.mounted && rt.player.horse) { rt.player.horse.position.set(gx, W.heightAt(gx, gz), gz + 6); }
-          put(P, gx, gz + 6);
-          for (const q of rt.squadGroups || []) q.units.forEach((u, k) => { if (u.alive) put(u, gx - 3 + (k % 4) * 2, gz + 9 + Math.floor(k / 4) * 2); });
-          (F.fighters || []).forEach((g, i) => {
-            if (!g || spent(g)) return;
-            const ox = ((i % 5) - 2) * 9;
-            g.units.forEach((u, k) => { if (u.alive && !u.fleeing && !u.woundOut) put(u, gx + ox + (k % 3) * 1.6, gz + 14 + Math.floor(k / 3) * 1.8); });
-            if (g.anchor) { g.anchor.x = gx + ox; g.anchor.z = gz + 14; }
-            if (g.path?.length) g.pathIdx = g.path.length - 1;
-          });
-          rt.say('組頭', '城戸口が見えたぞ！　木戸の前に殿が踏みとどまっておる！', 3.5);
-        });
+        // 殿を払った後も本人と味方は既存の行軍で城戸口へ進む。
+        // 追撃の完了は到着と城戸口での参戦で決め、座標は移し替えない。
       }
     },
   };

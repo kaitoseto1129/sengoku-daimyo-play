@@ -4351,19 +4351,13 @@ function okChaseTick(rt) {
     });
     if (!foe) {
       // 槍を返した後も、その場に残らず陣へ追う。道の角は既存の道順を使う。
-      // 11/8 critic60 大河内④：退く本人の背を追う。陣の旗でなく、本人の六メートル後ろへ四秒ごとに道を引き直し、足も速める
+      // 退く本人の現在地へ四秒ごとに道を引き直す。北へ六メートルずらすと、九十九折りでは切岸を狙ってしまう。
       const me = rt.player.u.pos;
-      // 陣の近くでも本人がまだ道中なら追う。陣からの距離で打ち切ると、最後の坂で追っ手が止まる。
-      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && Math.hypot(c.x - me.x, c.z - me.z) > 10) {
+      // 壁で相手が見えない時も、道沿いに間合いまで追う。近いだけで陣へ向かわせない。
+      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && Math.hypot(c.x - me.x, c.z - me.z) > 3) {
         g._okChaseAimAt = rt.t + 4;
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
-        g.path = downRoad(g, [me.x, me.z - 6]); g.pathIdx = 0;
-        g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
-      // 本人の背へ着いた直後も、次の追跡更新まではその下知を保つ。
-      // 更新待ちを帰陣命令で上書きすると、追っ手が本人を通り過ぎてしまう。
-      } else if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && g.order === 'attack' && Math.hypot(c.x - CAMP_LINE.x, c.z - CAMP_LINE.z) > 18) {
-        g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2;
-        g.path = downRoad(g, [CAMP_LINE.x, CAMP_LINE.z - 10]); g.pathIdx = 0;
+        g.path = downRoad(g, [me.x, me.z]); g.pathIdx = 0;
         g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
       }
       continue;
