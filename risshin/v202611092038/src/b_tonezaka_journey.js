@@ -96,4 +96,10 @@ export function toneJourneyGroup(rt, g, p, facing) {
     u.pos.set(q.x, rt.world.heightAt(q.x, q.z), q.z);
     u.target = null; u.moveTo = null; u.vel.x = u.vel.z = 0;
   }
+  // 将の本隊だけ移すと、別の組になっている旗本が峠から城下へ走って飛ぶ。
+  // 同じ場面替えの中で供も移し、次の更新から将の周りを守らせる。
+  for (const guard of rt.army.groups) {
+    if (guard === g || !guard.taishoGuard || guard.taishoGuard.group !== g) continue;
+    toneJourneyGroup(rt, guard, guard.taishoGuard.pos, facing);
+  }
 }

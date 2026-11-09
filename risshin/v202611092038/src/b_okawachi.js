@@ -61,8 +61,7 @@ const CAMP_LINE = { x: CAMP.x, z: CAMP.z - 6 };
 // 坂の迎撃・殿・封鎖を実際に務めてから和睦へ進む。
 const PUSH_HOLD = 180;
 const BACK_HOLD = 90;
-const BLOCK_HOLD = 360;
-const PEACE_AT = 900;
+const BLOCK_HOLD = 75;
 const FAILED_WITHDRAWAL = '低い法螺と二つ打ちは退き太鼓じゃ。持ち場を交代する。組を崩さず南の陣へ退け！';
 // 搦手へ登ってきた所から始め、長い道は地形として残す。
 const OPEN_PT = ROAD_KARAMETE[5];
@@ -4354,7 +4353,8 @@ function okChaseTick(rt) {
       // 槍を返した後も、その場に残らず陣へ追う。道の角は既存の道順を使う。
       // 11/8 critic60 大河内④：退く本人の背を追う。陣の旗でなく、本人の六メートル後ろへ四秒ごとに道を引き直し、足も速める
       const me = rt.player.u.pos;
-      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && Math.hypot(c.x - me.x, c.z - me.z) > 10 && Math.hypot(c.x - CAMP_LINE.x, c.z - CAMP_LINE.z) > 18) {
+      // 陣の近くでも本人がまだ道中なら追う。陣からの距離で打ち切ると、最後の坂で追っ手が止まる。
+      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && Math.hypot(c.x - me.x, c.z - me.z) > 10) {
         g._okChaseAimAt = rt.t + 4;
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
         g.path = downRoad(g, [me.x, me.z - 6]); g.pathIdx = 0;
@@ -4628,8 +4628,8 @@ function okSortieContact(rt, g, at, radius) {
 function okHold(o) {
   return { kind: 'hold', max: Infinity, idleAdvance: false,
     start(rt, C) {
-      // 早く夜攻めを終えた回も、封鎖を務めて十五分を満たす。
-      C.duration = o.blockade ? Math.max(o.dur, PEACE_AT - rt.t) : o.dur;
+      // 本人と番の槍が持ち場を守った時間を数える。戦全体の時計で封鎖を引き延ばさない。
+      C.duration = o.dur;
       C.blockade = !!o.blockade; C.at = C.goal = o.at; C.botRadius = o.r; C.inT = 0; C.dangerT = 0; C.groups = o.groups; C.joinedLine = false; C.clearT = 0;
       C.holdPoint = { x: o.at.x, y: rt.world.heightAt(o.at.x, o.at.z), z: o.at.z };
       C.shortLineT = 0; C.shortLineSafeT = 0; C.shortLineThreat = false;

@@ -283,7 +283,8 @@ function chaseWay(army, u, want, keepLane = false) {
     q.x = CHASE_ROAD[i][0] + dz / len * lane; q.z = CHASE_ROAD[i][1] - dx / len * lane;
     return q;
   }
-  if (z < -150 || end < -150) return want;
+  // 峠の先も同じ街道をたどる。ここで直進に戻すと、荷駄へ向かう列が
+  // 峠の曲がりを横切り、道脇の斜面で主人公や供が詰まる。
   const lane = Math.max(-3, Math.min(3, x - roadX(z)));
   let next = end;
   if (Math.abs(x - roadX(z)) > 5) next = z;
@@ -1570,6 +1571,9 @@ const tonezaka = {
   //   使番の「後方にて陣を移す」も追撃の言葉でない。後続の先手が追い付く事と信長の叱りはこの戦の台詞で一度だけ。
   relief: false,
   noAllyReports: true,
+  // 雨中の追撃は指定した槍の編成を保つ。共通の兵種割り振りで鉄砲へ
+  // 替えると、勝家の後列が射撃の間合いで止まり、追う列から取り残される。
+  keepMix: true,
   noHatamotoMass: true, // 狭い峠道で、将の後ろの軽い旗本の塊に追い手の味方が埋もれる（AP9・AQ6）。旗本は本物の侍の輪だけ
   stageGoalsOnly: true, // 右上の五つは段だけ（「敵を何人討つ」「義景を討つ」で埋めない。AW3・AV16）
   goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（道の曲がりの名札・旗・輪を重ねない。AP12・AV15・BH6）
@@ -2574,6 +2578,10 @@ const tonezaka = {
       html:root body #hud[data-tonezaka] #battle-notices:not(.choosing) {
         width:min(280px,32vw) !important; max-width:32vw !important;
         max-height:33vh !important;
+      }
+      /* 右上の五件の目標から、開戦の見出しと下知を左へ離す。 */
+      html:root:not(.touch) body #hud#hud[data-tonezaka] #battle-notices#battle-notices:not(.choosing) {
+        left:calc(16px + env(safe-area-inset-left,0px)) !important;right:auto !important;
       }
     `;
     const dispose = W.dispose.bind(W);
