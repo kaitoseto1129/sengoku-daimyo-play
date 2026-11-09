@@ -17,14 +17,14 @@ export function install(rt, ctx) {
   rt.obj('main', '尾根道の口で筒井の先手と構え、夜攻めの下知を待て', 'main');
   // ① 火矢
   rt.after(8, () => {
-    if (done) return;
+    if (done || F.ending || rt.over || !rt.player.u.alive) return;
     sfx('arrow', 0.8);
     F.fumotoFire = W.addFire?.(P0.x + 9, P0.z + 6, { size: 1.0, h: 0.4 });
     rt.say('足軽', '火矢じゃ！　城から火矢を射掛けてくる！', 3.5);
   });
   // ② 松永の物見の小組（尾根道の上から）
   rt.after(24, () => {
-    if (done) return;
+    if (done || F.ending || rt.over || !rt.player.u.alive) return;
     const a = ROAD[Math.min(ROAD.length - 1, OPEN_I + 2)] || [P0.x, P0.z - 30];
     S = enemyGroup(rt, { faction: 'matsunaga', name: '松永の物見の組', anchor: { x: a[0], z: a[1] }, facing: Math.PI, width: 5, order: 'hold', aggro: 26, seekRange: 34, morale: 80, fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 1 }], MATSU));
@@ -48,11 +48,11 @@ export function install(rt, ctx) {
     done = true; F.fumotoDone = true;
     rt.unmark('fumotoT');
     rt.say('筒井の侍', '来たか。松明を消せ、声を立てるな。尾根を登るぞ', 3.5);
-    rt.after(3.5, () => next());
+    rt.after(3.5, () => { if (!F.ending && !rt.over && rt.player.u.alive) next(); });
   };
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (done || F.ending || rt.over || !rt.player.u.alive) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const el = rt.t - t0;
