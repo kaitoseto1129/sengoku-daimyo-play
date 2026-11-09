@@ -4314,7 +4314,9 @@ function okChaseTick(rt) {
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
         g.path = downRoad(g, [me.x, me.z - 6]); g.pathIdx = 0;
         g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };
-      } else if (F.step === 3 && g.order === 'attack' && Math.hypot(c.x - CAMP_LINE.x, c.z - CAMP_LINE.z) > 18) {
+      // 本人の背へ着いた直後も、次の追跡更新まではその下知を保つ。
+      // 更新待ちを帰陣命令で上書きすると、追っ手が本人を通り過ぎてしまう。
+      } else if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && g.order === 'attack' && Math.hypot(c.x - CAMP_LINE.x, c.z - CAMP_LINE.z) > 18) {
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2;
         g.path = downRoad(g, [CAMP_LINE.x, CAMP_LINE.z - 10]); g.pathIdx = 0;
         g.onArrive = (q) => { q.order = 'attack'; q.anchor = q.center(); q.formation = 'yari'; q.width = 6; q.aggro = 18; q.seekRange = 28; };

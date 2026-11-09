@@ -10,7 +10,7 @@ const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる
 
 export function install(rt, K) {
   const F = rt.flags, B = F.blk;
-  F.s3 = { st: 0, near: 0 };
+  F.s3 = { st: 0, near: 0, held: 0, kills0: rt.stats.kills, taken0: rt.stats.taken };
   // 信親は西の新納勢へ馬を入れ、本人から離れる
   rt.after(6, () => {
     if (F.step !== 3) return;
@@ -63,7 +63,12 @@ export function pin(rt) {
 export function update(rt, K, el) {
   const F = rt.flags, S = F.s3, P = rt.player.u.pos;
   if (!S) return;
-  if (S.st === 0 && el > 145) toB(rt, K);
+  if (S.st === 0) {
+    // 河原を離れて待つだけでは防戦を果たさない。包みの内で二分持ちこたえ、本人も敵と当たってから救援へ進む。
+    if (Math.hypot(P.x - K.RING.x, P.z - K.RING.z) < 60) S.held = (S.held || 0) + 0.25;
+    const fought = rt.stats.kills > S.kills0 || rt.stats.taken > S.taken0;
+    if (el > 145 && S.held >= 120 && fought) toB(rt, K);
+  }
   if (S.st < 1) return;
   const bEl = rt.t - S.tB;
   const near = F.nobuU?.alive && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14;
