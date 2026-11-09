@@ -566,6 +566,13 @@ const k09_imafuku = {
     const ho = allyGroup(rt, { faction: 'tokugawa', name: '堀尾忠晴の鉄砲衆', anchor: { x: KEEP.x + 40, z: 46 }, facing: Math.PI, width: 8, aggro: 4, seekRange: 70, order: 'hold', fixed: true, noRout: true, morale: 100, formation: 'line' },
       dress([busho('堀尾忠晴', { invuln: true }), uS(2), uG(10)], { flag: 'horio', armor: 0x24221f }));   // 堀尾の分銅の旗（textures の horio）
     mz.mon = 'uesugi'; sk.mon = 'sakakibara'; ho.mon = 'horio';
+    // 中州の鉄砲衆は川を渡らない。fixed は隊の要を据えるだけで、兵の移動と押し合いは止まらず一点へ寄っていた（全戦の通し）。
+    // 櫓の射手と同じ持ち場を各人に渡し、隊の列を保って川越しに撃たせる。
+    for (const g of [mz, sk, ho]) for (const u of g.units) {
+      const q = g.slotPos(u.slot, g.initial), y = rt.world.heightAt(q.x, q.z);
+      u.pos.set(q.x, y, q.z); u.mesh.position.copy(u.pos);
+      u.perch = { x: q.x, y, z: q.z };
+    }
     F.reinf.push(mz, sk, ho);
   },
 

@@ -2011,6 +2011,7 @@ const shigisan = {
   goalSignOnly: true, // 11/4：行き先は頭上の金の▼一つだけ（持ち場のピンの上向きの矢印を重ねない。AV15・BH6）
   singleDestinationArrow: true, // 行き先の印一つに、足元からの道の矢印を重ねない（⑧・AJ）。
   enemyTriangleSigns: true,
+  forceBarAlways: true, // 両軍の人数の棒を、行き先の案内中も表示する。
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   quietMiss: true,
@@ -4098,8 +4099,14 @@ const shigisan = {
 
 };
 
-// 総勢は諸説ある。見える一人の死から全軍の死者を作らない。
-shigisan.force = () => ({ a: 40000, a0: 40000, b: 8000, b0: 8000 });
+// 総勢は諸説ある。実際の討死だけを引き、全軍の被害へ水増ししない。
+shigisan.force = (rt) => {
+  const F = rt.flags;
+  const f = F.force || (F.force = { a: 40000, a0: 40000, b: 8000, b0: 8000, casualtiesCounted: true });
+  f.a = Math.max(0, f.a0 - (F.ak || 0));
+  f.b = Math.max(0, f.b0 - (F.ek || 0));
+  return f;
+};
 // 命懸けの戦場（lethal.js・11/9 織田G）・この戦の怖さ（燃える山城の狭い曲輪で、上から撃たれる）
 shigisan.lethal = true;
 shigisan.fearKind = { kind: '炎上', note: '燃える山城の狭い曲輪で、上から撃たれる', w: { iso: 1.3 }, line: '火が回るぞ！' };

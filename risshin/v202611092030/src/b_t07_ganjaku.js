@@ -62,6 +62,8 @@ const SIEGE_H = siegeHeight(SP);
 // 門の外の口・門の前・門の内（喰違：外から右へ回り込み、横の筋の門を抜けて城の内へ）
 const pt = (a, b) => { const [x, z] = SP.L(a, b); return { x, z }; };
 const MOUTH = pt(5.5, 7), FRONT = pt(5.5, -3), INSIDE = pt(-6, -3), INNER = pt(-6, -14);
+// 距離を測る道と寄せ手の行き先を揃える。毎回配列を作らず使い回す。
+const APPROACH = [...ROAD, [MOUTH.x, MOUTH.z]];
 // 門の周りの居場所：'out' 塀の外・'rec' 門の前の窪み・'lane' 門の横の筋・'in' 塀の内（門から 26m の外は null）
 const gl = (x, z) => { const dx = x - GATE.x, dz = z - GATE.z; return [dx * SP.px + dz * SP.pz, dx * SP.ux + dz * SP.uz]; };
 function gateZone(x, z) {
@@ -604,7 +606,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   centerOf(g) {
     let x = 0, z = 0, n = 0;
-    for (const u of g.units) if (u.alive && !u.fleeing) { x += u.pos.x; z += u.pos.z; n++; }
+    for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) { x += u.pos.x; z += u.pos.z; n++; }
     return n ? { x: x / n, z: z / n } : null;
   },
   fighting(g, at, r) { return g.units.filter((u) => u.alive && !u.fleeing && !u.woundOut && (!at || Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < r)).length; },
@@ -754,7 +756,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   // 大手の坂の筋（麓 → 門の外の口）で、何 m 登ったか・その所
   along(x, z) {
-    const R = [...ROAD, [MOUTH.x, MOUTH.z]];
+    const R = APPROACH;
     let best = Infinity, at = 0, acc = 0;
     for (let k = 1; k < R.length; k++) {
       const [ax, az] = R[k - 1], [bx, bz] = R[k], L = Math.hypot(bx - ax, bz - az);
@@ -766,7 +768,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     return at;
   },
   roadAt(m) {
-    const R = [...ROAD, [MOUTH.x, MOUTH.z + 6]];
+    const R = APPROACH;
     let left = Math.max(0, m);
     for (let k = 1; k < R.length; k++) {
       const [ax, az] = R[k - 1], [bx, bz] = R[k], L = Math.hypot(bx - ax, bz - az);
