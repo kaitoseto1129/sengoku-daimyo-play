@@ -355,19 +355,25 @@ function openDoor(rt) {
   sfx('taiko', 0.9);
 }
 
-// 打って出るために扉の当たりを外しても、寄せ手の本人は城内へ入れない。
+// 打って出るために扉の当たりを外しても、本人と寄せ手の兵は城内へ入れない。
 // 門の口だけを押し戻し、城兵の出入りや開城後の通行は妨げない。
 function holdOutsideGate(rt) {
-  const F = rt.flags, u = rt.player.u;
+  const F = rt.flags;
   // 開城の段に入っても、明け渡しで実際に門が開くまでは城内へ入れない。
-  if (F.step < 7 || F.step > 10 || (F.step === 10 && F.kai?.open) || !u.alive) return;
+  if (F.step < 7 || F.step > 10 || (F.step === 10 && F.kai?.open)) return;
+  keepOutsideGate(rt, rt.player.u);
+  for (const u of rt.army.units) if (u !== rt.player.u && u.team === rt.player.u.team) keepOutsideGate(rt, u);
+}
+function keepOutsideGate(rt, u) {
+  if (!u.alive || u.gone) return;
   const dx = u.pos.x - (GATE.x - 1.1), dz = u.pos.z - (GATE.z - 1.1);
   const forward = (dx + dz) * Math.SQRT1_2, side = (dx - dz) * Math.SQRT1_2;
   if (Math.abs(side) > 3.3 || forward >= 1 || forward < -9) return;
   const push = (1 - forward) * Math.SQRT1_2;
   u.pos.x += push; u.pos.z += push;
   u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
-  if (rt.player.vel) rt.player.vel.x = rt.player.vel.z = 0;
+  if (u.vel) u.vel.x = u.vel.z = 0;
+  if (u === rt.player.u && rt.player.vel) rt.player.vel.x = rt.player.vel.z = 0;
   if (u.mesh) u.mesh.position.copy(u.pos);
 }
 

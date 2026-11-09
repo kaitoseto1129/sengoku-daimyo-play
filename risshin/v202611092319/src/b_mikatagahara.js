@@ -2663,7 +2663,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       }
       if (!F.dpOn) rt.objProgress('main', F.mkFlank ? (F.mkFlankArrived ? '味方と赤備えの横腹へ当たれ' : '森の陰へ進め。味方から離れるな') : '右へ槍を向け、味方と列を保て');
       const yama = F.yamaU;
-      if (yama && !F.yamaOut && (!yama.alive || yama.hp < yama.maxHp * 0.5)) {
+      if (yama?.alive && !F.yamaOut && yama.woundOut) {
+        // 共通の手負い処理で実際に退き始めた時だけ知らせる。命が半分ではまだ戦っている。
         // 手負いの将だけ下がる。赤備え全体を士気零で敗走させない。
         F.yamaOut = true; yama.invuln = true;
         rt.say('足軽', '山県が手負いで下がったがや！　赤備えはまだ寄せてくるで！', 3);
@@ -2845,13 +2846,13 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     depthBot(b, inp, goTo);
     const C = F.dp.cur;
     // 槍の届く距離で持ち場の外に止まると、守った時間が増えず平手の囲みで止まる。
-    // 手当ての退避は保ち、それ以外は判定の内側へ二歩入ってから迎え撃つ。
+    // 手当ての退避は保ち、それ以外は輪の三歩手前で戻す。外へ出てから戻すと追い合いを繰り返し、守りの秒が貯まらない。
     if (!F.dpBack && C?.s.kind === 'hold' && C.at &&
-        Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= C.botRadius) {
+        Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= Math.max(1, C.botRadius - 3)) {
       inp.axis = null; inp.leftPressed = false; inp.chargeHold = false;
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
       if (p.lock) inp.e.add('KeyQ');
-      goTo(p, inp, C.at.x, C.at.z, Math.max(1, C.botRadius - 2));
+      goTo(p, inp, C.at.x, C.at.z, Math.max(1, C.botRadius - 5));
     }
     return;
   }
