@@ -574,7 +574,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.player.u.invuln = true;
     for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = { x: EXIT_N.x, z: EXIT_N.z }; g.speed = 4.2; g.aggro = 0; }
     sfx('horagai', 0.8);
-    rt.award((t) => { t.main = true; t.special = { label: '樫井で塙の先手を破った', pts: 20 }; }, '樫井で塙の先手を破った');
+    // 団右衛門を討った手柄を、締めの小さい手柄で上書きしない。
+    rt.award((t) => { t.main = true; if ((t.special?.pts || 0) < 20) t.special = { label: '樫井で塙の先手を破った', pts: 20 }; }, '樫井で塙の先手を破った');
     rt.banner('樫井の戦い、浅野の勝ち');
     const A = this.talk.after;
     rt.after(1.2, () => rt.say('使番', '申し上げます。治房の本隊は塙の死を聞き、貝塚から大坂へ引き上げた由', 3.4));
@@ -680,7 +681,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (v.name === '淡輪重政') {
       // 誰の手か分かるように（史実では浅野の永田治兵衛が首を取った）
       rt.banner('淡輪重政、討ち取ったり', k?.isPlayer ? nm(rt) + 'の槍' : '永田治兵衛が首を取る');
-      if (k?.isPlayer) rt.award((t) => { t.special = { label: '淡輪重政を討ち取った', pts: 18 }; }, '淡輪重政を討ち取った');
+      if (k?.isPlayer) rt.award((t) => { if ((t.special?.pts || 0) < 18) t.special = { label: '淡輪重政を討ち取った', pts: 18 }; }, '淡輪重政を討ち取った');
     }
   },
   onRout(rt, g) {
