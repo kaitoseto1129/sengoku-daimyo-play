@@ -2614,13 +2614,6 @@ const iga = {
       const clear = igaCastleCleared(rt);
       rt.objProgress('main', clear ? '城は静まった。物見の報せを待て' : '物見が城兵の退きを確かめている。陣を守れ');
       if (clear) this.inside(rt);
-      else if (rt.t - F.stepT > 100) {
-        // 百秒待っても曲輪に残る者（坂で詰まった数人）は、夜のうちに北の口から落ちた事にする（11/8 bot：退きの段で七分止まり時間切れ）
-        for (const u of [...rt.army.units]) if (u.team === 1 && igaReady(u) && !u.isStruct && !u.group?.civ &&
-          F.castleChecks.some((at) => Math.abs(u.pos.y - at.y) < 3 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < at.r)) { u.fleeing = false; rt.army.despawn(u); }
-        for (const u of F.wallBow.units) if (u.alive && !u.gone) { u.fleeing = false; rt.army.despawn(u); }
-        this.inside(rt);
-      }
       // 城兵が曲輪に残る間は夜を保つ。秒数だけで空城にせず、北の口への退去を待つ。
     }
     if (F.step === 2) {
@@ -2914,10 +2907,10 @@ function igaWallStones(rt, dt) {
     st.mesh.position.lerpVectors(st.a, st.b, k);
     st.mesh.position.y += Math.sin(k * Math.PI) * 3.2;
     st.mesh.rotation.x += dt * 9; st.mesh.rotation.z += dt * 6;
-    // 竹束や柵に触れた石はそこで止める。着地点の距離だけで陰の兵まで傷つけない。
+    // 竹束・柵・途中の地面に触れた石はそこで止め、陰の兵まで傷つけない。
     const hit = projectileCover(A, prevX, prevY, prevZ,
       st.mesh.position.x, st.mesh.position.y, st.mesh.position.z, null);
-    if (hit.object && hit.q <= 1) {
+    if (hit.q <= 1) {
       st.t = -1; st.mesh.visible = false;
       sfx('wood', 0.25);
       continue;

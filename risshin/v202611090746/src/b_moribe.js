@@ -4812,7 +4812,17 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       if (F.pursuit) {
         const n = Math.max(0, (F.ek || 0) - F.pursuit.k0), el = rt.t - F.pursuit.t;
         // 目標④が残る間は旗本も踏みとどまる。相手を逃がして未達のまま閉じ込めない。
-        const rearHolding = el < 40 || !F.ownHatamoto;
+        // 寄せる時間を踏みとどまった時間に含めない。組と槍を合わせてから四十秒を数える。
+        if (F.pursuit.contactAt === undefined) {
+          for (const g of F.shingari) {
+            if (g.units.some((u) => moribeRemainFoe(u) && u.target?.alive && u.target.team === 0 &&
+                Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6)) {
+              F.pursuit.contactAt = rt.t;
+              break;
+            }
+          }
+        }
+        const rearHolding = F.pursuit.contactAt === undefined || rt.t - Math.max(F.pursuit.contactAt, F.pursuit.t) < 40 || !F.ownHatamoto;
         // 殿：主を討たれた旗本は死に物狂いで踏みとどまる（四十秒。主の死に怯えて背を向けない）
         // 11/6 fixc（kaito 九-2「目標に書いた敵は必ず来る」）：殿は本人の組の前まで寄せて槍を合わせる。棒立ちで待たせない。
         const pp = rt.player.u.pos;
@@ -4837,7 +4847,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) { shN++; if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25) shNear++; }
         const shLeft = shN > 2 || shNear > 0;
         // 本人の手柄がまだなら、遠くに散った少人数も退かせず組へ寄せる。
-        if (F.ownHatamoto && !shLeft && shN && el >= 15) for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; }
+        if (F.ownHatamoto && !rearHolding && !shLeft && shN && el >= 15) for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; }
         // 11/6 fixc1824：描いて遊ぶと、殿が組へ寄せて来る途中（二十八メートル先）で「討ち破った」勝ちになった。
         //   殿が討たれるか背を向けて退くまで勝ちにしない（目標⑤「殿を討ち破る」を本当に果たす）。
         // 退く下知や経過時間だけでは済みにしない。殿の討死・実際の敗走を確かめる。
