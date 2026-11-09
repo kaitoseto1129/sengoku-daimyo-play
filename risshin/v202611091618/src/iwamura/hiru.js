@@ -36,9 +36,24 @@ function sally(rt, H, n) {
   n === 1 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 9, o: { flag: 'takeda' } }]
     : n === 2 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }, { type: 'gun', n: 2, o: { flag: 'takeda' } }]
     // 三の手は城の侍大将・大島杢之助が率いる（後に開城の礼に出て磔にされる三将の一人。ここでは討たれずに退く）
-      : [{ type: 'busho', n: 1, o: { name: '大島杢之助', flag: 'takeda', invuln: true } }, { type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }]);
+      : [{ type: 'busho', n: 1, o: { name: '大島杢之助', flag: 'takeda' } }, { type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }]);
   g.order = 'path'; g.pathIdx = 0; g.dest = null; g.path = [[MOUTH.x + (n === 1 ? -3 : 4), MOUTH.z - 4]];
   g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; q.aggro = 40; };
+  // 11/9 二巡（織田H）：杢之助を invuln にすると、斬りかかっても傷がつかず「不死身」に見えた。
+  //   傷は付くが、深手（命の四割）になると討たれる前に城へ退く（開城の礼に出る三将の一人なので、ここでは死なせない）。
+  if (n === 3) {
+    const lead = g.units.find((u) => u.name === '大島杢之助');
+    const watch = () => {
+      if (!lead || !lead.alive || rt.over || rt.flags.ending) return;
+      if (lead.hp <= lead.maxHp * 0.4) {
+        lead.invuln = true; lead.noTarget = true; lead.fleeing = true; lead.target = null; lead.atk = null; lead.aiT = 0;
+        rt.say('物見', '杢之助が深手を負うて、城へ退くぞ！', 3);
+        return;
+      }
+      rt.after(0.3, watch, true);
+    };
+    rt.after(0.3, watch, true);
+  }
   return g;
 }
 const standing = (g) => g.units.filter((u) => u.alive && !u.fleeing).length;

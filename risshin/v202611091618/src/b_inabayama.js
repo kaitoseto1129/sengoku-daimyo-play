@@ -2188,13 +2188,23 @@ function gradeInabayamaRoads(terrain) {
     let clearing = false;
     for (const q of CLEAR_BOUNDS) if (x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1 && inPoly(q.poly, x, z)) { clearing = true; break; }
     let best = 8.5 * 8.5, road = h, flat = 2.8;
+    let nanaWeight = 0, nanaHeight = 0;
     if (!clearing) for (const q of segments) {
+      // 大手道と裏道の交点では、裏道の高さへ切り替えない。
+      if (onNana && !q.graded) continue;
       // 道から遠い区間は距離の計算を省く。範囲は初回だけ作り、高さと門の段差は変えない。
       if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue;
       const t = Math.max(0, Math.min(1, ((x - q.ax) * q.dx + (z - q.az) * q.dz) / q.l2));
       const dx = x - q.ax - q.dx * t, dz = z - q.az - q.dz * t, d2 = dx * dx + dz * dz;
+      // 折り返しの両側を滑らかにつなぐ。最寄りの区間を選ぶだけでは、
+      // 角の二等分線で高さが跳ね、指の操作では段差に突き当たる。
+      if (onNana && q.graded && d2 < 49) {
+        const w = (1 - d2 / 49) ** 4;
+        nanaWeight += w; nanaHeight += (q.ya + (q.yb - q.ya) * t) * w;
+      }
       if (d2 < best) { best = d2; road = q.ya + (q.yb - q.ya) * t; flat = q.graded ? 3.8 : 2.8; }
     }
+    if (nanaWeight > 0) road = nanaHeight / nanaWeight;
     // 七曲りは道の肩を三・八歩まで平らに（押し合いで肩へ寄っても、下の段との間の坂に足を取られない）
     const d = Math.sqrt(best), t = Math.max(0, Math.min(1, (8.5 - d) / (8.5 - flat)));
     const ground = h + (road - h) * t * t * (3 - 2 * t);
@@ -4352,7 +4362,8 @@ const inabayama = {
       group: (rt, K) => enemyGroup(rt, { fixed: true, faction: 'saito', name: '馬出しの兵', anchor: { ...K.at.uma }, facing: 0, order: 'hold', width: 4, aggro: 4, morale: 80, fleeDir: { x: 0, z: -1 }, formation: 'yari', historicalOrders: true },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }]),
       // 付け入りの登りの間は、木戸の前の斬り合いが始まるまで出ない（下の折れを登る自分一人へ上から突き下ろし、列より先に倒れた・11/4）
-      when: (rt) => { const u = rt.player.u; return rt.t > 12 && u.alive && (!INABA_TSUKE.on || rt.flags.tsukeGate) && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 60; } }],
+      // 町・鹿垣の段で先に出た兵も登り道へ残るため、出撃そのものを木戸への到着後に限る。
+      when: (rt) => { const u = rt.player.u, F = rt.flags; return rt.t > 12 && u.alive && F.step >= 3 && (!F.tsuke || F.tsukeGate) && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 60; } }],
   },
   // 斎藤勢が瑞龍寺山の信長の本陣を突いた記録はない。町の焼き討ちの最中に本陣の守りへ呼び戻さない。
   noTaishoRaid: true,
