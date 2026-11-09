@@ -478,14 +478,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["天童頼澄", "momonari", "horn", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0x1c1a1a, "none", ""],
   ["龍造寺政家", "eboshi", "horn", 0x1c1a1a, 0x66513b, "okegawa", 0xae7a4c, 0x1c1a1a, "none", ""],
   ["最上義俊", "zunari", "moon", 0x1c1a1a, 0xb0a890, "sugake", 0, 0x1c1a1a, "none", ""],
-  // 前田利常：前田家の鯰尾形の長い兜（利長の銀鯰尾の系統）を烏帽子形で、黒漆の素懸に紅糸、紺の陣羽織に梅鉢（復元案。docs/kacchu_k15_tokugawa.md）
-  ["前田利常", "eboshi", "none", 0x1c1a1a, 0x9a2e20, "sugake", 0x2e3a52, 0x1c1a1a, "maeda", ""],
+  // 前田育徳会蔵の本人所用・黒漆塗本小札紫糸桜紋柄威二枚胴具足による復元案。当日着用は未確認（docs/generals_look_1108/前田利常.md）。
+  ["前田利常", "suji", "kuwa_ken", 0x1c1a1a, 0x5a3a6a, "kebiki", 0, 0x1c1a1a, "maeda", "前田育徳会・黒漆塗本小札紫糸桜紋柄威二枚胴具足"],
   ["山内忠義", "eboshi", "kuwa_wide", 0x1c1a1a, 0x66513b, "okegawa", 0xae7a4c, 0, "none", ""],
   ["池田忠雄", "namban", "cross", 0x1c1a1a, 0x66513b, "okegawa", 0xb17c4d, 0x1c1a1a, "none", ""],
   // 井伊直孝：井伊の赤備え。朱漆の頭形兜に金の天衝、朱漆の桶側胴に紺糸威（直政の仏胴・赤糸とは分ける。彦根城博物館の井伊家伝来の朱具足の型。復元案）
   ["井伊直孝", "zunari", "ii_tentsuki", 0xa52b1c, 0x2e3a52, "okegawa", 0, 0xa52b1c, "ii", ""],
-  // 松平忠直：越前勢の大将。黒漆の六十二間筋兜に日輪付きの鍬形、白糸の毛引威、葵（父結城秀康の烏帽子形とは分ける。復元案）
-  ["松平忠直", "suji", "kuwa_sun", 0x1c1a1a, 0xd8d0bc, "kebiki", 0, 0x1c1a1a, "tokugawa", ""],
+  // 松平忠直：伝大坂陣所用の緋威鉄五枚胴具足。鹿角と五枚胴は既存形で略復元（細部は必須表、出所は docs/generals_look_1108/松平忠直.md）。
+  ["松平忠直", "suji", "honda_shika", 0x1c1a1a, 0x9a2e20, "sugake", 0, 0x1c1a1a, "none", ""],
   // 小笠原秀政：信濃守護の家（三階菱）。頭形兜に大鍬形、萌黄糸の桶側胴、鼠の陣羽織。葵は付けない（復元案）
   ["小笠原秀政", "zunari", "kuwa_wide", 0x24221f, 0x6a7a2c, "okegawa", 0x5a5a5a, 0x24221f, "none", ""],
   ["後藤又兵衛", "zunari", "moon", 0x2a2624, 0xa88a3a, "okegawa", 0x2a2a2a, 0x2a2624, "toyotomi", ""],
@@ -832,6 +832,10 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 利常所用の六十二間筋兜と本小札二枚胴。三鍬形は既存の剣付鍬形で略し、紋柄威・面頬の細部は復元案。
+// 名前による配色の散らしより後で指定し、真田丸の利光も同じ姿を参照する。出所：docs/generals_look_1108/前田利常.md。
+Object.assign(KACCHU["前田利常"], { sujiPlates: 62, doOpening: "nimai", honkozane: true,
+  sodeStyle: "osode", shikoroStyle: "kebiki", flag: "maeda", uma: null });
 // 大阪城天守閣の伝又兵衛所用・日月竜文蒔絵仏胴具足。出所と補完範囲は docs/generals_look_1108/後藤又兵衛.md。
 // 配色の散らし・必須表より後で戻す。獅噛と毛植は既存の共有形を使う（脇立は付けない）。
 Object.assign(KACCHU["後藤又兵衛"], { bowl: "zunari", crest: "niwa_shikami",

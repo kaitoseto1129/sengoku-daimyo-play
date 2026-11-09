@@ -640,7 +640,6 @@ const k06_sekigahara = {
     F.uma?.update(dt);
     this.fog(rt);
     jindate.tick(rt);
-    yoin.tick(rt, dt);
     if (F.ending || !F.step) return;
     const P = rt.player.u.pos;
     if (F.step <= 4 && broken(F.ii) && broken(F.fuku)) { this.lose(rt, '井伊と福島の隊が崩れた'); return; }

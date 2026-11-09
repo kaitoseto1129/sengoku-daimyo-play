@@ -451,7 +451,7 @@ const k11_sanadamaru = {
     F.rams = [F.ram];
     // 井伊（八丁目口の前）と越前松平（谷町口の前）：前田の西に初めから陣を構え、城内の爆発まで動かない（湧かせない。布陣図どおり）
     F.surge = [];
-    for (const [ax, az, lk, nmx, gen, hat] of [[-70, 40, II, '井伊直孝の赤備え', '井伊直孝', 'kabuto_tentsuki'], [-150, 22, ECHI, '松平忠直の越前勢', '松平忠直', 'kabuto_w']]) {
+    for (const [ax, az, lk, nmx, gen, hat] of [[-70, 40, II, '井伊直孝の赤備え', '井伊直孝', 'kabuto_tentsuki'], [-150, 22, ECHI, '松平忠直の越前勢', '松平忠直', 'kabuto_shika']]) {
       const g = allyGroup(rt, { faction: 'tokugawa', name: nmx, anchor: { x: ax, z: az }, fixed: true, facing: Math.PI, width: 16, aggro: 0, speed: 4.2, morale: 90, fleeDir: { x: -0.2, z: 1 }, formation: 'yari' },
         dress([{ type: 'busho', n: 1, o: { name: gen, invuln: true, horse: true, hat } }, uS(4), uA(16), uG(3)], lk));
       rt.scene.add(nobori(W, ax, az + 8, lk.flag, 4.5));

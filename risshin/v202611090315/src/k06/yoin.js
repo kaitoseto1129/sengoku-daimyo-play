@@ -1,14 +1,12 @@
 // ======================================================================
 // 関ヶ原の余韻（kaito 11/8：docs/toku15_plan_1108.md の 6「最後に家康本陣・首実検へ。その前に逃げる兵・倒れた旗・晴れた霧の戦場を10〜20秒」）
 //   勝った直後に札へ行かない。霧の晴れた野に西軍の幟が倒れ、逃げる兵（軽い大軍の総崩れ・jindate.js）を見せ、
-//   目をゆっくり天満山の方の野へ向け、勝鬨と首実検の支度の言葉の後に「関ヶ原　東軍勝利」で締める。
-// 入れ方：win で start(rt, P) を一度。update で tick(rt, dt) を毎コマ（F.ending の間も）。終わりに rt.finish を呼ぶ。
+//   本人が向けた視点で野を見渡し、勝鬨と首実検の支度の言葉の後に「関ヶ原　東軍勝利」で締める。
+// 入れ方：win で start(rt, P) を一度。終わりに rt.finish を呼ぶ。
 // ======================================================================
 import { nobori } from '../props.js';
 import { sfx } from '../audio.js';
 import { nm } from '../bhelp.js';
-
-const FIELD = { x: -300, z: 30 };   // 目を向ける野（藤下・天満山の麓）
 
 export function start(rt, P) {
   const F = rt.flags, W = rt.world;
@@ -35,11 +33,3 @@ export function start(rt, P) {
   rt.after(20.5, () => { try { P.done?.(); } catch (e) { /* 手柄が付かなくても締める */ } rt.finish({ scriptedEnd: true }, 4); });
 }
 
-// 締めの間だけ、目を野へゆっくり向ける（遊びの間はカメラを回さない）
-export function tick(rt, dt) {
-  const F = rt.flags, Pl = rt.player;
-  if (!F.yoin || rt.over || !Pl) return;
-  const u = Pl.u, want = Math.atan2(FIELD.x - u.pos.x, FIELD.z - u.pos.z);
-  let d = want - (Pl.yaw || 0); d = Math.atan2(Math.sin(d), Math.cos(d));
-  Pl.yaw = (Pl.yaw || 0) + d * Math.min(1, dt * 0.6);
-}

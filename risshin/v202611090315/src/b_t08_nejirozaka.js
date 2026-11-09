@@ -70,13 +70,13 @@ const from = (x) => ({ x, z: 78 });
 
 function steps(rt) {
   const F = rt.flags;
-  const H = { move, hold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive };
+  const H = { move, hold: defendHold, rest, uS, uA, uG, from, POST, BREACH, STEP_TEXT, todoArrive, reliefArrive };
   return [
     // 0〜3. 夕暮れの砦を見て回る：右の堀 → 受け持ちの土橋の塀（t08_nejirozaka/jinchi.js）
     ...jinchi.tour(rt, H),
     // 2. 島津勢が堀を越えてくる。南の塀と東の塀の上で押し返す（砦は三方から攻められる）
     //   段の見出し（説明の札）は出さない（kaito 五1）。何が起きたかは台詞と右上の目標で分かる
-    saruStep(hold({ at: POST, dur: 100, limit: 135, r: 12, label: '土橋の塀', obj: STEP_TEXT[0],
+    saruStep(defendHold({ at: POST, dur: 100, limit: 135, r: 12, label: '土橋の塀', obj: STEP_TEXT[0],
       say: [['宮部継潤', '来たぞ！　塀に取り付く者を突き落とせ！']],
       waves: [
         // 猿渡信光は史実で根白坂に討死した。手は崩れても退かず、塀の前で討たれるまで戦う（update が守る）
@@ -89,7 +89,7 @@ function steps(rt) {
       fn: (r) => { try { r.world.setTime('night'); if (r.world.fade) r.world.fade.dur = 40; } catch (e) { /* 空の切り替えが無い時はそのまま */ } } }),
     // 3. 破られた塀に駆け、穴を塞ぐ
     //   破れ口の場所で守る形（坂の下まで敵を追って歩かせない。11/3 測り：fight の形だと bot が坂の下 z=67 まで追って討たれた）
-    hold({ at: { x: BREACH.x, z: BREACH.z - 3 }, dur: 90, limit: 125, r: 12, label: '破れ口', obj: STEP_TEXT[1],
+    defendHold({ at: { x: BREACH.x, z: BREACH.z - 3 }, dur: 90, limit: 125, r: 12, label: '破れ口', obj: STEP_TEXT[1],
       say: [['足軽', '土橋の塀が倒れた！　島津が入ってくる！']],
       waves: [
         { t: 0, foes: () => { breakWall(rt); return [{ name: '破れ口の島津勢', from: { x: 0, z: 40 }, list: [uS(3), uA(12)], noRout: 15 }]; } },
@@ -111,6 +111,19 @@ function steps(rt) {
 // 右上の目標の字（段の札・右上の一覧・負けの札を一つの表から出し、途中で言い替えない。kaito 十1）
 const STEP_TEXT = ['土橋の塀で、堀を越える島津勢を突き落とす', '倒れた土橋の塀へ走り、破れ口の島津勢を討つ',
   '土橋の前の坂で、島津忠隣を自分の手で討ち取る', '右の堀で、東から回る島津家久の手を食い止める', '土橋へ戻り、援けが来るまで島津の本手を食い止める'];
+
+// 守備は持ち場で守った刻で果たす。敵の全滅を待って止まったり、
+// 持ち場から離れたまま時間切れだけで済んだりしない。残兵は end の下知で退く。
+function defendHold(o) {
+  const s = hold(o), tick = s.tick, dur = o.dur || 90;
+  s.limit = Infinity;
+  s.idleAdvance = false;
+  s.tick = (rt, C, m, ctx, el, dt) => {
+    tick(rt, C, m, ctx, el, dt);
+    return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
+  };
+  return s;
+}
 
 // 段の終わりの退却指示より先に、猿渡の討死を確定する。
 function saruStep(s) {
@@ -507,12 +520,6 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       rt.say('宮部の侍', '忠隣の手が崩れた！　残るは忠隣ただ一人！', 3);
     }
     // 忠隣は刻限で味方に討たせない。主人公の止めまで斬り込みを続け、目標を未達のまま先へ進めない。
-    // 15分の構成：退かせても塀の外や崖の肩に詰まって残る組は、守る刻を十秒過ぎたら本人から離れた者を消す（段が終わらず止まった。11/8 bot）
-    if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max + 10) {
-      const P = rt.player.u.pos;
-      const far = rt.t - C.t0 > C.s.max + 25 ? 0 : 18;   // さらに十五秒たてば近くの者も（塀の上で斬り合わずに立つ本人の時、段の時切れが効かなかった）
-      for (const g of C.groups) for (const u of g.units) if (u.alive && !u.gone && u.name !== '猿渡信光' && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) > far) rt.army.despawn(u);
-    }
     // 負け方：砦の中に島津が多く入り込んだまま
     F.scan = (F.scan || 0) - dt;
     if (F.scan <= 0) {

@@ -155,7 +155,9 @@ function checkedStep(step) {
     const p = rt.player.u.pos;
     const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 32;
     if (near && C.arrivedAt == null) C.arrivedAt = rt.t;
-    const done = tick(rt, C, m, ctx, el, dt);
+    // 誉田へ本人が着く前に寄せと鉄砲戦を終えない。到着前の移動時間は守備の刻に入れない。
+    if (holdTime && C.arrivedAt == null) { C.approachTime = el; return false; }
+    const done = tick(rt, C, m, ctx, el - (C.approachTime || 0), dt);
     // 共通の激突は残り三人で敗走を許すが、兼相が逃げると討死待ちの段が終わらない。
     // 討つべき将が生きている組は、最後の一人まで持ち場で戦う。
     for (const g of C.groups) if (g.units.some((u) => u.alive &&
