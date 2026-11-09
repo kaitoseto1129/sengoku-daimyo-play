@@ -12,6 +12,11 @@ import { rosterPlan, rosterBuild } from './jinkei_roster.js';
 // 向き：北（-z）の山の上に城。南（+z）の麓に織田の陣
 // ======================================================================
 import { yamaLift } from './yamalift.js';
+import { install as installFumoto } from './shigisan/fumoto.js';   // 0〜2分半：城の麓・火矢と松永の物見
+import { install as installOtoshi } from './shigisan/otoshi.js';   // 3〜5分：尾根道の石落とし
+import { install as installKaeshi } from './shigisan/kaeshi.js';   // 6〜9分：城内の火・松永の逆寄せ・筒井の後続
+import { install as installKousan } from './shigisan/kousan.js';
+import { install as installEnjou } from './shigisan/enjou.js';   // 11〜13分：本丸に火が回る   // 9〜12分：降伏の勧めと久秀の拒み・本丸の打って出
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { addInterior, facePanels, nakaGuide } from './naka.js';
@@ -3028,7 +3033,10 @@ const shigisan = {
   climb(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
+    // 城の麓の段（shigisan/fumoto.js）が済むまで待つ
+    if (!rt.G.lord && !F.fumotoDone) { if (!F.paceFumoto) F.paceFumoto = installFumoto(rt, { dress, MATSU, ROAD, OPEN_I, next: () => this.climb(rt) }); return; }
     F.step = 1; F.assaultT = rt.t; F.stepT = rt.t;
+    if (!rt.G.lord) F.paceOtoshi = installOtoshi(rt, { dress, MATSU, ROAD, CLIMB_END });   // 尾根道の石落とし（tower はこの段が済むまで待つ）
     rt.setPhase('climb'); rt.objProgress('main', '');
     rt.unmark('tsu');
     siegeSignal(rt, 'susume');
@@ -3050,6 +3058,7 @@ const shigisan = {
   tower(rt) {
     const F = rt.flags;
     if (F.step >= 2 || F.ending || rt.over || !rt.player.u.alive) return;
+    if (!rt.G.lord && F.paceOtoshi && !F.otoshiDone) return;   // 尾根道の石落とし（shigisan/otoshi.js）が済むまで待つ
     F.step = 2; F.stepT = rt.t;
     F.climbReturning = false; F.approachByRoad = false;
     rt.setPhase('tower'); rt.objProgress('main', '');
@@ -3257,6 +3266,7 @@ const shigisan = {
     });
     this.castleGuide(rt, ROAD.slice(ROAD.findIndex((p) => p[1] === GATE.z), ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z) + 1), 'rg1', '敵のいる下の曲輪');
     F.lowerBest = Infinity; F.lowerStallAt = rt.t;
+    if (!rt.G.lord) F.paceKaeshi = installKaeshi(rt, { dress, MATSU, TSUTSUI, RIDGE1, RIDGE2, GATE, next: () => { if (F.honmaruWanted) this.honmaru(rt); } });   // 城内の火・逆寄せ・筒井の後続
 
   },
   onZoneFall(rt, id) {
@@ -3278,7 +3288,9 @@ const shigisan = {
   honmaru(rt) {
     const F = rt.flags;
     if (F.step >= 4) return;
+    if (!rt.G.lord && F.paceKaeshi && !F.kaeshiDone) { F.honmaruWanted = true; return; }   // 逆寄せの段（shigisan/kaeshi.js）が済むまで待つ
     F.step = 4; F.stepT = rt.t;
+    if (!rt.G.lord) F.paceKousan = installKousan(rt, { dress, MATSU, TOP, onDone: () => { F.paceEnjou = installEnjou(rt, { dress, MATSU, TOP, betrayal: () => this.betrayal(rt) }); } });   // 降伏の勧めと久秀の拒み → 本丸に火が回る
     rt.setPhase('honmaru'); rt.objProgress('main', '');
     rt.unmark('gate'); rt.unmark('sally');
     siegeSignal(rt, 'susume');
@@ -3399,6 +3411,8 @@ const shigisan = {
   win(rt, otherFront = false) {
     const F = rt.flags;
     if (F.ending || F.endPending) return;
+    // 降伏の勧めと本丸の打って出（shigisan/kousan.js）が済むまで落城にしない（まだ本丸の段に入っていなければ入れる）
+    if (!rt.G.lord && (F.paceKaeshi || F.paceKousan) && !(F.kousanDone && F.enjouDone)) { if (F.kaeshiDone && F.step < 4) this.honmaru(rt); return; }
     if (!honmaruPostReached(rt) || otherFront && !F.reachedShu) return;
     // 諸口の決着が先でも、内通の段を父子の最期の知らせより前に見せる。
     if (!F.betrayed || rt.t - F.betrayalAt < 8) {
@@ -3480,6 +3494,7 @@ const shigisan = {
   },
 
   update(rt, dt) {
+    { const F = rt.flags; F.paceFumoto?.update(dt); F.paceOtoshi?.update(dt); F.paceKaeshi?.update(dt); F.paceKousan?.update(dt); F.paceEnjou?.update(dt); }   // 15分の段（prototype/src/shigisan/*.js）
     // 門を打つ間は打ち手を守る段。本人狙いは門が破れてからの群れの寄せで使う。
     if (rt.flags.step >= 3.5) huntPlayer(rt, dt);
     allyPace(rt);

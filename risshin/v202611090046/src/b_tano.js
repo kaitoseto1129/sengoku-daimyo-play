@@ -1141,20 +1141,25 @@ const tano = {
   // 11/4 jin（AW3・BK4・BH6）：行き先は段ごとの固定の所に真上の▼一つ。敵や曲がり角へ動かさない。
   missionPin(rt) {
     const F = rt.flags, C = F.dp?.cur, p = rt.player.u.pos;
-    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    if (F.ending || rt.over || rt.hud?.introWaiting || !rt.player.u.alive) return null;
     const q = F.tanoPin || (F.tanoPin = { x: 0, z: 0 });
     // 鉄砲が鳴るまでは射手の後ろの既存の待ち場へ。寄せ口を指して射線をふさがせない。
-    const destination = C?.waiting ? C.waitAt : C?.at || FIRST_JOIN;
+    const waiting = !!C?.waiting;
+    const destination = waiting ? C.waitAt : C?.at || FIRST_JOIN;
     // 柵の口・屋敷の脇を通る時だけ、その決まった通り口に▼を置く（通り口も固定の所。敵には付けない）。
-    const route = valleyWay(rt.army, rt.player.u, destination);
+    // 谷道の隊列用の中継点を出すと、民家の屋根に短い距離の印が次々に現れる。
+    // 谷では下知の場所を固定で示し、柵と屋敷を避ける時だけ迂回の点を使う。
+    const route = inYard(p.x, p.z) || inYard(destination.x, destination.z)
+      ? valleyWay(rt.army, rt.player.u, destination) : destination;
     const turn = route !== destination && Math.hypot(route.x - p.x, route.z - p.z) > .6;
     const pos = turn ? route : destination;
     q.x = pos.x; q.z = pos.z;
-    q.unit = null; q.enemy = false; q.route = turn; q.waiting = q.defend = false;
+    q.unit = null; q.enemy = false; q.route = turn; q.waiting = waiting && !turn; q.defend = false;
     q.always = true; q.silent = true; q.approach = false;
-    q.r = q.hide = turn ? .5 : C?.waiting ? 4 : C?.s.kind === 'move' ? 8 : 12;
+    q.r = q.hide = turn ? .5 : waiting ? 4 : C?.s.kind === 'move' ? 8 : 12;
     q.arrived = Math.hypot(p.x - pos.x, p.z - pos.z) < q.r;
-    return q;
+    // 合流後の空いた場所へ引き返させない。待機中だけは同じ印を残す。
+    return q.arrived && !waiting && !turn ? null : q;
   },
   jinkei: [TANO_ATTACK, TANO_DEFEND],
   noWake: true, noDistantBattle: true, noTaishoRaid: true, noHorse: true, noCouriers: true, botOrders: true,
