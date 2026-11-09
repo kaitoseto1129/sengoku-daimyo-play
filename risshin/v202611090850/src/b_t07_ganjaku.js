@@ -542,7 +542,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   stepWalk(g, w, t) {
     if (!w || w.done || t - w.t0 < 45) return;
     // 寄せ手も打って出る手も、道を進み切るまで行軍を続ける。時間だけで坂の途中に止めない。
-    if (g && !g.routed && g.order === 'path' && g.path?.length) { w.t0 = t; return; }
+    // 道筋の配列は終点に着いても残る。通過済みなら、後列の到着待ちだけで戦いを止め続けない。
+    if (g && !g.routed && g.order === 'path' && g.path && (g.pathIdx || 0) < g.path.length) { w.t0 = t; return; }
     // 四十五秒で着かなければ、そこで構える（道筋に詰まって止まり続けない）
     w.done = true;
     if (!g || g.routed) return;

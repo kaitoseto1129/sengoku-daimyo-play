@@ -2617,12 +2617,15 @@ const nodafukushima = {
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
   // 井楼へ向かう下馬を、性格の騎乗で取り消さない。梯子を下りるまでは徒歩。
   botMountAllowed: rt => !(rt.flags.step === 1 || rt.flags.step === 1.5 || rt.flags.onSeirou || rt.flags.down),
-  // 板囲いの内と井楼の上では、共通の避け足で梯子の長押しや鉄砲の狙いを取り消さない。
+  // 戸口へ回り込む最後の六歩も、共通の避け足で経由点を上書きしない。
+  // 板囲いの内と井楼の上では、梯子の長押しや鉄砲の狙いを取り消さない。
   botCoverBlocked(rt) {
     const F = rt.flags, u = rt.player.u;
     if (u.climb || F.down || F.onSeirou) return true;
     return !!F.seirou?.some(t => {
       const h = t.hut || HUT;
+      if ((F.step === 1 || F.step === 1.5 && !F.shotsDone) &&
+          Math.hypot(u.pos.x - t.x, u.pos.z - t.z) < 6) return true;
       return u.pos.x > t.x + h.x0 && u.pos.x < t.x + h.x1 &&
         u.pos.z > t.z + h.z0 && u.pos.z < t.z + h.z1;
     });
