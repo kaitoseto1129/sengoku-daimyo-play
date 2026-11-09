@@ -23,24 +23,28 @@ export function install(rt, ctx) {
     if (g) g.fire = true;
     try { sfx('taiko', 0.9); } catch (e) { /* 音が無くても進む */ }
     rt.army.play('eshout', from, 1.5);
-    rt.say(who, line, 3.4);
+    if (speakerAlive(who)) rt.say(who, line, 3.4);
   });
   wave(45, '朝倉の新手', ctx.ASA, 'asakura', { x: 28, z: -56 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 3 }], '朝倉の新手じゃ！　まだ来るぞ、列を崩すな！', '森可成');
   wave(98, '山側の浅井の新手', ctx.AZA, 'azai', { x: -36, z: -20 }, [{ type: 'samurai', n: 2 }, { type: 'cavalry', n: 2 }, { type: 'ashigaru', n: 10 }], '山側からも新手！　浅井の騎馬じゃ！', '青地茂綱');
   wave(175, '朝倉の三の手', ctx.ASA, 'asakura', { x: 18, z: -60 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 3 }], '三の手が来たぞ……敵は尽きぬのか', '足軽');
-  const say = (at, who, line, d = 3.6) => rt.after(at, () => { if (live()) rt.say(who, line, d); });
+  const speakerAlive = (who) => who === '森可成' ? !!F.moriU?.alive :
+    who === '青地茂綱' ? !!F.aochiU?.alive : true;
+  const say = (at, who, line, d = 3.6) => rt.after(at, () => {
+    if (live() && speakerAlive(who)) rt.say(who, line, d);
+  });
   say(70, '森可成', 'よう粘った！　敵は十倍、だが町口は一つ。一度に来られるのは同じ数じゃ', 4);
   say(128, '使番', '湖側の信治様の手、押されておりまする！', 3.2);
   rt.after(NOBU_AT, () => { if (live()) ctx.doomNobu(); });
   // 信治の討死を見届けてから、森隊は町口の後ろへ下がり、可成が退き口を守る
   const mourn = () => {
-    if (!live()) return;
+    if (!live() || !speakerAlive('森可成')) return;
     if (!F.nobuDead) {
       // 本の doom が新手を寄せ、見える敵との接触を確かめる。時刻だけで討死にしない。
       rt.after(3, mourn); return;
     }
     rt.say('森可成', '信治殿……！　森隊、町口の後ろまで下がれ。退き口だけは渡すな！', 4);
-    rt.after(22, () => live() && rt.say('森可成', 'わしはここで退き口を守る。皆を城へ通すまで、一歩も引かぬ', 4.2));
+    say(22, '森可成', 'わしはここで退き口を守る。皆を城へ通すまで、一歩も引かぬ', 4.2);
   };
   rt.after(NOBU_AT + 8, () => mourn());
   say(HOLD - 12, '青地茂綱', '森殿、浅井の本隊が山を下りて来る！', 3.2);
