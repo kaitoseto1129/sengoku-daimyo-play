@@ -33,7 +33,8 @@ export function tick(rt) {
   const p = rt.player.u.pos, g = P.g;
   if (P.s === 0) {
     F.echExitAt = P.pos;   // 金の▼と bot の行き先（本体の echExitAt）
-    if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26 || rt.t - P.at > 70) {
+    // 時間だけでは追撃先へ着いた事にしない。
+    if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26) {
       P.s = 1; P.at1 = rt.t; F.echExitAt = null;
       g.order = 'attack'; g.aggro = 40; g.seekRange = 40;
       rt.say('一揆の門徒', '南無阿弥陀仏……ここで死ねば極楽じゃ！', 3.2);
@@ -41,7 +42,8 @@ export function tick(rt) {
     return;
   }
   const left = g.units.filter((u) => u.alive && !u.fleeing).length;
-  if (left > Math.ceil(P.n0 * 0.35) && rt.t - P.at1 < 70) return;
+  // その場で待つだけで、残る一揆勢を討った事にしない。
+  if (left > Math.ceil(P.n0 * 0.35)) return;
   P.s = 2;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }

@@ -413,7 +413,7 @@ echizen.sides = {
 };
 echizen.date = () => '天正三年（1575）八月十五日　風雨';
 // 11/6 fixc0917_echizen（kaito 十1・五4・十二1）：始まりの札の「勝つには」を右上の五つの終わり（⑤）とそろえ、両軍の規模も札に書く
-echizen.introGoal = '観音丸・木ノ芽峠城・西光寺丸・鉢伏城を味方と押さえ、峠道の西光寺真敬を討ち取る';
+echizen.introGoal = '観音丸・木ノ芽峠城・西光寺丸・鉢伏城を味方と押さえ、峠道の西光寺真敬を討ち取り、残る一揆勢を追って討つ';
 echizen.introSides = { a: '織田勢　三万余', b: '越前一向一揆　二万' };
 // 上の数の棒（kaito 一1・十二1・十二2「380 対 308」「266 から 68 へ一度に減る」「殿の間ずっと 68」）：
 //   両軍の規模（織田 三万余・一揆 二万。army_scale.js と同じ）を出し、描く兵が討たれるたびに減る。観音丸が落ちた後は、
@@ -2291,9 +2291,7 @@ echizen.update = function (rt, dt) {
     rt.flags.echOpeningHit = true;
   if (!rt.flags.step && rt.flags.echOpeningHit &&
       (!openingGuard || openingGuard.aliveNominal() <= 0 || rt.t >= 30)) this.assault(rt);
-  // 11/9：遊び手が木戸前で鉄砲を撃ち続けて一太刀も入れないと、十八分たっても寄せが始まらなかった（遊び手の bot）。
-  //   六十秒で味方の寄せを始める（何も変わらない時間を作らない・docs/oda15_plan_1108.md 共通2）
-  if (!rt.flags.step && rt.t >= 60) { rt.flags.echOpeningHit = true; this.assault(rt); }
+  // 時計だけで本人の一撃を捏造しない。寄せは実際の命中か本人の入城で進める。
   {
     // 観音丸は味方の寄せだけでは落ちない：本人が郭の中で30秒戦うまでは、押さえの時間が数え始まらない。
     // 11/4 jin_echizen（AP8・BA3）：前は開戦から240秒まで待たせ、守兵のいない郭で二分立ち尽くしていた。待ちの時計はやめ、郭の守兵との斬り合いで長さを作る。

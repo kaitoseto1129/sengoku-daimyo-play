@@ -376,7 +376,7 @@ const inou_spec = {
         for (const u of g.units) if (u.alive && !u.gone) alive++;
       }
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
-      const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
+      const al = aliveIn(F.line);
       FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
       FORCE.b = Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, total))));
     }
@@ -732,6 +732,8 @@ const inou_spec = {
   breakLine1(rt) {
     const F = rt.flags;
     if (F.stage !== 1 || !inouDid(rt, 1, 1)) return;
+    // 数の棒を描く時機に頼らず、柴田戦の残数を段の切り替え時に保存する。
+    F.aLeft = this.force(rt).a;
     F.stage = 2; F.stageT = rt.t; F.line1Broken = true; F.forceShowUntil = rt.t + 6;
     this.routLine(rt, F.l1, true);
     // 『信長公記』：信長の大声に、柴田の兵は主の声を恐れて逃げた。勝家も手負うて東の街道へ退く
@@ -751,6 +753,8 @@ const inou_spec = {
         order: 'hold', formation: 'line', dmgMult: 0.5, defMult: 1.15 }, allyKnot(ALLY_N));
       g.slotX = x; F.line.push(g);
     }
+    // 後詰を含む人数を先に固定し、最初の表示までの討死も差し引く。
+    F.al2 = Math.max(1, aliveIn(F.line));
     // 林勢が土手の前から南へ押し出す（走る。kaito AP13「戦では兵は歩かず走る」）
     for (const g of [...F.l2, ...F.bows]) if (live(g)) { g.order = 'move'; g.speed = g.secKind === 'bow' ? 3.4 : 3.6; g.dest = { x: g.dest?.x ?? g.anchor.x, z: g.secKind === 'bow' ? BOW_Z + 30 : L2_HOLD + 40 }; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 11; q.seekRange = 26; }; }
     for (const g of F.bows) g.onArrive = (q) => { q.order = 'hold'; };

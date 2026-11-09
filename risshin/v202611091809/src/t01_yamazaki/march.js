@@ -37,6 +37,8 @@ export function start(rt, ctx) {
 export function tick(rt, dt, ctx) {
   const F = rt.flags, P = rt.player.u.pos;
   if (F.mStep === 3) {
+    // 迎えの後も陣に留まって開戦を待つ。離れた場所や討たれた間は合流を果たした事にしない。
+    if (!rt.player.u.alive || rt.retryOpen || !near(P, JOIN, 18)) return;
     F.mJoinWait = (F.mJoinWait || 0) + dt;
     if (F.mJoinWait >= 14.5) ctx.next();
     return;
