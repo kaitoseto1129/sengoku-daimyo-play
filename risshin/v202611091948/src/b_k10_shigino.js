@@ -463,6 +463,9 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     let k = 0;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || !foes.length) continue;
+      // 移動中の筒を一斉射に数えず、堤の左右へ開いた射列から放つ。
+      const shoulder = g === F.mzN ? -9 : 9;
+      if (Math.abs(u.pos.x - (MIZU.x + 2)) > 12 || Math.abs(u.pos.z - shoulder) > 5) continue;
       const t = foes[k++ % foes.length];
       u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); u.reload = 0;
       if (this.commandShot(rt, u, t)) shots++;

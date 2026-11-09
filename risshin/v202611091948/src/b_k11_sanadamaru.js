@@ -763,6 +763,15 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   // 一斉射撃（塀と櫓の鉄砲が揃えて放つ）：堀と柵の前の寄せ手が倒れる。遊び手も堀の縁にいれば撃たれる
   volley(rt) {
     const F = rt.flags;
+    // 生きた鉄砲衆だけが放つ。塀の組が全滅しても櫓・左右の持ち口は撃てるが、
+    // 撃ち手がいなければ傷を出さない（撃ち手なしでは竹束の当たりも調べられない）。
+    let shooter = null;
+    for (const g of [F.wallG, ...F.perch]) {
+      shooter = g.units.find((u) => u.alive && u.type === 'gun' && !u.fleeing && !u.woundOut);
+      if (shooter) break;
+    }
+    if (!shooter) shooter = F.towerU.find((u) => u.alive && u.type === 'gun' && !u.fleeing && !u.woundOut);
+    if (!shooter) return;
     F.shot++;
     sfx('volley', 0.9);
     for (let i = 0; i < 10; i++) {
@@ -776,7 +785,6 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       rt.army.smoke(q.x, rt.world.heightAt(q.x, q.z) + 1.6, q.z, Math.sin(a), Math.cos(a));
     }
     rt.army.play('gun', polar(0, WALL_R), 1.5);
-    const shooter = F.wallG.units.find((u) => u.alive) || null;
     // 命懸けの戦場（lethal.js）：塀の前の堀と柵の前に、弾の筋の制圧を乗せる（身をすくめる・下がる）
     for (const a2 of [-0.5, 0, 0.5]) { const q = polar(a2, FENCE_R - 2); try { lethalNearMiss(rt.army, q.x, q.z, 1, 'volley', 9); } catch (e) { /* 無くても一斉射は撃つ */ } }
     let fell = 0;

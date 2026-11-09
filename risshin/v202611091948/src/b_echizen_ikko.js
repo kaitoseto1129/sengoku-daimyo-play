@@ -3728,9 +3728,10 @@ const echizen_ikko = {
       // 城攻めの段（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：惣門 → 外堂 → 山門と本堂 → 奥の院。
       //   今の段の守りだけが打って出て、奥は持ち場で構えて待つ。段が長引けば使番が知らせる（11章）
       F.stages = siegeStages(rt, [
-        { get groups() { return [F.ikkoGateCrowd, ...F.watchPosts.map((b) => b.real)].filter(Boolean); }, at: { x: GATE_SOMON.x, z: GATE_SOMON.z + 8 }, done: () => F.step >= 2, report: '惣門、まだ破れず！', reportAfter: 80 },
-        { get groups() { return [F.ikkoGezanSpear?.real, F.ikkoGezanBow?.real].filter(Boolean); }, at: gezanC, done: () => !!F.gezanFell || F.step >= 3, report: '外堂の衆徒、しぶとく粘っております！', reportAfter: 70 },
-        { get groups() { return [F.ikkoHondoMain?.real, F.ikkoHondoBow?.real].filter(Boolean); }, at: hondoC, done: () => F.step >= 4, report: '山門、まだ破れず！　本堂から射られております！', reportAfter: 70 },
+        // 寺攻めの step は外堂までが1、本堂までが2、奥の院が3。門の破壊と堂の制圧を別々に読む。
+        { get groups() { return [F.ikkoGateCrowd, ...F.watchPosts.map((b) => b.real)].filter(Boolean); }, at: { x: GATE_SOMON.x, z: GATE_SOMON.z + 8 }, done: () => !F.gateSomon.struct.alive || F.step >= 2, report: '惣門、まだ破れず！', reportAfter: 80 },
+        { get groups() { return [F.ikkoGezanSpear?.real, F.ikkoGezanBow?.real].filter(Boolean); }, at: gezanC, done: () => !!F.gezanFell || F.step >= 2, report: '外堂の衆徒、しぶとく粘っております！', reportAfter: 70 },
+        { get groups() { return [F.ikkoHondoMain?.real, F.ikkoHondoBow?.real].filter(Boolean); }, at: hondoC, done: () => F.step >= 3, report: '本堂の衆徒、しぶとく粘っております！', reportAfter: 70 },
         { get groups() { return [F.ikkoOkuLast?.real].filter(Boolean); }, at: okuC, done: () => false },
       ], { runner: '使番' });
 
