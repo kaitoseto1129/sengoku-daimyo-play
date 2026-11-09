@@ -76,8 +76,6 @@ const EXIT_W = { x: -236, z: 0 };                // 豊臣の退き口（城の�
 const ROAD = [[230, 0], [150, 1], [100, 0], [40, 0], [-40, 1], [-120, 0], [-250, 0]];   // 鴫野の堤
 const OYAMATO = [[-300, -78], [-150, -86], [0, -80], [150, -90], [300, -82]];            // 北の大和川
 const HIRANO = [[-300, 74], [-150, 82], [0, 78], [150, 88], [300, 80]];                  // 南の平野川
-// 目標ごとの時間（秒）
-const T1 = 200, T2 = 180, T3 = 70, T4 = 200, T5 = 200;
 // 右上の一行（途中で言い替えない。場所と行いだけ・kaito 三1・十1）。「。」で切られないよう一文に
 const STEP_TEXT = ['',
   '須田長義と堤を進み、一の柵・二の柵の鉄砲衆を討て',
@@ -85,7 +83,6 @@ const STEP_TEXT = ['',
   '追う大軍に背を見せず堤を東へ退き、水原親憲の鉄砲の後ろに付け',
   '安田能元と槍を揃え、渡辺糺・木村宗明の隊を二の柵の跡まで押し返せ',
   '二の柵の跡で竹田永翁の隊を討ち、大和川南岸の水原親憲と川越しに撃って今福の佐竹勢を救え'];
-const STEP_T = [0, T1, T2, T3, T4, T5];
 
 const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 function height(x, z) {
@@ -134,7 +131,6 @@ const dress = (look) => (list) => list.map((s) => ({ ...s, o: { ...look, ...(s.o
 const ueD = dress(UE), toyD = dress(TOY), sakD = dress(SAK);
 const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }), uG = (n) => ({ type: 'gun', n });
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
-const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 // 柵：堤を横切って張り、真ん中だけが口。柵の外は水の堀と湿地
 function fenceLine(rt, x) {
@@ -198,7 +194,7 @@ const k10_shigino = {
   },
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。11/6 遊んで：今の一行だけしか出ていなかった
   goals5() {
-    return STEP_TEXT.slice(1).map((text, k) => ({ kind: 'stage', k, text, sec: 900,
+    return STEP_TEXT.slice(1).map((text, k) => ({ kind: 'stage', k, text,
       check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.flags.ending && rt.tracker?.main === true) }));
   },
   // 共通の任務札は今の一行だけなので、目標の札（hud_goals）で置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
@@ -562,7 +558,6 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
-    const left = STEP_T[F.step] - (rt.t - F.stepT);
     // 退いた敵は遠く離れたら去らせる（本物の兵の枠を空ける）
     if ((F.gcT = (F.gcT || 0) - 0.25) <= 0) {
       F.gcT = 1;
@@ -571,9 +566,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       for (const g of rt.army.groups) if (g.team === 1 && !F.foes.includes(g) && !g.isStruct && g.units.every((u) => !u.alive || u.gone || u.isStruct || dist(u.pos, P.pos) > 45)) for (const u of g.units) if (u.alive && !u.gone && !u.isStruct) rt.army.despawn(u);
       // 大野治長は西の奥で旗本に囲まれて動かない（総大将は前に出ない・一2）
       const O = F.oono;
-      if (live(O) && (O.order !== 'hold' || dist(O.center(), OONO) > 8) && O.order !== 'move') { O.order = 'hold'; O.anchor = { x: OONO.x, z: OONO.z }; O.seekRange = 8; O.aggro = 4; }
+      if (live(O) && (O.order !== 'hold' || dist(O.center(), OONO) > 8) && O.order !== 'move' && O.order !== 'retreat') { O.order = 'hold'; O.anchor = { x: OONO.x, z: OONO.z }; O.seekRange = 8; O.aggro = 4; }
     }
-    if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
     if (F.step === 1) {
       const k = F.w1S - sumN(F.g1, F.g2);
       // 本人も柵前の戦いに加わり、鉄砲衆を押し返すまで次へ進めない。

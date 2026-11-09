@@ -4329,7 +4329,8 @@ const anegawa = {
     if (F.step === 2 && !F.ending && !rt.over && rt.t >= (F.southSweepAt || 0)) {
       F.southSweepAt = rt.t + 1;
       for (const g of rt.army.groups) {
-        if (g.team !== 1 || g.routed || g.anePending || !g.count || g === F.rear || g.civ) continue;
+        // 遠藤は総崩れに紛れて本陣を狙う。南岸へ渡っただけで退かせない。
+        if (g.team !== 1 || g.routed || g.anePending || !g.count || g === F.rear || g === F.aneTsui?.g || g.civ) continue;
         if (g === F.counterChase && rt.t - F.stepT < 30) continue;
         const c = g.center();
         if (c.z > aneSouthBank(c.x) - 2) { g.noRout = false; g.morale = 0; g.order = 'retreat'; }
