@@ -4423,9 +4423,10 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 11/6 fixc0823（kaito 一3・critic60「小早の兵が並んで立っているだけ」）：舟の上（perch）の鉄砲と弓は共通の頭で的を選ばない。
     //   寄せた舟から甲板の九鬼勢を一人ずつ狙い、九〜十四秒に一発撃つ（今福の舟と同じ作り）。
     if (F.step >= 1 && !F.ending && !rt.over) for (const b of F.boats) {
-      if (!b.alive || b.damageStage || b.withdrawing || !b.group) continue;
+      if (!b.alive || b.damageStage || b.withdrawing || !b.group || b.group.routed) continue;
       for (const u of b.group.units) {
-        if (!u.alive || u.shipBoat !== b || u.shipTransit?.active || (u.type !== 'gun' && u.type !== 'bow')) continue;
+        // 退く者や深手で戦列を離れた者は、舟に残っていても射撃へ戻さない。
+        if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.shipBoat !== b || u.shipTransit?.active || (u.type !== 'gun' && u.type !== 'bow')) continue;
         if ((u.kzShot = (u.kzShot ?? 2 + Math.random() * 8) - dt) > 0) continue;
         u.kzShot = 9 + Math.random() * 5;
         const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.fleeing && !o.shipBoat && Math.abs(o.pos.y - DECK.y) < 1.5);

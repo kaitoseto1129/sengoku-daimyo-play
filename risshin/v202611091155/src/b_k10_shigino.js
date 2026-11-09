@@ -566,6 +566,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
+    // 本人がその段の戦いの場（行き先のピンから二十二歩の内）にいた秒。味方が先に討ち尽くしても、そこで戦っていれば加わったとみなす（二巡）
+    { const pin = this.missionPin(rt); if (pin && F.step && Math.hypot(P.pos.x - pin.x, P.pos.z - pin.z) < 22) { F.nearStep ||= {}; F.nearStep[F.step] = (F.nearStep[F.step] || 0) + 0.25; } }
     // 退いた敵は遠く離れたら去らせる（本物の兵の枠を空ける）
     if ((F.gcT = (F.gcT || 0) - 0.25) <= 0) {
       F.gcT = 1;
@@ -579,12 +581,24 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     if (F.step === 1) {
       const k = F.w1S - sumN(F.g1, F.g2);
       // 本人も柵前の戦いに加わり、鉄砲衆を押し返すまで次へ進めない。
-      if (k >= Math.round(F.w1S * 0.6) && F.playerFight1) this.toStep(rt, 2);
+      // 味方が先に討ち尽くすと本人の手柄が無いまま①が終わらず詰んでいた（二巡 bot：十八分止まり）。
+      //   柵の前（一の柵から十八歩の内）に十五秒いた、または柵の鉄砲衆が尽きたら、本人も加わったとみなす
+      if (Math.abs(P.pos.x - F1) < 18 && Math.abs(P.pos.z) < 14) F.nearF1 = (F.nearF1 || 0) + 0.25;   // 四分の一秒ごとの見回り
+      const joined = F.playerFight1 || (F.nearF1 || 0) > 15 || sumN(F.g1, F.g2) === 0;
+      if (k >= Math.round(F.w1S * 0.6) && joined) this.toStep(rt, 2);
     } else if (F.step === 2) {
       // 来援の先手は三の柵の西で待つ（井上の討死までは寄せない）
       for (const g of [F.wata, F.kimu]) if (live(g) && g._wait && g.order === 'attack') { g.order = 'hold'; g.anchor = { x: g._wait.x, z: g._wait.z }; g.seekRange = 8; g.aggro = 4; }
       if (live(F.ino) && F.ino.order !== 'hold') { F.ino.order = 'hold'; F.ino.anchor = { x: INOUE.x, z: 0 }; }
       if (live(F.inoG) && (F.inoG.order !== 'hold' || F.inoG.anchor.x !== INO_POST.x)) { F.inoG.order = 'hold'; F.inoG.anchor = { x: INO_POST.x, z: INO_POST.z }; }
+      // 本人が三の柵の前で四十秒戦っても井上に届かない時は、須田の先手の槍が井上を討つ（史実でも柵を奪った上杉勢に討たれた。二巡 bot：②で十八分止まり）
+      if (F.inoU && F.inoU.alive && !F.inoDown && (F.nearStep?.[2] || 0) > 40) {
+        const by = F.suda?.units?.find((u) => u.alive && !u.isPlayer) || null;
+        F.inoU.onWound = null; F.inoU.invuln = false; rt.army.kill(F.inoU, by);
+        F.inoDown = true;
+        rt.banner('井上頼次、討ち死に', '三の柵の鉄砲が止んだ');
+        rt.after(3, () => this.toStep(rt, 3));
+      }
       if (F.inoU && !F.inoU.alive && F.inoByMe && !F.inoDown) {
         F.inoDown = true;
         rt.banner('井上頼次、討ち取ったり', '三の柵の鉄砲が止んだ');
@@ -618,7 +632,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       const k = F.w4N - sumN(F.wata, F.kimu);
       // 本人も参戦して全て退けた時は、撃つ相手のいない一斉射を待たせない。
       const repelled = F.shot >= 2 || !live(F.wata) && !live(F.kimu);
-      if (k >= Math.round(F.w4N * 0.6) && repelled && F.playerFight4) {
+      if (k >= Math.round(F.w4N * 0.6) && repelled && (F.playerFight4 || (F.nearStep?.[4] || 0) > 20)) {
         for (const g of [F.wata, F.kimu]) if (live(g)) { g.order = 'retreat'; g.dest = { x: -150, z: 0 }; g.speed = 4; g.aggro = 0; }
         rt.say('渡辺糺', '上杉の鉄砲、侮れぬ……一度引け！', 2.8);
         rt.after(3, () => this.toStep(rt, 5));
@@ -626,7 +640,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       }
     } else if (F.step === 5) {
       const k = F.w5N - aliveN(F.take);
-      if (k >= Math.round(F.w5N * 0.6) && F.playerFight5 && !F.riverAid) this.riverAid(rt);
+      if (k >= Math.round(F.w5N * 0.6) && (F.playerFight5 || (F.nearStep?.[5] || 0) > 20) && !F.riverAid) this.riverAid(rt);
       // 崩れた瞬間は、まだ佐竹の目の前に寄せ手がいる。北岸を実際に退くまで救援を終えない。
       const riverClear = F.riverAid && !live(F.riverFoe) && !F.riverFoe.units.some((u) =>
         u.alive && !u.gone && u.pos.x > RIVER.x - 40);
