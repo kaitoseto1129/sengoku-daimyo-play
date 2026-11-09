@@ -137,7 +137,14 @@ export const REQUIRED_KACCHU = [
       shinodare: false, fukigaeshiBadge: false },
     '本人所用は未確認。建勲神社蔵の十六世紀の紺糸威胴丸による型の復元案。黒漆本小札・右脇引合・大袖・十二間草摺・四十間筋兜。前立・脇立・面頬・陣羽織・個人紋・馬印は補わず、旗は合流後の織田方の所属表示'],
   // 箕作・大河内・金ヶ崎・姉川
-  ['六角義賢', null, null, null, null, null, null, null, txt('六角'), null, '承禎。具足は前の表。旗は名の字'],
+  // 承禎本人の所用品は未確認。近江に残る室町時代の型で補い、固有の立物は作らない。
+  ['六角義賢', 'zunari', 'none', D.kuro, C.kon, 'kebiki', 0, 'none', 'rokkaku',
+    { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'right', honkozane: true,
+      doSugake: false, doKebiki: true, sodeStyle: 'kebiki', shikoroStyle: 'kebiki',
+      shikoroLace: C.kon, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null,
+      shinodare: false, fukigaeshiBadge: false },
+    '承禎。長浜城歴史博物館蔵・垣見家伝来の黒漆塗紺糸威胴丸と頭形型兜による同時代の型の復元案。六角家伝来品ではない。黒漆本小札・紺糸毛引威・右脇引合。前立・脇立・面頬・陣羽織・甲冑の紋・馬印は補わず、旗は既存の六角方の隅立て四つ目結。出所は docs/generals_look_1108/六角承禎.md'],
   // 義治本人の所用品は未確認。近江・同時代の垣見家伝来品を型の手本にする復元案。
   ['六角義治', 'zunari', 'none', D.kuro, C.kon, 'kebiki', 0, 'rokkaku', 'rokkaku',
     { lac: 'kuro', fuki: 'kuro', plateDo: null, doOpening: 'right', honkozane: true,
@@ -159,7 +166,13 @@ export const REQUIRED_KACCHU = [
   ['酒井忠次', null, null, null, null, null, null, null, 'katabami', null, '具足は前の表（写真）。旗は片喰'],
   ['本多忠勝', null, null, null, null, null, null, null, 'honda', null, '黒糸威に鹿角の脇立と大数珠（前の表・写真）。旗は立葵'],
   ['磯野員昌', null, 'kuwa_ken', null, null, null, null, null, mon('azai', '#1d1b18', W), null, '姉川の浅井の先手。所用品は伝わらない。復元案'],
-  ['朝倉景健', null, 'kuwa_wide', null, null, null, null, null, mon('asakura', '#b76a30', W), null, '姉川の朝倉の大将。所用品は伝わらない。復元案'],
+  ['朝倉景健', 'suji', 'none', D.kuro, C.kon, 'kebiki', 0, 'asakura', 'asakura',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108, shinodare: false,
+      domaru: true, doOpening: 'right', plateDo: null, honkozane: true, doSugake: false, doKebiki: true,
+      sodeStyle: 'osode', shikoroStyle: 'compact', shikoroLace: C.kon,
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, haori: 0, noHaori: true, fur: 0, horo: 0, uma: null, fukigaeshiBadge: false },
+    '金ヶ崎・姉川・志賀・刀根坂の復元案。建勲神社の室町末の紺糸威胴丸を型だけ借り、本人所用とはしない。立物・面頬・陣羽織は補わず、三つ盛木瓜は所属表示。出所は docs/generals_look_1108/朝倉景健.md'],
   // 野田・福島・志賀・比叡山
   ['三好長逸', null, 'kuwa', null, null, null, null, null, 'miyoshi', null, '三好三人衆。所用品は伝わらない。復元案'],
   ['三好宗渭', 'momonari', 'kuwa_ken', D.tame, C.asagi, 'kebiki', 0, 'miyoshi', mon('miyoshi', '#1d1b18', W), null, '政康。三人衆の長逸と鉢・威を分けた復元案'],

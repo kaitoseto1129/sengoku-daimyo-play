@@ -429,6 +429,10 @@ for (const [name, flag, uma] of [
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
 
+// 景健の旗は朝倉方の所属表示。個人の実旗・馬印は未確認なので、隊と陣所に固有の馬印を補わない。
+// 出所と復元範囲：docs/generals_look_1108/朝倉景健.md。
+NAMED_GEAR['朝倉景健'] = { ...NAMED_GEAR['朝倉景健'], flag: 'asakura', uma: null, campUma: null };
+
 // 小谷の久政。固有の馬印は未確認で、隊にも陣所にも他家の物を補わない。
 // 出所と推定範囲：docs/generals_look_1108/浅井久政.md。
 NAMED_GEAR['浅井久政'] = { ...NAMED_GEAR['浅井久政'], uma: null, campUma: null };
@@ -436,6 +440,12 @@ NAMED_GEAR['浅井久政'] = { ...NAMED_GEAR['浅井久政'], uma: null, campUma
 // 設楽原の真田隊。六連銭は所属表示の復元で、当日の実旗の断定ではない。
 // 個人の馬印は未確認。信繁や昌幸の馬印を流用しない。出所：docs/generals_look_1108/真田信綱.md。
 NAMED_GEAR['真田信綱'] = { ...NAMED_GEAR['真田信綱'], flag: 'sanada', uma: null, campUma: null };
+
+// 承禎（義賢）。旗は既存の六角方の所属表示。本人の実旗・馬印は未確認。
+// 得物と動きは従来の名簿を保つ。出所：docs/generals_look_1108/六角承禎.md。
+NAMED_GEAR['六角義賢'] = { ...(NAMED_GEAR['六角義賢'] || rosterGear('六角義賢')),
+  flag: 'rokkaku', uma: null, campUma: null };
+NAMED_GEAR['六角承禎'] = NAMED_GEAR['六角義賢'];
 
 // 箕作の六角義治。旗は既存の六角方の所属表示で、本人の実旗とは断定しない。
 // 個人の馬印は未確認。得物と動きは名簿の従来値を保つ。出所：docs/generals_look_1108/六角義治.md。

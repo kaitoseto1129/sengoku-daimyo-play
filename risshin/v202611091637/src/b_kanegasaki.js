@@ -2519,7 +2519,7 @@ const kanegasaki = {
   civilianCrowd: { bands: KG_CIVILIAN_BANDS },
   nobiki: true, // 退く戦：退けの下知は法螺貝と退き太鼓で知らせる（battle.js の signalCue）
   jinkei: KANEGASAKI_JIN,
-  lethal: { max: 6, firstAt: 200, gap: 45 },   // 命懸けの戦場（docs/lethal_howto.md）。浅井離反の後の殿から
+  lethal: { soft: true, max: 2, firstAt: 320, gap: 180 },   // 長い殿戦で、少数の守り手を突然の討死と孤立の寄せで先に尽くさない。
   taisho: { a: null, b: null }, // 三将の退却はこの定義が扱う。共通の本陣増設・襲撃・即勝ちを使わない。
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が木ノ芽峠と朝倉、南（+z）が若狭へ退く道。
   //   織田は殿の三将（本物の隊に結ぶ）の後ろに徳川、さらに南へ信長の本隊と荷駄が退いていく。朝倉は景健の追手の後ろに二の手・義景の旗本。
@@ -3908,7 +3908,12 @@ const kanegasaki = {
     if (!rt.G.lord && caught && !(F.breachWarnAt > rt.t)) { F.breachWarnAt = rt.t + 8; rt.bark('追手が主力の列へ！　味方と退き道を守れ！', true); }
     if (!rt.G.lord && !F.fleeing && F.breachT > 23) { this.lose(rt, '追手が主力の列へ取り付き、退き道を守れなかった'); return; }
     // 離反前の攻めは信長でも進める。殿の崩壊や退却は急報の後から判定する。
-    if (!F.betrayed && F.k15Kosen === 'on') { depthTick(rt, dt); return; }
+    if (!F.betrayed && F.k15Kosen === 'on') {
+      // 殿の鉄砲は攻めの段に加わらない。自動の攻め号令で固定の持ち場へ
+      // 詰め寄り続けず、開幕に選んだ横備えから先手を援護する。
+      if (F.gunsEast.order === 'attack') F.gunsEast.order = 'hold';
+      depthTick(rt, dt); return;
+    }
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     if (F.fleeing) { this.fleeTick(rt); return; }
     let ready = 0;
@@ -4396,7 +4401,7 @@ function kgHold(line, dur, waves, ambush = false) {
         if (el < w.t) continue;
         C.waves.splice(i, 1);
         const g = enemyGroup(rt, { faction: 'asakura', name: w.name, anchor: w.from, facing: 0, order: 'attack', seekRange: 140,
-          width: 10, aggro: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: line === 0 ? 0.55 : 0.55, formation: w.gun ? 'line' : 'yari' }, dress(w.list, ASAKURA));
+          width: 10, aggro: 12, morale: 90, fleeDir: { x: 0, z: -1 }, dmgMult: 0.35, formation: w.gun ? 'line' : 'yari' }, dress(w.list, ASAKURA));
         C.groups.push(g);
       }
       if (ambush && !C.fired) {
@@ -4448,20 +4453,20 @@ function kgHold(line, dur, waves, ambush = false) {
 }
 function kgA() {
   // 一の備に寄せを重ねすぎず、殿が健在のうちに川岸へ退く。
-  // 11/4 jin：遊んで七分に収める（描いた流しで八分半だった。三つの備の守りを 45・65・85 → 35・45・60 秒）
-  return [kgHold(0, 35, [
+  // 三巡の記録は全戦664秒。三つの備を各150秒守り、移動と殿戦を含め十五〜三十分を目指す。
+  return [kgHold(0, 150, [
     { t: 3, name: '朝倉の後続の槍組', from: { x: 6, z: -104 }, list: [uS(2), uA(10)] },
     { t: 24, name: '朝倉の西の備', from: { x: -42, z: -90 }, list: [uS(2), uA(8)] },
   ])];
 }
 function kgB() {
-  return [kgHold(1, 45, [
+  return [kgHold(1, 150, [
     { t: 3, name: '橋へ向かう朝倉勢', from: { x: 6, z: -58 }, list: [uS(2), uA(16)] },
     { t: 24, name: '浅瀬へ向かう朝倉勢', from: { x: -50, z: -60 }, list: [uS(2), uA(12)] },
   ])];
 }
 function kgC() {
-  return [kgHold(2, 50, [
+  return [kgHold(2, 150, [
     { t: 3, name: '谷道へ続く朝倉勢', from: { x: 8, z: -2 }, list: [uS(2), uA(16)] },
     { t: 30, name: '朝倉の後詰の鉄砲', from: { x: 8, z: 4 }, list: [uS(1), uG(7)], gun: true },
   ], false)];

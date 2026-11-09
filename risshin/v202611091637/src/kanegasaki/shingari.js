@@ -14,11 +14,11 @@ export function start(rt, ctx, done) {
   F.dpOn = true;
   const { LINE1, LOOK } = ctx;
   const from = (dx, dz) => ({ x: LINE1.x + dx, z: LINE1.z + dz });
-  depthStart(rt, { ...ctx, look: LOOK, scale: 1.0, dmg: 0.5 }, [   // 殿の組（F.tono）が尽きると総崩れになるので、一打は軽く
+  const stages = [
     DP.rest({ dur: 5, heal: 0.3, banner: ['金ヶ崎の殿', '主力が退ききるまで、ここで食い止める'],
       say: [['木下藤吉郎', '殿はこの藤吉郎が引き受けた！　上様が朽木を越えるまで、一人も通すな！', 4.2]] }),
     DP.hold({
-      at: LINE1, r: 11, dur: 95, label: '川の砦', title: '殿の戦い', sub: '朝倉の本手が川を渡って来る',
+      at: LINE1, r: 11, dur: 95, limit: 200, noRefill: true, label: '川の砦', title: '殿の戦い', sub: '朝倉の本手が川を渡って来る',
       obj: '川の砦で朝倉の本手を食い止めよ。主力を逃がせ',
       waves: [
         { t: 3, say: ['足軽', '川向こうに朝倉の旗が並んだ！　渡って来るぞ！'],
@@ -35,5 +35,15 @@ export function start(rt, ctx, done) {
     }),
     DP.rest({ dur: 5, heal: 0.3, banner: ['主力は抜けた', '殿も狭路の砦へ退く'],
       say: [['木下藤吉郎', 'ようやった！　上様は抜けられた。わしらも退くぞ、狭路の砦まで走れ！', 4]] }),
-  ], () => { F.k15Shingari = 'done'; F.dpOn = false; done(); });
+  ];
+  for (const stage of stages) stage.idleAdvance = false;
+  const hold = stages[1], tick = hold.tick;
+  hold.tick = (rt2, C, m, context, el, dt) => {
+    const finished = tick(rt2, C, m, context, el, dt);
+    // 景健は討死しない将。全員を倒す共通の終了条件では景健が残り、
+    // 七分の期限まで止まる。殿は三度の寄せを受けて定めの間を守れば退く。
+    return finished || el >= 95 && !C.waves.length && C.inT >= 95 * 0.6;
+  };
+  depthStart(rt, { ...ctx, look: LOOK, scale: 1.0, dmg: 0.5 }, stages,
+    () => { F.k15Shingari = 'done'; F.dpOn = false; done(); });
 }
