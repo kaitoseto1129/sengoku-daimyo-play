@@ -304,8 +304,11 @@ const k06_sekigahara = {
     const climbing = s === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
     // 必要な数を押し返した後は藤下へ。遠くの残兵を指し続けると、完了に必要な先手の陣前へ戻れない。
     const pushed = s === 5 && F.wave2b && nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) <= Math.round(F.akaN * 0.4);
+    // 虎口の横断判定は南北八歩の内。斜めから十二歩の輪へ入っただけでは、まだ柵の内へ向けない。
+    // 口から押し出された時も手前へ案内し直し、横断を果たせないまま内側の印で止まるのを防ぐ。
+    if (s === 7 && F.sakBack) F.gapAt = Math.abs(P.z - GAP.z) < 6 && (near(P, GAP, 12) || !!F.gapAt);
     const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? (pushed ? UKITA_F : front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4)) : s === 6 ? lead(F.kuroda, KURODA)
-      : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
+      : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : F.gapAt ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
     // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
     if (s === 8 && P.x > FENCE_X - 1 && P.z > -214 && P.z < -128) {
       // 口の前（東へ八歩）に着いたら、そのまま口をくぐって内へ（前は九歩の輪に入れず、口の前で止まった・11/9 流し）

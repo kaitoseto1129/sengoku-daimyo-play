@@ -827,7 +827,18 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   const inUne = (q) => q.x > -28 && q.x < -11 && q.z > 138 && q.z < 212 && (q.z < 170 || q.z > 182);   // 出丸の脇の畝堀の中
   const e = b.army.nearestEnemy(u, F.step === 2 ? 3.5 : 12, (o) => !o.fleeing && !o.isStruct && !(F.step === 1 && inUne(o.pos)) &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, p.weapon === 'spear'));
-  if (F.step === 2 && !e) { inp.guardHold = false; goTo(p, inp, CROSS_X, u.pos.z > SHOJI.z0 - 4 ? SHOJI.z0 - 7 : F.cross.z, 1.5); return; }
+  if (F.step === 2 && !e) {
+    inp.guardHold = false;
+    // 出丸から対岸へ直進すると、出丸脇の畝堀と障子堀の畝を斜めに横切って落ちる。
+    // 味方と同じ土橋で街道へ戻り、堀の手前で縦の畝の正面に揃えてから渡る。
+    if (u.pos.z > SHOJI.z1 + 2 && u.pos.x < -11) {
+      if (Math.abs(u.pos.z - 176) > 2) goTo(p, inp, Math.min(u.pos.x, -32), 176, 1);
+      else goTo(p, inp, -6, 176, 1);
+    } else if (u.pos.z > SHOJI.z1 + 2 && Math.abs(u.pos.x - CROSS_X) > 0.5) {
+      goTo(p, inp, CROSS_X, SHOJI.z1 + 10, 0.5);
+    } else goTo(p, inp, CROSS_X, F.cross.z, 1);
+    return;
+  }
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
