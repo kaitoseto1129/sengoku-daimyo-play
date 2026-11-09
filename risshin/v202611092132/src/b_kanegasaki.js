@@ -1905,7 +1905,10 @@ function retreatGroup(rt, g, x, z, facing, formation) {
     // 使番の自動前進も止め、合流後の鉄砲組を退き口から戻さない。
     // 11/5 kanegasaki_re（BQ「味方の兵が何もしない」）：考えを止めず（noAI にしない）、砦の周りへ来た追手と戦う
     if (rt.flags.tono.includes(gg)) {
-      gg.aggro = 10; gg.seekRange = 14; gg.noAI = false;
+      // 最後の合流では先着した組を再び追撃へ出さない。砦の守備中は従来どおり戦う。
+      gg.aggro = rt.flags.fleeing ? 0 : 10;
+      gg.seekRange = rt.flags.fleeing ? 6 : 14;
+      gg.noAI = !!rt.flags.fleeing;
     }
     // 退き口でも横へ広がる前に足場を選び直す。兵自身は歩いて持ち場へ着く。
     if (formation !== 'column') settleRearguard(rt, gg, false);
@@ -3742,7 +3745,14 @@ const kanegasaki = {
         if (!g || !g.count || g.routed) continue;
         const c = g.center();
         const general = kgGenerals(rt).find(e => e.u.group === g)?.u;
+        let active = 0, arrived = 0;
+        for (const u of g.units) if (kgActive(u)) {
+          active++;
+          if (Math.hypot(u.pos.x - KUTSUKI.x, u.pos.z - KUTSUKI.z) < 30) arrived++;
+        }
+        // 中心と将だけ着いても、後列が取り残されていれば退く下知を重ねる。
         if (Math.hypot(c.x - KUTSUKI.x, c.z - KUTSUKI.z) < 24 &&
+          arrived >= (F.exitReady ? Math.ceil(active * 0.6) : active) &&
           (!general || Math.hypot(general.pos.x - KUTSUKI.x, general.pos.z - KUTSUKI.z) < 30)) continue;
         kgPausePursuit(rt, c);
         g.noAI = false;

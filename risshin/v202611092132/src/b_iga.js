@@ -1947,6 +1947,8 @@ const iga = {
     F.wallBow = igaEnemy(rt, 0, -58, 8, '土塁の伊賀衆', [{ type: 'bow', n: 6 }, { type: 'gun', n: 2 }]);
     F.wallBow.ambush = false; F.wallBow.aggro = 34; F.wallBow.facing = 0;
     F.wallBow.noAI = false; F.wallBow.guard = true; F.wallBow.guardLeash = 2;
+    // 着陣の夜は城を守り、朝の正面攻めが始まるまで矢弾を放たない。
+    F.wallBow.holdFire = true; F.wallBow.fire = false;
     // 土橋の手前にも竹束を据える。中央の道は空け、実際に矢弾を止める当たりを残す。
     for (const x of [-5, -7.4, 5, 7.4]) rt.scene.add(takataba(W, x, -44, 0));
     // 登りと退きの道を三人ずつが守る。城の放棄後に新手を出さない。
@@ -2318,6 +2320,7 @@ const iga = {
     F.lines = [];
     // 鉄砲は実際の弾込め・射線・命中で働く。号令だけで敵の士気を下げない。
     F.igun.holdFire = false;
+    F.wallBow.holdFire = false; F.wallBow.fire = true;
     // 出撃と一斉射撃は土橋への到着後に進める。登りの間に山場を終わらせない。
   },
 
@@ -2344,7 +2347,11 @@ const iga = {
       }
       // 兵数の上限で追撃兵を出せなくても、四十秒後の撃ち止めは必ず行う。
       // 退く坂で射撃と手当てを繰り返し、帰陣できなくなるのを防ぐ。
-      rt.after(40, () => { if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]); if (!F.ending && F.wallBow) F.wallBow.holdFire = true; });
+      rt.after(40, () => {
+        if (!F.ending && g.units.some((u) => u.alive)) retireRaid(rt, [g]);
+        // 弓は鉄砲用の撃ち止めだけでは止まらない。帰陣後まで坂を射続けさせない。
+        if (!F.ending && F.wallBow) { F.wallBow.holdFire = true; F.wallBow.fire = false; }
+      });
     }
     F.igun.order = 'retreat'; F.igun.anchor = { x: 14, z: 30 }; F.igun.holdFire = false;
     rt.say('蒲生忠三郎', F.bridgeHeld
