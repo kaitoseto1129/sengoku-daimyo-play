@@ -59,7 +59,8 @@ export function step(H) {
       }
       const all = [C.foe, C.foe2, C.foe3].filter(Boolean);
       const n0 = all.reduce((n, g) => n + g.units.length, 0);
-      if (!C.back && C.foe3 && (all.reduce((n, g) => n + live(g), 0) <= n0 * 0.35 || el > 170)) {
+      // 時間だけで全軍を退かせない。三の手まで押し返してから退く下知を出す。
+      if (!C.back && C.foe3 && all.reduce((n, g) => n + live(g), 0) <= n0 * 0.35) {
         C.back = el;
         for (const g of all) { g.noRout = true; g.order = 'path'; g.path = [[H.KIDO_F.x, H.KIDO_F.z], [H.SANNO_IN.x, H.SANNO_IN.z]]; g.pathIdx = 0; g.speed = 4; g.aggro = 0; g.focus = null;
           for (const u of g.units) if (u.alive) { u.target = null; u.fleeing = true; } }
