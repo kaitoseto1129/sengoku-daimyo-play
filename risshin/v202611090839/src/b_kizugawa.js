@@ -2706,8 +2706,11 @@ function seaAmbient(rt, dt) {
       // 11/6 fixc0504（kaito 八1・四6・critic60「炎が何も無い海の上に浮いて燃えている」）：海へ落ちた焙烙は燃やさず、湯気と水柱だけ。
       //   甲板（自船の板の上）に落ちた時だけ、板の上で四秒半燃える。
       if (Math.abs(h.to.x) < DECK.x1 && h.to.z > DECK.z0 && h.to.z < DECK.z1) {
-        const fire = rt.world.addFire(h.to.x, h.to.z, { h: 0.1, size: 1.6, smoke: false });
+        const fire = rt.world.addFire(h.to.x, h.to.z, { h: DECK.y + 0.3 - rt.world.heightAt(h.to.x, h.to.z), size: 1.6, smoke: false });
         rt.after(4.5, () => rt.world.removeFire(fire));
+      } else if (F.cannonSplash) {
+        F.cannonSplash.at = rt.t;
+        F.cannonSplash.mesh.position.set(h.to.x, 0.5, h.to.z);
       }
     }
   }

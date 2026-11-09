@@ -411,11 +411,16 @@ function lurk(C, aggro, wait = 45) {
 function lurkTick(rt) {
   const C = rt.flags.dp?.cur;
   if (!C || !C.groups) return;
-  const p = rt.player.u.pos, fr = rt.flags.allies.filter((g) => g && g.count).map((g) => g.center());
+  const p = rt.player.u.pos;
   for (const g of C.groups) {
     if (!g._lurk || !g.count) continue;
     const c = g.center(), el = rt.t - C.t0;
-    const near = Math.hypot(p.x - c.x, p.z - c.z) < 22 || fr.some((f) => Math.hypot(f.x - c.x, f.z - c.z) < 28);
+    let near = Math.hypot(p.x - c.x, p.z - c.z) < 22;
+    if (!near) for (const friend of rt.flags.allies) {
+      if (!friend?.count || friend.routed) continue;
+      const f = friend.center();
+      if (Math.hypot(f.x - c.x, f.z - c.z) < 28) { near = true; break; }
+    }
     // 共通の采配と段の呼び寄せより、林に潜む下知を優先する。
     if (!near && el < (C.lurkWait ?? 45)) { g.order = 'hold'; g.anchor = g._lurkAt; continue; }
     for (const u of g.units) u._crouch = false;
@@ -514,6 +519,7 @@ export const t05_ichinomiya = {
   noYaguraTask: true,
   // 付け入りの門の前は城兵が三十人を超えて囲む。本人だけが数秒で倒れないよう、受ける傷を少し軽く（kaito 十二3）
   playerTaken: 0.45,   // 15分の戦（11/8）：山道の押し戻しと付け入りで囲まれる。0.6 から軽く
+  waitForPortrait: true,   // 黒い人影を出さず、撮れた本人の顔だけを一度表示する
   hidePlayerSign: true,      // 足もとの白い輪は写真に無い作り物の印（標準 五1・八）。肩越しで本人は見える
   noFrontFill: true,         // 奥の作り物の乱戦（front_fill.js）を置かない：始めの河原の左に、近づくと無い軽い軍勢の列が見えた（kaito AA・AF）
   frontlineDensity: false,   // 共通の小勢を足さない（織田の旗の小勢・見せかけの軍勢を出さない。kaito AQ4・AT）

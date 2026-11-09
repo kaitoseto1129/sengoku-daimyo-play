@@ -138,7 +138,7 @@ const OWN = {
   sunomata: () => {
     const F = (rt) => rt.flags;
     return [
-      { kind: 'stage', k: 0, text: SG15.hakobi, noun: '岸の舟着き', check: (rt) => won(rt) || !!F(rt).s15?.hakobiDone || (F(rt).wave || 0) >= 1 },   // 11/8 十五分の構成（prototype/src/sunomata/）
+      { kind: 'stage', k: 0, text: SG15.hakobi, noun: '岸の舟着き', check: (rt) => !!F(rt).s15?.hakobiDone },   // 材木護衛の実際の完了で判定する。
       { kind: 'stage', k: 0, text: '北の柵の口で斎藤の先手を止める', noun: '北の柵の口', check: (rt) => won(rt) || (F(rt).wave || 0) >= 2 },
       { kind: 'stage', k: 1, text: '西の柵で斎藤の二の手を止める', noun: '西の柵', check: (rt) => won(rt) || (F(rt).wave || 0) >= 3 },
       { kind: 'stage', k: 2, text: '北の柵で三の手の旗印を止める', noun: '三の手の旗印', check: (rt) => sunomataNorthStopped(F(rt)) },
