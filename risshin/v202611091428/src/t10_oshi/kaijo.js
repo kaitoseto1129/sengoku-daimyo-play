@@ -47,6 +47,8 @@ function open(rt, C) {
   if (K.open) return;
   K.open = rt.t;
   C.openDoor(rt);
+  // 本丸に座る長親を退場させてから門前へ移す。同じ本人を二人残さない。
+  if (F.naritaU?.alive && !F.naritaU.gone) rt.army.despawn(F.naritaU);
   const at = { ...C.INSIDE }, sit = { x: C.FRONT.x - 1, z: C.FRONT.z - 1 };
   K.out = enemyGroup(rt, { faction: 'narita', name: '城を出る成田の者', anchor: at, facing: Math.PI * 0.25, width: 5, noAI: true, noRout: true, order: 'move', dest: sit, speed: 1.6, aggro: 0 },
     C.dress([{ type: 'busho', n: 1, o: { name: '成田長親', invuln: true, horse: false, hat: 'kabuto_m' } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 8 }], C.HOJO));

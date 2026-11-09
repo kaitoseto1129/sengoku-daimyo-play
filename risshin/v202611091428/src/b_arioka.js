@@ -1535,7 +1535,8 @@ const arioka = {
   goals5(rt) {
     const won = () => rt.tracker?.main === true && !!rt.over, at = (k) => (q) => (arioka.missionOf(q) > k) || won();
     const place = [{ x: GATE.x - 30, z: GATE.z }, { x: GATE.x + 12, z: GATE.z }, ARI_JUNCTION, ARI_JUNCTION];
-    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text: '①②③④⑤'[k] + text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
+    // 11/9 iPhone 874×402：右上の札が「1　①上臈塚の…」と番号を二重に出した。番号は札（hud_goals）が付ける
+    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
       // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
       place: k < 4 ? () => place[k] : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },

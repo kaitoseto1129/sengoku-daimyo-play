@@ -88,9 +88,10 @@ export function tick(rt, dt) {
     S.out = (S.out || 0) + dt;
     if (S.out > 60) {
       S.out = 0;
-      const u = rt.player.u;
+      const u = rt.player.u, ox = u.pos.x, oz = u.pos.z;
       u.pos.x = z.pos.x; u.pos.z = z.pos.z; u.pos.y = rt.world.heightAt(z.pos.x, z.pos.z);
-      for (const q of rt.squadGroups || []) for (const v of q.units) if (v.alive) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
+      // 11/9 二巡：逃げた・手負いで下がった・遠くに残った組の者まで郭へ移すと、八百歩先から一息に飛んだ（流しの指摘 455 回）。本人のそばの者だけ連れて行く
+      for (const q of rt.squadGroups || []) for (const v of q.units) if (v.alive && !v.fleeing && !v.woundOut && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
     }
   } else S.out = 0;
   if (!z.friends || !z.enemies) return;

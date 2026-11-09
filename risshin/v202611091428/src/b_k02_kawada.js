@@ -576,7 +576,8 @@ k02_kawada.travelGuideLabel = (rt) => {
   return q ? `${q[1]} ${Math.round(Math.hypot(p.x - q[0].x, p.z - q[0].z))}m` : '';
 };
 
-const reachableFoe = (b, u, o) => !o.fleeing && !o.invuln && !b.army.wallBetween(u.pos, u.team, o.pos, false);
+// 戦線を離れた負傷兵や狙えない兵を、柵の口で戦う相手に数えない。
+const reachableFoe = (b, u, o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut && !b.army.wallBetween(u.pos, u.team, o.pos, false);
 k02_kawada.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
