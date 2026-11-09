@@ -135,7 +135,9 @@ export function bot(b, goTo, p, inp, strike) {
     if (e) {
       const d = Math.hypot(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
       p.yaw = Math.atan2(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
-      if (d > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2);
+      // 刀は槍より短い。本手と同じく、持つ武器の間合いまで詰める。
+      const approach = (p.weapon === 'sword' ? 1.9 : 2.8) * 0.85;
+      if (d > approach) goTo(p, inp, e.pos.x, e.pos.z, approach);
       else strike(p, inp, e, d);
       return true;
     }
