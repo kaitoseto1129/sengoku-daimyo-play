@@ -45,7 +45,10 @@ export function tegaraKill(rt, v) {
 }
 
 // state.js の settle から。この戦の点を足し、位の前後を返す（手柄の点を使わない戦は null）
-export function tegaraSettle(G, tr, id) {
+// 11/9 戦間の仕様（docs/rank_interlude_retry_spec_1108.md）：位の名はその戦で届く身分の上限（RANK_CEIL）を越えない。
+//   前は手柄の点だけで上がり、桶狭間の後に「足軽大将」へ取り立てる場面が出るのに、組は 0 人のままだった
+const capStep = (ceil) => { let i = 0; while (i + 1 < TEGARA_LADDER.length && TEGARA_LADDER[i + 1].rank <= Math.max(2, ceil)) i++; return i; };
+export function tegaraSettle(G, tr, id, ceil = 99, prevCeil = ceil) {
   if (!TEGARA_ON.has(id)) return null;
   const t = tr.tegara || { zako: 0, named: 0, boss: false };
   const big = t.boss || tr.main === true ? 20 : 0;
@@ -54,7 +57,8 @@ export function tegaraSettle(G, tr, id) {
   G.tegara = before + pts;
   // 一度でも戦に出た者は足軽から（state.js の ladderStep と同じ。前の足軽の保存を雑兵に下げない）。この戦の後は必ず足軽以上
   const fought = (G.history || []).some(Boolean) ? 1 : 0;
-  const s0 = Math.max(fought, tegaraStep(before)), s1 = Math.max(1, tegaraStep(G.tegara));
+  const cap = capStep(ceil);
+  const s0 = Math.min(capStep(prevCeil), cap, Math.max(fought, tegaraStep(before))), s1 = Math.max(1, Math.min(cap, tegaraStep(G.tegara)));
   const next = TEGARA_LADDER[s1 + 1];
   return { zako: t.zako, named: t.named, big, pts, before, after: G.tegara, stepBefore: s0, stepAfter: s1,
     titleBefore: TEGARA_LADDER[s0].name, titleAfter: TEGARA_LADDER[s1].name, rank: TEGARA_LADDER[tegaraStep(G.tegara)].rank,

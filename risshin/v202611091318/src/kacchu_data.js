@@ -591,6 +591,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 鳥取の守将。月・桔梗の立物は未確認。具足の色と羽織は復元案。
   ["吉川経家", "eboshi", "none", 0x24221f, 0x3a4a3a, "okegawa", 0x7a1a12, 0, "none", ""],
   ["羽柴秀長", "eboshi", "sun", 0x2a2420, 0x9a7a3a, "sugake", 0x6a4a1c, 0x2a2420, "toyotomi", ""],
+  // 千石堀・根来寺の寄せ手。定次の所用具足・立物・陣羽織は未確認（docs/generals_look_1108/筒井定次.md）。筋兜・桶側胴と縹糸の威の復元案、紋は筒井の梅鉢。
+  ["筒井定次", "suji", "none", 0x1c1a1a, 0x4a6a8a, "okegawa", 0, 0, "umebachi", ""],
   ["木下雅楽助", "eboshi", "kuwa_wide", 0x24221f, 0x66513b, "sugake", 0xcfc8b4, 0x24221f, "none", ""],
   ["中川金右衛門", "eboshi", "horn", 0x24221f, 0x3c5a8a, "sugake", 0x4a3a22, 0, "none", ""],
   ["山田新右衛門", "eboshi", "cross", 0x24221f, 0x66513b, "kebiki", 0xcfc8b4, 0x24221f, "none", ""],
@@ -759,7 +761,8 @@ const ARMOR_RESEARCH_3 = {
   "毛利元就": { crest: "none" },
   "最上義光": { bowl: "suji", crest: "none", lace: 0x2a2a2c, odo: 0x2a2a2c },
   "加藤清正": { bowl: "eboshi" },
-  "黒田長政": { crest: "bull", lace: 0x1c1a1a, odo: 0x1c1a1a },
+  // 関ヶ原で着た黒糸威胴丸具足〈一の谷兜〉（重文・福岡市博物館）。大水牛脇立兜は正則と取り替えた（docs/generals_look_1108/黒田長政.md）
+  "黒田長政": { crest: "ichinotani", lace: 0x1c1a1a, odo: 0x1c1a1a, doStyle: "okegawa" },
   "細川忠興": { lace: 0x1c1a1a, odo: 0x1c1a1a },
   "黒田如水": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
   "真田幸村": { crest: "honda_shika", kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16 },

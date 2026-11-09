@@ -1062,8 +1062,9 @@ const t04_negoro = {
         const defending = fighting(u) && !rt.retryOpen && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 16;
         C.inT = held + (defending ? dt : 0);
         if (C.inT < 45) rt.objProgress('dp', `守る あと${Math.max(0, Math.ceil(45 - C.inT))}秒`);
+        // 放火の判定とそろえ、倒れた者・深手で退く者だけが残っても守備を止めない。
         return fin && el >= 45 && C.inT >= 45 && defending
-          && !C.groups.some((g) => alive(g) && !g.routed && g.units.some((u) => u.alive && !u.fleeing));
+          && !C.groups.some((g) => alive(g) && g.units.some((u) => fighting(u) && !u.woundOut));
       },
       end(rt, C, m) { h.end(rt, C, m); },
     };
