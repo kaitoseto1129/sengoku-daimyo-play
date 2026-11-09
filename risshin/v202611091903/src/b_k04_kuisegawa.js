@@ -512,7 +512,16 @@ const k04_kuisegawa = {
         const to = T(Math.min(PL.x, 30), PL.z);
         for (const b of [B.shima, B.akashi, B.bait]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g.kind !== 'main' && g !== F.guns) {
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.kind !== 'main' && g !== F.guns && !g.interiorHold) {
+        // 実兵の攻撃先も川の手前で止める。備だけを止めても、実兵は対岸の味方を追い続けていた。
+        const c = g.center(), l = L(c);
+        if (g.chaseStopped || l.x >= 28) {
+          g.chaseStopped = true; g.seekRange = 0; g.aggro = 0;
+          if (l.x > 30) { g.order = 'move'; g.dest = T(28, l.z); }
+          else { g.order = 'hold'; g.anchor = c; }
+          continue;
+        }
+        if (g.chaseSoft) continue;
         // 退却だけを理由に打撃を弱めず、追手は人の走りに近い速さで背へ迫る。
         g.chaseSoft = true; g.speed = 3;
         if (g.order === 'hold') { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
@@ -551,8 +560,9 @@ const k04_kuisegawa = {
   },
 
   onPlayerHit(rt, target) {
-    if (rt.flags.step === 1 && target.team === 1) rt.flags.baitPlayerHit = true;
-    if (rt.flags.step === 3 && target.team === 1 && rt.flags.noiU?.alive && dist(rt.flags.noiU.pos, rt.player.u.pos) < 12) rt.flags.defended = true;
+    if (target.team !== 1 || target.isStruct || target.civ) return;
+    if (rt.flags.step === 1 && rt.flags.gamo?.units.includes(target)) rt.flags.baitPlayerHit = true;
+    if (rt.flags.step === 3 && rt.flags.noiU?.alive && dist(rt.flags.noiU.pos, rt.player.u.pos) < 12) rt.flags.defended = true;
   },
 
   onKill(rt, v) {
