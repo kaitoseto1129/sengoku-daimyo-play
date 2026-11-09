@@ -50,7 +50,8 @@ function height(x, z) {
 
 // ---- 場所（ゲームの座標。陣跡の緯度経度から x＝(経度−136.472)×9080×2.5・z＝−(緯度−35.3655)×11100×2.5） ----
 const p = (x, z) => ({ x: x * SC, z: z * SC });
-const START = p(-58, -8);         // 井伊直政・松平忠吉の陣（決戦地の東）
+// 11/9 kaito の布陣図（docs/sekigahara_layout_ref_1109.md）：井伊・松平忠吉は福島の後ろの南。福島の前を抜けて宇喜多の先手の前へ出る
+const START = p(-68, 40);         // 井伊直政・松平忠吉の陣（福島隊の後ろの南東）
 const NUKE = { x: -284, z: 36 };  // 抜け駆けで出る宇喜多の先手の前（福島隊の北の脇・先手まで鉄砲の届く所）
 const FUKU = p(-96, 30);          // 福島正則の陣（春日神社の前）
 const BACK = { x: -212, z: 52 };  // 一旦退く所（福島隊の後ろ）
@@ -72,8 +73,8 @@ const HONDA = p(-9, -17);         // 本多忠勝
 const TODO_P = p(-82, 62);        // 藤堂高虎・京極高知
 const MATSUO = p(-160, 206);      // 松尾山（小早川）
 const WAKI_P = p(-150, 150);      // 脇坂・朽木・小川・赤座（松尾山の北の麓）
-const OTANI = { x: -530, z: 196 };   // 大谷吉継（山中の藤川台。宇喜多の本陣から離れた南西の高み）
-const HIRA = p(-176, 70);         // 平塚為広・戸田勝成（大谷の前）
+const OTANI = { x: -470, z: 202 };   // 大谷吉継（山中の藤川台。宇喜多の南東・中山道の南の高み。11/9 布陣図）
+const HIRA = p(-152, 62);         // 平塚為広・戸田勝成（大谷の前。藤堂・京極に向く）
 const HOLD5 = { x: -112, z: -36 };    // 島津の退き口を受ける所（陣場野の本陣の南の前）
 const sc = (L) => L.map(([x, z]) => [x * SC, z * SC]);
 const FUJI = sc([[-215, -230], [-200, -100], [-190, 0], [-170, 30], [-160, 52], [-165, 100], [-180, 160], [-200, 240]]);   // 藤古川
@@ -651,8 +652,9 @@ const k06_sekigahara = {
     if (F.step === 1) {
       if (F.kaniWait && (near(P, FUKU, 30) || alive(F.ii) && near(F.ii.center(), FUKU, 30) || rt.t - F.s1t > 25)) {
         F.kaniWait = false;
-        rt.say('可児才蔵', 'そこを行くは何者じゃ！　今日の先陣は福島の手ぞ！', 3.5);   // 咎めたのは福島の先手の可児才蔵（通説）
-        rt.after(4.5, () => rt.say('井伊直政', '物見じゃ。下野守（忠吉）殿の初陣の物見にござる', 3.5));
+        rt.say('可児才蔵', '待て！　今日の先鋒は福島正則さま。抜け駆けは許さんぞ！', 3.5);   // 咎めたのは福島の先手の可児才蔵（通説）
+        rt.after(4.2, () => rt.say('井伊直政', '井伊直政でござる。松平忠吉さまと共に、物見の最中なり', 3.5));
+        rt.after(8.2, () => rt.say('井伊直政', '忠吉さまは初陣ゆえ、戦の始まりようを見聞させたいのでござる。通られよ', 3.6));
       }
       // 主人公・赤備え・鉄砲衆が揃ってから撃ちかける。時刻だけでは一人の抜け駆けを済みにしない。
       if (near(P, NUKE, 18) && !F.kaniWait && alive(F.iiGun) && near(F.iiGun.center(), NUKE, 16) && alive(F.ii) && near(F.ii.center(), NUKE, 24)) this.stage2(rt);
@@ -704,6 +706,12 @@ const k06_sekigahara = {
     } else if (F.step === 7) {
       // 左近本人の近くで戦い、虎口を東から西へ通った時だけ数える。
       if (F.sakon?.leader?.alive && near(P, F.sakon.leader.pos, 26)) F.sakonSeen = true;
+      // 左近の隊は柵の前の野に留まる（追って東の野の奥まで走り、主人公が六百歩東まで追った・11/9 流し）
+      const SK = { x: FENCE_X + 14, z: -170 };
+      if (!F.sakBack && alive(F.sakon) && F.sakon.order !== 'move' && !near(F.sakon.center(), SK, 55)) {
+        F.sakon.order = 'move'; F.sakon.dest = { ...SK };
+        F.sakon.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; q.seekRange = 40; q.onArrive = null; };
+      }
       if (F.prevSakonX >= FENCE_X - 1 && P.x < FENCE_X - 1 && Math.abs(P.z - GAP.z) < 8) F.crossed = true;
       F.prevSakonX = P.x;
       const left = nOf(F.sakon);

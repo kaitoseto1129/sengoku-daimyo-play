@@ -1491,12 +1491,15 @@ function withdrawStage(rt) {
     const close = near(pp, g.center(), 45);
     // 11/5（kaito の物差し 二5）：本人が来なくても、上限の二倍の時が経てば味方の押しで殿は退き、物語は進む。
     //   峠・城下・奥の道は本人が着いて初めて次へ進むので、果たさずに勝ちにはならない。
-    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step];
+    const remaining = fighters(g);
+    // 城下と奥の寄せ手は、無傷のまま時計だけで退かせない。
+    // 坂の殿の進行は保ち、一乗谷では実際に兵を失ってから時間の保険を使う。
+    const late = rt.t - F.stepT >= STAGE_LIMIT[F.step] && (F.step <= 3 || remaining < g.initial);
     const idleLate = F.step <= 3 && rt.t - F.stepT >= STAGE_LIMIT[F.step] * 2;
     // 自分と組が三人を倒すと、三割弱の損失でも守りが崩れる。無傷の備は退かせない。
     const threshold = g._toneHelp >= 3 ? 0.75 : 0.6;
     // 山崎・龍興の旗本は、時刻で退かせず討たれるまで踏みとどまる。
-    if (fighting(g) && !g.lastStand && (close && (fighters(g) <= g.initial * threshold || late) || idleLate)) {
+    if (fighting(g) && !g.lastStand && (close && (remaining <= g.initial * threshold || late) || idleLate)) {
       retreat(g); tonezaka.onRout(rt, g);
     }
   }
@@ -3064,7 +3067,7 @@ const tonezaka = {
     rt.obj('main', TONE_LINE[6], 'main', true);
     toneDestinationGuide(rt, INNER);
     rt.marker('inner', () => !F.innerWaiting && !F.guideJoin && near(rt.player.u.pos, INNER, 12) ? null : toneGuidePosition(rt),
-      () => F.innerWaiting ? F.innerAlly ? F.innerMeetReady ? '勝家の兵二人と合流する所' : '守り場で合流する勝家の兵' : '守り場で勝家の兵を待つ所' : F.guideJoin ? F.guideBend ? '勝家の手へ合流する道' : '合流する勝家の手' : F.guideBend ? '奥の道へ続く曲がり' : '奥の道の守り場', { h: 0.35 });
+      () => F.innerWaiting ? F.innerAlly ? '守り場で合流する勝家の兵' : '守り場で勝家の兵を待つ所' : F.guideJoin ? F.guideBend ? '勝家の手へ合流する道' : '合流する勝家の手' : F.guideBend ? '奥の道へ続く曲がり' : '奥の道の守り場', { h: 0.35 });
     rt.zone('inner', INNER.x, INNER.z, 12);
     townMarch(F, true);
     if (!F.innerG) {
