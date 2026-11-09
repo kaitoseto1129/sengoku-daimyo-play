@@ -7,14 +7,13 @@
 // 入れ方：b_t12_odawara.js の depthStart の段の並びの頭に step(H) を置く（b_depth.js の段の形）。
 // ======================================================================
 import { nm } from '../bhelp.js';
-import { flagTexture } from '../textures.js';
 import { sfx } from '../audio.js';
 
 export function step(H) {
   return {
     kind: 'move', key: 'jinmawari',
     start(rt, C, m, ctx) {
-      const F = rt.flags, W = rt.world;
+      const F = rt.flags;
       F.day = -1;
       C.at = H.IE_FRONT; C.goal = H.IE_FRONT; C.groups = [];
       rt.banner('小田原の陣', '二十万の軍勢が、城を囲む');
@@ -22,12 +21,7 @@ export function step(H) {
       // 先に川の岸の見張りの土手（総構えが一望できる）、それから家康の本陣へ
       C.at = H.LOOKOUT; C.goal = H.LOOKOUT;
       rt.marker('dp', H.LOOKOUT, '見張りの土手', { h: 3 });
-      // 徳川勢の陣の厚み（遠くの軽い作り。寄っても本物に替えない）
-      if (W.addDistantArmy) {
-        W.addDistantArmy({ x: 140, z: -178, w: 22, d: 10, count: 220, facing: -Math.PI / 2, armor: 0x24221f, flagTex: flagTexture('tokugawa'), kind: 'mixed', host: false, seed: 12901 });
-        W.addDistantArmy({ x: 177, z: -126, w: 14, d: 10, count: 150, facing: -Math.PI / 2, armor: 0x24221f, flagTex: flagTexture('tokugawa'), kind: 'mixed', host: false, seed: 12902 });
-        W.addDistantArmy({ x: 160, z: -186, w: 18, d: 8, count: 160, facing: -Math.PI / 2, armor: 0x24221f, flagTex: flagTexture('tokugawa'), kind: 'mixed', host: false, seed: 12903 });
-      }
+      // 本陣へ歩いて近づく場所には板の軍勢を置かず、既存の旗本・陣幕・幟で厚みを見せる。
       C.say = 0;
       // 陣の組は陣に留まる（昼の囲みの最中。篠曲輪の守りへ勝手に寄せない）
       for (const g of ctx.friends(rt)) { g.ai = false; g.order = 'hold'; g.aggro = 4; g.seekRange = 6; g.onArrive = null; }
@@ -40,7 +34,7 @@ export function step(H) {
       if (!C.looked && (Math.hypot(P.x - H.LOOKOUT.x, P.z - H.LOOKOUT.z) < 8)) {
         C.looked = el;
         rt.say(me, '町ごと、堀と土塁で囲んである……あれが総構えか', 3.4);
-        rt.after(3.8, () => rt.say('井伊の侍', '総構えは九里。城の周りは、東は徳川、北は羽柴秀次殿と蒲生殿、西の早川口は宇喜多殿じゃ', 4.4));
+        rt.after(3.8, () => rt.say('井伊の侍', '総構えは二里余り。城の周りは、東は徳川、北は羽柴秀次殿と蒲生殿、西の早川口は宇喜多殿じゃ', 4.4));
         rt.after(8.6, () => rt.say('井伊の侍', '海には長宗我部と九鬼の船。……二十万が、この一つの城を囲んでおる', 4));
         rt.after(13, () => rt.say(me, '十年前は織田家の一手だった殿下が、日本中の大名を動かしておる', 3.6));
         rt.after(16, () => { C.at = H.IE_WAY; C.goal = H.IE_FRONT; rt.unmark('dp'); rt.marker('dp', H.IE_FRONT, '家康の本陣', { h: 3 }); });
@@ -54,7 +48,7 @@ export function step(H) {
         rt.say('徳川家康', 'よう来た。殿下は石垣山の向こうの早雲寺におられる。下知は一つじゃ', 3.8);
         rt.after(4.2, () => rt.say('徳川家康', '城は攻めるな。囲みを保て。城の者が自ら折れるまで待つ', 3.8));
         rt.after(8.4, () => rt.say('使番', '関東の北条の城は、一つずつ落ちております。山中は半日、鉢形・八王子へも勢が向かいました', 4.2));
-        rt.after(12.8, () => rt.say('徳川家康', '……三年前は、わしも殿下と小牧で睨み合うた。それが今は、この囲みの一手よ', 4));
+        rt.after(12.8, () => rt.say('徳川家康', '……六年前は、わしも殿下と小牧で睨み合うた。それが今は、この囲みの一手よ', 4));
       }
       // 下知は本陣へ着いて聞き終えるまで済ませない。
       if (C.arrived) return el - C.arrived > 17.5;

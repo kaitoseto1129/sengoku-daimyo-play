@@ -4541,7 +4541,8 @@ const sunomata = {
     }
     const gone = (g) => !g || g.routed || !g.units.some((u) => u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget);
     if (F.wave === 3 && !F.northAtFence && F.W3a?.units.some((u) =>
-      u.alive && !u.gone && !u.fleeing && Math.abs(u.pos.x) < FORT + 6 && Math.abs(u.pos.z + FORT) < 12)) {
+      u.alive && u.hp > 0 && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
+      Math.abs(u.pos.x) < FORT + 6 && Math.abs(u.pos.z + FORT) < 12)) {
       F.northAtFence = true;
       F.W3a.noRout = false;
     }

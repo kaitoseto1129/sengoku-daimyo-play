@@ -41,8 +41,8 @@ export function step(H) {
       line(26, () => rt.say('井伊直政', '刀を抜かずに天下が定まる。これが殿下の戦よ', 3.6));
       line(32, () => rt.say('黒田官兵衛', '氏直殿は滝川殿の陣へ参られる。……北条の百年が、今日で終わる', 4));
       const P = rt.player.u.pos;
-      C.near = Math.hypot(P.x - H.WATCH.x, P.z - H.WATCH.z) < 16 ? (C.near || 0) + 1 : C.near || 0;
-      return (el > 38 && C.near > 0) || el > 75;
+      C.near = Math.hypot(P.x - H.WATCH.x, P.z - H.WATCH.z) < 16;
+      return el > 38 && C.near;
     },
     end(rt) {
       rt.unmark('dp');

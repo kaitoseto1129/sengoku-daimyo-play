@@ -87,7 +87,7 @@ export const GENERALS = {
     face: { w: 1.06, jaw: 1.25, chin: 0.9, cheek: 1.2, gaunt: 0.3, brow: 1.35, nose: 0.95, nw: 1.2, eye: 1.25, t: 4, hair: 0x15110d, age: 52, esp: 0.97, beard: { mus: 0.8, musW: 1, droop: 0.5, goat: 0.6, side: 0.45, stub: 1.1 } } },
   '戸田勝成': { armor: 0x24221f, lace: 0x4a4a2a, hat: 'kabuto_m', haori: 0x3a3a2a, horo: 0, mon: 'none', skin: 0xa87f5c,
     face: { w: 1.0, jaw: 1.05, chin: 1.0, cheek: 1.2, gaunt: 0.8, brow: 1.2, nose: 1.05, nw: 1.0, eye: 1.2, t: 6, hair: 0x5a5650 } },
-  '井伊直政': { armor: 0xa52b1c, lace: 0xb8342a, hat: 'kabuto_tentsuki', hatFix: 1, haori: 0x7a1a12, horo: 0, mon: 'ii', haoriMonCol: 0xc9a24a, skin: 0xc09a74, tack: 0x8e2218,
+  '井伊直政': { armor: 0xa52b1c, lace: 0x1c1a1a, hat: 'kabuto', hatFix: 1, haori: 0, horo: 0, mon: 'ii', haoriMonCol: 0xc9a24a, skin: 0xc09a74, tack: 0x8e2218,
     face: { w: 0.93, jaw: 0.85, chin: 1.1, cheek: 1.0, gaunt: 0.5, brow: 1.05, nose: 1.1, nw: 0.92, eye: 1.05, t: 1, hair: 0x15110d, age: 39, beard: { mus: 0.15, musW: 0.6, musH: 0.6, goat: 0, side: 0, stub: 0.4 } } },
   '真田信繁': { armor: 0x8e1f16, lace: 0x232c40, hat: 'kabuto_sanada', hatFix: 1, haori: 0, horo: 0, mon: 'sanada', haoriMonCol: 0xc9a24a, skin: 0xa87f5c, tack: 0x8e2218,
     face: { w: 0.97, jaw: 1.0, chin: 1.05, cheek: 1.25, gaunt: 1.0, brow: 1.15, nose: 1.05, nw: 1.0, eye: 1.15, t: 4, hair: 0x3a3632, age: 48, beard: { mus: 0.55, musW: 0.85, droop: 0.4, goat: 0.75, goatW: 0.7, side: 0.1, stub: 0.8 } } },

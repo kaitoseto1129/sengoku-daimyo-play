@@ -2489,7 +2489,7 @@ const honnoBotPlay = () => typeof window !== 'undefined' && (!!window.__autoplay
 //   並びは信長公記の順（表門→本堂→御殿→二条御所→京の外れ）。「敵を八人討つ」のような数の目標は置かない。
 //   段の長さは史実の流れで決まるので、目標ごとの時切れの ✕ は付けない（sec 900）。
 const HONNO_ORDER = ['brief', 'alarm', 'gate', 'hondo', 'kyoto', 'move', 'goten', 'end1', 'nijo', 'defend', 'escape', 'shisha', 'end'];
-const honnoPast = (rt, phase) => HONNO_ORDER.indexOf(rt.phase) >= HONNO_ORDER.indexOf(phase);
+const honnoPast = (rt, phase) => HONNO_ORDER.indexOf(rt.flags.failedPhase ?? rt.phase) >= HONNO_ORDER.indexOf(phase);
 const honnoWon = (rt) => rt.tracker?.main === true;
 const HONNO_GOALS = [
   ['表門を閉め、門の口で明智勢を防ぐ', '表門', 'hondo'],
@@ -4769,6 +4769,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     if (!rt.canFailMission()) return;
     const F = rt.flags;
     if (F.ending) return;
+    // 失敗の終了段へ移っても、まだ守っていない本堂・御殿・二条を達成にしない。
+    F.failedPhase = rt.phase;
     F.ending = true;
     rt.setPhase('end'); rt.objRemove('escort');
     const why = reason || '護衛の持ち場を失った';

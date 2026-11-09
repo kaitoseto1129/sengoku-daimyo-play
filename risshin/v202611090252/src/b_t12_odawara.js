@@ -550,7 +550,7 @@ const t12_odawara = {
     F.mine = allyGroup(rt, { faction: 'oda', name: '手勢', anchor: { x: II_JIN.x - 4, z: II_JIN.z + 8 }, facing: -Math.PI / 2, width: 12, aggro: 9, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 3 }, { type: 'gun', n: 2 }], TOYO));   // 雨の夜討ちは寄せ手も火縄が湿る。飛び道具は弓を主に
     F.ii = allyGroup(rt, { faction: 'oda', name: '井伊勢', anchor: { x: II_JIN.x - 6, z: II_JIN.z - 6 }, facing: -Math.PI / 2, width: 14, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '井伊直政', hat: 'kabuto_tentsuki', haori: 0x7a1a12, horse: true, invuln: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 20 }, { type: 'bow', n: 4 }, { type: 'gun', n: 2 }], II));
+      dress([{ type: 'busho', n: 1, o: { name: '井伊直政', hat: 'kabuto', haori: 0, horse: true, invuln: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 20 }, { type: 'bow', n: 4 }, { type: 'gun', n: 2 }], II));
     F.naomasa = F.ii.units[0];
     F.ii2 = allyGroup(rt, { faction: 'oda', name: '井伊勢の二の手', anchor: { x: II_JIN.x - 2, z: II_JIN.z - 18 }, facing: -Math.PI / 2, width: 12, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 16 }], II));
