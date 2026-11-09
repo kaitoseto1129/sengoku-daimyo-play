@@ -4170,11 +4170,15 @@ const hiei_mtn = {
         // 時間だけで守りを崩さず、本人が槍を合わせ、実際に道が開いてから締める。
         // 大講堂の別働隊は中堂前の案内範囲の外。追って全滅させる隠れた条件にしない。
         // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
-        // 11/9 二巡：中堂の前で九十秒たっても締まらない時（廻廊の弓が残る・槍が届かない）は、残りの守りが燃える堂の奥へ退き、締める
-        //   （bot が中堂の前で十三分「槍を向ける僧兵を退けよ」のまま止まり、任務失敗になった・11/9 通し）
+        // 廻廊に残った弓で通しが止まる時は、中庭へ打って出させる。
+        // 時間だけで敗走・達成にせず、本人の命中と守りの敗退を最後まで確かめる。
         const courtLate = rt.t - F.courtT > 90 && near(u, P.court, 20);
-        if (courtLate && !F.courtFled) { F.courtFled = true; for (const g of [F.chudoG, F.courtBow, F.kodoG]) if (!gone(g)) { g.noRout = false; g.routed = true; g.order = 'flee'; } rt.say('根本中堂の僧兵頭', '……中堂は焼ける。退け、西塔へ退け！', 3); }
-        if ((courtLate && rt.t - F.courtT > 96) || F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
+        if (courtLate && !F.courtSortie) {
+          F.courtSortie = true;
+          if (!gone(F.courtBow)) walk(F.courtBow, [[-36, -7], [-36, -5]], 2.4, (q) => attackFrom(q, 16));
+          rt.say('根本中堂の僧兵頭', '廻廊の衆も前へ出よ！　中堂を渡すな！', 3);
+        }
+        if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
             [F.chudoG, F.courtBow].every(gone) && rt.t - F.courtT > 15) {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
@@ -4529,6 +4533,7 @@ installBattleJinkei(hiei_mtn, [
     ['hiei_north', '坂本の北の口（約1.5km）', '柴田勝家の手', null, { x: 186, z: -104 }, 'oda', 'oda', null],
     ['hiei_north2', 'その先の北（約2.5km）', '丹羽長秀・中川重政の手', null, { x: 176, z: -160 }, 'oda', 'oda', null],
     ['hiei_south', '坂本の南（約1.5km）', '佐久間信盛の手', null, { x: 178, z: 108 }, 'oda', 'oda', null],
+    ['hiei_south2', 'その先の南（約2.5km）', '木下藤吉郎の手', null, { x: 170, z: 164 }, 'oda', 'oda', null],   // docs/generals_oda_1108.md の12（藤吉郎も比叡を囲む一手）
   ], '信長の三井寺本陣はこの場の南の外。陣地と登山の順は復元。総兵数・持ち場別の兵数は不明。見える兵と遠景は縮小した表現で、総勢や人数の比率を示さない。'),
   battleJin('里坊と三塔に分かれた守り', 1, P.chudo, Math.PI / 2, [
     ['hiei_hiyoshi', '日吉社前・坂本の里坊', '神人と衆徒（将の名は不明）', null, { x: 146, z: -7 }, null, null, (r) => r.flags.hiyoshiG, { named: false }],

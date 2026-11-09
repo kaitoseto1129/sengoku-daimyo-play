@@ -312,6 +312,7 @@ const t01_yamazaki = {
     tufts: 2600,
     treeDensity: (x, z) => (x < -100 ? 1 : x > 120 || z < -205 || z > 174 ? 0.6 : 0),
     fleeOut: (x, z, team) => (team === 1 ? z < -200 : z > 170),
+    moveLim: 210,   // 二巡 11/9：勝竜寺城（z −186）と御坊塚の裏まで戦場の内に（退く明智勢が 176 の端を越えていた）
   },
 
   setup(rt) {
@@ -434,7 +435,9 @@ const t01_yamazaki = {
       rt.army.play('toki', { x: -20, z: -24 }, 1.4);
       rt.after(12, () => { try { F.yfar?.tenno?.go?.(); } catch (e) { /* 遠景 */ } });
       rt.after(40, () => report(rt, '天王山、秀長様の手が頂を押さえました！'));
+      rt.after(68, () => report(rt, '中川様の手、伊勢貞興の手を川の際まで押し返しました！'));
       rt.after(100, () => report(rt, '淀川沿い、明智の左手は薄うござる！'));
+      rt.after(145, () => report(rt, '池田様の物見が戻りました。東の浅瀬は膝までにござる'));
       //   三度目の寄せ：天王山の裾から並河易家の手が下りて、中川の隊の横へ（天王山の取り合いが野へこぼれる）
       rt.after(118, () => {
         if (F.stage !== 2) return;
