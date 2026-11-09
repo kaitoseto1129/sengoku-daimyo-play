@@ -285,6 +285,10 @@ function kbBowlGeo(base, kind) {
       ny = rim + H * (0.78 * h + 0.38 * h * (1 - h)) - 0.045 * h * h * Math.max(0, -zb);
       if (z < 0) z *= 1 + 0.07 * h;
       x *= 1 + 0.03 * h * (1 - h);
+    } else if (kind === 'toppai') {
+      // 昌幸の突盔鉢。鉢だけを円錐へ寄せ、錣・眉庇と頂点数は保つ。
+      const cone = (1 - h) / Math.max(.06, Math.sqrt(Math.max(0, 1 - h * h)));
+      x *= cone; z *= cone; ny = rim + H * 1.34 * h;
     } else if (kind === 'momo') {
       // 横を絞って切妻の断面に、真ん中の稜を高く（頂は少し後ろへ）
       x *= 1 - 0.16 * h * h;
@@ -415,7 +419,7 @@ function kabutoStyle(L) {
   // 本人の前立は伝来の鍬形の作り（鍬形台から細い茎で立ち、先が剣の形に開く。HERO_CREST）
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
-  const bowl = L.face === 'player' && L.kbBowl || '';
+  const bowl = L.face === 'player' && L.kbBowl || (by.bowl === 'toppai' ? 'toppai' : '');
   return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）
@@ -937,9 +941,10 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   if (look.okeVar != null && tint) { const th = tint.getHSL({}); if (!(th.s > 0.5 && (th.h < 0.035 || th.h > 0.95))) tint = null; }
   const plate = { nanban: 1, hotoke: 2, sendai: 3 }[nk0?.plateDo ?? look.plateDo] || 0;
   const silver = !!(nk0?.silver ?? look.silver);
+  const ladder = !!(nk0?.ladderMon ?? look.ladderMon);
   // noHead：true は兜と顔を描かない。'helm' は兜（鉢・錣・吹返し・眉庇）を残し、人形の顔と面頬だけを抜く（名のある武将：スキャンの兜に、その人の顔と前立）
   const helm = noHead === 'helm';
-  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '');
+  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '') + (ladder ? '|梯子' : '');
   // 足軽（御貸具足）：胴丸の形のまま、胴の所に横矧の桶側胴の板の段と胸の家紋を描く（本の足軽具足の写真）。
   // 侍・武将は胴丸のまま。家紋の絵は家ごとに一枚（monDecal と共用）。描く回数・形は変えない
   const oke = (look.tier || 0) === 0 && !look.kacchu && !look.nanban && look.doStyle !== 'sugake';
@@ -1153,8 +1158,14 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             // 銀の人：鎬の頂きに沿って銀の細い筋（磨き出し）
             col = mix(col, metal * 0.9, smoothstep(0.006, 0.002, ax) * front * uSilver * 0.8);
             #endif
+            // 昌幸の銀梯子。材質内で描くため、重ねる面や描画回数を増やさない。
+            ${ladder ? `vec2 lp = mat2(0.8, -0.6, 0.6, 0.8) * vec2(q.x, q.y - 1.2);
+            float rails = 1.0 - smoothstep(0.003, 0.005, abs(abs(lp.x) - 0.045));
+            float rungs = (1.0 - smoothstep(0.003, 0.005, abs(mod(lp.y + 0.025, 0.05) - 0.025))) * (1.0 - smoothstep(0.043, 0.047, abs(lp.x)));
+            float ladderInk = max(rails, rungs) * (1.0 - smoothstep(0.168, 0.172, abs(lp.y))) * front;
+            col = mix(col, vec3(0.48, 0.48, 0.45), ladderInk);` : 'float ladderInk = 0.0;'}
             diffuseColor.rgb = mix(diffuseColor.rgb, col, pm);
-            float met = max(rim, riv) * (uSilver > 0.5 ? 1.0 : 0.5);
+            float met = max(ladderInk, max(rim, riv) * (uSilver > 0.5 ? 1.0 : 0.5));
             dmPlate = pm;
             dmLacq = mix(dmLacq, 1.0 - met, pm); dmGold = mix(dmGold, met, pm);
             dmCloth *= 1.0 - pm; dmLeather *= 1.0 - pm;
@@ -1427,7 +1438,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
       sh.fragmentShader = 'uniform vec4 uFpCut;\nuniform vec3 uFpHand[2];\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && (distance(vFpW, uFpCut.xyz) < uFpCut.w || (length(vFpW.xz - uFpCut.xz) < 0.3 && vFpW.y < uFpCut.y - 0.1 && vFpW.y > uFpCut.y - 1.1) || (length(vFpW.xz - uFpCut.xz) < 0.55 && vFpW.y < uFpCut.y + 0.3 && vFpW.y > uFpCut.y - 1.9 && min(distance(vFpW, uFpHand[0]), distance(vFpW, uFpHand[1])) > 0.16))) discard;');
     }
   };
-  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '');
+  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '') + (ladder ? '-梯子' : '');
   dmMats.set(kk, m);
   return m;
 }

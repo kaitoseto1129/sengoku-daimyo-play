@@ -25,6 +25,10 @@ import { withGuard } from './toyo_bot.js';
 import { STAGES } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { TOKU, fl, dressT, foeKnot, live, aliveN, aliveReal, dist, walls } from './b_t03_komaki.js';
+// 15分の段（kaito 11/8 夜 docs/toyo15_plan_1108.md）：段の中身は t03b_nagakute/ に
+import * as March from './t03b_nagakute/march.js';
+import * as Ikeda from './t03b_nagakute/ikeda.js';
+import * as Retreat from './t03b_nagakute/retreat.js';
 
 const XW = 158, ZN = -120, ZS = 120;
 const ROAD = [[156, -30], [112, -26], [64, -18], [12, -10], [-50, -14], [-110, -18], [-156, -22]];
@@ -44,7 +48,7 @@ function paddy(x, z) {
   return Math.max(0, Math.min(1, (Math.min(ex, ez) - 1.1) / 0.8)) * 0.7;
 }
 const REAL_CAP = 236;
-const TIME_UP = 780;
+const TIME_UP = 1500;   // 15分の構成（11/8 夜）で刻限を延ばした
 // 井伊の赤備え：朱の具足と、赤地に井桁の旗（ii）
 // 11/8 critic60（八1・九6「つるつるの橙色のおもちゃの人形。陣笠も胴も同じ一色」）：胴は深い朱漆、小袖は煤けた茶、威は明るい緋で段を分ける
 const AKA = { armor: 0x641610, cloth: 0x3a2a22, lace: 0x9a2e20, flag: 'ii' };
@@ -99,16 +103,22 @@ const STAGE_TEXT = ['',
   '檜ヶ根の丘で榊原の手を通さない',
   '南の仏ヶ根で井伊の赤備えを食い止める',
   '南の仏ヶ根で井伊の赤備えを食い止める',
-  '西の細ヶ根の堀様の旗まで退く'];
+  '羽柴勢を退かせ、西の細ヶ根の堀様の旗まで退く'];
+// 15分の段で足した段（①の前の行軍・⑤の後の池田勝入の救い）
+const BAN_TEXT = '三河への道で徳川方の番所を焼く', IKE_TEXT = '仏ヶ根の池田勝入様の旗本へ駆けつける';
+const textOf = (n) => (n === 0.5 ? BAN_TEXT : n === 5.5 ? IKE_TEXT : STAGE_TEXT[n]);
 // 段ごとの行き先（固定。人の動きに付いて動かさない・AW の 3）
 const GOAL = [null, { x: CAMP.x - 6, z: CAMP.z + 2 }, HIDE_STOP, { x: HINOKI.x + 12, z: HINOKI.z }, { x: HOTOKE.x + 10, z: HOTOKE.z - 4 }, { x: HOTOKE.x + 10, z: HOTOKE.z - 4 }, EXIT];
 // 到着と印を消す距離をそろえる。細ヶ根は退き切ったと認める距離に合わせる。
 const GOAL_R = [0, 14, 14, 14, 14, 14, 16];
+const goalOf = (n) => (n === 0.5 ? March.BANSHO : n === 5.5 ? Ikeda.at(null, HOTOKE) : GOAL[n]);
+const goalR = (n) => (n === 0.5 || n === 5.5 ? 14 : GOAL_R[n]);
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const t03b_nagakute = {
-  spawn: { x: CAMP.x - 4, z: CAMP.z + 6, heading: E },
-  minutes: 10,
+  spawn: { x: 0, z: -12, heading: E },   // 中入りの列の中（西の道）。白山林の陣へ追い付き、番所へ
+  minutes: 15,
+  expectMin: 15,
   compactIntro: true,
   introText: () => '三河へ回り込む途中、白山林で朝飯の最中。',
   introSides: { a: '羽柴勢　二万', b: '徳川・信雄勢　一万四千' },   // 五4：始まりの札に味方対敵の数（battle_learn 二）
@@ -137,27 +147,29 @@ const t03b_nagakute = {
   closeCombatAssist: true,
   noWinCrane: true,
   // 主目標の字は一つを更新するため、やり直しの写しは果たした段の数で残す。
-  retryGoalCount: (rt) => { const n = rt.flags.stage || 0; return n >= 6 ? 4 : n >= 4 ? 3 : Math.max(0, n - 1); },
+  retryGoalCount: (rt) => { const n = rt.flags.stage || 0; return n >= 6 ? 6 : n >= 5.5 ? 5 : n >= 4 ? 4 : n >= 1 ? Math.floor(n) : 0; },
   onPlayerHit(rt, target) {
     if (target.team !== rt.player.u.team && (rt.flags.stage === 1 || rt.flags.stage === 3)) rt.flags.defended = true;
   },
   // 目標の五つ（史実の順）。④は仏ヶ根へ走って赤備えを食い止める一つの目標（中で二段）
   goals5(rt) {
-    const F = rt.flags, won = () => rt.tracker?.main === true, at = (n) => () => (dist(rt.player.u.pos, GOAL[n]) < GOAL_R[n] ? null : { x: GOAL[n].x, z: GOAL[n].z }), past = (n) => () => won() || (F.stage || 0) >= n;
+    const F = rt.flags, won = () => rt.tracker?.main === true, at = (n) => () => (dist(rt.player.u.pos, goalOf(n)) < goalR(n) ? null : { x: goalOf(n).x, z: goalOf(n).z }), past = (n) => () => won() || (F.stage || 0) >= n;
     return [
-      { kind: 'stage', k: 0, text: STAGE_TEXT[1], noun: '信吉様の馬印', place: at(1), check: past(2) },
-      { kind: 'stage', k: 1, text: STAGE_TEXT[2], noun: '堀秀政様の陣', place: at(2), check: past(3) },
-      { kind: 'stage', k: 2, text: STAGE_TEXT[3], noun: '檜ヶ根の丘', place: at(3), check: past(4) },
-      { kind: 'stage', k: 3, text: STAGE_TEXT[4], noun: '森長可様の旗', place: at(4), check: past(6) },
-      { kind: 'stage', k: 4, text: STAGE_TEXT[6], noun: '堀秀政様の旗', place: at(6), check: won },
+      { kind: 'stage', k: 0, text: BAN_TEXT, noun: '徳川の番所', place: at(0.5), check: past(1) },
+      { kind: 'stage', k: 1, text: STAGE_TEXT[1], noun: '信吉様の馬印', place: at(1), check: past(2) },
+      { kind: 'stage', k: 2, text: STAGE_TEXT[2], noun: '堀秀政様の陣', place: at(2), check: past(3) },
+      { kind: 'stage', k: 3, text: STAGE_TEXT[3], noun: '檜ヶ根の丘', place: at(3), check: past(4) },
+      { kind: 'stage', k: 4, text: STAGE_TEXT[4], noun: '森長可様の旗', place: at(4), check: past(5.5) },
+      { kind: 'stage', k: 5, text: IKE_TEXT, noun: '池田勝入様の旗本', place: at(5.5), check: past(6) },
+      { kind: 'stage', k: 6, text: STAGE_TEXT[6], noun: '堀秀政様の旗', place: at(6), check: won },
     ];
   },
   missionPin(rt) {
     const F = rt.flags;
     if (!F.stage || F.ending) return null;
-    const p = GOAL[F.stage];
+    const p = goalOf(F.stage);
     // 着いた行き先の▼は消す（空に浮いたまま残さない・九1）。離れればまた出す
-    if (dist(rt.player.u.pos, p) < GOAL_R[F.stage]) return null;
+    if (dist(rt.player.u.pos, p) < goalR(F.stage)) return null;
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.stage === 6 ? 10 : 8;
     return PIN;
   },
@@ -225,17 +237,19 @@ const t03b_nagakute = {
       fl([{ type: 'busho', n: 1, o: { name: '堀秀政', horse: true } }, { type: 'gun', n: 12 }, { type: 'ashigaru', n: 12, o: { flagScale: 1 } }, { type: 'samurai', n: 5 }], 'hori'));
     F.horiU = F.hori.units.find((u) => u.name === '堀秀政');
     if (F.horiU) F.horiU.invuln = true;
-    rt.obj('main', STAGE_TEXT[1], 'main');
-    const L = [['三好信吉', '池田・森の手は岩崎の城を落として先へ進んだ。ここで飯にいたせ', 0.5], [me, '後ろの小牧の家康が、気づかねばよいが……', 3.8],
-      ['物見', '徳川勢じゃ！　後ろの東の林から来るぞ！', 6.8]];
+    rt.obj('main', BAN_TEXT, 'main');
+    const L = [[me, '後ろの小牧の家康が、気づかねばよいが……', 8.4],
+    ];
     for (const [who, s, t] of L) rt.after(t, () => rt.say(who, s, 2.8));
-    rt.after(8.6, () => { F.holdPlayer = false; this.stage(rt, 1); });
+    rt.after(1.2, () => { F.holdPlayer = false; this.stage(rt, 0.5); });
   },
 
   stage(rt, n) {
     const F = rt.flags;
     F.stage = n; F.st0 = rt.t; F.there = false; F.defended = false;
-    rt.obj('main', STAGE_TEXT[n], 'main');
+    rt.obj('main', textOf(n), 'main');
+    if (n === 0.5) { March.start(rt, this.ctx(rt)); return; }
+    if (n === 5.5) { Ikeda.start(rt, this.ctx(rt)); return; }
     if (n === 1) {
       // 奇襲の声で朝飯をやめて立つ。描画を省く流しでも、休む姿勢を戦いへ持ち越さない。
       for (const g of [F.camp, F.men, F.hideG]) for (const u of g.units) if (u.alive) u._crouch = false;
@@ -249,6 +263,8 @@ const t03b_nagakute = {
         if (F.stage !== 1) return;
         F.w1.push(...[0, 1].map((i) => this.wave(rt, { x: CAMP.x - 10 + i * 18, z: ZN + 8 }, 12, CAMP, '榊原康政の手', null, SAKA)));
         this.general(rt, '榊原康政', { x: CAMP.x + 6, z: ZN + 2 }, SAKA, 0);
+        //   五十五秒で南の田から丹羽氏次の手も（三方から。信吉隊の前衛が崩れる）
+        rt.after(37, () => { if (F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 20, z: CAMP.z + 44 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '南の田からも！　前の組が崩れるぞ！', 2.6); } } });
         rt.army.play('toki', { x: CAMP.x, z: ZN + 14 }, 1.4);
         rt.say('物見', '北の横からも！　榊原の旗じゃ、挟まれた！', 2.8);
       });
@@ -285,6 +301,12 @@ const t03b_nagakute = {
       this.general(rt, '榊原康政', { x: HINOKI.x + 56, z: HINOKI.z + 62 }, SAKA, -Math.PI * 0.75);
       F.hori.facing = Math.PI / 4;   // 南東の坂へ向く
       F.w3N = F.w3.reduce((s, g) => s + aliveN(g), 0);
+      //   四十五秒で榊原の二の手が坂の下から登り直す（押し返す山を二つに）
+      rt.after(45, () => {
+        if (F.stage !== 3) return;
+        const g = this.wave(rt, { x: HINOKI.x + 46, z: HINOKI.z + 40 }, 10, HINOKI, '榊原康政の手', null, SAKA);
+        if (g) { F.w3.push(g); F.w3N += aliveN(g); rt.army.play('toki', { x: HINOKI.x + 46, z: HINOKI.z + 40 }, 1.2); rt.say('物見', '榊原の二の手が登って来る！', 2.6); }
+      });
       rt.army.play('toki', { x: HINOKI.x + 64, z: HINOKI.z }, 1.4);
       // 堀の手は丘の上に留まり、鉄砲は届く敵を撃ち、槍は登って来た敵とだけ打ち合う（坂を下りて散らばらない・二の1）
       F.hori.order = 'hold'; F.hori.aggro = 7; F.hori.seekRange = 8;
@@ -353,11 +375,20 @@ const t03b_nagakute = {
         const m = F.moriU, P = rt.player.u.pos;
         if (k < 16 && m && m.alive && dist(m.pos, P) > 35) { rt.after(1, () => moriEnd(k + 1)); return; }
         this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true);
-        rt.after(16, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
-        rt.after(28, () => { if (F.stage === 5) this.fall(rt, F.ikeG, '池田恒興', '勝入様、永井直勝に討たれましてござる！'); });
-        rt.after(36, () => { if (F.stage === 5) this.stage(rt, 6); });
+        rt.after(14, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
+        rt.after(19, () => { if (F.stage === 5) this.stage(rt, 5.5); });
       };
-      rt.after(62, () => moriEnd(0));
+      //   森長可の強引な反撃：四十秒で鶴丸の旗本が赤備えへ突きかかる（激戦）。本多・榊原の名も見える。撃たれるのは百秒から
+      rt.after(40, () => {
+        if (F.stage !== 5 || !live(F.moriG)) return;
+        F.moriG.order = 'attack'; F.moriG.seekRange = 26; F.moriG.aggro = 18;
+        rt.say('森長可', '押し返せ！　赤備えなど蹴散らせぇ！', 2.8);
+        rt.army.play('toki', { x: HOTOKE.x + 20, z: HOTOKE.z - 4 }, 1.3);
+      });
+      rt.after(58, () => { if (F.stage === 5) rt.say('物見', '御旗山の麓に「本多平八郎」の旗！　蜻蛉切の本多忠勝にござる！', 3.2); });
+      rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
+      rt.after(100, () => { if (F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
+      rt.after(140, () => moriEnd(0));
     } else if (n === 6) {
       // 大きな札は共通の「〇〇が討たれた」に任せる（重ねると共通の札が出られず毎コマ出し直す）。退く下知は台詞で
       rt.say('使番', '勝入様・之助様・武蔵守様、お討死！　西の細ヶ根の堀様の旗まで退かれよ！', 3.4);
@@ -369,9 +400,16 @@ const t03b_nagakute = {
       for (const g of F.waves) if (live(g)) for (const u of g.units) if (u.alive && !u.gone && (g.general || dist(u.pos, P) > 30)) rt.army.despawn(u);
       for (const g of F.waves) if (live(g) && !g.general) { g.order = 'attack'; g.seekRange = 40; }
       F.nextPursuit = rt.t + 2;
+      Retreat.start(rt, this.ctx(rt));
     }
   },
 
+  // 段の中身（t03b_nagakute/*.js）へ渡す道具
+  ctx(rt) {
+    const F = rt.flags;
+    return { CAMP, HOTOKE, EXIT, fl, dressT, live, aliveN, pushWave: (g) => F.waves.push(g), fall: (g, name, line) => this.fall(rt, g, name, line),
+      next: () => this.stage(rt, F.stage === 0.5 ? 1 : 6) };
+  },
   wave(rt, at, n, to, name = '徳川勢', focus, kit) {
     const F = rt.flags;
     if (aliveReal(rt) + n > REAL_CAP) return null;
@@ -457,7 +495,7 @@ const t03b_nagakute = {
     if (F.ending || !F.stage) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
-    const run = F.stage === 2 || F.stage === 4 || F.stage === 6;
+    const run = F.stage === 2 || F.stage === 4 || F.stage === 6 || F.stage === 5.5;
     // 連れた兵：走る段は斬り合いに留まらず縦に駆けて付いて来る（前は②で白山林に残って討たれた・一5・九4）。着けば構えて打ち合う
     if ((F.menT = (F.menT || 0) - dt) <= 0) {
       F.menT = 0.5;
@@ -474,7 +512,7 @@ const t03b_nagakute = {
         }
         // 行き先は走る段なら段の行き先（自分と同じ所）、ほかは自分のそば。行き先を半秒ごとに替えると、
         //   替わるたびに隊の合図の待ち（army_signals.js）が入り足が止まるので、6m より大きく離れた時だけ替える
-        const want = run ? GOAL[F.stage] : { x: P.pos.x + 2, z: P.pos.z + 2 };
+        const want = run ? goalOf(F.stage) : { x: P.pos.x + 2, z: P.pos.z + 2 };
         if (far && (F.men.order !== 'move' || !F.men.dest || dist(F.men.dest, want) > 6)) F.men.dest = { x: want.x, z: want.z };
         if (far) { F.men.order = 'move'; F.men.speed = run || d > 16 ? 5.4 : 4.4; F.men.march = run || d > 16; F.men.aggro = run || d > 16 ? 2 : 10; }
         else { F.men.order = 'attack'; F.men.march = false; F.men.aggro = 10; F.men.seekRange = F.stage === 6 ? 6 : 14; }
@@ -513,8 +551,10 @@ const t03b_nagakute = {
       for (const g of F.waves) for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, P.pos) > 120) rt.army.despawn(u);
     }
     const el = rt.t - F.st0;
-    const atGoal = dist(P.pos, GOAL[F.stage]) < GOAL_R[F.stage];
+    const atGoal = dist(P.pos, goalOf(F.stage)) < goalR(F.stage);
     if (!F.there && atGoal) { F.there = true; F.at0 = rt.t; }
+    if (F.stage === 0.5) { March.tick(rt, this.ctx(rt)); return; }
+    if (F.stage === 5.5) { Ikeda.tick(rt, this.ctx(rt)); return; }
     if (F.stage === 1) {
       // 総大将の信吉は馬印の前から出ない（離れたら馬廻ごと戻る）
       const off = dist(F.hideU.pos, CAMP) > 6;
@@ -522,7 +562,7 @@ const t03b_nagakute = {
       F.hideOff = off;
       if (off) { F.hideG.order = 'move'; F.hideG.dest = { ...CAMP }; } else if (F.hideG.order !== 'hold') F.hideG.order = 'hold';
       const left = F.w1.reduce((s, g) => s + aliveN(g), 0);
-      if (atGoal && F.defended && ((el > 30 && left <= F.w1N() * 0.45) || el > 70)) {
+      if (atGoal && F.defended && ((el > 95 && left <= F.w1N() * 0.45) || el > 125)) {
         if (F.there) rt.award((t) => t.side.push('白山林で信吉様の馬印を守った'), '白山林で信吉様の馬印を守った');
         this.stage(rt, 2);
       }
@@ -540,7 +580,7 @@ const t03b_nagakute = {
       for (const g of F.w3) if (g) for (const u of g.units) if (u.alive && !u.gone && u.pos.x < HINOKI.x - 2 && Math.abs(u.pos.z - HINOKI.z) < 26) inside++;
       if (inside >= 12) return this.lose(rt, '堀様の陣を破られた');
       const left = F.w3.reduce((s, g) => s + aliveN(g), 0);
-      if (atGoal && F.defended && ((el > 25 && left <= F.w3N * 0.4) || el > 85)) {
+      if (atGoal && F.defended && ((el > 90 && left <= F.w3N * 0.4) || el > 130)) {
         rt.say('堀秀政', '押し返したぞ！', 2.2);
         if (F.there) rt.award((t) => t.side.push('檜ヶ根で追手を押し返した'), '檜ヶ根で追手を押し返した');
         this.stage(rt, 4);
@@ -554,7 +594,7 @@ const t03b_nagakute = {
       F.menN0r = Math.max(F.menN0r || 0, aliveN(F.men));
     } else if (F.stage === 6) {
       if (rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
-      if (atGoal) this.win(rt);
+      if (Retreat.done(rt, this.ctx(rt), atGoal, el)) this.win(rt);
     }
   },
 
@@ -574,22 +614,24 @@ const t03b_nagakute = {
     rt.objDone('main');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    const n = aliveN(F.men), txt = n > 0 ? `兵${n}人を連れて細ヶ根まで退いた` : '細ヶ根まで生きて退いた';
+    const n = aliveN(F.men) + Retreat.saved(rt, this.ctx(rt)), txt = n > 0 ? `兵${n}人を連れて細ヶ根まで退いた` : '細ヶ根まで生きて退いた';
     rt.award((t) => t.side.push(txt), txt);
-    rt.banner('長久手の負け', n > 0 ? '兵を連れて退いた' : '生きて退いた');
+    rt.banner('長久手　羽柴軍敗北', n > 0 ? '兵を連れて退いた' : '生きて退いた');
     rt.say('堀秀政', '勝入殿も之助も武蔵守も討たれた。よう生きて戻った', 3);
     rt.after(3.2, () => rt.say('使番', '本多忠勝、わずかな兵で殿の本隊の前に立ちはだかり、家康は小幡城へ入りましてござる', 3.6));
     rt.after(7.2, () => rt.say('羽柴秀吉', '家康は、戦では勝てぬ男よ', 3));
-    rt.after(10.4, () => rt.say('羽柴秀吉', 'ならば信雄殿と和を結び、家康が出て来ずにおれぬようにしてやる', 3.6));
-    rt.finish({ scriptedEnd: true }, 15);
+    rt.after(10.4, () => rt.say('使番', '筑前様の本隊は無事。竜泉寺の川を越えて参られました', 3.4));
+    rt.after(14.4, () => rt.say('羽柴秀吉', '十万の兵がおっても、家康を屈ませることはできなんだか', 3.4));
+    rt.after(18.6, () => rt.say('羽柴秀吉', 'ならば信雄殿と和を結び、家康が出て来ずにおれぬようにしてやる', 3.6));
+    rt.finish({ scriptedEnd: true }, 23);
   },
 
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.stage) return;
     const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
-    const t = GOAL[F.stage];
-    const run = F.stage === 2 || F.stage === 4 || F.stage === 6 || Math.hypot(t.x - u.pos.x, t.z - u.pos.z) > 14;
+    const t = goalOf(F.stage);
+    const run = F.stage === 5.5 || F.stage === 2 || F.stage === 4 || F.stage === 6 || Math.hypot(t.x - u.pos.x, t.z - u.pos.z) > 14;
     // 走って退く段（②・⑥）は、行く手（西）を塞ぐ敵とだけ斬り合う。後ろ（東）から追う敵に足を止めない
     const ahead = (o) => ok(o) && ((F.stage !== 6 && F.stage !== 2) || o.pos.x < u.pos.x + 0.5);
     const e = b.army.nearestEnemy(u, run ? 2.6 : 10, ahead);
@@ -613,11 +655,11 @@ t03b_nagakute.force = (rt) => ((rt?.flags?.stage ?? 0) >= 4 ? { a: 9000, a0: 900
 t03b_nagakute.date = () => '天正十二年四月九日　朝・初夏';
 t03b_nagakute.history = '小牧で家康とにらみ合う中、池田恒興の策で、池田恒興・元助、森長可、堀秀政、三好信吉（秀吉の甥。翌年に羽柴秀次と名を改める）のおよそ二万が、家康の留守の三河を突こうと東へ回り込んだ（中入り）。家康はこれを知って小牧山を出て追い、四月九日の朝、白山林で休んでいた信吉の隊を後ろと横から襲って崩した。信吉は馬を失いながら逃れた。堀秀政は檜ヶ根で鉄砲を揃えて追手を押し返したが、家康の本隊が池田・森の後ろへ回ったと知って退いた。家康と信雄は堀と池田・森の間の御旗山（富士ヶ根）に金扇の馬印を立てて本陣を置き、井伊直政の赤備えらを前に出した。長久手で池田・森の勢は前と横から押し包まれ、森長可は眉間を撃たれ、池田元助は安藤直次に、恒興は永井直勝に討たれた。秀吉は戦では家康に勝てず、この年の十一月に信雄と和睦し、家康とも手を結んだ。白山林・檜ヶ根・仏ヶ根の間隔と向きは縮めた復元で、主人公の組の動きは遊びのための筋書き。檜ヶ根に柵・堀を築いた記述は無いので置かない。香流川の流れと仏ヶ根の西の田は地形の写しの推定。';
 t03b_nagakute.famous = [];
-t03b_nagakute.botGuardFlee = (b) => b.flags.stage === 2 || b.flags.stage === 4 || b.flags.stage === 6;
+t03b_nagakute.botGuardFlee = (b) => b.flags.stage === 2 || b.flags.stage === 4 || b.flags.stage === 6 || b.flags.stage === 5.5;
 t03b_nagakute.botEvacuating = (b) => b.flags.stage === 6;
 // 目標の並び（goals5.js）。段の一行は行いと場所で書く（AR の 1・AW の 3）
 const st = (n) => (rt) => (rt.flags.stage ?? 0) >= n;
-STAGES.t03b_nagakute = [[STAGE_TEXT[1]], [STAGE_TEXT[2], st(2)], [STAGE_TEXT[3], st(3)], [STAGE_TEXT[4], st(4)], [STAGE_TEXT[6], st(6)]];
+STAGES.t03b_nagakute = [[BAN_TEXT], [STAGE_TEXT[1], st(1)], [STAGE_TEXT[2], st(2)], [STAGE_TEXT[3], st(3)], [STAGE_TEXT[4], st(4)], [IKE_TEXT, st(5.5)], [STAGE_TEXT[6], st(6)]];
 withGuard(t03b_nagakute);
 
 export { t03b_nagakute };

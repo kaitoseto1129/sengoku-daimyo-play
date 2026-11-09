@@ -119,7 +119,7 @@ function tadaStep(s, rt) {
     if (done) rt.flags.tadaHandDone = true;
     const u = rt.flags.tadaU;
     if (u?.alive) C.goal = u.pos;
-    return done && !!u && !u.alive && (!!rt._g5?.own.has('島津忠隣') || !!rt.flags.tadaShot);
+    return done && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');
   };
   s.idleAdvance = false;   // 止まっていても段は先へ飛ばない（忠隣は寄せ続ける。⑤を果たさずに勝ちにしない。kaito 三3）
   s.max = 900;
@@ -415,7 +415,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (F.ending || !rt._g5?.own.has('島津忠隣')) return;
     F.ending = true;
     rt.setPhase('end');
     rt.world.setTime('morning');
@@ -487,13 +487,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       for (const g of C.groups) if (g !== F.tada && g.count) { g.noRout = false; g.morale = 0; }
       rt.say('宮部の侍', '忠隣の手が崩れた！　残るは忠隣ただ一人！', 3);
     }
-    // 15分の構成：忠隣の段が百五十秒を過ぎたら、忠隣は塀の内の鉄砲に倒れる（史実の討死。⑤の手柄は本人の止めの時だけ）
-    if (C && di === 7 && rt.t - C.t0 > 150 && F.tadaU?.alive) {
-      const u = F.tadaU, gun = F.guns?.units.find((q) => q.alive);
-      u.invuln = false; rt.army.play('volley', u.pos, 1.2); rt.army.kill(u, gun || null);
-      rt.say('鉄砲頭', '島津忠隣、鉄砲に倒れたり！', 3);
-      F.tadaShot = true;
-    }
+    // 忠隣は刻限で味方に討たせない。主人公の止めまで斬り込みを続け、目標を未達のまま先へ進めない。
     // 15分の構成：退かせても塀の外や崖の肩に詰まって残る組は、守る刻を十秒過ぎたら本人から離れた者を消す（段が終わらず止まった。11/8 bot）
     if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max + 10) {
       const P = rt.player.u.pos;

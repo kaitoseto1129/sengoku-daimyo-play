@@ -1629,7 +1629,7 @@ function hatParts(look, parts, hi, fallen = false) {
   const lacqHelm = !!kind || hat === 'kabuto_r' || hat === 'kabuto_suwa' || hat === 'kabuto_t' || hat === 'kabuto_shida' || hat === 'kabuto_tentsuki' || hat === 'kabuto_sanada' || hat === 'kabuto_shika' || hat === 'kabuto_bari';
   // 名将の鉢は六種類。錣と眉庇は共通で、頂点数を増やさず輪郭を変える。
   const noshi = kind === 'noshi_eboshi', coveredSuji = kind === 'suji' && look.sujiPlates === 61;
-  const tall = kind === 'eboshi' || kind === 'namazu' || noshi, height = noshi ? 0.6 : kind === 'namazu' ? 0.73 : 0.38;
+  const tall = kind === 'eboshi' || kind === 'namazu' || kind === 'toppai' || noshi, height = kind === 'toppai' ? 0.24 : noshi ? 0.6 : kind === 'namazu' ? 0.73 : 0.38;
   // 比叡山の伝来具足を基にする二人だけ、板の継ぎ目を実際の隆起にする。
   // 一間を三分割し、鉢へまとめる。近景・遠景とも同じ本数で、形は既存の仕組みで共有する。
   const sujiPlates = kind === 'suji' && [12, 40, 62].includes(look.sujiPlates) ? look.sujiPlates : 0;
@@ -2715,7 +2715,7 @@ function bodyGeometry(key, o, hi, grp) {
   const partKeys = {
     base: [under],
     // 雑賀の堀の金小札・胴丸・脇板・緒を、同色の別形式の具足と混ぜない。
-    torso: [armor, lace, kozaneMk, under, doStyle, o.doNishiki, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo, o.munaitaGold || 0, o.face === 'player' && o.lacquer != null],
+    torso: [armor, lace, kozaneMk, under, doStyle, !!o.ladderMon, o.doNishiki, o.mon, o.monCol, o.trim, o.left, !!o.horo, !!o.menpo, (o.vi || 0) % 3, named, plateArmor, !!o.domaru, !!o.sode, !!o.wakiita, o.takahimo, o.kurijime, !!o.doSugake, !!o.doKebiki, o.doLaceBands, !!o.backOpening, rightOpening, !!o.agemaki, o.doOpening, !!o.honkozane, o.sodeStyle, !!o.takahimo, takigawaTakahimo, o.munaitaGold || 0, o.face === 'player' && o.lacquer != null],
     hips: [kusazuriColor, lace, kusazuriMat, doStyle, !!o.domaru, o.kusazuriBands, o.kusazuriHishinui, o.kusazuriMimiito, !!o.yurugi, !!o.kusazuriSugake, o.kusazuriLaceRows, o.kusazuriFur, o.doLaceBands, o.takedaRed, !!o.goldKozane, o.kusazuriCount, o.kusazuriLength, !!o.honkozane, !!o.kusazuriStepped, takigawaKusazuri],
     sodeP: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
     sodeN: [armor, lace, kozaneMk, !!o.sode, o.shoulderMark, plateArmor, !!o.domaru, doStyle, named, o.sodeMimiito, o.sodeStyle, o.sodeHishinui, o.sodeLaceBands, o.sodeShape, hi ? o.sodeLining : null, o.takedaRed, !!o.honkozane, !!o.sodeCrownFit, takigawaSode],
@@ -2784,6 +2784,21 @@ function bodyGeometry(key, o, hi, grp) {
     const mg = new THREE.LatheGeometry(mp, hi ? 14 : 5, -0.95, 1.9); mg.scale(1, 1, 0.8);
     // 本人（munaitaGold 2）：手本 ref5 の胸板は鈍い金溜塗（金粉を漆で塗り込めた艶の浅い古金）。金属の照りで真っ黄色の帯に見せない。縁は擦れて下の黒漆
     parts.push(o.munaitaGold === 2 ? P(mg, 0x7a6634, { mk: MK.lac, reg: 'lacq', c2: 0x2a2218, mk2: MK.lac }) : P(mg, 0x947a3c, { mk: MK.gold, reg: 'lacq' }));
+  }
+  if (o.ladderMon) {
+    // 昇梯子文は薄い銀の線。胴の面に沿う基本形を結合し、共有形へ保存する。
+    const point = (u, v) => {
+      const x = .8 * u - .6 * v, y = 1.2 + .6 * u + .8 * v;
+      let radius = DO_PROF[0][0];
+      for (let i = 1; i < DO_PROF.length; i++) {
+        const [ra, ya] = DO_PROF[i - 1], [rb, yb] = DO_PROF[i];
+        if (y <= yb) { radius = ra + (rb - ra) * (y - ya) / (yb - ya); break; }
+      }
+      return [x, y, Math.sqrt(Math.max(0, (radius * r0) ** 2 - x * x)) * .8 + .004];
+    };
+    const stroke = (u0, v0, u1, v1) => parts.push(P(limb(point(u0, v0), point(u1, v1), .004, .004, 4), 0xb8b8b2, { mk: MK.iron, dirt: .2 }));
+    for (const u of [-.045, .045]) stroke(u, -.17, u, .17);
+    for (let i = -3; i <= 3; i++) stroke(-.045, i * .05, .045, i * .05);
   }
   if (o.doOpening === 'right' || o.doOpening === 'nimai') {
     // 合わせ目の内側に下地、外側に締め紐。既存の胴へ結合し、形と材質を使い回す。

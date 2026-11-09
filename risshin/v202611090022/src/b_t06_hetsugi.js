@@ -606,7 +606,11 @@ const t06_hetsugi = {
     if (!F.nightGo) { F.nightGo = true; rt.world.setTime?.('night'); }
     rt.after(3.8, () => rt.say(F.mine.leader?.name || '手勢の侍', `${nm(rt)}殿、信親様が……！　ここは退くほかござらぬ`, 3.2));
     F.follow = [];
-    for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) if (live(g)) { g.order = 'move'; g.dest = { x: FORD.x - 10 + Math.random() * 8, z: 40 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6; }
+    // 西の林から南岸へ直進すると浅瀬を外れる。北の口へ集まり、浅瀬をまっすぐ戻る。
+    for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) if (live(g)) {
+      g.order = 'move'; g.dest = { x: FORD.x, z: -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+      g.onArrive = (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
+    }
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
     this.go(B.moto, { x: CAMP.x + 30, z: CAMP.z + 24 }, 1.8, { back: true });
     if (live(F.moto)) { F.moto.order = 'move'; F.moto.dest = { x: CAMP.x + 20, z: CAMP.z + 30 }; F.moto.speed = 3.8; }
