@@ -48,6 +48,7 @@ export function install(rt, ctx) {
 const Fk = (k) => (rt) => rt.flags[k];
 const Pre = (n) => (rt) => rt.flags.pre?.[n];
 export const depthPlan = {
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/）
   A: { name: '東軍', facing: Math.PI / 2, honjin: { x: -214, z: 10 }, mpu: 6, formation: '鶴翼', terrain: 'mountain', flag: 'ageha', armor: 0x1c1a1a, openAt: 9999, attrition: 0,
     sonae: [
       { id: 'nagayoshi', layer: 'sakite', wing: 'center', men: 1500, taisho: '池田長吉', flag: 'ageha', bind: Fk('naga') },
