@@ -164,6 +164,8 @@ const START = { x: -204, z: 150 };   // 麓の大軍の中から坂の下へ歩�
 const t07_ganjaku = {
   minutes: 15, expectMin: 15,
   lethal: { max: 4, firstAt: 260, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。蒲生・前田・熊井など名のある将は筋書きのまま
+  // 布陣図の地名（docs/fujin/t07_ganjaku.md）
+  introMapPlaces: [{ x: HON.x, z: HON.z - 14, name: '岩石城' }, { x: GATE.x, z: GATE.z + 12, name: '二の丸の門' }, { x: -214, z: 226, name: '羽柴秀勝の本陣' }],
   spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
   camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? { x: GATE.x, z: GATE.z, up: 3 } : null),   // 坂の下では目線を上げ、上の門と塀を見せる
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
