@@ -1699,43 +1699,10 @@ html:root body #hud#hud#hud.sh-battle :is(.threat.edge, #boss.edge) { display:no
 /* 11/6 fix61（五2・五1）：柵の陰へ寄る「隠」の盾と人形の丸は意味が読めない。柵の内の守りは組頭の声と▼で足りる */
 html:root body #hud#hud#hud.sh-battle .cover-guide { display:none !important; }`;
   document.head.appendChild(style);
-  // 11/6 fixc0504（九3）：共通の▼は近い数人だけ。四十 m 内の見える敵（寄せ手・殿の兵）には一人残らず同じ赤い▼を付ける。
-  //   印は使い回し、毎コマ作らない。
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.flags.ending && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
-          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._shSeenAt > rt.t - .34 && u._shSeenAt <= rt.t)) { u._shSeen = sightUnit(rt, u); u._shSeenAt = rt.t; }
-      if (!u._shSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
+  // 敵の▼は共通の field_signs に任せる。見える全員へ付き、札・地図・会話の間も同じ条件で隠れる。
+  // 独自の字の▼を重ねると二重になり、以前の近接印が残った敵だけ欠けていた。
   const dispose = rt.world.dispose.bind(rt.world);
   rt.world.dispose = () => {
-    if (hud.foeMarks !== foeMarks) hud.foeMarks = foeMarks;
-    box.remove();
     if (hud.progress !== hudProgress) hud.progress = hudProgress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     root?.classList.remove('sh-battle');

@@ -2720,11 +2720,9 @@ const tennoji = {
     shitennojiRuins(rt);
     // 公記巻九（三）（四）は天王寺付城の守備を記すが、四天王寺伽藍内の織田陣は記さない。
     // https://ja.wikisource.org/wiki/信長公記
-    // 高画質では焼け跡を陣地と見せず、同じ幟を守備兵のいる外曲輪へ移す。
+    // 画質を問わず焼け跡を陣地と見せず、同じ幟を守備兵のいる外曲輪へ移す。
     // 旗の正確な持ち場は推定。小屋・通路を避け、形・材質・本数は保つ。
-    rt.scene.add(nobori(W,
-      SETTINGS.quality === 'high' ? FORT.x - 8 : SHITEN.x - 10,
-      SETTINGS.quality === 'high' ? FORT.z + 7 : SHITEN.z + 8, 'oda', 5));
+    rt.scene.add(nobori(W, FORT.x - 8, FORT.z + 7, 'oda', 5));
     // 勝鬘院（愛染堂）：四天王寺の北西の小さな堂（周りの伽藍の目印）
     // 砦は勝鬘院と茶臼山の間。距離・堂の細部は推定、北の目印を南へ逆転させない。
     // 11/8 critic60 tennoji（四6）：五月三日に四天王寺の伽藍は焼けた。無傷の堂を立てず、焼け跡と燻る煙で示す
