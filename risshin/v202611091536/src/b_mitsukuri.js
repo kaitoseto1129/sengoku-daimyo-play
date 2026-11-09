@@ -3585,6 +3585,23 @@ const mitsukuri = {
     const houseRay = new THREE.Ray(), cameraBlock = W.cameraBlockFraction;
     W.cameraBlockFraction = (from, to) => {
       let hit = cameraBlock?.call(W, from, to) ?? null;
+      // 山肌も即座に調べる。柵脇の溝で視点だけが切岸の裏へ抜けないようにする。
+      // 線分を刻み、最初に土へ入った区間だけ絞る。毎回の道具の作り直しはしない。
+      const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+      const steps = Math.min(32, Math.max(1, Math.ceil(Math.hypot(dx, dz) / .5)));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        if (hit !== null && t - 1 / steps >= hit) break;
+        if (from.y + dy * t > W.heightAt(from.x + dx * t, from.z + dz * t) + .25) continue;
+        let lo = (i - 1) / steps, hi = t;
+        for (let j = 0; j < 5; j++) {
+          const mid = (lo + hi) / 2;
+          if (from.y + dy * mid <= W.heightAt(from.x + dx * mid, from.z + dz * mid) + .25) hi = mid;
+          else lo = mid;
+        }
+        if (hit === null || lo < hit) hit = lo;
+        break;
+      }
       for (const house of cameraHouses) {
         if (house.wall && (!house.wall.alive || house.wall.hp <= 0)) continue;
         if (NAKA.cur && house.interior !== NAKA.cur.I) continue;
