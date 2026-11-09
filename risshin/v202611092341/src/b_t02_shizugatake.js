@@ -266,7 +266,8 @@ function shizuBoard(rt) {
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (n >= 80) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      // 前田勢と勝政の残兵は攻撃対象から外しても敵のまま。共通の名札が出ない者にも所属の▼を残す。
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.isStruct || u.civ || u.team === me.team || u.team > 1 || (u._nearSignOn && !u.noTarget) ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 4900) continue;   // 11/6 critic60（九3）：七十 m 内の見える敵は全員
       if (!(u._szSeenAt > rt.t - .34 && u._szSeenAt <= rt.t)) { u._szSeen = sightUnit(rt, u); u._szSeenAt = rt.t; }
       if (!u._szSeen) continue;

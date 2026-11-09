@@ -882,7 +882,7 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
     goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true;
     return;
   }
-  if (C && C.s.kind === 'fight' && D.i >= 5 && C.goal && !b.army.nearestEnemy(u, 7, (o) => !o.fleeing && !o.noTarget && !o.perch)) {
+  if (C && C.s.kind === 'fight' && D.i >= 5 && C.goal && !b.army.nearestEnemy(u, 7, (o) => !o.fleeing && !o.noTarget && !o.perch && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, u.team, o.pos, false))) {
     // ④（二の丸の上の段）で本丸の門の前（南）まで上がってしまった時は、二の丸の中へ戻る（11/9 流し：本丸の門の前で矢を受けながら八分立ち往生）
     //   門の外（北）の口で立ち止まった時も、門をくぐって中へ（11/9 流し：破れた門の外で九分矢を受けていた）
     const back = D.i === 6 && (u.pos.z > -27 || (u.pos.z < -39.5 && u.pos.z > -52 && Math.abs(u.pos.x + 8) < 9 && rt_gateOpen(b, 'ni1_n')));
@@ -891,12 +891,12 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
     if (q !== want && q.active) { inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false; goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true; return; }
   }
   // 大手と三の丸（D.i < 5）は開けた曲輪：曲輪の奥で構える守りへ自分から寄る（11/9 流し：入口に立ったまま、三十歩奥の守りに新手が足され続けて五分かかった）
-  // 寄れない敵（塀・枡形の向こう）を追って五秒動けない時は、八秒は追わずに段の動き（depthBot）へ任せる（11/9 流し：大手の枡形の前で十五分）
+  // 塀・枡形の向こうの敵は追わず、門を通る段の動きへ任せる。それでも五秒動けない時は、八秒は追わずに段の動き（depthBot）へ任せる（11/9 流し：大手の枡形の前で十五分）
   const SB = F._sb || (F._sb = { x: u.pos.x, z: u.pos.z, t: b.t, off: 0 });
   if (Math.hypot(u.pos.x - SB.x, u.pos.z - SB.z) > 1.5) { SB.x = u.pos.x; SB.z = u.pos.z; SB.t = b.t; }
   else if (b.t - SB.t > 5 && b.t > SB.off) { SB.off = b.t + 8; SB.t = b.t; }
   if (C && C.s.kind === 'fight' && D.i < 5 && b.t > SB.off) {
-    const e = b.army.nearestEnemy(u, 50, (o) => !o.fleeing && !o.noTarget && !o.perch && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4);
+    const e = b.army.nearestEnemy(u, 50, (o) => !o.fleeing && !o.noTarget && !o.perch && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4 && !b.army.wallBetween(u.pos, u.team, o.pos, false));
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');
