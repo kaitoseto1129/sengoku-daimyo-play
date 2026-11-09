@@ -3449,19 +3449,9 @@ function installInabaPresentation(rt) {
   W.def.guideWay = (u, goal) => townWay(rt.army, u, goal);
   const cameraMeasure = {};
   // 葉は共通の林の材質のまま。この山だけ光りを足して影を消すと、葉が平たい板の絵に見えた（10/29）。
-  // 粒の数は増やさず、黒煙の縁を丸く薄くし、一粒ずつ太さを散らす。
+  // 共通の煙を使う。専用の丸い透かしで上書きすると、連番のちぎれ・陰影・火の照り返しが消える。
+  // 粒ごとの幅の散らしも共通側にまとめ、同じ材質と粒数で町の火を描く。
   W.buildSmokeColumns();
-  const smokeMat = W.smokeCol.pts.material;
-  smokeMat.vertexShader = smokeMat.vertexShader.replace('(0.8 + t * 5.0) * seed.y * scale',
-    '(0.8 + t * 5.0) * seed.y * (0.7 + 0.6 * fract(seed.x * 17.31)) * scale');
-  smokeMat.fragmentShader = `uniform sampler2D map; uniform vec3 color; varying float vA; varying float vSoot;
-    void main() {
-      float radius = length((gl_PointCoord - 0.5) * 2.0);
-      float alpha = texture2D(map, gl_PointCoord).a * (1.0 - smoothstep(0.25, 0.95, radius)) * vA * mix(0.24, 0.62, vSoot);
-      if (alpha < 0.004) discard;
-      gl_FragColor = vec4(mix(color, vec3(0.085, 0.075, 0.065), vSoot), alpha);
-    }`;
-  smokeMat.needsUpdate = true;
   F.retreatPoint = { x: 0, y: 0, z: 0 };
   F.retreatPosition = () => F.retreatMarked ? F.retreatPoint : null;
   const say = rt.say, bark = rt.bark, updateCamera = player.updateCamera, dispose = rt.dispose;

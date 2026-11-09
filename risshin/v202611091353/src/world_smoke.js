@@ -50,7 +50,9 @@ export class WorldSmoke {
           if(distanceSq >= 2025.0 && soot < 0.5) vA *= 0.5;
           vA *= smoothstep(3.0, 12.0, -mv.z) * (1.0 + midK * 0.15);
           // 11/5 根元の粒も上下の間（一粒 1m×太さ）より大きく重ねる。前は 0.8 で、黒煙が間の空いた丸い玉の列に見えた（夜の燃える家）
-          gl_PointSize = (2.2 + t * 5.0) * seed.y * scale / -mv.z * (1.0 + midK * 0.8);
+          // 同じ太さの丸を積まず、粒ごとの種で幅を散らす。面積の平均と粒数は保つ。
+          float width = sqrt(0.72 + 0.56 * fract(seed.x * 17.31));
+          gl_PointSize = (2.2 + t * 5.0) * seed.y * width * scale / -mv.z * (1.0 + midK * 0.8);
           gl_Position = projectionMatrix * mv;
         }`,
       // 煙の連番の絵（world_haze.js の smokeBook）が届いたら、昇るほど膨らんでちぎれるコマを選ぶ
