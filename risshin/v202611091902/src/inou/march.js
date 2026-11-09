@@ -125,5 +125,6 @@ export function tick(rt) {
     }
   }
   // 使番は着いたら信長の脇に、一分で列の後ろへ去る
-  if (v.tsukai && rt.t - v.marchT > 100 && !v.tsukaiGone) { v.tsukaiGone = true; for (const u of v.tsukai.units) if (u.alive) { v.tsukai.order = 'move'; v.tsukai.dest = { x: 60, z: 150 }; v.tsukai.onArrive = (q) => { for (const o of q.units) if (o.alive) rt.army.despawn(o); }; } }
+  // 戦場の端（z 146）の内側へ戻す。外を行き先にすると範囲の制限で着けず、立ち尽くす。
+  if (v.tsukai && rt.t - v.marchT > 100 && !v.tsukaiGone) { v.tsukaiGone = true; for (const u of v.tsukai.units) if (u.alive) { v.tsukai.order = 'move'; v.tsukai.dest = { x: 60, z: 140 }; v.tsukai.onArrive = (q) => { for (const o of q.units) if (o.alive) rt.army.despawn(o); }; } }
 }
