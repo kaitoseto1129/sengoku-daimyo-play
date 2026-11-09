@@ -4414,9 +4414,10 @@ function kgHold(line, dur, waves, ambush = false) {
       }
       const p = rt.player.u.pos;
       const away = !kgInHold(L, p.x, p.z);
-      if (!away) C.inT += dt;
       // 追手が初めて当たるまでは守備時間に数えない。寄せを退けた後は半速で進める。
       const contacted = rt.flags.contactAt?.[line] != null;
+      // 達成に要る本人の守備も接敵後だけ。敵が来る前に旗にいた秒で、離脱後の守備を済ませない。
+      if (contacted && !away) C.inT += dt;
       C.contactT = (C.contactT || 0) + (contacted ? dt : 0);
       C.fightT = (C.fightT || 0) + (contacted ? rt.flags.engaged >= 3 ? dt : dt * 0.5 : 0);
       // 携帯で畳んだ札にも戻る下知を残す。札は増やさず、出入りの時だけ書き替える。
