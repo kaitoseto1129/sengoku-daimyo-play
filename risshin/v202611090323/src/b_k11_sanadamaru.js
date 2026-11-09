@@ -613,7 +613,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         obj: '篠山の北の麓で、打って出た真田大助の隊を食い止めよ',
         waves: [
           { t: 1, say: ['足軽', '六文銭の旗！　真田が丸から打って出た！'], foes: () => [{ name: '真田大助の隊', from: PORT(1), list: [{ type: 'busho', n: 1, o: { name: '真田大助', horse: true, hat: 'kabuto_sanada', haori: 0x7a1a12 } }, uS(6), uA(10), uG(3)], noRout: 60, seek: 130, dmg: 0.4 }] },
-          { t: 26, say: ['足軽', '西の口からも！　伊木遠雄の隊じゃ！'], foes: () => [{ name: '伊木遠雄の隊', from: PORT(-1), off: { x: -10, z: 0 }, list: [{ type: 'busho', n: 1, o: { name: '伊木遠雄', horse: true, hat: 'kabuto_m' } }, uS(4), uA(9)], noRout: 45, seek: 130, dmg: 0.4 }] },
+          // 五秒の立て直しを挟んでも、伊木の出撃は十六秒後の退き命令より先にする。
+          { t: 8, say: ['足軽', '西の口からも！　伊木遠雄の隊じゃ！'], foes: () => [{ name: '伊木遠雄の隊', from: PORT(-1), off: { x: -10, z: 0 }, list: [{ type: 'busho', n: 1, o: { name: '伊木遠雄', horse: true, hat: 'kabuto_m' } }, uS(4), uA(9)], noRout: 45, seek: 130, dmg: 0.4 }] },
           { t: 48, say: ['山崎長徳', '塀の上で火縄が光った！　退く者を撃っておる、急げ！'], foes: () => { rt.flags.volT = rt.t + 0.5; return [{ name: '追い討ちの真田の槍', from: PORT(1), off: { x: 12, z: 0 }, list: [uS(2), uA(8)], seek: 130, dmg: 0.4 }]; } },
         ],
         reward: '真田の打って出を食い止めた', onEnd: (rt2) => this.fallBack(rt2) }), 60),

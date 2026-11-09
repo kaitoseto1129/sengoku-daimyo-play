@@ -438,8 +438,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["大野治長", "zunari", "sun", 0x1c1a1a, 0xd8d0bc, "okegawa", 0, 0x1c1a1a, "toyotomi", ""],
   ["加藤嘉明", "zunari", "kuwa_wide", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "toyotomi", ""],
   ["蜂須賀家政", "momonari", "horn", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "toyotomi", ""],
-  // 明石全登：キリシタンの将（洗礼名ジョアン）。南蛮兜と仏胴に十字の前立、白糸威（docs/kacchu_k15_toyotomi.md）。池田忠雄の南蛮兜とは鉄錆地と白で分ける
-  ["明石全登", "namban", "cross", 0x4a3c30, 0xd8d0bc, "hotoke", 0x2a2a2a, 0x1c1a1a, "none", ""],
+  // 本人所用は未確認。宇和島市の桃山〜江戸初期の具足を型の手本とする復元案（docs/generals_look_1108/明石全登.md）。
+  ["明石全登", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0x1c1a1a, "none", ""],
   ["黒田如水", "zunari", "moon", 0x1c1a1a, 0xd8d0bc, "okegawa", 0, 0x1c1a1a, "kuroda", ""],
   ["鍋島勝茂", "momonari", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0, "none", ""],
   ["真田幸村", "suji", "kuwa", 0x8e1f16, 0xb8342a, "okegawa", 0, 0, "sanada", ""],
@@ -466,8 +466,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["相良頼房", "zunari", "kuwa_wide", 0x1c1a1a, 0xa88a3a, "sugake", 0, 0x1c1a1a, "ishida", ""],
   ["脇坂安治", "momonari", "kuwa_wide", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0x1c1a1a, "none", ""],
   ["長束正家", "suji", "cross", 0x1c1a1a, 0xb39a61, "sugake", 0x2e3a42, 0, "toyotomi", ""],
-  // 大野治房：豊臣家の重臣の家の当世具足。黒漆の六十二間筋兜に剣形の鍬形、紫糸の毛引威（復元案。docs/kacchu_k15_toyotomi.md）
-  ["大野治房", "suji", "kuwa_ken", 0x1c1a1a, 0x703d78, "kebiki", 0x2e3a42, 0x1c1a1a, "toyotomi", ""],
+  // 同時代の黒糸威二枚胴具足を型の手本とする復元案。本人所用ではない（docs/generals_look_1108/大野治房.md）。
+  ["大野治房", "suji", "none", 0x1c1a1a, 0x1c1a1a, "okegawa", 0, 0x1c1a1a, "none", "https://online.bunka.go.jp/heritages/detail/132537"],
   ["薄田兼相", "suji", "bellflower", 0x2a1c18, 0x7a5a2a, "kebiki", 0x8a6a2a, 0x2a1c18, "toyotomi", ""],
   // 木津川口の九鬼。後年の豊臣紋は付けない。所用具足・立物は未確認で、黒漆の無立物として復元。
   ["九鬼嘉隆", "zunari", "none", 0x1c1a1a, 0x2a3a5a, "kebiki", 0xcfc8b4, 0x1c1a1a, "none", ""],
@@ -833,6 +833,14 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 明石全登の復元案。配色の散らしより後で黒漆と白糸へ戻し、二枚胴の既存形を使う。
+// 旗は各戦の所属指定に従う。本人固有の立物・家紋・馬印は未確認なので補わない。
+Object.assign(KACCHU["明石全登"], { bowl: "momonari", crest: "none",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro",
+  lace: 0xd8d0bc, odo: 0xd8d0bc, shikoroLace: 0xd8d0bc,
+  doStyle: "sugake", doOpening: "nimai", plateDo: null,
+  sodeStyle: "sugake", shikoroStyle: "sugake", kusazuriBands: Array(5).fill(0xd8d0bc),
+  haori: 0, menpo: 0x1c1a1a, menpoStyle: "hanbo", mon: "none", uma: null });
 // 利常所用の六十二間筋兜と本小札二枚胴。三鍬形は既存の剣付鍬形で略し、紋柄威・面頬の細部は復元案。
 // 名前による配色の散らしより後で指定し、真田丸の利光も同じ姿を参照する。出所：docs/generals_look_1108/前田利常.md。
 Object.assign(KACCHU["前田利常"], { sujiPlates: 62, doOpening: "nimai", honkozane: true,
@@ -857,6 +865,11 @@ Object.assign(KACCHU["島左近"], { bowl: "suji", sujiPlates: 52, crest: "sanko
 Object.assign(KACCHU["浅野長晟"], { bowl: "momonari", crest: "none",
   armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
   doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
+// 治房の所用品は未確認。東博の同時代具足から筋鉢・二枚胴・黒糸威だけを借りる。
+// 康政固有の立物や紋は移さず、豊臣旗は所属表示。出所：docs/generals_look_1108/大野治房.md。
+Object.assign(KACCHU["大野治房"], { sujiPlates: 62, doOpening: "nimai", plateDo: null,
+  kusazuriCount: 7, kusazuriLaceRows: 5, shinodare: false, fukigaeshiBadge: false,
+  flag: "toyotomi", uma: null });
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];

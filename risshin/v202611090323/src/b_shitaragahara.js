@@ -1544,7 +1544,9 @@ function nfTick(rt, dt) {
     if (!N.babaDead && baba?.alive && (nfRearReady(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     // 味方だけが殿を討っても、本人が退き口へ来るまでは最後の目標を果たさない。
-    if ((N.babaDead || nfRearReady(rt) <= 2) && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60 && !N.done[3]) {
+    // 馬場本人が生きている間は、残兵が二人でも討死と勝利を先取りしない。
+    const rearBroken = baba ? !baba.alive : nfRearReady(rt) <= 2;
+    if (rearBroken && N.t0 && N.breachDone && N.done[0] && N.done[1] && N.done[2] && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60 && !N.done[3]) {
       N.done[3] = true; N.step = 6;
       nfEnd(rt);
     }

@@ -100,7 +100,9 @@ function requirePresence(s) {
     // 共通の在陣時間は持ち場の三十歩外でも増える。一瞬だけ着いて
     // 離れた後、味方だけが敵を倒しても守り抜いた扱いにはしない。
     if (s.kind === 'hold' && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
-    return p.alive && finished && !!C.present && (s.kind !== 'hold' ||
+    // 到着した記憶だけでは足りない。屋敷を離れた後に味方が番兵を
+    // 倒しても、遠くから火を掛けたり、次の持ち場へ進めたりしない。
+    return p.alive && finished && !!C.present && d < (C.botRadius || 14) + 8 && (s.kind !== 'hold' ||
       !!C.k01Engaged && d < (C.botRadius || 14) + 8 && (C.k01InT || 0) >= (s.max - 35) * 0.45);
   };
   return s;
@@ -666,7 +668,7 @@ k01_fushimi.botBrain = (b, inp, { goTo }) => {
 };
 
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k01_fushimi = [['打って出て長束と玄以の屋敷を焼く'], ['三の丸の虎口の前で宇喜多勢を押し返す', dpAt(2)], ['大手門に取り付いた島津勢を討つ', dpAt(3)], ['二の丸の口へ回る', dpAt(5)], ['寝返った甲賀衆と長束勢を食い止める', dpAt(6)], ['本丸の口の内で最後まで戦う', dpAt(8)], ['雑賀孫一の鉄砲衆を討つ', dpAt(9)], ['天守の前で元忠殿の最後の盾になる', dpAt(10)]];
+STAGES.k01_fushimi = [['打って出て長束と玄以の屋敷を焼く'], ['三の丸の虎口の前で宇喜多勢を押し返す', dpAt(2)], ['大手門に取り付いた島津勢を討つ', dpAt(3)], ['二の丸の口へ回る', dpAt(5)], ['二の丸の東で寝返った甲賀衆と長束勢を食い止める', dpAt(6)], ['本丸の口の内で最後まで戦う', dpAt(8)], ['本丸で雑賀孫一の鉄砲衆を討つ', dpAt(9)], ['天守の前で元忠殿の最後の盾になる', dpAt(10)]];
 
 // 目標の札に別の刻限を重ねず、実際の段の達成だけで判定する。
 k01_fushimi.goals5 = () => STAGES.k01_fushimi.map((s, k) => ({ kind: 'stage', k, text: s[0],
