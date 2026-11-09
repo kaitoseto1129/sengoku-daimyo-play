@@ -2747,7 +2747,7 @@ const tedorigawa = {
     // 本物の兵で、北岸の水際を渡り口へ寄せ、浅瀬を南岸へ渡らせる（持ち場の兵の陰にならない右手の岸から）。殿の数・渡る数の勘定には入れない。
     // 軽い兵は本人から60mの内を描かないため、持ち場の前30〜50mは本物で埋める。
     F.earlyRetreat = allyGroup(rt, { fixed: false, name: '先に退く足軽', anchor: { x: -18, z: -19 }, facing: 0, width: 6, aggro: 0, noRout: true, formation: 'column', colW: 3 },
-      dress([{ type: 'samurai', n: 1, o: { flag: null } }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 3 }], ODA));
+      dress([{ type: 'samurai', n: 1, o: { flag: null } }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], ODA));
     {
       const g = F.earlyRetreat;
       g.fire = false; g.retreatOnly = true; g.seekRange = 0;
@@ -2812,8 +2812,8 @@ const tedorigawa = {
     // この戦での両将の馬印は未確認。共通の金扇を借りず、陣幕と隊旗で本陣を示す。
     // 本人の兜・陣羽織は名のある武将の装備表に揃える。
     const campStart = rt.scene.children.length;
-    F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, tate: false, general: { name: '滝川一益' }, guard: 15, reserve: 0, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
-    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, guard: 25, reserve: 0, runTo: { x: 0, z: -150 } });
+    F.honjin = camp(rt, { x: 34, z: 104, facing: Math.PI, team: 0, faction: 'oda', mon: 'takigawa', noUma: true, tate: false, general: { name: '滝川一益' }, guard: 8, reserve: 0, runTo: { x: SOUTH.x, z: SOUTH.z + 10 } });
+    F.ehon = camp(rt, { x: 64, z: -206, facing: 0, team: 1, faction: 'uesugi', mon: 'uesugi', noUma: true, tate: false, armor: 0x2a2a2a, guard: 8, reserve: 0, runTo: { x: 0, z: -150 } });
     F.ehon.guard.name = '上杉謙信の旗本';
     // 11/6 kaito 十二4：謙信は馬上で、自ら先頭に立って追い討ちに来る（陣幕の床几に座らせない）。
     //   馬廻の騎馬を連れ、陣幕の前で待つ。討てない（伝わる討死は無い）。謙信が先頭で川岸まで追ったかは軍記と伝承の筋で、書状写は追い討ちを伝えるだけ。
@@ -2910,7 +2910,7 @@ const tedorigawa = {
     // kaito 11/1 の紙：秀吉は必ず出す。勝家と意見が合わず、手勢を連れて南へ去る姿を見せる（離陣）。
     F.hideyoshiG = allyGroup(rt, { fixed: true, noHunt: true, name: '羽柴秀吉の手', anchor: { x: 16, z: -64 }, facing: Math.PI, width: 4, aggro: 0, noRout: true, formation: 'column', colW: 2 },
       // 11/4：将一人に足軽四人ではなく、旗本と足軽の手勢で去る（AQ3）
-      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 18 }], ODA));
+      dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 11 }], ODA));
     rt.after(3, () => {
       if (F.ending || rt.over) return;
       rt.say('羽柴秀吉', '修理殿とは軍議が合わぬ。わしの手は長浜へ帰る', 4);
@@ -4339,14 +4339,14 @@ function tedoA() {
     tedoHold({ at: RG, dur: 60, r: 12, opening: true, stopSignal: true, title: '謙信の先手を受け止める', sub: '前は上杉、背は濁流', label: '殿の持ち場', obj: '火で北を向き、謙信の先手を止めよ',
       say: [['組頭', 'かねが二つ。火で止まれ！　北の上杉を止めよ！']],
       waves: [
-        { t: 2, say: ['組頭', '上杉の先手じゃ！　川へ通すな！'], foes: () => [{ name: '上杉の先手', from: RR.front, list: [uS(2), uA(26)] }] },
+        { t: 2, say: ['組頭', '上杉の先手じゃ！　川へ通すな！'], foes: () => [{ name: '上杉の先手', from: RR.front, list: [uS(2), uA(18)] }] },
         { t: 3, say: ['足軽', '馬がこっちへ来よる！　槍を出せ！'], foes: () => [{ name: '上杉の騎馬', from: RR.fl, list: [uS(1, { horse: true }), uC(8)] }] },
       ], reward: '謙信の先手を受け止めた' }),
     tedoHold({ at: RG, dur: 50, r: 12, stopSignal: true, title: '押し寄せる上杉', sub: '崩れぬ上杉の後続', label: '殿の持ち場', obj: '火で踏みとどまり、本隊を渡せ',
       say: [['組頭', '本隊が渡るまで、あと少しじゃ！　槍を下ろすな！']],
       waves: [
-        { t: 3, say: ['足軽', 'また来たで！　後ろにも槍が見える！'], foes: () => [{ name: '上杉の二の手', from: RR.fr, list: [uS(1), uA(22)] }] },
-        { t: 6, say: ['組頭', '横から来る！　列を切らせるな！'], foes: () => [{ name: '回り込む上杉勢', from: RR.left, list: [uS(1), uA(14)] }] },
+        { t: 3, say: ['足軽', 'また来たで！　後ろにも槍が見える！'], foes: () => [{ name: '上杉の二の手', from: RR.fr, list: [uS(1), uA(15)] }] },
+        { t: 6, say: ['組頭', '横から来る！　列を切らせるな！'], foes: () => [{ name: '回り込む上杉勢', from: RR.left, list: [uS(1), uA(10)] }] },
         { t: 8, say: ['組頭', '射手じゃ！　渡り口へ矢を射ておる！'], foes: () => [gunLine('上杉の弓衆', RR.fr, FORD, 6, { list: [uS(1), { type: 'bow', n: 6 }], kind: 'bow' })] },
       ], reward: '崩れぬ上杉を背に本隊を渡した' }),
   ];

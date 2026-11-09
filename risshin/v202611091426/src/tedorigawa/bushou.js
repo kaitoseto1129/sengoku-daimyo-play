@@ -11,7 +11,7 @@ export function place(rt, ctx) {
   const W = rt.world, out = [];
   for (const [name, x, z] of [['上杉景勝', -46, -150], ['直江景綱', 44, -146]]) {
     const g = enemyGroup(rt, { faction: 'uesugi', name: name + 'の備え', fixed: true, noHunt: true, anchor: { x, z }, facing: 0, width: 6, order: 'hold', guard: true, guardLeash: 3, aggro: 3, seekRange: 6, noRout: true, fleeDir: { x: 0, z: -1 } },
-      dress([{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }], UESUGI));
+      dress([{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: 1 }, { type: 'ashigaru', n: 2 }], UESUGI));
     for (const u of g.units) u.noTarget = true;
     g.noWake = true;
     rt.scene.add(nobori(W, x - 5, z - 3, 'uesugi', 6), nobori(W, x + 5, z - 3, 'uesugi', 6));

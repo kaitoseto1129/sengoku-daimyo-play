@@ -110,6 +110,14 @@ const STAGE_TEXT = [
 // 四秒より早く自ら討った時も、城兵を受けた働きとして残す。
 export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill; }
 
+// 落城と余韻は同じ条件で始める。城主の最期だけでは旗を守ったことにしない。
+export function canWinTakato(rt) {
+  const F = rt.flags;
+  return !rt.over && !F.ending && rt.player.u.alive && receivedSally(F) &&
+    !!F.sanFell && !!F.niFell && !!F.honFell && F.metLord != null &&
+    !!(F.keep?.down || F.keepFell) && F.honHold >= 12;
+}
+
 // 近くで味方と戦っているだけでは、主人公が城兵を受けた時間にしない。
 function sallyContactTick(rt, dt) {
   const F = rt.flags, p = rt.player.u;
@@ -1777,7 +1785,7 @@ const takato_siege = {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending || !rt.player.u.alive || !receivedSally(F) || !F.keep.down && !F.keepFell) return;
+    if (!canWinTakato(rt)) return;
     F.ending = true;
     rt.setPhase('end');
     rt.unmark('san'); rt.unmark('hon'); rt.unmark('next'); rt.unmark('rally'); rt.unmark('gateOte'); rt.unmark('gateHon'); rt.unmark('sally');

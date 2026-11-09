@@ -696,14 +696,7 @@ const t09_yamanaka = {
         for (const s of F.daiWall) { const d = Math.hypot((s.seg[0] + s.seg[2]) / 2 - c.x, (s.seg[1] + s.seg[3]) / 2 - c.z); if (d < bd) { bd = d; best = s; } }
         if (best && best.alive) { rt.army.damage(best, best.hp + 1, null); sfx('gateBreakWood', 0.8); rt.say('中村一氏', '縄を掛けよ！　柵を引き倒せ！', 3); }
       }
-      // 手勢の七割を討てば、残りは三の丸へ落ちる（11/9 bot：六十余を一人ずつ討つと十分を超えた）。間宮が残っていれば最期を見せる
-      const daiLeft = F.dai.units.filter(cnt).length;
-      if (daiLeft > 0 && (daiLeft <= Math.ceil(F.daiN * 0.3) || T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
-        if (mu && mu.alive) { F.mamiyaDead = true; mu.invuln = false; mu.hp = 0; rt.army.kill(mu, F.naka.units.find((u) => u.alive && u.type !== 'busho') || null); rt.banner('間宮康俊、討ち死に'); }
-        if (daiLeft > Math.ceil(F.daiN * 0.3)) rt.say('山内一豊', '二陣、柵の破れから押し込め！　出丸を揉み潰せ！', 3); else rt.say('物見', '出丸の残兵、三の丸へ逃げていきます！', 3);
-        this.shoji(rt);
-        return;
-      }
+      // 「手勢二百を討ち取る」は残兵の退去や経過時間では果たさない。
       if (F.dai.units.every((u) => !cnt(u)) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) this.shoji(rt);
     }
     if (F.step === 2) {
@@ -728,9 +721,9 @@ const t09_yamanaka = {
       }
       // 本人が門の前の三の丸の守りと斬り合い続け、寄せ手が門へ着けない時も、長くは止めない（11/9 bot：九分止まった）
       if (!F.gateOpen && F.sub === 'back' && dg < 60 && rt.t - F.backT > 150) this.openGate(rt, false);
-      // 枡形の中で三の丸の守りに囲まれても、門をくぐって曲輪の中にいれば入ったとする（11/9 bot：広場の真ん中へ着けず九分止まった）
+      // 三の丸の広場に入って果たす。時間で半径を広げると門の外でも達成してしまう。
       const dpz = Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z);
-      if (F.gateOpen && (dpz < 10 || (dpz < 24 && rt.t - F.gateOpenT > 60) || (dpz < 60 && rt.t - F.gateOpenT > 120))) this.honmaru(rt);
+      if (F.gateOpen && dpz < 10) this.honmaru(rt);
     }
     if (F.step === 4) {
       const g = F.hon;
@@ -753,11 +746,7 @@ const t09_yamanaka = {
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
       if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
-      // 本人が本丸で長く斬り合っても康長へ届かない時は、寄せ手の槍が康長を囲んで討つ（11/9 bot：本丸で十分止まった）
-      if (F.honOn && !F.honTimed && F.honU?.alive && T > 220 && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50) {
-        F.honTimed = true; const hu = F.honU; hu.invuln = false; hu.hp = 0;
-        rt.army.kill(hu, F.toyo.flatMap((q) => q.units).find((u) => u.alive && u.type !== 'busho') || null); rt.banner('松田康長、討ち死に');
-      }
+      // 康長の討死は実際の攻撃で決める。近くで待った時間だけで命を尽かせない。
       if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && (g.count === 0 || (F.honU && !F.honU.alive))) this.win(rt);
     }
   },
