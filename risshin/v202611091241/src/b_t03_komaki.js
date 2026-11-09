@@ -508,6 +508,10 @@ const t03_komaki = {
       // 前列が崩れたら二の列へ。退く前列を追い続けて田の中央で止まらない。
       const g = !drivenOffGroup(F.guns, F.gunsN) ? F.guns : !drivenOffGroup(F.guns2, F.guns2N) ? F.guns2 : null;
       if (g) t = g.center();
+    } else if (F.stage === 6) {
+      // 渡しで待ち続けず、健在な物見と伏せ鉄砲を実際に払いに行く。
+      const g = [F.tScout, F.tAmb].find((q) => live(q) && !q.routed && q.order !== 'retreat' && aliveN(q) > 1);
+      if (g) t = g.center();
     }
     // 楽田城の中から外へは大手門を通る
     if (u.pos.z < RK.z1 + 2 && u.pos.x > RK.x0 - 2 && u.pos.x < RK.x1 + 2 && t.z > RK.z1 + 4) t = { x: RAKUDA.x, z: RK.z1 + 6 };
