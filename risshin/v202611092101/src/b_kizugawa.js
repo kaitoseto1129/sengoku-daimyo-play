@@ -4440,7 +4440,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.shipBoat !== b || u.shipTransit?.active || (u.type !== 'gun' && u.type !== 'bow')) continue;
         if ((u.kzShot = (u.kzShot ?? 2 + Math.random() * 8) - dt) > 0) continue;
         u.kzShot = 9 + Math.random() * 5;
-        const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.fleeing && !o.shipBoat && Math.abs(o.pos.y - DECK.y) < 1.5);
+        // 屋形の反対側の兵へ撃ち続けず、舷から見通せる相手を選ぶ。
+        const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.fleeing && !o.shipBoat && Math.abs(o.pos.y - DECK.y) < 1.5 && !rt.army.wallBetween(u.pos, -1, o.pos));
         if (!t) continue;
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); u.mesh.rotation.y = u.heading;
         if (u.type === 'gun') rt.army.fireGun(u, t); else rt.army.shoot(u, t);

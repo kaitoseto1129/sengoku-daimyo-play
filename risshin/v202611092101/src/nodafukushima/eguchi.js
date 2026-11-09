@@ -54,8 +54,8 @@ export function start(rt, ctx) {
     if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
     // 余韻：渡しから振り返ると、砦に本願寺の旗。十一年の戦の始まり
     rt.say('足軽', '振り返れば、砦にも堤にも南無阿弥陀仏の旗じゃ……', 3.4);
-    rt.after(3.8, () => rt.say('柴田勝家', '殿は渡り終えた。舟を出せ！', 2.8));
-    rt.after(7, () => ctx.done());
+    rt.after(3.8, () => { if (!rt.over && rt.player.u.alive) rt.say('柴田勝家', '殿は渡り終えた。舟を出せ！', 2.8); });
+    rt.after(7, () => { if (!rt.over && rt.player.u.alive) ctx.done(); });
   }
 }
 export function active(rt) { const S = rt.flags.nodaEguchi; return !!S && !S.done; }
