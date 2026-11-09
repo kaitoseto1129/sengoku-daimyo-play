@@ -26,6 +26,14 @@ const TOKU = { armor: 0x1f1e1c, flag: 'tokugawa' };
 const ONO = { armor: 0x221f1c, flag: 'toyotomi' };
 const kit = (side, o = {}) => ({ flag: side.flag, armor: side.armor, ...o });
 const sq = (side, type, n, o) => ({ type, n, o: kit(side, o) });
+// 本物の兵の枠（二百五十）に収める：天王寺口の兵が残る間は、治房の先手を削って出す（半分まで）
+const fit = (rt, sqs, cap = 246) => {
+  let n = 0; for (const u of rt.army.units) if (u.alive) n++;
+  const room = cap - n, tot = sqs.reduce((a, q) => a + q.n, 0);
+  if (tot <= room) return sqs;
+  const f = Math.max(0.35, room / tot);
+  return sqs.map((q) => ({ ...q, n: Math.max(1, Math.round(q.n * f)) }));
+};
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 const sum = (gs) => (gs || []).reduce((s, g) => s + (alive(g) ? g.count : 0), 0);
@@ -77,10 +85,12 @@ const stage = {
       [sq({ armor: 0xa52b1c, flag: 'ii' }, 'busho', 1, { name: '井伊直孝', invuln: true, horse: true }), sq({ armor: 0xa52b1c, flag: 'ii' }, 'samurai', 4)]);
     // 本陣へ斬り込む治房の一手（本物の兵）。治房は馬廻に守られる
     O.ono = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '大野治房の先手', anchor: { x: OKA_SIDE.x - 4, z: OKA_SIDE.z - 30 }, facing: 0, width: 10, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true, formation: 'yari' },
-      [sq(ONO, 'samurai', 6), sq(ONO, 'ashigaru', 14), sq(ONO, 'gun', 4)]);
+      fit(rt, [sq(ONO, 'samurai', 6), sq(ONO, 'ashigaru', 14), sq(ONO, 'gun', 4)], 237));
     O.onoB = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '大野治房の馬廻', anchor: { x: OKA_SIDE.x + 6, z: OKA_SIDE.z - 40 }, facing: 0, width: 6, aggro: 4, seekRange: 6, order: 'hold', morale: 100, noRout: true },
       [sq(ONO, 'busho', 1, { name: '大野治房', invuln: true, horse: true, hat: 'kabuto_g' }), sq(ONO, 'samurai', 8)]);
     O.onoU = O.onoB.units.find((u) => u.name === '大野治房');
+    // 岡山口の大将は自分の隊が輪になる。大将の旗本の輪（taisho_guard.js）を別に足さない（本物の兵の枠を食わない）
+    for (const g of [O.hon, O.maeda, O.ii, O.onoB]) for (const u of g.units) if (u.type === 'busho' && u.name) u.keep = true;
     revealName(rt, '大野治房');
     O.s = [O.ono, O.onoB]; O.n = sum(O.s);
     rt.obj('main', '将軍の本陣の脇を固める', 'main');

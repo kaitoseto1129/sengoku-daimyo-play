@@ -4922,7 +4922,9 @@ const mitsukuri = {
       // 11/6 描いた遊び c：本丸から降りた城将の旗本は崩れず（城将は討たせない）、本丸へ退く道の塀際で八十秒うろつき、④が三分を超えた。
       //   押さえて四十秒たてば、退きかけの旗本は二の丸の数に入れない（旗本は本丸へ退き続ける）。
       let guardIn = 0;
-      if (F.niPressT >= 40 && F.commandGuard) for (const u of F.commandGuard.units) if (siegeFighter(u) && z.test(u.pos.x, u.pos.z)) guardIn++;
+      // 郭の敵数と同じ地上の条件で数え、本丸へ退く下知が出た旗本だけを差し引く。
+      // 櫓や館内の旗本まで引くと、庭で戦う別の城兵が残っていても空と誤る。
+      if (F.niPressT >= 40 && F.commandGuard?._mkBack) for (const u of F.commandGuard.units) if (zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z)) guardIn++;
       const empty = z.enemies - guardIn <= 0 && inNi && zoneGroundFighter(rt, rt.player.u) && rt.t - (F.gatePassAt ?? rt.t) > 25;
       F.niEmptyT = empty ? (F.niEmptyT || 0) + dt : 0;
       if (F.niEmptyT >= 12 && z.owner !== 'friend') {
