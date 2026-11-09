@@ -77,7 +77,15 @@ export function tickMeet(rt, ctx) {
   }
   // 迎える場所に着き、夜討ちを退けるまで達成しない。離れた砦で時を待つだけでは進めない。
   if (near && F.yochi && rt.t - F.yochi > 30 && nightRaidLeft(F.yochiG) <= 2) {
-    if (ctx.live(F.yochiG)) { F.yochiG.order = 'retreat'; F.yochiG.dest = { x: ctx.JOIN.x + 20, z: ctx.JOIN.z - 80 }; F.yochiG.kind4 = 'gone'; }
+    if (ctx.live(F.yochiG)) {
+      const g = F.yochiG;
+      g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
+      g.aggro = 0; g.seekRange = 0;
+      g.dest = { x: ctx.JOIN.x + 20, z: ctx.JOIN.z - 80 }; g.kind4 = 'gone';
+      // 東の口から退いた寄せ手と同じく、遠くへ退き切った兵だけを片付ける。
+      // 夜討ちの残兵を終戦まで残し、本陣へ戻る味方の足を止めない。
+      g.nightWithdraw = true;
+    }
     rt.say('羽柴の先手', '退いたか。筑前様は砦の本陣に入られた。参られよ', 3);
     ctx.next();
   }
