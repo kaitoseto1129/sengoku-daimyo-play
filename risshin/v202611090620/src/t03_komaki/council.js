@@ -5,6 +5,7 @@
 //     途中、荷駄の列・馬を引く者・陣を払う兵（中入りの支度の動き）を見る。日が暮れてゆく。
 // ======================================================================
 import { allyGroup } from '../bhelp.js';
+import { moveSonae } from './depth.js';
 
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 
@@ -52,7 +53,7 @@ export function startOrders(rt, K) {
   say(rt, '足軽', '陣払いじゃと？　夜に出るのか', 10, 2.8);
   say(rt, '使番', '池田勢、荷を軽うして集まりまする！', 26, 3);
   // 東の森勢の後備（遠景）も陣を払って寄る
-  try { F.farHashiba?.[5]?.moveTo?.(110, -36, 60); } catch (e) { /* 遠景 */ }
+  moveSonae(rt, 'A', 'mori', 110, -36);
 }
 export function tickOrders(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;

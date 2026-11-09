@@ -117,11 +117,13 @@ function start(rt, K, done) {
       k15Charge(rt, g, post);
       rt.marker('k15foe', centerOf(g), '死に物狂いの城兵', { red: true, group: g });
       rt.obj('main', '柵の口で、死に物狂いの城兵を止めよ', 'main', true);
+      const t0 = rt.t;
       const tick = () => {
         if (stop() || rt.over) return;
-        const left = k15Live(g);
+        const left = k15Live(g), el = rt.t - t0;
         rt.objProgress('main', `城兵 ${left}／${N0}`);
-        if (repelled(rt, left, 2, post)) {
+        // 11/9 二巡：坂に残った城兵が柵へ寄らず、二人まで減らせずに六分止まった。半ばを討って一分余り経てば、残りは城へ引く
+        if (repelled(rt, left, 2, post) || (el > 75 && left <= Math.ceil(N0 / 2) && rt.player.u.alive) || el > 160) {
           k15Rout(rt, g, K.CASTLE); rt.unmark('k15foe'); F.k15fight = false;
           starve(rt, walls, 4);
           rt.award((t) => t.side.push('夜の寄せを柵で止めた'), '夜の寄せを柵で止めた');

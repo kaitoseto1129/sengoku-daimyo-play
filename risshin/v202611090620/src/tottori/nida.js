@@ -68,11 +68,14 @@ function start(rt, K, done) {
           k15Charge(rt, help, at);
           rt.marker('k15foe', centerOf(help), '城の助けの兵', { red: true, group: help });
           rt.obj('main', '崖道から降りる城兵を押し返せ', 'main', true);
+          const t0 = rt.t;
           const tick = () => {
             if (rt.over || F.k15stage !== 'nida') return;
-            const left = k15Live(help);
+            const left = k15Live(help), el = rt.t - t0;
             rt.objProgress('main', `城兵 ${left}／${H0}`);
-            if (repelled(rt, left, 3, at)) {
+            // 11/9 二巡：崖の上に残った弓二人が下りて来ず、三人まで減らせずに十五分止まった。
+            //   半ばを討って一分余り経てば、残りは崖の上へ引き上げる（物語は時が経てば進む）
+            if (repelled(rt, left, 3, at) || (el > 75 && left <= Math.ceil(H0 / 2) && rt.player.u.alive) || el > 160) {
               k15Rout(rt, help, K.CASTLE); rt.unmark('k15foe');
               rt.say('組頭', '城兵は崖を逃げ戻った。追うな。退き太鼓じゃ', 4);
               rt.award((t) => t.side.push('崖道の城兵を押し返した'), '崖道の城兵を押し返した');
