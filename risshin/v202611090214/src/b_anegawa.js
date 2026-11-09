@@ -2679,6 +2679,7 @@ const aneAtPost = (rt) => { const q = anePost(rt); return Math.hypot(rt.player.u
 // 段のファイル（anegawa/）へ渡す道具
 function aneCtx(rt, def) {
   return { south: aneSouthBank, north: aneNorthBank, enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, HQ, mori: MORI, post: POST,
+    canDeploy: (n) => cappedList(rt, [{ n }])[0].n === n,
     charge: () => def.charge(rt), tokugawa: () => def.tokugawa(rt), ending: () => def.ending(rt) };
 }
 // 遊んでいる姉川の rt（bot の本陣守りの判定に使う）
@@ -4732,7 +4733,8 @@ anegawa.famous.push({ name: '滝川一益', team: 0, g: /佐久間信盛の段|�
 anegawa.bushou = [
   // 11/4：総大将の長政は野村の本陣の旗本の中だけ（AR3・AT3：前の三の手・しんがりに出さない）
   { name: '浅井長政', g: /浅井長政の旗本/, loose: false }, { name: '朝倉景健', g: /朝倉/, loose: false },
-  { name: '磯野員昌', g: /磯野/ }, { name: '遠藤直経', g: /浅井長政の旗本|浅井の三の手/, loose: false },
+  { name: '磯野員昌', g: /磯野/ },
+  // 遠藤直経は追撃の段で出す。同名の将を先に三の手へ加えない。
   '織田信長', '徳川家康', { name: '酒井忠次', g: /徳川家康の旗本/, loose: false }, { name: '本多忠勝', g: /徳川家康の旗本/, loose: false }, { name: '柴田勝家', g: /柴田/ },
   // 11/4：藤吉郎は横山城の囲み、丹羽長秀は西の徳川への加勢（上の陣立てと同じ）。森の備の前の段には出さない（AT：矛盾を潰す）
   { name: '丹羽長秀', g: /丹羽/, loose: false },

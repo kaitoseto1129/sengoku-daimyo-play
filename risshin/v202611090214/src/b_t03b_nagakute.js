@@ -379,14 +379,14 @@ const t03b_nagakute = {
         rt.after(14, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
         rt.after(19, () => { if (F.stage === 5) this.stage(rt, 5.5); });
       };
-      //   森長可の強引な反撃：四十秒で鶴丸の旗本が赤備えへ突きかかる（激戦）。本多・榊原の名も見える。撃たれるのは百秒から
+      //   森長可の強引な反撃：四十秒で鶴丸の旗本が赤備えへ突きかかる（激戦）。榊原の旗も見える。撃たれるのは百四十秒から
       rt.after(40, () => {
         if (F.stage !== 5 || !live(F.moriG)) return;
         F.moriG.order = 'attack'; F.moriG.seekRange = 26; F.moriG.aggro = 18;
         rt.say('森長可', '押し返せ！　赤備えなど蹴散らせぇ！', 2.8);
         rt.army.play('toki', { x: HOTOKE.x + 20, z: HOTOKE.z - 4 }, 1.3);
       });
-      rt.after(58, () => { if (F.stage === 5) rt.say('物見', '御旗山の麓に「本多平八郎」の旗！　蜻蛉切の本多忠勝にござる！', 3.2); });
+      rt.after(58, () => { if (F.stage === 5) rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2); });
       rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
       rt.after(100, () => { if (F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
       rt.after(140, () => moriEnd(0));
@@ -594,7 +594,7 @@ const t03b_nagakute = {
     } else if (F.stage === 5) {
       F.menN0r = Math.max(F.menN0r || 0, aliveN(F.men));
     } else if (F.stage === 6) {
-      if (rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
+      if (!atGoal && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
       if (Retreat.done(rt, this.ctx(rt), atGoal, el)) this.win(rt);
     }
   },
@@ -615,11 +615,11 @@ const t03b_nagakute = {
     rt.objDone('main');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    const n = aliveN(F.men) + Retreat.saved(rt, this.ctx(rt)), txt = n > 0 ? `兵${n}人を連れて細ヶ根まで退いた` : '細ヶ根まで生きて退いた';
+    const n = Retreat.saved(rt, this.ctx(rt)), txt = n > 0 ? `兵${n}人を連れて細ヶ根まで退いた` : '細ヶ根まで生きて退いた';
     rt.award((t) => t.side.push(txt), txt);
     rt.banner('長久手　羽柴軍敗北', n > 0 ? '兵を連れて退いた' : '生きて退いた');
     rt.say('堀秀政', '勝入殿も之助も武蔵守も討たれた。よう生きて戻った', 3);
-    rt.after(3.2, () => rt.say('使番', '本多忠勝、わずかな兵で殿の本隊の前に立ちはだかり、家康は小幡城へ入りましてござる', 3.6));
+    rt.after(3.2, () => rt.say('使番', '家康の本隊は小幡城へ退きましてござる。本多忠勝は小牧の守りに残ったとの知らせにござる', 3.6));
     rt.after(7.2, () => rt.say('羽柴秀吉', '家康は、戦では勝てぬ男よ', 3));
     rt.after(10.4, () => rt.say('使番', '筑前様の本隊は無事。竜泉寺の川を越えて参られました', 3.4));
     rt.after(14.4, () => rt.say('羽柴秀吉', '十万の兵がおっても、家康を屈ませることはできなんだか', 3.4));

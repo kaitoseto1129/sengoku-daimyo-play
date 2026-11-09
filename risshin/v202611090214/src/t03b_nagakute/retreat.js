@@ -25,4 +25,11 @@ export function done(rt, K, atGoal, el) {
   const c = K.live(F.ochi) ? F.ochi.center() : null;
   return !c || Math.hypot(c.x - K.EXIT.x, c.z - K.EXIT.z) < 24 || el > 150;
 }
-export function saved(rt, K) { return K.aliveN(rt.flags.ochi); }
+// 生きているだけで遠くに残った兵を「細ヶ根まで連れて退いた」人数に入れない。
+export function saved(rt, K) {
+  let n = 0;
+  for (const g of [rt.flags.men, rt.flags.ochi]) if (g) for (const u of g.units) {
+    if (u.alive && !u.gone && Math.hypot(u.pos.x - K.EXIT.x, u.pos.z - K.EXIT.z) < 24) n++;
+  }
+  return n;
+}

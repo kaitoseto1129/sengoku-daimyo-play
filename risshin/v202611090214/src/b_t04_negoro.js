@@ -300,6 +300,7 @@ const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
   minutes: 15, expectMin: 15,
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
+  nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）
   playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   noWake: true, noTaishoRaid: true, noDespair: true,
@@ -915,7 +916,7 @@ const t04_negoro = {
             if (!C.pushSaid) { C.pushSaid = true; rt.say('足軽', 'お頭も手を貸してくだされ！　一、二の、三！', 3); }
             if (C.pushT > 1.1) { C.pushT = 0; rt.army.damage(s, 24, pu, { kind: 'ram' }); }
           }
-          if (el > 120 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 12) self.openGate(rt);
+          // 時間と接近だけでは開けない。丸太か本人の攻撃で門扉を破ってから進む。
           // 塀の上の鉄砲衆は、塀の際に寄った先手の足軽を撃ち下ろす（11/6：塀の上の十二挺が皆、丸太の脇の自分を撃ち、門の前で討たれた。
           //   担ぎ手を狙わせると丸太が三度止まって門が破れなかったので、塀の際の寄せ手を狙う）
           const wp = F.posts.wall;
