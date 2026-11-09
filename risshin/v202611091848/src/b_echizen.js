@@ -221,9 +221,7 @@ function passGroundView(W, target, eye) {
 }
 
 // 任務・ピン・頭上の印は同じ残敵を読む。退いた兵や建物は追わせない。
-const passFighter = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut &&
-  !u.rearWound && !u.invuln && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ &&
-  !u.group?.routed && u.group?.order !== 'flee';
+const passFighter = EC_FUCHU.fighter;
 function passZone(rt) {
   const F = rt.flags;
   return F.SZ?.byId[!F.kannonFell ? 'kannon' : !F.souFell ? 'kinome_sou'
