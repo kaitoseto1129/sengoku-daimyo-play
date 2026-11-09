@@ -57,7 +57,10 @@ export function step(H) {
     end(rt, C) {
       for (const g of [C.spear, C.spear2]) if (g) { g.noRout = false; g.morale = 0; }
       // 上の段の弓は金子丸の守りへ退く
-      if (C.bow) for (const u of C.bow.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      if (C.bow) {
+        C.bow.order = 'path'; C.bow.path = [[H.SLOPE_TOP.x, H.SLOPE_TOP.z - 10]]; C.bow.pathIdx = 0;
+        C.bow.onArrive = (g) => { g.order = 'hold'; g.path = null; };
+      }
       rt.objDone('dp');
       rt.award((t) => t.side.push('尾根の急な坂を登り切った'), '尾根の坂を登り切った');
     },

@@ -59,7 +59,11 @@ export function step(H) {
       return false;
     },
     end(rt, C) {
-      if (C.ambush) for (const u of C.ambush.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      // 目の前の生き残りを消さず、城の方へ敗走させる。
+      if (C.ambush) {
+        C.ambush.noRout = false; C.ambush.morale = 0;
+        C.ambush.fleeDir = { x: -1, z: 0 }; C.ambush.fleeSet = true;
+      }
       rt.objDone('dp');
     },
   };
