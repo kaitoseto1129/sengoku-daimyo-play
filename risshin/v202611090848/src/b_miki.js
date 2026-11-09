@@ -2903,9 +2903,10 @@ const miki = {
     if (here && F.footT == null) F.footT = rt.t;
     // 秀吉（組の頭）か馬廻の誰かが坂へ着けば着いたとする。組の真ん中だけで見ると、田の東に残った者に引かれて
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
-    const hideHere = F.hide.units.some((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
+    const hideHere = F.hide.units.some((u) => u.alive && !u.downed && !u.fleeing && !u.woundOut && !u.noTarget &&
       Math.hypot(u.pos.x - OMURA_FOOT.x, u.pos.z - OMURA_FOOT.z) < 42);
-    if (!hideHere && !gone(F.hide) && !gone(F.reserve)) return;   // 秀吉の手が崩れたか、坂の別所勢が先に崩れた時は待たない（11/9 bot：着かない馬廻を待ち続けて期限負け）   // 組の中心でなく実際の到着を見る。時間だけで到着扱いにしない。
+    // 別所勢が先に崩れても、未着の騎馬や倒れている馬廻を到着の代わりにしない。
+    if (!hideHere) return;
     if (!F.hideArrived) {
       F.hideArrived = true; F.hideArrivedT = rt.t;
       rt.say('使番', '秀吉様、平井山より千余騎で到着！　大村坂の下で秀吉様の手に並べ！', 5);
