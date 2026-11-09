@@ -13,5 +13,13 @@ export const depth = {
       { id: 'masuda', layer: 'yobi', wing: 'right', men: 9000, taisho: '増田長盛', at: { x: 250, z: -200 }, hold: true },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '羽柴秀長', bind: F('honjin') },
     ] },
-  honjinView: { A: false },   // 秀長の本陣は戦のファイルが作る
+  // 長宗我部方（docs/fujin/t05_ichinomiya.md）：城将 谷忠澄・江村親俊、城兵およそ九千。城山の尾根に沿って置く。開城で fallB
+  B: { name: '長宗我部', facing: Math.PI, honjin: { x: 0, z: 124 }, mpu: 5, formation: '長蛇', terrain: 'mountain', flag: 'chosokabe', armor: 0x2b2420, openAt: 9999, attrition: 0,
+    sonae: [
+      { id: 'emura', layer: 'ichi', wing: 'left', men: 1500, taisho: '江村親俊', bind: F('emura') },
+      { id: 'tani', layer: 'honjin', wing: 'center', men: 3000, taisho: '谷忠澄', at: { x: 6, z: 124 }, hold: true },
+      { id: 'higashi', layer: 'ichi', wing: 'right', men: 2500, taisho: '', at: { x: 52, z: 112 }, hold: true },
+      { id: 'ote', layer: 'sakite', wing: 'right', men: 2000, taisho: '', at: { x: 160, z: 92 }, hold: true },   // 東の大手の組み合い（addClash）の後ろ
+    ] },
+  honjinView: { A: false, B: false },   // 秀長の本陣は戦のファイルが作る
 };

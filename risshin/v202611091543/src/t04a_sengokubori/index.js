@@ -1,7 +1,7 @@
 // 豊臣編 5　紀州征伐／千石堀城（約15分。docs/toyo15_plan_1108.md の 5）
 // 強烈な短い城攻め：十万の寄せ手の遠景 → 外の木柵で担ぎ手を守る → 虎口の門前の大損害 → 二の丸の火と煙 → 本丸と煙硝蔵の炎上。
 // 爽快さより「一つの小城を落とすだけでこれだけ死ぬ」。段の中身は s1〜s5、舞台は scene.js、段の運びは toyo15/kit.js。
-import { stageRun } from '../toyo15/kit.js';
+import { stageRun, fallB } from '../toyo15/kit.js';
 import { P, build, senHeight, route } from './scene.js';
 import s1 from './s1_shingun.js';
 import s2 from './s2_kisaku.js';
@@ -43,7 +43,7 @@ const def = {
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; rt.setPhase('end'); rt.objDone('main'); rt.player.u.invuln = true;
+    F.ending = true; rt.setPhase('end'); rt.objDone('main'); rt.player.u.invuln = true; fallB(rt);
     rt.award((t) => { t.main = true; }, '千石堀城の本丸まで攻め入った');
     // 余韻：勝鬨ではなく、焼け落ちる城と死人の多さ。次の根来寺への伏線
     rt.say('羽柴秀次', '……落ちた。一つの小城に、これほどの死人か', 4.5);

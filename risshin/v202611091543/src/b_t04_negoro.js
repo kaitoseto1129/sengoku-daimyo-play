@@ -33,7 +33,7 @@ import { install as negoroIntro } from './t04_negoro/intro.js';
 import { soboStep } from './t04_negoro/sobo.js';
 import { fireStart, fireTick } from './t04_negoro/fire.js';
 import { kyotenStep } from './t04_negoro/kyoten.js';
-import { breath } from './toyo15/kit.js';
+import { breath, fallB } from './toyo15/kit.js';
 import { negoroDepth } from './t04_negoro/depth.js';
 import { MEM_TIGHT } from './settings.js';
 import { routeTools } from './b_k_route.js';
@@ -1210,7 +1210,7 @@ const t04_negoro = {
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true;
+    F.ending = true; fallB(rt);
     rt.setPhase('end');
     rt.objDone('main');
     for (const g of rt.army.groups || []) if (g.team === 1 && g.count) { g.noRout = false; g.morale = 0; }

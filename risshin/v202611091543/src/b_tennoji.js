@@ -113,7 +113,7 @@ function gateDirection(rt, at = T_GATE) {
   const turn = Math.atan2(dx, dz);
   return GATE_DIRECTIONS[(Math.round(turn / (Math.PI / 4)) % 8 + 8) % 8];
 }
-const HONGAN = { x: 30, z: FORT.z - 2500 }; // 石山本願寺。約二・五キロの隔たりを保つ。方角と細かな位置は推定。
+const HONGAN = { x: 30, z: FORT.z - 1100 }; // 石山本願寺。実の隔たりは約二・五キロ。11/9 織田F：追撃を徒歩で城戸口へ着ける長さにするため、遊びでは約一・一キロに縮める（方角と細かな位置は推定）。
 const SHITEN = { x: 52, z: 6 };             // 四天王寺の焼け跡。堂の位置・被災範囲は復元。
 // 既存の赤漆・紺の装いは保ち、所属の幟を共用する。
 const ODA = { flag: 'oda', armor: 0x2a2622, lace: 0x75634b, cloth: 0x4a3a2a };

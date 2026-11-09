@@ -20,6 +20,9 @@ export const DEPTH = {
       { id: 'mori', layer: 'yobi', wing: 'right', men: 2500, taisho: '森忠政', flag: 'tsuru', hold: true, at: { x: 216, z: 112 } },
       { id: 'okudaira', layer: 'gozume', wing: 'left', men: 1500, taisho: '奥平家昌', flag: 'okudaira', hold: true, at: { x: 238, z: -142 } },
       { id: 'yasushige', layer: 'gozume', wing: 'right', men: 1500, taisho: '本多康重', flag: 'honda', hold: true, at: { x: 236, z: 146 } },
+      // 出したい武将（generals_toyo_toku_1108 の 5）：酒井家次・菅沼忠政。染屋台の前の左右に控える（11/9 布陣図）
+      { id: 'sakai', layer: 'yobi', wing: 'left', men: 2000, taisho: '酒井家次', flag: 'katabami', hold: true, at: { x: 206, z: -62 } },
+      { id: 'suganuma', layer: 'yobi', wing: 'right', men: 1000, taisho: '菅沼忠政', flag: 'maru', hold: true, at: { x: 208, z: 62 } },
       { id: 'toda', layer: 'gozume', wing: 'center', men: 1200, taisho: '戸田一西', flag: 'maru', hold: true, at: { x: 232, z: 104 } },
       { id: 'nobuyuki', layer: 'gozume', wing: 'left', men: 800, taisho: '真田信幸', flag: 'sanada', hold: true, at: { x: 196, z: -214 } },
       { id: 'konida', layer: 'konida', wing: 'center', men: 1000, hold: true, at: { x: 238, z: 8 } },
@@ -30,4 +33,10 @@ export const DEPTH = {
       { id: 'masa', layer: 'hatamoto', wing: 'center', men: 1700, taisho: '真田昌幸', flag: 'sanada', hold: true, bind: F('masa') },
     ] },
   honjinView: { A: false, B: false },   // 本陣と城は戦のファイルが作る
+  byMen: true,   // 軽い兵を兵数の比で配る（docs/fujin/k05_ueda.md）
 };
+// 布陣図の総数に合わせる（秀忠の中山道軍 約三万八千。真田は城に約二千五百）。表の各家を比のまま三万八千に伸ばす。
+{
+  const tot = DEPTH.A.sonae.reduce((a, s) => a + s.men, 0), k = 38000 / tot;
+  for (const s of DEPTH.A.sonae) s.men = Math.round(s.men * k / 10) * 10;
+}
