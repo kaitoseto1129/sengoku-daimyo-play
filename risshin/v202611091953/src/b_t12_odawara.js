@@ -374,6 +374,16 @@ function requiredStep(step) {
   return { ...step, idleAdvance: false, max: Infinity, limit: Infinity,
     tick(rt, C, m, ctx, el, dt) {
       const done = tick(rt, C, m, ctx, el, dt);
+      if (step.kind === 'fight') {
+        const p = rt.player.u.pos;
+        const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
+        // 味方だけが木戸の敵を返しても、本人が陣に残ったまま達成にしない。
+        if (done && !near) {
+          C.goal = C.at;
+          rt.objProgress('dp', step.key === 'ishigaki' ? '石垣山の普請場へ戻れ' : step.key === 'kuzure' ? '山王川の岸へ戻れ' : '篠曲輪の木戸の前へ戻れ');
+        }
+        return done && near;
+      }
       if (step.kind !== 'hold') return done;
       const p = rt.player.u.pos;
       const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 17;

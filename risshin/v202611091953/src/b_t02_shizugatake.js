@@ -23,7 +23,7 @@ import { liteMat } from './world_vegetation_materials.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
-import { KILLS, STAGES, downTo } from './stages.js';
+import { KILLS, STAGES, downTo, cut } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { KACCHU } from './kacchu_data.js';
 import { goalsTick } from './hud_goals.js';
@@ -31,7 +31,7 @@ import { sightUnit } from './battle_sight.js';
 import { farSight } from './far_sight.js';
 // 15分の段（kaito 11/8 夜 docs/toyo15_plan_1108.md）：段の中身は t02_shizugatake/ に
 import * as Open from './t02_shizugatake/open.js';
-import { nightTurn, sevenSpears, epilogue, tickMeet } from './t02_shizugatake/turn.js';
+import { nightTurn, sevenSpears, epilogue, tickMeet, nightRaidLeft } from './t02_shizugatake/turn.js';
 import { T02_DEPTH } from './t02_shizugatake/depth.js';
 
 // ---- 標高（国土地理院） ----
@@ -916,7 +916,7 @@ STAGES.t02_shizugatake = STAGE_TEXT.map((t, i) => (i ? [t, st(STAGE_AT[i])] : [t
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 KILLS.t02_shizugatake = (rt) => {
   const F = rt.flags;
-  return F.ending ? null : F.phase === 1 ? downTo([F.chaseG], 3) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? downTo(F.chase5, 4) : null;
+  return F.ending ? null : F.phase === 1 ? downTo([F.chaseG], 3) : F.phase === 2.3 ? cut(F.yochiG?.units.length, nightRaidLeft(F.yochiG), 2) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? downTo(F.chase5, 4) : null;
 };
 withGuard(t02_shizugatake);
 
