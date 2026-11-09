@@ -2215,10 +2215,17 @@ const saika = {
   travelGuideLabel(rt) {
     const F = rt.flags;
     if (F.ending) return rt.player.u.pos.x <= -8 ? '中央の口へ' : '後ろの陣へ';
+    if (rt.phase === 'mono') return rt.markers.some((m) => m.id === 'monoRaid') ? '川上から渡る雑賀衆へ' : '川上の物見の場へ';
+    if (rt.phase === 'tsutsumi') return rt.markers.some((m) => m.id === 'tsutsumiR') ? '堤を取り返す雑賀衆へ' : '川下の堤へ';
+    if (F.step === 6) {
+      const m = F.envoy?.units[0], p = rt.player.u.pos;
+      const d = m ? Math.hypot(p.x - m.pos.x, p.z - m.pos.z) : Infinity;
+      return m && (F.envoyMet ? d > 30 : d >= 12) ? '雑賀の使者へ' : '佐久間信盛の陣へ';
+    }
     if (F.step <= 1) return '川べりの小旗へ';
     // 中央へ揃える印と、その先の岸を同じ「渡り口」で呼ばない。
     if ((F.step === 2 || F.step === 3) && rt.markers.some((m) => m.id === 'riverTurn')) return '中央の口へ';
-    if (F.step === 2) return F.reached ? '坂を登らず、ここで待て' : '西岸の足場へ';
+    if (F.step === 2) return F.reached ? '西岸の高岸の下で、登らず合図を待て' : '西岸の足場へ';
     return F.step === 3 ? '東岸の旗へ' : F.step === 4 ? '竹束へ' : '東岸の旗へ';
   },
   keepWaitOrderLabel: true, // 待つ場所の共通表示でも、見張り・応戦・守り終えた待機を区別する。

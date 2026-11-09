@@ -357,7 +357,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
   foe(rt, name, at, list, o = {}) {
     const F = rt.flags;
     const g = enemyGroup(rt, { faction: 'toyotomi', name, fixed: true, anchor: { x: at.x, z: at.z }, facing: Math.PI / 2, width: o.width || 6, noRout: true, formation: o.chase || o.column ? 'column' : 'line',
-      morale: o.morale || 95, dmgMult: 0.5, order: o.hold ? 'hold' : 'attack', seekRange: o.hold ? 14 : 90, aggro: o.hold ? 10 : 16, speed: 3.7, fire: true }, toyD(list));
+      morale: o.morale || 95, dmgMult: 0.5, order: o.hold ? 'hold' : 'attack', seekRange: o.hold ? 14 : 90, aggro: o.hold ? 10 : 16, speed: 3.7, fire: true, fleeDir: { x: -1, z: 0 } }, toyD(list));
     // 追う隊：堤の上を駆け足で行き先（chase）まで詰め、着いたら当たる
     if (o.chase) this.chase(rt, g, o.chase);
     if (o.aim) { g.anchor = { x: o.aim.x, z: o.aim.z }; g.order = 'move'; g.dest = { x: o.aim.x, z: o.aim.z }; g.onArrive = (q) => { if (q.order === 'move') q.order = o.stay ? 'hold' : 'attack'; }; }
@@ -497,7 +497,9 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     const F = rt.flags;
     F.riverAid = true; F.riverShots = 0; F.riverSecured = false;
     for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = EXIT_W; g.noRout = false; }
-    F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true }, toyD([uA(8), uG(4)]));
+    // 個々の逃走は隊の dest を使わない。北へ逃げ続けて救援完了を妨げないよう、北岸を西へ退く道を渡す。
+    F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true,
+      fleeDir: { x: -1, z: 0 }, fleePath: [[-236, -100]] }, toyD([uA(8), uG(4)]));
     F.foes.push(F.riverFoe); F.riverFoe.riverAid = true;
     this.chase(rt, F.riverFoe, { x: 76, z: -100 });
     F.satake = allyGroup(rt, { faction: 'satake', name: '今福の佐竹勢', fixed: true, anchor: { x: 76, z: -100 }, width: 6, order: 'hold', noRout: true }, [{ type: 'samurai', n: 6, o: { flag: 'satake' } }]);
@@ -606,7 +608,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       F.gcT = 1;
       for (const g of F.foes) for (const u of g.units) if (u.alive && !u.gone && (u.fleeing || g.order === 'retreat') && u.pos.x < -150 && dist(u.pos, P.pos) > 70) rt.army.despawn(u);
       // 崩れて名の無い組に分かれた敵の残りは、目の届かない所で去らせる（味方の隊が泥田へ追い回さない・九4）
-      for (const g of rt.army.groups) if (g.team === 1 && !F.foes.includes(g) && !g.isStruct && g.units.every((u) => !u.alive || u.gone || u.isStruct || dist(u.pos, P.pos) > 45)) for (const u of g.units) if (u.alive && !u.gone && !u.isStruct) rt.army.despawn(u);
+      for (const g of rt.army.groups) if (g.team === 1 && !F.foes.includes(g) && !g.isStruct && g.units.every((u) => !u.alive || u.gone || u.isStruct || (u.fleeing || g.order === 'retreat' || g.order === 'flee') && dist(u.pos, P.pos) > 45)) for (const u of g.units) if (u.alive && !u.gone && !u.isStruct) rt.army.despawn(u);
       // 大野治長は西の奥で旗本に囲まれて動かない（総大将は前に出ない・一2）
       const O = F.oono;
       if (live(O) && (O.order !== 'hold' || dist(O.center(), OONO) > 8) && O.order !== 'move' && O.order !== 'retreat') { O.order = 'hold'; O.anchor = { x: OONO.x, z: OONO.z }; O.seekRange = 8; O.aggro = 4; }
