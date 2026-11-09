@@ -8,7 +8,7 @@ export function stages(H) {
   const { rest, ariFight, uS, uA, gunLine, GATE, TOWN_X, reinforce } = H;
   const at = { x: TOWN_X - 24, z: GATE.z };
   return [
-    rest({ dur: 8, at, say: [['滝川一益', '砦は取った。次は惣構えの通りじゃ。角の荒木勢と塀の鉄砲を黙らせよ']], fn: (rt) => reinforce(rt, at, 10) }),
+    rest({ dur: 8, at, label: '惣構えの通り', say: [['滝川一益', '砦は取った。次は惣構えの通りじゃ。角の荒木勢と塀の鉄砲を黙らせよ']], fn: (rt) => reinforce(rt, at, 10) }),
     ariFight({ at, r: 16, title: '惣構えの通り', sub: '砦の残兵と塀の鉄砲衆が、通りの角を塞ぐ', obj: () => '惣構えの通りの角を押さえよ',
       say: [['滝川の組頭', '塀の陰を進め。鉄砲は撃ち終わりを狙え', 4]],
       foes: () => [
