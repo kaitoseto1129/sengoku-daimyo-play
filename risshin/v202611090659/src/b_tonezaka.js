@@ -1537,8 +1537,7 @@ const tonezaka = {
   resumeSteps: [[1, 'chase'], [2, 'second'], [3, 'toPass'], [4, 'toIchijodani'], [5, 'townAttack'], [6, 'townFire']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の水準：任務一行・ピン・敵の▼だけで現在の一手を示す。
   missionSingleLine: true,
-  goalsAllRows: true, // 最初から場所と行いの五件を並べ、果たした目標に印を付ける。
-  goalsVisibleRows: 5,
+  goalsAllRows: false, // 11/9 二巡（豊臣A）：七段を全部並べると 874×402 で画面の四割を覆い、中央の大きな字とも重なった（act の流し）。今の一件と進み具合の棒だけ（開けば全部）
   battleDialogue: true, // 刀根坂は短い下知も使う。八秒の間引きと三枠の上限は共通処理に任せる。
   hideMissionDots: true,
   hideGuideSteps: true,
@@ -3553,8 +3552,8 @@ const tonezaka = {
 // 11/8 critic60（九3・十二1「三千余り討たれた大負けなのに数が減らない」）：段が進むごとに朝倉の数を減らす（討死・逃げ散り）。織田も少し減る
 // 段を始めただけで損失を先取りしない。河合の殿と戦う前は三万対二万を保つ。
 // 略図から城下への移動でも減らさず、奥の道の損失は守り通した時に加える。
-const TONE_LOSS_B = [0, 0, 900, 1800, 3300, 3300, 3300, 9000];
-const TONE_LOSS_A = [0, 0, 60, 150, 340, 340, 340, 480];
+const TONE_LOSS_B = [0, 0, 900, 1800, 3300, 3300, 6500, 9000];
+const TONE_LOSS_A = [0, 0, 60, 150, 340, 340, 420, 480];
 tonezaka.force = (rt) => {
   const F = rt?.flags || {}, s = F.ending && rt.tracker?.main ? 7 : Math.max(0, Math.min(6, F.step || 0));
   return { a: 30000 - TONE_LOSS_A[s] - (F.ak || 0), a0: 30000, b: Math.max(0, 20000 - TONE_LOSS_B[s] - (F.ek || 0)), b0: 20000 };

@@ -4983,11 +4983,11 @@ okawachi.history = [
 okawachi.lordAt = { ...HONJIN, r: 12, why: '城の東の山の本陣を、阪内川の対岸の北東の山へ縮めて置いた陣' };
 okawachi.lordSpawn = { x: HONJIN.x, z: HONJIN.z + 8, heading: -Math.PI / 2 };
 okawachi.noWake = true;
-// 11/8 critic60 大河内（九3・五3）：木戸の前の城兵・打って出た城兵にも赤い▼。筋で斬らせない兵（noTarget）や本丸の将も、見えていれば所属の▼を消さない。
+// 11/8 critic60 大河内（九3・五3）：木戸の前の城兵・打って出た城兵にも赤い▼。筋で斬らせない兵（noTarget）でも所属の▼は消さない。本丸の奥の者だけは付けない
 // 11/8 critic60 大河内（二1）：夜攻めは押し返され、城は一月後の和睦で受け取った。勝鬨の札も「合戦に勝利」にしない（victory_card.js の DUTY にも足した）
 okawachi.victoryTitle = '囲みを保ち、和睦へ';
 okawachi.victoryCaption = '夜攻めは破れたが、兵糧の道を断ち続けた';
-okawachi.foeMarkVisible = (_rt, u) => u.team === 1 && !u.isStruct;
+okawachi.foeMarkVisible = (rt, u) => u.team === 1 && !u.isStruct && !u.keep && u !== rt.flags.keep?.lord;
 okawachi.rts = true;
 
 // 軍議（gungi.js）：搦手の夜攻めが既定。西搦手の史料を南搦手の西寄りへ縮めた道は推定復元。

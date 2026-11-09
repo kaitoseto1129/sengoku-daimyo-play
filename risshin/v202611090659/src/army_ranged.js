@@ -753,8 +753,6 @@ export const ArmyRanged = {
     // 鳥取では地面の矢を残さず、羽だけの白い山形が足元に浮くのを防ぐ。
     if (ground && this.world.def.noGroundArrows) { a.life = 0; return false; }
     const gy = ground ? projectileGroundHeight(this.world, a.pos.x, a.pos.z) : 0;
-    // 川底に届いた矢を水面から突き出したまま残さない。橋・塀・人への矢は残す。
-    if (ground && this.world.waterFootDepthAt(a.pos.x, a.pos.z, gy) > 0.02) { a.life = 0; return false; }
     if (ground && Math.abs(a.pos.y - gy) > .3) {
       a.vel.set(0, -1, 0); a.life = 4; return false;
     }

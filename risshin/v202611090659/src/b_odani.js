@@ -2722,7 +2722,7 @@ function stoneTick(rt, dt) {
 // 始まりの数秒だけ、清水谷の底から尾根を見上げる（字は出さない）。山王丸から大広間まで曲輪の篝火が何段も続き、
 // 城の大きさを先に見せてから、本人の肩越しへ戻す（篝火は曲輪ごとに置いた物）。霧の遠さもこの間だけ広げる。
 // 秀吉に話す受け付けは急がせない（kaito 十2「3秒で消さない」）。話さずにいても、しばらく後には物語が進む（二5）
-const TALK_WAIT = 8;   // 出発二秒後に番兵が動く。十五秒の時点で寄せる歩みが見える間を残す。
+const TALK_WAIT = 12;   // 11/6 fixc1844（kaito 五4・critic60「50秒動けない」）：始まりの待ちは15秒まで
 const VISTA_T = 7.5, VISTA_EYE = new THREE.Vector3(), VISTA_LOOK = new THREE.Vector3();
 function odaniVista(rt, pos, look) {
   const F = rt.flags, t = rt.t;
@@ -3320,8 +3320,6 @@ const odani = {
     streams: [{ pts: SHIMIZU.map(([x, z]) => [x - 5, z]), w: 0.75, depth: 0.32, surfaceDrop: 0.06 }],
     moveWay: roadWay,
     combatSpace: ambushSpace,
-    // 全戦確認で三十五メートル先の守りが棒立ち。曲輪を離れず、見える範囲で構え直す。
-    aliveGuardDistance: 80,
     playerVelocity(rt, vx, vz) {
       const F = rt.flags, q = F.waitVelocity, p = rt.player.u.pos;
       q.x = vx; q.z = vz;

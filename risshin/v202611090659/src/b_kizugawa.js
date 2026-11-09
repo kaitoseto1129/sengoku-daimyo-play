@@ -5040,9 +5040,6 @@ kizugawa.force = (rt) => {
   const F = rt.flags;
   return { a: Math.max(0, 820 - (F.ak || 0)), a0: 820, b: Math.max(0, 4800 - (F.ek || 0)), b0: 4800 };
 };
-// 命懸けの戦場（lethal.js）・この戦の怖さ（六百余艘に囲まれ、甲板に火と乗り込みが来る）
-kizugawa.lethal = true;
-kizugawa.fearKind = { kind: '囲まれた船', note: '六百余艘に囲まれ、甲板に火と乗り込みが来る', w: { iso: 1.2 }, line: '船べりから上がって来るぞ！' };
 kizugawa.sides = { a: { name: '織田水軍（九鬼）', mon: 'kuki' }, b: { name: '毛利水軍', mon: 'mori' } };
 // 敵の大将船の主は史料で特定されない。名のある将を自船へ乗り込ませない。
 kizugawa.famous = [];

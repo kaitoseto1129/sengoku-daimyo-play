@@ -14,7 +14,6 @@ const HOLD_SEC = 110;
 
 export function start(rt, ctx) {
   const F = rt.flags;
-  F.cntHoldT = 0;
   rt.army.play('horagai', { x: 18, z: -120 }, 1.2);
   report(rt, '光秀本隊、前進！　桔梗の大旗が御坊塚を下りまする！');
   // 桔梗の大旗（光秀の馬印が前へ出る。目で分かる反撃）
@@ -43,9 +42,6 @@ export function start(rt, ctx) {
 
 export function tick(rt, dt, ctx) {
   const F = rt.flags;
-  // 一度岸へ寄っただけで、離れた所や討たれた間の時間まで守った事にしない。
-  const holding = rt.player.u.alive && !rt.retryOpen && Math.hypot(rt.player.u.pos.x - STAND.x, rt.player.u.pos.z - STAND.z) < 30;
-  if (holding) F.cntHoldT = (F.cntHoldT || 0) + dt;
   // 大旗はゆっくり南へ（近づく）
   if (F.bigFlag && F.bigFlagZ < -70) { F.bigFlagZ += dt * 0.25; F.bigFlag.position.z = F.bigFlagZ; F.bigFlag.position.y = rt.world.heightAt(30, F.bigFlagZ); }
   const el = rt.t - F.st0, left = ctx.aliveN(F.cntGs);
@@ -59,7 +55,7 @@ export function tick(rt, dt, ctx) {
     rt.army.play('toki', { x: 30, z: -84 }, 1.1);
     rt.say('池田恒興', '二陣が来る！　まだ退くな！', 2.6);
   }
-  if (holding && F.fieldAt === F.stage && F.cnt2 && ((F.cntHoldT > HOLD_SEC) || (el > 80 && ctx.aliveN(F.cntGs) <= F.cntN * 0.3))) {
+  if (F.fieldAt === F.stage && F.cnt2 && ((el > HOLD_SEC) || (el > 80 && ctx.aliveN(F.cntGs) <= F.cntN * 0.3))) {
     for (const g of F.cntGs) if (ctx.live(g)) { g.routed = true; g.order = 'flee'; }
     rt.say('池田恒興', '旗本の先手が退いたぞ！　今じゃ、斎藤の横へ回れ！', 3.2);
     ctx.next();

@@ -672,10 +672,8 @@ const k16_secret = {
     let near = false;
     if (live(g)) for (const u of g.units) if (standing(u) && dist(u.pos, P.pos) < 35) { near = true; break; }
     if (!live(g) && dist(P.pos, STEP_AT[F.step]) < 35) near = true;
-    // 敵だけが出発点まで寄ってきても刻限を始めない。主人公が目標の場所へ寄って接敵してから。
-    if (near && !F.stepSeen && dist(P.pos, STEP_AT[F.step]) < 35) { F.stepSeen = true; F.engagedT = rt.t; }
-    // 主人公が戦場から離れただけでは「敵が散った」にしない。目標の場所で残兵が来ない時だけ数える。
-    F.farT = near || dist(P.pos, STEP_AT[F.step]) >= 35 || rt.t - F.stepT < 25 || gone < F.stepN * 0.3 ? 0 : (F.farT || 0) + 0.25;
+    if (near && !F.stepSeen) { F.stepSeen = true; F.engagedT = rt.t; }   // 主人公がその隊に寄るまで段は済まない（kaito CB：何もしていないのに目標が終わる）
+    F.farT = near || rt.t - F.stepT < 25 || gone < F.stepN * 0.3 ? 0 : (F.farT || 0) + 0.25;
     if (!F.next && F.stepSeen && (gone >= Math.round(F.stepN * (1 - KEEP)) || F.farT > 10)) {
       F.farT = 0;
       F.next = true;

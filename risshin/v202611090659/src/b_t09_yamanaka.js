@@ -252,7 +252,6 @@ const t09_yamanaka = {
   goalSignOnly: true,         // 行き先は頭上の金の▼一つ（旗の印・輪・枠を重ねない。kaito AL・AV 15）
   goalsAllRows: true,         // ①〜⑤を始めから並べる（共通画面の既定では今の一件だけになる）。
   goalSignTriangle: true,
-  goalSignNoEdge: true,      // 画面外の行き先を縁へ張り付けたり、方向矢印へ替えたりしない。
   actionGuideTarget: () => null,
   missionSignTarget: () => null, // 敵の頭上の赤い▼以外の選択印を付けない。
   noLeaderFollow: true,   // 行き先は目標の印一つだけ（ついていく相手の青い印を重ねない。kaito AV 15）
@@ -472,17 +471,7 @@ const t09_yamanaka = {
     // 対岸の柵の内から、畝へ詰めた寄せ手を鉄砲と矢で狙う。兵は増やさない。
     F.rimWall = wallLine(rt, [[-4, SHOJI.z0 - 3], [7, SHOJI.z0 - 3], [13, SHOJI.z0 - 3], [28, SHOJI.z0 - 3]], { team: 1, hp: 180, name: '障子堀の柵', gaps: [2], segLen: 6 });
     F.rimFire = makeSamaFire(rt, [{ structs: F.rimWall, inside: { x: 10, z: SHOJI.z0 - 12 } }], { heads: false, near: 70, close: 15, base: 1.2, peak: 5, arrows: 0.45, hurt: 0.25, rain: 0.6 });
-    const path = (g, dx) => {
-      if (gone(g)) return;
-      g.formation = 'column'; g.colW = 1; g.march = false; g.order = 'path';
-      // 出丸から北東へ直進すると、脇の畝堀へ斜めに落ちる。西の先手だけ土橋へ戻して渡す。
-      // 東の二陣は戻さず、それぞれの畝へ続く。
-      const c = g.center();
-      g.path = c.x < -11 ? [[Math.min(c.x, -32), 176], [-6, 176]] : [];
-      g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 - 5]);
-      g.pathIdx = 0; g.speed = 3;
-      g.onArrive = (q) => { q.order = 'assault'; q.assault = () => F.rimWall.find((s) => s.alive !== false) || F.cross; q.seekRange = 30; };
-    };
+    const path = (g, dx) => { if (gone(g)) return; g.formation = 'column'; g.colW = 1; g.march = false; g.order = 'path'; g.path = [[CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 - 5]]; g.pathIdx = 0; g.speed = 3; g.onArrive = (q) => { q.order = 'assault'; q.assault = () => F.rimWall.find((s) => s.alive !== false) || F.cross; q.seekRange = 30; }; };
     path(F.ichi, -SHOJI.cell); path(F.naka, SHOJI.cell); if (!gone(F.yama)) path(F.yama, 0);
     if (!gone(F.hori)) path(F.hori, SHOJI.cell * 4);
   },

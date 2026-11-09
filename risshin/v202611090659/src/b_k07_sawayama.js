@@ -56,7 +56,6 @@ const NISHI = { x: -48, z: -4 };        // 西の丸（塩硝櫓）
 const TAIKO = { x: -10, z: 34 };         // 太鼓丸（南の尾根・本丸の手前）
 const HOKKE = { x: -4, z: 64 };          // 法華丸（南の尾根の先）
 const KARAME = { x: -100, z: -10 };      // 搦手（琵琶湖の側）から田中勢が出てくる所
-const OPEN_CASTLE_WAIT = 12;   // 開城の使いと秀秋の承知を聞き終えてから、乱入を告げる
 const LIMIT = 1050;   // 11/9：波の兵を 1.7→1.4 倍に（toku15_plan 7 は十五分。体力でなく人数で詰める）
                      // 十八日の日が暮れ切るまで（秒）。共通の打ち切り（battle_pacing の 1080 秒）より先にこの戦の言葉で締める。段ごとに b_depth の時間がある（AP の8）
 
@@ -448,7 +447,7 @@ const k07_sawayama = {
         onEnd: (rt2) => this.udaEnd(rt2),
         reward: '二の丸を落とした' }),
       // 本丸から開城の使い：正継は一族の自害と引き替えに城の者を助けよと申し出た（歴史街道）。その最中に田中勢が水の手から乱入する（説）
-      DP.rest({ dur: OPEN_CASTLE_WAIT, heal: 0.7, fn: (rt2) => this.tanaka(rt2),
+      DP.rest({ dur: 12, heal: 0.7, fn: (rt2) => this.tanaka(rt2),
         say: [['小早川の侍', '本丸から使いじゃ。正継殿は一族の腹と引き替えに、城の者を助けよと', 4.2], ['小早川秀秋', '……よかろう。城を開けさせよ', 3.4]] }),
       // ④ 本丸の天守
       // 正継・正澄・朝成は天守の前で床几に座り（討てない・tsugu）、旗本が打って出る。旗本が尽きると一族は天守に入って自害し、天守に火が回る
@@ -568,7 +567,7 @@ const k07_sawayama = {
     const F = rt.flags;
     if (F.tanakaIn || !F.tanaka) return;
     const since = rt.t - (F.tanakaT ?? rt.t);
-    if (since < OPEN_CASTLE_WAIT) return;   // 早く着いても開城の話を遮らず、約束の後に乱入を告げる
+    if (since < 6) return;   // 出たばかりの兵の位置はまだ定まらない。使いの話の後に告げる
     // 石垣の下を通る兵を、本丸へ入った兵として数えない。
     const level = PLAN.kuruwa.find((k) => k.id === 'hon').level;
     const near = F.tanaka.units.some((u) => u.alive && u.pos.x >= -24 && u.pos.x <= 4 && u.pos.z >= -18 && u.pos.z <= 16 && Math.abs(u.pos.y - level) < 3);

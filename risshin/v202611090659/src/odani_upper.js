@@ -5,6 +5,7 @@ import { rockShape } from './rock_shape.js';
 import { terrainView } from './terrain_view.js';
 import { S as SETTINGS } from './settings.js';
 import { ishigaki, hut, palisade, kabukimon, solidSeg, solidRect, makeSimpleBatch, finalizeSimpleBatch, makeKitBatch, finalizeKitBatch } from './props.js';
+import { monomi } from './castle_parts.js';
 import { ODANI_PLAN, UPPER, NAKAMARU, NAKAMARU_YOKOYA, KYOGOKU, KYOGOKU2, KOMARU, SANNOMARU, SANNO2, OKURIDGE, KUICHIGAI } from './castles/odani.js';
 
 export function buildOdaniUpper(rt, ramps) {
@@ -285,9 +286,11 @@ export function buildOdaniUpper(rt, ramps) {
   box(shu, tx, ty + 2.7, tz, 3.35, 0.22, 0.22);
   box(shu, tx, ty + 3.5, tz, 3.9, 0.25, 0.38);
   box(0x402e25, tx, ty + 3.68, tz, 4.1, 0.12, 0.45);
-  // 社の段の北は木の柵。奥の尾根に証のない物見は足さない。
+  // 社の段の北は木の柵。さらに小さな曲輪と物見を尾根先へつなぐ。
   { const pal = palisade(W, [-SANNO2.hw + 2, SANNO2.z0, -3.3, SANNO2.z0], { h: 1.5, batch }); if (!pal.isBatchedPart) rt.scene.add(pal); }
-  // 京極丸・小丸・本丸の物見だけ残す（critic60 の井楼過多）。
+  const lookout = { mon: 'azai', boarded: false, logFrame: true };
+  monomi(rt, OKURIDGE[0].x + 3.8, OKURIDGE[0].cz, { ...lookout, team: 1, name: '奥の尾根の物見櫓' });
+  // 11/6 fixc1844：尾根先の二つ目の物見は立てない（井楼が多すぎて陣城に見える。critic60）
   // 落ち葉・根元の草・露岩・倒れた枝を置く。黒い葉の玉を斜面に並べない。
   // 曲輪の段と石垣はそのまま残し、道と床は覆わない。組み立て時だけ作る。
   const leaves = [], rocks = [], roots = [], grasses = [], shadowPositions = [], shadowUvs = [];

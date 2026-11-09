@@ -1,15 +1,15 @@
 // 突っ立ちの見張り（kaito 10/28「動かない敵はマジクソ。突っ立ってるだけとか」）：
-//   本人から既定34m 内（戦の指定があればその範囲）の敵で、足も向きも手も止まったまま一〜二秒半たった者は、その場で何かさせる。
+//   本人から34m 内の敵で、足も向きも手も止まったまま一〜二秒半たった者は、その場で何かさせる。
 //   歩ける者は敵の方へ半歩踏み込む・引く・左右へ踏み替える（向きは敵へ）。櫓・舟・膝つきの槍衾・伏せ・下敷きの者は
 //   その場で向き直り、槍を構え直す（体の向きを左右に振る）。戦の定義の待ち場（combatSpace）・持ち場で詰まった者・
 //   逃げ道で詰まった者も同じ。行き先・号令・隊の数は変えない。兵の判断（think）の後に一度だけ足と向きを上書きする。
 //   重さ：近い敵だけ・数の比べだけ。敵を探すのは踏み直しを始める時だけ（一人あたり一〜二秒に一度）。
+const R2 = 34 * 34;
 export function aliveGuard(army, u, dt) {
   const P = army.playerUnit;
   if (!P || u.team === P.team || u.isPlayer || u.type === 'dummy' || u.isStruct || u.dying || !u.alive) return;
   const dx0 = u.pos.x - P.pos.x, dz0 = u.pos.z - P.pos.z;
-  const range = army.world.def.aliveGuardDistance ?? 34;
-  if (dx0 * dx0 + dz0 * dz0 > range * range) { if (u._alv) u._alv.t = army.time; return; }
+  if (dx0 * dx0 + dz0 * dz0 > R2) { if (u._alv) u._alv.t = army.time; return; }
   const now = army.time;
   u._alvSeen = now;   // 本人の近くにいる印（army_move.js の idleFx は、この間は持ち場で座り込ませない）
   const A = u._alv || (u._alv = { x: u.pos.x, z: u.pos.z, h: u.heading, t: now, on: 0, k: u.id % 4, px: 0, pz: 0, step: false, face: 0, wait: 1 + (u.id % 7) * 0.12, pt: { x: 0, z: 0 } });

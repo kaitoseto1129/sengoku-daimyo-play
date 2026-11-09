@@ -3,7 +3,7 @@
 // 本陣の近くに軽い旗本を重ねず、秀長の本物の隊に結ぶ。各手の人数は総勢五万に合わせた遊びの推定。
 const F = (k) => (rt) => rt.flags[k];
 export const depth = {
-  A: { name: '羽柴', facing: 0, honjin: { x: 52, z: -166 }, mpu: 5, formation: '鶴翼', terrain: 'mountain', flag: 'toyotomi', armor: 0x2b2723, uma: 'fukube', openAt: 9999, attrition: 0,
+  A: { name: '羽柴', facing: 0, honjin: { x: 52, z: -176 }, mpu: 5, formation: '鶴翼', terrain: 'mountain', flag: 'toyotomi', armor: 0x2b2723, uma: 'fukube', openAt: 9999, attrition: 0,
     sonae: [
       { id: 'masakatsu', layer: 'sakite', wing: 'left', men: 2000, taisho: '蜂須賀正勝', flag: 'hachisuka', bind: F('masakatsu') },
       { id: 'kanbei', layer: 'ichi', wing: 'left', men: 3000, taisho: '黒田官兵衛', flag: 'kuroda', bind: F('kanbei') },

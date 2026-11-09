@@ -3094,13 +3094,9 @@ function inabaPacingWait(rt) {
   const climbEnd = Math.min(F.stepT + 600, Math.max(F.stepT + 420, (F.pacingClimbT || F.stepT) + 120));
   // 守りを退けた直後に時計を切らず、本人が小屋へ歩いて火をつける時間を残す。
   // 火付け口を移した時も四十五秒を確保する。以前の本丸の上限で救済直後に打ち切らない。
-  // 近づいた直後に止まった時も、三十秒後の救済を待てるようにする。
-  // 最短距離を更新した時だけ延ばし、移設前は百五十秒で必ず区切る。
-  const signalEnd = !F.sig ? 0 : F.sigMoved ? F.sigT + 45
-    : Math.min(F.sigT + 150, Math.max(F.sigT + 75, (F.sigBestT ?? F.sigT) + 45));
-  // 遠い守兵は七十五秒後に退く。そこから火付け口の救済まで三十秒、
-  // 本人が火を付けるまで四十五秒を残す。九十秒では救済より先に打ち切られた。
-  const end = Math.max(480, F.step === 3 ? climbEnd : Math.max(F.stepT + 150, signalEnd));
+  // sigT は着火口の設置と一度だけの移設で決まるので、放置や往復では延びない。
+  const signalEnd = F.sig ? F.sigT + 45 : 0;
+  const end = Math.max(480, F.step === 3 ? climbEnd : Math.max(F.stepT + 90, signalEnd));
   if (rt.t >= end - 40 && !rt.pacingWarned) {
     rt.pacingWarned = true;
     rt.say('組頭', '寄せを続けられるのも、あとわずかじゃ。道の印をたどり、合図の火を急げ', 4);
@@ -7059,7 +7055,7 @@ const inabayama = {
       }
       // 表と裏から挟まれて四十五秒、残る旗本も主殿の奥へ退く（合図の火を放てないまま囲みの時間切れにしない）
       if (!F.sig && !F.honBroke && rt.t - F.stepT > 45) { F.honBroke = true; for (const g of F.honGuards) if (!gone(g)) { g.noRout = false; g.morale = 0; } }
-      // 遠い守りの退却を済ませ、火付け口の救済と本人の着火まで時間を残す。
+      // 本丸の九十秒の打ち切りより前に遠い守りの退却を済ませ、本人が火を付ける時間を残す。
       if (!F.sig && rt.t - F.stepT > 75 && rt.t >= (F.honFarAt || 0)) {
         F.honFarAt = rt.t + 1;
         const pp = rt.player.u.pos;

@@ -369,12 +369,6 @@ function requiredStep(step) {
 // 11/6 kaito（史実・二2・一3）：開城を説く使いの道で斬り合いにしない（前は「抗う北条の侍」が三度寄せ、門の前で血と死体が出た）。
 //   北条方は使いを通す：山王口の番が道を開け、本丸の門から出迎えの侍が来て先に立つ。本丸の旗本は門の前に並んで迎える
 function ceasefire(rt) {
-  // 使いの供は三人だけ。寄せ手と本人の組は城外の持ち場に留める。
-  for (const { g, at } of rt.flags.envoyWait || []) {
-    g.order = 'hold'; g.ai = false; g.noAI = true; g.fixed = true;
-    g.aggro = 0; g.focus = null; g.onArrive = null;
-    g.anchor.x = at.x; g.anchor.z = at.z;
-  }
   for (const u of rt.army.units) if (u.alive) {
     u.target = null; u.atk = null; u.swing = null;
     u.noTarget = true; u.invuln = true;
@@ -389,8 +383,6 @@ function escort() {
       const F = rt.flags;
       const st = ENVOY[0];
       C.at = st; C.goal = st; C.i = 1; C.met = false;
-      F.envoyWait = [...new Set([F.mine, F.ii, F.ii2, F.yasu, ...(rt.squadGroups || [])])]
-        .filter((g) => g && !gone(g)).map((g) => ({ g, at: { ...g.center() } }));
       F.envoy = allyGroup(rt, { faction: 'oda', name: '黒田官兵衛の使い', anchor: { ...st }, fixed: true, fullStrength: true, noGuard: true, noAI: true, facing: -Math.PI / 2, width: 4, aggro: 0, noRout: true, morale: 100 },
         dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', ...CALM, kosodeCol: 0x2e2c2a } }, { type: 'samurai', n: 3, o: { ...CALM, kosodeCol: 0x3a3630 } }], KURODA));   // 供は少なく（説きに入る使い）
       F.envoy.fixed = false;
@@ -427,6 +419,8 @@ function escort() {
       }
       // 出迎えの侍は使いの少し先を歩いて本丸の門へ案内する
       if (F.demukae && C.i >= 6) { const nx = ENVOY[Math.min(C.i + 1, ENVOY.length - 1)]; F.demukae.anchor = { x: nx.x, z: nx.z }; }
+      // 使いの道では誰も刃を交えない（北条方は使いを通し、こちらも手を出さない）。狙いを毎コマ外す
+      ceasefire(rt);
       // 自分が近くにいる間だけ、使いは前へ進む
       const p = rt.player.u.pos, tgt = ENVOY[Math.min(C.i, ENVOY.length - 1)];
       const near = C.near = Math.hypot(p.x - k.pos.x, p.z - k.pos.z) < 18;
@@ -725,8 +719,6 @@ const t12_odawara = {
     tenka.tick(rt);
     if (F.ending) return;
     depthTick(rt, dt);
-    // 使いの道から開城の見届けまで停戦と城外の待機を保つ。
-    if (F.envoy) ceasefire(rt);
     // 本陣の将と旗本は持ち場を離れない（共通の寄せ・助けの下知が掛かっても、毎コマ本丸・本陣へ戻す。kaito AR3）
     for (const [g, at] of [[F.hojo, CASTLE], [F.ieyasu, { x: IE_JIN.x - 2, z: IE_JIN.z }]]) {
       if (!g) continue;
