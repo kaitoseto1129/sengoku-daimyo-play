@@ -1365,10 +1365,10 @@ function nfSend(rt, g, gateZ) {
 }
 // 寄せの崩れ：残りが四割以下か、柵に取り付いて四十秒。将は柵の内の鉄砲に倒れる（史実の討死）。
 function nfBroken(rt, g) {
-  if (!g.nfAt) return false;
+  if (g.nfAt == null) return false;
   const n = nfReady(g) + nfReady(g.cavalry);
   const at = g.nfArrive ?? (g.center().x < SB.x0 + 14 ? (g.nfArrive = rt.t) : null);
-  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, rt.flags.nf.at) > 40;
+  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, g.nfAt) > 40;
 }
 function nfRout(rt, g, dead) {
   for (const q of [g, g.cavalry, g.missiles]) {
@@ -1571,7 +1571,7 @@ function nfCollapse(rt) {
   F.nf.crossWest = false;
   rt.setPhase('pursuit');
   F.pursuit = rt.t;
-  try { rt.world.setTime('after'); } catch (e) { /* なし */ }
+  try { rt.world.setTime('afternoon'); } catch (e) { /* 光が替えられなくても進む */ }
   rt.army.playFar('sig_nobiki', KATSUYORI, 1);
   rt.say('使番', '内藤昌豊、討死！　武田の備が崩れて退くぞ！', 3.5);
   rt.after(3.8, () => { if (!F.ending) rt.say('使番', '武田勝頼、退きます！　馬場美濃守が殿に残りました！', 3.6); });
@@ -3411,7 +3411,8 @@ const shitaragahara = {
         { x: REARGUARD.x - 22, z: REARGUARD.z + (i % 2 ? 24 : -24) },
       ] });
     }
-    rt.world.setTime('morning', true);   // 夜明け。土屋の柵破りで昼、武田が崩れる未の刻で昼過ぎの光へ（15分の構成の環境の変わり目）
+    // 朝六時からの時計を使う。morning は時計の段に無く、寄せの間に日が止まっていた。
+    rt.world.setTime('day');
     rt.setPhase('brief');
     F.wave = 0;
     F.prepAt = rt.t;
