@@ -161,8 +161,8 @@ function saruStep(s) {
 function tadaStep(s, rt) {
   const tick = s.tick;
   s.tick = (r, C, m, ctx, el) => {
-    const done = tick(r, C, m, ctx, el);
-    if (done) rt.flags.tadaHandDone = true;
+    // 手勢への退却の下知が出た後は、共通処理の呼び寄せで攻撃へ戻さない。
+    if (!rt.flags.tadaHandDone && tick(r, C, m, ctx, el)) rt.flags.tadaHandDone = true;
     const u = rt.flags.tadaU;
     if (u?.alive) C.goal = u.pos;
     return rt.flags.tadaHandDone && !!u && !u.alive && !!rt._g5?.own.has('島津忠隣');

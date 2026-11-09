@@ -280,6 +280,7 @@ function strayArrows(rt, dt) {
 const INOU_BOARD_CSS = `
 html:root body #hud#hud#hud.inou-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.inou-goals #armybar .clock { visibility:hidden !important; }
+html:root body #hud#hud#hud.inou-goals #armybar#armybar .gauge.one { display:block !important; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.inou-goals #armybar { visibility:hidden !important; }
 html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
@@ -332,7 +333,8 @@ const inou_spec = {
   noFrontFill: true,         // 奥の軽い乱戦（front_fill.js）は置かない。見える兵は全部本物（11/3 p100_inou）
   kumiLead: false,           // 行き先の印は一つだけ（kaito AL・AN）：組頭の青い印は出さず、今の目標の金の▼だけ。組頭と組はこの定義が目標へ動かす
   allyReports: false,        // 使番の「組頭殿の隊は北で移動中」は出さない（組頭は自分を率いる人。字を足さない）
-  goalsAllRows: true,
+  goalsAllRows: false,
+  goalRowsAhead: true,
   goalVisibleRows: 5,        // 最初から順に並べ、現在の目標を含む五件を見せる。
   pinOnlyDestination: true,  // 地面・足元の行き先の矢印は出さない（kaito AP12・BH6）。行き先は真上の金の▼だけ
   noGoalCount: true,         // 美作守が画面の外の時の赤い端の矢印（goal_count.js）も出さない。金の▼の端の印と二つになった
@@ -551,16 +553,18 @@ const inou_spec = {
       const held = (t) => t && t === F.bossU && (F.stage < 4 || !F.bossNear || !F.nobuKill && !rt.G.lord && F.nobuU?.alive);
       // 未達の段の最後の相手は味方だけでは討ち切らない。主人公の働く相手を残す。
       const lastTarget = (t, from) => {
-        if (!t?.alive || from?.isPlayer) return false;
-        if (t.group === F.practice) return true;
+        if (!t?.alive) return false;
+        if (t.group === F.practice) return !from?.isPlayer;
         const v = F.v15;
-        if (v && t === v.boss && !v.vanDone) return true;
-        if (v?.raidGs?.includes(t.group) && !v.raidPlayer && aliveIn(v.raidGs) <= 1) return true;
-        const stage = F.stage;
-        if (inouDid(rt, stage, 1)) return false;
-        const groups = stage === 1 ? F.l1 : stage === 2 ? F.l2 : null;
-        if (stage === 3) return t.group === F.guardG && aliveIn([F.guardG]) <= 1;
-        return !!groups?.includes(t.group) && aliveIn(groups) <= 1;
+        if (v && t === v.boss && !v.vanDone) return !from?.isPlayer;
+        if (v?.raidGs?.includes(t.group) && !v.raidPlayer && aliveIn(v.raidGs) <= 1) return !from?.isPlayer;
+        // 後の目標の敵を先に討ち切ると、その段の手柄を得られず進めなくなる。
+        // 今の段だけでなく、まだ働いていない各段の最後の一人を残す。
+        const stage = F.l1?.includes(t.group) ? 1 : F.l2?.includes(t.group) ? 2 : t.group === F.guardG ? 3 : null;
+        if (stage == null || inouDid(rt, stage, 1)) return false;
+        if (from?.isPlayer && F.stage === stage) return false;
+        const groups = stage === 1 ? F.l1 : stage === 2 ? F.l2 : [F.guardG];
+        return aliveIn(groups) <= 1;
       };
       A.damage = function (t, a, ...r) {
         const hp = t?.hp;

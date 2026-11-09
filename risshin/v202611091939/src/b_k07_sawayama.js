@@ -416,7 +416,8 @@ const k07_sawayama = {
     depthStart(rt, { faction: 'ishida', flag: 'ishida', armor: ISHIDA.armor, friends: () => [F.mine, F.saki, F.hasegawa], look: (list) => dress(list, ISHIDA), scale: 1.4, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40,   // 0.4 では命を戻さない流しで三の丸と二の丸の下の段の斬り合いで続けて討たれた（城方は老兵・若い兵が多く戦えたのは千ほど・battle_learn）
       botFoeAllowed: (o) => !o.perch }, [   // 櫓の上の射手は下から斬れない（追うと塀の下に詰まって段が進まなかった）
       // ① 大手門を破る
-      DP.fight({ at: OTE, title: '大手門', sub: '内堀と土塁の奥に枡形の門', obj: '大手門の内の侍屋敷で石田勢を討て', max: 150,
+      DP.fight({ at: OTE, title: '大手門', sub: '内堀と土塁の奥に枡形の門', obj: '大手門の内の侍屋敷で石田勢を討て', max: 150, noRefill: true,   // 11/9 三巡（織田C）：新手の継ぎ足しで段が七分半続き、act が新手の大手の守りに倒れた。後の段と同じく継ぎ足さない
+
         say: [['脇坂の侍', '櫓と土塁の上から鉄砲と矢じゃ！　竹束の陰から土橋へ寄せ、掛矢で門扉を破れ'], ['小早川の侍', '先手が谷へ撃ち落とされておる。土塁の陰を伝え']],
         foes: () => [keep('大手の守り', OTE, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         later: [{ t: 40, say: ['小早川の侍', '侍屋敷から石田の新手が打って出たぞ！'], foes: () => [keep('侍屋敷の石田勢', { x: 96, z: -18 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }])] },
