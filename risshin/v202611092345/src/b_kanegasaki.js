@@ -2501,7 +2501,10 @@ const kanegasaki = {
     // 毎コマ呼ばれる行き先は戦ごとに使い回し、携帯で不要な回収を増やさない。
     const target = rt.flags.goalTarget || (rt.flags.goalTarget = { x: 0, z: 0, action: '', unit: null, label: '', boss: false });
     target.x = q.x; target.z = q.z;
-    target.action = q.action || g?.action || ''; target.label = q.label || g?.noun || '';
+    // 敵を場所として渡すと金の行き先印になり、味方もその地点へ移動してしまう。
+    // 退く場所へ戻った時には、使い回す情報から前の敵を必ず外す。
+    target.unit = q.unit || null; target.enemy = !!q.enemy;
+    target.action = q.action || g?.action || ''; target.label = q.enemy ? '' : q.label || g?.noun || '';
     return target;
   },
   // 11/4 jin（docs/battle_refs/kanegasaki.md）：史実の順の五つ（金ヶ崎の麓で朝倉の先手を止める → 笙の川の南へ繰り引く →
