@@ -351,7 +351,17 @@ function okPeopleHomes(rt) {
   { // 画質にかかわらず焼け跡。携帯でも無傷の家へ戻さない。
     // 『信長公記』巻二は、包囲の初めに町を焼いたと記す。九月八日に無傷の家を並べない。
     // 焼け跡の位置・形は推定。既存の民と避難道を保ち、二軒を一つの形・材質で描く。
-    const remains = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1),
+    // 焼けた柱の頭と梁の端を揃った直方体にしない。
+    // 面の継ぎ目では同じ座標を同じ量だけ削り、割れ目を開けずに角を欠く。
+    const charred = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2);
+    const vertices = charred.attributes.position;
+    for (let i = 0; i < vertices.count; i++) {
+      const x = vertices.getX(i), y = vertices.getY(i), z = vertices.getZ(i);
+      const chip = .035 + .055 * (.5 + .5 * Math.sin(x * 19 + y * 31 + z * 23));
+      vertices.setXYZ(i, x * (1 - chip), y * (1 - chip * 1.7), z * (1 - chip * .8));
+    }
+    charred.computeVertexNormals();
+    const remains = new THREE.InstancedMesh(charred,
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 28);
     const obj = new THREE.Object3D(), color = new THREE.Color();
     let index = 0;
