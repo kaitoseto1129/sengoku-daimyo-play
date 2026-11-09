@@ -441,6 +441,12 @@ NAMED_GEAR['浅井久政'] = { ...NAMED_GEAR['浅井久政'], uma: null, campUma
 // 個人の馬印は未確認。信繁や昌幸の馬印を流用しない。出所：docs/generals_look_1108/真田信綱.md。
 NAMED_GEAR['真田信綱'] = { ...NAMED_GEAR['真田信綱'], flag: 'sanada', uma: null, campUma: null };
 
+// 承禎（義賢）。旗は既存の六角方の所属表示。本人の実旗・馬印は未確認。
+// 得物と動きは従来の名簿を保つ。出所：docs/generals_look_1108/六角承禎.md。
+NAMED_GEAR['六角義賢'] = { ...(NAMED_GEAR['六角義賢'] || rosterGear('六角義賢')),
+  flag: 'rokkaku', uma: null, campUma: null };
+NAMED_GEAR['六角承禎'] = NAMED_GEAR['六角義賢'];
+
 // 箕作の六角義治。旗は既存の六角方の所属表示で、本人の実旗とは断定しない。
 // 個人の馬印は未確認。得物と動きは名簿の従来値を保つ。出所：docs/generals_look_1108/六角義治.md。
 NAMED_GEAR['六角義治'] = { ...(NAMED_GEAR['六角義治'] || rosterGear('六角義治')),
@@ -510,5 +516,8 @@ NAMED_GEAR['安藤守就'] = { ...NAMED_GEAR['安藤守就'], flag: 'oda', uma: 
 NAMED_GEAR['前野長康'].flag = 'oda';
 NAMED_GEAR['前野長康'].uma = null;
 NAMED_GEAR['前野長康'].campUma = null;
+// 頼廉個人の旗印・馬印は未確認。念仏旗を所属表示として使う復元案。
+// 長圓寺の石山名号旗の伝存を参考にするが、本人の旗とはしない。
+NAMED_GEAR['下間頼廉'] = { ...NAMED_GEAR['下間頼廉'], flag: 'namu', uma: null, campUma: null };
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

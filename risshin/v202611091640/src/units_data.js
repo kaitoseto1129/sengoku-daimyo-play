@@ -204,7 +204,7 @@ for (const [nm, armor, lace, hat, haori, mon, skin, age, shape, b, x] of [
   // 野田・福島・志賀（元亀元年）
   ['三好長逸', 0x24221f, 0x2a4a5a, 'kabuto_w', 0x2a3a4a, 'none', 0xb88e6a, 54, [1.0, 0.95, 1.3, 1.15, 1.1, 1.3], 0.6],
   ['岩成友通', 0x24221f, 0x2a4a5a, 'kabuto_m', 0x2a3a4a, 'none', 0x9c7453, 52, [1.0, 1.05, 1.2, 1.2, 1.05, 1.15], 0.55],
-  ['下間頼廉', 0x1c1a1a, 0x5a4a3a, 'kabuto_m', 0x3a3a3a, 'none', 0xb08664, 34, [1.02, 1.1, 1.1, 1.2, 1.0, 1.1], 0.2],
+  ['下間頼廉', 0x1c1a1a, 0x2e4468, 'kabuto', 0, 'none', 0xb08664, 34, [1.02, 1.1, 1.1, 1.2, 1.0, 1.1], 0.2],
   ['織田信治', 0x1c1a1a, 0x3c5a8a, 'kabuto_s', 0x5a1a14, 'oda', 0xc09a74, 25, [0.95, 0.85, 1.0, 1.0, 1.15, 1.0], 0.15, { haoriMonCol: 0xc9a24a }],
   ['各務元正', 0x24221f, 0x2e3a52, 'kabuto_m', 0x2a2a3a, 'tsuru', 0xa87f5c, 32, [1.03, 1.15, 1.15, 1.2, 1.0, 1.1], 0.5, { haoriMonCol: 0xe6dfcf }],
   ['浅井長政', 0x1c1a1a, 0x3c5a48, 'kabuto_w', 0x2a3a30, 'azai', 0xc09a74, 25, [1.02, 0.95, 1.0, 1.05, 1.1, 1.0], 0.2, { haoriMonCol: 0xe6dfcf, lord: true }],

@@ -81,7 +81,7 @@ const WORK_SPOTS = SPOTS.map(s => ({ x: s.x, z: s.z + 2 }));
 const BUILD_HOLD = 8;                      // 人足と並行して補修する
 const WATCH_HOLD = 8;                      // 近い岸で水路を見張る
 const HELP_HOLD = 4;                       // 人足と手分けし、本人は横木の縄を締める
-const SALLY_HOLD = 160;                    // 約四〜七分：後続舟まで受け、同じ兵のまま守備時間を確保する
+const SALLY_HOLD = 240;                    // 後続舟まで四分守る。静かな岸だけを長く待たせない。
 const SHORE_DELAY = 25;
 const END_SEC = 32;                        // 11/6 fixc1721：火を見届ける間。十八秒では対岸の火が燃え広がる前に勝ちの札になった                    // 最初の十人に続き、同じ舟の残る門徒も上陸する
 const SHORE_WATCH_HOLD = 8;                // 全ての舟を受けた後、静まった岸を見張る
@@ -161,6 +161,20 @@ function visitorBanners(rt, banners) {
 function bankFighterReady(u) {
   return !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
     !u.fleeing && !u.woundOut && !u.rearWound && !u.group?.routed;
+}
+// 三つの守備を計十分にする。同じ寄せを時間差で送り、人数や体力は増やさない。
+function bankHold(o) {
+  const dur = o.dur === 75 ? 180 : 210;
+  return dpHold({ ...o, dur, waves: o.waves.map(w => ({ ...w, t: w.t * dur / o.dur })) });
+}
+// 柵や地形に残兵が掛かっても無限の守備にしない。
+// 本人が必要な時間守り、最後の寄せも出尽くした後だけ、残る隊に退却を起こす。
+function bankDepthWithdraw(C, el, max) {
+  if (C.waves.length || C.inT < max - 35 || el < max + 55) return;
+  for (const g of C.groups) if (!g.routed) {
+    // 頭が生きている隊は士気を下げるだけでは崩れない。退く下知も渡す。
+    g.order = 'retreat'; g.focus = null; g.noRout = false; g.morale = 0;
+  }
 }
 // 西・東の防衛はその口の手、最後の防衛は中央の手と受ける。
 // 段ごとに一度選び、退避先を探す時も同じ味方を使う。
@@ -2408,10 +2422,11 @@ const nagashima = {
     // 10/30：溜まり・水路の水面の上に濡れた泥と水たまりの板が載り、空を映した青白の板に見えた。水路の水面とその縁には置かない。
     skip: (x, z) => TOWN_STREAMS.some((st) => st.w < 10 && segDist2(x, z, st.pts) < st.w + .6),
   },
-  // 11/1：共通の既定（本人へ四人が同時に打つ・構えずに受けた一太刀は命の五割）で bot が倒れて負けた。寄せる数・敵の強さ・大軍の見た目は変えず、
-  //   一太刀を三割五分（侍は四割強）に、刃を受けた後の2.2秒は次の刃を通さない（同じ一瞬に二太刀・三太刀を浴びない）。
+  // 入力の傷だけを縮めても、共通処理の侍の最低被害で二太刀ほどで倒れる。
+  // 最低被害にも効く戦ごとの倍率を使い、退く間を四秒確保する。
   cutFloor: 0.7,
-  meleeGrace: { rate: 1, burst: 1, interval: 2.2 },
+  playerTaken: 0.32,
+  meleeGrace: { rate: 1, burst: 1, interval: 4 },
   world: {
     playerAtkMax: 2,   // 11/1：本人へ同時に打ち込むのは二人まで（共通の既定は四人・player_pressure.js）
     seed: 1574,
@@ -2604,10 +2619,13 @@ const nagashima = {
       if (F.step >= 2) for (let i = this.markers.length - 1; i >= 0; i--) this.unmark(this.markers[i].id);
       return marker.call(this, id, at, text, ...args);
     };
-    // 深手になる前に退く先を知らせる。被害は共通の難しさを保つ。
+    // 一度退避した後も、次の寄せで深手なら槍組を呼べる。
     const playerDamage = rt.army.hooks.playerDamage;
     rt.army.hooks.playerDamage = function (amount, src) {
       const u = rt.player.u;
+      if (F.dangerDone && rt.t - F.dangerAt >= 30) {
+        F.dangerAt = null; F.dangerDone = false; F.dangerReached = false;
+      }
       if ((F.step === 3 || F.step === 3.5) && src?.team !== u.team && (u.hp <= u.maxHp * .55 || amount >= u.hp * .5)) dangerWarning(rt);
       return playerDamage.call(this, amount, src);
     };
@@ -3590,7 +3608,7 @@ const nagashima = {
     const A = (n) => ({ type: 'ashigaru', n }), B = (n) => ({ type: 'bow', n });
     // 門徒：鉢巻・小袖の徒（侍は旗頭だけ）
     const monto = (n, s2) => [{ type: 'samurai', n: s2, o: { kosode: 1, hat: 'hachimaki', flag: 'namu', horse: false, sode: false, kote: 0, menpo: 0 } }, { type: 'ashigaru', n, o: { kosode: 1, hat: 'hachimaki', weapon: n % 2 ? 'spear' : 'sword' } }];
-    const steps = fusaSteps({ rest: dpRest, hold: dpHold, BANK_Z, A, B, monto });
+    const steps = fusaSteps({ rest: dpRest, hold: bankHold, BANK_Z, A, B, monto });
     for (const st of steps) {
       const start = st.start;
       st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (st.kind === 'hold') for (const g of bankDepthFriends(rt2)) g.fire = true; const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
@@ -3606,7 +3624,8 @@ const nagashima = {
           const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&   // 馬の上でも持ち場（11/9 二巡）
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
-          // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
+          bankDepthWithdraw(C, el, st.max);
+          // 三段で二百十・二百十・百八十秒。本人の守備を十分確保する。
           // 共通処理は二人以下の組を崩れた扱いにする。戦える残兵がいれば守備を続ける。
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
@@ -3632,7 +3651,7 @@ const nagashima = {
     if (F.dpLast || F.ending) return;
     F.dpLast = true; F.dpOn = true; F.preWinSafe = F.finalSafe >= FINAL_HOLD;
     const monto = (n, s2) => [{ type: 'samurai', n: s2, o: { kosode: 1, hat: 'hachimaki', flag: 'namu', horse: false, sode: false, kote: 0, menpo: 0 } }, { type: 'ashigaru', n, o: { kosode: 1, hat: 'hachimaki', weapon: n % 2 ? 'spear' : 'sword' } }];
-    const steps = lastSteps({ rest: dpRest, hold: dpHold, BANK_Z, monto });
+    const steps = lastSteps({ rest: dpRest, hold: bankHold, BANK_Z, monto });
     for (const st of steps) {
       const start = st.start;
       st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (st.kind === 'hold') for (const g of bankDepthFriends(rt2)) g.fire = true; const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
@@ -3647,7 +3666,8 @@ const nagashima = {
           const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
-          // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
+          bankDepthWithdraw(C, el, st.max);
+          // 最後の寄せも三分、本人が岸の持ち場を守る。
           // 最後の寄せも、人数だけで残兵を退けた事にしない。
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
@@ -4221,7 +4241,7 @@ const nagashima = {
       const w = rt.t - F.stepT;
       // 同じ後続舟を川上から寄せる。戦える後詰めまで第一陣の敗走で繰り上げると、三分以内で終わってしまう。
       // 戦える者が残らない舟は、待たずに受け終えた扱いにする。
-      if (F.rearBoatAt == null && (w >= 85 || !canCounterattack(F.last[2]))) {
+      if (F.rearBoatAt == null && (w >= 110 || !canCounterattack(F.last[2]))) {
         F.rearBoatAt = rt.t;
         // 戦える者がいない舟のために、東へ移動させない。
         F.rearBoatThreat = canCounterattack(F.last[2]);
@@ -4231,7 +4251,7 @@ const nagashima = {
       // 11/6 fixc1439：一陣を退けてから後の舟まで息をつかせ過ぎず、早すぎもしない（一戦が二分半で終わっていた）。
       if (F.rearBoatAt != null && (rt.t - F.rearBoatAt >= 20 || !canCounterattack(F.last[2]))) this.sallyWave(rt, 2);
       // 東の舟も別の川筋から寄せる。後の舟が崩れても、戦える最後の舟は到着を繰り上げない。
-      if (F.thirdBoatAt == null && F.last[2].sallyReleased && (w >= 145 || !canCounterattack(F.last[3]))) {
+      if (F.thirdBoatAt == null && F.last[2].sallyReleased && (w >= 195 || !canCounterattack(F.last[3]))) {
         F.thirdBoatAt = rt.t;
         if (canCounterattack(F.last[3])) rt.say('物見', '東の葦の陰から、まだ舟が出る！', 3);
       }
@@ -4332,7 +4352,7 @@ const nagashima = {
       }
       // 負傷して戦えない者が隊に残っていても、静まった岸で二分まで待たせない。
       // 後の舟まで受け、背後の敵も止めてから八秒見張る。戦える兵は減らさない。
-      const repelled = shoreClear && atBank && facingRiver && F.shoreQuiet >= SHORE_WATCH_HOLD;
+      const repelled = shoreClear && atBank && facingRiver && F.sallyHeld >= SALLY_HOLD && F.shoreQuiet >= SHORE_WATCH_HOLD;
       if (!dangerProgress(rt) && (repelled || F.broken)) {
         F.sallyDefended = !F.broken && (F.sallyHeld >= 8 || atBank);
         F.sallyFailed = !!F.broken;
