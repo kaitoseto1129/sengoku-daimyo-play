@@ -25,6 +25,8 @@ export function step(H) {
       C.bow = enemyGroup(rt, { fixed: true, faction: 'hojo', name: '上の段の弓', anchor: { ...H.SLOPE_TOP }, facing: 0, width: 5, aggro: 34, morale: 90, noRout: true, order: 'hold' },
         H.dress([{ type: 'bow', n: 4 }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 3 }], H.HOJO));
       C.bow.dmgMult = 0.3;
+      // 金子丸へ退いた射手も、曲輪が落ちた時に守りと一緒に崩す。
+      rt.flags.slopeBow = C.bow;
       C.groups.push(C.spear, C.bow);
       C.n0 = C.spear.units.length;
       ctx.friends(rt).forEach((g, k) => H.marchTo(rt, g, { x: H.SLOPE_MID.x, z: H.SLOPE_MID.z + 10 }, k));

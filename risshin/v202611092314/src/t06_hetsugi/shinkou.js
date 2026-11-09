@@ -55,8 +55,7 @@ function cross(rt, K) {
     if (F.step !== 1) return;
     sfx('taiko', 0.9);
     K.go(B.sen, { x: 32, z: -36 }, 3.4);
-    K.go(B.nobu, { x: 16, z: -34 }, 3.6);
-    K.go(B.sogo, { x: 28, z: -28 }, 3.2);
+    S.crossLeg = 1;
     for (const g of [F.nobu, F.sen, F.sogo, F.tsune, F.mine]) if (live(g)) g.speed = 4.6;
     for (const g of F.allyBands || []) if (live(g)) g.speed = 4.4;
     // 川の中ほどで対岸の鉄砲が鳴る（渡る所を撃たれる）
@@ -73,6 +72,17 @@ export function crossing(rt) { return (rt.flags.s1?.st || 0) >= 2; }
 
 export function update(rt, K) {
   const F = rt.flags, S = F.s1, B = F.blk;
+  // 仙石→十河→長宗我部の順で渡る。三備を同時に動かすと、岸に近い信親が十河を追い越していた。
+  if (S?.st === 2) {
+    if (S.crossLeg === 1 && K.lightPos(B.sen).z < -14) {
+      S.crossLeg = 2;
+      K.go(B.sogo, { x: 28, z: -28 }, 3.2);
+    } else if (S.crossLeg === 2 && K.lightPos(B.sogo).z < -14) {
+      S.crossLeg = 3;
+      K.go(B.nobu, { x: 16, z: -34 }, 3.6);
+    }
+    return;
+  }
   if (!S || S.st !== 1) return;
   const el = rt.t - S.t0, n = K.lightPos(B.nobu), P = rt.player.u.pos;
   // 信親の備が浅瀬の口に着き、本人も来たら渡る（遅れても九十秒で渡り始める）

@@ -630,7 +630,11 @@ const t11_hachioji = {
       DP.fight({ at: KANEKO, title: '金子丸', sub: '金子家重が守る尾根の曲輪', obj: '尾根を登り、金子丸の金子家重の組を討て', max: 60, noRefill: true,
         say: [['前田の侍', '上の曲輪から鉄砲じゃ！　身を低くして登れ']],
         foes: () => [keep('金子家重の組', KANEKO, [{ type: 'busho', n: 1, o: { name: '金子家重', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
-        reward: '金子丸を落とした' }),
+        reward: '金子丸を落とした',
+        onEnd: (rt2) => {
+          const g = rt2.flags.slopeBow;
+          if (g) { g.noRout = false; g.morale = 0; g.order = 'hold'; g.path = null; g.onArrive = null; }
+        } }),
       DP.fight({ at: TAKA, title: '高丸', sub: '尾根の曲輪', obj: '尾根の柵門を抜け、高丸の北条勢を討て', max: 60, noRefill: true,
         foes: () => [keep('高丸の守り', TAKA, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }])],
         reward: '高丸を落とした' }),

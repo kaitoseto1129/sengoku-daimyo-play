@@ -3419,8 +3419,13 @@ const saika = {
     rt.marker('riverTurn', EAST_MOUTH, '岸沿いに中央の口へ');
     // 11/6 fixc1753（二3・十3）：高岸の上から撃ち下ろす玉は重く、渡る先手が次々に倒れる（公記「武者数人を失う」・名所図会）。
     for (const g of F.gunPosts) { g.dmgMult = 2.2; for (const u of g.units) u.cd = Math.min(u.cd, 0.5 + u.slot * 0.7); }
-    moveGroup(F.hori, SHORE, WEST);
-    for (const g of F.workParties) if (g !== F.hori) moveGroup(g, SHORE, WEST);
+    // 脇の杭から西岸へ直進すると、口の間に残る杭列へ突き当たる。
+    // 先手も作業兵も東岸で中央へそろえ、開いた口を二列で渡る。
+    for (const g of new Set([F.hori, ...F.workParties])) {
+      moveGroup(g, SHORE, WEST);
+      if (g.routed || !g.count) continue;
+      g.order = 'path'; g.path = [[EAST_MOUTH.x, EAST_MOUTH.z], [SHORE.x, SHORE.z]]; g.pathIdx = 0;
+    }
   },
   retreat(rt) {
     const F = rt.flags;
