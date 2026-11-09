@@ -3731,6 +3731,22 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       const q = F.last[i];
       if (!gone(q) && !q.sortieMarked && sightPoint(rt, q.anchor)) { q.sortieMarked = true; rt.marker('sortieEnemy' + i, () => q.center(), '北の本隊の旗', { red: true, group: q }); }
     }
+    // 城戸口では集合印でなく、実際の殿との間合いで参戦を記録する。
+    // 半秒の見回りより短い槍の振りも取りこぼさず、敵のいない印で構えただけでは果たさない。
+    if (F.step === 4 && F.kidoCut && !F.kidoHelp) {
+      const me = rt.player.u;
+      if (me.atk || me.swing || me.guard) for (const g of F.kidoG) {
+        if (g.kidoRetreat) continue;
+        for (const enemy of g.units) {
+          if (!enemy.alive || enemy.fleeing || enemy.woundOut) continue;
+          if (Math.hypot(enemy.pos.x - me.pos.x, enemy.pos.z - me.pos.z) <= 8 &&
+              Math.abs(enemy.pos.y - me.pos.y) < 3 && !rt.army.wallBetween(me.pos, -1, enemy.pos, false)) {
+            F.kidoHelp = true; break;
+          }
+        }
+        if (F.kidoHelp) break;
+      }
+    }
     F.scanT = (F.scanT || 0) - dt;
     if (F.scanT > 0) return;
     const span = 0.5 - F.scanT; F.scanT = 0.5;
@@ -3957,7 +3973,6 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         }
       }
       // 自分が殿との戦いに加わってから口を押さえる。討取りの一撃は組の者でもよい。
-      if (F.kidoCut && d < 30 && !escaped && (u.atk || u.swing || u.guard)) F.kidoHelp = true;
       const need = 6;
       threat = remaining && !escaped ? Math.max(1, threat) : threat;
       F.secured = F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;

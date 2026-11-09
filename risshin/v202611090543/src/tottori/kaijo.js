@@ -20,7 +20,7 @@ export function wrap(def, K) {
       [1, () => {
         r.banner('木戸が開く', '痩せ衰えた城兵が、槍を捨てて坂を下りる');
         for (const g of [...(F.sallies || []), ...(F.k15walls || [])]) {
-          if (!g.units.some((u) => u.alive && !u.dying && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) continue;
+          if (!g.units.some((u) => u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) continue;
           // 麓へ直進すると急斜面を横切る。使いが登った折れ道を逆に下る。
           g.noAI = false; g.order = 'path';
           g.path = [[G.x, G.z + 10], ...K.CASTLE_ROADS[0].slice().reverse(), [G.x, K.FENCE_Z - 4]];

@@ -2852,11 +2852,11 @@ const tottori = {
     //   生き残った飢えた城兵は木戸の内に二列で並び、使いを迎える（槍を引いた開城の形）。
     F.sallies.forEach((g, i) => {
       // 停戦で全員 noTarget になった後なので、交戦用の gone では生存者まで除かれる。
-      if (!g.units.some((u) => u.alive && !u.dying && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) return;
+      if (!g.units.some((u) => u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) return;
       g.routed = false; g.ttRetreat = false; g.noAI = true; g.order = 'hold'; g.formation = 'line'; g.width = 4;
       g.anchor.x = GATE.x + (i === 1 ? 5 : i === 2 ? -5 : 0); g.anchor.z = GATE.z - (i === 0 ? 14 : 8);
       g._face = g.facing = 0; g._slotFit = null; g._routeCols = 0;
-      for (const u of g.units) if (u.alive && !u.dying && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound) {
+      for (const u of g.units) if (u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound) {
         const at = g.slotPos(u.slot, g.initial);
         u.fleeing = false; u.pos.x = at.x; u.pos.z = at.z; u.pos.y = rt.world.heightAt(at.x, at.z); u.moveTo = null; u.heading = 0;
       }

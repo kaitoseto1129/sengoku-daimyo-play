@@ -1644,11 +1644,11 @@ const takato_siege = {
 
   },
 
-  onZoneFall(rt, id) {
+  onZoneFall(rt, id, force = false) {
     const F = rt.flags;
     if (F.ending) return;
     // 別働の先着や城兵の全滅だけで、②を果たしたことにしない。
-    if ((id === 'san' || id === 'ni') && !receivedSally(F)) {
+    if ((id === 'san' || id === 'ni') && !receivedSally(F) && !force) {
       if (id === 'san') F.pendingSan = true; else F.pendingNi = true;
       return;
     }
@@ -1981,8 +1981,11 @@ const takato_siege = {
           }
         }
       }
-      if (F.pendingSan && receivedSally(F)) { F.pendingSan = false; this.onZoneFall(rt, 'san'); }
-      if (F.pendingNi && F.sanFell) { F.pendingNi = false; this.onZoneFall(rt, 'ni'); }
+      // 三の丸が落ちても、打って出た城兵を本人が受け損ねていると段が止まったままになる（11/9 bot：十八分「三の丸へ入れ」のまま失敗を二度）。
+      //   落ちてから九十秒たてば、受けたかどうかに関わらず先へ進める
+      if (F.pendingSan && !F.pendingSanT) F.pendingSanT = rt.t;
+      if (F.pendingSan && (receivedSally(F) || rt.t - F.pendingSanT > 90)) { F.pendingSan = false; this.onZoneFall(rt, 'san', true); }
+      if (F.pendingNi && F.sanFell) { F.pendingNi = false; this.onZoneFall(rt, 'ni', true); }
       if (F.pendingHon && F.niFell) this.honTaken(rt);
       // 森の家中・各務元正の一番乗り（和樂 web・諸説あり）。大手の奥の門が開いた時に一度だけ。
       if (!F.kagamiSaid && F.gates.oteInner.opened && !F.sanFell) {
