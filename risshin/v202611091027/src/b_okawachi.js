@@ -970,6 +970,7 @@ const okawachi = {
   armySignals: false, // 合図は各段の下知で鳴らす。任務の文から共通の退き合図を重ねない。
   nobiki: true, // 交代の終幕も、夜攻めの退きと同じ法螺・二つ打ちで知らせる。
   jinkei: OKAWACHI_JIN,
+  lethal: { max: 4, firstAt: 60, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）。夜の坂の矢玉
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が城、南（+z）が搦手の囲みの陣。四方の囲みの大軍は戦のファイルの軽い作り（siege）が受け持つので、
   //   ここは搦手の三手と南の番（本物の隊に結ぶ）と、川向こうの信長の本陣だけ。北畠は木戸の内の守り（本物）と、本丸の具教の旗本（描かない）。
   depth: {

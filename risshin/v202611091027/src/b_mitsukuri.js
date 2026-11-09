@@ -3017,6 +3017,7 @@ const mitsukuri = {
     }
   },
   jinkei: MITSUKURI_JIN,
+  lethal: { max: 5, firstAt: 90, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が箕作の山城、南（+z）が麓の寄せ手。藤吉郎・浅井新八・佐久間の手（本物）と信長の本陣、
   //   六角の三の郭の守り（本物）と城将 吉田出雲守の旗本（本物）。観音寺の六角承禎は遠景の城が受け持つので描かない。
   depth: {

@@ -3206,11 +3206,11 @@ const sunomata = {
     const side = rt.flags.guardSide || 'n';
     return `${SIDE_WORD[side]}の柵${side === 'n' ? 'の口' : ''}で斎藤の寄せ手を止める`;
   },
-  // 最後の寄せの大将が柵へ寄った時だけ、名と命の棒と大きな▼をその人へ。
+  // 最後の寄せの大将は、柵外に残っていても討ち取りの行き先にする。
   commanderTarget(rt) {
     const F = rt.flags, u = F.yoseBoss;
     if (F.wave !== 3 || F.won || F.ending || rt.over || !u?.alive || u.gone || u.fleeing || u.dying || u.woundOut) return null;
-    return Math.hypot(u.pos.x, u.pos.z) < FORT + 30 ? u : null;
+    return u;
   },
   missionSignTarget(rt) { return sunomata.commanderTarget(rt) || (sunomata.missionOf(rt) === 1 ? sunoNearestFoe(rt) : null); },
   namedGuideTarget(rt) { return sunomata.commanderTarget(rt); },

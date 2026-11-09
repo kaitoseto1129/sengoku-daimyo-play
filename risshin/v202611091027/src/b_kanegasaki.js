@@ -2518,6 +2518,7 @@ const kanegasaki = {
   civilianCrowd: { bands: KG_CIVILIAN_BANDS },
   nobiki: true, // 退く戦：退けの下知は法螺貝と退き太鼓で知らせる（battle.js の signalCue）
   jinkei: KANEGASAKI_JIN,
+  lethal: { max: 6, firstAt: 200, gap: 45 },   // 命懸けの戦場（docs/lethal_howto.md）。浅井離反の後の殿から
   taisho: { a: null, b: null }, // 三将の退却はこの定義が扱う。共通の本陣増設・襲撃・即勝ちを使わない。
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が木ノ芽峠と朝倉、南（+z）が若狭へ退く道。
   //   織田は殿の三将（本物の隊に結ぶ）の後ろに徳川、さらに南へ信長の本隊と荷駄が退いていく。朝倉は景健の追手の後ろに二の手・義景の旗本。
