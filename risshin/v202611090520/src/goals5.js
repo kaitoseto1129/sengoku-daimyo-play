@@ -122,11 +122,11 @@ const OWN = {
     const cur = (k) => (r) => (dpi(r) === k ? r.flags.dp.cur?.groups || [] : []);
     return [
       { kind: 'stage', k: 0, text: '霧の谷を進み、山下曲輪の木戸の前へ', noun: '大手の木戸', check: (r) => won(r) || dpi(r) >= X.ote, groups: cur(X.sanroku) },
-      { kind: 'stage', k: 1, text: '山下曲輪で近藤出羽守の組を討つ', check: (r) => won(r) || dpi(r) >= X.bridge, groups: cur(X.ote) },
+      { kind: 'stage', k: 1, text: '山下曲輪で近藤出羽守の組を討つ', check: (r) => won(r) || dpi(r) >= X.bridge, count: (r) => STAGES.t11_hachioji[1][3](r) },
       { kind: 'stage', k: 2, text: '曳橋で打って出た北条勢を迎え撃つ', noun: '打って出た敵', check: (r) => won(r) || !!r.flags.sallyBack, groups: (r) => (r.flags.sallyG && !r.flags.sallyBack ? [r.flags.sallyG] : []) },
       { kind: 'stage', k: 3, text: '退く敵に続き、冠木門から御主殿へ攻め入る', noun: '冠木門', check: (r) => won(r) || dpi(r) >= X.sakamichi },
       { kind: 'stage', k: 4, text: '尾根の急な坂を、金子丸の下まで登る', noun: '尾根の坂', check: (r) => won(r) || dpi(r) >= X.kaneko, groups: cur(X.sakamichi) },
-      { kind: 'stage', k: 5, text: '金子丸・高丸・小宮曲輪を落とす', check: (r) => won(r) || dpi(r) >= X.hon, groups: (r) => (dpi(r) >= X.kaneko && dpi(r) <= X.matsuki ? r.flags.dp.cur?.groups || [] : []) },
+      { kind: 'stage', k: 5, text: '金子丸・高丸・小宮曲輪を落とす', check: (r) => won(r) || dpi(r) >= X.hon, count: () => null },
       { ...bossGoal('中山勘解由'), k: 6 },
       { kind: 'stage', k: 7, text: '本丸の奥で、最後まで残る城兵を討つ', noun: '本丸の奥', check: won, groups: cur(X.rakujo) },
     ];

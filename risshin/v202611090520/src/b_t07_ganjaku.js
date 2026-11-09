@@ -495,7 +495,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.sw = null;
       // 坂に残った守りも、門の前が崩れたのを見て城の奥へ逃げ込む
       for (const q of [g, ...F.slope]) if (!q.routed) { q.noRout = false; q.fleeSet = true; q.fleeDir = { x: fx / fl, z: fz / fl }; q.morale = 0; }
-      for (const ga of F.allies) this.march(rt, ga, [MOUTH, FRONT, INSIDE], 14);
+      F.allies.forEach((ga, i) => this.march(rt, ga, i ? [MOUTH, FRONT, INSIDE] : [MOUTH, FRONT, INSIDE, INNER], 14));
       F.gateGuard.aggro = 3;   // 門の守りは逃げ込む味方を入れるので手一杯。門の外の筋まで突いて出ない
       // 打って出た手が崩れたのを見て、門の櫓と岩の上の矢倉の射手も持ち場を捨てて本丸へ逃げ込む（一日で落ちた城の崩れ。門の前で寄せ手を射続けない）
       for (const q of rt.army.groups) {
@@ -679,7 +679,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         if (F.shut && rt.t - (F.shutT || rt.t) > 32) st.hp = 0;
         if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.bark('門が破れた'); }
       }
-      if (st && !st.alive && !F.breached) { F.breached = true; this.breach(rt); for (const g of F.allies) this.march(rt, g, [MOUTH, FRONT, INSIDE], 14); }
+      if (st && !st.alive && !F.breached) {
+        F.breached = true; this.breach(rt);
+        // 先手は門の奥へ、二番手は門の内へ。二隊を同じ終点に重ねない。
+        F.allies.forEach((g, i) => this.march(rt, g, i ? [MOUTH, FRONT, INSIDE] : [MOUTH, FRONT, INSIDE, INNER], 14));
+      }
       // 自分が門を抜ければすぐ二の丸へ。閉まった門を時間だけで通過扱いにしない。
       const gc = this.centerOf(F.gamo);
       const passable = st && (!st.alive || st.opened);

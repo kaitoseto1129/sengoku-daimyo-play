@@ -31,7 +31,7 @@ function start(rt, K, done) {
     k15Scenes(rt, [
       [3.5, () => rt.say('小姓', '上様……', 2.5)],
       [3, () => rt.say('小姓', '振り返るな。上様のお言葉じゃ。生きて、信忠様に伝えよ', 4)],
-    ], () => k15Go(rt, 'ur-street', street, 5, '西の通りを南へ走れ', '西の通り', () => {
+    ], () => k15Go(rt, 'ur-street', street, 5, '西の通りを北へ走れ', '西の通り', () => {
       const g = K.akechi(rt, '通りを見張る明智勢', [[street.x, street.z - 10], [street.x, street.z - 2]], [K.uS(1), K.uA(2)], { entered: true, player: true, dmg: 0.5 });
       rt.say('明智の侍', '寺から落ちる者じゃ！　逃がすな！', 3);
       k15Track(rt, g, '通りの明智勢', { sec: 50, reward: '西の通りで明智の見張りを斬り抜けた' }, () => k15Scenes(rt, [
