@@ -2309,7 +2309,9 @@ takato_siege.guideMarker = (rt) => {
   if (F.ending || rt.over) return null;
   // 味方が先に本丸を取っても、外にいる自分は土橋と門を通る。
   // 主殿を直接指すと、二の丸の塀へ突き当たってしまう。
-  if (F.honFell && (F.keep.down || F.keepFell) && F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z)) return 'rally';
+  // 本丸の内では、城主が生きている間も主殿への印を使う。
+  // 制圧時に消した「hon」を選ぶと、奥の間への案内が途切れる。
+  if (F.honFell && F.C.kuruwa.hon.test(rt.player.u.pos.x, rt.player.u.pos.z)) return 'rally';
   if (F.sallyOut || F.sallyUntil) return 'sally';
   if (rt.G.lord && !F.honFell) return F.niFell ? 'gateHon' : F.sanFell ? 'next' : 'gateOte';
   const target = roadTarget(rt, 'guideRoadI', F.roadGuide);

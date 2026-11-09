@@ -3325,7 +3325,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 坂の一・二の組は公記の「水をまくように崩れ」た前の備え。三十五秒を超えて道を塞げば崩れて退く（松井の本隊の前で旗本まで減らさない）。
     if (F.roadStep >= 0 && F.roadStep < 2) {
       if (F.roadStepSeen !== F.roadStep) { F.roadStepSeen = F.roadStep; F.roadStepAt = rt.t; }
-      else if (rt.t - F.roadStepAt > 20) { const g = F.road[F.roadStep]; if (readyGroup(g)) { g.noRout = false; g.morale = 0; } }
+      else if (rt.t - F.roadStepAt > 20) { const g = F.road[F.roadStep]; if (readyGroup(g)) { g.order = 'retreat'; g.noRout = false; g.morale = 0; } }
     }
     if (!F.mainPush && !F.koshiLeft) this.pushRoad(rt);
     let guards = 0;
@@ -3586,6 +3586,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     const witness = F.enemies.flatMap((g) => g.units).find((u) => u.alive && !u.gone && !u.woundOut &&
       Math.hypot(u.pos.x - F.yoshimoto.pos.x, u.pos.z - F.yoshimoto.pos.z) < 30 &&
       !rt.army.wallBetween(u.pos, -1, F.yoshimoto.pos));
+    // 組頭が生きた備えは士気だけでは崩れない。討死の知らせを受けた備えに退く下知も渡す。
     for (const C of F.wings || []) C.rout('B', { from: 0, hideAfter: 40 });
     // 勝った側は崩さない。「義元討たれたり」の声で、攻める組の足は軽くなる。
     for (const g of F.attackers) if (readyGroup(g)) { g.noRout = true; g.morale = Math.max(g.morale, 90); }
@@ -3593,7 +3594,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     if (!witness) {
       // 見た者が残らなくても本陣の崩れは伝わる。少し遅れて備えも奥の控えも退く（十二2：遠くの軍勢も今の形に）。
       rt.after(4, () => {
-        for (const g of F.enemies) if (readyGroup(g)) { g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = fieldVector(-0.862, 0.507); }
+        for (const g of F.enemies) if (readyGroup(g)) { g.order = 'retreat'; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = fieldVector(-0.862, 0.507); }
         for (const m of F.imaDA) m.rout({ hideAfter: Infinity });
       });
     } else {
@@ -3602,14 +3603,14 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       for (const g of F.enemies) if (readyGroup(g)) {
         const seen = g.units.some((u) => readyUnit(u) && Math.hypot(u.pos.x - yp.x, u.pos.z - yp.z) < 45 && !rt.army.wallBetween(u.pos, -1, yp));
         // 逃げる先は西の谷の田（深田）。追い討ちの場をそこへ作る。
-        const flee = (q) => { q.noRout = false; q.morale = 0; q.fleeSet = true; q.fleeDir = fieldVector(-0.862, 0.507); };
+        const flee = (q) => { q.order = 'retreat'; q.noRout = false; q.morale = 0; q.fleeSet = true; q.fleeDir = fieldVector(-0.862, 0.507); };
         if (seen) flee(g); else fieldNotice(rt, witness, g, 1, flee);
       }
       for (const m of F.imaDA) fieldNotice(rt, witness, m.army, 1, () => {
         m.rout({ hideAfter: Infinity });
         // 近づいて本物へ替わった同じ控えにも、届いた知らせを渡す。
         for (const g of rt.army.groups) if (g.recyclable && g.units.some((u) => u.wkFrom?.A === m.army)) {
-          g.noRout = false; g.morale = 0;
+          g.order = 'retreat'; g.noRout = false; g.morale = 0;
         }
       });
     }

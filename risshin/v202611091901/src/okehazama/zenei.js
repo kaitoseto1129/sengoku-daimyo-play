@@ -59,7 +59,7 @@ function done(rt, C, late) {
   const F = rt.flags, v = F.o15;
   if (v.zeneiDone) return;
   v.zeneiDone = true; v.ph = null;
-  for (const g of v.zeneiGs) if (live(g)) { g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0.3, -1); }
+  for (const g of v.zeneiGs) if (live(g)) { g.order = 'retreat'; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0.3, -1); }
   rt.say('組頭 源八', late ? '鉄砲衆は雨の中を山の方へ退いたか。旗へ戻れ、雨の上がるのを待つ' : '鉄砲衆が崩れて逃げたぞ。旗へ戻れ、雨の上がるのを待つ', 3.6);
   if (!late) rt.award((t) => t.side.push('雨に紛れて今川の鉄砲衆を討った'), '雨に紛れて今川の鉄砲衆を討った');
   const H = rt.hostGroup;

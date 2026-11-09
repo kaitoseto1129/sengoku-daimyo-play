@@ -26,7 +26,7 @@ export function tick(rt) {
   const g = v.kaeriG, t = rt.t - v.kaeriT;
   if (!g.units.some(ready) || t > 40) {
     v.kaeriDone = true;
-    g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(-0.862, 0.507);
-    rt.say('組頭 源八', '払ったぞ。旗へ戻れ！', 2.4);
+    g.order = 'retreat'; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(-0.862, 0.507);
+    rt.say('組頭 源八', g.units.some(ready) ? '残兵は深田へ退いた。旗へ戻れ！' : '払ったぞ。旗へ戻れ！', 2.4);
   }
 }
