@@ -551,19 +551,19 @@ const t10_oshi = {
   raid(rt) {
     const F = rt.flags;
     if (F.raid >= 3 || F.step !== 3) return;
-    const i = F.raid++, side = i % 2 ? 1 : -1;
+    const i = F.raid++, side = i % 2 ? 1 : -1, last = i === 2;
     F.raidT = rt.t;
     // 11/4 jin：夜討ちは城の口から浅瀬の土手（水を入れる前は乾いた道）を伝って来る。前は沼の深みに出て、兵が首まで沈んで見えた
     const at = i % 2 ? { x: FORD.x - 6, z: FORD.z - 6 } : { x: (FORD.x + GATE.x) / 2 + side, z: (FORD.z + GATE.z) / 2 };
     const g = enemyGroup(rt, { faction: 'narita', name: '城の夜討ち', anchor: at, facing: Math.PI * 0.75, fleeDir: { x: -1, z: -1 }, width: 5, noRout: true, formation: 'line', morale: 80,
       order: 'move', dest: { x: RAIDAT.x, z: RAIDAT.z }, speed: 3.2, aggro: 5, dmgMult: 0.32 },   // 11/8：夜討ちを四度にしたので一度の重さを下げる   // 11/7：浅瀬の口へ（前は区の奥の人夫へ向かった）
-    dress([{ type: 'samurai', n: i === 3 ? 3 : 1 }, ...(i === 3 ? [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }] : []), { type: 'ashigaru', n: 5 + Math.min(i, 2) }, { type: i === 3 ? 'gun' : 'bow', n: 1 }], HOJO));
+    dress([{ type: 'samurai', n: last ? 3 : 1 }, ...(last ? [{ type: 'busho', n: 1, o: { name: '正木丹波守', invuln: true, horse: true, hat: 'kabuto_m' } }] : []), { type: 'ashigaru', n: 5 + Math.min(i, 2) }, { type: last ? 'gun' : 'bow', n: 1 }], HOJO));
     // 11/8 critic60（十5）：真っ直ぐ口へ向かうと沼の深みを胸まで浸かって渡った。浅瀬の土手の筋（城の口→浅瀬の手前→口）を伝わせる
     g.order = 'path'; g.path = [[FORD.x, FORD.z], [RAIDAT.x, RAIDAT.z]]; g.pathIdx = 0;
     g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.seekRange = 12; q.aggro = 12; };
     F.raids.push(g);
     if (i === 1) rt.after(6, () => rt.say('石田三成', '堤は半ばまで出来た。夜明けまでに西の堰まで繋げよ', 3.4));
-    if (i === 3) rt.say('石田勢の足軽', '正木丹波の旗じゃ！　城の口の守り頭が出てきた！', 3.2);
+    if (last) rt.say('石田勢の足軽', '正木丹波の旗じゃ！　城の口の守り頭が出てきた！', 3.2);
     rt.army.play('eshout', at, 1.2);
     if (i === 0) rt.say('石田勢の足軽', '城から夜討ちじゃ！　人夫を守れ！', 3);
   },

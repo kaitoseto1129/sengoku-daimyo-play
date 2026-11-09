@@ -6,12 +6,13 @@
 // ======================================================================
 import { k15Off, k15Afterglow } from '../oda15_kit.js';
 import { sfx } from '../audio.js';
+import { canWinTakato } from '../b_takato_siege.js';
 
 export function wrap(def, K) {
   const win = def.win;
   def.win = function (r) {
     const F = r.flags;
-    if (!k15Off(r) && !F.ending && !F.k15glow && (F.keep?.down || F.keepFell) && r.player.u.alive) {
+    if (!k15Off(r) && !F.k15glow && canWinTakato(r)) {
       F.k15glow = true;
       k15Afterglow(r, [
         [1, () => r.banner('高遠城、落ちる', '仁科五郎は、最期まで降らなかった')],
