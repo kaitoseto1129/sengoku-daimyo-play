@@ -35,7 +35,7 @@ export function install(rt, ctx) {
   rt.marker('harada', () => (spent(H) ? null : H.center()), '逃げて来る原田勢', { h: 3, guideAlways: true, guidePriority: 400 });
   rt.marker('haradaChase', () => (spent(P) ? null : P.center()), '追う門徒', { red: true, group: P });
 
-  let tick = 0, shut = false, shutWait = 0;
+  let tick = 0, shut = false;
   const st = {
     update(dt) {
       if (rt.over || F.ending) return;
@@ -68,18 +68,16 @@ export function install(rt, ctx) {
       if (!spent(P)) { P.ai = true; P.noRing = false; }
       rt.after(3, () => next());
     },
-    // 門を閉め直す：自分が砦の内に戻り、門の口に人がいない時だけ（三十秒待っても空かなければ、門の口の者を内外へ寄せて閉める）
+    // 自分が砦の内に戻り、門口が空いてから閉める。待ち時間で兵を瞬時に移さない。
     shut() {
       const G = F.southGate?.userData;
       if (!G?.closeGate || F.step === 1 || F.breakDone) { shut = true; return; }
       const me = rt.player.u.pos;
       if (!inPoly(SOTO_POLY, me.x, me.z)) return;
-      shutWait += 0.5;
       const inDoor = (u) => Math.abs(u.pos.x - T_GATE.x) < 4.2 && Math.abs(u.pos.z - T_GATE.z) < 1.6;
       let busy = false;
       for (const u of rt.army.units) if (u.alive && !u.gone && inDoor(u)) { busy = true; break; }
-      if (busy && shutWait < 30) return;
-      for (const u of rt.army.units) if (u.alive && !u.gone && inDoor(u)) u.pos.z = T_GATE.z + (u.team === 0 ? -2.2 : 2.2);
+      if (busy) return;
       shut = true;
       G.closeGate();
       sfx('wood', 0.7);

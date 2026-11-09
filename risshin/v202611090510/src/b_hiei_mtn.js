@@ -4409,7 +4409,8 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.k.delete('KeyS');
   if (!u.alive || F.ending) return;
   if (SAKA.bot(b, goTo, p, inp, patientStrike)) return;   // 始まりの段（坂本の湖岸）
-  if (u.alive && SAITO.bot(b, goTo, p, inp, patientStrike, routeFor)) return;   // 西塔・横川の段
+  // 西塔・横川も下の戸口・退路・本道の案内に従う。
+  // 近い道の点を独自に選ぶと、堂の壁や尾根の折れを横切り、復帰より先に前進して詰まる。
   if (!F.step) return;
   const exit = hieiExitWay(b);
   if (exit) {

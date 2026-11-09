@@ -1002,7 +1002,7 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   const groundGather = rt.def.missionStyle === 'raid';
   const raid = rt.def.missionStyle === 'raid' || ford;
   // 行き先は旗。戦う相手の刀と、画面内外とも形で区別する。
-  const flagDestination = !want.route && (want.flagDestination || !raid && rt.def.missionStyle !== 'lesson');
+  const flagDestination = !!want.destinationName || !want.route && (want.flagDestination || !raid && rt.def.missionStyle !== 'lesson');
   if (flagDestination && !el._destinationFlag) {
     const flag = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     flag.setAttribute('d', 'M-5 0V-55H30L20-42L30-29H-5');
@@ -1055,10 +1055,13 @@ function drawGroundDestination(rt, el, want, x, y, hidden, rects, arrivalAt) {
   if (flagDestination) {
     el._simpleRing.style.display = 'none'; // 守る旗の足元は立体の輪一つだけ。
     // 通り口の旗には向きを添える。足あとや相手の印は重ねない。
-    el._routeEdge.style.display = want.route || outside ? '' : 'none';
+    el._routeEdge.style.display = !want.destinationName && (want.route || outside) ? '' : 'none';
   }
-  el._routeWord.textContent = '';   // 守る所は旗と輪で分かる。字は出さない（kaito 10/23）
-  el._routeWord.style.display = 'none';
+  // 場所を指定する戦は、道の途中の印にも目的地の名と残る距離だけを添える。
+  const destinationLabel = want.destinationName && Number.isFinite(want.destinationDistance)
+    ? `${want.destinationName} ${want.destinationDistance}m` : '';
+  el._routeWord.textContent = destinationLabel;
+  el._routeWord.style.display = destinationLabel ? '' : 'none';
   if (!outside || docked) el._routeEdge.setAttribute('transform', 'rotate(90)');
   // 集合先も同じ矢印。下向きの先端を集合地点に合わせる。
   if (want.allyGather && !outside) {
