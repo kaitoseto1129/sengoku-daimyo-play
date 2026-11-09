@@ -600,6 +600,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   // 11/9 豊臣B：豊臣編の戦に名のある武将として出るのに見た目の無かった人。所用の具足は見つからず（docs/generals_look_1108/豊臣編_復元案_1109.md）。
   //   筋兜・立物なしの復元案。威の色は同じ鉢の人と重ならない色、紋は家の旗が既にある時だけ。
   ["一柳直末", "suji", "none", 0x1c1a1a, 0x6a2a4a, "okegawa", 0, 0, "none", ""],
+  // 一柳直盛（河田・米野で池田と渡る）。所用の具足は確かめられず、兄の直末と分けた復元案。紋は一柳の釘抜（docs/generals_look_1108/一柳直盛.md）
+  ["一柳直盛", "zunari", "none", 0x1c1a1a, 0x6a7a2c, "okegawa", 0, 0, "kuginuki", ""],
   ["間宮康俊", "suji", "none", 0x1c1a1a, 0x3a6a5a, "kebiki", 0, 0, "hojo", ""],
   ["北条氏勝", "suji", "none", 0x1c1a1a, 0x8a7a3a, "okegawa", 0, 0, "hojo", ""],
   ["池田元助", "suji", "none", 0x1c1a1a, 0x2a4a6a, "okegawa", 0, 0, "none", ""],

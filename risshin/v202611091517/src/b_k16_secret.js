@@ -320,6 +320,7 @@ const k16_secret = {
     seed: 1615516,
     time: 'morning',
     groundHalf: 260,
+    moveLim: 230,   // 秀忠の陣（z -195）と本陣の裏まで兵が動ける（既定の 176 では陣の兵が端へ引き戻され、一息で飛んだ。11/9 bot）
     paths: [ROAD],
     height,
     paddy,
