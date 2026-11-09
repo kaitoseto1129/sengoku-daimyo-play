@@ -568,6 +568,8 @@ const k13_domyoji = {
   // 真田の待ち伏せの一斉射撃で、片倉の隊が十数歩押し戻され、少しして持ち直す
   datePushed(rt) {
     const F = rt.flags, g = F.katakura;
+    // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
+    if (F.ending) return;
     rt.army.play('volley', { x: HONDA.x - 20, z: HONDA.z + 22 }, 1.6);
     if (!g || !g.count) return;
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;

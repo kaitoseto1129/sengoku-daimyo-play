@@ -377,11 +377,11 @@ const t03b_nagakute = {
         F.waves.push(F.mizunoGun);
         rt.say('物見', '東の畑の際に水野の鉄砲！　武蔵守様を狙うておりまする！', 2.8);
       });
-      // 森長可の最期は主人公の目の前で：62 秒からは主人公が武蔵守の 35m 内に来た時、遅くとも 78 秒に、水野の鉄砲が火を吹いて撃ち倒す（十4）
-      const moriEnd = (k) => {
+      // 百四十秒から、主人公が武蔵守の 35m 内に戻るまで待つ。離れたまま時だけで討死させない。
+      const moriEnd = () => {
         if (F.stage !== 5) return;
         const m = F.moriU, P = rt.player.u.pos;
-        if (k < 16 && m && m.alive && dist(m.pos, P) > 35) { rt.after(1, () => moriEnd(k + 1)); return; }
+        if (m && m.alive && dist(m.pos, P) > 35) { rt.after(1, moriEnd); return; }
         this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true);
         rt.after(14, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
         rt.after(19, () => { if (F.stage === 5) this.stage(rt, 5.5); });
@@ -403,7 +403,7 @@ const t03b_nagakute = {
       });
       rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
       rt.after(100, () => { if (F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
-      rt.after(140, () => moriEnd(0));
+      rt.after(140, moriEnd);
     } else if (n === 6) {
       // 大きな札は共通の「〇〇が討たれた」に任せる（重ねると共通の札が出られず毎コマ出し直す）。退く下知は台詞で
       rt.say('使番', '勝入様・之助様・武蔵守様、お討死！　西の細ヶ根の堀様の旗まで退かれよ！', 3.4);

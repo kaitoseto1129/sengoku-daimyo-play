@@ -21,7 +21,10 @@ export function tick(rt, K) {
     rt.after(1, () => rt.say('池田恒興', '来てくれたか……だが、もう遅い', 3));
     rt.after(12, () => rt.say('池田恒興', '退け！　お主らは生きて筑前に伝えよ。この首、くれてやるわ', 3.4));
   }
-  if (F.ikeArr && !F.ikeFell && rt.t - F.ikeArr > 30) {
+  // 一度着いてから先に細ヶ根へ走っても、見えない所で勝入の最期を済ませない。
+  const lord = F.ikeG?.units.find((u) => u.name === '池田恒興' && u.alive);
+  const watching = lord && Math.hypot(P.x - lord.pos.x, P.z - lord.pos.z) <= 35;
+  if (F.ikeArr && !F.ikeFell && watching && rt.t - F.ikeArr > 30) {
     F.ikeFell = true;
     K.fall(F.ikeG, '池田恒興', '勝入様、永井直勝に討たれましてござる！');
     rt.after(6, () => K.next());
