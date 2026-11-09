@@ -6,6 +6,7 @@
 // 呼び方：install(rt, K)（本体の ambush の始め）・update(rt, K, el)・pin(rt)・sogoFall(rt, K)。
 // ======================================================================
 const live = (g) => g && g.count > 0;
+const landed = (a, b) => a?.swing?.target === b && a.swing.res && a.swing.res !== 'miss';
 const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる所（西の林の縁）
 
 export function install(rt, K) {
@@ -83,6 +84,9 @@ export function update(rt, K, el) {
     Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
     !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
   if (crossed && near) S.clash = (S.clash || 0) + 0.25;
+  // 六 m 内にいるだけでは、刀も長刀も届かないまま最期が進んでしまう。
+  // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
+  if (crossed && near && (landed(n, s) || landed(s, n))) S.bladesMet = true;
   // 本人の見届ける所で刃を合わせてから討死へ進む。
-  if (crossed && near && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
+  if (crossed && near && S.bladesMet && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
 }
