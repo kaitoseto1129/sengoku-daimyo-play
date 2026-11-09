@@ -3738,7 +3738,7 @@ const echizen_ikko = {
       const n = RANKS[rt.G.rank].squad || 0;
       rt.makeSquad({ x: VILLAGE.x - 4, z: VILLAGE.z - 4 }, 0, [{ kind: 'spear', n }]);
 
-      rt.world.setTime('storm'); // 11/5 check60：十五日の風雨の昼から始める
+      rt.world.setTime('storm', true); // 開戦から風雨の光にする。四十秒の移ろいで晴天の光を残さない。
       // 11/8 critic60 越前一向一揆（p15〜p19）：風雨なのに雨が見えなかった。初めから強い雨を降らせる（日の影は stormLight で弱める）
       rt.world.setRainTarget(0.85); rt.world.rainLevel = 0.85;
       templeNightLights(false);

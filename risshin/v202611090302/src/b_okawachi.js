@@ -2496,6 +2496,8 @@ function okScreen(rt) {
     /* 11/6 kaito 九1・九3・十1：右上は①〜⑤を始めから全部並べ、済んだ物に印。両軍の今の兵の数の棒も上に常に出す。時の字は出さない */
     html:root body #hud#hud#hud[data-okawachi] #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
     html:root body #hud#hud#hud[data-okawachi] #armybar .clock { visibility:hidden !important; }
+    /* 行き先の印の共通指定で将の名まで消さない。遮蔽・開始札・写真の非表示判定は残す。 */
+    html:root body #hud#hud#hud[data-okawachi] .field-names:not([hidden]) { display:block !important; }
     html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud[data-okawachi] #armybar { visibility:hidden !important; }
     html:root body #hud#hud#hud[data-okawachi] #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
     html:root body #hud#hud#hud[data-okawachi] #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }

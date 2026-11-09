@@ -2406,9 +2406,13 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 四歩以内の敵にも列の支えを確かめる。近いだけで追うと塀際へ誘い出される。
     // 退き先が見つからない深手・息切れでも、ここから追撃を再開しない。
     const reach = p.weapon === 'sword' ? 1.6 : 2.5;
-    if (!attacker && d > reach && here && mateDistance < 6 &&
+    // 本丸を取った後は、主殿の近い守兵へも進む。味方が戸口で離れると、
+    // 届かない相手へ空振りするだけで奥の間へ進めなくなっていた。
+    const inHon = F.honFell && F.C.kuruwa.hon.test(u.pos.x, u.pos.z) &&
+      F.C.kuruwa.hon.test(e.pos.x, e.pos.z) && d < 4;
+    if (!attacker && d > reach && here && (inHon || mateDistance < 6) &&
         ((F.honFell && F.C.kuruwa.hon.test(u.pos.x, u.pos.z)) || !nakaFind(e.pos.x, e.pos.z)) &&
-        here.test(e.pos.x, e.pos.z) && Math.hypot(e.pos.x - mate.pos.x, e.pos.z - mate.pos.z) < 6 &&
+        here.test(e.pos.x, e.pos.z) && (inHon || Math.hypot(e.pos.x - mate.pos.x, e.pos.z - mate.pos.z) < 6) &&
         u.hp >= u.maxHp * .6 && p.sta >= p.maxSta * .35 && !(p.guardBroken > 0) &&
         clearFoot(b, e.pos) && localClear(b.army, u.pos, e.pos, true))
       goTo(p, inp, e.pos.x, e.pos.z, reach);
