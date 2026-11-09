@@ -10,13 +10,15 @@ import { sfx } from '../audio.js';
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.mkKiga) return;
-  const road = F.loads?.[0] || { x: -112, z: -56 };
+  // 回収済みの俵の跡を指さず、今も地面にある俵を確かめる。
+  const sack = F.sacks?.find(s => !s.stored && s.mesh.visible && s.mesh.parent === rt.scene);
+  const road = sack ? { x: sack.mesh.position.x, z: sack.mesh.position.z } : ctx.store;
   const S = (F.mkKiga = { t0: rt.t, k: 0, kT: rt.t, road, done: false });
   F.step = 4; F.stepT = rt.t;
   rt.setPhase('kiga'); rt.objProgress('main', '');
   rt.objDone('main');
-  rt.obj('main', '大村道に残った俵を見て参れ', 'main');
-  rt.say('組頭', 'よう守った。道に捨てた荷駄の俵、陣へ運ぶぞ。数を見て参れ', 4);
+  rt.obj('main', sack ? '大村道に残った俵を見て参れ' : '平田の蔵で、運び入れた俵を確かめよ', 'main');
+  rt.say('組頭', sack ? 'よう守った。道に捨てた荷駄の俵、陣へ運ぶぞ。数を見て参れ' : 'よう守った。平田の蔵へ行き、運び入れた俵を確かめよ', 4);
 }
 
 function next(rt, S) { S.k++; S.kT = rt.t; }

@@ -3,7 +3,7 @@
 // 鳴らす所は戦場の決まった場所（茶臼山・天王寺口・本陣・安居の天神・大坂城）と、動いている隊の真ん中。
 // 遠さで小さく遅く・こもって、向きで左右に分かれて届く（farNext → withPan）。同じ音は名ごとの間を空け、連打しない。
 // 本体は setup で k15SoundSetup(rt)、update の頭で k15SoundTick(rt, dt) を呼ぶだけ。段の移りは F.step を見て自分で気づく。
-import { sfx, farNext, withPan, hush } from '../audio.js';
+import { sfx, farNext, withPan, hush, setWarStage } from '../audio.js';
 import { WIND_STATE } from '../world.js';
 import { centerOf } from '../bhelp.js';
 
@@ -59,6 +59,9 @@ export function k15SoundSetup(rt) {
 function stepStart(rt, st, step) {
   const F = rt.flags;
   st.next = Object.create(null);
+  // 戦の曲の五段階（docs/k15_crisis_spec_1108.md 7）：A 通常→B 毛利突破でテンポ上昇→C 真田で低音と太鼓→D 本陣危機でほぼ消す→E 後詰でテーマ復帰
+  setWarStage(step === 2 ? 2 : step === 3 ? 3 : step >= 4 ? 4 : 0);
+  if (step === 1) rt.after(40, () => { if (!rt.over && F.step === 1) setWarStage(1); });
   for (const [sec, sp, text] of LINES[step] || []) rt.after(sec, () => { if (!rt.over && F.step === step && !F.ending) rt.say(sp, text, 3); });
   if (step === 1) { rt.after(0.4, () => at(rt, CHAUSU, 'horagai', 0.9, 160)); rt.after(2.4, () => at(rt, SHITENNO, 'volley', 1, 140)); }
   if (step === 2) { at(rt, CHAUSU, 'horagai', 1, 180); rt.after(1, () => at(rt, CHAUSU, 'toki', 1, 120)); }

@@ -157,6 +157,12 @@ html:root body #tc .tb:is([data-b=atk],[data-b=guard]) .name::before { content:n
 html.touch body #tc .tb:is([data-b=atk],[data-b=guard]) small { display:none !important; }
 html.touch body #tc .tb:is([data-b=atk],[data-b=guard]).on { border-color:#fff3ba !important; background:radial-gradient(circle at 50% 38%, rgba(120,92,40,.95), rgba(30,22,12,.95) 70%) !important; }
 html.touch body #tc .tb[data-b=guard].jk-tired { border-color:#a8261a !important; }
+/* 11/9 見た目の確かめ：左下の命の札は幅の三割まで・名の字は小さめ（874×402 で 320px・37% だった）。#h-prog より下の層に置いて重ねない */
+html:root body #hud#hud #jk-vit { max-width:30vw; box-sizing:border-box; z-index:1; }
+html:root body #hud#hud #jk-vit canvas { width:44px; height:44px; }
+html:root body #hud#hud #jk-vit .jk-bars { width:clamp(96px, 17vw, 150px); max-width:none; gap:3px; }
+html:root body #hud#hud #jk-vit .jk-name { font-size:max(14px, calc(15px * var(--text-scale, 1))); }
+html:root body #hud#hud #jk-vit .jk-row { font-size:max(12px, calc(13px * var(--text-scale, 1))); grid-template-columns:2.6em 1fr; gap:6px; }
 `;
 
 function build(root) {

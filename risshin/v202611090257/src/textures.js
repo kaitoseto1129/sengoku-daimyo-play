@@ -203,6 +203,14 @@ function kiriMon(g, bg, nc, ns, tc, ts) {
 }
 
 const MON = {
+  // 高山家の七曜。山崎・賤ヶ岳の旗は家紋による復元（当日の染色・配列は未確認）。
+  ukon_nanayo(g) {
+    disk(g, 0, 0, .22);
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6;
+      disk(g, Math.sin(a) * .65, Math.cos(a) * .65, .22);
+    }
+  },
   // 榊原家の源氏車。所用具足の金具に合わせる八輻の輪郭の略復元。
   genjiguruma(g) {
     g.save(); g.strokeStyle = g.fillStyle; g.lineWidth = .10;

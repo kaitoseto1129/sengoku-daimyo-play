@@ -50,11 +50,28 @@ export function metric(name, params) {
     if (!GA_ID || BLOCKED || S.sendMetrics === false) return;
     const p = Object.assign({ platform: isApp() ? 'app' : 'web', device: isPhone() }, params || {});
     LOG.push({ name, params: p }); if (LOG.length > 400) LOG.shift();
-    if (local()) return;   // 手元・確かめでは記録だけ。送らない
+    if (local()) return DRY;   // 手元・確かめでは記録だけ。送らない
     boot();
-    if (typeof window.gtag === 'function') window.gtag('event', name, p);
+    if (typeof window.gtag === 'function') { window.gtag('event', name, p); return true; }
   } catch (e) { /* 記録の失敗で遊びを止めない */ }
+  return false;
 }
+// 不具合を自動で送った時、画面の隅に小さく一言（11/9 kaito。操作は要らない・戦を止めない・8秒に一度まで）
+let toastAt = 0;
+function bugToast() {
+  try {
+    const now = Date.now();
+    if (now - toastAt < 8000 || !document.body) return;
+    toastAt = now;
+    const el = document.createElement('div');
+    el.setAttribute('role', 'status');
+    el.textContent = '不具合を作り手に送りました';
+    el.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9990;padding:4px 10px;border-radius:6px;background:rgba(20,18,15,.88);color:#f1e9d8;font-size:12px;line-height:1.5;pointer-events:none';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  } catch (e) { /* noop */ }
+}
+const bugMetric = (name, params) => { if (metric(name, params)) bugToast(); };
 const once = (key, name, params) => {
   try { const k = MARK + key; if (localStorage.getItem(k)) return; localStorage.setItem(k, '1'); } catch (e) { /* 覚えられなければ毎回 */ }
   metric(name, params);
@@ -177,7 +194,7 @@ function sendError(msg, file, line, bidNow) {
   if (errSeen.has(key)) return;
   errSeen.add(key); errN++;
   // link_text・file_name は GA の決まりの欄（カスタム定義なしで読み出せる。10/26）
-  metric('js_error', { msg: m, file: fileOf(file), line: Number(line) || 0, battle_id: bidNow(), link_text: m, file_name: fileOf(file) + ':' + (Number(line) || 0), level: liveStage() });
+  bugMetric('js_error', { msg: m, file: fileOf(file), line: Number(line) || 0, battle_id: bidNow(), link_text: m, file_name: fileOf(file) + ':' + (Number(line) || 0), level: liveStage(), sec: liveSec(), dev: deviceClass() });
 }
 function watchErrors(bidNow) {
   addEventListener('error', (e) => {
@@ -249,7 +266,7 @@ function crashPrev() {
     const fresh = log.filter((r) => Array.isArray(r) && Number(r[0]) > done).slice(-2);
     if (!fresh.length || S.sendMetrics === false) return;
     const count = Number(localStorage.getItem('risshin-crashcount')) || log.length;
-    for (const r of fresh) metric('crash_prev', { battle_id: cleanId(r[1]), sec: r[3] == null ? -1 : Math.round(Number(r[3]) || 0), count, quality: cleanId(r[2]), heat: r[4] == null ? -1 : Number(r[4]) || 0, dev: deviceClass() });
+    for (const r of fresh) bugMetric('crash_prev', { battle_id: cleanId(r[1]), sec: r[3] == null ? -1 : Math.round(Number(r[3]) || 0), count, quality: cleanId(r[2]), heat: r[4] == null ? -1 : Number(r[4]) || 0, dev: deviceClass() });
     localStorage.setItem(mk, String(Math.max(...log.map((r) => Number(r && r[0]) || 0))));
   } catch (e) { /* noop */ }
 }
@@ -294,10 +311,10 @@ function stepBegin(game, id) {
       if (S0.stuck || document.hidden) { S0.tAt = 0; return; }
       if (b.over) {
         if (!S0.overAt) S0.overAt = now;
-        else if (now - S0.overAt > 60000) { S0.stuck = true; metric('battle_stuck', { battle_id: id, method: 'over', level: String(S0.stage), sec: Math.round(b.t || 0) }); }
+        else if (now - S0.overAt > 60000) { S0.stuck = true; bugMetric('battle_stuck', { battle_id: id, method: 'over', level: String(S0.stage), sec: Math.round(b.t || 0) }); }
       } else if (!game.paused && game.battle === b && $hidden() && !b.retryOpen && !document.querySelector('dialog[open]')) {
         if (b.t !== S0.lastT) { S0.lastT = b.t; S0.tAt = now; }
-        else if (S0.tAt && now - S0.tAt > 20000) { S0.stuck = true; metric('battle_stuck', { battle_id: id, method: 'frozen', level: String(S0.stage), sec: Math.round(b.t || 0) }); }
+        else if (S0.tAt && now - S0.tAt > 20000) { S0.stuck = true; bugMetric('battle_stuck', { battle_id: id, method: 'frozen', level: String(S0.stage), sec: Math.round(b.t || 0) }); }
       } else S0.tAt = 0;
     } catch (e) { /* noop */ }
   }, 1000);
@@ -339,6 +356,6 @@ function reloadPrev() {
     const r = JSON.parse(sessionStorage.getItem(LIVE_KEY) || 'null');
     sessionStorage.removeItem(LIVE_KEY);
     if (!r || !r.id || !(Date.now() - r.at < 30 * 60 * 1000)) return;
-    metric('battle_reload', { battle_id: cleanId(r.id), method: 'reload', level: String(r.level | 0), sec: r.sec | 0, dev: deviceClass() });
+    bugMetric('battle_reload', { battle_id: cleanId(r.id), method: 'reload', level: String(r.level | 0), sec: r.sec | 0, dev: deviceClass() });
   } catch (e) { /* noop */ }
 }

@@ -891,7 +891,7 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
       // 味方の名のある将は見える所まで名前を出す（kaito 11/5 九の3）。敵は近づいた時だけ
       // 11/6 共通の係：18m より先の将の名が一度も出なかった（五2・九3）。味方は 90m、敵は 40m まで、見えていれば出す
       // 11/8 critic60 姉川 31：味方の将の名が近くに寄らないと出なかった。味方は見通しの内の 150m まで
-      if (d2 > (ally ? 150 * 150 : 90 * 90) || !sightScreenUnit(rt, u)) continue;
+      if (d2 > (ally ? 300 * 300 : 200 * 200) || !sightScreenUnit(rt, u)) continue;
       u._fsNameD = d2;
       u._fsNameSeen = !cameraWallBlocked(rt, P, u.pos, P.y, headY(u));
       list.push(u);
