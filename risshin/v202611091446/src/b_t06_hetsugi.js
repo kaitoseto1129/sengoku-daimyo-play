@@ -192,7 +192,8 @@ const t06_hetsugi = {
   // 戦の後の札も右上と同じ五つ（「敵を何人討つ」で埋めない。三1）。果たすのは段を進めた時
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true;
-    return STEP_TEXT.map((text, k) => ({ kind: 'stage', k, text, noun: STEP_NOUN[k], action: text, sec: 600,
+    // 救援や殿を続けている間、知らせのない時間切れで目標を失敗にしない。
+    return STEP_TEXT.map((text, k) => ({ kind: 'stage', k, text, noun: STEP_NOUN[k], action: text,
       check: k < 4 ? () => won() || (F.step || 0) > k + 1 : won }));
   },
   // 行き先の▼は今の段の場所に一つ（話の間と札の裏には出さない。五4）
@@ -671,7 +672,7 @@ const t06_hetsugi = {
     const F = rt.flags;
     let stray = null;
     for (const s of F.strays || []) {
-      stray = s.units.find((u) => u.alive && !u.gone);
+      stray = s.units.find((u) => u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound);
       if (stray) break;
     }
     for (const g of F.foes) if (g.cut && live(g)) {
