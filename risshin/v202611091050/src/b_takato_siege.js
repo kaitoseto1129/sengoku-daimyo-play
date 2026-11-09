@@ -1652,6 +1652,11 @@ const takato_siege = {
       if (id === 'san') F.pendingSan = true; else F.pendingNi = true;
       return;
     }
+    // 下知を保留する間は、人数による制圧の記録だけを先に進めない。
+    // 二の丸を取った扱いが先行すると、④の途中で守りと地図だけが本丸へ進む。
+    if (id === 'ni' && !F.niFell && (!F.sanFell || rt.t - F.sanT < 20)) {
+      F.pendingNi = true; return;
+    }
     // 人数で押し崩した場合も、縄張りの記録と下知を同じ状態にする。
     const zone = F.SZ.byId[id];
     if (zone && (id === 'san' || (id === 'ni' && F.sanFell))) {
@@ -1698,7 +1703,7 @@ const takato_siege = {
     } else if (id === 'hodoin') {
       F.hodoinFell = true;
     } else if (id === 'ni' && !F.niFell) {
-      if (!F.sanFell || rt.t - F.sanT < 20) { F.pendingNi = true; return; }
+      F.pendingNi = false;
       F.niFell = true; F.niT = rt.t;
       // 数分の攻城で昼へ飛ばさず、開戦時の払暁の光と朝靄を保つ。
       rt.unmark('next'); rt.unmark('gateOte'); rt.unmark('sally');
