@@ -149,16 +149,16 @@ const OWN = {
   // 11/6 kaito 十1：右上の①〜⑤（b_okehazama.js の missions）と同じ言葉・同じ順にそろえた。
   okehazama: () => [
     { kind: 'stage', k: 0, text: '中島砦の下で組に合流し、雨の谷を下り谷の出口へ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
-    { kind: 'stage', k: 0, text: OG15.zenei, noun: '今川の鉄砲衆', check: (rt) => won(rt) || rt.phase === 'assault' || !!rt.flags.o15?.zeneiDone },   // 11/8 十五分の構成
+    { kind: 'stage', k: 0, text: OG15.zenei, noun: '今川の鉄砲衆', check: (rt) => !!rt.flags.o15?.zeneiDone },   // 11/8 十五分の構成
     { kind: 'stage', k: 0, text: '谷の出口で雨の上がるのを待つ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'assault' },
     { kind: 'stage', k: 1, text: '坂道で松井宗信の備えを破る', noun: '松井宗信の備え', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
-    { kind: 'stage', k: 1, text: OG15.nida, noun: '今川の前の備え', check: (rt) => won(rt) || !!rt.flags.o15?.nidaDone || !!rt.flags.entered },
-    { kind: 'stage', k: 1, text: OG15.ii, noun: '井伊直盛の備え', check: (rt) => won(rt) || !!rt.flags.o15?.iiDone || !!rt.flags.entered },
-    { kind: 'stage', k: 1, text: OG15.saka, noun: '旗本の弓組', check: (rt) => won(rt) || !!rt.flags.o15?.sakaDone || !!rt.flags.entered },
+    { kind: 'stage', k: 1, text: OG15.nida, noun: '今川の前の備え', check: (rt) => !!rt.flags.o15?.nidaDone },
+    { kind: 'stage', k: 1, text: OG15.ii, noun: '井伊直盛の備え', check: (rt) => !!rt.flags.o15?.iiDone },
+    { kind: 'stage', k: 1, text: OG15.saka, noun: '旗本の弓組', check: (rt) => !!rt.flags.o15?.sakaDone },
     { kind: 'stage', k: 2, text: '桶狭間山の幕の前で旗本を破る', noun: '義元の旗本', check: (rt) => won(rt) || !!rt.flags.guardOpened },
     { kind: 'stage', k: 2, text: '幕の口から今川義元を討つ', noun: '今川義元', check: (rt) => won(rt) || !!rt.flags.victory },
     // 11/6 critic60：討った後に来た道を帰る流れが無かった（公記「来た道を帰った」・二4）
-    { kind: 'stage', k: 2, text: '首を持ち、谷の出口の組の旗へ引き揚げる', noun: '組の旗', check: won },
+    { kind: 'stage', k: 2, text: '首を持ち、谷の出口の組の旗へ引き揚げる', noun: '組の旗', check: (rt) => !!rt.flags.returnDone },
   ],
   // 志賀の陣・宇佐山城（11/4 jin_shiga_r・docs/battle_refs/shiga.md）：『信長公記』の順（十六日 町口の足軽合戦で小勝ち → 十九日 浅井・朝倉が両手から寄せ、
   //   可成・信治・青地が討死 → 坂道を宇佐山城へ退く → 端城を焼かれ、木戸を一つずつ守る → 二十四日 信長の後詰）。敵を何人討つ・自分で討つは置かない（AW3）

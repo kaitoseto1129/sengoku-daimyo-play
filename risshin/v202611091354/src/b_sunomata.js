@@ -5311,7 +5311,7 @@ const sunomata = {
         : !F.woodDelivered ? '材木はまだ届けていない。寄せの合間に一度運べ'
         : F.buildBusy ? F.workNotice || '柵を直す人足を守れ'
         : F.segs.some((s) => !s.alive) ? '破れ目を守れ。寄せの合間に柵を直す' : '敵を退け、柵の修理と点検まで終えよ';
-      const countdown = `${left <= 45 ? 'もうすぐ夜明けじゃ' : left <= 90 ? '夜明けが近い' : rt.t - F.w3T < 70 ? '夜討ちに備えよ' : '夜討ちをしのげ'}。${workGuide}`;
+      const countdown = `${left === 0 ? '夜が明けた' : left <= 45 ? 'もうすぐ夜明けじゃ' : left <= 90 ? '夜明けが近い' : rt.t - F.w3T < 70 ? '夜討ちに備えよ' : '夜討ちをしのげ'}。${workGuide}`;
       // 後続は三十秒から二十二秒おき（10/31：柵のあとの待ちを詰める）。最後の組にも接敵・退却と、修理・点検の時間を残す。
       const q = F.duskWaves[F.duskNext];
       if (q && rt.t >= F.w3T + (30 + F.duskNext * 22) * Math.min(180, F.finishAt - F.w3T) / 180) {
@@ -5335,7 +5335,7 @@ const sunomata = {
       sunoProgress(rt, 'defend', countdown);
       // 侵入の任務が先に出ている間も、人足を守る行いを示す。
       if (F.insideDanger) sunoProgress(rt, 'rescue', `人足${F.wk.count}人。味方と印へ。敵を退け、柵を仕上げよ`);
-      const warning = left <= 15 ? 15 : left <= 30 ? 30 : left <= 60 ? 60 : 0;
+      const warning = left === 0 ? 0 : left <= 15 ? 15 : left <= 30 ? 30 : left <= 60 ? 60 : 0;
       if (warning && warning !== F.duskWarn) {
         F.duskWarn = warning;
         rt.bark('夜明けが近い。砦の敵を退け、柵を仕上げよ', true);
@@ -5356,6 +5356,7 @@ const sunomata = {
           F.finalCheckAt = rt.t;
           sunoObj(rt, 'defend', F.woodDelivered ? '柵の結び目を点検中。人足を守れ' : '材木を担ぎ、印の人足へ渡せ', 'main');
           rt.say('人足', F.woodDelivered ? '材木は届いた。結び目を見回る間、砦を守ってくれ！'
+            : left === 0 ? '夜が明けた。材木を担ぎ、印のわしらへ渡してくれ！'
             : left < 18 ? '夜明けが迫る！　材木を担ぎ、印のわしらへ渡してくれ！'
             : '結び目を見回るぞ。十八秒ほど守れ。材木を渡してくれれば早い', 3.5);
           // 柵沿いは兵舎と物見でふさがる。中央の小道から結び目を見渡して仕上げる。

@@ -9,7 +9,7 @@ export const TOKUGAWA_LINE = [
   { id: 'k04_kuisegawa', name: '杭瀬川の戦い', year: 1600, file: './b_k04_kuisegawa.js' },
   { id: 'k05_ueda', name: '第二次上田合戦', year: 1600, file: './b_k05_ueda.js' },
   { id: 'k06_sekigahara', name: '関ヶ原の戦い', year: 1600, file: './b_k06_sekigahara.js' },
-  { id: 'k07_sawayama', name: '佐和山城の戦い', year: 1600, place: '近江の佐和山城', file: './b_k07_sawayama.js' },
+  { id: 'k07_sawayama', name: '佐和山城の戦い', year: 1600, place: '近江の佐和山城', winWord: '佐和山城、落城', victoryCaption: '正継・正澄・朝成、天守に果つ', file: './b_k07_sawayama.js' },
   { id: 'k08_osaka_kizu', name: '大坂冬の陣・木津川口の戦い', year: 1614, file: './b_k08_osaka_kizu.js' },
   { id: 'k09_imafuku', name: '今福の戦い', year: 1614, file: './b_k09_imafuku.js' },
   { id: 'k10_shigino', name: '鴫野の戦い', year: 1614, place: '大坂城の東の鴫野', file: './b_k10_shigino.js' },

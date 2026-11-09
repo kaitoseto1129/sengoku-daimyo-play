@@ -23,7 +23,8 @@ export function tick(rt) {
     return;
   }
   const t = rt.t - v.zeneiT;
-  if (!v.zeneiGs.some(live) && t > 8 || t > 100) done(rt, C, t > 100);
+  // 二十秒後の後続も迎えてから、鉄砲衆を破ったと判定する。
+  if (!v.zeneiGs.some(live) && t > 20 || t > 100) done(rt, C, t > 100);
 }
 
 function start(rt, C) {

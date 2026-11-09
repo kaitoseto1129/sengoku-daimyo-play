@@ -33,7 +33,8 @@ export function tick(rt) {
   if (v.iiDone || rt.over || F.ending) return;
   const g = v.iiG, lead = g?.units.find((u) => u.name === '井伊直盛') || v.iiAdd?.units.find((u) => u.type === 'samurai');
   const left = (g ? g.units.filter(ready).length : 0) + (v.iiAdd ? v.iiAdd.units.filter(ready).length : 0), t = rt.t - v.iiT;
-  if ((left <= 4 || !ready(lead)) && t > 30 || t > 100) {
+  // 既に直盛が討たれている時も、名のない手勢が残る間は備えを破った扱いにしない。
+  if ((left <= 4 || lead && !ready(lead)) && t > 30 || t > 100) {
     v.iiDone = true; v.ph = null;
     for (const q of [g, v.iiAdd]) if (q) { q.noRout = false; q.morale = 0; q.fleeSet = true; q.fleeDir = C.fieldVector(-0.6, -1); }
     // 井伊直盛は備えが崩れる中で討たれる（史実の討死。寄せた織田の兵の手で）
