@@ -345,7 +345,7 @@ const t04_negoro = {
     }
     // 丸太の護衛は担ぎ手の脇へ案内する。門を直接指すと、組を追い越して射撃の前へ出てしまう。
     // 足した段（④僧坊・⑦奥の院）は今の的（動く鉄砲衆）に付ける。
-    if ((s === 3 || s === 4 || s === 7) && F.dp?.cur?.goal) { T.x = F.dp.cur.goal.x; T.z = F.dp.cur.goal.z; }
+    if ((s === 3 || s === 4 || s === 5 || s === 7) && F.dp?.cur?.goal) { T.x = F.dp.cur.goal.x; T.z = F.dp.cur.goal.z; }
     // ① 竹束の陰：▼は押し進む竹束の列のすぐ後ろ（11/6 描いて遊んで：▼が門前に立ち、自分だけ馬で竹束を追い越して坊舎の窓から撃たれた）
     if (s === 1 && F.tabaSet) { const q = P(0, Math.min(-99, t04_negoro.tabaFront(F) - 3)); T.x = q.x; T.z = q.z; }
     // 鉄砲衆は参道の左右の縁に分かれて据わる。真ん中の道を指さず、近い撃ち手の持ち場（動かない）を指す
@@ -389,7 +389,10 @@ const t04_negoro = {
       // 軒下では主人公も屋根の真下にいる。平面の位置だけで箱の中とみなすと、屋根へ入ったカメラを戻せない。
       else if (pu.pos.y < b.y0) pos.y = b.y0 - 0.15;
       else if (pu.pos.y > b.y1) pos.y = b.y1 + 0.15;
-      else continue;   // 主人公も箱の中（踏み台・縁）の時は動かさない
+      // 縁や踏み台で主人公も箱の範囲内にいる場合は、主人公に近い側の外へ出す。
+      // そのままにすると、馬上から振り向いたカメラが板戸や屋根の中に残る。
+      else if (b.hw - Math.abs(q0) < b.hd - Math.abs(q1)) p0 = (Math.sign(q0) || Math.sign(p0) || 1) * (b.hw + 0.15);
+      else p1 = (Math.sign(q1) || Math.sign(p1) || 1) * (b.hd + 0.15);
       pos.x = b.x + p0 * b.c + p1 * b.s; pos.z = b.z - p0 * b.s + p1 * b.c;
     }
   },

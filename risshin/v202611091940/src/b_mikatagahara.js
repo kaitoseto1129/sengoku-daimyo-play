@@ -1062,7 +1062,9 @@ function mikataGoals(rt, dt) {
   if (G.i >= 2 && G.i <= 5 && u.alive && phase === G.i) {
     const post = G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST;
     // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
-    const holdContact = () => F.dp?.cur?.s.kind === 'hold' && !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22));
+    // 最後の寄せ手を討った後も、その段で実際に守った記録を使う。
+    // 生きた敵だけを探すと、段の守りは達成しても右上と結果だけ失敗になる。
+    const holdContact = () => F.dp?.cur?.s.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
     // 行き先用の敵探しは持ち場から三十四 m 先も含む。遠い敵を見つけただけで防戦を果たした事にしない。
     const foe = G.i === 2 ? mikataNearestFoe(rt) : null;
     const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
@@ -2717,9 +2719,12 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       if (F.mkG) F.mkG.hit = true;
       // 持ち場へ届く前に本人が寄せ手を討ち切っても、接敵の記録を失わない。
       // 生きた敵だけを後で探すと、空になった持ち場で守りの時間が永久に増えない。
-      const C = F.dpOn && F.dp?.cur;
-      if (C?.s.kind === 'hold' && C.groups.includes(v.group)) C.metEnemy = true;
     }
+    // 持ち場の味方が最後の寄せ手を討った場合も、守りの接敵を失わない。
+    // 遠くへ追い出した味方の討ち取りでは、持ち場を守った事にしない。
+    const C = F.dpOn && F.dp?.cur;
+    if (v.team === 1 && k?.team === 0 && C?.s.kind === 'hold' && C.groups.includes(v.group) &&
+        (k === rt.player.u || C.at && Math.hypot(k.pos.x - C.at.x, k.pos.z - C.at.z) < C.botRadius + 8)) C.metEnemy = true;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
