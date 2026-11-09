@@ -34,6 +34,23 @@ export function namedArmorLook(look) {
 }
 const crests = new Map();
 export function namedCrestGeometry(kind, hi = true) {
+  if (kind === 'kagekatsu_nichirin') {
+    const key = kind + (hi ? '|近' : '|遠');
+    if (!crests.has(key)) {
+      // 日輪と雲の既存形を分けるだけ。近景でも黒雲を金色にしない。
+      const base = namedCrestGeometry('kenshin_nichirin', hi)[0];
+      const cut = base.userData.cloudStart, count = base.attributes.position.count;
+      const section = (start, end) => {
+        const g = new THREE.BufferGeometry();
+        for (const [name, a] of Object.entries(base.attributes)) g.setAttribute(name,
+          new THREE.BufferAttribute(a.array.slice(start * a.itemSize, end * a.itemSize), a.itemSize, a.normalized));
+        g.computeBoundingSphere(); return g;
+      };
+      crests.set(key, [section(0, cut), 'gold', [[section(cut, count), 'black']]]);
+    }
+    return crests.get(key);
+  }
+
   // 伝昌幸所用の銀箔天衝。前天衝の既存形を共用し、脇立は補わない。
   if (kind === 'masayuki_tensho') {
     const key = kind + (hi ? '|近' : '|遠');

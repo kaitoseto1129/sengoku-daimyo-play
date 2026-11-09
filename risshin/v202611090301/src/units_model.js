@@ -2371,7 +2371,13 @@ function cuirass(r0, seg, rows = 0, hi = false, opening = '', honkozane = false,
   const nimai = opening === 'nimai', right = opening === 'right' || nimai, gap = right ? 0.035 : 0;
   const points = prof.map(([r, y]) => new THREE.Vector2(r * r0, y));
   let g;
-  if (nimai) {
+  if (opening === 'gomai') {
+    // 伝景勝所用の五枚胴。割り位置は推定、既存の胴の輪郭と段を共用する。
+    // 一周の分割数をほぼ保ち、生成時に結合して近遠とも使い回す。
+    const panels = [], span = Math.PI * 2 / 5;
+    for (let i = 0; i < 5; i++) panels.push(new THREE.LatheGeometry(points, Math.max(2, Math.round(seg / 5)), Math.PI / 2 + i * span + 0.006, span - 0.012));
+    g = mergeGeometries(panels); for (const panel of panels) panel.dispose();
+  } else if (nimai) {
     // 二枚胴は前後を左脇の蝶番でつなぐ。左右の合わせ目を近遠とも残す。
     // 一周の分割数は従来と同じ。生成時に結合し、描く回数を増やさない。
     const front = new THREE.LatheGeometry(points, seg / 2, -Math.PI / 2 + gap / 2, Math.PI - gap);
@@ -2784,6 +2790,12 @@ function bodyGeometry(key, o, hi, grp) {
     const mg = new THREE.LatheGeometry(mp, hi ? 14 : 5, -0.95, 1.9); mg.scale(1, 1, 0.8);
     // 本人（munaitaGold 2）：手本 ref5 の胸板は鈍い金溜塗（金粉を漆で塗り込めた艶の浅い古金）。金属の照りで真っ黄色の帯に見せない。縁は擦れて下の黒漆
     parts.push(o.munaitaGold === 2 ? P(mg, 0x7a6634, { mk: MK.lac, reg: 'lacq', c2: 0x2a2218, mk2: MK.lac }) : P(mg, 0x947a3c, { mk: MK.gold, reg: 'lacq' }));
+    if (o.doOpening === 'gomai' && o.mon === 'toyotomi') {
+      // 伝景勝具足の胸板の桐。胸板と同じ曲面の外へ置き、板に埋めない。
+      const dec = new THREE.LatheGeometry(mp, hi ? 6 : 3, -.26, .52);
+      dec.scale(1.004, 1, .804);
+      parts.push(P(dec, 0x947a3c, { mk: MK.gold, reg: monReg('toyotomi'), c2: 0xc9a24a, mk2: MK.gold }));
+    }
   }
   if (o.mon === 'genjiguruma') {
     // 東博の黒糸威二枚胴具足の源氏車金具。胸の二輪を輪と八本の輻で略復元。

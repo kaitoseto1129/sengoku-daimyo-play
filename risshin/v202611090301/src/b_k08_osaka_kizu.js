@@ -82,7 +82,18 @@ const northLeft = (F) => {
   }
   return n;
 };
-const flee = (g) => { if (!alive(g)) return; g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee'; for (const u of g.units) u.perch = null; };
+const flee = (g) => {
+  if (!alive(g)) return;
+  // 岸の組は東の塀の外へ、それ以外は開いた北の口から博労淵へ退く。
+  // 向きだけで逃がすと、東西の塀に当たって退き口へ出られない。
+  if (!g.fleeSet) {
+    g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
+    g.fleePath = g.center().z < WALL_N - 4
+      ? [[0, -164]] : [[NGATE.x, WALL_N + 4], [NGATE.x, WALL_N - 8], [0, -164]];
+  }
+  g.noRout = false; g.noAI = false; g.routed = true; g.order = 'flee';
+  for (const u of g.units) { u.perch = null; u.fleePathIdx = 0; }
+};
 
 // 低い平野。砦は少し盛り上がった土の上。木津川の東の堤と西の湿地だけ起伏を付ける
 function height(x, z) {
@@ -486,6 +497,7 @@ const k08_osaka_kizu = {
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
+    if (F.osakaFar) F.osakaFar.group.visible = true;
     rt.after(7, () => { if (F.step === 4) rt.say('浅野長晟', '夜が白んできた。明け六つの約束の刻じゃ', 3.2); });
     engun.start(rt, { NGATE, GATE });   // 城からの加勢・一時押される・浅野の後備（k08/engun.js）
   },

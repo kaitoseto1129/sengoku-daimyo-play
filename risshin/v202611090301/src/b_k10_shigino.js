@@ -17,7 +17,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { distToPolyline } from './world.js';
-import { nobori, hut, yagura, jinmaku, kagaribi } from './props.js';
+import { nobori, hut, yagura, jinmaku, kagaribi, umajirushi } from './props.js';
 import { enemyGroup, allyGroup, nm, wallLine } from './bhelp.js';
 import { KIT } from './b_nagashinojo.js';
 import { osakaFar } from './osaka_far.js';
@@ -285,9 +285,10 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       const f = nobori(W, x, z, 'toyotomi', 5); S.add(f);
       if (k) { const u = nobori(W, x + 1, -z, 'uesugi', 5); u.visible = false; S.add(u); F.flagsAt.push({ k, toy: f, ue: u }); }
     }
-    // 上杉の本陣：幕と竹に雀・毘の旗、篝火
+    // 景勝本陣：『大坂御陣覚書』の紺地白丸・毘の二本と浅黄の扇。
     S.add(jinmaku(W, HONJIN.x + 4, HONJIN.z, 16, 12, 6));
-    for (const dz of [-9, 9]) S.add(nobori(W, HONJIN.x - 6, HONJIN.z + dz, 'uesugi', 6));
+    S.add(nobori(W, HONJIN.x - 6, HONJIN.z + 9, '景勝の白丸', 6));
+    S.add(umajirushi(W, HONJIN.x + 2, HONJIN.z - 9, 0, 'kagekatsu_ogi'));
     S.add(nobori(W, HONJIN.x - 8, HONJIN.z, 'uesugi_bi', 7));
     S.add(kagaribi(W, HONJIN.x - 2, HONJIN.z + 12));
     // 水辺の蘆は timeslip の枯れ葦（細い葉の束）に任せる（円錐の作り物を置かない・八1）
@@ -313,7 +314,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     F.mzN.dikeShoulder = F.mzS.dikeShoulder = true;
     // 上杉景勝の本陣：東の端で旗本に囲まれ、前に出ない（AR3・AT3）
     F.honjin = allyGroup(rt, { faction: 'uesugi', name: '上杉景勝の本陣', fullStrength: true, fixed: true, anchor: { x: HONJIN.x, z: HONJIN.z }, facing: -Math.PI / 2, width: 8, aggro: 4, seekRange: 10, order: 'hold', noRout: true },
-      ueD([{ type: 'busho', n: 1, o: { name: '上杉景勝', invuln: true, horse: false } }, { type: 'busho', n: 1, o: { name: '直江兼続', invuln: true, horse: true } }, uS(30), uG(6)]));
+      ueD([{ type: 'busho', n: 1, o: { name: '上杉景勝', invuln: true, horse: false, kosode: true, kosodeCol: 0x35342e, hat: 'none', menpo: 0, flag: null } }, { type: 'busho', n: 1, o: { name: '直江兼続', invuln: true, horse: true } }, uS(30), uG(6)]));
     F.kage = F.honjin.units.find((u) => u.name === '上杉景勝');
     if (F.kage) F.kage._crouch = true;   // 総大将は陣幕の内で床几に腰を下ろす
     for (const g of [F.suda, F.yasu]) g.ai = true;
