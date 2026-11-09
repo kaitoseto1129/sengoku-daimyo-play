@@ -503,7 +503,8 @@ const k13_domyoji = {
           // 史実：又兵衛は伊達の鉄砲に撃たれて果てた。本人が討てなくても、時が来れば物語は進む（二5）
           { t: 78, foes: () => { matabeiShot(rt); return []; } },
         ],
-        onEnd: (rt2) => matabeiDown(rt2) }),
+        // 四十秒より早く頂を破っても、誉田で並ぶ伊達勢の到着を飛ばさない。
+        onEnd: (rt2) => { matabeiDown(rt2); datearrive(rt2); } }),
       DP.rest({ dur: 6, heal: 0.6, say: [['水野勝成', '又兵衛は討った。息を整えよ。石川の向こうに薄田の旗じゃ']] }),
       // ③ 石川を渡り、道明寺の野で薄田兼相を討つ（史実で討死）
       DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: GOALS[2], max: LIMIT[3], noRefill: true,

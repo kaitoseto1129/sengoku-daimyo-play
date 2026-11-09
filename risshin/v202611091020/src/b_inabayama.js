@@ -6825,12 +6825,22 @@ const inabayama = {
         F.oteContactAt = rt.t + 0.5;
         const pp = rt.player.u.pos;
         // 平面で近いだけの上の段や、鹿垣の向こうの兵は、目前まで来た城兵に数えない。
-        for (const q of qs) if (!gone(q) && q.units.some((u) => u.alive && !u.fleeing && !u.noTarget && !u.woundOut
+        for (const q of qs) if (!gone(q) && q.units.some((u) => u.alive && u.hp > 0 && !u.dying && !u.gone
+          && !u.fleeing && !u.noTarget && !u.woundOut && !u.downed && !u.rearWound && !u.evacuatedWound
           && Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 10 && Math.abs(u.pos.y - pp.y) < 3
           && !rt.army.wallBetween(u.pos, -1, pp))) { F.oteContactT = rt.t; break; }
       }
       // 来ない城兵は、鹿垣の本人の前へ押し出す（坂の上で印だけ立たせない）
-      if (F.ote2.sent && F.oteContactT == null && rt.t - F.ote2T > 8) for (const q of qs) if (!gone(q) && q.order !== 'path') { q.noAI = false; q.order = 'attack'; q.aggro = 30; q.seekRange = 60; q.anchor = { x: rt.player.u.pos.x, z: rt.player.u.pos.z - 6 }; }
+      // 持ち場を離れた本人や倒れた本人へ追わせず、鹿垣で迎える時だけ寄せる。
+      // 半秒ごとに既存の座標を直し、毎コマ座標を作り直さない。
+      if (F.ote2.sent && F.oteContactT == null && rt.t - F.ote2T > 8
+        && rt.player.u.alive && !rt.retryOpen && inabaInsideHoldLine(rt) && rt.t >= (F.otePushAt || 0)) {
+        F.otePushAt = rt.t + 0.5;
+        for (const q of qs) if (!gone(q) && q.order !== 'path') {
+          q.noAI = false; q.order = 'attack'; q.aggro = 30; q.seekRange = 60;
+          q.anchor.x = rt.player.u.pos.x; q.anchor.z = rt.player.u.pos.z - 6;
+        }
+      }
       if (F.ote2.sent && !qs.every(gone) && F.oteContactT != null && (rt.t - F.oteContactT > 22 || qs.every((q) => gone(q) || q.count <= 3))) for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; }
       // 公記の順序を保ち、翌日の鹿垣と三人衆の参着を済ませてから山へ進む。
       // 10/30：城兵が崩れても、本人が鹿垣の持ち場で仲間と並んでいなければ裏道の段へ進めない（味方だけで段が進まないように）
