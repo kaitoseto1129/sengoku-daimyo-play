@@ -108,7 +108,7 @@ export function terrainFx(world, u, x, z, uphill) {
   const mounted = !!u.mounted;
   const wade = world.def.wadeSlowAt?.(x, z) ?? 1;
   let spd = 1, turn = 1, tire = 0, acc = 1, def = 1, defHigh = false, loose = false;
-  if (tag === 'water') { spd = world.waterSpeedAt ? world.waterSpeedAt(x, z, mounted, footY) : mounted ? 0.45 : 0.82; tire = mounted ? 1.3 : 0.4; turn = 0.75; loose = true; }
+  if (tag === 'water') { spd = Math.min(world.waterSpeedAt ? world.waterSpeedAt(x, z, mounted, footY) : mounted ? 0.45 : 0.82, wade * (mounted ? 0.8 : 1)); tire = mounted ? 1.3 : 0.4; turn = 0.75; loose = true; }
   else if (wade < 1) { spd = wade * (mounted ? 0.8 : 1); tire = 0.4; turn = 0.8; loose = true; }   // 浅い瀬・飛び石（水の深さの無い川の渡り）
   else if (tag === 'hori') { spd = mounted ? 0.4 : 0.6; tire = uphill ? 1.6 : 0.6; turn = 0.7; def = 1.3; defHigh = true; loose = true; }
   // 虎口は歩み・向き変えが重く、上から狙われる。歩みをゼロにはしない。
