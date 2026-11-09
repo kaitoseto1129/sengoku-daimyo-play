@@ -57,10 +57,22 @@ function huntPlayer(rt, dt) {
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
-    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
-    const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 75 && hunting < 2) { g.focus = P; hunting++; }
-    else if (mine && d > 110) g.focus = null;
+    const c = g.center(F._huntCenter || (F._huntCenter = {}));
+    c.y = rt.world.heightAt(c.x, c.z);
+    const d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
+    // 指定目標は共通の思考で追跡距離を越えて追うため、ここでも口の間合いを守る。
+    // 柵越しの本人を指定すると、柵の角で詰まるか陣小屋まで追い込んでしまう。
+    const range = Math.min(30, g.seekRange ?? 30);
+    const reachable = g.order === 'attack' && d < range && !(F.step === 2 && P.pos.z > FENCE_Z + 16) &&
+      !rt.army.wallBetween(c, g.team, P.pos) && !rt.army.terrainBlocks(c, P.pos);
+    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad || !reachable) {
+      if (mine) {
+        g.focus = null; hunting--;
+        for (const u of g.units) if (u.target === P) { u.target = null; u.watch = null; u.aiT = 0; }
+      }
+      continue;
+    }
+    if (!mine && hunting < 2) { g.focus = P; hunting++; }
   }
 }
 // 国土地理院の標高（asset_dem_iwamura.js。山頂は格子の中心から z+70m）は、そのまま混ぜると桁違いに急だった。
@@ -1797,7 +1809,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     F.scout.order = 'move'; F.scout.dest = { x: SCOUT_PATH[0][0] - 4, z: SCOUT_PATH[0][1] - 6 }; F.scout.speed = 0.3; F.scout.march = true; F.scout.keepMoveOrder = true;
     F.scout.onArrive = (g) => { g.keepMoveOrder = false; g.order = 'hold'; g.march = false; };
     F.scout.aggro = 0; F.scout.seekRange = 0; for (const u of F.scout.units) u.noTarget = true;
-    F.scout.iwAttack = (g) => { g.order = 'attack'; g.march = false; g.formation = 'loose'; g.focus = rt.player.u; };
+    F.scout.iwAttack = (g) => { g.order = 'attack'; g.march = false; g.formation = 'loose'; g.seekRange = 16; };
     // 元の五十六人のうち八人を追撃路へ分ける。途中の補充はしない。
     F.directedMouth = null; F.routSaid = new Set(); F.sentWaves = [];
     // critic60：支度の間（篝火を焚く間）に敵が突っ立って見えないよう、夜討ちの手は寄せの起点より十二メートル下の闇から、
