@@ -6318,10 +6318,6 @@ const inabayama = {
   signal(rt) {
     const F = rt.flags;
     if (F.step >= 4) return;
-    // 15分の構成：大手の木戸の後、入口曲輪と二ノ門の段を済ませてから本丸へ
-    if (F.tsuke && F.k15Nino !== 'done') { k15Nino.start(rt, k15Ctx(rt), () => this.signal(rt)); return; }
-    F.step = 4; F.stepT = rt.t;
-    rt.setPhase('honmaru');
     // 11/6 fix61：木戸の守りを破ったら、寄せ手が木戸の扉を打ち破る。開いた扉の端に列が当たり、藤吉郎の手が喰違いの間を行き来して上がれなかった
     const kit = rt.siegeKit?.kits?.[0], kd = kit?.gate?.struct;
     if (F.tsuke && kd && kd.alive) { kd.alive = false; kd.hp = 0; kd.hitFrom = { x: OTE.x + 6, z: OTE.z + 4 }; rt.army.structFall(kd); }
@@ -6334,6 +6330,11 @@ const inabayama = {
       const mx = (st.seg[0] + st.seg[2]) / 2, mz = (st.seg[1] + st.seg[3]) / 2;
       if (Math.abs(mx - OTE.x - 0.2) < 3.6 && mz < OTE.z + 0.5 && mz > OTE.z - 7) { st.alive = false; st.hp = 0; st.hitFrom = { x: mx, z: OTE.z + 4 }; rt.army.structFall(st); }
     }
+    // 次の曲輪へ向かう前に、木戸と通り道の柵を引き倒す。
+    // 本丸に入るまで残すと、入口曲輪へ登る列が閉じた木戸で止まる。
+    if (F.tsuke && F.k15Nino !== 'done') { k15Nino.start(rt, k15Ctx(rt), () => this.signal(rt)); return; }
+    F.step = 4; F.stepT = rt.t;
+    rt.setPhase('honmaru');
     rt.unmark('kguard'); rt.unmark('kido');
     rt.unmark('karaGuide'); F.karaGuideMarked = false;
     // 裏道の働きは済んだ。本丸へ移った後に物見や伏兵へ呼び戻さない。
@@ -6455,7 +6456,9 @@ const inabayama = {
   // 旗本を退けたら、合図の火
   lightSig(rt) {
     const F = rt.flags;
-    if (F.sig || F.step !== 4 || !F.hata.every(gone) || !gone(F.tatsu) || !gone(F.keep.guard)) return;
+    // 遅れて出る近習衆も退けてから火付けへ進む。先に火付けへ移ると、
+    // 新手が目標に出ないまま火だけ押せなくなる。
+    if (F.sig || F.step !== 4 || (F.k15Hon && !F.k15Hon.elite) || !F.hata.every(gone) || !gone(F.tatsu) || !gone(F.keep.guard)) return;
     for (const n2 of ['本丸の旗本', '御殿から出た旗本', '二の丸から上がった斎藤勢']) rt.unmark(n2);
     rt.unmark('honGuard');
     const S = { x: HON.x + 8, y: rt.world.heightAt(HON.x + 8, HON.z + 9), z: HON.z + 9 };

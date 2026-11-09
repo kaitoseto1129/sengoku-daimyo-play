@@ -28,6 +28,8 @@ import { allyGroup, enemyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, rectPoly } from './castle_plan.js';
 import { horiboriHeight, mizubori } from './castle_parts.js';
+import * as hata from './k07/hata.js';   // 曲輪が落ちるたび石田の幟が倒れる（11/8）
+import * as hoi from './k07/hoi.js';     // 寄せ手一万五千の包囲（奥の軽い大軍・11/8）
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
@@ -54,7 +56,8 @@ const NISHI = { x: -48, z: -4 };        // 西の丸（塩硝櫓）
 const TAIKO = { x: -10, z: 34 };         // 太鼓丸（南の尾根・本丸の手前）
 const HOKKE = { x: -4, z: 64 };          // 法華丸（南の尾根の先）
 const KARAME = { x: -100, z: -10 };      // 搦手（琵琶湖の側）から田中勢が出てくる所
-const LIMIT = 1050;                      // 十八日の日が暮れ切るまで（秒）。共通の打ち切り（battle_pacing の 1080 秒）より先にこの戦の言葉で締める。段ごとに b_depth の時間がある（AP の8）
+const LIMIT = 1050;   // 11/9：波の兵を 1.7→1.4 倍に（toku15_plan 7 は十五分。体力でなく人数で詰める）
+                     // 十八日の日が暮れ切るまで（秒）。共通の打ち切り（battle_pacing の 1080 秒）より先にこの戦の言葉で締める。段ごとに b_depth の時間がある（AP の8）
 
 // 大手の道：田から土橋を渡り枡形の大手門、侍屋敷の谷戸を北へ抜け、北の尾根を三の丸へ、尾根伝いに二の丸の三段、本丸へ
 const ROUTE = [
@@ -227,7 +230,13 @@ function flags(rt) {
   for (const [x, z] of [[START.x - 2, START.z - 7], [START.x - 2, START.z + 7], [START.x + 4, START.z - 14]]) rt.scene.add(nobori(W, x, z, KOBA.flag, 6));
   for (const [x, z] of [[START.x + 2, START.z - 4], [START.x + 2, START.z + 5]]) rt.scene.add(kagaribi(W, x, z));
   // 石田の旗：大手の土塁の上・三の丸・二の丸・本丸・西の丸・南の尾根の太鼓丸と法華丸
-  for (const [x, z] of [[114, -10], [114, 10], [108, 12], [12, -100], [-2, -112], [-14, -80], [-14, -56], [-14, -34], [-18, -12], [-2, 8], [-48, -10], [-16, 30], [-4, 38], [-12, 60], [4, 70]]) rt.scene.add(nobori(W, x, z, 'ishida', 5));
+  //   曲輪が落ちるたびに倒すので覚えておく（k07/hata.js）
+  rt.flags.ishidaFlags = [];
+  for (const [x, z] of [[114, -10], [114, 10], [108, 12], [12, -100], [-2, -112], [-14, -80], [-14, -56], [-14, -34], [-18, -12], [-2, 8], [-48, -10], [-16, 30], [-4, 38], [-12, 60], [4, 70]]) {
+    const g = nobori(W, x, z, 'ishida', 5);
+    rt.scene.add(g);
+    rt.flags.ishidaFlags.push({ g, x, z, y: g.position.y, r: (x * 7 + z * 3) % 6.28 });
+  }
   for (const [x, z] of [[OTE.x - 6, OTE.z + 6], [SAN.x + 4, SAN.z - 4], [NI1.x + 6, NI1.z], [HON.x + 8, HON.z - 8], [TAIKO.x + 6, TAIKO.z]]) rt.scene.add(kagaribi(W, x, z));
 }
 
@@ -331,7 +340,8 @@ const k07_sawayama = {
     }
     farSight(rt.scene.children.slice(castle0), { W, ground: { x: 20, z: -20, r: 100 }, far: this.landmarkViewFar });
     flags(rt);
-    // 見せかけの軍勢は置かない（AA・AF・AQ6）。見える兵は全部本物
+    // 見せかけの軍勢は近くに置かない（AA・AF・AQ6）。見える兵は全部本物。11/8：百五十歩より奥にだけ寄せ手一万五千の包囲を重ねる（k07/hoi.js）
+    hoi.install(rt);
     // ---- 東軍：自分の手勢と脇坂の先手。総大将の秀秋は寄せ口の後ろの本陣で、侍の旗本に囲まれて動かない（O・AR3） ----
     F.honjin = allyGroup(rt, { faction: 'oda', name: '小早川秀秋の本陣', anchor: { x: START.x + 20, z: START.z }, facing: -Math.PI / 2, width: 8, aggro: 3, order: 'hold', fixed: true, noRout: true, fullStrength: true },
       dress([{ type: 'busho', n: 1, o: { name: '小早川秀秋', invuln: true, horse: false } }, { type: 'samurai', n: 20 }], KOBA));
@@ -341,7 +351,7 @@ const k07_sawayama = {
       dress([{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 6 }], KOBA));
     F.saki = allyGroup(rt, { faction: 'oda', name: '脇坂安治の先手', anchor: { x: START.x - 10, z: START.z - 6 }, facing: -Math.PI / 2, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }, { type: 'bow', n: 3 }], WAKI));
-    for (const g of [F.mine, F.saki]) { g.defMult = 1.5; g.dmgMult = 1.1; g.aggro = 24; }
+    for (const g of [F.mine, F.saki]) { g.defMult = 1.5; g.dmgMult = 1.5; g.aggro = 24; }   // 11/9：1.1→1.5（味方の寄せ手で曲輪が落ちるように。十五分に詰める）
     // 一万五千の囲み（一1・十二2）：大手の外の田の北と南に、朽木元綱・赤座直保の陣（陣幕・幟・馬上の将と旗本が控える）。
     //   竹束の陰に小早川の鉄砲衆が据わり、大手の櫓へ撃ちかける（竹束の陰に誰もいなかった・十の3）。西の搦手には田中吉政の陣の幟
     for (const [x, z, name, mon] of [[164, -40, '朽木元綱', 'maru'], [164, 40, '赤座直保', 'maru']]) {
@@ -396,7 +406,7 @@ const k07_sawayama = {
       { id: 'ote', team: 1, stock: 4, interval: [10, 16], lane: [[121, -1.5], [127, -0.5], [135, 0]], active: () => !F.gateOpen.ote },
       // 落ちる筋は門前の道の五歩脇の斜面（道の真上だと、門前で待つ主人公に石が続けて当たり、助けなしの流しで討たれた）
       { id: 'ni3', team: 1, stock: 3, interval: [12, 18], lane: [[-13, -88], [-13, -94], [-12, -100]], active: () => (F.dp?.i ?? -1) === 5 && !F.gateOpen.ni3_n }] });
-    depthStart(rt, { faction: 'ishida', flag: 'ishida', armor: ISHIDA.armor, friends: () => [F.mine, F.saki, F.hasegawa], look: (list) => dress(list, ISHIDA), scale: 1.7, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40,   // 0.4 では命を戻さない流しで三の丸と二の丸の下の段の斬り合いで続けて討たれた（城方は老兵・若い兵が多く戦えたのは千ほど・battle_learn）
+    depthStart(rt, { faction: 'ishida', flag: 'ishida', armor: ISHIDA.armor, friends: () => [F.mine, F.saki, F.hasegawa], look: (list) => dress(list, ISHIDA), scale: 1.4, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40,   // 0.4 では命を戻さない流しで三の丸と二の丸の下の段の斬り合いで続けて討たれた（城方は老兵・若い兵が多く戦えたのは千ほど・battle_learn）
       botFoeAllowed: (o) => !o.perch }, [   // 櫓の上の射手は下から斬れない（追うと塀の下に詰まって段が進まなかった）
       // ① 大手門を破る
       DP.fight({ at: OTE, title: '大手門', sub: '内堀と土塁の奥に枡形の門', obj: '大手門の内の侍屋敷で石田勢を討て', max: 150,
@@ -701,6 +711,8 @@ const k07_sawayama = {
     say(4.2, () => rt.banner('佐和山城、落城', '慶長五年九月十八日　天守に火が回る'));
     say(8.2, () => rt.say('小早川秀秋', '……治部は城に戻れなんだ。主のおらぬ城を、我らは落としたのよ', 4));
     say(12.4, () => rt.banner('正継・正澄・朝成、天守に果つ', '二日の戦で佐和山城は落ちた'));
+    // 11/8：寄せ手の大軍が城へ押し出す。「三成はおらぬ・逃げたか」は共通の落城の流れ（castle_fall_data.js）が finish の後に出す
+    say(9, () => hoi.advance(rt));
     // 主の任務の済みも締めの直前に（共通の goalsDoneTick は主の任務が済んで二秒半で勝ちに締め、締めの十五秒を切っていた）
     rt.after(15.3, () => {
       rt.objDone('main');
@@ -731,6 +743,7 @@ const k07_sawayama = {
 
   update(rt, dt) {
     const F = rt.flags;
+    hata.tick(rt, dt);
     if (F.ending) { this.endLook(rt, dt); return; }
     depthTick(rt, dt);
     tickTabas(rt, dt);
@@ -808,7 +821,8 @@ k07_sawayama.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 
 k07_sawayama.history = '慶長五年（1600）九月十五日、関ヶ原で西軍が敗れると、東軍は三成の本拠・佐和山城へ向かった。城は琵琶湖を見下ろす佐和山の頂に五層の天守を持つ山城で、三成は戻らず、父の石田正継、兄の正澄とその子の朝成、三成の舅の宇多頼忠らが二千八百ほどで守った。家康は城の南の正法山に陣を取り、小早川秀秋を先鋒に脇坂安治・朽木元綱・小川祐忠・赤座直保・井伊直政・田中吉政らおよそ一万五千が十七日の明け方から大手と搦手から攻めた。日暮れに攻めが止むと、三の丸を守っていた長谷川守知が兵を連れて城を出て東軍の先に立ち、十八日に城は落ちた。正継・正澄・朝成・宇多頼忠と三成の妻は自害したと伝えられる（正澄は討ち取られたとの伝えもある）。三成本人は関ヶ原の後に逃れ、九月二十一日に近江で田中吉政の手に捕らえられた。三成の子の重家は出家して生き延びた。\n曲輪の並びと寸法は遊びのために縮めて復元したもので、攻め口の細かい道筋は推定である。内応や裏切りの伝えなど、史料により異なる点もある。';
 k07_sawayama.bushou = [{ name: '石田正継', g: /正継/ }, { name: '石田正澄', g: /正澄/ }, { name: '宇多頼忠', g: /頼忠/ }, { name: '石田朝成', g: /朝成/ }];
 
-k07_sawayama.botBrain = (b, inp, { goTo }) => {
+const rt_gateOpen = (b, id) => !!b.flags.gateOpen?.[id];
+k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
@@ -816,8 +830,24 @@ k07_sawayama.botBrain = (b, inp, { goTo }) => {
   //   本丸に一度も入らないまま⑤が済んだ（11/6 描いて遊んだ二回とも）
   const D = F.dp, C = D && D.on && D.cur;
   if (C && C.s.kind === 'fight' && D.i >= 5 && C.goal && !b.army.nearestEnemy(u, 7, (o) => !o.fleeing && !o.noTarget && !o.perch)) {
-    const want = { x: C.goal.x, z: C.goal.z }, q = sawayamaWay(b.army, u, want);
+    // ④（二の丸の上の段）で本丸の門の前（南）まで上がってしまった時は、二の丸の中へ戻る（11/9 流し：本丸の門の前で矢を受けながら八分立ち往生）
+    //   門の外（北）の口で立ち止まった時も、門をくぐって中へ（11/9 流し：破れた門の外で九分矢を受けていた）
+    const back = D.i === 6 && (u.pos.z > -27 || (u.pos.z < -39.5 && u.pos.z > -52 && Math.abs(u.pos.x + 8) < 9 && rt_gateOpen(b, 'ni1_n')));
+    const want = back ? { x: NI1.x, z: NI1.z } : { x: C.goal.x, z: C.goal.z }, q = sawayamaWay(b.army, u, want);
+    if (back && q === want) { goTo(p, inp, want.x, want.z, 1.5); inp.runHeld = true; return; }
     if (q !== want && q.active) { inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false; goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true; return; }
+  }
+  // 大手と三の丸（D.i < 5）は開けた曲輪：曲輪の奥で構える守りへ自分から寄る（11/9 流し：入口に立ったまま、三十歩奥の守りに新手が足され続けて五分かかった）
+  if (C && C.s.kind === 'fight' && D.i < 5) {
+    const e = b.army.nearestEnemy(u, 50, (o) => !o.fleeing && !o.noTarget && !o.perch && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4);
+    if (e) {
+      const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      if (p.lock && p.lock !== e) inp.e.add('KeyQ');
+      p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
+      if (d > 2.2) { goTo(p, inp, e.pos.x, e.pos.z, 2.2); inp.runHeld = d > 7; } else inp.k.delete('KeyW');
+      if (patientStrike) patientStrike(p, inp, e, d, true);
+      return;
+    }
   }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   inp.k.delete('KeyW');

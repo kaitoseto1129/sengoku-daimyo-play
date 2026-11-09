@@ -1048,7 +1048,9 @@ function takatoDefense(rt) {
         if (!passed) break;
       }
       if (q.gate === F.gates.gateNi && (F.sallyOut || F.sallyUntil || F.sallyReturning || F.reserveDef._route)) passed = false;
-      if (passed) { if (!q.gate.occupied) q.gate.close(); q.active = false; }
+      // 攻め手が通行中なら、閉め直す待ちを残す。ここで待ちを消すと、
+      // 二の丸・本丸の門が壊れていなくても開いたままになる。
+      if (passed && !q.gate.occupied && q.gate.close()) q.active = false;
     }
   } };
 }
