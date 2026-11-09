@@ -92,7 +92,10 @@ function requirePresence(s) {
         }
       }
     }
-    const finished = tick(rt, C, m, ctx, el, dt);
+    // 本人に寄せが届く前は、刻だけで敵の士気を削らない。
+    // 波は全て出すが、接敵を待たずに残兵が崩れると達成条件を満たせなくなる。
+    const holdEl = s.kind === 'hold' && !C.k01Engaged ? Math.min(el, s.max - 35 - 0.001) : el;
+    const finished = tick(rt, C, m, ctx, holdEl, dt);
     if (p.alive && d < (C.botRadius || 14)) C.present = true;
     // 共通の在陣時間は持ち場の三十歩外でも増える。一瞬だけ着いて
     // 離れた後、味方だけが敵を倒しても守り抜いた扱いにはしない。
@@ -580,7 +583,7 @@ const k01_fushimi = {
     // 本丸の段と孫一の段の寄せ手は元忠を目当てに本丸へ寄せる（「鳥居殿はいずこ」）。共通の頭に任せると、近くの味方の組を追って三の丸の方へ百歩も下った
     if (D && D.on && D.cur && D.i >= 8 && F.toriiU) for (const g of D.cur.groups) if (!g._k01) { g._k01 = true; g.focus = F.toriiU; }
     // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた（二の丸の西で二百秒）。残りは崩れて退く
-    if (D && D.on && D.cur && D.cur.s.kind === 'hold' && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
+    if (D && D.on && D.cur && D.cur.s.kind === 'hold' && D.cur.k01Engaged && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
     if (D && D.i >= 1) this.camps(rt, D.i >= 5 ? 3 : D.i >= 3 ? 2 : 1);
     for (const g of [F.ukitaCamp, F.kobaCamp, F.shimaCamp, F.ishidaCamp, F.moriCamp, F.natsukaCamp]) if (g && g.count && g.order !== 'hold') { g.order = 'hold'; g.anchor = { ...g._home }; }
     // 守る段の味方は持ち場（虎口・二の丸の西・本丸の口）に踏み止まる。共通の頭は七十歩の内の敵へ持ち場から出て行かせ、

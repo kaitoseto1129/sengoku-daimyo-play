@@ -3,7 +3,7 @@
 //   永禄九年九月。墨俣は長良川と犀川の間の中洲。木下藤吉郎は川並衆（蜂須賀小六ら）に上流で材木を組ませ、筏と舟で流し下らせた（伝承）。
 //   『信長公記』は墨俣の守りを固めたとだけ記す。一夜城は後の物語（本体の終わりの言葉と同じ扱い）。
 //   主人公は岸の舟着きへ行き、舟から材木を受けた人足を砦まで守って戻る。帰り道に斎藤の物見が荷を狙って寄せる。
-//   人足が砦へ戻ったら、本体の「北門から塞ぐか、脇から直すか」の段取りへ。二分半で必ず次へ進む。
+//   主人公が舟着きへ行き、人足が砦へ戻り、物見を退けたら普請の段取りへ進む。
 // ======================================================================
 import { sfx } from '../audio.js';
 
@@ -69,14 +69,14 @@ function done(rt) {
 export function tick(rt) {
   const F = rt.flags, v = F.s15;
   if (v.hakobiDone || rt.over) return;
-  const P = rt.player.u.pos, t = rt.t - v.hakobiT;
+  const P = rt.player.u.pos;
   if (!v.atDock && Math.hypot(P.x - v.dock.x, P.z - v.dock.z) < 8) {
     v.atDock = rt.t; rt.unmark('s15dock');
     sfx('taiko', 0.4);
     rt.say('蜂須賀正勝', 'よう来た。荷を下ろすぞ。少し待て', 2.8);
     rt.after(12, () => back(rt));
   }
-  if (!v.atDock && t > 70) { v.atDock = rt.t; rt.unmark('s15dock'); back(rt); }
   const raidGone = v.raid && !v.raid.units.some(ready);
-  if (v.backT && (raidGone && rt.t - v.backT > 25 || rt.t - v.backT > 70) || t > 150) done(rt);
+  if (v.atDock && v.wkHome && raidGone && rt.t - v.backT > 25 &&
+      Math.abs(P.x) < v.C.FORT && Math.abs(P.z) < v.C.FORT) done(rt);
 }

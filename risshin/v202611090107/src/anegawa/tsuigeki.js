@@ -42,7 +42,7 @@ export function start(rt, ctx) {
       ctx.dress([{ type: 'busho', n: 1, o: { name: '遠藤直経', hat: 'kabuto_r', haori: 0x3a2e22 } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 4 }], ctx.AZAI));
     S.g = g; S.u = g.units.find((u) => u.name === '遠藤直経') || g.units[0];
     // 首を提げて南の本陣へ紛れ込む
-    g.order = 'move'; g.dest = { x: 24, z: 30 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
+    g.order = 'move'; g.dest = { x: ctx.HQ.x, z: ctx.HQ.z - 16 }; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
     rt.marker('aneEndo', () => (S.u?.alive ? { x: S.u.pos.x, z: S.u.pos.z } : null), '遠藤直経', { red: true, group: g });
     rt.say('竹中久作', 'あれは遠藤喜右衛門！　首を提げて味方に紛れ、殿の本陣を狙う気じゃ！', 4);
     rt.after(4.5, () => !S.done && rt.say('森可成', '討て！　本陣へ行かすな！', 2.6));
