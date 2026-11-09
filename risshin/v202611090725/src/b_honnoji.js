@@ -3432,6 +3432,7 @@ const honnoji = {
   },
   // ---- 稲生の水準（10/25）。信長で遊ぶ時は今まで通り ----
   missionSingleLine: true,
+  goalsAllRows: true, // 本能寺の五つの目標と達成印を、共通の札でも最初から並べる。
   hideMissionDots: true,
   // 二条御所が落ちた後は一人で京を落ちる。御所に残って討死した村井貞勝らを組頭として呼び戻さない（kumi_lead.js）
   get kumiLead() { return !(honnoLive?.flags?.step >= 5); },
@@ -3500,7 +3501,7 @@ const honnoji = {
       return this.routeGuidePriority(rt) ? this.travelGuideLabel(rt) : '火から はなれろ';
     }
     // 補足が畳まれても、離れたままで失敗するまでの猶予を主の札に残す。
-    if (F.escortShown) return 'この人の所へ戻る';
+    if (F.escortShown && F.hp <= 7) return F.hp === 7 ? '御殿の上様の所へ戻る' : F.hp >= 4 ? '本堂の上様の所へ戻る' : '表門の上様の所へ戻る';
     // 門番が口の者を押し出して閉められる。敵の近さで閉門の案内を隠さない。
     if (F.hp === 2 && !F.gMain && rt.nearestInteract()?.id === 'gate') return '門を閉める';
     const enemy = rt.guideEnemy?.alive ? rt.guideEnemy : rt.missionGuide?.closeEnemy;
@@ -4414,7 +4415,10 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     at(3, () => { akechi(rt, '裏手から来る明智勢', [...IN.climb, [-58, 37], [-52, 38], [-52, 41.5]], [uS(2), uA(4)], { nb: true }); honnoSay(rt, '森蘭丸', '北の口から！　上様のお背中じゃ！', 3); });
     at(14, () => { akechi(rt, '脇門の明智勢', [...IN.side, [-50, 38], [-52, 41.5]], [uS(2), uA(5)], { gate: F.gSide }); honnoSay(rt, '小姓', '北の脇門を打っておる！', 2.5); });
     at(26, () => akechi(rt, '上様を狙う明智の侍', [...IN.main, [-42, 46], [-46, 46]], [uS(3), uA(3)], { nb: true }));
-    at(38, () => { if (F.nb.hp < F.nb.maxHp) honnoSay(rt, '小姓', '上様が手負いじゃ。奥への道を空けよ！', 3); rt.after(2.6, () => nbSay(rt, '蘭丸、奥の間へ退くぞ', 3.5)); });
+    at(38, () => {
+      if (F.nb.hp < F.nb.maxHp) honnoSay(rt, '小姓', '上様が手負いじゃ。奥への道を空けよ！', 3);
+      at(2.6, () => { if (!rt.over) nbSay(rt, '蘭丸、奥の間へ退くぞ', 3.5); });
+    });
   },
   // P6 別棟へ移る：本堂に火。燃えていない道を選び、信長を御殿へ
   p6(rt) {

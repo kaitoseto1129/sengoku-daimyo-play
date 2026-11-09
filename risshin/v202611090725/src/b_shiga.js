@@ -1123,7 +1123,7 @@ function enemyGunCue(rt) {
   F.enemyGunCueAt = rt.t;
   const sound = shots > 1 ? '敵の鉄砲の斉射' : '敵の鉄砲の一発';
   if (retreat) {
-    // 発砲音は射手の合成音を使う。退き太鼓の後も、道案内を消さずに危険を伝える。
+    // 発砲音は射手の合成音を使う。退きの鉦の後も、道案内を消さずに危険を伝える。
     F.retreatGunText = `${sound}。道沿いの物陰を使え`;
     F.retreatGunUntil = rt.t + 8;
     rt.say('足軽', `${sound}じゃ！　身を低うして坂を上れ、木戸へ退け！`, 3.5);
@@ -3265,7 +3265,7 @@ const shiga = {
         const assaultSignal = () => {
           if (q.order !== 'assault' || rt.over || F.ending || F.aidMoving || gone(q) || q.routed ||
               !gate || !gate.alive || gate.opened || gate._shigaAssaultSignal) return;
-          // 町口の退き太鼓・城内の鉦・前の木戸の太鼓が終わるまで待つ。
+          // 町口の退きの鉦・城内の鉦・前の木戸の太鼓が終わるまで待つ。
           const wait = Math.max(20 - (rt.t - (F.castleAssaultSignalT ?? -99)),
             shigaCommandUntil(F) - rt.t, (F.supportVoiceUntil || 0) - rt.t);
           if (wait > 0) { rt.after(wait, assaultSignal); return; }
@@ -3373,15 +3373,15 @@ const shiga = {
     rt.marker('w2', centerOf(g), () => `浅井の手`, { red: true, group: g });
     // 守将が町口から動いていても、退きの合図は残った味方の位置から出す。
     const rearGuard = [F.mori, F.nobuharu, F.guns].find(q => !gone(q) && !q.routed);
-    shigaSignal(rt, 'nobiki', rearGuard ? rearGuard.center() : TOWN_POST, 0.95);
+    shigaSignal(rt, 'hike', rearGuard ? rearGuard.center() : TOWN_POST, 0.95);
     F.retreatSoundUntil = rt.t + 10;
-    // 法螺・太鼓・鉦の説明、城の受け入れ、しんがりの下知を順に読む時間。
+    // 退きの鉦、城の受け入れ、しんがりの下知を順に読む時間。
     // 守将の攻防は進めたまま、途中の「押されとる」だけで説明を遮らせない。
     F.retreatVoiceUntil = rt.t + 12;
     rt.say(rescue && F.moriU.alive ? '森可成' : '武藤五郎右衛門', '退きの鉦じゃ！　南の坂から宇佐山の城へ退け！', 4);
     battleEvent(rt, EVENT_RETREAT, TOWN, F.mori, 0, true, '町口が崩れた。宇佐山城へ退け');
     rt.objRemove('mouth');
-    // 退き太鼓の意味と退く先を読み終えてから、しんがりの声を続ける。
+    // 退きの鉦の意味と退く先を読み終えてから、しんがりの声を続ける。
     rt.after(8, () => {
       if (rt.over || F.ending || F.step !== 2) return;
       if (rescue && F.moriU.alive && !gone(F.mori) && !F.mori.routed)
@@ -3487,7 +3487,7 @@ const shiga = {
     rt.marker('gate', F.keep.anchor, '大手木戸の内で守る', { noGuide: true, h: 2, hideNear: 5, hideOnArrival: true });
 
     // 城へ入ったら退却から待ち受けへ。退けの乱打とは違う止まれの合図を鳴らし、守将が弓と槍の持ち場を言う。
-    // 入城の下知と先の退き太鼓を読み終えてから鳴らし、奥への退きが始まれば取り下げる。
+    // 入城の下知と先の退きの鉦を読み終えてから鳴らし、奥への退きが始まれば取り下げる。
     const holdSignal = () => {
       if (rt.over || F.ending || !rt.player.u.alive || F.step !== 3 || F.backedNi ||
           gone(F.keep) || F.keep.routed) return;
@@ -3758,12 +3758,12 @@ const shiga = {
     rt.after(endCueDelay, () => {
       if (!endCueActive()) return;
       const retreating = (F.waves || []).find(g => !gone(g));
-      // 敵軍が引き揚げる長い合図。味方が城内で持ち場を退く短い鉦と聞き分ける。
-      shigaSignal(rt, 'nobiki', retreating ? retreating.center() : F.campA.pos, 0.85);
+      // 敵軍が引き揚げる合図も、下知と同じ退きの鉦にそろえる。
+      shigaSignal(rt, 'hike', retreating ? retreating.center() : F.campA.pos, 0.85);
       rt.obj('inner', '敵の退きの鉦。城内を保ち、敵を追うな', 'order', true);
       rt.say('武藤五郎右衛門', '敵の退きの鉦じゃ！　追わず、城内を保て！', 4);
     });
-    // 退き太鼓と最後の鉦の余韻まで約十秒。鳴り終えてから味方の集合を伝える。
+    // 退きの鉦の知らせを読む間を置き、味方の集合を伝える。
     rt.after(endCueDelay + 10, () => {
       if (!endCueActive()) return;
       shigaSignal(rt, 'atsumare', F.keep.center(), 0.8);
@@ -4054,8 +4054,8 @@ const shiga = {
           rt.say('武藤五郎右衛門', inSan ? '追手が迫るぞ！　木戸の内で退く味方を守れ！' : '追手が迫るぞ！　坂道をたどり、木戸の内へ急げ！', 3);
         }
       }
-      // 道案内を更新しても、法螺・退き太鼓・鉦の最後の響きまで札に残す。
-      rt.objProgress('main', rt.t < F.retreatSoundUntil ? `退きの法螺・太鼓・鉦。${retreatText}` :
+      // 道案内を更新しても、退きの鉦と坂道の行き先を札に残す。
+      rt.objProgress('main', rt.t < F.retreatSoundUntil ? `退きの鉦。${retreatText}` :
         rt.t < (F.retreatGunUntil || 0) ? `${F.retreatGunText}。${retreatText}` : retreatText);
       if (inSan && moriReady && F.nobuDead && F.aochiDead) {
         F.moriSaved = F.moriRescue;
@@ -4175,7 +4175,7 @@ const shiga = {
     u._shigaDoomPending = true;
     // 時間切れで、敵のいない場所の将を倒さない。
     const c = { x: u.pos.x, z: u.pos.z };
-    // 退き太鼓は町口を退く下知で一度だけ。討死の報に開戦の法螺を重ねない。
+    // 退きの鉦は町口を退く下知で一度だけ。討死の報に開戦の法螺を重ねない。
     shigaSupportVoice(rt, '足軽', `${o.name}の手が押されとる！　城へ退こまい！`, 3,
       () => F.step < 3 && u.alive && !F[o.key + 'Dead'] && sightPoint(rt, u.pos, 80));
     
@@ -4201,7 +4201,7 @@ const shiga = {
     }
     if (o.g) { o.g.order = 'hold'; o.g.aggro = 18; o.g.noRout = true; o.g.fixed = true; }
     rt.after(o.dur - 4, () => {
-      // 最期の掛け声で退き太鼓の説明を消さない。討死そのものの知らせは別に必ず出す。
+      // 最期の掛け声で退きの鉦の説明を消さない。討死そのものの知らせは別に必ず出す。
       if (!rt.over && !F.ending && F.step < 3 && rt.t >= shigaCommandUntil(F) &&
           u.alive && sightPoint(rt, u.pos, 40)) rt.say(o.name, o.last, 3);
     });
@@ -4251,7 +4251,7 @@ const shiga = {
     F.backedNi = true;
     rt.unmark('gate');
     rt.marker('ni', { x: GATE_NI.x, z: GATE_NI.z + 3.5 }, '二の丸の木戸の内へ', { noGuide: true, h: 3 });
-    // 城内の退きは短い鉦の乱打。町口の長い退き太鼓と区別する。
+    // 城内の退きは短い鉦の乱打。町口の長い退きの鉦と区別する。
     shigaSignal(rt, 'hike', F.keep.center(), 0.85);
     F.castleRetreatSignalT = rt.t;
     F.castleRetreatVoiceUntil = rt.t + 8;
