@@ -1594,6 +1594,8 @@ function pursuersTick(rt) {
       const rest = spawnEnemy(rt, { fixed: true, noGuard: true, noRout: g.noRout, faction: g.faction, name: g.name, anchor: { ...q.at },
         formation, facing: g.facing, speed: g.speed, width: g.width, aggro: g.aggro,
         seekRange: g.seekRange, morale: g.morale, dmgMult: g.dmgMult, defMult: g.defMult, fleeDir: g.fleeDir, order: 'attack' }, []);
+      // 人数制限で分かれても、目標に書いた元の追手とのつながりを残す。
+      rest.kgWaveRoot = g.kgWaveRoot || g;
       rest.kgPending = true; q.g = rest;
       for (const key of ['w1', 'w2', 'w3']) if (F[key]?.includes(g)) F[key].push(rest);
       if (F.dp?.cur?.groups?.includes(g)) F.dp.cur.groups.push(rest);
@@ -2341,11 +2343,12 @@ function kgContactTick(rt, dt) {
       n++;
       // 前の備の残兵だけで、まだ着いていない目標の追手を受けたことにしない。
       // 川の砦では、騎馬の追手の馬上の兵が橋を渡って届くことも要る。
-      if (wave?.includes(u.group) && (line !== 1 || u.group === F.w2?.[0] && u.mounted)) targetContact = true;
+      if (wave?.includes(u.group) && (line !== 1 || (u.group.kgWaveRoot || u.group) === F.w2?.[0] && u.mounted)) targetContact = true;
     }
     F.engaged = n;
     const ca = F.contactAt || (F.contactAt = [null, null, null]);
-    if (n >= 3 && targetContact && !F.fleeing && ca[line] == null && (F.step % 2 === 1 || F.dpOn)) ca[line] = rt.t;
+    // 途中で追手を減らしても、目標の兵が届けば接触。三人未満を未接触に戻さない。
+    if (targetContact && !F.fleeing && ca[line] == null && (F.step % 2 === 1 || F.dpOn)) ca[line] = rt.t;
     // 追手の寄せ（道に沿って次の備へ追う）は pursuersTick・kgChase に任せる。ここでは当たりと数の減りだけを見る。
   }
   // 斬り合いの間は、見えない所でも両軍が討たれていく（殿の戦は大きな損を出した。追手はもっと減る）
@@ -2522,7 +2525,7 @@ const kanegasaki = {
   lethal: { soft: true, max: 2, firstAt: 320, gap: 180 },   // 長い殿戦で、少数の守り手を突然の討死と孤立の寄せで先に尽くさない。
   taisho: { a: null, b: null }, // 三将の退却はこの定義が扱う。共通の本陣増設・襲撃・即勝ちを使わない。
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が木ノ芽峠と朝倉、南（+z）が若狭へ退く道。
-  //   織田は殿の三将（本物の隊に結ぶ）の後ろに徳川、さらに南へ信長の本隊と荷駄が退いていく。朝倉は景健の追手の後ろに二の手・義景の旗本。
+  //   織田は殿の三将（本物の隊に結ぶ）の後ろに徳川、さらに南へ信長の本隊と荷駄が退いていく。朝倉は追手の後ろに二の手・義景の旗本。
   //   人数は諸説の中ほどの目安。置き場は遊びのための復元。
   depth: {
     A: { name: '織田', facing: Math.PI, honjin: { x: -50, z: 170 }, mpu: 4, formation: '長蛇', terrain: 'valley', flag: 'oda', armor: 0x24221f, uma: 'kasa', openAt: 200, attrition: 0.003,
@@ -2536,7 +2539,7 @@ const kanegasaki = {
       ] },
     B: { name: '朝倉', facing: 0, honjin: { x: -8, z: -160 }, mpu: 4, formation: '魚鱗', terrain: 'mountain', flag: 'asakura', armor: 0x33291f, openAt: 200, attrition: 0.003,
       sonae: [
-        { id: 'kagetake', layer: 'sakite', wing: 'center', men: 6000, taisho: '朝倉景健', at: { x: 2, z: -112 } },
+        { id: 'kagetake', layer: 'sakite', wing: 'center', men: 6000, taisho: '名は伝わらない', at: { x: 2, z: -112 } },
         { id: 'ni_l', layer: 'ni', wing: 'left', men: 4000, taisho: '', at: { x: -46, z: -126 } },
         { id: 'ni_r', layer: 'ni', wing: 'right', men: 4000, taisho: '', at: { x: 52, z: -118 } },
         { id: 'yoshikage', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '朝倉義景', hold: true, bind: (rt) => rt.flags.yoshikage },

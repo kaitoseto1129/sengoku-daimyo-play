@@ -532,7 +532,8 @@ const k05_ueda = {
     // 場所へ出向いて戦った段だけを達成する。台詞や待機の時間を戦果にしない。
     if (F.step === 1 && dist(P.pos, KARI) < 18) F.kariJoined = true;
     if ((F.step === 3 || F.step === 4) && dist(P.pos, FRONT) < 35) F.frontJoined = F.step;
-    if (F.step === 5 && dist(P.pos, FRONT) < 32) F.reAt += dt;
+    // 11/9 三巡（織田C）：門の北の町屋の陰（21,0）で止まった遊び手は門の前の輪の三十五歩外で、寄せた時が数えられず十三分止まった。門の三十四歩の内も数える。
+    if (F.step === 5 && (dist(P.pos, FRONT) < 32 || dist(P.pos, GATE) < 34)) F.reAt += dt;
     if (F.step === 6 && F.oiHot && dist(P.pos, FORD_W) < 30) {
       // 一度接敵した後は岸を守った時間を数える。追手が間合いを離れるたびに止めると、岸に居続けても殿を果たせない。
       if (F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiEngaged = true;
@@ -716,6 +717,12 @@ const k05_ueda = {
       else if (x > 76 && z > -63.6 && z <= -55) t = { x: 71, z: -59.5 };
       else if (x > 78 && z <= -64.4) t = { x: 74, z: -66.5 };
       else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 2) t = LANE_A;   // 11/9 見回り 徳川D：入口の五歩横（64,-63）で、五歩ちょうどの所で目当てが行き先と入口を行き来して十五分止まった   // 家並みの外（脇）へ出た時も入口へ戻る（11/9 流し：小路の東の家の裏で九分止まった）   // 入口の三歩手前で何かに当たって九分止まった（11/9 流し）。五歩に入れば小路の中へ
+    }
+    // 11/9 三巡（織田C）：小路の中ほど（57,-47 の十二歩の内）で「抜けた」扱いになると、出口の手前から門の前へ直進して町屋の壁に当たり、十五分止まった（57,-58）。小路の出口までは筋に沿って歩く。
+    if (F.step === 2 && F.throughTown) {
+      const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
+      const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = (x - LANE_A.x) * uz - (z - LANE_A.z) * ux;
+      if (s < dist(LANE_A, LANE_B) - 2) t = Math.abs(side) > 3 ? { x: LANE_A.x + ux * (Math.max(0, s) + 4), z: LANE_A.z + uz * (Math.max(0, s) + 4) } : LANE_B;
     }
     // 何かに当たって四秒動けない時は、行き先と直角に三秒よける（稲架・町屋の角・味方の列。11/9 流しで段2に九分止まった）
     const B = F._bs || (F._bs = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, sgn: 1 });

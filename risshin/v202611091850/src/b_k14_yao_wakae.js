@@ -400,11 +400,12 @@ const k14_yao_wakae = {
     const F = rt.flags;
     if (F.ending || !g) return;
     const u = g.units.find((q) => q.name === name && q.alive);
-    if (u) { u.invuln = false; rt.army.kill(u); }
+    if (!u) return;
+    u.invuln = false; rt.army.kill(u);
     if (line) rt.say('使番', line, 3.2);
-    if (F.step < 5) { g.order = 'retreat'; g.dest = { x: YAO_FRONT.x + 50, z: g.anchor.z }; }
+    if (!g.routed) { g.order = 'retreat'; g.dest = { x: YAO_FRONT.x + 50, z: g.anchor.z }; }
     // 長宗我部の先手は堤の前へ戻って構え直す（横の備と先手を、主人公が来てから崩す）
-    if (F.step < 5) { F.choA.order = 'move'; F.choA.dest = { ...CHO_A }; F.choA.speed = 3; }
+    if (live(F.choA) && !F.choA.routed) { F.choA.order = 'move'; F.choA.dest = { ...CHO_A }; F.choA.speed = 3; }
   },
 
   // 若江：木村重成の最期（討てなければ安藤重勝が首を取る）

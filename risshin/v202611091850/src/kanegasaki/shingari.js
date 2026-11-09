@@ -22,8 +22,8 @@ export function start(rt, ctx, done) {
       obj: '川の砦で朝倉の本手を食い止めよ。主力を逃がせ',
       waves: [
         { t: 3, say: ['足軽', '川向こうに朝倉の旗が並んだ！　渡って来るぞ！'],
-          foes: () => [{ name: '朝倉景健の追手', from: from(0, -30), formation: 'yari', list: [{ type: 'busho', n: 1, o: { name: '朝倉景健', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], mass: 200 }] },
-        { t: 12, say: ['朝倉景健', '織田の殿を踏み潰せ！　信長を逃がすな！'], foes: () => [] },
+          foes: () => [{ name: '朝倉の本手の追手', from: from(0, -30), formation: 'yari', list: [{ type: 'busho', n: 1, o: { name: '朝倉の侍大将', invuln: true, horse: true, hat: 'kabuto_m' } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 2 }], mass: 200 }] },
+        { t: 12, say: ['朝倉の侍大将', '織田の殿を踏み潰せ！　信長を逃がすな！'], foes: () => [] },
         { t: 35, say: ['池田勝正', '騎馬が浅瀬を回るぞ！　横を固めよ！'],
           foes: () => [{ name: '朝倉の騎馬', from: from(-24, -18), list: [{ type: 'cavalry', n: 4 }, { type: 'samurai', n: 1 }], mass: 80 }] },
         { t: 65, say: ['使番', '上様の本隊、若狭への道に入られました！　あと少し！'],
@@ -45,7 +45,7 @@ export function start(rt, ctx, done) {
       Math.hypot(u.pos.x - LINE1.x, u.pos.z - LINE1.z) < 26));
     tick(rt2, C, m, context, el, dt);
     if (!C.contacted) C.inT = 0;
-    // 景健は討死しない将。全員を倒す共通の終了条件では景健が残り、
+    // 追手の大将は倒せない設定。全員を倒す共通の終了条件では大将が残り、
     // 七分の期限まで止まる。殿は三度の寄せを受けて定めの間を守れば退く。
     return C.contacted && el >= 95 && !C.waves.length && C.inT >= 95 * 0.6;
   };
