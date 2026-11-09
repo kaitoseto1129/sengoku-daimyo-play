@@ -2868,10 +2868,11 @@ const shiga = {
     // 両家の北の本陣の位置は復元。公記のこの条は朝倉方の将を特定しないため、義景本人と断定しない。
     // 根拠：『信長公記』巻三「志賀御陣之事」。
     // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
-    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉の本陣の将', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 20, reserve: 0, runTo: { x: 26, z: -80 } });
+    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉の本陣の将', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 15, guardTroops: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], reserve: 0, runTo: { x: 26, z: -80 } });
     // 「浅井備前」は長政を指すが、この復元位置の陣を本人の持ち場とは特定できない。
     // 朝倉側と同じく、目に見える本陣の将は名を断定しない。
-    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井の本陣の将', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 20, reserve: 0, runTo: { x: 0, z: -80 } });
+    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井の本陣の将', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 15, guardTroops: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], reserve: 0, runTo: { x: 0, z: -80 } });
+    // 11/9 重さ：遠い両本陣の旗本は 20→10（始まりの本物の兵の山を 250 の内へ。大軍の厚みは DA の遠景が受け持つ）。
     // 本陣の控えは移した陣幕の後ろへ。同じ人数で、二十四日に本隊と一緒に比叡山へ退かせる。
     // 共通の camp 内に任せると参照が残らず、後詰の後も坂本に五百六十人が居座る。
     for (let i = 0; i < CAMP_HOSTS.length; i++) {

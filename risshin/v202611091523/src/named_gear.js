@@ -316,6 +316,7 @@ for (const [name, flag, uma] of [
   ['伊達政宗', 'date_hinomaru', 'date_torige'], // 日の丸大龍と黒鳥毛二段笠。出所は docs/generals_look_1108/伊達政宗.md。
   ['徳川家康', 'onri', 'fan'],        // 厭離穢土欣求浄土の旗と金扇の馬印
   ['織田信長', 'eiraku', ''],         // 永楽通宝の旗
+  ['織田信勝', 'aka_oda', ''],       // 稲生の所属表示の復元。朱地の木瓜は本人の実旗と断定しない。
   ['織田信広', 'oda', ''],           // 長島では織田方の所属のみ。個人の旗印・馬印は未詳
   ['織田信次', 'oda', ''],           // 津田孫十郎。所属旗を共用し、個人の馬印は補わない
   ['織田信雄', 'oda', ''],           // 長島では織田方の所属のみ。個人の旗印・馬印は未詳
@@ -448,5 +449,9 @@ NAMED_GEAR['佐久間信盛'].campFlag = '佐久間の段染め';
 // https://www.city.nihonmatsu.lg.jp/data/doc/1527481349_doc_18_0.pdf
 // 手取川での使用・形・短冊の数は未確認。陣所に据える復元案とし、戦う兵を馬印持ちへ替えない。
 NAMED_GEAR['丹羽長秀'].campUma = 'bamboo_tanzaku';
+// 信勝の個人馬印は未確認。兄の唐傘や勝家の金幣を流用しない。出所と補完は本人の調査記録。
+NAMED_GEAR['織田信勝'].uma = null;
+NAMED_GEAR['織田信勝'].campUma = null;
+NAMED_GEAR['織田信行'] = NAMED_GEAR['織田信勝'];
 // 武将の名簿（bushou_roster.js）にいて、上の表に無い人：名簿の得物か、大将は刀・ほかは素槍・大身槍・十文字槍から名で決める（家の役目の補い）
 for (const name of Object.keys(ROSTER)) if (!NAMED_GEAR[name]) { const g = rosterGear(name); NAMED_GEAR[name] = { weapon: g.weapon, spear: g.spear || undefined, style: g.style }; }

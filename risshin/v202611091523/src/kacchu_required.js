@@ -46,7 +46,14 @@ export const REQUIRED_KACCHU = [
   // 稲生・桶狭間
   ['織田信長', null, null, null, null, null, null, null, 'eiraku', null, '旗印は永楽通宝（通説）。具足は建勲神社の紺糸威胴丸と銀の南蛮胴の作り（前の表）'],
   ['佐久間大学', 'suji', 'kuwa', D.shutame, C.asagi, 'kebiki', 0, 'sakuma', mon('sakuma', W, K, '#67a6ad'), null, '盛重。丸根砦で討死。所用品は伝わらない。佐久間の白・黒・浅葱に寄せた復元案'],
-  ['織田信勝', 'suji', 'kuwa_wide', D.kuro, C.moegi, 'kebiki', 0x3a2a3e, 'oda', 'aka_oda', null, '信行。稲生の信勝方。所用品は伝わらない。信長と同じ木瓜に萌黄の威の復元案。旗は稲生の信勝方の朱の木瓜'],
+  // 本人所用品は未確認。建勲神社伝来の伝信長所用胴丸から同家・同時代の型を借りる。
+  ['織田信勝', 'suji', 'kuwa_wide', D.kuro, C.kon, 'kebiki', 0, 'oda', 'aka_oda',
+    { lac: 'kuro', fuki: 'kuro', sujiPlates: 40, bowlHeight: 0.108,
+      shinodare: false, fukigaeshiBadge: false, shikoroStyle: 'compact', shikoroLace: C.kon,
+      doOpening: 'right', honkozane: true, plateDo: null, sodeStyle: 'osode',
+      kusazuriCount: 12, kusazuriLength: 0.288, kusazuriBands: Array(5).fill(C.kon),
+      menpo: 0, noHaori: true, fur: 0, horo: 0, kumage: false, uma: null },
+    '信行。稲生の末森側本陣。伝信長所用の黒漆本小札・紺糸毛引威胴丸による復元案。四十間筋兜・小形の錣・右脇引合・大袖・十二間草摺。鍬形は既存の汎用形で補い、脇立・面頬・陣羽織・馬印は補わない。木瓜と朱地の旗は所属表示の復元。出所は docs/generals_look_1108/織田信勝.md'],
   ['柴田勝家', null, null, null, null, null, null, null, mon('kari'), null, '二つ雁金の旗。立物の伝来は未確認なので付けない。馬印の金の御幣は得物の表'],
   ['林秀貞', 'suji', 'kuwa_ken', D.chaurushi, C.hanada, 'kebiki', 0x2e3a42, 'oda', txt('林'), null, '通勝。所用品は伝わらない。復元案'],
   ['林美作守', 'momonari', 'kuwa_wide', D.tame, C.kaki, 'sugake', 0, 'none', txt('林', '#8e2a1e', W), null, '通具。稲生で討死。兄の秀貞と鉢・威・旗の地を変えた復元案'],

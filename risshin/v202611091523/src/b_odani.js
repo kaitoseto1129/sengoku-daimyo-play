@@ -3088,8 +3088,8 @@ const odani = {
       // 登り口では札と同じく、目の前の番兵・備え・合流の順で案内する。
       // 谷の交戦の覚えが残っていても、合流中に敵を追わせない。
       if (F.trailGuard) return '味方と番兵を退けよ';
-      if (F.climbDefending) return 'ここで番兵を迎えよ';
-      if (F.climbWaiting) return 'ここで先手を待て';
+      if (F.climbDefending) return '清水谷の登り口で番兵を迎えよ';
+      if (F.climbWaiting) return '清水谷の登り口で先手と合流せよ';
       if (F.valleyFighting) return '味方と番兵を退けよ';
     }
     if (F.step === 2) return assaultTrailLabel(rt);
@@ -3101,17 +3101,17 @@ const odani = {
   },
   // 谷の途中の印を、登り口そのものまでの残り距離と取り違えない。
   distanceText: (rt, distance) => {
-    if (rt.flags.retreatOn) return distance <= 2.5 ? retreatCareText(rt) : `退き口まで${Math.round(distance)}メートル`;
+    if (rt.flags.retreatOn) return distance <= 2.5 ? retreatCareText(rt) : `退き口 ${Math.round(distance)}m`;
     if (rt.flags.fallen) return '本丸の前で勝ち鬨を上げよ';
     if (rt.flags.komaDown && !rt.flags.honAttack) return '尾根を南へ、本丸へ進め';
-    if (rt.flags.step === 0) return `秀吉まで${Math.max(1, Math.round(distance))}メートル`;
+    if (rt.flags.step === 0) return `羽柴秀吉 ${Math.max(1, Math.round(distance))}m`;
     if (rt.flags.guideBlocked) return '来た道へ戻る足場を探せ';
-    if (rt.flags.guideReturning) return `来た道の角まで${Math.max(1, Math.round(distance))}メートル`;
+    if (rt.flags.guideReturning) return `清水谷の道 ${Math.max(1, Math.round(distance))}m`;
     if (rt.flags.step === 1) {
       if (rt.flags.trailGuard) return '登り口の番兵を味方と退けよ';
-      if (rt.flags.climbWaiting) return `ここで合流。あと${Math.max(0, Math.ceil(8 - (rt.flags.belowWait || 0)))}秒で攻める`;
+      if (rt.flags.climbWaiting) return `清水谷の登り口で合流。あと${Math.max(0, Math.ceil(8 - (rt.flags.belowWait || 0)))}秒で攻める`;
       if (rt.flags.climbDefending && !rt.flags.trailGuard)
-        return rt.flags.climbReleasedGuards > 0 ? '番兵が接近中。ここで味方と迎えよ'
+        return rt.flags.climbReleasedGuards > 0 ? '番兵が接近中。清水谷の登り口で味方と迎えよ'
           : '京極丸の下へ攻め上れ';
       if (rt.flags.valleyFighting) return '味方と番兵を退けよ';
     }
@@ -3133,8 +3133,8 @@ const odani = {
       return '小丸の広場を押さえよ';
     const metres = Math.max(0, Math.round(distance));
     return rt.missionGuide?.marker?.id === 'trail' && !rt.guideEnemyShown && !rt.guideEnemyDirection
-      ? metres < 2 ? '足元の道を進め' : `次の角まで${metres}歩`
-      : `${metres}歩`;
+      ? `清水谷の道 ${metres}m`
+      : `${metres}m`;
   },
   // 止血して戦いを離れたら、残る傷だけで空き地への退避を繰り返さない。
   // 接近戦・出血・息切れ・矢の落下範囲の警告は共通の仕組みに渡す。
@@ -5515,7 +5515,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
             : F.guideBlocked ? '屋敷や切岸を避け、来た道の角へ戻れ'
             : releasedGuards > 0 ? F.trailGuard
               ? `登り口の見張りあと${releasedGuards}人。先手と退けよ`
-              : `番兵あと${releasedGuards}人が接近中。ここで味方と迎えよ`
+              : `番兵あと${releasedGuards}人が接近中。清水谷の登り口で味方と迎えよ`
             : guards > 0 || F.patrolWave < AMBUSH_IDS.length
               ? guards > 0 ? '登り口に番兵が残る。味方と構えて迎えよ'
                 : F.patrolWave > 0 && !gone(F[AMBUSH_IDS[F.patrolWave - 1]])
@@ -5713,7 +5713,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           if (atGate && !F.retreatOn) rt.say('先手組頭', 'ここが西木戸じゃ！　木戸を打ち破れ！', 3);
         }
       }
-      if (updateHud) rt.objProgress('main', retShown(rt) ? '来た道の角へ戻れ。そこから木戸へ進め' : !F.onoDone && F.onoInGarden ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '南木戸へ戻り、道へ出た小隊を味方と退けよ' : '庭の敵を味方と退けよ。塀の外へ追うな' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : !F.onoDone ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '道へ出た敵の小隊を味方と退けよ' : '清水谷の道を通り、屋敷の南木戸へ' : !breached ? F.westCanStrike ? `西木戸を向き、${westAttackControl(rt)}で打て` : '屋敷の南木戸から出て、坂道を進み、西木戸を向け' : left ? `曲輪の守りはあと${left}人。印の先の敵を味方と退けよ` : '京極丸の広場を押さえよ');
+      if (updateHud) rt.objProgress('main', retShown(rt) ? '来た道の角へ戻れ。そこから木戸へ進め' : !F.onoDone && F.onoInGarden ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '南木戸へ戻り、道へ出た小隊を味方と退けよ' : '庭の敵を味方と退けよ。塀の外へ追うな' : F.guideBlocked ? '塀や切岸を避け、来た道の角へ戻れ' : !F.onoDone ? gone(F.ono) && F.reliefOn && !gone(F.relief) ? '道へ出た敵の小隊を味方と退けよ' : '清水谷の道を通り、屋敷の南木戸へ' : !breached ? F.westCanStrike ? `西木戸を向き、${westAttackControl(rt)}で打て` : '大野木屋敷の南木戸から出て、清水谷の道を登り、西木戸を向け' : left ? `曲輪の守りはあと${left}人。印の先の敵を味方と退けよ` : '京極丸の広場を押さえよ');
       // 打撃が木戸へ届いているかを同じ札で示す。守りの強さは変えない。
       if (updateHud && F.westCanStrike && !breached) {
         const remaining = Math.max(1, Math.ceil(gate.hp / gate.maxHp * 10));
