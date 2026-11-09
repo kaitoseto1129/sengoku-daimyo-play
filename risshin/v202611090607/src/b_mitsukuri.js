@@ -4552,7 +4552,8 @@ const mitsukuri = {
     }
     if (F.sallyBack) return;
     const alive = F.sally.units.filter((u) => u.alive).length;
-    if (alive > F.sallyN * 0.5 && rt.t - F.sallyT < 45) return;
+    // 待つだけで迎撃を果たさない。実際に半ばを失うまで城兵は押し寄せる。
+    if (alive > F.sallyN * 0.5) return;
     // 半ばを討たれて退く。木戸は閉め切れず、退く兵に続いて二の丸へなだれ込める。
     F.sallyBack = true;
     const g = F.sally;
