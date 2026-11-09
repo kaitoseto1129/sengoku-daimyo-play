@@ -25,7 +25,8 @@ import { goalsTick } from './hud_goals.js';
 import { revealName } from './battle_intel.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 11）：段の中身は t08_nejirozaka/ に一段一ファイル
 import * as jinchi from './t08_nejirozaka/jinchi.js';       // 始まり：夕暮れの砦の見回り・北の高城の囲みの遠景
-import * as shuryoku from './t08_nejirozaka/shuryoku.js';   // 後半：右の堀（家久）→ 土橋へ戻る（義珍）→ 援け
+import * as shuryoku from './t08_nejirozaka/shuryoku.js';
+import * as honjin from './t08_nejirozaka/honjin.js';       // 二巡：秀長と尾藤知宣・島津義久と家久の本陣   // 後半：右の堀（家久）→ 土橋へ戻る（義珍）→ 援け
 
 const WALL_Z = 0;                 // 板塀の線
 const WALL_X = 46;                // 塀の東西の端
@@ -274,6 +275,7 @@ function breakWall(rt) {
 function todoArrive(rt) {
   const F = rt.flags;
   if (F.todo) return;
+  honjin.bito(rt);
   // 藤堂は秀長の家臣で蔦の旗、戸川達安は宇喜多の手で宇喜多の旗（家ごとに隊を分ける）。説明の札は出さず、台詞と法螺で知らせる（kaito 五1）
   F.todo = allyGroup(rt, { name: '藤堂高虎の手', anchor: { x: -8, z: -50 }, facing: 0, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '藤堂高虎', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(4), uA(8)], TODO));
@@ -282,8 +284,8 @@ function todoArrive(rt) {
     dress([{ type: 'busho', n: 1, o: { name: '戸川達安', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uA(7)], UKITA));
   F.togawa.anchor = { x: BREACH.x + 4, z: BREACH.z - 6 };
   KIT.backOf(rt, F.todo, { flag: 'todo', armor: TODO.armor, kind: 'spear', w: 16, depth: 8, count: 140, seed: 1587 });
-  rt.say('藤堂高虎', '宮部殿、よう持たれた！　藤堂与右衛門、参ったぞ！', 4);
-  rt.after(4.5, () => rt.say('戸川達安', '宇喜多が手の者、戸川達安！　破れ口へ槍を入れよ！', 3.5));
+  rt.after(4, () => rt.say('藤堂高虎', '構わぬ、宮部殿を見捨てられるか。藤堂与右衛門、参ったぞ！', 4));
+  rt.after(8.5, () => rt.say('戸川達安', '宇喜多が手の者、戸川達安！　破れ口へ槍を入れよ！', 3.5));
   sfx('horagai', 0.8);
 }
 
@@ -378,6 +380,7 @@ const t08_nejirozaka = {
     addSite(rt, 'fort', 0, -20, '根白坂の砦');
     F.torches = torchField(rt);
     jinchi.install(rt, { MIYABE, SHIMAZU });
+    honjin.install(rt, { MIYABE, SHIMAZU, dress });
     // ---- 味方：宮部継潤の手と、塀の内の鉄砲 ----
     // 守将の宮部継潤は砦の奥の本陣で床几に座り、旗本に囲まれて下知する（塀へは出ない。kaito AR3・AV7）
     F.miyaHon = allyGroup(rt, { name: '宮部継潤の本陣', anchor: { x: -4, z: -48 }, facing: 0, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', fullStrength: true },
