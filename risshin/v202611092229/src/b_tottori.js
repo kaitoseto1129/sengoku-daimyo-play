@@ -2921,8 +2921,8 @@ const tottori = {
     rt.after(10, () => { if (F.step === 3 && !F.ending && !rt.over)
       rt.say('使いの侍', '殿は式部少輔殿の願いを容れられた。城を受け取りに参る。わしのそばを離れるな', 5); });
     rt.obj('main', '使いの後ろを歩き、木戸へ', 'main', true);
-    rt.objProgress('main', F.hungerDone ? '開城の朝。城を受け取りに向かう' : 'ひと月の後の朝。開城の返事を届ける');
-    battleEvent(rt, EVENT_MESSENGER, GATE, null, 0, true, '秀吉方の使いが城へ返答に向かう');
+    rt.objProgress('main', F.hungerDone ? '開城の朝。城を受け取りに向かう' : 'ひと月の後の朝。城を受け取りに向かう');
+    battleEvent(rt, EVENT_MESSENGER, GATE, null, 0, true, '秀吉方の使いが城を受け取りに向かう');
     const g = F.env;
     if (g.units[0] && F.envName) g.units[0].name = F.envName;
     // 使いは斬り合いの対象外だが、護送の到着では本人と人足の歩みを待つ。
