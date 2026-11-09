@@ -490,7 +490,9 @@ const k07_sawayama = {
     if (F.tsugu) return;
     // 本丸の段では南の小川の手を太鼓丸の下へ退かせる（正継の旗本が本丸を出て太鼓丸の小川勢へ打ちかかり、本丸の外の南の尾根で斬り合っていた・11/7）
     if (F.south && F.south.count) { F.south.order = 'hold'; F.south.anchor = { x: 70, z: 56 }; F.south.seekRange = 8; F.south.aggro = 3; }
-    F.tsugu = enemyGroup(rt, { fixed: true, faction: 'ishida', name: '石田一族', anchor: { x: HON.x - 2, z: HON.z + 1 }, facing: -Math.PI / 2, order: 'hold', aggro: 0, seekRange: 1, width: 5, morale: 100, noRout: true },
+    // 天守の土台は中心（-14, 0）から東へ約六歩まである。土台の中に座らせず、東の広場で三人の姿と名を見せる。
+    // 守りの旗本は段の隊で出す。三人の座に護衛を自動追加せず、本丸の外への出現位置の補正も掛けない。
+    F.tsugu = enemyGroup(rt, { fixed: true, noGuard: true, noRetinue: true, faction: 'ishida', name: '石田一族', anchor: { x: HON_YARD.x, z: HON.z + 6 }, facing: -Math.PI / 2, order: 'hold', aggro: 0, seekRange: 1, width: 5, morale: 100, noRout: true },
       dress(['石田正継', '石田正澄', '石田朝成'].map((name) => ({ type: 'busho', n: 1, o: { name, hat: 'kabuto_m', invuln: true, horse: false } })), ISHIDA));
     for (const u of F.tsugu.units) { u._crouch = true; u.noTarget = true; }
   },
