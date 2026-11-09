@@ -718,6 +718,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     let t = this.missionPin(b) || LINE;
     // 安松の家並みの間に入ったら、まず西の街道へ出てから行き先へ（家の壁に押し付けて詰まった。11/7 遊んで）
     if (u.pos.x > 5 && YASUMATSU.some(([x, z]) => Math.hypot(x - u.pos.x, z - u.pos.z) < 9) && Math.abs(t.x - u.pos.x) + Math.abs(t.z - u.pos.z) > 12) t = { x: 1, z: u.pos.z > -77 ? -60 : -92 };
+    // ②：樫井の村を南へ抜ける時は、家並みの間でなく熊野街道（村の辻の筋）を通る（11/9：critic60 が②の段飛ばしを外した後、bot が村の家に詰まって八百秒止まった）
+    if (F.step === 2 && u.pos.z < LINE.z - 6 && u.pos.z > VILLAGE.z - 24 && Math.abs(u.pos.x - VILLAGE.x) > 3) t = { x: VILLAGE.x, z: Math.min(u.pos.z + 6, LINE.z) };
     goTo(p, inp, t.x, t.z, 2);
   },
 };

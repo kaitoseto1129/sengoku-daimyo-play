@@ -82,8 +82,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["蜂須賀正勝", "zunari", "none", 0x2a1c18, 0x7a2a1c, "sugake", 0x7a1a12, 0x2a1c18, "hachisuka", ""],
   ["黒田官兵衛", "zunari", "none", 0x151312, 0x454347, "hotoke", 0x1a1a1a, 0x151312, "kuroda", ""],
   // 長島の稲葉伊予守。当日の所用具足・立物は未詳。桔梗の立物を固有の姿にしない。
-  // 頭形兜・毛引威・陣羽織の色は復元。折敷に三文字は所属の紋として用いる。
-  ["稲葉一鉄", "zunari", "none", 0x2a2420, 0x5a4a2a, "kebiki", 0xcfc8b4, 0, "inaba", ""],
+  // 清水神社伝来の素懸威最上胴丸を参考にする。頭形鉢と威の色は復元。細部は必須表で指定。
+  ["稲葉一鉄", "zunari", "none", 0x1c1a1a, 0x5a4a2a, "sugake", 0, 0, "none", ""],
   ["細川藤孝", "momonari", "kuwa", 0x24221f, 0x2e3a52, "kebiki", 0x3a3a52, 0x24221f, "oda", ""],
   // 伊賀では当時の通称も登録。日野町の解説では忠三郎賦秀。具足の細部は復元案。
   // https://www.town.shiga-hino.lg.jp/0000003695.html
@@ -669,7 +669,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["明智光春", "namban", "akechi_ears", 0x20201b, 0x5b483c, "hotoke", 0, 0x352822, "akechi", "23582d96"],
   ["蜂須賀小六", "zunari", "cross", 0x2a1c18, 0x7a2a1c, "sugake", 0x7a1a12, 0x2a1c18, "hachisuka", ""],
   // 一鉄と同じ人物。通称によって立物を変えない。
-  ["稲葉良通", "zunari", "none", 0x2a2420, 0x5a4a2a, "kebiki", 0xcfc8b4, 0, "inaba", ""],
+  ["稲葉良通", "zunari", "none", 0x1c1a1a, 0x5a4a2a, "sugake", 0, 0, "none", ""],
   ["竹中半兵衛", "suji", "kuwa_wide", 0x1c1a1a, 0x3a3a3a, "kebiki", 0x7a1a12, 0x1c1a1a, "none", ""],
   ["本多作左", "zunari", "cross", 0x24221f, 0x66513b, "sugake", 0x5a5a5a, 0x24221f, "none", ""],
   // 信長公記巻八の呼称を使う。浅野長政や毛利輝元の装備・家紋を流用しない。
@@ -1055,7 +1055,7 @@ export const TEDORIGAWA_KACCHU = {
   // 同資料に草摺の段数の明記はなく、形・寸法と当日の着用は従来どおり復元案。
   '稲葉良通': { ...KACCHU['稲葉良通'], crest: 'none', haori: 0,
     doStyle: 'sugake', sodeStyle: 'sugake', shikoroStyle: 'sugake', rightOpening: true, kusazuriLaceRows: 5 },
-  // 安藤の当日の所用具足と立物は未確認。大鍬形を断定せず、既存の配色で補う。
+  // 安藤は室町末の黒漆・紺糸威胴丸の型による復元案。本人の立物・個人紋は未確認。
   '安藤守就': { ...KACCHU['安藤守就'], crest: 'none', mon: 'none' },
   // 伊賀伊賀守は安藤守就の別名。別人の角付き兜を割り当てず、同じ復元を使う。
   '伊賀伊賀守': { ...KACCHU['安藤守就'], crest: 'none', mon: 'none' },
@@ -1245,7 +1245,7 @@ export const NAGASHIMA_KACCHU = {
   // 稲葉伊予守の清水神社伝来具足を参考に、毛引威から素懸威・右脇引き合わせへ替える。
   // 岐阜県：https://www.pref.gifu.lg.jp/page/6052.html
   // 長島当日の着用は未詳。袖・錣・草摺の五段の威と配色は既存部品による復元。
-  // 無立物と折敷に三文字の所属紋を保ち、陣羽織・面頬・母衣は補わない。
+  // 無立物と所属旗を保ち、甲冑の個人紋・陣羽織・面頬・母衣は補わない。
   '稲葉一鉄': { ...KACCHU['稲葉一鉄'], doStyle: 'sugake', rightOpening: true,
     sodeStyle: 'sugake', shikoroStyle: 'sugake', kusazuriLaceRows: 5,
     haori: 0, menpo: 0, horo: 0, ref: '' },
