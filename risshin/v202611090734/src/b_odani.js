@@ -5230,11 +5230,23 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     rt.marker('relief', unitPos(g.units[0]), '味方を押す敵の小隊', { red: true, group: g });
   },
 
+  reinforcementMarch(rt, g) {
+    const F = rt.flags;
+    // 新手も既存の谷道と木戸を通る。谷から石垣下へ直進させない。
+    let path = F.onoDone ? ONO_WEST_ENTRY : ROUTE_O;
+    if (F.honAttack) path = [...ONO_WEST_ENTRY, ...F.honPath.slice(3)];
+    else if (F.komaAttack) path = [...ONO_WEST_ENTRY, ...F.komaPath];
+    const u = g.units.find(battleReady);
+    g.path = path;
+    g.pathIdx = u ? nearWay(rt, path, u.pos, u.pos.y) : 0;
+    g.order = 'path'; g.colW = 2; g.roadColumn = true;
+  },
+
   update(rt, dt) {
     const F = rt.flags;
     // 谷の口に忍んで集まる間と、谷道の下の方を登る間は撃たれない（出曲輪の櫓門から七十メートル余り。夜で見えない。11/6）。
     //   屋敷へ攻めかかる下知（法螺と鬨）か、本人の列が出曲輪の五十五メートル内へ来た時から撃ち始める。
-    nagareTick(rt, { from: { x: CLIMB[2][0], z: CLIMB[2][1] }, to: BELOW, look: ODA });   // 刻限で到着や占領を代行せず、進軍の声と、先手が尽きた時の後続の新手（odani/nagare.js）
+    nagareTick(rt, { from: { x: CLIMB[2][0], z: CLIMB[2][1] }, to: BELOW, look: ODA, march: this.reinforcementMarch });   // 刻限で到着や占領を代行せず、進軍の声と、先手が尽きた時の後続の新手（odani/nagare.js）
     if (F.K && !F.ending && (F.step >= 2 || F.step === 1 && Math.hypot(rt.player.u.pos.x - SIEGE.x, rt.player.u.pos.z - SIEGE.z) < 55)) F.K.tick(dt);
     // 始まりの見上げる間だけ霧を遠くへ。終わったら共通の近い霧へ戻す。
     const vista = F.step === 0 && rt.t < VISTA_T;

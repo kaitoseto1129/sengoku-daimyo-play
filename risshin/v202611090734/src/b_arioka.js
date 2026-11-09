@@ -1505,7 +1505,7 @@ function ariGoalBoard(rt) {
 }
 const arioka = {
   missionSingleLine: true,
-  goalsAllRows: false, // 11/9 二巡（豊臣A）：全部並べると 874×402 で画面の四割を覆い、中央の大きな字と重なった（act の流しで 42 回）。今の一件と進み具合の棒（開けば全部）
+  goalsAllRows: true, // 九1・十1：最初から五件を並べ、済んだ目標と現在の目標を示す。
   hideMissionDots: true,
   enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,

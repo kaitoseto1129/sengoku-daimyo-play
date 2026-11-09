@@ -4,7 +4,7 @@ import { dress } from '../b_inabayama.js';
 import { sfx } from '../audio.js';
 
 const CUT_T = 170, KOMA_T = 150, HON_T = 180;
-const RF_MAX = 4, RF_GAP = 55, RF_LOW = 18, CAP = 225;
+const RF_MAX = 4, RF_GAP = 55, RF_LOW = 18, CAP = 250, RF_SIZE = 12;
 
 // 兵が空にならない（kaito 11/8 天王寺の声・全戦共通）：羽柴の先手が京極丸の下で削られて二三人になると、主人公が独りで囲まれて倒れた（11/9 bot）。
 //   先手の生き残りが十八人を切ったら、谷から蜂須賀・前野らの後続の組が旗を立てて駆け上がる（法螺で予告。四組まで・本物の兵の上限を守る）
@@ -13,13 +13,16 @@ function reinforce(rt, ctx) {
   if (!(F.step === 2 || F.step === 3) || (F.rfN || 0) >= RF_MAX || rt.t - (F.rfT ?? -99) < RF_GAP) return;
   let mine = 0, all = 0;
   for (const u of rt.army.units) if (u.alive && !u.gone && !u.isStruct) { all++; if (u.team === 0 && !u.isPlayer && !u.woundOut && !u.fleeing && (F.oda || []).includes(u.group)) mine++; }
-  if (mine >= RF_LOW || all > CAP) return;
+  // 信長の供九人と新手二十一人は後から来る。その席も先に残す。
+  const reserved = (F.nobuG ? 0 : 9) + (F.umaG ? 0 : 21);
+  if (mine >= RF_LOW || all + RF_SIZE + reserved > CAP) return;
   F.rfN = (F.rfN || 0) + 1; F.rfT = rt.t;
   const name = ['蜂須賀の手', '前野の手', '羽柴の新手', '羽柴の新手'][F.rfN - 1];
   const at = ctx.from;
-  const g = allyGroup(rt, { fixed: true, faction: 'oda', name, anchor: { x: at.x, z: at.z }, facing: Math.atan2(ctx.to.x - at.x, ctx.to.z - at.z), order: 'path', width: 4, aggro: 14, seekRange: 30, noRout: true },
+  const g = allyGroup(rt, { fixed: true, fullStrength: true, faction: 'oda', name, anchor: { x: at.x, z: at.z }, facing: Math.atan2(ctx.to.x - at.x, ctx.to.z - at.z), order: 'path', width: 4, aggro: 14, seekRange: 30, noRout: true },
     dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 1 }], ctx.look));
-  g.path = [[ctx.to.x, ctx.to.z]]; g.pathIdx = 0; g.speed = 4; g.defMult = 2.6; g.formation = 'column';
+  ctx.march(rt, g);
+  g.speed = 4; g.defMult = 2.6; g.formation = 'column';
   g.onArrive = (q) => { q.order = 'attack'; };
   F.oda.push(g);
   sfx('horagai', 0.5);

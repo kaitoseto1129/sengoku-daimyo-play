@@ -30,6 +30,8 @@ export function start(rt, ctx, done) {
           foes: () => [{ name: '朝倉の新手', from: from(16, -26), list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }], mass: 120 }] },
       ],
       reward: '金ヶ崎の殿で朝倉の本手を食い止めた',
+      // 守備を離れて失敗した時は、後の退き口で成功へ変えない。
+      onEnd: (rt2, m, won) => { if (!won) m.kgFailed = true; },
     }),
     DP.rest({ dur: 5, heal: 0.3, banner: ['主力は抜けた', '殿も狭路の砦へ退く'],
       say: [['木下藤吉郎', 'ようやった！　上様は抜けられた。わしらも退くぞ、狭路の砦まで走れ！', 4]] }),
