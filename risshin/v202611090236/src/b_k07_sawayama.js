@@ -258,7 +258,7 @@ const k07_sawayama = {
     if (!F.begun || !D) return { x: 119, z: 0, label: '大手門' };
     // 固有の指定が null を返すと共通の行き先も消える。敵が見えない間も次の曲輪を指す。
     const i = D.i;
-    if (i === 0) return { x: 119, z: 0, label: '大手門' };
+    if (i === 0) return F.gateOpen?.ote ? { ...OTE, label: '大手門の内の侍屋敷' } : { x: 119, z: 0, label: '大手門' };
     if (i <= 3) return { ...SAN, label: '三の丸' };
     if (i <= 5) return { ...NI3, label: '二の丸の下の段' };
     if (i === 6) return { ...NI1, label: '二の丸の上の段' };
@@ -811,7 +811,10 @@ k07_sawayama.missionHeading = (rt) => {
 };
 // 城方：まだ出ていない曲輪の兵（後の段の分）を見込んで延べを三百二十より少なく見ない。落ちるまでは本丸に残る兵を数える（0 にしない）
 k07_sawayama.force = (rt) => {
-  const F = rt.flags, all = Math.max(320, (F.eMax || 0) + 60), b = F.burned ? 0 : Math.max(180, Math.round(2800 * (1 - (F.ek || 0) / all)));
+  // 天守に火が回っても、南の曲輪や櫓に残る守りまで零にはしない。
+  let remaining = 0;
+  for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.isStruct) remaining++;
+  const F = rt.flags, all = Math.max(320, (F.eMax || 0) + 60), b = F.burned ? remaining : Math.max(180, remaining, Math.round(2800 * (1 - (F.ek || 0) / all)));
   return { a: Math.round(15000 - (F.ak || 0) * 20), a0: 15000, b, b0: 2800 };
 };
 k07_sawayama.sides = { a: { name: '東軍', mon: 'kobayakawa' }, b: { name: '石田方', mon: 'ishida' } };
