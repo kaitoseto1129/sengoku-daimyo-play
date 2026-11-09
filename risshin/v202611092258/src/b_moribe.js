@@ -5149,7 +5149,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       rt.marker('yakushi', YAKUSHI2, '森部の薬師堂');
       // 首実検は薬師堂の前（安八町の伝え）。柴田の前備が首を携えて薬師堂の前へ歩いて向かう。
       if (!gone(F.A)) { F.A.order = 'move'; F.A.dest = { x: YAKUSHI2.x - 7, z: YAKUSHI2.z + 6 }; F.A.speed = 1.4; F.A.onArrive = (u) => { u.order = 'hold'; }; }
-      rt.after(3, () => {
+      rt.after(4.5, () => {
         // 首実検は共通の首袋・証人の記録に従う。利家へ手柄を付け替えない。
         let confirmed = false, who = '';
         for (const r of rt.meritKills || []) {
@@ -5163,7 +5163,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.toshiieAdachiConfirmed = confirmed;
         rt.say('仲間', who === 'player' ? '首取り足立と呼ばれた六兵衛を、お主が討ったとは……' : confirmed ? '前田又左衛門殿が、首取り足立の首を挙げなされた。勘当も解けような' : F.toshiieAdachi ? '前田又左衛門殿が、首取り足立を討ったそうじゃ。首実検を待とう' : '勝ったぞ。組を離れず、薬師堂の前へ参ろう', 4.5);
       });
-      rt.after(6.5, () => rt.say('組頭 源八（げんぱち）', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。首実検は薬師堂の前じゃ。首を持って参れ。次は墨俣の砦を固めるぞ`, 5));
+      rt.after(9.5, () => rt.say('組頭 源八（げんぱち）', `${(F.bossDown || 0) >= 2 ? '長井も日比野も討たれた' : '長井と日比野の備は崩れた'}。首実検は薬師堂の前じゃ。首を持って参れ。次は墨俣の砦を固めるぞ`, 5));
     }
     const failureReason = won ? '' : F.friends.every(gone) || F.odaCamp.general?.woundOut
       ? '味方の列が崩れ、川岸を守れなくなった'

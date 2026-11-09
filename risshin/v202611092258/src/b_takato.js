@@ -1373,7 +1373,7 @@ function takatoAssaultVoice(rt, text) {
 
 // 11/6 fix61（九1・九3・十1）：右上は目標①〜⑥（goals5.js の takato）を最初から全部並べ、済んだ物に印。
 //   一行の任務札（missionSingleLine）のまま、その後に目標の札を重ねて置き換える（雑賀と同じ作り）。両軍の今の兵の数の棒も常に出す。
-//   四十 m 内の見える城兵には一人残らず赤い▼（共通の▼は近い数人だけ）。印は使い回し、毎コマ作らない。
+//   見通せる城兵には一人残らず赤い▼。印は使い回し、毎コマ作らない。
 function installTakatoGoals(rt) {
   const hud = rt.hud, hudProgress = hud.progress, foeMarks = hud.foeMarks, def = rt.def, dispose = rt.dispose;
   hud.progress = function (battle) {
@@ -1415,9 +1415,8 @@ html:root body #hud#hud#hud.takato-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
-          u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
+          u.camHidden) continue;
       // 近い兵は human の体で描き、元の形（u.mesh）は隠れている。見えるかは camHidden と見通しで決める。
       if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
       if (!u._skSeen) continue;
