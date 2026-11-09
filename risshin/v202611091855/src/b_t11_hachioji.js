@@ -475,13 +475,14 @@ const t11_hachioji = {
   depth: {
     A: { name: '前田・上杉', facing: -Math.PI / 2, honjin: { x: START.x + 9, z: START.z }, mpu: 8, formation: '長蛇', terrain: 'valley', flag: 'maeda', armor: 0x24221f, openAt: 20, attrition: 0,
       sonae: [
-        { id: 'saki', layer: 'sakite', wing: 'center', men: 5000, taisho: '', bind: (rt) => rt.flags.saki },
-        { id: 'mine', layer: 'ichi', wing: 'center', men: 1500, taisho: '', bind: (rt) => rt.flags.mine },
-        { id: 'ni', layer: 'ni', wing: 'center', men: 5000, taisho: '', bind: (rt) => rt.flags.ni },
-        { id: 'naga', layer: 'yobi', wing: 'center', men: 1000, taisho: '前田利長', bind: (rt) => rt.flags.naga },
-        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 10000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
-        { id: 'ato', layer: 'gozume', wing: 'center', men: 3000, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
-        { id: 'honjin', layer: 'honjin', wing: 'center', men: 8000, taisho: '前田利家', bind: (rt) => rt.flags.honjin, hold: true },
+        // 備の合計も人数の棒と同じ一万五千。別説の兵数を足し合わせない。
+        { id: 'saki', layer: 'sakite', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.saki },
+        { id: 'mine', layer: 'ichi', wing: 'center', men: 1000, taisho: '', bind: (rt) => rt.flags.mine },
+        { id: 'ni', layer: 'ni', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.ni },
+        { id: 'naga', layer: 'yobi', wing: 'center', men: 500, taisho: '前田利長', bind: (rt) => rt.flags.naga },
+        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 5000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
+        { id: 'ato', layer: 'gozume', wing: 'center', men: 1500, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
+        { id: 'honjin', layer: 'honjin', wing: 'center', men: 2000, taisho: '前田利家', bind: (rt) => rt.flags.honjin, hold: true },
       ] },
     honjinView: { A: false },   // 利家の陣幕は戦のファイルが作る
   },
@@ -491,6 +492,8 @@ const t11_hachioji = {
   playerTaken: 0.5,   // 二巡 11/9：bot が山下曲輪で二回続けて倒れた（敵の打ち込みも 0.58→0.45）
   playerRegen: 0.012,
   pacingCap: 1380,   // 共通の打ち切り（十八分）を二十三分へ。段が十二の十五分の戦（battle_pacing.js）
+  // 戦固有の lose が交戦の有無を確かめる。共通の打ち切りで放置中に敗北させない。
+  pacingWait: () => true,
   world: {
     namedKacchu: TOYO_MAEDA_KACCHU,
     seed: 1590623,

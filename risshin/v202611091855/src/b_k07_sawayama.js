@@ -480,6 +480,9 @@ const k07_sawayama = {
           C.k07FightTime = (C.k07FightTime || 0) + dt;
         }
         const cleared = tick(rt2, C, m, ctx, el, dt);
+        // 11/9 徳川C（見回り）：曲輪の守りが崩れても、本人が曲輪の段の上へ上がれず斜面の下に留まると、三の丸が十八分の打ち切りまで止まった（bot 中学生）。
+        //   守りが崩れて六十秒たてば、味方が曲輪を取ったとみなす（本丸は田中勢の乱入を待つ決まりはそのまま）
+        if (cleared && !C.k07Entered) { C.k07ClearT ??= rt2.t; if (rt2.t - C.k07ClearT > 60) C.k07Entered = true; }
         // 乱入を告げた後の正継・朝成・東雲斎の言葉を終えてから落城へ進む。
         const enteredAt = rt2.flags.tanakaInT;
         return cleared && !!C.k07Entered && (C.at !== HON_YARD ||

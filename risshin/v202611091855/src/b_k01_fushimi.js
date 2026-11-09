@@ -110,6 +110,9 @@ function requirePresence(s, contactNames = null) {
     if (s.kind === 'hold' && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
     // 到着した記憶だけでは足りない。屋敷を離れた後に味方が番兵を
     // 倒しても、遠くから火を掛けたり、次の持ち場へ進めたりしない。
+    // 11/9 徳川C（見回り）：本人が持ち場の外（城の塀の上など）で敵を突き続けると、②の大手の守りが十八分の打ち切りまで止まった（bot 中学生）。
+    //   守りの段は三分、斬り合い・移りの段は四分過ぎたら、味方の働きで段が済んだとみなす
+    if (p.alive && el > (s.kind === 'hold' ? 180 : 240)) return true;
     return p.alive && finished && !!C.present && d < (C.botRadius || 14) + 8 && (s.kind !== 'hold' ||
       !!C.k01Engaged && d < (C.botRadius || 14) + 8 && (C.k01InT || 0) >= (s.max - 35) * 0.45);
   };

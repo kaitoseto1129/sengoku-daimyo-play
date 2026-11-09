@@ -220,6 +220,9 @@ function fordStakes(W) {
   return g;
 }
 
+// 11/9 徳川C（見回り）：本人が段の場の r の内へ着けない（川の深み・柵の外）と、段が十八分の打ち切りまで止まった（bot 中学生）。
+//   五分過ぎたら味方の備の働きで段が済んだとみなして先へ進める（一番外側に掛ける。mine・yoneno の待ちより後に見る）
+function lateK02(step, sec = 300) { const t = step.tick; step.tick = (rt, C, m, ctx, el, dt) => t(rt, C, m, ctx, el, dt) || el > sec; return step; }
 function mine(step, r, inside) {
   step.idleAdvance = false; step.max = 1e9;
   if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return ok && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
@@ -438,7 +441,7 @@ const k02_kawada = {
         foes: () => [keep('新加納の鉄砲組', { x: SHINKANO.x, z: SHINKANO.z + 4 }, [{ type: 'samurai', n: 2 }, { type: 'gun', n: 10 }, { type: 'ashigaru', n: 6 }], { morale: 94 }),
           keep('新加納の殿', { x: SHINKANO.x, z: SHINKANO.z - 6 }, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 10 }], { morale: 96 })],
         reward: '新加納の砦を破り、岐阜へ追い込んだ' }), 30, inFort),
-    ], (rt2) => this.win(rt2));
+    ].map((st) => st.kind === 'fight' || st.kind === 'move' ? lateK02(st) : st), (rt2) => this.win(rt2));
   },
 
   win(rt) {
@@ -592,6 +595,12 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   // 前進との同時押しで柵の前に止まり続けないようにする。
   inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
   inp.guardHold = false; inp.chargeHold = false;
+  // 11/9 徳川C（見回り）：①で浅瀬の西の深みへ寄り、南の筋を渡れず十八分止まった（bot 中学生：x −87 で止まる）。浅瀬の真ん中の筋を北へ上る
+  if (F.dp && F.dp.on && F.dp.i === 0 && u.pos.z > ISLE.z + 6 && Math.abs(u.pos.x - FORDS[0].x) > 6) {
+    inp.runHeld = true; inp.leftPressed = !!b.army.nearestEnemy(u, 4, (o) => reachableFoe(b, u, o));
+    goTo(p, inp, FORDS[0].x, Math.min(u.pos.z - 6, START.z), 1.5, true);
+    return;
+  }
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
   // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {

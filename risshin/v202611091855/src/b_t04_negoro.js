@@ -348,8 +348,11 @@ const t04_negoro = {
     // 鉄砲衆は参道の左右の縁に分かれて据わる。真ん中の道を指さず、近い撃ち手の持ち場（動かない）を指す
     if (s === 2) {
       const p = rt.player.u.pos;
-      let best = nearestFighter(F.posts.win, p, T.unit);
-      if (!best && F.dp?.cur?.groups) for (const g of F.dp.cur.groups) {
+      const C = F.dp?.cur;
+      // 討ち取りの条件を満たした後は、達成に必要な門前の合流場所へ戻す。
+      const cleared = C && !C.later?.length && heads([F.posts.win]) <= 4 && heads(C.groups || []) <= 4;
+      let best = cleared ? null : nearestFighter(F.posts.win, p, T.unit);
+      if (!cleared && !best && C?.groups) for (const g of C.groups) {
         best = nearestFighter(g, p, T.unit);
         if (best) break;
       }
@@ -1068,9 +1071,9 @@ const t04_negoro = {
         const defending = fighting(u) && !rt.retryOpen && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 16;
         C.inT = held + (defending ? dt : 0);
         if (C.inT < 45) rt.objProgress('dp', `守る あと${Math.max(0, Math.ceil(45 - C.inT))}秒`);
-        // 共通の完了判定は深手の三人以上も残兵に数えるため、寄せの終了と放火できる敵をこの戦で判定する。
+        // 深手で退く者は除くが、一時的に倒れて起き上がる敵は残兵に数える。
         return !C.waves.length && el >= 45 && C.inT >= 45 && defending
-          && !C.groups.some((g) => alive(g) && g.units.some((u) => fighting(u) && !u.woundOut));
+          && !C.groups.some(alive);
       },
       end(rt, C, m) { h.end(rt, C, m); },
     };

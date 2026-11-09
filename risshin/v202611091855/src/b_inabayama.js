@@ -268,9 +268,12 @@ function inabaAtWoodGate(rt) {
 function inabaAtOteGate(rt) {
   const p = rt.player.u.pos, q = OTE_WAY[0];
   return rt.player.u.alive && !rt.retryOpen
-    && rt.flags.nanaNext >= NANA.length - OTE_WAY.length + 1
+    // 11/9 二巡（織田E）：木戸の十二歩前まで登っていても、馬出しの脇を回って最後の折れの角を「通った」と見なされず、
+    //   木戸の斬り合いが始まらないまま三分余り止まった（流し：七曲りの角 8 で木戸から七〜十二歩）。木戸の二十二歩内なら着いた事にする
+    && (rt.flags.nanaNext >= NANA.length - OTE_WAY.length + 1 || Math.hypot(p.x - OTE.x, p.z - OTE.z) < 22)
     && Math.hypot(p.x - OTE.x, p.z - OTE.z) < 40
-    && Math.abs(p.y - rt.world.heightAt(q[0], q[1])) < 8;
+    //   馬出しの上の段（木戸の折れより十歩余り高い所）へ回り込んだ時も、木戸の前に着いた事にする（流し：高さの差 17 で始まらず、上で討たれた）
+    && Math.abs(p.y - rt.world.heightAt(q[0], q[1])) < 18;
 }
 
 // 守りを退けて木戸前に着いたら、最後の曲がり角へ戻さず列を待つ。
@@ -3099,6 +3102,24 @@ function inabaPacingWait(rt) {
   // 角で列を待つ間も、藤吉郎の列が登っていれば寄せは続く。
   if (F.step === 3 && F.kino?.order === 'path' && F.kino.pathIdx > (F.pacingKino || 0)) {
     F.pacingKino = F.kino.pathIdx; F.pacingClimbT = rt.t;
+  }
+  // 11/9 二巡（織田E）：指の操作の bot（act）は七曲り・搦手の細道の折れ（-37,4 など）で角へ寄れず、二分進まず寄せが切れた。
+  //   六十秒進まず、次の角の二十五歩内にいる時は、本人と組をその角へ寄せる（列に押されて折れを抜けた事にする）
+  //   斬り合いで時計が延びても、同じ角で七十五秒進まなければ寄せる（流し：(-32,-20) で届かない相手を二分突き続けた）
+  if (F.step === 3) {
+    const k = (F.tsuke ? 'n' : 'k') + ((F.tsuke ? F.nanaNext : F.karaNext) || 0);
+    if (F.nudgeKey !== k) { F.nudgeKey = k; F.nudgeKeyT = rt.t; }
+  }
+  if (F.step === 3 && rt.player.u.alive && !rt.retryOpen && (rt.t - (F.pacingClimbT || F.stepT) > 60 || rt.t - F.nudgeKeyT > 75) && rt.t >= (F.climbNudgeAt || 0)) {
+    const trail = F.tsuke ? NANA : KARA_TRAIL;
+    const i = Math.min((F.tsuke ? F.nanaNext : F.karaNext) || 0, trail.length - 1), c = trail[i], pp = rt.player.u.pos;
+    if (c && Math.hypot(pp.x - c[0], pp.z - c[1]) < 25) {
+      F.nudgeKeyT = rt.t;
+      F.climbNudgeAt = rt.t + 30; F.pacingClimbT = rt.t;
+      const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
+      put(rt.player.u, c[0], c[1]);
+      for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
+    }
   }
   // 11/9 お客さんの声：登りの持ち時間が短く、初めての人は七曲りで打ち切られた。上限を十分・止まってから二分に
   const climbEnd = Math.min(F.stepT + 600, Math.max(F.stepT + 420, (F.pacingClimbT || F.stepT) + 120));
@@ -6127,6 +6148,18 @@ const inabayama = {
     // 七歩手前で印を次へ移すと、折れの内側の切岸へ直進させてしまう。
     // 搦手と同じく、角へ着くか次の区間へ踏み出してから、順に進める。
     while (F.nanaNext < NANA.length && roadCornerPassed(rt.world, p, NANA, F.nanaNext, 1.2)) F.nanaNext++;
+    // 11/9 二巡（織田E）：七曲りの登り口の手前（鹿垣の内）で十歩余り離れたまま角へ寄れず、十分止まった（流し：角 2 の手前 (-30,40)）。
+    //   同じ角で四十五秒進まず、角の二十五歩内にいる時は、本人と組をその角へ寄せる（列に押されて口を抜けた事にする）
+    if (F.nanaNext < NANA.length) {
+      if (F.nanaStuckI !== F.nanaNext) { F.nanaStuckI = F.nanaNext; F.nanaStuckT = rt.t; }
+      const c = NANA[F.nanaNext];
+      if (rt.t - F.nanaStuckT > 45 && rt.player.u.alive && !rt.retryOpen && Math.hypot(p.x - c[0], p.z - c[1]) < 25) {
+        F.nanaStuckT = rt.t;
+        const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); };
+        put(rt.player.u, c[0], c[1]);
+        for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
+      }
+    }
     const last = F.nanaNext >= NANA.length;
     F.nanaGuide.x = last ? OTE_IN.x : NANA[F.nanaNext][0];
     F.nanaGuide.z = last ? OTE_IN.z : NANA[F.nanaNext][1];
@@ -6861,6 +6894,11 @@ const inabayama = {
       if (late2 && !F.ote2.sent && !F.ote2Q) { F.ote2Q = true; this.ote2(rt); }
       // 長引いた時も、城兵が目前へ来る前や本人が倒れている間は、時計だけで退かせない。
       if (late2 && F.oteContactT != null && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
+      // 11/9 二巡（織田E）：気が零になっても坂の上で崩れず残り、②が九分続いた（流し）。四十秒たっても残れば、山へ逃げ上らせる
+      if (late2 && F.oteContactT != null && rt.t - F.stepT > 280) for (const q of qs) if (!gone(q)) {
+        q.routed = true; q.order = 'flee'; q.focus = null; q.fleeDir = { x: 0, z: -1 };
+        for (const u of q.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
+      }
       const nearHold = late2 && F.oteContactT != null && F.holdPoint
         && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) < 40
         && Math.abs(rt.player.u.pos.y - rt.world.heightAt(F.holdPoint.x, F.holdPoint.z)) < 3;
