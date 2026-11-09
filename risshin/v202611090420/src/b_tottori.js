@@ -32,7 +32,7 @@ import { denseCamp } from './castle_bldg.js';
 import { TAIKOGAHIRA, TOTTORI_TAIKOGANARA_PLAN, TOTTORI_SEATS, TOTTORI_HOUSES, TOTTORI_DITCHES } from './castles/tottori.js';
 import { applyLook, NIGHT, DAWN, dress, gone as groupGone } from './b_inabayama.js';
 // 深手で戦えない兵だけが残っても、敵の寄せが続くとは数えない。
-const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.noTarget);
+const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget);
 import { volleyAt } from './b_tano.js';
 import { placeGroup, placePlayer } from './b_opening.js';
 import { camp } from './b_mid.js';
@@ -3135,7 +3135,7 @@ const tottori = {
       // 接近した相手がもういないため、十八歩以内の遭遇だけを待つと開城へ進めない。
       // 未出撃の控えや戦える寄せが残る間は、これまでどおり迎え撃つ。
       if (!F.defended && p.z >= FENCE_Z && atTottoriPost(p) &&
-          L.every((g) => g.ttOut ? gone(g) : groupGone(g) || g.units.every((u) => !u.alive))) F.defended = true;   // 出撃前に全員討たれた控えは待たない
+          L.every((g) => gone(g))) F.defended = true;   // 出撃前も、討死や深手で戦えない控えは待たない
       // 退く者のうち、まだ戦える兵が全員持ち場から離れれば次へ。
       // 深手で残った者まで含む隊の中心を待つと、守り終えても時間切れになる。
       // 11/5 描いて遊んで：最後の組が城道を歩いて戻り切るまで百秒、柵で何も起きなかった。

@@ -5615,6 +5615,18 @@ function obstacleRects() {
 }
 function sunomataWalk(b, inp, goTo, x, z, r) {
   const p = b.player, u = p.u, F = b.flags;
+  // 門から出た後も、外の大将へ柵を横切らず外周を回る。人の行き先と同じ道を使う。
+  if ((Math.abs(u.pos.x) >= FORT || Math.abs(u.pos.z) >= FORT) &&
+      (Math.abs(x) >= FORT || Math.abs(z) >= FORT)) {
+    const goal = F.sunoWalkGoal || (F.sunoWalkGoal = { x: 0, y: 0, z: 0 });
+    goal.x = x; goal.z = z; goal.y = b.world.heightAt(x, z);
+    if (!localClear(b.army, u.pos, goal)) {
+      const route = F.sunoWalkRoute || (F.sunoWalkRoute = { x: 0, z: 0 });
+      route.x = x; route.z = z;
+      sunoOuterGuide(b, goal, route);
+      x = route.x; z = route.z; r = .5;
+    }
+  }
   // 押しても進まない（兵や角材の間に挟まった）時は、一秒ほど真横へ回って抜ける。
   const wd = u._sunoWedge || (u._sunoWedge = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, dir: 1 });
   if (b.t < wd.until) {

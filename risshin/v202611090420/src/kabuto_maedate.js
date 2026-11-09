@@ -337,7 +337,8 @@ function build(kind, hi, near) {
     return [join([crown, mask]), 'black'];
   }
   if (kind === 'todo_tokan') {
-    // 唐冠形：黒漆の冠形の鉢、後ろに丸く立つ巾子（こじ）、左右へ長く張った銀の纓（えい）。
+    // 唐冠形：黒漆の冠形の鉢、後ろに丸く立つ巾子（こじ）、左右へ長く張った木製黒漆の纓（えい）の後立。
+    // 伊賀市の所蔵目録：docs/generals_look_1108/藤堂高虎.md。
     // 遠い形は units_model の丸い頭形の鉢が冠を兼ねるので、巾子と纓だけを載せる
     const prof = [[0.156, 0.13], [0.16, 0.2], [0.155, 0.27], [0.135, 0.315], [0.08, 0.335], [0.0, 0.34]].map(([r, y]) => new THREE.Vector2(r, y));
     const cap = new THREE.LatheGeometry(prof, hi ? 28 : 10); cap.scale(1, 1, 1.06);
@@ -347,12 +348,12 @@ function build(kind, hi, near) {
     for (const sd of [-1, 1]) {
       // 纓：根元が細く、先が丸く広がる長い薄板。少し上へ反り、先ほど後ろへ流れる
       const pts = [[0.05, -0.012]], N = hi ? 8 : 4;
-      for (let i = 0; i <= N; i++) { const a = -Math.PI / 2 + i * Math.PI / N; pts.push([0.52 + Math.cos(a) * 0.04, 0.012 + Math.sin(a) * 0.04]); }
+      for (let i = 0; i <= N; i++) { const a = -Math.PI / 2 + i * Math.PI / N; pts.push([0.88 + Math.cos(a) * 0.04, 0.012 + Math.sin(a) * 0.04]); }
       pts.push([0.05, 0.012]);
       const g = plate(pts.map(([x, y]) => [sd * x, y]), hi, 0.005);
       g.rotateZ(sd * 0.14); bend(g, 0.12); g.translate(0, near ? 0.34 : 0.33, near ? -0.08 : -0.11); wings.push(g);
     }
-    return [join(near ? [cap, koji] : [koji]), 'black', [[join(wings), 'silver']]];
+    return [join(near ? [cap, koji] : [koji]), 'black', [[join(wings), 'black']]];
   }
   if (kind === 'honda_shikami') {
     // 忠勝所用具足の黒漆双角付獅噛。既存の鹿角と獅噛の基本形を使う。

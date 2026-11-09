@@ -806,6 +806,16 @@ export function yoseFlagTexture(family) {
 }
 
 export function drawMon(ctx, kind, w, h, dyed = false, nobori = false) {
+  // 藤堂の旗印は家紋の蔦と分ける。紋の切り出しには従来の蔦を保つ。
+  // 今治城の展示解説：docs/generals_look_1108/藤堂高虎.md。
+  if (kind === '高虎の三つ丸餅' || (kind === 'todo' && (dyed || nobori))) {
+    ctx.fillStyle = '#232c40'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ece6d6';
+    for (const y of [.22, .48, .74]) {
+      ctx.beginPath(); ctx.arc(w * .5, h * y, Math.min(w * .28, h * .105), 0, TAU); ctx.fill();
+    }
+    return;
+  }
   // 官兵衛の中白旗。豊前入国前の上部の永楽銭は既存の紋を共用する。
   // 帯の比率と染め色は復元案。出所：docs/generals_look_1108/黒田官兵衛.md。
   if (kind === '官兵衛の中白' || kind === '官兵衛の中白永楽') {
