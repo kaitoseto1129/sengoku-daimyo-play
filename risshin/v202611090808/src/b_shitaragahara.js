@@ -1349,6 +1349,7 @@ function shBlackArmy(make) {
 }
 function nfSend(rt, g, gateZ) {
   const gz = gateZ + 4.5;
+  for (const q of [g, g.cavalry, g.missiles]) q.shWaiting = false;
   g.noRout = true; g.morale = 100; g.focus = null;
   g.order = 'path'; g.pathIdx = 0; g.formation = 'line'; g.roadColumn = false; g.speed = 4;
   g.path = [[SB.x0 + 5, gz]]; g.dest = null;
@@ -3457,8 +3458,8 @@ const shitaragahara = {
   // 11/6 fixc1721：寄せる二つの備。初めは連吾川の東の段丘の縁に構え、下知で段丘を下りて柵へ寄せる（開戦から柵の外で団子にしない）。
   //   具足は黒（赤備えは南の山県だけ・四3）。家の旗は真田の六連銭と武田菱。軍勢対軍勢に見えるよう、本物の徒歩を三十四人に。
   WAVES: [
-    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 72, z: MOUTHS[0].z + 4.5 }, cav: 4, ash: 26, brother: true },
-    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: 'takeda', z: MOUTHS[1].z, home: { x: 76, z: MOUTHS[1].z + 4.5 }, cav: 4, ash: 26, general: '内藤昌豊', final: true },
+    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 4, ash: 26, brother: true },
+    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: 'takeda', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 4, ash: 26, general: '内藤昌豊', final: true },
   ],
 
   makeWave(rt, w) {
@@ -3473,6 +3474,8 @@ const shitaragahara = {
     g.missiles = enemyGroup(rt, { faction: w.fac, name: w.name + '隊の鉄砲・弓', fixed: true, noGuard: true, anchor: { x: frontX + 16, z: homeZ - 14 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 6, width: 10, morale: 85, speed: 2.6 },
       [{ type: 'samurai', n: 1, o: { flag } }, { type: 'gun', n: 2, o: { flag } }, { type: 'bow', n: 2, o: { flag } }]);
     g.missiles.holdFire = true;
+    // 下知前の本隊は川向こうの集結位置に控える。柵際で静止させず、先手の斉射にも巻き込まない。
+    for (const q of [g, g.cavalry, g.missiles]) q.shWaiting = true;
     for (const u of g.missiles.units) if (u.type === 'gun') u.gunAmmo = 3;
     nagashinojo.kit.backOf(rt, g, { flag, armor: nagashinojo.kit.ARMOR[red ? 'akazonae' : 'oda'], kind: 'mixed', w: 30, depth: 18, count: 120, gap: 6, seed: 71 + this.WAVES.indexOf(w), stop: () => g.center().x < SB.x0 + 8 });   // 後ろの大軍も柵の近くまで押して、寄せの厚みを見せる
     return g;

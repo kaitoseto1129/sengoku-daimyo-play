@@ -4575,15 +4575,19 @@ const anegawa = {
       const fought = F.aneStage >= 5 && (gone(R) || rt.t - F.aneStageT > 4);
       if (fought && p.z < aneNorthBank(p.x) && crossers) {
         rt.objDone('pursue'); rt.unmark('rear');
-        rt.tracker.main = true;
-        rt.award((t) => { t.main = true; t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
+        // 野村への追撃と遠藤の段を終えるまでは、戦全体の達成にはしない。
+        rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
         if (rt.G.lord) this.ending(rt); else TSUI.start(rt, aneCtx(rt, this));
       } else if ((F.aneStage >= 5 || rt.canFailMission()) && (!crossers || (!R.anePending && rt.t - Math.max(F.rearAt ?? F.stepT, F.stepT) > 210) || (R.anePending && rt.t - F.stepT > 240))) {
-        rt.objFail('pursue');
-        // 目標を果たさずに勝ちにはしない（標準 三-3）。
-        // 敗北を抑える遊び方でも、五つの目標を終えるまでは戦を続ける。
-        if (F.aneStage >= 5) this.ending(rt, true);
-        else this.lose(rt, '北岸の殿と斬り結ばず、追い討ちを果たせなかった');
+        // 殿と斬り結んだ後に追い手が尽きても、追加の二目標を飛ばして勝ちにしない。
+        if (F.aneStage >= 5 && !rt.G.lord) {
+          rt.objDone('pursue'); rt.unmark('rear');
+          TSUI.start(rt, aneCtx(rt, this));
+        } else {
+          rt.objFail('pursue');
+          if (F.aneStage >= 5) this.ending(rt, true);
+          else this.lose(rt, '北岸の殿と斬り結ばず、追い討ちを果たせなかった');
+        }
       }
     }
   },
