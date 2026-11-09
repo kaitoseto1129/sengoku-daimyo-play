@@ -2423,10 +2423,37 @@ function fireStage(rt, n) {
   }
 }
 function teleport(rt, x, z) {
-  const P = rt.player.u, W = rt.world, dx = x - P.pos.x, dz = z - P.pos.z;
-  for (const g of rt.squadGroups || []) { for (const u of g.units) if (u.alive) { u.pos.x += dx; u.pos.z += dz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; u.target = null; } if (g.anchor) { g.anchor.x += dx; g.anchor.z += dz; } }
-  for (const u of rt.tomoUnits || []) if (u.alive) { u.pos.x += dx; u.pos.z += dz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; u.target = null; }
-  P.pos.x = x; P.pos.z = z; P.pos.y = W.heightAt(x, z);
+  const P = rt.player.u, W = rt.world, lim = W.def.moveLim || 176;
+  // 幕の切替では、寺に残った供の離れ幅を持ち越さない。
+  // 同じ距離を足すだけでは二条の外へ飛び、古い道や下知で寺へ戻っていた。
+  const place = (u, px, pz) => {
+    px = Math.max(-lim + 2, Math.min(lim - 2, px));
+    pz = Math.max(-lim + 2, Math.min(lim - 2, pz));
+    u.pos.set(px, W.heightAt(px, pz), pz);
+    u.mesh?.position.copy(u.pos);
+    u.moveTo = null; u.target = null;
+    if (u.vel) u.vel.x = u.vel.z = 0;
+  };
+  const placed = new Set([P]);
+  let k = 0;
+  for (const g of rt.squadGroups || []) {
+    const ax = x + 3 + k * 3, az = z;
+    let i = 0;
+    for (const u of g.units) if (u.alive && !placed.has(u)) {
+      place(u, ax + Math.floor(i / 3) * 1.5, az + (i % 3 - 1) * 1.5);
+      placed.add(u); i++;
+    }
+    if (g.anchor) { g.anchor.x = ax; g.anchor.z = az; }
+    g.order = 'follow'; g.dest = null; g.path = null; g.pathIdx = 0;
+    g.onArrive = null; g.focus = null; g.pending = null;
+    k++;
+  }
+  let i = 0;
+  for (const u of rt.tomoUnits || []) if (u.alive && !placed.has(u)) {
+    place(u, x + 1.5, z + (++i % 2 ? -1 : 1) * Math.ceil(i / 2) * 1.5);
+    placed.add(u);
+  }
+  place(P, x, z);
 }
 
 function honnoReturnLabel(rt) {
@@ -4598,7 +4625,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.banner('二条御所の西の門を守れ', '信忠様は妙覚寺から二条の新御所へ移り、明智を迎え撃つ');   // 時が飛ぶので、真ん中に次の目標を出す（kaito AT7）
     // 門番のすぐ後ろに控える。御所の奥へ固まると、傷を負った本人が門前で孤立する。
     F.tada = allyGroup(rt, { fixed: true, name: '織田信忠の手', anchor: { x: NIJO_GATE.x + 10, z: NIJO_GATE.z - 6 }, facing: -Math.PI / 2, width: 5, aggro: 4, noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '織田信忠', hat: 'kabuto_m', haori: 0, horse: false } }, { type: 'samurai', n: 1, o: { name: '村井貞勝', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 1, o: { name: '斎藤利治', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 6 }], ODA));   // 信忠の周りは馬廻の侍（kaito O）
+      dress([{ type: 'busho', n: 1, o: { name: '織田信忠', hat: 'kabuto_m', haori: 0, horse: false } }, { type: 'samurai', n: 1, o: { name: '村井貞勝', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 1, o: { name: '斎藤利治', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 1, o: { name: '菅屋長頼', hat: 'kabuto_w', horse: false } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 6 }], ODA));   // 信忠の周りは馬廻の侍（kaito O）
     F.tada.defMult = 1;
     F.tadaU = F.tada.units[0];
     F.tadaU.maxHp = F.tadaU.hp = 75; F.tadaU.dmg = 13; F.tadaU.isOfficer = false; F.tadaU.isLord = false;
@@ -5716,7 +5743,10 @@ function lordBot(b, inp, goTo, patientStrike) {
 honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(1, (n ? 500 : 100) - (n ? F.lostA3 || 0 : F.lostA || 0)), a0: n ? 500 : 100, b: 13000 - (F.lostB || 0), b0: 13000 }; };
 honnoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '明智軍', mon: 'akechi' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
-honnoji.famous = []; // 小姓は設営時に置く。敵将は囲みの後ろで指揮し、寺内の波へ混ぜない。
+honnoji.famous = [];
+// 11/9 二巡（徳川D）：命懸けの戦場（lethal.js）と、この戦の怖さ（囲まれた寺の内・逃げ場の無い炎）
+honnoji.lethal = honnoji.lethal ?? true;
+honnoji.fearKind = honnoji.fearKind || { kind: '囲まれた寺', note: '四方の門から寄せる一万三千', w: { flank: 1.4, iso: 1.4 }, line: '囲まれたぞ、上様をお守りせよ！' }; // 小姓は設営時に置く。敵将は囲みの後ろで指揮し、寺内の波へ混ぜない。
 honnoji.date = (rt) => `天正十年六月二日　${!rt.G.lord && rt.flags.step >= 3 ? '二条の別の守備隊へ・' : ''}夏・${!rt.G.lord && rt.flags.step >= 3 ? '朝' : '明け方'}`;
 honnoji.canSkip = () => ''; // 敵の行軍や出火の時刻まで早送りしない。
 honnoji.history = '天正十年（1582）六月二日の明け方、中国の毛利攻めに向かうはずだった明智光秀の軍一万三千ほどが、京の本能寺を囲んだ。わずかな供と泊まっていた織田信長は、明智の謀反と知って「是非に及ばず」と言い、自ら弓や槍を取って戦った。傷を負って奥へ入り、火を放って自害したと『信長公記』は伝える。森成利（蘭丸）ら小姓衆も討ち死にした。近くの妙覚寺にいた嫡男の信忠は、村井貞勝らと二条御所（二条新御所）に移り、誠仁親王を御所の外へ移してから戦った。明智勢は隣の近衛前久の屋敷の屋根から鉄砲を撃ちかけ、信忠も自害した。信長の遺体は見つからなかった。十一日後、中国から引き返した羽柴秀吉が山崎の戦いで光秀を破る。この戦の主人公と組頭の甚兵衛は、遊びのための人物である。兵の数には諸説ある。 宣教師ふろいすの『日本史』にも本能寺の変が記されている。ただし本人は京におらず、近くの教会にいたかりおんらの知らせを使った。宣教師の報告では銃声と火の手が教会にも伝わり、信長は背に矢、腕に銃弾を受けたとされる。傷や最期の描写は『信長公記』と異なり、一つの確かな姿とは決められない。教会の細かな位置、建物の形、十字架の置き方は遊びのための推定である。台詞は史料の意味を短く言い直したもので、本文の引用ではない。『武功夜話』は後の時代の作で、成立や内容に疑いがあるため、今回の景色や台詞の根拠には使っていない。 本能寺の供百人ほど、二条の守り五百人ほどは諸説のある目安で、同じ兵の生き残りではない。主人公は門の守りに加わる一人とし、主君の進路を決めたり史料にない使者へ任命されたりしない。信長で遊ぶ時も奥の間の自害で終わる。二条御所への移動は時間と距離を省いた場面転換である。寺域の百二十歩四方と各棟の位置は推定で、実測の復元ではない。発掘では内部を区切る幅四歩以上と約六歩の堀、南側の幅二歩以上の堀が見つかった。外周が堀で囲まれていたとする発掘報告に沿い、外周と内部の堀を別に作っている。天文法華の乱（1536）の後、京の法華の寺は堀・土塁・塀で囲んで要害を兼ねたとされ、北東の櫓、西の区画を分ける内の塀、講堂・方丈・馬舎の位置もその考えに沿った推定である。外周の幅四歩の形、土橋と各門の位置は推定である。襲撃の時刻は『信長公記』の早天と『言経卿記』の卯刻に合わせ、明け方として描いている。天気、空の色、風向、通りの幅と距離は推定である。寺の北に六角通、南に蛸薬師通、東に西洞院通、西に油小路通を置く関係は京都市の本能寺跡の解説による。各備えの兵数と将ごとの細かな持ち場は、家中の組み方と地形から復元した目安で、史料に確かな布陣図が伝わるという意味ではない。';
