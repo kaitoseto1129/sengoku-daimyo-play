@@ -20,7 +20,7 @@ export const HORO_HEIGHT = 1.08, HORO_TOP = 1.62, HORO_BACK = -0.28;
 // 胴丸は八間を基本とする復元。形の分割と、歩行時に揺らす板の数をそろえる。
 // https://rekihaku.pref.hyogo.lg.jp/digital_museum/bugu-kacchuu/kc_doumaru/
 // 足軽の簡素な貸し具足（look.lacquer）は短い四間（腿の前後に一枚ずつ。kaito 10/30）
-export const kusazuriCount = (look) => look.kusazuriCount === 12 ? 12 : look.domaru ? 8 : (look.tier || 0) === 0 ? (look.lacquer != null ? 4 : 5) : 7;
+export const kusazuriCount = (look) => look.kusazuriCount === 6 || look.kusazuriCount === 12 ? look.kusazuriCount : look.domaru ? 8 : (look.tier || 0) === 0 ? (look.lacquer != null ? 4 : 5) : 7;
 
 // ---------------- モデル ----------------
 // 模様の絵は 2048×1024 の一枚にまとめる（兵も馬も同じ材質で描き、描く回数を増やさない）。

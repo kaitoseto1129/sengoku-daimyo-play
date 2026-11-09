@@ -20,6 +20,8 @@ const txt = (t, bg = W, ink = K, band) => `sashi:字${t}:${bg}:${ink}` + (band ?
 const mon = (m, bg = W, ink = K, band) => `sashi:${m}:${bg}:${ink}` + (band ? ':' + band : '');
 
 export const REQUIRED_KACCHU = [
+  // 関ヶ原着用伝承の現存具足を大坂の陣へ用いる復元。冠・獅噛・熊毛は共用の形。
+  ['水野勝成', 'zunari', 'mizuno_shikami', D.chaurushi, C.cha, 'okegawa', 0, 'mizuno', 'mizuno', { lac: 'sabi', fuki: 'lac', doOpening: 'nimai', plateDo: null, sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: C.cha, kusazuriCount: 6, kusazuriLaceRows: 5, kusazuriColor: D.chaurushi, kusazuriBands: Array(5).fill(C.cha), menpo: 0x3a2a20, menpoStyle: 'hanbo', fur: 0x171512, kumage: true, horo: 0, uma: null, shinodare: false, fukigaeshiBadge: false }, '賢忠寺蔵・革包茶糸威二枚胴具足。熊毛植唐冠形兜・漆塗獅噛・茶漆の横矧桶側二枚胴・茶糸威・六間五段草摺。大坂当日の着用と面頬の細部は未確認。旗は所属表示、陣羽織・脇立・個人馬印は補わない。出所と補完は docs/generals_look_1108/水野勝成.md'],
   // ── 織田編 ──
   // 稲生・桶狭間
   ['織田信長', null, null, null, null, null, null, null, 'eiraku', null, '旗印は永楽通宝（通説）。具足は建勲神社の紺糸威胴丸と銀の南蛮胴の作り（前の表）'],

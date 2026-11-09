@@ -67,7 +67,11 @@ export function install(rt, ctx) {
           rt.say('堀秀政', '払ったか。だが上の柵は抜けぬ……。この岸は高すぎる', 4);
         } else {
           rt.objRemove('mago');
-          for (const g of [G, G2]) if (g) { g.order = 'move'; g.dest = { x: SHORE.x - 8, z: g.anchor.z > 0 ? SHORE.z + 16 : SHORE.z - 16 }; g.onArrive = (q) => { q.order = 'hold'; }; }
+          for (const g of [G, G2]) if (g) {
+            g.focus = null; g.retreatOnly = true;
+            g.order = 'move'; g.dest = { x: SHORE.x - 8, z: g.anchor.z > 0 ? SHORE.z + 16 : SHORE.z - 16 };
+            g.onArrive = (q) => { q.order = 'hold'; };
+          }
         }
         // 退き太鼓の合図を少し後に（b_saika.js の retreat）
         F.bankWaitAt = rt.t - 10;
