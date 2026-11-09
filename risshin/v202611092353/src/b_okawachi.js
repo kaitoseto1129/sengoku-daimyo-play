@@ -733,6 +733,7 @@ const okawachi = {
   quietMiss: true,
   missionPinCaption: '',
   goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の旗・輪・枠を重ねない。AV15・BH6）
+  goalSignTriangle: true, // 画面の外でも矢印へ替えず、同じ▼で示す。
   // 九3：味方の名のある将（丹羽・池田・稲葉）の名は六十歩内なら常に出す（金ヶ崎と同じ）。前は十八歩で、馬上の丹羽の横でも名が出なかった。
   nameRange: 60,
   // 頭上の▼の添え字も、行く場所と行いを一つに（「印へ進め」にしない）。
@@ -803,6 +804,9 @@ const okawachi = {
       at = q.waiting ? F.waitCover || okAdvanceGoal(rt) : okAdvanceGoal(rt);
       q.r = q.waiting ? .3 : 3;
     }
+    // 任務の文から名を抜くと「番の組と道」などが行き先になる。道の角でも目的地の名を保つ。
+    q.label = F.step === 3 ? '南の陣' : F.step === 4 ? '南の鹿垣' :
+      F.step >= 2 || at === FRONT ? '坂の旗' : '搦手の竹束';
     // 切岸越しに直進させず、既存の歩ける道と同じ角へ案内する。
     const next = karameteWay(rt.army, rt.player.u, at);
     q.route = next !== at;

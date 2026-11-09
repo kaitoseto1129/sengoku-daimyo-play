@@ -186,6 +186,10 @@ function okeFoeSigns(rt) {
   const named = [], v = new THREE.Vector3();
   // 両軍の名将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
   const namePlaces = new Float32Array(names.length * 3);
+  // 通し確認：左上の釦にも名札が重なった。釦の範囲は候補更新時だけ測る。
+  const controlIds = ['side-ctl', 'tc-sound', 'tc-set', 'tc-pause', 'tc-view'];
+  const controlPlaces = new Float32Array(controlIds.length * 4);
+  let controlCount = 0;
   // 十六画素の行高に縁取りと影も含める。二十四画素では隣の名札の縁が接する。
   const nameGap = 28;
   let at = -1;
@@ -197,6 +201,16 @@ function okeFoeSigns(rt) {
       const on = me.alive && !rt.over && !rt.choice && !hud.introWaiting && !hud.bigmap && !rt.player.camShot && !hud.root.classList.contains('photo');
       if (on && (rt.t >= at || rt.t < at - .3)) {
         at = rt.t + .25; named.length = 0;
+        controlCount = 0;
+        for (const id of controlIds) {
+          const el = document.getElementById(id);
+          if (!el || el.hidden) continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width || !r.height) continue;
+          const j = controlCount++ * 4;
+          controlPlaces[j] = r.left - 4; controlPlaces[j + 1] = r.top - 4;
+          controlPlaces[j + 2] = r.right + 4; controlPlaces[j + 3] = r.bottom + 4;
+        }
         for (const u of rt.army.units) {
           if (u === me || u.team > 1 || !ready(u) || !OKE_NAMED.has(u.name)) continue;
           const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
@@ -228,6 +242,12 @@ function okeFoeSigns(rt) {
               if (slot < 0 || slot > lastRow) continue;
               y = nameGap + slot * nameGap;
               let overlaps = false;
+              for (let j = 0; j < controlCount; j++) {
+                const n = j * 4;
+                if (x + half > controlPlaces[n] && x - half < controlPlaces[n + 2] &&
+                    y > controlPlaces[n + 1] && y - nameGap < controlPlaces[n + 3]) { overlaps = true; break; }
+              }
+              if (overlaps) continue;
               for (let j = 0; j < k; j++) {
                 if (Math.abs(x - namePlaces[j * 3]) < half + namePlaces[j * 3 + 2] + 4 &&
                     Math.abs(y - namePlaces[j * 3 + 1]) < nameGap) { overlaps = true; break; }

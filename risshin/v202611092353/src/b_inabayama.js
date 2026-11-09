@@ -6093,7 +6093,7 @@ const inabayama = {
     rt.unmark('holdFlag'); rt.unmark('ote'); rt.unmark('ote2'); rt.unmark('kino');
     rt.setPhase('karamete');
     // 崩れた城兵は山肌へ散らず、七曲りの道を木戸へ逃げ上る（付け入りで背に付く相手。散って斜面に残り、登る途中で何度も斬り合いになった・11/4）
-    for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noRout = true; q.morale = 40; march(q, [...NANA, [OTE_IN.x, OTE_IN.z]], 'hold'); q.speed = 3.8; q.aggro = 0; q.holdFire = true; q.followColumnRoad = true; }
+    for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noFrontline = true; q.noRout = true; q.morale = 40; march(q, [...NANA, [OTE_IN.x, OTE_IN.z]], 'hold'); q.speed = 3.8; q.aggro = 0; q.holdFire = true; q.followColumnRoad = true; }
     rt.award((t) => t.side.push('大手の打って出を退けた'), '大手の斎藤勢を退けた');
     // 追う組の前の鹿垣を引き倒して口を広げる（柵の内に並んだ仲間が、切れ目を探して詰まらないように）
     for (const st of rt.army.structs) if (st.alive && st.name === '鹿垣' && st.seg) {
@@ -6104,7 +6104,8 @@ const inabayama = {
     // 逃げ上る城兵（本物の兵）。七曲りの最初の角から木戸へ駆け上り、木戸の内で向き直る
     F.nigeru = enemyGroup(rt, { fixed: true, faction: 'saito', name: '退く斎藤勢', anchor: { x: NANA[3][0], z: NANA[3][1] }, facing: face(4) + Math.PI, order: 'hold', aggro: 3, width: 3, morale: 60, formation: 'column' },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 2 }], { flag: 'saito' }));
-    F.nigeru.noRout = true;
+    // 退く弓兵も道を外れず、射撃で足を止めない。真横の敵には槍刀で応じる。
+    F.nigeru.noRout = true; F.nigeru.holdFire = true; F.nigeru.followColumnRoad = true;
     march(F.nigeru, [...NANA.slice(4), [OTE_IN.x, OTE_IN.z]], 'hold'); F.nigeru.speed = 4.4; F.nigeru.aggro = 2.5;
     // 道の中ほどと上の角の守り：逃げる味方を通し、追う織田勢を坂の上から突く
     // 下・中・上の三つの折れに守り。登るたびに坂の上から突き下ろし、押されると道を木戸へ退く（その背に付いて次の折れへ。登りの間ずっと戦う・check60 AT10）
@@ -6218,7 +6219,7 @@ const inabayama = {
     // 逃げる城兵が木戸に着いたら、木戸の守りに加わる
     if (!F.nigeruIn && F.nigeru && (gone(F.nigeru) || F.nigeru.order !== 'path')) {
       F.nigeruIn = true;
-      if (!gone(F.nigeru)) { F.nigeru.order = 'hold'; F.nigeru.anchor = { x: OTE_IN.x - 4, z: OTE_IN.z - 3 }; F.nigeru.aggro = 10; }
+      if (!gone(F.nigeru)) { F.nigeru.order = 'hold'; F.nigeru.anchor = { x: OTE_IN.x - 4, z: OTE_IN.z - 3 }; F.nigeru.aggro = 10; F.nigeru.holdFire = false; }
       rt.say('斎藤の兵', '木戸を閉めよ！　織田が付いて来るぞ！', 3);
     }
     // 木戸の前に着いたら斬り合い。印は木戸の守りへ

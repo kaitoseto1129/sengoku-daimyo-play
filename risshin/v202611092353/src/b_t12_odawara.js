@@ -380,7 +380,7 @@ function requiredStep(step) {
         // 味方だけが木戸の敵を返しても、本人が陣に残ったまま達成にしない。
         if (done && !near) {
           C.goal = C.at;
-          rt.objProgress('dp', step.key === 'ishigaki' ? '石垣山の普請場へ戻れ' : step.key === 'kuzure' ? '山王川の岸へ戻れ' : '篠曲輪の木戸の前へ戻れ');
+          rt.objProgress('dp', step.key === 'ishigaki' ? '石垣山の普請場へ戻れ' : step.key === 'sortie' || step.key === 'kuzure' ? '山王川の岸へ戻れ' : '篠曲輪の木戸の前へ戻れ');
         }
         return done && near;
       }
@@ -552,7 +552,8 @@ const t12_odawara = {
   noFrontFill: true,         // 見える兵は全部本物（奥の軽い乱戦を置かない。11/3 p100）
   kumiLead: false,           // 行き先の印は今の目標の金の▼一つだけ（kaito AV15）
   noGoalCount: true,
-  // 11/9 iPhone 874×402：十の目標を並べると札が画面の高さを埋めた。今の一件だけを出す（goalsAllRows を外す）
+  // 全件で画面を埋めず、今の目標から五件を順番どおりに並べる。
+  goalsVisibleRows: 5,
   goalSignNameOnly: true,
   noLeaderFollow: true,
   // 雨の夜討ちの弓・雨覆いの鉄砲と、狭い出丸の徒歩の守りを共通の兵種補充で替えない。
