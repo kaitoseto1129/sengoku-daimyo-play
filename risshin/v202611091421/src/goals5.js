@@ -111,8 +111,8 @@ const OWN = {
       { kind: 'stage', k: 2, text: '長井・日比野の旗本へ進み、旗本の侍を自分で討つ', noun: '旗を守る侍', check: (rt) => !!F(rt).ownHatamoto || bosses.some((n) => rt._g5?.own.has(n)),
         groups: (rt) => [F(rt).HM, F(rt).HN] },
       { kind: 'stage', k: 2, text: '墨俣への道で両将の殿を討ち破る', noun: '退く敵', check: (rt) => won(rt), groups: (rt) => F(rt).shingari || [] },
-    // 11/6 fixc（kaito 五-1）：右上の並びに「（0／100）」の数や残りの時計を添えない。目標ごとの時切れの ✕ も付けない（戦の時は十分）。
-    ].map((g) => ({ ...g, count: () => null, sec: 900 }));
+    // 数や時計は添えず、告げていない期限で目標を失敗にしない。退却は戦側の下知で決める。
+    ].map((g) => ({ ...g, count: () => null }));
   },
   // 八王子城（11/4 p100）：大手 → 曳橋で打って出た敵を迎え撃つ → 付け入り → 尾根の三つの曲輪 → 本丸の中山勘解由。人数を討つ目標は置かない
   t11_hachioji: (rt) => {

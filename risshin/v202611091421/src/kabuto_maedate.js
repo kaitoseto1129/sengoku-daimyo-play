@@ -25,7 +25,8 @@ export const MAEDATE = {
   羽柴秀次: 'hidetsugu_shikami',
   // 必須人物の表（kacchu_required.js）で伝来の兜の形に寄せた三人
   竹中半兵衛: 'ichinotani', 竹中重治: 'ichinotani',
-  黒田長政: 'ichinotani',   // 関ヶ原で着た一の谷兜（福岡市博物館）
+  黒田長政: 'ichinotani',
+  山内一豊: 'yamauchi_biwa',   // 枇杷耳形脇立（山内一豊所用・高知城歴史博物館）   // 関ヶ原で着た一の谷兜（福岡市博物館）
   蒲生氏郷: 'tsubame',
   加藤嘉明: 'fuji',
   // 図鑑の肖像で板の絵に見えた三人（11/2 zukan_fill。出所は docs/zukan150_portraits.md）
@@ -482,6 +483,20 @@ function build(kind, hi, near) {
     }
     if (hi) { const lip = new THREE.BoxGeometry(0.05, 0.008, 0.01); lip.translate(0, Y - 0.026, Z + 0.02); gold.push(lip); }
     return [join(gold), 'gold', [[join([haraidate(0.19, Z - 0.012, 0.04, hi)]), 'black']]];
+  }
+  if (kind === 'yamauchi_biwa') {
+    // 枇杷耳形脇立（山内一豊所用・高知城歴史博物館）：鉢の左右から枇杷の葉のような細長い楕円の板が耳のように立つ。
+    // 板は張懸で、外へ少し開き後ろへ傾ける。色は伝わる記録を確かめられず、当時の脇立にふつうの金箔押とした復元案
+    const parts = [], N = hi ? 14 : 7, pts = [];
+    for (let i = 0; i <= N; i++) { const a = Math.PI * i / N; pts.push([0.055 * Math.sin(a) * (1 - 0.35 * (i / N)), 0.3 * (1 - Math.cos(a)) / 2]); }
+    for (let i = N - 1; i > 0; i--) { const [x, y] = pts[i]; pts.push([-x, y]); }
+    for (const sd of [-1, 1]) {
+      const g = plate(pts, hi, 0.006);
+      g.rotateY(Math.PI / 2); g.rotateX(-0.18); g.rotateZ(-sd * 0.22); g.translate(sd * 0.125, 0.16, -0.02);
+      parts.push(g);
+      parts.push(ball(0.02, sd * 0.123, 0.16, -0.02, 1, 0.8, 1.4, hi));   // 根元を鉢へ留める受け
+    }
+    return [join(parts), 'gold'];
   }
   if (kind === 'takigawa_buffalo') {
     // 水牛の脇立：鉢の左右から外へ張り、上へ反り返る太い角。張懸を銀箔押した丸い角で、根元から先へ細る（平たい板にしない）。

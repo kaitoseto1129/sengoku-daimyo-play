@@ -586,20 +586,20 @@ function talks(G, i, last) {
   if (id === 'moribe') {
     const headV = last && last.lines.some((l) => l.label === '命令違反' && String(l.detail).includes('首'));
     T.push({ id: 'o_gen1', who: '組頭 源八', rel: 'genpachi', at: 'boss',
-      lines: [headV ? `首は捨てよと、言うたはずじゃぞ` : `桶狭間ではよう働いた、誇らしいわ`, '次は五人を預ける、組頭の役目じゃ'],
+      lines: [headV ? `首は捨てよと、言うたはずじゃぞ` : `桶狭間ではよう働いた、誇らしいわ`, '次もわしの槍組に加われ。組を離れず、槍を並べよ'],
       choices: [
         { t: '源八殿のお引き立てのおかげにございます', fx: { like: 6 }, sup: 3, reply: 'はっは、口の上手い奴め、次も頼むぞ' },
-        { t: '五人、一人も死なせませぬ', fx: { trust: 6, respect: 2 }, reply: 'その意気じゃ、じゃが命あっての物種ぞ' },
+        { t: '組を離れず、仲間と槍を並べます', fx: { trust: 6, respect: 2 }, reply: 'その意気じゃ、じゃが命あっての物種ぞ' },
       ] });
     T.push({ id: 'o_ya1', who: '同輩 弥七', rel: 'yashichi', at: 'inn',
-      lines: [`お主、五人を預かるそうじゃな`, '褒美で槍持ちを雇う者も、おるとか'],
+      lines: [`次も源八殿の槍組で一緒じゃな`, '川を渡っても、組を離れるなよ'],
       choices: [
         { t: '弥七、お主も銭を貯めよ', fx: { like: 4 }, reply: 'わかっとる、次の戦の後で貯めるわ' },
         { t: '次の戦も、槍を並べよう', fx: { like: 6, trust: 3 }, reply: 'おう！　お主の横なら心強いわ' },
       ] });
   } else if (id === 'sunomata') {
     T.push({ id: 'o_tok1', who: '木下藤吉郎', rel: 'tokichiro', at: 'boss',
-      lines: [`森部の横槍は、見事だったそうな`, viol ? '合図を待つのも、砦を守る仕事じゃ' : '川で材木を運ぶ、砦の普請を守れ'],
+      lines: [`森部では、源八殿の組でよう働いたそうな`, viol ? '合図を待つのも、砦を守る仕事じゃ' : '川で材木を運ぶ、砦の普請を守れ'],
       choices: [
         { t: '藤吉郎殿の砦、必ず守り抜きます', fx: { like: 6, trust: 4 }, sup: 3, reply: '砦ができたら、殿に働きを伝えるぞ' },
         { t: '本当に一夜で砦が建ちますか', fx: { trust: 3, wary: 2 }, reply: '一夜は大げさでも、普請は早いぞ' },
