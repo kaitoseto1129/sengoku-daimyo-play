@@ -32,7 +32,7 @@ export function stop(rt) { const W = rt.flags.shWall; if (W) W.on = false; }
 function foesAt(rt, z, SB, span = 60) {
   let n = 0;
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.gone) continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.group?.shWaiting) continue;
     const dx = u.pos.x - SB.x0;
     if (dx > -2 && dx < 80 && Math.abs(u.pos.z - z) < span) n++;
   }
@@ -43,7 +43,7 @@ function foesAt(rt, z, SB, span = 60) {
 function volleyHit(rt, W, z, SB) {
   const cand = [];
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.invuln || u.type === 'busho') continue;
+    if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.group?.shWaiting || u.invuln || u.type === 'busho') continue;
     const dx = u.pos.x - SB.x0;
     if (dx < 6 || dx > 70 || Math.abs(u.pos.z - z) > 28) continue;
     cand.push(u);
