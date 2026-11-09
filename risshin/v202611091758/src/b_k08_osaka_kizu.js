@@ -142,7 +142,8 @@ function perch(g, x, y, z, f) {
 import DEPTH_K08 from './k08/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k08_osaka_kizu = {
   depth: DEPTH_K08,
-  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 見回り 徳川D：既定の強さでは砦の内で bot が倒れた。命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
+  foeHit: 0.8,   // 11/9 見回り 徳川D：砦の内と奥で鉄砲・弓を三方から浴び、bot が二度とも倒れた（今福は 0.9）
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを stage1〜5 を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。木津川口：十一月半ば（今の十二月）の夜の湿地。枯れ葦・ぬかるみ・暗い土
   // 抜け駆けの夜襲の始まりで、まだ誰も戦っていない。倒れた槍・陣笠・矢は撒かない（debris・arrows 0）
@@ -487,6 +488,8 @@ const k08_osaka_kizu = {
     F.step = 4; F.tS = rt.t;
     rt.award((t) => t.side.push('砦の内の明石の守兵を討った'), '砦の守兵を討った');
     rt.unmark('k08');
+    // 砦の内を払った後の一息で傷を縛る（共通の段の合間の手当てと同じ。11/9 見回り 徳川D：③の傷を負ったまま④の北の口で侍に囲まれ倒れた）
+    rt.player.treatWounds?.(0.5);
     for (const g of [F.front, F.w1, ...F.s3, F.oku]) flee(g);
     // 北の口の扉を内から開けて守兵が打って出る（それまで北の口は閉じている）
     if (F.ngate) { F.ngate.hp = 0; F.ngate.alive = false; F.ngate.opened = true; F.ngateMesh.userData.open?.(); }
@@ -591,7 +594,8 @@ const k08_osaka_kizu = {
     const P = rt.player.u.pos;
     // 砦の兵は手薄で浮き足立っている（史実）。豊臣方の組は傷を軽めにそろえる（夜襲の一人が数突きで倒れない）
     //   櫓の上の鉄砲と弓は、夜明けまでは闇に撃ち下ろすので当たりが浅い（11/6 fixc0823：描いて遊んだ通しで、丸太と寄せる門の前で南の櫓の二組に二十秒で撃ち倒された）
-    if (!(F.lightT > rt.t)) { F.lightT = rt.t + 1; const m = F.step <= 2 ? 0.3 : F.step === 4 ? 0.4 : 0.5;   // ④は北の口の守兵・全延の組・城からの加勢が一度に来る（11/9 二巡で加勢を足した分だけ軽く） for (const g of rt.army.groups) if (g.team === 1) g.dmgMult = F.towers.includes(g) || /物見櫓の守り|隅櫓の守り/.test(g.name || '') ? m * 0.2 : g === F.inner ? 0.4 : g === F.engun ? 0.15 : g === F.zen ? 0.22 : m;   // 全延の組は馬上の大将と旗本で、bot の傷の大半（百二十〜百四十）を与えていた
+    if (!(F.lightT > rt.t)) { F.lightT = rt.t + 1; const m = F.step <= 2 ? 0.3 : F.step === 4 ? 0.4 : 0.5;   // ④は北の口の守兵・全延の組・城からの加勢が一度に来る（11/9 二巡で加勢を足した分だけ軽く）
+      for (const g of rt.army.groups) if (g.team === 1) g.dmgMult = F.towers.includes(g) || /物見櫓の守り|隅櫓の守り/.test(g.name || '') ? m * 0.2 : g === F.inner ? 0.4 : g === F.engun ? 0.15 : g === F.zen ? 0.22 : m;   // 全延の組は馬上の大将と旗本で、bot の傷の大半（百二十〜百四十）を与えていた
       // 城の作り（perch.js）の櫓の守りは、この戦が自分で立てる櫓の守り（F.towers）と同じ櫓に重なり、弾が二重になっていた
       //   （bot：倍率を下げても、撃ち方の止めを掛けても物見櫓の守りの傷が八十〜百三十）。櫓の上の兵はこの戦の F.towers に任せ、重なる方は除く
       for (const g of rt.army.groups) if (g.team === 1 && !g.k08Soft && /物見櫓の守り|隅櫓の守り/.test(g.name || '')) { g.k08Soft = true; for (const u of [...g.units]) if (u.alive) rt.army.despawn(u); } }   // 11/9 徳川C：城の作り（perch.js）が立てる物見櫓の守りが③④で本人を撃ち倒していた（bot：鉄砲の傷の八割）。櫓の上からの弾は軽く

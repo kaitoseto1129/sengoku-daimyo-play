@@ -37,13 +37,30 @@ export function start(rt, ctx, done) {
       say: [['木下藤吉郎', 'ようやった！　上様は抜けられた。わしらも退くぞ、狭路の砦まで走れ！', 4]] }),
   ];
   for (const stage of stages) stage.idleAdvance = false;
-  const hold = stages[1], tick = hold.tick;
+  const hold = stages[1], tick = hold.tick, end = hold.end;
   hold.tick = (rt2, C, m, context, el, dt) => {
-    const finished = tick(rt2, C, m, context, el, dt);
+    // 寄せが川の砦へ届く前の待機は、殿の守備に数えない。
+    if (!C.contacted) C.contacted = C.groups.some(g => !g.routed && g.units.some(u =>
+      u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
+      Math.hypot(u.pos.x - LINE1.x, u.pos.z - LINE1.z) < 26));
+    tick(rt2, C, m, context, el, dt);
+    if (!C.contacted) C.inT = 0;
     // 景健は討死しない将。全員を倒す共通の終了条件では景健が残り、
     // 七分の期限まで止まる。殿は三度の寄せを受けて定めの間を守れば退く。
-    return finished || el >= 95 && !C.waves.length && C.inT >= 95 * 0.6;
+    return C.contacted && el >= 95 && !C.waves.length && C.inT >= 95 * 0.6;
   };
+  hold.end = (rt2, C, m) => {
+    // 共通の守備判定は時間切れでも滞在秒だけで達成にするため、
+    // 接敵後の守備不足・期限切れは必ず失敗として後の退きへ渡す。
+    if (C.timeout || !C.contacted || C.inT < 95 * 0.6) C.inT = 0;
+    end(rt2, C, m);
+  };
+  const withdrawal = stages[2], withdrawalStart = withdrawal.start;
+  const failedWithdrawal = DP.rest({ dur: 5, heal: 0.3,
+    banner: ['川の砦を守りきれぬ', '残った組と若狭への道へ退く'],
+    say: [['木下藤吉郎', '備が持たぬ！　残った者を集め、若狭への道へ退け！', 4]] });
+  withdrawal.start = (rt2, C, m, context) =>
+    (m.kgFailed ? failedWithdrawal.start : withdrawalStart)(rt2, C, m, context);
   depthStart(rt, { ...ctx, look: LOOK, scale: 1.0, dmg: 0.5 }, stages,
     () => { F.k15Shingari = 'done'; F.dpOn = false; done(); });
 }

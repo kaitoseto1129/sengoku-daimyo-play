@@ -4364,7 +4364,9 @@ function okChaseTick(rt) {
     const c = g.center();
     let foe = null;
     rt.army.forNear(c.x, c.z, 12, (u) => {
-      if (!foe && u.team === 0 && u.alive && !u.isStruct && !u.fleeing && !u.woundOut && !u.noTarget &&
+      // 倒れかけ・退走・脱落した味方で追跡を止めず、戦える相手へ槍を向ける。
+      if (!foe && u.team === 0 && u.alive && !u.dying && !u.gone && !u.isStruct &&
+        !u.fleeing && !u.woundOut && !u.dropped && !u.noTarget &&
         !rt.army.wallBetween(c, 1, u.pos)) foe = u;
     });
     if (!foe) {

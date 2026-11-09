@@ -1292,6 +1292,8 @@ const iwamura = {
   namedGuideMarkers: true, // 行き先の札にも篝火・柵・麓の別を残す。
   travelGuideLabel(rt) {
     const F = rt.flags;
+    if (IW_HIRU.active(rt)) return IW_HIRU.label(rt);   // 昼の段の行き先（iwamura/hiru.js）
+    if (IW_KAIJO.active(rt)) return '使者と本陣へ';
     // 点火後は、任務札と同じ口の名を出す。連絡道へ回る下知も優先する。
     if (F.step < 3 && F.raidReturning) return '柵の内へ戻れ';
     if (F.step === 1 && !F.scoutNear && !F.localContact && F.lit < POSTS.length) return '篝火へ';
@@ -2276,7 +2278,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       pressureTick(rt, F.step, F.sentWaves, F.front, '');
     }
     // critic60：始まりは昼の明るさで、そのあとも曇りの夕方の灰色だった（四6）。十日の夜の陣なので、始まりの札から夜（暮れの移ろいは置かない）。
-    if (!F.duskStarted) {
+    if (!F.duskStarted && !IW_HIRU.active(rt)) {   // 昼の段（iwamura/hiru.js）の間は昼のまま。日が暮れてから夜へ
       F.duskStarted = true;
       const W = rt.world;
       W.fogTint = new THREE.Color(0x1c222d); W.def.hazeColor = 0x2a303a;   // W.def はこの戦の写し

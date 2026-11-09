@@ -563,7 +563,12 @@ const k03_gifu = {
     rt.objDone('s5');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    for (const g of F.foes) if (g !== F.hide) this.fall(rt, g);
+    // 退く城方も攻撃対象から外す。近習だけを外すと、供回りが残兵を追って降伏の場で斬り合い続ける。
+    for (const g of F.foes) {
+      if (g !== F.hide) this.fall(rt, g);
+      g.fire = false; g.peaceful = true;
+      for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+    }
     // 降伏を見届ける寄せ手は追撃を止める。進軍先と到着後の攻撃命令も残さない。
     for (const g of [F.naga, F.asano, F.mine, F.fuku]) if (live(g)) {
       g._gfTo = null; g._gfGo = false; g.onArrive = null;

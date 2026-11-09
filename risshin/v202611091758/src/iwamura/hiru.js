@@ -18,6 +18,7 @@ const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 
 export function active(rt) { const H = rt.flags.iwHiru; return !!H && !H.night; }   // 日が暮れて夜の段へ渡すまで
 export function stage(rt) { const H = rt.flags.iwHiru; return !H || H.s < 2 ? 0 : 1; }
+export function label(rt) { const H = rt.flags.iwHiru; return !H ? '' : ['本陣へ', '物見の台へ', '麓の小荷駄へ', '', '柵の口へ'][H.s] ?? '柵の口へ'; }
 export function pin(rt) { const H = rt.flags.iwHiru; return !H || H.done ? null : H.s === 0 ? HONJIN : H.s === 1 ? LOOK : H.s === 2 ? KOMODA : H.s === 3 ? null : MOUTH; }
 
 // ctx：{ done（夜の段へ） }
@@ -26,6 +27,7 @@ export function start(rt, ctx) {
   if (F.iwHiru) return;
   const H = F.iwHiru = { s: 0, at: rt.t, ctx, done: false };
   rt.world.setTime('day');
+  rt.obj('main', GOALS[0], 'main', true);   // 右上と行き先の札（無いと「組のそばで槍を構えよ」の待ちの札が出た）
   rt.marker('iwHiru', () => pin(rt) || rt.player.u.pos, '', { guideAlways: true });
   rt.after(1.5, () => rt.say('河尻秀隆', '信忠様が本陣でお呼びじゃ。行くぞ', 3.2));
 }
@@ -87,6 +89,7 @@ export function tick(rt, hidden = []) {
     if (T < 8) return;
     if (near(p, LOOK, 6) || T > 70) {
       H.s = 2; H.at = rt.t;
+      rt.obj('main', GOALS[1], 'main', true);
       rt.say('河尻秀隆', 'あれが岩村城じゃ。秋山虎繁と、信長様の叔母御のおつやの方が籠る', 4);
       rt.after(4.4, () => rt.say('河尻秀隆', '囲んで五月。城の兵糧は尽きかけておる', 3));
       rt.after(8, () => {
@@ -163,6 +166,11 @@ export function tick(rt, hidden = []) {
       if (u.mesh && u.alive) u.mesh.visible = true;
     }
     rt.world.setTime('night');
+    // 日が暮れるまでの間に柵の内の陣へ戻っている（場面替え）。柵の外で夜を迎えて柵に阻まれ、篝火へ行けなかった（11/9 の流し）
+    const P = rt.player.u, W = rt.world;
+    const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = W.heightAt(x, z); };
+    put(P, 2, 10);
+    for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, 4 + Math.random() * 3, 12 + Math.random() * 3);
     H.night = true;
     try { H.ctx.done(); } catch (e) { /* なし */ }
   });
