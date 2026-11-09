@@ -2882,6 +2882,7 @@ const moribe = {
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   // 右上は目標①〜⑤を最初から全部並べ、済んだ物に印（goals5・標準 九-1・十-1）。
   goalsAllRows: true,
+  goalsVisibleRows: 5, // 増えた段も今の目標から五つまでに収め、戦場を札で覆わない。
   missionAlways: true, // 敵を狙う間も「▼の敵を倒せ」などの一行を残す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
@@ -4274,7 +4275,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     rt.flags.V = enemyGroup(rt, { faction: 'saito', name: '斎藤の先手', fixed: true, anchor: { x: 40, z: 60 }, facing: 0, fleeDir: { x: -0.2, z: -1 }, speed: 2.1, aggro: 5, noRout: false, formation: 'yari', yariRanks: 3 }, [{ type: 'ashigaru', n: 34 }, { type: 'bow', n: 3 }, { type: 'samurai', n: 3 }]);
     rt.flags.vanguardHealth = rt.flags.V.units.reduce((sum, u) => sum + u.hp, 0);
     // 11/7 fixc2220（布陣）：史実は織田 約千五百 対 斎藤 約六千（一対四）、長井（約千五百）が日比野（約千）より大きい（fujin60）。
-    //   見える兵は 250 人までで、味方 五十八 対 斎藤 百九十二（約一対三・三）。長井の備と控えを日比野より厚くした。
+    //   畦の伏兵十二人と射手十二人の分を控えから引き、全段を合わせて約二百五十人。長井の備と控えを日比野より厚くする。
     // 日比野下野守の備え（足立六兵衛を含む）
     rt.flags.M = enemyGroup(rt, { faction: 'saito', name: '日比野の備', fixed: true, anchor: { x: -14, z: -30 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 8, width: 10, morale: 85, noRout: false, formation: 'yari', yariRanks: 3 },
       [{ type: 'ashigaru', n: 22 }, { type: 'samurai', n: 3 }, { type: 'samurai', n: 1, o: { name: '足立六兵衛' } }, { type: 'bow', n: 4 }]);
@@ -4390,7 +4391,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     // 控えは開戦時からここにいる。後の段では追加せず、持ち場から歩いて出す。
     rt.flags.reserves = [[-44, -76, '長井の控え'], [12, -80, '日比野の控え']].map(([x, z, name]) =>
       enemyGroup(rt, { faction: 'saito', name, fixed: true, anchor: { x, z }, facing: 0, formation: 'yari', yariRanks: 3,
-        aggro: 6, morale: 85, fleeDir: { x: 0, z: -1 } }, [{ type: 'ashigaru', n: name === '長井の控え' ? 24 : 20 }, { type: 'samurai', n: 2 }]));
+        aggro: 6, morale: 85, fleeDir: { x: 0, z: -1 } }, [{ type: 'ashigaru', n: name === '長井の控え' ? 12 : 8 }, { type: 'samurai', n: 2 }]));
     rt.flags.opposition = [rt.flags.V, rt.flags.M, rt.flags.N, ...rt.flags.reserves, rt.flags.HM, rt.flags.HN];
     rt.flags.taskTick = 0;
     rt.flags.moribePin = { x: POINT2.x, z: POINT2.z, r: FORD_R, hide: FORD_R };

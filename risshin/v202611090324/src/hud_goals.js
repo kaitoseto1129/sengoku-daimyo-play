@@ -146,6 +146,11 @@ export function goalsTick(el, rt, stg, always) {
   f.rows.forEach((g, i) => {
     // def.goalsAllRows：①から全部を最初から並べ、済んだ物に印（11/8 critic60 越前一向一揆 三3・九1）
     if (i !== now && !rt.def.goalsAllRows) return;
+    const visibleRows = rt.def.goalsVisibleRows;
+    if (visibleRows > 0) {
+      const first = Math.max(0, Math.min(now, f.rows.length - visibleRows));
+      if (i < first || i >= first + visibleRows) return;
+    }
     const li = document.createElement('li');
     li.className = i === now ? 'now' : g.done ? 'done' : g.fail ? 'fail' : '';
     // 今まで済んでいなかった物が済んだ時だけ弾ませる

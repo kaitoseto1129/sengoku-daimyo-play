@@ -2,7 +2,7 @@
 // 森部 5〜7分：北岸の田の畦（足場の悪さ・小隊長の撃破）
 //   斎藤の先手が畦から退くと、組は前備の槍の列へ向かってぬかるむ田を渡る。田の畦の稲の陰に、斎藤の物頭と足軽が伏せて待つ。
 //   組と一緒に物頭を討てば、頭を失った伏兵は背を向けて逃げる。済んだら本体の「前備の槍の列で受け止めよ」へ。
-//   一分半で決まらなければ、柴田の前備が物頭を討つ（物語は進む）。
+//   柴田の前備も物頭へ向かい、実際に討たれてから次へ進む。
 // ======================================================================
 import { sfx } from '../audio.js';
 
@@ -43,19 +43,19 @@ export function tick(rt) {
   const P = rt.player.u.pos, t = rt.t - v.azeT;
   if (!v.azeUp && (t > 25 || v.azeGs.some((g) => g.units.some((u) => ready(u) && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 12)))) wake(rt);
   const B = v.azeBoss;
-  if (v.azeUp && !ready(B) && t > 20 || t > 90) {
-    if (B?.alive && !B.gone) {
-      // 退いた印や近習の救出だけで「討った」と知らせない。
-      let k = null;
-      for (const g of F.friends || []) for (const u of g.units) if (ready(u) && (!k || Math.hypot(u.pos.x - B.pos.x, u.pos.z - B.pos.z) < Math.hypot(k.pos.x - B.pos.x, k.pos.z - B.pos.z))) k = u;
-      B.invuln = false; B.officerSaved = true;
-      rt.army.kill(B, k);
-      if (B.alive && !B.gone) return;
+  // 時間だけで遠くの物頭を討たない。前備も実際に近づき、通常の槍で戦う。
+  if (v.azeUp && ready(B)) {
+    const g = F.A;
+    if (g && g.units.some(ready)) {
+      g.order = 'attack'; g.dest = B.pos; g.seekRange = 30;
+      for (const u of g.units) if (ready(u)) u.target = B;
     }
+  }
+  if (v.azeUp && B && (!B.alive || B.hp <= 0 || B.dying) && t > 20) {
     v.azeDone = true; v.ph = null;
     rt.unmark('aze');
     for (const g of v.azeGs) { g.noRout = false; g.morale = 0; g.leader = null; g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 }; }
-    rt.say('組頭 源八（げんぱち）', t > 90 ? '前備が物頭を討った。伏兵は逃げてゆくぞ' : '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく', 3.2);
+    rt.say('組頭 源八（げんぱち）', '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく', 3.2);
     if (t <= 90) rt.award((tr) => tr.side.push('田の畦で斎藤の物頭を討った'), '田の畦で斎藤の物頭を討った');
   }
 }
