@@ -38,6 +38,10 @@ import * as ST_INTRO from './shitaragahara/intro.js';
 import * as ST_BREACH from './shitaragahara/breach.js';
 import * as ST_HARA from './shitaragahara/hara.js';
 import * as ST_YOIN from './shitaragahara/yoin.js';
+import * as ST_WALL from './shitaragahara/teppo_wall.js';
+import * as ST_TAME from './shitaragahara/tameshi.js';
+import * as ST_MEISHO from './shitaragahara/meisho.js';
+import * as ST_SOKO from './shitaragahara/sokogeki.js';
 // 地面を作る前に標高を読み終える。後から届いても地面の格子は作り直されない。
 let DEM = null;
 useTerrain('dem_shitaragahara', (data) => { DEM = data; });
@@ -1327,7 +1331,7 @@ function shMouthNow(rt) {
 // 夜明け、鳶ヶ巣山の知らせ → 大宮前の柵へ真田隊が寄せ、柵の内の鉄砲と槍で止める → 柵の奥の道を組と歩いて柳田前へ →
 // 内藤隊が寄せて崩れる（未の刻へ日が移る）→ 進み太鼓で柳田前の虎口を出て連吾川を渡る → 退き口で馬場信春の殿を討ち破る。
 // 目標は右上に①〜④を最初から並べ、果たすまで勝ちにしない。時が切れても勝ちにしない。寄せ手は柵の外で押し合い、柵の内へ入らない。
-const NF_TEXT = ['柵の外で武田の物見を誘い、柵へ引く', '大宮前の柵で真田隊を止める', '破られた柵で土屋昌次を討つ', '柳田前の柵へ移り、原・内藤隊を止める', '柳田前の虎口を出て、連吾川を渡る', '退き口で馬場信春の殿を討ち破る'];
+const NF_TEXT = ['柵の外で武田の物見を誘い、柵へ引く', '大宮前の柵で真田隊を止める', '破られた柵で山県昌景の赤備えを討つ', '柳田前の柵へ移り、原・内藤隊を止める', '柳田前の虎口を出て、連吾川を渡る', '退き口で馬場信春の殿を討ち破る'];
 // 段の道具（shitaragahara/*.js へ渡す）
 const stCtx = (rt) => ({ SB, MOUTHS, nfGuns, black: shBlackArmy, ready: nfReady, guns: () => rt.flags.guns, reserve: () => rt.flags.reserve, text: (i) => NF_TEXT[i] });
 const NF_NORTH = { x: SB.x0 - SB.gap - 3, z: SB.gates[0] + 4.5 };
@@ -1394,17 +1398,18 @@ function nfTick(rt, dt) {
   const T = rt.t - N.at;
   // 導入の段（柵の見回り・物見の誘い出し）が済むまで夜明けの寄せを待つ
   if (N.step === 0 && ST_INTRO.tick(rt, dt)) return;
-  if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; }
+  if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; ST_WALL.start(rt); }
   // ― 0：夜明け。鳶ヶ巣山の知らせ（未明に落ちた砦の煙）と、南の山県の寄せ ―
   if (N.step === 0) {
     if (!N.tobi && rt.t > N.t0 + 2) {
       N.tobi = true;
-      rt.say('使番', '鳶ヶ巣山の砦が落ちたぞ！　酒井殿の手柄じゃ。武田は前へ出るしかない！', 4);
-      F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
-        rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
+      // 酒井の別働（遠くの出来事・仕様29）：まず攻め上った知らせ。砦が落ちる知らせと煙は山県の柵破りの時
+      rt.say('使番', '酒井忠次殿の別手、鳶ヶ巣山の砦へ攻め上りました！', 4);
     }
     if (!N.south && rt.t > N.t0 + 2) { N.south = true; nfSend(rt, F.south, SB.gates[2]); F.jinkeiBound.shitara_yamagata?.advance(25, 12);
       for (const fc of F.far) if (!fc.v && Math.abs(fc.z - MOUTHS[2].z) < 50) { fc.v = 1; fc.m.advance(80, 16, { charge: true }); } sfx('taiko', 1); }
+    // 第一波：試しの寄せ（shitaragahara/tameshi.js）。崩れてから真田の本隊を寄せる
+    if (rt.t > N.t0 + 3 && ST_TAME.tick(rt, dt, stCtx(rt))) return;
     // 近くの真田隊を五秒以上立たせず、夜明けの知らせ・南の寄せに続いて動かす。
     if (rt.t > N.t0 + 3) {
       N.step = 1; N.at = rt.t;
@@ -1422,7 +1427,7 @@ function nfTick(rt, dt) {
   // 南の山県は徳川の柵で崩れる（知らせと遠くの働き）
   if (N.south && !N.southDone && nfBroken(rt, F.south)) {
     N.southDone = true; nfRout(rt, F.south, true);
-    shReport(rt, '山県昌景、討死！　竹広の赤備えが崩れた！', 3.5);
+    shReport(rt, '竹広の赤備えの別手が崩れた！　徳川殿の柵は破れておらぬ！', 3.5);
   }
   // ― 1：大宮前の柵で真田隊 ―
   if (N.step === 1) {
@@ -1436,6 +1441,16 @@ function nfTick(rt, dt) {
       rt.banner('真田信綱・昌輝、討死', '大宮前の柵を守った');
       // 戦況の変わり目：口の無い所の柵へ土屋昌次が取り付く（shitaragahara/breach.js）
       ST_BREACH.start(rt, stCtx(rt));
+      // 第三波の始まり：同じ時に柳田前へ原昌胤も寄せる（二つの区画を走る）
+      ST_HARA.send(rt, stCtx(rt)); N.sent = true; F.jinkeiBound.shitara_hara?.advance(50, 22);
+      // 酒井の別働：鳶ヶ巣山の砦が落ちる。武田の後ろの気が落ちる
+      rt.after(9, () => {
+        if (F.ending) return;
+        rt.say('使番', '鳶ヶ巣山の砦、陥落！　酒井殿の手柄にございます！', 3.6);
+        F.tobiSmoke = [[880, 620], [930, 660], [850, 700]].map(([x, z], i) =>
+          rt.world.addSmokeColumn?.(x, rt.world.heightAt(x, z) + 8, z, { size: 4 - i * 0.6, black: true }));
+        for (const g of rt.army.groups) if (g.team === 1 && !g.routed) g.morale = Math.max(0, (g.morale ?? 100) - 12);
+      });
       try { rt.world.setTime('day'); } catch (e) { /* 光が替えられなくても進む */ }
       F.jinkeiBound.shitara_sanada?.retreat(60, 20); F.jinkeiBound.shitara_sanada_masateru?.retreat(60, 20);
       // 組は本人に付いて柵の間の道を歩く（一5）。滝川の備の槍組も同じ道で柳田前へ
@@ -1473,6 +1488,7 @@ function nfTick(rt, dt) {
       nfSend(rt, F.waveGroups[1], SB.gates[1]); nfGuns(rt, MOUTHS[1].z);
       F.jinkeiBound.shitara_naito?.advance(52, 24);
       sfx('taiko', 1); N.at = rt.t; N.naitoSent = true;
+      ST_SOKO.start(rt, { ...stCtx(rt), BZ: ST_BREACH.BZ });   // 第四波：内藤と同時に土屋が破れ目へ（shitaragahara/sokogeki.js）
     };
     ST_HARA.tick(rt, dt);
     if (!ST_HARA.active(rt) && !N.naitoSent) sendNaito();
@@ -1483,7 +1499,8 @@ function nfTick(rt, dt) {
     const g = F.waveGroups[1];
     if (Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
     if (!N.near && g.center().x < SB.x0 + 40) { N.near = true; sfx('hooves', 0.8); rt.say('内藤昌豊', '柵の口を押せ！　武田の意地を見せよ！', 3); }
-    if (N.defendedCenter && T > 25 && nfBroken(rt, g)) {
+    ST_SOKO.tick(rt, dt);
+    if (N.defendedCenter && T > 25 && !ST_SOKO.active(rt) && nfBroken(rt, g)) {
       nfRout(rt, g, true);
       N.done[1] = true; N.step = 4; N.at = rt.t;
       nfCollapse(rt);
@@ -1561,6 +1578,7 @@ function nfCollapse(rt) {
   try { rt.world.setTime('after'); } catch (e) { /* なし */ }
   rt.army.playFar('sig_nobiki', KATSUYORI, 1);
   rt.say('使番', '内藤昌豊、討死！　武田の備が崩れて退くぞ！', 3.5);
+  rt.after(3.8, () => { if (!F.ending) rt.say('使番', '武田勝頼、退きます！　馬場美濃守が殿に残りました！', 3.6); });
   F.katsuyori.retreat(240, 60);
   F.mainHost?.retreat?.(260, 55);
   F.katsCamp.general.invuln = true; F.katsCamp.general._crouch = false;
@@ -1699,6 +1717,7 @@ function nfPinPoint(rt) {
   if (!N || rt.flags.ending) return null;
   if (ST_INTRO.active(rt)) return ST_INTRO.pin(rt);
   if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt);
+  if (N.step === 3 && ST_SOKO.active(rt) && rt.flags.shSoko.call && !(rt.flags.shSoko.there)) return ST_SOKO.pin(rt);
   if (N.step <= 1) return Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 7 ? null : NF_NORTH;
   if (N.step <= 3) return Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 7 ? null : NF_CENTER;
   if (N.step === 4) return N.crossWest ? NF_BANK : NF_CENTER;
@@ -1707,7 +1726,47 @@ function nfPinPoint(rt) {
   return Math.hypot(c.x - p.x, c.z - p.z) < 14 ? null : c;
 }
 
+// 戦の途中の保存（battle_checkpoint.js・仕様33）：CP1 第一波の後（真田の寄せ）／CP2 山県の柵破りの前／CP3 内藤の寄せ（勝頼の退く前）。
+//   段の始まりは nfTick を声なしで先へ流して作り直す（前の段の寄せ手は崩した事にする）
+function shCp1(rt) {
+  const F = rt.flags, N = F.nf;
+  if (F.shIntro) F.shIntro.s = 9;
+  if (!N.t0) { N.t0 = rt.t - 10; N.at = rt.t; ST_WALL.start(rt); }
+  N.tobi = true;
+  if (!F.shTame) F.shTame = { done: true };
+  else F.shTame.done = true;
+  nfTick(rt, 0.05);
+}
+function shCp2(rt) {
+  const F = rt.flags, N = F.nf;
+  if (N.step < 1) shCp1(rt);
+  const g = F.waveGroups[0];
+  for (const q of [g, g.cavalry]) for (const u of q.units) if (u.alive && u.type !== 'busho') u.fleeing = true;
+  N.defendedNorth = true; g.nfAt = g.nfAt || rt.t; g.nfArrive = rt.t - 60;
+  nfTick(rt, 0.05);
+}
+function shCp3(rt) {
+  const F = rt.flags, N = F.nf;
+  if (N.step < 2) shCp2(rt);
+  const B = F.shBreach;
+  if (B && !B.done) { B.s = 1; B.at1 = B.at1 || rt.t; B.there = true; const l = B.g.units.find((u) => u.name === '山県昌景'); if (l?.alive) rt.army.kill(l, null); }
+  nfTick(rt, 0.05); nfTick(rt, 0.05);
+  const H = F.shHara;
+  if (H && !H.done) { H.there = true; const l = H.g.units.find((u) => u.name === '原昌胤'); if (l?.alive) rt.army.kill(l, null); }
+  N.step = 3; N.at = rt.t;
+  nfTick(rt, 0.05);
+}
 const shitaragahara = {
+  checkpointStep(rt) {
+    const N = rt.flags.nf;
+    if (!N || rt.flags.ending) return null;
+    if (N.step >= 3 && N.naitoSent) return 3;
+    if (N.step === 2 && ST_BREACH.active(rt)) return 2;
+    if (N.step === 1) return 1;
+    return null;
+  },
+  resumeSteps: [[1, shCp1], [2, shCp2], [3, shCp3]],
+  resumeAt(rt, step) { return step === 1 ? NF_NORTH : step === 2 ? { x: SB.x0 - SB.gap - 3, z: ST_BREACH.BZ + 20 } : NF_CENTER; },
   mapBadgeTai: true, // 地図の組の札を「隊N」で出す（hud_map）
   kumiLead: false, // 11/6 fixc1721（五2）：意味の分からない組の小旗の印を出さない
   // 稲生の水準：右上は任務の一行だけ。段の丸・小旗・避ける札・足元の白い輪・空振りの音は出さない。
@@ -2904,7 +2963,7 @@ const shitaragahara = {
     for (const mouth of MOUTHS) for (let i = 0; i < 3; i++) {
       const z = mouth.z + (i - 1) * 12;
       // 各組四挺。傷を人数で割らず、三つの口に本物の射手を残す。
-      const gunN = 4;
+      const gunN = 7;   // 11/9 設楽原の仕様（鉄砲の密度が最重要）：一組四挺から七挺へ。三組で一つの口に二十一挺
       F.guns.push(allyGroup(rt, { faction: z < odaZ ? 'oda' : 'tokugawa', name: mouth === MOUTHS[0] ? '野々村の鉄砲組' : mouth === MOUTHS[1] ? ['佐々の鉄砲組', '前田の鉄砲組', '塙の鉄砲組'][i] : mouth.name + 'の鉄砲組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: SB.x0 - 2.4 - i * 1.5, z }, facing: Math.PI / 2, width: gunN > 4 ? 14 : 8, spacing: gunN > 4 ? 1.4 : 2, ranks: 1, aggro: 44, holdFire: true, dmgMult: 0.8 }, [{ type: 'gun', n: gunN }]));
       if (mouth === MOUTHS[0]) F.guns[F.guns.length - 1]._fieldWait = true;
     }
@@ -2923,6 +2982,7 @@ const shitaragahara = {
     }
     // 列を機械的に回さず、別の組が弾込めの間を補う。
     F.bands = assignBands(F.guns);
+    ST_WALL.install(rt, { SB, MOUTHS, ZONES });   // 鉄砲の壁（shitaragahara/teppo_wall.js）
     for (const q of F.guns) q.fireArc = Math.PI * 80 / 180;
     F.hudBands = null; F.hudZone = null;
     // 槍の組：動く一組と、南北の虎口に残る守り。大将本人を連れ回さない。
@@ -3234,7 +3294,7 @@ const shitaragahara = {
     F.katsuyori.noWake = true; F.katsuyori.army.noWake = true;
     // 近接する寄せ手と殿は開戦前からそれぞれの備に置く。
     F.waveGroups = this.WAVES.map((w) => this.makeWave(rt, w));
-    F.south = this.makeWave(rt, { name: '山県昌景', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 3, ash: 8, bamboo: true });
+    F.south = this.makeWave(rt, { name: '山県昌景', general: '赤備えの侍大将', hq: 'shitara_yamagata', fac: 'akazonae', z: MOUTHS[2].z, home: { x: 60, z: MOUTHS[2].z + 4.5 }, cav: 3, ash: 8, bamboo: true });
     // 退路の旗と馬は軽い備の討死の跡。元の馬の形・材質を共用する。
     const fallenModel = F.south.cavalry.units.find((u) => u.horse)?.horse;
     // 10/31 iPhone の記憶：three の clone は userData を JSON で写し直す。乗った馬の userData から辿れる物まで
@@ -3419,6 +3479,7 @@ const shitaragahara = {
     if (F.ending || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     nfTick(rt, dt);
+    ST_WALL.tick(rt, dt);
     // 替えた兵にも同じ武器の威力を使う。柵の内では控えを勝手に侵入させない。
     if ((F.wkT = (F.wkT || 0) - dt) <= 0) {
       F.wkT = 0.5;
@@ -3599,6 +3660,7 @@ const shitaragahara = {
 
   onRout(rt, g) {},
   onKill(rt, v, k) {
+    ST_MEISHO.onKill(rt, v, { groundFlag: shGroundFlag });   // 名のある将の討死：大旗が倒れ気が崩れる（shitaragahara/meisho.js）
     // 両軍の今の数の棒（九3）：討たれた本物の兵の数から史実の規模へ
     if (v.team === 1) rt.flags.ek = (rt.flags.ek || 0) + 1; else rt.flags.ak = (rt.flags.ak || 0) + 1;
     if (v.mounted) shFallenHorse(rt, v);
@@ -3725,7 +3787,7 @@ shitaragahara.bushou = ['織田信忠', '柴田勝家', '丹羽長秀', '佐久�
 // 倒す数（kaito_play O）：柵へ寄せる今の備（と後から出る騎馬）を退ければ次の備が来る。waveDefeated と同じ物差しで数える
 KILLS.shitaragahara = { 0: (rt) => {
   const F = rt.flags, N = F.nf;
-  const extra = ST_BREACH.group(rt) || ST_HARA.group(rt);
+  const extra = ST_TAME.group(rt) || ST_BREACH.group(rt) || ST_HARA.group(rt) || (ST_SOKO.active(rt) && rt.flags.shSoko.call && !rt.flags.shSoko.there ? ST_SOKO.group(rt) : null);
   if (extra) return broke([extra], (u) => u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget, (q) => q.routed);
   const g = N && N.step <= 3 && !ST_INTRO.active(rt) ? F.waveGroups[N.step <= 1 ? 0 : 1] : null;
   return g && g.units ? broke([g, g.cavalry], (u) => u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget, (q) => q.routed) : null;
