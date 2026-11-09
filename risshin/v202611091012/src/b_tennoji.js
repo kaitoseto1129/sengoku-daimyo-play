@@ -4132,27 +4132,21 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
 
 // 史料に人数がある後詰だけを数える。人数不明の守備隊を足して四千と断定しない。
 // 局地の死者から全軍の残数を逆算しない。戦う兵と遠景の人数はこの値で変えない。
-// 11/6 fix61（kaito 九3・十二1）：両軍の棒は減っていく。本願寺勢は公記の「二千七百余討ち取る」を城戸口までの段に割って減らす。
+// 両軍の棒は実兵の討死に合わせる。本願寺勢は公記の「二千七百余討ち取る」を戦果の上限とする。
 //   後詰の損は公記に数が無く、一割を上限とする推定。味方の討死の割合で減らし、段替わりや勝利だけでは減らさない。
-const FORCE_FRAC = { 0: 0, 2.5: 0.04, 1: 0.18, 2: 0.32, 2.75: 0.36, 3: 0.5, 4: 0.8 };
 tennoji.force = (rt) => {
   const F = rt.flags;
   // 両軍それぞれの討死を数える。敵の討死だけで味方の棒も減らさない。
   const won = F.ending && rt.tracker?.main === true;
-  const base = FORCE_FRAC[F.step] ?? 0;
-  let allyDead = 0, allyTotal = 0, enemyDead = 0;
+  let allyDead = 0, allyTotal = 0, enemyDead = 0, enemyTotal = 0;
   for (const g of rt.army?.groups || []) for (const u of g.units) if (!u.isStruct) {
     if (g.team === 0 && F.relief?.includes(g)) { allyTotal++; if (!u.alive) allyDead++; }
-    else if (g.team === 1 && !u.alive) enemyDead++;
+    else if (g.team === 1) { enemyTotal++; if (!u.alive) enemyDead++; }
   }
-  if (F.forceStep !== F.step) {
-    F.forceStep = F.step; F.forceDead0 = enemyDead; F.forceAllyDead0 = allyDead;
-  }
-  let next = 1;
-  for (const step in FORCE_FRAC) { const value = FORCE_FRAC[step]; if (value > base && value < next) next = value; }
-  const enemyWant = base + (next - base) * 0.9 * Math.min(1, Math.max(0, enemyDead - F.forceDead0) / 14);
+  // 段替わりで架空の討取りを足さず、前の段の討取りも捨てない。
+  const enemyWant = enemyDead / Math.max(1, enemyTotal);
   const allyWant = allyDead / Math.max(1, allyTotal);
-  // 段替わりは滑らかに減らす。戦果を掲げた瞬間から敵の残数を札と一致させる。
+  // 討死を滑らかに反映し、戦果を掲げた瞬間から敵の残数を札と一致させる。
   const dt = Math.max(0, Math.min(1, rt.t - (F.forceT ?? rt.t)));
   F.forceT = rt.t;
   F.forceFrac = won ? 1 : (F.forceFrac ?? 0) + Math.max(0, enemyWant - (F.forceFrac ?? 0)) * Math.min(1, dt * .25);

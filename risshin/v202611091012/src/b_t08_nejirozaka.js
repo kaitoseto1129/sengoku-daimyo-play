@@ -116,7 +116,7 @@ const STEP_TEXT = ['土橋の塀で、堀を越える島津勢を突き落とす
 // 守備は持ち場で守った刻で果たす。敵の全滅を待って止まったり、
 // 持ち場から離れたまま時間切れだけで済んだりしない。残兵は end の下知で退く。
 function defendHold(o) {
-  const s = hold(o), tick = s.tick, dur = o.dur || 90;
+  const s = hold(o), tick = s.tick, end = s.end, dur = o.dur || 90;
   s.limit = Infinity;
   s.idleAdvance = false;
   s.tick = (rt, C, m, ctx, el, dt) => {
@@ -125,6 +125,15 @@ function defendHold(o) {
     const p = rt.player.u.pos;
     C.inT = inT + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14) ? dt : 0);
     return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
+  };
+  s.end = (rt, C, ...args) => {
+    // 組頭が生きている寄せ手も、退く下知で坂の下へ戻す。
+    // 士気を零にするだけでは退かず、次の寄せと砦に積み重なる。
+    for (const g of C.groups) if (g.count && !g.routed) {
+      g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
+      g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
+    }
+    end(rt, C, ...args);
   };
   return s;
 }
