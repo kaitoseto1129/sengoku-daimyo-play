@@ -1960,21 +1960,28 @@ void main(){ vec4 t = texture2D(map, vUv); gl_FragColor = vec4(col, t.a * vA);
 const SIEGE_SMOKE = [[-13.5, -35.2], [7.6, -33.8], [-4.5, -33.5], [10.4, -31.6], [-17.6, -37.6], [-8.5, -39.4], [5.5, -31.5], [8.8, -36.4], [-21.5, -40.6], [-15.8, -41.2], [11.6, -34.8], [.5, -27.5], [-10.2, -33.6]];
 function fortSiegeView(rt) {
   const W = rt.world, h = (x, z) => W.heightAt(x, z);
+  // 竹束の裏へ視点が回っても、板状の背面で主人公を隠さない。
+  // 遠近の形を持つ束も、実際に描く面を視点の当たりに使う。
+  const bundle = (x, z, rot, options) => {
+    const object = takataba(W, x, z, rot, options);
+    object.traverse(part => { if (part.isMesh) part.userData.camBlock = true; });
+    rt.scene.add(object);
+  };
   // 門の内：柵へ立て掛けた梯子（柵を越える寄せ手を突き落とす備え）と、寝かせた予備の梯子
   for (const [fx, fz, tx, tz, dy] of [[-3.6, -46.3, -3.4, -43.7, 2.7], [-7.4, -46.6, -7.9, -43.8, 2.8], [-10.8, -46.2, -11.2, -44.1, 2.5], [-5.6, -48.6, -9.6, -48.9, .25]]) {
     const m = hashigo({ x: fx, y: h(fx, fz), z: fz }, { x: tx, y: h(tx, tz) + dy, z: tz });
     m.userData.camBlock = false; rt.scene.add(m);
   }
   // 門の内：柵の下に竹束を並べる（前が門の外）
-  for (const [x, z] of [[-5.2, -45.1], [-9.1, -45.4], [-13.4, -46.6]]) rt.scene.add(takataba(W, x, z, 0));
+  for (const [x, z] of [[-5.2, -45.1], [-9.1, -45.4], [-13.4, -46.6]]) bundle(x, z, 0);
   // 柵の外：寄せ手の竹束（前が砦）と、その陰に並ぶ本願寺方の鉄砲衆
-  for (const [x, z] of [[-10.6, -35.4], [-14.2, -37.2], [-18, -39.6], [-21.6, -42.6]]) rt.scene.add(takataba(W, x, z, Math.atan2(FORT.x - x, FORT.z - z), { fieldBundle: true, fieldTrestle: true }));
+  for (const [x, z] of [[-10.6, -35.4], [-14.2, -37.2], [-18, -39.6], [-21.6, -42.6]]) bundle(x, z, Math.atan2(FORT.x - x, FORT.z - z), { fieldBundle: true, fieldTrestle: true });
   const people = [];
   for (let i = 0; i < 22; i++) {
     const t = i / 21, x = -9.6 - t * 14 + (i % 2) * .7, z = -32.6 - t * 9.6 + (i % 3) * .9;
     people.push({ x, z, k: i % 7 === 3 ? 'banner' : i % 5 === 1 ? 'spear' : 'gun', facing: Math.atan2(FORT.x - x, FORT.z - z) });
   }
-  for (const [x, z] of [[7.4, -35], [10.6, -32.8]]) rt.scene.add(takataba(W, x, z, Math.atan2(FORT.x - x, FORT.z - z), { fieldBundle: true, fieldTrestle: true }));
+  for (const [x, z] of [[7.4, -35], [10.6, -32.8]]) bundle(x, z, Math.atan2(FORT.x - x, FORT.z - z), { fieldBundle: true, fieldTrestle: true });
   for (let i = 0; i < 10; i++) {
     const x = 6.6 + (i % 5) * 1.3 + (i > 4 ? .6 : 0), z = -31.4 - (i > 4 ? 2.6 : 0) - (i % 5) * .7;
     people.push({ x, z, k: i === 7 ? 'banner' : i % 4 === 2 ? 'spear' : 'gun', facing: Math.atan2(FORT.x - x, FORT.z - z) });

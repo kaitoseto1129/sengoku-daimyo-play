@@ -709,7 +709,8 @@ const k06_sekigahara = {
         for (const g of [F.akashi, F.ukita2, F.ukita3, F.ukita4]) if (alive(g)) g.morale -= 20;
         rt.say('井伊直政', '明石掃部、倒れたり！　宇喜多の先手が揺らいだぞ、押せ！', 3.5);
       }
-      if (F.wave2b && left2b <= need) {
+      // 先手と槍を合わせた後に遠くへ離れても、味方の戦果だけでは押し返した事にしない。
+      if (F.wave2b && left2b <= need && near(P, UKITA_F, 55)) {
         if (!F.akashiDown && F.akashiU?.alive) rt.say('井伊直政', '明石掃部が退いていく。宇喜多の先手は崩れたぞ！', 3);
         this.stage6(rt);
       }
@@ -746,11 +747,19 @@ const k06_sekigahara = {
       // 段は柵を越えて、左近の隊が減った所で進む（時間では進めない・AB）。黒田の鉄砲が左近を撃つ（史実）
       if (F.wave3b && !F.sakBack && left3b <= Math.round(F.sakN * 0.25)) {
         F.sakBack = true;
-        for (const g of [F.sakon, F.shima3]) if (alive(g)) { g.order = 'move'; g.dest = { x: SAKON.x - 6, z: SAKON.z }; g.aggro = 0; g.onArrive = (q) => { q.order = 'hold'; q.aggro = 8; q.onArrive = null; }; }
+        for (const g of [F.sakon, F.shima3]) if (alive(g)) {
+          g.order = 'move'; g.dest = { x: GAP.x + 8, z: GAP.z }; g.aggro = 0; g.seekRange = 0;
+          g.onArrive = (q) => {
+            q.dest = { x: GAP.x - 12, z: GAP.z };
+            q.onArrive = (r) => { r.order = 'hold'; r.anchor = { ...r.dest }; r.aggro = 8; r.seekRange = 8; r.onArrive = null; };
+          };
+        }
         rt.say('島左近', '退け、柵の内で立て直す！', 3);
         rt.after(3, () => rt.say('黒田長政', '左近が退くぞ。柵を越えて追え！', 3));
       }
-      if (F.sakBack && F.crossed && F.sakonSeen) this.stage8(rt);
+      // 退く下知を出した同じ瞬間に済ませず、左近が実際に柵の内へ戻るまで見届ける。
+      const sakonInside = F.sakon?.leader?.alive && !F.sakon.leader.gone && F.sakon.leader.pos.x < FENCE_X - 1;
+      if (F.sakBack && F.crossed && F.sakonSeen && sakonInside) this.stage8(rt);
     } else if (F.step === 8) {
       const n = nOf(F.mitsu2, F.mitsu3);
       const need = Math.round(F.mitN * 0.2);
