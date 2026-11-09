@@ -4112,7 +4112,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   cannons(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
-    F.step = 1; F.stepT = rt.t;
+    F.step = 1; F.stepT = rt.t; F.cannonPost = F.guns[1];
     rt.setPhase('cannon'); rt.objProgress('main', '');
     // 大将の場所は残し、危ない時だけ持ち場への案内に切り替える。
     sfx('horagai', 0.9);
@@ -4835,18 +4835,9 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         const guarding = !!nearbyThreat;
         F.cannonGuard = guarding;
         // 行き先の距離は大筒まで。射撃の目安は敵船までと明記する。
-        let c = F.guns[1], score = -Infinity;
-        if (F.step === 1) for (const gun of F.guns) {
-          const d = deckRouteDistance(u, gun.post);
-          const s = cannonPriority(rt, gun) - d * 0.1;
-          if (s > score) { score = s; c = gun; }
-        }
-        // 同じ射撃条件なら直前の筒を保つ。半歩の移動で隣の筒へ案内を替えない。
-        if (F.step === 1 && F.cannonPost) {
-          const previous = F.cannonPost;
-          const s = cannonPriority(rt, previous) - deckRouteDistance(u, previous.post) * 0.1;
-          if (s >= score - 0.3) c = previous;
-        }
+        // 玉込めや敵船の移動で、向かっている大筒を別の筒へ替えない。
+        // 三門とも操作でき、大筒衆の援護は撃てる筒から行う。
+        const c = F.cannonPost || F.guns[1];
         F.cannonPost = c;
         const b = cannonTarget(F, c);
         // 玉込め中の守備札へ、大筒までの行き先を添えない。

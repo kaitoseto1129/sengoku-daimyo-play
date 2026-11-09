@@ -397,13 +397,15 @@ function steps(rt) {
         const held = C.inT || 0;
         const done = tick(r, C, m, ctx, el, dt);
         if (stage.kind === 'hold') {
+          // 山道の押し戻しは、その段で前進した場所と出来事を判定する。
+          // 坑道の守備半径も重ねると、門まで押し上げた本人が中ほどへ戻るまで終わらない。
+          if (stage.needIn) return done;
           // 共通の守備判定は半径に三十mの余裕がある。この戦は坑道の前で守った時間だけ数える。
           const p = r.player.u.pos;
           C.inT = held + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius ? dt : 0);
           // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。15分の戦（11/8）：坑道は七十五秒守る
-          const need = stage.needIn ?? 75;
-          if (!stage.needIn) r.objProgress('dp', '');
-          return done && C.inT >= need;
+          r.objProgress('dp', '');
+          return done && C.inT >= 75;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
         if (i <= 3) {
