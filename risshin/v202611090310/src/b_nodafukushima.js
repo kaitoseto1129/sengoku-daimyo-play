@@ -2613,6 +2613,16 @@ const nodafukushima = {
   uchisute: true, // 矢玉の下では首を拾わせず、帰った味方の証言で討ち取りを認める。
   battleVoices: { lines: { ally: { reload: [], encircle2: ['囲まれた！　味方へ退け'] } } }, // 携帯でも退く先を一行で読める。
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
+  // 板囲いの内と井楼の上では、共通の避け足で梯子の長押しや鉄砲の狙いを取り消さない。
+  botCoverBlocked(rt) {
+    const F = rt.flags, u = rt.player.u;
+    if (u.climb || F.down || F.onSeirou) return true;
+    return !!F.seirou?.some(t => {
+      const h = t.hut || HUT;
+      return u.pos.x > t.x + h.x0 && u.pos.x < t.x + h.x1 &&
+        u.pos.z > t.z + h.z0 && u.pos.z < t.z + h.z1;
+    });
+  },
   immediateTaskChanges: true, // 退避・休息の下知を携帯の一行目にもすぐ出す。
   keepTaskLabel: true, // 近い敵の印が付いても、堤を守る・列へ退く下知を残す。
   keepDestinationTask: true, // 「浅瀬の先へ」を防戦の下知へ足さず、一つの行動を短く伝える。
