@@ -602,7 +602,7 @@ const t09_yamanaka = {
     rt.setPhase('end');
     for (const id of ['hon', 'gate', 'cross', 'dai', 'ote', 'uma']) rt.unmark(id);
     // 落城までは踏みとどまり、決着後は残兵を退かせる。敗走禁止のままでは締めの間も戦い続ける。
-    for (const g of [F.dai, F.pit, F.rim, F.uma, F.san, F.ni, F.hon, F.kogo]) if (g && !gone(g)) { g.noRout = false; g.order = 'retreat'; g.morale = 0; }
+    for (const g of [F.dai, F.pit, F.rim, F.uma, F.san, F.ni, F.hon, ...(F.kogoOut ? [] : [F.kogo])]) if (g && !gone(g)) { g.noRout = false; g.order = 'retreat'; g.morale = 0; }
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '山中城を半日で落とした', pts: 24 }; }, '任務達成・山中城の本丸を崩した');
@@ -721,7 +721,12 @@ const t09_yamanaka = {
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
       if (F.honOn && !F.kogoOut && F.kogo && g.count < F.honN * 0.65) {
-        F.kogoOut = true; F.kogo.fixed = false; F.kogo.morale = 0; F.kogo.order = 'move'; F.kogo.dest = { x: 52, z: -200 }; F.kogo.speed = 2.8;
+        F.kogoOut = true; F.kogo.fixed = false; F.kogo.noRout = true; F.kogo.morale = 100;
+        // 本丸の北と東は柵で閉じている。南の虎口から出て、東の尾根を回って落ちる。
+        // 士気を零にすると敗走の下知がこの退路を上書きし、北の柵へ突き当たる。
+        F.kogo.order = 'path'; F.kogo.path = [[24, -94], [24, -82], [52, -70], [70, -130], [52, -200]]; F.kogo.pathIdx = 0; F.kogo.speed = 2.8;
+        F.kogo.noPursue = true; F.kogo.historicalOrders = true;
+        F.kogo.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
         rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
