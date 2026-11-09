@@ -72,7 +72,11 @@ export function step(H) {
       rt.objDone('dp');
       rt.award((t) => t.side.push('石垣山の普請を北条の物見から守った'), '石垣山の普請を守った');
       // 翌朝の井伊の陣へ（暗転。城が現れる段は、井伊の陣から南西を見る）
-      k15Fade(rt, () => { H.warp(rt, H.II_JIN.x - 2, H.II_JIN.z + 6, Math.atan2(H.ISHI.x - H.II_JIN.x, H.ISHI.z - H.II_JIN.z)); });
+      k15Fade(rt, () => {
+        const view = rt.player.camYawOff;
+        H.warp(rt, H.II_JIN.x - 2, H.II_JIN.z + 6, rt.player.yaw);
+        rt.player.camYawOff = view;
+      });
     },
   };
 }
