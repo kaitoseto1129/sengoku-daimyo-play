@@ -57,7 +57,7 @@ const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.
 const STEP_TEXT = ['戸次川の浅瀬を皆と渡れ', '伊集院の先手を突き、中津留の河原へ追え',
   '中津留の河原で信親様の横に立ち、島津を防げ', '浅瀬の口で殿をし、皆を渡らせて西の岸へ退け', '川沿いの道を鏡城の陣まで退け'];
 const STEP_NOUN = ['戸次川の浅瀬', '中津留の河原', '長宗我部信親', '戸次川の浅瀬', '鏡城'];
-const NAMED = new Set(['長宗我部信親', '長宗我部元親', '仙石秀久', '十河存保', '戸次統常', '大友義統', '伊集院久宣', '新納大膳亮', '島津豊久', '島津家久', '鈴木大膳']);
+const NAMED = new Set(['長宗我部信親', '長宗我部元親', '仙石秀久', '十河存保', '戸次統常', '伊集院久宣', '新納大膳亮', '島津豊久', '島津家久', '鈴木大膳']);
 const KAGAMI = { x: CAMP.x - 16, z: CAMP.z + 50 };   // 鏡城の丘（陣の後ろ＝実の西。鏡城は川の西の丘城）
 
 // ---- 地形：南の岸は低い河原と田、北の岸は段丘から鶴賀城の尾根へ。国土地理院の起伏は北の岸に ----
@@ -141,6 +141,7 @@ const t06_hetsugi = {
   // 五2：名のある将の名は四十 m の内で出す。名札は史料に名のある将だけ（組頭・侍に名札を出さない）
   nameRange: 60,   // 11/8 五2：十河・統常・家久の名が四十 m の外で一度も出なかった
   hideNameTag: (u) => !NAMED.has(u.name),
+  forceBarAlways: true,   // 両軍の数を渡すだけでは共通の棒が隠れるため、戦の間は表示する。
   introSides: { a: '豊臣勢（四国の衆）　六千', b: '島津勢　一万二千' },   // 五4・十二1：始まりの札に史実の数
   // 支度の布陣図に地名（11/8 BR：支度の裏の絵が戸次川でも鶴賀城でもなかった）
   introMapPlaces: [{ x: FORD.x, z: 8, name: '戸次川' }, { x: CASTLE.x, z: CASTLE.z + 26, name: '鶴賀城' }, { x: CAMP.x, z: CAMP.z - 16, name: '鏡城' }],
@@ -221,7 +222,7 @@ const t06_hetsugi = {
   },
   date: () => '天正十四年十二月十二日　夕刻',   // 五4：一行に収める（「夕／刻」で割れた）
   talk: {
-    before: [['大友義統', '島津家久が豊後へ攻め入り、鶴賀の城を囲んでおります。なにとぞお救いを'], ['仙石秀久', '殿下の先手として九州へ渡ったのは、大友を救うためじゃ'],
+    before: [['大友の使者', '島津家久が豊後へ攻め入り、鶴賀の城を囲んでおります。なにとぞお救いを'], ['仙石秀久', '殿下の先手として九州へ渡ったのは、大友を救うためじゃ'],
       ['長宗我部元親', '島津は退くふりをする。殿下の本隊を待つべし'], ['十河存保', '待てば鶴賀が落ちる。わしは仙石殿に従う'], ['仙石秀久', '軍監はわしじゃ。皆、川を渡れ']],
     after: [['主人公', '信親様を、お救いできませなんだ'], ['長宗我部元親', '……生きて戻った者がおる。それでよい']],
   },
@@ -312,7 +313,6 @@ const t06_hetsugi = {
     this.foeLord(rt, '伊集院久宣', B.ijuin, IJUIN, 34);   // 囮の先手の将は囲みの陣の奥（鶴賀城の下）
     // 伊集院の先手の本物の兵：鶴賀城の下で川へ向いて槍を構える（11/7 九2：書いた先手が来ず、槍を入れる相手がいなかった）
     F.ijBands = [[22, -66], [46, -68]].map(([x, z]) => this.foeBand(rt, '伊集院の先手', { x, z }, 0, 11, { aggro: 5, seekRange: 8 }));
-    this.otomoCamp(rt);   // 二巡：大友義統の陣は始めから（軍議の声の主が陣にいる）
     shinkou.install(rt, K);
     tsuigeki.install(rt, K);
     rt.obj('main', STEP_TEXT[0], 'main', true);
@@ -437,7 +437,7 @@ const t06_hetsugi = {
     const seat = { x: CAMP.x, z: CAMP.z - 2 };
     rt.scene.add(shogi(rt.world, seat.x, seat.z, Math.PI / 2));
     F.otomoSeat = allyGroup(rt, { name: '大友勢の本陣', fullStrength: true, anchor: seat, facing: Math.PI / 2, width: 1, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
-      fl([{ type: 'busho', n: 1, o: { name: '大友義統', invuln: true, horse: false } }], 'otomo'));   // 二巡（docs/generals_toyo_toku_1108.md の 9：大友義統は必須）。始めの軍議から鏡城の下の陣の床几に
+      fl([{ type: 'busho', n: 1, o: { name: '大友の侍大将', invuln: true, horse: false } }], 'otomo'));   // 在陣の確かでない義統本人にはせず、退き口の陣を守る侍大将にする。
     F.otomoSeat.noAI = true; F.otomoSeat.mon = 'otomo';
     for (const u of F.otomoSeat.units) {
       u.pos.set(seat.x, rt.world.heightAt(seat.x, seat.z), seat.z); u.mesh.position.copy(u.pos);
