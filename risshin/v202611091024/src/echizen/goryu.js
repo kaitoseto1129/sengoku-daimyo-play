@@ -35,7 +35,7 @@ export function start(rt, ctx) {
       [{ type: 'busho', n: 1, o: { name, invuln: true, horse: true, flag, ...(weapon ? { weapon } : {}) } }, { type: 'samurai', n: 3, o: { flag } }, { type: 'ashigaru', n: 6, o: { flag } }]);
     g.noRout = true;
     // 観音丸の木戸を通って郭の中へ入り、守兵と斬り合う
-    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.speed = 3.4;
+    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.speed = 4.5;
     g.path = [[from[0] + dx * 0.4, from[1] + 2], [inK.x + dx, inK.z]];
     g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; q.aggro = 20; };
     G.groups.push(g);
@@ -55,7 +55,7 @@ export function onKannonFell(rt, ctx) {
   G.groups.forEach((g, i) => {
     if (!g.count) return;
     const dx = HANDS[i][3];
-    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null;
+    g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.speed = 4.5; g.roadColumn = true;
     g.path = [[G.ctx.kannonIn.x + dx, G.ctx.kannonIn.z], ...G.route.map(([x, z], k) => [x + dx * (k % 2 ? 0.5 : 1), z])];
     g.onArrive = (q) => { q.order = 'assault'; q.assault = () => { const s = G.ctx.gate(); return s && s.alive ? s : null; }; q.seekRange = 40; q.aggro = 20; };
   });

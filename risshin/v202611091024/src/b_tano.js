@@ -2173,8 +2173,8 @@ const tano = {
       if (rt.over || !rt.player.u.alive) return;
       for (let i = 0; i < F.principals.units.length; i++) {
         const u = F.principals.units[i];
-        // 平場に四歩離し、通常の横倒れで膝と手足を地面へ戻す。討ち取りには数えない。
-        const x = 136 + i * 4, z = -6;
+        // 東の柵（百四十四歩）から二歩空け、平場に四歩離す。討ち取りには数えない。
+        const x = 134 + i * 4, z = -6;
         u.pos.set(x, rt.world.heightAt(x, z), z); u.heading = -Math.PI / 2;
         u.alive = false; u.hp = 0; u.deadT = 0; u.atk = null; u.swing = null; u.target = null;
         u.death = { kind: 'side', side: i ? -1 : 1, t: 0, pace: 1, floor: true, fwd: false };
