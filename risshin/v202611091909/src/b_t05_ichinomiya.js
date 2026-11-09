@@ -294,7 +294,7 @@ function ctxOf(rt) {
     } };
 }
 // 足した段（src/t05_ichinomiya/）へ渡す道具。搦手の山道の下・中・上
-const NG = { CHOSO, GOALS, LOW: { x: -72, z: 50 }, MID: { x: -58, z: 68 }, UP: { x: -44, z: 76 } };
+const NG = { CHOSO, GOALS, LOW: { x: -72, z: 50 }, MID: { x: -58, z: 68 }, UP: { x: -44, z: 76 }, GATE: HON_GATE };
 function steps(rt) {
   const F = rt.flags, me = (r) => nm(r);
   return [
