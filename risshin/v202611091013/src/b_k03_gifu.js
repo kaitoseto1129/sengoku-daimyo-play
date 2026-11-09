@@ -678,8 +678,10 @@ const k03_gifu = {
     // どの段も本人がその場所へ来てから果たす。城下で待つだけで①〜④に印が付くのも防ぐ。
     // 11/9 二巡（徳川D）：本丸の門の前は旗本と味方で塞がり、十四歩の内へ入れず十分止まった（bot）。
     //   刻限を一分半過ぎたら門の三十歩の内で、押し包んだ味方の手で門が開く。
-    //   時間だけで到着扱いにはしない。城下や前の曲輪に残る本人を置いて降伏を始めない。
-    const atGate = dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : 24);
+    //   上台所の奥の口を抜け、本丸の門へ続く通路に来た事も確かめる。
+    //   距離だけだと、上台所の手前や南の石垣の下でも到着になり、秀信が見えないまま降伏した。
+    const gateApproach = F.step !== 5 || (P.pos.x >= -26 && Math.abs(P.pos.z) < 7);
+    const atGate = gateApproach && dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : 24);
     if (!F.next && atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90)) {
       F.next = true;
       this.fall(rt, g);

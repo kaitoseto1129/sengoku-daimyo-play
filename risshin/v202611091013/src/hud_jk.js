@@ -574,8 +574,8 @@ export function jkTick(rt, root, dt) {
     put(s, 'sta', staP, (v) => {
       for (let k = 0; k < 4; k++) s.staB[k].style.width = Math.max(0, Math.min(1, v / 25 - k)) * 100 + '%';
       s.sta.classList.toggle('out', v <= 2);
-      s.sta.querySelector('span').textContent = v >= 75 ? `元気 ${v}` : `気力 ${v}`;
-      s.sta.setAttribute('aria-label', `気力 残り${v}パーセント`);
+      s.sta.querySelector('span').textContent = `疲れ ${v}`;
+      s.sta.setAttribute('aria-label', `疲れの棒 残り${v}パーセント`);
     });
     // 戻っている間は棒が光る。弱っていて敵から離れている時、案内の字は出さない
     s.regenT -= dt || 0;

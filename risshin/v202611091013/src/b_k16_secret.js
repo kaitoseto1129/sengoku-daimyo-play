@@ -65,6 +65,17 @@ const FENCE_Z = [TEPPO.z + 7, HONDA_AT.z + 9];   // 馬防柵の並び（口は�
 // 柵の向こう（北）の行き先へは、柵の手前で京街道の口へ寄ってから抜ける（bot。柵の端を大回りしない）
 const viaGap = (from, to) => { for (const fz of FENCE_Z) if (from.z > fz + 0.4 && to.z < fz && Math.abs(from.x) > 3) return { x: 0, z: fz + 2.5 }; return null; };
 const inCamp = (p) => Math.abs(p.x - HQ.x) < 7 && p.z < HQ.z + 5.5 && p.z > HQ.z - 6;   // 幕の際（角）は外と見る（11/8：角で幕越しに止まった）   // 陣幕の内（16×12 の幕）
+// 幕の横・裏からは外の角を回り、南の口の正面へ寄る。案内と自動操作で同じ道を使う。
+const campRoute = (p, to) => {
+  if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6) return to;
+  if (p.z >= HQ.z + 6 && Math.abs(p.x - MOUTH.x) <= 1.5) return to;
+  if (p.z < HQ.z + 6.5) {
+    const x = HQ.x + (p.x >= HQ.x ? 15 : -15);
+    return Math.abs(p.x - HQ.x) < 14 ? { x, z: p.z } : { x, z: MOUTH.z + 3 };
+  }
+  if (Math.abs(p.x - MOUTH.x) > 1.5) return { x: MOUTH.x, z: MOUTH.z + 1.5 };
+  return to;
+};
 // 秀忠へは南の口から出て東の角を回る。口から斜めに直進しても布を横切るため、角の外まで案内する。
 const hideRoute = (p, to) => {
   // 幕内の端から口へ斜めに進むと南の布を横切る。先に内側で口の中心へ寄せる。
@@ -297,7 +308,7 @@ const k16_secret = {
     // 家康の段：陣幕の外では口を指し、内に入れば床几の家康の頭上（陣幕の向こうの野を指さない）
     // ほかの段：段の隊が立っている間は、その隊の自分に一番近い兵（隊の真ん中が空の野に落ちない）
     let p = STEP_AT[F.step];
-    if (F.step === 5) { if (F.ieyasu && F.ieyasu.alive && inCamp(P.pos)) p = F.ieyasu.pos; }
+    if (F.step === 5) p = campRoute(P.pos, F.ieyasu && F.ieyasu.alive ? F.ieyasu.pos : MOUTH);
     else if (live(g)) { let bd = 1e9; for (const u of g.units) if (standing(u)) { const d = dist(u.pos, P.pos); if (d < bd) { bd = d; p = u.pos; } } }
     // 柵越しの敵へ直進させず、実際に抜けられる京街道の口を指す。
     p = viaGap(P.pos, p) || p;
@@ -743,11 +754,7 @@ const k16_secret = {
     // 家康の段：陣幕の外なら、まず口の前へ回り（幕の脇・裏から寄らない）、口から真っすぐ入って床几の家康へ
     let t = this.missionPin(b) || STEP_AT[F.step];
     if (F.step === 5 && F.ieyasu && F.ieyasu.alive) {
-      if (inCamp(u.pos)) t = F.ieyasu.pos;
-      // 幕の脇・裏（前の幕 HQ.z+6 より北で、口の幅の外）にいる時は外を回って正面へ
-      else if (u.pos.z < HQ.z + 6.5 && Math.abs(u.pos.x - HQ.x) >= 2.5) { const sx = u.pos.x >= HQ.x ? 1 : -1; t = Math.abs(u.pos.x - HQ.x) < 14 ? { x: HQ.x + sx * 15, z: u.pos.z } : { x: HQ.x + sx * 15, z: MOUTH.z + 3 }; }
-      else if (u.pos.z > HQ.z + 6.5 && Math.abs(u.pos.x - MOUTH.x) > 1.5) t = { x: MOUTH.x, z: MOUTH.z + 1.5 };   // 口の正面へ寄る
-      else t = { x: HQ.x, z: HQ.z };   // 口から真っすぐ入る
+      t = campRoute(u.pos, F.ieyasu.pos);
     }
     t = viaGap(u.pos, t) || t;
     goTo(p, inp, t.x, t.z, 1.2);

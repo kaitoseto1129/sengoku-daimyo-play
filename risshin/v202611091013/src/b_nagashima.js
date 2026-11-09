@@ -2206,11 +2206,11 @@ const nagashima = {
     if (F.ngMonomi) return '岸の堤の上';
     if (F.dpOn && F.dp?.cur?.at) return F.dpLast ? '岸の真ん中の柵' : F.dp.i >= 2 ? '東の岸の柵' : '西の舟入り';
     if (dangerProgress(rt)) return '味方の後ろへ';
-    if (stage === 0) return '横木の所へ';
-    if (stage === 3) return '敵の所へ';
-    if (stage === 4) return `${CHECK_NAMES[F.finalChecks.indexOf(false)]}へ`;
-    if (stage === 1) return '見張り場へ';
-    return '岸の柵へ';
+    if (stage === 0) return '岸の横木';
+    if (stage === 3) return '岸の門徒';
+    if (stage === 4) return CHECK_NAMES[F.finalChecks.indexOf(false)];
+    if (stage === 1) return '岸の見張り場';
+    return '岸の柵';
   },
   taskText(rt, text) {
     // 舟待ちと結末は、岸から動かず見る仕事。内陸を向いた時は向き直る下知を先に出す。
@@ -3595,7 +3595,9 @@ const nagashima = {
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
-          return defended && atPost && C.inT >= st.max - 35;
+          // 共通処理は二人以下の組を崩れた扱いにする。戦える残兵がいれば守備を続ける。
+          const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          return defended && !remaining && atPost && C.inT >= st.max - 35;
         };
       }
     }
@@ -3631,7 +3633,9 @@ const nagashima = {
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius;
           C.inT = held + (atPost ? dt : 0);
           // 三段で九十・九十・七十五秒。本人の守備だけで四分十五秒を確保する。
-          return defended && atPost && C.inT >= st.max - 35;
+          // 最後の寄せも、人数だけで残兵を退けた事にしない。
+          const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          return defended && !remaining && atPost && C.inT >= st.max - 35;
         };
       }
     }
