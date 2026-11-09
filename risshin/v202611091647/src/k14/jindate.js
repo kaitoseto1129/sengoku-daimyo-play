@@ -57,7 +57,8 @@ export function tick(rt, dt) {
         // 若江が崩れ、八尾の長宗我部も退く
         C.wakae?.rout?.('B', { from: 0, hideAfter: 30 });
         C.yao?.push?.('B', 0); C.yao?.rout?.('B', { from: 0, hideAfter: 30 });
-        dRout('B', 'kimura2'); for (const id of ['choso2', 'chohata', 'choA', 'fuse', 'masuda']) dOrder('B', id, 'retreat');
+        for (const id of ['kimura2', 'kimura3']) dRout('B', id);
+        for (const id of ['choso2', 'choso3', 'chohata', 'choA', 'fuse', 'masuda']) dOrder('B', id, 'retreat');
       } catch (e) { /* 無くても進む */ }
     }
     return;

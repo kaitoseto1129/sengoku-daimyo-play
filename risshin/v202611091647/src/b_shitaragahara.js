@@ -58,6 +58,13 @@ function huntPlayer(rt, dt) {
   if (!P?.alive) return;
   const weak = P.hp < P.maxHp * 0.4;
   for (const g of rt.army.groups) {
+    if (g.focus && !g.focus.alive) g.focus = null;
+    for (const u of g.units) {
+      if (!u.alive || u.isPlayer) continue;
+      if (u.target && !u.target.alive) { u.target = null; u.aiT = 0; }
+      if (u.atk?.target && !u.atk.target.alive) u.atk = null;
+      if (u.swing?.target && !u.swing.target.alive) u.swing = null;
+    }
     if (g.team !== 1 || !g.count || g.noHunt) continue;
     const mine = g.focus === P;
     if (g.focus && !mine) continue;
@@ -1403,6 +1410,9 @@ function nfTick(rt, dt) {
   const mi = shitaragahara.missionOf(rt);
   if (N.objI !== mi) { N.objI = mi; rt.obj('pursue', NF_TEXT[mi], 'main', true); }
   const T = rt.t - N.at;
+  // 原の寄せの間に守った柳田前も記録する。土屋へ走った後に同じ持ち場へ戻らせない。
+  if ((N.step === 2 && N.breachDone || N.step === 3) &&
+      Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
   // 導入の段（柵の見回り・物見の誘い出し）が済むまで夜明けの寄せを待つ
   if (N.step === 0 && ST_INTRO.tick(rt, dt)) return;
   if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; ST_WALL.start(rt); }
@@ -1628,9 +1638,12 @@ function nfCollapse(rt) {
     out.forEach((q, i) => {
       q.noRout = true; q.focus = null; q.roadColumn = true; q.formation = 'column'; q.colW = 2; q.speed = Math.max(q.speed || 3, 3.6);
       if (q.isPlayerSquad) { q.order = 'follow'; return; }
+      // 大宮前の隊を柳田前へ斜めに引くと、三の柵で止まる。最寄りの虎口から奥の道へ回す。
+      postRoad(rt, q, { x: SB.x0 + 6, z: gz });
+      const approach = q.path || [[SB.x0 + 6, gz]];
       q.order = 'path'; q.pathIdx = 0; q.dest = null;
       // 隊の数で待機地点を遠ざけない。全隊が殿を探す範囲まで進んでから槍を向ける。
-      q.path = [[SB.x0 - 2 * SB.gap - 3, gz], [SB.x0 + 6, gz], [NF_BANK.x, gz + (i % 2 ? 6 : -6)], [NF_REAR.x - 18 - (i % 2) * 4, NF_REAR.z - 12 + (i % 5) * 6]];
+      q.path = [...approach, [NF_BANK.x, gz + (i % 2 ? 6 : -6)], [NF_REAR.x - 18 - (i % 2) * 4, NF_REAR.z - 12 + (i % 5) * 6]];
       q.onArrive = (g) => { g.order = 'attack'; g.formation = g.kind === 'gun' ? 'line' : 'yari'; g.roadColumn = false; g.seekRange = 60; g.aggro = 14; g.fire = true; g.holdFire = false; };
     });
   });

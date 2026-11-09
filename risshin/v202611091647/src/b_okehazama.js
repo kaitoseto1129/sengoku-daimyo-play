@@ -938,6 +938,7 @@ const okehazama = {
   // 足軽が影の兵の中に埋もれていた（bot の目・四1）。織田の本隊と今川の控えはこの戦の遠景が受け持つ（小谷・三木・信貴山と同じ）。
   noAvHost: true,
   minutes: 15,
+  pacingCap: 1800,
   // 共通の大将の声（「深追いするな」「今は生き残れ」）は、公記で「追え・旗本は是なり」と攻めさせた桶狭間の信長に合わない（11/5 共通の係）
   generalLines: (who, scene) => !/信長$/.test(who) ? undefined
     : scene === 'enemyFlee' ? ['追え。旗本は是なり。', '逃すな。押し詰めよ。'] : scene === 'allyDown' ? ['構うな。掛かれ。'] : undefined,
@@ -1189,6 +1190,17 @@ const okehazama = {
     }
     // 戦う相手は頭上の赤い▼。移動先が本陣の入口の時だけ地面へピンを立てる。
     if (rt.phase === 'assault' && !F.victory) {
+      // 深手の義元から離れている間は、毛利の待機案内より先に討取りの場へ寄せる。
+      if (F.yoshiDown && F.yoshimoto?.alive) {
+        const p = rt.player.u, y = F.yoshimoto.pos;
+        if (Math.hypot(p.pos.x - y.x, p.pos.z - y.z) > 10 ||
+            rt.army.wallBetween(p.pos, -1, y) || rt.army.terrainBlocks(p.pos, y)) {
+          const pos = honjinWay(rt.army, p, y);
+          pin.x = pos.x; pin.z = pos.z; pin.r = pos === y ? 8 : 1; pin.hide = 0;
+          pin.key = 'yoshimoto';
+          return pin;
+        }
+      }
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
       const enemy = this.missionSignTarget(rt) || this.commanderTarget(rt);
@@ -1316,6 +1328,9 @@ const okehazama = {
     const mor = rt.flags.nobKill?.[1];
     if (!rt.flags.yoshiDown || rt.flags.victory || !mor || !readyUnit(mor)) return null;
     const p = rt.player.u.pos;
+    const y = rt.flags.yoshimoto?.pos;
+    if (!y || Math.hypot(p.x - y.x, p.z - y.z) > 12 ||
+        rt.army.wallBetween(p, -1, y) || rt.army.terrainBlocks(p, y)) return null;
     return Math.hypot(mor.pos.x - p.x, mor.pos.z - p.z) <= 12 &&
       !rt.army.wallBetween(p, -1, mor.pos) && sightPoint(rt, mor.pos) ? mor : null;
   },
@@ -3490,9 +3505,11 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 服部が義元に会う前に手傷で退いた時は、毛利だけで討つ（服部の接触を待ち続けない）。
     const hattoriDone = F.hattoriMet || !hat || !hat.alive || hat.woundOut || longDown;
     // 主人公が幕の外にいる間に、毛利だけで討取りを済ませない。
-    // 視点は動かさず、本人が十二歩まで迫り義元を見通せる所で見せ場を迎える。
+    // 視点は動かさず、本人が十二歩まで迫り、幕や丘に遮られない所で見せ場を迎える。
+    // 描画で隠した姿やカメラの向きは、戦の決着の条件にしない。
     const morCanFinish = F.yoshiDown && readyUnit(mor) &&
-      Math.hypot(p.x - y.pos.x, p.z - y.pos.z) <= 12 && sightScreenUnit(rt, y) &&
+      Math.hypot(p.x - y.pos.x, p.z - y.pos.z) <= 12 &&
+      !rt.army.wallBetween(p, -1, y.pos) && !rt.army.terrainBlocks(p, y.pos) &&
       Math.abs(mor.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(mor.pos, 0, y.pos) &&
       !rt.army.terrainBlocks(mor.pos, y.pos);
     // 深手から二十五秒たっても寄れない時は、毛利が数歩の間合いから飛び込む。
@@ -3765,6 +3782,15 @@ okehazama.botBrain = (b, inp, ctx) => {
     const guard = F.entered && b.army.nearestEnemy(u, 10, (o) => o.group === F.hatamoto &&
       (o !== F.yoshimoto || !F.yoshiDown) && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
     // 深手の義元は毛利が討つ。通常の敵探しへ戻っても連打の相手にしない。
+    // 深手の後は義元から離れた敵を追わず、討取りを見届ける場所へ戻る。
+    const closing = F.yoshiDown && !F.victory &&
+      (Math.hypot(u.pos.x - F.yoshimoto.pos.x, u.pos.z - F.yoshimoto.pos.z) > 10 ||
+       b.army.wallBetween(u.pos, -1, F.yoshimoto.pos) || b.army.terrainBlocks(u.pos, F.yoshimoto.pos));
+    if (closing && !threat) {
+      const q = honjinWay(b.army, u, F.yoshimoto.pos);
+      goTo(p, inp, q.x, q.z, q === F.yoshimoto.pos ? 8 : 1);
+      return;
+    }
     const e = threat || guard || (F.yoshiDown && !F.victory ? b.army.nearestEnemy(u, 10, (o) =>
       o !== F.yoshimoto && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos)) : strikeTarget(b, 10));
     if (e) {

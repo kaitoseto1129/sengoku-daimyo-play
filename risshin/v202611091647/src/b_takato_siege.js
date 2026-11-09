@@ -110,6 +110,14 @@ const STAGE_TEXT = [
 // 四秒より早く自ら討った時も、城兵を受けた働きとして残す。
 export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill; }
 
+// 大手の木戸から出る二組も、控えと同じ迎撃の相手として数える。
+// 門前で実際に斬り合っても、所属の違いで②が残り続けないようにする。
+function sallyFoe(F, u) {
+  return u.group === F.reserveDef.real ||
+    !!F.gateBrawl && (u.group === F.gateBrawl[2] || u.group === F.gateBrawl[3]) ||
+    u.group === F.sanSpear.real && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 12;
+}
+
 // 落城と余韻は同じ条件で始める。城主の最期だけでは旗を守ったことにしない。
 export function canWinTakato(rt) {
   const F = rt.flags;
@@ -123,9 +131,7 @@ function sallyContactTick(rt, dt) {
   const F = rt.flags, p = rt.player.u;
   if (receivedSally(F) || F.sallyReturning || F.sanFell) return;
   for (const u of rt.army.units) {
-    const sortie = u.group === F.reserveDef.real;
-    const gateGuard = u.group === F.sanSpear.real && Math.hypot(u.pos.x - OTE.x, u.pos.z - OTE.z) < 12;
-    if (!sortie && !gateGuard) continue;
+    if (!sallyFoe(F, u)) continue;
     if (!siegeFighter(u) || u.noTarget || Math.abs(u.pos.y - p.pos.y) >= 2 ||
         Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) >= 3.5) continue;
     const receiving = u.atk?.target === p || u.swing?.target === p && !u.swing.done;
@@ -1023,7 +1029,11 @@ function takatoDefense(rt) {
       if (p.zone === 'hon') continue;
       const lost = p.zone === 'san' ? F.sanFell : F.niFell;
       const generalDown = b.general && !b.real.units.some((u) => u.alive && u.name === b.general);
-      if (!lost && !generalDown && b.real.count > 4 && b.morale >= 22) continue;
+      // 門を破られ槍の備えが退いた後も、手の届かない棚の八人だけで
+      // 三の丸を塞がない。鉄砲衆も降りて次の曲輪で戦い続ける。
+      const wallAbandoned = b === F.sanGun && p.zone === 'san' && F.gates.oteInner.opened &&
+        (F.sanSpear.tkRetreat || deadB(F.sanSpear));
+      if (!lost && !generalDown && !wallAbandoned && b.real.count > 4 && b.morale >= 22) continue;
       b.tkRetreat = true; b.assault = null;
       // 11/6 描いて遊んで：三の丸が落ちても塀の棚の鉄砲衆が残り、外の寄せ場を撃ち続けた。棚から曲輪の内へ降りて共に退く。
       if (b === F.sanGun) for (const u of b.real.units) {
@@ -2099,9 +2109,7 @@ const takato_siege = {
     // 死傷は部隊の通常の集計に任せる。局地の一人を全軍の数十人へ換算しない。
     if (v.isStruct || v.group?.civ || v.type === 'porter') return;
     if (v.team === 1) {
-      const sallyFoe = v.group === F.reserveDef.real ||
-        v.group === F.sanSpear.real && Math.hypot(v.pos.x - OTE.x, v.pos.z - OTE.z) < 12;
-      if (sallyFoe && k === rt.player.u && !F.sanFell &&
+      if (sallyFoe(F, v) && k === rt.player.u && !F.sanFell &&
           Math.hypot(v.pos.x - k.pos.x, v.pos.z - k.pos.z) < 4 &&
           Math.abs(v.pos.y - k.pos.y) < 2 && !rt.army.wallBetween(k.pos, -1, v.pos)) F.sallyPlayerKill = true;
       F.ek = (F.ek || 0) + 1;
