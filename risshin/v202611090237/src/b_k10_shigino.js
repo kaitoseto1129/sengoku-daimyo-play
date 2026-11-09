@@ -350,7 +350,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
   chase(rt, g, to) {
     g.order = 'move'; g.dest = { x: to.x, z: to.z }; g.speed = 4.4; g.aggro = 5; g.seekRange = 12;
     g.onArrive = (q) => { if (q.order === 'move') { q.order = 'attack'; q.seekRange = 40; q.aggro = 16; } };
-    rt.after(30, () => { g.noRout = false; });
+    // 今福の寄せ手は経過時間だけで崩さず、川越しの救援を受けてから退く。
+    rt.after(30, () => { if (!g.riverAid) g.noRout = false; });
   },
 
   // 段を進める（右上の目標と行き先のピン）
@@ -464,6 +465,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     this.chase(rt, F.riverFoe, { x: 76, z: -100 });
     F.satake = allyGroup(rt, { faction: 'satake', name: '今福の佐竹勢', fixed: true, anchor: { x: 76, z: -100 }, width: 6, order: 'hold', noRout: true }, [{ type: 'samurai', n: 6, o: { flag: 'satake' } }]);
     F.satake.riverAid = true;
+    // 救援前に佐竹だけで押し返さず、北岸で押されて下がる姿を見せる。
+    F.satake.order = 'retreat'; F.satake.dest = { x: 88, z: -100 }; F.satake.fire = false;
     for (const [g, dx] of [[F.mzN, -6], [F.mzS, 6]]) {
       g.riverAid = true; g.fire = false; g.order = 'move'; g.dest = { x: RIVER.x + dx, z: RIVER.z };
       g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: RIVER.x + dx, z: RIVER.z }; q.facing = Math.PI; };
@@ -494,6 +497,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       if (F.riverShots === 3) {
         F.riverFoe.noRout = false; F.riverFoe.order = 'retreat'; F.riverFoe.dest = { x: -236, z: -100 };
         for (const u of F.riverFoe.units) if (u.alive) u.fleeing = true;
+        F.satake.order = 'attack'; F.satake.anchor = { x: 48, z: -100 }; F.satake.seekRange = 60; F.satake.fire = true;
         rt.say('佐竹の使番', '川越しの鉄砲が効いた！　佐竹の先手が押し返したぞ', 4);
       }
     }
