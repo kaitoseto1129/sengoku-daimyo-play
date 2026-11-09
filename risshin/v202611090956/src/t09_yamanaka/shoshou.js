@@ -10,7 +10,10 @@ import { flagTexture } from '../textures.js';
 export function install(rt) {
   const F = rt.flags, W = rt.world;
   // 徳川の旗（北東の外の尾根。軽い作り・本物にならない）
-  try { W.addDistantArmy({ x: 200, z: -40, w: 40, d: 70, count: 500, facing: -Math.PI / 2, farFill: true, armor: 0x2b2723, team: 0, flagTex: flagTexture('tokugawa'), mon: 'tokugawa', seed: 15931 }); } catch (e) { /* 飾り */ }
+  try {
+    const g = W.addDistantArmy({ x: 310, z: -40, w: 40, d: 70, count: 500, facing: -Math.PI / 2, farFill: true, armor: 0x2b2723, team: 0, flagTex: flagTexture('tokugawa'), mon: 'tokugawa', seed: 15931 });
+    if (g?.army) g.army.noWake = true;
+  } catch (e) { /* 飾り */ }
   const say = (t, who, s, d = 3.4) => rt.after(t, () => { if (!F.ending) rt.say(who, s, d); });
   say(18, '物見', '三の丸から北へ、三つ鱗の旗の一手が退いていきます。北条氏勝の手かと', 3.6);
   say(80, '使番', '細川忠興様・池田輝政様・福島正則様の手も、後ろの尾根に揃いました', 3.6);
