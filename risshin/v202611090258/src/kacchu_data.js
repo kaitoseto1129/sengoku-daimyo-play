@@ -122,7 +122,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["土屋昌恒", "zunari", "none", 0x3a2622, 0x9a2e20, "sugake", 0xcfc8b4, 0x3a2622, "takeda", ""],
   ["直江景綱", "suji", "moon", 0x1c1a1a, 0x703d78, "okegawa", 0, 0x1c1a1a, "uesugi", ""],
   ["本庄繁長", "suji", "sun", 0x1c1a1a, 0x703d78, "okegawa", 0, 0x1c1a1a, "uesugi", ""],
-  ["上杉景勝", "suji", "manji", 0x242222, 0x35435a, "kebiki", 0, 0x8e3724, "uesugi", "a7c70e25"],
+  ["上杉景勝", "zunari", "kagekatsu_nichirin", 0x1c1a1a, 0x5a2e6a, "sugake", 0, 0x1c1a1a, "toyotomi", ""],
   ["上杉景虎", "suji", "horn", 0x1c1a1a, 0x703d78, "sugake", 0, 0x1c1a1a, "uesugi", ""],
   // 上杉神社伝来の金小札浅葱糸威二枚胴具足による復元。細部は必須表と出所の文書へ。
   ["直江兼続", "suji", "naoe_ai", 0xb08a3a, 0x5a9aa0, "sugake", 0, 0, "none", ""],
@@ -745,7 +745,7 @@ const ARMOR_RESEARCH_3 = {
   "蒲生氏郷": { lace: 0x1c1a1a, odo: 0x1c1a1a },
   "福島正則": { crest: "bull" },
   "真田昌幸": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
-  "上杉景勝": { crest: "sun", lace: 0x5a2e6a, odo: 0x5a2e6a },
+  "上杉景勝": { crest: "kagekatsu_nichirin", lace: 0x5a2e6a, odo: 0x5a2e6a },
   "直江兼続": { crest: "naoe_ai", lace: 0x5a9aa0, odo: 0x5a9aa0, goldKozane: true },
   "小早川隆景": { crest: "none", lace: 0x232c40, odo: 0x232c40 },
   "吉川元春": { crest: "none", lace: 0x1c1a1a, odo: 0x1c1a1a },
