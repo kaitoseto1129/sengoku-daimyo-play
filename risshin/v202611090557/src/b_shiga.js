@@ -1954,7 +1954,10 @@ export function volleyScene(rt, o) {
   return V;
 }
 
+import DEPTH_SHIGA from './shiga/depth.js';   // 軍勢の厚み：本物の隊に結ぶ表（二巡 徳川C）
 const shiga = {
+  depth: DEPTH_SHIGA,
+  lethal: true,   // 命懸けの戦場（lethal.js）
   resumeSteps: [[1, 'first'], ['fall', 'fall'], [3, 'siege']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   syntheticBattleSound: true, // 鉄砲・法螺・馬・風も、既存の合成音を使い回す。
   // 二巡（徳川A 11/9）：命懸けの戦場（docs/lethal_howto.md）と死守の怖さ。宇佐山の死守は数で押され、退き口を断たれるのが怖い

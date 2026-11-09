@@ -24,15 +24,7 @@ export function fortArmies(rt, P) {
   const A = (p, flag, count, facing, seed, team, w = 18, d = 8) => {
     try { return W.addDistantArmy({ x: p.x, z: p.z, w, d, count, facing, armor: 0x24201c, flagTex: flagTexture(flag), mon: flag, seed, team, kind: 'mixed', host: false, farFill: true }); } catch (e) { return null; }
   };
-  // 羽柴方の砦（南）
-  Y.tagami = A(P.TAGAMI, 'toyotomi', 260, Math.PI, 15831, 0, 24, 10);
-  Y.higashi = A(P.HIGASHINO, 'hori', 220, Math.PI * 0.9, 15832, 0);
-  Y.dogi = A(P.DOGI, 'toyotomi', 160, Math.PI * 0.2, 15833, 0);
-  Y.shinmei = A(P.SHINMEI, 'toyotomi', 160, Math.PI * 0.2, 15834, 0);
-  // 柴田方の砦（北）
-  Y.gyoichi = A(P.GYOICHI, 'sakuma', 260, 0.4, 15835, 1, 24, 10);
-  Y.bessho = A(P.BESSHO, 'maeda', 220, 0.3, 15836, 1);
-  Y.shige = A({ x: P.SHIGE.x - 10, z: P.SHIGE.z - 16 }, 'maeda', 200, 0.6, 15837, 1);
+  // 砦の備（羽柴・柴田の各将の旗と兵）は軍勢の厚みの表（depth.js）が描く
   // 大岩山の取り合い（中川勢と佐久間勢。②で組み合い、中川勢が崩れる）
   try {
     Y.oiwa = clash(rt, {
@@ -84,7 +76,7 @@ export function startRelief(rt, ctx) {
   if (ctx.live(F.saku)) { F.saku.order = 'move'; F.saku.dest = { x: ctx.OIWA.x - 8, z: ctx.OIWA.z + 14 }; F.saku.speed = 3; F.saku.onArrive = (q) => { q.order = 'hold'; }; }
   if (ctx.live(F.mori)) { F.mori.order = 'move'; F.mori.dest = { x: ctx.OIWA.x - 2, z: ctx.OIWA.z + 22 }; F.mori.speed = 3; F.mori.onArrive = (q) => { q.order = 'hold'; }; }
   // 桑山の手から一組が主人公と一緒に下る
-  F.scoutG = allyGroup(rt, { name: '桑山の物見の組', fullStrength: true, anchor: { x: ctx.LOOK.x - 2, z: ctx.LOOK.z + 4 }, facing: 2.4, width: 4, aggro: 14, seekRange: 26, order: 'move', dest: { x: RELIEF.x - 4, z: RELIEF.z + 8 }, speed: 3.4, noRout: true },
+  F.scoutG = allyGroup(rt, { name: '桑山の物見の組', fullStrength: true, anchor: { x: ctx.LOOK.x - 2, z: ctx.LOOK.z + 4 }, facing: 2.4, width: 4, aggro: 14, seekRange: 26, order: 'move', dest: { x: RELIEF.x - 1, z: RELIEF.z + 3 }, speed: 3.8, noRout: true },
     [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }]);
   F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 12; q.seekRange = 14; };
   say(rt, '桑山重晴', '中川殿を見殺しにはできぬ。加勢に下れ！', 0.8);
@@ -111,12 +103,12 @@ export function tickRelief(rt, dt, ctx) {
       [{ type: 'samurai', n: 1, o: { flag: null } }, { type: 'ashigaru', n: 7, o: { flag: null } }]);
     for (const u of F.nakaG.units) u.hp = Math.min(u.hp, u.maxHp * 0.5);
     // 落ち武者を追う佐久間の追手（坂の途中で主人公と当たる）
-    F.chaseG = enemyGroup(rt, { ...ctx.SAKUMA, name: '佐久間の追手', anchor: { x: RELIEF.x + 16, z: RELIEF.z - 16 }, facing: -2.4, fleeDir: { x: 1, z: -1 }, width: 5, morale: 80, dmgMult: 0.42, noRout: true,
+    F.chaseG = enemyGroup(rt, { ...ctx.SAKUMA, name: '佐久間の追手', anchor: { x: RELIEF.x + 16, z: RELIEF.z - 16 }, facing: -2.4, fleeDir: { x: 1, z: -1 }, width: 5, morale: 80, dmgMult: 0.32, noRout: true,
       order: 'move', dest: { x: RELIEF.x + 2, z: RELIEF.z + 2 }, seekRange: 10, aggro: 8, speed: 3 }, ctx.foeList(14, { flag: ctx.SAKUMA.flag }));
     F.chaseG.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
     F.chaseG.kind4 = 'raid'; F.groups.push(F.chaseG);
     rt.after(16, () => { if (ctx.live(F.mori)) rt.say('佐久間盛政', '鬼玄蕃はこれにあり。追い崩して賤ヶ岳も揉み潰せ', 3.2); });
     return;
   }
-  if (F.oiwaFell && rt.t - F.pt > 100 && ctx.nLive(F.chaseG) <= 3) ctx.next();
+  if (F.oiwaFell && rt.t - F.pt > 115 && ctx.nLive(F.chaseG) <= 3) ctx.next();
 }

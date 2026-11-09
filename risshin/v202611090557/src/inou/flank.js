@@ -3,7 +3,7 @@
 //   柴田勢と列が組み合うと、数の多い柴田勢に正面が押される。組頭は自分の組を列の右の端から小川沿いの畦へ回し、
 //   柴田勢の列の端の横を突かせる。着いたら鬨を上げて突っ込み、端の二組が揺らぎ、一組が崩れて東の街道へ逃げる。
 //   済んだら組は殿の馬前（列の真ん中）へ戻り、本体の信長の一喝へ続く。
-//   主人公が畦へ来なくても、二分で組だけで横を突く（物語は進む）。
+//   主人公が畦へ着いてから組と横を突く（時間だけで済ませない）。
 // ======================================================================
 import { sfx } from '../audio.js';
 import { pinAt } from './index.js';
@@ -82,5 +82,5 @@ export function tick(rt) {
   const F = rt.flags, v = F.v15, C = v.C;
   if (F.ending || v.flankDone) return;
   const P = rt.player.u.pos;
-  if (!v.flankHit && (Math.hypot(P.x - C.FLANK.x, P.z - C.FLANK.z) < 8 || rt.t - v.flankT > 120)) { v.ph = 'flankHit'; hit(rt); }
+  if (!v.flankHit && (Math.hypot(P.x - C.FLANK.x, P.z - C.FLANK.z) < 8)) { v.ph = 'flankHit'; hit(rt); }
 }

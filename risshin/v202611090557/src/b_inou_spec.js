@@ -537,6 +537,9 @@ const inou_spec = {
       const lastTarget = (t, from) => {
         if (!t?.alive || from?.isPlayer) return false;
         if (t.group === F.practice) return true;
+        const v = F.v15;
+        if (v && t === v.boss && !v.vanDone) return true;
+        if (v?.raidGs?.includes(t.group) && !v.raidPlayer && aliveIn(v.raidGs) <= 1) return true;
         const stage = F.stage;
         if (inouDid(rt, stage, 1)) return false;
         const groups = stage === 1 ? F.l1 : stage === 2 ? F.l2 : null;
@@ -1064,7 +1067,7 @@ const inou_spec = {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending || (F.pk || 0) < 3 || !inouDid(rt, 1, 1) || !inouDid(rt, 2, 1) || !inouDid(rt, 3, 1) || !F.bossNear) return;
+    if (F.ending || !F.v15?.marchDone || !F.v15?.vanDone || !F.v15?.flankDone || !F.v15?.raidDone || (F.pk || 0) < 3 || !inouDid(rt, 1, 1) || !inouDid(rt, 2, 1) || !inouDid(rt, 3, 1) || !F.bossNear) return;
     F.ending = true;
     rt.objDone('main');
     rt.tracker.main = true;

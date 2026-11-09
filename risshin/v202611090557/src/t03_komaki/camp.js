@@ -27,8 +27,7 @@ export function campSetup(rt, K) {
   // 羽柴の大軍：楽田の東西・陣の間の備・後詰（軽い作り・本物に替えない）
   F.farHashiba = [
     K.farArmy(rt, -100, -96, 30, 16, 240, 0, 'toyotomi', 0, 15911), K.farArmy(rt, 22, -100, 30, 16, 240, 0, 'toyotomi', 0, 15912),
-    K.farArmy(rt, -112, -54, 24, 12, 180, 0, 'toyotomi', 0, 15915), K.farArmy(rt, 6, -58, 26, 12, 200, 0, 'hori', 0, 15916),
-    K.farArmy(rt, 70, -92, 30, 14, 220, 0.3, 'ageha', 0, 15917), K.farArmy(rt, 96, -44, 22, 12, 180, 0.4, 'tsuru', 0, 15918),
+    // 秀長・堀・池田・森・秀次の備は軍勢の厚みの表（depth.js）が描く
   ];
   // 陣の間の備（本物の兵。軽い兵は本人の六十 m 内では描かないので、道の脇の陣の厚みは本物で見せる。⑥の夜に帰す）
   F.campBi = [[-66, -60, 'toyotomi', 0.2], [-12, -54, 'hori', -0.3], [-94, -30, 'toyotomi', 0.4], [-20, -30, 'ageha', -0.2]].map(([x, z, flag, f], i) =>
@@ -37,7 +36,7 @@ export function campSetup(rt, K) {
   // 小牧山の麓の徳川・信雄の陣（柵の後ろに備。動かない）
   F.farToku = [
     K.farArmy(rt, -132, 109, 28, 12, 200, Math.PI, 'tokugawa', 1, 15913), K.farArmy(rt, -68, 116, 28, 12, 180, Math.PI, 'tokugawa', 1, 15914),
-    K.farArmy(rt, -20, 104, 26, 10, 160, Math.PI, 'sakakibara', 1, 15919), K.farArmy(rt, 40, 112, 24, 10, 140, Math.PI, 'okudaira', 1, 15920),
+    // 酒井・本多・榊原・井伊の備は軍勢の厚みの表（depth.js）が描く
   ];
   // 小牧山の陣の前の柵の幟（徳川が堀と土塁を固めた。旗の列で見せる）
   for (let x = -150; x <= 60; x += 14) rt.scene.add(nobori(W, x, 92 + Math.sin(x * 0.07) * 3, x % 28 ? 'tokugawa' : 'oda', 6));

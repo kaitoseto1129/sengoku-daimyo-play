@@ -81,7 +81,7 @@ export function writeCheckpoint(rt, stageStart = false) {
     t0: stageStart || !same ? Math.round(rt.flags?.tS ?? rt.t) : prev.t0,
     t: Math.round(rt.t), hp: Math.round(u.hp / (u.maxHp || 100) * 100) / 100,
     dead: [...new Set(dead)].slice(0, 60), alive, at: Date.now(),
-    flags: flagsOf(rt), groups: groupsOf(rt),
+    flags: flagsOf(rt), groups: groupsOf(rt), gx: groupLooks(rt),
   };
   mem = cp;
   try { localStorage.setItem(KEY, JSON.stringify(cp)); } catch (e) { memOnly = true; }   // 書けなければ覚えの方だけ
@@ -107,10 +107,43 @@ function groupsOf(rt) {
   for (const g of rt.army.groups || []) { const k = groupKey(g); o[k] = (o[k] || 0) + liveIn(g).length; }
   return o;
 }
+// 備の姿（真ん中・家・下知・兵の種類ごとの数）。段の中の出来事で出た備は、段を流し直しても出てこないので、これで作り直す
+function groupLooks(rt) {
+  const o = {};
+  for (const g of rt.army.groups || []) {
+    if (g.isPlayerSquad) continue;
+    const live = liveIn(g);
+    if (!live.length) continue;
+    const k = groupKey(g), e = o[k] || (o[k] = { x: 0, z: 0, n: 0, f: g.faction || '', o: g.order || 'hold', ty: {} });
+    for (const u of live) { e.x += u.pos.x; e.z += u.pos.z; e.n++; const t = u.type === 'busho' ? 'samurai' : u.type; if (['samurai', 'ashigaru', 'gun', 'bow', 'cavalry'].includes(t)) e.ty[t] = (e.ty[t] || 0) + 1; }
+  }
+  for (const e of Object.values(o)) { e.x = Math.round(e.x / e.n); e.z = Math.round(e.z / e.n); delete e.n; }
+  return o;
+}
+// 足りない備を作り直す（名のある将は作らない。種類ごとの数だけ。保存の時の数を超えない）
+function refillGroups(rt, saved, looks) {
+  const have = {};
+  for (const g of rt.army.groups || []) { const k = groupKey(g); have[k] = (have[k] || 0) + liveIn(g).length; }
+  for (const [k, e] of Object.entries(looks)) {
+    let need = (saved[k] || 0) - (have[k] || 0);
+    if (need <= 0) continue;
+    const team = Number(k.split('|')[0]), name = k.slice(k.indexOf('|') + 1);
+    const list = [];
+    for (const [type, n] of Object.entries(e.ty)) { const m = Math.min(n, need); if (m > 0) { list.push({ type, n: m }); need -= m; } }
+    if (!list.length) continue;
+    try {
+      const g = rt.army.addGroup({ team, faction: e.f || undefined, name: name || undefined, order: e.o === 'flee' ? 'hold' : e.o, aggro: 16, anchor: { x: e.x, z: e.z }, fixed: true });
+      rt.army.spawn(g, list);
+      g.leader = g.units.find((u) => u.type === 'samurai') || g.units[0] || null;
+    } catch (err) { console.error('備の作り直し', k, err); }
+  }
+}
+
 // 備の数を保存の時まで減らす（増やしはしない）。要の将（invuln）と名のある将は残し、後ろの兵から片付ける
 function trimGroups(rt, saved) {
   const byKey = new Map();
-  for (const g of rt.army.groups || []) { const k = groupKey(g); if (!(k in saved)) continue; (byKey.get(k) || byKey.set(k, []).get(k)).push(...liveIn(g)); }
+  // 保存の時に無かった備（その後に出る隊・もう消えた隊）は 0 人として片付ける。本人の組は触らない
+  for (const g of rt.army.groups || []) { if (g.isPlayerSquad) continue; const k = groupKey(g); if (!(k in saved)) saved = { ...saved, [k]: 0 }; (byKey.get(k) || byKey.set(k, []).get(k)).push(...liveIn(g)); }
   const out = [];
   for (const [k, list] of byKey) {
     let extra = list.length - saved[k];
@@ -139,6 +172,14 @@ function drop(A, u) {
   }
 }
 
+// 済んだ段の時の約束（援軍が着く・備が出る等）は、捨てずに音もなく今起こす（11/9 kaito 天王寺「再開すると味方の兵だけ消えている」）。
+//   約束が新しい約束を作れば、それも三巡まで。五分より先の約束は、その段の間に来なかった物として捨てる
+function fireQuiet(rt, n0) {
+  for (let round = 0; round < 3 && rt.timers.length > n0; round++) {
+    const due = rt.timers.splice(n0).filter((tm) => tm.t <= 300 && !tm.duringPrelude);
+    for (const tm of due) { try { tm.fn(rt); } catch (e) { console.error('段の約束の作り直し', e); } }
+  }
+}
 // 段の始まりへ作り直す。戦の始め（setup の後・最初のコマ）に一度だけ呼ぶ
 export function applyCheckpoint(rt, cp) {
   const steps = stepsOf(rt.def), k = stepIndex(rt, cp.step);
@@ -157,7 +198,13 @@ export function applyCheckpoint(rt, cp) {
     if (last && i > 0) from = pinOf();
     if (!last) quiet();
     try { steps[i][1].call(rt.def, rt); } catch (e) { console.error('段の作り直し', steps[i][0], e); }
-    finally { if (!last) { loud(); rt.timers.length = n0; } }
+    finally { if (!last) { fireQuiet(rt, n0); loud(); rt.timers.length = n0; } }
+    // 保存した段の中で、保存の時までに来ていた約束（段の始まりから cp.t - cp.t0 秒のうち）も音もなく起こす
+    if (last && Number.isFinite(cp.t) && Number.isFinite(cp.t0) && cp.t > cp.t0) {
+      const span = cp.t - cp.t0, due = [];
+      for (let j = rt.timers.length - 1; j >= n0; j--) if (rt.timers[j].t <= span && !rt.timers[j].duringPrelude) due.push(...rt.timers.splice(j, 1));
+      if (due.length) { quiet(); try { for (const tm of due.reverse()) { try { tm.fn(rt); } catch (e) { console.error('段の約束の作り直し', e); } } } finally { loud(); } }
+    }
   }
   // 前の段で逃げた敵は、もう戦場にいない
   vanish(rt, rt.army.units.filter((u) => u.team !== 0 && (u.fleeing || u.group?.routed || u.group?.order === 'flee')));
@@ -167,6 +214,7 @@ export function applyCheckpoint(rt, cp) {
   // 倒した数・旗・馬印などの flags の素の値と、減らした備の数を保存の時に戻す（段の番号は流した段のまま）
   if (cp.flags) for (const [k, v] of Object.entries(cp.flags)) { const cur = rt.flags[k]; if (k !== 'step' && (cur === undefined || cur === null || typeof cur !== 'object' && typeof cur !== 'function')) rt.flags[k] = v; }
   if (cp.groups) vanish(rt, trimGroups(rt, cp.groups));
+  if (cp.groups && cp.gx) refillGroups(rt, cp.groups, cp.gx);
   // 主人公：体力は保存の時（少なくとも四割）。置き場は定義の resumeAt、無ければ前の段の行き先
   const u = rt.player.u;
   u.hp = Math.max((u.maxHp || 100) * 0.4, (u.maxHp || 100) * (cp.hp || 1));

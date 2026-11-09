@@ -86,11 +86,11 @@ export function linesReady(rt, def) {
 }
 // 柴田勢と列がぶつかった（段一の始め）
 export function onLines(rt, def) { flank.start(rt, def, S(rt).C); }
-// 信長の一喝は、横槍が済んでから（済まなければ段一の三分半で）
+// 信長の一喝は、主人公が畦へ着いて横槍を済ませてから
 export function shoutOk(rt) {
   const v = S(rt);
-  // 横槍の後、柴田の二陣と三十五秒は槍を合わせてから（済まなければ段一の四分で）
-  return !!v.flankDone && !!v.reserveT && rt.t - v.reserveT > 35 || rt.t - (rt.flags.stageT || 0) > 240;
+  // 横槍の後、柴田の二陣と三十五秒は槍を合わせる。横槍そのものは時刻で省かない。
+  return !!v.flankDone && (!!v.reserveT && rt.t - v.reserveT > 35 || rt.t - (rt.flags.stageT || 0) > 240);
 }
 // 林勢の槍の列を破るのは、二の備が押し出して四十五秒たってから（済まなければ段二の五分半で）
 export function line2Ok(rt) { const v = S(rt); return !!v.l2res && rt.t - v.l2res > 45 || rt.t - (rt.flags.stageT || 0) > 330; }
@@ -117,6 +117,8 @@ export function tick(rt, dt) {
 }
 export function onKill(rt, victim, killer) {
   vanguard.onKill(rt, victim, killer);
+  const v = S(rt);
+  if (killer?.isPlayer && v.raidGs?.includes(victim?.group)) v.raidPlayer = true;
 }
 
 // bot：新しい段の行き先へ（近い敵は本体の bot が先に突く）。引き受けたら true
