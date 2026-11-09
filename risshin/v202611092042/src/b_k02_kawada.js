@@ -573,7 +573,10 @@ k02_kawada.namedGuideMarkers = true;
 k02_kawada.guideMarker = (rt) => {
   const q = goalNow(rt), p = rt.player.u.pos;
   if (!q) return null;
-  if (q[0] === GATE && p.z < GATE.z + 2) return null;   // 柵の口を抜けたら、あとは頭上の▼の敵を討つ
+  // 距離だけで消すと、柵の九歩手前や砦の木戸の外で案内がなくなる。
+  // 入口を通る目標は、柵を越え、砦の内へ入るまで案内を残す。
+  if (q[0] === GATE) return p.z < GATE.z ? null : 'k02go';
+  if (q[0] === SHINKANO) return inFort(p) ? null : 'k02go';
   return Math.hypot(p.x - q[0].x, p.z - q[0].z) < q[2] ? null : 'k02go';
 };
 k02_kawada.travelGuideLabel = (rt) => {

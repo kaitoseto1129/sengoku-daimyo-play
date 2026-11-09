@@ -5350,6 +5350,9 @@ function honnoTick(def, rt, dt) {
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
     else if (t > 60 && honPlayed(rt)) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める。11/1 京の町と使者の家を足したので百十秒→六十秒）
   } else if (F.hp === 5) {
+    // 時間や延焼だけで②を済ませない。壁越し・別の階を除き、上様のそばで守った時間を数える。
+    if (F.hondoDirect && dNb < 12 && Math.abs(p.y - NB.pos.y) < 3)
+      F.hondoHold = (F.hondoHold || 0) + dt;
     rt.objProgress('main', !F.hondoDirect ? '道の印で本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
       ? '侍を斬った。残る寄せ手を払い、奥へ退く支度を守れ'
       : '堂の口の侍を斬り払えば、上様が早く奥へ退ける');
@@ -5369,7 +5372,7 @@ function honnoTick(def, rt, dt) {
     // 延焼が早ければ、堂内で熱を受け始める二十二秒より前に退く下知を出す。
     const hondo = T.G.byId.hondo;
     const burningHondo = hondo.state === 1 && hondo.burnT >= 8;
-    if (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt)))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
+    if (F.hondoHold >= 8 && (burningHondo || (F.standMerit?.[2] && gone(F.stand) && t > 28) || (t > 30 && (gone(F.stand) || t > 40 && honPlayed(rt))))) { if (F.flank && !F.flankDone) { F.flankDone = true; rt.objFail('flank'); } def.p6(rt); }
   } else if (F.hp === 6) {
     if (F.mv && F.nbGoal) {
       // 遠い御殿だけを指すと本堂の壁へ直進してしまう。道の曲がり角を順に示す。
