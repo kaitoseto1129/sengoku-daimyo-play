@@ -2692,7 +2692,14 @@ const iga = {
 };
 
 // 比自山周辺の設定兵力。退去を討死として減らさない。伊賀全土の四万余を、この一城の兵と混ぜない。
-iga.force = () => ({ a: 12000, a0: 12000, b: 3500, b0: 3500 });
+iga.force = (rt) => {
+  const F = rt.flags;
+  // 出入りする守備兵の数ではなく、討死の記録から減らす。退去や援軍で残数を戻さない。
+  const count = F.igaForce || (F.igaForce = { a: 12000, a0: 12000, b: 3500, b0: 3500, casualtiesCounted: true });
+  count.a = Math.max(0, count.a0 - (F.ak || 0));
+  count.b = Math.max(0, count.b0 - (F.ek || 0));
+  return count;
+};
 // 命懸けの戦場（lethal.js）・この戦の怖さ（姿の見えない伊賀衆に、林と夜から討たれる）
 iga.lethal = false;   // 11/9 bot：命懸けの戦場を入れると、夜討ちの段で二度続けて倒れ・時間切れになった。入れ直すのは坂と夜の段の詰まりを直してから
 iga.fearKind = { kind: '見えない敵', note: '姿の見えない伊賀衆に、林と夜から討たれる', w: { iso: 1.5 }, line: 'どこから来るか分からぬ！' };

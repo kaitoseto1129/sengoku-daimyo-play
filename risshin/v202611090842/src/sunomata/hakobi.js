@@ -81,13 +81,21 @@ export function tick(rt) {
     v.atDock = rt.t; rt.unmark('s15dock');
     sfx('taiko', 0.4);
     rt.say('蜂須賀正勝', 'よう来た。荷を下ろすぞ。少し待て', 2.8);
-    rt.after(12, () => back(rt));
+  }
+  // 主人公だけ先に着いても、人足の到着と荷下ろしを飛ばさない。
+  if (!v.wkAtDock && !v.backT && F.wk?.units.some(ready)) {
+    const c = F.wk.center();
+    if (Math.hypot(c.x - v.dock.x * 0.85, c.z - v.dock.z * 0.85) < 6) v.wkAtDock = rt.t;
+  }
+  if (v.atDock && v.wkAtDock && !v.backT) {
+    if (v.loadingT == null) v.loadingT = rt.t;
+    if (rt.t - v.loadingT >= 12) back(rt);
   }
   const raidGone = v.raid && !v.raid.units.some(ready);
   // 人足が砦の内へ戻った（着いた知らせが押し合いで来ない時も、砦の内に入れば戻ったとみなす。11/9 bot が止まった）
   if (v.backT && !v.wkHome && F.wk?.units.some(ready)) {
-    const c = F.wk.center();
-    if (Math.abs(c.x) < v.C.FORT - 2 && Math.abs(c.z) < v.C.FORT - 2) v.wkHome = rt.t;
+    if (F.wk.units.filter(ready).every((u) =>
+      Math.abs(u.pos.x) < v.C.FORT - 2 && Math.abs(u.pos.z) < v.C.FORT - 2)) v.wkHome = rt.t;
   }
   if (v.atDock && v.wkHome && raidGone && rt.t - v.backT > 25 &&
       Math.abs(P.x) < v.C.FORT && Math.abs(P.z) < v.C.FORT) done(rt);
