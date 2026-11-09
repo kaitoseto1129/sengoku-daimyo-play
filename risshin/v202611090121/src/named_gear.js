@@ -342,7 +342,8 @@ for (const [name, flag, uma] of [
   ['山県昌景', 'akazonae', ''],
   ['真田信綱', 'sanada', ''],
   ['真田昌輝', 'sanada', ''],
-  ['真田信繁', 'sanada', 'sun'],
+  // 屏風の赤旗による復元。日輪馬印の裏付けはなく補わない（docs/generals_look_1108/真田信繁.md）。
+  ['真田信繁', 'sashi:無地:#9a2a20:#9a2a20', ''],
   ['前田利家', 'maeda', ''],
   ['明智光秀', 'akechi', ''],
   ['柴田勝家', 'kari', ''],

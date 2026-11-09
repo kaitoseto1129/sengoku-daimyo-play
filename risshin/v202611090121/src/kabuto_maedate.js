@@ -12,7 +12,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // 武将 → 前立の種類（kacchu_data.js の KACCHU[名].crest に入れる）
 export const MAEDATE = {
   伊達政宗: 'date_moon',
-  真田信繁: 'sanada_rokumon', 真田幸村: 'sanada_rokumon',
+  真田信繁: 'honda_shika', 真田幸村: 'sanada_rokumon',
   武田信玄: 'suwa_hossho',
   上杉謙信: 'kenshin_izuna',
   徳川家康: 'ieyasu_shida',
