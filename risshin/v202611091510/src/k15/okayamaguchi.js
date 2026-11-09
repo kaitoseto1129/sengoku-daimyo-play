@@ -12,6 +12,7 @@ import { allyGroup, enemyGroup, centerOf, nm } from '../bhelp.js';
 import { jinmaku, nobori, kagaribi, umajirushi } from '../props.js';
 import { clash } from '../b_sekigahara.js';
 import { flagTexture } from '../textures.js';
+import { isTouch } from '../touch.js';
 import { sfx } from '../audio.js';
 import { KILLS, cut } from '../stages.js';
 import { revealName } from '../battle_intel.js';
@@ -52,8 +53,8 @@ function scenery(rt) {
   for (const [x, z] of [[OKA_FRONT.x - 6, OKA_FRONT.z - 14], [OKA_FRONT.x + 10, OKA_FRONT.z - 15]]) rt.scene.add(nobori(W, x, z, 'toyotomi', 6));
   if (W.addDistantArmy) {
     // 前田利常の加賀勢の後ろ備え（前線の南東）と、大野治房の本隊の後ろ（前線の北）
-    W.addDistantArmy({ x: OKA_FRONT.x + 26, z: OKA_FRONT.z + 30, w: 30, d: 12, count: 140, facing: S, armor: 0x2a2622, flagTex: flagTexture('maeda'), kind: 'mixed', host: false, seed: 16151 });
-    W.addDistantArmy({ x: OKA_FRONT.x + 4, z: OKA_FRONT.z - 30, w: 32, d: 12, count: 140, facing: 0, team: 1, armor: 0x221f1c, flagTex: flagTexture('toyotomi'), kind: 'mixed', host: false, seed: 16152 });
+    W.addDistantArmy({ x: OKA_FRONT.x + 26, z: OKA_FRONT.z + 30, w: 30, d: 12, count: isTouch ? 60 : 140, facing: S, armor: 0x2a2622, flagTex: flagTexture('maeda'), kind: 'mixed', host: false, seed: 16151 });
+    W.addDistantArmy({ x: OKA_FRONT.x + 4, z: OKA_FRONT.z - 30, w: 32, d: 12, count: isTouch ? 60 : 140, facing: 0, team: 1, armor: 0x221f1c, flagTex: flagTexture('toyotomi'), kind: 'mixed', host: false, seed: 16152 });
   }
 }
 
@@ -68,7 +69,7 @@ const stage = {
     for (const g of [F.mori, F.katsu, F.kimura]) if (alive(g)) { const c = centerOf(g)(); hold(g, c.x, c.z); g.aggro = 6; g.seekRange = 8; }
     // 前線：前田勢（A・北を向く）と治房の本隊（B）が組み合う
     O.clash = clash(rt, { x: OKA_FRONT.x, z: OKA_FRONT.z, facing: S, w: 28, gap0: 0, seed: 16153, host: false, noRout: true, killRate: 0.02, maxDrift: 3,
-      A: { flag: 'maeda', armor: 0x2a2622, count: 70, flagRate: 0.25 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: 70, flagRate: 0.25, guns: true } });
+      A: { flag: 'maeda', armor: 0x2a2622, count: isTouch ? 40 : 70, flagRate: 0.25 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: isTouch ? 40 : 70, flagRate: 0.25, guns: true } });
     O.clash?.go?.();
     O.clash?.push?.('B', 0.5);   // 初めは治房が押す
     // 将軍の本陣：秀忠（討てない）と旗本
