@@ -14,7 +14,7 @@ export function start(rt, ctx, done) {
   F.dpOn = true;
   const { LINE1, LOOK } = ctx;
   const from = (dx, dz) => ({ x: LINE1.x + dx, z: LINE1.z + dz });
-  depthStart(rt, { ...ctx, look: LOOK, scale: 1.3 }, [
+  depthStart(rt, { ...ctx, look: LOOK, scale: 1.0, dmg: 0.5 }, [   // 殿の組（F.tono）が尽きると総崩れになるので、一打は軽く
     DP.rest({ dur: 5, heal: 0.3, banner: ['金ヶ崎の殿', '主力が退ききるまで、ここで食い止める'],
       say: [['木下藤吉郎', '殿はこの藤吉郎が引き受けた！　上様が朽木を越えるまで、一人も通すな！', 4.2]] }),
     DP.hold({

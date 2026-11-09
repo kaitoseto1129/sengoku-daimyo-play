@@ -123,7 +123,7 @@ const HON_DEFEND = { x: HON_DEFEND_PT[0], z: HON_DEFEND_PT[1] };
 //   本丸へ攻め上がるまで本丸の守備衆が立つ。
 const HON_OKU = { x: 0, z: -117.2 };
 const HON_POLY = MITSUKURI_PLAN.kuruwa.find((k) => k.id === 'hon').poly;
-const torchReady = (u) => u.type === 'ashigaru' && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget && !u.downed && !u.rearWound && !u.climb;
+const torchReady = (u) => u.type === 'ashigaru' && marchFighter(u);
 const ODA = { flag: 'oda' };
 const RK = { armor: 0x33291f, flag: 'rokkaku' };
 // 11/2 点付け（兵が灰・黒の同じ形で単調）：浅井新八・佐久間の手は具足の色を分ける（浅井は茶の威、佐久間は赤茶の胴と藍の衣）。
@@ -4330,14 +4330,9 @@ const mitsukuri = {
     if (i >= TORCH.length) return;
     const t = TORCH[i];
     // 10/30：味方が松明を灯すのは、本人がその松明のそば（十二歩内）にいる時だけ
-    if (Math.hypot(rt.player.u.pos.x - t.x, rt.player.u.pos.z - t.z) > 12) return;
-    // 11/2 oda_bot_1102：灯し手の組が崩れ、本人も松明の手前で詰まって攻め止めの期限まで動けなかった（bot）。
-    //   火入れの段が七十五秒を過ぎ、本人がそばにいる間は、組の者が一束ずつ（二秒おき）灯す。
-    if (rt.t - F.stepT >= 75 && rt.player.u.alive) {
-      help.late = (help.late || 0) + elapsed;
-      if (help.late >= 2) { help.late = 0; this.light(rt, i, false); }
-      return;
-    }
+    if (!rt.player.u.alive || !zoneGroundFighter(rt, rt.player.u) ||
+      Math.hypot(rt.player.u.pos.x - t.x, rt.player.u.pos.z - t.z) > 12) { help.hold = 0; return; }
+    // 時間が過ぎても、灯し手の到着と敵を払う条件を飛ばさない。
     if (i !== help.index || gone(help.group) || !help.group.units.some(torchReady)) {
       let group = null, nearest = Infinity;
       // 灯す三組が倒れても、既存の控えが引き継ぐ。木戸を打つ組は残す。
@@ -4705,18 +4700,21 @@ const mitsukuri = {
     // 11/5 遊んで直す（二5「自分が何もしなくても物語は進む」）：三の郭を味方が取っても、本人が郭へ入るまで日が暮れず、矢玉で味方が減り続けた。
     //   郭が落ちて二十秒たてば、本人がどこにいても日暮れの段（松明）へ進める。
     if (F.step >= 2 && F.step < 2.5 && F.sanFell && rt.t - (F.sanFellAt ?? rt.t) > 20 && !F.ending) this.dusk(rt);
-    //   松明も同じ：火入れの段で四十秒たてば、残る松明は仲間が一つずつ灯す（本人が灯した分は手柄に残る）。
-    if (F.step === 2.5 && F.sanFell && !F.ending && rt.t - (F.stepT || 0) > 40 && rt.t >= (F.autoLightAt || 0)) {
-      F.autoLightAt = rt.t + 3;
-      const i = TORCH.findIndex((_, k) => !((F.litMask || 0) & (1 << k)));
-      if (i >= 0) this.light(rt, i, false);
-    }
+    // 火入れは下の torchHelpTick で、本人と灯し手の位置・敵を確かめる。
     // 11/5 遊んで直す（一5・十3）：本丸の段で味方の組が手前の郭に留まり、本人一人が本丸の庭にいた。一分たっても落ちない時は、
     //   三十秒ごとに全部の組（後詰も）を次の郭へ送り直す。
     if (F.step >= 4 && !F.ending && !rt.over && rt.t - (F.stepT || 0) > 60 && rt.t >= (F.honPushAt || 0)) { F.honPushAt = rt.t + 30; this.resumeInside(rt); }
-    // 丸太の組と先手の掛矢も木戸を打つ。本人が門前へ着けなくても、三十秒を過ぎた木戸は少しずつ傷む（一戦を四〜七分に）。
+    // 打ち手が木戸の前へ到着している時だけ、掛矢の働きを補う。
+    // 組が倒れたり、別の郭へ戻った時に時間だけで木戸を破らない。
     { const kido = F.step === 3 && F.gates?.kido?.struct;
-      if (kido?.alive && rt.t - F.stepT > 30 && !F.ending) rt.army.damage(kido, 3 * dt, null, { kind: 'gateWork' }); }
+      if (kido?.alive && rt.t - F.stepT > 30 && !F.ending &&
+        (F.ram?.units.some((u) => marchFighter(u) && Math.hypot(u.pos.x - KIDO.x, u.pos.z - KIDO.z) < 4 &&
+          Math.abs(u.pos.y - rt.world.heightAt(KIDO.x, KIDO.z)) < 3) ||
+          F.ram2 && F.ramNext?.units.some((u) => marchFighter(u) && Math.hypot(u.pos.x - KIDO.x, u.pos.z - KIDO.z) < 4 &&
+            Math.abs(u.pos.y - rt.world.heightAt(KIDO.x, KIDO.z)) < 3))) {
+        rt.army.damage(kido, 3 * dt, null, { kind: 'gateWork' });
+      }
+    }
     F.slopeFill.intensity = 0.32 - rt.world.nightAmount() * 0.17;
     // 控え馬の鼻息といななきは実在する馬の位置から。乗られた後や消えた後には鳴らさない。
     // 一秒ごとの確認と長い休みだけで、合図の最中にも重ねない。

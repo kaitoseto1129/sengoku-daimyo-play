@@ -1630,9 +1630,9 @@ function hatParts(look, parts, hi, fallen = false) {
   // 名将の鉢は六種類。錣と眉庇は共通で、頂点数を増やさず輪郭を変える。
   const noshi = kind === 'noshi_eboshi', coveredSuji = kind === 'suji' && look.sujiPlates === 61;
   const tall = kind === 'eboshi' || kind === 'namazu' || kind === 'toppai' || noshi, height = kind === 'toppai' ? 0.24 : noshi ? 0.6 : kind === 'namazu' ? 0.73 : 0.38;
-  // 比叡山の伝来具足を基にする二人だけ、板の継ぎ目を実際の隆起にする。
+  // 伝来具足の間数を指定した筋兜は、板の継ぎ目を実際の隆起にする。
   // 一間を三分割し、鉢へまとめる。近景・遠景とも同じ本数で、形は既存の仕組みで共有する。
-  const sujiPlates = kind === 'suji' && [12, 40, 62].includes(look.sujiPlates) ? look.sujiPlates : 0;
+  const sujiPlates = kind === 'suji' && [12, 40, 52, 62].includes(look.sujiPlates) ? look.sujiPlates : 0;
   // 実測高のある筋兜だけ浅い鉢へ。最後の高さ九割の縮小を先に戻す。
   // 八幡座と篠垂も同じ鉢の面へ合わせ、形は生成時に共有する。
   const bowlRise = kind === 'suji' && look.bowlHeight > 0 ? look.bowlHeight / 0.9 : 0.19 * (zunari ? 0.86 : 0.94);

@@ -94,6 +94,11 @@ export function tickRelief(rt, dt, ctx) {
   if (!F.oiwaFell && (st > 70 || (st > 42 && Math.hypot(P.x - RELIEF.x, P.z - RELIEF.z) < 30))) {
     F.oiwaFell = true;
     ctx.burn(rt);
+    // 鬼玄蕃の名乗りを救援の坂から見届けられる距離へ。旗本と進み、斬り合いには入らない。
+    if (ctx.live(F.mori)) {
+      F.mori.order = 'move'; F.mori.dest = { x: RELIEF.x + 20, z: RELIEF.z - 20 }; F.mori.speed = 4;
+      F.mori.onArrive = (q) => { q.order = 'hold'; };
+    }
     try { F.sfar?.oiwa?.rout?.('A', { from: 0, hideAfter: 30, minFight: 1 }); } catch (e) { /* 遠景 */ }
     rt.army.play('toki', { x: ctx.OIWA.x, z: ctx.OIWA.z }, 1.4);
     rt.say('使番', '大岩山、落ちました！　中川清秀殿、お討死！', 3.4);
