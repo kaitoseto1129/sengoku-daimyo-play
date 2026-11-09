@@ -2862,27 +2862,17 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   }
   trunkGeo.computeVertexNormals(); trunkGeo.computeBoundingSphere();
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, 288);
-  // 野の株の材質は株ごとの色を受けない（緑の一色に見える）。形は使い回し、葉の絵だけの材質を一つ作って雑木と茂みで共有する。
+  // 閉じた葉の房を雑木と低木で共有し、横から見た切り紙の輪郭と透けをなくす。
   // 11/2 c_tree_1102c：一色に照る黄の葉の塊が、平らな切り絵の木に見えた。株の下と芯ほど暗く、房ごとに濃淡を付け、葉先を風でそよがせる。
-  const leafMat = bushSrc ? sway(new THREE.MeshLambertMaterial({ map: leafTex('broad'), vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide }), 0.03, 0, { after: (sh) => {
+  const leafMat = bushSrc ? sway(new THREE.MeshLambertMaterial({ color: 0xffffff }), 0.03, 0, { after: (sh) => {
     sh.vertexShader = 'varying vec3 vOkCrown;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOkCrown = position;');
     sh.fragmentShader = 'varying vec3 vOkCrown;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       { float n = 0.5 + 0.25 * sin(dot(vOkCrown, vec3(4.7, 3.1, 5.3)))
           + 0.25 * sin(dot(vOkCrown, vec3(-7.1, 5.9, 2.7)));
         diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(0.15, 1.0, vOkCrown.y)) * mix(0.74, 1.06, n); }`);
   } }) : null;
-  // 葉の輪郭を保ったまま面を湾曲させ、横からも厚みと陰影を持たせる。
-  // 元の野の株は変更せず、この戦の雑木と低木で一つの形を共有する。
-  const leafGeo = bushSrc?.geometry.clone();
-  if (leafGeo) {
-    const pos = leafGeo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-      pos.setXYZ(i, x + 0.12 * Math.sin(y * 2.8 + z * 2), y,
-        z + 0.18 * Math.sin(x * 2.6 + y * 1.7));
-    }
-    leafGeo.computeVertexNormals(); leafGeo.computeBoundingSphere();
-  }
+  // 既存の遠景と同じ房を一度だけ作り、株数と描く回数は保つ。
+  const leafGeo = bushSrc ? okCrownGeo(19) : null;
   const crowns = bushSrc ? new THREE.InstancedMesh(leafGeo, leafMat, 72) : null;
   const bushes = bushSrc ? new THREE.InstancedMesh(leafGeo, leafMat, 110) : null;
   const tufts = tuftSrc ? new THREE.InstancedMesh(tuftSrc.geometry, tuftSrc.material, 640) : null;

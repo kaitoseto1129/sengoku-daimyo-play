@@ -3909,7 +3909,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 10/31：信長が門の脇の柵の外で門徒と斬り合い続け、二分の待ちで負けていた。三十秒の後は門から二十五歩内で入城とみなす。
       const nobuIn = inPoly(SOTO_POLY, F.nobuU.pos.x, F.nobuU.pos.z) ||
         Math.hypot(F.nobuU.pos.x - T_GATE.x, F.nobuU.pos.z - T_GATE.z) < (elapsed >= 30 ? 25 : 6);
-      const playerIn = d < 10 && inPoly(SOTO_POLY, p.x, p.z);
+      const playerIn = d < 13 && inPoly(SOTO_POLY, p.x, p.z);   // 印の輪（十歩）の縁で止まっても合流とみなす（11/9 二巡：十一歩で十分止まった）
       const joined = playerIn && nobuIn && inside >= 6;
       // 自分が門から一歩離れても、救援の入城待ちを数え直さない。
       F.joinWait = !nobuIn || inside < 6 ? (F.joinWait || 0) + span : 0;
@@ -3926,15 +3926,18 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 10/31：傷を休める遊び手が印へ来ないと、救援が入っても戦が止まったままだった（bot が八分の時間切れ）。
       // 救援の到着で合流の下知を出す。出撃は本人と明智の列が門内で揃ってから。
       let akeNear = 0, akeLive = 0, akeCommanderIn = false;
+      // 11/9 二巡（織田G）：光秀が崩れた手と退いて（fleeing）いると、頭が門内に居ないまま出撃が止まる。頭は列に残る一番前の者とする。
+      const akeHead = F.ake.units.find((v) => v.alive && !v.fleeing && !v.woundOut);
       for (const v of F.ake.units) if (v.alive && !v.fleeing && !v.woundOut) {
         akeLive++;
         if (inPoly(SOTO_POLY, v.pos.x, v.pos.z) &&
             Math.hypot(v.pos.x + 5, v.pos.z - (T_GATE.z - 9)) < 12) {
           akeNear++;
-          if (v === F.ake.units[0]) akeCommanderIn = true;
+          if (v === akeHead) akeCommanderIn = true;
         }
       }
-      const akeIn = akeCommanderIn && akeNear >= Math.min(3, akeLive);
+      // 明智の手が崩れて残る者が無い時は、揃うのを待たない（11/9 二巡：全員が逃げたまま十分止まった）。
+      const akeIn = akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive);
       const ready = nobuIn && inside >= 6;
       if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
       else if (joined && akeIn && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);
@@ -3972,7 +3975,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         let live = 0;
         for (const enemy of g.units) if (enemy.alive && !enemy.woundOut) {
           live++;
-          if (enemy.pos.z > KIDO.z - 12) escaped = false;
+          // 退く下知の出た殿は、木戸の手前の印から十二歩離れていれば退いたとみなす（11/9 二巡：木戸の柵で一人が詰まり六分止まった）。
+          if (enemy.pos.z > KIDO.z - 12 && !(g.kidoRetreat && Math.hypot(enemy.pos.x - F.kz.x, enemy.pos.z - F.kz.z) > 12)) escaped = false;
         }
         remaining += live;
         // 殿が討ち減らされたら、背後の木戸へ走って退く。
