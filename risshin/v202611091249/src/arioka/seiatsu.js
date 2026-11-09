@@ -8,7 +8,7 @@ export function stages(H) {
   const { rest, ariFight, uS, uA, gunLine, TOWN_X, reinforce } = H;
   const at = { x: TOWN_X, z: -60 };   // 辻から北の通り（侍町の奥）
   return [
-    rest({ dur: 8, at, say: [['滝川一益', '辻は守った。焼け跡に隠れた者を改めよ。降る者は斬るな'], ['滝川の組頭', '火の粉に気をつけよ。屋敷の陰から撃って来るぞ', 4]], fn: (rt) => reinforce(rt, at, 10) }),
+    rest({ dur: 8, at, label: '侍町の焼け跡', say: [['滝川一益', '辻は守った。焼け跡に隠れた者を改めよ。降る者は斬るな'], ['滝川の組頭', '火の粉に気をつけよ。屋敷の陰から撃って来るぞ', 4]], fn: (rt) => reinforce(rt, at, 10) }),
     ariFight({ at, r: 16, title: '焼けた侍町', sub: '屋敷の焼け跡に、荒木の者が隠れている', obj: () => '侍町の焼け跡に残る荒木勢を退けよ',
       say: [['足軽', '煙で前が見えぬ……誰かおるぞ！', 3.5]],
       foes: () => [

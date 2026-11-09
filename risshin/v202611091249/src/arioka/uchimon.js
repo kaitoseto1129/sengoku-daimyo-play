@@ -11,7 +11,7 @@ export function stages(H) {
   const { rest, ariFight, uS, uA, gunLine, GATE, TOWN_X, reinforce } = H;
   const at = { x: TOWN_X, z: GATE.z };
   return [
-    rest({ dur: 8, at, say: [['使番', '侍町の奥の木戸で、また内応の者が門を開けた！　本丸への道じゃ'], ['滝川一益', 'あの木戸を押さえれば、本丸は裸になる。急げ', 4]],
+    rest({ dur: 8, at, label: '侍町の奥の木戸', say: [['使番', '侍町の奥の木戸で、また内応の者が門を開けた！　本丸への道じゃ'], ['滝川一益', 'あの木戸を押さえれば、本丸は裸になる。急げ', 4]],
       fn: (rt) => { sfx('wood', 0.8); rt.army.playFar('eiei', { x: TOWN_X + 30, z: GATE.z }, 0.6); } }),
     ariFight({ at, r: 16, title: '奥の木戸、開く', sub: '本丸へ向かう通りの木戸。番兵が門を閉め直そうとする', obj: () => '侍町の奥の木戸を押さえよ',
       say: [['滝川の組頭', '門を閉めさせるな！　番兵を押し出せ', 4]],
