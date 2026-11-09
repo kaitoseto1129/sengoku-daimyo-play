@@ -2535,8 +2535,6 @@ function honnoNearFade(rt) {
 }
 
 let honnoLive = null;
-// 試し遊びの bot（index.html?bot・autoplay）の時だけ真。遊ぶ人の段の進みには使わない
-const honnoBotPlay = () => typeof window !== 'undefined' && (!!window.__autoplay || /[?&](autoplay|bot)\b/.test(location.search));
 // 11/6 fix61（kaito 九1・十1・三1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印。途中で言い替えない。
 //   並びは信長公記の順（表門→本堂→御殿→二条御所→京の外れ）。「敵を八人討つ」のような数の目標は置かない。
 //   段の長さは史実の流れで決まるので、目標ごとの時切れの ✕ は付けない（sec 900）。
@@ -4617,8 +4615,9 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
   },
   fallen(rt) {
     const F = rt.flags;
-    // 早く裏門へ着いても、奥の戸を閉める下知より先に上様の最期を告げない。
-    if (F.hp >= 9 || rt.t - F.pT < 17.5) return;
+    // 裏門まで実際に退いてから場面を移す。奥の戸を閉める下知も最後まで聞かせる。
+    if (F.hp !== 8 || !rt.player.u.alive || rt.t - F.pT < 17.5 ||
+        Math.hypot(rt.player.u.pos.x - PT.uraOut.x, rt.player.u.pos.z - PT.uraOut.z) >= 6) return;
     F.hp = 9;
     rt.obj('main', '町へ退き、織田の者と合流せよ', 'main', true);
     rt.unmark('next'); rt.unmark('uraG'); rt.unmark('nb');
@@ -5420,8 +5419,7 @@ function honnoTick(def, rt, dt) {
       ? '印を追い、西の戸口へ'
       : `土橋を渡り、裏門の外へ。あと${Math.max(0, Math.ceil(F.escapeDistance))}歩`);
     if (d < 6 && t > 12 && P.alive) def.fallen(rt);
-    // 10/31：bot が裏門の手前で四分詰まった。裏門の近くまで来ていれば、小姓衆が道を開けて落ちのびた事にする
-    else if (P.alive && (t > 35 && d < 20 || t > 55 && d < 45 || honnoBotPlay() && t > 70)) def.fallen(rt);   // 11/1：京の町の段を足したので、裏門の口で詰まる時は早めに小姓が道を開ける
+    // 時間だけで裏門の手前から二条へ飛ばさない。試し遊びも同じ退路を歩く。
   }
   if (!F.ending && F.escortShown && F.hp !== 4) rt.objProgress('main', F.farT > 0
     ? `道の印で上様へ戻れ。あと${Math.max(0, Math.ceil(60 - F.farT))}秒`
