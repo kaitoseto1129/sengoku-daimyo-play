@@ -343,6 +343,7 @@ const t02_shizugatake = {
   meleeGrace: { rate: 0.05, burst: 0.4, interval: 1.2 },
   closeCombatAssist: true,
   autoTargetCamera: true,
+  steadyMeleeCamera: true,   // 斬り合いで敵を選び直しても、視点を勝手に回さない。
   compactIntro: true,
   // 11/6 九度目（critic60 五4）：共通の溜め（十五秒）で、始まってから十六秒も台詞が出ず霧の野を見るだけだった。煙と桑山の声が開戦の溜め
   prelude: false,
@@ -690,7 +691,8 @@ const t02_shizugatake = {
       for (const g of F.groups) if (g.kind4 === 'raid' && g.bornT != null && live(g) && g.order !== 'attack' && rt.t - g.bornT > 20) { g.order = 'attack'; g.focus = P; g.seekRange = 30; g.aggro = 16; g.speed = 3.6; }
       // 口で斬り合った（口の十二の内に寄せ手が三人より多く来た）後は、三度目から八十秒で日が暮れて寄せ手が退く（時が経つだけでは果たさない）
       if (!F.mouthFought && nearCount(rt, 1, MOUTH, 12) > 3) F.mouthFought = true;
-      if (F.waves >= 3 && (F.mouthFought || st > 200) && dist(P.pos, MOUTH) < 22 && st > 100 && (left <= 8 || st > 130)) this.night(rt);
+      // 口へ届く前に味方が寄せ手を討ち減らした場合も守備の成果。経過時間だけでは果たさない。
+      if (F.waves >= 3 && (F.mouthFought || left <= 8) && dist(P.pos, MOUTH) < 22 && st > 100 && (left <= 8 || st > 130)) this.night(rt);
       return;
     }
     if (F.phase === 2.3) { tickMeet(rt, this.ctx(rt)); return; }
