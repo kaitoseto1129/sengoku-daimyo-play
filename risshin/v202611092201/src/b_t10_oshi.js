@@ -413,12 +413,15 @@ const t10_oshi = {
   enemyTactics: false,
   prelude: false,
   playerAtkMax: 3,
+  // 退く・避難する間と深手の休息中は、打ち込み直前だけ受けて歩みを止めない。
+  botGuardFlee: (b) => b.flags.step === 2 || b.flags.step === 6 || b.flags.step === 1 && (b.chiRest || b.player.u.hp < b.player.u.maxHp * 0.4),
   strictFireOrders: true,   // 退却時は近い主人公にも「撃つな」を守る。弓だけが退く背を撃ち続けない。
   missionSingleLine: true, hideGuideSteps: true, noPlayerFoot: true,
   // 行き先は頭上の印一つ（kaito AL・AS・AV15）。ついていく相手の青い印は出さない。名札は近くの将だけ
   // 11/8 critic60（五2・N・AS）：途中で出たり消えたりする小さな地図は出さない。城代の長親の名札は門の前から見せない
   noMiniMap: true, hideNameTag: (u) => u?.name === '成田長親',
   nearAllyFadeRadius: 3,   // 11/8 critic60 九7：堤を走る時、カメラの前の味方の黒い背中が自分を塞いだ。視線の上の味方を広めに透かす
+  goalSignDistanceAlways: true,   // 堰や門前へ近づいても、場所の名から距離を消さない。
   noLeaderFollow: true, nameRange: 30, goalSignOnly: true,   // 本丸の城代（成田長親）の名と命の棒を門の前から見せない（kaito AS：総大将は討てる所に見せない）
   // 時が飛ぶ所だけ、画面の真ん中に次の目標を短く出す（kaito AT7）
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /^(その夜|六月　堤が出来た|六月　城は水に浮かぶ|六月十八日の夜|七月の総攻め|七月　小田原開城)/.test(t),

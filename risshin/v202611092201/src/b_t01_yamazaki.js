@@ -254,6 +254,10 @@ const t01_yamazaki = {
     // 申の刻（午後四時ごろ。旧暦六月十三日＝七月二日で日の入りは七時過ぎ）の雨。夕焼けの赤い空は時刻にも雨にも合わない（critic60：④だけ空が赤い）。
     //   雨雲の下の昼過ぎの暗さ（雨は小雨 0.3 のまま）
     time: 'storm',
+    // 追撃でも雨雲を保ったまま暮れる。共通の夕暮れの朱い日差し・晴れ間へ替えない（critic60 四6）。
+    duskLight: { sky: 0x737d80, fog: 0x818b8e, top: 0x515d64, sun: 0xb9c4c8,
+      sunI: 0.65, hemiSky: 0x9eafb5, hemiGround: 0x55534b, hemiI: 1.2,
+      sunPos: [-120, 17, -24], vis: 200, cloud: 0, cover: 0.85, glowK: 0 },
     height,
     waterSlow: true,
     riverCross: true,

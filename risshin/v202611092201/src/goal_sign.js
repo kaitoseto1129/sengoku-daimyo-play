@@ -166,7 +166,7 @@ export function goalSignTick(rt, root) {
   const metres = `${Math.round(d / 5) * 5}m`;   // 11/9 iPhone 874×402：「メートル」だと行き先の札が「40メー／トル」と二行に折れた（上の決まりどおり「80m」）
   // 味方の将へ向ける時は名だけ（距離の「m」は行き先の場所だけに付け、形で分ける。11/8 critic60 五3）
   const ally = !!u && !enemy;
-  const shown = d >= 10 && !ally && !enemy ? (label ? `${label} ${metres}` : metres) : label;
+  const shown = (d >= 10 || rt.def.goalSignDistanceAlways) && !ally && !enemy ? (label ? `${label} ${metres}` : metres) : label;
   const frame = enemy && u && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
   // 名のある敵将を枠で囲わない（名は頭上の名札で出す。探して倒すのが良い。十八の3・BZ）。枠は印の高さ合わせにだけ使う
   el._frame.hidden = true;

@@ -4756,9 +4756,10 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 前の槍列がすべて退けば、控える旗本だけを残して百秒待たせない。
       const frontBroken = gone(F.V) && gone(F.M) && gone(F.N) && F.reserves.every(gone);
       const enemyBroken = F.opposition.every(gone);
-      if ((el >= 100 && holdKills >= 10 || counterattack || frontBroken || enemyBroken) && M15.pressOk(rt)) {   // 左の畦の弓・鉄砲衆（moribe/yumi.js）を討ってから
-        if (F.lineT >= 25) { rt.objDone('line'); }
-        else rt.objFail('line');
+      // 味方だけが敵を退けても、本人が列を支える前に失敗として飛ばさない。
+      // 反撃へ進むと目標の一覧も済みになるため、本人の働きをここで必ず確かめる。
+      if (F.lineT >= 25 && (el >= 100 && holdKills >= 10 || counterattack || frontBroken || enemyBroken) && M15.pressOk(rt)) {   // 左の畦の弓・鉄砲衆（moribe/yumi.js）を討ってから
+        rt.objDone('line');
         rt.objRemove('line'); rt.unmark('line'); rt.unmark('lineFlag'); rt.unzone('line');
         F.stage = 'press'; F.pressStart = rt.t; rt.setPhase('press');
         rt.banner(enemyBroken ? '敵が退いた' : counterattack ? '組の働きで、反撃へ' : '大将の旗本へ', enemyBroken ? '深追いせず、列を保て' : counterattack ? '支えた槍列が、両将の旗本へ押し出す' : '長井甲斐守・日比野下野守の旗が、雨の向こうに残る');
