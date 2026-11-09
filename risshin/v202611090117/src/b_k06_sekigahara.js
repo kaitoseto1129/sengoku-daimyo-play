@@ -193,6 +193,8 @@ const k06_sekigahara = {
     grass: 0x8a9456, grassTints: [0xffffff, 0xe0dcb0, 0xc4c494], grassH: 1.1, grassLift: 0.2, grassShape: 'blade', tallGrass: 0.8,
     flagColors: [0x24211e, 0x8e1f16, 0x3a3630],   // 模様の無い白い幟を地に立てない（critic60）
   },
+  lethal: { max: 5, firstAt: 70, gap: 45 },   // 命懸けの戦場（docs/lethal_howto.md）
+  fearKind: { kind: '天下分け目', note: '寝返りと島津の突撃で本陣に迫られる', w: { honjin: 1.8, flank: 1.4 }, line: '本陣が危ない！' },
   depth: DEPTH,   // 各家の備・二陣・旗本・南宮山の毛利（k06/depth_plan.js・docs/army_depth_howto.md）
   noCouriers: true,
   noTaisho: true,
@@ -290,7 +292,8 @@ const k06_sekigahara = {
       : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
     // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
     if (s === 8 && P.x > FENCE_X - 1 && P.z > -214 && P.z < -128) {
-      const g = near(P, GAP, 9) ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z };
+      // 口の前（東へ八歩）に着いたら、そのまま口をくぐって内へ（前は九歩の輪に入れず、口の前で止まった・11/9 流し）
+      const g = near(P, { x: GAP.x + 8, z: GAP.z }, 4) || near(P, GAP, 9) ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z };
       q.x = g.x; q.z = g.z; return q;
     }
     q.x = T.x; q.z = T.z;

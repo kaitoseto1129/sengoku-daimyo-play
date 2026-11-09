@@ -211,6 +211,8 @@ const k05_ueda = {
   // 右上は今の段を番号付きで（始まりの話の間も①。「味方の旗へ」に替えない。三の3・十の1）
   missionHeading: (rt) => '①②③④⑤⑥⑦'[Math.min(LAST, Math.max(1, rt.flags.step || 1)) - 1] + STEP_TEXT[Math.min(LAST, Math.max(1, rt.flags.step || 1))],      // 隅櫓・物見櫓を目標にしない（城は落とさない戦。右上は六つの段だけ・十の1）
   depth: DEPTH,
+  lethal: { max: 4, firstAt: 80, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）：門の前の流れ弾・組頭の突然の討死
+  fearKind: { kind: '城下の罠', note: '小路と門の前で四方から撃たれる', w: { flank: 1.6, losses: 1.3 }, line: '門の上から撃たれておるぞ！' },
   noCouriers: true,
   noTaisho: true,
   noReserve: true,

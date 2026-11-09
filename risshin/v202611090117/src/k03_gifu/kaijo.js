@@ -31,12 +31,14 @@ export function install(rt, ctx) {
     try { const m = nobori(W, 2 + dx, dz, 'oda', 6); rt.scene.add(m); T.flags.push({ m, y0: m.position.y }); } catch (e) { /* 立てられない時は置かない */ }
   }
 
+  // 段の知らせが遅れて降伏の台詞に割り込まないよう、届く時にも段を確かめる。
+  const report = (n, delay, fn) => rt.after(delay, () => { if (!F.ending && step() === n) fn(); });
   T.tick = onceWhen(rt, [
-    [() => step() >= 3, () => rt.after(8, () => rt.say('使番', '池田隊、百曲りへ！　福島隊は七曲りより登ります！', 3.4))],
-    [() => step() >= 4, () => rt.after(12, () => { sfx('horagai', 0.5); rt.say('使番', '西の曲輪、突破！', 2.6); })],
+    [() => step() >= 3, () => report(3, 8, () => rt.say('使番', '池田隊、百曲りへ！　福島隊は七曲りより登ります！', 3.4))],
+    [() => step() >= 4, () => report(4, 12, () => { sfx('horagai', 0.5); rt.say('使番', '西の曲輪、突破！', 2.6); })],
     [() => step() >= 5, () => {
-      rt.after(3, () => rt.say('使番', '下の曲輪、落ちました！　城方は本丸へ集まっております', 3.4));
-      rt.after(9, () => rt.say('池田長吉', '岐阜中納言殿は討つな。殿の仰せじゃ', 3));
+      report(5, 3, () => rt.say('使番', '下の曲輪、落ちました！　城方は本丸へ集まっております', 3.4));
+      report(5, 9, () => rt.say('池田長吉', '岐阜中納言殿は討つな。殿の仰せじゃ', 3));
     }],
   ]);
 

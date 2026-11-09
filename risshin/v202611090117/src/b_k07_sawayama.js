@@ -264,6 +264,8 @@ const k07_sawayama = {
     if (i === 6) return { ...NI1, label: '二の丸の上の段' };
     return { ...HON_YARD, label: '本丸の天守の前' };
   },
+  lethal: { max: 4, firstAt: 80, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）：櫓の矢・落石・曲輪の門の前
+  fearKind: { kind: '山城の死守', note: '狭い尾根で上から撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '上から矢が来るぞ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   cutFloor: 0.5,
@@ -838,7 +840,11 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
     if (q !== want && q.active) { inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false; goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true; return; }
   }
   // 大手と三の丸（D.i < 5）は開けた曲輪：曲輪の奥で構える守りへ自分から寄る（11/9 流し：入口に立ったまま、三十歩奥の守りに新手が足され続けて五分かかった）
-  if (C && C.s.kind === 'fight' && D.i < 5) {
+  // 寄れない敵（塀・枡形の向こう）を追って五秒動けない時は、八秒は追わずに段の動き（depthBot）へ任せる（11/9 流し：大手の枡形の前で十五分）
+  const SB = F._sb || (F._sb = { x: u.pos.x, z: u.pos.z, t: b.t, off: 0 });
+  if (Math.hypot(u.pos.x - SB.x, u.pos.z - SB.z) > 1.5) { SB.x = u.pos.x; SB.z = u.pos.z; SB.t = b.t; }
+  else if (b.t - SB.t > 5 && b.t > SB.off) { SB.off = b.t + 8; SB.t = b.t; }
+  if (C && C.s.kind === 'fight' && D.i < 5 && b.t > SB.off) {
     const e = b.army.nearestEnemy(u, 50, (o) => !o.fleeing && !o.noTarget && !o.perch && !o.invuln && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
