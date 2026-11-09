@@ -2868,10 +2868,10 @@ const shiga = {
     // 両家の北の本陣の位置は復元。公記のこの条は朝倉方の将を特定しないため、義景本人と断定しない。
     // 根拠：『信長公記』巻三「志賀御陣之事」。
     // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
-    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉義景', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 20, reserve: 0, runTo: { x: 26, z: -80 } });
+    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉の本陣の将', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 20, reserve: 0, runTo: { x: 26, z: -80 } });
     // 「浅井備前」は長政を指すが、この復元位置の陣を本人の持ち場とは特定できない。
     // 朝倉側と同じく、目に見える本陣の将は名を断定しない。
-    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井長政', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 20, reserve: 0, runTo: { x: 0, z: -80 } });
+    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井の本陣の将', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 20, reserve: 0, runTo: { x: 0, z: -80 } });
     // 本陣の控えは移した陣幕の後ろへ。同じ人数で、二十四日に本隊と一緒に比叡山へ退かせる。
     // 共通の camp 内に任せると参照が残らず、後詰の後も坂本に五百六十人が居座る。
     for (let i = 0; i < CAMP_HOSTS.length; i++) {
@@ -4165,7 +4165,7 @@ const shiga = {
     // 合図を説明している間は声を待つ。済ませた印も付けず、近くにいれば後で知らせる。
     if (!command && !F.campNear && p.z < -70 && sightPoint(rt, F.campA.pos, 100)) { F.campNear = true; rt.say('足軽', '向こうは敵の本陣だで！　旗があんなに重なっとる、戻ろまい！', 3.5); }
     if (F.step >= 2) return;
-    for (const [id, c, label] of [['campA', F.campA, '朝倉義景の本陣'], ['campB', F.campB, '浅井長政の本陣']]) {
+    for (const [id, c, label] of [['campA', F.campA, '朝倉の本陣'], ['campB', F.campB, '浅井の本陣']]) {
       if (!c || F['mk_' + id] || !sightPoint(rt, c.general?.pos || c.pos, 75)) continue;
       F['mk_' + id] = true;
       rt.marker(id, { x: c.pos.x, z: c.pos.z }, label + '・近づくな', { h: 2 });
@@ -4176,7 +4176,7 @@ const shiga = {
       const u = c?.general;
       if (!u?.alive || F['heard_' + u.name] || !sightPoint(rt, u.pos, 30)) continue;
       F['heard_' + u.name] = true; F.campVoiceT = rt.t + 8;
-      rt.say(u.name, u.name === '朝倉義景' ? '町口の守りは少ない。備えを崩さず押せ！' : '朝倉の手と歩みを合わせよ。坂本へ進め！', 3);
+      rt.say(u.name, c === F.campA ? '町口の守りは少ない。備えを崩さず押せ！' : '朝倉の手と歩みを合わせよ。坂本へ進め！', 3);
       break;
     }
   },

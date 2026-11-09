@@ -3162,7 +3162,12 @@ const shigisan = {
   //   打ち手を討ちに打って出る。土橋の前で迎え撃ち、崩れて門内へ退く兵に続いて城内へ入る。
   sallyOut(rt) {
     const F = rt.flags;
-    if (F.step !== 3 || F.ending || rt.over || !rt.player.u.alive || gone(F.sally)) return;
+    if (F.step !== 3 || F.ending || rt.over || !rt.player.u.alive) return;
+    // 控えが既に退いた時も、掛矢と一分後の開門を止めない。門の破壊処理から城内へ進む。
+    if (gone(F.sally)) {
+      if (F.gate.hp > 0) rt.army.damage(F.gate, F.gate.hp / (1 - F.gate.armor) + 1, null);
+      return;
+    }
     F.step = 3.2; F.stepT = rt.t; F.sallyOpen = true;
     rt.setPhase('sally'); rt.objProgress('main', '');
     rt.uninteract('ramgate'); rt.unmark('gate');
@@ -3904,20 +3909,13 @@ const shigisan = {
       rt.objProgress('main', `打って出た松永勢　残り${n}人`);
       if (n <= Math.max(3, Math.round(F.sallyN * 0.3))) this.tsukeiri(rt);
     }
-    // 攻め口の兵が崩れれば、時間で勝たせず寄せを打ち切る。
+    // 先手の消耗だけで本人の任務を失敗にしない。時間で城取りも済ませず、各持ち場の条件を保つ。
     let ready = 0;
     for (const q of F.oda) for (const u of q.units) if (u.alive && !u.fleeing && !u.woundOut) ready++;
     const exhausted = F.step >= 1 && ready < (F.step >= 3.5 ? 1 : 5);
-    if (!F.ending && F.step >= 1 && (F.oda.every(gone) || exhausted)) {
-      F.ending = true;
-      siegeSignal(rt, 'nobiki');
-      rt.objFail('main');
-      rt.obj('withdraw', '法螺貝と間を空けた二つ打ちの退き太鼓。来た尾根道を麓へ退け', 'main', true);
-      rt.say('組頭', '退き太鼓じゃ！　これ以上は寄せられぬ。来た尾根道を麓へ退け！', 4);
-      rt.tracker.main = false; rt.setPhase('end'); rt.objProgress('main', '');
-      for (const id of ['tsu', 'amb', 'branch', 'climb', 'gate', 'gather', 'rg1', 'rg2', 'yashiki', 'honmaru', 'l1', 'l2', 'tower']) rt.unmark(id);
-      rt.uninteract('yashikiRoute'); rt.uninteract('tower'); rt.uninteract('ramgate'); rt.unzone('tower'); rt.finish({ scriptedEnd: true }, 6);
-      return;
+    if (!F.ending && exhausted && !F.assaultLossSaid) {
+      F.assaultLossSaid = true;
+      rt.say('使番', '筒井の先手が減っております！　尾根道の敵を警戒せよ！', 5);
     }
     if (F.step >= 3.5 && F.SZ) {
       F.SZ.tick(dt);
