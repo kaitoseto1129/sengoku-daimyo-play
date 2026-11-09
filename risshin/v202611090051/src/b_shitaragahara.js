@@ -1358,7 +1358,7 @@ function nfSend(rt, g, gateZ) {
   m.onArrive = (q) => { q.order = 'hold'; q.facing = -Math.PI / 2; q.holdFire = false; q.fire = true; };
   g.nfAt = rt.t; g.nfN0 = nfReady(g) + nfReady(cav);
 }
-// 寄せの崩れ：残りが三割を切るか、柵に取り付いて八十秒。将は柵の内の鉄砲に倒れる（史実の討死）。
+// 寄せの崩れ：残りが四割以下か、柵に取り付いて四十秒。将は柵の内の鉄砲に倒れる（史実の討死）。
 function nfBroken(rt, g) {
   if (!g.nfAt) return false;
   const n = nfReady(g) + nfReady(g.cavalry);
@@ -1420,7 +1420,7 @@ function nfTick(rt, dt) {
     return;
   }
   // 南の山県は徳川の柵で崩れる（知らせと遠くの働き）
-  if (N.south && !N.southDone && N.breachDone && nfBroken(rt, F.south)) {
+  if (N.south && !N.southDone && nfBroken(rt, F.south)) {
     N.southDone = true; nfRout(rt, F.south, true);
     shReport(rt, '山県昌景、討死！　竹広の赤備えが崩れた！', 3.5);
   }
