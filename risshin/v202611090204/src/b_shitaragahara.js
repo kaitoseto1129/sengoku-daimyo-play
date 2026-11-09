@@ -1499,6 +1499,9 @@ function nfTick(rt, dt) {
       if (!nfReady(q)) return;
       if (q.isPlayerSquad) { if (q.order !== 'follow' && !nearRear) q.order = 'follow'; return; }
       const c = q.center(), d = Math.hypot(c.x - p.x, c.z - p.z);
+      // 虎口を抜けるまでは、柵の内の道順を保つ。本人へ直進すると柵に詰まる。
+      if (c.x <= SB.x0 + 4 || q.order === 'path' && q.units.some((u) =>
+          u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget && u.pos.x <= SB.x0 + 4)) return;
       if (nearRear && d < 30) { if (q.order !== 'attack') { q.order = 'attack'; q.formation = q.kind === 'gun' ? 'line' : 'yari'; q.roadColumn = false; q.seekRange = 40; q.aggro = 14; q.fire = true; q.holdFire = false; } return; }
       if (d > 12 && p.x > SB.x0 + 2) {
         // 本人の左右へ並ぶ（後ろに付けると、前を向く画面に味方が一人も映らなかった）
@@ -1512,7 +1515,9 @@ function nfTick(rt, dt) {
   }
   // ― 4：進み太鼓。柳田前の虎口を出て、連吾川を渡る ―
   if (N.step === 4) {
-    if (p.x > rengoX(p.z) + 9) {
+    // 先に東岸へ出ていただけでは果たさない。柳田前の柵から渡り始める。
+    if (p.x < SB.x0 && Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 9) N.crossWest = true;
+    if (N.crossWest && Math.abs(p.z - NF_BANK.z) < 12 && p.x > rengoX(p.z) + 9) {
       N.done[2] = true; N.step = 5; N.at = rt.t;
       nfBaba(rt);
     }
@@ -1548,6 +1553,7 @@ function nfTick(rt, dt) {
 // 内藤が崩れ、武田の全軍が退く（未の刻）。勝頼は討てず、馬場が殿に残る。
 function nfCollapse(rt) {
   const F = rt.flags;
+  F.nf.crossWest = false;
   rt.setPhase('pursuit');
   F.pursuit = rt.t;
   try { rt.world.setTime('after'); } catch (e) { /* なし */ }
@@ -1693,7 +1699,7 @@ function nfPinPoint(rt) {
   if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt);
   if (N.step <= 1) return Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 7 ? null : NF_NORTH;
   if (N.step <= 3) return Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 7 ? null : NF_CENTER;
-  if (N.step === 4) return NF_BANK;
+  if (N.step === 4) return N.crossWest ? NF_BANK : NF_CENTER;
   const baba = rt.flags.rear.units.find((u) => u.name === '馬場信春' && u.alive);
   const c = baba ? baba.pos : NF_REAR;
   return Math.hypot(c.x - p.x, c.z - p.z) < 14 ? null : c;
