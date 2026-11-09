@@ -483,7 +483,7 @@ function shinoGuard(rt) {
   // 雨の夜は火縄と口薬が湿り、鉄砲は撃ちにくい（篠曲輪の夜討ちは六月二十二日の夜半の雨）。狭間は弓を主に、鉄砲は雨覆いの三挺だけ
   // 守りの将は山角康定（その子と助勢の高橋高盛も籠った。康定は生き延びて戦の後も仕えたので討てない）
   // 狭い出丸の守りなので康定は徒（馬は曲輪に入らない）。そばに子と家来の侍を固めて置く（kaito 一2）
-  dress([{ type: 'busho', n: 1, o: { name: '山角康定', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 5 }, { type: 'bow', n: 6 }, { type: 'gun', n: 3 }], HOJO));
+  dress([{ type: 'busho', n: 1, o: { name: '山角康定', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 5 }, { type: 'bow', n: 6 }, { type: 'gun', n: 3, o: { gunRainCover: true } }], HOJO));
   F.shinoGuns.secKind = 'bow';
   // 11/9 二巡：討てない康定に斬りかかっても傷がつかず「不死身」に見えた。狙いの的にせず、旗本の後ろに置く（斬り合う相手は供の侍と弓）
   for (const u of F.shinoGuns.units) if (u.name === '山角康定') u.noTarget = true;
@@ -549,6 +549,8 @@ const t12_odawara = {
   missionPin: () => null,     // 白い旗のピンは出さない。行き先は今の目標の▼と名の札の一つだけ（kaito AV15・⑧）
   world: {
     namedKacchu: { ...TOYO_MAEDA_KACCHU, ...TOYO_GAMO_KACCHU },
+    // 昼の包囲中と味方の打って出では、近い主人公にも撃ち止めの下知を守る。
+    strictFireOrders: true,
     // 夜の篠曲輪で、倒れた兵から外れた陣笠が黒い皿のように散らばって見えた（critic60 小田原 29）。この戦は笠を落とさない
     hatDropRate: 0,
     // 東の端の陣も、旗本の後列まで戦場の内に収めて出す（全戦の通し確認）。
@@ -629,9 +631,9 @@ const t12_odawara = {
     F.day = -1;
     this.shinoArm(rt, false);
     rt.setPhase('brief');
-    rt.obj('main', '篠曲輪に井伊の旗を立て、のち黒田官兵衛を本丸の門まで守り届けよ', 'main');
+    rt.obj('main', '井伊の陣から、家康の本陣へ下知を受けに行く', 'main');
     // 戦の前（使番が石垣山の殿下の下知を伝える。秀吉はここにいない）
-    rt.say('使番', `殿下の下知じゃ。${nm(rt)}殿は井伊直政殿の手に加わり、城の東を攻めよ`, 4.5);
+    rt.say('使番', `${nm(rt)}殿は井伊直政殿の手に加われ。家康殿の本陣へ下知を受けに参られよ`, 4.5);
     rt.after(5, () => rt.say('井伊直政', '天正十八年の夏。殿下の囲みは、もう二月になる', 4));
     rt.after(9.5, () => this.begin(rt));
   },
