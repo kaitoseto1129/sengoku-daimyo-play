@@ -21,6 +21,8 @@ import { KIT, volley } from './b_nagashinojo.js';
 import { depthStart, depthTick, depthBot, rest, pick, fight, hold } from './b_depth.js';
 import { addSite } from './map_sites.js';
 import { siegeStages } from './siege_stages.js';
+import { depth as tobiDepth } from './tobinosu/depth.js';
+import { depthRout } from './army_depth.js';
 
 // 尾根の背（x ごとの z）。砦はこの上に並ぶ
 const ridgeZ = (x) => -38 + 5 * Math.sin(x * 0.035);
@@ -697,6 +699,7 @@ function moveHost(rt, h, dt) {
 export const tobinosu = {
   noCouriers: true,   // 夜の忍び寄りに伝令の騎馬は走らない
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
+  depth: tobiDepth,   // 尾根の砦の裏の武田の備と酒井の本隊（docs/fujin/tobinosu.md）
   world: {
     seed: 75,
     muddy: 0.3,
@@ -997,6 +1000,7 @@ export const tobinosu = {
     if (f.fallen) return;
     f.fallen = true;
     F.fallen++;
+    try { const D = F.depth && F.depth.B; if (D) depthRout(D, 'f_' + (f.key || FORTS[i].key)); } catch (e) { /* 無くても進む */ }   // 砦の裏の備も崩れる
     openGate(rt, f);
     // 砦を一つ落とすごとに、次の砦へ向かう間に息を整え、傷を縛る（五つの砦を続けて攻める長い夜明け。組頭候補まで）
     { const u = rt.player.u; if (!rt.G.lord && (rt.G.rank || 0) <= 1 && u.hp < u.maxHp * 0.7 && rt.player.treatWounds(0.3)) rt.bark('砦を落とした。息を整え、傷を縛った'); }
