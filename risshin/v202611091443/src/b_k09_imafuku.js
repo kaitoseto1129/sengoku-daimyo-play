@@ -102,8 +102,22 @@ function requiredStage(s) {
         g.noRout = true;
       }
       if ([rt.flags.gate, ...(rt.flags.outer || [])].some((st) => st && st.alive)) return false;
+      // 11/9 徳川C：木戸が全部倒れても、味方の組が守兵を前に止まり、本人も守将に届かないと②が十四分止まった（bot）。
+      //   最後の木戸が倒れて七十五秒たっても守将が立っていれば、佐竹の組が討ち取る（本人の手柄にはしない）
+      const F2 = rt.flags; F2.gatesDownT ??= rt.t;
+      if (leaderAlive && rt.t - F2.gatesDownT > 75 && !F2.leadersCut) {
+        F2.leadersCut = true;
+        const by = rt.army.units.find((u) => u.alive && u.team === 0 && !u.isPlayer && !u.isStruct);
+        F2.quietKill = true;   // 本人の手柄（onKill の「討ち取ったり」）にしない
+        for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) rt.army.kill(u, by);
+        F2.quietKill = false;
+        rt.say('足軽', '佐竹の組が砦の守将を討ったぞ！', 3);
+        leaderAlive = false;
+      }
       // 共通の判定は残り二人以下でも組を済みとする。守将が残っている間は、討つ目標を済みにしない。
       if (leaderAlive) return false;
+      // 守将を失った守兵は城へ逃げる（前は noRout のまま堤の西の外れまで出て、段が済まなかった）
+      for (const g of C.groups) if (!gone(g) && /^(矢野正倫|飯田家貞)の守兵$/.test(g.name || '')) { g.noRout = false; g.routed = true; g.order = 'flee'; }
     }
     // 少人数になった時に共通処理が noRout を外すため、横撃前の本隊と未交戦・出た直後の殿は保護を戻す。
     const protect = (s.kind === 'hold' && el < 100) || (s.kind === 'fight' && rt.flags.step === 4 && (el < 30 || !C.engaged));

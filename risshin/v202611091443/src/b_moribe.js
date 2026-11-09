@@ -3585,9 +3585,10 @@ const moribe = {
     // 五月の田：水を張り、苗を植えたばかり（畦を残す）
     fieldStage: 'seedling',   // 稲の育ちと水の有無を合わせる（細かな収穫時期は推定）
     paddy(x, z) {
-      if (peoplePathDistance(x, z) < 3 || Math.hypot(x - YAKUSHI2.x, z - YAKUSHI2.z) < 7) return 0;
+      // 11/9 重さ：兵の足元の水の深さのたびに呼ばれる（一コマの約 4%）。どれも 0 を返すだけの外しなので、安い順に並べ替えた（答えは同じ）
       if (Math.abs(x) > 120 || Math.abs(x - 50) < 18 || Math.abs(z - nireZ(x)) < 18) return 0;   // 川べりは田にしない
       if ((Math.floor(x / 22) + Math.floor(z / 18)) % 3 !== 0) return 0;
+      if (Math.hypot(x - YAKUSHI2.x, z - YAKUSHI2.z) < 7 || peoplePathDistance(x, z) < 3) return 0;
       const ex = Math.min(((x % 22) + 22) % 22, 22 - ((x % 22) + 22) % 22), ez = Math.min(((z % 18) + 18) % 18, 18 - ((z % 18) + 18) % 18);
       if (distToPolyline(x, z, ROAD2) < 5) return 0;
       return Math.max(0, Math.min(1, (Math.min(ex, ez) - 0.9) / 0.6));
