@@ -54,7 +54,8 @@ export function start(rt, ctx) {
     if (!live() || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - POST.x, p.z - POST.z) < 12) S.joined = true;
-    if (S.g?.units.some(u => fighting(u) && Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18)) S.contested = true;
+    if (S.joined && S.contestedAt == null && S.g?.units.some(u => fighting(u) &&
+        Math.hypot(u.pos.x - POST.x, u.pos.z - POST.z) < 18)) S.contestedAt = rt.t;
     if (!S.g && rt.t - S.t0 >= 40) sally();
     S.fireT -= dt;
     if (S.fireT <= 0) {
@@ -74,7 +75,7 @@ export function start(rt, ctx) {
     }
     // 本人が持ち場へ加わり、槍が実際に竹束へ寄せた後だけ、撃ちすくめて退く。
     // 出せなかった敵や、水際で止まった敵を時刻だけで防いだ事にしない。
-    if (S.k === 1 && S.g && S.joined && S.contested && rt.t - S.gT > 120) {
+    if (S.k === 1 && S.g && S.joined && S.contestedAt != null && rt.t - S.contestedAt > 120) {
       S.k = 2; S.okT = rt.t;
       rt.unmark('nodaTabaFoe');
       if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }

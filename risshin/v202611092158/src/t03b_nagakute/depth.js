@@ -18,7 +18,8 @@ export const T03B_DEPTH = {
       { id: 'motosuke', layer: 'ichi', wing: 'right', men: 4000, taisho: '池田元助', flag: 'ageha', bind: F('ikeSaki') },
       { id: 'ikeda', layer: 'hatamoto', wing: 'right', men: 2000, taisho: '池田恒興', flag: 'ageha', bind: F('ikeG') },
     ] },
-  B: { name: '徳川・信雄', facing: -Math.PI / 2, honjin: { x: 82, z: 50 }, mpu: 8, formation: '鶴翼', terrain: 'plain', flag: 'tokugawa', armor: 0x1f1e1c, uma: 'ogi', openAt: 9999, attrition: 0,
+  // 陣形の名を記す史料は無い（battle_refs）。左右を張り出す鶴翼の補正を掛けず、横並びに置く。
+  B: { name: '徳川・信雄', facing: -Math.PI / 2, honjin: { x: 82, z: 50 }, mpu: 8, formation: '横並び', terrain: 'plain', flag: 'tokugawa', armor: 0x1f1e1c, uma: 'ogi', openAt: 9999, attrition: 0,
     sonae: [
       { id: 'ii', layer: 'sakite', wing: 'right', men: 3000, taisho: '井伊直政', flag: 'ii', armor: 0x641610, bind: (rt) => rt.flags.aka?.[0] },
       { id: 'mizuno', layer: 'ichi', wing: 'center', men: 1500, taisho: '水野忠重', flag: 'mizuno', hold: true, at: { x: 118, z: 70 } },

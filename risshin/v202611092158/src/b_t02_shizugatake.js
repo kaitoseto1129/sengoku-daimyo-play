@@ -262,15 +262,21 @@ function shizuBoard(rt) {
     if (battle !== rt) return out;
     const me = rt.player.u;
     const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const rects = on ? this.hudRects() : null;
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (n >= 80) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 4900) continue;   // 11/6 critic60（九3）：七十 m 内の見える敵は全員
       if (!(u._szSeenAt > rt.t - .34 && u._szSeenAt <= rt.t)) { u._szSeen = sightUnit(rt, u); u._szSeenAt = rt.t; }
       if (!u._szSeen) continue;
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      // 共通の▼と同じ余白で、任務札・人数・命の棒に補助の印を重ねない。
+      const px = (v.x + 1) * innerWidth / 2, py = (1 - v.y) * innerHeight / 2;
+      let under = false;
+      for (const r of rects || []) if (px > r.left - 24 && px < r.right + 24 && py > r.top - 4 && py < r.bottom + 28) { under = true; break; }
+      if (under) continue;
       let el = tris[n];
       if (!el) {
         el = tris[n] = document.createElement('span');
@@ -280,7 +286,7 @@ function shizuBoard(rt) {
       }
       n++;
       el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+      el.style.transform = `translate(${px.toFixed(1)}px,${py.toFixed(1)}px) translate(-50%,-100%)`;
     }
     for (let i = n; i < tris.length; i++) tris[i].hidden = true;
     return out;

@@ -125,7 +125,7 @@ const t03b_nagakute = {
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。森・池田父子の死は筋書きの fall のまま
   fearKind: { kind: 'ambushed_column', note: '追う側から追われる側へ。前と横から押し包まれる', w: { flank: 1.6, losses: 1.3, routed: 1.4, iso: 1.3 }, line: '押し包まれるぞ！' },
   compactIntro: true,
-  introText: () => '三河へ回り込む途中、白山林で朝飯の最中。',
+  introText: () => '三河へ回り込む中入りの列。白山林の東の徳川の番所を焼き、道を開く。',
   introSides: { a: '羽柴勢　二万', b: '徳川・信雄勢　一万四千' },   // 五4：始まりの札に味方対敵の数（battle_learn 二）
   // 七件を順番に保ち、今する目標から五件を表示。終盤は済んだ印も残す。
   goalVisibleRows: 5,
