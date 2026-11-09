@@ -312,6 +312,10 @@ NAMED_GEAR['土屋昌恒'].swordHand = 'right';
 
 // 旗印（隊の旗持ちが掲げる。textures.js の紋の種類）と馬印（units_flags.js の umaGeometry：fan 金扇・gourd 瓢箪・sun 日輪）。
 // 布と形は家の旗・馬印と同じ物を使い回す。馬印は本人でなく隊の徒が背負う。
+// 孫一の八咫烏は地域の旗印伝承による復元。個人馬印は未確認なので隊にも陣所にも補わない。
+// https://wakayama-rekishi100.jp/story/006.html
+NAMED_GEAR['鈴木孫一'] = { ...(NAMED_GEAR['鈴木孫一'] || rosterGear('鈴木孫一')),
+  flag: 'sashi:孫一の八咫烏:#ece6d6:#201f1c', uma: null, campUma: null };
 for (const [name, flag, uma] of [
   ['伊達政宗', 'date_hinomaru', 'date_torige'], // 日の丸大龍と黒鳥毛二段笠。出所は docs/generals_look_1108/伊達政宗.md。
   ['徳川家康', 'onri', 'fan'],        // 厭離穢土欣求浄土の旗と金扇の馬印
@@ -417,6 +421,10 @@ for (const [name, flag, uma] of [
   ['島津義弘', 'shimazu', ''],
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
+
+// 桶狭間の鷲津攻め。個人の旗印・馬印は未確認。今川方の所属だけ示す復元案。
+// 出所と未確認範囲：docs/generals_look_1108/朝比奈泰朝.md。
+NAMED_GEAR['朝比奈泰朝'] = { ...(NAMED_GEAR['朝比奈泰朝'] || {}), flag: 'imagawa', uma: null, campUma: null };
 
 // 「信長記」に金の三つ団子と伝わる馬印。大滝寺での使用は復元案。
 // https://blog.livedoor.jp/jidai2005/archives/24142639.html

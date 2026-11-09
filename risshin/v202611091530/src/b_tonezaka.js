@@ -1535,6 +1535,7 @@ function toneMissionEnemy(rt) {
 }
 
 const tonezaka = {
+  lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
   resumeSteps: [[1, 'chase'], [2, 'second'], [3, 'toPass'], [4, 'toIchijodani'], [5, 'townAttack'], [6, 'townFire']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の水準：任務一行・ピン・敵の▼だけで現在の一手を示す。
   missionSingleLine: true,

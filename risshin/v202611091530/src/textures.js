@@ -203,6 +203,24 @@ function kiriMon(g, bg, nc, ns, tc, ts) {
 }
 
 const MON = {
+  // 小雑賀川の既存の烏を孫一専用の紋へ共用。ほかの隊の旗の描き方は保つ。
+  // 旗印伝承と復元範囲：docs/generals_look_1108/鈴木孫一.md。
+  '孫一の八咫烏'(g, bg) {
+    g.beginPath(); g.ellipse(0, .05, .5, .36, -.2, 0, TAU); g.fill();
+    disk(g, .42, -.36, .2);
+    g.beginPath(); g.moveTo(.58, -.42); g.lineTo(.9, -.34); g.lineTo(.58, -.28); g.closePath(); g.fill();
+    for (const sd of [-1, 1]) {
+      g.beginPath(); g.moveTo(-.1, -.1);
+      g.quadraticCurveTo(-.5, -.9 * (sd > 0 ? 1 : .8), -.95, -.55 + sd * .1);
+      g.quadraticCurveTo(-.55, -.2, -.2, .2); g.closePath(); g.fill();
+    }
+    g.beginPath(); g.moveTo(-.45, .2); g.lineTo(-.95, .5); g.lineTo(-.5, .36); g.closePath(); g.fill();
+    g.lineWidth = .07;
+    for (const dx of [-.12, .04, .2]) {
+      g.beginPath(); g.moveTo(dx, .35); g.lineTo(dx - .05, .85); g.stroke();
+    }
+    g.fillStyle = bg; disk(g, .48, -.4, .05);
+  },
   // 高山家の七曜。山崎・賤ヶ岳の旗は家紋による復元（当日の染色・配列は未確認）。
   ukon_nanayo(g) {
     disk(g, 0, 0, .22);

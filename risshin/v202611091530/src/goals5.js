@@ -427,7 +427,8 @@ export function fiveGoals(rt) {
       const c = rows[i].count;
       if (!Array.isArray(c) || !(c[1] > 0)) continue;
       if (L[i] == null) L[i] = c[1];
-      else if (c[1] > L[i]) rows[i].count = [Math.min(c[0], L[i]), L[i]];
+      // 分子は分母の割合で縮める（そのまま収めると、新手で分母が増えた段が「あと0人」のまま止まって見えた・11/9 天王寺岡山の①）
+      else if (c[1] > L[i]) rows[i].count = [Math.min(L[i] - 1, Math.floor(c[0] * L[i] / c[1])), L[i]];
     }
   }
   if (now !== G.nowI) { G.nowI = now; G.nowT0 = G.endT ?? rt.t; }

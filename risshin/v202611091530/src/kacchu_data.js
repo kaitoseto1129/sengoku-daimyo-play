@@ -155,7 +155,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["松平信康", "zunari", "sun", 0x29251f, 0x413e32, "okegawa", 0x4a3a22, 0, "tokugawa", ""],
   // 本願寺の坊官。法体に具足を着けた復元案（所用品は未確認）。立物は付けない。
   ["下間頼廉", "zunari", "none", 0x1c1a1a, 0x5a4a3a, "okegawa", 0x3a3a3a, 0x1c1a1a, "none", ""],
-  ["鈴木孫一", "suji", "sun", 0x151312, 0x2a2a2a, "okegawa", 0x7a1a12, 0x151312, "none", ""],
+  // 地域の雑賀鉢と桃山期の桶側二枚胴による復元案。詳細は必須表と docs/generals_look_1108/鈴木孫一.md。
+  ["鈴木孫一", "suji", "none", 0x1c1a1a, 0x1c1a1a, "okegawa", 0, 0x1c1a1a, "孫一の八咫烏", ""],
   // 信貴山の将。立物の伝来は未確認で、具足・威・羽織は復元案。
   ["松永久通", "suji", "none", 0x24221f, 0x6a3a1a, "okegawa", 0x8a6a2a, 0x24221f, "none", ""],
   // 長島で囲船を率いた林佐渡守。所用の兜・立物は未詳で、烏帽子形と月を固有の姿にしない。
