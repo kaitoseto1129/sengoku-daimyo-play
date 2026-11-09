@@ -348,7 +348,7 @@ function okRunnerBridge(rt) {
 
 function okPeopleHomes(rt) {
   const W = rt.world;
-  if (S.quality === 'high') {
+  { // 画質にかかわらず焼け跡。携帯でも無傷の家へ戻さない。
     // 『信長公記』巻二は、包囲の初めに町を焼いたと記す。九月八日に無傷の家を並べない。
     // 焼け跡の位置・形は推定。既存の民と避難道を保ち、二軒を一つの形・材質で描く。
     const remains = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1),
@@ -372,10 +372,6 @@ function okPeopleHomes(rt) {
     remains.instanceMatrix.needsUpdate = true; remains.instanceColor.needsUpdate = true;
     remains.receiveShadow = true;
     rt.scene.add(remains);
-  } else {
-    const batch = makeSimpleBatch();
-    for (const [x, z] of [[-48, 96], [52, 116]]) hut(W, x, z, 6, 4, 0, { batch });
-    finalizeSimpleBatch(rt, batch);
   }
   rt.scene.add(dou(W, -74, 116, 6, 4));
 }

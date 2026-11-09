@@ -132,7 +132,7 @@ export const REQUIRED_KACCHU = [
   ['斎藤利三', null, 'kuwa_ken', null, null, null, null, null, txt('斎藤', '#3c5a8a', W), null, '所用品は伝わらない。復元案'],
   // ── 豊臣編 ──
   ['羽柴秀長', null, null, null, null, null, null, null, mon('toyotomi', '#1d1b18', '#d8c690'), null, '所用品は伝わらない。復元案（前の表の色）'],
-  ['中川清秀', null, 'kuwa_wide', null, null, null, null, 'none', txt('中川'), null, '賤ヶ岳で討死。所用品は伝わらない。前の桔梗の立物は根拠が無いので外す'],
+  ['中川清秀', null, 'kuwa_wide', null, null, null, null, 'none', txt('中川'), null, '本人所用具足は未確認。織田編の従来指定を保ち、山崎・賤ヶ岳は年代別指定で土居家伝来の黒漆桃形・白糸素懸二枚胴の型による復元案。文字旗は識別用。出所と補完は docs/generals_look_1108/中川清秀.md'],
   ['高山右近', null, 'kuwa', null, null, null, null, 'none', txt('十', W, '#a8281c'), null, '重友。織田編の従来指定は保つ。山崎・賤ヶ岳は年代別指定で南蛮文化館の伝所用兜と七曜へ寄せる復元案。出所と補完は docs/generals_look_1108/高山右近.md'],
   ['池田恒興', null, null, null, null, null, null, null, 'ageha', null, '具足は前の表。旗は揚羽蝶'],
   ['堀秀政', null, null, null, null, null, null, null, 'hori', null, '豊臣編は年代別指定で住吉神社蔵・伝所用の金小札浅葱糸威胴丸に寄せる復元案。織田編は前の表を保つ。出所と補完は docs/generals_look_1108/堀秀政.md'],
