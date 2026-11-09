@@ -2303,6 +2303,7 @@ const shigisan = {
   taskLabel(rt, text) {
     const F = rt.flags;
     if (F.ending || F.step < 1) return text;
+    if (F.paceEnjou && !F.enjouDone) return '火の回った本丸の南口の外で、味方と口を固めよ';
     if (F.step === 1 && F.gateWaitT != null) return '門前で先手を待て';
     if (F.castleGuideBlocked) return '崖を避け、来た道へ戻れ';
     if (F.castleGuideLeaving) return rt.player.u.nakaLevel > 0 ? '階段を下り、戸口から尾根道へ戻れ' : '建物の戸口から尾根道へ戻れ';
@@ -2855,6 +2856,8 @@ const shigisan = {
         const p = g.slotPos(u.slot, g.initial);
         u.pos.set(p.x, W.heightAt(p.x, p.z), p.z); u.mesh.position.copy(u.pos);
       }
+      // 配置後に道沿いの持ち場を設定し、麓の迎撃でも後列を切岸へ向けない。
+      march(rt, g, []); g.onArrive = null;
       g.path = ROAD.slice(0, start + 1); g.pathIdx = start; g.speed = 0;
       for (const u of g.units) u.moveTo = null;
     });
@@ -3061,7 +3064,7 @@ const shigisan = {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
     // 城の麓の段（shigisan/fumoto.js）が済むまで待つ
-    if (!rt.G.lord && !F.fumotoDone) { if (!F.paceFumoto) F.paceFumoto = installFumoto(rt, { dress, MATSU, ROAD, OPEN_I, next: () => this.climb(rt) }); return; }
+    if (!rt.G.lord && !F.fumotoDone) { if (!F.paceFumoto) F.paceFumoto = installFumoto(rt, { dress, MATSU, ROAD, OPEN_I, march, next: () => this.climb(rt) }); return; }
     F.step = 1; F.assaultT = rt.t; F.stepT = rt.t;
     if (!rt.G.lord) F.paceOtoshi = installOtoshi(rt, { dress, MATSU, ROAD, CLIMB_END });   // 尾根道の石落とし（tower はこの段が済むまで待つ）
     rt.setPhase('climb'); rt.objProgress('main', '');
@@ -3328,7 +3331,9 @@ const shigisan = {
     if (F.step >= 4) return;
     if (!rt.G.lord && F.paceKaeshi && !F.kaeshiDone) { F.honmaruWanted = true; return; }   // 逆寄せの段（shigisan/kaeshi.js）が済むまで待つ
     F.step = 4; F.stepT = rt.t;
-    if (!rt.G.lord) F.paceKousan = installKousan(rt, { dress, MATSU, TOP, onDone: () => { F.paceEnjou = installEnjou(rt, { dress, MATSU, TOP, betrayal: () => this.betrayal(rt) }); } });   // 降伏の勧めと久秀の拒み → 本丸に火が回る
+    if (!rt.G.lord) F.paceKousan = installKousan(rt, { dress, MATSU, TOP });
+    // 炎上後の持ち場への下知は、本人が南口を制圧して守ってから出す。
+    // 道中で切り替えると、門前から切岸越しに南口の外へ直進して止まる。
     rt.setPhase('honmaru'); rt.objProgress('main', '');
     rt.unmark('gate'); rt.unmark('sally');
     siegeSignal(rt, 'susume');
@@ -3602,6 +3607,9 @@ const shigisan = {
       }
     } else {
       F.shuT = 0; F.reachedShu = false; F.reachedWinAt = 0;
+    }
+    if (!rt.G.lord && F.kousanDone && F.reachedShu && !F.paceEnjou) {
+      F.paceEnjou = installEnjou(rt, { dress, MATSU, TOP, betrayal: () => this.betrayal(rt) });
     }
     if (F.reachedWinAt && rt.t >= F.reachedWinAt) { this.win(rt, true); return; }
     // 別口による落城を、戦後に初めて知らされないよう一度だけ伝える。
@@ -4153,7 +4161,7 @@ function march(rt, g, pts) {
       if (this.routed || !this.roadColumn || !this.path?.length) return slotPos.apply(this, arguments);
       // 11/6 fixc0814（描いて遊んだ 100〜170 秒）：門の下で遅れた味方は、要の後ろの持ち場へ切岸越しに真っ直ぐ向かって止まり、
       //   隊の要だけが本人と曲輪へ進んでいた（本人の三十歩内の味方は二〜四人）。十四歩より遅れた者は、通って来た道の次の角を追って登る。
-      if (this.team === 0 && (this.order === 'path' || this.order === 'hold' || this.order === 'assault')) {
+      if (this.team === 0 && (this.order === 'path' || this.order === 'hold' || this.order === 'assault' || this.order === 'attack')) {
         // 先頭が到着して止まった後も、遅れた後列は折り返しを通る。
         const order = this.order, formation = this.formation;
         this.order = 'path'; this.formation = 'column';
