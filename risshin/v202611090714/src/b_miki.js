@@ -2901,7 +2901,7 @@ const miki = {
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
     const hideHere = F.hide.units.some((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
       Math.hypot(u.pos.x - OMURA_FOOT.x, u.pos.z - OMURA_FOOT.z) < 42);
-    if (!hideHere) return;   // 組の中心でなく実際の到着を見る。時間だけで到着扱いにしない。
+    if (!hideHere && !gone(F.hide) && !gone(F.reserve)) return;   // 秀吉の手が崩れたか、坂の別所勢が先に崩れた時は待たない（11/9 bot：着かない馬廻を待ち続けて期限負け）   // 組の中心でなく実際の到着を見る。時間だけで到着扱いにしない。
     if (!F.hideArrived) {
       F.hideArrived = true; F.hideArrivedT = rt.t;
       rt.say('使番', '秀吉様、平井山より千余騎で到着！　大村坂の下で秀吉様の手に並べ！', 5);
@@ -3331,6 +3331,18 @@ const miki = {
     // とどめは本人へ残してある。目標③と⑤を飛ばす勝利の抜け道は作らない。
     // 甚太夫が本人以外の手で倒れたら、⑤は二度と果たせない。そのまま締めへ進める（11/8 bot：甚太夫が味方に討たれ、残りの時間を待って負けた）
     if (F.jint && !F.jint.alive && !F.jintTaken) F.jintTaken = true;
+    // 甚太夫が深手で退く・逃げ出した時は、退く道で秀吉の馬廻に討たれる（播磨別所記）。逃げたまま⑤が閉じず期限で負けない（11/9 bot）
+    if (F.step === 2 && F.omuraGo && F.jint?.alive && !F.jintTaken && (F.jint.fleeing || F.jint.woundOut)) {
+      const jin = F.jint, k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u);
+      jin.invuln = false; jin.hp = 0; rt.army.kill(jin, k || null); F.jintTaken = true;
+      rt.say('使番', '逃げる別所甚太夫を、秀吉様の馬廻が討ち取った！', 3.5);
+    }
+    // 甚太夫が討たれたら、大村の別所勢は大将を失って崩れ、城へ逃げ戻る（播磨別所記：三太夫・甚太夫が討たれ、別所勢は敗れた）。
+    //   逃げて本人から二十五歩より離れた者は、城へ帰った者として数えない（11/9 bot：侍六人が残り、期限まで勝ちにならなかった）
+    if (F.step === 2 && F.jintTaken) {
+      if (!F.reserveBroke) { F.reserveBroke = true; F.reserve.noRout = false; F.reserve.morale = Math.min(F.reserve.morale ?? 100, 10); }
+      for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget && u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 25) { u.noTarget = true; u.target = null; }
+    }
     if (this.victoryReady(rt)) return this.end(rt, true);
     // 残りが少なくなった別所勢（甚太夫を含む）は本人へ打ち掛かる。坂の外で迷わせず、目標⑤を自分で果たせる
     if (F.step === 2 && F.omuraGo && !F.lastStand) {
