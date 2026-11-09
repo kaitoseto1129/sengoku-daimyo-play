@@ -16,7 +16,6 @@ const DIKE = { x: -4, z: 58 };   // 川下の堤の陰（東岸）
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, moveGroup, next, missionText } = ctx;
-  const t0 = rt.t;
   let done = false, tick = 0, fire = null, R = null, takenT = 0;
   rt.setPhase('tsutsumi');
   const G = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川下の堤の雑賀鉄砲衆', anchor: DIKE, facing: 0, width: 10, order: 'hold', guard: true, guardLeash: 6, aggro: 22, seekRange: 40, morale: 85, fleeDir: { x: -1, z: 0.3 } },
@@ -43,17 +42,21 @@ export function install(rt, ctx) {
       if (done || F.ending || rt.over) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
-      const el = rt.t - t0;
       // 堤を取った後、雑賀が舟で取り返しに来る（約三十秒後）。取り返しを払えば済む
       if (!live() && !takenT) {
         takenT = rt.t;
+        // 敵が尽きても堤の行き先を残す。取り返しを払った後もここへ戻れる。
+        rt.marker('tsutsumi', DIKE, '川下の堤', { h: 3 });
         fire = rt.world.addFire?.(DIKE.x - 3, DIKE.z + 2, { size: 1.6, blackSmoke: true });
         rt.say('堀秀政', '堤の陣は取った！　小屋を焼け。川から取り返しに来るぞ、構えよ！', 4);
         rt.after(18, () => {
           if (done || F.ending || rt.over) return;
           R = enemyGroup(rt, { faction: 'saika', name: '堤を取り返す雑賀衆', anchor: { x: -34, z: DIKE.z + 8 }, facing: Math.PI / 2, width: 6, order: 'hold', aggro: 26, seekRange: 34, morale: 85, fleeDir: { x: -1, z: 0 } },
             dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 1 }], SAIKA));
-          R.fixed = false; R.order = 'move'; R.dest = { x: DIKE.x, z: DIKE.z }; R.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
+          // 堤の正面には抜いていない杭列が七十歩まで続く。端を回って東岸へ寄せる。
+          R.fixed = false; R.order = 'path'; R.formation = 'column'; R.colW = 2;
+          R.path = [[-28, 76], [-8, 76], [DIKE.x, DIKE.z]]; R.pathIdx = 0;
+          R.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; q.formation = 'yari'; };
           rt.army.play?.('eshout', { x: -30, z: DIKE.z + 8 }, 1.3);
           rt.say('見張り', '川を渡って堤を取り返しに来る！', 3.5);
           rt.marker('tsutsumiR', () => (R && R.units.some((u) => ready(u)) ? R.center() : null), '取り返しに来る雑賀衆', { red: true, group: R });
@@ -69,9 +72,13 @@ export function install(rt, ctx) {
       // 渡河中の取り返しも数える。遠いだけで「払った」とせず、討つか退くまで続ける。
       // 半数を失って退く下知が出た組は、川の中の残兵を追わせない。
       const n = live() + (R?.tsRouted ? 0 : rl);
+      // 払った組の印を残して、川の中や退く残兵へ追わせない。
+      if (R && !R.tsMarkerCleared && (R.tsRouted || !rl)) {
+        R.tsMarkerCleared = true; rt.unmark('tsutsumiR');
+      }
       rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
       const p = rt.player.u.pos;
-      if (R && !n && el > 100 && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
+      if (R && !n && Math.hypot(p.x - DIKE.x, p.z - DIKE.z) < 12) {
         done = true; F.tsutsumiDone = true;
         rt.unmark('tsutsumi'); rt.unmark('tsutsumiR');
         sfx('horagai', 0.6);

@@ -48,7 +48,12 @@ export function install(rt, ctx) {
     // 後の槍の組には mago2 の印がある。先の組が尽きたら、その持ち場の印を残さない。
     rt.marker('mago', () => (cnt(G) ? G.center() : null), '孫一の手', { red: true, group: G });
     // 堀の先手も坂の下へ寄せて共に受ける
-    if (F.hori && !F.hori.routed && F.hori.count) { F.hori.fixed = false; F.hori.order = 'move'; F.hori.dest = { x: SHORE.x + 2, z: SHORE.z + 3 }; F.hori.onArrive = (q) => { q.order = 'attack'; q.aggro = 18; }; }
+    if (F.hori && !F.hori.routed && F.hori.count) {
+      // 本人が先に渡っても、後続の中央の口を通る道を直進で上書きしない。
+      F.hori.fixed = false;
+      if (F.hori.order !== 'path') { F.hori.order = 'move'; F.hori.dest = { x: SHORE.x + 2, z: SHORE.z + 3 }; }
+      F.hori.onArrive = (q) => { q.order = 'attack'; q.aggro = 18; };
+    }
   };
 
   return {
