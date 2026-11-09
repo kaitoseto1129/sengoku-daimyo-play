@@ -77,6 +77,8 @@ export function tick(rt) {
     rt.after(12, () => back(rt));
   }
   const raidGone = v.raid && !v.raid.units.some(ready);
+  // 人足が砦の内へ戻った（着いた知らせが押し合いで来ない時も、砦の内に入れば戻ったとみなす。11/9 bot が止まった）
+  if (v.backT && !v.wkHome && F.wk) { const c = F.wk.center(); if (Math.abs(c.x) < v.C.FORT - 2 && Math.abs(c.z) < v.C.FORT - 2 || rt.t - v.backT > 75) v.wkHome = rt.t; }
   if (v.atDock && v.wkHome && raidGone && rt.t - v.backT > 25 &&
       Math.abs(P.x) < v.C.FORT && Math.abs(P.z) < v.C.FORT) done(rt);
 }

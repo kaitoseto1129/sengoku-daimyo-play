@@ -25,7 +25,8 @@ import { rescueTarget, retreatRequired } from './battle_danger.js';
 import { localPoint } from './army_local_way.js';
 import { timeslipField } from './timeslip_field.js';
 import { goalsTick } from './hud_goals.js';
-import * as O15 from './okehazama/index.js';   // 11/8 十五分の構成（集まり・雨宿りの鉄砲衆・麓の陣・近習・余韻）
+import * as O15 from './okehazama/index.js';
+import { depthOkehazama } from './okehazama/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（集まり・雨宿りの鉄砲衆・麓の陣・近習・余韻）
 
 // ======================================================================
 // 第1戦　桶狭間
@@ -2704,7 +2705,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       const g = rt.flags.attackers[i];
       g.yariRanks = 3; g.okeSide = [-12, 12, 0, -6, 4][i]; g.okeBack = i === 4 ? 9 : 3;
     }
-    O15.install(rt, this, { fieldPoint, fieldVector, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT });
+    O15.install(rt, this, { fieldPoint, fieldVector, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT, FAR: { ZENSHOJI, WASHIZU, NARUMI_JO, ODAKA } });
   },
 
   // 軽い本隊は行軍だけを表す。接触域へは押し込まず、実兵と重ねない。
@@ -3838,6 +3839,7 @@ export function volleyAt(rt, key, guns, foes, o = {}) {
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
 // 千秋季忠・佐々政次は正午ごろ中島砦の前へ先駆けして討死した（信長公記）。雨の後の攻めには出さず、行軍の語りで伝える。
 okehazama.bushou = [{ name: '由比正信', g: /今川|旗本|本陣/ }];
+okehazama.depth = depthOkehazama;   // 11/9 軍勢の厚み（docs/army_depth_spec_1108.md）
 export { okehazama };
 
 // 林の株ごとの色を設営時に一度だけ替える。見える株を詰め直す時の元の色（cullList の orig.col）も同じに替え、詰め直しで元の色へ戻らないようにする。

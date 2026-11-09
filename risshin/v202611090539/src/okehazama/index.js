@@ -18,6 +18,7 @@ import * as ii from './ii.js';
 import * as saka from './saka.js';
 import * as kinju from './kinju.js';
 import * as kaeri from './kaeri.js';
+import * as saigo from './saigo.js';
 import * as yoin from './yoin.js';
 import { GOALS15 } from './goals.js';
 const S = (rt) => (rt.flags.o15 ||= {});
@@ -77,6 +78,7 @@ export function tick(rt, dt) {
   if (v.iiT) ii.tick(rt, dt);
   if (v.sakaT) saka.tick(rt, dt);
   if (F.entered && !F.victory) kinju.tick(rt, dt);
+  if (F.yoshiDown && !F.victory) saigo.tick(rt, dt);
   if (F.victory) kaeri.tick(rt, dt);
 }
 

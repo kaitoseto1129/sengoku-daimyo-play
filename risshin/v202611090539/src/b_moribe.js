@@ -1,6 +1,7 @@
 import { useTerrain } from './asset_manifest.js';
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
-import * as M15 from './moribe/index.js';   // 11/8 十五分の構成（南岸の下知・田の畦の物頭・左の畦の弓鉄砲・余韻）
+import * as M15 from './moribe/index.js';
+import { DEPTH_MORIBE } from './moribe/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（南岸の下知・田の畦の物頭・左の畦の弓鉄砲・余韻）
 import * as THREE from 'three';
 import { VIEW } from './viewport.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -5272,6 +5273,7 @@ moribe.botBrain = (b, inp, { goTo, patientStrike }) => {
 moribe.canSkip = () => '';   // 雨中の布陣から槍の会戦まで、同じ時計で進める。
 moribe.rts = true;
 moribe.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '斎藤軍', mon: 'saito' } };
+moribe.depth = DEPTH_MORIBE;   // 11/9 軍勢の厚み（docs/army_depth_spec_1108.md）
 // 公記に時刻の指定はない。遊びの昼景を確定した時刻として表示しない。
 moribe.date = () => `永禄四年五月十四日　${seasonOf('五月')}・雨（時刻不詳）`;
 // 千五百対六千は伝承上の目安。公記の森部の記事自体には総兵数の記載がない。

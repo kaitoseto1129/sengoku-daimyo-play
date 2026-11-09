@@ -4141,7 +4141,9 @@ const hiei_mtn = {
     } else if (advanceStep === 4) {
       if (!F.courtDone) arrived(F.akechi, P.court, 10);
       if (!F.courtDone) rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '堂の間の道をたどり、根本中堂の前へ'));
-      if (!F.courtDone && (near(u, P.court, 9) && arrived(F.akechi, P.court, 10))) {
+      // 明智の手が燃える堂の間で詰まって着かない時も、本人が中堂の前に四十秒いれば守りが打って出る（11/9 二巡）
+      if (!F.courtDone && near(u, P.court, 12)) F.courtNearT ??= rt.t; else if (!F.courtDone) F.courtNearT = undefined;
+      if (!F.courtDone && ((near(u, P.court, 9) && arrived(F.akechi, P.court, 10)) || (F.courtNearT !== undefined && rt.t - F.courtNearT > 40))) {
         this.courtDefenders(rt);
         F.courtDone = true;
         rt.objProgress('main', '根本中堂の前で槍を向ける僧兵を退ける');
@@ -4168,7 +4170,11 @@ const hiei_mtn = {
         // 時間だけで守りを崩さず、本人が槍を合わせ、実際に道が開いてから締める。
         // 大講堂の別働隊は中堂前の案内範囲の外。追って全滅させる隠れた条件にしない。
         // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
-        if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
+        // 11/9 二巡：中堂の前で九十秒たっても締まらない時（廻廊の弓が残る・槍が届かない）は、残りの守りが燃える堂の奥へ退き、締める
+        //   （bot が中堂の前で十三分「槍を向ける僧兵を退けよ」のまま止まり、任務失敗になった・11/9 通し）
+        const courtLate = rt.t - F.courtT > 90 && near(u, P.court, 20);
+        if (courtLate && !F.courtFled) { F.courtFled = true; for (const g of [F.chudoG, F.courtBow, F.kodoG]) if (!gone(g)) { g.noRout = false; g.routed = true; g.order = 'flee'; } rt.say('根本中堂の僧兵頭', '……中堂は焼ける。退け、西塔へ退け！', 3); }
+        if ((courtLate && rt.t - F.courtT > 96) || F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
             [F.chudoG, F.courtBow].every(gone) && rt.t - F.courtT > 15) {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
@@ -4181,7 +4187,14 @@ const hiei_mtn = {
       }
       if (F.bell2) {
         rt.objProgress('main', rallyProgress(rt, P.westGate, 12, '西の道の入口', '組と西の山道の印へ'));
-        if (near(u, P.westGate, 12) && arrived(F.akechi, P.westGate, 12) && guardedRoad(rt, P.westGate)) this.p6(rt);
+        // 11/9 二巡：明智の先手が燃える堂の間で詰まって西の道の入口へ着かず、本人が待ち続けて十二分止まった → 百秒で、見えない所の先手を入口へ寄せる
+        if (rt.t - F.westT > 100 && !F.westWarp && F.akechi && !gone(F.akechi) && !arrived(F.akechi, P.westGate, 12)) {
+          F.westWarp = true;
+          for (const q of F.akechi.units) if (q.alive && Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z) > 30) { q.pos.x = P.westGate.x + (Math.random() - 0.5) * 6; q.pos.z = P.westGate.z + (Math.random() - 0.5) * 6; if (rt.world.heightAt) q.pos.y = rt.world.heightAt(q.pos.x, q.pos.z); }
+          rt.say('明智光秀', '先手は西の道の入口に着いた。続け！', 2.8);
+        }
+        const westLate = rt.t - F.westT > 160 && near(u, P.westGate, 18);
+        if (westLate || near(u, P.westGate, 12) && arrived(F.akechi, P.westGate, 12) && guardedRoad(rt, P.westGate)) this.p6(rt);
       }
     } else if (advanceStep === 5) {
       const byJodoin = near(u, P.jodoin, 18);
