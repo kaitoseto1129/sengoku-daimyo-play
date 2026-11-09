@@ -34,6 +34,7 @@ import { soboStep } from './t04_negoro/sobo.js';
 import { fireStart, fireTick } from './t04_negoro/fire.js';
 import { kyotenStep } from './t04_negoro/kyoten.js';
 import { breath } from './toyo15/kit.js';
+import { negoroDepth } from './t04_negoro/depth.js';
 import { MEM_TIGHT } from './settings.js';
 import { routeTools } from './b_k_route.js';
 
@@ -311,6 +312,7 @@ function daitoModel(world, x, z) {
 const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
   minutes: 15, expectMin: 15,
+  depth: () => negoroDepth(NG), lethal: true,   // 武将の備（t04_negoro/depth.js）と命懸けの戦場（lethal.js）
   forceBarAlways: true,   // 両軍の総勢と減りを、行き先の案内中も一本の棒で示す
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
   nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）

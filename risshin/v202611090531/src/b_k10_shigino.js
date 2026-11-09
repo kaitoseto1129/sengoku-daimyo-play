@@ -440,7 +440,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     for (const g of [F.wata, F.kimu]) for (const u of g?.units || []) if (u.alive && !u.gone && u.pos.x > MIZU.x - 64 && u.pos.x < MIZU.x + 6) foes.push(u);
     let k = 0;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
-      if (!u.alive || u.gone || u.type !== 'gun' || !foes.length) continue;
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || !foes.length) continue;
       const t = foes[k++ % foes.length];
       u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); u.reload = 0;
       if (rt.army.fireGun(u, t)) shots++;
@@ -486,7 +486,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone);
     let shots = 0;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
-      if (!u.alive || u.gone || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;
       const target = targets[shots % targets.length];
       u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z); u.reload = 0;
       if (rt.army.fireGun(u, target)) shots++;

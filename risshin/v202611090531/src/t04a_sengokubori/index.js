@@ -8,11 +8,13 @@ import s2 from './s2_kisaku.js';
 import s3 from './s3_koguchi.js';
 import s4 from './s4_kaji.js';
 import s5 from './s5_honmaru.js';
+import { depth } from './depth.js';
 
 const def = {
   spawn: { x: P.spawn.x, z: P.spawn.z, heading: 0 },
   noWake: true, noTaishoRaid: true, noDespair: true, noFrontFill: true,
   keepMix: true, noCavalryMix: true, stageGoalsOnly: true, nearbyAllySignLimit: 0,
+  depth, lethal: true,   // 武将の備（depth.js）と命懸けの戦場（lethal.js）
   playerTaken: 0.5,   // 塀・楼・路地の鉄砲が絶えず撃つ。本人が数分で倒れないよう受ける傷を軽く（一宮城と同じ）
   meleeGrace: { rate: 1, burst: 1, interval: 3 }, flagEra: { toyotomi: 'kiri53' },
   meleeGuide: () => false, guardGuideAllowed: () => false,

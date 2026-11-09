@@ -17,7 +17,7 @@ export function updateFollowGuide(rt, destination) {
       hud.root.classList.contains('photo') || hud.root.classList.contains('ending') || hud.root.querySelector('#cine.on')) return false;
   if (!el) {
     el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('aria-hidden', 'true'); el.id = 'follow-guide';   // 画面全体の透明な入れ物（札の重なりの確かめ audit.js から外す）
     el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3';
     el.innerHTML = '<path fill="#ffe28a" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/><path fill="#ffe28a" stroke="#14120f" stroke-width="4" stroke-linejoin="round"/>';
     hud.root.appendChild(el); hud.followGuide = el;

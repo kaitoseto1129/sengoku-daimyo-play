@@ -29,7 +29,8 @@ import { goalsTick } from './hud_goals.js';
 import * as chakujin from './t07_ganjaku/chakujin.js';   // 着陣：麓を埋める秀吉の本隊・鉄砲の撃ちかけ
 import * as tahoumen from './t07_ganjaku/tahoumen.js';   // 別の口：東の尾根・西の尾根の攻城と使番の知らせ
 import * as ninomaru from './t07_ganjaku/ninomaru.js';   // ④二の丸の曲輪の乱戦と火
-import * as rakujo from './t07_ganjaku/rakujo.js';       // 落城の後：山じゅうに豊臣の旗・「九州を南へ」
+import * as rakujo from './t07_ganjaku/rakujo.js';
+import * as honjin from './t07_ganjaku/honjin.js';     // 二巡：麓の本陣の羽柴秀勝と諸将の知らせ       // 落城の後：山じゅうに豊臣の旗・「九州を南へ」
 
 // この戦の標高を支度で読ませる（共通の表は触らず、ここで一行足す）
 BATTLE_ASSETS.t07_ganjaku = Object.freeze([...assetsForBattle(''), 'dem_ganjaku']);
@@ -292,6 +293,7 @@ const t07_ganjaku = {
     // 着陣（段0）：麓を埋める本隊と鉄砲の撃ちかけを見て、坂の下の蒲生の先手まで歩く（t07_ganjaku/chakujin.js）
     tahoumen.install(rt);
     chakujin.install(rt, K);
+    honjin.install(rt);
     rt.marker('t07', SPAWN, '大手の坂の下', { h: 3 });
     rt.say('蒲生氏郷', '殿下の命じゃ。島津に付いた秋月の岩石城を、今日のうちに落とす', 3.6);
     rt.after(3.9, () => rt.say(rt.G.name || '主人公', '一日で？　この岩山を', 2.4));

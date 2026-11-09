@@ -7,9 +7,8 @@ export default {
   goal: '築堤の場へ行き、土を運ぶ人夫を守れ',
   pin: { ...P.work, label: '出水の堤' },
   enter(rt, F) {
-    // 城を遠巻きに囲む軽い大軍（輪の外。北・東・南・西）
-    const ring = [[0, -140, 0], [130, -40, -1.6], [120, 90, -2.4], [-10, 140, Math.PI], [-130, 60, 1.9], [-125, -70, 1.0]];
-    F.hosts = ring.map(([x, z, f], i) => host(rt, { x, z, w: 70, d: 22, count: 700, facing: f, seed: 4101 + i }));
+    // 城を遠巻きに囲む備（秀長・中村・小西・浅野・仙石・蜂須賀）は depth.js の陣立てが置く。ここは北の本隊の後ろだけ
+    F.hosts = [host(rt, { x: 0, z: -150, w: 70, d: 22, count: 600, facing: 0, seed: 4101 })];
     F.workers = porters(rt, '築堤の人夫', P.pile, 10);
     F.carry = 0; F.workT = 0; F.dug = 0;
     move(F.friends, { x: P.work.x - 4, z: P.work.z - 8 }, true);

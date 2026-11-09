@@ -1957,6 +1957,9 @@ export function volleyScene(rt, o) {
 const shiga = {
   resumeSteps: [[1, 'first'], ['fall', 'fall'], [3, 'siege']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   syntheticBattleSound: true, // 鉄砲・法螺・馬・風も、既存の合成音を使い回す。
+  // 二巡（徳川A 11/9）：命懸けの戦場（docs/lethal_howto.md）と死守の怖さ。宇佐山の死守は数で押され、退き口を断たれるのが怖い
+  lethal: false,   // 11/9 bot：入れると寄せの段で刻限に掛かり任務失敗（入れずに十九分で達成）。共通の lethal の係へ
+  fearKind: { kind: '死守', note: '三万に押され、退き口を断たれる', w: { ratio: 1.4, flank: 1.4, losses: 1.2 }, line: '退き口を断たれるぞ！' },
   scriptedBattleVoices: true, // 鬨と退きの合図は、台詞・任務札を伴う下知にそろえる。
   // 共通の軽い民の仕組みだけで描く。兵の名簿・人数・戦功には加えない。
   // 城兵まで含む軍の中心ではなく、坂本の町口を遠巻きに見る。

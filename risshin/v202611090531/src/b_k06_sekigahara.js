@@ -773,6 +773,11 @@ const k06_sekigahara = {
         F.shiAt = rt.t; F.shima.defMult = 1; F.shima.order = 'attack'; F.shima.aggro = 30; F.shima.seekRange = 30;
         for (const u of F.shima.units) u.campProtected = false;
       }
+      // 到着後に離れた相手を追うと、受けの時計が止まったままになる。本陣前へ戻してから押し合いを続ける。
+      if (F.shiAt && !receiving && alive(F.shima) && F.shima.order !== 'move') {
+        F.shima.aggro = 0; F.shima.seekRange = 0;
+        goAttack(F.shima, HOLD5, 30, 30);
+      }
       // 味方が島津を減らしただけでは果たさない。本陣の前で主人公が受けた時間だけを数える。
       // 主人公の到着が遅れても、受け終えるまでは島津を伊勢路へ進めない。
       if (F.shiAt && (receiving || repelled) && near(P, HOLD5, 40)) F.shiHeld = (F.shiHeld || 0) + dt;
