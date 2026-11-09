@@ -3015,7 +3015,8 @@ function ariStage(o, defending) {
     kind: 'hold', max: defending ? 410 : o.max,
     // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
     // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
-    limit: o.lenient ? (o.limit ?? Infinity) : undefined,   // 上限を過ぎた未確保の段は、共通処理の C.timeout で失敗にする。
+    limit: o.passOnLimit ? Infinity : o.lenient ? (o.limit ?? Infinity) : undefined,   // 残兵が退いた後も、本人と組の確保を待つ。
+    noHardCap: !!o.passOnLimit,
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
@@ -3130,6 +3131,13 @@ function ariStage(o, defending) {
       }
       const enemy = C.enemy, friend = C.friend;
       const present = Math.hypot(p.x - C.at.x, p.z - C.at.z) <= (o.r || 16);
+      // 通りの残兵が長く粘っても、期限だけでは達成させない。
+      // 本人と組が到着してから残兵を退かせ、下の十二秒の確保を経て進む。
+      if (o.passOnLimit && el >= limit && present && friend > 1 && !C.remnantsRetreated) {
+        C.remnantsRetreated = true;
+        for (const g of C.groups) if (!ariSpent(g)) { g.noRout = false; g.morale = 0; }
+        rt.say('滝川の組頭', '通りの荒木勢が退くぞ。組と角を押さえよ', 4);
+      }
       if (!defending && present && !C.arrived) {
         C.arrived = true;
         // 案内の関数を保つ。一度着いても、退いた後は柵と木戸を回って戻る。
@@ -3195,8 +3203,7 @@ function ariStage(o, defending) {
     },
     end(rt, C, m) {
       // 追加の段も、期限だけで未確保の場所を達成扱いにしない。
-      // passOnLimit：期限で次の下知へ進む段（惣構えの通り。塀の陰の鉄砲が残っても四分で次へ）。期限切れを負けにしない。
-      const won = (!C.timeout || o.passOnLimit) && !C.failed && !rt.flags.ending;
+      const won = !C.timeout && !C.failed && !rt.flags.ending;
       rt.unmark('dp'); rt.unzone('dp'); rt.unmark('turn');
       if (won) {
         // 取った辻の守りは退き、未出動の控えは主郭の守りに残る。

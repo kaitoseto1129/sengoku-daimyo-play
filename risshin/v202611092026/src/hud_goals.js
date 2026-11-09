@@ -69,7 +69,7 @@ html:root body #hud #h-prog .pg-goals li.now {
  font-size:max(22px,calc(22px * var(--text-scale,1))); line-height:1.35;
 }
 #hud #h-prog .pg-goals li.now i { display:none; }
-#hud #h-prog .pg-goals li.now::before { content:'▶'; flex:none; color:#fff3ba; font-size:14px; /* 11/8 critic60：字の「今 →」をやめ、印一つ */ }
+#hud #h-prog .pg-goals li.now::before { content:'●'; flex:none; color:#fff3ba; font-size:14px; /* 今の目標は向きを持たない丸印一つ。 */ }
 #hud #h-prog .pg-goals li.now em { font-size:16px; }
 html:root body #hud #h-prog.goals-all-rows .pg-goals li.now { font-size:inherit; }
 #hud #h-prog.goals-all-rows .pg-goals li.now i { display:block; }

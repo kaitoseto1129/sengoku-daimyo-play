@@ -119,6 +119,7 @@ function defendHold(o) {
   const s = hold(o), tick = s.tick, end = s.end, dur = o.dur || 90;
   s.limit = Infinity;
   s.idleAdvance = false;
+  s.noHardCap = true;   // 共通の打ち切りでも、持ち場を離れたまま守備を済ませない。
   s.tick = (rt, C, m, ctx, el, dt) => {
     const inT = C.inT;
     tick(rt, C, m, ctx, el, dt);
@@ -170,6 +171,7 @@ function tadaStep(s, rt) {
   s.idleAdvance = false;   // 止まっていても段は先へ飛ばない（忠隣は寄せ続ける。⑤を果たさずに勝ちにしない。kaito 三3）
   s.max = 900;
   s.limit = Infinity;   // 共通の時間切れでも、主人公の止めを飛ばさない
+  s.noHardCap = true;   // 忠隣を残して次へ進むと、最後の全目標判定で永久に止まる。
   return s;
 }
 
