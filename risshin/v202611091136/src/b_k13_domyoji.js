@@ -175,7 +175,15 @@ function checkedStep(step) {
           !u.gone && !u.rearWound && !u.downed && !u.noTarget &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 32) friends++;
       }
-      if (near && friends >= 3) C.lineTime = (C.lineTime || 0) + dt;
+      // 寄せが列へ届く前の待機だけで「受け止めた」にしない。
+      // 鉄砲戦も含め、本人と味方の列がいる持ち場の射程内へ敵が来た事を残す。
+      // 敵を早く退けても、その後に列を保つ時間は数える。
+      if (near && friends >= 3) {
+        if (!C.metAttack) C.metAttack = C.groups.some((g) => !g.routed && g.units.some((u) =>
+          u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.downed && !u.noTarget &&
+          !u.rearWound && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 60));
+        if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
+      }
     }
     if (!done || !near || (holdTime && (C.lineTime || 0) < holdTime)) return false;
     // 残り二人や敗走でも共通の段は済むが、又兵衛と兼相は討死まで待つ。

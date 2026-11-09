@@ -279,6 +279,7 @@ const k07_sawayama = {
   keepTaskLabel: true,
   // 11/8 五3：敵を指す印が▼でなく黄色い角の丸い枠になる時があった。行き先と相手の印は頭上の▼だけ
   goalSignOnly: true,
+  goalSignTriangle: true,   // 行き先が画面の外でも、回る矢印へ替えず▼を保つ（五3）
   keepCombatTaskHeading: true,
   // 11/8 九7：カメラが門の梁・土塁・枡形の壁・塀の面にめり込んだ。肩越しの目を体へ寄せる
   camPull: -1.2,
