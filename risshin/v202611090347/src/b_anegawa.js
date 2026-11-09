@@ -2828,6 +2828,12 @@ const anegawa = {
   missionSignTarget(rt) {
     const F = rt.flags;
     if (rt.phase === 'brief' || aneOwnGuide(rt)) return null;
+    // 物見と野村への追撃では、前の段の磯野・殿を指し続けない。
+    if (F.aneTsui) return !F.aneTsui.done && F.aneTsui.k >= 1 && aneFoe(F.aneTsui.u) ? F.aneTsui.u : null;
+    if (F.aneJin && !F.aneJin.done) {
+      const S = F.aneJin;
+      return S.k === 2 && !S.g?.routed ? S.g?.units.find(aneFoe) || null : null;
+    }
     const stage = aneMissionOf(rt);
     if (stage === 0 && !aneAtPost(rt)) return null;
     return stage === 1 ? aneCommander(rt) || aneNearestFoe(rt) : stage === 3 ? null : aneNearestFoe(rt);

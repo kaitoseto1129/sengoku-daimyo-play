@@ -1672,6 +1672,18 @@ function hatParts(look, parts, hi, fallen = false) {
       bowl.computeVertexNormals();
     }
     bowl.scale(kind === 'namban' ? 0.95 : 1, bowlRise / 0.19, 1.05);
+    // 伝秀久所用の編笠形を、同じ鉢の頂点だけで略復元。生成した頭の形を使い回す。
+    if (kind === 'sengoku_kasa') {
+      const p = bowl.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const t = Math.min(1, Math.max(0, p.getY(i) / bowlRise));
+        const cone = (1 - t) / Math.max(0.06, Math.sqrt(Math.max(0, 1 - t * t)));
+        const fold = Math.max(0, (t - 0.72) / 0.28);
+        p.setXYZ(i, p.getX(i) * cone, 0.29 * t - 0.045 * fold * fold,
+          p.getZ(i) * cone - 0.065 * fold * fold);
+      }
+      bowl.computeVertexNormals();
+    }
     // つるんと丸いお椀にしない（11/1 kaito）：筋兜は板の継ぎ目の筋を立て、天辺（八幡座）へ少し尖らせる。
     //   頭形は天辺を平たく後ろへ流し、前から後ろへ通る鎬（しのぎ）を一本立てる。形を組む時だけの変形で、面の数は同じ
     if (bowlShaped) {
@@ -1871,16 +1883,19 @@ function hatParts(look, parts, hi, fallen = false) {
   const denseShikoroLace = kiritsukeShikoro || (hi && compactShikoro && look.honkozane);
   // 刻みや紅糸の厚みは近景だけ。四段の輪郭は距離で変えない。
   const threeRows = look.shikoroRows === 3;
+  // 伝恒興所用の五段錣だけ。既存の弧板を結合・保存し、ほかの将の輪郭は保つ。
+  const ikedaFiveRows = look.face === 'g:池田恒興' && look.shikoroRows === 5;
   const shikoroStyle = ['compact', 'kiritsuke'].includes(look.shikoroStyle) ? (T >= 2 ? 'kebiki' : 'sugake') : look.shikoroStyle ?? (T >= 2 ? 'kebiki' : 'sugake');
   const shikoroLace = look.shikoroLace ?? lace;
   // 四段を指定した復元具足は、遠景でも最下段を省かず首を覆う長さを保つ。
-  const n = threeRows ? 3 : look.shikoroRows === 4 || takigawaHelm || hi || compactShikoro || look.shikoroStyle === 'kiritsuke' ? 4 : 3;
+  const n = ikedaFiveRows ? 5 : threeRows ? 3 : look.shikoroRows === 4 || takigawaHelm || hi || compactShikoro || look.shikoroStyle === 'kiritsuke' ? 4 : 3;
   const shikoroStep = compactShikoro ? 0.012 : 0.024, shikoroHeight = compactShikoro ? 0.72 : 1;
   const shikoroSegments = kiritsukeShikoro || kozaneShikoro ? 72 : takigawaHelm || hi ? 16 : 8;
   for (let i = 0; i < n; i++) {
-    const rt = 0.2 + (threeRows ? i * 1.5 : i) * shikoroStep, rb = 0.222 + (threeRows ? i * 1.5 : i) * shikoroStep;
-    const height = (threeRows ? 0.084 : 0.066) * shikoroHeight, span = Math.PI * 1.42;
-    const y = (threeRows ? 1.626 - i * 0.075 : 1.668 - (0.033 + i * 0.056) * shikoroHeight), z = -0.012 - (threeRows ? i * 1.5 : i) * shikoroStep * 0.5;
+    const step = ikedaFiveRows ? i * 0.8 : threeRows ? i * 1.5 : i;
+    const rt = 0.2 + step * shikoroStep, rb = 0.222 + step * shikoroStep;
+    const height = (ikedaFiveRows ? 0.052 : threeRows ? 0.084 : 0.066) * shikoroHeight, span = Math.PI * 1.42;
+    const y = (threeRows ? 1.626 - i * 0.075 : 1.668 - ((ikedaFiveRows ? 0.026 : 0.033) + step * 0.056) * shikoroHeight), z = -0.012 - step * shikoroStep * 0.5;
     const sk = arcCyl(rt, rb, height, shikoroSegments, span, Math.PI);
     if (takigawaHelm) {
       // 錣の札を裏から透ける一枚面にせず、裏面と上下・左右の小口を補う。
