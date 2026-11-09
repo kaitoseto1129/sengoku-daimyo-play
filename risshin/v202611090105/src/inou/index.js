@@ -26,12 +26,14 @@ const S = (rt) => (rt.flags.v15 ||= {});
 // 行き先：遠ければ金の▼に距離（本体の farPin）、近ければ地面のピン（敵なら本人の赤い▼）
 export function pinAt(rt, pos, label, unit = null, r = 3) {
   const F = rt.flags, P = rt.player.u.pos;
+  F.beginnerPinTarget = null;
   if (!pos) { F.farPin = null; return null; }
   const d2 = (pos.x - P.x) ** 2 + (pos.z - P.z) ** 2;
-  if (d2 <= r * r) { F.farPin = null; return null; }
+  if (!unit && d2 <= r * r) { F.farPin = null; return null; }
   if (d2 > FAR * FAR) {
     const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
     far.x = pos.x; far.z = pos.z; far.r = FAR - 2; far.label = label;
+    far.unit = unit; far.enemy = !!unit;
     F.farPin = far;
     return null;
   }
@@ -39,6 +41,7 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = r;
   pin.unit = unit; pin.enemy = !!unit; pin.flagDestination = !unit;
+  F.beginnerPinTarget = pin;
   return pin;
 }
 
