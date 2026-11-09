@@ -2042,12 +2042,22 @@ const shigisan = {
   },
   missionPin(rt) {
     const F = rt.flags, p = rt.player;
-    if (F.ending || rt.over || !p.u.alive) return null;
+    if (rt.over || !p.u.alive) return null;
     const q = F.missionPin || (F.missionPin = { always: true, silent: true, arrow: false });
     const enemy = shigisanFoe(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
     q.defend = false; q.route = false; q.gate = false; q.marker = null;
     q.r = q.hide = .5; q.y = undefined;
+    // 落城の語りの間も、燃える天主を見上げる案内を残す。
+    // 通常の行き先は終幕で止めるため、天主の印をここで直接返す。
+    if (F.ending) {
+      const keep = rt.markers.find((m) => m.id === 'keep');
+      if (!keep) return null;
+      q.key = 'keep'; q.marker = keep; q.route = true;
+      q.x = KEEP_AT.x; q.z = KEEP_AT.z;
+      q.y = rt.world.heightAt(q.x, q.z) + KEEP_AT.up + 2;
+      return q;
+    }
     if (enemy) {
       if (p.inRange && p.rangeCueTarget === enemy) return null;
       q.key = 'foe'; q.unit = enemy; q.enemy = true;
@@ -2349,7 +2359,9 @@ const shigisan = {
   // 文と印の名が違っても、今の段の行き先を必ず選ぶ。敵の印へ直進させない。
   guideMarker(rt) {
     const F = rt.flags;
-    if (F.ending || rt.over || F.castleGuideBlocked) return null;
+    if (rt.over) return null;
+    if (F.ending) return rt.markers.some((m) => m.id === 'keep') ? 'keep' : null;
+    if (F.castleGuideBlocked) return null;
     // 尾根で戦う間は敵の奥へ進ませない。道へ戻る時と門前待機は印を残す。
     if (this.taskLabel(rt, '') === '先手と尾根の敵を退けよ' || this.castleFightNeeded(rt)) return null;
     return F.step === 1 ? 'climb' : F.step === 2 ? 'tower' : F.step === 3 ? 'gate'

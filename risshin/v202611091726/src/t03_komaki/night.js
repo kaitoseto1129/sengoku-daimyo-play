@@ -97,7 +97,14 @@ export function tickDawn(rt, K) {
     rt.army.play('horagai', { x: -80, z: 110 }, 0.8);
     rt.say('使番', '徳川勢、小牧山より動きました！　小幡城へ向かう由！', 3.4);
     // 小牧山の陣が動き出す（南東へ。軽い作り）
-    try { for (const A of F.farToku || []) A?.moveTo?.(A.position.x + 70, 118, 50); } catch (e) { /* 遠景 */ }
+    // 軽い備の初めの位置は army.cx にある。群の position だけでは二組とも同じ地点へ集まる。
+    for (const A of F.farToku || []) {
+      if (!A?.army || !A.moveTo) continue;
+      const at = A.army.off.clone();
+      at.x += A.army.cx; at.z += A.army.cz;
+      A.localToWorld(at);
+      A.moveTo(at.x + 70, 118, 50);
+    }
     for (const s of F.depth?.B?.sonae || []) {
       if (!s.bound) moveSonae(rt, 'B', s.id, s.x + 70, 118);
     }
