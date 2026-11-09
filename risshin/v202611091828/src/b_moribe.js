@@ -2915,7 +2915,8 @@ const moribe = {
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   // 右上は目標①〜⑤を最初から全部並べ、済んだ物に印（goals5・標準 九-1・十-1）。
   goalsAllRows: true,
-  goalsVisibleRows: 5, // 増えた段も今の目標から五つまでに収め、戦場を札で覆わない。
+  goalVisibleRows: 5, // 共通の目標欄が読む設定名。今の目標を含む五つを並べる。
+  goalRowsAhead: true,
   missionAlways: true, // 敵を狙う間も「▼の敵を倒せ」などの一行を残す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
@@ -2979,7 +2980,14 @@ const moribe = {
   // 頭上の▼一つを大きくして、まず戦う相手を示す。選び直しは四分の一秒に一度。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player;
-    if (F.ending || F.stage === 'assemble' || F.stage === 'hold') return null;
+    if (F.ending || rt.over) return null;
+    // 追加の段も、目標に書いた本人を示す。元の先手や槍列へ案内を戻さない。
+    if (F.m15?.ph === 'kishi') return null;
+    if (F.m15?.ph === 'aze' || F.m15?.ph === 'yumi') {
+      F.signTarget = M15.target(rt);
+      return F.signTarget;
+    }
+    if (F.stage === 'assemble' || F.stage === 'hold') return null;
     // 渡る間の目標は対岸のピンだけ。敵の所属を示す小さな▼は残す。
     if (!F.signal && !F.fordThreat) return null;
     // 討ち取りの段では、離れた一般兵へ印を乗り換えない。
@@ -3147,13 +3155,22 @@ const moribe = {
     q.unit = null; q.enemy = false; q.approach = false; q.gatherArea = false;
     // 着いた後の足元や画面端へ、移動を促す印を残さない。
     q.waiting = false; q.arrived = false; q.crossing = false; q.progress = 0; q.guardArea = false; q.waitDuration = 0;
+    // 渡河の下知前は南岸の柳へ。北岸の渡河地点へ先走らせない。
+    if (F.m15?.ph === 'kishi') {
+      const at = F.m15.C.KISHI;
+      q.x = at.x; q.z = at.z; q.y = drawGroundAt(rt.world, q.x, q.z);
+      q.r = q.hide = 3;
+      q.arrived = Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) <= 3;
+      return q.arrived ? null : q;
+    }
     let pos = null, r = 6, hide = 6;
     // 開戦したコマから渡河の到着印を消し、敵の▼へ渡す。
     // 開戦したら渡河のピンを残さず、頭上の▼へ切り替える。
     // 先手の中心の空地でなく、頭上の▼と同じ生きた一人へ導く。
     // 本人と▼が見えたらピンを畳む。まだ描いていない時や画面外では同じ一本を保つ。
     // 敵を倒す段は先手も追撃も同じ本人へ。空の畦や建物を攻撃する目印にしない。
-    const fighting = F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press');
+    const fighting = F.m15?.ph === 'aze' || F.m15?.ph === 'yumi' ||
+      F.signal && (F.stage === 'contact' && !F.vBroken || F.stage === 'press');
     // 11/4 moribe（AV15・標準 三-2）：組から離れても行き先を仲間の頭へ移さない。行き先は目標の所に固定。
     if (!F.signal && F.fordThreat || fighting) {
       const enemy = this.missionSignTarget(rt);
