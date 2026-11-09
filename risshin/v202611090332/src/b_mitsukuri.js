@@ -49,7 +49,7 @@ import * as k15Monomi from './mitsukuri/monomi.js';
 import * as k15Honmae from './mitsukuri/honmae.js';
 import * as k15Yoin from './mitsukuri/yoin.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
-import { addRamp, groundAt } from './floors.js';
+import { addRamp, groundAt, rampAt } from './floors.js';
 import { timeslipField } from './timeslip_field.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { demDetail } from './dem.js';
@@ -964,6 +964,17 @@ function roadDistance(x, z) {
     best = Math.min(best, Math.hypot(x - q.ax - q.dx * t, z - q.az - q.dz * t));
   }
   return best;
+}
+// 一歩の高低差だけでは、切岸を横へ歩けてしまう。道の平らな幅から外れた急斜面には足を置かない。
+// 石段・板床・屋内は実際の足場を使う。共通の移動判定や、ほかの戦の斜面は変えない。
+function mitsukuriStepAllowed(rt, x, z, y) {
+  if (NAKA.cur) return true;
+  const W = rt.world;
+  if (W.slopeTan(x, z) <= W.def.climbTan) return true;
+  const floor = groundAt(W, x, z, y), ramp = rampAt(x, z, y);
+  if ((ramp != null && Math.abs(ramp - floor) < 0.25) || floor > W.heightAt(x, z) + 0.35) return true;
+  // 整地した半幅は大手２．８ｍ、城内１．６ｍ。縁の混ざる帯は通路に含めない。
+  return roadDistance(x, z) <= (z > -44 ? 2.4 : 1.4);
 }
 function height(x, z) {
   prepareHeight();
@@ -3165,6 +3176,7 @@ const mitsukuri = {
     terrainTriangles: true,   // 足を描く三角面に置き、斜面で体が地面に沈んで首だけ出るのを無くす（10/28 点付け）。
     contactFalls: true, // 倒れた体が地へ着いてから、具足の音と低い土煙を出す。
     terrainTags: true,
+    sightFromCamera: true, // 切岸の下や塀の脇では、本人の目から見えても視点から隠れた敵へ印を出さない。
     terrainTriangles: true, // 急な切岸でも、歩く高さと描く地面の三角形をそろえる。
     stableSlopeGrain: true, // 曲がる斜面の法線で土と草の模様を細い縞へ引き延ばさない。
     softEarthCrust: true, sparseEarthCrust: true, // 土塊の陰を升の端で消し、四角い敷石のような継ぎ目を残さない。
@@ -3244,6 +3256,10 @@ const mitsukuri = {
     // 11/2 oda_bot_1102：木戸を掛矢で打つ間（段3）は両手が塞がる。bot が木戸の前で城兵の突きを重ねて倒れた（十回に一回）ので、木戸を破るまで一太刀をさらに六割に
     const W = rt.world;
     const F = rt.flags;
+    const canStep = rt.player.canStep;
+    rt.player.canStep = function (x0, z0, x, z, y) {
+      return canStep.call(this, x0, z0, x, z, y) && mitsukuriStepAllowed(rt, x, z, y);
+    };
     rt.def.timeslip.skip = (x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 板の間・台の上は床に隠れる
     { const skip = rt.def.timeslip.skip, def = rt.def; rt.cleanupTasks?.add(() => { if (def.timeslip.skip === skip) delete def.timeslip.skip; }); }   // 戦を出たら外す（定義が戦をつかみ続けた。11/8 docs/crash_1108.md）
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・秋草（def.timeslip）
