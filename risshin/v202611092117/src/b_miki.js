@@ -1317,9 +1317,22 @@ function mikiGoalBoard(rt) {
   style.textContent = MIKI_BOARD_CSS;
   document.head.appendChild(style);
   const progress = hud.progress;
+  // 使番から新たな下知が出た段も、済んだ五件だけで行き先を隠さない。
+  const nextTask = document.createElement('p');
+  nextTask.style.cssText = 'margin:6px 0 0;color:#fff;font-weight:700';
+  nextTask.hidden = true;
   hud.progress = function (battle) {
     const out = progress.call(this, battle);
-    if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+    if (battle === rt && this.prog && !rt.over) {
+      goalsTick(this.prog, rt);
+      const extra = !rt.flags.step || rt.flags.step >= 3;
+      const text = extra ? rt.def.missionHeading(rt) : '';
+      if (nextTask.textContent !== text) nextTask.textContent = text;
+      nextTask.hidden = !text;
+      const board = this.prog.querySelector('.pg-goals');
+      if (board && nextTask.parentNode !== board) board.appendChild(nextTask);
+      if (board && text) this.prog.classList.add('goal-mode');
+    }
     return out;
   };
   // 印は使い回し、見通しは兵ごとに三分の一秒おき
@@ -1357,7 +1370,7 @@ function mikiGoalBoard(rt) {
   const dispose = rt.dispose;
   rt.dispose = function () {
     hud.foeMarks = foeMarks; box.remove();
-    hud.progress = progress;
+    hud.progress = progress; nextTask.remove();
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('miki-goals'); style.remove();
     return dispose.call(this);
@@ -1409,7 +1422,7 @@ const miki = {
   missionHeading(rt) {
     // 大村坂の五件を果たした後は、使番が知らせた新たな下知を示す。
     // 討ち取り済みの甚太夫を、木戸や蔵へ進む間も討つよう案内し続けない。
-    if (rt.flags.step >= 3) return rt.objectives.find(o => o.id === 'main' && !o.state)?.text || '';
+    if (!rt.flags.step || rt.flags.step >= 3) return rt.objectives.find(o => o.id === 'main' && !o.state)?.text || '';
     return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)];
   },
   // 城内にいる敵の大将は印だけ。荷の道を守る任務を城主討ちへ替えない。
@@ -1428,13 +1441,15 @@ const miki = {
   },
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u.pos;
-    if (rt.over || F.ending || !rt.player.u.alive) return null;
+    if (rt.over || F.ending || F.mkYoin || !rt.player.u.alive) return null;
     const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5 });
     const stage = this.missionOf(rt);
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す
     const ip = MK_OPEN.pin(rt, this.mkCtx(rt)) || MK_DESHIRO.pin(rt, this.mkCtx(rt)) || MK_KIGA.pin(rt, this.mkCtx(rt));   // 開幕の段：井楼→西の槍組
     if (ip) { q.unit = null; q.enemy = false; q.route = false; q.waiting = false; q.x = ip.x; q.z = ip.z; q.r = q.hide = 4; q.arrived = Math.hypot(me.x - q.x, me.z - q.z) < 4; return q; }
+    // 蔵で下知を聞く間は移動先なし。済んだ大村坂へ案内し直さない。
+    if (F.step >= 3) return null;
     let at = stage === 0 ? ESCORT_AT : stage === 1 ? GATE : stage === 2 ? OMURA_FOOT : OMURA;
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
     // 守る間は着いても持ち場のピンを残す。同じ槍組がここへ歩いて集まる。
