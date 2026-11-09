@@ -21,7 +21,7 @@ export function startCouncil(rt, K) {
 export function tickCouncil(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, el = rt.t - F.st0;
   const at = K.COUNCIL;
-  if (!F.cnAt && ((Math.hypot(P.x - at.x, P.z - at.z) < 10 && el > 8) || el > 150)) {
+  if (!F.cnAt && Math.hypot(P.x - at.x, P.z - at.z) < 10 && el > 8) {
     F.cnAt = rt.t;
     const L = [
       ['池田恒興', '睨み合うたままでは埒があかぬ。三河は留守。岡崎を突けば、徳川殿は小牧を捨てて戻られよう', 0.2, 4],
@@ -56,7 +56,7 @@ export function tickOrders(rt, K) {
   // 荷駄の列を連れて行く（列が陣の近くへ着くまで待つ。荷駄は人の足）
   const pc = K.live(F.porters) ? F.porters.center() : null;
   const with_ = !pc || Math.hypot(pc.x - K.MORIJIN.x, pc.z - K.MORIJIN.z) < 40 || el > 120;
-  if (!F.ordAt && ((Math.hypot(P.x - K.MORIJIN.x, P.z - K.MORIJIN.z) < 14 && el > 10 && with_) || el > 160)) {
+  if (!F.ordAt && Math.hypot(P.x - K.MORIJIN.x, P.z - K.MORIJIN.z) < 14 && el > 10 && with_) {
     F.ordAt = rt.t;
     rt.award((t) => t.side.push('森長可の陣へ中入りの下知を届けた'), '森の陣へ下知を届けた');
     say(rt, '森長可', '待ちかねたわ！　羽黒で討たれた三百の仇、三河で取る', 0.2, 3.2);

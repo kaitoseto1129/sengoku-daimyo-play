@@ -62,7 +62,7 @@ export function tickNight(rt, K) {
     say(rt, '使番', '秀次様の本隊、無事に川を越えられました', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
-  if (F.ambush && rt.t - F.ambush > 25 && (K.aliveN(F.tAmb) <= 1 || rt.t - F.ambush > 60) && el > 140) {
+  if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 20 && rt.t - F.ambush > 25 && (K.aliveN(F.tAmb) <= 1 || rt.t - F.ambush > 60) && el > 140) {
     rt.award((t) => t.side.push('夜の道で徳川の物見を払い、五条川の渡しに着いた'), '五条川の渡しに着いた');
     K.next();
   }
@@ -86,7 +86,7 @@ export function tickDawn(rt, K) {
     say(rt, '森長可', '岩崎城の丹羽氏重は小勢。ひと揉みで抜くぞ', 62, 3);
     say(rt, '池田恒興', '日が昇る。旗を巻け。三河の者に見られるな', 78, 3);
   }
-  if (!F.dawnAt && ((Math.hypot(P.x - DAWN.x, P.z - DAWN.z) < 14 && el > 90) || el > 150)) {
+  if (!F.dawnAt && Math.hypot(P.x - DAWN.x, P.z - DAWN.z) < 14 && el > 90) {
     F.dawnAt = rt.t;
     rt.army.play('horagai', { x: -80, z: 110 }, 0.8);
     rt.say('使番', '徳川勢、小牧山より動きました！　小幡城へ向かう由！', 3.4);
