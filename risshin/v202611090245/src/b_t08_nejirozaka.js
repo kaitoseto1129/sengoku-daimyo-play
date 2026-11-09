@@ -10,6 +10,7 @@
 // 地形：国土地理院の標高（prototype/tools/dem.mjs の nejirozaka）を切り出す前の、手書きの台地。
 // ======================================================================
 import * as THREE from 'three';
+import { NEJIROZAKA_MIYABE_KACCHU } from './kacchu_data.js';
 import { nobori, jinmaku, yagura, tawara, kagaribi } from './props.js';
 import { MEM_TIGHT } from './settings.js';
 import { RANKS } from './state.js';
@@ -301,6 +302,7 @@ const t08_nejirozaka = {
   nameRange: 140,
   spawn: { x: -4, z: -30, heading: 0 },
   world: {
+    namedKacchu: NEJIROZAKA_MIYABE_KACCHU,
     seed: 1587,
     time: 'dusk',   // 第一波は暮れ方。破れ口の前に夜へ（15分の構成）
     nightLift: 2.2,
@@ -363,7 +365,7 @@ const t08_nejirozaka = {
     // ---- 味方：宮部継潤の手と、塀の内の鉄砲 ----
     // 守将の宮部継潤は砦の奥の本陣で床几に座り、旗本に囲まれて下知する（塀へは出ない。kaito AR3・AV7）
     F.miyaHon = allyGroup(rt, { name: '宮部継潤の本陣', anchor: { x: -4, z: -48 }, facing: 0, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto_m' } }, uS(10), uA(6)], MIYABE));
+      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto' } }, uS(10), uA(6)], MIYABE));
     F.miyaU = F.miyaHon.units.find((u) => u.name === '宮部継潤');
     if (F.miyaU) F.miyaU._crouch = true;   // 床几に腰を下ろす
     F.miyabe = allyGroup(rt, { name: '宮部の手', anchor: { x: -14, z: -7 }, facing: 0, width: 14, aggro: 10, noRout: true, order: 'hold' },

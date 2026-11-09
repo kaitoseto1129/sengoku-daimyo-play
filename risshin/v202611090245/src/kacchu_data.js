@@ -1456,3 +1456,15 @@ export const TOYO_MAEDA_KACCHU = {
     lace: 0xe4dfcc, odo: 0xe4dfcc, doStyle: 'sugake', sodeStyle: 'sugake', shikoroStyle: 'sugake',
     kusazuriLaceRows: 5, haori: 0, menpo: 0, fur: 0, horo: 0, flag: 'maeda', uma: null },
 };
+
+// 根白坂の宮部継潤のみ。宇和島市の桃山期・二枚胴具足を型の手本とする復元案。
+// 本人所用ではない。織田編の共通表は保つ。出所・未詳の箇所は docs/generals_look_1108/宮部継潤.md。
+export const NEJIROZAKA_MIYABE_KACCHU = {
+  '宮部継潤': { ...KACCHU['宮部継潤'], bowl: 'momonari', crest: 'none',
+    hat: 'kabuto', armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'lac',
+    doStyle: 'sugake', doOpening: 'nimai', plateDo: null,
+    lace: 0xd8d0bc, odo: 0xd8d0bc, sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: 0xd8d0bc,
+    kusazuriColor: 0x1c1a1a, kusazuriBands: Array(5).fill(0xd8d0bc),
+    haori: 0, menpo: 0, mon: 'none', flag: 'toyotomi', uma: null, fur: 0, horo: 0,
+    shinodare: false, fukigaeshiBadge: false },
+};

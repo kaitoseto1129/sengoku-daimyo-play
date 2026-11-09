@@ -10,7 +10,7 @@ function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending)
 
 export function startCouncil(rt, K) {
   const F = rt.flags;
-  say(rt, '羽柴秀吉', '家康め、動かぬ。……戻って参れ、軍議じゃ', 0.6, 3.2);
+  say(rt, '羽柴秀吉', '徳川殿は動かぬ。……戻って参れ、軍議じゃ', 0.6, 3.2);
   say(rt, '日根野弘就', '砦は我らが守る。本陣へ急がれよ', 5, 2.8);
   // 大手門の前の床几に将が集まる（秀吉・秀次・池田・森・堀。討てない・動かない）
   F.council = allyGroup(rt, { name: '軍議の衆', fullStrength: true, anchor: { x: K.COUNCIL.x, z: K.COUNCIL.z - 4 }, facing: 0, width: 8, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
@@ -29,7 +29,7 @@ export function tickCouncil(rt, K) {
       ['堀秀政', '道は長い。気取られれば、我らが野で挟まれまするぞ', 8, 3.2],
       ['羽柴秀吉', 'そこまで申すなら許そう。孫七郎を大将に、二万で回り込め', 11.6, 3.4],
       ['三好信吉', '承った。夜のうちに出る。音を立てるな', 15.4, 3],
-      ['羽柴秀吉', '家康は野の戦の上手。くれぐれも、気取られるな', 18.8, 3],
+      ['羽柴秀吉', '徳川殿は野の戦の上手。くれぐれも、気取られるな', 18.8, 3],
       ['羽柴秀吉', 'その方は荷駄の列を連れて森の陣へ行け。今宵出ると伝えよ', 22.4, 3.2],
     ];
     for (const [who, s, t, sec] of L) say(rt, who, s, t, sec);
