@@ -55,9 +55,14 @@ const OSAKA ={ x: 260, z: -260 };             // 大坂城の方角（遠く）
 
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
-const sum = (gs) => gs.reduce((s, g) => s + (alive(g) ? g.count : 0), 0);
 // 討てない大将だけの組や退場中の兵を追わず、まだ戦っている兵へ寄せる。
 const fightable = (u) => u.alive && !u.noTarget && !u.invuln && !u.fleeing && !u.dying && !u.woundOut && !u.evacuatedWound;
+// 組の生存数には手負いの将も残る。目標と行き先は、まだ戦える守兵でそろえる。
+const sum = (gs) => {
+  let n = 0;
+  for (const g of gs) if (alive(g)) for (const u of g.units) if (fightable(u)) n++;
+  return n;
+};
 function fightingTarget(groups, p) {
   let best = null, distance = Infinity;
   for (const g of groups) {
@@ -682,7 +687,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   const at = (q, r = 3) => goTo(p, inp, q.x, q.z, r);
-  if (F.step <= 1) { const g = F.s1.find(alive); at(g ? g.center() : SHORE, 4); return; }
+  if (F.step <= 1) { at(fightingTarget(F.s1, u.pos)?.pos || SHORE, 2.2); return; }
   if (F.step === 2) {
     // 丸太が門に着くまでは丸太の脇について寄せ、手負いは竹束の陰へ下がる（門の前に一人で立ち続けて櫓と門の内の弓に討たれない）
     if (F.ramZ > GATE.z + 5) { at({ x: GATE.x + 2.4, z: Math.max(GATE.z + 4, F.ramZ + 1) }, 1.5); return; }

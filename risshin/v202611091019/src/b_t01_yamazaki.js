@@ -611,6 +611,8 @@ const t01_yamazaki = {
         if (!F.ikFord) { F.ikFord = true; F.ikeda.order = 'move'; F.ikeda.dest = { x: FORD_S.x - 2, z: FORD_S.z + 2 }; F.ikeda.speed = 5;
           F.ikeda.onArrive = (g) => { g.order = 'move'; g.dest = { x: FORD_N.x - 4, z: FORD_N.z + 2 }; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 10; q.seekRange = 12; }; }; }
         for (const u of F.ikeda.units) u.run = Math.max(u._run0, 5);
+      } else if (F.stage === 7 && F.ikeda.order === 'move' && F.ikeda.onArrive) {
+        // 追撃の始めは御坊塚の陣幕を避ける経路を通す。着く前に主人公への追従で上書きしない。
       } else if (c && far > 9) { if (F.ikeda.order !== 'move' || !F.ikeda.dest || dist(F.ikeda.dest, P) > 6) { F.ikeda.order = 'move'; F.ikeda.dest = { x: P.x, z: P.z + 3 }; } F.ikeda.onArrive = null; }
       else if (F.ikeda.order === 'move' && !F.ikeda.onArrive) { F.ikeda.order = 'attack'; F.ikeda.aggro = 24; F.ikeda.seekRange = 30; }
     }
