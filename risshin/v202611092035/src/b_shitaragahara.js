@@ -1675,9 +1675,12 @@ function nfEnd(rt) {
 //   画面の端へ出る赤い矢印（敵の大将・脅威の向き）は出さない（行き先は真上の▼一つ・敵は頭上の赤い▼）。
 function shHud(rt) {
   const hud = rt.hud, hudProgress = hud.progress, root = document.getElementById('hud');
-  hud.progress = function (battle) {
-    const out = hudProgress.call(this, battle);
-    if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
+  hud.progress = function (battle, force = false) {
+    const previousRt = this.progTickRt, previousT = this.progTickT;
+    const out = hudProgress.call(this, battle, force);
+    // 共通の札が更新を待つコマでは、一覧も待つ。強制更新はそのまま通す。
+    if (battle === rt && this.prog && !rt.over &&
+        (force || previousRt !== this.progTickRt || previousT !== this.progTickT)) goalsTick(this.prog, rt);
     return out;
   };
   root?.classList.add('sh-battle');
@@ -3752,7 +3755,7 @@ shitaragahara.botBrain = (b, inp, { goTo, patientStrike }) => {
 // 総勢は歴史欄だけに置く。個々の討死から全軍の損害へ倍率を掛けない。
 // 11/6 fixc1721（九3・十二1）：両軍の今の兵の数を史実の規模で。描く本物の兵一人が討たれるごとに、武田は六十人・織田徳川は四十人分減らす
 //   （武田の損害は諸説で一万とも数千とも。終わりに一万五千が七千ほどまで減る目安）。
-shitaragahara.force = (rt) => ({ a: 38000 - (rt?.flags?.ak || 0) * 40, a0: 38000, b: Math.max(4000, 15000 - (rt?.flags?.ek || 0) * 60), b0: 15000 });
+shitaragahara.force = (rt) => ({ a: Math.max(0, 38000 - (rt?.flags?.ak || 0) * 40), a0: 38000, b: Math.max(4000, 15000 - (rt?.flags?.ek || 0) * 60), b0: 15000 });
 // 持ち場へ着き、仲間と並べてから待ち時間だけを飛ばす。
 // 11/6 fixc1721：待ちを飛ばす釦は出さない（夜明けの知らせから九秒で寄せが始まる）
 shitaragahara.canSkip = () => '';
