@@ -248,7 +248,7 @@ export const ArmyAnim = {
       dt = u.qualityAnimDt; u.qualityAnimDt = 0;
     } else if (MEM_TIGHT && this.midPose && u.alive && !u.dying && u.qualityTier === 1 && !u.isPlayer && !u.name && !u.isSub && u.camD > 18 &&
         !u.hit && !u.downed && !u.climb && !u.dragging && !u.dodging && !(u.stagger > 0) && !u._crouch && !u.vatWant &&
-        !(u.horse?.userData.horse?.spook) && ((this.frameNo + u.id) & 1) === 1 && (u.qualityAnimDt || 0) < 0.12) {
+        !(u.horse?.userData?.horse?.spook) && ((this.frameNo + u.id) & 1) === 1 && (u.qualityAnimDt || 0) < 0.12) {
       // 11/9 kaito「みんなが集まると動けなくなる」：18m より先で戦う兵の手足と得物の構えは二コマに一度（経過はためて次のコマへ渡す）。
       //   体の位置と向きは毎コマ。近い兵・名のある者・打たれた者・倒れる者は毎コマ。馬の骨は下の lazy と同じ拍子
       u.qualityAnimDt = (u.qualityAnimDt || 0) + dt;

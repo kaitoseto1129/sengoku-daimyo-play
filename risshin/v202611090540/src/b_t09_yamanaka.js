@@ -28,7 +28,8 @@ import { addTaba } from './taketaba.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 12）：段の中身は t09_yamanaka/ に一段一ファイル
 import * as shutsujin from './t09_yamanaka/shutsujin.js';   // 出陣：全国の諸将の旗と山中城の遠景・別の戦線の知らせ
 import * as tahoumen from './t09_yamanaka/tahoumen.js';     // 別の口：東の尾根と西の丸の寄せ手・「別曲輪、突破！」
-import * as rakujo from './t09_yamanaka/rakujo.js';         // 落城の後：曲輪ごとに豊臣の旗・小田原はまだ先
+import * as rakujo from './t09_yamanaka/rakujo.js';
+import * as shoshou from './t09_yamanaka/shoshou.js';       // 二巡：北条氏勝の落ち延び・徳川の旗・諸将の知らせ         // 落城の後：曲輪ごとに豊臣の旗・小田原はまだ先
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const sstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -416,6 +417,7 @@ const t09_yamanaka = {
     rt.after(9.2, () => rt.say('堀秀政', '我らは東の尾根から三の丸の横へ回る。挟んで落とすぞ', 3.5));
     // 出陣（段0）：諸将の旗と山中城を見上げ、先手の列へ。少しして出丸攻め（t09_yamanaka/shutsujin.js）
     tahoumen.install(rt);
+    shoshou.install(rt);
     shutsujin.install(rt, {});
   },
 

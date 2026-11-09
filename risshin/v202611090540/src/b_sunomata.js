@@ -1,6 +1,7 @@
 import { useTerrain } from './asset_manifest.js';
 import { sunomataFinalGoalsDone } from './sunomata_goals.js';
-import * as SU15 from './sunomata/index.js';   // 11/8 十五分の構成（材木の運搬・夜と火矢・夜明けの退き）
+import * as SU15 from './sunomata/index.js';
+import { DEPTH_SUNOMATA } from './sunomata/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（材木の運搬・夜と火矢・夜明けの退き）
 import { battleJin, buildBattleJin } from './b_jinkei_g1.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -6028,6 +6029,7 @@ sunomata.botBrain = (b, inp, ctx) => {
 sunomata.canSkip = () => '';
 sunomata.skip = () => {};
 sunomata.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '斎藤軍', mon: 'saito' } };
+sunomata.depth = DEPTH_SUNOMATA;   // 11/9 軍勢の厚み（docs/army_depth_spec_1108.md）
 sunomata.pacingCap = 1260;   // 11/8 十五分の構成（材木の運搬を足した）で、打ち切りを十八分から二十一分へ
 // すでに砦にいる三人を共通の武将の呼び口へ渡す。新しい兵は加えない。
 sunomata.famous = [
