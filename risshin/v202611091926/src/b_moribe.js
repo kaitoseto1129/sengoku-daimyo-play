@@ -4832,18 +4832,23 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       // 敗走を確かめる八秒も、任務の見出しと下知をそろえる。
       const task = rt.objectives.find((o) => o.id === 'commanders');
       if (task) task.text = (F.bossDown || 0) < 2 ? commanders > 1 ? '長井甲斐守・日比野下野守を討て' : commanders === 1 ? `${remainingName}を討て` : '味方と両将の旗本を攻めよ' : !F.ownHatamoto ? '長井・日比野の旗本の侍を自分で討て' : !left ? '薬師堂の前で組をまとめよ' : '墨俣への道で殿を討ち破れ';
-      // 大将が生きている備を先に指す。印は大将の身に付け、旗本の侍に囲まれた所を見せる。
+      // 本人の手柄が残る間は、頭上の▼と同じ旗本の侍へ案内する。
       for (const g of F.opposition) if (!gone(g) && g.units.some((u) => u.type === 'busho' && moribeRemainFoe(u))) { target = g; break; }
-      if (target !== F.marked) {
+      const hatamoto = this.hatamotoTarget(rt);
+      if (hatamoto) target = hatamoto.group;
+      const guide = hatamoto || target?.units.find((u) => u.type === 'busho' && moribeRemainFoe(u));
+      if (target !== F.marked || guide !== F.markedUnit) {
         F.marked = target;
-        const boss = target?.units.find((u) => u.type === 'busho' && moribeRemainFoe(u));
-        if (boss) rt.marker('commanders', () => moribeRemainFoe(boss) ? boss.pos : centerOf(target)(), `${boss.name}の旗本`, { red: true, group: target });
+        F.markedUnit = guide;
+        if (guide) rt.marker('commanders', () => moribeRemainFoe(guide) ? guide.pos : null, hatamoto ? `${target === F.HM ? '日比野' : '長井'}の旗本の侍` : `${guide.name}の旗本`, { red: true, group: target });
         else if (target) rt.marker('commanders', centerOf(target), '斎藤の旗', { red: true, group: target });
         else rt.unmark('commanders');
       }
-      // 進む印と任務は同じ大将一人を指す。二人分の長い官名を並べない。
-      const markedBoss = F.marked?.units.find((u) => u.type === 'busho' && moribeRemainFoe(u));
-      if (task && markedBoss && !F.squadGuide) task.text = `${markedBoss.name}を仲間と討て`;
+      // 両将が生きていても、本人の目標を大将討ちへ言い替えない。
+      if (task && !F.squadGuide) {
+        if (!F.ownHatamoto) task.text = '長井・日比野の旗本へ進み、旗本の侍を自分で討て';
+        else if (guide) task.text = `${guide.name}を仲間と討て`;
+      }
       rt.objProgress('commanders', '');
       // 紙（battle_events_1101）：勝ちは「敵将を討って斎藤方が崩れる」。両将が討たれたら残る備も崩れ、勝ちにする（全滅を待たない）。
       // 両将が討たれてすぐには終わらない（kaito 11/2 Q「終わり方に厚みを」）：斎藤勢は崩れて墨俣へ退き、

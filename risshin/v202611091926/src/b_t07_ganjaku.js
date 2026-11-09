@@ -479,12 +479,14 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 門が開き、芥田の手が喰違の筋を抜けて坂へ突いて出る（山中城の馬出しの出撃の型）
       this.gateOpen(rt);
       // 門の左右の櫓の射手も、打って出た味方の背越しには射ない（狭間と同じ。芥田の手と斬り合う所を櫓から撃ち続けない）
+      for (const q of rt.army.groups) if (q.team === 1 && /物見櫓の守り|隅櫓の守り/.test(q.name || '')) q.dmgMult = Math.min(q.dmgMult ?? 1, 0.4);   // 11/9 見回り：櫓の二人ずつの射手が act の傷の半ばを占めた
       for (const q of rt.army.groups) {
         const c = q.team === 1 && (q.interiorHold || q.units.some((u) => u.perch)) && this.centerOf(q);
-        if (c && Math.hypot(c.x - GATE.x, c.z - GATE.z) < 20) q.fire = false;
+        if (c && (Math.hypot(c.x - GATE.x, c.z - GATE.z) < 20 || /物見櫓の守り|隅櫓の守り/.test(q.name || '') && (Math.hypot(c.x - GATE.x, c.z - GATE.z) < 40 || Math.hypot(c.x - F.meet.x, c.z - F.meet.z) < 50))) q.fire = false;   // 11/9 見回り：門の脇の物見櫓も門の前で斬り合う所を撃ち続けない（act が二度とも門の前で櫓の矢に倒れた）
       }
       const g = F.sally;
       g.aggro = 2; g.noRout = true; g.speed = (g.speed || 2.2) * 1.4;
+      g.dmgMult = Math.min(g.dmgMult ?? 1, 0.7);   // 11/9 見回り：act が坂で芥田の手に背から囲まれ二度とも倒れた。打って出た手の打ち込みを少し軽く
       F.sw = { route: [INSIDE, FRONT, MOUTH, F.meet], i: 0, aggro: 30 };   // 11/8 critic60 t07（目標の敵は必ず来る）：坂で受ける寄せ手と主人公へ三十 m から懸かる
       this.walk(g, F.sw, rt.t);
       rt.marker('t07', F.meet, '', { h: 3, red: true, group: F.sally });   // 11/8 critic60 t07：名は芥田の頭上の名札一つだけ（白い大きな字と二重に出さない）
