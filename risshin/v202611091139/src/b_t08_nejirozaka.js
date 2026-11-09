@@ -334,6 +334,7 @@ const t08_nejirozaka = {
   // 行き先は頭上の▼一つ（kaito AS・AT・AV15）。ついていく相手の青い印は出さない
   noLeaderFollow: true,
   noGroundGuide: true,
+  dpNoMark: true,
   // 東の尾根から来る黒田・小早川の名も、砦の奥から分かる距離にする。
   nameRange: 140,
   // 距離だけでなく名札の枠も確保し、近くの将で後詰二人の名を消さない。
@@ -618,11 +619,11 @@ STAGES.t08_nejirozaka = [[STEP_TEXT[0]], [STEP_TEXT[1], dpAt(6)], [STEP_TEXT[2],
 const won5 = (rt) => rt.tracker?.main === true;
 const curG = (k) => (rt) => (rt.flags.dp?.on && rt.flags.dp.i === k ? rt.flags.dp.cur?.groups || [] : []);
 t08_nejirozaka.goals5 = () => [
-  { kind: 'stage', k: 0, text: STEP_TEXT[0], noun: '土橋の塀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 5, groups: curG(4) },
-  { kind: 'stage', k: 1, text: STEP_TEXT[1], noun: '破れ口', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 7, groups: curG(6) },
+  { kind: 'stage', k: 0, text: STEP_TEXT[0], noun: '土橋の塀', place: (rt) => (rt.flags.dp?.i ?? -1) < 4 ? rt.flags.dp?.cur?.goal || POST : POST, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 5, groups: curG(4) },
+  { kind: 'stage', k: 1, text: STEP_TEXT[1], noun: '破れ口', place: () => BREACH, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 7, groups: curG(6) },
   { kind: 'boss', k: 2, name: '島津忠隣', text: STEP_TEXT[2], check: (rt) => !!rt._g5?.own.has('島津忠隣') },
-  { kind: 'stage', k: 3, text: STEP_TEXT[3], noun: '右の堀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 10, groups: curG(9) },
-  { kind: 'stage', k: 4, text: STEP_TEXT[4], noun: '土橋の塀', check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 12, groups: curG(11) },
+  { kind: 'stage', k: 3, text: STEP_TEXT[3], noun: '右の堀', place: () => shuryoku.EAST, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 10, groups: curG(9) },
+  { kind: 'stage', k: 4, text: STEP_TEXT[4], noun: '土橋の塀', place: () => POST, check: (rt) => won5(rt) || (rt.flags.dp?.i ?? -1) >= 12, groups: curG(11) },
 ];
 
 export { t08_nejirozaka };
