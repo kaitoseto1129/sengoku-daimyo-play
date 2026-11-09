@@ -11,11 +11,35 @@ import { dobeiLine, yaguraGate, monomi } from '../castle_parts.js';
 
 function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending) rt.say(who, s, sec); }); }
 
+// 床几の将も名前のある本人にする。旗本とは別の一人の組で、幕の内から動かさない。
+function commander(rt, K, team, name, at, flag, faction) {
+  const make = team ? enemyGroup : allyGroup;
+  const list = K.fl([{ type: 'busho', n: 1, o: { name, horse: false, invuln: true } }], flag);
+  const g = make(rt, { name: name + 'の床几', fullStrength: true, faction, anchor: { ...at }, facing: 0, width: 1,
+    order: 'hold', fixed: true, noRout: true, aggro: 0, seekRange: 0 },
+  team ? K.dressT(list) : list);
+  g.honjin = true;
+  seatCommander(rt, g, at);
+  return g;
+}
+
+export function seatCommander(rt, g, at) {
+  g.anchor = { ...at };
+  g.dest = null;
+  for (const u of g.units) {
+    u.pos.x = at.x; u.pos.z = at.z; u.pos.y = rt.world.heightAt(at.x, at.z);
+    u.target = null; u.moveTo = null; u.invuln = true; u.noTarget = true; u._crouch = true;
+  }
+}
+
 // 対陣の陣立て（始めから。昼も夜も同じ）：楽田城・両軍の本陣・陣の間の備・小牧山の柵と幟
 export function campSetup(rt, K) {
   const F = rt.flags, W = rt.world;
-  const { RAKUDA, RK, HONJIN, FORT, GATE } = K;
-  KIT.honjin(rt, RAKUDA.x, RAKUDA.z, { mon: 'toyotomi', fire: false });
+  const { RAKUDA, RK, HONJIN, FORT, GATE, MORIJIN } = K;
+  KIT.honjin(rt, RAKUDA.x, RAKUDA.z, { mon: 'toyotomi', fire: false, people: false });
+  F.hideyoshi = commander(rt, K, 0, '羽柴秀吉', { x: RAKUDA.x, z: RAKUDA.z - 4 }, 'toyotomi', 'oda');
+  // 下知の届け先を旗本だけの野原にしない。森家の幕・床几・陣太鼓を残す。
+  KIT.honjin(rt, MORIJIN.x, MORIJIN.z, { mon: 'tsuru', fire: false, yoroi: false, people: false });
   // 楽田城：陣幕の本陣を土塀で囲み、南の大手に櫓門、北西の隅に櫓
   const rw = dobeiLine(rt, [[RAKUDA.x - 4, RK.z1], [RK.x0, RK.z1], [RK.x0, RK.z0], [RK.x1, RK.z0], [RK.x1, RK.z1], [RAKUDA.x + 4, RK.z1]], { team: 0, name: '楽田城の塀', hp: 99999 });
   for (const w of rw.structs) { w.noTarget = true; w.wall = true; }
@@ -48,7 +72,10 @@ export function campSetup(rt, K) {
   rt.scene.add(kagaribiBatch(W, camps));
   F.campFires = camps;
   F.rakuda = K.campGuard(rt, 0, { x: RAKUDA.x, z: RAKUDA.z + 12 }, 0, '羽柴秀吉の旗本', 'toyotomi', 22);
-  KIT.honjin(rt, HONJIN.x, HONJIN.z + 6, { mon: 'tokugawa', uma: 'ogi', fire: false, yoroi: false });
+  KIT.honjin(rt, HONJIN.x, HONJIN.z + 6, { mon: 'tokugawa', uma: 'ogi', fire: false, yoroi: false, people: false });
+  F.ieyasu = commander(rt, K, 1, '徳川家康', { x: HONJIN.x, z: HONJIN.z + 2 }, 'tokugawa', 'tokugawa');
+  KIT.honjin(rt, HONJIN.x + 22, HONJIN.z + 10, { mon: 'oda', uma: false, fire: false, yoroi: false, people: false });
+  F.nobukatsu = commander(rt, K, 1, '織田信雄', { x: HONJIN.x + 22, z: HONJIN.z + 6 }, 'oda', 'nobukatsu');
   F.honjin = [K.campGuard(rt, 1, { x: HONJIN.x, z: HONJIN.z - 8 }, Math.PI, '徳川家康の旗本', 'tokugawa', 30, 'tokugawa'),
     K.campGuard(rt, 1, { x: HONJIN.x + 22, z: HONJIN.z }, Math.PI, '織田信雄の旗本', 'oda', 10, 'nobukatsu')];
 }
