@@ -63,12 +63,13 @@ const sum = (gs) => {
   for (const g of gs) if (alive(g)) for (const u of g.units) if (fightable(u)) n++;
   return n;
 };
-function fightingTarget(groups, p) {
+function fightingTarget(groups, p, north) {
   let best = null, distance = Infinity;
   for (const g of groups) {
     if (!alive(g)) continue;
     for (const u of g.units) {
       if (!fightable(u)) continue;
+      if (north && g !== north.engun && !guardsNorth(u)) continue;
       const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
       if (d < distance) { best = u; distance = d; }
     }
@@ -79,11 +80,14 @@ function fightingTarget(groups, p) {
 const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor.z = z; g.order = 'hold'; g.dest = null; g.path = null; g.focus = null; };
 const gauss = (x, z, cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / s);
 // 北の口の守りに残る数（柵の外へ押し出された者は守りから外れた者として数えない。追えずに④が止まらないように）
+const guardsNorth = (u) => fightable(u) && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4;
+// 印と自動操作も達成判定と同じ守兵を追う。北門の外から来る加勢は別に数える。
+const northTarget = (F, p) => fightingTarget(F.s4, p, F);
 const northLeft = (F) => {
   let n = 0;
   // 討死処理中・負傷して退場中の者は、北の口を守る人数に残さない。
   for (let i = 0; i < 2; i++) for (const u of (i ? F.zen : F.w3).units) {
-    if (!u.invuln && u.alive && !u.dying && !u.woundOut && !u.evacuatedWound && !u.fleeing && Math.abs(u.pos.x) < WALL_X - 0.5 && u.pos.z < GATE.z && u.pos.z > WALL_N - 4) n++;
+    if (guardsNorth(u)) n++;
   }
   return n;
 };
@@ -505,7 +509,7 @@ const k08_osaka_kizu = {
     for (const g of F.allies) g.dmgMult = 0.3;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない。11/6 描いた通しで 0.45 では三十七秒で済み、戦が三分で終わった）
     hold(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
     hold(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
-    rt.marker('k08', () => fightingTarget(F.s4, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
+    rt.marker('k08', () => northTarget(F, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
@@ -710,7 +714,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   if (F.step === 3) { at(fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
   if (F.step === 4) {
-    const target = fightingTarget(F.s4, u.pos)?.pos || NGATE;
+    const target = northTarget(F, u.pos)?.pos || NGATE;
     // 城からの加勢は北門の外にも残る。北の塀を斜めに横切らず、開いた門を通って迎える。
     if (target.z < WALL_N && u.pos.z > WALL_N - 4 && b.army.wallBetween(u.pos, -1, target)) {
       at({ x: NGATE.x, z: u.pos.z > WALL_N + 4 ? WALL_N + 4 : WALL_N - 8 }, 2);

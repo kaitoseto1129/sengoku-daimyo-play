@@ -961,9 +961,13 @@ const t10_oshi = {
   },
 };
 
+// 布陣を改めても人数の棒だけ古い兵数に戻らないよう、備の合計を共用する。
+// 合計は支度時に一度だけ求める。
+const FORCE_A = t10_oshi.depth.A.sonae.reduce((n, g) => n + g.men, 0);
+const FORCE_B = t10_oshi.depth.B.sonae.reduce((n, g) => n + g.men, 0);
 t10_oshi.force = (rt) => {
   const F = rt.flags;
-  return { a: Math.max(0, 23000 - (F.ak || 0) * 30), a0: 23000, b: Math.max(0, 3116 - (F.ek || 0) * 12), b0: 3116 };
+  return { a: Math.max(0, FORCE_A - (F.ak || 0) * 30), a0: FORCE_A, b: Math.max(0, FORCE_B - (F.ek || 0) * 12), b0: FORCE_B };
 };
 t10_oshi.date = (rt) => {
   const st = rt.flags.step || 0;

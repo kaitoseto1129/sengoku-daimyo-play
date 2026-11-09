@@ -725,9 +725,8 @@ const k06_sekigahara = {
         this.stage6(rt);
       }
     } else if (F.step === 6) {
-      // 11/9 徳川C（見回り）：本人が黒田の隊の脇へ着かないと⑥が十分を超えた（bot 中学生）。二分で黒田の隊が左近へ寄せ始めたとみなす
-      F.s6At ??= rt.t;
-      if ((alive(F.kuroda) && near(P, F.kuroda.center(), 22)) || rt.t - F.s6At > 120) this.stage7(rt);
+      // 黒田の隊に本人が加わるまで、時間だけで済ませない。
+      if (alive(F.kuroda) && near(P, F.kuroda.center(), 22)) this.stage7(rt);
     } else if (F.step === 7) {
       // 左近本人の近くで戦い、虎口を東から西へ通った時だけ数える。
       if (F.sakon?.leader?.alive && near(P, F.sakon.leader.pos, 26)) F.sakonSeen = true;
@@ -777,11 +776,7 @@ const k06_sekigahara = {
       }
       // 退く下知を出した同じ瞬間に済ませず、左近が実際に柵の内へ戻るまで見届ける。
       const sakonInside = F.sakon?.leader?.alive && !F.sakon.leader.gone && F.sakon.leader.pos.x < FENCE_X - 1;
-      // 11/9 徳川C（見回り）：虎口を東から西へ越える・左近の近くで戦う、のどれかが欠けると⑦が刻限まで止まった（bot 中学生）。
-      //   左近が退き始めて四分、または⑦が五分半を過ぎたら、黒田の手が柵を越えたとみなす
-      F.s7At ??= rt.t;
-      const s7late = (F.sakBack && rt.t - F.s7At > 240) || rt.t - F.s7At > 330;
-      if ((F.sakBack && F.crossed && F.sakonSeen && sakonInside) || s7late) this.stage8(rt);
+      if (F.sakBack && F.crossed && F.sakonSeen && sakonInside) this.stage8(rt);
     } else if (F.step === 8) {
       const n = nOf(F.mitsu2, F.mitsu3);
       const need = Math.round(F.mitN * 0.2);
@@ -833,9 +828,6 @@ const k06_sekigahara = {
       // 主人公の到着が遅れても、受け終えるまでは島津を伊勢路へ進めない。
       if (F.shiAt && F.shiMet && (receiving || repelled) && near(P, HOLD5, 40)) F.shiHeld = (F.shiHeld || 0) + dt;
       if (F.shiMet && (receiving || repelled) && (F.shiHeld || 0) >= HOLD_S && near(P, HOLD5, 40)) this.win(rt);
-      // 11/9 徳川C（見回り）：本人が本陣の前へ戻れないと⑨が刻限まで止まった（bot 中学生）。島津は勝ち負けに関わらず抜けていく（史実）ので、四分で締める
-      F.s9At ??= rt.t;
-      if (rt.t - F.s9At > 240 && !F.ending) this.win(rt);
     }
   },
 
@@ -896,8 +888,8 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
 KILLS.k06_sekigahara = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
-  if (F.step === 5) return cut(F.akaN, nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4), Math.round(F.akaN * 0.15));
-  if (F.step === 7) return cut(F.sakN, nOf(F.sakon, F.shima3, F.ishida3), Math.round(F.sakN * 0.25));
+  if (F.step === 5) return cut(F.akaN, nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4), Math.round(F.akaN * 0.4));
+  if (F.step === 7) return cut(F.sakN, nOf(F.sakon, F.shima3, F.ishida3), Math.round(F.sakN * 0.45));
   if (F.step === 8) return F.mitsuGate ? null : cut(F.mitN, nAt(SASAO, F.mitsu2, F.mitsu3), Math.round(F.mitN * 0.2));
   return null;   // 島津の退き口は討つ人数でなく、本陣の前で受けた時間で果たす
 };
