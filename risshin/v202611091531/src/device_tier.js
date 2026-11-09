@@ -32,6 +32,9 @@ function detect() {
   if (navigator.deviceMemory && navigator.deviceMemory <= 4) return 'mem' + navigator.deviceMemory;
   return '';
 }
+// 1.7.1（11/9 mini 実機：iPad Pro M4 で桶狭間・天王寺岡山が支度中に記憶切れ signal 9）：iPad は UA が Macintosh を名乗り、
+//   iPhone の軽い作り（MEM_TIGHT）に入らず、パソコンと同じ重さで読み込んでいた。iPad を見分けて軽い作りに入れる（settings.js）
+export const IPAD = typeof navigator !== 'undefined' && (/iPad/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1));
 const why = detect();
 export const TIER = { weak: !!why, why };
 // GPU の名でも見る（WebGL ができた後に一度だけ。iPhone は名が出ないので変わらない）
@@ -67,5 +70,6 @@ export const ANDROID = typeof navigator !== 'undefined' && !/[?&]android=0/.test
 // 倍率だけでなく面積と長辺も制限する。端末の画素倍率を掛け直さない。
 export function battleDrawRatio(w, h, tight, heat) {
   const base = tight ? (heat >= 1 ? .75 : .85) : 1;
-  return ANDROID ? Math.min(base, .85, 1280 / Math.max(w, h), Math.sqrt(576000 / (w * h))) : base;
+  // iPad も大きな Android と同じく、描く画素を約 58 万に収める（11/9 iPad の記憶切れ）
+  return ANDROID || IPAD ? Math.min(base, .85, 1280 / Math.max(w, h), Math.sqrt(576000 / (w * h))) : base;
 }
