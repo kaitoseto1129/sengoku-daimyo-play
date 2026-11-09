@@ -2375,7 +2375,7 @@ const echizen_ikko = {
   //   手負いの退きは足元の印が示し、右上の目標は替えない。
   missions: [IK_YAMA.GOAL, ...IKKO_GOALS],
   stageGoalsOnly: true, missionAlways: true,
-  goalVisibleRows: 6, // 六つとも最初から表示する。共通の既定は今の一つ。
+  goalsVisibleRows: 5, // 導入を含む六つは順番を保ち、今の目標を含む五つまで表示する。
   goalsAllRows: true, // 11/8 critic60：①〜④を最初から全部並べ、済んだ物に印（右上の「①1／4」の二重もやめる）
   missionOf(rt) {
     const F = rt.flags;
