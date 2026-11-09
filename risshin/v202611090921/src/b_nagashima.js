@@ -2073,13 +2073,24 @@ const nagashima = {
     return u && this.taskOf(rt) === 3 && bankNearestFoe(rt) === u ? u : null;
   },
   namedGuideTarget(rt) { return this.commanderTarget(rt); },
+  // 共通の目標名への置換を通さず、今の持ち場の名と位置を同じ印へ渡す。
+  goalSignTarget(rt) { return this.missionPin(rt); },
   missionPin(rt) {
     const F = rt.flags, p = rt.player.u.pos;
-    if (F.ending || rt.over || !rt.player.u.alive) return null;
+    if (rt.over || !rt.player.u.alive) return null;
     const q = F.bankPin || (F.bankPin = { x: 0, z: 0, r: 5, hide: 5 });
-    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.label = '';
     q.always = true; q.silent = true; q.defend = false;
-    { const at = F.ngMonomi || (F.dpOn && F.dp?.cur?.at); if (at) { q.x = at.x; q.z = at.z; q.r = q.hide = 4; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 4; return q; } }
+    // 火の間も巡回の務めが残る。次に確かめる柵だけを案内する。
+    if (F.ending) {
+      const at = F.aftermathHeld && !F.aftermathDone && AFTERMATH_SPOTS[F.aftermathChecked];
+      if (!at) return null;
+      q.x = at.x; q.z = at.z; q.r = q.hide = 3;
+      q.label = this.travelGuideLabel(rt);
+      q.arrived = p.z >= BANK_Z && Math.hypot(p.x - at.x, p.z - at.z) < 3;
+      return q;
+    }
+    { const at = F.ngMonomi || (F.dpOn && F.dp?.cur?.at); if (at) { q.x = at.x; q.z = at.z; q.r = q.hide = 4; q.label = this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 4; return q; } }
     const stage = this.taskOf(rt);
     let spot = null;
     if (dangerProgress(rt)) { q.x = 24; q.z = BANK_Z + 16; q.r = q.hide = 3; return q; }
@@ -2191,6 +2202,9 @@ const nagashima = {
   // 作業場と見張り場を、同じ「ここへ」の札にしない。
   travelGuideLabel(rt) {
     const F = rt.flags, stage = this.taskOf(rt);
+    if (F.ending) return ['西の岸の柵', '中央の岸の柵', '東の岸の柵'][F.aftermathChecked] || '岸の柵';
+    if (F.ngMonomi) return '岸の堤の上';
+    if (F.dpOn && F.dp?.cur?.at) return F.dpLast ? '岸の真ん中の柵' : F.dp.i >= 2 ? '東の岸の柵' : '西の舟入り';
     if (dangerProgress(rt)) return '味方の後ろへ';
     if (stage === 0) return '横木の所へ';
     if (stage === 3) return '敵の所へ';
