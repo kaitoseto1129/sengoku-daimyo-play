@@ -230,23 +230,23 @@ const t07_ganjaku = {
     const W = rt.world, faceUp = Math.atan2(GATE.x - SPAWN.x, GATE.z - SPAWN.z);
 
     // ---- 攻め手（docs/battle_refs/t07_ganjaku.md）：大手は蒲生、搦手は前田。秀吉は馬ヶ岳の本陣にいて、この山には来ない ----
-    // 蒲生の先手（主人公はこの列と坂を登る）。蒲生家の左三つ巴は既存の巴紋の描画を共用する。
-    F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
+    // 蒲生の先手（主人公はこの列と坂を登る）。蒲生家の対い鶴は既存の鶴紋の描画を共用する。
+    F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 1, o: { name: '蒲生郷成' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 4, o: { tatake: true } }, { type: 'ashigaru', n: 26 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
-    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
+    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 2, o: { tatake: true } }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 4 }]);   // 先頭は竹束を抱えて登る（持つ者の後ろには弾が通りにくい。kaito 二3・十3）
     F.allies = [F.gamo, F.gamo2];
     // 搦手（北東の尾根）から寄せる前田勢。本丸の段で搦手の守りを破って本丸へ入る
     F.maeda = allyGroup(rt, { name: '前田勢', faction: 'maeda', flag: 'maeda', anchor: { ...KARA_OUT }, facing: Math.atan2(-KARA_OUT.x, -KARA_OUT.z), width: 8, aggro: 12, noRout: true, fullStrength: true },
       [{ type: 'busho', n: 1, o: { name: '前田利勝', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 4 }]);   // 11/9 重さ：始まりの本物の兵 294 を減らすため足軽を少し減らした。利長は馬上で旗本の侍に囲まれる
     // 麓の蒲生の本陣：大手の大将の蒲生氏郷は旗本の侍に囲まれ、坂の下の幕の前で床几に座り、前に出ない
-    F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
-      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI, mon: 'kuki', flag: 'sashi:kuki:#ece6d6:#201f1c' } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
+    F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'gamo', flag: 'sashi:tsuru:#ece6d6:#201f1c', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
+      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI, mon: 'kuki', flag: 'sashi:tsuru:#ece6d6:#201f1c' } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
     F.honjin.noFrontline = true;
     for (const u of F.honjin.units) if (u.name === '蒲生氏郷') u.jinchu = {};   // 座ったまま下知する
     try {
-      rt.scene.add(jinmaku(W, -174, 174, 14, 9, 3, { mon: 'kuki' }));
-      for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'sashi:kuki:#ece6d6:#201f1c', 7));
+      rt.scene.add(jinmaku(W, -174, 174, 14, 9, 3, { mon: 'tsuru' }));
+      for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'sashi:tsuru:#ece6d6:#201f1c', 7));
     } catch (e) { console.warn(e); }
     const n = Math.min(12, RANKS[rt.G.rank || 0]?.squad || 0);
     if (n) rt.makeSquad({ x: SPAWN.x - 2, z: SPAWN.z + 3 }, faceUp, [{ kind: 'spear', n }]);
@@ -797,7 +797,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 本丸に蒲生の旗が立ち、本丸の小屋に火が掛かる（火を放って一気に畳みかけた伝え）。残る城兵は崩れて搦手の方へ落ちる
     for (const q of F.foes) if (!q.routed) { q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: 0.7, z: -0.7 }; q.morale = 0; }
     rt.after(0.8, () => {
-      try { for (const [x, z] of [[-3, 3], [3, -2], [-8, -4]]) rt.scene.add(nobori(rt.world, x, z, 'sashi:kuki:#ece6d6:#201f1c', 6)); } catch (e) { console.warn(e); }
+      try { for (const [x, z] of [[-3, 3], [3, -2], [-8, -4]]) rt.scene.add(nobori(rt.world, x, z, 'sashi:tsuru:#ece6d6:#201f1c', 6)); } catch (e) { console.warn(e); }
       try { rt.world.addFire(6, -6, { size: 2.6, blackSmoke: true }); } catch (e) { console.warn(e); }
       sfx('obj', 0.6);
     });
@@ -845,8 +845,15 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   inp.leftPressed = false;
   inp.k.delete('KeyW');
   const gc = F.gamo.center();
-  // 深手の時は味方の陰へ下がって息を整える
-  if (u.hp < u.maxHp * 0.35 && Math.hypot(u.pos.x - gc.x, u.pos.z - gc.z) > 4) { goTo(p, inp, gc.x, gc.z, 3); return; }
+  // 深手では味方の陰で回復を待つ。列に着いただけで再び突っ込み、討たれるのを防ぐ。
+  if (u.hp < u.maxHp * 0.35) F.botRest = true;
+  if (F.botRest && u.hp >= u.maxHp * 0.65) F.botRest = false;
+  if (F.botRest) {
+    // 坂では先手の少し後ろへ。門の内では城壁を横切らず、先手の列へ戻る。
+    const cover = F.stage <= 2 ? t07_ganjaku.roadAt(t07_ganjaku.along(gc.x, gc.z) - 12) : gc;
+    if (Math.hypot(u.pos.x - cover.x, u.pos.z - cover.z) > 4) goTo(p, inp, cover.x, cover.z, 3);
+    return;
+  }
   const boss = F.hon.units.find((o) => o.name === '熊井越中守' && o.alive);
   const goal = !F.stage ? SPAWN : F.stage <= 1 ? MOUTH : F.stage === 2 ? F.meet : F.stage === 3 ? INNER : F.stage === 4 ? ninomaru.NINO : boss ? boss.pos : HON;
   // 坂で届かない敵（斜面の上下）と睨み合って止まらない：行き先へ十五秒近づけなければ、六秒は敵を構わず進む

@@ -8,7 +8,7 @@ import { clash } from '../b_sekigahara.js';
 
 const FRONTS = {
   east: { x: 54, z: 46, seed: 15701, A: 'toyotomi', n: 240 },   // 東の尾根（羽柴秀勝の手）
-  west: { x: -74, z: -26, seed: 15702, A: 'sashi:kuki:#ece6d6:#201f1c', n: 200 },   // 西の尾根から北曲輪へ（蒲生の手）
+  west: { x: -74, z: -26, seed: 15702, A: 'sashi:tsuru:#ece6d6:#201f1c', n: 200 },   // 西の尾根から北曲輪へ（蒲生の手）
 };
 
 export function install(rt) {

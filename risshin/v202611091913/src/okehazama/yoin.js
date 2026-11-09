@@ -10,7 +10,8 @@ export function start(rt, def, C, then) {
   const F = rt.flags, v = F.o15 || (F.o15 = {});
   if (v.yoinT) return;
   v.yoinT = rt.t;
-  if (!rt.over) rt._closing = { at: rt.t + 25, info: { scriptedEnd: true }, delay: 4 };
+  // 共通の終戦予約も最後の余韻にそろえ、三秒早く切り上げない。
+  if (!rt.over) rt._closing = { at: rt.t + 28, info: { scriptedEnd: true }, delay: 4 };
   const lord = !!rt.G.lord, NOB = lord ? '自分' : '織田信長';
   // 遠くの別働の今川勢（丸根・鷲津・大高の方）も退いてゆく
   for (const m of F.detached || []) { try { m.rout?.({ hideAfter: 60 }); } catch (e) { /* 退かせられなくても進む */ } }
