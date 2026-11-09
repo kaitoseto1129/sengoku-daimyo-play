@@ -175,7 +175,13 @@ function tadaComes(rt) {
   const u = F.tadaU = F.tada.units.find((q) => q.name === '島津忠隣');
   // 若武者一人に三分も打ち合わせない（体の強さは出た後に決まるので、一息おいて整える）
   if (u) rt.after(0.3, () => { if (u.alive) { u.maxHp = Math.min(u.maxHp, 460); u.hp = Math.min(u.hp, u.maxHp); } });
-  if (u) u.onWound =(src) => { if (src?.isPlayer && u.alive) { u.invuln = false; rt.army.kill(u, src); } };
+  if (u) u.onWound = (src) => {
+    if (!src?.isPlayer || !u.alive) return;
+    // 主人公の止めを近習の救出で取り消さない。ほかの者の手傷では討死にしない。
+    u.officerSaved = true;
+    u.invuln = false;
+    rt.army.kill(u, src);
+  };
 }
 
 // 島津の夜討ちの松明（史実の目玉の絵）：坂の下の田と、台地の東西の脇の坂を、松明の列が幾筋も砦へ寄せてくる。

@@ -1005,7 +1005,7 @@ const okehazama = {
   // 出発・追撃・帰りの旗で待つ間は、秒の字でなく満ちていく丸で。
   missionWaitProgress(rt) {
     const F = rt.flags;
-    if (rt.phase === 'brief' && F.briefed) return Math.max(0, Math.min(1, 1 - (F.briefReadyAt - rt.t) / DEPART_WAIT));
+    if (rt.phase === 'brief' && F.briefed) return Math.max(0, Math.min(1, 1 - (F.briefReadyAt - rt.t) / (F.briefWaitDuration || DEPART_WAIT)));
     if (rt.phase === 'wait' && Number.isFinite(F.waitReadyAt))
       // 雨上がりと攻めの合図までの進みを示す。
       return Math.max(0, Math.min(1, 1 - (F.waitReadyAt - rt.t) / RAIN_WAIT));
@@ -1167,7 +1167,7 @@ const okehazama = {
     if (!timedWait && F.scoutFighting && rt.phase !== 'assault') return null;
     const pin = F.missionPinTarget || (F.missionPinTarget = { x: 0, z: 0, r: 8, hide: 8 });
     pin.enemy = false; pin.dodge = false; pin.unit = null; pin.waiting = undefined; pin.always = false;
-    pin.waitDuration = rt.phase === 'brief' ? DEPART_WAIT : RAIN_WAIT;
+    pin.waitDuration = rt.phase === 'brief' ? (F.briefWaitDuration || DEPART_WAIT) : RAIN_WAIT;
     pin.area = false; pin.arrived = false; pin.progress = null; pin.arrivalProgress = null; pin.footRing = false; pin.follow = false; pin.approach = false;
     // 任務札の更新で、同じ集合ピンの到着表示を初期化しない。
     pin.key = rt.phase;
@@ -2737,6 +2737,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
   brief(rt) {
     if (rt.over || rt.flags.ending || rt.phase !== 'brief' || rt.flags.briefed) return;
     rt.flags.briefed = true;
+    rt.flags.briefWaitDuration = DEPART_WAIT;
     rt.flags.briefReadyAt = rt.t + DEPART_WAIT;
     rt.uninteract('talk');
     rt.obj('talk', '組の旗のそばで打ち立ちを待て', 'main', true);
