@@ -6310,8 +6310,13 @@ installBattleJinkei(odani, [
     const place = F.step === 0 && !F.retreatOn ? '羽柴秀吉' : q.gate ? '西木戸' : placeOf(rt);
     return `${place} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
   };
-  // 地上の印の距離欄も同じ行き先を使う。古い戻れ・待ち秒数で名称と距離を隠さない。
-  odani.distanceText = (rt) => odani.travelGuideLabel(rt);
+  // 移動中は場所名と距離。退避先での手当てと、落城後の勝ち鬨は消さない。
+  const arrivalText = odani.distanceText;
+  odani.distanceText = (rt, distance) => {
+    if (rt.flags.retreatOn && distance <= 2.5 || rt.flags.fallen)
+      return arrivalText(rt, distance);
+    return odani.travelGuideLabel(rt);
+  };
 }
 // 小谷は後から読み込む戦なので、共通の installDepth（battles.js の読み込み時）を通らない。陣立ては自分で入れて回す（?depth=0 で切る）
 {
