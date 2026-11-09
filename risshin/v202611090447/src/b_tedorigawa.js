@@ -1803,7 +1803,7 @@ const tedorigawa = {
       { kind: 'stage', k: 1, sec: 900, text: TEDO_GOALS[1], check: () => won() || (F.step || 0) >= 3 && !F.failedHold, fail: () => !!F.failedHold },
       { kind: 'stage', k: 2, sec: 900, text: TEDO_GOALS[2], check: () => won() || (F.step || 0) >= 4 },
       { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[3], check: () => won() || !!F.paceFurikiru },
-      { kind: 'stage', k: 3, sec: 900, text: TEDO_GOALS[4], check: won },
+      { kind: 'stage', k: 4, sec: 900, text: TEDO_GOALS[4], check: won },
     ];
   },
   missionOf(rt) {
@@ -3097,7 +3097,7 @@ const tedorigawa = {
     rt.objRemove('main');
     // 南岸の殿の後、追手を振り切る段（tedorigawa/furikiru.js）を挟んで勝ちへ
     depthStart(rt, tedoCtx(rt), F.southSteps, () => {
-      if (rt.G.lord || F.failedHold || !rt.player.u.alive) return this.win(rt);
+      if (F.failedHold || !rt.player.u.alive) return this.win(rt);
       F.paceFurikiru = installFurikiru(rt, { dress, UESUGI, SOUTH, FORD, next: () => this.win(rt) });
     });
   },

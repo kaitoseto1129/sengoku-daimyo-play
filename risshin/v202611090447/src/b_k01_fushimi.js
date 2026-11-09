@@ -213,6 +213,9 @@ const camp = (rt, name, at, flag, lead, list, facing, seat = false) => {
 };
 
 const k01_fushimi = {
+  // 自刃・血天井はこの戦で順に描く。共通の落城を重ねると、
+  // 孫一が切腹を待つ前に「鳥居殿、討死」の知らせが割り込む。
+  ownEnding: true,
   // 落城の締めと結果の札をそろえ、城方が寄せ手を退けた勝利とは呼ばない。
   winWord: '伏見城、落城',
   victoryTitle: '伏見城、落城',

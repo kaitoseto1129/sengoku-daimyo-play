@@ -395,6 +395,7 @@ const t10_oshi = {
   enemyTactics: false,
   prelude: false,
   playerAtkMax: 3,
+  strictFireOrders: true,   // 退却時は近い主人公にも「撃つな」を守る。弓だけが退く背を撃ち続けない。
   missionSingleLine: true, hideGuideSteps: true, noPlayerFoot: true,
   // 行き先は頭上の印一つ（kaito AL・AS・AV15）。ついていく相手の青い印は出さない。名札は近くの将だけ
   // 11/8 critic60（五2・N・AS）：途中で出たり消えたりする小さな地図は出さない。城代の長親の名札は門の前から見せない

@@ -35,7 +35,7 @@ import { hieiSpeech, hieiGaranLook, hieiGroundFoot, hieiTimberGrain, hieiRoomMat
 import { dressStage } from './stage_dress.js';
 import { nakaRoomAt } from './naka.js';
 import { interiorWaypoint, HIEI_NAIJIN_POST_SETBACK } from './interior_layouts.js';
-import { addDeck, addRamp, groundAt } from './floors.js';
+import { FL, addDeck, addRamp, groundAt } from './floors.js';
 import { contactLitter } from './army_ground.js';
 import { dressSlope } from './terrain_slope.js';
 import { drawGroundAt } from './render_camera.js';
@@ -737,7 +737,8 @@ class HieiHallGaran extends Garan {
     const lv = r.naka?.levels?.[0], floor = lv ? lv.y - r.y0 : .55, wallH = lv ? lv.h : 2.4;
     const doorSide = r.naka?.door?.side ?? 1, W2 = b.w / 2, D2 = b.d / 2, E = .85;
     const part = (w, h, d, x, y, z, color, axis) => {
-      const g = new THREE.BoxGeometry(w, h, d);
+      const g = this.proxyGeo.clone();
+      g.scale(w, h, d);
       hieiTimberGrain(g, axis ?? (h >= w && h >= d ? 1 : w >= d ? 0 : 2), (x * .37 + y * .19 + z * .53) % 1);
       g.translate(x, y, z); this.add(r, 'wood', paintGeo(g, color));
     };
@@ -745,7 +746,18 @@ class HieiHallGaran extends Garan {
     // 縁：入口でない三方。縁板は幅十五センチほどの板を目地を空けて並べる
     const sides = [[1, 0], [-1, 0], [0, -doorSide]];
     for (const [sx, sz] of sides) {
-      const along = sx ? b.d + (sz ? 0 : E * 2) : b.w + E * 2, cx = sx * (W2 + E / 2), cz = sz * (D2 + E / 2);
+      // 隅の縁板は側面を通し、背面の木口を側面の内側で止める。
+      // 同じ高さに直交する板を重ねず、元の三方の縁の外形を保つ。
+      const along = sx ? b.d + E * 2 : b.w, cx = sx * (W2 + E / 2), cz = sz * (D2 + E / 2);
+      if (r.naka) {
+        // 見えている縁板の上端に足場を合わせる。余白で板の外へ床を広げない。
+        // 棟の床へ登録し、燃え落ちる時も室内と一緒に片付ける。
+        const [wx, wz] = r.naka.P(cx, cz), width = sx ? E : along, depth = sx ? along : E;
+        const id = addDeck({ cx: wx, cz: wz, rot: r.rot || 0,
+          x0: -width / 2, x1: width / 2, z0: -depth / 2, z1: depth / 2,
+          y: r.y0 + floor - .005, name: '本坂の小堂の縁側', pad: 0 });
+        r.innerDecks.push(FL.decks[id]);
+      }
       const n = Math.round(E / .16);
       for (let i = 0; i < n; i++) {
         const o = -E / 2 + (i + .5) * E / n, tone = i % 3 ? BOARD : 0x857055;
@@ -765,6 +777,32 @@ class HieiHallGaran extends Garan {
     }
     // 壁から出た柱と長押・地覆。四面とも柱間一・八メートルほどで割る（入口の戸口は空ける）
     const top = floor + wallH;
+    if (S.quality === 'high') {
+      // 本坂の小堂は縁の頭上にも板張りの軒裏を設ける推定の造作。
+      // 手本と限界は docs/battle_refs/hieizan-honzaka-eaves.md。
+      // 桁を壁柱へ載せ、持ち出した垂木で板と鼻隠しを受ける。
+      // 屋根下面（top + .34）より下、室内の天井と建具より上へ納める。
+      for (const side of [-1, 1]) {
+        part(b.w + .2, .12, .2, 0, top + .085, side * D2, EDGE, 0);
+        part(.2, .12, b.d - .2, side * W2, top + .085, 0, EDGE, 2);
+      }
+      // 正背面へ隅を含め、側面はその間で止めて板と垂木を重ねない。
+      for (const [sx, sz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        const along = sx ? b.d : b.w + E * 2;
+        const count = Math.max(2, Math.ceil(along / .3)), pitch = along / count;
+        for (let i = 0; i < count; i++) {
+          const t = -along / 2 + (i + .5) * pitch;
+          const x = sx ? sx * (W2 + E / 2) : t;
+          const z = sx ? t : sz * (D2 + E / 2);
+          part(sx ? E : pitch - .003, .03, sx ? pitch - .003 : E,
+            x, top + .24, z, i % 2 ? BOARD : 0x857055, sx ? 0 : 2);
+          part(sx ? E + .1 : .06, .08, sx ? .06 : E + .1,
+            x - sx * .05, top + .185, z - sz * .05, POST, sx ? 0 : 2);
+        }
+        if (sx) part(.08, .14, along, sx * (W2 + E), top + .185, 0, EDGE, 2);
+        else part(along + .08, .14, .08, 0, top + .185, sz * (D2 + E), EDGE, 0);
+      }
+    }
     for (const face of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const [fx, fz] = face, len = fx ? b.d : b.w, cnt = Math.max(2, Math.round(len / 1.8));
       for (let i = 0; i <= cnt; i++) {
@@ -3269,6 +3307,12 @@ const hiei_mtn = {
     // ---- 伽藍・坂本・本坂の建物（まとめて描く。史実の確度の札つき） ----
     const G = F.G = new HieiHallGaran(rt);
     for (const b of BUILDINGS) G.build(b);
+    // 堂内・縁の柱を引き戸の操作にも渡す。現行の伽藍では未登録だったため、
+    // 柱の向こうの引き手へ手を通して「開ける」を押せていた。
+    // 追加の梁組まで作り終えた当たりを設営時に一度だけ借り、全棟で同じ判定を使う。
+    for (const r of G.recs) if (r.naka) {
+      r.naka.doorPosts = r.innerSolids.filter(solid => solid.k === 'c');
+    }
     F.valleyWays = VALLEYS.map((v) => pathById(v.path));
     for (const p of F.valleyWays) {
       const v = VALLEYS.find((q) => q.path === p.id);

@@ -39,7 +39,8 @@ export function tick(rt, dt, ctx) {
   const F = rt.flags, S = F.kzHyoro;
   if (!S || S.done) return false;
   const t = rt.t - S.t0;
-  for (const c of F.guns || []) if (c.interact) c.interact.r = rt.t >= c.cd ? 2.6 : 0;   // 玉込めが済んだ筒は、また撃てる
+  // 玉込め中も操作札を残し、発砲側で待つ理由を伝える。①④の大筒と同じ扱い。
+  for (const c of F.guns || []) if (c.interact) c.interact.r = 2.6;
   if (!S.second && t >= 45) {
     S.second = true;
     const b = ctx.launchSupply(rt);
