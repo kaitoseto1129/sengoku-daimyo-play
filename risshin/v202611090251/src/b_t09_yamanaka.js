@@ -512,7 +512,8 @@ const t09_yamanaka = {
     rt.unmark('ote');
     rt.marker('uma', centerOf(F.uma), '馬出しの北条の隊', { red: true, group: F.uma });
     rt.say('一柳直盛', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);   // 直末は出丸の前で討たれている。隊は弟の直盛が率いる
-    for (const g of F.toyo) if (!gone(g)) { g.order = 'attack'; g.seekRange = 34; }
+    // 馬出しへ寄る下知を打ち切る。到着処理が残ると、迎撃中も行軍用の持ち場補正が働く。
+    for (const g of F.toyo) if (!gone(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 34; }
   },
   sallyBack(rt) {
     const F = rt.flags;
@@ -616,6 +617,8 @@ const t09_yamanaka = {
 
   update(rt, dt) {
     const F = rt.flags;
+    // 落城後の会話中は守りの射撃を止める。勝った後まで寄せ手を撃ち倒さない。
+    if (F.ending) return;
     if (F.K && F.step) F.K.tick(dt);   // 出陣の段は出丸の鉄砲を撃たせない
     if (F.rimFire) F.rimFire.tick(dt);
     if (F.okuFire) F.okuFire.tick(dt);

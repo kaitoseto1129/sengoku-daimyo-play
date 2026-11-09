@@ -238,8 +238,18 @@ function umaGeometry(kind) {
   // 三つ団子は上の球まで竿を通す。下端は据え台と背負う位置に共通の高さを保つ。
   // 竿の長さと先端の出は構造の復元。部品を増やさず、結合済みの形を使い回す。
   const poleBottom = .9, poleTop = kind === 'dango' ? 4.48 : kind === 'sennari' ? 3.95 : 3.3;
-  parts.push(paint(at(new THREE.CylinderGeometry(0.02, 0.022, poleTop - poleBottom, 5), 0, (poleBottom + poleTop) / 2, 0), 0x2a1c10));
-  if (kind === 'sakakibara_kikyo') {
+  parts.push(paint(at(new THREE.CylinderGeometry(0.02, 0.022, poleTop - poleBottom, 5), 0, (poleBottom + poleTop) / 2, 0), kind === 'ii_haetori' ? 0xa52b1c : 0x2a1c10));
+  if (kind === 'ii_haetori') {
+    // 彦根城博物館の井伊家伝来の写し。金箔の蠅取形・朱の絹垂れと朱塗竿を近似。
+    // 本体高九九・五、下径四七・七センチ。垂れの寸法と曲面は復元案。
+    // 材質付きの部品を一つに結合し、既存の保存先で使い回す。毎コマ作らない。
+    parts.push(paint(at(new THREE.CylinderGeometry(.075, .2385, .995, 12), 0, 3.45, 0), gold));
+    parts.push(paint(at(new THREE.TorusGeometry(.2385, .018, 4, 12), 0, 2.9525, 0, Math.PI / 2), gold));
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      parts.push(paint(at(new THREE.BoxGeometry(.075, .65, .008), Math.sin(a) * .2385, 2.63, Math.cos(a) * .2385, 0, a), 0xa52b1c));
+    }
+  } else if (kind === 'sakakibara_kikyo') {
     // 東博の金箔押桔梗形馬印。高さ六十二・幅六十センチを目安に下に開く筒を略復元。
     const bell = new THREE.CylinderGeometry(.075, .3, .62, 20, 3, true);
     const p = bell.attributes.position;

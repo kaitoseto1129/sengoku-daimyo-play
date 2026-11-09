@@ -427,8 +427,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["島津忠恒", "zunari", "sun", 0x29251f, 0x493f34, "okegawa", 0xcfc8b4, 0, "shimazu", ""],
   // 久能山東照宮の秀忠所用「茶糸威具足」に威の色を寄せる。鉢・胴・面頬は復元、立物は未確認のため付けない（docs/generals_look_1108/徳川秀忠.md）。
   ["徳川秀忠", "suji", "none", 0x1c1a1a, 0x6a4026, "kebiki", 0, 0x1c1a1a, "tokugawa", "久能山東照宮・茶糸威具足"],
-  // 本の写真：朱漆塗仏胴具足（井伊家伝来・直政所用）と金の天衝。
-  ["井伊直政", "zunari", "ii_tentsuki", 0xa52b1c, 0xb8342a, "hotoke", 0, 0x96291e, "ii", "bd862d2e"],
+  // 彦根城博物館の伝直政所用・朱漆塗仏二枚胴具足。角元なし・元は黒糸威。天衝付きの別具足と混同しない。
+  ["井伊直政", "zunari", "none", 0xa52b1c, 0x1c1a1a, "hotoke", 0, 0x96291e, "ii", "https://hikone-castle-museum.jp/collection/237.html"],
   ["結城秀康", "eboshi", "kuwa_wide", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],
   ["大久保忠隣", "eboshi", "horn", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],
   ["酒井家次", "eboshi", "cross", 0x1c1a1a, 0x413e32, "okegawa", 0x2e3a42, 0x1c1a1a, "tokugawa", ""],

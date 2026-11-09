@@ -1070,6 +1070,8 @@ export class Army {
     const chiefGear = (chiefName === '榊原康政' && this.hooks.year >= 1584) || (chiefName === '鳥居元忠' && this.hooks.year === 1600)
       ? eraKacchu(chiefName, this.hooks.year) : chiefName ? NAMED_GEAR[chiefName] : null;
     let umaBearer = null, umaKind = !g.isPlayerSquad && chiefGear?.uma && !g.units.some((u) => u.isUma) ? chiefGear.uma : null;
+    // 蠅取形の伝来は関ヶ原または大坂。小牧・長久手・小田原へ遡らせない。
+    if (chiefName === '井伊直政' && !(this.hooks.year >= 1600 && this.hooks.year <= 1602)) umaKind = null;
     // 羽柴期以降の秀吉だけ、単独の瓢箪を房状の千成瓢箪へ。織田編の指定は保つ。
     if (umaKind === 'gourd' && this.hooks.year >= 1582 && /^(羽柴|豊臣)秀吉$/.test(chiefSpec?.o.name || '')) umaKind = 'sennari';
     // 基本は足軽。大きな隊の名の無い侍は三人に一人だけ侍の具足にし、残りは足軽の具足で戦う（kaito 10/23 稲生 44。軽くもなる）。

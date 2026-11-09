@@ -1679,6 +1679,7 @@ const tonezaka = {
   avoidDestinationNotices: true, // 上の軍勢札や右の任務札に印が隠れる時は、空いた側へ向きを示す。
   compactDestinationSign: true, // 近い兵や槍を覆わず、携帯でも読める大きさの案内にする。
   hidePlayerSign: true, // 自分は姿と視点で分かる。肩越しで体から離れて見える輪を重ねない。
+  noGroundGuide: true, // 通し確認で残った足元の矢印・輪を出さず、行き先の印にまとめる。
   standardClothScale: 0.72, // 狭い峠の肩越しでも、布の脇から敵の顔と槍先を見渡せる大きさにする。
   fadeCloseStandards: true, fadeCloseStandardFrame: true, // 近い旗の判定に使う。薄くする範囲の隊旗は下の更新で竿ごと隠す。
   woundedStandardsFall: true, // 生きていても深手で持てない旗は地へ落とし、隣の兵が拾う。
@@ -2898,8 +2899,18 @@ const tonezaka = {
     for (const st of steps) {
       const start = st.start;
       st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (F.toneHead) { rt.obj('main', F.toneHead, 'main', true); rt.objProgress('main', ''); } };
-      // 守る段は刻限を十五秒過ぎたら次へ（十五分の流れを止めない）
-      if (st.kind === 'hold' && st.max) { st.idleAdvance = false; const tk = st.tick, cap = st.max - 20; st.tick = (rt2, C, m, ctx, el, dt) => tk(rt2, C, m, ctx, el, dt) || el > cap; }
+      // 狭い坂道・旗本・荷駄は、本人が目当てへ着き、敵を退けてから進む。
+      // 共通の放置・時間切れによる段送りで、未達成の目標を飛ばさない。
+      if (st.kind === 'hold' || st.kind === 'move') {
+        st.idleAdvance = false; st.max = st.limit = Infinity;
+        if (st.kind === 'hold') {
+          const tick = st.tick;
+          st.tick = (rt2, C, m, ctx, el, dt) => {
+            const cleared = tick(rt2, C, m, ctx, el, dt);
+            return cleared && near(rt2.player.u.pos, C.at, C.botRadius);
+          };
+        }
+      }
     }
     depthStart(rt, { faction: 'asakura', flag: 'asakura', fixedSpawn: true, backing: false, scale: 1.2, dmg: 0.8, calmRest: false,
       look: (l) => dress(l, ASA), friends: () => [F.late, ...(F.followers || [])].filter(fighting) }, steps, () => {
