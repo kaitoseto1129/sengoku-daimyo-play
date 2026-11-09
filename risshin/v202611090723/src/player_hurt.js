@@ -292,7 +292,8 @@ export class PlayerHurt {
     if (!rt.def.strictHits && hits.length >= 3 && rt.D !== DIFFICULTY.hard) taken *= u.mobbed ? 0.9 : 0.8;
     hits.push(now);
     // 一撃で体力の四割を超えて削らない（見えない所からの一撃死をなくす。背後からはさらに三割まで）
-    if (src && !src.isStruct) taken = Math.min(taken, u.maxHp * (back ? 0.3 : 0.35));
+    //   上限にも戦の倍率（def.playerTaken）を掛ける（騎馬の重い一撃は上限で止まり、playerTaken が効かなかった。11/9 賤ヶ岳の大岩山）
+    if (src && !src.isStruct) taken = Math.min(taken, u.maxHp * (back ? 0.3 : 0.35) * Math.min(1, rt.def.playerTaken ?? 1));
     // 侍・武将の重い一撃のあと二秒余りは、次の重い一撃を一割強までにする（続けての突きで前触れなく三割を削らない）。
     if (src && (src.type === 'samurai' || src.type === 'busho')) {
       if (now - (this.heavyHitT ?? -99) < 2.2) taken = Math.min(taken, u.maxHp * 0.12);
@@ -305,7 +306,8 @@ export class PlayerHurt {
     //   満ちた命からの一太刀だけは一割を残す（二太刀目で討たれる）。稽古場と城下は除く。
     if (src && !src.isStruct && !rt.def.dojo && !rt.def.town) {
       const heavy = cav || src.type === 'busho' || src.type === 'samurai';
-      let floor = u.maxHp * (heavy ? 0.6 : 0.5) * (rt.D === DIFFICULTY.easy ? 0.75 : 1);
+      // 戦の倍率（def.playerTaken）で軽くした戦は、この一太刀の床も同じだけ軽くする（賤ヶ岳の大岩山で騎馬の一太刀が六割のまま、倍率 0.5 が効かずに倒れていた。11/9）
+      let floor = u.maxHp * (heavy ? 0.6 : 0.5) * (rt.D === DIFFICULTY.easy ? 0.75 : 1) * Math.min(1, rt.def.playerTaken ?? 1);
       if (u.hp >= u.maxHp * 0.85) floor = Math.min(floor, u.hp - u.maxHp * 0.1);
       taken = Math.max(taken, floor);
     }
