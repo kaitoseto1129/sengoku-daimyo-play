@@ -1165,5 +1165,7 @@ STAGES.k15_tennoji_okayama = [['物見の場で茶臼山の敵の陣立てを見
 
 // 家康は歯朶具足（docs/kacchu_k15_tokugawa.md）
 k15_tennoji_okayama.namedKacchu = K15_KACCHU;
+// 支度の画面の布陣図の大将（敵は真田信繁。隊の並びの先頭の毛利勝永ではなく。11/9 kaito 朝の声）
+k15_tennoji_okayama.introLords = ['徳川家康', '真田信繁'];
 export { k15_tennoji_okayama };
 export default k15_tennoji_okayama;

@@ -32,6 +32,8 @@ import { camp } from './b_mid.js';
 import { yamaLift, switchback } from './yamalift.js';
 import { horiboriHeight, goten, monomi, kido, kagaribiRow } from './castle_parts.js';
 import { heightOf, buildCastlePlan, makeLordKeep, inPoly } from './castle_plan.js';
+import * as IW_HIRU from './iwamura/hiru.js';
+import * as IW_KAIJO from './iwamura/kaijo.js';
 import { IWAMURA_SUISHOZAN_PLAN, IWAMURA_CASTLE_PLAN, HON as IWA_HON, SHU as IWA_SHU, ROAD as IWA_ROAD, SIDE_ROADS as IWA_SIDE_ROADS, castlePoint } from './castles/iwamura.js';
 
 import { demDetail } from './dem.js';
@@ -910,15 +912,18 @@ const iwamura = {
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   minutes: 7,
   // critic60：名の無い「敵の隊が崩れた」の大きな字が二度出た（五1・五3）。大きく出すのは討ち取りと終わりだけ。
-  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死/.test(text),
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|その夜|十一日|開城/.test(text),
   // 信長公記の順：水精山の陣で火を守る→城方の夜討ちを河尻・毛利が柵で防ぐ→退く武田勢を城の麓まで追い討つ。
   // 場所と行いで書く。待つだけの段は置かない（AW3・BA3）。
   // 11/7 描いて遊んだ：③「討て」と④「追え」が道の敵の見え隠れで行き来し、右上の番号（段の①〜③）とも合わなかった（十1）。
   //   麓に木戸は無く（大手の木戸は七十メートル上）、「木戸の前」は地図で分からなかった。四つを一本道にし、一度進んだら戻さない。
-  missions: ['柵の南と北の篝火を焚け', '柵の口で武田の夜討ちを防げ', '山道を退く武田勢を城の麓まで追え', '城の麓の搦手道の登り口を固めよ'],
+  // 11/9：夜の段の前に昼の段（iwamura/hiru.js）の二つ。番号は 0・1 が昼、2〜5 が夜
+  missions: [...IW_HIRU.GOALS, '柵の南と北の篝火を焚け', '柵の口で武田の夜討ちを防げ', '山道を退く武田勢を城の麓まで追え', '城の麓の搦手道の登り口を固めよ', IW_KAIJO.GOAL],
   // 11/6 布陣の照らし：水晶山に向く東の口は本丸の裏（搦手）。大手は城下町の西の藤坂から登る（縄張りの castlePoint もそう向けてある）。
   missionOf(rt) {
     const F = rt.flags;
+    if (IW_HIRU.active(rt)) return IW_HIRU.stage(rt);
+    if (F.iwKaijo) return (F.missionMax = 6);   // 白旗の使者を送る（iwamura/kaijo.js）
     let k = 3;
     // critic60：組頭が三秒で火を焚き、自分が焚かないうちに①が済んでいた（三2・十一1）。①は二つの火がそろうまで残す。
     if (F.step < 2 && F.lit < POSTS.length) k = 0;
@@ -927,14 +932,14 @@ const iwamura = {
       if (atFoot(F, rt.player.u.pos)) F.footSeen = true;
       if (!F.footSeen && !F.ending) k = 2;
     }
-    F.missionMax = Math.max(F.missionMax || 0, k);
+    F.missionMax = Math.max(F.missionMax || 0, k + 2);
     return F.missionMax;
   },
   // 右上の目標（goals5.js）：段の四つだけ。秋山は後日の開城で捕らえられる城将なので「自分で討つ」、人数を討つ目標は置かない（三1・九2）。
   goals5(rt) {
     const at = (k) => (q) => q.tracker?.main === true && q.over || (q.def.missionOf(q) ?? 0) > k;
     // critic60：目標の横に「3:19」と減る残りの時が出て、何の時か分からず急かされた（五1・五2）。時切れは付けず、時計の字は setup の札の決まりで隠す。
-    return this.missions.map((text, k) => ({ kind: 'stage', k, text, sec: 1e6, check: k === 3 ? (q) => q.tracker?.main === true && !!q.over : at(k) }));
+    return this.missions.map((text, k) => ({ kind: 'stage', k, text, sec: 1e6, check: k === this.missions.length - 1 ? (q) => q.tracker?.main === true && !!q.over : at(k) }));
   },
   missionHeading(rt) { return this.missions[this.missionOf(rt)]; },
   // 秋山は後日捕らえられる城将。目印を付けても、この夜の討取りの対象にはしない。
@@ -970,7 +975,9 @@ const iwamura = {
     q.route = false; q.waiting = false; q.arrived = false; q.defend = false;
     q.r = q.hide = 5;
     let pos;
-    if (this.missionOf(rt) === 0) {
+    if (IW_HIRU.active(rt)) {
+      pos = IW_HIRU.pin(rt) || p;
+    } else if (this.missionOf(rt) === 2 && F.fireMarkers) {
       // 任務札・台詞・行き先のピンで、同じ篝火を示す。
       const i = F.firePost;
       pos = POSTS[i]; q.fire = true;
@@ -1931,9 +1938,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     rt.world.setTime('night');
     rt.setPhase('brief');
     // 囲みの守りは主な任務へまとめ、別の兵糧道を探させない。
-    rt.banner('岩村城を囲む', '武田の秋山虎繁が籠る。まず左右の篝火へ');
+    rt.banner('岩村城を囲む', '武田の秋山虎繁が籠る。まず囲みを見回る');
     // 11/1 kaito の紙：長い包囲。城には秋山虎繁と、その妻おつやの方が居る。
-    rt.after(3, () => { if (!F.ending && !rt.over) rt.say('河尻秀隆', '囲んで五月。城の兵糧は尽きかけておる。今夜、城方が打って出るやもしれぬ', 4.5); });
+    // 「囲んで五月」の声は昼の段（iwamura/hiru.js）で城を望む時に言う
     F.raidGuide = { x: 0, z: FENCE_Z + 3 };
     // 火の支度中は篝火だけを示す。敵が来たら任務と一緒に口の案内へ切り替える。
     rt.marker('raidMouth', F.raidGuide, () => {
@@ -1952,7 +1959,12 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 夜討ちの時刻は同じ。味方の点火の助けも元の時刻に残す。
     // 11/1 点付け「地面」：柵ぎわの持ち場（25秒の所）の土を一色にしない。踏み跡の土・窪みの泥・小屋と岩の根の草、半分埋めた岩と俵（共通の stage_dress）。
     dressStage(rt, { at: { x: 13, z: -4.5, heading: 1.89 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 3, rocks: 10, radius: 55, wet: 0.6, trodden: 0.85, seed: 2011 });
-    this.prepare(rt);
+    // 昼の段（見回り・城方の出撃）の後で、日が暮れてから夜の段（iwamura/hiru.js）
+    IW_HIRU.start(rt, { done: () => {
+      F.stepT = rt.t; F.quietSince = rt.t; F.raidAt = rt.t + 12;
+      rt.banner('その夜', '水晶山の陣。篝火を焚け');
+      this.prepare(rt);
+    } });
   },
 
   // ① 篝火を焚く
@@ -2191,6 +2203,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
   win(rt) {
     const F = rt.flags;
     if (F.ending || !rt.player.u.alive || F.step !== 3 || F.joinHold < 3) return;
+    if (IW_KAIJO.hold(rt)) return;   // 先に白旗の使者を本陣へ送る（iwamura/kaijo.js）
     F.ending = true;
     rt.setPhase('end');
     rt.unmark('foot'); rt.unzone('foot'); rt.unmark('chaseRoad'); rt.unmark('joinAlly');
@@ -2206,13 +2219,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 11/1 kaito の紙：勝ちは「城が降る」。夜討ちを退けた後、城が降り、秋山とおつやの方は処刑される（全滅で勝ちにしない）。
     for (const g of rt.army.groups) if (g.team === 1 && !g.routed) { g.order = 'hold'; g.aggro = 0; g.seekRange = 0; }
     // critic60：勝ってすぐ「岩村城、降る」と城の明け渡しが続き、一夜の戦の直後に城が開いたように見えた（二2）。十一日が経った事を先に言う。
-    rt.after(3.5, () => {
-      rt.banner('十一日の後', '十一月二十一日、兵糧の尽きた岩村城は降った');
-      rt.say('語り', 'それから十一日。兵糧の尽きた岩村城は、城の者の命と引き替えに開かれた', 4);
-    });
-    // 信長公記巻八：降伏の約束は守られず、秋山・大島・座光寺の三将は岐阜の長良川で磔（おつやの最期は説が割れるので言わない）。
-    rt.after(7.5, () => rt.say('語り', '約束は守られなかった。礼に出た秋山・大島・座光寺の三将は、岐阜の長良川で磔にされた', 4));
-    rt.finish({ scriptedEnd: true }, 11.5);
+    // 十一日の後の開城の場面と余韻（iwamura/kaijo.js）。信長公記巻八：降伏の約束は守られず、秋山・大島・座光寺の三将は岐阜の長良川で磔（おつやの最期は説が割れるので言わない）。
+    IW_KAIJO.epilogue(rt);
+    rt.finish({ scriptedEnd: true }, IW_KAIJO.LEN);
   },
 
   lose(rt, reason = '') {
@@ -2281,7 +2290,10 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       F.fgun.fire = true;
     }
     // 夜討ちの始まりは時刻で知らせる。麓の確保は本人と組の到着を待つ。
-    if (F.step === 0 && rt.t - F.stepT >= 5) this.prepare(rt);
+    if (F.step === 0 && rt.t - F.stepT >= 5 && !IW_HIRU.active(rt)) this.prepare(rt);
+    IW_KAIJO.tick(rt);   // 白旗の使者（iwamura/kaijo.js）
+    IW_HIRU.tick(rt, [F.scout, ...(F.waves || [])]);   // 昼の段（iwamura/hiru.js）。夜討ちの寄せ手は昼の間は隠す
+    if (IW_HIRU.active(rt)) return;   // 昼の間は夜の段の見張り・口の案内・任務の札を回さない
     if (F.step >= 2) this.hurtNotice(rt);
     if (F.step < 3 && rt.t >= (F.contactAt || 0)) {
       F.contactAt = rt.t + 0.5;
@@ -2734,7 +2746,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         }
       }
       const sallyDone = !F.footSallySent ? false : gone(S) || S.iwWithdraw || rt.t - F.footSallyAt > 60;
-      rt.obj('main', !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
+      rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。
       if (arrived && !roadHeld && joined < need && F.joinWaitState !== joinWaitState && rt.t >= (F.joinCallAt ?? -99) + 8) {
@@ -3626,6 +3638,8 @@ iwamura.botBrain = (b, inp, { goTo, patientStrike }) => {
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false;
   if (!u.alive || F.ending) return;
+  if (IW_HIRU.active(b)) { IW_HIRU.bot(b, inp, { goTo, patientStrike }); return; }
+  if (IW_KAIJO.active(b)) { IW_KAIJO.bot(b, inp, { goTo }); return; }
   // 手当て済みなら待ち続けない。味方のいる後方まで退き、狙いを解いて止まる。
   if (u.hp < u.maxHp * 0.5 && !p.bandaged && p.treatmentLeft > 0) b.botRest = true;
   if (b.botRest && (u.hp > u.maxHp * 0.85 || p.bandaged || p.treatmentLeft <= 0)) b.botRest = false;
