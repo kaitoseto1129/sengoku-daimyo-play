@@ -3943,8 +3943,8 @@ const nagashima = {
       const near = p.z >= BANK_Z && Math.hypot(p.x - spot.x, p.z - spot.z) < 3;
       let safe = near;   // 馬の上からでも確かめられる（11/9 二巡：騎乗の bot が持ち場で止まり続けた）
       if (safe) for (const u of rt.army.units) {
-        if (u.team !== rt.player.u.team && u.alive && !u.fleeing && !u.woundOut &&
-            !u.rearWound && !u.gone && !u.noTarget && !u.isStruct && !u.civ &&
+        if (u.team !== rt.player.u.team && bankFighterReady(u) && !u.downed &&
+            !u.noTarget && !u.isStruct && !u.civ &&
             !u.boatSeat?.aboard && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 6 &&
             !rt.army.wallBetween(p, -1, u.pos)) { safe = false; break; }
       }
@@ -4485,7 +4485,8 @@ nagashima.force = (rt) => {
     if (!u || u.isPlayer || u.civ || u.isStruct || (u.team !== 0 && u.team !== 1)) continue;
     // 舟の待機・降伏・持ち場への帰還で攻撃対象から外れても、兵数は減らさない。
     if (u.team === 0) a0++; else b0++;
-    if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound) continue;
+    // 倒れる動作の間も alive は残る。命の尽きた兵を現在の兵数へ戻さない。
+    if (!bankFighterReady(u)) continue;
     if (u.team === 0) a++; else b++;
   }
   S.a0 = Math.max(S.a0, a0); S.b0 = Math.max(S.b0, b0);

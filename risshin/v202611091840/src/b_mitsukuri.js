@@ -5241,19 +5241,19 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
+  // 物見だけでなく火入れ・木戸・郭への移動も山道を通す。切岸や柵へ直進させない。
+  const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r, run) => {
+    const goal = player._mkBotGoal || (player._mkBotGoal = { x: 0, z: 0 });
+    goal.x = x; goal.z = z;
+    const q = courtyardWay(b, goal);
+    goTo(player, input, q.x, q.z, q === goal ? r : 0.6, run);
+  });
   if (F.dp && F.dp.on) {   // 15分の構成の段
     // 二巡 11/9 豊臣B：三の郭の火入れ（「火を移す」の長押し）は段の頭が押さず、松明の前で十五分止まった。遊ぶ人と同じく松明へ寄って長押しする
     if (F.sanFell && (F.lit || 0) < TORCH.length && !u.mounted) {
       const q = nearIt(b, 't');
-      if (q) { if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else { inp.k.add('KeyE'); inp.k.delete('KeyW'); } return; }
+      if (q) { if (q.d > 1.6) move(p, inp, q.pos.x, q.pos.z, 1.2); else { inp.k.add('KeyE'); inp.k.delete('KeyW'); } return; }
     }
-    // 物見の追撃も味方と同じ曲がり角を通る。四歩の到着幅で角を飛ばさない。
-    const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r, run) => {
-      const goal = player._mkBotGoal || (player._mkBotGoal = { x: 0, z: 0 });
-      goal.x = x; goal.z = z;
-      const q = courtyardWay(b, goal);
-      goTo(player, input, q.x, q.z, q === goal ? r : 0.6, run);
-    });
     depthBot(b, inp, move); return;
   }
   // 傷は自然には戻らない。退避と手当ては共通の試し役の判断に任せ、任務へ戻る。
@@ -5271,7 +5271,7 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     return;
   }
   // 火入れの段は松明へ向かう。坂の上の届かない兵を追うと柵の下を行き来して刻限が尽きた（11/9 見回り bot）
-  if (F.step === 2.5) { const q = nearIt(b, 't'); if (q) { inp.guardHold = false; if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else inp.k.add('KeyE'); return; } }
+  if (F.step === 2.5) { const q = nearIt(b, 't'); if (q) { inp.guardHold = false; if (q.d > 1.6) move(p, inp, q.pos.x, q.pos.z, 1.2); else inp.k.add('KeyE'); return; } }
   const e = strikeTarget(b, 12);
   const reach = p.weapon === 'sword' ? 1.9 : 2.8;
   // 斜面の向こうの兵を追い続けると、道案内と敵追いが競合して山道から進めない。
@@ -5294,14 +5294,14 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     return;
   }
   inp.guardHold = false;
-  if (F.step === 2.5) { const q = nearIt(b, 't'); if (q) { if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else inp.k.add('KeyE'); } return; }
+  if (F.step === 2.5) { const q = nearIt(b, 't'); if (q) { if (q.d > 1.6) move(p, inp, q.pos.x, q.pos.z, 1.2); else inp.k.add('KeyE'); } return; }
   if (F.step === 3 && !F.gatePass) {
     // 木戸前に立つだけでは掛矢が出ない。遊ぶ人と同じ長押しの打つ手を使う。
     const q = nearIt(b, '_gram');
     if (q) {
-      if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2);
+      if (q.d > 1.6) move(p, inp, q.pos.x, q.pos.z, 1.2);
       else { inp.k.add('KeyE'); inp.k.delete('KeyW'); }
-    } else goTo(p, inp, KIDO.x, KIDO.z + 3, 1.5);
+    } else move(p, inp, KIDO.x, KIDO.z + 3, 1.5);
     return;
   }
   // 郭に味方が足りない時は、遊ぶ人と同じく「味方を呼ぶ」を押す（11/9 見回り bot：一人で郭に立ったまま三の郭が落ちず刻限が尽きた）
@@ -5309,7 +5309,7 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const zone = F.SZ.byId[!F.sanFell ? 'san' : !F.niFell ? 'ni' : 'hon'];
   const enemy = zone._guideEnemy;
   const tgt = enemy && zoneGroundFighter(b, enemy) && zone.test(enemy.pos.x, enemy.pos.z) ? enemy.pos : zone.pos;
-  goTo(p, inp, tgt.x, tgt.z, 2);
+  move(p, inp, tgt.x, tgt.z, 2);
 };
 
 export { mitsukuri };
