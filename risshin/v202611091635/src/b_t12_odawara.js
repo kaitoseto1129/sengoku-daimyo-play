@@ -30,6 +30,7 @@ import * as kuzure from './t12_odawara/kuzure.js';          // 六月二十六�
 import * as junkai from './t12_odawara/junkai.js';          // 七月の初め、前田・上杉の陣と浜の長宗我部の船陣を回る
 import * as kaijoSt from './t12_odawara/kaijo.js';          // 官兵衛の後、槍を置いて城を出る北条の兵を見届ける
 import * as tenka from './t12_odawara/tenka.js';            // 終幕：開城・天下統一の日本地図・家康「次は、関八州か。」
+import * as hojin from './t12_odawara/hojin.js';            // 囲みの全国の大名の陣（布陣図どおりの兵数の比で遠景の軍勢）
 
 // ---- 場所（ゲームの座標） ----
 const CASTLE = { x: 51, z: -131 };       // 小田原城の本丸
@@ -548,6 +549,7 @@ const t12_odawara = {
   // 雨の夜討ちの弓・雨覆いの鉄砲と、狭い出丸の徒歩の守りを共通の兵種補充で替えない。
   keepMix: true,
   missionPin: () => null,     // 白い旗のピンは出さない。行き先は今の目標の▼と名の札の一つだけ（kaito AV15・⑧）
+  introMapPlaces: hojin.places(),   // 開戦前の地図に囲みの大名の名
   world: {
     namedKacchu: { ...TOYO_MAEDA_KACCHU, ...TOYO_GAMO_KACCHU },
     // 昼の包囲中と味方の打って出では、近い主人公にも撃ち止めの下知を守る。
@@ -622,6 +624,7 @@ const t12_odawara = {
     sogamaeWall(rt);
     ichiyajo(rt);
     fleet(rt);
+    hojin.place(rt, { CASTLE });   // 11/9 布陣図（docs/fujin/t12_odawara.md）：石垣山の秀吉・早川口の宇喜多・北の秀次ら
     shinoGuard(rt);
     seats(rt);
 
