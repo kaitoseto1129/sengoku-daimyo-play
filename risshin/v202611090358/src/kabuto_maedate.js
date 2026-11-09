@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // 武将 → 前立の種類（kacchu_data.js の KACCHU[名].crest に入れる）
 export const MAEDATE = {
+  佐竹義宣: 'satake_kemushi',
   伊達政宗: 'date_moon',
   真田信繁: 'honda_shika', 真田幸村: 'sanada_rokumon',
   武田信玄: 'suwa_hossho',
@@ -85,6 +86,23 @@ const blade = (sd, p0, p1, p2, w0, w1, hi) => {
 };
 
 function build(kind, hi, near) {
+  if (kind === 'satake_kemushi') {
+    // 佐竹史料館の熊毛の毛虫前立。寸法・毛束の輪郭は推定（佐竹義宣の調べ書き）。
+    // 義重の鳥毛脇立は付けない。既存の球と錐を結合し、近遠それぞれ一度だけ保存する。
+    const parts = [], n = hi ? 13 : 7;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1), x = (t - .5) * .49, y = .29 + .1 * Math.pow(2 * t - 1, 2);
+      const r = .045 + .012 * Math.sin(Math.PI * t);
+      parts.push(ball(r, x, y, .15, 1.1, 1, .85, hi));
+      if (hi) for (const sd of [-1, 1]) {
+        const g = new THREE.ConeGeometry(.012, .047, 3);
+        g.rotateZ(sd * .65); g.translate(x + sd * .018, y + r, .15); parts.push(g);
+      }
+    }
+    const g = join(parts);
+    for (const p of parts) p.dispose();
+    return [g, 'black'];
+  }
   // 銀箔押白檀塗は赤褐色の透漆。豊臣期だけ既存の合子形と赤漆材質を共用する。
   // 共通の銀色指定は織田編のため保持。出所：docs/generals_look_1108/黒田官兵衛.md。
   if (kind === 'kanbei_gousu') return [maedateGeometry('kuroda_goshi', hi, near)[0], 'red'];

@@ -280,7 +280,7 @@ OWN.t12_odawara = () => {
     // 11/6：二十六日の朝は南西の石垣山の城を見る段（前は次の官兵衛の目標が先に出て、まだいない官兵衛の行き先の印が出た）
     { kind: 'stage', k: 8, text: '井伊の陣から南西の石垣山に現れた城を見る', noun: '石垣山', check: (rt) => won(rt) || (rt.flags.dp?.i ?? -1) > (X(rt).ishigaki ?? 99) + 1 },
     { kind: 'stage', k: 9, text: '山王川の岸で、城から逃げて来る北条の兵を迎え、追っ手を討つ', noun: '山王川の岸', check: at('kuzure'), groups: foes('kuzure') },
-    { kind: 'stage', k: 10, text: '包囲の陣を回り、前田・上杉と浜の船陣へ言葉を伝える', noun: '前田の陣', check: at('junkai') },
+    { kind: 'stage', k: 10, text: '包囲の前田の陣・北条氏規・上杉の陣・浜の船陣を順に訪ね、直政の言葉を伝える', noun: '前田の陣', check: at('junkai') },
     // 開城を説く使いの供（戦わない。11/6）
     { kind: 'stage', k: 11, text: '官兵衛に付き添い、本丸の門まで送り届ける', noun: '本丸の門', check: (rt) => won(rt) || (rt.flags.dp?.i ?? -1) >= (X(rt).kaijo ?? 99) },
     { kind: 'stage', k: 12, text: '本丸の門の前で、槍を置いて城を出る北条の兵を見届ける', noun: '本丸の門の前', check: won },

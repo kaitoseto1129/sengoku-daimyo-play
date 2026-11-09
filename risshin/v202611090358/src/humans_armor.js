@@ -948,9 +948,12 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   const plate = { nanban: 1, hotoke: 2, sendai: 3 }[nk0?.plateDo ?? look.plateDo] || 0;
   const silver = !!(nk0?.silver ?? look.silver);
   const ladder = !!(nk0?.ladderMon ?? look.ladderMon);
+  // 義宣の肌色革包は胴だけ。色の付かない具足は従来の材質を共有する。
+  const doLeather = nk0?.doLeather ?? look.doLeather;
+  const leatherColor = doLeather != null ? new THREE.Color(doLeather).toArray().map((v) => v.toFixed(5)).join(', ') : null;
   // noHead：true は兜と顔を描かない。'helm' は兜（鉢・錣・吹返し・眉庇）を残し、人形の顔と面頬だけを抜く（名のある武将：スキャンの兜に、その人の顔と前立）
   const helm = noHead === 'helm';
-  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '') + (ladder ? '|梯子' : '');
+  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '') + (ladder ? '|梯子' : '') + (leatherColor ? '|革胴' + doLeather : '');
   // 足軽（御貸具足）：胴丸の形のまま、胴の所に横矧の桶側胴の板の段と胸の家紋を描く（本の足軽具足の写真）。
   // 侍・武将は胴丸のまま。家紋の絵は家ごとに一枚（monDecal と共用）。描く回数・形は変えない
   const oke = (look.tier || 0) === 0 && !look.kacchu && !look.nanban && look.doStyle !== 'sugake';
@@ -1128,7 +1131,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             float front = smoothstep(-0.02, 0.03, q.z);
             float yT = 1.42, yB = 0.975;
             // 胴の色：南蛮胴・仏胴は黒漆（家康は茶を帯びた黒）、仙台胴は深い黒
-            vec3 base = ${'uArmAmt > 0.5 ? uArm * 0.55 : vec3(0.026, 0.024, 0.022)'};
+            vec3 base = ${leatherColor ? 'vec3(' + leatherColor + ')' : 'uArmAmt > 0.5 ? uArm * 0.55 : vec3(0.026, 0.024, 0.022)'};
             float h = 0.0, rim = 0.0, riv = 0.0;
             #if DM_PLATE == 3
             // 政宗所用具足は縦五枚矧ぎ。前一枚・左右各二枚の継ぎ目を側方へ置く。
@@ -1175,6 +1178,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             dmPlate = pm;
             dmLacq = mix(dmLacq, 1.0 - met, pm); dmGold = mix(dmGold, met, pm);
             dmCloth *= 1.0 - pm; dmLeather *= 1.0 - pm;
+            ${leatherColor ? 'dmLeather = max(dmLeather, pm); dmLacq *= 1.0 - pm; dmGold *= 1.0 - pm;' : ''}
             dmH = mix(dmH, h * 0.6, pm);
           }
         }
@@ -1444,7 +1448,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
       sh.fragmentShader = 'uniform vec4 uFpCut;\nuniform vec3 uFpHand[2];\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && (distance(vFpW, uFpCut.xyz) < uFpCut.w || (length(vFpW.xz - uFpCut.xz) < 0.3 && vFpW.y < uFpCut.y - 0.1 && vFpW.y > uFpCut.y - 1.1) || (length(vFpW.xz - uFpCut.xz) < 0.55 && vFpW.y < uFpCut.y + 0.3 && vFpW.y > uFpCut.y - 1.9 && min(distance(vFpW, uFpHand[0]), distance(vFpW, uFpHand[1])) > 0.16))) discard;');
     }
   };
-  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '') + (ladder ? '-梯子' : '');
+  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '') + (ladder ? '-梯子' : '') + (leatherColor ? '-革胴' + doLeather : '');
   dmMats.set(kk, m);
   return m;
 }

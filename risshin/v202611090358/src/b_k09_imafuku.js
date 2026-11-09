@@ -292,7 +292,7 @@ const k09_imafuku = {
     // 総大将は本陣の床几に座り、旗本に囲まれて前に出ない。camp の大将は名のある将として馬に乗り、馬の上で床几に座る形になって
     //   堤の東の宙に浮いて見えた（描いて遊んで、③の間に振り返るたび。一2・九6）→ 徒の義宣を陣幕の内に据える
     const hqG = rt.army.addGroup({ team: 0, faction: 'tokugawa', name: '佐竹義宣の本陣', order: 'hold', anchor: { x: 194, z: -4 }, facing: WESTWARD, aggro: 4, width: 1, morale: 100, noRout: true });
-    rt.army.spawn(hqG, dress([busho('佐竹義宣', { horse: false, invuln: true, hat: 'kabuto_m', haori: 0x3a3228 })], SATAKE));
+    rt.army.spawn(hqG, dress([busho('佐竹義宣', { horse: false, invuln: true, hat: 'kabuto', haori: 0, flag: 'sashi:satake:#202638:#c9a653' })], SATAKE));
     if (hqG.units[0]) { hqG.leader = hqG.units[0]; hqG.units[0]._crouch = true; }
     if (hq) hq.general = hqG.units[0] || null;
     for (const g of rt.army.groups) if (g.team === 0 && !g.mon) g.mon = 'satake';   // 本陣の旗本の隊旗も佐竹の扇に月（徳川の葵にしない）

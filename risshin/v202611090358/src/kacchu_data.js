@@ -412,7 +412,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["長宗我部盛親", "suji", "none", 0x1c1a1a, 0x3c5a8a, "sugake", 0, 0, "chosokabe", ""],
   ["伊達政宗", "suji", "date_moon", 0x16191b, 0x232c40, "hotoke", 0, 0x16191b, "date", ""],
   ["最上義光", "namban", "sun", 0x1c1a1a, 0x66513b, "okegawa", 0, 0, "none", ""],
-  ["佐竹義宣", "suji", "shida", 0x1c1a1a, 0x3e5474, "kebiki", 0x8a6a2a, 0x1c1a1a, "satake", ""],
+  // 佐竹史料館の伝義宣所用・人色皮包仏胴黒糸威具足。細部は必須表、出所は佐竹義宣の調べ書き。
+  ["佐竹義宣", "suji", "satake_kemushi", 0x1c1a1a, 0x1c1a1a, "hotoke", 0, 0x1c1a1a, "satake", ""],
   ["石田三成", "suji", "sun", 0x1c1a1a, 0xa8281c, "sugake", 0, 0, "none", ""],
   // 大坂城内の復元案。本人の初着甲冑と成人の具足を混同しない（出所は docs/generals_look_1108/豊臣秀頼.md）。
   ["豊臣秀頼", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0, "toyotomi", ""],

@@ -455,9 +455,19 @@ function fur(col, kumage = false) {
 export function namedArmorGeometry(key, look, hi, part) {
   const st = namedKacchu(look);
   if (!st || !['head', 'haori', 'nohead', 'torso'].includes(part)) return bodyGeometry(key, look, hi, part);
-  const ck = '名将|' + key + '|' + part + '|' + hi + (earlyEra(look.face) ? '|早' : '') + (st.kumage ? '|熊毛' : '') + (st.juzuGold ? '|忠勝所用' : '');
+  const ck = '名将|' + key + '|' + part + '|' + hi + (earlyEra(look.face) ? '|早' : '') + (st.kumage ? '|熊毛' : '') + (st.juzuGold ? '|忠勝所用' : '') + (st.doLeather != null ? '|革胴' + st.doLeather : '');
   if (geoCache.has(ck)) return geoCache.get(ck);
   const base = bodyGeometry(ck, look, hi, part), parts = base ? [base.clone()] : [];
+  if (st.doLeather != null && base && (part === 'torso' || part === 'nohead')) {
+    // 義宣の人色革包。既存の仏胴の頂点色だけ替え、袖・草摺・兜は黒のまま保つ。
+    const g = parts[0], p = g.attributes.position, c = g.attributes.color, c2 = g.attributes.col2;
+    const col = new THREE.Color(st.doLeather);
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) < .98 || p.getY(i) > 1.42 || Math.abs(p.getX(i)) > .215 || Math.abs(p.getZ(i)) < .07) continue;
+      c.setXYZ(i, col.r, col.g, col.b);
+      if (c2) c2.setXYZ(i, col.r, col.g, col.b);
+    }
+  }
   if (part === 'haori' && st.haori && st.haoriMon === 'takigawa_haori' && S.quality === 'high') {
     // 大滝寺の一益：背だけの布を、前の開いた袖なしの陣羽織へ補う。
     // 前身頃・裏地・胸紐の細部は復元案。既存の背布と同じ骨・材質へ結合し、形は保存する。

@@ -2,8 +2,10 @@
 // 名のある武将と同じ作り（named_kacchu.js の鉢・錣・胴・本物の立物）を、六組の作り分け（vi）で着せる。色は家と兵の色のまま。
 // 形は六組×兜の種類だけなので、形の数はほとんど増えない。弓足軽などの頭形兜（足軽の自前の兜）は、鉢だけ本物の頭形にする。
 // 作り分けは当時の雑兵・侍の具足の見え方による復元案（特定の人の所用品ではない）。
-const BOWL = ['suji', 'zunari', 'suji', 'momonari', 'suji', 'zunari'];
-const DO = ['okegawa', 'sugake', 'kebiki', 'okegawa', 'sugake', 'okegawa'];
+// 11/9（kaito「侍の甲冑が室町時代っぽい」・手本 docs/tosei_gusoku_1109.md）：戦国後期〜江戸初めの名の無い侍は、頭形・桃形の鉢が多く、
+//   胴は横矧の桶側胴・板の仏胴・素懸威。毛引威（細かい小札を隙間なく威した室町の胴丸・腹巻の見え方）は名の無い侍に着せない
+const BOWL = ['zunari', 'zunari', 'suji', 'momonari', 'zunari', 'momonari'];
+const DO = ['okegawa', 'hotoke', 'sugake', 'okegawa', 'okegawa', 'hotoke'];
 // 名の無い侍の多くは立物を付けないか、小さな鍬形。侍大将（tier 2 以上）は鍬形の類
 const PLAIN = ['none', 'none', 'kuwa', 'none', 'kuwa_ken', 'none'];
 const CHIEF = ['kuwa', 'kuwa_wide', 'kuwa_ken', 'kuwa', 'kuwa_sun', 'kuwa_wide'];
@@ -28,7 +30,7 @@ export function genericKacchu(look) {
   const armor = look.armor, helm = look.helm ?? (red ? 0x8a1d14 : armor);
   const st = {
     bowl: BOWL[vi], crest: (keep && BY_HAT[hat]) || (tier >= 2 ? CHIEF[vi] : PLAIN[vi]),
-    armor, helm, lace: look.lace, odo: look.lace, doStyle: tier >= 2 ? (vi % 2 ? 'kebiki' : 'okegawa') : DO[vi],
+    armor, helm, lace: look.lace, odo: look.lace, doStyle: tier >= 2 ? (vi % 2 ? 'sugake' : 'okegawa') : DO[vi],
     haori: look.haori || 0, menpo: look.menpo || 0, menpoStyle: look.menpoStyle || 'hanbo', mon: look.mon,
     hat: 'kabuto', hatFix: 1, lac: red ? 'shu' : 'kuro', fuki: 'kuro', ref: '', generic: 1,
   };

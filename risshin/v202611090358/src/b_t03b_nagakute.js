@@ -386,7 +386,14 @@ const t03b_nagakute = {
         rt.say('森長可', '押し返せ！　赤備えなど蹴散らせぇ！', 2.8);
         rt.army.play('toki', { x: HOTOKE.x + 20, z: HOTOKE.z - 4 }, 1.3);
       });
-      rt.after(58, () => { if (F.stage === 5) rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2); });
+      rt.after(58, () => {
+        if (F.stage !== 5) return;
+        // 檜ヶ根の榊原隊は④で去っている。知らせだけにせず、御旗山の麓へ旗本を置く。
+        const g = this.general(rt, '榊原康政', { x: HOTOKE.x + 26, z: HOTOKE.z - 30 }, SAKA);
+        if (!g) return;
+        g.order = 'attack'; g.dest = { x: HOTOKE.x - 8, z: HOTOKE.z + 18 }; g.seekRange = 30;
+        rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2);
+      });
       rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
       rt.after(100, () => { if (F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
       rt.after(140, () => moriEnd(0));
