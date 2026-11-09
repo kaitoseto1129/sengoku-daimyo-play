@@ -413,13 +413,21 @@ export function introMap(rt, camera, done) {
     g.globalAlpha = fade;
     // 名は重ねない：先に置いた名と重なる時は一段上へ（それでも重なれば出さない。上の人数の札にも重ねない）
     const put = draw.put || (draw.put = []); put.length = 0;
+    // 11/9 iPhone 874×402（大河内）：焼いた地名（大河内城など）の上にも武将の名が重なった。地名も先に置いた札として数える
+    for (const place of rt.def.introMapPlaces || []) { toS(place.x, place.z, q); put.push([q[0], q[1] - 7, place.name.length * 15 * 1.05, 19]); }
+    // 行き先の旗も先に場所を取る。後から描く旗で将の名を隠さない。
+    if (L.pin) {
+      toS(L.pin.x, L.pin.z, q);
+      const s = 1.1 / Math.sqrt(z), bob = calm ? 0 : Math.sin(t * 4) * 2;
+      put.push([q[0] + 4 * s, q[1] - 10 + bob - s, 19 * s, 27 * s]);
+    }
     for (const n of L.names) {
       toS(n.x, n.z, q); if (Math.hypot(q[0] - px, q[1] - py) < 26 / z) continue;
-      const fs = 15 / z, w = n.name.length * fs * 1.05, h = fs * 1.25, hit = (y) => put.some((r) => Math.abs(r[0] - q[0]) < (r[2] + w) / 2 && Math.abs(r[1] - y) < h);
+      const fs = 15 / z, w = n.name.length * fs * 1.05, h = fs * 1.25, hit = (y) => put.some((r) => Math.abs(r[0] - q[0]) < (r[2] + w) / 2 && Math.abs(r[1] - (y - h / 2)) < ((r[3] || h) + h) / 2);
       let y = q[1] - 8;
-      for (let tries = 0; tries < 3 && hit(y); tries++) y -= h;
+      for (let tries = 0; tries < 8 && hit(y); tries++) y -= h;
       if (hit(y) || (z < 1.2 && y < 66)) continue;
-      put.push([q[0], y, w]); label(n.name, q[0], y, '#f1e9d6', fs);
+      put.push([q[0], y - h / 2, w, h]); label(n.name, q[0], y, '#f1e9d6', fs);
     }
     // 自分（白い矢じり）と行き先のピン
     g.globalAlpha = 1;

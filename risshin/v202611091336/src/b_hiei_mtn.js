@@ -3768,7 +3768,7 @@ const hiei_mtn = {
         '合図：法螺貝と陣太鼓の早打ち、その後の味方の鬨＝懸かれ', '陣太鼓の早打ちじゃ。その後の味方の鬨に続け。槍を揃え、文殊楼へ懸かれ！');
       // 11/6 fixc1721（kaito 九2）：目標に書いた文殊楼の僧兵は、門の前へ打って出て本当に槍を合わせる。
       for (const g of [F.monjuG, F.remG]) if (!gone(g)) { attackFrom(g, 16); g.aggro = 16; g.noRout = true; }
-      rt.after(30, () => { for (const g of [F.monjuG, F.remG, F.monjuBow]) if (!gone(g)) g.noRout = false; });
+      // 門前の守りは、時間だけで背を向けず、実際に打ち破られるまで残る。
     };
     if (signalDelay > 0) rt.after(signalDelay, charge);
     else charge();
@@ -4163,7 +4163,7 @@ const hiei_mtn = {
         for (const g of [F.chudoG, F.kodoG]) if (!gone(g)) { attackFrom(g, 16); g.aggro = 18; g.noRout = true; }
         if (!gone(F.chudoG)) hieiCry(rt, F.chudoG, 'eshout', 1.1);
         rt.say('根本中堂の僧兵頭', '中堂を渡すな！　火の中でも退くな！', 3);
-        rt.after(25, () => { for (const g of [F.chudoG, F.kodoG, F.courtBow]) if (!gone(g)) g.noRout = false; });
+        // 本人が戦う前に時限で敗走させない。守りの noRout は保つ。
         // 15分の構成：明智の後続が根本中堂の前へ上がる（三万の寄せ手。兵が空にならない）。負けの物差しはここから数え直す
         if (!rt.G.lord && !F.hieiBack) {
           const back = F.hieiBack = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, name: '明智の後続', anchor: { x: -6, z: -6 }, facing: -Math.PI / 2, width: 3, aggro: 9, formation: 'column', colW: 2 },
@@ -4465,12 +4465,16 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 本道の掃討では、僧坊の中へ逃れた敵を追って登る列を離れない。
   // 外から届く攻撃はこれまで通り受ける。室内へ入った本人には出口を先に案内する。
   const cd = candidate ? Math.hypot(candidate.pos.x - u.pos.x, candidate.pos.z - u.pos.z) : Infinity;
+  const atStairs = F.step === 2 && near(u, P.stairsFoot, 9);
+  const stairsBlocked = atStairs && !guardedRoad(b, P.stairsFoot);
   // 近い打ち手は受けるが、通り過ぎた守りを追って登る列から引き返さない。
+  // 石段の下に着いた後は、印が足元でも、道を塞ぐ近い敵へ向かう。
   const ahead = candidate && !F.guideReturn.active && F._gp
-    && (candidate.pos.x - u.pos.x) * (F._gp.x - u.pos.x) + (candidate.pos.z - u.pos.z) * (F._gp.z - u.pos.z) > 0;
+    && (stairsBlocked || (candidate.pos.x - u.pos.x) * (F._gp.x - u.pos.x) + (candidate.pos.z - u.pos.z) * (F._gp.z - u.pos.z) > 0);
   // 石段で列を待つ時や、本道から届かぬ法面の敵を見た時に、僧坊の裏まで追わない。
   // 目前の打ち込みは受ける。遠い敵への接近は、実際に通れる本道だけにする。
-  const waiting = F.step === 2 && near(u, P.stairsFoot, 9) && !F.stairsReady;
+  // 石段の敵が道を塞ぐ間は戦う。先手待ちを優先して射手の前で立ち尽くさない。
+  const waiting = atStairs && !F.stairsReady && !stairsBlocked;
   const e = (attacker && (ad <= 3 && hieiMeleeGuide(b, attacker) || !waiting && !F.guideReturn.active && !F._gHold
     && b.world.onRoad(attacker.pos.x, attacker.pos.z) && roadClear(b.army, u, u.pos, attacker.pos)) ? attacker : null)
     || (candidate && !nakaRoomAt(candidate.pos.x, candidate.pos.z, candidate.pos.y)

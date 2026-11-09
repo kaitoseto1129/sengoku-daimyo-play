@@ -1524,6 +1524,21 @@ function moribeTaMizu(rt, skip) {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((_, k) => k % 3 === 1 ? 1 : 0), 3));
   g.setIndex(idx);
   const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x7a7c72, roughness: .1, metalness: .1, vertexColors: true, transparent: true, depthWrite: false, envMapIntensity: 1.1 }));
+  // 薄い田の水も風で空の映りが揺れる。川の速い流れや泡を持ち込まず、
+  // 二つの細い風波だけで面の向きを変える。絵の読み取り・描画の回数は増やさない。
+  mesh.material.onBeforeCompile = (sh) => {
+    sh.uniforms.uPaddyTime = { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } };
+    sh.vertexShader = 'varying vec2 vPaddyXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\nvPaddyXZ = (modelMatrix * vec4(transformed, 1.0)).xz;');
+    sh.fragmentShader = 'varying vec2 vPaddyXZ; uniform float uPaddyTime;\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      float paddyWaveA = cos(dot(vPaddyXZ, vec2(3.9, 1.1)) - uPaddyTime * 1.2);
+      float paddyWaveB = cos(dot(vPaddyXZ, vec2(-1.8, 5.2)) - uPaddyTime * 0.8);
+      float paddyNear = 1.0 - smoothstep(12.0, 65.0, length(vViewPosition));
+      vec3 paddySlope = vec3(-paddyWaveA * 0.025 + paddyWaveB * 0.012, 0.0,
+        -paddyWaveA * 0.007 - paddyWaveB * 0.035) * paddyNear;
+      normal = normalize(normal + mat3(viewMatrix) * paddySlope);`);
+  };
+  mesh.material.customProgramCacheKey = () => '森部の田の風波';
   mesh.renderOrder = -1;
   rt.scene.add(mesh);
   const dispose = rt.dispose;
@@ -1535,16 +1550,21 @@ function moribeTaMizu(rt, skip) {
 // 当たりは持たない。道・薬師堂・人の通り道・川べり・あふれた濁流の帯は空ける。開戦時に並べるだけ。
 function moribeNae(rt) {
   const W = rt.world;
+  const soilHeight = (x, z) => {
+    const h = drawGroundAt(W, x, z);
+    return Number.isFinite(h) ? h : W.heightAt(x, z);
+  };
   // 一枚の平らな板の葉・鮮やかな緑の筋は絵に見えた（10/29）。一株は細い葉三〜五枚の束：中筋で折れた V の断面で、
   // 根の位置を少し散らし、外へ弓なりに垂れ、ねじれる。色は株ごと・葉ごとに彩度を落とした若緑〜黄緑で揺らぎ、根元は濡れて暗い。
   // 根元には水に映る暗い影（水面の写り）を敷く。株の間と株の大きさに揺らぎ（手植えの列）。八株を一つの形に合わせて使い回す。
-  const parts = [], hsh = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  const parts = [], roots = [], hsh = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
   // 11/6 fixc1824（kaito 八-1）：雨の曇り空の下で苗の列が黒い棘（撒き菱）に見えた。早苗の明るい若緑へ上げ、根元の暗さも浅く。
   const tones = [[0.45, 0.54, 0.24], [0.4, 0.5, 0.22], [0.49, 0.56, 0.26], [0.52, 0.55, 0.27], [0.42, 0.52, 0.25]];
   let px = 0;
   for (let s = 0; s < 8; s++) {
     px += s ? 0.5 + hsh(s * 3.3) * 0.26 : 0;
     const cx = px, cz = (hsh(s * 5.7) - 0.5) * 0.14, sz = 0.72 + hsh(s * 9.1) * 0.55, NL = 3 + Math.floor(hsh(s * 2.9) * 3);
+    roots.push([cx, cz]);
     const base = tones[Math.floor(hsh(s * 4.4) * 5)];
     for (let j = 0; j < NL; j++) {
       const pos = [], colr = [], idx = [], az = j * (6.283 / NL) + s * 1.3 + (hsh(s * 11 + j) - 0.5) * 0.9;
@@ -1567,6 +1587,7 @@ function moribeNae(rt) {
       const leaf = new THREE.BufferGeometry();
       leaf.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       leaf.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+      leaf.setAttribute('plantIndex', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3).fill(s), 1));
       leaf.setIndex(idx);
       parts.push(leaf);
     }
@@ -1576,6 +1597,7 @@ function moribeNae(rt) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
       g.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+      g.setAttribute('plantIndex', new THREE.Float32BufferAttribute(new Float32Array(pos.length / 3).fill(s), 1));
       g.setIndex(idx); parts.push(g); }
   }
   const geo = mergeGeometries(parts);
@@ -1595,19 +1617,43 @@ function moribeNae(rt) {
     if (ok(x, z) && ok(x + 4.4, z)) spots.push([x, z]);
   }
   const mesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .6, envMapIntensity: .3, side: THREE.DoubleSide }), spots.length);   // 雨に濡れた葉の照り
+  // 八株の列の中心高を全株に使うと、端の苗が宙に浮くか土へ埋まる。
+  // 設営時に株ごとの描画面を読み、共用の形へ高さだけ渡す。一束一描画のまま。
+  const groundA = new Float32Array(spots.length * 4), groundB = new Float32Array(spots.length * 4);
+  geo.setAttribute('plantGroundA', new THREE.InstancedBufferAttribute(groundA, 4));
+  geo.setAttribute('plantGroundB', new THREE.InstancedBufferAttribute(groundB, 4));
+  mesh.material.onBeforeCompile = (sh) => {
+    sh.vertexShader = 'attribute float plantIndex; attribute vec4 plantGroundA; attribute vec4 plantGroundB;\n'
+      + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec4 plantGround = plantIndex < 4.0 ? plantGroundA : plantGroundB;
+        float plantSlot = mod(plantIndex, 4.0);
+        transformed.y += plantSlot < 0.5 ? plantGround.x : plantSlot < 1.5 ? plantGround.y : plantSlot < 2.5 ? plantGround.z : plantGround.w;`);
+  };
+  mesh.material.customProgramCacheKey = () => '森部の株ごとの接地';
   const m = new THREE.Object3D(), col = new THREE.Color();
+  let groundReach = 0;
   spots.forEach(([x, z], i) => {
     // 列の間と株の向きに揺らぎ（手で植えた列。半分は逆向きに置いて、八株の並びの繰り返しを見せない）
     const jx = Math.sin(i * 2.71 + z) * 0.22, jz = Math.sin(i * 1.93 + x * 0.7) * 0.11, flip = Math.sin(i * 3.17) > 0;
     const px0 = x + jx + (flip ? 4.4 : 0);
-    m.position.set(px0, W.heightAt(x + 2.2, z) - 0.03, z + jz);
+    m.position.set(px0, soilHeight(px0, z + jz) - 0.03, z + jz);
     m.rotation.set(0, (flip ? Math.PI : 0) + Math.sin(i * 1.7) * 0.03, 0);
     const sc = 0.85 + 0.3 * (0.5 + 0.5 * Math.sin(i * 0.61 + z * 0.4));
     m.scale.set(1, sc, 1);
+    const ca = Math.cos(m.rotation.y), sa = Math.sin(m.rotation.y);
+    roots.forEach(([rx, rz], s) => {
+      const gx = px0 + rx * ca + rz * sa, gz = z + jz - rx * sa + rz * ca;
+      const offset = (soilHeight(gx, gz) - 0.03 - m.position.y) / sc;
+      (s < 4 ? groundA : groundB)[i * 4 + s % 4] = offset;
+      groundReach = Math.max(groundReach, Math.abs(offset));
+    });
     m.updateMatrix(); mesh.setMatrixAt(i, m.matrix);
     const tone = 0.5 + 0.5 * Math.sin(i * 0.37 + Math.floor(z / 18)), warm = 0.5 + 0.5 * Math.sin(i * 0.93 + x * 0.21);
     mesh.setColorAt(i, col.setRGB(0.46 + tone * 0.12 + warm * 0.04, 0.5 + tone * 0.12, 0.46 + tone * 0.1 - warm * 0.04));   // 雨の曇り空の下の苗。色は葉の頂点が持ち、ここは明るさと若緑〜黄緑の寄りだけ（10/29）
   });
+  // 頂点で上下させた株も視野判定へ含め、画面の端で列が消えないようにする。
+  geo.computeBoundingSphere();
+  geo.boundingSphere.radius += groundReach;
   rt.scene.add(mesh);
   const dispose = rt.dispose;
   rt.dispose = function () { mesh.geometry.dispose(); mesh.material.dispose(); return dispose.call(this); };
@@ -2064,21 +2110,6 @@ function moribeShrines(rt) {
   for (const r of roofs) { r.userData.moribeSight = 'dou'; W.scene.add(r); }
   const dispose = rt.dispose;
   rt.dispose = function () { for (const o of owned) o.dispose(); return dispose.call(this); };
-}
-
-// 写真の左右端の濃淡を、その端だけ空の平均へ溶かす。
-// 二層の雲に同じ処理を使い、方位を回しても縦の継ぎ目を出さない。
-// 森部の材質だけを出陣時に替える。写真の読み取り回数は増やさない。
-function moribeCloudSeam(rt) {
-  const mat = rt.world.skyMat;
-  mat.fragmentShader = mat.fragmentShader.replaceAll('texture2D(tPhoto,', 'moribeCloudPhoto(')
-    .replace('void main(){', `
-      vec4 moribeCloudPhoto(vec2 uv) {
-        float edge = min(fract(uv.x), 1.0 - fract(uv.x));
-        return mix(vec4(0.5), texture2D(tPhoto, uv), smoothstep(0.0, 0.025, edge));
-      }
-      void main(){`);
-  mat.needsUpdate = true;
 }
 
 function moribeFord(rt) {
@@ -3620,7 +3651,6 @@ const moribe = {
     // https://www.town.anpachi.lg.jp/0000000392.html
     // 当時の姿と戦場での配置は復元。近代の石碑は置かない。
     moribeBuildings(rt);
-    moribeCloudSeam(rt);
     // 雨の雲は空一面の白っぽい鉛色。地平に黒い雲の塊を浮かせない（手本の薄曇り。10/29）
     { const W = rt.world, lookOf = W.lookOf;
       W.lookOf = function (key) { const L = lookOf.call(this, key); if (key === 'storm') L.cloudDark = 0.1; return L; };
