@@ -84,6 +84,8 @@ export function ladderStep(G) {
   // 手柄の点を持つ保存は、点の位（六つ）がそのまま段
   //   一度でも戦に出た者は足軽から（前の「足軽」の保存が、点が少ないだけで雑兵に下がらないように。雑兵は初陣の前だけ）
   const fought = G && (G.history || []).some(Boolean) ? 1 : 0;
+  // 戦の後に見せた位（merit.js の G.tegaraShown：身分の上限と一戦一段で止めた位）を先に使う
+  if (G && Number.isInteger(G.tegaraShown)) return Math.max(fought, Math.min(LADDER.length - 1, G.tegaraShown));
   if (G && G.tegara != null) return Math.max(fought, Math.min(LADDER.length - 1, tegaraStep(G.tegara)));
   const r = G ? G.rank : 0;
   const i = LADDER.findIndex((l) => l.ranks.includes(r));
