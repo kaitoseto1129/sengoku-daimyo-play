@@ -478,7 +478,11 @@ const t01_yamazaki = {
       F.saito = enemyGroup(rt, { name: '斎藤利三の隊', faction: 'akechi', anchor: { x: SAITO.x - 6, z: SAITO.z - 40 }, facing: 0, width: 14, formation: 'line', order: 'move', aggro: 10, seekRange: 14, morale: 85, dmgMult: 0.55 },
         ak(knot(28, [{ type: 'busho', n: 1, o: { name: '斎藤利三', invuln: true, horse: true } }])));
       F.saito.dest = { ...SAITO }; F.saito.onArrive = (g) => { g.order = 'hold'; };
-      F.saiGs = [F.saito];
+      // 旗本は渡河の時から本隊の後ろに控える。横を突いている主人公の脇に突然出さない。
+      F.saiReserve = enemyGroup(rt, { name: '斎藤利三の旗本', faction: 'akechi', anchor: { x: SAITO.x + 10, z: SAITO.z - 44 }, facing: 0, width: 8, formation: 'line', order: 'hold', aggro: 6, seekRange: 10, morale: 90, dmgMult: 0.5 },
+        ak([{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }]));
+      F.saiReserve.stay = true;
+      F.saiGs = [F.saito, F.saiReserve];
       F.saiN = allN(F.saiGs);
       // 加藤光泰の隊も続いて渡る（味方も目標へ）
       F.kato = allyGroup(rt, { name: '加藤光泰の隊', anchor: { x: FORD_S.x - 6, z: FORD_S.z + 14 }, facing: Math.PI, width: 10, formation: 'line', aggro: 30, seekRange: 50, morale: 95, noRout: true, fullStrength: true, speed: 4.2, dmgMult: 0.4 },
@@ -640,18 +644,26 @@ const t01_yamazaki = {
       //   利三は五十秒で槍を返し、旗本の侍が横の池田勢へ打ちかかる（押し合いの山）
       if (!F.saiBack && rt.t - F.st0 > 50) {
         F.saiBack = true;
-        const g = enemyGroup(rt, { name: '斎藤利三の旗本', faction: 'akechi', anchor: { x: SAITO.x + 10, z: SAITO.z - 14 }, facing: 1.4, width: 8, formation: 'line', order: 'attack', aggro: 24, seekRange: 34, morale: 90, dmgMult: 0.5 },
-          ak([{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }]));
-        F.saiGs.push(g); F.saiN = allN(F.saiGs);
+        const g = F.saiReserve;
+        if (live(g)) {
+          g.stay = false; g.order = 'move'; g.dest = { x: SAITO.x + 10, z: SAITO.z - 4 };
+          g.aggro = 24; g.seekRange = 34;
+          g.onArrive = (q) => { q.order = 'attack'; };
+        }
         rt.say('斎藤利三', '旗本、横へ槍を入れよ！　池田を川へ追い落とせ！', 3);
       }
       if (F.fieldAt === 5 && aliveN(F.saiGs) <= F.saiN * 0.25 && rt.t - F.st0 > 95) this.stage(rt, 6);
     } else if (F.stage === 6) {
       // 殿が散って残りが行き先から離れた時も、主人公の方へ突きかからせる（勝ちまで行き詰まらない）
       const late = rt.t - F.st0 > 100;
-      if (late && live(F.mimaki) && (F.mkT = (F.mkT || 0) - dt) <= 0) { F.mkT = 3; F.mimaki.order = 'attack'; F.mimaki.dest = { x: P.x, z: P.z }; F.mimaki.aggro = 40; F.mimaki.seekRange = 60; }
-      // 散って御坊塚から遠く離れた兵は数えない（追って持ち場を出たまま進まない事を防ぐ。豊臣A 11/9）
-      const left = [].concat(F.gobo || []).flatMap((g) => (g ? g.units : [])).filter((o) => o.alive && !o.gone && !o.fleeing && dist(o.pos, GOBO_PIN) < 60).length;
+      if (late && live(F.mimaki) && (F.mkT = (F.mkT || 0) - dt) <= 0) {
+        F.mkT = 3;
+        const g = F.mimaki, c = g.center();
+        g.order = c && dist(c, P) > 30 ? 'move' : 'attack';
+        g.dest = { x: P.x, z: P.z }; g.aggro = 40; g.seekRange = 60;
+      }
+      // 遠くに散っただけの健在な殿も数える。移動の下知で呼び戻し、討たずに達成させない。
+      const left = aliveN(F.gobo);
       if (F.fieldAt === 6 && left <= F.guardN * (late ? 0.4 : 0.25) && rt.t - F.st0 > 80) this.mimakiBroken(rt);
     } else if (F.stage === 7) Pursuit.tick(rt, dt, this.ctx(rt));
   },

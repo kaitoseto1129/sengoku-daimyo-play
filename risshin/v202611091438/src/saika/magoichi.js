@@ -15,7 +15,7 @@ export function install(rt, ctx) {
   let G = null, G2 = null, done = false, tick = 0, startT = 0;
   const cnt = (g) => { let n = 0; if (g) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) n++; return n; };
   const live = () => cnt(G) + cnt(G2);
-  // 二の寄せ：川下の坂から槍の組が回り込む（一の寄せから約五十五秒。足場を保つ間を、時間でなく寄せで作る）
+  // 二の寄せ：川上の坂から槍の組が回り込む（一の寄せから約五十五秒。足場を保つ間を、時間でなく寄せで作る）
   const second = () => {
     G2 = enemyGroup(rt, { faction: 'saika', name: '孫一の手の槍', anchor: { x: SHORE.x - 6, z: SHORE.z - 16 }, facing: 0, width: 8, order: 'hold', aggro: 26, seekRange: 30, morale: 90, fleeDir: { x: -1, z: 0 } },
       dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 5 }], SAIKA));
@@ -23,7 +23,7 @@ export function install(rt, ctx) {
     G2.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.aggro = 30; };
     sfx('volley', 0.9);
     rt.army.play?.('eshout', { x: SHORE.x - 6, z: SHORE.z - 14 }, 1.4);
-    rt.say('組頭', '川下の坂からも来るぞ！　背を川に取られるな！', 3.5);
+    rt.say('組頭', '川上の坂からも来るぞ！　背を川に取られるな！', 3.5);
     rt.marker('mago2', () => (cnt(G2) ? G2.center() : null), '孫一の手の槍', { red: true, group: G2 });
   };
 

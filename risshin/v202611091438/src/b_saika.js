@@ -3422,7 +3422,7 @@ const saika = {
   retreat(rt) {
     const F = rt.flags;
     phase(rt, 3, 'retreat', SAIKA_LINE[2], BACK, '東岸の旗');
-    bankSignal(rt, 'nobiki', '合図：法螺貝と退き太鼓＝東岸へ引け');
+    bankSignal(rt, 'saika_nobiki', '合図：法螺貝と退き太鼓＝東岸へ引け');
     // 使番がすでに届いて字幕の順番を待っている場合も取り消す。
     for (let i = rt.hud.subQ.length - 1; i >= 0; i--) if (F.oldCrossWord(rt.hud.subQ[i].text)) rt.hud.subQ.splice(i, 1);
     if (rt.hud.shownLine && F.oldCrossWord(rt.hud.shownLine.text)) rt.hud.nextSub();
@@ -3451,7 +3451,7 @@ const saika = {
     F.coverWorkT = 0;
     for (const g of F.gunPosts) g.dmgMult = 1;
     phase(rt, 4, 'regroup', SAIKA_LINE[2], COVER, '竹束の陰で列を整える所');
-    bankSignal(rt, 'tomare', '合図：間を空けた鉦二つ＝止まれ');
+    bankSignal(rt, 'saika_tomare', '合図：間を空けた鉦二つ＝止まれ');
     rt.objProgress('main', '竹束の陰で止まり、出た札を六秒押し続けよ');
     const marker = rt.markers.find((m) => m.id === 'goal');
     if (marker) marker.guideAlways = true;
