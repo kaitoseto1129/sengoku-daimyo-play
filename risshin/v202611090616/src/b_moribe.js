@@ -4765,13 +4765,14 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const cm = rt.objectives.find((o) => o.id === 'commanders');
       // 11/8（App Store の問い合わせ「目標の武将を倒すと敗北」）：もう一人が退いて（fleeing・手負い）数に入らない時も開き直す。
       //   commanders > 0 の時だけだと、印の大将を自分で討った三秒後に主の札が全部済みに見え、勝ちの印の無いまま「果たせなかった」で閉じた。
-      if (cm?.state === 'done' && (F.bossDown || 0) < 2) {
+      // 両将を味方が討った後も、本人が旗本の侍を討つまでは済みにしない。
+      if (cm?.state === 'done' && ((F.bossDown || 0) < 2 || !F.ownHatamoto)) {
         const rest = remainingName || [F.HM, F.HN].flatMap((g) => g?.units || []).find((u) => u.type === 'busho' && u.alive)?.name || '';
         rt.objRemove('commanders'); rt.obj('commanders', rest ? `${rest}を討て` : '味方と両将の旗本を攻めよ', 'main'); F.marked = null;
       }
       // 敗走を確かめる八秒も、任務の見出しと下知をそろえる。
       const task = rt.objectives.find((o) => o.id === 'commanders');
-      if (task) task.text = (F.bossDown || 0) < 2 ? commanders > 1 ? '長井甲斐守・日比野下野守を討て' : commanders === 1 ? `${remainingName}を討て` : '味方と両将の旗本を攻めよ' : !left ? '薬師堂の前で組をまとめよ' : '墨俣への道で殿を討ち破れ';
+      if (task) task.text = (F.bossDown || 0) < 2 ? commanders > 1 ? '長井甲斐守・日比野下野守を討て' : commanders === 1 ? `${remainingName}を討て` : '味方と両将の旗本を攻めよ' : !F.ownHatamoto ? '長井・日比野の旗本の侍を自分で討て' : !left ? '薬師堂の前で組をまとめよ' : '墨俣への道で殿を討ち破れ';
       // 大将が生きている備を先に指す。印は大将の身に付け、旗本の侍に囲まれた所を見せる。
       for (const g of F.opposition) if (!gone(g) && g.units.some((u) => u.type === 'busho' && moribeRemainFoe(u))) { target = g; break; }
       if (target !== F.marked) {

@@ -2895,7 +2895,7 @@ const miki = {
     const F = rt.flags;
     if (F.step !== 2 || F.omuraGo) return;
     const p = rt.player.u.pos;
-    const here = Math.hypot(p.x - OMURA_FOOT.x, p.z - OMURA_FOOT.z) < 14;
+    const here = Math.hypot(p.x - OMURA_FOOT.x, p.z - OMURA_FOOT.z) < 18;   // 坂の下の田の畦まで（十六歩で並んで待ち続けた。11/8 bot）
     if (here && F.footT == null) F.footT = rt.t;
     // 秀吉（組の頭）か馬廻の誰かが坂へ着けば着いたとする。組の真ん中だけで見ると、田の東に残った者に引かれて
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
@@ -2933,7 +2933,7 @@ const miki = {
     const F = rt.flags;
     // 坂へ着いただけでは合流にならない。懸かりの合図と本人の討ち取りまで待つ。
     return F.step === 2 && !!F.omuraGo && !!F.jintTaken &&
-      F.reserve.units.every(u => !u.alive || (!u.name && u.noTarget));
+      F.reserve.units.every(u => !u.alive || (!u.name && u.noTarget) || u.bushouAdded || (u.name && u.name !== '別所三太夫' && u.name !== '別所甚太夫'));   // 名簿から足した将（別所吉親）は城へ退く。史実では大村で討たれず、翌年の開城まで城にいた（11/8 bot：吉親一人が残り勝てなかった）
   },
   end(rt, won, reason) {
     // 荷の到着・両持ち場の崩れ・退く下知は決着。近くの敵との打ち合いで先延ばしにしない。
@@ -3329,6 +3329,8 @@ const miki = {
     // 人数と状況を行で分け、横持ちで文末の一字だけを次の行へ残さない。
     rt.objProgress('main', `${defenders}${enemyGuide && !guardThin && !hirataThin ? '\n' + enemyGuide : ''}${deadline ? '\n' + deadline.slice(1) : ''}`);
     // とどめは本人へ残してある。目標③と⑤を飛ばす勝利の抜け道は作らない。
+    // 甚太夫が本人以外の手で倒れたら、⑤は二度と果たせない。そのまま締めへ進める（11/8 bot：甚太夫が味方に討たれ、残りの時間を待って負けた）
+    if (F.jint && !F.jint.alive && !F.jintTaken) F.jintTaken = true;
     if (this.victoryReady(rt)) return this.end(rt, true);
     // 残りが少なくなった別所勢（甚太夫を含む）は本人へ打ち掛かる。坂の外で迷わせず、目標⑤を自分で果たせる
     if (F.step === 2 && F.omuraGo && !F.lastStand) {
@@ -3371,6 +3373,9 @@ const miki = {
           : '大村の寄せ手を退けられず、敗れて退く');
   },
 };
+// 命懸けの戦場（lethal.js）・この戦の怖さ（夜明け前の道で、荷駄の護衛と城の出撃に挟まれる）。陣立ては上の JIN（jinkei_roster）
+miki.lethal = true;
+miki.fearKind = { kind: '挟み撃ち', note: '夜明け前の道で、荷駄の護衛と城の出撃に挟まれる', w: { iso: 1.3 }, line: '後ろの浅瀬からも来るぞ！' };
 miki.sides = { a: { name: '羽柴勢', mon: 'kiri53' }, b: { name: '別所勢', mon: 'maru' } };   // 両軍の人数の名は短く（10/28）
 miki.canSkip = (rt) => rt.phase === 'brief' && !rt.over && !rt.flags.ending && rt.t > 3 ? '下知を受けて進む' : '';
 miki.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) miki.convoy(rt); };

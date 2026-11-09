@@ -75,6 +75,12 @@ export function update(rt, K, el) {
   if (near) S.near += 0.25;
   // 本人が信親の側へ救援に来てから斬り込む。離れたまま最期を済ませない。
   if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
-  // 防戦を果たし、最期が見える距離にいる時に討死へ進む。
-  if (S.ls && near && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
+  // 鈴木大膳が旗本に阻まれている間は、遠くから信親を討った事にしない。
+  const n = F.nobuU, s = F.suzukiU;
+  const crossed = S.ls && n?.alive && s?.alive && !s.gone && !s.woundOut && !s.rearWound &&
+    Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
+    !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
+  if (crossed && near) S.clash = (S.clash || 0) + 0.25;
+  // 本人の見届ける所で刃を合わせてから討死へ進む。
+  if (crossed && near && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
 }
