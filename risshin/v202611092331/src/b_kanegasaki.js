@@ -4363,6 +4363,13 @@ function kgCtx(rt) {
   return { friends: () => rt.flags.tono, routeFight: true, botSeek: 40, botSeekHold: true,
     botBackAllowed: kgSafeFoot, botFoeAllowed: o => kgGuidePointAllowed(rt, o.pos) };
 }
+// 目標に書いた援軍が砦へ合流してから、共に守った務めを果たす。
+function kgAidReady(rt, line) {
+  if (line === 0) return true;
+  const F = rt.flags, g = line === 1 ? F.ikeda : F.akechi;
+  return !!g && g.count > 0 && F.tono.includes(g) &&
+    F.reinf.some(r => r.g === g && r.joined);
+}
 function kgHold(line, dur, waves, ambush = false) {
   const L = LINES[line];
   return {
@@ -4452,13 +4459,13 @@ function kgHold(line, dur, waves, ambush = false) {
       // 退去が遅れ続けても、この段自身の期限で撤退へ進む。
       if (line === 2 && el >= dur + RETREAT_T && (rt.flags.prog || 0) < RETREAT_T) { m.kgFailed = true; return true; }
       // 接触前の待ち時間で守備を済ませない。寄せを退けた後も、接触後の秒が一倍半を越えたら退く。
-      return contacted && (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
+      return contacted && kgAidReady(rt, line) && (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
     },
     end(rt, C, m) {
       rt.unmark('dp'); rt.unzone('dp');
       if (ambush) { rt.flags.akechi.holdFire = false; rt.flags.gunsEast.holdFire = false; }
       if (m.kgFailed) rt.objFail('dp');
-      else if (C.timeout || rt.flags.contactAt?.[line] == null || C.inT < dur * 0.6) { rt.objFail('dp'); m.kgFailed = true; }
+      else if (C.timeout || !kgAidReady(rt, line) || rt.flags.contactAt?.[line] == null || C.inT < dur * 0.6) { rt.objFail('dp'); m.kgFailed = true; }
       else rt.objDone('dp');
       // 接触しただけで、守り切れなかった備に達成印を付けない。
       const held = rt.flags.heldLines || (rt.flags.heldLines = [false, false, false]);

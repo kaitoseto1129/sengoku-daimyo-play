@@ -66,6 +66,7 @@ const D0 = demSample(DEM, 0, 0);
 function requiredStage(s) {
   s.idleAdvance = false;
   s.limit = Infinity;
+  s.noHardCap = true;   // 共通の四分・七分の打ち切りでも、未達の木戸・守備・殿を飛ばさない。
   if (s.kind === 'fight') {
     const start = s.start;
     s.start = function (rt, C, m, ctx) {

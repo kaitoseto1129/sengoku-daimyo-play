@@ -535,8 +535,8 @@ html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar {
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar::before { content:none !important; }
 html:root body #hud#hud#hud.battle-order #h-prog#h-prog #armybar#armybar .side.b { grid-column:2 !important; }
 html:root body #hud#hud#hud.battle-order #armybar#armybar :is(.clock,canvas,.gauge) { display:none !important; }
-/* 戸次川・信貴山：人数だけでなく、両軍それぞれの残りを一本の棒で示す。 */
-html:root body #hud#hud#hud.battle-order #h-prog#h-prog:is([data-battle="t06_hetsugi"],[data-battle="shigisan"]) #armybar#armybar .gauge.one {
+/* 戸次川・信貴山・墨俣：人数だけでなく、両軍それぞれの残りを一本の棒で示す。 */
+html:root body #hud#hud#hud.battle-order #h-prog#h-prog:is([data-battle="t06_hetsugi"],[data-battle="shigisan"],[data-battle="sunomata"]) #armybar#armybar .gauge.one {
  display:block !important; grid-column:1 / -1; width:100%;
 }
 html:root body #hud#hud#hud.battle-order #armybar#armybar .side { background:none !important; border:0 !important; min-width:0; }
