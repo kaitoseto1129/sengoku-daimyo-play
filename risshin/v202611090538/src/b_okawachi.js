@@ -2828,7 +2828,18 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   const D = new THREE.Object3D(), col = new THREE.Color();
   const bark = (W.treeMeshes || []).find((m) => m.isInstancedMesh && m.material && !Array.isArray(m.material) && m.material.map && !(m.material.alphaTest > 0) && !m.userData.treeFoliage);
   const trunkMat = bark ? bark.material : new THREE.MeshLambertMaterial({ color: 0x3e3226 });
-  const trunkGeo = new THREE.CylinderGeometry(0.07, 0.13, 1, 10); trunkGeo.translate(0, 0.5, 0);
+  // 真っ直ぐな棒を傾けるだけにせず、共有する幹に途中の曲がりと樹皮の凹凸を付ける。
+  // 根元の位置と高さは保ち、設営時に一度だけ形を作る。
+  const trunkGeo = new THREE.CylinderGeometry(0.07, 0.13, 1, 10, 3); trunkGeo.translate(0, 0.5, 0);
+  const trunkPos = trunkGeo.attributes.position;
+  for (let i = 0; i < trunkPos.count; i++) {
+    const x = trunkPos.getX(i), y = trunkPos.getY(i), z = trunkPos.getZ(i);
+    const angle = Math.atan2(z, x);
+    const grain = 1 + 0.07 * Math.sin(angle * 3 + y * 5);
+    trunkPos.setXYZ(i, x * grain + 0.045 * Math.sin(y * Math.PI), y,
+      z * grain + 0.025 * Math.sin(y * Math.PI * 2));
+  }
+  trunkGeo.computeVertexNormals(); trunkGeo.computeBoundingSphere();
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, 96);
   // 野の株の材質は株ごとの色を受けない（緑の一色に見える）。形は使い回し、葉の絵だけの材質を一つ作って雑木と茂みで共有する。
   // 11/2 c_tree_1102c：一色に照る黄の葉の塊が、平らな切り絵の木に見えた。株の下と芯ほど暗く、房ごとに濃淡を付け、葉先を風でそよがせる。

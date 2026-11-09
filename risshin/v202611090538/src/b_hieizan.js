@@ -2015,6 +2015,14 @@ const hieizan = {
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 12, o: { hat: 'jingasa_n' } }], SHIBATA));
     F.saku = allyGroup(rt, { faction: 'oda', name: '佐久間信盛の手', anchor: { x: SAKA.x - 20, z: SAKA.z - 16 }, facing: -Math.PI / 2, width: 14, aggro: 8, noRout: true },
       dress([{ type: 'samurai', n: 1, o: { name: '佐久間信盛', invuln: true, horse: true, flag: 'sakuma' } }, { type: 'ashigaru', n: 14 }, { type: 'bow', n: 4 }], SAKUMA));
+    // 丹羽長秀と木下藤吉郎の備（docs/generals_oda_1108.md の12：諸将は複数方面に分散）。北と南の麓から山を囲む。持ち場を守り、坂本の戦には入らない
+    F.niwa = allyGroup(rt, { faction: 'oda', name: '丹羽長秀の手', anchor: { x: 62, z: -82 }, facing: -Math.PI / 2, width: 10, aggro: 6, seekRange: 8, order: 'hold', fixed: true, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: 'oda' } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], { flag: 'oda' }));
+    F.kino = allyGroup(rt, { faction: 'oda', name: '木下藤吉郎の手', anchor: { x: 66, z: 92 }, facing: -Math.PI / 2, width: 10, aggro: 6, seekRange: 8, order: 'hold', fixed: true, noRout: true },
+      dress([{ type: 'busho', n: 1, o: { name: '木下藤吉郎', invuln: true, horse: true, flag: 'oda' } }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 2 }], { flag: 'oda' }));
+    for (const g of [F.niwa, F.kino]) { g.stay = true; g.noFrontline = true; }
+    rt.after(40, () => { if (!rt.over) rt.say('丹羽長秀', '北の麓は丹羽が固めた。山から下りる道は塞いだぞ', 3); });
+    rt.after(46, () => { if (!rt.over) rt.say('木下藤吉郎', '南の坂は藤吉郎が押さえましたぞ！', 2.8); });
     F.teppo = allyGroup(rt, { faction: 'oda', name: '明智の鉄砲組', anchor: { x: SAKA.x - 22, z: SAKA.z + 8 }, facing: -Math.PI / 2, width: 10, aggro: 4, noRout: true, formation: 'line' },
       dress([{ type: 'gun', n: 6 }], AKECHI));
     F.oda = [F.ake, F.ram, F.saku, F.teppo];
