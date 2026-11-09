@@ -1552,7 +1552,8 @@ const tonezaka = {
   missionPinCaption: '',
   missionDetail: () => '',
   missionStatus: () => '',
-  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|一乗谷の火|越前への追撃|一乗谷の城下/.test(title),
+  // 追撃を始める理由の見出しも通す。呼び出しがあっても、この制限で消していた。
+  bannerAllowed: (rt, title) => rt.over || !!rt.flags.ending || title === '朝倉が退く。信長公が追う' || /討ち取|討死|勝|一乗谷の火|越前への追撃|一乗谷の城下/.test(title),
   // 11/3 b100（AQ1・AR1）：「味方と進め」のような分からない言い方をやめ、段ごとに場所と行いを書く。
   // 11/4 史実の流れ（docs/battle_refs/tonezaka.md）：段ごとの目標は場所と行いの一つの言い方に固め、途中で言い替えない（AW3）。
   missions: ['坂の下で河合吉統の殿を突き破れ', '坂の下で河合吉統の殿を突き破れ', '坂の下で河合吉統の殿を突き破れ', '一乗谷の奥の道で寄せる朝倉の兵を防げ'],
