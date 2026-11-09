@@ -551,7 +551,8 @@ const k03_gifu = {
     F.fuku._gfTo = { x: -19, z: 14, seek: 6 };
     F.fuku.order = 'move'; F.fuku.dest = { x: -19, z: 14 }; F.fuku.onArrive = (q) => { q.order = 'attack'; q.seekRange = 6; q.anchor = { x: -19, z: 12 }; };
     rt.army.play('toki', KARAME, 1.4);
-    rt.after(2, () => rt.say('福島正則', '七曲りは福島が攻め上る！　一番乗りは渡さぬぞ、池田殿！', 3.4));
+    // 百々の下知と使番の知らせを読み終えてから名乗る。段を越えた知らせは持ち越さない。
+    rt.after(12, () => { if (!F.ending && F.step === 3) rt.say('福島正則', '七曲りは福島が攻め上る！　一番乗りは渡さぬぞ、池田殿！', 3.4); });
   },
 
   win(rt) {

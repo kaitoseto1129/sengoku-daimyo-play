@@ -45,6 +45,9 @@ import { drawGroundAt, avoidCameraBodies } from './render_camera.js';
 import { cloneRoomNearMaterial } from './player.js';
 import { makeButai, butaiTick } from './butai.js';
 import { tickTabas, tabaInteractTick, makeTabaAdvance } from './taketaba.js';
+import * as IK_YAMA from './echizen_ikko/yamagari.js';
+import * as IK_OKU from './echizen_ikko/okunoin.js';
+import * as IK_SANMON from './echizen_ikko/sanmon.js';
 import {
   ECHIZEN_IKKO_PLAN, VILLAGE, GOKA_MURA, GATE_SOMON, GATE_SANMON, OKUYAMA,
   FOREST_POLY, FOREST2_POLY, SANDO, VALLEY_ROAD, FOREST_ROAD, OKU_ROAD, TEMPLE_ROADS, TEMPLE_RIMS,
@@ -158,6 +161,7 @@ const TEMPLE_HALL_IDS = ['gezan', 'hondo', 'oku'];
 // 右上の目標（番号つき・時と場所と行い）。stages.js の echizen_ikko と同じ字。信長公記巻八の順：
 //   十五日の風雨の昼に越前へ入る → その夜、府中の龍門寺に火（山門の段で夜へ）→ 十六日から山狩り（山門が破れて朝へ）。
 // 11/6 時の順：十五日は峠越えと府中の夜襲（木ノ芽峠の戦）。山へ逃げた一揆の山狩りは十六日から（信長公記）。
+// 11/9：寺攻めの前に山狩りの段（echizen_ikko/yamagari.js）。右上の並びは山狩り＋この五つ
 const IKKO_GOALS = ['十六日の昼、竹束に続き惣門を木づちで破る', '雨の中、惣門の内の外堂を味方と押さえる', 'その夜、石段の上の山門を木づちで破る', '十七日の朝、本堂を味方と押さえる', '奥の院の森へ逃げた一揆を、味方と狩り出す'];
 const TEMPLE_HALL_NAMES = { gezan: '外堂', hondo: '本堂', oku: '奥の院' };
 // 坊は参道の西に寄せ、中央の道を兵と遊び手に共用する。
@@ -2333,6 +2337,7 @@ function echizenIkkoMorning(rt) {
   rt.world.setTime('morning', true);
   templeNightLights(false);
   rt.banner('十七日の朝、山狩り', '本堂に籠る者を押さえる');
+  IK_OKU.morning(rt);   // 夜明けまでに手当て（echizen_ikko/okunoin.js）
   // 山門が破れると、奥の院の衆徒が石段を駆け下りて本堂を取り返しに来る（寺の守りの最後の逆襲・補い）。
   //   本堂を押さえる段が、着いて数秒待つだけで終わらないように（4〜7分・二-7 の白熱）。
   rt.after(12, () => {
@@ -2364,21 +2369,23 @@ const echizen_ikko = {
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|破られ|落ちた|雨の昼|夜討ち|山狩り/.test(text) && !/隊が崩れた/.test(text),   // 11/8 critic60：「敵の隊が崩れた」の字は出さない
   // kaito 物差し 三：時・場所・行いの一行に番号。右上に戦の間ずっと同じ並び（stages.js の echizen_ikko と同じ字）。
   //   手負いの退きは足元の印が示し、右上の目標は替えない。
-  missions: IKKO_GOALS,
+  missions: [IK_YAMA.GOAL, ...IKKO_GOALS],
   stageGoalsOnly: true, missionAlways: true,
-  goalVisibleRows: 5, // 五つとも最初から表示する。共通の既定は今の一つ。
+  goalVisibleRows: 6, // 六つとも最初から表示する。共通の既定は今の一つ。
   goalsAllRows: true, // 11/8 critic60：①〜④を最初から全部並べ、済んだ物に印（右上の「①1／4」の二重もやめる）
   missionOf(rt) {
     const F = rt.flags;
-    if (F.mode === 'defend') return 3;
-    if (F.step >= 3 || F.ending && F.step >= 2) return 4;
-    if ((F.step || 0) <= 1) return F.gateSomon?.struct.alive === false ? 1 : 0;
-    return F.gateSanmon?.struct.alive === false ? 3 : 2;
+    // 0 は寺攻めの前の山狩り。寺攻めの五つは 1〜5
+    if (F.mode === 'defend') return 4;
+    if (!F.step) return 0;
+    if (F.step >= 3 || F.ending && F.step >= 2) return 5;
+    if ((F.step || 0) <= 1) return F.gateSomon?.struct.alive === false ? 2 : 1;
+    return F.gateSanmon?.struct.alive === false ? 4 : 3;
   },
   missionHeading(rt) {
     if (rt.flags.mode === 'defend') return '本堂の持ち場で、寄せる織田勢を押し返す';
     // 番号は右上の札が付ける（①と「2／4」を二重にしない）。
-    return IKKO_GOALS[this.missionOf(rt)];
+    return this.missions[this.missionOf(rt)];
   },
   // 接近戦や竹束への追従で、右上の下知を別の文へ言い替えない。
   taskText(rt) { return this.missionHeading(rt); },
@@ -2829,7 +2836,7 @@ const echizen_ikko = {
   // 堂を取り合う最中に、通る仲間の前で戸を閉める案内を出さない。
   doorCloseOK: (rt) => rt.flags.mode === 'defend' || !(rt.flags.step >= 1 && rt.flags.step <= 3),
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); if (m && d > 0 && (rt.flags.step === 2 || rt.flags.step === 3)) return d * 0.4; if (d > 0 && rt.flags.step === 2 && s && !s.isStruct) return d * k * 0.7;   /* 11/9：夜の石段の斬り合いは闇で互いの太刀筋が浅い。木づちで門を打つ間に上から突かれ続けて討たれていた（bot） */   /* 11/9：夜の雨で火縄の狙いが定まらない。山門と本堂の前で本堂の鉄砲八人に討たれていた（bot） */ return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
     rt.def.timeslip.skip =(x, z) => groundAt(W, x, z, W.heightAt(x, z) + 30) > W.heightAt(x, z) + 0.25;   // 堂の板の間・台の上は床に隠れる
@@ -3788,7 +3795,8 @@ const echizen_ikko = {
         avoid: [this.spawn],
       });
       for (const it of F.TA.items) it.tabas.forEach((tb, i) => { tb.off = (i - (it.tabas.length - 1) / 2) * 3.2; });
-      rt.after(5, () => this.assault(rt));
+      // 寺攻めの前に、雨の森と谷筋の山狩り（echizen_ikko/yamagari.js）。済んだら寺攻めへ
+      rt.after(5, () => IK_YAMA.start(rt, { look: IKKO_KOSODE, done: () => this.assault(rt) }));
     } else {
       // ===== 守る側（defend）：越前一向一揆として、本堂を守り、寄せ手を押し返す（もしも） =====
       F.ikkoMain = mkB(rt, { name: '大滝寺の衆徒', general: '衆徒の大将', mix: { ashigaru: 0.85, samurai: 0.15 }, team: 0, faction: 'ikko', kind: 'ashigaru', nominal: 70, armor: IKKO.armor, flag: IKKO.flag, at: { x: hondoC.x, z: hondoC.z - 8 }, facing: Math.PI });
@@ -3957,6 +3965,7 @@ const echizen_ikko = {
       if (TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].owner !== ZONE_STATE.FRIEND) ||
           rt.army.units.some((u) => u.team !== rt.player.u.team && siegeFighter(u) &&
             TEMPLE_HALL_IDS.some((id) => F.SZ.byId[id].test(u.pos.x, u.pos.z)))) return;
+      if (IK_OKU.blockWin(rt)) return;   // 森の残党の斬り込みを崩すまで（echizen_ikko/okunoin.js）
       if (rt.t < 240 || rt.t - F.stepT < 15 || F.huntWavesPending > 0 || F.roadWaves.some((b) =>
         !b.real?.routed && (b._route && b.aliveNominal() > 0 || b.aliveNominal() > b.nominal * 0.3))) return;
       this.win(rt, true); return;
@@ -4000,6 +4009,7 @@ const echizen_ikko = {
       rt.obj('main', IKKO_GOALS[4], 'main', true);
       rt.marker('path', () => templeTaskPoint(rt), () => F.hallEntry ? F.hallEntry.returning ? '参道へ戻る' : '奥の院への参道' : F.hallFoe && siegeFighter(F.hallFoe) ? F.hallExit ? '堂を出て、残る敵へ' : F.hallDoor ? '堂の戸口へ' : F.hallAround ? '堂の脇を回る' : '奥の院の敵へ' : '奥の院へ', { groundGuide: true });
       rt.banner('山狩り', '奥の院の森へ逃げた一揆を狩り出す');
+      IK_OKU.onOku(rt);   // 本堂の衆徒は森へ散る・本人は息を整える（echizen_ikko/okunoin.js）
       templeSay(rt, '組頭', `${nm(rt)}、本堂は取れた。火を掛けよ。逃げた者は奥の院の森じゃ、続け`, 4);
       rt.after(4.5, () => templeSay(rt, '滝川一益', '山へ逃げた者を残らず狩り出せ。上様の御下知じゃ', 4));
       // 山道の守り（奥へ逃げた一揆）が奥の院の森から下りて来て、先手とぶつかる。目標に書いた敵を必ず出す。
@@ -4085,8 +4095,14 @@ const echizen_ikko = {
       // 「物語の作り」の断りは戦の中に出さない（kaito 五-1）。言い伝えの断りは始まりの札と戦の後の史実（after_history.js）で。
     }
     templeSay(rt, '組頭', hondo ? `${nm(rt)}、奥の院も片付いた。山の残りは府中の衆が狩る。手負いを連れて戻れ` : `${nm(rt)}、おぬしらが道を守った。手負いを連れて戻れ`, 4);
-    rt.after(4, () => templeSay(rt, '組頭', '麓で組を整えよ。越前の戦は、まだ続くぞ', 4));
-    rt.finish({}, 10);
+    if (F.mode === 'attack') {
+      // 余韻：燃える本堂の前で遅れて勝鬨、越前の制圧の知らせ（echizen_ikko/okunoin.js）
+      IK_OKU.yoin(rt);
+      rt.finish({}, IK_OKU.LEN);
+    } else {
+      rt.after(4, () => templeSay(rt, '組頭', '麓で組を整えよ。越前の戦は、まだ続くぞ', 4));
+      rt.finish({}, 10);
+    }
   },
 
   // 守る側は架空の援軍を出さず、実際に寄せ手を退けた時だけ局地の勝ち。
@@ -4159,6 +4175,10 @@ const echizen_ikko = {
     }
     butaiTick(rt, dt);
     if (F.ending || rt.over || !rt.player.u.alive) return;
+    IK_YAMA.tick(rt);   // 寺攻めの前の山狩り（echizen_ikko/yamagari.js）
+    IK_OKU.ambushTick(rt, { look: IKKO_KOSODE });
+    IK_SANMON.tick(rt, dt);   // 夜の山門が打たれずに止まった時、掛矢組が破る（echizen_ikko/sanmon.js）
+    if (F.SZ) IK_OKU.tick(rt, dt, { zones: TEMPLE_HALL_IDS.map((id) => F.SZ.byId[id]).filter(Boolean) });   // 山狩りの段で堂に残って動けない兵（echizen_ikko/okunoin.js）
     if (rt.t >= (F.civCheckAt || 0)) {
       F.civCheckAt = rt.t + .5;
       for (const c of F.civ || []) if (!c.routed) {
@@ -4722,6 +4742,7 @@ echizen_ikko.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 鼓舞は無くした（稲生 55）。
   const back = F.mode === 'attack' ? (F.target || VILLAGE) : (F.ikkoMain ? F.ikkoMain.pos : { x: u.pos.x, z: u.pos.z });
   // 麓での下知が済むまでは先手を待つ。門だけを目指して一人で走り出さない。
+  if (IK_YAMA.active(b)) { IK_YAMA.bot(b, inp, { goTo, patientStrike, strikeTarget }); return; }
   if (F.mode === 'attack' && !F.step) {
     inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
     return;

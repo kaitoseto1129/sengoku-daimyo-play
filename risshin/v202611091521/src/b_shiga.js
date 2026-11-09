@@ -2868,10 +2868,11 @@ const shiga = {
     // 両家の北の本陣の位置は復元。公記のこの条は朝倉方の将を特定しないため、義景本人と断定しない。
     // 根拠：『信長公記』巻三「志賀御陣之事」。
     // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
-    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉の本陣の将', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 20, reserve: 0, runTo: { x: 26, z: -80 } });
+    F.campA = camp(rt, { ...ASAKURA_CAMP, contour: true, facing: 0, team: 1, faction: 'asakura', mon: 'asakura', armor: ASA.armor, general: { name: '朝倉の本陣の将', hat: 'kabuto_m', haori: 0x5a4020 }, guard: 15, guardTroops: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], reserve: 0, runTo: { x: 26, z: -80 } });
     // 「浅井備前」は長政を指すが、この復元位置の陣を本人の持ち場とは特定できない。
     // 朝倉側と同じく、目に見える本陣の将は名を断定しない。
-    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井の本陣の将', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 20, reserve: 0, runTo: { x: 0, z: -80 } });
+    F.campB = camp(rt, { ...AZAI_CAMP, contour: true, facing: 0.1, team: 1, faction: 'azai', mon: 'azai', armor: AZA.armor, general: { name: '浅井の本陣の将', hat: 'kabuto_m', haori: 0x2a2a3a }, guard: 15, guardTroops: [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 2 }], reserve: 0, runTo: { x: 0, z: -80 } });
+    // 11/9 重さ：遠い両本陣の旗本は 20→10（始まりの本物の兵の山を 250 の内へ。大軍の厚みは DA の遠景が受け持つ）。
     // 本陣の控えは移した陣幕の後ろへ。同じ人数で、二十四日に本隊と一緒に比叡山へ退かせる。
     // 共通の camp 内に任せると参照が残らず、後詰の後も坂本に五百六十人が居座る。
     for (let i = 0; i < CAMP_HOSTS.length; i++) {
@@ -4046,7 +4047,7 @@ const shiga = {
       const inSan = F.C && F.C.kuruwa.san.test(p.x, p.z);
       const roadLeft = next ? Math.hypot(p.x - next[0], p.z - next[1]) + F.retreatRemaining[F.retreatIdx] : 0;
       const remaining = Math.ceil(roadLeft / 10) * 10;
-      let retreatText = inSan ? '木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `道沿いに木戸まであと約${remaining}メートル。印に沿って坂を上れ` : '開いた木戸から城へ入れ';
+      let retreatText = inSan ? '大手木戸の内を守り、退く味方を待て' : F.retreatIdx === 0 ? '坂道の入口へ退け' : F.retreatIdx < F.retreatPath.length - 3 ? `大手木戸 ${remaining}m。坂道を上れ` : '開いた大手木戸から城へ入れ';
       // 道の点の間隔は不ぞろい。点の番号ではなく、歩く道のりで半ばを知らせる。
       if (!F.climbHalf && F.retreatIdx > 0 && roadLeft <= F.retreatRemaining[0] / 2) { F.climbHalf = true; rt.bark('坂道の半ばまで来た。道の外は急な崖だ'); }
       if (!F.climbTop && F.retreatIdx >= 12) { F.climbTop = true; rt.bark('城の木戸が近い。開いた口から中へ入れ'); }
