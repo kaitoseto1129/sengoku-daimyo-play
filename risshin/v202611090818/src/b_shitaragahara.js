@@ -3458,8 +3458,8 @@ const shitaragahara = {
   // 11/6 fixc1721：寄せる二つの備。初めは連吾川の東の段丘の縁に構え、下知で段丘を下りて柵へ寄せる（開戦から柵の外で団子にしない）。
   //   具足は黒（赤備えは南の山県だけ・四3）。家の旗は真田の六連銭と武田菱。軍勢対軍勢に見えるよう、本物の徒歩を三十四人に。
   WAVES: [
-    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 4, ash: 26, brother: true },
-    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: 'takeda', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 4, ash: 26, general: '内藤昌豊', final: true },
+    { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 8, ash: 22, brother: true },
+    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: 'takeda', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 8, ash: 22, general: '内藤昌豊', final: true },
   ],
 
   makeWave(rt, w) {
