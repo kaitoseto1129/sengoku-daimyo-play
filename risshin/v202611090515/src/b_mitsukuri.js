@@ -5164,14 +5164,16 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     return;
   }
   const e = strikeTarget(b, 12);
+  const reach = p.weapon === 'sword' ? 1.9 : 2.8;
   // 斜面の向こうの兵を追い続けると、道案内と敵追いが競合して山道から進めない。
   // 届く相手へ寄り、届かない所からの打ち込みは受け、それ以外は下知の道を進む。
   // 櫓・塀の上から射る兵は地上から届かない。追い続けて足が止まり、矢で倒れる（描いた遊び a の⑤）。
-  if (e && !courtyardHouse(b, e) && Math.abs((e.pos.y || 0) - (u.pos.y || 0)) < 1.6 && (sanDirect(b.army, u, e.pos) || e.atk?.target === u ||
-      e.swing?.target === u || (e.charging && e.target === u))) {
+  // 柵越しに狙われても、届かない相手へ寄り続けない。反撃は武器の届く間だけ。
+  const counter = e && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) <= reach &&
+    (e.atk?.target === u || e.swing?.target === u || (e.charging && e.target === u));
+  if (e && !courtyardHouse(b, e) && Math.abs((e.pos.y || 0) - (u.pos.y || 0)) < 1.6 && (sanDirect(b.army, u, e.pos) || counter)) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    const reach = p.weapon === 'sword' ? 1.9 : 2.8;
     // 共通の頭と同じ反撃の間を保つ。性格の判断で構え直して突きを消さない。
     patientStrike(p, inp, e, d);
     // 道案内は曲がり角へ向きを替える。受ける時と反撃を待つ時は打ち手を向く。

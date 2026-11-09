@@ -1972,7 +1972,7 @@ const saikaFoe = (u) => !!u?.alive && !u.gone && !u.dying && !u.fleeing && !u.wo
   !u.noTarget && !u.isStruct && !u.civ && !u.downed && !u.rearWound && !u.group?.routed;
 function saikaNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (F.ending || F.step !== 5) return null;
+  if (F.ending || F.step !== 5 || F.paceTsutsumi) return null;
   if (F.foePickT === rt.t && (F.nearestFoe === null || saikaFoe(F.nearestFoe))) return F.nearestFoe;
   F.foePickT = rt.t;
   let best = null, distance = Infinity;
@@ -2061,6 +2061,15 @@ const saika = {
     if (foe) {
       if (rt.player.inRange && rt.player.rangeCueTarget === foe) return null;
       at = foe.pos; r = 2; q.unit = foe; q.enemy = true;
+    } else if (!F.ending && (rt.phase === 'mono' || rt.phase === 'tsutsumi')) {
+      // 追加された物見・堤の下知でも、古い杭や竹束へ案内しない。
+      let target = null;
+      for (let i = 0; i < 2 && !target; i++) {
+        const id = rt.phase === 'mono' ? (i ? 'mono' : 'monoRaid') : (i ? 'tsutsumi' : 'tsutsumiR');
+        const marker = rt.markers.find((m) => m.id === id);
+        if (marker) target = typeof marker.pos === 'function' ? marker.pos() : marker.pos;
+      }
+      at = target || (rt.phase === 'mono' ? COVER : F.tsutsumiG.center()); r = 6;
     } else if (F.ending) {
       const m = rt.markers.find((m) => m.id === 'goal');
       at = m ? typeof m.pos === 'function' ? m.pos() : m.pos : REAR;
@@ -3506,7 +3515,7 @@ const saika = {
     // 画質にかかわらず、実際に放った生存中の射手の筒から一度だけ出す。
     // 携帯では一回に一人まで。無人の岸や装填中の兵から煙を出さない。
     F.gunSmokeT = (F.gunSmokeT || 0) - dt;
-    if (F.step < 6 && F.gunSmokeT <= 0) {
+    if (F.step < 6 && !F.bankCeasefire && F.gunSmokeT <= 0) {
       const high = SETTINGS.quality === 'high';
       F.gunSmokeT = high ? .16 : .4;
       const me = rt.player.u, muzzle = F.gunSmokeMuzzle;
@@ -3587,12 +3596,12 @@ const saika = {
         }
       }
     }
-    for (let i = 0; i < F.gunPosts.length; i++) F.gunPosts[i].fire = F.step < 6 && (crossingFire || i === volley);
+    for (let i = 0; i < F.gunPosts.length; i++) F.gunPosts[i].fire = F.step < 6 && !F.bankCeasefire && (crossingFire || i === volley);
     // 替わった味方の控えは東岸を見回る。敵は西岸の持ち場を守る。
     for (const g of rt.army.groups) if (g.woke && g.woke.jinkeiGuard && !g.saikaGuard) {
       g.saikaGuard = true; g.noGuard = false; g.guard = true; g.guardLeash = 6;
       // 和議の使者が歩いている間に控えが実兵になっても、射撃を再開しない。
-      if (F.step >= 6) { g.fire = false; g.holdFire = true; }
+      if (F.step >= 6 || F.bankCeasefire) { g.fire = false; g.holdFire = true; }
       const guns = g.woke.kind === 'gun';
       g.guardSight = guns ? 68 : 14; g.aggro = guns ? 68 : 8; g.seekRange = g.guardSight;
       g.formation = guns ? 'line' : 'yari';
@@ -3607,7 +3616,7 @@ const saika = {
         F.defenders.push(g);
       }
     }
-    for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = F.step < 6 && g.id % F.gunPosts.length === volley;
+    for (const g of rt.army.groups) if (g.team === 1 && g.saikaGuard && g.woke.kind === 'gun') g.fire = F.step < 6 && !F.bankCeasefire && g.id % F.gunPosts.length === volley;
     reinforceBank(rt, dt);
     const el = rt.t - F.stepT, p = rt.player.u.pos;
     // 生きて任務を続けられる時間を確保する。十八分以内に後陣へ引いて閉じる（11/8 kaito 15分の構成で七分から延ばした）。
@@ -3754,6 +3763,8 @@ const saika = {
         if (el >= 90 && rt.t >= 240) this.win(rt, false);
       }
     } else if (F.step === 5) {
+      // 堤へ出る下知の後は、竹束の旧判定で呼び戻したり失敗にしない。
+      if (F.paceTsutsumi) return;
       let threat = 0, deep = 0;
       for (const g of F.raiders) for (const u of g.units) {
         if (bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24) { threat++; if (u.pos.x > BACK.x + 6 && Math.abs(u.pos.z) < 10) deep++; }
