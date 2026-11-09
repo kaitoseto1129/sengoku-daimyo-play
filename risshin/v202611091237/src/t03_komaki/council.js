@@ -47,6 +47,11 @@ export function tickCouncil(rt, K) {
 
 export function startOrders(rt, K) {
   const F = rt.flags;
+  // 日を改めた届け先には、軍議を終えた森長可と旗本を置く。
+  for (const u of F.council?.units || []) if (u.name === '森長可' && u.alive && !u.gone) rt.army.despawn(u);
+  F.moriOrders = allyGroup(rt, { name: '森長可の陣の旗本', fullStrength: true, anchor: { x: K.MORIJIN.x, z: K.MORIJIN.z - 4 }, facing: 0, width: 5, formation: 'line', aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
+    K.fl([{ type: 'busho', n: 1, o: { name: '森長可', horse: true, invuln: true } }, { type: 'samurai', n: 4 }], 'tsuru'));
+  for (const u of F.moriOrders.units) u.noTarget = true;
   // 日が傾く（夜の出陣へ）
   try { const W = rt.world; W.dayClock = null; W.setTime('dusk'); if (W.fade) W.fade.dur = 60; } catch (e) { /* 空はそのまま */ }
   // 陣を払う荷駄と足軽の小組（中入りの支度の動き。道の脇を東へ）

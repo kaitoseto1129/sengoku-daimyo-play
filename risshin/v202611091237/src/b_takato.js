@@ -2244,8 +2244,9 @@ takato.siegeKit = {
 
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
 takato.bushou = [{ name: '団忠正', g: /森長可|大手/ }];
-// 四将と小笠原の名は組が見える遠さから出す（近くにいる時だけ出て、離れると消えた。11/8 critic60 高遠・五2・十三3）
-takato.nameRange = 95;
+// 四将と小笠原の名は、戦場の端から端まで離れても距離で消さない。
+// 戦場は東西340m・南北200m。九十五mでは本丸から大手の将の名が消えていた。
+takato.nameRange = 400;
 // 15分の構成（docs/oda15_plan_1108.md 30）：段は prototype/src/takato/ に一段一ファイル
 k15Kakoi(takato, { OTE: K15_OTE, GATE_NI: K15_NI }); k15Nobutada(takato, { GATE_NI: K15_NI, GATE_HON: K15_HON }); k15Rakujo(takato, { GATE_HON: K15_HON });
 takato.botBrain = k15WrapBot(takato.botBrain);
