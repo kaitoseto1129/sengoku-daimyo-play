@@ -52,7 +52,7 @@ import { jinkeiDistantLayout } from './b_jinkei_layout.js';
 // 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md 13）：段の中身は mikatagahara/ に一段一ファイル
 import { install as shutsujin } from './mikatagahara/shutsujin.js';   // 0〜3分：出陣と根洗の松の物見
 import { steps as zeneiSteps } from './mikatagahara/zenei.js';       // 3〜6分：鶴翼の端の崩れと二の列
-import { steps as hirateSteps, HIRA_LAST } from './mikatagahara/hirate.js';   // 7〜10分：平手汎秀の最期
+import { steps as hirateSteps, HIRA_LAST, fallNotice } from './mikatagahara/hirate.js';   // 7〜10分：平手汎秀の最期
 import { steps as gakeSteps } from './mikatagahara/gake_michi.js';   // 12〜14分：崖の東の道の足止め
 import { install as hamamatsuEnd } from './mikatagahara/hamamatsu.js';
 import { STAGES } from './stages.js';   // 終幕：浜松城の門の余韻
@@ -552,8 +552,9 @@ function winterGround(W) {
 // 共通の褒め言葉・叱責も、この戦では生きている上役へ引き継ぐ。
 function livingVoice(rt, speaker) {
   const F = rt.flags;
-  let dead = speaker === '平手汎秀' && F.hiraU && !F.hiraU.alive;
-  if (!dead && (speaker === '佐脇藤八' || speaker === '長谷川橋介')) {
+  let dead = speaker === '平手汎秀' && (F.hirateFallSaid || F.hiraU && !F.hiraU.alive) ||
+    speaker === '本多忠真' && F.tadazaneFallSaid || speaker === '夏目吉信' && F.yoshinobuFallSaid;
+  if (!dead && (speaker === '佐脇藤八' || speaker === '長谷川橋介' || speaker === '本多忠真' || speaker === '夏目吉信')) {
     for (const u of rt.army.units) if (u.name === speaker && !u.alive) { dead = true; break; }
   }
   if (!dead) return speaker;
@@ -2402,7 +2403,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       if (F.ending) return;
       if (F.hiraU && F.hiraU.alive) { F.hiraU.invuln = false; F.hiraU.hp = 0; rt.army.kill(F.hiraU, null); }
       // 討死の知らせは一度だけ（onKill で出た時は重ねない）。名を大きく短く。
-      if (!F.hirateFallSaid) { F.hirateFallSaid = true; F.bossName = '佐久間信盛'; rt.banner('平手汎秀、討ち死に', ''); }
+      if (!F.hirateFallSaid) { F.hirateFallSaid = true; F.bossName = '佐久間信盛'; fallNotice(rt, '平手汎秀'); }
     });
     rt.after(11, () => { if (!F.ending) rt.say('酒井忠次', '殿は先に城へ向かわれた。城の口で待つ。走れ！', 3.5); });
     // 夏目吉信は家康の名を名乗って追手を引き受けた（『三河物語』ほか）。
@@ -2417,11 +2418,11 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         // 帰着の余韻の間も殿の後報を伝える。帰着で予約を捨てると、早く退いた時に知らせが消える。
         if (F[key] || rt.over || F.ending && F.returnedT === undefined) return;
         if (!ready() || !F.dpR || F.dpOn || rt.t - Math.max(lastFallT, F.mkLastFallT || 0) < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
-        lastFallT = F.mkLastFallT = rt.t;
+        lastFallT = rt.t;
         F[key] = true;
         const u = rt.army.units.find((q) => q.alive && q.name === name);
         if (u) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
-        rt.banner(`${name}、討ち死に`, '');
+        fallNotice(rt, name);
       };
       rt.after(12, tick);
     };
@@ -2708,14 +2709,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     if (v.team === 0 && (v.name === '本多忠真' || v.name === '夏目吉信')) {
       const key = v.name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid';
       if (!F[key]) {
-        F[key] = true; F.mkLastFallT = rt.t;
-        rt.banner(`${v.name}、討ち死に`, '');
+        F[key] = true;
+        fallNotice(rt, v.name);
       }
     }
     if (v === F.hiraU && !F.hirateFallSaid) {
       F.hirateFallSaid = true;
       F.bossName = '佐久間信盛';
-      rt.banner('平手汎秀、討ち死に', '');
+      fallNotice(rt, '平手汎秀');
       rt.say('足軽', '平手の殿が討たれたがや！　退く道を塞がせるな！', 3);
     }
     if (F.mkFlankArrived && v.group === F.aka && k && (k.isPlayer || rt.squad.includes(k))) F.mkFlankFought = true;

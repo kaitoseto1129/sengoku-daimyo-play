@@ -230,9 +230,10 @@ const alive = (g) => !!g && g.count > 0 && !g.routed && g.units.some(remaining);
 const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.units.reduce((n, u) => n + (remaining(u) ? 1 : 0), 0) : 0), 0);
 function nearestFighter(g, p, current) {
   if (!alive(g)) return null;
-  if (fighting(current) && remaining(current) && g.units.includes(current)) return current;
+  // 後送中の兵を追わせない。手当てを終えて復帰すれば再び的にできる。
+  if (fighting(current) && remaining(current) && !current.rearWound && g.units.includes(current)) return current;
   let best = null, bd = Infinity;
-  for (const u of g.units) if (fighting(u) && remaining(u)) {
+  for (const u of g.units) if (fighting(u) && remaining(u) && !u.rearWound) {
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
     if (d < bd) { bd = d; best = u; }
   }
@@ -330,6 +331,7 @@ const t04_negoro = {
   meleeGrace: { rate: 1, burst: 1, interval: 3 },
   // 目標は五つの段だけ（「敵を何人討つ」で埋めない。AW 3）
   stageGoalsOnly: true,
+  goalsVisibleRows: 5,   // 七段の順序を保ち、今の目標を含む五件を最初から並べる。
   // 11/4 jin（BH6・Simple）：敵を指す矢印と構えの案内は出さない。敵は頭上の▼で分かる
   meleeGuide: () => false,
   guardGuideAllowed: () => false,
@@ -1212,7 +1214,7 @@ const t04_negoro = {
       if (F.towerScanT <= 0) {
         F.towerScanT = 0.5;
         let k = 0;
-        for (const u of rt.army.units) if (fighting(u) && u.team === 1 && !u.perch && !u.woundOut && Math.hypot(u.pos.x - DAITO.x, u.pos.z - DAITO.z) < 13) k++;
+        for (const u of rt.army.units) if (fighting(u) && u.team === 1 && !u.perch && !u.woundOut && !u.rearWound && Math.hypot(u.pos.x - DAITO.x, u.pos.z - DAITO.z) < 13) k++;
         if (k) {
           F.towerHp = Math.max(0, F.towerHp - k * 0.2);
           if (!F.towerWarn && F.towerHp < 60) { F.towerWarn = true; rt.say('羽柴秀次', '大塔の縁に火がついた！　行人方を寄せつけるな！', 3); }
