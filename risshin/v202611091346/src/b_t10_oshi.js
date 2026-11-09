@@ -410,7 +410,7 @@ const t10_oshi = {
   goalSignNoLabel: true,     // 11/4 jin：▼の上に「敵をたおせ」などの字を出さない（字は使わない・kaito 10/23）
   meleeGuide: () => false,   // 11/4 jin（Simple・BH6）：「敵をたおせ」の札と敵を指す矢印は出さない。敵は頭上の▼で分かる
   noFrontFill: true,          // 共通の奥の乱戦は沼の水の上に立ってしまう（水面が見えず、水攻めの広さが出ない）。乱戦は土橋の上に置く（camps）
-  learningFight: true, playerTaken: 0.45, playerRegen: 0.03,   // 11/8：十五分の戦。傷が積もりすぎないよう戻りを少し早く
+  learningFight: true, playerTaken: 0.32, playerRegen: 0.05,   // 11/8：十五分の戦。傷が積もりすぎないよう戻りを少し早く
   autoTargetCamera: true, steadyMeleeCamera: true, closeCombatAssist: true,
   noWinCrane: true, compactIntro: true,
   // 11/5 fix3：井楼櫓を取る別の目標と入口の印・「櫓の入口から中へ」の札を出さない（印はいつも一つ・目標は段の六つだけ）
@@ -550,7 +550,7 @@ const t10_oshi = {
   },
   raid(rt) {
     const F = rt.flags;
-    if (F.raid >= 4 || F.step !== 3) return;
+    if (F.raid >= 3 || F.step !== 3) return;
     const i = F.raid++, side = i % 2 ? 1 : -1;
     F.raidT = rt.t;
     // 11/4 jin：夜討ちは城の口から浅瀬の土手（水を入れる前は乾いた道）を伝って来る。前は沼の深みに出て、兵が首まで沈んで見えた
@@ -852,18 +852,20 @@ const t10_oshi = {
       }
       // 次の夜討ちは、前が崩れて五秒後か、前が粘っても三十秒で浅瀬に寄せる（夜討ちは間を空けず次々と来る）
       // 11/8 15分の構成：夜討ちは四度。間に普請の進む間（十二秒）を置き、段は二分半から三分
-      if (cur && F.raid < 4 && fighting(cur) && rt.t - F.raidT > 34) { F.nextT = 0; this.raid(rt); }
-      else if (cur && !fighting(cur)) { if (F.raid < 4) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 140 && P.alive && near(P.pos, RAIDAT, 18)) this.weir(rt); }
+      if (cur && F.raid < 3 && fighting(cur) && rt.t - F.raidT > 34) { F.nextT = 0; this.raid(rt); }
+      else if (cur && !fighting(cur)) { if (F.raid < 3) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 110 && P.alive && near(P.pos, RAIDAT, 18)) this.weir(rt); }
       // 時刻だけで夜討ちを消さない。四度とも退け、本人も浅瀬の口を守ってから夜明けへ。
-      // 二巡（11/9 bot）：四度目の後、浅瀬の口から二十 m より遠くで立ち尽くす夜討ちの残りが段を十分止めた。四度出て百九十秒過ぎたら、遠くの残りは城へ戻す
-      if (F.raid >= 4 && rt.t - F.stepT > 190) for (const g of F.raids) if (fighting(g)) for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
+      // 二巡（11/9 bot）：四度目の後、浅瀬の口から二十 m より遠くで立ち尽くす夜討ちの残りが段を十分止めた。三度出て百五十秒過ぎたら（三巡 11/9：十五分に収めるため四度→三度）、遠くの残りは城へ戻す
+      if (F.raid >= 3 && rt.t - F.stepT > 150) for (const g of F.raids) if (fighting(g)) for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
     } else if (F.step === 4) {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 30)) this.weirRaid(rt);
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
+        // 三巡（11/9 bot）：堰へ寄せた城兵の残りが堤の陰で立ち尽くし、段が十分止まった。寄せて二分過ぎ、本人が堰の近くにいれば残りは沼へ退く
+        if (F.weirRaid && fighting(F.weirRaid) && rt.t - F.weirRaidT > 120 && P.alive && near(P.pos, WEIR, 25)) for (const u of F.weirRaid.units) if (u.alive && !u.gone && !near(u.pos, P.pos, 6)) rt.army.despawn(u);
         const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1;
         if (F.weirRaid && !raidOn && fighting(F.weirRaid)) { F.weirRaid.noRout = false; F.weirRaid.morale = 0; for (const u of F.weirRaid.units) if (u.alive && !u.gone) u.fleeing = true; }
-        F.weirT = P.alive && near(P.pos, WEIR, 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
+        F.weirT = P.alive && near(P.pos, WEIR, F.weirRaidT && rt.t - F.weirRaidT > 120 ? 8 : 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
         if (F.weirT >= 2) this.openWeir(rt);
       }
     } else if (F.step === 6) {

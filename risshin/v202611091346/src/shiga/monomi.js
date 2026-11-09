@@ -25,7 +25,9 @@ export function install(rt, ctx) {
     if (S.k !== 0) return;
     S.k = 1;
     rt.unmark('shigaMi');
-    for (const n of ['朝倉景健', '浅井長政', '朝倉義景']) { try { revealName(rt, n); } catch (e) { /* 名の無い将は飛ばす */ } }
+    for (const c of [F.campA, F.campB]) {
+      if (c?.general?.name) { try { revealName(rt, c.general.name); } catch (e) { /* 名の無い将は飛ばす */ } }
+    }
     if (arrived) rt.award((t) => { t.side.push('湖の道で浅井・朝倉の軍勢を見届けた'); t.special = { label: '敵の軍勢を見届けた', pts: 10 }; }, '敵の軍勢を見届けた', MI);
     try { sfx('horagai', 0.6); } catch (e) { /* 音が無くても進む */ }
     rt.say('森可成', '三万はおるか……。朝倉が湖の道、浅井が山側じゃ。十倍の敵ぞ', 4);
