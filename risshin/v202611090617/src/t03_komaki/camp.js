@@ -74,7 +74,7 @@ export function tickCamp(rt, K) {
   }
   if (F.campScout && !F.cScoutDone && (K.aliveN(F.cScout) <= 1 || rt.t - F.campScout > 50)) {
     F.cScoutDone = true;
-    if (K.live(F.cScout)) { F.cScout.order = 'retreat'; F.cScout.dest = { x: -170, z: -44 }; F.cScout.speed = 5; F.cScout.aggro = 0; F.cScout.seekRange = 0; }
+    if (K.live(F.cScout)) { F.cScout.order = 'retreat'; F.cScout.dest = { x: K.HONJIN.x, z: 140 }; F.cScout.speed = 5; F.cScout.aggro = 0; F.cScout.seekRange = 0; }
     rt.say('羽柴の侍', '陣の厚さを見に来たか。小牧山へ逃げ帰って、十万と申せ', 3);
   }
   const T = F.fortTower?.foot || { x: K.FORT.x + 22, z: K.GATE.z - 14 };
