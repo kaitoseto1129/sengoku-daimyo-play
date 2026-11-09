@@ -527,14 +527,14 @@ const t12_odawara = {
         { id: 'yasu', layer: 'ichi', wing: 'right', men: 1500, taisho: '松平康頼', bind: (rt) => rt.flags.yasu, hold: true },
         { id: 'honda', layer: 'ichi', wing: 'left', men: 3000, taisho: '本多忠勝', flag: 'honda', at: { x: 150, z: -186 }, hold: true },
         { id: 'toku2', layer: 'ni', wing: 'right', men: 4000, taisho: '', at: { x: 178, z: -118 }, hold: true },
-        { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '徳川家康', bind: (rt) => rt.flags.ieyasu, hold: true },
+        { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 18500, taisho: '徳川家康', bind: (rt) => rt.flags.ieyasu, hold: true },
       ] },
     B: { name: '北条', facing: Math.PI / 2, honjin: { x: CASTLE.x, z: CASTLE.z }, mpu: 8, formation: '方円', terrain: 'castle', flag: 'hojo', armor: 0x2e2a24, openAt: 9999, attrition: 0,
       sonae: [
         { id: 'sanno', layer: 'ichi', wing: 'center', men: 3000, taisho: '', at: { x: SANNO_IN.x - 10, z: SANNO_IN.z }, hold: true },
         { id: 'kita', layer: 'ichi', wing: 'left', men: 4000, taisho: '', at: { x: 74, z: -160 }, hold: true },
         { id: 'umi', layer: 'ni', wing: 'right', men: 3000, taisho: '', at: { x: 66, z: -40 }, hold: true },
-        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 6000, taisho: '北条氏直', bind: (rt) => rt.flags.hojo, hold: true },
+        { id: 'hon', layer: 'hatamoto', wing: 'center', men: 16000, taisho: '北条氏直', bind: (rt) => rt.flags.hojo, hold: true },
       ] },
     honjinView: { A: false, B: false },   // 陣幕と本丸は戦のファイルが作る
   },

@@ -22,5 +22,6 @@ export const DEPTH_INOU = {
       { id: 'tsuzuki', layer: 'yobi', wing: 'right', men: 100, taisho: '津々木蔵人', flag: 'nobukatsu', hold: true, at: { x: 54, z: -226 } },
       { id: 'nobukatsu', layer: 'honjin', wing: 'center', men: 200, taisho: '織田信勝', flag: 'nobukatsu', hold: true, at: { x: 8, z: -300 } },
     ] },
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/inou.md）
   honjinView: { A: false, B: true },
 };

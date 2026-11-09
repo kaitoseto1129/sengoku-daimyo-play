@@ -17,5 +17,6 @@ export const DEPTH_SUNOMATA = {
       { id: 'yose', layer: 'hatamoto', wing: 'left', men: 400, taisho: '斎藤方の寄せ大将', flag: 'saito', bind: G('reserveW3b') },
       { id: 'tatsuoki', layer: 'honjin', wing: 'center', men: 3000, taisho: '斎藤龍興', flag: 'saito', hold: true, at: { x: -30, z: -320 } },
     ] },
+  byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/sunomata.md）
   honjinView: { A: false, B: false },
 };
