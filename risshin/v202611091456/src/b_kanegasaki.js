@@ -262,7 +262,7 @@ function kgRetreatLabel(rt, reached) {
     const goal = rt.G.lord || F.fleeing ? KUTSUKI : LINES[F.line];
     return rt.distTo(goal) < goal.r ? '旗の下で来た道へ槍を向けよ' : `${goal.mark || '退き口'}へ退け`;
   }
-  if (reached) return 'ここで構え、追手へ槍を向けよ';
+  if (reached) return `${LINES[F.line || 0].mark}で構え、追手へ槍を向けよ`;
   const cue = rt.hud.retreatGuide, ally = cue?.ally;
   return ally && kgActive(ally) && Math.hypot(ally.pos.x - cue.x, ally.pos.z - cue.z) < 8
     ? '近くの味方の後ろへ下がれ' : '敵から少し離れて構えよ';
@@ -273,7 +273,7 @@ function kgRepeatedRouteOrder(rt, action, task) {
   if (rt.over || F.ending || rt.hud.retreatGuide?.treatment ||
       !(rt.G.lord || F.fleeing || F.step === 2 || F.step === 4)) return false;
   return /へ退け$/.test(action) && task.startsWith(action + '・あと') &&
-    /^\d+歩/.test(task.slice(action.length + 3));
+    /^\d+m/.test(task.slice(action.length + 3));
 }
 // 密集した時だけ視点を少し引く。近い得物は既存の描画時の透かしに任せる。
 // 共通の視点補正より前に高さを渡し、地形と壁の判定もそのまま使う。
@@ -1781,7 +1781,8 @@ function retreatFieldTick(rt) {
   if (!F.fleeing) return;
   // 生き残った追手を元の備へ戻さず、道の折れ点を通って追わせる。
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || g.routed || !g.count || g.kgChasing) continue;
+    // 後方の総大将と、南端で守備に戻した組へ追撃を出し直さない。
+    if (g.team !== 1 || g.routed || !g.count || g.kgChasing || g.edgeHeld || g === F.yoshikage || g === F.nagamasa) continue;
     g.kgChasing = true;
     const c = g.center(); g.path = [];
     for (const q of RETREAT_ROAD) if (q[1] > c.z && q[1] < KUTSUKI.z) g.path.push(q);
