@@ -2284,10 +2284,10 @@ async function playPersona(game, spec, aud, c) {
     }
     rep.ally = `隊${AM.pos.size}・動いた計${Math.round(AM.move)}m・味方の討ち取り${rep.allyKills || 0}・敵を前に20秒止まった${AM.idle}回・本物の味方5人未満${AM.low * 5}秒`;
   };
-  const hurt = {}, hitLog = [];
+  const hurt = {}, hitLog = [], hurtBy = {};   // hurtBy：傷を与えた組の名ごとの合計（倒れた時に多い順に三つ。11/9 徳川C）
   let retryT = -1;
   const td = b.player.takeDamage.bind(b.player);
-  b.player.takeDamage = (a, src) => { const d = td(a, src); const k = src ? (src.isStruct ? '柵' : ({ bow: '弓', gun: '鉄砲', cavalry: '騎馬', samurai: '侍', busho: '武将', ashigaru: '足軽' }[src.type] || src.type)) : '?'; hurt[k] = (hurt[k] || 0) + (d || 0); if (src && (src.type === 'bow' || src.type === 'gun') && d > 0) { b.botShotT = b.t; b.botShooter = src; }
+  b.player.takeDamage = (a, src) => { const d = td(a, src); const k = src ? (src.isStruct ? '柵' : ({ bow: '弓', gun: '鉄砲', cavalry: '騎馬', samurai: '侍', busho: '武将', ashigaru: '足軽' }[src.type] || src.type)) : '?'; hurt[k] = (hurt[k] || 0) + (d || 0); if (d > 0 && src?.group?.name) hurtBy[src.group.name] = (hurtBy[src.group.name] || 0) + d; if (src && (src.type === 'bow' || src.type === 'gun') && d > 0) { b.botShotT = b.t; b.botShooter = src; }
     // 倒れた時の読み直しのため、最後の八つの傷を短く残す（時・元・量・残り・構え・向き・囲み・退避中）。
     if (d > 0) { const h = b.player.lastHit, u = b.player.u; hitLog.push(`${Math.round(b.t)}s${k}${Math.round(d)}→${Math.round(u.hp)}${h?.guard ? '構' : ''}${h?.guardBroken ? '崩' : ''}${h?.exhausted ? '疲' : ''}${h?.back ? '背' : h?.side ? '横' : ''}${u.mobbed ? '囲' : ''}${b.botSurviving ? '退' : ''}${src?.pos ? `距${Math.hypot(src.pos.x - u.pos.x, src.pos.z - u.pos.z).toFixed(1)}見${b._svFd?.toFixed?.(1)}` : ''}`); if (hitLog.length > 8) hitLog.shift(); }
     return d; };
@@ -2437,7 +2437,7 @@ async function playPersona(game, spec, aud, c) {
   rep.squad = b.squad.length ? `${b.squad.filter((s) => s.alive).length}/${b.squad.length}` : '—';
   rep.down = !!(b.result && b.result.down) || !P.alive;
   rep.hurt = Object.entries(hurt).sort((a, z) => z[1] - a[1]).map(([k, v]) => `${k} ${Math.round(v)}`).join('・');
-  if (rep.down && hitLog.length) rep.hurt += `｜段 ${b.phase || '―'}・最後の傷 ${hitLog.join(' ')}｜跡 ${(b._trace || []).join(' ')}`;
+  if (rep.down && hitLog.length) rep.hurt += `｜段 ${b.phase || '―'}・最後の傷 ${hitLog.join(' ')}｜誰 ${Object.entries(hurtBy).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([n, v]) => n + Math.round(v)).join(' ')}｜跡 ${(b._trace || []).join(' ')}`;
   else if (!rep.main) rep.hurt += `｜段 ${b.phase || '―'}｜訳 ${b.result?.failureReason || b.result?.outcomeReason || '―'}｜跡 ${(b._trace || []).join(' ')}`;   // 倒れずに任務を落とした時も、最後の四十秒の居場所を残す
   rep.lines = b.tracker.lines().map((l) => `${l.label} ${l.pts > 0 ? '+' : ''}${l.pts}`).join('、');
   rep.attacks = rep.attacks || 0;
