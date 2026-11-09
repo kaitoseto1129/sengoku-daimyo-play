@@ -2261,7 +2261,7 @@ function deploy(rt, team, o, list) {
   const fill = () => {
     if (rt.over || F.ending) return;
     // 枠待ちの間に崩れた隊は寄せ直さない。退く下知が出た後も控えを抜いていた。
-    if (g.routed || g.order === 'retreat') { g.anePending = false; return; }
+    if (g.routed || g.order === 'retreat' || g.order === 'flee') { g.anePending = false; return; }
     KIT.freeRoom(rt, list.reduce((v, q) => v + q.n, 0));
     // 11/6（fix3）：横槍の稲葉の手は枠待ちで一分以上出なかった。この手だけ十六人まで上乗せ（戦う本物は二百五十人ほどまでに収まる）。
     //   11/6（fixc1803）：十六人の上乗せでも枠待ちが百秒続いた（描かない通しで確かめた）。三十二人に（横槍の間だけ二百五十人をわずかに越える）。
@@ -2555,6 +2555,8 @@ function anegawaGuardLabel(rt, reached) {
 const ANE_MISSIONS = ['渡って来る浅井勢を森の備で迎え撃て', '段を破る磯野員昌の隊を食い止めよ', '浅井勢を信長本陣の前で押し返せ', '姉川の浅い瀬を北へ渡れ', '北岸の浅井の殿へ斬り込め'];
 const aneFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound &&
   !u.fleeing && !u.noTarget && !u.isStruct && !u.civ && u.team === 1 && !u.group?.routed && !u.group?.noAI &&
+  // 敗走の動きへ切り替わる前でも、退く下知の出た隊へ本人を連れ出さない。
+  u.group?.order !== 'retreat' && u.group?.order !== 'flee' &&
   // 画面の外（camHidden）や束で描く兵（imp）も相手に数える（11/5：近い兵ほど外れ、しんがりを指せなかった）。
   (u.mesh?.visible !== false || !!u.camHidden || !!u.imp);
 // 元の案内（手負い・退却・東の別手・押し返し）に任せる時。
@@ -2879,7 +2881,7 @@ const anegawa = {
   },
   // 11/5（標準 三-3・kaito BL2・BL3）：右上に番号つきの五つを戦の間ずっと出す（stages.js の anegawa）。
   //   ▼の上の「ここを攻める」等の字・二つ目の指示は出さない。
-  stageGoalsOnly: true, missionAlways: true, goalsAllRows: true,
+  stageGoalsOnly: true, missionAlways: true, goalsAllRows: false,
   goalVisibleRows: 5, goalRowsAhead: true, // 表示件数も指定し、現在から先の五件を最初から並べる。
   // 11/5（fix2・標準 五3）：行き先の▼には距離（〇〇歩）だけを添える。説明の字は出さない（goalSignBare は距離まで消していた）。
   goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,

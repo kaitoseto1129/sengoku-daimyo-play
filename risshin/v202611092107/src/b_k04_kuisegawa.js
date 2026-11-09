@@ -71,6 +71,8 @@ function height(x, z) {
 }
 
 const live = (g) => g && g.count > 0;
+// 一時的に倒れた兵は待つが、戦線離脱した兵を撤退待ちに数えない。
+const canReturn = (u) => u.alive && !u.gone && !u.dying && !u.woundOut && !u.evacuatedWound;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const fl = (list, flag) => list.map((s) => ({ ...s, o: { flag, ...(WEST.has(flag) && s.type !== 'busho' ? { armor: ARM[flag] } : {}), ...(s.o || {}) } }));
 
@@ -484,8 +486,8 @@ const k04_kuisegawa = {
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
-    const squadAlive = (rt.squad || []).filter((s) => s.alive).length;
-    if (F.step >= 2 && !live(F.mine) && !squadAlive) { this.lose(rt, '連れた兵が全部討たれた'); return; }
+    const menRemain = F.mine.units.some(canReturn) || (rt.squad || []).some(canReturn);
+    if (F.step >= 2 && !menRemain) { this.lose(rt, '連れた兵が全員討死・戦線離脱した'); return; }
     const el = rt.t - F.stepT;
     if (F.step === 1) {
       // 刈田の足軽は、槍が迫ると稲を捨てて立ち上がる
@@ -536,8 +538,8 @@ const k04_kuisegawa = {
   returnedMen(rt) {
     let n = 0;
     const mine = rt.flags.mine?.units || [], squad = rt.squad || [];
-    for (const u of mine) if (u.alive && !u.gone && !u.downed && !u.woundOut && dist(u.pos, ARIMA) < 20) n++;
-    for (const u of squad) if (!mine.includes(u) && u.alive && !u.gone && !u.downed && !u.woundOut && dist(u.pos, ARIMA) < 20) n++;
+    for (const u of mine) if (canReturn(u) && !u.downed && dist(u.pos, ARIMA) < 20) n++;
+    for (const u of squad) if (!mine.includes(u) && canReturn(u) && !u.downed && dist(u.pos, ARIMA) < 20) n++;
     return n;
   },
 

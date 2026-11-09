@@ -311,7 +311,8 @@ const t06_hetsugi = {
         fl([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 - i, o: { flagScale: 1 } }], 'chosokabe'));
       g.mon = 'chosokabe'; return [g, dx, dz];
     });
-    F.follow = [[F.nobu, B.nobu, 6, 4], [F.sogo, B.sogo, 0, 4], [F.sen, B.sen, 0, 4], [F.tsune, B.nobu, -12, 2], ...F.allyBands.map(([g, dx, dz]) => [g, B.nobu, dx, dz])];
+    // 元親の旗本も自分の備に付く。渡河せず南岸に留まり、退却時は closeRing で追従を解く。
+    F.follow = [[F.nobu, B.nobu, 6, 4], [F.sogo, B.sogo, 0, 4], [F.sen, B.sen, 0, 4], [F.moto, B.moto, 0, 4], [F.tsune, B.nobu, -12, 2], ...F.allyBands.map(([g, dx, dz]) => [g, B.nobu, dx, dz])];
     F.allyBands = F.allyBands.map(([g]) => g);
     // 島津の名のある将は馬上で旗本に囲まれ、自分の備と動く（足軽一人を追わない・討てない）
     F.followFoe = [];
