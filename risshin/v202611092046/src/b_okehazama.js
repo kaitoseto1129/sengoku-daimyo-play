@@ -650,27 +650,45 @@ function wayCross(x, z, dx, dz, a, lo, hi) {
   const t = (a - x) / dx, q = z + dz * t;
   return t > 0 && t < 1 && q > lo && q < hi;
 }
+function honjinCross(x, z, tx, tz) {
+  const dx = tx - x, dz = tz - z;
+  return wayCross(x, z, dx, dz, 5, -126, -106) || wayCross(x, z, dx, dz, 31, -126, -106) ||
+    wayCross(z, x, dz, dx, -125, 4, 32) || wayCross(z, x, dz, dx, -107, 4, 13.8) || wayCross(z, x, dz, dx, -107, 22.2, 32) ||
+    wayCross(z, x, dz, dx, -104.8, 3, 12.8) || wayCross(z, x, dz, dx, -104.8, 23.2, 33);
+}
+// 途中で次の角へ切り替えると、幕や手盾を斜めに横切って止まる。
+// 各区間が通る角だけを結び、口の中央を経由する。道と計算用の入れ物は使い回す。
+const HONJIN_WAY = [[2, -128], [34, -128], [2, -100], [34, -100], [18, -110], [18, -103], [18, -100]];
+const HONJIN_LINK = HONJIN_WAY.map(([x, z]) => HONJIN_WAY.map(([tx, tz]) =>
+  honjinCross(x, z, tx, tz) ? Infinity : Math.hypot(tx - x, tz - z)));
+const honjinDist = new Float64Array(HONJIN_WAY.length), honjinSeen = new Uint8Array(HONJIN_WAY.length);
 function honjinWay(army, u, goal) {
   const x = localX(u.pos.x, u.pos.z), z = localZ(u.pos.x, u.pos.z);
   const tx = localX(goal.x, goal.z), tz = localZ(goal.x, goal.z);
-  const dx = tx - x, dz = tz - z;
-  if (!wayCross(x, z, dx, dz, 5, -126, -106) && !wayCross(x, z, dx, dz, 31, -126, -106) &&
-      !wayCross(z, x, dz, dx, -125, 4, 32) && !wayCross(z, x, dz, dx, -107, 4, 13.8) && !wayCross(z, x, dz, dx, -107, 22.2, 32) &&
-      !wayCross(z, x, dz, dx, -104.8, 3, 12.8) && !wayCross(z, x, dz, dx, -104.8, 23.2, 33)) return goal;
-  let wx = 18, wz;
-  const inside = x > 5 && x < 31 && z > -125 && z < -107;
-  const targetInside = tx > 5 && tx < 31 && tz > -125 && tz < -107;
-  if (inside) wz = z < -111 ? -110 : -100;
-  // 奥の幕の外から口へ回る時は、先に奥の角を回る。
-  // いきなり口の横へ向かうと、奥の幕を斜めに横切って止まる。
-  else if (z <= -125 && x > 3 && x < 33) { wx = x < 18 ? 2 : 34; wz = -128; }
-  else if (!targetInside && tz <= -125 && (x <= 4 || x >= 32)) { wx = x < 18 ? 2 : 34; wz = -128; }
-  else if (z < -101) { wx = x < 18 ? 2 : 34; wz = -100; }
-  else if (!targetInside && (tx < 5 || tx > 31)) { wx = tx < 5 ? 2 : 34; wz = -100; }
-  else if (!targetInside && tz <= -125) { wx = x < 18 ? 2 : 34; wz = x > 4 && x < 32 ? -100 : -128; }
-  else if (Math.abs(x - 18) > 2) wz = -100;
-  else wz = -110;
+  if (!honjinCross(x, z, tx, tz)) return goal;
+  honjinSeen.fill(0);
+  for (let i = 0; i < HONJIN_WAY.length; i++) {
+    const [wx, wz] = HONJIN_WAY[i];
+    honjinDist[i] = honjinCross(wx, wz, tx, tz) ? Infinity : Math.hypot(tx - wx, tz - wz);
+  }
+  for (let step = 0; step < HONJIN_WAY.length; step++) {
+    let next = -1, best = Infinity;
+    for (let i = 0; i < HONJIN_WAY.length; i++) if (!honjinSeen[i] && honjinDist[i] < best) { next = i; best = honjinDist[i]; }
+    if (next < 0) break;
+    honjinSeen[next] = 1;
+    for (let i = 0; i < HONJIN_WAY.length; i++) honjinDist[i] = Math.min(honjinDist[i], best + HONJIN_LINK[next][i]);
+  }
+  let next = -1, best = Infinity;
+  for (let i = 0; i < HONJIN_WAY.length; i++) {
+    const [wx, wz] = HONJIN_WAY[i];
+    if (honjinCross(x, z, wx, wz)) continue;
+    const distance = Math.hypot(wx - x, wz - z);
+    if (distance < 0.15) continue;
+    const d = distance + honjinDist[i];
+    if (d < best) { best = d; next = i; }
+  }
   const q = u._okeWay || (u._okeWay = { x: 0, z: 0 });
+  const wx = next < 0 ? x : HONJIN_WAY[next][0], wz = next < 0 ? z : HONJIN_WAY[next][1];
   q.x = fieldX(wx, wz); q.z = fieldZ(wx, wz);
   return q;
 }

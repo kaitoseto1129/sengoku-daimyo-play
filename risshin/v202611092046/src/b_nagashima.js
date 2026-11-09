@@ -1890,7 +1890,8 @@ function deltaSkyline(W) {
   for (const mountain of W.mountains.children) {
     const p = mountain.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      const west = -p.getX(i) / Math.hypot(p.getX(i), p.getZ(i));
+      // この戦では +x が西。中江・賀鳥口と同じ側へ養老・鈴鹿の稜線を残す。
+      const west = p.getX(i) / (Math.hypot(p.getX(i), p.getZ(i)) || 1);
       // 10/30 vis_f：東と北（25秒の画面の向き）にも、遠い尾張・美濃の低い丘を霞の中に薄く残す（頂点の高さだけ）。
       const ridge = Math.max(.35, Math.min(1, (west - .15) / .55));
       p.setY(i, -12 + (p.getY(i) + 12) * ridge);
@@ -3479,7 +3480,7 @@ const nagashima = {
       // 下知を早送りして見張りへ移った後は、古い作業へ呼び戻さない。
       if (F.ending || F.step > 1 || !rt.player.u.alive) return;
       // 堤から輪中と砦を見る段（nagashima/monomi.js）の後に横木の仕事
-      ngMonomi(rt, { at: { x: -12, z: BANK_Z + 12 }, bell: { x: 0, z: -80 }, next: () => {
+      ngMonomi(rt, { at: { x: -12, z: BANK_Z + 12 }, bell: { x: 0, z: -80 }, ready: bankPlayerReady, next: () => {
         if (F.ending || F.step >= 1 || !rt.player.u.alive) return;
         this.build(rt); sfx('eshout', .6);
       rt.bark(rt.G.lord ? '対岸から矢！　岸の柵で舟を見張れ' : '対岸から矢！　柵の内で横木を直せ', true);

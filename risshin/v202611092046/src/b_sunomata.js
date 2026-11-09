@@ -710,6 +710,13 @@ function sunoChoiceLayout(rt) {
     html:root body #hud#hud#hud.battle-order.suno-view #armybar#armybar .gauge.one {
       display:block !important; background:#777 !important;
     }
+    /* 行き先の印と、墨俣では描かない演出の状態が、共通側で人数まで隠していた。 */
+    html:root body:not(:has(#intro:not([hidden]) > .card)):not(:has(#pause:not([hidden]))):not(:has(#screen:not([hidden])))
+      #hud#hud#hud.battle-order.suno-view:not(.photo):not(.ending):not(.suno-death):not(:has(#bigmap:not([hidden]))) #armybar#armybar:not([hidden]) {
+      display:grid !important; visibility:visible !important;
+    }
+    /* 行き先は▼だけ。「ねらい」の別札を重ねない。武将名は頭上の名札に残す。 */
+    #hud.suno-view #goal-sign .gs-tag span { display:none !important; }
     #hud.suno-view:not(.suno-death):has(#cine.on) .tl,
     #hud.suno-view:not(.suno-death):has(#cine.on) .tr,
     #hud.suno-view:not(.suno-death):has(#cine.on) #armybar,
