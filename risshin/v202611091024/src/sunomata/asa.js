@@ -44,11 +44,21 @@ export function tick(rt) {
     if (us.every((u) => outside(u, C.FORT))) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeSet = true; g.fleeDir = { x: 0, z: -1 }; n++; }
   }
   if (n && !v.asaSaid) { v.asaSaid = true; sfx('horagai', 0.6); rt.say('足軽', '夜が白んで来た……柵の外の寄せ手が退いてゆくぞ！', 3.2); }
-  // 11/9 bot が二十一分の打ち切りまで止まった所（三の手の後の点検は済んだのに、目標の二つが立たない）：
-  //   ・北の旗印の組が柵まで来ずに崩れて逃げた時は「止めた」とする（逃げた組はもう柵へ来ない）。
-  //   ・伏兵（南の控え）が道の途中で詰まって着いた知らせが来ない時は、刻限から二分で着いたとする（横を突く役は済んだ）。
-  if (late >= 60 && !F.northAtFence && F.W3a && (F.W3a.routed || !F.W3a.units.some(ready))) F.northAtFence = true;
-  if (late >= 120 && F.reinforceCalled && !F.reinforceArrived) F.reinforceArrived = true;
+  // 時間だけで接敵・伏兵の到着を済ませない。伏兵が止まった時は残る道を歩き直す。
+  const r = F.reinforceReserve;
+  if (late >= 120 && F.reinforceCalled && !F.reinforceArrived && r && !r.routed && r.units.some(ready)) {
+    const c = r.center(), last = v.reinforceStep;
+    if (!last || Math.hypot(c.x - last.x, c.z - last.z) > 2) v.reinforceStep = { x: c.x, z: c.z, t: rt.t };
+    else if (rt.t - last.t >= 24) {
+      r.noAI = false; r.focus = null; r.order = 'path'; r.pathIdx = 0; r.speed = 3;
+      r.path = [];
+      if (c.z > 44) r.path.push([-60, 44]);
+      if (c.z > 24) r.path.push([-C.FORT - 12, 24]);
+      r.path.push([-C.FORT - 12, 10]);
+      // 元の到着処理が実際の到着を知らせる。討たれた伏兵を復活させない。
+      last.t = rt.t;
+    }
+  }
   // 人足が皆討たれて破れた柵を直す手が無い時は、前野の足軽が杭を打ち直す（直す者がいないまま夜明けで止まらない）
   if (late >= 60 && F.w3Clear && !F.buildBusy && !v.asaFix && (F.segs || []).some((q) => !q.alive) && !(F.wk?.units || []).some(ready)) {
     v.asaFix = rt.t;
