@@ -757,7 +757,11 @@ const t06_hetsugi = {
     // 柵（半径十一 m）の外で生還にせず、東の口を抜けて陣内へ戻るまで遊ばせる。
     else if (F.step === 5 && dist(P.pos, CAMP) < 8) this.win(rt);
     // 下の瀬の島津が土手へ上がって見えた所で知らせる（史実：追い討ちで多くが討たれた）
-    if (F.step === 5 && !F.chase2Said && P.pos.x < -30) { F.chase2Said = true; rt.say(F.mine.leader?.name || '手勢の侍', '島津が川を渡って追って来たぞ。鏡城へ走れ！', 2.6); }
+    if (F.step === 5 && !F.chase2Said && P.pos.x < -30 && F.foes.some((g) => g.cut && g.units.some((u) =>
+      u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && u.pos.z > 22 && dist(u.pos, P.pos) < 60))) {
+      F.chase2Said = true;
+      rt.say(F.mine.leader?.name || '手勢の侍', '島津が川を渡って追って来たぞ。鏡城へ走れ！', 2.6);
+    }
     // 退く段も島津は勢いを保ち、川を渡って追う。止まれば囲まれる。
     if (F.step >= 4) {
       if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
