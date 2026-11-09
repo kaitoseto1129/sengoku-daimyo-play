@@ -8,7 +8,6 @@
 // 入れ方：b_t11_hachioji.js の depthStart の段の並びの頭に step(H) を置く（b_depth.js の段の形：start・tick・end）。
 // ======================================================================
 import { enemyGroup, nm } from '../bhelp.js';
-import { kagaribi } from '../props.js';
 import { sfx } from '../audio.js';
 
 export function step(H) {
@@ -16,14 +15,13 @@ export function step(H) {
   return {
     kind: 'fight', max: 170, key: 'sanroku',
     start(rt, C, m, ctx) {
-      const F = rt.flags, W = rt.world;
+      const F = rt.flags;
       C.at = H.GATE_FRONT; C.goal = H.GATE_FRONT; C.groups = [];
       rt.banner('城山川の谷', '霧の中を、大手の木戸へ');
       rt.obj('dp', '霧の谷を進み、山下曲輪の木戸の前へ', 'main');
       // 前田の組は谷の道を列で進む（主人公の前後）
       ctx.friends(rt).forEach((g, k) => H.marchTo(rt, g, { x: H.GATE_FRONT.x + 10, z: H.GATE_FRONT.z }, k));
-      // 谷の道の脇の篝火（前田の陣の火。霧の中に点々と）
-      for (const [x, z] of [[170, 60], [164, 46], [176, 48]]) rt.scene.add(kagaribi(W, x, z));
+      // 霧の夜討ち：城方に寄せ口を知らせる篝火は焚かない。
       C.say = 0;
       F.sanroku = C;
     },

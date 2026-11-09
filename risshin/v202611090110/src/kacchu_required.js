@@ -144,7 +144,7 @@ export const REQUIRED_KACCHU = [
   ['長宗我部信親', 'suji', 'kuwa_wide', D.kuro, C.moegi, 'kebiki', 0x5a1a14, 'chosokabe', mon('chosokabe', '#1d1b18', W), null, '戸次川で討死。所用品は伝わらない。父の元親と威を分けた復元案'],
   ['十河存保', null, null, null, null, null, null, null, mon('miyoshi', W, '#9a2e20'), null, '戸次川で討死。所用品は伝わらない。復元案'],
   ['大友義統', null, null, null, null, null, null, null, 'otomo', null, '所用品は伝わらない。復元案'],
-  ['島津家久', null, null, null, null, null, null, null, 'shimazu', null, '所用品は伝わらない。復元案'],
+  ['島津家久', 'suji', 'none', D.kuro, C.kon, 'kebiki', 0, 'shimazu', 'shimazu', { helm: D.kuro, lac: 'kuro', menpo: 0, backOpening: true, sodeStyle: 'osode', fur: 0, horo: 0, uma: null }, '家久所用品は未確認。尚古集成館保管・伝豊久所用の紺糸威腹巻大袖付を手本に、既存の背合わせ胴と大袖で復元。黒い筋兜は補完。立物・面頬・個人馬印は補わない。出所は docs/generals_look_1108/島津家久.md'],
   ['前田利長', 'namazu', 'none', D.gin, C.kon, 'kebiki', 0, 'maeda', mon('maeda'), { lac: 'gin', helm: 0xb8bcc0 }, '前田家に伝わる銀の鯰尾形兜に寄せた形'],
   ['島津義弘', 'suji', 'kuwa_ken', D.kuro, 0x703d78, 'kebiki', 0, 'shimazu', mon('shimazu', '#1d1b18', W), { helm: D.kuro, lac: 'kuro', menpo: 0, domaru: true, honkozane: true, doOpening: 'right', sodeStyle: 'osode' }, '貴久寄進の現存胴丸による復元案。義弘所用品ではない。出所は docs/generals_look_1108/島津義弘.md'],
   ['中村一氏', 'zunari', 'kuwa_ken', D.tame, C.asagi, 'sugake', 0, 'none', txt('中村'), null, '山中城の寄せ手。所用品は伝わらない。復元案'],

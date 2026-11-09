@@ -318,7 +318,7 @@ const k07_sawayama = {
 
   setup(rt) {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m ? a * k : a, s); }; }   // 体力を引く前に刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world, F = rt.flags;
     F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
     const castle0 = rt.scene.children.length;

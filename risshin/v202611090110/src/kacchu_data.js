@@ -246,7 +246,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["田原親宏", "zunari", "kuwa_wide", 0x29251f, 0x65597a, "okegawa", 0x7a1a12, 0x29251f, "otomo", ""],
   ["島津義弘", "suji", "kuwa_ken", 0x1c1a1a, 0x703d78, "kebiki", 0, 0, "shimazu", ""],
   ["島津歳久", "suji", "sun", 0x1c1a1a, 0xb0a890, "okegawa", 0, 0x1c1a1a, "shimazu", ""],
-  ["島津家久", "suji", "kuwa_wide", 0x1c1a1a, 0xa88a3a, "sugake", 0, 0x1c1a1a, "shimazu", ""],
+  // 家久所用品は未確認。豊久に伝わる紺糸威腹巻大袖付を手本にした復元案（docs/generals_look_1108/島津家久.md）。
+  ["島津家久", "suji", "none", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "shimazu", ""],
   ["新納忠元", "suji", "horn", 0x1c1a1a, 0xb0a890, "sugake", 0, 0x1c1a1a, "shimazu", ""],
   ["樺山善久", "suji", "cross", 0x1c1a1a, 0x493f34, "sugake", 0x8a6a2a, 0, "shimazu", ""],
   ["種子島時堯", "suji", "shida", 0x1c1a1a, 0x493f34, "kebiki", 0x8a6a2a, 0x1c1a1a, "shimazu", ""],
