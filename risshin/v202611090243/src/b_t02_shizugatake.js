@@ -750,7 +750,8 @@ const t02_shizugatake = {
       //   11/6 九4：主人公一人が麓へ着いただけで勝たない。味方の隊（小姓衆か先手）が麓の 45 の内へ追い着いて締める
       const atFoot = dist(P.pos, SHIGE) < 40, mainIn = [F.yari, F.uma].some((q) => live(q) && dist(q.center(), SHIGE) < 45);
       // 11/6 critic60（二1・十二2）：麓に敵が残るのに勝たない。殿を崩し（残り二人まで）、残りが北へ逃げ出すのを見せてから勝ち
-      if (atFoot && mainIn && (left <= 4 || st > 110) && !F.routAt) {   // 11/7：四〜七分（2・160→4・110）
+      // 討ち取りの表示と同じ残り四人まで崩し、前田の退きを見届けてから締める。時間だけで殿を退かせない。
+      if (atFoot && mainIn && F.maedaGo && left <= 4 && !F.routAt) {
         F.routAt = rt.t;
         for (const g of F.groups) if (live(g) && g.units[0]?.team === 1 && g !== F.maedaG) { g.order = 'retreat'; g.fixed = false; g.focus = null; g.dest = { x: g.center().x - 10, z: -220 }; g.speed = 3.6; g.aggro = 0; g.seekRange = 0; g.kind4 = 'gone'; }
         rt.say('福島正則', '柴田勢が崩れたぞ。追え、追え', 2.6);
@@ -838,7 +839,7 @@ t02_shizugatake.force = (rt) => {
   const lost = rt.flags.allyLost || 0;
   return { a: Math.max(0, 50000 - lost * 40), a0: 50000, b: Math.max(0, 30000 - (rt.flags.kills || 0) * 40), b0: 30000 };
 };
-t02_shizugatake.date = (rt) => (rt.flags.phase >= 2.8 ? '天正十一年四月二十一日　夜明け' : rt.flags.phase >= 2.5 ? '天正十一年四月二十日　夜' : '天正十一年四月二十日　初夏');
+t02_shizugatake.date = (rt) => (rt.flags.phase >= 2.8 ? '天正十一年四月二十一日　夜明け' : rt.flags.phase >= 2.3 ? '天正十一年四月二十日　夜' : '天正十一年四月二十日　初夏');
 t02_shizugatake.history = '天正十一年、羽柴秀吉と柴田勝家は、近江の余呉湖のまわりの砦に分かれて睨み合った。北の行市山・別所山・茂山には佐久間盛政・前田利家ら柴田方、南の堂木山・神明山・東野山・岩崎山・大岩山・賤ヶ岳・田上山には羽柴方が入った。\n'
   + '四月二十日、佐久間盛政は行市山から余呉湖の西を回り込み、大岩山の砦を攻め落とした。守っていた中川清秀は討ち死にし、岩崎山の高山右近も退いた。賤ヶ岳の砦は、琵琶湖を渡って来た丹羽長秀の加勢で持ちこたえた。\n'
   + '大垣にいた秀吉はこれを聞き、十三里（およそ五十二キロ）の道を夜までに駆け戻った（美濃大返し。五時間ほどという数は秀吉方の書の言い分）。盛政は大岩山に居座り（勝家の退けの命に従わなかったと伝わる）、勝家の本隊から離れて孤立した。\n'
