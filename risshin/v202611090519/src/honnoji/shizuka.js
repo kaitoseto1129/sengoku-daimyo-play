@@ -15,7 +15,7 @@ export function wrap(def) {
     const F = r.flags;
     if (k15Off(r) || F.shizukaDone || F.hp) return p1.call(this, r);
     if (F.k15stage === 'shizuka') return;
-    start(r, () => { F.shizukaDone = true; F.k15on = false; p1.call(this, r); });
+    start(r, () => { F.shizukaDone = true; F.k15on = false; F.k15stage = null; p1.call(this, r); });
   };
 }
 
