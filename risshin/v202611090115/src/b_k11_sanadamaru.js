@@ -516,7 +516,7 @@ const k11_sanadamaru = {
 
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。段の刻限の時計は出さない（段は柵を破るまで続く）
   goals5() {
-    return STAGES.k11_sanadamaru.map(([text], k) => ({ kind: 'stage', k, text, sec: 900,
+    return STAGES.k11_sanadamaru.map(([text], k) => ({ kind: 'stage', k, text,
       check: (rt) => (k < 4 ? (rt.flags.step || 0) >= k + 2 : !!rt.over && rt.tracker?.main === true) }));
   },
   // 共通の任務札は今の一行だけなので、この戦では目標の札（hud_goals）を重ねて置き換え、両軍の兵の数の棒（armybar）も上に出す（九1・九3・十二1）。
@@ -804,19 +804,22 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.ending) return;
     F.ending = true;
     rt.setPhase('end');
-    rt.objDone('main');
+    // 主任務の札は和議と破却の後に閉じる。先に済ませると共通の終了判定が終幕を途中で切る。
     rt.award((t) => { t.main = true; t.special = { label: '真田丸の前で殿を務めた', pts: 40 }; }, '真田の打って出を食い止め、生きて戻った');
     rt.player.u.invuln = true;
     F.victoryShown = true;   // 撃ち崩されて退いた日。勝鬨と「合戦に勝利」は上げない（札は「務めを果たした」。victory_card の DUTY）
     rt.banner('真田丸攻略　失敗', '部隊撤収　成功');   // 合戦の結果と任務の結果を分ける（docs/rank_interlude_retry_spec_1108.md）
     rt.say('山崎長徳', '……ようしのいだ。じゃが、堀の底に、どれだけの者を残してきたか', 4.4);
     // 家康が力攻めをやめ、大筒へ（必ず）
-    // 三つの台詞と退いた余韻を、この戦の終幕として十八秒流す。共通の締めを重ねたり、四秒半へ縮めたりしない。
+    // 三つの台詞と退いた余韻から和議・破却まで、この戦の終幕を流す。
     rt.after(4.6, () => rt.say('使番', '大御所様より：力攻めは無理だ。あの出丸は捨て置け', 3.4));
     // 締めの場面：竹束の陣から振り返ると、塀の上に六文銭の旗が並んだまま（落とせなかった丸。十四4）
     rt.after(8.4, () => rt.say(nm(rt), '……あの丸は、ついに落ちなんだ', 3));
     // 続けて冬の陣の中間の場面（大筒・和議・堀が埋まる・丸の破却。k11/wagi.js）
-    rt.after(12, () => { const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka }); rt.after((w && w.end) || 1, () => rt.finish({ scriptedEnd: true }, 0)); });
+    rt.after(12, () => {
+      const w = wagi(rt, { C, polar, MOAT, SPAN, FENCE_R, maru: F.maruObjs, osaka: F.osaka });
+      rt.after((w && w.end) || 1, () => { rt.objDone('main'); rt.finish({ scriptedEnd: true }, 0); });
+    });
   },
 
   lose(rt, why) {

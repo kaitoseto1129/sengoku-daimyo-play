@@ -8,7 +8,7 @@ export default {
     sonae: [
       { id: 'yam', layer: 'sakite', wing: 'center', men: 600, taisho: '山崎長徳', flag: 'maeda', bind: F('yam') },
       { id: 'second', layer: 'ichi', wing: 'center', men: 800, taisho: '本多政重', flag: 'maeda', bind: F('second') },
-      { id: 'maeda', layer: 'ni', wing: 'center', men: 4000, taisho: '前田利常', flag: 'maeda', hold: true, at: { x: -14, z: 150 } },
+      { id: 'maeda', layer: 'ni', wing: 'center', men: 4000, taisho: '前田利光', flag: 'maeda', hold: true, at: { x: -14, z: 150 } },
       { id: 'ii', layer: 'ichi', wing: 'left', men: 3000, taisho: '井伊直孝', flag: 'ii', hold: true, at: { x: -110, z: 104 } },
       { id: 'echizen', layer: 'ichi', wing: 'left', men: 5000, taisho: '松平忠直', flag: 'tokugawa', hold: true, at: { x: -160, z: 118 } },
       { id: 'todo', layer: 'ni', wing: 'right', men: 3000, taisho: '藤堂高虎', flag: 'todo', hold: true, at: { x: 104, z: 128 } },
