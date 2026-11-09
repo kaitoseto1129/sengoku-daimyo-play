@@ -1331,7 +1331,7 @@ function shMouthNow(rt) {
 // 夜明け、鳶ヶ巣山の知らせ → 大宮前の柵へ真田隊が寄せ、柵の内の鉄砲と槍で止める → 柵の奥の道を組と歩いて柳田前へ →
 // 内藤隊が寄せて崩れる（未の刻へ日が移る）→ 進み太鼓で柳田前の虎口を出て連吾川を渡る → 退き口で馬場信春の殿を討ち破る。
 // 目標は右上に①〜④を最初から並べ、果たすまで勝ちにしない。時が切れても勝ちにしない。寄せ手は柵の外で押し合い、柵の内へ入らない。
-const NF_TEXT = ['柵の外で武田の物見を誘い、柵へ引く', '大宮前の柵で真田隊を止める', '破られた柵で山県昌景の赤備えを討つ', '柳田前の柵へ移り、原・内藤隊を止める', '柳田前の虎口を出て、連吾川を渡る', '退き口で馬場信春の殿を討ち破る'];
+const NF_TEXT = ['大宮前の柵の外で武田の物見を誘い、柵へ引く', '大宮前の柵で真田隊を止める', '大宮前と柳田前の間の破れ目で山県昌景の赤備えを討つ', '柳田前の柵へ移り、原・内藤隊を止め、破れ目の土屋隊を討つ', '柳田前の虎口を出て、連吾川を渡る', '退き口で馬場信春の殿を討ち破る'];
 // 段の道具（shitaragahara/*.js へ渡す）
 const stCtx = (rt) => ({ SB, MOUTHS, nfGuns, black: shBlackArmy, ready: nfReady, guns: () => rt.flags.guns, reserve: () => rt.flags.reserve, text: (i) => NF_TEXT[i] });
 const NF_NORTH = { x: SB.x0 - SB.gap - 3, z: SB.gates[0] + 4.5 };
@@ -1385,10 +1385,14 @@ function nfRout(rt, g, dead) {
 // 柵の守り手：鉄砲は構えたら撃つ（九4）。弾は尽きない（信長公記の千挺ばかり・玉薬の俵）。
 function nfGuns(rt, z) {
   for (const q of rt.flags.guns) {
+    // 番の斉射が始まった後は、口ごとの射撃・装填を鉄砲壁に任せる。
+    // 別の口への寄せで、交戦中の組を止めたり全組を同時に撃たせたりしない。
+    q._fieldWait = false; q.order = 'hold'; q.focus = null;
+    if (rt.flags.shWall?.on) continue;
     const south = rt.flags.south;
     const on = Math.abs(q.anchor.z - z) < 40 ||
       !!south?.nfAt && !south.routed && Math.abs(q.anchor.z - MOUTHS[2].z) < 40;
-    q._fieldWait = false; q.fire = on; q.holdFire = !on; q.order = 'hold'; q.focus = null;
+    q.fire = on; q.holdFire = !on;
   }
 }
 function nfTick(rt, dt) {
