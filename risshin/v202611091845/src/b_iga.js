@@ -1620,7 +1620,8 @@ const iga = {
     return !F.ending && allowance > 0 && rt.t - F.stepT < allowance;
   },
   // 守る陣から離脱する意味にせず、危ない一撃を避ける印だと伝える。
-  retreatGuideLabel: (rt, reached) => reached ? 'ここで構えよ' :
+  retreatGuideLabel: (rt, reached) => reached
+    ? rt.player.u.pos.z < APPROACH[0][1] ? '山道で敵を防げ' : '麓の陣で敵を防げ' :
     rt.player.u.pos.z < APPROACH[0][1] ? rt.flags.step === 2.5 ? '来た道を戻り、麓へ退け' : '槍を避け、印へ下がれ' : '味方の後ろへ下がれ',
   retreatPointAllowed: igaRetreatPointAllowed,
   retreatPathAllowed: igaRetreatPathAllowed,
@@ -3244,8 +3245,8 @@ function igaHold(o) {
           : C.breachT > 0 ? `陣内は味方${friend}人・敵${enemy}人。列へ寄り、敵を防げ`
           : el > deadline - 15 && !clear ? '敵を防ぎきれぬ。味方の列で迎え、林へ追うな'
           : prior && !C.raidGone(prior) ? `寄せ ${C.groups.length}／${o.waves.length}。陣内の敵 ${enemy}人。${enemy ? '味方と防げ' : C.raidEntered.has(prior) ? '陣の外へ押し返した。列を守れ' : '敵が近づく。列を守れ'}`
-          : C.waves.length ? '味方の列をそろえ、次の寄せに備えよ'
-          : '陣の口を保ち、次の下知を待て');
+          : C.waves.length ? '麓の陣の口で、味方の列に付いて伊賀衆を防げ'
+          : '麓の陣の口で、味方の列を守れ');
       }
       return false;
     },
