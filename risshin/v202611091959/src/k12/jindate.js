@@ -43,7 +43,7 @@ export function tick(rt, dt) {
     st.end = true;
     if (rt.tracker && rt.tracker.main) {
       for (const g of rt.army.groups) if (g.team === 0 && g.count && !g.routed && !g.isPlayerSquad && g !== F.mine) { const c = g.center(); g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.seekRange = 0; g.focus = null; }
-      order('B', 'harufusa', 'retreat'); order('B', 'harufusa2', 'retreat');
+      for (const id of ['harufusa', 'harufusa2', 'harutane', 'harufusa3', 'konidaB']) order('B', id, 'retreat');
     }
     return;
   }

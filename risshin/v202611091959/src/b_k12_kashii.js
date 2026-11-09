@@ -202,6 +202,7 @@ const k12_kashii = {
   noTaisho: true,
   noReserve: true,
   foeMarks: true,
+  nameTagLimit: 7,        // 亀田・上田・知近・長晟・塙・淡輪・岡部の名を、近い二人だけの枠で消さない（九3・五2）
   waitForPortrait: true,  // 顔が撮れるまで影を出さず、撮れた顔を一度だけ表示する（五6）
   stageGoalsOnly: true,    // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の始まりを toStep を順に流して作り直す（前の段の声・見出しは出さない）
@@ -452,6 +453,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       F.ueda.anchor = { x: VILLAGE.x + 3, z: VILLAGE.z + 8 }; F.tomo.anchor = { x: VILLAGE.x - 3, z: VILLAGE.z + 12 };
       // 備えは辻で構え、家並みに入った敵に槍を合わせる（村の外へ出て行かない）
       F.kame.anchor = { x: VILLAGE.x, z: VILLAGE.z + 16 };
+      // 殿を待つ猶予で村の戦へ移った時も、途中の足場への到着で迎撃命令を上書きしない。
+      F.kame.onArrive = null; F.legHold = false;
       for (const g of [F.ueda, F.tomo, F.kame]) { g.order = 'hold'; g.seekRange = 18; g.aggro = 16; g.ai = false; }
       rt.after(30, () => { if (F.step === 3) for (const g of [F.ueda, F.tomo, F.kame]) if (live(g)) { g.order = 'attack'; g.seekRange = 30; } });
       rt.army.play('toki', { x: -4, z: -110 }, 1.5);
@@ -538,6 +541,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const z = LEGS[F.leg], x = F.leg === LEGS.length - 1 ? LINE.x - 2 : -3;
     g.order = 'move'; g.dest = { x, z }; g.speed = 3.8; g.aggro = 0;
     g.onArrive = (q) => {
+      if (F.step !== 2 || F.ending) return;
       q.order = 'hold'; q.anchor = { x, z }; q.facing = Math.PI; q.aggro = 24; q.seekRange = 0;
       F.legT = rt.t; F.legHold = true;
       if (F.leg < LEGS.length - 1) rt.army.play('volley', { x, z: z - 6 }, 1.2);

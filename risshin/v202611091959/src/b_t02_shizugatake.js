@@ -691,7 +691,7 @@ const t02_shizugatake = {
         near = Math.min(near, dist(u.pos, P.pos));
       }
       // 振り向くのは、主人公のそばに味方の本隊がいる時だけ（一人で先へ出た主人公を、退く隊がまとめて囲まない）
-      if (g.kind4 === 'flee' && g !== F.saku && g !== F.mori && g.order === 'retreat' && near < 9 && [F.yari, F.uma].some((q) => live(q) && dist(q.center(), P.pos) < 30)) { g.order = 'attack'; g.focus = P; g.aggro = 12; g.speed = 3; }
+      if (!F.routAt && g.kind4 === 'flee' && g !== F.saku && g !== F.mori && g.order === 'retreat' && near < 9 && [F.yari, F.uma].some((q) => live(q) && dist(q.center(), P.pos) < 30)) { g.order = 'attack'; g.focus = P; g.aggro = 12; g.speed = 3; }
     }
     // 負け：砦の中に敵が六人より多く、味方が一人以下のまま十二秒（①②）
     if (F.phase <= 2) {
