@@ -331,6 +331,8 @@ const inou_spec = {
   noFrontFill: true,         // 奥の軽い乱戦（front_fill.js）は置かない。見える兵は全部本物（11/3 p100_inou）
   kumiLead: false,           // 行き先の印は一つだけ（kaito AL・AN）：組頭の青い印は出さず、今の目標の金の▼だけ。組頭と組はこの定義が目標へ動かす
   allyReports: false,        // 使番の「組頭殿の隊は北で移動中」は出さない（組頭は自分を率いる人。字を足さない）
+  goalsAllRows: true,
+  goalsVisibleRows: 5,       // 最初から順に並べ、現在の目標を含む五件を見せる。
   pinOnlyDestination: true,  // 地面・足元の行き先の矢印は出さない（kaito AP12・BH6）。行き先は真上の金の▼だけ
   noGoalCount: true,         // 美作守が画面の外の時の赤い端の矢印（goal_count.js）も出さない。金の▼の端の印と二つになった
   // 名札は名のある将だけ。組頭の「味方 かしら」は出さない（字を足さない）。

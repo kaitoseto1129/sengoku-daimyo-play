@@ -117,7 +117,6 @@ export function tick(rt, dt) {
 }
 export function onKill(rt, victim, killer) {
   vanguard.onKill(rt, victim, killer);
-  raid.onKill(rt, victim, killer);
 }
 
 // bot：新しい段の行き先へ（近い敵は本体の bot が先に突く）。引き受けたら true

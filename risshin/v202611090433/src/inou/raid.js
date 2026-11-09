@@ -8,6 +8,7 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 import { pinAt } from './index.js';
+import { inouEnemyAlive } from '../b_inou_goals.js';
 
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const LOOK = { armor: 0x2e2822, hatColor: 0x1c1916, lace: 0x6a4a30, cloth: 0x7a5236, flag: 'nobukatsu', flagShape: 1 };
@@ -55,7 +56,7 @@ export function target(rt) {
   const v = rt.flags.v15, P = rt.player.u.pos;
   let best = null, bd = Infinity;
   for (const g of v.raidGs || []) for (const u of g.units) {
-    if (!u.alive || u.gone || u.fleeing) continue;
+    if (!inouEnemyAlive(u)) continue;
     const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
     if (d < bd) { bd = d; best = u; }
   }
@@ -87,9 +88,4 @@ export function tick(rt) {
   const t = rt.t - v.raidT;
   if (t > 45 && !v.raidGs.some(live)) done(rt, 'stop');
   else if (t > 170) done(rt, 'time');
-}
-export function onKill(rt, victim, killer) {
-  const F = rt.flags, v = F.v15;
-  // 別手を討った数は、林勢の槍の列（段二）の働きに数えない
-  if (v?.raidGs?.includes(victim?.group) && killer?.isPlayer) (F.ks ||= [0, 0, 0, 0, 0])[Math.min(4, F.stage || 0)]--;
 }
