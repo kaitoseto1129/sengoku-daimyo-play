@@ -2627,7 +2627,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       const heldLine = gone(F.w1) && gone(F.scout) &&
         Math.hypot(p.x - HIRATE_POST.x, p.z - HIRATE_POST.z) < 25 && rt.t - F.stepT > 18;
       // 11/7 critic60（一つの戦は四〜七分）：先手を退けても四十秒は持ち場で寄せを受ける（前は二十秒ほどで次へ移り、戦が三分で終わった）。
-      if ((F.foughtStep === 1 || heldLine) && rt.t - F.stepT > 40 && ((gone(F.w1) && (gone(F.scout) || rt.t - F.stepT > 18)) || rt.t - F.stepT > 60)) this.deep(rt, 'A');
+      // 刻限は討ち取り・立ち位置と独立させる。持ち場を外した本人を待って戦全体を止めない。
+      // 務めを果たしたかは mikataGoals が接敵と持ち場で判定し、刻限だけでは達成にしない。
+      if (rt.t - F.stepT > 60 || (F.foughtStep === 1 || heldLine) && rt.t - F.stepT > 40 && gone(F.w1) && gone(F.scout)) this.deep(rt, 'A');
     }
     if (F.step === 2) {
       if (!F.akaEngaged) for (const q of F.aka.units) {
