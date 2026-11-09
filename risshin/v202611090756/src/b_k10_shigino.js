@@ -142,7 +142,7 @@ function fenceDown(rt, list) {
 
 import DEPTH_K10 from './k10/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k10_shigino = {
-  depth: DEPTH_K10,
+  // depth: DEPTH_K10,   // 二巡（11/9）：入れると bot が①（一・二の柵）から一度も斬らずに刻限まで止まった（入れて2回とも。?depth=0 では勝つ）。原因が分かるまで外す
   lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを toStep(①〜5) を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。鴫野：冬の朝の堤と湿地。枯れ葦・ぬかるみ、鉄砲で撃ち合った跡
@@ -412,6 +412,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       // 水原の鉄砲は、追う敵が堤の左右の筒先へ入った所で一斉に放つ（update の F.volT）→ 安田能元が槍で突き入る
       F.volT = rt.t;
       rt.say('水原親憲', '先手は左右へどけ！　引き付けて、堤に敵が詰まった所を撃つ', 3);
+      // 直江兼続が戦線を整える（docs/generals_toyo_toku_1108.md の 10：景勝と兼続が戦線を保つ。二巡）
+      rt.after(4.2, () => { if (F.step === 4) rt.say('直江兼続', '須田殿の組は水原の鉄砲の後ろで組み直せ。崩れるな、上杉の戦は退いてからじゃ', 3.8); });
     } else if (n === 5) {
       rt.banner('退けの命', '家康の使番が来た');
       rt.say('家康の使番', '大御所様の仰せ。上杉勢は退いて休め。堀尾忠晴に先手を代われ、と', 3.6);

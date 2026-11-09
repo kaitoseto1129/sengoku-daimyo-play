@@ -633,6 +633,8 @@ const t09_yamanaka = {
     const F = rt.flags;
     // 落城後の会話中は守りの射撃を止める。勝った後まで寄せ手を撃ち倒さない。
     if (F.ending) return;
+    // 討死・やり直しの札の裏で、味方の討ち取りや経過時間だけで目標を果たさない。
+    if (!rt.player.u.alive || rt.retryOpen) return;
     if (F.K && F.step) F.K.tick(dt);   // 出陣の段は出丸の鉄砲を撃たせない
     if (F.rimFire) F.rimFire.tick(dt);
     if (F.okuFire) F.okuFire.tick(dt);

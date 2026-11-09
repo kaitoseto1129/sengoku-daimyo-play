@@ -31,7 +31,7 @@ export function showVictory(rt) {
   el.id = 'victory-card';
   el.setAttribute('role', 'status');
   const F = rt._fall?.F;   // 落城の戦は「勝利」と言わず、城ごとの言葉（castle_fall_data.js）
-  el.innerHTML = F ? `<h2>${F.word}</h2>${F.sub ? `<p>${F.sub}</p>` : ''}` : `<h2>${rt.def.victoryTitle || rt.def.winWord || (DUTY.has(rt.def.key) ? '務めを果たした' : '合戦に勝利')}</h2><p>${HIST_OUTCOME[rt.def.key] ? outcomeLines(rt.def.key, true).join('<br>') : rt.def.victoryCaption || (DUTY.has(rt.def.key) ? '生きて戦を終えた' : '敵を退けた')}</p>`;   // 歴史で負ける戦は合戦と任務を分けて（battle_outcome.js）
+  el.innerHTML = F ? `<h2>${F.word}</h2>${F.sub ? `<p>${F.sub}</p>` : ''}` : `<h2>${rt.def.victoryTitle || rt.def.winWord || (DUTY.has(rt.def.key) || HIST_OUTCOME[rt.def.key] ? '務めを果たした' : '合戦に勝利')}</h2><p>${HIST_OUTCOME[rt.def.key] ? outcomeLines(rt.def.key, true).join('<br>') : rt.def.victoryCaption || (DUTY.has(rt.def.key) ? '生きて戦を終えた' : '敵を退けた')}</p>`;   // 歴史で負ける戦は合戦と任務を分けて（battle_outcome.js）
   el.addEventListener('click', (e) => { e.stopPropagation(); if (rt.over && !rt.ended) rt.endT = Math.min(rt.endT ?? 0.01, 0.01); });
   document.body.appendChild(el);
   const off = () => el.remove();
