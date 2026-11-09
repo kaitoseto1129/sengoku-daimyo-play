@@ -202,6 +202,7 @@ const k12_kashii = {
   noTaisho: true,
   noReserve: true,
   foeMarks: true,
+  waitForPortrait: true,  // 顔が撮れるまで影を出さず、撮れた顔を一度だけ表示する（五6）
   stageGoalsOnly: true,    // 目標は五つの段だけ（「敵を何人討つ」で埋めない。三1）
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の始まりを toStep を順に流して作り直す（前の段の声・見出しは出さない）
   resumeSteps: [1, 2, 3, 4, 5].map((n) => [n, function (rt) { rt.flags.holdPlayer = false; if (n >= 3) this.bringUp(rt); this.toStep(rt, n); }]),
@@ -643,15 +644,17 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     } else if (F.step === 3) {
       const k = F.w3N - sumN(F.hana, F.awa), need = Math.round(F.w3N * 0.5);
       rt.objProgress('s3', `塙・淡輪の隊 ${Math.min(k, need)}／${need}人`);
-      // 主人公も村の辻へ加わってから達成。村へ向かわず待つだけでは、味方の戦果や時間で済ませない。
-      if (dist(P.pos, VILLAGE) < 20) F.villageJoined = true;
+      // 村の辻で実際に敵へ槍を合わせてから達成。立っているだけでは時間や味方の戦果で済ませない。
+      if ((P.atk || P.swing) && dist(P.pos, VILLAGE) < 20 &&
+          [F.hana, F.awa].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6))) F.villageJoined = true;
       if (F.villageJoined && (k >= need || left <= 0)) this.toStep(rt, 4);
     } else if (F.step === 4) {
       const k = F.w4N - aliveN(F.oka), need = Math.round(F.w4N * 0.5);
       if (!F.okaBack) rt.objProgress('s4', `岡部の隊 ${Math.min(k, need)}／${need}人`);
       // 東の口か、そこへ寄せる岡部の隊へ出て迎える。村に残ったまま時間だけで横を守った事にしない。
       const oc = live(F.oka) && F.oka.center();
-      if (dist(P.pos, EAST) < 20 || (oc && dist(oc, EAST) < 70 && dist(P.pos, oc) < 20)) F.eastJoined = true;
+      if ((P.atk || P.swing) && (dist(P.pos, EAST) < 20 || (oc && dist(oc, EAST) < 70 && dist(P.pos, oc) < 20)) &&
+          F.oka?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6)) F.eastJoined = true;
       if (!F.okaBack && F.eastJoined && (k >= need || left <= 0)) this.okabeBack(rt);
     } else if (F.step === 5) {
       // 団右衛門は名乗った相手（主人公）が近ければ主人公に打ち掛かる。他の兵を追って村の外の田まで馬で駆け回らせない（11/7 遊んで五分追い回した）
@@ -670,6 +673,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
     if (F.step === 1 && k?.isPlayer && (v.group === F.hana1 || v.group === F.oka1)) F.vanguardJoined = true;
+    if (F.step === 3 && k?.isPlayer && (v.group === F.hana || v.group === F.awa) && dist(rt.player.u.pos, VILLAGE) < 20) F.villageJoined = true;
+    if (F.step === 4 && k?.isPlayer && v.group === F.oka && dist(rt.player.u.pos, v.pos) < 6 && dist(v.pos, EAST) < 70) F.eastJoined = true;
     if (v.name === '塙団右衛門') F.hanaByMe = !!k?.isPlayer;
     if (v.name === '淡輪重政') {
       // 誰の手か分かるように（史実では浅野の永田治兵衛が首を取った）

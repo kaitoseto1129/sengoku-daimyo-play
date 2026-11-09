@@ -797,7 +797,7 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
   const q = b.def.missionPin(b);
   // 退く段・虎口の横断・登頂・本陣への移動を、脇の敵への寄り道で止めない。
   // ⑧で柵の外（東）にいる間も寄り道しない（柵越しに斬り合い、騎馬に討たれた・11/9 流し）
-  const moving = F.step === 8 && u.pos.x > FENCE_X - 1 && u.pos.z > -214 && u.pos.z < -128 || F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
+  const moving = F.step === 8 && u.pos.x > FENCE_X - 1 && u.pos.z > -214 && u.pos.z < -128 || F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
   const ok = (o) => !moving && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
   const prev = pl.botStrikeFoe;
   const r = F.step === 1 || F.step === 3 || F.step === 6 ? 3 : F.step === 2 ? 6 : 9;
@@ -821,7 +821,7 @@ KILLS.k06_sekigahara = (rt) => {
   if (F.ending) return null;
   if (F.step === 5) return cut(F.akaN, nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4), Math.round(F.akaN * 0.15));
   if (F.step === 7) return cut(F.sakN, nOf(F.sakon, F.shima3, F.ishida3), Math.round(F.sakN * 0.25));
-  if (F.step === 8) return F.mitsuGate ? null : cut(F.mitN, nOf(F.mitsu2, F.mitsu3), Math.round(F.mitN * 0.2));
+  if (F.step === 8) return F.mitsuGate ? null : cut(F.mitN, nAt(SASAO, F.mitsu2, F.mitsu3), Math.round(F.mitN * 0.2));
   return null;   // 島津の退き口は討つ人数でなく、本陣の前で受けた時間で果たす
 };
 // 戦の進行の札（段）：F.step の 1〜9
