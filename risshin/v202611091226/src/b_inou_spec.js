@@ -293,7 +293,7 @@ html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals li i {
 html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+html:root body #hud#hud#hud.inou-goals #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }`;
 function inouGoalBoard(rt) {
   const hud = rt.hud;
   if (!hud?.root || typeof document === 'undefined') return;
@@ -333,7 +333,7 @@ const inou_spec = {
   kumiLead: false,           // 行き先の印は一つだけ（kaito AL・AN）：組頭の青い印は出さず、今の目標の金の▼だけ。組頭と組はこの定義が目標へ動かす
   allyReports: false,        // 使番の「組頭殿の隊は北で移動中」は出さない（組頭は自分を率いる人。字を足さない）
   goalsAllRows: true,
-  goalsVisibleRows: 5,       // 最初から順に並べ、現在の目標を含む五件を見せる。
+  goalVisibleRows: 5,        // 最初から順に並べ、現在の目標を含む五件を見せる。
   pinOnlyDestination: true,  // 地面・足元の行き先の矢印は出さない（kaito AP12・BH6）。行き先は真上の金の▼だけ
   noGoalCount: true,         // 美作守が画面の外の時の赤い端の矢印（goal_count.js）も出さない。金の▼の端の印と二つになった
   // 名札は名のある将だけ。組頭の「味方 かしら」は出さない（字を足さない）。

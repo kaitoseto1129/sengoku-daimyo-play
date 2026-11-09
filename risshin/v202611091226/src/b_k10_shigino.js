@@ -582,23 +582,16 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       const k = F.w1S - sumN(F.g1, F.g2);
       // 本人も柵前の戦いに加わり、鉄砲衆を押し返すまで次へ進めない。
       // 味方が先に討ち尽くすと本人の手柄が無いまま①が終わらず詰んでいた（二巡 bot：十八分止まり）。
-      //   柵の前（一の柵から十八歩の内）に十五秒いた、または柵の鉄砲衆が尽きたら、本人も加わったとみなす
+      //   柵の前（一の柵から十八歩の内）に十五秒いれば、討ち尽くされた後でも本人の参戦を確かめられる。
       if (Math.abs(P.pos.x - F1) < 18 && Math.abs(P.pos.z) < 14) F.nearF1 = (F.nearF1 || 0) + 0.25;   // 四分の一秒ごとの見回り
-      const joined = F.playerFight1 || (F.nearF1 || 0) > 15 || sumN(F.g1, F.g2) === 0;
+      const joined = F.playerFight1 || (F.nearF1 || 0) > 15;
       if (k >= Math.round(F.w1S * 0.6) && joined) this.toStep(rt, 2);
     } else if (F.step === 2) {
       // 来援の先手は三の柵の西で待つ（井上の討死までは寄せない）
       for (const g of [F.wata, F.kimu]) if (live(g) && g._wait && g.order === 'attack') { g.order = 'hold'; g.anchor = { x: g._wait.x, z: g._wait.z }; g.seekRange = 8; g.aggro = 4; }
       if (live(F.ino) && F.ino.order !== 'hold') { F.ino.order = 'hold'; F.ino.anchor = { x: INOUE.x, z: 0 }; }
       if (live(F.inoG) && (F.inoG.order !== 'hold' || F.inoG.anchor.x !== INO_POST.x)) { F.inoG.order = 'hold'; F.inoG.anchor = { x: INO_POST.x, z: INO_POST.z }; }
-      // 本人が三の柵の前で四十秒戦っても井上に届かない時は、須田の先手の槍が井上を討つ（史実でも柵を奪った上杉勢に討たれた。二巡 bot：②で十八分止まり）
-      if (F.inoU && F.inoU.alive && !F.inoDown && (F.nearStep?.[2] || 0) > 40) {
-        const by = F.suda?.units?.find((u) => u.alive && !u.isPlayer) || null;
-        F.inoU.onWound = null; F.inoU.invuln = false; rt.army.kill(F.inoU, by);
-        F.inoDown = true;
-        rt.banner('井上頼次、討ち死に', '三の柵の鉄砲が止んだ');
-        rt.after(3, () => this.toStep(rt, 3));
-      }
+      // 井楼の下の井上には本人の一撃が通る。近くで待った時間だけで代わりに討たない。
       if (F.inoU && !F.inoU.alive && F.inoByMe && !F.inoDown) {
         F.inoDown = true;
         rt.banner('井上頼次、討ち取ったり', '三の柵の鉄砲が止んだ');
