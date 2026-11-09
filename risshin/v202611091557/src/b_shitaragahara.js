@@ -20,6 +20,7 @@ import { sightPoint, sightUnit } from './battle_sight.js';
 import { sendOrder } from './denrei.js';
 import { seasonOf, sky } from './b_shared.js';
 import { depthTick } from './b_depth.js';
+import { DEPTH_SHITARA } from './shitaragahara/depth.js';
 import { camp } from './b_mid.js';
 import { demBlend, demSample } from './dem.js';
 import { drawGroundAt } from './render_camera.js';
@@ -1777,6 +1778,8 @@ const shitaragahara = {
   // 11/9 kaito「なんで鉄砲を持ってないの俺は」：柵の内の鉄砲の戦。火縄銃を持って始め、敵が近づいたら槍・刀へ持ち替える（spec 24〜25）。
   //   携帯でも「持替」の丸を出す（touch.js の touchBattleControls）
   touchBattleControls: true,
+  // 布陣図どおりの奥の層（docs/fujin/shitaragahara.md・army_depth の軽い備）。柵の際と寄せの最前は本物と既存の列
+  depth: DEPTH_SHITARA,
   checkpointStep(rt) {
     const N = rt.flags.nf;
     if (!N || rt.flags.ending) return null;
