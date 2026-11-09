@@ -237,7 +237,7 @@ html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode > :not(.pg-go
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode {
  left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
- width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
+ width:auto !important; min-width:0 !important; max-width:min(340px, 38vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; flex-wrap:wrap; white-space:normal !important; align-items:flex-start; color:#e6dfd2 !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li i { margin-top:3px; }
@@ -246,6 +246,8 @@ html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li.
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li span { flex:1; min-width:0; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li em:not(.tm) { display:block !important; }
+html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li:not(.now) em { display:none !important; }
+html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals li:not(.now) { font-size:12px !important; line-height:1.3 !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }`;
 function goalBoard(rt) {
   const hud = rt.hud;
