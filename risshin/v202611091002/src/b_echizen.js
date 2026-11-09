@@ -4,7 +4,7 @@ import { kinome, kinomeCourtLevel, echizenValleyGroves } from './b_kinome.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { dirtTex } from './nature.js';
-import { KINOME_PLAN, KINOME_ROADS, ROAD, EXIT_KANNON, EXIT_KINOME, GATE_KANNON, GATE_KINOME, SAIKOJI_HON, HACHIBUSE_HON } from './castles/kinome.js';
+import { KINOME_PLAN, KINOME_ROADS, ROAD, EXIT_KANNON, EXIT_KINOME, GATE_KANNON, GATE_KINOME, SAIKOJI_HON, HACHIBUSE_HON, KX, KZ } from './castles/kinome.js';
 import { sakamogi, yagura } from './props.js';
 import { flagTexture } from './textures.js';
 import { distToPolyline } from './world.js';
@@ -20,6 +20,7 @@ import { NAKA } from './naka.js';
 import { dressStage } from './stage_dress.js';
 import { allyGroup, enemyGroup } from './bhelp.js';
 import { goalsTick } from './hud_goals.js';
+import * as EC_GORYU from './echizen/goryu.js';   // 15分の構成（docs/oda15_plan_1108.md 18）：段の中身は echizen/ に一段一ファイル
 
 // 11/5 fix61（kaito 九1・九3・十1）：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
 //   共通の任務札は一行だけ（missionSingleLine）なので、その後に目標の札を重ねて置き換える（有岡と同じ作り）。時の字は出さない。
@@ -1296,7 +1297,7 @@ echizen.setup = function (rt) {
     }
     return result;
   };
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); if (m && d > 0 && !rt.flags.step) return d * 0.35;   /* 11/9：開戦の木戸前で塀の上の鉄砲・弓に三十秒で討たれていた（遊び手の bot）。木戸前の間だけ矢玉を軽く */ return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
   // 資料本の足軽：黒褐色の貸し胴と草摺、赤茶の漆の陣笠。金色の総具足にはしない。
   // 既存の陣笠・桶側胴・素懸威を共用し、兵・形・材質の種類を増やさない。
   const addUnit = rt.army.addUnit;
@@ -1614,7 +1615,7 @@ echizen.setup = function (rt) {
   {
     const look = { armor: 0x3a342c, hat: 'hachimaki', lace: 0x5a5040, cloth: 0x4a4236 };
     rt.flags.echTail = enemyGroup(rt, { fixed: true, faction: 'ikko', flag: 'namu', name: '峠道の殿の一揆勢', anchor: { ...TAIL_AT }, facing: TAIL_FACING,
-      formation: 'yari', yariRanks: 4, width: 7, order: 'hold', stay: true, aggro: 6, seekRange: 6, noRout: true, noHunt: true, fleeDir: { x: 0, z: 1 } },
+      formation: 'yari', yariRanks: 4, width: 7, order: 'hold', stay: true, aggro: 6, seekRange: 6, noRout: true, noHunt: true, fleeDir: { x: 0, z: -1 } },
     // 11/6 fix4_echizen：殿の将は石田の西光寺真敬（信長公記「木目峠、石田の西光寺」。福井県史：寺の由緒書に木ノ芽峠で戦死）。
     //   坊主の大将は馬上で、侍四人が旗本として囲む。討てば「討ち取ったり」（名のある将だけ）
     // 11/6 fixc0917_echizen（kaito「一揆勢が織田の足軽と同じ陣笠・黒い胴」）：門徒の槍・弓・鉄砲は素の小袖に鉢巻（長島の門徒と同じ作り）。侍だけ暗い腹巻
@@ -2287,6 +2288,9 @@ echizen.update = function (rt, dt) {
     rt.flags.echOpeningHit = true;
   if (!rt.flags.step && rt.flags.echOpeningHit &&
       (!openingGuard || openingGuard.aliveNominal() <= 0 || rt.t >= 30)) this.assault(rt);
+  // 11/9：遊び手が木戸前で鉄砲を撃ち続けて一太刀も入れないと、十八分たっても寄せが始まらなかった（遊び手の bot）。
+  //   六十秒で味方の寄せを始める（何も変わらない時間を作らない・docs/oda15_plan_1108.md 共通2）
+  if (!rt.flags.step && rt.t >= 60) { rt.flags.echOpeningHit = true; this.assault(rt); }
   {
     // 観音丸は味方の寄せだけでは落ちない：本人が郭の中で30秒戦うまでは、押さえの時間が数え始まらない。
     // 11/4 jin_echizen（AP8・BA3）：前は開戦から240秒まで待たせ、守兵のいない郭で二分立ち尽くしていた。待ちの時計はやめ、郭の守兵との斬り合いで長さを作る。
@@ -2307,13 +2311,16 @@ echizen.update = function (rt, dt) {
         for (const g of rt.army.groups) {
           if (g.team !== 1 || g.routed || !g.units.some((q) => q.alive && !q.fleeing && kz.test(q.pos.x, q.pos.z))) continue;
           g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null;
-          if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; }
+          g.fleeDir = { x: 0, z: -1 };
           for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
         }
       }
     }
   }
   kinome.update.call(this, rt, dt);
+  // 観音丸の寄せが七十秒を過ぎても郭が落ちない時、前田・佐々・不破の手が上がって来る（echizen/goryu.js）
+  if (rt.flags.step && !rt.flags.kannonFell && !rt.flags.echGoryu && rt.t - (rt.flags.stepT ?? rt.t) > 70) EC_GORYU.start(rt, echGoryuCtx(rt));
+  EC_GORYU.tick(rt, dt);
   echizenAdvanceTick(rt);
   const F = rt.flags, u = rt.player.u;
   if (rt.over || F.ending || F.echAdv || !u.alive) return;
@@ -2363,7 +2370,7 @@ echizen.update = function (rt, dt) {
       const g = b?.real;
       if (!g || g.routed || !g.units?.some((q) => q.alive && zone?.test(q.pos.x, q.pos.z))) continue;
       g.routed = true; g.order = 'flee'; g.morale = 0;
-      if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; }
+      g.fleeDir = { x: 0, z: -1 };
       for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
     }
   }
@@ -2622,6 +2629,7 @@ echizen.botBrain = function (rt, inp, helpers) {
   }
 };
 
+const echGoryuCtx = (rt) => ({ gate: () => rt.flags.gateKinome?.struct, kannonIn: { x: KX(-6), z: KZ(-105) }, kannonGate: { x: KX(0), z: KZ(-126) } });
 echizen.onZoneFall = function (rt, id) {
   // 目の前で押さえた郭の次の任務は、使番の到着を待たない。
   // 古い「守れ、あと一秒」と運搬中の札を、その場の下知で取り替える。
@@ -2634,6 +2642,8 @@ echizen.onZoneFall = function (rt, id) {
   // 道の印と山道全体の残り距離も、制圧後の最初の更新でそろえる。
   rt.flags.statusAt = 0;
   // 観音丸だけで追撃へ飛ばさず、本道と東西の尾根を既存の隊で攻める。
+  // 尾根道で前田・佐々・不破の手が合流し、崩れた先手に代わって木ノ芽峠城の木戸を破る（echizen/goryu.js）
+  if (id === 'kannon' && rt.flags.kannonFell) EC_GORYU.onKannonFell(rt, echGoryuCtx(rt));
   if (id === 'kannon' && rt.flags.kannonFell) {
     this.releaseEast(rt);
     this.releaseWest(rt);
@@ -2695,13 +2705,13 @@ function echizenAdvance(rt) {
   }
   rt.say('使番', '杉津口は破れ、堀江景忠が寝返った！　府中の龍門寺にも火が掛かった！', 4.5);
   rt.after(5, () => rt.say('組頭', '背を突かれた一揆勢が、砦に火を掛けて府中へ退くぞ。峠道の西光寺真敬の殿を討て！', 4));
-  // 峠道の殿は踏みとどまり、ほかの一揆勢は皆、府中の方（北）へ逃げる
+  // 峠道の殿は踏みとどまり、ほかの一揆勢は皆、府中の方（北・負の奥行き）へ逃げる
   const tail = F.echTail;
   if (tail?.count) { tail.seekRange = 10; tail.aggro = 10; }
   for (const g of rt.army.groups) {
     if (g.team !== 1 || g.routed || g === tail) continue;
     g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null; g.noRout = false;
-    g.fleeDir = { x: 0, z: 1 };
+    g.fleeDir = { x: 0, z: -1 };
     for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
   }
   for (const a of rt.world.armies || []) if (a.team === 1) a.noWake = true;
@@ -2719,9 +2729,18 @@ function echizenAdvance(rt) {
   F.echUp = [
     up('柴田勝家の手', 3, [{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true } }, { type: 'samurai', n: 6 }]),
     // 11/6 fix4_echizen（一2）：名のある将は徒で足軽三人に混ぜず、馬上で侍の旗本に囲む
-    up('前田利家の手', -3, [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true, weapon: 'spear' } }, { type: 'samurai', n: 4 }]),
-    up('佐々成政の手', -8, [{ type: 'busho', n: 1, o: { name: '佐々成政', invuln: true, horse: true } }, { type: 'samurai', n: 4 }]),
-    up('不破光治の手', 8, [{ type: 'busho', n: 1, o: { name: '不破光治', invuln: true, horse: true } }, { type: 'samurai', n: 4 }]),
+    // 前田・佐々・不破は尾根道で先に合流している（echizen/goryu.js）。その手を峠道の殿へ回す
+    ...(F.echGoryu ? F.echGoryu.groups.filter((g) => g.count).map((g, i) => {
+      const x = [-3, -8, 8][i] || 0;
+      g.order = 'path'; g.formation = 'column'; g.colW = 2; g.pathIdx = 0; g.dest = null; g.assault = null;
+      g.path = [[EXIT_KANNON[0] + x, EXIT_KANNON[1]], [TAIL_FRONT.x + x, TAIL_FRONT.z]];
+      g.onArrive = (q) => { q.order = 'hold'; };
+      return g;
+    }) : [
+      up('前田利家の手', -3, [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true, weapon: 'spear' } }, { type: 'samurai', n: 4 }]),
+      up('佐々成政の手', -8, [{ type: 'busho', n: 1, o: { name: '佐々成政', invuln: true, horse: true } }, { type: 'samurai', n: 4 }]),
+      up('不破光治の手', 8, [{ type: 'busho', n: 1, o: { name: '不破光治', invuln: true, horse: true } }, { type: 'samurai', n: 4 }]),
+    ]),
   ];
   // 峠口の先手も北口から峠道を追う（本人一人で殿に当たらない）
   for (const b of F.attackers || []) {
@@ -2808,7 +2827,7 @@ function echizenAdvanceTick(rt) {
   }
   const g = F.echTail;
   if (g && !g.routed) {
-    g.routed = true; g.order = 'flee'; g.morale = 0; g.noRout = false; g.focus = null; g.fleeDir = { x: 0, z: 1 };
+    g.routed = true; g.order = 'flee'; g.morale = 0; g.noRout = false; g.focus = null; g.fleeDir = { x: 0, z: -1 };
     for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
   }
   rt.objDone('tail');

@@ -654,8 +654,11 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       else if (b.t >= (F.riverNext || 0)) inp.leftPressed = true;
       return;
     }
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
-    const e = F.step === 3 ? null : b.army.nearestEnemy(u, 9, ok);
+    // 井上は味方に討たれないための保護付きだが、本人の一撃は通る。
+    // 保護だけで除くと、周りの兵を討った後に足元で待ち続けてしまう。
+    const ok = (o) => o.alive && !o.gone && !o.fleeing && (!o.invuln || F.step === 2 && o === F.inoU) && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const inoue = F.step === 2 && F.inoU && ok(F.inoU) ? F.inoU : null;
+    const e = F.step === 3 ? null : inoue || b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');
