@@ -26,7 +26,7 @@ export function start(rt, K) {
   rt.after(40, () => {
     if (F.stage !== 4 || F.ending) return;
     F.nino2 = K.foe('矢倉の下の新手', { x: -22, z: 22 }, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], { aggro: 16, width: 4 });
-    F.nino2.order = 'attack'; F.nino2.seekRange = 30; F.nino2.noFrontline = true;
+    F.nino2.order = 'attack'; F.nino2.seekRange = 30; F.nino2.noFrontline = true; F.nino2.noRout = true;
     F.foes.push(F.nino2);
     rt.army.play('eshout', { x: -22, z: 22 }, 1.4);
     rt.say('蒲生の侍', '矢倉の下から新手じゃ！', 2.6);
@@ -37,8 +37,18 @@ export function start(rt, K) {
 export function update(rt, K) {
   const F = rt.flags, el = rt.t - F.n4.t0;
   const left = (F.nino ? K.fighting(F.nino) : 0) + (F.nino2 ? K.fighting(F.nino2) : 0);
+  // 時間だけで「討ち払った」にしない。寄せ手と実際に斬り合ってから撤退の時を数える。
+  if (F.n4.fightT == null) for (const g of [F.nino, F.nino2]) {
+    if (!g) continue;
+    for (const u of g.units) {
+      if (!u.alive || u.fleeing || u.woundOut) continue;
+      const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
+      if (target) { F.n4.fightT = rt.t; break; }
+    }
+    if (F.n4.fightT != null) break;
+  }
   // 討ち減らされた時も、長引いた時も、残兵は本丸へ退く。少数だけ曲輪で戦い続けない
-  if ((el > 150 && left <= 3) || el > 185) {
+  if ((el > 150 && left <= 3) || (F.n4.fightT != null && rt.t - F.n4.fightT > 185)) {
     for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.fire = false; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
     return true;
   }

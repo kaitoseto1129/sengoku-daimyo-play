@@ -8,7 +8,7 @@ export function play(rt, ctx, at) {
   const { sayKino } = ctx;
   const live = () => !rt.ended;
   rt.after(at + 6, () => { if (live()) rt.say('足軽', '観音寺の山の火が消えていくぞ。六角が城を捨てた！', 3.4); });
-  rt.after(at + 11, () => { if (live()) rt.say('使番', '六角承禎父子、甲賀の山へ落ちてゆきます！', 3.4); });
+  rt.after(at + 11, () => { if (live()) rt.say('使番', '六角承禎・義治の父子、観音寺を捨てて甲賀の山へ落ちてゆきます！', 3.4); });
   rt.after(at + 16, () => { if (live()) sayKino(rt, '一夜で落としたぞ。夜が明けたら観音寺へ入る。その先は京じゃ', 4); });
   rt.after(at + 22, () => { if (live()) rt.say('', '――信長は翌十三日に観音寺城へ入り、義昭を奉じて京へ上った', 4.2); });
   return at + 28;
