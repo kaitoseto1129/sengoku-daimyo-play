@@ -436,11 +436,11 @@ const k03_gifu = {
     //   段が八十秒長引けば使番が知らせ、大将が味方の隊を出す
     F.stages = siegeStages(rt, [
       { groups: [F.g1], at: SHITA, done: () => F.step > 1 },
-      { groups: [F.pre[2]], at: OTE, done: () => F.step > 2, report: '居館の冠木門、まだ破れず！', orderLine: '鉄砲を前へ。門の上を撃ちすくめよ', order: () => { if (F.naga && F.naga.count) { F.naga.order = 'attack'; F.naga.anchor = { x: OTE.x, z: OTE.z }; } } },
-      { groups: [F.pre[3], F.amb], at: NANA, done: () => F.step > 3, report: '百曲りの先手、押し返されております！', orderLine: '二の手を出せ。浅野勢にも知らせよ', order: () => { if (F.asano && F.asano.count) { F.asano.order = 'attack'; F.asano.anchor = { x: NANA.x, z: NANA.z }; } } },
-      { groups: [F.pre[4]], at: NI, done: () => F.step > 4, report: '二の丸の櫓門、横矢が厳しく寄れませぬ！', orderLine: '控えを右へ回せ。福島に後れを取るな', order: () => { if (live(F.naga)) { F.naga.order = 'attack'; F.naga.anchor = { x: NI.x - 8, z: NI.z }; F.naga.dmgMult = 1.2; } } },
+      { groups: [F.pre[2]], at: OTE, done: () => F.step > 2, report: '居館の冠木門、まだ破れず！', orderLine: '殿の仰せ。鉄砲を前へ。門の上を撃ちすくめよ', order: () => { if (F.naga && F.naga.count) { F.naga.order = 'attack'; F.naga.anchor = { x: OTE.x, z: OTE.z }; } } },
+      { groups: [F.pre[3], F.amb], at: NANA, done: () => F.step > 3, report: '百曲りの先手、押し返されております！', orderLine: '殿の仰せ。二の手を出せ。浅野勢にも知らせよ', order: () => { if (F.asano && F.asano.count) { F.asano.order = 'attack'; F.asano.anchor = { x: NANA.x, z: NANA.z }; } } },
+      { groups: [F.pre[4]], at: NI, done: () => F.step > 4, report: '二の丸の櫓門、横矢が厳しく寄れませぬ！', orderLine: '殿の仰せ。控えを右へ回せ。福島に後れを取るな', order: () => { if (live(F.naga)) { F.naga.order = 'attack'; F.naga.anchor = { x: NI.x - 8, z: NI.z }; F.naga.dmgMult = 1.2; } } },
       { groups: [F.pre[5], F.hide], at: DAI, done: () => false },
-    ], { lord: '池田輝政', reportAfter: 80 });
+    ], { lord: '池田輝政の使番', reportAfter: 80 });
     const T = this.talk.before;
     T.forEach(([who, s], i) => rt.after(0.6 + i * 3.6, () => rt.say(who || nm(rt), s, 3.4)));
     rt.after(0.6 + T.length * 3.6, () => { F.holdPlayer = false; this.toStep(rt, 1); });
