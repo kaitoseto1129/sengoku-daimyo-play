@@ -13,24 +13,25 @@ export function install(rt, ctx) {
   const t0 = rt.t, W = rt.world;
   const POST = { x: TOP.x, z: TOP.z + TOP.r + 7 };
   let done = false, tick = 0, R = null;
+  const stopped = () => done || F.ending || rt.over || !rt.player.u.alive;
   F.enjouFires = [[TOP.x + 8, TOP.z + 4, 1.8], [TOP.x - 9, TOP.z + 2, 1.5]].map(([x, z, size]) => W.addFire?.(x, z, { size, h: 1.2, blackSmoke: true }));
   sfx('wood', 0.8);
   rt.say('足軽', '本丸の館に火が回ったぞ！　煙で前が見えぬ！', 3.5);
   rt.obj('main', '火の回った本丸の南口の外で、味方と口を固めよ', 'main');
   rt.objProgress('main', '');
   rt.marker('enjou', POST, '本丸の南口の外', { h: 3, guideAlways: true, guidePriority: 450 });
-  rt.after(10, () => { if (!done && !F.betrayed) betrayal(); });
+  rt.after(10, () => { if (!stopped() && !F.betrayed) betrayal(); });
   rt.after(18, () => {
-    if (done) return;
+    if (stopped()) return;
     R = enemyGroup(rt, { faction: 'matsunaga', name: '火から逃げ出た松永の兵', anchor: { x: TOP.x + 4, z: TOP.z + TOP.r - 4 }, facing: 0, width: 4, order: 'attack', aggro: 20, seekRange: 22, morale: 40, fleeDir: { x: 0.6, z: 1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], MATSU));
     rt.say('組頭', '火の中から逃げ出て来た！　死に物狂いじゃ、気を付けよ！', 3.5);
     rt.marker('enjouR', () => (R.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? R.center() : null), '逃げ出た松永の兵', { red: true, group: R });
   });
-  rt.after(30, () => { if (!done) rt.say('筒井順慶', '久秀は天主に籠もったか……。火が天主へ移るぞ', 4); });
+  rt.after(30, () => { if (!stopped()) rt.say('筒井順慶', '久秀は天主に籠もったか……。火が天主へ移るぞ', 4); });
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (stopped()) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t0, d = Math.hypot(p.x - POST.x, p.z - POST.z);

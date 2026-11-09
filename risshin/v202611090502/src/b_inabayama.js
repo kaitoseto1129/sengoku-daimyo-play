@@ -3090,7 +3090,8 @@ function inabaPacingWait(rt) {
   if (F.step === 3 && F.kino?.order === 'path' && F.kino.pathIdx > (F.pacingKino || 0)) {
     F.pacingKino = F.kino.pathIdx; F.pacingClimbT = rt.t;
   }
-  const climbEnd = Math.min(F.stepT + 480, Math.max(F.stepT + 300, (F.pacingClimbT || F.stepT) + 90));
+  // 11/9 お客さんの声：登りの持ち時間が短く、初めての人は七曲りで打ち切られた。上限を十分・止まってから二分に
+  const climbEnd = Math.min(F.stepT + 600, Math.max(F.stepT + 420, (F.pacingClimbT || F.stepT) + 120));
   // 守りを退けた直後に時計を切らず、本人が小屋へ歩いて火をつける時間を残す。
   // 火付け口を移した時も四十五秒を確保する。以前の本丸の上限で救済直後に打ち切らない。
   // sigT は着火口の設置と一度だけの移設で決まるので、放置や往復では延びない。
@@ -4033,7 +4034,8 @@ function honGateStep(rt, enemy) {
   return (enemy._inaGate = p.x < HON_GATE_OUT.x + 1.5 ? HON_GATE_OUT : HON_INNER);
 }
 const inabayama = {
-  resumeSteps: [[1, 'burnStart'], [2, 'sally'], [3, 'karamete'], [4, 'signal']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
+  // 11/9 お客さんの声（稲葉山がクリアできない・途中からが最初から）：③は付け入り（七曲り）の道が本筋。④は二ノ門の段を済んだ事にして本丸から
+  resumeSteps: [[1, 'burnStart'], [2, 'sally'], [3, 'tsukeiri'], [4, function (rt) { rt.flags.k15Nino = 'done'; this.signal(rt); }]],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 11/8 critic60 九6・AZ：町の家の壁・木の葉・竹束が点々で透けて中が見えた。透かしをやめ、共通の壁よけ（寄せ）だけにする
   nearFade: false,
   camPull: 1.2,   // 11/8 critic60 九7：2.5 では細い七曲り・本丸の口でカメラが崖の壁や物の下へ入り、空や壁いっぱいを向いた。寄せを浅く
@@ -6065,12 +6067,13 @@ const inabayama = {
       g.noRout = true; g.atIdx = i; g.startN = g.units.length;
       // 11/8 critic60 一3：持ち場で突っ立たせず、坂の上から下の折れへ矢玉を放ち続ける
       g.fire = true; g.holdFire = false;
+      g.dmgMult = 0.5;   // 11/9 お客さんの声「稲葉山がクリアできない」：坂の上の矢玉と槍の一打を軽く（数は同じ）。初めての人が登りで倒れ続けないように
       return g;
     });
     // 大手の木戸の守り（喰違いの口の内）。木戸の上の井楼と馬出しの兵（siegeKit）と合わせて迎える
     F.oteGate = enemyGroup(rt, { fixed: true, faction: 'saito', name: '大手の木戸の守り', anchor: { ...OTE_IN }, facing: face(NANA.length - 1), order: 'hold', aggro: 0, width: 5, morale: 90, formation: 'yari', fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 3 }], { flag: 'saito' }));
-    F.oteGate.noRout = true;
+    F.oteGate.noRout = true; F.oteGate.dmgMult = 0.6;   // 11/9 同上：木戸の上の鉄砲と槍を軽く
     F.climbFoes = [F.nigeru, ...F.nanaGuards, F.oteGate];
     F.climbFriends = [F.kino];
     // 藤吉郎の手は自分と同じ道を、同じ速さで登る（味方も道で登る）。柴田の手は少し後から続く
