@@ -2423,10 +2423,37 @@ function fireStage(rt, n) {
   }
 }
 function teleport(rt, x, z) {
-  const P = rt.player.u, W = rt.world, dx = x - P.pos.x, dz = z - P.pos.z;
-  for (const g of rt.squadGroups || []) { for (const u of g.units) if (u.alive) { u.pos.x += dx; u.pos.z += dz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; u.target = null; } if (g.anchor) { g.anchor.x += dx; g.anchor.z += dz; } }
-  for (const u of rt.tomoUnits || []) if (u.alive) { u.pos.x += dx; u.pos.z += dz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; u.target = null; }
-  P.pos.x = x; P.pos.z = z; P.pos.y = W.heightAt(x, z);
+  const P = rt.player.u, W = rt.world, lim = W.def.moveLim || 176;
+  // 幕の切替では、寺に残った供の離れ幅を持ち越さない。
+  // 同じ距離を足すだけでは二条の外へ飛び、古い道や下知で寺へ戻っていた。
+  const place = (u, px, pz) => {
+    px = Math.max(-lim + 2, Math.min(lim - 2, px));
+    pz = Math.max(-lim + 2, Math.min(lim - 2, pz));
+    u.pos.set(px, W.heightAt(px, pz), pz);
+    u.mesh?.position.copy(u.pos);
+    u.moveTo = null; u.target = null;
+    if (u.vel) u.vel.x = u.vel.z = 0;
+  };
+  const placed = new Set([P]);
+  let k = 0;
+  for (const g of rt.squadGroups || []) {
+    const ax = x + 3 + k * 3, az = z;
+    let i = 0;
+    for (const u of g.units) if (u.alive && !placed.has(u)) {
+      place(u, ax + Math.floor(i / 3) * 1.5, az + (i % 3 - 1) * 1.5);
+      placed.add(u); i++;
+    }
+    if (g.anchor) { g.anchor.x = ax; g.anchor.z = az; }
+    g.order = 'follow'; g.dest = null; g.path = null; g.pathIdx = 0;
+    g.onArrive = null; g.focus = null; g.pending = null;
+    k++;
+  }
+  let i = 0;
+  for (const u of rt.tomoUnits || []) if (u.alive && !placed.has(u)) {
+    place(u, x + 1.5, z + (++i % 2 ? -1 : 1) * Math.ceil(i / 2) * 1.5);
+    placed.add(u);
+  }
+  place(P, x, z);
 }
 
 function honnoReturnLabel(rt) {

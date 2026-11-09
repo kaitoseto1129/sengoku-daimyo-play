@@ -3938,8 +3938,8 @@ const echizen_ikko = {
     // 惣門・山門・本堂に続き、奥の院の山狩りまで果たして終える。
     if (step === 4) {
       // 奥の院を先に取っても、山道の守りが着いただけでは終戦にしない。
-      // 三組とも退けるまで山狩りを続ける（奥山道の守りと同じ判定）。
-      if (F.huntWavesPending > 0 || F.roadWaves.some((b) =>
+      // 三組とも退け、本堂の焼き討ちを見る間を残す。奥山道を守る経路と同じく四分未満では終えない。
+      if (rt.t < 240 || rt.t - F.stepT < 15 || F.huntWavesPending > 0 || F.roadWaves.some((b) =>
         !b.real?.routed && (b._route && b.aliveNominal() > 0 || b.aliveNominal() > b.nominal * 0.3))) return;
       this.win(rt, true); return;
     }

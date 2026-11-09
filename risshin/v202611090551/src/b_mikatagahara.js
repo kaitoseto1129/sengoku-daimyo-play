@@ -1192,6 +1192,7 @@ const mikatagahara = {
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noPlayerFoot: true,
+  noTravelArrow: true, // 行き先は頭上の印だけにし、通し確認で残っていた足元の矢印を出さない。
   quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
   missionPinCaption: '',
   missionDetail: () => '',
