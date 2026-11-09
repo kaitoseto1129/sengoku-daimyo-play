@@ -4,8 +4,6 @@
 //   義元が深手を負ってから五十秒たっても、退く旗本の囲みや地形に阻まれて毛利の刃が届かない時は、
 //   毛利新介が囲みの切れ目を駆け抜けて義元へ寄り（歩く速さの倍。瞬間移動はしない）、間合いに入った所で討つ。
 // ======================================================================
-import { sightScreenUnit } from '../battle_sight.js';
-
 const ready = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 
 export function tick(rt, dt) {
@@ -33,7 +31,8 @@ export function tick(rt, dt) {
   }
   // 本体と同じく、主人公が義元を見届けられる間合いまで討取りを待つ。
   const p = rt.player.u.pos;
-  if (Math.hypot(p.x - y.pos.x, p.z - y.pos.z) > 12 || !sightScreenUnit(rt, y) ||
+  if (Math.hypot(p.x - y.pos.x, p.z - y.pos.z) > 12 ||
+      rt.army.wallBetween(p, -1, y.pos) || rt.army.terrainBlocks(p, y.pos) ||
       rt.army.wallBetween(k.pos, k.team, y.pos) || rt.army.terrainBlocks(k.pos, y.pos) || Math.abs(k.pos.y - y.pos.y) >= 3) return;
   y.invuln = false; y.officerSaved = true; rt.army.kill(y, k);
 }

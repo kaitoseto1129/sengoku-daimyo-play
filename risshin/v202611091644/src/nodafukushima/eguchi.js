@@ -7,6 +7,8 @@ import { sfx } from '../audio.js';
 
 export const MISSION = '柴田の殿に続き、江口の渡しへ退け';
 const DEST = { x: 40, z: 150 };
+// 深手で戦えない兵や退いた兵を、渡しを塞ぐ残兵に数えない。
+const fighting = u => u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
 
 // ctx：{ enemyGroup, makeRoom, dress, ikko, friends[], done() }
 export function start(rt, ctx) {
@@ -30,7 +32,7 @@ export function start(rt, ctx) {
     if (!g || !g.count) return;
     S.k = 1; S.aT = rt.t;
     g.ikko = true; g.order = 'attack'; g.focus = rt.player.u; S.g = g;
-    rt.marker('nodaAmbush', () => { const u = g.units.find((v) => v.alive); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '舟を隠した門徒', { red: true, group: g });
+    rt.marker('nodaAmbush', () => { const u = g.units.find(fighting); return u ? { x: u.pos.x, z: u.pos.z } : null; }, '舟を隠した門徒', { red: true, group: g });
     rt.army.play('eshout', { x: DEST.x + 20, z: DEST.z - 34 }, 1.6);
     rt.say('足軽', '舟が無い！　一揆が舟を隠して待ち伏せしておったぞ！', 3.4);
     rt.after(3.6, () => !S.done && rt.say('前田利家', '道を開けよ！　払って渡しへ抜けるぞ！', 3));
@@ -39,7 +41,9 @@ export function start(rt, ctx) {
     if (S.done || rt.over || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
     if (!S.k && (p.z > DEST.z - 60 || rt.t - S.t0 > 45)) ambush();
-    const clear = !S.g || S.g.routed || S.g.units.filter((u) => u.alive).length <= 3;
+    let left = 0;
+    for (const u of S.g?.units || []) if (fighting(u)) left++;
+    const clear = !S.g || S.g.routed || left <= 3;
     if (S.k && clear && !S.cleared) { S.cleared = true; rt.unmark('nodaAmbush'); if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; } rt.award((t) => t.side.push('江口で待ち伏せの門徒を払った'), '江口の待ち伏せを払った'); }
     if (S.k && clear && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) finish();
   };
@@ -61,7 +65,7 @@ export function bot(b, goTo, p, inp, strike) {
   const u = p.u;
   if (S.g && !S.cleared) {
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (v.alive) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e && best < 30) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
