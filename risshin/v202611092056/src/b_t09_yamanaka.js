@@ -832,6 +832,24 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   inp.guardHold = false;
+  // 柵の向こうへ歩き続けず、兵に届かない間は本人も柵を打ち破る。
+  // 破れ口ができた後は、残る柵へ寄り道せず出丸へ進む。
+  if (F.step === 1 && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
+    let wall = null, wx = 0, wz = 0, wd = Infinity;
+    for (const s of F.daiWall) {
+      const [ax, az, bx, bz] = s.seg, dx = bx - ax, dz = bz - az;
+      const t = clamp(((u.pos.x - ax) * dx + (u.pos.z - az) * dz) / (dx * dx + dz * dz || 1), 0, 1);
+      const x = ax + dx * t, z = az + dz * t, d = Math.hypot(x - u.pos.x, z - u.pos.z);
+      if (d < wd) { wall = s; wx = x; wz = z; wd = d; }
+    }
+    if (wall && wd < 4) {
+      p.yaw = Math.atan2(wx - u.pos.x, wz - u.pos.z);
+      const reach = p.weapon === 'sword' ? 1.9 : 2.8;
+      if (wd > reach * 0.8) goTo(p, inp, wx, wz, reach * 0.75);
+      patientStrike(p, inp, wall, wd);
+      return;
+    }
+  }
   // 出丸の東の畝堀（x −27〜−12）は、間の土橋（z 170〜182）だけを渡る（堀の中に落ちて槍に囲まれ、三度とも倒れた。11/8 bot）
   if (F.step === 1 && u.pos.x > -30 && (u.pos.z < 171 || u.pos.z > 181)) { goTo(p, inp, u.pos.x > -10 ? -6 : -32, 176, 1.5); return; }
   if (F.step === 1 && F.dai && !gone(F.dai)) { const t = F.dai.center(); goTo(p, inp, t.x, t.z, 2); return; }

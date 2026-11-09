@@ -31,7 +31,7 @@ export function toneJourney(rt) {
   for (const label of labels) {
     const place = document.createElement('span'); place.textContent = label; places.append(place);
   }
-  const dates = ['八月十三日夜、刀根坂で追い討ち', '八月十四〜十六日、敦賀で三日留まる', '八月十七日、木ノ芽峠を越える', '八月十八日、信長公は府中へ', '八月十八日以後、柴田の先手は一乗谷へ'];
+  const dates = ['八月十三日朝、刀根坂で追い討ち', '八月十四〜十六日、敦賀で三日留まる', '八月十七日、木ノ芽峠を越える', '八月十八日、信長公は府中へ', '八月十八日以後、柴田の先手は一乗谷へ'];
   const playerUpdate = rt.player.update, armyUpdate = rt.army.update;
   const invuln = rt.player.u.invuln;
   rt.player.update = () => {}; rt.army.update = () => {}; rt.player.u.invuln = true;

@@ -51,5 +51,5 @@ export function update(rt, K) {
   if (el > 30 && el - (C.lastV || 0) > 10) { C.lastV = el; volley(rt, K); }
   if (el > 62 && !C.east) { C.east = true; F.fronts?.east?.go?.(); }
   const near = Math.hypot(P.x - K.SPAWN.x, P.z - K.SPAWN.z) < 14;
-  return (el > 50 && near) || el > 200;
+  return (el >= 15 && near) || el > 200;
 }
