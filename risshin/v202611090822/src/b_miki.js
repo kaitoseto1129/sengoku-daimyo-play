@@ -1391,13 +1391,17 @@ const miki = {
   // 11/4 jin（三2・三3）：右上の五つは goals5.js の miki。行き先は固定の三か所
   mikiAt: { escort: ESCORT_AT, gate: GATE, foot: OMURA_FOOT, omura: OMURA },
   // 今の目標の番号（0〜4）：①荷駄の護衛 → ②木戸の城兵 → ③大村坂で秀吉の手と並ぶ → ④三太夫の勢 → ⑤甚太夫
+  omuraFoe(u) {
+    // 吉親など翌年まで城に残る将は、この坂で討つ目標に含めない。
+    return !u.name || u.name === '別所三太夫' || u.name === '別所甚太夫';
+  },
   missionOf(rt) {
     const F = rt.flags;
     if (!F.step || (F.step === 1 && !F.dropped)) return 0;
     if (F.step === 1) return 1;
     if (!F.omuraGo) return 2;
     // ④の達成条件とそろえる。名のある将は対象から外れただけでは討ち取りにならない。
-    if (!F.reserve.units.every(u => u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
+    if (!F.reserve.units.every(u => !this.omuraFoe(u) || u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
     return 4;
   },
   missionHeading(rt) { return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
@@ -2933,7 +2937,7 @@ const miki = {
     const F = rt.flags;
     // 坂へ着いただけでは合流にならない。懸かりの合図と本人の討ち取りまで待つ。
     return F.step === 2 && !!F.omuraGo && !!F.jintTaken &&
-      F.reserve.units.every(u => !u.alive || (!u.name && u.noTarget) || u.bushouAdded || (u.name && u.name !== '別所三太夫' && u.name !== '別所甚太夫'));   // 名簿から足した将（別所吉親）は城へ退く。史実では大村で討たれず、翌年の開城まで城にいた（11/8 bot：吉親一人が残り勝てなかった）
+      F.reserve.units.every(u => !this.omuraFoe(u) || !u.alive || (!u.name && u.noTarget));
   },
   end(rt, won, reason) {
     // 荷の到着・両持ち場の崩れ・退く下知は決着。近くの敵との打ち合いで先延ばしにしない。
@@ -3329,14 +3333,7 @@ const miki = {
     // 人数と状況を行で分け、横持ちで文末の一字だけを次の行へ残さない。
     rt.objProgress('main', `${defenders}${enemyGuide && !guardThin && !hirataThin ? '\n' + enemyGuide : ''}${deadline ? '\n' + deadline.slice(1) : ''}`);
     // とどめは本人へ残してある。目標③と⑤を飛ばす勝利の抜け道は作らない。
-    // 甚太夫が本人以外の手で倒れたら、⑤は二度と果たせない。そのまま締めへ進める（11/8 bot：甚太夫が味方に討たれ、残りの時間を待って負けた）
-    if (F.jint && !F.jint.alive && !F.jintTaken) F.jintTaken = true;
-    // 甚太夫が深手で退く・逃げ出した時は、退く道で秀吉の馬廻に討たれる（播磨別所記）。逃げたまま⑤が閉じず期限で負けない（11/9 bot）
-    if (F.step === 2 && F.omuraGo && F.jint?.alive && !F.jintTaken && (F.jint.fleeing || F.jint.woundOut)) {
-      const jin = F.jint, k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u);
-      jin.invuln = false; jin.hp = 0; rt.army.kill(jin, k || null); F.jintTaken = true;
-      rt.say('使番', '逃げる別所甚太夫を、秀吉様の馬廻が討ち取った！', 3.5);
-    }
+    // ⑤は onKill で本人の討ち取りを確かめる。味方のとどめは heroFinishCap で残す。
     // 甚太夫が討たれたら、大村の別所勢は大将を失って崩れ、城へ逃げ戻る（播磨別所記：三太夫・甚太夫が討たれ、別所勢は敗れた）。
     //   逃げて本人から二十五歩より離れた者は、城へ帰った者として数えない（11/9 bot：侍六人が残り、期限まで勝ちにならなかった）
     if (F.step === 2 && F.jintTaken) {
