@@ -1211,7 +1211,7 @@ function nearGuard(rt, group) {
   const p = rt.player.u.pos;
   let target = null, nearest = Infinity;
   for (const u of group.units) {
-    if (!u.alive || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
+    if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
       || u.evacuatedWound || u.rearWound || u.downed) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
     if (d < nearest) { target = u; nearest = d; }
@@ -3092,8 +3092,9 @@ function inabaPacingWait(rt) {
   }
   const climbEnd = Math.min(F.stepT + 480, Math.max(F.stepT + 300, (F.pacingClimbT || F.stepT) + 90));
   // 守りを退けた直後に時計を切らず、本人が小屋へ歩いて火をつける時間を残す。
-  // 放置では延びず、本丸へ入ってからの上限も残す。
-  const signalEnd = F.sig ? Math.min(F.stepT + 135, F.sigT + 45) : 0;
+  // 火付け口を移した時も四十五秒を確保する。以前の本丸の上限で救済直後に打ち切らない。
+  // sigT は着火口の設置と一度だけの移設で決まるので、放置や往復では延びない。
+  const signalEnd = F.sig ? F.sigT + 45 : 0;
   const end = Math.max(480, F.step === 3 ? climbEnd : Math.max(F.stepT + 90, signalEnd));
   if (rt.t >= end - 40 && !rt.pacingWarned) {
     rt.pacingWarned = true;

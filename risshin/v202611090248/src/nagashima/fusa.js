@@ -8,7 +8,7 @@ import { sfx } from '../audio.js';
 
 // K：{ rest, hold, BANK_Z, A, B, monto }
 export function steps(K) {
-  const WEST = { x: -46, z: K.BANK_Z + 6 }, EAST = { x: 46, z: K.BANK_Z + 6 };   // 市江口の信忠の手・賀鳥口の稲葉の手のそば
+  const WEST = { x: 46, z: K.BANK_Z + 6 }, EAST = { x: -46, z: K.BANK_Z + 6 };   // 西は賀鳥口の稲葉の手、東は市江口の信忠の手。+x が西。
   return [
     K.rest({ dur: 6, heal: 0, fn: (rt) => {
       sfx('horagai', 0.6);
@@ -16,10 +16,10 @@ export function steps(K) {
     }, say: [['使番', '九鬼の安宅船が川を塞いだ！　島への兵糧舟は一つも通さぬ'], ['組頭', '飢えた門徒が米を取り返しに来るぞ。西の舟入りへ！']] }),
     K.hold({ at: WEST, dur: 130, r: 14, title: '西の舟入り', sub: '上流で岸へ上がった門徒が、米俵を取り返しに来る', label: '西の舟入り', obj: '西の舟入りで、兵糧を取り返しに来た門徒を止めよ',
       waves: [
-        { t: 0, foes: () => [{ name: '兵糧を取り返しに来た門徒', from: { x: -74, z: K.BANK_Z + 10 }, list: K.monto(10, 2), mass: 0, dmg: 0.75 }] },
-        { t: 30, say: ['足軽', '飢えて目がくぼんどる……それでも来よる'], foes: () => [{ name: '舟入りへ寄せる門徒', from: { x: -78, z: K.BANK_Z + 2 }, list: K.monto(9, 1), mass: 0, dmg: 0.75 }] },
-        { t: 58, foes: () => [{ name: '門徒の弓', from: { x: -72, z: K.BANK_Z + 16 }, list: [K.B(4)], mass: 0, dmg: 0.6 }] },
-        { t: 84, say: ['組頭', '俵に火をかける気じゃ！　近寄らせるな！'], foes: () => [{ name: '火を持った門徒', from: { x: -76, z: K.BANK_Z + 8 }, list: K.monto(8, 1), mass: 0, dmg: 0.75 }] },
+        { t: 0, foes: () => [{ name: '兵糧を取り返しに来た門徒', from: { x: 74, z: K.BANK_Z + 10 }, list: K.monto(10, 2), mass: 0, dmg: 0.75 }] },
+        { t: 30, say: ['足軽', '飢えて目がくぼんどる……それでも来よる'], foes: () => [{ name: '舟入りへ寄せる門徒', from: { x: 78, z: K.BANK_Z + 2 }, list: K.monto(9, 1), mass: 0, dmg: 0.75 }] },
+        { t: 58, foes: () => [{ name: '門徒の弓', from: { x: 72, z: K.BANK_Z + 16 }, list: [K.B(4)], mass: 0, dmg: 0.6 }] },
+        { t: 84, say: ['組頭', '俵に火をかける気じゃ！　近寄らせるな！'], foes: () => [{ name: '火を持った門徒', from: { x: 76, z: K.BANK_Z + 8 }, list: K.monto(8, 1), mass: 0, dmg: 0.75 }] },
       ],
       reward: '西の舟入りの兵糧を守った' }),
     K.rest({ dur: 7, heal: 0, fn: (rt) => {
@@ -29,9 +29,9 @@ export function steps(K) {
     }, say: [['伝令', '大鳥居から門徒が逃げ出した！　女も子も混じっておる。東の岸へ寄せてくるぞ！']] }),
     K.hold({ at: EAST, dur: 130, r: 14, title: '東の岸', sub: '逃げ場の無い門徒が、岸の柵へ押し寄せる', label: '東の岸の柵', obj: '東の岸の柵で、砦から逃げ出した門徒を止めよ',
       waves: [
-        { t: 0, foes: () => [{ name: '大鳥居から逃げ出した門徒', from: { x: 76, z: K.BANK_Z + 6 }, list: K.monto(12, 2), mass: 0, dmg: 0.7 }] },
-        { t: 28, say: ['組頭', '篠橋からも来るぞ！　柵を破らせるな！'], foes: () => [{ name: '篠橋から逃げ出した門徒', from: { x: 78, z: K.BANK_Z + 14 }, list: K.monto(10, 1), mass: 0, dmg: 0.7 }] },
-        { t: 56, say: ['足軽', '後から後から……念仏を唱えながら来よる'], foes: () => [{ name: '念仏を唱えて寄せる門徒', from: { x: 74, z: K.BANK_Z + 2 }, list: K.monto(10, 2), mass: 0, dmg: 0.7 }] },
+        { t: 0, foes: () => [{ name: '大鳥居から逃げ出した門徒', from: { x: -76, z: K.BANK_Z + 6 }, list: K.monto(12, 2), mass: 0, dmg: 0.7 }] },
+        { t: 28, say: ['組頭', '篠橋からも来るぞ！　柵を破らせるな！'], foes: () => [{ name: '篠橋から逃げ出した門徒', from: { x: -78, z: K.BANK_Z + 14 }, list: K.monto(10, 1), mass: 0, dmg: 0.7 }] },
+        { t: 56, say: ['足軽', '後から後から……念仏を唱えながら来よる'], foes: () => [{ name: '念仏を唱えて寄せる門徒', from: { x: -74, z: K.BANK_Z + 2 }, list: K.monto(10, 2), mass: 0, dmg: 0.7 }] },
       ],
       reward: '東の岸で逃げ出した門徒を止めた' }),
     K.rest({ dur: 12, heal: 0.5, fn: (rt) => { rt.world.setTime?.('day'); }, say: [['語り', '八月、大鳥居・篠橋は落ちた。残るは長島・屋長島・中江の三つ'], ['柴田勝家', '島の米は尽きた。長島が降るのも近い']] }),
