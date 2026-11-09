@@ -2637,6 +2637,16 @@ const arioka = {
     F.g1.order = 'move'; F.g1.aggro = 16; F.g1.formation = 'column'; F.g1.colW = 2;
     F.g1.dest = { x: GATE.x + 10, z: GATE.z };
     F.g1.onArrive = (g) => { g.order = 'attack'; g.formation = 'yari'; g.onArrive = null; };
+    // 内応で口を失った番兵も、塀の脇に立ち続けず内の守りへ合流する。
+    // 三組を同じ点に重ねず、町側の通りで寄せ手を迎える。
+    for (let i = 0; i < F.gateInner.length; i++) {
+      const g = F.gateInner[i];
+      if (gone(g)) continue;
+      g.noAI = true; g.path = null; g.focus = null;
+      g.order = 'move'; g.formation = 'column'; g.colW = 2;
+      g.dest = { x: GATE.x + 16 + i * 4, z: GATE.z + (i - 1) * 3 };
+      g.onArrive = (q) => { q.anchor = q.dest; q.order = 'hold'; q.formation = 'yari'; q.onArrive = null; };
+    }
     // 先手が入る間は射撃を待つ。開門を飛ばしても出陣の時計で猶予を残す。
     rt.after(Math.max(0, 25 - rt.t), () => {
       if (F.ending || rt.over) return;

@@ -684,7 +684,20 @@ const k09_imafuku = {
         else if (g.keepMoveOrder) { g.keepMoveOrder = false; g.order = 'attack'; g.seekRange = 30; g.anchor = { x: front, z: 0 }; }
       }
       F.allyAt = null;
-      if ((F.step || 0) >= 2) for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct && Math.abs(u.pos.z) < 4 && (F.allyAt == null || u.pos.x < F.allyAt)) F.allyAt = u.pos.x;
+      if ((F.step || 0) >= 2) for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct &&
+        !u.fleeing && !u.dying && !u.woundOut && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+        (F.allyAt == null || u.pos.x < F.allyAt)) F.allyAt = u.pos.x;
+      // 西へ抜けた一人の位置だけでは、遠く離れた木戸まで縄を引いた事にしない。
+      // 木戸ごとに、実際に取り付ける足場にいる戦闘中の味方を数える。
+      for (let i = -1; i < (F.outer?.length || 0); i++) {
+        const st = i < 0 ? F.gate : F.outer[i];
+        if (!st || !st.alive) continue;
+        st.allyPull = false;
+        if ((F.step || 0) < 2) continue;
+        for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct && !u.perch &&
+          !u.fleeing && !u.dying && !u.woundOut && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+          u.pos.x - st.seg[0] > -6 && u.pos.x - st.seg[0] < 5) { st.allyPull = true; break; }
+      }
     }
     // 一番東に残る木戸だけを引く（一つずつ。二つ同時に倒れて同じ下知が重ならない）
     // 毎コマ配列を作らず、東の外柵から砦の木戸まで順に見る。
@@ -692,8 +705,9 @@ const k09_imafuku = {
     for (let i = outerN - 1; i >= ((F.step || 0) >= 2 ? -1 : 0); i--) {
       const st = i >= 0 ? F.outer[i] : F.gate;
       if (!st || !st.alive || !p) continue;
-      const near = Math.abs(p.z) < 12 && p.x - st.seg[0] > -6 && p.x - st.seg[0] < 14;
-      const ally = F.allyAt != null && F.allyAt - st.seg[0] < 5;
+      const near = rt.player.u.alive && !rt.player.u.dying && !rt.player.u.woundOut &&
+        Math.abs(p.z) < 12 && p.x - st.seg[0] > -6 && p.x - st.seg[0] < 14;
+      const ally = st.allyPull;
       // 縄を掛けて引くのに三秒半（前は二秒で、四重の柵が十三秒で全部倒れた。史料は斬り込みを受けつつ一つずつ破った）。味方の組だけなら八秒ほど
       st.pullT = near ? (st.pullT || 0) + dt : ally ? (st.pullT || 0) + dt * 0.44 : 0;
       if (st.pullT > 3.5) {
