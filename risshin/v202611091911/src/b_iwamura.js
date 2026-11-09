@@ -2301,6 +2301,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 夜討ちの始まりは時刻で知らせる。麓の確保は本人と組の到着を待つ。
     if (F.step === 0 && rt.t - F.stepT >= 5 && !IW_HIRU.active(rt)) this.prepare(rt);
     IW_KAIJO.tick(rt);   // 白旗の使者（iwamura/kaijo.js）
+    // 追撃が済んだ後は、麓の守備案内で使者の付き添いを上書きしない。
+    if (F.iwYoru || F.iwKaijo) return;
     IW_HIRU.tick(rt, [F.scout, ...(F.waves || [])]);   // 昼の段（iwamura/hiru.js）。夜討ちの寄せ手は昼の間は隠す
     if (IW_HIRU.active(rt)) return;   // 昼の間は夜の段の見張り・口の案内・任務の札を回さない
     if (F.step >= 2) this.hurtNotice(rt);
@@ -2753,7 +2755,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         }
       }
       // 木戸の城兵を実際に退けた時だけ固め終える。時間切れを達成として扱わない。
-      const sallyDone = F.footSallySent && (gone(S) || S.iwWithdraw);
+      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwWithdraw);
       rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。
@@ -2767,7 +2769,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         F.joinWarn = true; F.joinCallAt = rt.t;
         rt.say('組頭', '手勢が減ったぞ。互いに離れるな', 4);
       }
-      F.joinHold = arrived && available > 0 && joined >= need && !roadHeld && (sallyDone || gone(S)) ? (F.joinHold || 0) + span : 0;
+      F.joinHold = arrived && available > 0 && joined >= need && !roadHeld && sallyDone ? (F.joinHold || 0) + span : 0;
       // 残る人数と後続の様子を同じ札に収め、待つ理由を短く伝える。
       const joining = `合流まであと${Math.max(0, need - joined)}人。`;
       const following = joinFighting ? '味方は道で戦っている。' : !nextAlly ? '' : nextAlly.group?.iwGather ? '味方は陣で集合中。' :
@@ -2784,7 +2786,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       const progress = !arrived ? offRoad ? '道へ戻れ。崖を横切るな' : F.roadFight ? '味方と押し返し、道から麓へ' : F.joinOrder ? '道をたどり、麓へ戻れ' : '山道をたどれ。味方と麓へ' : roadHeld ?
         (!available ? `倒れた味方 ${recovering}人。${holding}` : joined < need ?
           `${joining}${following}${holding}` : `味方はそろった。${holding}`) :
-        joined < need ? waiting : `麓で列を保つ あと${Math.max(0, Math.ceil(3 - F.joinHold))}秒`;
+        joined < need ? waiting : !sallyDone ? `味方はそろった。${holding}` : '麓で味方と列を保て';
       rt.objProgress('main', progress);
       if (F.joinHold >= 3) this.win(rt);
     }
@@ -3786,7 +3788,7 @@ iwamura.siegeKit = () => {
     plan: { x: g.at[0], z: g.at[1], rot: 0, W: 30, yokoya: false, moat: false, kirigishi: 0, umadashi: false, sakamogi: false, shiyori: false },
     build: { team: 1, gate: false, walls: false, bridge: false, heads: true, fire: { hurt: .45, near: 95, close: 16, base: .9, peak: 4, arrows: .6 } },   // BJ3：麓へ追い過ぎると城の矢弾が本当に当たる。critic60：追い討ちで城に近づいても矢弾が来ず命が百のままだった（二7）ので強めた
     borrow: { r: 34, flank: true },
-    when: (rt) => { const F = rt.flags; return F.step === 3 && !F.ending && !rt.over; },
+    when: (rt) => { const F = rt.flags; return F.step === 3 && !F.iwYoru && !F.iwKaijo && !F.ending && !rt.over; },
   };
 };
 

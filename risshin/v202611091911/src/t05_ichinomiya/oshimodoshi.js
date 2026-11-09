@@ -3,7 +3,7 @@
 import { enemyGroup, allyGroup } from '../bhelp.js';
 
 export function oshiStep(NG) {
-  const { CHOSO, GOALS, MID, LOW, UP } = NG;
+  const { CHOSO, GOALS, MID, LOW, UP, GATE } = NG;
   const foe = (rt, name, at, list) => enemyGroup(rt, { faction: 'oda', flag: 'chosokabe', fixed: true, name, anchor: at, facing: Math.PI, order: 'attack', seekRange: 24, aggro: 10, width: 5, morale: 70, dmgMult: 0.1 },
     list.map(([type, n]) => ({ type, n, o: CHOSO })));
   const alive = (g) => g && g.count > 0 && !g.routed;
@@ -73,8 +73,11 @@ export function oshiStep(NG) {
       if (C.ph === 4 && el > 135) { C.ph = 5; send(rt, UP); rt.after(18, () => rt.say('足軽', '城兵が門の内へ逃げ込む！　門が閉まる前じゃ！', 3)); rt.after(42, () => rt.say('使番', '大手の本隊、明神丸に取り付きました！　城は三方から囲まれております', 4)); }
       // 行き先は山道の持ち場のまま（門の下の鉄砲の前まで城兵を追わせない）
       const p = rt.player.u.pos;
-      // 11/9 三巡（織田C）：城兵を門の下まで追い上がった遊び手は中ほどの輪へ戻らず、段が十一分続いた（act）。三百二十秒を過ぎたら居場所を問わない。
-      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && (Math.hypot(p.x - MID.x, p.z - MID.z) < 22 || el > 320);
+      // 門まで押し上げた本人を中ほどへ戻させず、山道に来ていない本人は時間だけで達成にしない。
+      const dx = GATE.x - MID.x, dz = GATE.z - MID.z;
+      const along = Math.max(0, Math.min(1, ((p.x - MID.x) * dx + (p.z - MID.z) * dz) / (dx * dx + dz * dz)));
+      const onRoad = Math.hypot(p.x - MID.x - dx * along, p.z - MID.z - dz * along) < 22;
+      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && onRoad;
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }
