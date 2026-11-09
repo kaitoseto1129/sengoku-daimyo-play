@@ -1614,7 +1614,7 @@ echizen.setup = function (rt) {
   {
     const look = { armor: 0x3a342c, hat: 'hachimaki', lace: 0x5a5040, cloth: 0x4a4236 };
     rt.flags.echTail = enemyGroup(rt, { fixed: true, faction: 'ikko', flag: 'namu', name: '峠道の殿の一揆勢', anchor: { ...TAIL_AT }, facing: TAIL_FACING,
-      formation: 'yari', yariRanks: 4, width: 7, order: 'hold', stay: true, aggro: 6, seekRange: 6, noRout: true, noHunt: true, fleeDir: { x: 0, z: 1 } },
+      formation: 'yari', yariRanks: 4, width: 7, order: 'hold', stay: true, aggro: 6, seekRange: 6, noRout: true, noHunt: true, fleeDir: { x: 0, z: -1 } },
     // 11/6 fix4_echizen：殿の将は石田の西光寺真敬（信長公記「木目峠、石田の西光寺」。福井県史：寺の由緒書に木ノ芽峠で戦死）。
     //   坊主の大将は馬上で、侍四人が旗本として囲む。討てば「討ち取ったり」（名のある将だけ）
     // 11/6 fixc0917_echizen（kaito「一揆勢が織田の足軽と同じ陣笠・黒い胴」）：門徒の槍・弓・鉄砲は素の小袖に鉢巻（長島の門徒と同じ作り）。侍だけ暗い腹巻
@@ -2307,7 +2307,7 @@ echizen.update = function (rt, dt) {
         for (const g of rt.army.groups) {
           if (g.team !== 1 || g.routed || !g.units.some((q) => q.alive && !q.fleeing && kz.test(q.pos.x, q.pos.z))) continue;
           g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null;
-          if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; }
+          g.fleeDir = { x: 0, z: -1 };
           for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
         }
       }
@@ -2363,7 +2363,7 @@ echizen.update = function (rt, dt) {
       const g = b?.real;
       if (!g || g.routed || !g.units?.some((q) => q.alive && zone?.test(q.pos.x, q.pos.z))) continue;
       g.routed = true; g.order = 'flee'; g.morale = 0;
-      if (g.fleeDir) { g.fleeDir.x = 0; g.fleeDir.z = 1; }
+      g.fleeDir = { x: 0, z: -1 };
       for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
     }
   }
@@ -2695,13 +2695,13 @@ function echizenAdvance(rt) {
   }
   rt.say('使番', '杉津口は破れ、堀江景忠が寝返った！　府中の龍門寺にも火が掛かった！', 4.5);
   rt.after(5, () => rt.say('組頭', '背を突かれた一揆勢が、砦に火を掛けて府中へ退くぞ。峠道の西光寺真敬の殿を討て！', 4));
-  // 峠道の殿は踏みとどまり、ほかの一揆勢は皆、府中の方（北）へ逃げる
+  // 峠道の殿は踏みとどまり、ほかの一揆勢は皆、府中の方（北・負の奥行き）へ逃げる
   const tail = F.echTail;
   if (tail?.count) { tail.seekRange = 10; tail.aggro = 10; }
   for (const g of rt.army.groups) {
     if (g.team !== 1 || g.routed || g === tail) continue;
     g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null; g.noRout = false;
-    g.fleeDir = { x: 0, z: 1 };
+    g.fleeDir = { x: 0, z: -1 };
     for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
   }
   for (const a of rt.world.armies || []) if (a.team === 1) a.noWake = true;
@@ -2808,7 +2808,7 @@ function echizenAdvanceTick(rt) {
   }
   const g = F.echTail;
   if (g && !g.routed) {
-    g.routed = true; g.order = 'flee'; g.morale = 0; g.noRout = false; g.focus = null; g.fleeDir = { x: 0, z: 1 };
+    g.routed = true; g.order = 'flee'; g.morale = 0; g.noRout = false; g.focus = null; g.fleeDir = { x: 0, z: -1 };
     for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
   }
   rt.objDone('tail');

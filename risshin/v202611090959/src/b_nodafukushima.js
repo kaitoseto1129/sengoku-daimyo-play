@@ -4122,6 +4122,12 @@ const nodafukushima = {
       } else if (F.onSeirou) rt.unmark('seirouLadder');
     }
     if (F.step === 2 && F.sally) {
+      // 岸へ来た本人と、打って出た槍が向き合ってから防戦の時間を数える。
+      // 門内で足止めされたまま百十秒たっても、撃退した事にはしない。
+      if (F.sallyMetAt == null && p.u.alive && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12 &&
+          F.sally.units.some(u => canJoin(u) && Math.abs(u.pos.y - p.u.pos.y) < 3 &&
+            Math.hypot(u.pos.x - p.u.pos.x, u.pos.z - p.u.pos.z) < 8 &&
+            !rt.army.wallBetween(p.u.pos, -1, u.pos) && !rt.army.terrainBlocks(p.u.pos, u.pos))) F.sallyMetAt = rt.t;
       // 先頭が浅瀬の南岸へ届けば斬り合いへ。後列の整列待ちは省くが、門内では寄せを続ける。
       if (F.sally.order === 'move' && F.sally.onArrive &&
           F.sally.units.some(u => canJoin(u) && u.pos.z > LEVEE_Z - 18)) {
@@ -4165,7 +4171,7 @@ const nodafukushima = {
         rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);
       }
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
-      if (!F.nightAt && rt.t - F.stepT > 110) {
+      if (!F.nightAt && F.sallyMetAt != null && rt.t - F.sallyMetAt > 110) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         F.nightAt = rt.t + 8;
         rt.say('前田利家', '三好が塀の内へ退くぞ。追うな！', 3);

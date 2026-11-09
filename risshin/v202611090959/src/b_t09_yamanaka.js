@@ -524,7 +524,7 @@ const t09_yamanaka = {
     F.sub = 'sally';
     rt.unmark('ote');
     rt.marker('uma', centerOf(F.uma), '馬出しの北条の隊', { red: true, group: F.uma });
-    rt.say('一柳直盛', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);   // 直末は出丸の前で討たれている。隊は弟の直盛が率いる
+    rt.say(F.ichiShot ? '一柳直盛' : '一柳直末', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);   // 直末が撃たれた時だけ、弟が隊を率いる。
     // 馬出しへ寄る下知を打ち切る。到着処理が残ると、迎撃中も行軍用の持ち場補正が働く。
     for (const g of F.toyo) if (!gone(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 34; }
   },
@@ -609,7 +609,7 @@ const t09_yamanaka = {
     sfx('kane', 0.5);
     rt.banner('山中城、落つ', '北条の西の守りは、半日で崩れた');
     // 戦の後の会話
-    rt.say('豊臣秀次', '一柳伊豆を失うたは痛い。されど山中は落ちた', 4.5);
+    rt.say('豊臣秀次', F.ichiShot ? '一柳伊豆を失うたは痛い。されど山中は落ちた' : '山中は落ちた。先手の者ども、よく攻めた', 4.5);
     rt.after(5, () => rt.say('使番', '松田康長、討ち死に。一番乗りは渡辺勘兵衛！', 3.4));
     rt.after(13.4, () => rt.say(nm(rt), '北条の西の門は、開きました', 4));
     rt.after(9, () => rt.say('豊臣秀次', '箱根を越えるぞ。小田原はもう目の前じゃ', 4));
