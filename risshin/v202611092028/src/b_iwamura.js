@@ -2303,7 +2303,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     IW_KAIJO.tick(rt);   // 白旗の使者（iwamura/kaijo.js）
     // 追撃が済んだ後は、麓の守備案内で使者の付き添いを上書きしない。
     if (F.iwYoru || F.iwKaijo) return;
-    IW_HIRU.tick(rt, [F.scout, ...(F.waves || [])]);   // 昼の段（iwamura/hiru.js）。夜討ちの寄せ手は昼の間は隠す
+    IW_HIRU.tick(rt, [F.scout, ...(F.waves || []), ...(F.fenceRaids || [])]);   // 柵へ取り付く手も昼は隠し、夜の下知で姿を現す
     if (IW_HIRU.active(rt)) return;   // 昼の間は夜の段の見張り・口の案内・任務の札を回さない
     if (F.step >= 2) this.hurtNotice(rt);
     if (F.step < 3 && rt.t >= (F.contactAt || 0)) {

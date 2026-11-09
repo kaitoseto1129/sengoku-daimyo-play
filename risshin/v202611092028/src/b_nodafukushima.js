@@ -499,6 +499,13 @@ const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a3
 const NO_GROUPS = [];
 const RETREAT_WAIT = 90;
 const canJoin = (u) => u?.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
+// 浅瀬を守る下知で、門内や対岸の敵へ主人公を連れて行かない。
+function canGuideSally(rt, u) {
+  const p = rt.player.u.pos;
+  return canJoin(u) && !u.isStruct && !u.civ && u.pos.z > LEVEE_Z - 18 &&
+    Math.abs(u.pos.y - p.y) < 3 && !rt.army.wallBetween(p, -1, u.pos) &&
+    !rt.army.terrainBlocks(p, u.pos);
+}
 // 生き残りが別の場所で戦っていても、無人の詰め陣へ案内しない。
 // 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
 function campJoinAvailable(rt) {
@@ -2545,12 +2552,12 @@ const nodafukushima = {
   missionSignTarget(rt) {
     const F = rt.flags;
     if (F.step !== 2 || F.retreating || F.ending || F.recoveryShown && F.recoveryFound || gone(F.sally)) return null;
-    if (rt.t < (F.foePinAt || 0) && canJoin(F.foePinUnit)) return F.foePinUnit;
+    if (rt.t < (F.foePinAt || 0) && canGuideSally(rt, F.foePinUnit)) return F.foePinUnit;
     F.foePinAt = rt.t + .25;
     const p = rt.player.u.pos;
     let best = Infinity, target = null;
     for (const u of F.sally.units) {
-      if (!canJoin(u) || u.isStruct || u.civ) continue;
+      if (!canGuideSally(rt, u)) continue;
       const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
       if (d < best) { best = d; target = u; }
     }
