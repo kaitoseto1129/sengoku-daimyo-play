@@ -119,6 +119,22 @@ export function introLayout(rt) {
   // 両軍の人数（戦の定義の総勢。無ければ点の数）
   let force = null;
   try { const f = rt.def.force?.(rt); if (f && Number.isFinite(+f.a) && Number.isFinite(+f.b)) force = team === 0 ? [+f.a, +f.b] : [+f.b, +f.a]; } catch (e) { force = null; }
+  // def.introFujin（11/9 kaito「布陣図イメージこれ」）：戦が布陣図の隊を一つずつ決める。[{ team, name, x, z, men }]
+  //   本物の兵・軽い大軍の塊の代わりに、表の隊を駒と名で置く（名は全部。重なる名は draw が一段ずつずらす）。点は人数に合わせて駒のまわりに散らす
+  const FJ = typeof rt.def.introFujin === 'function' ? rt.def.introFujin(rt) : rt.def.introFujin;
+  if (Array.isArray(FJ) && FJ.length) {
+    dots[0].length = 0; dots[1].length = 0; units.length = 0; names.length = 0; arrows.length = 0;
+    for (const f of FJ) {
+      const side = ally(f.team) ? 0 : 1, n = Math.max(30, (f.men || 1000) / 40);
+      let fx = 0, fz = 0, bd = Infinity;
+      for (const o of FJ) if (ally(o.team) !== ally(f.team)) { const d = Math.hypot(o.x - f.x, o.z - f.z); if (d < bd && d > 1) { bd = d; fx = (o.x - f.x) / d; fz = (o.z - f.z) / d; } }
+      if (bd === Infinity) { fx = 0; fz = side ? 1 : -1; }
+      units.push({ side, x: f.x, z: f.z, n, dx: fx, dz: fz });
+      const k = Math.min(120, Math.round(n / 3)), rr = 4 + Math.sqrt(n) * 0.9;
+      for (let i = 0; i < k; i++) { const a = R() * Math.PI * 2, r = Math.sqrt(R()) * rr; push(side, f.x + Math.cos(a) * r, f.z + Math.sin(a) * r * 0.6); }
+      if (f.name) names.push({ side, name: f.name, x: f.x, z: f.z, fj: true });
+    }
+  }
   return { me: me ? { x: me.pos.x, z: me.pos.z } : { x: 0, z: 0 }, dots, units, arrows, names, pin, force, half: W?.half || 200 };
 }
 
@@ -193,6 +209,12 @@ export function bakeGround(bg, rt, v) {
   for (const path of W.def?.paths || []) {
     const pts = Array.isArray(path) ? path : path?.pts; if (!pts?.length) continue;
     bg.beginPath(); pts.forEach(([x, z], i) => { toS(x, z, q); i ? bg.lineTo(q[0], q[1]) : bg.moveTo(q[0], q[1]); }); bg.stroke();
+  }
+  // 戦が足す布陣図の道と川（def.introMapLines：[{ kind: 'road'|'river', pts: [[x, z], …] }]。11/9 天王寺岡山の紀州街道・谷町口の道・平野川）
+  for (const ln of rt.def.introMapLines || []) {
+    if (!ln?.pts?.length) continue;
+    bg.strokeStyle = ln.kind === 'river' ? 'rgba(96,150,196,.75)' : 'rgba(214,190,140,.55)'; bg.lineWidth = ln.kind === 'river' ? Math.max(2, 3.2 * sc) : Math.max(1.5, 2.2 * sc);
+    bg.beginPath(); ln.pts.forEach(([x, z], i) => { toS(x, z, q); i ? bg.lineTo(q[0], q[1]) : bg.moveTo(q[0], q[1]); }); bg.stroke();
   }
   bg.strokeStyle = 'rgba(214,208,192,.55)'; bg.lineWidth = Math.max(1, 1.6 * sc);
   for (const s of rt.army?.structs || []) {
@@ -426,6 +448,14 @@ export function introMap(rt, camera, done) {
       toS(n.x, n.z, q); if (Math.hypot(q[0] - px, q[1] - py) < 26 / z) continue;
       const fs = 15 / z, w = n.name.length * fs * 1.05, h = fs * 1.25, hit = (y) => put.some((r) => Math.abs(r[0] - q[0]) < (r[2] + w) / 2 && Math.abs(r[1] - (y - h / 2)) < ((r[3] || h) + h) / 2);
       let y = q[1] - 8;
+      // 布陣の表の名（fj）は駒から離さない：上・下・右・左の順に空いた所へ置く（上へずらし続けると別の駒の名に見えた・11/9 天王寺岡山）
+      if (n.fj) {
+        const x0 = q[0], hitAt = (x, yy) => put.some((r) => Math.abs(r[0] - x) < (r[2] + w) / 2 && Math.abs(r[1] - (yy - h / 2)) < ((r[3] || h) + h) / 2);
+        const at = [[x0, q[1] - 10], [x0, q[1] + 10 + h], [x0 + w / 2 + 10, q[1] + h / 2], [x0 - w / 2 - 10, q[1] + h / 2]].find(([x, yy]) => !hitAt(x, yy));
+        if (!at) continue;
+        put.push([at[0], at[1] - h / 2, w, h]); label(n.name, at[0], at[1], '#f1e9d6', fs);
+        continue;
+      }
       for (let tries = 0; tries < 8 && hit(y); tries++) y -= h;
       if (hit(y) || (z < 1.2 && y < 66)) continue;
       put.push([q[0], y - h / 2, w, h]); label(n.name, q[0], y, '#f1e9d6', fs);
@@ -435,6 +465,7 @@ export function introMap(rt, camera, done) {
     g.save(); g.translate(px, py); g.rotate(0); const s = 1 / Math.sqrt(z);
     g.beginPath(); g.moveTo(0, -11 * s); g.lineTo(7 * s, 6 * s); g.lineTo(0, 2.5 * s); g.lineTo(-7 * s, 6 * s); g.closePath();
     g.lineJoin = 'round'; g.lineWidth = 3.5 * s; g.strokeStyle = '#14120f'; g.stroke(); g.fillStyle = '#fff'; g.fill(); g.restore();
+    if (rt.def.introYou) { g.globalAlpha = fade; label('あなた', px - 26 * s, py + 6 * s, '#fff3ba', 13 / z); g.globalAlpha = 1; }   // 自分の印の字（kaito 11/9 布陣図）
     if (L.pin) {
       const bob = calm ? 0 : Math.sin(t * 4) * 2;
       toS(L.pin.x, L.pin.z, q); g.globalAlpha = fade; pinMark(q[0], q[1] - 10 + bob, 1.1 / Math.sqrt(z)); g.globalAlpha = 1;

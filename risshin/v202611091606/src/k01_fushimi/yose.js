@@ -73,3 +73,36 @@ export function install(rt, ctx) {
   ctx.ending = () => T.ending();
   return ctx;
 }
+
+// ---- 布陣図（docs/fujin/k01_fushimi.md）：寄せ手およそ四万が城の南・西・東を囲む。陣立ての表（docs/army_depth_howto.md） ----
+// 城方（千八百）は本物の隊に結ぶ。寄せ手は軽い備（本物の兵は段ごとの寄せだけ）。各家の兵の分け方は推定（総数四万は諸書）。
+const Fk = (k) => (rt) => rt.flags[k];
+export const depthPlan = {
+  A: { name: '徳川勢', facing: 0, honjin: { x: -2, z: -48 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
+    sonae: [
+      { id: 'mototada', layer: 'honjin', wing: 'center', men: 600, taisho: '鳥居元忠', bind: Fk('motochika'), hold: true },
+      { id: 'ietada', layer: 'sakite', wing: 'center', men: 400, taisho: '松平家忠', bind: Fk('ie') },
+      { id: 'chikamasa', layer: 'ichi', wing: 'right', men: 300, taisho: '松平近正', bind: Fk('chika') },
+      { id: 'naito', layer: 'ichi', wing: 'left', men: 300, taisho: '内藤家長', bind: Fk('nai'), hold: true },
+      { id: 'chikuan', layer: 'ni', wing: 'left', men: 100, taisho: '上林竹庵', bind: Fk('chikuan'), hold: true },
+    ] },
+  B: { name: '寄せ手', facing: Math.PI, honjin: { x: 0, z: 236 }, mpu: 4, formation: '鶴翼', terrain: 'castle', flag: 'ukita', armor: 0x2a2622, openAt: 9999, attrition: 0,
+    sonae: [
+      // 南（大手）：宇喜多秀家（総大将）・鍋島勝茂・長宗我部盛親・長束正家
+      { id: 'ukita1', layer: 'sakite', wing: 'center', men: 4000, taisho: '', flag: 'ukita', at: { x: 0, z: 140 }, hold: true },
+      { id: 'ukita2', layer: 'ichi', wing: 'center', men: 4000, taisho: '', flag: 'ukita', at: { x: -8, z: 196 }, hold: true },
+      { id: 'ukita', layer: 'hatamoto', wing: 'center', men: 2000, taisho: '宇喜多秀家', flag: 'ukita', at: { x: 0, z: 222 }, hold: true },
+      { id: 'nabeshima', layer: 'ichi', wing: 'right', men: 6000, taisho: '鍋島勝茂', flag: 'maru', at: { x: 62, z: 176 }, hold: true },
+      { id: 'chosokabe', layer: 'ni', wing: 'right', men: 2000, taisho: '長宗我部盛親', flag: 'chosokabe', at: { x: 40, z: 222 }, hold: true },
+      { id: 'natsuka', layer: 'ni', wing: 'left', men: 1500, taisho: '長束正家', flag: 'maru', at: { x: -62, z: 214 }, hold: true },
+      { id: 'konishi', layer: 'ichi', wing: 'left', men: 3000, taisho: '小西行長', flag: 'konishi', at: { x: -112, z: 128 }, hold: true },
+      // 西：小早川秀秋
+      { id: 'koba1', layer: 'sakite', wing: 'left', men: 3000, taisho: '', flag: 'kobayakawa', at: { x: -118, z: 22 }, hold: true },
+      { id: 'koba', layer: 'ichi', wing: 'left', men: 5000, taisho: '小早川秀秋', flag: 'kobayakawa', at: { x: -150, z: 60 }, hold: true },
+      // 東・南東：毛利秀元・吉川広家・島津義弘
+      { id: 'mori', layer: 'ichi', wing: 'right', men: 5000, taisho: '毛利秀元', flag: 'mori', at: { x: 136, z: 12 }, hold: true },
+      { id: 'kikkawa', layer: 'ni', wing: 'right', men: 3000, taisho: '吉川広家', flag: 'mori', at: { x: 158, z: -36 }, hold: true },
+      { id: 'shimazu', layer: 'sakite', wing: 'right', men: 1000, taisho: '島津義弘', flag: 'shimazu', at: { x: 112, z: 112 }, hold: true },
+    ] },
+  honjinView: { A: false, B: true },
+};

@@ -439,6 +439,11 @@ NAMED_GEAR['六角義治'] = { ...(NAMED_GEAR['六角義治'] || rosterGear('六
 // 出所と未確認範囲：docs/generals_look_1108/朝比奈泰朝.md。
 NAMED_GEAR['朝比奈泰朝'] = { ...(NAMED_GEAR['朝比奈泰朝'] || {}), flag: 'imagawa', uma: null, campUma: null };
 
+// 鳴海城の岡部元信。個人の実旗・馬印は未確認。今川方の所属表示だけを使う。
+// 出所と復元範囲：docs/generals_look_1108/岡部元信.md。得物は名簿の従来値を保つ。
+NAMED_GEAR['岡部元信'] = { ...(NAMED_GEAR['岡部元信'] || rosterGear('岡部元信')),
+  flag: 'imagawa', uma: null, campUma: null };
+
 // 「信長記」に金の三つ団子と伝わる馬印。大滝寺での使用は復元案。
 // https://blog.livedoor.jp/jidai2005/archives/24142639.html
 // 山の戦では陣所に据える。専用の徒へ兵を替えて、斬り合う人数を減らさない。
