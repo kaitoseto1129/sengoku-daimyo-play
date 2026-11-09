@@ -191,7 +191,8 @@ html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals li i { 
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
+/* 残り時間だけを隠す。討った人数まで隠すと、何人中何人か分からなくなる。 */
+html:root body #hud#hud#hud.k16-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em.tm) { display:none !important; }`;
 function goalBoard(rt) {
   const hud = rt.hud;
   if (!hud?.root || typeof document === 'undefined') return;
