@@ -23,7 +23,7 @@ export function rankupDetailsHtml(before, G, r) {
     rows.push({ label: '知行（預かる土地）', old: `${old}石`, now: `${now}石`, note: now ? '預かる土地を育てる' : '足軽から三十石を賜る' });
   }
   const opened = realm ? Array.from({ length: Math.max(0, b - a) }, (_, i) => domainOpened(a + 1 + i).concat(DIPLO_OPEN[a + 1 + i] || [])).flat() : [];
-  return `<div class="pc-gains" role="group" aria-label="出世で変わること">${rows.map((x) => `<div><small>${esc(x.label)}</small><b><em>${esc(x.old)} → </em>${esc(x.now)}</b><span>${esc(x.note)}</span></div>`).join('')}</div>
+  return `<div class="pc-gains" role="group" aria-label="出世で変わること">${rows.filter((x) => x.old !== x.now).map((x) => `<div><small>${esc(x.label)}</small><b><em>${esc(x.old)} → </em>${esc(x.now)}</b><span>${esc(x.note)}</span></div>`).join('')}</div>
     ${opened.length ? `<div class="pc-open"><b>新しくできる事</b><ul>${opened.map((u) => `<li>${esc(u)}</li>`).join('')}</ul></div>` : ''}`;
 }
 

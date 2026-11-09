@@ -6,6 +6,7 @@
 //   主人公が舟着きへ行き、人足が砦へ戻り、物見を退けたら普請の段取りへ進む。
 // ======================================================================
 import { sfx } from '../audio.js';
+import { KISHI_ROAD } from '../castles/sunomata.js';
 
 const ready = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 
@@ -22,7 +23,9 @@ export function start(rt, def, C, then) {
   // 人足の半分が舟着きへ向かう（本物の人足が歩く）
   rt.after(2, () => {
     if (!live() || !F.wk) return;
-    F.wk.order = 'move'; F.wk.speed = 2; F.wk.dest = { x: v.dock.x * 0.85, z: v.dock.z * 0.85 };
+    F.wk.order = 'path'; F.wk.pathIdx = 0; F.wk.speed = 2;
+    // 東の柵へ直進せず、南門から岸の道へ出る。道の終端は荷を受ける場所に合わせる。
+    F.wk.path = [[0, C.FORT - 5], ...KISHI_ROAD.slice(0, -1), [v.dock.x * 0.85, v.dock.z * 0.85]];
     F.wk.onArrive = (g) => { g.order = 'hold'; v.wkAtDock = rt.t; };
   });
   say(14, '人足', '材木は重いぞ……一本ずつ担いでゆくしかない', 3);
@@ -40,7 +43,11 @@ function back(rt) {
   v.backT = rt.t;
   sfx('taiko', 0.6);
   rt.say('木下藤吉郎', '荷は下りた。人足と一緒に砦へ戻れ！', 3);
-  if (F.wk) { F.wk.order = 'move'; F.wk.speed = 1.6; F.wk.dest = { x: -6, z: -10 }; F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; v.wkHome = rt.t; }; }
+  if (F.wk) {
+    F.wk.order = 'path'; F.wk.pathIdx = 0; F.wk.speed = 1.6;
+    F.wk.path = [...KISHI_ROAD.slice(0, -1).reverse(), [0, C.FORT - 5], [-6, -10]];
+    F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; v.wkHome = rt.t; };
+  }
   // 帰り道の脇の葦から、斎藤の物見が荷を狙って寄せる
   rt.after(6, () => {
     if (v.ph !== 'hakobi' || rt.over) return;
