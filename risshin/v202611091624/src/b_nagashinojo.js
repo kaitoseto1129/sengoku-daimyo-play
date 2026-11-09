@@ -21,6 +21,7 @@ import { carryLadder, startClimb, updateLadders, resetLadders, ladderAlive } fro
 import { monomi } from './castle_parts.js';
 import { tabaGeo, tabaMat } from './taketaba.js';
 import { reset as flReset } from './floors.js';
+import { depth as nagaDepth } from './nagashinojo/depth.js';
 
 // ---------------- 大軍の見せ方（どの戦でも使う小さな道具。battles.js からは nagashinojo.kit で使う） ----------------
 // 家ごとの具足の色（遠くの軍勢と控えで同じ色にそろえる）
@@ -807,6 +808,7 @@ export const nagashinojo = {
   // ここからなら塀越しに、坂の竹束と北の原の寄せ手の大軍、左手に西の崖の下の寒狭川が一つの画面に入る
   spawn: { x: -28, z: -20.8, heading: 3.1 },
   frameCamera: nagaOpening,
+  depth: nagaDepth,   // 城を囲む武田の備（docs/fujin/nagashinojo.md）
   noWake: true,   // 籠城なので、遠くの寄せ手の軽い兵は本物に替えない（KIT の wake）
   tutorialHold: 30,   // 初めての手ほどきの間は、一の寄せを30秒まで遅らせてよい（battle.js）
   world: {

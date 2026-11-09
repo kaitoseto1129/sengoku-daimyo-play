@@ -8,9 +8,9 @@ export default {
     sonae: [
       { id: 'yam', layer: 'sakite', wing: 'center', men: 600, taisho: '山崎長徳', flag: 'maeda', bind: F('yam') },
       { id: 'second', layer: 'ichi', wing: 'center', men: 800, taisho: '本多政重', flag: 'maeda', bind: F('second') },
-      { id: 'maeda', layer: 'ni', wing: 'center', men: 4000, taisho: '前田利光', flag: 'maeda', hold: true, at: { x: -14, z: 150 } },
-      { id: 'ii', layer: 'ichi', wing: 'left', men: 3000, taisho: '井伊直孝', flag: 'ii', hold: true, at: { x: -110, z: 104 } },
-      { id: 'echizen', layer: 'ichi', wing: 'left', men: 5000, taisho: '松平忠直', flag: 'tokugawa', hold: true, at: { x: -160, z: 118 } },
+      { id: 'maeda', layer: 'ni', wing: 'center', men: 12000, taisho: '前田利光', flag: 'maeda', hold: true, at: { x: -14, z: 150 } },
+      { id: 'ii', layer: 'ichi', wing: 'left', men: 4000, taisho: '井伊直孝', flag: 'ii', hold: true, at: { x: -110, z: 104 } },
+      { id: 'echizen', layer: 'ichi', wing: 'left', men: 10000, taisho: '松平忠直', flag: 'tokugawa', hold: true, at: { x: -160, z: 118 } },
       { id: 'todo', layer: 'ni', wing: 'right', men: 3000, taisho: '藤堂高虎', flag: 'todo', hold: true, at: { x: 104, z: 128 } },
       { id: 'date', layer: 'ni', wing: 'right', men: 4000, taisho: '伊達政宗', flag: 'date', hold: true, at: { x: 150, z: 150 } },
       { id: 'hidetada', layer: 'yobi', wing: 'right', men: 6000, taisho: '徳川秀忠', flag: 'tokugawa', hold: true, at: { x: 50, z: 190 } },
@@ -19,8 +19,8 @@ export default {
     ] },
   B: { name: '豊臣', facing: 0, honjin: { x: 0, z: -60 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'sanada', armor: 0x5a1e18, openAt: 60, attrition: 0.003,
     sonae: [
-      { id: 'wall', layer: 'ichi', wing: 'center', men: 2000, taisho: '', flag: 'sanada', bind: F('wallG') },
-      { id: 'nobu', layer: 'hatamoto', wing: 'center', men: 1000, taisho: '真田信繁', flag: 'sanada', bind: F('nobu') },
+      { id: 'wall', layer: 'ichi', wing: 'center', men: 3000, taisho: '', flag: 'sanada', bind: F('wallG') },
+      { id: 'nobu', layer: 'hatamoto', wing: 'center', men: 2000, taisho: '真田信繁', flag: 'sanada', bind: F('nobu') },
       { id: 'goto', layer: 'gozume', wing: 'center', men: 2000, taisho: '後藤又兵衛', flag: 'toyotomi', hold: true, at: { x: -20, z: -150 } },
       { id: 'mori', layer: 'gozume', wing: 'left', men: 2000, taisho: '毛利勝永', flag: 'toyotomi', hold: true, at: { x: 70, z: -140 } },
       { id: 'akashi', layer: 'gozume', wing: 'right', men: 2000, taisho: '明石全登', flag: 'toyotomi', hold: true, at: { x: -110, z: -140 } },

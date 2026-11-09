@@ -366,11 +366,19 @@ const inou_spec = {
       // 生き残りが減っても二割（百四十人）が残る下限は置かない。
       // 総崩れの瞬間に零へ飛ばさず、退く兵も戦場を去るまでは数える。
       // aliveIn は gone を除くので、退却先へ去った兵をいつまでも残さない。
-      const alive = aliveIn(F.l2) + aliveIn(F.bows) + aliveIn(F.bankG) + (F.guardG ? aliveIn([F.guardG]) : 0) + (F.bossG ? aliveIn([F.bossG]) : 0);
+      let alive = aliveIn(F.l2) + aliveIn(F.bows) + aliveIn(F.bankG) + (F.guardG ? aliveIn([F.guardG]) : 0) + (F.bossG ? aliveIn([F.bossG]) : 0);
+      let total = F.l2All || 1;
+      // 前衛・別手・伏兵も林勢七百の内訳。逃げる途中は数え、戦場を去れば引く。
+      const v = F.v15;
+      if (v) for (const g of F.groups || []) {
+        if (g !== v.vg1 && g !== v.vg2 && !v.raidGs?.includes(g) && !v.fushi?.includes(g)) continue;
+        total += g.units.length;
+        for (const u of g.units) if (u.alive && !u.gone) alive++;
+      }
       // 11/6 crit_inou：前は林勢との間 味方の数が止まったまま（280）で、勝つと敵が 0 に跳んだ。味方は本物の兵の減った割合で減らし、勝った後も退く兵が去った割合で減らす
       const al = aliveIn(F.line); F.al2 ||= Math.max(1, al);
       FORCE.a = round10((F.aLeft ?? 400) * Math.min(1, al / F.al2));
-      FORCE.b = Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, F.l2All || 1))));
+      FORCE.b = Math.max(alive ? 10 : 0, round10(700 * Math.min(1, alive / Math.max(1, total))));
     }
     return FORCE;
   },
@@ -435,7 +443,8 @@ const inou_spec = {
     if (d2 > INOU_FAR * INOU_FAR) {
       const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
       far.x = u.pos.x; far.z = u.pos.z; far.r = INOU_FAR - 2;
-      far.unit = holding ? null : u; far.enemy = !holding;
+      // 遠くは場所名と距離。人物を渡すと共通の敵印に替わり、距離が消える。
+      far.unit = null; far.enemy = false;
       // 呼び名は右上の目標と同じ地図の名（「名塚 70m」と別の所の名が出ていた）
       far.label = holding ? '信長の馬前' : F.stage === 0 ? '於多井川の岸' : F.stage === 2 ? '稲生村の田' : '名塚への田の道';
       F.farPin = far;

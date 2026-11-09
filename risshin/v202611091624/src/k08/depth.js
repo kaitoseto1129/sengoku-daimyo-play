@@ -6,12 +6,12 @@ const F = (k) => (rt) => rt.flags[k];
 export default {
   A: { name: '徳川', facing: Math.PI, honjin: { x: -4, z: 116 }, mpu: 4, formation: '魚鱗', terrain: 'river', flag: 'hachisuka', armor: 0x1c1b1a, openAt: 30, attrition: 0.002,
     sonae: [
-      { id: 'saki', layer: 'sakite', wing: 'center', men: 600, taisho: '', flag: 'hachisuka', bind: F('saki') },
-      { id: 'east', layer: 'ichi', wing: 'right', men: 500, taisho: '', flag: 'hachisuka', bind: F('east') },
-      { id: 'ikeda', layer: 'ichi', wing: 'left', men: 800, taisho: '', flag: 'ageha', bind: F('ikeda') },
-      { id: 'asano', layer: 'ni', wing: 'right', men: 1000, taisho: '浅野長晟', flag: 'asano', bind: F('asano') },
-      { id: 'hachi2', layer: 'yobi', wing: 'center', men: 600, taisho: '', flag: 'hachisuka', at: { x: 14, z: 138 } },
-      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 300, taisho: '蜂須賀至鎮', flag: 'hachisuka', bind: F('lord') },
+      { id: 'saki', layer: 'sakite', wing: 'center', men: 500, taisho: '', flag: 'hachisuka', bind: F('saki') },
+      { id: 'east', layer: 'ichi', wing: 'right', men: 400, taisho: '', flag: 'hachisuka', bind: F('east') },
+      { id: 'ikeda', layer: 'ichi', wing: 'left', men: 600, taisho: '', flag: 'ageha', bind: F('ikeda') },
+      { id: 'asano', layer: 'ni', wing: 'right', men: 800, taisho: '浅野長晟', flag: 'asano', bind: F('asano') },
+      { id: 'hachi2', layer: 'yobi', wing: 'center', men: 500, taisho: '', flag: 'hachisuka', at: { x: 14, z: 138 } },
+      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 200, taisho: '蜂須賀至鎮', flag: 'hachisuka', bind: F('lord') },
       { id: 'konida', layer: 'konida', wing: 'center', men: 300, at: { x: -24, z: 150 } },
       // 城を囲む陣（動かない）
       { id: 'ieyasu', layer: 'gozume', wing: 'right', men: 3000, taisho: '徳川家康', flag: 'tokugawa', hold: true, at: { x: 100, z: -118 } },
@@ -25,7 +25,7 @@ export default {
     sonae: [
       { id: 'front', layer: 'sakite', wing: 'center', men: 150, taisho: '', bind: F('front') },
       { id: 'gate', layer: 'ichi', wing: 'center', men: 150, taisho: '', bind: F('wallG') },
-      { id: 'garrison', layer: 'ni', wing: 'center', men: 300, taisho: '', bind: F('garrison') },
+      { id: 'garrison', layer: 'ni', wing: 'center', men: 400, taisho: '', bind: F('garrison') },
       { id: 'zen', layer: 'hatamoto', wing: 'center', men: 100, taisho: '明石全延', bind: F('zen') },
       { id: 'hakuro', layer: 'gozume', wing: 'left', men: 700, taisho: '薄田兼相', hold: true, at: { x: -30, z: -168 } },
     ] },
