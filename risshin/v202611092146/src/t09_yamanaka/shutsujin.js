@@ -17,7 +17,11 @@ export function install(rt, K) {
   const W = rt.world, F = rt.flags;
   F.s0 = { t0: rt.t };
   for (const [i, [x, z, w, d, n, flag]] of CAMPS.entries()) {
-    try { W.addDistantArmy({ x, z, w, d, count: n, facing: Math.PI, farFill: true, armor: 0x2b2723, team: 0, flagTex: flagTexture(flag), mon: flag, seed: 15910 + i }); } catch (e) { /* 飾り */ }
+    try {
+      const g = W.addDistantArmy({ x, z, w, d, count: n, facing: Math.PI, farFill: true, armor: 0x2b2723, team: 0, flagTex: flagTexture(flag), mon: flag, seed: 15910 + i });
+      // 街道の後続も遠景のまま保ち、近づいた時に実兵を増やさない。
+      if (g?.army) g.army.noWake = true;
+    } catch (e) { /* 飾り */ }
     try { rt.scene.add(nobori(W, x + w / 2 + 3, z - d / 2, flag, 6)); } catch (e) { /* 飾り */ }
   }
   const say = (t, who, s, d = 3.4) => rt.after(t, () => { if (!F.step) rt.say(who, s, d); });

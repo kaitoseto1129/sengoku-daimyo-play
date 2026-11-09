@@ -8,6 +8,15 @@ import { sfx } from '../audio.js';
 
 export const HIRA_LAST = { x: 30, z: -8 };   // 平手が最後に踏みとどまる所（右の森の際から南西へ下がった野）
 
+// 実戦で同時に討たれた時も、名入りの札を六秒ずつ離して一人ずつ伝える。
+export function fallNotice(rt, name) {
+  const F = rt.flags;
+  const at = Math.max(rt.t, (F.mkLastFallT ?? -Infinity) + 6);
+  F.mkLastFallT = at;
+  const show = () => { if (!rt.over) rt.banner(`${name}、討ち死に`, ''); };
+  if (at > rt.t) rt.after(at - rt.t, show); else show();
+}
+
 // 退く下知の後に平手の討死（名を大きく一度・onKill と重ねない）
 function hirateFalls(rt) {
   const F = rt.flags;
@@ -19,7 +28,7 @@ function hirateFalls(rt) {
     F.hirateFallSaid = true;
     F.bossName = '佐久間信盛';
     if (u?.alive) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
-    rt.banner('平手汎秀、討ち死に', '');
+    fallNotice(rt, '平手汎秀');
     sfx('kane', 0.45);
     if (F.hirate && F.hirate.count) { F.hirate.morale = Math.min(F.hirate.morale || 60, 30); }
   });

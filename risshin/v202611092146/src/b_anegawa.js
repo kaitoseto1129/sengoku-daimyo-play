@@ -4311,8 +4311,9 @@ const anegawa = {
     chase.onArrive = (q) => { q.order = 'attack'; q.seekRange = 70; q.formation = 'yari'; };
     F.chase = chase;
     // しんがりは浅井の四の手の一部（新庄直頼の手）。追い手の三分の一ほど。
+    // 二の手の浅井政澄を重ねず、控えと同じ将にする。後年まで生きる新庄は斬り合いの後に退く。
     const R = enemyGroup(rt, { faction: 'azai', name: '浅井の殿', anchor: { x: 24, z: -36 }, facing: 0, fleeDir: AZAI_FLEE, aggro: 12, width: 16, morale: 85 },
-      dress([{ type: 'busho', n: 1, o: { name: '浅井政澄', horse: true, hat: 'kabuto_m', haori: 0x3a3328 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 3 }], AZAI));
+      dress([{ type: 'busho', n: 1, o: { name: '新庄直頼', invuln: true, allyOk: true, horse: true, hat: 'kabuto_m', haori: 0x3a3328 } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 16 }, { type: 'gun', n: 3 }], AZAI));
     F.rear = R;
     R.order = 'path'; R.path = [[24, -50], [24, -36]]; R.pathIdx = 0;
     R.formation = 'column'; R.colW = 2;
