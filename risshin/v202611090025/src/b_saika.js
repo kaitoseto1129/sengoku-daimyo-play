@@ -1316,6 +1316,9 @@ function canWork(u, a) {
 function workHands(rt, a) {
   let hands = 0;
   a.rope.visible = false;
+  // 本人が小旗を守る間だけ組の作業を進める。後陣に立ったまま三か所とも済ませない。
+  // 敵を迎える十六歩の範囲は残し、離れても引いた分は失わない。
+  if (Math.hypot(rt.player.u.pos.x - a.workAt.x, rt.player.u.pos.z - a.workAt.z) >= 16) return 0;
   for (const g of rt.flags.workParties) for (const u of g.units) {
     if (g !== rt.flags.workers && u.type !== 'ashigaru') continue;
     if (!canWork(u, a)) continue;
