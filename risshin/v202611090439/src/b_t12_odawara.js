@@ -358,6 +358,9 @@ function requiredStep(step) {
       if (step.kind !== 'hold') return done;
       const p = rt.player.u.pos;
       if (Math.hypot(p.x - C.at.x, p.z - C.at.z) < 17) C.flagHold = (C.flagHold || 0) + dt;
+      // 経過時間ではなく、旗の近くで実際に守った時間を知らせる。
+      const left = Math.max(0, Math.ceil(80 - (C.flagHold || 0)));
+      rt.objProgress('dp', left ? `井伊の旗を守る あと${left}秒` : '山王口から来た残りの北条勢を押し返せ');
       return done && C.flagHold >= 80;
     },
   };
@@ -396,7 +399,9 @@ function escort() {
       rt.after(4.6, () => rt.say('井伊直政', `${nm(rt)}殿、黒田殿の供をいたせ。こちらから手を出すな`, 4));
       rt.obj('dp', '黒田官兵衛に付き添い、井伊の陣から山王口を通って本丸の門まで送り届けよ', 'main');
       C.near = true;
-      rt.marker('dp', () => (C.near ? KGATE : F.kanU.pos), () => (C.near ? '本丸の門' : '黒田官兵衛'), { h: 3 });
+      // 塀を横切る最短線ではなく、使いと通る木戸・辻を順に示す。
+      rt.marker('dp', () => (C.near ? ENVOY[Math.min(C.i, ENVOY.length - 1)] : F.kanU.pos),
+        () => (!C.near ? '黒田官兵衛' : C.i <= 3 ? '篠曲輪の木戸' : C.i <= 5 ? '篠曲輪の西の口' : C.i <= 7 ? '山王口' : '本丸の門'), { h: 3 });
     },
     tick(rt, C, m, ctx, el) {
       const F = rt.flags, k = F.kanU;

@@ -1672,7 +1672,9 @@ const tottori = {
   noPlayerFoot: true, quietMiss: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   speechAllowed: (rt) => !!rt.flags.ending || rt.over,
-  bannerAllowed: (rt) => !!rt.flags.ending || rt.over,
+  // 場面を移した理由と次の行いは消さない（夜討ち・開城の朝）。
+  bannerAllowed: (rt, title) => !!rt.flags.ending || rt.over ||
+    title === '幾日か後の夜討ち' || title === '十月二十五日　開城の朝',
   compactMapAllies: true, mapCommanderAlways: true,
   // 11/4：場所と行いの言い方に（kaito AR1・AW3）。「味方と集まれ」「▼の敵を倒せ」は何をする所か分からない。
   missions: ['川岸の組へ行け', '舟に火をかけよ', '舟の番を討て', '千代川の岸を守れ', '柵へ戻れ', '柵の口を守れ', '使いに続け', '木戸へ進め'],
