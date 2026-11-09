@@ -1295,7 +1295,7 @@ html:root body #hud#hud#hud#hud#hud.miki-goals #armybar#armybar#armybar:not([hid
 html:root body #hud#hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals .goals-toggle { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #armybar .clock { visibility:hidden !important; }
-html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.miki-goals #armybar { visibility:hidden !important; }
+html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud#hud#hud.miki-goals #armybar#armybar#armybar { visibility:hidden !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode {
