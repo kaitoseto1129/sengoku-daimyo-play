@@ -3943,6 +3943,9 @@ saika.liveForce = (rt) => {
   return { a, a0: F.a0, b, b0: F.b0 };
 };
 // 兵の気配は紀州の全軍でなく、目の前の持ち場を表す。史料の総兵数としない。
+// 命懸けの戦場（lethal.js・11/9 織田G）・この戦の怖さ（川向こうの鉄砲に、渡る間ずっと撃たれる）
+saika.lethal = true;
+saika.fearKind = { kind: '鉄砲', note: '川向こうの雑賀の鉄砲に、渡る間ずっと撃たれる', w: { iso: 1.2 }, line: '鉄砲じゃ、伏せよ！' };
 saika.sides = { a: { name: '織田の山手勢', mon: 'oda' }, b: { name: '雑賀衆', mon: 'yatagarasu' } };
 // 始まりの札：味方対敵に史実の規模の数を添える（五4）。人物紹介と「勝つには」は出さない。
 saika.introSides = { a: '織田の山手勢　三万', b: '雑賀衆　数千' };   // 三万は山手だけの数（浜手も三万）。全軍の数と読ませない

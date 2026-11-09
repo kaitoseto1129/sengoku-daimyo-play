@@ -275,6 +275,8 @@ const t09_yamanaka = {
     SIGN.x = x; SIGN.z = z; SIGN.label = label; return SIGN;
   },
   meleeGuide: () => false,   // 「敵をたおせ」の札と敵を指す矢印は出さない。敵は頭上の▼で分かる（BH6）
+  // 布陣図の地名（docs/fujin/t09_yamanaka.md）
+  introMapPlaces: [{ x: -46, z: 196, name: '岱崎出丸' }, { x: 10, z: 120, name: '障子堀' }, { x: 25, z: -128, name: '本丸' }],
   spawn: { x: START.x, z: START.z, heading: Math.PI },
   world: {
     // 人の背の何倍もある切岸（54°より急な所）には兵も主人公も立たない（critic60 山中 21「崖に兵が張り付いて宙に立つ」）。道と坂は通れる
