@@ -26,7 +26,8 @@ export function start(rt, ctx) {
   F.gateG.stay = true;
   F.rearGs = [F.rear, F.gateG];
   try { const Y = F.yfar || {}; Y.akRes?.rout?.({ hideAfter: 30 }); Y.tenno?.rout?.('B', { minFight: 2, hideAfter: 30 }); } catch (e) { /* 遠景 */ }
-  for (const [g, d] of [[F.ikeda, { x: 50, z: -140 }], [F.kato, { x: 70, z: -146 }], [F.hori, { x: 30, z: -150 }]]) {
+  // 二巡 11/9：御坊塚の陣幕（18, −158）の手前を避ける（池田・堀が陣幕に突っかかって二十秒止まった）
+  for (const [g, d] of [[F.ikeda, { x: 52, z: -128 }], [F.kato, { x: 70, z: -146 }], [F.hori, { x: 34, z: -130 }]]) {
     if (!ctx.live(g)) continue;
     g.order = 'move'; g.dest = d; g.speed = 3.6; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 30; };
   }

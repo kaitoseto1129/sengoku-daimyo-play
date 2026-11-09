@@ -4529,6 +4529,7 @@ installBattleJinkei(hiei_mtn, [
     ['hiei_north', '坂本の北の口（約1.5km）', '柴田勝家の手', null, { x: 186, z: -104 }, 'oda', 'oda', null],
     ['hiei_north2', 'その先の北（約2.5km）', '丹羽長秀・中川重政の手', null, { x: 176, z: -160 }, 'oda', 'oda', null],
     ['hiei_south', '坂本の南（約1.5km）', '佐久間信盛の手', null, { x: 178, z: 108 }, 'oda', 'oda', null],
+    ['hiei_south2', 'その先の南（約2.5km）', '木下藤吉郎の手', null, { x: 170, z: 164 }, 'oda', 'oda', null],   // docs/generals_oda_1108.md の12（藤吉郎も比叡を囲む一手）
   ], '信長の三井寺本陣はこの場の南の外。陣地と登山の順は復元。総兵数・持ち場別の兵数は不明。見える兵と遠景は縮小した表現で、総勢や人数の比率を示さない。'),
   battleJin('里坊と三塔に分かれた守り', 1, P.chudo, Math.PI / 2, [
     ['hiei_hiyoshi', '日吉社前・坂本の里坊', '神人と衆徒（将の名は不明）', null, { x: 146, z: -7 }, null, null, (r) => r.flags.hiyoshiG, { named: false }],
