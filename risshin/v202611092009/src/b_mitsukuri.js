@@ -2469,7 +2469,7 @@ function mkGoalBoard(rt) {
     }
     return out;
   };
-  // 11/5 kaito 九3「敵の兵には一人残らず頭上に赤い▼」：共通の印は近い数人まで。四十メートル内の見える敵の残りにも同じ赤い▼を付ける。
+  // 九3「敵の兵には一人残らず頭上に赤い▼」：共通の印が付かなかった、画面内の見える敵にも同じ赤い▼を付ける。
   //   印は使い回し、見通しは兵ごとに三分の一秒おき。
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
   box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
@@ -2485,11 +2485,12 @@ function mkGoalBoard(rt) {
     if (on) for (const u of rt.army.units) {
       // 実兵の一覧を最後まで見る。八十人で打ち切ると、後から来た控えの印が欠ける。
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
-      if (!u._mkSeen) continue;
+          u.mesh?.visible === false || u.camHidden) continue;
+      // 四十メートルより先の城兵にも印を出す。画面外は先に外し、見通しを余分に調べない。
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
+      if (!u._mkSeen) continue;
       let el = tris[n];
       if (!el) {
         el = tris[n] = document.createElement('span');
