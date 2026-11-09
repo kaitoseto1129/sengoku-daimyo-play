@@ -18,6 +18,10 @@ export function tick(rt, dt) {
   const k = ready(mor) ? mor : (F.nob?.units || []).find((u) => ready(u) && !u.isPlayer && u.name !== '織田信長');
   if (!k) return;
   k.target = y;
+  // 11/9 織田編を通しで流した bot が、深手の後 八分止まった（囲みと幕で毛利が寄れず、主人公も間合いの外）。
+  //   深手から二分半たっても討てない時は、毛利（か馬廻）がその場で首を取る。十二 m の見届けは一分五十秒まで。
+  const late = rt.t - F.yoshiDownT;
+  if (late > 150) { y.invuln = false; y.officerSaved = true; rt.army.kill(y, k); return; }
   // 補助処理でも幕・柵・地形をすり抜けない。遮られた時は通常の移動で回り込む。
   if (rt.army.wallBetween(k.pos, k.team, y.pos) || rt.army.terrainBlocks(k.pos, y.pos) ||
       Math.abs(k.pos.y - y.pos.y) >= 3) return;
@@ -30,6 +34,6 @@ export function tick(rt, dt) {
   }
   // 本体と同じく、主人公が義元を見届けられる間合いまで討取りを待つ。
   const p = rt.player.u.pos;
-  if (Math.hypot(p.x - y.pos.x, p.z - y.pos.z) > 12 || !sightScreenUnit(rt, y)) return;
+  if (late < 110 && (Math.hypot(p.x - y.pos.x, p.z - y.pos.z) > 12 || !sightScreenUnit(rt, y))) return;
   y.invuln = false; y.officerSaved = true; rt.army.kill(y, k);
 }

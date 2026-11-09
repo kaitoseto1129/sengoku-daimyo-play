@@ -1448,7 +1448,7 @@ function hillSlot(i, n) {
 const attackFrom = (q, r = 16) => { q.order = 'attack'; q.seekRange = Math.min(r, 16); q.formation = 'column'; };
 let hieiClock = 0;   // 今の戦の時刻（arrived の待ちを数える。update が毎コマ入れる）
 let hieiWho = null;  // 本人（arrived が、本人が持ち場に着いて先手を待つ間だけ数えるのに使う。update が毎コマ入れる）
-const arrived = (g, p, r) => {
+const arrived = (g, p, r, waitRadius = r + 2) => {
   if (!g) return false;
   let alive = 0, near = 0, front = 0;
   for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget) {
@@ -1473,7 +1473,7 @@ const arrived = (g, p, r) => {
   //   bot の通しが二百秒以上止まった。待つ相手のいない時は待たせず、本人が持ち場に着いて前列の誰も来ない時も二十秒で次へ（後続は打ち合いながら続く）。
   if (gone(g)) return true;
   // 前列の誰も着かない間は、本人が持ち場に着いて待つ時だけ数える（本人が来る前から数えて、列を置いて先へ行かせない）。
-  const waiting = hieiWho && Math.hypot(hieiWho.pos.x - p.x, hieiWho.pos.z - p.z) < r + 2;
+  const waiting = hieiWho && Math.hypot(hieiWho.pos.x - p.x, hieiWho.pos.z - p.z) < waitRadius;
   if (front === 0 && !waiting) { if (g._arrKey === key) g._arrSince = null; return false; }
   if (g._arrKey !== key || g._arrSince == null) { g._arrKey = key; g._arrSince = hieiClock; }
   // 11/6 fixc1721（kaito 三2）：持ち場で何も起きないまま待たせない。前列が着いて八秒で次へ。
@@ -1556,7 +1556,7 @@ function rallyGuideLabel(rt, point, radius, place, onward, arrivalRadius = Math.
   if (!near(rt.player.u, point, radius)) return onward;
   if (!guardedRoad(rt, point)) return `${place}の敵を退ける`;
   // 進行と同じ範囲で数え直す。広い本人の到着範囲で先手を数えない。
-  const ready = arrived(F.akechi, point, arrivalRadius);
+  const ready = arrived(F.akechi, point, arrivalRadius, Math.max(radius, arrivalRadius + 2));
   return ready ? `${place}で先手と合流` : columnTask(F.akechi, place);
 }
 
@@ -4102,7 +4102,8 @@ const hiei_mtn = {
     if (advanceStep === 1) {
       const cleared = gone(F.hiyoshiG);
       // 札を出す前に数える。先手の要が遠い間も「兵０／０」にしない。
-      const ready = cleared && near(u, P.trailhead, 16) && arrived(F.akechi, P.trailhead, 10);
+      // 先手は十メートル内で数え、本人の待ちは札の到着範囲と揃える。
+      const ready = cleared && near(u, P.trailhead, 16) && arrived(F.akechi, P.trailhead, 10, 16);
       F.trailReady = ready;
       rt.objProgress('main', F._gHold ? '道を見失った。来た道の味方の旗へ戻れ' : F.guideReturn.active ? '参道の印へ戻れ' : !cleared ? shrineGuideLabel(rt) : !near(u, P.trailhead, 16) ? '道しるべに沿い、本坂の登り口へ' : !guardedRoad(rt, P.trailhead) ? '登り口の敵を、味方と退けよ' : columnWait(F.akechi, '登り口'));
       if (cleared && !F.hiyoDone) {
@@ -4510,15 +4511,26 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       F._gHoldT ??= b.t;
       if (b.t - F._gHoldT > 3) {
         const R = routeFor(F);
-        let bi = 0, bd = Infinity;
-        for (let i = 0; i < R.length; i++) { const d = Math.hypot(R[i][0] - u.pos.x, R[i][1] - u.pos.z); if (d < bd) { bd = d; bi = i; } }
-        const q = R[Math.min(R.length - 1, bd < 2 ? bi + 1 : bi)];
+        const key = F.step * 8 + (F.courtDone ? 1 : 0) + (F.bell2 ? 2 : 0) + (F.hiyoDone ? 4 : 0);
+        // 毎コマ近い点を選び直すと、二メートル進んだ所で前の点へ引き返す。
+        // 復帰中の行き先を保ち、折れ点へ着いてから次の点へ進む。
+        if (F._holdRouteKey !== key || F._holdRouteIndex == null) {
+          let bi = 0, bd = Infinity;
+          for (let i = 0; i < R.length; i++) { const d = Math.hypot(R[i][0] - u.pos.x, R[i][1] - u.pos.z); if (d < bd) { bd = d; bi = i; } }
+          F._holdRouteKey = key;
+          F._holdRouteIndex = Math.min(R.length - 1, bd < 2 ? bi + 1 : bi);
+        }
+        let q = R[F._holdRouteIndex];
+        if (q && F._holdRouteIndex < R.length - 1 && Math.hypot(q[0] - u.pos.x, q[1] - u.pos.z) < .6) {
+          q = R[++F._holdRouteIndex];
+        }
         if (q) goTo(p, inp, q[0], q[1], .5);
       }
     }
     return;
   }
   F._gHoldT = null;
+  F._holdRouteIndex = null;
   if (p.lock) inp.e.add('KeyQ');
   // 画面と同じ復帰の印へ寄る。別の折れ点を選んで法面へ進ませない。
   if (F.guideReturn.active) {

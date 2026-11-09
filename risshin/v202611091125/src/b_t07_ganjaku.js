@@ -813,7 +813,17 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
 t07_ganjaku.sides = { a: { name: '豊臣勢', mon: 'toyotomi' }, b: { name: '秋月方（島津方）', mon: 'saito', faction: 'akizuki' } };
 // 上に出す総勢（docs/battle_learn/t07_ganjaku.md：攻め手の蒲生・前田の隊はおよそ五千、城兵は三千）
-t07_ganjaku.force = (rt) => ({ a: Math.max(0, 5000 - (rt.flags.ak || 0) * 10), a0: 5000, b: Math.max(0, 3000 - (rt.flags.ek || 0) * 30), b0: 3000 });
+t07_ganjaku.force = (rt) => {
+  // 二の丸の城兵と新手を足した後も、生きた城兵が残るうちに零にしない。
+  // 討死一人を固定の三十人に換算せず、場の生存者と討死の比で総勢を減らす。
+  let a = 0, b = 0;
+  for (const u of rt.army.units) {
+    if (!u.alive || u.isStruct || u.civ) continue;
+    if (u.team === 0) a++; else if (u.team === 1) b++;
+  }
+  return { a: a ? Math.ceil(5000 * a / (a + (rt.flags.ak || 0))) : 0, a0: 5000,
+    b: b ? Math.ceil(3000 * b / (b + (rt.flags.ek || 0))) : 0, b0: 3000 };
+};
 // 右上の①〜④（stages.js と同じ字）。段の長さは本丸の斬り合いで延びるので、目標ごとの時切れの ✕ は付けない
 t07_ganjaku.goals5 = () => (STAGES.t07_ganjaku || []).map((s, k) => ({ kind: 'stage', k, text: s[0], sec: 1e6,
   check: (rt) => (rt.flags.stage || 0) > k + 1 || (!!rt.flags.ending && rt.tracker?.main !== false) }));
@@ -849,17 +859,18 @@ t07_ganjaku.botBrain = (b, inp, { goTo }) => {
   if (F.stage <= 2 || (F.stage === 4 && F.botPast)) { at(goal, 3); return; }
   if (F.stage === 3) {
     // 退く敵の後ろから喰違の筋（門の前 → 門の内）を追う。閉まった門は打つ
-    const st = t07_ganjaku.gateStruct(b);
-    if (st && st.alive && !st.opened) {
-      const mx = (st.seg[0] + st.seg[2]) / 2, mz = (st.seg[1] + st.seg[3]) / 2;
-      if (Math.hypot(mx - u.pos.x, mz - u.pos.z) > 2.2) { at({ x: mx, z: mz }, 1.6); return; }
-      p.yaw = Math.atan2(mx - u.pos.x, mz - u.pos.z); inp.leftPressed = Math.random() < 0.6; return;
-    }
-    // 味方の列より先に一人で門の筋へ入らない（門の前の口で味方が追いつくのを待つ）
+    // 閉門時も先に味方を待ち、門前の角を回る。門へ直進すると脇の塀に当たり、孤立する。
     const mates = F.gamo.units.filter((o) => o.alive && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 10).length;
     if (!F.botIn && mates < 4 && b.t - F.stageT < 40) { at(MOUTH, 3); return; }
     if (!F.botFront && nearTo(FRONT, 3)) F.botFront = true;
     if (F.botFront && nearTo(INSIDE, 3)) F.botIn = true;
+    const st = t07_ganjaku.gateStruct(b);
+    if (st && st.alive && !st.opened) {
+      if (!F.botFront) { at(FRONT, 1.5); return; }
+      const mx = (st.seg[0] + st.seg[2]) / 2, mz = (st.seg[1] + st.seg[3]) / 2;
+      if (Math.hypot(mx - u.pos.x, mz - u.pos.z) > 2.2) { at({ x: mx, z: mz }, 1.6); return; }
+      p.yaw = Math.atan2(mx - u.pos.x, mz - u.pos.z); inp.leftPressed = Math.random() < 0.6; return;
+    }
     at(F.botIn ? INNER : F.botFront ? INSIDE : FRONT, 1.5); return;
   }
   // 本丸へは門の内（喰違の奥）を抜けてから向かう（門の脇の塀に詰まらない）
