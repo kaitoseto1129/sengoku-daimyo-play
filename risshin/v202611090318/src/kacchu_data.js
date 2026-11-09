@@ -454,7 +454,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["京極高知", "namban", "sun", 0x29251f, 0x413e32, "kebiki", 0x4a3a22, 0x29251f, "tokugawa", ""],
   ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "tokugawa", ""],
   ["浅野長政", "namban", "horn", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
-  ["浅野長晟", "namban", "cross", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
+  ["浅野長晟", "momonari", "none", 0x1c1a1a, 0x6a4026, "okegawa", 0, 0, "asano", ""],
   ["仙石秀久", "namban", "shida", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
   ["可児才蔵", "namban", "bellflower", 0x29251f, 0x413e32, "sugake", 0x302b32, 0x29251f, "tokugawa", ""],
   ["平野長泰", "zunari", "kuwa", 0x24221f, 0xb0a890, "sugake", 0, 0, "tokugawa", ""],
@@ -478,8 +478,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["天童頼澄", "momonari", "horn", 0x1c1a1a, 0x66513b, "okegawa", 0xab784b, 0x1c1a1a, "none", ""],
   ["龍造寺政家", "eboshi", "horn", 0x1c1a1a, 0x66513b, "okegawa", 0xae7a4c, 0x1c1a1a, "none", ""],
   ["最上義俊", "zunari", "moon", 0x1c1a1a, 0xb0a890, "sugake", 0, 0x1c1a1a, "none", ""],
-  // 前田利常：前田家の鯰尾形の長い兜（利長の銀鯰尾の系統）を烏帽子形で、黒漆の素懸に紅糸、紺の陣羽織に梅鉢（復元案。docs/kacchu_k15_tokugawa.md）
-  ["前田利常", "eboshi", "none", 0x1c1a1a, 0x9a2e20, "sugake", 0x2e3a52, 0x1c1a1a, "maeda", ""],
+  // 前田育徳会蔵の本人所用・黒漆塗本小札紫糸桜紋柄威二枚胴具足による復元案。当日着用は未確認（docs/generals_look_1108/前田利常.md）。
+  ["前田利常", "suji", "kuwa_ken", 0x1c1a1a, 0x5a3a6a, "kebiki", 0, 0x1c1a1a, "maeda", "前田育徳会・黒漆塗本小札紫糸桜紋柄威二枚胴具足"],
   ["山内忠義", "eboshi", "kuwa_wide", 0x1c1a1a, 0x66513b, "okegawa", 0xae7a4c, 0, "none", ""],
   ["池田忠雄", "namban", "cross", 0x1c1a1a, 0x66513b, "okegawa", 0xb17c4d, 0x1c1a1a, "none", ""],
   // 井伊直孝：井伊の赤備え。朱漆の頭形兜に金の天衝、朱漆の桶側胴に紺糸威（直政の仏胴・赤糸とは分ける。彦根城博物館の井伊家伝来の朱具足の型。復元案）
@@ -495,7 +495,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["木村宗明", "zunari", "kuwa", 0x2a2420, 0x5a7a3a, "okegawa", 0, 0x2a2420, "toyotomi", ""],
   // 真田大助（幸昌）：十五歳。赤備えの朱漆の頭形兜に大鍬形と六文銭、白糸の毛引威。父の鹿角・陣羽織は付けない（復元案）
   ["真田大助", "zunari", "kuwa_wide", 0x8e1f16, 0xe0d8c4, "kebiki", 0, 0, "sanada", ""],
-  ["木村重成", "zunari", "kuwa_wide", 0x29251f, 0xb39a61, "okegawa", 0x4a3a22, 0x29251f, "toyotomi", ""],
+  // 所用品は未確認。同時代の土居家伝来具足を型の手本とする復元案（詳しくは必須表と出所の紙）。
+  ["木村重成", "momonari", "none", 0x1c1a1a, 0xd8d0bc, "sugake", 0, 0, "none", "同時代の型による復元案"],
   ["榊原康勝", "suji", "cross", 0x24221f, 0xb8342a, "okegawa", 0x2e3a42, 0, "tokugawa", ""],
   ["松井宗信", "suji", "kuwa", 0x221816, 0x9a2e20, "okegawa", 0x6a2418, 0, "imagawa", ""],
   ["服部小平太", "suji", "moon", 0x24221f, 0x3c5a8a, "okegawa", 0x3a2a22, 0x24221f, "none", ""],
@@ -832,6 +833,10 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, mon, flag, extra] of
   k.required = 1;
 }
 for (const [a, n] of Object.entries(REQUIRED_ALIAS)) KACCHU[a] = KACCHU[n];
+// 利常所用の六十二間筋兜と本小札二枚胴。三鍬形は既存の剣付鍬形で略し、紋柄威・面頬の細部は復元案。
+// 名前による配色の散らしより後で指定し、真田丸の利光も同じ姿を参照する。出所：docs/generals_look_1108/前田利常.md。
+Object.assign(KACCHU["前田利常"], { sujiPlates: 62, doOpening: "nimai", honkozane: true,
+  sodeStyle: "osode", shikoroStyle: "kebiki", flag: "maeda", uma: null });
 // 大阪城天守閣の伝又兵衛所用・日月竜文蒔絵仏胴具足。出所と補完範囲は docs/generals_look_1108/後藤又兵衛.md。
 // 配色の散らし・必須表より後で戻す。獅噛と毛植は既存の共有形を使う（脇立は付けない）。
 Object.assign(KACCHU["後藤又兵衛"], { bowl: "zunari", crest: "niwa_shikami",
@@ -846,6 +851,12 @@ Object.assign(KACCHU["島左近"], { bowl: "suji", sujiPlates: 52, crest: "sanko
   armor: 0x1c1a1a, helm: 0x3b322b, lace: 0x232c40, odo: 0x232c40,
   lac: "kuro", helmLac: "sabi", fuki: "kuro", shinodare: false, fukigaeshiBadge: false,
   doStyle: "okegawa", haori: 0, menpo: 0x1c1a1a, menpoStyle: "hanbo", mon: "none", flag: "ishida" });
+// 長晟の所用品は未確認。父の伝来具足を参考にした桃形鉢・茶糸威桶側胴の復元案。
+// 配色の散らしと必須表の後で揃える。父の水牛脇立は継承を断定せず、面頬・羽織・馬印も補わない。
+// 出所と補完範囲：docs/generals_look_1108/浅野長晟.md
+Object.assign(KACCHU["浅野長晟"], { bowl: "momonari", crest: "none",
+  armor: 0x1c1a1a, helm: 0x1c1a1a, lac: "kuro", fuki: "kuro", lace: 0x6a4026, odo: 0x6a4026,
+  doStyle: "okegawa", menpo: 0, haori: 0, mon: "asano", flag: "asano", uma: null, fukigaeshiBadge: false });
 // 三方ヶ原の備の表示名でも同じ具足を使う。
 KACCHU["武田信豊（典厩）"] = KACCHU["武田信豊"];
 KACCHU["武田信廉（逍遥軒）"] = KACCHU["武田信廉"];
@@ -1467,4 +1478,19 @@ export const NEJIROZAKA_MIYABE_KACCHU = {
     kusazuriColor: 0x1c1a1a, kusazuriBands: Array(5).fill(0xd8d0bc),
     haori: 0, menpo: 0, mon: 'none', flag: 'toyotomi', uma: null, fur: 0, horo: 0,
     shinodare: false, fukigaeshiBadge: false },
+};
+
+// 岩石城・小田原の氏郷だけ。南部家伝来の黒漆燕尾形兜を手本に、胴は桃山期の型で補う。
+// 織田編の共通表は保つ。出所・復元箇所は docs/generals_look_1108/蒲生氏郷.md。
+export const TOYO_GAMO_KACCHU = {
+  '蒲生氏郷': { ...KACCHU['蒲生氏郷'], bowl: 'zunari', crest: 'tsubame',
+    hat: 'kabuto', hatFix: 1, armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'lac',
+    doStyle: 'okegawa', doOpening: 'nimai', plateDo: null,
+    lace: 0x1c1a1a, odo: 0x1c1a1a, sodeStyle: 'sugake', shikoroLace: 0x1c1a1a,
+    kusazuriCount: 7, kusazuriLaceRows: 5, kusazuriColor: 0x1c1a1a,
+    kusazuriBands: Array(5).fill(0x1c1a1a),
+    haori: 0, noHaori: true, menpo: 0x242222, menpoStyle: 'hanbo', fur: 0, horo: 0,
+    // 左三つ巴の既存描画を共用する。九鬼家への所属を意味しない。
+    mon: 'kuki', flag: 'sashi:kuki:#ece6d6:#201f1c', uma: null,
+    shinodare: false, fukigaeshiBadge: false, ref: '' },
 };

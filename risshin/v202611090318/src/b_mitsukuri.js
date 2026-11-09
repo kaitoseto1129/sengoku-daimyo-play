@@ -4772,8 +4772,11 @@ const mitsukuri = {
       const u = rt.player.u;
       for (const z of F.SZ.zones) {
         const present = u.alive && zoneGroundFighter(rt, u) && z.test(u.pos.x, u.pos.z);
-        z.hold = present || z.owner === 'friend' ? z._mkHold : Infinity;
-        if (!present && z.owner !== 'friend') z.holdT = 0;
+        // 木戸が開いても、打って出た組を退けるまでは付け入り前。
+        // 先に庭へ入った本人と仲間だけで二の丸を取り、迎撃を飛ばさない。
+        const ready = present && (z.id !== 'ni' || F.gatePass);
+        z.hold = ready || z.owner === 'friend' ? z._mkHold : Infinity;
+        if (!ready && z.owner !== 'friend') z.holdT = 0;
       }
       F.SZ.tick(dt);
       for (const z of F.SZ.zones) z.hold = z._mkHold;

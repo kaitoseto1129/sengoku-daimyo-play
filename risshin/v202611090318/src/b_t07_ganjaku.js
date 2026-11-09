@@ -16,7 +16,7 @@ import { closeGate } from './siege_gate.js';
 import { distToPolyline } from './world.js';
 import { RANKS } from './state.js';
 import { FACTION, GENERALS } from './units_data.js';
-import { KACCHU } from './kacchu_data.js';
+import { KACCHU, TOYO_GAMO_KACCHU } from './kacchu_data.js';
 import * as THREE from 'three';
 import { hashigo, nobori, jinmaku, yagura, kabukimon, castleBoardFence, palisade, hut, solidCircle, solidSeg, solidRect } from './props.js';
 import { rockShape, groundRocks } from './rock_shape.js';
@@ -183,6 +183,7 @@ const t07_ganjaku = {
   get alwaysMelee() { return CALM ? false : undefined; },
   frontlineDensity: { strength: 0.8, active: (rt) => (rt.flags.stage || 0) >= 3, canSend: (rt, g) => !g.noFrontline },
   world: {
+    namedKacchu: TOYO_GAMO_KACCHU,
     strictFireOrders: true,   // 出撃後の櫓は、近い主人公にも味方越しに撃たない
     smokeFogFloor: 90,   // 硝煙の見通しは地形の設定から読む。門と敵を霧で隠さない
     seed: 158704, time: 'morning',   // 未明に攻め懸かり、日中に落とす（午前四時〜午後四時の伝え）。段2で日中、刻限が近づくと夕に
@@ -225,23 +226,23 @@ const t07_ganjaku = {
     const W = rt.world, faceUp = Math.atan2(GATE.x - SPAWN.x, GATE.z - SPAWN.z);
 
     // ---- 攻め手（docs/battle_refs/t07_ganjaku.md）：大手は蒲生、搦手は前田。秀吉は馬ヶ岳の本陣にいて、この山には来ない ----
-    // 蒲生の先手（主人公はこの列と坂を登る）。対い鶴の蒲生の旗は鶴の紋で代える
-    F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'tsuru', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
+    // 蒲生の先手（主人公はこの列と坂を登る）。蒲生家の左三つ巴は既存の巴紋の描画を共用する。
+    F.gamo = allyGroup(rt, { name: '蒲生の先手', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: SPAWN.x + 6, z: SPAWN.z - 4 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 1, o: { name: '蒲生郷成' } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 4, o: { tatake: true } }, { type: 'ashigaru', n: 36 }, { type: 'bow', n: 5 }, { type: 'gun', n: 6 }]);
-    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'tsuru', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
+    F.gamo2 = allyGroup(rt, { name: '蒲生の二番手', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: SPAWN.x - 8, z: SPAWN.z + 8 }, facing: faceUp, width: 8, aggro: 14, noRout: true, fullStrength: true },
       [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 2, o: { tatake: true } }, { type: 'ashigaru', n: 28 }, { type: 'gun', n: 4 }]);   // 先頭は竹束を抱えて登る（持つ者の後ろには弾が通りにくい。kaito 二3・十3）
     F.allies = [F.gamo, F.gamo2];
     // 搦手（北東の尾根）から寄せる前田勢。本丸の段で搦手の守りを破って本丸へ入る
     F.maeda = allyGroup(rt, { name: '前田勢', faction: 'maeda', flag: 'maeda', anchor: { ...KARA_OUT }, facing: Math.atan2(-KARA_OUT.x, -KARA_OUT.z), width: 8, aggro: 12, noRout: true, fullStrength: true },
       [{ type: 'busho', n: 1, o: { name: '前田利勝', horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 30 }, { type: 'gun', n: 4 }]);   // 利長は馬上で旗本の侍に囲まれる
     // 麓の蒲生の本陣：大手の大将の蒲生氏郷は旗本の侍に囲まれ、坂の下の幕の前で床几に座り、前に出ない
-    F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'gamo', flag: 'tsuru', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
-      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI, mon: 'tsuru' } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
+    F.honjin = allyGroup(rt, { name: '蒲生の本陣', faction: 'gamo', flag: 'sashi:kuki:#ece6d6:#201f1c', anchor: { x: -168, z: 168 }, facing: faceUp, width: 6, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
+      [{ type: 'busho', n: 1, o: { name: '蒲生氏郷', invuln: true, horse: false, armor: KIRI, mon: 'kuki', flag: 'sashi:kuki:#ece6d6:#201f1c' } }, { type: 'samurai', n: 18 }, { type: 'gun', n: 4 }]);
     F.honjin.noFrontline = true;
     for (const u of F.honjin.units) if (u.name === '蒲生氏郷') u.jinchu = {};   // 座ったまま下知する
     try {
-      rt.scene.add(jinmaku(W, -174, 174, 14, 9, 3, { mon: 'tsuru' }));
-      for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'tsuru', 7));
+      rt.scene.add(jinmaku(W, -174, 174, 14, 9, 3, { mon: 'kuki' }));
+      for (const [x, z] of [[-160, 176], [-176, 160], [-182, 184], [-150, 186]]) rt.scene.add(nobori(W, x, z, 'sashi:kuki:#ece6d6:#201f1c', 7));
     } catch (e) { console.warn(e); }
     const n = Math.min(12, RANKS[rt.G.rank || 0]?.squad || 0);
     if (n) rt.makeSquad({ x: SPAWN.x - 2, z: SPAWN.z + 3 }, faceUp, [{ kind: 'spear', n }]);
@@ -769,7 +770,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 本丸に蒲生の旗が立ち、本丸の小屋に火が掛かる（火を放って一気に畳みかけた伝え）。残る城兵は崩れて搦手の方へ落ちる
     for (const q of F.foes) if (!q.routed) { q.noRout = false; q.fire = false; q.fleeSet = true; q.fleeDir = { x: 0.7, z: -0.7 }; q.morale = 0; }
     rt.after(0.8, () => {
-      try { for (const [x, z] of [[-3, 3], [3, -2], [-8, -4]]) rt.scene.add(nobori(rt.world, x, z, 'tsuru', 6)); } catch (e) { console.warn(e); }
+      try { for (const [x, z] of [[-3, 3], [3, -2], [-8, -4]]) rt.scene.add(nobori(rt.world, x, z, 'sashi:kuki:#ece6d6:#201f1c', 6)); } catch (e) { console.warn(e); }
       try { rt.world.addFire(6, -6, { size: 2.6, blackSmoke: true }); } catch (e) { console.warn(e); }
       sfx('obj', 0.6);
     });

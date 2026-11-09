@@ -42,7 +42,7 @@ give('岡部則綱', { armor: 0x1e1e20, lace: 0x4a4a52, hat: 'kabuto_w', haori: 
   face: face({ age: 48, gaunt: 0.4, beard: { mus: 0.7, musW: 1, droop: 0.5, goat: 0.1, side: 0.2, stub: 0.5 } }) });
 give('淡輪重政', { armor: 0x221e1c, lace: 0x6a4a2a, hat: 'kabuto_w', haori: 0x2e2620, mon: 'toyotomi',
   face: face({ age: 44, beard: { mus: 0.7, musW: 1, droop: 0.4, goat: 0.2, side: 0.3, stub: 0.7 } }) });
-give('浅野長晟', { armor: 0x1c1e26, lace: 0x2a3a58, hat: 'kabuto_s', haori: 0x22283a, mon: 'none', tack: 0x1c2438, lord: true,
+give('浅野長晟', { armor: 0x1c1a1a, lace: 0x6a4026, hat: 'kabuto', haori: 0, mon: 'asano', tack: 0x1c2438, lord: true,
   face: face({ age: 29, jaw: 1, brow: 1, beard: { mus: 0.5, musW: 0.9, droop: 0.2, goat: 0, side: 0, stub: 0.1 } }) });
 give('亀田高綱', { armor: 0x22201e, lace: 0x5a4a2a, hat: 'kabuto_t', haori: 0x2e2822, mon: 'none',
   face: face({ age: 57, beard: { mus: 0.8, musW: 1, droop: 0.4, goat: 0.2, side: 0.3, stub: 0.8 } }) });
