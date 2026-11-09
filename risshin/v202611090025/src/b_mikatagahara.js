@@ -2478,9 +2478,12 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.unmark('hama'); rt.unzone('hama');
     for (let i = 1; i <= (F.chase || []).length; i++) rt.unmark('c' + i);
     for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.morale = Math.min(q.morale, 30); }
-    rt.objDone('main');
-    rt.tracker.main = true;
-    rt.award((t) => { t.main = true; }, '浜松城へ生きて退いた');
+    // 帰着だけで、途中の持ち場を離れた務めまで達成にしない。
+    // 最後の目標も今ここで更新し、結果の札と右上の印をそろえる。
+    const fulfilled = mikataGoals(rt, 0).st.every((s) => s > 0);
+    if (fulfilled) rt.objDone('main'); else rt.objFail('main');
+    rt.tracker.main = fulfilled;
+    if (fulfilled) rt.award((t) => { t.main = true; }, '浜松城へ生きて退いた');
     survival(rt, '三方ヶ原から生きて浜松城へ退いた');
     sfx('horagai', 0.4);
     rt.banner('浜松城へ帰着', '徳川・織田勢は敗れた。生きて城へ戻った');

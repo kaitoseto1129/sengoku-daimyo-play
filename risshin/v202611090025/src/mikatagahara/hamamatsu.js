@@ -34,5 +34,9 @@ export function install(rt, ctx) {
   });
   rt.after(22.5, () => { if (alive()) rt.say('徳川家康', '……この負け、生涯忘れまいぞ', 3.2); });
   rt.after(27, () => { if (alive()) rt.say('語り', '三方ヶ原は武田の大勝に終わった。平手汎秀は討ち死にし、家康は浜松城へ逃げ帰った', 5); });
-  rt.after(DUR, () => { if (!rt.over) rt.finish({ scriptedEnd: true }, 0.2); });
+  rt.after(DUR, () => {
+    if (!rt.over) rt.finish({ scriptedEnd: true,
+      ...(rt.tracker.main === false ? { failureReason: '浜松城へ帰着したが、途中の持ち場の務めを果たせなかった' } : {}),
+    }, 0.2);
+  });
 }
