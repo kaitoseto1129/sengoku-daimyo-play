@@ -644,8 +644,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
         if (target) { F.fightT = rt.t; break; }
       }
-      // 15分の構成：坂の斬り合いは七十秒は続く
-      if (rt.t - F.stageT > 70 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25))) this.go(rt, 3);
+      // 七十秒は戦いを見せるが、敵を全て討った後は空の坂で待たせない。
+      if (sallyN === 0 || (rt.t - F.stageT > 70 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;

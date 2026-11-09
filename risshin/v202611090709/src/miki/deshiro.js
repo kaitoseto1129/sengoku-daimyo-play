@@ -10,7 +10,7 @@ import { sfx } from '../audio.js';
 import { enemyGroup } from '../bhelp.js';
 import { dress } from '../b_inabayama.js';
 
-export const DESHIRO_LEN = 230;   // この段の長さの上限（秒）
+export const DESHIRO_LEN = 300;   // この段の長さの上限（秒）
 
 export function start(rt, ctx) {
   const F = rt.flags;
@@ -71,7 +71,17 @@ export function tick(rt, ctx) {
     wave(rt, ctx, 16, 2);
     rt.say('組頭', '城から鉄砲じゃ！　二の手が来る。列を崩すな！', 3.5);
   }
-  if (S.w2 && S.waves.every(ctx.gone) && rt.t - S.w2T >= 20) {
+  // 三の寄せ：二の手が崩れるか七十秒たったら、火矢で付城の小屋を焼き、その煙に紛れて最後の手が来る（11/9 二巡：段を一つ厚く）
+  if (S.w2 && !S.w3 && (S.waves.every(ctx.gone) && rt.t - S.w2T >= 20 || rt.t - S.w2T >= 70)) {
+    S.w3 = true; S.w3T = rt.t;
+    const G = ctx.gate, fx = G.x + 6, fz = G.z - 10;
+    S.fire = rt.world.addFire?.(fx, fz, { h: 1.5, size: 2.2 });
+    rt.army.play('arrow', { x: fx, z: fz }, 1);
+    rt.say('足軽', '火矢じゃ！　付城の小屋が燃える！', 3);
+    rt.after(4, () => { if (F.mkSally === S && !S.done) { wave(rt, ctx, 12, 2); rt.army.playFar('toki', ctx.sallyFrom, 0.9); rt.say('組頭', '煙に紛れて三の手じゃ！　木戸を渡すな！', 3.5); } });
+    rt.after(60, () => { if (S.fire) { rt.world.removeFire?.(S.fire); S.fire = null; } });
+  }
+  if (S.w3 && S.waves.length >= 3 && S.waves.every(ctx.gone) && rt.t - S.w3T >= 20) {
     once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
     S.done = true; return true;
   }

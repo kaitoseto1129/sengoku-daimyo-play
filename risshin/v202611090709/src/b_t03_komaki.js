@@ -364,7 +364,11 @@ const t03_komaki = {
       rt.award((t) => t.side.push('堀の前の鉄砲組を追い払った'), '堀の前の鉄砲組を追い払った');
       Council.startCouncil(rt, K);
     } else if (n === 5) Council.startOrders(rt, K);
-    else if (n === 6) Night.startNight(rt, K);
+    else if (n === 6) {
+      countFallen(rt);
+      F.departAllyDead0 = F.fallen[0];
+      Night.startNight(rt, K);
+    }
     else if (n === 7) Night.startDawn(rt, K);
   },
 
@@ -499,7 +503,11 @@ const t03_komaki = {
     inp.guardHold = false;
     let t = b.def.missionPin(b) || FIELD;
     if (F.stage === 2) t = { x: GATE.x, z: GATE.z - 2 };   // 木戸の内（柵の陰）に立つ
-    else if (F.stage === 3 && live(F.guns) && dist(F.guns.center(), FIELD) < 30) t = F.guns.center();
+    else if (F.stage === 3) {
+      // 前列が崩れたら二の列へ。退く前列を追い続けて田の中央で止まらない。
+      const g = !drivenOffGroup(F.guns, F.gunsN) ? F.guns : !drivenOffGroup(F.guns2, F.guns2N) ? F.guns2 : null;
+      if (g) t = g.center();
+    }
     // 楽田城の中から外へは大手門を通る
     if (u.pos.z < RK.z1 + 2 && u.pos.x > RK.x0 - 2 && u.pos.x < RK.x1 + 2 && t.z > RK.z1 + 4) t = { x: RAKUDA.x, z: RK.z1 + 6 };
     if (t.z < RK.z1 - 2 && t.x > RK.x0 && t.x < RK.x1 && !(u.pos.z < RK.z1 && u.pos.x > RK.x0 && u.pos.x < RK.x1) && Math.abs(u.pos.x - RAKUDA.x) > 3) t = { x: RAKUDA.x, z: RK.z1 + 6 };
@@ -524,7 +532,8 @@ t03_komaki.force = (rt) => {
   const F = rt.flags;
   countFallen(rt);
   const [allyDead, dead] = F.fallen;
-  if ((F.stage || 0) >= 6) return { a: Math.max(0, 20000 - allyDead * 20), a0: 20000, b: Math.max(0, 30000 - dead * 20), b0: 30000 };
+  // 砦を守った手の討死を、新たに出る中入りの二万から重ねて引かない。
+  if ((F.stage || 0) >= 6) return { a: Math.max(0, 20000 - (allyDead - (F.departAllyDead0 || 0)) * 20), a0: 20000, b: Math.max(0, 30000 - dead * 20), b0: 30000 };
   return { a: Math.max(0, 100000 - allyDead * 20), a0: 100000, b: Math.max(0, 30000 - dead * 20), b0: 30000 };
 };
 t03_komaki.date = (rt) => {
