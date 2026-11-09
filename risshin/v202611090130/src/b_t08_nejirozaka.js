@@ -75,15 +75,15 @@ function steps(rt) {
     ...jinchi.tour(rt, H),
     // 2. 島津勢が堀を越えてくる。南の塀と東の塀の上で押し返す（砦は三方から攻められる）
     //   段の見出し（説明の札）は出さない（kaito 五1）。何が起きたかは台詞と右上の目標で分かる
-    hold({ at: POST, dur: 100, limit: 135, r: 12, label: '土橋の塀', obj: STEP_TEXT[0],
+    saruStep(hold({ at: POST, dur: 100, limit: 135, r: 12, label: '土橋の塀', obj: STEP_TEXT[0],
       say: [['宮部継潤', '来たぞ！　塀に取り付く者を突き落とせ！']],
       waves: [
         // 猿渡信光は史実で根白坂に討死した。手は崩れても退かず、塀の前で討たれるまで戦う（update が守る）
-        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 120 }] },
+        { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 180 }] },
         { t: 24, say: ['鉄砲頭', '堀の中に詰まった！　放て！'], foes: () => [{ name: '島津の二の手', from: from(14), off: { x: 8, z: 2 }, list: [uS(2), uA(9), uG(3)] }] },
         { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 38, z: -14 }, list: [uS(2), uA(10)] }] },
       ],
-      noRefill: true, reward: '塀の上で島津の夜討ちを押し返した' }),
+      noRefill: true, reward: '塀の上で島津の夜討ちを押し返した' })),
     rest({ dur: 6, heal: 0.25, say: [['足軽', '……息が続かぬ'], ['宮部継潤', '島津は引かぬ。日が落ちた、まだ来るぞ']],
       fn: (r) => { try { r.world.setTime('night'); if (r.world.fade) r.world.fade.dur = 40; } catch (e) { /* 空の切り替えが無い時はそのまま */ } } }),
     // 3. 破られた塀に駆け、穴を塞ぐ
@@ -110,6 +110,23 @@ function steps(rt) {
 // 右上の目標の字（段の札・右上の一覧・負けの札を一つの表から出し、途中で言い替えない。kaito 十1）
 const STEP_TEXT = ['土橋の塀で、堀を越える島津勢を突き落とす', '倒れた土橋の塀へ走り、破れ口の島津勢を討つ',
   '土橋の前の坂で、島津忠隣を自分の手で討ち取る', '右の堀で、東から回る島津家久の手を食い止める', '土橋へ戻り、援けが来るまで島津の本手を食い止める'];
+
+// 段の終わりの退却指示より先に、猿渡の討死を確定する。
+function saruStep(s) {
+  const end = s.end;
+  s.end = (rt, ...args) => {
+    const sa = rt.army.units.find((u) => u.alive && u.name === '猿渡信光');
+    if (sa) {
+      const gun = rt.flags.guns?.units.find((u) => u.alive);
+      rt.army.play('volley', sa.pos, 1);
+      rt.army.kill(sa, gun || null);
+      rt.after(0.8, () => rt.say('鉄砲頭', '猿渡信光、鉄砲に倒れたり！', 3));
+    }
+    rt.flags.saruDone = true;
+    end(rt, ...args);
+  };
+  return s;
+}
 
 // 忠隣の段は、寄せた手を崩しても忠隣が生きている間は終わらない
 function tadaStep(s, rt) {
@@ -241,10 +258,10 @@ function todoArrive(rt) {
   const F = rt.flags;
   if (F.todo) return;
   // 藤堂は秀長の家臣で蔦の旗、戸川達安は宇喜多の手で宇喜多の旗（家ごとに隊を分ける）。説明の札は出さず、台詞と法螺で知らせる（kaito 五1）
-  F.todo = allyGroup(rt, { name: '藤堂高虎の手', anchor: { x: -8, z: -50 }, facing: 0, width: 8, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
+  F.todo = allyGroup(rt, { name: '藤堂高虎の手', anchor: { x: -8, z: -50 }, facing: 0, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '藤堂高虎', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(4), uA(8)], TODO));
   F.todo.anchor = { x: BREACH.x - 3, z: BREACH.z - 6 };
-  F.togawa = allyGroup(rt, { name: '戸川達安の手', anchor: { x: 4, z: -52 }, facing: 0, width: 8, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
+  F.togawa = allyGroup(rt, { name: '戸川達安の手', anchor: { x: 4, z: -52 }, facing: 0, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '戸川達安', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uA(7)], UKITA));
   F.togawa.anchor = { x: BREACH.x + 4, z: BREACH.z - 6 };
   KIT.backOf(rt, F.todo, { flag: 'todo', armor: TODO.armor, kind: 'spear', w: 16, depth: 8, count: 140, seed: 1587 });
@@ -258,10 +275,10 @@ function reliefArrive(rt) {
   const F = rt.flags;
   if (F.relief) return;
   // 黒田は藤巴、小早川隆景は左三つ巴（違い鎌は後の秀秋の物で、この年には使わない）
-  F.relief = allyGroup(rt, { name: '黒田官兵衛の手', anchor: { x: 96, z: 30 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
+  F.relief = allyGroup(rt, { name: '黒田官兵衛の手', anchor: { x: 96, z: 30 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '黒田官兵衛', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(3), uA(5), uG(2)], KURODA));
   F.relief.anchor = { x: BREACH.x + 14, z: 28 };
-  F.koba = allyGroup(rt, { name: '小早川隆景の手', anchor: { x: 100, z: 42 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'attack', seekRange: 60, noRout: true, dmgMult: 0.8 },
+  F.koba = allyGroup(rt, { name: '小早川隆景の手', anchor: { x: 100, z: 42 }, facing: -Math.PI / 2, width: 8, aggro: 14, order: 'hold', seekRange: 18, noPursue: true, historicalOrders: true, noRout: true, dmgMult: 0.8 },
     dress([{ type: 'busho', n: 1, o: { name: '小早川隆景', invuln: true, horse: true, hat: 'kabuto_w' } }, uS(3), uA(5), uG(1)], KOBA));
   F.koba.anchor = { x: BREACH.x + 20, z: 36 };
   KIT.backOf(rt, F.relief, { flag: 'kuroda', armor: KURODA.armor, kind: 'mixed', w: 16, depth: 8, count: 120, seed: 1588 });
@@ -332,7 +349,7 @@ const t08_nejirozaka = {
     // ---- 坂の下の島津の本陣（義弘）：旗本に囲まれ、坂の下を動かない（kaito AR3）。遠景の作り物の大軍は置かない ----
     //   この年の名乗りは義珍（義弘と名乗るのは後。kaito 十4 名乗りは年に合わせる）
     F.shHon = enemyGroup(rt, { faction: 'shimazu', name: '島津義珍の本陣', anchor: { x: 4, z: 150 }, facing: Math.PI, width: 12, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', seekRange: 4 },
-      dress([{ type: 'busho', n: 1, o: { name: '島津義珍', invuln: true, horse: false, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(10), uA(8)], SHIMAZU));
+      dress([{ type: 'busho', n: 1, o: { name: '島津義珍', invuln: true, mustLive: true, horse: false, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(10), uA(8)], SHIMAZU));
     F.shHon.noPursue = true;
     const yU = F.shHon.units.find((u) => u.name === '島津義珍');
     if (yU) yU._crouch = true;   // 坂の下の本陣で床几に座る
@@ -492,14 +509,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (C && C.s.kind === 'hold' && rt.t - C.t0 > C.s.max + 10) {
       const P = rt.player.u.pos;
       const far = rt.t - C.t0 > C.s.max + 25 ? 0 : 18;   // さらに十五秒たてば近くの者も（塀の上で斬り合わずに立つ本人の時、段の時切れが効かなかった）
-      for (const g of C.groups) for (const u of g.units) if (u.alive && !u.gone && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) > far) rt.army.despawn(u);
-    }
-    // 猿渡信光は根白坂で討死した（史実）。塀の段が終わっても生きていれば、退く前に塀の内の鉄砲に撃たれる
-    if (di >= 5 && !F.saruDone) {
-      F.saruDone = true;
-      const sa = rt.army.units.find((u) => u.alive && u.name === '猿渡信光');
-      const gun = F.guns?.units.find((u) => u.alive);
-      if (sa) { rt.army.play('volley', sa.pos, 1); rt.army.kill(sa, gun || null); rt.after(0.8, () => rt.say('鉄砲頭', '猿渡信光、鉄砲に倒れたり！', 3)); }
+      for (const g of C.groups) for (const u of g.units) if (u.alive && !u.gone && u.name !== '猿渡信光' && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) > far) rt.army.despawn(u);
     }
     // 負け方：砦の中に島津が多く入り込んだまま
     F.scan = (F.scan || 0) - dt;
