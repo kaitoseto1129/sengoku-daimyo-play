@@ -1975,7 +1975,7 @@ export function volleyScene(rt, o) {
 import DEPTH_SHIGA from './shiga/depth.js';   // 軍勢の厚み：本物の隊に結ぶ表（二巡 徳川C）
 const shiga = {
   depth: DEPTH_SHIGA,
-  lethal: true,   // 命懸けの戦場（lethal.js）
+  pacingCap: 1800,   // 町口・退き口・籠城を通す。共通の十八分で退却直後に打ち切らない。
   resumeSteps: [[1, 'first'], ['fall', 'fall'], [3, 'siege']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   syntheticBattleSound: true, // 鉄砲・法螺・馬・風も、既存の合成音を使い回す。
   // 二巡（徳川A 11/9）：命懸けの戦場（docs/lethal_howto.md）と死守の怖さ。宇佐山の死守は数で押され、退き口を断たれるのが怖い
@@ -4195,7 +4195,8 @@ const shiga = {
     const preferred = o.key === 'nobu' ? F.twoHands[0] : o.key === 'aochi' ? F.twoHands[1] : F.roster['城へ寄せる朝倉勢'];
     // 一つの手を生きている別の将から奪わない。寄せ先の交互更新で町口に届かなくなる。
     const available = (q) => q && !gone(q) && (!q._shigaDoomTarget?.alive || q._shigaDoomTarget === u);
-    let g = available(preferred) ? preferred : [F.w1, F.w1b, ...F.twoHands, F.w2].find(available);
+    let g = available(preferred) ? preferred : [F.w1, F.w1b, ...F.twoHands, F.w2,
+      F.roster['朝倉の新手'], F.roster['山側の浅井の新手'], F.roster['朝倉の三の手']].find(available);
     // 11/8 mb1108：十六日の町口の戦で控えまで崩れ去ると、三将を討つ敵が一人も来ず、町口で十三分止まった。
     //   その時は北の寄せ場から両手の新手（三万の内の一手）を出し、同じ道で町口へ寄せる。
     if (!g || gone(g)) {
@@ -4207,7 +4208,8 @@ const shiga = {
     if (g && !gone(g)) {
       g._shigaDoomTarget = u;
       // 湖側の平地から町口へ寄せる。山側の切岸へ直進させない。
-      g.order = 'path'; g.path = [[g.anchor.x, g.anchor.z], [c.x, c.z]]; g.pathIdx = 0;
+      const from = g.center();
+      g.order = 'path'; g.path = [[from.x, from.z], [c.x, c.z]]; g.pathIdx = 0;
       g.fixed = false; g.morale = Math.max(g.morale, 80);
       g.formation = 'column'; g.colW = 1; g.seekRange = 45; g.aggro = 4;
       g.onArrive = (q) => { q.order = 'attack'; q.formation = 'yari'; q.aggro = 14; };
@@ -4219,18 +4221,20 @@ const shiga = {
           u.alive && sightPoint(rt, u.pos, 40)) rt.say(o.name, o.last, 3);
     });
     u.invuln = true;
-    // 寄せ手が崩れたら新手を呼び直す。時間だけで倒さず、見える敵が槍の届く所まで来てから討死にする。
+    // 寄せ手が崩れたら新手を呼び直す。時間だけで倒さず、敵が槍の届く所まで来てから討死にする。
     let tries = 0;
     const fall = () => {
       if (rt.over || F.ending || F.step >= 3) return;
       tries++;
       if (u.alive && gone(g)) { u._shigaDoomPending = false; this.doom(rt, o); return; }
-      if (u.alive && tries % 8 === 0) {
-        // 最期の持ち場から将が押し出された時も、現在地へ寄せ直す。
+      if (u.alive && tries % 8 === 0 && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 4) {
+        // 将が動いた時だけ寄せ直す。八秒ごとの経路の初期化で行軍を妨げない。
+        c.x = u.pos.x; c.z = u.pos.z;
         g.order = 'path'; g.path = [[g.center().x, g.center().z], [u.pos.x, u.pos.z]]; g.pathIdx = 0;
       }
       const foe = u.alive ? rt.army.nearestEnemy(u, 4, (q) => !q.fleeing && !q.isStruct && !rt.army.wallBetween(u.pos, u.team, q.pos, false)) : null;
-      if (u.alive && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }
+      // 攻防の成立を画面の向きに依存させない。背後や町屋の陰で討たれても報せる。
+      if (u.alive && !foe) { rt.after(1, fall); return; }
       if (u.alive) { u.invuln = false; rt.army.kill(u, foe); }
       if (u.alive) { rt.after(1, fall); return; }
       this.reportDoom(rt, u, o.key, o.name);

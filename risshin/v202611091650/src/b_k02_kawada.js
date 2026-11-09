@@ -171,7 +171,9 @@ function otsukaTick(rt, C) {
     iu.target = null; iu.moveTo = toOtsuka;
     u.target = null; u.moveTo = toIinuma;
   }
-  const mid = wait > 40 ? { x: u.pos.x, z: u.pos.z } : { x: (u.pos.x + iu.pos.x) / 2, z: (u.pos.z + iu.pos.z) / 2 };
+  const mid = F.duelMid || (F.duelMid = { x: 0, z: 0 });
+  mid.x = wait > 40 ? u.pos.x : (u.pos.x + iu.pos.x) / 2;
+  mid.z = wait > 40 ? u.pos.z : (u.pos.z + iu.pos.z) / 2;
   for (const g of [ig, H]) if (g.order !== 'move' || !g.dest || Math.hypot(g.dest.x - mid.x, g.dest.z - mid.z) > 4) { g.order = 'move'; g.dest = mid; g.onArrive = null; }
 }
 
@@ -585,6 +587,10 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   // 手当てのために下がっている間は、木戸や柵の口へ引き戻さない。
   // 安全な味方の後ろまで退き、手当てと気力の回復を済ませてから進む。
   if (F.dp && F.dp.on && F.dpBack) { depthBot(b, inp, goTo); return; }
+  // 退避の後退・横移動・構えは入力に残る。専用の渡河・木戸の道順でも解除し、
+  // 前進との同時押しで柵の前に止まり続けないようにする。
+  inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.k.delete('KeyE');
+  inp.guardHold = false; inp.chargeHold = false;
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
   // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {
