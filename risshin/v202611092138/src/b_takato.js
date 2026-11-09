@@ -52,8 +52,9 @@ Object.assign(takato, {
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
   // 名乗り・決死の守り・使番の知らせは、戦の最中にも本人へ届かせる。
   battleDialogue: true,
-  speechAllowed: (rt, who) => rt.over || !!rt.flags.ending ||
-    /^(森長可|織田信忠|仁科盛信|はな（諏訪勝右衛門の妻）|使番)$/.test(who),
+  speechAllowed: (rt, who, text) => rt.over || !!rt.flags.ending ||
+    /^(森長可|織田信忠|仁科盛信|はな（諏訪勝右衛門の妻）|使番|使いの僧|毛利長秀)$/.test(who) ||
+    who === '足軽' && (!!rt.flags.k15on || text === '二の丸にも仁科の衆じゃ！　味方と土橋へ進め！'),
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || text === '本丸の決死の守り',
   // 11/4 p100（kaito AR1・AT16）：どこで何をするかを一行で。「味方と進め」「ここを守れ」のような分からない言い方をしない。
   // 始まりの札の「勝つには」は②③だけでなく、本丸までの勝ち筋を一行で。

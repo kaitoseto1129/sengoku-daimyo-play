@@ -3018,7 +3018,7 @@ function ariStage(o, defending) {
     // 追加の段は局地の目安を過ぎても、本人と組が確保するまで続ける。
     // 戦全体の攻めの期限は update で扱い、共通の段の期限にも達成を代行させない。
     limit: o.passOnLimit ? Infinity : o.lenient ? (o.limit ?? Infinity) : undefined,   // 残兵が退いた後も、本人と組の確保を待つ。
-    noHardCap: !!o.passOnLimit,
+    noHardCap: !!(o.passOnLimit || o.lenient),
     // 持ち場で構えるのは任務の一部。共通の放置判定で味方を突撃させず、下の期限で決着させる。
     idleAdvance: false,
     ariOrders: orders,
