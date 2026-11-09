@@ -446,15 +446,10 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     // 不発・弾切れ・射程外では、一斉射の達成や見せかけの損害を与えない。
     if (!shots) return;
     F.shot++; F.lastVolley = rt.t;
+    rt.say('水原親憲', '放て！', 2);
     sfx('volley', 0.9);
-    for (const z of [-9, 9]) for (let i = 0; i < 6; i++) rt.army.smoke(MIZU.x + 1 - i * 1.4, rt.world.heightAt(MIZU.x, z) + 1.4, z * 0.95, -1, -z * 0.03);
     rt.army.play('volley', MIZU, 1.6);
-    const shooter = F.mzN.units.find((u) => u.alive) || null;
-    let fell = 0;
-    for (const u of foes) {
-      if (!u.alive || u.invuln || fell >= 12) continue;
-      if (Math.random() < 0.6) { rt.army.damage(u, u.maxHp * 0.95, shooter, { kind: 'gun', pierce: true }); fell++; }
-    }
+    // 火・煙・損害は fireGun の筒先と実弾に任せる。命中前に別口で兵を倒さない。
     for (const g of [F.wata, F.kimu]) if (live(g)) g.morale -= 15;
     if (F.shot === 2) rt.say('足軽', '堤の上で、大坂の兵が折り重なって倒れていく！', 3);
   },
@@ -593,7 +588,6 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
         const near = [F.wata, F.kimu].some((g) => g && g.units.some((u) => u.alive && !u.gone && u.pos.x > MIZU.x - 40));
         if (near || rt.t - F.volT > 15) {
           F.volleyTry = rt.t;
-          rt.say('水原親憲', '放て！', 2);
           this.volley(rt);
           for (const g of [F.mzN, F.mzS]) g.fire = true;
           if (F.shot === 1 && !F.counterOrdered) {
