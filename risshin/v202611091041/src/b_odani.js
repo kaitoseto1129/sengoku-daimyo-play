@@ -173,7 +173,15 @@ const LOOKOUT_WAY = [[KYO.x + 9, KYO.z0 + 15], [KYO.x + 9, KYO.z0 + 7.9]];
 const LOOKOUT_RAMP = { ha: null, hb: null };
 // 待ち伏せの後続は、初めに決めた持ち場で待つ。三人ずつ交代する。
 function ambushSpace(army, u) {
-  if (u.odaniWait && !u.odaniReleased) return u.odaniWait;
+  if (u.odaniWait && !u.odaniReleased) {
+    // 下知前でも、持ち場まで来た攻め手には応戦する。待ち場で攻撃を毎回取り消さない。
+    if (!u.noTarget && army.nearestEnemy(u, 8, (q) => !q.isStruct && !q.noTarget &&
+        Math.abs(q.pos.y - u.pos.y) < 3 && !army.wallBetween(u.pos, -1, q.pos))) {
+      u.odaniReleased = true; u.aiT = 0;
+      return null;
+    }
+    return u.odaniWait;
+  }
   return null;
 }
 
@@ -5024,11 +5032,17 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       F.akaoGo = true;
       const ng = F.nagamasa;
       ng.order = 'move'; ng.focus = null; ng.aggro = 0; ng.seekRange = 0;
-      this.march(ng, [[nu.pos.x, nu.pos.z], [0, HON.z0 + 2], [AKAO.x, AKAO.z]], 0);
+      const door = F.akaoHouse.doorOut;
+      this.march(ng, [[nu.pos.x, nu.pos.z], [0, HON.z0 + 2],
+        [AKAO.x - AKAO.hw - 2, AKAO.z], [AKAO.x - AKAO.hw + 2, AKAO.z], [door.x, door.z]], 0);
       ng.speed = 3.6;
       rt.say('浅井長政', 'もはやこれまで。赤尾の屋敷へ退く。浅井の名は汚さぬ', 4);
-      rt.after(9, () => {
-        if (F.ending) return;
+      ng.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: door.x, z: door.z }; };
+    }
+    // 道中の九秒で倒さず、西木戸を通り赤尾屋敷の戸口まで歩いてから最期を迎える。
+    if (F.akaoGo && !F.ending && !F.nagaDead && nu?.alive &&
+        Math.abs(nu.pos.x - AKAO.x) < AKAO.hw && Math.abs(nu.pos.z - AKAO.z) < AKAO.hd &&
+        Math.hypot(nu.pos.x - F.akaoHouse.doorOut.x, nu.pos.z - F.akaoHouse.doorOut.z) < 3) {
         // 久政と同じく、生存状態と倒れる動きを既存の死亡処理にそろえる。
         rt.army.kill(nu, null);
         rt.world.addFire(AKAO.x, AKAO.z, { h: 2.4, size: 1.1 });
@@ -5037,7 +5051,6 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         (F.trig ||= []).push('fall:nagamasa');
         F.nagaDead = true;
         this.castleFall(rt);
-      });
     }
     if (!nu && !F.fallen) this.castleFall(rt);
   },

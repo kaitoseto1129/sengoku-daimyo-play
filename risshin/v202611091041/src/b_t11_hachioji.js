@@ -495,7 +495,8 @@ const t11_hachioji = {
     time: 'night',
     // 丑の刻の濃い霧：星も月も見えず、灰の霧の奥は四十間ほどで消える（前夜から霧に包まれた。『北条記』）
     //   月も霧に隠れて地面に影は落ちない（日の影のようにくっきり落ちていた。11/8 critic60）：直の光を絞り、霧の散る光で形を見せる
-    nightLight: { sky: 0x464c56, fog: 0x434952, top: 0x262b33, vis: 85, sunI: 0.08, hemiI: 0.62, hemiSky: 0x80858f, hemiGround: 0x3a3833 },
+    // 空の色だけでは星と月は隠れない。雲で覆い、直接光を止めて霧の夜に日の影を落とさない。
+    nightLight: { sky: 0x464c56, fog: 0x434952, top: 0x262b33, cover: 1, vis: 85, sunI: 0, hemiI: 0.62, hemiSky: 0x80858f, hemiGround: 0x3a3833 },
     mist: true,
     groundHalf: 280,
     paths: [ROUTE.slice(0, 9), ROUTE.slice(8)],
