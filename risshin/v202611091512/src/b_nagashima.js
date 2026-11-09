@@ -3913,7 +3913,7 @@ const nagashima = {
 
   aftermathTick(rt, dt) {
     const F = rt.flags;
-    if (!F.aftermathHeld || F.aftermathDone || !rt.player.u.alive) return;
+    if (!F.aftermathHeld || F.aftermathDone || !bankFighterReady(rt.player.u) || rt.player.u.downed) return;
     const i = F.aftermathChecked, spot = AFTERMATH_SPOTS[i];
     if (spot) {
       const p = rt.player.u.pos;
@@ -3989,7 +3989,9 @@ const nagashima = {
     // 対岸の射手も、射撃の合間は柵沿いを見回る。降伏後は射撃を止めて奥へ下がる。
     // perch を残したまま隊の行き先だけ変えても兵は動かないため、足場そのものを進める。
     for (const g of F.bankBows || []) for (const u of g.units) {
-      if (!boatPassengerReady(u) || u.fleeing || u.atk || u.reload || !u.bankPost || !u.perch) continue;
+      if (!boatPassengerReady(u) || u.fleeing || !u.bankPost || !u.perch) continue;
+      // 歩いた直後の射撃・装填では止まる。歩行量が残ると装填の時計が進まない。
+      if (u.atk || u.reload) { u.moving = 0; continue; }
       const post = u.bankPost, at = u.perch;
       const x = post.x + (F.step < 2 ? Math.sin(rt.t * .65 + u.id) * 1.5 : 0);
       const z = post.z - (F.step >= 2 ? 6 : 0);
