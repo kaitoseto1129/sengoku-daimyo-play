@@ -3767,7 +3767,7 @@ const saika = {
       if (F.inT >= 5) this.regroup(rt);
       else {
         if (el >= 50) warnBank(rt, 'returnWarn', '東岸の旗へ戻れ', '中央の口を戻り、東岸の旗へ集まれ');
-        if (el >= 90 && rt.t >= 240) this.win(rt, false);
+        // 道を探したり敵を払った時間だけでは失敗にしない。旗へ戻れば続けられる。
       }
     } else if (F.step === 4) {
       if (notice) {
@@ -3781,7 +3781,7 @@ const saika = {
       if (F.cover) this.hold(rt);
       else {
         if (el >= 70) warnBank(rt, 'coverWarn', '東岸の守りを固めよ', '竹束の陰で止まれ。「列を整える」を長押しじゃ', COVER);
-        if (el >= 90 && rt.t >= 240) this.win(rt, false);
+        // 敵を払う間も作業を再開できる。知らせていない九十秒の締切は設けない。
       }
     } else if (F.step === 5) {
       // 堤へ出る下知の後は、竹束の旧判定で呼び戻したり失敗にしない。

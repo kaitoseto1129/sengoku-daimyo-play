@@ -28,8 +28,9 @@ export function install(rt, def) {
     yao: cl({ x: 22, z: 136, facing: WEST, w: 32, gap0: 0, seed: 14206, killRate: 0.005, maxDrift: 10, corpses: 8, nearHide: 40,
       A: { flag: 'todo', armor: 0x24221f, count: n(70, 120), flagRate: 0.2 }, B: { flag: 'chosokabe', armor: 0x2a2622, count: n(70, 120), flagRate: 0.25 } }),
   };
-  // 名のある諸将（docs/generals_toyo_toku_1108.md）：長宗我部の横の備の将に増田盛次、藤堂の鉄砲衆の将に藤堂氏勝
-  for (const [g, name] of [[F.choSide, '増田盛次'], [F.todoGun, '藤堂氏勝']]) {
+  // 名のある諸将：横の備に増田盛次、長宗我部の先手に吉田重親、藤堂の鉄砲衆に藤堂氏勝。
+  // 既にいる侍に名を付けるので、兵の数と体の作りは増やさない。
+  for (const [g, name] of [[F.choSide, '増田盛次'], [F.choA, '吉田重親'], [F.todoGun, '藤堂氏勝']]) {
     const u = g && g.units.find((q) => q.type === 'samurai' && !q.name);
     if (u) u.name = name;
   }
