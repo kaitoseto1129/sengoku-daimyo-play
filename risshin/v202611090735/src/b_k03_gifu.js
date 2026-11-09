@@ -675,7 +675,9 @@ const k03_gifu = {
       rt.say('池田長吉', '者ども、押し包め！　福島勢に後れを取るな', 3);
     }
     // どの段も本人がその場所へ来てから果たす。城下で待つだけで①〜④に印が付くのも防ぐ。
-    const atGate = dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? 14 : 24);
+    // 11/9 二巡（徳川D）：本丸の門の前は旗本と味方で塞がり、十四歩の内へ入れず十分止まった（bot）。
+    //   刻限を一分半過ぎたら門の三十歩の内で、四分過ぎたらどこからでも、押し包んだ味方の手で門が開く
+    const atGate = dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : 24) || left <= -240;
     if (!F.next && atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90)) {
       F.next = true;
       this.fall(rt, g);
