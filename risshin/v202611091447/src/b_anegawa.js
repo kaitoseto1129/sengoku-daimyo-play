@@ -2858,6 +2858,7 @@ const anegawa = {
   // 11/5（標準 三-3・kaito BL2・BL3）：右上に番号つきの五つを戦の間ずっと出す（stages.js の anegawa）。
   //   ▼の上の「ここを攻める」等の字・二つ目の指示は出さない。
   stageGoalsOnly: true, missionAlways: true, goalsAllRows: true,
+  goalVisibleRows: 5, goalRowsAhead: true, // 表示件数も指定し、現在から先の五件を最初から並べる。
   // 11/5（fix2・標準 五3）：行き先の▼には距離（〇〇歩）だけを添える。説明の字は出さない（goalSignBare は距離まで消していた）。
   goalSignNoLabel: true, goalSignOnly: true, meleeGuide: () => false,
   hideMissionDots: true, hideGuideSteps: true,

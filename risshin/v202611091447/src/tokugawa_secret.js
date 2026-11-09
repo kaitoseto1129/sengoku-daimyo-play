@@ -17,10 +17,11 @@ export function markTokuWon(id) {
   a.push(id);
   try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) { /* 書けなくても遊びは止めない */ }
 }
-export function secretOpen() {
+// otherLeft：織田家編・豊臣編のまだ勝っていない戦の数（hub が数える。三つの編すべてに勝つと開く。kaito 11/8）
+export function secretOpen(otherLeft = 0) {
   if (typeof location !== 'undefined' && /[?&]secret\b/.test(location.search)) return true;
   const won = new Set(tokuWon().map((id) => id.slice(0, 3)));
-  return TOKUGAWA_PLAN.every((p) => won.has(p.id.slice(0, 3)));
+  return otherLeft <= 0 && TOKUGAWA_PLAN.every((p) => won.has(p.id.slice(0, 3)));
 }
 // まだ勝っていない徳川編の戦の数（錠の札に出す）
 export function secretLeft() {
