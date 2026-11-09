@@ -64,7 +64,7 @@ export function tick(rt, dt) {
     M.dateH = st.mk({ x: 70, z: -30, w: 34, d: 12, count: n(120, 200), facing: WEST, armor: 0x24221f, flag: 'date', seed: 13205 });
   }
   // ④⑤の間、徳川方も大きく損じる（およそ四千）
-  if (i >= 5 && F._loss13 < 4200) F._loss13 += dt * 32;
+  if (i >= 5 && F._loss13 < 4200) F._loss13 = Math.min(4200, F._loss13 + dt * 32);
   // ④の鉄砲戦：遠くの伊達の列と真田・毛利の列が撃ち合う（音と煙）
   if (i === 5 && (st.vT -= dt) <= 0) {
     st.vT = 3.5 + Math.random() * 2;
