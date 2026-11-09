@@ -321,7 +321,7 @@ const t09_yamanaka = {
     for (const s of F.daiWall) { s.noClimb = true; s.bodyPadding = 0.3; }
     // ---- 三の丸の大手（角馬出し・枡形・横矢・畝堀・狭間からの鉄砲）。出丸の柵からも撃つ（近づくほど弾が降る。kaito BA 5） ----
     F.K = buildSiege(rt, SP, { team: 1, earth: true, wall: 'saku', umadashiWall: 'saku', wallHp: 520, gateHp: 460, masuHp: 600,
-      fire: { hurt: 0.03, near: 90, close: 18, base: 0.8, peak: 4, rain: 0.3 },   // 寄せ手も撃たれて倒れるが、柵に着く前に一隊が消えない強さ
+      fire: { hurt: () => (rt.flags.step === 1 ? 0.004 : 0.03), near: 90, close: 18, base: 0.8, peak: 4, rain: 0.3 },   // 寄せ手も撃たれて倒れるが、柵に着く前に一隊が消えない強さ
       extraWalls: [{ structs: F.daiWall, inside: { x: D.x - 2, z: D.z } }] });
     shojiRibs(rt);
     // ---- 城の建物（北条の土の城：板の櫓と柵だけ。天守閣は無く、本丸の北西の高まりに天守櫓） ----
@@ -389,7 +389,7 @@ const t09_yamanaka = {
     // ---- 岱崎出丸の間宮康俊の隊（数百。柵の内に鉄砲、後ろに槍と騎馬） ----
     F.dai = enemyGroup(rt, { faction: 'hojo', name: '間宮康俊の隊', anchor: { x: D.x + 6, z: D.z }, facing: 0.8, order: 'hold', aggro: 20, width: 12, morale: 95, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.3 },
       dress([{ type: 'busho', n: 1, o: { name: '間宮康俊', hat: 'kabuto_m', haori: 0x4a3a28 } }, { type: 'gun', n: 16 }, { type: 'ashigaru', n: 28 + more(rt, 0.3) }, { type: 'samurai', n: 5 }, { type: 'cavalry', n: 3 }], HOJO));   // 騎馬は三騎（八騎の当たりで出丸の前で倒れ続けた。11/8 bot）
-    for (const u of F.dai.units) if (u.type === 'gun') u.dmg *= 0.22;   // 15分の構成：出丸の鉄砲で倒れ続けた（11/8 bot）
+    for (const u of F.dai.units) if (u.type === 'gun') u.dmg *= 0.12;   // 15分の構成：出丸の鉄砲で倒れ続けた（11/8 bot）
     // 寄せ手の竹束（critic60 山中 7「竹束は一つも無い」）：出丸の鉄砲に向けて、街道の坂の上り口に横へ並べる。玉と矢を本当に止める
     {
       const vx = START.x - D.x, vz = START.z - D.z, L = Math.hypot(vx, vz) || 1, ux = vx / L, uz = vz / L;
@@ -684,7 +684,8 @@ const t09_yamanaka = {
       const mu = F.dai.units.find((u) => u.type === 'busho');
       // 間宮の突き入りは主人公の見える所（60m）で始める。柵の内で突っ立ったまま字だけで死なない（critic60 山中 8）
       const muNear = mu && Math.hypot(mu.pos.x - p.x, mu.pos.z - p.z) < 60;
-      if (F.ichiShot && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
+      // 一柳が撃たれる所に本人がいなくても、二分半で間宮は突き入る（11/9 見回り：突き入らず出丸に籠もった残りが討てず十八分止まった）
+      if ((F.ichiShot || T > 150) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
         F.mamiya = true; F.mamiyaT = rt.t;
         F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
         rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
@@ -701,7 +702,7 @@ const t09_yamanaka = {
       // 味方だけが出丸を抜いても、主人公が寄るまでは次の目標を達成扱いにしない。
       // 残兵を探し回らせず、間宮を失った手勢が近くの寄せ手へ突き入る。
       // 時間だけで敗走・柵の破壊・討ち取りの達成を起こさない。
-      if (!F.daiLast && F.mamiyaDead && T > 180 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
+      if (!F.daiLast && (F.mamiyaDead ? T > 180 : T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
         F.daiLast = true; F.dai.order = 'attack'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
       }
       // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
@@ -739,7 +740,8 @@ const t09_yamanaka = {
       if (!F.gateOpen && F.sub === 'back' && dg < 60 && rt.t - F.backT > 150) this.openGate(rt, false);
       // 三の丸の広場に入って果たす。時間で半径を広げると門の外でも達成してしまう。
       const dpz = Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z);
-      if (F.gateOpen && dpz < 10) this.honmaru(rt);
+      // 広場の真ん中に三の丸の守りが固まって着けない時も、門をくぐって三の丸の内に入れば入ったとする（11/9 見回り：門の内で九分止まった）
+      if (F.gateOpen && (dpz < 10 || (Math.hypot(p.x - KURUWA.san.x, p.z - KURUWA.san.z) < 30 && p.z < SP.at.gate.z - 3))) this.honmaru(rt);
     }
     if (F.step === 4) {
       const g = F.hon;
@@ -761,6 +763,8 @@ const t09_yamanaka = {
         rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
       }
       // 旗本は退かせず、松田康長が討たれるまで本丸で戦う（critic60 山中 37「退いただけで落城・康長の討たれる所が見えない」）
+      // 旗本が崩れなくても、三分余りで康長が自ら打って出る（討つのは本人と寄せ手。時間で討ち死にはさせない。11/9 見回り：本丸で十分止まった）
+      if (F.honOn && !F.honOut && T > 200 && F.honU?.alive) { F.honOut = true; g.fixed = false; g.order = 'attack'; g.aggro = 40; g.seekRange = 60; rt.say('松田康長', '者ども、討って出るぞ！', 3); }
       if (F.honOn && g.count < F.honN * 0.4 && F.honU?.alive && !F.honLast) { F.honLast = true; g.aggro = Math.max(g.aggro || 0, 20); rt.say('松田康長', '本丸を枕に討ち死にいたす。かかれ！', 3.5); }
       // 康長の討死は実際の攻撃で決める。近くで待った時間だけで命を尽かせない。
       if (F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50 && (g.count === 0 || (F.honU && !F.honU.alive))) this.win(rt);
