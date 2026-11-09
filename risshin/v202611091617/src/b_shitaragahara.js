@@ -742,7 +742,7 @@ const TAKEDA_POSTS = [
   ['土屋昌次', 105, -340, 'takeda', 'takeda', 'mixed'],
   ['真田信綱', 110, -240, 'takeda', 'sanada', 'mixed'],
   ['真田昌輝', 140, -170, 'takeda', 'sanada', 'mixed'],
-  ['内藤昌豊', 105, -30, 'takeda', 'takeda', 'mixed'],
+  ['内藤昌豊', 105, -30, 'takeda', '内藤の胴赤', 'mixed'],
   ['原昌胤', 140, 70, 'takeda', 'takeda', 'spear'],
   ['武田逍遥軒信廉', 210, 130, 'takeda', 'takeda', 'mixed'],
   ['小山田信茂', 110, 250, 'takeda', 'takeda', 'spear'],
@@ -3488,7 +3488,7 @@ const shitaragahara = {
   //   具足は黒（赤備えは南の山県だけ・四3）。家の旗は真田の六連銭と武田菱。軍勢対軍勢に見えるよう、本物の徒歩を三十四人に。
   WAVES: [
     { name: '真田信綱・昌輝', hq: 'shitara_sanada', fac: 'hojo', flag: 'sanada', z: MOUTHS[0].z, home: { x: 148, z: MOUTHS[0].z + 4.5 }, cav: 8, ash: 22, brother: true },
-    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: 'takeda', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 8, ash: 22, general: '内藤昌豊', final: true },
+    { name: '内藤昌豊', hq: 'shitara_naito', fac: 'hojo', flag: '内藤の胴赤', z: MOUTHS[1].z, home: { x: 152, z: MOUTHS[1].z + 4.5 }, cav: 8, ash: 22, general: '内藤昌豊', final: true },
   ],
 
   makeWave(rt, w) {

@@ -84,6 +84,14 @@ export function retreat(rt, C) {
   for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; g.anchor = { x: K.saku.x + K.d.x * 3, z: K.saku.z + K.d.z * 3 }; g.aggro = 8; g.seekRange = 8; g.onArrive = null; g.ai = false; g.fixed = true; g.fire = false; for (const u of g.units) u.target = null; }
   // 退く背を撃たない（主人公が撃たれ続けて倒れた）。fire=false は近くの本人には撃つので、玉を切らせる（army_ranged.js の gunAmmo）
   for (const g of [K.foe, K.foe2, ...(K.shot || [])]) if (g) { g.fire = false; for (const u of g.units) if (u.type === 'gun') u.gunAmmo = 0; }
+  // 11/9 三巡：それでも近い本人には「撃つな」の下知を越えて弓・鉄砲が撃ち、退く背に矢玉が重なって倒れた（bot 109秒・113秒）。退く間は下知を守らせる
+  if (rt.world?.def) { K.strictWas = rt.world.def.strictFireOrders; rt.world.def.strictFireOrders = true; }
+  // 柵の段の外の組（塀の上の鉄砲など）も、退く間は撃たない（bot 125秒：20〜28 歩先の鉄砲で倒れた）
+  const me = rt.player.u.team; K.fireWas = [];
+  for (const g of rt.army.groups) if (g.team !== me && g.fire !== false) { K.fireWas.push(g); g.fire = false; }
+  // 「撃つな」でも構えた弓が射続けた（bot：柵の守りの弓に背を射られて倒れた）。退く間は敵の弓・鉄砲の矢玉を切らせ、夜の段で戻す
+  K.ammoWas = [];
+  for (const g of rt.army.groups) if (g.team !== me) for (const u of g.units) if (u.alive && (u.type === 'bow' || u.type === 'gun')) { K.ammoWas.push([u, u.arrowAmmo, u.gunAmmo]); u.arrowAmmo = 0; u.gunAmmo = 0; }
   if (C.live(K.ally)) { K.ally.order = 'move'; K.ally.dest = { x: C.CAMP.x - 4, z: C.CAMP.z - 8 }; K.ally.speed = 3.4; K.ally.aggro = 0; K.ally.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; }; for (const u of K.ally.units) u.target = null; }
   rt.say('使番', '退け！　三成様の御下知じゃ。力攻めはならぬ、丸墓山の本陣へ戻れ！', 3.6);
   rt.after(4.2, () => rt.say(nm(rt), '土手一本では、寄せても寄せても上から撃たれる……', 3.2));
@@ -109,6 +117,9 @@ function council(rt, C) {
     // 時が飛ぶ（その夜）。柵の段の兵は片付け、主人公と組は区の堤の上へ
     for (const g of [K.foe, K.foe2, ...(K.shot || []), K.ally]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
     if (K.clash?.mesh) K.clash.mesh.visible = false;   // 長野口の乱戦はこの段だけ
+    if (rt.world?.def) rt.world.def.strictFireOrders = K.strictWas;
+    for (const g of K.fireWas || []) g.fire = true;
+    for (const [u, a, b] of K.ammoWas || []) { u.arrowAmmo = a; u.gunAmmo = b; }
     C.warp(rt, C.START.x, C.START.z, Math.atan2(-1, -1));
     rt.banner('その夜　堤の普請', '浅瀬の口で、夜討ちを防げ');
     C.def.night(rt);
@@ -139,9 +150,9 @@ export function tick(rt, dt, C) {
       rt.say('石田勢の足軽', '城から新手じゃ！　土手の先から次々来る！', 3);
       rt.after(5, () => rt.say('使番', '北の長野口も押し返されたぞ！', 2.8));
     }
-    // 新手と揉み合って一息のち、佐間口の塀から一斉に撃たれ、先手が崩れる。使番が退けを伝える
+    // 新手と揉み合って一息のち、佐間口の塀から一斉に撃たれ、先手が崩れる。使番が退けを伝える（11/9 三巡：五十秒待つ間に新手に囲まれて bot が倒れた（94〜119秒）。三十二秒に）
     const down2 = K.foe2 ? K.foe2.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;
-    if (!K.volley && K.contact && P.alive && K.foe2 && (rt.t - K.newT > 50 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
+    if (!K.volley && K.contact && P.alive && K.foe2 && (rt.t - K.newT > 32 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
       K.volley = rt.t;
       sfx('volley', 1); rt.army.play('volley', C.GATE, 1.4);
       // 土手の先手が何人も撃ち倒される（一つの城の口に寄るだけで、これだけ倒れる）
@@ -152,7 +163,8 @@ export function tick(rt, dt, C) {
     if (K.volley && rt.t - K.volley > 4) retreat(rt, C);
   } else if (F.step === 2) {
     // 柵の守りは柵の内から出ない
-    for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; for (const u of g.units) if (u.alive && !u.gone && !C.near(u.pos, K.saku, 9)) u.target = null; }
+    // 11/9 三巡：柵の際で囲まれたまま退きが始まると、柵の守りが退く本人を突き続けて倒した（bot 119秒）。退く間は本人を狙わない
+    for (const g of [K.foe, K.foe2]) if (C.live(g)) { g.order = 'hold'; g.aggro = Math.min(g.aggro, 3); for (const u of g.units) if (u.alive && !u.gone && (u.target === P || !C.near(u.pos, K.saku, 9))) u.target = null; }
     // 本陣の印まで戻ってから軍議へ。遠くに残ったまま時刻だけで済ませない。
     if (!K.council && P.alive && C.near(P.pos, C.MARU, 16)) council(rt, C);
   }

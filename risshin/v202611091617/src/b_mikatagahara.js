@@ -831,7 +831,7 @@ const TAKEDA_JIN = {
     ['baba', '第三陣左翼', '馬場信春', 3000, -350 / 16, TAKEDA_THIRD, 'takeda', 'naito'],
     ['obata', '第二陣左翼', '小幡信貞', 2500, -450 / 16, TAKEDA_SECOND, 'takeda', 'oyamada'],
     ['katsuyori', '第三陣右翼', '武田勝頼', 2500, 300 / 16, TAKEDA_THIRD, 'takeda', 'yamagata'],
-    ['naito', '第二陣中翼', '内藤昌豊', 2500, -250 / 16, TAKEDA_SECOND, 'takeda', 'oyamada'],
+    ['naito', '第二陣中翼', '内藤昌豊', 2500, -250 / 16, TAKEDA_SECOND, '内藤の胴赤', 'oyamada'],
     // 紙（battle_events_1101 13）の必須の人物。三陣の中ほど（位置と人数は遊びの復元）
     ['kosaka', '第三陣中翼', '高坂昌信', 2000, -50 / 16, TAKEDA_THIRD, 'takeda', 'naito'],
     ['nobutoyo', '旗本衆', '武田信豊（典厩）', 2000, -16, 5, 'takeda'],
