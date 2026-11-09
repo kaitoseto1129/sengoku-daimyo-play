@@ -18,7 +18,7 @@ export function start(rt, ctx, done) {
       say: [['木下藤吉郎', '寄せる前に城の構えを見よ。物見の場へ上がれ', 3.4]] }),
     DP.move({
       to: SPOT, r: 5, label: '物見の場', obj: '物見の場へ上がり、城の構えを見よ', max: 70,
-      ambush: { d: 4, title: '城の構えが見えた', sub: '坂の柵・二の丸の木戸・山上の本丸', say: ['足軽', '脇の藪から六角の物見じゃ！'],
+      ambush: { d: 10, title: '城の構えが見えた', sub: '坂の柵・二の丸の木戸・山上の本丸', say: ['足軽', '脇の藪から六角の物見じゃ！'],
         foes: () => [{ name: '六角の物見', from: { x: SPOT.x - 18, z: SPOT.z - 6 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], mass: 90 }] },
       onEnd: (rt2) => {
         // 着いた時に見えた物：三段の旗を短く示す（字は旗の名だけ）

@@ -28,6 +28,9 @@ import { enemyGroup, allyGroup, nm, unitPos } from './bhelp.js';
 import { gone } from './b_inabayama.js';
 import { Garan, makeTempleFire } from './temple1571.js';
 import { P, PATHS, BUILDINGS, VALLEYS, pathById, pathPoint, height, onFlat } from './castles/hiei1571.js';
+// 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md の 12）：段の中身は hieizan/ の一段一ファイル
+import * as SAKA from './hieizan/sakamoto.js';   // 0〜3分：坂本の湖岸から三塔を見上げ、里坊の僧兵を退ける
+import * as SAITO from './hieizan/saito.js';     // 6〜15分：西塔の鐘・西塔・横川（もとの続きに時の保険）
 import { hieiSpeech, hieiGaranLook, hieiGroundFoot, hieiTimberGrain, hieiRoomMaterial, rinboTexture } from './b_hieizan.js';
 import { dressStage } from './stage_dress.js';
 import { nakaRoomAt } from './naka.js';
@@ -2511,7 +2514,10 @@ const hiei_mtn = {
       { kind: 'stage', k: 0, text: HIEI_GOALS[1], noun: '本坂の石段', check: (rt) => won(rt) || (F(rt).step || 0) >= 3 },
       { kind: 'stage', k: 1, text: HIEI_GOALS[2], noun: '文殊楼', check: (rt) => won(rt) || (F(rt).step || 0) >= 4 },
       { kind: 'stage', k: 2, text: HIEI_GOALS[3], noun: '根本中堂', check: (rt) => won(rt) || !!F(rt).courtDone },
-      { kind: 'stage', k: 2, text: HIEI_GOALS[4], noun: '根本中堂の前', check: won },
+      { kind: 'stage', k: 2, text: HIEI_GOALS[4], noun: '根本中堂の前', check: (rt) => won(rt) || !!F(rt).bell2 },
+      // 11/8 夜：15分の構成で西塔・横川へ続ける
+      { kind: 'stage', k: 3, text: '燃える西塔の釈迦堂の前へ進む', noun: '西塔の釈迦堂', check: (rt) => won(rt) || (F(rt).step || 0) >= 6 },
+      { kind: 'stage', k: 3, text: '逃げる人々を追わず、横川中堂の前へ進む', noun: '横川中堂', check: won },
     ].map((g) => ({ ...g, count: () => null, sec: 900 }));
   },
   introSides: { a: '織田軍 約三万', b: '延暦寺の衆 約四千' },
@@ -2552,6 +2558,8 @@ const hiei_mtn = {
   },
   missionHeading(rt) {
     const F = rt.flags;
+    const pre = SAKA.heading(rt);
+    if (pre) return pre;
     if (F.dangerAt !== undefined) return '来た本坂を下り、坂本へ退く';
     if (F.woundTask) return '本坂の味方の後ろで身を守る';
     if (F.step <= 1) return HIEI_GOALS[F.hiyoDone ? 1 : 0];
@@ -2579,6 +2587,14 @@ const hiei_mtn = {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     const q = F.standardPin || (F.standardPin = { x: 0, z: 0 });
+    // 始まりの段：湖岸の辻、または里坊の僧兵（hieizan/sakamoto.js）
+    if (SAKA.active(rt)) {
+      const S = F.hieiSaka, u = S.k === 2 && S.g?.units.find((v) => v.alive);
+      q.unit = u || null; q.enemy = !!u; q.waiting = false; q.arrived = false; q.route = false;
+      const at = u ? u.pos : S.k === 0 ? S.at : { x: 176, z: 6 };
+      q.x = at.x; q.z = at.z; q.r = q.hide = u ? 2 : 4;
+      return q;
+    }
     const stage = this.missionOf(rt), post = hieiPost(rt), me = rt.player.u.pos;
     // 開戦の下知中も、本人の足元へピンを重ねず参道の入口を示す。
     let at = F.step === 0 ? pathById('hiyoshi').pts[0] : F._gp || post;
@@ -3483,8 +3499,24 @@ const hiei_mtn = {
     rt.after(.5, () => { if (F.step < 1 && !rt.player.lock) rt.player.cine = { x: VISTA.x, z: VISTA.z, t: 5, up: VISTA.up, vista: true, crane: true, encounter: true }; });
     // 11/4 jin：光秀の頭上の印は出さない（行き先の▼と二つにしない。名札は武将の名で足りる）。
     // 任務の「鳥居」と印の「日吉社」が食い違っても、開戦の矢印を鳥居へ向ける。
-    rt.marker('hiyoshi', { x: 148, z: -4 }, '鳥居・日吉社', { h: 3, guidePriority: 250 });
-    rt.after(6, () => { if (rt.phase === 'brief') this.p1(rt); });
+    let ready = () => {
+      rt.marker('hiyoshi', { x: 148, z: -4 }, '鳥居・日吉社', { h: 3, guidePriority: 250 });
+      rt.after(6, () => { if (rt.phase === 'brief') this.p1(rt); });
+    };
+    // 15分の構成：始まりの段（坂本の湖岸）を挟んでから坂本の放火と日吉社へ（hieizan/sakamoto.js）
+    //   その間、明智の先手と鉄砲組は鳥居の守りから十四歩東で控える（下知の前に斬り合って減らさない）。下知で元の持ち場へ進む。
+    if (!rt.G.lord) {
+      const held = [F.akechi, F.teppo].filter(Boolean).map((g) => ({ g, anchor: { ...g.anchor }, order: g.order }));
+      for (const h of held) {
+        h.g.anchor = { x: h.anchor.x + 14, z: h.anchor.z }; h.g.order = 'hold';
+        for (const u of h.g.units) u.pos.x += 14;
+      }
+      const go = ready;
+      ready = () => { for (const h of held) { h.g.anchor = h.anchor; h.g.order = h.order; } go(); };
+    }
+    if (rt.G.lord) ready();
+    else SAKA.install(rt, { foe: (r, o, l) => this.foe(r, o, l), list: [...dress([{ type: 'ashigaru', n: 6 }, { type: 'samurai', n: 1, o: { weapon: 'spear' } }], SOHEI)],
+      vista: { x: VISTA.x, z: VISTA.z, up: VISTA.up }, ready });
   },
 
   preparePeople(rt) {
@@ -3923,7 +3955,9 @@ const hiei_mtn = {
     if (F.fire) F.fire.tick(dt);
     if (F.fireJobs) fireWork(rt, dt);
     // 鳥居へ歩き出したら先手も動く。下知の六秒が終わるまで待たせない。
-    if (!F.ending && F.step === 0 && rt.phase === 'brief' && rt.player.u.alive
+    F.hieiSaka?.tick?.();
+    SAITO.tick(rt, { P, p6: () => this.p6(rt), p7: () => this.p7(rt), win: (why) => this.win(rt, why), back: F.hieiBack, walk, pts });
+    if (!F.ending && F.step === 0 && rt.phase === 'brief' && rt.player.u.alive && !SAKA.active(rt)
       && rt.player.u.pos.x < P.spawn.x - 2) this.p1(rt);
     if (F.ending || F.step < 1 || !rt.player.u.alive) { rt.unmark('hiei-exit'); return; }
     // 筒先の火は〇・四五秒残るが、斉射は〇・一六秒以内に揃った三挺から。
@@ -3955,7 +3989,8 @@ const hiei_mtn = {
       F.lossReady = true;
       // 11/7（kaito 十二3・一1）：bot の通しで石段の下の先手十八人だけが削られ、二回に一回「山道を押し通せず」で負けた。
       //   三万の寄せ手の明智の手は先手・鉄砲・後続で一つ。負けは明智の手の全部（組・先手・鉄砲・後続）が三分の一を割った時だけにする。
-      F.lossUnits = [...new Set([...rt.squad, ...F.akechi.units, ...F.teppo.units, ...(F.akechi2 ? F.akechi2.units : [])])];
+      // 15分の構成：始まりの段（坂本の湖岸）で討たれた者は数えない。下知の時に立っている者から数える
+      F.lossUnits = [...new Set([...rt.squad, ...F.akechi.units, ...F.teppo.units, ...(F.akechi2 ? F.akechi2.units : [])])].filter((q) => q.alive && !q.woundOut);
       F.lossInitial = F.lossUnits.length;
     }
     for (const g of rt.squadGroups) if (!g._followSlot) {
@@ -4071,6 +4106,16 @@ const hiei_mtn = {
         if (!gone(F.chudoG)) hieiCry(rt, F.chudoG, 'eshout', 1.1);
         rt.say('根本中堂の僧兵頭', '中堂を渡すな！　火の中でも退くな！', 3);
         rt.after(25, () => { for (const g of [F.chudoG, F.kodoG, F.courtBow]) if (!gone(g)) g.noRout = false; });
+        // 15分の構成：明智の後続が根本中堂の前へ上がる（三万の寄せ手。兵が空にならない）。負けの物差しはここから数え直す
+        if (!rt.G.lord && !F.hieiBack) {
+          const back = F.hieiBack = allyGroup(rt, { faction: 'oda', fixed: true, noRout: true, name: '明智の後続', anchor: { x: -6, z: -6 }, facing: -Math.PI / 2, width: 3, aggro: 9, formation: 'column', colW: 2 },
+            dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }], ODA));
+          if (back) walk(back, [[-17, -6], [-28, -5], [-34, -5]], 2.4, (q) => attackFrom(q, 16));
+          const alive = (F.lossUnits || []).filter((q) => q.alive && !q.woundOut);
+          F.lossUnits = [...alive, ...(back?.units || [])]; F.lossInitial = F.lossUnits.length;
+        }
+        // 長引いても一分半で中堂の守りは燃える堂の奥へ退く（敵の命で時を延ばさない）
+        if (!rt.G.lord) rt.after(90, () => { if (!F.ending && !F.bell2) for (const g of [F.chudoG, F.kodoG, F.courtBow]) if (!gone(g)) { g.noRout = false; g.morale = 0; g.order = 'retreat'; } });
       }
       if (F.courtDone && !F.bell2) {
         rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '根本中堂の前へ。味方と道を開け'));
@@ -4082,7 +4127,13 @@ const hiei_mtn = {
         // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
         if (F.courtHand && near(u, P.court, 12) && guardedRoad(rt, P.court) &&
             [F.chudoG, F.courtBow].every(gone) && rt.t - F.courtT > 15) {
-          this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
+          // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
+          if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
+          else {
+            if (F.hieiBack) walk(F.hieiBack, [[-30, -5], [-24, -5], [-19, -9], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+            rt.say('明智光秀', '中堂は押さえた。後続と西塔へ続くぞ', 3);
+            this.bellSaito(rt);
+          }
         }
       }
       if (F.bell2) {
@@ -4313,7 +4364,10 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE'); inp.k.delete('KeyS');
-  if (!u.alive || F.ending || !F.step) return;
+  if (!u.alive || F.ending) return;
+  if (SAKA.bot(b, goTo, p, inp, patientStrike)) return;   // 始まりの段（坂本の湖岸）
+  if (u.alive && SAITO.bot(b, goTo, p, inp, patientStrike, routeFor)) return;   // 西塔・横川の段
+  if (!F.step) return;
   const exit = hieiExitWay(b);
   if (exit) {
     if (p.lock) inp.e.add('KeyQ');

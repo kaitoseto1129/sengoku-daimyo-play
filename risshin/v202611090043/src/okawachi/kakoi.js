@@ -19,7 +19,7 @@ export function start(rt, ctx, done) {
       say: [[speaker, '城は山ひとつ。大手も搦手も鹿垣で塞いだ。まず角の物見の場で城を見よ', 4]] }),
     DP.move({
       to: SPOT, r: 5, label: '物見の場', obj: '坂の角の物見の場へ上がり、城の構えを見よ', max: 80,
-      ambush: { d: 4, title: '城の構えが見えた', sub: '木戸の上に櫓・山上に本丸', say: ['足軽', '木戸の脇から北畠の物見じゃ！'],
+      ambush: { d: 10, title: '城の構えが見えた', sub: '木戸の上に櫓・山上に本丸', say: ['足軽', '木戸の脇から北畠の物見じゃ！'],
         foes: () => [{ name: '北畠の物見', from: { x: SPOT.x - 12, z: SPOT.z - 16 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'bow', n: 1 }], mass: 0 }] },
       onEnd: (rt2) => rt2.say('使番', '城の木戸は固く、山上の本丸までは坂が三つ。力攻めは骨が折れまするぞ', 4),
     }),

@@ -3322,7 +3322,7 @@ const honnoji = {
     }
     // 印と任務札では同じ短い行き先を使う。
     if (!keepDestination) {
-      if (F.hp === 6) return F.escortShown ? 'この人の所へ戻る' : 'この人についていく';
+      if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
       if (F.hp === 8) return this.escapeGuideLabel(rt);
     }
     // 戸口の印にも行き先を添える。守りへの合流と退却を同じ「ここへ」にしない。
@@ -3335,7 +3335,7 @@ const honnoji = {
       return '次の印へ進む';
     }
     if (F.hp === 4 || F.hp === 5) return '本堂の上様のもとへ進む';
-    if (F.hp === 6) return F.escortShown ? 'この人の所へ戻る' : 'この人についていく';
+    if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
     if (F.hp === 7) return '奥の信長へ';
     if (F.hp === 8) return this.escapeGuideLabel(rt);
     return F.hp === 1 ? '次の印へ進む' : '印へ すすめ';
@@ -3452,7 +3452,7 @@ const honnoji = {
   taskLabel(rt, text) {
     const F = rt.flags;
     if (rt.G.lord || F.step >= 3) return text;
-    if (F.hp === 6) return F.escortShown ? 'この人の所へ戻る' : 'この人についていく';
+    if (F.hp === 6) return F.escortShown ? '上様の所へ戻る' : '上様と御殿へ退く';
     // 火の知らせを一時の台詞だけに任せず、熱を受けている間は行き先と一緒に残す。
     if (F.T?.heatWarm > 0 && F.hp >= 4 && F.hp <= 8) {
       return this.routeGuidePriority(rt) ? this.travelGuideLabel(rt) : '火から はなれろ';
@@ -4904,7 +4904,8 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
         ? '御所の門へ戻り、味方と口を支えよ'
         : friend < 2 ? '門の内の御所の侍へ寄れ。一人では守りを支えられぬ'
         : `門の内で味方と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
-      if (t > HOLD_END && ((F.pk || 0) - (F.pkNijo || 0) >= 1 || F.nHold >= HOLD_NEED)) this.escape(rt);   // 10/31：本人が門で討つか、門の内で支えた時だけ   // 支えた時間が短くても、御所の侍が門を引き継ぐ。止めずに北の口へ
+      // 門外で一人討っただけでは守備を果たさない。札に出した時間、門の内で寄せ手を迎えてから退く。
+      if (t > HOLD_END && F.nHold >= HOLD_NEED) this.escape(rt);
 
     }
     if (F.step === 5) {
@@ -5296,7 +5297,8 @@ function honnoTick(def, rt, dt) {
     } else if (t > 16 && !F.mv) def.p6go(rt, F.mvKeys[0]);
   } else if (F.hp === 7) {
     if (!(F.guardScanAt > rt.t)) { F.guardScanAt = rt.t + 0.5; guardGuide(rt); }
-    if (dNb < 12) F.lastHold = (F.lastHold || 0) + dt;
+    // 壁越しに近いだけでは最後の間を守ったことにしない。
+    if (dNb < 12 && Math.abs(p.y - NB.pos.y) < 3 && !rt.army.wallBetween(p, -1, NB.pos)) F.lastHold = (F.lastHold || 0) + dt;
     rt.objProgress('main', F.heatZone
       ? p.x > F.heatZone.x0 && p.x < F.heatZone.x1 && p.z > F.heatZone.z0 && p.z < F.heatZone.z1
         ? '広間は火の中じゃ。道の印で控えの間へ退け'
@@ -5305,8 +5307,8 @@ function honnoTick(def, rt, dt) {
       ? '道の印で上様へ戻れ。退く下知が出ておる'
       : F.standMerit?.[3] ? '侍を払った。上様の前で、奥へ退く支度を守れ'
       : '廊下の侍を斬り払え。上様が奥へ退く間を作れ');
-    if (dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 22 && F.lastHold >= 10) || (t > 24 && (gone(F.stand) || t > 32 && honPlayed(rt))))) def.p8(rt);
-    else if (t > 135 && honPlayed(rt)) def.p8(rt);   // 最後の間は小姓衆が守る。落ちる段へ進める
+    if (F.lastHold >= 10 && dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 22) || (t > 24 && (gone(F.stand) || t > 32 && honPlayed(rt))))) def.p8(rt);
+    else if (t > 135 && F.lastHold >= 10 && honPlayed(rt)) def.p8(rt);   // 本人が最後の間を支えた後、小姓衆へ守りを引き継ぐ。
   } else if (F.hp === 8) {
     // 小姓衆が口をこじ開ける：落ちる自分のそばに二人より多く寄れば、五秒に一度、斬り込んで押し返す（兵は減らさない）。
     if (rt.t >= (F.p8PushAt || 0)) {
