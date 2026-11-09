@@ -70,6 +70,7 @@ export function tickOpen(rt, dt, ctx) {
 export function startRelief(rt, ctx) {
   const F = rt.flags;
   F.phase = 1; F.pt = rt.t; F.k0 = F.kills;
+  F.reachedRelief = false;
   rt.objDone('s0');
   rt.obj('s1', ctx.TEXT[1], 'main');
   // 盛政の本隊は北から大岩山へ寄せる
@@ -85,6 +86,7 @@ export function startRelief(rt, ctx) {
 }
 export function tickRelief(rt, dt, ctx) {
   const F = rt.flags, P = rt.player.u.pos, st = rt.t - F.pt;
+  if (Math.hypot(P.x - RELIEF.x, P.z - RELIEF.z) < 16) F.reachedRelief = true;
   // 大岩山が落ちる：主人公が坂を下りきる前に（間に合わない）
   if (!F.oiwaFell && (st > 70 || (st > 42 && Math.hypot(P.x - RELIEF.x, P.z - RELIEF.z) < 30))) {
     F.oiwaFell = true;
@@ -110,5 +112,5 @@ export function tickRelief(rt, dt, ctx) {
     rt.after(16, () => { if (ctx.live(F.mori)) rt.say('佐久間盛政', '鬼玄蕃はこれにあり。追い崩して賤ヶ岳も揉み潰せ', 3.2); });
     return;
   }
-  if (F.oiwaFell && rt.t - F.pt > 115 && ctx.nLive(F.chaseG) <= 3) ctx.next();
+  if (F.reachedRelief && F.oiwaFell && rt.t - F.pt > 115 && ctx.nLive(F.chaseG) <= 3) ctx.next();
 }
