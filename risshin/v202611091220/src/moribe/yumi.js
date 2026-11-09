@@ -6,8 +6,9 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const ready = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
-const live = (g) => g && !g.routed && g.units.some(ready);
+const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+// 隊の敗走印だけで済みにしない。まだ射る兵がいれば、実際に討つか退かせる。
+const live = (g) => g && g.units.some(ready);
 
 export function tick(rt) {
   const F = rt.flags, v = F.m15, C = v.C;

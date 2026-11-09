@@ -2288,8 +2288,8 @@ const okawachi = {
       }
     }
     if (F.step <= 1 && !F.coverReached && okAtWaitCover(rt)) F.coverReached = true;
-    if (F.step >= 1 && F.step < 3 && !F.gateReached && Math.hypot(p.x - FRONT.x, p.z - FRONT.z) < 9) F.gateReached = true;
-    if (F.step === 3 && !F.campReached && Math.hypot(p.x - CAMP_LINE.x, p.z - CAMP_LINE.z) <= 8) F.campReached = true;
+    if (F.step >= 1 && F.step < 3 && !F.gateReached && okAtPost(rt, FRONT, 9)) F.gateReached = true;
+    if (F.step === 3 && !F.campReached && okAtPost(rt, CAMP_LINE, 8)) F.campReached = true;
     if (F.step === 1 && F.assaultMoving) {
       const d = Math.hypot(p.x - FRONT.x, p.z - FRONT.z);
       const cover = okAdvanceGoal(rt);
@@ -2331,9 +2331,10 @@ const okawachi = {
       // 味方が城兵を押し返した時も、坂の旗で守った本人を討ち取り零で足止めしない。
       // 離れて待つだけでは進まず、城兵が残る間の時間切れは従来どおり本人の働きを要する。
       const repelled = L.length >= 2 && active === 0;
-      const defended = repelled && d <= 18;
+      const atFlag = okAtPost(rt, FRONT, 18);
+      const defended = repelled && atFlag;
       // 段の時間切れと②への到着だけでは、③の働きを果たした印を付けない。
-      if (rt.t - F.stepT >= 12 && d <= 18 && (defended || F.s2Own > 0)) F.pushHeld = true;
+      if (rt.t - F.stepT >= 12 && atFlag && (defended || F.s2Own > 0)) F.pushHeld = true;
       // 本人が坂にいなくても、一分半で鉦が鳴り次の段へ（二5）。
       if (((rt.t - F.stepT >= 12 && repelled) || rt.t - F.stepT > 60) &&
           (F.s2Own > 0 || defended) && d < 40 || rt.t - F.stepT > 90) this.midA(rt);
@@ -2354,13 +2355,13 @@ const okawachi = {
       okRoadGuide(rt, CAMP_LINE, '陣へ下る角');
       // 退き太鼓と九・四秒後の返事を聞き終えてから翌朝へ。集合の法螺を重ねない。
       // 遅れた組の割合では足止めしない。
-      if (d <= 8 && rt.t - F.stepT >= 12 && rt.t >= F.signalQuietUntil && rt.player.u.alive) this.siegeDays(rt);
+      if (okAtPost(rt, CAMP_LINE, 8) && rt.t - F.stepT >= 12 && rt.t >= F.signalQuietUntil && rt.player.u.alive) this.siegeDays(rt);
       // 帰陣が遅れても翌朝へ進める。本人は陣へ飛ばさず、今の所から南の鹿垣へ歩く（二5・二6）。
       else if ((rt.t - F.stepT >= 70 && d < 40 || rt.t - F.stepT >= 100) && rt.player.u.alive) {
-        // 陣の四十歩内まで退けたなら帰陣と数える（「退いた」と告げてから、最後に「退けず」で負けにしない）。
-        if (d < 40) F.campReached = true;
+        // 日は送っても、陣の手前や別の高さの道を帰陣の達成に数えない。
+        if (okAtPost(rt, CAMP_LINE, 8)) F.campReached = true;
         this.siegeDays(rt);
-        if (d < 40) rt.say('組頭', '夜明けまでに、味方と南の陣へ退いた。次は南の鹿垣を守るぞ', 5);
+        if (F.campReached) rt.say('組頭', '夜明けまでに、味方と南の陣へ退いた。次は南の鹿垣を守るぞ', 5);
       }
 
     }
@@ -4614,10 +4615,13 @@ function okShortLineTick(C, near, line, foes, dt) {
 }
 // 隣の折り返し道や切岸の上は、同じ持ち場に着いた扱いにしない。
 // 任務と案内が同じ平場・範囲を見て、到着後に引き返す印を出さない。
-function okAtSouthLine(rt) {
+function okAtPost(rt, at, radius) {
   const p = rt.player.u.pos;
-  return Math.hypot(p.x - SOUTH_BLOCK.x, p.z - SOUTH_BLOCK.z) <= 18 &&
-    Math.abs(p.y - rt.world.heightAt(SOUTH_BLOCK.x, SOUTH_BLOCK.z)) <= 3;
+  return Math.hypot(p.x - at.x, p.z - at.z) <= radius &&
+    Math.abs(p.y - rt.world.heightAt(at.x, at.z)) <= 3;
+}
+function okAtSouthLine(rt) {
+  return okAtPost(rt, SOUTH_BLOCK, 18);
 }
 // 柵の列の端で出会った兵も、実際の間合いで行軍をやめる。
 // 旗から八歩に入るまで待つと、十八歩の持ち場を守る槍に道をふさがれる。
@@ -4720,7 +4724,7 @@ function okHold(o) {
         g._okMarchFar = far; g.calm = far;
         for (const u of g.units) if (u.alive) { u.noTarget = far; if (far) u.target = null; }
       }
-      const p = rt.player.u.pos, near = o.sortie ? okAtSouthLine(rt) : Math.hypot(p.x - o.at.x, p.z - o.at.z) <= o.r;
+      const p = rt.player.u.pos, near = o.sortie ? okAtSouthLine(rt) : okAtPost(rt, o.at, o.r);
       const holdY = o.sortie ? rt.world.heightAt(o.at.x, o.at.z) : 0;
       let foes = 0, sortieFoes = 0, friends = 0, line = 0, closeFoe = null, closeD = 18;
       rt.army.forNear(o.at.x, o.at.z, o.r, (u) => {

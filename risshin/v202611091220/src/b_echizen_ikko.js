@@ -2365,6 +2365,7 @@ const echizen_ikko = {
   //   手負いの退きは足元の印が示し、右上の目標は替えない。
   missions: IKKO_GOALS,
   stageGoalsOnly: true, missionAlways: true,
+  goalVisibleRows: 5, // 五つとも最初から表示する。共通の既定は今の一つ。
   goalsAllRows: true, // 11/8 critic60：①〜④を最初から全部並べ、済んだ物に印（右上の「①1／4」の二重もやめる）
   missionOf(rt) {
     const F = rt.flags;
@@ -3547,7 +3548,7 @@ const echizen_ikko = {
       g2.fillStyle = gr; g2.fillRect(0, 0, 32, 32);
       const tex = new THREE.CanvasTexture(c);
       const dots = new THREE.Points(geo, new THREE.PointsMaterial({ size: 1.5, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-      dots.renderOrder = 2; rt.scene.add(dots); F.fireDots = dots;
+      dots.visible = templeNight; dots.renderOrder = 2; rt.scene.add(dots); F.fireDots = dots;
     }
     for (const [x, z] of [[VILLAGE.x - 5, VILLAGE.z + 4], [GOKA_MURA.x + 2, GOKA_MURA.z + 10],
       [gezanC.x - 9.5, gezanC.z + 3], [gezanC.x + 12.5, gezanC.z - 7]]) templeLantern(rt, x, z);
@@ -3649,11 +3650,11 @@ const echizen_ikko = {
       }
       // 外堂の守りは境内で迎える。共通の自動出撃で閉じた惣門へ下り、一点に詰まらせない。
       F.ikkoGezanSpear = mkB(rt, { name: '外堂の守り（薙刀）', stay: true, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 46, armor: IKKO.armor, flag: IKKO.flag, at: { x: gezanC.x, z: gezanC.z - 6 }, facing: Math.PI });
-      F.ikkoGezanBow = mkB(rt, { real: 8, maxReal: 8, nearReal: 8, farReal: 8, name: '外堂の守り（弓）', team: 1, faction: 'ikko', kind: 'bow', nominal: 16, armor: IKKO.armor, flag: IKKO.flag, at: { x: gezanC.x + 10, z: gezanC.z - 2 }, facing: Math.PI });
+      F.ikkoGezanBow = mkB(rt, { stay: true, real: 8, maxReal: 8, nearReal: 8, farReal: 8, name: '外堂の守り（弓）', team: 1, faction: 'ikko', kind: 'bow', nominal: 16, armor: IKKO.armor, flag: IKKO.flag, at: { x: gezanC.x + 10, z: gezanC.z - 2 }, facing: Math.PI });
       // 石段の先鋒は山門の手前で構える。本堂の奥だけに置いて長い空白を作らない。
-      F.ikkoHondoMain = mkB(rt, { name: '大滝寺の衆徒', general: '衆徒の大将', mix: { ashigaru: 0.85, samurai: 0.15 }, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 60, armor: IKKO.armor, flag: IKKO.flag, at: { x: 0, z: -20 }, facing: Math.PI });
+      F.ikkoHondoMain = mkB(rt, { stay: true, name: '大滝寺の衆徒', general: '衆徒の大将', mix: { ashigaru: 0.85, samurai: 0.15 }, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 60, armor: IKKO.armor, flag: IKKO.flag, at: { x: 0, z: -20 }, facing: Math.PI });
       // 11/8 critic60（p31・p32）：鉄砲の衆徒が柵の外の斜面に一列で立っていた。本堂の縁の脇（境内の内）から撃つ
-      F.ikkoHondoBow = mkB(rt, { real: 8, maxReal: 8, nearReal: 8, farReal: 8, name: '本堂の衆徒（鉄砲）', team: 1, faction: 'ikko', kind: 'gun', nominal: 16, armor: IKKO.armor, flag: IKKO.flag, at: { x: hondoC.x - 4, z: hondoC.z + 3 }, facing: Math.PI });
+      F.ikkoHondoBow = mkB(rt, { stay: true, real: 8, maxReal: 8, nearReal: 8, farReal: 8, name: '本堂の衆徒（鉄砲）', team: 1, faction: 'ikko', kind: 'gun', nominal: 16, armor: IKKO.armor, flag: IKKO.flag, at: { x: hondoC.x - 4, z: hondoC.z + 3 }, facing: Math.PI });
       F.ikkoOkuLast = mkB(rt, { name: '奥の院の衆徒', real: 6, maxReal: 6, nearReal: 6, farReal: 6, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 42, armor: IKKO.armor, flag: IKKO.flag, at: { x: okuC.x, z: okuC.z - 6 }, facing: Math.PI });
       // 奥の院の先、道の曲がりで迎える。道を登る間も二十五歩内に守りが見える。
       // 同じ二十二人を三段に分ける。一度に十四人の実兵が襲う終盤にしない。
@@ -4144,7 +4145,8 @@ const echizen_ikko = {
     // 共通の炎の更新は size を読み、近くの炎も遠くの炎も同じ雨量で縮める。
     templeRainTorches(W);
     F.treePlayer.value.copy(rt.player.u.pos);
-    if (F.fireDots) F.fireDots.visible = rt.player.u.pos.z < GATE_SOMON.z - 40;
+    // 遠見の灯も夜だけ。昼の強い雨の中で火の粒を光らせない。
+    if (F.fireDots) F.fireDots.visible = templeNight && rt.player.u.pos.z < GATE_SOMON.z - 40;
     if (F.templeFar && rt.camera) F.templeFar(rt.camera);
     // 昼・夜・朝の光は時刻と雨の共通処理に任せる。
     // 夜の半球光を毎コマ昼以上へ戻すと、門や具足の陰と篝火の明暗が消える。
