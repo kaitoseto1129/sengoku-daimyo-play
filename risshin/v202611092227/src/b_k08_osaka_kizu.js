@@ -170,7 +170,7 @@ const k08_osaka_kizu = {
   // 「ついて行く大将」の金の▼を出さない。至鎮は百二十歩後ろの陣幕の内で動かないので、門の前で行き先に着くと、その▼が画面の下の端に「蜂須賀至鎮」と貼り付いた（critic 五2・五6。11/6 fixc0823 で描いて遊んで見た）
   noLeaderFollow: true,
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
-  prelude: 12,
+  prelude: false,   // 夜襲の下知は setup の会話で行う。共通の十二秒待ちを重ねず、十四・八秒で先手を出す。
   // 見せかけの軍勢・遠くの作り物の戦いは置かない（kaito AA・AF・AV の4）
   noReserve: true, noWake: true, noTaishoRaid: true, noFrontFill: true, noDistantBattle: true, noFarFill: true, noAheadFill: true,
   frontlineDensity: false,   // 見えない所から湧く「味方の小勢・敵の小勢」も出さない（kaito AW の6）
@@ -538,29 +538,31 @@ const k08_osaka_kizu = {
   carryRam(rt, dt) {
     // 先の二人が扉の 1.6m 手前に立つ所まで寄せる（丸太の真ん中が門から hajo の HIT_R 4.2m の内に入らないと打たない）
     const F = rt.flags, g = F.ramG, s = F.gate, FRONT = GATE.z + 1;
-    const live = g.units.filter((u) => u.alive && !u.fleeing);
-    if (!live.length) return;
     // ①は入り江の岸の手前（先手の後ろ）まで。②で竹束の間を抜けて門へ
     const goal = F.step >= 2 ? FRONT : SHORE.z + 10;
-    let off = 0;
-    live.forEach((u, i) => {
+    let off = 0, count = 0;
+    // 担ぎ手の配列と持ち場の座標は毎コマ作り直さない。
+    for (const u of g.units) {
+      if (!u.alive || u.fleeing) continue;
+      const i = count++;
       if (u.target && !u.target.isStruct) u.target = null;
       const qx = GATE.x + (i % 2 ? 0.6 : -0.6), qz = F.ramZ + 0.6 + Math.floor(i / 2) * 0.9;
       const dx = qx - u.pos.x, dz = qz - u.pos.z, d = Math.hypot(dx, dz);
       off += d;
       if (d > 0.05) { const m = Math.min(d, 2.4 * dt) / d; u.pos.x += dx * m; u.pos.z += dz * m; }
-    });
+    }
+    if (!count) return;
     // 皆が列に着いている間だけ前へ。すぐ前に斬りかかる敵がいる間は、味方が退けるまで待つ（十秒まで）
-    const ordered = off / live.length < 2;
+    const ordered = off / count < 2;
     let foe = false;
     rt.army.forNear(GATE.x, F.ramZ - 3, 5, (u) => { if (!foe && u.alive && u.team === 1 && !u.isStruct && !u.perch && !u.fleeing && !u.downed && !u.dying) foe = true; });
     F.ramWait = foe ? (F.ramWait || 0) + dt : Math.max(0, (F.ramWait || 0) - dt);
     if (F.ramZ > goal && (!foe || F.ramWait > 10)) F.ramZ = Math.max(goal, F.ramZ - (ordered ? 2 : 1) * dt);
     if (F.step >= 2 && F.ramZ <= FRONT + 2.5) {
       if (g.order !== 'attack') { g.order = 'attack'; g.focus = s; g.seekRange = 1; }
-      g.anchor = { x: GATE.x, z: F.ramZ };
-      for (const u of live) u.target = s;   // 担ぎ手は皆、門扉を打つ
-    } else { g.order = 'move'; g.focus = null; g.anchor = { x: GATE.x, z: F.ramZ }; }
+      for (const u of g.units) if (u.alive && !u.fleeing) u.target = s;   // 担ぎ手は皆、門扉を打つ
+    } else { g.order = 'move'; g.focus = null; }
+    g.anchor.x = GATE.x; g.anchor.z = F.ramZ;
   },
 
   win(rt) {

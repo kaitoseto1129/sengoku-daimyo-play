@@ -32,7 +32,7 @@ function rout(rt, z) {
 //   別手の城を味方の手が押さえきれず、本人が峠の主郭で待ち続けて終わらなかった（11/9 の流し：五百八秒から先へ進まず）。
 function side(rt) {
   const F = rt.flags, hon = F.SZ.byId.kinome_hon;
-  if (hon.owner !== 'friend' || F.echSideGone) return;
+  if (hon.owner !== 'friend' || hon.enemies > 0 || F.echSideGone) return;
   if (F.echHonT == null) F.echHonT = rt.t;
   if (rt.t - F.echHonT < 45) return;
   F.echSideGone = true;
@@ -42,7 +42,8 @@ function side(rt) {
     const z = F.SZ.byId[id];
     if (!z) continue;
     rout(rt, z);
-    z.owner = z.state = 'friend'; z.enemies = 0; z.fallen = true;
+    // 撤退は制圧ではない。別手か本人が入り、通常の人数・保持時間を
+    // 満たしてから siege_zones が持ち主と落城の知らせを更新する。
   }
 }
 
