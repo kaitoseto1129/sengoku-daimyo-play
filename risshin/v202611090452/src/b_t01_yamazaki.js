@@ -238,6 +238,7 @@ const t01_yamazaki = {
   missionSingleLine: true,
   expectMin: 15,              // 進み具合の棒は十五分で（15分の七段・11/8 夜）
   goalsAllRows: true,         // 最初から目標の並びと達成印を出す（critic60 九1・十1）
+  goalsVisibleRows: 5,        // 七段の順は保ち、携帯には今の五つを出す（三 目標）。
   hideGuideSteps: true,
   noCouriers: true,
   noTaisho: true,
@@ -250,6 +251,7 @@ const t01_yamazaki = {
   frontlineDensity: false,    // 小勢を足さない（本物の兵の枠を段の備に残す）
   alwaysMelee: false,
   foeMarks: true,
+  nearbyAllySignLimit: 0,     // 共通の近距離の丸印も出さない（critic60 五2）。
   nameRange: 90,              // 名のある将の名は遠くからも出す（既定の十八では斎藤・津田・御牧の名が一度も見えなかった。kaito 五2・九3）
   closeCombatAssist: true,
   noWinCrane: true,
@@ -350,6 +352,8 @@ const t01_yamazaki = {
     F.w1N = allN(F.w1);
     F.iseW = enemyGroup(rt, { name: '伊勢貞興の隊', faction: 'akechi', anchor: { x: -62, z: -38 }, facing: 0, width: 10, formation: 'line', order: 'hold', aggro: 6, seekRange: 10, morale: 88, dmgMult: 0.5 },
       ak(knot(14, [{ type: 'busho', n: 1, o: { name: '伊勢貞興', horse: true } }])));
+    // 到着の段では采配に前へ呼ばせず、開戦の順を守る。
+    for (const g of [...F.w1, F.iseW]) g.stay = true;
     for (const n of KNOWN) revealName(rt, n);
     yamGoalBoard(rt);
     // 勝ち（段 6）の後は、この戦の締め（勝ち鬨と言葉の十六秒半の後）だけで結果へ。殿の将を討った等の共通の勝ちで先に締めない
@@ -396,17 +400,20 @@ const t01_yamazaki = {
       // 斎藤勢の先手が中ほどの浅瀬を渡り、高山の隊を押す（明智が押す場面）
       sfx('horagai', 0.9);
       // 先に伊勢貞興が中川の隊へ、続いて斎藤の先手が川を渡って高山の隊へ寄せる（明智が押す場面）
-      //   伊勢の手は六十秒後の第二波（前衛の押し合いを三分。体力でなく寄せの波で長さを作る）
-      rt.after(70, () => {
-        if (F.stage !== 2 || !live(F.iseW)) return;
+      if (live(F.iseW)) {
+        F.iseW.stay = false;
         F.iseW.order = 'move'; F.iseW.dest = { x: -74, z: 14 }; F.iseW.aggro = 16; F.iseW.seekRange = 30;
         F.iseW.onArrive = (g) => { g.order = 'attack'; };
         rt.say('中川清秀', '伊勢の手が来たぞ！　槍を揃えよ！', 3);
         try { F.yfar?.tenno?.go?.(); } catch (e) { /* 遠景 */ }
-      });
-      for (const g of F.w1) { g.order = 'attack'; g.aggro = 14; g.seekRange = 30; }
+      }
       // 寄せる先は高山の隊の列（主人公の持ち場はその右。横から当たれる）
       F.w1[0].dest = { x: -44, z: 16 }; F.w1[1].dest = { x: -30, z: 18 };
+      rt.after(6, () => {
+        if (F.stage !== 2) return;
+        for (const g of F.w1) { g.stay = false; g.order = 'attack'; g.aggro = 14; g.seekRange = 30; }
+        rt.say('高山右近', '斎藤の手が川を越えた！　押されるぞ、支えよ！', 3.4);
+      });
       // 松田・並河は天王山の裾へ登って秀長・官兵衛の手と取り合う（中川の隊へ流れない）
       F.matsuda.order = 'move'; F.matsuda.dest = { x: -100, z: 4 }; F.matsuda.aggro = 8; F.matsuda.seekRange = 12;
       F.matsuda.onArrive = (g) => { g.order = 'attack'; g.aggro = 24; g.seekRange = 40; };
@@ -421,7 +428,6 @@ const t01_yamazaki = {
         rt.say('堀秀政', '後詰に着いたぞ。高山殿、持ちこたえよ！', 3);
       });
       rt.army.play('toki', { x: -20, z: -24 }, 1.4);
-      rt.after(4, () => rt.say('高山右近', '斎藤の手が川を越えた！　押されるぞ、支えよ！', 3.4));
       rt.after(12, () => { try { F.yfar?.tenno?.go?.(); } catch (e) { /* 遠景 */ } });
       rt.after(40, () => report(rt, '天王山、秀長様の手が頂を押さえました！'));
       rt.after(100, () => report(rt, '淀川沿い、明智の左手は薄うござる！'));
@@ -609,7 +615,7 @@ const t01_yamazaki = {
     if (F.stage === 1) March.tick(rt, dt, this.ctx(rt));
     else if (F.stage === 2) {
       const n = aliveN(F.w1) + aliveN(F.iseW) + aliveN(F.namikawa);
-      // 前衛の押し合いは三分ほど（斎藤の先手と、六十秒後の伊勢の第二波。学び 十2）。押し返せば主力が展開して浅瀬へ
+      // 前衛の押し合いは三分ほど（伊勢・斎藤の先手と、天王山からの新手。学び 十2）。押し返せば主力が展開して浅瀬へ
       // 時間だけでは押し返した事にしない。持ち場へ着き、寄せた敵が減ってから進む。
       if (F.fieldAt === 2 && n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 && rt.t - F.st0 > 170) this.stage(rt, 3);
     } else if (F.stage === 3 && !F.forded) {
