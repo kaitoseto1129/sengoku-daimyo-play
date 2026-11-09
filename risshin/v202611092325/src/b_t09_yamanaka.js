@@ -671,7 +671,9 @@ const t09_yamanaka = {
       const iu0 = F.ichi.units.find((u) => u.type === 'busho' && u.alive);
       const ichiShooter = F.dai.units.find((u) => u.type === 'gun' && cnt(u) && !u.gone && !u.fleeing);
       const ichiNear = iu0 && Math.hypot(iu0.pos.x - p.x, iu0.pos.z - p.z) < 45;
-      if (!F.ichiShot && T > 30 && ichiShooter && ichiNear) {
+      // 本人が間宮を先に討った場合、残る鉄砲で一柳の討死を後から起こして順を逆にしない。
+      const mamiyaAlive = F.dai.units.some((u) => u.type === 'busho' && cnt(u));
+      if (!F.ichiShot && !F.mamiyaDead && mamiyaAlive && T > 30 && ichiShooter && ichiNear) {
         F.ichiShot = true; F.ichi.name = '一柳直盛の隊'; rt.banner('一柳直末、撃たれる'); rt.say('中村一氏', '伊豆守殿が鉄砲に当たられた！　一柳の者ども、旗を守れ！', 4);
         rt.after(5, () => rt.say('一柳直盛', '兄の首は渡さぬ。一柳の旗は、この直盛が預かる！', 4));
         const iu = F.ichi.units.find((u) => u.type === 'busho' && u.alive);
@@ -758,7 +760,7 @@ const t09_yamanaka = {
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
-      if (F.honOn && !F.kogoOut && F.kogo && (g.count < F.honN * 0.65 || (F.honU && !F.honU.alive))) {
+      if (F.honOn && !F.kogoOut && F.kogo?.units.some((u) => u.type === 'busho' && cnt(u) && !u.gone) && (g.count < F.honN * 0.65 || (F.honU && !F.honU.alive))) {
         F.kogoOut = true; F.kogo.fixed = false; F.kogo.noRout = true; F.kogo.morale = 100;
         // 本丸の北と東は柵で閉じている。南の虎口から出て、東の尾根を回って落ちる。
         // 士気を零にすると敗走の下知がこの退路を上書きし、北の柵へ突き当たる。
