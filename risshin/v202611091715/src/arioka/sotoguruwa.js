@@ -22,6 +22,6 @@ export function stages(H) {
       ],
       max: 200, reward: '惣構えの通りを押さえた',
       // 11/9 二巡（豊臣A）：塀の陰の鉄砲衆を討ち尽くすまで続き、act の流しで七分半この段に止まった（15分の構成で三分の所）。四分で次へ
-      lenient: true, limit: 240, onEnd: () => {} }),
+      lenient: true, limit: 240, passOnLimit: true, onEnd: () => {} }),   // 11/9 見回り 織田F：期限で負けにせず次へ（act の流しが期限切れで任務失敗していた）
   ];
 }

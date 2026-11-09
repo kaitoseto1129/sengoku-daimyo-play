@@ -6853,8 +6853,11 @@ const inabayama = {
       //   本人が鹿垣の旗の四十歩内にいれば付け入りへ進める（初めての人も敵を追って坂へ出がち）
       const late2 = rt.t - F.stepT > 240;
       if (late2 && !F.ote2.sent && !F.ote2Q) { F.ote2Q = true; this.ote2(rt); }
-      if (late2 && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
-      const nearHold = late2 && F.holdPoint && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) < 40;
+      // 長引いた時も、城兵が目前へ来る前や本人が倒れている間は、時計だけで退かせない。
+      if (late2 && F.oteContactT != null && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
+      const nearHold = late2 && F.oteContactT != null && F.holdPoint
+        && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) < 40
+        && Math.abs(rt.player.u.pos.y - rt.world.heightAt(F.holdPoint.x, F.holdPoint.z)) < 3;
       if (F.sannin && F.ote2.sent && qs.every(gone) && rt.player.u.alive && !rt.retryOpen && (inabaInsideHoldLine(rt) || rt.G.lord || nearHold)) {
         // 坂の城兵が崩れ、麓の左右の城兵も山へ逃げ上る
         if (!F.karaWaiting) {
