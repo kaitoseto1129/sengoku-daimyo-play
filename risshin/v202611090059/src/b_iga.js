@@ -3167,8 +3167,9 @@ function igaHold(o) {
         if (u.team === 0) friend++; else enemy++;
       }
       // 槍を合わせて敵を押し返す時間も、持ち場を守った時間に含める。
-      if (d <= o.r && friend >= 2 && friend >= enemy) C.inT += dt;
-      C.outT = d <= o.r + 6 || igaNeedsTreatment(rt) ? 0 : C.outT + dt; // 短い押し出しと、下知どおりの手当ては離脱にしない。
+      const sameLevel = Math.abs(p.y - postY) < 3;
+      if (sameLevel && d <= o.r && friend >= 2 && friend >= enemy) C.inT += dt;
+      C.outT = sameLevel && d <= o.r + 6 || igaNeedsTreatment(rt) ? 0 : C.outT + dt; // 短い押し出しと、下知どおりの手当ては離脱にしない。
       // 敵が陣へ入っていない間は、味方の集合待ちだけで「押し負け」を数えない。
       // 離脱・時間切れは別に判定し、敵が入った時の三十秒の猶予は保つ。
       C.breachT = enemy > 0 && (enemy > friend || friend < 2) ? (C.breachT || 0) + dt : 0;
@@ -3179,8 +3180,9 @@ function igaHold(o) {
       const clear = !C.waves.length && C.groups.every(C.raidGone);
       // 最後の敵が退いたコマを時間切れで敗戦にしない。
       if (clear && C.inT >= o.dur * 0.6) return true;
-      // 期限まで陣が崩れずに持ったなら、守りきった扱い（敵は林へ退く）。止まらずに次へ進める。
-      if (el > deadline) { C.held = true; return true; }
+      // 期限だけで、手当て中や未帰陣の本人が守った扱いにしない。
+      // 残敵の全滅は求めず、持ち場を守った時間は撃退時と同じだけ必要にする。
+      if (el > deadline && !C.waves.length && C.inT >= o.dur * 0.6) { C.held = true; return true; }
       C.guideT = (C.guideT || 0) - dt;
       if (C.guideT <= 0) {
         C.guideT = 0.5;

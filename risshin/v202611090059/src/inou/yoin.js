@@ -11,7 +11,7 @@ export function start(rt, def, C, then) {
   if (v.yoinT) return;
   v.yoinT = rt.t;
   // 共通の締め（十四秒）より長く余韻を見せる。締めの間に来た勝ちの知らせは受けない（一宮城と同じ形）
-  if (!rt.over) rt._closing = { at: rt.t + 27, info: { scriptedEnd: true }, delay: 5 };
+  if (!rt.over) rt._closing = { at: rt.t + 29, info: { scriptedEnd: true }, delay: 5 };
   // 逃げる者は走る（歩いて去らない）
   for (const g of F.groups || []) if (g.routing || g.order === 'retreat') { g.speed = 4.6; g.morale = 0; }
   const lord = !!rt.G.lord;

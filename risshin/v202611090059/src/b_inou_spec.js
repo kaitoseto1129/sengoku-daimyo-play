@@ -798,7 +798,10 @@ const inou_spec = {
     I15.onKill(rt, v, k);
     if (!k?.isPlayer || v.team === rt.player.u.team) return;
     // 11/6 crit_inou：段ごとに主人公が自分で討った数（目標の済みは主人公が働いた時だけ。b_inou_goals.js）
-    (F.ks ||= [0, 0, 0, 0, 0])[Math.min(4, F.stage || 0)]++;
+    const stage = F.stage || 0;
+    const targets = stage === 0 ? [F.practice] : stage === 1 ? F.l1 : stage === 2 ? F.l2 : stage === 3 ? [F.guardG] : [F.bossG];
+    // 退く柴田勢や別手を討っても、今の目標の敵と戦った事にはしない。
+    if (v.group && targets?.includes(v.group)) (F.ks ||= [0, 0, 0, 0, 0])[Math.min(4, stage)]++;
     if (v.group === F.practice) {
       F.pk++;
       // 一人目の褒めは共通の「よし、一人討った！」が出る（二度言わない）
@@ -856,7 +859,17 @@ const inou_spec = {
 
   update(rt, dt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (F.ending) {
+      // 総崩れの後も、遠くまで退いた兵を去らせて数の棒に反映する。
+      if ((F.scanT = (F.scanT || 0) - dt) <= 0) {
+        F.scanT = 0.25;
+        const P = rt.player.u;
+        for (const g of F.groups) if (g.routing) for (const u of g.units) {
+          if (u.alive && !u.gone && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) > 60) rt.army.despawn(u);
+        }
+      }
+      return;
+    }
     const P = rt.player.u;
     // 見えない壁（時間切れで逃げる者は外へ出す）
     if (!rt.timeLimit?.up) for (const u of rt.army.units) {
