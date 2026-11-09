@@ -646,16 +646,18 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
       if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
     } else if (F.stage === 2) {
-      // 四割を討たれるか、芥田が討たれるか、寄せ手と接触して二十五秒で崩れて引く。
+      // 四割を討たれるか、芥田が討たれれば崩れて引く。長引く場合も、寄せ手との接触が必要。
       // 行軍の到着や出撃からの秒数だけでは、戦っていない目標を済みにしない。
       const boss = F.sally.units.find((u) => u.name === '芥田悪六兵衛');
-      if (!F.fightT) for (const u of F.sally.units) {
+      if (F.fightT == null) for (const u of F.sally.units) {
         if (!u.alive || u.fleeing) continue;
         const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
         if (target) { F.fightT = rt.t; break; }
       }
-      // 敵が残る間は戦いを見せ、全て討った後は空の坂で待たせない。
-      if (sallyN === 0 || (rt.t - F.stageT > 120 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
+      // 芥田を討つか四割を討ち減らせば撃退。百二十秒の下限で、果たした戦いを続けさせない。
+      // 接触しただけの場合は、出撃から百二十秒・接触から二十五秒を経て退く。
+      if (sallyN === 0 || sallyN <= sally0 * 0.6 || (boss && !boss.alive) ||
+          (rt.t - F.stageT > 120 && F.fightT != null && rt.t - F.fightT > 25)) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;
