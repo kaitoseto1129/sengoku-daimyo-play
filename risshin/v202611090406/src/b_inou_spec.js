@@ -406,9 +406,10 @@ const inou_spec = {
     for (const u of rt.army.units) {
       if (!guideEnemyAlive(u) || u.team === rt.player.u.team) continue;
       const g = u.group;
+      // onKill が本人の働きに数える相手へ案内する。弓組や脇の兵では目標が済まない。
       const eligible = F.stage === 0 ? g === F.practice : F.stage === 1 ? F.l1?.includes(g) :
-        F.stage === 2 ? F.l2?.includes(g) || F.bows?.includes(g) :
-        F.stage === 3 ? F.bankG?.includes(g) || g === F.guardG : u === F.bossU;
+        F.stage === 2 ? F.l2?.includes(g) :
+        F.stage === 3 ? g === F.guardG : u === F.bossU;
       if (!eligible) continue;
       const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
       if (d < best) { best = d; F.guideEnemy = u; }
@@ -514,7 +515,7 @@ const inou_spec = {
     // 11/6 crit_inou（二1）：「川を渡った所から始まる」のに川が写らなかった。信長が渡った於多井川（庄内川）を出だしの裏（後ろ二十五m 先）に。見えない壁の外
     streams: [{ pts: [[-190, 176], [-60, 170], [40, 172], [190, 166]], w: 20, depth: 0.8 }, ...OLD.world.streams.slice(1)],
     clear: (x, z) => Math.abs(x) < 80 && Math.abs(z) < 150,
-    fleeOut: (x, z, team) => team === 1 && z < -150,
+    fleeOut: (x, z, team) => team === 1 && (z < -150 || x < -150),
     armyFlagKinds: undefined,
   },
 
@@ -872,9 +873,9 @@ const inou_spec = {
       return;
     }
     const P = rt.player.u;
-    // 見えない壁（時間切れで逃げる者は外へ出す）
+    // 戦う者の範囲。敗走する柴田勢は東の街道へ、林勢は野の奥へ退かせる。
     if (!rt.timeLimit?.up) for (const u of rt.army.units) {
-      if (!u.alive || u.gone) continue;
+      if (!u.alive || u.gone || u.group?.routing || u.fleeing) continue;
       if (u.pos.x > XW) u.pos.x = XW; else if (u.pos.x < -XW) u.pos.x = -XW;
       if (u.pos.z > ZS) u.pos.z = ZS; else if (u.pos.z < ZN) u.pos.z = ZN;
     }
