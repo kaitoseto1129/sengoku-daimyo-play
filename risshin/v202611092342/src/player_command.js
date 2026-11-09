@@ -45,7 +45,7 @@ export class PlayerCommand {
     const p = this.aimPoint();
     let bd = 12;
     for (const o of this.rt.army.units) {
-      if (!o.alive || o.team === this.u.team || o.type === 'dummy' || o.woundOut || (noInvuln && o.invuln) || o.fleeing) continue;
+      if (!o.alive || o.team === this.u.team || o.noTarget || o.type === 'dummy' || o.woundOut || (noInvuln && o.invuln) || o.fleeing) continue;
       if (Math.hypot(o.pos.x - this.u.pos.x, o.pos.z - this.u.pos.z) > maxD || !weatherSees(this.rt.world, this.u.pos, o.pos)) continue;
       const d = Math.hypot(o.pos.x - p.x, o.pos.z - p.z);
       if (d < bd) { bd = d; best = o; }
