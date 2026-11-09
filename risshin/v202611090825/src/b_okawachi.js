@@ -2863,13 +2863,14 @@ function okYardRing(rt, bushSrc, tuftSrc) {
       z * grain + 0.025 * Math.sin(y * Math.PI * 2));
   }
   trunkGeo.computeVertexNormals(); trunkGeo.computeBoundingSphere();
-  const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, 96);
+  const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, 288);
   // 野の株の材質は株ごとの色を受けない（緑の一色に見える）。形は使い回し、葉の絵だけの材質を一つ作って雑木と茂みで共有する。
   // 11/2 c_tree_1102c：一色に照る黄の葉の塊が、平らな切り絵の木に見えた。株の下と芯ほど暗く、房ごとに濃淡を付け、葉先を風でそよがせる。
   const leafMat = bushSrc ? sway(new THREE.MeshLambertMaterial({ map: leafTex('broad'), vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide }), 0.03, 0, { after: (sh) => {
     sh.vertexShader = 'varying vec3 vOkCrown;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOkCrown = position;');
     sh.fragmentShader = 'varying vec3 vOkCrown;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      { vec3 q = floor(vOkCrown * 3.0); float n = fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+      { float n = 0.5 + 0.25 * sin(dot(vOkCrown, vec3(4.7, 3.1, 5.3)))
+          + 0.25 * sin(dot(vOkCrown, vec3(-7.1, 5.9, 2.7)));
         diffuseColor.rgb *= mix(0.6, 1.0, smoothstep(0.15, 1.0, vOkCrown.y)) * mix(0.74, 1.06, n); }`);
   } }) : null;
   // 葉の輪郭を保ったまま面を湾曲させ、横からも厚みと陰影を持たせる。
@@ -2897,12 +2898,23 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   };
   // 雑木の株立ち：根元から三本ほどの細い幹が斜めに立ち、上に葉の房が重なる。
   const tree = (x, z, size) => {
-    if (!crowns || nt + 4 > 96 || nc + 3 > 72) return;
+    if (!crowns || nt + 9 > 288 || nc + 3 > 72) return;
     const g = W.heightAt(x, z), tint = fall[Math.floor(R() * fall.length)], stems = 2 + Math.floor(R() * 2);
     for (let s = 0; s < stems; s++) {
       const a = R() * 6.28, lean = 0.12 + R() * 0.16, h = size * (3.2 + R() * 1.4);
       D.position.set(x + Math.cos(a) * 0.25, g - 0.1, z + Math.sin(a) * 0.25); D.rotation.set(Math.sin(a) * lean, 0, -Math.cos(a) * lean);
       D.scale.set(size, h, size); D.updateMatrix(); trunks.setMatrixAt(nt++, D.matrix);
+      // 葉の下まで裸の棒にせず、幹の途中から房へ二本の枝を伸ばす。
+      // 幹と同じ形・材質の束へ入れるので、描く回数と毎コマの処理は増やさない。
+      for (let b = 0; b < 2; b++) {
+        const by = 0.52 + b * 0.17, ba = a + (b ? -1 : 1) * 0.85;
+        D.position.set(x + Math.cos(a) * (0.25 + Math.sin(lean) * h * by),
+          g - 0.1 + Math.cos(lean) * h * by,
+          z + Math.sin(a) * (0.25 + Math.sin(lean) * h * by));
+        D.rotation.set(Math.sin(ba) * 0.72, 0, -Math.cos(ba) * 0.72);
+        D.scale.set(size * 0.48, h * 0.4, size * 0.48);
+        D.updateMatrix(); trunks.setMatrixAt(nt++, D.matrix);
+      }
       putCrown(crowns, nc++, x + Math.cos(a) * h * lean * 0.9, g + h * 0.92, z + Math.sin(a) * h * lean * 0.9, size * (1.9 + R() * 0.8), size * (1.6 + R() * 0.6), tint);
     }
   };
