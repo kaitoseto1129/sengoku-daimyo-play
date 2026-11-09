@@ -33,6 +33,7 @@ import { install as negoroIntro } from './t04_negoro/intro.js';
 import { soboStep } from './t04_negoro/sobo.js';
 import { fireStart, fireTick } from './t04_negoro/fire.js';
 import { kyotenStep } from './t04_negoro/kyoten.js';
+import { breath } from './toyo15/kit.js';
 import { MEM_TIGHT } from './settings.js';
 import { routeTools } from './b_k_route.js';
 
@@ -300,6 +301,7 @@ const t04_negoro = {
   spawn: { x: START.x, z: START.z, heading: ROT },
   minutes: 15, expectMin: 15,
   noCavalryMix: true,   // 寺の境内・山城の狭い道：共通の「敵の組に騎馬を混ぜる」をしない（路地と山道で馬の突きに何度も倒された）
+  nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）
   playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
   noWake: true, noTaishoRaid: true, noDespair: true,
@@ -659,7 +661,8 @@ const t04_negoro = {
       const q = P(s * (ax - 0.7), zs[1]), b = new THREE.Mesh(KOSHI_GEO(), towerMats().wood);   // 腰板は木の色（黒い箱に見えた）
       b.position.set(q.x, W.heightAt(q.x, q.z) + 0.95, q.z); b.rotation.y = ROT; b.castShadow = true; rt.scene.add(b);
     }
-    F.posts.win = gunPost(rt, '坊舎の鉄砲衆', lowQ ? win.filter((_, i) => i % 3 !== 1) : win);
+    // 15分の戦（11/8）：撃ち手は携帯の軽い作りと同じ数に（十五分撃たれ続けて倒れ続けた）
+    F.posts.win = gunPost(rt, '坊舎の鉄砲衆', win.filter((_, i) => i % 3 !== 1));
     // 物見：門前の囲いの奥の隅から撃ち下ろす（どこから狙われるか分からない）
     const mono = [];
     for (const s of [-1, 1]) {
@@ -672,7 +675,7 @@ const t04_negoro = {
     const deck = [[-4.6, -2.7, 0.25], [-1.6, -2.3, 0.08], [1.9, -2.5, -0.1], [4.5, -2.2, -0.3]].slice(0, lowQ ? 3 : 4).map(([x, z, a]) => ({ x, z, abs: gy + 7.35, f: [a, -1] }));
     F.posts.deck = gunPost(rt, '大門の楼の鉄砲', deck, true);
     const wall = [];
-    for (const s of [-1, 1]) for (const x of (lowQ ? [10, 18, 26] : [9, 13, 17, 21, 25, 29])) wall.push({ x: s * x, z: 1.1, dy: 1.5, f: [0, -1] });
+    for (const s of [-1, 1]) for (const x of [10, 18, 26]) wall.push({ x: s * x, z: 1.1, dy: 1.5, f: [0, -1] });
     F.posts.wall = gunPost(rt, '築地塀の鉄砲衆', wall);
     F.posts.wall.dmgMult = 0.08;   // 15分の戦（11/8）：0.14 から   // 十二挺が撃ち下ろす（数で厚く見せ、一発は軽く。11/6：門の前で十秒ごとに討たれた）
     F.posts.deck.dmgMult = 0.1;
@@ -849,7 +852,8 @@ const t04_negoro = {
         if ((guns <= 4 || el > 95) && !C.broke) { C.broke = true; for (const g of [...C.groups, F.posts.win]) if (g) { g.noRout = false; g.morale = Math.min(g.morale, 15); } if (el > 95) flee(F.posts.win); }
         // 鉄砲衆が退いても、後方に居たままで堀の護衛を果たした事にはしない。
         const p = rt.player.u.pos;
-        return el > 100 && ((guns <= 4 && foes <= 4 && !C.later.length) || el > 140) && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
+        // 縁の撃ち手の前に長く立たせない（15分の戦でも、この段は撃ち手を討てば進む）
+        return ((guns <= 4 && foes <= 4 && !C.later.length) || el > 130) && Math.hypot(p.x - MONZEN.x, p.z - MONZEN.z) < 24;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -884,6 +888,7 @@ const t04_negoro = {
         rt.banner('大門を打ち破れ', '丸太の組と寄せる');
         sfx('taiko', 0.8);
         rt.say('組頭', '丸太を前へ！　大門の扉を打ち破れ！　担ぎ手を撃たせるな！', 3.5);
+        breath(rt, 0.3);   // 15分の戦：段の替わり目に息を整える
         self.sendRam(rt);
         // 味方は参道の左右（塀の際）へ寄り、真ん中を丸太の通り道に空ける。鉄砲は楼と塀の上へ撃ち返す
         F.friends().forEach((fg, i) => { fg.order = 'move'; fg.seekRange = 8; fg.anchor = P(i % 2 ? 7 : -7, -9); });
@@ -915,7 +920,7 @@ const t04_negoro = {
             if (!C.pushSaid) { C.pushSaid = true; rt.say('足軽', 'お頭も手を貸してくだされ！　一、二の、三！', 3); }
             if (C.pushT > 1.1) { C.pushT = 0; rt.army.damage(s, 24, pu, { kind: 'ram' }); }
           }
-          if (el > 120 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 12) self.openGate(rt);
+          // 時間と接近だけでは開けない。丸太か本人の攻撃で門扉を破ってから進む。
           // 塀の上の鉄砲衆は、塀の際に寄った先手の足軽を撃ち下ろす（11/6：塀の上の十二挺が皆、丸太の脇の自分を撃ち、門の前で討たれた。
           //   担ぎ手を狙わせると丸太が三度止まって門が破れなかったので、塀の際の寄せ手を狙う）
           const wp = F.posts.wall;

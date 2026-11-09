@@ -1,6 +1,7 @@
 // 根来寺 ③ 6〜9分「僧坊の路地」：大門の内は子院の坊舎と塀と石段が入り組む。根来の鉄砲衆は持ち場を次々に替えて撃ち、
 // 路地から行人方が斬って出る。近い斬り合いへ。鉄砲衆を追って討つ（段の長さは出来事で決める。体力では伸ばさない）。
 import { enemyGroup } from '../bhelp.js';
+import { breath } from '../toyo15/kit.js';
 
 export function soboStep(NG) {
   const { P, dirL, ROT, NEGORO, dress, flee, alive, heads } = NG;
@@ -22,6 +23,7 @@ export function soboStep(NG) {
       for (let i = 0; i < 2; i++) { const g = guns(rt, '持ち場を替える鉄砲衆', SPOTS[i * 2 + 2]); g._spot = i * 2 + 2; C.gunG.push(g); C.groups.push(g); }
       F.friends().forEach((g, i) => { g.order = 'attack'; g.seekRange = 22; g.anchor = P(i % 2 ? 8 : -8, 14); });
       rt.obj('dp', NG.GOALS[3], 'main');
+      breath(rt, 0.35);   // 段の替わり目に息を整える
       rt.say('組頭', '坊舎の塀の陰から撃ってくる！　撃った所へすぐ寄れ、次の所へ移る前に斬れ！', 4);
       rt.after(6, () => rt.say('羽柴秀次', '路地は狭い。槍を短く持て。塀の角に気を付けい', 3.5));
     },

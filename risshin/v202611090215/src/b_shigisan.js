@@ -1999,6 +1999,8 @@ const shigisan = {
   camLift: -.6,
   // 視点の地形回避は共通処理へ任せ、門前でも本人が向けた方角を保つ。
   hideMissionDots: true,
+  // 顔を覚えていない時も黒い影を固定せず、撮れた本人の顔を一度だけ出す。
+  waitForPortrait: true,
   // 行き先はいつも黄色の印一つ。青い「ついていく相手」を同時に出さない（AL・AS）。
   noLeaderFollow: true,
   // 共通の「味方の小勢・敵の小勢」（六人ずつ湧く見せかけ）は足さない（AQ・AT・AW6）。城兵は曲輪の持ち場の本物だけ。
