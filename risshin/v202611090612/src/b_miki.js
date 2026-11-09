@@ -2593,6 +2593,8 @@ const miki = {
   convoy(rt) {
     const F = rt.flags;
     if (F.step || F.ending || rt.over || !rt.player.u.alive) return;
+    // 下知を受けて開幕を飛ばした時も、井楼への古い案内を残さない。
+    if (F.mkOpen) F.mkOpen.done = true;
     F.step = 1; F.stepT = rt.t; F.battleT = rt.t; F.nextSortie = rt.t + 59; rt.setPhase('convoy');
     F.roadGoal = { x: -104, z: -48 };
     rt.marker('road', () => F.roadGoal, () => placeLabel(rt, F.roadGoal, '味方の槍組', 9), { guideAlways: true });
@@ -2993,9 +2995,7 @@ const miki = {
   },
   update(rt, dt) {
     const F = rt.flags;
-    // 並ぶだけの槍列の前へ、毛利の前備えを本人の見る先から押し寄せさせ、奥に別所勢の大軍（10/31 点付け70）
-    frontRig(rt, dt, { until: F.step ? F.battleT + 33 : -1, hostUntil: (F.battleT ?? MK_OPEN.KAIMAKU_END) + 108, foes: () => [F.escortFront],   // 開幕の段の後へずらす
-      host: { team: 1, flag: 'maru', armor: 0x3a3028, count: 130, w: 44, d: 14, flagRate: .55, seed: 15796 } });
+    // 近くは実兵だけ。主人公を追う四方の遠景軍勢を作らない。
     mikiKidoLight(rt, dt);
     // 空の色のしきい値だけで星が一斉に消えないよう、夜明けに合わせて薄くする。
     if (rt.world.stars) {
