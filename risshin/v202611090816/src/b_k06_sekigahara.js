@@ -817,7 +817,13 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
   // 退く段・虎口の横断・登頂・本陣への移動を、脇の敵への寄り道で止めない。
   // ⑧で柵の外（東）にいる間も寄り道しない（柵越しに斬り合い、騎馬に討たれた・11/9 流し）
   const moving = F.step === 8 && u.pos.x > FENCE_X - 1 && u.pos.z > -214 && u.pos.z < -128 || F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
-  const ok = (o) => !moving && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
+  // 目標と無関係な本陣・別の持ち場へ斬り込み、通しが長引く寄り道を避ける。
+  // 隊を毎コマ並べ直さず、今の段で押し返す隊だけを選ぶ。
+  const onTask = (g) => !!g && (F.step <= 5 ? g === F.akashi || g === F.akaGun || g === F.ukita2 || g === F.ukita3 || g === F.ukita4
+    : F.step === 7 ? g === F.sakon || g === F.shima3 || g === F.ishida3
+    : F.step === 8 ? g === F.mitsu2 || g === F.mitsu3
+    : F.step === 9 && g === F.shima);
+  const ok = (o) => !moving && onTask(o.group) && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
   const prev = pl.botStrikeFoe;
   const r = F.step === 1 || F.step === 3 || F.step === 6 ? 3 : F.step === 2 ? 6 : 9;
   const e = prev?.alive && ok(prev) && pl.botStrikeUntil > pl.time && dist(prev.pos, u.pos) < 2.8 ? prev : b.army.nearestEnemy(u, r, ok);

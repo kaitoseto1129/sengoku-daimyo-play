@@ -76,7 +76,9 @@ function aboard(rt, B) {
     if (!u.alive || u.gone) return;
     const lz = 2.2 - i * 0.75, lx = (i % 2 ? 0.28 : -0.28);
     const x = m.x + s * lz + c * lx, z = m.z + c * lz - s * lx;
-    u.perch = { x, y, z }; u.pos.set(x, y, z); if (u.mesh) { u.mesh.position.copy(u.pos); u.mesh.rotation.y = h; } u.heading = h;
+    const perch = u.perch || (u.perch = { x: 0, y: 0, z: 0 });
+    perch.x = x; perch.y = y; perch.z = z;
+    u.pos.set(x, y, z); if (u.mesh) { u.mesh.position.copy(u.pos); u.mesh.rotation.y = h; } u.heading = h;
   });
 }
 function land(rt, C, B) {
@@ -115,6 +117,10 @@ export function tick(rt, dt, C) {
     else B.mesh.visible = false;
   }
   // 揚がった城兵は岸から離れて堤の奥へは行かない（堤を越えて陣へ流れ込まない）。一人になるか五十秒で舟へ退く
+  // 待ち時間は一コマに一度だけ減らす。兵ごとに減らすと人数で間隔が変わり、一人だけが索敵していた。
+  K.seekT = (K.seekT || 0) - dt;
+  const seek = K.seekT <= 0;
+  if (seek) K.seekT = 0.4;
   for (const g of K.groups) {
     if (!C.fighting(g)) continue;
     const left = g.units.filter((u) => u.alive && !u.gone && !u.fleeing);
@@ -122,7 +128,7 @@ export function tick(rt, dt, C) {
     for (const u of left) {
       if (!C.near(u.pos, g.S.land, 20)) { u.target = null; continue; }
       // 揚がって立ち尽くさない：狙いが無ければ岸の近くの寄せ手（主人公も）を狙う
-      if ((!u.target || !u.target.alive) && (K.seekT = (K.seekT || 0) - dt) <= 0) { K.seekT = 0.4; const e = rt.army.nearestEnemy(u, 22, (o) => C.near(o.pos, g.S.land, 22)); if (e) u.target = e; }
+      if ((!u.target || !u.target.alive || u.target.gone) && seek) u.target = rt.army.nearestEnemy(u, 22, (o) => C.near(o.pos, g.S.land, 22));
     }
   }
   // 退いた城兵は水際で消える（舟に戻った）
