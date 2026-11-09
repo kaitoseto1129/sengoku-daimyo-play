@@ -16,7 +16,7 @@ export const DEPTH = {
       { id: 'makino', layer: 'ichi', wing: 'right', men: 1500, taisho: '牧野康成', flag: 'kashiwa', bind: F('makino') },
       { id: 'saka', layer: 'ni', wing: 'center', men: 3000, taisho: '榊原康政', flag: 'sakakibara', bind: F('saka') },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '徳川秀忠', bind: F('hide') },
-      { id: 'sengoku', layer: 'yobi', wing: 'left', men: 2000, taisho: '仙石秀久', flag: 'maru', hold: true, at: { x: 214, z: -112 } },
+      { id: 'sengoku', layer: 'yobi', wing: 'left', men: 2000, taisho: '仙石秀久', flag: 'sashi:eiraku:#1d1b18:#ece6d6', hold: true, at: { x: 214, z: -112 } },
       { id: 'mori', layer: 'yobi', wing: 'right', men: 2500, taisho: '森忠政', flag: 'tsuru', hold: true, at: { x: 216, z: 112 } },
       { id: 'okudaira', layer: 'gozume', wing: 'left', men: 1500, taisho: '奥平家昌', flag: 'okudaira', hold: true, at: { x: 238, z: -142 } },
       { id: 'yasushige', layer: 'gozume', wing: 'right', men: 1500, taisho: '本多康重', flag: 'honda', hold: true, at: { x: 236, z: 146 } },

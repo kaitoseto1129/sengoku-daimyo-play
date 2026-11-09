@@ -457,7 +457,7 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["田中吉政", "namban", "kuwa_wide", 0x29251f, 0x413e32, "kebiki", 0x302b32, 0, "tokugawa", ""],
   ["浅野長政", "namban", "horn", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
   ["浅野長晟", "momonari", "none", 0x1c1a1a, 0x6a4026, "okegawa", 0, 0, "asano", ""],
-  ["仙石秀久", "namban", "shida", 0x29251f, 0x413e32, "okegawa", 0x302b32, 0x29251f, "tokugawa", ""],
+  ["仙石秀久", "sengoku_kasa", "sengoku_shida", 0x1c1a1a, 0x232c40, "kebiki", 0, 0x1c1a1a, "eiraku", "https://museum.umic.jp/hakubutsukan/collection/item/0009-2.html"],
   ["可児才蔵", "namban", "bellflower", 0x29251f, 0x413e32, "sugake", 0x302b32, 0x29251f, "tokugawa", ""],
   ["平野長泰", "zunari", "kuwa", 0x24221f, 0xb0a890, "sugake", 0, 0, "tokugawa", ""],
   ["糟屋武則", "zunari", "moon", 0x24221f, 0xa88a3a, "sugake", 0, 0x24221f, "tokugawa", ""],

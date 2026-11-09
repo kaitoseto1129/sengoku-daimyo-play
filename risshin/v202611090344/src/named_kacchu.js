@@ -34,6 +34,17 @@ export function namedArmorLook(look) {
 }
 const crests = new Map();
 export function namedCrestGeometry(kind, hi = true) {
+  // 上田市立博物館の伝秀久所用具足。既存の歯朶を脇へ広げ、前立を加えない。
+  if (kind === 'sengoku_shida') {
+    const key = kind + (hi ? '|近' : '|遠');
+    if (!crests.has(key)) {
+      const [base, mat] = namedCrestGeometry('shida', hi);
+      const g = base.clone().scale(1.7, 1.1, 1).translate(0, 0, -0.13);
+      g.computeBoundingSphere();
+      crests.set(key, [g, mat]);
+    }
+    return crests.get(key);
+  }
   if (kind === 'kagekatsu_nichirin') {
     const key = kind + (hi ? '|近' : '|遠');
     if (!crests.has(key)) {

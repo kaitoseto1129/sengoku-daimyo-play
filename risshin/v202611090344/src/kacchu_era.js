@@ -11,6 +11,25 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 林原美術館の伝恒興所用・黒塗黒糸威桶側胴具足。三戦の着用は未確認。
+  // 山崎・小牧・長久手だけで使い、織田編の共通表・専用指定は保つ。
+  // 出所と省略箇所：docs/generals_look_1108/池田恒興.md。
+  if (name === '池田恒興' && year >= 1582 && year <= 1584 && KACCHU[name]) {
+    const key = name + '|伝黒糸桶側';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'zunari', crest: 'none', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x1c1a1a, odo: 0x1c1a1a, shikoroLace: 0x1c1a1a,
+      doStyle: 'okegawa', doOpening: 'nimai', plateDo: null,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroRows: 5, fukigaeshiRows: 1,
+      kusazuriCount: 7, kusazuriLaceRows: 5, kusazuriColor: 0x1c1a1a,
+      kusazuriBands: Array(5).fill(0x1c1a1a),
+      haori: 0, noHaori: true, menpo: 0, menpoScan: null, horo: 0, fur: 0,
+      mon: 'ageha', flag: 'ageha', uma: null,
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 草野本家の伝秀長所用・金小札紫糸威二枚胴具足。所用の確定品ではない。
   // 兜内の札の天正十五年から採用し、それ以前は黒漆の当世具足で補う。
   // 織田編の共通表・専用指定は保つ。出所と補完：docs/generals_look_1108/豊臣秀長.md。
