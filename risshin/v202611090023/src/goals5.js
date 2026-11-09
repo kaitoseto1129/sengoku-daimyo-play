@@ -114,15 +114,20 @@ const OWN = {
     ].map((g) => ({ ...g, count: () => null, sec: 900 }));
   },
   // 八王子城（11/4 p100）：大手 → 曳橋で打って出た敵を迎え撃つ → 付け入り → 尾根の三つの曲輪 → 本丸の中山勘解由。人数を討つ目標は置かない
-  t11_hachioji: () => {
-    const dpi = (rt) => (rt.flags.dp ? (rt.flags.dp.on ? rt.flags.dp.i : 99) : -1);
-    const cur = (k) => (rt) => (dpi(rt) === k ? rt.flags.dp.cur?.groups || [] : []);
+  t11_hachioji: (rt) => {
+    // 11/8 15分の構成：段の番は戦の側の名の表（b_t11_hachioji.js の dpIx）から引く
+    const X = rt.def.dpIx || {};
+    const dpi = (r) => (r.flags.dp ? (r.flags.dp.on ? r.flags.dp.i : 99) : -1);
+    const cur = (k) => (r) => (dpi(r) === k ? r.flags.dp.cur?.groups || [] : []);
     return [
-      { kind: 'stage', k: 0, text: '山下曲輪で近藤出羽守の組を討つ', check: (rt) => won(rt) || dpi(rt) >= 1, groups: cur(0) },
-      { kind: 'stage', k: 1, text: '曳橋で打って出た北条勢を迎え撃つ', noun: '打って出た敵', check: (rt) => won(rt) || !!rt.flags.sallyBack, groups: (rt) => (rt.flags.sallyG && !rt.flags.sallyBack ? [rt.flags.sallyG] : []) },
-      { kind: 'stage', k: 2, text: '退く敵に続き、冠木門から御主殿へ攻め入る', noun: '冠木門', check: (rt) => won(rt) || dpi(rt) >= 4 },
-      { kind: 'stage', k: 3, text: '金子丸・高丸・小宮曲輪を落とす', check: (rt) => won(rt) || dpi(rt) >= 7, groups: (rt) => (dpi(rt) >= 4 && dpi(rt) <= 6 ? rt.flags.dp.cur?.groups || [] : []) },
-      { ...bossGoal('中山勘解由'), k: 4 },
+      { kind: 'stage', k: 0, text: '霧の谷を進み、山下曲輪の木戸の前へ', noun: '大手の木戸', check: (r) => won(r) || dpi(r) >= X.ote, groups: cur(X.sanroku) },
+      { kind: 'stage', k: 1, text: '山下曲輪で近藤出羽守の組を討つ', check: (r) => won(r) || dpi(r) >= X.bridge, groups: cur(X.ote) },
+      { kind: 'stage', k: 2, text: '曳橋で打って出た北条勢を迎え撃つ', noun: '打って出た敵', check: (r) => won(r) || !!r.flags.sallyBack, groups: (r) => (r.flags.sallyG && !r.flags.sallyBack ? [r.flags.sallyG] : []) },
+      { kind: 'stage', k: 3, text: '退く敵に続き、冠木門から御主殿へ攻め入る', noun: '冠木門', check: (r) => won(r) || dpi(r) >= X.sakamichi },
+      { kind: 'stage', k: 4, text: '尾根の急な坂を、金子丸の下まで登る', noun: '尾根の坂', check: (r) => won(r) || dpi(r) >= X.kaneko, groups: cur(X.sakamichi) },
+      { kind: 'stage', k: 5, text: '金子丸・高丸・小宮曲輪を落とす', check: (r) => won(r) || dpi(r) >= X.hon, groups: (r) => (dpi(r) >= X.kaneko && dpi(r) <= X.matsuki ? r.flags.dp.cur?.groups || [] : []) },
+      { ...bossGoal('中山勘解由'), k: 6 },
+      { kind: 'stage', k: 7, text: '本丸の奥で、最後まで残る城兵を討つ', noun: '本丸の奥', check: won, groups: cur(X.rakujo) },
     ];
   },
   // 桶狭間（11/4 jin）：史実の順（中島砦を出て谷の出口へ → 雨の後に坂道の守り → 幕の前の旗本 → 幕の入口 → 退く義元を毛利が討つ）。

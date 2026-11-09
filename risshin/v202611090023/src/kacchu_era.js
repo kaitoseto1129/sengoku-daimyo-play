@@ -11,6 +11,22 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 真田宝物館の伝昌幸所用・昇梯子具足による復元。織田編の表へは戻さない。
+  // 江戸期の修理色と当初の推定を区別する。出所：docs/generals_look_1108/真田昌幸.md。
+  if (name === '真田昌幸' && year >= 1590 && KACCHU[name]) {
+    const key = name + '|昇梯子';
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'toppai', crest: 'masayuki_tensho', hat: 'kabuto', hatFix: 1,
+      armor: 0x1c1a1a, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+      lace: 0x8a6a3a, odo: 0x8a6a3a, preserveLace: true,
+      doStyle: 'hotoke', plateDo: 'hotoke', doOpening: 'nimai', ladderMon: true,
+      shikoroStyle: 'kebiki', shikoroRows: 5, sodeStyle: 'kebiki',
+      kusazuriCount: 7, kusazuriLaceRows: 4,
+      menpo: 0x9c2e21, menpoStyle: 'hanbo', menpoScan: null,
+      haori: 0, horo: 0, fur: 0, mon: 'sanada', flag: 'sanada', uma: null, ref: '',
+    });
+    return cache.get(key);
+  }
   // 所用具足は未確認。関ヶ原だけ敦賀市立博物館蔵の容斎屏風に寄せる（後世の描写）。
   // 忍城・小田原へ頭巾姿を持ち込まない。出所：docs/generals_look_1108/大谷吉継.md。
   if (name === '大谷吉継' && year >= 1582 && KACCHU[name]) {

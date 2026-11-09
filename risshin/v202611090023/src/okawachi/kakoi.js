@@ -15,7 +15,7 @@ export function start(rt, ctx, done) {
   const t0 = rt.t;
   const { SPOT, speaker } = ctx;
   depthStart(rt, ctx, [
-    DP.rest({ dur: 4, heal: 0, banner: ['大河内城', '八万の兵が四方を囲む'],
+    DP.rest({ dur: 4, heal: 0, banner: ['大河内城', '五万の兵が四方を囲む'],
       say: [[speaker, '城は山ひとつ。大手も搦手も鹿垣で塞いだ。まず角の物見の場で城を見よ', 4]] }),
     DP.move({
       to: SPOT, r: 5, label: '物見の場', obj: '坂の角の物見の場へ上がり、城の構えを見よ', max: 80,

@@ -1838,8 +1838,8 @@ function mkB(rt, o) {
     const n = grow.call(this, k);
     if (monk && o.faction === 'ikko') templeFlagPoles(this);
     // 11/4 check60（一-1）：三万余の織田の先手は、内から崩れた一揆の前で隊ごと逃げ出さない（討たれる兵は討たれる）。
-    if ((o.faction === 'oda' && o.team === 0 || o.holdGround) && this.real) this.real.noRout = true;
-    if (o.stay && this.real) this.real.stay = true;
+    if ((o.faction === 'oda' && o.team === 0 || o.holdGround && !this._nightReleased) && this.real) this.real.noRout = true;
+    if (o.stay && !this._nightReleased && this.real) this.real.stay = true;
     return n;
   };
   if ((o.faction === 'oda' && o.team === 0 || o.holdGround) && b.real) b.real.noRout = true;
@@ -2319,7 +2319,7 @@ function echizenIkkoMorning(rt) {
   const F = rt.flags;
   if (F.mountainHunt) return;
   F.mountainHunt = true;
-  rt.world.setTime('morning');
+  rt.world.setTime('morning', true);
   templeNightLights(false);
   rt.banner('十七日の朝、山狩り', '本堂に籠る者を押さえる');
   // 山門が破れると、奥の院の衆徒が石段を駆け下りて本堂を取り返しに来る（寺の守りの最後の逆襲・補い）。
@@ -3639,10 +3639,10 @@ const echizen_ikko = {
       F.ikkoOkuLast = mkB(rt, { name: '奥の院の衆徒', real: 6, maxReal: 6, nearReal: 6, farReal: 6, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 42, armor: IKKO.armor, flag: IKKO.flag, at: { x: okuC.x, z: okuC.z - 6 }, facing: Math.PI });
       // 奥の院の先、道の曲がりで迎える。道を登る間も二十五歩内に守りが見える。
       // 同じ二十二人を三段に分ける。一度に十四人の実兵が襲う終盤にしない。
-      F.ikkoCounter = mkB(rt, { name: '山道の守り', real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 6, armor: IKKO.armor, flag: IKKO.flag, at: { x: -14, z: 86 }, facing: Math.PI });
+      F.ikkoCounter = mkB(rt, { name: '山道の守り', stay: true, holdGround: true, real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 6, armor: IKKO.armor, flag: IKKO.flag, at: { x: -14, z: 86 }, facing: Math.PI });
       F.roadWaves = [F.ikkoCounter,
-        mkB(rt, { name: '山道の後備え', real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 8, armor: IKKO.armor, flag: IKKO.flag, at: { x: -20, z: 98 }, facing: Math.PI }),
-        mkB(rt, { name: '奥山の後備え', real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 8, armor: IKKO.armor, flag: IKKO.flag, at: { x: -26, z: 110 }, facing: Math.PI })];
+        mkB(rt, { name: '山道の後備え', stay: true, holdGround: true, real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 8, armor: IKKO.armor, flag: IKKO.flag, at: { x: -20, z: 98 }, facing: Math.PI }),
+        mkB(rt, { name: '奥山の後備え', stay: true, holdGround: true, real: 3, maxReal: 3, nearReal: 3, farReal: 3, team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 8, armor: IKKO.armor, flag: IKKO.flag, at: { x: -26, z: 110 }, facing: Math.PI })];
       F.roadSecond = F.roadWaves[1]; F.roadThird = F.roadWaves[2];
       F.ikkoAmbush = mkB(rt, { real: 10, maxReal: 10, nearReal: 10, farReal: 10, name: '谷筋の伏兵', team: 1, faction: 'ikko', kind: 'ashigaru', nominal: 26, armor: IKKO.armor, flag: IKKO.flag, at: { x: 30, z: -70 }, facing: -Math.PI / 2 });
       // 11/4 check60（一-1）：織田は三万余、一揆は内から崩れていた。この戦で槍を合わせない奥の院・山道の備えは本物を少なくし、
@@ -3982,13 +3982,15 @@ const echizen_ikko = {
       F.huntWavesPending = 0;
       for (const [i, b] of (F.roadWaves || []).entries()) {
         if (!b || b.aliveNominal() <= 0 || b.real?.routed) continue;
-        if (b.real) b.real.stay = false;
-        b._nightReleased = true;
+        // 合図の時刻までは森の持ち場に残す。先に崩れて山狩りから消えない。
         F.huntWavesPending++;
         rt.after(2 + i * 6, () => {
           F.huntWavesPending--;
-          if (!F.ending && !b.real?.routed && b.aliveNominal() > 0)
+          if (!F.ending && !rt.over && !b.real?.routed && b.aliveNominal() > 0) {
+            if (b.real) { b.real.stay = false; b.real.noRout = false; }
+            b._nightReleased = true;
             setRoute(b, [[OKU_POS.x + (i - 1) * 4, OKU_POS.z]], false);
+          }
         });
       }
       this.burn(rt, 'hondo', F.hondoStruct);
@@ -4256,10 +4258,10 @@ const echizen_ikko = {
         // 後備えを送り出した後も、総大将と旗本は麓の陣所に据える。
         if (!F.generalRetired && reserve.real && !reserve.real.stay) reserve.real.stay = true;
         if (!F.generalRetired && reserve.taishoU?.alive) {
-          let guards = 0, danger = false;
-          for (const u of reserve.real?.units || []) if (u !== reserve.taishoU && u.alive && !u.fleeing && !u.woundOut) guards++;
+          let danger = false;
           for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && u.team !== reserve.team && !u.noTarget && !u.isStruct && Math.hypot(u.pos.x - reserve.pos.x, u.pos.z - reserve.pos.z) < 18) danger = true;
-          if (guards < 4 || danger) {
+          // 遠景への切替で実兵が減っても退かない。陣所へ敵が迫った時だけ退く。
+          if (danger) {
             F.generalRetired = true; reserve.order({ id: 'move', to: F.generalSafe, form: 'yari' });
             if (reserve.real) reserve.real.stay = false;
             templeSay(rt, '伝令', '後備えが危ういとの報せにござる。滝川殿は麓へお退きじゃ。先手は備えを崩すな', 4);
