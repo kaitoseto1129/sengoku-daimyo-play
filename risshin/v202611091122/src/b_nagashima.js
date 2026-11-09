@@ -161,6 +161,14 @@ function bankFighterReady(u) {
   return !!u?.alive && u.hp > 0 && !u.gone && !u.dying &&
     !u.fleeing && !u.woundOut && !u.rearWound && !u.group?.routed;
 }
+// 西・東の防衛はその口の手、最後の防衛は中央の手と受ける。
+// 段ごとに一度選び、退避先を探す時も同じ味方を使う。
+function bankDepthFriends(rt) {
+  const F = rt.flags, C = F.dp?.cur;
+  if (!C?.at) return F.bankNoFriends ||= [];
+  return C.bankFriends ||= (F.dpLast ? F.oda : F.mouths || []).filter(g =>
+    g && !g.routed && (F.dpLast || Math.sign(g.mouthX) === Math.sign(C.at.x)));
+}
 // 上陸した同じ門徒だけを追う。舟・対岸の守兵へ持ち場を離れさせない。
 function bankFoeReady(u) {
   return bankFighterReady(u) && !u.downed && !u.noTarget && !u.boatSeat?.aboard && u.pos.z >= BANK_Z - 3;
@@ -3574,7 +3582,7 @@ const nagashima = {
     if (F.step >= 1.5 || F.ending) return;
     F.step = 1.5; F.stepT = rt.t; F.dpOn = true;
     // 段の間、柴田の手と鉄砲衆は中央の岸に残す（長島城が降った後の斬り込みを元の柵で受ける）。西と東の段は、その口の信忠・稲葉の手と並んで受ける。念のため元の持ち場・構えを覚えて戻す
-    const saved = (F.oda || []).filter(Boolean).map((g) => ({ g, anchor: { ...g.anchor }, order: g.order, formation: g.formation, facing: g.facing, aggro: g.aggro, stay: g.stay, fire: g.fire }));
+    const saved = [...(F.oda || []), ...(F.mouths || [])].filter(Boolean).map((g) => ({ g, anchor: { ...g.anchor }, order: g.order, formation: g.formation, facing: g.facing, aggro: g.aggro, stay: g.stay, fire: g.fire }));
     for (const id of ['workWatch', 'watch', 'watchFacing']) rt.unmark(id);
     const A = (n) => ({ type: 'ashigaru', n }), B = (n) => ({ type: 'bow', n });
     // 門徒：鉢巻・小袖の徒（侍は旗頭だけ）
@@ -3582,7 +3590,7 @@ const nagashima = {
     const steps = fusaSteps({ rest: dpRest, hold: dpHold, BANK_Z, A, B, monto });
     for (const st of steps) {
       const start = st.start;
-      st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
+      st.start = (rt2, C, m, ctx) => { start(rt2, C, m, ctx); if (st.kind === 'hold') for (const g of bankDepthFriends(rt2)) g.fire = true; const o = rt.objectives.find((q) => q.id === 'dp'); if (o?.text) rt.obj('main', o.text, 'main'); };
       // 守る段は、敵を退け本人が持ち場を守るまで終えない。
       if (st.kind === 'hold') {
         st.idleAdvance = false; st.limit = Infinity;
@@ -3603,7 +3611,8 @@ const nagashima = {
       }
     }
     depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.3, dmg: 0.75, calmRest: false,
-      look: (l) => dress(l, IKKO), friends: () => [] }, steps, () => {
+      look: (l) => dress(l, IKKO), friends: bankDepthFriends, keepZ: BANK_Z,
+      botBackAllowed: (rt2, x, z) => z >= BANK_Z }, steps, () => {
       F.dpOn = false; F.dpDone = true; rt.objRemove('dp');
       for (const o of saved) if (o.g.count && !o.g.routed) { Object.assign(o.g, { anchor: o.anchor, order: o.order, formation: o.formation, facing: o.facing, aggro: o.aggro, stay: o.stay, fire: o.fire }); o.g.path = null; }
       // 長島城が降るまでの数日、岸の陣で傷を手当てし息を整えた（日が進む）
@@ -3641,7 +3650,8 @@ const nagashima = {
       }
     }
     depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.3, dmg: 0.75, calmRest: false,
-      look: (l) => dress(l, IKKO), friends: () => [] }, steps, () => { F.dpOn = false; rt.objRemove('dp'); this.win(rt); });
+      look: (l) => dress(l, IKKO), friends: bankDepthFriends, keepZ: BANK_Z,
+      botBackAllowed: (rt2, x, z) => z >= BANK_Z }, steps, () => { F.dpOn = false; rt.objRemove('dp'); this.win(rt); });
   },
 
   // ② 降伏して退城する舟。射撃の下知後は実際の弾と傷が通る。舟を討つ任務にはしない。
