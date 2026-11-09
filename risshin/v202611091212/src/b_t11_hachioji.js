@@ -473,12 +473,12 @@ const t11_hachioji = {
   depth: {
     A: { name: '前田・上杉', facing: -Math.PI / 2, honjin: { x: START.x + 9, z: START.z }, mpu: 8, formation: '長蛇', terrain: 'valley', flag: 'maeda', armor: 0x24221f, openAt: 20, attrition: 0,
       sonae: [
-        { id: 'saki', layer: 'sakite', wing: 'center', men: 3000, taisho: '', bind: (rt) => rt.flags.saki },
+        { id: 'saki', layer: 'sakite', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.saki },
         { id: 'mine', layer: 'ichi', wing: 'center', men: 1500, taisho: '', bind: (rt) => rt.flags.mine },
-        { id: 'ni', layer: 'ni', wing: 'center', men: 3000, taisho: '', bind: (rt) => rt.flags.ni },
+        { id: 'ni', layer: 'ni', wing: 'center', men: 2500, taisho: '', bind: (rt) => rt.flags.ni },
         { id: 'naga', layer: 'yobi', wing: 'center', men: 1000, taisho: '前田利長', bind: (rt) => rt.flags.naga },
-        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 5000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
-        { id: 'ato', layer: 'gozume', wing: 'center', men: 3000, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
+        { id: 'uesugi', layer: 'ichi', wing: 'right', men: 4000, taisho: '藤田信吉', flag: 'uesugi', bind: (rt) => rt.flags.uesugi },
+        { id: 'ato', layer: 'gozume', wing: 'center', men: 1500, taisho: '', at: { x: START.x + 34, z: START.z + 2 }, hold: true },
         { id: 'honjin', layer: 'honjin', wing: 'center', men: 2000, taisho: '前田利家', bind: (rt) => rt.flags.honjin, hold: true },
       ] },
     honjinView: { A: false },   // 利家の陣幕は戦のファイルが作る
@@ -632,7 +632,7 @@ const t11_hachioji = {
         reward: '小宮曲輪を落とした' }),
       // ⑤ 頂の本丸：利家は中山勘解由（家範）に命を助けると伝えたが、家範は断って討死。大石信濃守（照基）は城代の横地監物を城から落とし、
       //   自分は打って出て討死。横地は西の詰の城の方へ落ちる（update の yokochi）
-      DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true, limit: 240,
+      DP.fight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['大石信濃守', '監物殿は西へ落ちられよ。ここは我らが防ぐ！', 3.6]],
         foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
           keep('大石信濃守の手', HON, [{ type: 'busho', n: 1, o: { name: '大石信濃守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 95, seek: 24 })],
