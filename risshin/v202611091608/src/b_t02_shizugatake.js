@@ -351,7 +351,7 @@ const t02_shizugatake = {
   minutes: 15,
   expectMin: 15,             // 進み具合の棒は十五分で（11/8 夜）
   depth: T02_DEPTH,           // 軍勢の厚み・陣立て（t02_shizugatake/depth.js）
-  lethal: { max: 4, firstAt: 120, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）
   fearKind: { kind: 'fort_raid', note: '砦が急襲され、大岩山が落ちる', w: { losses: 1.2, honjin: 1.3, iso: 1.3 }, line: '砦が危ない！' },
   spawn: { x: START.x, z: START.z, heading: Math.atan2(LOOK.x - START.x, LOOK.z - START.z) },
   // 物見へ下りる間は、目線を余呉湖の向こうの燃える大岩山へ上げる（坂の法と杉だけを写さない。共通の口）

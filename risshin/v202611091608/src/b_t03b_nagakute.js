@@ -122,7 +122,7 @@ const t03b_nagakute = {
   minutes: 15,
   expectMin: 15,
   depth: T03B_DEPTH,   // 軍勢の厚み・陣立て（t03b_nagakute/depth.js）
-  lethal: { max: 5, firstAt: 90, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）。森・池田父子の死は筋書きの fall のまま
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 命懸けの戦場（docs/lethal_howto.md）。森・池田父子の死は筋書きの fall のまま
   fearKind: { kind: 'ambushed_column', note: '追う側から追われる側へ。前と横から押し包まれる', w: { flank: 1.6, losses: 1.3, routed: 1.4, iso: 1.3 }, line: '押し包まれるぞ！' },
   compactIntro: true,
   introText: () => '三河へ回り込む途中、白山林で朝飯の最中。',
