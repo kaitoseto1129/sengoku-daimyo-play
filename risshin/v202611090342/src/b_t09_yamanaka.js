@@ -588,7 +588,8 @@ const t09_yamanaka = {
     F.ending = true;
     rt.setPhase('end');
     for (const id of ['hon', 'gate', 'cross', 'dai', 'ote', 'uma']) rt.unmark(id);
-    if (F.hon && !gone(F.hon)) F.hon.morale = 0;
+    // 落城までは踏みとどまり、決着後は残兵を退かせる。敗走禁止のままでは締めの間も戦い続ける。
+    for (const g of [F.dai, F.pit, F.rim, F.uma, F.san, F.ni, F.hon, F.kogo]) if (g && !gone(g)) { g.noRout = false; g.order = 'retreat'; g.morale = 0; }
     rt.objDone('main');
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '山中城を半日で落とした', pts: 24 }; }, '任務達成・山中城の本丸を崩した');
@@ -745,7 +746,18 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (u.hp < u.maxHp * 0.65) b.botRest = true;
   if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
   const c = (F.toyo.find((g) => !gone(g)) || F.ichi).center();
-  if (b.botRest && F.step !== 2) { inp.guardHold = false; goTo(p, inp, c.x, c.z + 18, 2); return; }
+  if (b.botRest && F.step !== 2) {
+    inp.guardHold = false;
+    // 先手の中心は出丸の内へ進む。そこを休息先にすると、深手の本人が敵陣へ戻ってしまう。
+    // 西側からは畝堀の土橋へ戻り、東の街道の二陣で手当てを待つ。
+    if (F.step === 1) {
+      if (u.pos.x < -10) {
+        if (Math.abs(u.pos.z - 176) > 4) goTo(p, inp, Math.min(u.pos.x, -32), 176, 1.5);
+        else goTo(p, inp, -6, 176, 1.5);
+      } else goTo(p, inp, 12, 194, 2);
+    } else goTo(p, inp, c.x, c.z + 18, 2);
+    return;
+  }
   // 堀の中では寄り道をせず、畝の筋をまっすぐ渡る
   //   （目の前に来た敵だけは斬り払う）
   // 切岸の上や柵の向こうへ斬り掛からず、味方と同じ虎口・土橋を通る。

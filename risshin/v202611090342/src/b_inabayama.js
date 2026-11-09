@@ -4862,7 +4862,7 @@ const inabayama = {
     // 西の仮道を、北側を回る実在の水手道と取り違えない。櫓の位置・形は推定。
     F.tower = monomi(rt, TOWER.x, TOWER.z, { name: '西の裏道の物見櫓', logFrame: true, height: 8.8, boarded: false, mon: 'saito', team: 1 });
     rt.scene.add(F.tower.mesh);
-    F.towerArchers = enemyGroup(rt, { fixed: true, faction: 'saito', name: '物見櫓の射手', anchor: { x: TOWER.x, z: TOWER.z }, facing: TOWER_FACING, order: 'hold', aggro: 10, width: 2, morale: 80 },
+    F.towerArchers = enemyGroup(rt, { fixed: true, faction: 'saito', name: '物見櫓の射手', anchor: { x: TOWER.x, z: TOWER.z }, facing: TOWER_FACING, order: 'hold', aggro: 10, fire: false, holdFire: true, width: 2, morale: 80 },
       [{ type: 'bow', n: 2 }]);
     // 射手を物見櫓の床の高さに乗せる（floors.js の床の上に立つ扱い。以後は groundAt が高さを保つ）
     for (const u of F.towerArchers.units) { u.pos.y = F.tower.topY; if (u.mesh) u.mesh.position.y = F.tower.topY; }
@@ -5145,7 +5145,8 @@ const inabayama = {
     // 後続はすでに町の通りまで下りている。山道の移動で斬り合いを長く途切れさせない。
     // 物見・伏兵・旗本は持ち場を守る。段の切り替えで兵を増やさない。
     // 10/30：(32,36) は町の北の崖の上の棚（高さ 16m・町より 10m 上）で、町から登れず、ピンを追う遊び手が崖下で止まった。崖の下の通りへ下ろす。
-    F.town2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 34, z: 46 }, facing: 0, order: 'hold', aggro: 10, width: 7, morale: 85, fleeDir: { x: 0, z: -1 } },
+    // 通りの味方へ寄せる。十歩の持ち場待ちでは弓兵も射程外で止まっていた（全戦の通し④）。
+    F.town2 = enemyGroup(rt, { fixed: true, faction: 'saito', name: '城から下りた斎藤勢', anchor: { x: 34, z: 46 }, facing: 0, order: 'attack', aggro: 10, seekRange: 40, historicalOrders: true, width: 7, morale: 85, fleeDir: { x: 0, z: -1 } },
         [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }]);
     F.townGuards = [F.town, F.town2, ...F.houseGuards];
     // 11/1 夕（稲葉山72：乱戦が薄い）：持ち場の前二十〜三十歩は軽い兵が隠れる間合いで、本物の兵はまばらだった。

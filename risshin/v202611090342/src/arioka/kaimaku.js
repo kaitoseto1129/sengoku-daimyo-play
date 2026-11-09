@@ -33,7 +33,8 @@ function sawWall(rt, ctx, byPlayer) {
   if (S.atLook) return;
   S.atLook = true;
   rt.army.play('volley', { x: ctx.gate.x + 6, z: ctx.gate.z - 12 }, 0.9);
-  rt.army.smoke?.(ctx.gate.x + 4, 4, ctx.gate.z - 10, -1, 0, 2.2);
+  const x = ctx.gate.x + 4, z = ctx.gate.z - 10;
+  rt.army.smoke?.(x, rt.world.heightAt(x, z) + 4, z, -1, 0, 2.2);
   rt.say('滝川の組頭', byPlayer ? '頭を下げよ！　塀の上の鉄砲じゃ。上臈塚の砦の灯が見えるか、あそこが内応の口よ' : '塀の上から鉄砲じゃ！　上臈塚の砦が内応の口よ', 4.5);
   if (byPlayer) rt.award((t) => { if (!t.side.includes('堀端から惣構えの塀を見届けた')) t.side.push('堀端から惣構えの塀を見届けた'); }, '惣構えを見届けた');
   rt.obj('main', ctx.goal0, 'main', true);

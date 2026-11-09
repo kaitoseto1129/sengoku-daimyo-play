@@ -29,6 +29,7 @@ import { ODANI_KACCHU } from './kacchu_data.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
 import { sightPoint, sightUnit } from './battle_sight.js';
+import { pinGuideOn } from './mission_pin.js';
 import { goalsTick } from './hud_goals.js';
 import { enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { evRemove } from './b_ev6.js';
@@ -2819,8 +2820,7 @@ function odaniGoalBoard(rt) {
     }
     return out;
   };
-  // 九3「敵の兵には一人残らず頭上に赤い▼」：六十メートル内の見える敵の残りにも共通と同じ大きさの赤い▼。
-  //   印は使い回し、見通しは兵ごとに三分の一秒おき。
+  // 六十メートル内の残る敵にも赤い▼。共通の印を描く方式では二重に足さない。
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
   box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
@@ -2829,7 +2829,7 @@ function odaniGoalBoard(rt) {
     const out = foeMarks.call(this, battle);
     if (battle !== rt) return out;
     const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const on = pinGuideOn(rt) && me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (n >= 250) break;
