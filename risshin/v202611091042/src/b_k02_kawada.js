@@ -97,7 +97,19 @@ function height(x, z) {
 
 const { way: wayRaw } = routeTools(ROUTE, 'k02');
 // 道の角は 1.5 歩の内で次へ送るが、着いたとみなす輪が 2 歩で、角の 2 歩手前で止まったままになった（11/6 流しで新加納の手前に四分）。輪を 1 歩に
-const kawadaWay = (army, u, want) => { const q = wayRaw(army, u, want); if (q !== want) q.botRadius = 1; return q; };
+const kawadaWay = (army, u, want) => {
+  // 退避で選んだ直進先は、歩く処理がもう一度道を選ぶ時にも維持する。
+  const back = u._k02BackDirect;
+  u._k02BackDirect = null;
+  if (back && back.x === want.x && back.z === want.z) return want;
+  const q = wayRaw(army, u, want); if (q !== want) q.botRadius = 1; return q;
+};
+// 北岸の退避先は柵を挟まない場所から選んである。砦の外から道へ戻すと、
+// 内側の折れ角へ引かれて柵で止まる。川を渡る退避だけ浅瀬の道を使う。
+const kawadaWithdrawWay = (army, u, want) => {
+  if (u.pos.z < NORTH.z && want.z < NORTH.z) { u._k02BackDirect = want; return want; }
+  return kawadaWay(army, u, want);
+};
 // 手当ての退避先は、今いる側から歩いて寄れる味方の後ろだけにする。
 // 砦の柵越しの味方や川の深みを選ぶと、退避と木戸への入り直しを繰り返す恐れがある。
 function kawadaBackAllowed(b, x, z) {
@@ -391,7 +403,7 @@ const k02_kawada = {
     rt.setPhase('siege');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true, botBackAllowed: kawadaBackAllowed, withdrawWay: kawadaWay }, [
+    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true, botBackAllowed: kawadaBackAllowed, withdrawWay: kawadaWithdrawWay }, [
       // ① 明け方、南の筋を渡って中洲の小屋場島へ。北岸の鉄砲が浅瀬を撃つ
       island(DP.move({ to: ISLE, obj: '南の筋の浅瀬を渡り、中洲の小屋場島へ行け', label: '小屋場島', r: 9, max: 120,
         say: [['一柳直盛', '浅瀬はここじゃ。島まで止まるな']],

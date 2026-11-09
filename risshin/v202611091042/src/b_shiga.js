@@ -3622,7 +3622,7 @@ const shiga = {
       // 公記の南への進出と後詰の北上を、同じ街道の印で示す。
       // 在所そのものは画面外。印は復元した道の上に置き、町の位置と取り違えさせない。
       // https://ja.wikisource.org/wiki/信長公記#巻三（十）志賀御陣之事
-      rt.marker('lakeRoute', AID_START, '南へ続く道・大津方面（道筋は推定）', { h: 3 });
+      rt.marker('lakeRoute', AID_START, '南へ続く道・大津方面', { h: 3 });
       const bg = enemyGroup(rt, { faction: 'asakura', name: '街道を南へ抜ける朝倉の手', anchor: { x: BYPASS_WAIT[0], z: BYPASS_WAIT[1] }, facing: 0, order: 'path', aggro: 4, width: 10, morale: 80, speed: 2.4, fleeDir: { x: 0, z: -1 } },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }], ASA));
       F.bypass = bg; F.bypassInitial = bg.count;
@@ -3642,7 +3642,7 @@ const shiga = {
       if (F.ending || rt.over || (F.step !== 3 && F.step !== 3.5) || !F.otsuAdvance || F.battleDay > 21) return;
       shigaDay(rt, 21);
       rt.banner('九月二十一日・敵は逢坂を越える', '醍醐・山科に放火。京へ迫っている');
-      rt.marker('lakeRoute', AID_START, '南へ続く道・逢坂方面（道筋は推定）', { h: 3 });
+      rt.marker('lakeRoute', AID_START, '南へ続く道・逢坂方面', { h: 3 });
       rt.say('使番', '大津へ出た敵が逢坂を越え、醍醐・山科に火を掛けた。城の守りを続けよ！', 4.5);
     });
   },
@@ -3660,7 +3660,7 @@ const shiga = {
     // 三山の所在地を示す印ではなく、推定した登り口。終幕に一度だけ作る。
     for (let i = 0; i < HIEI_EXITS.length; i++) {
       const to = HIEI_EXITS[i];
-      rt.marker('hieiExit' + i, to, `${to.name}へ・登り口は推定`, { red: true, h: 3 });
+      rt.marker('hieiExit' + i, to, `${to.name}への登り口`, { red: true, h: 3 });
     }
     // 北への引き返しではなく、坂本の西へ分かれて退く。人数と兵列は保つ。
     for (let i = 0; i < F.host.length; i++) {
