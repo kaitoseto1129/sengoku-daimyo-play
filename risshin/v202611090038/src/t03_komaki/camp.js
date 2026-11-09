@@ -87,6 +87,5 @@ export function tickCamp(rt, K) {
     rt.after(8, () => rt.say('物見', '堀の前の田に、徳川の鉄砲が出て参りまする！', 3));
     rt.after(10.5, () => K.next());
   }
-  if (!F.campAt && el > 170) { F.campAt = rt.t; K.next(); }
 }
 export function towerAt(rt, K) { return rt.flags.fortTower?.foot || { x: K.FORT.x + 22, z: K.GATE.z - 14 }; }
