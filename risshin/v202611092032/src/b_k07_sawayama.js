@@ -804,7 +804,11 @@ const k07_sawayama = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
-    if (v.team === 1) F.ek++; else F.ak++;
+    // 人数の棒と同じく、門・塀などの破壊は兵の損失に含めない。
+    if (!v.isStruct) {
+      if (v.team === 1) F.ek++;
+      else if (v.team === 0) F.ak++;
+    }
     if (v.name === '宇多頼忠') { F.udaDead = true; if (k === rt.player.u) rt.award((t) => { t.special = { label: '宇多頼忠を討ち取った', pts: 20 }; }, '宇多頼忠を討ち取った'); }
   },
   onRout(rt, g) {

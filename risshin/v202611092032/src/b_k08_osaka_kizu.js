@@ -596,6 +596,12 @@ const k08_osaka_kizu = {
     const F = rt.flags;
     if (F.ending || !F.step) return;
     const P = rt.player.u.pos;
+    // 味方が先に敵を払っても、本人が目標の場所へ進むまでは達成にしない。
+    // 一度加わった後は、傷の手当てで下がっても参加を取り消さない。
+    if (F.step === 1 && near(P, SHORE, 24)) F.shoreJoined = true;
+    if (F.step === 2 && near(P, GATE, 24)) F.gateJoined = true;
+    if (F.step === 3 && P.z < GATE.z && Math.abs(P.x) < WALL_X && near(P, INSIDE, 24)) F.insideJoined = true;
+    if (F.step === 4 && near(P, NGATE, 24)) F.northJoined = true;
     // 砦の兵は手薄で浮き足立っている（史実）。豊臣方の組は傷を軽めにそろえる（夜襲の一人が数突きで倒れない）
     //   櫓の上の鉄砲と弓は、夜明けまでは闇に撃ち下ろすので当たりが浅い（11/6 fixc0823：描いて遊んだ通しで、丸太と寄せる門の前で南の櫓の二組に二十秒で撃ち倒された）
     if (!(F.lightT > rt.t)) { F.lightT = rt.t + 1; const m = F.step <= 2 ? 0.3 : F.step === 4 ? 0.4 : 0.5;   // ④は北の口の守兵・全延の組・城からの加勢が一度に来る（11/9 二巡で加勢を足した分だけ軽く）
@@ -630,13 +636,13 @@ const k08_osaka_kizu = {
         rt.say('明石全延', '岸の者を見捨てるな。門から出て撃ちかけよ', 3.2);
         return;
       }
-      // 主人公が岸に来なくても、先手が岸を払えば次へ（二の5：何もしなくても物語は進む）
-      if (F.w1on && n <= F.fN * 0.15) this.stage2(rt);
+      // 先手が岸を払っても、本人が入り江を渡って岸へ加わるまで待つ。
+      if (F.shoreJoined && F.w1on && n <= F.fN * 0.15) this.stage2(rt);
     } else if (F.step === 2) {
       // 別手が砦の背に着くか、四十秒経てば民家に火
       if (!F.burned && (rt.t - F.tS > 40 || near(F.east.center(), { x: 44, z: -82 }, 14))) this.burn(rt);
       const st = F.gate;
-      if (!st || !st.alive || st.hp <= 0) { this.stage3(rt); return; }
+      if (!st || !st.alive || st.hp <= 0) { if (F.gateJoined) this.stage3(rt); return; }
       rt.objProgress('main', `${Math.round(100 - (100 * st.hp) / st.maxHp)}／100`);
       // 寄せた味方が門を打つ（門の前に味方が多いほど早い。主人公がそばで打てばさらに早い）
       let n = 0;
@@ -653,11 +659,11 @@ const k08_osaka_kizu = {
         rt.say('明石全延', '奥の者も出よ！　門を取り返せ', 3);
         return;
       }
-      if (F.okuOn && sum(F.s3) <= F.gN * 0.15) this.stage4(rt);
+      if (F.insideJoined && F.okuOn && sum(F.s3) <= F.gN * 0.15) this.stage4(rt);
     } else if (F.step === 4) {
       // 柵の外へ押し出された守兵は北の口の守りから外れた者（博労淵へ逃げる）。残りが追えずに④が止まらないように
       //   退き口を守る組は四十五秒は粘る（11/5 crit：④が二十秒で済んだ）
-      if (northLeft(F) <= Math.floor(F.nN * 0.2) && rt.t - F.tS > 45 && engun.cleared(rt)) this.stage5(rt);
+      if (F.northJoined && northLeft(F) <= Math.floor(F.nN * 0.2) && rt.t - F.tS > 45 && engun.cleared(rt)) this.stage5(rt);
     } else if (F.step === 5) {
       // 幟は主人公が北の口に来て立てる。待つだけで最後の目標を果たさない。
       // 主人公は北の口に着いて幟の竿を土に突き立てる（櫓から撃たれながら五秒ほど留まる。着いた途端に勝ちにしない）

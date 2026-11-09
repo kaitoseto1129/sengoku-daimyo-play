@@ -2853,6 +2853,7 @@ const kizugawa = {
   enemyTriangleSigns: true,
   // 11/4 jin（kaito BH6・AV15）：行き先は頭上の金の▼一つだけ。▼の上に字を添えず、旗・輪のピンを重ねない。
   goalSignOnly: true, goalSignNoLabel: true,
+  goalSignTriangle: true, // 行き先は画面の内外とも下向きの▼。共通の矢印へ戻さない。
   singleDestinationArrow: true, // 11/4 p100：行き先の印一つに、足元からの道の矢印を重ねない（⑧・AJ）。
   nearbyAllySignLimit: 0,
   noDodgeCard: true,

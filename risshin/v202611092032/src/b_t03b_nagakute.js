@@ -258,6 +258,7 @@ const t03b_nagakute = {
     if (n === 0.5) { March.start(rt, this.ctx(rt)); return; }
     if (n === 5.5) { Ikeda.start(rt, this.ctx(rt)); return; }
     if (n === 1) {
+      F.hideHome = { x: F.hideU.pos.x, z: F.hideU.pos.z };
       // 奇襲の声で朝飯をやめて立つ。描画を省く流しでも、休む姿勢を戦いへ持ち越さない。
       for (const g of [F.camp, F.men, F.hideG]) for (const u of g.units) if (u.alive) u._crouch = false;
       // 布陣図どおり：大須賀の手が後ろ（東・行軍の来た道の林）から、十八秒後に榊原の手が横（北）から（挟まれる）。水野・丹羽は②で後ろから続く
@@ -574,11 +575,12 @@ const t03b_nagakute = {
     if (F.stage === 0.5) { March.tick(rt, this.ctx(rt), dt); return; }
     if (F.stage === 5.5) { Ikeda.tick(rt, this.ctx(rt)); return; }
     if (F.stage === 1) {
-      // 総大将の信吉は馬印の前から出ない（離れたら馬廻ごと戻る）
-      const off = dist(F.hideU.pos, CAMP) > 6;
-      // 共通の守りの考えが馬廻を「かかれ」に替えても、信吉は寄せの中へ馬を出さない（毎コマ戻す）
-      F.hideOff = off;
-      if (off) { F.hideG.order = 'move'; F.hideG.dest = { ...CAMP }; } else if (F.hideG.order !== 'hold') F.hideG.order = 'hold';
+      // 隊への移動命令だけでは、敵を狙う本人が馬印を離れてしまう。本人の持ち場も毎コマ守る。
+      const H = F.hideU, home = F.hideHome || CAMP;
+      F.hideOff = dist(H.pos, home) > 6;
+      if (F.hideOff) { H.pos.x = home.x; H.pos.z = home.z; }
+      H.target = null; H.watch = null;
+      F.hideG.order = 'hold'; F.hideG.fixed = true;
       const left = F.w1.reduce((s, g) => s + aliveN(g), 0);
       if (atGoal && F.defended && ((el > 95 && left <= F.w1N() * 0.45) || el > 125)) {
         if (F.there) rt.award((t) => t.side.push('白山林で信吉様の馬印を守った'), '白山林で信吉様の馬印を守った');
