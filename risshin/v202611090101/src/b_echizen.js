@@ -417,7 +417,7 @@ echizen.introSides = { a: '織田勢　三万余', b: '越前一向一揆　二�
 echizen.force = (rt) => {
   const F = rt.flags;
   const fled = F.echAdv ? Math.min(9000, (rt.t - (F.echAdvT ?? rt.t)) * 60) : 0;
-  return { a: Math.max(28500, 30000 - (F.ak || 0) * 8), a0: 30000, b: Math.max(2000, 20000 - (F.ek || 0) * 15 - fled), b0: 20000 };
+  return { a: Math.max(0, 30000 - (F.ak || 0) * 8), a0: 30000, b: Math.max(0, 20000 - (F.ek || 0) * 15 - fled), b0: 20000 };
 };
 // ④で北口を出た本人を「前に出すぎ」と叱らない（目標の行き先どおりに進んでいる。kaito 一5・九4）
 echizen.noLeaderFollow = (rt) => !!rt.flags.echAdv || !!(rt.flags.gateKannon && !rt.flags.gateKannon.struct.alive);   // 木戸が開いた後（郭へ入れ・北口を出よ）も
@@ -1286,6 +1286,14 @@ echizen.setup = function (rt) {
     if (!rt.flags.step && source === rt.player.u && target?.team === 1 && target.hp < hp &&
         (target === rt.flags.gateKannon?.struct || target.group === rt.flags.gateSally?.real ||
          target.group === rt.flags.roadGuards?.[0]?.real)) rt.flags.echOpeningHit = true;
+    // 郭に立つだけでは、四十秒後に守兵を退かせる時計を始めない。
+    // 本人がその郭の守兵へ実際に一撃を当てた事を記録する。
+    if (source === rt.player.u && target?.team === 1 && !target.isStruct && target.hp < hp &&
+        rt.flags.defenders?.some(b => b.real === target.group)) {
+      for (const key of ['kannon', 'kinome_sou']) {
+        if (rt.flags.C?.kuruwa?.[key]?.test(target.pos.x, target.pos.z)) rt.flags['breachHit_' + key] = true;
+      }
+    }
     return result;
   };
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
@@ -2335,12 +2343,12 @@ echizen.update = function (rt, dt) {
     });
   }
   // 木戸を破られた郭の守りは、長くは踏みとどまらない（一揆勢は峠の奥へ退いた）。
-  // 本人が郭の中で四十秒戦ったら残りを崩して奥へ退かせる。
+  // 本人が守兵へ一撃を当て、郭の中で四十秒戦ったら残りを崩して奥へ退かせる。
   for (const [gate, fell, key] of [[F.gateKannon, F.kannonFell, 'kannon'], [F.gateKinome, F.souFell, 'kinome_sou']]) {
     if (fell || !gate || gate.struct.alive) continue;
     // 本人が郭へ入る前の経過時間だけで守兵を退かせない。
     const zone = F.C?.kuruwa?.[key];
-    if (!zone?.test(u.pos.x, u.pos.z)) continue;
+    if (!F['breachHit_' + key] || !zone?.test(u.pos.x, u.pos.z)) continue;
     const fought = F['breachFight_' + key] = (F['breachFight_' + key] || 0) + dt;
     if (fought < 40 || F['broke_' + key]) continue;
     F['broke_' + key] = true;

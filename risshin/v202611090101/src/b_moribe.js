@@ -4803,16 +4803,16 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         if (!rearHolding && !F.shingariBroke) { F.shingariBroke = true; for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; } }
         // 11/6 fixc（kaito 三-3）：目標④（旗本の侍を自分で討つ）を果たすまで勝ちにしない。殿が背を向けた後も旗本の侍は踏みとどまる。
         // 11/7 fixc0814（描いて遊んだ写真 e/b260・b270）：殿の最後の一人二人が野へ散ると、本人が組を離れて六十メートル先まで一人で追った。
-        //   殿の残りが二人以下で、本人の二十五メートル内にいなければ、殿は討ち破ったとみなす（残りは墨俣へ退く）。
+        //   殿の残りが二人以下で、本人の二十五メートル内にいなければ墨俣へ退かせる。実際に退くまでは勝ちにしない。
         let shN = 0, shNear = 0;
         // 隊が崩れた印だけでは、まだ槍を向けている生き残りを数から外さない。
         for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) { shN++; if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25) shNear++; }
         const shLeft = shN > 2 || shNear > 0;
-        if (!shLeft && shN && el >= 15) for (const g of F.shingari) if (!gone(g)) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; }
+        if (!shLeft && shN && el >= 15) for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; }
         // 11/6 fixc1824：描いて遊ぶと、殿が組へ寄せて来る途中（二十八メートル先）で「討ち破った」勝ちになった。
         //   殿が討たれるか背を向けて退くまで勝ちにしない（目標⑤「殿を討ち破る」を本当に果たす）。
         // 退く下知や経過時間だけでは済みにしない。殿の討死・実際の敗走を確かめる。
-        if (F.ownHatamoto && !shLeft && el >= 15) {
+        if (F.ownHatamoto && shN === 0 && el >= 15) {
           rt.objDone('pursuit');
           this.endBattle(rt, true);
           return;

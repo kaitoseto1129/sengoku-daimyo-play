@@ -1,7 +1,7 @@
 // ======================================================================
 // 小谷城の戦い　始まりの段「清水谷から見上げる小谷城」（0〜3分の導入。kaito 11/8 夜・docs/oda15_plan_1108.md 15）
 // 秀吉に話した後、谷道の岩場へ上がって尾根の城を見上げる。着くと京極丸・本丸の篝火が灯り、秀吉が「京極丸を取れば父子は二つに切れる」と策を明かす。
-// 歩く間も、南の大手の鬨・使番の知らせで戦況を見せる。行かなくても時が来れば登りが始まる（二5）。
+// 歩く間も、南の大手の鬨・使番の知らせで戦況を見せる。出発は止めず、物見は登りながら見届ける。
 // ======================================================================
 import { sfx } from '../audio.js';
 
@@ -10,19 +10,16 @@ const WAIT = 55;
 // ctx：{ at（物見の場）, fires（篝火を灯す所の並び）, next }
 export function install(rt, ctx) {
   const F = rt.flags, MI = ctx.at;
-  F.odaMonomi = MI;
-  rt.obj('main', '谷道の岩場へ上がり、尾根の小谷城を見上げよ', 'main', true);
-  rt.marker('odaMonomi', MI, '谷道の岩場', { h: 1.6, guideAlways: true });
-  rt.say('羽柴秀吉', 'まずは城を見よ。あの岩場からなら、尾根の曲輪が見える', 3.6);
+  // 五つの目標と登り口への印を保ち、物見を出発待ちの条件にしない。
+  F.odaMonomiActive = true;
   const t0 = rt.t;
-  const live = () => !F.ending && !rt.over && F.odaMonomi;
+  const live = () => !F.ending && !rt.over && F.odaMonomiActive;
   rt.after(9, () => { if (live()) { sfx('far', 0.6); rt.say('使番', '大手の南の尾根で、柴田・丹羽の手が鬨を上げました。城の目は南へ向いております', 3.8); } });
   rt.after(20, () => { if (live()) rt.say('竹中半兵衛', '谷は暗く、城からは見えませぬ。声を落とされよ', 3); });
   let done = false;
   const go = () => {
     if (done) return; done = true;
-    F.odaMonomi = null; rt.unmark('odaMonomi');
-    ctx.next();
+    F.odaMonomiActive = false;
   };
   const report = () => {
     if (F.odaMonomiDone) return;
@@ -37,11 +34,12 @@ export function install(rt, ctx) {
     rt.after(8.5, go);
   };
   const tick = () => {
-    if (done || F.ending || rt.over) return;
+    if (done || F.ending || rt.over || F.step > 1) { go(); return; }
     const u = rt.player?.u;
     if (u && rt.t - t0 > 14 && Math.hypot(u.pos.x - MI.x, u.pos.z - MI.z) < 6) { report(); return; }
     if (rt.t - t0 > WAIT) { go(); return; }
     rt.after(0.4, tick);
   };
+  ctx.next();
   tick();
 }
