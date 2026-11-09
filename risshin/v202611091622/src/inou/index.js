@@ -33,7 +33,8 @@ export function pinAt(rt, pos, label, unit = null, r = 3) {
   if (d2 > FAR * FAR) {
     const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
     far.x = pos.x; far.z = pos.z; far.r = FAR - 2; far.label = label;
-    far.unit = unit; far.enemy = !!unit;
+    // 遠くは場所へ導き、三十m 内で敵本人の印へ渡す。
+    far.unit = null; far.enemy = false;
     F.farPin = far;
     return null;
   }

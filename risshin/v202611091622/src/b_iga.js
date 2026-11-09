@@ -1233,7 +1233,10 @@ function igaRoadWay(army, u, goal) {
       (!q.active || Math.hypot(q.x - p.x, q.z - p.z) > 1)) return q.active ? q : goal;
   q.t = army.time + 0.35; q.gx = goal.x; q.gz = goal.z; q.active = false;
   roadPoint(p, q.from); roadPoint(goal, q.to);
-  if (q.from.d > 20 || q.to.d > 20) return goal;
+  // 麓の陣は道の南端から二十八歩離れている。行き先の遠さだけで迂回を外すと、
+  // 帰陣の印も味方も九十九折りを横切り、切岸で止まる。南端までは道を戻る。
+  const toCamp = q.to.s === 0 && goal.z >= ROAD[0][1];
+  if (q.from.d > 20 || q.to.d > 20 && !toCamp) return goal;
   // 同じ段の踏み面では各自の持ち場へ進む。角へ集中して互いを切岸へ押さない。
   if (Math.floor(q.from.s) === Math.floor(q.to.s) && q.from.d <= 2.2 && q.to.d <= 2.2 &&
       localClear(army, p, goal, true)) return goal;
