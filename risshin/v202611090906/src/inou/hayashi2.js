@@ -18,6 +18,7 @@ export function tick(rt) {
     g.dmgMult = 0.36; g.order = 'move'; g.speed = 3.4; g.dest = { x, z: C.L2_MEET - 6 };
     g.onArrive = (q) => { q.order = 'attack'; q.aggro = 14; q.seekRange = 26; };
     F.l2.push(g); F.l2N += g.units.length;
+    F.l2All += g.units.length;   // 二の備も七百の内訳へ。生存者だけ増やすと人数の棒が満ちたままになる
   }
   sfx('taiko', 0.9); rt.army.play('toki', { x: C.FRONT_X, z: C.BOSS.z }, 1.3);
   rt.say('足軽', '田の向こうから林の二の備が押し出して来るぞ！', 3);

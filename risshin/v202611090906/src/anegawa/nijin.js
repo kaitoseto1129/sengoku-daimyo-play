@@ -24,28 +24,34 @@ export function install(rt, ctx) {
   if (rt.G.lord) return;
   F.aneExtra = EXTRA; F.aneTkAt = t0 + TK_AT; F.aneYokoAt = t0 + YOKO_AT;
   const live = () => F.step === 1 && !F.ending && !rt.over && rt.player?.u?.alive;
-  WAVES.forEach(([at, name, list], i) => rt.after(at, () => {
-    if (!live() || F.inabaT) return;
-    const g = ctx.enemyGroup(rt, { faction: 'azai', name, anchor: { x: 14, z: -40 }, facing: 0, fleeDir: ctx.AZAI_FLEE, aggro: 12, width: 14, morale: 90, speed: 3.4 },
-      ctx.dress(list, ctx.AZAI));
-    if (!g || !g.count) return;
-    g.dmgMult = 1;
-    // 後の二手は段を抜けて信長の本陣の前まで押し込む（狙われる本陣の緊張。本陣の前の大軍の押し合い hqClash も動く）
-    g.order = 'path'; g.path = i < 2 ? [[10, -14], [8, 14], [ctx.mori.x + 18, F.holdAt.z - 6]] :
-      [[10, -14], [8, 14], [ctx.mori.x + 18, ctx.mori.z], [ctx.HQ.x + 8, ctx.HQ.z - 34]]; g.pathIdx = 0;
-    // 11/9 二巡：本陣の前まで来た後の二手は、前の旗本と斬り合う（四十歩の輪で本陣の内へなだれ込み、手当て中の本人の知らぬ間に負けになった）
-    g.onArrive = (q) => { q.order = 'attack'; q.seekRange = i < 2 ? 40 : 18; };
-    F.waves.push(g);
-    try { sfx('taiko', 0.9); } catch (e) { /* 音が無くても進む */ }
-    rt.army.play('eshout', { x: 10, z: -20 }, 1.4);
-    F.clash?.[1]?.push?.('B', 0.15);
-    if (i >= 2) rt.after(4, () => live() && rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6));
-  }));
+  WAVES.forEach(([at, name, list], i) => {
+    const count = list.reduce((n, q) => n + q.n, 0);
+    const deploy = () => {
+      if (!live() || F.inabaT) return;
+      // 上限で空の隊や数人だけを出して、新手を出し終えた事にしない。
+      if (!ctx.canDeploy(count)) { rt.after(1, deploy); return; }
+      const g = ctx.enemyGroup(rt, { faction: 'azai', name, anchor: { x: 14, z: -40 }, facing: 0, fleeDir: ctx.AZAI_FLEE, aggro: 12, width: 14, morale: 90, speed: 3.4 },
+        ctx.dress(list, ctx.AZAI));
+      if (!g || !g.count) return;
+      g.dmgMult = 1;
+      // 後の二手は段を抜けて信長の本陣の前まで押し込む（狙われる本陣の緊張。本陣の前の大軍の押し合い hqClash も動く）
+      g.order = 'path'; g.path = i < 2 ? [[10, -14], [8, 14], [ctx.mori.x + 18, F.holdAt.z - 6]] :
+        [[10, -14], [8, 14], [ctx.mori.x + 18, ctx.mori.z], [ctx.HQ.x + 8, ctx.HQ.z - 34]]; g.pathIdx = 0;
+      // 11/9 二巡：本陣の前まで来た後の二手は、前の旗本と斬り合う（四十歩の輪で本陣の内へなだれ込み、手当て中の本人の知らぬ間に負けになった）
+      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = i < 2 ? 40 : 18; };
+      F.waves.push(g);
+      try { sfx('taiko', 0.9); } catch (e) { /* 音が無くても進む */ }
+      rt.army.play('eshout', { x: 10, z: -20 }, 1.4);
+      F.clash?.[1]?.push?.('B', 0.15);
+      if (i === 0) rt.say('組頭', '川向こうから新手じゃ！　浅井はまだ渡って来る！', 3.6);
+      if (i >= 2) rt.after(4, () => live() && rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6));
+    };
+    rt.after(at, deploy);
+  });
   const say = (at, who, line, d = 3.6) => rt.after(at, () => { if (live() && !F.inabaT) rt.say(who, line, d); });
   say(95, '足軽', '前の段が押されておる……坂井殿の旗が下がるぞ！');
-  say(142, '組頭', '川向こうから新手じゃ！　浅井はまだ渡って来る！');
   say(190, '森可成', '磯野め、段を次々に破りおる。ここが破れれば本陣じゃ。穴を埋めよ！', 4);
-  say(300, '足軽', '十三段のうち、もう幾つ破られた……磯野の旗が止まらぬ！');
+  say(300, '足軽', '後ろの段まで押されておる……磯野の旗が止まらぬ！');
   say(318, '使番', '本陣より！　旗本も槍を取った。森の備は退かず、浅井の横腹を突けとの仰せ！', 4);
   rt.after(TK_AT, () => { if (live()) ctx.tokugawa(); });
   say(YOKO_AT - 4, '森可成', '東に稲葉殿の旗！　横から突く備えじゃ、もう少し支えよ！', 3.4);
