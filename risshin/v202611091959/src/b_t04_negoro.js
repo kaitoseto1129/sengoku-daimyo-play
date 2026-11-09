@@ -1126,7 +1126,8 @@ const t04_negoro = {
     const f = dirL(0, 1), k = Math.min(1, dt * 6);
     for (const t of F.tabaSet) {
       let n = 0, cx = 0, cz = 0;
-      for (const u of t.g.units) if (u.alive && !u.fleeing) { cx += u.pos.x; cz += u.pos.z; n++; }
+      // 倒れた者や深手で後送される者は束を押せない。残った押し手だけについて動く。
+      for (const u of t.g.units) if (fighting(u) && !u.woundOut && !u.rearWound) { cx += u.pos.x; cz += u.pos.z; n++; }
       if (n) {
         cx /= n; cz /= n;
         // 押す者は歩いて押す（走らない）：行き先を毎秒 1.1m ずつ先へ置く（0.85m では先手が待ちきれず、自分も味方も束を追い越した）
@@ -1149,7 +1150,8 @@ const t04_negoro = {
 
   carryRam(rt, dt) {
     const F = rt.flags, g = F.ramG, s = F.gate, FRONT = -3.4;
-    const live = g.units.filter((u) => u.alive && !u.fleeing);
+    // 生存していても倒れた担ぎ手を列へ引きずらず、後送の動きも妨げない。
+    const live = g.units.filter((u) => fighting(u) && !u.woundOut && !u.rearWound);
     if (!live.length) return;
     if (F.ramZ == null) { let z = 0; for (const u of live) z += toL(u.pos.x, u.pos.z).z; F.ramZ = Math.min(FRONT, z / live.length); }
     let off = 0;
