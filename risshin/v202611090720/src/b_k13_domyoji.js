@@ -217,17 +217,25 @@ function matabeiShot(rt) {
   const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
   const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重綱');
   const p = rt.player.u.pos;
+  // 下知を出す将だけでなく、撃てる鉄砲兵が又兵衛の近くにいることを確かめる。
+  const gunner = () => F.katakura?.units.find((u) => u.alive && u.weapon === 'gun' &&
+    !u.gone && !u.woundOut && !u.downed && !u.noTarget && !u.fleeing && !u.rearWound &&
+    Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60);
+  const ready = () => v?.alive && k?.alive && rt.player.u.alive &&
+    Math.hypot(p.x - TOP.x, p.z - TOP.z) < 32 &&
+    Math.hypot(p.x - v.pos.x, p.z - v.pos.z) <= 50 && gunner();
   // 時刻だけで見えない所の最期を済ませない。本人が頂へ寄り、片倉の隊が届くまで待つ。
-  if (!v || !k || Math.hypot(p.x - TOP.x, p.z - TOP.z) >= 32 ||
-      Math.hypot(p.x - v.pos.x, p.z - v.pos.z) > 50 ||
-      Math.hypot(k.pos.x - v.pos.x, k.pos.z - v.pos.z) > 60) {
+  if (!ready()) {
     rt.after(1, () => matabeiShot(rt));
     return;
   }
   rt.say('片倉重綱', 'あの黒の具足、又兵衛ぞ。鉄砲、揃えて放て！', 3);
   rt.after(2.4, () => {
     if (F.matabei || F.ending || rt.over) return;
-    if (k) rt.army.play('volley', k.pos, 1.4);
+    // 下知の後に本人が離れたり鉄砲兵が倒れたりした時は、射撃を待ち直す。
+    const shooter = ready();
+    if (!shooter) { rt.after(1, () => matabeiShot(rt)); return; }
+    rt.army.play('volley', shooter.pos, 1.4);
     if (v && v.alive) { v.hp = 1; v.stagger = 1.2; }
     rt.after(1.2, () => { if (!F.ending && !rt.over) matabeiDown(rt); });
   });

@@ -2519,6 +2519,28 @@ const kanegasaki = {
   nobiki: true, // 退く戦：退けの下知は法螺貝と退き太鼓で知らせる（battle.js の signalCue）
   jinkei: KANEGASAKI_JIN,
   taisho: { a: null, b: null }, // 三将の退却はこの定義が扱う。共通の本陣増設・襲撃・即勝ちを使わない。
+  // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が木ノ芽峠と朝倉、南（+z）が若狭へ退く道。
+  //   織田は殿の三将（本物の隊に結ぶ）の後ろに徳川、さらに南へ信長の本隊と荷駄が退いていく。朝倉は景健の追手の後ろに二の手・義景の旗本。
+  //   人数は諸説の中ほどの目安。置き場は遊びのための復元。
+  depth: {
+    A: { name: '織田', facing: Math.PI, honjin: { x: -50, z: 170 }, mpu: 4, formation: '長蛇', terrain: 'valley', flag: 'oda', armor: 0x24221f, uma: 'kasa', openAt: 200, attrition: 0.003,
+      sonae: [
+        { id: 'kino', layer: 'sakite', wing: 'center', men: 1000, taisho: '木下藤吉郎', bind: (rt) => rt.flags.kino },
+        { id: 'ikeda', layer: 'ichi', wing: 'left', men: 3000, taisho: '池田勝正', bind: (rt) => rt.flags.ikeda },
+        { id: 'akechi', layer: 'ichi', wing: 'right', men: 1000, taisho: '明智光秀', bind: (rt) => rt.flags.akechi },
+        { id: 'ieyasu', layer: 'ni', wing: 'center', men: 5000, taisho: '徳川家康', flag: 'tokugawa', bind: (rt) => rt.flags.ieyasu },
+        { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '織田信長', hold: true, at: { x: -50, z: 172 } },
+        { id: 'konida', layer: 'konida', wing: 'center', men: 800, hold: true, at: { x: -34, z: 140 } },
+      ] },
+    B: { name: '朝倉', facing: 0, honjin: { x: -8, z: -168 }, mpu: 4, formation: '魚鱗', terrain: 'mountain', flag: 'asakura', armor: 0x33291f, openAt: 200, attrition: 0.003,
+      sonae: [
+        { id: 'kagetake', layer: 'sakite', wing: 'center', men: 6000, taisho: '朝倉景健', at: { x: 2, z: -112 } },
+        { id: 'ni_l', layer: 'ni', wing: 'left', men: 4000, taisho: '', at: { x: -46, z: -126 } },
+        { id: 'ni_r', layer: 'ni', wing: 'right', men: 4000, taisho: '', at: { x: 52, z: -118 } },
+        { id: 'yoshikage', layer: 'hatamoto', wing: 'center', men: 10000, taisho: '朝倉義景', hold: true, bind: (rt) => rt.flags.yoshikage },
+      ] },
+    honjinView: { A: false, B: false },
+  },
   wakeRoom: 200,
   noWake: true, // 寄せは下の台本で同じ遠景から出す。共通の替えで別の敵を重ねない。
   // 反撃の隙と撤退は戦の頭に任せ、性格の構え直しで突きを消さない。
