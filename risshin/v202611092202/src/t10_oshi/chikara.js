@@ -152,7 +152,8 @@ export function tick(rt, dt, C) {
     }
     // 新手と揉み合って一息のち、佐間口の塀から一斉に撃たれ、先手が崩れる。使番が退けを伝える（11/9 三巡：五十秒待つ間に新手に囲まれて bot が倒れた（94〜119秒）。三十二秒に）
     const down2 = K.foe2 ? K.foe2.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;
-    if (!K.volley && K.contact && P.alive && K.foe2 && (rt.t - K.newT > 32 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
+    // 新手に押されて深手を負った時も使番が退けを伝える。瀕死のまま残りの秒数を待たせない。
+    if (!K.volley && K.contact && P.alive && K.foe2 && (P.hp < P.maxHp * 0.4 || rt.t - K.newT > 32 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
       K.volley = rt.t;
       sfx('volley', 1); rt.army.play('volley', C.GATE, 1.4);
       // 土手の先手が何人も撃ち倒される（一つの城の口に寄るだけで、これだけ倒れる）
