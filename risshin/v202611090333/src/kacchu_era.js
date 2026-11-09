@@ -11,6 +11,25 @@ const ERA = [
 const cache = new Map();
 export function eraKacchu(name, year) {
   if (!name || !year) return null;
+  // 伝官兵衛所用の白檀塗合子形兜と福岡市博物館の黒糸威五枚胴。
+  // 豊臣期だけに適用し、織田編と小田原の交渉時の小袖姿は従来のまま。
+  // 出所・補完範囲：docs/generals_look_1108/黒田官兵衛.md。
+  if (name === '黒田官兵衛' && year >= 1582 && year <= 1590 && KACCHU[name]) {
+    const early = year < 1587, key = name + (early ? '|中白永楽' : '|中白');
+    if (!cache.has(key)) cache.set(key, { ...KACCHU[name],
+      bowl: 'zunari', crest: 'kanbei_gousu', hat: 'kabuto', hatFix: 1,
+      armor: 0x151312, helm: 0x151312, lac: 'kuro', fuki: 'kuro',
+      lace: 0x1a1a1a, odo: 0x1a1a1a, shikoroLace: 0x1a1a1a,
+      doStyle: 'sugake', doSugake: true, doOpening: 'gomai', plateDo: null,
+      sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroRows: 3,
+      kusazuriColor: 0x151312, kusazuriBands: Array(5).fill(0x1a1a1a),
+      menpo: 0x151312, menpoStyle: 'hanbo', menpoScan: null,
+      haori: 0, noHaori: true, horo: 0, fur: 0,
+      flag: early ? '官兵衛の中白永楽' : '官兵衛の中白', uma: 'whiteFukinuki',
+      shinodare: false, fukigaeshiBadge: false, ref: '',
+    });
+    return cache.get(key);
+  }
   // 山崎・賤ヶ岳の清秀。本人所用は未確認。土居家伝来の桃山期以来の型による復元案。
   // 宇和島市の解説にある黒漆桃形・白糸素懸の二枚胴を借り、後補の前立は移さない。
   // 織田編の従来指定は保つ。出所と補完：docs/generals_look_1108/中川清秀.md。
