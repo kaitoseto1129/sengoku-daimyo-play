@@ -58,7 +58,9 @@ export function tegaraSettle(G, tr, id, ceil = 99, prevCeil = ceil) {
   // 一度でも戦に出た者は足軽から（state.js の ladderStep と同じ。前の足軽の保存を雑兵に下げない）。この戦の後は必ず足軽以上
   const fought = (G.history || []).some(Boolean) ? 1 : 0;
   const cap = capStep(ceil);
-  const s0 = Math.min(capStep(prevCeil), cap, Math.max(fought, tegaraStep(before))), s1 = Math.max(1, Math.min(cap, tegaraStep(G.tegara)));
+  // 前の戦の後に見せた位（G.tegaraShown）から一段ずつ。無ければ点から（前の保存）
+  const s0 = Number.isInteger(G.tegaraShown) ? Math.max(fought, G.tegaraShown) : Math.min(capStep(prevCeil), cap, Math.max(fought, tegaraStep(before))), s1 = Math.max(1, Math.min(cap, s0 + 1, tegaraStep(G.tegara)));   // 一つの戦で上がるのは一段まで（侍大将を飛ばして武将にしない）
+  G.tegaraShown = s1;
   const next = TEGARA_LADDER[s1 + 1];
   return { zako: t.zako, named: t.named, big, pts, before, after: G.tegara, stepBefore: s0, stepAfter: s1,
     titleBefore: TEGARA_LADDER[s0].name, titleAfter: TEGARA_LADDER[s1].name, rank: TEGARA_LADDER[tegaraStep(G.tegara)].rank,

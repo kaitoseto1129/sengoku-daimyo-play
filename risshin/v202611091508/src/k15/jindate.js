@@ -18,8 +18,11 @@ const alive = (g) => g && !g.routed && g.count > 0;
 export function install(rt, P) {
   const W = rt.world, F = rt.flags;
   if (!W.addDistantArmy) return null;
-  const n = (a, b) => (isTouch ? a : b);
-  const mk = (o) => { try { return W.addDistantArmy({ host: false, kind: 'mixed', ...o, flagTex: flagTexture(o.flag) }); } catch (e) { return null; } };
+  // 携帯（iPhone・iPad）：11/9 実機で天王寺岡山が落ちた（signal 9・Shader Error 1281）。軽い大軍が十五の塊・千七百人あった。
+  //   携帯は塊を本陣・先手・二陣・毛利・真田の芯だけにし（形と材質の組を減らす）、人数も四割減らす（docs/crash_1108.md）
+  const n = (a, b) => (isTouch ? Math.round(a * 0.6) : b);
+  const MINOR = new Set([16204, 16212, 16213, 16214, 16215, 16216, 16217, 16208]);   // 脇・伊達・酒井・浅野・黒田・明石・大野・真田の騎馬
+  const mk = (o) => { if (isTouch && MINOR.has(o.seed)) return null; try { return W.addDistantArmy({ host: false, kind: 'mixed', ...o, flagTex: flagTexture(o.flag) }); } catch (e) { return null; } };
   const { FRONT, NIJIN, HON, SHITENNO, CHAUSU, ECHI } = P;
   const M = {
     // 味方の陣（南ほど本陣に近い）。北（-z）を向く
@@ -70,7 +73,7 @@ export function tick(rt, P) {
       M.mori?.follow(toward(rt, F.mori, 12), { gap: 12, speed: 3.2 });
       // 先手の東の脇でも本多の手と毛利の手が組み合い、押される（先手が押し込まれていく様子）
       st.cl = clash(rt, { x: P.FRONT.x + 36, z: P.FRONT.z - 8, facing: S, w: 30, gap0: 14, seed: 16209, host: false, noRout: true, noWake: true, killRate: 0.004, maxDrift: 8, corpses: 8, nearHide: 0,
-        A: { flag: 'honda', armor: 0x1c1a18, count: isTouch ? 70 : 120, flagRate: 0.2 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: isTouch ? 80 : 140, flagRate: 0.25, guns: true } });
+        A: { flag: 'honda', armor: 0x1c1a18, count: isTouch ? 40 : 120, flagRate: 0.2 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: isTouch ? 44 : 140, flagRate: 0.25, guns: true } });
       st.cl?.go?.(); later(20, () => st.cl?.push?.('B', 0.5));
     } else if (step === 2) {
       // 城の方から三方面：北西の明石・北東の大野の大勢も本陣の方へ押し出す（11/9 kaito）
@@ -93,7 +96,7 @@ export function tick(rt, P) {
       // 新手：水野勝成の手が南東から駆け付け、崩れた二陣の所を埋める（戦場を空にしない）
       later(30, () => {
         const W = rt.world;
-        M.mizu = W.addDistantArmy({ host: false, kind: 'mixed', x: P.HON.x + 60, z: P.HON.z + 50, w: 40, d: 10, count: isTouch ? 120 : 200, facing: S, armor: 0x1f1e1c, flag: 'tokugawa', flagTex: flagTexture('tokugawa'), seed: 16210 });
+        M.mizu = W.addDistantArmy({ host: false, kind: 'mixed', x: P.HON.x + 60, z: P.HON.z + 50, w: 40, d: 10, count: isTouch ? 60 : 200, facing: S, armor: 0x1f1e1c, flag: 'tokugawa', flagTex: flagTexture('tokugawa'), seed: 16210 });
         M.mizu?.moveTo(P.NIJIN.x + 6, P.NIJIN.z + 16, 40);
         rt.say('使番', '水野日向守の手が南から駆け付けた！　二陣の崩れを埋めるぞ', 3.2);
       });
