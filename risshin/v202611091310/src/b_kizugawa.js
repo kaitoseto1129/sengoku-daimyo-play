@@ -2911,7 +2911,7 @@ const kizugawa = {
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     const stage = this.missionOf(rt), me = rt.player.u;
     const q = F.deckPin || (F.deckPin = { x: 0, y: DECK.y, z: 0 });
-    q.unit = null; q.enemy = false; q.waiting = false; q.defend = false; q.arrived = false;
+    q.unit = null; q.label = ''; q.enemy = false; q.waiting = false; q.defend = false; q.arrived = false;
     q.route = false; q.fire = false; q.marker = null; q.always = true; q.silent = true;
     q.arrow = false; q.approach = false; q.r = 2; q.hide = 0; q.y = DECK.y;
     let goal = null;
@@ -2919,18 +2919,25 @@ const kizugawa = {
     //   ①④ 西の大筒 ②水桶→火（一つずつ） ③⑤ 南の乗り口
     const lv = F.kzStage ?? 0;
     const extra = KZ_OPEN.botGoal(rt) || KZ_HYORO.pin(rt);   // 開幕の舳先・兵糧船の段の大筒
-    if (extra) goal = extra;
+    if (extra) {
+      goal = extra;
+      q.label = F.step === 0 && F.kzOpen?.bowAsked && !F.kzOpen.atBow ? '舳先' : '西の大筒';
+    }
     else if (lv === 1 && F.step === 2) {
+      // 屋形を回る途中で、近くなった別の火や水桶へ行き先を替えない。
+      const pattern = F.water ? /^f[0-2]$/ : /^water[0-3]$/;
+      const pinned = rt.interacts.find((it) => it.id === F.firePinId && pattern.test(it.id) && it.r > 0);
       let distance = Infinity;
       for (const it of rt.interacts) {
-        if (!(F.water ? /^f[0-2]$/.test(it.id) : /^water[0-3]$/.test(it.id)) || it.r <= 0) continue;
+        if (pinned ? it !== pinned : !pattern.test(it.id) || it.r <= 0) continue;
         const d = deckRouteDistance(me, it.pos);
-        if (d < distance) { distance = d; goal = it.pos; q.r = it.r; }
+        if (d < distance) { distance = d; goal = it.pos; q.r = it.r; F.firePinId = it.id; }
       }
+      q.label = F.water ? '甲板の火' : '水桶';
     } else if (lv === 2 || lv === 4) {
-      goal = F.guardPost; q.defend = q.waiting = true;
+      goal = F.guardPost; q.label = '甲板の乗り口'; q.defend = q.waiting = true;
     } else {
-      goal = (F.cannonPost || F.guns?.[1])?.post; q.r = 2.6;
+      goal = (F.cannonPost || F.guns?.[1])?.post; q.label = '西の大筒'; q.r = 2.6;
     }
     if (goal) {
       // ▼は行き先の真上に据えたまま（屋形を回る中継ぎの点へ動かさない）
