@@ -3263,7 +3263,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     F.fighters = [...F.oda, F.fgun, F.rearGuard, F.honjin.guard];
     F.defenders = [F.ake, F.fgun, F.rearGuard];
     F.relief = [F.nobu, F.saku, F.taki, F.honjin.guard];
-    F.foes = [F.ringA, F.gunA, F.ringB, ...F.siegeW, ...F.last, ...F.kidoG];
+    F.foes = [F.ringA, F.gunA, F.ringB, F.ringW, ...F.siegeW, ...F.last, ...F.kidoG];
     // 門へ寄せる足軽と道を先に用意し、半秒の見回りでは入れ物を増やさない。
     F.fortWaves = [F.ringA, F.ringB, ...F.siegeW].map((g) => ({
       g, sent: false, path: [[0, 0], [0, -30], [0, -30], [0, -46], [0, -52]],
@@ -3736,7 +3736,8 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     const span = 0.5 - F.scanT; F.scanT = 0.5;
     if (F.fighters) nudgeMarch(F.fighters, span);
     // 寄せ手も同じ道詰まりの手当てをする。後列が止まって門前が空くのを防ぐ。
-    if (F.step < 3 && F.foes) nudgeMarch(F.foes, span);
+    // 北の囲みを攻める間も、東へ回る敵の後備えを道の途中で止めない。
+    if (F.step < 4 && F.foes) nudgeMarch(F.foes, span);
     else if (F.step === 4) nudgeMarch(F.kidoG, span);
     const u = rt.player.u;
     // 半秒ごとに既存の兵だけを見る。打ち込まれる前に、指で押す構えを字幕で教える。

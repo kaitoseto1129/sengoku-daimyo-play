@@ -934,6 +934,12 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
     // 序盤の戦の赤い▼・総大将の大きな▼の上へ、間を空けて置く。
     const atHead = !!rt.def.nameTagsAtHead;
     const y = special ? u.pos.y + inouSignHeight(u) + .5 : headY(u) + (atHead || u === commander ? .12 : .45 * k);
+    // 頭上固定の札は、視点や本人が動いて塀の裏へ入った瞬間にも隠す。
+    // 四分の一秒前の見通しを使うと、姿だけ隠れて名前が宙に残る。
+    if (atHead && (u.camHidden || cameraWallBlocked(rt, P, u.pos, P.y, y))) {
+      if (!e.hidden) e.hidden = true;
+      continue;
+    }
     v.set(u.pos.x, y, u.pos.z).project(cam);
     if (u === commander && !special && !atHead) v.y += Math.min(76, 1500 / Math.max(1, d)) / H;   // 11/8 critic60（五2・稲生 g_10〜14）：遠い大将の名を姿の上の空に浮かせない。遠いほど頭へ寄せる
     if (v.z > 1 || Math.abs(v.x) > .98 || Math.abs(v.y) > .96) { if (!e.hidden) e.hidden = true; continue; }
