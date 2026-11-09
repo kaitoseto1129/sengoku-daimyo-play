@@ -1,0 +1,21 @@
+// 千石堀城の陣立て（docs/generals_toyo_toku_1108.md の 5・docs/army_depth_howto.md）
+// 羽柴勢：本物の隊（秀次・筒井・堀・長谷川）に結び、必須の武将（秀長・中村一氏・仙石秀久）と出したい武将（小西行長・蜂須賀）は
+// 周りの城の攻め手・別働隊として軽い備に散らす（門前に集めない）。囲みの備は自分から寄せない（hold）。
+const F = (k) => (rt) => rt.flags[k];
+export const depth = {
+  A: { name: '羽柴', facing: 0, honjin: { x: -18, z: -118 }, mpu: 4, formation: '長蛇', terrain: 'castle', flag: 'toyotomi', armor: 0x282420, uma: 'fukube', openAt: 9999, attrition: 0,
+    sonae: [
+      { id: 'hidetsugu', layer: 'sakite', wing: 'center', men: 3000, taisho: '羽柴秀次', bind: F('friends') },
+      { id: 'tsutsui', layer: 'ichi', wing: 'left', men: 3000, taisho: '筒井定次', flag: 'umebachi', bind: F('follow') },
+      { id: 'hori', layer: 'ichi', wing: 'right', men: 3000, taisho: '堀秀政', flag: 'hori', bind: F('hori') },
+      { id: 'hasegawa', layer: 'ni', wing: 'center', men: 1500, taisho: '長谷川秀一', bind: F('hase') },
+      { id: 'nakamura', layer: 'ichi', wing: 'right', men: 4000, taisho: '中村一氏', at: { x: 92, z: -44 }, hold: true },
+      { id: 'sengoku', layer: 'ichi', wing: 'left', men: 3000, taisho: '仙石秀久', at: { x: -88, z: -52 }, hold: true },
+      { id: 'konishi', layer: 'ni', wing: 'left', men: 2000, taisho: '小西行長', flag: 'konishi', at: { x: -96, z: -110 }, hold: true },
+      { id: 'hachisuka', layer: 'ni', wing: 'right', men: 3000, taisho: '蜂須賀正勝', flag: 'hachisuka', at: { x: 96, z: -112 }, hold: true },
+      { id: 'hidenaga', layer: 'yobi', wing: 'center', men: 10000, taisho: '羽柴秀長', at: { x: 34, z: -150 }, hold: true },
+      { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 8000, taisho: '羽柴秀吉', at: { x: -18, z: -132 }, hold: true },
+      { id: 'konida', layer: 'konida', wing: 'center', men: 800, at: { x: -44, z: -160 }, hold: true },
+    ] },
+  honjinView: { A: false },   // 秀吉の本陣の陣幕は舞台（scene.js）が作る
+};
