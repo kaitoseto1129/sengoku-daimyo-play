@@ -3576,8 +3576,16 @@ const saika = {
         const mx = shooter.pos.x + fx * 1.2, my = shooter.pos.y + 1.45, mz = shooter.pos.z + fz * 1.2;
         A.flash(mx, my, mz, 1); A.smoke(mx, my, mz, fx, fz, 1.2); A.play('gun', shooter.pos, 1.6);
         shooter.gunShotAt = A.time; shooter.fireT = 0.45;
-        A.damage(target, target.hp + 5, shooter, { kind: 'gun', pierce: true });
-        if (!bankReady(target)) F.bankKills = (F.bankKills || 0) + 1;
+        // 味方への筋書きの玉も、本人への玉と同じく手前の遮蔽物で止める。
+        const cover = scriptedShotBlocked(A, shooter, target);
+        if (cover) {
+          const l = Math.hypot(shooter.pos.x - target.pos.x, shooter.pos.z - target.pos.z) || 1;
+          A.projectileImpact(cover.x, cover.y, cover.z, cover.type,
+            (shooter.pos.x - target.pos.x) / l, (shooter.pos.z - target.pos.z) / l);
+        } else {
+          A.damage(target, target.hp + 5, shooter, { kind: 'gun', pierce: true });
+          if (!bankReady(target)) F.bankKills = (F.bankKills || 0) + 1;
+        }
       }
     }
     // 11/6 c0443（二3・十3）：川の中の本人も高岸から狙われる（前は渡っても命が 110 のまま、渡河の怖さが無かった）。
