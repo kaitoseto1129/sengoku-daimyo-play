@@ -24,10 +24,10 @@ for (const [n, k] of Object.entries(BY_NAME)) if (KACCHU[n]) KACCHU[n].crest = k
 if (KACCHU['藤堂高虎']) KACCHU['藤堂高虎'].bowl = 'zunari';
 // 錣の段・威の糸（兜だけ。胴の odo は変えない）。rows 段数・style 毛引（kebiki）か素懸（sugake）・lace 錣の威
 // 糸の色は具足の威（kacchu_data の調べ）とそろえ、段数と通し方は伝来品の写真の見え方に合わせた復元案（実測ではない）：
-//   政宗 黒漆五枚胴具足の兜：日根野形の錣に黒糸の素懸　信長 紺糸威胴丸の兜：紺糸の毛引
+//   政宗 黒漆五枚胴具足の兜：四段の錣に紺糸の素懸　信長 紺糸威胴丸の兜：紺糸の毛引
 //   信玄・信繁：紅糸の毛引　家康 歯朶具足：黒糸の毛引　秀吉：白糸の素懸　如水 合子形：黒糸の素懸三段　高虎 唐冠形：黒糸の毛引三段
 const HELM = {
-  伊達政宗: { rows: 4, style: 'sugake', lace: 0x16191b },
+  伊達政宗: { rows: 4, style: 'sugake', lace: 0x232c40 },
   織田信長: { rows: 4, style: 'kebiki', lace: 0x2e4468 },
   武田信玄: { rows: 4, style: 'kebiki', lace: 0xb02a1c },
   真田信繁: { rows: 4, style: 'sugake', lace: 0x232c40 },   // 大坂の陣の具足に合わせ紺糸の素懸（docs/kacchu_k15_tokugawa.md）

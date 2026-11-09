@@ -285,6 +285,10 @@ function kbBowlGeo(base, kind) {
       ny = rim + H * (0.78 * h + 0.38 * h * (1 - h)) - 0.045 * h * h * Math.max(0, -zb);
       if (z < 0) z *= 1 + 0.07 * h;
       x *= 1 + 0.03 * h * (1 - h);
+    } else if (kind === 'toppai') {
+      // 昌幸の突盔鉢。鉢だけを円錐へ寄せ、錣・眉庇と頂点数は保つ。
+      const cone = (1 - h) / Math.max(.06, Math.sqrt(Math.max(0, 1 - h * h)));
+      x *= cone; z *= cone; ny = rim + H * 1.34 * h;
     } else if (kind === 'momo') {
       // 横を絞って切妻の断面に、真ん中の稜を高く（頂は少し後ろへ）
       x *= 1 - 0.16 * h * h;
@@ -415,7 +419,7 @@ function kabutoStyle(L) {
   // 本人の前立は伝来の鍬形の作り（鍬形台から細い茎で立ち、先が剣の形に開く。HERO_CREST）
   const crest = L.kbCrest || (L.takedaRed ? 'hishi' : by.crest || (L.face === 'player' && HERO_CREST[hat]) || KB_CREST[hat] || 'none');
   // 本人の鉢の形（player.js playerLook の kbBowl：zunari 頭形・momo 桃形・suji 筋兜）
-  const bowl = L.face === 'player' && L.kbBowl || '';
+  const bowl = L.face === 'player' && L.kbBowl || (by.bowl === 'toppai' ? 'toppai' : '');
   return { lac, crest, dragon, fuki, odo, mon: mon && mon !== 'none' ? mon : null, bowl };
 }
 // 兜の形の座標での、鉢の前の面（楕円の鉢で近く見る）
@@ -930,16 +934,17 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
   // 本の写真の威糸は明るい部屋で鮮やかに見える。表の色（暗く沈めた値）のままだと黒い塊に見えるので、明るさと鮮やかさを少し上げる（白は上げない）
   { const hl = lace.getHSL({}); if (hl.s > 0.12) lace.setHSL(hl.h, Math.min(0.85, hl.s * 1.18), Math.min(0.5, Math.max(hl.l * 1.35, hl.l + 0.06))); }
   // 具足の作り分け（kacchu_data.js の名のある武将）：kozaneColor は胴・袖の小札の漆の色だけを変える（兜の色は変えない）。
-  //   plateDo は胴の前後を一枚の板に描く（nanban：鎬の立つ南蛮胴・hotoke：鎬の無い仏胴・sendai：五段の横矧に鋲の仙台胴）。silver は金具を銀に
+  //   plateDo は胴の前後を一枚の板に描く（nanban：鎬の立つ南蛮胴・hotoke：鎬の無い仏胴・sendai：縦五枚矧ぎの仙台胴）。silver は金具を銀に
   const nk0 = namedKacchu(look);
   let tint = armorTint(nk0?.kozaneColor ?? look.kozaneColor ?? look.armor);
   // 足軽の作り分け（okeVar）は、家の茶の具足色で全員を塗りつぶさない（赤備えの朱だけは家の色を守る）
   if (look.okeVar != null && tint) { const th = tint.getHSL({}); if (!(th.s > 0.5 && (th.h < 0.035 || th.h > 0.95))) tint = null; }
   const plate = { nanban: 1, hotoke: 2, sendai: 3 }[nk0?.plateDo ?? look.plateDo] || 0;
   const silver = !!(nk0?.silver ?? look.silver);
+  const ladder = !!(nk0?.ladderMon ?? look.ladderMon);
   // noHead：true は兜と顔を描かない。'helm' は兜（鉢・錣・吹返し・眉庇）を残し、人形の顔と面頬だけを抜く（名のある武将：スキャンの兜に、その人の顔と前立）
   const helm = noHead === 'helm';
-  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '');
+  const k = (blueLace ? 'blue' : lace.getHex()) + '|' + (tint ? tint.getHex() : 0) + (helm ? '|hm' : noHead ? '|nh' : '') + '|w' + wv + (detailed ? '|detail' : '|crowd') + (plate ? '|pl' + plate : '') + (silver ? '|ag' : '') + (ladder ? '|梯子' : '');
   // 足軽（御貸具足）：胴丸の形のまま、胴の所に横矧の桶側胴の板の段と胸の家紋を描く（本の足軽具足の写真）。
   // 侍・武将は胴丸のまま。家紋の絵は家ごとに一枚（monDecal と共用）。描く回数・形は変えない
   const oke = (look.tier || 0) === 0 && !look.kacchu && !look.nanban && look.doStyle !== 'sugake';
@@ -1120,12 +1125,13 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             vec3 base = ${'uArmAmt > 0.5 ? uArm * 0.55 : vec3(0.026, 0.024, 0.022)'};
             float h = 0.0, rim = 0.0, riv = 0.0;
             #if DM_PLATE == 3
-            // 仙台胴：横に五段の板。上の縁は照り、下の縁は重なりの影。板ごとに鋲が一列
-            float pv = (q.y - yB) / ((yT - yB) / 5.0), t = fract(pv);
-            base *= 0.92 + 0.16 * fract(sin(floor(pv) * 12.9898 + 4.1) * 43758.5453);
-            h = (smoothstep(0.0, 0.16, t) - 0.5) * 0.16 - smoothstep(0.86, 1.0, t) * 0.1;
-            vec2 rv = vec2(fract(atan(q.x, q.z + 0.03) * 5.1) - 0.5, (t - 0.8) * 3.2);
-            riv = 1.0 - smoothstep(0.08, 0.13, length(rv));
+            // 政宗所用具足は縦五枚矧ぎ。前一枚・左右各二枚の継ぎ目を側方へ置く。
+            // 正面に横五段や鋲列を描かず、蝶番の線を細く近似する。
+            float a = abs(atan(q.x, q.z));
+            float seam = min(min(abs(a - 0.84), abs(a - 1.93)), abs(a - 3.14159265));
+            float joint = 1.0 - smoothstep(0.012, 0.028, seam);
+            h = (dmVn(q * 55.0) - 0.5) * 0.035 - joint * 0.12;
+            base *= 1.0 - joint * 0.3;
             #else
             // 南蛮胴・仏胴：胸から腹へ一枚。南蛮胴は前の真ん中に鎬（縦の稜）が立ち、腰の上で前へ張り出す
             #if DM_PLATE == 1
@@ -1152,8 +1158,14 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
             // 銀の人：鎬の頂きに沿って銀の細い筋（磨き出し）
             col = mix(col, metal * 0.9, smoothstep(0.006, 0.002, ax) * front * uSilver * 0.8);
             #endif
+            // 昌幸の銀梯子。材質内で描くため、重ねる面や描画回数を増やさない。
+            ${ladder ? `vec2 lp = mat2(0.8, -0.6, 0.6, 0.8) * vec2(q.x, q.y - 1.2);
+            float rails = 1.0 - smoothstep(0.003, 0.005, abs(abs(lp.x) - 0.045));
+            float rungs = (1.0 - smoothstep(0.003, 0.005, abs(mod(lp.y + 0.025, 0.05) - 0.025))) * (1.0 - smoothstep(0.043, 0.047, abs(lp.x)));
+            float ladderInk = max(rails, rungs) * (1.0 - smoothstep(0.168, 0.172, abs(lp.y))) * front;
+            col = mix(col, vec3(0.48, 0.48, 0.45), ladderInk);` : 'float ladderInk = 0.0;'}
             diffuseColor.rgb = mix(diffuseColor.rgb, col, pm);
-            float met = max(rim, riv) * (uSilver > 0.5 ? 1.0 : 0.5);
+            float met = max(ladderInk, max(rim, riv) * (uSilver > 0.5 ? 1.0 : 0.5));
             dmPlate = pm;
             dmLacq = mix(dmLacq, 1.0 - met, pm); dmGold = mix(dmGold, met, pm);
             dmCloth *= 1.0 - pm; dmLeather *= 1.0 - pm;
@@ -1426,7 +1438,7 @@ function domaruMaterial(look, noHead = false, wv = 0, detailed = true) {
       sh.fragmentShader = 'uniform vec4 uFpCut;\nuniform vec3 uFpHand[2];\nvarying vec3 vFpW;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n if (uFpCut.w > 0.0 && (distance(vFpW, uFpCut.xyz) < uFpCut.w || (length(vFpW.xz - uFpCut.xz) < 0.3 && vFpW.y < uFpCut.y - 0.1 && vFpW.y > uFpCut.y - 1.1) || (length(vFpW.xz - uFpCut.xz) < 0.55 && vFpW.y < uFpCut.y + 0.3 && vFpW.y > uFpCut.y - 1.9 && min(distance(vFpW, uFpHand[0]), distance(vFpW, uFpHand[1])) > 0.16))) discard;');
     }
   };
-  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '');
+  m.customProgramCacheKey = () => 'domaru' + (helm ? '-hm' : noHead ? '-nh' : '') + (detailed ? '-detail' : '-crowd') + (oke ? (okeMon ? '-okem' : '-oke') : '') + (kebiki ? '-kb' : '') + (plate ? '-pl' + plate : '') + (ladder ? '-梯子' : '');
   dmMats.set(kk, m);
   return m;
 }

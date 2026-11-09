@@ -34,6 +34,12 @@ export function namedArmorLook(look) {
 }
 const crests = new Map();
 export function namedCrestGeometry(kind, hi = true) {
+  // 伝昌幸所用の銀箔天衝。前天衝の既存形を共用し、脇立は補わない。
+  if (kind === 'masayuki_tensho') {
+    const key = kind + (hi ? '|近' : '|遠');
+    if (!crests.has(key)) crests.set(key, [namedCrestGeometry('cross', hi)[0], 'silver']);
+    return crests.get(key);
+  }
   // 伝秀秋所用の三鍬形後立。既存の剣付鍬形を後ろへ向け、一度だけ保存する。
   if (kind === 'hideaki_ushiro') {
     const key = kind + (hi ? '|近' : '|遠');
