@@ -8,6 +8,7 @@
 // 字は出さない（五1）。行き先は▼一つ（DEST[0.5]）。
 // ======================================================================
 import { flagTexture } from '../textures.js';
+import { isTouch } from '../touch.js';
 import { sfx } from '../audio.js';
 import { revealName } from '../battle_intel.js';
 
@@ -20,7 +21,9 @@ function armies(rt) {
   const W = rt.world;
   if (!W?.addDistantArmy) return;
   const S = Math.PI;
+  // 携帯：11/9 実機で天王寺岡山が落ちた（signal 9）。遠くの大軍を五つに絞り、人数を三分の一ほどに（docs/crash_1108.md）
   const A = (x, z, w, d, count, facing, armor, flag, seed, team, kind) => {
+    if (isTouch) { if (seed === 15073 || seed === 15076 || seed === 15078) return; count = Math.round(count * 0.35); }
     try { W.addDistantArmy({ x, z, w, d, count, facing, armor, flagTex: flagTexture(flag), mon: flag, seed, team, kind, host: false }); } catch (e) { console.warn('k15 chausuyama army', e); }
   };
   // ---- 豊臣方 ----
