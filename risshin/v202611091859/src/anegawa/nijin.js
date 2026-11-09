@@ -46,7 +46,10 @@ export function install(rt, ctx) {
       rt.army.play('eshout', { x: 10, z: -20 }, 1.4);
       F.clash?.[1]?.push?.('B', 0.15);
       if (i === 0) rt.say('組頭', '川向こうから新手じゃ！　浅井はまだ渡って来る！', 3.6);
-      if (i >= 2) rt.after(4, () => live() && rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6));
+      // 届くまでに討ち尽くされた隊や、退く下知を受けた隊の古い急報は出さない。
+      if (i >= 2) rt.after(4, () => live() && g.count > 0 && !g.routed &&
+        g.order !== 'retreat' && g.order !== 'flee' &&
+        rt.say('使番', '浅井の新手が段を抜けて、本陣へ向かう！　本陣の前で止めよ！', 3.6));
     };
     rt.after(at, deploy);
   });

@@ -559,10 +559,14 @@ const t03b_nagakute = {
     }
     if (rt.t > TIME_UP) return this.lose(rt, '赤備えに囲まれた');
     // 連れた兵が討たれても負けにしない（主人公のせいでない負けを作らない・十一1・十二3）
-    // 遠く離れた敵は去らせる（本物の兵の枠を空ける）
+    // 行軍中の番所はまだ攻める相手。出発地点から遠くても、焼くまでは守りと加勢を残す。
+    // それ以外の遠く離れた敵は去らせる（本物の兵の枠を空ける）
     if ((F.gcT = (F.gcT || 0) - dt) <= 0) {
       F.gcT = 1;
-      for (const g of F.waves) for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, P.pos) > 120) rt.army.despawn(u);
+      for (const g of F.waves) {
+        if (F.stage === 0.5 && !F.banFire && (g === F.banG || g === F.banG2)) continue;
+        for (const u of g.units) if (u.alive && !u.gone && dist(u.pos, P.pos) > 120) rt.army.despawn(u);
+      }
     }
     const el = rt.t - F.st0;
     const atGoal = dist(P.pos, goalOf(F.stage)) < goalR(F.stage);

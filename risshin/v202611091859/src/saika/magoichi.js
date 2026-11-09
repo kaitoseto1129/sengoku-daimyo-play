@@ -9,11 +9,14 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
+// 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
+const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, SHORE } = ctx;
   let G = null, G2 = null, done = false, tick = 0, startT = 0;
-  const cnt = (g) => { let n = 0; if (g) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) n++; return n; };
+  const cnt = (g) => { let n = 0; if (g) for (const u of g.units) if (ready(u)) n++; return n; };
   const live = () => cnt(G) + cnt(G2);
   // 二の寄せ：川上の坂から槍の組が回り込む（一の寄せから約五十五秒。足場を保つ間を、時間でなく寄せで作る）
   const second = () => {

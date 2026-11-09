@@ -624,6 +624,8 @@ const t10_oshi = {
     if (F.step >= 6) return;
     F.step = 6; F.stepT = rt.t;
     rt.setPhase('flood');
+    // 堰を切った日から六月十八日へ飛ぶ。堰の残兵は城へ戻り、避難中の人夫を追わない。
+    if (F.weirRaid) for (const u of F.weirRaid.units) if (u.alive && !u.gone) rt.army.despawn(u);
     // 六月十八日の夜の豪雨：夜のまま大雨と稲光（前は 'storm' の昼の明るさで、夜にも雨にも見えなかった）
     rt.world.setTime('night'); rt.world.setRainTarget(0.95);
     sfx('taiko', 1); sfx('thunder', 0.8);
@@ -675,8 +677,9 @@ const t10_oshi = {
     rt.setPhase('ford');
     rt.world.setTime('day'); rt.world.setRainTarget(0);
     F.flood.visible = false; F.fall.visible = false;
-    // 六月の夜討ちの残り（沼の中に立ち尽くす者）は、七月には城へ戻っている
-    for (const g of F.raids) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+    // 六月の夜討ち・堰・決壊地点の残兵は、七月には城へ戻っている。
+    // 退却の下知だけでは沼や堤に残るため、時が飛ぶ所で退場させる。
+    for (const g of [...F.raids, F.weirRaid, F.cutters]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
     warp(rt, FORD.x + 6, FORD.z + 8, Math.atan2(FRONT.x - FORD.x, FRONT.z - FORD.z));
     rt.banner('七月の総攻め', '浅瀬を渡り、佐間口の門の前へ攻め寄せよ');
     rt.obj('main', MISSIONS[6], 'main');

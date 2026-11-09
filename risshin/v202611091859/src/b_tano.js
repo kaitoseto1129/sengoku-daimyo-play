@@ -1207,7 +1207,7 @@ const tano = {
       return tanoWaitText(rt);
     if (C?.routeTurn) return C.houseTurn ? '屋敷の脇の印へ進め' : C.yardTurn ? '柵の口の印へ進め' : '谷道の印へ進め';
     const place = rt.phase === 'narrow' ? '崖道' : rt.phase === 'fence' ? '柵の口'
-      : rt.phase === 'tano' ? '屋敷の奥' : '谷道';
+      : rt.phase === 'tano' ? '田野の平屋敷' : '谷道';
     return `${place}の敵へ味方と進め`;
   },
   // 浅い傷は部位だけを示す。歩みへの影響と退却の下知を混ぜない。
@@ -1352,7 +1352,7 @@ const tano = {
     // 傷の手当て・集合・通り口は、交戦の短い言葉に置き換えない。
     if (/傷|手当て|下が|戻|そろえ|通り口|印まで|印へ進み|ここで鉄砲/.test(text)) return text;
     const place = rt.phase === 'narrow' ? '崖道' : rt.phase === 'fence' ? '柵の口'
-      : rt.phase === 'tano' ? '屋敷の奥' : '谷道';
+      : rt.phase === 'tano' ? '田野の平屋敷' : '谷道';
     // 歩いて体の向きが変わるたびに別の下知へ切り替えない。
     // 横向きの携帯でも折り返しにくい長さにし、持ち場と行動を伝える。射撃待ちは保つ。
     if (/敵へ体を向けよ/.test(text)) return `${place}の敵へ向き直れ`;
@@ -1363,7 +1363,7 @@ const tano = {
     if (/鉄砲を待たず/.test(text)) return '崖道で槍の組と押せ';
     if (/鉄砲が鳴った|敵へ構え、味方と押せ|先手と谷道の敵を退けよ/.test(text)) return `${place}で味方と押せ`;
     if (/出てくる敵を退け/.test(text)) return '柵の口で味方と押せ';
-    if (/柵の口から入り、奥の敵/.test(text)) return '屋敷の奥で味方と押せ';
+    if (/柵の口から入り、奥の敵/.test(text)) return '田野の平屋敷で味方と押せ';
     if (/進み太鼓と法螺/.test(text)) return '谷道の先手へ続け';
     return text;
   },
@@ -1374,7 +1374,7 @@ const tano = {
       : C.yardTurn ? '柵の口から集合の印へ' : '組をそろえる印へ' : '組をそろえる印へ';
     if (C?.routeTurn) return C.houseTurn ? '屋敷の脇へ' : C.yardTurn ? '柵の口へ' : '谷道へ';
     if (C?.waiting) return rt.flags.tgun?.order !== 'hold' ? '鉄砲を待つ印へ' : '射手の後ろの印へ';
-    return rt.phase === 'fence' ? '柵の口へ' : rt.phase === 'tano' ? '屋敷の奥へ'
+    return rt.phase === 'fence' ? '柵の口へ' : rt.phase === 'tano' ? '田野の平屋敷へ'
       : rt.phase === 'narrow' ? '崖道の先手へ' : '谷道の先手へ';
   },
   armySignals: false, // 下知は田野の段取りで鳴らす。敵を退ける任務に退き太鼓を鳴らさない。
@@ -1385,7 +1385,7 @@ const tano = {
   compactIntro: true,
   // 歩き方の大きな手本は六秒で閉じ、谷道・鉄砲待ちの下知を読めるようにする。
   timedOpening: true,
-  introText: '黄と土色の旗は味方。赤白旗と赤茶の袖は敵。谷道を進み、前の味方に加われ。',
+  introText: '黄と土色の旗は味方。赤白旗と焦げ茶の袖は敵。谷道を進み、前の味方に加われ。',
   // 最期の言葉は作らない。戦いの下知は場面の復元で、史料の引用ではない。
   battleVoices: { lines: {
     ally: { ambient: ['谷道は石だらけだで', '足元に気をつけやあ', '前の旗が見えるで', '川へ寄ったらいかん'] },
@@ -1869,7 +1869,7 @@ const tano = {
       { phase: 'valley', kind: 'hold', at: { x: -8, z: 0 }, guards: [0, 1], label: '四郎作の下手', text: tano.missions[1] },
       { phase: 'narrow', kind: 'hold', at: { x: 22, z: 2 }, guards: [2], label: '四郎作の崖道', text: tano.missions[2] },
       { phase: 'fence', kind: 'fight', at: { x: 98, z: 0 }, guards: [3], label: '鳥居畑の柵の口', text: tano.missions[3] },
-      { phase: 'tano', kind: 'hold', at: { x: 132, z: -8 }, guards: [4], label: '屋敷の奥', text: tano.missions[4] },
+      { phase: 'tano', kind: 'hold', at: { x: 132, z: -8 }, guards: [4], label: '田野の平屋敷', text: tano.missions[4] },
     ];
     // 手当てができる命の六割未満に合わせる。六割台で退いて待ち続けない。
     F.dp = { on: true, i: -1, steps, ctx: { friends: () => F.oda, routeFight: true, botTreatAt: 0.6, botSeek: 100, botSeekHold: true,
