@@ -8,6 +8,9 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
+// 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
+const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+
 const DIKE = { x: -4, z: 58 };   // 川下の堤の陰（東岸）
 
 export function install(rt, ctx) {
@@ -20,7 +23,7 @@ export function install(rt, ctx) {
     dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4 }], SAIKA));
   G.fixed = false;
   F.tsutsumiG = G;
-  const live = () => { let n = 0; for (const u of G.units) if (u.alive && !u.fleeing && !u.woundOut) n++; return n; };
+  const live = () => { let n = 0; for (const u of G.units) if (ready(u)) n++; return n; };
   sfx('volley', 0.9);
   rt.army.play?.('volley', DIKE, 1.1);
   rt.say('見張り', '川下の堤の陰から撃って来る！　竹束の横を狙われておるぞ！', 4);
@@ -47,16 +50,17 @@ export function install(rt, ctx) {
         fire = rt.world.addFire?.(DIKE.x - 3, DIKE.z + 2, { size: 1.6, blackSmoke: true });
         rt.say('堀秀政', '堤の陣は取った！　小屋を焼け。川から取り返しに来るぞ、構えよ！', 4);
         rt.after(18, () => {
-          if (done) return;
+          if (done || F.ending || rt.over) return;
           R = enemyGroup(rt, { faction: 'saika', name: '堤を取り返す雑賀衆', anchor: { x: -34, z: DIKE.z + 8 }, facing: Math.PI / 2, width: 6, order: 'hold', aggro: 26, seekRange: 34, morale: 85, fleeDir: { x: -1, z: 0 } },
             dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 1 }], SAIKA));
           R.fixed = false; R.order = 'move'; R.dest = { x: DIKE.x, z: DIKE.z }; R.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
           rt.army.play?.('eshout', { x: -30, z: DIKE.z + 8 }, 1.3);
           rt.say('見張り', '川を渡って堤を取り返しに来る！', 3.5);
-          rt.marker('tsutsumiR', () => (R && R.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? R.center() : null), '取り返しに来る雑賀衆', { red: true, group: R });
+          rt.marker('tsutsumiR', () => (R && R.units.some((u) => ready(u)) ? R.center() : null), '取り返しに来る雑賀衆', { red: true, group: R });
         });
       }
-      const rl = R ? R.units.filter((u) => u.alive && !u.fleeing && !u.woundOut).length : 0;
+      let rl = 0;
+      if (R) for (const u of R.units) if (ready(u)) rl++;
       const n = live() + rl;
       rt.objProgress('main', `堤の雑賀衆 ${G.units.length + (R?.units.length || 0)}人中 残り${n}人`);
       const p = rt.player.u.pos;
@@ -69,7 +73,7 @@ export function install(rt, ctx) {
         // 雑賀が退き、川が静まる間（和議の前の二十秒余り）
         rt.after(6, () => { if (!F.ending) { F.bankCeasefire = true; for (const g of rt.army.groups) { g.fire = false; g.holdFire = true; for (const u of g.units) u.cd = 1e9; } sfx('kane', 0.4); rt.say('見張り', '向こう岸の鉄砲が止んだ……。柵の旗が下がっていくぞ', 4); } });
         rt.after(13, () => { if (!F.ending) rt.say('堀秀政', '撃ち返すな。何か言うて来るつもりじゃ', 3.5); });
-        rt.after(20, () => next());
+        rt.after(20, () => { if (!F.ending && !rt.over) next(); });
       }
     },
     fire: () => fire,
