@@ -144,10 +144,10 @@ export function pin(rt) {
   if (!K || F.step !== 5) return undefined;
   if (K.end) return null;
   const g = K.groups.find((q) => q.units.some((u) => u.alive && !u.gone && !u.fleeing));
-  if (g) return { x: g.S.land.x, z: g.S.land.z, r: 6 };
+  if (g) return { x: g.S.land.x, z: g.S.land.z, r: 6, label: '堤の内の岸' };
   const B = K.boats.find((q) => !q.landed);
   const S = B ? B.S : K.spots[1];
-  return { x: S.land.x, z: S.land.z, r: 6 };
+  return { x: S.land.x, z: S.land.z, r: 6, label: '堤の内の岸' };
 }
 
 export function bot(b, inp, T, C) {

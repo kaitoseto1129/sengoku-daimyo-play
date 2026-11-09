@@ -22,14 +22,20 @@ export const DEPTH = {
       { id: 'kuroda2', layer: 'ni', wing: 'right', men: 2000, taisho: '', flag: 'kuroda', at: { x: -160, z: -244 } },
       { id: 'tanaka', layer: 'ni', wing: 'right', men: 3000, taisho: '田中吉政', flag: 'maru', at: { x: -186, z: -150 } },
       { id: 'kanamori', layer: 'ni', wing: 'center', men: 1100, taisho: '金森長近', flag: 'kanamori', bind: F('kanamori') },
-      { id: 'tadayoshi', layer: 'yobi', wing: 'center', men: 3000, taisho: '松平忠吉', flag: 'tokugawa', at: { x: -110, z: -6 } },
+      { id: 'tadayoshi', layer: 'yobi', wing: 'center', men: 3000, taisho: '松平忠吉', flag: 'tokugawa', at: { x: -136, z: 114 } },
+      // 北の黒田・細川・加藤・田中の後ろ（11/9 布陣図）：古田重然・織田長益・生駒一正（金森は本物の隊）
+      { id: 'furuta', layer: 'yobi', wing: 'right', men: 1000, taisho: '古田重然', flag: 'maru', at: { x: -150, z: -214 } },
+      { id: 'nagamasu', layer: 'yobi', wing: 'right', men: 450, taisho: '織田長益', flag: 'maru', at: { x: -136, z: -176 } },
+      { id: 'ikoma', layer: 'yobi', wing: 'right', men: 1800, taisho: '生駒一正', flag: 'maru', at: { x: -150, z: -140 } },
+      // 福島の後ろの南：寺沢広高
+      { id: 'terasawa', layer: 'ni', wing: 'left', men: 2400, taisho: '寺沢広高', flag: 'maru', at: { x: -150, z: 196 } },
       { id: 'honda', layer: 'yobi', wing: 'center', men: 500, taisho: '本多忠勝', flag: 'honda', bind: F('honda') },
       { id: 'honda2', layer: 'yobi', wing: 'center', men: 2500, taisho: '', flag: 'honda', at: { x: 30, z: -24 } },
       { id: 'hatamoto', layer: 'hatamoto', wing: 'center', men: 30000, taisho: '徳川家康', at: P(122, 72) },
       // 南宮山の押さえ（毛利が動けば東軍の背を守る。動かないので戦わない）
       { id: 'asano', layer: 'gozume', wing: 'left', men: 6500, taisho: '浅野幸長', flag: 'asano', hold: true, at: P(170, 96) },
       { id: 'ikeda', layer: 'gozume', wing: 'left', men: 4500, taisho: '池田輝政', flag: 'ageha', hold: true, at: P(196, 112) },
-      { id: 'yamauchi', layer: 'gozume', wing: 'left', men: 2000, taisho: '山内一豊', flag: 'kashiwa', hold: true, at: P(150, 110) },
+      { id: 'yamauchi', layer: 'gozume', wing: 'left', men: 2000, taisho: '山内一豊', flag: 'kashiwa', hold: true, at: { x: 604, z: 286 } },   // 南宮山の麓の東で見張る
       { id: 'konida', layer: 'konida', wing: 'center', men: 1000, at: P(150, 50) },
     ] },
   B: { name: '西軍', facing: Math.PI / 2, honjin: P(-166, -79), mpu: 4, formation: '鶴翼', flag: 'ishida', armor: 0x2c2a2a, openAt: 60, attrition: 0.003,
@@ -44,6 +50,7 @@ export const DEPTH = {
       { id: 'ukita_h', layer: 'yobi', wing: 'center', men: 4000, taisho: '宇喜多秀家', flag: 'ukita', bind: F('hide') },
       { id: 'gamou', layer: 'yobi', wing: 'left', men: 2000, taisho: '蒲生郷舎', flag: 'ishida', at: { x: -456, z: -156 } },
       { id: 'mitsu', layer: 'hatamoto', wing: 'center', men: 2000, taisho: '石田三成', flag: 'ishida', bind: F('mitsu') },
+      { id: 'nobutaka', layer: 'yobi', wing: 'left', men: 500, taisho: '織田信高', flag: 'maru', hold: true, at: { x: -440, z: -228 } },   // 笹尾山の石田のそば（11/9 布陣図）
       { id: 'konida', layer: 'konida', wing: 'center', men: 800, at: { x: -500, z: -40 } },
       // 南宮山（東の奥・家康の本陣の背）：一日、山の上から動かない（「毛利がいるのに動かない」）
       { id: 'hidemoto', layer: 'gozume', wing: 'right', men: 15000, taisho: '毛利秀元', flag: 'mori', hold: true, at: { x: 566, z: 220 } },

@@ -7,7 +7,7 @@ import { interiorPartitionHeight, interiorPartitionHeaders, shitaragaharaEntryIn
 //   ・近づくと「開ける／閉める」の札（hud は naka_ で始まる札を指で押せる釦にする）。押すと戸が左右の壁の前へ滑る
 //   ・閉めている間は当たりがある（紙の戸は槍が通る）。中の兵が戸口へ来ると自分で開ける。遊び手が押し続けても開く
 //   ・形は interior_parts の panelInstances を使い回し、一つの建物・一つの種類で一つの InstancedMesh。動く間だけ行列を書く
-//   ・寺の堂（内陣と外陣の境）は格子戸。開け放った形から始める（本尊が見える）。玄関を含め、ほかは閉めて始める
+//   ・寺の堂（内陣と外陣の境）は格子戸。比叡山の高画質は閉じて始め、「開ける」で内陣へ進む。ほかの堂は開け放って本尊を見せる
 // ======================================================================
 import * as THREE from 'three';
 import { SOLIDS } from './props.js';
@@ -401,8 +401,12 @@ function addNakaDoorsHiei(I, lv, y0, y1) {
         d.leaves = Array.from({ length: n }, () => ({ ...solid, r: .035, yBot: lv.y + sillHeight(d) }));
         for (const leaf of d.leaves) { SOLIDS.push(leaf); INTERIOR_WALLS.push(leaf); }
       }
-      // 内陣の脇口は開けて本尊を見せる。正面戸は閉め、外からも札で開ける。
-      if (temple && !p.entry) { d.open = d.want = 1; solidOff(d); }
+      // 比叡山の高画質は内外陣の境も格子戸で仕切って始める推定のしつらえ。
+      // 格子越しに須弥壇を見せ、脇口の「開ける」で二本の溝へ横に引く。
+      // 閉じた戸の当たりも直後の pose で揃え、兵の共通の自動開閉は保つ。
+      if (temple && !p.entry && !(tracked && SETTINGS.quality === 'high')) {
+        d.open = d.want = 1; solidOff(d);
+      }
       if (tracked) { pose(d); addDoorStops(d); }
     }
 } else if (I.profile?.startsWith('honnoji_')) {
@@ -1124,7 +1128,13 @@ function pose(d, open = d.open) {
 function poseHiei(d, open = d.open) {
   if (d.joinery || d.tracked) {
 
-  const reverseWindow = false;
+  // 比叡山の明かり障子は紙を屋外側、組子を室内側へ向ける。
+  // 窓枠の正面は正の側壁・正面窓で外を向くので、その面だけ表裏を返す。
+  // 外の板戸は逆に裏桟を室内へ向ける。二枚とも同じ向きで回し、
+  // 二本溝の位置・横滑りの距離・当たりはそのまま使う。
+  const hieiFace = SETTINGS.quality === 'high' && d.I.profile === 'hieizan';
+  const reverseWindow = hieiFace && !!d.window && d.window.s > 0;
+  const reverseBoard = hieiFace && d.entry && d.kind === 'itado' && d.I.door.side > 0;
   if (!d.meshes && !d.leaves) return;
   const I = d.frame || d.I, k = open, e = k * k * (3 - 2 * k);
   // 敷居の上面から鴨居の下面までを建具の高さにする。
@@ -1151,7 +1161,7 @@ function poseHiei(d, open = d.open) {
     const index = d.base + (d.rightMeshes && right ? j - d.n / 2 : j);
     const turn = I.profile === 'moribe' && right && !d.rightMeshes ? Math.PI : 0;
     if (d.meshes) Q.setFromAxisAngle(Y, I.rot + (d.axisX ? -Math.PI / 2 : 0)
-      + (reverseWindow ? Math.PI : 0) + turn);
+      + (reverseWindow || reverseBoard ? Math.PI : 0) + turn);
     if (d.window && d.I.profile === 'moribe') {
       const along = -d.W / 2 + (j + .5) * d.pw
         + (j === 0 ? .006 + e * (d.pw - .012) : -.006);
@@ -1221,10 +1231,26 @@ if (d.joinery) {
     // 行列や当たりの入れ物は使い回し、動いている戸だけを書き換える。
     if (d.leaves) {
       const leaf = d.leaves[j], a = lx - (d.pw + overlap) / 2, b = lx + (d.pw + overlap) / 2;
-      leaf.ax = I.x + a * I.c + lz * I.s; leaf.az = I.z - a * I.s + lz * I.c;
-      leaf.bx = I.x + b * I.c + lz * I.s; leaf.bz = I.z - b * I.s + lz * I.c;
+      // 線分の端にも丸みが付くため、戸の木口から半径分だけ内へ納める。
+      // 高画質の比叡山は開いた脇口を見えない出っ張りで狭めない。
+      const inset = d.I.profile === 'hieizan' && SETTINGS.quality === 'high' ? leaf.r : 0;
+      leaf.ax = I.x + (a + inset) * I.c + lz * I.s; leaf.az = I.z - (a + inset) * I.s + lz * I.c;
+      leaf.bx = I.x + (b - inset) * I.c + lz * I.s; leaf.bz = I.z - (b - inset) * I.s + lz * I.c;
       leaf.x0 = Math.min(leaf.ax, leaf.bx) - leaf.r; leaf.x1 = Math.max(leaf.ax, leaf.bx) + leaf.r;
       leaf.z0 = Math.min(leaf.az, leaf.bz) - leaf.r; leaf.z1 = Math.max(leaf.az, leaf.bz) + leaf.r;
+      // 射線の区画表は設営後に動かない。引き込んだ戸も見落とさないよう、
+      // 正面戸・内戸・側窓とも二本の溝の全行程を一度だけ登録する。
+      // 斜め向きの堂も実際の戸の向きで計算し、開閉中に入れ物を増やさない。
+      if (inset && !leaf.sweep) {
+        const travel = (left ? -1 : 1) * leafTravel(d, j);
+        const dx = travel * I.c, dz = -travel * I.s;
+        const ax = leaf.ax - e * dx, bx = leaf.bx - e * dx;
+        const az = leaf.az - e * dz, bz = leaf.bz - e * dz;
+        leaf.sweep = {
+          x0: Math.min(ax, bx, ax + dx, bx + dx), x1: Math.max(ax, bx, ax + dx, bx + dx),
+          z0: Math.min(az, bz, az + dz, bz + dz), z1: Math.max(az, bz, az + dz, bz + dz),
+        };
+      }
     }
     if (!d.meshes) continue;
     P.set(I.x + lx * I.c + lz * I.s, d.y + sill, I.z - lx * I.s + lz * I.c); M.compose(P, Q, S);
@@ -1449,6 +1475,15 @@ function autoDoorNear(d, u, reach) {
 
 // 戸口の手の届く点へ調べる。中央への斜線では、端の人が脇壁に遮られる。
 function autoDoorReachable(d, u) {
+  if (d.tracked && d.I.profile === 'hieizan' && SETTINGS.quality === 'high') {
+    // 兵も壁・柱・閉じた手前の戸を越えて奥の建具を開けない。
+    // 遊び手と同じ引き手の判定を借り、札の座標は元へ戻す。
+    // 近い戸だけを自動開閉の間隔で調べ、座標の入れ物は増やさない。
+    const x = d.touch.x, y = d.touch.y, z = d.touch.z;
+    const reachable = doorDistance(d, u.pos, true) < 1.5;
+    d.touch.x = x; d.touch.y = y; d.touch.z = z;
+    return reachable;
+  }
   if (d.tracked) return true;
   if (!d.slidingSolids) return true;
   const I = d.I, dx = u.pos.x - I.x, dz = u.pos.z - I.z;
@@ -1536,7 +1571,7 @@ function nearestHiei(rt) {
   pickT = rt.t; pick = null;
   const u = rt.player && rt.player.u;
   if (!u || !u.alive || rt.player.mounted) return null;
-  let bd = 1.5;
+  let bestScore = Infinity;
   for (const d of DOORS) {
     if (d.I.disabled) continue;
     if (d.I.id + 1 !== u.naka && !((d.entry || d.window) && !u.naka)) continue;
@@ -1545,7 +1580,11 @@ function nearestHiei(rt) {
     // 判定し、腰壁・窓枠越しの遮りも従来どおり調べる。通常の戸は階を区別する。
     if (!d.window && Math.abs(u.pos.y - d.y) > 1.2) continue;
     const dist = doorDistance(d, u.pos, true);
-    if (dist < bd) { bd = dist; pick = d; }
+    // 入口や座敷の戸へ寄った時、少し近い窓障子に札を奪わせない。
+    // 手が届く一・五メートルは保ち、同程度に近い通行用の戸を優先する。
+    // 優先度と届く距離を分け、登録順によって後の戸を調べ落とさない。
+    const score = dist + (SETTINGS.quality === 'high' && d.window ? .35 : 0);
+    if (dist < 1.5 && score < bestScore) { bestScore = score; pick = d; }
   }
   return pick;
 }
@@ -1570,7 +1609,7 @@ export function nakaDoorTick(rt, dt, flagged) {
     const it = rt.interacts[rt.interacts.length - 1];
     Object.defineProperty(it, 'label', { get: () => (nearest(rt) && nearest(rt).want ? '閉める' : '開ける'), configurable: true });
   }
-  // 中の兵は戸口へ来たら自分で開ける。遊び手も閉じた戸へ押し続けると開く
+  // 中の兵は戸口へ来たら自分で開ける。比叡山の高画質では遊び手は引手の札で開ける。
   autoT -= dt;
   if (autoT <= 0) {
     autoT = .2;
@@ -1587,20 +1626,28 @@ export function nakaDoorTick(rt, dt, flagged) {
         }
       } else {
         const d = nearestDoor;
-        if (d && !d.window && !d.want && (d.I.profile?.startsWith('honnoji_') ? Math.hypot(pickPos.x - u.pos.x, pickPos.z - u.pos.z) : doorDistance(d, u.pos)) < 1.1) setWant(rt, d, 1);
+        if (d && !(SETTINGS.quality === 'high' && d.I.profile === 'hieizan')
+          && !d.window && !d.want && (d.I.profile?.startsWith('honnoji_') ? Math.hypot(pickPos.x - u.pos.x, pickPos.z - u.pos.z) : doorDistance(d, u.pos)) < 1.1) setWant(rt, d, 1);
       }
     }
     for (const o of flagged) {
       if (o.isPlayer || !o.alive || !o.naka) continue;
       const I = DOORS.find((d) => d.I.id + 1 === o.naka)?.I;
       if (!I || I.disabled || !I.doors) continue;
+      // 倒れた者や登攀中・騎乗中の者は建具を扱えない。戸脇の乱戦だけで
+      // 閉じた襖・障子・内陣の格子戸が開かないよう、歩ける兵だけにする。
+      if (SETTINGS.quality === 'high' && I.profile === 'hieizan'
+        && (o.downed || o.climb || o.mounted || o.isStruct)) continue;
       for (const d of I.doors) if (!d.window && !d.want && autoDoorNear(d, o, 1.2) && autoDoorReachable(d, o)) setWant(rt, d, 1);
     }
     // 外から来る兵も正面の障子を開ける。入口で立ち往生させない。
     for (const d of DOORS) if (!d.I.disabled && (d.entry || d.exterior && d.I.profile?.startsWith('honnoji_')) && !d.want) {
       for (const o of rt.army?.units || []) {
         if (o.isPlayer || !o.alive || Math.abs(o.pos.y - d.y) > 1.2) continue;
-        if (doorDistance(d, o.pos) < 1.2) { setWant(rt, d, 1); break; }
+        // 外の倒れた兵も、僧坊や堂の正面戸を開ける者には数えない。
+        if (SETTINGS.quality === 'high' && d.I.profile === 'hieizan'
+          && (o.downed || o.climb || o.mounted || o.isStruct)) continue;
+        if (doorDistance(d, o.pos) < 1.2 && autoDoorReachable(d, o)) { setWant(rt, d, 1); break; }
       }
     }
     // 稲葉山の玄関は外の兵にも開けられる。室内の兵だけを見ると、
@@ -1693,9 +1740,10 @@ function sillHeight(d) { return d.window ? 0 : d.tracked ? (d.entry ? .05 : d.I.
 function panelHeight(d) { return d.h - sillHeight(d); }
 
 function atDoorHeight(d, o) {
-  // 明かり障子は腰壁の上にある。足元の高さだけで除外すると、
-  // 窓下の人の頭や肩を戸が横切る。戸の上下端と体全体で比べる。
-  if (d.tracked && d.window) return o.pos.y + (o.bodyHeight || 1.72 * (o.mesh?.scale.y || 1)) > d.y + sillHeight(d) && o.pos.y < d.y + d.h;
+  // 比叡山は明かり障子だけでなく、石段から上がる表戸も体全体で比べる。
+  // 足元が床より一・二メートル下でも頭や肩が戸へ届くことがある。
+  // 戸の上下端と重なる間は滑る戸を止め、敷居の下や鴨居の上だけなら通す。
+  if (d.tracked) return o.pos.y + (o.bodyHeight || 1.72 * (o.mesh?.scale.y || 1)) > d.y + sillHeight(d) && o.pos.y < d.y + d.h;
   return Math.abs(o.pos.y - d.y) < 1.2;
 }
 
@@ -1952,6 +2000,31 @@ function hieiPartitionBetween(d, p, targetLeaf) {
   // 柱は設営時に借りた当たりを使い、操作の候補を調べる時だけ線分と比べる。
   const reach2 = wx * wx + wz * wz;
   if (reach2 > .000001 && I.doorPosts) for (const post of I.doorPosts) {
+    if (post.k === 'r') {
+      // 縁の角柱・礎石は建物の向きへ戻して実寸の箱と比べる。
+      // 斜めの堂でも隅越しに引き手を扱わず、柱のない側は余分に塞がない。
+      const px = p.x - post.x, pz = p.z - post.z;
+      const startX = px * post.c - pz * post.s;
+      const startZ = px * post.s + pz * post.c;
+      const deltaX = wx * post.c - wz * post.s;
+      const deltaZ = wx * post.s + wz * post.c;
+      let near = 0, far = 1;
+      for (let axis = 0; axis < 3; axis++) {
+        const start = axis === 0 ? startX : axis === 1 ? handY : startZ;
+        const delta = axis === 0 ? deltaX : axis === 1 ? rise : deltaZ;
+        const low = axis === 0 ? -post.hw : axis === 1 ? post.yBot : -post.hd;
+        const high = axis === 0 ? post.hw : axis === 1 ? post.yTop : post.hd;
+        if (Math.abs(delta) < .000001) {
+          if (start < low || start > high) { far = -1; break; }
+        } else {
+          const a = (low - start) / delta, b = (high - start) / delta;
+          near = Math.max(near, Math.min(a, b)); far = Math.min(far, Math.max(a, b));
+          if (near > far) break;
+        }
+      }
+      if (near <= far) return true;
+      continue;
+    }
     const along = Math.max(0, Math.min(1, ((post.x - p.x) * wx + (post.z - p.z) * wz) / reach2));
     const y = handY + rise * along;
     if (y < post.yBot || y > post.yTop) continue;

@@ -91,7 +91,7 @@ export function tick(rt, dt, C) {
 export function pin(rt, C) {
   const F = rt.flags, K = F.kai;
   if (!K || F.step !== 10) return undefined;
-  return K.jump ? { x: C.FRONT.x + 2, z: C.FRONT.z + 2, r: 8 } : null;
+  return K.jump ? { x: C.FRONT.x + 2, z: C.FRONT.z + 2, r: 8, label: '佐間口の門前' } : null;
 }
 
 export function bot(b, inp, T, C) {

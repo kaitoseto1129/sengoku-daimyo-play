@@ -161,8 +161,8 @@ export function tick(rt, dt, C) {
 export function pin(rt, C) {
   const F = rt.flags, K = F.chi;
   if (!K) return undefined;
-  if (F.step === 1) return { x: K.saku.x, z: K.saku.z, r: 6 };
-  if (F.step === 2) return K.council ? null : { x: C.MARU.x, z: C.MARU.z, r: 16 };
+  if (F.step === 1) return { x: K.saku.x, z: K.saku.z, r: 6, label: '城の外の柵' };
+  if (F.step === 2) return K.council ? null : { x: C.MARU.x, z: C.MARU.z, r: 16, label: '丸墓山' };
   return undefined;
 }
 

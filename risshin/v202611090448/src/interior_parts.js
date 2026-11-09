@@ -1182,6 +1182,25 @@ function kitchenBowlShape() {
   }
   return shapes.get('nodaShelfBowl');
 }
+// 野田福島と比叡山の庫裏で膳を共用。形・材質は室内の既存の束へまとめる。
+function kitchenMealTray(part, p) {
+  // 庫裏の食事用の低い膳。脚・天板・縁・椀・箸を指定寸法へ納める。
+  // 棚の椀と共通の形・材質を使い、室内生成時に一束へ結合する。
+  const top = p.h - .1;
+  for (const x of [-p.w * .36, p.w * .36]) for (const z of [-p.d * .32, p.d * .32])
+    box(part, .04, top - .03, .04, x, (top - .03) / 2, z, 0x38251c);
+  box(part, p.w, .03, p.d, 0, top - .015, 0, 0x59412b);
+  for (const x of [-1, 1]) box(part, .02, .02, p.d,
+    x * (p.w / 2 - .01), top + .01, 0, 0x38251c);
+  for (const z of [-1, 1]) box(part, p.w - .04, .02, .02,
+    0, top + .01, z * (p.d / 2 - .01), 0x38251c);
+  for (const x of [-p.w * .21, p.w * .21]) {
+    const bowl = new THREE.Mesh(kitchenBowlShape(), mat(0x38251c));
+    bowl.position.set(x, top, -.04); part.add(bowl); cacheUsers.push(new WeakRef(bowl));
+  }
+  for (const z of [p.d * .28, p.d * .32])
+    box(part, p.w * .55, .008, .008, 0, top + .004, z, 0xb29b72);
+}
 // 野田福島の炊事道具。鍋の胴・口縁・底・中身は民家と庫裏で共有する。
 // 原点から高さ二十三センチの中へ収め、調度の当たりより上へ出さない。
 function cookingPot(parent, y) {
@@ -9355,7 +9374,10 @@ for (const p of layout.props) {
       }
       const radius = Math.min(.045, p.h * .08);
       for (const y of [footH + t + radius, p.h / 2 + t / 2 + radius]) for (const x of [-bayX, bayX]) {
-        hieiScroll(part, bayW - t, radius, x, y, 0);
+        // 保管する経巻には既存の巻き留めを使い、開いた机上の巻紙と分ける。
+        // 紐の厚み分だけ紙を細くし、棚板に輪を埋めず外寸も保つ。
+        const tied = S.quality === 'high', paperRadius = tied ? radius - .001 : radius;
+        hieiScroll(part, bayW - t, paperRadius, x, y, 0, 0, tied);
       }
     }
     else if (p.part === 'stove' && hieiKuri) {
@@ -10248,6 +10270,9 @@ for (const p of layout.props) {
     const nagashimaStove = S.quality === 'high' && layout.profile === 'nagashima' && layout.kind === 'kuri';
     const kit = p.part === 'stove' ? layout.profile === 'honnoji_kuri' || hieiKuri || nagashimaStove ? null : bought('furnace_complete', p.w, p.h, p.d) : p.part === 'storage' && !honnojiChest && !hieiTatamiFloor && !moribeStorage ? bought('drawer_a', p.w, p.h, p.d) : p.part === 'altar' && !templeAltar ? bought('butsudan', p.w, p.h, p.d) : null;
     if (kit) part.add(kit);
+    else if (hieiKuri && S.quality === 'high' && p.part === 'mealTray') {
+      kitchenMealTray(part, p);
+    }
     else if (p.part === 'riceBales') {
       // 既存の藁俵を室内の束へまとめる。外用の無限高の当たりは作らない。
       const raisedBales = layout.kind === 'kura' && (inabaHigh
@@ -13024,7 +13049,24 @@ if (nodaJoinery) {
     }
     else if (p.part === 'tomyo' && hieiTatamiFloor) {
       part.add(hieiTomyo(true));
-      place(part, lightPool(), 0, 0, 0, .09);
+      if (S.quality === 'high') {
+        // 床明かりを畳・板間・土間の仕上げ面へ載せ、閉じた建具の先へ通さない。
+        // 外壁側は窓障子・正面戸の溝、部屋境は襖と敷居の手前で切る。
+        // 切り口の形と明かりの材質は既存の仕組みで共有し、設営後は更新しない。
+        const room = layout.rooms.find(r => p.x >= r.x0 && p.x <= r.x1
+          && p.z >= r.z0 && p.z <= r.z1);
+        if (room) {
+          const hd = Math.max(...layout.rooms.map(r => r.z1));
+          const x0 = Math.max(-1.5, room.x0 + .48 - p.x);
+          const x1 = Math.min(1.5, room.x1 - .48 - p.x);
+          const z0 = Math.max(-1.5, room.z0 + (room.z0 <= -hd + .01 ? .48 : .28) - p.z);
+          const z1 = Math.min(1.5, room.z1 - (room.z1 >= hd - .01 ? .48 : .28) - p.z);
+          const finish = room.floor === 'tatami' ? HIEI_SOBO_SILL
+            : room.floor === 'earth' ? .0255 : .012;
+          if (x1 > x0 && z1 > z0) place(part, lightPool(x0, x1, z0, z1),
+            0, 0, 0, (room.y || 0) + finish - propBase + .002);
+        }
+      } else place(part, lightPool(), 0, 0, 0, .09);
     }
     else if (p.part === 'kyozukue' && layout.profile === 'hieizan') {
       // 礼盤から本尊に向かって使う経机。天板・幕板・四脚と経巻を分ける。
@@ -13046,7 +13088,14 @@ if (nodaJoinery) {
       // 幕板を脚の芯まで貫通させず、脚の内面へ納める。
       // 同じ面の重なりを除き、内陣側からも四脚と幕板の継ぎ目を見せる。
       for (const x of [-footX, footX]) {
-        for (const z of [-footZ, footZ]) hieiRitualTimber(part, leg, top - .035, leg, x, (top - .035) / 2, z, 0x302015);
+        // 僧坊の畳には細い脚を直接当てず、左右の畳摺で受ける推定の作り。
+        // 手本と限界は docs/battle_refs/hieizan-sobo-kyodai.md。
+        // 脚だけを短くし、天板・経巻の高さと建具脇の外寸を保つ。
+        const runnerH = hieiSobo && S.quality === 'high' ? .025 : 0;
+        if (runnerH) hieiRitualTimber(part, .065, runnerH, footZ * 2 + leg,
+          x, runnerH / 2, 0, 0x302015);
+        for (const z of [-footZ, footZ]) hieiRitualTimber(part,
+          leg, top - .035 - runnerH, leg, x, (top - .035 + runnerH) / 2, z, 0x302015);
         hieiRitualTimber(part, leg, .08, footZ * 2 - leg, x, top - .075, 0, 0x493023);
       }
       for (const z of [-footZ, footZ]) hieiRitualTimber(part, footX * 2 - leg, .08, leg, 0, top - .075, z, 0x493023);
@@ -14310,22 +14359,7 @@ export function furnishLayout(layout, h = 2.7, { partitions = true, dim = false,
       }
       part.scale.set(p.w / .85, p.h / .8, p.d / .7);
     } else if (nodaJoinery && p.part === 'mealTray') {
-      // 庫裏の食事用の低い膳。脚・天板・縁・椀・箸を指定寸法へ納める。
-      // 棚の椀と共通の形・材質を使い、室内生成時に一束へ結合する。
-      const top = p.h - .1;
-      for (const x of [-p.w * .36, p.w * .36]) for (const z of [-p.d * .32, p.d * .32])
-        box(part, .04, top - .03, .04, x, (top - .03) / 2, z, 0x38251c);
-      box(part, p.w, .03, p.d, 0, top - .015, 0, 0x59412b);
-      for (const x of [-1, 1]) box(part, .02, .02, p.d,
-        x * (p.w / 2 - .01), top + .01, 0, 0x38251c);
-      for (const z of [-1, 1]) box(part, p.w - .04, .02, .02,
-        0, top + .01, z * (p.d / 2 - .01), 0x38251c);
-      for (const x of [-p.w * .21, p.w * .21]) {
-        const bowl = new THREE.Mesh(kitchenBowlShape(), mat(0x38251c));
-        bowl.position.set(x, top, -.04); part.add(bowl); cacheUsers.push(new WeakRef(bowl));
-      }
-      for (const z of [p.d * .28, p.d * .32])
-        box(part, p.w * .55, .008, .008, 0, top + .004, z, 0xb29b72);
+      kitchenMealTray(part, p);
     } else if (p.part === 'kitchenBench') {
       // 庫裏の推定の調理台。天板・脚・貫に、俎板と木の杓子を載せる。
       // 共通の箱と材質だけで組み、室内の束へ結合する。道具まで当たりの寸法内に収める。
@@ -16807,11 +16841,26 @@ if (nodaJoinery) {
       const footX = p.w / 2 - .07, footZ = p.d / 2 - .06;
       // 幕板を脚の芯まで貫通させず、脚の内面へ納める。
       // 同じ面の重なりを除き、内陣側からも四脚と幕板の継ぎ目を見せる。
+      // 僧坊の畳上の経机は、左右の畳摺で四脚を受ける推定のしつらえ。
+      // 手本と限界は docs/battle_refs/hieizan-sobo-kyodai.md。
+      // 脚を畳摺の厚みだけ短くし、天板・経巻・通行の外寸は保つ。
+      const runnerH = hieiSobo && S.quality === 'high' ? .025 : 0;
+      // 天板の框・薄い下地を四脚へ載せるだけにせず、左右の受け桟で支える。
+      // 高画質だけの推定の木組み。桟の上面を天板下面へ合わせ、
+      // 脚と幕板は桟の下面で止める。天板高・経巻・畳摺・通路の外寸は保つ。
+      // 既存の箱と木材を設営時にまとめ、毎コマの処理は増やさない。
+      const supportH = S.quality === 'high' ? .025 : 0;
+      const legTop = top - .035 - supportH;
       for (const x of [-footX, footX]) {
-        for (const z of [-footZ, footZ]) hieiRitualTimber(part, leg, top - .035, leg, x, (top - .035) / 2, z, 0x302015);
-        hieiRitualTimber(part, leg, .08, footZ * 2 - leg, x, top - .075, 0, 0x493023);
+        if (supportH) hieiRitualTimber(part, leg + .02, supportH, footZ * 2 + leg,
+          x, legTop + supportH / 2, 0, 0x302015);
+        if (runnerH) hieiRitualTimber(part, .065, runnerH, footZ * 2 + leg,
+          x, runnerH / 2, 0, 0x302015);
+        for (const z of [-footZ, footZ]) hieiRitualTimber(part,
+          leg, legTop - runnerH, leg, x, (legTop + runnerH) / 2, z, 0x302015);
+        hieiRitualTimber(part, leg, .08, footZ * 2 - leg, x, legTop - .04, 0, 0x493023);
       }
-      for (const z of [-footZ, footZ]) hieiRitualTimber(part, footX * 2 - leg, .08, leg, 0, top - .075, z, 0x493023);
+      for (const z of [-footZ, footZ]) hieiRitualTimber(part, footX * 2 - leg, .08, leg, 0, legTop - .04, z, 0x493023);
       // 経机の四脚を足元の貫で結び、天板直下の幕板だけで支えない。
       // 個別の仕口は推定。脚の内面で止め、礼盤側の膝を入れる所は空ける。
       // 共通の箱と材質でまとめ、経巻までを含む外寸・当たりは保つ。
@@ -16825,7 +16874,7 @@ if (nodaJoinery) {
       // 共通の箱と材質で設営時にまとめ、調度の外寸・当たりは変えない。
       for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
         const x = sx * footX, z = sz * footZ;
-        for (const [y, depth] of [[top - .06, .018], [tieY, .012]]) {
+        for (const [y, depth] of [[legTop - .025, .018], [tieY, .012]]) {
           // 奥行き方向は四脚へ差す。低い左右の貫は本尊側の二脚だけ。
           hieiRitualTimber(part, depth, .014, leg - .006, x, y, z, 0x493023);
           hieiRitualTimber(part, .008, .012, .012, x + sx * (leg / 2 + .004),
@@ -20922,6 +20971,10 @@ function hieiShoji(w = .9, h = 1.8, kumiko = false) {
 
 function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
   const g = new THREE.Group();
+  // 高画質の格子戸は腰板だけでなく、框・横桟・縦格子にも実寸の木目を通す。
+  // 材の長手と木口を分け、固定戸と動く戸で同寸の形・材質を共有する。
+  // 部品の数・寸法・まとめ描きは保ち、開閉中の処理は増やさない。
+  const timber = fitted && S.quality === 'high' ? hieiRitualTimber : box;
   // 比叡山は框の内寸で格子を割る。狭い引き戸も広い固定戸も八本固定にせず、
   // 同じ程度の格子間隔に揃える。焼失前の割付は推定。共通の形と材質でまとめる。
   const inner = w - .08, divisions = fitted ? Math.max(2, Math.round(inner / .1)) : 9;
@@ -20939,10 +20992,10 @@ function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
     for (const side of [-1, 1]) {
       const depth = side * .0175;
       for (const y of [boardBottom + bead / 2, boardTop - bead / 2]) {
-        box(g, inner, bead, .015, 0, y, depth, 0x2a1c12);
+        timber(g, inner, bead, .015, 0, y, depth, 0x2a1c12);
       }
       for (const x of [-(inner - bead) / 2, (inner - bead) / 2]) {
-        box(g, bead, panelHeight, .015, x, (panelBottom + panelTop) / 2, depth, 0x2a1c12);
+        timber(g, bead, panelHeight, .015, x, (panelBottom + panelTop) / 2, depth, 0x2a1c12);
       }
     }
     box(g, panelWidth, panelHeight, .008, 0, (panelBottom + panelTop) / 2, 0, 0x1e140e);
@@ -20968,19 +21021,19 @@ function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
         0, 0x625037, 'hieiFloorTimber');
       board.geometry = shapes.get(boardKey);
     }
-    box(g, inner, .06, .05, 0, .32, 0, 0x2a1c12);
+    timber(g, inner, .06, .05, 0, .32, 0, 0x2a1c12);
     // 横桟を通し、縦格子の木口をその上下の面で受ける。
     // 格子を貫通させず、内陣側からも木の厚みが分かる納まりにする。
     // 固定戸・引き戸で共用し、設営時のまとめ描きだけへ加える。
     const rails = [h * .55, h - .3].filter(y => y - .0175 > latticeBottom && y + .0175 < latticeTop);
-    for (const y of rails) box(g, inner, .035, .04, 0, y, 0, 0x2a1c12);
+    for (const y of rails) timber(g, inner, .035, .04, 0, y, 0, 0x2a1c12);
     // 腰框と横桟を縦框へ枘差しし、込栓の木口を両面に見せる。
     // 棒を框へ突き合わせただけの形を改める推定の仕口。固定戸と動く戸で共用する。
     // 枘は縦框の中、栓の木口だけを框の面へ接し、二本溝と通路は広げない。
     for (const y of [.32, ...rails]) for (const side of [-1, 1]) {
       const x = side * (w / 2 - .02);
-      box(g, .04, .018, .018, x, y, 0, 0x2a1c12);
-      for (const face of [-1, 1]) box(g, .012, .016, .003,
+      timber(g, .04, .018, .018, x, y, 0, 0x2a1c12);
+      for (const face of [-1, 1]) timber(g, .012, .016, .003,
         x, y, face * .0315, 0x95704a);
     }
     for (let k = 1; k < divisions; k++) {
@@ -20988,14 +21041,14 @@ function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
       let bottom = latticeBottom;
       for (const y of rails) {
         const top = y - .0175;
-        if (top > bottom) box(g, .022, top - bottom, .03, x, (bottom + top) / 2, 0, 0x2a1c12);
+        if (top > bottom) timber(g, .022, top - bottom, .03, x, (bottom + top) / 2, 0, 0x2a1c12);
         bottom = y + .0175;
       }
-      if (latticeTop > bottom) box(g, .022, latticeTop - bottom, .03,
+      if (latticeTop > bottom) timber(g, .022, latticeTop - bottom, .03,
         x, (bottom + latticeTop) / 2, 0, 0x2a1c12);
     }
     // 四隅は上下の框へ縦框を納め、同じ面の重なりを残さない。
-    for (const y of [.02, h - .02]) box(g, w, .04, .06, 0, y, 0, 0x1e140e);
+    for (const y of [.02, h - .02]) timber(g, w, .04, .06, 0, y, 0, 0x1e140e);
     for (const side of [-1, 1]) {
       const x = side * (w / 2 - .02);
       // 引き手の埋木へ縦框の木口を合わせる。重ねた同じ面のちらつきを防ぐ。
@@ -21003,9 +21056,9 @@ function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
       if (hikite && side > 0) {
         const gripY = Math.min(.85, h * .48);
         for (const [a, b] of [[.04, gripY - .11], [gripY + .11, h - .04]]) {
-          if (b > a) box(g, .04, b - a, .06, x, (a + b) / 2, 0, 0x1e140e);
+          if (b > a) timber(g, .04, b - a, .06, x, (a + b) / 2, 0, 0x1e140e);
         }
-      } else box(g, .04, h - .08, .06, x, h / 2, 0, 0x1e140e);
+      } else timber(g, .04, h - .08, .06, x, h / 2, 0, 0x1e140e);
     }
   } else {
     for (let k = 1; k < divisions; k++) box(g, .022, h - .06, .03,
@@ -21021,8 +21074,8 @@ function hieiKoshi(w = .9, h = 1.8, hikite = false, fitted = hikite) {
     // 金具の細部は推定。従来と同じ五つの箱を使い、隣の溝へ突出させない。
     const x = w / 2 - .035, y = Math.min(.85, h * .48);
     for (const side of [-1, 1]) {
-      box(g, .07, .045, .06, x, y + side * .0875, 0, 0x1e140e);
-      box(g, .024, .13, .06, x + side * .023, y, 0, 0x1e140e);
+      timber(g, .07, .045, .06, x, y + side * .0875, 0, 0x1e140e);
+      timber(g, .024, .13, .06, x + side * .023, y, 0, 0x1e140e);
     }
     box(g, .022, .13, .008, x, y, 0, 0x34312b);
   }

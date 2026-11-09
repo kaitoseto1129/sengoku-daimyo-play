@@ -8,7 +8,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { nobori, jinmaku, hut, romon, dou, stumps, hashigo, tsuiji, tobiraLeaf, solidCircle } from './props.js';
+import { nobori, jinmaku, hut, romon, dou, stumps, hashigo, tsuiji, tobiraLeaf, solidCircle, solidRect, WOOD_MAT } from './props.js';
 import { Garan, makeTempleFire } from './temple1571.js';
 import { hieiNageshiHeight } from './interior_parts.js';
 import { HIEI_NAIJIN_POST_SETBACK } from './interior_layouts.js';
@@ -432,6 +432,9 @@ class HieiGaran extends Garan {
     // 間取り・調度の当たりを作る前に、この戦の型を渡す。
     // 出入り・引き戸・燃える時の片付けは共通の仕組みを使う。
     const rec = super.build({ ...b, profile: 'hieizan' }), grand = b.kind === 'chudo';
+    // 四方が開いた鐘楼は共通側で基壇・石段・柱・化粧屋根裏まで作る。
+    // 座敷のない棟へ堂の天井や建具を足さず、室内情報の参照でも止めない。
+    if (!rec.naka) return rec;
     const lv = rec.naka.levels[0], floor = lv.y - rec.y0 - .06;
     const y = floor + lv.h + (grand ? .5 : 0);
     const half = b.w / 2 + (grand ? 1.2 : 0);
@@ -638,7 +641,10 @@ class HieiGaran extends Garan {
       }
       // 焼失前の柱割は断定せず、内陣・外陣の天井を受ける柱と梁を補う。
       // 中央の参拝路と、内陣の脇口・引き戸の引き込み先には置かない。
-      const base = lv.y - rec.y0, top = base + lv.h - .11;
+      // 格縁は naka.js で天井高から十センチ下まで下がる。
+      // 梁上端を十一センチ下へ置くと一センチ離れ、格天井が梁から浮く。
+      // 高画質では柱頭・斗栱・虹梁・繋梁を同じ受け高へ揃える。
+      const base = lv.y - rec.y0, top = base + lv.h - (SETTINGS.quality === 'high' ? .1 : .11);
       // 壁際だけで途切れていた内法長押を、堂内の柱列にも通す。
       // 室内の鴨居・外周の長押と高さを揃え、天井の梁とは分ける。
       const nageshiY = base + hieiNageshiHeight(rec.naka.kind, lv.h);
@@ -1218,10 +1224,15 @@ class HieiGaran extends Garan {
           hieiTimberGrain(g, 1, (px * .37 + z * .53) % 1);
           g.translate(px, (y + bottom) / 2, z); super.add(rec, 'wood', hieiPaint(g, 0x634832)); g.dispose();
           // 描いた柱と同じ位置・高さの当たり。焼失時は既存の片付けに含める。
-          const solid = solidCircle(wx, wz, .09);
+          // 角柱と礎石は描いた四角へ当たりを合わせ、隅を体が抜けないようにする。
+          const solid = SETTINGS.quality === 'high'
+            ? solidRect(wx, wz, .18, .18, rec.rot || 0) : solidCircle(wx, wz, .09);
+          solid.hieiDoorPost = true;
           solid.yBot = rec.y0 + bottom; solid.yTop = rec.y0 + y;
           rec.innerSolids.push(solid);
-          const footSolid = solidCircle(wx, wz, .13);
+          const footSolid = SETTINGS.quality === 'high'
+            ? solidRect(wx, wz, .26, .26, rec.rot || 0) : solidCircle(wx, wz, .13);
+          footSolid.hieiDoorPost = true;
           footSolid.yBot = rec.y0 + stoneBottom; footSolid.yTop = rec.y0 + bottom;
           rec.innerSolids.push(footSolid);
         }
@@ -1315,7 +1326,10 @@ class HieiGaran extends Garan {
           super.add(rec, 'stone', hieiPaint(foot, 0x827b6d)); foot.dispose();
           // 礎石を含む実際の幅で当たりを付け、焼失時も建物と一緒に除く。
           for (const [radius, low, high] of [[.09, bottom, y], [.13, stoneBottom, bottom]]) {
-            const solid = solidCircle(wx, wz, radius);
+            const solid = SETTINGS.quality === 'high'
+              ? solidRect(wx, wz, radius * 2, radius * 2, rec.rot || 0)
+              : solidCircle(wx, wz, radius);
+            solid.hieiDoorPost = true;
             solid.yBot = rec.y0 + low; solid.yTop = rec.y0 + high;
             rec.innerSolids.push(solid);
           }
@@ -1493,7 +1507,7 @@ class HieiGaran extends Garan {
       }
     }
     // 戸の操作でも実際の柱を避ける。設営時に一度だけ拾い、描画・通行と同じ当たりを借りる。
-    rec.naka.doorPosts = rec.innerSolids.filter(solid => solid.k === 'c');
+    rec.naka.doorPosts = rec.innerSolids.filter(solid => solid.k === 'c' || solid.hieiDoorPost);
     return rec;
   }
 }
@@ -1859,7 +1873,7 @@ const hieizan = {
     const gateTimber = (w, h, d, x, y, z, color = 0x4e3624) => {
       const g = gateTimberShape.clone();
       g.scale(w, h, d);
-      hieiTimberGrain(g, w >= d ? 0 : 2, (x * .37 + z * .53) % 1);
+      hieiTimberGrain(g, h >= w && h >= d ? 1 : w >= d ? 0 : 2, (x * .37 + z * .53) % 1);
       g.translate(x, y, z);
       frame.push(hieiPaint(g, color)); g.dispose();
     };
@@ -1875,25 +1889,71 @@ const hieizan = {
     // 回縁は既存の貫と広げた受け材の上へ載せる。細かな断面は推定。
     const ceilingHalf = 3.28, ceilingRim = .12;
     const boardHalf = ceilingHalf - ceilingRim, boardDepth = 1.72 - ceilingRim;
+    // 高画質は回縁の内側を相じゃくりにし、板端を三センチ掛けて受ける。
+    // 同じ高さの箱を突き付けるだけでは、端が回縁の上に載らなかった。
+    // 掛け幅の考え方の手本は docs/battle_refs/hieizan-ceiling-joints.md。
+    // 現代の施工資料を参考にした推定の納まりで、焼失前の仕口の復元ではない。
+    const ceilingLap = SETTINGS.quality === 'high' ? .03 : 0;
     for (const side of [-1, 1]) {
+      if (ceilingLap) {
+        gateTimber(ceilingRim, .03, 3.44,
+          side * (ceilingHalf - ceilingRim / 2), 3.745, 0);
+        gateTimber(ceilingRim - ceilingLap, .03, 3.44,
+          side * (ceilingHalf - (ceilingRim - ceilingLap) / 2), 3.775, 0);
+        gateTimber(boardHalf * 2, .03, ceilingRim,
+          0, 3.745, side * (1.72 - ceilingRim / 2));
+        gateTimber((boardHalf + ceilingLap) * 2, .03, ceilingRim - ceilingLap,
+          0, 3.775, side * (1.72 - (ceilingRim - ceilingLap) / 2));
+        continue;
+      }
       gateTimber(ceilingRim, .06, 3.44,
         side * (ceilingHalf - ceilingRim / 2), 3.76, 0);
       gateTimber(boardHalf * 2, .06, ceilingRim,
         0, 3.76, side * (1.72 - ceilingRim / 2));
     }
-    // 板の中央の継ぎ目は梁上、外端は回縁の内面で止める。通路の幅は保つ。
+    // 中央の継ぎ目は梁上。高画質の板は上半分だけ回縁へ掛け、下面と通路高を保つ。
     const ceilingRows = 12, ceilingPitch = boardDepth * 2 / ceilingRows;
     for (let row = 0; row < ceilingRows; row++) for (const side of [-1, 1]) {
+      if (ceilingLap) {
+        const backLap = row === 0 ? ceilingLap : 0;
+        const frontLap = row === ceilingRows - 1 ? ceilingLap : 0;
+        const color = row % 2 ? 0x80694c : 0x7a6348;
+        gateTimber(boardHalf - .003, .03, ceilingPitch - .003,
+          side * boardHalf / 2, 3.745, -boardDepth + (row + .5) * ceilingPitch, color);
+        // 上下の目地が重なると三ミリの隙間が板厚を貫通する。
+        // 上半分の継ぎ目を縦横とも十五ミリずらす、相じゃくりの推定表現。
+        // 手本と限界は docs/battle_refs/hieizan-ceiling-joints.md。
+        // 目地・回縁への掛け幅・板の数を保ち、上下の板同士も重ねない。
+        const jointOffset = .015, halfGap = .0015;
+        const left = side < 0 ? -boardHalf - ceilingLap : jointOffset + halfGap;
+        const right = side < 0 ? jointOffset - halfGap : boardHalf + ceilingLap;
+        const back = -boardDepth + row * ceilingPitch
+          + (row === 0 ? -backLap : jointOffset + halfGap);
+        const front = -boardDepth + (row + 1) * ceilingPitch
+          + (row === ceilingRows - 1 ? frontLap : jointOffset - halfGap);
+        gateTimber(right - left, .03, front - back,
+          (left + right) / 2, 3.775, (back + front) / 2, color);
+        continue;
+      }
       gateTimber(boardHalf - .003, .06, ceilingPitch - .003,
         side * boardHalf / 2, 3.76, -boardDepth + (row + .5) * ceilingPitch,
         row % 2 ? 0x80694c : 0x7a6348);
     }
-    gateTimberShape.dispose();
     for (const sd of [-1,1]) for (const x of [-3.2,-1.6,0,1.6,3.2]) {
-      const p = new THREE.BoxGeometry(.17,2,.17); p.translate(x,5.5,sd*1.75); frame.push(hieiPaint(p,0x634832)); p.dispose();
-      for (let j=0;j<3;j++) { const g = new THREE.BoxGeometry(.3+j*.2,.12,.4+j*.3); g.translate(x,6.2+j*.15,sd*1.8); frame.push(hieiPaint(g,0x72553a)); g.dispose(); }
+      // 上階の柱・組物も通路の梁と同じ原形を使い、柱は縦へ木目を通す。
+      gateTimber(.17, 2, .17, x, 5.5, sd * 1.75, 0x634832);
+      for (let j = 0; j < 3; j++) gateTimber(.3 + j * .2, .12, .4 + j * .3,
+        x, 6.2 + j * .15, sd * 1.8, 0x72553a);
     }
-    const frameMesh = new THREE.Mesh(mergeGeometries(frame), new THREE.MeshStandardMaterial({ vertexColors:true, roughness:.92 }));
+    gateTimberShape.dispose();
+    const gateWood = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .92 });
+    if (SETTINGS.quality === 'high') {
+      // 座標だけ付けて無地で描いていた天井・梁にも、堂と共通の木肌を使う。
+      // 絵は作り直さず、一束の描画と既存の板割・通路高を保つ。
+      const wood = WOOD_MAT();
+      gateWood.map = wood.map; gateWood.bumpMap = wood.bumpMap; gateWood.bumpScale = .025;
+    }
+    const frameMesh = new THREE.Mesh(mergeGeometries(frame), gateWood);
     for (const g of frame) g.dispose(); frameMesh.castShadow = true; frameMesh.receiveShadow = true;
     gateHouse.add(frameMesh);
     gateHouse.traverse((m) => { if (m.isMesh && !Array.isArray(m.material)) hieiSurface(rt, m, m === gateHouse.children[1] ? 'tile' : 'wood'); });
@@ -1917,11 +1977,13 @@ const hieizan = {
       // 山道の上に見せる小堂。位置は景観用の補いで、瑠璃堂の所在の復元ではない。
       // 煙の出どころと本坂・南の迂回路を避け、檜皮の積層と厚い軒を見せる。
       const approachHall = new HieiGaran(rt);
-      // 室内を持たせず、堂外だけを共通の軽い組み立てで作る。
-      Garan.prototype.build.call(approachHall, { id: 'hiei_approach_hall', name: '山道脇の堂', kind: 'rurido',
-        x: 32, z: roadZ(32) + 13, w: 9, d: 7, rot: Math.PI / 2 });
+      // 山道から寄れる堂は箱で塞がず、共通の石段・引き戸と板敷きの内外陣を持たせる。
+      // 須弥壇・天井・柱と長押は比叡山の型を使う推定のしつらえ。檜皮葺きは保つ。
+      approachHall.build({ id: 'hiei_approach_hall', name: '山道脇の堂', kind: 'rurido',
+        x: 32, z: roadZ(32) + 13, w: 9, d: 7, rot: Math.PI / 2, enterable: true, roof: 'bark' });
       approachHall.finish();
-      for (const b of approachHall.buckets.values()) if (b.mesh) hieiSurface(rt, b.mesh, b.mk, true);
+      // 室内へ寄った時は他の堂と同じ透過を使い、屋根で視点を塞がない。
+      for (const b of approachHall.buckets.values()) if (b.mesh) hieiSurface(rt, b.mesh, b.mk);
     }
     F.templeFire = makeTempleFire(rt, F.teranaka, { flames: 4, smokes: 6,
       onBurnt(rec) {

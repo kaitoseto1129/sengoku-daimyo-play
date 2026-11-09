@@ -30,6 +30,10 @@ export function install(rt, P) {
     koba: mk({ x: MATSUO.x + 6, z: MATSUO.z - 20, w: 50, d: 18, count: n(150, 280), facing: Math.PI, team: 1, armor: 0x2a2622, flag: KOBA_FLAG, seed: 6016 }),
     koba2: mk({ x: MATSUO.x - 34, z: MATSUO.z + 10, w: 36, d: 12, count: n(70, 130), facing: Math.PI, team: 1, armor: 0x2a2622, flag: KOBA_FLAG, seed: 6017 }),
     waki: mk({ x: WAKI_P.x + 4, z: WAKI_P.z + 22, w: 34, d: 10, count: n(60, 110), facing: Math.PI, team: 1, armor: WS, flag: 'wakisaka', seed: 6018 }),
+    // 松尾山の麓の一列（11/9 布陣図）：赤座直保・小川祐忠・朽木元綱。脇坂と共に寝返る
+    akaza: mk({ x: WAKI_P.x - 66, z: WAKI_P.z + 4, w: 22, d: 8, count: n(30, 60), facing: Math.PI, team: 1, armor: WS, flag: 'maru', seed: 6019 }),
+    ogawa: mk({ x: WAKI_P.x - 34, z: WAKI_P.z + 14, w: 24, d: 8, count: n(40, 70), facing: Math.PI, team: 1, armor: WS, flag: 'maru', seed: 6024 }),
+    kutsuki: mk({ x: WAKI_P.x + 40, z: WAKI_P.z + 30, w: 22, d: 8, count: n(30, 60), facing: Math.PI, team: 1, armor: WS, flag: 'maru', seed: 6025 }),
   };
   // 第一線の三つの激突（はじめは間を空けて向き合う。noWake：近づくまで形を作らない）
   const cl = (o) => { try { return clash(rt, { host: false, noRout: true, noWake: true, killRate: 0.004, maxDrift: 10, corpses: 8, nearHide: 0, ...o }); } catch (e) { return null; } };
@@ -110,7 +114,10 @@ function flip(rt, st, later, routB) {
     M.koba2?.moveTo(P.OTANI.x + 60, P.OTANI.z + 50, 24, { charge: true });
     C.o?.shake?.('B', 30);
   });
-  later(14, () => { M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6); });
+  later(14, () => {
+    M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6);
+    M.akaza?.moveTo(P.HIRA.x - 20, P.HIRA.z + 34, 22, { charge: true }); M.ogawa?.moveTo(P.HIRA.x, P.HIRA.z + 30, 21, { charge: true }); M.kutsuki?.moveTo(P.HIRA.x + 46, P.HIRA.z + 26, 23, { charge: true });
+  });
   // 大谷の陣が崩れ、宇喜多・小西も崩れる（西軍右翼の総崩れ）
   later(26, () => { C.o?.rout?.('B', { from: 1, minFight: 1 }); routB('otani2'); });
   later(31, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
