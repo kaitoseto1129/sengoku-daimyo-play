@@ -60,12 +60,12 @@ export function step(H) {
       // 物見は二人まで討たれると、知らせに戻ろうと逃げる（逃げた者は林の中で番が討つ）
       for (const g of C.scouts) if (!g.fled && live(g) <= 1 && g.units.length > 2) { g.fled = true; for (const u of g.units) if (u.alive && !u.gone) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); } }
       const done = C.w >= WAVES.length && !C.scouts.some((g) => live(g) > 0);
-      if (done && !C.done) {
+      if (done && Math.hypot(rt.player.u.pos.x - H.FUSHIN.x, rt.player.u.pos.z - H.FUSHIN.z) < 18 && !C.done) {
         C.done = el;
         rt.say('普請の番', '物見はみな討った。城のことは、まだ小田原に知られておらぬ', 3.6);
         rt.after(4, () => rt.say('普請の奉行', '夜のうちに林を伐る。夜が明けたら、城が姿を見せるぞ', 3.6));
       }
-      return (C.done && el - C.done > 8.5) || el > 190;
+      return !!C.done && el - C.done > 8.5;
     },
     end(rt, C) {
       for (const g of [...C.scouts, C.porters, C.guard]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);

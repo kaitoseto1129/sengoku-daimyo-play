@@ -32,6 +32,13 @@ import { enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.
 import { applyLook, DAWN, dress, gone } from './b_inabayama.js';
 
 import { camp } from './b_mid.js';
+import { wrap as k15Shizuka } from './honnoji/shizuka.js';   // 15分の構成：静かな本能寺
+import { wrap as k15Shuen } from './honnoji/shuen.js';   // 織田編の終わり（暗転・本能寺の変）
+import { wrap as k15Omote } from './honnoji/omote.js';   // 表庭の踏み止まり
+import { wrap as k15Kairo } from './honnoji/kairo.js';   // 火の回る回廊
+import { wrap as k15Saigo } from './honnoji/saigo.js';   // 信長の最後の防衛
+import { wrap as k15Uradori } from './honnoji/uradori.js';   // 裏通りを落ちる
+import { k15WrapBot } from './oda15_kit.js';
 
 // 箕作と同じ箱の当たりで、束ねた面の測り直しを待たず壁・柱・戸の手前へ寄せる。
 function protectTempleCamera(rt, T) {
@@ -4033,7 +4040,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
     // 市内へ広がる遠景：町のあちこちで鐘が鳴り、叫びが起き、火の手が上がる（本能寺の騒ぎが町へ伝わる）
     [[34, -60, -90], [48, 100, 10], [62, -30, 130], [80, 130, -70]].forEach(([t, x, z], i) => rt.after(t, () => {
-      if (rt.flags.ending) return;
+      if (rt.flags.ending || rt.flags.k15stage === 'shizuka') return;   // 静かな見回りの間は町は鳴らない
       sfx('kane', 0.28); rt.army.play('eshout', { x, z }, 0.8);
 
       if (i === 0) rt.bark('遠くの町で鐘が鳴り、人の叫びが広がる');
@@ -4704,7 +4711,13 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.setPhase('shisha');
     rt.unmark('out'); rt.unmark('north'); rt.unmark('chase'); rt.unzone('out');
     rt.award((t) => t.side.push('明智の囲みを抜け、京の外れまで落ちのびた'), '京の囲みを抜けた');
-    for (const g of [...(F.kyoFoes || []), ...(F.foes || [])]) if (g && !gone(g)) { g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4; g.anchor = { x: KYO_ST, z: OUT.z + 14 }; }
+    // 追手は今いる辻で足を止める。寺と御所の残兵まで木戸の一点へ集めない。
+    for (const g of new Set([...(F.kyoFoes || []), ...(F.foes || [])])) if (g && !gone(g)) {
+      const c = g.center();
+      g.order = 'hold'; g.focus = null; g.aggro = 2; g.seekRange = 4;
+      g.anchor = { x: c.x, z: c.z };
+      for (const u of g.units) { u.target = null; u.moveTo = null; }
+    }
     F.shisha = allyGroup(rt, { fixed: true, name: '使者', anchor: { ...SHISHA_DOOR }, facing: Math.PI / 2, width: 1, aggro: 0, noRout: true, order: 'hold' },
       [{ type: 'porter', n: 1, o: { name: '使者', kosode: 1, kosodeCol: 0x544a3e, obi: 0x30251c, flag: null, horse: false, invuln: true } }]);
     F.shishaU = F.shisha.units[0];
@@ -4794,7 +4807,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     honnoClothes(rt, dt);
     // 表庭の段は、視点の向く先の十歩で斬り合わせる。押し合いは表庭の内に置く（本堂の中へ引き込まない）。
     if (!rt.G.lord) heroFrontClash(rt, dt, { foeD: 12, allyD: 7, foeN: 30, allyN: 24, active: (r) => (r.flags.hp || 0) <= 2,
-      clamp: (x, z) => ({ x: Math.max(-46, Math.min(-29, x)), z }) });
+      clamp: (x, z, foe) => ({ x: Math.max(-46, Math.min(foe ? -29 : -34, x)), z }) });
     if (rt.G.lord) { this.lordTick(rt, dt); return; }
     const F = rt.flags;
     if (!rt.player.u.alive) return;
@@ -4988,9 +5001,9 @@ function heroFrontClash(rt, dt, o = {}) {
   if (D) { const l = Math.hypot(D.x, D.z) || 1; fx = D.x / l; fz = D.z / l; }
   const pick = (foe, want, d) => {
     let x = P.pos.x + fx * d, z = P.pos.z + fz * d;
-    if (o.clamp) ({ x, z } = o.clamp(x, z));
+    if (o.clamp) ({ x, z } = o.clamp(x, z, foe));
     // 前が塀・柵の向こうなら、本人の手前の側（壁の内）まで縮める
-    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z)); }
+    for (let k = 0; k < 3 && rt.army.wallBetween(P.pos, -1, { x, y: P.pos.y, z }); k++) { d *= 0.6; x = P.pos.x + fx * d; z = P.pos.z + fz * d; if (o.clamp) ({ x, z } = o.clamp(x, z, foe)); }
     const list = [];
     for (const g of rt.army.groups) {
       if ((g.team !== P.team) !== foe || g.isPlayerSquad || g.routed || g.count < 2 || (o.skip && o.skip(g, foe))) continue;
@@ -5007,7 +5020,10 @@ function heroFrontClash(rt, dt, o = {}) {
       const side = (k - (out.length - 1) / 2) * 6 + (foe ? 0 : 1.5);
       g.order = 'hold'; g.noAI = true; g.aggro = Math.max(g.aggro || 0, 9);
       if (g.focus && g.focus !== P) g.focus = null;
-      g.anchor.x = x + fz * side; g.anchor.z = z - fx * side;
+      let ax = x + fz * side, az = z - fx * side;
+      // 隊を横へずらした後にも表庭の範囲を守る。中心だけの制限では門外へ出ていた。
+      if (o.clamp) ({ x: ax, z: az } = o.clamp(ax, az, foe));
+      g.anchor.x = ax; g.anchor.z = az;
       g.facing = foe ? Math.atan2(-fx, -fz) : Math.atan2(fx, fz);
     });
   };
@@ -5113,7 +5129,7 @@ function honnoTick(def, rt, dt) {
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
   // 上様のそばを離れない
-  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
+  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && !F.k15stage && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
     F.farT = (F.farT || 0) + dt;
     if (F.farT > 8 && rt.t - (F.farSaidT || -99) > 20) { F.farSaidT = rt.t; honnoSay(rt, '森蘭丸', `${nm(rt)}！　上様のそばへ戻れ！　離れたままでは護衛を果たせぬ！`, 3); }
     if (F.farT > 60) { def.nbFail(rt, '上様から離れすぎ、護衛の持ち場を失った'); return; }
@@ -6170,4 +6186,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.step === 6) { goTo(p, inp, SHISHA_DOOR.x, SHISHA_DOOR.z, 1.5); inp.runHeld = true; }
 };
 
+// 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
+k15Shizuka(honnoji); k15Shuen(honnoji);
+{ const K15 = { akechi, uS, uA }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 export { honnoji };

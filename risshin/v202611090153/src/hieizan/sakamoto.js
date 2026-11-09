@@ -2,13 +2,12 @@
 // 比叡山攻め　始まりの段「坂本の湖岸」（0〜3分。docs/oda15_plan_1108.md の 12）
 // - 坂本の東の湖岸の辻から、山の上に並ぶ東塔・西塔・横川の堂を見上げる（寺院群の広さ）。
 //   着いたら必ず何か起きる：三塔の伽藍を見せる・手柄・里坊の僧兵が打って出る。
-// - 里坊の僧兵を退けると、本の筋書きの坂本の放火と日吉社への攻め（hiei_mtn.p1）へ。何もしなくても三分ほどで進む（二5）。
+// - 里坊の僧兵を退けると、本の筋書きの坂本の放火と日吉社への攻め（hiei_mtn.p1）へ。本人が湖岸に着き、守りが退いてから進む。
 // ======================================================================
 import { sfx } from '../audio.js';
 
 export const HEADINGS = ['坂本の湖岸の辻から、山の上の三塔を見上げよ', '打って出た里坊の僧兵を、坂本の通りで退けよ'];
 const MI = { x: 182, z: 7 };   // 坂本の通りの東の端（湖の側）
-const MIN_T = 130, MAX_T = 195, SCOUT_WAIT = 50;
 
 // ctx：{ foe(rt, o, list), list（里坊の僧兵）, vista（三塔を見せる視点）, ready() }
 export function install(rt, ctx) {
@@ -17,9 +16,7 @@ export function install(rt, ctx) {
   rt.marker('hieiMi', MI, '湖岸の辻');
   rt.after(6, () => live() && rt.say('明智光秀', '攻め上る前に、湖岸の辻から山を見よ。三塔十六谷、堂の数は数え切れぬ', 4.2));
   rt.after(24, () => live() && rt.say('足軽', '坂本の里の者が、荷を担いで山へ逃げて行くぞ', 3));
-  rt.after(SCOUT_WAIT, () => { if (live() && S.k === 0) seen(false); });
   rt.after(82, () => live() && rt.say('佐久間信盛', '山の衆は浅井・朝倉を匿うた。殿のお怒りは解けぬ', 3.6));
-  rt.after(MAX_T, () => finish());
 
   function seen(arrived) {
     if (S.k !== 0) return;
@@ -50,14 +47,14 @@ export function install(rt, ctx) {
     if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 6) seen(true);
     if (S.k === 2) {
       const left = S.g.units.filter((u) => u.alive).length;
-      if (rt.t - S.gT > 10 && (left <= 1 || S.g.routed) || rt.t - S.gT > 70) {
+      if (rt.t - S.gT > 10 && (left === 0 || S.g.routed)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('hieiSally');
         if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
         rt.say('明智光秀', '退けたな。坂本に火を掛ける。法螺を待て', 3.4);
       }
     }
-    if (S.k === 3 && rt.t - S.t0 >= MIN_T && rt.t - S.backT > 6) finish();
+    if (S.k === 3 && rt.t - S.backT > 6) finish();
   };
   function finish() {
     if (S.done || F.step || rt.over || F.ending) return;

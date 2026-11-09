@@ -2507,7 +2507,7 @@ const hiei_mtn = {
   armySignals: false, // 合図は各段の下知で出す。任務の文からは推測しない。
   // 11/6 fixc1721（kaito 九1・十1）：右上は目標①〜⑤を最初から全部並べ、済んだ物に印。途中で言い替えない。
   //   場所の名と行いだけ（三1）。数を討つ・深手の目標は置かない。並びは信長公記の順（坂本の火→本坂→文殊楼→根本中堂）。
-  goals5: () => {
+  goals5: (rt) => {
     const F = (rt) => rt.flags, won = (rt) => !!rt.tracker?.main;
     return [
       { kind: 'stage', k: 0, text: HIEI_GOALS[0], noun: '日吉社の鳥居', check: (rt) => won(rt) || !!F(rt).hiyoDone || (F(rt).step || 0) >= 2 },
@@ -2515,10 +2515,10 @@ const hiei_mtn = {
       { kind: 'stage', k: 1, text: HIEI_GOALS[2], noun: '文殊楼', check: (rt) => won(rt) || (F(rt).step || 0) >= 4 },
       { kind: 'stage', k: 2, text: HIEI_GOALS[3], noun: '根本中堂', check: (rt) => won(rt) || !!F(rt).courtDone },
       { kind: 'stage', k: 2, text: HIEI_GOALS[4], noun: '根本中堂の前', check: (rt) => won(rt) || !!F(rt).bell2 },
-      // 11/8 夜：15分の構成で西塔・横川へ続ける
+      // 織田家編は西塔・横川へ続く。信長の戦は中堂までなので後の二件を出さない。
       { kind: 'stage', k: 3, text: '燃える西塔の釈迦堂の前へ進む', noun: '西塔の釈迦堂', check: (rt) => won(rt) || (F(rt).step || 0) >= 6 },
       { kind: 'stage', k: 3, text: '逃げる人々を追わず、横川中堂の前へ進む', noun: '横川中堂', check: won },
-    ].map((g) => ({ ...g, count: () => null, sec: 900 }));
+    ].slice(0, rt?.G?.lord ? 5 : 7).map((g) => ({ ...g, count: () => null, sec: 900 }));
   },
   introSides: { a: '織田軍 約三万', b: '延暦寺の衆 約四千' },
   introPeople: [],
@@ -3956,7 +3956,7 @@ const hiei_mtn = {
     if (F.fireJobs) fireWork(rt, dt);
     // 鳥居へ歩き出したら先手も動く。下知の六秒が終わるまで待たせない。
     F.hieiSaka?.tick?.();
-    SAITO.tick(rt, { P, p6: () => this.p6(rt), p7: () => this.p7(rt), win: (why) => this.win(rt, why), back: F.hieiBack, walk, pts });
+    SAITO.tick(rt);
     if (!F.ending && F.step === 0 && rt.phase === 'brief' && rt.player.u.alive && !SAKA.active(rt)
       && rt.player.u.pos.x < P.spawn.x - 2) this.p1(rt);
     if (F.ending || F.step < 1 || !rt.player.u.alive) { rt.unmark('hiei-exit'); return; }
@@ -4114,13 +4114,11 @@ const hiei_mtn = {
           const alive = (F.lossUnits || []).filter((q) => q.alive && !q.woundOut);
           F.lossUnits = [...alive, ...(back?.units || [])]; F.lossInitial = F.lossUnits.length;
         }
-        // 長引いても一分半で中堂の守りは燃える堂の奥へ退く（敵の命で時を延ばさない）
-        if (!rt.G.lord) rt.after(90, () => { if (!F.ending && !F.bell2) for (const g of [F.chudoG, F.kodoG, F.courtBow]) if (!gone(g)) { g.noRout = false; g.morale = 0; g.order = 'retreat'; } });
+
       }
       if (F.courtDone && !F.bell2) {
         rt.objProgress('main', rallyProgress(rt, P.court, 9, '根本中堂の前', '根本中堂の前へ。味方と道を開け'));
-        // 根本中堂の前を押さえたところで一戦を終える。西塔・横川まで続けると遊んで八分を越え、打ち切られていた（10/27）。
-        //   西塔の鐘（bellSaito）・p6・p7 は残す。
+        // 根本中堂の守りを退けてから、西塔・横川への進軍を始める。
         F.courtT ??= rt.t;
         // 時間だけで守りを崩さず、本人が槍を合わせ、実際に道が開いてから締める。
         // 大講堂の別働隊は中堂前の案内範囲の外。追って全滅させる隠れた条件にしない。

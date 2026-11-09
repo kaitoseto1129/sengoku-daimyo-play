@@ -4290,19 +4290,7 @@ const echizen_ikko = {
         }
         const zones = F.SZ.byId;
         const near = (at, r) => Math.hypot(P.x - at.x, P.z - at.z) < r;
-        // 10/30：門を破った後、堂の陰に残る数人を探し続けて退き陣になる事が続いた（bot）。
-        // 破って五十秒たてば、堂に残る守りは崩れて逃げる。堂の印のそば（22m）まで来ていれば押さえた事にする
-        const gz = F.step === 1 ? zones.gezan : F.step === 2 ? zones.hondo : null;
-        const gst = F.step === 1 ? F.gateSomon.struct : F.step === 2 ? F.gateSanmon.struct : null;
-        if (gz && gst && !gst.alive) {
-          if (F.gateDownStep !== F.step) { F.gateDownStep = F.step; F.gateDownT = rt.t; }
-          if (rt.t - F.gateDownT > 50 && rt.t >= (F.zoneRoutAt || 0)) {
-            F.zoneRoutAt = rt.t + 4;
-            for (const u of rt.army.units) if (u.team === 1 && u.alive && !u.fleeing && !u.isStruct && !u.invuln && gz.test(u.pos.x, u.pos.z) && u.group && !u.group.noRoutForce) {
-              u.group.noRout = false; u.group.morale = 0;
-            }
-          }
-        }
+        // 守りは交戦の損害や組頭の討死で崩れる。門を破ってからの時刻だけで逃がさない。
         const zoneNear = (z) => z.test(P.x, P.z) || Math.hypot(P.x - z.pos.x, P.z - z.pos.z) < 22;
         if (F.step === 1) {
           F.target = F.gateSomon.struct.alive ? GATE_SOMON : OUTER_POS;
