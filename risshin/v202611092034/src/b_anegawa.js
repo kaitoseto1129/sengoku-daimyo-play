@@ -1120,10 +1120,10 @@ function anegawaWestPursuit(rt) {
 }
 
 // 遠い知らせは使番が届ける。届かなくても隊の動きや勝敗は止めない。
-function anegawaReport(rt, from, line, dur = 3, arrived) {
+function anegawaReport(rt, from, line, dur = 3, arrived, current) {
   const step = rt.flags.step;
   return sendOrder(rt, from, rt.player.u, { id: 'anegawaReport', apply: () => {
-    if (rt.over || rt.flags.ending || rt.flags.step !== step) return;
+    if (rt.over || rt.flags.ending || rt.flags.step !== step || current && !current()) return;
     rt.say('使番', line, dur);
     if (arrived) arrived();
   } }, { team: 0, faction: from?.group?.faction || 'oda', name: '戦況の知らせ' });
@@ -4073,11 +4073,13 @@ const anegawa = {
         rt.unmark('flank'); rt.unmark('eastPost');
         rt.obj('mori', '森の兵を半分より多く守れ', 'side');
         F.mori.morale = Math.max(25, F.mori.morale - 15);
-        anegawaReport(rt, F.guns[0], '東の別手が背後へ回り申した！　鉄砲組を守られよ！');
+        anegawaReport(rt, F.guns[0], '東の別手が背後へ回り申した！　鉄砲組を守られよ！', 3, null,
+          () => !gone(g) && g.order !== 'retreat' && g.order !== 'flee');
       }
     };
     // 東の川前にいる織田の備えから届いて初めて、回り込みへの下知を選べる。
-    anegawaReport(rt, { x: 90, z: 16 }, '東の浅瀬に浅井の旗！　横へ回る構えにござる', 3, () => this.flankChoice(rt));
+    anegawaReport(rt, { x: 90, z: 16 }, '東の浅瀬に浅井の旗！　横へ回る構えにござる', 3, () => this.flankChoice(rt),
+      () => !F.flankDone && !gone(g) && g.order !== 'retreat' && g.order !== 'flee');
   },
   flankChoice(rt) {
     const F = rt.flags, g = F.flankG;
@@ -4473,7 +4475,8 @@ const anegawa = {
         anegawaWestPursuit(rt);
         const from = F.tk[1].general || F.tk[1].pos;
         if (from) sendOrder(rt, from, rt.player.u, { id: 'westReport', apply: () => {
-          if (rt.over || F.ending) return;
+          // 追撃へ移った後に、届くのが遅れた正面防衛の下知を出さない。
+          if (rt.over || F.ending || F.step !== 1) return;
           F.westReported = true;
           // 11/6 fixc0834：稲葉の横槍が取り付いた後に「横槍が入るまで」と言わない（通しで取り付きの五十秒後に届いた）。
           rt.say('使番', F.inabaT ? '西の朝倉、退き始め申した！　浅井も揺らいでおる、押し切られよ！' : '西の朝倉、退き始め申した！　横槍が入るまで正面を支えられよ！', 4);
