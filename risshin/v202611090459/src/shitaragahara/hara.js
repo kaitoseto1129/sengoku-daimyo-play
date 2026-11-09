@@ -25,7 +25,9 @@ export function march(rt, dt, ctx) {
   }
   if (!M.runner && T > 12) {
     M.runner = true;
-    rt.say('使番', '竹広の柵に山県の赤備えが三度寄せた！　徳川殿の鉄砲が押し返しておる', 3.8);
+    rt.say('使番', F.nf?.southDone
+      ? '竹広の柵は守り切った！　山県昌景は討死し、赤備えは退いた'
+      : '竹広の柵に山県の赤備えが寄せておる！　徳川殿の鉄砲が押し返しておる', 3.8);
     try { sfx('volleyFar', 0.8); } catch (e) { /* なし */ }
   }
   if (!M.drum && T > 24) {
@@ -42,7 +44,7 @@ export function group(rt) { const H = rt.flags.shHara; return H && !H.done ? H.g
 export function send(rt, ctx) {
   const F = rt.flags, gz = ctx.SB.gates[1] + 4.5;
   const H = F.shHara = { at: rt.t, ctx, done: false };
-  H.g = ctx.black(() => enemyGroup(rt, { faction: 'hojo', name: '原昌胤隊', fixed: true, noGuard: true, anchor: { x: 92, z: gz - 18 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 12, width: 18, formation: 'line', morale: 100, noRout: true, speed: 3.8 },
+  H.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '原昌胤隊', fixed: true, noGuard: true, anchor: { x: 92, z: gz - 18 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 12, width: 18, formation: 'line', morale: 100, noRout: true, speed: 3.8 },
     [{ type: 'busho', n: 1, o: { name: '原昌胤', flag: 'takeda' } }, { type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 14, o: { flag: 'takeda' } }]));
   H.g.order = 'path'; H.g.pathIdx = 0; H.g.path = [[ctx.SB.x0 + 5, gz]]; H.g.dest = null;
   H.g.onArrive = (q) => { q.order = 'hold'; q.anchor.x = ctx.SB.x0 + 4; q.anchor.z = gz; q.facing = -Math.PI / 2; q.aggro = 18; H.arrive = rt.t; };

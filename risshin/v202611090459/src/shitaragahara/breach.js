@@ -25,7 +25,7 @@ export function group(rt) { const B = rt.flags.shBreach; return B && !B.done ? B
 export function start(rt, ctx) {
   const F = rt.flags;
   const B = F.shBreach = { at: rt.t, ctx, s: 0, IN: { x: ctx.SB.x0 - ctx.SB.gap - 3, z: BZ }, done: false };
-  B.g = ctx.black(() => enemyGroup(rt, { faction: 'hojo', name: '土屋昌次隊', fixed: true, noGuard: true, anchor: { x: 96, z: BZ }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 14, formation: 'line', morale: 100, noRout: true, speed: 3.6 },
+  B.g = ctx.black(() => enemyGroup(rt, { faction: 'takeda', name: '土屋昌次隊', fixed: true, noGuard: true, anchor: { x: 96, z: BZ }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 10, width: 14, formation: 'line', morale: 100, noRout: true, speed: 3.6 },
     [{ type: 'busho', n: 1, o: { name: '土屋昌次', flag: 'takeda' } }, { type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 15, o: { flag: 'takeda' } }]));
   B.g.order = 'path'; B.g.pathIdx = 0; B.g.path = [[ctx.SB.x0 + 6, BZ]]; B.g.dest = null;
   B.g.onArrive = () => { B.arrived = true; };

@@ -3283,7 +3283,7 @@ const shitaragahara = {
     F.hashibaFlag.rotation.z = 0.65;
     rt.scene.add(F.hashibaFlag);
     // 11/6 fixc1721（九2）：馬場の殿は退き口の手前の段丘（柳田前の北東）に控え、崩れの時に退き口で槍を揃える。目標に書いた敵が必ずその場で戦う
-    F.rear = shBlackArmy(() => enemyGroup(rt, { faction: 'hojo', name: '馬場隊', fixed: true, noGuard: true, anchor: { x: NF_REAR.x + 34, z: NF_REAR.z - 40 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 8, width: 16, formation: 'yari', morale: 95, noRout: true },
+    F.rear = shBlackArmy(() => enemyGroup(rt, { faction: 'takeda', name: '馬場隊', fixed: true, noGuard: true, anchor: { x: NF_REAR.x + 34, z: NF_REAR.z - 40 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 8, width: 16, formation: 'yari', morale: 95, noRout: true },
       [{ type: 'busho', n: 1, o: { name: '馬場信春', horse: true, flag: 'takeda' } }, { type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 11, o: { flag: 'takeda' } }, { type: 'gun', n: 2, o: { flag: 'takeda' } }]));
     // 馬場隊は追撃の退き口で初めて戦う。柵前で先に討死させない。
     for (const u of F.rear.units) { u.invuln = true; u.noTarget = true; }

@@ -1558,7 +1558,7 @@ const arioka = {
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
     const at = stage === 4 ? F.kanbeAt : stage === 0 ? AR_OPEN.pin(rt, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z } : stage === 1 ? C?.at || { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
     post.x = at.x; post.z = at.z;
-    const way = stage === 4 ? post : gateWay(rt.army, rt.player.u, post);
+    const way = gateWay(rt.army, rt.player.u, post);
     pin.x = way.x; pin.z = way.z;
     pin.route = way !== post; pin.unit = null; pin.enemy = false;
     pin.waiting = !pin.route && (stage === 0 || stage === 3);
@@ -2699,7 +2699,9 @@ const arioka = {
       rt.say('滝川一益', '牢から小寺官兵衛殿が出られた。家来の栗山が肩を貸して来る。迎えよ', 4);
       // 11/6 描いて遊ぶ：本人の東十二メートルに出していたので燃える町屋の中に出て詰まり、来ないまま四十五秒で済んでいた。
       //   牢のある本丸の方（辻の北の通り）から辻へ歩いて来る。行き先の▼も出す（勝ちの見出しで隠れる共通の札を、迎えるまで戻す）。
-      const me = rt.player.u.pos, at = { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
+      // 奥の木戸まで進んだ後も、二人は安全な辻で迎える。本人の現在地へ
+      // 直進させると、町屋を横切って詰まり、⑤を終えられなくなる。
+      const me = ARI_JUNCTION, at = { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
       const ul = Math.hypot(at.x - me.x, at.z - me.z) || 1, ux = (at.x - me.x) / ul, uz = (at.z - me.z) / ul;
       // 勝ちの後は共通の札が毎コマ「終わり」の印で行き先の▼を隠す。⑤の間だけ有岡の印で戻す。
       rt.hud?.root?.classList.add('arioka-kanbe');

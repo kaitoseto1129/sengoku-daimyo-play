@@ -66,7 +66,7 @@ export function tick(rt, dt) {
     if (T < 7) return true;
     if (near(p, I.OUT, 9)) {
       I.s = 2; I.at = rt.t;
-      I.g = c.black(() => enemyGroup(rt, { faction: 'hojo', name: '武田の物見', fixed: true, noGuard: true, anchor: { x: I.OUT.x + 40, z: I.OUT.z - 6 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 22, width: 8, morale: 90, speed: 3.4 },
+      I.g = c.black(() => enemyGroup(rt, { faction: 'takeda', name: '武田の物見', fixed: true, noGuard: true, anchor: { x: I.OUT.x + 40, z: I.OUT.z - 6 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 22, width: 8, morale: 90, speed: 3.4 },
         [{ type: 'samurai', n: 1, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 9, o: { flag: 'takeda' } }]));
       I.g.order = 'attack'; I.g.seekRange = 50; I.g.aggro = 30;
       I.n0 = c.ready(I.g);
