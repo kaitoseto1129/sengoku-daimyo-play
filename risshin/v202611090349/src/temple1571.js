@@ -398,10 +398,36 @@ function buildOpenTemple(G, r) {
   const doorH = r.profile === 'hieizan' && r.kind === 'sobo' ? Math.min(2, h - .5) : 2.2;
   // 同じ窓の寸法を外壁と室内の当たりへ渡す。外に壁がある所を窓として通さない。
   const windows = [
-    ...nodaHall ? [] : [{ face: 'z', s: -1, t: rearWindowX, w: Math.min(1.8, w * .3), y0: rearWindowY, y1: rearWindowY + rearWindowH }],
+    ...nodaHall || r.profile === 'nagashima' && hall ? [] : [{ face: 'z', s: -1, t: rearWindowX, w: Math.min(1.8, w * .3), y0: rearWindowY, y1: rearWindowY + rearWindowH }],
     { face: 'x', s: -1, t: 0, w: Math.min(1.5, d * .3), y0: leftWindowY, y1: leftWindowY + leftWindowH },
     { face: 'x', s: 1, t: 0, w: Math.min(1.5, d * .3), y0: sideWindowY, y1: sideWindowY + .8 },
   ];
+  if (r.profile === 'nagashima' && r.kind === 'kuri') {
+    // 座敷と土間の境へ格子窓をまたがせず、竈より上の土間側へ納める推定復元。
+    for (const v of windows) if (v.face === 'x') { v.t = hd * .4; v.w = Math.min(v.w, d * .18); }
+  }
+  if (SETTINGS.quality === 'high' && r.profile === 'nagashima' && r.kind === 'sobo') {
+    // 小さな僧坊の中央の側窓は、座敷境の障子と窓枠が重なる。
+    // 幅と数を保ち、枠と柱の余白まで一つの座敷へ収める推定の窓割り。
+    // 外壁・室内・当たりが受け取る元の窓を、設営時に一度だけ直す。
+    const rooms = interiorLayout(r.kind, w, d, { profile: r.profile }).rooms;
+    // 奥座敷の背面窓も表障子と同じ開閉式にする推定の納まり。
+    // 二枚を窓幅の中で重ね、隅柱や座敷の調度へ引き出さない。
+    for (const v of windows) if (v.face === 'z' && v.s === -1) {
+      v.shoji = true; v.sliding = true;
+    }
+    for (const v of windows) if (v.face === 'x') {
+      let best = v.t, distance = Infinity;
+      for (const room of rooms) {
+        if (room.floor !== 'tatami') continue;
+        const lo = room.z0 + .25 + v.w / 2, hi = room.z1 - .25 - v.w / 2;
+        if (lo > hi) continue;
+        const t = Math.max(lo, Math.min(hi, v.t)), move = Math.abs(t - v.t);
+        if (move < distance) { best = t; distance = move; }
+      }
+      v.t = best;
+    }
+  }
   if (nodaFrame) {
     // 建物中央の側窓では、全開の内障子と二倍幅の溝が内陣境や襖へ突き当たる。
     // 最も奥行きのある部屋へ窓を寄せ、引き代と竪枠を部屋境・隅柱から離す。
@@ -489,9 +515,13 @@ function buildOpenTemple(G, r) {
       windows.push({ face: 'z', s: 1, t: side * t, w: width,
         y0: 1.2, y1: 2.0, doorKind: 'itado' });
   }
+  // 願証寺の表口は共通の引き戸で閉じる。外壁の開口上端から床の六センチを引き、
+  // 格子戸・障子・板戸を鴨居へ食い込ませない。二本の溝と札は既存の仕組みを使う。
+  const nagashimaEntry = SETTINGS.quality === 'high' && r.profile === 'nagashima';
   const si = SOLIDS.length, di = FL.decks.length, ri = FL.ramps.length;
   r.naka = addInterior(G.W, { name: r.name || (r.kind === 'kuri' ? '庫裏' : '僧坊'), kind: r.interiorKind || (hall ? (grand ? 'chudo' : 'hondo') : r.kind),
-    profile: r.profile || 'hiei', x: r.x, z: r.z, rot: r.rot || 0, levels: [{ w, d, h, y: r.y0 + y + .06 }], door: { w: door, h: doorH }, wins: (lv) => {
+    profile: r.profile || 'hiei', x: r.x, z: r.z, rot: r.rot || 0, levels: [{ w, d, h, y: r.y0 + y + .06 }], door: { w: door, h: nagashimaEntry ? doorH - .06 : doorH,
+      ...(nagashimaEntry ? { sliding: hall ? 'koshi' : r.kind === 'sobo' ? 'shoji' : 'itado' } : {}) }, wins: (lv) => {
       // 宿坊・方丈・講堂・祖師堂の側窓を、間仕切りに突き当てない（配置は推定）。
       // 柱と窓枠の余白を取り、幅を変えず、元の位置に近い室の壁へ収める。
       // 設営時に一度だけ決め、外壁・室内の格子・兵と視点の当たりで共有する。
@@ -582,10 +612,10 @@ function buildOpenTemple(G, r) {
   r.innerSolids = SOLIDS.slice(si); r.innerDecks = FL.decks.slice(di); r.innerRamps = FL.ramps.slice(ri);
   // 外壁と同じ開口に紙と桟を張り、室内の白壁で障子を覆わない。
   r.naka.templePaper = paperWindows;
-  // 比叡山・本能寺の室内床は基壇の床板より六センチ高い。外壁・柱も
+  // 比叡山・本能寺・高画質の長島の室内床は基壇の床板より六センチ高い。外壁・柱も
   // 同じ天井下面まで伸ばし、軒下から堂内へ外光が漏れる隙間を残さない。
   // 戸口と窓の高さは従来のまま、設営時のまとめ描きだけで揃える。
-  const wallHeight = r.profile === 'hieizan' || honnoji || nodaFrame ? r.naka.levels[0].y - r.y0 - y + h : h;
+  const wallHeight = r.profile === 'hieizan' || honnoji || nodaFrame || nagashimaEntry ? r.naka.levels[0].y - r.y0 - y + h : h;
   const P = [];
   if (['honnoji_sobo', 'honnoji_hojo', 'honnoji_kyakuden', 'honnoji_kodo', 'honnoji_soshido'].includes(r.profile)) {
     // 座敷・講堂・祖師堂の床下を石の塊にせず、礎石・束柱・大引で板床を受ける（床組は推定）。
@@ -913,12 +943,14 @@ function buildOpenTemple(G, r) {
     for (const side of [-1, 1]) P.push(paint(end.clone().translate(side * hw - .06, 0, 0), 0x6e5840));
     end.dispose();
   }
-  if (honnoji && hall && !grand) {
+  if ((honnoji || nagashimaEntry) && hall && !grand) {
     // 講堂・祖師堂・方丈・客殿の軒下は、基壇基準の壁高から四十センチ上。
     // 屋根だけを浮かせず、外周の柱の上へ桁を通して軒を受ける（架構は推定）。
     // 東西の桁を通し、南北の木口はその内面で止め、隅で材を二重にしない。
     // 室内の天井・建具には入れず、既存の木部と視点の当たりへ一度だけまとめる。
     // 室内基準へ伸ばした柱の上端から屋根下面までを受け、柱と桁を重ねない。
+    // 長島の本堂も同じ推定の納まりとし、格天井上の外周を桁で閉じる。
+    // 願証寺・島奥の堂・支坊で共用し、入口と内陣の引き戸には掛けない。
     const girderH = h + .4 - wallHeight, girderY = y + wallHeight + girderH / 2;
     for (const side of [-1, 1]) {
       P.push(box(w + .22, girderH, .22, 0, girderY, side * hd, 0x4a3020));

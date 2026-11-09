@@ -146,6 +146,14 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 板戸と敷居を突き込まず、柱・長押の手前に引き代を残す。
       gap = Math.min(gap, (Math.min(door + hw, hw - door) - .35) / 2);
     }
+    if (SETTINGS.quality === 'high' && profile === 'nagashima') {
+      // 全開の戸は開口の外へ片側半幅ずつ滑る。内陣の脇口も戸尻まで
+      // 側壁内へ収め、柱・戸当たりのために三十五センチの余白を残す。
+      // 固定の建具と動く戸は、この開口と引き先を共用する。
+      gap = Math.min(gap, 2.1, (x1 - x0 - .7) / 4);
+      const margin = gap * 2 + .35;
+      door = Math.max(x0 + margin, Math.min(x1 - margin, door));
+    }
     portals.push({ x: door, z, axis: 'z' });
     if (door - gap > x0) walls.push({ ax: x0, az: z, bx: door - gap, bz: z, paper });
     if (door + gap < x1) walls.push({ ax: door + gap, az: z, bx: x1, bz: z, paper });
@@ -540,14 +548,15 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       for (const x of [-w * .24, w * .24])
         props.push({ part: 'mealTray', x, z: -hd + .8, w: .65, d: .5, h: .32 });
     } else props.push({ part: 'desk', x: -hw + .9, z: -hd + .7, w: 1.2, d: .7, h: .46 });
-  } else if (['echizen_ikko', 'honnoji_sobo', 'nodafukushima', 'hieizan'].includes(profile) && kind === 'sobo') {
+  } else if ((['echizen_ikko', 'honnoji_sobo', 'nodafukushima', 'hieizan'].includes(profile) || SETTINGS.quality === 'high' && profile === 'nagashima') && kind === 'sobo') {
     // 個別の室内図は不明。僧坊は畳の座敷と板敷きの入口を持つ推定の間取り。
     // 比叡山は正面戸と座敷の障子の間に、人が立てる板間を残す。
     // 本能寺は表障子が壁芯から二十七センチ内を滑る。奥行き三・五メートルの
     // 僧坊でも、座敷の障子との間に人が立てる板間を取る（間取りは推定）。
     // 床・畳・天井・窓・建具の当たりは、この境界をそのまま共有する。
     const nodaEntry = SETTINGS.quality === 'high' && profile === 'nodafukushima';
-    const entryDepth = profile === 'honnoji_sobo' ? Math.min(1.35, d * .4)
+    // 願証寺の僧坊も、表障子と座敷の障子の間に立てる板間を残す推定復元。
+    const entryDepth = ['honnoji_sobo', 'nagashima'].includes(profile) ? Math.min(1.35, d * .4)
       : nodaEntry ? Math.min(1.6, d * .3) : profile === 'hieizan' ? Math.min(1.5, d * .3) : Math.min(1, d * .22);
     const entry = hd - entryDepth;
     if (d >= 4.5) {
@@ -565,9 +574,14 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     for (let i = first; i < walls.length; i++) walls[i].kind = 'shoji';
     if (profile !== 'hieizan') {
     // 野田の僧坊は読経・書写の場として補う推定復元。元の家具の範囲と通路を保つ。
-    const scripture = SETTINGS.quality === 'high' && profile === 'nodafukushima';
+    const scripture = SETTINGS.quality === 'high' && ['nodafukushima', 'nagashima'].includes(profile);
     props.push({ part: scripture ? 'writingDesk' : 'desk', x: -hw + .8, z: -hd + .7, w: 1, d: .6, h: .4 });
     props.push({ part: scripture ? 'documentShelf' : 'storage', x: hw - .65, z: -hd + .7, w: .7, d: .6, h: .65 });
+    if (SETTINGS.quality === 'high' && profile === 'nagashima') {
+      // 小さな僧坊は文机・経巻棚・畳んだ寝具で整える。中央と障子前は空ける。
+      for (const p of props) p.y = .066;
+      props.push({ part: 'foldedBedding', x: 0, z: -hd + .6, w: .85, d: .55, h: .28, y: .066 });
+    }
     if (scripture && w >= 8 && d >= 4.5) {
       // 奥座敷は書写だけの部屋にせず、僧の休む筵と巻いた掛け物も備える推定復元。
       // 奥の机・経巻棚より手前、襖より奥に納める。窓障子の滑る壁際と中央は空ける。
@@ -675,16 +689,67 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     cross(cut, -hw + .1, hw - .1, entryX, false);
     props.push({ part: 'ammo', x: -hw + .65, z: -hd + .65, w: .7, d: .6, h: .55 });
     props.push({ part: 'desk', x: hw - .8, z: -hd + .65, w: 1, d: .6, h: .4 });
+  } else if (profile === 'nagashima' && kind === 'hondo') {
+    // 願証寺の室内図は不明。真宗の畳の外陣と須弥壇の内陣を推定する。
+    // 参考と復元の範囲は docs/nagashima-interiors.md。格子戸の引き代と壇の脇を空ける。
+    const cut = -hd + d * .4;
+    room('内陣', -hw, hw, -hd, cut, 'boards');
+    room('外陣', -hw, hw, cut, hd);
+    cross(cut, -hw + .1, hw - .1, hw * .5);
+    props.push({ part: 'altar', x: 0, z: -hd + .95, w: 2.1, d: 1, h: 1.5 });
+    props.push({ part: 'sutraDesk', x: 0, z: -hd + 2.15, w: .9, d: .45, h: .4 });
+    if (SETTINGS.quality === 'high' && d * .4 >= 3.5 && w >= 6) {
+      // 真宗寺院の礼盤の説明を参考に、経卓へ向かう低い僧座を補う推定配置。
+      // https://www.suijoji.sakura.ne.jp/QandA/02_10_21.html
+      // 戦国期の願証寺の実測復元ではない。既存の礼盤を共用し、
+      // 卓との間を十二・五センチ、内陣境まで四十センチ以上空ける。
+      props.push({ part: 'raiban', x: 0, z: -hd + 2.8, w: .7, d: .6, h: .22 });
+    }
+  } else if (profile === 'nagashima' && kind === 'kuri') {
+    // 小さな庫裏は炊事の土間と食事座敷を板戸で分ける推定復元。
+    // 中央の戸口・引き代を避け、竈と水甕は左右の壁際へ置く。
+    const cut = -hd + d * .4;
+    room('食事の座敷', -hw, hw, -hd, cut);
+    room('炊事の土間', -hw, hw, cut, hd, 'earth');
+    cross(cut, -hw + .1, hw - .1, entryX, false);
+    portals[portals.length - 1].kind = 'itado';
+    props.push({ part: 'stove', x: -hw + .65, z: hd - .75, w: .7, d: .7, h: .8, rot: Math.PI / 2 });
+    props.push({ part: 'waterJar', x: hw - .65, z: hd - .75, w: .55, d: .55, h: .65 });
+    props.push({ part: 'kitchenShelf', x: hw - .7, z: -hd + .6, w: .8, d: .55, h: .7, y: .06 });
+    if (SETTINGS.quality === 'high' && w >= 5 && d >= 4) {
+      // 願証寺の庫裏のしつらえは推定。竈と水甕だけで済ませず、
+      // 既存の俎板・杓子付きの台を水甕の奥へ置き、焚き付けは台下へ納める。
+      // 板戸の通りから台の奥端まで三十センチ以上を空け、中央の通路も保つ。
+      // 脚の内側・貫の下に収まる薪束とし、土間の仕上げ高は共通処理で揃える。
+      const benchX = hw - .75, benchZ = cut + .7;
+      props.push({ part: 'kitchenBench', x: benchX, z: benchZ, w: .65, d: .65, h: .65 });
+      props.push({ part: 'firewood', x: benchX, z: benchZ, w: .35, d: .35, h: .12 });
+    }
   } else if (profile === 'nagashima' && ['nagaya', 'bansho', 'kura'].includes(kind)) {
     // 輪中の砦の推定内装。番所の畳、長屋の板間、蔵の荷置きを分け、中央の動線を空ける。
-    const cut = hd - Math.min(1.1, d * .28);
+    // 表戸は外壁から三十四センチ内を滑る。小さな番所でも表戸と
+    // 内戸の間に立って閉められる土間を取り、床と間仕切りを一緒に移す。
+    const cut = hd - (SETTINGS.quality === 'high' ? Math.min(1.45, d * .5) : Math.min(1.1, d * .28));
     room(kind === 'bansho' ? '番の座敷' : kind === 'kura' ? '兵糧の板倉' : '兵の寝る板間', -hw, hw, -hd, cut, kind === 'bansho' ? 'tatami' : 'boards');
     room('入口の土間', -hw, hw, cut, hd, 'earth');
     cross(cut, -hw + .1, hw - .1, entryX, kind === 'bansho');
     if (kind === 'bansho') props.push({ part: 'desk', x: -hw + .8, z: -hd + .65, w: 1.1, d: .6, h: .46 });
     else if (kind === 'kura') {
-      for (const x of [-hw + .7, hw - .7]) props.push({ part: 'storage', x, z: -hd + .75, w: .9, d: .8, h: .8 });
-    } else for (const x of [-hw + .9, hw - .9]) props.push({ part: 'bedding', x, z: -hd + 1, w: .75, d: 1.5, h: .12 });
+      // 兵糧蔵を木櫃だけにせず、片側には敷木で湿気を避ける少量の俵を置く推定。
+      // 包囲末期の蔵を満杯にせず、一俵だけを既存の荷置きの内側へ納める。
+      // 寸法は共通の俵の実寸を保ち、板戸の引き代と中央の通路を空ける。
+      for (const x of [-hw + .7, hw - .7]) {
+        if (SETTINGS.quality === 'high' && x < 0)
+          props.push({ part: 'riceBales', x, z: -hd + .75, w: .75, d: .56, h: .62, bales: 1 });
+        else props.push({ part: SETTINGS.quality === 'high' ? 'chest' : 'storage', x, z: -hd + .75, w: .9, d: .8, h: .8 });
+      }
+    } else for (const x of [-hw + .9, hw - .9]) {
+      // 砦の筵は大人が横になれる長さにし、薄い敷物として踏んで通れるようにする。
+      // 奥壁から二十五センチ離したまま延ばし、戸口と中央の道は空ける。
+      const detailed = SETTINGS.quality === 'high';
+      props.push({ part: 'bedding', x, z: -hd + (detailed ? 1.15 : 1), w: .75,
+        d: detailed ? 1.8 : 1.5, h: .12, ...(detailed ? { walkable: true, y: boardFinish } : {}) });
+    }
   } else if (profile === 'nodafukushima' && kind === 'minka') {
     // 河口の小さな民家の推定間取り。武家の座敷や兵舎の寝具で埋めず、土間と炉のある板間を分ける。
     const cut = hd - Math.min(2, d * .42);
@@ -1277,6 +1342,14 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     room('広間', -hw, hw, cut, entry);
     room('廊下と縁側', -hw, hw, entry, hd, 'boards');
     cross(cut, -hw + .1, hw - .1, profile === 'council' ? 0 : hw * .45);
+    if (SETTINGS.quality === 'high' && profile === 'nagashima') {
+      // 中江城の上段は十六センチ高い。襖と脇戸の下端も同じ敷居へ載せる。
+      portals[portals.length - 1].sill = rooms[0].y;
+      // この館の襖絵は不明。御殿共通の金砂子の絵を使わず、無地の紙で推定する。
+      // 動く襖と左右の固定戸へ同じ指定を渡し、縁側の障子は後で別に設ける。
+      portals[portals.length - 1].kind = 'fusuma';
+      for (const v of walls) { v.sill = rooms[0].y; v.kind = 'fusuma'; }
+    }
     if (profile === 'inabayama') {
       // 上段の畳に襖を埋めず、敷居と戸の下端を上段の高さへ揃える。
       portals[portals.length - 1].sill = .16;
@@ -1352,7 +1425,18 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     // 奥の小荷は床置きの箱だけにせず、木棚の二段へ納める用途からの補い。
     // 元の箱と同じ幅・奥行きに収め、板戸と中央の荷運びの口は広げない。
     props.push({ part: 'supplyShelf', x: hw - .7, z: -hd + .7, w: .9, d: .8, h: 1.65 });
-  } else if (profile === 'anegawa' && kind === 'bansho') {
+    if (doorClearance && use === 'saikaGrain' && w >= 3.8) {
+      // 雑賀の長い兵糧小屋は奥の一山だけにせず、側壁沿いに二列の敷木付き俵を置く推定。
+      // 棚から六十センチ離し、中央一・五メートル以上と板戸の引き代を空ける。
+      // 既存の俵の形と材質を共用し、接近時に作る静止した内装へまとめる。
+      for (let row = 0; row < 2; row++) {
+        const z = -hd + 2.1 + row * 1.4;
+        if (z + .4 > cut - 1.05) break;
+        for (const x of [-hw + .7, hw - .7])
+          props.push({ part: 'riceBales', x, z, w: .9, d: .8, h: .7 });
+      }
+    }
+  } else if (profile === 'anegawa' && kind === 'bansho' && use !== 'saikaWatch') {
     // 横山城の番小屋は用途からの推定。板敷きの控えと土間を板戸で分ける。
     const cut = hd - Math.min(1.2, d * .3);
     room('番の控えの板間', -hw, hw, -hd, cut, 'boards');
@@ -1374,9 +1458,19 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     // 南の村の狭い家は戸口が左寄り。入口の余白へ甕が掛かると naka.js が
     // 調度ごと消すため、壁際へ十五センチ寄せ、戸口と板戸の引き込みを空ける。
     props.push({ part: 'waterJar', x: -hw + .5, z: hd - .6, w: .55, d: .55, h: .65 });
-    props.push({ part: 'storage', x: -hw + .6, z: -hd + .6, w: .7, d: .65, h: .6 });
+    const saikaHome = doorClearance && use === 'saikaHome' && SETTINGS.quality === 'high';
+    props.push({ part: saikaHome ? 'kitchenShelf' : 'storage', x: -hw + .6, z: -hd + .6, w: .7, d: .65, h: .6 });
     // 板間の炉は暮らしの用途からの推定。戸口の正面と土間への上がり口を空ける。
     props.push({ part: 'hearth', x: -hw * .25, z: -hd + 1.2, w: .85, d: .85, h: .45 });
+    if (saikaHome) {
+      // 民家の暮らしの用途からの推定。手本と推定の範囲は雑賀の参照記録。
+      // 炉の右へ二十センチ空け、既存の筵を板間の仕上げ面へ載せる。
+      // 浅い板間や片寄せの戸口では置かず、土間と板戸の引き代を空ける。
+      const x = -hw * .25 + .95, z = -hd + 1.2;
+      if (x + .325 <= hw - .25 && z + .325 <= cut - .3
+        && !portals.some(p => Math.abs(x - p.x) < .775 && Math.abs(z - p.z) < 1.375))
+        props.push({ part: 'sittingMat', x, z, w: .65, d: .65, h: .018, walkable: true });
+    }
   } else if (profile === 'anegawa' && kind === 'hondo') {
     // 小堂の間取りは推定。須弥壇の前を内陣とし、右脇の口から出入りする。
     const cut = -hd + d * .48;
@@ -1529,6 +1623,31 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     cross(cut, -hw, hw - hall, 0);
     prop('altar', 0, -hd + .75);
     prop('stove', -hw + .7, hd - .65);
+  } else if (profile === 'anegawa' && kind === 'bansho' && use === 'saikaWatch') {
+    // 雑賀の番所・山の陣小屋。主屋の畳や床の間を流用せず、土間から板間へ上がる。
+    // 内装は用途からの推定。中央の板戸と引き込み先を空け、荷は奥の壁際だけに置く。
+    const cut = hd - Math.min(1.2, d * .3);
+    room('見張りの詰め場', -hw, hw, -hd, cut, 'boards');
+    room('入口の土間', -hw, hw, cut, hd, 'earth');
+    cross(cut, -hw + .1, hw - .1, entryX, false);
+    props.push({ part: 'desk', x: -hw + .85, z: -hd + .65, w: 1.1, d: .55, h: .35 });
+    props.push({ part: 'chest', x: hw - .65, z: -hd + .55, w: .8, d: .6, h: .65 });
+    if (doorClearance) {
+      // 低い文机には筵の座を補う。机の手前に十センチ空け、
+      // 中央の戸口と板戸の引き込み先を避けて板間へ据える用途からの推定。
+      props.push({ part: 'sittingMat', x: -hw + .85, z: -hd + 1.35,
+        w: .7, d: .65, h: .025, walkable: true });
+      // 番所は文机と衣類箱だけにせず、番の矢を納める長箱を奥壁際へ補う。
+      // 雑賀当日の実測ではなく用途からの推定（雑賀の参照記録）。
+      // 長い矢を縮めず、左右の調度・中央の板戸・引き代を避け、既存の箱と床合わせを共用する。
+      if (w >= 5.5 && d >= 4) props.push({ part: 'ammo', x: .65, z: -hd + .725,
+        w: .65, d: 1.05, h: .55 });
+      // 矢箱と対になる弓の置き場を奥壁際へ補う用途からの推定。
+      // 出所と推定の範囲は雑賀の参照記録「番所の弓の置き場」。
+      // 既存の弓掛けを共用し、左の文机・右の矢箱と板戸の引き代を空ける。
+      if (w >= 5.8 && d >= 4) props.push({ part: 'bowRack', x: -.65, z: -hd + .4,
+        w: 1.35, d: .35, h: 1.9 });
+    }
   } else if (profile === 'mitsukuri' && (kind === 'bansho' || kind === 'kura')) {
     // 番所は板敷きの詰め場、蔵は荷を置く板床。屋敷の座敷・式台・台所は設けない。
     const cut = hd - Math.min(1.2, d * .3);
@@ -1552,12 +1671,34 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     room('入口の土間', -hw, hw, cut, hd, 'earth');
     // 姉川の寝所と土間の板壁・引き戸は、下の共通の処理で一組だけ設ける。
     // ここでも作ると壁と戸が重なり、一組を開けても残りの戸が通路を塞ぐ。
-    for (const x of [-hw + .9, hw - .9]) props.push({ part: 'bedding', x, z: -hd + 1, w: .75, d: 1.5, h: .12 });
+    const saikaBarracks = profile === 'anegawa' && use === 'saikaBarracks';
+    if (saikaBarracks) {
+      // 雑賀の細長い二棟だけ、筵を両壁際へ並べる推定の共同寝所。
+      // 奥の弓掛け・入口側の箱・板戸の引き込みを空け、中央は端まで通す。
+      // 同じ筵の形と材質を使い回し、設営時にだけ割り付ける。
+      for (let z = -hd + 1.15; z <= cut - 1.4; z += 2)
+        for (const x of [-hw + .65, hw - .65]) {
+          // 高の雑賀の長屋は入口側の箱（奥行き七十センチ）と筵が重なる。
+          // 左列だけ箱の奥端から二十センチ空け、筵の数・右列・中央の通路を保つ。
+          // 最大四十センチの寄せなので、隣の筵との間も十センチ以上残る。
+          const bedZ = doorClearance && x < 0 ? Math.min(z, cut - .5 - .35 - .2 - .75) : z;
+          // 高の寝所は薄い筵。箱の当たりを敷物全体へ広げず、兵の通路も同じ指定で空ける。
+          props.push({ part: 'bedding', x, z: bedZ, w: .75, d: 1.5, h: .12, walkable: doorClearance });
+        }
+    } else {
+      for (const x of [-hw + .9, hw - .9]) props.push({ part: 'bedding', x, z: -hd + 1, w: .75, d: 1.5, h: .12 });
+    }
     // 姉川の休息小屋の武具置き場は用途からの推定。寝所の間の奥壁へ弓掛けを置き、
     // 箱はその手前へ離す。筵・弓・箱を重ねず、板戸から寝所への通路も空ける。
     if (profile === 'anegawa') props.push({ part: 'bowRack', x: 0, z: -hd + .4, w: 1.35, d: .35, h: 1.9 });
-    prop('chest', profile === 'anegawa' ? 0 : -hw + .6,
-      profile === 'anegawa' ? -hd + 1.2 : cut - .5);
+    prop('chest', profile === 'anegawa' && !saikaBarracks ? 0 : -hw + .6,
+      profile === 'anegawa' && !saikaBarracks ? -hd + 1.2 : cut - .5);
+    if (saikaBarracks && doorClearance) {
+      // 元の奥行き七十センチでは箱の前端が板戸の溝から二センチしか離れず、
+      // 厚みと当たりが重なる。浅い箱へ納め、溝の当たりから八・五センチ空ける。
+      // 寝具・箱の位置・通路は保ち、絵と当たりで同じ奥行きを使う推定の補修。
+      props[props.length - 1].d = .45;
+    }
   } else if (kind === 'shrine') {
     const inabaShrine = profile === 'inabayama' && raisedTatami;
     // 小祠の玄関は室内側へ三十四センチ引いた溝を通る。
@@ -1607,7 +1748,9 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 岩村の侍屋敷も、入口の板戸と取次の障子の間を一・二メートル以上空ける。
       // 奥座敷と床の間は保ち、取次の一部を入口の板間へ充てる推定復元。
       const entryDepth = doorClearance && profile === 'iwamura_yashiki' ? 1.8 : 1.3;
-      const cut = -hd + d * .42, entry = hd - entryDepth;
+      // 雑賀の奥行き五メートルの主屋は取次が浅い。奥座敷の机と床の間を
+      // 納めたまま襖を奥へ寄せ、障子との間に立てる畳の幅を広げる推定の間取り。
+      const cut = -hd + d * (doorClearance && use === 'saikaHouse' ? .38 : .42), entry = hd - entryDepth;
       room('奥の座敷', -hw, hw, -hd, cut);
       room('取次の座敷', -hw, hw, cut, entry);
       room('板敷きの入口', -hw, hw, entry, hd, 'boards');
@@ -1621,6 +1764,31 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       // 主屋の内高は二・三五メートル。床柱と落掛を竿縁天井の下に収める。
       if (profile === 'anegawa') props[props.length - 1].h = 2.1;
       prop('desk', hw - .9, -hd + 1.1);
+      if (doorClearance && profile === 'anegawa' && use === 'saikaHouse') {
+        // 浅い奥座敷では文机の前が襖境まで約三十八センチしかない。
+        // 机を奥へ寄せ、座と滑る襖の間も二十五センチ以上空ける推定のしつらえ。
+        // 既存の筵を畳面へ載せ、中央の戸口と床の間は空ける。
+        // 出所と推定の範囲は docs/battle_refs/saika.md「文机の前の座」。
+        props[props.length - 1].z = -hd + .55;
+        props.push({ part: 'sittingMat', x: hw - .9, z: -hd + 1.3,
+          w: .65, d: .55, h: .025, walkable: true });
+        // 文机の脇に文書・筆記具を収める低い蓋箱を補う用途からの推定。
+        // 手本と推定の範囲は雑賀の参照記録「屋敷の文机脇の収納」。
+        // 奥壁際で床の間と机から離し、襖口・引き代には張り出さない。
+        // 既存の箱と畳面への据付けを共用し、設営時だけ配置する。
+        if (w >= 6 && cut + hd >= 1.8) props.push({ part: 'chest',
+          x: hw - 2.3, z: -hd + .45, w: .7, d: .45, h: .35 });
+        // 雑賀の取次にも客の控える座と低い収納箱を補う用途からの推定。
+        // 手本と推定の範囲は docs/battle_refs/saika.md「屋敷の取次のしつらえ」。
+        // 左右の壁際へ分け、中央の通路と前後の襖・障子の引き込み先を空ける。
+        // 既存の筵・板蓋の箱を共用し、据付高は後段で畳の仕上げ面へそろえる。
+        if (w >= 6 && entry - cut >= 1.4) {
+          props.push({ part: 'sittingMat', x: -hw + .85, z: (cut + entry) / 2,
+            w: .65, d: .65, h: .025, walkable: true });
+          props.push({ part: 'chest', x: hw - .85, z: (cut + entry) / 2,
+            w: .8, d: .6, h: .55 });
+        }
+      }
       if (doorClearance && profile === 'iwamura_yashiki') {
         // 奥座敷の衣類・具足を収める長持を推定配置する。
         // 床の間の前を二十センチ、襖の手前を三十五センチ空ける。
@@ -1819,11 +1987,12 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
       p.solids.push({ x: p.x, z: p.z - p.d / 2 + .3,
         w: p.w - .3, d: .55, h: .6, y: p.y || 0 });
     }
-    // 岩村の床の間は置き家具ではなく、奥壁と側壁へ取り付く造作として納める推定復元。
+    // 岩村と雑賀の床の間は置き家具ではなく、奥壁と側壁へ取り付く造作として納める推定復元。
     // 家具用の余白を残すと背後に二十センチ、脇に二十五センチほどの隙間ができる。
     // 天井の切欠き・窓の除外・当たりも、この同じ位置を使う。
     if (doorClearance && p.part === 'alcove'
-      && (profile === 'iwamura' && kind === 'goten' || profile === 'iwamura_yashiki' && kind === 'yashiki')) {
+      && (profile === 'iwamura' && kind === 'goten' || profile === 'iwamura_yashiki' && kind === 'yashiki'
+        || profile === 'anegawa' && kind === 'yashiki' && use === 'saikaHouse')) {
       p.x = (p.x < 0 ? -1 : 1) * (hw - p.w / 2);
       p.z = -hd + p.d / 2;
     }
@@ -1888,12 +2057,64 @@ export function interiorLayout(kind, w, d, { oku = .4, side = 1, profile = null,
     rooms[0].y = .12;
     for (const p of props) p.y = rooms[0].y;
   }
-  // 岩村の調度は上げ床を決めた後、歩く面と同じ仕上げ厚へ載せる。
+  // 雑賀の番所・兵糧小屋・長屋は、土間より板間を一段上げる用途からの推定。
+  // 出所と推定の範囲は docs/battle_refs/saika.md「用屋の上がり床」。
+  // 長屋の寝所は既存の十六センチから十二センチへそろえ、弓掛けと梁の間を約九センチ空ける。
+  // 詳細は同じ参照記録「長屋の寝所と梁下」。既存の床組と調度の据付けを共用する。
+  // 既存の床組・歩行面・敷居・横引き戸が同じ室の高さを読み、調度は下で仕上げ面へ載せる。
+  if (doorClearance && profile === 'anegawa'
+    && ['saikaWatch', 'saikaGrain', 'saikaBarracks'].includes(use)) {
+    for (const r of rooms) if (r.floor === 'boards') {
+      r.raised = true;
+      r.y = .12;
+    }
+  }
+  // 岩村と雑賀の調度は上げ床を決めた後、歩く面と同じ仕上げ厚へ載せる。
   // 須弥壇・礼盤・神座や用屋の荷を床板へ埋めず、土間の荷にも板間の高さを持ち込まない。
   // 床の間は建物の造作なので動かさない。設営時だけ絵と当たりの共通座標を直す。
   const floorAligned = doorClearance && (['iwamura', 'iwamura_yashiki', 'iwamura_hondo'].includes(profile)
-    || raisedUtility || raisedShrine);
+    || raisedUtility || raisedShrine || profile === 'anegawa' && ['saikaWatch', 'saikaHouse', 'saikaBarracks', 'saikaGrain', 'saikaHome'].includes(use));
   if (floorAligned) {
+    for (const p of props) if (p.part !== 'alcove') {
+      const floor = rooms.find(r => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1);
+      if (floor) {
+        // 雑賀が共用する姉川の畳は、上げ床へ六センチ落とし込んで描く。
+        // 板間の表板も一・五ミリ厚。岩村の仕上げ厚を足すと調度が浮く。
+        // 文机・筵・荷の絵と当たりへ、既存の床面と同じ据付高を渡す。
+        const finish = profile === 'anegawa'
+          ? floor.floor === 'tatami' ? .066 - (floor.y > 0 ? .06 : 0)
+            : floor.floor === 'earth' ? .0255 : .0015
+          : floor.floor === 'tatami' ? .066 : floor.floor === 'earth' ? .0255 : boardFinish;
+        p.y = (floor.y || 0) + finish;
+      }
+    }
+  }
+  if (SETTINGS.quality === 'high' && profile === 'nagashima') {
+    // 蔵・長屋の内戸も、描画する四センチの敷居の上端から滑らせる。
+    // 下端が零のままでは下框が敷居と板床へ沈む。鴨居の高さは保ち、
+    // 既存の戸・戸当たり・敷居へ同じ寸法を渡す。
+    if (['kura', 'nagaya'].includes(kind)) for (const p of portals) if (!p.exterior)
+      p.sill = Math.max(p.sill || 0, .04);
+    // 畳に接する襖・障子・格子戸と庫裏の板戸は、畳縁の上端で受ける。
+    // 上段も下地の十六センチだけで止めず、畳の厚みを加える。
+    // 固定の脇戸・動く戸・敷居の足場へ同じ値を渡す。
+    if (['goten', 'sobo', 'bansho', 'hondo', 'kuri'].includes(kind)) {
+      const sillAt = (x, z) => {
+        let sill = 0;
+        for (const r of rooms) if (r.floor === 'tatami'
+          && x >= r.x0 && x <= r.x1
+          && z >= r.z0 - .01 && z <= r.z1 + .01)
+          sill = Math.max(sill, (r.y || 0) + .066);
+        return sill;
+      };
+      for (const v of walls) if (v.paper && Math.abs(v.az - v.bz) < .01)
+        v.sill = Math.max(v.sill || 0, sillAt((v.ax + v.bx) / 2, v.az));
+      for (const p of portals) if (!p.exterior)
+        p.sill = Math.max(p.sill || 0, sillAt(p.x, p.z));
+    }
+    // 館の上段・番所の文机を畳へ埋めず、庫裏の竈・水甕も叩きの上へ据える。
+    // 歩行面と同じ仕上げ高を使い、調度の絵と当たりへ一緒に渡す。
+    // 板間も十二ミリの仕上げ板へ載せる。造り付けの床の間は動かさない。
     for (const p of props) if (p.part !== 'alcove') {
       const floor = rooms.find(r => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1);
       if (floor) p.y = (floor.y || 0)
