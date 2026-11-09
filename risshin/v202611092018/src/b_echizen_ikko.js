@@ -3843,7 +3843,7 @@ const echizen_ikko = {
       const n = RANKS[rt.G.rank].squad || 0;
       rt.makeSquad({ x: hondoC.x + 4, z: hondoC.z + 4 }, Math.PI, [{ kind: 'spear', n }]);
 
-      rt.world.setTime('night');
+      rt.world.setTime('night', true);
       templeNightLights(true);
       rt.setPhase('brief');
       rt.obj('main', '本堂を守り、寄せ手を押し返せ（もしも）', 'main');

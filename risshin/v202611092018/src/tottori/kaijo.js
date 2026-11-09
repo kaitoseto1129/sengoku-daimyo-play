@@ -25,6 +25,8 @@ export function wrap(def, K) {
           // 助命後の列を、飢餓による士気低下や出撃時の敗走へ戻さない。
           g.routed = false; g.ttRetreat = false; g.noRout = true;
           g.noAI = false; g.order = 'path'; g.arriveNoncombat = true;
+          // 木戸で迎えた横隊と城壁の兵を、狭い折れ道を下る縦隊に戻す。
+          g.formation = 'column'; g.colW = 2; g.roadColumn = true;
           g.path = [[G.x, G.z + 10], ...K.CASTLE_ROADS[0].slice().reverse(), [G.x, K.FENCE_Z - 4]];
           g.pathIdx = 0; g.aggro = 0; g.onArrive = null; g.followColumnRoad = true;
           for (const u of g.units) {
