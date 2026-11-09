@@ -3957,7 +3957,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       const need = 6;
       threat = remaining && !escaped ? Math.max(1, threat) : threat;
       F.secured = F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
-      rt.objProgress('main', !F.kidoCut ? `${gateDirection(rt, F.kz)} 崩れた敵を北へ追え。味方と進め` : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな' : threat > 0 || !F.kidoHelp ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。ここで構えよ` : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
+      rt.objProgress('main', !F.kidoCut ? `${gateDirection(rt, F.kz)} 崩れた敵を北へ追え。味方と進め` : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな' : threat > 0 || !F.kidoHelp ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／六人。ここで構えよ` : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);
     }
     // 再攻撃は二隊とも退くと敗れる。信長の隊だけでなく、先の二段の危険も知らせる。

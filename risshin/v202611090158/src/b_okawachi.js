@@ -34,11 +34,8 @@ import { localPoint } from './army_local_way.js';
 import { projectileCover } from './projectile_cover.js';
 import { monomi, kabukimon } from './castle_parts.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
-// 15分の構成（docs/oda15_plan_1108.md 7）：段の中身は okawachi/ に一段一ファイル。時で決まる締めは F.k15Shift だけ後ろへずらす
+// 冒頭の囲みと和睦の余韻。夜攻め後は五つの目標のまま、帰陣・封鎖・和睦へ進む。
 import * as k15Kakoi from './okawachi/kakoi.js';
-import * as k15Hyoro from './okawachi/hyoro.js';
-import * as k15Shutsu from './okawachi/shutsugeki.js';
-import * as k15Waboku from './okawachi/waboku.js';
 import * as k15Yoin from './okawachi/yoin.js';
 import { yamaLift, benchRoads } from './yamalift.js';
 import { heightOf, buildCastlePlan, makeLordKeep } from './castle_plan.js';
@@ -2067,8 +2064,6 @@ const okawachi = {
   siegeDays(rt) {
     const F = rt.flags;
     if (F.step >= 4 || F.ending) return;
-    // 15分の構成：翌朝の前に、同じ夜のうちに北畠の荷置き場を焼く（okawachi/hyoro.js）
-    if (F.k15Hyoro !== 'done') { if (!F.k15Hyoro) { F.step = 3.5; k15Hyoro.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), friends: () => [], aid: { name: '丹羽の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, DEPOT: { x: 50, z: 34 }, speaker: okSpeaker(rt) }, () => this.siegeDays(rt)); } return; }
     F.step = 4; F.stepT = rt.t; F.day = 13;
     // 読み残した夜攻めの待機命令を、翌朝の封鎖の札へ重ねない。
     okHideSpeech(rt);
@@ -2119,7 +2114,7 @@ const okawachi = {
     depthStart(rt, okCtx(rt), [okHold({ at: SOUTH_BLOCK, dur: 75, r: 18,
       title: '南の鹿垣の旗', obj: '集まれの法螺：南の鹿垣の旗で、番の組と道を守れ',
       groups: F.blockers, sortie: true, blockade: true, reward: '南の道を保ち、城へ兵糧を通さなかった',
-    })], () => { if (!F.ending && F.blockHeld) k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => k15Waboku.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, CAMP, speaker: okSpeaker(rt), dress: (list) => okDress(list, KITABATAKE) }, () => this.peace(rt))); else if (!F.ending) this.peace(rt); });   // 15分の構成：和睦の前に北畠の打って出
+    })], () => { if (!F.ending) this.peace(rt); });
     okHoldSignal(rt, F.dp.cur, '長い法螺二声は集まれ。南の鹿垣の旗で、番の組と槍を揃えよ', ASSEMBLY_LISTEN);
     rt.after(30, () => {
       if (F.ending || rt.over || F.step !== 4 || rt.phase !== 'siege') return;
@@ -2202,15 +2197,15 @@ const okawachi = {
     if (F.ending || rt.over) return;
     // 七分以内に決着。成功は四分以後、最後の和睦十三秒を含める。
     // 封鎖は実際に平場で守った時間を見る。迎撃では城兵が坂を下る間も四百五十秒まで待つ。
-    if (!F.blockHeld && rt.t >= okBlockDeadline(rt)) {   // 15分の構成：封鎖を保った後（打って出・和睦の使者の段）は締めの時を見ない
+    if (!F.blockHeld && rt.t >= okBlockDeadline(rt)) {   // 封鎖を果たして和睦へ移った後は、締めの時を見ない
       const C = F.dp?.cur;
       // 一度合流しただけでは達成にしない。封鎖は城兵の到着を条件にせず、番と七十五秒守る。
       // 迎撃では静かな守りか、押し返した後の帰城の見届けまで果たす。
       const held = C?.joinedLine && okAtSouthLine(rt) && C.lineCount >= 3 && (C.blockade
         ? C.inT >= 75 : C.holding && (C.repelling
           ? C.inT >= 75 && C.clearT >= 12 : C.quietHoldT >= 75));
-      // 15分の構成：封鎖を保ったら、和睦の前に北畠の大きな打って出を退ける（okawachi/shutsugeki.js）
-      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; k15Shutsu.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, speaker: okSpeaker(rt) }, () => k15Waboku.start(rt, { ...okCtx(rt), look: (list) => KB(okK15Cap(rt, list)), LINE: SOUTH_BLOCK, CAMP, speaker: okSpeaker(rt), dress: (list) => okDress(list, KITABATAKE) }, () => this.peace(rt))); return; }
+      // 封鎖を果たしたら和睦へ。目標に無い出撃や使者の護衛を後から足さない。
+      if (F.step === 4 && rt.player.u.alive && held) { F.blockHeld = true; this.peace(rt); return; }
       const reason = F.step !== 4 ? '持ち場を保てず、交代の下知が出た' :
         !C?.joinedLine ? '南の鹿垣で番の組と合流できず、交代の下知が出た' :
         !okAtSouthLine(rt) ? '南の鹿垣の持ち場を離れ、交代の下知が出た' :
@@ -4292,13 +4287,6 @@ function okFootTick(rt) {
   }
 }
 
-// 新手を出す時だけ人数を数える。死体も数えない。
-// 15分の構成の段の敵：全体で二百三十五人ほどまで（cappedList は後の本陣の枠を空けるので、序盤の段では零人になった）
-function okK15Cap(rt, list) {
-  let room = 235;
-  for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;
-  return list.map((q) => { const n = Math.max(q.n > 0 ? 1 : 0, Math.min(q.n, room)); room -= n; return { ...q, n }; });
-}
 function cappedList(rt, list) {
   let room = 160; // 後で置く本陣・自分の組・近習の枠を七十五人分空ける。
   for (const u of rt.army.units) if (u.alive && !u.isStruct && u.type !== 'dummy') room--;

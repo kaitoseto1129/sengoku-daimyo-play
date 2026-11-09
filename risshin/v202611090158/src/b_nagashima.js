@@ -3890,17 +3890,7 @@ const nagashima = {
   update(rt, dt) {
     const F = rt.flags;
     if (F.dpOn) depthTick(rt, dt);
-    // 包囲を締める段（西の柵の縄）も、迷って杭へ寄れない時は組の者が締め直し、時が来れば火の段へ（十五分の流れ・二5）
-    if (F.step === 3.5 && !F.ending && !F.dpLast && rt.player.u.alive && rt.t - F.stepT > 160) {
-      if ((F.finalChecked || 0) < 3) {
-        F.finalChecked = 3; F.finalChecks = [true, true, true];
-        for (let i = 0; i < 3; i++) { rt.unmark('check' + i); rt.uninteract('check' + i); }
-        rt.say('組頭', '西の柵の縄は、組の者が締め直した！　岸から目を離すな', 3);
-      }
-      if (rt.t - F.stepT > 185) { F.held = true; F.finalHeld = Math.max(F.finalHeld || 0, FINAL_HOLD); F.finalSafe = Math.max(F.finalSafe || 0, FINAL_HOLD); this.preWin(rt); }
-    }
-    // 終わりの巡回（三か所の柵）を迷って回れない時も、火を見届けて四十秒たてば組の者が残りを確かめる（十五分の流れ）
-    if (F.aftermathHeld && !F.aftermathDone && F.endingAt !== undefined && rt.t - F.endingAt > END_SEC + 40) F.aftermathChecked = AFTERMATH_SPOTS.length;
+    // 縄と最後の巡回は本人の作業だけで進める。経過時間で未完の務めを補わない。
     KIT.backTick(rt);
     // 対岸の射手も、射撃の合間は柵沿いを見回る。降伏後は射撃を止めて奥へ下がる。
     // perch を残したまま隊の行き先だけ変えても兵は動かないため、足場そのものを進める。

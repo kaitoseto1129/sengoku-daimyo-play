@@ -3478,7 +3478,10 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     }
     // 服部が義元に会う前に手傷で退いた時は、毛利だけで討つ（服部の接触を待ち続けない）。
     const hattoriDone = F.hattoriMet || !hat || !hat.alive || hat.woundOut || longDown;
+    // 主人公が幕の外にいる間に、毛利だけで討取りを済ませない。
+    // 視点は動かさず、本人が十二歩まで迫り義元を見通せる所で見せ場を迎える。
     const morCanFinish = F.yoshiDown && readyUnit(mor) &&
+      Math.hypot(p.x - y.pos.x, p.z - y.pos.z) <= 12 && sightScreenUnit(rt, y) &&
       Math.abs(mor.pos.y - y.pos.y) < 3 && !rt.army.wallBetween(mor.pos, 0, y.pos) &&
       !rt.army.terrainBlocks(mor.pos, y.pos);
     // 深手から二十五秒たっても寄れない時は、毛利が数歩の間合いから飛び込む。
@@ -3519,19 +3522,19 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     if (F.assaultHint) rt.objProgress('attack', '');
     if (!F.assaultWarn && rt.pt >= 600) {
       F.assaultWarn = true;
-      localSay(rt, rt.hostGroup, '組頭', '長引けば今川の後詰が来る。槍をそろえて押せ！', 4);
+      localSay(rt, rt.hostGroup, '組頭', '組の旗に続け。槍をそろえて義元の旗本を押せ！', 4);
     }
     let ready = 0;
     for (const g of F.attackers) if (readyGroup(g)) ready++;
-    // 姿が見えないままでも十二分で攻めを止める（11/8 十五分の構成で段が増えたので七分から延ばした）。接敵の記録だけで終幕を止めない。
+    // 時間だけでは失敗にしない。攻める組の崩壊か、実際に義元へ追いつけなくなった時に退く。
     // 囲みが退き口へ着いても、馬廻が追いつく間（九十秒）は失敗にしない（着いた途端に「攻めを止める」になった。10/7）。
-    if (rt.pt > 720 || (rt.canFailMission() && (!ready || (F.koshiLeft && rt.t - F.koshiLeftT > 90 && localX(y.pos.x, y.pos.z) > 80 && (!mor || !mor.alive || Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) > 15))))) {
+    if (rt.canFailMission() && (!ready || (F.koshiLeft && rt.t - F.koshiLeftT > 90 && localX(y.pos.x, y.pos.z) > 80 && (!mor || !mor.alive || Math.hypot(mor.pos.x - y.pos.x, mor.pos.z - y.pos.z) > 15)))) {
       F.ending = true; rt.tracker.main = false; rt.objFail('attack');
       rt.unmark('hattori'); rt.unmark('mori'); rt.unmark('guardGap'); rt.unmark('road'); rt.unmark('honjin');
-      rt.banner('義元を討ち取れず', !ready ? '攻める組が崩れた' : rt.pt > 720 ? '時間切れで攻めを止めた' : '退く義元に追いつけなかった');
-      localSay(rt, rt.hostGroup, '組頭', !ready ? '攻める備が崩れた。残った者を連れて下がれ！' : rt.pt > 720 ? '攻めが長引いた。敵の守りはまだ固い。組を下げよ！' : '義元の旗本に退かれた。深追いせず、組を下げよ！', 3);
+      rt.banner('義元を討ち取れず', !ready ? '攻める組が崩れた' : '退く義元に追いつけなかった');
+      localSay(rt, rt.hostGroup, '組頭', !ready ? '攻める備が崩れた。残った者を連れて下がれ！' : '義元の旗本に退かれた。深追いせず、組を下げよ！', 3);
       const mission = F.attackText || '坂道で松井宗信の先手を破れ';
-      const reason = !ready ? '攻める組が崩れた。' : rt.pt > 720 ? '敵の守りを崩せず、攻めが長引いた。' : '義元の旗本が退き、追いつけなかった。';
+      const reason = !ready ? '攻める組が崩れた。' : '義元の旗本が退き、追いつけなかった。';
       rt.finish({ failureReason: `「${mission}」を果たせず。${reason}` }, 5);
     }
   },

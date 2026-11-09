@@ -7,7 +7,7 @@ export function play(rt, ctx, at) {
   const { speaker } = ctx;
   const live = () => !rt.ended;
   rt.after(at + 6, () => { if (live()) rt.say('足軽', '木戸が開いた……攻め落とせなんだ城が、話し合いで開くのか', 3.6); });
-  rt.after(at + 11, () => { if (live()) rt.say(speaker, '殿の次男、茶筅丸様が北畠の家を継ぐ。伊勢は戦わずして織田のものよ', 4); });
+  rt.after(at + 11, () => { if (live()) rt.say(speaker, '殿の次男、茶筅丸様が北畠具房殿の養子に入る。城は和睦で開くのじゃ', 4); });
   rt.after(at + 17, () => { if (live()) rt.say('組頭', '力だけでは落とせぬ城もある。覚えておけ', 3.4); });
   rt.after(at + 22, () => { if (live()) rt.say('', '――茶筅丸は北畠具房の養子となり、のちの織田信雄となる', 4.2); });
   return at + 28;
