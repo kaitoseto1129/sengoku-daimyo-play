@@ -5270,6 +5270,8 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     goTo(p, inp, exit.x, exit.z, 0.4, true);
     return;
   }
+  // 火入れの段は松明へ向かう。坂の上の届かない兵を追うと柵の下を行き来して刻限が尽きた（11/9 見回り bot）
+  if (F.step === 2.5) { const q = nearIt(b, 't'); if (q) { inp.guardHold = false; if (q.d > 1.6) goTo(p, inp, q.pos.x, q.pos.z, 1.2); else inp.k.add('KeyE'); return; } }
   const e = strikeTarget(b, 12);
   const reach = p.weapon === 'sword' ? 1.9 : 2.8;
   // 斜面の向こうの兵を追い続けると、道案内と敵追いが競合して山道から進めない。

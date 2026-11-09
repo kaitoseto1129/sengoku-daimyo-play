@@ -3264,7 +3264,7 @@ function okLandscape(W) {
     mat.needsUpdate = true;
   }
   // 野と場外の地形の継ぎ目を、起伏のある土手と二列の林で覆う。道と川の中には置かない。
-  const edge = W.half, segments = 48, trees = segments * 4 * 2;
+  const edge = W.half, segments = 48, bankRows = 7, trees = segments * 4 * 2;
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.3, 4, 10), new THREE.MeshLambertMaterial({ color: 0x3c3025 }), trees);
   // 縁の林も七角の球をやめ、凸凹の房に秋の褐色と常緑の深緑を株ごとに混ぜる（10/29 点付け：角ばった塊・秋の林なし）。
   const crowns = new THREE.InstancedMesh(okCrownGeo(37), new THREE.MeshLambertMaterial({ color: 0xffffff }), trees);
@@ -3273,22 +3273,24 @@ function okLandscape(W) {
   for (let side = 0; side < 4; side++) {
     for (let i = 0; i <= segments; i++) {
       const t = -edge - 16 + (edge + 16) * 2 * i / segments;
-      for (let row = 0; row < 3; row++) {
-        const out = edge - 12 + row * 14;
+      for (let row = 0; row < bankRows; row++) {
+        const across = row / (bankRows - 1);
+        // 土手の裾と峰を波打たせ、三列の直線で切った台形を丸い斜面へ替える。
+        const out = edge - 12 + across * 28 + Math.sin(t * .053 + side * 2) * 1.8;
         const x = side === 0 ? out : side === 1 ? -out : t;
         const z = side === 2 ? out : side === 3 ? -out : t;
         const river = x > 106 && x < 142 || z < -224 && z > -255;
         const h = Math.max(Math.abs(x), Math.abs(z)) > edge ? W.farH(x, z) : W.heightAt(x, z);
-        const bank = river ? 0 : row === 1 ? 2.8 + Math.sin(t * 0.07 + side) * 1.2 : -0.5;
+        const bank = river ? 0 : -.5 + Math.sin(across * Math.PI) ** 2 * (3.3 + Math.sin(t * .07 + side) * 1.2);
         pos.push(x, h + bank, z);
         // 外周の土手にも野と同じ土を張り、一色の粘土の帯にしない。
         // 斜面方向は高さを含め、立った面で土の模様が引き延ばされるのを抑える。
         uv.push(t / 3, (out + h + bank) / 3);
-        if (i < segments && row < 2) {
-          const k = side * (segments + 1) * 3 + i * 3 + row;
-          idx.push(k, k + 3, k + 1, k + 1, k + 3, k + 4);
+        if (i < segments && row < bankRows - 1) {
+          const k = side * (segments + 1) * bankRows + i * bankRows + row;
+          idx.push(k, k + bankRows, k + 1, k + 1, k + bankRows, k + bankRows + 1);
         }
-        if (i === segments || row === 0 || river) continue;
+        if (i === segments || (row !== 3 && row !== 6) || river) continue;
         const scale = 0.75 + (Math.sin(i * 7 + side * 3 + row) + 1) * 0.22;
         d.rotation.set(0, i * 1.7, 0); d.scale.set(scale, scale, scale);
         d.position.set(x, h + bank + 2 * scale, z); d.updateMatrix(); trunks.setMatrixAt(count, d.matrix);

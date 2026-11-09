@@ -13,6 +13,7 @@ import { sfx } from './audio.js';
 import { moraleWord } from './hud.js';
 import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos } from './bhelp.js';
 import { farHost, volley } from './b_nagashinojo.js';
+import { depth as suneDepth } from './sune/depth.js';
 import { camp } from './b_mid.js';
 
 // 豊川（寒狭川と宇連川が合わさった流れ）
@@ -236,6 +237,7 @@ const sune = {
   resumeSteps: [[1, 'start'], [2, 'ashore'], [3, 'smoke'], [4, 'pursuit']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   noCouriers: true,   // 夜の忍び寄りに伝令の騎馬は走らない
   spawn: { x: START.x + 1, z: START.z - 2, heading: 0.1 },
+  depth: suneDepth,   // 長篠城を囲む武田の備（docs/fujin/sune.md）
   world: {
     seed: 514,
     time: 'dusk',

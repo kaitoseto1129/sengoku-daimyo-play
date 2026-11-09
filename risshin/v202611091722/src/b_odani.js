@@ -1,7 +1,9 @@
 import { siegeStages } from './siege_stages.js';
 // 15分の構成（kaito 11/8 夜・docs/oda15_plan_1108.md 15）：段の中身は odani/ に一段一ファイル
 import { install as odaniMonomi } from './odani/monomi.js';   // 0〜3分：清水谷から見上げる小谷城
-import { tick as nagareTick } from './odani/nagare.js';       // 進軍が遅れた時の知らせ
+import { tick as nagareTick } from './odani/nagare.js';
+import { depthPlan as odaniDepth } from './odani/fujin.js';   // 布陣図の陣立て（docs/fujin/odani.md）
+import { depthSetup, depthViewTick } from './army_depth_view.js';       // 進軍が遅れた時の知らせ
 import { fireGlow } from './fire_glow.js';
 import { pressureTick } from './battle_pressure.js';
 import { dressSlope } from './terrain_slope.js';
@@ -3420,6 +3422,7 @@ const odani = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   keepOpeningTaskLabel: true, // 開始直後の「出発を待て」を、なぞる操作の札で消さない。
   openingWait: (rt) => rt.flags.step === 0, // 秀吉の下知を待つ五秒間は、歩き出す絵を出さない。
+  depth: () => odaniDepth({ honjin: { x: TORAGOZEN.x, z: TORAGOZEN.z }, ote: { x: 0, z: BANSHO.z1 }, mouth: MOUTH }),   // 布陣図（docs/fujin/odani.md）：織田三万の手を清水谷・大手・東の山裾・虎御前山に（odani/fujin.js）
   compactIntro: true,
   introTaskFirst: true, // 横持ちでも、人物紹介より先に最初の仕事を読めるようにする。
   introText: '八月二十七日の夜中、羽柴秀吉の手に加わり、清水谷から小谷の尾根へ攻め上る。京極丸を取れば、本丸の長政と小丸の久政は切り離される。',
@@ -6282,6 +6285,22 @@ installBattleJinkei(odani, [
     if (!q || !Number.isFinite(q.x)) return '';
     const place = F.step === 0 && !F.retreatOn ? '羽柴秀吉' : q.gate ? '西木戸' : placeOf(rt);
     return `${place} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
+  };
+}
+// 小谷は後から読み込む戦なので、共通の installDepth（battles.js の読み込み時）を通らない。陣立ては自分で入れて回す（?depth=0 で切る）
+{
+  const su = odani.setup, up = odani.update;
+  odani.setup = function (rt, ...a) {
+    const r = su.call(this, rt, ...a);
+    if (!this.__depth && !rt.flags.depth && !globalThis.location?.search?.includes('depth=0')) {
+      try { depthSetup(rt, this.depth(rt)); rt.flags.odaniDepthOwn = true; } catch (e) { console.warn('軍勢の厚み', e); }
+    }
+    return r;
+  };
+  odani.update = function (rt, dt, ...a) {
+    const r = up.call(this, rt, dt, ...a);
+    if (rt.flags.odaniDepthOwn) try { depthViewTick(rt, dt); } catch (e) { if (!rt.flags.depthErr) { rt.flags.depthErr = 1; console.warn('軍勢の厚み', e); } }
+    return r;
   };
 }
 export { odani };

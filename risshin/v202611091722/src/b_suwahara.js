@@ -19,6 +19,7 @@ import { gauss, enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from '.
 import { KIT, volley } from './b_nagashinojo.js';
 import { tabaGeo } from './taketaba.js';
 import { camp } from './b_mid.js';
+import { depth as suwaDepth } from './suwahara/depth.js';
 
 // 縄張り（城の形）
 const HON = { x0: -30, x1: 30, z0: -88, z1: -34 };   // 本曲輪（南の辺 z1 に大手門）
@@ -208,6 +209,7 @@ const gone = (g) => !g || g.count === 0 || g.routed;
 const suwahara = {
   resumeSteps: [[1, 'approach'], [2, 'sortie'], [3, function (rt) { this.breach(rt, false); }], [4, 'storm']],   // 戦の途中の保存（battle_checkpoint.js）：段の関数を順に流して段の始まりを作り直す
   spawn: { x: 4, z: EDGE.z + 18, heading: Math.PI },
+  depth: suwaDepth,   // 徳川の囲みと城兵に名と兵数（docs/fujin/suwahara.md）
   world: {
     seed: 75,
     time: 'day',
@@ -439,6 +441,7 @@ const suwahara = {
     }
     const ok = allyGroup(rt, { faction: 'tokugawa', name: '大久保組', anchor: { x: -8, z: 28 }, facing: Math.PI, width: 8, aggro: 9, noRout: true },
       [{ type: 'samurai', n: 1, o: { name: '大久保忠世', invuln: true, horse: true } }, { type: 'ashigaru', n: 16 }]);
+    F.okG = ok;   // 陣立ての表（suwahara/depth.js）が名と兵数を結ぶ
     F.okubo = ok.units[0];
     F.okuboG = ok;
     F.left = allyGroup(rt, { faction: 'tokugawa', name: '先手・左', anchor: { x: -24, z: 24 }, facing: Math.PI, width: 8, aggro: 8, noRout: true },

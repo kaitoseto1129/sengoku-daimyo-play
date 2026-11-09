@@ -2621,8 +2621,10 @@ const miki = {
       F.hide.speed = Math.max(F.hide.speed || 0, 5);   // 馬の駆け足（走る兵よりはっきり速い。一8）
       F.hide.order = 'path'; F.hide.march = true; F.hide.dest = null;
       F.hide.formation = 'column'; F.hide.colW = 2; F.hide.roadColumn = true; F.hide.followColumnRoad = true;
-      F.hide.path = HIDE_PATH.slice(0, 3); F.hide.pathIdx = 0;
-      F.hide.onArrive = (q) => { q.order = 'hold'; q.march = false; q.onArrive = null; };
+      // 道の途中で全騎の整列を待つと、後列の遅れだけで大村への救援が止まる。
+      // 急報を受けた同じ列を、初めから坂の下まで走らせる。
+      F.hide.path = HIDE_PATH.slice(); F.hide.pathIdx = 0;
+      F.hide.onArrive = (q) => { q.order = 'hold'; q.march = false; q.formation = 'line'; q.facing = Math.PI; q.onArrive = null; };
     });
     rt.after(2.2, () => {
       if (!F.ending && !rt.over && rt.player.u.alive && F.step === 1 && !gone(F.guard)) {
@@ -2828,8 +2830,6 @@ const miki = {
     // 駆けつけの途中なら、まだ通っていない曲がり角から続ける。
     // 平田が早く決着した時も東の道を飛ばさず、十二秒後の下知を待たずに騎馬の速さで来る。
     // 縦隊の後列は通り過ぎた道もたどる。前半を切ると後列の持ち場が道から外れ、到着待ちが続く。
-    const hidePath = HIDE_PATH.slice();
-    const hidePathIdx = F.hide.path ? Math.min(F.hide.pathIdx, 3) : 0;
     for (const [g, x, z, then] of [
       [F.guard, OMURA_FOOT.x + 2, OMURA_FOOT.z, 'hold'],
       [F.hirata, OMURA_FOOT.x - 10, OMURA_FOOT.z + 4, 'hold'],
@@ -2837,12 +2837,14 @@ const miki = {
       [F.hide, OMURA_FOOT.x + 34, OMURA_FOOT.z + 2, 'hold'],   // 秀吉は坂の下の東で馬廻と指揮する（田の稲架を越えない）
     ]) {
       if (gone(g) || g === F.hide && F.hideRetired) continue;
+      // 既に坂へ向かう救援はそのまま続ける。着いた列を古い角へ引き返させない。
+      if (g === F.hide && g.path?.length === HIDE_PATH.length) continue;
       g.order = 'path'; g.march = true; g.dest = null;
       // 秀吉の手は東の陣から坂の東を回って大村坂の後ろへ（柵を挟まない）
       g.path = g === F.hirata ? [[GATE.x, GATE.z], [-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]]
-        : g === F.hide ? hidePath
+        : g === F.hide ? HIDE_PATH.slice()
           : [[-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]];
-      g.pathIdx = g === F.hide ? hidePathIdx : 0;
+      g.pathIdx = 0;
       if (g === F.hide) { g.speed = Math.max(g.speed || 0, 5); g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; }
       g.onArrive = (q) => { q.order = then; q.march = false; q.facing = Math.PI; q.onArrive = null; if (q === F.hide) q.formation = 'line'; };
     }
@@ -3388,7 +3390,7 @@ const miki = {
     if (F.step <= 2 && rt.t - F.battleT >= BATTLE_LIMIT) this.end(rt, false, !F.dropped
       ? '兵糧の護衛を退けられず、道から退く'
       : F.step === 1 ? '平田の城兵が残り、退く下知を受けた'
-        : F.foes.every(gone) ? '大村へ集まれず、備えが崩れた'
+        : !F.omuraGo ? '大村へ集まれず、備えが崩れた'
           : '大村の寄せ手を退けられず、敗れて退く');
   },
 };
