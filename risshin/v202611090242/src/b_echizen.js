@@ -1620,6 +1620,12 @@ echizen.setup = function (rt) {
     // 11/6 fixc0917_echizen（kaito「一揆勢が織田の足軽と同じ陣笠・黒い胴」）：門徒の槍・弓・鉄砲は素の小袖に鉢巻（長島の門徒と同じ作り）。侍だけ暗い腹巻
       [{ type: 'busho', n: 1, o: { ...look, name: '西光寺真敬', horse: true } }, { type: 'samurai', n: 4, o: { ...look } },
         ...[ ['ashigaru', 15], ['bow', 4], ['gun', 4] ].map(([type, n]) => ({ type, n, o: { ...IKKO_KOSODE } }))]);
+    // 槍の列より先に将へ当たっても、名乗り前だけ命が多くならない。
+    const lord = rt.flags.echTail.units.find(q => q.type === 'busho');
+    if (lord) {
+      lord.maxHp = Math.min(lord.maxHp || 320, 320);
+      lord.hp = Math.min(lord.hp, lord.maxHp);
+    }
   }
   // 身の回りの当時の場（timeslip_field.js）。板の間・台の上は床に隠れるので置かない。
   {
@@ -2196,7 +2202,7 @@ echizen.setup = function (rt) {
   rt.flags.echizenOpening = [];
   for (const b of rt.flags.defenders) {
     if (b._openingPost || !b.real) continue;
-    rt.flags.echizenOpening.push({ group: b.real, seekRange: b.real.seekRange, aggro: b.real.aggro });
+    rt.flags.echizenOpening.push({ group: b.real, stay: b.real.stay, seekRange: b.real.seekRange, aggro: b.real.aggro });
   }
   // 深手は出血の共通札一つに任せ、同じ退避の声を重ねない。
   rt.player.treatmentHint = true;
@@ -2420,6 +2426,7 @@ echizen.update = function (rt, dt) {
   }
   else if (F.echizenOpening) {
     for (const o of F.echizenOpening) {
+      o.group.stay = o.stay;
       o.group.seekRange = o.seekRange; o.group.aggro = o.aggro;
     }
     F.echizenOpening = null;
@@ -2766,7 +2773,7 @@ function echizenAdvanceTick(rt) {
         F.echLordCame = true;
         // 殿の組ごと本人へ向けると、北口の柵を挟んで向き合ったまま動けなかった。真敬は峠道で踏みとどまり、印と本人が真敬を指す
         F.echTail.noRout = true; F.echTailU = lord; F.echTailAt = rt.t + 1e6;
-        lord.maxHp = Math.min(lord.maxHp || 320, 320); lord.hp = Math.min(lord.hp, lord.maxHp);   // 武将の既定の命（千五百）では一騎打ちが二分を超えた
+        // 命の上限は準備時にそろえる。名乗りで残りの命を切り落とさない。
         rt.say('西光寺真敬', '石田の西光寺真敬なり！　仏の敵、ここは一歩も通さぬ！', 4);
       }
       return;

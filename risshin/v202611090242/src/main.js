@@ -143,6 +143,9 @@ function ldLearned(battle = '') {
 function isTouchLd() { return document.documentElement.classList.contains('touch'); }
 // 段の並びを決めて、棒を 0 から始める。keys：この読み込みで通る段
 function ldBegin(keys, battle = '') {
+  // 前の支度に失敗した札を、新しい戦の支度へ持ち越さない。
+  document.querySelectorAll('#loading .ld-actions').forEach((el) => el.remove());
+  $('ld-stage').setAttribute('role', 'status');
   const L = { ...ldLearned(), ...ldLearned(battle) }, mul = isTouchLd() ? 1.6 : 1;
   ldPlan = { keys, battle, est: keys.map((k) => L[k] ?? LD_DEF[k] * mul), cur: -1, part: 0, t: performance.now(), t0: performance.now(), hidden: document.hidden, progress: 0 };
   ldPlan.total = ldPlan.est.reduce((sum, ms) => sum + ms, 0);

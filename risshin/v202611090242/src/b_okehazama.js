@@ -173,7 +173,7 @@ function okeCloth(camp, world) {
 
 // 11/6 critic60（kaito 九3・五2・十三3）：描いて遊ぶと、斬り合う今川の兵の多くに▼が無く、松井・義元の名も出なかった
 //   （当時の共通の印は近い敵四人まで・raid の型の名札は味方だけ）。現在の▼は全員を扱う共通処理へ任せ、二重にしない。
-//   名のある敵将（松井宗信・井伊直盛・今川義元・山田新右衛門・由比正信）には百二十メートルから名を出す。
+//   共通の名札はこの戦で隠すため、信長・服部・毛利ら味方も同じ置き場で名を出す。
 //   候補と見通しは四分の一秒ごと。印は初めに作って使い回し、毎コマは位置だけ書く。
 function okeFoeSigns(rt) {
   const box = document.createElement('div');
@@ -183,7 +183,7 @@ function okeFoeSigns(rt) {
   for (let i = 0; i < OKE_NAMED.size; i++) { const e = document.createElement('b'); e.className = 'oke-foe-name'; e.hidden = true; box.appendChild(e); names.push(e); }
   rt.hud.root.appendChild(box);
   const named = [], v = new THREE.Vector3();
-  // 五人の敵将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
+  // 両軍の名将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
   const namePlaces = new Float32Array(names.length * 3);
   let at = -1;
   const ready = (u) => u.alive && !u.gone && !u.dying && !u.woundOut && !u.civ && !u.isStruct && !u.noTarget && !u.fleeing && !u.group?.routed;
@@ -195,7 +195,7 @@ function okeFoeSigns(rt) {
       if (on && (rt.t >= at || rt.t < at - .3)) {
         at = rt.t + .25; named.length = 0;
         for (const u of rt.army.units) {
-          if (u.team === me.team || u.team > 1 || !ready(u) || !OKE_NAMED.has(u.name)) continue;
+          if (u === me || u.team > 1 || !ready(u) || !OKE_NAMED.has(u.name)) continue;
           const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
           if (d2 > 14400 || !sightScreenUnit(rt, u)) continue;
           if (named.length < names.length) named.push(u);
