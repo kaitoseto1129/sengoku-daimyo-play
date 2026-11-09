@@ -1399,7 +1399,7 @@ const miki = {
     if (!F.reserve.units.every(u => u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
     return 4;
   },
-  missionHeading(rt) { if (rt.flags.step === 3 && !rt.flags.mkYoin) return '⑤平田の木戸で、城の二度目の出撃を退ける'; if (rt.flags.step === 4 && !rt.flags.mkYoin) return '⑤止めた兵糧を、平田の蔵へ運ぶ'; return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
+  missionHeading(rt) { return '①②③④⑤'[this.missionOf(rt)] + GOAL_LINES[this.missionOf(rt)]; },
   // 城内にいる敵の大将は印だけ。荷の道を守る任務を城主討ちへ替えない。
   commanderSignTarget(rt) {
     const u = rt.flags.ehon?.general;
@@ -2896,13 +2896,13 @@ const miki = {
     //   着いても「着かない」ままになり、懸かりが始まらず期限で負けた（11/8 bot：頭は着き、真ん中は x 33 に残った）
     const hideHere = F.hide.units.some((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
       Math.hypot(u.pos.x - OMURA_FOOT.x, u.pos.z - OMURA_FOOT.z) < 42);
-    if (!hideHere && rt.t - F.stepT < 120) return;   // 馬廻が道で詰まっても、二分で着いた事にする（11/8 bot：着かずに期限で負けた）
+    if (!hideHere) return;   // 組の中心でなく実際の到着を見る。時間だけで到着扱いにしない。
     if (!F.hideArrived) {
       F.hideArrived = true; F.hideArrivedT = rt.t;
       rt.say('使番', '秀吉様、平井山より千余騎で到着！　大村坂の下で秀吉様の手に並べ！', 5);
       return;
     }
-    if (rt.t - F.hideArrivedT < 6 || !here && rt.t - F.hideArrivedT < 40) return;   // 四十秒待っても坂の下へ来ない時は、秀吉の下知で懸かる（11/8 bot：十五歩の所で待ち続けて負けた）
+    if (rt.t - F.hideArrivedT < 6 || !here) return;   // 本人も坂の下へ合流してから懸かる。
     F.omuraGo = true; F.omuraGoT = rt.t;
     rt.obj('main', GOAL_LINES[3], 'main');
     rt.say('羽柴秀吉', '者ども、懸かれ！　坂の上の別所を一人も城へ帰すな！', 4);
@@ -3343,28 +3343,17 @@ const miki = {
       }
     }
     // 甚太夫を討った後、坂の外へ散った一人二人を待ち続けない（11/8 bot：残り一人で五分止まり負けた）。
-    //   五十秒たっても残る雑兵は城へ逃げ帰り、名のある者は秀吉の追い討ちで討たれる（播磨別所記）
+    //   本人の討ち取りから五十秒たっても残る雑兵は城へ逃げ帰る。名のある者は戦い続ける。
     // 平田の城兵が三人四人だけ遠くに残り、段が進まないまま期限で負けない（11/8 bot：木戸で四百秒待った）。残りは城へ逃げ帰る
     if (F.step === 1 && F.dropped && rt.t - F.stepT > 210) {
       let n = 0;
       for (const g of F.sallies) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget) n++;
       if (n <= 4) for (const g of F.sallies) if (!gone(g)) flee(g, 1, 0.4);
     }
-    if (F.step === 2 && F.lastStand) {
-      F.lastStandT ??= rt.t;
-      // 百秒たっても本人が甚太夫を討てない時は、秀吉の馬廻が討つ（手柄は本人に付けない。負けにもしない）
-      const jin = F.jint;
-      if (!F.jintTaken && rt.t - F.lastStandT > 100 && jin) {
-        F.jintTaken = true;
-        if (jin.alive) { const k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u); jin.invuln = false; jin.hp = 0; rt.army.kill(jin, k || null); }
-        rt.say('使番', '別所甚太夫、秀吉様の馬廻が討ち取った！', 3.5);
-      }
-    }
     if (F.step === 2 && F.lastStand && F.jintTaken) {
       F.lastStandT ??= rt.t;
-      if (rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !(u.noTarget && !u.name)) {
-        if (u.name) { const k = rt.army.units.find((a) => a.alive && a.team === 0 && a !== rt.player.u); u.invuln = false; u.hp = 0; rt.army.kill(u, k || null); }
-        else { u.noTarget = true; u.fleeing = true; u.target = null; }
+      if (rt.t - F.lastStandT > 50) for (const u of F.reserve.units) if (u.alive && !u.name && !u.noTarget) {
+        u.noTarget = true; u.fleeing = true; u.target = null;
       }
     }
     if (left <= 30 && !F.deadlineSaid) { F.deadlineSaid = true; rt.bark('退く下知が迫るぞ。味方と敵を押し返せ', true); }

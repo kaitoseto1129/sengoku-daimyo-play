@@ -36,6 +36,11 @@ import { liteMat, sway } from './world_vegetation_materials.js';
 import { TEDORIGAWA_KACCHU } from './kacchu_data.js';
 import { NAMED_GEAR } from './named_gear.js';
 import { dressStage } from './stage_dress.js';
+import { install as installNanao } from './tedorigawa/nanao.js';   // 0〜3分：物見と荷駄を焼き捨てる退き始め
+import { install as installKonzatsu } from './tedorigawa/konzatsu.js';   // 3〜6分：増水と渡り口の混雑・横から来る騎馬
+import { install as installYoin, YOIN_SEC } from './tedorigawa/yoin.js';
+import { kenshinStep } from './tedorigawa/kenshin.js';
+import { install as installFurikiru } from './tedorigawa/furikiru.js';   // 最後の段：追手を振り切る（12〜13分）   // 北岸の殿の三つ目の持ち場：謙信の旗本（9〜11分）   // 渡った後の余韻（最後の30秒）
 
 // kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
 //   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
@@ -2780,6 +2785,7 @@ const tedorigawa = {
     // 替えた兵と台本の追手を合わせて近さを数える。遠景の軍勢はそのまま残す。
     F.tedoWakeArmies = [...F.main, ...F.host, ...F.host2, ...F.reserves];
     F.northSteps = tedoA(); F.southSteps = tedoB();
+    if (!rt.G.lord) F.northSteps.splice(1, 0, kenshinStep({ tedoHold, RG, RR }));   // 先手の後、後続の前に謙信の旗本（tedorigawa/kenshin.js）
     preparePursuit(rt, F.northSteps, 0); preparePursuit(rt, F.southSteps, 1);
     // 先手の足軽・二の手・騎馬に一本ずつ。兵を増やさず、動く列を旗で見せる。
     // 手に結び付かない追手の松明は置かず、川岸の据えた火を道じるしにする。
@@ -2858,14 +2864,22 @@ const tedorigawa = {
       if (F.ending || rt.over || F.step !== 0) return;
       tedoAside(rt, '組頭', '羽柴秀吉様の手は帰ってしもうた。残る者で退き道を守るぞ');
     });
-    rt.after(22, () => this.retreat(rt));
+    // 0〜3分：七尾落城の報せの後、物見と荷駄の焼き捨て（tedorigawa/nanao.js）。済んだら退き始め
+    rt.after(22, () => {
+      if (F.ending || rt.over || F.step !== 0) return;
+      if (rt.G.lord) return this.retreat(rt);
+      if (!F.paceNanao) F.paceNanao = installNanao(rt, { next: () => this.retreat(rt) });
+    });
   },
 
   // ① 渡り口まで退く
   retreat(rt) {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
+    // 物見と荷駄の段（tedorigawa/nanao.js）が済むまで待つ（追手が早く見えても、先にこの段を始める）
+    if (!rt.G.lord && !F.nanaoDone) { if (!F.paceNanao) F.paceNanao = installNanao(rt, { next: () => this.retreat(rt) }); return; }
     F.step = 1; F.stepT = rt.t;
+    if (!rt.G.lord) F.paceKonzatsu = installKonzatsu(rt, { dress, ODA, UESUGI, FORD, next: () => { F.konzatsuPursue?.(); F.konzatsuPursue = null; this.rearguard(rt); } });   // 3〜6分：増水と渡り口の混雑
     rt.setPhase('retreat'); rt.objProgress('main', '');
     rt.unmark('shiba');
     // 本陣からの退きの下知。札の自動合図の待ち時間には任せない。
@@ -2911,6 +2925,8 @@ const tedorigawa = {
     for (const h of F.host2 || []) h.advance(45, 50);
     for (const h of F.pursuitBackdrop) h.advance(32, 45);
     // 持ち場へ着くのを待たず追撃する。下知を聞き逃しても、敵が来ないまま止まらない。
+    // 11/9：増水と混雑の段（tedorigawa/konzatsu.js）がある時は、その段が済んでから追手を出す（混雑の間に殿の列を削らない）
+    const pursue = () => {
     rt.after(4, () => {
       if (F.ending || rt.over || F.step < 1 || F.step > 2) return;
       tedoAside(rt, '組頭', F.step === 1 ? '北から追手じゃ！　北岸の火まで退け！' : '北から追手じゃ！　火のそばで槍をそろえよ！', 3.5);
@@ -2918,18 +2934,21 @@ const tedorigawa = {
     });
     rt.after(12, () => {
       if (F.ending || rt.over || F.step < 1 || F.step > 2) return;
-      for (const g of F.northSteps[1].tedoWaves[0].groups) advancePursuit(g, RG, true);
+      for (const g of F.northSteps[F.northSteps.length - 1].tedoWaves[0].groups) advancePursuit(g, RG, true);   // 後続の二の手（謙信の旗本の段を挟んでも同じ隊）
     });
-    messengerNews(rt, rt.player.u, '渡り口が詰まった！　北岸で追手を止めよ！');
-    for (const g of rt.squadGroups || []) { g.order = 'move'; g.dest = RG; g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; }; }
     rt.after(6, () => kenshinRide(rt, 1));
     if (F.fordFoe) advancePursuit(F.fordFoe, RG, true);
+    };
+    if (F.paceKonzatsu) F.konzatsuPursue = pursue; else pursue();
+    messengerNews(rt, rt.player.u, '渡り口が詰まった！　北岸で追手を止めよ！');
+    for (const g of rt.squadGroups || []) { g.order = 'move'; g.dest = RG; g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; }; }
   },
 
   // ② 殿：追手を食い止める
   rearguard(rt) {
     const F = rt.flags;
     if (F.step >= 2) return;
+    if (F.paceKonzatsu && !F.konzatsuDone) return;   // 増水と混雑の段（tedorigawa/konzatsu.js）が済むまで待つ
     F.step = 2; F.stepT = rt.t;
     rt.setPhase('rear'); rt.objProgress('main', '');
     rt.unmark('ford'); rt.unzone('ford');
@@ -3026,7 +3045,11 @@ const tedorigawa = {
     rt.unzone('south');
     rt.unmark('crossing');
     rt.objRemove('main');
-    depthStart(rt, tedoCtx(rt), F.southSteps, () => this.win(rt));
+    // 南岸の殿の後、追手を振り切る段（tedorigawa/furikiru.js）を挟んで勝ちへ
+    depthStart(rt, tedoCtx(rt), F.southSteps, () => {
+      if (rt.G.lord || F.failedHold || !rt.player.u.alive) return this.win(rt);
+      F.paceFurikiru = installFurikiru(rt, { dress, UESUGI, SOUTH, FORD, next: () => this.win(rt) });
+    });
   },
 
   lose(rt) {
@@ -3073,10 +3096,12 @@ const tedorigawa = {
     // 11/6 critic60：負け戦の締め。勝家が南岸に兵を残して退く（十月三日、御幸塚・大聖寺に守りを置いて帰陣）。
     rt.after(8, () => { if (rt.player.u.alive && !rt.result?.down) rt.say('柴田勝家', '手取川は取られた。御幸塚に兵を残し、退くぞ', 4); });
     // 殿の成功で上杉軍を敗走させず、南岸へ退いた結末を保つ。
-    rt.finish({ scriptedEnd: true }, Math.max(12, endSignalWait + 8));
+    installYoin(rt, { FORD });   // 約30秒の余韻（tedorigawa/yoin.js）
+    rt.finish({ scriptedEnd: true }, Math.max(YOIN_SEC, endSignalWait + 8));
   },
 
   update(rt, dt) {
+    { const F = rt.flags; F.paceNanao?.update(dt); F.paceKonzatsu?.update(dt); F.paceFurikiru?.update(dt); }   // 15分の段（prototype/src/tedorigawa/*.js）
     huntPlayer(rt, dt);
     pressPlayer(rt, dt);
     pressStep(rt, dt);
@@ -3325,11 +3350,12 @@ const tedorigawa = {
     if (F.step === 1) {
       const d = Math.hypot(p.x - RG.x, p.z - RG.z);
       const left = Math.max(0, Math.ceil(60 - (rt.t - F.stepT)));
-      rt.objProgress('main', d < 7 ? '槍をそろえ、追手に備えよ' : '北岸の火へ退け。追手が迫るぞ');
+      const busy = F.paceKonzatsu && !F.konzatsuDone;   // 増水と混雑の段の間は、その段の札を先にする
+      rt.objProgress('main', busy ? '' : d < 7 ? '槍をそろえ、追手に備えよ' : '北岸の火へ退け。追手が迫るぞ');
       // 11/6 BT 十二3：刻限で負けにしない。遅れても殿の段は始まり（物語は進む）、上杉は北から寄せて来る。
       if (d < 7 || rt.t - F.stepT > 60) this.rearguard(rt);
       // 迷った者へ退き先を伝える。合図の説明を聞き終えてから、二十秒おきに呼ぶ。
-      else if (rt.t - F.stepT >= 12 && rt.t >= (F.fordCallAt || 0) &&
+      else if (!busy && rt.t - F.stepT >= 12 && rt.t >= (F.fordCallAt || 0) &&
           !F.tedoQueuedSignal.kind && rt.t >= (F.tedoSignalUntil || 0) &&
           rt.t >= (F.tedoCallUntil || 0)) {
         F.fordCallAt = rt.t + 20;

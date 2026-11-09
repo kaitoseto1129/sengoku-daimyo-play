@@ -2829,7 +2829,7 @@ function bigShipMarks(m) {
   m.add(grp);
 }
 const KZ_STAGE_TEXT = ['西の船べりの大筒で、寄る小早を撃て', '水桶を取り、甲板の焙烙の火を消せ', '南と西の乗り口で、乗り移る毛利勢を討て',
-  '引き付けた毛利の大将船を、西の大筒で撃て', '甲板に残る毛利勢を討ち、船団を木津浦へ退かせよ'];
+  '引き付けた毛利の大将船を、西の大筒で撃て', '甲板に残る毛利勢を討ち、船団を木津浦へ退かせ、西の大筒で大坂へ抜ける兵糧船を止めよ'];
 const kizugawa = {
   resumeSteps: [[1, 'cannons'], [2, 'fires'], [3, 'board'], [4, 'decisive'], [5, 'retreat']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   pauseRetry: true, // 深手で戻る所を選ぶ間は甲板の戦闘を止める。札の期限は共通側で進む。
@@ -2839,9 +2839,9 @@ const kizugawa = {
   stageGoalsOnly: true,   // 段だけを目標に（「敵を何人討つ」で埋めない）
   // 11/6 fixc0504（kaito 九1・十1）：五つを最初から全部並べ、済んだ物に印。段（kzStage）は戻らないので印も戻らない。
   goals5: () => [0, 1, 2, 3, 4].map((k) => ({
-    kind: 'stage', k, text: KZ_STAGE_TEXT[k].replace(/撃て$/, '撃つ').replace(/消せ$/, '消す').replace(/討て$/, '討つ').replace(/退かせよ$/, '退かせる'),
+    kind: 'stage', k, text: KZ_STAGE_TEXT[k].replace(/撃て$/, '撃つ').replace(/消せ$/, '消す').replace(/討て$/, '討つ').replace(/退かせよ$/, '退かせる').replace(/止めよ$/, '止める'),
     // 11/6 fixc0823：行き先の名は▼の立つ場所の名（④は西の大筒・⑤は守る乗り口。甲板の上に「木津浦 10m」と出ていた）
-    noun: ['西の大筒', '甲板の火', '南と西の乗り口', '西の大筒', '甲板の乗り口'][k],
+    noun: ['西の大筒', '甲板の火', '南と西の乗り口', '西の大筒', '西の大筒と甲板の乗り口'][k],
     check: (rt) => !!rt.tracker?.main || (k < 4 ? (rt.flags.kzStage || 0) > k : false),
     count: () => null, sec: 900,
   })),
@@ -2868,12 +2868,12 @@ const kizugawa = {
   missions: ['船べりの大筒へ走れ', '大筒で寄る敵船を撃て', 'ここを守れ', '船べりの水桶を取れ', '甲板の火を消せ', '甲板に上がった毛利勢を討て', '大将船を撃て', '敵船を待て'],
   missionOf(rt) {
     const F = rt.flags;
-    if (F.ending || rt.over) return 2;
+    if (F.ending || rt.over || F.kzYoin) return 2;
     if (F.step === 2) return F.doused >= 3 ? 2 : F.water ? 4 : 3;
     const enemy = nearestDeckObjective(rt);
     const distance = enemy ? Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) : Infinity;
     if (enemy && (F.step === 3 || F.step === 5 || F.bigSunk || distance < (F.step === 4 ? 4.5 : 8) || F.kukiDanger)) return 5;
-    if (F.kukiDanger || F.step === 3 || F.step === 5 || F.bigSunk) return 2;
+    if (F.kukiDanger || F.step === 3 || F.step === 5 || F.bigSunk && F.step !== 6) return 2;
     const c = F.cannonPost || F.guns?.[1];
     if (!c) return 0;
     if (rt.t < c.cd) return 2;
@@ -2889,7 +2889,6 @@ const kizugawa = {
     const F = rt.flags;
     // 終了は勝ち負けの両方から来る。敗北や兵糧船の通過を封鎖成功と伝えない。
     if (F.ending || rt.over) return rt.tracker.main ? '九鬼の船を守り通した' : '船の持ち場を退く';
-    if (F.step === 6 && !F.kzYoin) return '⑤西の大筒で、大坂へ抜ける兵糧船を止めよ';
     const lv = F.step >= 5 || F.bigSunk ? 4 : F.step === 4 ? 3 : F.step === 3 ? 2 : F.step === 2 ? 1 : 0;
     F.kzStage = Math.max(F.kzStage || 0, lv);   // 段は戻さない
     // 11/5：右上の一行に段の番号（①〜⑤）を頭に付ける。共通の札は missionHeading のある戦に番号を付けないので、ここで付ける（kaito 三3）。
@@ -4083,7 +4082,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const t = { x: -70, z: 0 };
     m.position.set(s.x, 0, s.z);
     rt.scene.add(m);
-    const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, supply: true, deckY: 1.3, sp: 3.2, approach: t, dock: { x: 230, z: -35 } };
+    const b = { m, x: s.x, z: s.z, t, alive: true, landed: false, supply: true, bornAt: rt.t, deckY: 1.3, sp: 3.2, approach: t, dock: { x: 230, z: -35 } };
     shipCrew(rt, b, 1, 8); F.seaShips.push(b);
     F.boats.push(b);
     return b;
@@ -4793,8 +4792,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         const c = g.center(), b = F.big;
         if (Math.hypot(c.x - b.x, c.z - b.z) < 75 && !rt.army.wallBetween(c, -1, b)) { g.flagshipHeard = true; g.morale = Math.max(0, g.morale - 20); }
       }
-      if (F.step === 1 || F.step === 4 && !F.bigSunk) for (const c of F.guns) { const b = cannonTarget(F, c); c.aimHint = b ? aimWord(b, c) : '筒の向く先へ船が寄るのを待て'; }
-      if (F.step === 1 || F.step === 4 && !F.bigSunk) {
+      if (F.step === 1 || F.step === 4 && !F.bigSunk || F.step === 6 && !F.kzYoin) for (const c of F.guns) { const b = cannonTarget(F, c); c.aimHint = b ? aimWord(b, c) : '筒の向く先へ船が寄るのを待て'; }
+      if (F.step === 1 || F.step === 4 && !F.bigSunk || F.step === 6 && !F.kzYoin) {
         // 迎撃では六〜八メートル、一斉射では三・五〜四・五メートルで切り替える。
         // 戻す距離に余白を持たせ、任務の札の行き来を抑える。
         const guarding = !!nearbyThreat;
@@ -4833,7 +4832,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
           rt.obj('main', task, 'main');
           if (!guarding && !F.kukiDanger && rt.t < c.cd) {
             // 11/6 fixc0823（critic60「①の段で乗り込みの下知」）：段に合う見張りだけを言う。
-            const word = F.step === 4 ? '玉込めはわしらに任せよ。大船の横腹を見張れ' : F.step >= 3 ? '玉込めはわしらに任せよ。乗り口を見張れ' : '玉込めはわしらに任せよ。次の小早を見張れ';
+            const word = F.step === 6 ? '玉込めはわしらに任せよ。荷船の横腹を見張れ' : F.step === 4 ? '玉込めはわしらに任せよ。大船の横腹を見張れ' : F.step >= 3 ? '玉込めはわしらに任せよ。乗り口を見張れ' : '玉込めはわしらに任せよ。次の小早を見張れ';
             if (noticeReady(rt, word, 90)) rt.say('大筒の者', word, 3);
           }
         }
