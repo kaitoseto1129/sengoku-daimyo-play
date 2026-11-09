@@ -1512,3 +1512,15 @@ export const TOYO_GAMO_KACCHU = {
     mon: 'kuki', flag: 'sashi:kuki:#ece6d6:#201f1c', uma: null,
     shinodare: false, fukigaeshiBadge: false, ref: '' },
 };
+
+// 一宮城の正勝。徳島城博物館が正勝所用として紹介する朱漆塗萌葱素懸威胴丸を手本にする。
+// 兜・面頬・旗の当日使用は未確認。織田編の共通表は保つ（docs/generals_look_1108/蜂須賀正勝.md）。
+export const TOYO_HACHISUKA_KACCHU = {
+  '蜂須賀正勝': { ...KACCHU['蜂須賀正勝'], bowl: 'suji', crest: 'none',
+    hat: 'kabuto', hatFix: 1, armor: 0xa52b1c, helm: 0x1c1a1a, lac: 'kuro', fuki: 'kuro',
+    domaru: true, doOpening: 'right', plateDo: null, doStyle: 'sugake', doSugake: true,
+    lace: 0x4e6335, odo: 0x4e6335, sodeStyle: 'sugake', shikoroStyle: 'sugake', shikoroLace: 0x4e6335,
+    kusazuriColor: 0xa52b1c, kusazuriBands: Array(5).fill(0x4e6335),
+    haori: 0, noHaori: true, menpo: 0, fur: 0, horo: 0, uma: null,
+    mon: 'manji', flag: 'manji', shinodare: false, fukigaeshiBadge: false },
+};
