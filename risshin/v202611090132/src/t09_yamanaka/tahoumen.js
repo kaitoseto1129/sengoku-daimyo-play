@@ -12,13 +12,14 @@ export function install(rt) {
   F.fronts = {};
   const mk = (k, x, z, A, seed) => {
     try {
-      F.fronts[k] = clash(rt, { x, z, facing: Math.atan2(25 - x, -100 - z), w: 28, gap0: 16, seed, noWake: true, noRout: true,
+      F.fronts[k] = clash(rt, { x, z, facing: Math.atan2(25 - x, -100 - z), w: 28, gap0: 16, seed, noWake: true, noRout: true, maxDrift: 14,
         A: { flagTex: flagTexture(A), flag: A, armor: 0x2b2723, count: 220, flagRate: 0.5, guns: true },
         B: { flag: 'hojo', armor: 0x2e2a26, count: 100, flagRate: 0.35, bows: true, guns: true } });
     } catch (e) { F.fronts[k] = null; }
   };
-  mk('east', 66, 4, 'hori', 15921);      // 東の尾根から三の丸の横へ（堀秀政の手）
-  mk('west', -64, -18, 'kashiwa', 15922);   // 西の丸の南の障子堀の外（山内・田中の手）
+  // 絵の兵は動ける範囲（±236m）の外の尾根だけに置く。城内の別の口は本物の先手が攻める。
+  mk('east', 310, 4, 'hori', 15921);      // 東の遠い尾根（堀秀政の後続）
+  mk('west', -310, -18, 'kashiwa', 15922);   // 西の遠い尾根（山内の後続）
 }
 
 const flagsAt = (rt, list, k) => { for (const [x, z] of list) { try { rt.scene.add(nobori(rt.world, x, z, k, 6)); } catch (e) { /* 飾り */ } } };

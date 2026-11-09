@@ -517,7 +517,7 @@ const t09_yamanaka = {
   sallyBack(rt) {
     const F = rt.flags;
     if (F.step !== 3 || F.gateOpen || F.sub === 'back') return;
-    F.sub = 'back'; F.backT = rt.t;
+    F.sub = 'back'; F.backT = rt.t; F.gatePress = 0;
     rt.unmark('uma');
     rt.obj('main', '退く兵に続いて大手門から入る', 'main');
     rt.marker('gate', { ...SP.at.gate }, '大手門', { red: true, h: 3 });
@@ -684,8 +684,11 @@ const t09_yamanaka = {
       // 打って出た隊が皆討たれた時は、門へ攻め寄せる段へ
       if (F.sub === 'sally' && gone(F.uma)) this.sallyBack(rt);
       if (!F.gateOpen && gate && (gate.alive === false || (gate.opened && F.K.tsukeiri))) this.openGate(rt, !!F.K.tsukeiri);
-      // 付け入りが閉め切られた時は、寄せ手が門を打ち破る（長くかかる）
-      if (!F.gateOpen && F.sub === 'back' && rt.t - F.backT > 70) this.openGate(rt, false);
+      // 本人と寄せ手が門へ詰めている間だけ数える。遠くで待つだけでは門を破らない。
+      if (!F.gateOpen && F.sub === 'back' && dg < 40 && F.toyo.some((g) => g.units.some((u) => cnt(u) && Math.hypot(u.pos.x - SP.at.gate.x, u.pos.z - SP.at.gate.z) < 20))) {
+        F.gatePress = (F.gatePress || 0) + dt;
+        if (F.gatePress > 70) this.openGate(rt, false);
+      }
       if (F.gateOpen && Math.hypot(p.x - SP.at.plaza.x, p.z - SP.at.plaza.z) < 10) this.honmaru(rt);
     }
     if (F.step === 4) {

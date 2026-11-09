@@ -3165,7 +3165,7 @@ const miki = {
       // 浅瀬の小隊だけでなく、西の坂から加わった城兵も見届ける。
       // 同じ敵隊の一覧を使い、寄せる前の控えは門の近くへ来るまで印にしない。
       for (const g of F.foes) for (const u of g.units) {
-        if (!g.sortieStarted && g !== F.reserve) continue;
+        if (!g.sortieStarted) continue;
         if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
         castleSoldiers++;
         if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 24) continue;
@@ -3513,7 +3513,8 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
 };
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（11/01 bushou_17_32）。
 // 11/4 jin（一6）：秀長の当日の居場所は確かでない（JIN の注）。いない所に置かない
-miki.bushou = ['蜂須賀正勝', { name: '谷衛好', g: /平田/ }, { name: '別所吉親', g: /城から出た別所勢|大村の控え/ }, { name: '生石治家', g: /荷駄/ }];
+// 谷衛好は平田の守将「谷大膳」と同じ人物。既にいる将を別名でもう一人足さない。
+miki.bushou = ['蜂須賀正勝', { name: '別所吉親', g: /城から出た別所勢|大村の別所勢/, loose: false }, { name: '生石治家', g: /荷駄/ }];
 export { miki };
 
 // 10/31 点付け：開戦25秒の本人の位置と向きは流すたびに変わり、決まった所へ置いた乱戦と大軍が画面から外れた。

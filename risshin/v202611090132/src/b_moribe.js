@@ -2881,6 +2881,7 @@ const moribe = {
   nearbyAllySignLimit: 0, // 味方の頭上に白い小旗を出さない。追う旗はピン一本、敵は赤い印で分ける。
   noDodgeCard: true, // 矢の雨で「〜をむこう」「にげる」の札を出さない（kaito 10/23 稲生 4）。
   // 右上は目標①〜⑤を最初から全部並べ、済んだ物に印（goals5・標準 九-1・十-1）。
+  goalsAllRows: true,
   missionAlways: true, // 敵を狙う間も「▼の敵を倒せ」などの一行を残す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
   missionAllyLabel: 'ついてくる仲間',
