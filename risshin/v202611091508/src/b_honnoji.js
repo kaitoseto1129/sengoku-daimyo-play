@@ -2437,7 +2437,7 @@ function teleport(rt, x, z) {
   const placed = new Set([P]);
   let k = 0;
   for (const g of rt.squadGroups || []) {
-    const ax = x + 3 + k * 3, az = z;
+    const ax = x + 3 + k * 1.5, az = z;
     let i = 0;
     for (const u of g.units) if (u.alive && !placed.has(u)) {
       place(u, ax + Math.floor(i / 3) * 1.5, az + (i % 3 - 1) * 1.5);
@@ -2446,7 +2446,9 @@ function teleport(rt, x, z) {
     if (g.anchor) { g.anchor.x = ax; g.anchor.z = az; }
     g.order = 'follow'; g.dest = null; g.path = null; g.pathIdx = 0;
     g.onArrive = null; g.focus = null; g.pending = null;
-    k++;
+    // 三人ずつの列が占める奥行きと、一列分の間を取る。
+    // 隊ごとに三歩だけずらすと、十人の隊同士で四人が同じ所へ重なっていた。
+    k += Math.ceil(i / 3) + 1;
   }
   let i = 0;
   for (const u of rt.tomoUnits || []) if (u.alive && !placed.has(u)) {
@@ -4627,7 +4629,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     rt.world.distMul = F.dm0; F.smoke = 0;
     // 場面が切り替わる間だけ、前幕の実兵を整理する。討死の加算はしない。
     for (const b of Object.values(F.blazes || {})) b.stop();
-    for (const g of [F.nbG, F.kosho, F.uma, F.frontGuard, F.kinju, F.umayaOda, ...(F.posts || []), ...F.foes]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
+    for (const g of [F.nbG, F.kosho, F.uma, F.frontGuard, F.kinju, F.umayaOda, ...(F.templeCourtiers || []), ...(F.posts || []), ...F.foes]) if (g) for (const u of g.units) if (u.alive) rt.army.despawn(u);
     F.foes.length = 0;
     teleport(rt, NIJO_GATE.x + 5, NIJO_GATE.z + 2);
     rt.after(1.2, () => { rt.scene.visible = true; });

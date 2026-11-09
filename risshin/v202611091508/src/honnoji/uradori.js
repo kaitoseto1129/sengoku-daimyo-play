@@ -23,7 +23,7 @@ export function wrap(def, K) {
 function fukutomi(rt) {
   const F = rt.flags;
   const t = () => { if (rt.over || F.ending) return; if (!F.tada) { rt.after(1, t, true); return; }
-    const a = F.tada.anchor; evPerson(rt, 0, '福富秀勝', { x: a.x + 4, z: a.z + 6 }, -Math.PI / 2, { guard: 2, ash: 3, aggro: 6 }); };
+    const a = F.tada.anchor; evPerson(rt, 0, '福富秀勝', { x: a.x + 4, z: a.z + 6 }, -Math.PI / 2, { guard: 2, ash: 3, aggro: 6, mortal: true }); };
   rt.after(3, t, true);
 }
 
