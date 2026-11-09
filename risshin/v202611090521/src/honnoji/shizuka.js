@@ -7,6 +7,7 @@
 // ======================================================================
 import { k15Off, k15Go, k15Scenes } from '../oda15_kit.js';
 import { PT } from '../honno_tera.js';
+import { evPerson } from '../b_ev6.js';
 import { sfx } from '../audio.js';
 
 export function wrap(def) {
@@ -30,6 +31,8 @@ function start(rt, done) {
   }
   const stop = () => F.k15stage !== 'shizuka';
   rt.banner('天正十年六月二日　夜明け前', '京の本能寺。上様の供は、わずか百ほど');
+  // 御殿の近臣（docs/generals_oda_1108.md 32：湯浅直宗）。広間の縁に控える
+  evPerson(rt, 0, '湯浅直宗', { x: PT.hiroma.x + 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, u: { kosode: 1, honnoCloth: true } });
   k15Scenes(rt, [
     [2, () => rt.say('森蘭丸', '見回りじゃ。まず広間の戸締まりを見よ', 4)],
   ], () => k15Go(rt, 'sz-hiroma', PT.hiroma, 4, '御殿の広間の戸締まりを見よ', '広間', () => {

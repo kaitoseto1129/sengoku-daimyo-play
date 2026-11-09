@@ -29,6 +29,8 @@ function start(rt, K, done) {
     [1, () => rt.say('織田信長', 'そこの者、わしの横に付け。一人も奥へ通すな', 4)],
   ], () => k15Go(rt, 'sg-hiroma', hiroma, 4, '広間で、上様の横に付け', '上様の横', () => {
     const w1 = K.akechi(rt, '広間へ踏み込む明智勢', [[hiroma.x + 10, hiroma.z + 2], [hiroma.x + 2, hiroma.z]], [K.uS(2), K.uA(3)], { entered: true, player: true, dmg: 0.5 });
+    // 寄せ手の頭は安田作兵衛（蘭丸を討ったと伝わる明智の侍）
+    const lead = w1?.units.find((u) => u.alive && u.type === 'samurai'); if (lead) { lead.name = '安田作兵衛'; lead.nameOpen = true; }
     rt.say('森蘭丸', '広間へ来るぞ！　上様をお守りせよ！', 3);
     k15Track(rt, w1, '広間の明智勢', { sec: 70, reward: '広間で上様と並んで戦った' }, () => k15Scenes(rt, [
       [1, () => { rt.banner('上様、肘に傷', '明智の槍が、信長の肘を裂いた'); sfx('hit', 0.6); }],

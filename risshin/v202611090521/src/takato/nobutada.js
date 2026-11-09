@@ -8,6 +8,7 @@
 import { k15Off, k15Scenes } from '../oda15_kit.js';
 import { start as honStart } from './honmaru.js';   // 本丸の段
 import { sfx } from '../audio.js';
+import { evPerson } from '../b_ev6.js';
 
 export function wrap(def, K) {
   const fall = def.onZoneFall;
@@ -23,6 +24,8 @@ export function wrap(def, K) {
 
 function sanStage(rt, K) {
   const F = rt.flags;
+  // 二の丸の守将（docs/generals_oda_1108.md 30：小山田昌成など守備将）。門の内で旗本と構え、前へは出ない
+  if (!F.k15oyamada) F.k15oyamada = evPerson(rt, 1, '小山田昌成', { x: K.GATE_NI.x - 8, z: K.GATE_NI.z }, Math.PI / 2, { guard: 4, ash: 4, aggro: 6, mortal: true, g: { faction: 'takeda' } });
   k15Scenes(rt, [
     [6, () => { rt.banner('中将様、自ら塀際へ', '西の搦手で「一度に乗り入れよ」と下知された'); sfx('horagai', 0.6); }],
     [4, () => rt.say('使番', '中将様が自ら塀に上がられた！　大手も遅れを取るな！', 4.5)],

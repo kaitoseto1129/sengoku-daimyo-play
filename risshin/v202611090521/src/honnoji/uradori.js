@@ -6,6 +6,7 @@
 // ======================================================================
 import { k15Freeze, k15Heal, k15Off, k15Go, k15Scenes, k15Track } from '../oda15_kit.js';
 import { PT } from '../honno_tera.js';
+import { evPerson } from '../b_ev6.js';
 import { sfx } from '../audio.js';
 
 export function wrap(def, K) {
@@ -14,8 +15,16 @@ export function wrap(def, K) {
     const F = r.flags;
     if (k15Off(r) || F.uradoriDone || F.nTransition || (F.step || 0) >= 3) return toNijo.call(this, r);
     if (F.k15stage === 'uradori') return;
-    start(r, K, () => { k15Heal(r); F.uradoriDone = true; F.k15on = false; F.k15stage = null; toNijo.call(this, r); });
+    start(r, K, () => { k15Heal(r); F.uradoriDone = true; F.k15on = false; F.k15stage = null; toNijo.call(this, r); fukutomi(r); });
   };
+}
+
+// 二条御所の守り手（docs/generals_oda_1108.md 32：福富秀勝）。信忠の手の脇に旗と供で構える
+function fukutomi(rt) {
+  const F = rt.flags;
+  const t = () => { if (rt.over || F.ending) return; if (!F.tada) { rt.after(1, t, true); return; }
+    const a = F.tada.anchor; evPerson(rt, 0, '福富秀勝', { x: a.x + 4, z: a.z + 6 }, -Math.PI / 2, { guard: 2, ash: 3, aggro: 6 }); };
+  rt.after(3, t, true);
 }
 
 function start(rt, K, done) {
