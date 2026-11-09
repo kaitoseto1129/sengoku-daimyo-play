@@ -2499,7 +2499,8 @@ const nagashima = {
     F.hurtEdge.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 36px 10px rgba(120,42,28,.25);display:none';
     document.body.appendChild(F.hurtEdge);
     F.localStyle = document.createElement('style');
-    F.localStyle.textContent = '#vignette.hurt,#vignette.dying,body.rm #vignette.dying{animation:none!important;box-shadow:inset 0 0 48px rgba(110,34,24,.25)!important;background-color:transparent!important}#brinkfx{opacity:.25!important}';
+    // 通し確認で兵数が上端で欠け、任務と重なっていた。長島の間だけ上の釦・任務の下へ置く。
+    F.localStyle.textContent = '#vignette.hurt,#vignette.dying,body.rm #vignette.dying{animation:none!important;box-shadow:inset 0 0 48px rgba(110,34,24,.25)!important;background-color:transparent!important}#brinkfx{opacity:.25!important}html:root body #hud#hud.nagashima-bank #armybar#armybar{top:calc(52px + env(safe-area-inset-top,0px))!important;max-height:none!important;overflow:visible!important}';
     rt.hud.root.classList.add('nagashima-bank');
     document.head.appendChild(F.localStyle);
     // 槍の手ほどきの字は出さない（kaito 五1：説明・案内の字を出さない）。手応えは音と動きで分かる。
@@ -3650,7 +3651,7 @@ const nagashima = {
     this.sallyWave(rt, 0);
     // 11/6 fixc2220（critic60「三分で終わる」）：二手目は一手目と刃を合わせた後に寄せる（一つの塊が二度ぶつかる。斬り合いが一度で終わらない）。
     rt.after(15, () => this.sallyWave(rt, 1));
-    // 第一陣を早く退ければ、同じ後続舟が早く動く。新しい兵は作らない。
+    // 後続舟は川上から時差で寄せる。先の隊の敗走だけで全ての舟を繰り上げない。
     F.rearBoatAt = null; F.shoreQuiet = 0; F.shoreFacing = false;
     // 公記巻七：裸の七、八百が手薄な所へ斬り込み、信広・信次・秀成ら一門が討死した。岸の兵は声で知る。
     rt.after(14, () => {
@@ -4041,8 +4042,9 @@ const nagashima = {
     }
     if (F.step === 3) {
       const w = rt.t - F.stepT;
-      // 前の隊が押されたら後詰めを寄せる。戦える者が退き切った時も待たせない。
-      if (F.rearBoatAt == null && (w >= 85 || w >= 40 && (gone(F.last[0]) ? 0 : F.last[0].count) + (gone(F.last[1]) ? 0 : F.last[1].count) <= 10 || F.last[1].sallyReleased && !canCounterattack(F.last[0]) && !canCounterattack(F.last[1]))) {
+      // 同じ後続舟を川上から寄せる。戦える後詰めまで第一陣の敗走で繰り上げると、三分以内で終わってしまう。
+      // 戦える者が残らない舟は、待たずに受け終えた扱いにする。
+      if (F.rearBoatAt == null && (w >= 85 || !canCounterattack(F.last[2]))) {
         F.rearBoatAt = rt.t;
         // 戦える者がいない舟のために、東へ移動させない。
         F.rearBoatThreat = canCounterattack(F.last[2]);
@@ -4051,8 +4053,8 @@ const nagashima = {
       // 戦える者のいない舟を、反撃の待ち時間に数えない。
       // 11/6 fixc1439：一陣を退けてから後の舟まで息をつかせ過ぎず、早すぎもしない（一戦が二分半で終わっていた）。
       if (F.rearBoatAt != null && (rt.t - F.rearBoatAt >= 20 || !canCounterattack(F.last[2]))) this.sallyWave(rt, 2);
-      // 四手目：後の舟が岸で刃を合わせて二十五秒、または後の舟が崩れたら、東の舟も動く。
-      if (F.thirdBoatAt == null && F.last[2].sallyReleased && (rt.t - F.last[2].releasedAt >= 25 || !canCounterattack(F.last[2]))) {
+      // 東の舟も別の川筋から寄せる。後の舟が崩れても、戦える最後の舟は到着を繰り上げない。
+      if (F.thirdBoatAt == null && F.last[2].sallyReleased && (w >= 145 || !canCounterattack(F.last[3]))) {
         F.thirdBoatAt = rt.t;
         if (canCounterattack(F.last[3])) rt.say('物見', '東の葦の陰から、まだ舟が出る！', 3);
       }
