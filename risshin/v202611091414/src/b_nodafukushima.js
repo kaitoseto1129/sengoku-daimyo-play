@@ -892,24 +892,16 @@ function nodaGoalBoard(rt) {
     const out = progress.call(this, battle);
     if (battle === rt && this.prog && !rt.over) {
       // 一行の任務札の作り（missionSingleLine）は残し、目標の札を描く時だけ外す
-      const def = rt.def, one = def.missionSingleLine, all = def.goalsAllRows;
+      const def = rt.def, one = def.missionSingleLine, all = def.goalsAllRows, count = def.goalVisibleRows, ahead = def.goalRowsAhead;
       def.missionSingleLine = false;
       def.goalsAllRows = true;
+      // 共通側は生成する段階で一件に絞るため、出来た行の表示だけ変えても増えない。
+      // 今の目標から先の五件を並べ、終盤は済んだ印も残す。
+      def.goalVisibleRows = 5;
+      def.goalRowsAhead = true;
       try {
         goalsTick(this.prog, rt);
-        // 共通側が今の一行だけを作るため、装飾だけでは一覧にならない。
-        // 順番と済んだ印を保ち、今の目標から五件を見せる。終盤は済んだ行も残す。
-        const rows = this.prog.querySelector('.pg-goals ul')?.children;
-        if (rows) {
-          let now = 0;
-          for (let i = 0; i < rows.length; i++) if (rows[i].classList.contains('now')) { now = i; break; }
-          const first = Math.min(now, Math.max(0, rows.length - 5));
-          for (let i = 0; i < rows.length; i++) {
-            const display = i >= first && i < first + 5 ? 'flex' : 'none';
-            if (rows[i].style.display !== display) rows[i].style.setProperty('display', display, 'important');
-          }
-        }
-      } finally { def.missionSingleLine = one; def.goalsAllRows = all; }
+      } finally { def.missionSingleLine = one; def.goalsAllRows = all; def.goalVisibleRows = count; def.goalRowsAhead = ahead; }
     }
     return out;
   };
