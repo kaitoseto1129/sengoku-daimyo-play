@@ -4138,6 +4138,13 @@ const hiei_mtn = {
         ? stairsGuideLabel(rt) : roadProgress(rt, '石段の下'));
     } else if (advanceStep === 3) {
       rt.objProgress('main', rallyProgress(rt, P.monjuro, 6, '門の前', '石段を上り、文殊楼の門へ'));
+      // 門脇の弓も突破の条件に含まれる。前の守りが崩れたら門前へ出し、
+      // 道の外の射手を探して立ち尽くす隠れた全滅条件にしない。
+      if (!F.monjuSortie && near(u, P.monjuro, 12) && gone(F.monjuG) && !gone(F.monjuBow)) {
+        F.monjuSortie = true;
+        walk(F.monjuBow, [[-16, -8], [-9, -6]], 2.4, (q) => attackFrom(q, 16));
+        rt.say('文殊楼の僧兵頭', '弓の衆も門前へ出よ！　石段を守れ！', 3);
+      }
       // 門前の十メートルが空いただけでは、離れた弓や打って出た守りを破った事にしない。
       const gateCleared = [F.monjuG, F.monjuBow, F.remG].every(gone);
       if (gateCleared && near(u, P.monjuro, 6) && arrived(F.akechi, P.monjuro, 10) && guardedRoad(rt, P.monjuro)) this.p4(rt);
@@ -4175,7 +4182,7 @@ const hiei_mtn = {
         // その隊が中堂前へ打って出た場合も、本道の残敵は guardedRoad で確かめる。
         // 廻廊に残った弓で通しが止まる時は、中庭へ打って出させる。
         // 時間だけで敗走・達成にせず、本人の命中と守りの敗退を最後まで確かめる。
-        const courtLate = rt.t - F.courtT > 90 && near(u, P.court, 20);
+        const courtLate = near(u, P.court, 20) && (gone(F.chudoG) || rt.t - F.courtT > 8);
         if (courtLate && !F.courtSortie) {
           F.courtSortie = true;
           if (!gone(F.courtBow)) walk(F.courtBow, [[-36, -7], [-36, -5]], 2.4, (q) => attackFrom(q, 16));
