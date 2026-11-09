@@ -142,7 +142,8 @@ function perch(g, x, y, z, f) {
 import DEPTH_K08 from './k08/depth.js';   // 軍勢の厚み・陣立ての表（army_depth）
 const k08_osaka_kizu = {
   depth: DEPTH_K08,
-  lethal: true,   // 命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
+  lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 見回り 徳川D：既定の強さでは砦の内で bot が倒れた。命懸けの戦場（lethal.js）：流れ弾・突然の負傷と討死・制圧・恐怖・孤立
+  foeHit: 0.8,   // 11/9 見回り 徳川D：砦の内と奥で鉄砲・弓を三方から浴び、bot が二度とも倒れた（今福は 0.9）
   resumeSteps: 5,   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを stage1〜5 を順に流して作り直す
   // 身の回りの合戦の跡（timeslip_field.js）。木津川口：十一月半ば（今の十二月）の夜の湿地。枯れ葦・ぬかるみ・暗い土
   // 抜け駆けの夜襲の始まりで、まだ誰も戦っていない。倒れた槍・陣笠・矢は撒かない（debris・arrows 0）
@@ -487,6 +488,8 @@ const k08_osaka_kizu = {
     F.step = 4; F.tS = rt.t;
     rt.award((t) => t.side.push('砦の内の明石の守兵を討った'), '砦の守兵を討った');
     rt.unmark('k08');
+    // 砦の内を払った後の一息で傷を縛る（共通の段の合間の手当てと同じ。11/9 見回り 徳川D：③の傷を負ったまま④の北の口で侍に囲まれ倒れた）
+    rt.player.treatWounds?.(0.5);
     for (const g of [F.front, F.w1, ...F.s3, F.oku]) flee(g);
     // 北の口の扉を内から開けて守兵が打って出る（それまで北の口は閉じている）
     if (F.ngate) { F.ngate.hp = 0; F.ngate.alive = false; F.ngate.opened = true; F.ngateMesh.userData.open?.(); }

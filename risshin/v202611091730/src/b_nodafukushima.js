@@ -625,11 +625,12 @@ function retreatColumn(g, to) {
 }
 // 一揆の門徒：具足は軽く、鉢巻に、南無阿弥陀仏の旗
 const IKKO = { armor: 0x3a342c, lace: 0x5a5040, cloth: 0x4a4236, skin: 0xc49b78, hat: 'jingasa', flag: 'namu' };
+const NODA_UNIT_LIMIT = 250;
 // 11/6（kaito 九2）：新手を出す前に、砦の奥（堤から見えない北の岸の内）の名の無い三好の兵を退かせて枠を空ける。
 function makeRoom(rt, need) {
-  let room = 225;
+  let room = NODA_UNIT_LIMIT;
   for (const u of rt.army.units) if (u.alive && !u.isStruct && !u.farSim && u.type !== 'dummy') room--;
-  if (room >= need) return;
+  if (room >= need) return room;
   const p = rt.player.u.pos, keep = new Set([rt.flags.fortGun]);
   for (const u of rt.army.units) {
     if (room >= need) break;
@@ -646,10 +647,11 @@ function makeRoom(rt, need) {
         Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 70) continue;
     rt.army.despawn(u); room++;
   }
+  return room;
 }
 function cappedList(rt, list) {
-  // 11/9 見回り（織田C）：二巡で武将の旗本（各十五人）が増え、始まりから 246 人で 225 の枠が尽き、葦の鉄砲・夜の寄せが一人も出なかった。枠を 258 へ。
-  let room = 258; // 新手を出す時だけ数え、味方の追いつく分を空ける。
+  // 枠を空ける処理と同じ上限で数え、増援のたびに兵を増やし過ぎない。
+  let room = NODA_UNIT_LIMIT;
   for (const u of rt.army.units) if (u.alive && !u.isStruct && !u.farSim && u.type !== 'dummy') room--;
   return list.map((q) => { const n = Math.max(0, Math.min(q.n, room)); room -= n; return { ...q, n }; });
 }
@@ -3534,7 +3536,7 @@ const nodafukushima = {
     };
     // 15分の構成：始まりの段（葦の水路の物見）を挟んでから前田の下知（nodafukushima/suiro.js）
     if (rt.G.lord) ready();
-    else SUIRO.install(rt, { enemyGroup, dress, foe: MIYOSHI, ready });
+    else SUIRO.install(rt, { enemyGroup, makeRoom, dress, foe: MIYOSHI, ready });
     // 砦との撃ち合いの音（遠くで絶えず）
     F.shotT = 3;
     F.shotPos = { x: 0, z: 0 };
@@ -3812,10 +3814,12 @@ const nodafukushima = {
     // 塊の並び：先の三組は東の畦に横並び（中・右翼・後ろの鉄砲）、後詰めの二組はその後ろ。
     // 11/6：寄せ道は堤の東の裾（z が -2 より北）。南の畦（z 8〜13）は信長の旗本（40, 17）の前を通り、堤へ着く前に溶けていた。
     const [x, z] = [[30, -3], [34, -6], [38, -9], [48, -4], [52, -8]][i];
-    makeRoom(rt, [14, 14, 13, 14, 12][i]);
+    const waveList = dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: [12, 12, 8, 12, 10][i] }, { type: 'gun', n: i === 0 ? 1 : i === 2 ? 4 : 2 }], IKKO);
+    const waveNeed = waveList.reduce((n, q) => n + q.n, 0);
+    if (makeRoom(rt, waveNeed) < waveNeed) { rt.after(8, () => this.wave(rt, i)); return; }
     const g = enemyGroup(rt, { faction: 'honganji', name: ['一揆勢', '一揆勢の新手', '鉄砲を持った門徒', '堤へ寄せる門徒', '畦道の門徒'][i], anchor: { x, z }, facing: Math.atan2(6 - x, LEVEE_Z - z), aggro: 16, seekRange: 45, width: 10, yariRanks: 3, morale: 100, noRout: true, fleeDir: { x: 0.6, z: 0.8 }, formation: i === 2 ? 'line' : 'yari', arriveCount: 3, arriveRadius: 6 },
       // 一度に出る近い列を十〜十三人に抑える。大群の遠景と五度の寄せは保つ。
-      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: [12, 12, 8, 12, 10][i] }, { type: 'gun', n: i === 0 ? 1 : i === 2 ? 4 : 2 }], IKKO));
+      waveList);
     // 先陣は川の南の畦をそのまま進む。遠景用の遠い入口へ戻る道順と、途中の後列待ちは作らない。
     // 堤で待つ本人の槍が届く所まで寄せ、先頭三人の到着で斬り合いへ移る。
     // 11/6（kaito 九2・一3）：門徒は春日井堤の持ち場（本人と前田の槍の列）まで脇目を振らずに寄せ、着いてから斬り合う。
