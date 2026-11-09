@@ -102,7 +102,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["山県昌景", "suji", "moon", 0x8e1f16, 0xb8342a, "okegawa", 0x7a1a12, 0x8e1f16, "takeda", ""],
   // 馬場・内藤・高坂の所用具足は未確認。武田の家紋は保ち、立物と威の色は見分けるための復元案。
   ["馬場信春", "suji", "sun", 0x1c1a1a, 0x2a3a5a, "okegawa", 0x2e3a52, 0x1c1a1a, "takeda", ""],
-  ["内藤昌豊", "suji", "kuwa_wide", 0x2a2420, 0x7a2a1c, "sugake", 0x4a3a22, 0x2a2420, "takeda", ""],
+  // 本人所用品は未確認。建勲神社の十六世紀の胴丸を型だけ借りる（本人の調べ書き参照）。
+  ["内藤昌豊", "suji", "kuwa", 0x1c1a1a, 0x2e4468, "kebiki", 0, 0, "none", ""],
   ["高坂昌信", "suji", "horn", 0x1c1a1a, 0x9a2e20, "sugake", 0, 0x1c1a1a, "takeda", ""],
   // 真田兄弟の十字・月の立物は未確認。六文銭を使い、主家の武田菱を個人紋にしない復元。
   // 上田市： https://www.city.ueda.nagano.jp/uploaded/attachment/12750.pdf
@@ -357,8 +358,8 @@ for (const [name, bowl, crest, armor, lace, doStyle, haori, menpo, mon, ref] of 
   ["氏家直昌", "suji", "none", 0x1c1a1a, 0xb0a890, "kebiki", 0x2e3a42, 0, "oda", ""],
   ["真田幸隆", "eboshi", "kuwa_wide", 0x1c1a1a, 0x9a2e20, "okegawa", 0x2e3a42, 0x1c1a1a, "takeda", ""],
   ["柿崎景家", "momonari", "moon", 0x1c1a1a, 0x2a3a5a, "kebiki", 0x4a2a5a, 0x1c1a1a, "uesugi", ""],
-  // 久政の所用具足は未確認。長政と見分ける朽葉の威の復元案。
-  ["浅井久政", "suji", "moon", 0x2e2a26, 0x8a6a2a, "okegawa", 0x4a3a22, 0x2e2a26, "azai", ""],
+  // 久政所用は未確認。室町末の黒漆・紺糸毛引威胴丸による復元。家紋は持明院の寿像の交差した櫂。
+  ["浅井久政", "suji", "none", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "hisamasa_kai", ""],
   ["磯野員昌", "suji", "none", 0x2a1c18, 0x7a5a2a, "okegawa", 0x1f2a44, 0x2a1c18, "azai", ""],
   // 本人所用は未確認。室町末の紺糸威胴丸を型とする復元案。細部は必須表、出所は本人の調べ書き。
   ["遠藤直経", "suji", "kuwa", 0x1c1a1a, 0x232c40, "kebiki", 0, 0, "none", "https://www.kyohaku.go.jp/jp/collection/meihin/kin/item07/"],
@@ -738,7 +739,7 @@ const ARMOR_RESEARCH_1 = {
   "黒田官兵衛": { lace: 0x1a1a1a, odo: 0x1a1a1a, suneateColor: 0x151312 },
   "山県昌景": { crest: "none", lace: 0xb02a1c, odo: 0xb02a1c, kusazuriColor: 0x8e1f16, suneateColor: 0x8e1f16, suneateCloth: 0x8e1f16 },
   "馬場信春": { crest: "none", lace: 0x3a2a1e, odo: 0x3a2a1e },
-  "内藤昌豊": { crest: "none", lace: 0x6a4026, odo: 0x6a4026 },
+  "内藤昌豊": { crest: "kuwa", lace: 0x2e4468, odo: 0x2e4468 }, // 同時代の型による復元。必須表と揃える。
 };
 for (const [n, v] of Object.entries(ARMOR_RESEARCH_1)) if (KACCHU[n]) Object.assign(KACCHU[n], v);
 // 二つ目の十人

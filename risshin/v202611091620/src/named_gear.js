@@ -312,6 +312,9 @@ NAMED_GEAR['土屋昌恒'].swordHand = 'right';
 
 // 旗印（隊の旗持ちが掲げる。textures.js の紋の種類）と馬印（units_flags.js の umaGeometry：fan 金扇・gourd 瓢箪・sun 日輪）。
 // 布と形は家の旗・馬印と同じ物を使い回す。馬印は本人でなく隊の徒が背負う。
+// 内藤の白地胴赤は旗印の伝承による復元。御幣の采配を金幣馬印へ読み替えない。
+// 個人馬印は未確認。出所と補完：docs/generals_look_1108/内藤昌豊.md。
+NAMED_GEAR['内藤昌豊'] = { ...NAMED_GEAR['内藤昌豊'], flag: '内藤の胴赤', uma: null, campUma: null };
 // 遠藤の個人旗・馬印は未確認。浅井方の所属旗だけを共用する（本人の調べ書き）。
 NAMED_GEAR['遠藤直経'] = { ...NAMED_GEAR['遠藤直経'], flag: 'azai', uma: null, campUma: null };
 // 孫一の八咫烏は地域の旗印伝承による復元。個人馬印は未確認なので隊にも陣所にも補わない。
@@ -411,7 +414,7 @@ for (const [name, flag, uma] of [
   ['酒井忠次', 'katabami', ''],
   ['奥平信昌', 'okudaira', ''],
   ['浅井長政', 'azai', ''],
-  ['浅井久政', 'azai', ''],       // 固有の馬印は確証がないため補わない
+  ['浅井久政', 'sashi:hisamasa_kai:#ece6d6:#201f1c', ''], // 寿像の交差した櫂を旗へ移す復元。実旗の染め色は未詳
   ['赤尾清綱', 'azai', ''],       // 小谷では浅井方の旗を使う復元
   ['朝倉義景', 'asakura', ''],
   ['詫美越後守', 'asakura', ''],             // 朝倉勢の所属旗。個人の旗印・馬印は未確認
@@ -425,6 +428,10 @@ for (const [name, flag, uma] of [
   ['島津義弘', 'shimazu', ''],
   ['水野勝成', 'mizuno', ''],
 ]) NAMED_GEAR[name] = { ...(NAMED_GEAR[name] || {}), flag: flag || undefined, uma: uma || undefined };
+
+// 小谷の久政。固有の馬印は未確認で、隊にも陣所にも他家の物を補わない。
+// 出所と推定範囲：docs/generals_look_1108/浅井久政.md。
+NAMED_GEAR['浅井久政'] = { ...NAMED_GEAR['浅井久政'], uma: null, campUma: null };
 
 // 設楽原の真田隊。六連銭は所属表示の復元で、当日の実旗の断定ではない。
 // 個人の馬印は未確認。信繁や昌幸の馬印を流用しない。出所：docs/generals_look_1108/真田信綱.md。

@@ -649,8 +649,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
         if (target) { F.fightT = rt.t; break; }
       }
-      // 七十秒は戦いを見せるが、敵を全て討った後は空の坂で待たせない。
-      if ((sallyN === 0 && rt.t - F.stageT > 60) || (rt.t - F.stageT > 120 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
+      // 敵が残る間は戦いを見せ、全て討った後は空の坂で待たせない。
+      if (sallyN === 0 || (rt.t - F.stageT > 120 && (sallyN <= sally0 * 0.6 || (boss && !boss.alive) || (F.fightT && rt.t - F.fightT > 25)))) this.go(rt, 3);
     } else if (F.stage === 3) {
       const st = this.gateStruct(rt);
       const gateUp = st && st.alive;
@@ -705,9 +705,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.honT = inHon && left <= 4 ? F.honT + dt : Math.max(0, F.honT - dt * 0.5);
       // 旗本が討ち減らされると、熊井は馬を寄せて自ら斬って出る（本丸で討死した伝え。奥に籠って待たせない）
       // 旗本を割って届けば最初から討てる。旗本が減るか百秒で自ら斬って出る。
-      if (!F.lastStand && ((F.honT >= 4 && rt.t - F.stageT > 90) || rt.t - F.stageT > 170)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
-      // 本丸に入って九十秒は、熊井は旗本の奥で討たれない（三巡 11/9：入って一分で討ち取り、落城まで七分だった）
-      if (boss && boss.alive) boss.invuln = !F.lastStand && rt.t - F.stageT < 90;
+      if (!F.lastStand && (F.honT >= 4 || rt.t - F.stageT > 100)) { F.lastStand = true; F.hon.aggro = 40; rt.say('熊井越中守', '秋月の城、ただでは渡さぬ！', 3); }
+      // 旗本を割って届けば最初から討てる。戦の長さのために傷を無効にしない。
       if (boss && !boss.alive) this.win(rt);
     }
   },

@@ -29,7 +29,7 @@ export const GENERALS = {
     face: { w: 1.06, jaw: 1.35, chin: 0.8, cheek: 1.3, gaunt: 0.5, brow: 1.4, nose: 0.8, nw: 1.3, eye: 1.25, t: 5, hair: 0x1e1812, browT: 1.4, age: 46, esp: 0.94, beard: { mus: 1, musW: 1.05, musH: 1.2, droop: 0.5, goat: 0.85, goatW: 1.1, side: 0.6, stub: 1.3 } } },
   '馬場信春': { armor: 0x1c1a1a, lace: 0x2a3a5a, hat: 'kabuto_w', haori: 0x2e3a52, horo: 0, mon: 'takeda', skin: 0xa87f5c,
     face: { w: 0.96, jaw: 0.9, chin: 1.0, cheek: 1.4, gaunt: 1.2, brow: 1.3, nose: 1.1, nw: 1.0, eye: 1.3, t: 7, hair: 0x9a948a, browT: 1.2, age: 60, esp: 1.04, beard: { mus: 0.75, musW: 0.95, droop: 0.7, goat: 0.8, goatW: 0.8, side: 0.35, stub: 0.9 } } },
-  '内藤昌豊': { armor: 0x2a2420, lace: 0x7a2a1c, hat: 'kabuto_m', haori: 0x4a3a22, horo: 0, mon: 'takeda', skin: 0xa87f5c,
+  '内藤昌豊': { armor: 0x1c1a1a, lace: 0x2e4468, hat: 'kabuto_m', haori: 0, horo: 0, mon: 'none', skin: 0xa87f5c,
     face: { w: 1.02, jaw: 1.1, chin: 0.9, cheek: 1.2, gaunt: 0.8, brow: 1.2, nose: 1.0, nw: 1.1, eye: 1.2, t: 6, hair: 0x4a4640, age: 53, esp: 1.0, beard: { mus: 0.7, musW: 0.9, droop: 0.5, goat: 0.6, goatW: 0.9, side: 0.15, stub: 0.9 } } },
   '真田信綱': { armor: 0x1c1a1a, lace: 0x9a2e20, hat: 'kabuto_f', haori: 0x3a2622, horo: 0, mon: 'takeda', skin: 0xb08664,
     face: { w: 0.97, jaw: 1.0, chin: 1.1, cheek: 1.15, gaunt: 0.7, brow: 1.15, nose: 1.1, nw: 0.95, eye: 1.05, t: 4, hair: 0x15110d, age: 38, esp: 1.02, beard: { mus: 0.55, musW: 0.8, musH: 0.8, droop: 0.3, goat: 0.35, goatW: 0.7, side: 0, stub: 0.8 } } },
