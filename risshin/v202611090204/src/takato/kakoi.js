@@ -41,7 +41,7 @@ function start(rt, done) {
     [2, () => rt.say('森長可', `${nm(rt)}、物見の土手へ上がれ。城の様子を見よ`, 4)],
   ], () => k15Go(rt, 'tk-look', look, 6, '物見の土手から、高遠城を見よ', '物見の土手', () => {
     // 物見に着いたら：城の全景と、城から戻る使いの僧
-    rt.player.yaw = rt.player.u.heading = -Math.PI / 2;
+    // 着いても手動で見回している向きは変えない。
     rt.banner('高遠城', '三峰川と藤沢川に挟まれた崖の上。大手の門は東');
     rt.award((t) => t.side.push('寄せの前に城を見た'), '寄せの前に城を見た');
     const monk = evPerson(rt, 0, '使いの僧', { x: 100, z: 0 }, Math.PI / 2, { calm: true, type: 'ashigaru' });
