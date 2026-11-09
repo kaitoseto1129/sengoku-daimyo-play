@@ -553,20 +553,18 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   hanawaFalls(rt) {
     const F = rt.flags;
     if (F.hanaDown || !F.hanaByMe || F.step !== 5) return;
-    F.hanaDown = true;
+    F.hanaDown = true; F.hanaDownT = rt.t;
     if (!F.hanaBanner) rt.banner(F.hanaByMe ? '塙団右衛門、討ち取ったり' : '塙団右衛門、討ち死に');
     if (F.hanaByMe) rt.award((t) => { t.special = { label: '塙団右衛門を討ち取った', pts: 32 }; }, '塙団右衛門を討ち取った');
     for (const g of [F.hata, F.hana, F.awa]) if (live(g)) { g.noRout = false; g.morale = Math.min(g.morale, 15); }
     // 淡輪重政は団右衛門の死を見て敵中へ斬り込み、永田治兵衛に首を取られた（史実の順。それまでは討たれない）。
-    //   目標が全部済むと数秒で締まるので、その間に収める
+    //   討死と勝ちは固定の秒数で先取りせず、村で浅野勢と槍を合わせてから締める。
     const awa = F.awaU;
     if (awa?.alive) {
       awa.noTarget = false; awa.mustLive = false; awa.invuln = false;
       if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.seekRange = 40; F.awaG.aggro = 16; F.awaG.speed = 4.6; }
       rt.after(0.4, () => { if (awa.alive) rt.say('淡輪重政', '団右衛門殿が果てたか。六郎兵衛も続くぞ！', 2); });
-      rt.after(1.9, () => { if (awa.alive) { awa.hp = 0; rt.army.kill(awa, null); } });
     } else rt.after(1.2, () => rt.say('浅野の侍', '団右衛門、討ち取ったり！', 2.6));
-    rt.after(2.6, () => this.win(rt));
   },
 
   win(rt) {
@@ -625,6 +623,17 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       for (const g of F.foes) for (const u of g.units) if (u.alive && !u.gone && (u.fleeing || g.order === 'retreat') && (u.pos.z < -170 || u.pos.x > 140) && dist(u.pos, P.pos) > 70) rt.army.despawn(u);
     }
     if (F.hanaU && !F.hanaU.alive && !F.hanaDown) this.hanawaFalls(rt);
+    if (F.hanaDown) {
+      const awa = F.awaU;
+      // 北の口から辻までは三十歩余り。斬り込む前に倒さず、敵と接した後に永田の槍で討たせる。
+      if (awa?.alive) {
+        if (F.awaContactT == null && dist(awa.pos, VILLAGE) < 20 &&
+            rt.army.nearestEnemy(awa, 6, (u) => !u.gone && !u.fleeing && !u.noTarget)) F.awaContactT = rt.t;
+        if (F.awaContactT != null && rt.t - F.awaContactT >= 1.9) { awa.hp = 0; rt.army.kill(awa, null); }
+      }
+      if (!awa?.alive && rt.t - F.hanaDownT >= 2.6) this.win(rt);
+      return;
+    }
     if (F.step === 1) {
       const k = F.w1S - sumN(F.hana1, F.oka1), need = Math.round(F.w1N * 0.5);
       rt.objProgress('s1', `塙・岡部の先手 ${Math.min(k, need)}／${need}人`);

@@ -96,7 +96,11 @@ export const foeKnot = (n = 9, kit = TOKU) => dressT([{ type: 'ashigaru', n: Mat
   { type: 'gun', n: Math.max(1, Math.floor(n * 0.15)) }, { type: 'samurai', n: Math.max(1, n - Math.ceil(n * 0.5) - Math.floor(n * 0.2) - Math.max(1, Math.floor(n * 0.15))) }], kit);
 export const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 export const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone ? 1 : 0), 0) : 0);
-const drivenOffGroup = (g, total) => !live(g) || g.routed || aliveN(g) <= total * 0.35;
+const drivenOffGroup = (g, total) => !live(g) || g.routed || g.order === 'retreat' || aliveN(g) <= total * 0.35;
+function retreatGunLine(g, total) {
+  if (!live(g) || g.order === 'retreat' || !drivenOffGroup(g, total)) return;
+  g.order = 'retreat'; g.dest = { x: g.center().x, z: ZS + 20 };
+}
 // 本物の兵の数（壁の外の本陣は、描く数がほぼ要らないので数えない）
 export const aliveReal = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && !u.isStruct && u.type !== 'porter' && !u.group?.honjin ? 1 : 0), 0);
 export const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -459,6 +463,9 @@ const t03_komaki = {
         F.guns2N = aliveN(F.guns2);
         rt.say('物見', '奥にもう一列！　鉄砲が並び直したぞ', 2.6);
       }
+      // 討ち減らされた列は実際に小牧山へ退く。達成まで残兵を田で戦わせ続けない。
+      retreatGunLine(F.guns, F.gunsN);
+      retreatGunLine(F.guns2, F.guns2N);
       // 前の列だけ崩しても、健在な二の列を残して達成にはしない。
       const drivenOff = F.guns2 && drivenOffGroup(F.guns, F.gunsN) && drivenOffGroup(F.guns2, F.guns2N);
       if (dist(P.pos, FIELD) < 45 && el > 60 && drivenOff) this.stage(rt, 4);
@@ -491,7 +498,7 @@ const t03_komaki = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.stage || F.ending) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => !o.fleeing && o.group?.order !== 'retreat' && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
     const e = [1, 4, 5, 7].includes(F.stage) ? null : b.army.nearestEnemy(u, 10, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -533,13 +540,13 @@ function countFallen(rt) {
 // 両軍の人数：楽田の羽柴方およそ十万・小牧山の徳川・信雄方およそ三万。本物の一人を二十人に見立てて討死を引く。
 //   ⑥からは中入りの二万（池田・森・堀・秀次）とそれを追う徳川の数
 t03_komaki.force = (rt) => {
-  if (!rt?.flags || !rt.army) return { a: 100000, a0: 100000, b: 30000, b0: 30000 };
+  if (!rt?.flags || !rt.army) return { a: 100000, a0: 100000, b: 30000, b0: 30000, casualtiesCounted: true };
   const F = rt.flags;
   countFallen(rt);
   const [allyDead, dead] = F.fallen;
   // 砦を守った手の討死を、新たに出る中入りの二万から重ねて引かない。
-  if ((F.stage || 0) >= 6) return { a: Math.max(0, 20000 - (allyDead - (F.departAllyDead0 || 0)) * 20), a0: 20000, b: Math.max(0, 30000 - dead * 20), b0: 30000 };
-  return { a: Math.max(0, 100000 - allyDead * 20), a0: 100000, b: Math.max(0, 30000 - dead * 20), b0: 30000 };
+  if ((F.stage || 0) >= 6) return { a: Math.max(0, 20000 - (allyDead - (F.departAllyDead0 || 0)) * 20), a0: 20000, b: Math.max(0, 30000 - dead * 20), b0: 30000, casualtiesCounted: true };
+  return { a: Math.max(0, 100000 - allyDead * 20), a0: 100000, b: Math.max(0, 30000 - dead * 20), b0: 30000, casualtiesCounted: true };
 };
 t03_komaki.date = (rt) => {
   const s = rt?.flags?.stage || 0;

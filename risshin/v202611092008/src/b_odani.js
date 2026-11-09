@@ -4468,16 +4468,22 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], AZAI));
     // 11/6 fix61（kaito BR「虎口の外に弓兵がいる」・十3）：弓は門兵に混ぜず、曲輪の内の守りに置く（門の槍が打って出ても弓は塀の内に残る）
     F.kyo = enemyGroup(rt, { faction: 'azai', name: '京極丸の守り', fixed: true, anchor: { x: KC.x + 3, z: KC.z }, facing: -Math.PI / 2, width: 5, aggro: 9, morale: 95, fleeDir: { x: 0, z: 1 }, formation: 'yari' },
-      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }, { type: 'bow', n: 2 }, { type: 'gun', n: 2 }], AZAI));   // 11/8 critic60：登る間の鉄砲の煙（塀の内から撃ち下ろす）
+      dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], AZAI));
+    // 門兵が退いた後も射手へ突撃を命じない。人数は分ける前と同じ八人。
+    F.kyoShooters = enemyGroup(rt, { faction: 'azai', name: '京極丸の射手', fixed: true,
+      anchor: { x: KC.x + 3, z: KC.z - 3 }, facing: -Math.PI / 2, width: 4,
+      formation: 'line', aggro: 9, morale: 95, stay: true, fleeDir: { x: 0, z: 1 } },
+      dress([{ type: 'bow', n: 2 }, { type: 'gun', n: 2 }], AZAI));
+    F.kyoShooters.historicalOrders = true;
     // 11/6 fixc2103（critic60「京極丸の中の敵が一列に立つ」）：十八人を一列に並べず五人幅の固まりにする（寄せに向かう間合いは前のまま）。
-    F.kyoGate.dmgMult = F.kyo.dmgMult = .8;   // 夜の奇襲で、京極丸の守りは備えが薄い
+    F.kyoGate.dmgMult = F.kyo.dmgMult = F.kyoShooters.dmgMult = .8;   // 夜の奇襲で、京極丸の守りは備えが薄い
     F.ono = enemyGroup(rt, { faction: 'azai', name: '大野木屋敷の守り', fixed: true, formation: 'yari', anchor: { x: ONOGI.x, z: ONOGI.z + 3 }, facing: Math.PI, width: 9, aggro: 12, morale: 90, fleeDir: { x: 0.5, z: 1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 4 }, { type: 'bow', n: 1 }], AZAI));
     // 目標と同じ順で、谷の番兵 → 大野木屋敷 → 京極丸。屋敷の守りを京極丸の陥落まで待機させない。
     F.stages = siegeStages(rt, [
       { groups: [F.yakata, F.watch, F.patrol], at: BELOW, done: () => F.step > 1 },
       { groups: [F.ono], at: ONOGI, done: () => F.onoDone },
-      { groups: [F.kyoGate, F.kyo], at: KC, done: () => F.step > 2, report: '京極丸の西の口、まだ破れず！', reportAfter: 80 },
+      { groups: [F.kyoGate, F.kyo, F.kyoShooters], at: KC, done: () => F.step > 2, report: '京極丸の西の口、まだ破れず！', reportAfter: 80 },
     ], { runner: '使番' });
     F.relief = rt.army.addGroup({ team: 1, faction: 'azai', name: '屋敷から押す小隊', order: 'hold',
       anchor: { ...F.onoHouse.doorOut }, formation: 'column', width: 3, morale: 80, aggro: 8 });
@@ -4539,7 +4545,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     F.counter = [F.south, F.north];
     F.komaGuards = [F.koma, F.sanno];
     F.captureT = 0; F.holdT = 0; F.awayT = 0;
-    F.kyoGuards = [F.kyoGate, F.kyo, F.kyoAid];
+    F.kyoGuards = [F.kyoGate, F.kyo, F.kyoShooters, F.kyoAid];
     // 身分だけで深手への耐久を増やさない。甲冑・武器と史実の致死保護は別に保つ。
     for (const u of rt.army.units) mortalBody(u);
     stampBuild('周りの砦と実兵');
@@ -5585,7 +5591,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       // 虎口の折れに入った瞬間、横矢の弓・隠し銃座の鉄砲・門内の槍が一斉に本人の列へ向く（城そのものが狙う）。字は出さない。
       if (!F.koguchiHit && F.onoDone && !outerOpen && Math.hypot(p.x - GATE_WEST.x, p.z - GATE_WEST.z) < 11) {
         F.koguchiHit = true;
-        const shooters = [...(F.yokoya || []).map((y) => y.g), ...(F.nests || []).map((n) => n.g), F.kyo, F.kyoGate];
+        const shooters = [...(F.yokoya || []).map((y) => y.g), ...(F.nests || []).map((n) => n.g), F.kyoShooters, F.kyoGate];
         for (const g of shooters) if (!gone(g)) for (const u of g.units) if (battleReady(u) && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 26) { u.target = rt.player.u; u.aiT = 0; }
         rt.army.play('eshout', { x: GATE_WEST.x + 4, z: GATE_WEST.z }, 1);
         F.stoneAt = rt.t + .4;   // 上からの石もすぐに来る

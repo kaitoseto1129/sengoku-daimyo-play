@@ -220,11 +220,10 @@ function fordStakes(W) {
   return g;
 }
 
-// 11/9 徳川C（見回り）：本人が段の場の r の内へ着けない（川の深み・柵の外）と、段が十八分の打ち切りまで止まった（bot 中学生）。
-//   五分過ぎたら味方の備の働きで段が済んだとみなして先へ進める（一番外側に掛ける。mine・yoneno の待ちより後に見る）
-function lateK02(step, sec = 300) { const t = step.tick; step.tick = (rt, C, m, ctx, el, dt) => t(rt, C, m, ctx, el, dt) || el > sec; return step; }
+// 道の詰まりは経路側で直す。経過時間で本人の到着や一騎打ちを省略しない。
 function mine(step, r, inside) {
   step.idleAdvance = false; step.max = 1e9;
+  step.noHardCap = true; step.limit = Infinity;   // 共通の四分・七分の時間送りも使わない
   if (r) { const t = step.tick; step.tick = (rt, C, ...a) => { const ok = t(rt, C, ...a), p = rt.player.u.pos; return ok && (inside ? inside(p) : Math.hypot(p.x - C.at.x, p.z - C.at.z) < r); }; }
   return step;
 }
@@ -441,7 +440,7 @@ const k02_kawada = {
         foes: () => [keep('新加納の鉄砲組', { x: SHINKANO.x, z: SHINKANO.z + 4 }, [{ type: 'samurai', n: 2 }, { type: 'gun', n: 10 }, { type: 'ashigaru', n: 6 }], { morale: 94 }),
           keep('新加納の殿', { x: SHINKANO.x, z: SHINKANO.z - 6 }, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 10 }], { morale: 96 })],
         reward: '新加納の砦を破り、岐阜へ追い込んだ' }), 30, inFort),
-    ].map((st) => st.kind === 'fight' || st.kind === 'move' ? lateK02(st) : st), (rt2) => this.win(rt2));
+    ], (rt2) => this.win(rt2));
   },
 
   win(rt) {
