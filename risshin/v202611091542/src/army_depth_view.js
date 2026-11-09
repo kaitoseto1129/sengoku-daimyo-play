@@ -33,6 +33,13 @@ export function depthSetup(rt, plan) {
   const V = { plan, A: makeDepthArmy({ ...plan.A, team: plan.A.team ?? 0 }), B: plan.B ? makeDepthArmy({ ...plan.B, team: plan.B.team ?? 1 }) : null,
     vis: new Map(), flags: [], honjin: [], couriers: [], dust: [], t: 0, left: BUDGET, bigLeft: BIG_FLAGS };
   const lf = W.lastFocus; W.lastFocus = rt.def.spawn ? { x: rt.def.spawn.x, z: rt.def.spawn.z } : lf;
+  // plan.byMen：布陣図どおりの兵数の比で軽い兵を配る（kaito 11/9「布陣図通りの兵数」docs/fujin_all_1109.md）。
+  //   両軍の描く備の名目の兵数を足し、予算に収まる一人あたりの数で割る。三万の本陣と二千の備が 15:1 に見える。書かない戦は今のまま。
+  if (plan.byMen) {
+    let tot = 0;
+    for (const D of [V.A, V.B]) if (D) for (const s of D.sonae) if (s.o.show !== false && !s.o.bind) tot += Math.max(0, s.men);
+    V.menK = tot > 0 ? Math.min(1 / 40, BUDGET * 0.92 / tot) : 0;
+  }
   try {
     for (const D of [V.A, V.B]) if (D) buildSide(rt, V, D);
   } finally { W.lastFocus = lf; }
@@ -46,10 +53,10 @@ function buildSide(rt, V, D) {
   const order = D.sonae.slice().sort((a, b) => layerRank(a) - layerRank(b));
   for (const s of order) {
     if (s.o.show === false || s.o.bind) continue;
-    const want = Math.min(160, s.show.mid + s.show.far >> (s.layer === 'konida' ? 2 : 0));
+    const want = V.menK ? Math.max(12, Math.min(480, Math.round(s.men * V.menK))) : Math.min(160, s.show.mid + s.show.far >> (s.layer === 'konida' ? 2 : 0));
     const n = Math.min(want, V.left);
     const kind = s.layer === 'honjin' ? 'honjin' : s.layer === 'hatamoto' || s.roles.騎馬 > s.men * 0.3 ? 'cavalry' : 'mixed';
-    const wide = Math.max(10, Math.min(46, Math.sqrt(s.men) * 1.4 * 4 / D.mpu + 8)), deep = Math.max(6, wide * 0.35);
+    const wide = V.menK ? Math.max(10, Math.min(110, Math.sqrt(n) * 3.4)) : Math.max(10, Math.min(46, Math.sqrt(s.men) * 1.4 * 4 / D.mpu + 8)), deep = Math.max(6, wide * 0.35);
     let g = null;
     const wet = W.waterDepthAt?.(s.x, s.z) > 0.25;   // 川・池に備を立てない（考えだけ持つ）
     if (n >= 12 && !wet) {

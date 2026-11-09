@@ -341,6 +341,8 @@ const t08_nejirozaka = {
   nameTagLimit: 12,
   // 猿渡の討死は名のある知らせで伝え、共通の隊崩れの札を重ねない。
   bannerAllowed: (rt, text) => !/隊が崩れた|敵の組頭が討たれた/.test(text),
+  // 布陣図の地名（docs/fujin/t08_nejirozaka.md）
+  introMapPlaces: [{ x: 0, z: -14, name: '根白坂の砦' }, { x: 14, z: -110, name: '羽柴秀長の本陣' }, { x: 4, z: 172, name: '島津の陣' }],
   spawn: { x: -4, z: -30, heading: 0 },
   world: {
     namedKacchu: NEJIROZAKA_MIYABE_KACCHU,
