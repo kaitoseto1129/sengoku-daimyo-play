@@ -1784,6 +1784,8 @@ const tedorigawa = {
   hideMissionDots: true,
   hideGuideSteps: true,
   enemyTriangleSigns: true,
+  // 待機中の追手は、専用の補助印だけでなく共通の頭上の印からも外す。
+  enemySignVisible: (_rt, u) => !u.group?.tedoFrom || !!u.group.tedoActive,
   nearbyAllySignLimit: 0,
   noLeaderFollow: true, // 11/4：印は一つだけ（AL・BH6）。行き先のピンに青い▼を重ねない
   noDodgeCard: true,
@@ -3227,6 +3229,8 @@ const tedorigawa = {
       const p = rt.player.u.pos;
       for (const u of rt.army.units) {
         if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.group?.routed) continue;
+        // 出発前の控えに近づいても、追手が迫った知らせや退く下知を先走らせない。
+        if (!this.enemySignVisible(rt, u)) continue;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
         if (d < 60) { if (u.team === 0) allies++; else if (u.team === 1) foes++; }
         if (u.team === 1 && d < 25) F.nearThreat = true;
