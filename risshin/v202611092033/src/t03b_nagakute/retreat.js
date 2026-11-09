@@ -21,7 +21,8 @@ export function start(rt, K) {
 // 退き切ったか（主人公が細ヶ根に着き、落ち武者も着くか散るか、時が経った）
 export function done(rt, K, atGoal, el) {
   const F = rt.flags;
-  if (!atGoal || el < 110) return false;
+  // 兵の枠が埋まり追手を出せなかった回は、次の出現を待つ。追われずに達成させない。
+  if (!atGoal || el < 110 || !F.pursuit?.length) return false;
   const c = K.live(F.ochi) ? F.ochi.center() : null;
   return !c || Math.hypot(c.x - K.EXIT.x, c.z - K.EXIT.z) < 24 || el > 150;
 }

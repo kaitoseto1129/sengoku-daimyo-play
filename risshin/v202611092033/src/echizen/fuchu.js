@@ -47,8 +47,9 @@ export function tick(rt) {
     return;
   }
   const left = g.units.filter(fighter).length;
-  // その場で待つだけで、残る一揆勢を討った事にしない。
-  if (left > Math.ceil(P.n0 * 0.35)) return;
+  // 戦える兵が一人でも残る間は、札にある追撃を終えない。
+  // 負傷して戦えない兵は、標的と同じ判定で除く。
+  if (left > 0) return;
   P.s = 2;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
