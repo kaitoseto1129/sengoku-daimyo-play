@@ -9,9 +9,9 @@ import { sfx } from '../audio.js';
 
 export const MISSION = '竹束の列で、根来・雑賀の鉄砲衆を野田砦の槍から守れ';
 const POST = { x: -22, z: -20 };    // 竹束の列（堤の下の岸、西寄り）
-const MAX_T = 165;
+const MIN_T = 120;
 
-// ctx：{ enemyGroup, allyGroup, dress, foe, ally, levZ, done() }
+// ctx：{ enemyGroup, makeRoom, allyGroup, dress, foe, ally, levZ, done() }
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.nodaTeppo) return;
@@ -30,10 +30,12 @@ export function start(rt, ctx) {
   rt.after(22, () => { if (!live()) return; rt.say('使番', '本願寺の門徒が鉄砲を担いで、福島砦へ入り申した！', 3.8); try { sfx('bellRapid', 0.35); } catch (e) { /* 音が無くても進む */ } });
   rt.after(30, () => live() && rt.say('雑賀の鉄砲衆', '門徒の鉄砲も加わった！　狭間から撃ちすくめよ！', 3.2));
   rt.after(40, () => sally());
-  rt.after(MAX_T, () => finish());
+  // 期限だけで「守った」にせず、寄せた槍を押し返すまで待つ。
 
   function sally() {
-    if (!live() || S.g) return;
+    if (!live() || S.g || rt.t < (S.spawnAt || 0)) return;
+    S.spawnAt = rt.t + 5;
+    ctx.makeRoom(rt, 14);
     const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '野田砦の三好の槍', anchor: { x: POST.x - 34, z: POST.z - 12 }, facing: Math.PI / 2, aggro: 14, seekRange: 60, width: 12, morale: 90 },
       ctx.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }], ctx.foe));
     if (!g || !g.count) return;
@@ -46,6 +48,7 @@ export function start(rt, ctx) {
   }
   S.tick = (dt) => {
     if (!live()) return;
+    if (!S.g && rt.t - S.t0 >= 40) sally();
     S.fireT -= dt;
     if (S.fireT <= 0) {
       S.fireT = 1.6 + Math.random() * 2.2;
@@ -62,7 +65,7 @@ export function start(rt, ctx) {
         rt.say('雑賀の鉄砲衆', '助かった！　これで心置きなく撃てる！', 3);
       }
     }
-    if (S.k === 2 && rt.t - S.okT > 14 && rt.t - S.t0 > 120) finish();
+    if (S.k === 2 && rt.t - S.okT > 14 && rt.t - S.t0 > MIN_T) finish();
   };
   function finish() {
     if (S.done) return;

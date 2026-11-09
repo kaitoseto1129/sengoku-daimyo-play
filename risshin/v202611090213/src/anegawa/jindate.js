@@ -54,13 +54,15 @@ export function install(rt, ctx) {
 
   function scouts() {
     if (!live() || S.g) return;
+    // 枠の空かない間は空の隊を撃退済みにせず、全員が出られるまで待つ。
+    if (!ctx.canDeploy(11)) { rt.after(1, scouts); return; }
     const x = MI.x + 6, z = ctx.north(x) - 10;
     const g = ctx.enemyGroup(rt, { faction: 'azai', name: '浅井の物見', anchor: { x, z }, facing: 0, fleeDir: ctx.AZAI_FLEE, aggro: 14, width: 10, morale: 70, speed: 3.2 },
       ctx.dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 4 }], ctx.AZAI));
     S.g = g; S.k = 2; S.scoutT = rt.t;
     g.order = 'move'; g.dest = { x: MI.x - 4, z: ctx.south(MI.x) + 3 };
     g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; };
-    rt.marker('aneScout', () => { if (!g.units.some((u) => u.alive)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '浅井の物見', { red: true, group: g });
+    rt.marker('aneScout', () => { if (g.routed || !g.units.some((u) => u.alive && !u.gone && !u.fleeing)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '浅井の物見', { red: true, group: g });
     rt.army.play('eshout', { x, z }, 1.2);
     rt.say('足軽', '浅井の物見が瀬を渡って来るぞ！　鉄砲を持っておる！', 3);
     rt.after(3.5, () => live() && rt.say('森可成', '岸へ上げるな。槍で追い返せ！', 3));
@@ -110,7 +112,7 @@ export function pin(rt, q) {
   if (!S || S.done) return undefined;
   if (S.k === 0) { q.x = S.at.x; q.z = S.at.z; q.r = 6; q.hide = 6; return q; }
   if (S.k === 2 && S.g) {
-    const u = S.g.units.find((v) => v.alive);
+    const u = !S.g.routed && S.g.units.find((v) => v.alive && !v.gone && !v.fleeing);
     if (u) { q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2; return q; }
   }
   return undefined;

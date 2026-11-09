@@ -519,12 +519,20 @@ function itaHei(pile, ax, az, bx, bz, L, h, yA, sama) {
   }
   for (let j = 0; j < m; j++) {
     const t = (j + 0.5) / m, X = ax + (bx - ax) * t, Z = az + (bz - az) * t, y0 = yA(t) - 0.08;
-    pile.addBox('Wood', X, y0 + h / 2, Z, ww + 0.02, h, 0.06, rr);                       // 縦の板の面
+    const slit = sama > 0 && j % Math.max(1, Math.round(sama / ww)) === 0;
+    const sw = j % 2 ? 0.13 : 0.2, sh = j % 2 ? 0.42 : 0.2, sy = y0 + h * 0.5;
+    if (slit) {
+      // 黒い面を貼らず、上下左右の板で狭間を実際に空ける。
+      const sideW = (ww + .02 - sw) / 2, endH = (h - sh) / 2;
+      for (const side of [-1, 1]) {
+        const off = side * (sw + sideW) / 2;
+        pile.addBox('Wood', X + dx * off, sy, Z + dz * off, sideW, h, .06, rr);
+        pile.addBox('Wood', X, sy + side * (sh + endH) / 2, Z, sw, endH, .06, rr);
+      }
+    } else pile.addBox('Wood', X, y0 + h / 2, Z, ww + 0.02, h, 0.06, rr);
     pile.addBox(W, X, y0 + h * 0.62, Z, ww, 0.1, 0.14, rr);                             // 胴縁
     pile.addBox('Wood', X, y0 + h + 0.04, Z, ww + 0.04, 0.08, 0.34, rr);                // 板の笠木
-    if (sama > 0 && (j % Math.max(1, Math.round(sama / ww)) === 0)) for (const sd of [-1, 1]) {
-      const sw = j % 2 ? 0.13 : 0.2, sh = j % 2 ? 0.42 : 0.2, sy = y0 + h * 0.5;
-      pile.addBox('Iron', X - dz * sd * 0.035, sy, Z + dx * sd * 0.035, sw, sh, 0.02, rr);
+    if (slit) for (const sd of [-1, 1]) {
       // 11/8 critic60 小谷 八1：板に黒い ●・▲ を描いただけに見えた。狭間の口に木の枠（上下と左右の框）を付け、板を切り抜いた穴に見せる
       const fx = X - dz * sd * 0.05, fz = Z + dx * sd * 0.05;
       pile.addBox(W, fx, sy + sh / 2 + 0.025, fz, sw + 0.1, 0.05, 0.03, rr); pile.addBox(W, fx, sy - sh / 2 - 0.025, fz, sw + 0.1, 0.05, 0.03, rr);

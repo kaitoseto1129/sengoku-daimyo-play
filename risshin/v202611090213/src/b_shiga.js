@@ -2033,7 +2033,8 @@ const shiga = {
   // 行き先の名と、目の前の案内印までの距離だけを示す。
   distanceText(rt, distance) {
     const F = rt.flags;
-    const place = F.step === 2 ?
+    const M = F.shigaMonomi;
+    const place = M && !M.done && !F.step ? M.k === 0 ? '湖の道の辻' : M.k === 2 ? '朝倉の物見' : '坂本の町口' : F.step === 2 ?
       !F.retreatIdx ? '坂道の入口' : F.retreatIdx < F.retreatPath.length - 3 ? '次の曲がり角' : '大手木戸' :
       F.step < 2 ? '坂本の町口' : F.backed ? '本丸の木戸' : F.backedNi ? '二の丸の木戸' : '大手木戸';
     return `${place} ${Math.ceil(Math.max(0, distance))}m`;

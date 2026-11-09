@@ -5442,11 +5442,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       // 11/6 fixc2103（critic60「番兵との戦の後も60秒①のまま」）：番兵が皆退いたら、本人が登り口から離れていても八秒で①を済ませて攻め上る。
       const guardsGone = guards === 0 && F.patrolWave >= AMBUSH_IDS.length;
       if (guardsGone && F.guardsClearT == null) F.guardsClearT = rt.t;
-      if (d < 16 && releasedGuards === 0 || guardsGone && rt.t - F.guardsClearT >= 8) this.assault(rt);
-      // 10/31：iPhone の bot が登り口で540秒詰まった（実機は一戦が九分を越える）。斜面に残った番兵を待ち続けず、本人が登り口の近くにいれば二分半で先手が取りつく。②〜④の後押しの秒も詰めた
-      else if (rt.t - (F.stepT || 0) >= 105 && rt.player.u.alive && Math.hypot(p.x - BELOW.x, p.z - BELOW.z) < 35) this.assault(rt);
-      // 11/4 jin（AY5）：本人が谷で遅れても、三分たてば羽柴の手は屋敷へ攻めかかる（自分が止まっても戦は進む）。
-      else if (rt.t - (F.stepT || 0) >= 180 && rt.player.u.alive) this.assault(rt);
+      if (!guardsGone) F.guardsClearT = null;
+      // 未出撃の番兵や登り口の守りが残る間は、近さや経過時間だけで①を済ませない。
+      if (guardsGone && (d < 16 || rt.t - F.guardsClearT >= 8)) this.assault(rt);
       else if (updateHud) {
         const order = retShown(rt) ? '来た道の角へ戻れ'
           : F.guideBlocked ? '来た道へ戻る足場を探せ'

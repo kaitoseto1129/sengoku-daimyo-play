@@ -34,6 +34,8 @@ export function start(rt, ctx) {
 
   function endo() {
     if (S.k >= 1 || S.done || rt.over) return;
+    // 空の隊で「遠藤を止めた」と果たさない。七人の枠が空いてから出す。
+    if (!ctx.canDeploy(7)) { rt.after(1, endo); return; }
     S.k = 1; S.endoT = rt.t;
     rt.unmark('aneNomura');
     const p = rt.player.u.pos;
