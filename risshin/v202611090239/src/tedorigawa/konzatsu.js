@@ -3,7 +3,7 @@
 // 史実：折からの雨で手取川は増水し、渡る織田勢は多くが溺れたと伝わる（謙信書状写「数多川へ追い籠め」）。
 // 遊び：①濁流に足を取られた足軽が下流へ流される。水際へ走って引き上げる（着くと足軽が岸へ上がる）
 //   ②渡り口に詰まった列へ、上杉の物見の騎馬が横から突っ込む。払う → 北岸の殿の段（rearguard）へ。
-//   着かなくても約七十秒・九十秒で先へ進む。字は出さない：流される者・印・騎馬で分からせる。
+//   救助と騎馬は刻限で次の下知へ移るが、崩れた荷は本人が着いてから除く。
 // ======================================================================
 import { allyGroup, enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
@@ -62,7 +62,7 @@ export function install(rt, ctx) {
         return;
       }
       if (step === 2) {
-        if (el > 2 && (Math.hypot(p.x - 8, p.z - (FORD.z - 2)) < 5 || el > 60)) this.cargo();
+        if (el > 2 && Math.hypot(p.x - 8, p.z - (FORD.z - 2)) < 5) this.cargo();
         return;
       }
       if (!R) return;
@@ -84,7 +84,8 @@ export function install(rt, ctx) {
       }
     },
     cargo() {
-      if (done) return;
+      if (done || F.ending || rt.over || !rt.player.u.alive ||
+          Math.hypot(rt.player.u.pos.x - 8, rt.player.u.pos.z - (FORD.z - 2)) >= 5) return;
       done = true; F.konzatsuDone = true;
       rt.unmark('konzatsuC');
       const near = Math.hypot(rt.player.u.pos.x - 8, rt.player.u.pos.z - (FORD.z - 2)) < 6;
