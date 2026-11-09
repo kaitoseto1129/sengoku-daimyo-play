@@ -73,7 +73,8 @@ export function oshiStep(NG) {
       if (C.ph === 4 && el > 135) { C.ph = 5; send(rt, UP); rt.after(18, () => rt.say('足軽', '城兵が門の内へ逃げ込む！　門が閉まる前じゃ！', 3)); rt.after(42, () => rt.say('使番', '大手の本隊、明神丸に取り付きました！　城は三方から囲まれております', 4)); }
       // 行き先は山道の持ち場のまま（門の下の鉄砲の前まで城兵を追わせない）
       const p = rt.player.u.pos;
-      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && Math.hypot(p.x - MID.x, p.z - MID.z) < 22;
+      // 11/9 三巡（織田C）：城兵を門の下まで追い上がった遊び手は中ほどの輪へ戻らず、段が十一分続いた（act）。三百二十秒を過ぎたら居場所を問わない。
+      return C.ph >= 5 && el > 200 && heads(C.groups) <= 5 && (Math.hypot(p.x - MID.x, p.z - MID.z) < 22 || el > 320);
     },
     end(rt, C) {
       for (const [g, orders] of C.orders) { Object.assign(g, orders); g.dest = null; }
