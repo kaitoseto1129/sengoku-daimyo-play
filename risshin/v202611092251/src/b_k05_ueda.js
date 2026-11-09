@@ -231,7 +231,7 @@ const k05_ueda = {
     // ①は北の田そのもの（真田が田へ来て戦いになる。critic60：田へ一度も行かずに済んだ）
     let p = KARI;
     if (F.step === 1) p = KARI;
-    else if (F.step === 2) p = F.throughTown ? FRONT : { x: 57, z: -47 };
+    else if (F.step === 2) p = F.throughTown ? FRONT : LANE_B;
     else if (F.step === 3) p = c(F.yari) || FRONT;
     else if (F.step === 4) p = c(F.nobushige) || { x: FRONT.x + 10, z: FRONT.z - 20 };
     else if (F.step === 5) p = FRONT;
@@ -567,7 +567,8 @@ const k05_ueda = {
       if (F.kariJoined && F.w1N - aliveN(F.sortie) >= Math.round(F.w1N * 0.6)) this.toStep(rt, 2);
     } else if (F.step === 2) {
       // 小路の出口から門の口の前までを「大手門の前」とする（退く真田を門の際まで追い詰めても果たす）
-      if (dist(P.pos, { x: 57, z: -47 }) < 12) F.throughTown = true;
+      // 中ほどや家の裏では通過にしない。出口まで小路へ導き、門へ直進して町屋に当たるのを防ぐ。
+      if (dist(P.pos, LANE_B) < 5) F.throughTown = true;
       if (F.throughTown && (dist(P.pos, FRONT) < 10 || (P.pos.x > GATE.x - 12 && P.pos.x < FRONT.x + 6 && Math.abs(P.pos.z - GATE.z) < 14))) this.toStep(rt, 3);
       else if (late && !F.late2) { F.late2 = true; rt.say('本多忠政', '何をしておる、町屋の小路を抜けて門の前へ急げ！', 3.2); }
     } else if (F.step === 3) {
