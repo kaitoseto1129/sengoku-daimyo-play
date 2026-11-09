@@ -53,8 +53,8 @@ export function step(H) {
       }
       if (C.ambushDone) {
         rt.objProgress('dp', '');
-        // 木戸の前に着く（または組が着いて時が経つ）と、山下曲輪の段へ
-        if ((Math.hypot(P.x - H.GATE_FRONT.x, P.z - H.GATE_FRONT.z) < 12 && el - C.ambushDone > 14) || el - C.ambushDone > 45) return true;
+        // 本人が木戸の前へ着いてから進む。待った時間だけでは到着扱いにしない。
+        if (Math.hypot(P.x - H.GATE_FRONT.x, P.z - H.GATE_FRONT.z) < 12 && el - C.ambushDone > 14) return true;
       } else if (C.ambush) rt.objProgress('dp', '');
       return false;
     },

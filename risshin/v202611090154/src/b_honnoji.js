@@ -32,6 +32,13 @@ import { enemyGroup, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.
 import { applyLook, DAWN, dress, gone } from './b_inabayama.js';
 
 import { camp } from './b_mid.js';
+import { wrap as k15Shizuka } from './honnoji/shizuka.js';   // 15分の構成：静かな本能寺
+import { wrap as k15Shuen } from './honnoji/shuen.js';   // 織田編の終わり（暗転・本能寺の変）
+import { wrap as k15Omote } from './honnoji/omote.js';   // 表庭の踏み止まり
+import { wrap as k15Kairo } from './honnoji/kairo.js';   // 火の回る回廊
+import { wrap as k15Saigo } from './honnoji/saigo.js';   // 信長の最後の防衛
+import { wrap as k15Uradori } from './honnoji/uradori.js';   // 裏通りを落ちる
+import { k15WrapBot } from './oda15_kit.js';
 
 // 箕作と同じ箱の当たりで、束ねた面の測り直しを待たず壁・柱・戸の手前へ寄せる。
 function protectTempleCamera(rt, T) {
@@ -4033,7 +4040,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
     // 市内へ広がる遠景：町のあちこちで鐘が鳴り、叫びが起き、火の手が上がる（本能寺の騒ぎが町へ伝わる）
     [[34, -60, -90], [48, 100, 10], [62, -30, 130], [80, 130, -70]].forEach(([t, x, z], i) => rt.after(t, () => {
-      if (rt.flags.ending) return;
+      if (rt.flags.ending || rt.flags.k15stage === 'shizuka') return;   // 静かな見回りの間は町は鳴らない
       sfx('kane', 0.28); rt.army.play('eshout', { x, z }, 0.8);
 
       if (i === 0) rt.bark('遠くの町で鐘が鳴り、人の叫びが広がる');
@@ -5122,7 +5129,7 @@ function honnoTick(def, rt, dt) {
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
   // 上様のそばを離れない
-  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
+  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && !F.k15stage && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
     F.farT = (F.farT || 0) + dt;
     if (F.farT > 8 && rt.t - (F.farSaidT || -99) > 20) { F.farSaidT = rt.t; honnoSay(rt, '森蘭丸', `${nm(rt)}！　上様のそばへ戻れ！　離れたままでは護衛を果たせぬ！`, 3); }
     if (F.farT > 60) { def.nbFail(rt, '上様から離れすぎ、護衛の持ち場を失った'); return; }
@@ -6179,4 +6186,8 @@ honnoji.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.step === 6) { goTo(p, inp, SHISHA_DOOR.x, SHISHA_DOOR.z, 1.5); inp.runHeld = true; }
 };
 
+// 15分の構成（docs/oda15_plan_1108.md 32）：段は prototype/src/honnoji/ に一段一ファイル
+k15Shizuka(honnoji); k15Shuen(honnoji);
+{ const K15 = { akechi, uS, uA }; k15Omote(honnoji, K15); k15Kairo(honnoji, K15); k15Saigo(honnoji, K15); k15Uradori(honnoji, K15); }
+honnoji.botBrain = k15WrapBot(honnoji.botBrain);
 export { honnoji };

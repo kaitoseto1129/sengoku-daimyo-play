@@ -57,8 +57,8 @@ export function step(H) {
       const P = rt.player.u.pos, S = C.stops[C.i];
       if (!S) return el - C.t > 6;
       rt.objProgress('dp', `${C.i + 1}／${C.stops.length}`);
-      // 着いたら将の一言。言い終えたら次の陣へ（遠くて着かなくても、一つの陣に七十秒で次へ）
-      if (!C.talk && (Math.hypot(P.x - S.at.x, P.z - S.at.z) < 10 || el - (C.t || 0) > 70)) {
+      // 各陣へ着いて将の言葉を聞いてから次へ進む。
+      if (!C.talk && Math.hypot(P.x - S.at.x, P.z - S.at.z) < 10) {
         C.talk = true; C.tt = el;
         sfx('obj', 0.6);
         S.lines.forEach(([who, text], k) => rt.after(k * 4.2, () => rt.say(who, text, 4)));

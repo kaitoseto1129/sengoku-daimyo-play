@@ -96,7 +96,7 @@ export const STAGES = {
   // 右上の目標は段四つ＋討つ数一つ（goals5.js は五つまで。六段だと始めの表門・本堂が落ちて、門で戦う時に「御殿」が今の目標に出ていた）
   // 岩石城（山中城の型）：大手の坂 → 門から打って出た城兵を迎え撃つ → 退く城兵を追って門の内へ（付け入り）→ 本丸の熊井越中守
   t07_ganjaku: [['大手の坂を登り、二の丸の門の前へ出る'], ['門から打って出た秋月勢を坂で迎え撃つ', (rt) => (rt.flags.stage || 0) >= 2], ['退く秋月勢を追い、二の丸の門を抜けて城内へ入る', (rt) => (rt.flags.stage || 0) >= 3], ['本丸へ攻め入り、熊井越中守を討つ', (rt) => (rt.flags.stage || 0) >= 4]],
-  honnoji: [['表門で明智勢を押し返す'], ['本堂から御殿の奥へ上様を守る', ph('hondo', 'kyoto', 'move', 'goten')], ['二条御所の西の門を守る', (rt) => !rt.G.lord && ph('nijo', 'defend')(rt)], ['北の木戸を抜け、使者の家へ走る', (rt) => !rt.G.lord && ph('escape', 'shisha')(rt)]],
+  honnoji: [['夜明け前の境内を見回る'], ['表門で明智勢を押し返す', (rt) => !!rt.flags.shizukaDone], ['表庭で森蘭丸と踏み止まる', (rt) => rt.flags.k15stage === 'omote' || !!rt.flags.omoteDone], ['本堂から御殿の奥へ上様を守る', ph('hondo', 'kyoto', 'move', 'goten')], ['御殿の広間で、上様と並んで戦う', (rt) => rt.flags.k15stage === 'saigo' || !!rt.flags.saigoDone], ['裏門を出て、西の通りを落ちる', (rt) => !rt.G.lord && (rt.flags.k15stage === 'uradori' || !!rt.flags.uradoriDone)], ['二条御所の西の門を守る', (rt) => !rt.G.lord && ph('nijo', 'defend')(rt)], ['北の木戸を抜け、使者の家へ走る', (rt) => !rt.G.lord && ph('escape', 'shisha')(rt)]],
 };
 
 // 倒す数（kaito 11/2 O）：段（四つ目の欄）や目標（三つ目の欄）に (rt) => [倒した数, 倒す数] を持たせると、札の今の目標に「（12／30）」と出す。

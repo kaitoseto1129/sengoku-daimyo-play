@@ -2914,6 +2914,26 @@ const moribe = {
   commanderTarget(rt) {
     const F = rt.flags;
     if (F.stage !== 'press' || F.pursuit || F.ending) return null;
+    // 目標④は旗本の侍。手柄を立てるまでは大将だけへ誘導しない。
+    // 同じ侍を討つまで保ち、倒れたら残る旗本から近い一人を選ぶ。
+    if (!F.ownHatamoto) {
+      const previous = F.hatamotoGuide;
+      if (previous?.type === 'samurai' && moribeRemainFoe(previous) &&
+          (F.HM?.units.includes(previous) || F.HN?.units.includes(previous))) return previous;
+      const p = rt.player.u.pos;
+      let target = null, best = Infinity;
+      for (let i = 0; i < 2; i++) {
+        const g = i === 0 ? F.HM : F.HN;
+        if (!g) continue;
+        for (const u of g.units) {
+          if (u.type !== 'samurai' || !moribeRemainFoe(u)) continue;
+          const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+          if (d < best) { best = d; target = u; }
+        }
+      }
+      F.hatamotoGuide = target;
+      if (target) return target;
+    }
     for (let i = 0; i < 2; i++) {
       const g = i === 0 ? F.HM : F.HN;
       if (!g) continue;
