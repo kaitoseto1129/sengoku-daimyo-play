@@ -12,6 +12,8 @@ const DROWN = { x: 22, z: -14 };   // 流された足軽（渡り口の下流の
 
 export function install(rt, ctx) {
   const F = rt.flags;
+  // 討死・決着の後は、予約した下知や次の段で終幕を上書きしない。
+  const active = () => !F.ending && !rt.over && rt.player.u.alive;
   const { dress, ODA, UESUGI, FORD, next } = ctx;
   const t0 = rt.t;
   let step = 0, t1 = rt.t, tick = 0, done = false, R = null;
@@ -22,7 +24,7 @@ export function install(rt, ctx) {
   for (const u of W.units) u.hp = Math.min(u.hp, u.maxHp * 0.5);
   sfx('wade', 0.8);
   rt.say('足軽', '川が増えてきた！　足が持っていかれる……助けてくれ！', 3.5);
-  rt.after(4, () => rt.say('組頭', '下流で流されておる！　水際へ走って引き上げよ！', 4));
+  rt.after(4, () => { if (active()) rt.say('組頭', '下流で流されておる！　水際へ走って引き上げよ！', 4); });
   rt.obj('konzatsu', '下流の水際で、流された足軽を引き上げよ', 'order');
   rt.marker('konzatsuW', DROWN, '流された足軽', { h: 3, guideAlways: true, guidePriority: 420 });
 
@@ -39,7 +41,7 @@ export function install(rt, ctx) {
     W.onArrive = (q) => { q.order = 'hold'; };
     // 渡り口の詰まりへ、上杉の物見の騎馬が横から（約十五秒後）
     rt.after(15, () => {
-      if (done || F.ending || rt.over) return;
+      if (done || !active()) return;
       R = enemyGroup(rt, { name: '上杉の物見の騎馬', anchor: { x: -70, z: -44 }, facing: Math.PI / 2, width: 6, order: 'hold', aggro: 30, seekRange: 40, morale: 85, faction: 'uesugi', fleeDir: { x: -1, z: -0.5 } },
         dress([{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 5 }], UESUGI));
       R.fixed = false; R.order = 'move'; R.dest = { x: -6, z: -34 }; R.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; };
@@ -52,7 +54,7 @@ export function install(rt, ctx) {
 
   return {
     update(dt) {
-      if (done || F.ending || rt.over) return;
+      if (done || !active()) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t1;
@@ -76,7 +78,7 @@ export function install(rt, ctx) {
         // ③ 渡り口の俵の荷が崩れて列が止まる。荷の所へ行くと、荷を川へ落として口が開く
         step = 2; t1 = rt.t; R = null;
         rt.after(2, () => {
-          if (done) return;
+          if (done || !active()) return;
           rt.say('組頭', '渡り口で荷が崩れた！　列が止まっておる。荷を川へ落とせ！', 4);
           rt.obj('konzatsu3', '渡り口で崩れた荷を川へ落とし、列を通せ', 'order');
           rt.marker('konzatsuC', { x: 8, z: FORD.z - 2 }, '崩れた荷', { h: 3, guideAlways: true, guidePriority: 420 });
@@ -95,8 +97,8 @@ export function install(rt, ctx) {
       if (near) { rt.objDone('konzatsu3'); rt.award((t) => t.side.push('渡り口の崩れた荷を川へ落とし、渡る列を通した'), '渡り口の荷をどけた'); }
       else rt.objRemove('konzatsu3');
       rt.say('足軽', '荷が流れた！　列が動くぞ！', 3);
-      rt.after(4, () => rt.say('柴田勝家', '本隊が渡るまで、北の岸で上杉を止めよ！　殿を頼むぞ！', 4));
-      rt.after(7, () => next());
+      rt.after(4, () => { if (active()) rt.say('柴田勝家', '本隊が渡るまで、北の岸で上杉を止めよ！　殿を頼むぞ！', 4); });
+      rt.after(7, () => { if (active()) next(); });
     },
     since: () => rt.t - t0,
   };

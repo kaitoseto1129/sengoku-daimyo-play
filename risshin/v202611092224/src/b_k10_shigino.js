@@ -183,15 +183,20 @@ const k10_shigino = {
     const F = rt.flags;
     if (!F.step || F.ending) return null;
     // 場所は柵・堤の決まった所だけ（隊の真ん中を追わない。行くたびに動かない・AW3）
-    let p = { x: F1, z: 0 };
-    if (F.step === 1) p = live(F.g1) ? { x: F1 - 6, z: 0 } : { x: F2 - 6, z: 0 };
-    else if (F.step === 2) p = F.inoU && F.inoU.alive ? F.inoU.pos : INOUE;
-    else if (F.step === 3) p = { x: MIZU.x + 8, z: 0 };
-    else if (F.step === 4) p = HOLD;
-    else if (F.step === 5) p = F.riverAid ? RIVER : HOLD;
+    // 毎コマ呼ばれるので座標は印の入れ物に直接書く。
+    PIN.x = F1; PIN.z = 0;
+    if (F.step === 1) PIN.x = live(F.g1) ? F1 - 6 : F2 - 6;
+    else if (F.step === 3) {
+      // 達成判定と同じ鉄砲の列へ。須田の先手が塞ぐ列の奥へ誘導しない。
+      PIN.x = MIZU.x + 2;
+    } else {
+      const p = F.step === 2 ? (F.inoU && F.inoU.alive ? F.inoU.pos : INOUE)
+        : F.step === 5 && F.riverAid ? RIVER : HOLD;
+      PIN.x = p.x; PIN.z = p.z;
+    }
     PIN.unit = F.step === 2 ? F.inoU : null;
     PIN.enemy = F.step === 2;
-    PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 3 ? 6 : 8;
+    PIN.r = F.step === 3 ? 6 : 8;
     return PIN;
   },
   // 右上の目標：①〜⑤を最初から全部並べ、済んだ物に印（九1・十1）。11/6 遊んで：今の一行だけしか出ていなかった
