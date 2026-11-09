@@ -2143,6 +2143,7 @@ const nagashima = {
     return false;
   },
   taskDetails: false, // 任務の補足は畳み、右上を一行に保つ。
+  noTravelArrow: true, // 行き先は場所の印で示し、足元と画面端の矢印を出さない。
   keepCombatTask: true, // 構えの案内中も、持ち場と残り時間を隠さない。
   keepCombatTaskHeading: true,
   keepCombatTaskDetail: false,

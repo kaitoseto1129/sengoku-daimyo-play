@@ -1969,7 +1969,7 @@ function shigisanFoe(rt) {
 
 // 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
 // 右上の①〜⑤（stages.js の shigisan と同じ字）
-const SG_GOALS = ['尾根道の伏兵を討ち、大手の木戸へ登る', '大手の木戸を掛矢で破る', '土橋で、打って出た松永勢を討つ', '北尾根の下の曲輪を取り、松永屋敷との道を断つ', '本丸の南口へ攻め入り、館の前を固める'];
+const SG_GOALS = ['尾根道の伏兵を討ち、大手の木戸へ登る', '大手の木戸を掛矢で打つ', '土橋で、打って出た松永勢を討つ', '北尾根の下の曲輪を取り、松永屋敷との道を断つ', '本丸の南口へ攻め入り、館の前を固める'];
 // 持ち場で構える間（門脇の守り・木戸の前でそろう・曲輪と南口で構える）。行き先の印を持ち場のピンにする
 function sgHolding(rt) {
   const F = rt.flags;
@@ -2020,7 +2020,7 @@ const shigisan = {
   missionStatus: () => '',
   // 使番の知らせ・諸将の声・降伏拒否は、火の手や打って出の理由として戦の途中にも伝える。
   speechAllowed: (rt, who) => rt.over || !!rt.flags.ending ||
-    /^(使番|信忠の使番|織田信忠|筒井順慶|明智光秀|松永久秀|松永久通|組頭|足軽)$/.test(who),
+    /^(使番|信忠の使番|織田信忠|筒井順慶|筒井の侍|明智光秀|松永久秀|松永久通|組頭|足軽)$/.test(who),
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|崩れ|三の丸から火の手/.test(text),
   // 11/6 fixc1429：右上の目標は①〜⑤を始めから全部並べ（stages.js の段・goals5）、段の中で言い替えない（九1・十1）。
   //   「敵を何人討つ」で埋めない（三1）。一行の札も今の段の字をそのまま出す。
@@ -3885,7 +3885,7 @@ const shigisan = {
           : !inside ? F.step === 4 ? '敵は退いた。道の印から本丸の南口へ' : '敵は退いた。道の印から曲輪の入口へ'
           : zone.friends < zone.need ? `先手と入口へ集まれ（味方 ${zone.friends}／${zone.need}人）`
           : rt.t < zone.quietUntil ? `先手と入口を守れ。あと${Math.ceil(zone.quietUntil - rt.t)}秒で確保を始める`
-          : `敵は退いた。あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒、ここを守れ`);
+          : `敵は退いた。あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒、${F.step === 4 ? '本丸の南口' : '北尾根の下の曲輪'}を守れ`);
       }
       if (F.step === 3) {
         rt.objProgress('main', sightPoint(rt, GATE) ? gateWord(F.gate) : '門の正面へ回れ。柵の脇からは打てない');
