@@ -3933,7 +3933,8 @@ const nodafukushima = {
   },
   winEnd(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    // 江口到着後の余韻にも追手は動く。討死・終戦後に予約された成功を通さない。
+    if (F.ending || rt.over || !rt.player.u.alive) return;
     // 15分の構成：詰め陣に合流したら、江口の渡しへ退く段（nodafukushima/eguchi.js）を挟む
     if (!rt.G.lord && !F.nodaEguchiDone) {
       if (!F.nodaEguchi) {

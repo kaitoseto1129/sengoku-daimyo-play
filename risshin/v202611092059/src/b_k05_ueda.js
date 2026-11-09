@@ -599,7 +599,8 @@ const k05_ueda = {
       if (F.oiHot && F.oiEngaged && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
       // 岸へ届いた追手を味方が押し返した時も数える。道中で六割倒れただけでは、残る追手を待たずに川を渡らせない。
       // 全員が討たれた時は、岸へ届く相手が残っていないので退ける。
-      else if (F.oi && (F.oiHot || aliveN(F.oi) === 0) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
+      // 潰走した兵は討死ではない。隊の中心が岸へ寄っただけでも接敵済みにはしない。
+      else if (F.oi && (F.oiEngaged || !F.oi.units.some((u) => u.alive && !u.gone)) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
     } else if (F.step === 7) {
       if (P.pos.x > RET.x - 6 && dist(P.pos, RET) < 16) this.win(rt);
     }
