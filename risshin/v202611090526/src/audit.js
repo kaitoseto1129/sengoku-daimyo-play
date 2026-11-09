@@ -495,8 +495,9 @@ export class Auditor {
       for (const el of hud.children) {
         if (!visible(el) || OVERLAP_OK.has(el.id) || getComputedStyle(el).position === 'static') continue;
         // 道しるべの親は画面全体に広がる透明な入れ物。印そのものの重なりと面積を調べる。
+        // 中央の大きな字（#center-call）も横いっぱいの透明な入れ物。字の行だけを測る（11/9 二巡 姉川：入れ物の幅で数えていた）
         // 行き先の▼（#goal-sign）も画面全体の透明な入れ物。▼と字の札（.gs-tag）だけを測る（11/5 姉川の bot が 100% と数えていた）
-        const cards = el.matches('.tl, .tr, #battle-notices, #markers') ? el.children : el.id === 'goal-sign' ? el.querySelectorAll('.gs-tag') : [el];
+        const cards = el.matches('.tl, .tr, #battle-notices, #markers, #center-call') ? el.children : el.id === 'goal-sign' ? el.querySelectorAll('.gs-tag') : [el];
         for (const card of cards) {
           // 任務の印は 80 角の透明な箱。描いた形と字だけを合わせて測る（箱の角が札に掛かっても読めなくはならない）。
           const ink = card.id === 'mission-goal' || card.id === 'mission-enemy-target' || card.id === 'mission-dest-arrow';

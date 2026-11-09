@@ -221,7 +221,7 @@ const t06_hetsugi = {
   },
   date: () => '天正十四年十二月十二日　夕刻',   // 五4：一行に収める（「夕／刻」で割れた）
   talk: {
-    before: [['大友の使者', '島津家久が豊後へ攻め入り、鶴賀の城を囲んでおります。なにとぞお救いを'], ['仙石秀久', '殿下の先手として九州へ渡ったのは、大友を救うためじゃ'],
+    before: [['大友義統', '島津家久が豊後へ攻め入り、鶴賀の城を囲んでおります。なにとぞお救いを'], ['仙石秀久', '殿下の先手として九州へ渡ったのは、大友を救うためじゃ'],
       ['長宗我部元親', '島津は退くふりをする。殿下の本隊を待つべし'], ['十河存保', '待てば鶴賀が落ちる。わしは仙石殿に従う'], ['仙石秀久', '軍監はわしじゃ。皆、川を渡れ']],
     after: [['主人公', '信親様を、お救いできませなんだ'], ['長宗我部元親', '……生きて戻った者がおる。それでよい']],
   },
@@ -312,6 +312,7 @@ const t06_hetsugi = {
     this.foeLord(rt, '伊集院久宣', B.ijuin, IJUIN, 34);   // 囮の先手の将は囲みの陣の奥（鶴賀城の下）
     // 伊集院の先手の本物の兵：鶴賀城の下で川へ向いて槍を構える（11/7 九2：書いた先手が来ず、槍を入れる相手がいなかった）
     F.ijBands = [[22, -66], [46, -68]].map(([x, z]) => this.foeBand(rt, '伊集院の先手', { x, z }, 0, 11, { aggro: 5, seekRange: 8 }));
+    this.otomoCamp(rt);   // 二巡：大友義統の陣は始めから（軍議の声の主が陣にいる）
     shinkou.install(rt, K);
     tsuigeki.install(rt, K);
     rt.obj('main', STEP_TEXT[0], 'main', true);
@@ -436,7 +437,7 @@ const t06_hetsugi = {
     const seat = { x: CAMP.x, z: CAMP.z - 2 };
     rt.scene.add(shogi(rt.world, seat.x, seat.z, Math.PI / 2));
     F.otomoSeat = allyGroup(rt, { name: '大友勢の本陣', fullStrength: true, anchor: seat, facing: Math.PI / 2, width: 1, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true },
-      fl([{ type: 'busho', n: 1, o: { name: '大友の侍大将', invuln: true, horse: false } }], 'otomo'));
+      fl([{ type: 'busho', n: 1, o: { name: '大友義統', invuln: true, horse: false } }], 'otomo'));   // 二巡（docs/generals_toyo_toku_1108.md の 9：大友義統は必須）。始めの軍議から鏡城の下の陣の床几に
     F.otomoSeat.noAI = true; F.otomoSeat.mon = 'otomo';
     for (const u of F.otomoSeat.units) {
       u.pos.set(seat.x, rt.world.heightAt(seat.x, seat.z), seat.z); u.mesh.position.copy(u.pos);
@@ -825,7 +826,8 @@ const t06_hetsugi = {
     else if (F.step === 4 && !shingari.crossNow(b)) q = shingari.MOUTH_N;   // 殿：浅瀬の北の口で防ぐ
     else if (F.step === 4 && u.pos.z < -30) q = { x: FORD.x, z: -14 };   // 河原の奥からは浅瀬の口へまっすぐ
     else if (F.step === 4) q = Math.abs(u.pos.x - FORD.x) > 8 && u.pos.z < 22 ? { x: FORD.x, z: Math.min(u.pos.z, -14) } : u.pos.z < -12 ? { x: FORD.x, z: -10 } : { x: FORD.x, z: 34 };
-    else q = CAMP;
+    // 陣の柵（半径十一 m）は東に口がある。外からは東の口の前へ回ってから中へ（柵の西の外で止まった。11/9 bot）
+    else q = dist(u.pos, CAMP) > 9 && (Math.abs(u.pos.z - CAMP.z) > 3 || u.pos.x < CAMP.x) ? { x: CAMP.x + 17, z: CAMP.z } : CAMP;
     goTo(p, inp, q.x, q.z, 2);
   },
 };

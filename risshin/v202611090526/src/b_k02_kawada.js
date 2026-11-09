@@ -468,7 +468,7 @@ const k02_kawada = {
       // 木造の旗本が五人を切ったら、木造は岐阜へ退き、北岸の守りは崩れて段が済む（木造は討たせない）
       if (F.gumasaDown && !F.northBroke) {
         F.northBroke = true; C.later.length = 0;
-        for (const q of C.groups) if (q.count) { q.noRout = false; q.morale = 0; }
+        for (const q of C.groups) if (q.count) { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.morale = 0; }
         rt.say('木造長政', '柵は破れた。岐阜の城へ退け！', 3);
         rt.after(3.2, () => rt.say('浅野の侍', '木造が退くぞ！　北の岸は取った', 3.5));
         // 北岸を取ったら、味方の備はそのまま隊で米野の手前の堤へ押し出す（本人だけが先に一人で米野へ走らない）
@@ -488,7 +488,8 @@ const k02_kawada = {
       if (ig && !ig.routed) ig.noRout = !F.iinumaDown;
       if (F.dodoDown && !F.yonenoBroke) {
         F.yonenoBroke = true;
-        for (const q of C.groups) if (q.count && q.name !== '飯沼長資の手') { q.noRout = false; q.morale = Math.min(q.morale, 20); }
+        // 段の中心から出た旗本は、共通の生成で退く向きがゼロになる。岐阜へ向かう北を明示する。
+        for (const q of C.groups) if (q.count && q.name !== '飯沼長資の手') { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.morale = Math.min(q.morale, 20); }
         rt.say('百々綱家', '米野は持たぬ。岐阜へ退け！', 3);
         rt.after(3.2, () => rt.say('池田の侍', '百々の旗が退くぞ！　米野は崩れた', 3.5));
       }

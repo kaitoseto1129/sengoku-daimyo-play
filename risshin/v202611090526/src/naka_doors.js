@@ -89,21 +89,14 @@ export function addNakaDoors(I, lv, y0, y1) {
     const kind = p.kind || (temple ? 'koshi' : !paper ? 'itado' : ['goten', 'yashiki', 'shisha'].includes(I.kind) ? 'fusumaE' : 'shoji');
     const W = r - l, n = p.window ? 2 : Math.max(2, Math.round(W / 1.8) * 2);
     const inabaTrack = SETTINGS.quality === 'high' && I.profile === 'inabayama';
-    const tottoriTrack = SETTINGS.quality === 'high' && I.profile === 'tottori';
-    const tottoriUtility = tottoriTrack
-      && ['kura', 'bansho', 'nagaya', 'shrine'].includes(I.kind);
     let sill = p.sill || 0;
-    if (SETTINGS.quality === 'high' && ['nagashima', 'tottori'].includes(I.profile) && p.entry) {
+    if (SETTINGS.quality === 'high' && I.profile === 'nagashima' && p.entry) {
       // 本堂だけでなく、僧坊・庫裏・砦の表戸も入口の仕上げ床で受ける。
       // 土間や板間でも下框と敷居の溝を床へ埋めず、鴨居の高さは保つ。
       // 既存の戸・木枠・当たりへ同じ高さを渡し、開閉の通りもそろえる。
-      // 鳥取の表戸も板床・土間の仕上げ面から滑らせる。小堂は十八ミリ、
-      // 用屋は十二ミリの板厚を間取りから取り、下框と敷居の溝を床へ埋めない。
-      // 床組の手本と推定範囲は docs/tottori-interior-reference.md。
-      const boardFinish = tottoriTrack ? lv.layout.boardFinish : .012;
       for (const room of lv.layout.rooms) if (p.x >= room.x0 && p.x <= room.x1
         && p.z >= room.z0 && p.z <= room.z1) {
-        const finish = room.floor === 'tatami' ? .066 : room.floor === 'earth' ? .0255 : boardFinish;
+        const finish = room.floor === 'tatami' ? .066 : room.floor === 'earth' ? .0255 : .012;
         sill = Math.max(sill, (room.y || 0) + finish);
       }
     }
@@ -114,20 +107,17 @@ export function addNakaDoors(I, lv, y0, y1) {
     const beamHead = inabaTrack && ['kura', 'bansho', 'nagaya', 'shrine'].includes(I.kind) ? .4 : .2;
     // 高画質の稲葉山は鴨居と小壁の分を残す。固定の建具と同じ内法高を使う。
     const nagashimaTrack = SETTINGS.quality === 'high' && I.profile === 'nagashima';
-    const doorH = p.window ? p.top : p.exterior ? I.door.h ?? Math.min(lv.h - .3, 2) : nagashimaTrack ? interiorDoorHeight(lv.layout, lv.h) : tottoriUtility ? nodaDoorHeight(lv.h) : tottoriTrack ? Math.min(2.3, lv.h - .2) : I.profile === 'inabayama' ? Math.min(2.3, lv.h - (SETTINGS.quality === 'high' ? beamHead : .02)) : lv.h > 3 ? 2.3 : lv.h - .02;
+    const doorH = p.window ? p.top : p.exterior ? I.door.h ?? Math.min(lv.h - .3, 2) : nagashimaTrack ? interiorDoorHeight(lv.layout, lv.h) : I.profile === 'inabayama' ? Math.min(2.3, lv.h - (SETTINGS.quality === 'high' ? beamHead : .02)) : lv.h > 3 ? 2.3 : lv.h - .02;
     // 稲葉山の戸は固定戸と同じく敷居へ五ミリ、鴨居へ八ミリ差し込む推定の納まり。
     // 溝底（下八ミリ・上十二ミリ）には余裕を残す。枠の基準高は動かさず、
     // 戸だけを伸ばして、開閉中も横框が溝の上に浮かないようにする。
-    const footInset = inabaTrack || tottoriTrack || nagashimaTrack ? .005 : 0, headInset = inabaTrack || tottoriTrack || nagashimaTrack ? .008 : 0;
+    const footInset = inabaTrack || nagashimaTrack ? .005 : 0, headInset = inabaTrack || nagashimaTrack ? .008 : 0;
     const [ax, az] = I.P(l, p.z), [bx, bz] = I.P(r, p.z), rad = .06;
     // 木格子を紙の襖扱いにしない。閉じた格子越しに槍が素通りせず、開いた戸と同じ木の当たりを使う。
-    const solid = { k: 's', ax, az, bx, bz, r: rad, yBot: inabaTrack || p.window ? lv.y + sill : y0, yTop: inabaTrack || p.window ? lv.y + doorH : y1, naka: I.id, fusuma: kind !== 'itado' && !((inabaTrack || tottoriTrack || nagashimaTrack) && kind === 'koshi'),
+    const solid = { k: 's', ax, az, bx, bz, r: rad, yBot: inabaTrack || p.window ? lv.y + sill : y0, yTop: inabaTrack || p.window ? lv.y + doorH : y1, naka: I.id, fusuma: kind !== 'itado' && !((inabaTrack || SETTINGS.quality === 'high' && I.profile === 'nagashima') && kind === 'koshi'),
       x0: Math.min(ax, bx) - rad, x1: Math.max(ax, bx) + rad, z0: Math.min(az, bz) - rad, z1: Math.max(az, bz) + rad };
     SOLIDS.push(solid); INTERIOR_WALLS.push(solid);
-    // 鳥取の低い用屋も、板戸と鴨居を露出した梁の下へ納める。
-    // 戸だけを短くせず、頭上の固定材と当たりを分けて開いた口を保つ。
-    if (tottoriTrack && !p.exterior) solid.yTop = lv.y + doorH;
-    if ((inabaTrack || tottoriTrack || nagashimaTrack) && !p.exterior && lv.y + doorH < y1) {
+    if ((inabaTrack || nagashimaTrack) && !p.exterior && lv.y + doorH < y1) {
       // 鴨居と小壁は壁の線に固定し、戸と一緒に左右へ動かさない。
       // 引き込んだ襖・障子の上に見えない壁を残さず、開いた口の頭上は塞ぐ。
       const cap = { ...solid, yBot: lv.y + doorH, yTop: y1, fusuma: false, bodyOverlap: true };
@@ -140,19 +130,17 @@ export function addNakaDoors(I, lv, y0, y1) {
     d.leafH = d.h;
     d.leafY = d.y;
     // 鴨居上の固定壁は従来の高さ。差し込む戸の当たりだけ絵の上下端へ合わせる。
-    if (inabaTrack || tottoriTrack || nagashimaTrack) { solid.yBot = d.y - footInset; solid.yTop = d.y + d.h + headInset; }
-    // 鳥取の可動戸は共通部品の框と同じ六センチ厚にする。
-    // 鴨居上の固定壁は元の厚みを保ち、戸だけが見えない厚板になるのを防ぐ。
-    if (tottoriTrack) solid.r = .03;
+    if (inabaTrack || nagashimaTrack) { solid.yBot = d.y - footInset; solid.yTop = d.y + d.h + headInset; }
     // 稲葉山は柱と脇の建具の表を通る二本の溝。開閉中も前後へずらさない。
     // 前後の溝に入る戸は、召し合わせの縦框を三センチ重ねる。
     // 等分した幅のまま突き合わせると、斜めから紙の間に向こう側が見える。
     // 戸口と移動量は保ち、絵と一枚ごとの当たりに同じ実幅を渡す。
-    // 鳥取も召し合わせを三センチ重ね、二筋の戸の間から室内が透ける隙間を塞ぐ。
-    d.leafW = d.pw + (inabaTrack || tottoriTrack || nagashimaTrack ? .03 : 0);
-    // この戦の戸は一枚ごとに当たりを持たせ、見える戸と同じ溝を滑らせる。
+    // 長島も二筋の縦框を重ね、斜めから召し合わせが透ける隙間を塞ぐ。
+    d.leafW = d.pw + (inabaTrack || nagashimaTrack ? .03 : 0);
+    // 稲葉山と高画質の長島は一枚ごとに当たりを持たせ、見える戸と同じ溝を滑らせる。
+    // 開け始めに当たりを消さず、半開きの板戸や内陣の格子戸を通り抜けさせない。
     // 設営時だけ作り、開閉中は座標を書き換える。
-    if (inabaTrack || tottoriTrack || nagashimaTrack) {
+    if (inabaTrack || nagashimaTrack) {
       d.slidingSolids = [solid];
       for (let j = 1; j < n; j++) {
         const leaf = { ...solid };
@@ -164,26 +152,6 @@ export function addNakaDoors(I, lv, y0, y1) {
     // 壁寄りの溝も三十センチ離す（戸の厚み六センチと当たりの半径も収まる）。
     // 敷居・鴨居と動く戸の当たりも、この同じ溝の位置を使う。
     d.trackZ = inabaTrack && p.exterior && !p.window ? -I.door.side * .34 : 0;
-    if (tottoriTrack) {
-      // 鳥取も二筋の溝を横へ滑る。前後へせり出す動きを止め、柱・固定建具の表を通す。
-      // 推定の範囲と建物の手本は docs/tottori-interior-reference.md。
-      d.track = .0475;
-      d.trackZ = p.exterior ? -Math.sign(p.z) * (p.window ? .2 : .34) : I.door.side * .2;
-      // 閉じた戸の当たりも同じ溝の中央へ寄せる。頭上の固定材は壁の線に残す。
-      const dx = d.trackZ * I.s, dz = d.trackZ * I.c;
-      solid.ax += dx; solid.bx += dx; solid.az += dz; solid.bz += dz;
-      solid.x0 += dx; solid.x1 += dx; solid.z0 += dz; solid.z1 += dz;
-      if (!d.window) {
-        // 鳥取の敷居も溝の岸（二十五ミリ）の上を歩く。板間・畳の足場だけでは
-        // 開いた戸口と引き込み先で足が敷居へ沈む。描く敷居と同じ幅・位置に限る。
-        // 窓台には足場を作らず、設営時だけ登録して毎コマの処理を増やさない。
-        const span = d.W * 2 + .04;
-        const id = addDeck({ cx: d.x + dx, cz: d.z + dz, rot: I.rot,
-          x0: -span / 2, x1: span / 2, z0: -.11, z1: .11,
-          y: d.y + .025, roof: lv.y + lv.h, pad: 0, name: '引き戸の敷居' });
-        FL.decks[id].interior = true;
-      }
-    }
     if (I.profile === 'nagashima' && p.entry) {
       // 砦の表戸は外周柱の裏の二筋へ引く。格子窓・壁板と戸を重ねない。
       // 戸口の上は外壁が受け持ち、戸の当たりを天井まで伸ばさない。
@@ -735,36 +703,10 @@ export function buildNakaDoorMeshes(I, grp) {
     if (tracks.children.length) grp.add(batchInterior(tracks));
   }
   if (!I.doors) return;
-  // 鳥取も実寸の框・組子を共用する。左右別の形で引手を召し合わせへ向ける。
-  const fitted = SETTINGS.quality === 'high' && ['inabayama', 'tottori'].includes(I.profile);
-  if (SETTINGS.quality === 'high' && I.profile === 'tottori') {
-    const tracks = new THREE.Group();
-    for (const d of I.doors) {
-      // 敷居・鴨居と戸当たりは設営時だけ組み、共有材質の束へまとめる。
-      // 二筋の中心は可動戸と同じ四・七五センチ。鴨居上には天井までの余白を残す。
-      // 上がり板間の内戸は土間側へ引く。敷居下の六センチの敷板だけでは、
-      // 十二センチの上がり高との間が浮くため、実際の土間面まで受け木を下ろす。
-      // 主殿の上段口も広間側の畳まで受ける。上段の畳面だけを基準にすると、
-      // 十六センチ低い広間へ寄せた敷居の下に十センチの空洞が残る。
-      // 手本と推定範囲は docs/tottori-interior-reference.md。戸・溝・歩行高は保つ。
-      let sillFloor = null;
-      if (!d.exterior && !d.window && ['kura', 'bansho', 'nagaya', 'goten', 'tamari'].includes(I.kind)) {
-        const floor = d.lv.layout.rooms.find(r => d.lx >= r.x0 && d.lx <= r.x1
-          && d.lz + d.trackZ >= r.z0 && d.lz + d.trackZ <= r.z1);
-        if (floor) sillFloor = (floor.y || 0)
-          + (floor.floor === 'tatami' ? .066 : floor.floor === 'earth' ? .0255 : d.lv.layout.boardFinish) - (d.y - d.lv.y);
-      }
-      const track = slidingDoorTrack(d.W, d.h, d.window, d.trackZ, d.exterior && !d.window, sillFloor);
-      track.position.set(d.x + d.trackZ * I.s, d.y, d.z + d.trackZ * I.c);
-      track.rotation.y = I.rot; tracks.add(track);
-    }
-    if (tracks.children.length) grp.add(batchInterior(tracks));
-  }
-  // 鳥取の戸当たりは上の slidingDoorTrack が敷居・鴨居と一組で作る。
-  // 同じ位置へ別の縦材を重ねると、横材との接合部に木材が食い込む。
-  // 溝側に五ミリの逃げを持つ共通の戸当たりだけを残す。
+  const fitted = SETTINGS.quality === 'high' && I.profile === 'inabayama';
+  // 長島も戸口の実寸で框・組子を組む。同じ種類・寸法の原形と材質は共有する。
   const fittedPanels = fitted || SETTINGS.quality === 'high' && I.profile === 'nagashima';
-  if (fittedPanels && I.profile !== 'tottori' && I.doors.length) {
+  if (fittedPanels && I.doors.length) {
     // 引き先を溝だけで終わらせず、戸尻を受ける縦の戸当たりを添える推定の納まり。
     // 引き分けは全開時の外端で受ける。
     // 窓は naka.js の戸じゃくり付き縦枠で受ける。角材を重ねると
@@ -847,9 +789,9 @@ export function buildNakaDoorMeshes(I, grp) {
     for (const m of allMeshes) { m.count = count; grp.add(m); }
     for (const d of list) pose(d);
     // 閉じた位置だけの範囲では、脇へ引いた戸が視野の端で消える。
-    // 鳥取・墨俣・長島・稲葉山の戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
+    // 墨俣・長島・稲葉山の戸の最大移動量を一度だけ足し、開閉中の範囲計算を省く。
     // 開け放って始める内陣の格子戸も、閉じる側まで範囲に含まれる。
-    const travel = SETTINGS.quality === 'high' && ['inabayama', 'tottori', 'nagashima', 'toride'].includes(I.profile)
+    const travel = SETTINGS.quality === 'high' && ['inabayama', 'nagashima', 'toride'].includes(I.profile)
       ? list.reduce((r, d) => Math.max(r, d.W / 2), 0) : 0;
     for (const m of allMeshes) { m.computeBoundingSphere(); m.boundingSphere.radius += travel; }
   }
@@ -1146,10 +1088,7 @@ function pose(d, open = d.open) {
     const side = j < d.n / 2 ? -1 : 1, s = d.slidingSolids[j];
     const slide = d.window ? (j === 0 ? e * d.pw : 0) : side * e * d.W / 2;
     const center = d.lx - d.W / 2 + (j + .5) * d.pw + slide;
-    // 線分の両端にも半径が付く。鳥取はその丸みを戸の実幅の内へ収め、
-    // 開いた戸先や窓の重なりに、見えない当たりを張り出させない。
-    const inset = I.profile === 'tottori' ? s.r : 0;
-    const a = center - d.leafW / 2 + inset, b = center + d.leafW / 2 - inset;
+    const a = center - d.leafW / 2, b = center + d.leafW / 2;
     const z = d.lz + d.trackZ + (j % 2 ? 1 : -1) * d.track;
     s.ax = I.x + a * I.c + z * I.s; s.az = I.z - a * I.s + z * I.c;
     s.bx = I.x + b * I.c + z * I.s; s.bz = I.z - b * I.s + z * I.c;
@@ -1157,14 +1096,13 @@ function pose(d, open = d.open) {
     s.z0 = Math.min(s.az, s.bz) - s.r; s.z1 = Math.max(s.az, s.bz) + s.r;
   }
   if (!d.meshes) return;
-  // 実寸で組んだ長島・稲葉山・鳥取の戸は等倍にし、框や組子の太さを保つ。
-  // 鳥取も二重に伸縮させず、戸の上下端・実幅を溝と当たりへそろえる。
-  if (d.slidingSolids && SETTINGS.quality === 'high' && ['inabayama', 'tottori', 'nagashima'].includes(I.profile)) S.set(1, 1, 1);
+  // 実寸で組んだ長島・稲葉山の戸は等倍にし、框や組子の太さを保つ。
+  if (d.slidingSolids && SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)) S.set(1, 1, 1);
   else S.set(d.leafW / .9, d.leafH / 1.8, 1);
   // 稲葉山の襖・障子・板戸・格子戸は、左右の引手を召し合わせ側へ向ける。
   // 共通の一枚を半回転して使い、右の戸だけ引手が戸尻へ行くのを防ぐ。
   // 戸の幅・溝・当たりと、左右へ滑る距離は同じに保つ。
-  const pairedHandles = SETTINGS.quality === 'high' && ['inabayama', 'tottori', 'nagashima'].includes(I.profile)
+  const pairedHandles = SETTINGS.quality === 'high' && ['inabayama', 'nagashima'].includes(I.profile)
     && ['fusuma', 'fusumaE', 'shoji', 'itado', 'koshi'].includes(d.kind);
   // 正面側の外障子は紙を外へ、組子を室内へ向ける。
   // 右戸用の裏返した形を左へ、通常の形を右へ使えば、半回転する
@@ -1495,7 +1433,7 @@ function doorReachable(d, u, targetX = d.spot.x, targetZ = d.spot.z) {
   // 用屋の連子窓は窓台が床上一・二七歩。腰の高さだけで手の届く線を
   // 調べると、開いた窓の下の板壁に遮られて内側の板戸を操作できない。
   // 窓の中央へ手を上げ、立った人の届く高さまでで既存の壁を調べる。
-  const handY = d.window && ['inabayama', 'tottori'].includes(d.I.profile) && SETTINGS.quality === 'high'
+  const handY = d.window && d.I.profile === 'inabayama' && SETTINGS.quality === 'high'
     ? Math.max(u.pos.y + 1, Math.min(u.pos.y + 1.6, d.y + d.h / 2))
     : u.pos.y + 1;
   for (const wall of INTERIOR_WALLS) {
@@ -1561,14 +1499,14 @@ function genericNearest(rt) {
   const u = rt.player && rt.player.u;
   if (!u || !u.alive || rt.player.mounted) return null;
   let bd = 1.5, bestScore = Infinity;
-  const preferPassage = SETTINGS.quality === 'high' && ['inabayama', 'tottori'].includes(rt.world.def.battleKey);
+  const preferPassage = SETTINGS.quality === 'high' && rt.world.def.battleKey === 'inabayama';
   for (const d of DOORS) {
     if (d.I.disabled || (!d.exterior && d.I.id + 1 !== u.naka) || (u.naka && d.I.id + 1 !== u.naka) || Math.abs(u.pos.y - (d.window ? d.lv.y : d.y)) > 1.2) continue;
     let passageAhead = false;
-    // 鳥取・稲葉山・墨俣は引き込み先でも操作できるよう、動く戸の手掛かりへ札を寄せる。
+    // 稲葉山と墨俣は引き込み先でも操作できるよう、動く戸の手掛かりへ札を寄せる。
     // 閉じた戸口だけを的にすると、脇へ滑った戸の前に立っても「閉める」が出ない。
     // 絵・当たりと同じ幅と溝を使い、毎コマの配列・ベクトル生成は避ける。
-    if (['inabayama', 'tottori', 'toride'].includes(d.I.profile) && SETTINGS.quality === 'high') {
+    if ((d.I.profile === 'inabayama' || d.I.profile === 'toride') && SETTINGS.quality === 'high') {
       const I = d.I, dx = u.pos.x - I.x, dz = u.pos.z - I.z;
       const ux = dx * I.c - dz * I.s, uz = dx * I.s + dz * I.c;
       // 玄関や内戸の口に立った時は、脇の明かり窓より通る戸を選ぶ。
