@@ -183,6 +183,10 @@ export function bot(b, inp, T, C) {
   const p = b.player, u = p.u, F = b.flags, K = F.chi;
   if (!K || F.step > 2) return false;
   if (F.step === 1) {
+    // 深手なら柵から下がって味方の後ろで息を継ぐ（11/9 見回り：柵の前で囲まれ百秒ほどで倒れる回があった）
+    if (u.hp < u.maxHp * 0.4) b.chiRest = true;
+    if (b.chiRest && u.hp > u.maxHp * 0.75) b.chiRest = false;
+    if (b.chiRest) { inp.guardHold = false; T.goTo(p, inp, K.saku.x - K.d.x * 26, K.saku.z - K.d.z * 26, 2); return true; }
     const e = b.army.nearestEnemy(u, 14, (o) => !o.fleeing && !o.invuln && C.near(o.pos, K.saku, 12));
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
