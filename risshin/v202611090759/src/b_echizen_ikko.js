@@ -1698,9 +1698,10 @@ function closeTempleGap(rt) {
   const goal = F.guardRoadGoal || (F.guardRoadGoal = { x: 0, z: 0 });
   goal.x = x; goal.z = z;
   if (rt.army.wallBetween(P, -1, goal)) return;
+  // 境内で迎える下知の隊は、道の空白を埋めるために門前へ引き出さない。
   for (const b of F.defenders) {
     if (b.kind !== 'ashigaru' || b._route || b._templeIntercept || b._templeRetired || b._templeBroken ||
-        !b.real || b.real.routed || b.real.order !== 'hold' || b.real._pinH ||
+        !b.real || b.real.stay || b.real.routed || b.real.order !== 'hold' || b.real._pinH ||
         b.pos.z < P.z || b === F.ikkoAmbush || F.roadWaves?.includes(b) && !b._nightReleased ||
         !b.real.units.some((u) => u.alive && !u.fleeing && !u.woundOut)) continue;
     const d = Math.hypot(b.pos.x - P.x, b.pos.z - P.z);
@@ -1913,9 +1914,9 @@ function mkB(rt, o) {
 }
 
 // 大滝寺の焼失は由緒、夜討ち・持ち場・兵数は補完。衆徒の将名と家紋は不明。
-// 白山信仰の寺に本願寺の将や紋を置かず、丸の目印を保つ。
+// 布陣表の旗も、戦場の門徒と同じ六字名号にそろえる。
 function templeJin(defend) {
-  const row = (id, role, general, soldiers, x, z, flag, bind) => [id, role, general, soldiers, x, z, flag, flag === 'maru' ? null : flag, 0, { bind }];
+  const row = (id, role, general, soldiers, x, z, flag, bind) => [id, role, general, soldiers, x, z, flag, flag, 0, { bind }];
   return [
     rosterPlan('参道と谷道の寄せ', defend ? 1 : 0, VILLAGE, 0, defend ? [
       row('main', '参道の仕寄り', '滝川一益の配下（名は不明）', 100, VILLAGE.x, VILLAGE.z + 12, 'takigawa', 'odaMain'),
@@ -1932,22 +1933,22 @@ function templeJin(defend) {
       row('rearSupport', '麓の後備え', '滝川一益の配下（名は不明）', 30, VILLAGE.x - 10, VILLAGE.z + 8, 'takigawa', 'rearSupport'),
     ], '大瀧神社の由緒、越前和紙の案内。各備えの兵数・攻め口・陣所は仮定。越前へ侵攻した全軍の数ではない'),
     rosterPlan('堂と山道の守り', defend ? 0 : 1, INNER_POS, Math.PI, defend ? [
-      row('main', '本堂', '衆徒の大将（名は不明）', 70, 0, 6, 'maru', 'ikkoMain'),
-      row('gun', '本堂の鉄砲', '衆徒の大将（名は不明）', 20, -10, 24, 'maru', 'ikkoBow'),
-      row('valley', '谷道の伏せ勢', '衆徒の大将（名は不明）', 24, 28, -66, 'maru', 'ikkoAmbushD'),
+      row('main', '本堂', '衆徒の大将（名は不明）', 70, 0, 6, 'namu', 'ikkoMain'),
+      row('gun', '本堂の鉄砲', '衆徒の大将（名は不明）', 20, -10, 24, 'namu', 'ikkoBow'),
+      row('valley', '谷道の伏せ勢', '衆徒の大将（名は不明）', 24, 28, -66, 'namu', 'ikkoAmbushD'),
     ] : [
-      row('watchLower', '麓の見張り', '見張り役（名は不明）', 6, 0, -174, 'maru', 'ikkoWatchLower'),
-      row('watchMiddle', '参道の見張り', '見張り役（名は不明）', 6, 0, -138, 'maru', 'ikkoWatchMiddle'),
-      row('watchGate', '惣門前の見張り', '見張り役（名は不明）', 6, 0, -102, 'maru', 'ikkoWatchGate'),
-      row('outer', '外堂の薙刀', '衆徒の大将（名は不明）', 46, 0, -58, 'maru', 'ikkoGezanSpear'),
-      row('bow', '外堂の弓', '衆徒の大将（名は不明）', 16, 10, -54, 'maru', 'ikkoGezanBow'),
-      row('main', '本堂', '衆徒の大将（名は不明）', 60, 0, 4, 'maru', 'ikkoHondoMain'),
-      row('gun', '本堂の鉄砲', '衆徒の大将（名は不明）', 16, -10, 24, 'maru', 'ikkoHondoBow'),
-      row('oku', '奥の院', '衆徒の大将（名は不明）', 42, 0, 49, 'maru', 'ikkoOkuLast'),
-      row('rear', '山道の守り', '衆徒の大将（名は不明）', 6, -14, 86, 'maru', 'ikkoCounter'),
-      row('rear2', '山道の後備え', '衆徒の頭（名は不明）', 8, -20, 98, 'maru', 'roadSecond'),
-      row('rear3', '奥山の後備え', '衆徒の頭（名は不明）', 8, -26, 110, 'maru', 'roadThird'),
-      row('valley', '谷道の伏せ勢', '衆徒の大将（名は不明）', 26, 30, -70, 'maru', 'ikkoAmbush'),
+      row('watchLower', '麓の見張り', '見張り役（名は不明）', 6, 0, -174, 'namu', 'ikkoWatchLower'),
+      row('watchMiddle', '参道の見張り', '見張り役（名は不明）', 6, 0, -138, 'namu', 'ikkoWatchMiddle'),
+      row('watchGate', '惣門前の見張り', '見張り役（名は不明）', 6, 0, -102, 'namu', 'ikkoWatchGate'),
+      row('outer', '外堂の薙刀', '衆徒の大将（名は不明）', 46, 0, -58, 'namu', 'ikkoGezanSpear'),
+      row('bow', '外堂の弓', '衆徒の大将（名は不明）', 16, 10, -54, 'namu', 'ikkoGezanBow'),
+      row('main', '本堂', '衆徒の大将（名は不明）', 60, 0, 4, 'namu', 'ikkoHondoMain'),
+      row('gun', '本堂の鉄砲', '衆徒の大将（名は不明）', 16, -10, 24, 'namu', 'ikkoHondoBow'),
+      row('oku', '奥の院', '衆徒の大将（名は不明）', 42, 0, 49, 'namu', 'ikkoOkuLast'),
+      row('rear', '山道の守り', '衆徒の大将（名は不明）', 6, -14, 86, 'namu', 'ikkoCounter'),
+      row('rear2', '山道の後備え', '衆徒の頭（名は不明）', 8, -20, 98, 'namu', 'roadSecond'),
+      row('rear3', '奥山の後備え', '衆徒の頭（名は不明）', 8, -26, 110, 'namu', 'roadThird'),
+      row('valley', '谷道の伏せ勢', '衆徒の大将（名は不明）', 26, 30, -70, 'namu', 'ikkoAmbush'),
     ], '大滝寺の要件と既存の堂の並び。戦う衆徒の数・将・布陣は不明'),
   ];
 }
@@ -2368,6 +2369,8 @@ const echizen_ikko = {
     // 番号は右上の札が付ける（①と「2／4」を二重にしない）。
     return IKKO_GOALS[this.missionOf(rt)];
   },
+  // 接近戦や竹束への追従で、右上の下知を別の文へ言い替えない。
+  taskText(rt) { return this.missionHeading(rt); },
   // 討った本人を次の描画へ残さず、今の持ち場の最寄りを選ぶ。
   missionSignTarget(rt) {
     const F = rt.flags, p = rt.player.u.pos;
