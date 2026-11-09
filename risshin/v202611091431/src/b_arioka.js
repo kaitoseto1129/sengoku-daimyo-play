@@ -1404,7 +1404,8 @@ const ARI_FOLK = [[0x4a4236, 0x2a231c, 'none'], [0x5c4a3a, 0x30251c, 'hachimaki'
 function ariTownsfolk(rt) {
   const F = rt.flags;
   if (F.folk || (F.step || 0) < 1) return;
-  const p = rt.player.u.pos, from = { x: TOWN_X + 8, z: -18 };
+  // 東口の柵（町の中心から東へ八メートル）の内側に重ねず、逃げる側の通りへ出す。
+  const p = rt.player.u.pos, from = { x: TOWN_X + 11, z: -18 };
   if (Math.hypot(p.x - from.x, p.z - from.z) > 46 || p.z < -70) return;
   // 刀根坂の人夫と同じく、戦わない足軽の体に小袖を着せて道筋（order: 'path'）を歩かせる（porter の型は自分の主へ寄って行った）。
   const g = allyGroup(rt, { fixed: true, fullStrength: true, name: '逃げる町の者', anchor: from, facing: Math.PI / 2, formation: 'column', colW: 2,
@@ -1535,7 +1536,8 @@ const arioka = {
   goals5(rt) {
     const won = () => rt.tracker?.main === true && !!rt.over, at = (k) => (q) => (arioka.missionOf(q) > k) || won();
     const place = [{ x: GATE.x - 30, z: GATE.z }, { x: GATE.x + 12, z: GATE.z }, ARI_JUNCTION, ARI_JUNCTION];
-    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text: '①②③④⑤'[k] + text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
+    // 11/9 iPhone 874×402：右上の札が「1　①上臈塚の…」と番号を二重に出した。番号は札（hud_goals）が付ける
+    return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ['上臈塚の木戸', '木戸の内', '侍町の辻', '侍町の辻', '小寺官兵衛'][k], action: text,
       // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
       place: k < 4 ? () => place[k] : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },
@@ -2991,7 +2993,9 @@ function ariStage(o, defending) {
       ariMark(rt, 'dp', () => gateWay(rt.army, rt.player.u, C.at), () => o.label || o.title);
       const reserve = rt.flags.reserves[defending ? 1 : 0];
       if (!ariSpent(reserve)) {
-        (rt.flags.committed || (rt.flags.committed = [])).push(reserve);
+        // 同じ控えを次の段でも呼ぶ。重複すると行軍の並びを二度割り当て、後詰を輪の外へ押し出す。
+        const committed = rt.flags.committed || (rt.flags.committed = []);
+        if (!committed.includes(reserve)) committed.push(reserve);
         rt.bark('後詰が続く。組と持ち場を固めよ');
       }
       // 辻も十二秒守る持ち場。木戸と同じ地形に沿う印で、集まる範囲を示す。
