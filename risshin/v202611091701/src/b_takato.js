@@ -50,8 +50,11 @@ Object.assign(takato, {
   // 共通の「味方の小勢・敵の小勢」は足さない（kaito AQ6・AW6：5人ほどの小隊を湧かせない）。
   frontlineDensity: false,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
-  speechAllowed: (rt) => rt.over || !!rt.flags.ending,
-  bannerAllowed: (rt) => rt.over || !!rt.flags.ending,
+  // 名乗り・決死の守り・使番の知らせは、戦の最中にも本人へ届かせる。
+  battleDialogue: true,
+  speechAllowed: (rt, who) => rt.over || !!rt.flags.ending ||
+    /^(森長可|織田信忠|仁科盛信|はな（諏訪勝右衛門の妻）|使番)$/.test(who),
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || text === '本丸の決死の守り',
   // 11/4 p100（kaito AR1・AT16）：どこで何をするかを一行で。「味方と進め」「ここを守れ」のような分からない言い方をしない。
   // 始まりの札の「勝つには」は②③だけでなく、本丸までの勝ち筋を一行で。
   introGoal: '大手門から三の丸・二の丸を抜き、本丸の旗の下へ',

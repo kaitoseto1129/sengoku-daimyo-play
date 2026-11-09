@@ -4410,7 +4410,9 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
   const pace = tedoPaceMarker(b);
-  if (pace) {
+  // 退き口の案内中も、下の退却処理で本人への打ち込みを受ける。
+  // 案内だけを追う分岐では構えを解除し続け、追手に背をさらしてしまう。
+  if (pace && pace.id !== 'furikiru') {
     const at = pace.pos();
     b.botRest = false; inp.guardHold = false;
     inp.runHeld = !pace.red; inp.leftPressed = false; inp.chargeHold = false;
