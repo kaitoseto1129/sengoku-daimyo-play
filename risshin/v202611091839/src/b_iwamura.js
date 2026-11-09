@@ -1801,15 +1801,14 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 元の五十六人のうち八人を追撃路へ分ける。途中の補充はしない。
     F.directedMouth = null; F.routSaid = new Set(); F.sentWaves = [];
     // critic60：支度の間（篝火を焚く間）に敵が突っ立って見えないよう、夜討ちの手は寄せの起点より十二メートル下の闇から、
-    //   火を消して静かに山道を忍び上がる（一3：見える敵は何かしている）。城口の手は麓で出を待つ。
-    const creepFrom = (path, i) => {
-      if (i === 2) return { x: path[0][0], z: path[0][1] };
+    //   火を消して静かに山道を忍び上がる（一3：見える敵は何かしている）。城口の手も同じ支度で寄せる。
+    const creepFrom = (path) => {
       const dx = path[0][0] - path[1][0], dz = path[0][1] - path[1][1], L = Math.hypot(dx, dz) || 1;
       return { x: path[0][0] + dx / L * 12, z: path[0][1] + dz / L * 12 };
     };
     F.waves = RAID_PATHS.map((path, i) => enemyGroup(rt, {
       fixed: true, faction: 'takeda', name: i === 2 ? '城口から出た武田勢' : '山道の夜討ち勢',
-      anchor: creepFrom(path, i), facing: Math.atan2(path[1][0] - path[0][0], path[1][1] - path[0][1]), order: 'hold', formation: 'column', colW: 2, roadColumn: true,
+      anchor: creepFrom(path), facing: Math.atan2(path[1][0] - path[0][0], path[1][1] - path[0][1]), order: 'hold', formation: 'column', colW: 2, roadColumn: true,
       aggro: 4, seekRange: 28, noAI: true, morale: 85, fleeDir: { x: 0, z: -1 },
     }, battleLook(rt, [
       // 城方の夜討ちは大将分二十一人・千百余が討たれた大勢（信長公記）。各手に侍を入れ、山道を埋める数にする。
@@ -1848,7 +1847,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       for (const u of g.units) u.noTarget = true;
       g.onArrive = (q) => { q.keepMoveOrder = false; q.order = 'hold'; q.march = false; };
     };
-    F.waves.forEach((g, i) => { if (i !== 2) creep(g, { x: RAID_PATHS[i][0][0], z: RAID_PATHS[i][0][1] }); });
+    F.waves.forEach((g, i) => { creep(g, { x: RAID_PATHS[i][0][0], z: RAID_PATHS[i][0][1] }); });
     for (const g of F.waves) g.morale = F.siege.morale;
     F.contacts = [F.scout, ...F.waves];
     // 10/30 採点：開戦25秒の画面は味方がまばらに並ぶだけで敵が見えなかった。西の篝火へ歩く遊び手の前十〜十五歩、
@@ -2427,7 +2426,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       rt.objProgress('main', F.raidReturning ? watchProgress(rt) : F.lit >= POSTS.length ? watchProgress(rt) : fireProgress(F));
     }
     if (F.step === 1 && F.lit < POSTS.length && !F.raidReturning && !F.localContact && !F.scoutContact && rt.t - F.stepT > 22 && !F.litCall) {
-      F.litCall = true; rt.say('組頭', F.scoutNear ? '火は味方も焚く。おぬしは口を守れ' : '残る篝火へ向かえ。火がそろえば口を守れ', 4);
+      F.litCall = true; rt.say('組頭', F.scoutNear ? '敵を警戒し、残る篝火を焚け' : '残る篝火へ向かえ。火がそろえば口を守れ', 4);
     }
     // 10/31：本人が歩き出すまで夜討ちを始めない（立っているだけで段が進まないように）
     // 篝火の任務は本人が二つとも焚くまで保つ。待ち時間だけで味方に済ませさせない。

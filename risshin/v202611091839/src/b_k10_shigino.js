@@ -314,6 +314,18 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     F.mzS = allyGroup(rt, { faction: 'uesugi', name: '水原の鉄砲（南）', fullStrength: true, fixed: true, anchor: { x: 136, z: 5 }, facing: -Math.PI / 2, width: 5, aggro: 6, speed: 3.6, order: 'hold', noRout: true, fire: true },
       ueD([uS(2), uG(13)]));
     F.mzN.dikeShoulder = F.mzS.dikeShoulder = true;
+    // 一斉射二回と今福救援三回の弾を残す。普段の射撃で空になると、
+    // 筒を捨てて脇差へ替わり、川岸で合図しても永遠に撃てなくなる。
+    const fireGun = rt.army.fireGun;
+    rt.army.fireGun = function (u, target, launch = null, aim = null) {
+      if (!F.commandedShot && (u.group === F.mzN || u.group === F.mzS) && (u.gunAmmo ?? 20) <= 6) return false;
+      return fireGun.call(this, u, target, launch, aim);
+    };
+    const dispose = rt.dispose;
+    rt.dispose = function () {
+      this.army.fireGun = fireGun;
+      return dispose.call(this);
+    };
     // 上杉景勝の本陣：東の端で旗本に囲まれ、前に出ない（AR3・AT3）
     F.honjin = allyGroup(rt, { faction: 'uesugi', name: '上杉景勝の本陣', fullStrength: true, fixed: true, anchor: { x: HONJIN.x, z: HONJIN.z }, facing: -Math.PI / 2, width: 8, aggro: 4, seekRange: 10, order: 'hold', noRout: true },
       ueD([{ type: 'busho', n: 1, o: { name: '上杉景勝', invuln: true, horse: false, kosode: true, kosodeCol: 0x35342e, hat: 'none', menpo: 0, flag: null } }, { type: 'busho', n: 1, o: { name: '直江兼続', invuln: true, horse: true } }, uS(30), uG(6)]));
@@ -453,7 +465,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || !foes.length) continue;
       const t = foes[k++ % foes.length];
       u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); u.reload = 0;
-      if (rt.army.fireGun(u, t)) shots++;
+      if (this.commandShot(rt, u, t)) shots++;
     }
     // 不発・弾切れ・射程外では、一斉射の達成や見せかけの損害を与えない。
     if (!shots) return;
@@ -466,6 +478,12 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     if (F.shot === 2) rt.say('足軽', '堤の上で、大坂の兵が折り重なって倒れていく！', 3);
   },
 
+  // 下知による実射だけは取り置きの弾を使う。
+  commandShot(rt, u, target) {
+    rt.flags.commandedShot = true;
+    try { return rt.army.fireGun(u, target); }
+    finally { rt.flags.commandedShot = false; }
+  },
   // 手本：battle_refs/k09_imafuku.md の大阪市・今福の戦い。北岸の佐竹を南岸から救う。
   riverAid(rt) {
     const F = rt.flags;
@@ -499,7 +517,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;
       const target = targets[shots % targets.length];
       u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z); u.reload = 0;
-      if (rt.army.fireGun(u, target)) shots++;
+      if (this.commandShot(rt, u, target)) shots++;
     }
     if (shots) {
       F.riverShots++; F.riverNext = rt.t + 7;
