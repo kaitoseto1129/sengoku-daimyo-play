@@ -2395,12 +2395,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     //   本多忠真は崖の東の道に残る姿を見せてから（主人公が崖の脇を過ぎた所で）、夏目吉信は城の近くで（布橋の碑）。
     let lastFallT = F.stepT + 7.5; // 平手の知らせからも六秒以上あける。
     const fall = (name, passZ, late, ready) => {
+      const key = name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid';
       const tick = () => {
         // 帰着の余韻の間も殿の後報を伝える。帰着で予約を捨てると、早く退いた時に知らせが消える。
-        if (rt.over || F.ending && F.returnedT === undefined) return;
-        if (!ready() || !F.dpR || F.dpOn || rt.t - lastFallT < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
-        lastFallT = rt.t;
-        F[name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid'] = true;
+        if (F[key] || rt.over || F.ending && F.returnedT === undefined) return;
+        if (!ready() || !F.dpR || F.dpOn || rt.t - Math.max(lastFallT, F.mkLastFallT || 0) < 6 || rt.player.u.pos.z < passZ && rt.t - F.stepT < late) { rt.after(1, tick); return; }
+        lastFallT = F.mkLastFallT = rt.t;
+        F[key] = true;
         const u = rt.army.units.find((q) => q.alive && q.name === name);
         if (u) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
         rt.banner(`${name}、討ち死に`, '');
@@ -2686,6 +2687,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 殿が実戦で先に討たれた時も、その場で一度だけ知らせ、後の予約で重ねない。
+    if (v.team === 0 && (v.name === '本多忠真' || v.name === '夏目吉信')) {
+      const key = v.name === '本多忠真' ? 'tadazaneFallSaid' : 'yoshinobuFallSaid';
+      if (!F[key]) {
+        F[key] = true; F.mkLastFallT = rt.t;
+        rt.banner(`${v.name}、討ち死に`, '');
+      }
+    }
     if (v === F.hiraU && !F.hirateFallSaid) {
       F.hirateFallSaid = true;
       F.bossName = '佐久間信盛';
