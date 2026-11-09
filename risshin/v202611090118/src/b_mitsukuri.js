@@ -2008,7 +2008,8 @@ function openingColumn(rt, g, back) {
   }
   const slotPos = g.slotPos;
   g.slotPos = function(i, n) {
-    if (rt.flags.step < 2 || (g === rt.flags.ramNext && !rt.flags.ram2)) return slots[i];
+    // 11/9：開きの物見の段（step < 2）の間に後から足された兵は、並びの最後の場所の近くへ（場所が無く落ちた）
+    if (rt.flags.step < 2 || (g === rt.flags.ramNext && !rt.flags.ram2)) return slots[i] || slots[i % slots.length];
     return marchSlot(this, i, n, slotPos);
   };
   g._sanMarchSlots = true;
@@ -4169,7 +4170,8 @@ const mitsukuri = {
     // 15分の構成：寄せの前に物見の場で城の構えを見て、六角の物見を払い、丹羽の手と合流してから総懸かり。
     //   先手の列（openingColumn）は柵の前に並べたまま動かさない（段へ呼ぶと三の郭へ寄せる列が崩れた）。物見には藤吉郎の手の足軽が付く
     rt.after(0, () => k15Monomi.start(rt, { faction: 'rokkaku', flag: 'rokkaku', armor: RK.armor, look: (list) => dress(list, RK),
-      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: ROAD_OTE[6][0], z: ROAD_OTE[6][1] },
+      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 12 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）
+     
       CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },
 

@@ -89,7 +89,7 @@ export const GENERALS = {
     face: { w: 1.0, jaw: 1.05, chin: 1.0, cheek: 1.2, gaunt: 0.8, brow: 1.2, nose: 1.05, nw: 1.0, eye: 1.2, t: 6, hair: 0x5a5650 } },
   '井伊直政': { armor: 0xa52b1c, lace: 0xb8342a, hat: 'kabuto_tentsuki', hatFix: 1, haori: 0x7a1a12, horo: 0, mon: 'ii', haoriMonCol: 0xc9a24a, skin: 0xc09a74, tack: 0x8e2218,
     face: { w: 0.93, jaw: 0.85, chin: 1.1, cheek: 1.0, gaunt: 0.5, brow: 1.05, nose: 1.1, nw: 0.92, eye: 1.05, t: 1, hair: 0x15110d, age: 39, beard: { mus: 0.15, musW: 0.6, musH: 0.6, goat: 0, side: 0, stub: 0.4 } } },
-  '真田信繁': { armor: 0x8e1f16, lace: 0xb8342a, hat: 'kabuto_sanada', hatFix: 1, haori: 0x7a1a12, horo: 0, mon: 'sanada', haoriMonCol: 0xc9a24a, skin: 0xa87f5c, tack: 0x8e2218,
+  '真田信繁': { armor: 0x8e1f16, lace: 0x232c40, hat: 'kabuto_sanada', hatFix: 1, haori: 0, horo: 0, mon: 'sanada', haoriMonCol: 0xc9a24a, skin: 0xa87f5c, tack: 0x8e2218,
     face: { w: 0.97, jaw: 1.0, chin: 1.05, cheek: 1.25, gaunt: 1.0, brow: 1.15, nose: 1.05, nw: 1.0, eye: 1.15, t: 4, hair: 0x3a3632, age: 48, beard: { mus: 0.55, musW: 0.85, droop: 0.4, goat: 0.75, goatW: 0.7, side: 0.1, stub: 0.8 } } },
   '前田利家': { armor: 0x1c1a1a, lace: 0x9a7a3a, hat: 'kabuto_namazu', hatFix: 1, haori: 0x2a2622, horo: 0x9e2a1e, mon: 'maeda', cmd: 'bold', haoriMonCol: 0xe6dfcf, skin: 0xa87f5c, tack: 0x2a2420,
     face: { w: 0.98, jaw: 1.05, chin: 1.05, cheek: 1.15, gaunt: 0.6, brow: 1.2, nose: 1.1, nw: 1.0, eye: 1.1, t: 4, hair: 0x2a2622, age: 23, beard: { mus: 0.35, musW: 0.8, musH: 0.7, droop: 0.3, goat: 0.15, side: 0, stub: 0.5 } } },
