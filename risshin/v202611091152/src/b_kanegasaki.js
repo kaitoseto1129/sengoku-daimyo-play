@@ -3691,7 +3691,7 @@ const kanegasaki = {
         const range = F.exitReady && i > 0 ? 60 : 30;
         if (u.alive && !u.gone) gap += Math.max(0, distance - range);
         if (waiting) continue;
-        if (!u.alive) { waiting = `${name}は討たれた。残った組を集めよ`; continue; }
+        if (!u.alive || u.gone) { waiting = `${name}は${u.gone ? '戦場を離れた' : '討たれた'}。残った組を集めよ`; continue; }
         // 合流判定の範囲までの距離を示す。旗の中心まで歩く必要はない。
         if (distance >= range) waiting = `${name}${u.woundOut ? 'は深手' : 'が退いてくる'}。合流まで約${Math.max(1, Math.ceil(distance - range))}m。来た道を守れ`;
       }
@@ -3708,7 +3708,7 @@ const kanegasaki = {
       }
       // 成功に要る兵を失った後も、届かない成功判定を待ち続けさせない。
       // 生還は残兵との合流で決め、任務失敗を勝利へ変えない。
-      if (F.exitReady && (alive < Math.ceil(initial * 0.25) || kgGenerals(rt).some(e => !e.u.alive))) {
+      if (F.exitReady && (alive < Math.ceil(initial * 0.25) || kgGenerals(rt).some(e => !e.u.alive || e.u.gone))) {
         F.exitReady = false;
         F.escapeFailure = '退く途中で殿が崩れ、味方を守りきれなかった';
         retreatFailure(rt, F.escapeFailure);
@@ -4081,7 +4081,7 @@ const kanegasaki = {
     if (!lord && !F.exitReady) return near === alive;
     const gens = lord ? [] : kgGenerals(rt);
     // 未合流の援軍は一覧に入らないため、人数も確かめて三将を省かない。
-    if (!lord && (gens.length !== 3 || alive < Math.ceil(initial * 0.25) || gens.some(e => !e.u.alive))) return false;
+    if (!lord && (gens.length !== 3 || alive < Math.ceil(initial * 0.25) || gens.some(e => !e.u.alive || e.u.gone))) return false;
     // 殿の大将の藤吉郎は退き口まで。加わった光秀・池田は後ろの道の上（六十m 内）まで来ていれば合流とみなす
     //   （鉄砲組が道の折れで引っかかり、三将そろうのを待って毎回負けた。10/28 bot）
     return alive > 0 && near >= Math.ceil(alive * 0.6) && gens.every((e, i) => Math.hypot(e.u.pos.x - KUTSUKI.x, e.u.pos.z - KUTSUKI.z) < (i === 0 ? 30 : 60));

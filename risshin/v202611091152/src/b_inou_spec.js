@@ -444,6 +444,7 @@ const inou_spec = {
     F.farPin = null;
     const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
     pin.x = u.pos.x; pin.z = u.pos.z; pin.r = r;
+    pin.label = holding ? '信長の馬前' : F.stage === 0 ? '於多井川の岸' : F.stage === 2 ? '稲生村の田' : '名塚への田の道';
     pin.unit = holding ? null : u; pin.enemy = !holding; pin.flagDestination = holding;
     F.beginnerPinTarget = pin;
     return pin;

@@ -279,6 +279,7 @@ const k02_kawada = {
   fearKind: { kind: '渡河', note: '浅瀬で足を取られ、対岸の鉄砲に撃たれる', w: { losses: 1.4, flank: 1.2 }, line: '川の中で止まるな！' },
   battleDialogue: true,   // 11/8 critic60 二5：音の無い所で誰が何を言ったか分からなかった。台詞を字でも出す（八秒の間引き・三枠は共通）
   nearbyAllySignLimit: 0,   // 11/8 critic60 五2：味方の頭上の白い小さな丸（意味の分からない印）を出さない
+  nameTagLimit: 12,   // 名のある将を二枚の枠で隠さない。重なりと遮蔽物の判定は共通の名札処理を使う
   stageGoalsOnly: true,   // 右上の目標は四つの段だけ（「敵を何人討つ」で埋めない。物差し三の1・11/6）
   dpNoMark: true,         // 行き先の印と別に「敵の組・士気」の札を重ねない（五1・五3）
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」「一騎打ち」「敵将が倒れた」や段の見出しは案内の字。物差し五の1・11/6 流しで八つ出ていた）
@@ -599,7 +600,9 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
     const side = FORT_IN.x + (u.pos.x < FORT_IN.x ? -25 : 25);
     // 北の柵の境目と側面の柵ぎわでも、先に横へ離す。南へ直進すると柵に当たり続ける。
     const edge = Math.abs(u.pos.x - FORT_IN.x);
-    if ((u.pos.z <= SHINKANO.z - 12 || (edge >= 19.5 && u.pos.z < FORT_GATE.z - 1)) && edge < 23) goTo(p, inp, side, u.pos.z, 1, true);
+    // 達成判定より外でも柵の内にいる細い縁では、中へ寄る。外へ迂回すると側面の柵に当たり続ける。
+    if (edge < 20 && u.pos.z > SHINKANO.z - 14 && u.pos.z < SHINKANO.z + 10) goTo(p, inp, FORT_IN.x, FORT_IN.z, 1, true);
+    else if ((u.pos.z <= SHINKANO.z - 12 || (edge >= 19.5 && u.pos.z < FORT_GATE.z - 1)) && edge < 23) goTo(p, inp, side, u.pos.z, 1, true);
     else if (Math.abs(u.pos.x - FORT_GATE.x) > 3 && u.pos.z < FORT_GATE.z - 1) goTo(p, inp, u.pos.x, FORT_GATE.z + 3, 2, true);
     else if (u.pos.z > FORT_GATE.z - 4 && Math.abs(u.pos.x - FORT_GATE.x) > 2) goTo(p, inp, FORT_GATE.x, FORT_GATE.z, 1.5, true);
     else goTo(p, inp, FORT_IN.x, FORT_IN.z, 3, true);
