@@ -4294,6 +4294,9 @@ function kgHold(line, dur, waves, ambush = false) {
   const L = LINES[line];
   return {
     kind: 'hold', max: line === 2 ? dur + RETREAT_T : dur + 1,
+    // 共通の七分制限へ延ばさない。追手が届く猶予八十秒と、接触後の守備一倍半を確保する。
+    // 接触しないまま期限を迎えた場合は end で任務失敗にし、次の退く下知へ進める。
+    limit: line === 2 ? dur + RETREAT_T : 80 + dur * 1.5,
     // 旗で守る待機を放置と扱わず、備ごとの守備時間と退去の判定で締める。
     // 共通の放置処理で味方を攻め出させたり、三の備を途中で打ち切ったりしない。
     idleAdvance: false,

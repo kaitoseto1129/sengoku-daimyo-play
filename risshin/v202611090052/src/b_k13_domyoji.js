@@ -142,6 +142,13 @@ const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0),
 function checkedStep(step) {
   step.idleAdvance = false;
   if (step.kind !== 'fight' && step.kind !== 'hold') return step;
+  if (step.kind === 'hold') {
+    const start = step.start;
+    step.start = (rt, C, m, ctx) => {
+      start(rt, C, m, ctx);
+      rt.unzone('dp'); // 持ち場は頭上の▼で示し、共通の守備範囲の輪を地面に残さない。
+    };
+  }
   const tick = step.tick, holdTime = step.kind === 'hold' ? (step.max - 35) * 0.45 : 0;
   step.max = Infinity;
   step.tick = (rt, C, m, ctx, el, dt) => {
@@ -149,6 +156,13 @@ function checkedStep(step) {
     const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 32;
     if (near && C.arrivedAt == null) C.arrivedAt = rt.t;
     const done = tick(rt, C, m, ctx, el, dt);
+    // 共通の激突は残り三人で敗走を許すが、兼相が逃げると討死待ちの段が終わらない。
+    // 討つべき将が生きている組は、最後の一人まで持ち場で戦う。
+    for (const g of C.groups) if (g.units.some((u) => u.alive &&
+      (u.name === '後藤又兵衛' || u.name === '薄田兼相'))) {
+      g.noRout = true;
+      g.morale = Math.max(g.morale, 60);
+    }
     // 誉田は本人だけが近くにいれば済む待機にしない。味方の列と共に受けた刻だけ数える。
     if (holdTime) {
       let friends = 0;
@@ -338,6 +352,7 @@ const k13_domyoji = {
   noGoalCount: true,      // 討つ相手の向きを画面の端の赤い太い矢印で指さない（矢印は使わない。五3。11/7 の遊びで②③に出た）
   goalSignTriangle: true, // 共通の行き先の印も、画面の端で矢印へ回さず▼のままにする。
   nameRange: 50,         // 水野・本多・片倉・又兵衛・薄田・真田の名を、組が見える所から出す（五2・九3）
+  waitForPortrait: true, // 顔を覚えていない初戦でも黒い影を出さず、本人の顔が撮れてから表示する。
   noWake: true, noReserve: true, noTaishoRaid: true, noFarFill: true, noAheadFill: true,
   // 刃を受けた後の3秒は次の刃を通さない（三万四千の中で足軽一人に十秒で討たれない。kaito 十二3）
   meleeGrace: { rate: 1, burst: 1, interval: 3 },
@@ -483,7 +498,7 @@ const k13_domyoji = {
       // ③ 石川を渡り、道明寺の野で薄田兼相を討つ（史実で討死）
       DP.fight({ at: NOGAWA, title: '薄田兼相', sub: '誉田八幡から出た薄田の手が、石川を渡って来る', obj: GOALS[2], max: LIMIT[3], noRefill: true,
         say: [['足軽', '薄田隼人の旗じゃ！　川の向こうから来るぞ！']],
-        foes: () => [keep('薄田兼相の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '薄田兼相', horse: true, hat: 'kabuto_g' } }, uS(6), uA(12), uG(4)], { dx: -26, dz: -6, noRout: 40 })],
+        foes: () => [keep('薄田兼相の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '薄田兼相', horse: true, hat: 'kabuto_g' } }, uS(6), uA(12), uG(4)], { dx: -26, dz: -6, noRout: Infinity })],
         later: [{ t: 35, say: ['足軽', '山川賢信と明石全登の手じゃ！　霧の中から！'], foes: () => [keep('山川賢信・明石全登の手', NOGAWA, [{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(2), uA(10), uG(3)], { dx: -34, dz: 14 })] }],
         reward: '道明寺の野で薄田兼相の手を破った' }),
       DP.rest({ dur: 6, heal: 0.3, fn: () => { rt.world.setTime?.('day'); this.dateToHonda(rt); },
@@ -689,7 +704,8 @@ k13_domyoji.botBrain = (b, inp, { goTo }) => {
 
 // 戦の進行の札：五つの目標（段の 0・1・3・5・6）
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k13_domyoji = [[GOALS[0]], [GOALS[1], dpAt(1)], [GOALS[2], dpAt(3)], [GOALS[3], dpAt(5)], [GOALS[4], dpAt(6)]];
+// 立て直す間も済んだ段に印を付け、次の目標を示す（主の目標の切替と同じ境目）。
+STAGES.k13_domyoji = [[GOALS[0]], [GOALS[1], dpAt(1)], [GOALS[2], dpAt(2)], [GOALS[3], dpAt(4)], [GOALS[4], dpAt(6)]];
 
 export { k13_domyoji };
 export default k13_domyoji;

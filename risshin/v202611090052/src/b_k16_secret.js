@@ -66,9 +66,16 @@ const FENCE_Z = [TEPPO.z + 7, HONDA_AT.z + 9];   // 馬防柵の並び（口は�
 const viaGap = (from, to) => { for (const fz of FENCE_Z) if (from.z > fz + 0.4 && to.z < fz && Math.abs(from.x) > 3) return { x: 0, z: fz + 2.5 }; return null; };
 const inCamp = (p) => Math.abs(p.x - HQ.x) < 7 && p.z < HQ.z + 5.5 && p.z > HQ.z - 6;   // 幕の際（角）は外と見る（11/8：角で幕越しに止まった）   // 陣幕の内（16×12 の幕）
 // 秀忠へは南の口から出て東の角を回る。口から斜めに直進しても布を横切るため、角の外まで案内する。
-const hideRoute = (p, to) => Math.abs(p.x - HQ.x) < 14
-  ? { x: p.z < MOUTH.z + 2 ? MOUTH.x : HQ.x + 16, z: MOUTH.z + 3 }
-  : to;
+const hideRoute = (p, to) => {
+  if (p.z <= HQ.z - 6 && Math.abs(p.x - HQ.x) < 14) return { x: HQ.x + (p.x < HQ.x ? -16 : 16), z: p.z };
+  // 幕の横にいる時は、その側の角を回る。口へ斜めに寄せると布を横切る。
+  if (p.z < MOUTH.z + 2 && Math.abs(p.x - HQ.x) < 14) {
+    const x = Math.abs(p.x - HQ.x) >= 7 ? HQ.x + Math.sign(p.x - HQ.x) * 16 : MOUTH.x;
+    return { x, z: MOUTH.z + 3 };
+  }
+  if (p.z < MOUTH.z + 2 && p.x < HQ.x) return { x: HQ.x - 16, z: MOUTH.z + 3 };
+  return p.x < HQ.x + 14 ? { x: HQ.x + 16, z: MOUTH.z + 3 } : to;
+};
 const OWN = { armor: 0x2a2420, lace: 0xb8342a, flag: 'maru' };   // 主人公の軍（丸の旗・朱の威）
 const II = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'ii' };      // 井伊の赤備え（全員朱）
 const TODO = { armor: 0x24221f, flag: 'todo' };
@@ -684,6 +691,7 @@ const k16_secret = {
   },
 
   // bot：近い敵を突き、いなければ段の行き先へ
+  botDuringEnding: (b) => b.flags.endPhase === 'hide',
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     inp.quickCmd = null;
