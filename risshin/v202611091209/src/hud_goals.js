@@ -109,7 +109,8 @@ export function goalsTick(el, rt, stg, always) {
   const f = rt.def.goalsList === false ? null : fiveGoals(rt);
   const on = !!((always || !rt.def.missionSingleLine || rt.def.goalsAllRows) && f && f.now >= 0 && !rt.over);
   el.classList.toggle('goal-mode', on);
-  el.classList.remove('goals-all-rows');
+  const visibleRows = Math.max(1, Math.min(5, Math.floor(rt.def.goalVisibleRows || 1)));
+  el.classList.toggle('goals-all-rows', visibleRows > 1);
   if (!on) {
     const army = document.getElementById('armybar');
     if (army && el.contains(army)) el.parentNode.appendChild(army);
@@ -133,6 +134,8 @@ export function goalsTick(el, rt, stg, always) {
   const still = !!S.reduceMotion;
   // 今の一件を表示し、ほかの目標は一覧を開いた時だけ見せる。
   const now = f.now >= 0 ? f.now : f.rows.findIndex(g => !g.done && !g.fail);
+  // 六段以上の戦でも、今の目標を含む五件までを順番どおりに残す。
+  const firstRow = Math.max(0, now - visibleRows + 1);
   const key = now + '@' + f.rows.map((g, i) => (g.done ? '1' : g.fail ? 'x' : i === now ? 'n' : '0') + goalWords(g.text) + (g.count ? g.count.join('/') : '') + (g.left != null ? 't' : '')).join('|');
   // 残り時間は今の目標の行だけ。秒が変わる時だけ書き、並びは作り直さない
   const tm = box.querySelector('li.now .tm');
@@ -145,8 +148,7 @@ export function goalsTick(el, rt, stg, always) {
   G.key = key;
   ul.textContent = '';
   f.rows.forEach((g, i) => {
-    // 戦の条件と順番は保ち、読むのは今の一件だけにする。
-    if (i !== now) return;
+    if (i < firstRow || i >= firstRow + visibleRows) return;
     const li = document.createElement('li');
     li.className = i === now ? 'now' : g.done ? 'done' : g.fail ? 'fail' : '';
     // 今まで済んでいなかった物が済んだ時だけ弾ませる
@@ -158,7 +160,7 @@ export function goalsTick(el, rt, stg, always) {
       // 数は目標の字の後ろへ続けて置く（横の別の列に置くと、844×390 で目標の字が四行に押し込まれ「討／つ」と語の途中で折れた・11/8 天王寺の通し）
       const sp = li.lastChild; sp.style.color = '#ff8a78'; sp.appendChild(em);
     }
-    li.setAttribute('aria-label', '今：' + goalWords(g.text) + (g.count ? ` ${g.count[1]}のうち${g.count[0]}` : ''));
+    li.setAttribute('aria-label', (i === now ? '今：' : g.done ? '達成：' : g.fail ? '失敗：' : '目標：') + goalWords(g.text) + (g.count ? ` ${g.count[1]}のうち${g.count[0]}` : ''));
     // 残り時間の字は出さない（画面の字は名前・人数・目標・命だけ）
     ul.appendChild(li);
   });

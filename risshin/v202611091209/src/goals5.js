@@ -271,7 +271,7 @@ const OWN = {
 OWN.t12_odawara = () => {
   // 11/8 15分の構成：段の番は戦の側の名の表（rt.flags.dpIx。段のファイルの段は名、元の段は夜への移り yoru の後ろから数える）
   const X = (rt) => rt.flags.dpIx || {};
-  const ix = (k) => (rt) => (typeof k === 'number' ? (X(rt).yoru ?? -9) + 1 + k : X(rt)[k] ?? 99);
+  const ix = (k) => (rt) => (typeof k === 'number' ? (X(rt).yoru ?? 99) + 1 + k : X(rt)[k] ?? 99);   // 段の表が出来る前（始めの数秒）は先の段を済みにしない
   const at = (k) => (rt) => won(rt) || (rt.flags.dp?.i ?? -1) > ix(k)(rt) || (rt.flags.dp && !rt.flags.dp.on);
   const foes = (k) => (rt) => (rt.flags.dp?.i === ix(k)(rt) ? rt.flags.dp.cur?.groups || [] : []);
   return [
