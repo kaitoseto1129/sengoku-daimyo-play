@@ -208,7 +208,7 @@ function build(rt, root) {
   }
   (root || document.body).appendChild(box);
   const s = { marks, allies, bars, glow, box, labels, gens: [], at: -1, nearby: [], nearbyAt: -1,
-    signPool: Array.from({ length: !!rt.def.missionStyle ? CAP : 0 }, () => ({ matrix: new THREE.Matrix4(), upper: new THREE.Matrix4() })),
+    signPool: Array.from({ length: !!rt.def.missionStyle ? CAP : 0 }, () => ({ matrix: new THREE.Matrix4() })),
     signCandidates: [], signCells: new Uint8Array(0) };
   const clean = () => {
     rt.scene.remove(marks, allies, bars, glow);
@@ -222,30 +222,30 @@ function build(rt, root) {
   return s;
 }
 
-// 敵の兵には一人残らず▼（kaito 11/5 九の3「距離で間引かない」）。人数・距離・重なりでは消さない。
-// 奥から手前の順に描き、届く本人・命中した本人を上に出す。候補の入れ物と行列は使い回す。
-const signBackFirst = (a, b) => Number(a.hot) - Number(b.hot) || b.distance - a.distance;
+// 届く本人・命中した本人を先に確保し、重なる所属印だけ畳む。兵や戦闘の判定は変えない。
+const signBackFirst = (a, b) => Number(b.hot) - Number(a.hot) || a.distance - b.distance;
+function reserveSign(s, left, top, right, bottom, force = false) {
+  const cols = s.signCols, rows = s.signRows;
+  const x0 = Math.max(0, Math.min(cols - 1, Math.floor(left / 24)));
+  const x1 = Math.max(0, Math.min(cols - 1, Math.floor(right / 24)));
+  const y0 = Math.max(0, Math.min(rows - 1, Math.floor(top / 24)));
+  const y1 = Math.max(0, Math.min(rows - 1, Math.floor(bottom / 24)));
+  if (!force) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (s.signCells[y * cols + x]) return false;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) s.signCells[y * cols + x] = 1;
+  return true;
+}
 function drawOrderedSigns(s) {
   const list = s.signCandidates;
-  for (const c of list) c.shown = true;
   list.sort(signBackFirst);
   let n = 0;
   for (const c of list) {
     if (n >= CAP) break;
-    if (!c.shown) continue;
+    if (!reserveSign(s, c.left, c.top, c.right, c.bottom)) continue;
     s.marks.setMatrixAt(n, c.matrix);
     s.marks.geometry.attributes.signLife.setX(n, c.life);
     s.marks.geometry.attributes.signTone.setX(n, c.tone);
     if (s.marks.geometry.attributes.signLoss) s.marks.geometry.attributes.signLoss.setX(n, c.loss);
     s.marks.geometry.attributes.signFade.setX(n++, c.fade);
-    // 目標だけ同じ形・材質でもう一段描く。下の印の間合い・命中・残る命は保つ。
-    if (c.double && n < CAP) {
-      s.marks.setMatrixAt(n, c.upper);
-      s.marks.geometry.attributes.signLife.setX(n, c.life);
-      s.marks.geometry.attributes.signTone.setX(n, c.tone);
-      if (s.marks.geometry.attributes.signLoss) s.marks.geometry.attributes.signLoss.setX(n, c.loss);
-      s.marks.geometry.attributes.signFade.setX(n++, c.fade);
-    }
   }
   s.marks.geometry.attributes.signFade.needsUpdate = true;
   if (s.marks.geometry.attributes.signLoss) s.marks.geometry.attributes.signLoss.needsUpdate = true;
@@ -255,6 +255,15 @@ function drawOrderedSigns(s) {
 export function fieldSignsTick(rt, root) {
   if (!rt?.army || !rt.scene || !rt.camera || rt.def.noFieldSigns) return;
   const s = STATE.get(rt) || build(rt, root);
+  const cols = Math.ceil(VIEW.w / 24), rows = Math.ceil(VIEW.h / 24);
+  if (s.signCols !== cols || s.signRows !== rows) {
+    s.signCols = cols; s.signRows = rows; s.signCells = new Uint8Array(cols * rows);
+  } else s.signCells.fill(0);
+  const goalSign = document.getElementById('goal-sign');
+  if (rt.hud.goalSignVisible && goalSign?._rect) {
+    const r = goalSign._rect;
+    reserveSign(s, r.left - 8, r.top - 8, r.right + 8, r.bottom + 8, true);
+  }
   const me = rt.player.u, cam = rt.camera, P = cam.position, q = cam.quaternion;
   const quietSigns = !rt.def.missionStyle && !rt.def.dojo;
   // 敵の▼を近い数人に絞るのは、戦が def.quietFoeSigns を立てた時だけ（九3・11/6 共通の係）。hud_cards の字の▼が出る戦は二重にしない
@@ -716,11 +725,6 @@ export function fieldSignsTick(rt, root) {
       if (special) {
         const c = s.signPool[s.signCandidates.length];
         c.u = u; c.matrix.copy(dummy.matrix); c.life = life;
-        c.double = !ford && u === focusEnemy && !defeated;
-        if (c.double) {
-          dummy.translateY(dummy.scale.y * .42);
-          dummy.updateMatrix(); c.upper.copy(dummy.matrix);
-        }
         if (ford || lesson || raid) {
           const lossLeft = ((lesson ? u.inouDamageUntil : raid ? u.okeDamageUntil : u.moribeDamageUntil) || 0) - rt.t;
           // 稲生は削れた部分をしばらく保ち、次の判断の時にも命中を見届けられるようにする。
@@ -743,12 +747,15 @@ export function fieldSignsTick(rt, root) {
         v.copy(headPos).project(cam);
         const sx = (v.x + 1) * VIEW.w / 2, sy = (1 - v.y) * VIEW.h / 2;
         c.left = sx - halfWidth - 4; c.right = sx + halfWidth + 4;
-        c.top = sy - height * (c.double ? 2.5 : 1) - 4; c.bottom = sy + 4;
+        c.top = sy - height - 4; c.bottom = sy + 4;
         // 画面外の兵は端へ寄せず、選択枠も使わない。
         if (Math.abs(v.x) <= 1.1 && Math.abs(v.y) <= 1.2 && v.z <= 1) s.signCandidates.push(c);
       }
       else if (special && hot && hotN < HOT) { hotM[hotN].copy(dummy.matrix); hotLife[hotN] = life; hotTone[hotN++] = tone; }
       else {
+        signAt.copy(headPos).project(cam);
+        const sx = (signAt.x + 1) * VIEW.w / 2, sy = (1 - signAt.y) * VIEW.h / 2;
+        if (!reserveSign(s, sx - 20, sy - 40, sx + 20, sy + 4)) continue;
         if (special) {
           s.marks.geometry.attributes.signLife.setX(n, life);
           s.marks.geometry.attributes.signTone.setX(n, tone);
@@ -760,7 +767,7 @@ export function fieldSignsTick(rt, root) {
     }
     else s.allies.setMatrixAt(a++, dummy.matrix);
   }
-  // 稲生も遠近・人数・重なりで所属印を消さず、奥から順に描く。兵と乱戦の密度は保つ。
+  // 所属印の重なりだけを畳む。兵と乱戦の密度は保つ。
   if (special) n = drawOrderedSigns(s);
   for (let i = 0; i < hotN && n < CAP; i++, n++) {
     s.marks.setMatrixAt(n, hotM[i]);

@@ -138,9 +138,9 @@ export function goalSignTick(rt, root) {
   let x, y, edge = false, ang = 0;
   const W = VIEW.w, H = VIEW.h, m = 70;
   const seen = proj(rt, t.x, top, t.z);
-  if (!(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
+  if (seen && v.x > m && v.x < W - m && v.y > 60 && v.y < H - 80) { x = v.x; y = v.y; }
   // 前にあって画面の上へはみ出す行き先（高い本丸など）は、上向きの矢印にせず、上の縁の▼のまま示す（五3「矢印は使わない」。11/5 伏見）
-  else if (!rt.def.goalSignNoEdge && !(enemy && d > 24) && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; edge = true; ang = 0; }
+  else if (!rt.def.goalSignNoEdge && seen && v.x > m && v.x < W - m && v.y <= 60) { x = v.x; y = 60; edge = true; ang = 0; }
   else {
     if (rt.def.goalSignNoEdge) return hide();
     // 画面の外：自分から見た相手の向きを、画面の縁へ写す
@@ -161,12 +161,12 @@ export function goalSignTick(rt, root) {
   if (el._edge !== edge) { el._edge = edge; el._tw = 0; el._tag.classList.remove('bob'); }
   // 人名の別札を出さず、目標の印に呼び名を添える。
   // 11/8 critic60（十三1・九1）：名の無い相手に「狙う敵」と書かない。字は名と「80m」だけ
-  const label = u ? u.name || '' : placeName(rt, t) || '';
+  const label = enemy ? (edge ? normal?.label || u?.name || 'ねらい' : 'ねらい' + (u?.name ? `・${u.name}` : '')) : placeName(rt, t) || '';
   // 名前・距離を一つにまとめ、画面の内外で同じ相手を案内する。
-  const metres = `${Math.round(d / 5) * 5}m`;
+  const metres = `${Math.round(d / 5) * 5}メートル`;
   // 味方の将へ向ける時は名だけ（距離の「m」は行き先の場所だけに付け、形で分ける。11/8 critic60 五3）
   const ally = !!u && !enemy;
-  const shown = d >= 10 && !ally ? (label ? `${label} ${metres}` : metres) : label;
+  const shown = d >= 10 && !ally && !enemy ? (label ? `${label} ${metres}` : metres) : label;
   const frame = enemy && u && !edge && u.mesh?.visible !== false && !u.camHidden ? hud.measurePersonFrame(u, rt) : null;
   // 名のある敵将を枠で囲わない（名は頭上の名札で出す。探して倒すのが良い。十八の3・BZ）。枠は印の高さ合わせにだけ使う
   el._frame.hidden = true;

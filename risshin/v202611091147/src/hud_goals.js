@@ -3,7 +3,6 @@
 import { S } from './settings.js';
 import { fiveGoals } from './goals5.js';
 import { screenWords } from './screen_words.js';
-import { periodWords } from './speech_clean.js';
 
 const CSS = `
 html:root body #hud #h-prog.goal-mode.goal-mode { padding:9px 14px 10px 12px; background:rgba(14,12,10,.66); border:none; border-radius:6px;
@@ -110,7 +109,7 @@ export function goalsTick(el, rt, stg, always) {
   const f = rt.def.goalsList === false ? null : fiveGoals(rt);
   const on = !!((always || !rt.def.missionSingleLine || rt.def.goalsAllRows) && f && f.now >= 0 && !rt.over);
   el.classList.toggle('goal-mode', on);
-  el.classList.toggle('goals-all-rows', on && !!rt.def.goalsAllRows);
+  el.classList.remove('goals-all-rows');
   if (!on) {
     const army = document.getElementById('armybar');
     if (army && el.contains(army)) el.parentNode.appendChild(army);
@@ -146,19 +145,14 @@ export function goalsTick(el, rt, stg, always) {
   G.key = key;
   ul.textContent = '';
   f.rows.forEach((g, i) => {
-    // def.goalsAllRows：①から全部を最初から並べ、済んだ物に印（11/8 critic60 越前一向一揆 三3・九1）
-    if (i !== now && !rt.def.goalsAllRows) return;
-    const visibleRows = rt.def.goalsVisibleRows;
-    if (visibleRows > 0) {
-      const first = Math.max(0, Math.min(now, f.rows.length - visibleRows));
-      if (i < first || i >= first + visibleRows) return;
-    }
+    // 戦の条件と順番は保ち、読むのは今の一件だけにする。
+    if (i !== now) return;
     const li = document.createElement('li');
     li.className = i === now ? 'now' : g.done ? 'done' : g.fail ? 'fail' : '';
     // 今まで済んでいなかった物が済んだ時だけ弾ませる
     if (g.done && before[i] && before[i][0] !== '1' && !still) li.classList.add('pop');
     li.innerHTML = '<i aria-hidden="true"></i><span></span>';
-    li.lastChild.innerHTML = phraseBreaks(goalWords(rt.def.teach ? g.text : periodWords(g.text)));
+    li.lastChild.innerHTML = phraseBreaks(`${i + 1}　${goalWords(g.text)}`);
     if (g.count && !g.done) {   // 敵の隊は赤い字・倒した数が一人ごとに上がる（kaito 11/3 AV16）
       const em = document.createElement('em'); em.textContent = `（あと${Math.max(0, g.count[1] - g.count[0])}人）`;   /* 何を数えるか分かる字に（critic60 小田原 20） */ em.style.cssText = 'color:#ff6a58;font-weight:800';
       // 数は目標の字の後ろへ続けて置く（横の別の列に置くと、844×390 で目標の字が四行に押し込まれ「討／つ」と語の途中で折れた・11/8 天王寺の通し）
