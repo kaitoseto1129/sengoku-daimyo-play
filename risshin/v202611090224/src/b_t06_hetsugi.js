@@ -173,6 +173,8 @@ const t06_hetsugi = {
   closeCombatAssist: true,
   autoTargetCamera: true,
   steadyMeleeCamera: true,
+  // 自動の敵注視を切った退き口でも、共通の近敵カメラへ戻さない。
+  noAutoFoeCam: (rt) => rt.flags.step >= 4,
   noWinCrane: true,
   victoryTitle: '戸次川　豊臣方敗北',
   victoryCaption: '鏡城へ生還',
@@ -583,7 +585,14 @@ const t06_hetsugi = {
       if (F.step !== 3) return;
       rt.say('仙石秀久', 'ええい、退け、退け！', 2.5);
       routButai(B.sen, 26);
-      if (live(F.sen)) { F.sen.order = 'move'; F.sen.dest = { x: FORD.x + 16, z: 60 }; F.sen.speed = 4.4; F.sen.onArrive = (q) => { q.order = 'move'; q.dest = { x: CAMP.x + 12, z: CAMP.z + 12 }; }; }
+      if (live(F.sen)) {
+        F.sen.order = 'move'; F.sen.dest = { x: FORD.x, z: -24 }; F.sen.speed = 4.4;
+        // 北の口へ寄せてから渡る。河原から南岸へ斜めに走ると浅瀬を外れる。
+        F.sen.onArrive = (q) => {
+          q.order = 'move'; q.dest = { x: FORD.x, z: 40 };
+          q.onArrive = (s) => { s.order = 'move'; s.dest = { x: CAMP.x + 12, z: CAMP.z + 12 }; s.onArrive = null; };
+        };
+      }
       F.follow = F.follow.filter((f) => f[0] !== F.sen);
     });
   },
