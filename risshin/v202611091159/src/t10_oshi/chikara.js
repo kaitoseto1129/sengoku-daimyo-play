@@ -121,7 +121,7 @@ export function tick(rt, dt, C) {
   const P = rt.player.u;
   if (F.step === 1) {
     const down = K.foe.units.filter((u) => !u.alive || u.gone || u.fleeing).length;
-    if (!K.contact && (C.near(P.pos, K.saku, 16) || C.near(K.ally.center?.() || K.ally.anchor, K.saku, 9))) {
+    if (!K.contact && P.alive && C.near(P.pos, K.saku, 16)) {
       K.contact = rt.t;
       rt.say('石田勢の足軽', '泥が深い！　足が抜けぬ……', 2.8);
       rt.after(3, () => rt.say('石田勢の侍', '柵を越えよ！　木戸の口へ詰めよ！', 2.8));
@@ -141,7 +141,7 @@ export function tick(rt, dt, C) {
     }
     // 新手と揉み合って一息のち、佐間口の塀から一斉に撃たれ、先手が崩れる。使番が退けを伝える
     const down2 = K.foe2 ? K.foe2.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;
-    if (!K.volley && K.foe2 && (rt.t - K.newT > 50 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
+    if (!K.volley && K.contact && P.alive && K.foe2 && (rt.t - K.newT > 50 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
       K.volley = rt.t;
       sfx('volley', 1); rt.army.play('volley', C.GATE, 1.4);
       // 土手の先手が何人も撃ち倒される（一つの城の口に寄るだけで、これだけ倒れる）

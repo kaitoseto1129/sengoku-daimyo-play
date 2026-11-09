@@ -224,8 +224,8 @@ function templeLantern(rt, x, z) {
   arm.rotation.z = Math.PI / 2; arm.position.set(x + .15, y + .22, z);
   arm.scale.set(.025, .36, .025);
   rt.scene.add(post, arm);
-  // 火芯は紙の内に収め、提灯から煙の柱や裸火を突き出さない。
-  rt.world.addFire(x, z, { torch: true, h: 1.87, size: .08, smoke: false,
+  // 火芯は紙の内に収め、夜だけ灯す。昼と翌朝は紙の色だけでなく炎と照りも消す。
+  rt.world.addFire(x, z, { torch: true, nightOnly: true, h: 1.87, size: .08, smoke: false,
     lightRadius: 4, lightStrength: .7 });
 }
 // 11/01 点付け「建物が箱で平ら」：遠見の堂の瓦・板壁と石灯籠の石肌を、小さなキャンバスの絵一枚ずつで描く（初めに一度だけ。使い回す）。
