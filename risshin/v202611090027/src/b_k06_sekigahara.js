@@ -113,6 +113,19 @@ const alive = (g) => !!g && !g.routed && g.count > 0;
 const broken = (g) => !g || g.routed || g.units.filter((u) => u.alive).length < 3;
 const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 討てない大将だけを追わず、今の段で押し返す残兵へ案内する。
+const front = (P, at, g0, g1, g2, g3, g4) => {
+  let target = at, best = Infinity;
+  for (let k = 0; k < 5; k++) {
+    const g = k === 0 ? g0 : k === 1 ? g1 : k === 2 ? g2 : k === 3 ? g3 : g4;
+    if (alive(g)) for (const u of g.units) {
+      if (!u.alive || u.gone || u.fleeing || u.invuln || u.noTarget || u.campProtected) continue;
+      const d = dist(P, u.pos);
+      if (d < best) { best = d; target = u.pos; }
+    }
+  }
+  return target;
+};
 const rout = (g) => { if (alive(g)) { g.routed = true; g.order = 'flee'; } KIT.markRecyclable(g); };
 const nOf = (...gs) => gs.reduce((n, g) => n + (alive(g) ? g.count : 0), 0);
 // 本物の兵は同時に REAL_CAP まで。新手を出す前に、逃げた隊・遠い隊から遠くの姿へ戻す（近づけばまた本物）
@@ -263,8 +276,8 @@ const k06_sekigahara = {
     const s = F.step, P = rt.player.u.pos;
     // 左近との接近が済むまでは本人へ。旗本を退かせ終えたら、残兵を追わず笹尾山へ登る。
     const climbing = s === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
-    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? lead(F.akashi, UKITA_F) : s === 6 ? lead(F.kuroda, KURODA)
-      : s === 7 ? (!F.sakBack || !F.sakonSeen ? lead(F.sakon, SAKON) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : alive(F.mitsu2) ? F.mitsu2.center() : SASAO) : HOLD5;
+    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : s === 6 ? lead(F.kuroda, KURODA)
+      : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : near(P, GAP, 12) || F.gapAt ? (F.gapAt = true, { x: GAP.x - 12, z: GAP.z }) : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
     q.x = T.x; q.z = T.z;
     return q;
   },
@@ -745,7 +758,10 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
   const pl = b.player, u = pl.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
-  const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
+  const q = b.def.missionPin(b);
+  // 退く段・虎口の横断・登頂・本陣への移動を、脇の敵への寄り道で止めない。
+  const moving = F.step === 1 || F.step === 3 || F.step === 6 || F.step === 7 && F.sakBack && F.sakonSeen || F.step === 8 && !F.mitsuGate && nOf(F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2) || F.step === 9 && !near(u.pos, HOLD5, 35);
+  const ok = (o) => !moving && !o.gone && !o.fleeing && !o.invuln && !o.campProtected && !o.noTarget && !o.isStruct && Math.abs(o.pos.y - u.pos.y) < 4;
   const prev = pl.botStrikeFoe;
   const r = F.step === 1 || F.step === 3 || F.step === 6 ? 3 : F.step === 2 ? 6 : 9;
   const e = prev?.alive && ok(prev) && pl.botStrikeUntil > pl.time && dist(prev.pos, u.pos) < 2.8 ? prev : b.army.nearestEnemy(u, r, ok);
@@ -758,7 +774,6 @@ k06_sekigahara.botBrain = (b, inp, { goTo: go, patientStrike }) => {
     return;
   }
   inp.guardHold = false;
-  const q = b.def.missionPin(b);
   // ⑦は柵の口へ（柵を越える）。②は鉄砲衆の脇で待つ
   if (q && !(F.step === 2 && dist(q, u.pos) < 10)) go(pl, inp, q.x, q.z, 3); else inp.k.delete('KeyW');
 };

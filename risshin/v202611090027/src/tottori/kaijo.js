@@ -12,13 +12,19 @@ export function wrap(def, K) {
   def.win = function (r) {
     const F = r.flags;
     if (k15Off(r) || F.ending || F.k15glow) return win.call(this, r);
+    // 木戸への到着など、元の開城の条件がそろった時だけ余韻を予約する。
+    const result = win.call(this, r);
+    if (!F.ending) return result;
     const G = K.GATE;
     k15Afterglow(r, [
       [1, () => {
         r.banner('木戸が開く', '痩せ衰えた城兵が、槍を捨てて坂を下りる');
         for (const g of [...(F.sallies || []), ...(F.k15walls || [])]) {
-          if (!g.units.some((u) => u.alive && !u.gone)) continue;
-          g.noAI = false; g.order = 'path'; g.path = [[G.x, G.z + 10], [G.x, K.FENCE_Z - 4]]; g.pathIdx = 0; g.aggro = 0;
+          if (!g.units.some((u) => u.alive && !u.dying && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound)) continue;
+          // 麓へ直進すると急斜面を横切る。使いが登った折れ道を逆に下る。
+          g.noAI = false; g.order = 'path';
+          g.path = [[G.x, G.z + 10], ...K.CASTLE_ROADS[0].slice().reverse(), [G.x, K.FENCE_Z - 4]];
+          g.pathIdx = 0; g.aggro = 0; g.onArrive = null; g.followColumnRoad = true;
           for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; }
         }
       }],
@@ -29,6 +35,6 @@ export function wrap(def, K) {
       [5.5, () => {}],
     ]);
     F.k15glow = true;
-    return win.call(this, r);
+    return result;
   };
 }

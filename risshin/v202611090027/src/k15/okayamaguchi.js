@@ -9,7 +9,7 @@
 // 向き：北が -z、東が +x。岡山口は天王寺口の東（実の一キロ半ほど）を遊びのため縮めて置く。
 // ======================================================================
 import { allyGroup, enemyGroup, centerOf, nm } from '../bhelp.js';
-import { jinmaku, nobori, kagaribi } from '../props.js';
+import { jinmaku, nobori, kagaribi, umajirushi } from '../props.js';
 import { clash } from '../b_sekigahara.js';
 import { flagTexture } from '../textures.js';
 import { sfx } from '../audio.js';
@@ -36,6 +36,8 @@ const flee = (gs) => { for (const g of gs) if (alive(g)) { g.noRout = false; g.r
 function scenery(rt) {
   const W = rt.world;
   rt.scene.add(jinmaku(W, OKA_HON.x, OKA_HON.z + 4, 14, 10, 5, { mon: 'tokugawa', noUma: true }));
+  // 将軍秀忠の金扇。既存形を一基だけ共用する（docs/generals_look_1108/徳川秀忠.md）。
+  rt.scene.add(umajirushi(W, OKA_HON.x + 0.6, OKA_HON.z + 10, S, 'ogi'));
   for (let i = 0; i < 8; i++) { const a = -1.1 + (i / 7) * 2.2; rt.scene.add(nobori(W, OKA_HON.x + Math.sin(a) * 13, OKA_HON.z + 2 - Math.cos(a) * 11, 'tokugawa', 6)); }
   for (const [x, z] of [[OKA_HON.x - 4, OKA_HON.z - 5], [OKA_HON.x + 5, OKA_HON.z - 5]]) rt.scene.add(kagaribi(W, x, z));
   for (const [x, z] of [[OKA_FRONT.x - 8, OKA_FRONT.z + 14], [OKA_FRONT.x + 6, OKA_FRONT.z + 15], [OKA_FRONT.x + 18, OKA_FRONT.z + 13]]) rt.scene.add(nobori(W, x, z, 'maeda', 6));

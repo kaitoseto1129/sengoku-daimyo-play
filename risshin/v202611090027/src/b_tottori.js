@@ -3443,7 +3443,7 @@ tottori.siegeKit = {
   when: (rt) => { const F = rt.flags; return F.step < 3 && !F.ending && !rt.over; },
 };
 // 15分の構成（docs/oda15_plan_1108.md 29）：段は prototype/src/tottori/ に一段一ファイル
-const K15 = { TAIKO, CASTLE, GATE, FENCE_Z, HUNGRY, KIKKAWA, hungryLook };
+const K15 = { TAIKO, CASTLE, GATE, FENCE_Z, CASTLE_ROADS, HUNGRY, KIKKAWA, hungryLook };
 k15Nida(tottori, K15); k15Hunger(tottori, K15); k15Kaijo(tottori, K15);
 tottori.botBrain = k15WrapBot(tottori.botBrain);
 export { tottori };
