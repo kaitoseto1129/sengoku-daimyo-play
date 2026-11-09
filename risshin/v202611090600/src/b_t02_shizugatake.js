@@ -32,6 +32,7 @@ import { farSight } from './far_sight.js';
 // 15分の段（kaito 11/8 夜 docs/toyo15_plan_1108.md）：段の中身は t02_shizugatake/ に
 import * as Open from './t02_shizugatake/open.js';
 import { nightTurn, sevenSpears, epilogue, tickMeet } from './t02_shizugatake/turn.js';
+import { T02_DEPTH } from './t02_shizugatake/depth.js';
 
 // ---- 標高（国土地理院） ----
 const XY = 8, BIWA = 84, YOGO = 132.95, VS = 0.1;      // 高さは 1/10（水平の 1/8 より少し潰す。実の 30〜40 度の法を兵が上り下りできる傾きに）
@@ -337,6 +338,9 @@ const t02_shizugatake = {
   // 兵の声の家の名：羽柴方は羽柴（豊臣の姓は天正十四年から。天正十一年は羽柴）・柴田方は柴田（信勝方と出さない）
   speakerHouse: { oda: '羽柴', nobukatsu: '柴田' },
   playerAtkMax: 4,
+  // 15分の七段（11/8 夜）：斬り合いの段が増え、一度に受ける槍は命の四割まで・一息ごと（山崎・長久手と同じ口）
+  playerTaken: 0.5,
+  meleeGrace: { rate: 0.05, burst: 0.4, interval: 1.2 },
   closeCombatAssist: true,
   autoTargetCamera: true,
   compactIntro: true,
@@ -345,6 +349,9 @@ const t02_shizugatake = {
   introText: () => '柴田勝家と羽柴秀吉が、余呉湖のまわりの砦で睨み合う。秀吉は大垣にいる。賤ヶ岳の東の物見から、湖を挟む砦の並びを見届けよ。',
   minutes: 15,
   expectMin: 15,             // 進み具合の棒は十五分で（11/8 夜）
+  depth: T02_DEPTH,           // 軍勢の厚み・陣立て（t02_shizugatake/depth.js）
+  lethal: { max: 4, firstAt: 120, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）
+  fearKind: { kind: 'fort_raid', note: '砦が急襲され、大岩山が落ちる', w: { losses: 1.2, honjin: 1.3, iso: 1.3 }, line: '砦が危ない！' },
   spawn: { x: START.x, z: START.z, heading: Math.atan2(LOOK.x - START.x, LOOK.z - START.z) },
   // 物見へ下りる間は、目線を余呉湖の向こうの燃える大岩山へ上げる（坂の法と杉だけを写さない。共通の口）
   camLookAt: (rt) => (rt.flags.phase <= 1 && !rt.flags.saw ? { x: OIWA.x, z: OIWA.z + 30, up: 2 } : null),
@@ -499,7 +506,7 @@ const t02_shizugatake = {
     if (live(F.scoutG)) { F.scoutG.order = 'move'; F.scoutG.dest = { x: MOUTH.x - 2, z: MOUTH.z - 6 }; F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; }; }
     // 寄せ手は東の口へ向かって登る（北と北東から。三度）
     const wave = (x, z, n) => {
-      const g = enemyGroup(rt, { ...SAKUMA, name: '佐久間の手', anchor: { x, z }, facing: Math.atan2(MOUTH.x - x, MOUTH.z - z), fleeDir: { x: 0, z: -1 }, width: 5, morale: 90, noRout: true, dmgMult: 0.55,   // 11/6 九2：士気 75 では柵の鉄砲で口の 40 手前で崩れ、口へ来なかった
+      const g = enemyGroup(rt, { ...SAKUMA, name: '佐久間の手', anchor: { x, z }, facing: Math.atan2(MOUTH.x - x, MOUTH.z - z), fleeDir: { x: 0, z: -1 }, width: 5, morale: 90, noRout: true, dmgMult: 0.45,   // 11/6 九2：士気 75 では柵の鉄砲で口の 40 手前で崩れ、口へ来なかった
        
         order: 'move', dest: { x: (LOOK.x + MOUTH.x) / 2 + 2, z: (LOOK.z + MOUTH.z) / 2 }, seekRange: 5, aggro: 4, speed: 3.6 }, foeList(n, { flag: SAKUMA.flag }));
       //   11/6 九2：口の真北の急な法を真っすぐ登らせると、口の 40 手前で登れずに止まった。物見の肩の尾根（主人公が下りた道）を登って東の口へ
@@ -683,7 +690,7 @@ const t02_shizugatake = {
       for (const g of F.groups) if (g.kind4 === 'raid' && g.bornT != null && live(g) && g.order !== 'attack' && rt.t - g.bornT > 20) { g.order = 'attack'; g.focus = P; g.seekRange = 30; g.aggro = 16; g.speed = 3.6; }
       // 口で斬り合った（口の十二の内に寄せ手が三人より多く来た）後は、三度目から八十秒で日が暮れて寄せ手が退く（時が経つだけでは果たさない）
       if (!F.mouthFought && nearCount(rt, 1, MOUTH, 12) > 3) F.mouthFought = true;
-      if (F.waves >= 3 && F.mouthFought && dist(P.pos, MOUTH) < 22 && (left <= 8 || st > 120)) this.night(rt);
+      if (F.waves >= 3 && (F.mouthFought || st > 200) && dist(P.pos, MOUTH) < 22 && st > 100 && (left <= 8 || st > 130)) this.night(rt);
       return;
     }
     if (F.phase === 2.3) { tickMeet(rt, this.ctx(rt)); return; }

@@ -29,6 +29,7 @@ import { TOKU, fl, dressT, foeKnot, live, aliveN, aliveReal, dist, walls } from 
 import * as March from './t03b_nagakute/march.js';
 import * as Ikeda from './t03b_nagakute/ikeda.js';
 import * as Retreat from './t03b_nagakute/retreat.js';
+import { T03B_DEPTH } from './t03b_nagakute/depth.js';
 
 const XW = 158, ZN = -120, ZS = 120;
 const ROAD = [[156, -30], [112, -26], [64, -18], [12, -10], [-50, -14], [-110, -18], [-156, -22]];
@@ -120,6 +121,9 @@ const t03b_nagakute = {
   spawn: { x: 0, z: -12, heading: E },   // 中入りの列の中（西の道）。白山林の陣へ追い付き、番所へ
   minutes: 15,
   expectMin: 15,
+  depth: T03B_DEPTH,   // 軍勢の厚み・陣立て（t03b_nagakute/depth.js）
+  lethal: { max: 5, firstAt: 90, gap: 50 },   // 命懸けの戦場（docs/lethal_howto.md）。森・池田父子の死は筋書きの fall のまま
+  fearKind: { kind: 'ambushed_column', note: '追う側から追われる側へ。前と横から押し包まれる', w: { flank: 1.6, losses: 1.3, routed: 1.4, iso: 1.3 }, line: '押し包まれるぞ！' },
   compactIntro: true,
   introText: () => '三河へ回り込む途中、白山林で朝飯の最中。',
   introSides: { a: '羽柴勢　二万', b: '徳川・信雄勢　一万四千' },   // 五4：始まりの札に味方対敵の数（battle_learn 二）
@@ -431,7 +435,7 @@ const t03b_nagakute = {
   akazonae(rt, at, to) {
     const F = rt.flags;
     if (aliveReal(rt) + 12 > REAL_CAP) return null;
-    const g = enemyGroup(rt, { faction: 'tokugawa', name: '井伊の赤備え', anchor: at, facing: W, fleeDir: { x: 1, z: 0 }, width: 4, formation: 'line', morale: 90, dmgMult: 0.36,
+    const g = enemyGroup(rt, { faction: 'tokugawa', name: '井伊の赤備え', anchor: at, facing: W, fleeDir: { x: 1, z: 0 }, width: 4, formation: 'line', morale: 90, dmgMult: F.stage === 5 ? 0.26 : 0.36,   // 仏ヶ根の長い押し合い（15分の段）で騎馬の打ち込みが重なり過ぎない
       order: 'attack', seekRange: 60, aggro: 16, speed: 4.2, noRout: true },
     dressT([{ type: 'cavalry', n: 3 }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], AKA));
     if (to) g.dest = { x: to.x, z: to.z };

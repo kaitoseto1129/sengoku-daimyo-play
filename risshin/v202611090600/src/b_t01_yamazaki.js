@@ -32,6 +32,7 @@ import { farArmies, report } from './t01_yamazaki/far.js';
 import * as March from './t01_yamazaki/march.js';
 import * as Counter from './t01_yamazaki/counter.js';
 import * as Pursuit from './t01_yamazaki/pursuit.js';
+import { T01_DEPTH } from './t01_yamazaki/depth.js';
 
 let dem = null;
 useTerrain('dem_yamazaki', (data) => { dem = data; });
@@ -237,6 +238,9 @@ const t01_yamazaki = {
   bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵将が倒れた' && t !== '敵の隊が崩れた',
   missionSingleLine: true,
   expectMin: 15,              // 進み具合の棒は十五分で（15分の七段・11/8 夜）
+  depth: T01_DEPTH,           // 軍勢の厚み・陣立て（t01_yamazaki/depth.js・docs/army_depth_howto.md）
+  lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。実在の将は討たない
+  fearKind: { kind: 'river_crossing', note: '雨の湿地で川を渡り、敵の横を突く', w: { losses: 1.2, flank: 1.4 }, line: '川を背にしては退けぬぞ！' },
   goalsAllRows: true,         // 最初から目標の並びと達成印を出す（critic60 九1・十1）
   goalsVisibleRows: 5,        // 七段の順は保ち、携帯には今の五つを出す（三 目標）。
   hideGuideSteps: true,
