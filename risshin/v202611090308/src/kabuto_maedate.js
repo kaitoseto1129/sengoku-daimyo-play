@@ -21,6 +21,7 @@ export const MAEDATE = {
   藤堂高虎: 'todo_tokan',
   本多忠勝: 'honda_shika',
   水野勝成: 'mizuno_shikami',
+  羽柴秀次: 'hidetsugu_shikami',
   // 必須人物の表（kacchu_required.js）で伝来の兜の形に寄せた三人
   竹中半兵衛: 'ichinotani', 竹中重治: 'ichinotani',
   蒲生氏郷: 'tsubame',
@@ -30,7 +31,7 @@ export const MAEDATE = {
   丹羽長秀: 'niwa_shikami',
   滝川一益: 'takigawa_buffalo',
 };
-const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami', 'ukon_nanayo']);
+const KINDS = new Set([...Object.values(MAEDATE), 'honda_shikami', 'ukon_nanayo', 'sakai_shika']);
 export const isMaedate = (k) => KINDS.has(k);
 const cache = new Map();
 
@@ -84,6 +85,22 @@ const blade = (sd, p0, p1, p2, w0, w1, hi) => {
 };
 
 function build(kind, hi, near) {
+  if (kind === 'hidetsugu_shikami') {
+    // 伝秀次所用具足の獅噛と焔形脇立を略復元。寸法は推定（出所は秀次の調べ書き）。
+    // 獅噛は既存形を共用。焔は左右各一枚だけ作り、近遠それぞれ保存する。
+    const mask = maedateGeometry('niwa_shikami', hi);
+    const wings = [];
+    const outline = [[.12, .16], [.19, .19], [.27, .29], [.31, .44], [.28, .40],
+      [.29, .54], [.24, .49], [.23, .62], [.19, .53], [.18, .43],
+      [.15, .48], [.16, .34], [.13, .39], [.14, .24]];
+    for (const sd of [-1, 1]) {
+      const g = plate(outline.map(([x, y]) => [sd * x, y]), hi);
+      g.translate(0, 0, -.035); wings.push(g);
+    }
+    const flames = join(wings);
+    for (const g of wings) g.dispose();
+    return [mask[0], mask[1], [...(mask[2] || []), [flames, 'gold']]];
+  }
   if (kind === 'ukon_nanayo') {
     // 伝右近所用の南蛮兜の七曜金具。中央と周囲六つの円で略復元し、脇立は補わない。
     // 寸法・配列は実測ではない。基本形を一つの形へ結合し、近遠それぞれ一度だけ保存する。
@@ -338,6 +355,11 @@ function build(kind, hi, near) {
     // 元の鹿角の共有形は変更せず、新しい前立だけ一度結合する。
     const mask = join(black), g = join([antlers, mask]); mask.dispose();
     return [g, 'black', [[join(gold), 'gold']]];
+  }
+  if (kind === 'sakai_shika') {
+    // 忠次の伝来具足は木製金箔押の鹿角。既存の鹿角形を金の材質で共用する略復元。
+    // 前立は確定できず補わない。元の忠勝の形・材質は変えない。
+    return [maedateGeometry('honda_shika', hi, near)[0], 'gold'];
   }
   if (kind === 'honda_shika') {
     // 鹿角脇立：和紙を張り重ねた黒漆の大きな鹿角。鉢の左右から外へ開き、頭の二倍の高さまで立つ。

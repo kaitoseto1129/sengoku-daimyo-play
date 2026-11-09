@@ -286,6 +286,7 @@ const k03_gifu = {
   spawn: { x: START.x + 4, z: START.z, heading: Math.PI / 2 },
   noWake: true,
   minutes: 18,
+  pacingWait: () => true,   // 時間だけでは退かない。各曲輪の到着と守りの突破、最後の降伏を待つ（G8）。
   lethal: false,   // 命懸けの戦場は入れない（11/8 bot：入れると山道で手勢が減って進まず、十八分で任務失敗）
   fearKind: { kind: '山城攻め', note: '狭い山道で上から撃たれ、石を落とされる', w: { losses: 1.3, flank: 1.3, iso: 1.2 }, line: '上から来るぞ、伏せよ！' },
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
