@@ -9,6 +9,9 @@ import { useTerrain } from './asset_manifest.js';
 // ======================================================================
 import * as THREE from 'three';
 import { evPerson } from './b_ev6.js';
+// 15分の段（kaito 11/8 夜・docs/oda15_plan_1108.md の 28）：段の中身は iga/ に一段一ファイル
+import * as IG_OPEN from './iga/shinnyu.js';
+import * as IG_YOIN from './iga/yoin.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { yamaLift } from './yamalift.js';
 import { SOLIDS, nobori, hut, yagura, campfire, kabukimon, tawara, tobira, palisade, jinmaku, takataba, kagaribiBatch, dorui } from './props.js';
@@ -1501,6 +1504,8 @@ const iga = {
     q.follow = q.defend = q.waiting = q.arrived = q.footRing = false;
     q.r = 3; q.hide = 1;
     let id = '', at = CAMP;
+    const ip = !F.step && IG_OPEN.pin(rt, igaOpenCtx());   // 開幕の段：西の林の外れ→陣の口
+    if (ip) { q.key = 'open'; q.x = ip.x; q.z = ip.z; q.r = q.hide = 3; q.arrived = Math.hypot(p.x - ip.x, p.z - ip.z) < 3; return q; }
     // 山道では手当ての印を外す。負傷が残っても、存在しない印で土橋や曲輪の案内を消さない。
     if (igaNeedsTreatment(rt) && rt.markers.some((m) => m.id === 'raidRecovery')) id = 'raidRecovery';
     else if (stage === 1) {
@@ -2092,7 +2097,7 @@ const iga = {
     // 紙（battle_events_1101）：いくつもの方面から伊賀へ。黒装束の忍びの軍にはせず、山と谷と森に拠る国人衆として。
     rt.after(2.5, () => { if (!F.ending) rt.say('使番', '九月三日、諸口から伊賀へ入った。丹羽様・滝川様の本隊は、まだ北の口で手間取っておる', 5); });
     rt.marker('niwa', unitPos(F.niwaU), '味方の列', { guideAlways: true, guidePriority: 10 });
-    rt.after(6, () => this.raid(rt));
+    IG_OPEN.install(rt, igaOpenCtx());   // 開幕の段（iga/shinnyu.js）：二分半で夜討ち
   },
 
   // ① 夜討ち
@@ -2419,7 +2424,7 @@ const iga = {
     rt.after(9.5, () => { if (!rt.over) rt.say('語り', '伊賀の戦は続く。西では秀吉が鳥取城を囲んでいる', 4); });
     rt.player.u.invuln = true;
     // 終幕に入ると rt.after が回らないので、場面を見せてから閉じる。
-    rt.after(13, () => rt.finish({ scriptedEnd: true }, 5));
+    IG_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 5));   // 三十秒の余韻（iga/yoin.js）の後に締める
   },
 
   // 山麓の集落→森→外郭→堀切→主尾根→主郭、と進む流れの呼び名（足軽のいる所で変わる）
@@ -2443,6 +2448,7 @@ const iga = {
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
     if (F.ending) return;
     if (!rt.player.u.alive || rt.over) return;
+    if (!F.step && IG_OPEN.tick(rt, igaOpenCtx())) this.raid(rt);
     if (rt.player.u.hp < rt.player.u.maxHp * 0.5 && !(F.retreatHintAt > rt.t)) {
       F.retreatHintAt = rt.t + 30;
       rt.bark('下がれ！　来た道から味方の後ろへ。離れて傷の手当てをせよ', true);
@@ -2596,6 +2602,13 @@ const iga = {
       const clear = igaCastleCleared(rt);
       rt.objProgress('main', clear ? '城は静まった。物見の報せを待て' : '物見が城兵の退きを確かめている。陣を守れ');
       if (clear) this.inside(rt);
+      else if (rt.t - F.stepT > 100) {
+        // 百秒待っても曲輪に残る者（坂で詰まった数人）は、夜のうちに北の口から落ちた事にする（11/8 bot：退きの段で七分止まり時間切れ）
+        for (const u of [...rt.army.units]) if (u.team === 1 && igaReady(u) && !u.isStruct && !u.group?.civ &&
+          F.castleChecks.some((at) => Math.abs(u.pos.y - at.y) < 3 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < at.r)) { u.fleeing = false; rt.army.despawn(u); }
+        for (const u of F.wallBow.units) if (u.alive && !u.gone) { u.fleeing = false; rt.army.despawn(u); }
+        this.inside(rt);
+      }
       // 城兵が曲輪に残る間は夜を保つ。秒数だけで空城にせず、北の口への退去を待つ。
     }
     if (F.step === 2) {
@@ -2650,6 +2663,8 @@ const iga = {
       // 本人が土橋へ着き、守備を始めてから押し返される。麓で待った時間だけで登る目標を済ませない。
       if (F.bridgeStarted != null && (elapsed >= 45 ||
           elapsed >= (F.bridgeHeld ? 26 : 34) && gone(F.sally) && friends > 0 && atBridge)) this.midB(rt);
+      // 三分半たっても土橋へ着けない時は、坂の途中で退き鉦（史実でも正面攻めは石と矢に押し返された。11/8 bot：坂で十分止まった）
+      else if (F.bridgeStarted == null && rt.t - F.stepT > 210) this.midB(rt);
     }
   },
 
@@ -2678,11 +2693,15 @@ iga.skip = (rt) => { if (rt.phase === 'brief' && !rt.over && !rt.flags.ending) i
 iga.history = '信長公記巻十四は、天正九年九月三日、信雄らが甲賀・信楽・加太・大和などの口から伊賀へ入ったと記す。九月十一日の夜間退去は佐奈具の城の記録で、比自山の落城日とは別である。比自山の詳しい攻防は後世の伊乱記で補い、蒲生忠三郎・堀秀政・筒井順慶らの包囲、繰り返す攻めへの抵抗、夜討ち、夜の城の放棄を描いた。守り手は柏原へ移ったとも伝わる。城跡は寺跡を使い、比高約百五十歩、縄張図の図読みでは南北約四百十五歩・東西約百八十五歩に曲輪と空堀が続く。南辺の土塁と空堀が強く、守りの正面と考えられる。丹羽・滝川の本隊は北の口で遅れ、第三戦の前に着いた。丹羽の先手の一組が蒲生の下知で先に戦う役割、着陣の夜の夜討ち（佐那具で蒲生の陣が受けた夜襲の型）、各隊の場所、陣の小屋の消火、土橋の鉄砲、時間配分は遊びのための復元。兵数には諸説あり、設定の味方一万二千・守り三千五百（伝わる数は織田一万〜一万三千、伊賀三千〜四千）は比自山周辺の推定で、伊賀全土の総勢でも、城に逃れた非戦の者を含む数でもない。 各備えの兵数と将ごとの細かな持ち場は、家中の組み方と地形から復元した目安で、史料に確かな布陣図が伝わるという意味ではない。 曲輪の守将の名と家紋は確定せず、丸の旗を代用した。朝と夜は数日にわたる攻防を縮めた景色で、当日の時刻・天気・月齢を確定するものではない。総本陣の信雄はこの狭い戦場には置かず、堀の局地の本陣と区別した。 城域と主な平場・南の小曲輪群・北の段数は伊賀市史の縮尺二千分の一の縄張図から読んだ目安。細かな輪郭と道、長田丸・朝屋丸の位置は推定で、読めない空堀の幅・深さ・標高は従来の復元値を保つ。近隣の川や旧河道を測量どおりに復元した地形ではない。';
 
 // 任務の印へ向かう自動の遊び手。
+// 開幕の段に渡す場所
+const IG_OPEN_CTX = { castle: FORT, mouth: () => ({ x: 0, z: 24 }) };
+function igaOpenCtx() { return IG_OPEN_CTX; }
 iga.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null; inp.k.delete('KeyW'); inp.k.delete('KeyE');
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
+  if (!F.step) { const g = IG_OPEN.pin(b, igaOpenCtx()); if (g) { goTo(p, inp, g.x, g.z, 2); return; } }
   if (F.dp && F.dp.on) {
     const C = F.dp.cur;
     const needsTreatment = igaNeedsTreatment(b);
@@ -3292,6 +3311,13 @@ function igaMove(o) {
   s.tick = (rt, C, m, ctx, el, dt) => {
     const distance = Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z);
     if (!C.arr && distance < (o.r || 8) && Math.abs(rt.player.u.pos.y - rt.world.heightAt(C.at.x, C.at.z)) < 3) { C.arr = true; rt.unmark('dp'); rt.unzone('dp'); }
+    // giveUp：坂で道を失っても、その秒が過ぎたら組頭が拾って陣へ連れ戻した事にする（11/8 bot：土橋の坂で十分止まり時間切れ）
+    if (!C.arr && o.giveUp && el >= o.giveUp) {
+      // 列に拾われて陣の口へ着いた所から続ける（その間の歩みは省く。人が遊ぶ時は先に着くので、ほぼ起きない）
+      const u = rt.player.u, x = C.at.x + 2, z = C.at.z - 10;
+      u.pos.set(x, rt.world.heightAt(x, z), z);
+      C.arr = true; rt.unmark('dp'); rt.unzone('dp'); rt.say('丹羽の組頭', '道を外れたか。わしらの列に付いて陣へ戻れ', 3.5);
+    }
     const arrived = !!C.arr;
     if (!C.arr && rt.t >= C.guideAt) {
       C.guideAt = rt.t + 0.5;
@@ -3429,7 +3455,7 @@ function igaA(rt) {
 function igaB(rt) {
   return [
     // 帰りの道を歩く段を先に置く。休息が退却を止め、帰陣前に守備の失敗を数えない。
-    igaMove({ to: CAMP, r: 10, label: '包囲の陣', obj: '来た道を戻り、麓の陣へ退け' }),
+    igaMove({ to: CAMP, r: 10, label: '包囲の陣', obj: '来た道を戻り、麓の陣へ退け', giveUp: 150 }),
     rest({ dur: 4, banner: ['包囲を続けた夜', '麓の陣の口で、夜討ちを防げ'], fn: (rt) => {
       rt.objRemove('dp');
       rt.obj('main', '麓の陣の口で組をそろえ、夜討ちの伊賀衆に備える', 'main');
