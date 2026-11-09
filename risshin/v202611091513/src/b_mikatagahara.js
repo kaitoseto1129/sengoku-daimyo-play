@@ -1429,12 +1429,12 @@ const mikatagahara = {
   shortDodgeArrow: true, // 矢をよける案内も足元の八十ピクセルに収め、兵を横切らない。
   dodgeAvoidNotices: true, // 画面外の回避印は矢印まで含めて任務札を避ける。
   dodgeGestureBelowNotices: true, // 横画面でも、振り向く指と説明を任務札の下へ収める。
-  dodgeActionText: '長押しで よける', // 下知による退却と、一時的に刃や矢をよける操作を分ける。
-  waitGuardActionText: '長押しで ふせぐ',
-  waitGuardButtonText: '長押しで ふせぐ', // 携帯横画面の独立した釦も導入と同じ呼び名にする。
-  guardStartText: '長押しで ふせぐ',
-  waitGuardHint: () => 'はなすと 構えを解く',
-  guardWaitText: '刃が来たら ふせぐ', // 追手を見ただけで構え続け、退く足を止めない。
+  dodgeActionText: '長押しで回避', // 下知による退却と、一時的に刃や矢をよける操作を分ける。
+  waitGuardActionText: '長押しで防御',
+  waitGuardButtonText: '長押しで防御', // 携帯横画面の独立した釦も導入と同じ呼び名にする。
+  guardStartText: '長押しで防御',
+  waitGuardHint: () => '離すと構えを解く',
+  guardWaitText: '刃が来たら防御', // 追手を見ただけで構え続け、退く足を止めない。
   // 移動中は道の印を優先する。坂で追手を受ける間は構える釦を残す。
   waitGuardAllowed: (rt) => !rt.flags.ending && !mikatagahara.routeGuidePriority(rt),
   readableLogEntry: true, // 数だけの札にせず、未読の報せと分かるようにする。
@@ -2022,7 +2022,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     };
     const build = (plan) => jinkeiBuild(rt, plan, (s, at) => {
       const faction = s.flag === 'akazonae' ? 'akazonae' : plan.team ? 'takeda' : 'tokugawa';
-      return fb({ name: s.general + 'の備', general: s.general, team: plan.team, faction,
+      // 山県本人は赤備えの突撃隊に一人だけ置く。遠景の実体化で同名の将を増やさない。
+      return fb({ name: s.general + 'の備', general: plan.team === 1 && s.id === 'yamagata' ? null : s.general, team: plan.team, faction,
         kind: 'ashigaru', nominal: Math.round(s.soldiers / 15), armor: AR[faction], flag: s.flag, mon: s.mon,
         at, facing: plan.facing }, plan.team
           ? { ...jinkeiDistantLayout(plan, s), w: s.id === 'oyamada' ? 18 : s.at.front === TAKEDA_SECOND ? 12 : 14, d: s.at.front > TAKEDA_SECOND ? 10 : 6,
@@ -2319,7 +2320,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     fadeMikataLook(rt, TWILIGHT);   // 夕刻→薄暮→（退き口で）夜
     F.aka = enemyGroup(rt, { fixed: true, faction: 'akazonae', name: '山県の赤備え', anchor: { x: AKA_FROM.x, z: AKA_FROM.z }, facing: -Math.PI * 0.65, order: 'hold', seekRange: 140, aggro: 10, width: 14, morale: 100, noRout: true, fleeDir: { x: 1, z: -1 }, dmgMult: 0.7 },
       depthLook(rt, [{ type: 'samurai', n: 1, o: { horse: true, name: '山県昌景', hat: 'kabuto_m' } }, { type: 'cavalry', n: 4 + more(rt, 0.2) }, { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 10 }], AKA));   // 赤備えも馬上は一部。多くは徒歩の侍（kaito 10/28 の表：騎馬 4%）
-    // 備えの主将は遠景からの実体化だけで置き、突撃隊に複製しない。
+    // 山県本人はこの突撃隊だけに置き、備の遠景には重ねて置かない。
     F.aka0 = F.aka.count;
     F.yamaU = F.aka.units.find((u) => u.name === '山県昌景') || null;
     // 11/6 c0814：山県は三方ヶ原では討たれない（長篠で討死）。描かずの流しで「山県昌景、討死」が出た。手負い（三割五分）で止める。
