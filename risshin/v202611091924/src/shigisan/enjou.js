@@ -12,7 +12,7 @@ export function install(rt, ctx) {
   const { dress, MATSU, TOP, betrayal } = ctx;
   const t0 = rt.t, W = rt.world;
   const POST = { x: TOP.x, z: TOP.z + TOP.r + 7 };
-  let done = false, tick = 0, R = null;
+  let done = false, tick = 0, R = null, held = 0;
   const stopped = () => done || F.ending || rt.over || !rt.player.u.alive;
   F.enjouFires = [[TOP.x + 8, TOP.z + 4, 1.8], [TOP.x - 9, TOP.z + 2, 1.5]].map(([x, z, size]) => W.addFire?.(x, z, { size, h: 1.2, blackSmoke: true }));
   sfx('wood', 0.8);
@@ -32,10 +32,15 @@ export function install(rt, ctx) {
   return {
     update(dt) {
       if (stopped()) return;
+      const p = rt.player.u.pos;
+      // 切岸の下や館の上階、離れた道で待つだけでは口を守ったことにしない。
+      const atPost = !rt.player.u.naka && Math.hypot(p.x - POST.x, p.z - POST.z) < 14 &&
+        Math.abs(p.y - W.heightAt(p.x, p.z)) <= 2.5;
+      held = atPost ? held + dt : 0;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
-      const p = rt.player.u.pos, el = rt.t - t0, d = Math.hypot(p.x - POST.x, p.z - POST.z);
-      if ((el > 60 && d < 14) || el > 85) {
+      const el = rt.t - t0;
+      if (el > 60 && held >= 20) {
         done = true; F.enjouDone = true;
         rt.unmark('enjou'); rt.unmark('enjouR');
         if (R) for (const u of R.units) if (u.alive) { u.fleeing = true; u.moraleFleeDir = { x: 0.6, z: 1 }; }

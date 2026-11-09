@@ -110,9 +110,9 @@ function requirePresence(s, contactNames = null) {
     if (s.kind === 'hold' && p.alive && d < (C.botRadius || 14) + 8) C.k01InT = (C.k01InT || 0) + dt;
     // 到着した記憶だけでは足りない。屋敷を離れた後に味方が番兵を
     // 倒しても、遠くから火を掛けたり、次の持ち場へ進めたりしない。
-    // 11/9 徳川C（見回り）：本人が持ち場の外（城の塀の上など）で敵を突き続けると、②の大手の守りが十八分の打ち切りまで止まった（bot 中学生）。
-    //   守りの段は三分、斬り合い・移りの段は四分過ぎたら、味方の働きで段が済んだとみなす
-    if (p.alive && el > (s.kind === 'hold' ? 180 : 240)) return true;
+    // 敵を追い払った後は持ち場へ戻す。無関係な敵を追って塀の上で
+    // 止まる対策を、時間だけの自動達成にしてはならない。
+    if (finished && C.at) C.goal = C.at;
     return p.alive && finished && !!C.present && d < (C.botRadius || 14) + 8 && (s.kind !== 'hold' ||
       !!C.k01Engaged && d < (C.botRadius || 14) + 8 && (C.k01InT || 0) >= (s.max - 35) * 0.45);
   };
@@ -380,6 +380,9 @@ const k01_fushimi = {
     const SW = { x: -22, z: 116 }, S = { x: 0, z: 116 };
     // 打って出るのは家忠の手と主人公の手勢だけ。家長・近正まで出ると、戻る前に宇喜多勢と大手の外で組み合い、虎口が空になった
     depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => (F.sortie ? [F.mine, F.ie] : [F.mine, ...(F.sanGuard ? [] : [F.ie, F.chika]), ...(F.naiWest ? [] : [F.nai])]), scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
+      // 別の曲輪や石垣越しの敵を追わず、塀の上で空振りを続けない。
+      routeFight: true,
+      botFoeAllowed: (u) => !!F.dp?.cur?.groups.includes(u.group),
       // 持ち場で寄せ手を待つ間は「動かない」と見なさない（四十五秒で段が飛び、虎口へ来る宇喜多勢と一度も当たらずに次へ進んでいた）
       idleWait: (r, C) => !!C.at && C.s.kind === 'hold' && Math.hypot(r.player.u.pos.x - C.at.x, r.player.u.pos.z - C.at.z) < (C.botRadius || 14) + 8 }, [
       // ⓪ 七月十九日：城方が打って出て、大手の外の長束・前田玄以の屋敷を焼く
