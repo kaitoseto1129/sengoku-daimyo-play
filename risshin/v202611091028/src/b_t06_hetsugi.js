@@ -620,8 +620,10 @@ const t06_hetsugi = {
     F.follow = [];
     // 西の林から南岸へ直進すると浅瀬を外れる。北の口へ集まり、浅瀬をまっすぐ戻る。
     for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) if (live(g)) {
-      g.order = 'move'; g.dest = { x: FORD.x, z: -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
-      g.onArrive = (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
+      // 十河の残兵は先に渡り始めている。浅瀬に入った隊を北の口へ呼び戻さない。
+      const crossing = g.center().z > -24;
+      g.order = 'move'; g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+      g.onArrive = crossing ? null : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
     }
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
     this.go(B.moto, { x: CAMP.x + 30, z: CAMP.z + 24 }, 1.8, { back: true });

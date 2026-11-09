@@ -4053,6 +4053,7 @@ const inabayama = {
     return best;
   },
   jinkei: INABAYAMA_JIN,
+  lethal: { max: 4, firstAt: 120, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。お客さんの声で易しくした戦なので、間を広く
   // 軍勢の厚み・陣立て（docs/army_depth_howto.md）：北（−z）が稲葉山、南（+z）が井口の町と織田の囲み。山麓の囲みの大軍は戦のファイルの軽い作りが受け持つので、
   //   ここは藤吉郎の手・その後備・丹羽の手（本物の隊に結ぶ）と信長の本陣、斎藤の大手の打って出・本丸の旗本・龍興の馬廻（本物）だけ。
   depth: {
