@@ -45,6 +45,7 @@ export function startOpen(rt, ctx) {
   say(rt, '桑山重晴', '東の物見へ下り、湖のまわりの砦を見て参れ', 4.4);
   say(rt, '使番', '田上山の秀長様より。北国街道、柴田の動きなしとの由', 22, 3.2);
   say(rt, '使番', '堂木山・神明山、柵の普請を急いでおりまする', 46, 3.2);
+  say(rt, '使番', '大垣の筑前様より。岐阜の信孝様、また兵を挙げられた由', 62, 3.2);
 }
 export function tickOpen(rt, dt, ctx) {
   const F = rt.flags, P = rt.player.u.pos, st = rt.t - F.pt;
@@ -56,7 +57,7 @@ export function tickOpen(rt, dt, ctx) {
     rt.award((t) => t.side.push('東の物見で砦の並びを見届けた'), '砦の並びを見届けた');
   }
   // 砦の並びを見届けてから敵襲へ進む。未到着を時間だけで達成扱いにしない。
-  if (!F.raid && F.sawForts && rt.t - F.sawT > 12 && st > 15) {
+  if (!F.raid && F.sawForts && rt.t - F.sawT > 14 && st > 70) {
     F.raid = true;
     rt.army.play('horagai', { x: ctx.OIWA.x, z: ctx.OIWA.z - 30 }, 1.3);
     rt.army.play('toki', { x: ctx.OIWA.x, z: ctx.OIWA.z - 20 }, 1.2);
