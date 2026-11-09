@@ -4114,11 +4114,11 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     this.launchSupply(rt);
     rt.after(24, () => { if (!F.ending && F.step <= 3) this.launchSupply(rt); });
   },
-  fire(rt, i) {
+  fire(rt, i, playerShot = true) {
     const F = rt.flags;
     const c = F.guns[i];
     // 10/31：本人が大筒に手を掛けた印（立っているだけで段が進まないように）
-    if (F.step === 1 || F.step === 4) F['pf' + F.step] = true;
+    if (playerShot && (F.step === 1 || F.step === 4)) F['pf' + F.step] = true;
     if (F.step === 2 || F.step === 3) { rt.bark('今は甲板の持ち場を守れ'); return; }
     if (F.ending || rt.over || !rt.player.u.alive || (F.step !== 1 && F.step !== 4 && F.step !== 6) || F.kzYoin) return;
     if (rt.t < c.cd) { rt.bark('玉込め中'); return; }
@@ -4152,8 +4152,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       if (!best.alive || F.ending) return;
       F.cannonHits++;
       // 大将船への命中を合図に、ほかの大船も一斉に放つ。
-      if (best.big) { this.breakFlagship(rt, true); return; }
-      best.hitByPlayer = true; best.damageStage = 1; best.hitAt = rt.t; best.leak = true; best.rudderLost = true;
+      if (best.big) { this.breakFlagship(rt, playerShot); return; }
+      best.hitByPlayer = playerShot; best.damageStage = 1; best.hitAt = rt.t; best.leak = true; best.rudderLost = true;
       if (best.supply) {
         rt.army.smoke(best.x, 1, best.z, 0, 0, 3);
         rt.army.play('wood', { x: best.x, z: best.z }, 1.2);
@@ -4171,7 +4171,11 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       best.stopped = true;
       F.sunk++;
       if (F.sunk === 1) rt.say('九鬼嘉隆', 'よし、寄せる一艘を止めた！　槍の衆、空いた船べりを固めよ！', 3);
-      rt.award((t) => { t.special = { label: '大筒で小早を打ち払った', pts: 3 * Math.min(6, F.sunk) }; }, noticeReady(rt, '小早を打ち払った') ? '小早を打ち払った' : null);
+      // 大筒衆の援護も同じ命中・沈没を通すが、主人公の手柄には足さない。
+      if (playerShot) {
+        F.playerSunk = (F.playerSunk || 0) + 1;
+        rt.award((t) => { t.special = { label: '大筒で小早を打ち払った', pts: 3 * Math.min(6, F.playerSunk) }; }, noticeReady(rt, '小早を打ち払った') ? '小早を打ち払った' : null);
+      }
       if (F.step === 1) rt.objProgress('main', '小舟を打ち払った。次の船を迎えよ');
     });
   },
@@ -4202,7 +4206,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       rt.after(1.2, () => {
         if (!fire.doused && !F.ending && !rt.over) {
           rt.army.play('houroku', fire, 0.8);
-          fire.f = rt.world.addFire(q.x, q.z, { h: 0.3, size: 2.4 });   // 11/6 fixc0504：足元の小さな光でなく、板を舐める火に
+          // 海底の格子の補間値によらず、実際の甲板の上へ置く。
+          fire.f = rt.world.addFire(q.x, q.z, { h: DECK.y + 0.3 - rt.world.heightAt(q.x, q.z), size: 2.4 });
         }
       });
       rt.marker('f' + i, q, '火を消す', { h: 2, guidePriority: () => F.water ? 150 : -200, guideNearest: true, alwaysDistance: true, guideAlways: true });
@@ -4920,7 +4925,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       // 百秒を過ぎたら、大筒の持ち場へ来た者や戦う者を大筒衆が助ける。
       if (elapsed >= 100 && (F.pf1 || F.pk || F.cannonAttended)) {
         // 命中数だけを足さず、射程・玉込め・命中後の船の損傷まで同じ砲撃を通す。
-        for (let i = 0; i < F.guns.length; i++) if (cannonReady(rt, F.guns[i])) { this.fire(rt, i); break; }
+        for (let i = 0; i < F.guns.length; i++) if (cannonReady(rt, F.guns[i])) { this.fire(rt, i, false); break; }
       }
     }
     if (F.step === 2) {

@@ -195,6 +195,12 @@ function hachiojiWay(army, u, want) {
 // 味方の組を、谷の道と尾根の道の曲がり角を順にたどって段の場所へ（11/4：攻める号令のままでは山下曲輪の柵に掛かって寄せ口に残った）。
 //   細い道は二列の縦隊で歩き、着いたら槍の備に組み直して段の敵へかかる
 const RG = { d: 0, s: 0, x: 0, z: 0 };
+const REJOIN_SPHERE = new THREE.Sphere(new THREE.Vector3(), 5);
+function unseenRejoin(rt, x, z) {
+  if (!rt.frustum || Math.hypot(x - rt.player.u.pos.x, z - rt.player.u.pos.z) < 28) return false;
+  REJOIN_SPHERE.center.set(x, rt.world.heightAt(x, z) + 1, z);
+  return !rt.frustum.intersectsSphere(REJOIN_SPHERE);
+}
 function marchTo(rt, g, to, k = 0) {
   if (!g || !g.count || g.routed) return;
   const c = g.center(), at = { x: to.x + (k % 2 ? 3 : -3) * Math.ceil(k / 2), z: to.z + 3 * k };
@@ -210,7 +216,7 @@ function marchTo(rt, g, to, k = 0) {
   const P = rt.player.u.pos, far = (u) => Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
   let rear = null;
   for (const u of g.units) if (u.alive && !u.fleeing && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) < 12 && (!rear || far(u) > far(rear))) rear = u;
-  if (rear && far(rear) > 30) for (const u of g.units) if (u.alive && !u.fleeing && !u.isPlayer && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45) {
+  if (rear && far(rear) > 30 && unseenRejoin(rt, rear.pos.x, rear.pos.z)) for (const u of g.units) if (u.alive && !u.fleeing && !u.isPlayer && Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 18 && far(u) > 45 && unseenRejoin(rt, u.pos.x, u.pos.z)) {
     u.pos.x = rear.pos.x + (Math.random() - 0.5) * 3; u.pos.z = rear.pos.z + (Math.random() - 0.5) * 3; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.target = null; u.aiT = 0;
   }
   g.focus = null; g.dest = null; g.fixed = false;
@@ -673,12 +679,13 @@ const t11_hachioji = {
         if (rt.t - k.t < 12 || u.target) continue;
         const home = g.slotPos(u.slot, g.initial);
         if (Math.hypot(home.x - u.pos.x, home.z - u.pos.z) < 8 || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 45 || Math.hypot(home.x - P.x, home.z - P.z) < 40) continue;
+        if (!unseenRejoin(rt, u.pos.x, u.pos.z) || !unseenRejoin(rt, home.x, home.z)) continue;
         u.pos.x = home.x; u.pos.z = home.z; u.pos.y = rt.world.heightAt(home.x, home.z); u.aiT = 0; u.jamT = 0; u.jammed = false;
         k.x = u.pos.x; k.z = u.pos.z; k.t = rt.t;
       }
     }
     // 本丸の坂で本人一人にしない（周りの 25m に味方が 0 人だった。11/8 critic60）：味方が四人より少なければ、
-    //   五十歩より後ろに遅れた前田の兵を、本人の二十五歩後ろの道の上へ寄せる（霧の奥・後ろなので湧くのは見えない）
+    //   遅れた兵を後方の道へ寄せる。移動元と移動先が画面外の時だけ。直前の角の延長では、角が近いと本人のすぐそばになってしまう。
     if (D && D.on && D.i >= IX.matsuki && !(F.catchT > rt.t)) {
       F.catchT = rt.t + 3;
       const P = rt.player.u.pos;
@@ -686,11 +693,16 @@ const t11_hachioji = {
       for (const g of [F.saki, F.mine, F.ni]) if (g) for (const u of g.units) if (u.alive && !u.isPlayer && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 25) near++;
       if (near < 4) {
         routeAt(P.x, P.z, RG);
-        const bk = ROUTE[Math.max(0, Math.floor(RG.s) - 1)], dx = bk[0] - P.x, dz = bk[1] - P.z, L = Math.hypot(dx, dz) || 1;
-        const bx = P.x + dx / L * Math.min(25, L + 6), bz = P.z + dz / L * Math.min(25, L + 6);
+        let bx = RG.x, bz = RG.z, back = 35;
+        for (let j = Math.floor(RG.s); j >= 0 && back > 0; j--) {
+          const dx = ROUTE[j][0] - bx, dz = ROUTE[j][1] - bz, len = Math.hypot(dx, dz);
+          if (!len) continue;
+          const step = Math.min(back, len);
+          bx += dx / len * step; bz += dz / len * step; back -= step;
+        }
         let moved = 0;
         for (const g of [F.saki, F.mine, F.ni]) if (g && g.count) for (const u of g.units) {
-          if (moved >= 8 || !u.alive || u.fleeing || u.isPlayer || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50) continue;
+          if (moved >= 8 || !u.alive || u.fleeing || u.isPlayer || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50 || !unseenRejoin(rt, u.pos.x, u.pos.z) || !unseenRejoin(rt, bx, bz)) continue;
           u.pos.x = bx + (Math.random() - 0.5) * 4; u.pos.z = bz + (Math.random() - 0.5) * 4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); u.aiT = 0; moved++;
         }
       }

@@ -37,7 +37,7 @@ export function step(H) {
       const line = (t, f) => { if (el >= t && C.say < t) { C.say = t; f(); } };
       line(2, () => rt.say('使番', `${me}殿、家康殿の本陣へ参られよ。道すがら、見張りの土手から城を見ておけ`, 3.8));
       // 見張りの土手：総構えの土塁と、その奥の城を一望する
-      if (!C.looked && (Math.hypot(P.x - H.LOOKOUT.x, P.z - H.LOOKOUT.z) < 8 || el > 70)) {
+      if (!C.looked && (Math.hypot(P.x - H.LOOKOUT.x, P.z - H.LOOKOUT.z) < 8)) {
         C.looked = el;
         rt.say(me, '町ごと、堀と土塁で囲んである……あれが総構えか', 3.4);
         rt.after(3.8, () => rt.say('井伊の侍', '総構えは九里。城の周りは、東は徳川、北は羽柴秀次殿と蒲生殿、西の早川口は宇喜多殿じゃ', 4.4));
@@ -56,9 +56,9 @@ export function step(H) {
         rt.after(8.4, () => rt.say('使番', '関東の北条の城は、一つずつ落ちております。山中は半日、鉢形・八王子へも勢が向かいました', 4.2));
         rt.after(12.8, () => rt.say('徳川家康', '……三年前は、わしも殿下と小牧で睨み合うた。それが今は、この囲みの一手よ', 4));
       }
-      // 着かなくても、三分で次へ（物語は時が経てば進む）
+      // 下知は本陣へ着いて聞き終えるまで済ませない。
       if (C.arrived) return el - C.arrived > 17.5;
-      return el > 200;
+      return false;
     },
     end(rt) {
       rt.unmark('dp');

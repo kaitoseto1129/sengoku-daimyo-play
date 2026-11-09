@@ -35,13 +35,13 @@ export function step(H) {
       const chasers = C.groups.filter((g) => g.chaser);
       rt.objProgress('dp', '');
       const done = C.r3 && chasers.length >= 3 && chasers.every((g) => live(g) <= 1);
-      if (done && !C.done) {
+      if (done && Math.hypot(rt.player.u.pos.x - H.BANK.x, rt.player.u.pos.z - H.BANK.z) < 18 && !C.done) {
         C.done = el;
         for (const g of chasers) { g.noRout = false; g.morale = 0; }
         rt.say(nm(rt), '城から逃げる者を、城の者が討ちに来る……もう城の中は割れておる', 3.6);
         rt.award((t) => t.side.push('城から逃げて来た北条の兵を迎えた'), '逃げて来た兵を迎えた');
       }
-      return (C.done && el - C.done > 6) || el > 200;
+      return !!C.done && el - C.done > 6;
     },
     end(rt, C) {
       for (const g of [...C.groups, ...C.runners]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);

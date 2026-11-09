@@ -49,8 +49,7 @@ export function step(H) {
       const left = live(C.spear) + live(C.spear2);
       // 坂の槍と駆け下りた新手を崩し、金子丸の下まで登ると次の段へ（上の段の弓は金子丸の段で一緒に落ちる）
       const top = Math.hypot(P.x - H.SLOPE_TOP.x, P.z - H.SLOPE_TOP.z) < 12;
-      if (C.down && left <= 2 && (top || el > 140)) return true;
-      return el > 150;
+      return !!C.down && left <= 2 && top;
     },
     end(rt, C) {
       for (const g of [C.spear, C.spear2]) if (g) { g.noRout = false; g.morale = 0; }
