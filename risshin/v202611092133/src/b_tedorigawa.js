@@ -2173,6 +2173,7 @@ const tedorigawa = {
     return '足を止め、手当てを待て';
   },
   singleDestinationArrow: true, // 同じ火へ向かう道筋と矢印を重ねない。
+  noTravelArrow: true, // 通し確認で残っていた足元の矢印を消し、行き先の印にそろえる。
   subtleTargetFrames: true,
   namedGuideMarkers: true,
   travelGuideLabel(rt) {
@@ -4147,7 +4148,7 @@ function tedoHold(o) {
     // 槍を構える働きと、その後に列を保つ働きを同じ八秒に見せない。
     if (o.push && rt.flags.playerHelp && !C.supportCalled) {
       C.supportCalled = true;
-      rt.obj('dp', '追手を討った。組と火の旗を守れ', 'main');
+      rt.obj('dp', '追手を抑えた。組と火の旗を守れ', 'main');
       // 八秒の支えまで済んだ時は、下の渡河の知らせ一つにまとめる。
       if (rt.flags.pushTime < 8)
         tedoAside(rt, '組頭', '追手を抑えた！　組と火を守れ！', 4);

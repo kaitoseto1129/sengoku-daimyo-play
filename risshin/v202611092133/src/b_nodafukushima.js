@@ -4177,8 +4177,15 @@ const nodafukushima = {
         F.sally.onArrive = null;
         charge(F.sally);
       }
-      // 浅瀬の泥や門の混雑で後列が遅れても、門内へ閉じ込めない。
-      if (F.sallyGateOpen && F.sally.units.every(u => !canJoin(u) || u.pos.z > NODA_GATE.z + 3)) {
+      // 打って出た後に閉めた門は、退く列にも開く。退き始めの南岸で閉め直さない。
+      if (!F.sallyReturning && (F.sally.routed || F.sally.order === 'retreat')) {
+        F.sallyReturning = true;
+        F.nodaGate.sally();
+        F.sallyGateOpen = true;
+      }
+      // 敗走中の兵も帰着を待つ。canJoin は敗走兵を除くので、門の判定には使わない。
+      if (F.sallyGateOpen && F.sally.units.every(u => !u.alive || u.gone ||
+          (F.sallyReturning ? u.pos.z < NODA_GATE.z - 3 : !canJoin(u) || u.pos.z > NODA_GATE.z + 3))) {
         F.sallyGateOpen = false;
         if (!F.nodaGate.breached) F.nodaGate.close();
       }
@@ -4218,6 +4225,8 @@ const nodafukushima = {
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
       if (!F.nightAt && F.sallyMetAt != null && rt.t - F.sallyMetAt > 110) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
+        // 出撃時の南岸の行き先を残すと、退却の下知でも岸に居残ってしまう。
+        F.sally.dest = { x: 0, z: -56 };
         F.nightAt = rt.t + 8;
         rt.say('前田利家', '三好が塀の内へ退くぞ。追うな！', 3);
       }
