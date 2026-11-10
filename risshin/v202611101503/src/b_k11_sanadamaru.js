@@ -1403,18 +1403,22 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     }
   },
 
-  onKill(rt, v) {
+  onKill(rt, v, killer) {
     // 柵の破壊は兵の討死ではない。兵数の棒と亡骸には加えない。
     if (v.isStruct) return;
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
     KIT.carrion(rt, v);
     // 将を討っても、柵破り・殿・帰陣の務めは飛ばさない。
-    if (v.name === '真田信繁' && !F.ending) { rt.say(nm(rt), '真田左衛門佐、討ち取ったり！', 3); return; }
+    if (v.name === '真田信繁' && !F.ending) {
+      if (!killer?.isPlayer) rt.say('足軽', '真田左衛門佐、討死！', 3);
+      return;
+    }
     if (v.type === 'busho' && v.team === 1) {
-      rt.say('足軽', `${v.name}、討死！`, 3);
+      // 自分で討った時の名乗りは共通の仕組みに任せ、討死の知らせを重ねない。
+      if (!killer?.isPlayer) rt.say('足軽', `${v.name}、討死！`, 3);
       if (v.group) { v.group.noRout = false; v.group.morale -= 40; }
-      rt.award((t) => { t.special = { label: `${v.name}を討ち取った`, pts: 30 }; }, `${v.name}を討ち取った`);
+      if (killer?.isPlayer) rt.award((t) => { t.special = { label: `${v.name}を討ち取った`, pts: 30 }; }, `${v.name}を討ち取った`);
     }
   },
   onRout(rt, g) {
