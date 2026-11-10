@@ -180,7 +180,7 @@ const t07_ganjaku = {
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
-  goalSignOnly: true, goalSignOnscreenOnly: true, goalSignNoEdge: true, stageGoalsOnly: true, goalsAllRows: true,
+  goalSignOnly: true, goalSignOnscreenOnly: true, goalSignNoEdge: true, stageGoalsOnly: true, goalsAllRows: true, goalsVisibleRows: 1,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   // 保存して開き直した時も、着陣からではなく今の段へ戻す。
   checkpointStep: (rt) => rt.flags.stage || 0,
@@ -239,7 +239,10 @@ const t07_ganjaku = {
         if (k === 'out') { const a = gl(u.pos.x, u.pos.z)[0]; return w === 'rec' ? want : a > 3.8 && a < 15 ? FRONT : MOUTH; }
         return k === 'rec' ? INSIDE : INNER;
       }
-      return k === 'in' ? INSIDE : k === 'lane' ? FRONT : k === 'rec' ? MOUTH : want;
+      // 内側の角まで来た出撃兵は、次の角へ送る。同じ内側の点を返すと、
+      // 芥田の手が門の内で止まり、坂の迎撃へいつまでも出て来られない。
+      if (k === 'in') return Math.hypot(u.pos.x - INSIDE.x, u.pos.z - INSIDE.z) < 3 ? FRONT : INSIDE;
+      return k === 'lane' ? FRONT : k === 'rec' ? MOUTH : want;
     },
   },
   // 二の丸の門・塀・狭間の射撃（siege_kit）。守り手の矢と鉄砲は門へ近づくほど激しい

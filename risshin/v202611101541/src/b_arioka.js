@@ -2730,18 +2730,6 @@ const arioka = {
       F.kanbeAt = kanbe ? kanbe.pos : at;
       evReach(rt, 'kanbe', () => F.kanbeAt, 3.5, ARI_GOALS[4], '小寺官兵衛', () => {
         F.kanbePending = false;
-        // 期限で迎えた時は、二人を本人の前（壁の無い側）へ寄せて対面を見せる。
-        const me2 = rt.player.u.pos;
-        if (kanbe && Math.hypot(kanbe.pos.x - me2.x, kanbe.pos.z - me2.z) > 6) {
-          for (const [g, side] of [[kg, 0], [sg, 1.2]]) for (const v of g.units) {
-            for (const a of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
-              const h = (rt.player.yaw || 0) + a, q = { x: me2.x - Math.sin(h) * 2.6 + Math.cos(h) * side, z: me2.z - Math.cos(h) * 2.6 - Math.sin(h) * side };
-              q.y = rt.world.heightAt(q.x, q.z);
-              if (rt.army.wallBetween(me2, -1, q)) continue;
-              v.pos.x = q.x; v.pos.z = q.z; v.pos.y = q.y; g.order = 'hold'; g.anchor = g.dest = { x: q.x, z: q.z }; break;
-            }
-          }
-        }
         rt.award((t) => { t.main = true; t.special = { label: '惣構えに入り、侍町の辻を守った', pts: 20 }; }, '任務達成・侍町の辻を守った');
         rt.award((t) => { t.side.push('牢を出た官兵衛を迎えた'); }, '牢を出た官兵衛を迎えた');
         rt.banner('官兵衛を迎えた', '一年の牢で足は弱ったが、命はある');
@@ -2755,9 +2743,29 @@ const arioka = {
       }, { limit: 75, canReach: (b, p) => {
         // 屋根の上や町屋の壁越しでは、官兵衛と対面した事にしない。
         const u = b.player.u;
-        // 詰まらない決まり1：官兵衛一人の歩みに頼らない。七十五秒で二人が本人の所へ着いた事にする（11/10 bot：十分止まり刻限負け）。
-        if (u.alive && (b.flags._ev_kanbe?.t || 0) > 75) return true;
-        return u.alive && kanbe?.alive && !!p && Math.abs(u.pos.y - p.y) <= 3
+        if (!u.alive || !kanbe?.alive || !sg.units[0]?.alive || !p) return false;
+        // 七十五秒の救済は達成の代行にせず、二人が安全に並べる対面場所を先に確かめる。
+        // 四方とも壁や段差なら印を残し、本人が通りへ戻るまで迎えた事にしない。
+        if ((b.flags._ev_kanbe?.t || 0) > 75 && (Math.hypot(u.pos.x - p.x, u.pos.z - p.z) >= 3.5
+          || Math.abs(u.pos.y - p.y) > 3 || b.army.wallBetween(u.pos, -1, p))) {
+          for (const a of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+            const h = (b.player.yaw || 0) + a;
+            const places = [0, 1.2].map((side) => {
+              const q = { x: u.pos.x - Math.sin(h) * 2.6 + Math.cos(h) * side,
+                z: u.pos.z - Math.cos(h) * 2.6 - Math.sin(h) * side };
+              q.y = b.world.heightAt(q.x, q.z);
+              return q;
+            });
+            if (places.some((q) => Math.abs(u.pos.y - q.y) > 3 || b.army.wallBetween(u.pos, -1, q))) continue;
+            for (const [i, g] of [kg, sg].entries()) {
+              const q = places[i];
+              for (const v of g.units) { v.pos.x = q.x; v.pos.z = q.z; v.pos.y = q.y; }
+              g.order = 'hold'; g.anchor = g.dest = { x: q.x, z: q.z }; g.onArrive = null;
+            }
+            break;
+          }
+        }
+        return Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 3.5 && Math.abs(u.pos.y - p.y) <= 3
           && !b.army.wallBetween(u.pos, -1, p);
       } });
     });
