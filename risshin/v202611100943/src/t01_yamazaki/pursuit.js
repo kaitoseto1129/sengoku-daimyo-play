@@ -97,7 +97,7 @@ function finale(rt, ctx) {
   F.finaleIndex = 0;
 }
 
-const FINALE_AT = [3, 7, 12.5, 17, 21.5, 25.5, 30];
+const FINALE_AT = [3, 7, 12.5, 17, 21.5, 26, 30.5, 35];
 function finaleTick(rt, ctx) {
   const F = rt.flags;
   // 経過と番号だけを戻せる形で持ち、毎コマ関数や配列を作らない。
@@ -112,9 +112,11 @@ function finaleTick(rt, ctx) {
       // 秀吉の本陣へ勝報→勝鬨。秀吉は本能寺の方（北東の京）を一度見る。すぐ天下人の顔はしない（11/10 指示書）
       case 2: report(rt, '秀吉様の本陣へ勝報！　明智勢、勝竜寺へ逃げ込みました！', 3.8); rt.army.play('toki', { x: -34, z: 100 }, 1.6); break;
       case 3: rt.say('羽柴秀吉', '……上様。日向は退けましたぞ', 3.6); break;
-      case 4: report(rt, '柴田勝家様、北国にあり。清須へ向かわれるとの由', 3.6); break;
-      case 5: rt.say('羽柴秀吉', 'まだ山崎に勝っただけじゃ。気を緩めるな', 3.6); break;
-      case 6: ctx.done(); break;
+      // 戦場で光秀を討った扱いにせず、城を抜けた後の最期は戦後の知らせとして伝える。
+      case 4: report(rt, '後の知らせにござる。光秀は勝竜寺城を抜け、坂本へ落ちる途中、小栗栖で討たれました', 4); break;
+      case 5: report(rt, '柴田勝家様、北国にあり。清須へ向かわれるとの由', 3.6); break;
+      case 6: rt.say('羽柴秀吉', 'まだ山崎に勝っただけじゃ。気を緩めるな', 3.6); break;
+      case 7: ctx.done(); break;
     }
   }
 }
