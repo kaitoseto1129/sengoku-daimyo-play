@@ -1710,8 +1710,11 @@ const tottori = {
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true, noSiegeCards: true,
   noPlayerFoot: true, quietMiss: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
+  // 共通の字幕抑制より先に、下の許可で下知・使者の返答を選ぶ。
+  taskDialogue: true,
   // 追加の段の下知・使者の返答は、目標や年月が変わる理由として残す。
-  speechAllowed: (rt) => !!rt.flags.k15on || !!rt.flags.ending || rt.over,
+  speechAllowed: (rt, who) => !!rt.flags.k15on || !!rt.flags.ending || rt.over ||
+    rt.flags.step === 3 && who === '使いの侍',
   // 場面を移した理由と次の行いは消さない（軍議・荷駄・飢餓・夜討ち・開城の朝）。
   bannerAllowed: (rt, title) => !!rt.flags.k15on || !!rt.flags.ending || rt.over ||
     title === '幾日か後の夜討ち' || title === '十月二十五日　開城の朝',

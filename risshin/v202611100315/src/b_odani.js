@@ -2823,6 +2823,14 @@ export function odaniGoalNow(rt) {
   if (F.onoDone || F.step >= 3) return 2;
   return F.step >= 2 ? 1 : 0;
 }
+// 登り口を通った本人だけ、番兵を退けた後に次の攻めへ進める。
+function odaniClimbCleared(rt, distance, guardsGone) {
+  const F = rt.flags;
+  if (distance < 16) F.belowEntered = true;
+  if (!guardsGone) { F.guardsClearT = null; return false; }
+  if (F.guardsClearT == null) F.guardsClearT = rt.t;
+  return !!F.belowEntered && (distance < 16 || rt.t - F.guardsClearT >= 8);
+}
 const ODANI_BOARD_CSS = `
 html:root body #hud#hud#hud.odani-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.odani-goals #armybar .clock { visibility:hidden !important; }
@@ -5484,10 +5492,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       // 11/5（AR1・BA3）：まだ来ない番兵の組を登り口で待たせない。目の前の番兵を退けたら攻め上る。
       // 11/6 fixc2103（critic60「番兵との戦の後も60秒①のまま」）：番兵が皆退いたら、本人が登り口から離れていても八秒で①を済ませて攻め上る。
       const guardsGone = guards === 0 && F.patrolWave >= AMBUSH_IDS.length;
-      if (guardsGone && F.guardsClearT == null) F.guardsClearT = rt.t;
-      if (!guardsGone) F.guardsClearT = null;
-      // 未出撃の番兵や登り口の守りが残る間は、近さや経過時間だけで①を済ませない。
-      if (guardsGone && (d < 16 || rt.t - F.guardsClearT >= 8)) this.assault(rt);
+      // 登り口から離れて援護した時は八秒で進む。谷の口に留まるだけでは達成させない。
+      if (odaniClimbCleared(rt, d, guardsGone)) this.assault(rt);
       else if (updateHud) {
         const order = retShown(rt) ? '来た道の角へ戻れ'
           : F.guideBlocked ? '来た道へ戻る足場を探せ'
