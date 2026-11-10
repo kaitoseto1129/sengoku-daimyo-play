@@ -42,8 +42,9 @@ Object.assign(takato, {
   // 始まりの札の間に顔を撮れなくても、黒い影を戦の終わりまで残さない。
   waitForPortrait: true,
   noSiegeCards: true, enemyTriangleSigns: false, nearbyAllySignLimit: 0,
-  // 通し確認：本丸の密集で赤い印が隣の兵を覆う。全員に残し、大きさだけを抑える。
+  // 通し確認：本丸の密集で赤い印が隣の兵を覆う。命中時の拡大も終えた形に上限を掛ける。
   foeSignMaxPixels: 28,
+  enemySignMaxPixels: 28,
   // 11/4 p100（kaito AS・AV15）：行き先は金の▼一つ。ついていく相手の青い▼を重ねない。
   noLeaderFollow: true,
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。敵を指す札と矢印も出さない（敵は頭上の▼で分かる）。

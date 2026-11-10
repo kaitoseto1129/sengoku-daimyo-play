@@ -15,6 +15,7 @@ export function moveSonae(rt, side, id, x, z) {
 
 export const T03_DEPTH = {
   byMen: true,   // 軽い兵を布陣図の兵数の比で配る（docs/fujin/。豊臣A 11/9）
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   A: { name: '羽柴', facing: 0, honjin: { x: -40, z: -104 }, mpu: 10, formation: '鶴翼', terrain: 'plain', flag: 'toyotomi', armor: 0x2b2723, openAt: 9999, attrition: 0,
     sonae: [
       { id: 'nijubori', layer: 'sakite', wing: 'left', men: 2000, taisho: '日根野弘就', bind: F('fort') },

@@ -4377,6 +4377,10 @@ const hiei_mtn = {
       return;
     }
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    // 致命傷などで通常の命中処理を経ずに討ち取った場合も、本人の働きを残す。
+    // 配下だけの討取りや、別の持ち場での討取りでは中堂の条件を果たさない。
+    if (F.courtDone && v.team === 1 && k?.isPlayer &&
+        v.group && [F.chudoG, F.courtBow, F.kodoG].includes(v.group)) F.courtHand = true;
     if (v.team === 1 && (k?.isPlayer || k?.group?.isPlayerSquad)) {
       if (v.group === F.hiyoshiG || v.group === F.satoboBow) F.hiyoHand = true;
       if (v.group === F.monjuG || v.group === F.monjuBow || v.group === F.remG) F.monjuHand = true;
