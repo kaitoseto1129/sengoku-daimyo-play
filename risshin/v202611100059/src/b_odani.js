@@ -2858,46 +2858,10 @@ function odaniGoalBoard(rt) {
     }
     return out;
   };
-  // 六十メートル内の残る敵にも赤い▼。共通の印を描く方式では二重に足さない。
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = pinGuideOn(rt) && me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (n >= 250) break;
-      // 討てない史実の将にも敵印は付ける。待機中の将は noTarget で除く。
-      // 近接印の候補から外れた兵には、以前の _nearSignOn が残る。十二メートル外や退却中まで印を省かない。
-      const nearMarked = u._nearSignOn && !u.fleeing && !u.group?.routed &&
-        (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 <= 144;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || nearMarked ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 3600) continue;
-      if (!(u._odSeenAt > rt.t - .34 && u._odSeenAt <= rt.t)) { u._odSeen = sightUnit(rt, u); u._odSeenAt = rt.t; }
-      if (!u._odSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#e3261b;font-size:28px;line-height:1;-webkit-text-stroke:1.5px #2a0c08;text-shadow:0 1px 3px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
+  // 敵の▼は共通の field_signs と hud_cards に任せる。
+  // 小谷でも字の▼を重ねると、共通の頭上の印と二重になる。
   const dispose = rt.dispose;
   rt.dispose = function () {
-    hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('odani-goals'); style.remove();

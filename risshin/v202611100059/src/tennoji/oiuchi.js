@@ -13,16 +13,19 @@ export function install(rt, ctx) {
   const { spent, dress, IKKO } = ctx;
   const W = rt.world;
   let tail = null, cut = false, tick = 0;
+  // 予約から実行までに城戸口へ着いた時は、道中の演出を新しく出さない。
+  const onRoad = () => !cut && !F.ending && !rt.over && F.step === 4 && !F.kidoCut &&
+    Math.hypot(rt.player.u.pos.x - F.kz.x, rt.player.u.pos.z - F.kz.z) >= 260;
   // ① 道の脇の在家が燃える（石山へ退く門徒が火を掛けた。煙の柱を三つだけ）
   rt.after(10, () => {
-    if (F.ending || rt.over) return;
+    if (!onRoad()) return;
     const p = rt.player.u.pos;
     F.oiSmoke = [[-40, -160], [55, -230], [-25, -300]].map(([dx, dz], i) => W.addSmokeColumn?.(p.x + dx, W.heightAt(p.x + dx, p.z + dz) + 5, p.z + dz, { size: 3 - i * 0.5, black: true }));
     rt.say('足軽', '在家に火を掛けて退いていくぞ！　煙に紛れて逃がすな！', 3.5);
   });
   // ② 道を塞ぐ殿の門徒（自分の前、約九十歩）
   rt.after(24, () => {
-    if (F.ending || rt.over || cut) return;
+    if (!onRoad()) return;
     const p = rt.player.u.pos, z = p.z - 90, x = p.x * 0.5;
     tail = enemyGroup(rt, { name: '道を塞ぐ殿の門徒', anchor: { x, z }, facing: 0, width: 10, order: 'hold', guard: true, guardLeash: 8, aggro: 26, seekRange: 34, morale: 80, faction: 'honganji', fleeDir: { x: 0, z: -1 } },
       dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }], IKKO));
