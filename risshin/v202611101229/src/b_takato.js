@@ -656,6 +656,9 @@ takato.cornerEnemyGuide = true;
 // 描画を間引いた兵の古い骨位置へ枠を残さず、現在の立ち位置で示す。
 takato.positionPersonGuide = true;
 takato.bodyHeightGuides = true;
+// 全戦の四方確認で、近い敵の赤い印が重なって姿を覆った。
+// 届く相手の拡大も含め、共通処理の最後で頭上の印を三十四画素までに収める。
+takato.enemySignMaxPixels = 34;
 // 足元の本人確認は小さく保ち、退く先の印と見分ける。
 takato.playerSignScale = .45;
 takato.playerSignMinScale = .45;
