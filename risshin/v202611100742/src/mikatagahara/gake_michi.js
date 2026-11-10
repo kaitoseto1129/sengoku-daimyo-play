@@ -8,8 +8,8 @@ export const GAKE = { x: 14, z: 102 };   // 崖の東の道の途中（本多忠
 // K：本体から渡す道具 { rest, withstand, uS, uA, uC, gunLine }
 export function steps(K) {
   return [
-    K.withstand({ at: GAKE, dur: 58, r: 13, title: '崖の東の道', sub: '追手が退く味方の背に食らいつく', label: '崖の東の道',
-      obj: '崖の東の道で本多忠真と追手を止めよ',
+    K.withstand({ at: GAKE, dur: 40, cap: 70, r: 13, title: '崖の東の道', sub: '追手が退く味方の背に食らいつく', label: '崖の東の道',
+      obj: '殿を援護し、追手を止めよ',
       say: [['本多忠真', '道は一本じゃ。ここで止めねば、殿の背に追いつかれる！']],
       waves: [
         { t: 0, foes: () => [{ name: '追いすがる武田の騎馬', from: { x: GAKE.x - 4, z: GAKE.z - 34 }, list: [{ type: 'samurai', n: 1, o: { horse: true } }, K.uC(4)], mass: 180 }] },
@@ -17,6 +17,6 @@ export function steps(K) {
         { t: 30, say: ['足軽', '松明が台地を埋めとる……！　まだ来るがや！'], foes: () => [K.gunLine('崖の上の武田の鉄砲', { x: GAKE.x - 16, z: GAKE.z - 30 }, 5)] },
       ],
       reward: '崖の東の道で追手を止めた', lost: ['組頭', 'もうよい、走れ！　城の口まで止まるな！'] }),
-    K.rest({ dur: 5, heal: 0, fn: (rt) => rt.obj('dp', '浜松城の口へ走れ', 'main'), say: [['本多忠真', 'ここは某が引き受けた。行け、城まで走れ！', 3]] }),
+    K.rest({ dur: 5, heal: 0, fn: (rt) => rt.obj('dp', '上様を追い、浜松城の口へ', 'main'), say: [['本多忠真', 'ここは某が引き受けた。行け、城まで走れ！', 3]] }),
   ];
 }

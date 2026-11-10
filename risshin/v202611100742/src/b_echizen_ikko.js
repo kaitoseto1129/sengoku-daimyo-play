@@ -4123,7 +4123,7 @@ const echizen_ikko = {
     const what = hondo ? '大滝寺の本堂を焼き、奥の院の一揆を狩り出した' : '大滝寺の堂と山道を押さえた';
     rt.award((t) => { t.main = true; t.special = { label: what, pts: 22 }; }, what);
     sfx('kane', 0.5);
-    rt.banner('大滝寺の山狩り、終わる', '大滝寺は滝川勢に焼かれたと伝わる');
+    rt.banner('大滝寺の山狩り、終わる', '手負いを連れて麓へ戻る');
     // 11/1 kaito の紙：滝川一益の大滝寺の焼き討ち（史実）。堂に火を放ち、燃える寺で終わる。
     if (F.mode === 'attack') {
       for (const st of [F.hondoStruct, F.gezanKuraStruct]) if (st?.alive && !st.fireF) { st.burn = 3; rt.army.igniteStruct(st, st); }
@@ -4410,6 +4410,8 @@ const echizen_ikko = {
             }
           }
           else templeOccupation(rt, zones.gezan, '外堂');
+          // 通し確認で外堂の薙刀が重なって止まった例にも、堂の戸口からの経路を引き直す。
+          if (!F.gateSomon.struct.alive) hondoSweep(rt, 1, zones.gezan, zoneNear(zones.gezan));
         } else if (F.step === 2) {
           F.target = F.gateSanmon.struct.alive ? GATE_SANMON : INNER_POS;
           if (!F.gateSanmon.struct.alive) {

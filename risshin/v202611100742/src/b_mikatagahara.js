@@ -14,7 +14,7 @@ import { contactLitter } from './army_ground.js';
 // ③平手の討ち死に。浜松城へ退く（追ってくる武田勢を振り切る）
 // 向き：北（-z）から武田勢が来る。南（+z）の台地の下に浜松城
 // ======================================================================
-import { nobori, hut, dou, tawara, campfire, solidSeg, palisade, kabukimon,
+import { nobori, hut, dou, tawara, campfire, solidSeg, palisade, kabukimon, tobira,
   castleBoardFence, dorui, yagura, bobosaku, takataba, hiraTateGeo, castleMat } from './props.js';
 import { S as SETTINGS, MEM_TIGHT } from './settings.js';
 import { plumeTuftGeo, plumeTuftMat } from './world_grass.js';
@@ -55,6 +55,7 @@ import { steps as zeneiSteps } from './mikatagahara/zenei.js';       // 3〜6分
 import { steps as hirateSteps, HIRA_LAST, fallNotice } from './mikatagahara/hirate.js';   // 7〜10分：平手汎秀の最期
 import { steps as gakeSteps } from './mikatagahara/gake_michi.js';   // 12〜14分：崖の東の道の足止め
 import { install as hamamatsuEnd } from './mikatagahara/hamamatsu.js';
+import { steps as honjinSteps, SECOND_LINE, HONJIN } from './mikatagahara/honjin.js';   // 8〜12分：第一線崩壊・本陣の危機
 import { STAGES } from './stages.js';   // 終幕：浜松城の門の余韻
 // 足軽大将より上の身分で出た時は、一手を預かる
 const AR = KIT.ARMOR;
@@ -644,7 +645,7 @@ function retreatGroup(g, speed = 3) {
     for (const u of g.units) if (u.alive) u._crouch = false;
   }
   g.retreatOnly = g.team === 0; // 味方は遠い追手へ引き返さず、手の届く敵だけ受ける。
-  g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; };
+  g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; for (const u of q.units) u._seat = null; };
 }
 // 11/6 c0814（critic60・八3）：崖が退く道から見えなかった。東の端を道へ寄せ（道の西二十歩ほど）、深さを史実の九 m ほどに。
 const SAI = { x0: -130, x1: -16, z: 122, hw: 4 };
@@ -884,13 +885,13 @@ function mikataPost(rt) {
   if (!rt.player || F.ending || F.step >= 3) return null;
   if (F.mkScout) return F.mkScout;   // 出陣の段：根洗の松の物見
   // 坂へ移る二段だけが移動。殿の下知を聞く間も坂の持ち場を保つ。
-  if (F.dpOn && F.dpB) return F.dp?.i >= 2 ? F.dp.cur?.at || REARGUARD_POST : null;
+  if (F.dpOn && F.dpB) return F.dp?.cur?.s?.kind === 'hold' ? F.dp.cur.at : null;
   if (F.dpOn) return F.dp?.cur?.at || HIRATE_POST;
   return F.step === 2 ? F.mkFlank ? FLANK_POST : PIKE_POST : HIRATE_POST;
 }
 function mikataPostRadius(rt) {
   const F = rt.flags;
-  if (F.dpOn) return F.dp?.cur?.botRadius || (F.dpB && F.dp?.i >= 2 ? 14 : 8);
+  if (F.dpOn) return F.dp?.cur?.botRadius || 8;
   return F.step === 2 ? 5 : 8;
 }
 // 持ち場へ寄せる一番近い残りの敵。半秒ごとに選び直し、毎コマ全員を見ない。
@@ -1051,14 +1052,14 @@ function mikataPlainTokugawa(rt) {
 //   本人がその場で務めた時だけ✓（敵が寄せている間に持ち場に居た時間か、その段で敵を討ったか）。✓は段が済んだ時に付け、
 //   務めずに段が過ぎた物は✕で沈める。①は持ち場に着いた時、⑤は城の口に着いた時。
 // 15分の構成（11/8 夜）：①物見 ②持ち場へ ③先手と後詰（鶴翼の端の崩れも） ④赤備え ⑤平手の最期 ⑥坂の殿 ⑦城へ退く
-const MK_GOAL_HOLD = [0, 0, 20, 8, 15, 10];
+const MK_GOAL_HOLD = [0, 0, 20, 8, 15, 0, 0, 12, 0];
 function mikataGoals(rt, dt) {
-  const F = rt.flags, G = F.mkG || (F.mkG = { i: 0, st: [0, 0, 0, 0, 0, 0, 0], tin: 0, hit: false });
+  const F = rt.flags, G = F.mkG || (F.mkG = { i: 0, st: [0, 0, 0, 0, 0, 0, 0, 0, 0], tin: 0, hit: false });
   // 共通の途中保存は flags の数・真偽・短い字だけを残す。配列のままでは
   // 済んだ務めが消え、途中から再開しただけで未達成になってしまう。
   if (rt.resumedFrom !== undefined && !rt._mkGoalsRestored) {
     rt._mkGoalsRestored = true;
-    if (/^[01-](,[01-]){6}$/.test(F.mkGoalMarks || '') && Number.isInteger(F.mkGoalIndex) && F.mkGoalIndex >= 0 && F.mkGoalIndex <= 6) {
+    if (/^[01-](,[01-]){8}$/.test(F.mkGoalMarks || '') && Number.isInteger(F.mkGoalIndex) && F.mkGoalIndex >= 0 && F.mkGoalIndex <= 8) {
       G.i = F.mkGoalIndex;
       G.st = F.mkGoalMarks.split(',').map((s) => s === '-' ? -1 : Number(s));
       G.tin = F.mkGoalTime || 0;
@@ -1067,27 +1068,24 @@ function mikataGoals(rt, dt) {
   }
   if (rt.over || !rt.player?.u) return G;
   const u = rt.player.u, p = u.pos, near = (q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
-  // 段の流れ：0 物見 ／ 1 持ち場へ ／ 2 先手と後詰 ／ 3 赤備え ／ 4 平手の囲み ／ 5 坂の殿 ／ 6 城へ退く ／ 7 帰着
-  const phase = F.returnedT !== undefined ? 7 : F.step >= 3 ? 6 : F.dpB ? 5 : F.dpH ? 4 : F.step >= 2 ? 3 : F.step >= 1 ? 2 : (F.mkStage || 0) >= 1 ? 1 : 0;
+  // 段の流れ：0 物見 ／ 1 持ち場へ ／ 2 先手と後詰 ／ 3 赤備え ／ 4 平手の救援 ／ 5 第二線へ ／ 6 本陣へ戻る ／ 7 本陣の防ぎ ／ 8 家康と浜松へ ／ 9 帰着
+  const sub = F.mkSub;
+  const phase = F.returnedT !== undefined ? 9 : F.step >= 3 || sub === 'escort' ? 8 : sub === 'honjin' ? 7 : sub === 'go' ? 6 : F.dpB ? 5
+    : F.dpH ? 4 : F.step >= 2 ? 3 : F.step >= 1 ? 2 : (F.mkStage || 0) >= 1 ? 1 : 0;
   if (G.i === 0 && F.scoutDone) G.st[0] = 1;
   if (G.i === 1 && phase === 1 && u.alive && near(HIRATE_POST, 8)) G.st[1] = 1;
-  if (G.i >= 2 && G.i <= 5 && u.alive && phase === G.i) {
+  if (G.i === 5 && phase === 5 && u.alive && near(SECOND_LINE, 12)) G.ok = true;
+  if (G.i === 6 && phase === 6 && u.alive && near(HONJIN, 11)) G.ok = true;
+  if ((G.i >= 2 && G.i <= 4 || G.i === 7) && u.alive && phase === G.i) {
     // 下知で動いた二の列も、段そのものと同じ持ち場・範囲で評定する。
-    // 元の持ち場からの距離で測ると、輪の内で守っても結果だけ未達成になる。
-    const holdPost = G.i !== 3 && F.dpOn && F.dp?.cur?.s.kind === 'hold' ? F.dp.cur : null;
-    const post = holdPost?.at || (G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST);
-    // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
-    // 最後の寄せ手を討った後も、その段で実際に守った記録を使う。
-    // 生きた敵だけを探すと、段の守りは達成しても右上と結果だけ失敗になる。
-    const holdContact = () => F.dp?.cur?.s.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
-    // 行き先用の敵探しは持ち場から三十四 m 先も含む。遠い敵を見つけただけで防戦を果たした事にしない。
+    const holdPost = G.i !== 3 && F.dpOn && F.dp?.cur?.s?.kind === 'hold' ? F.dp.cur : null;
+    const post = holdPost?.at || (G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : HONJIN);
+    // 赤備えの段は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える
+    const holdContact = () => F.dp?.cur?.s?.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
     const foe = G.i === 2 ? mikataNearestFoe(rt) : null;
     const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || holdPost && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
-    // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
     const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
-    // 先手と赤備えを持ち場で受けた記録は、最後の寄せ手を退けても失わない。
-    // 本人が来る前に味方が退けた場合や、まだ遠くに敵が残る間は足さない。
     if ((G.i === 2 && !holdPost || G.i === 3) && inPost && contact) G.contact = true;
     const repelled = G.contact && (G.i === 2 && !holdPost
       ? [F.w1, F.scout].every((g) => g?.units?.every((q) => !mikataFoeOk(q, u.team)))
@@ -1095,10 +1093,9 @@ function mikataGoals(rt, dt) {
     if (inPost && (contact || repelled)) G.tin += dt;
     if (G.tin >= MK_GOAL_HOLD[G.i] || G.hit && G.tin >= 2) G.ok = true;
   }
-  if (phase === 7) G.st[6] = 1;
-  // ①は物見を果たすか、持ち場の段まで。②は着くか、先手の段まで。③〜⑥は段が過ぎたら次へ（務めていなければ✕）
-  // 戻らず先手の段へ進んでも③の防戦を数える。後から戻って②まで達成にしない。
-  while (G.i < 6 && (G.i === 0 ? G.st[0] || phase >= 1 : G.i === 1 ? G.st[1] || phase >= 2 : phase > G.i)) {
+  // 最後の務め：家康が生きて浜松城へ入り、本人も入った
+  if (phase === 9) G.st[8] = F.ieSafe ? 1 : -1;
+  while (G.i < 8 && (G.i === 0 ? G.st[0] || phase >= 1 : G.i === 1 ? G.st[1] || phase >= 2 : phase > G.i)) {
     if (!G.st[G.i]) G.st[G.i] = G.ok ? 1 : -1;
     G.i++; G.tin = 0; G.hit = false; G.ok = false; G.contact = false;
   }
@@ -1148,7 +1145,7 @@ function mikataBoard(rt) {
   hud.root.appendChild(board);
   const items = mikatagahara.missions.map((text, i) => {
     const li = document.createElement('li');
-    li.innerHTML = `<b>${'①②③④⑤⑥⑦'[i]}</b><span></span>`;
+    li.innerHTML = `<b>${'①②③④⑤⑥⑦⑧⑨'[i]}</b><span></span>`;
     li.lastChild.textContent = text;
     board.firstChild.appendChild(li);
     return li;
@@ -1165,7 +1162,7 @@ function mikataBoard(rt) {
       items.forEach((li, i) => {
         const s = G.st[i];
         li.className = s > 0 ? 'done' : s < 0 ? 'fail' : i === G.i ? 'now' : '';
-        li.firstChild.textContent = s > 0 ? '✓' : s < 0 ? '✕' : '①②③④⑤⑥⑦'[i];
+        li.firstChild.textContent = s > 0 ? '✓' : s < 0 ? '✕' : '①②③④⑤⑥⑦⑧⑨'[i];
         // 今の五つだけ出し、済んだ分だけ次を送る（十三1）
         const from = Math.max(0, Math.min(G.i - 1, items.length - 5));
         li.hidden = i < from || i >= from + 5;
@@ -1244,10 +1241,11 @@ const mikatagahara = {
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /討ち取|討死|討ち死|帰着|取り残/.test(t),
   // 11/4 jin（AR1・AW3）：場所と行いで言う。「ピン」「印」「▼」の字は使わない
   // 史実の順（坂で追手を支えてから城へ退く）に並べ、番号が戻らないようにする（11/5）。
-  missions: ['根洗の松から武田の陣立てを見よ', '平手の持ち場で北へ槍を構えよ', '持ち場で武田の寄せを防げ', '右の森の際で赤備えを受けよ', '平手汎秀のそばで囲みを支えよ', '南の坂で追手を防げ', '浜松城の口へ退け'],
+  // 11/10 docs/mikatagahara_spec_1109.md：勝とうとする戦→第一線崩壊→本陣の危機→家康を浜松城へ帰す戦
+  missions: ['根洗の松から武田の陣立てを見よ', '平手の持ち場で北へ槍を構えよ', '持ち場で武田の寄せを押し返せ', '右の森の際で赤備えを受けよ', '平手隊を救え', '第二線まで退け', '家康の本陣へ戻れ', '本陣で武田の前衛を防げ', '家康を浜松城へ退かせよ'],
   // 討った・着いた瞬間に次の一行へ替わり、古い字を残さない。
   // 11/6 fix61（九1・十1）：①〜⑤は段の流れで進み、戻らない。一行も途中で言い替えない（右上の札は mikataBoard）。
-  missionOf(rt) { return Math.min(6, rt.flags.mkG?.i || 0); },
+  missionOf(rt) { return Math.min(8, rt.flags.mkG?.i || 0); },
   missionHeading(rt) { return mikatagahara.missions[mikatagahara.missionOf(rt)]; },
   commanderTarget: (rt) => mikataCommander(rt),
   missionSignTarget: (rt) => mikataCommander(rt),
@@ -1261,7 +1259,7 @@ const mikatagahara = {
     const me = rt.player.u.pos, post = mikataPost(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
     if (!post) {
-      const p = F.step >= 3 && !(F.dpOn && F.dpR) ? F.retreatPoint : F.dp?.cur?.at || (F.dp?.i < 2 ? SOUTH_SLOPE : REARGUARD_POST);
+      const p = F.step >= 3 && !(F.dpOn && F.dpR) ? F.retreatPoint : F.dp?.cur?.at || F.mkSubAt || SOUTH_SLOPE;
       if (!p) return null;
       q.x = p.x; q.z = p.z; q.r = q.hide = 5;
       return q;
@@ -1374,14 +1372,14 @@ const mikatagahara = {
     // 退く下知直後と坂で列をそろえる間は、まだ移動段の補足がない。
     // 空欄を共通の「味方の旗へ」に替えず、この段の行き先を明示する。
     const F = rt.flags, C = F.dpOn ? F.dp?.cur : null;
-    if (F.dpB && C?.s.kind === 'rest') {
-      const at = F.dp.i < 2 ? SOUTH_SLOPE : REARGUARD_POST, p = rt.player.u.pos;
+    if (F.dpB && C?.s?.kind === 'rest') {
+      const at = F.mkSubAt || SECOND_LINE, p = rt.player.u.pos;
       const distance = Math.ceil(Math.hypot(p.x - at.x, p.z - at.z));
-      return distance > 10 ? `南の坂 ${distance}m`
-        : '坂に着いた。北の追手へ構え、味方を先に通せ';
+      const where = F.mkSub === 'go' || F.mkSub === 'honjin' ? '家康の本陣' : '第二線';
+      return distance > 10 ? `${where} ${distance}m` : F.mkSub === 'escort' ? '上様のそばを離れるな' : '敵へ構え、次の下知を待て';
     }
     // 段の札が選ばれた時も、主の札に記録した通過人数と次の下知を読む。
-    if (rt.flags.dpOn && rt.flags.dp?.cur?.s.kind === 'hold') {
+    if (rt.flags.dpOn && rt.flags.dp?.cur?.s?.kind === 'hold') {
       for (const o of rt.objectives) if (o.id === 'main' && !o.state) { progress = o.progress || progress; break; }
     }
     // 一時の回避先が見出しになっても、本来の持ち場と残り時間を残す。
@@ -1393,7 +1391,7 @@ const mikatagahara = {
       }
     }
     // 列をそろえる間と退き始めにも行動を残す。空欄を共通の旗への案内へ渡さない。
-    if (!progress && rt.flags.dpOn && rt.flags.dp?.cur?.s.kind === 'rest') {
+    if (!progress && rt.flags.dpOn && rt.flags.dp?.cur?.s?.kind === 'rest') {
       if (!rt.flags.dpB) return '敵へ槍を向け、この列で次の下知を待て';
       return rt.flags.dp.i < 2 ? '味方と南の坂へ退け'
         : '北の追手へ構え、坂を下りる味方を守れ';
@@ -1413,7 +1411,7 @@ const mikatagahara = {
   },
   // 退く下知の後は、近くの空き地へ逃げる案内より決めた道を優先する。
   routeGuidePriority: (rt) => rt.flags.ending || rt.flags.step === 3 ||
-    !!(rt.flags.dpOn && rt.flags.dpB && rt.flags.dp?.cur?.s.kind !== 'hold'),
+    !!(rt.flags.dpOn && rt.flags.dpB && rt.flags.dp?.cur?.s?.kind !== 'hold'),
   // 退く途中は接敵の案内も道に従う。坂で受ける段では槍の構えを教える。
   meleeGuide: (rt) => !mikatagahara.routeGuidePriority(rt),
   // 危険をよける一時の退避を、下知による城への退却と区別する。
@@ -1555,7 +1553,7 @@ const mikatagahara = {
   compactGunAction: '横へ退け', // 柵のない野戦で、存在しない陰へ誘導しない。
   // 移る間は退けの下知を優先する。殿の持ち場で守る間は深手・包囲から退ける。
   botEvacuating: (rt) => rt.flags.step === 3 ||
-    !!(rt.flags.dpOn && rt.flags.dpB && rt.flags.dp?.on && rt.flags.dp.cur?.s.kind !== 'hold'),
+    !!(rt.flags.dpOn && rt.flags.dpB && rt.flags.dp?.on && rt.flags.dp.cur?.s?.kind !== 'hold'),
   // 持ち場の南から北へ入る。着くために南へ振り向き、敵へ背を向ける導線を避ける。
   spawn: { x: 14, z: 58, heading: Math.PI },   // 浜松から上がった織田の加勢の後ろ（15分の構成：出陣の段から）
   // 馬上の肩越しは目が高く、奥の丘の武田の旗の列が画面の上端で切れた（10/28）。
@@ -1994,7 +1992,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       if (/^味方の侍「/.test(text) && /退き口を守れ|固まって退け|殿を残して下がれ|無駄死にするな|負傷の者を担げ/.test(text)) {
         if (F.ending) return;
         text = F.step === 3 ? '味方と東の道を下り、浜松城へ退け！'
-          : F.dpOn && F.dpB ? F.dp?.cur?.s.kind === 'hold'
+          : F.dpOn && F.dpB ? F.dp?.cur?.s?.kind === 'hold'
             ? '退く味方を先に通せ！　坂の上で追手を支えよ！'
             : '味方が退く！　南の坂へ続け！'
           : '味方の一隊が退く！　持ち場で槍をそろえ、下知を待て！';
@@ -2126,6 +2124,10 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       } else rt.scene.add(palisade(W, seg, { solid: true, h: 2.4 }));
     }
     rt.scene.add(kabukimon(W, HAMA.x, HAMA.z - 12, 10, Math.PI, { doors: false }));
+    // 城門の扉：退く間は開き、家康と本人が入ると閉まる（mikatagahara/hamamatsu.js）
+    rt.flags.hamaDoor = tobira(W, HAMA.x, HAMA.z - 12, 9.6, Math.PI, { h: 3.2 });
+    rt.flags.hamaDoor.userData.open();
+    rt.scene.add(rt.flags.hamaDoor);
     if (high) {
       mikataFieldProps(rt);
       mikataSupplyYard(rt);
@@ -2277,29 +2279,29 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     F['dp' + which] = true; F.dpOn = true;
     rt.objRemove('lostcause'); // 初めの心得を読んだ後は、今の持ち場と下知を優先する。
     // 主な下知は同じ札に残す。段の細かな札が済んでも退き先を失わせない。
-    rt.obj('main', which === 'A' ? '平手の陣を守り、右に備えよ' : '南の坂へ退き、退き口を守れ', 'main', true);
+    rt.obj('main', which === 'A' ? '平手の陣を守り、右に備えよ' : '第二線まで退け', 'main', true);
     for (const k of ['hira', 'w1', 'aka']) rt.unmark(k);
     if (which === 'A') this.plainClash(rt);
     // 赤備えは駆け抜けて、徳川の鶴翼の方へ去る（平手の手を包むのは武田の本隊）
     if (which === 'B' && F.aka && !gone(F.aka)) { F.aka.anchor = { x: -36, z: 12 }; F.aka.order = 'move'; F.aka.dest = F.aka.anchor; F.aka.aggro = 6; rt.say('足軽', '赤備えが徳川の備えへ駆け抜けていくがや！', 3); }
     if (which === 'B') {
       rt.army.mikataCap = 3; // 坂へ退き始めた時から、追手の先頭を絞る。
-      rt.army.mikataRetreatGoal = SOUTH_SLOPE;
+      F.mkSubAt = SECOND_LINE;
+      rt.army.mikataRetreatGoal = SECOND_LINE;
       retreatDistant(rt);
-      // 家康と旗本も坂へ寄せる。殿の段に入ってから本陣を出ると、刻限に間に合わない。
-      slopeGroup(F.campA.guard);
-      slopeGroup(F.campA.general?.group);
-      slopeGroup(F.shingariG);
-      F.ieHost?.moveTo(-6, 52, 40);
-      // 下知の待ち時間や到着後も、段が消す印とは別に退き先を残す。
-      // 持ち場は坂の上まで。味方を通す前に城へ走らせない。
-      rt.marker('retreat-way', () => F.dp?.cur?.at || (F.dp?.i < 2 ? SOUTH_SLOPE : REARGUARD_POST),
-        () => F.dp?.cur?.arr ? '坂に着いた。追手へ構えよ' : F.dp?.i < 2 ? '退く先・南の坂' : '味方を守る坂の上', { h: 3, guideAlways: true });
+      // 家康と旗本はまだ本陣に踏みとどまる（大馬印は残る）。城へは本陣の防ぎの後に、本人と一緒に退く。
+      honjinGroup(F.campA.guard, 6);
+      honjinGroup(F.campA.general?.group, 0);
+      honjinGroup(F.shingariG, -7);
+      F.ieHost?.moveTo(0, HONJIN.z + 10, 30);
+      // 下知の待ち時間や到着後も、段が消す印とは別に行き先を残す（第二線 → 本陣）。
+      rt.marker('retreat-way', () => F.dp?.cur?.at || F.mkSubAt || SECOND_LINE,
+        () => F.mkSub === 'go' || F.mkSub === 'honjin' ? '家康の本陣' : '第二線', { h: 3, guideAlways: true });
     }
-    const steps = which === 'A' ? mkA() : mkB();
+    const steps = which === 'A' ? mkA() : honjinSteps(this.kit());
     const orders = which === 'A'
       ? ['味方の槍の列をそろえ直せ', null]
-      : ['味方と南の坂へ退け', null, '坂で追手を支え、味方を先に通せ', null];
+      : ['第二線まで退け', null, null, '家康の本陣へ戻れ', null, '本陣で武田の前衛を防げ', '家康を浜松城へ退かせよ'];
     capHolds(steps);
     depthStart(rt, mkCtx(rt), missionSteps(steps, orders), () => {
       F.dpOn = false; rt.objRemove('dp');
@@ -2323,7 +2325,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     depthStart(rt, mkCtx(rt), missionSteps(steps, orders), () => { F.dpOn = false; rt.objRemove('dp'); done(); });
   },
   kit() {
-    return { rest, withstand, withdraw, uS, uA, uC, uB, gunLine, aka, HIRATE_POST, LINE_Z, adv, allyFall };
+    return { rest, withstand, withdraw, uS, uA, uC, uB, gunLine, aka, HIRATE_POST, LINE_Z, adv, allyFall, dress, TOKU,
+      sub: (rt, k, at) => { rt.flags.mkSub = k; if (at) { rt.flags.mkSubAt = at; rt.army.mikataRetreatGoal = at; } } };
   },
 
   // 「崩れた武田へなお圧せよ」の IF の勝ちはやめた（10/3）。この戦は勝てぬ戦で、生き延びて浜松へ退くのが芯
@@ -2396,6 +2399,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     });
     rt.marker('aka', centerOf(F.aka), '右の赤備え・槍を向けよ', { red: true, group: F.aka });
     rt.say('足軽', '赤い具足の騎馬だがや！　右におるぞ！', 3);
+    rt.after(18, () => { if (!F.ending && F.step === 2) rt.say('使番', '右翼、押されております！　左の徳川の手も下がり始めた！', 3.4); });
     // 後ろの赤備えの大軍は、山県の備（部隊の軽い作り）が森の際まで寄せて見せる（takedaMove）
     if (F.cl) { F.cl.cavalry('B', { from: 1, count: 160, flag: 'akazonae', armor: AR.akazonae, delay: 2 }); rt.after(8, () => F.cl.cavalry('B', { from: -1, count: 100, flag: 'takeda', armor: AR.takeda })); }
     // 横の列の崩れは、更新時に接触後の損害と士気で確かめる。
@@ -2414,11 +2418,12 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.unmark('aka'); rt.unmark('exit'); rt.unmark('pike'); rt.unmark('oiwake');
     // 目の前の汎秀は既存の敵の攻撃で倒れる。史実の討死は戦場全体の後報として伝える。
     sfx('kane', 0.4);
-    rt.banner('織田の援軍、退く', F.flankBroken ? '隣の備えが崩れ、浜松城へ退く' : '武田の寄せを受け、浜松城へ退く');
-    rt.after(8, () => { if (!F.ending) rt.say('組頭', '散るな！　組の者と連れ立って下れ！', 3); });
-    rt.say('組頭', '浜松へ退け！　犀ヶ崖へは寄るな。崖の東の道を、浜松城の口へ走れ！', 4);
+    rt.banner('家康を浜松城へ', '勝つ戦ではない。上様を生きて城へ帰す');
+    rt.after(8, () => { if (!F.ending) rt.say('組頭', '上様の大馬印から離れるな！　前の敵は払え、横の馬は止めよ！', 3.4); });
+    rt.say('組頭', '浜松へ退け！　犀ヶ崖へは寄るな。崖の東の道を、上様と浜松城の口へ！', 4);
+    F.ieDanger = 0; F.ieSaid = {};
     // 紙 13：徳川の敗走・平手汎秀の討死・家康が浜松城へ逃げ帰る（家康は負ける）
-    rt.after(2, () => { if (!F.ending) rt.say('本多忠真', '殿、ここは某が支えまする。浜松へお退きくだされ！', 3.5); });
+    rt.after(2, () => { if (!F.ending && !F.tadazaneFallSaid) rt.say('本多忠真', '殿、ここは某が支えまする。浜松へお退きくだされ！', 3.5); });
     rt.after(5, () => { if (!F.ending) rt.say('徳川家康', '……退け、浜松へ退け！', 3); });
     rt.after(7.5, () => {
       if (F.ending) return;
@@ -2426,9 +2431,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       // 討死の知らせは一度だけ（onKill で出た時は重ねない）。名を大きく短く。
       if (!F.hirateFallSaid) { F.hirateFallSaid = true; F.bossName = '佐久間信盛'; fallNotice(rt, '平手汎秀'); }
     });
-    rt.after(11, () => { if (!F.ending) rt.say('酒井忠次', '殿は先に城へ向かわれた。城の口で待つ。走れ！', 3.5); });
-    // 夏目吉信は家康の名を名乗って追手を引き受けた（『三河物語』ほか）。
-    rt.after(17, () => { if (!F.ending) rt.say('夏目吉信', '我こそは徳川三河守なり！　討って手柄にせよ！', 3.5); });
+    rt.after(11, () => { if (!F.ending) rt.say('石川数正', '上様の御馬を囲め！　浜松まで、一人も上様のそばを離れるな！', 3.5); });
     // 11/6 c0814（critic60・二4）：この戦は台詞が画面に出ない（共通の決まり）ので、殿の本多忠真と、家康の名を名乗った夏目吉信の最期を
     //   平手と同じ大きな討死の札で一度ずつ見せる（名のある将だけ・大きく短く）。坂の殿に立つ本多忠真の姿もここで倒れる。
     //   本多忠真は崖の東の道に残る姿を見せてから（主人公が崖の脇を過ぎた所で）、夏目吉信は城の近くで（布橋の碑）。
@@ -2448,9 +2451,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.after(12, tick);
     };
     fall('本多忠真', SAI.z + 4, 24, () => true);
-    fall('夏目吉信', HAMA.z - 28, 32, () => F.tadazaneFallSaid);
+    // 夏目吉信の最期は、家康の後ろに踏みとどまる姿を見せてから（update の夏目の段）。
     // 目の前の組頭の声と同時に札を替える。使番待ちで坂の守りの札を残さない。
-    rt.obj('main', HI(rt) ? '一手を率い、浜松城へ退け' : '追手を避け、浜松へ退け', 'main', true);
+    rt.obj('main', '家康を浜松城へ退かせよ', 'main', true);
     // 11/4 jin（BK4）：行き先は浜松城の口に固定する。南の坂から城の口へまっすぐ下る線は犀ヶ崖（x<-24）から三十歩離れる
     F.retreatPoint = { x: 10, z: 60 }; F.retreatIdx = RETREAT_ROAD.length - 1;
     F.retreatPoint.x = RETREAT_ROAD[F.retreatIdx][0]; F.retreatPoint.z = RETREAT_ROAD[F.retreatIdx][1];
@@ -2480,6 +2483,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.marker('c' + F.chase.length, centerOf(g), name, { red: true, group: g });
       return g;
     };
+    F.mkChase = mk;
     // 追手は台地の既定の入口から来る。本人の位置に合わせて湧かせない。
     // 大軍対大軍（kaito 10/31）：追手の騎馬と徒歩は一つの塊で、同時に台地の入口から押し寄せる。
     rt.after(2, () => {
@@ -2491,9 +2495,17 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.say('足軽', '後ろは武田の旗ばっかりだわ！　城まで走れ！', 3);
     });
 
-    // 家康と護衛は東の道を下る。身代わりの名乗りは確定した出来事として演じない。
+    // 家康と護衛は東の道を下る。家康は爆速で消えず、本人の歩みに合わせて進む（update の家康の歩み）。
     const ie = F.campA.general ? F.campA.general.group : null;
-    retreatGroup(ie, 4);
+    // 家康の組は持ち場（anchor）を道に沿って少しずつ動かして連れて行く（escortTick）
+    if (ie) { ie._mkEscort = true; F.ieRoadSet = false; }   // 道へ出すのは escortTick（門の前で一度まっすぐ並び直す）
+    // 横から家康を狙う騎馬（任務B 家康の横を守れ）。家康が坂を下りかけた所で、東の野から駆け込む。
+    rt.after(26, () => {
+      if (F.ending || F.step !== 3) return;
+      const c = F.campA.general?.alive ? F.campA.general.pos : rt.player.u.pos;
+      const g = mk(c.x + 30, c.z + 4, '上様の横を狙う武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 4 }]);
+      if (g) { rt.army.play('gallop', g.anchor, 1.6); rt.say('使番', '右から騎馬！　上様の横を狙うておる！', 3); }
+    });
     retreatGroup(F.campA.guard);
     // 旗本の控えも崖の東を下って城へ（城の口の前で止め、門を塞がない）
     F.ieHost?.moveTo(2, 116, 60);   // 犀ヶ崖の東の端（x=-8 まで）にかからない
@@ -2510,6 +2522,81 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     for (const b of F.flank) allyFall(rt, b);
   },
 
+  // 家康を浜松城へ：家康は本人の歩みに合わせて進み、追手が近づけば危うくなる（docs/mikatagahara_spec_1109.md 12〜15分）
+  escortTick(rt, dt) {
+    const F = rt.flags, p = rt.player.u.pos, chief = F.campA.general, ieg = chief?.group;
+    if (F.ending || !chief?.alive || !ieg) return;
+    const c = chief.pos;
+    // 道へ出す（手負いの控えなどで道を外れた時も、城の手前までは出し直す）。門の口（幅十）へまっすぐ入るよう、門の前で一度並び直す
+    if (!F.ieRoadSet || ieg.order !== 'path' && c.z < HAMA.z - 12) {
+      chief.woundOut = null; chief.noTarget = false;
+      ieg.routed = false;
+      const c0 = ieg.center ? ieg.center() : c;
+      ieg.anchor.x = c0.x; ieg.anchor.z = c0.z;
+      ieg.path = RETREAT_ROAD.map((q) => q.slice()); ieg.path.splice(3, 0, [0, HAMA.z - 24]); ieg.path.push([2, HAMA.z + 8]);
+      ieg.pathIdx = 0; while (ieg.pathIdx < ieg.path.length - 1 && c0.z > ieg.path[ieg.pathIdx][1]) ieg.pathIdx++;
+      ieg.order = 'path'; ieg.speed = 3; ieg.noRout = true; ieg.retreatOnly = true; ieg.width = 3;
+      for (const u of ieg.units) if (u.alive) u._crouch = false;
+      ieg.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; for (const u of q.units) u._seat = null; };
+      F.ieRoadSet = true;
+    }
+    // 歩み：本人が遅れれば待ち、先に出れば少し急ぐ。爆速で消えない（騎馬でも味方と一緒に進む）
+    if (ieg.order === 'path') {
+      const lead = c.z - p.z;
+      // 隊の目当て（anchor）だけが先へ走って、家康の姿と離れないようにする
+      const gap = Math.hypot(ieg.anchor.x - c.x, ieg.anchor.z - c.z);
+      ieg.speed = lead > 24 || gap > 8 ? 0.2 : lead > 12 ? 1.4 : lead < -10 ? 4 : 3.1;
+      const guard = F.campA.guard;
+      if (guard?.order === 'path') guard.speed = Math.max(3, ieg.speed);
+    }
+    // 離れすぎた時だけ、行き先の印を家康へ（字は最小）
+    const far = Math.hypot(c.x - p.x, c.z - p.z) > 30;
+    if (far !== !!F.ieFar) {
+      F.ieFar = far;
+      if (far) { rt.marker('ieyasu', () => (chief.alive ? { x: chief.pos.x, z: chief.pos.z } : null), '上様', { h: 3, guideAlways: true }); rt.objProgress('main', '上様のそばへ戻れ'); }
+      else rt.unmark('ieyasu');
+    }
+    if (rt.t < (F.ieScanT || 0)) return;
+    F.ieScanT = rt.t + 0.5;
+    // 追手と家康の距離（百→七十→四十の手応えを声で）
+    let near = Infinity, close = 0;
+    for (const q of rt.army.units) {
+      if (q.team !== 1 || !mikataFoeOk(q, 0)) continue;
+      const d = Math.hypot(q.pos.x - c.x, q.pos.z - c.z);
+      if (d < near) near = d;
+      if (d < 4.5) close++;
+    }
+    const S = F.ieSaid;
+    if (near < 40 && !S.a) { S.a = true; rt.say('物見', '赤備えの旗が後ろに……！　土煙が近づいてくる！', 3); }
+    if (near < 22 && !S.b) { S.b = true; sfx('horagai', 0.35); rt.say('使番', '御本陣まで敵が！　後ろへ回れ、上様を守れ！', 3.2); }
+    if (close >= 2) F.ieDanger += 0.5; else F.ieDanger = Math.max(0, F.ieDanger - 0.25);
+    if (F.ieDanger >= 6 && !S.d) { S.d = true; rt.say('徳川家康', '寄るな！　下郎ども！', 2.6); }
+    if (F.ieDanger >= 28) { this.lose(rt, '上様を守れなかった', '武田の追手が家康の馬を囲んだ'); return; }
+    // 夏目吉信の最期：家康の名を名乗り、道に残って追手を引き受ける（『三河物語』ほか）。戦いながら見えなくなる。
+    if (!F.natsumeG && c.z > 116) {
+      F.natsumeG = allyGroup(rt, { fixed: true, faction: 'tokugawa', name: '夏目吉信の手', anchor: { x: c.x, z: c.z - 6 }, facing: Math.PI, width: 6, spacing: 1, aggro: 14, noRout: true, formation: 'yari' },
+        dress([{ type: 'samurai', n: 1, o: { horse: true, name: '夏目吉信', hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], TOKU));
+      F.natsumeT = rt.t;
+      rt.say('夏目吉信', '我こそは徳川三河守なり！　討って手柄にせよ！', 3.4);
+      rt.after(3.6, () => { if (!F.ending) rt.say('徳川家康', '夏目、何をする……！', 2.4); });
+      rt.after(6.2, () => { if (!F.ending) rt.say('夏目吉信', '殿は先へ！　振り返られますな！', 2.8); });
+      rt.after(4, () => { if (!F.ending && F.mkChase) F.mkChase(c.x - 2, c.z - 34, '夏目の手を囲む武田勢', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 3 }, { type: 'ashigaru', n: 6 }]); });
+    }
+    if (F.natsumeG && !F.yoshinobuFallSaid && (rt.t - F.natsumeT > 22 || p.z > F.natsumeG.anchor.z + 30 && rt.t - F.natsumeT > 12)) {
+      F.yoshinobuFallSaid = true;
+      const u = F.natsumeG.units.find((q) => q.alive && q.name === '夏目吉信');
+      if (u) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
+      fallNotice(rt, '夏目吉信');
+    }
+    // 城が見える：見えても安全にしない（最後の二、三百 m に騎馬がまだ来る）
+    if (c.z > HAMA.z - 52 && !S.c) {
+      S.c = true;
+      rt.say('足軽', '城だ……！　浜松城が見えたぞ！', 2.8);
+      rt.after(5, () => { if (!F.ending && F.mkChase) { const g = F.mkChase(c.x + 18, c.z - 30, '門へ迫る武田の騎馬', [{ type: 'samurai', n: 1, o: { horse: true } }, { type: 'cavalry', n: 4 }]); if (g) rt.army.play('gallop', g.anchor, 1.8); } });
+    }
+    if (c.z > HAMA.z - 26 && !S.g) { S.g = true; rt.say('門番', '殿がお戻りだ！　門を開けよ、殿をお入れせよ！', 3); }
+  },
+
   win(rt) {
     const F = rt.flags;
     if (F.ending || !rt.player.u.alive) return;
@@ -2524,14 +2611,18 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.morale = Math.min(q.morale, 30); }
     // 帰着だけで、途中の持ち場を離れた務めまで達成にしない。
     // 最後の目標も今ここで更新し、結果の札と右上の印をそろえる。
-    const fulfilled = mikataGoals(rt, 0).st.every((s) => s > 0);
+    // 会戦には敗北・任務には成功：家康を生きて浜松城へ帰した事が務め（途中の✕は戦功に響くだけ）
+    mikataGoals(rt, 0);
+    const fulfilled = !!F.ieSafe;
     if (fulfilled) rt.objDone('main'); else rt.objFail('main');
     rt.tracker.main = fulfilled;
-    if (fulfilled) rt.award((t) => { t.main = true; }, '浜松城へ生きて退いた');
+    if (fulfilled) rt.award((t) => { t.main = true; }, '家康を浜松城へ生きて帰した');
+    const st = F.mkG?.st || [];
+    if (st[4] > 0) rt.award((t) => t.side.push('平手隊の救援'), '平手隊の救援');
+    if (st[5] > 0) rt.award((t) => t.side.push('撤退路の確保'), '撤退路の確保');
+    if (st[7] > 0) rt.award((t) => t.side.push('本陣の防ぎ'), '本陣の防ぎ');
     survival(rt, '三方ヶ原から生きて浜松城へ退いた');
-    sfx('horagai', 0.4);
-    rt.banner('浜松城へ帰着', '徳川・織田勢は敗れた。生きて城へ戻った');
-    rt.say('組頭', `${nm(rt)}、よう戻った。組の者を数え、深手の者を手当てせよ`, 5);
+    rt.banner('三方ヶ原', '徳川・織田軍 敗北　徳川家康 浜松城へ生還');
     rt.player.u.invuln = true;
     // 城へ戻った後に共通の追撃を始めない。帰着後の重傷を生還の評定へ混ぜない。
     // 五つの目標を果たしたら数秒で締める（kaito 三3。前は十八秒待たせていた）
@@ -2540,7 +2631,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
   },
 
   // 実際の退路の断絶による終了。門の時間切れでは負けない。
-  lose(rt) {
+  lose(rt, title, sub) {
     if (!rt.canFailMission()) return;
     const F = rt.flags;
     if (F.ending) return;
@@ -2550,15 +2641,15 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     for (let i = 1; i <= (F.chase || []).length; i++) rt.unmark('c' + i);
     rt.objFail('main');
     rt.tracker.main = false;
-    rt.banner('取り残された', '浜松城へたどり着けず、武田の追手に退く道を断たれた');
-    rt.say('足軽', '道が塞がっとる……！　追手に先を越されたわ！', 3);
-    rt.finish({}, 9);
+    rt.banner(title || '取り残された', sub || '浜松城へたどり着けず、武田の追手に退く道を断たれた');
+    if (!title) rt.say('足軽', '道が塞がっとる……！　追手に先を越されたわ！', 3);
+    rt.finish(title ? { failureReason: sub } : {}, 9);
   },
 
   update(rt, dt) {
     const F = rt.flags;
     mikataGoals(rt, dt);
-    if (F.dpOn && F.dpB) rt.army.mikataRetreatGoal = F.dp?.cur?.at || (F.dp?.i < 2 ? SOUTH_SLOPE : REARGUARD_POST);
+    if (F.dpOn && F.dpB) rt.army.mikataRetreatGoal = F.dp?.cur?.at || F.mkSubAt || SECOND_LINE;
     // 話す前に討たれた待ち列の上役も差し替える。既に話し終えた記録は変えない。
     for (let i = rt.hud.subQ.length - 1; i >= 0; i--) {
       const line = rt.hud.subQ[i], t2 = mikataOrderText(rt, line.speaker, line.text);
@@ -2631,8 +2722,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         F.flankBroken = true;
         rt.say('足軽', '徳川の列が崩れたがや！　横から来るぞ、道を塞がせるな！', 3.5);
         for (const q of F.flank) allyFall(rt, q);
+        // 家康はまだ退かない。本陣を少し下げて構え直す（城へ退くのは本陣の防ぎの後）。
         const H = F.campA;
-        retreatGroup(H.general && H.general.group, 3.2); retreatGroup(H.guard, 3.2);
+        honjinGroup(H.general && H.general.group, 0); honjinGroup(H.guard, 6);
         break;
       }
     }
@@ -2654,6 +2746,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         if (g.order === 'path') g.speed = Math.hypot(g.anchor.x - guard.anchor.x, g.anchor.z - guard.anchor.z) > 24 ? (g.anchor.z > guard.anchor.z ? 2.4 : 3.2) : 3;
       }
     }
+    // 家康が本陣・城へ動く間は、床几（_seat）や共通の moveTo に引き止めさせない
+    { const ch = F.campA.general; if (ch?.alive && (F.flankBroken || F.dpB || F.step === 3) && !F.ending) { ch._seat = null; ch._crouch = false;
+      // 手負いで「その場に控える」（woundOut.stay）に入ると、本陣へも城へも動かなくなる（11/10 流し）。家康は組と一緒に動かす
+      if (ch.woundOut || ch.rearWound) { ch.woundOut = null; ch.rearWound = null; ch.noTarget = false; }
+      const a = ch.group?.anchor;
+      ch.moveTo = a && Math.hypot(a.x - ch.pos.x, a.z - ch.pos.z) > 2.5 ? { x: a.x, y: ch.pos.y, z: a.z } : null; } }
+    if (F.step === 3) this.escortTick(rt, dt);
     // 本人が槍を当てた記録。味方が先手を退けた場合は、下の持ち場の判定でも次へ進める。
     { const sw = rt.player.u.swing; if (sw?.target?.team === 1 && sw.res && sw.res !== 'miss') F.foughtStep = F.step; }
     if (F.dpOn || F.ifOn) return;
@@ -2702,12 +2801,12 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         }
         rt.say('組頭', F.akaEngaged ? '赤備えを受けた！　平手の殿の手が危ない、戻れ！' : '赤備えが横を抜けた！　平手の殿の手が危ない、戻れ！', 3.5);
         // 平手汎秀の最期の段（mikatagahara/hirate.js）の後に、南の坂への退き口（B）
-        this.deepRun(rt, 'H', '平手汎秀のそばで、武田の囲みを支えよ', hirateSteps(this.kit()), [null, null, null], () => this.deep(rt, 'B'));
+        this.deepRun(rt, 'H', '平手隊を救え', hirateSteps(this.kit()), [null, null, null], () => this.deep(rt, 'B'));
       }
     }
     if (F.step === 3) {
       // 崖の東の道へ下りたら、本多忠真の殿と並んで追手を止める段（mikatagahara/gake_michi.js）
-      if (!F.dpR && p.z > 88) { this.deepRun(rt, 'R', '崖の東の道で本多忠真と追手を止めよ', gakeSteps(this.kit()), [null, '浜松城の口へ走れ'], () => rt.obj('main', HI(rt) ? '一手を率い、浜松城へ退け' : '追手を避け、浜松へ退け', 'main', true)); return; }
+      if (!F.dpR && p.z > 88) { this.deepRun(rt, 'R', '殿を援護し、追手を止めよ', gakeSteps(this.kit()), [null, '上様を追い、浜松城の口へ'], () => rt.obj('main', '家康を浜松城へ退かせよ', 'main', true)); return; }
       while (F.retreatIdx < RETREAT_ROAD.length - 1 &&
         (Math.hypot(p.x - RETREAT_ROAD[F.retreatIdx][0], p.z - RETREAT_ROAD[F.retreatIdx][1]) < 6 ||
           (p.x > -16 && p.z > RETREAT_ROAD[F.retreatIdx][1] + 4))) F.retreatIdx++;
@@ -2715,9 +2814,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       const d = Math.hypot(p.x - HAMA.x, p.z - HAMA.z);
       for (const q of F.chase || []) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
       const left = Math.ceil(Math.hypot(p.x - F.retreatPoint.x, p.z - F.retreatPoint.z));
-      rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
-      // 城へ入ったら退き口は終わる。開いた門で新たな総攻めを受ける筋にはしない。
-      if (d < 8 && p.z > HAMA.z - 8) {
+      if (!F.ieFar) rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
+      // 城へ入ったら退き口は終わる。家康が先に（または同時に）門の内へ入っている事が要る。
+      const chief = F.campA.general, ieIn = !chief?.alive || chief.pos.z > HAMA.z - 10;
+      // 門で待つ。家康の組が道で詰まった時は四十五秒で、家康は脇の口から入った事にする（詰まりで戦を止めない）
+      if (d < 8 && p.z > HAMA.z - 8 && !ieIn) { rt.objProgress('main', '門で上様を待て'); F.gateWait = (F.gateWait || 0) + dt; } else F.gateWait = 0;
+      if (F.gateWait > 45 && chief?.alive) { F.gateWait = 0; chief.group.speed = 5; if (chief.pos.z > HAMA.z - 70) { F.ieSafe = true; this.win(rt); return; } }
+      if (d < 8 && p.z > HAMA.z - 8 && ieIn) {
+        F.ieSafe = !!chief?.alive || F.ieSafe;
         for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.seekRange = 0; q.aggro = 0; }
         this.win(rt);
       }
@@ -2811,7 +2915,7 @@ mikatagahara.force = (rt) => {
   const F = rt?.flags;
   if (!F || !rt.player) return { a: 11000, a0: 11000, b: 27000, b0: 27000 };
   const i = F.mkG?.i || 0, t = Math.max(0, rt.t - (F.stepT || 0));
-  const la = [0, 0, 60, 320, 520, 700, 1000][i] + Math.min(i >= 6 ? 900 : 240, t * (i >= 6 ? 9 : i >= 3 ? 5 : 2)) + (F.ak || 0) * 4;
+  const la = [0, 0, 60, 320, 520, 700, 820, 900, 1000][Math.min(8, i)] + Math.min(i >= 8 ? 900 : 240, t * (i >= 8 ? 9 : i >= 3 ? 5 : 2)) + (F.ak || 0) * 4;
   const lb = Math.min(420, rt.t * 1.2 + (F.ek || 0) * 3);
   F.mkLossA = Math.max(F.mkLossA || 0, Math.min(2000, la)); F.mkLossB = Math.max(F.mkLossB || 0, lb);
   return { a: 11000 - F.mkLossA, a0: 11000, b: 27000 - F.mkLossB, b0: 27000 };
@@ -2868,7 +2972,7 @@ mikatagahara.famous = [
 mikatagahara.date = (rt) => `元亀三年十二月二十二日　冬・${rt.flags.step >= 3 ? '夜' : '夕暮れ'}`;
 mikatagahara.canSkip = (rt) => rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5 ? '結果へ進む' : rt.phase === 'brief' && rt.t > 3 ? '先手の下知まで待つ' : '';
 mikatagahara.skip = (rt) => { if (rt.flags.returnedT !== undefined && !rt.over && rt.t - rt.flags.returnedT >= 5) rt.finish({ scriptedEnd: true,
-  ...(rt.tracker.main === false ? { failureReason: '浜松城へ帰着したが、途中の持ち場の務めを果たせなかった' } : {}),
+  ...(rt.tracker.main === false ? { failureReason: '家康を浜松城へ帰せなかった' } : {}),
 }, 0.2); else if (rt.phase === 'brief') mikatagahara.first(rt); };
 mikatagahara.history = '元亀三年十二月二十二日（西暦1573年1月25日）、遠江の三方ヶ原で徳川・織田勢と武田勢が戦った。『信長公記』巻五は、信長が佐久間信盛・平手汎秀・水野信元を大将として浜松へ遣わしたと記す。同書にこの援軍の総数や滝川一益の名はない。二俣城を落とした信玄は堀江城へ向かって動き、浜松を出た家康の勢と三方ヶ原で戦った。先頭の約三百人に石を投げさせ、太鼓を打って寄せたとも記される。平手汎秀とその家臣、徳川家臣の成瀬藤蔵らが討ち死にし、家康は敵中を抜けて浜松城へ退いた。会戦を夕刻とする解説があり、魚鱗・鶴翼の陣や祝田坂での反転は『三河物語』『甲陽軍鑑』などに伝わる。各備の寄せる順、城門を開けて追手を惑わせた話、犀ヶ崖の夜討ちは、確定した出来事としては扱わない。兵数には諸説あり、武田二万七千（三万とも）、徳川・織田一万一千は一つの見積もりで、各備の人数・配置は遊びの復元である。降雪を伝える浜松市の解説もあるが、当日の天候は断定しない。地形・時間・浜松の城口は遊びのために縮めている。浜松城は台地の東縁にあり、西の曲輪を高く示したが、比高・木柵の線・屋形の位置は当時の縄張りを測って再現したものではない。武田勢はその後も西へ進んだが、元亀四年、信玄が病を重くすると帰国の途につき、信玄は四月にその途中で没した。';
 
@@ -2886,7 +2990,7 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 出陣の段：根洗の松へ上がり、見届けたら持ち場へ戻る
   if (F.mkStage === -1 || F.mkStage === 0 || F.mkStage === 1) { const q = F.mkStage <= 0 ? F.mkScout || HIRATE_POST : HIRATE_POST; goTo(p, inp, q.x, q.z, 2.5); return; }
   // 殿の持ち場へ着いた後の斬り合いは、元の段の頭で続ける。
-  const toCover = F.dpOn && F.dpB && F.dp?.on && F.dp.cur?.s.kind !== 'hold';
+  const toCover = F.dpOn && F.dpB && F.dp?.on && F.dp.cur?.s?.kind !== 'hold';
   if (F.dpOn && F.dp && F.dp.on && !toCover) {
     const post = F.dp.cur;
     const needsTreatment = u.hp < u.maxHp * (F.dp.ctx?.botTreatAt ?? 0.5) && p.treatmentLeft > 0 && !p.bandaged;
@@ -2912,7 +3016,7 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const C = F.dp.cur;
     // 槍の届く距離で持ち場の外に止まると、守った時間が増えず平手の囲みで止まる。
     // 手当ての退避は保ち、それ以外は輪の三歩手前で戻す。外へ出てから戻すと追い合いを繰り返し、守りの秒が貯まらない。
-    if (!F.dpBack && C?.s.kind === 'hold' && C.at &&
+    if (!F.dpBack && C?.s?.kind === 'hold' && C.at &&
         Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= Math.max(1, C.botRadius - 3)) {
       inp.axis = null; inp.leftPressed = false; inp.chargeHold = false;
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
@@ -2929,8 +3033,8 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     inp.leftPressed = false; inp.guardHold = false; inp.chargeHold = false;
     // 本人は気力切れでも走れる。連続した突きから退く足を遅くしない。
     inp.runHeld = false;
-    const next = toCover ? F.dp.cur?.at || (F.dp.i < 2 ? SOUTH_SLOPE : REARGUARD_POST) : F.retreatPoint || HAMA;
-    const radius = toCover && F.dp.i >= 2 ? 4 : !toCover && F.retreatIdx === RETREAT_ROAD.length - 1 ? 3 : 1.8;
+    const next = toCover ? F.dp.cur?.at || F.mkSubAt || SECOND_LINE : F.retreatPoint || HAMA;
+    const radius = toCover ? 4 : F.retreatIdx === RETREAT_ROAD.length - 1 ? 3 : 1.8;
     // 追手への狙いを残すと、道へ向けた体が更新時に引き戻される。
     if (p.lock) inp.e.add('KeyQ');
     goTo(p, inp, next.x, next.z, radius);
@@ -3186,6 +3290,8 @@ function withstand(o) {
     // 味方が一人下っただけで殿を解かない。刻限を過ぎても、生きて坂に残る味方を先に通す。
     const covered = !o.cover || C.coverRemaining === 0;
     const waitingAllies = o.cover && C.coverRemaining > 0;
+    // 時が来れば物語は進む（三方ヶ原は押し潰される戦。守りが足りなければ✕のまま次へ）
+    if (o.cap && el >= o.cap) return true;
     return defended && covered && !waitingAllies && C.waves.length === 0 && (el >= o.dur || cleared || o.cover && C.inT >= 20 && el >= 26);
   };
   s.end = (rt, C, m) => {
@@ -3196,6 +3302,14 @@ function withstand(o) {
     if (o.onEnd) o.onEnd(rt, m, won);
   };
   return s;
+}
+// 家康の本陣（HONJIN）へ寄せて構えさせる。城へ退き始めた隊は呼び戻さない。
+function honjinGroup(g, dx = 0) {
+  if (!g || !g.count || g.routed || g._mkEscort) return;
+  // 道の下知（path）では総大将の組が歩き出さない事がある（11/10 流しで確かめた）。持ち場を本陣へ移し、そこへ歩かせる。
+  g.path = null; g.order = 'hold'; g.retreatOnly = false; g.facing = Math.PI;
+  g.anchor.x = HONJIN.x + dx; g.anchor.z = HONJIN.z;
+  for (const u of g.units) if (u.alive) { u._crouch = false; u._seat = null; u.moveTo = null; }
 }
 // 生き残った後方の隊を坂の手前へ。下り始めた隊は呼び戻さない。
 function slopeGroup(g) {
@@ -3214,7 +3328,8 @@ function withdraw(o) {
   s.idleAdvance = false; s.limit = Infinity; s.noHardCap = true;
   s.start = (rt, C, m, ctx) => {
     start(rt, C, m, ctx);
-    for (const g of ctx.friends(rt)) {
+    if (o.onStart) o.onStart(rt);
+    if (!o.keepFriends) for (const g of ctx.friends(rt)) {
       g.path = [[g.anchor.x, g.anchor.z]]; g.pathIdx = 0;
       const c = g.center(); g.anchor.x = c.x; g.anchor.z = c.z;
       g.retreatOnly = true; g.order = 'path'; g.speed = 3;
@@ -3230,12 +3345,12 @@ function withdraw(o) {
     if (C.arr && !C.arrOrderShown) {
       C.arrOrderShown = true;
       renewOrders(rt);
-      rt.obj('main', '坂に着いた。追手へ構えよ', 'main', true);
-      rt.say('組頭', '坂に着いた！　北の追手へ構え、味方を先に通せ！', 3);
+      rt.obj('main', o.arrived || '坂に着いた。追手へ構えよ', 'main', true);
+      if (!o.arrived) rt.say('組頭', '坂に着いた！　北の追手へ構え、味方を先に通せ！', 3);
     }
     const distance = Math.ceil(Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z));
-    rt.objProgress('main', C.arr ? '北の追手へ構え、味方を先に通せ'
-      : `南の坂 ${distance}m`);
+    rt.objProgress('main', C.arr ? (o.arrived ? '' : '北の追手へ構え、味方を先に通せ')
+      : `${o.obj || '南の坂'} ${distance}m`);
     // 坂では次の段で味方を守る。ここで待ち伏せを二十五秒受け続けない。
     return done || C.arr;
   };
@@ -3303,38 +3418,10 @@ function mkA() {
       reward: '平手の陣で武田の寄せを支えた', lost: ['組頭', '押し込まれた……！　立て直せ！'] }),
   ];
 }
-// B 赤備えの後：佐久間の下知で台地の南へ退き、坂の上で味方を通す。
-function mkB() {
-  return [
-    rest({ dur: 6, heal: 0, fn: (rt) => {
-      rt.obj('dp', '味方と南の坂へ退け', 'side', true);
-      // 下知を聞く六秒の間も退く。次の移動段で隊ごとの持ち場へ引き継ぐ。
-      for (const g of [rt.flags.hirate, rt.flags.saku, rt.flags.toku]) if (g.count && !g.routed) {
-        g.path = [[SOUTH_SLOPE.x, SOUTH_SLOPE.z]]; g.pathIdx = 0;
-        g.retreatOnly = true; g.order = 'path'; g.speed = 3;
-        g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; };
-      }
-    }, say: [['佐久間信盛', '南の坂へ退く！　下りる味方の道を空けよ！']] }),
-    withdraw({ to: SOUTH_SLOPE, r: 10, label: '台地の南', obj: '佐久間の手と南の坂へ退け',
-      say: [['組頭', '急げ！　坂の上まで、佐久間の旗を追え！']],
-      ambush: { d: 30, t: 12, title: '回り込まれた', sub: '武田の一手が、退く道を塞ぐ', say: ['足軽', '道の先に武田！　鉄砲もおる、筒先を外せ！'], foes: () => [{ name: '道を塞ぐ武田勢', from: { x: 40, z: 76 }, list: [uS(2), uA(10)], mass: 260 }, gunLine('道の脇の武田の鉄砲', { x: -20, z: 70 }, 6)] } }),
-    // 台地の端で殿：坂を下りる味方の背を守る（織田の援軍の退き口）
-    rest({ dur: 6, heal: 0, fn: (rt) => rt.obj('dp', '坂で追手を支え、味方を先に通せ', 'main'), say: [['組頭', 'ここで追手を支えよ！　鉄砲組と旗本を先に下ろす！']] }),
-    withstand({ at: REARGUARD_POST, dur: 56, r: 14, cover: true, title: '坂の上で味方を守る', sub: '下りる味方を守り、退く下知を待つ', label: '台地の端',
-      obj: (rt) => (HI(rt) ? '一手で殿を務め、味方を坂へ通せ' : '坂の上で下りる味方を守れ'),
-      waves: [
-        { t: 0, foes: () => [{ name: '追いすがる武田勢', from: { x: 4, z: 28 }, list: [uS(2), uA(11)], formation: 'yari', mass: 300 }] },
-        { t: 6, say: ['組頭', '追手の鉄砲じゃ！　射手の前を外せ、味方は下りたか！'], foes: () => [gunLine('台地の上の武田の鉄砲', { x: 34, z: 22 }, 6)] },
-        // 11/7：追手は一度では尽きない。武田の新しい手が台地の上から続く（大敗の退き口の重さ）。
-        { t: 26, say: ['足軽', 'まだ来る！　武田の旗が台地を埋めとるがや！'], foes: () => [{ name: '台地を押し下る武田勢', from: { x: 22, z: 30 }, list: [uS(2), uA(10)], formation: 'yari', mass: 300 }] },
-      ],
-      reward: '坂の追手を支え、味方を先に下ろした', lost: ['組頭', 'もうよい、下りよ！　城へ走れ！'] }),
-  ];
-}
 // 武将の名簿（bushou_roster.js）から、この戦に出てまだ場にいない武将を足す（10/31 bushou_1_16）。敵の大将は討たれない（名簿で討死の人だけ討たれる）。
 // 遊び手のそばの手へ足すと bot が負ける（10/31 の流しで二回とも）。家康の手と退き口の守りにだけ、四人まで。
 // 榊原康政は鶴翼の先鋒の備（TOKUGAWA_JIN）に立つので、ここで二人目を足さない。
-mikatagahara.bushou = ['大久保忠世', '鳥居元忠', '夏目吉信'].map((name) => ({ name, g: /徳川家康|徳川の手|退き口/, loose: false }));
+mikatagahara.bushou = ['大久保忠世', '鳥居元忠'].map((name) => ({ name, g: /徳川家康|徳川の手|退き口/, loose: false }));
 // 紙（battle_events_1101）の武田方：高坂昌信も頭上の名で武田の備に（ag_bushou_armor_v2 の残り。具足は kacchu_required.js）
 // 三陣の自身の備だけに置く。大きい先手の隊へ割り当てると、開戦直後に目の前へ出てしまう。
 mikatagahara.famous.push({ name: '高坂昌信', team: 1, g: /高坂昌信の備/, shared: true, loose: false, invuln: true, horse: true, line: '高坂昌信なり。台地の上から押し下れ！' });

@@ -17,7 +17,8 @@ export function start(rt, ctx) {
   for (const groups of [F.boarders, F.small]) for (const q of groups || []) if (q && !q.routed) { q.noRout = false; q.morale = 0; }
   for (let i = 0; i < 3; i++) { rt.uninteract('g' + i); rt.unmark('g' + i); }
   rt.say('物見', '毛利の船が木津浦へ退いていく！　もう寄せては来ぬ！', 3.5);
-  const on = () => !rt.over && F.kzYoin === S;
+  // 敗北の締めに入ってから結果が出るまでの間も、勝鬨と勝利の声を止める。
+  const on = () => !rt.over && !F.ending && F.kzYoin === S && !S.done;
   rt.after(5, () => { if (on()) rt.army.playFar('sig_nobiki', { x: -120, z: 160 }, 0.8); });
   rt.after(9, () => {
     if (!on()) return;
