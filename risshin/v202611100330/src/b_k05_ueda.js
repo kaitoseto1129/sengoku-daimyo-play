@@ -227,13 +227,12 @@ const k05_ueda = {
   missionPin(rt) {
     const F = rt.flags;
     if (!F.step || F.ending) return null;
-    const c = (...gs) => { for (const g of gs) if (live(g)) return g.center(); return null; };
     // ①は北の田そのもの（真田が田へ来て戦いになる。critic60：田へ一度も行かずに済んだ）
     let p = KARI;
     if (F.step === 1) p = KARI;
     else if (F.step === 2) p = F.throughTown ? FRONT : LANE_B;
-    else if (F.step === 3) p = c(F.yari) || FRONT;
-    else if (F.step === 4) p = c(F.nobushige) || { x: FRONT.x + 10, z: FRONT.z - 20 };
+    else if (F.step === 3) p = FRONT;
+    else if (F.step === 4) p = { x: FRONT.x + 10, z: FRONT.z - 20 };
     else if (F.step === 5) p = FRONT;
     else if (F.step === 6) p = FORD_W;
     else if (F.step === 7) p = RET;

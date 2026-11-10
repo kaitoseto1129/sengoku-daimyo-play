@@ -721,6 +721,12 @@ const inou_spec = {
       g.routing = true; g.noRout = false; g.order = 'retreat'; g.focus = null; g.aggro = 0; g.fire = false; g.speed = 3.2;
       // 11/7 fixc2146：柴田勢は来た東の街道（左＝−x）へ退く。前は林勢と同じ野の奥へ逃げ、林勢の中に柴田の雁金の幟が混じって見えた（1600×900 で遊んだ写真 201 秒）
       g.dest = east ? { x: -170, z: g.anchor.z - 30 } : { x: g.anchor.x, z: -150 }; g.morale = Math.min(g.morale, 20);
+      // 敗走した兵は行き先でなく fleeDir を読む。退く下知と同じ方へ逃がす。
+      g.fleeDir = east ? { x: -1, z: 0 } : { x: 0, z: -1 };
+      g.fleeSet = true;
+      for (const u of g.units) if (u.moraleFleeDir) {
+        u.moraleFleeDir.x = g.fleeDir.x; u.moraleFleeDir.z = g.fleeDir.z;
+      }
     }
   },
 
@@ -1039,7 +1045,7 @@ const inou_spec = {
       let near = Infinity;
       for (const u of g.units) {
         if (!u.alive || u.gone) continue;
-        if (g.order === 'retreat' && u.pos.z < -128 && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) > 70) { rt.army.despawn(u); continue; }
+        if (g.order === 'retreat' && (u.pos.z < -128 || g.fleeDir?.x < 0 && u.pos.x < -XW - 20) && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) > 70) { rt.army.despawn(u); continue; }
         near = Math.min(near, Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z));
       }
       if (g.secKind === 'bow') { const on = !g.routing && !g.routed && g.order !== 'retreat' && near < BOW_RANGE; g.fire = on; g.aggro = on ? BOW_RANGE : 0; }
