@@ -31,6 +31,9 @@ import * as Ikeda from './t03b_nagakute/ikeda.js';
 import * as Retreat from './t03b_nagakute/retreat.js';
 import { T03B_DEPTH } from './t03b_nagakute/depth.js';
 
+// 通常の深手による終戦も、戦の側の敗北と同じく予約を止める。
+const stopped = (rt) => !!(rt.flags.ending || rt.over || rt.player?.u?.alive === false);
+
 const XW = 158, ZN = -120, ZS = 120;
 const ROAD = [[156, -30], [112, -26], [64, -18], [12, -10], [-50, -14], [-110, -18], [-156, -22]];
 const SOUTH = [[12, -10], [24, 30], [34, 72]];       // 檜ヶ根から仏ヶ根へ下る道
@@ -265,12 +268,13 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     rt.obj('main', BAN_TEXT, 'main');
     const L = [[me, '後ろの小牧の家康が、気づかねばよいが……', 8.4],
     ];
-    for (const [who, s, t] of L) rt.after(t, () => rt.say(who, s, 2.8));
-    rt.after(1.2, () => { F.holdPlayer = false; this.stage(rt, 0.5); });
+    for (const [who, s, t] of L) rt.after(t, () => { if (!stopped(rt)) rt.say(who, s, 2.8); });
+    rt.after(1.2, () => { if (!stopped(rt)) { F.holdPlayer = false; this.stage(rt, 0.5); } });
   },
 
   stage(rt, n) {
     const F = rt.flags;
+    if (stopped(rt)) return;   // 敗北後の予約から次の段を始めない
     F.stage = n; F.st0 = rt.t; F.there = false; F.defended = false;
     F.guardTime = 0; F.guardShown = -1;
     rt.obj('main', textOf(n), 'main');
@@ -288,11 +292,11 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       rt.army.play('toki', { x: CAMP.x + 34, z: CAMP.z }, 1.4);
       F.camp.order = 'attack'; F.camp.seekRange = 16;
       rt.after(18, () => {
-        if (F.stage !== 1) return;
+        if (stopped(rt) || F.stage !== 1) return;
         F.w1.push(...[0, 1].map((i) => this.wave(rt, { x: CAMP.x - 10 + i * 18, z: ZN + 8 }, 12, CAMP, '榊原康政の手', null, SAKA)).filter(Boolean));
         this.general(rt, '榊原康政', { x: CAMP.x + 6, z: ZN + 2 }, SAKA, 0);
         // 五十五秒で丹羽氏次の手も後ろ（東）から続く。横（北）から襲う榊原の手と挟む（布陣図）。
-        rt.after(37, () => { if (F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 38, z: CAMP.z + 20 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '東の後ろから丹羽の手も！　後ろの組が崩れるぞ！', 2.6); } } });
+        rt.after(37, () => { if (!stopped(rt) && F.stage === 1) { const g = this.wave(rt, { x: CAMP.x + 38, z: CAMP.z + 20 }, 10, CAMP, '丹羽氏次の手'); if (g) { F.w1.push(g); rt.say('物見', '東の後ろから丹羽の手も！　後ろの組が崩れるぞ！', 2.6); } } });
         rt.army.play('toki', { x: CAMP.x, z: ZN + 14 }, 1.4);
         rt.say('物見', '北の横からも！　榊原の旗じゃ、挟まれた！', 2.8);
       });
@@ -309,11 +313,11 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       //   寄せた手はまず崩れた陣の兵と荷に掛かり（八秒）、それから信吉を追う。その間に信吉・馬廻・主人公が揉み合いを抜ける
       for (const g of F.waves) if (live(g) && !g.general) { const al = g.units.filter((q) => q.alive); if (al.length) g.anchor = { x: al.reduce((s, q) => s + q.pos.x, 0) / al.length, z: al.reduce((s, q) => s + q.pos.z, 0) / al.length }; g.order = 'hold'; g.seekRange = 3; g.speed = Math.min(g.speed || 3.6, 3.1); }
       for (const u of F.hideG.units) if (u.alive) { u.target = null; u.watch = null; }
-      rt.after(8, () => { for (const g of F.waves) if (live(g) && !g.general && g.order === 'hold') { g.order = 'attack'; g.seekRange = 50; g.focus = F.hideU; } });
+      rt.after(8, () => { if (stopped(rt) || F.stage !== 2) return; for (const g of F.waves) if (live(g) && !g.general && g.order === 'hold') { g.order = 'attack'; g.seekRange = 50; g.focus = F.hideU; } });
       for (const g of F.waves) if (live(g) && g.general) { g.order = 'hold'; g.seekRange = 4; }
-      rt.after(3.2, () => rt.say('使番', '木下祐久様、お討死！　信吉様の馬も撃たれましてござる', 3));
-      rt.after(10, () => { if (F.stage === 2) { this.wave(rt, { x: CAMP.x + 30, z: CAMP.z + 20 }, 10, null, '水野忠重の手', F.hideU, MIZU); this.general(rt, '水野忠重', { x: CAMP.x + 40, z: CAMP.z + 30 }, MIZU); } });
-      rt.after(26, () => { if (F.stage === 2) { this.wave(rt, { x: CAMP.x + 24, z: CAMP.z - 18 }, 10, null, '丹羽氏次の手', F.hideU); this.general(rt, '丹羽氏次', { x: CAMP.x + 34, z: CAMP.z - 28 }, null, 0); } });
+      rt.after(3.2, () => { if (!stopped(rt) && F.stage === 2) rt.say('使番', '木下祐久様、お討死！　信吉様の馬も撃たれましてござる', 3); });
+      rt.after(10, () => { if (!stopped(rt) && F.stage === 2) { this.wave(rt, { x: CAMP.x + 30, z: CAMP.z + 20 }, 10, null, '水野忠重の手', F.hideU, MIZU); this.general(rt, '水野忠重', { x: CAMP.x + 40, z: CAMP.z + 30 }, MIZU); } });
+      rt.after(26, () => { if (!stopped(rt) && F.stage === 2) { this.wave(rt, { x: CAMP.x + 24, z: CAMP.z - 18 }, 10, null, '丹羽氏次の手', F.hideU); this.general(rt, '丹羽氏次', { x: CAMP.x + 34, z: CAMP.z - 28 }, null, 0); } });
     } else if (n === 3) {
       rt.say('堀秀政', '鉄砲、構えよ。坂の半ばまで引き付けて撃て！', 2.8);
       // 信吉は堀の陣の後ろで息をつく（守る相手が先へ去らない）。④で堀と共に西へ退く
@@ -331,7 +335,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       F.w3N = F.w3.reduce((s, g) => s + aliveN(g), 0);
       //   四十五秒で榊原の二の手が坂の下から登り直す（押し返す山を二つに）
       rt.after(45, () => {
-        if (F.stage !== 3) return;
+        if (stopped(rt) || F.stage !== 3) return;
         const g = this.wave(rt, { x: HINOKI.x + 46, z: HINOKI.z + 40 }, 10, HINOKI, '榊原康政の手', null, SAKA);
         if (g) { F.w3.push(g); F.w3N += aliveN(g); rt.army.play('toki', { x: HINOKI.x + 46, z: HINOKI.z + 40 }, 1.2); rt.say('物見', '榊原の二の手が登って来る！', 2.6); }
       });
@@ -342,7 +346,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       // 家康の本隊が御旗山（檜ヶ根と仏ヶ根の間）に金扇の馬印を立てる。堀はそれを見て退く（battle_learn 四・十の3）
       this.honjinUp(rt);
       rt.say('使番', '御旗山に金扇の馬印！　家康の本隊が池田・森の後ろへ回っておりまする！', 3.2);
-      rt.after(3.4, () => rt.say('堀秀政', 'あの金扇は家康自らぞ。わしは深追いせず退く。おぬしは南の仏ヶ根の武蔵守の旗へ走れ', 3.4));
+      rt.after(3.4, () => { if (!stopped(rt) && F.stage === 4) rt.say('堀秀政', 'あの金扇は家康自らぞ。わしは深追いせず退く。おぬしは南の仏ヶ根の武蔵守の旗へ走れ', 3.4); });
       F.hori.order = 'move'; F.hori.dest = { x: EXIT.x + 6, z: EXIT.z + 12 }; F.hori.speed = 3.6; F.hori.march = true;
       F.hori.onArrive = (g) => { g.march = false; g.order = 'hold'; };
       F.hideG.fixed = false; F.hideG.order = 'move'; F.hideG.dest = { x: EXIT.x - 4, z: EXIT.z + 4 }; F.hideG.speed = 3.8; F.hideG.march = true;
@@ -388,7 +392,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       // 森長可は先手の前の持ち場に留まって槍を振るう（名が見える所で最期を迎える）
       F.moriG.order = 'hold'; F.moriG.seekRange = 8; F.ikeSaki.order = 'attack'; F.ikeSaki.seekRange = 18;
       rt.after(14, () => {
-        if (F.stage !== 5) return;
+        if (stopped(rt) || F.stage !== 5) return;
         // 家康の旗本の先手は右翼（北東の御旗山の側）から森の旗へ下りて来る
         F.side = [0, 1].map((i) => this.wave(rt, { x: HOTOKE.x + 18 + i * 16, z: HOTOKE.z - 38 }, 12, HOTOKE, '徳川家康の旗本の先手'));
         rt.army.play('toki', { x: HOTOKE.x + 26, z: HOTOKE.z - 32 }, 1.6);
@@ -396,7 +400,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       });
       // 水野の鉄砲組が東の畑の際から撃ちかける（森長可を撃った杉山孫六は水野家の鉄砲足軽・battle_learn 六）
       const mizunoUp = () => {
-        if (F.ending || F.stage !== 5 || F.mizunoGun) return;
+        if (stopped(rt) || F.stage !== 5 || F.mizunoGun) return;
         // 出現の瞬間だけ枠が埋まっていても、鉄砲組そのものを省かない。
         if (aliveReal(rt) + 8 > REAL_CAP) { rt.after(2, mizunoUp); return; }
         F.mizunoGun = enemyGroup(rt, { faction: 'tokugawa', name: '水野忠重の鉄砲組', anchor: { x: HOTOKE.x + 34, z: HOTOKE.z - 22 }, facing: W, width: 6, formation: 'line', morale: 90, dmgMult: 0.4,
@@ -407,29 +411,29 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       rt.after(30, mizunoUp);
       // 百四十秒から、主人公が武蔵守の 35m 内に戻るまで待つ。離れたまま時だけで討死させない。
       const moriEnd = () => {
-        if (F.ending || F.stage !== 5) return;
+        if (stopped(rt) || F.stage !== 5) return;
         const m = F.moriU, P = rt.player.u.pos;
         if (m && m.alive && dist(m.pos, P) > 35) { rt.after(1, moriEnd); return; }
         this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true);
         // 元助も主人公の見える所で最期を迎える。森の討死からの時刻だけで消さず、見届けてから救援へ進む。
         const motosukeEnd = () => {
-          if (F.ending || F.stage !== 5) return;
+          if (stopped(rt) || F.stage !== 5) return;
           const u = F.ikeSaki?.units.find((q) => q.name === '池田元助' && q.alive);
           if (u && dist(u.pos, rt.player.u.pos) > 35) { rt.after(1, motosukeEnd); return; }
           this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！');
-          rt.after(5, () => { if (!F.ending && F.stage === 5) this.stage(rt, 5.5); });
+          rt.after(5, () => { if (!stopped(rt) && F.stage === 5) this.stage(rt, 5.5); });
         };
         rt.after(14, motosukeEnd);
       };
       //   森長可の強引な反撃：四十秒で鶴丸の旗本が赤備えへ突きかかる（激戦）。榊原の旗も見える。撃たれるのは百四十秒から
       rt.after(40, () => {
-        if (F.stage !== 5 || !live(F.moriG)) return;
+        if (stopped(rt) || F.stage !== 5 || !live(F.moriG)) return;
         F.moriG.order = 'attack'; F.moriG.seekRange = 26; F.moriG.aggro = 18;
         rt.say('森長可', '押し返せ！　赤備えなど蹴散らせぇ！', 2.8);
         rt.army.play('toki', { x: HOTOKE.x + 20, z: HOTOKE.z - 4 }, 1.3);
       });
       rt.after(58, () => {
-        if (F.stage !== 5) return;
+        if (stopped(rt) || F.stage !== 5) return;
         // 檜ヶ根の榊原隊は④で去っている。知らせだけにせず、御旗山の麓へ旗本を置く。
         const g = this.general(rt, '榊原康政', { x: HOTOKE.x + 26, z: HOTOKE.z - 30 }, SAKA);
         if (!g) return;
@@ -437,8 +441,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
         g.onArrive = (q) => { q.order = 'attack'; };
         rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2);
       });
-      rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
-      rt.after(100, () => { if (F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
+      rt.after(76, () => { if (!stopped(rt) && F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
+      rt.after(100, () => { if (!stopped(rt) && F.stage === 5) rt.say('池田元助', '武蔵守殿の旗が揺らいだ！　支えよ、支えよ！', 2.8); });
       rt.after(140, moriEnd);
     } else if (n === 6) {
       // 大きな札は共通の「〇〇が討たれた」に任せる（重ねると共通の札が出られず毎コマ出し直す）。退く下知は台詞で
@@ -546,7 +550,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
 
   update(rt, dt) {
     const F = rt.flags;
-    if (F.ending || !F.stage) return;
+    if (stopped(rt) || !F.stage) return;
     const P = rt.player.u;
     walls(rt, XW, ZN, ZS);
     const run = F.stage === 0.5 || F.stage === 2 || F.stage === 4 || F.stage === 6 || F.stage === 5.5;
@@ -685,7 +689,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
 
   lose(rt, why) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (stopped(rt)) return;
     F.ending = true;
     rt.tracker.main = false;
     rt.objFail('main');
@@ -694,7 +698,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (stopped(rt)) return;
     F.ending = true;
     rt.objDone('main');
     rt.tracker.main = true;

@@ -26,7 +26,12 @@ export function toCourt(rt, g, z) {
   g.order = 'path'; g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true;
   g.pathIdx = 0; g.speed = 4.5; g._fitAt = 0;
   const mouths = [-30, -6, -4, 18, 20].map(KZ);
-  g.path = [[c.x, c.z], [0, c.z], ...mouths.filter(v => v > c.z + 1 && v < z.pos.z).map(v => [0, v]), [z.pos.x, z.pos.z]];
+  // 手前の郭に残敵が戻った時も、北から南へ口を逆順に通る。
+  // 登り専用の絞り込みでは、援軍が副郭・木戸内の塀へ直進していた。
+  const forward = z.pos.z >= c.z;
+  const between = mouths.filter(v => forward ? v > c.z && v < z.pos.z : v < c.z && v > z.pos.z);
+  if (!forward) between.reverse();
+  g.path = [[c.x, c.z], [0, c.z], ...between.map(v => [0, v]), [z.pos.x, z.pos.z]];
   g.onArrive = q => { q.order = 'attack'; q.seekRange = 40; q.aggro = 30; };
 }
 
