@@ -36,8 +36,15 @@ function side(rt) {
   if (F.echHonT == null) F.echHonT = rt.t;
   if (rt.t - F.echHonT < 45) return;
   F.echSideGone = true;
+  F.echRetreatT ??= rt.t;
+  // 四城制圧前の別手の退きも、府中に火が掛かった夜の出来事にそろえる。
+  rt.world.setTime?.('night');
+  for (const id of ['saikoji_hon', 'hachibuse_hon']) {
+    const z = F.SZ.byId[id];
+    if (z) rt.world.addFire(z.pos.x - 6, z.pos.z, { size: 3.2, blackSmoke: true });
+  }
   try { sfx('farHorn', 0.7); } catch (e) { /* なし */ }
-  rt.say('使番', '杉津口の堀江景忠、寝返りました！　西光寺丸も鉢伏も、一揆勢が城を捨てて逃げます！', 4);
+  rt.say('使番', '杉津口の堀江景忠が寝返り、府中の龍門寺にも火が掛かりました！　西光寺丸と鉢伏の一揆勢が、砦に火を掛けて退きます！', 4);
   for (const id of SIDE) {
     const z = F.SZ.byId[id];
     if (!z) continue;

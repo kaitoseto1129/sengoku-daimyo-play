@@ -418,7 +418,8 @@ echizen.introSides = { a: '織田勢　三万余', b: '越前一向一揆　二�
 //   峠の砦を捨てて府中へ退く一揆勢の分だけ少しずつ減る（一度に跳ばない）
 echizen.force = (rt) => {
   const F = rt.flags;
-  const fled = F.echAdv ? Math.min(9000, (rt.t - (F.echAdvT ?? rt.t)) * 60) : 0;
+  const retreatT = F.echRetreatT ?? (F.echAdv ? F.echAdvT : null);
+  const fled = retreatT == null ? 0 : Math.min(9000, Math.max(0, rt.t - retreatT) * 60);
   return { a: Math.max(0, 30000 - (F.ak || 0) * 8), a0: 30000, b: Math.max(0, 20000 - (F.ek || 0) * 15 - fled), b0: 20000 };
 };
 // ④で北口を出た本人を「前に出すぎ」と叱らない（目標の行き先どおりに進んでいる。kaito 一5・九4）
@@ -2696,6 +2697,8 @@ function echizenAdvance(rt) {
   // 木戸からの固定距離では郭の外で燃えてしまう。各郭の内側に置き、
   // 通り道を空けたまま、退く時に捨てた砦の火と分かる位置へそろえる。
   for (const id of ['kinome_fuku', 'saikoji_hon', 'hachibuse_hon']) {
+    // 別手が先に退いた城には、既に火と黒煙がある。重ねて増やさない。
+    if (F.echSideGone && id !== 'kinome_fuku') continue;
     const p = F.SZ.byId[id].pos;
     rt.world.addFire(p.x - 6, p.z, { size: 3.2, blackSmoke: true });
   }
@@ -2705,7 +2708,7 @@ function echizenAdvance(rt) {
     const p = F.SZ.byId[id].pos;
     rt.world.addFire(p.x - 6, p.z, { size: 3, blackSmoke: true });
   }
-  rt.say('使番', '杉津口は破れ、堀江景忠が寝返った！　府中の龍門寺にも火が掛かった！', 4.5);
+  if (!F.echSideGone) rt.say('使番', '杉津口は破れ、堀江景忠が寝返った！　府中の龍門寺にも火が掛かった！', 4.5);
   rt.after(5, () => rt.say('組頭', '背を突かれた一揆勢が、砦に火を掛けて府中へ退くぞ。峠道の西光寺真敬の殿を討て！', 4));
   // 峠道の殿は踏みとどまり、ほかの一揆勢は皆、府中の方（北・本道の座標が増える向き）へ逃げる
   const tail = F.echTail;

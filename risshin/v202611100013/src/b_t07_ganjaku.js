@@ -471,7 +471,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       }
       F.lead = 0;   // 蒲生の先手は自分と並んで坂を駆け上がる（update で坂の上へ持ち場を送る）
     } else if (s === 2) {
-      rt.award((t) => t.side.push('大手の坂を一番に登った'), '大手の坂を一番に登った');
+      // 味方だけが門前へ着いても段は進むが、麓に残った本人へ一番乗りの戦功は付けない。
+      const p = rt.player.u.pos, gc = this.centerOf(F.gamo);
+      if (Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 && (!gc || this.along(p.x, p.z) >= this.along(gc.x, gc.z))) {
+        rt.award((t) => t.side.push('大手の坂を一番に登った'), '大手の坂を一番に登った');
+      }
       try { if (!F.dusk) rt.world.setTime('day'); } catch (e) { /* 夕暮れに入った後は昼へ戻さない */ }
       rt.obj('s2', '門から打って出た秋月勢を坂で迎え撃つ', 'main');
       // 寄せ手は櫓の真下に留まらず、門から二十 m ほど下の坂で、出て来る秋月勢を受ける（門の櫓の真下で撃たれ続けない）

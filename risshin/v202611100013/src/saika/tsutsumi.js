@@ -29,10 +29,11 @@ export function install(rt, ctx) {
   rt.after(5, () => rt.say('堀秀政', '堤の鉄砲陣を取れ！　横から回って、玉込めの間に寄せよ！', 4));
   rt.obj('main', missionText, 'main', true);
   rt.objProgress('main', '');
-  rt.marker('tsutsumi', () => (live() ? G.center() : null), '堤の鉄砲陣', { red: true, group: G });
+  rt.marker('tsutsumi', () => (live() ? G.center() : DIKE), '堤の鉄砲陣', { red: true, group: G });
   let sent = 0;
   for (const g of new Set([F.hori, ...(F.escorts || [])])) if (g && !g.routed && g.count) {
-    moveGroup(g, { x: DIKE.x + 8, z: DIKE.z - 10 }, Math.PI);
+    // 二組を一点へ重ねず、堤の東側から間を空けて寄せる。
+    moveGroup(g, { x: DIKE.x + 8 + sent * 6, z: DIKE.z - 10 - sent * 8 }, Math.PI);
     g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 30; };
     if (++sent >= 2) break;
   }
@@ -43,7 +44,8 @@ export function install(rt, ctx) {
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       // 堤を取った後、雑賀が舟で取り返しに来る（約三十秒後）。取り返しを払えば済む
-      if (!live() && !takenT) {
+      // 味方だけで敵を払っても、本人が堤へ着くまでは占拠・放火を進めない。
+      if (!live() && !takenT && Math.hypot(rt.player.u.pos.x - DIKE.x, rt.player.u.pos.z - DIKE.z) < 12) {
         takenT = rt.t;
         // 敵が尽きても堤の行き先を残す。取り返しを払った後もここへ戻れる。
         rt.marker('tsutsumi', DIKE, '川下の堤', { h: 3 });

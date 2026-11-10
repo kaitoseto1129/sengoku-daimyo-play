@@ -67,6 +67,17 @@ export function pin(rt, K) {
   return S && S.leg === 1 ? SIEGE : { x: K.RING.x, z: K.RING.z + 6 };
 }
 
+// 槍が受けや甲冑で止まっても交戦。討ち取りや本人の負傷を強いない。
+// 攻撃の結果は短時間で消えるため、本体から毎コマ呼んで残す。
+export function engaged(rt) {
+  const F = rt.flags, swing = rt.player.u.swing;
+  if (F.ijContact || rt.stats.kills > F.ijKills0 || rt.stats.taken > F.ijTaken0) return true;
+  if (swing && (swing.res === 'hit' || swing.res === 'armor' || swing.res === 'block') && F.ijBands) {
+    for (const g of F.ijBands) if (g.units.includes(swing.target)) { F.ijContact = true; return true; }
+  }
+  return false;
+}
+
 export function update(rt, K) {
   const S = rt.flags.s2, P = rt.player.u.pos;
   if (!S || S.leg !== 1) return;
