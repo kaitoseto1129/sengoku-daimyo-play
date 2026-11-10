@@ -1483,7 +1483,7 @@ const iga = {
   speechAllowed: (rt) => rt.over || !!rt.flags.ending,
   // 時が飛ぶ所（朝・夜への場面替え）だけは、画面の真ん中に次の目標を短く出す（kaito AT7）。
   bannerAllowed: (rt, t) => rt.over || !!rt.flags.ending || /^(着陣の夜が明けた|包囲を続けた夜|城が静まった朝)$/.test(t),
-  missions: ['ここを守れ', '火を消せ', '土橋へ進め', '土橋を守れ', '麓の陣へ戻れ', '曲輪を調べよ', '▼の敵を倒せ', '伊賀の組頭を倒せ'],
+  missions: ['麓の陣の口で伊賀衆を防げ', '麓の小屋の火を消せ', '南の土橋へ進め', '南の土橋で伊賀衆を防げ', '麓の陣へ戻れ', '主郭から北の曲輪を調べよ', '陣の口へ来る伊賀衆を防げ', '陣の口へ来る伊賀の組頭を防げ'],
   missionOf(rt) {
     const F = rt.flags;
     if (F.step === 3.5) return 5;
@@ -1522,7 +1522,7 @@ const iga = {
     q.r = 3; q.hide = 1;
     let id = '', at = CAMP;
     const ip = !F.step && IG_OPEN.pin(rt, igaOpenCtx());   // 開幕の段：西の林の外れ→陣の口
-    if (ip) { q.key = 'open'; q.x = ip.x; q.z = ip.z; q.r = q.hide = 3; q.arrived = Math.hypot(p.x - ip.x, p.z - ip.z) < 3; return q; }
+    if (ip) { q.key = 'open'; q.x = ip.x; q.z = ip.z; q.r = q.hide = 3; q.arrived = Math.hypot(p.x - ip.x, p.z - ip.z) < 3 && Math.abs(p.y - rt.world.heightAt(ip.x, ip.z)) < 3; return q; }
     // 山道では手当ての印を外す。負傷が残っても、存在しない印で土橋や曲輪の案内を消さない。
     if (igaNeedsTreatment(rt) && rt.markers.some((m) => m.id === 'raidRecovery')) id = 'raidRecovery';
     else if (stage === 1) {
@@ -1544,7 +1544,8 @@ const iga = {
       at = stage === 3 ? F.bridge : F.dp?.on && F.dp.cur?.s.kind === 'hold' ? F.dp.cur.at : CAMP;
       q.defend = q.waiting = true; q.r = 8;
       const far = Math.hypot(p.x - at.x, p.z - at.z);
-      q.arrived = far < q.r;
+      // 下段の道から真上の持ち場へ近づいても、実際の守備と同じ高さに着くまで到着にしない。
+      q.arrived = far < q.r && Math.abs(p.y - rt.world.heightAt(at.x, at.z)) < 3;
       // 守る所の輪は小さく描く（戦場を大きく横切る破線に見えた。10/28）。着いたかは八歩のまま。
       // 輪の近く（十四歩の内）では肩越しの視点の前を破線が横切るので、輪は描かず旗だけ残す（10/29）。
       q.r = far < 14 ? 0 : 4.5;
@@ -1555,7 +1556,7 @@ const iga = {
       if (!m && stage === 5 && F.dp?.cur?.s.kind === 'rest') {
         at = KITA; id = 'kitaWait';
         q.defend = q.waiting = true;
-        q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 9;
+        q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 9 && Math.abs(p.y - rt.world.heightAt(at.x, at.z)) < 3;
       } else {
         if (!m) return null;
         at = m.guideDestination?.() || (typeof m.pos === 'function' ? m.pos() : m.pos);
