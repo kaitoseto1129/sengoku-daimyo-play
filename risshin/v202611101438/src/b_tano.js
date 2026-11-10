@@ -726,15 +726,18 @@ function tanoHamlet(rt) {
   // 杉の樹冠を四段の枝の層に分け、縁を不ぞろいに崩す。木ごとに暗い緑の濃さと色味を変える。形は一つを使い回す。
   const tiers = [];
   for (let k = 0; k < 4; k++) {
-    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 7, 1, false);
+    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 9, 1, false);
     const p = tier.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const y = p.getY(i);
       if (y > 0) continue; // 先は揃えたまま、裾だけ崩す
-      const a = Math.atan2(p.getZ(i), p.getX(i)), j = 1 + 0.16 * Math.sin(a * 3 + k * 1.9) + 0.1 * Math.sin(a * 7 - k);
+      const a = Math.atan2(p.getZ(i), p.getX(i)), j = 1 + 0.16 * Math.sin(a * 3 + k * 1.9) + 0.1 * Math.sin(a * 5 - k);
       p.setX(i, p.getX(i) * j); p.setZ(i, p.getZ(i) * j); p.setY(i, y - 0.05 * Math.abs(Math.sin(a * 5 + k)));
     }
-    tier.translate(0, -0.5 + h / 2 + k * 0.22, 0); tiers.push(tier);
+    // 七角形の七倍の波は各頂点で同じ値になり、段の角も上下に揃っていた。
+    // 枝の段をずらして回し、円錐の稜線が幹の上下へ一直線に続くのを防ぐ。
+    tier.rotateY(k * 2.39996);
+    tier.translate(0.025 * Math.sin(k * 2.4), -0.5 + h / 2 + k * 0.22, 0.025 * Math.cos(k * 2.4)); tiers.push(tier);
   }
   const sugiGeo = mergeGeometries(tiers); sugiGeo.computeVertexNormals();
   // 日の当たる面が深い緑に見えるよう、葉に弱い自己の明るみを足す（暗い谷でも黒い影にしない。10/29 採点）。
