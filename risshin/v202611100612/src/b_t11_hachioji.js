@@ -373,7 +373,8 @@ const SALLY_PATH = [[LANDING.x, LANDING.z], [BRIDGE_N.x, BRIDGE_N.z], [BRIDGE_S.
 const BACK_PATH = [[BRIDGE_N.x, BRIDGE_N.z], [LANDING.x, LANDING.z], [KOGUCHI.x + 2, KOGUCHI.z + 0.5], [GOSHU.x + 8, GOSHU.z]];
 const TSUKE_R = 7, TSUKE_SEC = 35;
 function sallyStep() {
-  const live = (g) => (g ? g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length : 0);
+  // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
+  const live = (g) => (g && !g.routed ? g.units.filter((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound).length : 0);
   return {
     kind: 'fight', max: 240,
     start(rt, C, m, ctx) {

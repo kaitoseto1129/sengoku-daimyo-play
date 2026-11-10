@@ -2,7 +2,7 @@
 // 徳川編 16　秘密の戦「天下分け目の淀の野」（もしもの戦・元和元年 1615 五月）
 // 筋書きの正：docs/chapter3_tokugawa.md の「出世と軍勢・秘密の最後の戦（kaito 11/1 夜）」。手本の調べ：docs/battle_refs/k16_secret.md
 // 徳川編の15戦にすべて勝つと開く（tokugawa_secret.js）。史実ではない。
-// 大坂の陣の後、大名になった主人公が二万を率いて、京へ戻る家康の三万と淀の野で戦う。家康を討ち、征夷大将軍に任じられる。
+// 大坂の陣の後、大名になった主人公が二万を率いて、京へ戻る家康の三万と淀の野で戦う。家康の本陣へ届き、家康を降して戦を終わらせる（docs/finale_spec_1109.md：家康を HP の大将にしない）。
 // 見せかけの軍勢は置かない（AA・AF・AP9・AQ6・AT4）。見える兵は全部本物で、初めから持ち場に並ぶ（段で湧かせない。AT17）。
 //   本物の兵：自分の側およそ八十・徳川方およそ百五十（二万対三万の二対三）
 // 徳川方は五重：京街道の藤堂の先手（渡辺勘兵衛）→東の井伊の赤備え→丘の下の鉄砲衆→本多正純の旗本→丘の上の家康の本陣（床几）
@@ -13,7 +13,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { nobori, tawara, umajirushi, bobosaku } from './props.js';
-import { stopMusic } from './audio.js';
+import { stopMusic, setScene } from './audio.js';
 import { RANKS } from './state.js';
 import { STAGES, KILLS, cut, standing } from './stages.js';
 import { GENERALS } from './units_data.js';
@@ -58,7 +58,7 @@ const ADV = '明石全登';                  // 主人公の参謀（docs/if_fin
 const PLACES = ['稲生', '桶狭間', '森部', '稲葉山', '金ヶ崎', '姉川', '比叡山', '小谷', '長篠', '本能寺', '山崎', '賤ヶ岳', '小牧長久手', '小田原', '関ヶ原', '大坂', '淀'];
 const STEP_T = [0, 190, 200, 220, 200, 300];   // 目標ごとの刻限（AP8：全体ではなく一つ一つに）
 // 目標の言い方は場所と行いだけ（kaito_standard 三1：「崩す」「攻める」「討つ（将でない隊）」は使わない）。地図で分かる場所の名で（十1）
-const STEP_TEXT = ['', '京街道の土手で、渡辺勘兵衛の先手を北へ退かせる', '土手の東の畑で、井伊の赤備えを食い止める', '馬防柵の向こうで、徳川の鉄砲衆へ斬り込む', '金扇の前で、本多正純の旗本を斬り抜ける', '陣幕の口から入り、床几の家康を討つ'];
+const STEP_TEXT = ['', '京街道の土手で、渡辺勘兵衛の先手を北へ退かせる', '土手の東の畑で、井伊の赤備えを食い止める', '馬防柵の向こうで、徳川の鉄砲衆へ斬り込む', '金扇の前で、本多正純の旗本を斬り抜ける', '陣幕の口から入り、床几の家康のもとへ届く'];
 // ⑤は「徳川家康」と書かない：共通の victory_flow.js が討った将の名を含む目標を即座に済ませ、goalsDoneTick が二秒半で結果へ締めて、締めの場面（倒れる金扇・勝鬨・出世の道）を切った
 const STEP_PLACE = ['', '京街道の土手', '土手の東の畑', '馬防柵の向こう', '金扇の前'];
 const STEP_AT = [null, SAKITE, YOKO, TEPPO, HONDA_AT, MOUTH];
@@ -92,21 +92,7 @@ const campRoute = (p, to) => {
   if (Math.abs(p.x - MOUTH.x) > 1.5) return { x: MOUTH.x, z: MOUTH.z + 1.5 };
   return to;
 };
-// 秀忠へは南の口から出て東の角を回る。口から斜めに直進しても布を横切るため、角の外まで案内する。
-const hideRoute = (p, to) => {
-  // 幕内の端から口へ斜めに進むと南の布を横切る。先に内側で口の中心へ寄せる。
-  // 会話の判定より広い、実際の幕（幅十六 m）の内側で判定する。
-  if (Math.abs(p.x - HQ.x) < 8 && p.z > HQ.z - 6 && p.z < HQ.z + 6 && Math.abs(p.x - HQ.x) > 1.2) return { x: MOUTH.x, z: p.z };
-  if (p.z <= HQ.z - 6 && p.z > HQ.z - 9 && Math.abs(p.x - HQ.x) < 14) return { x: p.x, z: HQ.z - 11 };
-  if (p.z <= HQ.z - 6 && Math.abs(p.x - HQ.x) < 14) return { x: HQ.x + (p.x < HQ.x ? -16 : 16), z: p.z };
-  // 幕の横にいる時は、その側の角を回る。口へ斜めに寄せると布を横切る。
-  if (p.z < MOUTH.z + 2 && Math.abs(p.x - HQ.x) < 14) {
-    const x = Math.abs(p.x - HQ.x) >= 7 ? HQ.x + Math.sign(p.x - HQ.x) * 16 : MOUTH.x;
-    return { x, z: MOUTH.z + 3 };
-  }
-  if (p.z < MOUTH.z + 2 && p.x < HQ.x) return { x: HQ.x - 16, z: MOUTH.z + 3 };
-  return p.x < HQ.x + 14 ? { x: HQ.x + 16, z: MOUTH.z + 3 } : to;
-};
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const OWN = { armor: 0x2a2420, lace: 0xb8342a, flag: 'maru' };   // 主人公の軍（丸の旗・朱の威）
 const II = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'ii' };      // 井伊の赤備え（全員朱）
 const TODO = { armor: 0x24221f, flag: 'todo' };
@@ -302,7 +288,7 @@ const k16_secret = {
   // 総大将の主人公が自ら前に出る訳を一行で（天王寺口の真田信繁と同じ、旗本を率いた本陣への決死の突き）
   // 騎馬の隊旗は筒の吹流しにせず幟に（固い円錐が宙に横に突き出たまま揺れなかった。11/8 critic60 八1・三方ヶ原と同じ）
   standardKinds: { cavalry: 'spear' },
-  introText: () => '大坂落城の後、毛利・島津・上杉が起った。旗本と全軍の先頭に立ち、京へ戻る家康を淀の野で討て。',
+  introText: () => '大坂落城の後、毛利・島津・上杉が起った。旗本と全軍の先頭に立ち、淀の野で家康の本陣へ届いて、戦を終わらせよ。',
   hideGuideSteps: true,
   goalsAllRows: true,      // 共通の一件表示に隠されず、五つを始めから並べる
   goalVisibleRows: 5,     // 共通の目標札は表示件数も指定しないと、今の一件だけを作る
@@ -324,10 +310,6 @@ const k16_secret = {
   // 行き先のピン：段ごとに一つ。場所名を明示し、終幕でも前の目標の名を引き継がない。
   missionPin(rt) {
     const F = rt.flags;
-    if (F.endPhase === 'hide' && F.hidetada) {
-      const p = hideRoute(rt.player.u.pos, F.hidetada.pos);
-      PIN.x = p.x; PIN.z = p.z; PIN.label = '秀忠の陣'; return PIN;
-    }
     if (F.ending) return null;
     // 開戦直後も①の目標は出ている。最初の下知まで行き先の印を消さない。
     if (!F.step) {
@@ -457,7 +439,9 @@ const k16_secret = {
     // 主人公の馬印は立てない（共通の金扇は家康の金扇と見分けがつかず、白の吹貫は遠目に白い柱に見えた）。自分の軍の目印は丸の幟
     if (rt.player.u.look && rt.player.u.look.uma) rt.player.u.look.uma = null;
     rt.makeSquad({ x: START.x, z: START.z }, S, [{ kind: 'spear', n: Math.max(12, Math.min(n || 12, 16)) }]);
-    for (const [x, z, h] of [[-10, 70, 7], [12, 70, 7], [0, 84, 8], [-22, 76, 6], [24, 76, 6], [-8, 90, 6], [10, 90, 6]]) rt.scene.add(nobori(W, x, z, OWN.flag, h));
+    for (const [x, z, h] of [[-10, 70, 7], [12, 70, 7], [-22, 76, 6], [24, 76, 6], [-8, 90, 6], [10, 90, 6]]) rt.scene.add(nobori(W, x, z, OWN.flag, h));
+    // 主人公自身の大旗（docs/finale_spec_1109.md）：一生ずっと誰かの旗の下で戦ってきた者の旗が、初めて本陣の真ん中に立つ。印は自分の合印
+    F.ownFlag = nobori(W, 0, 84, rt.G.aijirushi || OWN.flag, 11); F.ownFlag.scale.multiplyScalar(1.35); rt.scene.add(F.ownFlag);
 
     W.setTime('morning');
     rt.setPhase('brief');
@@ -468,7 +452,7 @@ const k16_secret = {
     for (const [g, x] of [[F.left, -16], [F.right, 22]]) { g.order = 'attack'; g.anchor = { x, z: 42 }; g.speed = 1.6; g.seekRange = 8; }
     // 始まりから動ける（kaito CB：十秒兵が動かないとバグに見える）。家臣の知らせは駆けながら聞く
     F.holdPlayer = false;
-    rt.say(ADV, '殿、遠くの金扇が家康の本陣。京街道の先手は藤堂、井伊の赤備えは東の林に潜んでおりましょう', 3.6);
+    rt.say(ADV, '殿の旗が、初めて本陣の真ん中に立ちましたな。遠くの金扇が家康の本陣。京街道の先手は藤堂、井伊の赤備えは東の林に潜んでおりましょう', 3.6);
     rt.after(2.5, () => this.toStep(rt, 1));
   },
 
@@ -569,73 +553,59 @@ const k16_secret = {
     }
   },
 
-  // 家康討死から締めまで（docs/if_final_genna.md 最終局面）：馬印が倒れ「内府、討死！」→ 秀忠が「まだ終わらぬ」と踏みとどまる →
-  //   味方の備が秀忠の陣を囲み、主人公が寄って降伏を勧める → 秀忠が刀を置く → 「天下静謐」→ 身分：足軽が天下人に替わり、戦った地が順に光る
+  // 家康の降伏から締めまで（docs/finale_spec_1109.md・kaito 11/9 夜）：家康が刀を置く → 金扇が下がり、秀忠の陣も止まる →
+  //   主人公は首を取らず終戦を命じる → 敵味方が少しずつ得物を下ろす → 各方面から「戦闘停止！」→ 風と旗だけ → 「勝った……」→ 勝鬨 →
+  //   「天下静謐」→ 主人公の名 → 「天下人」。大きな字はすぐ出さない
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; F.endPhase = 'hide'; F.winT = rt.t;
+    F.ending = true; F.endPhase = 'quiet'; F.winT = rt.t;
     rt.setPhase('end');
     rt.player.u.invuln = true;
-    if (F.ieyasu && F.ieyasu.alive) { F.ieyasu.invuln = false; F.ieyasu.mustLive = false; F.ieyasu.onWound = null; rt.army.damage(F.ieyasu, F.ieyasu.maxHp * 9, rt.player.u, { pierce: true }); }
-    for (const g of F.foes) if (g !== F.hide) this.fall(rt, g);
-    // 家康討死で高虎も退く。床几に座ったまま残して「藤堂も退いた」の声と食い違わせない。
-    if (live(F.takatora)) for (const u of F.takatora.units) if (standing(u)) { u._crouch = false; u.target = null; }
-    if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; }
-    sfx('horagai', 1); rt.after(1, () => sfx('taiko', 1));
-    // 家康の金扇の馬印が倒れる（主の討たれた本陣の印）
-    if (F.uma) { let a = 0; const fallUma = () => { a = Math.min(1, a + 0.08); F.uma.rotation.z = -1.42 * a * a; if (a < 1 && !rt.ended) rt.after(0.05, fallUma); }; rt.after(0.6, fallUma); }
-    // 大きな「徳川家康 討ち取ったり」は共通の victory_flow.js の筆の字が出す（見出しを二つ重ねない。五3）
-    rt.after(1, () => rt.say('使番', '内府、討死！　内府、討死！', 2.8));
-    rt.after(4, () => {
-      if (F.hidetada) F.hidetada._crouch = false;
-      rt.say('徳川秀忠', 'まだ終わらぬ！　旗本、父の陣を守れ！', 3);
-    });
-    // 味方の備が秀忠の陣を三方から囲む（戦わずに輪を作る）
-    rt.after(6.5, () => {
-      const ring = [F.left, F.right, F.aid].filter(live);
-      ring.forEach((g, i) => {
-        const a = -0.9 + i * 0.9, r = 17;
-        g.order = 'attack'; g.anchor = { x: HIDE.x + Math.sin(a) * r, z: HIDE.z + Math.cos(a) * r }; g.seekRange = 0; g.aggro = 0; g.speed = 4;
-      });
-      rt.say(ADV, '秀忠の陣を囲みまする。殿、降伏を勧めなされ', 3);
-    });
-  },
-
-  // 秀忠の声と包囲の下知を聞き、主人公が秀忠に寄ると降伏を勧める
-  kankoku(rt) {
-    const F = rt.flags;
-    if (F.endPhase !== 'hide') return;
-    F.endPhase = 'kankoku';
-    rt.say(nm(rt), '父は死んだ。これ以上、兵を死なせるな', 3);
-    rt.after(3.3, () => rt.say(ADV, '井伊も藤堂も退き申した。毛利・島津・上杉が陣を囲んでおります', 3.2));
-    rt.after(6.8, () => {
-      rt.say('徳川秀忠', '……これまでか', 2.4);
-      // 秀忠が刀を置き、供の者も膝をつく
-      if (live(F.hide)) {
-        F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0;
-        F.hide.fire = false; F.hide.peaceful = true; F.hide.keepMoveOrder = true;
-        // 狙いだけ消しても次の判断で斬り合いを再開する。降った者を双方の攻撃から外す。
-        for (const u of F.hide.units) if (u.alive) {
-          u._crouch = true; u.invuln = true; u.noTarget = true;
-          u.target = null; u.atk = null; u.swing = null; u.bind = null;
-        }
-      }
-    });
-    rt.after(9.4, () => {
-      victoryMoment(rt, '天下静謐');
-      rt.army.celebrate(0);
-      sfx('horagai', 1);
-    });
-    rt.after(12.4, () => this.tenka(rt));
+    stopMusic(2);
+    const ie = F.ieyasu;
+    if (ie && ie.alive) { ie.invuln = true; ie.mustLive = true; ie.noTarget = true; ie.target = null; ie.atk = null; ie.swing = null; }
+    // 家康の金扇の馬印がゆっくり下がる（倒れるのでなく、下ろす）
+    if (F.uma) { let a = 0; const lower = () => { a = Math.min(1, a + 0.04); F.uma.rotation.z = -1.2 * a * a; if (a < 1 && !rt.ended) rt.after(0.05, lower); }; rt.after(1.2, lower); }
+    rt.say('徳川家康', 'この首はくれてやる。だが兵は、国へ帰してやってくれ', 3.4);
+    rt.after(0.6, () => { if (ie && ie.alive) ie._crouch = true; });
+    rt.after(3.8, () => rt.say(nm(rt), '首は要らぬ。戦は、ここで終いだ', 2.8));
+    // 主人公が全軍に終戦を命じる：敵も味方も手を止め、徳川方は膝をつく
+    rt.after(6.8, () => { rt.say(nm(rt), '全軍、槍を下ろせ', 2.4); sfx('horagai', 0.8); this.ceasefire(rt, 0.5); });
+    rt.after(9.4, () => { this.ceasefire(rt, 1); rt.say('使番', '戦闘停止！　戦闘停止！', 2.4); });
+    rt.after(12.2, () => rt.say('島津の使番', '左手、伊達勢も槍を伏せました！　戦闘停止！', 2.8));
+    rt.after(15.2, () => rt.say(ADV, '秀忠公の陣も動きませぬ。……井伊も、藤堂も', 2.8));
+    // 静けさ：しばらく風と旗の音だけ
+    rt.after(18.4, () => { try { setScene({ wind: 1 }); } catch (e) { /* 音が無くても締めは続ける */ } sfx('bell', 0.3); });
+    rt.after(22.6, () => rt.say('足軽', '……勝った、のか', 2.2));
+    rt.after(25.2, () => rt.say('足軽', '勝った……！', 1.8));
+    for (const [t, v] of [[26.6, 0.55], [29.4, 0.8], [32.2, 1]]) rt.after(t, () => { if (rt.ended) return; try { rt.army.celebrate(0); } catch (e) { /* なし */ } sfx('sig_eiei', v); });
+    rt.after(35.5, () => victoryMoment(rt, '天下静謐'));
+    rt.after(38.5, () => this.tenka(rt));
     // ⑤の済み・勝ちの印は締めの後（全部の目標が済むと共通の goalsDoneTick が二秒半で結果へ締め、締めの場面を切る）
-    // 最後の「淀」が光り終わるまで出世の道を残す（開始から八・二八秒）。
-    rt.after(21.5, () => {
+    rt.after(48, () => {
       rt.tracker.main = true;
-      rt.award((t) => { t.main = true; t.special = { label: '徳川家康を討ち取った', pts: 100 }; }, '徳川家康を討ち取った');
+      rt.award((t) => { t.main = true; t.special = { label: '徳川家康を降した', pts: 100 }; }, '徳川家康を降した');
       rt.objDone('s5');
       rt.finish({ scriptedEnd: true }, 4);
     });
+  },
+
+  // 終戦：敵味方の隊の手を止める。k は止める割合（少しずつ得物を下ろす）。徳川方は膝をつく
+  ceasefire(rt, k = 1) {
+    const F = rt.flags;
+    for (const g of rt.army.groups || []) {
+      if (g.isPlayerSquad && k < 1) continue;
+      g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.peaceful = true; g.keepMoveOrder = true;
+      if (g.team === 1) g.noRout = true;
+      g.units.forEach((u, i) => {
+        if (!u.alive || u === rt.player.u) return;
+        if (k < 1 && (i % 2)) return;
+        u.target = null; u.atk = null; u.swing = null; u.bind = null;
+        if (g.team === 1) { u.noTarget = true; u.invuln = true; if (u.name !== '徳川家康') u._crouch = (i % 3) !== 0; }
+      });
+    }
+    F.cease = k;
   },
 
   // 締めの場面：「身分：足軽」が消えて「身分：天下人」へ。その下で今まで戦った地が順に光る（docs/if_final_genna.md「最後の画面・最後の演出」）
@@ -659,7 +629,7 @@ const k16_secret = {
       @keyframes tkOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-6px); } }
       @keyframes tkIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
       @keyframes tkOn { to { color: #2a1c08; background: #e3c675; border-color: #fff3c4; box-shadow: 0 0 10px rgba(240,200,110,.6); } }
-    </style><div class="mibun"><span class="old">身分：足軽</span><span class="new">身分：天下人</span></div>
+    </style><div class="tk-name" style="font:700 30px/1.2 serif;letter-spacing:.2em;color:#ece4d2;text-shadow:0 2px 4px #000;${an('tkIn', 0.4, 1.2)}">${esc(nm(rt))}</div><div class="mibun"><span class="old">身分：足軽</span><span class="new">身分：天下人</span></div>
     <ol>${PLACES.map((p, i) => `<li class="on" style="${an('tkOn', 3.4 + i * 0.28, 0.4)}">${p}</li>`).join('')}</ol>`;
     document.body.appendChild(el);
     rt.flags.endEl = el;
@@ -684,9 +654,9 @@ const k16_secret = {
 
   update(rt, dt) {
     const F = rt.flags;
-    if (F.endPhase === 'hide') {
-      // 遠くで降伏の場面を始めず、秀忠の姿が見える間合いまで本人が寄る。
-      if (rt.t - F.winT >= 7 && F.hidetada && dist(F.hidetada.pos, rt.player.u.pos) < 6) this.kankoku(rt);
+    if (F.endPhase === 'quiet') {
+      // 止んだ後に寄って来る者がいても、もう斬り合わせない（止めた後に湧く狙いを毎回消す）
+      if (F.cease >= 1 && (F.ceT = (F.ceT || 0) - dt) <= 0) { F.ceT = 1; this.ceasefire(rt, 1); }
       return;
     }
     // 家康は床几の辺り（幕の真ん中）から離れない：奥の幕際へ下がって近習の列の陰に隠れない・幕の外へ出ない（11/8 描いて遊んだ）
@@ -714,24 +684,21 @@ const k16_secret = {
     if (F.step === 5) {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
       const ie = F.ieyasu;
-      // 途中から再開すると会話済みの時刻だけが戻り、十秒後の約束は残らない。
-      // 会話済みなら立ち上がりと討てる状態も戻す（不死身のまま詰まらせない）。
-      if (F.talk && ie && ie.alive) {
-        ie._crouch = false;
-        if (rt.t - F.talk >= 10) { ie.invuln = false; ie.mustLive = false; ie.onWound = null; }
-      }
-      // 立った家康は陣幕の内から出ない（太刀を抜いても幕の裏の野へ歩き出さない。11/8 描いて遊んだ：幕の外へ出て口から届かなくなった）
+      // 家康を HP の大将にしない（docs/finale_spec_1109.md）：陣幕の内で家康のもとへ届いた事が勝ち。言葉を交わし終えると家康が刀を置く
+      if (F.talk && ie && ie.alive && rt.t - F.talk >= 9.6) { this.win(rt); return; }
       if (!F.talk && ie && ie.alive && inCamp(P.pos) && dist(ie.pos, P.pos) < 13) {
         F.talk = rt.t; F.engagedT = rt.t; ie._crouch = false;
+        // 近習も手を止める（言葉の間に本人を斬らせない）
+        if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u !== ie) { u.target = null; u.atk = null; u.swing = null; }
+        rt.player.u.invuln = true;
         rt.say('徳川家康', '信長公も、秀吉公も、天下を取った。だが天下とは、取るものではない', 3.4);
         rt.after(3.6, () => rt.say('徳川家康', '治めるものよ', 2));
-        rt.after(5.8, () => rt.say(nm(rt), 'ならば、俺が治める', 2));
-        rt.after(8, () => rt.say('徳川家康', '……そうか', 2));
-        rt.after(10, () => { if (ie.alive && !F.ending) { ie.invuln = false; ie.mustLive = false; ie.onWound = null; } });
+        rt.after(5.8, () => rt.say(nm(rt), 'ならば、俺が戦を終わらせる。もう誰も死なせぬ', 2.6));
+        rt.after(8.6, () => rt.say('徳川家康', '……そうか', 1.8));
       }
       if (live(F.hon)) { F.hon.noRout = true; F.hon.morale = Math.max(F.hon.morale, 60); }
       if (F.ieyasu && !F.ieyasu.alive) { this.win(rt); return; }
-      if (left <= 0) this.lose(rt, '家康を討ち漏らした', '刻限のうちに家康に届かず、徳川の軍勢が持ち直した');
+      if (left <= 0 && !F.talk) this.lose(rt, '家康に届かなんだ', '刻限のうちに家康の本陣へ届かず、徳川の軍勢が持ち直した');
       return;
     }
     const g = F.stepG;
@@ -773,15 +740,9 @@ const k16_secret = {
   },
 
   // bot：近い敵を突き、いなければ段の行き先へ
-  botDuringEnding: (b) => b.flags.endPhase === 'hide',
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     inp.quickCmd = null;
-    if (F.endPhase === 'hide' && F.hidetada && u.alive) {
-      // 幕の内から秀忠へ直進すると東の布に突き当たる。南の口から出て幕の東側を回る。
-      const t = hideRoute(u.pos, { x: F.hidetada.pos.x, z: F.hidetada.pos.z + 4 });
-      goTo(p, inp, t.x, t.z, 1); return;
-    }
     if (F.holdPlayer || !F.step || F.ending || !u.alive) return;
     // 陣幕の外から幕越しに内の者を狙わない（布の前で止まらない）
     const ok = (o) => standing(o) && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3 && !(o.group && (o.group.order === 'retreat' || o.group === F.takatora || o.group === F.hide)) && inCamp(o.pos) === inCamp(u.pos) &&
@@ -827,15 +788,15 @@ k16_secret.force = (rt) => {
 };
 // bot の跡に家康の段の様子を足す（試し役の report。遊びには出ない）
 k16_secret.botDbg = (b) => { const F = b.flags, u = b.player.u; if (F.step !== 5) return ''; const t = campRoute(u.pos, F.ieyasu?.alive ? F.ieyasu.pos : MOUTH); return `r${t.x.toFixed(0)},${t.z.toFixed(0)}${inCamp(u.pos) ? 'I' : ''}${F.talk ? 'T' : ''}${F.holdPlayer ? 'H' : ''}${b.botRest ? 'R' : ''}${u.moveTo ? 'M' : ''}`; };
-k16_secret.ownEnding = true;   // 内府討死・秀忠降伏・天下静謐は win/kankoku/tenka が流す（castle_fall_data の落城の流れと重ねない）
+k16_secret.ownEnding = true;   // 家康の降伏・戦の止み・天下静謐は win/tenka が流す（castle_fall_data の落城の流れと重ねない）
 k16_secret.winWord = '天下静謐';
-k16_secret.victoryCaption = '秀忠が刀を置き、戦が終わった';   // 勝ちの札は「勝利」でなく天下静謐（docs/if_final_genna.md 戦闘終了）
+k16_secret.victoryCaption = '家康が刀を置き、戦が終わった';   // 勝ちの札は「勝利」でなく天下静謐（docs/if_final_genna.md 戦闘終了）
 k16_secret.sides = { a: { name: '自分の軍', mon: 'maru' }, b: { name: '徳川軍', mon: 'tokugawa' } };
 // 時刻は始まりの札と同じ「朝」で通す（光も同じ一つ。途中で昼に言い替えない。二2）
 k16_secret.date = () => '元和元年（1615）五月末　夏・晴・朝　もしもの戦';
 k16_secret.canSkip = (rt) => (!rt.flags.step && rt.t > 3 ? '采配を振るまで待つ' : '');
 k16_secret.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
-k16_secret.history = 'この戦は史実ではない、もしもの戦「元和天下返し」の最後の戦である。元和元年（1615）五月、大坂夏の陣で豊臣家は滅び、徳川家康は天下の主となった。家康は翌年に世を去り、征夷大将軍の位は慶長十年（1605）からすでに子の秀忠が継いでいた。徳川の世は、この後二百六十年ほど続く。\n淀は桂川・宇治川・木津川が寄り合う所で、秀吉が淀川の左岸に築いた堤の上を、伏見と大坂を結ぶ京街道が通っていた。東には巨椋池が広がっていた。\n大坂の落城を生き延びた明石全登、関ヶ原で領地を削られた毛利・島津・上杉、長宗我部盛親が主人公の呼びかけに応じ、淀の野で家康を討ち、秀忠を降して主人公が天下人になる筋は、足軽から出世してきた道の締めとして作った物語である。徳川方の五重の構え（先手・横槍・鉄砲・旗本・本陣）と、本陣へ切り込む流れは、夏の陣の天王寺口で真田信繁が先手を割って家康の本陣に迫った戦いを手本にした。';
+k16_secret.history = 'この戦は史実ではない、もしもの戦「元和天下返し」の最後の戦である。元和元年（1615）五月、大坂夏の陣で豊臣家は滅び、徳川家康は天下の主となった。家康は翌年に世を去り、征夷大将軍の位は慶長十年（1605）からすでに子の秀忠が継いでいた。徳川の世は、この後二百六十年ほど続く。\n淀は桂川・宇治川・木津川が寄り合う所で、秀吉が淀川の左岸に築いた堤の上を、伏見と大坂を結ぶ京街道が通っていた。東には巨椋池が広がっていた。\n大坂の落城を生き延びた明石全登、関ヶ原で領地を削られた毛利・島津・上杉、長宗我部盛親が主人公の呼びかけに応じ、淀の野で家康の本陣へ届き、家康が刀を置いて主人公が天下人になる筋は、足軽から出世してきた道の締めとして作った物語である。徳川方の五重の構え（先手・横槍・鉄砲・旗本・本陣）と、本陣へ切り込む流れは、夏の陣の天王寺口で真田信繁が先手を割って家康の本陣に迫った戦いを手本にした。';
 k16_secret.bushou = [{ name: '徳川家康', g: /家康/ }, { name: '井伊直孝', g: /井伊/ }, { name: '渡辺勘兵衛', g: /藤堂の先手|勘兵衛/ }, { name: '本多正純', g: /本多/ }, { name: '藤堂高虎', g: /高虎/ }, { name: '徳川秀忠', g: /秀忠/ }];
 
 const st = (k) => (rt) => (rt.flags.step || 0) >= k;

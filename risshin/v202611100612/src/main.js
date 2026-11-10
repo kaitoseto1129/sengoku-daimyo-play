@@ -1719,7 +1719,14 @@ TIPS_BATTLE_BY.nobunaga_hoi = ['殿は勝つ戦ではなく退く戦。備を離
 TIPS_BATTLE_BY.sekigahara = ['霧の中では藤堂の旗から離れるな。小早川が動いたら大谷勢を押し、島津の殿を崩せ'];
 TIPS_BATTLE_BY.osaka = ['篠山の頂から真田丸の外の柵の前へ寄せ、柵を破る組と柵を倒す。退きの下知の後は、篠山の北の麓で真田大助の隊を食い止める', '霧の中は水野の旗から離れるな。又兵衛の駆け下りは槍を揃えて受けよ。薄田の新手は瀬で止め、石川は渡るな'];
 // 徳川編の秘密の戦（淀の野）は国持大名の総大将なので、上役の下知の決まりの札にしない（三1：場所と行いだけ）
-(TIPS_BATTLE_BY.tokugawa ||= {}).k16_secret = '旗本を連れて京街道の土手を北へ押し、陣幕の口から入って床几の家康を討つ';
+(TIPS_BATTLE_BY.tokugawa ||= {}).k16_secret = '旗本を連れて京街道の土手を北へ押し、陣幕の口から入って床几の家康のもとへ届き、戦を終わらせる';
+// 終幕（静かな城下・docs/finale_spec_1109.md）：戦は無い。字は少なく
+TIPS_BATTLE_BY.tokugawa.k17_shuumaku = '城下を歩き、古い具足と槍に触れ、寺の墓に手を合わせ、丘から城下を見る';
+(STORY_BY.tokugawa ||= {}).k17_shuumaku = (G) => ({ year: '数年後　春', title: '静かな城下', text: [
+  '淀の野から、数年が過ぎた。',
+  '市には商人の声がし、子どもが通りを走る。もう誰も、戦の支度をしていない。',
+  `白髪の${G.name}は、具足を脱ぎ、城下を歩く。`,
+], button: '城下を歩く' });
 // 河田・米野：戦の中身（川を渡って米野と新加納を破る）と合う札と話（「下知を待て」の決まりの札にしない。11/6 kaito の目）
 TIPS_BATTLE_BY.tokugawa.k02_kawada = '河田の浅瀬で木曽川の二筋を渡り、北岸の柵の木造勢を退かせ、米野村と新加納の砦の織田勢を破る';
 (STORY_BY.tokugawa ||= {}).k02_kawada = (G) => ({ year: '慶長五年（1600）八月二十二日　尾張・河田', title: '河田の渡し', text: [
@@ -2482,6 +2489,8 @@ const game = {
 
   endBattle(b, replayed = false) {
     clearCheckpoint(b);   // 戦が終わったら途中の保存は要らない
+    // 終幕（静かな城下・b_k17_shuumaku.js）は戦の結果の札を出さない。暗転と「戦国立身」の後、そのまま戻る（bot は結果を読むので通す）
+    if (b.def.lifeEnd && !/[?&]bot/.test(location.search)) { this.stopBattle(); return this.leaveBattle(); }
     // 勝った戦は結果の前に、真上から見た点の地図で戦の流れを十秒ほど振り返る（replay_map.js。kaito 11/3）。触れば飛ばせる
     if (!replayed && this.replayFirst(b)) return;
     if (!b.def.mapCastle) rememberWounds(this.G, b.player.u, b.def);
@@ -2684,7 +2693,10 @@ const game = {
     const won = r.mainDone && !r.downInfo;
     if (G.practice) {
       const backTo = this.trialReturn;
-      if (won && (backTo === 'hub' || backTo === 'samurai')) actions.push({ label: '次の戦へ', primary: true, fn: () => this.nextFromResult(i) });
+      // 最終章（docs/finale_spec_1109.md）：天王寺・岡山の後は史実の終わりへ、淀の野の後は数年後の城下へ（次の戦の代わり）
+      const fin = won && { k15_tennoji_okayama: ['史実の終わりへ', () => import('./finale.js').then((m) => m.historyEndScreen({ ...G, mainSave: readProgress(S.slot).game }, { onIF: () => this.startAsSamurai('tokugawa', 'k16_secret'), onHome: () => this.leaveBattle() }))], k16_secret: ['数年後へ', () => this.startAsSamurai('tokugawa', 'k17_shuumaku')] }[BATTLES[i].id];
+      if (fin) actions.push({ label: fin[0], primary: true, fn: fin[1] });
+      else if (won && (backTo === 'hub' || backTo === 'samurai')) actions.push({ label: '次の戦へ', primary: true, fn: () => this.nextFromResult(i) });
       actions.push(retry);
       actions.push({ label: '戦の一覧へ戻る', home: true, primary: !won, fn: () => (backTo ? this.backToHub() : this.title()) });
     } else if (i === 0 && (scenarioKey() === 'oda' ? !r.mainDone : G.rank === 0)) {

@@ -2,6 +2,8 @@
 // 徳川編の15戦（TOKUGAWA_PLAN の k01〜k15）にすべて勝つと開く。勝った戦の id は保存（state.js）と別の鍵に覚える。
 // 開発と確かめは URL に ?secret を付けると開く。
 import { TOKUGAWA_PLAN } from './tokugawa_plan.js';
+// 史実の終わりを見た印（finale.js が書く。重い画面の作りを読み込まないよう、ここでは鍵だけ読む）
+const histEndSeen = () => { try { return localStorage.getItem('risshin_hist_end') === '1'; } catch (e) { return false; } };
 
 export const SECRET_ID = 'k16_secret';
 const KEY = 'risshin_toku_won';
@@ -20,6 +22,8 @@ export function markTokuWon(id) {
 // otherLeft：織田家編・豊臣編のまだ勝っていない戦の数（hub が数える。三つの編すべてに勝つと開く。kaito 11/8）
 export function secretOpen(otherLeft = 0) {
   if (typeof location !== 'undefined' && /[?&]secret\b/.test(location.search)) return true;
+  // 最終章（kaito 11/9 夜・docs/finale_spec_1109.md）：天王寺・岡山に勝って史実の終わりを見た後の「もし、ここで終わらなかったなら」で開く
+  if (histEndSeen()) return true;
   const won = new Set(tokuWon().map((id) => id.slice(0, 3)));
   return otherLeft <= 0 && TOKUGAWA_PLAN.every((p) => won.has(p.id.slice(0, 3)));
 }
