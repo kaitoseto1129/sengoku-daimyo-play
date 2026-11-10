@@ -1311,6 +1311,14 @@ function nodaOpenSeirou(rt, x, z, name) {
 }
 // 梯子を登り切って床に立った時だけ。登降中は床の高さを通っても到着にしない。
 function onTower(u, t) { return !u.climb && Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
+// 自動操作も実際の照準を狙い直す。反動を戻さないと三発目以降が砦の上空へ外れ続ける。
+function seirouAim(p, camera, x, y, z) {
+  p.yaw = Math.atan2(x - p.u.pos.x, z - p.u.pos.z);
+  camera.getWorldDirection(p.rangedDir);
+  const want = Math.atan2(y - camera.position.y, Math.hypot(x - camera.position.x, z - camera.position.z));
+  const view = Math.atan2(p.rangedDir.y, Math.hypot(p.rangedDir.x, p.rangedDir.z));
+  p.pitch = Math.max(-0.5, Math.min(0.55, p.pitch + want - view));
+}
 // 仮の的への平面の線ではなく、実際に放った弾の向きと高さで調べる。
 // 砦の上空へ外した弾や、手前の地面へ落ちる弾を三度の撃ち込みに数えない。
 function seirouShotIntoFort(rt, shot) {
@@ -2243,7 +2251,8 @@ function nodaMoatWater(rt, acc) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(acc.pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(acc.uv, 2));
   geo.setIndex(acc.idx); geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, transparent: true, opacity: 0.92, envMapIntensity: 0.6 });
+  const mat = rippleWater(new THREE.MeshStandardMaterial({ color: 0x2c3a36, roughness: 0.2, metalness: 0, envMapIntensity: 0.6 }),
+    0.9, -0.3, 2, new THREE.Color(0x56544a), false, null, null, false, true);
   const mesh = new THREE.Mesh(geo, mat); mesh.name = '堀の水'; mesh.receiveShadow = true;
   rt.scene.add(mesh);
   const dispose = rt.dispose;
@@ -4590,7 +4599,7 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
         if (d < best) { best = d; foe = o; }
       }
       const tx = foe ? foe.pos.x : 0, tz = foe ? foe.pos.z : FORT_Z - 12;
-      p.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
+      seirouAim(p, b.camera, tx, (foe ? foe.pos.y : b.world.heightAt(tx, tz)) + 1.2, tz);
       if (p.gunLoaded && !p.shot && !(b._ndShot > b.t)) { b._ndShot = b.t + 0.6; inp.leftPressed = true; }
       return;
     }

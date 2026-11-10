@@ -1544,6 +1544,8 @@ const arioka = {
     post.x = at.x; post.z = at.z;
     const way = gateWay(rt.army, rt.player.u, post);
     pin.x = way.x; pin.z = way.z;
+    // 共通の印へ現在の地名を渡す。長い任務文からの推測では、焼け跡や奥の木戸も「辻」になってしまう。
+    pin.label = ariPlaceName(rt, stage);
     pin.route = way !== post; pin.unit = null; pin.enemy = false;
     pin.waiting = !pin.route && (stage === 0 || stage === 3);
     pin.r = pin.hide = pin.route ? .5 : stage === 3 ? C?.botRadius || 16 : 3;

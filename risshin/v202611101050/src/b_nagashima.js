@@ -32,7 +32,7 @@ import { depthStart, depthTick, depthBot, rest as dpRest, hold as dpHold } from 
 import { install as ngMonomi } from './nagashima/monomi.js';   // 0〜3分：堤から見る輪中と砦
 import { steps as fusaSteps, lastSteps } from './nagashima/fusa.js';      // 6〜11分：川の封鎖・砦から逃げ出す門徒
 import { STAGES } from './stages.js';
-import { advanceSteps, ADV_MISSIONS, ADV_CP, ADV_POINTS } from './nagashima/advance.js';   // 11/10 作り直し：堤→砦→水路→在所→囲み→突破
+import { advanceSteps, ADV_MISSIONS, ADV_CP, ADV_POINTS, fortWay } from './nagashima/advance.js';   // 11/10 作り直し：堤→砦→水路→在所→囲み→突破
 import { depthPlan as nagashimaDepth } from './nagashima/fujin.js';   // 布陣図の陣立て（docs/fujin/nagashima.md）
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
@@ -2179,7 +2179,7 @@ const nagashima = {
       return q;
     }
     if (F.advEnding) { const at = !F.advSaid && F.advWalk; if (!at) return null; q.x = at.x; q.z = at.z; q.r = q.hide = 3.5; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 3.5; return q; }
-    { const at = F.ngMonomi || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { q.x = at.x; q.z = at.z; q.r = q.hide = 4; q.label = this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 4; return q; } }
+    { const at = F.ngMonomi || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { const next = F.adv ? fortWay(rt.player.u, at) : at; q.x = next.x; q.z = next.z; q.r = q.hide = next.botRadius ?? 4; q.label = next !== at ? '堤の砦の木戸' : this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - next.x, p.z - next.z) < q.r; return q; } }
     const stage = this.taskOf(rt);
     let spot = null;
     if (dangerProgress(rt)) { q.x = 24; q.z = BANK_Z + 16; q.r = q.hide = 3; return q; }
@@ -3614,7 +3614,7 @@ const nagashima = {
       if (k0 >= 6) E.fleetIn(rt, true);
       if (k0 >= 8) E.flagLanding(rt, true);
     }
-    depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.15, dmg: 0.7, calmRest: false,
+    depthStart(rt, { routeFight: true, faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.15, dmg: 0.7, calmRest: false,
       look: (l) => dress(l, IKKO), friends: (r) => [F.advFront, F.advGuns, ...(r.squadGroups || [])].filter((g) => g && g.count && !g.routed) }, steps.slice(k0), () => this.advEnd(rt));
     // 段の番号は始めた段から数える（ADV_CP は全体の番号）
     F.advBase = k0;
@@ -4872,7 +4872,18 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (F.ngMonomi) { goTo(p, inp, F.ngMonomi.x, F.ngMonomi.z, 2); return; }
   if (F.advEnding) { inp.guardHold = false; if (F.advWalk && !F.advSaid) goTo(p, inp, F.advWalk.x, F.advWalk.z, 2); return; }
   if (F.adv && !(F.dp && F.dp.on)) return;
-  if (F.dpOn && F.dp?.on) { depthBot(b, inp, goTo); return; }
+  if (F.dpOn && F.dp?.on) {
+    if (!F.adv) { depthBot(b, inp, goTo); return; }
+    // 木戸まで残り四歩で止めず、中央を抜けてから元の行き先へ進む。
+    const goal = F.advBotGoal || (F.advBotGoal = { x: 0, z: 0 });
+    const routedGoTo = F.advGoTo || (F.advGoTo = (player, input, x, z, radius) => {
+      goal.x = x; goal.z = z;
+      const next = fortWay(player.u, goal);
+      goTo(player, input, next.x, next.z, next === goal ? radius : next.botRadius);
+    });
+    depthBot(b, inp, routedGoTo);
+    return;
+  }
   if (F.ending) {
     inp.guardHold = false; inp.runHeld = false;
     const spot = AFTERMATH_SPOTS[F.aftermathChecked];
