@@ -1466,6 +1466,17 @@ takato.setup = function (rt) {
   };
   const bark = rt.bark;
   rt.bark = function (text, warn) { return bark.call(this, takatoAssaultVoice(this, text), warn); };
+  // 11/10 クラウドの流し（携帯の bot）：大手門の前で、塀の上の鉄砲に二十秒で五発（百五の傷）当たって倒れた。
+  //   一発目は今のまま怖く、続けて当たる弾（前の弾から五秒の内）は三分の一の傷にする（狙いと音・煙は変えない）
+  const damage = rt.army.damage;
+  rt.army.damage = function (target, amount, source, options) {
+    if (target === rt.player.u && source && (source.type === 'gun' || source.type === 'bow') && amount > 0) {
+      const F = rt.flags;
+      if (F.tkShotAt != null && rt.t - F.tkShotAt < 5) amount *= 0.34;
+      F.tkShotAt = rt.t;
+    }
+    return damage.call(this, target, amount, source, options);
+  };
   installTakatoGoals(rt);
   // 11/1：雪と土の平場が日なたで白く飛んでいた。元は地面の色でなく、この戦の光の強さ。
   // 日差し・空の照り返し・露出をこの戦だけ下げ、残雪と踏んだ泥の斑が読める明るさにする。
