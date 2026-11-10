@@ -1517,7 +1517,7 @@ const arioka = {
     // 11/9 iPhone 874×402：右上の札が「1　①上臈塚の…」と番号を二重に出した。番号は札（hud_goals）が付ける
     return ARI_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: ariPlaceName(rt, k), action: text,
       // 期限は各段で下知とともに扱う。長い④の途中や官兵衛を待つ間に、札だけを失敗にしない。
-      place: k < 4 ? () => currentPlace(k) : () => rt.flags.kanbeAt || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
+      place: k < 4 ? () => currentPlace(k) : () => rt.flags.kanbeAt || (rt.flags.kanbePending ? rt.flags.kanbeMeet : null) || null, check: k < 4 ? at(k) : () => won() || !!rt.flags.kanbeMet }));
   },
   missionHeading(rt) {
     if (rt.flags.ending && !rt.flags.kanbePending && !rt.tracker.main) return '退き太鼓。木戸の外へ退け';
@@ -1533,11 +1533,11 @@ const arioka = {
   // 行き先の▼は目標の場所に一つだけ（①木戸の外の竹束 ②木戸の内 ③④辻 ⑤官兵衛）。一人の敵を行き先にしない（三1）。
   missionPin(rt) {
     const F = rt.flags, C = F.dpOn && F.dp?.cur;
-    if (rt.over || !rt.player.u.alive || F.ending && (!F.kanbePending || !F.kanbeAt)) return null;
+    if (rt.over || !rt.player.u.alive || F.ending && !F.kanbePending) return null;
     const pin = F.ariMissionPin || (F.ariMissionPin = { x: 0, z: 0, r: 3, hide: 3 });
     const stage = this.missionOf(rt);
     const post = F.ariMissionPost || (F.ariMissionPost = { x: 0, z: 0 });
-    const at = stage === 4 ? F.kanbeAt : stage === 0 ? AR_OPEN.pin(rt, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z } : stage === 1 ? C?.at || { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
+    const at = stage === 4 ? F.kanbeAt || F.kanbeMeet || ARI_JUNCTION : stage === 0 ? AR_OPEN.pin(rt, ariOpenCtx()) || { x: GATE.x - 30, z: GATE.z } : stage === 1 ? C?.at || { x: GATE.x + 12, z: GATE.z } : C?.at || ARI_JUNCTION;
     post.x = at.x; post.z = at.z;
     const way = gateWay(rt.army, rt.player.u, post);
     pin.x = way.x; pin.z = way.z;
@@ -2668,6 +2668,10 @@ const arioka = {
     rt.obj('main', ARI_GOALS[4], 'main', true);
     // 辻を守っただけでは主任務を果たしていない。官兵衛を実際に迎えるまで待つ。
     F.kanbePending = true;
+    // 登場を待つ五秒間も⑤の行き先を切らさない。迎える通りを先に決め、二人も同じ場所へ来る。
+    const onRoad = F.dpU && Math.abs(rt.player.u.pos.x - TOWN_X) < 6 && rt.player.u.pos.z < ARI_JUNCTION.z - 30;
+    F.kanbeMeet = onRoad ? { x: TOWN_X, z: rt.player.u.pos.z } : ARI_JUNCTION;
+    rt.hud?.root?.classList.add('arioka-kanbe');
     sfx('sig_atsumare', 0.6);
     rt.banner('侍町の辻を守り抜いた', '荒木勢は本丸へ退いた。侍町は焼け落ちる');
     rt.say('滝川一益', `${nm(rt)}、辻を守った手柄、忘れぬ。栗山善助が城の牢へ走った`, 4);
@@ -2691,11 +2695,8 @@ const arioka = {
       // 奥の木戸まで進んだ後も、二人は安全な辻で迎える。本人の現在地へ
       // 直進させると、町屋を横切って詰まり、⑤を終えられなくなる。
       // 奥の木戸（辻の北の真っすぐな通り x=TOWN_X の上）にいる時は、同じ通りの南から二人が歩いて来る（町屋を横切らない。11/8 bot：辻まで戻れず時間切れ）
-      const onRoad = F.dpU && Math.abs(rt.player.u.pos.x - TOWN_X) < 6 && rt.player.u.pos.z < ARI_JUNCTION.z - 30;
-      const me = onRoad ? { x: TOWN_X, z: rt.player.u.pos.z } : ARI_JUNCTION, at = onRoad ? { x: TOWN_X + 0.5, z: me.z + 24 } : { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
+      const me = F.kanbeMeet, at = onRoad ? { x: TOWN_X + 0.5, z: me.z + 24 } : { x: ARI_JUNCTION.x + 1, z: ARI_JUNCTION.z - 22 };
       const ul = Math.hypot(at.x - me.x, at.z - me.z) || 1, ux = (at.x - me.x) / ul, uz = (at.z - me.z) / ul;
-      // 勝ちの後は共通の札が毎コマ「終わり」の印で行き先の▼を隠す。⑤の間だけ有岡の印で戻す。
-      rt.hud?.root?.classList.add('arioka-kanbe');
       // 一年の牢から出た身。具足は着せず、くすんだ小袖に無帽（甲冑の武将の姿にしない）。
       const kg = evPerson(rt, 0, '小寺官兵衛', at, -Math.PI / 2, { calm: true, type: 'porter', u: { kosode: 1, kosodeCol: 0x4a4236, obi: 0x2a231c, hat: 'none', flag: null, horse: false } });
       const sg = evPerson(rt, 0, '栗山善助', { x: at.x + 1.6, z: at.z + 1.4 }, -Math.PI / 2, { calm: true, type: 'samurai', u: { horse: false } });   // 11/6 描いて遊ぶ：善助が白い馬に乗って来た。肩を貸して歩く徒にする

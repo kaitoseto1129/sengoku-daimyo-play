@@ -4397,6 +4397,9 @@ function kgHold(line, dur, waves, ambush = false) {
     // 共通の七分制限へ延ばさない。追手が届く猶予八十秒と、接触後の守備一倍半を確保する。
     // 接触しないまま期限を迎えた場合は end で任務失敗にし、次の退く下知へ進める。
     limit: line === 2 ? dur + RETREAT_T : 80 + dur * 1.5,
+    // 共通の四分打ち切りで、接敵待ちを含むこの段の期限を縮めない。
+    // 本人が戦っていない場合も、下の tick で期限を必ず判定する。
+    noHardCap: true,
     // 旗で守る待機を放置と扱わず、備ごとの守備時間と退去の判定で締める。
     // 共通の放置処理で味方を攻め出させたり、三の備を途中で打ち切ったりしない。
     idleAdvance: false,
@@ -4477,7 +4480,7 @@ function kgHold(line, dur, waves, ambush = false) {
       }
       rt.objProgress('dp', away ? `${L.mark}の旗へ戻れ。備を離れるな` : line === 2 && (rt.flags.prog || 0) < RETREAT_T ? rt.flags.breachT > 0 ? '追手が味方に迫る。退き道を守れ' : rt.flags.kino.count < rt.flags.kino.initial * 0.45 ? '殿が崩れかけている。旗のそばで槍をそろえよ' : '味方が山道を退いている。最後の列まで守れ' : '主力は退いている。槍列で追手を止めよ');
       // 退去が遅れ続けても、この段自身の期限で撤退へ進む。
-      if (line === 2 && el >= dur + RETREAT_T && (rt.flags.prog || 0) < RETREAT_T) { m.kgFailed = true; return true; }
+      if (el >= (line === 2 ? dur + RETREAT_T : 80 + dur * 1.5)) { m.kgFailed = true; return true; }
       // 接触前の待ち時間で守備を済ませない。寄せを退けた後も、接触後の秒が一倍半を越えたら退く。
       return contacted && kgAidReady(rt, line) && (C.fightT >= dur || C.contactT >= dur * 1.5) && (line !== 2 || (rt.flags.prog || 0) >= RETREAT_T);
     },

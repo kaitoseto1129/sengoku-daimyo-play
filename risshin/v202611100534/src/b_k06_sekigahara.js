@@ -63,6 +63,7 @@ const SAKON = p(-148, -64);       // 島左近の隊（笹尾山の麓の柵）
 const FENCE_X = SAKON.x + 16;     // 笹尾山の麓の柵（南北の線）
 const FENCE = [[FENCE_X, -206], [FENCE_X - 2, -182], [FENCE_X, -160], [FENCE_X + 3, -136]];
 const GAP = { x: FENCE_X - 1, z: -171 };   // 柵の口（虎口）
+const GAP_HALF = 5.5;   // wallLine の gaps [5, 6]：開口は z=-176.5〜-165.5。脇の柵を壊して通っても虎口には数えない。
 const SAKON_FRONT = { x: FENCE_X + 14, z: -170 };   // 左近が打って出る野の持ち場
 const SASAO = p(-166, -79);       // 石田三成の本陣（笹尾山）
 const KURODA = p(-84, -88);       // 黒田長政（岡山の烽火場の麓）
@@ -304,10 +305,10 @@ const k06_sekigahara = {
     const climbing = s === 8 && !F.mitsuGate && nAt(SASAO, F.mitsu2, F.mitsu3) <= Math.round(F.mitN * 0.2);
     // 必要な数を押し返した後は藤下へ。遠くの残兵を指し続けると、完了に必要な先手の陣前へ戻れない。
     const pushed = s === 5 && F.wave2b && nOf(F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) <= Math.round(F.akaN * 0.4);
-    // 虎口の横断判定は南北八歩の内。斜めから十二歩の輪へ入っただけでは、まだ柵の内へ向けない。
+    // 実際の開口の幅に揃える。斜めから十二歩の輪へ入っただけでは、まだ柵の内へ向けない。
     // 口から押し出された時も手前へ案内し直し、横断を果たせないまま内側の印で止まるのを防ぐ。
     // 横断済みで柵の内にいる間は、横へ動いても外へ案内し直さない。
-    if (s === 7 && F.sakBack) F.gapAt = (!!F.crossed && P.x < FENCE_X - 1) || (Math.abs(P.z - GAP.z) < 6 && (near(P, GAP, 12) || !!F.gapAt));
+    if (s === 7 && F.sakBack) F.gapAt = (!!F.crossed && P.x < FENCE_X - 1) || (Math.abs(P.z - GAP.z) < GAP_HALF && (near(P, GAP, 12) || !!F.gapAt));
     const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s <= 5 ? (pushed ? UKITA_F : front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4)) : s === 6 ? lead(F.kuroda, KURODA)
       : s === 7 ? (!F.sakonSeen ? lead(F.sakon, SAKON) : !F.sakBack ? front(P, SAKON, F.sakon, F.shima3, F.ishida3) : F.gapAt ? { x: GAP.x - 12, z: GAP.z } : { x: GAP.x + 8, z: GAP.z }) : s === 8 ? (climbing ? SASAO : front(P, SASAO, F.mitsu2, F.mitsu3)) : HOLD5;
     // ⑧で柵の外（東）へ戻ってしまった時は、まず柵の口へ導く（11/8 流し：柵に向かって真っ直ぐ押し、九分立ち往生した）
@@ -744,7 +745,7 @@ const k06_sekigahara = {
       if (F.prevSakonX >= FENCE_X - 1 && P.x < FENCE_X - 1) {
         const k = (F.prevSakonX - (FENCE_X - 1)) / (F.prevSakonX - P.x);
         const z = F.prevSakonZ + (P.z - F.prevSakonZ) * k;
-        if (Math.abs(z - GAP.z) < 8) F.crossed = true;
+        if (Math.abs(z - GAP.z) < GAP_HALF) F.crossed = true;
       }
       F.prevSakonX = P.x; F.prevSakonZ = P.z;
       const left = nOf(F.sakon);

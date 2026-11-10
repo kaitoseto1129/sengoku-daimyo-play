@@ -84,7 +84,7 @@ function done(rt) {
 
 export function tick(rt) {
   const F = rt.flags, v = F.s15;
-  if (v.hakobiDone || rt.over) return;
+  if (v.hakobiDone || rt.over || F.ending || !ready(rt.player.u)) return;
   // 倒れた人足や、荷を届けた人足を追い続けて物見が止まらないようにする。
   if (v.raid && !v.raid.routed && v.raid.units.some(ready)) {
     const target = !v.wkHome && F.wk?.units.find(ready);
@@ -104,6 +104,20 @@ export function tick(rt) {
   if (v.atDock && v.wkAtDock && !v.backT) {
     if (v.loadingT == null) v.loadingT = rt.t;
     if (rt.t - v.loadingT >= 12) back(rt);
+  }
+  // 縦隊が後列待ちで止まったら、残る道を歩き直す。到着や荷下ろしの条件は飛ばさない。
+  const wk = F.wk;
+  if (wk && (v.backT ? !v.wkHome : !v.wkAtDock) && wk.units.some(ready) && rt.t >= (v.walkCheckAt || 0)) {
+    v.walkCheckAt = rt.t + 2;
+    const c = wk.center(), last = v.walkStep;
+    if (!last || Math.hypot(c.x - last.x, c.z - last.z) > 2) v.walkStep = { x: c.x, z: c.z, t: rt.t };
+    else if (rt.t - last.t >= 24 && wk.order === 'path' && wk.path?.length) {
+      // 遅れた人足が南門まで道をたどれるよう、通過済みの曲がり角も消さない。
+      wk.formation = 'column'; wk.colW = 1; wk.roadColumn = true; wk._fitAt = 0;
+      wk.noAI = false; wk.focus = null;
+      for (const u of wk.units) if (ready(u)) u.aiT = 0;
+      last.t = rt.t;
+    }
   }
   // 11/9 bot が始まりで止まった所：物見の残りが柵の外で立ち往生し、荷の護衛が終わらなかった。
   //   人足が戻って四十秒たっても柵の外に残る物見は、荷を諦めて退く（討死にはしない）

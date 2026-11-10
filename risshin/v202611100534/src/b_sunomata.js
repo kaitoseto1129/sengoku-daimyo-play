@@ -5435,7 +5435,7 @@ const sunomata = {
   holdWin(rt) {
     const F = rt.flags;
     // 敵将の討死や夜明けでも、材木の運搬・柵の修理・点検を飛ばして普請完了にしない。
-    if (F.won || F.ending || rt.over || rt.t < F.finishAt || !F.hut.alive || !fortSafe(rt) || !sunomataFinalGoalsDone(F)) return;
+    if (F.won || F.ending || rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.t < F.finishAt || !F.hut.alive || !fortSafe(rt) || !sunomataFinalGoalsDone(F)) return;
     if (!F.woodDelivered || F.buildBusy || !F.finalChecked || F.segs.some((s) => !s.alive)) return;
     // 大将の討死から直接呼ばれても、護衛の目標と最後の安全確認を飛ばさない。
     if (!F.s15?.hakobiDone || F.safeSince == null || rt.t - F.safeSince < 20) return;
