@@ -2736,8 +2736,8 @@ const nodafukushima = {
   coverGuideLabel: '竹束の陰へ',
   compactGunAction: '矢玉だ。竹束か土手の陰へ',
   rangedThreatNeedsShot: true, // 発射予告と飛来中だけ警告し、玉込めの間は堤の任務を読めるようにする。
-  taskLabel(_rt, text) {
-    return text === '詰め陣の守兵へ退け' ? '詰め陣の印へ退け' : text;
+  taskLabel(rt, text) {
+    return text === '詰め陣の守兵へ退け' ? rt.flags.retreatAlt ? '佐久間の列へ退き、合流せよ' : '信長の本陣へ退き、守兵に合流せよ' : text;
   },
   // 遠い砦の柵に射線が当たるだけの野原へ、隠れ場所の輪を出さない。
   // 胸と頭の射線を、三歩以内の実物の竹束が受ける場所だけ案内する。
@@ -2759,7 +2759,7 @@ const nodafukushima = {
   dodgeGestureBelowNotices: true, // 指と説明を任務の下へ収め、空きがなければ方向の印だけ残す。
   // 手傷や息切れで一時下がる案内を、戦場からの撤退の下知と取り違えさせない。
   retreatGuideLabel(rt, reached) {
-    if (rt.flags.retreating) return reached ? '味方のそばで合流を待て' : rt.flags.retreatAlt ? '佐久間の列へ退け' : '詰め陣の印へ退け';
+    if (rt.flags.retreating) return rt.flags.retreatAlt ? reached ? '佐久間の列で合流を待て' : '佐久間の列へ退け' : reached ? '信長の本陣で守兵に合流せよ' : '信長の本陣へ退け';
     const p = rt.player, u = p.u;
     if (u.mobbed || rt.army.playerMobbed) return '囲まれた。味方へ退け';
     if (reached) return '止まって休む';
@@ -2827,7 +2827,7 @@ const nodafukushima = {
   keepWaitOrderLabel: true,
   keepDefendTaskLabel: true,
   waitOrderLabel(rt, reached) {
-    if (rt.flags.retreating) return reached ? '味方のそばで合流を待て' : rt.flags.retreatAlt ? '佐久間の列へ退け' : '詰め陣の印へ退け';
+    if (rt.flags.retreating) return this.retreatGuideLabel(rt, reached);
     // 持ち場に着いた後も、敵の有無・休息・手当てを見た現在の下知を保つ。
     // 待機の共通案内で「構えを解いて休め」を「堤を守れ」へ戻さない。
     if (reached) {

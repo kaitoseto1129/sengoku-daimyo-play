@@ -270,7 +270,8 @@ const k06_sekigahara = {
   date: () => '慶長五年（1600）九月十五日　朝・霧　美濃国 関ヶ原',
   force(rt) {
     const F = rt.flags;
-    const turned = F.flipT ? 15000 + (F.wakiT ? 4000 : 0) : 0;
+    // 下山を始めただけでは所属を替えない。兵数の棒も実際の寝返りの確定に合わせる。
+    const turned = F.turned ? 15000 + (F.wakiT ? 4000 : 0) : 0;
     const k = [0, 0, 0, 0.02, 0.05, 0.05, 0.06, 0.07, 0.3, 0.6, 0.85][F.step || 0] || 0;
     return { a: 74000 + turned - Math.round(74000 * k * 0.12) - (F.ak || 0) * 30, a0: 74000, b: Math.max(0, Math.round((82000 - turned) * (1 - k)) - (F.ek || 0) * 30), b0: 82000 };
   },
@@ -781,7 +782,9 @@ const k06_sekigahara = {
     } else if (F.step === 8) {
       if (F.turned && !F.n8) F.n8 = Math.max(1, nOf(F.otani, F.otaW1, F.otaW2));
       const since = F.flipT ? rt.t - F.flipT : 0;
-      if (F.turned && (since >= 70 && nOf(F.otani, F.otaW1, F.otaW2) <= Math.round(F.n8 * 0.5) || since >= FALL_MAX)) this.otaniFall(rt);
+      // 桃配山などへ離れたまま、寝返りと大谷の最期を見ずに任務が済むのを防ぐ。
+      // 残兵が地形に詰まっても、本人が右翼へ戻れば最長時間の条件で進める。
+      if (F.turned && near(P, RLINE, 80) && (since >= 70 && nOf(F.otani, F.otaW1, F.otaW2) <= Math.round(F.n8 * 0.5) || since >= FALL_MAX)) this.otaniFall(rt);
     } else if (F.step === 9) {
       const left = nOf(F.shingari, F.koniR);
       F.ek = (F.akaN || 0) + (F.c9N || 0) - left;

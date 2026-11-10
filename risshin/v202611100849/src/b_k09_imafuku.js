@@ -290,6 +290,7 @@ const k09_imafuku = {
     F.step = 0; F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
     // ---- 今福の砦：堤をふさぐ四重の柵（史実）・櫓・篝火。外の三重は木戸の弱い柵で、一つずつ破って進む ----
     F.outer = [];
+    const yaraiStart = rt.army.structs.length;
     // 名は史料どおり「矢来」。共通の城攻めは「木戸」も拾うため、noSiegeFeel で落石・破城槌を除外する（八1・十3）。
     //   矢玉は櫓と柵の内の本物の鉄砲・弓が撃つ
     // 柵の線は外（東＝寄せ手の側）が表になる向きに引く。両端は川の深みまで杭を打ち込み、湿地を回り込めない
@@ -309,6 +310,8 @@ const k09_imafuku = {
     F.gate = rt.army.addStruct({ seg: [FORT.x + 12, 3.4, FORT.x + 12, -3.4], nx: 1, nz: 0, hp: 200, maxHp: 200, team: 1, name: '砦の木戸' });
     F.gateMesh = yaraiGate(W, FORT.x + 12, -3.4, 3.4, 3.1); rt.scene.add(F.gateMesh);
     F.gate.mesh = F.gateMesh; F.gate.wing = fortWing; F.gate._shattered = true;
+    // 刀・火矢では破壊の知らせより先に割れの演出が走る。木戸だけでなく袖と外側の矢来も、置く時から木片を出さない。
+    for (let i = yaraiStart; i < rt.army.structs.length; i++) rt.army.structs[i]._shattered = true;
     // 櫓は木戸の両脇の二つだけ（奥の櫓は堤の真ん中だと裏の柵の口の正面をふさいで木村・後藤の隊が砦の裏で詰まり（九2）、
     //   堤の縁へ寄せると砦の中で戦う本人のカメラを壁でふさいだ（十一2））
     const TOWERS = [[FORT.x + 8, 9], [FORT.x + 8, -9]];

@@ -247,7 +247,7 @@ const k05_ueda = {
     if (F.ending) return null;
     let p = KARI;
     if (F.step === 1) p = KARI;
-    else if (F.step === 2) { const c = live(F.sortie) && F.sortie.center(); p = c ? { x: c.x, z: c.z } : LURE[Math.min(LURE.length - 1, F.lureI || 0)]; }
+    else if (F.step === 2) { const c = live(F.sortie) && F.sortie.center(); p = c ? { x: c.x, z: c.z } : TRAP; }
     else if (F.step === 3) p = OUT;
     else if (F.step === 4) p = F.atFront ? FRONT : F.throughTown ? FRONT : LANE_B;
     else if (F.step === 5) p = NIDA;
@@ -490,7 +490,8 @@ const k05_ueda = {
       rt.after(0.6, () => sfx('volley', 0.8));
       F.ambL = this.foe(rt, '林の伏兵', { x: TRAP.x - 13, z: TRAP.z + 2 }, [uS(2), uG(6)], { hold: true, width: 6, dmg: 0.5, facing: Math.PI / 2 });
       F.ambR = this.foe(rt, '林の伏兵', { x: TRAP.x + 13, z: TRAP.z + 2 }, [uS(2), uG(6)], { hold: true, width: 6, dmg: 0.5, facing: -Math.PI / 2 });
-      for (const g of [F.ambL, F.ambR]) { g.seekRange = 26; g.aggro = 10; }
+      // 林の射手はこの段の下知で撃って退く。共通の立て直しで射撃を止めない。
+      for (const g of [F.ambL, F.ambR]) { g.seekRange = 26; g.aggro = 10; g.noAI = true; }
       if (live(F.sortie)) { const s = F.sortie; s.onArrive = null; s.order = 'attack'; s.seekRange = 22; s.aggro = 14; s.speed = 3.8; }
       for (let i = 0; i < 5; i++) rt.army.smoke(TRAP.x - 12, rt.world.heightAt(TRAP.x - 12, TRAP.z) + 1.4, TRAP.z - 6 + i * 3, 1, 0);
       for (let i = 0; i < 5; i++) rt.army.smoke(TRAP.x + 12, rt.world.heightAt(TRAP.x + 12, TRAP.z) + 1.4, TRAP.z - 6 + i * 3, 1, 0);
@@ -580,6 +581,12 @@ const k05_ueda = {
     if (F.step !== 2 || !live(g)) return;
     const c = g.center();
     if (g.order === 'move') {
+      // 迂回しても進めない小隊は林へ離脱する。到着処理だけを待ち続けない。
+      if (rt.t - F.lureT > 75 && F.lureI < LURE.length) {
+        this.away(rt, g, { x: 46, z: -136 });
+        F.lureI = LURE.length;
+        return;
+      }
       // 引っかかったら（二十秒進まない）次の所へ自動で退く（詰まり止め③）
       if (rt.t - F.lureMoveT > 20) {
         F.lureMoveT = rt.t;
@@ -680,7 +687,8 @@ const k05_ueda = {
     } else if (F.step === 2) {
       // 追った先の細い道で伏兵。追わなかった時も、本多の手が追って伏兵に掛かる（話は止まらない⑥）
       const nearTrap = dist(P.pos, TRAP) < 22;
-      if ((F.lureI >= LURE.length && (nearTrap || el > 75)) || (nearTrap && (F.lureI >= LURE.length - 1 || !live(F.sortie))) || over) this.toStep(rt, 3);
+      // 本人が伏兵の道へ着けば罠を起こす。退く小隊の到着待ちにはしない。
+      if ((nearTrap && el > 12) || ((F.lureI >= LURE.length || !live(F.sortie)) && el > 75) || over) this.toStep(rt, 3);
     } else if (F.step === 3) {
       // 囲みを抜けて田へ戻る（伏兵の全滅を待たない）
       if ((dist(P.pos, OUT) < 12 && el > 25) || over) {
@@ -691,7 +699,8 @@ const k05_ueda = {
       // 小路の出口から門の前へ。着いたら門から真田の槍が出る。門は落ちない（時間＋寄せで進む⑤）
       if (!F.atFront) {
         if (dist(P.pos, LANE_B) < 5) F.throughTown = true;
-        if ((F.throughTown && (dist(P.pos, FRONT) < 10 || (P.pos.x > GATE.x - 12 && P.pos.x < FRONT.x + 6 && Math.abs(P.pos.z - GATE.z) < 14))) || el > 150) {
+        // 小路を迂回して門前へ寄せても攻城を始める。出口の一点を踏み損ねても待たせない。
+        if (dist(P.pos, FRONT) < 10 || (P.pos.x > GATE.x - 12 && P.pos.x < FRONT.x + 6 && Math.abs(P.pos.z - GATE.z) < 14) || el > 150) {
           F.atFront = true; F.reAt = 0;
           sfx('taiko', 1); sfx('volley', 0.9);
           for (let i = 0; i < 6; i++) rt.army.smoke(GATE.x - 2, rt.world.heightAt(GATE.x, GATE.z) + 2.6, GATE.z - 8 + i * 3.2, 1, 0);
@@ -728,9 +737,13 @@ const k05_ueda = {
       if ((F.raidGone && rt.t - F.raidGone > (F.trap2 ? 22 : 12)) || over) this.toStep(rt, 6);
     } else if (F.step === 6) {
       // 兵をまとめる：岸に三十秒いて、信繁の一撃が済む（来なければ刻限で）
-      if (F.nbOut && !F.nbBack && rt.t - F.nbOut > 20 && live(F.nobushige)) {
-        const c = F.nobushige.center();
-        if (F.nbAt != null && rt.t - F.nbAt > 10 && dist(c, FORD_W) < 18) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }
+      if (F.nbOut && !F.nbBack) {
+        // 一撃の後は居場所にかかわらず退く。途中で詰まる・戦力を失う場合にも打ち切る。
+        const spent = F.nbAt != null && rt.t - F.nbAt > 10;
+        if (spent || !live(F.nobushige) || rt.t - F.nbOut > 65) {
+          F.nbBack = true;
+          if (live(F.nobushige)) { rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }
+        }
       }
       if ((F.rallyAt > 30 && (F.nbBack || el > 120)) || over) this.toStep(rt, 7);
     } else if (F.step === 7) {

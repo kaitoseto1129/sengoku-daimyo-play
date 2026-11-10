@@ -275,7 +275,9 @@ function inabaAtOteGate(rt) {
     && (rt.flags.nanaNext >= NANA.length - OTE_WAY.length + 1 || Math.hypot(p.x - OTE.x, p.z - OTE.z) < 22)
     && Math.hypot(p.x - OTE.x, p.z - OTE.z) < 40
     //   馬出しの上の段（木戸の折れより十歩余り高い所）へ回り込んだ時も、木戸の前に着いた事にする（流し：高さの差 17 で始まらず、上で討たれた）
-    && Math.abs(p.y - rt.world.heightAt(q[0], q[1])) < 18;
+    // 上の馬出しからは着けるが、木戸の下の別の段からは達成しない。
+    && p.y - rt.world.heightAt(q[0], q[1]) > -6
+    && p.y - rt.world.heightAt(q[0], q[1]) < 18;
 }
 
 // 守りを退けて木戸前に着いたら、最後の曲がり角へ戻さず列を待つ。
@@ -6230,14 +6232,14 @@ const inabayama = {
       if (F.nanaStuckI !== F.nanaNext) { F.nanaStuckI = F.nanaNext; F.nanaStuckT = rt.t; }
       const c = NANA[F.nanaNext];
       if (rt.t - F.nanaStuckT > 45 && (rt.player.blockedWalkT || 0) >= 3
-        && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+        && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen
         && Math.hypot(p.x - c[0], p.z - c[1]) < 25 && Math.abs(p.y - rt.world.heightAt(c[0], c[1])) < 6) {
         F.nanaStuckT = rt.t;
         const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.mesh?.position.copy(u.pos); };
         put(rt.player.u, c[0], c[1]);
         rt.player.blockedWalkT = 0;
         for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive && u.hp > 0 && !u.dying && !u.gone && !u.woundOut) put(u, c[0] + (Math.random() - 0.5) * 3, c[1] + (Math.random() - 0.5) * 3);
-      } else if (rt.t - F.nanaStuckT > 45 && F.nanaNext >= 1 && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen && !rt.missionGuide?.closeEnemy) {
+      } else if (rt.t - F.nanaStuckT > 45 && (rt.player.blockedWalkT || 0) >= 3 && F.nanaNext >= 1 && rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen && !rt.missionGuide?.closeEnemy) {
         // 11/10（act 702秒の刻限切れ）：前の角（-38,4）に立ったまま次の角まで四十八歩あり、上の「二十五歩内」に入らず四百秒止まった。
         //   前の角の二十五歩内で四十五秒進まなければ、道の上を次の角へ十二歩送る（列に押されて折れを回った事にする）
         const a = NANA[F.nanaNext - 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1;

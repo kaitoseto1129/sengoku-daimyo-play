@@ -437,10 +437,13 @@ function sallyStep() {
       const F = rt.flags, g = F.sallyG, p = rt.player.u.pos;
       // 本人が門か御主殿へ着くまで、味方だけで付け入り・虎口突破を済ませない。
       const entered = Math.hypot(p.x - KOGUCHI.x, p.z - KOGUCHI.z) < TSUKE_R || (p.x > 20 && p.x < KOGUCHI.x && p.z > -20 && p.z < 14);
+      // 味方だけで城兵を減らしても、離れた本人の「曳橋で迎え撃つ」は済ませない。
+      // 先に橋を渡って門へ押し込んだ時も、橋の袂へ引き返させない。
+      if (Math.hypot(p.x - BRIDGE_S.x, p.z - BRIDGE_S.z) < 14 || entered) C.bridgeEntered = true;
       // ① 迎え撃つ：半ばを討てば石段を退く
       if (!F.sallyBack) {
         rt.objProgress('dp', `敵 ${live(g)}人`);
-        if (live(g) <= F.sallyN * 0.5) {
+        if (C.bridgeEntered && live(g) <= F.sallyN * 0.5) {
           F.sallyBack = true; C.backT = el;
           C.goal = { x: KOGUCHI.x + 1, z: KOGUCHI.z + 0.4 };   // 行き先は冠木門（遊び手の印と同じ所）
           g.order = 'path'; g.path = BACK_PATH; g.pathIdx = 0; g.speed = 3.2; g.aggro = 0; g.noRout = true; g.focus = null;
