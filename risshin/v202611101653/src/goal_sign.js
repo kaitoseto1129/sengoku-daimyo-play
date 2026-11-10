@@ -214,8 +214,10 @@ export function goalSignTick(rt, root) {
     // 避けた位置や前の行き先から補間すると、釦を横切ったり別の場所を指したりする。
     el._sx = x; el._sy = y; el._sEdge = edge;
   } else {
-    x = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, x));
-    y = Math.max(th + 8, Math.min(H - 80, y));
+    // 携帯の切り欠きにも札の名を隠さない。補間後も同じ余白を保つ。
+    const sa = safeInsets(), minX = sa.left + tw / 2 + 8, maxX = W - sa.right - tw / 2 - 8;
+    x = Math.max(minX, Math.min(maxX, x));
+    y = Math.max(sa.top + th + 8, Math.min(H - sa.bottom - 80, y));
     // 画面の中の▼も、右上の進み具合の札などの四角に重なる時は、札の下へずらす（全戦・fix_inaba_1105 の bot「#h-prog と ▼ が重なる」）
     // 11/8 critic60 関ヶ原（五3）：画面の縁の▼も、縁へ寄せた後に左上の音・止める・設定の釦に重ねない（前の避けは縁へ寄せる前だけだった）
     for (const hr of hud?.hudRects?.() || []) {
@@ -223,7 +225,7 @@ export function goalSignTick(rt, root) {
       if (x + tw / 2 > hr.left && x - tw / 2 < hr.right && bot > hr.top && top < hr.bottom) {
         const ny = hr.bottom + 6 + th;
         if (ny <= H - 80) y = ny;
-        else x = Math.max(tw / 2 + 8, hr.left - tw / 2 - 8);
+        else x = Math.max(minX, hr.left - tw / 2 - 8);
       }
     }
     // 11/8 critic60 木津川（kaito「目標の名札が上下にめっちゃ動く」）：船の揺れ・札よけの段差で、札が一コマごとに上下へ跳ねた。
@@ -232,8 +234,8 @@ export function goalSignTick(rt, root) {
     else { el._sx += (x - el._sx) * .3; el._sy += (y - el._sy) * .15; }
     // 名が長くなった時や画面幅が変わった時は、補間前の位置が札の実寸をはみ出す。
     // なめらかに動かした後も札全体を画面内へ収め、次のコマの起点も揃える。
-    x = el._sx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, el._sx));
-    y = el._sy = Math.max(th + 8, Math.min(H - 80, el._sy));
+    x = el._sx = Math.max(minX, Math.min(maxX, el._sx));
+    y = el._sy = Math.max(sa.top + th + 8, Math.min(H - sa.bottom - 80, el._sy));
   }
   // 行き先は土に刺さる一本、到着後は同じ場所の輪。相手の剣と形を分ける。
   if (groundPin && (!edge || t.arrived)) {

@@ -646,7 +646,7 @@ function buildKoguchiGates(rt, plan, o) {
     } else {
       const last = Array.isArray(g.gate) ? g.gate[g.gate.length - 1] : g.gate;
       const fn = last === 'yagura' ? yaguraGate : last === 'tetsu' ? ironGate : kabukiGate;
-      objs[g.id] = fn(rt, g.at[0], g.at[1], g.w, gateInRot(plan, g), { team, yakui: last === 'yakui', earth });
+      objs[g.id] = fn(rt, g.at[0], g.at[1], g.w, gateInRot(plan, g), { team, yakui: last === 'yakui', earth, noKit: g.noKit });
     }
   }
   return objs;
