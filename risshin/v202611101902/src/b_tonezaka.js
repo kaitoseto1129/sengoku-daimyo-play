@@ -2988,11 +2988,11 @@ const tonezaka = {
           const tick = st.tick;
           st.tick = (rt2, C, m, ctx, el, dt) => {
             // 共通の段は生存数で数えるため、戦えない負傷者だけでも止まる。
-            // 道で詰まった無傷の組も寄せの上限で退く。全滅待ちで追撃を止めない。
+            // 損害を受けた組は寄せの上限で退く。無傷の組を時計だけで退けない。
             for (const g of C.groups) {
               if (g.routed) continue;
               const n = fighters(g);
-              if (!n || n <= g.initial * 0.2 || el >= retreatAt) retreat(g);
+              if (!n || n <= g.initial * 0.2 || el >= retreatAt && n < g.initial) retreat(g);
             }
             const cleared = tick(rt2, C, m, ctx, el, dt);
             // 共通の守備処理が書く残り秒数を、追加した追撃の段にも残さない。

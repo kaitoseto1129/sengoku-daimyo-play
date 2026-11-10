@@ -673,7 +673,7 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       const g = F.rim, A = SP.at;
       // 頭が討たれた隊も、共通の敗走で退去経路を北向きに上書きさせない。
       g.noRout = true; g.morale = 100;
-      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.order = 'path'; g.speed = 2.8;
+      g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.retreatOnly = true; g.order = 'path'; g.speed = 2.8;
       g.path = [[CROSS_X + 4, SHOJI.z0 - 14], [A.uma.x, A.uma.z], [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; g.pathIdx = 0;
       for (const u of g.units) if (u.type === 'gun') u.dmg = 0;
       g.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
@@ -1017,7 +1017,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
         // 本丸の北と東は柵で閉じている。南の虎口から出て、東の尾根を回って落ちる。
         // 士気を零にすると敗走の下知がこの退路を上書きし、北の柵へ突き当たる。
         F.kogo.order = 'path'; F.kogo.path = [[24, -94], [24, -82], [52, -70], [70, -130], [52, -200]]; F.kogo.pathIdx = 0; F.kogo.speed = 2.8;
-        F.kogo.noPursue = true; F.kogo.historicalOrders = true; F.kogo.arriveNoncombat = true;
+        // 退去の下知後は近くの寄せ手に応戦して足を止めず、護衛も康郷と城外へ抜ける。
+        F.kogo.noPursue = true; F.kogo.retreatOnly = true; F.kogo.historicalOrders = true; F.kogo.arriveNoncombat = true;
         F.kogo.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
         rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
       }

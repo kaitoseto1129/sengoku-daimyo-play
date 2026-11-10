@@ -901,8 +901,8 @@ const k05_ueda = {
       }
       // 真田の出入りが済んでも、門を通る兵を扉で閉じ込めない。
       const inMouth = (P && Math.abs(P.pos.x - GATE.x) < 2.5 && Math.abs(P.pos.z - GATE.z) < 4.5) || rt.army.units.some((u) => u.alive && !u.gone && Math.abs(u.pos.x - GATE.x) < 2.5 && Math.abs(u.pos.z - GATE.z) < 4.5);
-      // 本人が先に城外へ戻っても、城内に残った味方を閉じ込めない。
-      const inside = (P && P.pos.x < GATE.x - 1 && Math.abs(P.pos.z - GATE.z) < 30) || rt.army.units.some((u) => u.team === 0 && u.alive && !u.gone && u.pos.x > C.x - 30 && u.pos.x < GATE.x - 1 && Math.abs(u.pos.z - GATE.z) < 30);
+      // 本人が先に城外へ戻っても、城内に残った味方を閉じ込めない。西の土塀より外は城内に数えない。
+      const inside = (P && P.pos.x > C.x - 30 && P.pos.x < GATE.x - 1 && Math.abs(P.pos.z - GATE.z) < 30) || rt.army.units.some((u) => u.team === 0 && u.alive && !u.gone && u.pos.x > C.x - 30 && u.pos.x < GATE.x - 1 && Math.abs(u.pos.z - GATE.z) < 30);
       F.gate.alive = !(need || inMouth || inside);
     }
     const want = F.gate.alive ? 0 : 1.25;

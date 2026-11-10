@@ -54,8 +54,7 @@ const SC = MEM_TIGHT ? 20 : 12;              // 塊の一人が史実の何人�
 const HIST = { sen: 2000, nobu: 2000, sogo: 1000, moto: 1000, ijuin: 2000, niiro: 5000, honjo: 2000, ieh: 2200, ura: 800 };
 const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.niiro + HIST.honjo + HIST.ieh + HIST.ura;
 // 11/7 九1・十1：右上に①〜⑤を始めから全部並べる。一行は短く、地図で分かる場所の名と行いだけ。戦の間に言い替えない
-// 11/9 夜 kaito（docs/hetsugigawa_spec_1109.md）：先の段を始めから見せると罠が分かってしまう。右上は今の一行だけで、
-//   段の中でも「追え」→「包囲を突破せよ」→「信親隊を救援せよ」→「元親を退かせろ」と一瞬で替わる（F.mText）
+// 五つの目標を並べ、今の下知は段の中でも使番の知らせに合わせて替える（F.mText）。
 const STEP_TEXT = ['戸次川を渡れ', '島津の先手を攻めろ', '包囲を突破せよ', '川まで退け', '川を渡れ'];
 const STEP_NOUN = ['戸次川の浅瀬', '中津留の河原', '長宗我部信親', '戸次川の浅瀬', '西の岸'];
 const NAMED = new Set(['長宗我部信親', '長宗我部元親', '仙石秀久', '十河存保', '戸次統常', '伊集院久宣', '新納大膳亮', '島津豊久', '島津家久', '鈴木大膳']);
@@ -132,7 +131,7 @@ const t06_hetsugi = {
   // 11/7 九1：一行の札（missionSingleLine）をやめ、①〜⑤を右上に始めから並べる（goals5）。行き先は頭上の▼一つ（missionPin）
   lethal: { max: 4, firstAt: 140, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。名のある四国の衆は invuln・史実の死は筋書きのまま
   hideMissionDots: true,
-  goalsAllRows: false,      // 11/9 夜：先の段（伏せ・討死・退き）を始めから並べない。今の一件だけ
+  goalsAllRows: true,       // ①〜⑤を初めから並べ、果たした目標にも印を残す。
   kumiLead: false,           // 意味の分からない青い小旗の印を出さない（五2）
   noHatamotoMass: true,      // 将の周りに見せかけの兵を足さない（九5）
   goalSignOnly: true,
@@ -566,7 +565,14 @@ const t06_hetsugi = {
       const crossing = g.center().z > -24;
       g.order = 'move'; g.focus = null;
       g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
-      g.onArrive = crossing ? null : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
+      // 討死の知らせが⑤より後でも、残った旗本を南岸に置き去りにしない。
+      const home = (q) => {
+        q.order = 'move'; q.dest = { x: CAMP.x + 17, z: CAMP.z };
+        q.onArrive = (r) => {
+          r.order = 'move'; r.dest = { x: CAMP.x + 5, z: CAMP.z }; r.onArrive = null;
+        };
+      };
+      g.onArrive = crossing ? home : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = home; };
     }
     if (B.sogo && !B.sogo.routedL) routButai(B.sogo, 30);
     rt.say('使番', '十河存保殿、討死！', 2.8);

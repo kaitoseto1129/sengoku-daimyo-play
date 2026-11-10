@@ -95,9 +95,10 @@ export function start(rt, ctx) {
     }
     if (S.k === 1) {
       // 時計で遠藤を討たず、実際の戦闘を待つ。遠い味方の討ち取りだけで勝ちにしない。
+      if (S.u && !S.u.alive && S.fellT == null) S.fellT = rt.t;
       if (S.u && !S.u.alive && Math.hypot(p.x - S.u.pos.x, p.z - S.u.pos.z) < 12) return close();
       // 詰まらない決まり（docs/sunomata_spec_1109.md の7）：味方が討った後六十秒経てば、本人が離れていても締めへ。
-      if (S.u && !S.u.alive && rt.t - S.endoT > 60) return close(true);
+      if (S.u && !S.u.alive && rt.t - S.fellT > 60) return close(true);
       // 二分半経っても討てない時は、竹中の手の者が討ち止める（史実も竹中久作の討ち取り）。
       if (S.u && S.u.alive && rt.t - S.endoT > 150) { S.u.invuln = false; S.u.hp = 0; rt.army.kill(S.u, null); return close(true); }
     }
