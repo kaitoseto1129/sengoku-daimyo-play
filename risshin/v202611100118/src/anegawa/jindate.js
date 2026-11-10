@@ -113,13 +113,20 @@ export function stageOf(rt) {
   return S.k >= 1 ? 1 : 0;
 }
 
+// 退く下知から敗走の動きへ替わる間も、物見を追って持ち場を離れない。
+function scoutTarget(g) {
+  if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') return null;
+  return g.units.find((u) => u.alive && u.hp > 0 && !u.gone && !u.fleeing &&
+    !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget) || null;
+}
+
 // 行き先のピン：物見の高み、または物見の小勢
 export function pin(rt, q) {
   const S = rt.flags.aneJin;
   if (!S || S.done) return undefined;
   if (S.k <= 1) { q.x = S.at.x; q.z = S.at.z; q.r = 6; q.hide = 6; return q; }
   if (S.k === 2 && S.g) {
-    const u = !S.g.routed && S.g.units.find((v) => v.alive && !v.gone && !v.fleeing);
+    const u = scoutTarget(S.g);
     if (u) { q.unit = u; q.enemy = true; q.x = u.pos.x; q.z = u.pos.z; q.r = q.hide = 2; return q; }
   }
   return undefined;
@@ -130,8 +137,8 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.aneJin;
   if (!S || S.done) return false;
   if (S.k <= 1) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
-  if (S.k === 2 && S.g && !S.g.routed) {
-    const e = S.g.units.find((u) => u.alive && !u.gone && !u.fleeing);
+  if (S.k === 2 && S.g) {
+    const e = scoutTarget(S.g);
     if (e) {
       const d = Math.hypot(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
       p.yaw = Math.atan2(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z);
