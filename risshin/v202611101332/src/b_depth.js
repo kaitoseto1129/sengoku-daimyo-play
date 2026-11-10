@@ -443,7 +443,8 @@ function depthWithdraw(b, inp, goTo, x, z, r, guardR = 3.5, run = true) {
     if (q !== goal) { x = q.x; z = q.z; r = q.botRadius ?? r; }
   }
   inp.leftPressed = false; inp.chargeHold = false;
-  goTo(p, inp, x, z, r);
+  // 曲がり角を選んだ後は、戦固有の頭や共通の頭で道を選び直さない。
+  goTo(p, inp, x, z, r, !!way);
   let foe = b.army.nearestEnemy(u, guardR, (o) => !o.fleeing && !o.noTarget && !b.army.wallBetween(u.pos, u.team, o.pos));
   let ad = guardR;
   for (const o of b.army.threats || []) {

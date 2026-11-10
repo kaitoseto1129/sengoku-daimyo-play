@@ -244,6 +244,7 @@ const k08_osaka_kizu = {
   enemyTriangleGroup: (rt) => (rt.flags.step === 4 ? rt.flags.zen : null),
   noTravelArrow: true,    // 行き先は真上の▼一つ（足元・端の矢印を描かない。五3）
   nameRange: 45,          // 浅野長晟・明石全延の名を、組が見える所から出す（九3）
+  nameTagsAtHead: true,   // 名を頭上に固定し、塀に隠れた瞬間も見通しを確かめる（通し確認：浅野の名札だけが宙に残る）
   // 「ついて行く大将」の金の▼を出さない。至鎮は百二十歩後ろの陣幕の内で動かないので、門の前で行き先に着くと、その▼が画面の下の端に「蜂須賀至鎮」と貼り付いた（critic 五2・五6。11/6 fixc0823 で描いて遊んで見た）
   noLeaderFollow: true,
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
