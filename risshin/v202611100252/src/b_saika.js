@@ -403,7 +403,8 @@ html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals :is(h
   box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   hud.root.appendChild(box);
-  const nameTags = [0, 1].map(() => {
+  // 後から加わった浜手の三将も、戦わない将を省く共通の名札に任せず表示する。
+  const nameTags = Array.from({ length: 5 }, () => {
     const el = document.createElement('span');
     el.hidden = true;
     el.style.cssText = 'position:absolute;left:0;top:0;padding:2px 8px;border:1px solid #c9a24a;border-radius:3px;background:rgba(20,18,15,.82);color:#f6ecd2;font-size:15px;line-height:1.4;font-weight:700;white-space:nowrap;text-shadow:0 1px 2px #000;pointer-events:none';
@@ -437,7 +438,7 @@ html:root body #hud#hud#hud.saika-goals #h-prog#h-prog.goal-mode .pg-goals :is(h
     }
     for (let i = n; i < tris.length; i++) tris[i].hidden = true;
     // 11/6 c0443（九3・五2）：堀秀政・佐久間信盛の名が戦の間ずっと出なかった（共通の名札は雑賀では出ない）。
-    //   九十 m 内で画面に入る名のある味方の将の頭上に名を出す（使者は雑賀方・noTarget なので出さない）。札は二枚を使い回す
+    //   九十 m 内で画面に入る名のある味方の将の頭上に名を出す。浜手の三将を含め、札は五枚を使い回す。
     let k = 0;
     if (on) for (const u of rt.flags.namedAllies || []) {
       if (k >= nameTags.length || !u.alive || u.gone || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 8100) continue;
@@ -3348,6 +3349,9 @@ const saika = {
       dress([{ type: 'samurai', n: 1, o: { name: '雑賀の使者', invuln: true, haori: 0 } }, { type: 'ashigaru', n: 2 }], SAIKA));
     F.envoy.noHunt = true; F.lordCamp.noHunt = true;
     F.namedAllies = [F.hori.units.find((u) => u.name === '堀秀政'), F.lordCamp.units.find((u) => u.name === '佐久間信盛')].filter(Boolean);
+    for (const g of F.bushou) if (g.team === rt.player.u.team) {
+      for (const u of g.units) if (u.name && u.type === 'busho') F.namedAllies.push(u);
+    }
     for (const u of F.envoy.units) { u.noTarget = true; u.invuln = true; u.cd = 1e9; }
     F.magoichi = F.envoy;
     rosterBuild(rt, JIN);
