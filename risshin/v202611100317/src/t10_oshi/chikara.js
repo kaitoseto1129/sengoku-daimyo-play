@@ -152,8 +152,9 @@ export function tick(rt, dt, C) {
     }
     // 新手と揉み合って一息のち、佐間口の塀から一斉に撃たれ、先手が崩れる。使番が退けを伝える（11/9 三巡：五十秒待つ間に新手に囲まれて bot が倒れた（94〜119秒）。三十二秒に）
     const down2 = K.foe2 ? K.foe2.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;
-    // 新手に押されて深手を負った時も使番が退けを伝える。瀕死のまま残りの秒数を待たせない。
-    if (!K.volley && K.contact && P.alive && K.foe2 && (P.hp < P.maxHp * 0.4 || rt.t - K.newT > 32 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT)) {
+    // 最初の守りとの戦いで深手になった時も、新手を待たず使番が退けを伝える。
+    // 柵へ寄せていない本人は、命や時刻だけで次の任務へ進めない。
+    if (!K.volley && K.contact && P.alive && (P.hp < P.maxHp * 0.4 || K.foe2 && (rt.t - K.newT > 32 || down2 >= K.foe2.units.length * 0.6 || rt.t - F.stepT > LIMIT))) {
       K.volley = rt.t;
       sfx('volley', 1); rt.army.play('volley', C.GATE, 1.4);
       // 土手の先手が何人も撃ち倒される（一つの城の口に寄るだけで、これだけ倒れる）
@@ -161,7 +162,8 @@ export function tick(rt, dt, C) {
       for (const u of K.ally.units) if (u.alive && !u.gone && !u.name && n < 4 && C.near(u.pos, K.saku, 20)) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); n++; }
       rt.say('石田勢の足軽', '塀の上から一斉に撃ってくる！　土手の上では隠れる所が無い！', 3.2);
     }
-    if (K.volley && rt.t - K.volley > 4) retreat(rt, C);
+    // 深手の本人を一斉射撃の台詞の四秒間、柵の際で待たせない。
+    if (K.volley && (P.hp < P.maxHp * 0.4 || rt.t - K.volley > 4)) retreat(rt, C);
   } else if (F.step === 2) {
     // 柵の守りは柵の内から出ない
     // 11/9 三巡：柵の際で囲まれたまま退きが始まると、柵の守りが退く本人を突き続けて倒した（bot 119秒）。退く間は本人を狙わない
