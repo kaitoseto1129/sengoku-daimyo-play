@@ -42,7 +42,9 @@ function pinTo(rt, pos, label, unit = null) {
   const P = rt.player.u.pos;
   if (near(pos, P) > 30) {
     const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
-    far.x = pos.x; far.z = pos.z; far.r = 28; far.label = label; far.unit = unit; far.enemy = !!unit && unit.team !== rt.player.u.team;
+    far.x = pos.x; far.z = pos.z; far.r = 28; far.label = label;
+    // 遠くでは場所名と距離を出し、三十m 内で人物本人の印へ渡す。
+    far.unit = null; far.enemy = false;
     F.farPin = far;
     return null;
   }
@@ -313,15 +315,19 @@ const ino = {
   hayashiFall(rt) {
     const F = rt.flags;
     if (F.hayaDown) return;
+    const B = F.hayaBossU, N = rt.G.lord ? rt.player.u : F.nobuU;
+    // 到着前に遠くから討った事にせず、旗と知らせも実際の討ち取りまで待つ。
+    if (B?.alive && (!N?.alive || near(B.pos, N.pos) > 4.5)) {
+      if (!rt.G.lord) this.moveG(F.nobuG, { x: B.pos.x, z: B.pos.z + 3 }, 5);
+      rt.after(0.5, () => { if (!F.ending && !rt.over) this.hayashiFall(rt); });
+      return;
+    }
     F.hayaDown = true; F.flagFallT = rt.t;
-    const B = F.hayaBossU;
     say(rt, '足軽', '林の大旗が揺れておる！', 2.4);
-    rt.after(3, () => {
-      if (B?.alive) { B.invuln = false; B.inouNoWord = true; B.heroDmg = 0; rt.army.kill(B, rt.G.lord ? rt.player.u : F.nobuU); }
-      F.flagFalling = rt.t;
-      rt.army.play('toki', { x: 16, z: -6 }, 1.3);
-      this.moveG(F.nobuG, { x: -66, z: 120 }, 5);
-    });
+    if (B?.alive) { B.invuln = false; B.inouNoWord = true; B.heroDmg = 0; rt.army.kill(B, N); }
+    F.flagFalling = rt.t;
+    rt.army.play('toki', { x: 16, z: -6 }, 1.3);
+    this.moveG(F.nobuG, { x: -66, z: 120 }, 5);
     rt.after(4.6, () => rt.banner('林美作、討ち取った！', ''));
     rt.after(7, () => say(rt, '足軽', '林勢、崩れます！', 2.4));
     rt.after(7.5, () => {
