@@ -1357,6 +1357,10 @@ const okawachi = {
       name: '北畠具教', spot: { x: HON_C.x, z: HON_C.z - 7 }, mouth: { x: HON_C.x, z: HON_C.z - 1 }, facing: 0, guardN: 6,
       faction: 'kitabatake', armor: KACCHU['北畠具教'].armor, flag: KITABATAKE.flag, haori: null,
     });
+    // 館の旗本は上がり口を守る。自動の打って出・回り込みで閉じた木戸へ集まり、重なって止まるのを防ぐ。
+    // 兵ごとの近接戦は残し、城外への出撃は別の出撃組に任せる。
+    F.keep.guard.stay = true;
+    F.keep.guard.noAI = true;
     // 本丸の笹竜胆を大旗に。写真の井楼と同じ木造の城に収め、兵は増やさない。
     rt.scene.add(nobori(W, HON_C.x + 5, HON_C.z - 4, KITABATAKE.flag, 6.5));
     if (F.keep.lord) { F.keep.lord.noTarget = true; F.keep.lord.invuln = true; }

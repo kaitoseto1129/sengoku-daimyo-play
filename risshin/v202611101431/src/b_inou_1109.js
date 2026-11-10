@@ -215,19 +215,27 @@ const ino = {
   sayIf(rt, ph, t, who, s, d = 3) { rt.after(t, () => { if (rt.flags.ph === ph && !rt.over) say(rt, who, s, d); }); },
   moveG(g, dest, speed, then) {
     if (!live(g)) return;
+    if (g.inouRetiring) { g.inouRetiring = false; g.retreatOnly = false; g.peaceful = false; for (const u of g.units) u.noTarget = false; }
+    // 移動の下知では古い斬り合いを切る。
+    g.focus = null;
+    for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; u.aiT = 0; }
     g.order = 'move'; g.dest = { ...dest }; if (speed) g.speed = speed; g.anchor = { ...dest };
-    g.onArrive = (q) => { q.order = then || 'hold'; if (then === 'attack') { q.aggro = 14; q.seekRange = 26; } };
+    g.onArrive = (q) => { if (then === 'attack') this.fight(q); else q.order = then || 'hold'; };
   },
-  fight(g, aggro = 14) { if (!live(g)) return; g.noAI = false; g.order = 'attack'; g.aggro = aggro; g.seekRange = 26; g.onArrive = null; },
+  fight(g, aggro = 14) {
+    if (!live(g)) return;
+    if (g.inouRetiring) { g.inouRetiring = false; g.retreatOnly = false; g.peaceful = false; for (const u of g.units) u.noTarget = false; }
+    g.fire = true; g.noAI = false; g.order = 'attack'; g.aggro = aggro; g.seekRange = 26; g.onArrive = null;
+  },
   // 整然と退く隊は、通常の移動中の敵探しへ戻さず、旗と同じ退路を進む。
-  retireG(g, dest, speed) {
+  retireG(g, dest, speed, exposed = false) {
     if (!live(g)) return;
     g.inouRetiring = true; g.retreatOnly = true; g.peaceful = true;
     g.noAI = true; g.routing = false; g.focus = null; g.aggro = 0; g.fire = false;
     g.anchor = { ...g.center() }; g.dest = { ...dest };
     g.path = [[dest.x, dest.z]]; g.pathIdx = 0; g.order = 'path'; g.speed = speed;
     g.onArrive = (q) => { q.order = 'hold'; q.path = null; q.aggro = 0; };
-    for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; u.aiT = 0; }
+    for (const u of g.units) { u.noTarget = !exposed; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; u.aiT = 0; }
   },
 
   // 0:00 行軍：隊長「おい、そこの者。槍を持て。」→ 列の後ろについて北へ。遠くを信長の一団が通る
@@ -271,7 +279,7 @@ const ino = {
     F.scoutBack = true;
     if (live(F.scoutG)) { const g = F.scoutG; g.routing = true; g.order = 'retreat'; g.dest = { x: 12, z: -60 }; g.fleeDir = { x: 0, z: -1 }; g.speed = 3.6; g.aggro = 0; g.focus = null; g.fire = false; g.onArrive = null; for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; } }
     say(rt, '隊長', '追うな！　隊列を崩すな！', 2.8);
-    for (const g of [F.mates, F.kumi]) if (live(g)) { g.order = 'hold'; g.aggro = 0; }
+    for (const g of [F.mates, F.kumi]) if (live(g)) this.retireG(g, g.center(), g.speed, true);
     this.go(rt, 'van');
     rt.after(3.5, () => { this.moveG(F.kumi, { x: 12, z: 50 }, 2.8); this.moveG(F.mates, { x: 12, z: 54 }, 2.8); });
     this.sayIf(rt, 'van', 6, '隊長', '前衛に合流するぞ。ついて来い。', 2.6);
@@ -417,7 +425,7 @@ const ino = {
     F.shibaGo = null;
     say(rt, '組頭', '退け！　名塚の砦まで退けい！', 2.6);
     this.go(rt, 'retreat');
-    for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) { g.order = 'hold'; this.moveG(g, { x: Math.max(20, Math.min(56, g.anchor.x + 20)), z: 116 + Math.random() * 8 }, 3.2); for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; } }
+    for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) this.retireG(g, { x: Math.max(20, Math.min(56, g.anchor.x + 20)), z: 116 + Math.random() * 8 }, 3.2, true);
     for (const g of F.shibaLines) if (live(g)) this.moveG(g, { x: g.lineX, z: 70 }, 2.2, 'attack');
     this.moveG(F.shibaG, { x: 6, z: 30 }, 2.2);
     this.sayIf(rt, 'retreat', 8, '弥助', '走れ！　振り向くな！', 2.2);

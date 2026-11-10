@@ -268,7 +268,7 @@ const k05_ueda = {
     // 自動操作だけが家並みを避け、人には壁の向こうを指す案内にしない。
     const me = rt.player?.u.pos;
     let route = false;
-    if (me && F.step >= 3 && F.step !== 4 && me.x < GATE.x + 4 && me.z > -60 && me.z < 0) {
+    if (me && F.step >= 3 && me.x < GATE.x + 4 && me.z > -60 && me.z < 0) {
       route = true;
       if (me.x < 1 && (me.x < -2 || me.z < -42)) p = me.z > -45 ? INNER_N : INNER_E;
       else if (me.x < 12) p = me.z < -23 ? INNER_S : INNER_GATE;
@@ -870,7 +870,8 @@ const k05_ueda = {
         for (const u of g.units) if (u.alive && !u.gone && Math.abs(u.pos.x - GATE.x) < 14 && Math.abs(u.pos.z - GATE.z) < 12) { need = true; break; }
         if (need) break;
       }
-      const inMouth = P && Math.abs(P.pos.x - GATE.x) < 2.5 && Math.abs(P.pos.z - GATE.z) < 4.5;
+      // 真田の出入りが済んでも、門を通る兵を扉で閉じ込めない。
+      const inMouth = (P && Math.abs(P.pos.x - GATE.x) < 2.5 && Math.abs(P.pos.z - GATE.z) < 4.5) || rt.army.units.some((u) => u.alive && !u.gone && Math.abs(u.pos.x - GATE.x) < 2.5 && Math.abs(u.pos.z - GATE.z) < 4.5);
       const inside = P && P.pos.x < GATE.x - 1 && Math.abs(P.pos.z - GATE.z) < 30;
       F.gate.alive = !(need || inMouth || inside);
     }
@@ -900,8 +901,10 @@ const k05_ueda = {
     // 段ごとに相手にする所を絞る：③は囲みの中で斬り合わず田へ戻る、⑤は荷駄の周りだけ（追わない）、⑥は岸だけ、⑦は相手にしない
     const zone = (o) => (F.step === 3 ? dist(o.pos, u.pos) < 3.5 : F.step === 5 ? dist(o.pos, NIDA) < 20 : F.step === 6 ? dist(o.pos, FORD_W) < 20 : F.step === 4 ? o.pos.x > GATE.x + 5 : true);
     const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && zone(o) && !((IG.get(o) || 0) > b.t);
-    const lane = F.step === 4 && !F.atFront;
-    const e = lane || F.step === LAST ? null : b.army.nearestEnemy(u, 9, ok);
+    // 門内からは折れ道を戻る案内を優先し、小路への直進や敵への寄り道で土塀に当てない。
+    const exitCastle = F.step >= 3 && u.pos.x < GATE.x + 4 && u.pos.z > -60 && u.pos.z < 0;
+    const lane = F.step === 4 && !F.atFront && !exitCastle;
+    const e = exitCastle || lane || F.step === LAST ? null : b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       const C = F._chase;
