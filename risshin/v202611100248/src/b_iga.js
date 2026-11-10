@@ -1941,7 +1941,7 @@ const iga = {
     // 夜討ちの全組を準備時に林へ置く。時刻で新しく湧かせず、同じ兵へ進撃を命じる。
     F.raiders = [igaEnemy(rt, 6, 28, 12, '陣の口から寄せる伊賀衆'), igaEnemy(rt, 48, 50, 5, '東から忍び寄る伊賀衆'), igaEnemy(rt, -30, 95, 5, '裏へ回る伊賀衆')];
     F.waveA = [igaEnemy(rt, 48, 25, 6, '東の林の伊賀衆'), igaEnemy(rt, -48, 50, 6, '西の林の伊賀衆'), igaEnemy(rt, 0, 96, 6, '陣の裏の伊賀衆')];   // 10/30 陣口の斬り合いへ人数を回す（9・9・8→6）
-    F.waveB = [igaEnemy(rt, ...APPROACH[3], 8, '城から出る伊賀衆'), igaEnemy(rt, ...APPROACH[2], 8, '林を回る伊賀衆')];
+    F.waveB = [igaEnemy(rt, -56, 20, 7, '西の谷から寄せる伊賀衆'), igaEnemy(rt, 56, 48, 7, '東の林から寄せる伊賀衆')];
     // 最後の夜討ちの組を率いる既存の一人。史料に無い将名は作らない。
     F.igaBoss = F.waveB[1].units.find((u) => u.type === 'samurai') || null;
     F.sally = igaEnemy(rt, 55, -46, 7, '林の伊賀衆');
@@ -2359,14 +2359,8 @@ const iga = {
     rt.say('蒲生忠三郎', F.bridgeHeld
       ? 'その方が土橋を保ち、木戸の組を救った。組と退け。今度は麓を囲むぞ'
       : '土塁は破れぬ。下がって麓を囲め。陣の口を守るぞ', 5);
-    // 11/6 fix61（九2・二2）：包囲の夜の夜討ち（第二戦）の組は、土橋で崩れた組を当てにしない（崩れた組は寄せられず、夜の陣に敵が一人も来なかった）。
-    //   本人から見えない東西の林の奥（夜の林で三十四歩より遠い所）に、夜のうちに山を下りた組を置く。
-    {
-      // 本人はまだ山の上。陣の東西の林の外れのうち、本人から四十歩より遠い二か所に伏せる（陣の裏は堀の本陣の旗本に近いので使わない）。
-      const p = rt.player.u.pos, spots = [[-48, 50, '西の林から寄せる伊賀衆'], [56, 48, '東の林から寄せる伊賀衆'], [48, 25, '城の道から下りた伊賀衆'], [-56, 20, '西の谷から寄せる伊賀衆']];
-      F.waveB = spots.filter(([x, z]) => Math.hypot(p.x - x, p.z - z) > 40).slice(0, 2).map(([x, z, name]) => igaEnemy(rt, x, z, 7, name));
-      F.igaBoss = F.waveB[1]?.units.find((u) => u.type === 'samurai') || null;
-    }
+    // 包囲の夜は準備時から東西の林に伏せた同じ隊を使う。
+    // 作り直して元の隊を取り残し、実兵の枠を二重に使わない。
     depthStart(rt, igaCtx(rt), igaB(rt), () => { rt.objRemove('dp'); if (!F.ending) this.withdraw(rt); });
     // 帰陣の札にも同じ合図を残す。共通の間引きで太鼓を二重に鳴らさない。
     const returnTask = rt.objectives.find((o) => o.id === 'dp');

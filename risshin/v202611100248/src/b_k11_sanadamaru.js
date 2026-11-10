@@ -612,9 +612,13 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
           inp.k.add('KeyW');
           return;
         }
-        const fenceD = Math.hypot(fx - u.pos.x, fz - u.pos.z);
+        // 柵の端に付いた竹束の陰でも打てる。中央までの距離では、届く端を前にして止まり続ける。
+        const vx = T.seg[2] - T.seg[0], vz = T.seg[3] - T.seg[1];
+        const along = clamp01(((u.pos.x - T.seg[0]) * vx + (u.pos.z - T.seg[1]) * vz) / (vx * vx + vz * vz || 1));
+        const ax = T.seg[0] + vx * along, az = T.seg[1] + vz * along;
+        const fenceD = Math.hypot(ax - u.pos.x, az - u.pos.z);
         if (cover && fenceD > 3) { inp.k.delete('KeyW'); inp.leftPressed = false; return; }
-        b.player.yaw = Math.atan2(fx - u.pos.x, fz - u.pos.z);
+        b.player.yaw = Math.atan2(ax - u.pos.x, az - u.pos.z);
         if (d > 2.2) inp.k.add('KeyW'); else { inp.k.delete('KeyW'); inp.leftPressed = b.player.cd <= 0 && !b.player.pending && b.player.sta >= 18; }
       } };
     depthStart(rt, ctx, [
