@@ -38,20 +38,27 @@ export function update(rt, K) {
   const F = rt.flags, el = rt.t - F.n4.t0;
   const left = (F.nino ? K.fighting(F.nino) : 0) + (F.nino2 ? K.fighting(F.nino2) : 0);
   // 時間だけで「討ち払った」にしない。寄せ手と実際に斬り合ってから撤退の時を数える。
-  if (F.n4.fightT == null) for (const g of [F.nino, F.nino2]) {
-    if (!g) continue;
-    for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut) continue;
-      const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
-      if (target) { F.n4.fightT = rt.t; break; }
+  if (F.n4.fightT == null && !(F.n4.checkAt > rt.t)) {
+    F.n4.checkAt = rt.t + 0.5;
+    for (const g of [F.nino, F.nino2]) {
+      if (!g) continue;
+      for (const u of g.units) {
+        if (!u.alive || u.fleeing || u.woundOut) continue;
+        const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
+        if (target) { F.n4.fightT = rt.t; break; }
+      }
+      if (F.n4.fightT != null) break;
     }
-    if (F.n4.fightT != null) break;
   }
   // 討ち減らされた時も、長引いた時も、残兵は本丸へ退く。少数だけ曲輪で戦い続けない
   // 全員を討ったら、新手の到着や最低秒数のためだけに空の曲輪で待たせない。
   // 段が進めば、start の予約も新手を出さない。
   // 新手が出る四十秒を過ぎ、大半を討ち払えば残り三人を探し回らせない。
-  if (left === 0 || (F.n4.fightT != null && ((el > 40 && left <= 3) || rt.t - F.n4.fightT > 185))) {
+  // 入る前に味方が大半を討った時は、残兵との再接触を要求しない。
+  // 本人が曲輪まで入り、新手の時刻を過ぎて初めて制圧とする。
+  const p = rt.player.u.pos;
+  const secured = el > 40 && left <= 3 && Math.hypot(p.x - NINO.x, p.z - NINO.z) < 14;
+  if (left === 0 || secured || (F.n4.fightT != null && ((el > 40 && left <= 3) || rt.t - F.n4.fightT > 185))) {
     for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.fire = false; g.noRout = false; g.order = 'retreat'; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
     return true;
   }

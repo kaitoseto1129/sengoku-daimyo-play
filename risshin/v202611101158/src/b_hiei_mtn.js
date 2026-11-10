@@ -20,7 +20,7 @@ import { lookParts } from './units.js';
 import { sakamogi, paintGeo, jinmaku, stoneStepGeo, solidCircle } from './props.js';
 import { flagTexture } from './textures.js';
 import { RANKS } from './state.js';
-import { sightPoint, sightScreenUnit } from './battle_sight.js';
+import { sightPoint } from './battle_sight.js';
 import { goalsTick } from './hud_goals.js';
 import { battleEvent, EVENT_FIRE_START } from './battle_events.js';
 import { runnerBlocked } from './denrei.js';
@@ -2251,47 +2251,6 @@ function hieiDefeated(g) {
   }
   return false;
 }
-// 11/6 fixc1721（kaito 九3・BQ「敵の全ての兵の頭上の赤い▼」）：共通の印は近い敵四人まで。
-//   四十メートル内の見える僧兵・山の衆に、同じ色と形の▼を頭上へ付ける（逃げる者・里の者には付けない）。
-//   候補と見通しは四分の一秒ごと。実兵の上限分の印を初めに作り、毎コマは位置だけ書く。
-function hieiFoeSigns(rt) {
-  const box = document.createElement('div');
-  box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  const els = [];
-  for (let i = 0; i < 250; i++) { const e = document.createElement('span'); e.className = 'hiei-foe'; e.textContent = '▼'; e.hidden = true; box.appendChild(e); els.push(e); }
-  rt.hud.root.appendChild(box);
-  const list = [], v = new THREE.Vector3();
-  let at = -1, shown = 0;
-  return {
-    remove() { box.remove(); },
-    tick() {
-      const me = rt.player.u, hud = rt.hud;
-      const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !hud.introWaiting && !hud.bigmap && !rt.player.camShot;
-      if (on && (rt.t >= at || rt.t < at - .3)) {
-        at = rt.t + .25; list.length = 0;
-        for (const u of rt.army.units) {
-          if (u.team === me.team || !hieiReady(u) || u.civ || u.isStruct) continue;
-          if ((u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600 || !sightScreenUnit(rt, u)) continue;
-          list.push(u);
-        }
-      }
-      let n = 0;
-      if (on) for (const u of list) {
-        if (!hieiReady(u) || u.dying || u._nearSignOn || u.mesh?.visible === false || u.camHidden) continue;
-        v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-        if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-        if (n === els.length) break;
-        const e = els[n++];
-        e.hidden = false;
-        e.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-      }
-      // 前のコマで出ていた印だけを隠し、未使用の二百五十枚を毎コマ調べない。
-      for (let i = n; i < shown; i++) els[i].hidden = true;
-      shown = n;
-    },
-  };
-}
 function hieiNearest(rt, radius = Infinity) {
   const F = rt.flags, me = rt.player.u.pos, post = hieiPost(rt);
   let best = null, distance = Infinity;
@@ -2621,6 +2580,8 @@ const hiei_mtn = {
   quietMiss: true,
   keepBattleSigns: true, // 行き先の案内中も、武将名・人数の棒・目標一覧と敵全員の赤い▼を残す。
   enemyTriangleSigns: true,
+  // 敵全員の印は共通処理だけで描く。非戦の者と戦列を離れた者には付けない。
+  enemySignVisible: (rt, u) => !rt.flags.ending && !u.civ && !u.downed && !u.rearWound,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noCouriers: true,
@@ -3355,18 +3316,13 @@ const hiei_mtn = {
       html:root body #hud#hud#hud.hiei-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
       html:root body #hud#hud#hud.hiei-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
       html:root body #hud#hud#hud.hiei-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
-      #hud.hiei-goals #tugbar { display:none !important; }
-      #hud.hiei-goals .hiei-foe { position:absolute; left:0; top:0; color:#ff634d; font-size:17px; line-height:1; -webkit-text-stroke:1px #32140d; text-shadow:0 1px 2px #000; pointer-events:none; }
-      #hud.hiei-goals.ending .hiei-foe, #hud.hiei-goals.photo .hiei-foe { display:none; }`;
-    // 11/6 fixc1721（kaito 九3・BQ）：敵の兵には一人残らず頭上に赤い▼。共通の印（近い四人）に無い敵だけ、同じ形の▼を足す。
-    F.foeSigns = hieiFoeSigns(rt);
+      #hud.hiei-goals #tugbar { display:none !important; }`;
     const dispose = rt.dispose.bind(rt);
     rt.dispose = () => {
       rt.player.canStep = canStep;
       hud.progress = hudProgress;
       rt.army.heroFinishCap = finishCap;
       hud.root.classList.remove('hiei-goals');
-      F.foeSigns?.remove();
       plaque.remove();
       document.getElementById('rain-mark')?.remove();
       return dispose();
@@ -4054,7 +4010,6 @@ const hiei_mtn = {
     const F = rt.flags;
     hieiClock = rt.t; hieiWho = rt.player.u;
     hieiDownPicture(rt);
-    F.foeSigns?.tick();
     for (const I of F.interiorLooks) if (I.mesh && !I.hieiNearFixed) {
       // 紙窓や灯明はそのまま。壁・梁・家具だけ、本人を隠す至近の部分を抜く。
       I.mesh.traverse(m => {

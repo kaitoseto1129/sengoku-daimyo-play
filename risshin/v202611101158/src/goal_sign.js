@@ -196,7 +196,10 @@ export function goalSignTick(rt, root) {
   el._tri.style.clipPath = rt.def.goalSignTriangle ? 'polygon(0 0,100% 0,50% 100%)' : '';
   el._tri.style.width = edge ? '30px' : ''; el._tri.style.height = edge ? '26px' : '';
   el._tri.style.border = edge ? '0' : ''; el._tri.style.background = edge ? '#fff3ba' : '';
-  if (!el._tw || el._twH !== VIEW.h) { el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20; el._twH = VIEW.h; }
+  if (!el._tw || el._twH !== VIEW.h || el._twW !== VIEW.w || el._twEdge !== edge) {
+    el._tw = el._tag.offsetWidth || 24; el._th = el._tag.offsetHeight || 20;
+    el._twH = VIEW.h; el._twW = VIEW.w; el._twEdge = edge;
+  }
   const tw = el._tw, th = el._th;
   x = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, x));
   y = Math.max(th + 8, Math.min(H - 80, y));
@@ -214,7 +217,10 @@ export function goalSignTick(rt, root) {
   //   小さな動きはなめらかに追わせ、大きく跳んだ時（画面の内外の切り替え・相手の替わり）だけすぐ移す
   if (el._sx == null || el._sEdge !== edge || Math.abs(x - el._sx) > 80 || Math.abs(y - el._sy) > 80) { el._sx = x; el._sy = y; el._sEdge = edge; }
   else { el._sx += (x - el._sx) * .3; el._sy += (y - el._sy) * .15; }
-  x = el._sx; y = el._sy;
+  // 名が長くなった時や画面幅が変わった時は、補間前の位置が札の実寸をはみ出す。
+  // なめらかに動かした後も札全体を画面内へ収め、次のコマの起点も揃える。
+  x = el._sx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, el._sx));
+  y = el._sy = Math.max(th + 8, Math.min(H - 80, el._sy));
   // 行き先は土に刺さる一本、到着後は同じ場所の輪。相手の剣と形を分ける。
   if (groundPin && (!edge || t.arrived)) {
     const r = t.arrived ? 14 : Math.max(9, Math.min(14, 220 / Math.max(1, d)));

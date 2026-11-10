@@ -237,6 +237,8 @@ Object.assign(SHIZU_KACCHU, {
 // 11/6 check60 六度目（九1・九3・十二1）：共通の任務札は今の一行だけ・両軍の棒は止めてある・敵の▼は近い数人まで。
 //   この戦では目標の札（hud_goals）で①〜④を始めから並べ、両軍の残りの棒と数を上に出し、四十 m 内の見える敵の残りにも赤い▼を付ける（箕作・真田丸と同じ作り）。
 const SZ_BOARD_CSS = `
+/* 行き先は画面の内外とも▼一つ。共通の矢印の形をこの戦へ持ち込まない。 */
+html:root body #hud.shizu-goals #goal-sign .gs-tag i { clip-path:polygon(0 0,100% 0,50% 100%) !important; }
 html:root body #hud#hud#hud.shizu-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.shizu-goals #armybar .clock { visibility:hidden !important; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.shizu-goals :is(#armybar, #h-prog) { visibility:hidden !important; }
@@ -1062,7 +1064,9 @@ const t02_shizugatake = {
     victoryMoment(rt, '勝');
     // 勝鬨の間も操作した向きを保ち、大岩山は自分で振り返って見られる。
     const sec = epilogue(rt, this.ctx(rt));
-    rt.finish({ scriptedEnd: true }, sec);
+    // finish は直ちに over を立て、終幕の台詞も共通の音声も止める。
+    // 操作できる戦場で知らせを聞き終えてから、結果へ移る。
+    rt.after(sec, () => { if (!rt.over) rt.finish({ scriptedEnd: true }, 0); });
   },
   lose(rt, why) {
     const F = rt.flags;
