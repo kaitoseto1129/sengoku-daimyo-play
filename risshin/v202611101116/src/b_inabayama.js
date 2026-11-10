@@ -4056,7 +4056,10 @@ function buildKaraTrail(rt) {
       const t = i / n;
       if (hit !== null && t >= hit) break;
       const x = from.x + dx * t, z = from.z + dz * t;
-      if (karaSample(x, z).d < KARA_BLEND && from.y + dy * t < this.heightAt(x, z) + 0.12) { hit = Math.max(0, (i - 1) / n); break; }
+      // 七曲りと上の曲輪も、歩く面と同じ山肌で視点を止める。
+      // 裏道だけを調べると、大手道の切岸へ視点が埋まる。
+      if (Math.abs(x) < this.half && Math.abs(z) < this.half
+        && from.y + dy * t < this.heightAt(x, z) + 0.12) { hit = Math.max(0, (i - 1) / n); break; }
     }
     return hit;
   };
@@ -4586,7 +4589,7 @@ const inabayama = {
   objectiveEnemies(rt) {
     const F = rt.flags, marks = F.holdEnemyMarks || (F.holdEnemyMarks = []);
     if (F.dp?.on) {
-      const enemy = F.dp.cur?.s.kind === 'move' && !F.dp.cur.arr ? null : nearestFoeOf(rt, F.dp.cur?.groups || []);
+      const enemy = F.dp.cur?.s.kind === 'move' && !F.dp.cur.arr ? null : nearestFoeOf(rt, F.dp.cur?.groups || [], true);
       marks.length = enemy ? 1 : 0;
       if (enemy) marks[0] = enemy;
       return marks;
@@ -4648,7 +4651,11 @@ const inabayama = {
     // 二ノ門へ移っても段番号は三のまま。七曲りの古い印へ戻さず、今の曲輪の印を使う。
     if (F.dp?.on) {
       const marker = rt.markers.find((m) => m.id === 'dp');
-      const pos = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+      const current = F.dp.cur;
+      // 到着すると共通の段が印を外す。待ち伏せを退ける間と息を整える間も、
+      // 今の曲輪か木下隊を示し、済んだ七曲りの印へ戻さない。
+      const pos = (marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos))
+        || current?.goal || current?.at || (F.kinoU?.alive ? F.kinoU.pos : rt.player.u.pos);
       if (!pos) return null;
       const pin = F.depthPin || (F.depthPin = { key: 'dp', r: 1.5, hide: -2, always: true, silent: true, arrow: false });
       pin.marker = marker; pin.x = pos.x; pin.z = pos.z;

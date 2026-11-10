@@ -1886,11 +1886,9 @@ const okawachi = {
         rt.after(F.signalQuietUntil - rt.t + 0.1, go);
         return;
       }
-      // 竹束へ付く前に進発すると、最初の目標を取り戻せなくなる。
-      if (!F.coverReached) {
-        if (!okAtWaitCover(rt)) { rt.after(1, go); return; }
-        F.coverReached = true;
-      }
+      // 本人が動かなくても三手の夜攻めは進む。竹束への到着は自動で達成にしない。
+      // 未到着なら missionPin と update が竹束へ案内し、城兵の打って出の後も①を取り戻せる。
+      if (!F.coverReached && okAtWaitCover(rt)) F.coverReached = true;
       F.assaultSignalT = rt.t;
       // 誘いの手を待つ間には鳴らさず、法螺を聞き終えてから三手を動かす。
       const cue = okSignal(rt, 'kakari', okCommandAt(rt, F.niwa, FRONT), 0.8);
