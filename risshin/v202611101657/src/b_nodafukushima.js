@@ -42,6 +42,7 @@ import { doruiLine, doruiHeight, horiboriHeight, sakamogiRow, goten, monomi } fr
 import { reset as flReset, groundAt, FL, addDeck, addLadder } from './floors.js';
 import { makeSiegeZones, ZONE_STATE } from './siege_zones.js';
 import { makeGate, updateGates, resetGates } from './siege_gate.js';
+import { startClimb } from './siege_ladder.js';
 import { makeAttackAI } from './siege_ai.js';
 import { fordWatch } from './toride.js';
 import { makeButai, butaiTick, lightClash } from './butai.js';
@@ -3139,8 +3140,7 @@ const nodafukushima = {
       const shot = rt.army.lastGun;
       if (loaded && !this.gunLoaded && shot !== previous && shot?.u === this.u && shot.flying &&
           F.step === 1.5 && !F.shotsDone && F.seirou?.some(t => onTower(this.u, t)) &&
-          // 11/10 クラウド：狙いが塀に掛かり続けて十三分止まった（act bot）。二十五秒を過ぎたら、櫓の上から放った弾は数える。
-          (seirouShotIntoFort(rt, shot) || rt.t - (F.stepT || 0) > 25)) rt.def.shotLanded(rt);
+          seirouShotIntoFort(rt, shot)) rt.def.shotLanded(rt);
       return r;
     }; }
     const W = rt.world;
@@ -4322,13 +4322,13 @@ const nodafukushima = {
         else rt.uninteract('seirou-down');
       }
       if (F.step === 1 && F.onSeirou) this.shootStart(rt);
-      // 11/10 クラウド：梯子の長押しが外れて井楼の下で十三分止まった（act bot）。戸口の近くで三十秒たったら、鉄砲衆が上から引き上げる。
-      if (F.step === 1 && !F.onSeirou && !u.climb && u.alive && !rt.over) {
+      // 長押しが途切れた時の援助も、内の梯子の足元から実際に登る。外壁越しや騎乗中には引き上げない。
+      if (F.step === 1 && !F.onSeirou && !u.climb && !p.mounted && u.alive && !rt.over) {
         const t0 = F.seirou[0], l0 = FL.ladders[t0.ladderId];
-        F.ladderWait = l0 && Math.hypot(u.pos.x - l0.x, u.pos.z - l0.z) < 7 ? (F.ladderWait || 0) + dt : 0;
+        F.ladderWait = l0 && Math.hypot(u.pos.x - l0.x, u.pos.z - l0.z) < 1.6 && Math.abs(u.pos.y - l0.y0) < 2 ? (F.ladderWait || 0) + dt : 0;
         if (F.ladderWait > 30) {
           F.ladderWait = 0;
-          u.pos.set(l0.topX, l0.y1, l0.topZ); u.vel.x = u.vel.z = 0; if (u.mesh) u.mesh.position.copy(u.pos);
+          startClimb(u, l0);
           rt.say('鉄砲衆', '手を貸せ、引き上げるぞ！', 2.5);
         }
       }
@@ -4336,9 +4336,11 @@ const nodafukushima = {
     // 登る・三度撃つ目標は本人の操作を待つ。時刻や味方の射撃では済ませない。
     if (F.step === 1.5 && !F.shotsDone) {
       rt.objProgress('main', `${F.shots}／${SHOTS_NEED}`);
-      // 詰まらない決まり（docs/sunomata_spec_1109.md）：櫓の上で六十秒たっても揃わない時は、隣の鉄砲衆が残りを撃ち込む。
-      if (F.onSeirou) F.towerT = (F.towerT || 0) + dt;
-      if (F.towerT > 60 && !F.shotsDone) { rt.say('雑賀の鉄砲衆', '残りはわしらが撃ち込む！', 2.5); for (let i = 0; i < 4 && !F.shotsDone; i++) rt.def.shotLanded(rt); }
+      // 本人の射撃任務は味方の代射で済ませない。弾の補給と狙う場所の知らせで再挑戦できる。
+      if (F.onSeirou && rt.t - (F.shotHelpAt ?? F.stepT) > 30) {
+        F.shotHelpAt = rt.t;
+        rt.say('鉄砲衆', '北の福島砦じゃ。塀を越えて、内の狭間へ撃ち込め！', 3);
+      }
       // 井楼を下りてしまったら、もう一度登る印を出す
       if (!F.onSeirou && !F.down && !rt.markers.some(m => m.id === 'seirouLadder')) {
         const l = FL.ladders[F.seirou[0].ladderId];
@@ -4398,7 +4400,7 @@ const nodafukushima = {
       // 11/6 作り直し：押し返したら浅瀬を渡って砦の口へ詰めない（城の中へ突撃する戦ではない）。岸で列を整え、その夜の早鐘へ。
       // 味方の鉄砲だけで退けても、本人が井楼に残ったまま防戦済みにはしない。
       // 先に敵が退いた場合も、浅瀬の岸へ加われば次へ進める。
-      if (gone(F.sally) && !F.nightAt && p.u.alive && !F.onSeirou &&
+      if ((gone(F.sally) || F.sallyTimedOut) && !F.nightAt && p.u.alive && !F.onSeirou &&
           Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
         F.nightAt = rt.t + 8; F.sallyDone = true;
         rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
@@ -4407,14 +4409,14 @@ const nodafukushima = {
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
       // 11/10 クラウド：打って出た槍が門の前で固まり、岸で向き合えないまま十二分止まった（act bot）。
       //   詰まらない決まり（波に最大の時間）：段の始めから百三十秒で、向き合わなくても三好は塀の内へ退く。
-      if (!F.nightAt && (F.sallyMetAt != null && rt.t - F.sallyMetAt > 110 &&
+      if (!F.nightAt && !F.sallyTimedOut && (F.sallyMetAt != null && rt.t - F.sallyMetAt > 110 &&
           p.u.alive && !F.onSeirou && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12 || rt.t - F.stepT > 130)) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         // 出撃時の南岸の行き先を残すと、退却の下知でも岸に居残ってしまう。
         F.sally.dest = { x: 0, z: -56 };
-        F.nightAt = rt.t + 8; F.sallyDone = true;
-        rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
-        rt.say('前田利家', '三好が塀の内へ退くぞ。追うな！', 3);
+        // 退く上限と本人の任務達成を分ける。井楼に残ったまま次の夜へ飛ばさない。
+        F.sallyTimedOut = true;
+        rt.say('前田利家', '三好が塀の内へ退くぞ。追うな、浅瀬の岸で列を整えよ！', 3);
       }
       // 15分の構成：夜の前に竹束の鉄砲戦（nodafukushima/teppo.js）を挟む
       if (F.nightAt && !F.nodaTeppo && !rt.G.lord) {

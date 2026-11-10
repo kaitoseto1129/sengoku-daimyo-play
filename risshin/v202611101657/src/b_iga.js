@@ -1469,6 +1469,7 @@ const iga = {
   goalVisibleRows: 5, // 共通の札は表示行数も指定しないと一件だけになる。
   hideMissionDots: true, hideGuideSteps: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0,
+  keepBattleSigns: true, // 行き先の印を出す間も、武将名・両軍の人数・敵の赤い▼を保つ。
   // 行き先は黄色の印一つだけ。ついていく相手の青い印と矢印は出さない（kaito AL の改め・AT2の「印は一つ」）。
   noLeaderFollow: true,
   // 行き先の金の▼は一つ。距離を消す古い指定を残さない。

@@ -759,6 +759,7 @@ function templeOccupation(rt, zone, name) {
   const entry = templeEntry(rt, zone);
   // 見通せる残敵を先に示す。堂の中だけに残った時は敵の位置でなく戸口へ案内する。
   // 区域の点検と同じ一秒ごとの処理。兵も座標の入れ物も増やさない。
+  // 討死動作中・後送中の兵へ残敵の案内と援軍を向けない。
   F.hallFoe = null;
   F.hallDoor = false;
   F.hallExit = false;
@@ -766,14 +767,14 @@ function templeOccupation(rt, zone, name) {
   if (zone.test(P.x, P.z) && zone.enemies > 0) {
     let nearest = 24;
     for (const u of rt.army.units) {
-      if (u.team === rt.player.u.team || !siegeFighter(u) || !zone.test(u.pos.x, u.pos.z) ||
+      if (u.team === rt.player.u.team || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound || !zone.test(u.pos.x, u.pos.z) ||
           Math.abs(u.pos.y - P.y) > 3) continue;
       const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
       if (d < nearest && templeWalkClear(rt, P, u.pos)) { nearest = d; F.hallFoe = u; }
     }
     if (!F.hallFoe && !nakaRoomAt(P.x, P.z, P.y)) {
       for (const u of rt.army.units) {
-        if (u.team === rt.player.u.team || !siegeFighter(u) || !zone.test(u.pos.x, u.pos.z) ||
+        if (u.team === rt.player.u.team || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound || !zone.test(u.pos.x, u.pos.z) ||
             Math.abs(u.pos.y - P.y) > 3 || !nakaRoomAt(u.pos.x, u.pos.z, u.pos.y)) continue;
         const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
         if (d < nearest && templeWalkClear(rt, P, templeWay(rt.army, rt.player.u, u.pos))) {
@@ -786,7 +787,7 @@ function templeOccupation(rt, zone, name) {
       nearest = Infinity;
       let reachable = false;
       for (const u of rt.army.units) {
-        if (u.team === rt.player.u.team || !siegeFighter(u) || !zone.test(u.pos.x, u.pos.z)) continue;
+        if (u.team === rt.player.u.team || !siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound || !zone.test(u.pos.x, u.pos.z)) continue;
         const d = Math.hypot(u.pos.x - P.x, u.pos.z - P.z);
         // 壁の見通しだけでは、堂の脇の切岸を歩けるとは限らない。
         // 戸口や角への一歩を先に調べ、通れる残敵を距離より優先する。
@@ -877,7 +878,8 @@ function rallyTempleHall(rt) {
   const zone = F.SZ.byId[F.step === 1 ? 'gezan' : F.step === 2 ? 'hondo' : 'oku'];
   // 奥の院へ進んでも、外堂の物見と本堂の弓は守りに残す。
   const stays = (b) => b === F.reserve || F.step >= 2 && b === F.scout || F.step === 3 && b === F.flankBow;
-  if (zone.enemies > 0 && F.hallFoe && siegeFighter(F.hallFoe) && zone.test(F.hallFoe.pos.x, F.hallFoe.pos.z)) {
+  if (zone.enemies > 0 && F.hallFoe && siegeFighter(F.hallFoe) && F.hallFoe.hp > 0 &&
+      !F.hallFoe.dying && !F.hallFoe.rearWound && zone.test(F.hallFoe.pos.x, F.hallFoe.pos.z)) {
     // 人数が足りても、庭の端に残った敵を中央の槍の組が見落とすことがある。
     // 堂内の敵にも一組だけ寄せる。兵ごとの戸口案内を使い、壁を通り抜けない。
     const foe = F.hallFoe;
