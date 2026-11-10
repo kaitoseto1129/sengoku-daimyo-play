@@ -3264,11 +3264,13 @@ const sunomata = {
     const q = F.sunoPin || (F.sunoPin = { x: 0, z: 0, r: 5, hide: 5 });
     const me = rt.player.u.pos, stage = sunomata.missionOf(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.route = false;
+    q.hideDistance = undefined;
     q.flagDestination = true; q.guardBoundary = false; q.guardFootRadius = .95;
     const escort = SU15.destination(rt);
     if (escort) {
       // 護衛の下知中は北の柵へ戻さず、舟着き・人足と同じ行き先を示す。
       q.x = escort.x; q.z = escort.z; q.r = q.hide = 2.2; q.route = true;
+      q.hideDistance = .25; // 南門の曲がり角で、共通の六歩手前の非表示を使わない。
       const capture = F.sunoEscortCapture || (F.sunoEscortCapture = (_p, _inp, x, z, r) => {
         q.x = x; q.z = z; q.r = q.hide = r;
       });
@@ -3282,6 +3284,7 @@ const sunomata = {
       const p = returning || sunoPostPoint(rt);
       if (returning) {
         q.x = p.x; q.z = p.z; q.r = q.hide = .5; q.route = true;
+        q.hideDistance = .25;
         return q;
       }
       q.x = p.x; q.z = p.z; q.r = q.hide = 5;
@@ -3318,6 +3321,7 @@ const sunomata = {
     q.r = q.hide = route.blocked ? .5 : 8;
     // 通れる直線でも、遠い相手までは同じ道の矢印をつなぐ。
     q.route = route.blocked || Math.hypot(me.x - u.pos.x, me.z - u.pos.z) > 8;
+    if (q.route) q.hideDistance = .25;
     q.enemy = !q.route; q.unit = q.route ? null : u;
     return q;
   },

@@ -3917,8 +3917,8 @@ const nagashima = {
     rt.unmark('workWatch');
     // 人足を待つ間も、岸で実際に川を見ていた分は見張りに数える。
     if (F.watchTime >= WATCH_HOLD) { F.watchDone = true; this.preBoats(rt); return; }
-    rt.obj('main', '岸で対岸の舟を見張れ', 'main');
-    rt.say('組頭', F.watchTime > 0 ? '持ち場に戻り、川をよく見よ' : '川の向こうの島をよく見張れ', 4);
+    rt.obj('main', this.taskLines[1], 'main');
+    sayGap(rt, '組頭', '岸の柵で槍を構え、寄る舟に備えよ', 4);
     rt.marker('watch', { x: SPOTS[F.watchSpot].x, z: BANK_Z + 5 }, '水路を見張る持ち場');
   },
 
@@ -4542,9 +4542,9 @@ const nagashima = {
       }
       if (task !== F.watchTask) {
         F.watchTask = task;
-        rt.obj('main', task === 'move' ? '岸の見張り場へ進め' : task === 'turn' ? 'この場で川の向こうの砦へ向き直れ' : '岸で対岸の舟を見張れ', 'main');
-        if (task === 'move') rt.say('足軽', '岸の柵へ。そこで舟を見張ろう', 3);
-        else if (task === 'turn') rt.say('足軽', 'そこに立ったまま、川の向こうを向け', 3);
+        rt.obj('main', this.taskLines[1], 'main');
+        if (task === 'move') sayGap(rt, '足軽', '岸の柵へ。槍を構え、寄る舟に備えよう', 3);
+        else if (task === 'turn') sayGap(rt, '足軽', 'そこに立ったまま、川の向こうを向け', 3);
         F.watchClock = null;
       }
       if (near && facing && bankPlayerReady(rt)) F.watchTime += dt;

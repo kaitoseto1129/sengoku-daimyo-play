@@ -4382,11 +4382,13 @@ const nodafukushima = {
         rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);
       }
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
-      if (!F.nightAt && F.sallyMetAt != null && rt.t - F.sallyMetAt > 110) {
+      if (!F.nightAt && F.sallyMetAt != null && rt.t - F.sallyMetAt > 110 &&
+          p.u.alive && !F.onSeirou && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         // 出撃時の南岸の行き先を残すと、退却の下知でも岸に居残ってしまう。
         F.sally.dest = { x: 0, z: -56 };
-        F.nightAt = rt.t + 8;
+        F.nightAt = rt.t + 8; F.sallyDone = true;
+        rt.award((t) => t.side.push('打って出た三好勢を浅瀬で退けた'), '三好勢を退けた');
         rt.say('前田利家', '三好が塀の内へ退くぞ。追うな！', 3);
       }
       // 15分の構成：夜の前に竹束の鉄砲戦（nodafukushima/teppo.js）を挟む

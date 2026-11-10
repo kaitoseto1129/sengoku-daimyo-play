@@ -5988,6 +5988,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
           rt.say('組頭', 'このままでは攻めが崩れる！　味方と旗の前を守れ！', 5);
         }
       }
+      // 三十秒の援軍予告と敗北の猶予が重なっても、到着判定の前に敗北させない。
+      if (F.rfNoticeAt !== undefined)
+        F.collapseAt = Math.max(F.collapseAt, F.rfNoticeAt + 32);
       if (rt.t >= F.collapseAt) this.lose(rt, '羽柴の攻め手が崩れ、この組も進めなくなった');
     } else F.collapseAt = undefined;
     // 退き口の印と下知をそろえる。占領や木戸の判定は元の任務のまま保つ。

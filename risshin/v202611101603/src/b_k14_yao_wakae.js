@@ -476,9 +476,11 @@ const k14_yao_wakae = {
   fall(rt, g, name, line) {
     const F = rt.flags;
     if (F.ending || !g) return;
-    const u = g.units.find((q) => q.name === name && q.alive);
+    const u = g.units.find((q) => q.name === name && q.alive && !q.gone);
     if (!u) return;
     u.invuln = false; rt.army.kill(u);
+    // 共通の踏みとどまりで討死が見送られた時は、知らせも退く下知も出さない。
+    if (u.alive) return;
     if (name === '藤堂高刑') { F.takanoriFell = true; F.takanoriFellAt = rt.t; }
     if (name === '桑名吉成') F.kuwanaFell = true;
     F.yaoFallAt = rt.t;
@@ -592,12 +594,9 @@ const k14_yao_wakae = {
     const left = STEP_T[F.step] - (rt.t - F.stepT);
     if (F.step === 1 && !F.next && dist(P.pos, YAO_FRONT) < 60) {
       if (!F.takanoriFell && rt.t - F.t0 >= 50) {
-        F.takanoriFell = true;
-        F.takanoriFellAt = rt.t;
         this.fall(rt, F.takanoriG, '藤堂高刑', '八尾で藤堂高刑様、お討死！');
       }
       if (!F.kuwanaFell && rt.t - F.t0 >= 110 && rt.t - F.takanoriFellAt >= 3.6) {
-        F.kuwanaFell = true;
         this.fall(rt, F.kuwanaG, '桑名吉成', '桑名吉成様もお討死！　藤堂勢、崩れかかっております');
       }
     }
