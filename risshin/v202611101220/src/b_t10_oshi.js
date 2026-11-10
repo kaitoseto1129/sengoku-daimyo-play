@@ -708,7 +708,7 @@ const t10_oshi = {
   weir(rt) {
     const F = rt.flags;
     if (F.step >= 4) return;
-    F.step = 4; F.stepT = rt.t; F.weirT = 0;
+    F.step = 4; F.stepT = rt.t; F.weirT = 0; F.weirDefense = 0;
     rt.setPhase('weir');
     // 時が飛ぶ（夜討ちを凌いだ夜から、堤が出来上がった日へ）。夜討ちの残りは城へ戻っている。主人公と組は区の堤の上へ戻し、真ん中に次の目標を出す
     //   前は夜が昼に替わっても、浅瀬で逃げる夜討ちの残りを一分追い続けた
@@ -1026,6 +1026,15 @@ const t10_oshi = {
     } else if (F.step === 4) {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 20)) this.weirRaid(rt);
+        // 討ち取りに加え、堰を一分半守っても寄せは引く。敵が途中の泥や堤で止まっても半数撃破を待ち続けない。
+        // 遠くで待った時間は数えず、堰板は寄せが退いた後に本人が堰へ着いてから抜く。
+        if (F.weirRaid && P.alive && near(P.pos, WEIR, 25)) F.weirDefense = (F.weirDefense || 0) + 0.5;
+        if (F.weirDefense >= 90 && fighting(F.weirRaid)) {
+          const g = F.weirRaid;
+          g.noRout = false; g.morale = 0; g.order = 'retreat'; g.dest = { x: WEIR_RAID.x, z: WEIR_RAID.z }; g.aggro = 0; g.onArrive = null;
+          for (const u of g.units) if (u.alive && !u.gone) { u.fleeing = true; u.target = null; u.watch = null; }
+          rt.say('石田勢の足軽', '城兵が退くぞ！　堰板を抜け！', 2.8);
+        }
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
         // 三巡（11/9 bot）：堰へ寄せた城兵の残りが堤の陰で立ち尽くし、段が十分止まった。四十五秒過ぎ、本人が堰の近くにいれば残兵を退かせる
         const raidDown = F.weirRaid ? F.weirRaid.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;

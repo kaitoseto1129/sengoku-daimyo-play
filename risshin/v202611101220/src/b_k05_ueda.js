@@ -758,7 +758,12 @@ const k05_ueda = {
       if (F.nbOut && !F.nbBack) {
         // 一撃の後は居場所にかかわらず退く。途中で詰まる・戦力を失う場合にも打ち切る。
         // 隊の到着だけで一撃を済ませない。隊列が岸の手前で広がっても、本人へ届く時間を残す。
-        if (F.nbAt != null && F.nbContact == null && F.nobushige.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 10)) F.nbContact = rt.t;
+        if (F.nbContact == null && F.nobushige.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 10)) {
+          F.nbContact = rt.t;
+          // 岸への到着前でも、退く本人に追い付けば一撃して引く。曲がり角の到着待ちで通り過ぎない。
+          const nb = F.nobushige;
+          nb.onArrive = null; nb.order = 'attack'; nb.seekRange = 20; nb.aggro = 14;
+        }
         const spent = F.nbContact != null && rt.t - F.nbContact > 10;
         if (spent || !live(F.nobushige) || rt.t - F.nbOut > 65) {
           F.nbBack = true;
@@ -774,7 +779,8 @@ const k05_ueda = {
   // 塀の内の土塁の鉄砲と弓：門へ寄る徳川の兵を、塀越しに次々に撃つ（二の7・十の3。critic60：門の前で味方がほとんど倒れない）
   wallFire(rt) {
     const F = rt.flags, A = rt.army;
-    if (F.step !== 4) return;   // 小路の通過前でも門へ寄せた者を撃つ。⑤の荷駄・⑥の撤収には集中射撃を続けない。
+    if (F.ending) return;
+    // 段ではなく射程で守る。先に門へ寄せた者も、撤収中に城の前へ残った者も安全地帯にしない。
     const foes = [];
     for (const u of A.units) if (u.team === 0 && u.alive && !u.gone && !u.invuln && u.pos.x > GATE.x + 2 && u.pos.x < GATE.x + 46 && Math.abs(u.pos.z - GATE.z) < 34) foes.push(u);
     const P = rt.player.u;

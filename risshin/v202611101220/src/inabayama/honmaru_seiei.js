@@ -16,7 +16,7 @@ const gone = (g) => !g || g.count === 0 || g.routed;
 export function install(rt, ctx) {
   const F = rt.flags;
   if (F.k15Hon) return;
-  const { HON, dress, officer } = ctx;
+  const { HON, dress, officer, retreat } = ctx;
   const H = (F.k15Hon = { t0: rt.t });
   const n = (k) => Math.round(k * (TIER.weak ? 0.6 : 1));
 
@@ -58,6 +58,9 @@ export function install(rt, ctx) {
   const fall = () => {
     if (H.fell || rt.over || F.ending) return;
     H.fell = true;
+    // 崩れた知らせと同時に残る近習へ退く下知を出す。
+    // 少数になっても noRout のまま戦い続け、火付けへの下知と食い違っていた。
+    if (!gone(H.elite)) retreat(H.elite);
     // 龍興の舟による退去は、合図後の八月十五日の開城で知らせる。
     rt.banner('本丸の守りが揺らぐ', '主殿の奥へ退く斎藤勢');
     rt.say('使番', '本丸の守りが主殿の奥へ退いてゆきます！', 3.4);

@@ -82,7 +82,8 @@ export function install(rt, ctx) {
       // 生きていても戦場を去った者や戦えない負傷兵は、物見の残勢に数えない。
       let left = 0;
       for (const u of g.units) if (scoutActive(u)) left++;
-      if (left <= 3 || g.routed) {
+      // 退く下知が出た時点で交戦は終わる。敗走の動きや退場まで待たせない。
+      if (left <= 3 || g.routed || g.order === 'retreat' || g.order === 'flee') {
         // 味方だけで片付いた時は次の物見を出す。本人の目標を時計で果たさない。
         if (!S.fought) {
           g.noRout = false; g.morale = 0; g.order = 'retreat';

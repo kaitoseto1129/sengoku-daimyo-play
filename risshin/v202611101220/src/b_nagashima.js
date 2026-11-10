@@ -3656,6 +3656,8 @@ const nagashima = {
         // 九鬼の船が分流へ入り、門徒の小舟は奥へ下がる（舟一隻の到着に段を頼らない。絵だけ）
         F.advKuki = boatAt(-62, -40, Math.PI * .02, true);
         F.advKukiFlag = flagAt(-62, -40, 'kuki');
+        F.advKukiFlag.position.y = F.advKuki.position.y + .8;
+        F.advKukiFlag.rotation.y = F.advKuki.rotation.y;
         slide(F.advKuki, { x: -65, z: -62 }, quiet ? .1 : 40);
         F.advIkkoBoats = [[-66, -80, .1], [-64, -90, -.1], [-67, -98, .05]].map(([x, z, rot]) => boatAt(x, z, rot));
         if (!quiet) { sfx('horagai', .7); r.army.play('gun', { x: -62, z: -44 }, .6); r.army.smoke(-60, waterHeight(W, -62, -44) + 3, -44, -1, 0, 1.2); }
@@ -3681,6 +3683,8 @@ const nagashima = {
         if (!F.advSouthShip) {
           F.advSouthShip = boatAt(-60, -134, Math.PI / 2, true);
           F.advSouthFlag = flagAt(-60, -134, 'kuki');
+          F.advSouthFlag.position.y = F.advSouthShip.position.y + .8;
+          F.advSouthFlag.rotation.y = F.advSouthShip.rotation.y;
           slide(F.advSouthShip, { x: -36, z: -134 }, 6);
         }
         r.say('使番', '最後の水路、塞がりました！', 3.4);
@@ -3699,8 +3703,10 @@ const nagashima = {
       s.t = Math.min(s.dur, s.t + dt);
       const k = s.t / s.dur, e = k * k * (3 - 2 * k);
       s.m.position.x = s.x0 + (s.x1 - s.x0) * e; s.m.position.z = s.z0 + (s.z1 - s.z0) * e;
-      if (s.m === F.advKuki && F.advKukiFlag) { F.advKukiFlag.position.x = s.m.position.x; F.advKukiFlag.position.z = s.m.position.z; }
-      if (s.m === F.advSouthShip && F.advSouthFlag) { F.advSouthFlag.position.x = s.m.position.x; F.advSouthFlag.position.z = s.m.position.z; }
+      s.m.position.y = waterHeight(rt.world, s.m.position.x, s.m.position.z) - (s.m === F.advKuki || s.m === F.advSouthShip ? .45 : .2);
+      // 通常の封鎖船と同じく、竿の根元を甲板へ据える。川底の高さに置き去りにしない。
+      const flag = s.m === F.advKuki ? F.advKukiFlag : s.m === F.advSouthShip ? F.advSouthFlag : null;
+      if (flag) { flag.position.set(s.m.position.x, s.m.position.y + .8, s.m.position.z); flag.rotation.y = s.m.rotation.y; }
     }
     // 堤の上で詰まった味方は、脇の浅い水へ一歩外して追い越させる（立ち止まった列で本人が塞がれない）
     if (rt.t >= (F.advJamT || 0)) {
@@ -4370,7 +4376,7 @@ const nagashima = {
     }
     // 対岸の守りは降伏後も舟入の内を見回る。川へ出ず、五秒以上立ち尽くさない。
     { const gd = F.ikkoCamp?.guard;
-      if (gd && rt.t >= (F.gdPatrolT ?? 2)) {
+      if (gd && !F.advEnding && rt.t >= (F.gdPatrolT ?? 2)) {
         F.gdBase ||= { x: gd.anchor?.x ?? 0, z: gd.anchor?.z ?? -60 };
         F.gdSide = -(F.gdSide || 1); F.gdPatrolT = rt.t + 4;
         gd.noAI = false; gd.aggro = 0; gd.seekRange = 0; gd.order = 'hold';

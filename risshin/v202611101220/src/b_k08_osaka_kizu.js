@@ -558,8 +558,9 @@ const k08_osaka_kizu = {
     F.s3 = [F.garrison, F.wallG, F.inner]; F.gN = sum(F.s3);
     rt.marker('k08', () => insideTarget(F, rt.player.u.pos)?.pos || INSIDE, '明石の守兵', { red: true, group: F.garrison });
     rt.say(SHISHA, '殿の仰せ。門が開いた、内へ攻め入れ、と', 3.2);
-    rt.after(3.6, () => { if (F.step === 3) rt.say('浅野長晟', '浅野も着いた。東から挟み込め', 3); });
-    rt.after(7.4, () => { if (F.step === 3) rt.say('池田の物頭', '池田の手、西の柵を破った。乗り込め', 3); });
+    // 搦手がまだ合流中でも届く下知。到着していない隊を「着いた」と知らせない。
+    rt.after(3.6, () => { if (F.step === 3) rt.say(SHISHA, '浅野殿より。東から挟み込め、との下知でござる', 3); });
+    rt.after(7.4, () => { if (F.step === 3) rt.say(SHISHA, '池田の手より。西の柵が開いた、乗り込め、との由', 3); });
   },
   // ④ 砦の北の口で明石全延の組を追い払う
   stage4(rt) {
@@ -589,7 +590,7 @@ const k08_osaka_kizu = {
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
     if (F.osakaFar) F.osakaFar.group.visible = true;
-    rt.after(7, () => { if (F.step === 4) rt.say('浅野長晟', '夜が白んできた。明け六つの約束の刻じゃ', 3.2); });
+    rt.after(7, () => { if (F.step === 4) rt.say(SHISHA, '夜が白んで参った。浅野殿との約束、明け六つの刻でござる', 3.2); });
     engun.start(rt, { NGATE, GATE });   // 城からの加勢・一時押される・浅野の後備（k08/engun.js）
   },
   // ⑤ 北の口に卍の幟を立てる（守兵は博労淵へ退く）
@@ -651,7 +652,7 @@ const k08_osaka_kizu = {
     rt.player.u.invuln = true;
     for (const g of rt.army.groups) if (g.team === 1) flee(g);
     rt.say(SHISHA, '殿の仰せ。木津川口は落ちた。海から城への舟の道はこれで絶えた、と', 3.8);
-    rt.after(4.4, () => rt.say('浅野長晟', '一番乗りは蜂須賀殿の手か。抜け駆けの申し開きは、大御所様の御前でなされよと伝えよ', 4.2));
+    rt.after(4.4, () => rt.say('浅野の使番', '長晟様の仰せ。一番乗りは蜂須賀殿の手か。抜け駆けの申し開きは、大御所様の御前でなされよ、と', 4.2));
     rt.after(9, () => rt.say(SHISHA, 'しかと。殿は覚悟の上。次は博労淵の砦と仰せでござる', 3.4));
     rt.finish({ scriptedEnd: true }, iriguchi.ending(rt, { shisha: SHISHA }));   // 締め：これはまだ入口（k08/iriguchi.js）
   },
