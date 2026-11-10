@@ -290,8 +290,9 @@ const k14_yao_wakae = {
 
     // ---- 大坂方（若江）：木村重成の本隊（堤）と両翼（北の田の山口弘定・南の田の内藤長秋） ----
     const kimO = { faction: 'toyotomi', facing: Math.PI / 2, fleeDir: { x: -1, z: 0 }, noRout: true, formation: 'yari', morale: 95, dmgMult: 0.4, defMult: 1.1 };
-    F.kimuraG = enemyGroup(rt, { ...kimO, name: '木村重成の本隊', anchor: { ...WAKAE }, width: 8, aggro: 8, seekRange: 14, order: 'hold' },
-      dress([named('木村重成', 'busho', { invuln: true }), { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], KIMURA));
+    // 堤の守備は共通の出撃・武将の退避で野へ移さない。間近の敵には持ち場で応戦する。
+    F.kimuraG = enemyGroup(rt, { ...kimO, name: '木村重成の本隊', fixed: true, stay: true, anchor: { ...WAKAE }, width: 8, aggro: 4, seekRange: 6, order: 'hold' },
+      dress([named('木村重成', 'busho', { invuln: true, keep: true }), { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], KIMURA));
     F.kimuraU = F.kimuraG.units.find((u) => u.name === '木村重成');
     F.yamaG = enemyGroup(rt, { ...kimO, name: '山口弘定の隊', anchor: { ...YAMA }, width: 10, aggro: 12, seekRange: 24, order: 'hold' },
       dress([named('山口弘定'), { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'gun', n: 5 }], KIMURA));
@@ -398,7 +399,7 @@ const k14_yao_wakae = {
       F.kimuraU.invuln = dist(rt.player.u.pos, F.kimuraU.pos) > 25;
       F.kimuraU.maxHp = F.kimuraU.hp = 110;
       // 木村の本隊は若江の堤の上で迎え撃つ（野の中へ出て行かない。十1「堤に立つ」）
-      F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 16; F.kimuraG.aggro = 16;
+      F.kimuraG.order = 'hold'; F.kimuraG.seekRange = 6; F.kimuraG.aggro = 4;
       // 庵原の隊が一度押し返され、直孝が本陣から重ねて下知する（史実では二度目の押し。直孝は本陣の旗本に囲まれたまま。一2）
       rt.after(6.4, () => rt.say('井伊直孝', '庵原が押し返されたか。退くな、もう一押しじゃ！', 3));
       // 井伊の手の安藤重勝が木村の首を狙って寄る（史実で首を取った者）

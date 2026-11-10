@@ -2915,10 +2915,10 @@ const shitaragahara = {
           : F.tsuigeki?.stage === 2 ? '退く馬場隊の印へ。仲間と進め！'
           : '柵の口の印へ進め。仲間と柵を抜けよ！';
       }
-      if (F.ending && !/^勝ちじゃ/.test(text) && !(F.epilogue && who === '語り')) return;
-      // 決着後は戦の時刻が止まる。間を空けた語りを待ち行列へ戻さない。
-      if (F.ending && F.epilogue && who === '語り') rt._sayGate = rt.t;
-      if (who === '組頭' && !/^勝ちじゃ/.test(text)) {
+      if (F.ending && !F.shYoinVoice && !/^勝ちじゃ/.test(text) && !(F.epilogue && who === '語り')) return;
+      // 決着後は戦の時刻が止まる。間を空けた語りと締めの声を待ち行列へ戻さない。
+      if (F.ending && (F.shYoinVoice || F.epilogue && who === '語り')) rt._sayGate = rt.t;
+      if (who === '組頭' && !F.shYoinVoice && !/^勝ちじゃ/.test(text)) {
         // 後退・合図・追撃へ変わった声は、直前の待機の声で間引かない。
         // 同じ文の八秒制限と札の三枠は、共通の知らせの仕組みに任せる。
         const orderKey = `${rt.phase}:${F.wave}:${!!F.pendingWave}:${!!F.cur?.withdrew}:${!!F.overrunShown}:${!!F.signalPreparing}:${!!F.trap}:${!!F.waveRest}:${F.tsuigeki?.stage ?? -1}:${shChaseCounter(rt)}`;

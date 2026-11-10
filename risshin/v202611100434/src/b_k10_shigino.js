@@ -261,6 +261,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     after: [['上杉景勝', '……鴫野の堤、確かに取った'], ['水原親憲', '謙信公の頃の戦に比べれば、これしきは子供の石合戦よ']],
   },
   world: {
+    // 水原の「撃つな」と川越しの合図待ちを、近距離の自衛射撃で破らせない。
+    strictFireOrders: true,
     // 十一月二十六日の早朝に柵へ取り付いた（冬の朝の低い光・薄い朝霧）。大坂の平らな低地：遠くの生駒・六甲は低く霞む
     seed: 1614, time: 'morning', muddy: 0.4, mist: 0.3, mountainScale: 0.16, mountainHaze: 0.85,
     groundHalf: 250, moveLim: 240,
@@ -645,6 +647,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       // 井楼の下の井上には本人の一撃が通る。近くで待った時間だけで代わりに討たない。
       if (F.inoU && !F.inoU.alive && F.inoByMe && !F.inoDown) {
         F.inoDown = true;
+        // 指図役を討った知らせどおり、三の柵の鉄砲を止める。残兵は来援と槍で寄せる。
+        F.ino.fire = false;
         rt.banner('井上頼次、討ち取ったり', '三の柵の鉄砲が止んだ');
         if (F.inoByMe) rt.award((t) => { t.special = { label: '井上頼次を討ち取った', pts: 24 }; }, '井上頼次を討ち取った');
         rt.after(3, () => this.toStep(rt, 3));

@@ -688,7 +688,12 @@ const t06_hetsugi = {
       if (g.order === 'move') continue;
       g.order = 'attack'; g.dest = null; g.onArrive = null; g.speed = 4.4; g.aggro = 14;
       // 二つ目は川下の土手を落ちていく落ち武者を追う（北の岸へ戻って別の的を探さない）
-      if (g.cutI === 0 || !stray) { g.focus = rt.player.u; g.seekRange = 120; } else { g.focus = stray; g.seekRange = 60; }
+      // 本人が北岸で殿をしている間に、渡り終えた追手を川へ呼び戻さない。
+      // 南岸では先に落ちた者を追い、本人も渡ったら追撃を分ける。
+      if (F.step < 5 && rt.player.u.pos.z <= 22) {
+        g.focus = stray; g.seekRange = stray ? 60 : 0;
+        if (!stray) { g.order = 'hold'; g.aggro = 0; }
+      } else if (g.cutI === 0 || !stray) { g.focus = rt.player.u; g.seekRange = 120; } else { g.focus = stray; g.seekRange = 60; }
     }
   },
 
