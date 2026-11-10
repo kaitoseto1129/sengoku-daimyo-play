@@ -512,7 +512,13 @@ const k08_osaka_kizu = {
     }
     hold(F.saki, INSIDE.x + 4, INSIDE.z); F.saki.aggro = 24;
     hold(F.asano, INSIDE.x + 12, INSIDE.z - 4); F.asano.aggro = 22;
-    hold(F.east, 20, -72); F.east.aggro = 18;   // 背から北の口を塞ぐ
+    hold(F.east, 20, -72);   // 背から北の口を塞ぐ
+    // 門が早く破れても、東の外を回る。北寄りの横塀はまだ残っており、
+    // ②の経路を消して北の口へ直進させると、その塀に突き当たる。
+    if (!F.east.routed) {
+      F.east.order = 'path'; F.east.path = [[44, -72], [20, -72]]; F.east.pathIdx = 0;
+      F.east.aggro = 4; F.east.onArrive = (g) => { g.order = 'hold'; g.aggro = 18; };
+    }
     hold(F.ikeda, INSIDE.x - 12, INSIDE.z - 2); F.ikeda.aggro = 20;
     F.garrison.noAI = false;
     for (const g of [F.wallG, F.garrison]) { g.order = 'attack'; g.aggro = 16; }

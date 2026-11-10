@@ -1,13 +1,14 @@
 // 千石堀城 ⑤ 12〜15分「本丸」：焼けて崩れた本丸の門から、浅くなった堀を渡って入る。根来衆は最後の一人まで撃つ。
 // 守りが崩れると火が煙硝蔵へ入り、大きく炎上する（史実：火が煙硝蔵に入って落城）。
 import { P, NEGORO, HASHIBA, breakStruct, sentries, silence } from './scene.js';
-import { troops, reports, move, broken, smoke } from '../toyo15/kit.js';
+import { troops, reports, move, broken, smoke, near } from '../toyo15/kit.js';
 import { sfx } from '../audio.js';
 
 export default {
   goal: '本丸へ渡り、最後の根来衆を討て',
-  pin: { x: 0, z: 13, label: '本丸' },
+  pin: { ...P.hon, label: '本丸' },
   enter(rt, F) {
+    F.honEntered = false;
     breakStruct(rt, F.honGate);
     rt.world.addFire(-4, 8.5, { size: 1.6, h: 0.6 }); rt.world.addFire(4, 8.5, { size: 1.4, h: 0.6 });
     F.hon = troops(rt, false, '本丸の根来衆', { x: 0, z: 22 }, [{ type: 'ashigaru', n: 12 }, { type: 'gun', n: 5 }, { type: 'samurai', n: 2 }], NEGORO, { aggro: 14 });
@@ -23,8 +24,10 @@ export default {
   },
   tick(rt, dt, t) {
     const F = rt.flags;
+    const p = rt.player.u.pos;
+    if (p.z > 10 && p.z < 48 && near(rt, P.hon, 20)) F.honEntered = true;
     smoke(rt, Math.max(0.35, 0.75 - t * 0.004));
-    if (!F.blown && t > 100 && (broken(F.hon, 0.35) || t > 130)) {
+    if (!F.blown && F.honEntered && t > 100 && (broken(F.hon, 0.35) || t > 130)) {
       F.blown = t;
       rt.world.addBlaze(P.store.x, P.store.z, { w: 8, d: 6, h: 4, size: 4 });
       rt.world.addFire(P.store.x, P.store.z, { size: 6, h: 3, blackSmoke: true });
@@ -37,5 +40,6 @@ export default {
     return !!F.blown && t - F.blown > 6;
   },
   foes: (rt) => [rt.flags.hon],
-  max: 200,
+  // 城外に取り残されたまま、刻限だけで勝ちにしない。本丸へ着けば進む。
+  max: Infinity,
 };

@@ -694,16 +694,20 @@ const k13_domyoji = {
     const sp = Math.max(4.2, Math.min(9, Math.hypot(u.vel.x, u.vel.z) * 1.05));
     const threat = rt.army.nearestEnemy(u, 9);
     // 手勢と家臣の組：攻められたら自分を囲んで寄せる敵に掛かる。離れたら自分の足で追いつく
-    const guards = [F.mine, ...(rt.squadGroups || [])].filter((g) => g && g.count && !g.routed);
+    // 退く下知を受けた組は、近くに敵がいても追従や護衛で攻撃へ戻さない。
+    const guards = [F.mine, ...(rt.squadGroups || [])].filter((g) => g && g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee');
     guards.forEach((g, i) => {
       const c = g.center(), d = Math.hypot(c.x - u.pos.x, c.z - u.pos.z);
       if (threat) { g.calm = false; g.order = 'attack'; g.focus = threat; g.anchor = { x: u.pos.x, z: u.pos.z }; g.seekRange = 12; g.speed = Math.max(sp, 5); }
-      else if (d > 10) { g.calm = false; g.order = 'move'; g.dest = { x: u.pos.x + (i % 2 ? 2.5 : -2.5), z: u.pos.z + 3 }; g.speed = sp; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 16; q.anchor = { x: u.pos.x, z: u.pos.z }; }; }
+      else if (d > 10) { g.calm = false; g.order = 'move'; g.dest = { x: u.pos.x + (i % 2 ? 2.5 : -2.5), z: u.pos.z + 3 }; g.speed = sp; g.onArrive = (q) => {
+        if (F.ending || rt.over || q.routed || q.order === 'retreat' || q.order === 'flee') return;
+        q.order = 'attack'; q.seekRange = 16; q.anchor = { x: u.pos.x, z: u.pos.z };
+      }; }
       else { g.focus = null; g.speed = sp; }
     });
     // 水野・本多・伊達の隊：自分より遅れたら、自分の速さで前へ出る（自分だけが先に敵を引き受けない）
     for (const g of [F.mizuno, F.honda, F.tadaaki, F.date, F.katakura]) {
-      if (!g || !g.count || g.routed || g.order === 'retreat' || (g === F.katakura && rt.t < (F.pushedUntil || 0))) continue;
+      if (!g || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee' || (g === F.katakura && rt.t < (F.pushedUntil || 0))) continue;
       const c = g.center(), lag = c.x - u.pos.x;
       g.speed = lag > 8 ? sp : 4.2;
       if (lag > 18 && F.begun) { g.calm = false; g.order = 'attack'; g.seekRange = 40; g.anchor = { x: u.pos.x + 5, z: Math.max(-30, Math.min(30, (g.anchor ? g.anchor.z : u.pos.z))) }; }

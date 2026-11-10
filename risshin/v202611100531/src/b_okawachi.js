@@ -736,6 +736,7 @@ const okawachi = {
   missionPinCaption: '',
   goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の旗・輪・枠を重ねない。AV15・BH6）
   noGroundGuide: true, // 地面の案内は別の描画経路なので止め、行き先の▼だけを残す。
+  noTravelArrow: true, // 道案内専用の足元・画面端の矢印も止め、道の角は既存の▼で示す。
   meleeGuide: () => false, // 接敵時も足元へ白い矢印を足さず、敵の赤い▼で示す。
   goalSignTriangle: true, // 画面の外でも矢印へ替えず、同じ▼で示す。
   // 九3：味方の名のある将（丹羽・池田・稲葉）の名は六十歩内なら常に出す（金ヶ崎と同じ）。前は十八歩で、馬上の丹羽の横でも名が出なかった。
@@ -4436,15 +4437,15 @@ function okGateStones(rt, dt) {
     if (t >= 1) {
       stone.mesh.visible = false;
       if (Math.hypot(u.pos.x - x, u.pos.z - z) < 1.4 &&
-          Math.abs(u.pos.y + 1 - y) < 1.5 && u.hp > u.maxHp * 0.5) {
-        rt.army.damage(u, Math.min(u.hp - u.maxHp * 0.45, stone.damage), null, { kind: 'arrow' });
+          Math.abs(u.pos.y + 1 - y) < 1.5) {
+        rt.army.damage(u, stone.damage, null, { kind: 'arrow' });
       }
     }
     return;
   }
   if (rt.t < (F.stoneAt || 0)) return;
   F.stoneAt = rt.t + 1;
-  // 傷を負っても守り手は狙い続ける。命を守る下限は命中時だけに適用する。
+  // 傷を負っても守り手は狙い続ける。竹束の陰か、落下点からの移動で避ける。
   if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 35) return;
   // 木戸へ寄せた本人を確実に狙う。毎秒六パーセントの抽選では、
   // 寄せている間に一度も投石されない回があった。次の石までは従来どおり十四秒空ける。

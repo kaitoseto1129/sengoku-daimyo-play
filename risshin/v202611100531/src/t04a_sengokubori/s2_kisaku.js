@@ -39,8 +39,8 @@ export default {
     if (F.ram) F.ram.tick(dt);
     const n = living(F.ramG);
     F.work += dt * (n >= 3 ? 1 : n > 0 ? 0.6 : 0.35);   // 担ぎ手が減ると遅れる（自分が守った分だけ早い）
-    if (F.kido.alive && t > 150 && (F.work > 115 || t > 180)) {
-      breakStruct(rt, F.kido);
+    if (t > 150 && (!F.kido.alive || F.work > 115 || t > 180)) {
+      if (F.kido.alive) breakStruct(rt, F.kido);
       rt.say('羽柴秀次', '木戸が破れた！　土橋へ押し出せ！', 3);
       return true;
     }

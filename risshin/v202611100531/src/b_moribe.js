@@ -4412,7 +4412,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       { guideArea: 'wait', guideRadius: FORD_R });
     rt.zone('point', POINT2.x, POINT2.z, FORD_R);
     M15.install(rt, this, { KISHI: { x: START2.x - 2, z: START2.z + 8 }, POINT2, FORD_R, enemyGroup });   // 南岸で渡河の下知を待つ（moribe/kishi.js）
-    rt.say('組頭 源八（げんぱち）', '浅瀬は腿までじゃ。足を取られるな。向こう岸の畦まで渡れ', 5);
+    rt.say('組頭 源八（げんぱち）', '楡俣川の南岸、柳の陰で組に付け。渡河の下知を待つぞ', 1.8);
     // 11/6 fix3（身分）：勘当の身の前田又左衛門は手勢を持たず、組へ下知する立場にない。共通の将の声（lines_data.js の toshiie）を森部では言わせない。
     rt._generalSaid = rt._generalSaid || {};
     for (const sc of ['pushing', 'breaking', 'allyDown', 'enemyFlee']) rt._generalSaid[`前田利家:${sc}`] = 1e9;
