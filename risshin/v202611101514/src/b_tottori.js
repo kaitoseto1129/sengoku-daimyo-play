@@ -191,7 +191,8 @@ function tottoriSallyContact(rt, u) {
   if (Math.hypot(u.pos.x - GATE.x, u.pos.z - FENCE_Z) < 14) return true;
   const foe = u.atk?.target || u.swing?.target || u.target;
   return atTottoriPost(u.pos) && foe?.alive && foe.team !== u.team &&
-    !foe.fleeing && !foe.woundOut && !foe.noTarget && atTottoriPost(foe.pos) &&
+    !(foe.hp <= 0) && !foe.dying && !foe.downed && !foe.gone &&
+    !foe.fleeing && !foe.woundOut && !foe.rearWound && !foe.noTarget && atTottoriPost(foe.pos) &&
     (u.atk || u.swing && !u.swing.done || u.guardFlash > 0) &&
     Math.abs(u.pos.y - foe.pos.y) < 3 &&
     Math.hypot(u.pos.x - foe.pos.x, u.pos.z - foe.pos.z) <= Math.min(8, (u.reach || 2.8) + 1) &&
@@ -203,9 +204,10 @@ function holdTottoriSallies(rt) {
     if (g.focus && !atTottoriPost(g.focus.pos)) g.focus = null;
     for (const u of g.units) {
       if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
-      if (g.order === 'path' ? !u.target || atTottoriPost(u.target.pos)
-        : atTottoriPost(u.pos) && (!u.target || atTottoriPost(u.target.pos))) continue;
-      u.target = null; u.atk = null; u.watch = null; u.charging = false;
+      const foe = u.atk?.target || u.swing?.target || u.target;
+      if (g.order === 'path' ? !foe || atTottoriPost(foe.pos)
+        : atTottoriPost(u.pos) && (!foe || atTottoriPost(foe.pos))) continue;
+      u.target = null; u.atk = null; u.swing = null; u.watch = null; u.charging = false;
       const home = u.moralePoint;
       if (g.order === 'path') {
         const at = g.path[Math.min(g.pathIdx, g.path.length - 1)];
@@ -3156,7 +3158,7 @@ const tottori = {
           g.retreatOnly = true;
           // 遅れた兵も折れ道を戻る。隊列へ直進して切岸で止まり、護送を始められなくしない。
           g.followColumnRoad = true;
-          for (const u of g.units) { u.target = null; u.atk = null; u.watch = null; }
+          for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.watch = null; u.charging = false; }
           g.order = 'path'; g.path = g.ttIngress.slice().reverse(); g.pathIdx = 1;
           // 接触した位置から城側の折れへ戻る。毎回柵前の終点まで歩き直させない。
           // 隊の位置は動かさず、いまいる道の区間から逆順にたどる。

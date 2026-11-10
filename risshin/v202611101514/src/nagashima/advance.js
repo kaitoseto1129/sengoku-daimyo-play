@@ -80,6 +80,7 @@ function withdraw(C) {
 function take(o) {
   const st = fight({ ...o, noRefill: true });
   const tick = st.tick;
+  const end = st.end;
   // 全滅ではなく拠点の制圧。残兵の中心へ案内すると、必要な持ち場から外れてしまう。
   st.killAll = false;
   st.idleAdvance = false; st.noHardCap = true; st.limit = Infinity;
@@ -102,6 +103,12 @@ function take(o) {
     // 経過時間だけを見ると、長く放置した後に三秒来るだけで砦が落ちていた。
     if (C.takeT > (o.cap || 170)) { withdraw(C); return false; }
     return false;
+  };
+  // 七割の崩れや門徒頭の討死でも、残兵には次の拠点への撤退先を渡す。
+  // 共通の終了処理の士気低下だけでは、攻撃の下知と射撃が残っていた。
+  st.end = (rt, C, m, ctx) => {
+    withdraw(C);
+    end?.(rt, C, m, ctx);
   };
   return st;
 }
