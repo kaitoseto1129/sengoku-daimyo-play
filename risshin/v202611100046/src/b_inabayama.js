@@ -6626,7 +6626,7 @@ const inabayama = {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending || rt.over || !rt.player.u.alive || rt.retryOpen || F.carry || F.step !== 4 || !F.sig || !F.hata.every(gone) || !gone(F.tatsu) || !gone(F.keep.guard)) return;
+    if (F.ending || rt.over || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.player.u.dying || rt.player.u.downed || rt.retryOpen || F.carry || F.step !== 4 || !F.sig || !F.hata.every(gone) || !gone(F.tatsu) || !gone(F.keep.guard)) return;
     F.ending = true; F.win = true; F.endT = rt.t;
     rt.setPhase('end');
     // 終幕では退き口の更新を止めるため、集合へ移る前に古い下知を片付ける。
@@ -6713,11 +6713,13 @@ const inabayama = {
     const F = rt.flags;
     // 崖や落石で先に倒れた時も、共通の救済待ちを挟まず重傷の決着へ渡す。
     // 倒れた後は会話・出撃・火付けの任務を進めない。やり直しの札と終幕は重ねない。
-    if (!rt.player.u.alive) {
+    if (!rt.player.u.alive || rt.player.u.hp <= 0) {
       if (F.torches) { F.torches.stop(); F.torches = null; }
       if (!rt.over && !rt.retryOpen && !F.ending) rt.playerDown();
       return;
     }
+    // 生存の値が残る重傷中や、やり直しの札を開いている間も任務を止める。
+    if (rt.retryOpen || rt.player.u.dying || rt.player.u.downed) return;
     depthTick(rt, dt);   // 15分の構成の段（inabayama/）
     k15Hon.tick(rt);
     // 10/30：「話す」を押せずに8分止まる事があった（指の遊び）。藤吉郎のそばに来たら、押さなくても話が始まる

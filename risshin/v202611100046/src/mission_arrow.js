@@ -50,8 +50,14 @@ export function drawDestArrow(rt, want, rects) {
   point.set(gx, gy + (route ? .16 : 3.5 + Math.min(10, dist * .06)), gz).project(rt.camera);
   if (route) rotation = Math.atan2((routeStart.y - point.y) * H, (point.x - routeStart.x) * W) * 180 / Math.PI + 90;
   const x = (point.x + 1) * W / 2, y = (1 - point.y) * H / 2;
+  const label = route ? '' : rt.missionGuide?.label || '';
+  // 距離を使う戦では、大きな▼へ替えた時も行き先までの距離を残す。
+  const distance = !route && rt.def.distanceUnit === 'metres' ? `${Math.ceil(dist)}m` : '';
+  const caption = label.length <= 8 ? label : '';
+  const words = caption && distance ? `${caption} ${distance}` : caption || distance;
   // 重なりは揺れと大きさ（最大 1.5 倍）と名の字まで含めた実寸で見る（critic60 山中 15・田野 30「▼が顔や音のボタンの上・左の端」）
-  const sc0 = route ? 1 : Math.max(.8, Math.min(1.5, 1.5 - dist / 120)), hw = 24 * sc0 + 10, top = (route ? 24 : 52 * sc0) + 14;
+  const textWidth = caption.length * 13 + (caption && distance ? 4 : 0) + distance.length * 8;
+  const sc0 = route ? 1 : Math.max(.8, Math.min(1.5, 1.5 - dist / 120)), hw = Math.max(24, textWidth / 2) * sc0 + 10, top = (route ? 24 : 52 * sc0) + 14;
   const ok = point.z >= -1 && point.z <= 1 && Number.isFinite(x) && Number.isFinite(y) &&
     x > sa.left + hw + 56 && x < W - sa.right - hw - 56 && y > sa.top + 90 && y < H - sa.bottom - 40 &&
     !rects.some(r => x + hw > r.left && x - hw < r.right && y + 14 > r.top && y - top < r.bottom);
@@ -66,8 +72,7 @@ export function drawDestArrow(rt, want, rects) {
   if (g.firstChild.getAttribute('d') !== shape) {
     g.firstChild.setAttribute('d', shape); g.children[1].setAttribute('d', shape);
   }
-  const label = route ? '' : rt.missionGuide?.label || '';
-  const text = g.lastChild, words = label.length <= 8 ? label : '';
+  const text = g.lastChild;
   if (text.textContent !== words) text.textContent = words;
   el.style.display = '';
   return true;
