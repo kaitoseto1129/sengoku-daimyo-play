@@ -570,6 +570,9 @@ function waterTick(rt) {
 export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   noReserve: true, noTaishoRaid: true, stageGoalsOnly: true,
+  // 人数の棒は常に出し、行き先の▼による共通の省略からも外す。
+  // 名札だけの表示対策では、五万対九千の棒が戦の間ずっと消えていた。
+  forceBarAlways: true, keepBattleSigns: true,
   // 段の時間送りを止めても、共通の十八分打ち切りで未達のまま負けていた。
   // 場所への到着・守備・入城を待ち、開城後は使者の会話で締める。
   pacingWait: () => true,
@@ -637,7 +640,10 @@ export const t05_ichinomiya = {
       const st = document.createElement('style'); st.id = 't05-one-mark';
       // 共通の行き先表示と field-clean は名札の親まで隠す。将ごとの表示判定を生かし、この戦では名前を残す。
       st.textContent = 'html body #hud:has(#h-prog[data-battle="t05_ichinomiya"]):has(#goal-sign:not([hidden])) #mission-goal:not(.fire-action):not(.talk-action) svg{display:none!important}' +
-        'html body #hud:not(.photo):not(.ending):has(#h-prog[data-battle="t05_ichinomiya"]) .field-names{display:block!important}';
+        'html body #hud:not(.photo):not(.ending):has(#h-prog[data-battle="t05_ichinomiya"]) .field-names{display:block!important}' +
+        // 共通の battle-order は人数と台詞も隠す。開城の会話が用意されていても読めないため、この戦だけ表示を戻す。
+        'html:root body #hud#hud#hud:not(.photo):not(.ending):has(#h-prog[data-battle="t05_ichinomiya"]) #tugbar:not([hidden]){display:flex!important}' +
+        'html:root body #hud#hud#hud:not(.photo):not(.ending):has(#h-prog[data-battle="t05_ichinomiya"]) #subtitle:not([hidden]):not(:empty){display:block!important}';
       document.head.appendChild(st);
     }
     buildStage(rt);
