@@ -61,7 +61,8 @@ const SOGAMAE = [[-14, 40], [-26, -10], [-26.6, -13], [-32, -16.5], [-27.6, -21]
 const MASU = [[-20, -31], [-20, -17], [-25, -15.5]];
 // 北条の頃の本丸（石垣も天守も無い土の城）。平らな台を土塁で囲み、外を水堀。後ろ（北西）に詰の城の八幡山
 const HON = { x0: CASTLE.x - 16, x1: CASTLE.x + 16, z0: CASTLE.z - 12, z1: CASTLE.z + 12 };
-const HON_HORI = [[HON.x0 - 4, HON.z0 - 4], [HON.x1 + 4, HON.z0 - 4], [HON.x1 + 4, HON.z1 + 4], [HON.x0 - 4, HON.z1 + 4], [HON.x0 - 4, HON.z0 - 4]];
+// 南の櫓門の前には土橋を残す。堀幅の裾まで門口から外し、開城の列を水堀へ下ろさない。
+const HON_HORI = [[KGATE.x + 7, HON.z1 + 4], [HON.x1 + 4, HON.z1 + 4], [HON.x1 + 4, HON.z0 - 4], [HON.x0 - 4, HON.z0 - 4], [HON.x0 - 4, HON.z1 + 4], [KGATE.x - 7, HON.z1 + 4]];
 const HACHIMAN = { x: CASTLE.x - 40, z: CASTLE.z - 26 };
 // 石垣山城（発掘と享保の古絵図）：尾根の頂の本城曲輪（北西の角に天守台）、北に一段低い馬屋曲輪、東に南曲輪。野面積みの石垣
 const ISHI_K = [
@@ -106,7 +107,9 @@ function rawHeight(x, z) {
   h += 9 * gauss(x, z, HACHIMAN.x, HACHIMAN.z, 1100) + 6 * gauss(x, z, HACHIMAN.x - 34, HACHIMAN.z - 26, 1800);
   // 本丸：平らな台（高さ 3.5）の縁に土塁、外に水堀（流れは streams）
   const dh = rectD(HON, x, z);
-  h += 3.5 * clamp01((3 - dh) / 4) + 1.6 * trap(Math.abs(dh + 1.4), 0.8, 1.2);
+  // 板塀だけでなく門口の土塁も切る。門の内外の高さは本丸の台へ続く坂でつなぐ。
+  const honGate = z > CASTLE.z ? clamp01((Math.abs(x - KGATE.x) - 2.5) / 1.5) : 1;
+  h += 3.5 * clamp01((3 - dh) / 4) + 1.6 * trap(Math.abs(dh + 1.4), 0.8, 1.2) * honGate;
   // 総構え：土塁（高さ 3）と、外の堀（深さ 2.4）。早川口は土塁が切れ、堀は土橋。口の内に枡形の土塁
   const atGate = Math.hypot(x - GATE.x, z - GATE.z);
   h += 3 * trap(distToPolyline(x, z, SOGAMAE), 2.2, 2.5) * clamp01((atGate - 5) / 3);
@@ -660,7 +663,9 @@ const t12_odawara = {
     wetStart: 0.7,
     noGroundArrows: true,   // 水中の川床へ矢を立てない。人や塀に刺さった矢は残す
     paths: [[[II_JIN.x + 20, II_JIN.z], [II_JIN.x, II_JIN.z + 2], [KIDO_F.x + 4, KIDO_F.z], [KIDO.x, KIDO.z], [SHINO_C.x, SHINO_C.z], [SANNO.x, SANNO.z], [SANNO_IN.x, SANNO_IN.z], [74, -80], [60, -98], [KGATE.x, KGATE.z]],
-      [[II_JIN.x, II_JIN.z], [IE_JIN.x, IE_JIN.z]]],
+      [[II_JIN.x, II_JIN.z], [IE_JIN.x, IE_JIN.z]],
+      // 開城の後列も門内から土橋を通す。縦隊の道筋の判定で本丸の坂を避け続けないようにする。
+      [[KGATE.x, KGATE.z - 23], [KGATE.x, KGATE.z + 16]]],
     height,
     tint(x, z, h, c) {
       // 海と浜

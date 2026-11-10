@@ -110,6 +110,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const fighting = (u) => !u.fleeing && !u.gone && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget && !u.isStruct;
 const noMelee = (rt) => { const u = rt.player?.u; return !(u && rt.army.nearestEnemy(u, 6, fighting)); };
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
+const SIGHT_FROM = { x: 0, y: 0, z: 0 }, SIGHT_TO = { x: 0, y: 0, z: 0 };
 const KEEP = 0.4;   // 段の隊は四割まで減れば崩れる（倒す数＝六割）
 
 // ---- 地形：金華山。実測の起伏を縮めて写し、曲輪は平らに均す ----
@@ -349,6 +350,13 @@ const k03_gifu = {
   noTaishoRaid: true,
   foeMarks: true,
   nameTagsAtHead: true,   // 櫓門の陰へ入った将の名だけが宙に残らない。頭の位置で毎コマ見通しを確かめる。
+  sightBlocked(rt, a, p, ay = a.y, by = p.y) {
+    // 櫓門の渡櫓・軒は通行用の壁だけでは拾えない。カメラと同じ体積で名札の透視も防ぐ。
+    SIGHT_FROM.x = a.x; SIGHT_FROM.y = ay; SIGHT_FROM.z = a.z;
+    SIGHT_TO.x = p.x; SIGHT_TO.y = by; SIGHT_TO.z = p.z;
+    const hit = rt.world.cameraBlockFraction?.(SIGHT_FROM, SIGHT_TO);
+    return hit != null && hit < 1;
+  },
   playerAtkMax: 3,
   playerTaken: 0.6,    // 城攻めは登る間ずっと怖い（0.5 では命が 90〜100 のまま・critic60 十-3）
   playerRegen: 0.02,

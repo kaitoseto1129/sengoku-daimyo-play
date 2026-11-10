@@ -25,4 +25,18 @@ export function placePlayer(rt, x, z, heading) {
   u.pos.set(x, rt.world.heightAt(x, z), z);
   u.mesh.position.copy(u.pos); u.moveTo = null; u.target = null;
   u._riverX = undefined; u._riverZ = undefined;
+  bringHorse(rt);
+}
+
+// 11/11 関所の5（鳥取）：段の間に本人だけ遠くへ移すと、降りて待つ自分の馬が二百歩後ろに残り、呼んでも来ず乗れなかった。
+//   口取りが曳いて来た心で、本人の後ろ五歩へ連れて来る（逃げた・下がった・死んだ馬はそのまま）。
+export function bringHorse(rt) {
+  const P = rt.player, u = P?.u, L = P?.loose, h = P?.horse;
+  if (!u || !L || !h || L.mode === 'fled' || L.mode === 'back' || h.userData?.horse?.dead) return;
+  if (Math.hypot(L.x - u.pos.x, L.z - u.pos.z) < 20) return;
+  const lim = rt.world.def.moveLim || 176;
+  L.x = Math.max(-lim, Math.min(lim, u.pos.x - Math.sin(u.heading) * 5));
+  L.z = Math.max(-lim, Math.min(lim, u.pos.z - Math.cos(u.heading) * 5));
+  L.heading = u.heading; L.spd = 0; L.mode = 'wait'; L.farT = 0;
+  h.position.set(L.x, rt.world.heightAt(L.x, L.z), L.z);
 }
