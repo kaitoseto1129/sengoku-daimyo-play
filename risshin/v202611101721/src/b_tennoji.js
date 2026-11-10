@@ -3669,7 +3669,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     rt.award((t) => { t.main = true; t.special = { label: '天王寺砦の囲みを破り、本願寺勢を城戸口まで押し戻した', pts: 20 }; }, '天王寺の囲みを破った');
     rt.obj('halt', '城戸口で止まれ。木戸の内へ入るな', 'order');
     tennojiCue(rt, 'tomare', '鉦の二つ打ち＝追撃を止めよ', rt.player.u.pos, 'halt');
-    rt.banner('城戸口まで押し戻した', '本願寺勢二千七百余を討ち取り、天王寺砦を救った');
+    rt.banner('城戸口まで押し戻した', '本願寺勢を城戸口まで追い立て、天王寺砦を救った');
     // 追撃はここで終える。残った敵へ隊が走り続け、木戸の奥へ入らない。
     for (const g of F.fighters) {
       if (spent(g)) continue;
@@ -4008,13 +4008,13 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       let threat = 0, near = 0;
       for (const g of F.foes) for (const u of g.units) {
         // 木戸側へ退去済みの殿は、口の近くにいても迎撃の残敵には戻さない。
-        if (u.alive && !u.fleeing && !u.woundOut &&
+        if (u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
             !(g.kidoRetreat && u.pos.z <= F.kz.z - 12) &&
             Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18) threat++;
       }
       // 必要人数と同じ追撃隊だけを数え、砦の守備隊で集合を満たさない。
       for (const g of F.fighters) if (g === F.ake || F.relief.includes(g)) for (const u of g.units) {
-        if (u.alive && !u.dying && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
+        if (u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
       }
       const d = Math.hypot(p.x - F.kz.x, p.z - F.kz.z);
       // 道中を自分で歩いて来た場合にも、城戸口の手前で印を出す。
@@ -4026,7 +4026,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       let remaining = 0, escaped = true;
       for (const g of F.kidoG) {
         let live = 0;
-        for (const enemy of g.units) if (enemy.alive && !enemy.woundOut) {
+        for (const enemy of g.units) if (enemy.alive && !enemy.dying && !enemy.gone && !enemy.woundOut) {
           live++;
           // 木戸の柵で詰まっても、退く下知を受けて印より北の木戸側へ達した殿は退去済み。
           // 南の迎撃位置や東西へ離れただけでは、木戸へ退いたことにしない。
@@ -4047,10 +4047,10 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       let available = 0;
       // 砦に残した守備隊は、城戸口へ集まる人数に含めない。
       for (const g of F.fighters) if (g === F.ake || F.relief.includes(g))
-        for (const mate of g.units) if (mate.alive && !mate.dying && !mate.fleeing && !mate.woundOut) available++;
+        for (const mate of g.units) if (mate.alive && !mate.dying && !mate.gone && !mate.fleeing && !mate.woundOut) available++;
       if (!available) return this.fail(rt, '追撃の列が崩れた。城戸口から味方と退け');
       const need = Math.min(6, available);
-      const canSecure = !u.dying && !u.woundOut && !u.fleeing;
+      const canSecure = !u.gone && !u.dying && !u.woundOut && !u.fleeing;
       // 先着した味方が殿を払い切った時も、本人が口で構えて押さえれば締めへ進む。
       if (canSecure && F.kidoCut && d < 10 && near >= need && (remaining === 0 || escaped) && rt.player.u.guard)
         F.kidoHelp = true;
@@ -4218,7 +4218,6 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
 tennoji.force = (rt) => {
   const F = rt.flags;
   // 両軍それぞれの討死を数える。敵の討死だけで味方の棒も減らさない。
-  const won = F.ending && rt.tracker?.main === true;
   let allyDead = 0, allyTotal = 0, enemyDead = 0, enemyTotal = 0;
   for (const g of rt.army?.groups || []) for (const u of g.units) if (!u.isStruct) {
     if (g.team === 0 && F.relief?.includes(g)) { allyTotal++; if (!u.alive) allyDead++; }
@@ -4227,10 +4226,10 @@ tennoji.force = (rt) => {
   // 段替わりで架空の討取りを足さず、前の段の討取りも捨てない。
   const enemyWant = enemyDead / Math.max(1, enemyTotal);
   const allyWant = allyDead / Math.max(1, allyTotal);
-  // 討死を滑らかに反映し、戦果を掲げた瞬間から敵の残数を札と一致させる。
+  // 討死を滑らかに反映する。史料の戦果は歴史の説明に残し、勝利だけで残数を減らさない。
   const dt = Math.max(0, Math.min(1, rt.t - (F.forceT ?? rt.t)));
   F.forceT = rt.t;
-  F.forceFrac = won ? 1 : (F.forceFrac ?? 0) + Math.max(0, enemyWant - (F.forceFrac ?? 0)) * Math.min(1, dt * .25);
+  F.forceFrac = (F.forceFrac ?? 0) + Math.max(0, enemyWant - (F.forceFrac ?? 0)) * Math.min(1, dt * .25);
   F.forceAllyFrac = (F.forceAllyFrac ?? 0) + Math.max(0, allyWant - (F.forceAllyFrac ?? 0)) * Math.min(1, dt * .25);
   return { a: Math.round(3000 - 300 * F.forceAllyFrac), a0: 3000, b: Math.round(15000 - 2700 * F.forceFrac), b0: 15000 };
 };

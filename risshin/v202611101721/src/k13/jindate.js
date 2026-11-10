@@ -37,10 +37,6 @@ export function tick(rt, dt) {
   const F = rt.flags, st = F._jin13;
   if (!st) return;
   const D = F.dp, i = D && D.on ? D.i : (F.begun ? -1 : -2);
-  kerai.tick(rt, dt, {
-    keepHold: (g) => g === F.tadateru || g === F.masamune,
-    guns: () => (i >= 5 ? [F.katakura, F.date] : i <= 1 ? [F.mizuno, F.honda] : []),
-  });
   const M = st.M;
   if (F.ending) {
     if (!st.end) {
@@ -49,6 +45,11 @@ export function tick(rt, dt) {
     }
     return;
   }
+  // 終戦後は護衛の迎撃・前進も止め、勝ちの下知で止めた追撃を再開しない。
+  kerai.tick(rt, dt, {
+    keepHold: (g) => g === F.tadateru || g === F.masamune,
+    guns: () => (i >= 5 ? [F.katakura, F.date] : i <= 1 ? [F.mizuno, F.honda] : []),
+  });
   // 本物の片倉隊が待ち伏せで押し戻された時、後ろの伊達勢も退く。
   // 段の始まりからの時刻だけでは、射撃を待っている間にも退いてしまう。
   if (!st.datePushed && F.pushedUntil > rt.t) {

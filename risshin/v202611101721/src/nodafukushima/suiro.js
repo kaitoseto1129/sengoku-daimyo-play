@@ -39,11 +39,7 @@ export function install(rt, ctx) {
     S.spawnAt = rt.t + 5;
     // 名の無い遠い控えを退かせ、鉄砲四人を含む十人の枠を先に確保する。
     // 出せなかった敵を、時刻だけで追い払った事にはしない。
-    if (ctx.makeRoom(rt, 10) < 10) {
-      // 兵の枠が空かず出せない時は、二十五秒で堤へ戻る（出せない敵を待って止まらない）。
-      if (rt.t - (S.seenT || rt.t) > 25) { S.k = 3; S.backT = rt.t; rt.say('前田利家', '狭間の鉄砲は引っ込んだ。堤へ戻れ、下知を言うぞ', 3.5); }
-      return;
-    }
+    if (ctx.makeRoom(rt, 10) < 10) return;
     const g = ctx.enemyGroup(rt, { faction: 'miyoshi', name: '葦に潜む三好の鉄砲', anchor: { x: MI.x + 24, z: MI.z - 3 }, facing: -Math.PI / 2, aggro: 16, seekRange: 40, width: 8, morale: 70 },
       ctx.dress([{ type: 'samurai', n: 1 }, { type: 'gun', n: 4 }, { type: 'ashigaru', n: 5 }], ctx.foe));
     if (!g || !g.count) return;
@@ -66,8 +62,8 @@ export function install(rt, ctx) {
     if (S.done || rt.over || F.ending || !rt.player.u.alive) return;
     if (F.step) { S.done = true; return; }
     const p = rt.player.u.pos;
-    // 11/10 クラウド：葦の泥で岸の七歩内へ届かず、物見の段のまま十八分止まった（act bot・岸から十歩）。十二歩で見届け、百五十秒たてば組頭が代わりに見る。
-    if (S.k === 0 && (Math.hypot(p.x - MI.x, p.z - MI.z) < 12 || rt.t - S.t0 > 150)) seen();
+    // 泥の岸から十二歩以内で見届ける。遠くで待つだけでは本人の物見の戦功にしない。
+    if (S.k === 0 && Math.hypot(p.x - MI.x, p.z - MI.z) < 12) seen();
     if (S.k === 1) snipers();
     if (S.k === 2) {
       const left = S.g.units.filter(fighting).length;
@@ -78,15 +74,15 @@ export function install(rt, ctx) {
             Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 40 &&
             !rt.army.wallBetween(p, -1, u.pos) && !rt.army.terrainBlocks(p, u.pos))) S.contestedAt = rt.t;
       // 葦や水際に残った数人の全滅待ちをしない。交戦が長引けば砦へ退く。
-      // 11/10 クラウド：十五分に収めるため、岸での撃ち合いは七十秒、段の始めから二百秒で三好の鉄砲は砦へ退く（act bot で物見の段が 286 秒）。
-      if ((atBank && S.contestedAt != null && rt.t - S.contestedAt > 70 || rt.t - S.t0 > 200) && !S.g.routed && left > 2) {
+      // 11/10 クラウド：十五分に収めるため、岸での撃ち合いは七十秒、出撃から二百秒で三好の鉄砲は砦へ退く（act bot で物見の段が 286 秒）。
+      if (!S.timedOut && (atBank && S.contestedAt != null && rt.t - S.contestedAt > 70 || rt.t - S.gT > 200) && !S.g.routed && left > 2) {
         withdraw();
-        S.k = 3; S.backT = rt.t;
+        S.timedOut = true;
         rt.unmark('nodaSnipe');
-        rt.say('前田利家', '三好の鉄砲が退くぞ。追うな、堤へ戻れ！', 3.5);
+        rt.say('前田利家', '三好の鉄砲が退くぞ。水路の岸で味方と合流せよ！', 3.5);
       }
       // 岸を離れた間に味方が倒しても、本人が戻るまで任務を果たした事にしない。
-      if (S.k === 2 && atBank && (left <= 2 || S.g.routed)) {
+      if (S.k === 2 && atBank && (left <= 2 || S.g.routed || S.timedOut)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
         withdraw();
