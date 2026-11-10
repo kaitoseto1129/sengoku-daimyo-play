@@ -679,6 +679,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
 
   // 段の短さの下限：着いても el 秒までは済ませない（撤収は一分半ほど続く。11/10 関所の流しで五秒で済んだ）
   minEl(st, sec, label, radius = 9) {
+    // 共通の放置・刻限による段送りでは、帰陣の判定を飛ばさない。
+    // 陣を離れて救援中でも段を保ち、本人が戻った時に完了させる。
+    st.idleAdvance = false; st.limit = Infinity; st.noHardCap = true;
     const tick = st.tick;
     st.tick = (rt, C, m, ctx, el, dt) => {
       const done = tick(rt, C, m, ctx, el, dt);

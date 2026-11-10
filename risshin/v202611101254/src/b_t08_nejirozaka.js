@@ -653,7 +653,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       if (F.ending) { T.k = Math.max(0, T.k - dt / 6); if (!T.k) T.pts.visible = false; }
       T.update(dt);
     }
-    if (F.ending || !F.started) return;
+    // 撤退を見届ける段でも、下の段替わりで後詰の索敵を戻して追撃させない。
+    if (F.ending || F.retreating || !F.started) return;
     for (const g of [F.miyabe, F.guns, F.todo, F.togawa, F.relief, F.koba]) if (g) { g.noPursue = true; g.historicalOrders = true; }
     // 味方の隊も段の目当てへ動く（kaito AQ7・BK1）：破れ口の段は宮部の手が土橋の内へ詰め、忠隣の段は藤堂の手と共に土橋の前の坂へ打って出る
     const di = F.dp?.i ?? -1;
