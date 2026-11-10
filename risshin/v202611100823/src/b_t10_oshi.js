@@ -981,6 +981,12 @@ const t10_oshi = {
       if (P.alive && near(P.pos, RAIDAT, 18)) F.raidDefense = (F.raidDefense || 0) + 0.5;
       // 区の足軽は浅瀬の口から離れて追わない（前は夜討ちの残り一人を城の口まで追い、次の夜討ちとそこで斬り合って、主人公の前に敵が来なかった）
       for (const u of F.guard.units) if (u.alive && !u.gone && !near(u.pos, F.guard.anchor, 14)) { u.target = null; u.watch = null; }
+      // 道の下知だけでは、斬り合いに入った後の追撃が沼へ逸れる。
+      // 水に深く入った相手は追わず、足軽も夜討ちも土手の持ち場へ戻す。
+      for (let i = -1; i < F.raids.length; i++) for (const u of (i < 0 ? F.guard : F.raids[i]).units) {
+        const target = u.target;
+        if (u.alive && !u.gone && target?.pos && rt.world.heightAt(target.pos.x, target.pos.z) < F.lakeY - 0.5) { u.target = null; u.watch = null; }
+      }
       // 残り二人、または口を一分守り抜いて寄せが九十秒続いたら城へ退く。
       // 柵に残った一隊の全滅を待たず、討てない正木丹波守も退ける。
       for (const g of F.raids) if (fighting(g) && (g.units.filter((u) => u.alive && !u.gone && !u.fleeing).length <= 2 && g.units.length > 4 || rt.t - g.raidStartT > 90 && F.raidDefense >= 60)) {
