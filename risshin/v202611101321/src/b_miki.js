@@ -445,16 +445,17 @@ function mikiHut(W, x, z, w, d, rot, o) {
   mat.userData.camNearSolid = true;
   if (o.batch) pushSimpleBatch(o.batch, geo, mat);
   else W.scene.add(new THREE.Mesh(geo, mat));
-  // 小屋の壁・妻・屋根を同じ扱いにする。近接透かしで梁だけを残さない。
-  // 元の束へ戻すので描画の区画数は増やさず、材質の写しも木戸と共用する。
+  // 小屋の壁・妻・屋根は、本人とカメラの間だけ共通の視界確保に従う。
+  // 板を常に残すと、軒下で壁と屋根が画面を塞ぐ（全戦通しの三木・終盤）。
+  // 元の束へ戻すので描画の区画数は増やさない。床下の土台は残す。
   const houseBatch = o.batch ? makeSimpleBatch() : null;
   const house = hut(W, x, z, w, d, rot,
     { ...o, ...(houseBatch ? { batch: houseBatch } : {}), boardRoof: true, weatheredBoards: true });
   if (houseBatch) for (const [source, list] of houseBatch.byMat) {
-    const material = mikiWoodMaterial(W, source);
+    const material = mikiWoodMaterial(W, source, true);
     for (const entry of list) pushSimpleBatch(o.batch, entry.geo, material, entry.part);
   }
-  else if (house) mikiSolidWood(W, house);
+  else if (house) mikiSolidWood(W, house, false, true);
   return house;
 }
 // 付城の番所・蔵も写真の低い横長の姿にする。敷地の長辺へ棟を通し、

@@ -398,6 +398,12 @@ function requiredStep(step) {
     tick(rt, C, m, ctx, el, dt) {
       const done = tick(rt, C, m, ctx, el, dt);
       if (step.kind === 'fight') {
+        // 打って出の残兵は、塀を横切る向きへ逃がさず、自分の城の口へ返す。
+        // 新手にも戦っている間に退路を渡し、段の終わりより先に崩れた兵も通す。
+        if (C.later) for (const g of C.groups || []) if (!g.fleePath) {
+          g.fleePath = [[KIDO_F.x, KIDO_F.z], [KIDO.x, KIDO.z],
+            [SHINO_C.x, SHINO_C.z], [100, SANNO.z], [SANNO_IN.x, SANNO_IN.z]];
+        }
         const p = rt.player.u.pos;
         const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
         // 打って出の段は全滅を待たない。上限を無効にした後も、現地で
