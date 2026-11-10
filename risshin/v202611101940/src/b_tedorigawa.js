@@ -60,8 +60,14 @@ function huntPlayer(rt, dt) {
   // 11/6 kaito 一4：敵は味方の兵も攻める。本人へ向けるのは一番近い一組だけ。
   let best = null, bestD = 30, held = null;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || !g.count || g.noHunt) continue;
+    if (g.team !== 1) continue;
     const mine = g.focus === P;
+    // 追わせない下知へ替わった隊にも、直前の本人狙いを残さない。
+    // 共通の思考は focus を先に使うため、走査から外すだけでは追撃が続く。
+    if (!g.count || g.noHunt || g.tedoRelieved || g.retreatOnly || g.tedoFrom && !g.tedoActive) {
+      if (mine) g.focus = null;
+      continue;
+    }
     if (g.focus && !mine) continue;
     if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
     const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
@@ -104,7 +110,7 @@ function pressPlayer(rt, dt) {
     // 持ち場を守る備えも、隊の「追わせない」下知を個人追撃で破らない。
     if (o.group?.noHunt || o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) continue;
     // 後送中・倒れかけの兵は、通常の歩みを止めていても追加追撃で動いてしまうため外す。
-    if (!o.alive || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.name || o.mounted ||
+    if (!o.alive || o.hp <= 0 || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
     const d = Math.hypot(o.pos.x - P.pos.x, o.pos.z - P.pos.z);
     if (d > 18 || Math.abs(o.pos.y - P.pos.y) > 1.8) continue;   // 11/8 critic60 一行目：十二歩→十八歩
@@ -136,7 +142,7 @@ function pressStep(rt, dt) {
       if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
       list.splice(i, 1); continue;
     }
-    if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) {
+    if (!o.alive || o.hp <= 0 || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.dragging || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) {
       // 選び直しの前に後送や敗走へ移った兵にも、四秒の狙いを残さない。
       // 名簿から外すだけでは、通常の戦いが古い狙いを使ってしまう。
       if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
