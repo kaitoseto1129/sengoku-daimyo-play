@@ -87,6 +87,8 @@ export const depthPlan = {
       { id: 'chikamasa', layer: 'ichi', wing: 'right', men: 300, taisho: '松平近正', bind: Fk('chika') },
       { id: 'naito', layer: 'ichi', wing: 'left', men: 300, taisho: '内藤家長', bind: Fk('nai'), hold: true },
       { id: 'chikuan', layer: 'ni', wing: 'left', men: 100, taisho: '上林竹庵', bind: Fk('chikuan'), hold: true },
+      // 松の丸の守兵も城方千八百に含む。寝返り後は既存の隊の消滅に従う。
+      { id: 'koka', layer: 'ichi', wing: 'right', men: 100, taisho: '深尾清十郎', bind: Fk('koka'), hold: true },
     ] },
   B: { name: '寄せ手', facing: Math.PI, honjin: { x: 0, z: 236 }, mpu: 4, formation: '鶴翼', terrain: 'castle', flag: 'ukita', armor: 0x2a2622, openAt: 9999, attrition: 0,
     sonae: [

@@ -672,13 +672,19 @@ const k03_gifu = {
         if (dist(c, L) > 2) { L.x = c.x; L.z = c.z; L.t = rt.t; }
         const stuck = !g._gfGo && d > 14 && rt.t - L.t > 8 && !near(3);
         if (stuck) L.t = rt.t;
-        if (!g._gfGo && d > 14 && (!near(7) || stuck)) { g._gfGo = true; g._gfForm = [g.formation, g.width]; g.formation = 'column'; g.width = 3; g.order = 'move'; g.speed = 4.4; g.dest = { x: c.x, z: c.z }; }
+        if (!g._gfGo && d > 14 && (!near(7) || stuck)) {
+          g._gfGo = true; g._gfForm = [g.formation, g.width]; g.formation = 'column'; g.width = 3;
+          // 攻撃の持ち場は次の曲輪にある。そこから逆向きに行軍させず、今いる兵の所から出発する。
+          g.anchor.x = c.x; g.anchor.z = c.z;
+          g._gfMarchAnchor = g.anchor;
+          g.order = 'move'; g.speed = 4.4; g.dest = { x: c.x, z: c.z };
+        }
         if (g._gfGo && (d < 9 || near(5))) { g._gfGo = false; [g.formation, g.width] = g._gfForm; g.speed = 3.8; g.order = 'attack'; g.anchor = { x: to.x, z: to.z }; g.seekRange = to.seek; g.onArrive = null; }
         else if (g._gfGo) {
-          // 次の角は列の先頭の兵で決める（列の真ん中で決めると、先頭が角に着いても次へ進まなかった。後ろの兵で決めると列が角へ戻った）
-          let head = c, hd = Infinity;
-          for (const u of g.units) if (u.alive && !u.gone) { const e = dist(u.pos, to); if (e < hd) { hd = e; head = u.pos; } }
-          routeAt(head.x, head.z, RA);
+          // 列の要が角を辿り、各兵は moveWay で追う。先頭の交代で行き先を前後させない。
+          // 長引いた段の下知で持ち場が替わっても、接敵までは進んだ所から行軍を保つ。
+          g.anchor = g._gfMarchAnchor; g.order = 'move';
+          const head = g.anchor;
           // 福島勢は南の七曲りの尾根から来る（百曲りの道から遠い間は、道の角へ寄らずに二の丸の東の口へまっすぐ）
           if (g === F.fuku && head.z > 10) { g.dest.x = to.x; g.dest.z = to.z; } else wayNext(head, to, g.dest);
         }
