@@ -9,6 +9,7 @@
 import { sfx } from '../audio.js';
 import { enemyGroup } from '../bhelp.js';
 import { fighting, resume } from './hondo_sweep.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function onOku(rt) {
   const F = rt.flags;
@@ -105,7 +106,7 @@ export function ambushTick(rt, ctx) {
     return;
   }
   if (A.done) return;
-  const left = A.g.units.filter((u) => u.alive && !u.fleeing).length;
+  const left = A.g.units.filter(siegeFighter).length;
   // 時間だけで無傷の敵を敗走させ、撃退済みにしない。
   if (left > 2) return;
   const g = A.g;
