@@ -24,6 +24,20 @@ function start(rt, K, done) {
   F.k15stage = 'saigo'; F.k15on = true;
   k15Freeze(rt, 'saigo');   // 前の段の時計を止める
   const stop = () => F.k15stage !== 'saigo' || F.ending;
+  // 前の口の敵は近習が受け持つ。合流する一息を作り、戸口を通って上様の横へ導く。
+  K.pushBack(rt, 6, '小姓', '上様の横へ！　追手は我らが止める！');
+  K.holdFoes(rt, rt.player.u.pos, 18, 8);
+  const route = (goal) => {
+    let nextScan = -1;
+    return {
+      limit: 60,
+      guide: () => {
+        if (rt.t >= nextScan) { nextScan = rt.t + 0.5; K.guardGuide(rt, goal); }
+        return F.guardGuide;
+      },
+      canArrive: () => K.guardClear(rt, goal.x, goal.z),
+    };
+  };
   const hiroma = PT.hiroma, hikae = PT.hikae;
   // 広間が既に燃えていれば、控えの間で受ける。火の中へ戻る任務にしない。
   const post = F.heatZone ? hikae : hiroma, place = F.heatZone ? '控えの間' : '広間';
@@ -50,7 +64,7 @@ function start(rt, K, done) {
         [1, () => K.say(rt, '小姓', '火が奥まで来た！', 3)],
         [3, () => {}],
       ], done, stop));
-      }, { limit: 30 });
+      }, route(hikae));
     }, stop));
-  }, { limit: 30 }), stop);
+  }, route(post)), stop);
 }
