@@ -6,7 +6,7 @@
 // 主人公は城主として前田勢と大手から攻める。
 // 段：①山下曲輪で近藤出羽守の組を討つ ②曳橋で、御主殿から打って出た北条勢を迎え撃つ ③退く敵に続き冠木門へ駆け込む（付け入り。docs/kaito_refs_1103 の山中城の型）
 //     ④金子丸・高丸・小宮曲輪を落とす ⑤本丸で中山勘解由を討つ。手本と布陣・兵数は docs/battle_refs/t11_hachioji.md
-// 負け方：日が昇り切る（十五分）。
+// 経過時間だけでは敗北にせず、本人が中山を討ち、落城の終幕まで進める。
 // 向き：北が -z、東が +x。東の城山川の谷（大手）から西へ攻め入り、川の北の御主殿、そこから北西の尾根を深沢山の本丸へ登る。
 // 縄張りは castle_plan.js（曲輪・虎口・塀）、段は b_depth.js。曲輪の寸法は実の半分ほどに縮め、高さも縮めた。
 // 国土地理院の標高：tools/dem.mjs の hachioji（asset_dem_hachioji.js）。山の外側の起伏に混ぜる。
@@ -59,7 +59,6 @@ const HON = { x: -81, z: -136 };          // 本丸（深沢山の頂）
 const KARAMETE = { x: -70, z: -60 };      // 搦手から上杉勢が出てくる所
 // 搦手の間道：北の水の手から尾根の北の脇を登り、小宮曲輪の裏（北西）へ出る。大手の道（ROUTE）とは交わらない
 const KARAMETE_PATH = [[-70, -60], [-66, -78], [-56, -96], [-46, -112], [-44, -110]];
-const LIMIT = 1260;                       // 日が昇り切るまで（秒。11/8 15分の構成で延ばす）。どの段も敵の数を討ち切って進む（AB）ので、六つの段を落として本丸まで届く刻
 
 // 大手の道：谷を西へ、曳橋で川を北へ渡り、石段を御主殿の虎口へ。そこから尾根の曲輪を一つずつ本丸へ
 const ROUTE = [
@@ -695,18 +694,6 @@ const t11_hachioji = {
     rt.finish({}, 6);
   },
 
-  lose(rt) {
-    const F = rt.flags;
-    if (F.ending || !rt.canFailMission()) return;
-    F.ending = true;
-    rt.setPhase('end');
-    rt.objFail('main');
-    rt.tracker.main = false;
-    rt.banner('日が昇り切った', '霧が晴れ、城はまだ落ちぬ');
-    rt.say('前田利家', '日が高うなった。今日のうちに落とせなんだか', 4);
-    rt.finish({ failureReason: '日が昇り切るまでに本丸を落とせなかった' }, 6);
-  },
-
   update(rt, dt) {
     const F = rt.flags;
     if (F.ending) return;
@@ -802,8 +789,7 @@ const t11_hachioji = {
     if (F.yokochiArrived) for (const u of F.yokochi.units) {
       if (u.alive && !u.gone && unseenRejoin(rt, u.pos.x, u.pos.z)) rt.army.despawn(u);
     }
-    if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
-    else if (F.begun && !F.warned && rt.t - F.t0 > LIMIT - 60) { F.warned = true; rt.say('前田の侍', '東の空が白んできた！　急げ', 3.5); }
+    // 夜明けは光と台詞で伝える。待機や斬り合いの長さだけで任務を失敗にしない。
   },
 
   onKill(rt, v) {

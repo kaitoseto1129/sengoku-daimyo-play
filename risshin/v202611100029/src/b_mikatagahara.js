@@ -1061,17 +1061,20 @@ function mikataGoals(rt, dt) {
   if (G.i === 0 && F.scoutDone) G.st[0] = 1;
   if (G.i === 1 && phase === 1 && u.alive && near(HIRATE_POST, 8)) G.st[1] = 1;
   if (G.i >= 2 && G.i <= 5 && u.alive && phase === G.i) {
-    const post = G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST;
+    // 下知で動いた二の列も、段そのものと同じ持ち場・範囲で評定する。
+    // 元の持ち場からの距離で測ると、輪の内で守っても結果だけ未達成になる。
+    const holdPost = G.i !== 3 && F.dpOn && F.dp?.cur?.s.kind === 'hold' ? F.dp.cur : null;
+    const post = holdPost?.at || (G.i === 2 ? HIRATE_POST : G.i === 3 ? (F.mkFlank ? FLANK_POST : PIKE_POST) : G.i === 4 ? HIRA_LAST : REARGUARD_POST);
     // ④は赤備えの兵が本当に十四 m 内へ来て打ち合っている間だけ数える（11/7 critic60：赤備えと当たらずに✓が付いた）
     // 最後の寄せ手を討った後も、その段で実際に守った記録を使う。
     // 生きた敵だけを探すと、段の守りは達成しても右上と結果だけ失敗になる。
     const holdContact = () => F.dp?.cur?.s.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
     // 行き先用の敵探しは持ち場から三十四 m 先も含む。遠い敵を見つけただけで防戦を果たした事にしない。
     const foe = G.i === 2 ? mikataNearestFoe(rt) : null;
-    const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || F.dpZ && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
+    const contact = G.i === 2 ? !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) || holdPost && holdContact() : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
-    const inPost = near(post, G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
+    const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
     // 赤備えを持ち場で受けた記録は、最後の寄せ手を退けても失わない。
     // 本人が来る前に味方が退けた場合や、まだ遠くに敵が残る間は足さない。
     if (G.i === 3 && inPost && contact) G.contact = true;
@@ -3044,7 +3047,8 @@ function withstand(o) {
   // 下の時刻の上限で七分の補充終了にも届かず、予定外の新手が出続ける。
   const s = hold({ ...o, noRefill: true }), start = s.start, tick = s.tick;
   // 守らずに放置した時も、共通の時間切れで目標を失敗にして飛ばさない。
-  s.idleAdvance = false; s.limit = Infinity;
+  // 共通の四分・七分の打ち切りも外す。守りの途中を時間だけで未達成にしない。
+  s.idleAdvance = false; s.limit = Infinity; s.noHardCap = true;
   s.start = (rt, C, m, ctx) => {
     start(rt, C, m, ctx);
     // 守る判定と案内の到着範囲をそろえる。列の中から中心へ歩かせない。
