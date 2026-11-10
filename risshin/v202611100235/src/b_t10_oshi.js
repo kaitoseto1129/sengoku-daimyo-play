@@ -885,9 +885,16 @@ const t10_oshi = {
       // 11/8 15分の構成：夜討ちは四度。間に普請の進む間（十二秒）を置き、段は二分半から三分
       if (cur && F.raid < 3 && fighting(cur) && rt.t - F.raidT > 34) { F.nextT = 0; this.raid(rt); }
       else if (cur && !fighting(cur)) { if (F.raid < 3) { if (!F.nextT) F.nextT = rt.t + 12; if (rt.t >= F.nextT) { F.nextT = 0; this.raid(rt); } } else if (!F.raids.some(fighting) && rt.t - F.stepT > 90 && P.alive && near(P.pos, RAIDAT, 18)) this.weir(rt); }   // 夜討ちを退けても、本人が浅瀬の口へ戻るまで任務は済ませない
-      // 時刻だけで夜討ちを消さない。四度とも退け、本人も浅瀬の口を守ってから夜明けへ。
-      // 二巡（11/9 bot）：四度目の後、浅瀬の口から二十 m より遠くで立ち尽くす夜討ちの残りが段を十分止めた。三度出て百五十秒過ぎたら（三巡 11/9：十五分に収めるため四度→三度）、遠くの残りは城へ戻す
-      if (F.raid >= 3 && rt.t - F.stepT > 120) for (const g of F.raids) if (fighting(g)) for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
+      // 三度とも半数以上を退け、本人が口を守っている時だけ、遠くで止まった残兵を城へ戻す。
+      // 時刻だけで手つかずの隊まで消し、夜討ちを果たした事にしない。
+      if (F.raid >= 3 && rt.t - F.stepT > 120 && P.alive && near(P.pos, RAIDAT, 18)) {
+        for (const g of F.raids) {
+          const men = g.units.filter((u) => !u.invuln);
+          const down = men.filter((u) => !u.alive || u.gone || u.fleeing).length;
+          if (!men.length || down < Math.ceil(men.length * 0.5) || !fighting(g)) continue;
+          for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
+        }
+      }
     } else if (F.step === 4) {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 20)) this.weirRaid(rt);

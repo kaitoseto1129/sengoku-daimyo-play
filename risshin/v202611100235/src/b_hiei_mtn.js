@@ -2562,8 +2562,8 @@ const hiei_mtn = {
       { kind: 'stage', k: 2, text: HIEI_GOALS[3], noun: '根本中堂', check: (rt) => won(rt) || !!F(rt).courtDone },
       { kind: 'stage', k: 2, text: HIEI_GOALS[4], noun: '根本中堂の前', check: (rt) => won(rt) || !!F(rt).bell2 },
       // 織田家編は西塔・横川へ続く。信長の戦は中堂までなので後の二件を出さない。
-      { kind: 'stage', k: 3, text: '燃える西塔の釈迦堂の前へ進む', noun: '西塔の釈迦堂', check: (rt) => won(rt) || (F(rt).step || 0) >= 6 },
-      { kind: 'stage', k: 3, text: '逃げる人々を追わず、横川中堂の前へ進む', noun: '横川中堂', check: won },
+      { kind: 'stage', k: 3, text: '燃える西塔の釈迦堂の前の僧兵を退ける', noun: '西塔の釈迦堂', check: (rt) => won(rt) || (F(rt).step || 0) >= 6 },
+      { kind: 'stage', k: 3, text: '逃げる人々を追わず、横川中堂の前の僧兵を退ける', noun: '横川中堂', check: won },
     // 登山や戦闘に手間取っても、知らせのない時間切れで目標を失敗にしない。
     ].slice(0, rt?.G?.lord ? 5 : 7).map((g) => ({ ...g, count: () => null, sec: Infinity }));
   },
@@ -2613,7 +2613,7 @@ const hiei_mtn = {
     if (F.step === 2) return HIEI_GOALS[1];
     if (F.step === 3) return HIEI_GOALS[2];
     if (F.step === 4) return F.bell2 ? '西塔への山道の入口へ進む' : HIEI_GOALS[F.courtDone ? 4 : 3];
-    return F.step === 5 ? '西塔の釈迦堂の前へ進む' : '横川中堂の前へ進む';
+    return F.step === 5 ? '西塔の釈迦堂の前の僧兵を退ける' : '横川中堂の前の僧兵を退ける';
   },
 
   // 総大将は足さず、声を担当する既存の僧兵頭を示す。退いた瞬間に印を外す。
@@ -4105,7 +4105,8 @@ const hiei_mtn = {
     const retreating = F.lossInitial > 0 && alive * 3 < F.lossInitial;
     const advanceStep = exit || retreating || F._gHold || F.guideReturn.active ? 0 : F.step;
     if (advanceStep === 1) {
-      const cleared = gone(F.hiyoshiG);
+      // 戦列を離れた負傷兵は隊の人数に残る。戦える守り手で突破を判じる。
+      const cleared = hieiDefeated(F.hiyoshiG);
       // 札を出す前に数える。先手の要が遠い間も「兵０／０」にしない。
       // 先手は十メートル内で数え、本人の待ちは札の到着範囲と揃える。
       const ready = cleared && near(u, P.trailhead, 16) && arrived(F.akechi, P.trailhead, 10, 16);

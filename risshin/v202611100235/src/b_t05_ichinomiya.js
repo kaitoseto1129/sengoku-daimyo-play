@@ -407,7 +407,10 @@ function steps(rt) {
           const inPlace = Math.hypot(p.x - C.at.x, p.z - C.at.z) < C.botRadius;
           C.inT = held + (inPlace ? dt : 0);
           // 経過時間だけで「守り終えた」と見せない。坑道の前を離れた間は進まない。15分の戦（11/8）：坑道は七十五秒守る
-          r.objProgress('dp', '');
+          // 残り時間だけを隠す。寄せた人数と退けた人数は守備中も残す。
+          const left = C.groups.reduce((n, g) => n + (g.count > 2 && !g.routed && g.units.some((u) => u.alive && !u.fleeing) ? g.count : 0), 0);
+          const total = C.nTot || 0;
+          r.objProgress('dp', total ? `敵 ${Math.max(0, total - left)}／${total}人` : '');
           return done && inPlace && C.inT >= 75;
         }
         // ①〜③は味方だけが敵を退けても、本人が目標の場所へ着くまで待つ。
