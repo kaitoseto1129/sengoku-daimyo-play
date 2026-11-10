@@ -130,7 +130,7 @@ function start(rt, K, done) {
       k15Squad(rt, G.x + 10, FZ + 18);
     }, 'その夜', '飢えた城兵が、死に物狂いで柵へ寄せる');
     const g = enemyGroup(rt, { fixed: true, name: '死に物狂いの城兵', faction: 'mori', anchor: { x: G.x, z: FZ - 26 }, facing: 0, width: 5, aggro: 20, morale: 90 },
-      dress([{ type: 'samurai', n: 1, o: { name: '城兵の組頭' } }, { type: 'ashigaru', n: 11 }], K.HUNGRY));
+      dress([{ type: 'samurai', n: 1, o: { name: '城兵の組頭', flag: 'mori', flagScale: 0.6 } }, { type: 'ashigaru', n: 11 }], K.HUNGRY));
     K.hungryLook?.(g); campWear(g, 70, 90); g.noRout = true;
     const N0 = k15Live(g);
     const post = { x: G.x, z: FZ + 4 };

@@ -722,8 +722,10 @@ const k09_imafuku = {
     for (let i = outerN - 1; i >= ((F.step || 0) >= 2 ? -1 : 0); i--) {
       const st = i >= 0 ? F.outer[i] : F.gate;
       if (!st || !st.alive || !p) continue;
+      // 袖の柵や次の木戸の前からは引けない。木戸の幅の内側で縄が届く所に取り付く。
       const near = rt.player.u.alive && !rt.player.u.dying && !rt.player.u.woundOut &&
-        Math.abs(p.z) < 12 && p.x - st.seg[0] > -6 && p.x - st.seg[0] < 14;
+        p.z > Math.min(st.seg[1], st.seg[3]) && p.z < Math.max(st.seg[1], st.seg[3]) &&
+        p.x - st.seg[0] > -6 && p.x - st.seg[0] < 6;
       const ally = st.allyPull;
       // 縄を掛けて引くのに三秒半（前は二秒で、四重の柵が十三秒で全部倒れた。史料は斬り込みを受けつつ一つずつ破った）。味方の組だけなら八秒ほど
       st.pullT = near ? (st.pullT || 0) + dt : ally ? (st.pullT || 0) + dt * 0.44 : 0;

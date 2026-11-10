@@ -3531,7 +3531,9 @@ const shigisan = {
     const settle = () => {
       if (rt.over) return;
       const pl = rt.player, P = pl?.u?.pos;
-      if (P && pl.u.alive && rt.t - F.castleFireAt < 27) {
+      // 終幕の待ち時間中に倒れた本人へ、南口を守り切った印を付けない。
+      if (!P || !pl.u.alive || pl.u.hp <= 0) return;
+      if (rt.t - F.castleFireAt < 27) {
         rt.camera.updateMatrixWorld();
         keepView.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z).project(rt.camera);
         const visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1;
