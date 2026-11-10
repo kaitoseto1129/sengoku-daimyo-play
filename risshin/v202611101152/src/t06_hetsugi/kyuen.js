@@ -117,6 +117,9 @@ function motoAt(rt) {
 function toMoto(rt, K) {
   const F = rt.flags, S = F.s3;
   S.st = 2; S.tM = rt.t;
+  // 斬り結ぶ場面を見届けた後は、鈴木を倒しても進行を妨げない。
+  // 最期のための保護を撤退戦の最後まで残さない。
+  if (F.suzukiU) { F.suzukiU.invuln = false; F.suzukiU.mustLive = false; }
   rt.say('使番', '元親様より！　信親様を退かせよ！', 2.8);
   rt.after(3, () => rt.say('物見', '横から新手！　島津がまた来るぞ！', 2.6));
   rt.after(6, () => rt.say('長宗我部元親', '弥三郎！　離せ、わしは弥三郎のもとへ行く！', 3));

@@ -2368,6 +2368,8 @@ const echizen_ikko = {
   goalSignOnly: true,
   goalSignNavigation: true,
   goalSignDistanceAlways: true,
+  // 戸口へ回る途中も、名を出した目的地までの距離を表示する。
+  goalSignDistance: (_rt, pin, distance) => pin.destinationDistance ?? distance,
   // 参道の途中も同じ▼で案内し、足元の矢印へ替えない。場所名と距離を残す。
   pinOnlyDestination: true,
   goalSignTriangle: true,
@@ -2461,9 +2463,11 @@ const echizen_ikko = {
     const way = templeWay(rt.army, rt.player.u, goal);
     const route = Math.hypot(way.x - goal.x, way.z - goal.z) > .5;
     pin.x = way.x; pin.z = way.z;
-    pin.unit = enemy && !route && !defend ? enemy : null;
-    pin.flagDestination = !pin.unit;
-    pin.enemy = !!pin.unit; pin.route = route;
+    // 敵の頭上の▼とは別に、場所名と距離の行き先を保つ。
+    // 敵用の印へ渡すと、見通しの判定で消え、場所名も「ねらい」に替わっていた。
+    pin.unit = null;
+    pin.flagDestination = true;
+    pin.enemy = false; pin.route = route;
     pin.r = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
     // 到着しても制圧・待機が済むまでは持ち場を示す。到着半径と表示の有無を分ける。
     pin.hide = 0; pin.hideDistance = 0; pin.always = true;

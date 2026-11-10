@@ -4465,7 +4465,7 @@ function retreatWithGuard(b, inp, goTo, x, z, r) {
   if (p.lock) inp.e.add('KeyQ');
   // 坂の角は行き先に入っている。町では屋敷の壁をよけて入口へ回る。
   // 手すりのある坂へ入ってからだけ、共通の横回りを止める。
-  if (b.flags.step !== 2 || b.flags.retreatIdx > 0) {
+  if (b.flags.step >= 3 || b.flags.step === 2 && b.flags.retreatIdx > 0) {
     p._gtStuckT = 0; p._gtDetourT = 0;
   }
   goTo(p, inp, x, z, r);
