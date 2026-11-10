@@ -326,7 +326,12 @@ const k16_secret = {
       const p = hideRoute(rt.player.u.pos, F.hidetada.pos);
       PIN.x = p.x; PIN.z = p.z; PIN.label = '秀忠の陣'; return PIN;
     }
-    if (!F.step || F.ending) return null;
+    if (F.ending) return null;
+    // 開戦直後も①の目標は出ている。最初の下知まで行き先の印を消さない。
+    if (!F.step) {
+      PIN.x = SAKITE.x; PIN.z = SAKITE.z; PIN.label = STEP_PLACE[1];
+      return PIN;
+    }
     const g = F.stepG, P = rt.player.u;
     // 家康の段：陣幕の外では口を指し、内に入れば床几の家康の頭上（陣幕の向こうの野を指さない）
     // ほかの段：段の隊が立っている間は、その隊の自分に一番近い兵（隊の真ん中が空の野に落ちない）

@@ -59,7 +59,8 @@ function start(rt, K, done) {
       rt.award((t) => t.side.push('城へ運ぶ俵を止めた'), '城へ運ぶ俵を止めた');
       // 城から助けの兵が崖道を降りて来る（戦況が変わる）
       const help = enemyGroup(rt, { fixed: true, name: '城の助けの兵', faction: 'mori', anchor: cliff, facing: Math.PI, width: 5, aggro: 18, morale: 60 },
-        dress([{ type: 'samurai', n: 1, o: { name: '城の徒士頭' } }, { type: 'ashigaru', n: 9 }, { type: 'bow', n: 2 }], K.KIKKAWA));
+        // 補給の護衛と違い、城から出るのは飢えた籠城兵。大きな指物の列へ戻さない。
+        dress([{ type: 'samurai', n: 1, o: { name: '城の徒士頭', flag: 'mori', flagScale: 0.6 } }, { type: 'ashigaru', n: 9 }, { type: 'bow', n: 2 }], { ...K.KIKKAWA, flag: null }));
       K.hungryLook?.(help);
       const H0 = k15Live(help);
       k15Scenes(rt, [
