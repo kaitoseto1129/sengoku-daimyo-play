@@ -1100,13 +1100,13 @@ function nbSet(rt, st, o = {}) {
 // 名のある者の遠い声は共通の使番が運ぶ。無名の叫びは近い実兵だけ。
 // 話し手が倒れたり、遠く離れたりした場合も、戦の進行自体は止めない。
 function honnoSay(rt, speaker, text, duration = 4) {
-  if (!speaker || rt.flags.ending || speaker === '使番') { rt.say(speaker, text, duration); return; }
+  if (!speaker || speaker === '使番') { rt.say(speaker, text, duration); return; }
   const F = rt.flags, p = rt.player.u.pos;
   let from = null;
   for (const u of rt.army.units) {
     if (u.alive && u.name === speaker) { from = u; break; }
   }
-  if (!from && speaker === '織田信長' && rt.G.lord) from = rt.player.u;
+  if (!from && speaker === '織田信長' && rt.G.lord && rt.player.u.alive) from = rt.player.u;
   if (from) {
     // 信長で遊ぶ時は共通の使番を使わないので、聞こえる範囲だけ。
     // 狭い寺の中。使番に運ばせず、叫び声として届く所（四十歩）までは、その場で聞こえる。
@@ -5059,7 +5059,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
 
   onKill(rt, v, killer) {
     const F = rt.flags;
-    if (v.isStruct || v.group?.civ || v.type === 'porter') return;
+    if (v.isStruct || v.civ || v.group?.civ || v.type === 'porter') return;
     // 11/8 critic60 十二1：倒れた数を両軍の数から引く（ずっと百と一万三千のままだった）
     if (!v.isPlayer) { if (v.team === 0) { if (!rt.G.lord && (F.step || 0) >= 3) F.lostA3 = (F.lostA3 || 0) + 1; else F.lostA = (F.lostA || 0) + 1; } else if (v.team === 1) F.lostB = (F.lostB || 0) + 1; }
     honnoFall(rt, v);
@@ -5828,7 +5828,7 @@ function lordBot(b, inp, goTo, patientStrike) {
 }
 
 // 両軍の総勢（京にいた織田の者 千五百ほど。明智 一万三千ほど。数には諸説ある）
-honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(1, (n ? 500 : 100) - (n ? F.lostA3 || 0 : F.lostA || 0)), a0: n ? 500 : 100, b: 13000 - (F.lostB || 0), b0: 13000 }; };
+honnoji.force = (rt) => { const F = rt.flags, n = !rt.G.lord && F.step >= 3; return { a: Math.max(0, (n ? 500 : 100) - (n ? F.lostA3 || 0 : F.lostA || 0)), a0: n ? 500 : 100, b: Math.max(0, 13000 - (F.lostB || 0)), b0: 13000 }; };
 honnoji.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '明智軍', mon: 'akechi' } };
 // 史実でこの戦にいた名のある武将（battle.js の placeFamous が、その家の隊に加える。敵は名乗り、討てば手柄）
 honnoji.famous = [];
