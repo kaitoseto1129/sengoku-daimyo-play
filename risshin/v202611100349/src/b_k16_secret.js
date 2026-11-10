@@ -559,8 +559,10 @@ const k16_secret = {
     rt.setPhase('end');
     rt.player.u.invuln = true;
     if (F.ieyasu && F.ieyasu.alive) { F.ieyasu.invuln = false; F.ieyasu.mustLive = false; F.ieyasu.onWound = null; rt.army.damage(F.ieyasu, F.ieyasu.maxHp * 9, rt.player.u, { pierce: true }); }
-    for (const g of F.foes) if (g !== F.takatora && g !== F.hide) this.fall(rt, g);
-    for (const g of [F.takatora, F.hide]) if (live(g)) { g.order = 'hold'; g.aggro = 0; g.seekRange = 0; }
+    for (const g of F.foes) if (g !== F.hide) this.fall(rt, g);
+    // 家康討死で高虎も退く。床几に座ったまま残して「藤堂も退いた」の声と食い違わせない。
+    if (live(F.takatora)) for (const u of F.takatora.units) if (standing(u)) { u._crouch = false; u.target = null; }
+    if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; }
     sfx('horagai', 1); rt.after(1, () => sfx('taiko', 1));
     // 家康の金扇の馬印が倒れる（主の討たれた本陣の印）
     if (F.uma) { let a = 0; const fallUma = () => { a = Math.min(1, a + 0.08); F.uma.rotation.z = -1.42 * a * a; if (a < 1 && !rt.ended) rt.after(0.05, fallUma); }; rt.after(0.6, fallUma); }

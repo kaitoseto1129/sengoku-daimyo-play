@@ -560,7 +560,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.allyStep = di;
       const go = di === 7 ? { x: BREACH.x - 4, z: 26 } : di === 9 ? { x: shuryoku.EAST.x - 6, z: -6 } : di >= 5 ? { x: BREACH.x - 5, z: BREACH.z - 5 } : null;
       // 11/8 二2：秀長の陣は追い討ちをしていない。打って出るのは土橋の前の坂まで。黒田・小早川は東の尾根で島津の横に止まり、坂を下って追わない
-      if (go) for (const g of [F.miyabe, F.todo, F.togawa]) if (g && g.count && !g.routed) { g.anchor = { ...go }; g.order = di === 7 ? 'attack' : 'hold'; g.seekRange = di === 7 ? 22 : Math.max(g.seekRange || 0, 12); }
+      // 坂へ出ても持ち場を保つ。攻撃命令のままでは、生き残った寄せ手を坂下まで追ってしまう。
+      // 次の守備では索敵の広さも戻し、忠隣の段の二十二歩を引き継がない。
+      if (go) for (const g of [F.miyabe, F.todo, F.togawa]) if (g && g.count && !g.routed) { g.anchor = { ...go }; g.order = 'hold'; g.seekRange = di === 7 ? 22 : 12; }
       if (di >= 12) for (const g of [F.relief, F.koba]) if (g && g.count && !g.routed) { g.order = 'hold'; g.seekRange = 18; }
     }
     const C = F.dp && F.dp.on && F.dp.cur;

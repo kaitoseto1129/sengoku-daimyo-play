@@ -1265,8 +1265,8 @@ function nodaOpenSeirou(rt, x, z, name) {
   rt.dispose = function () { geo.dispose(); box.dispose(); ladderMesh?.geometry?.dispose(); return dispose.call(this); };
   return { mesh: root, deckId, ladderId, topY, x, z, foot, loopSpots, hut: OPEN_HUT, open: true };
 }
-// 井楼の上に立っているか（床の高さで見る）
-function onTower(u, t) { return Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
+// 梯子を登り切って床に立った時だけ。登降中は床の高さを通っても到着にしない。
+function onTower(u, t) { return !u.climb && Math.abs(u.pos.x - t.x) < 1.5 && Math.abs(u.pos.z - t.z) < 1.5 && u.pos.y > t.topY - .7; }
 // 照準の仮の的は七十m先。砦を越えた的でも、砦の内へ向けて放った一発は数える。
 function seirouShotIntoFort(rt, shot) {
   const at = shot?.t?.pos, from = rt.player.u.pos, fort = rt.flags.noda.kuruwa.kishi;
@@ -4164,7 +4164,8 @@ const nodafukushima = {
       const atTop = !!l && !F.down && !u.climb && Math.hypot(u.pos.x - l.topX, u.pos.z - l.topZ) < 1.3;
       if (atTop !== !!F.downOn) {
         F.downOn = atTop;
-        if (atTop) rt.addInteract('seirou-down', () => ({ x: l.topX, z: l.topZ }), '梯子を下りる', () => seirouDown(rt, t), { r: 1.6, hold: 0.4 });
+        // 登る時と同じく、足元の落とし物に長押しを奪わせない。
+        if (atTop) rt.addInteract('seirou-down', () => ({ x: l.topX, z: l.topZ }), '梯子を下りる', () => seirouDown(rt, t), { r: 1.6, hold: 0.4, prio: 3 });
         else rt.uninteract('seirou-down');
       }
       if (F.step === 1 && F.onSeirou) this.shootStart(rt);

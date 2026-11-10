@@ -65,11 +65,22 @@ export function tick(rt, dt) {
   }
   // ④⑤の間、徳川方も大きく損じる（およそ四千）
   if (i >= 5 && F._loss13 < 4200) F._loss13 = Math.min(4200, F._loss13 + dt * 32);
-  // ④の鉄砲戦：遠くの伊達の列と真田・毛利の列が撃ち合う（音と煙）
+  // ④の鉄砲戦：実際に向かい合う鉄砲兵の所で音と煙を出す。
+  // 列がまだ届かない時や兵が倒れた後に、空の野から発砲させない。
   if (i === 5 && (st.vT -= dt) <= 0) {
     st.vT = 3.5 + Math.random() * 2;
     const side = (st.vs = !st.vs);
-    rt.army.play('volley', side ? { x: HONDA.x + 30, z: HONDA.z - 40 } : { x: HONDA.x - 50, z: HONDA.z + 10 }, 1.3);
+    const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
+      !u.rearWound && !u.downed && !u.noTarget;
+    const groups = side ? [F.date, F.katakura] : D.cur.groups;
+    let gunner = null;
+    for (const g of groups) {
+      if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
+      gunner = g.units.find((u) => active(u) && u.weapon === 'gun' &&
+        rt.army.nearestEnemy(u, 42, active));
+      if (gunner) break;
+    }
+    if (gunner) rt.army.play('volley', gunner.pos, 1.3);
   }
   if (i === st.i) return;
   st.i = i;
