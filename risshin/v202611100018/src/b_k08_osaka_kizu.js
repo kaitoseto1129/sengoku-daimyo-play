@@ -749,6 +749,8 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   // ⑤は砦の真ん中の道を北へ（櫓の角へ真っすぐ向かって詰まらない）
   const f = F.flagAt || NGATE;
+  // 加勢を追って北門の外に残った場合も、塀を横切らず開いた門から幟へ戻る。
+  if (u.pos.z < WALL_N) { goNorthTo(b, inp, goTo, f, 2); return; }
   if (Math.abs(u.pos.x - f.x) > 5 && u.pos.z > f.z + 8) { at({ x: f.x, z: u.pos.z - 4 }, 2); return; }
   at(f, 2);
 };
