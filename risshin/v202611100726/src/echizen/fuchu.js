@@ -47,10 +47,13 @@ export function tick(rt) {
     return;
   }
   const left = g.units.filter(fighter).length;
+  const near = Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 26;
+  // 味方が先に討ち切った時も、本人を追撃先へ案内してから押さえる。
+  F.echExitAt = near ? null : P.pos;
   // 主力の四分の三を失い、追手が陣を押さえたら残兵は崩れる。
   // 全滅待ちで斜面や木の陰の一人を探し続けさせない。
   // 時間だけ・主人公が遠くにいる間には追撃を果たした事にしない。
-  if (left > 0 && (left > P.n0 * .25 || Math.hypot(p.x - P.pos.x, p.z - P.pos.z) >= 26)) return;
+  if (left > P.n0 * .25 || !near) return;
   P.s = 2;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
   g.focus = null; g.fleeDir = { x: 0, z: 1 };
