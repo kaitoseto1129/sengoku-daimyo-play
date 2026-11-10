@@ -2642,7 +2642,7 @@ const miki = {
       F.hide.formation = 'column'; F.hide.colW = 2; F.hide.roadColumn = true; F.hide.followColumnRoad = true;
       // 道の途中で全騎の整列を待つと、後列の遅れだけで大村への救援が止まる。
       // 急報を受けた同じ列を、初めから坂の下まで走らせる。
-      F.hide.path = HIDE_PATH.slice(); F.hide.pathIdx = 0;
+      F.hide.path = F.hidePath = HIDE_PATH.slice(); F.hide.pathIdx = 0;
       F.hide.onArrive = (q) => { q.order = 'hold'; q.march = false; q.formation = 'line'; q.facing = Math.PI; q.onArrive = null; };
     });
     rt.after(2.2, () => {
@@ -2857,12 +2857,14 @@ const miki = {
     ]) {
       if (gone(g) || g === F.hide && F.hideRetired) continue;
       // 既に坂へ向かう救援はそのまま続ける。着いた列を古い角へ引き返させない。
-      if (g === F.hide && g.path?.length === HIDE_PATH.length) continue;
+      // 障害物を避ける点が追加されても、同じ救援の経路なら先頭へ巻き戻さない。
+      if (g === F.hide && F.hidePath && g.path === F.hidePath) continue;
       g.order = 'path'; g.march = true; g.dest = null;
       // 秀吉の手は東の陣から坂の東を回って大村坂の後ろへ（柵を挟まない）
       g.path = g === F.hirata ? [[GATE.x, GATE.z], [-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]]
         : g === F.hide ? HIDE_PATH.slice()
           : [[-104, -48], [-100, -64], [-94, -78], [-80, -84], [x, z]];
+      if (g === F.hide) F.hidePath = g.path;
       g.pathIdx = 0;
       if (g === F.hide) { g.speed = Math.max(g.speed || 0, 5); g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true; }
       g.onArrive = (q) => { q.order = then; q.march = false; q.facing = Math.PI; q.onArrive = null; if (q === F.hide) q.formation = 'line'; };
