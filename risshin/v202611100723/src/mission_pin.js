@@ -32,7 +32,9 @@ function make() {
     '#hud:has(#mission-goal.talk-guide:not([hidden])) :is(#h-prog,#objectives:not(.expand),.field-names){display:none!important}' +
     '#mission-goal .goal-label{touch-action:none;user-select:none;box-sizing:border-box}' +
     // 行き先の札は一つ。地図・いのち・行き先の三枚に収める。
-    '#hud:has(#mission-goal.destination-focus:not(.fire-guide):not([hidden])) :is(.field-names,#markers,#goal-sign,#h-prog,#objectives,#jk-chap,#jk-prog,#armybar,#tugbar,#h-retainers,.jk-rest){display:none!important}' +
+    '#hud:has(#mission-goal.destination-focus:not(.fire-guide):not([hidden])) :is(#markers,#goal-sign,#objectives,#jk-chap,#jk-prog,#tugbar,#h-retainers,.jk-rest){display:none!important}' +
+    // 人数と将の名を残す戦では、移動案内で目標一覧の親まで隠さない。
+    '#hud:not(.keep-battle-signs):has(#mission-goal.destination-focus:not(.fire-guide):not([hidden])) :is(.field-names,#h-prog,#armybar){display:none!important}' +
     '#hud:has(#mission-goal.destination-focus:not([hidden])):has(#battle-message:not([hidden])) #jk-map{display:none!important}' +
     // 火付け中は命・右上の数・家の操作の三枚。人数は任務の札に残す。
     '#hud:has(#mission-goal.fire-guide:not([hidden])) :is(#goal-sign,#battle-notices,#jk-map,#minimap,#maphint,.field-names,#jk-chap,#jk-prog,#tugbar,#h-retainers,.jk-rest){display:none!important}' +

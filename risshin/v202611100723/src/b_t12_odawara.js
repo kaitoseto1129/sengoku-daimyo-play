@@ -778,7 +778,7 @@ const t12_odawara = {
     rt.finish({ failureReason: late ? '官兵衛を本丸の門まで届けられなかった' : '開城の使いの官兵衛が討たれた' }, 6);
   },
 
-  // 篠曲輪の鉄砲：昼の段（陣を回る・打って出）は撃たせず、六月二十二日の夜討ちから撃つ（army_ranged の gunAmmo）
+  // 総構えの偵察・打って出の間は狭間から撃ち、撤退と開城の使いの道では止める。
   shinoArm(rt, on) {
     const G = rt.flags.shinoGuns;
     if (!G) return;
@@ -801,9 +801,10 @@ const t12_odawara = {
       g.order = 'hold'; g.aggro = 0; g.focus = null; g.onArrive = null; g.anchor.x = at.x; g.anchor.z = at.z;
       for (const u of g.units) if (u.alive && u.target && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) > 10) { u.target = null; u.atk = null; }
     }
-    // 木戸から味方が打って出たら、篠曲輪の鉄砲は撃ち止めて槍で守る（味方の背を撃たない）
+    // 夜討ちの段を外した後も、偵察で近づいた寄せ手を実際に狙う。
     const G = F.shinoGuns;
-    if (G && F.dp && F.dpIx && F.dp.i >= F.dpIx.jinmawari + 3 && G.fire !== false) G.fire = false;   // 前衛を退かせる段から（退く背を撃ち続けない）
+    const firing = !F.envoy && F.dp?.on && (F.dp.i === 1 || F.dp.i === 2);
+    if (G && G.fire !== !!firing) this.shinoArm(rt, !!firing);
     if (F.kanU && !F.kanU.alive) this.lose(rt);
   },
 

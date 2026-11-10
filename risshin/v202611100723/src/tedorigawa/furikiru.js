@@ -11,7 +11,7 @@ import { nobori } from '../props.js';
 
 // 戦えなくなった兵や隊の空いた中心へ、追手の印を残さない。
 const pursuing = (u) => u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
-  !u.rearWound && !u.downed && !u.noTarget && !u.group?.routed;
+  !u.rearWound && !u.downed && !u.dragging && !u.noTarget && !u.group?.routed;
 
 export function install(rt, ctx) {
   const F = rt.flags;
