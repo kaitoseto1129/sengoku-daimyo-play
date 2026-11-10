@@ -674,7 +674,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       F.menN0r = Math.max(F.menN0r || 0, aliveN(F.men));
     } else if (F.stage === 6) {
       // 細ヶ根へ先回りして最初の追手が遠くに残っても、接近するまでは後続が回り込む。
-      if (!F.pursuitClosed && el < 150 && (!atGoal || !F.pursuitMet) && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
+      // 枠待ちで一手も出せないまま百五十秒を越えても、追手の出現を省かない。
+      if (!F.pursuitClosed && (el < 150 || !F.pursuit.length) && (!atGoal || !F.pursuitMet) && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
       if (Retreat.done(rt, this.ctx(rt), atGoal, el)) this.win(rt);
     }
   },

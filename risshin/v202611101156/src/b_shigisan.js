@@ -29,7 +29,7 @@ import { sfx } from './audio.js';
 import { gauss, enemyGroup, allyGroup, centerOf, unitPos, wallLine } from './bhelp.js';
 import { dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
-import { sightPoint, sightUnit, sightScreenUnit } from './battle_sight.js';
+import { sightPoint, sightUnit, sightScreenUnit, cameraWallBlocked } from './battle_sight.js';
 import { camp } from './b_mid.js';
 import { placeGroup } from './b_opening.js';
 import { localClear } from './army_local_way.js';
@@ -3598,7 +3598,7 @@ const shigisan = {
     //   二秒見るまで締めを待つ。時間だけでは、火を見たことにしない。
     F.keepSeen = 0;
     // 左右が合っていても、空や足元を見ている間は火を見たことにしない。
-    const keepView = new THREE.Vector3();
+    const keepView = new THREE.Vector3(), keepFire = new THREE.Vector3();
     const settle = () => {
       if (rt.over) return;
       const pl = rt.player, P = pl?.u?.pos;
@@ -3606,8 +3606,19 @@ const shigisan = {
       if (!P || !pl.u.alive || pl.u.hp <= 0) return;
       {
         rt.camera.updateMatrixWorld();
-        keepView.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z).project(rt.camera);
-        const visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1;
+        keepFire.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z);
+        keepView.copy(keepFire).project(rt.camera);
+        const eye = rt.camera.position;
+        let visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1 &&
+          !cameraWallBlocked(rt, eye, keepFire, eye.y, keepFire.y);
+        // 画面内でも塀や切岸の裏なら、天主の火を見たことにしない。
+        // 炎自身の煙で待ち続けないよう、遮る建物と地面だけを調べる。
+        const steps = Math.max(2, Math.min(24, Math.ceil(Math.hypot(keepFire.x - eye.x, keepFire.z - eye.z) / 3)));
+        for (let i = 1; visible && i < steps; i++) {
+          const t = i / steps;
+          if (W.heightAt(eye.x + (keepFire.x - eye.x) * t, eye.z + (keepFire.z - eye.z) * t) >
+              eye.y + (keepFire.y - eye.y) * t - 0.3) visible = false;
+        }
         F.keepSeen = visible ? F.keepSeen + 0.5 : 0;
         if (F.keepSeen < 2) { rt.after(0.5, settle); return; }
       }

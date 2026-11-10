@@ -23,7 +23,7 @@ export function done(rt, K, atGoal, el) {
   const F = rt.flags;
   // 追撃は百五十秒まで。遠方の追手や兵数の枠待ちで、細ヶ根に着いた主人公を刻限まで待たせない。
   // 時間だけで達成にせず、追手が実際に退く下知と、主人公の到着をそろえる。
-  if (el >= 150 && !F.pursuitClosed) {
+  if (el >= 150 && F.pursuit?.length && !F.pursuitClosed) {
     F.pursuitClosed = true;
     for (const g of F.waves) if (K.live(g)) {
       g.noAI = true; g.focus = null; g.order = 'retreat';
