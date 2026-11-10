@@ -25,7 +25,7 @@ export function start(rt, C) {
   for (const g of rt.army.groups) if (g.team === 1) for (const u of g.units) if (u.alive && !u.gone && !u.invuln && !C.near(u.pos, C.CASTLE, 30)) rt.army.despawn(u);
   for (const g of rt.army.groups) if (g.team === 0 || g.team === 1) {
     g.peaceful = true; g.fire = false; g.aggro = 0;
-    for (const u of g.units) { u.target = null; u.atk = null; }
+    for (const u of g.units) { u.target = null; u.watch = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false; }
   }
   rt.world.setTime('day'); rt.world.setRainTarget?.(0);
   C.warp(rt, C.FRONT.x + 6, C.FRONT.z + 6, Math.atan2(C.GATE.x - C.FRONT.x, C.GATE.z - C.FRONT.z));
@@ -84,7 +84,7 @@ export function tick(rt, dt, C) {
   if (!K || F.step !== 8) return;
   // 開城の後は誰も刃を交えない
   if (K.jump) for (const u of rt.army.units) if (u.alive && (u.team === 0 || u.team === 1)) {
-    u.target = null; u.atk = null;
+    u.target = null; u.watch = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false;
     if (u.team === 1) u.noTarget = true;
   }
   if (K.lower) {
