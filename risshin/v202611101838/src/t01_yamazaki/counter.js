@@ -35,7 +35,11 @@ export function start(rt, ctx) {
   if (ctx.live(F.ikeda)) { F.ikeda.order = 'move'; F.ikeda.dest = { x: STAND.x + 2, z: STAND.z + 4 }; F.ikeda.onArrive = (g) => { g.order = 'attack'; g.aggro = 20; g.seekRange = 26; }; }
   rt.after(2, () => rt.say('堀秀政', '日向の旗本が来るぞ！　中が割れる、踏みとどまれ！', 3.6));
   rt.after(10, () => rt.say('高山右近', '押される……下がれ、下がって槍を揃えよ！', 3));
-  rt.after(24, () => report(rt, '天王山の手、松田勢が盛り返しておりまする！'));
+  rt.after(24, () => {
+    // 先の戦いで松田勢が退いた後に、時刻だけで盛り返したと知らせない。
+    const g = F.matsuda;
+    if (g && !g.routed && ctx.aliveN(g) > ctx.allN(g) * 0.3) report(rt, '天王山の手、松田勢がなお踏みとどまっておりまする！');
+  });
   rt.after(46, () => rt.say('溝尾茂朝', '筑前の寄せ集めなど、ひと押しで川へ落とせ！', 3));
   rt.after(40, () => report(rt, '池田様・堀様の手、前へ出まする！　中を支えよとの仰せ！'));
   rt.after(62, () => report(rt, '神戸信孝様・丹羽様の備え、後ろに着到！'));

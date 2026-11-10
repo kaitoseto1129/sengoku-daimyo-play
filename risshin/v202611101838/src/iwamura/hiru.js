@@ -209,6 +209,12 @@ export function tick(rt, hidden = []) {
   }
   H.hidden = hidden;
   const p = rt.player.u.pos, T = rt.t - H.at;
+  // 長引いた戦の救済も、本人が今の手に攻撃を当ててから。立って待つだけで任務を済ませない。
+  const swing = rt.player.u.swing;
+  const opponent = H.s === 2 ? H.esc : H.s === 5 ? H.g : null;
+  if (opponent && swing?.target?.group === opponent && swing.res && swing.res !== 'miss') {
+    H.fought = true;
+  }
   // ① 本陣で信忠の下知
   if (H.s === 0) {
     if (near(p, HONJIN, 7)) {
@@ -248,13 +254,13 @@ export function tick(rt, hidden = []) {
     progress(rt, H, `麓の小荷駄へ。護りを崩せ（${H.escN - left}／${H.escN}）`);
     // 待ち時間では兵糧入れを止めた事にしない。護りを実際に崩し、麓へ出た本人が確かめる。
     // 11/10 クラウドの流し（携帯の bot）：槍衾で構えた護りに突きが通らず、麓で千秒斬り合って日が暮れなかった。
-    //   麓で九十秒戦って一人でも崩したか、百五十秒たてば、残る護りも荷を捨てて退く
+    //   本人が護りに攻撃を当て、九十秒で一人でも崩したか、百五十秒戦えば残る護りも退く。
     if (near(p, KOMODA, 18)) H.komAt ??= rt.t;
     const komT = H.komAt == null ? 0 : rt.t - H.komAt;
-    const worn = komT > 150 || komT > 90 && left < H.escN;
+    const worn = H.fought && (komT > 150 || komT > 90 && left < H.escN);
     if (left > Math.ceil(H.escN * 0.25) && !worn || !near(p, KOMODA, 18)) return;
     rout(H.esc, H.ctx.retreat || H.ctx.road);
-    H.s = 3; H.at = rt.t;
+    H.s = 3; H.at = rt.t; H.fought = false;
     rt.say('足軽', '人足が俵を捨てて逃げたぞ！', 2.6);
     rt.after(3, () => {
       if (F.ending || H.done) return;
@@ -293,10 +299,10 @@ export function tick(rt, hidden = []) {
   //   口を守っていて、寄せ手が二十五歩の内に二十五秒来なければ、その寄せは退いた事にする
   const close = H.g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - MOUTH.x, u.pos.z - MOUTH.z) < 25);
   if (close || !holding) H.farAt = null; else H.farAt ??= rt.t;
-  const exhausted = rt.t - H.wt >= 150 && H.holdAt != null && rt.t - H.holdAt >= 30 ||
-    rt.t - H.wt >= 40 && H.farAt != null && rt.t - H.farAt >= 25;
+  const exhausted = H.fought && (rt.t - H.wt >= 150 && H.holdAt != null && rt.t - H.holdAt >= 30 ||
+    rt.t - H.wt >= 40 && H.farAt != null && rt.t - H.farAt >= 25);
   if (!holding || left > Math.ceil(H.n * 0.35) && !exhausted) return;
-  H.holdAt = null; H.farAt = null;
+  H.holdAt = null; H.farAt = null; H.fought = false;
   rout(H.g, H.ctx.retreat || H.ctx.road);
   if (H.wave < 3) {
     const w = H.wave + 1;

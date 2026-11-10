@@ -339,6 +339,8 @@ const t04_negoro = {
   nearbyAllySignLimit: 0,   // 近くの味方に意味の分からない白い丸を出さない（critic60 五2）
   playerTaken: 0.3,   // 15分の戦：縁・塀・路地の鉄砲が十五分のあいだ絶えず撃つ。本人が途中で倒れ続けないよう軽く
   noWake: true, noTaishoRaid: true, noDespair: true,
+  // 関所 11/10（知らせ4）：坊舎の一組が崩れただけで「敵は総崩れじゃ」と出た。寺の衆は小さな組ごとに崩れるので、一手の崩れとして言う
+  battleVoices: { lines: { ally: { rout: ['一手が崩れた！', '敵の一手が退くぞ！', 'あの手は崩れた。次が来るぞ！'] } } },
   // 11/6 描いて遊んで：大門が破れた直後、門の内の行人方の槍を二秒に二度受けて（一突き四割）討たれ、負けた。
   //   刃を受けた後の三秒は次の刃を通さない（澤山・伊能と同じ。一太刀の重さはそのまま。十一1・十二3）
   meleeGrace: { rate: 1, burst: 1, interval: 3 },
@@ -895,7 +897,7 @@ const t04_negoro = {
         // 坊舎の戸口から行人方が斬って出る（参道の側から。裏や蔵の間には出さない。AJ）
         for (const [x, z] of [[-10, -64], [10, -66]]) {
           C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '坊舎の行人方', anchor: P(x, z), facing: Math.PI + ROT, order: 'attack', seekRange: 50, aggro: 12, width: 6, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.35 },
-            dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }], NEGORO)));
+            dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'ashigaru', n: 5, o: SOHEI_LK }], NEGORO)));   // 行人方は裹頭の僧兵を混ぜる（関所1）
         }
         rt.obj('dp', GOALS[1], 'main');
         rt.marker('dp', centerOf(F.posts.win), '坊舎の鉄砲衆', { red: true, group: F.posts.win });
@@ -1024,12 +1026,15 @@ const t04_negoro = {
           }
           if (wp) wp.holdFire = !wp.focus;
         }
+        // 上限（全戦共通の決まり10）：三分を過ぎても門扉が残る時は、本人が丸太の脇にいなくても味方が打ち続けて破る（bot が塀の外の斜面へ出て、門の段が五分止まった。関所 11/10）
+        if (s.alive && el > 180) { C.autoT = (C.autoT || 0) + dt; if (C.autoT > 1.5) { C.autoT = 0; rt.army.damage(s, 24, null, { kind: 'ram' }); } }
         if (!s.alive && C.openT == null) C.openT = el;
         // 自分は丸太の脇について押す（丸太の組の真横）
         const mm = F.ram.mesh;
         C.goal = s.alive ? (mm.visible ? { x: mm.position.x + dirL(1, 0).x * 1.6, z: mm.position.z + dirL(1, 0).z * 1.6 } : P(0, C.reram >= 3 ? -3 : -9)) : P(0, 8);
         rt.objProgress('dp', s.alive ? `門扉 ${Math.round(100 * (1 - s.hp / s.maxHp))}%` : '');
-        return fighting(pu) && !rt.retryOpen && C.openT != null && el - C.openT > 2 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 14;
+        // 破れて一分たっても本人が門の前へ戻らない時も先へ（本人の位置だけで段を止めない）
+        return fighting(pu) && !rt.retryOpen && C.openT != null && el - C.openT > 2 && (Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 14 || el - C.openT > 60);
       },
       end(rt, C) {
         for (const g of C.groups) flee(g);
@@ -1072,7 +1077,7 @@ const t04_negoro = {
         F.friends().forEach((g, i) => { g.order = 'attack'; g.seekRange = 24; g.anchor = P(i % 2 ? 6 : -6, 22); });
         for (const g of [F.ramG, F.sengokuG]) if (g && g.count) { g.order = 'attack'; g.seekRange = 24; g.anchor = P(10, 18); }
         C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '橋の行人方', anchor: P(0, 50), facing: Math.PI + ROT, order: 'attack', seekRange: 30, aggro: 12, width: 8, morale: 80, fleeDir: dirL(0, 1), dmgMult: 0.5 },
-          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 10 }], NEGORO)));
+          dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }, { type: 'ashigaru', n: 5, o: SOHEI_LK }], NEGORO)));   // 行人方は裹頭の僧兵を混ぜる（関所1）
         rt.obj('dp', GOALS[4], 'main');
         rt.marker('dp', TOWER_FRONT, '大塔の前', { h: 4 });
         fireStart(rt, NG);
@@ -1097,7 +1102,8 @@ const t04_negoro = {
         C.goal = p.z < 6 ? P(0, 8) : p.z < 34 ? P(0, 36) : TOWER_FRONT;
         rt.objProgress('dp', `大塔の前まで あと ${Math.max(0, Math.round(Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z)))}m`);
         // 火が燃え移る間（二分半）は、橋の手前で退く根来衆を追う。それから大塔の前へ
-        return fighting(pu) && !rt.retryOpen && el > 150 && Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
+        // 上限：四分半たっても大塔の前へ着かない時も先へ（味方は先に着いて待つ。本人の位置だけで段を止めない。関所 11/10）
+        return fighting(pu) && !rt.retryOpen && el > 150 && (Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14 || el > 270);
       },
       end(rt, C) {
         const F = rt.flags;
@@ -1360,7 +1366,7 @@ t04_negoro.botBrain = (b, inp, { goTo }) => {
 };
 
 // 足した段（src/t04_negoro/）へ渡す道具
-Object.assign(NG, { P, dirL, ROT, NEGORO, dress, flee, alive, heads, nearestFighter, OKU: P(48, 98),
+Object.assign(NG, { P, dirL, ROT, NEGORO, SOHEI: SOHEI_LK, dress, flee, alive, heads, nearestFighter, OKU: P(48, 98),
   chain: [SITES[2], P(-18, -66), SITES[6], P(18, -84), P(-20, -40), P(20, -40)] });
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）

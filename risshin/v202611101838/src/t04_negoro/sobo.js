@@ -4,13 +4,13 @@ import { enemyGroup } from '../bhelp.js';
 import { breath } from '../toyo15/kit.js';
 
 export function soboStep(NG) {
-  const { P, dirL, ROT, NEGORO, dress, flee, alive, heads, nearestFighter } = NG;
+  const { P, dirL, ROT, NEGORO, SOHEI, dress, flee, alive, heads, nearestFighter } = NG;
   // 鉄砲衆の持ち場（子院の縁・塀の角・石段の上）。二十秒ほどで次の持ち場へ移る
   const SPOTS = [[-20, 12], [22, 16], [-30, 26], [28, 30], [-8, 30], [12, 26]].map(([x, z]) => P(x, z));
   const guns = (rt, name, at) => enemyGroup(rt, { faction: 'saika', fixed: true, name, anchor: at, facing: Math.PI + ROT, order: 'hold', seekRange: 26, aggro: 8, width: 4, morale: 90, fleeDir: dirL(0, 1), dmgMult: 0.25 },
     dress([{ type: 'gun', n: 3 }], NEGORO));
   const blades = (rt, name, at) => enemyGroup(rt, { faction: 'saika', fixed: true, name, anchor: at, facing: Math.PI + ROT, order: 'attack', seekRange: 40, aggro: 14, width: 5, morale: 85, fleeDir: dirL(0, 1), dmgMult: 0.3 },
-    dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], NEGORO));
+    dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }, { type: 'ashigaru', n: 3, o: SOHEI }], NEGORO));   // 行人方は裹頭の僧兵を混ぜる（関所1）
   return {
     kind: 'sobo', max: Infinity, idleAdvance: false,
     start(rt, C) {
@@ -23,6 +23,8 @@ export function soboStep(NG) {
       for (let i = 0; i < 2; i++) { const g = guns(rt, '持ち場を替える鉄砲衆', SPOTS[i * 2 + 2]); g._spot = i * 2 + 2; C.gunG.push(g); C.groups.push(g); }
       F.friends().forEach((g, i) => { g.order = 'attack'; g.seekRange = 22; g.anchor = P(i % 2 ? 8 : -8, 14); });
       rt.obj('dp', NG.GOALS[3], 'main');
+      // 行き先のピンを段の間ずっと立てる（関所3：路地で印が無いまま二十秒途切れた）。斬る撃ち手か合流場所を追う
+      rt.marker('dp', () => C.goal, '路地', { h: 3 });
       breath(rt, 0.35);   // 段の替わり目に息を整える
       rt.say('組頭', '坊舎の塀の陰から撃ってくる！　撃った所へすぐ寄れ、次の所へ移る前に斬れ！', 4);
       rt.after(6, () => rt.say('羽柴秀次', '路地は狭い。槍を短く持て。塀の角に気を付けい', 3.5));
@@ -35,7 +37,8 @@ export function soboStep(NG) {
       C.pressT = (C.pressT || 0) + (present ? dt : 0);
       // 斬って出た後も建物の裏に残る者は、路地を攻めた本人の前から退く。
       // 後方で待つだけでは進めず、増援三組と斬り合う時間を残す。
-      if (!C.withdraw && el > 300 && C.wave === 3 && C.pressT >= 30 && present) {
+      // 上限（全戦共通の決まり7・8）：七分を過ぎたら、本人がどこにいても路地の守りは退く（bot が路地の外で止まり十分続いた。関所 11/10）
+      if (!C.withdraw && el > 300 && C.wave === 3 && (C.pressT >= 30 && present || el > 420)) {
         C.withdraw = true;
         for (const g of C.groups) flee(g);
         rt.say('組頭', '路地の守りが退くぞ！　参道へ集まれ！', 3);
@@ -95,9 +98,11 @@ export function soboStep(NG) {
       C.goal = C.at = cleared || !target ? P(0, 22) : target.pos;
       rt.objProgress('dp', '');
       // 本人が路地の合流場所へ戻ってから済ませる。
+      // 退いた後も合流場所へ着けないまま一分たてば先へ（本人の位置だけで段を止めない）
+      if (C.withdraw && C.withdrawT == null) C.withdrawT = el;
       return el > 140 && cleared && u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
-        && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18;
+        && (Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18 || C.withdraw && el - C.withdrawT > 60);
     },
-    end(rt, C) { for (const g of C.groups) flee(g); rt.objDone('dp'); rt.award((t) => t.side.push('僧坊の路地で鉄砲衆を追い詰めた'), '僧坊の鉄砲衆を討った'); },
+    end(rt, C) { for (const g of C.groups) flee(g); rt.unmark('dp'); rt.objDone('dp'); rt.award((t) => t.side.push('僧坊の路地で鉄砲衆を追い詰めた'), '僧坊の鉄砲衆を討った'); },
   };
 }
