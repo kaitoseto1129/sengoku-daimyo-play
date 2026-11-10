@@ -128,7 +128,7 @@ const ino = {
         if (e) return { pos: e.pos, label: F.ph === 'scout' ? '林の物見' : F.ph === 'hayashi' ? '林勢' : '柴田勢', enemy: e };
         return regroupTarget(F, L);
       }
-      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU.gone ? null : F.sakumaU } : regroupTarget(F, L);
+      case 'join': return F.sakumaU?.alive && !F.sakumaU.gone ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU } : regroupTarget(F, L);
       case 'retreat': return { pos: NAZUKA_PT, label: '名塚砦' };
       case 'rally': return F.nobuU?.alive && !F.nobuU.gone ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
       case 'after': return F.shinrokuU?.alive && !F.shinrokuU.gone && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : regroupTarget(F, L);
@@ -349,7 +349,7 @@ const ino = {
   },
   joined(rt) {
     const F = rt.flags;
-    if (F.joined || !F.sakumaU?.alive || near(F.sakumaU.pos, rt.player.u.pos) >= 9) return;
+    if (F.joined || !F.sakumaU?.alive || F.sakumaU.gone || near(F.sakumaU.pos, rt.player.u.pos) >= 9) return;
     F.joined = true;
     say(rt, '組頭', 'よし、わしの後ろにつけ。', 2.4);
     this.go(rt, 'hayashi');
@@ -627,7 +627,7 @@ const ino = {
     if (F.nobuFlag && F.nobuU?.alive) F.nobuFlag.position.set(F.nobuU.pos.x + 1.6, F.nobuU.pos.y, F.nobuU.pos.z + 1.2);
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
-    const L = F.lead?.alive ? F.lead : null;
+    const L = F.lead?.alive && !F.lead.gone ? F.lead : null;
     if (!F.shinHurtT && live(F.shinG) && live(F.mates)) {
       const c = F.mates.center(), to = { x: c.x - 3, z: c.z + 1 };
       if (['scout', 'hayashi'].includes(F.ph) && F.mates.order === 'attack') { if (F.shinG.order !== 'attack') this.fight(F.shinG, 10); }

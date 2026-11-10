@@ -2576,7 +2576,7 @@ function mkSlopeTorches(rt) {
 
 // 11/5 遊んで直す（十3・二3「登る間ずっと鉄砲・弓・石が来て、竹束で防ぎ、攻め手がばたばた倒れる」）：
 //   柵の口の下の坂と、三の郭から木戸を見上げる所に竹束を据え（矢玉を前から防ぐ）、柵と木戸の上から石を転がす（柵の口が落ちるまで・木戸が開くまで）。
-//   六角の旗：共通の旗の絵は六角の紋を持たず白地に輪だった（敵の赤縁の布は別に作られ、customFlag の上描きが届かない）。全部の布に隅立て四つ目結を描く。
+//   六角の旗は共通の隅立て四つ目結を使い、布の色むらと染めを残す。
 let MK_RT = null;
 function mkFireHurt() {
   const u = MK_RT?.player?.u;
@@ -2597,23 +2597,8 @@ function mkSiegeHeat(rt) {
       { id: 'kido', at: { x: 5, z: -61 }, lane: [[5, -61.5], [5.5, -57], [6, -50]], stock: 2, interval: [20, 28], active: () => F.step >= 2.8 && !F.sally && !F.gatePass && !F.ending },
     ],
   });
-  const ring = (g, k) => {
-    g.save(); g.scale(k, k);
-    g.fillStyle = '#d6ccb6'; g.fillRect(24, 34, 80, 104);
-    g.translate(64, 82); g.scale(43, 43);
-    const P = new Path2D();
-    const sq = (cx, cy, s) => { P.moveTo(cx, cy - s); P.lineTo(cx + s, cy); P.lineTo(cx, cy + s); P.lineTo(cx - s, cy); P.closePath(); };
-    for (const [cx, cy] of [[0, -0.48], [0.48, 0], [0, 0.48], [-0.48, 0]]) { sq(cx, cy, 0.44); sq(cx, cy, 0.19); }
-    g.fillStyle = '#17130f'; g.fill(P, 'evenodd');
-    g.restore();
-  };
-  for (const nob of [false, true]) for (const en of [false, true]) {
-    const t = flagTexture('rokkaku', nob, en);
-    if (!t?.image?.getContext || t.userData.mkRing) continue;
-    t.userData.mkRing = true;
-    ring(t.image.getContext('2d'), (t.image.width || 128) / 128);
-    t.needsUpdate = true;
-  }
+  // 六角の紋は共通の旗に実装済み。幟・背旗・敵の赤縁も同じ染めを使う。
+  // 古い補筆で生成りの四角を上塗りすると、布目と墨の滲みが消えて板に見える。
 }
 
 function mkGoTsume(rt, target) {

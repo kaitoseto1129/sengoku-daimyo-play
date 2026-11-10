@@ -3445,7 +3445,7 @@ const shigisan = {
       // 先手用の道だけでは、最初の曲輪へ切岸を直進して詰まる。
       const gate = ROAD.findIndex((p) => p[0] === GATE.x && p[1] === GATE.z);
       march(rt, rg, ROAD.slice(gate, F.lowerBypass ? a - 1 : a).concat(route));
-      rt.say('組頭', '筒井の後詰めが門を抜けたぞ！　続け！', 4);
+      rt.say('組頭', '筒井の後詰めが木戸へ登って来るぞ！　先手は本丸へ！', 4);
     }
     // 本人も通過前の角を保つが、任せた曲輪の中心へ向かう最後の区間だけは外す。
     let previous = F.castleRoute || [];

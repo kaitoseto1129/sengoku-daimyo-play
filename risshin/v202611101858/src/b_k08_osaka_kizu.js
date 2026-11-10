@@ -58,7 +58,8 @@ const OSAKA ={ x: 260, z: -260 };             // 大坂城の方角（遠く）
 const alive = (g) => g && !g.routed && g.count > 0;
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 // 討てない大将だけの組や退場中の兵を追わず、まだ戦っている兵へ寄せる。
-const fightable = (u) => u.alive && !u.gone && !u.noTarget && !u.invuln && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.evacuatedWound;
+const activeSoldier = (u) => u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.evacuatedWound;
+const fightable = (u) => activeSoldier(u) && !u.noTarget && !u.invuln;
 // ③は砦の内を取る戦い。閉じた北門の外や横塀の外まで残兵を追わせない。
 const insideFort = (p) => Math.abs(p.x) < WALL_X && p.z > WALL_N && p.z < GATE.z + 6;
 const guardsInside = (u) => fightable(u) && insideFort(u.pos);
@@ -637,7 +638,8 @@ const k08_osaka_kizu = {
     let off = 0, count = 0;
     // 担ぎ手の配列と持ち場の座標は毎コマ作り直さない。
     for (const u of g.units) {
-      if (!u.alive || u.fleeing) continue;
+      // 深手で倒れた者・退場した者を担ぎ手に戻さない。
+      if (!activeSoldier(u)) continue;
       const i = count++;
       if (u.target && !u.target.isStruct) u.target = null;
       const qx = GATE.x + (i % 2 ? 0.6 : -0.6), qz = F.ramZ + 0.6 + Math.floor(i / 2) * 0.9;
@@ -654,7 +656,7 @@ const k08_osaka_kizu = {
     if (F.ramZ > goal && (!foe || F.ramWait > 10)) F.ramZ = Math.max(goal, F.ramZ - (ordered ? 2 : 1) * dt);
     if (F.step >= 2 && F.ramZ <= FRONT + 2.5) {
       if (g.order !== 'attack') { g.order = 'attack'; g.focus = s; g.seekRange = 1; }
-      for (const u of g.units) if (u.alive && !u.fleeing) u.target = s;   // 担ぎ手は皆、門扉を打つ
+      for (const u of g.units) if (activeSoldier(u)) u.target = s;   // 戦える担ぎ手だけが門扉を打つ
     } else { g.order = 'move'; g.focus = null; }
     g.anchor.x = GATE.x; g.anchor.z = F.ramZ;
   },
@@ -713,7 +715,7 @@ const k08_osaka_kizu = {
     if (F.step >= 2 && F.drown < 5 && !(F.drownT > rt.t)) {
       F.drownT = rt.t + 2.5;
       const W = rt.world;
-      const u = F.asano.units.find((v) => v.alive && (v.type === 'ashigaru' || v.type === 'samurai') && W.waterDepthAt(v.pos.x, v.pos.z) > 0.8);
+      const u = F.asano.units.find((v) => activeSoldier(v) && (v.type === 'ashigaru' || v.type === 'samurai') && W.waterDepthAt(v.pos.x, v.pos.z) > 0.8);
       if (u) {
         F.drown++; rt.army.kill(u, null);
         if (F.drown === 2) rt.say(SHISHA, '浅野殿の手、入り江の深みで溺るる者が出ておる', 3);
