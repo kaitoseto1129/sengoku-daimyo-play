@@ -1230,9 +1230,11 @@ const okehazama = {
     pin.key = rt.phase;
     // ⑥ 首を持って引き揚げる先：谷の出口の組の旗（雨を待った所）。
     if (F.victory) {
-      const q = F.returnPin;
-      if (!q) return null;
-      pin.x = q.x; pin.z = q.z; pin.r = 7; pin.hide = 0; pin.always = true; pin.area = true; pin.key = 'return';
+      if (!F.returnPin) return null;
+      // 幕の内からも口を経由して戻る。到着先の旗は動かさず、途中の道だけを示す。
+      const q = honjinWay(rt.army, rt.player.u, F.returnPin);
+      pin.x = q.x; pin.z = q.z; pin.r = q === F.returnPin ? 7 : 1;
+      pin.hide = 0; pin.always = true; pin.area = true; pin.key = 'return';
       return pin;
     }
     if (timedWait) {
@@ -3833,7 +3835,8 @@ okehazama.botBrain = (b, inp, ctx) => {
   if (p.catching || p.mountT > 0) return;
   // 首を持って戻る先は固定の旗。同行の組が全滅・離脱しても帰路を止めない。
   if (F.victory && F.returnPin) {
-    goTo(p, inp, F.returnPin.x, F.returnPin.z, 4);
+    const q = honjinWay(b.army, u, F.returnPin);
+    goTo(p, inp, q.x, q.z, q === F.returnPin ? 4 : .1);
     return;
   }
   // 後から定義するこの処理でも、林・麓・井伊・弓組の段を引き受ける。

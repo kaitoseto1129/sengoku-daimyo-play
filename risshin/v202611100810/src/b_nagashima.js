@@ -3015,7 +3015,7 @@ const nagashima = {
     // 既存の炎・煙を同じ四枠で使い、炊ぎ火や降伏した長島城には適用しない。
     const addBankFire = W.addFire;
     W.addFire = function (x, z, o = {}) {
-      const target = F.ending && F.fireTargets.find(s => s.x === x && s.z === z);
+      const target = (F.ending || F.advEnding) && F.fireTargets.find(s => s.x === x && s.z === z);
       if (target && !o.torch) {
         // 小さな焚き火の煙では対岸の火災が伝わらない。同じ四枠の炎と煙を広げる。
         const size = Math.max(o.size || 1.3, 3.6);
@@ -3725,6 +3725,17 @@ const nagashima = {
       g.noRout = true; g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.anchor = { x: -48, z: -113 };
       for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.noTarget = true; }
     }
+    // 水郷を進む段でも、結末の中江・屋長島への着火を落とさない。降った長島城は対象外。
+    rt.after(3, () => {
+      for (const s of F.fireTargets || []) s.fireProof = false;
+      for (const s of [F.kuraStruct, F.kuraStruct2, F.yanaStruct, F.fireTargets?.find(q => q !== F.yanaStruct && q.x > 35 && q.x < 70)]) if (s?.alive) {
+        s.fireProof = false; s.burn = 3; rt.army.igniteStruct(s, s);
+      }
+      bankBlazes(rt, 0);
+      rt.say('使番', '中江・屋長島に火がかけられました', 3.4);
+    });
+    rt.after(9, () => bankBlazes(rt, 1));
+    rt.after(15, () => bankBlazes(rt, 2));
     // 火は軍の下知で広がる（本人が一軒ずつ燃やさない）。近くは本物の火、川面に映す
     const fires = [[-44, -84, 3.2], [-52, -104, 2.6], [-40, -108, 2.4], [-56, -92, 2.2], [-50, -60, 2.6], [-34, -114, 2]];
     fires.forEach(([x, z, size], i) => rt.after(1 + i * 1.6, () => {

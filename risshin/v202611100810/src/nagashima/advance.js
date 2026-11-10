@@ -79,7 +79,8 @@ function plant(o) {
       const u = rt.player.u, p = u.pos;
       const near = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing && Math.hypot(p.x - o.at.x, p.z - o.at.z) < 4.5;
       let calm = near;
-      if (calm) for (const q of rt.army.units) if (q.team !== u.team && q.alive && !q.fleeing && !q.noTarget && !q.isStruct && !q.civ &&
+      if (calm) for (const q of rt.army.units) if (q.team !== u.team && q.alive && q.hp > 0 && !q.downed && !q.dying && !q.gone &&
+        !q.woundOut && !q.rearWound && !q.fleeing && !q.noTarget && !q.isStruct && !q.civ &&
         (q.pos.x - p.x) ** 2 + (q.pos.z - p.z) ** 2 < 36) { calm = false; break; }
       if (calm) C.t += dt;
       return C.t >= 3;

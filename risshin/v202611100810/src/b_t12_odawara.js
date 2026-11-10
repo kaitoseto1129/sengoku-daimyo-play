@@ -301,7 +301,8 @@ function sogamaeWall(rt) {
   // 11/6 kaito 四5：前は茅葺の家と丸太の物見だけで村の砦に見えた。五代の本城らしく、主殿（大きな入母屋の御殿）・蔵・土塁の角の隅櫓（板壁・瓦。低い台）・南の大手の櫓門（土の城の門）
   try {
     rt.scene.add(dou(W, CASTLE.x + 3, CASTLE.z - 3, 16, 10, 0));
-    rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x - 9, CASTLE.z + 4, Math.PI / 2, { ita: true, boardRoof: true }));
+    // 開城の列の後ろが蔵の中に出ないよう、門へ続く通路の北西に寄せる。
+    rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x - 11, CASTLE.z - 5, Math.PI / 2, { ita: true, boardRoof: true }));
     rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x + 11, CASTLE.z + 6, 0, { ita: true, boardRoof: true }));
     for (const [x, z] of [[HON.x0 + 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z1 - 2.5]]) rt.scene.add(sumiyagura(W, x, z, { w: 4.2, d: 3.6, base: 0.3, inside: false }));
     rt.scene.add(yaguramon(W, HON.x0 + 6, HON.z1 - 1.4, 5, 0, { doors: false, inside: false, earth: true }));
@@ -378,12 +379,18 @@ function requiredStep(step) {
       if (step.kind === 'fight') {
         const p = rt.player.u.pos;
         const near = Math.hypot(p.x - C.at.x, p.z - C.at.z) < 18;
+        // 打って出の段は全滅を待たない。上限を無効にした後も、現地で
+        // 元の刻限まで持ちこたえれば、塀に残った兵は end の下知で退く。
+        // 普請の物見は独自の撤退条件を持つため、この数え方には入れない。
+        if (C.later && near && rt.player.u.alive) C.repulseHold = (C.repulseHold || 0) + dt;
+        const repulsed = C.later?.length === 0 && C.repulseHold >= step.max;
+        if (repulsed && !done) rt.say('井伊直政', '北条勢が退くぞ。追うな、山王川の岸へ戻れ！', 3.6);
         // 味方だけが木戸の敵を返しても、本人が陣に残ったまま達成にしない。
         if (done && !near) {
           C.goal = C.at;
           rt.objProgress('dp', step.key === 'ishigaki' ? '石垣山の普請場へ戻れ' : step.key === 'sortie' || step.key === 'kuzure' ? '山王川の岸へ戻れ' : '篠曲輪の木戸の前へ戻れ');
         }
-        return done && near;
+        return (done || repulsed) && near;
       }
       if (step.kind !== 'hold') return done;
       const p = rt.player.u.pos;
@@ -822,7 +829,7 @@ const t12_odawara = {
 t12_odawara.force = (rt) => ({ a: Math.round(210000 - (rt.flags.ak || 0) * 30), a0: 210000, b: Math.max(0, 50000 - (rt.flags.ek || 0) * 40), b0: 50000 });
 t12_odawara.noTaishoRaid = true;   // 本丸の当主の旗本は本丸を出ない（本陣の将は前に出ない・kaito AR3）
 t12_odawara.sides = { a: { name: '豊臣軍', mon: 'toyotomi' }, b: { name: '北条軍', mon: 'hojo' } };
-t12_odawara.date = (rt) => { const d = rt.flags.day; return d === 3 ? '天正十八年（1590）七月五日　開城' : d === 2 ? '天正十八年（1590）七月の初め　初秋・晴' : d === 1 ? '天正十八年　六月二十六日　朝' : d === 0.5 ? '天正十八年　六月二十五日　夜' : d === -1 ? '天正十八年（1590）六月の初め　昼' : '天正十八年　六月二十二日　雨の夜'; };
+t12_odawara.date = (rt) => { const d = rt.flags.day; return d === 3 ? '天正十八年（1590）七月五日　開城' : d === 2 ? '天正十八年（1590）七月の初め　初秋・晴' : d === 1 ? '天正十八年　六月二十六日　朝' : d === 0.5 ? '天正十八年　六月二十五日　夜' : d === -0.5 ? '天正十八年　六月二十四日　昼' : d === -1 ? '天正十八年（1590）六月の初め　昼' : '天正十八年　六月二十二日　雨の夜'; };
 t12_odawara.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '');
 t12_odawara.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 t12_odawara.history = '天正十八年（1590）、豊臣秀吉はおよそ二十一万の軍で関東の北条氏を攻めた。前の年、北条方が真田の名胡桃城を奪ったことが、秀吉の裁き（惣無事）を破ったとされ、戦の発端となった。徳川家康・前田利家・上杉景勝・宇喜多秀家・小早川隆景ら全国の大名が加わり、九鬼嘉隆・長宗我部元親らの水軍が海を塞いだ。北条氏政・氏直は、城下の町ごと堀と土塁で囲んだ小田原城の総構え（およそ九km）に、五万余りで籠もった。秀吉は総攻めをせず、城を見下ろす石垣山に城を築いた。家康は城の東、山王川と酒匂川の間に陣を置いた。六月二十二日の雨の夜、家康の家臣の井伊直政と松平康頼が堀を渡り、山王口の外の出丸・篠曲輪を攻めて旗を立てたが、城中から出た北条勢に防がれ、後押しも無く退いた。小田原の陣で城へ攻め入ったのは、ほぼこの一度だけである。二十六日ごろ、石垣山の城のまわりの木を伐り、一夜で現れたように見せたと伝わる（実は八十日ほどかけて築いた）。その間に山中・韮山・松井田・鉢形・八王子などの支城が次々に落ち、重臣の松田憲秀の内通も露見して城の中は揺れた。黒田官兵衛（孝高）・滝川雄利らが開城を説き（官兵衛は肩衣と袴で刀を帯びずに城へ入ったと伝わる）、七月五日に氏直が自らの命と引き換えに城の者を助けるよう申し出て降った。十一日に氏政と弟の氏照は腹を切り、氏直は高野山へ送られた。十三日に秀吉が城に入り、北条の旧領の関東は徳川家康に与えられ、家康は江戸へ移った。\n篠曲輪の形、井伊勢と篠曲輪の守りの人数、主人公が井伊の手に加わること、官兵衛を本丸の門まで送る道筋は遊びのための復元である。両軍の人数は推定で、北条方の数には別の伝えもある。';

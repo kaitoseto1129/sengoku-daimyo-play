@@ -2537,7 +2537,8 @@ const kanegasaki = {
       { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で、朝倉の先手を止める', noun: '一の備', action: '一の備で先手を止めよ', place: at(LINES[0]), check: () => (F.line || 0) >= 1 && hit(0) },
       { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => (F.step || 0) >= 3 || (F.line || 0) >= 2 },
       { kind: 'stage', k: 1, text: '川の砦で、池田勢と騎馬の追手を受ける', noun: '川の砦', action: '砦の柵で騎馬の追手を受けよ', place: at(LINES[1]), check: () => (F.line || 0) >= 2 && hit(1) },
-      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && !!F.exitReady && hit(2) },
+      // 退却中の損害で合流に失敗しても、すでに守り切った砦の達成は残す。
+      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && hit(2) },
       { kind: 'stage', k: 2, text: '若狭への道の退き口へ、木下・池田・明智と退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won },
     // 11/6：目標は時間切れで✕にしない（備ごとの長さは台本の下知で決まる）。残りの秒も出さない。
     ];
@@ -4195,6 +4196,14 @@ kanegasaki.sides = { a: { name: '織田・徳川の軍', mon: 'oda' }, b: { name
 // 11/7 kaito 九3：敵の兵には一人残らず頭上に赤い▼。共通の印（近い四人まで）は止め、この戦では見える敵全員に付ける。
 //   印は使い回しの DOM 一揃い。見通しは五分の一秒ごと、位置は毎コマ。遠いほど小さく。
 const KG_FOE_SIGN_R = 120, KG_FOE_SIGN_N = 250, kgSignV = new THREE.Vector3();
+// 人の準備中や表示の切替中は、竿や印だけを先に見せない。
+function kgSignDrawn(u) {
+  if (!u.mesh?.parent || u.camHidden || u.humanPending || u._formHid) return false;
+  for (let p = u.mesh; p; p = p.parent) if (p.visible === false) return false;
+  if (u.human && !u.vatOn && !u.efuda && !u.imp)
+    return !!(u.human.root?.visible && u.human.root.parent);
+  return true;
+}
 // 頭上だけが斜面や柵を越えても印を浮かせない。体の見通しを地面と壁で確かめる。
 function kgSignSeen(rt, u) {
   const a = rt.camera.position, W = rt.world, by = u.pos.y + (u.mounted ? 2.2 : 1.2);
@@ -4233,7 +4242,7 @@ function kgFoeSigns(rt) {
       const list = F.foeSignList; list.length = 0;
       for (const u of rt.army.units) {
         if (u.team === me.team || u.team > 1 || !u.alive || u.dying || u.gone || u.downed || u.woundOut || u.isStruct || u.civ ||
-          u.type === 'dummy' || u.type === 'porter' || u.mesh?.visible === false || u.camHidden) continue;
+          u.type === 'dummy' || u.type === 'porter' || !kgSignDrawn(u)) continue;
         const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
         if (d2 > KG_FOE_SIGN_R * KG_FOE_SIGN_R || !kgSignSeen(rt, u)) continue;
         u._kgSignD = Math.sqrt(d2); list.push(u);
@@ -4245,7 +4254,7 @@ function kgFoeSigns(rt) {
     cam.updateMatrixWorld();
     for (const u of F.foeSignList) {
       if (n === els.length) break;
-      if (!u.alive || u.dying || u.downed || u.gone || u.woundOut || u.mesh?.visible === false || u.camHidden) continue;
+      if (!u.alive || u.dying || u.downed || u.gone || u.woundOut || !kgSignDrawn(u)) continue;
       kgSignV.set(u.pos.x, u.pos.y + (u.mounted ? 3.3 : 2.35), u.pos.z).project(cam);
       if (kgSignV.z < -1 || kgSignV.z > 1 || Math.abs(kgSignV.x) > 1 || Math.abs(kgSignV.y) > 1) continue;
       const e = els[n++], k = Math.max(.6, Math.min(1.25, 1.35 - u._kgSignD / 90));

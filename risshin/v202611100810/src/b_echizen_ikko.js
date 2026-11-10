@@ -4437,6 +4437,8 @@ const echizen_ikko = {
         } else if (F.step === 3) {
           if (zones.oku.owner === ZONE_STATE.FRIEND && zones.oku.test(P.x, P.z)) this.nextAttack(rt, 4);
           else templeOccupation(rt, zones.oku, '奥の院');
+          // 最後の堂でも、戸口や切岸で止まった衆徒の経路を引き直す。
+          hondoSweep(rt, 1, zones.oku, zoneNear(zones.oku));
         } else if (F.step === 4) {
           if (near(OKUYAMA, 14)) this.nextAttack(rt, 5);
           else rt.objProgress('main', '槍の列に続き、奥山道へ進め');
@@ -4502,7 +4504,7 @@ const echizen_ikko = {
               : F.roadContested ? '道の敵を押し返せ。守った時間は残る'
                 : F.roadHall ? `道を守れ。${TEMPLE_HALL_NAMES[F.roadHall.id]}は別手が押さえる`
                 : !F.roadSupported ? `味方を道へ集めよ。あと${3 - friends}人`
-                  : remaining > 0 ? `味方三人と道を守れ。あと${remaining}秒`
+                  : remaining > 0 ? '味方三人と道を守れ'
                     : !F.counterRepelled ? '道を守り、山から来る反撃を退けよ' : '道と堂の守りを保て';
           rt.objProgress('main', `${text}。守りの残り${remaining}秒`);
         }

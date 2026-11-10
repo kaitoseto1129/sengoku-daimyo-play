@@ -3194,8 +3194,6 @@ const tedorigawa = {
     rt.obj('main', '手取川を渡った。退き太鼓に合わせ、手負いを連れて南へ退く', 'main');
     rt.unmark('south'); rt.unzone('south');
     rt.objDone('main');
-    rt.tracker.main = true;
-    rt.award((t) => { t.main = true; t.special = { label: '手取川の殿を務め、生きて渡った', pts: 20 }; }, '殿の働き・手取川を渡った');
     // 決着後は戦の更新と rt.t が止まる。待機中の太鼓は終幕の時計へ渡す。
     // 本陣へ遠ざけず、渡り終えた殿と同じ南岸の兵から最後の下知を継ぐ。
     const endSignalWait = tedoEndSignal(rt, SOUTH, 0.5, '手負いを連れ、南へ退け！');
@@ -3209,7 +3207,14 @@ const tedorigawa = {
     rt.after(8, () => { if (rt.player.u.alive && !rt.result?.down) rt.say('柴田勝家', '手取川は取られた。御幸塚に兵を残し、退くぞ', 4); });
     // 殿の成功で上杉軍を敗走させず、南岸へ退いた結末を保つ。
     installYoin(rt, { FORD });   // 約30秒の余韻（tedorigawa/yoin.js）
-    rt.finish({ scriptedEnd: true }, Math.max(YOIN_SEC, endSignalWait + 8));
+    // finish は直ちに over を立て、勝家の下知と余韻の声を止めてしまう。
+    // 退く場面の間は操作と音声を保ち、最後の声が終わってから結果へ進む。
+    rt.after(Math.max(YOIN_SEC, endSignalWait + 8), () => {
+      if (rt.over || !rt.player.u.alive || rt.result?.down) return;
+      // 共通の目標完了処理にも、余韻の途中で勝ちを締めさせない。
+      rt.award((t) => { t.main = true; t.special = { label: '手取川の殿を務め、生きて渡った', pts: 20 }; }, '殿の働き・手取川を渡った');
+      rt.finish({ scriptedEnd: true }, 0.1);
+    });
   },
 
   update(rt, dt) {
@@ -3217,6 +3222,8 @@ const tedorigawa = {
     huntPlayer(rt, dt);
     pressPlayer(rt, dt);
     pressStep(rt, dt);
+    // 余韻では退いた殿を南岸の持ち場へ戻さず、川と退く列を残す。
+    if (rt.flags.ending) { this.flood(rt, dt); return; }
     // 11/6 BT：謙信と馬廻は水際の浅瀬まで。斬り合いに釣られて濁流を南岸まで越えない（越えた者は北の水際へ戻す）。
     {
       const F = rt.flags, g = F.kenshinG;

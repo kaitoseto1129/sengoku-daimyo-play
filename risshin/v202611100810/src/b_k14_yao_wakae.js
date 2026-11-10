@@ -90,6 +90,8 @@ const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (standing(u) ? 1 : 0), 0
 // 横の備の討取りで伏せ槍の分を埋めない。両隊それぞれ六割を退ける。
 const yaoLeft = (g) => Math.max(0, aliveN(g) - Math.floor(g.units.length * KEEP));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 到着と任務達成は、本人が戦える間だけ。次の段・終戦を待つ予約にも同じ条件を使う。
+const canProgress = (rt) => !rt.over && !rt.ended && rt.player.u.alive && !rt.player.u.dying && rt.player.u.hp > 0;
 // 共通の被弾処理は invuln の武将も本人の攻撃で討つか、手傷で退かせる。
 // 本陣の総大将と、まだ出番でない木村は持ち場を守り、出番で保護を外す。
 const holdStoryPost = () => {};
@@ -386,6 +388,7 @@ const k14_yao_wakae = {
 
   // 段を進める（済んだ目標に印・新しい目標を足す）
   toStep(rt, n) {
+    if (!canProgress(rt) || rt.flags.ending) return;
     const F = rt.flags;
     if (F.step) rt.objDone('s' + F.step);
     F.next = false; F.pushed = false; F.stepNear = false;
@@ -457,7 +460,7 @@ const k14_yao_wakae = {
   // 若江：木村重成の最期（討てなければ安藤重勝が首を取る）
   kimuraEnd(rt, byMe) {
     const F = rt.flags;
-    if (F.kimuraDone) return;
+    if (F.kimuraDone || !canProgress(rt)) return;
     F.kimuraDone = true;
     const U = F.kimuraU;
     if (U?.alive) { U.invuln = false; rt.army.kill(U); }
@@ -474,7 +477,7 @@ const k14_yao_wakae = {
   // 長宗我部が退く（勝ち）
   win(rt) {
     const F = rt.flags;
-    if (F.ending || F.step !== 4 || !F.kimuraDone) return;
+    if (F.ending || F.step !== 4 || !F.kimuraDone || !canProgress(rt)) return;
     F.ending = true;
     rt.setPhase('end');
     rt.objDone('s4');
@@ -542,6 +545,7 @@ const k14_yao_wakae = {
       F.gcT = 1;
       for (const g of [F.kimuraG, F.yamaG, F.naitoG, F.choSide]) if (g) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && dist(u.pos, P.pos) > 45) rt.army.despawn(u);
     }
+    if (!canProgress(rt)) return;
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     // その戦場へ寄ってから達成を判定する。後方で待つだけでは目標に印を付けない。
