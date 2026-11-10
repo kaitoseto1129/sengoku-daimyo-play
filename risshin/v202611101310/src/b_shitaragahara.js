@@ -1412,9 +1412,10 @@ function nfTick(rt, dt) {
   const mi = shitaragahara.missionOf(rt);
   if (N.objI !== mi) { N.objI = mi; rt.obj('pursue', NF_TEXT[mi], 'main', true); }
   const T = rt.t - N.at;
+  // 柵の外の川側を通っただけでは守備にしない。内側の持ち場への到着を記録する。
   // 原の寄せの間に守った柳田前も記録する。土屋へ走った後に同じ持ち場へ戻らせない。
   if ((N.step === 2 && N.breachDone || N.step === 3) &&
-      Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
+      p.x < SB.x0 && Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
   // 導入の段（柵の見回り・物見の誘い出し）が済むまで夜明けの寄せを待つ
   if (N.step === 0 && ST_INTRO.tick(rt, dt)) return;
   if (N.step === 0 && !N.t0) { N.t0 = rt.t; N.at = rt.t; ST_WALL.start(rt); }
@@ -1448,7 +1449,7 @@ function nfTick(rt, dt) {
   // ― 1：大宮前の柵で真田隊 ―
   if (N.step === 1) {
     const g = F.waveGroups[0];
-    if (Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 30) N.defendedNorth = true;
+    if (p.x < SB.x0 && Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 30) N.defendedNorth = true;
     if (!N.near && g.center().x < SB.x0 + 40) { N.near = true; sfx('hooves', 0.8); sfx('toki', 0.7); rt.say(g.units.find((u) => u.type === 'busho' && u.alive)?.name || '真田信綱', '真田の槍、ここを通すぞ！', 3); }
     if (N.defendedNorth && nfBroken(rt, g)) {
       nfRout(rt, g, true);
@@ -1515,7 +1516,7 @@ function nfTick(rt, dt) {
   // ― 3：柳田前の柵で内藤隊。崩れたら武田の全軍が退く ―
   if (N.step === 3) {
     const g = F.waveGroups[1];
-    if (Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
+    if (p.x < SB.x0 && Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
     if (!N.near && g.center().x < SB.x0 + 40) { N.near = true; sfx('hooves', 0.8); rt.say('内藤昌豊', '柵の口を押せ！　武田の意地を見せよ！', 3); }
     ST_SOKO.tick(rt, dt);
     const S = F.shSoko;

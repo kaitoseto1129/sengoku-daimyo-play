@@ -50,6 +50,14 @@ export function install(rt, ctx) {
     rt.say('足軽', '葦の中から撃って来たぞ！　舟で渡って来おった！', 3);
     rt.after(3.2, () => live() && rt.say('前田利家', '込め替えの隙に寄って突け！　水路の岸から追い払え！', 3.4));
   }
+  function withdraw() {
+    const g = S.g;
+    if (!g || g.routed) return;
+    // 少数まで減った時も、攻め先や追う相手を残さず出撃元へ退く。
+    g.onArrive = null; g.focus = null;
+    g.dest = { x: MI.x + 24, z: MI.z - 3 };
+    g.noRout = false; g.morale = 0; g.order = 'retreat';
+  }
   S.tick = () => {
     if (S.done || rt.over || F.ending || !rt.player.u.alive) return;
     if (F.step) { S.done = true; return; }
@@ -65,9 +73,7 @@ export function install(rt, ctx) {
             !rt.army.wallBetween(p, -1, u.pos) && !rt.army.terrainBlocks(p, u.pos))) S.contestedAt = rt.t;
       // 葦や水際に残った数人の全滅待ちをしない。交戦が長引けば砦へ退く。
       if (S.contestedAt != null && rt.t - S.contestedAt > 120 && !S.g.routed && left > 2) {
-        S.g.onArrive = null; S.g.focus = null;
-        S.g.dest = { x: MI.x + 24, z: MI.z - 3 };
-        S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat';
+        withdraw();
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
         rt.say('前田利家', '三好の鉄砲が退くぞ。追うな、堤へ戻れ！', 3.5);
@@ -75,7 +81,7 @@ export function install(rt, ctx) {
       if (S.k === 2 && (left <= 2 || S.g.routed)) {
         S.k = 3; S.backT = rt.t;
         rt.unmark('nodaSnipe');
-        if (!S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+        withdraw();
         rt.say('前田利家', '追い払ったな。堤へ戻れ、今日の下知を言うぞ', 3.5);
       }
     }
@@ -85,7 +91,7 @@ export function install(rt, ctx) {
     if (S.done || S.k !== 3 || F.step || rt.over || F.ending) return;
     S.done = true;
     rt.unmark('nodaMi'); rt.unmark('nodaSnipe');
-    if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+    withdraw();
     ctx.ready();
   }
 }
