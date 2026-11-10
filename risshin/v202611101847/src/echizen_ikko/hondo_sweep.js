@@ -4,13 +4,15 @@
 import { siegeFighter } from '../siege_zones.js';
 
 export function fighting(rt, u) {
-  const target = u.target;
+  const target = u.swing?.target || u.atk?.target || u.target;
   const ranged = !u.sidearm && (u.type === 'bow' || u.type === 'gun');
   // 庭と堂内・切岸の上下は、平面で近くても斬り合えない。重なったまま
   // 「交戦中」と数えると、通し確認で残った兵の経路をいつまでも引き直せない。
   // 突撃の状態だけで止まった者や、刀へ持ち替えた鉄砲兵の遠い標的は交戦に数えない。
   const reach = ranged ? u.range || 4 : (u.reach ?? 2.8) + .6;
-  return !!(u.atk || u.swing || target && target.team !== u.team &&
+  // 構え・空振りだけでは交戦にしない。壁越しや届かない高みに向けて
+  // 振り続ける守兵も、止まった時間を数えて戸口への経路へ戻す。
+  return !!(target && target.team !== u.team &&
     siegeFighter(target) && target.hp > 0 && !target.dying && !target.rearWound &&
     (ranged || !(u.naka || target.naka) || Math.abs(target.pos.y - u.pos.y) <= 1.8) &&
     Math.hypot(target.pos.x - u.pos.x, target.pos.y - u.pos.y, target.pos.z - u.pos.z) <= reach &&

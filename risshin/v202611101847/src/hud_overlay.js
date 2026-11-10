@@ -857,6 +857,8 @@ export class HudOverlay {
       if (guardNamed && !u.fleeing) named = true;
       // 町では頭の上に役目の字（捕り方・役人など）を出さない。姿で分かる。武将の名だけ残す（kaito 10/23「字は使わない」）
       if (rt.def.town && u.type !== 'busho') named = false;
+      // 雨夜など、戦が指定した胴の見通しを名札にも適用する。
+      if (named && rt.def.nameTagVisible?.(rt, u) === false) named = false;
       const crest = !this.pinOnly && !quietBattle && u.team === 0 && knownGeneral && d >= 22 && d < 48;
       // 剣や盾は選んだ相手一人だけ。周りの兵には追加しない。
       const ally = u.team === P.u.team, missionEnemy = !!objectiveEnemies?.includes(u), selected = (!missionGuard || guardingCombat || u === this.attackGuideEnemy || u === chosenEnemy) && !retreating && (!this.guardAlly || guardingCombat || u === this.attackGuideEnemy || u === chosenEnemy) && u === focus && !movingToFlag;

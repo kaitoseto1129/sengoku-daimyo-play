@@ -402,6 +402,8 @@ function height(wx, wz) {
 // 案内から外れた負傷者だけで、峠口や奥の道の任務を止めない。
 const fighter = (u) => u.alive && !u.dying && !u.evacuatedWound && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.gone && !u.noTarget;
 const fighting = (g) => g && !g.routed && g.units.some(fighter);
+// 史実で逃れる詫美だけが残った殿は撃退済み。行き先と段送りで同じ判定を使う。
+const tonePassCleared = (g) => !fighting(g) || !g.units.some((u) => fighter(u) && !u.invuln);
 function toneFootReset(u) {
   u.toneFootBeat = undefined;
   u.toneFootPhase = undefined;
@@ -3464,6 +3466,7 @@ const tonezaka = {
       // 将と旗本が踏みとどまる間も敵は残る。段送りと同じ全ての組を数える。
       let n = 0;
       for (const g of F.stageDefenders[F.step]) n += fighters(g);
+      if (F.step === 3 && tonePassCleared(F.r4)) n = 0;
       const wait = F.chaseWait, uc = F.uma.center(), lc = F.late.center();
       wait.umaStopped = wait.t > 0 && Math.hypot(uc.x - wait.umaX, uc.z - wait.umaZ) < 0.1;
       wait.lateStopped = wait.t > 0 && Math.hypot(lc.x - wait.lateX, lc.z - wait.lateZ) < 0.1;
@@ -3643,7 +3646,7 @@ const tonezaka = {
     // 追撃の略図へ移るのは、本人が道をたどって峠へ着いてから。
     // 峠を越えたら義景の旗を追い、旗本の返しを破る（tonezaka/yoshikage.js）。義景は逃げ延びて一乗谷へ
     // 11/9 二巡（豊臣A）：討てない詫美越後守が一人残ると殿が「戦える」のまま崩れず、峠の口で十分止まった（act の流し三回）。討てる兵が尽きれば崩れた事にする
-    else if (F.step === 3 && (!fighting(F.r4) || !F.r4.units.some((u) => fighter(u) && !u.invuln)) && near(p, PASS, 14)) {
+    else if (F.step === 3 && tonePassCleared(F.r4) && near(p, PASS, 14)) {
       // 11/9 二巡（豊臣A）：崩れた詫美の殿の生き残り（討てない詫美越後守を含む）が峠の細い道に残り、峠の先へ一歩も進めず十分止まった（act の流し）。
       //   峠を越える段に入る時、峠から先の道に残る殿の兵は場から下げる（詫美は史実どおり逃げ延びる）
       toneJourneyRetire(rt, [F.r4]);

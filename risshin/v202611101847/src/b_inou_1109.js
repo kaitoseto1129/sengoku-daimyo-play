@@ -205,8 +205,9 @@ const ino = {
       [...(rt.G.lord ? [] : [{ type: 'busho', n: 1, o: { name: '織田信長', invuln: true, keep: true, horse: true, flag: 'oda' } }]),
         { type: 'samurai', n: 1, o: { name: '森可成', invuln: true, keep: true } }, { type: 'cavalry', n: 3, o: { invuln: true } },
         { type: 'samurai', n: 1, o: { name: '黒田半平', invuln: true, keep: true } },
-        { type: 'samurai', n: 1, o: { name: '口中杉若', invuln: true, keep: true } },
-        { type: 'samurai', n: 4, o: { invuln: true } }]);
+        { type: 'samurai', n: 1, o: { name: '口中杉若', invuln: true, keep: true, horse: false } },
+        { type: 'samurai', n: 1, o: { name: '織田造酒丞', invuln: true, keep: true } },
+        { type: 'samurai', n: 3, o: { invuln: true } }]);
     F.nobuU = F.nobuG.units.find((u) => u.name === '織田信長') || null;
     F.hanbeiU = F.nobuG.units.find((u) => u.name === '黒田半平');
     F.nobuFlag = nobori(W, -64, 34, 'oda', 6.5); rt.scene.add(F.nobuFlag);

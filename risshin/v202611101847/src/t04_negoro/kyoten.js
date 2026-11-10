@@ -44,13 +44,13 @@ export function kyotenStep(NG) {
       const arrived = u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
         && Math.hypot(u.pos.x - OKU.x, u.pos.z - OKU.z) < 18;
       // 奥の院まで攻め入り、守りを崩してから退却の知らせを出す。時刻だけでは勝ちにしない。
-      if (!C.over && el > 95 && (C.withdraw || n <= 5) && (arrived || el > 330)) {
+      if (!C.over && el > 95 && (C.withdraw || n <= 5) && arrived) {
         C.over = el;
         for (const g of C.groups) flee(g);
         rt.say('足軽', '根来の衆が逃げる！　奥の谷へ散っていくぞ！', 3);
         rt.after(5, () => rt.say('使番', '雑賀の残党、太田城へ集まっております！', 4));
       }
-      return !!C.over && el - C.over > 10 && (arrived || el > 345);
+      return !!C.over && el - C.over > 10 && arrived;
     },
     end(rt, C) { rt.unmark('dp'); rt.objDone('dp'); rt.award((t) => t.side.push('奥の院の鉄砲衆を潰した'), '最後の拠点を潰した'); },
   };

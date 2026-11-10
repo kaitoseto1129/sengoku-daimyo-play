@@ -34,6 +34,42 @@ export function pin(rt) {
   return goal;
 }
 
+// 11/10 関所の3：案内の点（guideRoad）は本人の四歩先なので、見せる▼が「着いた」扱いで山道の間ずっと消えていた。
+//   画面の印は夜の追撃と同じく、山道の次の折れ（六歩より先）を指す。bot の足取りは pin() の細かい案内のまま。
+const signAt = { x: 0, z: 0 };
+export function signPin(rt) {
+  const H = rt.flags.iwHiru;
+  if (!H || H.s !== 2 && H.s !== 4) return pin(rt);
+  const goal = H.s === 2 ? KOMODA : MOUTH, path = H.s === 2 ? H.down : H.up, p = rt.player.u.pos;
+  if (near(p, goal, 5)) return goal;
+  let bi = 1, bd = Infinity;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const d = Math.hypot(p.x - a[0] - dx * t, p.z - a[1] - dz * t);
+    if (d < bd) { bd = d; bi = i; }
+  }
+  for (let i = bi; i < path.length; i++) {
+    const c = path[i];
+    if (i === path.length - 1 || Math.hypot(c[0] - p.x, c[1] - p.z) > 6) { signAt.x = c[0]; signAt.z = c[1]; return signAt; }
+  }
+  return goal;
+}
+
+// 11/10 関所の3：麓の小荷駄の護りに着くと、道の案内の点が足元になって行き先の印が消え、護りにも▼が付かなかった。
+//   麓へ近づいたら、見える高さの護り（人足は除く）の一人を行き先にする。
+export function signTarget(rt) {
+  const H = rt.flags.iwHiru, me = rt.player.u;
+  if (!H || H.s !== 2 || !H.esc || !near(me.pos, KOMODA, 24)) return null;
+  let best = null, bd = Infinity;
+  for (const u of H.esc.units) {
+    if (!u.alive || u.dying || u.gone || u.fleeing || u.noTarget || u.type === 'porter' || Math.abs(u.pos.y - me.pos.y) > 4) continue;
+    const d = Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z);
+    if (d < bd) { bd = d; best = u; }
+  }
+  return best;
+}
+
 // 折れのすぐ外から遠い次の角を狙うと切岸を横切る。
 // 昼の往復は最寄りの区間の四歩先を示し、曲がり角を細かくたどる。
 function guideRoad(path, p, out) {

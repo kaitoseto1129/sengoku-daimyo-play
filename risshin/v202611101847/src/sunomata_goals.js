@@ -23,9 +23,8 @@ export function sunomataPincerDone(F) {
     reliefCanFight(F.gunReserve) || reliefCanFight(F.bowReserve);
   if (F.wave === 3 && F.W3b?.routed &&
       (F.reinforceArrived || (F.reinforceCalled || F.reinforceReserve) && !reliefReady)) return true;
-  // 11/10 関所：伏兵が道で詰まって着かないと、夜明け後も勝ちが来ず刻限切れになった（bot 1260秒）。
-  //   六十秒の見張りが夜明けへ進めた後（fushin.js の fsForce）は、西の寄せが退いていれば挟みは済んだとする（決まり1）。
-  if (F.wave === 3 && F.fsForce && F.W3b?.routed) return true;
+  // 停滞救済で寄せ手が退いても、生きた伏兵は実着を待つ。
+  // 道で止まった隊は asa.js の経路の引き直しで進め、戦果を先に付けない。
   return F.wave === 3 && !!F.reinforceArrived && !!F.W3b &&
     (F.W3b.routed || F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget).length <= 4);
 }
