@@ -1726,6 +1726,9 @@ const iga = {
     trees: 680, thickTrees: true, branchFoliage: true, unevenCrowns: true, nearCedarBranches: true,
     // 朝の遠い林にも近景と同じ緑を残す。木の本数・形・描画回数は増やさない。
     farTreeTint: new THREE.Color(0.8, 0.95, 0.7),
+    // 全戦確認の朝の白い膜：山頂にも残る地霧を薄め、曲輪と林の奥行きを残す。
+    // 共通の距離の霞・夜の暗さは保ち、霧の枚数だけを既存の設定で減らす。
+    groundMistScale: 0.35,
     // 手本（docs/layout-ref/iga）の盆地は草が厚い。陣の野が刈った芝の一枚に見えないよう、下草を増やし道肩へ寄せる（10/29）。
     tufts: 3200, tuftTint: 0x928779, roadsideGrass: true, curvedNearGrass: true,
     treeDensity: (x, z) => (campClearing(x, z) || peopleClearing(x, z) || igaCrowdClear(x, z) || HIJIYAMA_PLAN.kuruwa.some(k => inPoly(k.poly, x, z))) ? 0 : ((Math.abs(x) < 20 && z < -80 && z > KITAEND.z - 40) || Math.hypot(x - HIGASHI.x, z - HIGASHI.z) < 16) ? 0.1 : 1,
