@@ -98,6 +98,16 @@ export function tick(rt, ctx) {
     once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
     S.done = true; return true;
   }
+  // 詰まらない決まり8：三の手から二分、段の始めから六分を過ぎたら、残る城兵は城へ退き段を終える（11/10 bot：残兵を待ち七分止まって負けた）。
+  if (S.w3 && rt.t - S.w3T >= 120 && t >= DESHIRO_LEN + 60 && rt.player.u.alive) {
+    if (!S.retreatOrdered) {
+      S.retreatOrdered = true;
+      for (const g of S.waves) if (!ctx.gone(g)) ctx.flee(g);
+      rt.say('物見', '城兵が三木城へ退いてゆくぞ！　平田の付城は持ちこたえた！', 4);
+    }
+    once('won', () => rt.award((t2) => { if (!t2.side.includes('城の出撃から平田の付城を守った')) t2.side.push('城の出撃から平田の付城を守った'); }, '付城を守った'));
+    S.done = true; return true;
+  }
   if (t >= DESHIRO_LEN) {
     // 時間だけで敵を退かせて達成にしない。木戸への帰着と三度の寄せの決着を待つ。
     once('long', () => rt.say('組頭', '平田の木戸を守れ！　城兵を退けるまで持ち場を離れるな！', 4));
