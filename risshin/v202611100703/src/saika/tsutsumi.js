@@ -9,20 +9,29 @@ import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
 // 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
-const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+const ready = (u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
 
 const DIKE = { x: -4, z: 58 };   // 川下の堤の陰（東岸）
 
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, SAIKA, moveGroup, next, missionText } = ctx;
-  let done = false, tick = 0, fire = null, R = null, takenT = 0;
+  let done = false, tick = 0, fire = null, R = null, takenT = 0, raidAt = 0;
+  const startedAt = rt.t;
   rt.setPhase('tsutsumi');
   const G = enemyGroup(rt, { faction: 'saika', fixed: true, name: '川下の堤の雑賀鉄砲衆', anchor: DIKE, facing: 0, width: 10, order: 'hold', guard: true, guardLeash: 6, aggro: 22, seekRange: 40, morale: 85, fleeDir: { x: -1, z: 0.3 } },
     dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'gun', n: 5 }, { type: 'ashigaru', n: 4 }], SAIKA));
   G.fixed = false;
   F.tsutsumiG = G;
-  const live = () => { let n = 0; for (const u of G.units) if (ready(u)) n++; return n; };
+  const live = () => { let n = 0; if (!G.tsRouted) for (const u of G.units) if (ready(u)) n++; return n; };
+  // 抜いていない杭を横切らず、川下の浅瀬から西岸へ退く。
+  const withdraw = (g) => {
+    g.tsRouted = true; g.noRout = true; g.focus = null; g.retreatOnly = true;
+    g.holdFire = true; g.fire = false; g.fixed = false;
+    g.order = 'path'; g.formation = 'column'; g.colW = 2;
+    g.path = [[-8, 76], [-28, 76], [-40, DIKE.z + 8]]; g.pathIdx = 0;
+    g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI / 2; };
+  };
   sfx('volley', 0.9);
   rt.army.play?.('volley', DIKE, 1.1);
   rt.say('見張り', '川下の堤の陰から撃って来る！　竹束の横を狙われておるぞ！', 4);
@@ -43,6 +52,12 @@ export function install(rt, ctx) {
       if (done || F.ending || rt.over) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
+      // 八割を失った守り手や、三分攻め続けた隊は退く。残る一人の全滅待ちにしない。
+      const defenders = live();
+      if (!G.tsRouted && defenders && (defenders <= Math.floor(G.units.length * .2) || rt.t - startedAt >= 180)) {
+        withdraw(G);
+        rt.say('見張り', '堤の鉄砲衆が引くぞ。堤へ寄せて守りを固めよ！', 4);
+      }
       // 堤を取った後、雑賀が舟で取り返しに来る（約三十秒後）。取り返しを払えば済む
       // 味方だけで敵を払っても、本人が堤へ着くまでは占拠・放火を進めない。
       if (!live() && !takenT && Math.hypot(rt.player.u.pos.x - DIKE.x, rt.player.u.pos.z - DIKE.z) < 12) {
@@ -55,6 +70,7 @@ export function install(rt, ctx) {
           if (done || F.ending || rt.over) return;
           R = enemyGroup(rt, { faction: 'saika', name: '堤を取り返す雑賀衆', anchor: { x: -34, z: DIKE.z + 8 }, facing: Math.PI / 2, width: 6, order: 'hold', aggro: 26, seekRange: 34, morale: 85, fleeDir: { x: -1, z: 0 } },
             dress([{ type: 'samurai', n: 1, o: { hat: 'jingasa' } }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 1 }], SAIKA));
+          raidAt = rt.t;
           // 堤の正面には抜いていない杭列が七十歩まで続く。端を回って東岸へ寄せる。
           R.fixed = false; R.order = 'path'; R.formation = 'column'; R.colW = 2;
           R.path = [[-28, 76], [-8, 76], [DIKE.x, DIKE.z]]; R.pathIdx = 0;
@@ -67,13 +83,9 @@ export function install(rt, ctx) {
       let rl = 0;
       if (R) for (const u of R.units) if (ready(u)) rl++;
       // 11/9 三巡（織田G）：取り返しの手は半ばを討たれたら舟へ逃げる。川の中に残る鉄砲一人を待って、刻限まで止まっていた（bot）。
-      if (R && !R.tsRouted && rl && rl <= Math.ceil(R.units.length / 2)) {
+      if (R && !R.tsRouted && rl && (rl <= Math.ceil(R.units.length / 2) || rt.t - raidAt >= 180)) {
         // 残兵を数から外すだけでは退かない。来た浅瀬へ戻し、残る杭列を横切らせない。
-        R.tsRouted = true; R.noRout = true; R.focus = null; R.retreatOnly = true;
-        R.holdFire = true; R.fire = false; R.fixed = false;
-        R.order = 'path'; R.formation = 'column'; R.colW = 2;
-        R.path = [[-8, 76], [-28, 76], [-40, DIKE.z + 8]]; R.pathIdx = 0;
-        R.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI / 2; };
+        withdraw(R);
         rt.say('見張り', '取り返しの手が崩れた！　舟へ逃げていくぞ！', 3);
       }
       // 渡河中の取り返しも数える。遠いだけで「払った」とせず、討つか退くまで続ける。

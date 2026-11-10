@@ -502,7 +502,7 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     rt.army.play('volley', MIZU, 1.6);
     // 火・煙・損害は fireGun の筒先と実弾に任せる。命中前に別口で兵を倒さない。
     for (const g of [F.wata, F.kimu]) if (live(g)) g.morale -= 15;
-    if (F.shot === 2) rt.say('足軽', '堤の上で、大坂の兵が折り重なって倒れていく！', 3);
+    if (F.shot === 2) rt.say('足軽', '堤の左右から、水原の鉄砲が続けて火を吹いた！', 3);
   },
 
   // 下知による実射だけは取り置きの弾を使う。
@@ -540,14 +540,17 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     if (!F.riverAid || F.ending || dist(rt.player.u.pos, RIVER) > 14) return false;
     // 先に味方が寄せ手を退けた場合も、本人が南岸へ来て合図し、安全を確かめて締める。
     // 空の対岸に架空の発砲数は足さず、何もしないままの達成にも変えない。
-    if (!live(F.riverFoe)) { F.riverSecured = true; return true; }
+    // 救援の終了判定と同じく、手傷で離脱した者や倒れる途中の者は戦力に数えない。
+    // 全員が手傷だと live は真のままになり、撃てる相手もいないので合図しても終われなかった。
+    const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.dying);
+    if (!targets.length) { F.riverSecured = true; return true; }
     if (rt.t < (F.riverNext || 0)) return true;
     // 倒れる途中や手傷で狙えない者へ全員が撃ち続けると、残る寄せ手への実射が止まる。
-    const targets = F.riverFoe.units.filter((u) => u.alive && !u.gone && !u.noTarget);
+    const aimable = targets.filter((u) => !u.noTarget);
     let shots = 0, attempted = false;
     for (const g of [F.mzN, F.mzS]) for (const u of g.units) {
-      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !targets.length) continue;
-      const target = targets[shots % targets.length];
+      if (!u.alive || u.gone || u.fleeing || u.woundOut || u.rearWound || u.sidearm || u.type !== 'gun' || dist(u.pos, RIVER) > 18 || !aimable.length) continue;
+      const target = aimable[shots % aimable.length];
       u.heading = Math.atan2(target.pos.x - u.pos.x, target.pos.z - u.pos.z); u.reload = 0;
       attempted = true;
       if (this.commandShot(rt, u, target)) shots++;

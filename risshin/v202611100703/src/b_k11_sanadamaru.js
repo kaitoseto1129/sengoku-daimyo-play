@@ -634,10 +634,10 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     return F.ctx;
   },
 
-  // 共通の放置・刻限による段飛ばしで、着いた・守ったことにしない（七分の打ち切りだけは残す）
+  // 共通の放置・刻限による段飛ばしで、着いた・守ったことにしない。
   steps(rt, list, done) {
     depthStart(rt, this.ctx(rt), list, done);
-    for (const s of rt.flags.dp.steps) { s.idleAdvance = false; if (s.kind === 'move') s.limit = Infinity; }
+    for (const s of rt.flags.dp.steps) { s.idleAdvance = false; s.noHardCap = true; if (s.kind === 'move') s.limit = Infinity; }
   },
 
   // 味方の先手と二の手を、行き先の脇へ連れて行く（共通の sendFriends と同じ並び）
@@ -768,9 +768,13 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     h.tick = (rt, C, m, ctx, el, dt) => {
       t0(rt, C, m, ctx, el, dt);
       if (!T.alive || T.invuln) return true;
-      // 本人が打てなくても、柵を破る組の働きで柵は傷む（西は七十秒で押し返しの所まで、正面は百五十秒で倒れる。11/10 bot act：六分撃たれ続けた）
-      if (clamp && el > 70) { T.hp = T.maxHp * 0.3; T.invuln = true; return true; }
-      if (!clamp && el > 150 && T.alive) { rt.army.damage(T, T.hp + 1, null, { kind: 'melee' }); return !T.alive; }
+      // 本人が柵の組を援護し、生きた破城隊が取り付いた刻だけ補う。陣で待つだけでは柵を破ったことにしない。
+      const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2, p = rt.player.u;
+      const working = p.alive && Math.hypot(p.pos.x - tx, p.pos.z - tz) < 14 && rt.flags.rams.some((g) =>
+        !gone(g) && !g.far && g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - tx, u.pos.z - tz) < 8));
+      if (working) C.ramWorkT = (C.ramWorkT || 0) + dt;
+      if (clamp && C.ramWorkT > 70) { T.hp = T.maxHp * 0.3; T.invuln = true; return true; }
+      if (!clamp && C.ramWorkT > 150 && T.alive) { rt.army.damage(T, T.hp + 1, null, { kind: 'melee' }); return !T.alive; }
       rt.objProgress('dp', `柵 残り${Math.max(1, Math.ceil(T.hp / T.maxHp * 100))}%`);
       return false;
     };
