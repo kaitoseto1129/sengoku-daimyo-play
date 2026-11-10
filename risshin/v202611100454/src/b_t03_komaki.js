@@ -473,7 +473,8 @@ const t03_komaki = {
       retreatGunLine(F.guns2, F.guns2N);
       // 前の列だけ崩しても、健在な二の列を残して達成にはしない。
       const drivenOff = F.guns2 && drivenOffGroup(F.guns, F.gunsN) && drivenOffGroup(F.guns2, F.guns2N);
-      if (dist(P.pos, FIELD) < 45 && el > 60 && drivenOff) this.stage(rt, 4);
+      // 木戸の内で待つだけでは「田へ出る」を果たさない。主人公も鉄砲組のいた田まで進む。
+      if (dist(P.pos, FIELD) < 18 && el > 60 && drivenOff) this.stage(rt, 4);
     } else if (F.stage === 4) Council.tickCouncil(rt, K);
     else if (F.stage === 5) Council.tickOrders(rt, K);
     else if (F.stage === 6) Night.tickNight(rt, K);

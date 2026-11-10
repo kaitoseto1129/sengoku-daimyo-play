@@ -1128,7 +1128,8 @@ const inou_spec = {
       if (!rt.G.lord) rt.after(1.2, () => rt.say('織田信長', '見事じゃ。美作の最期、この信長が見届けた！', 3));
     }
     // 信勝方が崩れて退く。柴田らは後に赦されて信長方へ戻る（伏線）
-    for (const g of F.groups) if (g !== F.bossG && live(g)) { g.routing = true; g.order = 'retreat'; g.dest = { x: g.center().x, z: -150 }; g.aggro = 0; g.focus = null; }
+    // 柴田勢は東の街道へ。林勢も敗走の向き・射撃停止までそろえ、余韻の間に戦場を去らせる。
+    for (const g of F.groups) if (g !== F.bossG) this.routLine(rt, [g], g === F.shibaG || F.l1.includes(g));
     rt.after(1.6, () => rt.banner('信勝方、総崩れ', '討ち取った首は四百五十余り'));
     victoryMoment(rt, '勝');
     I15.ending(rt, this, () => rt.finish({ scriptedEnd: true }, 5));   // 余韻（inou/yoin.js）

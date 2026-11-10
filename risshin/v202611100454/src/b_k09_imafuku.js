@@ -216,6 +216,7 @@ const k09_imafuku = {
   goalVisibleRows: 4,      // 一覧を有効にするだけでは一件に絞られる。四段とも初めから描く。
   forceBarAlways: true,   // 人数を渡すだけでは共通の棒が隠れる。佐竹・豊臣の残りを戦の間ずっと示す。
   nameTagLimit: 12,        // 既存の名札の枠内で、見える将の名を二、三人だけに絞らない。
+  nameRange: 120,          // 共通の四十メートル制限で、堤の先の木村・後藤や後方の家老の名が消えないようにする。
   gateGuide: false,        // 竹の矢来の木戸は、前に立てば組の者と縄で引き倒す（update）。「木戸を打て（長押し）」の操作の字と「門が開いた」は出さない（五の1）
   hidePlayerSign: true,    // 足元の白い輪（写真に無い作り物の印）を出さない（八の1）
   goalSignBare: true,      // 真上の▼に「この人について行く」の字を添えない（五の1）
@@ -556,7 +557,8 @@ const k09_imafuku = {
     rt.after(6, () => {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.routed &&
         /川べりの鉄砲衆|^(木村重成|後藤又兵衛)の(隊|二の手)$/.test(g.name || '')) {
-        g.noRout = false; g.morale = 0;
+        // 組頭が健在なら士気が零でも共通処理では崩れない。横撃を受けた退却の下知を明示する。
+        g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
       }
     });
     // 加勢から九秒で又兵衛が負傷し、舟も退く。③が長引いても④への移行を待たない。
@@ -652,7 +654,11 @@ const k09_imafuku = {
       const front = p && Math.abs(p.z) < 14 && p.x < FORT.x + 20 && p.x > FORT.x - 70;
       F.press = (F.press || 0) + dt * (front ? 2 : 0.6);
       const cap = 100 - F.press;
-      for (const g of rt.army.groups) if (g.team === 1 && !g.routed && g.count && !/舟/.test(g.name || '')) { g.noRout = false; g.morale = Math.min(g.morale, cap); }
+      for (const g of rt.army.groups) if (g.team === 1 && !g.routed && g.count && !/舟/.test(g.name || '')) {
+        g.noRout = false; g.morale = Math.min(g.morale, cap);
+        // 生きた組頭がいる殿にも、押し返された時は城へ退く下知を出す。
+        if (cap < 22) { g.routed = true; g.order = 'flee'; }
+      }
     }
     // 主を失った馬は川の深みへ駆け込まない（川の中で横倒しにもがいていた。一8）。湿地の縁で堤の方へ向き直る
     if ((F.horseT = (F.horseT || 0) - dt) <= 0) {
