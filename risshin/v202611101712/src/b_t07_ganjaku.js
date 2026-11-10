@@ -338,6 +338,8 @@ const t07_ganjaku = {
     tahoumen.install(rt);
     chakujin.install(rt, K);
     honjin.install(rt);
+    // 合流先の印だけでなく任務も登録し、着陣中の案内を待機扱いにしない。
+    rt.obj('arrival', '大手の坂の下で蒲生の先手に合流する', 'order');
     rt.marker('t07', SPAWN, '大手の坂の下', { h: 3 });
     rt.say('蒲生氏郷', '殿下の命じゃ。島津に付いた秋月の岩石城を、今日のうちに落とす', 3.6);
     rt.after(3.9, () => rt.say(rt.G.name || '主人公', '一日で？　この岩山を', 2.4));
@@ -500,6 +502,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.allies.forEach((g, i) => { if (!g.routed) this.to(g, i ? this.roadAt(m - i * 10) : { x, z }); });
     };   // 坂で迎え撃つ時も、二番手は先手の後ろに置く（一点に重ねない）
     if (s === 1) {
+      rt.objDone('arrival');
       F.walks = [];   // 着陣の合流を終え、坂を登る持ち場へ切り替える。
       F.t0 = rt.t;   // 日が沈むまでの時は、坂へ懸かってから数える
       rt.setPhase('assault');
