@@ -402,7 +402,16 @@ const ino = {
     this.sayIf(rt, 'shibata', 56, '足軽', '下がるな！', 1.8);
     this.sayIf(rt, 'shibata', 66, '足軽', '左が押されておる！　右もじゃ！', 2.6);
     // 戦線が下がる（敵を倒しても列は押される）
-    for (const t of [52, 62, 72, 82]) rt.after(t, () => { if (F.ph === 'shibata') for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) { g.anchor = { x: g.anchor.x, z: g.anchor.z + 5 }; if (g.order !== 'attack') this.moveG(g, g.anchor, 2.4, 'attack'); } });
+    for (const t of [52, 62, 72, 82]) rt.after(t, () => {
+      if (F.ph !== 'shibata') return;
+      for (const g of [...F.van, F.sakuma, F.mates]) if (live(g)) {
+        // 斬り合い中も相手を外して五m 下がり、着いた所で槍を揃え直す。
+        // 基準点だけを動かすと、攻撃中の兵は元の戦線に残ってしまう。
+        const c = g.center();
+        this.retireG(g, { x: c.x, z: Math.min(ZS - 6, c.z + 5) }, 2.4, true);
+        g.onArrive = (q) => { q.path = null; this.fight(q, 14); };
+      }
+    });
     // 11:00 柴田本人が前線近くで味方の侍武者（山田治部左衛門）を討つ
     rt.after(76, () => this.yamada(rt));
     // 11:40 味方が大きく下がる → 名塚砦まで退け

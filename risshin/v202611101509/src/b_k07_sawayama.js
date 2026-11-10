@@ -260,6 +260,7 @@ const k07_sawayama = {
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を八人討つ」で埋めない・三の1）
   goalsAllRows: true,     // 共通の既定は今の一行だけ。始めから五つとも並べる。
   keepBattleSigns: true,  // 行き先の▼を出している間も、朝成らの名札と両軍の数を隠さない。
+  forceBarAlways: true,   // 人数を渡すだけでは共通の棒は隠れる。寄せ口から落城まで両軍の残りを示す。
   // 始まりの話の間（段の前）は、印を①の大手門へ（前は戦の大目標の言葉から「山の頂の本丸 35m」と出て、指す所と名が違った）
   goalSignTarget: (rt) => {
     const F = rt.flags, D = F.dp;

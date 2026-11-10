@@ -74,6 +74,28 @@ const MOAT_N = [[GATE.x + 7, -37.5], [GATE.x + 7, -64], [-24, -64]];
 const MOAT_S = [[GATE.x + 7, -22.5], [GATE.x + 7, 4], [-24, 4]];
 // 城下の町屋の小路（北の田から大手門の前へ斜めに抜ける一本の道。両側に軒を連ねた町屋。critic60：草の原に家が二三軒だけ）
 const LANE_A = { x: 68, z: -60 }, LANE_B = { x: 46, z: -34 };
+const LANE_ESCAPE = [{ x: 90, z: -53 }, { x: 90, z: -59.5 }, { x: 71, z: -59.5 }, { x: 74, z: -66.5 }];
+const LANE_GUIDE = { x: 0, z: 0 };
+// 稲架と町屋の袋を避ける案内を、人の画面と自動操作で共用する。
+function lanePoint(pos, F) {
+  const x = pos.x, z = pos.z, ux = -0.647, uz = 0.765;
+  const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz;
+  const side = (x - LANE_A.x) * uz - (z - LANE_A.z) * ux;
+  if (!F.throughTown) {
+    if (x > 76 && x < 92 && z > -55 && z < -44) return LANE_ESCAPE[x < 87.5 ? 0 : 1];
+    if (x > 76 && z > -63.6 && z <= -55) return LANE_ESCAPE[2];
+    if (x > 78 && z <= -64.4) return LANE_ESCAPE[3];
+    if ((s < -1 || Math.abs(side) > 4.5) && dist(pos, LANE_A) > 2) return LANE_A;
+    return F.laneEntered ? LANE_B : LANE_A;
+  }
+  if (s < dist(LANE_A, LANE_B) - 2) {
+    if (Math.abs(side) <= 3) return LANE_B;
+    LANE_GUIDE.x = LANE_A.x + ux * (Math.max(0, s) + 4);
+    LANE_GUIDE.z = LANE_A.z + uz * (Math.max(0, s) + 4);
+    return LANE_GUIDE;
+  }
+  return FRONT;
+}
 // 神川の w は半幅（12m）。浅瀬の中心から七歩では水中なので、西岸の外で兵をまとめる。
 const FORD_W = { x: FORD.x - 20, z: 0 };      // 神川の西の岸（追い討ちを食い止める所）
 // 11/10 作り直し（docs/ueda2_spec_1109.md・kaito 11/9 夜「秀忠の大軍が真田に足止めされる」）
@@ -276,9 +298,12 @@ const k05_ueda = {
       else p = Math.abs(me.z - GATE.z) > 3.5 ? INNER_MOUTH : GATE_EXIT;
     } else if (me && (F.step === 5 || F.step === 6) && me.x < 68 && dist(me, p) > 20) {
       p = TOWN_EXIT; route = true;
+    } else if (me && F.step === 4 && !F.atFront) {
+      p = lanePoint(me, F); route = p !== FRONT;
     }
     PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 ? 10 : 9;
-    PIN.label = route ? (p === TOWN_EXIT ? '城下の東の道' : '大手門') : F.step === 4 && !F.atFront && !F.throughTown ? '町屋の小路' : PIN_NAMES[F.step || 1];
+    PIN.route = route;
+    PIN.label = route ? (p === TOWN_EXIT ? '城下の東の道' : F.step === 4 && me.x >= GATE.x + 4 ? '町屋の小路' : '大手門') : PIN_NAMES[F.step || 1];
     return PIN;
   },
   talk: {
@@ -924,21 +949,7 @@ const k05_ueda = {
     if (F.step === 2) { const i = Math.min(LURE.length - 1, Math.max(0, (F.lureI || 0) - 1)); if (dist(u.pos, LURE[i]) > 6 && u.pos.z > LURE[i].z + 4) t = LURE[i]; }
     // ③は来た道を田へ戻る
     if (F.step === 3 && u.pos.z < LURE[1].z - 4) { const i = u.pos.z < LURE[2].z - 3 ? 2 : 1; t = LURE[i]; }
-    // ④：北の田から町屋の小路へは入口から入る（稲架と入口の町屋の間の袋へ入らない）
-    if (lane && !F.throughTown) {
-      const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
-      const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = Math.abs((x - LANE_A.x) * uz - (z - LANE_A.z) * ux);
-      if (x > 76 && x < 92 && z > -55 && z < -44) t = x < 87.5 ? { x: 90, z: -53 } : { x: 90, z: -59.5 };
-      else if (x > 76 && z > -63.6 && z <= -55) t = { x: 71, z: -59.5 };
-      else if (x > 78 && z <= -64.4) t = { x: 74, z: -66.5 };
-      else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 2) t = LANE_A;
-    }
-    // 小路の出口までは筋に沿って歩く（中ほどから門へ直進して町屋に当たらない）
-    if (lane && F.throughTown) {
-      const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
-      const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = (x - LANE_A.x) * uz - (z - LANE_A.z) * ux;
-      if (s < dist(LANE_A, LANE_B) - 2) t = Math.abs(side) > 3 ? { x: LANE_A.x + ux * (Math.max(0, s) + 4), z: LANE_A.z + uz * (Math.max(0, s) + 4) } : LANE_B;
-    }
+    // ④の小路は画面と同じ missionPin の経路を歩く。
     // 何かに当たって四秒動けない時は、行き先と直角に三秒よける
     const B = F._bs || (F._bs = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, sgn: 1 });
     if (b.t > B.until) {
