@@ -785,7 +785,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
             F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 };
             F.hata.seekRange = 24; F.hata.aggro = 16;
           }
-          if (dp < 30) { H.target = P; H.aiT = 0; }
+          // 狙いを付け替える時だけ考え直させる。毎回 aiT を 0 に戻すと団右衛門は構えたまま一度も打ち込まず、
+          //   隙を待つ遊び手とにらみ合いのまま刻限が尽きた（11/10 クラウド係の描かない試し：命 63/180 で四分止まり）
+          if (dp < 30 && H.target !== P) { H.target = P; H.aiT = 0; }
         }
       }
     }
@@ -830,7 +832,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const ok = (o) => !o.fleeing && !o.noTarget && (!o.invuln || (F.step === 5 && o === F.hanaU)) && canStrike(p, o) && !o.rearWound && Math.abs(o.pos.y - u.pos.y) < 3;
     // ⑤：団右衛門が近ければ本人へ（侍衆が間にいればそちらから）
     const H = F.step === 5 && F.hanaU?.alive && Math.hypot(F.hanaU.pos.x - u.pos.x, F.hanaU.pos.z - u.pos.z) < 14 ? F.hanaU : null;
-    const e = F.step === 2 ? null : (b.army.nearestEnemy(u, H ? 3 : 9, ok) || H);
+    // ⑤：団右衛門が遠い間は、行く手を塞ぐ者（三歩以内）だけ払って本人へ向かう。北の口に湧く後詰と九歩の輪で斬り合い続け、
+    //   団右衛門に届かず八分止まって刻限が尽きた（11/10 クラウド係の流し：段5で 571→1080 秒）
+    const reach = F.step === 5 && F.hanaU?.alive ? 3 : 9;
+    const e = F.step === 2 ? null : (b.army.nearestEnemy(u, reach, ok) || H);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');

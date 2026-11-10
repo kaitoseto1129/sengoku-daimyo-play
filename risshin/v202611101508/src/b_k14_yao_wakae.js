@@ -254,7 +254,8 @@ const k14_yao_wakae = {
     bloodInRiver: true,       // 水田も水中の判定になる。斬った跡を省かず、水面に赤い濁りを残す（critic60 四6）。
     groundHalf: 260,
     moveLim: 248,
-    mountainScale: 0.2, mountainHaze: 0.85,   // 河内の平らな田：四方を高い山で囲まない。生駒は遠く霞む（八1・四5）
+    mountainScale: 0.38, mountainHaze: 0.62,   // 11/10 関所の写真：四方が白い野だけで地平が見えなかった。東の生駒・西の上町台地の影を薄く出す
+      // 河内の平らな田：四方を高い山で囲まない。生駒は遠く霞む（八1・四5）
     mountainProfile(a, layer) {
       // 高さを縮めるだけでは四方の山の輪が残る。東の生駒だけを立て、ほかは裾（-12）へ沈める。
       const east = sm(0.5, 0.9, Math.sin(a));
