@@ -39,12 +39,16 @@ export function start(rt, ctx, done) {
   for (const stage of stages) stage.idleAdvance = false;
   const hold = stages[1], tick = hold.tick, end = hold.end;
   hold.tick = (rt2, C, m, context, el, dt) => {
+    const held = C.inT;
     // 寄せが川の砦へ届く前の待機は、殿の守備に数えない。
     if (!C.contacted) C.contacted = C.groups.some(g => !g.routed && g.units.some(u =>
       u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
       Math.hypot(u.pos.x - LINE1.x, u.pos.z - LINE1.z) < 26));
     tick(rt2, C, m, context, el, dt);
-    if (!C.contacted) C.inT = 0;
+    // 共通の守備は旗から四十一メートルまで数える。ここでは川の砦を
+    // 離れても守ったことにならないよう、指定した十一メートル内だけ数える。
+    const p = rt2.player.u.pos;
+    C.inT = held + (C.contacted && Math.hypot(p.x - LINE1.x, p.z - LINE1.z) < 11 ? dt : 0);
     // 追手の大将は倒せない設定。全員を倒す共通の終了条件では大将が残り、
     // 七分の期限まで止まる。殿は三度の寄せを受けて定めの間を守れば退く。
     return C.contacted && el >= 95 && !C.waves.length && C.inT >= 95 * 0.6;

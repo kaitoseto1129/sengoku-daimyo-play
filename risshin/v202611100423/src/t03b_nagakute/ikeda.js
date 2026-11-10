@@ -15,6 +15,7 @@ export function start(rt, K) {
 }
 export function tick(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, A = at(F, K.HOTOKE);
+  if (F.ending) return;
   const near = Math.hypot(P.x - A.x, P.z - A.z) < 14;
   if (!F.ikeArr && near) {
     F.ikeArr = rt.t;
@@ -27,6 +28,6 @@ export function tick(rt, K) {
   if (F.ikeArr && !F.ikeFell && watching && rt.t - F.ikeArr > 30) {
     F.ikeFell = true;
     K.fall(F.ikeG, '池田恒興', '勝入様、永井直勝に討たれましてござる！');
-    rt.after(6, () => K.next());
+    rt.after(6, () => { if (!F.ending && F.stage === 5.5) K.next(); });
   }
 }
