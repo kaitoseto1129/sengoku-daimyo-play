@@ -2882,7 +2882,11 @@ const odani = {
   resumeSteps: [[1, 'climb'], [2, 'assault']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 名の無い役の札と、本丸へ向かう前の長政の札を隠す。共通の名札は討てない将も候補にする。
   hideNameTag: (u, rt) => /組頭|使番|物頭/.test(u?.name || '') ||
-    u?.name === '浅井長政' && !rt.flags.honAttack,
+    u?.name === '浅井長政' && !rt?.flags?.honAttack ||
+    // 自害も共通の死亡処理を通る。主人公が討ち取った声には替えない。
+    (u?.name === '浅井長政' || u?.name === '浅井久政') && u.alive === false,
+  // 将の死だけで、到着・旗本の撃退・落城まで必要な任務を済ませない。
+  namedKillCompletesObjectives: false,
   // 稲生と同じ共通の札・ピン・印。道順と兵数、史実の終幕はこの戦のまま。
   missionSingleLine: true,
   goalsAllRows: true, // 五つを最初から並べる。共通の既定では今の一件しか作られない。
