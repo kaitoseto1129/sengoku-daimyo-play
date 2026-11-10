@@ -1828,7 +1828,8 @@ html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals l
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
+/* 討ち取りの「何人中何人」は消さず、目標の行に残す。 */
+html:root body #hud#hud#hud.anegawa-notices #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }
 /* 任務の復唱は右上と二重に出さない。戦況の声は左半分に収める。 */
 html:root body #hud#hud#hud.anegawa-notices #center-call .cc.blue { display:none !important; }
 html:root body #hud#hud#hud.anegawa-notices #center-call { right:auto; width:48%; }
@@ -3186,7 +3187,7 @@ const anegawa = {
       ? reached ? '止まって手当てせよ' : '手当の場所へ'
       : reached ? 'ここで構えて息を整えよ' : anegawaHoldRoute(rt);
   },
-  retreatDestinationLabel: (rt) => rt.withdrawal?.losing === 0 ? '退き先・ここで組を集める' : 'ここまで下がろう',
+  retreatDestinationLabel: (rt) => rt.withdrawal?.losing === 0 ? '南岸の退き先で組を集めよ' : '南岸の退き先へ下がれ',
   dodgePointAllowed: anegawaGuidePointAllowed,
   // 道の矢印は、川の曲がりに沿って乾いた岸を通す。行動や到着の判定は変えない。
   approachGuidePoint(rt, from, goal) {
