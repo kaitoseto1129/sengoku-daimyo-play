@@ -314,6 +314,7 @@ Object.assign(echizen, {
   },
   missionHeading(rt) {
     if (rt.flags.ending || rt.over) return rt.tracker.main ? '峠を取った' : '味方と退け';
+    if (rt.flags.echFuchu) return '峠道を追い、踏みとどまる一揆勢を討つ';
     const foe = this.missionSignTarget(rt);
     if (foe?.name) return `${foe.name}を倒せ`;
     const stage = this.missionOf(rt);
@@ -1321,7 +1322,7 @@ echizen.setup = function (rt) {
     // 本人がその郭の守兵へ実際に一撃を当てた事を記録する。
     if (source === rt.player.u && target?.team === 1 && !target.isStruct && target.hp < hp &&
         rt.flags.defenders?.some(b => b.real === target.group)) {
-      for (const key of ['kannon', 'kinome_sou']) {
+      for (const key of PASS_COURTS) {
         if (rt.flags.C?.kuruwa?.[key]?.test(target.pos.x, target.pos.z)) rt.flags['breachHit_' + key] = true;
       }
     }
