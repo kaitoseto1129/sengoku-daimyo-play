@@ -37,19 +37,29 @@ export function step(H) {
           speed: 1.4, arriveNoncombat: true },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], H.HOJO));
         g.peaceful = true; g.fire = false;
-        g.arriveCount = g.units.length;
         for (const u of g.units) { u.noTarget = true; u.invuln = true; }
-        g.onArrive = (q) => {
-          q.onArrive = null; q.order = 'hold'; q.surrendered = true;
-          // 門を抜けてから武器を地面へ置く。座るだけでは槍が手に残る。
-          for (const u of q.units) if (u.alive && !u.gone) {
-            rt.army.dropWeapon(u);
-            // 地面へ置いた槍を、手の動きで回したり再び持たせたりしない。
-            u.wpn = null; u.wpnKind = 'none';
-            u._crouch = true;
-          }
-        };
         C.groups.push(g);
+      }
+      for (const g of C.groups) {
+        if (g.surrendered) continue;
+        const last = g.path[g.path.length - 1];
+        let outside = 0, living = 0;
+        for (const u of g.units) if (u.alive && !u.gone) {
+          living++;
+          // 持ち場への完全な整列を待たず、実際に門を出た兵から槍を置く。
+          // 門内の後列は歩き続け、時間だけで到着扱いにしない。
+          if (u.pos.z < H.KGATE.z + 6 || Math.hypot(u.pos.x - last[0], u.pos.z - last[1]) > 12) continue;
+          outside++;
+          if (u.wpnKind !== 'none') {
+            rt.army.dropWeapon(u);
+            u.wpn = null; u.wpnKind = 'none';
+          }
+        }
+        // 全員が門外へ出れば見届けられる。狭い所で一人の整列が遅れても止めない。
+        if (living > 0 && outside === living) {
+          g.order = 'hold'; g.surrendered = true;
+          for (const u of g.units) if (u.alive && !u.gone) u._crouch = true;
+        }
       }
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
       line(14, () => rt.say(nm(rt), '総構えの堀の前では退いたが……今度は刃を交えずに城が開く', 3.6));

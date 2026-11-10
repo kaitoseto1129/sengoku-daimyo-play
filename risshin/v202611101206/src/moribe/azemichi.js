@@ -8,20 +8,25 @@ import { sfx } from '../audio.js';
 
 const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
 
+export function prepare(rt, C) {
+  const F = rt.flags, v = F.m15;
+  if (v.azeGs) return;
+  // 北岸の畦に初めから伏せる。本人の移動先へ途中で兵を作らない。
+  v.azeGs = [[34, 46, true], [49, 40, false]].map(([x, zz, head]) => {
+    const g = C.enemyGroup(rt, { faction: 'saito', name: '斎藤の伏兵', fixed: true, anchor: { x, z: zz }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 0, speed: 2.2,
+      noRout: true, formation: 'line', ambush: true },
+    head ? [{ type: 'samurai', n: 1, o: { name: '斎藤の物頭' } }, { type: 'ashigaru', n: 5 }] : [{ type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }]);
+    g.order = 'hold'; g.noAI = true;
+    return g;
+  });
+  v.azeBoss = v.azeGs[0].units.find((u) => u.name === '斎藤の物頭');
+}
+
 export function start(rt, def, C) {
   const F = rt.flags, v = F.m15;
   if (v.azeT) return;
   v.azeT = rt.t; v.ph = 'aze';
-  const P = rt.player.u.pos;
-  const z = Math.max(26, Math.min(P.z - 16, 46));
-  v.azeGs = [[P.x - 6, z, true], [P.x + 9, z - 6, false]].map(([x, zz, head]) => {
-    const g = C.enemyGroup(rt, { faction: 'saito', name: '斎藤の伏兵', fixed: true, anchor: { x, z: zz }, facing: 0, fleeDir: { x: -0.2, z: -1 }, aggro: 0, speed: 2.2,
-      noRout: true, formation: 'line', ambush: true },
-    head ? [{ type: 'samurai', n: 1, o: { name: '斎藤の物頭' } }, { type: 'ashigaru', n: 5 }] : [{ type: 'ashigaru', n: 5 }, { type: 'bow', n: 1 }]);
-    g.order = 'hold';
-    return g;
-  });
-  v.azeBoss = v.azeGs[0].units.find((u) => u.name === '斎藤の物頭');
+  prepare(rt, C);
   rt.marker('aze', () => (ready(v.azeBoss) ? v.azeBoss.pos : null), '田の畦の物頭', { red: true, group: v.azeGs[0] });
   rt.say('組頭 源八（げんぱち）', '先手は退いた。ぬかるむ田を渡って前備の列へ寄るぞ。足を取られるな', 3.6);
 }
@@ -30,7 +35,7 @@ function wake(rt) {
   const F = rt.flags, v = F.m15;
   if (v.azeUp) return;
   v.azeUp = rt.t;
-  for (const g of v.azeGs) { g.order = 'attack'; g.aggro = 14; g.seekRange = 24; }
+  for (const g of v.azeGs) { g.noAI = false; g.order = 'attack'; g.aggro = 14; g.seekRange = 24; }
   rt.army.playFar?.('eshout', v.azeGs[0].center(), 1.3);
   sfx('taiko', 0.6);
   rt.say('足軽', '稲の陰から斎藤の伏兵じゃ！', 2.6);

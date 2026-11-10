@@ -15,7 +15,11 @@ import * as yoin from './yoin.js';
 import { GOALS15 } from './goals.js';
 
 const S = (rt) => (rt.flags.m15 ||= {});
-export function install(rt, def, C) { const v = S(rt); v.C = C; v.def = def; kishi.start(rt, def, C); }
+export function install(rt, def, C) {
+  const v = S(rt); v.C = C; v.def = def;
+  aze.prepare(rt, C); yumi.prepare(rt, C);
+  kishi.start(rt, def, C);
+}
 export function heading(rt) {
   const v = S(rt);
   if (rt.flags.ending) return undefined;

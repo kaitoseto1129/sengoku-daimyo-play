@@ -136,9 +136,15 @@ const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, len: 99, dange
 // 段の中の組を名で探し、持ち場に留める（名のある将の旗本は前へ出ない・背を向けて歩かない。BK5）
 function holdGuard(C, name, at, facing) {
   const g = C && C.groups.find((q) => q.name === name);
-  if (g && !g.routed && g.order !== 'retreat') { g.order = 'hold'; g.anchor.x = at.x; g.anchor.z = at.z; g.facing = facing; g.aggro = 9; }
+  if (g && !g.routed && g.order !== 'retreat') {
+    g.order = 'hold'; g.anchor.x = at.x; g.anchor.z = at.z; g.facing = facing; g.aggro = 9;
+    // 生存の指定だけでは、主人公の攻撃で共通の手傷退却が先に起きる。
+    // 旗本が崩れて退く下知が出るまで、目標の守将を持ち場に残す。
+    for (const u of g.units) if (u.name === '木造長政' || u.name === '百々綱家') u.onWound = waitForGuard;
+  }
   return g;
 }
+const waitForGuard = () => {};
 // 後方へ離脱した負傷兵は、生きていても守りの戦力に数えない。
 const guardStrength = (g) => g.units.reduce((n, u) => n + (u.alive && !u.fleeing && !u.woundOut && !u.noTarget ? 1 : 0), 0);
 
@@ -411,7 +417,8 @@ const k02_kawada = {
     // 11/8 critic60 二3・二7：渡る間ずっと北岸から撃たれ、浅瀬で味方も本人も倒れる（前は 0.3 で、渡りきるまで命が一度も減らなかった）。
     //   鉄砲組は南の筋を渡る所から届く（aggro 70）。段の弱め（paceFriends）からは外す（_k02fire）
     // invuln だけでは主人公の一撃で討たれる。翌日の岐阜城へ退く将は生存を明示する。
-    F.northGuard.units.find((u) => u.name === '木造長政').mustLive = true;
+    const kozukuri = F.northGuard.units.find((u) => u.name === '木造長政');
+    kozukuri.mustLive = true; kozukuri.onWound = waitForGuard;
     F.northGun.dmgMult = 0.7; F.northGun.aggro = 70; F.northGun._k02fire = true; F.northGuard.dmgMult = 0.3;
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: START.x + 4, z: START.z - 2 }, Math.PI, [{ kind: 'spear', n: Math.min(n, 16) }]);
@@ -514,6 +521,8 @@ const k02_kawada = {
       // 木造の旗本が五人を切ったら、木造は岐阜へ退き、北岸の守りは崩れて段が済む（木造は討たせない）
       if (F.gumasaDown && !F.northBroke) {
         F.northBroke = true; C.later.length = 0;
+        const kozukuri = g && g.units.find((u) => u.name === '木造長政');
+        if (kozukuri) kozukuri.onWound = null;
         for (const q of C.groups) if (q.count) { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.order = 'retreat'; q.morale = 0; }
         rt.say('木造長政', '柵は破れた。岐阜の城へ退け！', 3);
         rt.after(3.2, () => rt.say('浅野の侍', '木造が退くぞ！　北の岸は取った', 3.5));
@@ -537,6 +546,7 @@ const k02_kawada = {
       if (ig && !ig.routed) ig.noRout = !F.iinumaDown;
       if (F.dodoDown && !F.yonenoBroke) {
         F.yonenoBroke = true;
+        if (dodo) dodo.onWound = null;
         // 段の中心から出た旗本は、共通の生成で退く向きがゼロになる。岐阜へ向かう北を明示する。
         for (const q of C.groups) if (q.count && q.name !== '飯沼長資の手') { q.fleeDir = { x: 0, z: -1 }; q.fleeSet = true; q.noRout = false; q.order = 'retreat'; q.morale = Math.min(q.morale, 20); }
         rt.say('百々綱家', '米野は持たぬ。岐阜へ退け！', 3);

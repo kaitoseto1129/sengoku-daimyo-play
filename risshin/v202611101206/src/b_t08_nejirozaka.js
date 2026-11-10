@@ -90,7 +90,7 @@ function steps(rt) {
         // 猿渡信光は史実で根白坂に討死した。手は崩れても退かず、塀の前で討たれるまで戦う（update が守る）
         { t: 4, say: ['足軽', '丸に十字の旗じゃ！　猿渡信光の手が坂を登ってくる！'], foes: () => [{ name: '猿渡信光の手', from: from(-12), off: { x: -6, z: 2 }, list: [{ type: 'busho', n: 1, o: { name: '猿渡信光', horse: true, hat: 'kabuto_w' } }, uS(4), uA(10)], noRout: 180 }] },
         { t: 24, say: ['鉄砲頭', '堀の中に詰まった！　放て！'], foes: () => [{ name: '島津の二の手', from: from(14), off: { x: 8, z: 2 }, list: [uS(2), uA(9), uG(3)] }] },
-        { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 38, z: -14 }, list: [uS(2), uA(10)] }] },
+        { t: 46, say: ['足軽', '東の塀にも取り付いた！　横から来るぞ！'], foes: () => [{ name: '東から回った島津勢', from: { x: 78, z: -14 }, off: { x: 32, z: -14 }, width: 8, list: [uS(2), uA(10)] }] },
       ],
       noRefill: true, reward: '塀の上で島津の夜討ちを押し返した' })),
     rest({ dur: 6, heal: 0.25, say: [['足軽', '……息が続かぬ'], ['宮部継潤', '島津は引かぬ。夜は長い、まだ来るぞ']],
@@ -171,7 +171,12 @@ function defendHold(o) {
     // 手当てなどで守備の刻が不足しても、寄せ自体は刻限で終える。
     // 退却後に共通の呼び寄せを回すと、八秒ごとに攻撃へ戻ってしまう。
     if (!C.recalled) {
+      // 寄せ先は各波の off で決めてある。共通の呼び寄せは三十歩離れた隊を
+      // 八秒ごとに中央へ向け直すため、東西の寄せが塀の角へ集まってしまう。
+      C.nudgeT = el;
       tick(rt, C, m, ctx, el, dt);
+      // 島津の横からの寄せを、共通の軍師に中央攻めへ変えさせない。
+      for (const g of C.groups) g.historicalOrders = true;
       if (el >= (o.limit || dur + 35) && !C.waves.length) {
         C.recalled = true;
         withdrawWave(C);
