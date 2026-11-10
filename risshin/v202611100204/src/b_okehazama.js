@@ -186,8 +186,8 @@ function okeFoeSigns(rt) {
   const named = [], v = new THREE.Vector3();
   // 両軍の名将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
   const namePlaces = new Float32Array(names.length * 3);
-  // 通し確認：左上の釦にも名札が重なった。釦の範囲は候補更新時だけ測る。
-  const controlIds = ['side-ctl', 'tc-sound', 'tc-set', 'tc-pause', 'tc-view'];
+  // 通し確認：釦・目標・人数・命の札にも名札を重ねない。範囲は候補更新時だけ測る。
+  const controlIds = ['side-ctl', 'tc-sound', 'tc-set', 'tc-pause', 'tc-view', 'armybar', 'h-prog', 'jk-vit', 'mission-goal'];
   const controlPlaces = new Float32Array(controlIds.length * 4);
   let controlCount = 0;
   // 十六画素の行高に縁取りと影も含める。二十四画素では隣の名札の縁が接する。
@@ -1151,10 +1151,10 @@ const okehazama = {
   // 11/5 専門家の見直し：右上は戦の間ずっと番号付きの一行（kaito 三1・三3）。
   // 11/6 kaito 十1：一つの目標の間は言い替えない（前は物見・入口・深手で「⑥幕の口へ進む」などに替わっていた）。
   //   集まるのは出発の数秒だけだったので、①を谷の下りとまとめ、終わりの札（goals5.js）と同じ五つにした。
-  missions: ['①中島砦の下で組に合流し、雨の谷を下り谷の出口へ', '②谷の出口で雨の上がるのを待つ',
+  missions: ['①中島砦の下で組に合流し、雨の谷を下り谷の出口へ', '③谷の出口で雨の上がるのを待つ',
     // 11/6 夜：共通の目標札が「先手」を「敵」に替え、「松井宗信の敵を破る」（松井の敵＝味方）と読めた。備えと書く。
-    '③坂道で松井宗信の備えを破る', '④桶狭間山の幕の前で旗本を破る', '⑤幕の口から今川義元を討つ',
-    '⑥首を持ち、谷の出口の組の旗へ引き揚げる'],
+    '④坂道で松井宗信の備えを破る', '⑧桶狭間山の幕の前で旗本を破る', '⑨幕の口から今川義元を討つ',
+    '⑩首を持ち、谷の出口の組の旗へ引き揚げる'],
   missionOf: (rt) => {
     const F = rt.flags;
     let k = 0;

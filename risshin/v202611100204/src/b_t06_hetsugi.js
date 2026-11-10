@@ -690,6 +690,7 @@ const t06_hetsugi = {
     if (F.ending || !F.step) return;
     const P = rt.player.u;
     if (F.step === 2 && !F.feigned) tsuigeki.engaged(rt);
+    if (F.step === 3) kyuen.contact(rt);
     // 史実の斬り合いを進行条件にした二人だけは、深手で退いた後に戻す。
     // 共通の深手は戦の間戻らず、信親を見失った鈴木の組は狙いも解くため、救援が終わらなくなっていた。
     if (!F.ringClosed) {
