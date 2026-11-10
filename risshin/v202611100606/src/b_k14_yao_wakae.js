@@ -55,6 +55,7 @@ const STEP_TEXT = ['', '南の八尾へ駆け、藤堂勢を押す長宗我部�
   '若江の北の田で、山口弘定の隊を追い払う', '若江の堤に立つ木村重成を討つ'];   // 「崩す」は使わない（kaito_standard 三1）
 const STEP_T = [0, 110, 100, 90, 100];   // この秒を過ぎると味方の押しが強まり、主人公が遅れても物語は進む（負けにも、果たせなかった印にもしない。二5・三3・十二3）
 const STEP_AT = [null, FLANK, NAITO, YAMA, WAKAE];
+const PIN_NAME = ['', '八尾の横の備', '若江の内藤隊', '若江の山口隊', '若江の木村重成'];
 const NAITO_GO = { x: NAITO.x + 22, z: NAITO.z + 10 };   // ②で八尾から若江の南の田へ駆ける先
 const KEEP = 0.4;                          // 段の隊は四割まで減れば崩れて退く（倒す数＝六割）
 const ARMOR = KIT.ARMOR;
@@ -152,6 +153,7 @@ const k14_yao_wakae = {
   goalRowsAhead: true,
   goalSignNoLabel: true,     // ▼の上に「印へ進め」を出さない（何の印か分からない。三の1・AR1。n6 X7）
   goalSignDistanceAlways: true, // 十歩以内でも行き先の距離を消さない（critic60 五3）。
+  distanceUnit: 'metres',    // 今の共通案内にも、場所名と距離を渡す。
   goalSignTriangle: true,    // 共通の行き先案内も、画面の端で回転する矢印に替えず▼で示す。
   noTaishoRaid: true,
   noCouriers: true,
@@ -177,12 +179,16 @@ const k14_yao_wakae = {
   keepMix: false,
   minutes: 16,
   introText: () => '井伊直孝の赤備えに付く。まず南の八尾へ駆けて藤堂勢を助け、使番の知らせで北の若江へ戻り、木村重成の隊と戦う。',
-  // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
+  // 行き先のピン：段ごとに一つ。場所の名と距離だけを添える。
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending) return null;
     // 下知を待つ間も、最初の目標と同じ八尾の場所を示す。
-    if (!F.step) { PIN.x = FLANK.x; PIN.z = FLANK.z; PIN.r = 8; return PIN; }
+    if (!F.step) {
+      PIN.x = FLANK.x; PIN.z = FLANK.z; PIN.r = 8;
+      PIN.destinationName = PIN_NAME[1]; PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
+      return PIN;
+    }
     const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && live(F.fuseG) ? F.fuseG : F.stepG;
     const at = g === F.fuseG ? FUSE : STEP_AT[F.step];
     let p = live(g) && dist(g.center(), at) < 40 ? g.center() : at;
@@ -194,6 +200,8 @@ const k14_yao_wakae = {
     if (F.step === 1 && F.fuseG?.ambush && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP)) p = FUSE;
     if (F.step === 4 && F.kimuraU?.alive) p = F.kimuraU.pos;
     PIN.x = p.x; PIN.z = p.z; PIN.r = 8;
+    PIN.destinationName = g === F.fuseG ? '長瀬川の伏せ槍' : PIN_NAME[F.step];
+    PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
     return PIN;
   },
   // 右上の小さな地図の赤いひし形：今の目標の隊の居場所

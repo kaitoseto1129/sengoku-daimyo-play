@@ -34,6 +34,9 @@ export function startNight(rt, K) {
     K.fl([{ type: 'busho', n: 1, o: { name: '池田恒興', horse: true, invuln: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }], 'ageha'));
   F.ikedaG.dest = { x: FORD.x - 16, z: FORD.z - 10 };
   F.ikedaG.onArrive = (q) => { q.order = 'hold'; };
+  // 本物の列だけでなく、森・池田の備も陣を払う。遠景を元の陣に残さない。
+  moveSonae(rt, 'A', 'mori', FORD.x - 4, FORD.z - 6);
+  moveSonae(rt, 'A', 'ikeda', FORD.x - 16, FORD.z - 10);
   // 秀次・堀の列（遠景）も東へ動く
   moveSonae(rt, 'A', 'hidetsugu', 110, -70);
   moveSonae(rt, 'A', 'hori', 60, -40);
@@ -54,9 +57,10 @@ export function tickNight(rt, K) {
   if (F.scoutT && !F.scoutDone && (K.resistingN(F.tScout) <= 1 || rt.t - F.scoutT > 60)) {
     F.scoutDone = rt.t;
     // 討ち漏らした一人が小牧山へ走る
-    const last = F.tScout.units.find((u) => u.alive && !u.gone);
+    const last = F.tScout.units.find((u) => u.alive && !u.gone && !u.woundOut);
     if (last) { F.tScout.order = 'retreat'; F.tScout.dest = { x: K.HONJIN.x, z: 140 }; F.tScout.speed = 5; F.tScout.aggro = 0; F.tScout.seekRange = 0; }
-    rt.say('足軽', last ? '物見が逃げた……小牧山の方へ！' : '徳川の物見を討ち取ったぞ！', 2.6);
+    const slain = F.tScout.units.every((u) => !u.alive && u.hp <= 0);
+    rt.say('足軽', last ? '物見が逃げた……小牧山の方へ！' : slain ? '徳川の物見を討ち取ったぞ！' : '徳川の物見は、もう向かって来ぬ！', 2.6);
     rt.after(3, () => rt.say('森長可', '構わぬ。夜が明ける前に川を越えるぞ', 2.8));
   }
   // 渡しの手前の藪に伏せた物見の鉄砲（二度目の接触。渡る列を撃つ）
@@ -87,6 +91,10 @@ export function startDawn(rt, K) {
   // 四月六日の夜から九日の朝へは暗転で日が飛ぶ。夜の照明を次の朝へ持ち越さない。
   try { W.dayClock = null; W.setTime('morning', true); } catch (e) { /* 空はそのまま */ }
   for (const g of [F.moriG, F.ikedaG]) if (K.live(g)) { g.order = 'move'; g.dest = { x: DAWN.x - 6 - (g === F.ikedaG ? 14 : 0), z: DAWN.z - 8 }; g.speed = 2.8; g.onArrive = (q) => { q.order = 'hold'; }; }
+  moveSonae(rt, 'A', 'mori', DAWN.x - 6, DAWN.z - 8);
+  moveSonae(rt, 'A', 'ikeda', DAWN.x - 20, DAWN.z - 8);
+  moveSonae(rt, 'A', 'hidetsugu', DAWN.x - 14, DAWN.z + 12);
+  moveSonae(rt, 'A', 'hori', FORD.x - 20, FORD.z + 10);
   say(rt, '池田恒興', '夜が白む。このまま岩崎城を抜いて岡崎へ', 3, 3);
 }
 export function tickDawn(rt, K) {

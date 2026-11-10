@@ -11,7 +11,7 @@ export function sunomataNorthStopped(F) {
 
 export function sunomataPincerDone(F) {
   return F.wave === 3 && !!F.reinforceArrived && !!F.W3b &&
-    F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget).length <= 4;
+    (F.W3b.routed || F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget).length <= 4);
 }
 
 export function sunomataBossKilled(F) {
@@ -20,5 +20,10 @@ export function sunomataBossKilled(F) {
 }
 
 export function sunomataFinalGoalsDone(F) {
-  return sunomataNorthStopped(F) && sunomataPincerDone(F) && sunomataBossKilled(F);
+  return sunomataNorthStopped(F) && sunomataPincerDone(F) && sunomataBossStopped(F);
+}
+
+export function sunomataBossStopped(F) {
+  // 討死と退却を区別したまま、最後の寄せを退けた戦果を共有する。
+  return sunomataBossKilled(F) || (F.wave === 3 && !!F.s15?.lastRetreat && !!F.W3b?.routed);
 }

@@ -122,6 +122,7 @@ import { StaticFreezer } from './static_freeze.js';
 import { castleFallStart, castleFallTick } from './castle_fall.js';
 import { fallIntercept, fallTick } from './castle_state.js';
 import { lethalSetup, lethalPant, lethalDownDelay } from './lethal.js';
+import { missileSetup } from './missile.js';
 import { cgtBind } from './cgt.js';
 import { jkRelease } from './hud_jk.js';
 import { gpuGcRelease } from './gpu_gc.js';
@@ -904,6 +905,7 @@ export class Battle {
     this.army.playerUnit = this.player.u;
     this.army.playerRankFn = () => (this.G.lord ? 9 : this.G.rank || 0);   // 出世するほど敵に狙われやすい（kaito 11/3 AW 9）
     lethalSetup(this);   // 命懸けの戦場（lethal.js・docs/lethal_howto.md）
+    missileSetup(this);   // 弓・鉄砲の「どこから飛んでくるか分からない怖さ」（missile.js・docs/missile_spec_1109.md）
     // 血は設定の「血の見せ方」に従って出す（kaito 10/23 稲生 10「倒した時に血しぶきが出ない」）
     this.army.hideBlood = false;
     this.hud.reset();

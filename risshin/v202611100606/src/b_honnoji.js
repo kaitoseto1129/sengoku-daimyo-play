@@ -4700,6 +4700,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const sec of [6, 21, 36]) rt.after(sec, () => {
       if (F.step !== 4 || F.ending || rt.over || !F.tadaU?.alive) return;
       F.nSallies = (F.nSallies || 0) + 1;
+      F.nSallyActive = true;
       const g = F.tada;
       g.order = 'path'; g.formation = 'column'; g.colW = 2;
       g.path = [[NIJO_GATE.x + 4, NIJO_GATE.z], [NIJO_GATE.x - 3, NIJO_GATE.z]];
@@ -4709,9 +4710,11 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
       rt.after(8, () => {
         if (F.step !== 4 || F.ending || rt.over || !F.tadaU?.alive) return;
         g.order = 'path';
-        g.path = [[NIJO_GATE.x + 4, NIJO_GATE.z], [NIJO_GATE.x + 10, NIJO_GATE.z - 6]];
+        // 列の後れで八秒後も門の内にいる場合がある。帰路にも門外の点を残し、
+        // 出撃の途中を帰還の命令で消して、門を出ずに引き返させない。
+        g.path = [[NIJO_GATE.x - 3, NIJO_GATE.z], [NIJO_GATE.x + 4, NIJO_GATE.z], [NIJO_GATE.x + 10, NIJO_GATE.z - 6]];
         g.pathIdx = 0;
-        g.onArrive = () => { g.order = 'hold'; g.formation = 'line'; g.anchor = { x: NIJO_GATE.x + 10, z: NIJO_GATE.z - 6 }; };
+        g.onArrive = () => { F.nSallyActive = false; g.order = 'hold'; g.formation = 'line'; g.anchor = { x: NIJO_GATE.x + 10, z: NIJO_GATE.z - 6 }; };
       });
     });
     F.nHost = rt.world.addDistantArmy({ x: 26, z: -57, w: 12, d: 48, count: 150,   // 御所を囲む明智勢は数千、守る信忠の手は五百ほど（約十対一）
@@ -5009,7 +5012,9 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
         : !F.nEngaged ? '二条御所の西の門で、明智勢を迎えよ'
         : `西の門の内で御所の侍と支えよ。守りの務めはあと${Math.max(0, Math.ceil(HOLD_NEED - F.nHold))}秒`);
       // 門外で一人討っただけでは守備を果たさない。札に出した時間、門の内で寄せ手を迎えてから退く。
-      if (t > HOLD_END && F.nHold >= HOLD_NEED) this.escape(rt);
+      // 三度目の出撃は三十六秒から。四十秒で切ると、八秒後の帰還前に
+      // 最期の下知へ移ってしまう。帰陣を待ち、詰まった時だけ二十秒で区切る。
+      if (t > HOLD_END && F.nHold >= HOLD_NEED && (!F.nSallyActive || t > HOLD_END + 20)) this.escape(rt);
 
     }
     if (F.step === 5) {
@@ -5367,7 +5372,7 @@ function honnoTick(def, rt, dt) {
     if (F.flank && !F.flankDone && (gone(F.flank) || F.flank.count <= 1)) { F.flankDone = true; rt.objDone('flank'); rt.award((t2) => t2.side.push('宿坊から回り込む明智勢を止めた'), '回り込みを止めた'); }
     const left = Math.max(0, Math.ceil(180 - t));
     rt.objProgress('main', dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6
-      ? '部屋で信長を待て'
+      ? '本堂の東の口で上様を待て'
       : '印を追い、東の戸へ');
     if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);

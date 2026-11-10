@@ -34,7 +34,8 @@ export function drawDestArrow(rt, want, rects) {
   const me = rt.player.u.pos, W = VIEW.w, H = VIEW.h, sa = safeInsets();
   const dist = Math.hypot(want.x - me.x, want.z - me.z);
   if (dist < (want.r ?? 3) + .5) { if (el) el.style.display = 'none'; return false; }
-  const route = !!want.route;
+  // 田野の曲がり角も、足元の矢印へ替えず行き先の真上に▼と距離を置く。
+  const route = !!want.route && !rt.def.routeDestinationPin;
   // 曲がり角へ続く道の上に一本だけ置く。遠い門へ崖を横切らせない。
   const along = route ? Math.min(4, dist) / dist : 1;
   const gx = me.x + (want.x - me.x) * along, gz = me.z + (want.z - me.z) * along;
@@ -50,10 +51,10 @@ export function drawDestArrow(rt, want, rects) {
   point.set(gx, gy + (route ? .16 : 3.5 + Math.min(10, dist * .06)), gz).project(rt.camera);
   if (route) rotation = Math.atan2((routeStart.y - point.y) * H, (point.x - routeStart.x) * W) * 180 / Math.PI + 90;
   const x = (point.x + 1) * W / 2, y = (1 - point.y) * H / 2;
-  const label = route ? '' : rt.missionGuide?.label || '';
+  const label = route ? '' : want.destinationName || rt.missionGuide?.label || '';
   // 距離を使う戦では、大きな▼へ替えた時も行き先までの距離を残す。
   const distance = !route && rt.def.distanceUnit === 'metres' ? `${Math.ceil(dist)}m` : '';
-  const caption = label.length <= 8 ? label : '';
+  const caption = (want.destinationName || label.length <= 8) ? label : '';
   const words = caption && distance ? `${caption} ${distance}` : caption || distance;
   // 重なりは揺れと大きさ（最大 1.5 倍）と名の字まで含めた実寸で見る（critic60 山中 15・田野 30「▼が顔や音のボタンの上・左の端」）
   const textWidth = caption.length * 13 + (caption && distance ? 4 : 0) + distance.length * 8;
