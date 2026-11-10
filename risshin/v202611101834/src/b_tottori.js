@@ -37,7 +37,7 @@ const outOfFight = (u) => !u.alive || u.hp <= 0 || u.dying || u.gone || u.downed
   u.fleeing || u.woundOut || u.rearWound || u.noTarget;
 const gone = (g) => groupGone(g) || g.units.every(outOfFight);
 import { volleyAt } from './b_tano.js';
-import { placeGroup, placePlayer } from './b_opening.js';
+import { placeGroup, placePlayer, bringHorse } from './b_opening.js';
 import { camp } from './b_mid.js';
 import { campWear } from './kakoi.js';
 import { demRelief, demDetail } from './dem.js';
@@ -2976,6 +2976,7 @@ const tottori = {
       P.pos.x = px; P.pos.z = pz; P.pos.y = W.heightAt(px, pz);
       // 日送りの間に遠い麓の視点を引きずらず、使いの方へ向けて始める。
       P.heading = rt.player.yaw = Math.atan2(tx - px, tz - pz);
+      bringHorse(rt);   // 降りて待つ馬も使いの列の後ろへ（関所の5）
       rt.player.pitch = -0.12; rt.player.camYawOff = 0; rt.player.camInit = false;
       rt.after(0.5, () => { rt.scene.visible = true; });
     }
