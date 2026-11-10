@@ -2534,7 +2534,10 @@ function honFoe(rt) {
   F.honFoeAt = rt.t + .25;
   const me = rt.player.u;
   const reach = rt.player.inRange && rt.player.rangeCueTarget;
-  if (honFoeOk(reach) && reach.team !== me.team) return (F.honFoe = reach);
+  // 間合いの相手を優先する時も、襖の陰や別の床の敵へ印を渡さない。
+  if (honFoeOk(reach) && reach.team !== me.team && Math.abs(reach.pos.y - me.pos.y) < 3 &&
+      !rt.army.wallBetween(me.pos, me.team, reach.pos) &&
+      !cameraWallBlocked(rt, me.pos, reach.pos, me.pos.y + 1.6, reach.pos.y + 2.1)) return (F.honFoe = reach);
   const u = rt.army.nearestEnemy(me, 14, (o) => honFoeOk(o) && Math.abs(o.pos.y - me.pos.y) < 3 &&
     !rt.army.wallBetween(me.pos, me.team, o.pos));
   // 11/10 関所3：襖・板壁の陰の敵は頭上の▼が出ない（goal_sign の見通し）。その敵を的にすると印が一つも無くなった

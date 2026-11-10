@@ -742,7 +742,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     //   二十秒で馬出しの残りも土橋から門の内へ退き、三の丸で消える（「退く兵に続いて」入る形）
     rt.after(20, () => {
       const g = F.uma;
-      if (F.step !== 3 || !g || gone(g)) return;
+      // 付け入りで本人が先に三の丸へ入っても、後続の前に残兵を留めない。
+      if (F.ending || F.step < 3 || !g || gone(g)) return;
       g.noRout = true; g.morale = 100;
       // 応戦で退路を止めず、寄せ手が退く兵に続いて門へ進めるようにする。
       g.fixed = false; g.historicalOrders = true; g.noPursue = true; g.retreatOnly = true; g.order = 'path'; g.speed = 2.6;

@@ -497,8 +497,19 @@ const ino = {
       [{ type: 'ashigaru', n: N(9), o: { flagScale: 1 } }, { type: 'samurai', n: 2 }]);
     F.allAlly.push(F.mori);
     this.moveG(F.mori, { x: 4, z: 112 }, 3.6);
-    rt.after(6, () => { if (!F.ending) { say(rt, rt.G.lord ? '自分' : '織田信長', '者ども、返せ！　敵は主に槍を向ける者ぞ！', 3.2); sfx('taiko', 1); rt.army.play('toki', P, 1.6); } });
-    rt.after(12, () => this.push(rt));
+    // 旗本が遅れても、遠い信長の号令だけで反撃を始めない。
+    const turn = () => {
+      if (rt.over || F.ending || F.ph !== 'rally') return;
+      const lord = rt.G.lord ? rt.player.u : F.nobuU;
+      if (!lord?.alive || lord.gone || near(lord.pos, rt.player.u.pos) > 30) {
+        rt.after(0.5, turn);
+        return;
+      }
+      say(rt, rt.G.lord ? '自分' : '織田信長', '者ども、返せ！　敵は主に槍を向ける者ぞ！', 3.2);
+      sfx('taiko', 1); rt.army.play('toki', lord.pos, 1.6);
+      rt.after(6, () => { if (!rt.over && !F.ending && F.ph === 'rally') this.push(rt); });
+    };
+    rt.after(6, turn);
   },
   // 12:50 柴田勢を押し返せ：左右の味方が一斉に前進、主人公もその中
   push(rt) {

@@ -651,7 +651,7 @@ const k08_osaka_kizu = {
     // 皆が列に着いている間だけ前へ。すぐ前に斬りかかる敵がいる間は、味方が退けるまで待つ（十秒まで）
     const ordered = off / count < 2;
     let foe = false;
-    rt.army.forNear(GATE.x, F.ramZ - 3, 5, (u) => { if (!foe && u.alive && u.team === 1 && !u.isStruct && !u.perch && !u.fleeing && !u.downed && !u.dying) foe = true; });
+    rt.army.forNear(GATE.x, F.ramZ - 3, 5, (u) => { if (!foe && fightable(u) && !u.group?.routed && u.team === 1 && !u.isStruct && !u.perch) foe = true; });
     F.ramWait = foe ? (F.ramWait || 0) + dt : Math.max(0, (F.ramWait || 0) - dt);
     if (F.ramZ > goal && (!foe || F.ramWait > 10)) F.ramZ = Math.max(goal, F.ramZ - (ordered ? 2 : 1) * dt);
     if (F.step >= 2 && F.ramZ <= FRONT + 2.5) {
@@ -751,7 +751,8 @@ const k08_osaka_kizu = {
       }
       // 寄せた味方が門を打つ（門の前に味方が多いほど早い。主人公がそばで打てばさらに早い）
       let n = 0;
-      for (const u of F.saki.units) if (u.alive && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 16) n++;
+      // 倒れて手当て待ちの者・退場中の者・敗走兵は門を打てない。
+      if (alive(F.saki)) for (const u of F.saki.units) if (activeSoldier(u) && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 16) n++;
       if (near(P, GATE, 6)) n += 8;   // 主人公が掛矢で打てば早く破れる（門の下に長く立たせない）
       if (alive(F.wallG) && F.wallG.count > 6) n = Math.floor(n * 0.6);
       if (F.burned) n += 6;   // 背の火で守りが浮き足立ち、閂を守る手が減る（門の前に主人公を一分半も立たせない）

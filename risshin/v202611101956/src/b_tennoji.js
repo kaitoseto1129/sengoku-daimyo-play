@@ -2205,6 +2205,7 @@ function tennojiEnemy(rt) {
 }
 
 const tennoji = {
+  waitForPortrait: true, // 左下は撮れた本人の顔だけを出し、黒い人影を残さない（五6）。
   resumeSteps: [[1, 'breakIn'], [2, 'inFort'], [3, 'sortie'], [4, 'chase']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の型。任務は一行、持ち場と残敵はピン一本で示す。
   minutes: 7,

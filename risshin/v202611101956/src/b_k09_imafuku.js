@@ -92,6 +92,13 @@ function requiredStage(s) {
     // 共通の守備は持ち場から四十四メートルまで数えるが、今福は砦の西口で反撃を受ける。
     // 離れて立っている時間や、倒れている時間を「守った時間」に含めない。
     if (s.kind === 'hold' && (!fighting || Math.hypot(player.pos.x - C.at.x, player.pos.z - C.at.z) >= C.botRadius)) C.inT = inT;
+    // 共通の残り秒は経過時間だけで減る。持ち場を離れて戻った時も、実際に守る必要がある時間を示す。
+    if (s.kind === 'hold') {
+      const left = Math.max(0, Math.ceil(Math.max(100 - el, 45 - C.inT)));
+      rt.objProgress('dp', !fighting || Math.hypot(player.pos.x - C.at.x, player.pos.z - C.at.z) >= C.botRadius
+        ? '今福の砦の西口へ戻れ'
+        : left > 0 ? `砦の西口を守る あと${left}秒` : '砦の西口で残る反撃を押し返せ');
+    }
     // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
     // 共通の済み判定は残り二人も含む。まだ踏みとどまる殿がいる時は、到着だけを交戦の代わりにしない。
     if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at &&
