@@ -3242,7 +3242,7 @@ function igaHold(o) {
       // 敵が陣へ入っていない間は、味方の集合待ちだけで「押し負け」を数えない。
       // 離脱・時間切れは別に判定し、敵が入った時の三十秒の猶予は保つ。
       C.breachT = enemy > 0 && (enemy > friend || friend < 2) ? (C.breachT || 0) + dt : 0;
-      // 陣へ届いた組とは四十五秒は戦える。出入りで期限を延ばさず、未到達なら従来どおり。
+      // 最後の組が陣へ届いてからも迎撃の時間を残す。出入りで期限は延ばさない。
       const deadline = Math.max(Math.max(o.dur, C.lastWaveT) + 25, C.lastContactT + 20);   // 一つの戦を四〜七分に収める
       if (C.breachT >= IGA_BREACH_LIMIT) { iga.lose(rt, '陣の口で味方が押し負け、後ろの備えへ退く'); return false; }
       if (C.outT > 60) { iga.lose(rt, '陣の口を離れ、組を支えられなかった'); return false; }
@@ -3251,7 +3251,9 @@ function igaHold(o) {
       if (clear && holding && C.inT >= o.dur * 0.6) return true;
       // 期限だけで、手当て中や未帰陣の本人が守った扱いにしない。
       // 残敵の全滅は求めず、持ち場を守った時間は撃退時と同じだけ必要にする。
-      if (el > deadline && !C.waves.length && holding && C.inT >= o.dur * 0.6) { C.held = true; return true; }
+      // 林にいる未到達の組を、時計だけで防いだ扱いにしない。
+      const met = C.groups.every((g) => C.raidGone(g) || C.raidEntered.has(g));
+      if (el > deadline && !C.waves.length && met && holding && C.inT >= o.dur * 0.6) { C.held = true; return true; }
       C.guideT = (C.guideT || 0) - dt;
       if (C.guideT <= 0) {
         C.guideT = 0.5;

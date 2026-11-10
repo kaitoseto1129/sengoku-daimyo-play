@@ -668,7 +668,8 @@ const k16_secret = {
   update(rt, dt) {
     const F = rt.flags;
     if (F.endPhase === 'hide') {
-      if (rt.t - F.winT >= 7 && F.hidetada && dist(F.hidetada.pos, rt.player.u.pos) < 16) this.kankoku(rt);
+      // 遠くで降伏の場面を始めず、秀忠の姿が見える間合いまで本人が寄る。
+      if (rt.t - F.winT >= 7 && F.hidetada && dist(F.hidetada.pos, rt.player.u.pos) < 6) this.kankoku(rt);
       return;
     }
     // 家康は床几の辺り（幕の真ん中）から離れない：奥の幕際へ下がって近習の列の陰に隠れない・幕の外へ出ない（11/8 描いて遊んだ）
@@ -761,7 +762,7 @@ const k16_secret = {
     inp.quickCmd = null;
     if (F.endPhase === 'hide' && F.hidetada && u.alive) {
       // 幕の内から秀忠へ直進すると東の布に突き当たる。南の口から出て幕の東側を回る。
-      const t = hideRoute(u.pos, { x: F.hidetada.pos.x, z: F.hidetada.pos.z + 6 });
+      const t = hideRoute(u.pos, { x: F.hidetada.pos.x, z: F.hidetada.pos.z + 4 });
       goTo(p, inp, t.x, t.z, 1); return;
     }
     if (F.holdPlayer || !F.step || F.ending || !u.alive) return;

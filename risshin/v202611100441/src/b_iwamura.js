@@ -1984,7 +1984,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 11/1 点付け「地面」：柵ぎわの持ち場（25秒の所）の土を一色にしない。踏み跡の土・窪みの泥・小屋と岩の根の草、半分埋めた岩と俵（共通の stage_dress）。
     dressStage(rt, { at: { x: 13, z: -4.5, heading: 1.89 }, huts: 0, fence: false, flag: false, yagura: false, fire: false, clutter: 3, rocks: 10, radius: 55, wet: 0.6, trodden: 0.85, seed: 2011 });
     // 昼の段（見回り・城方の出撃）の後で、日が暮れてから夜の段（iwamura/hiru.js）
-    IW_HIRU.start(rt, { road: CHASE_PATH, done: () => {
+    IW_HIRU.start(rt, { road: CHASE_PATH, guideRoad: returnToRoad, done: () => {
       F.stepT = rt.t; F.quietSince = rt.t; F.raidAt = rt.t + 12;
       rt.banner('その夜', '水晶山の陣。篝火を焚け');
       this.prepare(rt);

@@ -19,13 +19,45 @@ const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 export function active(rt) { const H = rt.flags.iwHiru; return !!H && !H.night; }   // 日が暮れて夜の段へ渡すまで
 export function stage(rt) { const H = rt.flags.iwHiru; return !H || H.s < 2 ? 0 : 1; }
 export function label(rt) { const H = rt.flags.iwHiru; return !H ? '' : ['本陣へ', '物見の台へ', '麓の小荷駄へ', '', '柵の口へ'][H.s] ?? '柵の口へ'; }
-export function pin(rt) { const H = rt.flags.iwHiru; return !H || H.done ? null : H.s === 0 ? HONJIN : H.s === 1 ? LOOK : H.s === 2 ? KOMODA : H.s === 3 ? null : MOUTH; }
+export function pin(rt) {
+  const H = rt.flags.iwHiru;
+  if (!H || H.done || H.s === 3) return null;
+  if (H.s === 0) return HONJIN;
+  if (H.s === 1) return LOOK;
+  const goal = H.s === 2 ? KOMODA : MOUTH;
+  // 麓を直に指すと切岸を横切る。昼も追撃と同じ九十九折りを往復する。
+  if ((H.s === 2 || H.s === 4) && !near(rt.player.u.pos, goal, 5)) {
+    H.ctx.guideRoad(H.s === 2 ? H.down : H.up, rt.player.u.pos, H.guide);
+    return H.guide;
+  }
+  return goal;
+}
 
-// ctx：{ done（夜の段へ） }
+// ctx：{ road（九十九折り）, guideRoad（道に沿う案内）, done（夜の段へ） }
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.iwHiru) return;
   const H = F.iwHiru = { s: 0, at: rt.t, ctx, done: false };
+  // 小荷駄より先へ下りず、戻る時も口の前で止まる。配列は始まりに一度だけ作る。
+  H.down = [];
+  for (let i = 0; i < ctx.road.length; i++) {
+    const q = ctx.road[i];
+    if (q[1] <= KOMODA.z) {
+      const a = ctx.road[i - 1], t = (KOMODA.z - a[1]) / (q[1] - a[1]);
+      H.down.push([a[0] + (q[0] - a[0]) * t, KOMODA.z]);
+      break;
+    }
+    H.down.push(q);
+  }
+  H.down.push([KOMODA.x, KOMODA.z]);
+  H.up = H.down.slice().reverse();
+  const end = H.up.findIndex((q) => q[1] > MOUTH.z);
+  if (end > 0) {
+    const a = H.up[end - 1], b = H.up[end], t = (MOUTH.z - a[1]) / (b[1] - a[1]);
+    H.up.splice(end, H.up.length - end, [a[0] + (b[0] - a[0]) * t, MOUTH.z]);
+  }
+  H.up.push([MOUTH.x, MOUTH.z]);
+  H.guide = { x: 0, z: 0 };
   rt.world.setTime('day');
   rt.obj('main', GOALS[0], 'main', true);   // 右上と行き先の札（無いと「組のそばで槍を構えよ」の待ちの札が出た）
   rt.marker('iwHiru', () => pin(rt) || rt.player.u.pos, '', { guideAlways: true });
@@ -221,5 +253,5 @@ export function bot(b, inp, { goTo, patientStrike }) {
     return;
   }
   const q = pin(b);
-  if (q) { inp.runHeld = true; goTo(p, inp, q.x, q.z, 3); }
+  if (q) { inp.runHeld = true; goTo(p, inp, q.x, q.z, 1.2); }
 }
