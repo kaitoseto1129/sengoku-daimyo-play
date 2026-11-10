@@ -24,7 +24,7 @@ import { enemyGroup, allyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { KIT } from './b_nagashinojo.js';
 import { timeslipField } from './timeslip_field.js';
-import { KILLS, cut } from './stages.js';
+import { KILLS, cut, standing } from './stages.js';
 import { setStages } from './b_k_help.js';
 import * as jin14 from './k14/jindate.js';
 import { DEPTH14 } from './k14/depth.js';   // 陣立ての表（army_depth.js）   // 二正面の軽い大軍と遠くの乱戦・家臣の守り・棒立ちなし（11/8）
@@ -84,7 +84,8 @@ const named = (name, type = 'samurai', o = {}) => ({ type, n: 1, o: { name, ...L
 const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
 const stepAlive = (F) => aliveN(F.stepG) + (F.step === 1 ? aliveN(F.fuseG) : 0);   // 八尾では横の備と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
-const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
+// 深手で戦えない者・後送済みの者は、目標の残兵に数えない（共通の戦力判定と揃える）。
+const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (standing(u) ? 1 : 0), 0) : 0);
 // 横の備の討取りで伏せ槍の分を埋めない。両隊それぞれ六割を退ける。
 const yaoLeft = (g) => Math.max(0, aliveN(g) - Math.floor(g.units.length * KEEP));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
