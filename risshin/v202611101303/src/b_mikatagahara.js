@@ -82,8 +82,13 @@ const MIKATA_FLAG_RATE = 0.32;
 // 台地や陣幕の向こうへ印だけを浮かせない。見通しは主人公でなく実際のカメラから胴へ取る。
 function mikataEnemySignVisible(rt, u) {
   if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget ||
-      u.isStruct || u.civ || u.team === rt.player.u.team || u.team > 1 || !u.mesh || u.camHidden) return false;
+      u.isStruct || u.civ || u.team === rt.player.u.team || u.team > 1 || !u.mesh?.parent || u.camHidden ||
+      u.humanPending || u._formHid) return false;
   for (let part = u.mesh; part; part = part.parent) if (!part.visible) return false;
+  // 旗の親が見えていても、胴の準備中・切替中には敵印を先に出さない。
+  const human = u.human?.root;
+  if (!(human?.visible && human.parent) && !u.vatOn && !u.efuda && !u.imp &&
+      !(u.body?.visible && u.body.parent)) return false;
   return sightPoint(rt, u.pos, 170, true, u.mounted ? 2 : 1.2);
 }
 // 落ちた槍の握りは中央ではない。実際の石突と穂先から坂の傾きを取る。

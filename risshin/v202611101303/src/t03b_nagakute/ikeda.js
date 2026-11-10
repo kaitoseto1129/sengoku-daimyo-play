@@ -6,12 +6,17 @@
 // ======================================================================
 export function at(F, HOTOKE) { return { x: HOTOKE.x - 8, z: HOTOKE.z + 12 }; }
 
+// 深手で終戦した後や、退却へ移った後に救援の声を出さない。
+function laterSay(rt, delay, who, line, sec) {
+  rt.after(delay, () => { if (!rt.flags.ending && rt.flags.stage === 5.5) rt.say(who, line, sec); });
+}
+
 export function start(rt, K) {
   const F = rt.flags;
   rt.say('池田恒興', '之助が……！　者ども、退くな、退くなぁ！', 3);
-  rt.after(3.4, () => rt.say('使番', '勝入様の旗本、赤備えに囲まれておりまする！　お救いを！', 3.2));
+  laterSay(rt, 3.4, '使番', '勝入様の旗本、赤備えに囲まれておりまする！　お救いを！', 3.2);
   // 井伊・榊原・本多の名が見える（赤備えの将が恒興の旗本へ）
-  rt.after(10, () => rt.say('物見', '井伊直政の赤備えの後ろに、榊原の「無」の旗も！', 3));
+  laterSay(rt, 10, '物見', '井伊直政の赤備えの後ろに、榊原の「無」の旗も！', 3);
 }
 export function tick(rt, K) {
   const F = rt.flags, P = rt.player.u.pos, A = at(F, K.HOTOKE);
@@ -19,8 +24,8 @@ export function tick(rt, K) {
   const near = Math.hypot(P.x - A.x, P.z - A.z) < 14;
   if (!F.ikeArr && near) {
     F.ikeArr = rt.t;
-    rt.after(1, () => rt.say('池田恒興', '来てくれたか……だが、もう遅い', 3));
-    rt.after(12, () => rt.say('池田恒興', '退け！　お主らは生きて筑前に伝えよ。この首、くれてやるわ', 3.4));
+    laterSay(rt, 1, '池田恒興', '来てくれたか……だが、もう遅い', 3);
+    laterSay(rt, 12, '池田恒興', '退け！　お主らは生きて筑前に伝えよ。この首、くれてやるわ', 3.4);
   }
   // 一度着いてから先に細ヶ根へ走っても、見えない所で勝入の最期を済ませない。
   const lord = F.ikeG?.units.find((u) => u.name === '池田恒興' && u.alive);
