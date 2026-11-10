@@ -63,6 +63,7 @@ const SAKON = p(-148, -64);       // 島左近の隊（笹尾山の麓の柵）
 const FENCE_X = SAKON.x + 16;     // 笹尾山の麓の柵（南北の線）
 const FENCE = [[FENCE_X, -206], [FENCE_X - 2, -182], [FENCE_X, -160], [FENCE_X + 3, -136]];
 const GAP = { x: FENCE_X - 1, z: -171 };   // 柵の口（虎口）
+const SAKON_FRONT = { x: FENCE_X + 14, z: -170 };   // 左近が打って出る野の持ち場
 const SASAO = p(-166, -79);       // 石田三成の本陣（笹尾山）
 const KURODA = p(-84, -88);       // 黒田長政（岡山の烽火場の麓）
 const HOSOKAWA = p(-100, -76);    // 細川忠興
@@ -672,12 +673,13 @@ const k06_sekigahara = {
     if (F.step === 1) {
       if (F.kaniWait && (near(P, FUKU, 30) || alive(F.ii) && near(F.ii.center(), FUKU, 30) || rt.t - F.s1t > 25)) {
         F.kaniWait = false;
+        F.kaniDoneT = rt.t + 11.8;   // 咎めと井伊の返答を聞き終えてから口火を切る
         rt.say('可児才蔵', '待て！　今日の先鋒は福島正則さま。抜け駆けは許さんぞ！', 3.5);   // 咎めたのは福島の先手の可児才蔵（通説）
         rt.after(4.2, () => rt.say('井伊直政', '井伊直政でござる。松平忠吉さまと共に、物見の最中なり', 3.5));
         rt.after(8.2, () => rt.say('井伊直政', '忠吉さまは初陣ゆえ、戦の始まりようを見聞させたいのでござる。通られよ', 3.6));
       }
       // 主人公・赤備え・鉄砲衆が揃ってから撃ちかける。時刻だけでは一人の抜け駆けを済みにしない。
-      if (near(P, NUKE, 18) && !F.kaniWait && alive(F.iiGun) && near(F.iiGun.center(), NUKE, 16) && alive(F.ii) && near(F.ii.center(), NUKE, 24)) this.stage2(rt);
+      if (near(P, NUKE, 18) && !F.kaniWait && rt.t >= (F.kaniDoneT || 0) && alive(F.iiGun) && near(F.iiGun.center(), NUKE, 16) && alive(F.ii) && near(F.ii.center(), NUKE, 24)) this.stage2(rt);
     } else if (F.step === 2) {
       // 三度撃ちかけ終えて、主人公が鉄砲衆の脇にいれば退く
       if (F.vol >= 3 && rt.t - F.s2t > 16 && near(P, NUKE, 36)) this.stage3(rt);
@@ -731,9 +733,9 @@ const k06_sekigahara = {
       // 左近本人の近くで戦い、虎口を東から西へ通った時だけ数える。
       if (F.sakon?.leader?.alive && near(P, F.sakon.leader.pos, 26)) F.sakonSeen = true;
       // 左近の隊は柵の前の野に留まる（追って東の野の奥まで走り、主人公が六百歩東まで追った・11/9 流し）
-      const SK = { x: FENCE_X + 14, z: -170 };
-      if (!F.sakBack && alive(F.sakon) && F.sakon.order !== 'move' && !near(F.sakon.center(), SK, 55)) {
-        F.sakon.order = 'move'; F.sakon.dest = { ...SK };
+      if (!F.sakBack && alive(F.sakon) && F.sakon.order !== 'move' &&
+        (!near(F.sakon.center(), SAKON_FRONT, 55) || F.sakon.leader?.alive && !near(F.sakon.leader.pos, SAKON_FRONT, 55))) {
+        F.sakon.order = 'move'; F.sakon.dest = { ...SAKON_FRONT };
         F.sakon.onArrive = (q) => { q.order = 'attack'; q.aggro = 30; q.seekRange = 40; q.onArrive = null; };
       }
       // 移動の終点だけでなく、柵の線を横切った場所が虎口の内かを確かめる。

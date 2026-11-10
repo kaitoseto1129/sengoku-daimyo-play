@@ -472,8 +472,14 @@ const k07_sawayama = {
       if (s.kind !== 'fight') continue;
       const yardId = { 0: 'ote', 3: 'san', 5: 'ni3', 6: 'ni1', 8: 'hon' }[F.dp.steps.indexOf(s)];
       const yard = PLAN.kuruwa.find((k) => k.id === yardId);
+      // 潰走も虎口と尾根の道を通って本丸へ退く。向きだけで逃がすと、
+      // 三の丸・二の丸の塀の内に数十人が溜まり続ける。
+      const retreat = ['san', 'ni3', 'ni1'].includes(yardId)
+        ? ROUTE.slice(Math.ceil(routeAt((yard.poly[0][0] + yard.poly[1][0]) / 2,
+          (yard.poly[0][1] + yard.poly[2][1]) / 2, RT).s)) : null;
       const tick = s.tick;
       s.tick = (rt2, C, m, ctx, el, dt) => {
+        if (retreat) for (const g of C.groups) if (!g.fleePath) g.fleePath = retreat;
         const p = rt2.player.u.pos;
         const inside = !!yard && p.x > yard.poly[0][0] && p.x < yard.poly[1][0] && p.z > yard.poly[0][1] && p.z < yard.poly[2][1] && Math.abs(p.y - yard.level) < 3;
         C.k07Inside = inside;
