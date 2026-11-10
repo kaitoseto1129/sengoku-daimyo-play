@@ -923,6 +923,7 @@ export const ArmyMove = {
           rr = 0.55 + 0.7 * Math.abs((-Math.sin(u.heading) * dz + Math.cos(u.heading) * dx) / len);
         }
         if (w.struct && (!w.struct.alive || w.struct.opened)) continue;
+        if (w.playerOnly && !u.isPlayer) continue;   // 本人だけを止める当たり（伏見城の石垣の上の塀。寄せ手の道は今までどおり）
         if (w.yTop != null && u.pos.y >= w.yTop - 0.05) continue;   // 中の床（floors.js）まで登った後は、外壁の足もとの当たりは素通し
         if (w.yBot != null && u.pos.y + (w.bodyOverlap ? (u.mounted ? 2.4 : 1.7) : 0) < w.yBot) continue;   // 横木は体の高さも見る。室内壁は従来どおり階で区切る。
         const px = u.pos.x, pz = u.pos.z;

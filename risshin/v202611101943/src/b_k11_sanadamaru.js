@@ -77,7 +77,8 @@ const PORT = (s) => polar(s * GATE, FENCE_R + 1);
 const L_FENCE = [-0.84, -0.72];                     // 第二の攻めで打ち倒しかける西の柵の一間（角）
 const RALLY = { x: 12, z: 32 };                     // 攻めの合間に退いて組を立て直す所（篠山の北の麓。櫓の狙いの外）
 const LIVE_MAX = 250;                               // 本物の兵は両軍で二百五十ほどまで
-const liveN = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);   // 丸の左右の口（真田はここから打って出る）
+// 生存したまま搬送された者・戦闘不能の者は、戦う兵の枠を空ける。
+const liveN = (rt) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && !u.woundOut && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
 
 // 家ごとの見た目（足軽は御貸具足の色。名のある武将は kacchu_data の甲冑）
 const SANADA = { armor: 0x8e1f16, lace: 0xb8342a, flag: 'sanada' };
@@ -925,7 +926,7 @@ html:root body #hud#hud#hud.sanada-goals .sanada-progress { margin:4px 0 0; font
       tick(rt, C, m, ctx, el, dt) {
         const g = rt.flags.flankG;
         if (gone(g)) return true;
-        const n = g.units.filter((u) => u.alive && !u.fleeing).length;
+        const n = g.units.filter((u) => u.alive && !u.gone && !u.woundOut && !u.fleeing).length;
         C.at = C.goal = g.center();
         rt.objProgress('dp', `残り ${n}人`);
         // 陣で待つだけでは抑えたことにしない。本人か先手が実際に寄せた時間だけ数える。
@@ -1124,7 +1125,7 @@ html:root body #hud#hud#hud.sanada-goals .sanada-progress { margin:4px 0 0; font
     const p = rt.player.u;
     const rp = rOf(p.pos.x, p.pos.z);
     // 柵の組の竹束の陰（三歩の内）に入れば弾はほとんど当たらない（十二3）
-    const cover = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 3 && rOf(u.pos.x, u.pos.z) < rp + 0.5));
+    const cover = F.rams.some((g) => g.units.some((u) => u.alive && !u.gone && u.tatake && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) < 3 && rOf(u.pos.x, u.pos.z) < rp + 0.5));
     // 一斉射だけで討たれはしない（命を二割は残す）
     const vd = Math.min(p.maxHp * (rp < FENCE_R ? 0.24 : 0.16), p.hp - p.maxHp * 0.2);
     if (p.alive && !p.invuln && vd > 0 && p.hp > p.maxHp * 0.3 && rp < FENCE_R + 6 && Math.abs(angOf(p.pos.x, p.pos.z)) < (big ? SPAN : 0.7) && Math.random() < (cover ? 0.12 : rp < FENCE_R ? 0.7 : 0.4)) rt.army.damage(p, vd, shooter, { kind: 'gun' });

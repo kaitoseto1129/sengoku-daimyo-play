@@ -2645,14 +2645,19 @@ const MITSUKURI_JIN = [
 // 視線の中央が通っていても、直前の塀や軒が画面の半分を覆うことがある。
 // 視点の四隅まで調べる。遠い塀には反応せず、計算用の点も使い回す。
 function mkCameraEdgeBlocked(W, pos, look, probe) {
-  const dx = look.x - pos.x, dz = look.z - pos.z;
-  const length = Math.hypot(dx, dz);
+  const dx = look.x - pos.x, dy = look.y - pos.y, dz = look.z - pos.z;
+  const length = Math.hypot(dx, dy, dz), horizontal = Math.hypot(dx, dz);
   if (length < .01) return false;
-  const x = dx / length, z = dz / length;
+  const x = dx / length, y = dy / length, z = dz / length;
+  const rightX = horizontal > .001 ? dz / horizontal : 1;
+  const rightZ = horizontal > .001 ? -dx / horizontal : 0;
+  // 見上げ・見下ろしでも、実際の画面の上下に沿って軒と塀を調べる。
+  const upX = -y * rightZ, upY = z * rightX - x * rightZ, upZ = y * rightX;
   for (let i = 0; i < 4; i++) {
     const side = i % 2 ? 1 : -1, up = i < 2 ? -.35 : .35;
-    probe.set(pos.x + x * .35 + z * .45 * side, pos.y + up,
-      pos.z + z * .35 - x * .45 * side);
+    probe.set(pos.x + x * .35 + rightX * .45 * side + upX * up,
+      pos.y + y * .35 + upY * up,
+      pos.z + z * .35 + rightZ * .45 * side + upZ * up);
     if (W.cameraBlockFraction(pos, probe) !== null) return true;
   }
   return false;
