@@ -543,8 +543,9 @@ const k04_kuisegawa = {
         const c = g.center(), l = L(c);
         if (g.chaseStopped || l.x >= 28) {
           g.chaseStopped = true; g.seekRange = 0; g.aggro = 0;
-          if (l.x > 30) { g.order = 'move'; g.dest = T(28, l.z); }
-          else { g.order = 'hold'; g.anchor = c; }
+          // 待機・移動では共通の近接判断が十m先まで再び追わせる。
+          // 退く下知なら目の前の敵だけ払い、川の手前の隊列へ戻る。
+          g.order = 'retreat'; g.dest = T(28, l.z); g.onArrive = null; g.focus = null;
           continue;
         }
         // 左近・明石の旗本は備に従うが、川岸での停止は他の追手と同じ。

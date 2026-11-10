@@ -2061,7 +2061,7 @@ const miki = {
     // 兵糧蔵は番所の脇の奥へ寄せ、持ち場の肩越しの右を板壁でふさがない（10/28 資料との差）。
     mikiFortHut(W, HIRATA.x - 7, HIRATA.z, 5, 4, 0, { ita: true, batch, interior: { name: '平田の兵糧蔵', kind: 'kura', profile: 'miki', team: 0 } });
     rt.scene.add(jinmaku(W, HIRATA.x + 2, HIRATA.z - 5, 6, 5, 3, { mon: 'oda' }));
-    rt.scene.add(tawara(W, HIRATA.x - 7, HIRATA.z + 7, 0, 4));
+    // 俵は mikiHirataYard の蔵脇の一山だけ。南の木戸寄りへ重ねて積まない。
     siegeApproach(rt, SHIYORI, batch, true);
     // 東・南・西の付城も柵と土塁・南の木戸・番所と兵糧蔵・井楼を備える。
     for (const q of MIKI_FORTS) {

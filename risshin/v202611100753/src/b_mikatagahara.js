@@ -2525,7 +2525,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
   // 家康を浜松城へ：家康は本人の歩みに合わせて進み、追手が近づけば危うくなる（docs/mikatagahara_spec_1109.md 12〜15分）
   escortTick(rt, dt) {
     const F = rt.flags, p = rt.player.u.pos, chief = F.campA.general, ieg = chief?.group;
-    if (F.ending || !chief?.alive || !ieg) return;
+    if (F.ending) return;
+    if (!chief?.alive) { this.lose(rt, '上様を守れなかった', '家康が浜松城へ帰る前に討たれた'); return; }
+    if (!ieg) return;
     const c = chief.pos;
     // 道へ出す（手負いの控えなどで道を外れた時も、城の手前までは出し直す）。門の口（幅十）へまっすぐ入るよう、門の前で一度並び直す
     if (!F.ieRoadSet || ieg.order !== 'path' && c.z < HAMA.z - 12) {
@@ -2577,6 +2579,14 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       F.natsumeG = allyGroup(rt, { fixed: true, faction: 'tokugawa', name: '夏目吉信の手', anchor: { x: c.x, z: c.z - 6 }, facing: Math.PI, width: 6, spacing: 1, aggro: 14, noRout: true, formation: 'yari' },
         dress([{ type: 'samurai', n: 1, o: { horse: true, name: '夏目吉信', hat: 'kabuto_m' } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], TOKU));
       F.natsumeT = rt.t;
+      // 先に帰着すると escortTick は止まる。城内の余韻にも最期の後報を一度だけ残す。
+      rt.after(22, () => {
+        if (rt.over || F.yoshinobuFallSaid || F.ending && F.returnedT === undefined) return;
+        F.yoshinobuFallSaid = true;
+        const u = F.natsumeG.units.find((q) => q.alive && q.name === '夏目吉信');
+        if (u) { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }
+        fallNotice(rt, '夏目吉信');
+      });
       rt.say('夏目吉信', '我こそは徳川三河守なり！　討って手柄にせよ！', 3.4);
       rt.after(3.6, () => { if (!F.ending) rt.say('徳川家康', '夏目、何をする……！', 2.4); });
       rt.after(6.2, () => { if (!F.ending) rt.say('夏目吉信', '殿は先へ！　振り返られますな！', 2.8); });
@@ -2816,12 +2826,12 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       const left = Math.ceil(Math.hypot(p.x - F.retreatPoint.x, p.z - F.retreatPoint.z));
       if (!F.ieFar) rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
       // 城へ入ったら退き口は終わる。家康が先に（または同時に）門の内へ入っている事が要る。
-      const chief = F.campA.general, ieIn = !chief?.alive || chief.pos.z > HAMA.z - 10;
-      // 門で待つ。家康の組が道で詰まった時は四十五秒で、家康は脇の口から入った事にする（詰まりで戦を止めない）
+      const chief = F.campA.general, ieIn = !!chief?.alive && chief.pos.z > HAMA.z - 10;
+      // 門で待つ。道で詰まった時は現在地から退路を引き直し、姿が門を通るまで生還扱いにしない。
       if (d < 8 && p.z > HAMA.z - 8 && !ieIn) { rt.objProgress('main', '門で上様を待て'); F.gateWait = (F.gateWait || 0) + dt; } else F.gateWait = 0;
-      if (F.gateWait > 45 && chief?.alive) { F.gateWait = 0; chief.group.speed = 5; if (chief.pos.z > HAMA.z - 70) { F.ieSafe = true; this.win(rt); return; } }
+      if (F.gateWait > 45 && chief?.alive) { F.gateWait = 0; F.ieRoadSet = false; }
       if (d < 8 && p.z > HAMA.z - 8 && ieIn) {
-        F.ieSafe = !!chief?.alive || F.ieSafe;
+        F.ieSafe = true;
         for (const q of F.chase || []) if (!gone(q)) { q.order = 'hold'; q.seekRange = 0; q.aggro = 0; }
         this.win(rt);
       }

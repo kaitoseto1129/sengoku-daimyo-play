@@ -1162,8 +1162,9 @@ const tano = {
     q.always = true; q.silent = true; q.approach = false;
     q.r = q.hide = turn ? .5 : waiting ? 4 : C?.s.kind === 'move' ? 8 : 12;
     q.arrived = Math.hypot(p.x - pos.x, p.z - pos.z) < q.r;
-    // 合流後の空いた場所へ引き返させない。待機中だけは同じ印を残す。
-    return q.arrived && !waiting && !turn ? null : q;
+    // 敵が残る間は、持ち場に着いても印を消さない。空いた場所へは引き返させない。
+    const contested = C && (C.s.phase === 'tano' ? F.defenders : C.groups).some(fighting);
+    return q.arrived && !waiting && !turn && !contested ? null : q;
   },
   jinkei: [TANO_ATTACK, TANO_DEFEND],
   noWake: true, noDistantBattle: true, noTaishoRaid: true, noHorse: true, noCouriers: true, botOrders: true,

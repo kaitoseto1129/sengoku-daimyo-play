@@ -2626,8 +2626,8 @@ const iga = {
       for (const q of L) if (q.count < 3 && !gone(q)) q.morale = Math.min(q.morale, 20);
       // 組頭が消火の場所を知らせる。離れた場所の火を味方の台詞だけで消さない。
       const w = rt.t - F.stepT, foes = L.length >= 3 && L.every(gone);
-      // 桶の長押しを知らない人も止めない。二十秒たてば味方の消火の組が自分から火へ向かう。
-      if (!F.bucketOn && w > 4 && !gone(F.ram)) { F.bucketOn = true; F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0; }
+      // 消火役が下知前に倒れても、生きた本陣の控えが次の更新で引き継ぐ。
+      if (!F.bucketOn && w > 4 && (!gone(F.ram) || !gone(F.honjin.guard))) { F.bucketOn = true; F.bucketIndex = -1; F.bucketT = 0; F.bucketStallT = 0; }
       if (F.doused < 3 && w > 55 && !F.nudge && !igaNeedsTreatment(rt)) {
         F.nudge = true;
         if (igaNeedsDousing(rt) && !F.douseHelp) rt.say('丹羽の組頭', '燃える軒へ走れ。桶の水を掛けよ', 4);   // 釦の操作の説明を台詞に入れない（五1）

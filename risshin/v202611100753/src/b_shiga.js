@@ -4664,7 +4664,7 @@ installBattleJinkei(shiga, [
 // 志賀に置かれた軽い馬だけを整える。共通の形は複製し、兵数と描画回数は増やさない。
 // 11/6 fix61_shiga（kaito 九1・九3・十1）：右上は一行の札だけで、①〜⑤の目標の並び・両軍の人数の棒・近い敵みなの▼が無かった。
 //   有岡（b_arioka.js の ariGoalBoard）と同じ作りで、目標の五つ（goals5.js の shiga）を最初から並べ、済んだ物に印。
-//   両軍の棒（def.force）を上に常に出し、四十メートル内の見える敵の残りにも同じ赤い▼を付ける。印は使い回し、見通しは兵ごとに三分の一秒おき。
+//   両軍の棒（def.force）を上に常に出す。敵の赤い▼は共通の処理で全員に付ける。
 const SHIGA_BOARD_CSS = `
 html:root body #hud#hud#hud.shiga-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.shiga-goals #armybar .clock { visibility:hidden !important; }
@@ -4705,41 +4705,9 @@ function shigaGoalBoard(rt) {
     }
     return out;
   };
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._shgSeenAt > rt.t - .34 && u._shgSeenAt <= rt.t)) { u._shgSeen = sightUnit(rt, u); u._shgSeenAt = rt.t; }
-      if (!u._shgSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '▼';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#ff4a2e;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
+  // 敵の赤い▼は共通の enemyTriangleSigns に任せ、同じ兵へ小さな▼を重ねない。
   const dispose = rt.dispose;
   rt.dispose = function () {
-    hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('shiga-goals'); style.remove();
