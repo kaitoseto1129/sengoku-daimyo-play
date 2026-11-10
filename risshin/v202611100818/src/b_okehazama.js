@@ -1246,7 +1246,7 @@ const okehazama = {
       pin.progress = this.missionWaitProgress(rt);
       return pin;
     }
-    // 戦う相手は頭上の赤い▼。移動先が本陣の入口の時だけ地面へピンを立てる。
+    // 相手の頭上の赤い▼と、そこへ進む道のピンを保つ。
     if (rt.phase === 'assault' && !F.victory) {
       // 深手の義元から離れている間は、毛利の待機案内より先に討取りの場へ寄せる。
       if (F.yoshiDown && F.yoshimoto?.alive) {
@@ -1256,7 +1256,7 @@ const okehazama = {
             rt.army.wallBetween(p.pos, -1, y) || rt.army.terrainBlocks(p.pos, y)) {
           const pos = honjinWay(rt.army, p, y);
           pin.x = pos.x; pin.z = pos.z; pin.r = pos === y ? 8 : 1; pin.hide = 0;
-          pin.key = 'yoshimoto';
+          pin.always = true; pin.area = true; pin.key = 'yoshimoto';
           return pin;
         }
       }
@@ -1264,13 +1264,12 @@ const okehazama = {
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
       const enemy = this.missionSignTarget(rt) || this.commanderTarget(rt);
       // 遠い相手の頭上の▼だけでは、雨や幕の陰で進む先が消える（通し確認の関所3）。
-      // 近い斬り合いは頭上の▼に任せ、離れた時は幕を回る道の一点へ案内する。
-      const destination = enemy?.pos || (!entrance && !F.yoshiDown && this.passageTaskDestination(rt));
+      // 斬り合いの間も、幕を回る道の一点を残す。
+      const destination = enemy?.pos || (F.yoshiDown && F.yoshimoto?.alive ? F.yoshimoto.pos :
+        !entrance && this.passageTaskDestination(rt));
       if (destination) {
         const me = rt.player.u;
         const pos = honjinWay(rt.army, me, destination);
-        if (pos === destination && Math.hypot(me.pos.x - pos.x, me.pos.z - pos.z) <= 14 &&
-            Math.abs(me.pos.y - pos.y) < 3) return null;
         pin.x = pos.x; pin.z = pos.z; pin.r = 1; pin.hide = 0;
         pin.always = true; pin.area = true; pin.key = 'assault-route';
         return pin;
@@ -1278,6 +1277,7 @@ const okehazama = {
       if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;
+      pin.always = true; pin.area = true;
       return pin;
     }
     if (rt.phase === 'brief' || rt.phase === 'march') {

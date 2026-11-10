@@ -973,6 +973,8 @@ export function volleyAt(rt, o) {
   const tick = () => {
     if (rt.over || rt.flags.ending || !rt.player.u.alive) return;
     const groups = o.guns() || [], foes = o.foes() || [];
+    // 槍の寄せや次の持ち場へ移った後の予約は、射撃待機の下知を上書きしない。
+    if (!groups.length) return;
     let able = false, ready = false, fired = false;
     for (const g of groups) {
       if (!fighting(g)) continue;

@@ -139,6 +139,7 @@ const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: fals
 
 const k14_yao_wakae = {
   resumeSteps: 4,   // 現在の四段の始まりを順に流して作り直す
+  pacingWait: () => true,   // 共通の十八分打ち切りでも任務失敗にしない。各戦場への到着と突破を待つ（十二3）。
   // 身の回りの合戦の跡（timeslip_field.js）。八尾・若江：五月初めの田と堤。水を張った田の畦、ぬかるみ・水たまり、堤の葦
   timeslip: {
     wet: 0.6, dust: 0.1, trample: 0.3, debris: 1.2, arrows: 0.9, reeds: 0.45, maxSlope: 0.22,
@@ -193,7 +194,7 @@ const k14_yao_wakae = {
       PIN.label = PIN.destinationName = PIN_NAME[1]; PIN.destinationDistance = Math.ceil(dist(rt.player.u.pos, PIN));
       return PIN;
     }
-    const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && live(F.fuseG) ? F.fuseG : F.stepG;
+    const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && (F.fuseG?.ambush || live(F.fuseG)) ? F.fuseG : F.stepG;
     const at = g === F.fuseG ? FUSE : STEP_AT[F.step];
     let p = live(g) && dist(g.center(), at) < 40 ? g.center() : at;
     // 横の備が崩れた後は、立ち上がった伏せ槍も退けるまで案内する。

@@ -34,6 +34,11 @@ NAGASHIMA_PLAN.kuruwa.push({ id: 'nagashima_oku', name: '中江城の奥の囲�
 NAGASHIMA_PLAN.koguchi.push({ id: 'nagashima_oku_gate', name: '奥の木戸', at: [152, -90], w: 4 });
 export const TSUTSUMI_PLAN = fort('tsutsumi', '堤の砦', [[-58, -53], [-42, -53], [-42, -65], [-58, -65]], .9, [-50, -53],
   [[[-50, -46], [-50, -53], [-50, -57]]], [[-55, -60]]);
+// 砦を取った後は南の舟着場へ進む。北の入口だけでは、奥の柵で本人も門徒も閉じ込められる。
+// 番所と物見の間を通り、舟着場まで見える木戸・土塁の切れ目・道を同じ座標で作る。
+TSUTSUMI_PLAN.kuruwa[0].gapAt = [[-50, -53], [-54, -65]];
+TSUTSUMI_PLAN.koguchi.push({ id: 'tsutsumi_oku_gate', name: '舟着場への木戸', at: [-54, -65], w: 4 });
+TSUTSUMI_PLAN.paths.push({ pts: [[-50, -57], [-54, -65], [-57, -76]], w: 2.4 });
 export const NAKASU_PLAN = fort('nakasu', '中洲の砦', [[40, -43], [58, -43], [58, -51], [40, -51]], .8, [48, -43],
   [[[48, -40], [48, -43], [48, -46], [48, -51], [48, -54]]], [[43, -48.5]]);
 // 屋長島への道を中洲の奥の柵で塞がない。包囲の口と同じ筋に、反対側の木戸も開ける。

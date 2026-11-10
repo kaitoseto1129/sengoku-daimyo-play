@@ -256,7 +256,9 @@ const k06_sekigahara = {
   goals5(rt) {
     const at = (q) => k06_sekigahara.missionPin(q);
     // 刻限を知らせない任務は、移動や押し合いが長引いても失敗にしない。
-    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 9 ? (q) => !!q.flags.won : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at }));
+    return G.map((text, k) => ({ kind: 'stage', k, text, noun: NOUN[k], check: k === 9 ? (q) => !!q.flags.won
+      : k === 6 ? (q) => !!q.flags.won || !!q.flags.turned || (q.flags.step || 0) > 8
+      : (q) => !!q.flags.won || (q.flags.step || 0) > k + 1, place: at }));
   },
   closeCombatAssist: true,
   compactIntro: true,
@@ -531,7 +533,9 @@ const k06_sekigahara = {
     const F = rt.flags;
     if (F.step >= 8) return;
     F.step = 8; F.s8t = rt.t;
-    rt.objDone('main'); rt.unmark('foe');
+    // 下山の向きが定まるまでは、大谷隊の前進を止める任務を続ける。
+    // 次の任務は寝返りの確定時に出すので、先に済みにすると三十三秒間主目標が空く。
+    rt.unmark('foe');
     rt.award((t) => t.side.push('大谷隊の前進を止めた'), '大谷隊の前進を止めた');
     // 問鉄砲（一説）：断定しない。家康の方から松尾山の方へ鉄砲の音
     rt.army.play('volley', { x: MATSUO.x + 60, z: MATSUO.z - 120 }, 1.2);
@@ -574,6 +578,7 @@ const k06_sekigahara = {
       room(rt, 14);
       F.kobaG = ally(rt, '小早川秀秋の兵', { x: OTANI.x + 60, z: OTANI.z + 50 }, [{ type: 'busho', n: 1, o: { name: '平岡頼勝', invuln: true, horse: true } }, { type: 'samurai', n: 3 }, { type: 'gun', n: 2 }, { type: 'ashigaru', n: 8 }], KOBA, { facing: -Math.PI * 0.8, aggro: 40, seekRange: 60 });
       goAttack(F.kobaG, HIRA);
+      rt.objDone('main');
       rt.obj('main', G[7], 'main');
       rt.banner('小早川勢、寝返り');
       for (const g of [F.akashi, F.konishi, F.otani, F.otaW1, F.hideG]) if (alive(g)) g.morale -= 12;

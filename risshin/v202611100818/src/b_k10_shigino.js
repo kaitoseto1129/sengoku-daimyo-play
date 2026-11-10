@@ -193,8 +193,10 @@ const k10_shigino = {
     if (!F.step || F.ending) return null;
     // 場所は柵・堤の決まった所だけ（隊の真ん中を追わない。行くたびに動かない・AW3）
     // 毎コマ呼ばれるので座標は印の入れ物に直接書く。
+    // 柵は六割を退ければ確保。残兵の全滅を待つ印では、確保済みの一の柵へ戻される。
+    const firstFence = F.step === 1 && F.w1N[0] - aliveN(F.g1) < Math.round(F.w1N[0] * 0.6);
     PIN.x = F1; PIN.z = 0;
-    if (F.step === 1) PIN.x = live(F.g1) ? F1 - 6 : F2 - 6;
+    if (F.step === 1) PIN.x = firstFence ? F1 - 6 : F2 - 6;
     else if (F.step === 3) {
       // 達成判定と同じ鉄砲の列へ。須田の先手が塞ぐ列の奥へ誘導しない。
       PIN.x = MIZU.x + 2;
@@ -205,7 +207,7 @@ const k10_shigino = {
     }
     PIN.unit = F.step === 2 ? F.inoU : null;
     PIN.enemy = F.step === 2;
-    PIN.label = F.step === 1 ? (live(F.g1) ? '一の柵' : '二の柵')
+    PIN.label = F.step === 1 ? (firstFence ? '一の柵' : '二の柵')
       : F.step === 2 ? '井上頼次' : F.step === 3 ? '水原親憲の鉄砲'
       : F.step === 5 && F.riverAid ? '大和川南岸' : '二の柵の跡';
     PIN.r = F.step === 3 ? 6 : 8;

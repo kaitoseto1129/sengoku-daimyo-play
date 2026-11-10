@@ -408,7 +408,7 @@ const k09_imafuku = {
     // 主の札は段の目標（①〜④）に任せる。残すと段の合間に組頭が済んだ①②の言葉を言い直していた（十1）
     rt.objRemove('main');
     const ctx = { faction: 'toyotomi', flag: 'toyotomi', armor: KIMURA.armor, dmg: 0.21, backing: false, scale: 1.4, look: (l) => dress(l, KIMURA),
-      friends: () => [F.satake, F.shibue, F.tomura, ...(F.reinf || [])].filter((g) => g && g.count && !g.routed), botSeek: 40,
+      friends: () => [F.satake, F.shibue, F.tomura, ...(F.reinf || [])].filter((g) => g && g.count && !g.routed && !g.k09Withdrawn), botSeek: 40,
       // 舟・櫓の射手は堤から斬れない。深みに向かって歩き続けず、堤の上の相手を追う。
       botFoeAllowed: (u) => !u.perch && !u.isStruct && Math.abs(u.pos.z) < BANK,
       // 中州の加勢を手当ての相手に選ぶと、渡れない川の手前で止まる。
@@ -539,7 +539,8 @@ const k09_imafuku = {
       rt._bannerT = rt.t; rt.hud.banner('渋江政光、討死', '佐竹の先手が崩れる'); }
     // 史実：渋江の討死で佐竹の先手が崩れる。渋江の組は東へ下がり、梅津の隊と自分の組だけで堤に残る
     //   （崩れの印にすると、共通の「味方の隊が崩れた」が札の後に八秒おきに四度出た。組は崩さず、東の堤へ引かせる）
-    if (F.shibue) { F.shibue.order = 'hold'; F.shibue.aggro = 2; F.shibue.anchor = { x: KEEP.x + 90, z: 0 }; F.shibue.facing = WESTWARD; }
+    // ④の sendFriends が後退した組を再び前線へ送らないよう、以後の進軍から外す。
+    if (F.shibue) { F.shibue.k09Withdrawn = true; F.shibue.order = 'hold'; F.shibue.aggro = 2; F.shibue.anchor = { x: KEEP.x + 90, z: 0 }; F.shibue.facing = WESTWARD; }
     rt.after(3.2, () => rt.say('梅津憲忠', '内膳殿の分まで踏みとどまれ！　ここを抜かれれば佐竹は終わりじゃ', 3.6));
   },
 
