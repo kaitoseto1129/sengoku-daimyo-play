@@ -62,7 +62,8 @@ export function install(rt, ctx) {
     rt.award((t) => { t.side.push('茶臼山の敵の陣立てを物見して知らせた'); t.special = { label: '物見で敵の陣立てを知らせた', pts: 12 }; }, '敵の陣立てを知らせた', MI);
     rt.say('本多忠朝', 'よう見た。茶臼山に真田の赤備え、四天王寺の前に毛利、奥に大野か', 3.4);
     rt.after(3.6, () => rt.say('小笠原秀政', '真田は動かぬ。先に出るのは毛利じゃ。迎え撃て！', 2.6));
-    rt.after(5.6, go);
+    // 到着したその場で物見の印を畳み、動き出した毛利を迎え撃つ任務へ渡す。
+    go();
   };
   // 戦の前の話（十秒）の後、物見の場へ。着けば手柄、着かなくても時が来れば進む
   rt.after(10, () => {
@@ -74,7 +75,7 @@ export function install(rt, ctx) {
     const tick = () => {
       if (done || F.ending || F.step !== 0.5) return;
       const u = rt.player?.u;
-      if (!F.scoutDone && u && rt.t - F.tScout > 3 && near(u.pos, MI, 8)) { report(); return; }
+      if (!F.scoutDone && u && near(u.pos, MI, 8)) { report(); return; }
       if (!F.scoutDone && rt.t - F.tScout > WAIT) { go(); return; }
       rt.after(0.4, tick);
     };
