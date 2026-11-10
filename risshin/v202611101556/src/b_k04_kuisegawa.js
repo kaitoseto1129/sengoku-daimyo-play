@@ -119,6 +119,7 @@ const k04_kuisegawa = {
   //   前の本物の隊は bind。明石全登の伏兵は「見せない」約束なので表に入れない。奥の備は軽い作り。各家の兵の分け方は推定。
   depth: (rt) => ({
     byMen: true,   // 布陣図どおりの兵数の比で軽い兵を配る（docs/fujin/k04_kuisegawa.md）
+    bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
     A: { name: '東軍', facing: Y(-Math.PI / 2), honjin: IEYASU, mpu: 6, formation: '鶴翼', terrain: 'river', flag: 'tokugawa', armor: 0x24221f, openAt: 9999, attrition: 0,
       sonae: [
         { id: 'kazu', layer: 'sakite', wing: 'center', men: 1500, taisho: '中村一栄', flag: 'maru', bind: (r) => r.flags.kazu },
