@@ -23,7 +23,7 @@ export function evReach(rt, id, pos, r, objText, label, fn, o = {}) {
     if (rt.over || !F[key]) return;
     const p = typeof pos === 'function' ? pos() : pos, me = rt.player.u.pos;
     F[key].t += 0.5;
-    if (!p || Math.hypot(me.x - p.x, me.z - p.z) < r || F[key].t > (o.limit || 90)) {
+    if ((!o.canReach || o.canReach(rt, p)) && (!p || Math.hypot(me.x - p.x, me.z - p.z) < r || F[key].t > (o.limit || 90))) {
       F[key] = null; rt.unmark(id); rt.objDone(id); fn(rt); return;
     }
     rt.after(0.5, tick, true);

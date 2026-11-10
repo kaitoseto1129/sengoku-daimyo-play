@@ -2665,8 +2665,10 @@ function aneStageFoe(rt, k, u) {
   const thin = (q) => gone(q) || !q.count || q.count <= 3;
   if (k === 1) return g === F.iso || g === F.second || thin(F.iso) && thin(F.second) && F.waves.includes(g);
   if (k === 2) return F.waves.includes(g) || g === F.counterChase || g === F.rear || Math.hypot(p.x - HQ.x, p.z - HQ.z) < 75;   // 11/6 fixc0834：本陣の前へ抜けた浅井の群れも
-  // ⑤は北岸での斬り合い。殿や残兵の所属だけで南岸の攻撃まで数えない。
-  if (k === 4) return p.z < aneNorthBank(p.x);
+  // ⑤は案内と同じく、北岸の殿・追いすがる残兵との斬り合い。
+  // 殿が健在なのに、西の朝倉など別の隊を斬って達成にしない。
+  if (k === 4) return p.z < aneNorthBank(p.x) &&
+    (g === F.rear || g === F.counterChase || gone(F.rear));
   return false;
 }
 function aneStageHit(rt, u) {

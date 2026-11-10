@@ -3746,7 +3746,7 @@ const saika = {
       if (el > 55 && !F.help && F.pulled !== 3) { F.help = true; rt.say('堀秀政', '杭のそばで長押しじゃ。組が減っても、おぬしの手で道を通せ', 5); }
       if (el >= 180 && F.pulled < 3) warnBank(rt, 'stakesWarn', '川の杭抜きを急げ', '川べりの小旗へ寄れ。「杭を外す」を長押しじゃ', a?.workAt);
       if (F.pulled === 3) this.cross(rt);
-      else if (el >= 240) return this.win(rt, false);
+      // 杭抜きや応戦を続けられる間は、知らせていない時間だけで敗北にしない。
     } else if (F.step === 2) {
       // 中央の口へ揃ったら西岸を案内する。渡り始めても東岸へ引き戻す札を残さない。
       if (p.x <= EAST_MOUTH.x + 2 && Math.abs(p.z) < 2) rt.unmark('riverTurn');

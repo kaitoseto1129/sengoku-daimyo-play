@@ -3308,7 +3308,7 @@ const shigisan = {
       noReinforce: () => true,
       // 退く兵・負傷兵・本丸の館内の父子で曲輪の確保を止めない。
       // 11/6 fixc2137：物見櫓の上（床の高さ九歩）の侍二人で下の曲輪が敵のままになり、曲輪の兵を討っても取れずに「別の先手」で済んでいた。地面に立つ兵だけ数える。
-      unitFilter: (u) => !u.fleeing && !u.woundOut && !u.gone && !u.noTarget && u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z) < 3,
+      unitFilter: (u) => !u.fleeing && !u.woundOut && !u.gone && !u.noTarget && Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) < 3,
       onFall: (id) => this.onZoneFall(rt, id),
     });
     this.castleGuide(rt, ROAD.slice(ROAD.findIndex((p) => p[1] === GATE.z), ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z) + 1), 'rg1', '敵のいる下の曲輪');

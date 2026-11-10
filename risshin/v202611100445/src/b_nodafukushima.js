@@ -29,7 +29,7 @@ import { reduceMotion, S as SETTINGS } from './settings.js';
 import { TIER } from './device_tier.js';
 import { segHit, buildModel, weaponMesh } from './units.js';
 import { sfx } from './audio.js';
-import { gauss, enemyGroup as spawnEnemy, allyGroup, nm, centerOf, unitPos, wallLine } from './bhelp.js';
+import { gauss, enemyGroup as spawnEnemy, allyGroup, nm, unitPos, wallLine } from './bhelp.js';
 import { battleEvent, EVENT_MESSENGER, EVENT_RETREAT } from './battle_events.js';
 import { dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
@@ -499,6 +499,20 @@ const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a3
 const NO_GROUPS = [];
 const RETREAT_WAIT = 90;
 const canJoin = (u) => u?.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
+// 隊の平均位置は兵のいない草むらになる。札は近い戦える兵の足元を追う。
+function nodaFoePosition(rt, group) {
+  return () => {
+    if (!group || group.routed) return null;
+    const p = rt.player.u.pos;
+    let target = null, best = Infinity;
+    for (const u of group.units) {
+      if (!canJoin(u) || u.isStruct || u.civ) continue;
+      const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
+      if (d < best) { best = d; target = u; }
+    }
+    return target ? target.pos : null;
+  };
+}
 // 浅瀬を守る下知で、門内や対岸の敵へ主人公を連れて行かない。
 function canGuideSally(rt, u) {
   const p = rt.player.u.pos;
@@ -3680,7 +3694,7 @@ const nodafukushima = {
       volleyScene(rt, { guns: () => [F.teppo], at: { x: 0, z: LEVEE_Z - 6 }, r: 12, who: '前田利家', shots: 3, wait: 'まだ撃つな……浅瀬を上りきるまで待て',
         banner: ['一斉射', '竹束の陰から、鉄砲衆が揃えて放つ'], clash: () => F.lines });
       // 浅瀬の行き先は既存の印で示す。斜面を横切る半径二十二の輪は重ねない。
-      rt.marker('sally', centerOf(F.sally), '三好の槍の列', { red: true, group: F.sally });
+      rt.marker('sally', nodaFoePosition(rt, F.sally), '三好の槍の列', { red: true, group: F.sally });
       // 西へ偏った二段の横陣では端の持ち場が深みに入る。三段に詰め、浅瀬の左右へ通す。
       for (const [g, x] of [[F.maeda, 6], [F.sassa, -6]]) {
         g.yariRanks = 3;
@@ -3866,7 +3880,7 @@ const nodafukushima = {
     rt.army.play('eshout', { x, z }, 1.8);
     rt.say('一揆の門徒', ['南無阿弥陀仏、南無阿弥陀仏！', '南無阿弥陀仏！　仏敵の信長を討て！', '横から回れ！　退き口を塞げ！', '堤の口へ続け！', '畦から寄せよ！　槍を揃えろ！'][i], 3.5);
     g.ikko = true;
-    rt.marker('w' + i, centerOf(g), g.name, { red: true, group: g });
+    rt.marker('w' + i, nodaFoePosition(rt, g), g.name, { red: true, group: g });
     // 寄せ道の薪火。持ち手のない炎を空中に置かない。
     const fireX = x + 7, fireZ = z + 6;
     rt.scene.add(campfire(rt.world, fireX, fireZ)); rt.world.addFire(fireX, fireZ);
