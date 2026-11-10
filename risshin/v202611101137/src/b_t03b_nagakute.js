@@ -245,8 +245,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     F.hideU = F.hideG.units.find((u) => u.name === '三好信吉');
     F.hideU.maxHp = F.hideU.hp = 900;
     F.hideU.invuln = true;
-    // 連れた兵（主人公の組）
-    F.men = allyGroup(rt, { ...o, name: '信吉隊の足軽', anchor: { x: CAMP.x - 6, z: CAMP.z + 10 }, facing: E, width: 5, aggro: 10, speed: 3.9, order: 'hold' },
+    // 連れた兵（主人公の組）は中入りの列の主人公のそばから出る。白山林に置くと百歩以上離れて始まる。
+    F.men = allyGroup(rt, { ...o, name: '信吉隊の足軽', anchor: { x: rt.player.u.pos.x - 4, z: rt.player.u.pos.z + 4 }, facing: E, width: 5, aggro: 10, speed: 3.9, order: 'hold' },
       fl([{ type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'ashigaru', n: 3 }, { type: 'samurai', n: 2 }, { type: 'gun', n: 2 }], 'toyotomi'));
     F.men.ai = true;
     F.menN0 = aliveN(F.men);

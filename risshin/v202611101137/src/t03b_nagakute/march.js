@@ -37,7 +37,7 @@ export function start(rt, K) {
     K.dressT([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
   K.pushWave(F.banG);
   // 信吉隊の先手（主人公と番所へ）
-  F.vanG = allyGroup(rt, { fullStrength: true, noRout: true, dmgMult: 0.5, name: '信吉隊の先手', anchor: { x: K.CAMP.x + 6, z: K.CAMP.z + 14 }, facing: Math.PI / 2, width: 5, aggro: 12, seekRange: 20, speed: 3.6, order: 'move' },
+  F.vanG = allyGroup(rt, { fullStrength: true, noRout: true, dmgMult: 0.5, name: '信吉隊の先手', anchor: { x: rt.player.u.pos.x + 8, z: rt.player.u.pos.z - 4 }, facing: Math.PI / 2, width: 5, aggro: 12, seekRange: 20, speed: 3.6, order: 'move' },
     K.fl([{ type: 'ashigaru', n: 8, o: { flagScale: 1 } }, { type: 'samurai', n: 2 }], 'toyotomi'));
   F.vanG.dest = { x: BANSHO.x - 6, z: BANSHO.z - 4 };
   F.vanG.onArrive = (q) => { q.order = 'attack'; };
