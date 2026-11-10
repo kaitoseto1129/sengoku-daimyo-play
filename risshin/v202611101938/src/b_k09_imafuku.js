@@ -214,6 +214,13 @@ const k09_imafuku = {
   noHorse: true,
   // 段の共通操作より先に、下の木戸の口へ寄せる操作を通す。省くと袖の柵で止まり続ける。
   botBrainDepth: true,
+  // ③で矢玉を避け続けて持ち場を離れると、守備の刻が足りないまま刻限になる。
+  // 範囲外では避け足で帰還を遮らず、範囲内でも堤と守備の円から出ない側を選ぶ。
+  botCoverBlocked: (rt, from, to) => {
+    const C = rt.flags.dp?.cur;
+    return C?.s.kind === 'hold' && (Math.hypot(from.x - C.at.x, from.z - C.at.z) >= C.botRadius ||
+      Math.abs(to.z) >= BANK || Math.hypot(to.x - C.at.x, to.z - C.at.z) >= C.botRadius);
+  },
   noCouriers: true,   // 乗り手の無い伝令の馬が堤と川べりを走っていた（BL7）
   noYaguraTask: true,      // 砦の櫓を脇の目標「物見櫓の中へ入り、守りを追い出せ」にしない（右上は①〜④だけ。三3・十1）
   dpNoMark: true,         // 行き先を敵部隊の中心へ替えず、堤の上の一か所に保つ。

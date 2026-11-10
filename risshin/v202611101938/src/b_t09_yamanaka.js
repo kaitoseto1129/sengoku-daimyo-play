@@ -688,7 +688,8 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
     F.uma = enemyGroup(rt, { faction: 'hojo', name: '馬出しの北条の隊', fixed: true, formation: 'yari', anchor: { ...A.uma }, facing: 0, width: 6, aggro: 4, morale: 85, fleeDir: { x: 0, z: -1 }, dmgMult: 0.4 },
       dress([{ type: 'samurai', n: 3 }, { type: 'cavalry', n: 5 }, { type: 'ashigaru', n: 16 }], HOJO));
     F.uma.historicalOrders = true;
-    F.san = enemyGroup(rt, { faction: 'hojo', name: '三の丸の守り', anchor: { ...A.plaza }, facing: 0, order: 'hold', aggro: 12, width: 12, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42 },
+    // 三の丸は城内で迎え撃つ。共通の出撃・寄せ直しで門外を追わせると、閉じた虎口に守兵が重なって止まる。
+    F.san = enemyGroup(rt, { faction: 'hojo', name: '三の丸の守り', fixed: true, historicalOrders: true, anchor: { ...A.plaza }, facing: 0, order: 'hold', aggro: 12, width: 12, morale: 95, fleeDir: { x: 0, z: -1 }, dmgMult: 0.42 },
       dress([{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 6 }], HOJO));
     for (const u of F.san.units) if (u.type === 'gun') u.dmg *= 0.5;
     F.sortie = F.K.sortie(F.uma, { fight: 18, mouth: 1, R: 12,

@@ -17,11 +17,22 @@ export default {
     move(F.follow, { x: -2, z: -42 }, true);
     F.hostRear = host(rt, { x: 0, z: -108, w: 70, d: 24, count: 760, facing: 0, seed: 1104 });
     F.hostRear.advance(18, 60);
-    if (living(F.ramG) < 2) {
+    if (living(F.ramG) < 4) {
       F.ramG = troops(rt, true, '新しい丸太の組', { x: 4, z: -92 }, [{ type: 'porter', n: 6, o: { armor: 0x4a4034, flag: null } }], HASHIBA, { aggro: 0, seek: 0 });
       rt.say('人夫頭', '新しい丸太を運べ！', 2.5);
     }
     move(F.ramG, { x: 0, z: -35 });
+    // 移動だけでは丸太は門を打たない。木柵の開口へ寄せてから門攻めを命じる。
+    // 半数以下の担ぎ手では丸太が止まるため、その場合も上で新しい組に替える。
+    F.gate.noTarget = false;
+    const approach = { x: 0, z: -42 };
+    F.ramG.order = 'assault';
+    F.ramG.assault = (u) => {
+      if (!F.gate.alive) return null;
+      if (u.pos.z < -37.8 && Math.abs(u.pos.x) > 2) return approach;
+      return F.gate;
+    };
+    F.ramG.assault.gateOnly = true;
     F.ram = makeRam(rt, { group: F.ramG, gate: { struct: F.gate, get breached() { return !F.gate.alive; } }, kind: '丸太' });
     move(F.friends, { x: 0, z: -40 }, true);
     F.fallT = 0; F.ramWork = 0; F.gateT = null;

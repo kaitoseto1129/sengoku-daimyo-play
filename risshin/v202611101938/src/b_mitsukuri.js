@@ -2291,9 +2291,12 @@ function sanGroundPassage(army, from, goal) {
   for (let i = 1; i <= n; i++) {
     const x = from.x + (goal.x - from.x) * i / n, z = from.z + (goal.z - from.z) * i / n;
     const h = groundAt(W, x, z, y);
+    // 石段は地面の傾きでなく、実際に踏める床で調べる。
+    // 主人公が通れる石段を道案内だけが拒むと、本丸の坂で同じ点へ戻り続ける。
+    const ramp = rampAt(x, z, y), onRamp = ramp != null && Math.abs(ramp - h) < 0.25;
     // 主人公が歩けない道外の急斜面を、敵への近道や道への復帰先に選ばない。
     // 高低差だけでは、切岸を横切る案内が通り、石段の下で追い続けてしまう。
-    if (!W.walkable(x, z, y) || !mitsukuriGroundAllowed(W, x, z, y) || Math.abs(h - y) > rise) return false;
+    if ((!W.walkable(x, z, y) && !onRamp) || !mitsukuriGroundAllowed(W, x, z, y) || Math.abs(h - y) > rise) return false;
     y = h;
   }
   return true;

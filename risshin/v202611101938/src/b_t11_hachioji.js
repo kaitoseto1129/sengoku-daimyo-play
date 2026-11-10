@@ -980,6 +980,8 @@ t11_hachioji.history = '天正十八年（1590）の小田原攻めで、豊臣�
 t11_hachioji.bushou = [{ name: '前田利家', g: /利家/ }, { name: '中山勘解由', g: /勘解由/ }];
 
 // 素直な遊び手：段の頭（depthBot）に任せる。段の前は寄せ口のそばで待つ
+// 段の途中も専用の判断を通し、届かない残兵からの離脱と中山への打ち返しを働かせる。
+t11_hachioji.botBrainDepth = true;
 t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
@@ -1016,6 +1018,7 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
     // 11/10 クラウドわ：中山は本人を狙ったまま、供の侍が打ち手の枠を埋めて打ち込まず、隙（cd）も出ないので、
     //   bot は受けの待ちのまま一太刀も振らず刻限まで止まった（足跡 |Ns- が十分あまり続き、中山の命 60 のまま）。
     //   振りかぶりも振りも無いまま一・二秒たったら、こちらから斬り込む
+    b.t11NakaT = b.t;
     const busy = (n.atk && n.atk.target === u && !n.atk.bow) || (n.swing && !n.swing.done);
     const w = b.t11Wait ||= { t: b.t };
     if (busy || d > 1.85) w.t = b.t;
@@ -1029,7 +1032,7 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
 
 // 足跡の控え（倒れず止まった時の読み直し）：段・段の場・退避・手当ての残り・近い敵（距離・種・残りの命）
 t11_hachioji.botDbg = (b) => { const F = b.flags, u = b.player.u, C = F.dp?.on && F.dp.cur, e = b.army.nearestEnemy(u, 40, (o) => !o.noTarget);
-  return `i${F.dp?.i ?? ''}${C?.at ? `@${Math.round(C.at.x)},${Math.round(C.at.z)}` : ''}${b.botSurviving ? 'S' : ''}${b.botSurviveUntil > b.t ? 'R' : ''}tr${b.player.treatmentLeft ?? ''}${e ? `e${Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z).toFixed(0)}${e.type[0]}${Math.round(e.hp)}${b.army.wallBetween(u.pos, -1, e.pos) ? 'W' : ''}` : ''}${F.dp?.i === IX.naka && F.naka ? `|N${Math.hypot(F.naka.pos.x - u.pos.x, F.naka.pos.z - u.pos.z).toFixed(1)}${b.player.weapon?.[0] || ''}${u.swing?.res || '-'}g${F.naka.guard ? 1 : 0}${F.naka.guarding > 0 ? 'G' : ''}c${(F.naka.cd || 0).toFixed(1)}${F.naka.target === u ? 'T' : ''}${F.naka.atk ? 'A' : ''}${b.player.guard ? 'pg' : ''}${(b.player.cd || 0) > 0 ? 'pc' : ''}${b.player.lock === F.naka ? 'L' : ''}` : ''}`; };
+  return `i${F.dp?.i ?? ''}${C?.at ? `@${Math.round(C.at.x)},${Math.round(C.at.z)}` : ''}${b.botSurviving ? 'S' : ''}${b.botSurviveUntil > b.t ? 'R' : ''}tr${b.player.treatmentLeft ?? ''}${e ? `e${Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z).toFixed(0)}${e.type[0]}${Math.round(e.hp)}${b.army.wallBetween(u.pos, -1, e.pos) ? 'W' : ''}` : ''}${F.dp?.i === IX.naka && F.naka ? `|N${Math.hypot(F.naka.pos.x - u.pos.x, F.naka.pos.z - u.pos.z).toFixed(1)}${b.player.weapon?.[0] || ''}${u.swing?.res || '-'}g${F.naka.guard ? 1 : 0}${F.naka.guarding > 0 ? 'G' : ''}c${(F.naka.cd || 0).toFixed(1)}${F.naka.target === u ? 'T' : ''}${F.naka.atk ? 'A' : ''}${b.player.guard ? 'pg' : ''}${(b.player.cd || 0) > 0 ? 'pc' : ''}${b.player.lock === F.naka ? 'L' : ''}st${Math.round(b.player.sta)}${b.t - (b.t11NakaT ?? -99) < 1 ? 'B' : ''}${b.player.dodgeT > 0 ? 'D' : ''}${b.player.pending ? 'P' : ''}` : ''}`; };
 
 // 段（右上の一行。stages.js の表に、この戦の分を足す）
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);

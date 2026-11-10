@@ -68,6 +68,8 @@ const ROUTE = [
   [70, -64], [52, -86], [34, -100], [18, -106], [SAN.x, SAN.z], [-8, -96], [-8, -84], [NI3.x, NI3.z], [-8, -72], [-8, -62],
   [-8, -56], [-8, -50], [-8, -40], [NI1.x, NI1.z], [-8, -28], [-8, -18], [HON_YARD.x, HON_YARD.z],
 ];
+// 搦手は西の丸の二つの口を通る。大手の道と分け、天守の土台の手前で本丸へ入る。
+const KARAME_ROUTE = [[KARAME.x, KARAME.z], [-80, -4], [-62, -4], [-48, -4], [-34, -4], [-24, -4], [-22, -4]];
 // 尾根の背（x, z, 高さ）：南北の山の背と、東へ張る二つの尾根（鶴翼）、西の丸の尾根
 const SPINE = [
   [-6, -160, 16], [2, -130, 26], [SAN.x, SAN.z, 30], [-8, -90, 32], [-8, -78, 35], [-8, -67, 37.5], [-8, -56, 40], [-8, -45, 42.5],
@@ -161,6 +163,9 @@ const PLAN = {
     { id: 'ni1_s', name: '二の丸の奥の口', from: 'ni1', to: 'out', kind: 'hira', at: [-8, -28], rot: 0, w: 4.4 },
     { id: 'hon', name: '本丸の門', from: 'out', to: 'hon', kind: 'hira', gate: 'yagura', at: [-8, -18], rot: Math.PI, w: 4.4 },
     { id: 'hon_w', name: '本丸の西の口', from: 'nishi', to: 'hon', kind: 'hira', at: [-24, -4], rot: -Math.PI / 2, w: 4.4 },
+    // 塀の切れ目だけでなく、切岸を登れる坂も二つの口に作る。
+    { id: 'nishi_w', name: '西の丸の西の口', from: 'out', to: 'nishi', kind: 'hira', at: [-62, -4], rot: -Math.PI / 2, w: 4.4 },
+    { id: 'nishi_e', name: '西の丸の東の口', from: 'nishi', to: 'out', kind: 'hira', at: [-34, -4], rot: Math.PI / 2, w: 4.4 },
   ],
   // 櫓：大手門の左右（土橋と内堀へ横矢）、三の丸の門の脇、本丸の東の隅。三成が天守まで建てた近世の城なので、どれも白壁の二重櫓（丸太組みの井楼は陣城の仮の櫓で、ここには建てない）
   yagura: [
@@ -171,7 +176,7 @@ const PLAN = {
     { id: 'hon_se', kind: 'sumi', at: [0, 12], rot: Math.PI / 2 },
   ],
   // 本丸の東の広場（天守の前）は空けておく：蔵が建つと、斬り合いが蔵と塀の間の細い路地に詰まった（建物は道から離して建つ）
-  paths: [{ id: 'ote', kind: 'ote', pts: ROUTE.slice(1) }, { id: 'hon_yard', kind: 'hon', pts: [[HON_YARD.x, HON_YARD.z], [-2, 4], [-2, 13]] }],
+  paths: [{ id: 'ote', kind: 'ote', pts: ROUTE.slice(1) }, { id: 'karame', kind: 'ote', pts: KARAME_ROUTE }, { id: 'hon_yard', kind: 'hon', pts: [[HON_YARD.x, HON_YARD.z], [-2, 4], [-2, 13]] }],
 };
 let HEIGHT_FN = null;
 function height(x, z) { if (!HEIGHT_FN) HEIGHT_FN = heightOf(PLAN, base, 3); return HEIGHT_FN(x, z); }
@@ -192,6 +197,8 @@ function routeAt(x, z, out, from = 0) {
 const OTE_IN = 7;   // ROUTE の [113, -9]：枡形を出た所
 const RF = { d: 0, s: 0, x: 0, z: 0 }, RT = { d: 0, s: 0, x: 0, z: 0 };
 function sawayamaWay(army, u, want) {
+  // 搦手の行軍は自分の道順を使う。本丸に近づいても大手側の尾根へ戻さない。
+  if (u.group?._k07Karame && u.group.order === 'path') return want;
   const q = u._k07Way || (u._k07Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
   // 次の曲輪への進軍や曲輪への戻りで行き先が替わったら、前の向きの道を使わない。
   if (q.wantX !== want.x || q.wantZ !== want.z) {
@@ -321,7 +328,7 @@ const k07_sawayama = {
     unitNightScale: 0,
     groundHalf: 280,
     muddyCastleFloor: 0.8,   // 曲輪の平場を真っ白な砂利にせず、踏み固めた乾いた土に（侍屋敷が白い砂の広場に見えた・八1）
-    paths: [ROUTE.slice(0, 10), ROUTE.slice(9)],
+    paths: [ROUTE.slice(0, 10), ROUTE.slice(9), KARAME_ROUTE],
     height,
     moveWay: sawayamaWay,
     tint(x, z, h, c) {
@@ -330,7 +337,7 @@ const k07_sawayama = {
       if (h < 4 && x > 134) { c.setRGB(c.r * 0.55 + 0.2, c.g * 0.55 + 0.16, c.b * 0.5 + 0.07); return; }
       if (h > 14) c.setRGB(c.r * 0.74, c.g * 0.84, c.b * 0.7);
     },
-    clear: (x, z) => distToPolyline(x, z, ROUTE) < 7 || PLAN.kuruwa.some((k) => x > k.poly[0][0] - 2 && x < k.poly[1][0] + 2 && z > k.poly[0][1] - 2 && z < k.poly[2][1] + 2),
+    clear: (x, z) => distToPolyline(x, z, ROUTE) < 7 || distToPolyline(x, z, KARAME_ROUTE) < 7 || PLAN.kuruwa.some((k) => x > k.poly[0][0] - 2 && x < k.poly[1][0] + 2 && z > k.poly[0][1] - 2 && z < k.poly[2][1] + 2),
     trees: 480,
     tufts: 2400,
     treeDensity: (x, z) => {
@@ -637,7 +644,9 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
     F.tanakaGo = true;
     F.tanaka.fixed = false; F.tanaka.aggro = 12; F.tanaka.seekRange = 60;
     // 水の手から西の丸の尾根を登り、西の丸を抜けて本丸の西の口へ（まっすぐ寄せると西の丸の土塁の下に詰まった）
-    F.tanaka.order = 'path'; F.tanaka.path = [[-80, -8], [-62, -4], [-48, -4], [-34, -4], [-24, -4], [HON.x - 6, HON.z - 6]]; F.tanaka.pathIdx = 0;
+    F.tanaka.order = 'path'; F.tanaka.path = KARAME_ROUTE.map((p) => p.slice()); F.tanaka.pathIdx = 0;
+    F.tanaka._k07Karame = true;
+    F.tanaka.formation = 'column'; F.tanaka.roadColumn = true; F.tanaka.followColumnRoad = true;
     F.tanaka.dmgMult = 0.7;
     F.tanakaT = rt.t;
     this.openGate(rt, 'hon');   // 開城の使いの後、城方が本丸の門を開けた
