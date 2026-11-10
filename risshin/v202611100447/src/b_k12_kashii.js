@@ -710,8 +710,12 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         // 侍衆が崩れても団右衛門は退かない（史実で村の中で討たれた。崩れて川の南まで馬で駆け去った。11/7 遊んで）
         if (H.fleeing) { H.fleeing = false; F.hata.order = 'attack'; F.hata.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; }
         // 近い主人公でも村の外までは追わない。帰る途中も目標を取り直して引き返さない。
-        if (dist(H.pos, VILLAGE) > 26 || dist(P.pos, VILLAGE) > 30) { H.target = null; H.aiT = 0; F.hata.order = 'move'; F.hata.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.hata.onArrive = (q) => { q.order = 'attack'; }; }
-        else if (dp < 30) { H.target = P; H.aiT = 0; }
+        if (dist(H.pos, VILLAGE) > 26 || dist(P.pos, VILLAGE) > 30) {
+          H.target = null; H.aiT = 0;
+          F.hata.focus = null; F.hata.keepMoveOrder = true; F.hata.marching = true; F.hata.seekRange = 0; F.hata.aggro = 0;
+          F.hata.order = 'move'; F.hata.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 };
+          F.hata.onArrive = (q) => { q.order = 'attack'; q.keepMoveOrder = false; q.marching = false; q.seekRange = 24; q.aggro = 16; };
+        } else if (dp < 30 && !F.hata.keepMoveOrder) { H.target = P; H.aiT = 0; }
       }
     }
   },
