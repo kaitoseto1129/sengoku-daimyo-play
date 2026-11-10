@@ -472,7 +472,8 @@ function lurkTick(rt) {
   if (!C || !C.groups) return;
   const p = rt.player.u.pos;
   for (const g of C.groups) {
-    if (!g._lurk || !g.count) continue;
+    // 退く下知が出た組を、潜伏解除の処理で再び攻撃へ戻さない。
+    if (!g._lurk || !g.count || g.routed) continue;
     const c = g.center(), el = rt.t - C.t0;
     let near = Math.hypot(p.x - c.x, p.z - c.z) < 22;
     if (!near) for (const friend of rt.flags.allies) {
