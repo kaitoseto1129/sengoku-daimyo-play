@@ -616,7 +616,7 @@ function mobSoonTick(rt) {
 }
 
 const VICTORY_TASKS = {
-  inou: '名塚への田の道で林美作守を追い詰める',   // 11/6 fix61_inou：「崩す」は使わない（三-1）。crit_inou：地図の名で・止めは信長
+  inou: '名塚砦で味方と向き直り、柴田勢を押し返す',
   okehazama: '義元の討ち取り後、組と帰る',
   moribe: '墨俣への道で両将の殿を討ち破る',
   sunomata: '三度の寄せから柵を守り抜く',
@@ -3129,7 +3129,7 @@ export class Battle {
     if (info.down) this.tracker.main = false;
     const won = this.tracker.main === true;
     const wins = {
-      inou: '林美作守は殿に討たれ、信勝方は崩れて退いた',   // 11/6 fix61_inou：美作守の止めは信長（『信長公記』）
+      inou: '林勢は崩れ、手負いの柴田勝家は残兵をまとめて退いた',
       okehazama: '毛利新介が今川義元を討ち取った',   // 足軽に毛利新介の手柄を数えない（11/6 桶狭間の頼み）
       moribe: '長井・日比野の両将を討ち、斎藤勢を墨俣へ退けた',
       sunomata: '三度の寄せから柵を守り抜いた',

@@ -694,9 +694,11 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       const k = F.w5N - aliveN(F.take);
       // 「二の柵の跡で踏みとどまる」は、本人もその持ち場を確保してから果たす。
       if (k >= Math.round(F.w5N * 0.6) && F.playerFight5 && !F.riverAid && dist(P.pos, HOLD) < 22) this.riverAid(rt);
-      // 崩れた瞬間は、まだ佐竹の目の前に寄せ手がいる。北岸を実際に退くまで救援を終えない。
-      const riverClear = F.riverAid && !live(F.riverFoe) && !F.riverFoe.units.some((u) =>
-        u.alive && !u.gone && u.pos.x > RIVER.x - 40);
+      // 戦える寄せ手が北岸を実際に退くまで救援を終えない。
+      // 手傷で動けない兵まで退き口への到着を求めると、一人残るだけで救援が終わらない。
+      const riverClear = F.riverAid && !F.riverFoe.units.some((u) =>
+        u.alive && !u.gone && !u.woundOut && !u.rearWound && !u.dying &&
+        (!u.fleeing || u.pos.x > RIVER.x - 40));
       if (riverClear && (F.riverShots >= 1 || F.riverSecured) && rt.t >= 240) this.win(rt);
     }
   },

@@ -3469,7 +3469,8 @@ const FRONT = { x: -8, z: GATE.z + 16 };
 // 据えた二束の後ろに収まった時だけ待機を促す。太鼓や戦の進行は止めない。
 function okAtWaitCover(rt) {
   const p = rt.player.u.pos, cover = rt.flags.waitCover;
-  return !!cover && Math.abs(p.x - cover.x) <= 1.2 && p.z >= cover.z - 0.4 && p.z <= cover.z + 0.3;
+  return !!cover && Math.abs(p.x - cover.x) <= 1.2 && p.z >= cover.z - 0.4 && p.z <= cover.z + 0.3 &&
+    Math.abs(p.y - rt.world.heightAt(cover.x, cover.z)) <= 3;
 }
 // 遠い旗だけを追って組を置き去りにしない。実際に動く竹束の陰を案内する。
 // 座標の入れ物は開戦時の一つを使い回し、竹束が坂へ着いたら旗へ渡す。
