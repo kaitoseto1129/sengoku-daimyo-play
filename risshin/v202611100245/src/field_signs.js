@@ -1001,13 +1001,9 @@ function drawNames(rt, s, me, cam, commander, special, rects, skip, alliesOnly =
   for (let i = 0; i < items.length; i++) {
     const it = items[i], y0 = it.y;
     let ok = false;
-    // 11/1 Simple：画面の知らせは同時に三つまで（近い武将から。名札が群れて重ならないように）
-    // 命と目標に加える人名札は一枚まで。
-    // 11/6：一枚では名のある将の名が出ない戦が多かった。二枚まで（重なりは nameHit で避ける）
-    // 11/8 critic60 野田福島（九3・五2「利家の 8m 後ろでも味方の将の名が一度も出ない」）：敵の将が近いと枠を取られた。味方の将の名は枠の外で一枚足す
-    let allyName = it.u.team === me.team;
-    for (let j = 0; allyName && j < shown; j++) if (items[j].u.team === me.team) allyName = false;   // 毎コマ配列を作らない
-    const nameLimit = rt.def.nameTagLimit == null ? (gs && !gs.hidden ? 1 : 2) + (allyName ? 1 : 0) : Math.min(NAMES, rt.def.nameTagLimit);
+    // 11/9 天王寺19・前の声4：一、二人の制限で大谷吉治などの名を消さない。
+    // 全戦で既存の十二枚を使い、見通し・距離・重なりの判定は保つ。
+    const nameLimit = rt.def.nameTagLimit == null ? NAMES : Math.min(NAMES, rt.def.nameTagLimit);
     if (shown >= nameLimit) { if (!it.e.hidden) it.e.hidden = true; continue; }
     // 11/6 共通の係：上へ積むと、遠くの小さな将の名が空に浮き、下に誰もいないように見えた（手取川・天王寺・久瀬川）。
     //   名札は頭の上か、本人の体へ下げる向きだけに動かす（上へは逃がさない）

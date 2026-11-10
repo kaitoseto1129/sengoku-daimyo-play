@@ -52,7 +52,8 @@ export function tick(rt, ctx) {
   } else if (S.k === 1) {
     const G = ctx.store;
     const at = Math.hypot(p.x - G.x, p.z - G.z) < 8;
-    if (at) {
+    // 蔵で俵を確かめた時も、足軽の声と五秒後の組頭の声を聞いてから下知へ進む。
+    if (at && t >= 10) {
       next(rt, S);
       sfx('horagai', 0.5);
       rt.say('使番', '平井山より！　「城を力で攻めるな。囲みを締め、兵糧の道を一つ残らず断て」との仰せ', 5);
