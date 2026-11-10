@@ -663,7 +663,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick(rt);
-    depthTick(rt, dt);
+    // 夜明けの締めでは段を更新しない。味方が減った時の共通の補充で、
+    // 「もう一押し」と新手が現れ、追うなという下知を壊すのを防ぐ。
+    if (!F.ending) depthTick(rt, dt);
     // 夜明けの締めでも松明は消す。段が終わった同じコマに攻撃指示を戻さない。
     const T = F.torches;
     if (T && T.pts.visible) {

@@ -726,13 +726,19 @@ function tanoHamlet(rt) {
   // 杉の樹冠を四段の枝の層に分け、縁を不ぞろいに崩す。木ごとに暗い緑の濃さと色味を変える。形は一つを使い回す。
   const tiers = [];
   for (let k = 0; k < 4; k++) {
-    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 9, 1, false);
+    // 閉じた九角錐の底面を枝の途中の輪へ回す。三角形の数は同じで、山肌の杉を平たい積み木にしない。
+    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 6, 2, true);
     const p = tier.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const y = p.getY(i);
-      if (y > 0) continue; // 先は揃えたまま、裾だけ崩す
-      const a = Math.atan2(p.getZ(i), p.getX(i)), j = 1 + 0.16 * Math.sin(a * 3 + k * 1.9) + 0.1 * Math.sin(a * 5 - k);
-      p.setX(i, p.getX(i) * j); p.setZ(i, p.getZ(i) * j); p.setY(i, y - 0.05 * Math.abs(Math.sin(a * 5 + k)));
+      if (y > h * 0.25) continue;
+      const a = Math.atan2(p.getZ(i), p.getX(i)), middle = y > -h * 0.25;
+      const j = (middle ? 1.55 : 0.84) * (1 + 0.2 * Math.sin(a * 3 + k * 1.9) + 0.12 * Math.sin(a * 5 - k));
+      // 中ほどの枝先を裾と違う向きへ張り出し、幹へ下がる葉房を作る。
+      const turn = middle ? 0.32 : 0, x = p.getX(i), z = p.getZ(i);
+      p.setX(i, (x * Math.cos(turn) - z * Math.sin(turn)) * j);
+      p.setZ(i, (x * Math.sin(turn) + z * Math.cos(turn)) * j);
+      p.setY(i, y - h * 0.15 * Math.abs(Math.sin(a * 5 + k)));
     }
     // 七角形の七倍の波は各頂点で同じ値になり、段の角も上下に揃っていた。
     // 枝の段をずらして回し、円錐の稜線が幹の上下へ一直線に続くのを防ぐ。
@@ -741,7 +747,8 @@ function tanoHamlet(rt) {
   }
   const sugiGeo = mergeGeometries(tiers); sugiGeo.computeVertexNormals();
   // 日の当たる面が深い緑に見えるよう、葉に弱い自己の明るみを足す（暗い谷でも黒い影にしない。10/29 採点）。
-  const cones = new THREE.InstancedMesh(sugiGeo, new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x0e1a0c }), 1450);
+  // 谷から見上げても枝の裏が消えないよう、底板を持たない葉房の両面を描く。
+  const cones = new THREE.InstancedMesh(sugiGeo, new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x0e1a0c, side: THREE.DoubleSide }), 1450);
   const leaf = new THREE.Color(), leafA = new THREE.Color(0x4a6a38), leafB = new THREE.Color(0x66804a); // 逆光でも黒い切り紙にしない（10/29 撮り）
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.7, 1, 5), new THREE.MeshLambertMaterial({ color: 0x7a4128 }), 1450); // 杉の赤茶の幹
   let ci = 0;

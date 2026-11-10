@@ -221,6 +221,8 @@ const t06_hetsugi = {
     // 防戦・救援は着いてから続く。共通が読む hide を指定し、
     // 到着半径と再表示の一歩半のゆとりの内でも行き先を消さない。
     q.hide = -2;
+    // 画面上の行き先印は hideDistance を読む。防戦地点に着いても消さない。
+    q.hideDistance = -2;
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;
     return q;
   },
