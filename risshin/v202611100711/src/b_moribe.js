@@ -3039,7 +3039,10 @@ const moribe = {
     //   「▼の敵を倒せ」「耐えろ」「仲間を待て」のような場所の無い言い方はやめる（11/6 fix3：質の直しで消えたのを戻した）。
     const f = fiveGoals(rt);
     if (f && f.rows.length) {
-      const i = beforeSignal && !atFord ? 0 : f.now >= 0 ? f.now : f.rows.length - 1;
+      // 南岸で下知を待つ目標が先頭に増えたため、渡河を一番目として表示しない。
+      // 上陸して仲間を待つ間も、同じ渡河の目標番号を保つ。
+      const crossing = beforeSignal ? f.rows.findIndex((r) => r.text === '楡俣川を渡り、向こう岸へ上がる') : -1;
+      const i = crossing >= 0 ? crossing : f.now >= 0 ? f.now : f.rows.length - 1;
       return `${i + 1}／${f.rows.length}　${openingText || f.rows[i].text}`;
     }
     // 目標の準備前は、今の行いを示す従来の案内を使う。
