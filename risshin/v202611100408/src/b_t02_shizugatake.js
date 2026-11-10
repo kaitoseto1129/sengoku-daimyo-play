@@ -318,6 +318,8 @@ const t02_shizugatake = {
   // 奥の乱戦の補い（front_fill）は置かない：史実でいない所に軍勢を置かない・見せかけの軍勢を出さない（kaito AP10・AQ6）
   noFrontFill: true,
   enemyTactics: false,
+  // 七段の敵と援軍は段ごとの下知で動かす。「秀吉を迎える」で敵を本陣へ呼ばず、丹羽の控えも引き出さない。
+  noGoalFoe: true,
   noFieldMap: true,
   // 11/6 九3：両軍の棒は出す（shizuBoard）。hideArmyPeek を外す
   missionSingleLine: true,
@@ -460,13 +462,13 @@ const t02_shizugatake = {
     // ---- 佐久間盛政の本隊（八千ほど）：大岩山の砦の跡に居座る本物の塊。見せかけの軍勢は置かない（kaito AF・AQ6） ----
     //   盛政は旗本の侍に囲まれ、前に出ない（討てない）。後の段で湖の西の岸を退く
     F.saku = enemyGroup(rt, { ...SAKUMA, name: '佐久間盛政の本隊', anchor: { x: OIWA.x - 4, z: OIWA.z - 70 }, facing: Math.PI * 0.85, fleeDir: { x: -0.3, z: -1 }, width: 8, morale: 90,
-      order: 'hold', aggro: 0, seekRange: 0, noRout: true, dmgMult: 0.4 },
+      order: 'hold', aggro: 0, seekRange: 0, noAI: true, noRout: true, dmgMult: 0.4 },
     [{ type: 'samurai', n: 4, o: { flag: SAKUMA.flag } }, ...foeList(26, { flag: SAKUMA.flag })]);
     F.saku.kind4 = 'main'; F.groups.push(F.saku);
     // 11/7 critic60（五2・十三3「盛政が一度も見えない」）：盛政と旗本二騎は本隊の前の小さな組。①で物見の下（四十ほど）まで馬を進め、
     //   名と姿を見せて下知する（討てない・打ちかからない）。後の段は本隊と一緒に動く
     F.mori = enemyGroup(rt, { ...SAKUMA, name: '佐久間盛政の旗本', anchor: { x: OIWA.x + 2, z: OIWA.z - 62 }, facing: Math.PI * 0.85, fleeDir: { x: -0.3, z: -1 }, width: 3, morale: 99,
-      order: 'hold', aggro: 0, seekRange: 0, noRout: true, dmgMult: 0.3 },
+      order: 'hold', aggro: 0, seekRange: 0, noAI: true, noRout: true, dmgMult: 0.3 },
     [{ type: 'busho', n: 1, o: { name: '佐久間盛政', invuln: true, horse: true, flag: SAKUMA.flag } }, { type: 'cavalry', n: 2, o: { flag: SAKUMA.flag } }]);
     F.mori.kind4 = 'main'; F.groups.push(F.mori);
     // ---- 砦の守り（桑山重晴の手。千ほど） ----
@@ -474,7 +476,7 @@ const t02_shizugatake = {
       [{ type: 'busho', n: 1, o: { name: '桑山重晴', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 4 }]);
     // 前田隊は開戦時から茂山に置く。遠景もこの隊を読み、陣払いの後に別の隊を残さない。
     F.maedaG = enemyGroup(rt, { faction: 'nobukatsu', flag: 'maeda', name: '前田利家の隊', anchor: { x: SHIGE.x - 4, z: SHIGE.z - 24 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5, morale: 90,
-      order: 'hold', aggro: 0, seekRange: 0 },
+      order: 'hold', aggro: 0, seekRange: 0, noAI: true },
     [{ type: 'busho', n: 1, o: { name: '前田利家', invuln: true, horse: true, flag: 'maeda' } }, { type: 'samurai', n: 3, o: { flag: 'maeda' } }, { type: 'ashigaru', n: 10, o: { flag: 'maeda', flagScale: 1 } }]);
     F.maedaG.kind4 = 'maeda'; F.groups.push(F.maedaG);
     for (const u of F.maedaG.units) u.noTarget = true;
@@ -525,7 +527,7 @@ const t02_shizugatake = {
     F.saku.order = 'move'; F.saku.dest = { x: -6, z: 214 }; F.saku.speed = 2; F.saku.onArrive = (q) => { q.order = 'hold'; };
     rt.after(8, () => { if (live(F.mori)) { F.mori.order = 'move'; F.mori.dest = { x: 2, z: 222 }; F.mori.speed = 2; F.mori.onArrive = (q) => { q.order = 'hold'; }; } });
     // 丹羽長秀の隊（二千ほど）：飯浦の切通しを上がって砦の西へ
-    F.niwaG = allyGroup(rt, { name: '丹羽長秀の隊', fullStrength: true, anchor: { x: -118, z: 268 }, facing: 0.6, width: 5, aggro: 6, order: 'move', dest: { x: MOUTH.x - 8, z: MOUTH.z - 15 }, speed: 2.6, noRout: true },   // 東の口の北の脇（柵の外。口は東だけ）
+    F.niwaG = allyGroup(rt, { name: '丹羽長秀の隊', fullStrength: true, anchor: { x: -118, z: 268 }, facing: 0.6, width: 5, aggro: 6, order: 'move', dest: { x: MOUTH.x - 8, z: MOUTH.z - 15 }, speed: 2.6, noAI: true, noRout: true },   // 東の口の北の脇（柵の外。口は東だけ）
     // 11/6 九2（描いて遊んだ）：丹羽の隊と物見の組が口から 30 も前へ出て寄せ手を止め、東の口で守る主人公が寄せ手と一度しか当たらなかった。口の脇で構え、口へ来た寄せ手と組む
       [{ type: 'busho', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: NIWA } }, { type: 'samurai', n: 3, o: { flag: NIWA } }, { type: 'ashigaru', n: 9, o: { flag: NIWA, flagScale: 1 } }, { type: 'gun', n: 3, o: { flag: NIWA } }]);
     F.niwaG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; };

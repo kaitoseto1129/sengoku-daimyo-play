@@ -2238,7 +2238,7 @@ const nagashima = {
   keepTaskWithDodge: true, // 回避の印が出ても、岸を守る下知と残り時間を残す。
   keepRetreatReason: true, // 退く行き先を「ここへ」に縮めず、味方の後ろへ下がる目的を残す。
   keepWoundRetreatReason: true, // 出血中も共通の「旗まで」に戻さず、手当てと退避先の案内を使う。
-  distanceUnit: 'steps',
+  distanceUnit: 'metres', // 行き先は場所の名と距離だけ。「あと」「すぐ近く」を添えない。
   namedGuideMarkers: true, // 横木・見張り場・東の柵を、行き先の印でも区別する。
   // 作業場と見張り場を、同じ「ここへ」の札にしない。
   travelGuideLabel(rt) {
@@ -4046,13 +4046,13 @@ const nagashima = {
         u.pos.set(at.x, at.y, at.z); u.moving = move / dt;
       } else u.moving = 0;
     }
-    // 11/8 critic60 長島（一3）：降る前の対岸の柵の守りも立ち尽くさない。柵の内を左右へ見回りして歩く（追って川へは出ない）
+    // 対岸の守りは降伏後も舟入の内を見回る。川へ出ず、五秒以上立ち尽くさない。
     { const gd = F.ikkoCamp?.guard;
-      if (gd && F.step < 2 && !F.ending && rt.t >= (F.gdPatrolT ?? 6)) {
+      if (gd && rt.t >= (F.gdPatrolT ?? 2)) {
         F.gdBase ||= { x: gd.anchor?.x ?? 0, z: gd.anchor?.z ?? -60 };
-        F.gdSide = -(F.gdSide || 1); F.gdPatrolT = rt.t + 9 + Math.random() * 4;
+        F.gdSide = -(F.gdSide || 1); F.gdPatrolT = rt.t + 4;
         gd.noAI = false; gd.aggro = 0; gd.seekRange = 0; gd.order = 'hold';
-        gd.anchor = { x: F.gdBase.x + F.gdSide * 6, z: F.gdBase.z };
+        gd.anchor = { x: F.gdBase.x + F.gdSide * 6, z: F.step >= 2 ? FORT.z - 22 : F.gdBase.z };
       } }
     // 開戦の小競り合いの片付け：物見が尽きるか、開戦45秒か、降伏の報せで、残る物見は舟へ逃げ、助けの槍組は元の控えへ戻る
     // 開戦八秒：川の中ほどの物見が一つの塊で岸へ押し渡り、本人を目がけて寄せる（本人が深手の時は近くの味方へ）
