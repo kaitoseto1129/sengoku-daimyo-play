@@ -17,7 +17,7 @@ const fighting = u => u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rea
 export function install(rt, ctx) {
   const F = rt.flags, S = F.nodaSuiro = { k: 0, t0: rt.t, done: false, at: MI };
   const live = () => !S.done && !F.ending && !rt.over && !F.step;
-  rt.marker('nodaMi', MI, '葦の水路');
+  rt.marker('nodaMi', MI, '葦の水路', { guideAlways: true, alwaysDistance: true });
   rt.after(4.5, () => live() && rt.say('前田利家', '下知の前に、水路の先の砦を見て来い。堤の東の端から葦へ下りよ', 4));
   rt.after(16, () => live() && rt.say('足軽', '泥が深い……足を取られるぞ。葦の根を踏め', 3));
   rt.after(34, () => { if (!live()) return; try { sfx('gun', 0.6); } catch (e) { /* 音が無くても進む */ } rt.say('組頭', '砦の狭間から撃って来おる。堤の陰を伝え', 3); });
@@ -28,7 +28,7 @@ export function install(rt, ctx) {
   function seen() {
     if (S.k !== 0) return;
     S.k = 1; S.spawnAt = rt.t + 5;
-    rt.unmark('nodaMi');
+    // 鉄砲を追い払う間も岸の行き先を残す。敵の赤い印は道案内に選ばれない。
     for (const n of ['三好長逸', '岩成友通', '三好康長']) { try { revealName(rt, n); } catch (e) { /* 名の無い将は飛ばす */ } }
     rt.award((t) => { t.side.push('水路の先の野田・福島の砦を見届けた'); t.special = { label: '砦の構えを見届けた', pts: 10 }; }, '二つの砦を見届けた', MI);
     rt.say('前田利家', 'よう見た。川向こうの中が福島、西が野田。塀の狭間に雑賀の鉄砲衆が籠もる', 4);

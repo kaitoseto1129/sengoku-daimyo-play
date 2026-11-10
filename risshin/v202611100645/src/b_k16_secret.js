@@ -533,7 +533,7 @@ const k16_secret = {
       both(HONDA_AT);
       atk(F.honda, { x: HONDA_AT.x, z: HONDA_AT.z + 14 }, 30);
       rt.after(1, () => rt.say('本多正純', '大御所様の御前ぞ！　一人も通すな！', 3));
-      rt.after(5, () => rt.say(nm(rt), '狙うは家康の首ひとつ！', 2.8));
+      rt.after(5, () => rt.say(nm(rt), '家康の本陣へ！　この戦を終わらせる！', 2.8));
     } else if (n === 5) {
       F.stepG = F.hon;
       if (F.ieyasu) F.ieyasu.invuln = false;
@@ -685,6 +685,8 @@ const k16_secret = {
       if (u.target && inside !== inCamp(u.target.pos)) u.target = null;
       if (u.atk?.target && inside !== inCamp(u.atk.target.pos)) u.atk = null;
       if (u.swing?.target && inside !== inCamp(u.swing.target.pos)) u.swing = null;
+      // 鍔迫り合いも相手を別に覚える。幕で隔てられた後の押し倒しを残さない。
+      if (u.bind?.o && inside !== inCamp(u.bind.o.pos)) u.bind = null;
     }
     // 家康の段：家康が倒れれば勝ち（旗本が減っても家康は床几から逃げない）
     if (F.step === 5) {
@@ -694,8 +696,14 @@ const k16_secret = {
       if (F.talk && ie && ie.alive && rt.t - F.talk >= 9.6) { this.win(rt); return; }
       if (!F.talk && ie && ie.alive && inCamp(P.pos) && dist(ie.pos, P.pos) < 13) {
         F.talk = rt.t; F.engagedT = rt.t; ie._crouch = false;
-        // 近習も手を止める（言葉の間に本人を斬らせない）
-        if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u !== ie) { u.target = null; u.atk = null; u.swing = null; }
+        // 会話の間は本陣が狙い直さない。一度刃を消すだけでは次の思考で斬り始める。
+        if (F.hon) {
+          F.hon.peaceful = true; F.hon.fire = false;
+          for (const u of F.hon.units) if (u.alive) {
+            u.noTarget = true; u.invuln = true;
+            u.target = null; u.atk = null; u.swing = null; u.bind = null;
+          }
+        }
         rt.player.u.invuln = true;
         rt.say('徳川家康', '信長公も、秀吉公も、天下を取った。だが天下とは、取るものではない', 3.4);
         rt.after(3.6, () => rt.say('徳川家康', '治めるものよ', 2));

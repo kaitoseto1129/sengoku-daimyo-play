@@ -15,7 +15,7 @@ export function start(rt, ctx) {
   const F = rt.flags;
   if (F.nodaEguchi) return;
   const S = F.nodaEguchi = { t0: rt.t, done: false, k: 0, at: DEST };
-  rt.marker('nodaEguchi', DEST, '江口の渡し', { h: 3 });
+  rt.marker('nodaEguchi', DEST, '江口の渡し', { h: 3, guideAlways: true, alwaysDistance: true });
   for (const g of ctx.friends) if (g && g.count && !g.routed) {
     g.onArrive = null; g.order = 'move'; g.noAI = false; g.dest = { x: DEST.x + (Math.random() - 0.5) * 16, z: DEST.z - 10 - Math.random() * 10 };
   }

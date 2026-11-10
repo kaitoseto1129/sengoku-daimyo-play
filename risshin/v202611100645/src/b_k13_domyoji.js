@@ -220,8 +220,11 @@ function matabeiDown(rt, shot = false) {
 
 // 又兵衛は頂で待たず、山を西から東へ駆け下りて槍を入れる（史実：数度押し返し、最後は隊を二つに分けて突っ込んだ）
 function matabeiCharge(rt) {
+  // 早く又兵衛を討った時も、後に残った突撃の予約で敗走を取り消さない。
+  if (rt.flags.matabei || rt.flags.ending || rt.over) return;
   for (const g of rt.army.groups) {
-    if (g.team !== 1 || !/後藤/.test(g.name || '') || !g.count) continue;
+    if (g.team !== 1 || !/後藤/.test(g.name || '') || !g.count || g.routed ||
+        g.order === 'retreat' || g.order === 'flee') continue;
     const p = rt.player.u.pos;
     // 石川へ下りた本人を追って西へ突撃せず、頂から東の斜面を押し返す。
     g.calm = false; g.order = 'attack'; g.seekRange = 35; g.aggro = 30;
@@ -571,7 +574,8 @@ const k13_domyoji = {
   // ④の前：伊達勢（片倉の鉄砲が先・政宗はその後ろ）が誉田の野へ出て、西へ向いて鉄砲を並べる
   dateToHonda(rt) {
     const F = rt.flags;
-    const put = (g, x, z, o = {}) => { if (!g || !g.count) return; g.calm = false; g.order = o.order || 'attack'; g.seekRange = o.seek || 40; g.anchor = { x, z }; if (o.line) g.formation = 'line'; };
+    if (F.ending || rt.over) return;
+    const put = (g, x, z, o = {}) => { if (!g || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee') return; g.calm = false; g.order = o.order || 'attack'; g.seekRange = o.seek || 40; g.anchor = { x, z }; if (o.line) g.formation = 'line'; };
     put(F.katakura, HONDA.x + 6, HONDA.z - 8, { line: true });
     put(F.date, HONDA.x + 10, HONDA.z + 8, { line: true });
     put(F.masamune, HONDA.x + 34, HONDA.z - 4, { order: 'hold' });
