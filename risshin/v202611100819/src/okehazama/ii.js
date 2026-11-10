@@ -69,7 +69,6 @@ export function target(rt) {
 export function pin(rt) {
   const u = target(rt);
   if (!u) return null;
-  const P = rt.player.u.pos;
-  if (Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 14) return null;
+  // 近い戦いでも、次に進む場所のピンを残す。
   return { x: u.pos.x, z: u.pos.z, r: 6, hide: 6, key: 'o15-ii', always: true, area: true };
 }

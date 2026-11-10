@@ -2128,7 +2128,8 @@ const saika = {
   noDespair: true,
   compactIntro: true,
   introTaskFirst: true, // 最初の行き先と操作を、人物・川岸の補足より先に読む。
-  distanceUnit: 'steps',
+  noGroundGuide: true, // 通し確認に残った足元の印を止め、行き先の印を残す。
+  noTravelArrow: true, // 道案内専用の足元・画面端の矢印も出さない。
   flagDirectionOnly: true, // 歩数は任務にある。添える行は向きだけにして二重表示を避ける。
   compactTravelArrow: true, // 道案内は行き先の短い矢印。手前の兵を太い帯で隠さない。
   singleRouteGuide: true, // 道筋が描けた時は足元からの案内線を重ねず、行き先の印を残す。

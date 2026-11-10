@@ -5564,7 +5564,7 @@ const inabayama = {
       if (F.step === 0 && !F.joinedKino && !F.ending && !rt.over) rt.say(officer(rt), '今日は風が強い。井口の町に火をかける。まず話を聞け', 4);
     });
     // 話を聞くまでは旗を動かさず、町の敵の手前で下知を渡す。
-    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '木下藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: 'この人と話そう', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
+    rt.marker('kino', () => F.kinoU.alive ? F.kinoU.pos : null, '木下藤吉郎', { group: F.kino, guideAlways: true, guidePerson: () => F.kinoU, guideFootRing: true, guideRadius: 8, guideName: '木下藤吉郎と話す', guideTalk: true, guideVisibleOnly: true, guideCompact: true });
     F.talkKino = () => {
       if (F.joinedKino || F.step !== 0) return;
       F.joinedKino = true; rt.uninteract('talk');
@@ -7315,14 +7315,7 @@ const inabayama = {
           rt.say(officer(rt), 'そこでよい。柴を積んで、その場で合図の火を上げよ', 3);
         }
       }
-      // 11/10 城攻め共通「一か所で詰まっても別の隊が救う」：合図の火が出て七十五秒、本人が本丸の三十歩内にいても付けられない時は、
-      //   藤吉郎の手が柴に火を付ける（act が火付け口の七歩横に立ったまま刻限切れ・980秒）
-      if (F.sig && !F.sigByKino && (rt.t - (F.sigT0 ?? (F.sigT0 = F.sigT)) > 75 || F.sigMoved && rt.t - F.sigT > 30) && rt.player.u.alive && !rt.retryOpen
-        && Math.hypot(rt.player.u.pos.x - F.sig.x, rt.player.u.pos.z - F.sig.z) < 80) {
-        F.sigByKino = true;
-        rt.say('木下藤吉郎', '火はわしらが付ける！　合図じゃ！', 3);
-        rt.after(2.5, () => { if (!rt.over && !F.ending) this.win(rt); });
-      }
+      // 火付け口を移した後も、本人の着火を待つ。待ち時間だけで任務を果たした扱いにしない。
       if (F.sig && rt.t - F.sigT > 20 && !F.sigCall) { F.sigCall = true; rt.say(officer(rt), F.carry ? '竹束を置いて手を空けよ。それから合図の火じゃ' : F.sigMoved ? '柴に火を付け、本陣へ合図を送れ' : inabaSignalDetour(rt) ? '道の印へ。建物の外を回って小屋へ行け' : '小屋の手前の印じゃ。火を付けて合図を送れ', 3); }
     }
   },
