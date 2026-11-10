@@ -37,7 +37,11 @@ export const ADV_POINTS = P;
 // 生きて戦える者の数（崩れた・逃げた・深手の者を除く）
 function fighters(C) {
   let n = 0;
-  for (const g of C.groups) if (!g.routed) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.downed) n++;
+  for (const g of C.groups) if (!g.routed) for (const u of g.units) {
+    // 深手で後送された者や武器を捨てた者を、残る守兵として探させない。
+    if (u.alive && u.hp > 0 && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
+        !u.rearWound && !u.downed && !u.noTarget && !u.civ && !u.isStruct) n++;
+  }
   return n;
 }
 // 制圧の段：本人が持ち場へ進み、寄せた数の ratio が崩れたら残りは奥へ退く。
