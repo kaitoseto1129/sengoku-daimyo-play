@@ -14,7 +14,8 @@ function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.flags.ending)
 function defending(g) {
   if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') return 0;
   let n = 0;
-  for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget) n++;
+  // 番所から離れた残兵を追わせない。地図の端で詰まった兵は番所を守っていない。
+  for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && Math.hypot(u.pos.x - BANSHO.x, u.pos.z - BANSHO.z) <= 35) n++;
   return n;
 }
 

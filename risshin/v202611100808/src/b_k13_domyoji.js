@@ -558,8 +558,7 @@ const k13_domyoji = {
         waves: [
           { t: 4, say: ['足軽', '毛利の手じゃ！　鉄砲を揃えて来る！'], foes: () => [keep('毛利勝永の手', HONDA, [{ type: 'busho', n: 1, o: { name: '毛利勝永', invuln: true, horse: true, hat: 'kabuto_m' } }, uS(4), uA(10), uG(8)], { dx: -40, dz: 14, noRout: 30 })] },
           // 真田は誉田陵の堀と土手に折り敷いて伏せ、片倉の寄せを引きつけて一斉に撃つ。伊達勢は一度押し戻される
-          { t: 22, say: ['真田信繁', '折り敷け。引きつけて撃て。まだじゃ……放て！'], foes: () => { rt.after(1.5, () => this.datePushed(rt)); return [keep('真田信繁の手', HONDA, [{ type: 'busho', n: 1, o: { name: '真田信繁', invuln: true, horse: true, ...SANADA } }, ...dress([uS(5), uA(10), uG(8)], SANADA)], { dx: -18, dz: 34, noRout: 30, dmg: 0.6 })]; } },
-          { t: 30, say: ['足軽', '赤備えじゃ！　誉田陵の堀から撃って来る！　伊達殿が押し戻される！'], foes: () => [] },
+          { t: 22, say: ['真田信繁', '折り敷け。引きつけて撃て。まだじゃ……'], foes: () => { rt.after(1.5, () => this.datePushed(rt)); return [keep('真田信繁の手', HONDA, [{ type: 'busho', n: 1, o: { name: '真田信繁', invuln: true, horse: true, ...SANADA } }, ...dress([uS(5), uA(10), uG(8)], SANADA)], { dx: -18, dz: 34, noRout: 30, dmg: 0.6 })]; } },
         ],
         reward: '誉田で真田・毛利の寄せを止めた' }),
       // ⑤ しんがり（信繁・勝永は討てず、大坂へ退く）
@@ -618,8 +617,10 @@ const k13_domyoji = {
     sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
     sanada.anchor = { x: HONDA.x, z: HONDA.z };
     for (const u of sanada.units) u._crouch = false;
+    rt.say('真田信繁', '今じゃ、放て！', 2);
     rt.army.play('volley', gunner.pos, 1.6);
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
+    rt.say('足軽', '誉田陵の堀から撃って来る！　伊達殿が押し戻される！', 3);
     rt.after(12, () => { if (g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee' && !F.ending && !rt.over && F.dp?.i === 5) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
   },
   // ⑤：誉田の村の民家に火（夕暮れ）

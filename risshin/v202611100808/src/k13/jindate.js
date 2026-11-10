@@ -46,6 +46,12 @@ export function tick(rt, dt) {
     }
     return;
   }
+  // 本物の片倉隊が待ち伏せで押し戻された時、後ろの伊達勢も退く。
+  // 段の始まりからの時刻だけでは、射撃を待っている間にも退いてしまう。
+  if (!st.datePushed && F.pushedUntil > rt.t) {
+    st.datePushed = true;
+    try { M.dateH?.retreat(16, 10); } catch (e) { /* 無くても進む */ }
+  }
   // 又兵衛が果てた直後：使番「真田隊、来ます！」。西の遠くに真田・毛利の大軍
   if (F.matabei && !st.sanadaCall) {
     st.sanadaCall = true;
@@ -101,8 +107,6 @@ export function tick(rt, dt) {
       const J = allyGroup(rt, { faction: 'tokugawa', name: '神保相茂の手', fixed: true, anchor: { x: HONDA.x + 30, z: HONDA.z + 22 }, facing: WEST, width: 6, aggro: 12, order: 'attack', seekRange: 40, speed: 4.2, noRout: true, dmgMult: 0.7 },
         [{ type: 'busho', n: 1, o: { name: '神保相茂', invuln: true, horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: n(5, 7) }, { type: 'gun', n: 2 }]);
       J.anchor = { x: HONDA.x + 10, z: HONDA.z + 14 };
-      // 真田の待ち伏せで伊達の本隊も押し戻される
-      rt.after(26, () => { try { M.dateH?.retreat(16, 10); } catch (e) { /* 無くても進む */ } });
     } else if (i === 6) {
       // ⑤：真田の騎馬が殿を斬り払う。大軍は後ろから退き始める
       const E = enemyGroup(rt, { faction: 'toyotomi', name: '真田の騎馬', fixed: true, anchor: { x: HONDA.x - 60, z: HONDA.z + 10 }, facing: EAST, width: 6, aggro: 16, order: 'attack', seekRange: 50, speed: 6, noRout: true, dmgMult: 0.5, morale: 100 },

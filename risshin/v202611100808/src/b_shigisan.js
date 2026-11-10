@@ -2338,6 +2338,7 @@ const shigisan = {
       ? '先手と尾根の敵を退けよ' : '先手と尾根道を進め';
     if (F.step === 2) return '門の右脇で打ち手を守れ';
     if (F.step === 3) return '門の印で、掛矢を使い続けよ';
+    if (F.step === 3.2) return '土橋で、打って出た松永勢を退けよ';
     if (this.castleFightNeeded(rt)) return F.step === 4 ? '先手と本丸の敵を討て' : '先手と曲輪の敵を討て';
     if (F.castleGuideArrived) return F.step === 4 ? '先手と本丸の南口を守れ' : '先手と曲輪を取れ';
     return F.step === 4 ? '西の尾根道から、本丸の南口へ' : '門を抜け、西の道から曲輪へ';
@@ -2401,6 +2402,8 @@ const shigisan = {
     }
     // 炎上中は館の前から南口の外へ退く。古い道の終点で待たせない。
     if (F.paceEnjou && !F.enjouDone) return 'enjou';
+    // 敵が門内から出て来る間も、土橋の持ち場を示す。
+    if (F.step === 3.2) return 'sallyPost';
     if (F.castleGuideBlocked) return null;
     // 尾根で戦う間は敵の奥へ進ませない。道へ戻る時と門前待機は印を残す。
     if (this.taskLabel(rt, '') === '先手と尾根の敵を退けよ' || this.castleFightNeeded(rt)) return null;
@@ -3251,12 +3254,13 @@ const shigisan = {
     if (!gone(F.arch)) { F.arch.fixed = false; F.arch.anchor = { x: GATE.x + 14, z: GATE.z - 5 }; F.arch.order = 'hold'; }
     const at = centerOf(S);
     rt.marker('sally', () => (gone(S) || F.step !== 3.2 ? null : at()),'打って出た松永勢', { red: true, group: S });
+    rt.marker('sallyPost', { x: GATE.x, z: GATE.z + 6 }, '土橋', { guideAlways: true, guideNear: 2 });
   },
   // 迎え撃った兵が崩れて門内へ退く。その背に続いて門を抜ける（付け入り）。
   tsukeiri(rt) {
     const F = rt.flags;
     if (F.step !== 3.2) return;
-    rt.unmark('sally');
+    rt.unmark('sally'); rt.unmark('sallyPost');
     const S = F.sally;
     if (!gone(S)) {
       const g0 = ROAD.findIndex((p) => p[1] === GATE.z), a1 = ROAD.findIndex((p) => p[0] === RIDGE1.x && p[1] === RIDGE1.z);
@@ -3282,7 +3286,7 @@ const shigisan = {
     // 寺の火は始まりからの燻り（11/5：毘沙門堂は十月四日に焼けた。十日の夜攻めの最中に燃え出すのは史実と合わない）。
     rt.setPhase('interior'); rt.objProgress('main', '');
     rt.uninteract('ramgate'); rt.uninteract('tower'); rt.unzone('tower');
-    for (const id of ['tower', 'gate', 'sally', 'gather']) rt.unmark(id);
+    for (const id of ['tower', 'gate', 'sally', 'sallyPost', 'gather']) rt.unmark(id);
     for (const o of rt.objectives.slice()) if (o.id.startsWith('yagura_take_')) { rt.objRemove(o.id); rt.unmark(o.id); }
     for (const id of Array.from(rt.orderObjectives?.keys() || [])) if (id.startsWith('yagura_take_')) rt.objRemove(id);
     rt.award((t) => t.side.push('門を破った'), '門を破った');
@@ -3985,7 +3989,8 @@ const shigisan = {
       //   四十秒を過ぎたら、門の外へ打って出た兵だけを数える（門の内に残る兵は付け入りで曲輪へ退く）。
       let n = 0;
       const late = rt.t - F.stepT > 40;
-      for (const u of F.sally.units) if (u.alive && !u.fleeing && !u.woundOut && (!late || u.pos.z > GATE.z - 2)) n++;
+      // 倒れた者や捕らえられた備を残敵に数え、付け入りを止めない。
+      for (const u of F.sally.units) if (siegeFighter(u) && (!late || u.pos.z > GATE.z - 2)) n++;
       rt.objProgress('main', `打って出た松永勢　残り${n}人`);
       if (n <= Math.max(3, Math.round(F.sallyN * 0.3))) this.tsukeiri(rt);
     }
@@ -4068,6 +4073,8 @@ const shigisan = {
     }
     if (rt.t - F.advanceT < 30) return;
     F.advanceT = rt.t; rt.unmark('gather');
+    // 土橋で迎え撃つ間は持ち場を保つ。登城道の終点へ戻すと打ち手から離れてしまう。
+    if (F.step === 3.2) return;
     if (F.step === 2) {
       // 近くの先手が打ち手の守りを引き継ぐ。
       for (const g of F.oda) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 18) { this.coverTower(rt, false); return; }
