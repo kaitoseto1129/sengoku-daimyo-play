@@ -828,10 +828,13 @@ const k03_gifu = {
     // 山道は道の点を一つずつ辿る（まっすぐ行き先へ向かうと、百曲りの下の斜面で石垣に突っかかって止まった）
     //   味方の隊と同じ wayNext で、道の一つ先の曲がり角へ
     const q = wayNext(u.pos, t, B.w || (B.w = { x: 0, z: 0 }));
+    let stopRadius = 2;
     // 上台所の内からは奥の口（-26, -1.5）の真ん中を通す（口の北の石垣に突っかかって十分止まった。11/9 bot）
     if (F.step === 5 && u.pos.x > -40 && u.pos.x < -26.5 && Math.abs(u.pos.z) < 8 && Math.abs(u.pos.z + 1.5) > 1) {
       // 口の北（z>0.5）の x -31 より東は南へ出られない当たりがある（11/9 描かずの確かめ）。一度西へ下がってから口の筋へ
       if (u.pos.z > 0.5 && u.pos.x > -31.5) { q.x = -33; q.z = -0.5; } else { q.x = -28; q.z = -1.5; }
+      // 口の筋へ寄せる判定は幅1m。2m手前で到着にすると、筋に入れず同じ点で止まり続ける。
+      stopRadius = 0.5;
     }
     // 足が止まったら（十二秒で二歩も動かない）、三秒だけ横へ外して回り込む（居館の門の脇で十五分止まった。11/9 bot）
     const sp = B.sp || (B.sp = { x: u.pos.x, z: u.pos.z, t: b.t, side: 0, until: 0 });
@@ -841,7 +844,7 @@ const k03_gifu = {
       const dx = q.x - u.pos.x, dz = q.z - u.pos.z, d = Math.hypot(dx, dz) || 1;
       q.x = u.pos.x - dz / d * 6 * sp.side + dx / d * 2; q.z = u.pos.z + dx / d * 6 * sp.side + dz / d * 2;
     }
-    goTo(p, inp, q.x, q.z, 2);
+    goTo(p, inp, q.x, q.z, stopRadius);
   },
 };
 

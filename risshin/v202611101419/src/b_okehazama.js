@@ -1217,7 +1217,7 @@ const okehazama = {
   },
   missionPin(rt) {
     const F = rt.flags;
-    if (rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
+    if (!F.victory && rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
     { const o = O15.pin(rt); if (o !== undefined) return o; }
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
     // 集合後も同じピンを保ち、穴が満ちる円の満ち具合だけで待ち終わりを示す。
@@ -3154,8 +3154,11 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 組が到着済みなら、兵に押されて五歩の輪へ入れなくても十二歩以内で合流とする。
     // 谷の途中では広げず、旗について出口まで来た本人を九十秒待たせない。
     const goalDistance = goalP ? Math.hypot(me.x - goalP.x, me.z - goalP.z) : Infinity;
-    const atGoal = this.squadFlagReached(rt) || (host?.arrived && goalDistance <= 12) ||
-      (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && goalDistance < 30);
+    // 混雑を救う広い合流範囲も、斜面や遮蔽物の向こう側からは果たさない。
+    const nearGoal = goalP && Math.abs(me.y - rt.world.heightAt(goalP.x, goalP.z)) < 3 &&
+      !rt.army.wallBetween(me, -1, goalP) && !rt.army.terrainBlocks(me, goalP);
+    const atGoal = this.squadFlagReached(rt) || nearGoal && ((host?.arrived && goalDistance <= 12) ||
+      (F.hostArrivedAt != null && rt.t - F.hostArrivedAt >= 90 && goalDistance < 30));
     // 本人が遅れても時間だけで敗北にしない。旗の案内を残し、出口への合流を待つ。
     if (host?.arrived && rt.t >= (F.marchNoticeAt || 0)) {
       F.marchNoticeAt = rt.t + 1;
@@ -3164,7 +3167,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     }
     // 本人がピンへ合流したら雨待ちへ進む。別働の隊の到着では足止めしない。
     if (atGoal) {
-      if (F.marchSpeed !== undefined) host.speed = F.marchSpeed;
+      if (host && F.marchSpeed !== undefined) host.speed = F.marchSpeed;
       rt.setPhase('wait'); rt.objRemove('col');
       rt.obj('wait', '谷の出口で、かかれの下知を待て', 'main');
       // 下知を待つ場所だけを固定して示す。隊や兵の動きには触れない。

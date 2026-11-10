@@ -1005,9 +1005,9 @@ const t02_shizugatake = {
         if (!F.sakuIn && (nLive(F.wC) <= 3 || st > 35)) this.sakuIn(rt);
         if (F.reachedPost === F.phase && F.sakuIn && rt.t - F.sakuIn > 22 && near(OI, OI.r + 8)) this.fall(rt);
         return;
-      // 退く：大岩山から三十ほど離れたら振り返る
+      // 退く：指定した南の坂へ下がってから陥落を見届ける。北の敵陣へ出ても達成にしない。
       case 2:
-        if (!F.lookedBack && st > 4 && (dist(pp, OI) > 30 || near(OI_BACK, 10))) this.lookBack(rt);
+        if (!F.lookedBack && st > 4 && near(OI_BACK, 10)) this.lookBack(rt);
         return;
       // 東の口：二度の追手を退け（口で揉み合うか追手を減らす）、口にいれば帰還へ
       case 2.3:

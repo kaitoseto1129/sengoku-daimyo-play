@@ -508,6 +508,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       order: 'hold', seekRange: 10, aggro: 6, speed: 3.4, noRout: true, noAI: true },   // 持ち場と回り込みは段の下知に従い、自由な後退判断を残さない
     dressT([{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: 5, o: { keep: true } },
       { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], kit || undefined));
+    // 討てない将へ攻撃し続けて兵が留まらないよう、本陣の将と同じく狙いから外す。護衛とは打ち合える。
+    for (const u of g.units) if (u.type === 'busho' && u.name === name) u.noTarget = true;
     g.general = true;
     rt.flags.waves.push(g);
     return g;
