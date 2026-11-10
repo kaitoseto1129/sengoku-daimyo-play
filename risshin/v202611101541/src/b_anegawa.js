@@ -3741,7 +3741,9 @@ const anegawa = {
     // 11/4：この列は磯野の突撃で持ち場の左右へ渡って来るので、寄れば本物の兵に替える（AA：突っ込むと何も無い、をなくす）
     F.bankArmy = [DA(-43, -23, 46, 6, 96, 0, AZAI.armor, 'azai', 71, 'spear'),
       DA(62, -24, 46, 6, 96, 0, AZAI.armor, 'azai', 72, 'spear')];
-    for (const q of F.bankArmy) q.m.army.team = 1;
+    // 渡河の下知より前に一部だけ実兵へ替えると、行き先のない護衛として対岸で止まる。
+    // 控えは元の軍勢のまま保ち、渡河先を決めてから接近時の置換を許す。
+    for (const q of F.bankArmy) { q.m.army.team = 1; q.m.army.noWake = true; }
     // 前の各備が本陣を守る。重複する九百人の固定層は置かない。
     // 浅井の縦列は、川に近い磯野から長政へ。朝倉の先手は西の瀬に分ける。
     F.jinIso = DA(80 / 5, -125 / 5, 16, 10, 40, 0, AZAI.armor, 'azai', 54, 'spear');
@@ -3982,6 +3984,7 @@ const anegawa = {
       let south = -Infinity;
       for (let dx = -halfWidth; dx <= halfWidth; dx++) south = Math.max(south, aneSouthBank(x + dx));
       army.aneBankDest = { x, z: south + army.hd0 + 2 };
+      army.noWake = false;
       group.moveTo(x, army.aneBankDest.z, i === 0 ? 26 : 30);
     }
     rt.unmark('campExit');
