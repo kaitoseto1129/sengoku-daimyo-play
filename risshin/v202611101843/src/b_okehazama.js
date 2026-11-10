@@ -2810,7 +2810,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       const g = rt.flags.attackers[i];
       g.yariRanks = 3; g.okeSide = [-12, 12, 0, -6, 4][i]; g.okeBack = i === 4 ? 9 : 3;
     }
-    O15.install(rt, this, { fieldPoint, fieldVector, honjinWay, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT, FAR: { ZENSHOJI, WASHIZU, NARUMI_JO, ODAKA } });
+    O15.install(rt, this, { fieldPoint, fieldVector, honjinWay, localPoint, FIELD_TURN, HONJIN, enemyGroup, allyGroup, RAIN_WAIT, FAR: { ZENSHOJI, WASHIZU, NARUMI_JO, ODAKA } });
   },
 
   // 軽い本隊は行軍だけを表す。接触域へは押し込まず、実兵と重ねない。
