@@ -823,8 +823,13 @@ const t10_oshi = {
     for (const g of F.evac) for (const u of g.units) {
       if (!u.alive || u.gone) continue;
       const x = EVAC0.x - 3 + (k % 5) * 1.6, z = EVAC0.z - 2 + Math.floor(k / 5) * 1.6; k++;
-      u.fleeing = false; u.target = null;
-      u.pos.set(x, rt.world.heightAt(x, z), z); if (u.vel) u.vel.x = u.vel.z = 0; if (u.mesh) u.mesh.position.copy(u.pos);
+      // 日を飛ばした後に、舟との戦いの攻撃・行き先・押し出しを持ち越さない。
+      u.fleeing = false; u.target = null; u.watch = null; u.atk = null; u.swing = null; u.bind = null;
+      u.charging = false; u.moveTo = null; u.aiT = 0;
+      u.pos.set(x, rt.world.heightAt(x, z), z);
+      if (u.vel) u.vel.x = u.vel.y = u.vel.z = 0;
+      if (u.push) u.push.x = u.push.z = 0;
+      if (u.mesh) u.mesh.position.copy(u.pos);
     }
     for (const g of F.raids) if (live(g)) { g.noRout = false; g.morale = 0; }
   },
