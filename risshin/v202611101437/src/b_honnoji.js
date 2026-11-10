@@ -5399,8 +5399,15 @@ function honnoTick(def, rt, dt) {
       F.topScan = 1;
       let near = 0;
       rt.army.forNear(p.x, p.z, 25, (o) => { if (o.alive && o.team === 1 && !o.isStruct && !o.fleeing && Math.hypot(o.pos.x - p.x, o.pos.z - p.z) <= 25) near++; });
-      // 門を閉めて待つだけの時間で①を果たさない。寄せ手が来てから本人の守備を数える。
-      if (near > 0) F.gateEngaged = true;
+      // 別の持ち場で本人を追う敵ではなく、表門に届いた寄せ手を迎えてから守備を数える。
+      if (!F.gateEngaged) {
+        const gateY = rt.world.heightAt(GATES.main.x, GATES.main.z);
+        rt.army.forNear(GATES.main.x, GATES.main.z, 12, (o) => {
+          if (o.alive && o.team === 1 && !o.isStruct && !o.noTarget && !o.fleeing && !o.woundOut &&
+              Math.hypot(o.pos.x - GATES.main.x, o.pos.z - GATES.main.z) <= 12 &&
+              Math.abs(o.pos.y - gateY) < 3) F.gateEngaged = true;
+        });
+      }
       if (near < 10 && rt.t >= (F.topAt || 0) && (F.topN || 0) < 10) {
         F.topAt = rt.t + 6; F.topN = (F.topN || 0) + 1;
         akechi(rt, '門へ詰める明智勢', IN.main, [uS(1), uA(5)], g && g.alive ? { gate: F.gMain } : {});

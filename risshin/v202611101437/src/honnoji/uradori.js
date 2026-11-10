@@ -32,7 +32,7 @@ function start(rt, K, done) {
   const F = rt.flags;
   F.k15stage = 'uradori'; F.k15on = true;
   k15Freeze(rt, 'uradori');   // 前の段の時計を止める
-  const stop = () => F.k15stage !== 'uradori' || F.ending;
+  const stop = () => F.k15stage !== 'uradori' || F.ending || !rt.player.u.alive;
   const out = PT.uraOut, street = { x: out.x, z: out.z - 18 };
   k15Go(rt, 'ur-out', out, 5, '裏門を出て、西の通りへ', '裏門の外', () => {
     rt.banner('本能寺、燃え落ちる', '御殿の屋根が崩れ、火の粉が空へ舞う');

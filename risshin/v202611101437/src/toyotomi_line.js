@@ -11,7 +11,7 @@ export const TOYOTOMI_LINE = [
   { id: 't05_ichinomiya', name: '四国征伐／一宮城', year: 1585, file: './b_t05_ichinomiya.js' },
   { id: 't06_hetsugi', name: '戸次川の戦い', year: 1586, file: './b_t06_hetsugi.js' },
   { id: 't07_ganjaku', name: '岩石城攻め', year: 1587, file: './b_t07_ganjaku.js' },
-  { id: 't08_nejirozaka', name: '根白坂の戦い', year: 1587, file: './b_t08_nejirozaka.js' },
+  { id: 't08_nejirozaka', name: '根白坂の戦い', year: 1587, file: './b_t08_nejirozaka.js', place: '日向国 根白坂の砦' },
   { id: 't09_yamanaka', name: '山中城の戦い', year: 1590, file: './b_t09_yamanaka.js' },
   { id: 't10_oshi', name: '忍城攻め', year: 1590, file: './b_t10_oshi.js', place: '武蔵国 忍城', winWord: '忍城、開城', victoryCaption: '水攻めでは落とせず、小田原開城の後に明け渡された' },
   { id: 't11_hachioji', name: '八王子城の戦い', year: 1590, file: './b_t11_hachioji.js' },

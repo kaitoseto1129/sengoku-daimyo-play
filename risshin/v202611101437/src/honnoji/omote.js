@@ -23,7 +23,7 @@ function start(rt, K, done) {
   const F = rt.flags;
   F.k15stage = 'omote'; F.k15on = true;
   k15Freeze(rt, 'omote');   // 前の段の時計を止める
-  const stop = () => F.k15stage !== 'omote' || F.ending;
+  const stop = () => F.k15stage !== 'omote' || F.ending || !rt.player.u.alive;
   const at = { x: PT.omote.x - 2, z: PT.omote.z + 2 }, gx = GATES.main.x, gz = GATES.main.z;
   rt.banner('表庭で踏み止まる', '上様が本堂へ退く時を、蘭丸と稼げ');
   // 明智は光秀一人の軍にしない（docs/generals_oda_1108.md 32）：門の外の通りに、明智光忠・藤田伝五・溝尾茂朝がそれぞれの備で構える

@@ -83,7 +83,7 @@ const STEP_TEXT = ['',
   '三の柵の井楼の下で井上頼次を討て',
   '堤を東へ退き、水原親憲の鉄砲の後ろに付け',
   '安田能元と渡辺糺・木村宗明を二の柵の跡まで押し返せ',
-  '二の柵の跡で竹田永翁を討ち、大和川南岸の水原親憲と川越しに撃って今福の佐竹勢を救え'];
+  '二の柵の跡で竹田永翁の隊を討ち、水原親憲と大和川南岸から撃って今福の佐竹勢を救え'];
 
 const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 function height(x, z) {
@@ -255,6 +255,13 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li 
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }
+/* 横長の携帯でも五目標を残し、余白と行間で戦場を覆わないようにする。 */
+@media (max-height:500px) {
+ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode { padding:4px 8px !important; }
+ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li,
+ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { line-height:1.15; }
+ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals ul { gap:1px; }
+}
 html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > span { display:none !important; }`;
     document.head.appendChild(st);
     const hudProgress = hud.progress;

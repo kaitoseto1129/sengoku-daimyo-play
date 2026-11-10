@@ -297,7 +297,7 @@ function buildGifu(rt, F) {
   farSight(W.smokeCol?.far.mesh, { far: 280, cap: 0.45 });
   for (const [x, z] of [[-146, 186], [-133, 196], [-142, 200]]) rt.scene.add(nobori(W, x, z, 'asano', 6));
   // 横矢の座：二の丸の口と本丸の口の脇の石垣の上。登って来る者を横から撃つ（鉄砲は百曲りを登る段で入る＝manYokoya）
-  F.yokoyaZa = [{ x: -66, z: -8.5, rot: -1.03 }, { x: -8, z: -8, rot: -1.04 }].map((yk) => { const z = yokoyaZa(W, yk.x, yk.z, yk.rot, { n: 2 }); rt.scene.add(z.group); return z; });
+  F.yokoyaZa = [{ x: -66, z: -8.5, rot: -1.03 }, { x: -8, z: -8, rot: -1.04 }].map((yk) => { const z = yokoyaZa(W, yk.x, yk.z, yk.rot, { n: 3 }); rt.scene.add(z.group); return z; });
 }
 // 横矢の鉄砲を座に入れる（二の丸の口と本丸の口の脇の石垣の上。登って来る者を横から撃つ）
 function manYokoya(rt, F, i) {

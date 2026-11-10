@@ -23,7 +23,7 @@ function start(rt, K, done) {
   const F = rt.flags;
   F.k15stage = 'saigo'; F.k15on = true;
   k15Freeze(rt, 'saigo');   // 前の段の時計を止める
-  const stop = () => F.k15stage !== 'saigo' || F.ending;
+  const stop = () => F.k15stage !== 'saigo' || F.ending || !rt.player.u.alive;
   // 前の口の敵は近習が受け持つ。合流する一息を作り、戸口を通って上様の横へ導く。
   K.pushBack(rt, 6, '小姓', '上様の横へ！　追手は我らが止める！');
   K.holdFoes(rt, rt.player.u.pos, 18, 8);
