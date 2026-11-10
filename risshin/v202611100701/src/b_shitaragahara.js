@@ -1589,9 +1589,13 @@ function nfTick(rt, dt) {
           Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
           !rt.army.wallBetween(u.pos, -1, target.pos)) { fighting = true; break; }
     }
-    if (fighting && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60) N.babaFight = (N.babaFight || 0) + dt;
-    // 波の最大の長さ（docs/sunomata_spec_1109.md の決まり 7）：本人が退き口へ来て二分半たてば、殿は組の槍に崩れる
-    const babaCap = rt.t - N.at > 150 && Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60;
+    const nearRear = Math.hypot(p.x - NF_REAR.x, p.z - NF_REAR.z) < 60;
+    if (fighting && nearRear) N.babaFight = (N.babaFight || 0) + dt;
+    // 波の最大の長さ（docs/sunomata_spec_1109.md の決まり 7）。
+    // 退き口で実際に槍を合わせてから、本人が留まった時間だけ数える。
+    // 渡河後に遠くで待って戻っただけでは、馬場を討死にしない。
+    if (nearRear && N.babaFight > 0) N.babaStay = (N.babaStay || 0) + dt;
+    const babaCap = N.babaStay > 150;
     if (!N.babaDead && baba?.alive && (nfRearReady(rt) <= Math.ceil(N.babaN0 * 0.6) || N.babaFight > 60 || babaCap)) rt.army.kill(baba, null);
     if (R.order !== 'hold' || R.anchor.x !== NF_REAR.x) { R.order = 'hold'; R.path = null; R.dest = null; R.anchor.x = NF_REAR.x; R.anchor.z = NF_REAR.z; R.focus = null; }
     // 味方だけが殿を討っても、本人が退き口へ来るまでは最後の目標を果たさない。
