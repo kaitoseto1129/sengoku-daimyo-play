@@ -2926,6 +2926,8 @@ const miki = {
     if (F.taniNearT == null) F.taniNearT = rt.t;
     if (rt.t - F.taniNearT > 20 || gone(F.hirata)) {
       u.fleeing = false; u.invuln = false; u.hp = 0; rt.army.kill(u, killer);
+      // この直後の城兵の確認で大村へ移る場合も、討死の記録と知らせを先に済ませる。
+      if (!u.alive) this.taniTick(rt);
     }
   },
   // 大村坂：実際に秀吉の手が着き、本人も坂の下に並んでから懸かる。
