@@ -63,14 +63,18 @@ const STEP_TEXT = ['', '京街道の土手で、渡辺勘兵衛の先手を北�
 const STEP_PLACE = ['', '京街道の土手', '土手の東の畑', '馬防柵の向こう', '金扇の前'];
 const STEP_AT = [null, SAKITE, YOKO, TEPPO, HONDA_AT, MOUTH];
 const FENCE_Z = [TEPPO.z + 7, HONDA_AT.z + 9];   // 馬防柵の並び（口は京街道の上 |x|<4 だけ）
-// 柵の向こう（北）の行き先へは、柵の手前で京街道の口へ寄ってから抜ける（bot。柵の端を大回りしない）
+// 柵を越える時は南北どちらへ進む場合も、手前の柵から京街道の口へ寄る。
 const viaGap = (from, to) => {
-  for (const fz of FENCE_Z) if (from.z > fz && to.z < fz) {
+  const dir = Math.sign(to.z - from.z);
+  for (let i = 0; i < FENCE_Z.length; i++) {
+    const fz = FENCE_Z[dir < 0 ? i : FENCE_Z.length - 1 - i];
+    if ((from.z - fz) * dir >= 0 || (to.z - fz) * dir <= 0) continue;
     // 出発点が街道の中央でも、斜めの道は柵の口を外れる。柵を横切る位置で確かめる。
     const x = from.x + (to.x - from.x) * (from.z - fz) / (from.z - to.z);
     if (Math.abs(x) > 3) {
       // 口の手前まで来たら向こう側へ抜ける。同じ手前の点を指して止まらせない。
-      return { x: 0, z: fz + (Math.abs(from.x) <= 3 && from.z <= fz + 5 ? -2.5 : 2.5) };
+      const through = Math.abs(from.x) <= 3 && Math.abs(from.z - fz) <= 5;
+      return { x: 0, z: fz + (through ? dir : -dir) * 2.5 };
     }
   }
   return null;

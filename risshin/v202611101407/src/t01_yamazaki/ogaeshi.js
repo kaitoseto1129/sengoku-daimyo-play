@@ -19,7 +19,7 @@ export const SCENE = [null,
   { at: { x: 66, z: 164, heading: Math.PI }, pins: [{ x: 84, z: 128 }, { x: 40, z: 104 }] },
   { at: { x: -74, z: 150, heading: Math.PI / 2 }, pins: [{ x: 22, z: 136 }] },
 ];
-export const TEXT = ['', '遅れた足軽の組をまとめ、街道の口へ急ぐ', '姫路の城下で兵糧を受け取り、新手を連れる', '雨の夜道を、合流の地へ急ぐ'];
+export const TEXT = ['', '備中で遅れた足軽の組をまとめ、街道の口へ急ぐ', '姫路の城下で兵糧を受け取り、新手を連れる', '雨の街道を進み、摂津の合流地点へ急ぐ'];
 const near = (p, q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
 const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
