@@ -30,14 +30,18 @@ export function step(H) {
       C.say = 0;
     },
     tick(rt, C, m, ctx, el) {
-      if (!C.quiet && live(C.last) <= 1) {
+      // 最後の目標も本人が本丸の奥へ着いてから果たす。味方だけが城兵を崩しても、
+      // 本人が離れた所にいるまま落城の余韻と勝利へ進めない。
+      const P = rt.player.u.pos;
+      if (Math.hypot(P.x - H.LAST.x, P.z - H.LAST.z) < 10) C.entered = true;
+      if (C.quiet == null && C.entered && live(C.last) <= 1) {
         C.quiet = el;
         C.last.noRout = false; C.last.morale = 0;
         // 城方は崩れ、戦の音が止む（残りの城兵の組も崩す）
         for (const g of rt.army.groups || []) if (g.team === 1 && g !== rt.flags.yokochi && g.count) { g.noRout = false; g.morale = 0; }
         sfx('horagai', 0.6);
       }
-      if (!C.quiet) { rt.objProgress('dp', ''); return false; }
+      if (C.quiet == null) { rt.objProgress('dp', ''); return false; }
       const t = el - C.quiet, me = nm(rt);
       const line = (at, f) => { if (t >= at && C.say < at) { C.say = at; f(); } };
       line(1, () => rt.say('前田の侍', '……城方、崩れた。斬り合いの音が、止んだ', 3.2));
