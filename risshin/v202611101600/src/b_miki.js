@@ -1462,17 +1462,19 @@ const miki = {
   },
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u.pos;
-    if (rt.over || F.ending || F.mkYoin || !rt.player.u.alive) return null;
+    if (rt.over || F.ending || !rt.player.u.alive) return null;
     const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5 });
     const stage = this.missionOf(rt);
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す
-    const ip = MK_OPEN.pin(rt, this.mkCtx(rt)) || MK_DESHIRO.pin(rt, this.mkCtx(rt)) || MK_KIGA.pin(rt, this.mkCtx(rt));   // 開幕の段：井楼→西の槍組
+    // 最後の三十秒も、下知を聞いた蔵の持ち場を示す。城へ逃げる敵を追わせない。
+    const ip = MK_OPEN.pin(rt, this.mkCtx(rt)) || MK_DESHIRO.pin(rt, this.mkCtx(rt)) || MK_KIGA.pin(rt, this.mkCtx(rt)) || (F.mkYoin ? this.mkCtx(rt).store : null);
     if (ip) {
       // 井楼・蔵へも南の木戸を通す。後半の下知だけ柵越しへ直進させない。
       const at = hirataWay(rt.army, rt.player.u, ip);
       q.unit = null; q.enemy = false; q.route = at !== ip; q.waiting = false;
       q.x = at.x; q.z = at.z; q.r = q.hide = q.route ? .8 : 4;
+      if (F.mkYoin && !q.route) { q.waiting = true; q.hide = 0; }
       q.arrived = !q.route && Math.hypot(me.x - q.x, me.z - q.z) < q.r;
       return q;
     }
