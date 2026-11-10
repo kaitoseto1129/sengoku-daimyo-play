@@ -2679,7 +2679,7 @@ const mitsukuri = {
     // 木戸への実際の打撃、または迎撃を終えた付け入りを確かめる。
     const gateStruck = () => {
       const gate = F.gates?.kido?.struct;
-      return !!F.gatePass || !!(gate && gate.hp < gate.maxHp);
+      return !!F.niFell || !!(gate && gate.hp < gate.maxHp);
     };
     const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, gateStruck, () => (F.step ?? 0) >= 4, () => !!F.ending && rt.tracker?.main === true];
     // 下知に無い期限で失敗を付けない。郭の制圧・火入れ・木戸の打撃で達成を判定する。
@@ -4611,6 +4611,10 @@ const mitsukuri = {
     } else if (id === 'ni' && !F.niFell) {
       F.niFell = true;
       rt.unmark('ni');
+      if (F.sallyBack && !F.sallyAwarded) {
+        F.sallyAwarded = true;
+        rt.award((t) => t.side.push('打って出た敵を退け、木戸へ付け入った'), '打って出た敵を退け、木戸へ付け入った');
+      }
       if (!F.niAwarded) { F.niAwarded = true; rt.award((t) => t.side.push('二の丸を押さえた'), '二の丸を押さえ、本丸への道を開いた'); }
       this.inside(rt);
     } else if (id === 'hon' && !F.honFell) {
@@ -4684,7 +4688,7 @@ const mitsukuri = {
     g.noRout = false; g.order = 'move'; g.dest = { x: NI_C.x, z: NI_C.z - 4 }; g.speed = 3.8;
     g.onArrive = () => { g.onArrive = null; g.order = 'hold'; g.anchor = { x: NI_C.x, z: NI_C.z - 4 }; };
     rt.unmark('gate');
-    if (!F.sallyAwarded) { F.sallyAwarded = true; rt.award((t) => t.side.push('打って出た敵を退け、木戸へ付け入った'), '打って出た敵を退けた'); }
+    // 退却だけでは付け入りの戦功を付けず、本人が二の丸を制圧してから記録する。
     sayKino(rt, '退くぞ！　木戸を閉めさせるな。続いて二の丸へ入れ！', 4);
   },
   // 木戸の内（二の丸が落ちた直後の演出）

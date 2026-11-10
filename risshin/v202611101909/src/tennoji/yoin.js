@@ -11,7 +11,10 @@ export function install(rt) {
   const F = rt.flags, lord = !!rt.G.lord;
   const at = () => rt.player.u.pos;
   rt.after(2.5, () => { rt.army.play?.('toki', { x: at().x, z: at().z }, 1.3); sfx('toki', 0.9); rt.say('足軽', 'えい、えい、おう！　えい、えい、おう！', 3.5); });
-  rt.after(7, () => rt.say('本願寺の番兵', '木戸を閉めよ！　逃げ込む者のほかは入れるな！', 3));
+  rt.after(7, () => {
+    F.kidoGate?.userData.closeGate();
+    rt.say('本願寺の番兵', '木戸を閉めよ！　逃げ込む者のほかは入れるな！', 3);
+  });
   rt.after(12, () => rt.say(lord ? '佐久間信盛' : '織田信長', lord ? '殿、御足の傷を。砦は救われました。' : '足の傷など、これしき。砦は救うた。ここに付城を十、築かせよ。', 4.5));
   rt.after(18, () => sfx('kane', 0.35));
   rt.after(20, () => rt.say('明智光秀', '砦の者は生き延びた。原田殿も、これで浮かばれよう。', 4.5));

@@ -105,6 +105,7 @@ export function tick(rt, dt) {
   if (cap && !B.there) B.noAward = true;
   B.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
+  g.onArrive = null; g.path = null; g.focus = null;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: BZ }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   try { sfx('volley', 0.9); } catch (e) { /* なし */ }

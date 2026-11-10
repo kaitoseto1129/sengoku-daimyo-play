@@ -134,6 +134,9 @@ function watchProgress(rt, spoken = false) {
 }
 // 仮小屋の寸法を外観と床下の平場で共有する。配置・往来は推定。
 const CAMP_HOUSES = [-43, 43].map(x => [x, 27, 5, 9]);
+// 小屋の外観と床下で同じ寸法・向きを使い、斜面の低い側を宙に浮かせない。
+const CAMP_HUTS = [[-30, 10, .06], [-38, 15, -.08], [-27, 25, .1], [27, 4, .04], [33, 0, -.06], [32, 10, .08], [38, 8, -.05]];
+const CAMP_EXTRA_HUTS = [[-24, 38, .08], [30, 46, -.1], [16, 62, .05]];
 // 番小屋と兵糧小屋も、外観・床下・南の階下で同じ寸法を使う。
 const CAMP_SERVICE_HOUSES = [[22, 28, 7, 5], [-30, 66, 6, 4]];
 // 村の小堂も、外観・床下・階下への道で同じ寸法を使う。
@@ -730,7 +733,7 @@ function buildIwamuraLife(rt) {
     // 陣の裏に積んだ予備の竹束（柵の前へ出す前の物。平らな土の陣に見えていた。10/28）。位置と数は推定。射線と口は塞がない。
     for (const [x, z, r] of [[-27, 54, .1], [-24.6, 54.3, .05], [27, 54, -.1], [24.6, 54.3, -.05]]) rt.scene.add(takataba(W, x, z, r));
     // 兵の寝起きする板葺きの陣小屋を三棟足す（陣が平らな土に小屋一つに見えていた。10/28）。位置は推定。往来の筋と篝火は空ける。
-    for (const [x, z, r] of [[-24, 38, .08], [30, 46, -.1], [16, 62, .05]])
+    for (const [x, z, r] of CAMP_EXTRA_HUTS)
       rt.scene.add(hut(W, x, z, 5.5, 3.6, r, { h: 2.1, wall: 0x8a7558, minka: false, thatchTies: true, groundedHome: true }));
     // 曲輪の長屋・蔵の脇に補修材と兵糧を寄せる。戸口・枝道・梯子前は空ける。
     // 写真の作業場の並びを参考にした推定。低い既存の道具だけを使う。
@@ -1635,7 +1638,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     // 中央の口・東の迂回の道（z14）・篝火の持ち場・物見は空ける。西の群れは陣幕で囲い、南を口にする。
     // 東の群れは右の篝火（18, -1）の背から外す。篝火へ寄る肩越しの画面を小屋の壁でふさがない（10/28 点付け）。
     rt.scene.add(jinmaku(W, -34, 13, 17, 13, 6, { mon: 'oda' }));
-    for (const [x, z, r] of [[-30, 10, .06], [-38, 15, -.08], [-27, 25, .1], [27, 4, .04], [33, 0, -.06], [32, 10, .08], [38, 8, -.05]])
+    for (const [x, z, r] of CAMP_HUTS)
       rt.scene.add(hut(W, x, z, 5, 3.4, r, { h: 2, wall: 0x7d6a50, minka: false, thatchTies: true, groundedHome: true }));
     // 柵の裏に立てかけた竹束。射線と口は塞がない。西の二つは左の篝火で焚く時のカメラをふさがないよう西へ寄せる（10/28）。
     for (const [x, z, r] of [[-40, 1.6, .05], [-37.6, 1.8, 0], [17.5, -2.6, 0], [-34, 2.4, .1], [36, 2.2, -.1]]) rt.scene.add(takataba(W, x, z, r));
@@ -4134,11 +4137,18 @@ function fieldHeight(x, z) {
     }).concat(high ? CAMP_HOUSES.concat(CAMP_SERVICE_HOUSES).map(([px, pz, w, d]) =>
       [px, pz + .6, w / 2 + .6, d / 2 + 1.2, heightRaw(px, pz)]) : [])
       .concat(high ? CASTLE_OUTBUILDINGS.map(([px, pz, w, d]) =>
-        [px, pz, w / 2 + .6, d / 2 + 1.8, heightRaw(px, pz)]) : []);
+        [px, pz, w / 2 + .6, d / 2 + 1.8, heightRaw(px, pz)]) : [])
+      .concat(CAMP_HUTS.concat(high ? CAMP_EXTRA_HUTS : []).map(([px, pz, r], i) => {
+        const w = i < CAMP_HUTS.length ? 5 : 5.5, d = i < CAMP_HUTS.length ? 3.4 : 3.6;
+        const c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r));
+        return [px, pz, (w * c + d * s) / 2 + .6, (d * c + w * s) / 2 + .6, heightRaw(px, pz)];
+      }));
   }
   for (const pad of HOUSE_PADS) {
     const d = Math.max(Math.abs(x - pad[0]) - pad[2], Math.abs(z - pad[1]) - pad[3]);
     if (d >= 1.4) continue;
+    // 床下の内側では隣の小屋のすり付けを重ねず、土台の高さを保つ。
+    if (d <= 0) { h = pad[4]; break; }
     const t = Math.max(0, d / 1.4), k = 1 - t * t * (3 - 2 * t);
     h += (pad[4] - h) * k;
   }

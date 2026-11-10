@@ -1193,6 +1193,12 @@ function inabaInsideHoldLine(rt) {
     && Math.abs(p.y - rt.world.heightAt(point.x, point.z)) < 3;
 }
 
+// 倒れ込み中も alive が残るため、接敵と目標達成は戦える本人だけを数える。
+function inabaSallyPlayerReady(rt) {
+  const u = rt.player.u;
+  return u.alive && u.hp > 0 && !u.dying && !u.downed && !rt.retryOpen;
+}
+
 // 敵の出発を待つ間も、持ち場と待つ長さを同じ札で伝える。
 function inabaSallyWait(rt, showSeconds = false) {
   const F = rt.flags;
@@ -7001,7 +7007,7 @@ const inabayama = {
       if (call) rt.objProgress('main', call + '鹿垣の内で仲間と迎えよ');
       // 坂の上に残って矢玉を放つだけの数人を、いつまでも追わせない。新手が下りて二十二秒か、残りが三人ずつ以下なら山へ退く（11/6 fix61：七十秒→二十二秒）
       // 11/8 critic60 九2：城兵が本人の前（十歩の内）まで来てから二十二秒。来ないうちに崩して②を果たした事にしない
-      if (F.oteContactT == null && rt.player.u.alive && !rt.retryOpen && inabaInsideHoldLine(rt) && rt.t >= (F.oteContactAt || 0)) {
+      if (F.oteContactT == null && inabaSallyPlayerReady(rt) && inabaInsideHoldLine(rt) && rt.t >= (F.oteContactAt || 0)) {
         F.oteContactAt = rt.t + 0.5;
         const pp = rt.player.u.pos;
         // 平面で近いだけの上の段や、鹿垣の向こうの兵は、目前まで来た城兵に数えない。
@@ -7015,7 +7021,7 @@ const inabayama = {
       // 持ち場を離れた本人や倒れた本人へ追わせず、鹿垣で迎える時だけ寄せる。
       // 半秒ごとに既存の座標を直し、毎コマ座標を作り直さない。
       if (F.ote2.sent && F.oteContactT == null && rt.t - F.ote2T > 8
-        && rt.player.u.alive && !rt.retryOpen && inabaInsideHoldLine(rt) && rt.t >= (F.otePushAt || 0)) {
+        && inabaSallyPlayerReady(rt) && inabaInsideHoldLine(rt) && rt.t >= (F.otePushAt || 0)) {
         F.otePushAt = rt.t + 0.5;
         // 道順の途中で詰まった組も寄せる。道順の組を除くと、城兵が来ないまま救済も働かなかった。
         for (const q of qs) if (!gone(q)) {
@@ -7043,7 +7049,7 @@ const inabayama = {
       const late2 = rt.t - F.stepT > 150;   // 11/10 指示書の時割（第一の守りの線は二分半）：240→150
       if (late2 && !F.ote2.sent && !F.ote2Q) { F.ote2Q = true; this.ote2(rt); }
       // 長引いた時も、城兵が目前へ来る前や本人が倒れている間は、時計だけで退かせない。
-      if (late2 && F.oteContactT != null && rt.t - F.oteContactT > 22 && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
+      if (late2 && F.oteContactT != null && rt.t - F.oteContactT > 22 && inabaSallyPlayerReady(rt) && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
       // 11/9 二巡（織田E）：気が零になっても坂の上で崩れず残り、②が九分続いた（流し）。四十秒たっても残れば、山へ逃げ上らせる
       // 遅れて城兵が着いた場合も、接敵から四十秒は迎え撃つ。段の時計だけで着いた瞬間に退かせない。（11/10 段の時計は 280→190）
       if (late2 && F.oteContactT != null && rt.t - F.oteContactT > 40 && rt.t - F.stepT > 190) for (const q of qs) if (!gone(q)) {
@@ -7054,7 +7060,7 @@ const inabayama = {
         && Math.abs(rt.player.u.pos.y - rt.world.heightAt(F.holdPoint.x, F.holdPoint.z)) < 3;
       // 残兵を退かせる判定には副作用がある。本人が持ち場にいない時や、
       // 城兵が目前へ来る前に呼ぶと、迎え撃たずに②を果たしてしまう。
-      if (F.sannin && F.ote2.sent && rt.player.u.alive && !rt.retryOpen
+      if (F.sannin && F.ote2.sent && inabaSallyPlayerReady(rt)
         && (inabaInsideHoldLine(rt) || rt.G.lord || nearHold)
         && (qs.every(gone) || F.oteContactT != null && sectionTaken(rt, qs, { retreat: inabaRetreat }))) {
         // 坂の城兵が崩れ、麓の左右の城兵も山へ逃げ上る

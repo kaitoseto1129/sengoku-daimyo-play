@@ -66,6 +66,7 @@ export function tick(rt, dt) {
   if (!end) return;
   S.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
+  g.onArrive = null; g.path = null; g.focus = null;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: c.BZ }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
   if (!lord?.shPlayerKill) rt.banner('土屋昌次、討死', '破れ目を取り返した');
