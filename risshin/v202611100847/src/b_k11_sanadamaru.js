@@ -878,14 +878,17 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         // 先手と二の手も横の鉄砲衆へかかる（本人ひとりに任せない。11/10 bot act：討てずに十二分止まった）
         if (g) for (const f of ctx.friends(rt)) { f.order = 'attack'; f.seekRange = 40; f.anchor = { x: C.at.x, z: C.at.z + 6 }; f.focus = null; }
       },
-      tick(rt, C, m, ctx, el) {
+      tick(rt, C, m, ctx, el, dt) {
         const g = rt.flags.flankG;
         if (gone(g)) return true;
         const n = g.units.filter((u) => u.alive && !u.fleeing).length;
         C.at = C.goal = g.center();
         rt.objProgress('dp', `残り ${n}人`);
-        // 半ばを倒すか、寄せられて百秒で、横の鉄砲衆は塀の内へ引く
-        if (n <= Math.floor(C.n0 / 2) || el > 100) { g.noRout = false; g.morale = 0; return true; }
+        // 陣で待つだけでは抑えたことにしない。本人か先手が実際に寄せた時間だけ数える。
+        const pressing = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 20;
+        if (pressing(rt.player.u) || ctx.friends(rt).some((f) => !gone(f) && !f.far && f.units.some(pressing))) C.pressT = (C.pressT || 0) + dt;
+        // 半ばを倒すか、実際に百秒寄せれば、横の鉄砲衆は塀の内へ引く。
+        if (n <= Math.floor(C.n0 / 2) || C.pressT >= 100) { g.noRout = false; g.morale = 0; return true; }
         return false;
       },
       end(rt) { rt.unmark('dp'); rt.objDone('dp'); rt.say('足軽', '横の鉄砲が黙った！', 2.6); },

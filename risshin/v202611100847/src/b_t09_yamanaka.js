@@ -867,6 +867,8 @@ const t09_yamanaka = {
   },
 
   onKill(rt, v) {
+    // 柵や門を壊しても兵の討死には数えない。
+    if (v.isStruct || v.civ) return;
     const F = rt.flags;
     if (v.team === 1) {
       F.ek = (F.ek || 0) + 1;
@@ -1014,7 +1016,12 @@ const daiLoss = (rt) => {
 KILLS.t09_yamanaka = (rt) => {
   const F = rt.flags;
   if (F.ending || F.step !== 1) return null;
-  return [daiLoss(rt), 200];
+  const n = F.daiN || F.dai?.units.length || 0;
+  if (!n) return null;
+  // 制圧は四分の三の損耗。手勢二百の全滅を要求する表示にしない。
+  // 端数も段の判定（残りが n の四分の一以下）と同じ人数で揃える。
+  const need = Math.floor((n - Math.floor(n * 0.25)) * 200 / n);
+  return [Math.min(daiLoss(rt), need), need];
 };
 withGuard(t09_yamanaka);
 

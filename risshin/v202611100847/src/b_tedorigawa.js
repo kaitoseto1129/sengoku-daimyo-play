@@ -1881,7 +1881,7 @@ const tedorigawa = {
     for (const g of C.groups) {
       if (g.routed || g.tedoBow) continue;
       for (const u of g.units) {
-        if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.team === rt.player.u.team ||
+        if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.rearWound || u.downed || u.dragging || u.noTarget || u.isStruct || u.team === rt.player.u.team ||
             Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) >= C.botRadius) continue;
         const d = (u.pos.x - p.x) ** 2 + (u.pos.z - p.z) ** 2;
         if (d < best) { nearest = u; best = d; }
@@ -3732,7 +3732,7 @@ function fordTick(rt) {
   let weak = null, weakScore = Infinity, fordTarget = null, targetScore = Infinity;
   for (const u of rt.army.units) {
     // 救助待ちの深手は生存扱いでも歩けない。列の詰まりや追手の狙いに数えない。
-    if (!u.alive || u.dying || u.gone || u.woundOut || u.isStruct) continue;
+    if (!u.alive || u.dying || u.gone || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct) continue;
     if (u.team === 1) {
       // 後送中・転倒中・出発前の追手は、渡り口を押す戦力に数えない。
       if (!u.fleeing && !u.rearWound && !u.downed && !u.noTarget && !u.group?.routed &&
@@ -3769,7 +3769,7 @@ function fordTick(rt) {
       // moveWay の待機範囲にそろえ、離れた列が入口の三人分を使い切るのを防ぐ。
       // 逃走・後送・転倒中の兵に枠を預けず、歩ける後続を先に渡す。
       // 立ち直った兵は次の確認で改めて順番に入る。
-      if (!u.alive || u.dying || u.gone || u.woundOut || u.fleeing || u.rearWound || u.downed ||
+      if (!u.alive || u.dying || u.gone || u.woundOut || u.fleeing || u.rearWound || u.downed || u.noTarget ||
           u.isPlayer || g.routed || g.order !== 'path' ||
           u.pos.z < -42 || u.pos.z >= -24 || Math.abs(u.pos.x - 2) > 12) continue;
       if (u.tedoAdmitUntil > rt.t) { if (pass === 0) room--; continue; }
