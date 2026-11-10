@@ -1735,21 +1735,21 @@ html:root body #hud#hud#hud.sh-battle .cover-guide { display:none !important; }`
     style.remove(); dispose();
   };
 }
-// 金の▼の行き先（一つだけ）。持ち場に着いたら消え、守る間の敵は頭上の赤い▼で分かる。
+// 金の▼の行き先（一つだけ）。到着後も次の下知まで同じ場所を示す（関所の第三項）。
 function nfPinPoint(rt) {
-  const N = rt.flags.nf, p = rt.player.u.pos;
+  const N = rt.flags.nf;
   if (!N || rt.flags.ending) return null;
-  if (ST_INTRO.active(rt)) return ST_INTRO.pin(rt);
-  if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt);
+  if (ST_INTRO.active(rt)) return ST_INTRO.pin(rt) || rt.flags.shIntro?.OUT || NF_NORTH;
+  if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt) || rt.flags.shBreach.IN;
   // 波が退いた後も、未確認の破れ目への案内を消さない。
   if (N.step === 2 && !N.breachDone && rt.flags.shBreach && !rt.flags.shBreach.there) return rt.flags.shBreach.IN;
   if (N.step === 3 && rt.flags.shSoko?.call && !rt.flags.shSoko.there) return rt.flags.shSoko.IN;
-  if (N.step <= 1) return Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 7 ? null : NF_NORTH;
-  if (N.step <= 3) return Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 7 ? null : NF_CENTER;
+  if (N.step <= 1) return NF_NORTH;
+  if (N.step <= 3) return NF_CENTER;
   if (N.step === 4) return N.crossWest ? NF_BANK : NF_CENTER;
   const baba = rt.flags.rear.units.find((u) => u.name === '馬場信春' && u.alive);
   const c = baba ? baba.pos : NF_REAR;
-  return Math.hypot(c.x - p.x, c.z - p.z) < 14 ? null : c;
+  return c;
 }
 
 // 戦の途中の保存（battle_checkpoint.js・仕様33）：CP1 第一波の後（真田の寄せ）／CP2 山県の柵破りの前／CP3 内藤の寄せ（勝頼の退く前）。
@@ -1849,7 +1849,8 @@ const shitaragahara = {
     const q = F.shPin || (F.shPin = { x: 0, z: 0, r: 5, hide: 5 });
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.defend = false;
     q.follow = false; q.fire = false; q.gate = false; q.footRing = false; q.area = false; q.passage = false;
-    q.x = pt.x; q.z = pt.z; q.r = q.hide = 6;
+    q.x = pt.x; q.z = pt.z; q.r = 6;
+    q.hide = q.hideDistance = 0;
     return q;
   },
   // 民は war_people の共有する形で描く。兵の名簿・人数・当たり・戦功へ加えない。
@@ -1873,7 +1874,7 @@ const shitaragahara = {
   guardStatusText: '槍を構えている', // 構えは討ち取った印ではなく、今の姿勢として伝える。
   compactRouteGuide: true, // 川を渡る道筋は細い点線にし、手前の地面と兵を空ける。
   avoidAllDestinationNotices: true, // 見切れた持ち場の印は操作欄を避け、空いた端で向きを示す。
-  teamSignsOnly: true, // 敵は交差した刀と近くの輪郭、味方は丸で示す。
+  teamSignsOnly: true, // 人型の線を省き、敵は共通の赤い▼で示す。
   compactCombatGuides: true, // 既存の小さな敵の印と短い矢印を使い、兵の姿と槍先を空ける。
   meleeApproachArrowLength: 72, // 追撃で敵へ寄る時も、白い案内線で本人の背を覆わない。
   guideLinkLength: 72, // 札から足元まで戦場を横切らず、指す場所のそばだけに線を残す。

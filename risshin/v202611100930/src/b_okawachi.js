@@ -3332,9 +3332,27 @@ function okCrownGeo(seed) {
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
     const r = 1 + .14 * Math.sin(x * 5.3 + seed) * Math.cos(z * 4.7 - seed * .3) + .08 * Math.sin(y * 9.1 + x * 3 + seed);
-    p.setXYZ(i, x * r, y * r * (y < -.4 ? .7 : 1), z * r);
+    // 下端を一度に三割縮めると、境目が輪状の段になる。裾へ連続して絞る。
+    const skirt = 1 - .3 * Math.max(0, Math.min(1, (-y - .4) / .6));
+    p.setXYZ(i, x * r, y * r * skirt, z * r);
   }
   g.computeVertexNormals();
+  // 二十面体は頂点を面ごとに持つため、通常の法線計算だけでは三角の陰が残る。
+  // 同じ位置の法線を設営時だけ平均し、頂点数と描く回数を増やさず房を滑らかにする。
+  const normals = g.attributes.normal, shared = new Map();
+  const key = (i) => `${p.getX(i).toFixed(5)},${p.getY(i).toFixed(5)},${p.getZ(i).toFixed(5)}`;
+  for (let i = 0; i < p.count; i++) {
+    const k = key(i);
+    let n = shared.get(k);
+    if (!n) { n = new THREE.Vector3(); shared.set(k, n); }
+    n.x += normals.getX(i); n.y += normals.getY(i); n.z += normals.getZ(i);
+  }
+  for (const n of shared.values()) n.normalize();
+  for (let i = 0; i < p.count; i++) {
+    const n = shared.get(key(i));
+    normals.setXYZ(i, n.x, n.y, n.z);
+  }
+  normals.needsUpdate = true;
   return g;
 }
 

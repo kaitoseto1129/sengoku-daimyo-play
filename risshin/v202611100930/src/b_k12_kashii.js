@@ -568,7 +568,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       if (F.step !== 2 || F.ending) return;
       q.order = 'hold'; q.anchor = { x, z }; q.facing = Math.PI; q.aggro = 24; q.seekRange = 0;
       F.legT = rt.t; F.legHold = true;
-      if (F.leg < LEGS.length - 1) rt.army.play('volley', { x, z: z - 6 }, 1.2);
+      // 到着だけでは斉射音を鳴らさない。実際の射撃と、生きた鉄砲兵・射程内の敵を確かめる kerai.tick に任せる。
     };
     F.legHold = false;
   },
