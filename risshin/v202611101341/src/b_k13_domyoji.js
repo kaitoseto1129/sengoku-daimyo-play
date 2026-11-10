@@ -34,7 +34,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { timeslipField } from './timeslip_field.js';
 import { buildHorse, horseStyleFor } from './units.js';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit } from './battle_sight.js';
+import { sightUnit, sightScreenUnit } from './battle_sight.js';
 import * as jin13 from './k13/jindate.js';
 import { DEPTH13 } from './k13/depth.js';   // 陣立ての表（army_depth.js）   // 陣立ての厚み・「真田隊、来ます！」・誉田の鉄砲戦・騎馬・徳川の損害（11/8）
 
@@ -355,9 +355,9 @@ function goalBoard(rt) {
           u.mesh?.visible === false || u.camHidden) continue;
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       if (d2 > 3600) continue;
-      // 共通の近距離印は十二 m まで。離れた兵にも古い印の状態が残るので、
-      // その外では道明寺の▼を省かない（二十五 m 内の敵の印が消えていた）。
-      if (d2 <= 144 && u._nearSignOn) continue;
+      // 共通の近距離印は十二 m まで。霧や煙で候補から外れた兵にも
+      // 古い印の状態が残るため、共通の見通しを満たす時だけ重複を省く。
+      if (d2 <= 144 && u._nearSignOn && sightScreenUnit(rt, u)) continue;
       // 二十五 m の内は霧でも必ず付ける（斜面の斬り合いで、目の前の後藤勢に▼が無かった。九3「一人残らず」）
       if (d2 > 625) {
         if (!(u._dmSeenAt > rt.t - .34 && u._dmSeenAt <= rt.t)) { u._dmSeen = sightUnit(rt, u); u._dmSeenAt = rt.t; }
