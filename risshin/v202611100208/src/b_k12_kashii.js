@@ -195,6 +195,7 @@ const k12_kashii = {
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ（AL：黄色と青を同時に出さない）
+  noTravelArrow: true,     // 移動案内の足元・画面端の矢印も出さず、行き先の▼に揃える（五3・BH6）
   compactIntro: true,
   introText: () => '安松の八丁畷で殿を務め、塙団右衛門の先手を樫井の村まで引き寄せて討て。',
   hideGuideSteps: true,
@@ -739,6 +740,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       patientStrike(p, inp, e, d, true);
       return;
     }
+    // 退く時や、討てない控えの将を外した時は、前の相手への注視も解いて行き先へ向く。
+    if (p.lock) inp.e.add('KeyQ');
     inp.guardHold = false;
     let t = this.missionPin(b) || LINE;
     // 安松の家並みの間に入ったら、まず西の街道へ出てから行き先へ（家の壁に押し付けて詰まった。11/7 遊んで）

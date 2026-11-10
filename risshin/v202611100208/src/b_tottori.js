@@ -3204,7 +3204,12 @@ const tottori = {
     if (F.step === 2.5 && rt.t - F.stepT >= 6) this.envoy(rt);
     // 11/6 kaito の目（八1）：夜空に白いぼやけた斑がいっぱいで、汚れた硝子越しに見ているようだった（星を消しても残る、夜の空の写真の粒）。
     //   夜の段は空の写真を使わず、月夜の暗い空と雲の濃淡だけにする。朝（開城）は写真の空に戻す。
-    if (rt.world?.skyMat) { const U = rt.world.skyMat.uniforms; if (F.step < 3 && U.photoK.value) { F.skyPhotoK = U.photoK.value; U.photoK.value = 0; } else if (F.step >= 3 && !U.photoK.value && F.skyPhotoK) U.photoK.value = F.skyPhotoK; }
+    if (rt.world?.skyMat) {
+      const U = rt.world.skyMat.uniforms;
+      // 十月の見回りは同じ段のまま夕方・夜・明け方に移る。段の番号で夜を決めない。
+      if (rt.world.lookDark && U.photoK.value) { F.skyPhotoK = U.photoK.value; U.photoK.value = 0; }
+      else if (!rt.world.lookDark && !U.photoK.value && F.skyPhotoK) U.photoK.value = F.skyPhotoK;
+    }
     if (F.step === 3 && F.env) {
       const c = F.env.center();
       const d = Math.hypot(c.x - p.x, c.z - p.z);

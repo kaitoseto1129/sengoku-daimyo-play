@@ -86,15 +86,10 @@ const northTarget = (F, p) => fightingTarget(F.s4, p, F);
 // 北門をまたぐ時は、手当てに下がる場合も開いた門を通る。
 function goNorthTo(b, inp, goTo, target, radius) {
   const p = b.player, pos = p.u.pos;
-  if ((target.z < WALL_N) !== (pos.z < WALL_N) && b.army.wallBetween(pos, -1, target)) {
-    const outside = pos.z < WALL_N;
-    const approach = outside ? WALL_N - 8 : WALL_N + 4;
-    const through = outside ? WALL_N + 4 : WALL_N - 8;
-    goTo(p, inp, NGATE.x, Math.abs(pos.x - NGATE.x) > 2.5 ? approach : through, 2);
-    return;
-  }
   // 東西の塀の外へ押し出された時も、③で開いた切れ目を通る。
   // 北門と同じ側にいるだけでは、北寄りの塀を斜めに横切れない。
+  // 北門もまたぐ行き先では、横の塀の切れ目を先に通す。
+  // 北門へ先に寄ると、切れ目の無い北寄りの横塀に詰まる。
   if (b.flags.step >= 3 && b.army.wallBetween(pos, -1, target)) {
     for (const side of [-1, 1]) {
       const outside = side * pos.x > WALL_X;
@@ -104,6 +99,13 @@ function goNorthTo(b, inp, goTo, target, radius) {
       goTo(p, inp, Math.abs(pos.z + 30) > 2.5 ? approach : through, -30, 2);
       return;
     }
+  }
+  if ((target.z < WALL_N) !== (pos.z < WALL_N) && b.army.wallBetween(pos, -1, target)) {
+    const outside = pos.z < WALL_N;
+    const approach = outside ? WALL_N - 8 : WALL_N + 4;
+    const through = outside ? WALL_N + 4 : WALL_N - 8;
+    goTo(p, inp, NGATE.x, Math.abs(pos.x - NGATE.x) > 2.5 ? approach : through, 2);
+    return;
   }
   goTo(p, inp, target.x, target.z, radius);
 }
