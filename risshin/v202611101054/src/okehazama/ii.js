@@ -22,7 +22,9 @@ export function start(rt, def, C) {
   if (g) { g.guard = false; g.order = 'attack'; g.seekRange = 34; g.aggro = 16; g.focus = null; g.noRout = true; }
   sfx('taiko', 0.9);
   rt.army.playFar?.('toki', (g || v.iiAdd).center(), 1.3);
-  rt.say('今川の侍', '遠江の井伊直盛じゃ！　御屋形様の幕へは一人も通さぬ！', 3.4);
+  const naomori = g?.units.find((u) => u.name === '井伊直盛' && ready(u));
+  rt.say('今川の侍', naomori ? '遠江の井伊直盛じゃ！　御屋形様の幕へは一人も通さぬ！' :
+    '井伊の手勢じゃ！　御屋形様の幕へは一人も通さぬ！', 3.4);
   rt.after(3.8, () => rt.say('組頭 源八', '本陣の左から井伊の備えが出たぞ。槍を揃えて受けよ！', 3.2));
   const H = rt.hostGroup;
   if (H && !H.routed) { H.order = 'attack'; H.seekRange = 30; H.aggro = 14; H.focus = null; H.anchor = C.fieldPoint(-14, -104); }
