@@ -98,9 +98,9 @@ const FALL_MAX = 110;   // ⑧ 小早川が動いてから大谷隊が崩れる�
 // 右上の目標（goals5・obj・setStages で同じ文）。行き先は地図で分かる名で（BU「ここ」は使わない）
 //   討てる将（明石全登・島津豊久）の名は目標の文に入れない（victory_flow の namedKill が名を含む札を済みにし、段の途中で勝ちに締まる）
 const G = [
-  '井伊の赤備えに続き、宇喜多の先手の前へ出る',
-  '井伊の鉄砲衆の脇に槍を立て、宇喜多への射撃を守る',
-  '井伊の手と、福島隊の後ろの春日神社前へ退く',
+  '井伊の赤備えに続き、宇喜多の先手前へ出る',
+  '宇喜多の先手前で、井伊の鉄砲衆を守る',
+  '井伊と春日神社前の福島隊の後ろへ退く',
   '福島隊に続き、宇喜多の先手と槍を合わせる',
   '福島隊のそばで、宇喜多勢の押し返しに耐える',
   '中央右翼を救援せよ。藤堂・京極の隊へ回る',
@@ -291,7 +291,7 @@ const k06_sekigahara = {
   force(rt) {
     const F = rt.flags;
     // 下山を始めただけでは所属を替えない。兵数の棒も実際の寝返りの確定に合わせる。
-    const turned = F.turned ? 15000 + (F.wakiT ? 4000 : 0) : 0;
+    const turned = F.turned ? 15000 + (F.wakiT ? 1000 : 0) + (F.kutsukiT ? 2000 : 0) + (F.akazaT ? 1000 : 0) : 0;
     const k = [0, 0, 0, 0.02, 0.05, 0.05, 0.06, 0.07, 0.3, 0.6, 0.85][F.step || 0] || 0;
     return { a: 75000 + turned - Math.round(75000 * k * 0.12) - (F.ak || 0) * 30, a0: 75000, b: Math.max(0, Math.round((82000 - turned) * (1 - k)) - (F.ek || 0) * 30), b0: 82000 };
   },
@@ -620,8 +620,8 @@ const k06_sekigahara = {
     rt.after(56, () => { F.wakiT = rt.t; rt.say('使番', '脇坂安治も東軍に付いた！', 3); turnover(rt, F.wakiE); room(rt, 8);
       F.wakiG = ally(rt, '脇坂安治らの兵', WAKI_P, [{ type: 'busho', n: 1, o: { name: '脇坂安治', invuln: true, horse: true } }, { type: 'ashigaru', n: 5 }], WAKI, { facing: -Math.PI * 0.7, aggro: 40, seekRange: 60 });
       goAttack(F.wakiG, HIRA); if (alive(F.otani)) F.otani.morale -= 20; });
-    rt.after(66, () => rt.say('使番', '朽木・小川も寝返りましたぞ！', 3));
-    rt.after(76, () => rt.say('使番', '赤座勢も大谷へかかる！', 3));
+    rt.after(66, () => { F.kutsukiT = rt.t; rt.say('使番', '朽木・小川も寝返りましたぞ！', 3); });
+    rt.after(76, () => { F.akazaT = rt.t; rt.say('使番', '赤座勢も大谷へかかる！', 3); });
   },
   // 大谷隊の崩れ：吉継は陣中で自害、平塚・戸田は討ち死に。旗が倒れ、小西・宇喜多の脇が空く
   otaniFall(rt) {

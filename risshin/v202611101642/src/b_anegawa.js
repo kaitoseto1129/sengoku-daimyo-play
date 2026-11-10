@@ -4799,6 +4799,8 @@ const anegawa = {
   onPlayerHit(rt, t) { aneStageHit(rt, t); },
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 隊の敗走と将の討死を分ける。亡骸が片付いた後も実際の討死だけを知らせる。
+    if (v.team === 1 && /^(真柄直隆|真柄十郎左衛門)$/.test(v.name)) F.magaraKilled = true;
     if (k?.isPlayer) aneStageHit(rt, v);
     if (v.team === 1 && v.group === F.flankG && k && (k.isPlayer || k.isSub)) F.flankHelp = true;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
