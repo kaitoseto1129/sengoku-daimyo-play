@@ -110,13 +110,18 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.nodaTeppo;
   if (!S || S.done) return false;
   const u = p.u;
-  // 先に持ち場へ加わる。遠くの槍を追い続けると、参加の判定が付かず夜へ進めない。
-  if (S.joined && S.k === 1 && S.g && !S.g.routed) {
+  // 持ち場へ戻ってから防ぐ。一度加わった印だけで遠くの槍を追うと、
+  // 竹束での交戦が始まらず、鉄砲衆を守る段が閉じなくなる。
+  const atPost = Math.hypot(u.pos.x - S.at.x, u.pos.z - S.at.z) < 12;
+  if (atPost && S.joined && S.k === 1 && S.g && !S.g.routed) {
     let e = null, best = Infinity;
-    for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    for (const v of S.g.units) if (fighting(v) && Math.hypot(v.pos.x - S.at.x, v.pos.z - S.at.z) < 14) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e && best < 40) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-      if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
+      if (best > 2.2) {
+        const dx = e.pos.x - S.at.x, dz = e.pos.z - S.at.z, k = Math.min(1, 10 / Math.hypot(dx, dz));
+        goTo(p, inp, S.at.x + dx * k, S.at.z + dz * k, 2);
+      } else strike(p, inp, e, best);
       return true;
     }
   }

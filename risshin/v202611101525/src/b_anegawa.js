@@ -2334,7 +2334,10 @@ function aneBankMarch(rt) {
     g.aneBankMarch = true;
     g.guard = false; g.fleeDir = AZAI_FLEE;
     g.order = 'move'; g.dest = { x: at.x, z: at.z };
-    g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; };
+    g.onArrive = (q) => {
+      if (F.step !== 1 || F.ending || rt.over || q.order !== 'move' || gone(q)) return;
+      q.order = 'attack'; q.seekRange = 40;
+    };
   }
 }
 
@@ -4032,7 +4035,10 @@ const anegawa = {
         dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 17 }, { type: 'gun', n: 5 }], AZAI));
       g2.dmgMult = 1;
       g2.order = 'path'; g2.path = [[10, -14], [8, 14], [MORI.x + 20, F.holdAt.z - 6]]; g2.pathIdx = 0;
-      g2.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 30; };
+      g2.onArrive = (gg) => {
+        if (F.step !== 1 || F.ending || rt.over || gg.order !== 'path' || gone(gg)) return;
+        gg.order = 'attack'; gg.seekRange = 30;
+      };
       F.second = g2; F.waves[1] = g2;
       F.frontN0 = g.count + g2.count;
     }
@@ -4056,7 +4062,10 @@ const anegawa = {
       [{ type: 'samurai', n: 1, o: { name: '柴田勝家', invuln: true, horse: true, hat: 'kabuto_b', haori: 0x3a2a1c } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }]);
     g.defMult = 1; g.dmgMult = 1;
     g.order = 'move'; g.dest = { x: MORI.x, z: F.holdAt.z - 12 };
-    g.onArrive = (gg) => { gg.order = 'hold'; gg.anchor = { x: MORI.x, z: F.holdAt.z - 12 }; gg.aggro = 12; };
+    g.onArrive = (gg) => {
+      if (F.step !== 1 || F.ending || rt.over || gg.order !== 'move' || gone(gg)) return;
+      gg.order = 'hold'; gg.anchor = { x: MORI.x, z: F.holdAt.z - 12 }; gg.aggro = 12;
+    };
     F.shibata = g;
     F.holdRows.push(g);
     anegawaReport(rt, F.jinShiba, '柴田殿の備が前へ！　ここを支えよとの下知にござる！', 3.5);
@@ -4193,7 +4202,10 @@ const anegawa = {
       dress([{ type: 'samurai', n: 5 }, { type: 'cavalry', n: 1 }, { type: 'ashigaru', n: 19 }, { type: 'gun', n: 4 }], AZAI));
     g3.dmgMult = 1;
     g3.order = 'path'; g3.path = [[10, -14], [10, 14], [MORI.x + 20, F.holdAt.z - 6]]; g3.pathIdx = 0;
-    g3.onArrive = (gg) => { gg.order = 'attack'; gg.seekRange = 34; };
+    g3.onArrive = (gg) => {
+      if (F.step !== 1 || F.ending || rt.over || gg.order !== 'path' || gone(gg)) return;
+      gg.order = 'attack'; gg.seekRange = 34;
+    };
     F.third = g3; F.waves[2] = g3;
     sfx('taiko', 0.9);
     rt.say('足軽', '向こう岸の後詰めも来るぞ！　まだ来るぞ！', 3);
@@ -4344,7 +4356,10 @@ const anegawa = {
       const c = g.center(), x = 4 + i * 4;
       g.order = 'path'; g.path = [[c.x, Math.max(22 + i * 12, c.z)], [x, 14 + i * 4], [x, -18], [24 + (i - 1) * 10, -36]];
       g.pathIdx = 0; g.formation = 'column'; g.colW = 2; g.speed = 2.2;
-      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 70; q.formation = 'yari'; };
+      g.onArrive = (q) => {
+        if (F.step !== 2 || F.ending || rt.over || q.order !== 'path' || gone(q)) return;
+        q.order = 'attack'; q.seekRange = 70; q.formation = 'yari';
+      };
     }
     // 11/5（fix2・標準 一1・一5）：追い討ちは織田の数の勝る所。磯野に破られた前の段は崩れて残らないので、
     //   柴田の段の控え（本陣と川の間の軽い兵）から追い手を本物に替え、本人と同じ瀬を渡らせる（一人で四十余のしんがりへ渡らせない）。
@@ -4353,7 +4368,10 @@ const anegawa = {
       [{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 24 }, { type: 'gun', n: 3 }]);
     chase.defMult = 1; chase.dmgMult = 1;
     chase.order = 'path'; chase.path = [[2, 40], [8, 14], [10, -16]]; chase.pathIdx = 0; chase.formation = 'column'; chase.colW = 3;
-    chase.onArrive = (q) => { q.order = 'attack'; q.seekRange = 70; q.formation = 'yari'; };
+    chase.onArrive = (q) => {
+      if (F.step !== 2 || F.ending || rt.over || q.order !== 'path' || gone(q)) return;
+      q.order = 'attack'; q.seekRange = 70; q.formation = 'yari';
+    };
     F.chase = chase;
     // しんがりは浅井の四の手の一部（新庄直頼の手）。追い手の三分の一ほど。
     // 二の手の浅井政澄を重ねず、控えと同じ将にする。後年まで生きる新庄は斬り合いの後に退く。

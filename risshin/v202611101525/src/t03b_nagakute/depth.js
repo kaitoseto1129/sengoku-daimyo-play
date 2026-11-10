@@ -8,6 +8,7 @@ const F = (k) => (rt) => rt.flags[k];
 
 export const T03B_DEPTH = {
   byMen: true,   // 軽い兵を布陣図の兵数の比で配る（docs/fujin/。豊臣A 11/9）
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列を付ける（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   A: { name: '羽柴（中入り）', facing: Math.PI / 2, honjin: { x: 12, z: -10 }, mpu: 8, formation: '長蛇', terrain: 'road', flag: 'toyotomi', armor: 0x2b2723, openAt: 9999, attrition: 0,
     sonae: [
       // 信吉隊八千のうち二千は次の朝飯の本隊。二重に数えて中入り二万を超えない。

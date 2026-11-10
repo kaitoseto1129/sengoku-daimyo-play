@@ -35,14 +35,14 @@ export default {
   foes: (rt) => [rt.flags.scout],
   max: Infinity, // 未到着のまま次の持ち場に替えない。残敵の刻限は上で保つ。
 };
-// 人夫が土俵の山と堤の間を行き来し、堤が高くなる（人夫が残っている分だけ進む）
+// 人夫が土俵の山と堤の間を行き来する。損耗時も後方の人夫が最低限の築堤を続ける。
 export function workTick(rt, dt) {
   const F = rt.flags, g = F.workers;
   if (!g) return;
   F.workT -= dt;
   if (F.workT <= 0) { F.workT = 9; F.carry = 1 - F.carry; move(g, F.carry ? { x: P.work.x - 2, z: P.work.z - 4 } : P.pile); }
-  const n = g.units.reduce((a, u) => a + (u.alive ? 1 : 0), 0);
-  F.dug = Math.min(1, F.dug + dt * 0.0016 * Math.min(1, n / 6));
+  const n = g.units.reduce((a, u) => a + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0);
+  F.dug = Math.min(1, F.dug + dt * 0.0016 * Math.max(0.25, Math.min(1, n / 6)));
   F.mound.scale.y = 0.2 + 3.2 * F.dug;
   F.mound.position.y = rt.world.heightAt(P.work.x, P.work.z) + F.mound.scale.y / 2 - 0.2;
 }

@@ -2943,6 +2943,11 @@ const tonezaka = {
     const F = rt.flags;
     if (F['dp' + key]) return;
     F['dp' + key] = true; F.dpOn = true; F.toneHead = head;
+    // 義景は追手が峠を越えたら供と退く。速さだけ変えても、待機中の列は動かない。
+    if (key === 'Y') {
+      march(F.yoshikage, [xz(-4, -320)], (g) => { g.order = 'hold'; });
+      F.yoshikage.speed = 1.2;
+    }
     for (const k of ['toneRoad', 'pass', 'toneFront']) rt.unmark(k);
     rt.obj('main', head, 'main', true);
     for (const st of steps) {

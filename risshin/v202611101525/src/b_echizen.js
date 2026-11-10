@@ -406,10 +406,12 @@ Object.assign(echizen, {
     }
     if (!pos) return null;
     q.x = pos.x; q.z = pos.z;
-    // 柵・小郭を挟む時は既存の通れる道を使う。敵本人へ直進する印にしない。
-    if (!q.waiting && !q.route && rt.army.wallBetween(rt.player.u.pos, -1, pos, false)) {
+    // 壁だけでなく、九十九折りの間の急斜面も既存の道で回る。
+    if (!q.waiting && !q.route) {
       const way = rt.world.def.runnerWay(rt.army, rt.player.u, pos);
-      q.x = way.x; q.z = way.z; q.unit = null; q.enemy = false; q.route = true; q.r = q.hide = .5;
+      if (Math.hypot(way.x - pos.x, way.z - pos.z) > .1) {
+        q.x = way.x; q.z = way.z; q.unit = null; q.enemy = false; q.route = true; q.r = q.hide = .5;
+      }
     }
     q.arrived = q.waiting && Math.hypot(q.x - me.x, q.z - me.z) < q.r;
     return q;
@@ -2570,8 +2572,10 @@ function echizenTsukeiri(rt) {
 // 印と同じ迂回路で敵へ寄る。堂や柵の向こうへ直進して、壁越しに突き続けない。
 function passBotEnemyRoute(rt, inp, helpers, enemy) {
   const p = rt.player;
-  if (!rt.army.wallBetween(p.u.pos, -1, enemy.pos, false)) return false;
   const way = rt.world.def.runnerWay(rt.army, p.u, enemy.pos);
+  // 壁の無い斜面でも道をたどる。敵へ直進して郭から離れ続けない。
+  if (Math.hypot(way.x - enemy.pos.x, way.z - enemy.pos.z) <= .1 &&
+      !rt.army.wallBetween(p.u.pos, -1, enemy.pos, false)) return false;
   if (p.lock) inp.e.add('KeyQ');
   inp.runHeld = true;
   helpers.goTo(p, inp, way.x, way.z, .5, true);

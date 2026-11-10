@@ -4551,6 +4551,10 @@ const mitsukuri = {
     if (rt.over || F.ending) return;
     if (F.SZ?.byId[id]?.owner === 'enemy') {
       F[id + 'Fell'] = false;
+      // 奪還は新しい攻めとして数える。前に取った時の時間で残兵を即座に崩さない。
+      F[id + 'AttackT'] = 0;
+      F[id + 'EmptyT'] = 0;
+      if (id !== 'san') F[id + 'PressT'] = 0;
       F.honWait = false; F.honWaitWay = null;
       if (id === 'san' && F.step === 2.5) {
         // 火入れより奪還を先にする。灯す組も郭を取り戻す下知に戻す。
@@ -4631,7 +4635,8 @@ const mitsukuri = {
       // 11/4 夜：掛矢で木戸が先に破れると付け入りの段が飛ぶ（bot）。木戸が半ば傷んだ所でも打って出る。
       const st = gate.struct, worn = st && st.hp < st.maxHp * 0.55;
       // 時間だけで木戸の目標を済ませない。本人か掛矢の組が木戸前へ詰めてから打って出る。
-      if (!worn && !atKido(rt, rt.player.u)) {
+      // 11/10：丸太の組も本人も木戸へ届かないまま止まらないよう、木戸の段が九十秒続いたら打って出る（決まり7）。
+      if (!worn && !atKido(rt, rt.player.u) && rt.t - (F.stepT || 0) < 90) {
         let pressed = false;
         for (const u of F.ram.units) if (atKido(rt, u)) { pressed = true; break; }
         if (!pressed) return;
@@ -4660,7 +4665,8 @@ const mitsukuri = {
     // 郭の守備人数と同じく、負傷して戦線を離れた兵は除く。
     // 生存だけで数えると、重傷兵が半ばを占めた時に迎撃が終わらない。
     // 待つだけでは進めず、実際に戦える城兵が半ばになるまで押し寄せる。
-    if (fighting > F.sallyN * 0.5) return;
+    // 11/10：届かない所へ下がった城兵を討てず、木戸の前で十五分止まった（bot）。打って出て百二十秒たてば退く（決まり7・8）。
+    if (fighting > F.sallyN * 0.5 && rt.t - (F.sallyT || 0) < 120) return;
     // 半ばを討たれて退く。木戸は閉め切れず、退く兵に続いて二の丸へなだれ込める。
     F.sallyBack = true;
     const g = F.sally;
@@ -4966,7 +4972,8 @@ const mitsukuri = {
     }
     // 三の郭も、本人が庭で押し続けた時だけ残兵を崩す。
     // 柵際の残兵一人を追えず刻限まで止まる事を防ぎ、郭外で待つだけでは進めない。
-    if (F.step === 2 && !F.sanFell && F.SZ) {
+    // 火入れ・付け入り・本丸攻めの途中で失った三の郭も、同じ条件で奪還できる。
+    if (F.step >= 2 && F.step < 4.5 && !F.ending && !F.sanFell && F.SZ) {
       const z = F.SZ.byId.san;
       const present = zoneGroundFighter(rt, pu) && z.test(pu.pos.x, pu.pos.z);
       F.sanAttackT = present ? (F.sanAttackT || 0) + dt : 0;

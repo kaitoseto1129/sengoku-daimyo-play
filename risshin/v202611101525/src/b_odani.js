@@ -1668,22 +1668,9 @@ function addOdaniSteps(rt) {
   mesh.receiveShadow = true; rt.scene.add(mesh);
 }
 
-// 道の土は元の地形で描く。上張りを重ねず、案内の短い印だけを残す。
+// 道の土は元の地形で描く。行き先は共通の▼に任せ、地面の矢印を重ねない。
 function addOdaniTrail(rt) {
   const W = rt.world;
-  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;
-  const c = canvas.getContext('2d');
-  // 黒い菱形の板で道を覆わず、土が透ける短い道しるべにする。
-  c.strokeStyle = '#c7bda7'; c.lineWidth = 5; c.lineCap = 'round'; c.lineJoin = 'round';
-  c.beginPath(); c.moveTo(64, 20); c.lineTo(64, 108);
-  c.moveTo(34, 78); c.lineTo(64, 108); c.lineTo(94, 78); c.stroke();
-  const map = new THREE.CanvasTexture(canvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const signGeo = new THREE.PlaneGeometry(1.1, 1.1, 8, 8); signGeo.rotateX(-Math.PI / 2);
-  const sign = rt.flags.trailSign = new THREE.Mesh(signGeo, new THREE.MeshBasicMaterial({ map, transparent: true, opacity: .55, depthWrite: false,
-    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  rt.flags.trailBase = signGeo.attributes.position.array.slice();
-  sign.visible = false; rt.scene.add(sign);
   // 距離は任務の札に一本化する。兵や道を隠す浮いた距離札は置かない。
   // 草の斜面と同じ色だった登り道を、踏み固めた土でつなぐ。
   // 地形の既存の頂点へ一度だけ記録し、上張りの板・絵・描画回数は増やさない。
@@ -5149,7 +5136,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; F.trailSign.visible = false; rt.setPhase('end');
+    F.ending = true; rt.setPhase('end');
     F.retreatOn = false;
     for (const id of ['hide', 'trail', 'retreat', 'ono', 'kyo', 'cutHon', 'cutKom', 'yakata', 'watch', 'patrol', 'relief']) rt.unmark(id);
     for (const nest of F.nests || []) rt.unmark(nest.id);
@@ -5173,7 +5160,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     if (!rt.canFailMission()) return;
     const F = rt.flags;
     if (F.ending) return;
-    F.ending = true; F.trailSign.visible = false; rt.setPhase('end');
+    F.ending = true; rt.setPhase('end');
     rt.objFail('main'); rt.tracker.main = false;
     // 退き太鼓の後は退却だけを示す。失敗前の攻めや手当ての印を残さない。
     F.retreatOn = false;
@@ -5396,34 +5383,6 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         // 「次の印まで一メートル」の札だけが残り、進む向きが分からない。
         m.guideAlways = m.id === 'trail' || !!far;
         if (!far) guide.stalled = 0;
-      }
-    }
-    // 道の角の地面へ同じ印を沿わせる。札は近くでだけ読ませ、山や塀を透かさない。
-    if (rt.t >= (F.trailDrawAt || 0)) {
-      F.trailDrawAt = rt.t + .25;
-      const markerId = F.retreatOn ? 'retreat' : F.step === 3 && !F.komaAttack ? 'cutHon' : 'trail';
-      const marker = rt.markers.find((m) => m.id === markerId);
-      const point = marker && marker.pos();
-      F.trailSign.visible = !!point;
-      if (point) {
-        const distance = Math.hypot(point.x - rt.player.u.pos.x, point.z - rt.player.u.pos.z);
-        F.trailSign.visible = distance > (F.guideReturning ? .5 : 1.6) && distance < 18 && !F.ending && rt.player.u.alive
-          && !(F.komaAttack && !F.retreatOn && inOdaniKuruwa(rt, 'koma'));
-        const fx = distance > .01 ? (point.x - rt.player.u.pos.x) / distance : Math.sin(rt.player.yaw);
-        const fz = distance > .01 ? (point.z - rt.player.u.pos.z) / distance : Math.cos(rt.player.yaw);
-        const pos = F.trailSign.geometry.attributes.position, base = F.trailBase;
-        const floor = groundAt(rt.world, point.x, point.z, rt.player.u.pos.y);
-        let low = Infinity, high = -Infinity;
-        for (let i = 0; i < pos.count; i++) {
-          const x = point.x + base[i * 3] * fz + base[i * 3 + 2] * fx;
-          const z = point.z - base[i * 3] * fx + base[i * 3 + 2] * fz;
-          const y = groundAt(rt.world, x, z, floor);
-          low = Math.min(low, y); high = Math.max(high, y);
-          pos.setXYZ(i, x, y + .035, z);
-        }
-        // 切岸をまたぐ印は縦長の板になる。歩ける床に収まる印だけ残す。
-        if (high - low > 1.2) F.trailSign.visible = false;
-        pos.needsUpdate = true; F.trailSign.geometry.computeBoundingSphere();
       }
     }
     this.supportTick(rt);

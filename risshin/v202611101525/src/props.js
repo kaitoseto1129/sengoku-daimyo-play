@@ -1068,6 +1068,9 @@ export function jinmaku(world, cx, cz, w, d, gapSouth = 6, o = {}) {
   return grp;
 }
 
+const NB_ROOT_DEF = '#ifdef USE_INSTANCING\n#define NB_ROOT (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0))\n#else\n#define NB_ROOT (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0))\n#endif\n';
+// 11/10 重さ：幟の根元（modelMatrix の原点）を、束（InstancedMesh）で描く時は一本ごとの行列から取る
+const nbRoot = (src) => NB_ROOT_DEF + src.split('modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)').join('NB_ROOT');
 // 幟の布：竿から離れるほど、下へ行くほど大きくはためく
 const noboriMats = new Map();
 function noboriMaterial(kind) {
@@ -1120,7 +1123,9 @@ function noboriMaterial(kind) {
       // 裏は染めが透けて、少し暗く灰がかる
       if (!gl_FrontFacing) diffuseColor.rgb *= vec3(0.8, 0.78, 0.75);`);
     sh.uniforms.uWet = WET;
+    sh.vertexShader = nbRoot(sh.vertexShader);
   };
+  m.userData.nbInst = true;
   m.customProgramCacheKey = () => '置き幟の皺2';
   noboriMats.set(key, m);
   return m;
@@ -1144,7 +1149,9 @@ function nearNoboriMaterial(base) {
       // 透かさずに、塞ぐ間は幟一本ごと画面の外（視錐台の外）へ逃がす。点の間引きの砂嵐も出ない。
       .replace('#include <project_vertex>', `#include <project_vertex>
       if (vNearNobori < 0.55) gl_Position = vec4(0.0, 0.0, -2.0, 1.0);`);
+    if (!sh.vertexShader.startsWith(NB_ROOT_DEF)) sh.vertexShader = nbRoot(sh.vertexShader);
   };
+  m.userData.nbInst = true;
   m.customProgramCacheKey = () => base.customProgramCacheKey() + '_near_nobori';
   nearNoboriMats.set(base, m);
   return m;
@@ -1207,14 +1214,47 @@ const NOBORI_ALL = [];
 const _nbP = new THREE.Vector3();
 export function noboriCull(cam, scene) {
   const low = false;
+  // 11/10 重さ：場に立つ幟は一本ごとに布と竿の二回ずつ描いていた（影も）。同じ形と材質の幟を束（InstancedMesh）にまとめて描く。
+  //   一本ごとの組（castle_fall の倒れ・隠す）はそのまま残し、描くのだけを束に任せる（元の布と竿は layers 0 で描かない）。
+  let B = NB_BATCH.get(scene);
+  if (!B) { B = new Map(); NB_BATCH.set(scene, B); }
+  for (const e of B.values()) e.n = 0;
   for (let i = NOBORI_ALL.length - 1; i >= 0; i--) {
     const f = NOBORI_ALL[i];
-    let top = f; while (top.parent) top = top.parent;
+    let top = f, shown = true;
+    while (top.parent) { if (!top.visible) shown = false; top = top.parent; }
     if (top !== scene) { NOBORI_ALL.splice(i, 1); continue; }   // 前の戦の幟・場に置かれなかった幟は忘れる
-    f.getWorldPosition(_nbP);
-    const far = low && (_nbP.x - cam.position.x) ** 2 + (_nbP.z - cam.position.z) ** 2 > 22500;
-    f.layers.mask = far ? 0 : 1;
+    let far = false;
+    if (low) { f.getWorldPosition(_nbP); far = (_nbP.x - cam.position.x) ** 2 + (_nbP.z - cam.position.z) ** 2 > 22500; }
+    const st = f.children[0];
+    const ok = !far && shown && f.material?.userData?.nbInst && f.onBeforeRender === THREE.Object3D.prototype.onBeforeRender
+      && (!st || (st.isMesh && st.visible && st.material?.userData?.nbInst && st.onBeforeRender === THREE.Object3D.prototype.onBeforeRender && !st.children.length));
+    if (!ok) { f.layers.mask = far ? 0 : 1; if (st) st.layers.mask = 1; continue; }
+    f.layers.mask = 0; nbPut(B, scene, f, f.matrixWorld);
+    if (st) { st.layers.mask = 0; nbPut(B, scene, st, st.matrixWorld); }
   }
+  for (const e of B.values()) {
+    if (e.im.count !== e.n) e.im.count = e.n;
+    if (!e.n) continue;
+    e.im.instanceMatrix.needsUpdate = true;
+    e.im.computeBoundingSphere();
+  }
+}
+const NB_BATCH = new WeakMap();
+function nbPut(B, scene, o, mw) {
+  const key = o.geometry.id + ':' + o.material.id;
+  let e = B.get(key);
+  if (!e || e.n >= e.cap) {
+    const cap = e ? e.cap * 2 : 16, im = new THREE.InstancedMesh(o.geometry, o.material, cap);
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    im.name = 'noboriBatch'; im.userData.noFreeze = im.userData.noMerge = true;
+    im.castShadow = o.castShadow; im.receiveShadow = o.receiveShadow;
+    if (e) { im.instanceMatrix.array.set(e.im.instanceMatrix.array); scene.remove(e.im); e.im.dispose(); }
+    scene.add(im);
+    e = { im, cap, n: e ? e.n : 0 };
+    B.set(key, e);
+  }
+  e.im.setMatrixAt(e.n++, mw);
 }
 // 戦を出た時に一覧を空にする（描かない間は noboriCull が回らず、前の戦の幟と場面をつかみ続けた。11/8 docs/crash_1108.md）
 export function noboriForget() { NOBORI_ALL.length = 0; }
