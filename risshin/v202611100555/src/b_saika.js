@@ -2005,6 +2005,8 @@ const SAKUMA_AT = { x: 96, z: 0 };
 const ENVOY_AT = { x: 6, z: -84 };
 // 後陣（x72）の陣幕を抜けず、その北を回って佐久間の陣へ
 const ENVOY_ROAD = [[14, -60], [30, -38], [56, -27], [86, -20], [SAKUMA_AT.x + 2, -7]];
+// 会う前は川上の道口まで。陣で立って待つだけでは護送を果たせない。
+const ENVOY_APPROACH = ENVOY_ROAD.slice(0, 1);
 const saika = {
   playerTaken: 0.5,   // 11/9 二巡（織田H）：堤の段で川上・川下から囲まれ、bot が三回のうち二回倒れた（0.7 でも倒れた）。人数と斬り合いは減らさない
   jinkei: JIN,
@@ -3871,7 +3873,7 @@ const saika = {
       // 陣の口でも本人を待つ。別々の到着半径だけでは、三十歩以上離れても護送完了になった。
       if (far && E.order === 'path') E.order = 'hold';
       // 待ちの後や、共通の頭が止めた時も、道の続きから歩き直す
-      else if (!atLord && !far && E.order !== 'path') { E.fixed = false; E.order = 'path'; E.path = ENVOY_ROAD; E.pathIdx = F.envoyIdx || 0; }
+      else if (F.envoyMet && !atLord && !far && (E.order !== 'path' || E.path !== ENVOY_ROAD)) { E.fixed = false; E.order = 'path'; E.path = ENVOY_ROAD; E.pathIdx = F.envoyIdx || 0; }
       if (F.envoyMet && !far && atLord && near) this.win(rt, true);
     }
   },
@@ -3887,7 +3889,7 @@ const saika = {
     // 11/6 fixc1753（二6）：使者は初めから川上の東岸の外れにいる。そこから道を歩いて佐久間の陣へ（飛ばさない）。
     const M = F.envoy;
     M.fixed = false; M.retreatOnly = true; M.aggro = 0; M.formation = 'column'; M.colW = 1;
-    M.order = 'path'; M.path = ENVOY_ROAD; M.pathIdx = 0; M.speed = 2.6;
+    M.order = 'path'; M.path = ENVOY_APPROACH; M.pathIdx = 0; M.speed = 2.6;
     M.onArrive = (q) => { q.order = 'hold'; q.facing = EAST; };
     rt.marker('envoy', () => F.envoy.units[0].pos, '雑賀の使者', { h: 3 });
     rt.say('語り', '川を挟む対陣は半月に及んだ。三月十五日、雑賀の年寄り七人が誓紙を出す', 6);
