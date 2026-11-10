@@ -170,18 +170,20 @@ function shojiRibs(rt) {
   //   底ほど湿って暗く、背は乾いて明るい（平らな茶色の板に見せない）
   const PROF = [[-1, 0], [-0.62, 0.34], [-0.34, 0.74], [-0.12, 0.97], [0.12, 0.97], [0.34, 0.74], [0.62, 0.34], [1, 0]];
   const hz = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
-  const rib = (ax, az, bx, bz, wTop, wBot, tone, depth) => {
+  const rib = (ax, az, bx, bz, wTop, wBot, tone, S) => {
     const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 1.1));
     const nx = -(bz - az) / L, nz = (bx - ax) / L, NP = PROF.length;
     const base = pos.length / 3;
     for (let i = 0; i <= n; i++) {
       const t = i / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
-      const top = rim(x, z) - 0.8, bot = rim(x, z) - depth - 0.1;
       let v = 0, px = 0, py = 0;
       for (let k = 0; k < NP; k++) {
-        const [f, hgt] = PROF[k], edge = k === 0 || k === NP - 1;
+        const [f, hgt] = PROF[k];
         const half = Math.abs(f) <= 0.12 ? wTop * 0.6 : wTop + (wBot - wTop) * (1 - hgt);
-        const off = Math.sign(f) * half, y = bot + (top - bot) * hgt;
+        const off = Math.sign(f) * half, px0 = x + nx * off, pz0 = z + nz * off;
+        // 岸では掘る深さを地形と同じ割合で閉じる。一定の断面を途中で切ると土の壁になる。
+        const bank = sstep(-3, 1.2, Math.min(px0 - S.x0, S.x1 - px0, pz0 - S.z0, S.z1 - pz0));
+        const y = rim(px0, pz0) - ((S.depth + 0.1) * (1 - hgt) + 0.8 * hgt) * bank;
         if (k) v += Math.hypot(off - px, y - py) / 3; px = off; py = y;
         pos.push(x + nx * off, y, z + nz * off); uvs.push(L * t / 3 + tone * 0.37, v);
         // 色：底は湿った濃い赤土、背は乾いて白っぽく、ところどころ枯れ草の黄
@@ -205,12 +207,12 @@ function shojiRibs(rt) {
     for (let u = S.cx + Math.ceil((u0 + 0.8 - S.cx) / S.cell) * S.cell; u < u1 - 0.8; u += S.cell) {
       if (G && u > G[0] - 2.5 && u < G[1] + 2.5) continue;
       // 外縁に近い畝は裾も堀の内へ収める。背だけ収めると裾が曲輪へ突き出す。
-      rib(...P(u, v0 + 0.8), ...P(u, v1 - 0.8), wT, Math.min(wB, u - u0, u1 - u), tone++, S.depth);
+      rib(...P(u, v0 - 3), ...P(u, v1 + 3), wT, Math.min(wB, u - u0, u1 - u), tone++, S);
     }
     if (S.une) continue;
     const vm = (v0 + v1) / 2;
     for (let v = vm + Math.ceil((v0 + 0.8 - vm) / S.cell) * S.cell; v < v1 - 0.8; v += S.cell)
-      rib(...P(u0 + 0.8, v), ...P(u1 - 0.8, v), wT, Math.min(wB, v - v0, v1 - v), tone++, S.depth);
+      rib(...P(u0 - 3, v), ...P(u1 + 3, v), wT, Math.min(wB, v - v0, v1 - v), tone++, S);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
