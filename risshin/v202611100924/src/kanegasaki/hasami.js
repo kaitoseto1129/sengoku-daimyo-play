@@ -68,8 +68,14 @@ export function tick(rt, dt) {
   if (A?.m) A.m.visible = !!F.azaiShown && Math.hypot(A.x - p.x, A.z - p.z) > 70;
   const S = F.lastStand;
   if (!S) return;
-  // 主人公が離れるか四十秒で、残った組の旗が倒れて音が止む（戻って全員は救えない）
-  if (!S.fallAt && (rt.t - S.at > 40 || Math.hypot(p.x - S.flag.position.x, p.z - S.flag.position.z) > 55)) {
+  // 時間や主人公との距離だけで、健在の槍組を全滅したように見せない。
+  let fighting = false;
+  if (!S.g.routed) for (const u of S.g.units) {
+    if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget) {
+      fighting = true; break;
+    }
+  }
+  if (!S.fallAt && !fighting) {
     S.fallAt = rt.t;
     if (!F.ending) rt.say('足軽', '……後ろの槍の音が、止んだ', 3);
   }

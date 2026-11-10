@@ -20,10 +20,11 @@ import * as kinju from './kinju.js';
 import * as kaeri from './kaeri.js';
 import * as saigo from './saigo.js';
 import * as yoin from './yoin.js';
+import * as sugoi from './sugoi.js';   // kaito 11/9 夜の三つの瞬間（大軍の遠景・豪雨の総懸かり・幟が倒れる）
 import { GOALS15 } from './goals.js';
 const S = (rt) => (rt.flags.o15 ||= {});
 
-export function install(rt, def, C) { const v = S(rt); v.C = C; v.def = def; }
+export function install(rt, def, C) { const v = S(rt); v.C = C; v.def = def; sugoi.install(rt, C); }
 // 組が揃ってから谷へ下るまでの集まり（引き受けたら true。済んだら startMarch を呼ぶ）
 export function muster15(rt, def) { return muster.start(rt, def, S(rt).C); }
 
@@ -68,7 +69,7 @@ export function guardOk(rt) { const v = S(rt); return !!v.kinju2T && rt.t - v.ki
 // 義元の深手は、輿を捨てて退く旗本が三度向き直ってから（公記「二度三度、四度五度」。済まなければ退き始めて八十秒）
 export function woundOk(rt) { const F = rt.flags; return (F.turnBack || 0) >= 3 && rt.t - F.koshiLeftT > 40 || rt.t - F.koshiLeftT > 80; }
 // 帰陣の旗に着いた後の余韻（then で本体の finish）
-export function ending(rt, then) { const v = S(rt); yoin.start(rt, v.def, v.C, then); }
+export function ending(rt, then) { const v = S(rt); yoin.start(rt, v.def, v.C, then); sugoi.nameAsked(rt, 20.5); }
 
 export function tick(rt, dt) {
   const v = S(rt), F = rt.flags;
@@ -81,6 +82,7 @@ export function tick(rt, dt) {
   if (F.entered && !F.victory) kinju.tick(rt, dt);
   if (F.yoshiDown && !F.victory) saigo.tick(rt, dt);
   if (F.victory) kaeri.tick(rt, dt);
+  sugoi.tick(rt, dt);
 }
 
 // bot：新しい段の行き先と相手へ（ほかは本体の既定の動き）

@@ -933,6 +933,15 @@ const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 const HON_HOLD_SECONDS = 70;
 const AID_WAIT_SECONDS = 30;
 
+// 共通の避け足も町口の持ち場に収める。専用の頭より先に退避が選ばれ、
+// その後にも矢玉を避けるため、専用の頭だけの追い過ぎ防止では列から離れ続ける。
+function shigaTownStepAllowed(rt, to) {
+  if (rt.flags.step !== 1 && rt.flags.step !== 1.5) return true;
+  const p = rt.player.u.pos;
+  const distance = Math.hypot(to.x - TOWN_POST.x, to.z - TOWN_POST.z);
+  return distance <= 12 || distance < Math.hypot(p.x - TOWN_POST.x, p.z - TOWN_POST.z);
+}
+
 // 曲輪の奥に立つだけでは、木戸で寄せ手を防いだことにしない。
 // 閉じた木戸の外の敵も数え、門を開けて斬りに出る必要は設けない。
 function innerGateDefended(rt, p) {
@@ -2228,6 +2237,8 @@ const shiga = {
     return [[c.x, c.z], [q.x, q.z], ...ROAD.slice(0, Math.ceil(q.s)).reverse()];
   },
   botOrders: true, // 道・木戸・供・退き口は、この戦の下知に従う。
+  botRetreatStepAllowed: shigaTownStepAllowed,
+  botCoverBlocked: (rt, _from, to) => !shigaTownStepAllowed(rt, to),
   // 長い登りの後に七十秒＋五十秒の守りがある。共通の八分で途中を切らない。
   // 城内を移る猶予も含め五分まで。期限は段が変わっても延ばさず、未達なら共通の敗北へ。
   pacingWait: (rt) => !rt.flags.ending && (rt.flags.step === 3 || rt.flags.step === 3.5) && rt.t < rt.flags.siegeDeadline,

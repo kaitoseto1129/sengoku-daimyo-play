@@ -4121,6 +4121,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const F = rt.flags;
     if (F.ending || rt.over || !rt.player.u.alive || F.step >= 1) return;
     F.step = 1; F.stepT = rt.t; F.cannonPost = F.guns[1];
+    // 舳先の見張りを飛ばしても、古い行き先を大筒の案内へ残さない。
+    rt.unmark('kzbow');
     rt.setPhase('cannon'); rt.objProgress('main', '');
     // 大将の場所は残し、危ない時だけ持ち場への案内に切り替える。
     sfx('horagai', 0.9);
