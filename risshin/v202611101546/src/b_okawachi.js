@@ -822,6 +822,9 @@ const okawachi = {
     // 隣の折り返し道や切岸の上では、任務と同じ高さの判定で未到着にする。
     q.arrived = !q.route && (recoverCover || F.step <= 1 && q.waiting ? okAtWaitCover(rt) :
       okAtPost(rt, at, q.r));
+    // 共通の六歩で消すと、半歩まで寄る道の角や竹束の手前で案内が途切れる。
+    // 次の角へ替わる範囲と、本人が着いた時だけ印を消す範囲を揃える。
+    q.hideDistance = q.r;
     // 敵本人の印は missionSignTarget の▼。行き先は同じ地点への道のピンにする。
     // 間合いに入ったら▼だけを残し、近い敵に移動のピンを重ねない。
     if (q.enemy) {
