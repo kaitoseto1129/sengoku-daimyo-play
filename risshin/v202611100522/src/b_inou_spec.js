@@ -748,7 +748,8 @@ const inou_spec = {
       rt.army.play('eshout', { x: at.x, z: at.z }, 1.6);
       rt.say(rt.G.lord ? '自分' : '織田信長', '主に刃を向けるのか！', 3);
     });
-    rt.after(5.9, () => I15.duel(rt, this) || this.breakLine1(rt));   // 勝家との一騎打ち（inou/katsuie.js）の後に崩れる
+    // 勝家本人を主人公へ突撃させず、一喝から柴田勢の敗走へつなぐ。
+    rt.after(5.9, () => this.breakLine1(rt));
   },
 
   // 段二：柴田勢が崩れて敗走する。信長は「隊列を整えよ」と列を止め、間を置かず北から寄せる林勢（先手五組と弓組）へ向かう。両翼でも軽い大軍が組み合う
@@ -1106,6 +1107,9 @@ const inou_spec = {
         const nd = Math.hypot(N.pos.x - B.pos.x, N.pos.z - B.pos.z);
         if (nd > 3.5) { const k = Math.min(nd - 3.2, 7 * 0.25) / nd; N.pos.x += (B.pos.x - N.pos.x) * k; N.pos.z += (B.pos.z - N.pos.z) * k; N.pos.y = rt.world.heightAt(N.pos.x, N.pos.z); N.yaw = Math.atan2(B.pos.x - N.pos.x, B.pos.z - N.pos.z); }
         if (nd < 4.5) {
+          // 共通の討ち取り処理は、本人が四分の一削った将の手柄を本人へ戻す。
+          // 美作守だけは史実の信長の一突きを優先し、本人への付け替えを止める。
+          B.heroDmg = 0;
           F.nobuKill = true; B.invuln = false; B.inouNoWord = true; rt.army.play('eshout', B.pos, 1.6); rt.army.kill(B, N);
         }
       }

@@ -548,6 +548,9 @@ const k05_ueda = {
       if (F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiEngaged = true;
       if (F.oiEngaged) { F.oi.noRout = false; F.oiHeld = (F.oiHeld || 0) + dt; }
     }
+    // 追手が小路で止まっても殿を終えられるよう、実際に岸を守った時間を別に数える。
+    // 到着・接敵の印は偽らず、百五十秒守った後は残る追手へ撤収の下知を出す。
+    if (F.step === 6 && F.oi && dist(P.pos, FORD_W) < 30) F.oiCoastHeld = (F.oiCoastHeld || 0) + dt;
     // 手勢は本人の脇に付いて一緒に走る（AP5）
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
       F.mineT = 0.6;
@@ -613,6 +616,12 @@ const k05_ueda = {
       // 全員が討たれた時は、岸へ届く相手が残っていないので退ける。
       // 潰走した兵は討死ではない。隊の中心が岸へ寄っただけでも接敵済みにはしない。
       else if (F.oi && (F.oiEngaged || !F.oi.units.some((u) => u.alive && !u.gone)) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
+      // 通し確認で起きた「岸へ届かない追手を待ち続ける」停止を防ぐ。
+      // 真田は時間稼ぎを終えて城へ戻る。討った人数や接敵済みの印は増やさない。
+      if (F.step === 6 && !F.oiEngaged && (F.oiCoastHeld || 0) >= 150 && dist(P.pos, FORD_W) < 30) {
+        this.back(F.oi);
+        this.toStep(rt, 7);
+      }
     } else if (F.step === 7) {
       if (P.pos.x > RET.x - 6 && dist(P.pos, RET) < 16) this.win(rt);
     }

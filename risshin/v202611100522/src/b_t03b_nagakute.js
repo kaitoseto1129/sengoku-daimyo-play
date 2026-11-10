@@ -254,7 +254,9 @@ const t03b_nagakute = {
   stage(rt, n) {
     const F = rt.flags;
     F.stage = n; F.st0 = rt.t; F.there = false; F.defended = false;
+    F.guardTime = 0; F.guardShown = -1;
     rt.obj('main', textOf(n), 'main');
+    rt.objProgress('main', '');
     if (n === 0.5) { March.start(rt, this.ctx(rt)); return; }
     if (n === 5.5) { Ikeda.start(rt, this.ctx(rt)); return; }
     if (n === 1) {
@@ -579,6 +581,17 @@ const t03b_nagakute = {
     const el = rt.t - F.st0;
     const atGoal = dist(P.pos, goalOf(F.stage)) < goalR(F.stage);
     if (!F.there && atGoal) { F.there = true; F.at0 = rt.t; }
+    // 味方が先に敵を倒しても、持ち場で守り抜けば進める。陣を離れた時間は数えない。
+    // 攻撃を当てるまで終われない条件だけでは、敵のいない丘で刻限まで待たされる。
+    if (F.stage === 1 || F.stage === 3) {
+      const limit = F.stage === 1 ? 125 : 130;
+      if (atGoal) F.guardTime = Math.min(limit, F.guardTime + dt);
+      const seconds = Math.floor(F.guardTime);
+      if (seconds !== F.guardShown) {
+        F.guardShown = seconds;
+        rt.objProgress('main', `持ち場の守り ${seconds}／${limit}秒`);
+      }
+    }
     if (F.stage === 0.5) { March.tick(rt, this.ctx(rt), dt); return; }
     if (F.stage === 5.5) { Ikeda.tick(rt, this.ctx(rt)); return; }
     if (F.stage === 1) {
@@ -589,7 +602,7 @@ const t03b_nagakute = {
       H.target = null; H.watch = null;
       F.hideG.order = 'hold'; F.hideG.fixed = true;
       const left = F.w1.reduce((s, g) => s + aliveN(g), 0);
-      if (atGoal && F.defended && ((el > 95 && left <= F.w1N() * 0.45) || el > 125)) {
+      if (atGoal && ((F.defended && ((el > 95 && left <= F.w1N() * 0.45) || el > 125)) || F.guardTime >= 125)) {
         if (F.there) rt.award((t) => t.side.push('白山林で信吉様の馬印を守った'), '白山林で信吉様の馬印を守った');
         this.stage(rt, 2);
       }
@@ -607,7 +620,7 @@ const t03b_nagakute = {
       for (const g of F.w3) if (g) for (const u of g.units) if (u.alive && !u.gone && u.pos.x < HINOKI.x - 2 && Math.abs(u.pos.z - HINOKI.z) < 26) inside++;
       if (inside >= 12) return this.lose(rt, '堀様の陣を破られた');
       const left = F.w3.reduce((s, g) => s + aliveN(g), 0);
-      if (atGoal && F.defended && ((el > 90 && left <= F.w3N * 0.4) || el > 130)) {
+      if (atGoal && ((F.defended && ((el > 90 && left <= F.w3N * 0.4) || el > 130)) || F.guardTime >= 130)) {
         rt.say('堀秀政', '押し返したぞ！', 2.2);
         if (F.there) rt.award((t) => t.side.push('檜ヶ根で追手を押し返した'), '檜ヶ根で追手を押し返した');
         this.stage(rt, 4);

@@ -1779,9 +1779,9 @@ function tickRaiders(rt, dt) {
   const x = Math.max(-19, Math.min(BACK.x + 28, at.x));
   const z = Math.max(-72, Math.min(72, at.z));
   for (const g of F.raiders) {
+    if (g.retreatOnly) continue;   // 引く下知を出した組を、本人への寄せへ戻さない。
     let ready = false, distance = Infinity;
-    for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed &&
-        !g.routed) {
+    for (const u of g.units) if (bankReady(u)) {
       if (u.type !== 'gun' && u.type !== 'bow') ready = true;
       const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
       distance = Math.min(distance, d);
@@ -3808,6 +3808,21 @@ const saika = {
     } else if (F.step === 5) {
       // 堤へ出る下知の後は、竹束の旧判定で呼び戻したり失敗にしない。
       if (F.paceTsutsumi) return;
+      // 残る一人が遠い杭や岩で止まっても、全滅するまで探させない。
+      // 寄せた組は八割を失うか三分攻めたら、初めから用意した浅瀬の道で引く。
+      // 退く兵が旗の周りに残る間は、下の threat で東岸の安全を確かめる。
+      for (let i = 2; i < F.flanks.length; i++) {
+        const g = F.flanks[i];
+        if (!g.bankCommitted || g.routed || g.retreatOnly) continue;
+        let ready = 0;
+        for (const u of g.units) if (bankReady(u)) ready++;
+        if (!ready || ready > Math.floor(g.units.length * .2) && el < 180) continue;
+        g.focus = null; g.retreatOnly = true; g.fixed = false;
+        g.order = 'path'; g.path = g.fleePath; g.pathIdx = 0;
+        g.formation = 'column'; g.colW = 2; g.holdFire = true; g.fire = false;
+        g.onArrive = (q) => { q.order = 'hold'; q.facing = EAST; };
+        rt.say('見張り', `${g.bankSide}の寄せ手が引くぞ。追わず、東岸を守れ`, 4);
+      }
       let threat = 0, deep = 0;
       for (const g of F.raiders) for (const u of g.units) {
         if (bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24) { threat++; if (u.pos.x > BACK.x + 6 && Math.abs(u.pos.z) < 10) deep++; }
@@ -3822,7 +3837,7 @@ const saika = {
       }
       // 11/6 fixc1753（九2）：④は川上・川下の二組を払えば果たす（時間待ちの守りにしない）。
       //   二組とも討たれるか崩れて退けば済み。来ないまま終わる事は無い（歩いて来る組を待つ）。
-      const waveLeft = F.flanks.slice(2).some((g) => !g.routed && g.units.some(bankReady));
+      const waveLeft = F.flanks.slice(2).some((g) => !g.routed && !g.retreatOnly && g.units.some(bankReady));
       const raidsDone = rt.t >= F.lastRaidAt && !waveLeft;
       F.inT = raidsDone && holding && threat === 0 ? F.inT + dt : 0;
       // 六秒で和議へ移るため、十秒を待つと押し返した知らせが出なかった。

@@ -4355,7 +4355,12 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     at(58, () => { honnoSay(rt, '門番', '門がきしむ！　内側で支えよ！', 3); });
     // 門を守り切っても延焼で持ち場を移す。敵の全滅待ちで止めない。
     // 10/31：延焼で持ち場を移すのは、本人が門で一人でも討ってから（立っているだけで段が進まないように）
-    const down = () => { if (F.gDown || F.ending || rt.over || F.hp !== 3) return; if ((F.pk || 0) >= 1) this.gateDown(rt, true); else rt.after(4, down); };
+    const down = () => {
+      if (F.gDown || F.ending || rt.over || F.hp !== 3) return;
+      if ((F.pk || 0) >= 1) this.gateDown(rt, true);
+      // 守備八秒に届かず退却を保留した時も、守り直した後に延焼の判定を続ける。
+      if (!F.gDown) rt.after(4, down);
+    };
     at(72, down);
   },
   gateDown(rt, burned = false) {
@@ -4728,14 +4733,14 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     for (const [x, z] of [[KYO_ST - 7, -92.5], [KYO_ST + 7, -116.5]]) W.addFire(x, z, { size: 1.6, h: 2.2, blackSmoke: true });
     W.addSmokeColumn(KYO_ST + 7, 7, -116.5, { size: 2.4, black: true });
     // 紙：信忠も明智勢と戦い、御所の奥で腹を切る。最期の下知を聞いてから北の口へ。
-    rt.banner('もはやこれまで', '信忠は御所の奥で腹を切った。御所に火がかけられた');
+    rt.banner('もはやこれまで', '御所に火が回る。信忠の最期の下知を聞き、北の口へ退け');
     rt.praiseT = 1e9;   // 上役の信忠・村井は御所で死ぬ。一人で落ちる間に、上役の褒めの声を出さない（battle.js）
     honnoSay(rt, '織田信忠', '腹を切る。屍は縁の下へ隠せ。……そなたは落ちよ、見た事を伝えよ', 4.5);
     rt.after(5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '斎藤利治', '殿のお供をいたす。最後の一人まで門を支えるぞ！', 3.5); });
     if (F.tadaU && F.tadaU.alive) { F.tadaU.noTarget = true; F.tada.order = 'hold'; F.tada.anchor = { x: NIJO.x + 2, z: NIJO.z - 2 }; }
     // 11/6 fixc0939：落ちる本人の後ろを信忠が付いて来て、使者の家に名札が映った。信忠は最期の下知の後、御所の奥へ入る（見せない）
     rt.after(4.8, () => { const u = F.tadaU; if (u?.alive) { u.invuln = false; rt.army.despawn(u); } });
-    rt.after(1.5, () => honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 4));
+    rt.after(8.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 3.5); });
     rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); });
 
     rt.obj('main', '明智の兵を抜け、京の外れの木戸まで逃げよ', 'main', true);

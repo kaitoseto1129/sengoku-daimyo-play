@@ -3744,6 +3744,8 @@ const echizen_ikko = {
         escape: { zoneId: 'okuyama', rally: { x: OKUYAMA.x - 24, z: OKUYAMA.z + 14 } },
         onFall: (id) => this.onZoneFall(rt, id),
       });
+      // 堂の区域は戦の間変わらない。残敵の点検用の配列を毎コマ作らない。
+      F.okuSweepContext = { zones: TEMPLE_HALL_IDS.map((id) => F.SZ.byId[id]).filter(Boolean) };
 
       // 城攻めの段（siege_stages.js・docs/siege_honjin_spec_1107.md 5・13章）：惣門 → 外堂 → 山門と本堂 → 奥の院。
       //   今の段の守りだけが打って出て、奥は持ち場で構えて待つ。段が長引けば使番が知らせる（11章）
@@ -4207,7 +4209,7 @@ const echizen_ikko = {
     IK_YAMA.tick(rt);   // 寺攻めの前の山狩り（echizen_ikko/yamagari.js）
     IK_OKU.ambushTick(rt, { look: IKKO_KOSODE });
     IK_SANMON.tick(rt, dt);   // 夜の山門が打たれずに止まった時、掛矢組が破る（echizen_ikko/sanmon.js）
-    if (F.SZ) IK_OKU.tick(rt, dt, { zones: TEMPLE_HALL_IDS.map((id) => F.SZ.byId[id]).filter(Boolean) });   // 山狩りの段で堂に残って動けない兵（echizen_ikko/okunoin.js）
+    if (F.okuSweepContext) IK_OKU.tick(rt, dt, F.okuSweepContext);   // 山狩りの段で堂に残って動けない兵（echizen_ikko/okunoin.js）
     if (rt.t >= (F.civCheckAt || 0)) {
       F.civCheckAt = rt.t + .5;
       for (const c of F.civ || []) if (!c.routed) {
