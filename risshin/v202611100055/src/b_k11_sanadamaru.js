@@ -585,7 +585,17 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 素直な遊び手：③は目の前に敵がいなければ柵へ寄り、柵の方を向いて打つ（持ち場で南を向いて立ち尽くさない。九7）
       botSteer: (b, inp) => {
         const T = F.target, u = b.player.u;
+        // 通し確認：鉄砲のまま槍の間合いへ入らない。近くの敵への受けと反撃は共通の判断を守る。
+        const foe = b.army.nearestEnemy(u, 4, (o) => !o.isStruct && !o.noTarget && !o.woundOut && !o.fleeing && !o.invuln && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+        if (foe) {
+          if (b.player.weapon === 'gun' || b.player.weapon === 'bow') inp.e.add('Digit1');
+          return;
+        }
         if (F.step !== 3 || !T || !T.alive) return;
+        // 柵へ向き直っても古い敵への注視や構えが残ると、南を向いたり短い払いになって届かない。
+        if (b.player.lock) inp.e.add('KeyQ');
+        if (b.player.weapon !== 'spear') inp.e.add('Digit1');
+        inp.guardHold = false;
         const fx = (T.seg[0] + T.seg[2]) / 2, fz = (T.seg[1] + T.seg[3]) / 2;
         // 柵へ一人で突っ込まず、柵に取り付く竹束の南側へ寄る。近い束を一つ選ぶだけで、配列を毎コマ作らない。
         let cover = null, best = Infinity;

@@ -46,7 +46,7 @@ Object.assign(takato, {
   // 11/4 jin（kaito 10/23・BH6）：▼の上に字を出さない。敵を指す札と矢印も出さない（敵は頭上の▼で分かる）。
   // 11/6 fix61（九1・五3）：行き先の▼には距離を m で添える（goalSignBare をやめる。名の字は goalSignNoLabel で出さない）。
   goalSignNoLabel: true, goalSignBare: false, meleeGuide: () => false,
-  goalSignOnly: true,   // 行き先は頭上の金の▼一つだけ（旗と矢印のピンを重ねない。AV15・BH6）
+  goalSignOnly: true, goalSignTriangle: true,   // 画面の外でも回る矢印にせず、金の▼一つで示す。
   // 共通の「味方の小勢・敵の小勢」は足さない（kaito AQ6・AW6：5人ほどの小隊を湧かせない）。
   frontlineDensity: false,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',
