@@ -4331,7 +4331,12 @@ const echizen_ikko = {
         if (!F.generalRetired && reserve.real && !reserve.real.stay) reserve.real.stay = true;
         if (!F.generalRetired && reserve.taishoU?.alive) {
           let danger = false;
-          for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && u.team !== reserve.team && !u.noTarget && !u.isStruct && Math.hypot(u.pos.x - reserve.pos.x, u.pos.z - reserve.pos.z) < 18) danger = true;
+          // 倒れた兵や討死の動作中の兵を、陣所へ迫る敵と数えない。
+          for (const u of rt.army.units) if (u.team !== reserve.team && siegeFighter(u) &&
+              u.hp > 0 && !u.dying && !u.rearWound &&
+              Math.hypot(u.pos.x - reserve.pos.x, u.pos.z - reserve.pos.z) < 18) {
+            danger = true; break;
+          }
           // 遠景への切替で実兵が減っても退かない。陣所へ敵が迫った時だけ退く。
           if (danger) {
             F.generalRetired = true; reserve.order({ id: 'move', to: F.generalSafe, form: 'yari' });

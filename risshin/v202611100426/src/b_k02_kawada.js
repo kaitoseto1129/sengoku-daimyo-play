@@ -615,6 +615,19 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z - 4 && b.t - sp.t > 10) {
     const e = b.army.nearestEnemy(u, 4, (o) => reachableFoe(b, u, o));
     if (e) { p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z); inp.leftPressed = true; if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 2) goTo(p, inp, e.pos.x, e.pos.z, 1.8); return; }
+    // 口の中央を味方や狙えない兵が塞ぐ時は、同じ筋へ押し続けず、
+    // 十四歩開いた口の内で左右へ回る。道の案内へ戻すと中央に引かれる。
+    if (u.pos.z >= GATE.z && u.pos.z < NORTH.z + 12 && Math.abs(u.pos.x - GATE.x) < 6 && !(F.k02GateUntil > b.t)) {
+      F.k02GateSide = F.k02GateSide === -1 ? 1 : -1;
+      F.k02GateUntil = b.t + 8;
+    }
+  }
+  if (F.dp?.on && F.dp.i === 2 && u.pos.z >= GATE.z && F.k02GateUntil > b.t) {
+    const x = GATE.x + F.k02GateSide * 4;
+    inp.leftPressed = !!b.army.nearestEnemy(u, 4, (o) => reachableFoe(b, u, o)); inp.runHeld = true;
+    // 先に横へ抜けてから北へ進む。柵の端から三歩の余裕を残す。
+    goTo(p, inp, x, Math.abs(u.pos.x - x) > 1 ? u.pos.z : GUARD.z, 0.6, true);
+    return;
   }
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {
     inp.leftPressed = false; inp.runHeld = true;

@@ -36,14 +36,20 @@ export function tick(rt, dt) {
   const F = rt.flags, S = F.shSoko;
   if (!S || S.done) return;
   const c = S.ctx, g = S.g, p = rt.player.u.pos;
+  // 後列の到着待ちで止めず、破れ目へ来た先頭から受け合いを数える。
+  if (S.arrive == null && g.units.some((u) =>
+      u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+      Math.hypot(u.pos.x - S.IN.x, u.pos.z - S.IN.z) < 18)) S.arrive = rt.t;
   if (!S.call && (g.center().x < c.SB.x0 + 4 || rt.t - S.at > 40)) {
     S.call = true;
-    rt.say('組頭', '破れ目に土屋隊が入った！　鉄砲組がやられる、走れ！', 3.4);
+    rt.say('組頭', S.arrive != null
+      ? '破れ目に土屋隊が入った！　鉄砲組がやられる、走れ！'
+      : '土屋隊が破れ目へ寄せておる！　鉄砲組を守りに走れ！', 3.4);
   }
   if (Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.there = true;
   const lord = g.units.find((u) => u.name === '土屋昌次');
   const left = c.ready(g);
-  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || rt.t - S.at > 170);
+  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || S.arrive != null && rt.t - S.arrive > 60);
   if (!end) return;
   S.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
