@@ -85,6 +85,13 @@ export function toneJourney(rt) {
   } };
 }
 
+// 坂に残る兵は生存枠からも下ろす。別組の旗本を城下へ持ち越さない。
+export function toneJourneyRetire(rt, groups) {
+  const retired = new Set(groups.filter(Boolean));
+  for (const g of rt.army.groups) if (g.taishoGuard && retired.has(g.taishoGuard.group)) retired.add(g);
+  for (const g of retired) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
+}
+
 // 道中の切り替えで既存の兵だけを移す。人数・体力・戦功は増やさない。
 export function toneJourneyGroup(rt, g, p, facing) {
   if (!g || g.routed) return;

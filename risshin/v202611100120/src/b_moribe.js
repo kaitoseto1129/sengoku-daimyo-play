@@ -5207,6 +5207,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 遅れて侍を討った直後に退却期限を迎え、殿との戦いを飛ばして勝つのを防ぐ。
         rt.flags.pursuit.t = rt.t;
         rt.flags.pursuit.k0 = rt.flags.ek || 0;
+        // ④より前の接触は⑤の戦いに数えない。離れた殿とは改めて槍を合わせる。
+        delete rt.flags.pursuit.contactAt;
         rt.objDone('commanders');
       }
     }
