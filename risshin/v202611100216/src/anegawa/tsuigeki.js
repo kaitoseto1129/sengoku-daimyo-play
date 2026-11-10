@@ -8,13 +8,14 @@
 import { sfx } from '../audio.js';
 
 export const MISSIONS = ['野村の浅井本陣へ追い討て', '信長の首を狙う遠藤直経を止めよ'];
-const DEST = { x: 40, z: -78 };   // 野村の手前（浅井の二の手・三の手がいた所）
 
-// ctx：{ enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, ending(), HQ }
+// ctx：{ enemyGroup, allyGroup, dress, AZAI, AZAI_FLEE, ending(), HQ, nomura }
 export function start(rt, ctx) {
   const F = rt.flags;
   if (F.aneTsui) return;
-  const S = F.aneTsui = { k: 0, t0: rt.t, done: false };
+  // 二の手の跡を本陣と呼ばず、布陣と同じ野村の本陣まで追う。
+  const DEST = ctx.nomura;
+  const S = F.aneTsui = { k: 0, t0: rt.t, done: false, at: DEST };
   const live = () => !F.ending && !rt.over && rt.player?.u?.alive;
   rt.marker('aneNomura', DEST, '野村');
   for (const g of [F.mori, F.shibata, F.inaba, F.kino, F.vanguard]) if (g && g.count && !g.routed) {
@@ -87,7 +88,7 @@ export function pin(rt, q) {
   if (!S || S.done) return undefined;
   if (S.k >= 1 && S.u?.alive) { q.unit = S.u; q.enemy = true; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 2; return q; }
   if (S.k >= 1 && S.u) { q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 8; return q; }
-  if (S.k < 1) { q.x = DEST.x; q.z = DEST.z; q.r = 8; q.hide = 8; return q; }
+  if (S.k < 1) { q.x = S.at.x; q.z = S.at.z; q.r = 8; q.hide = 8; return q; }
   return undefined;
 }
 
@@ -106,6 +107,6 @@ export function bot(b, goTo, p, inp, strike) {
     else strike(p, inp, e, d);
     return true;
   }
-  if (S.k === 0) { goTo(p, inp, DEST.x, DEST.z, 4); return true; }
+  if (S.k === 0) { goTo(p, inp, S.at.x, S.at.z, 4); return true; }
   return true;
 }
