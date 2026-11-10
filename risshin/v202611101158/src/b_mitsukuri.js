@@ -2340,6 +2340,10 @@ function sanKuchiWay(army, u, goal) {
     if (Math.hypot(u.pos.x-ROAD_HON[i][0],u.pos.z-ROAD_HON[i][1]) < 1.5) i += forward ? 1 : -1;
     if (i < 0 || i >= ROAD_HON.length || (forward ? i >= to.s : i <= to.s)) {
       if (sanGroundPassage(army, u.pos, goal)) return goal;
+      // 庭の敵へ斜めに寄れない時も、敵に近い道の点までは進む。
+      // 現在地の最近点だけを返すと、石段の下で足踏みし続ける。
+      q.x = to.x; q.z = to.z;
+      if (sanGroundPassage(army, u.pos, q)) return q;
       q.x = from.x; q.z = from.z; return q;
     }
     q.x = ROAD_HON[i][0]; q.z = ROAD_HON[i][1];
@@ -2384,7 +2388,13 @@ function sanKuchiWay(army, u, goal) {
       let index = up ? Math.floor(from.s) + 1 : Math.ceil(from.s) - 1;
       index = Math.max(0, Math.min(road.length - 1, index));
       if (Math.hypot(u.pos.x - road[index][0], u.pos.z - road[index][1]) < 1.5) index += up ? 1 : -1;
-      if (index < 0 || index >= road.length || (up ? index >= to.s : index <= to.s)) return goal;
+      if (index < 0 || index >= road.length || (up ? index >= to.s : index <= to.s)) {
+        if (sanGroundPassage(army, u.pos, goal)) return goal;
+        // 最後の区間でも柵・切岸を横切らず、道を通って目標の脇へ寄る。
+        q.x = to.x; q.z = to.z;
+        if (sanGroundPassage(army, u.pos, q)) return q;
+        q.x = from.x; q.z = from.z; return q;
+      }
       q.x = road[index][0]; q.z = road[index][1];
       if (!sanGroundPassage(army, u.pos, q)) { q.x = from.x; q.z = from.z; }
     }
