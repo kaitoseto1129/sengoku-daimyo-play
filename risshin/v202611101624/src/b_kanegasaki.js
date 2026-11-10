@@ -4585,7 +4585,9 @@ function kgA() {
   ])];
 }
 function kgB() {
-  return [kgHold(1, 150, [
+  // 11/10 kanegasaki_spec_1109：川の砦はこの渡りの段の後に殿の段（shingari.js・95秒）が同じ所で続く。
+  //   150秒（期限305秒）では川の砦だけで五〜六分になり、殿の組が溶けて崩れ、act の bot が毎回「合流が間に合わず」で負けた。紙の橋の守り二分半に合わせて詰める
+  return [kgHold(1, 75, [
     { t: 3, name: '橋へ向かう朝倉勢', from: { x: 6, z: -58 }, list: [uS(2), uA(16)] },
     { t: 24, name: '浅瀬へ向かう朝倉勢', from: { x: -50, z: -60 }, list: [uS(2), uA(12)] },
   ])];

@@ -34,6 +34,7 @@ import * as Open from './t02_shizugatake/open.js';
 import { returnTurn, sevenSpears, epilogue } from './t02_shizugatake/turn.js';
 import { flagTexture } from './textures.js';
 import { T02_DEPTH } from './t02_shizugatake/depth.js';
+import { depthRout } from './army_depth.js';
 
 // ---- 標高（国土地理院） ----
 const XY = 8, BIWA = 84, YOGO = 132.95, VS = 0.1;      // 高さは 1/10（水平の 1/8 より少し潰す。実の 30〜40 度の法を兵が上り下りできる傾きに）
@@ -1079,6 +1080,7 @@ const t02_shizugatake = {
         // 主人公だけが先着した時は、備が追いつくまで総崩れにしない。
         if (near(SHIBA_FRONT, 30) && nearCount(rt, 0, SHIBA_FRONT, 35) >= 4 && st > 25 && (nLive(F.kmG) <= 4 || st > 130)) {
           F.katOut = rt.t;
+          this.routShibataDepth(rt);
           rt.say('柴田勝家', '……退け。北ノ庄へ退け', 3);
           rt.after(3.2, () => rt.say('羽柴秀吉', '深追いはならぬ。勝家は北ノ庄で詰める', 3));
           for (const g of [F.kat, F.kmG]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: g.center().x, z: -330 }; g.speed = 2.6; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
@@ -1088,9 +1090,25 @@ const t02_shizugatake = {
     }
   },
 
+  // 近くの先手だけでなく、北の予備・本陣の軽い備も同じ下知で崩れる。
+  routShibataDepth(rt) {
+    const V = rt.flags.depth, D = V?.B;
+    if (!D) return;
+    D.broken = true; // 北ノ庄へ退いた備を勝鬨の間に再編させない。
+    for (const s of D.sonae) depthRout(D, s);
+    // 本陣の座る／立つ／騎乗の姿は備とは別の描画。実際に退く勝家と二重に残さない。
+    for (let i = V.honjin.length - 1; i >= 0; i--) {
+      const h = V.honjin[i];
+      if (h.D !== D) continue;
+      for (const g of Object.values(h.pose)) g.visible = false;
+      V.honjin.splice(i, 1);
+    }
+  },
+
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
+    this.routShibataDepth(rt);
     F.ending = true;
     rt.objDone('s' + stageIx(F.phase));
     rt.tracker.main = true;

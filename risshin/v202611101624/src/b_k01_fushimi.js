@@ -340,13 +340,16 @@ const k01_fushimi = {
     const D = rt.flags.dp, C = D?.on ? D.cur : null;
     const fighting = C?.s.kind === 'fight';
     const moving = C?.s.kind === 'move';
+    const holding = C?.s.kind === 'hold';
     // 討つ段の印は敵の組を追う赤い印。これを除くと屋敷・大手門・
     // 本丸への行き先まで消えるため、段に決めた場所を案内する。
     const m = rt.markers.find((q) => q.id === 'dp');
     // 二の丸へ一度着くと共通の移動段が印を外す。その後に追い手と
     // 戦って離れても、達成には持ち場へ戻る必要があるので案内を残す。
     const rest = C?.s.kind === 'rest' ? rt.flags.restNext : null;
-    const at = moving ? fushimiWay(rt.army, rt.player.u, C.at) : fighting ? C.at : rest || (m && !m.red ? m.pos?.() : null);
+    // 守備地点も共通の印に依存させない。印が隠れたり外れたりしても、
+    // 未到着の持ち場への案内と地名を失わない。
+    const at = moving ? fushimiWay(rt.army, rt.player.u, C.at) : fighting || holding ? C.at : rest || (m && !m.red ? m.pos?.() : null);
     if (!at) return null;
     const p = rt.player.u.pos;
     // 別れの間は段がまだ無い。初期位置が持ち場の十二歩内でも、
@@ -356,7 +359,7 @@ const k01_fushimi = {
     if (C && (!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < (moving ? 8 : 12)) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
-    T.label = moving && D.i === 11 && at !== C.at ? '本丸の裏口' : (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;
+    T.label = moving && D.i === 11 && at !== C.at ? '本丸の裏口' : (fighting || moving || holding) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）
@@ -585,7 +588,7 @@ const k01_fushimi = {
         say: [['鳥居の侍', 'こちらへ！　裏の石垣が崩れております']],
         ambush: { t: 4, foes: () => { this.lastStand(rt); return []; } } }),
     ];
-    const LBL = { 1: '東の隅櫓', 2: '三の丸の門', 3: '二の丸の口', 7: '本丸の口', 11: '城の外' };
+    const LBL = { 0: '大手の曲輪', 1: '東の隅櫓', 2: '三の丸の門', 3: '二の丸の口', 5: '二の丸の西', 6: '二の丸の東', 7: '本丸の口', 9: '本丸', 10: '元忠殿の旗', 11: '城の外' };
     stages.forEach((s, i) => { s.lbl = LBL[i] || ''; });
     depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => [F.mine, ...(F.ieAway ? [] : [F.ie]), ...(F.sanGuard ? [] : [F.chika])], scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
       routeFight: true, withdrawWay: fushimiWay,

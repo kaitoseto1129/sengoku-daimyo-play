@@ -81,6 +81,8 @@ import { loadWeapons, UNIT_NIGHT, UNIT_NIGHT_FOCUS, UNIT_FIRE_METAL } from './un
 markReady(BATTLE_IDS);
 // 豊臣編（toyotomi_line.js）の戦も名前だけ先に登録する。中身は battles.js が出陣の時に読む
 markReady([...TOYOTOMI_LINE, ...TOKUGAWA_LINE].map((b) => b.id));
+// 編の最後の戦の後に続く編（侍大将で出陣の試しの続き）。織田→豊臣→徳川
+const NEXT_CHAPTER = { oda: { scn: 'toyotomi', line: TOYOTOMI_LINE, label: '豊臣編へ' }, toyotomi: { scn: 'tokugawa', line: TOKUGAWA_LINE, label: '徳川編へ' } };
 // 日本地図・城攻め・図鑑（名簿と顔）は重いので、最初には読まない。要る時に import() する（874・875）
 let JPm = null, CBm = null, ZKm = null;
 const jp = () => import('./japan.js').then((m) => (JPm = m));
@@ -2061,7 +2063,7 @@ const game = {
   resume() {
     const G = this.G;
     if (G.japan) return this.japanMap('title', true);
-    if (G.battle >= BATTLES.length) return finalScreen(G, () => this.title(), () => this.japanMap('final'));
+    if (G.battle >= BATTLES.length) return finalScreen(G, () => this.title(), () => this.japanMap('final'), this.toyoNext());
     else if (G.battle === 0) return this.homeFirst() || this.story(0);
     else return this.base();
   },
@@ -2698,7 +2700,7 @@ const game = {
       // 最終章（docs/finale_spec_1109.md）：天王寺・岡山の後は史実の終わりへ、淀の野の後は数年後の城下へ（次の戦の代わり）
       const fin = won && { k15_tennoji_okayama: ['史実の終わりへ', () => import('./finale.js').then((m) => m.historyEndScreen({ ...G, mainSave: readProgress(S.slot).game }, { onIF: () => this.startAsSamurai('tokugawa', 'k16_secret'), onHome: () => this.leaveBattle() }))], k16_secret: ['数年後へ', () => this.startAsSamurai('tokugawa', 'k17_shuumaku')] }[BATTLES[i].id];
       if (fin) actions.push({ label: fin[0], primary: true, fn: fin[1] });
-      else if (won && (backTo === 'hub' || backTo === 'samurai')) actions.push({ label: '次の戦へ', primary: true, fn: () => this.nextFromResult(i) });
+      else if (won && (backTo === 'hub' || backTo === 'samurai')) actions.push({ label: backTo === 'samurai' && !BATTLES[i + 1] && NEXT_CHAPTER[scenarioKey()] ? NEXT_CHAPTER[scenarioKey()].label : '次の戦へ', primary: true, fn: () => this.nextFromResult(i) });
       actions.push(retry);
       actions.push({ label: '戦の一覧へ戻る', home: true, primary: !won, fn: () => (backTo ? this.backToHub() : this.title()) });
     } else if (i === 0 && (scenarioKey() === 'oda' ? !r.mainDone : G.rank === 0)) {
@@ -2707,15 +2709,15 @@ const game = {
       actions.push({ label: '戦の一覧へ戻る', home: true, fn: () => { save(G); if (scenarioKey() === 'oda') this.base(); else this.title(); } });
     } else if (i === BATTLES.length - 1) {
       save(G);
-      actions.push({ label: '後日譚へ', primary: true, fn: () => epilogueScreen(G, () => finalScreen(G, () => this.title(), () => this.japanMap('final'))) });
+      actions.push({ label: '後日譚へ', primary: true, fn: () => epilogueScreen(G, () => finalScreen(G, () => this.title(), () => this.japanMap('final'), this.toyoNext())) });
       actions.push(retry);
       actions.push({ label: '戦の一覧へ戻る', home: true, fn: () => this.base() });
     } else {
       save(G);
       // 墨の帯で「清洲へ戻る」と一枚挟んでから城下へ（827）
       const toTown = () => inkBand(`${(BATTLES[G.battle] && BATTLES[G.battle].town) || '城下'}へ戻る`, BATTLES[i].name, () => this.base());
-      const sign = (f) => () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); f(); }) : f());
-      if (won) actions.push({ label: '次の戦へ', primary: true, fn: sign(() => this.nextFromResult(i)) });
+      const sign = (f, to) => () => (G.rank >= 1 && !G.aijirushi ? aijirushiScreen(G, () => { save(G); f(); }, to) : f());
+      if (won) actions.push({ label: '次の戦へ', primary: true, fn: sign(() => this.nextFromResult(i), '次の戦の支度') });
       actions.push(retry);
       actions.push({ label: '城下へ', home: true, primary: !won, fn: sign(toTown) });
       // 戦と戦の間の選び（11/8）：次の戦へが一番目立つ。装備と配下は城下の札をそのまま開く
@@ -2973,13 +2975,22 @@ const game = {
   },
 
   // 結果の画面の「次の戦へ」（kaito 11/2 P）：城下を通らずに次の戦へ。無料の戦は勝てば開き、完全版の戦は買う画面へ
+  // 織田家編を終えた後の続き：豊臣編の最初の戦（山崎）を侍大将で出陣と同じ試しで。織田家編でない時は無し
+  toyoNext() {
+    if (scenarioKey() !== 'oda' || (this.G && this.G.lord)) return null;
+    const nx = TOYOTOMI_LINE[0];
+    const go = () => { initAudio(); this.startAsSamurai('toyotomi', nx.id); };
+    return { label: `豊臣編へ（${nx.name}）`, fn: () => (isBattleLocked('toyotomi', nx.id) ? showPaywall(go, () => this.base(), 'toyotomi') : go()) };
+  },
+
   nextFromResult(i) {
     const G = this.G;
     if (G.practice) {
       const id = BATTLES[i]?.id;
       if (this.trialReturn === 'samurai') {
-        const scn = scenarioKey(), nx = BATTLES[i + 1];
-        if (!nx) return this.backToHub();
+        let scn = scenarioKey(), nx = BATTLES[i + 1];
+        // 編の最後の戦（小田原・本能寺）の「次の戦へ」：ホームへ戻さず、次の編の最初の戦へつなぐ（11/10 戦間の流し）
+        if (!nx) { const ch = NEXT_CHAPTER[scn]; if (!ch) return this.backToHub(); scn = ch.scn; nx = ch.line[0]; }
         const go = () => { initAudio(); this.startAsSamurai(scn, nx.id); };
         return isBattleLocked(scn, nx.id) ? showPaywall(go, () => this.backToHub(), scn) : go();
       }
@@ -3130,7 +3141,7 @@ const game = {
       // 本編が主：地図の上から次の戦（城下の「出陣する」）へ戻れるように
       next: !G.practice && G.battle < BATTLES.length ? BATTLES[G.battle].name : null,
       onNext: () => { this.mapResult = null; closeJapan(); this.base(); },
-      onBack: () => { this.mapResult = null; if (from === 'town') this.base(); else if (from === 'final') finalScreen(G, () => this.title(), () => this.japanMap('final')); else this.title(); },
+      onBack: () => { this.mapResult = null; if (from === 'town') this.base(); else if (from === 'final') finalScreen(G, () => this.title(), () => this.japanMap('final'), this.toyoNext()); else this.title(); },
       onAttack: (info) => { this.mapResult = null; this.startMapBattle(info); },
       onSave: () => save(G),
     })).then(() => { this.mapResult = null; return true; }).catch((e) => { loadFail('天下の地図')(e); this.title(); return false; });
