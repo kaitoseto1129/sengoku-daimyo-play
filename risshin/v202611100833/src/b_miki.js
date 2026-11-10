@@ -34,7 +34,7 @@ import * as MK_YOIN from './miki/yoin.js';
 import * as MK_DESHIRO from './miki/deshiro.js';
 import * as MK_KIGA from './miki/kiga.js';
 // 深手で戦えない兵だけが残っても、敵の寄せが続くとは数えない。
-const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.fleeing || u.woundOut || u.noTarget);
+const gone = (g) => groupGone(g) || g.units.every((u) => !u.alive || u.hp <= 0 || u.gone || u.dying || u.fleeing || u.woundOut || u.noTarget);
 import { camp } from './b_mid.js';
 import { timeslipField } from './timeslip_field.js';
 import { dressStage } from './stage_dress.js';
@@ -1292,6 +1292,9 @@ function mikiNearestFoe(rt) {
 //   11/7 miki_re：共通の札が今の一件だけ（「目標を開く」）になり、数の棒も金の▼が出る間は隠れたので、この戦では五つ全部と数の棒を出したままにする。
 const MIKI_BOARD_CSS = `
 html body:has(#hud.miki-goals) #tc .mzone { background:none !important; box-shadow:none !important; border:0 !important; }
+/* 下知の字幕は親枠ごと共通の任務札で隠されるため、三木の表示中だけ戻す。選ばれていない札は出さない。 */
+html:root body #hud#hud#hud.miki-goals:not(.photo) #battle-notices:not([hidden]) { display:flex !important; }
+html:root body #hud#hud#hud.miki-goals:not(.photo) #subtitle:not([hidden]):not(.notice-muted) { display:block !important; }
 html:root body #hud#hud#hud#hud#hud.miki-goals:not(.photo):not(.ending) #armybar#armybar#armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 /* 共通の任務札は人数だけを残すため、三木では一本の残兵の棒も表示する。 */
 html:root body #hud#hud#hud#hud.miki-goals #armybar#armybar#armybar .gauge.one { display:block !important; grid-column:1 / -1; width:100%; }

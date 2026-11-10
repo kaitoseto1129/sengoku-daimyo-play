@@ -2926,6 +2926,7 @@ const kizugawa = {
     if (extra) {
       goal = extra;
       q.label = F.step === 0 && F.kzOpen?.bowAsked && !F.kzOpen.atBow ? '舳先' : '西の大筒';
+      q.r = 2.6; // 開幕の到着判定と大筒の操作範囲にそろえる。
     }
     else if (lv === 1 && F.step === 2) {
       // 屋形を回る途中で、近くなった別の火や水桶へ行き先を替えない。

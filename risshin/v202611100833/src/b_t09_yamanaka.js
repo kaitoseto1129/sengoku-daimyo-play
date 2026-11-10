@@ -272,7 +272,15 @@ const t09_yamanaka = {
     if (!F.step) { SIGN.x = shutsujin.LINE.x; SIGN.z = shutsujin.LINE.z; SIGN.label = '先手の列'; return SIGN; }
     let x, z, label;
     if (F.step === 1) { x = KURUWA.dai.x; z = KURUWA.dai.z; label = '岱崎出丸'; }
-    else if (F.step === 2) { x = CROSS_X; z = SHOJI.z0 - 5; label = '障子堀'; }
+    else if (F.step === 2) {
+      // 出丸から対岸を直接指すと、脇の畝堀へ斜めに誘う。寄せ手と同じ土橋から畝へ揃える。
+      if (p.z > SHOJI.z1 + 2 && p.x < -11) {
+        x = Math.abs(p.z - 176) > 2 ? Math.min(p.x, -32) : -6;
+        z = 176; label = '出丸の土橋';
+      } else if (p.z > SHOJI.z1 + 2 && Math.abs(p.x - CROSS_X) > 0.5) {
+        x = CROSS_X; z = SHOJI.z1 + 10; label = '障子堀の畝';
+      } else { x = CROSS_X; z = SHOJI.z0 - 5; label = '障子堀'; }
+    }
     else if (F.step === 3) {
       const A = SP.at, M = A.mouths[1];
       let a = M.far;
