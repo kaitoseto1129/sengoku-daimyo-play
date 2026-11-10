@@ -136,7 +136,8 @@ function height(x, z) {
   return h;
 }
 
-const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
+// 共通の行き先表示は hide でなく hideDistance を読む。未達成の間は六歩以内でも消さない。
+const PIN = { x: 0, z: 0, r: 8, hide: 6, hideDistance: 0, always: true, silent: true, enemy: false, unit: null, follow: false, fire: false, gate: false, defend: false, waiting: false, arrived: false, area: false, route: false };
 
 const k14_yao_wakae = {
   resumeSteps: 4,   // 現在の四段の始まりを順に流して作り直す

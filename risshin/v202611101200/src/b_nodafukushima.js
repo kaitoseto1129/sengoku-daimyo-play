@@ -2,6 +2,7 @@ import { NODAFUKUSHIMA_KACCHU } from './kacchu_data.js';
 import { pressureTick } from './battle_pressure.js';
 import { distToPolyline } from './world.js';
 import { sightPoint, sightUnit } from './battle_sight.js';
+import { projectileCover } from './projectile_cover.js';
 import { goalsTick } from './hud_goals.js';
 import { guardDrawCamera } from './render_camera.js';
 import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
@@ -1344,11 +1345,15 @@ function seirouShotIntoFort(rt, shot) {
   if (!ball) return false;
   const fort = rt.flags.noda.kuruwa.kishi, speed = Math.hypot(ball.vx, ball.vz);
   if (speed < 1) return false;
-  for (let d = 1; d <= 100; d++) {
+  let px = ball.x, py = ball.y, pz = ball.z;
+  // 実弾と同じ射程と遮蔽物を通す。井楼の板や砦の塀に止まる弾は撃ち込みに数えない。
+  for (let d = 1; d <= 100 * speed / 160; d++) {
     const t = d / speed, x = ball.x + ball.vx * t, z = ball.z + ball.vz * t;
     const y = ball.y + ball.vy * t - 4.9 * t * t, ground = rt.world.heightAt(x, z);
+    if (projectileCover(rt.army, px, py, pz, x, y, z, ball.u).q <= 1) return false;
     if (y <= ground) return false;
     if (fort.test(x, z) && y <= ground + 6) return true;
+    px = x; py = y; pz = z;
   }
   return false;
 }
