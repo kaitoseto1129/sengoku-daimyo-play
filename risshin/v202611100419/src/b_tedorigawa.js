@@ -96,7 +96,7 @@ function pressPlayer(rt, dt) {
   F._pressed.length = 0;
   for (const o of A.units) {
     // 待機中は▼も出さない追手。本人が近づいても、出発の下知より先に引き出さない。
-    if (o.group?.tedoFrom && !o.group.tedoActive) continue;
+    if (o.group?.tedoRelieved || o.group?.tedoFrom && !o.group.tedoActive) continue;
     // 後送中・倒れかけの兵は、通常の歩みを止めていても追加追撃で動いてしまうため外す。
     if (!o.alive || o.dying || o.gone || o.team === P.team || o.isStruct || o.fleeing || o.woundOut || o.rearWound || o.downed || o.noTarget || o.name || o.mounted ||
         o.type === 'gun' || o.type === 'bow' || o.type === 'busho' || o.group?.routed || o.group?.order === 'path') continue;
@@ -125,6 +125,11 @@ function pressStep(rt, dt) {
   const now = rt.army.time, W = rt.world, weak = P.hp < P.maxHp * 0.35;
   for (let i = list.length - 1; i >= 0; i--) {
     const o = list[i];
+    // 渡河の猶予で追手を止めた下知を、前の四秒の狙いで取り消さない。
+    if (o.group?.tedoRelieved) {
+      if (o.target === P && o.pullUntil > now) { o.target = null; o.pullUntil = now; }
+      list.splice(i, 1); continue;
+    }
     if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
     // 矢に伏せる間と打たれたよろめきには、追加の歩みで滑らせない。
     // 狙いは保ち、立ち直ってから追撃を再開する。
@@ -2184,6 +2189,7 @@ const tedorigawa = {
   subtleTargetFrames: true,
   namedGuideMarkers: true,
   travelGuideLabel(rt) {
+    if (rt.flags.paceFurikiru) return '南の退き口の旗へ';
     return rt.flags.step === 0 ? '柴田勝家の旗へ' : rt.flags.step === 1 || rt.flags.step === 2 ? '北岸の篝火へ' :
       rt.flags.step === 3 ? '幟の間から南岸の篝火へ' : '南岸の篝火へ';
   },
