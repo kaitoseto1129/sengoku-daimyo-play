@@ -43,8 +43,11 @@ function yoru(rt) {
     const g = enemyGroup(rt, { faction: 'takeda', flag: null, name: '城から逃げ出した者', fixed: true, noGuard: true, anchor: { x: -6, z: -118 }, facing: 0, width: 3, formation: 'loose', morale: 100, noRout: true, speed: 1.8 },
       [{ type: 'ashigaru', n: 4, o: { flag: null } }]);
     quiet(g);
-    const p = rt.player.u.pos;
-    g.order = 'move'; g.dest = { x: p.x - 3, z: p.z - 4 }; g.onArrive = (q) => { q.order = 'hold'; };
+    // 主人公が山道へ戻っていても切岸を直進せず、搦手から麓へ下りる。
+    g.roadColumn = true; g.followColumnRoad = true; g.colW = 1;
+    g.formation = 'column'; g.order = 'path'; g.pathIdx = 0; g.dest = null;
+    g.path = [[0, -118], [0, -96], F.restPath[0]];
+    g.onArrive = (q) => { q.order = 'hold'; };
     F.iwYoru.g = g;
     rt.say('物見', '城の搦手から、誰か下りて来ます！　……刀を捨てておる', 3.4);
   });
@@ -129,7 +132,6 @@ export function epilogue(rt) {
   rt.after(9, () => { if (!rt.over) rt.say('河尻秀隆', '先頭が秋山虎繁。後ろの輿が、おつやの方じゃ', 3.6); });
   rt.after(14, () => { if (!rt.over) rt.say('足軽', '……武田の兵も、こうして見ると、ただの痩せた男たちじゃな', 3.6); });
   rt.after(19, () => { if (!rt.over) rt.say('語り', '約束は守られなかった。礼に出た秋山・大島・座光寺の三将は、岐阜の長良川で磔にされた', 5); });
-  for (const [t, v] of [[26, 0.8], [29.6, 0.9], [33.2, 1]]) rt.after(t, () => { if (rt.over) return; try { rt.army.celebrate(rt.player.u.team); sfx('sig_eiei', v); } catch (e) { /* なし */ } });
   rt.after(35, () => { if (!rt.over) rt.banner('岩村城、開城', '東美濃は織田の手に戻った'); });
   rt.after(39, () => { if (!rt.over) rt.say('組頭', '帰るぞ。長い囲みじゃった', 3); });
   rt.after(42, () => { if (!rt.over) try { sfx('farHorn', 0.5); } catch (e) { /* なし */ } });

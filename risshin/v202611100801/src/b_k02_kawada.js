@@ -120,7 +120,7 @@ function kawadaBackAllowed(b, x, z) {
 }
 const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0), z: at.z + (o.dz || 0) }, width: o.width || 10, list, seek: o.seek || 50, morale: o.morale || 90 });
 // 本陣の総大将は床几に腰を掛けたまま（army_move の陣中の座り。立つのは敵が寄った時だけ）
-const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, danger: false }; };
+const seat = (u) => { if (u) u.jinchu = { standing: false, t: 99, len: 99, danger: false }; };
 // 段の中の組を名で探し、持ち場に留める（名のある将の旗本は前へ出ない・背を向けて歩かない。BK5）
 function holdGuard(C, name, at, facing) {
   const g = C && C.groups.find((q) => q.name === name);
