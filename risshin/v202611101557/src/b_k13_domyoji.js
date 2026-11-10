@@ -143,6 +143,8 @@ const keep = (name, at, list, o = {}) => ({ name, from: { x: at.x + (o.dx || 0),
 
 // 放置や時間切れで目標を飛ばさず、本人が持ち場へ着いてから済ませる。
 function checkedStep(step) {
+  const ranged = (u) => !u.mounted && !u.sidearm &&
+    (u.weapon === 'gun' ? (u.gunAmmo ?? 20) > 0 : u.weapon === 'bow' && (u.arrowAmmo ?? 24) > 0);
   step.idleAdvance = false;
   if (step.kind !== 'fight' && step.kind !== 'hold') return step;
   // 共通の四分・七分の救済でも未達成の目標を飛ばさない。
@@ -217,9 +219,9 @@ function checkedStep(step) {
           !v.gone && !v.downed && !v.noTarget && !v.rearWound && !v.isStruct &&
           Math.hypot(v.pos.x - C.at.x, v.pos.z - C.at.z) < 32 &&
           (Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 6 ||
-            ((u.weapon === 'gun' || u.weapon === 'bow') &&
+            (ranged(u) &&
               rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) ||
-            ((v.weapon === 'gun' || v.weapon === 'bow') &&
+            (ranged(v) &&
               rt.army.coverBetween(v.pos, u.pos, v.team) > 0 && !rt.army.shotBlocked(v, u.pos))))));
       if (C.metAttack) C.lineTime = (C.lineTime || 0) + dt;
     }
@@ -557,7 +559,7 @@ const k13_domyoji = {
     // 始まりの札の後ろにも芦毛の白い馬を写さない（札の間は update が回らない）
     recoat(rt);
     // 使番の騎馬は setup の後に加わる（芦毛が札の後ろに白く写った）。始まりの札の間にも塗り直す
-    for (const ms of [0, 400, 1500]) setTimeout(() => { if (rt.army && !rt.over) recoat(rt); }, ms);
+    for (const ms of [0, 400, 1500]) rt.defer(ms, () => { if (rt.army && !rt.over) recoat(rt); });
     // 動けなくなった時に抜け出す（BH8）：歩こうとした向きを覚える
     F.want = 0; F.stillT = 0; F.goodPos = [];
     // 目標に名を挙げた敵将は、右上の目標・頭上の名で伏せない（「見えぬ敵の陣を物見する」に替えない。十1）

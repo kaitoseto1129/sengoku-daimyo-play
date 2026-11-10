@@ -136,6 +136,9 @@ const t06_hetsugi = {
   kumiLead: false,           // 意味の分からない青い小旗の印を出さない（五2）
   noHatamotoMass: true,      // 将の周りに見せかけの兵を足さない（九5）
   goalSignOnly: true,
+  // 画面外でも▼の形を保ち、到着して防戦する間も距離を消さない。
+  goalSignTriangle: true,
+  goalSignDistanceAlways: true,
   pinOnlyDestination: true,
   singleDestinationArrow: true,
   missionPinCaption: '',

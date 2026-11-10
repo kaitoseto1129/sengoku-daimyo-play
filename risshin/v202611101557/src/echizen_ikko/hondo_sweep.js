@@ -43,6 +43,22 @@ export function resume(rt, u) {
   u.target = null; u.watch = null; u.charging = false; u.moveTo = way; u.aiT = 2;
 }
 
+// 森・谷筋の残党も、堂の外で止まれば同じ経路へ戻す。五秒ごとに調べる。
+export function sweepGroup(rt, g) {
+  if (!g || g.routed || rt.t < (g._ikSweepAt || 0)) return;
+  g._ikSweepAt = rt.t + 5;
+  for (const u of g.units) {
+    if (!siegeFighter(u) || u.hp <= 0 || u.dying || u.rearWound || fighting(rt, u)) {
+      u._ikForestStill = null; continue;
+    }
+    const s = u._ikForestStill;
+    if (!s || Math.hypot(u.pos.x - s.x, u.pos.z - s.z) > 1.5) {
+      u._ikForestStill = { x: u.pos.x, z: u.pos.z, t: rt.t }; continue;
+    }
+    if (rt.t - s.t > 45) { resume(rt, u); s.t = rt.t; }
+  }
+}
+
 export function tick(rt, dt, zone, near) {
   const F = rt.flags;
   if (F.ending || !zone || (F.ikHondoSweepT = (F.ikHondoSweepT || 0) - dt) > 0) return;

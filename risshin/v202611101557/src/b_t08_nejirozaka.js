@@ -20,6 +20,7 @@ import { KIT } from './b_nagashinojo.js';
 import { addSite } from './map_sites.js';
 import { STAGES } from './stages.js';
 import { depthStart, depthTick, rest, fight, hold, move, depthBot } from './b_depth.js';
+import { depthRout } from './army_depth.js';
 import { withGuard } from './toyo_bot.js';
 import { goalsTick } from './hud_goals.js';
 import { revealName } from './battle_intel.js';
@@ -421,6 +422,10 @@ function reliefArrive(rt) {
 // 退却の知らせと同時に実際の隊と松明を坂下へ戻し、味方の追撃を止める。
 function retreatAll(rt) {
   rt.flags.retreating = true;
+  // 遠景の備は本物の隊とは別に動く。坂下に居残らせず、崩れた島津の軍勢も退かせる。
+  // 本物の本陣に結んだ備は、下の退却の下知をその隊から読む。
+  const rear = rt.flags.depth?.B;
+  if (rear) for (const s of rear.sonae) if (!s.bound) depthRout(rear, s);
   for (const g of rt.army.groups) {
     clearMarch(g);
     if (g.team === 0) { g.order = 'hold'; g.noPursue = true; g.historicalOrders = true; g.aggro = 0; g.seekRange = 0; }

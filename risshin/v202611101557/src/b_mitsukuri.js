@@ -2646,6 +2646,22 @@ const MITSUKURI_JIN = [
   ], '城兵三千・城将の吉田出雲守は後の書き物の伝え（信長公記に記載なし）。各持ち場の人数は仮定。旗は六角の紋で表す。'),
 ];
 
+// 視線の中央が通っていても、直前の塀や軒が画面の半分を覆うことがある。
+// 視点の四隅まで調べる。遠い塀には反応せず、計算用の点も使い回す。
+function mkCameraEdgeBlocked(W, pos, look, probe) {
+  const dx = look.x - pos.x, dz = look.z - pos.z;
+  const length = Math.hypot(dx, dz);
+  if (length < .01) return false;
+  const x = dx / length, z = dz / length;
+  for (let i = 0; i < 4; i++) {
+    const side = i % 2 ? 1 : -1, up = i < 2 ? -.35 : .35;
+    probe.set(pos.x + x * .35 + z * .45 * side, pos.y + up,
+      pos.z + z * .35 - x * .45 * side);
+    if (W.cameraBlockFraction(pos, probe) !== null) return true;
+  }
+  return false;
+}
+
 const mitsukuri = {
   resumeSteps: [[2, 'climb'], [2.5, 'dusk'], [2.8, 'night'], [3, 'gateFight'], [4, 'inside']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   compactIntro: true,
@@ -2999,7 +3015,7 @@ const mitsukuri = {
     // 本人との間が空いていても、肩の横の壁が視線の直前を塞ぐことがある。
     // 建物が六ｍ以内に迫る時だけ本人側へ寄せる。
     // 兵の列や遠い塀では寄せず、箱と計算用の点は設営時の物を使う。
-    let wallViewBlocked = false;
+    let wallViewBlocked = !!look && mkCameraEdgeBlocked(rt.world, pos, look, F.camProbe);
     if (look) for (let i = 0; i < 3; i++) {
       const distance = pos.distanceTo(look);
       if (distance < 0.01 || pos.distanceToSquared(aim) < 0.04) break;
@@ -3045,7 +3061,8 @@ const mitsukuri = {
           // 本人まで通るだけでは、その背後の障子が画面いっぱいに残る。
           // 本人の先にも三ｍの見通しがある側を選び、庭と戦う兵を視界に残す。
           F.camClear.copy(aim).addScaledVector(F.camBack.copy(aim).sub(candidate).normalize(), 3);
-          if (rt.world.cameraBlockFraction(candidate, F.camClear) !== null) continue;
+          if (rt.world.cameraBlockFraction(candidate, F.camClear) !== null ||
+            mkCameraEdgeBlocked(rt.world, candidate, aim, F.camProbe)) continue;
           pos.copy(candidate); look.copy(aim); P.camPos.copy(pos);
           break;
         }

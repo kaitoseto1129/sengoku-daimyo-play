@@ -566,7 +566,7 @@ const t02_shizugatake = {
     F.maedaG.kind4 = 'maeda'; F.groups.push(F.maedaG);
     for (const u of F.maedaG.units) u.noTarget = true;
     this.buildOiwa(rt);
-    rt.after(1.2, () => { F.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); });
+    rt.after(1.2, () => { if (!rt.over && !F.ending && F.phase === 0) { F.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); } });
   },
 
   // 段の中身（t02_shizugatake/*.js）へ渡す道具
@@ -663,8 +663,8 @@ const t02_shizugatake = {
     if (!F.turned && (c && c.x > -30 && c.z < 236 || st > 70)) {
       F.turned = true;
       rt.say('物見', '東へ折れた……大岩山だ！', 3);
-      rt.after(3.2, () => rt.say('桑山重晴', '中川殿が危ない。加勢に走れ！', 2.8));
-      rt.after(3.6, () => this.relief(rt));
+      rt.after(3.2, () => { if (!rt.over && !F.ending && F.phase === 0.8) rt.say('桑山重晴', '中川殿が危ない。加勢に走れ！', 2.8); });
+      rt.after(3.6, () => { if (!rt.over && !F.ending && F.phase === 0.8) this.relief(rt); });
     }
   },
   // ③ 大岩山へ走る。着く前に戦はもう始まっている（逃げて来る手負い・逆へ走る使番・遠くの鉄砲）
@@ -746,25 +746,27 @@ const t02_shizugatake = {
     const F = rt.flags;
     if (F.lookedBack) return;
     F.lookedBack = rt.t;
+    // 敗北や再開後に、前の戦の討死・旗の交替・次の任務を動かさない。
+    const after = (sec, fn) => rt.after(sec, () => { if (!rt.over && !F.ending && F.phase === 2) fn(); });
     // 旗の交替は操作中に起こす。振り返る向きは主人公に任せる。
-    rt.after(1.8, () => {
+    after(1.8, () => {
       // 中川の旗が倒れる（長い死のムービーは出さない）
       const f = F.nakaFlag;
       let k = 0;
-      const tip = () => { if (!f) return; k = Math.min(1, k + 0.12); f.rotation.z = 1.45 * k * k; if (k < 1) rt.after(0.08, tip); };
+      const tip = () => { if (!f) return; k = Math.min(1, k + 0.12); f.rotation.z = 1.45 * k * k; if (k < 1) after(0.08, tip); };
       tip();
       for (const u2 of F.naka?.units || []) if (u2.alive && !u2.gone) { u2.invuln = false; rt.army.kill(u2); }
       rt.army.play('toki', { x: OI.x, z: OI.z }, 1.4);
     });
-    rt.after(3.2, () => rt.say('使番', '中川瀬兵衛様、討死！', 3));
-    rt.after(6.2, () => {
+    after(3.2, () => rt.say('使番', '中川瀬兵衛様、討死！', 3));
+    after(6.2, () => {
       // 守っていた所が敵の拠点に：大岩山の旗が羽柴から佐久間へ
       this.oiFlags(rt, 'sakuma');
       rt.world.addSmokeColumn?.(OI.x + 3, rt.world.heightAt(OI.x + 3, OI.z - 4) + 5, OI.z - 4, { size: 5, black: true });
       rt.world.addFire(OI.x + 6, OI.z - 6, { size: 2.6, h: 0.3, blackSmoke: true });
       rt.say('桑山重晴', '大岩山に佐久間の旗が上がった……', 2.8);
     });
-    rt.after(9.6, () => this.backline(rt));
+    after(9.6, () => this.backline(rt));
   },
   // ⑧ 次の守りの線（賤ヶ岳の砦の東の口）まで下がる。岩崎山の高山隊も退き、桑山は残る
   backline(rt) {

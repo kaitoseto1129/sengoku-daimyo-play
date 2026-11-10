@@ -15,6 +15,9 @@ import * as kerai from '../k12/kerai.js';
 const WEST = -Math.PI / 2, EAST = Math.PI / 2;
 const n = (a, b) => (isTouch ? a : b);
 const HONDA = { x: -116, z: 26 };
+// 弾切れや脇差への持替えは、射線が通っていても射撃戦に数えない。
+const ranged = (u) => !u.mounted && !u.sidearm &&
+  (u.weapon === 'gun' ? (u.gunAmmo ?? 20) > 0 : u.weapon === 'bow' && (u.arrowAmmo ?? 24) > 0);
 
 export function install(rt, def) {
   const W = rt.world, F = rt.flags;
@@ -78,8 +81,8 @@ export function tick(rt, dt) {
       g.order !== 'flee' && g.units.some((u) => active(u) &&
         rt.army.nearestEnemy(u, 42, (v) => active(v) &&
           (Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 6 ||
-            ((u.weapon === 'gun' || u.weapon === 'bow') &&
-              rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos))))));
+            (ranged(u) && rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)) ||
+            (ranged(v) && rt.army.coverBetween(v.pos, u.pos, v.team) > 0 && !rt.army.shotBlocked(v, u.pos))))));
     if (fighting) F._loss13 = Math.min(4200, F._loss13 + dt * 32);
   }
   // ④の鉄砲戦：実際に向かい合う鉄砲兵の所で音と煙を出す。
