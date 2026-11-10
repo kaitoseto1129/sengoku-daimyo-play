@@ -5,8 +5,13 @@ import { siegeFighter } from '../siege_zones.js';
 
 export function fighting(rt, u) {
   const target = u.target;
-  return !!(u.atk || u.swing || u.charging || target && siegeFighter(target) &&
-    Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) <= (u.range || 4) &&
+  const ranged = u.type === 'bow' || u.type === 'gun';
+  // 庭と堂内・切岸の上下は、平面で近くても斬り合えない。重なったまま
+  // 「交戦中」と数えると、通し確認で残った兵の経路をいつまでも引き直せない。
+  return !!(u.atk || u.swing || u.charging || target && target.team !== u.team &&
+    siegeFighter(target) && target.hp > 0 && !target.dying && !target.rearWound &&
+    (ranged || !(u.naka || target.naka) || Math.abs(target.pos.y - u.pos.y) <= 1.8) &&
+    Math.hypot(target.pos.x - u.pos.x, target.pos.y - u.pos.y, target.pos.z - u.pos.z) <= (u.range || 4) &&
     !rt.army.wallBetween(u.pos, -1, target.pos));
 }
 

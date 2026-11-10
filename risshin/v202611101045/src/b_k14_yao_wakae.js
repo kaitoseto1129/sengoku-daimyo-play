@@ -400,8 +400,11 @@ const k14_yao_wakae = {
 
   // 段を進める（済んだ目標に印・新しい目標を足す）
   toStep(rt, n) {
-    if (!canProgress(rt) || rt.flags.ending) return;
+    if (rt.over || rt.ended || rt.flags.ending) return;
+    // 達成後の待ち時間に倒れても、回復した後の伝令を失わない。
+    if (!canProgress(rt)) { rt.flags.pendingStep = n; return; }
     const F = rt.flags;
+    F.pendingStep = 0;
     if (F.step) rt.objDone('s' + F.step);
     F.next = false; F.pushed = false; F.stepNear = false;
     F.step = n; F.st0 = rt.t; F.stepT = rt.t;
@@ -487,6 +490,7 @@ const k14_yao_wakae = {
     rt.say(byMe ? nm(rt) : ando ? '安藤重勝' : '使番', byMe ? '木村長門守、討ち取ったり！' : ando ? '木村長門守重成、安藤長三郎が討ち取ったり！' : '若江の堤で木村長門守重成、討死！', 3);
     rt.after(3.4, () => rt.say('井伊直孝', '木村長門守、見事な最期よ。若江は取った', 3.4));
     for (const g of [F.kimuraG, F.yamaG, F.naitoG]) if (live(g)) { g.order = 'flee'; g.routed = true; }
+    F.winReadyAt = rt.t + 7.4;
     rt.after(7.4, () => this.win(rt));
   },
 
@@ -563,6 +567,7 @@ const k14_yao_wakae = {
       for (const g of [F.kimuraG, F.yamaG, F.naitoG, F.choSide]) if (g) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && dist(u.pos, P.pos) > 45) rt.army.despawn(u);
     }
     if (!canProgress(rt)) return;
+    if (F.pendingStep) { this.toStep(rt, F.pendingStep); return; }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     // その戦場へ寄ってから達成を判定する。後方で待つだけでは目標に印を付けない。
@@ -608,6 +613,8 @@ const k14_yao_wakae = {
       if (F.step >= 2 && F.step <= 3) rt.say('井伊直孝', '先手が押しておる。遅れるな！', 2.6);
     }
     if (F.step === 4) {
+      // 木村の討死後の待ち時間に倒れた場合も、復帰後に締めへ進む。
+      if (F.kimuraDone && rt.t >= F.winReadyAt) { this.win(rt); return; }
       // 木村は主人公が堤へ来てから戦う。刻限だけで安藤の討取りを起こさない。
       if (F.kimuraU?.alive) storyGuard(F.kimuraU, !F.stepNear && dist(P.pos, F.kimuraU.pos) > 25);
       if (!F.kimuraDone && F.kimuraU && !F.kimuraU.alive) this.kimuraEnd(rt, F.kimuraByMe);
