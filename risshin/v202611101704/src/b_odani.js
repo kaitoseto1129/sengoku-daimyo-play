@@ -2939,7 +2939,7 @@ const odani = {
     // 一行表示では補足が隠れる。撤退の期限も今の下知と同じ札へ収める。
     if (!F.ending && !rt.over && !F.fallen && !(F.komaDown && !F.honAttack) && F.collapseAt !== undefined)
       return `退くまで${Math.max(0, Math.ceil(F.collapseAt - rt.t))}秒 ${text}`;
-    if (!rt.over && !F.ending && F.step === 3 && !F.komaAttack && F.awayT > 0) return text;
+    // 京極丸から離れても③の見出しは保つ。帰還の下知は既存の声と補足で知らせる。
     if (!rt.over && !F.ending && F.step >= 1) return '①②③④⑤'[odaniGoalNow(rt)] + ODANI_GOALS[odaniGoalNow(rt)];
     return text;
   },

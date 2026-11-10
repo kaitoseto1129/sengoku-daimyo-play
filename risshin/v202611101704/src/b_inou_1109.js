@@ -337,8 +337,8 @@ const ino = {
     rt.after(0.8, () => say(rt, '弥助', '隊長！', 1.8));
     rt.after(3.2, () => say(rt, '組頭', 'そこの連中！　こっちへ来い！', 2.6));
     rt.after(3.4, () => { F.lead = F.sakumaU; this.go(rt, 'join'); });
-    // 弥助・源太らは佐久間隊へ寄る
-    rt.after(4, () => { if (live(F.mates) && F.sakumaU) this.moveG(F.mates, { x: F.sakumaU.pos.x - 3, z: F.sakumaU.pos.z + 2 }, 3, 'attack'); });
+    // 弥助・源太らも古い相手から離れ、本人が佐久間隊へ合流するまで組頭のそばで待つ。
+    rt.after(4, () => { if (live(F.mates) && F.sakumaU) this.retireG(F.mates, { x: F.sakumaU.pos.x - 3, z: F.sakumaU.pos.z + 2 }, 3, true); });
   },
   joined(rt) {
     const F = rt.flags;
@@ -347,6 +347,7 @@ const ino = {
     say(rt, '組頭', 'よし、わしの後ろにつけ。', 2.4);
     this.go(rt, 'hayashi');
     this.fight(F.sakuma, 12);
+    this.fight(F.mates, 12);
     // 美作守は信長が自ら討つ。旗本を先に進め、近くの足軽へ手柄を渡さない。
     if (F.hayaBossU?.alive) this.moveG(F.nobuG, { x: F.hayaBossU.pos.x, z: F.hayaBossU.pos.z + 3 }, 5);
     rt.after(36, () => this.hayashiFall(rt));
@@ -536,7 +537,7 @@ const ino = {
     if (!rt.over) rt._closing = { at: rt.t + 70, info: { scriptedEnd: true }, delay: 5 };
     this.go(rt, 'after');
     // 新六が生きていれば座り込んでいる
-    if (F.shinrokuU?.alive && live(F.shinG)) { this.moveG(F.shinG, { x: F.shinrokuU.pos.x, z: F.shinrokuU.pos.z }, 1); F.shinG.order = 'hold'; }
+    if (F.shinrokuU?.alive && live(F.shinG)) this.retireG(F.shinG, { x: F.shinrokuU.pos.x, z: F.shinrokuU.pos.z }, 1);
     rt.after(10, () => { if (F.shinrokuU?.alive && !F.shinMet) say(rt, '弥助', '新六は……あそこじゃ。生きておる。', 2.6); });
     rt.after(40, () => this.coda(rt));
   },
