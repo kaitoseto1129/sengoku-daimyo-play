@@ -345,7 +345,12 @@ function fortWay(u, q, C, R, ga) {
   if (uIn && !qIn) return dist(u, gIn) < 2.5 || dist(u, gOut) < dist(gIn, gOut) - 1 ? (dist(u, gOut) < 2.5 ? null : gOut) : gIn;
   if (uIn) return null;
   const t = qIn ? gOut : q;
-  if (qIn && dist(u, gOut) < 3) return gIn;
+  // 口へ寄った後は内側まで進む。外側の点から三歩離れただけで
+  // 外周回りへ戻すと、口の外と内の判定の間で往復し続ける。
+  const dx = u.x - C.x, dz = u.z - C.z;
+  const along = dx * Math.sin(ga) + dz * Math.cos(ga);
+  const across = dx * Math.cos(ga) - dz * Math.sin(ga);
+  if (qIn && (dist(u, gOut) < 3 || along < R + 6 && along > R - 3 && Math.abs(across) < 3)) return gIn;
   const vx = t.x - u.x, vz = t.z - u.z, L2 = vx * vx + vz * vz || 1;
   const k = Math.max(0, Math.min(1, ((C.x - u.x) * vx + (C.z - u.z) * vz) / L2));
   if (Math.hypot(u.x + vx * k - C.x, u.z + vz * k - C.z) < R + 2.5) {
@@ -963,8 +968,9 @@ const t02_shizugatake = {
       if (F.fortBad > 12) { this.lose(rt, '賤ヶ岳の砦を奪われた'); return; }
     }
     const near = (q, r) => dist(pp, q) < r;
-    // 同じ砦の中に居続けただけで、西の斜面や本陣まで果たした事にしない。
-    if (F.phase === 1.3 && near(OI_SOUTH, 5) || F.phase === 1.6 && near(OI_WEST, 5) || F.phase === 1.8 && near(OI_HQ, 5)) F.reachedPost = F.phase;
+    // 南柵は小門の前で寄せ手を受けても守備に含める。
+    // 西斜面と本陣は、それぞれの持ち場まで移る必要がある。
+    if (F.phase === 1.3 && (near(OI_SOUTH, 5) || near(OI_GATE, 5)) || F.phase === 1.6 && near(OI_WEST, 5) || F.phase === 1.8 && near(OI_HQ, 5)) F.reachedPost = F.phase;
     const raidLeft = () => F.groups.reduce((n, g) => n + (g.kind4 === 'raid' && g.bornT >= F.pt ? nLive(g) : 0), 0);
     switch (F.phase) {
       case 0.5: Open.tickOpen(rt, 0.25, this.ctx(rt)); if (F.sawForts) F.saw = true; return;
@@ -986,7 +992,8 @@ const t02_shizugatake = {
       case 2.3:
         if (!F.mouthFight && near(MOUTH, 22) && nearCount(rt, 1, MOUTH, 30) > 0) F.mouthFight = true;
         // 口の外で味方が追手を全て退けた時も、到着した主人公を待たせ続けない。
-        if (F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() === 0 || F.mouthFight && (raidLeft() <= 4 || st > 110))) this.returnHide(rt);
+        // 二度とも坂で足止めされた時も、口を守ったまま待ち続けさせない。
+        if (F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() === 0 || F.mouthFight && raidLeft() <= 4 || st > 110)) this.returnHide(rt);
         return;
       case 2.6: {
         const came = F.hideArrived;

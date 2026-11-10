@@ -443,7 +443,7 @@ const GARAN = [
   { id: 'kura_w', name: '飼葉と馬具の蔵', kind: 'kura', profile: 'honnoji_umagura', enterable: true, x: -100, z: 97, w: 4, d: 5 }, // 中央の通路を空けて飼葉を積む（推定）
 ];
 // 内の区切りの塀（x）と、その口（z の真ん中）。裏門から御殿への道（z 76〜79）を通す
-const INNER_WALL = { x: -84, gate: 79 };
+const INNER_WALL = { x: -84, gate: 79, width: 10 };
 const UMAYA = { x: -128, z: 97 };
 
 // 本能寺の火は共通の火と煙（揺らぐ炎の房・煙の柱）にそろえる（10/31 点付け：独自の平らな炎の板が絵に見えた）。
@@ -512,12 +512,13 @@ export function buildTera(rt) {
     }
   }
   // 内の区切りの塀（推定）：天文法華の乱の後、寺は要害を兼ねた。西の区画（講堂・馬舎）と東の伽藍を塀で分け、口は一つ。
-  for (const P of [[[INNER_WALL.x, TERA.z0], [INNER_WALL.x, INNER_WALL.gate - 9]], [[INNER_WALL.x, INNER_WALL.gate + 9], [INNER_WALL.x, TERA.z1]]]) {
+  // 門の幅と塀の開口をそろえる。十八歩空けると、十歩の門の両脇に四歩ずつ穴が残る。
+  for (const P of [[[INNER_WALL.x, TERA.z0], [INNER_WALL.x, INNER_WALL.gate - INNER_WALL.width / 2]], [[INNER_WALL.x, INNER_WALL.gate + INNER_WALL.width / 2], [INNER_WALL.x, TERA.z1]]]) {
     T.walls.push(...wallLine(rt, P, { team: 0, hp: 1e9, name: '内の塀', segLen: 6, mesh: tsuijiKit, meshOpt: { batch: kb, h: 2.2, kawara: true } }));
   }
   for (const s of T.walls) { s.noTarget = true; s.wall = true; s.h = 2.6; }
   finalizeKitBatch(rt, kb);
-  rt.scene.add(kabukimon(W, INNER_WALL.x, INNER_WALL.gate, 10, Math.PI / 2));
+  rt.scene.add(kabukimon(W, INNER_WALL.x, INNER_WALL.gate, INNER_WALL.width, Math.PI / 2));
   // 北東の隅の櫓：築地の上から油小路と蛸薬師の通りを見張る（推定）
   rt.scene.add(yagura(W, TERA.x1 - 3.5, TERA.z0 + 3.5));
   // 馬繋ぎを左右へ分け、北向きの馬舎の上り口を縄と当たりで塞がない。

@@ -175,7 +175,7 @@ const t07_ganjaku = {
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
-  goalSignOnly: true, goalSignOnscreenOnly: true, stageGoalsOnly: true,
+  goalSignOnly: true, goalSignOnscreenOnly: true, stageGoalsOnly: true, goalsAllRows: true,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   // 保存して開き直した時も、着陣からではなく今の段へ戻す。
   checkpointStep: (rt) => rt.flags.stage || 0,
@@ -338,6 +338,10 @@ ${P} .pg-goals li i { margin-top:3px; }
 ${P} .pg-goals li span { color:inherit !important; background:none !important; }
 ${P} .pg-goals li.now { color:#fff !important; }
 ${P} .pg-goals li.done { color:#cfc9bc !important; }
+@media (max-height:500px) {
+ ${P} .pg-goals li, ${P} .pg-goals li.now { font-size:13px !important; line-height:1.3; gap:6px; padding:0; }
+ ${P} .pg-goals ul { gap:3px; }
+}
 ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     document.head.appendChild(st);
     const hudProgress = hud.progress;

@@ -306,6 +306,7 @@ const k16_secret = {
   // 途中の共通の見出し（「一騎打ち」「敵の隊が崩れた」「敵将が倒れた」）は説明の字なので出さない（五1）。大きく出すのは「家康、討ち取ったり」と負けの見出しだけ
   bannerAllowed: (rt, t) => t !== '一騎打ち' && t !== '敵の隊が崩れた' && t !== '敵将が倒れた' && t !== '敵の大将が討たれた',
   noCouriers: true,
+  allowAmbientBattleCalls: (rt) => !rt.flags.quiet,
   noTaisho: true,
   noReserve: true,
   noTaishoRaid: true,
@@ -610,6 +611,9 @@ const k16_secret = {
   // 終戦：敵味方の隊の手を止める。k は止める割合（少しずつ得物を下ろす）。徳川方は膝をつく
   ceasefire(rt, k = 1) {
     const F = rt.flags;
+    // 全軍が槍を下ろした後は、遠い兵の戦闘音と戦中の呟きも止める。
+    // この戦の締めの台詞・勝鬨は、下の約束どおり別に鳴らす。
+    if (k >= 1) F.quiet = true;
     for (const g of rt.army.groups || []) {
       if (g.isPlayerSquad && k < 1) continue;
       g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.peaceful = true; g.keepMoveOrder = true;
