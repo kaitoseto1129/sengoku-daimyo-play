@@ -957,7 +957,10 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.nobuShown = true;
     const u = F.nobu.units.find((q) => q.name === '真田信繁');
     const q = polar(0.14, WALL_R - 1.4), y = rt.world.heightAt(q.x, q.z);
-    rt.scene.add(nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 6));
+    const flag = nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 6);
+    rt.scene.add(flag);
+    // 途中で立てた大旗も、和議後は塀・櫓と一緒に撤去する。
+    F.maruObjs.push(flag);
     if (u && u.alive) { u._crouch = false; u.pos.x = q.x; u.pos.z = q.z; u.pos.y = y; u.mesh.position.set(q.x, y, q.z); u.heading = Math.PI; u.anchorPos = { x: q.x, z: q.z }; }
     revealName(rt, '真田信繁');
     rt.say('足軽', '塀の上……六文銭の旗の下に一人立っておる。あれが真田左衛門佐か', 3.6);
