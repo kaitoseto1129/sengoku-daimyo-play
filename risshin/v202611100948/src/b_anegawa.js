@@ -2646,6 +2646,8 @@ function aneInabaTarget(rt) {
 function aneCommander(rt) {
   const F = rt.flags, u = F.isoU;
   if (F.step !== 1 || aneOwnGuide(rt) || !aneFoe(u)) return null;
+  // 将の優先表示にも戦線の範囲を適用し、村へ離れた磯野を追い続けさせない。
+  if (!aneInLine(rt, F.aneStage || 0, u, anePost(rt))) return null;
   return Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z) < 26 ? u : null;
 }
 // 11/5（check60 X1・kaito BL3）：段は時計や味方の働きでは進めない。本人がその場所へ行き、その隊と実際に槍を合わせた時だけ進む。

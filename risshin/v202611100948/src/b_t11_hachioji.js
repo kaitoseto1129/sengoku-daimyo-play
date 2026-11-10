@@ -844,7 +844,7 @@ const t11_hachioji = {
       F._volT = 5 + Math.random() * 3;
       const P = rt.player.u;
       if (P.alive && P.hp > P.maxHp * 0.35) for (const g of D.cur.groups) {
-        const bow = g && !g.routed && g.units.find((u) => u.alive && !u.fleeing && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
+        const bow = g && !g.routed && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
         if (!bow) continue;
         const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
         rainVolley(rt.army, g, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
@@ -855,7 +855,8 @@ const t11_hachioji = {
     // 山下曲輪が落ちる頃に夜が白む（二十秒余りかけて移ろう）。霧は登るほど薄れ、本丸の段で朝日が差す
     //   夜明けは二分半かけて少しずつ白む（四十五秒で昼の霧へ急に替わった。11/8 critic60）。本丸の段は昼にせず、低い朝日のまま
     if (D && D.on && D.i >= IX.bridge && !F.dawn) { F.dawn = true; rt.world.setTime('morning'); if (rt.world.fade) rt.world.fade.dur = 150; rt.after(2, () => rt.say('前田の侍', '夜が白んできた。霧の上に、山の上の曲輪が見えるぞ', 3.4)); }
-    if (D && D.on && D.i >= IX.hon && !F.sun) { F.sun = true; if (rt.world.fade) rt.world.fade.t = Math.max(rt.world.fade.t, rt.world.fade.dur * 0.8); rt.say('前田の侍', '朝日じゃ！　霧が切れて、本丸が見えるぞ', 3); }
+    // 本丸へ早く着いても夜明けの途中を飛ばさず、二分半の移ろいを待って朝日を知らせる。
+    if (D && D.on && D.i >= IX.hon && !F.sun && (!rt.world.fade || rt.world.fade.t >= rt.world.fade.dur * 0.8)) { F.sun = true; rt.say('前田の侍', '朝日じゃ！　霧が切れて、本丸が見えるぞ', 3); }
     // 小宮曲輪の段：内応の者が櫓に火を掛ける
     if (D && D.on && D.i === IX.matsuki && !F.yaguraFire) {
       F.yaguraFire = true;

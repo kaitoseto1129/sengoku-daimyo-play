@@ -3390,6 +3390,8 @@ const shigisan = {
       : ROAD.slice(F.lowerBypass ? a + 1 : a, a + 2).concat(ROAD.slice(west));
     const approachEnd = F.lowerBypass ? ROAD[a] : route[0];
     for (const q of F.oda) {
+      // 掛矢の組は門内の口を守る。先手と同じ狭い帯道へ呼び戻さない。
+      if (q === F.ram) continue;
       // 遅れた隊は通りかけの道から合流。未通過の柵や切岸を直線で横切らせない。
       const end = q.path?.[q.path.length - 1];
       const approach = q.order === 'path' && end && end[0] === approachEnd[0] && end[1] === approachEnd[1]
@@ -4066,7 +4068,7 @@ const shigisan = {
     const id = F.step === 4 ? 'shu' : F.step === 3.5 ? (!F.lowerTaken ? 'ridge1' : F.innerRoute === 'yashiki' ? 'yashiki' : 'ridge2') : String(F.step);
     const goal = F.SZ?.byId[id]?.pos || (F.step === 2 ? TOWER_POST : GATE);
     let distance = Math.hypot(p.x - goal.x, p.z - goal.z);
-    for (const g of F.oda) if (!gone(g)) {
+    for (const g of F.oda) if (!gone(g) && !(F.step >= 3.5 && g === F.ram)) {
       const c = g.center(); distance = Math.min(distance, Math.hypot(c.x - goal.x, c.z - goal.z));
     }
     const hp = F.gate.alive ? F.gate.hp : 0;
@@ -4102,7 +4104,7 @@ const shigisan = {
     // 11/6 fixc0814：本丸への道は曲輪への行きと帰りが西の帯道で並ぶ。道の始めから一番近い点を探すと、帰りの道を進む先手が
     //   行きの点に取られて曲輪へ引き返していた（流しの 187〜217 秒・描いた写真で本人だけ南口へ）。本人の今の角より十区間前から探す。
     const start = F.step < 3.5 ? OPEN_I : path === ROAD ? CLIMB_END + 1 : path === F.castleRoute ? Math.max(0, Math.min(end, (F.castleGuideI || 0) - 10)) : 0;
-    for (const g of F.oda) if (!gone(g)) {
+    for (const g of F.oda) if (!gone(g) && !(F.step >= 3.5 && g === F.ram)) {
       let from = start, near = Infinity;
       const c = g.center();
       for (let i = start; i <= end; i++) {
