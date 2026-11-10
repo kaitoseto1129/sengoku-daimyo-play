@@ -118,7 +118,14 @@ export function epilogue(rt) {
     // 追撃で確保した麓の平場から、道を空けて開城の列を見送る。
     const foot = F.restPath[0];
     put(P, foot[0] + 7, foot[1]);
-    for (const q of rt.squadGroups || []) for (const u of q.units) if (u.alive) put(u, foot[0] + 9 + Math.random() * 3, foot[1] + 4 - Math.random() * 6);
+    for (const q of rt.squadGroups || []) {
+      // 兵だけ移しても、本陣への古い下知と隊の要が残ると切岸へ戻ってしまう。
+      quiet(q);
+      q.anchor.x = foot[0] + 10; q.anchor.z = foot[1] + 1;
+      q.order = 'hold'; q.path = null; q.dest = null; q.onArrive = null; q.pending = null;
+      q.formation = 'line'; q.width = 3; q.spacing = 1; q.facing = -Math.PI / 2;
+      for (const u of q.units) if (u.alive) put(u, foot[0] + 9 + Math.random() * 3, foot[1] + 4 - Math.random() * 6);
+    }
     for (const g of rt.army.groups) if (g.team === 1 && g !== F.keep?.lord?.group) for (const u of g.units) if (u.alive) { u.noTarget = true; if (u.mesh) u.mesh.visible = false; }
     const col = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: '城を出る武田の城兵', fixed: true, noGuard: true, anchor: { x: 0, z: -118 }, facing: 0, width: 2, formation: 'column', morale: 100, noRout: true, speed: 1.6 },
       [{ type: 'samurai', n: 3, o: { flag: null } }, { type: 'ashigaru', n: 7, o: { flag: null } }]);
@@ -129,7 +136,21 @@ export function epilogue(rt) {
     col.order = 'path'; col.pathIdx = 0; col.dest = null; col.path = path;
     col.onArrive = (q) => { q.order = 'hold'; };
     const L = F.keep?.lord;
-    if (L?.alive) { put(L, 0, -108); L.noTarget = true; if (L.group) { quiet(L.group); L.group.anchor.x = L.pos.x; L.group.anchor.z = L.pos.z; L.group.formation = 'column'; L.group.roadColumn = true; L.group.followColumnRoad = true; L.group.colW = 1; L.group.order = 'path'; L.group.pathIdx = 0; L.group.dest = null; L.group.path = path; L.group.speed = 1.4; L.group.onArrive = (q) => { q.order = 'hold'; }; } }
+    if (L?.alive) {
+      put(L, 0, -108); L.noTarget = true;
+      if (L.group) {
+        const g = L.group;
+        // おつやの方も同じ隊。城内に置き去りにすると新しい隊の要へ切岸を直進する。
+        let row = 0;
+        for (const u of g.units) if (u.alive) {
+          put(u, 0, -108 - row * 1.4); u.slot = row++;
+        }
+        quiet(g); g.anchor.x = L.pos.x; g.anchor.z = L.pos.z;
+        g.formation = 'column'; g.roadColumn = true; g.followColumnRoad = true; g.colW = 1;
+        g.order = 'path'; g.pathIdx = 0; g.dest = null; g.path = path; g.speed = 1.4;
+        g.onArrive = (q) => { q.order = 'hold'; };
+      }
+    }
     rt.say('語り', '使者が戻ると、兵糧の尽きた岩村城は、城の者の命と引き替えに開かれた', 4.4);
   });
   rt.after(9, () => { if (!rt.over) rt.say('河尻秀隆', '先頭が秋山虎繁。後ろの輿が、おつやの方じゃ', 3.6); });

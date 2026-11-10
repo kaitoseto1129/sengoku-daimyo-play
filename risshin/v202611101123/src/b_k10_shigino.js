@@ -668,6 +668,14 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       if (live(O) && (O.order !== 'hold' || dist(O.center(), OONO) > 8) && O.order !== 'move' && O.order !== 'retreat') { O.order = 'hold'; O.anchor = { x: OONO.x, z: OONO.z }; O.seekRange = 8; O.aggro = 4; }
     }
     if (F.step === 1) {
+      // 一の柵を奪って二の柵へ進む時点で旗も替える。両方の攻略が済むまで敵旗を残さない。
+      for (let i = 0; i < 2; i++) {
+        const k = i + 1, g = i === 0 ? F.g1 : F.g2;
+        if (F['fenceTaken' + k] || F.w1N[i] - aliveN(g) < Math.round(F.w1N[i] * 0.6)) continue;
+        F['fenceTaken' + k] = true;
+        fenceDown(rt, i === 0 ? F.fence1 : F.fence2);
+        for (const f of F.flagsAt || []) if (f.k === k) { f.toy.visible = false; f.ue.visible = true; }
+      }
       // 二つの柵をそれぞれ押し返す。一方の全滅だけで、もう一方の柵まで破った扱いにしない。
       const repelled = [F.g1, F.g2].every((g, i) => F.w1N[i] - aliveN(g) >= Math.round(F.w1N[i] * 0.6));
       if (repelled && F.playerFight1) this.toStep(rt, 2);

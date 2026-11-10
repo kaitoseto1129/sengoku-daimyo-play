@@ -135,7 +135,7 @@ export function playTalk(id, when, done, o = {}) {
   // 11/8 critic60 三方ヶ原（常識）：戦の絵が敵の大軍の真ん中の時は、会話の背に使わない（味方の陣で話すはず）。暗い幕の地にする
   // 越前は前後とも暗い幕の地。差し替えの絵でも影絵の人馬を戻さない。
   // 大河内は所属不明の黒丸の旗が写る古い写真を、前後の会話とも出さない。
-  const noBg = TALK_NO_BG.has(id) && (id === 'echizen' || id === 'okawachi' || !o.thumb);
+  const noBg = TALK_NO_BG.has(id) && (id === 'mikatagahara' || id === 'echizen' || id === 'okawachi' || !o.thumb);
   el.innerHTML = `${CSS}<div class="bg" style="${noBg ? 'background:linear-gradient(#2a2219,#14100c)' : `background-image:url('${thumbURL(o.thumb || id)}')`}"></div><div class="vg"></div>
     <div class="who"><canvas aria-hidden="true"></canvas></div><div class="rk" hidden>${o.from ? `${esc(o.from)} → ` : ''}${esc(o.rank || '')}</div>
     <div class="box"><div class="nm">${esc(who)}</div><p class="tx" aria-live="polite"></p><button type="button" class="nx" aria-label="▼">▼</button></div>

@@ -1465,7 +1465,14 @@ const miki = {
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す
     const ip = MK_OPEN.pin(rt, this.mkCtx(rt)) || MK_DESHIRO.pin(rt, this.mkCtx(rt)) || MK_KIGA.pin(rt, this.mkCtx(rt));   // 開幕の段：井楼→西の槍組
-    if (ip) { q.unit = null; q.enemy = false; q.route = false; q.waiting = false; q.x = ip.x; q.z = ip.z; q.r = q.hide = 4; q.arrived = Math.hypot(me.x - q.x, me.z - q.z) < 4; return q; }
+    if (ip) {
+      // 井楼・蔵へも南の木戸を通す。後半の下知だけ柵越しへ直進させない。
+      const at = hirataWay(rt.army, rt.player.u, ip);
+      q.unit = null; q.enemy = false; q.route = at !== ip; q.waiting = false;
+      q.x = at.x; q.z = at.z; q.r = q.hide = q.route ? .8 : 4;
+      q.arrived = !q.route && Math.hypot(me.x - q.x, me.z - q.z) < q.r;
+      return q;
+    }
     // 蔵で下知を聞く間は移動先なし。済んだ大村坂へ案内し直さない。
     if (F.step >= 3) return null;
     let at = stage === 0 ? ESCORT_AT : stage === 1 ? GATE : stage === 2 ? OMURA_FOOT : OMURA;
@@ -3458,9 +3465,16 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.axis = null;
   inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false; inp.runHeld = false;
   if (!u.alive || F.ending) return;
-  if (!F.step && F.mkOpen && !F.mkOpen.done) { const g = MK_OPEN.pin(b, miki.mkCtx(b)); if (g) { goTo(p, inp, g.x, g.z, 2); return; } }
+  if (!F.step && F.mkOpen && !F.mkOpen.done) {
+    const g = miki.missionPin(b);
+    if (g) { goTo(p, inp, g.x, g.z, g.route ? g.r : 2); return; }
+  }
   if (F.mkYoin) { inp.k.delete('KeyW'); return; }
-  if (F.step === 4) { const g = MK_KIGA.pin(b, miki.mkCtx(b)); if (g) goTo(p, inp, g.x, g.z, 2); return; }
+  if (F.step === 4) {
+    const g = miki.missionPin(b);
+    if (g) goTo(p, inp, g.x, g.z, g.route ? g.r : 2);
+    return;
+  }
   // 近い振りかぶりへ向き続けず、先に当たる打ち込みを受ける。
   let attacker = null, hitIn = Infinity, attackDist = 6;
   for (const q of b.army.units) {
