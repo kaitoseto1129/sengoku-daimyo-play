@@ -613,7 +613,8 @@ const k06_sekigahara = {
       room(rt, 40);
       // 島津の隊はここで初めて林の陰から出る（朝から一日、陣を動かなかった）
       // 11/8：林の陰から野へ出た所で現す（林の奥から歩かせると、本陣の前に来るまでに三分かかった）
-      F.shima = foe(rt, '島津義弘の隊', { x: SHIMAZU.x + 106, z: SHIMAZU.z + 32 }, [{ type: 'busho', n: 1, o: { name: '島津義弘', invuln: true, mustLive: true, horse: true } }, { type: 'busho', n: 1, o: { name: '島津豊久', horse: true } },
+      // 義弘は退き口の下知で脱出する。共通の手傷退場で一人だけ先に消えないようにする。
+      F.shima = foe(rt, '島津義弘の隊', { x: SHIMAZU.x + 106, z: SHIMAZU.z + 32 }, [{ type: 'busho', n: 1, o: { name: '島津義弘', invuln: true, mustLive: true, onWound: () => {}, horse: true } }, { type: 'busho', n: 1, o: { name: '島津豊久', horse: true } },
         { type: 'samurai', n: 6 }, { type: 'gun', n: 8 }, { type: 'ashigaru', n: 14 }], SHIMA, { order: 'move', aggro: 10, seekRange: 12, morale: 100, noRout: true, width: 10 });
       F.shiN = F.shima.count; F.shiK = 0;
       F.shima.speed = 4.6;   // 11/8 流し：歩みが遅く（一秒に一歩足らず）、本陣の前に来るまで四分かかっていた。駆け抜ける速さに

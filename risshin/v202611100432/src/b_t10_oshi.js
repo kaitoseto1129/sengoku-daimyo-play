@@ -14,7 +14,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { nobori, jinmaku, tawara, hut, yagura, kobune, kabukimon, tobira, bridgeBoard, bridgeWoodMaterial, castleBoardFence, makeSimpleBatch, finalizeSimpleBatch, solidCircle } from './props.js';
+import { nobori, jinmaku, tawara, hut, yagura, kobune, kabukimon, tobira, bridgeBoard, bridgeWoodMaterial, castleBoardFence, makeSimpleBatch, finalizeSimpleBatch, solidCircle, solidRect } from './props.js';
 import { RANKS } from './state.js';
 import { FACTION, GENERALS } from './units_data.js';
 import { KACCHU } from './kacchu_data.js';
@@ -288,12 +288,13 @@ function castle(rt) {
   const ya = Math.atan2(GATE.z - NI.z, GATE.x - NI.x);
   // 11/7：井楼は土塁の上から塀を見下ろすほどの低い板囲い（前の既定の高井楼は十mの格子の塔で、天守より高く見えた・critic60）
   const y1 = [NI.x + Math.cos(ya - 0.62) * (NI.r - 2.6), NI.z + Math.sin(ya - 0.62) * (NI.r - 2.6)];
-  add(yagura(W, y1[0], y1[1], { height: 5.2, boarded: true }));
+  add(yagura(W, y1[0], y1[1], { height: 5.2, boarded: true, mon: 'narita', team: 1 }));
   const ha = Math.atan2(NI.z - HON.z, NI.x - HON.x);
   const y2 = [HON.x + Math.cos(ha + 0.5) * (HON.r - 3), HON.z + Math.sin(ha + 0.5) * (HON.r - 3)];
-  add(yagura(W, y2[0], y2[1], { height: 5.8, boarded: true }));
+  add(yagura(W, y2[0], y2[1], { height: 5.8, boarded: true, mon: 'narita', team: 1 }));
   // 11/8 critic60 十5：板囲いの井楼の柱の間から格子の中へ入り込み、カメラが板に埋まった。囲いの内は通れない
-  for (const [x, z] of [y1, y2]) solidCircle(x, z, 1.7);
+  // 囲いは四角い。円の当たりでは隅が外れるため、柱の外側まで囲う。
+  for (const [x, z] of [y1, y2]) solidRect(x, z, 3.2, 3.2);
   // 屋形（板葺き）：本丸に城代の屋形と台所、三の丸と諏訪曲輪に小屋
   add(hut(W, HON.x - 3, HON.z - 4, 10, 7, 0.3, { roof: 0x4a4038 }));
   add(hut(W, HON.x - 5, HON.z + 4, 7, 5, -0.2, { roof: 0x4a4038 }));

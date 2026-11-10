@@ -3142,9 +3142,11 @@ const odani = {
     if (F.komaAttack && !F.komaTarget && F.C.kuruwa.koma.test(p.x, p.z))
       return '小丸の広場を押さえよ';
     const metres = Math.max(0, Math.round(distance));
-    return rt.missionGuide?.marker?.id === 'trail' && !rt.guideEnemyShown && !rt.guideEnemyDirection
-      ? `清水谷の道 ${metres}m`
-      : `${metres}m`;
+    // 同じ道案内の印を小丸・本丸でも使う。登り終えた後まで清水谷と呼ばない。
+    if (rt.guideEnemyShown || rt.guideEnemyDirection) return `${metres}m`;
+    const place = F.honAttack ? '本丸' : F.komaAttack ? '小丸'
+      : F.step === 3 ? '京極丸' : F.step === 2 ? F.onoDone ? '京極丸' : '大野木屋敷' : '清水谷';
+    return `${place} ${metres}m`;
   },
   // 止血して戦いを離れたら、残る傷だけで空き地への退避を繰り返さない。
   // 接近戦・出血・息切れ・矢の落下範囲の警告は共通の仕組みに渡す。
