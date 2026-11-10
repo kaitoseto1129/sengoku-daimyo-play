@@ -758,6 +758,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     h.start = (rt, C, m, ctx) => {
       const F = rt.flags;
       start(rt, C, m, ctx);
+      // 先に壊した柵を、もう一度打つ持ち場にはしない。
+      if (!T.alive || T.invuln) return;
       F.breaking = true; F.breakT = T; F.clamp = clamp;
       // 遠くに残った組は退かせ、柵の近くの組（無ければ新しい組）で打つ
       const tx = (T.seg[0] + T.seg[2]) / 2, tz = (T.seg[1] + T.seg[3]) / 2;
@@ -1006,6 +1008,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       rt.say('足軽', '西の井伊と越前の勢も寄せてくる！', 3);
     });
     rt.after(18, () => { if (F.step === 5) this.blast(rt); });
+    // 寄り道で先に破った柵はそのまま。二の構えと打って出は最大の攻めにそろえる。
+    if (!F.target.alive) this.trap(rt);
   },
 
   // 塀・櫓・堀の内の鉄砲が撃ち始める（一度だけ）
@@ -1083,7 +1087,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   // 柵が破れた → 罠（必ず）：中の二の構えが立ち上がり近い一斉射、続いて真田が打って出る
   trap(rt) {
     const F = rt.flags;
-    if (F.trapped || F.ending) return;
+    if (F.trapped || F.ending || F.step !== 5) return;
     F.trapped = true; F.trapT = rt.t;
     rt.say('足軽', '柵が開いた！　中が見える……入れるぞ！', 2.6);
     // 後の手も破れ口へ殺到する
