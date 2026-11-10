@@ -260,7 +260,7 @@ function roadApproach(world, p, path, i, out) {
 // 近い別の折り返しから守兵へ直進させず、最後の折れと高さを確かめる。
 function inabaAtWoodGate(rt) {
   const p = rt.player.u.pos;
-  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen
     && rt.flags.karaNext >= KARA_TRAIL.indexOf(KARA[4])
     && Math.hypot(p.x + 30, p.z + 118) < 14
     && Math.abs(p.y - rt.world.heightAt(-30, -118)) < 6;
@@ -269,7 +269,7 @@ function inabaAtWoodGate(rt) {
 // 七曲りも本人の折れ・高さを確かめる。先に登った列や下の段の近さでは達成しない。
 function inabaAtOteGate(rt) {
   const p = rt.player.u.pos, q = OTE_WAY[0];
-  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen
     // 11/9 二巡（織田E）：木戸の十二歩前まで登っていても、馬出しの脇を回って最後の折れの角を「通った」と見なされず、
     //   木戸の斬り合いが始まらないまま三分余り止まった（流し：七曲りの角 8 で木戸から七〜十二歩）。木戸の二十二歩内なら着いた事にする
     && (rt.flags.nanaNext >= NANA.length - OTE_WAY.length + 1 || Math.hypot(p.x - OTE.x, p.z - OTE.z) < 22)
@@ -3244,7 +3244,9 @@ function inabaClimbGuideEnemy(rt) {
   const F = rt.flags;
   if (F.step !== 3 || F.ending || F.retreatMarked || F.regroup) return null;
   const previous = F.climbGuideEnemy;
-  if (F.climbGuideAt > rt.t && inabaFoe(previous) && !previous.offscreen) return previous;
+  // 再使用する間も、壁の裏へ隠れた相手や別の段へ離れた相手を指し続けない。
+  if (F.climbGuideAt > rt.t && inabaFoe(previous) && !previous.offscreen && sightScreenUnit(rt, previous)
+    && (inabaMeleeContact(rt, previous, rt.player.u) || inabaMeleeContact(rt, rt.player.u, previous))) return previous;
   F.climbGuideAt = rt.t + .1;
   let best = null, distance = Infinity;
   for (const group of F.climbFoes || []) {
@@ -4075,7 +4077,8 @@ function honTargetGroup(rt) {
 }
 function nearestFoeOf(rt, group, visibleOnly = false) {
   const F = rt.flags;
-  if (F.foePickT === rt.t && F.foePickG === group && F.foePickVisible === visibleOnly && (!F.foePick || inabaFoe(F.foePick))) return F.foePick;
+  if (F.foePickT === rt.t && F.foePickG === group && F.foePickVisible === visibleOnly
+    && (!F.foePick || inabaFoe(F.foePick) && (!visibleOnly || !F.foePick.offscreen && sightScreenUnit(rt, F.foePick)))) return F.foePick;
   F.foePickT = rt.t; F.foePickG = group; F.foePickVisible = visibleOnly;
   if (!group) return (F.foePick = null);
   const list = Array.isArray(group) ? group : [group];

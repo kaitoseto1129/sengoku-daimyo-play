@@ -595,6 +595,7 @@ const k06_sekigahara = {
     const F = rt.flags;
     if (F.otaniDown) return;
     F.otaniDown = rt.t;
+    rt.banner('大谷勢、崩壊');
     rt.say('使番', '大谷勢、崩れました！', 3);
     rt.after(3, () => rt.say('使番', '刑部殿、陣中にて自害の由！', 3));
     for (const u of F.otani?.units || []) if (u.alive && !u.gone && u.type === 'busho') { u.invuln = false; u.hp = 0; rt.army.kill(u, null); }

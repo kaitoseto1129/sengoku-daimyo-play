@@ -19,7 +19,14 @@ export function install(rt, ctx) {
         b.light?.halt();
         b.cmd = { id: 'hold', to: null, target: null, form: 'line' };
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.routed) { const c = g.center?.(); if (c) { g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.seekRange = 0; g.aggro = 0; } }
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.routed) {
+        const c = g.center?.();
+        if (c) {
+          // 待機では近接判断と鉄砲の通常射撃が続く。追撃を解き、隊列へ戻す。
+          g.order = 'retreat'; g.dest = { x: c.x, z: c.z }; g.onArrive = null;
+          g.focus = null; g.seekRange = 0; g.aggro = 0; g.fire = false;
+        }
+      }
       rt.say('島左近', '追うな。川を越えれば有馬の鉄砲が待つ。引き上げよ', 3.4);
     });
     rt.after(15.6, () => { rt.army.celebrate?.(1); sfx('sig_enemyToki', 0.8); });

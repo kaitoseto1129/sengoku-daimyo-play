@@ -98,7 +98,7 @@ export function tick(rt) {
     later(10, () => { C.s?.rout?.('B', { from: 1, minFight: 1 }); routB('ukita2', 'konishi2'); });
   } else if (step === 10) {
     // 石田の陣が崩れる。島津だけが固まって中央を突き抜ける（本物の島津の後ろに付いて走る）
-    tryDo(() => { C.n?.rout?.('B', { from: -1, minFight: 2 }); routB('gamou'); });
+    tryDo(() => { C.n?.rout?.('B', { from: -1, minFight: 2 }); routB('sakon', 'gamou'); });
     later(5, () => {
       const g = F.shima, c = g && g.center ? g.center() : P.SHIMAZU;
       M.shima = rt.world.addDistantArmy({ host: false, farFill: true, kind: 'mixed', flagRate: 0.4, mon: 'shimazu', x: c.x - 10, z: c.z, w: 16, d: 10, count: isTouch ? 40 : 80, facing: Math.PI / 2, team: 1, armor: 0x1c1a1a, flag: 'shimazu', flagTex: flagTexture('shimazu'), seed: 6031 });

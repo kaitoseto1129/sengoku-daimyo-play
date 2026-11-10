@@ -1884,7 +1884,11 @@ function heroFrontClash(rt, dt, o = {}) {
   if (H.done || (H.t -= dt) > 0) return;
   H.t = 0.5;
   if (rt.t - H.t0 > (o.win ?? 50) || rt.over || F.ending || !P?.alive || (o.active && !o.active(rt))) {
-    for (const [g, s] of H.saved) { g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro; }
+    // 落城後の停止や、途中で届いた退却・進軍の下知を古い命令へ戻さない。
+    for (const [g, s] of H.saved) {
+      if (rt.over || F.ending || !P?.alive || g.order !== 'hold' || !g.noAI) continue;
+      g.order = s.order; g.path = s.path; g.pathIdx = s.pathIdx; g.noAI = s.noAI; g.aggro = s.aggro;
+    }
     H.saved.clear(); H.done = true; return;
   }
   const e = rt.camera?.matrixWorld?.elements;

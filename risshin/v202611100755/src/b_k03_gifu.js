@@ -383,6 +383,12 @@ const k03_gifu = {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const W = rt.world, F = rt.flags, S = rt.scene;
     F.step = 0; F.holdPlayer = true; F.foes = []; F.yokoya = []; F.ek = 0; F.ak = 0; F.ending = false;
+    // 近い敵を自動で払う共通の判断より、七曲りの行軍と門下の待機を優先する。
+    W.def.combatSpace = (_army, u) => {
+      const g = u.group;
+      return g?._gfSouth && F.step < 5 && !F.ending
+        ? g.slotPos(u.slot, g.initial, u._gfWaitSlot || (u._gfWaitSlot = { x: 0, z: 0 })) : null;
+    };
     installKaijo(rt, F.k03s = {});
     if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
     const castle0 = S.children.length;
@@ -541,6 +547,8 @@ const k03_gifu = {
     } else if (n === 5) {
       rt.banner('二の丸を落とした', '本丸の門に秀信の旗本');
       F.stepG = F.pre[5];
+      // 南の門下で待っていた福島勢は、この下知で初めて旗本へ掛かる。
+      if (live(F.fuku)) { F.fuku.peaceful = false; F.fuku.fire = true; F.fuku.aggro = 12; }
       go(F.naga, { x: DAI.x - 8, z: DAI.z }, 26);
       go(F.asano, { x: DAI.x - 12, z: DAI.z + 2 }, 26);
       go(F.fuku, { x: DAI.x + 2, z: DAI.z + 3 }, 20);   // 本丸の門の前で池田勢と並ぶ（一番乗りの争いが見える）
@@ -556,6 +564,8 @@ const k03_gifu = {
     F.fuku = allyGroup(rt, { faction: 'oda', name: '福島正則の手', anchor: { x: KARAME.x, z: KARAME.z }, facing: Math.PI, width: 10, aggro: 12, speed: 3.8, noRout: true, fixed: true, fullStrength: true, formation: 'yari' },
       fkD([busho('福島正則'), uS(5), uA(16), uG(4)]));
     F.fuku._gfSouth = true;
+    // 隊列の先頭は門下の待機点より先へ出る。探索距離だけでは⑤の旗本を先に討てるので、待つ間は射撃も白兵も止める。
+    F.fuku.peaceful = true; F.fuku.fire = false; F.fuku.aggro = 0;
     F.fuku.formation = 'column'; F.fuku.width = 3;
     F.fuku.defMult = 1.3; F.fuku.dmgMult = 0.8;
     // 七曲りの尾根を登り、上台所と本丸の間の南の下に出る（二の丸・上台所の南の石垣の下に詰まった）

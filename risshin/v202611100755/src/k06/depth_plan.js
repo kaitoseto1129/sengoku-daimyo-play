@@ -13,8 +13,9 @@ export const DEPTH = {
     sonae: [
       { id: 'ii', layer: 'sakite', wing: 'center', men: 3600, taisho: '井伊直政', flag: 'ii', bind: F('ii') },
       { id: 'fuku', layer: 'ichi', wing: 'left', men: 6000, taisho: '福島正則', flag: 'mizuno', bind: F('fuku') },
-      { id: 'kuroda', layer: 'ichi', wing: 'right', men: 5400, taisho: '黒田長政', flag: 'kuroda', bind: F('kuroda') },
-      { id: 'hoso', layer: 'ichi', wing: 'right', men: 5000, taisho: '細川忠興', flag: 'kuyo', bind: F('hoso') },
+      // 十目標への変更で本物の隊を置かなくなった持ち場は、軽い備を直接置く。空の参照は備ごと消える。
+      { id: 'kuroda', layer: 'ichi', wing: 'right', men: 5400, taisho: '黒田長政', flag: 'kuroda', at: P(-84, -88) },
+      { id: 'hoso', layer: 'ichi', wing: 'right', men: 5000, taisho: '細川忠興', flag: 'kuyo', at: P(-100, -76) },
       { id: 'kato', layer: 'ichi', wing: 'right', men: 3000, taisho: '加藤嘉明', flag: 'sagarifuji', bind: F('kato') },
       { id: 'todo', layer: 'ichi', wing: 'left', men: 2500, taisho: '藤堂高虎', flag: 'todo', bind: F('todo') },
       { id: 'fuku2', layer: 'ni', wing: 'left', men: 2000, taisho: '', flag: 'mizuno', at: { x: -190, z: 96 } },
@@ -42,7 +43,7 @@ export const DEPTH = {
     sonae: [
       { id: 'akashi', layer: 'sakite', wing: 'center', men: 8000, taisho: '明石全登', flag: 'ukita', bind: F('akashi') },
       { id: 'konishi', layer: 'ichi', wing: 'left', men: 4000, taisho: '小西行長', flag: 'konishi', bind: F('konishi') },
-      { id: 'sakon', layer: 'ichi', wing: 'left', men: 1000, taisho: '島左近', flag: 'ishida', bind: F('sakon') },
+      { id: 'sakon', layer: 'ichi', wing: 'left', men: 1000, taisho: '島左近', flag: 'ishida', at: P(-148, -64) },
       { id: 'hira', layer: 'ichi', wing: 'right', men: 1500, taisho: '平塚為広', flag: 'otani', bind: F('otani') },
       { id: 'ukita2', layer: 'ni', wing: 'center', men: 5000, taisho: '', flag: 'ukita', at: { x: -372, z: 72 } },
       { id: 'konishi2', layer: 'ni', wing: 'left', men: 2000, taisho: '', flag: 'konishi', at: { x: -440, z: -26 } },

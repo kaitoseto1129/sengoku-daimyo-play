@@ -84,6 +84,14 @@ const SP = siegePlan({ x: 10, z: 48, rot: 0, W: 26, koguchi: 'masu', turn: 1,
 const SP_H = siegeHeight(SP);
 // 大手門から本丸への攻め上りの筋：門・枡形の中・東へ折れた櫓門の外・三の丸・二の丸の虎口・本丸の土橋（枡形は東へ折れる。turn 1）
 const UP_ROUTE = [[SP.x, SP.z], [SP.x, SP.z - 4.5], [SP.x + 9, SP.z - 3], [SP.x + 9, SP.z - 20], [16, -20], [16, -46], [21, -68], [22, -80], [25, -94]];
+// 主人公だけ先へ進んでも、後続がまだ通っていない門・虎口を飛ばさない。
+// 下知を替える時だけ残りの道に継ぎ足し、毎コマは作らない。
+function continuePath(g, route) {
+  const rest = g.order === 'path' && g.path ? g.path.slice(g.pathIdx || 0) : [];
+  g.path = [...rest, ...route].map((p) => p.slice());
+  g.pathIdx = 0;
+  g.order = 'path';
+}
 const HOJO = { flag: 'hojo', armor: 0x2e2a26, hatColor: 0x1e1b18, lace: 0x5a4632, cloth: 0x6a5a40 };
 const TOYO = { flag: 'toyotomi' };   // 秀次の本陣・中村一氏の手（中村の紋は確かな物が無く、主家の桐）
 // 先手の諸将は自家の旗で寄せる（一柳の釘抜・山内の丸に三つ柏・堀の旗。textures。豊臣の旗だけで揃えない）
@@ -671,7 +679,7 @@ const t09_yamanaka = {
     // 寄せ手は三の丸の広場から、二の丸の虎口・本丸の土橋を通って攻め上る（戦いながら進む）
     //   本丸の土橋の下（二の丸の北の虎口）で揃い、本人が来たら一緒に本丸へ攻め上る（最後の見せ場を本人の目の前で）
     const route = UP_ROUTE.slice(2, 7);
-    for (const g of F.toyo) if (!gone(g)) { g.formation = 'column'; g.colW = 2; g.order = 'path'; g.path = route.map((p) => p.slice()); g.pathIdx = 0; g.speed = 3; g.march = false; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 14; q.anchor = { x: 21, z: -66 }; }; }
+    for (const g of F.toyo) if (!gone(g)) { g.formation = 'column'; g.colW = 2; continuePath(g, route); g.speed = 3; g.march = false; g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 14; q.anchor = { x: 21, z: -66 }; }; }
   },
 
   win(rt) {
@@ -827,7 +835,7 @@ const t09_yamanaka = {
       if (!F.honOn && Math.hypot(p.x - KURUWA.hon.x, p.z - KURUWA.hon.z) < 50) {
         F.honOn = true; g.fixed = false; g.aggro = 14; g.order = 'attack'; g.seekRange = 26;
         rt.say('中村一氏', '本丸へ掛かれ！　松田の旗を倒せ！', 3.5);
-        for (const q of F.toyo) if (!gone(q)) { q.order = 'path'; q.path = UP_ROUTE.slice(6); q.pathIdx = 0; q.speed = 2.4; q.onArrive = (r) => { r.order = 'attack'; r.seekRange = 40; }; }
+        for (const q of F.toyo) if (!gone(q)) { continuePath(q, UP_ROUTE.slice(7)); q.speed = 2.4; q.onArrive = (r) => { r.order = 'attack'; r.seekRange = 40; }; }
       }
       if (F.ni && !gone(F.ni) && F.ni.count < 6) F.ni.morale = Math.min(F.ni.morale, 20);
       // 旗本が崩れ始めると康郷が脱出する。康長は初めから本人の攻撃で討てる。
