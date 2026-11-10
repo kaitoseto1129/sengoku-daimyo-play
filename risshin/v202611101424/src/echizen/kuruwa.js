@@ -36,16 +36,26 @@ function side(rt) {
   if (F.echHonT == null) F.echHonT = rt.t;
   if (rt.t - F.echHonT < 45) return;
   F.echSideGone = true;
+  // 既に味方が押さえた城を、守兵が焼き捨てた事にしない。
+  const pending = SIDE.filter(id => {
+    const z = F.SZ.byId[id];
+    return z && (z.owner !== 'friend' || z.enemies > 0);
+  });
+  if (!pending.length) return;
   F.echRetreatT ??= rt.t;
   // 四城制圧前の別手の退きも、府中に火が掛かった夜の出来事にそろえる。
   rt.world.setTime?.('night');
   for (const id of ['saikoji_hon', 'hachibuse_hon']) {
     const z = F.SZ.byId[id];
-    if (z) rt.world.addFire(z.pos.x - 6, z.pos.z, { size: 3.2, blackSmoke: true });
+    if (pending.includes(id)) rt.world.addFire(z.pos.x - 6, z.pos.z, { size: 3.2, blackSmoke: true });
   }
   try { sfx('farHorn', 0.7); } catch (e) { /* なし */ }
-  rt.say('使番', '杉津口の堀江景忠が寝返り、府中の龍門寺にも火が掛かりました！　西光寺丸と鉢伏の一揆勢が、砦に火を掛けて退きます！', 4);
-  for (const id of SIDE) {
+  const names = [];
+  if (pending.some(id => id.startsWith('saikoji_'))) names.push('西光寺丸');
+  if (pending.some(id => id.startsWith('hachibuse_'))) names.push('鉢伏');
+  F.echSideReported = true;
+  rt.say('使番', `杉津口の堀江景忠が寝返り、府中の龍門寺にも火が掛かりました！　${names.join('と')}の一揆勢が、砦を捨てて退きます！`, 4);
+  for (const id of pending) {
     const z = F.SZ.byId[id];
     if (!z) continue;
     rout(rt, z);
