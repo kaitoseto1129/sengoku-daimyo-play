@@ -40,7 +40,7 @@ export function install(rt, ctx) {
     rt.obj('main', '根洗の松の高みへ上がり、武田の陣立てを見よ', 'main', true);
     rt.marker('mkScout', MI, '根洗の松', { h: 2, guideAlways: true });
     rt.say('平手汎秀', 'よう来た。その方、右手の根洗の松の高みへ上がれ。武田がどう構えておるか見て参れ', 3.8);
-    rt.after(14, () => { if (live()) rt.say('佐久間信盛', '平手殿、急くな。三万の武田ぞ。我らは右を固めるだけでよい', 3.6); });
+    rt.after(14, () => { if (live()) rt.say('佐久間信盛', '平手殿、急くな。二万七千の武田ぞ。我らは右を固めるだけでよい', 3.6); });
     rt.after(24, () => { if (live()) { sfx('taiko', 0.45); rt.say('足軽', '北の台地で太鼓が鳴り止まんがや……', 2.8); } });
     scoutTick();
   };

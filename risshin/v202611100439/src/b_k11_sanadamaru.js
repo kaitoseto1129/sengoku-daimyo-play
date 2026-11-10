@@ -598,6 +598,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         if (b.player.lock) inp.e.add('KeyQ');
         if (b.player.weapon !== 'spear') inp.e.add('Digit1');
         inp.guardHold = false;
+        // 共通の敵追いの横歩き・後退を残すと、竹束の陰へ真っ直ぐ入れない。
+        inp.k.delete('KeyA'); inp.k.delete('KeyS'); inp.k.delete('KeyD');
         const fx = (T.seg[0] + T.seg[2]) / 2, fz = (T.seg[1] + T.seg[3]) / 2;
         // 柵へ一人で突っ込まず、柵に取り付く竹束の南側へ寄る。近い束を一つ選ぶだけで、配列を毎コマ作らない。
         let cover = null, best = Infinity;
@@ -608,7 +610,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         }
         if (inp.leftPressed && !cover) return;
         const tx = cover ? cover.pos.x : fx, tz = cover ? cover.pos.z + 1.6 : fz + 1.2, d = Math.hypot(tx - u.pos.x, tz - u.pos.z);
-        if (cover && d > 0.8) {
+        // 束の半幅は 0.42。八十糎のずれを許すと束の脇に立って撃たれる。
+        if (cover && d > 0.25) {
           inp.leftPressed = false;
           b.player.yaw = Math.atan2(tx - u.pos.x, tz - u.pos.z);
           inp.k.add('KeyW');

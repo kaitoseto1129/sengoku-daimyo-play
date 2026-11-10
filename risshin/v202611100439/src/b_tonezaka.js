@@ -1559,7 +1559,7 @@ const tonezaka = {
   noDodgeCard: true,
   enemyTriangleSigns: true,
   // 11/8 critic60（一2・十三4）：義景は峠の奥の本隊の内。十数メートル先の道に名札を出さない
-  hideNameTag: (u) => u.name === '朝倉義景',
+  hideNameTag: (u, rt) => u.name === '朝倉義景' || u.name === '河合吉統' && rt.flags.step >= 2,
   nearbyAllySignLimit: 0,
   missionPinCaption: '',
   missionDetail: () => '',
@@ -2990,7 +2990,7 @@ const tonezaka = {
       () => F.guideJoin ? F.guideBend ? '味方へ合流する道' : '合流する味方の兵' : F.guideBend ? '次の道の曲がり' : F.guideVisible ? '道を塞ぐ敵の列' : '坂へ続く道', { h: 0.35 });
     rt.banner('朝倉が退く。信長公が追う', '昨夜の嵐に大嶽砦が落ち、義景は陣を払った');
     F.chiefNoteT = rt.t + 8;
-    rt.obj('main', '坂の下で河合吉統の殿を突き破る', 'main', true);
+    rt.obj('main', TONE_LINE[1], 'main', true);
     toneAdvanceCue(rt, 'susume', F.nobuU.pos);
     rt.say('織田信長', '朝倉が退くぞ！　馬廻、わしに続け！', 4);
     march(F.uma, [[-10, 60], [-6, 48], [-4, 16]].map(([x, z]) => xz(x, z)));

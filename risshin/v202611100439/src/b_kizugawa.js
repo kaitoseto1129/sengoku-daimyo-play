@@ -367,7 +367,7 @@ function deckMeleeThreat(u) {
 
 // 小舟の乗員を横の位置だけで甲板の残敵に数えない。屋形の上の敵は残す。
 function deckEnemy(u) {
-  return u.alive && u.team === 1 && !u.fleeing && !u.woundOut &&
+  return u.alive && u.team === 1 && !u.gone && !u.dying && !u.fleeing && !u.woundOut &&
     !u.shipBoat && !u.shipTransit?.active && u.pos.y >= DECK.y - 0.4 &&
     u.pos.x >= DECK.x0 && u.pos.x <= DECK.x1 && u.pos.z >= DECK.z0 && u.pos.z <= DECK.z1;
 }
@@ -4507,7 +4507,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         continue;
       }
       const boat = u.group?.boat;
-      if (u.team === 1 && (u.fleeing || boat?.withdrawing) && boat?.exit && boat.alive && !boat.damageStage && Math.hypot(u.pos.x - boat.landing.x, u.pos.z - boat.landing.z) < 1) {
+      // 倒れた兵を帰船の歩みに戻さず、甲板に倒れたままにする。
+      if (u.team === 1 && !u.gone && !u.dying && !u.woundOut && (u.fleeing || boat?.withdrawing) && boat?.exit && boat.alive && !boat.damageStage && Math.hypot(u.pos.x - boat.landing.x, u.pos.z - boat.landing.z) < 1) {
         const tr = u.shipTransit;
         if (tr) {
           tr.active = true; tr.returning = true; tr.start = rt.t; tr.x = u.pos.x; tr.y = u.pos.y; tr.z = u.pos.z;
