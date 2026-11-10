@@ -115,7 +115,10 @@ export function ambushTick(rt, ctx) {
   }
   if (A.done) return;
   sweepGroup(rt, A.g);
-  const left = A.g.units.filter(siegeFighter).length;
+  // 導入の山狩り・行き先と同じく、討死動作中や後送中の者は残兵に数えない。
+  // 生存の印だけ残る者を待つと、戦える残党を崩しても次の一団へ進まない。
+  let left = 0;
+  for (const u of A.g.units) if (siegeFighter(u) && u.hp > 0 && !u.dying && !u.rearWound) left++;
   // 時間だけで無傷の敵を敗走させ、撃退済みにしない。
   if (left > 2) return;
   const g = A.g;
