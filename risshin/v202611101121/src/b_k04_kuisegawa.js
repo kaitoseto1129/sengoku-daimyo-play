@@ -424,15 +424,7 @@ const k04_kuisegawa = {
     const F = rt.flags, B = F.blk;
     // 渡河を終えた頼母と中村の組は、その場で伏兵を迎え撃つ。
     // 旗の横で防ぐ間に、古い行き先へ隊の要だけが進み続けないようにする。
-    for (const g of [F.noi, F.kazu]) if (live(g)) {
-      const c = g.center();
-      // 渡河が遅れた組は川を渡り切るまで進ませる。
-      // 片方の組だけの遅れで先手全体の追撃を止めない。
-      if (L(c).x >= -6) continue;
-      g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.seekRange = 14;
-      // 将が斬り合う兵の後ろへ下がり続け、目標の旗まで動き続けないようにする。
-      g.guardOn = true;
-    }
+    this.holdVanguard(rt);
     // 頼母がまだ岸にいる場合も、防戦の場所を川の手前へ戻さない。
     const flag = F.noiU?.pos && L(F.noiU.pos).x < -6 ? F.noiU.pos : RING;
     F.defenseX = flag.x; F.defenseZ = flag.z;
@@ -467,6 +459,20 @@ const k04_kuisegawa = {
     sfx('taiko', 1);
     rt.say('野一色頼母', '葦の中に鉄砲じゃ！　伏せておったか', 3);
     rt.after(4, () => rt.say('島左近', '釣れたわ。返せ、一人も川へ戻すな', 3));
+  },
+
+  // 伏兵が出た時に渡河中だった組も、渡り切った時点で防戦へ移る。
+  holdVanguard(rt) {
+    const F = rt.flags;
+    for (const g of [F.noi, F.kazu]) if (live(g)) {
+      const c = g.center();
+      // 渡河が遅れた組は川を渡り切るまで進ませる。
+      // 片方の組だけの遅れで先手全体の追撃を止めない。
+      if (g.guardOn || L(c).x >= -6) continue;
+      g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.seekRange = 14;
+      // 将が斬り合う兵の後ろへ下がり続け、目標の旗まで動き続けないようにする。
+      g.guardOn = true;
+    }
   },
 
   // 包みが閉じる：頼母は深田で討たれ、先手が崩れる（史実どおり。主人公には救えない）
@@ -540,6 +546,7 @@ const k04_kuisegawa = {
       const joined = [F.noi, F.kazu].some((g) => live(g) && g.units.some((u) => canReturn(u) && !u.downed && L(u.pos).x < -6 && dist(u.pos, P.pos) < 18));
       if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && joined) this.toStep(rt, 3);
     } else if (F.step === 3) {
+      if (!F.ringClosed) this.holdVanguard(rt);
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       // 防戦を始める前の待機時間を、後の一撃で達成扱いにしない。
       // 待つだけでは防戦を果たさない。頼母の横で敵を打つか、打撃を受け止める。

@@ -25,7 +25,8 @@ export function start(rt, ctx, done) {
         foes: () => [{ name: '入口曲輪の守り', from: { x: 12, z: -84 }, list: [{ type: 'ashigaru', n: 5 }, { type: 'bow', n: 3 }], mass: 0 }] },
     }),
     DP.fight({
-      at: GATE, title: '中枢曲輪', sub: '曲輪の弓と鉄砲', obj: '中枢曲輪の守りを崩せ', max: 160,
+      // 曲輪の守りと予告した新手を崩せば先へ。共通の四十人討ちまで補充し続けない。
+      at: GATE, title: '中枢曲輪', sub: '曲輪の弓と鉄砲', obj: '中枢曲輪の守りを崩せ', max: 160, limit: 160, noRefill: true,
       say: [['木下藤吉郎', '曲輪の脇の鉄砲を先に潰せ。正面から当たるな', 3.4]],
       foes: () => [{ name: '中枢曲輪の守り', from: { x: -22, z: -97 }, formation: 'yari', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }, { type: 'bow', n: 2 }], mass: 0 }],
       later: [{ t: 45, say: ['使番', '中の曲輪から新手が下りて来る！'], foes: () => [{ name: '中の曲輪の新手', from: { x: -26, z: -108 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], mass: 0 }] }],

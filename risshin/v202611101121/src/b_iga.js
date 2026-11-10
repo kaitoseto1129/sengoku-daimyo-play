@@ -1300,7 +1300,7 @@ function buildSonae(rt, plans) {
   const hosts = [];
   for (const plan of plans) jinkeiBuild(rt, plan, (s, at) => {
     const h = rt.world.addDistantArmy({ ...at, w: s.w, d: s.d, count: s.count, facing: s.facing,
-      team: plan.team, armor: plan.team ? 0x34302a : 0x2a2622, flagTex: flagTexture(s.flag), mon: s.mon,
+      team: plan.team, armor: plan.team ? 0x34302a : 0x2a2622, flagTex: flagTexture(s.flag, true, plan.team === 1), mon: s.mon,
       // 陣を守る控えと山腹の守備は徒歩。混成の既定で騎馬を陣内へ出さない。
       flagRate: plan.team ? 0 : 0.15, banners: 0, kind: 'spear', general: s.general === '名は伝わらない' ? undefined : s.general, seed: 15810 + hosts.length });
     // 遠景の兵が近くで省かれても、布だけ残さない。持ち場の幟は竿ごと地面へ立てる。
@@ -3056,7 +3056,7 @@ function igaEmptyCastleMorning(rt) {
   F.lateHosts = [];
   for (const [x, z, flag, n, seed] of [[-46, 150, 'sujikai', 240, 15861], [44, 160, 'takigawa', 220, 15862], [-4, 196, 'sujikai', 200, 15863]]) {
     const h = W.addDistantArmy({ x, z, w: 44, d: 22, count: n, facing: Math.PI, team: 0, armor: 0x2a2622,
-      flagTex: flagTexture(flag), mon: flag, flagRate: 0.18, banners: 0, kind: 'spear', seed });
+      flagTex: flagTexture(flag, true), mon: flag, flagRate: 0.18, banners: 0, kind: 'spear', seed });
     if (!h) continue;
     if (h.army) h.army.noWake = true;
     h.moveTo?.(x * 0.8, z - 70, 120);
@@ -3482,7 +3482,9 @@ function igaBeginCastleRetreat(rt) {
   F.castleRetreatStarted = true;
   // 既存の北の口から退く。柵を壊したり、守備兵を秒数だけで消したりしない。
   // 退去の下知では、遠い攻め手への射撃をやめて北の口へ歩く。
-  igaCastleRetreat(F.wallBow, RIDGE.slice(1));
+  // 南の土塁からは木戸手前の折れ目と南口を通る。主郭への直進で切岸を横切らない。
+  const castleRoad = [...APPROACH.slice(0, -1), ...RIDGE];
+  igaCastleRetreat(F.wallBow, castleRoad.filter(point => point[1] < F.wallBow.anchor.z));
   // 主郭の頭と供も同じ北の口へ退く。持ち場に縛ったまま消さない。
   if (F.momochi) igaCastleRetreat(F.momochi, RIDGE.filter(point => point[1] < F.momochi.anchor.z));
   F.castleChecks = [
@@ -3498,7 +3500,7 @@ function igaBeginCastleRetreat(rt) {
     for (const g of h.army.wk?.groups || []) {
       const path = [];
       if (g.anchor.x > 35) path.push(...EAST.slice().reverse());
-      for (const point of RIDGE) if (point[1] < g.anchor.z) path.push(point);
+      for (const point of castleRoad) if (point[1] < g.anchor.z) path.push(point);
       igaCastleRetreat(g, path);
     }
   }
