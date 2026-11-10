@@ -5497,11 +5497,10 @@ const sunomata = {
       : [[-64, 112], [-60, 44], [at.x, 24], [at.x, at.z]];
     r.speed = 3;
     r.onArrive = (g) => {
-      if (!ready(g)) return;
+      if (rt.over || F.won || F.ending || !ready(g)) return;
       g.stay = false; g.noRout = false;
       g.order = 'hold'; g.anchor = at; g.facing = Math.PI; g.aggro = 16; g.seekRange = 24;
       g.onArrive = null;
-      if (rt.over || F.won || F.ending) return;
       F.reinforceArrived = true;
       rt.bark('南の伏兵が西の寄せ手の横へ出た。柵の内からも押せ');
       battleEvent(rt, EVENT_REINFORCEMENT, at, r, 0, true, '伏兵が寄せ手の横を突く');

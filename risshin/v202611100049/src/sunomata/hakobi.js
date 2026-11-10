@@ -81,6 +81,11 @@ function done(rt) {
 export function tick(rt) {
   const F = rt.flags, v = F.s15;
   if (v.hakobiDone || rt.over) return;
+  // 倒れた人足や、荷を届けた人足を追い続けて物見が止まらないようにする。
+  if (v.raid && !v.raid.routed && v.raid.units.some(ready)) {
+    const target = !v.wkHome && F.wk?.units.find(ready);
+    v.raid.focus = target || (ready(rt.player.u) ? rt.player.u : null);
+  }
   const P = rt.player.u.pos;
   if (!v.atDock && Math.hypot(P.x - v.dock.x, P.z - v.dock.z) < 8) {
     v.atDock = rt.t; rt.unmark('s15dock');

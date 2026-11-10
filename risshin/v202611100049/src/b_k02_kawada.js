@@ -484,7 +484,8 @@ const k02_kawada = {
     if (C && F.dp.i === 2) {
       // 木造の旗本は柵の内で南を向いて構える（前へ出て行かない・背を向けて歩かない。BK5）
       const g = holdGuard(C, '北岸の旗本', GUARD, 0);
-      if (g && !F.gumasaDown) { g.noRout = true; if (g.count <= 6) F.gumasaDown = true; }
+      // 段の到着判定だけでなく退却も本人を待つ。南岸で止まっている間に木造が退くと、目標の将に会えない。
+      if (g && !F.gumasaDown) { g.noRout = true; if (g.count <= 6 && insideNorthGuard(rt.player.u.pos)) F.gumasaDown = true; }
       // 木造の旗本が五人を切ったら、木造は岐阜へ退き、北岸の守りは崩れて段が済む（木造は討たせない）
       if (F.gumasaDown && !F.northBroke) {
         F.northBroke = true; C.later.length = 0;
@@ -502,7 +503,8 @@ const k02_kawada = {
       holdGuard(C, '米野の鉄砲組', { x: YONENO.x + 14, z: YONENO.z + 6 }, Math.PI / 2);
       // 飯沼長資が出て大塚権太夫との一騎打ちが済むまで、百々の旗本は退かない（先に米野が崩れて一騎打ちが無くなっていた。11/6 流し）
       const ot = F.hitotsu && F.hitotsu.units.find((q) => q.name === '大塚権太夫');
-      if (g && !F.dodoDown) { g.noRout = true; if (g.count <= 6 && (F.otsukaDone || !(ot && ot.alive))) F.dodoDown = true; }
+      // 米野へ寄る前に味方だけで百々を退かせず、本人が将の見える所まで来てから退く。
+      if (g && !F.dodoDown) { g.noRout = true; if (g.count <= 6 && Math.hypot(rt.player.u.pos.x - YONENO.x, rt.player.u.pos.z - YONENO.z) < 40 && (F.otsukaDone || !(ot && ot.alive))) F.dodoDown = true; }
       // 飯沼長資の手は退かず、飯沼が倒れるまで斬り合う（米野で討ち死に）
       const ig = C.groups.find((q) => q.name === '飯沼長資の手');
       if (ig && !ig.routed) ig.noRout = !F.iinumaDown;
