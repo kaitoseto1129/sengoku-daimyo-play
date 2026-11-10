@@ -605,10 +605,13 @@ const k16_secret = {
       g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.peaceful = true; g.keepMoveOrder = true;
       if (g.team === 1) g.noRout = true;
       g.units.forEach((u, i) => {
-        if (!u.alive || u === rt.player.u) return;
+        if (!u.alive) return;
         if (k < 1 && (i % 2)) return;
         u.target = null; u.atk = null; u.swing = null; u.bind = null;
-        if (g.team === 1) { u.noTarget = true; u.invuln = true; if (u.name !== '徳川家康') u._crouch = (i % 3) !== 0; }
+        // 槍を下ろした味方も、飛来中の弾や残る斬撃で討たせない。
+        // 主人公も振りかけの攻撃を消し、終戦後の鍔迫り合いを残さない。
+        u.noTarget = true; u.invuln = true;
+        if (g.team === 1 && u !== rt.player.u && u.name !== '徳川家康') u._crouch = (i % 3) !== 0;
       });
     }
     F.cease = k;
