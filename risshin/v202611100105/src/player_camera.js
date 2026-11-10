@@ -845,7 +845,8 @@ export class PlayerCamera {
     camera.lookAt(look);
     // 画角は固定（走る・駆ける・打たれるで変えない）
     if (Math.abs(camera.fov - this.fovWant) > 0.05) { camera.fov += (this.fovWant - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
-    if (camera.near !== 0.1) { camera.near = 0.1; camera.updateProjectionMatrix(); }
+    // 通常の三人称も手前を〇・三五メートル切り、直前を横切る矢の拡大を防ぐ。
+    if (camera.near !== 0.35) { camera.near = 0.35; camera.updateProjectionMatrix(); }
     // 足もとを画面の下の端の近くへ置く所まで、目線だけを上げ下げする（位置は動かさない）
     {
       camera.updateMatrixWorld();

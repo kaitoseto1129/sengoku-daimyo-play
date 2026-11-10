@@ -4885,10 +4885,15 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
             }
           }
         }
-        const rearHolding = F.pursuit.contactAt === undefined || rt.t - Math.max(F.pursuit.contactAt, F.pursuit.t) < 40 || !F.ownHatamoto;
+        const pp = rt.player.u.pos;
+        let shN = 0, shNear = 0;
+        // 隊が崩れた印だけでは、まだ槍を向けている生き残りを数から外さない。
+        for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) { shN++; if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25) shNear++; }
+        // 一度も槍を合わせていない殿は省かない。戦った後に遠くへ散った最後の二人は、四十秒待たせず退かせる。
+        const scatteredRear = F.ownHatamoto && F.pursuit.contactAt !== undefined && el >= 15 && shN > 0 && shN <= 2 && shNear === 0;
+        const rearHolding = !F.ownHatamoto || !F.shingariBroke && !scatteredRear && (F.pursuit.contactAt === undefined || rt.t - Math.max(F.pursuit.contactAt, F.pursuit.t) < 40);
         // 殿：主を討たれた旗本は死に物狂いで踏みとどまる（四十秒。主の死に怯えて背を向けない）
         // 11/6 fixc（kaito 九-2「目標に書いた敵は必ず来る」）：殿は本人の組の前まで寄せて槍を合わせる。棒立ちで待たせない。
-        const pp = rt.player.u.pos;
         for (const g of F.shingari) if (!gone(g) && rearHolding) {
           const c = fightingCenter(g);
           if (Math.hypot(c.x - pp.x, c.z - pp.z) > 10) { const d = g._moribeShDest || (g._moribeShDest = { x: 0, z: 0 }); d.x = pp.x; d.z = pp.z - 3; g.order = 'move'; g.dest = d; g.speed = 2.4; g.onArrive = g._moribeShArrive || (g._moribeShArrive = (a) => { a.order = 'attack'; a.seekRange = 30; }); }
@@ -4905,9 +4910,6 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // 11/6 fixc（kaito 三-3）：目標④（旗本の侍を自分で討つ）を果たすまで勝ちにしない。殿が背を向けた後も旗本の侍は踏みとどまる。
         // 11/7 fixc0814（描いて遊んだ写真 e/b260・b270）：殿の最後の一人二人が野へ散ると、本人が組を離れて六十メートル先まで一人で追った。
         //   殿の残りが二人以下で、本人の二十五メートル内にいなければ墨俣へ退かせる。実際に退くまでは勝ちにしない。
-        let shN = 0, shNear = 0;
-        // 隊が崩れた印だけでは、まだ槍を向けている生き残りを数から外さない。
-        for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) { shN++; if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25) shNear++; }
         const shLeft = shN > 2 || shNear > 0;
         // 本人の手柄がまだなら、遠くに散った少人数も退かせず組へ寄せる。
         if (F.ownHatamoto && !rearHolding && !shLeft && shN && el >= 15) for (const g of F.shingari) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.fleeDir = { x: -0.2, z: -1 }; }

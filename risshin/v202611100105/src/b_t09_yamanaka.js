@@ -693,6 +693,8 @@ const t09_yamanaka = {
       if ((F.ichiShot || T > 150 && !ichiShooter) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
         F.mamiya = true; F.mamiyaT = rt.t;
         F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
+        // 横陣の後列は敵が三〜六mへ来るまで持ち場を守る。突き入りの下知では後列も前へ出す。
+        F.dai.formation = 'column'; F.dai.colW = 3;
         rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
       }
       // 時切れの討ち死には主人公が近く（40m）にいる時だけ（知らない所で死なない）。
@@ -709,6 +711,7 @@ const t09_yamanaka = {
       // 時間だけで敗走・柵の破壊・討ち取りの達成を起こさない。
       if (!F.daiLast && (F.mamiyaDead ? T > 180 : T > 240) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 60) {
         F.daiLast = true; F.dai.order = 'attack'; F.dai.fixed = false; F.dai.seekRange = 60; F.dai.aggro = 40;
+        F.dai.formation = 'column'; F.dai.colW = 3;
       }
       // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
       if (!F.daiPulled && T > 120 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
