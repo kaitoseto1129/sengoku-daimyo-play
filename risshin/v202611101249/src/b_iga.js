@@ -3030,12 +3030,17 @@ function igaWallVolley(rt, dt) {
   }
   if ((F.igaVolleyT -= dt) <= 0) {
     F.igaVolleyT = 4 + Math.random() * 2;
-    const bow = F.wallBow?.units.find((q) => igaReady(q) && q.type === 'bow');
+    // 共通の斉射は渡された弓兵全員から放つ。退場・深手の射手を混ぜない。
+    // 器と配列は使い回し、元の隊の生死や退去の記録は変えない。
+    const shooters = F.igaVolleyGroup || (F.igaVolleyGroup = { units: [] });
+    shooters.units.length = 0;
+    for (const u of F.wallBow.units) if (igaReady(u) && !u.gone && u.type === 'bow') shooters.units.push(u);
+    const bow = shooters.units[0];
     // 本人も坂の射程内にいる時だけ優先する。城側や道の外へ下がった本人へ矢をそらさない。
     const at = inBow.includes(P) ? P : inBow[Math.floor(Math.random() * inBow.length)];
     if (bow && at) {
       const a = Math.random() * Math.PI * 2, r = Math.random() * 2, x = at.pos.x + Math.cos(a) * r, z = at.pos.z + Math.sin(a) * r;
-      rainVolley(A, F.wallBow, bow, { x, y: W.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
+      rainVolley(A, shooters, bow, { x, y: W.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
       // 命中は飛ぶ矢の当たりに任せる。時刻と着弾点からの距離だけで追加の傷を与えない。
     }
   }

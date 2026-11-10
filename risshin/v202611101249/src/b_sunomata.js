@@ -3227,6 +3227,7 @@ const sunomata = {
   noPlayerFoot: true, // 自分の足元の白い輪は出さない（稲生と同じ。ちらつきの元）。
   goalSignOnly: true, // 行き先の印は一つ。旗と重ねない。
   goalSignTriangle: true, // 画面の外の行き先も、回る矢印ではなく▼で示す。
+  goalSignUnitNoLabel: true, // 敵の名は頭上に出す。行き先へ「ねらい」の別札を足さない。
   quietMiss: true, // 外れは音なし。当たりの音・よろけ・血しぶきだけで手応えを示す。
   missionPinCaption: '',
   missionDetail: () => '',
