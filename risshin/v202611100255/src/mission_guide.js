@@ -82,30 +82,8 @@ export function missionCaption(rt, title = currentObjective(rt)?.text || '') {
     const action = rt.nearestInteract();
     if (action?.id === fireMarker.id && /火/.test(action.label)) return '火をつける';
   }
-  // 桶狭間は、雨・出発・合図という待つ目的を戦の一行に残す。
-  if (rt.def.missionStyle !== 'raid' && rt.def.missionStyle !== 'ford' && /待[つてと]|^(旗にもどれ|丸まで行け)$/.test(heading)) {
-    const reached = missionWaitReached(rt);
-    if (reached !== null) heading = reached ? rt.def.waitOrderLabel?.(rt, true) || '輪の中で待とう' : /旗にもどれ/.test(heading) ? '旗へもどろう' : '旗へ行こう';
-  }
-  // 守備の札も印も同じ到着判定を使い、移動中に「守ろう」を出さない。
-  const marker = rt.missionGuide?.marker;
-  if (marker?.guideDefend || marker?.guideArea === 'guard') {
-    const reached = missionWaitReached(rt);
-    if (reached === true) {
-      const enemy = rt.missionGuide?.closeEnemy;
-      return enemy?.alive && !enemy.gone && !enemy.fleeing && enemy.team !== rt.player.u.team &&
-        Math.hypot(enemy.pos.x - rt.player.u.pos.x, enemy.pos.z - rt.player.u.pos.z) < 6 ? '敵をたおす' : 'ここで待つ';
-    }
-    if (reached === false) heading = '旗へ行こう';
-  }
-  if (missionWaitReached(rt) === true && /輪.*待とう/.test(heading)) heading = 'ここで待とう';
-  heading = heading.replace(/旗にもどれ/g, '旗へもどろう');
-  if (missionFollowTarget(rt, heading) || missionFollowTarget(rt)) return 'この人について';
-  else if (/^(つけ|続け)$/.test(heading)) heading = missionWaitReached(rt) === true ? 'そのまま待とう' : '丸まで行け';
-  return noOps(goalText(rt, heading))
-    .split(/[。！？\n]/)
-    .map(line => line.trim().replace(/討ち取る$|討ち取れ$|たおそう$|たおす$/, '倒せ'))
-    .find(line => line && !/構え|かまえ|かまえる|ふせ[ぐげ]|防いで|押し|なぞ/.test(line)) || '';
+  // 全戦の任務で場所・相手・行いを保つ。距離と到着は印で示す。
+  return goalText(rt, heading);
 }
 
 // 案内の札と声では英字の操作説明を畳む。任務の原文は変えない。

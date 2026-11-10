@@ -64,7 +64,7 @@ const CASTLE = { x: 60, z: -470 };
 const LIMIT = [0, 400, 400, 380, 380, 360, 300, 240];   // 11/8 陣ごとの新手で段が厚くなった分を延ばす（段の進みの時の保険は、この限りより前）。11/9 一戦は15〜18分で最後まで（docs/k15_crisis_spec_1108.md）
 const TOP = { x: -106, z: 4 };
 const SHINGARI = { x: -40, z: -46 };
-const MIRU = { x: -80, z: 28 };   // 0.7 茶臼山の麓の畦（真田の鉄砲の届く所）   // ⑥毛利勝永の殿（四天王寺の北の道。城への退き口）   // 茶臼山の頂（⑥葵の旗を立てる。CHAUSU と同じ所）
+const MIRU = { x: -80, z: 28 };   // 0.7 茶臼山の麓の畦（真田の鉄砲の届く所）   // ⑥毛利勝永の殿（四天王寺の北の道。城への退き口）   // 茶臼山の丘の上（⑥葵の旗を立てる。CHAUSU と同じ所）
 // 名のある将（甲冑は MacBook の係が差し替える。名と配置はここで持つ）
 const NAMES = { ieyasu: '徳川家康', masazumi: '本多正純', tadatomo: '本多忠朝', ogasawara: '小笠原秀政', tadanao: '松平忠直', nishio: '西尾宗次', katsunaga: '毛利勝永', nobushige: '真田信繁', otani: '大谷吉治', hidetada: '徳川秀忠', harufusa: '大野治房' };
 // 本物の兵の数（二百五十ほどまで。新手はこの内で出す）
@@ -80,6 +80,7 @@ const fit = (rt, sqs, cap = 246) => {
 };
 // 段ごとの行き先（地図の場所で固定。人や隊を追って動かさない。三2）
 const DEST = {
+  oka: () => ({ x: 14, z: 72, label: '秀忠本陣の西口' }),
   1: () => ({ x: SHITENNO.x, z: SHITENNO.z + 26, label: '四天王寺の南' }),
   2: () => ({ x: HONF.x, z: HONF.z, label: '本陣の前' }),
   3: (rt) => ({ x: rt.flags.uma.position.x, z: rt.flags.uma.position.z, label: '倒れた馬印' }),
@@ -87,7 +88,7 @@ const DEST = {
   0.7: (rt) => (rt.flags.seen ? { x: FRONT.x - 4, z: FRONT.z + 6, label: '本多忠朝の陣' } : { x: MIRU.x, z: MIRU.z, label: '麓の畦' }),
   5: () => ({ x: YASUI.x, z: YASUI.z, label: '安居の天神' }),
   6: () => ({ x: SHINGARI.x, z: SHINGARI.z + 6, label: '四天王寺の北' }),
-  7: () => ({ x: TOP.x, z: TOP.z, label: '茶臼山の頂' }),
+  7: () => ({ x: TOP.x, z: TOP.z, label: '茶臼山の丘の上' }),
 };
 const GOAL_LIMIT = { 1: '毛利勝永の先手に押し切られた', 2: '真田と毛利の突撃を止められなかった', 3: '真田の二の突撃に本陣を破られた', 4: '真田信繁の旗本を討ちきれなかった', 5: '真田信繁を取り逃がした', 6: '毛利の殿を崩せなかった', 7: '茶臼山に旗を立てられなかった' };
 
@@ -113,7 +114,7 @@ const march = (g, pts) => { if (!alive(g) || !pts.length) return; const [p, ...r
 const flee = (gs) => { for (const g of gs) if (alive(g)) { g.noRout = false; g.routed = true; g.order = 'flee'; } };
 
 // ---- 地形：国土地理院の標高（上町台地の西の崖・茶臼山・東の低い田）を縦に少し強めて写す ----
-// 標高の茶臼山の頂（実の二十六メートル。格子の (-99,-25)）をゲームの茶臼山に重ねる（DX・DZ）。安居の天神・四天王寺との向きと距離は史跡の地図どおり
+// 標高の茶臼山の丘の上（実の二十六メートル。格子の (-99,-25)）をゲームの茶臼山に重ねる（DX・DZ）。安居の天神・四天王寺との向きと距離は史跡の地図どおり
 const XY = 8, VZ = 0.36, DX = 7, DZ = -29;
 function demAt(x, z) {
   const sx = (x + DX) * XY, sz = (z + DZ) * XY;
@@ -382,7 +383,7 @@ const k15_tennoji_okayama = {
     rt.setPhase('battle');
     sfx('horagai', 0.8); rt.after(1.2, () => sfx('taiko', 0.8));
     rt.banner('豊臣方の総出撃', '慶長二十年五月七日　正午　天王寺口');
-    rt.obj('main', '毛利勝永の突撃を迎え撃つ', 'main');
+    rt.obj('main', '四天王寺の南で毛利勝永の先手を食い止める', 'main');
     F.s1 = [F.mori]; F.n1 = F.mori.count;
     rt.marker('k15', DEST[1](), DEST[1]().label);   // 行き先は場所で固定（三2）
     if (!rt.markers.some((m) => m.id === 'moriMark')) rt.marker('moriMark', () => { const g = F.mori; if (!g || !g.units.some((q) => q.alive)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '毛利の先手', { red: true, h: 3 });   // 相手は頭上の赤い印（真田ではなく毛利）
@@ -523,7 +524,7 @@ const k15_tennoji_okayama = {
     rt.after(50, w3);
     F.umaDown = true; F.umaT = 0;
     F.umaSt = installUma(rt, { hon: F.hon, hata2: F.hata2 });   // 馬印が倒れ、旗本が逃げ散る。起こすと立て直す（k15/umajirushi.js）
-    rt.obj('main', '上様を退かせ、真田の二の突撃を止める', 'main');
+    rt.obj('main', '倒れた馬印のもとで真田の二の突撃を止める', 'main');
     rt.banner('大御所の馬印が倒れた', '本陣が乱れる');
     rt.say('使番', '上様！　ここは危のうございます！', 2.6);
     rt.after(2.8, () => rt.say('本多正純', '大御所様、お退きくだされ！', 3));
@@ -776,7 +777,7 @@ const k15_tennoji_okayama = {
       this.stage7(rt);
     }
   },
-  // ⑦ 終幕：大坂城が燃える。茶臼山の頂へ上り、葵の旗を立てる（夕刻）
+  // ⑦ 終幕：大坂城が燃える。茶臼山の丘の上へ上り、葵の旗を立てる（夕刻）
   stage7(rt) {
     const F = rt.flags;
     if (F.step === 7 || F.ending) return;
@@ -785,14 +786,14 @@ const k15_tennoji_okayama = {
     this.burn(rt);
     rt.after(0.3, () => rt.say('使番', '大坂城の台所から火の手！　天守にも燃え移った！', 3.4));
     flee([F.katsu]);
-    // 茶臼山の頂には、最後まで残った赤備えの者が踏み止まる（本物の兵。家臣が真田の陣を守る）
+    // 茶臼山の丘の上には、最後まで残った赤備えの者が踏み止まる（本物の兵。家臣が真田の陣を守る）
     F.last = enemyGroup(rt, { fixed: true, faction: 'toyotomi', name: '茶臼山の残兵', anchor: { x: TOP.x, z: TOP.z + 2 }, facing: 2.6, width: 6, aggro: 10, seekRange: 14, order: 'hold', morale: 100, noRout: true },
       [sq(SANADA, 'samurai', 3), sq(SANADA, 'ashigaru', 4), sq(SANADA, 'gun', 1)]);
     F.last.noFrontline = true; F.last.stay = true; F.last.dmgMult = 0.6;   // 疲れ果てた残兵。それでも丘の上で鉄砲を構えて踏み止まる
     // 手勢と越前勢も茶臼山へ上る（主人公一人で丘の上の残兵に囲まれて討たれた）
     if (alive(F.mine)) { F.mine.stay = false; hold(F.mine, TOP.x + 6, TOP.z + 10); F.mine.aggro = 16; }
     if (alive(F.echizen)) { F.echizen.stay = false; F.echizen.order = 'move'; F.echizen.dest = { x: TOP.x - 8, z: TOP.z + 14 }; F.echizen.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.aggro = 18; q.seekRange = 24; }; }
-    rt.obj('main', '茶臼山の頂に上り、葵の旗を立てる', 'main');
+    rt.obj('main', '茶臼山の丘の上に上り、葵の旗を立てる', 'main');
     rt.after(1, () => rt.say(nm(rt), '天守が……燃えておりまする', 3));
     rt.after(4.5, () => rt.say(NAMES.ieyasu, '茶臼山に葵の旗を立てよ。真田の陣を取ったと、城に見せてやれ', 3.6));
     rt.marker('k15', DEST[7](), DEST[7]().label);
@@ -1092,7 +1093,7 @@ k15_tennoji_okayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) =
   if (F.step === 0.7) { const e0 = b.army.nearestEnemy(u, 6, (o) => !o.fleeing && !o.invuln); if (e0) { hit(e0); return; } goTo(p, inp, DEST[0.7](b).x, DEST[0.7](b).z, 2); return; }
   // ⑤からは陣幕の内に入り込んでいたら、後ろの口から西へ出てから行き先へ（幕の前へまっすぐ歩いて幕に当たり、⑤の間ずっと本陣の内に留まった・11/8 通し）
   if (F.step >= 5 && Math.abs(u.pos.x - HON.x) < 11 && u.pos.z > HON.z - 2 && u.pos.z < HON.z + 16) { goTo(p, inp, u.pos.z > HON.z + 13 ? HON.x - 18 : HON.x, HON.z + 17, 1.5); return; }
-  // ⑥ 茶臼山の頂：残兵を退けて頂へ
+  // ⑥ 茶臼山の丘の上：残兵を退けて頂へ
   if (F.step === 6) { const e6 = b.army.nearestEnemy(u, 14, (o) => !o.fleeing && !o.invuln); if (e6) { hit(e6); return; } const c6 = alive(F.shin) ? centerOf(F.shin)() : null; if (c6) { goTo(p, inp, c6.x, c6.z, 3); return; } goTo(p, inp, SHINGARI.x, SHINGARI.z + 8, 3); return; }   // 北へ退く殿を追う（行き先に立ったまま、三十八メートル先の殿を三分見ていた・11/8 通し）
   // ⑦ 殿を追って四天王寺の北に出ていたら、焼け跡と寺の森（茶臼山へまっすぐの線の上）を避け、東から回って南の道へ出てから頂へ（森の木に挟まって百秒止まった・11/9 通し）
   if (F.step === 7 && u.pos.z < -8 && u.pos.x > -80) { goTo(p, inp, -24, -4, 3); return; }
@@ -1160,8 +1161,8 @@ const killsRaw = (rt) => {
 // 段の並び（右上の目標の一覧）。段の名は数と岡山口（'oka'）が混じるので、順の番号に直して比べる
 const RANK = { 0: 0, 0.5: 0, 0.7: 0, 1: 1, oka: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8 };
 const atLeast = (k) => (rt) => (RANK[rt.flags.step] ?? 0) >= k;
-STAGES.k15_tennoji_okayama = [['物見の場で茶臼山の敵の陣立てを見る'], ['四天王寺の南で毛利勝永の先手を食い止める', atLeast(1)], ['将軍の本陣の脇を固める', atLeast(2)], ['本陣の前で赤備えを止め、大谷吉治を討つ', atLeast(3)],
-  ['倒れた馬印のもとで真田の二の突撃を止める', atLeast(4)], ['本陣の前で真田信繁の旗本を討つ', atLeast(5)], ['安居の天神へ追い、真田信繁を討つ', atLeast(6)], ['四天王寺の北で毛利勝永の殿を打ち破る', atLeast(7)], ['茶臼山の頂に上り、葵の旗を立てる', atLeast(8)]];
+STAGES.k15_tennoji_okayama = [['物見の場で茶臼山の敵の陣立てを見る'], ['四天王寺の南で毛利勝永の先手を食い止める', atLeast(1)], ['秀忠本陣の西口で大野治房の兵を押し返す', atLeast(2)], ['本陣の前で赤備えを止め、大谷吉治を討つ', atLeast(3)],
+  ['倒れた馬印のもとで真田の二の突撃を止める', atLeast(4)], ['本陣の前で真田信繁の旗本を討つ', atLeast(5)], ['安居の天神へ追い、真田信繁を討つ', atLeast(6)], ['四天王寺の北で毛利勝永の殿を打ち破る', atLeast(7)], ['茶臼山の丘の上に上り、葵の旗を立てる', atLeast(8)]];
 
 // 家康は歯朶具足（docs/kacchu_k15_tokugawa.md）
 k15_tennoji_okayama.namedKacchu = K15_KACCHU;
