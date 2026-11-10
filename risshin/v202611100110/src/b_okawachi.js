@@ -4422,7 +4422,8 @@ function okGateStones(rt, dt) {
   }
   if (rt.t < (F.stoneAt || 0)) return;
   F.stoneAt = rt.t + 1;
-  if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 35 || u.hp <= u.maxHp * 0.5) return;
+  // 傷を負っても守り手は狙い続ける。命を守る下限は命中時だけに適用する。
+  if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) > 35) return;
   // 木戸へ寄せた本人を確実に狙う。毎秒六パーセントの抽選では、
   // 寄せている間に一度も投石されない回があった。次の石までは従来どおり十四秒空ける。
   F.stoneAt = rt.t + 14;
@@ -4430,11 +4431,13 @@ function okGateStones(rt, dt) {
     const mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 0),
       new THREE.MeshLambertMaterial({ color: 0x716b60 }));
     rt.scene.add(mesh);
-    F.gateStone = { mesh, owner: { team: 1 } };
+    F.gateStone = { mesh, owner: { team: 1, pos: { x: 0, y: 0, z: 0 } } };
   }
   const shot = F.gateStone;
   shot.sx = GATE.x + (u.pos.x < GATE.x ? -5 : 5); shot.sz = GATE.z;
   shot.sy = rt.world.heightAt(shot.sx, shot.sz) + 3;
+  // 狭間からの投石も、射手と同じく手元の板囲いを抜ける。飛ぶ石の現在地は渡さない。
+  shot.owner.pos.x = shot.sx; shot.owner.pos.y = shot.sy; shot.owner.pos.z = shot.sz;
   shot.tx = u.pos.x; shot.tz = u.pos.z; shot.ty = u.pos.y + 1;
   shot.at = rt.t; shot.dur = Math.max(0.65, Math.hypot(shot.tx - shot.sx, shot.tz - shot.sz) / 16);
   shot.damage = 8 + Math.random() * 8;
