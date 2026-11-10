@@ -2353,6 +2353,13 @@ function syncShipCrew(rt, b) {
   }
   for (const u of b.group.units) {
     const tr = u.shipTransit;
+    // 板を渡る途中で倒れた者を、歩行の補間で甲板や舟まで運ばない。
+    // 倒れた位置と姿勢は兵の処理に任せ、接舷の待ちにも残さない。
+    if (tr?.active && (!u.alive || u.gone || u.dying || u.woundOut)) {
+      tr.active = false;
+      u.shipBoat = null; u.shipPost = null; u.perch = null; u.moving = 0;
+      continue;
+    }
     if (!u.alive || (!u.shipBoat && !tr?.active)) continue;
     const q = u.shipPost, point = shipFloor(b, u.shipLocal);
     const x = point.x, z = point.z, y = point.y;

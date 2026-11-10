@@ -23,6 +23,7 @@ import { sendOrder, posOf } from './denrei.js';
 import { cryCaption } from './battle_cries.js';
 import { rescueTarget, retreatRequired } from './battle_danger.js';
 import { localPoint } from './army_local_way.js';
+import { tetherHorse } from './horse_more.js';
 import { timeslipField } from './timeslip_field.js';
 import { goalsTick } from './hud_goals.js';
 import * as O15 from './okehazama/index.js';
@@ -225,7 +226,8 @@ function okeFoeSigns(rt) {
         for (const u of named) {
           if (!ready(u)) continue;
           v.set(u.pos.x, u.pos.y + (u.mounted ? 3.25 : 2.3), u.pos.z).project(rt.camera);
-          if (v.z < -1 || v.z > 1 || Math.abs(v.x) > .95 || v.y > .8 || v.y < -1) continue;
+          // 画面内の上端・左右端でも将の名を消さない。札は下の行・列の探索で画面内へ収める。
+          if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
           // 専用の名札も永禄三年の通称で出し、長くなる分を重なり除けに含める。
           const name = u.name === '前田利家' ? '前田又左衛門' : u.name;
           const half = name.length * 8 + 4;
@@ -3470,8 +3472,11 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
         const h = u.horse, q = fieldPoint(-34 + led * 2.6, -38 - (led % 2) * 2.2);
         led++;
         rt.army.setMounted(u, false);
-        h.position.set(q.x, rt.world.heightAt(q.x, q.z), q.z); h.rotation.set(0, FIELD_TURN + Math.PI * 0.5, 0);
-        rt.army.scene.add(h);
+        // 見た目だけの空馬にせず、既存の手綱・乗馬の対象へ渡す。元の乗り手との二重所有も解く。
+        u.horse = null; u.horseBattle = 'foot';
+        const loose = tetherHorse(rt.army, h, q.x, q.z, FIELD_TURN + Math.PI * 0.5, u.team, `${u.name || '馬廻'}の馬`);
+        loose.stats.hp = u.horseHp ?? loose.stats.hp;
+        loose.stats.max = u.horseMax ?? loose.stats.max;
       }
       if (!rt.G.lord) rt.after(0.8, () => localSay(rt, rt.hostGroup, '組頭', '殿のお下知じゃ。義元の旗本へかかれ！', 3));
       for (const g of F.attackers) if (g.count && !g.routed) {

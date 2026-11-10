@@ -139,23 +139,24 @@ const PLAN = {
   kuruwa: [
     { id: 'ote', name: '山下曲輪', level: 5.9, wall: 'saku', kind: 'san', poly: rectPoly(108, 133, 40, 64), gapAt: [[133, 52], [108, 52]], gapW: 10, floor: false },   // 11/9 見回り：木戸が六歩で味方の組が詰まり、bot が東の木戸の前で十八分止まった。十歩に
     { id: 'goshu', name: '御主殿', level: 15, wall: 'ishigaki', kind: 'yakata', dense: false, poly: rectPoly(20, 60, -20, 14), gapAt: [[60, 4]] },
-    { id: 'kaneko', name: '金子丸', level: 30, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(60, 84, -58, -34), gapAt: [[72, -34], [66, -58]], gapW: 5 },
-    { id: 'taka', name: '高丸', level: 42, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(12, 38, -92, -68), gapAt: [[38, -76], [18, -92]], gapW: 5 },
-    { id: 'matsuki', name: '小宮曲輪', level: 54, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(-38, -12, -117, -93), gapAt: [[-12, -104], [-38, -110]], gapW: 5 },
-    { id: 'hon', name: '本丸', level: 66, wall: 'saku', dorui: 1.8, kind: 'hon', floor: false, dense: false, poly: rectPoly(-96, -66, -150, -122), gapAt: [[-66, -134], YOKOCHI_PATH[0]], gapW: 5 },
+    { id: 'kaneko', name: '金子丸', level: 30, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(60, 84, -58, -34), gapAt: [[72, -34], [66, -58]], gapW: 7.5 },
+    { id: 'taka', name: '高丸', level: 42, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(12, 38, -92, -68), gapAt: [[38, -76], [18, -92]], gapW: 7.5 },
+    { id: 'matsuki', name: '小宮曲輪', level: 54, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(-38, -12, -117, -93), gapAt: [[-12, -104], [-38, -110]], gapW: 7.5 },
+    { id: 'hon', name: '本丸', level: 66, wall: 'saku', dorui: 1.8, kind: 'hon', floor: false, dense: false, poly: rectPoly(-96, -66, -150, -122), gapAt: [[-66, -134], YOKOCHI_PATH[0]], gapW: 7.5 },
   ],
+  // 11/10 クラウド：尾根の曲輪の口（5〜5.6m）で味方と城兵が詰まり、bot が高丸の口・本丸の口の前で十二分止まった。山下曲輪の木戸と同じく口を広げる（7.5m）
   koguchi: [
     // 道探しの木戸も柵の開口と同じ位置・幅にする。古い位置だと曲輪の外を入口として扱っていた。
     { id: 'ote_e', name: '大手の木戸', from: 'out', to: 'ote', kind: 'hira', at: [133, 52], rot: Math.PI / 2, w: 10 },
     { id: 'ote_w', name: '大手の奥の木戸', from: 'ote', to: 'out', kind: 'hira', at: [108, 52], rot: -Math.PI / 2, w: 10 },
     { id: 'goshu', name: '御主殿の虎口', from: 'out', to: 'goshu', kind: 'hira', at: [60, 4], rot: Math.PI / 2, w: 5 },
-    { id: 'kaneko_s', name: '金子丸の口', from: 'out', to: 'kaneko', kind: 'hira', at: [72, -34], rot: 0, w: 5.6 },
-    { id: 'kaneko_n', name: '金子丸の奥の口', from: 'kaneko', to: 'out', kind: 'hira', at: [66, -58], rot: Math.PI, w: 5.6 },
-    { id: 'taka_e', name: '高丸の口', from: 'out', to: 'taka', kind: 'hira', at: [38, -76], rot: Math.PI / 2, w: 5.6 },
-    { id: 'taka_n', name: '高丸の奥の口', from: 'taka', to: 'out', kind: 'hira', at: [18, -92], rot: Math.PI, w: 5.6 },
-    { id: 'matsuki_e', name: '小宮曲輪の口', from: 'out', to: 'matsuki', kind: 'hira', at: [-12, -104], rot: Math.PI / 2, w: 5.6 },
-    { id: 'matsuki_w', name: '小宮曲輪の奥の口', from: 'matsuki', to: 'out', kind: 'hira', at: [-38, -110], rot: -Math.PI / 2, w: 5.6 },
-    { id: 'hon', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [-66, -134], rot: Math.PI / 2, w: 5.6 },
+    { id: 'kaneko_s', name: '金子丸の口', from: 'out', to: 'kaneko', kind: 'hira', at: [72, -34], rot: 0, w: 7.5 },
+    { id: 'kaneko_n', name: '金子丸の奥の口', from: 'kaneko', to: 'out', kind: 'hira', at: [66, -58], rot: Math.PI, w: 7.5 },
+    { id: 'taka_e', name: '高丸の口', from: 'out', to: 'taka', kind: 'hira', at: [38, -76], rot: Math.PI / 2, w: 7.5 },
+    { id: 'taka_n', name: '高丸の奥の口', from: 'taka', to: 'out', kind: 'hira', at: [18, -92], rot: Math.PI, w: 7.5 },
+    { id: 'matsuki_e', name: '小宮曲輪の口', from: 'out', to: 'matsuki', kind: 'hira', at: [-12, -104], rot: Math.PI / 2, w: 7.5 },
+    { id: 'matsuki_w', name: '小宮曲輪の奥の口', from: 'matsuki', to: 'out', kind: 'hira', at: [-38, -110], rot: -Math.PI / 2, w: 7.5 },
+    { id: 'hon', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [-66, -134], rot: Math.PI / 2, w: 7.5 },
     { id: 'hon_w', name: '本丸の西の脱出口', from: 'hon', to: 'out', kind: 'hira', at: YOKOCHI_PATH[0], rot: -Math.PI / 2, w: 5 },
   ],
   paths: [{ id: 'ote', kind: 'ote', pts: ROUTE.slice(1) }],
@@ -532,7 +533,8 @@ function nakayamaStep() {
       C.groups.push(g);
       F.naka = g.units.find((u) => u.name === '中山勘解由');
       // 二巡 11/9：bot が三分あまり斬り合っても討ち切れず、戦が終わらなかった（kaito「名のある武将の体力が高すぎて討てない」）
-      if (F.naka) { F.naka.maxHp *= 0.6; F.naka.hp = Math.min(F.naka.hp, F.naka.maxHp); }
+      // 11/10 クラウド：六割でも命が百数十あり、受けで傷も浅く、act の bot が九分斬り続けても討てなかった。五、六太刀で討てる命（60）に
+      if (F.naka) { F.naka.maxHp = Math.min(F.naka.maxHp, 60); F.naka.hp = Math.min(F.naka.hp, F.naka.maxHp); }
       // 主人公が近くにいるだけで味方が討つのを防ぐ。この段の間だけ攻撃元を確かめる。
       C.damage = rt.army.damage;
       C.lastWords = false;
@@ -554,6 +556,8 @@ function nakayamaStep() {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
+      // 出た後に名のある将の命が一・五倍へ戻る（共通の手直し）ので、斬り合いが始まる時にもう一度六十へ
+      if (C.lastWords && !C.capped) { C.capped = true; n.maxHp = Math.min(n.maxHp, 60); n.hp = Math.min(n.hp, n.maxHp); }
       // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
       return !n.alive;
     },
@@ -967,10 +971,29 @@ t11_hachioji.history = '天正十八年（1590）の小田原攻めで、豊臣�
 t11_hachioji.bushou = [{ name: '前田利家', g: /利家/ }, { name: '中山勘解由', g: /勘解由/ }];
 
 // 素直な遊び手：段の頭（depthBot）に任せる。段の前は寄せ口のそばで待つ
-t11_hachioji.botBrain = (b, inp, { goTo }) => {
+t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
+  // 11/10 クラウド：前の曲輪の残り（崖の下・柵の向こうの届かない敵）に斬り掛かり続け、段の場から六十〜百m 離れたまま十三分止まった
+  //   （金子丸の脇 74,-32 で高丸の段・高丸と小宮曲輪の間 9,-95 で本丸の段・本丸の口 -64,-127 で中山の段）。段の場から十二m より遠くで二十五秒動かなければ、二十秒は段の場へ登る
+  const C = F.dp && F.dp.on && F.dp.cur, at = C && C.at;
+  if (at && Number.isFinite(at.x)) {
+    const st = b.t11Stk ||= { x: u.pos.x, z: u.pos.z, t: b.t, until: 0 };
+    if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 3) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
+    if (b.t - st.t > 25 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) > 12) { st.until = b.t + 20; st.t = b.t; }
+    if (b.t < st.until) { inp.leftPressed = false; goTo(p, inp, at.x, at.z, 3); return; }
+  }
+  // 中山の段：共通の頭は迫る相手へ構え続け、中山も構えて打ち合わず、二人とも九分あまり動かなかった（当たり 0。11/10）。
+  //   中山へ寄り、振りを受けてから突き返す（山中城の bot と同じ受け方）
+  const n = F.naka;
+  if (F.dp && F.dp.on && F.dp.i === IX.naka && n && n.alive && patientStrike) {
+    const d = Math.hypot(n.pos.x - u.pos.x, n.pos.z - u.pos.z);
+    p.yaw = Math.atan2(n.pos.x - u.pos.x, n.pos.z - u.pos.z);
+    if (d > 2.4) goTo(p, inp, n.pos.x, n.pos.z, 2.2);
+    patientStrike(p, inp, n, d);
+    return;
+  }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
   inp.k.delete('KeyW');
   goTo(p, inp, START.x - 6, START.z, 3);

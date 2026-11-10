@@ -1120,7 +1120,7 @@ const tano = {
   minutes: 6,
   bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ/.test(text),
   // 11/4 jin（AW3・AR1）：目標は段ごとに一文で固定（史実の順：谷道→四郎作→鳥居畑の柵→屋敷の奥）。途中で言い方を替えない。
-  missions: ['田野へ続く谷道で滝川の先手に合流せよ', '四郎作の下手で武田の侍を退けよ', '四郎作の崖道で小宮山友晴の衆を破れ', '鳥居畑の柵の口へ攻め込め', '田野の平屋敷で土屋昌恒の衆を退けよ'],
+  missions: ['田野へ続く谷道で滝川の先手に合流せよ', '四郎作の下手で武田の侍を退けよ', '四郎作の崖道で小宮山友晴の衆を破れ', '鳥居畑の柵の口へ攻め込め', '田野の平屋敷で土屋昌恒の衆を退け、勝頼父子と北条夫人の最期を見届けよ'],
   goals5: () => tano.missions.map((text, k) => {
     const progress = [0, 0];
     return {
@@ -1158,6 +1158,8 @@ const tano = {
     return C.s.phase === 'fence' ? 3 : C.s.phase === 'tano' ? 4 : 0;
   },
   missionHeading(rt) {
+    // ⑤は三人の最期まで続く。守兵を退けただけで集合の目標へ替えない。
+    if (rt.flags.lastView && !rt.flags.principalsDead && !rt.over) return this.missions[4];
     if (rt.flags.ending || rt.over) return rt.flags.lastView || rt.tracker.main ? '味方と集まれ' : '味方と退け';
     const F = rt.flags, C = F.dp?.cur;
     // 待ち場への案内は印と鉄砲頭の下知に任せ、五つの目標の文は替えない。
