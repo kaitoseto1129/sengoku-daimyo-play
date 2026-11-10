@@ -88,7 +88,8 @@ export function cleared(rt) {
 // ⑤へ移る時：残る加勢も博労淵へ退く
 export function fleeAll(rt) {
   const g = rt.flags.engun;
-  if (!alive(g)) return;
+  // 先に士気が崩れた組にも退路を渡す。敗走中でも北の塀の内に残る事がある。
+  if (!g || g.count <= 0) return;
   // 東西の塀に突き当たらず、開いた北の口から博労淵へ退く。
   g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
   const c = g.center();

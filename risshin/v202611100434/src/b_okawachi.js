@@ -709,6 +709,8 @@ function okHouseYards(rt) {
 }
 
 const okawachi = {
+  // 和睦で城を受け取る。共通の落城炎上・屋根の崩落・城方の幟倒しは起こさない。
+  castleFall: false,
   resumeSteps: [[1, 'assault'], [2, 'pushback'], [3, 'retreat'], [4, 'siegeDays']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 局地の押し引きで総崩れや追撃を叫ばず、退く側自身が退き口を呼ぶ。
   battleVoices: S.quality === 'high' ? { lines: {

@@ -14,7 +14,7 @@ export function install(rt, ctx) {
   const W = rt.world;
   let tail = null, cut = false, tick = 0;
   // 予約から実行までに城戸口へ着いた時は、道中の演出を新しく出さない。
-  const onRoad = () => !cut && !F.ending && !rt.over && F.step === 4 && !F.kidoCut &&
+  const onRoad = () => !cut && !F.ending && !rt.over && rt.player.u.alive && F.step === 4 && !F.kidoCut &&
     Math.hypot(rt.player.u.pos.x - F.kz.x, rt.player.u.pos.z - F.kz.z) >= 260;
   // ① 道の脇の在家が燃える（石山へ退く門徒が火を掛けた。煙の柱を三つだけ）
   rt.after(10, () => {
@@ -40,7 +40,7 @@ export function install(rt, ctx) {
 
   return {
     update(dt) {
-      if (F.ending || rt.over || F.step !== 4) return;
+      if (F.ending || rt.over || !rt.player.u.alive || F.step !== 4) return;
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       if (cut) return;

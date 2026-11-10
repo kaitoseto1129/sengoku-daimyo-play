@@ -2247,7 +2247,7 @@ const shiga = {
   missionPinCaption: '',
   missionDetail: () => '',
   missionStatus: () => '',
-  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|守り通す|九月[一二三四五六七八九十]+日/.test(text),
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討死|討ち取|守り通す|九月[一二三四五六七八九十]+日|^端城に火の手$/.test(text),
   // 11/4 jin_shiga_r（AR1・AW3）：場所と行いで言う。「ピン」「印」「▼」の字は使わない
   goalSignOnly: true, // 行き先は頭上の金の▼一つだけ（持ち場の輪と小旗を重ねない。BH6・AL）
   missions: [...MONOMI.MISSIONS, '町口の森可成の槍の列へ行け', '坂本の町口で浅井・朝倉の先手を防げ', '町口へ寄せる先手を槍で討て', NEHARI.MISSION, '坂道を上り、宇佐山城の大手木戸へ退け', '三の丸の大手木戸で寄せ手を防げ', '本丸で信長の後詰を迎えよ'],
@@ -3591,7 +3591,8 @@ const shiga = {
         F.castleSoundText = '端城に火の手。火を避け、持ち場の木戸を守れ';
         F.castleSoundUntil = rt.t + 8;
         castleProgress(rt, '寄せ手を中へ入れるな');
-        rt.banner('九月十九日・端城に火の手', '端城は燃えても、本丸は渡すな');
+        // 合図待ちで翌日以降へ遅れた知らせに、十九日の札を重ねない。
+        rt.banner(F.battleDay > 19 ? '端城に火の手' : '九月十九日・端城に火の手', '端城は燃えても、本丸は渡すな');
         rt.say('肥田彦左衛門', '端城に火を掛けられたぞ！　火を避けよ、寄せ手を中へ入れるな！', 4);
       };
       fireReport();

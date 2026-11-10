@@ -532,7 +532,7 @@ const t12_odawara = {
   // 11/9 軍勢の厚み（docs/army_depth_howto.md）：囲みの陣立て。どちらの備も自分からは出ない（hold。秀吉の「城は攻めるな」）。
   //   東の酒匂川の側は徳川勢の備が層をなし、総構えの内は北条の備が口ごとに固める。本物の隊は bind で結ぶ（描かず、本物から読む）
   depth: {
-    A: { name: '豊臣', facing: -Math.PI / 2, honjin: { x: IE_JIN.x, z: IE_JIN.z }, mpu: 8, formation: '鶴翼', terrain: 'plain', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
+    A: { name: '豊臣', facing: -Math.PI / 2, honjin: { x: IE_JIN.x, z: IE_JIN.z }, mpu: 8, formation: '包囲', terrain: 'plain', flag: 'tokugawa', armor: 0x1f1e1c, openAt: 9999, attrition: 0,
       sonae: [
         { id: 'ii', layer: 'sakite', wing: 'center', men: 3000, taisho: '井伊直政', flag: 'ii', bind: (rt) => rt.flags.ii, hold: true },
         { id: 'yasu', layer: 'ichi', wing: 'right', men: 1500, taisho: '松平康頼', bind: (rt) => rt.flags.yasu, hold: true },
