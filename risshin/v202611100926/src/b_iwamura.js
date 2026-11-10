@@ -3472,8 +3472,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
 iwamura.force = (rt) => {
   const F = rt.flags;
   let a = 0, b = 0;
-  for (const g of F.fieldAllies || []) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) a++;
-  for (const g of F.rearGroups || []) for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) b++;
+  // 麓の合流と同じく、後送中の深手や戦場を離れた者は残る戦力に含めない。
+  for (const g of F.fieldAllies || []) for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound) a++;
+  for (const g of F.rearGroups || []) for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound) b++;
   // 11/6（十二1）：数は史実の規模（織田 約三万・城方 約三千）。描く兵の損の割合で減らし、山道の夜討ち勢を討ち尽くすと
   //   信長公記の「千百余」に届く。織田の損は史料に無いので小さく（描く兵一人で十人）。
   const A0 = F.forceA0 || 1, B0 = F.forceB0 || 1;

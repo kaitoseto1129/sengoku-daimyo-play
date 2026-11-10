@@ -447,12 +447,13 @@ const k04_kuisegawa = {
     F.guns = guns;
     F.foes.push(guns);
     // 明石全登と左近（本物の旗本に囲まれる。討てない。翌日の関ヶ原に出る）
+    // 共通の戦闘では invuln だけの敵将は本人が討てるため、史実の生存も指定する。
     F.akashiG = enemyGroup(rt, { faction: 'ukita', name: '明石全登の旗本', anchor: { ...AKASHI_HIDE }, facing: Y(-0.6), width: 6, formation: 'line', noRout: true,
       morale: 100, dmgMult: 0.5, order: 'hold', aggro: 6, seekRange: 10, speed: 2.6 },
-    fl([{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, horse: true } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 4, o: { keep: true } }], 'ukita'));
+    fl([{ type: 'busho', n: 1, o: { name: '明石全登', invuln: true, mustLive: true, horse: true } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 4, o: { keep: true } }], 'ukita'));
     F.shimaG = enemyGroup(rt, { faction: 'ishida', name: '島左近の旗本', anchor: { ...SHIMA_HIDE }, facing: Y(Math.PI - 0.6), width: 6, formation: 'line', noRout: true,
       morale: 100, dmgMult: 0.5, order: 'hold', aggro: 6, seekRange: 10, speed: 2.6 },
-    fl([{ type: 'busho', n: 1, o: { name: '島左近', invuln: true, horse: true } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 4, o: { keep: true } }], 'ishida'));
+    fl([{ type: 'busho', n: 1, o: { name: '島左近', invuln: true, mustLive: true, horse: true } }, { type: 'samurai', n: 10, o: { keep: true } }, { type: 'ashigaru', n: 4, o: { keep: true } }], 'ishida'));
     for (const g of [F.akashiG, F.shimaG]) { g.kind = 'main'; F.foes.push(g); }
     F.follow.push([F.akashiG, B.akashi, 0, 0], [F.shimaG, B.shima, 0, 0]);
     if (B.saki) B.saki.morale = Math.min(B.saki.morale, 48);
@@ -633,7 +634,9 @@ const k04_kuisegawa = {
     if (F.holdPlayer || !F.step) return;
     const defense = F.step === 3 ? this.defensePoint(b) : null;
     // 防戦の旗から離れた敵を追い、近くにいた時間が増えなくなるのを防ぐ。
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
+    // 刈田の兵を味方が先に討っても、蒲生の組へ一撃を入れて追撃を始められる。
+    // 討たれない将を避ける共通の判断で、最初の目標だけが止まらないようにする。
+    const ok = (o) => !o.fleeing && (!o.invuln || F.step === 1 && !F.baitPlayerHit && F.gamo?.units.includes(o)) && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
       (!defense || dist(o.pos, defense) < 14);
     const r = F.step >= 4 ? 0 : F.step === 3 ? 4 : F.step === 1 ? 7 : 0;
     const e = r ? b.army.nearestEnemy(u, r, ok) : null;

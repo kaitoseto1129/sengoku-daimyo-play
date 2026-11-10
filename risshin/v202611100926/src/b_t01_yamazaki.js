@@ -457,7 +457,6 @@ const t01_yamazaki = {
       rt.army.play('toki', { x: -20, z: -24 }, 1.4);
       rt.after(12, () => { try { F.yfar?.tenno?.go?.(); } catch (e) { /* 遠景 */ } });
       rt.after(40, () => report(rt, '天王山、秀長様の手が頂を押さえました！'));
-      rt.after(68, () => report(rt, '中川様の手、伊勢貞興の手を川の際まで押し返しました！'));
       rt.after(100, () => report(rt, '淀川沿い、明智の左手は薄うござる。池田様の手が回りまする！'));
       rt.after(145, () => report(rt, '本能寺から逃れた者も、皆こちらで槍を取っておりまする！'));
       //   三度目の寄せ：天王山の裾から並河易家の手が下りて、中川の隊の横へ（天王山の取り合いが野へこぼれる）
@@ -652,6 +651,10 @@ const t01_yamazaki = {
     if (F.stage === 1) March.tick(rt, dt, this.ctx(rt));
     else if (F.stage === 2) {
       const n = aliveN(F.w1) + aliveN(F.iseW) + aliveN(F.namikawa);
+      // 時刻だけで健在の伊勢勢を押し返したと知らせない。実際の損耗・敗走を待つ。
+      if (F.iseW && (F.iseW.routed || aliveN(F.iseW) <= allN(F.iseW) * 0.3)) {
+        report(rt, '中川様の手、伊勢貞興の手を押し返しました！');
+      }
       // 前衛の押し合いは三分ほど（伊勢・斎藤の先手と、天王山からの新手。学び 十2）。押し返せば主力が展開して浅瀬へ
       // 時間だけでは押し返した事にしない。持ち場へ着き、寄せた敵が減ってから進む。
       if (F.fieldAt === 2 && n <= (F.w1N + allN(F.iseW) + allN(F.namikawa)) * 0.3 && rt.t - F.st0 > 170) this.stage(rt, 3);

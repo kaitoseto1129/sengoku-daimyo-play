@@ -140,7 +140,7 @@ const OWN = {
   okehazama: () => [
     { kind: 'stage', k: 0, text: '中島砦の下で組に合流し、雨の谷を下り谷の出口へ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'wait' || rt.phase === 'assault' },
     { kind: 'stage', k: 0, text: OG15.zenei, noun: '今川の鉄砲衆', check: (rt) => !!rt.flags.o15?.zeneiDone },   // 11/8 十五分の構成
-    { kind: 'stage', k: 0, text: '谷の出口で雨の上がるのを待つ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'assault' },
+    { kind: 'stage', k: 0, text: '谷の出口の豪雨の中で、かかれの下知を待つ', noun: '組の旗', check: (rt) => won(rt) || rt.phase === 'assault' },
     { kind: 'stage', k: 1, text: '坂道で松井宗信の備えを破る', noun: '松井宗信の備え', check: (rt) => won(rt) || !!rt.flags.entered || (rt.flags.roadStep ?? -1) >= (rt.flags.road?.length ?? 3), groups: (rt) => rt.flags.road },
     { kind: 'stage', k: 1, text: OG15.nida, noun: '今川の前の備え', check: (rt) => !!rt.flags.o15?.nidaDone },
     { kind: 'stage', k: 1, text: OG15.ii, noun: '井伊直盛の備え', check: (rt) => !!rt.flags.o15?.iiDone },
