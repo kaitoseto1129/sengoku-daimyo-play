@@ -58,6 +58,7 @@ export function step(H) {
       return false;
     },
     end(rt) {
+      H.shinoArm(rt, true);   // 11/10：次の段（総構えの堀へ寄せる）から篠曲輪と土塁の鉄砲が撃つ
       rt.unmark('dp');
       rt.objDone('dp');
     },

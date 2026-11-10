@@ -28,7 +28,7 @@ const GOLD = [196, 158, 52];
 
 // 升目の国の番（japan.js の shape と同じ読み方）
 let CELLS = null;
-function cells() {
+export function cells() {
   if (CELLS) return CELLS;
   const { gc, gr, alpha } = GRID, idx = new Map([...alpha].map((ch, i) => [ch, i]));
   const c = new Int16Array(gc * gr).fill(-1);
@@ -116,15 +116,18 @@ export function ending(rt, H) {
   for (const g of rt.army.groups || []) if (g.team === 1) { g.peaceful = true; g.fire = false; for (const u of g.units) if (u.alive && !u.name) u._crouch = true; }
   rt.say('北条氏直', '城を開く。わしの腹ひとつで、城の者の命を助けてくだされ', 4.4);
   rt.after(4.8, () => rt.say('黒田官兵衛', 'そのお覚悟、しかと殿下に申し上げまする', 4));
-  rt.after(9, () => rt.say('使番', '五日、氏直殿が滝川雄利殿の陣へ出て、降られた', 4));
-  rt.after(13.4, () => rt.banner('天下統一', '天正十八年七月　日本中が、ひとつの号令の下に'));
+  rt.after(9, () => rt.say('使番', '小田原、開城！　氏直殿、滝川殿の陣へ出て降られた', 4));
+  // 石垣山の高所の秀吉は、斬らずに天下を取った。一言だけ（docs/odawara_spec_1109.md）
+  rt.after(13.2, () => rt.say('豊臣秀吉', '……終わったか。', 3.2));
+  rt.after(16.6, () => rt.say(me, '稲生で槍を握った日から……桶狭間、稲葉山、姉川、長篠、山崎。ここまで来た', 4.4));
+  rt.after(21.4, () => rt.banner('天下統一', '天正十八年七月　日本中が、ひとつの号令の下に'));
   // 日本地図：近畿から順に豊臣の色に
-  rt.after(17, () => { F.mapClose = japanMap(rt, 17); });
-  rt.after(19, () => rt.say('使番', '十一日、氏政殿と氏照殿が腹を召された。氏直殿は高野山へ', 4.2));
-  rt.after(24, () => rt.say('使番', '十三日、殿下が城に入られた。北条の関東は、徳川殿に任せるとの仰せじゃ', 4.4));
-  rt.after(29.5, () => rt.say('使番', '奥州の伊達・南部も殿下に従うた。もう、殿下に逆らう国は無い', 4.2));
+  rt.after(23, () => { F.mapClose = japanMap(rt, 17); });
+  rt.after(25, () => rt.say('使番', '十一日、氏政殿と氏照殿が腹を召された。氏直殿は高野山へ', 4.2));
+  rt.after(30, () => rt.say('使番', '十三日、殿下が城に入られた。北条の関東は、徳川殿に任せるとの仰せじゃ', 4.4));
+  rt.after(35.5, () => rt.say('使番', '奥州の伊達・南部も殿下に従うた。もう、殿下に逆らう国は無い', 4.2));
   // 暗転して、徳川の陣の外れの家康の背：小田原城を見ている
-  rt.after(35.5, () => {
+  rt.after(41.5, () => {
     k15Fade(rt, () => {
       const ie = F.ieyasu?.units.find((u) => u.name === '徳川家康');
       const at = H.IE_VIEW, cx = H.CASTLE.x, cz = H.CASTLE.z, hd = Math.atan2(cx - at.x, cz - at.z);

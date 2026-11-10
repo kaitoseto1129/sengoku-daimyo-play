@@ -14,7 +14,7 @@ export function step(H) {
     start(rt, C) {
       const F = rt.flags;
       C.at = H.WATCH; C.goal = H.WATCH; C.groups = []; C.say = 0;
-      F.day = 3;
+      F.day = 3; F.keisen = 0;
       rt.banner('七月五日', '北条氏直が降り、小田原城が開く');
       rt.obj('dp', '本丸の門の前で、槍を置いて城を出る北条の兵を見届ける', 'main');
       rt.marker('dp', H.WATCH, '本丸の門の前', { h: 3 });
@@ -47,11 +47,14 @@ export function step(H) {
             u._crouch = true;
           }
         };
+        g.bornAt = el;
         C.groups.push(g);
       }
+      // 列が門の内の曲がりで詰まっても、見届けが止まらないように：出てから六十秒でその場に槍を置いて座る
+      for (const g of C.groups) if (!g.surrendered && el - g.bornAt > 60 && g.onArrive) g.onArrive(g);
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
       line(14, () => rt.say(nm(rt), '篠曲輪では退いたが……今度は刃を交えずに城が開く', 3.6));
-      line(21, () => rt.say('北条の兵', '……戦わずに、終わるのか', 3));
+      line(21, () => rt.say('北条の兵', '鎧も槍もまだある。……それでも、置くのか', 3));
       line(26, () => rt.say('井伊直政', 'もはや刀を抜くには及ばぬ。囲みを保った皆の働きよ', 3.6));
       line(32, () => rt.say('黒田官兵衛', '氏直殿は滝川殿の陣へ参られる。……北条の百年が、今日で終わる', 4));
       const P = rt.player.u.pos;

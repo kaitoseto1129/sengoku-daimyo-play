@@ -82,7 +82,10 @@ function requiredStage(s) {
     if (s.kind === 'fight' && rt.flags.step === 4 && !C.engaged) {
       const p = rt.player.u.pos;
       C.engaged = fighting && Math.abs(p.z) < BANK && p.x < FORT.x + 20 &&
-        C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.dying && !u.woundOut && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12));
+        // 倒れた敵や柵越しの敵へ寄っただけでは、殿と戦った事にしない。
+        C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed &&
+          Math.abs(u.pos.y - p.y) < 3 && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 12 &&
+          !rt.army.wallBetween(p, player.team, u.pos, false)));
     }
     const inT = C.inT || 0;
     const done = tick.call(this, rt, C, m, ctx, el, dt);

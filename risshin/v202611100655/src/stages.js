@@ -5,6 +5,7 @@
 // 最後の段を果たす（tracker.main が true）とミッション達成（手柄 20 点）。
 import * as IG from './b_inou_goals.js';
 import { GOALS15 as OG15 } from './okehazama/goals.js';
+import { ADV_MISSIONS } from './nagashima/advance.js';
 const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 const ph = (...names) => (rt) => names.includes(rt.phase);
 const dp = (...names) => (rt) => names.includes(rt.flags.dp?.cur?.s?.phase);
@@ -53,18 +54,8 @@ export const STAGES = {
   // 11/6 fix3_tonezaka：「崩す」をやめ（三1）、一乗谷の奥の道を⑤に足す（右上の番号を段とそろえる。b_tonezaka.js の TONE_LINE と同じ字）
   tonezaka: [['坂の下で河合吉統の殿を突き破れ'], ['坂の中ほどで山崎吉家・斎藤龍興の手を突き破れ', s(2)], ['峠口で詫美越後守の殿を追い払え', s(3)], ['一乗谷の城下の道から朝倉の兵を追い払え', s(4)], ['一乗谷の奥の道で寄せる朝倉の兵を防げ', s(6)]],
   odani: [['清水谷を登る'], ['京極丸を奪い、父子を分ける', s(2)], ['小丸の久政を攻める', f('komaAttack')], ['本丸の最後の抵抗を破る', f('honAttack')]],
-  // 11/5 check60：史実の日付の順（七月の三手と船団の封鎖 → 九月二十九日の降伏・斬り込み・二砦の囲み）。docs/battle_learn/nagashima.md
-  // 追加された物見・西と東の防衛・最後の抵抗も、右上と同じ九段階で数える。
-  nagashima: [['堤の上へ上がり、輪中と門徒の砦を見よ'], ...[
-    '岸の横木に縄をかけよ',
-    '西の舟入りで、兵糧を取り返しに来た門徒を止めよ',
-    '東の岸の柵で、砦から逃げ出した門徒を止めよ',
-    '岸の柵に槍を並べ、鉄砲衆を守れ',
-    '岸の柵で斬り込む門徒を受け止めよ',
-    '西の柵の縄を三か所締め直せ',
-    '岸の真ん中の柵で、最後に寄せる門徒を止めよ',
-    '岸の柵を三か所巡り、中江・屋長島の火の間も囲みを保て',
-  ].map((text, i) => [text, (rt) => (rt.def.missionOf?.(rt) ?? 0) >= i + 1])],
+  // 長島の新しい進行と、右上・結果の目標を同じ八段階にそろえる。
+  nagashima: ADV_MISSIONS.map((text, i) => i ? [text, (rt) => (rt.def.missionOf?.(rt) ?? 0) >= i] : [text]),
   shitaragahara: [['大宮前と柳田前の柵で武田の寄せを止める'], ['退き口で馬場信春の殿を討ち破る', ph('pursuit')]],
   echizen: [['観音丸城の木戸を破る'], ['観音丸の郭の守兵を討つ', (rt) => rt.def.missionOf?.(rt) >= 3]],
   // 11/5 check60：信長公記巻八の順（十五日の風雨の昼 → 同夜の府中の夜襲 → 十六日からの山狩り）。大滝寺は言い伝えによる補い。

@@ -541,10 +541,17 @@ const k05_ueda = {
         if (!live(nb) || F.step !== 6) return;
         F.nbOut = rt.t;
         nb.stay = false; nb.noAI = false;
-        nb.order = 'move'; nb.dest = { x: FORD_W.x - 10, z: FORD_W.z - 2 }; nb.anchor = { ...nb.dest }; nb.speed = 4.4; nb.seekRange = 0; nb.aggro = 0;
-        nb.onArrive = (q) => { q.order = 'attack'; q.seekRange = 20; q.aggro = 14; q.onArrive = null; };
+        // 本丸から岸へ直進すると東の土塀に当たる。門の内側・門の外・岸の順に通る。
+        const route = [{ x: GATE.x - 8, z: GATE.z }, { x: GATE.x + 7, z: GATE.z }, { x: FORD_W.x - 10, z: FORD_W.z - 2 }];
+        let leg = 0;
+        nb.order = 'move'; nb.dest = { ...route[0] }; nb.anchor = { ...nb.dest }; nb.speed = 4.4; nb.seekRange = 0; nb.aggro = 0;
+        nb.onArrive = (q) => {
+          if (F.step !== 6 || F.nbBack || q.order !== 'move') { q.onArrive = null; return; }
+          if (++leg < route.length) { q.dest = { ...route[leg] }; q.anchor = { ...q.dest }; return; }
+          F.nbAt = rt.t;
+          q.order = 'attack'; q.seekRange = 20; q.aggro = 14; q.onArrive = null;
+        };
         rt.say('徳川の足軽', '城から騎馬が来る！　六文銭じゃ！', 2.8);
-        rt.after(36, () => { if (!F.nbBack) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(nb); } });
       });
     } else if (n === 7) {
       // 13:00 関ヶ原へ急ぐ：撤退でなく行軍
@@ -598,7 +605,6 @@ const k05_ueda = {
     P.u.invuln = true;
     for (const g of F.foes) if (g !== F.masa && !g.wallShot && g !== F.gateRear) this.back(g);
     // 最後の絵：振り返ると、遠くに無傷の上田城と六文銭の旗、その前に小さく真田の兵
-    P.yaw = Math.atan2(GATE.x - P.u.pos.x, GATE.z - P.u.pos.z);
     F.gateRear = this.foe(rt, '大手門の前の真田の兵', { x: GATE.x + 8, z: GATE.z }, [uS(2), uA(6)], { hold: true, width: 5 });
     F.gateRear.noAI = true; F.gateRear.stay = true; F.gateRear.aggro = 0; F.gateRear.seekRange = 0;
     sfx('horagai', 0.5);
@@ -711,7 +717,7 @@ const k05_ueda = {
       // 兵をまとめる：岸に三十秒いて、信繁の一撃が済む（来なければ刻限で）
       if (F.nbOut && !F.nbBack && rt.t - F.nbOut > 20 && live(F.nobushige)) {
         const c = F.nobushige.center();
-        if (dist(c, FORD_W) < 18 && rt.t - F.nbOut > 30) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }
+        if (F.nbAt != null && rt.t - F.nbAt > 10 && dist(c, FORD_W) < 18) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }
       }
       if ((F.rallyAt > 30 && (F.nbBack || el > 120)) || over) this.toStep(rt, 7);
     } else if (F.step === 7) {
