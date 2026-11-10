@@ -1858,13 +1858,11 @@ const takato_siege = {
     rt.award((t) => { t.main = true; t.special = { label: '高遠城を攻め落とした', pts: 24 }; }, '高遠城を攻め落とした');
     sfx('kane', 0.5);
     rt.banner('高遠城、落ちる', '天正十年三月二日。一日の攻めで落城。仁科盛信は最期まで戦ったと伝わる');
-    // 盛信の最期の知らせで、残る備えの士気が崩れる。
+    // 高遠の残兵は落城の札の間も抵抗する。締めだけで敗走へ切り替えない。
     for (const b of F.defenders || []) {
-      b.morale = Math.min(b.morale, 5);
-      if (b.real) { b.real.noRout = false; b.real.morale = 5; }
+      if (b.real) b.real.noRout = true;
+      b.order({ id: 'attack' });
     }
-    battleEvent(rt, EVENT_RETREAT, F.C.kuruwa.hon.centroid, F.honGuard.real, 1, true, '本丸の備えが崩れた。高遠城、落ちる');
-    for (const c of F.lines) c.rout('B');
     // 11/8 critic60（一7）：勝つ間際の味方が皆、膝を曲げて宙に浮いたように跳ねて駆けていた。落城の札の間は、本物の味方の組を今の所で止めて歩ませる
     for (const g of rt.army.groups || []) if (g.team === 0 && !g.isPlayerSquad && g.count && !g.routed) { const c = g.center(); g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.speed = Math.min(g.speed || 3, 2.2); g.focus = null; }
     rt.say('森長可', '旗を守り通したな。組の者を確かめよ。傷ある者を置いて行くな', 4.5);

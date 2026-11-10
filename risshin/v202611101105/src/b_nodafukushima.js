@@ -1152,14 +1152,32 @@ function installDayCuts(rt) {
 }
 
 // 十三日朝の高潮（公記「西風が吹き高潮が上がり、淀川が逆流した」）。堤の南の低い陣と田へ濁った潮が上がる。
-//   板一枚（形と材質は一つ）を暗転の後に地面の下から 0.45m まで上げる。堤の背（2.5m）と斜面の持ち場は濡らさない。
+//   一つの網と材質を暗転の後に地面の下から 0.45m まで上げる。水際は地面の高さから決める。
 function floodRise(rt) {
   const F = rt.flags;
   if (!F.flood) {
-    const geo = new THREE.PlaneGeometry(280, 150, 1, 1); geo.rotateX(-Math.PI / 2);
+    const geo = new THREE.PlaneGeometry(280, 150, 140, 75); geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position, ground = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) ground[i] = rt.world.heightAt(pos.getX(i), pos.getZ(i) + 46);
+    geo.setAttribute('floodGround', new THREE.BufferAttribute(ground, 1));
     // 共通の水面のさざ波（川・湖と同じ rippleWater）。西風に流され、濁った色の潮が空を砕いて映す。灰色の平らな板にしない。
     // 11/6：嵐の明るい空を映して、潮が白い砂の原に見えた（写真）。映す空の色を泥の潮の暗い灰茶にする。
     const mat = rippleWater(liteMat({ color: 0x4e4634, roughness: 0.2, metalness: 0, envMapIntensity: 0.55 }), 0.9, -0.3, 3.2, new THREE.Color(0x56544a), false, null, null, false, true);
+    // 高潮の範囲の四隅を直線で切らず、浅い岸と外縁を透かして泥へつなぐ。
+    // 地面は設営時だけ読む。水位は既存の世界座標を使い、毎コマ配列を作らない。
+    const compile = mat.onBeforeCompile, programKey = mat.customProgramCacheKey();
+    mat.customProgramCacheKey = () => `${programKey}|noda-flood-bank`;
+    mat.transparent = true;
+    mat.onBeforeCompile = function (shader, renderer) {
+      compile.call(this, shader, renderer);
+      shader.vertexShader = 'attribute float floodGround; varying float vFloodGround;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFloodGround = floodGround;');
+      shader.fragmentShader = 'varying float vFloodGround;\n' + shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        float floodDepth = vWPw.y - vFloodGround;
+        float floodEdge = min(140.0 - abs(vWPw.x), 75.0 - abs(vWPw.z - 46.0));
+        float floodNoise = texture2D(tMacro, vWPw.xz * 0.18).r;
+        diffuseColor.a *= smoothstep(0.01, 0.18, floodDepth) * smoothstep(0.0, 4.0, floodEdge - floodNoise * 1.5);
+        if (diffuseColor.a < 0.02) discard;`);
+    };
     F.flood = new THREE.Mesh(geo, mat);
     F.flood.position.set(0, -0.35, 46); F.flood.receiveShadow = true; F.flood.renderOrder = 1;
     rt.scene.add(F.flood);
@@ -2405,6 +2423,8 @@ function installNodaWater(rt) {
     if (bed) {
       bed.needsUpdate = true;
       // 既存の流れ・濁りの材質を使い、水際だけを薄くする。描画の回数は増やさない。
+      // rippleWater は不透明へ戻すため、ここで透過を有効にしないと岸の薄さが描かれず板の縁になる。
+      st.mesh.material.transparent = true;
       const compile = st.mesh.material.onBeforeCompile;
       st.mesh.material.onBeforeCompile = function (shader, renderer) {
         compile.call(this, shader, renderer);
