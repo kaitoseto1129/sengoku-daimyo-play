@@ -1141,6 +1141,8 @@ function takatoRetreatPath(rt, to) {
 }
 
 const takato_siege = {
+  // 命懸けの戦場（docs/lethal_field_spec_1108.md）。入れる前から bot が倒れるので、倒れすぎない強さ（11/10 命懸けの係）
+  lethal: { soft: true },
   // 見物の民は共用の描画と避難処理だけを使い、兵の名簿・当たり・戦功へ入れない。
   civilianCrowd: {
     bounds: { minX: -160, maxX: 180, minZ: -100, maxZ: 100 },

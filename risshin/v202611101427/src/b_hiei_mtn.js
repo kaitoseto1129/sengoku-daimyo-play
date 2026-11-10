@@ -2524,6 +2524,8 @@ const HIEI_GOALS = [
   '根本中堂の前の僧兵を退ける',
 ];
 const hiei_mtn = {
+  // 命懸けの戦場（docs/lethal_field_spec_1108.md）。入れる前から bot が時切れなので、倒れすぎない強さ（11/10 命懸けの係）
+  lethal: { soft: true },
   resumeSteps: [[1, 'p1'], [2, 'p2'], [3, 'p3'], [4, 'p4'], [5, 'p6'], [6, 'p7']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   resumeAt(rt, step, from) {
     const F = rt.flags;

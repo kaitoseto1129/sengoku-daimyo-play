@@ -2364,7 +2364,8 @@ const echizen_ikko = {
   missionSingleLine: true,
   keepBattleSigns: true, // 行き先の▼を出す間も、滝川一益らの名札と両軍の人数を残す。
   // 共通の行き先印へ一本化する。印を無効にすると敵を指す間も案内が消えてしまう。
-  goalSignOff: (rt) => rt.def.woundRetreatNeeded(rt) || !!(rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid),
+  // 退避先を探している間も行き先を残し、有効な退避の印が出てから切り替える。
+  goalSignOff: (rt) => !!(rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid),
   goalSignOnly: true,
   goalSignNavigation: true,
   goalSignDistanceAlways: true,
@@ -2442,9 +2443,9 @@ const echizen_ikko = {
   missionPin(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     if (F.ending || rt.over || !rt.player.u.alive) return null;
-    // 手負いの時は退く印へ一本化し、同時に敵や門へ誘導しない。
+    // 有効な退避の印が出たら一本化する。退避先が見つからない間は行き先を消さない。
     const retreat = rt.hud.retreatGuide;
-    if (this.woundRetreatNeeded(rt) || retreat?.active && retreat.valid) return null;
+    if (retreat?.active && retreat.valid) return null;
     const pin = F.standardPin || (F.standardPin = { x: 0, z: 0 });
     const enemy = this.missionSignTarget(rt);
     const zone = F.SZ?.byId[F.mode === 'defend' ? 'hondo' : TEMPLE_HALL_IDS[F.step - 1]];

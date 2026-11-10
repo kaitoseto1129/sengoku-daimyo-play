@@ -224,6 +224,37 @@ const k12_kashii = {
   clampCamera(rt, pos) {
     const B = rt.flags.camBoxes, pu = rt.player && rt.player.u;
     if (!B || !pu) return;
+    // カメラが家の向こう側へ抜けた場合も、視線が最初に当たる壁の手前で止める。
+    // 終点だけの判定では、両端が屋外でも壁が画面を覆っていた。
+    const eyeY = pu.pos.y + 1.5;
+    let stop = 1;
+    for (const b of B) {
+      const gx = pu.pos.x - b.x, gz = pu.pos.z - b.z;
+      const q0 = gx * b.c - gz * b.s, q1 = gx * b.s + gz * b.c;
+      // 軒の余白に本人がいる場合は、下の押し出しで処理する。
+      if (Math.abs(q0) < b.hw && Math.abs(q1) < b.hd && eyeY >= b.y0 && eyeY <= b.y1) continue;
+      const dx = pos.x - pu.pos.x, dz = pos.z - pu.pos.z;
+      let enter = 0, leave = stop;
+      for (let axis = 0; axis < 3; axis++) {
+        const start = axis === 0 ? q0 : axis === 1 ? q1 : eyeY;
+        const delta = axis === 0 ? dx * b.c - dz * b.s : axis === 1 ? dx * b.s + dz * b.c : pos.y - eyeY;
+        const lo = axis === 0 ? -b.hw : axis === 1 ? -b.hd : b.y0;
+        const hi = axis === 0 ? b.hw : axis === 1 ? b.hd : b.y1;
+        if (Math.abs(delta) < 0.000001) {
+          if (start < lo || start > hi) { leave = -1; break; }
+        } else {
+          const a = (lo - start) / delta, z = (hi - start) / delta;
+          enter = Math.max(enter, Math.min(a, z)); leave = Math.min(leave, Math.max(a, z));
+        }
+        if (enter > leave) break;
+      }
+      if (enter <= leave && enter > 0) stop = Math.min(stop, Math.max(0, enter - 0.2 / Math.max(0.001, Math.hypot(dx, pos.y - eyeY, dz))));
+    }
+    if (stop < 1) {
+      pos.x = pu.pos.x + (pos.x - pu.pos.x) * stop;
+      pos.y = eyeY + (pos.y - eyeY) * stop;
+      pos.z = pu.pos.z + (pos.z - pu.pos.z) * stop;
+    }
     for (const b of B) {
       if (pos.y < b.y0 || pos.y > b.y1) continue;
       const fx = pos.x - b.x, fz = pos.z - b.z;

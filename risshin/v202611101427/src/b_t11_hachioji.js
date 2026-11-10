@@ -535,7 +535,7 @@ function nakayamaStep() {
         if (target === F.naka && (!C.lastWords || source !== rt.player.u)) { if (opts.out) opts.out.res = 'armor'; return; }
         return C.damage.call(this, target, amount, source, opts);
       };
-      rt.obj('dp', '中山勘解由を、自ら討て', 'main');
+      rt.obj('dp', '本丸で、中山勘解由を自ら討て', 'main');
       // 印は頭上の名札と金の▼だけ（赤い札を重ねない）
       rt.say('前田の侍', '中山殿、降られよ！　前田様が、命は助けると仰せじゃ！', 3.4);
       rt.after(3.6, () => {

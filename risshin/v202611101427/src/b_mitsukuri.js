@@ -170,7 +170,7 @@ const endGatherLabel = (rt) => {
   return `${action}（戦の終わりまで${Math.max(0, Math.ceil((rt.flags.endAt || rt.flags.stepT + 22) - rt.t))}秒）`;
 };
 const endGatherTask = (rt) => rt.obj('gatherEnd', endGatherLabel(rt), 'main', true);
-const markEndGather = (rt) => rt.marker('gather', () => courtyardWay(rt, HON_GATHER), () => endGatherLabel(rt),
+const markEndGather = (rt) => rt.marker('gather', () => courtyardWay(rt, HON_GATHER), () => courtyardHouse(rt, rt.player.u) ? courtyardDoorName(rt) : '本丸',
   { guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 const sanWay = (rt) => rt.flags.strategy === 'tani' ? '西の谷から三の郭へ' : '柵の口から三の郭へ';
 // 呼び直しの待ち時間と、実際に郭へ向かう味方を分けて案内する。
@@ -277,7 +277,7 @@ const gateTask = (rt, mark = true) => {
     rt.flags.gateAction = '木戸の前で、打って出た敵を迎え撃て';
     nextObj(rt, rt.flags.gateAction);
     rt.objProgress('main', '');
-    if (mark) rt.marker('gate', () => ({ x: KIDO.x, z: KIDO.z + 5 }), () => rt.flags.gateAction,
+    if (mark) rt.marker('gate', () => ({ x: KIDO.x, z: KIDO.z + 5 }), '二の丸の木戸',
       { h: 4, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
     return;
   }
@@ -318,7 +318,7 @@ const gateTask = (rt, mark = true) => {
     const work = rt.interacts.find((it) => it.id === '_gram');
     const point = work && (typeof work.pos === 'function' ? work.pos() : work.pos);
     return courtyardWay(rt, point || KIDO);
-  }, () => rt.flags.gateAction,
+  }, () => courtyardHouse(rt, rt.player.u) ? courtyardDoorName(rt) : '二の丸の木戸',
     { h: 4, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 };
 // 足軽には近い未点火の束を示す。操作できる束と印の行き先をそろえる。
@@ -347,7 +347,7 @@ const markTorch = (rt) => {
     rt.unmark('san');
     // 屋内では松明への直線で壁へ誘わず、先に実際の戸口を示す。
     rt.marker('t' + next, () => courtyardWay(rt, torchPoint(rt, next)),
-      () => rt.G.lord ? torchGuardAction(rt) : torchAction(rt),
+      () => courtyardHouse(rt, rt.player.u) ? courtyardDoorName(rt) : '三の郭の松明',
       { h: 1.2, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
   }
 };
@@ -730,23 +730,13 @@ const markZone = (rt, id) => {
   const name = id === 'san' ? '三の郭' : id === 'ni' ? '二の丸' : '本丸';
   // 郭に入ったら人数不足でも残る敵を示す。味方はその場から呼べる。
   const remainingEnemy = () => z.owner !== 'friend' && z._guideEnemy && zoneGroundFighter(rt, z._guideEnemy) && z.test(z._guideEnemy.pos.x, z._guideEnemy.pos.z) ? z._guideEnemy : null;
-  const gathering = () => z.owner !== 'friend' && (z.friends || 0) < z.need && rt.t >= (rt.flags.callReadyAt || 0);
   // 西へ折れる道の途中では、崖越しの旗でなく次の曲がり角を示す。
   const pos = () => {
     const enemy = z.test(rt.player.u.pos.x, rt.player.u.pos.z) ? remainingEnemy() : null;
     return courtyardWay(rt, enemy ? enemy.pos : z.pos);
   };
-  rt.marker(id, pos, () => zonePause(rt) || (courtyardHouse(rt, rt.player.u) ? '戸口から庭の旗へ戻れ' : !z.test(rt.player.u.pos.x, rt.player.u.pos.z)
-    ? id === 'hon' ? rt.flags.honWait ? '城は取った。本丸の旗へ' : '西の石段から本丸へ' : id === 'ni' ? '木戸から二の丸へ' : sanWay(rt)
-    : z.owner === 'friend' ? `${name}の旗へ。味方と守れ`
-      : remainingEnemy() ? `${name}の残る敵　${z.enemies}人`
-      : z._incoming && (z.friends || 0) < z.need ? `${name}で味方を迎えよ　${z.friends || 0}／${z.need}人`
-      : z._callable === false && (z.friends || 0) < z.need ? noCallAdvice
-      : gathering() ? `${callAction(rt)}　${z.friends || 0}／${z.need}人`
-      : (z.friends || 0) < z.need
-          ? `${name}を守れ　呼び直しまで${Math.max(0, Math.ceil((rt.flags.callReadyAt || 0) - rt.t))}秒`
-          : z.owner !== 'friend' && !z.enemies && (z.friends || 0) >= z.need
-          ? `${name}をあと${Math.max(1, Math.ceil(z.hold - z.holdT))}秒守れ` : name),
+  // 行き先は場所の名だけ。人数・守る秒数・操作は任務札に残す。
+  rt.marker(id, pos, () => courtyardHouse(rt, rt.player.u) ? courtyardDoorName(rt) : name,
     { zoneGuide: true, guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 };
 
@@ -2069,6 +2059,13 @@ function courtyardHouse(rt, u) {
       u.pos.y >= lv.y - .6 && u.pos.y <= lv.y + lv.h) return I;
   }
   return null;
+}
+
+// 戸口へ戻す時も、向かう先でなく今いる郭の名を添える。
+function courtyardDoorName(rt) {
+  const p = rt.player.u.pos, C = rt.flags.C;
+  return C.kuruwa.hon.test(p.x, p.z) ? '本丸の戸口'
+    : C.kuruwa.ni.test(p.x, p.z) ? '二の丸の戸口' : '三の郭の戸口';
 }
 
 function courtyardWay(rt, goal) {
@@ -4523,7 +4520,7 @@ const mitsukuri = {
     nextObj(rt, `総懸かり。${sanWay(rt)}。味方${F.SZ.byId.san.need}人で取れ`);
     // 人数と呼び方は現在の任務札で伝える。次の任務へ古い手ほどきを持ち越さない。
     rt.player.u._sanRoad = F.strategy === 'tani' ? TANI_ATTACK_ROAD : ROAD_OTE;
-    rt.marker('san', F.strategy === 'tani' ? { x: -26, z: -35 } : { x: 0, z: -44 }, F.strategy === 'tani' ? '西の谷から柵の口へ' : '三の郭の柵の口', { guideAlways: true, alwaysDistance: true, guidePriority: 120 });
+    rt.marker('san', F.strategy === 'tani' ? { x: -26, z: -35 } : { x: 0, z: -44 }, F.strategy === 'tani' ? '西の谷の柵の口' : '三の郭の柵の口', { guideAlways: true, alwaysDistance: true, guidePriority: 120 });
 
   },
 

@@ -1889,6 +1889,9 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       F.fenceSallies.push(sally); F.fenceRaids.push(raid);
     }
     F.fenceSally = F.fenceSallies[0]; F.fenceRaid = F.fenceRaids[0];
+    // 柵に取り付いた別働隊と先触れも、崩れたら同じ山道から城へ戻す。
+    // 六手だけを補正すると、残る夜討ち勢は切岸へ直進して止まる。
+    F.raidFleeGroups = [...F.waves, ...F.fenceRaids, F.scout];
     {
       const fires = [[-10, -9], [-24, -9]];
       rt.scene.add(kagaribiBatch(W, fires));
@@ -2286,7 +2289,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     }
     const F = rt.flags;
     KIT.backTick(rt);
-    for (const g of F.waves || []) {
+    for (const g of F.raidFleeGroups || F.waves || []) {
       let east = 0, n = 0;
       for (const u of g.units) if (u.alive && u.fleeing) { n++; if (u.pos.x > 33) east++; }
       // 人数の偏りで道を切り替えると、同じ折れ番号が別の山腹を指す。最初に選んだ口を保つ。
