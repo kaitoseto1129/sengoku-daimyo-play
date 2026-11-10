@@ -16,7 +16,7 @@ import { battleJin, installBattleJinkei } from './b_jinkei_layout.js';
 // ======================================================================
 import { hut, dou, tawara, nobori, kagaribi, makeSimpleBatch, finalizeSimpleBatch, dorui, ishigaki, kabukimon, solidRect } from './props.js';
 import { goten } from './castle_parts.js';
-import { toneJourney, toneJourneyGroup } from './b_tonezaka_journey.js';
+import { toneJourney, toneJourneyGroup, toneJourneyRetire } from './b_tonezaka_journey.js';
 import { RANKS } from './state.js';
 import { gauss, enemyGroup, allyGroup, unitPos } from './bhelp.js';
 import { dress } from './b_inabayama.js';
@@ -3052,9 +3052,8 @@ const tonezaka = {
     rt.unmark('pass'); rt.unmark('nobu');
     // 11/6 fixc2220（一6・二2）：坂の殿・人夫・義景の供は一乗谷へ来ない（河合・山崎・龍興は坂で討死、詫美は疋壇城から逃れ、義景は大野へ）。
     //   略図の後の城下に、峠で退いた将の名札と逃げる列を残さない。
-    for (const g of [...F.rears, F.r2c, F.r3c, F.hurtG, ...(F.porters || []), F.yoshikage]) if (g) for (const u of g.units) if (u.alive) {
-      u.gone = true; u.noTarget = true; u.target = null; if (u.mesh) u.mesh.visible = false;
-    }
+    F.journeyRetired = [...F.rears, F.r2c, F.r3c, F.hurtG, ...(F.porters || []), F.yoshikage];
+    toneJourneyRetire(rt, F.journeyRetired);
     for (let i = 0; i < F.rears.length; i++) rt.unmark('rear' + i);
     rt.world.setRainTarget(0);
     // 実際には敦賀に十四〜十六日留まり、十七日に木ノ芽峠を越える。
@@ -3167,6 +3166,8 @@ const tonezaka = {
       if (!F.journey.tick()) return;
       // 道中の空歩きは省き、勝家の手と共に城下の入口へ着く。
       // 11/6 fixc2220（史実）：信長公は府中に陣し、一乗谷へは先手（柴田ら）が入った。馬廻は城下へ連れず、峠の先に残す（城下に信長の名札を出さない）。
+      // 略図の間に生成を終えた旗本も退場させる。
+      toneJourneyRetire(rt, F.journeyRetired || []);
       toneJourneyGroup(rt, F.uma, at(-6, -180), Math.PI + TURN);
       toneJourneyGroup(rt, F.late, at(92, -132), Math.PI / 2 + TURN);
       // 後続の先手（丹羽・羽柴・滝川・佐久間）も一乗谷へ攻め入る。城下を軍勢で押す。
@@ -3559,7 +3560,7 @@ const tonezaka = {
     else if (F.step === 3 && (!fighting(F.r4) || !F.r4.units.some((u) => fighter(u) && !u.invuln)) && near(p, PASS, 14)) {
       // 11/9 二巡（豊臣A）：崩れた詫美の殿の生き残り（討てない詫美越後守を含む）が峠の細い道に残り、峠の先へ一歩も進めず十分止まった（act の流し）。
       //   峠を越える段に入る時、峠から先の道に残る殿の兵は場から下げる（詫美は史実どおり逃げ延びる）
-      if (F.r4) for (const u of F.r4.units) if (u.alive && !u.gone) rt.army.despawn(u);
+      toneJourneyRetire(rt, [F.r4]);
       this.toneDeep(rt, 'Y', '峠を越え、義景の旗を追え', yoshikageSteps(this.kit()), () => this.toIchijodani(rt));
     }
     // 下知どおりの場所で合流して進む。離れたまま時刻だけで達成にしない。

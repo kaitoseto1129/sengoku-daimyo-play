@@ -808,7 +808,8 @@ export class HudOverlay {
     this.hudRects();
     drew = this.drawNearbyTeamSigns(g, rt, this.ovCand) || drew;
     drew = this.drawPassageGuides(g, rt) || drew;
-    const nameSlots = Math.max(0, 3 - 1 - this.notices.picks.length - Number(!!this.battleGoalLabelDrawn) -
+    // 戦ごとに確保した武将名の枠は、目標や使番の知らせで使い切らない。
+    const nameSlots = rt.def.nameTagLimit ?? Math.max(0, 3 - 1 - this.notices.picks.length - Number(!!this.battleGoalLabelDrawn) -
       Number(!!this.prog && !this.prog.hidden) - Number(!$('boss').hidden) -
       Number(!$('target').hidden && !$('target').classList.contains('notice-muted')));
     for (const u of this.ovCand) {
