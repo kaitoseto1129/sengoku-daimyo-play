@@ -84,8 +84,11 @@ function done(rt) {
   if (v.raid) { v.raid.noRout = false; v.raid.morale = 0; }
   if (F.wk) { F.wk.order = 'move'; F.wk.dest = { x: -6, z: -10 }; F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; }; }
   const lost = !F.wk?.units.some(ready);
+  // 運ぶのは人足。護衛を済ませた後に、主人公の手運びをもう一度要求しない。
+  // 人足を失った場合も、砦に積んだ予備材を柵の兵が引き継ぐ。
+  F.woodDelivered = true;
   rt.say(lost ? '前野長康' : '人足', lost
-    ? '人足を失った。柵の兵も普請を手伝え。砦を守るぞ！'
+    ? '人足を失った。柵の兵は砦の予備材で普請を引き継げ。砦を守るぞ！'
     : '材木は砦へ入ったぞ。さあ、柵を結ぶ！', 3);
   if (!lost) rt.award((t) => t.side.push('材木を運ぶ人足を守った'), '材木を運ぶ人足を守った');
   rt.after(3, () => v.then?.());
