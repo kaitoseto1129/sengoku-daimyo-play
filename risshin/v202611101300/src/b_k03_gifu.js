@@ -174,7 +174,8 @@ function gifuWay(army, u, want) {
 const RA = { d: 0, s: 0, x: 0, z: 0 }, RB = { d: 0, s: 0, x: 0, z: 0 };
 function wayNext(p, to, out) {
   routeAt(to.x, to.z, RB); routeAt(p.x, p.z, RA);
-  if (RB.d > 30 || Math.abs(RB.s - RA.s) < 0.6) { out.x = to.x; out.z = to.z; return out; }
+  // 角を挟んだ二点は、道の番号の差が小さくても直結しない（居館の奥の口で塀を横切った）。
+  if (RB.d > 30) { out.x = to.x; out.z = to.z; return out; }
   if (RA.d > 3) { out.x = RA.x; out.z = RA.z; return out; }
   const fwd = RB.s > RA.s;
   let i = fwd ? Math.floor(RA.s) + 1 : Math.ceil(RA.s) - 1;
@@ -665,23 +666,36 @@ const k03_gifu = {
       for (const g of [F.naga, F.asano, F.fuku]) {
         const to = g && g._gfTo;
         if (!to || !live(g)) continue;
-        const c = g.center(), d = dist(c, to);
-        const near = (r) => rt.army.units.some((o) => o.alive && o.team === 1 && fighting(o) && !(o.group && (o.group._fallen || o.group.order === 'retreat')) && (o.pos.x - c.x) ** 2 + (o.pos.z - c.z) ** 2 < r * r);
+        const c = g.center(g._centerProbe), d = dist(c, to);
+        c.y = rt.world.heightAt(c.x, c.z);
+        // 塀の向こう・上の曲輪の兵を接敵と数えると、口の手前で横陣へ戻って道を塞ぐ。
+        // 一度だけ近傍を調べ、三つの間合いの判定に使い回す。
+        let enemyD = Infinity;
+        rt.army.forNear(c.x, c.z, 7, (o) => {
+          if (!o.alive || o.team !== 1 || !fighting(o) || o.group?._fallen || o.group?.order === 'retreat' || Math.abs(o.pos.y - c.y) >= 3) return;
+          const od = dist(o.pos, c);
+          if (od < 7 && od < enemyD && !rt.army.wallBetween(c, -1, o.pos)) enemyD = od;
+        });
+        const near = (r) => enemyD < r;
+        const approachOpen = !rt.army.wallBetween(c, -1, to);
         //   退いていく城方（崩れた段の残り）は数えない（それを「近くの敵」と数え、浅野勢が百曲りの砦の柵の外 x=−107 に⑤の間ずっと止まった）
         // 駆ける間は縦の列（幅 9 の横陣のままでは、居館の奥の口（幅 5m）に詰まった）
         // 斬り合いのまま柵の内に止まった隊（浅野勢が中腹の砦の柵の内 x=−99 で二の丸の段の間ずっと止まった）は、八秒動かなければ列に戻して角を辿らせる
         const L = g._gfLast || (g._gfLast = { x: c.x, z: c.z, t: rt.t });
         if (dist(c, L) > 2) { L.x = c.x; L.z = c.z; L.t = rt.t; }
-        const stuck = !g._gfGo && d > 14 && rt.t - L.t > 8 && !near(3);
+        // 行軍中も監視する。要だけが角の先へ進み、兵が前の口に残った時は実際の列から道を取り直す。
+        const needsMarch = d > 9 || !approachOpen;
+        const stuck = needsMarch && rt.t - L.t > 8 && !near(3);
         if (stuck) L.t = rt.t;
-        if (!g._gfGo && d > 14 && (!near(7) || stuck)) {
-          g._gfGo = true; g._gfForm = [g.formation, g.width]; g.formation = 'column'; g.width = 3;
+        if (needsMarch && ((!g._gfGo && !near(7)) || stuck)) {
+          if (!g._gfGo) g._gfForm = [g.formation, g.width];
+          g._gfGo = true; g.formation = 'column'; g.width = 3;
           // 攻撃の持ち場は次の曲輪にある。そこから逆向きに行軍させず、今いる兵の所から出発する。
           g.anchor.x = c.x; g.anchor.z = c.z;
           g._gfMarchAnchor = g.anchor;
           g.order = 'move'; g.speed = 4.4; g.dest = { x: c.x, z: c.z };
         }
-        if (g._gfGo && (d < 9 || near(5))) { g._gfGo = false; [g.formation, g.width] = g._gfForm; g.speed = 3.8; g.order = 'attack'; g.anchor = { x: to.x, z: to.z }; g.seekRange = to.seek; g.onArrive = null; }
+        if (g._gfGo && (d < 9 && approachOpen || near(5))) { g._gfGo = false; [g.formation, g.width] = g._gfForm; g.speed = 3.8; g.order = 'attack'; g.anchor = { x: to.x, z: to.z }; g.seekRange = to.seek; g.onArrive = null; }
         else if (g._gfGo) {
           // 列の要が角を辿り、各兵は moveWay で追う。先頭の交代で行き先を前後させない。
           // 長引いた段の下知で持ち場が替わっても、接敵までは進んだ所から行軍を保つ。

@@ -5,6 +5,11 @@
 // ======================================================================
 import { allyGroup } from '../bhelp.js';
 
+// 終戦後は、遅れて予約の撤退命令や助けを求める声を出さない。
+function laterSay(rt, delay, who, line, sec) {
+  rt.after(delay, () => { if (!rt.flags.ending && rt.flags.stage === 6) rt.say(who, line, sec); });
+}
+
 export function start(rt, K) {
   const F = rt.flags, P = rt.player.u.pos;
   // 池田の落ち武者（傷を負い、指物を捨てて逃げる）。主人公の少し西から細ヶ根へ
@@ -14,9 +19,9 @@ export function start(rt, K) {
   F.ochi.onArrive = (q) => { q.march = false; q.order = 'hold'; };
   for (const u of F.ochi.units) { u.hp = Math.min(u.hp, u.maxHp * 0.6); u.invuln = false; }
   F.ochiN0 = F.ochi.units.length;
-  rt.after(4, () => rt.say('池田の足軽', 'お助けを……！　足が、もう……', 2.8));
-  rt.after(18, () => rt.say('堀秀政', '細ヶ根で鉄砲を揃えて待つ！　生きておる者を連れて参れ！', 3.2));
-  rt.after(40, () => rt.say('使番', '家康の本隊は追わず、小幡城へ引く様子にござる', 3.2));
+  laterSay(rt, 4, '池田の足軽', 'お助けを……！　足が、もう……', 2.8);
+  laterSay(rt, 18, '堀秀政', '細ヶ根で鉄砲を揃えて待つ！　生きておる者を連れて参れ！', 3.2);
+  laterSay(rt, 40, '使番', '家康の本隊は追わず、小幡城へ引く様子にござる', 3.2);
 }
 // 退き切ったか（主人公が細ヶ根に着き、落ち武者も着くか散るか、時が経った）
 export function done(rt, K, atGoal, el) {
