@@ -4701,13 +4701,8 @@ const echizen_ikko = {
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
-    const F = rt.flags;
+    // 敗走は兵と旗の動きで示す。見出しを止めても、各隊の台詞で同じ知らせを重ねない。
     if (g.team === 1 && !g.civ && sightPoint(rt, g.anchor)) battleEvent(rt, EVENT_UNIT_BREAK, g.anchor, g, 1, false, '寺の守りが崩れ、山の上へ退く');
-    if (g.team !== 1 || g.civ || !sightPoint(rt, g.anchor) || !g.name || rt.t - (F.routSaidT ?? -99) < 8) return;
-    // 同じ隊が立て直してはまた崩れる。名は一度だけ言う（見回り 10/2：同じ台詞が十数回）
-    F.routSaid = F.routSaid || {}; if (F.routSaid[g.name]) return; F.routSaid[g.name] = 1;
-    F.routSaidT = rt.t;
-    templeSay(rt, '足軽', `${String(g.name).replace(/（[^）]*）/g, '')}が崩れたがや。山へ逃げてくわ`, 2.5);
   },
 };
 

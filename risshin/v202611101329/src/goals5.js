@@ -73,8 +73,6 @@ function hurtGoal() {
 const SEC = {};
 const withSec = (g) => (SEC[g.kind] && !g.sec ? { ...g, sec: SEC[g.kind] } : g);
 const flag = (k) => (rt) => !!rt.flags?.[k];
-const INO_SEQ = ['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'];
-const inoDone = (rt, k) => { const F = rt.flags || {}; return !!F.ending || INO_SEQ.indexOf(F.ph) > INO_SEQ.indexOf(k) && !(k === 'hayashi' && F.ph === 'join'); };
 
 // 稲生（B 節）：先手 → 弓組 → 二の備 → 美作守 → 時のうち。崩す備は倒した数を出す
 const OWN = {
@@ -83,7 +81,7 @@ const OWN = {
   anegawa: () => (STAGES.anegawa || []).map((s, k) => stageGoal(k, s[0])),
   inou: () => [
     // 11/10 docs/ino_spec_1109.md：右上は今の段の一行だけ。済みは段が進んだ時
-    ...['march', 'scout', 'van', 'hayashi', 'shibata', 'retreat', 'push'].map((k, i) => ({ kind: 'stage', k: i, text: IG.INO_GOALS[k], check: (rt) => inoDone(rt, k) })),
+    ...IG.INO_STEPS.map((k, i) => ({ kind: 'stage', k: i, text: IG.INO_GOALS[k], check: (rt) => !!rt.flags.result || IG.inouStep(rt) > i })),
   ].map((g) => ({ ...g, sec: 1e6 })),
   // 森部（11/3 p100_moribe・docs/battle_refs/moribe.md）：楡俣川を渡る → 北岸で先手 → 森部の野で両将の槍列 → 両将の一人を自分で討つ → 墨俣への道で殿。
   //   どれも場所と行い。敵を何人討つ・「崩す」は使わない（標準 三-1・11/4 moribe）

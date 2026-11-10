@@ -10,14 +10,12 @@ const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 const ph = (...names) => (rt) => names.includes(rt.phase);
 const dp = (...names) => (rt) => names.includes(rt.flags.dp?.cur?.s?.phase);
 const f = (k) => (rt) => !!rt.flags[k];
-const INO_ORDER = ['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'];
-const inoPast = (rt, k) => { const F = rt.flags; return (F.inoSeen ||= new Set()).add(F.ph) && [...F.inoSeen].some((p) => INO_ORDER.indexOf(p) >= INO_ORDER.indexOf(k)); };
 
 export const STAGES = {
   // 稲生（kaito 11/1 B 節）：練習 → 先手を崩す → 二の備を退ける → 林美作守を討つ。三つ目の欄は右上の「目標」の札に並べる目標（[字, 済んだか]）
   inou: [
     // 11/10 docs/ino_spec_1109.md：名を呼ばれない足軽。段は右上の一行と同じ字（b_inou_goals.js の INO_GOALS）
-    ...['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'].map((k, i) => [IG.INO_GOALS[k], i ? (rt) => inoPast(rt, k) : null]),
+    ...IG.INO_STEPS.map((k, i) => [IG.INO_GOALS[k], i ? (rt) => IG.inouStep(rt) >= i : null]),
   ],
   // kaito 11/2 T：義元を探せ → 本陣に迫れ → 義元を討て の三段（幕と大きな旗印は本陣の一か所だけ）
   // 11/3：段の名は場所と行いで言う（AQ1・AR1）。中島砦の先の谷 → 桶狭間山の坂道 → 今川本陣の幕

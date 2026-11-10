@@ -2288,7 +2288,7 @@ const iga = {
     for (const g of F.raidPatrols) if (!g.ambush) retireRaid(rt, [g]);
     rt.setPhase('gate');
     applyLook(rt, DAWN); rt.world.lookDark = false;
-    rt.world.setTime('morning');
+    // applyLook が朝の時計も設定する。再設定すると伊賀用の空と霧が共通色に戻る。
     rt.army.playFar('sig_susume', CAMP, 1);
     rt.banner('着陣の夜が明けた', '南の土橋へ攻め上れ');
     const advance = rt.obj('main', HI(rt) ? '南の土橋で、組を率いて城から出る伊賀衆を止める' : '南の土橋で、味方とともに城から出る伊賀衆を止める', 'main');
@@ -2418,7 +2418,7 @@ const iga = {
     // 夜の退去を確かめてから、木戸と曲輪を調べる。
     // 遠景の兵は尾根の先へ歩かせたまま残す。
     rt.setPhase('inside');
-    applyLook(rt, DAWN); rt.world.lookDark = false; rt.world.setTime('morning');
+    applyLook(rt, DAWN); rt.world.lookDark = false;
     // 既に破れた扉を、退去後に新品の開いた扉へ戻さない。
     if (F.gate.alive) F.gate.mesh.userData.open();
     F.gate.alive = false; F.gate.noTarget = true;
@@ -3154,7 +3154,8 @@ function igaAdvance(g, at, guardCamp = false) {
 function igaHold(o) {
   return {
     // 列で待つのは任務。共通の放置対策で味方を進撃させず、下の守備判定で終える。
-    kind: 'hold', max: Infinity, idleAdvance: false,
+    kind: 'hold', max: Infinity, idleAdvance: false, noHardCap: true,
+    // 本人の守備と敵の到着は下で判定する。共通の四分・七分の救済で済みにしない。
     start(rt, C) {
       C.at = o.at; C.goal = o.at; C.inT = 0; C.outT = 0; C.botRadius = o.r;
       C.waves = o.waves.slice(); C.nextWaveAt = 0; C.lastWaveT = 0; C.lastContactT = 0;

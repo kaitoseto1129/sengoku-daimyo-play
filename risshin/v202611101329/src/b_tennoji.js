@@ -3919,11 +3919,11 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       rt.objProgress('main', F.pressure > 0 ? `！${gateDirection(rt, GATE_REAR)} 門内の敵を払え。あと${Math.max(0, Math.ceil(GATE_HOLD_SECONDS - F.pressure))}秒で門を奪われる`
         : threat > 0 ? rt.G.lord ? '先手と南門へ。敵を押し返せ'
           : !insideGate(p) ? `${gateDirection(rt, GATE_REAR)} 門内の味方へ戻り、敵を迎え撃て`
-          : reliefDistance > 20 ? `救援は門まで約${reliefDistance}歩。門内で迎え撃て`
+          : reliefDistance > 20 ? `救援は門まで約${reliefDistance}m。門内で迎え撃て`
           : '救援が門前へ。門内の敵を味方と押し返せ'
         : F.secured > 0 ? `門前を守る あと${Math.max(0, Math.ceil(8 - F.secured))}秒`
         : rt.G.lord ? `南の門へ進め。門前の味方 ${reliefNear}／${need}人`
-        : reliefDistance > 20 ? insideGate(p) ? `救援まで約${reliefDistance}歩` : `${gateDirection(rt, GATE_REAR)} 南の門内へ戻れ。救援が来る`
+        : reliefDistance > 20 ? insideGate(p) ? `救援まで約${reliefDistance}m` : `${gateDirection(rt, GATE_REAR)} 南の門内へ戻れ。救援が来る`
           : `${gateDirection(rt, GATE_REAR)} 門内を守れ。門前の後詰 ${reliefNear}／${need}人`);
       if (F.secured >= 8) this.inFort(rt);
       else if (elapsed >= 180) this.fail(rt, '後詰が砦へ入れなかった。味方と南へ退け');
@@ -3980,7 +3980,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         march(F.ake, [[-5, T_GATE.z - 9]], 'hold', 0);
       }
       const ready = nobuIn && inside >= 6;
-      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}歩` : !nobuIn ? reliefDistance > 10 ? `南門内で待て。信長は門まで約${reliefDistance}歩` : '南門内で待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方が揃った。門内で合流せよ' : akeWounded ? '明智光秀が深手。南門内で味方と構えよ' : !akeIn ? `南門内で明智勢を待て。集合 ${akeNear}／${Math.min(3, akeLive)}人${akeCommanderIn ? '' : '。列の頭を待て'}` : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
+      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}m` : !nobuIn ? reliefDistance > 10 ? `南門内で待て。信長は門まで約${reliefDistance}m` : '南門内で待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方が揃った。門内で合流せよ' : akeWounded ? '明智光秀が深手。南門内で味方と構えよ' : !akeIn ? `南門内で明智勢を待て。集合 ${akeNear}／${Math.min(3, akeLive)}人${akeCommanderIn ? '' : '。列の頭を待て'}` : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
       if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
       else if (joined && akeIn && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);
     } else if (F.step === 3) {
@@ -3992,7 +3992,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       const way = sortieWaypoint(rt);
       // 柵越しに敵が見えても、先に南門と東の角へ導く。
       rt.objProgress('main', way ? `${gateDirection(rt, way)} ${way === SORTIE_EXIT ? '南門を出て土橋を渡れ' : way === SORTIE_NORTH ? '逆茂木を避け、堀の外を北へ' : '東の印へ。堀の外を回れ'}`
-        : seen ? `${gateDirection(rt, seen.anchor)} 敵の旗まで約${Math.ceil(Math.hypot(seen.anchor.x - p.x, seen.anchor.z - p.z) / 5) * 5}歩。味方と進め`
+        : seen ? `${gateDirection(rt, seen.anchor)} 敵の旗まで約${Math.ceil(Math.hypot(seen.anchor.x - p.x, seen.anchor.z - p.z) / 5) * 5}m。味方と進め`
           : '砦の東を北へ進め。味方と敵を押し返せ');
       // 味方が先に囲みを崩しても、砦に残る本人の任務を勝手に果たさない。
       // 敵を探し直す必要はなく、東の堀を回って戦場へ着き、構えて列に加わればよい。
@@ -4056,7 +4056,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       threat = remaining && !escaped ? Math.max(1, threat) : threat;
       F.secured = canSecure && F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
       rt.objProgress('main', !F.kidoCut && F.oiTail && !spent(F.oiTail) ? '北の道を塞ぐ殿を、味方と払え'
-        : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな'
+        : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}m。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな'
           : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。城戸口で構えよ`
             : !F.kidoHelp ? '城戸口の手前で味方と構え、木戸を押さえよ' : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);

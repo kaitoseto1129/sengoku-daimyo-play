@@ -2852,6 +2852,7 @@ const kizugawa = {
     // 11/6 fixc0823：行き先の名は▼の立つ場所の名（④は西の大筒・⑤は守る乗り口。甲板の上に「木津浦 10m」と出ていた）
     // 共通の行き先表示にも、今ピンが立つ物の名を渡す。目標の本文は替えない。
     get noun() {
+      if (k === 0 && rt?.flags.step === 0 && rt.flags.kzOpen?.bowAsked && !rt.flags.kzOpen.atBow && !rt.flags.kzOpen.done) return '舳先';
       return k === 1 ? (rt?.flags.water ? '甲板の火' : '水桶') : k === 4 ?
         (rt?.flags.step === 6 && !rt.flags.kzYoin ? '西の大筒' : '甲板の乗り口') :
         k === 2 ? '南と西の乗り口' : '西の大筒';
