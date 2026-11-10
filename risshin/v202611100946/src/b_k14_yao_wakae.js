@@ -196,7 +196,21 @@ const k14_yao_wakae = {
     }
     const g = F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && (F.fuseG?.ambush || live(F.fuseG)) ? F.fuseG : F.stepG;
     const at = g === F.fuseG ? FUSE : STEP_AT[F.step];
-    let p = live(g) && dist(g.center(), at) < 40 ? g.center() : at;
+    let p = at;
+    // 交戦で持ち場から離れても、残る敵を案内する。隊の重心は敗走兵や
+    // 後送される兵に引かれ、元の場所へ戻すと無人の田で足止めになる。
+    // 既に必要な人数を退けた隊は追わせず、持ち場への到着を待つ。
+    const remaining = aliveN(g);
+    const keep = F.step === 1 ? Math.floor(g.units.length * KEEP)
+      : g.units.length - Math.round(g.units.length * (1 - KEEP));
+    if (!g.ambush && remaining > keep) {
+      let nearest = Infinity;
+      const pos = rt.player.u.pos;
+      for (const u of g.units) if (standing(u)) {
+        const dx = u.pos.x - pos.x, dz = u.pos.z - pos.z, d = dx * dx + dz * dz;
+        if (d < nearest) { nearest = d; p = u.pos; }
+      }
+    }
     // 横の備が崩れた後は、立ち上がった伏せ槍も退けるまで案内する。
     // 伏兵が立った瞬間に、空になった横の備へ印を戻さない。
     // 横の備が退いても、堤の伏せ槍を見届けるまでは八尾を離れない。
@@ -211,11 +225,8 @@ const k14_yao_wakae = {
   },
   // 右上の小さな地図の赤いひし形：今の目標の隊の居場所
   mapMarks(rt) {
-    const F = rt.flags;
-    if (F.step === 1 && aliveN(F.stepG) <= Math.floor(F.stepG.units.length * KEEP) && (F.fuseG?.ambush || live(F.fuseG))) return [this.missionPin(rt)];
-    if (F.step === 4 && F.kimuraU?.alive) return [F.kimuraU.pos];
-    if (F.step && live(F.stepG)) return [F.stepG.center()];
-    return null;
+    const pin = this.missionPin(rt);
+    return pin ? [pin] : null;
   },
   sides: { a: { name: '徳川方', mon: 'ii' }, b: { name: '大坂方', mon: 'toyotomi' } },
   // 戦の前と後の会話（docs/chapter3_tokugawa.md の 14）。戦の中の台詞として出す

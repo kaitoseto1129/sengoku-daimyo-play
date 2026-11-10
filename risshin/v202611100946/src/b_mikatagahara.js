@@ -1270,6 +1270,13 @@ const mikatagahara = {
     const q = F.mkPin || (F.mkPin = { x: 0, z: 0, r: 5, hide: 5 });
     const me = rt.player.u.pos, post = mikataPost(rt);
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false;
+    // 上様へ戻る下知と印をそろえる。城と上様に別々の印を出さない。
+    const chief = F.campA?.general;
+    if (F.step >= 3 && F.ieFar && chief?.alive && !(F.dpOn && F.dpR)) {
+      q.x = chief.pos.x; q.z = chief.pos.z; q.unit = chief;
+      q.r = q.hide = 5;
+      return q;
+    }
     if (!post) {
       const p = F.step >= 3 && !(F.dpOn && F.dpR) ? F.retreatPoint : F.dp?.cur?.at || F.mkSubAt || SOUTH_SLOPE;
       if (!p) return null;
@@ -1349,7 +1356,7 @@ const mikatagahara = {
     if (F.step !== 3 && F.dpOn && F.dpB) return F.mkSub === 'escort' ? '上様と浜松城へ'
       : F.mkSub === 'go' || F.mkSub === 'honjin' ? '家康の本陣へ' : '第二線へ';
     if (this.distanceText(rt, rt.missionGuide?.distance || 0) === '持ち場で構えよ') return 'この持ち場で構えよ';
-    return F.step === 3 ? RETREAT_LABELS[F.retreatIdx] :
+    return F.step === 3 ? F.ieFar ? '上様のそばへ' : RETREAT_LABELS[F.retreatIdx] :
       F.dpOn ? rt.missionGuide?.label || '南の坂の持ち場へ' :
       F.step === 2 ? F.mkFlank ? '味方と森の陰へ' : '右の森の際へ' : '平手の槍の持ち場へ';
   },
@@ -2473,7 +2480,8 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     F.retreatPoint = { x: 10, z: 60 }; F.retreatIdx = RETREAT_ROAD.length - 1;
     F.retreatPoint.x = RETREAT_ROAD[F.retreatIdx][0]; F.retreatPoint.z = RETREAT_ROAD[F.retreatIdx][1];
     rt.army.mikataRetreatGoal = F.retreatPoint;
-    rt.marker('hama', () => F.retreatPoint, () => RETREAT_LABELS[F.retreatIdx], { h: 3, guideAlways: true });
+    rt.marker('hama', () => F.ieFar && F.campA?.general?.alive ? F.campA.general.pos : F.retreatPoint,
+      () => F.ieFar ? '上様' : RETREAT_LABELS[F.retreatIdx], { h: 3, guideAlways: true });
     rt.zone('hama', HAMA.x, HAMA.z, 10);
     if (F.dpBT === undefined) fadeMikataLook(rt, MIKATA_NIGHT); // 坂の殿の段で夜へ移り始めている時は重ねない
     retreatDistant(rt);
@@ -2570,8 +2578,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     const far = Math.hypot(c.x - p.x, c.z - p.z) > 30;
     if (far !== !!F.ieFar) {
       F.ieFar = far;
-      if (far) { rt.marker('ieyasu', () => (chief.alive ? { x: chief.pos.x, z: chief.pos.z } : null), '上様', { h: 3, guideAlways: true }); rt.objProgress('main', '上様のそばへ戻れ'); }
-      else rt.unmark('ieyasu');
+      if (far) rt.objProgress('main', '上様のそばへ戻れ');
     }
     if (rt.t < (F.ieScanT || 0)) return;
     F.ieScanT = rt.t + 0.5;

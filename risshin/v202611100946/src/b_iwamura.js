@@ -164,8 +164,6 @@ const MOUTH_LINK = [[0, FENCE_Z + 3], [0, 14], [52, 14], [66, 12]];
 const MOUTH_BACK = MOUTH_LINK.slice().reverse();
 // 11/6：柵の内へ入った夜討ちの者が崩れると、城の向き（-z）へまっすぐ逃げて柵の角に詰まっていた（北の脇口の角 55,-5）。
 //   逃げる者も近い方の口を通って山道へ出る。柵の外にいる者は口の内へ戻さず、外の一点から始める。
-const FLEE_FRONT = [[0, FENCE_Z + 4], [0, -24], [0, -140]];
-const FLEE_EAST = [[66, 4], [66, -26], [66, -140]];
 const RETURN_PATHS = RAID_PATHS.map((path, i) => {
   const back = path.slice().reverse();
   back.push([path[0][0], -132 - i * 8]);
@@ -174,6 +172,9 @@ const RETURN_PATHS = RAID_PATHS.map((path, i) => {
 // 追撃も地形をならした九十九折りを通る。兵と自動操作で同じ道を使う。
 const CHASE_PATH = [[0, FENCE_Z + 3], ...switchback([0, FENCE_Z], [0, FOOT.z], 3, 20)];
 const CHASE_EAST_PATH = [...MOUTH_BACK, ...CHASE_PATH.slice(1)];
+// 敗走兵も麓から城の道へ戻す。直進する退路は九十九折りの切岸を横切り、山腹で立ち往生していた。
+const FLEE_FRONT = [[0, FENCE_Z + 4], ...CHASE_PATH.slice(2), ...IWA_ROAD];
+const FLEE_EAST = [[66, 4], [66, -26], [40, -22], [14, -14], ...CHASE_PATH.slice(2), ...IWA_ROAD];
 // 手当てに退く時も同じ山道を戻る。麓から陣へ直進すると切岸へ迷い込む。
 const REST_PATH = [...CHASE_PATH].reverse().concat([[0, 14], [4, 32]]);
 const REST_EAST_PATH = [...CHASE_EAST_PATH].reverse().concat([[52, 14], [4, 14], [4, 32]]);
@@ -2281,8 +2282,26 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     KIT.backTick(rt);
     for (const g of F.waves || []) {
       let east = 0, n = 0;
-      for (const u of g.units) if (u.alive && u.fleeing) { n++; if (u.pos.x > 33) east++; if (u.fleePathIdx == null && u.pos.z < FENCE_Z - 1) u.fleePathIdx = 1; }
-      if (n) g.fleePath = east * 2 > n ? FLEE_EAST : FLEE_FRONT;
+      for (const u of g.units) if (u.alive && u.fleeing) { n++; if (u.pos.x > 33) east++; }
+      // 人数の偏りで道を切り替えると、同じ折れ番号が別の山腹を指す。最初に選んだ口を保つ。
+      if (n && !g.iwFleePath) g.iwFleePath = east * 2 > n ? FLEE_EAST : FLEE_FRONT;
+      if (n) {
+        g.fleePath = g.iwFleePath;
+        for (const u of g.units) if (u.alive && u.fleeing && u.iwFleePath !== g.fleePath) {
+          u.iwFleePath = g.fleePath;
+          // 既に山道へ出た兵を口へ戻さず、今いる道の次の折れから歩かせる。
+          let nearest = Infinity;
+          for (let i = 1; i < g.fleePath.length; i++) {
+            const a = g.fleePath[i - 1], b = g.fleePath[i], dx = b[0] - a[0], dz = b[1] - a[1];
+            const t = Math.max(0, Math.min(1, ((u.pos.x - a[0]) * dx + (u.pos.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+            const d = Math.hypot(u.pos.x - a[0] - dx * t, u.pos.z - a[1] - dz * t);
+            if (d > nearest) continue;
+            nearest = d;
+            u.fleePathIdx = i;
+          }
+          if (u.pos.z >= FENCE_Z - 1) u.fleePathIdx = 0;
+        }
+      }
     }
     // 置換した備も持ち場の槍の列に留める。追撃の下知を受けた二手へ勝手に加わらせない。
     for (const g of rt.army.groups) if (g.woke?.jinkeiGuard && !g.iwGuard) {

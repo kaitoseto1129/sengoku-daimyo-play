@@ -1707,7 +1707,8 @@ const miki = {
       spearAt: () => this.spearAt(F.guard),
       spearMark: (r) => r.marker('road', () => this.spearAt(F.guard), '西の槍組', { guideAlways: true }),
       // 城の二度目の出撃（miki/deshiro.js）
-      castle: MIKI, gate: GATE, store: { x: HIRATA.x, z: HIRATA.z + 4 }, sallyFrom: { x: 24, z: -14 }, sallyPath: SALLY_PATH, bessho: BESSHO, gone, flee: (g) => flee(g, 1, 0.4),
+      // 俵の運び手が荷を下ろす蔵前を指す。六歩奥の建物寄りへ呼び込まない。
+      castle: MIKI, gate: GATE, store: { x: HIRATA.x, z: HIRATA.z + 10 }, sallyFrom: { x: 24, z: -14 }, sallyPath: SALLY_PATH, bessho: BESSHO, gone, flee: (g) => flee(g, 1, 0.4),
       rally: () => {
         // 大村への古い曲がり角を、平田へ戻る案内へ持ち越さない。
         F.routeAt = null; F.joinGroup = null; F.withdrawGuide = false; F.roadTurn = -1;

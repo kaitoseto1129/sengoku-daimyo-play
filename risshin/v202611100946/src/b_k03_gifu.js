@@ -706,14 +706,6 @@ const k03_gifu = {
     const g = F.stepG;
     if (!F.stepN || F.stepNg !== g) { F.stepNg = g; F.stepN = g.units.length; }
     const gone = F.stepN - holdN(g);
-    // 刻限を過ぎた：負けにはせず、味方の隊が段の守りを押し包む（物差し二-5・十二-3）
-    if (left <= 0 && F.pushed !== F.step) {
-      F.pushed = F.step;
-      const c = live(g) ? g.center() : STEP_AT[F.step];
-      // 福島勢は⑤まで南の門下で待つ。長引いても百曲り側の守りへ引き戻さない。
-      for (const a of [F.naga, F.asano, F.step === 5 ? F.fuku : null]) if (live(a)) { a.order = 'attack'; a.anchor = { x: c.x, z: c.z }; a.seekRange = 34; a.dmgMult = 1.2; }
-      rt.say('池田長吉', '者ども、押し包め！　福島勢に後れを取るな', 3);
-    }
     // どの段も本人がその場所へ来てから果たす。城下で待つだけで①〜④に印が付くのも防ぐ。
     // 11/9 二巡（徳川D）：本丸の門の前は旗本と味方で塞がり、十四歩の内へ入れず十分止まった（bot）。
     //   刻限を一分半過ぎたら門の三十歩の内で、押し包んだ味方の手で門が開く。
@@ -727,7 +719,17 @@ const k03_gifu = {
       : F.step === 4 ? P.pos.x >= -70 && P.pos.z > -10 && P.pos.z < 8
       : P.pos.x >= -26 && Math.abs(P.pos.z) < 7;
     const atGate = gateApproach && dist(P.pos, STEP_AT[F.step]) < (F.step === 5 ? (left <= -90 ? 30 : 14) : left <= -90 ? 40 : 24);   // 11/9 見回り 徳川D：④で敵を追って二の丸の櫓門より三十歩奥（上台所の側）へ出たまま十七分止まった
-    if (!F.next && atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90)) {
+    const cleared = atGate && (gone >= Math.round(F.stepN * (1 - KEEP)) || left <= -90);
+    // 突破済みなら追加の攻撃命令を出さない。降伏二秒前の「押し包め」が秀信の声に重なるのを防ぐ。
+    // 刻限を過ぎた：負けにはせず、味方の隊が段の守りを押し包む（物差し二-5・十二-3）
+    if (!F.next && !cleared && left <= 0 && F.pushed !== F.step) {
+      F.pushed = F.step;
+      const c = live(g) ? g.center() : STEP_AT[F.step];
+      // 福島勢は⑤まで南の門下で待つ。長引いても百曲り側の守りへ引き戻さない。
+      for (const a of [F.naga, F.asano, F.step === 5 ? F.fuku : null]) if (live(a)) { a.order = 'attack'; a.anchor = { x: c.x, z: c.z }; a.seekRange = 34; a.dmgMult = 1.2; }
+      rt.say('池田長吉', '者ども、押し包め！　福島勢に後れを取るな', 3);
+    }
+    if (!F.next && cleared) {
       F.next = true;
       this.fall(rt, g);
       if (F.step === 3) this.fall(rt, F.amb);
