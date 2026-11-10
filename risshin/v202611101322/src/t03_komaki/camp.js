@@ -117,9 +117,10 @@ export function tickCamp(rt, K) {
     F.campAt = rt.t;
     rt.award((t) => t.side.push('楽田から二重堀の砦まで陣立てを見て回った'), '二重堀の砦に着いた');
     rt.say('日根野弘就', 'よう参った。あれが小牧山。堀を穿ち、土塁を盛り、柵を三重に結うておる', 3.6);
-    rt.after(4, () => rt.say('稲葉一鉄', '徳川殿は動かぬ。こちらも動かぬ。根比べよ', 3));
-    rt.after(8, () => rt.say('物見', '堀の前の田に、徳川の鉄砲が出て参りまする！', 3));
-    rt.after(10.5, () => K.next());
+    say(rt, '稲葉一鉄', '徳川殿は動かぬ。こちらも動かぬ。根比べよ', 4, 3);
+    // 次は鉄砲二列への出撃ではなく、夜討ちの先手から木戸を守る段。
+    say(rt, '物見', '小牧山の篝火が動いた。徳川の先手が田へ出て来るぞ！', 8, 3);
+    rt.after(10.5, () => { if (!F.ending && !F.transitioning && F.stage === 1) K.next(); });
   }
 }
 export function towerAt(rt, K) { return rt.flags.fortTower?.foot || { x: K.FORT.x + 22, z: K.GATE.z - 14 }; }

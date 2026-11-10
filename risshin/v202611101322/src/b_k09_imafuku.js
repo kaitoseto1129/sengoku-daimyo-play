@@ -651,17 +651,24 @@ const k09_imafuku = {
         for (const u of b.us) if (u.perch) { u.perch.x -= dt * 2.6; u.pos.x = u.perch.x; u.mesh.position.x = u.pos.x; }
       }
     }
-    // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙って撃つ（七〜十一秒に一発）
+    // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙い、弾込めを挟んで撃つ。
     // 又兵衛の「退きながら撃て」の下知どおり、西へ漕ぎ戻る間も射程内では撃つ。
     if (F.boats && !F.ending) for (const bt of F.boats) for (const u of bt.us) {
       // 舟の専用射撃も、倒れた兵・重傷で離脱した兵・敗走中の兵には行わせない。
       // fireGun は生死だけを確かめるため、ここで戦える状態を確かめる。
+      u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt;
       if (!u.alive || u.gone || u.dying || u.woundOut || u.downed || u.rearWound || u.fleeing ||
-        (u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt) > 0) continue;
+        u.reload || u.atk ||
+        u.k09Shot > 0) continue;
       u.k09Shot = 7 + Math.random() * 4;
       const t = rt.army.nearestEnemy(u, 55, (o) => !o.isStruct && !o.gone && !o.fleeing &&
         !o.dying && !o.woundOut && !o.downed && !o.rearWound && Math.abs(o.pos.z) < WADE);
-      if (t) { u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z); rt.army.fireGun(u, t); }
+      if (t) {
+        u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
+        rt.army.fireGun(u, t);
+        // 共通の射撃と同じく、不発でも弾込めを挟む。弾込め中・照準中に専用処理で重ねて撃たせない。
+        rt.army.startReload(u);
+      }
     }
     if (F.ending) return;
     // 共通の「右の目標を全部果たしたら締める」は、③が済んで④の札が出るまでの合間に、済んだ③だけを見て勝ちにしていた

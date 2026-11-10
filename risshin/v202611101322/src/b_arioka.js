@@ -1447,6 +1447,8 @@ html:root body #hud#hud#hud.arioka-goals #h-prog#h-prog.goal-mode .pg-goals li s
 html:root body #hud#hud#hud.arioka-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#ff8a78 !important; }
 html:root body #hud#hud#hud.arioka-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.arioka-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }
+/* 官兵衛を迎える間も操作と任務は続く。共通の終幕用の非表示で五目標を消さない。 */
+html:root body:not(:has(#pause:not([hidden]))) #hud#hud#hud.arioka-goals.arioka-kanbe.ending:not(.photo):not(:has(#bigmap:not([hidden]))) #h-prog#h-prog.goal-mode { visibility:visible !important; }
 html:root body:not(:has(#pause:not([hidden]))) #hud#hud#hud.arioka-goals.arioka-kanbe.ending:not(.photo) #goal-sign:not([hidden]) { display:block !important; }`;
 function ariGoalBoard(rt) {
   const hud = rt.hud;
