@@ -3575,7 +3575,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
         localSay(rt, mor, '毛利新介', F.hattoriWounded ? '小平太、下がれ！　義元へは、この新介がかかる！' : '毛利新介、参る！　この囲みを抜くぞ！', 4);
     }
     // 服部が義元に会う前に手傷で退いた時は、毛利だけで討つ（服部の接触を待ち続けない）。
-    const hattoriDone = F.hattoriMet || !hat || !hat.alive || hat.woundOut || longDown;
+    const hattoriDone = F.hattoriMet || !hat || !hat.alive || hat.woundOut;
     // 主人公が幕の外にいる間に、毛利だけで討取りを済ませない。
     // 視点は動かさず、本人が十二歩まで迫り、幕や丘に遮られない所で見せ場を迎える。
     // 描画で隠した姿やカメラの向きは、戦の決着の条件にしない。
