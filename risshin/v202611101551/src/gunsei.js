@@ -328,6 +328,8 @@ class Gunsei {
 
   // ---- 追撃（16 章）：敵の備の過半が潰走したら追う。60m を越えて追うと伏兵・反撃のくじ。40 秒で止めて集める ----
   _pursuit() {
+    // 囲むだけの城攻め（太田城の水攻めなど）は、城の備が崩れても囲みの備を追わせない（def.noPursuit）
+    if (this.rt.def?.noPursuit) return;
     const rt = this.rt, enemyTeam = this.team === 0 ? 1 : 0;
     let lineN = 0, routedN = 0;
     for (const s of rt.sonae || []) {

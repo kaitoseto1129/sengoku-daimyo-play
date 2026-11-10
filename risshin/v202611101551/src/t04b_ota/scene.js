@@ -53,20 +53,17 @@ export function build(rt) {
   F.flags = [[10, 12], [-14, 14], [14, -18], [-14, -18]].map(([x, z]) => { const n = nobori(W, x, z, 'maru'); rt.scene.add(n); return n; });
   for (let x = -40; x <= -28; x += 3) rt.scene.add(tawara(W, x, P.pile.z));
   // 堰（板の水門）と水（城の周りに溜まる）
-  F.weir = new THREE.Mesh(new THREE.BoxGeometry(1, 2.3, 6), new THREE.MeshLambertMaterial({ color: 0x483727 }));
-  F.weir.position.set(P.weir.x, W.heightAt(P.weir.x, P.weir.z) + 1, P.weir.z); F.weir.rotation.y = Math.PI / 4; rt.scene.add(F.weir);
+  // 11/10 関所1：堤の斜面の上で板の水門の下が浮き、遠くから宙の箱に見えた。下を地へ一歩沈める
+  F.weir = new THREE.Mesh(new THREE.BoxGeometry(1, 3.3, 6), new THREE.MeshLambertMaterial({ color: 0x483727 }));
+  F.weir.position.set(P.weir.x, W.heightAt(P.weir.x, P.weir.z) + 0.75, P.weir.z); F.weir.rotation.y = Math.PI / 4; rt.scene.add(F.weir);
   F.weirSolid = solidRect(P.weir.x, P.weir.z, 1, 6, Math.PI / 4);
   const mat = rippleWater(liteMat({ color: 0x384b40, roughness: 0.2 }), 0.4, 0.8, 2, W.hemi?.color, false, null, null, false, true);
   F.water = new THREE.Mesh(new THREE.CircleGeometry(60, 64), mat);
   F.water.rotation.x = -Math.PI / 2; F.water.position.y = -1; rt.scene.add(F.water);
   F.waterY = -1; F.waterTo = -1;
-  // 築く堤（盛り土）：段が進むと高くなる
-  // 11/10 関所1：箱の盛り土は縁が斜面から浮いた平たい板に見えた。裾の広い台形の土盛りにし、裾は地面へ埋める。
-  const mg = new THREE.BoxGeometry(16, 1, 5, 8, 1, 2), uv = mg.attributes.uv;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 4, uv.getY(i) * 1.5);
-  F.mound = new THREE.Mesh(mg, new THREE.MeshLambertMaterial({ color: 0xa39178, map: dirtTex() }));
-  F.mound.position.set(P.work.x, W.heightAt(P.work.x, P.work.z), P.work.z); F.mound.rotation.y = Math.atan2(P.work.x, P.work.z) + Math.PI / 2;
-  rt.scene.add(F.mound); shapeMound(F.mound, 0.2, W);
+  // 築く堤（盛り土）：段が進むと高くなる。11/10 関所1：平たい箱が尾根の上に浮き、人と馬が箱に埋まった。
+  //   地面に沿う盛り土の形（中ほどが高く、縁と両端はなだらかに地へ落ちる）に替え、上に立てるようにした。
+  F.mound = moundMesh(rt); rt.scene.add(F.mound); setMound(F, 0);
   F.posts = sentries(rt, '城の塀の鉄砲衆', [{ x: -13, z: -24 }, { x: -7, z: -24 }, { x: 7, z: -24 }, { x: 13, z: -24 }], 0.04);
   F.friends = troops(rt, true, '築堤の護衛', { x: -30, z: -96 }, [{ type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }, { type: 'busho', n: 1, o: { name: '羽柴秀長', horse: true } }], HASHIBA);
   F.friends.stay = true;
@@ -75,23 +72,58 @@ export function build(rt) {
   addSite(rt, 'fort', P.weir.x, P.weir.z, '出水の堰');
   addSite(rt, 'fort', P.breach.x, P.breach.z, '東の堤');
 }
+// 盛り土の形：P.work を背に、堤の輪に沿って長さ十六・幅十。高さは setMound で（最大 1.2）。
+//   11/10 関所1：盛り土に人と馬が埋まった。地面の高さ（W.heightAt）にも同じ盛りを足し、上に立てるようにする（有岡・比叡山と同じ差し替え）。
+const MOUND = { len: 16, half: 5, nx: 17, nz: 11, max: 1.2 };
+const MD = (() => { const d = Math.hypot(P.work.x, P.work.z), rx = P.work.x / d, rz = P.work.z / d; return { rx, rz, tx: -rz, tz: rx, cx: P.work.x, cz: P.work.z }; })();
+// 盛りの形（0〜1）：横切る向きは cos² で縁へ、両端の三歩はなだらかに
+function moundShape(along, across) {
+  const ka = Math.cos(Math.PI / 2 * Math.min(1, Math.abs(across) / MOUND.half)) ** 2;
+  const kb = Math.max(0, Math.min(1, (MOUND.len / 2 - Math.abs(along)) / 3));
+  return ka * kb * kb * (3 - 2 * kb);
+}
+function moundMesh(rt) {
+  const W = rt.world, F = rt.flags;
+  const geo = new THREE.PlaneGeometry(1, 1, MOUND.nx - 1, MOUND.nz - 1);
+  const pos = geo.attributes.position, base = new Float32Array(pos.count), bump = new Float32Array(pos.count);
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 4, uv.getY(i) * 2.5);
+  for (let i = 0; i < pos.count; i++) {
+    const along = pos.getX(i) * MOUND.len, across = pos.getY(i) * MOUND.half * 2;
+    const x = MD.cx + MD.tx * along + MD.rx * across, z = MD.cz + MD.tz * along + MD.rz * across;
+    pos.setXYZ(i, x, 0, z);
+    bump[i] = moundShape(along, across);
+    base[i] = W.heightAt(x, z) - 0.22 * (1 - Math.min(1, bump[i] * 5));   // 縁は地の下へ沈め、地面との境のぎざぎざを見せない
+  }
+  const idx = geo.index.array, A = (i, j) => pos.getComponent(idx[i], j);
+  const e1x = A(1, 0) - A(0, 0), e1z = A(1, 2) - A(0, 2), e2x = A(2, 0) - A(0, 0), e2z = A(2, 2) - A(0, 2);
+  if (e1z * e2x - e1x * e2z < 0) for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xa39178, map: dirtTex() }));
+  m.userData.base = base; m.userData.bump = bump; m.frustumCulled = false; m.receiveShadow = true;
+  // 立つ高さにも盛りを足す
+  const ground = W.heightAt.bind(W);
+  W.heightAt = (x, z) => {
+    const h = ground(x, z), dx = x - MD.cx, dz = z - MD.cz;
+    if (dx * dx + dz * dz > 100 || !(F.moundH > 0)) return h;
+    const along = dx * MD.tx + dz * MD.tz, across = dx * MD.rx + dz * MD.rz;
+    if (Math.abs(along) >= MOUND.len / 2 || Math.abs(across) >= MOUND.half) return h;
+    return h + moundShape(along, across) * F.moundH;
+  };
+  return m;
+}
+// k：0〜1（築いた割合）。形が変わる時だけ頂点を書き直す
+export function setMound(F, k) {
+  const m = F.mound; if (!m) return;
+  const h = 0.3 + (MOUND.max - 0.3) * Math.max(0, Math.min(1, k));
+  if (Math.abs((F.moundH ?? -1) - h) < 0.02) return;
+  F.moundH = h;
+  const pos = m.geometry.attributes.position, { base, bump } = m.userData;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, base[i] + bump[i] * h);
+  pos.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.computeBoundingSphere();
+}
 // 水の高さを目当て（F.waterTo）へゆっくり寄せる。毎コマ
 export function waterTick(rt, dt) {
   const F = rt.flags;
   const k = F.waterTo > F.waterY ? 0.03 : 0.12;
   F.waterY += Math.sign(F.waterTo - F.waterY) * Math.min(Math.abs(F.waterTo - F.waterY), dt * k);
   F.water.position.y = F.waterY;
-}
-
-// 築く堤の土盛りの高さ h（地面から）。上は細く、裾は広げて地面の下まで下ろす。各頂点は真下の地面に沿わせ、
-// 堤の輪の斜面でも片側が宙に浮いた箱に見えないようにする（11/10 関所1）。
-export function shapeMound(m, h, W) {
-  const pos = m.geometry.attributes.position, b = m.userData.base || (m.userData.base = Float32Array.from(pos.array));
-  const c = Math.cos(m.rotation.y), s = Math.sin(m.rotation.y), y0 = m.position.y;
-  for (let i = 0; i < pos.count; i++) {
-    const top = b[i * 3 + 1] > 0, x = b[i * 3] * (top ? 0.82 : 1.15), z = b[i * 3 + 2] * (top ? 0.3 : 1.3);
-    const wx = m.position.x + x * c + z * s, wz = m.position.z - x * s + z * c, g = W ? W.heightAt(wx, wz) : y0;
-    pos.setXYZ(i, x, (top ? g + h : g - 0.5) - y0, z);
-  }
-  pos.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.computeBoundingSphere();
 }

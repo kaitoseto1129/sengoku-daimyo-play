@@ -7,6 +7,10 @@ import { sfx } from '../audio.js';
 export default {
   goal: '崩れた東の堤を守り、人夫が塞ぐまで持ちこたえよ',
   pin: { ...P.breach, label: '東の堤' },
+  // bot：城の板塀の内へ追い込んだ時は北の門から出る（東の塀へ向けて歩き続け、崩れ目に着かず刻限切れになった 11/10）。
+  //   崩れ目から二十二歩の内の敵だけを追い、城の塀ぎわまで追わない
+  botAt: (rt) => { const p = rt.player.u.pos; return Math.abs(p.x) < 24 && Math.abs(p.z) < 26 ? { x: P.gate.x, z: P.gate.z - 8 } : null; },
+  botLeash: 22,
   enter(rt, F) {
     const W = rt.world;
     F.waterTo = -0.2; F.foesB = [];

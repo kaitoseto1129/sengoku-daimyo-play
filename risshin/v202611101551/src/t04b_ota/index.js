@@ -26,6 +26,7 @@ const def = {
   noWake: true, noTaishoRaid: true, noDespair: true, noFrontFill: true,
   keepMix: true, noCavalryMix: true, stageGoalsOnly: true, nearbyAllySignLimit: 0, playerTaken: 0.6,
   missionSingleLine: true, hideGuideSteps: true, noDodgeCard: true, noSiegeCards: true,
+  noPursuit: true,   // 11/10 関所4：囲むだけの戦で「築堤の人夫、追撃」「秀吉の本陣、追撃」が中ほどに三つ並んだ（gunsei の追撃を止める）
   depth, lethal: true,   // 囲みの備（depth.js）と命懸けの戦場（lethal.js）
   meleeGrace: { rate: 1, burst: 1, interval: 3 }, flagEra: { toyotomi: 'kiri53' },
   meleeGuide: () => false, guardGuideAllowed: () => false, castleFall: false,
