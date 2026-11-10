@@ -37,6 +37,7 @@ body.rm #goal-sign .gs-tag i { animation:none !important; }
 `;
 
 const actionPoint = { x: 0, z: 0, unit: null };
+const arrivedPlaces = new WeakMap();
 // 戦を出た時に兵の控えを外す（11/8 docs/crash_1108.md）
 export function goalSignRelease() { actionPoint.unit = null; }
 let el = null;
@@ -121,6 +122,14 @@ export function goalSignTick(rt, root) {
   root.classList.add('gs-seen');
   const p = rt.player.u.pos;
   const dx = t.x - p.x, dz = t.z - p.z, d = Math.hypot(dx, dz);
+  // 一度着いた場所の案内は、斬り合いで離れても出し直さない。次の任務は別に覚える。
+  if (!t.unit && t.hideAfterArrival) {
+    let arrived = arrivedPlaces.get(rt);
+    if (!arrived) { arrived = new Set(); arrivedPlaces.set(rt, arrived); }
+    const key = `${t.arrivalId ?? ''}:${t.label || ''}:${t.x}:${t.z}`;
+    if (d < 6) arrived.add(key);
+    if (arrived.has(key)) return hide();
+  }
   // 11/8 critic60 関ヶ原（五2）：行き先に立っている間は、自分の頭の真上に金の▼（輪に見えた）を出さない
   if (!t.unit && !rt.def.goalSignGroundPin && d < 6) return hide();
   // 矢印は画面へ重ね、地形や兵に隠れないようにする。
