@@ -1575,7 +1575,8 @@ const tano = {
   },
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
+    // 返す値だけでなく、命から引く前の傷に補正を掛ける。
+    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m ? a * k : a, s); }; }
     const F = rt.flags, W = rt.world;
     // 11/1 点付け（田野：25秒で倒れて負けの札）：谷道（侍ばかりの守兵が本人へ寄る段）は、本人へ同時に打ち込むのを二人まで
     //   （共通の既定は四人・player_pressure.js。侍の重い一撃を四方から浴びて開戦二十秒で倒れた）。崖道・柵・屋敷の段は三人まで
@@ -2236,6 +2237,8 @@ const tano = {
   onKill(rt, v, k) {
     if (v.isStruct || v.group?.civ || v.type === 'porter') return;
     if (v.team === 1) {
+      // 遠景の小競り合いの兵を、田野の侍四十一人から引かない。
+      if (!rt.flags.defenders?.includes(v.group)) return;
       rt.flags.ek++;
       const C = rt.flags.dp?.cur;
       if (C && rt.flags.dp.on && C.groups.includes(v.group) && (k?.isPlayer || k?.isSub)) C.playerKills = (C.playerKills || 0) + 1;
@@ -2252,7 +2255,7 @@ const tano = {
   },
 };
 // 味方は数千という復元値。敵は信長公記の侍四十一人（非戦闘員は含めない）。
-tano.force = (rt) => ({ a: Math.max(0, 4000 - (rt.flags.ak || 0)), a0: 4000, b: Math.max(0, 41 - (rt.flags.ek || 0) - (rt.flags.principalsDead ? 2 : 0)), b0: 41 });
+tano.force = (rt) => ({ a: Math.max(0, 4000 - (rt.flags.ak || 0)), a0: 4000, b: Math.max(0, 41 - (rt.flags.ek || 0) - (rt.flags.principalsDead ? 2 : 0)), b0: 41, casualtiesCounted: true });
 tano.sides = { a: { name: '滝川の織田軍', mon: 'oda' }, b: { name: '武田の残る侍', mon: 'takeda' } };
 tano.famous = [];
 // 11/9 二巡（徳川D）：命懸けの戦場（lethal.js）と、この戦の怖さ（狭い谷道・柵の口から打って出る最後の抵抗）

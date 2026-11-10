@@ -3709,7 +3709,10 @@ function fordTick(rt) {
     for (const u of g.units) {
       // 順番待ちをしない本人と、入口の外にいる兵には渡る枠を配らない。
       // moveWay の待機範囲にそろえ、離れた列が入口の三人分を使い切るのを防ぐ。
-      if (!u.alive || u.gone || u.woundOut || u.isPlayer || g.order !== 'path' ||
+      // 逃走・後送・転倒中の兵に枠を預けず、歩ける後続を先に渡す。
+      // 立ち直った兵は次の確認で改めて順番に入る。
+      if (!u.alive || u.gone || u.woundOut || u.fleeing || u.rearWound || u.downed ||
+          u.isPlayer || g.routed || g.order !== 'path' ||
           u.pos.z < -42 || u.pos.z >= -24 || Math.abs(u.pos.x - 2) > 12) continue;
       if (u.tedoAdmitUntil > rt.t) { if (pass === 0) room--; continue; }
       if (pass === 1 && room > 0) { u.tedoAdmitUntil = rt.t + 6; room--; }

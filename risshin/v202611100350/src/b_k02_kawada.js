@@ -89,7 +89,8 @@ function height(x, z) {
   const plain = smooth01((74 - d) / 26);   // 1：河原の面（d < 48）・0：田の起伏（d > 74）
   if (plain > 0) h = h * (1 - plain) + (0.1 + x * 0.0012) * plain;
   const fk = fordK(x), dS = distToPolyline(x, z, KISO_S), dN = distToPolyline(x, z, KISO_N);
-  h -= (0.5 * Math.exp(-((dS / 8) ** 2)) + 0.5 * Math.exp(-((dN / 7) ** 2))) * (1 - fk) + 0.62 * Math.max(smooth01((18 - dS) / 4), smooth01((17 - dN) / 4)) * fk;
+  // 水面は河原より三十センチ下。五十センチだけ掘ると深みまで二十センチになり、どこでも渡れていた。
+  h -= (2.7 * Math.exp(-((dS / 8) ** 2)) + 2.6 * Math.exp(-((dN / 7) ** 2))) * (1 - fk) + 0.62 * Math.max(smooth01((18 - dS) / 4), smooth01((17 - dN) / 4)) * fk;
   h += 1.3 * Math.exp(-(((d - 44) / 5) ** 2));    // 川の両岸の堤
   h += 0.45 * Math.exp(-(((d - 3) / 6) ** 2));     // 中洲（小屋場島）の砂の高まり
   return h;

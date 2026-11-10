@@ -6009,18 +6009,20 @@ const ODANI_FORCE = { a: 30000, a0: 30000, b: 5000, b0: 5000 };
 odani.force = (rt) => {
   const F = rt?.flags, A = rt?.army;
   if (!F || !A) return ODANI_FORCE;
+  // 再挑戦や別の戦の参照で、前の戦の人数を引き継がない。入れ物は戦ごとに一度だけ作る。
+  const force = F.odaniForce ||= { ...ODANI_FORCE };
   if (!(rt.t < (F.forceAt ?? -1))) {
     F.forceAt = rt.t + 1;
     let a = 0, b = 0;
     for (const u of A.units) if (u.alive && !u.gone && !u.isStruct && !u.civ) { if (u.team === 0) a++; else if (u.team === 1) b++; }
     F.force0 ||= { a: Math.max(1, a), b: Math.max(1, b) };
     const lostA = Math.max(0, F.ak || 0), lostB = Math.max(0, 1 - b / F.force0.b);
-    ODANI_FORCE.a = Math.round(30000 - lostA * 25);
+    force.a = Math.max(0, Math.round(30000 - lostA * 25));
     // 11/6 fixc1844（critic60「浅井が4,781から5,000へ戻る」）：曲輪の兵が後から出ても、数は減るだけで増やさない
     const nb = Math.round(5000 * (1 - lostB) * (F.fallen ? .2 : F.komaDown ? .55 : F.step >= 3 ? .8 : 1));
-    ODANI_FORCE.b = Math.min(F.forceMinB ?? 5000, nb); F.forceMinB = ODANI_FORCE.b;
+    force.b = Math.min(F.forceMinB ?? 5000, nb); F.forceMinB = force.b;
   }
-  return ODANI_FORCE;
+  return force;
 };
 odani.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '浅井軍', mon: 'azai' } };
 odani.hideArmyPeek = false; // 九3：両軍の今の兵の数の棒を上に常に出す（前は谷道の視界のために隠していた）。
