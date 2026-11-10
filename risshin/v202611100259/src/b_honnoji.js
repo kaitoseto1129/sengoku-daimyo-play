@@ -5194,8 +5194,9 @@ function honnoTick(def, rt, dt) {
     const outGoten = F.hp === 7 && F.nbSt === 'E' && (NB.pos.x < -73 || NB.pos.x > -49 || NB.pos.z < 80.2 || NB.pos.z > 95);
     if (far && NB.target && (outGoten || Math.hypot(NB.target.pos?.x - NB.pos.x, NB.target.pos?.z - NB.pos.z) > 2)) { NB.target = null; NB.atk = null; }
   }
-  // 上様のそばを離れない
-  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && !F.k15stage && dNb > (F.hp === 3 ? 42 : 26)) {   // 門の内を守る間（3）は、門と上様の間が三十歩ほど開く。門から離れずに守っても護衛を失わせない
+  // 門と上様の間は三十歩ほど開く。護衛失敗と戻る案内で同じ持ち場の幅を使う。
+  const escortLimit = F.hp === 3 ? 42 : 26;
+  if (F.hp >= 3 && F.hp <= 7 && F.hp !== 4 && !F.k15stage && dNb > escortLimit) {
     F.farT = (F.farT || 0) + dt;
     if (F.farT > 8 && rt.t - (F.farSaidT || -99) > 20) { F.farSaidT = rt.t; honnoSay(rt, '森蘭丸', `${nm(rt)}！　上様のそばへ戻れ！　離れたままでは護衛を果たせぬ！`, 3); }
     if (F.farT > 60) { def.nbFail(rt, '上様から離れすぎ、護衛の持ち場を失った'); return; }
@@ -5203,7 +5204,7 @@ function honnoTick(def, rt, dt) {
   // 戻る案内を一つにまとめる。入る距離と消す距離を分け、二秒は文を保つ。
   // 門の見回り・閉門と本堂への退却は、その段の行き先を優先する。
   const escorting = F.hp >= 3 && F.hp <= 7 && F.hp !== 4;
-  const escortNeed = escorting && (dNb > 26 || (F.nbSt === 'D' && dNb > (F.escortShown ? 14 : 22)));
+  const escortNeed = escorting && (dNb > escortLimit || (F.nbSt === 'D' && dNb > (F.escortShown ? 14 : 22)));
   F.escortShown = escortNeed;
   // 移る間：自分が遠すぎれば、信長は待つ（その先で一人で戦わない）
   if (F.nbSt === 'D') { const wait = dNb > 20 && F.hp >= 6 && (F.waitAcc || 0) < 10; if (wait) F.waitAcc = (F.waitAcc || 0) + dt; F.nbG.speed = wait ? 0 : 3.3; }
