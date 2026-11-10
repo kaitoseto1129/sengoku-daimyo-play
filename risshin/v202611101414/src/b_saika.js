@@ -1719,12 +1719,22 @@ function tickSaikaRear(rt) {
     rt.bark(approaching ? '後ろから足音！　振り向いて構えよ' : '背後に敵！　振り向いて構えよ', true);
   }
 }
-function moveGroup(g, to, facing) {
+function moveGroup(g, to, facing, rt) {
   if (g.routed || !g.count) return;
   // fixed は初めの配置を守る指定。歩き始めた列は道幅に合わせて持ち場を詰める。
   g.fixed = false;
+  g.pending = null; g.focus = null; g._gather = false; g.retreatOnly = false;
   g.order = 'move'; g.dest = to; g.aggro = 6; g.formation = 'column'; g.colW = 2;
-  g.onArrive = (q) => { q.order = 'hold'; q.facing = facing; q.aggro = 10; q.formation = q.units.every((u) => u.type === 'gun' || u.type === 'bow') ? 'line' : 'yari'; };
+  // 本人だけ先に戻って次の段へ入っても、川にいる先手を杭へ直進させない。
+  // 退き道を新しい持ち場まで結び、東岸へ着くまでは追撃を控える。
+  if (rt && to.x >= -8) {
+    const c = g.center();
+    if (c.x < -8) {
+      g.anchor.x = c.x; g.anchor.z = c.z; g.retreatOnly = true;
+      g.order = 'path'; g.path = withdrawRoad(rt, c, to); g.pathIdx = 0;
+    }
+  }
+  g.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; q.facing = facing; q.aggro = 10; q.formation = q.units.every((u) => u.type === 'gun' || u.type === 'bow') ? 'line' : 'yari'; };
 }
 // 東岸を見回り、杭抜きと川上・川下の寄せを援護する。道と到着処理は一度だけ作る。
 function patrolBank(g, x, z) {
@@ -1931,6 +1941,7 @@ function withdrawRoad(rt, c, to = { x: 58, z: 0 }) {
 function withdrawGroup(rt, g, to) {
   if (g.routed || !g.count) return;
   const c = g.center();
+  g.pending = null; g.focus = null; g._gather = false;
   g.fixed = false; g.retreatOnly = true; g.anchor.x = c.x; g.anchor.z = c.z;
   g.order = 'path'; g.path = withdrawRoad(rt, c, to); g.pathIdx = 0;
   g.aggro = 6; g.formation = 'column'; g.colW = 2;
@@ -3519,7 +3530,7 @@ const saika = {
       const g = F.escorts[i];
       // 援護の組が増えても、同じ二か所へ重ねず川上・川下に段を分ける。
       const row = Math.floor(i / 2);
-      moveGroup(g, { x: COVER.x + 3, z: (i % 2 ? -1 : 1) * (14 + row * 8) }, i % 2 ? Math.PI : 0);
+      moveGroup(g, { x: COVER.x + 3, z: (i % 2 ? -1 : 1) * (14 + row * 8) }, i % 2 ? Math.PI : 0, rt);
     }
     // kaito 10/31：待っていた二組は時をずらさず、川上・川下から同時に寄せる。
     F.flanks[2].bankReleaseAt = rt.t + 1;
@@ -3818,8 +3829,10 @@ const saika = {
       // 残る一人が遠い杭や岩で止まっても、全滅するまで探させない。
       // 寄せた組は八割を失うか三分攻めたら、初めから用意した浅瀬の道で引く。
       // 退く兵が旗の周りに残る間は、下の threat で東岸の安全を確かめる。
-      for (let i = 2; i < F.flanks.length; i++) {
-        const g = F.flanks[i];
+      // 杭抜きから残った寄せ手も対象。後の二組だけを退かせると、
+      // 初めの組の一人が東岸に残ると、安全の判定が刻限まで通らなくなる。
+      let withdrew = false;
+      for (const g of F.raiders) {
         if (!g.bankCommitted || g.routed || g.retreatOnly) continue;
         let ready = 0;
         for (const u of g.units) if (bankReady(u)) ready++;
@@ -3828,8 +3841,9 @@ const saika = {
         g.order = 'path'; g.path = g.fleePath; g.pathIdx = 0;
         g.formation = 'column'; g.colW = 2; g.holdFire = true; g.fire = false;
         g.onArrive = (q) => { q.order = 'hold'; q.facing = EAST; };
-        rt.say('見張り', `${g.bankSide}の寄せ手が引くぞ。追わず、東岸を守れ`, 4);
+        withdrew = true;
       }
+      if (withdrew) rt.say('見張り', '寄せ手が引くぞ。追わず、東岸を守れ', 4);
       let threat = 0, deep = 0;
       for (const g of F.raiders) for (const u of g.units) {
         if (bankReady(u) && Math.hypot(u.pos.x - BACK.x, u.pos.z - BACK.z) < 24) { threat++; if (u.pos.x > BACK.x + 6 && Math.abs(u.pos.z) < 10) deep++; }
@@ -3861,7 +3875,7 @@ const saika = {
         F.holdFailure = '竹束の後ろへ入った敵を払いきれず、東岸の陣を押された';
         this.win(rt, false);
       }
-      else if (F.inT >= 6 && el >= 30 && !F.paceTsutsumi) F.paceTsutsumi = installTsutsumi(rt, { dress, SAIKA, moveGroup, missionText: SAIKA_LINE[3], next: () => this.parley(rt) });   // 川下の堤の鉄砲陣の後に和議
+      else if (F.inT >= 6 && el >= 30 && !F.paceTsutsumi) F.paceTsutsumi = installTsutsumi(rt, { dress, SAIKA, moveGroup: (g, to, facing) => moveGroup(g, to, facing, rt), missionText: SAIKA_LINE[3], next: () => this.parley(rt) });   // 川下の堤の鉄砲陣の後に和議
     } else if (F.step === 6) {
       // 11/6 fixc1753（三3・二6）：使者が歩いて佐久間の陣へ着き、本人もそばにいれば⑤を果たす。時間切れで勝ちにせず、途中で使者を飛ばさない。
       const m = F.envoy.units[0], L = F.lordCamp.units[0];

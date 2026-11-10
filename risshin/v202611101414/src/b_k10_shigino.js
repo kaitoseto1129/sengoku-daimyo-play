@@ -29,7 +29,7 @@ import { sfx } from './audio.js';
 import { timeslipField } from './timeslip_field.js';
 import { revealName } from './battle_intel.js';
 import { goalsTick } from './hud_goals.js';
-import { sightScreenUnit } from './battle_sight.js';
+import { sightScreenUnit, sightPoint } from './battle_sight.js';
 
 const ID = 'k10_shigino';
 TEGARA_ON.add(ID);
@@ -82,8 +82,8 @@ const STEP_TEXT = ['',
   '須田長義と堤の一の柵・二の柵の鉄砲衆を討て',
   '三の柵の井楼の下で井上頼次を討て',
   '堤を東へ退き、水原親憲の鉄砲の後ろに付け',
-  '安田能元と渡辺糺・木村宗明の隊を二の柵の跡まで押し返せ',
-  '二の柵の跡で竹田永翁の隊を討ち、大和川南岸の水原親憲と川越しに撃ち今福の佐竹勢を救え'];
+  '安田能元と渡辺糺・木村宗明を二の柵の跡まで押し返せ',
+  '二の柵の跡で竹田永翁を討ち、大和川南岸の水原親憲と川越しに撃って今福の佐竹勢を救え'];
 
 const sm = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 function height(x, z) {
@@ -174,6 +174,9 @@ const k10_shigino = {
   noTaishoRaid: true,
   foeMarks: true,
   enemyTriangleSigns: true, // 見えている敵全員に共通の赤い▼を付ける。
+  // 軽い備の中心に浮く三つの印をやめ、実際に描く兵の胴が見える時だけ付ける。
+  lightEnemyTriangleSigns: true,
+  lightEnemySignVisible: (rt, p) => sightPoint(rt, p, 170, true, 1.2),
   // 柵・堤の陰の敵へ印だけを透かさない。本人の位置でなくカメラから体の見通しを確かめる。
   enemySignVisible: (rt, u) => sightScreenUnit(rt, u),
   keepBattleSigns: true,    // 行き先の印が出ても、武将名と敵印を隠さない。
