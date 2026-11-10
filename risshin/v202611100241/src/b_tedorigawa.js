@@ -126,7 +126,9 @@ function pressStep(rt, dt) {
   for (let i = list.length - 1; i >= 0; i--) {
     const o = list[i];
     if (!o.alive || o.dying || o.gone || o.fleeing || o.woundOut || o.rearWound || o.downed || o.noTarget || o.group?.routed || o.group?.order === 'path' || o.target !== P || !(o.pullUntil > now) || !P.alive || rt.over || F.ending) { list.splice(i, 1); continue; }
-    if (weak || o.swing && !o.swing.done) continue;
+    // 矢に伏せる間と打たれたよろめきには、追加の歩みで滑らせない。
+    // 狙いは保ち、立ち直ってから追撃を再開する。
+    if (weak || o.pinT > now || o.stagger > 0 || o.swing && !o.swing.done) continue;
     // 深みにいる者を追加の歩みで岸へ引き上げず、川の押し流しに任せる。
     if (W.inWaterAt(o.pos.x, o.pos.z) && W.waterDepthAt(o.pos.x, o.pos.z) > 0.5) continue;
     const dx = P.pos.x - o.pos.x, dz = P.pos.z - o.pos.z, d = Math.hypot(dx, dz);

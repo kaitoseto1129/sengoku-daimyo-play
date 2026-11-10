@@ -259,7 +259,8 @@ function roadApproach(world, p, path, i, out) {
 // 近い別の折り返しから守兵へ直進させず、最後の折れと高さを確かめる。
 function inabaAtWoodGate(rt) {
   const p = rt.player.u.pos;
-  return rt.flags.karaNext >= KARA_TRAIL.indexOf(KARA[4])
+  return rt.player.u.alive && rt.player.u.hp > 0 && !rt.player.u.dying && !rt.retryOpen
+    && rt.flags.karaNext >= KARA_TRAIL.indexOf(KARA[4])
     && Math.hypot(p.x + 30, p.z + 118) < 14
     && Math.abs(p.y - rt.world.heightAt(-30, -118)) < 6;
 }
@@ -3139,6 +3140,16 @@ function inabaPacingWait(rt) {
   // 11/8 critic60：上限を過ぎたら共通の千八十秒を待たずに締める（警告の後に何も起きないまま数分待たせない）
   if (rt.t >= end) rt.pacingForceEnd = true;
   return rt.t < end;
+}
+
+// 退く下知では、既に振りかぶった一撃も捨てる。共通の敗走と同じく、背を向けた兵から傷を受けないようにする。
+function inabaRetreat(g) {
+  g.noRout = false; g.routed = true; g.order = 'flee'; g.focus = null;
+  g.holdFire = true; g.fire = false; g.fleeDir = { x: 0, z: -1 };
+  for (const u of g.units) if (u.alive) {
+    u.fleeing = true; u.target = null; u.atk = null; u.swing = null; u.bind = null;
+    u.charging = false; u.cheer = 0; u.routIn = 0; u.aiT = 0;
+  }
 }
 
 // 山道を歩く間は縦列。下り切ってから槍をそろえ、打って出る。
@@ -6212,14 +6223,18 @@ const inabayama = {
         // 11/8 critic60 一3：背を見せて駆け上る。真横に付かれた時だけは振り返って打ち合う
         g.speed = 4.2; g.noRout = true; g.aggro = 2.5; g.holdFire = true; g.followColumnRoad = true;
         rt.say(officer(rt), '守りが退くぞ！　背に付いて登れ！', 2.5);
-      } else if (g.tsukeBack && g.order !== 'path' && !F.tsukeGate) { g.aggro = 6; g.order = 'hold'; g.holdFire = false; }
+      } else if (g.tsukeBack && g.order !== 'path' && !F.tsukeGate) {
+        // 木戸へ退いた兵まで上の折れから撃ち直すと、登っている本人を挟み撃ちにする。
+        // 木戸の前に本人が着くまでは待ち、真横の相手にだけ応じる。
+        g.aggro = 2.5; g.order = 'hold'; g.holdFire = true;
+      }
     }
     // 木戸の守りは、木戸の前の斬り合いまで喰違いの口の内で構える（下の折れへ降りて来ない）
     if (!F.tsukeGate && F.oteGate && !gone(F.oteGate)) { F.oteGate.order = 'hold'; F.oteGate.aggro = 0; F.oteGate.anchor = { ...OTE_IN }; F.oteGate.holdFire = true; }
     // 逃げる城兵が木戸に着いたら、木戸の守りに加わる
     if (!F.nigeruIn && F.nigeru && (gone(F.nigeru) || F.nigeru.order !== 'path')) {
       F.nigeruIn = true;
-      if (!gone(F.nigeru)) { F.nigeru.order = 'hold'; F.nigeru.anchor = { x: OTE_IN.x - 4, z: OTE_IN.z - 3 }; F.nigeru.aggro = 10; F.nigeru.holdFire = false; }
+      if (!gone(F.nigeru)) { F.nigeru.order = 'hold'; F.nigeru.anchor = { x: OTE_IN.x - 4, z: OTE_IN.z - 3 }; F.nigeru.aggro = F.tsukeGate ? 10 : 2.5; F.nigeru.holdFire = !F.tsukeGate; }
       rt.say('斎藤の兵', '木戸を閉めよ！　織田が付いて来るぞ！', 3);
     }
     // 木戸の前に着いたら斬り合い。印は木戸の守りへ
@@ -6238,8 +6253,7 @@ const inabayama = {
     if (F.tsukeGate && rt.t - F.tsukeGateT > 12) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards]) if (g && !gone(g)) { g.noRout = false; g.morale = 0; }
     // 11/9 二巡（織田E）：気が零になっても木戸の口で崩れず、馬出しの兵と一緒に木戸の上から撃ち続けて act が倒れた。二十五秒で本丸へ逃げ上らせる
     if (F.tsukeGate && rt.t - F.tsukeGateT > 25) for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards, ...rt.army.groups.filter((q) => q.name === '馬出しの兵')]) if (g && !gone(g)) {
-      g.routed = true; g.order = 'flee'; g.focus = null; g.fleeDir = { x: 0, z: -1 };
-      for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
+      inabaRetreat(g);
     }
     // 木戸の守りが崩れたら、本丸へ（自分が木戸の近くにいるか、味方の列が先に入って二十秒）
     if (F.tsukeGate && gone(F.oteGate) && (gone(F.nigeru) || F.nigeru.morale <= 0)) {
@@ -6906,8 +6920,7 @@ const inabayama = {
       if (late2 && F.oteContactT != null && rt.player.u.alive && !rt.retryOpen && rt.t >= (F.late2RoutAt || 0)) { F.late2RoutAt = rt.t + 4; for (const q of qs) if (!gone(q)) { q.noRout = false; q.morale = 0; } }
       // 11/9 二巡（織田E）：気が零になっても坂の上で崩れず残り、②が九分続いた（流し）。四十秒たっても残れば、山へ逃げ上らせる
       if (late2 && F.oteContactT != null && rt.t - F.stepT > 280) for (const q of qs) if (!gone(q)) {
-        q.routed = true; q.order = 'flee'; q.focus = null; q.fleeDir = { x: 0, z: -1 };
-        for (const u of q.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
+        inabaRetreat(q);
       }
       const nearHold = late2 && F.oteContactT != null && F.holdPoint
         && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) < 40

@@ -686,8 +686,8 @@ const k16_secret = {
       for (const g of [F.hon, F.camp.guard, F.takatora, F.hide]) if (g && g.order !== 'retreat') for (const u of g.units) if (u.alive && u.target && dist(u.pos, g.anchor) > 30) u.target = null;
     }
     if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
-    // 陣幕の内の近習は、幕の外を通る主人公を布越しに斬らない（11/9 bot：口へ回る途中で布越しに打たれ、押し戻されて刻限が尽きた）
-    if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u.target === P && inCamp(u.pos) !== inCamp(P.pos)) u.target = null;
+    // 陣幕の内の近習は、幕の外の主人公も味方兵も布越しに斬らない。
+    if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u.target && inCamp(u.pos) !== inCamp(u.target.pos)) u.target = null;
     // 家康の段：家康が倒れれば勝ち（旗本が減っても家康は床几から逃げない）
     if (F.step === 5) {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
