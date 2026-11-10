@@ -1572,6 +1572,7 @@ const tonezaka = {
   hideGuideSteps: true,
   noPlayerFoot: true,
   quietMiss: true,
+  quietCenterCalls: true, // 追撃の知らせを中央へ三枚重ねず、任務と戦固有の見出しで伝える。
   noDodgeCard: true,
   enemyTriangleSigns: true,
   // 11/8 critic60（一2・十三4）：義景は峠の奥の本隊の内。十数メートル先の道に名札を出さない
