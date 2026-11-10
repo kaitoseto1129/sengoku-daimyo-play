@@ -8,7 +8,11 @@
 import { flagTexture } from '../textures.js';
 import { enemyGroup } from '../bhelp.js';
 
-function say(rt, who, s, t, sec = 3) { rt.after(t, () => { if (!rt.over) rt.say(who, s, sec); }); }
+function say(rt, who, s, t, sec = 3) {
+  const phase = rt.flags.phase, ending = !!rt.flags.ending;
+  // 前の段の名乗りで、追撃や勝利後の知らせを遮らない。
+  rt.after(t, () => { if (!rt.over && rt.flags.phase === phase && !!rt.flags.ending === ending) rt.say(who, s, sec); });
+}
 
 export function nightTurn(rt, ctx) {
   const F = rt.flags, W = rt.world;
@@ -30,7 +34,7 @@ export function sevenSpears(rt, ctx, at) {
   const F = rt.flags;
   if (at === 'cut') {
     say(rt, '福島正則', '一番槍、福島市松！', 12, 2.4);
-    rt.after(12, () => rt.army.play('toki', { ...ctx.KATSUMASA }, 1.0));
+    rt.after(12, () => { if (!rt.over && !F.ending && F.phase === 3) rt.army.play('toki', { ...ctx.KATSUMASA }, 1.0); });
     say(rt, '加藤清正', '虎之助も続くぞ！　柴田の殿を突き崩せ！', 26, 2.6);
     say(rt, '脇坂安治', '甚内、ここにあり！', 40, 2.2);
   } else if (at === 'shore') {

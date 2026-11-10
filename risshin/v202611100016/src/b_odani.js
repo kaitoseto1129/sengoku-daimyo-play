@@ -223,6 +223,7 @@ const MASU = (() => {
   return { M, hs, turn, rot, ux, uz, px, pz, cx, cz, P2, ix, iz, inRot: rot + turn * Math.PI / 2,
     face: P2(hs - 1.4, -hs * .35), out: P2(hs + 3.5, -hs * .35) };
 })();
+const INNER_FACE = { x: MASU.face[0], z: MASU.face[1] };
 const MASU_MID = [MASU.cx, MASU.cz], MASU_EAST = MASU.P2(MASU.hs + 3, MASU.hs + 3.5);   // 広場の真ん中・塀の東の外の角
 function masuExit(p) {
   // 一の門の通り（櫓門の下）にいる間は、まず広場の真ん中へ出る（門の柱の陰から斜めに抜けない）。
@@ -2990,7 +2991,7 @@ const odani = {
     if (F.ending || rt.over || F.fallen || F.komaDown && !F.honAttack || !rt.player.u.alive) return null;
     const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true });
     pin.unit = null; pin.enemy = pin.defend = pin.waiting = pin.arrived = pin.follow = pin.gate = pin.route = false;
-    pin.marker = null; pin.footRing = false; pin.r = .5; pin.hide = 0;
+    pin.marker = null; pin.footRing = false; pin.r = .5; pin.hide = 0; pin.gateName = '';
     if (F.odaMonomi) { pin.x = F.odaMonomi.x; pin.z = F.odaMonomi.z; pin.r = 3; pin.arrived = Math.hypot(p.x - pin.x, p.z - pin.z) < 3; return pin; }
     const gate = F.westGate?.struct;
     let pos, hold = false;
@@ -3002,6 +3003,10 @@ const odani = {
     else if (F.step === 3) { pos = KC; hold = true; }
     else if (F.step === 2 && !F.onoDone) pos = ONO_PIN;
     else if (F.step === 2 && gate && !gate.opened && gate.hp > 0) { pos = WEST_FACE; pin.gate = true; }
+    // 一の門を抜けても二の門は閉じている。広場を指して塀へ向かわせず、掛矢の届く門前へ。
+    else if (F.step === 2 && F.innerGate?.struct && !F.innerGate.struct.opened && F.innerGate.struct.hp > 0) {
+      pos = INNER_FACE; pin.gate = true; pin.gateName = '枡形の二の門';
+    }
     else if (F.step === 2) { pos = KC; hold = true; }
     else pos = BELOW;
     if (!pos) return null;
@@ -6312,7 +6317,7 @@ installBattleJinkei(odani, [
   odani.travelGuideLabel = (rt) => {
     const F = rt.flags, q = odani.missionPin(rt), p = rt.player.u.pos;
     if (!q || !Number.isFinite(q.x)) return '';
-    const place = F.step === 0 && !F.retreatOn ? '羽柴秀吉' : q.gate ? '西木戸' : placeOf(rt);
+    const place = F.step === 0 && !F.retreatOn ? '羽柴秀吉' : q.gate ? q.gateName || '西木戸' : placeOf(rt);
     return `${place} ${Math.round(Math.hypot(q.x - p.x, q.z - p.z))}m`;
   };
   // 移動中は場所名と距離。退避先での手当てと、落城後の勝ち鬨は消さない。

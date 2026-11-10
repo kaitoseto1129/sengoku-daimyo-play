@@ -474,7 +474,7 @@ const t06_hetsugi = {
       this.go(B.sen, { x: 46, z: -52 }, 3.4, { charge: true });
       this.go(B.nobu, { x: 16, z: -50 }, 3.4, { charge: true });
       this.go(B.sogo, { x: 54, z: -46 }, 3.2, { charge: true });   // 11/8 二2：十河の備は本人から見える所（右の三十 m 余り）
-      F.ijKills0 = rt.stats.kills; F.ijTaken0 = rt.stats.taken;
+      F.ijKills0 = rt.stats.kills; F.ijTaken0 = rt.stats.taken; F.ijContact = false;
       // 囮の一組は主人公にも槍を向ける。味方だけと戦って退かない。
       const first = F.ijBands.find(live);
       if (first) { first.order = 'attack'; first.focus = rt.player.u; first.seekRange = 80; first.aggro = 18; }
@@ -689,6 +689,7 @@ const t06_hetsugi = {
     const F = rt.flags, B = F.blk;
     if (F.ending || !F.step) return;
     const P = rt.player.u;
+    if (F.step === 2 && !F.feigned) tsuigeki.engaged(rt);
     // 史実の斬り合いを進行条件にした二人だけは、深手で退いた後に戻す。
     // 共通の深手は戦の間戻らず、信親を見失った鈴木の組は狙いも解くため、救援が終わらなくなっていた。
     if (!F.ringClosed) {
@@ -745,7 +746,7 @@ const t06_hetsugi = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.feignDmg = g.dmgMult ?? 1; g.dmgMult = Math.min(g.feignDmg, 0.45); }
       // 替わった先手の兵は待たずに四国の衆と本人へ槍を入れる（退くふりの前は本当に当たる。九2）
       if (!F.feigned) for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 26; g.aggro = 12; }
-      if (!F.feigned && (rt.stats.kills > F.ijKills0 || rt.stats.taken > F.ijTaken0) && el > 60) this.feign(rt);   // 本人が先手と当たってから退く。時間だけで交戦を果たさない。
+      if (!F.feigned && tsuigeki.engaged(rt) && el > 60) this.feign(rt);   // 本人が先手と当たってから退く。時間だけで交戦を果たさない。
       if (F.feigned) tsuigeki.update(rt, K);
       if (F.feigned && tsuigeki.ready(rt, K)) this.toStep(rt, 3);
     } else if (F.step === 3) {

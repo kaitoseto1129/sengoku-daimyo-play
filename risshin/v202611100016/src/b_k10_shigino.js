@@ -496,6 +496,8 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
   riverAid(rt) {
     const F = rt.flags;
     F.riverAid = true; F.riverShots = 0; F.riverSecured = false;
+    // 手勢も本人と南岸へ移る。堤へ戻す補正が残ると、泥田で往復して救援に付いて来られない。
+    F.mine.riverAid = true;
     for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = EXIT_W; g.noRout = false; }
     // 個々の逃走は隊の dest を使わない。北へ逃げ続けて救援完了を妨げないよう、北岸を西へ退く道を渡す。
     F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true,
