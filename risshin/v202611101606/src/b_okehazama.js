@@ -193,7 +193,9 @@ function okeFoeSigns(rt) {
   // 十六画素の行高に縁取りと影も含める。二十四画素では隣の名札の縁が接する。
   const nameGap = 28;
   let at = -1;
-  const ready = (u) => u.alive && !u.gone && !u.dying && !u.woundOut && !u.civ && !u.isStruct && !u.noTarget && !u.fleeing && !u.group?.routed;
+  // 名札は戦えるかで消さない。服部の手傷や名将の退きを、本人の名とともに見届けられるようにする。
+  // 退場済み・描かれていない本人の名だけが宙に残ることは防ぐ。
+  const ready = (u) => u.alive && !u.gone && !u.dying && !u.civ && !u.isStruct && !u.camHidden && u.mesh?.visible !== false;
   return {
     remove() { box.remove(); },
     tick() {

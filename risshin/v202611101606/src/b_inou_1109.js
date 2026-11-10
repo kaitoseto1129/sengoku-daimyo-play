@@ -171,6 +171,8 @@ const ino = {
     F.haya = [-10, 6, 22, 38].map((x) => {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '林勢', anchor: { x, z: 6 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 5, noRout: true, noAI: true, formation: 'line', morale: 80, dmgMult: 0.4, order: 'hold', aggro: 0, speed: 3, fixed },
         HAYA([{ type: 'ashigaru', n: N(6), o: { flagScale: 1 } }, { type: 'ashigaru', n: N(2) - 1 }, { type: 'bow', n: 1 }, { type: 'samurai', n: 1 }]));
+      // 控えの弓は下知まで射かけない。noAI だけでは兵個々の射撃判断は止まらない。
+      g.fire = false;
       F.groups.push(g); return g;
     });
     F.hayaBoss = enemyGroup(rt, { faction: 'nobukatsu', name: '林美作守', anchor: { x: 16, z: -12 }, facing: 0, width: 2, noRout: true, noAI: true, order: 'hold', aggro: 0, morale: 100, fixed },
@@ -186,6 +188,7 @@ const ino = {
     F.shibaLines = [-40, -24, -8, 8, 24, 40].map((x, i) => {
       const g = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勢', anchor: { x: x - 20, z: -110 - (i % 2) * 3 }, facing: 0, fleeDir: { x: -1, z: -1 }, width: 6, noRout: true, noAI: true, formation: 'line', morale: 100, dmgMult: 0.5, defMult: 1.2, order: 'hold', aggro: 0, speed: 2.6, fixed },
         SHIBA_SET([{ type: 'ashigaru', n: N(8) - 1 }, { type: 'bow', n: 1 }, { type: 'ashigaru', n: N(2), o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
+      g.fire = false;
       g.lineX = x; F.groups.push(g); return g;
     });
     F.shibaG = enemyGroup(rt, { faction: 'nobukatsu', name: '柴田勝家', anchor: { x: -10, z: -124 }, facing: 0, fleeDir: { x: -1, z: -1 }, width: 3, noRout: true, noAI: true, order: 'hold', aggro: 0, morale: 100, dmgMult: 0.8, fixed },
