@@ -2913,6 +2913,11 @@ const moribe = {
     { id: 'moribe-hibino', name: '日比野下野守（ひびの しもつけのかみ）', note: '斎藤家の将。長井と並び、東の手を率いる。' },
   ],
   enemyTriangleSigns: true, // 森部の敵は頭上の赤い三角で見分ける。
+  // 頭上だけ見える霧の向こうや、描いていない兵に所属印を浮かべない。
+  // 人物名と同じ胴・足場の見通しを使い、近くの敵も人数では間引かない。
+  enemySignVisible(rt, u) {
+    return u.moribeDefeatUntil > rt.t && u._moribeSignY != null || sightScreenUnit(rt, u);
+  },
   autoTargetCamera: true, // 稲生と同じく、近い敵への一撃は本人へ向き直る。
   steadyMeleeCamera: true, // 密集しても自分の立ち位置を画面内で保つ。
   camPull: .6,

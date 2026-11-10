@@ -61,7 +61,13 @@ export function install(rt, ctx) {
         // 上杉は戦場を制した側。主人公の到着で敗走させず、浅瀬を通って川へ引き返す。
         if (C) {
           C.focus = null; C.noHunt = true; C.fixed = false; C.retreatOnly = true;
-          C.order = 'path'; C.path = [[4, SOUTH.z - 4], [3, FORD.z + 10], [FORD.x + 6, FORD.z - 8]]; C.pathIdx = 0;
+          C.aggro = 0; C.seekRange = 0;
+          // まだ浅瀬や北岸にいる騎馬を、退く下知で南岸へ呼び込まない。
+          // 南岸まで来た隊だけ浅瀬の南口を経由し、ほかは北口へ引き返す。
+          const c = C.center();
+          C.order = 'path'; C.path = c.z > SOUTH.z - 4 ?
+            [[4, SOUTH.z - 4], [3, FORD.z + 10], [FORD.x + 6, FORD.z - 8]] :
+            [[FORD.x + 6, FORD.z - 8]]; C.pathIdx = 0;
           C.onArrive = (g) => { g.order = 'hold'; g.facing = 0; };
           for (const u of C.units) if (u.alive) {
             u.target = null; u.pullUntil = rt.army.time; u.watch = null; u.moveTo = null;

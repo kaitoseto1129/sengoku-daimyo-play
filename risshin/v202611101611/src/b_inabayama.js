@@ -812,12 +812,16 @@ const HOUSE_FIRE_R = 4.5;
 // 戸口の足場から届く家を一軒だけ選ぶ。体や視点の向き、長押しは問わない。
 function nearFireHouse(rt) {
   const F = rt.flags, p = rt.player.u.pos;
-  if (rt.G.lord || rt.over || F.ending || F.carry || F.step !== 1 || F.lit >= NEED || !rt.player.u.alive) return null;
+  if (rt.G.lord || rt.over || F.ending || F.carry || F.step !== 1 || F.lit >= NEED
+    || !rt.player.u.alive || rt.player.u.hp <= 0 || rt.player.u.dying || rt.player.u.downed || rt.retryOpen) return null;
   let best = null, distance = HOUSE_FIRE_R;
   for (const h of F.houses) {
     if (!h.target || h.burnt) continue;
     const d = Math.hypot(h.approach.x - p.x, h.approach.z - p.z);
-    if (d <= distance) { best = h; distance = d; }
+    h.approach.y = rt.world.heightAt(h.approach.x, h.approach.z);
+    // 本丸と同じく、戸口と別の高さ・塀の向こうからは火を付けない。
+    if (d <= distance && Math.abs(p.y - h.approach.y) < 3
+      && !rt.army.wallBetween(p, -1, h.approach) && !rt.army.terrainBlocks(p, h.approach)) { best = h; distance = d; }
   }
   return best;
 }

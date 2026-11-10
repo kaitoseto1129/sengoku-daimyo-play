@@ -58,7 +58,8 @@ function tabaTick(rt, dt) {
     if (F.step >= 3.2 || gone(g) || g.order !== 'path' || !g.path?.[g.pathIdx]) continue;
     let lead = null, best = Infinity;
     const aim = g.path[g.pathIdx];
-    for (const u of g.units) if (u.alive) { const d = Math.hypot(u.pos.x - aim[0], u.pos.z - aim[1]); if (d < best) { best = d; lead = u; } }
+    // 倒れた先頭役で束を止めず、動ける兵へ引き継ぐ。運び手が尽きた束は据え置く。
+    for (const u of g.units) if (siegeFighter(u) && !u.rearWound) { const d = Math.hypot(u.pos.x - aim[0], u.pos.z - aim[1]); if (d < best) { best = d; lead = u; } }
     if (!lead || best < 3.5) continue;
     const dx = aim[0] - lead.pos.x, dz = aim[1] - lead.pos.z, d = best;
     const ux = dx / d, uz = dz / d, ahead = 2.5;
