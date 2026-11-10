@@ -887,8 +887,11 @@ k07_sawayama.botBrain = (b, inp, { goTo, patientStrike }) => {
     //   門の外（北）の口で立ち止まった時も、門をくぐって中へ（11/9 流し：破れた門の外で九分矢を受けていた）
     const back = D.i === 6 && (u.pos.z > -27 || (u.pos.z < -39.5 && u.pos.z > -52 && Math.abs(u.pos.x + 8) < 9 && rt_gateOpen(b, 'ni1_n')));
     const want = back ? { x: NI1.x, z: NI1.z } : { x: C.goal.x, z: C.goal.z }, q = sawayamaWay(b.army, u, want);
-    if (back && q === want) { goTo(p, inp, want.x, want.z, 1.5); inp.runHeld = true; return; }
-    if (q !== want && q.active) { inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false; goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true; return; }
+    // 曲輪へ戻る時も、前の斬り合いの後退・横移動・攻撃を残さない。
+    if ((back && q === want) || (q !== want && q.active)) {
+      inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.leftPressed = false;
+      goTo(p, inp, q.x, q.z, 1.5); inp.runHeld = true; return;
+    }
   }
   // 大手と三の丸（D.i < 5）は開けた曲輪：曲輪の奥で構える守りへ自分から寄る（11/9 流し：入口に立ったまま、三十歩奥の守りに新手が足され続けて五分かかった）
   // 塀・枡形の向こうの敵は追わず、門を通る段の動きへ任せる。それでも五秒動けない時は、八秒は追わずに段の動き（depthBot）へ任せる（11/9 流し：大手の枡形の前で十五分）
