@@ -3910,9 +3910,10 @@ const mitsukuri = {
     kuruwaBldg(W, 'ido', 50, -99, 0, { ita: true, batch: stoneBatch });
     solidCircle(50, -99, 0.95);
     finalizeKitBatch(rt, stoneBatch);
-    // 板塀も館と同じ即時の視点判定へ入れる。束ねた面の判定待ちに柵裏へ入り込ませない。
+    // 三の郭の柵と二の丸・本丸の塀も即時の視点判定へ入れる。
+    // 城の定義と同じ正式名で選び、二の丸が「二の丸（木戸構え）」のため漏れる事を防ぐ。
     // 口は既存の壁の線に無いので塞がない。壊れた壁は上の判定から外す。
-    for (const wall of C.walls) if (wall.seg && ['本丸', '二の丸'].includes(wall.name)) {
+    for (const wall of C.walls) if (wall.seg && ['本丸', '二の丸（木戸構え）', '三の郭（坂の上）'].includes(wall.name)) {
       const [ax, az, bx, bz] = wall.seg, dx = bx - ax, dz = bz - az, length = Math.hypot(dx, dz);
       if (length < 0.01) continue;
       let bottom = Infinity, top = -Infinity;

@@ -50,9 +50,9 @@ export function start(rt, ctx, done) {
       // 到着直後の待ち伏せは迎撃する。ただし、残兵探しで物見の段を終わらなくしない。
       s.tick = (rt2, C, m, context, el, dt) => {
         const finished = tick(rt2, C, m, context, el, dt);
-        // 移動は実際の到着から七十秒、後詰との戦いは百秒で寄せを打ち切る。
+        // 移動は実際の到着から六十秒、後詰との戦いは九十秒で寄せを打ち切る。
         // 未到着のまま次へ飛ばさず、残兵を実際に退かせてから合流する。
-        const retreat = s.kind === 'move' ? C.arr && el - C.arrT >= 70 : el >= 100;
+        const retreat = s.kind === 'move' ? C.arr && el - C.arrT >= 60 : el >= 90;
         if (retreat) for (const g of C.groups) {
           if (g.routed || g.count <= 2) continue;
           g.noRout = false;
@@ -79,9 +79,8 @@ export function start(rt, ctx, done) {
         if (C.mkReturnMark) { rt2.unmark('dp'); C.mkReturnMark = false; }
         if (s.kind === 'move' && !finished) return false;
         if (s.kind === 'fight' && C.later.length) return false;
-        // 11/10 クラウド森部・箕作・大河内係：柵の向こうへ下がった物見を誰も討てず、物見の場で十八分止まった（bot）。
-        //   物見の場に立ってから長く続いたら、残った物見は退く（決まり7・8：波に最大の時間）。
-        if (el - (s.kind === 'move' ? C.arrT ?? el : 0) >= (s.kind === 'move' ? 60 : 90)) return true;
+        // 期限で迎撃済みにする前に、上で残兵へ退却を命じる。
+        // 退却前の十秒間に段だけ終わり、戦える物見を残さない。
         for (const g of C.groups) {
           if (g.routed || g.count <= 2) continue;
           // 重傷・倒れた物見は迎撃済み。生存数だけでは三人以上残ると永久に止まる。

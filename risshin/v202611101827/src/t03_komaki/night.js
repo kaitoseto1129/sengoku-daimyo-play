@@ -88,7 +88,10 @@ export function tickNight(rt, K, dt) {
     rt.army.play('volley', { x: FORD.x + 12, z: FORD.z + 16 }, 0.9);
     rt.say('森長可', '川向こうの藪から撃って来た！　押し渡って突け！', 2.8);
     say(rt, '池田恒興', '池田の列は上の浅瀬を渡る。森殿、下を頼む', 30, 3);
-    say(rt, '使番', '孫七郎様の本隊、無事に川を越えられました', 44, 3);
+    // 後続はまだ北岸にいる。渡河済みとは知らせず、渡しへ続く備も実際に進める。
+    moveSonae(rt, 'A', 'hidetsugu', FORD.x - 14, FORD.z - 14);
+    moveSonae(rt, 'A', 'hori', FORD.x - 28, FORD.z - 22);
+    say(rt, '使番', '孫七郎様の本隊、堀様の隊も渡しへ続いておりまする', 44, 3);
     say(rt, '森長可', '列を詰めよ。夜が明けるまでに一里は進むぞ', 56, 3);
   }
   if (F.ambush && Math.hypot(P.x - FORD.x, P.z - FORD.z) < 36) F.fordPress = (F.fordPress || 0) + dt;

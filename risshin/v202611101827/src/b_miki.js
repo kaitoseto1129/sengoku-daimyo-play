@@ -1471,7 +1471,8 @@ const miki = {
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u.pos;
     if (rt.over || F.ending || !rt.player.u.alive) return null;
-    const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5 });
+    // 接敵中も、到着して下知を聞く間も、持ち場の印を消さない。
+    const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5, always: true });
     const stage = this.missionOf(rt);
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す
@@ -2373,7 +2374,7 @@ const miki = {
       rt.bark(F.dangerCount <= 2 ? `${dir}から打つぞ！　味方の列で受けよ`
         : `${dir}を向け！　槍をそろえて受けよ`, true);
     };
-    rt.obj('main', '西の槍組の旗へ行け', 'main');
+    rt.obj('main', '平田の井楼へ上がり、城と大村道を見よ', 'main');
     rt.banner('一年半続く三木の囲み', '夜明け前、付城を守れ。兵糧の道を断て');
     rt.say('組頭', '夜明け前じゃ。まず平田の井楼へ上がり、城と大村道を見て参れ', 5);
     rt.after(140, () => {
