@@ -4529,7 +4529,7 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const moved = F._fLast ? Math.hypot(F._fLast.x - u.pos.x, F._fLast.z - u.pos.z) : 1;
   if (!F._fLast) F._fLast = { x: 0, z: 0 };
   F._fLast.x = u.pos.x; F._fLast.z = u.pos.z;
-  if (!F._canFight) F._canFight = (o) => canFight(o) && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, u.team, o.pos, false);
+  if (!F._canFight) F._canFight = (o) => hieiReady(o) && canFight(o) && Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, u.team, o.pos, false);
   // 正面の打ち手を先に受ける。近いだけの別の敵へ向くと、横からの槍を防げない。
   let attacker = null, ad = 8;
   for (const o of b.army.threats || []) {
@@ -4555,7 +4555,8 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const waiting = atStairs && !F.stairsReady && !stairsBlocked;
   const e = (attacker && (ad <= 3 && hieiMeleeGuide(b, attacker) || !waiting && !F.guideReturn.active && !F._gHold
     && b.world.onRoad(attacker.pos.x, attacker.pos.z) && roadClear(b.army, u, u.pos, attacker.pos)) ? attacker : null)
-    || (candidate && !nakaRoomAt(candidate.pos.x, candidate.pos.z, candidate.pos.y)
+    // 共通の候補に古い攻撃記録が残っていても、退いた兵へは戻らない。
+    || (hieiReady(candidate) && !nakaRoomAt(candidate.pos.x, candidate.pos.z, candidate.pos.y)
     && (cd <= 3 && hieiMeleeGuide(b, candidate) || !waiting && !F._gHold && cd <= 7 && ahead && b.world.onRoad(candidate.pos.x, candidate.pos.z)
       && roadClear(b.army, u, u.pos, candidate.pos)) ? candidate : null);
   if (e) {
