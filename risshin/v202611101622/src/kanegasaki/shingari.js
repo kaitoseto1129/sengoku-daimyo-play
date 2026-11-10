@@ -12,6 +12,9 @@ export function start(rt, ctx, done) {
   if (F.k15Shingari) return;
   F.k15Shingari = 'on';
   F.dpOn = true;
+  // 11/10 kanegasaki_spec_1109「味方の数は見た目で減らす（本物の AI の数でなく）」：渡りの段の後に続くこの殿の段で、
+  //   木下の組が二十二人から一人まで溶けて備が崩れ、act の bot が毎回「合流が間に合わず」で負けた。この段の間だけ殿の組を固くする
+  for (const g of F.tono || []) if (g) g.defMult = Math.max(g.defMult || 1, 3);
   const { LINE1, LOOK } = ctx;
   const from = (dx, dz) => ({ x: LINE1.x + dx, z: LINE1.z + dz });
   const stages = [
@@ -65,5 +68,5 @@ export function start(rt, ctx, done) {
   withdrawal.start = (rt2, C, m, context) =>
     (m.kgFailed ? failedWithdrawal.start : withdrawalStart)(rt2, C, m, context);
   depthStart(rt, { ...ctx, look: LOOK, scale: 1.0, dmg: 0.5 }, stages,
-    () => { F.k15Shingari = 'done'; F.dpOn = false; done(); });
+    () => { F.k15Shingari = 'done'; F.dpOn = false; for (const g of F.tono || []) if (g && g.defMult > 1.6) g.defMult = 1.6; done(); });
 }

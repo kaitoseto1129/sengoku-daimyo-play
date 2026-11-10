@@ -1803,7 +1803,15 @@ const RS_STAR = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.
 function squadFateHtml(r) {
   const L = r.squadLines || [];
   if (!L.length) return '';
-  const chips = L.map((x) => `<li class="${x.alive ? '' : 'dead'}">${esc(x.name)}　${x.alive ? '生存' : '討死'}</li>`).join('');
+  // 11/10 戦間の流し：侍大将で30人の組だと名が三十並んだ。討死・深手・手負いを先に、無事な者は5人までにして残りは数だけ
+  const word = (x) => (!x.alive ? '討死' : x.fate === 'heavy' ? '重傷' : x.fate === 'light' ? '軽傷' : '生存');
+  const rank = (x) => (!x.alive ? 0 : x.fate === 'heavy' ? 1 : x.fate === 'light' ? 2 : 3);
+  const hurt = L.filter((x) => rank(x) < 3).sort((a, b) => rank(a) - rank(b)), safe = L.filter((x) => rank(x) === 3);
+  const showSafe = safe.slice(0, Math.max(0, 5 - hurt.length));
+  const rest = safe.length - showSafe.length;
+  const more = hurt.slice(8), dead = more.filter((x) => !x.alive).length, hurtMore = more.length - dead;
+  const chips = [...hurt.slice(0, 8), ...showSafe].map((x) => `<li class="${x.alive ? '' : 'dead'}">${esc(x.name)}　${word(x)}</li>`).join('')
+    + (dead ? `<li class="dead">ほか${dead}人　討死</li>` : '') + (hurtMore ? `<li>ほか${hurtMore}人　手負い</li>` : '') + (rest > 0 ? `<li>ほか${rest}人　生存</li>` : '');
   const nw = (r.recruits || []).length ? `<p class="rs-new">新規配属　${esc(r.recruits.join('、'))}</p>` : '';
   return `<div class="rs-fate" aria-label="配下の生死"><ul>${chips}</ul>${nw}</div>`;
 }
@@ -1817,7 +1825,9 @@ function resultCardHtml(G, r, lost, sq) {
   goals.push({ t: '評定「甲」を得た', on: /^甲/.test(r.grade || '') });
   const seen = new Set();
   // 戦の中で見せた目標を全て残す。野田・福島の六つ目の撤退も結果に載せる（星は従来どおり五つ）。
-  const three = r.goals5 ? r.goals5.rows : goals.filter((g) => g.t && !seen.has(g.t) && seen.add(g.t)).slice(0, 3);
+  let three = r.goals5 ? r.goals5.rows : goals.filter((g) => g.t && !seen.has(g.t) && seen.add(g.t)).slice(0, 3);
+  // 11/10 戦間の流し：段の多い戦（野田・福島は十段）で目標が十行並び、結果の札が字で埋まった。五行を超える時は前の段を一行にまとめ、終わりの四段を残す
+  if (three.length > 5) { const head = three.slice(0, three.length - 4), nDone = head.filter((g) => g.on).length; three = [{ t: `前の${head.length}段のうち${nDone}段を果たした`, on: nDone === head.length }, ...three.slice(-4)]; }
   const nOn = r.goals5 && !lost ? r.goals5.stars : three.filter((g) => g.on).length;
   const starRow = r.goals5 && !lost ? `<div class="rs-stars" role="img" aria-label="星 5つのうち ${nOn}つ">${[0, 1, 2, 3, 4].map((k) => `<i class="${k < nOn ? 'on' : ''}">${RS_STAR}</i>`).join('')}</div>` : '';
   // 獲得報酬：褒美の銭・戦功の点・組の兵・出世・家臣・品物
@@ -2461,7 +2471,8 @@ export function deathScreen(G, battleName, onTitle, downInfo, last = {}) {
 }
 
 // ---------------- 合印を定める ----------------
-export function aijirushiScreen(G, onDone) {
+export function aijirushiScreen(G, onDone, to = '城下') {
+  // 行き先（次の戦へ・装備変更から来た時も「城下へ」と書かない。11/10 戦間の流し）
   const kinds = [['ichimonji', '一文字', 'まっすぐな一本の線。遠くからでも見分けやすい'], ['maru', '丸', '円い印。組の和を表す'], ['igeta', '井桁', '井戸の枠の形。固い守りを表す']];
   // 530：押してすぐ決めず、選ぶ → 組の旗の並びで確かめる → 決める の二段にする
   let sel = null, done = false;
@@ -2471,7 +2482,7 @@ export function aijirushiScreen(G, onDone) {
     const K = kinds.find(([x]) => x === k);
     $('aj-look').innerHTML = `<div class="aj-row">${Array.from({ length: Math.min(8, RANKS[G.rank].squad || 5) }, () => '<canvas width="30" height="60"></canvas>').join('')}</div><p><b>${esc(K[1])}</b>　${esc(K[2])}</p>`;
     $('aj-look').querySelectorAll('canvas').forEach((c) => drawMon(c.getContext('2d'), k, 30, 60));
-    $('aj-choice').textContent = `「${K[1]}」の印に決めて、城下へ進みます。`;
+    $('aj-choice').textContent = `「${K[1]}」の印に決めて、${to}へ進みます。`;
   };
   const decide = () => { if (!sel || done) return; done = true; G.aijirushi = sel; sfx('taiko', 0.6); onDone(); };
   show(`<style>
@@ -2494,7 +2505,7 @@ export function aijirushiScreen(G, onDone) {
     <div class="aiji" role="group" aria-label="合印">${kinds.map(([k, n], i) => `<button data-k="${k}" aria-pressed="false" aria-label="${n}の合印を選ぶ"><canvas width="60" height="120" data-mon="${k}"></canvas>${i + 1}．${n}</button>`).join('')}</div>
     <div id="aj-look" aria-live="polite"><p>印を選ぶと、組の旗の並びがここに出ます。</p></div>
     <p class="note">${isTouch ? '印を押して選び、下の釦で決めます' : '数字釦 1〜3 で選び、決めの釦で決めます'}。一度決めた印は、この先ずっと組の旗になります。</p>
-    </div><div class="aj-actions"><p id="aj-choice" aria-live="polite"></p><div class="row"><button class="btn primary" id="aj-ok">次へ（城下へ）</button></div></div>
+    </div><div class="aj-actions"><p id="aj-choice" aria-live="polite"></p><div class="row"><button class="btn primary" id="aj-ok">次へ（${esc(to)}へ）</button></div></div>
   </div>`, false, (e) => { const i = ['1', '2', '3'].indexOf(e.key); if (i >= 0) pick(kinds[i][0]); else if (e.key === 'Enter') { e.preventDefault(); decide(); } });
   document.querySelectorAll('canvas[data-mon]').forEach((c) => drawMon(c.getContext('2d'), c.dataset.mon, 60, 120));
   document.querySelectorAll('.aiji button').forEach((b) => b.onclick = () => pick(b.dataset.k));
@@ -4065,7 +4076,8 @@ function zeniBig(kan) {
   const man = Math.floor(k / 10000), r = k % 10000;
   return (kan < 0 ? '−' : '') + man + '万' + (r ? r + '貫' : '');
 }
-export function finalScreen(G, onRestart, onJapan) {
+export function finalScreen(G, onRestart, onJapan, onNext = null) {
+  // onNext：織田家編の終わりから豊臣編（山崎）へ続ける（11/10 戦間の流し）。ある時はそれを一番目立たせる
   const rows = BATTLES.map((b, i) => {
     const h = G.history[i];
     const best = (G.best || [])[i];
@@ -4075,7 +4087,7 @@ export function finalScreen(G, onRestart, onJapan) {
   if (G.owned.includes('katana')) eq.push('打刀');
   const hasHistory = (G.history || []).some((h) => h);
   const japanLabel = onJapan ? (scenarioKey() === 'oda' ? 'この先を遊ぶ（天下の地図へ）' : '日本地図へ（天下取りの続き）') : null;
-  const nextBtns = `<div class="row">${japanLabel ? `<button class="btn primary" data-fin-japan>${japanLabel}</button>` : ''}<button class="btn" data-fin-restart>最初から遊ぶ</button></div>`;
+  const nextBtns = `<div class="row">${onNext ? `<button class="btn primary" data-fin-next>${esc(onNext.label)}</button>` : ''}${japanLabel ? `<button class="btn${onNext ? '' : ' primary'}" data-fin-japan>${japanLabel}</button>` : ''}<button class="btn" data-fin-restart>最初から遊ぶ</button></div>`;
   const followers = (G.roster || []).filter((r) => r.alive && (r.battles > 0 || r.kills > 0));
   show(`<div class="wrap">
     <div class="eyebrow">${scenarioKey() === 'oda' ? '織田家編　これまでの道' : 'これまでの道'}</div>
@@ -4126,6 +4138,7 @@ export function finalScreen(G, onRestart, onJapan) {
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(fail);
     else fail();
   };
+  if (onNext) document.querySelectorAll('[data-fin-next]').forEach((el) => { el.onclick = () => { sfx('ui'); onNext.fn(); }; });
   if (onJapan) document.querySelectorAll('[data-fin-japan]').forEach((el) => { el.onclick = () => { sfx('ui'); onJapan(); }; });
   document.querySelectorAll('[data-fin-restart]').forEach((el) => {
     el.onclick = () => confirmBox($('rs-confirm'), 'この記録を消して、足軽から始め直します。', '記録を消して始め直す', onRestart);
