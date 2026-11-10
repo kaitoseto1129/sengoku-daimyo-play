@@ -22,6 +22,8 @@ const NK = MEM_TIGHT ? 0.8 : 1;
 const N = (n) => Math.max(2, Math.round(n * NK));
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone);
 const aliveIn = (list) => (list || []).reduce((n, g) => n + (g ? g.units.reduce((m, u) => m + (u.alive && !u.gone ? 1 : 0), 0) : 0), 0);
+// 退場は描画の片付け。命を残して去った兵も全軍の生存者に含める（討死は命が零）。
+const survivorsIn = (list) => (list || []).reduce((n, g) => n + (g ? g.units.reduce((m, u) => m + (u.alive || u.gone && u.hp > 0 ? 1 : 0), 0) : 0), 0);
 const near = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const ZAKO = { armor: 0x2e2822, hatColor: 0x1c1916, lace: 0x6a4a30, cloth: 0x7a5236 };
 const HAYA = (list) => list.map((s) => ({ ...s, o: { ...ZAKO, flag: 'nobukatsu', ...(s.o || {}) } }));
@@ -83,11 +85,11 @@ const ino = {
   force(rt) {
     const F = rt?.flags;
     if (!F?.allAlly) { FORCE.a = 700; FORCE.b = 1700; return FORCE; }
-    const a = aliveIn(F.allAlly), a0 = F.allAllyN || 1;
+    const a = survivorsIn(F.allAlly), a0 = F.allAllyN || 1;
     // 物見も林勢七百の内。出現前は控えとして数え、出現時に人数を回復させない。
     const scouts = F.scoutN || 0;
-    const h = aliveIn(F.haya) + (F.scoutG ? aliveIn([F.scoutG]) : scouts);
-    const h0 = (F.hayaN || 0) + scouts || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
+    const h = survivorsIn(F.haya) + (F.scoutG ? survivorsIn([F.scoutG]) : scouts);
+    const h0 = (F.hayaN || 0) + scouts || 1, s = survivorsIn(F.shiba), s0 = F.shibaN || 1;
     // 後詰も七百の内訳。初めに決めた全軍の人数で損耗を量り、合流で討死を戻さない。
     const total = F.allAlly.reduce((n, g) => n + (g?.units.length || 0), 0);
     FORCE.a = round10(Math.max(0, 700 * (1 - (total - a) / a0)));

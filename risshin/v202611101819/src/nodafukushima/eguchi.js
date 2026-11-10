@@ -43,11 +43,13 @@ export function start(rt, ctx) {
   }
   function withdraw() {
     const g = S.g;
-    if (!g || g.routed) return;
     // 追撃の対象を残すと、渡しへ抜ける主人公を退いた門徒が追い続ける。
-    g.onArrive = null; g.focus = null;
-    g.dest = { x: DEST.x + 20, z: DEST.z - 34 };
-    g.noRout = false; g.morale = 0; g.order = 'retreat';
+    if (g && !g.routed) {
+      g.onArrive = null; g.focus = null;
+      g.dest = { x: DEST.x + 20, z: DEST.z - 34 };
+      g.noRout = false; g.morale = 0; g.order = 'retreat';
+    }
+    // 門徒が先に敗走した場合も、殿と味方の列は追わず渡しへ戻る。
     for (const f of ctx.friends) if (f && f.count && !f.routed && f.order === 'attack') { f.focus = null; f.order = 'move'; f.dest = { x: DEST.x + (Math.random() - 0.5) * 16, z: DEST.z - 10 - Math.random() * 10 }; }
   }
   S.tick = () => {

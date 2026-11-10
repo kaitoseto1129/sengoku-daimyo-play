@@ -4153,7 +4153,7 @@ const mitsukuri = {
     F.attackers = F.oda;
     F.attackTotal = F.oda.reduce((n, g) => n + g.count, 0);
     // 丹羽長秀の手（東の口）：北東の尾根から本丸の東の切岸へ寄せる（遠景・AI。軽い作りの部隊で、数だけで押し合う）
-    F.asai = makeButai(rt, { name: '丹羽長秀の手', general: '丹羽長秀', team: 0, faction: 'oda', kind: 'busho', look: { horse: false }, nominal: 1500, armor: 0x2a2622, flag: 'sujikai', at: { x: 58, z: -70 }, facing: -Math.PI * 0.62, lightWidth: 40, lightDepth: 50, real: 1, nearReal: 6, farReal: 1, maxReal: 6 });
+    F.asai = makeButai(rt, { name: '丹羽長秀の手', general: '丹羽長秀', team: 0, faction: 'oda', kind: 'busho', look: { horse: false }, nominal: 3000, armor: 0x2a2622, flag: 'sujikai', at: { x: 58, z: -70 }, facing: -Math.PI * 0.62, lightWidth: 40, lightDepth: 50, real: 1, nearReal: 6, farReal: 1, maxReal: 6 });
     // 本人も徒歩。兵種の変更だけでは最初に生まれた将の自動騎乗は止まらない。
     F.asai.kind = 'ashigaru';
     F.asaiFoe = makeButai(rt, { name: '本丸の東の守り', team: 1, faction: 'rokkaku', kind: 'ashigaru', nominal: 140, armor: 0x33291f, flag: RK.flag, at: { x: 48, z: -103 }, facing: Math.PI / 2, lightWidth: 20, lightDepth: 14, real: 0, nearReal: 6, farReal: 0, maxReal: 6 });
@@ -4930,7 +4930,7 @@ const mitsukuri = {
           for (const soldier of rt.army.units) if (soldier.alive && !soldier.isStruct) soldiers++;
           if (soldiers <= 244) {
             const at = z.id === 'san' ? { x: 0, z: -60 } : z.id === 'ni' ? { x: 0, z: -86 } : HON_DEFEND;
-            const g = enemyGroup(rt, { fixed: true, name: '六角の控え', anchor: at, order: 'attack',
+            const g = enemyGroup(rt, { fixed: true, name: '六角の控え', faction: 'rokkaku', anchor: at, order: 'attack',
               width: 3, aggro: 12, seekRange: 18, morale: 65, fleeDir: { x: 0, z: -1 } },
               dress([{ type: 'ashigaru', n: 5 }], RK));
             g._sanCastleRoad = true; g.dmgMult = 0.5;

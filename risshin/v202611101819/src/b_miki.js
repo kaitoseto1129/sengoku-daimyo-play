@@ -1268,6 +1268,11 @@ function mikiFighting(u) {
   return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.fleeing &&
     !u.woundOut && !u.evacuatedWound && !u.rearWound && !u.noTarget && !u.isStruct && !u.civ;
 }
+function mikiHaulerReady(u) {
+  // 担ぎ手は非戦闘員。倒れる途中や重傷の者に俵を持ち上げさせない。
+  return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.fleeing &&
+    !u.woundOut && !u.evacuatedWound && !u.rearWound;
+}
 // 今の段に出ている実兵だけ。城内の長治や、まだ川を渡らない控えへは走らせない。
 function mikiNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
@@ -2803,7 +2808,7 @@ const miki = {
   },
   haulArrive(rt, h) {
     const F = rt.flags, s = h.sack;
-    if (!s || F.ending || rt.over || !h.u.alive || h.u.fleeing || h.u.woundOut) return;
+    if (!s || F.ending || rt.over || !mikiHaulerReady(h.u)) return;
     if (!h.carrying) {
       // 要だけの到着では運ばない。本物の担ぎ手が俵の所へ来た時だけ持ち上げる。
       if (Math.hypot(h.u.pos.x - s.mesh.position.x, h.u.pos.z - s.mesh.position.z) > 2.5) {
@@ -2830,7 +2835,7 @@ const miki = {
     const F = rt.flags;
     if (!F.dropped) return;
     for (const h of F.haulers) {
-      if (!h.u.alive || h.u.fleeing || h.u.woundOut) {
+      if (!mikiHaulerReady(h.u)) {
         if (h.sack) {
           const s = h.sack;
           if (h.carrying) {
@@ -2842,8 +2847,9 @@ const miki = {
       }
       // 寄せ手が近い間は運搬を止める。回収待ちを勝敗の条件にしない。
       let danger = false;
-      for (const g of F.foes) for (const u of g.units) {
-        if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
+      // 大村の決戦後に出る城兵も含める。倒れた敵のそばで待ち続けない。
+      for (const u of rt.army.units) {
+        if (u.team === 1 && mikiFighting(u) &&
           Math.hypot(u.pos.x - h.u.pos.x, u.pos.z - h.u.pos.z) < 14) danger = true;
       }
       if (danger) { if (h.sack) { h.g.order = 'hold'; h.paused = true; } continue; }
