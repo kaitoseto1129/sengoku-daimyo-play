@@ -352,7 +352,7 @@ function fleet(rt) {
 // 場所へ着く・寄せを返す・旗を守る目標は、放置や時間切れで済ませない。
 const castleViewPoint = new THREE.Vector3();
 function castleReveal(step) {
-  return { ...step, key: 'ichiya', idleAdvance: false, max: Infinity, limit: Infinity,
+  return { ...step, key: 'ichiya', idleAdvance: false, noHardCap: true, max: Infinity, limit: Infinity,
     tick(rt, C, m, ctx, el, dt) {
       const I = rt.flags.ichiya, p = rt.player.u.pos;
       let visible = false;
@@ -371,7 +371,8 @@ function castleReveal(step) {
 function requiredStep(step) {
   if (step.kind === 'rest') return step;
   const tick = step.tick;
-  return { ...step, idleAdvance: false, max: Infinity, limit: Infinity,
+  // 共通の四分・七分の打ち切りでも、未達の目標を済ませない。
+  return { ...step, idleAdvance: false, noHardCap: true, max: Infinity, limit: Infinity,
     tick(rt, C, m, ctx, el, dt) {
       const done = tick(rt, C, m, ctx, el, dt);
       if (step.kind === 'fight') {
