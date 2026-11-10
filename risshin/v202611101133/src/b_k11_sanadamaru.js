@@ -1381,9 +1381,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 将を討っても、柵破り・殿・帰陣の務めは飛ばさない。
     if (v.name === '真田信繁' && !F.ending) { rt.say(nm(rt), '真田左衛門佐、討ち取ったり！', 3); return; }
     if (v.type === 'busho' && v.team === 1) {
-      rt.say('足軽', `${v.name}が深手じゃ！　真田の者が担いで丸へ引いていく！`, 3);
+      rt.say('足軽', `${v.name}、討死！`, 3);
       if (v.group) { v.group.noRout = false; v.group.morale -= 40; }
-      rt.award((t) => { t.special = { label: `${v.name}に深手を負わせた`, pts: 30 }; }, `${v.name}に深手を負わせた`);
+      rt.award((t) => { t.special = { label: `${v.name}を討ち取った`, pts: 30 }; }, `${v.name}を討ち取った`);
     }
   },
   onRout(rt, g) {

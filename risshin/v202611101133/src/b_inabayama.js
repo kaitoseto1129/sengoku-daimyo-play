@@ -7041,7 +7041,11 @@ const inabayama = {
       const nearHold = late2 && F.oteContactT != null && F.holdPoint
         && Math.hypot(rt.player.u.pos.x - F.holdPoint.x, rt.player.u.pos.z - F.holdPoint.z) < 40
         && Math.abs(rt.player.u.pos.y - rt.world.heightAt(F.holdPoint.x, F.holdPoint.z)) < 3;
-      if (F.sannin && F.ote2.sent && (qs.every(gone) || sectionTaken(rt, qs, { retreat: inabaRetreat })) && rt.player.u.alive && !rt.retryOpen && (inabaInsideHoldLine(rt) || rt.G.lord || nearHold)) {
+      // 残兵を退かせる判定には副作用がある。本人が持ち場にいない時や、
+      // 城兵が目前へ来る前に呼ぶと、迎え撃たずに②を果たしてしまう。
+      if (F.sannin && F.ote2.sent && rt.player.u.alive && !rt.retryOpen
+        && (inabaInsideHoldLine(rt) || rt.G.lord || nearHold)
+        && (qs.every(gone) || F.oteContactT != null && sectionTaken(rt, qs, { retreat: inabaRetreat }))) {
         // 坂の城兵が崩れ、麓の左右の城兵も山へ逃げ上る
         if (!F.karaWaiting) {
           F.karaWaiting = true;

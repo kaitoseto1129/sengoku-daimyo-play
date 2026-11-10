@@ -825,8 +825,15 @@ const t02_shizugatake = {
     rt.after(4.6, () => rt.say('桑山重晴', '皆、振り返れ。筑前様の旗じゃ！', 2.8));
     rt.after(8.4, () => rt.say('中川の足軽', '……殿の弔い合戦じゃ', 2.6));
     rt.after(12, () => rt.say('桑山重晴', '東の肩の道へ下り、筑前様を迎えよ', 2.8));
-    // 東の口に残った追手は退く
-    for (const g of F.groups) if (g.kind4 === 'raid' && live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.dest = { x: 40, z: 170 }; g.aggro = 0; g.seekRange = 0; g.kind4 = 'gone'; }
+    this.withdrawRaid(rt);
+  },
+  // 打ち切った追手は実際に坂を退く。古い経路や到着処理で東の口へ戻さない。
+  withdrawRaid(rt) {
+    for (const g of rt.flags.groups) if (g.kind4 === 'raid' && live(g)) {
+      g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
+      g.dest = { x: 40, z: 170 }; g.aggro = 0; g.seekRange = 0; g.kind4 = 'gone';
+      for (const u of g.units) u.noTarget = true;
+    }
   },
   // ⑩ 大岩山を取り返す：朝に内から守った柵を、今度は外から攻める。朝に破れた所が入口
   retake(rt) {
@@ -892,7 +899,8 @@ const t02_shizugatake = {
     const F = rt.flags;
     F.northPath = path; F.northIx = 0;
     for (const g of [F.yari, F.uma]) if (live(g)) {
-      g.focus = null; g.order = 'path'; g.path = path; g.pathIdx = 0; g.speed = 4;
+      // 障害物を避ける処理が経路へ点を挿すため、別の隊や主人公の道と共有しない。
+      g.focus = null; g.order = 'path'; g.path = path.map((p) => [...p]); g.pathIdx = 0; g.speed = 4;
       g.aggro = 3; g.seekRange = 4;
       g.onArrive = (q) => { q.order = attack ? 'attack' : 'hold'; q.aggro = attack ? 14 : 3; q.seekRange = attack ? 28 : 4; };
     }
@@ -911,7 +919,10 @@ const t02_shizugatake = {
     const F = rt.flags;
     F.maedaGo = rt.t;
     for (const f of F.maedaCampFlags || []) f.visible = false;
-    if (live(F.maedaG)) { F.maedaG.order = 'retreat'; F.maedaG.dest = { x: GONGEN.x, z: GONGEN.z - 60 }; F.maedaG.speed = 1.6; }
+    if (live(F.maedaG)) {
+      F.maedaG.order = 'retreat'; F.maedaG.focus = null; F.maedaG.onArrive = null; F.maedaG.path = null;
+      F.maedaG.dest = { x: GONGEN.x, z: GONGEN.z - 60 }; F.maedaG.speed = 1.6;
+    }
   },
   // ⑬ 柴田軍の崩れ：前田が退き、佐久間が孤立。柴田の先手と当たる。遠くに勝家
   pushShibata(rt) {
@@ -920,7 +931,7 @@ const t02_shizugatake = {
     if (!F.maedaGo) this.withdrawMaeda(rt); // 続きから再開する時も、前田隊を茂山へ戻さない。
     this.enter(rt, 4);
     rt.award((t) => { t.special = { label: '大岩山の北で佐久間の備を押し返した', pts: 15 }; }, '佐久間の備を押し返した');
-    for (const g of [F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.dest = { x: 20, z: -300 }; g.speed = g === F.mori ? 4 : 2.8; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
+    for (const g of [F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: 20, z: -300 }; g.speed = g === F.mori ? 4 : 2.8; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
     F.kmG = enemyGroup(rt, { ...SHIBATA, name: '柴田勝家の先手', anchor: { ...SHIBA_FRONT }, facing: 0.1, fleeDir: { x: 0, z: -1 }, width: 6, morale: 92, dmgMult: 0.42, noRout: true, noAI: true, formation: 'line', order: 'hold', aggro: 12, seekRange: 16 },
       [{ type: 'busho', n: 1, o: { name: '毛受勝照', horse: true, flag: SHIBATA.flag } }, { type: 'samurai', n: 3 }, ...foeList(16)]);
     F.kmG.kind4 = 'km'; F.groups.push(F.kmG);
@@ -992,8 +1003,17 @@ const t02_shizugatake = {
       case 2.3:
         if (!F.mouthFight && near(MOUTH, 22) && nearCount(rt, 1, MOUTH, 30) > 0) F.mouthFight = true;
         // 口の外で味方が追手を全て退けた時も、到着した主人公を待たせ続けない。
-        // 二度とも坂で足止めされた時も、口を守ったまま待ち続けさせない。
-        if (F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() === 0 || F.mouthFight && raidLeft() <= 4 || st > 110)) this.returnHide(rt);
+        // 坂で足止めされた追手も、時だけで「守った」にせず退却を見せてから次へ。
+        if (F.waves >= 2 && near(MOUTH, 22) && st > 50) {
+          if (F.mouthRetreat) {
+            if (rt.t - F.mouthRetreat > 4) this.returnHide(rt);
+          } else if (raidLeft() === 0 || F.mouthFight && raidLeft() <= 4) this.returnHide(rt);
+          else if (st > 110) {
+            F.mouthRetreat = rt.t;
+            this.withdrawRaid(rt);
+            rt.say('物見', '佐久間の追手、坂を下って退きまする！', 3);
+          }
+        }
         return;
       case 2.6: {
         const came = F.hideArrived;
@@ -1017,7 +1037,7 @@ const t02_shizugatake = {
           F.katOut = rt.t;
           rt.say('柴田勝家', '……退け。北ノ庄へ退け', 3);
           rt.after(3.2, () => rt.say('羽柴秀吉', '深追いはならぬ。勝家は北ノ庄で詰める', 3));
-          for (const g of [F.kat, F.kmG]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.dest = { x: g.center().x, z: -330 }; g.speed = 2.6; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
+          for (const g of [F.kat, F.kmG]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: g.center().x, z: -330 }; g.speed = 2.6; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
           for (const g of [F.yari, F.uma]) if (live(g)) { g.order = 'hold'; g.anchor = { x: g.center().x, z: g.center().z }; g.focus = null; g.onArrive = null; }
         }
         return;

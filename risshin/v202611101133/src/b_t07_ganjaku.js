@@ -571,12 +571,18 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 道筋の配列は終点に着いても残る。通過済みなら、後列の到着待ちだけで戦いを止め続けない。
     if (g && !g.routed && g.order === 'path' && g.path && (g.pathIdx || 0) < g.path.length) {
       const c = this.centerOf(g) || g.anchor, i = g.pathIdx || 0;
-      // 道筋が残っているだけでは延長しない。岩や門に詰まった隊も四十五秒で行軍を解く。
+      // 実際に前進していれば待ち直し、四十五秒動かなければ列を組み直す。
       if (i !== w.lastPathIdx || Math.hypot(c.x - w.lastX, c.z - w.lastZ) > 1) {
         w.lastX = c.x; w.lastZ = c.z; w.lastPathIdx = i; w.t0 = t; return;
       }
+      // 虎口で後列が詰まっても、その場を終点にしない。未通過の角を残し、
+      // 一列で行軍をやり直す。出撃隊も寄せ手も門の向こうの目標へ進ませる。
+      w.route = g.path.slice(i).map(([x, z]) => ({ x, z })); w.i = 0;
+      g.colW = 1;
+      this.walk(g, w, t);
+      return;
     }
-    // 四十五秒で着かなければ、そこで構える（道筋に詰まって止まり続けない）
+    // 道筋を通過し終えた隊は、後列待ちを解いてその場で構える。
     w.done = true;
     if (!g || g.routed) return;
     this.to(g, this.centerOf(g) || g.anchor);
@@ -759,7 +765,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         for (const g of F.allies) for (const u of g.units) if (u.alive && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 28) near++;
         // 寄せが少なくても、後ろから掛矢の組が上がって来て門は必ず破れる（三十秒ほど。主人公のせいでない事で日没の負けにしない。kaito 十二3）
         st.hp -= dt * Math.max(9, 2.2 * Math.min(near, 16));
-        if (F.shut && rt.t - (F.shutT || rt.t) > 32) st.hp = 0;
+        if (F.shut && rt.t - (F.shutT ?? rt.t) > 32) st.hp = 0;
         if (st.hp <= 0) { st.hp = 0; st.alive = false; rt.bark('門が破れた'); }
       }
       if (st && !st.alive && !F.breached) {

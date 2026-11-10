@@ -4081,6 +4081,11 @@ const hiei_mtn = {
     if (!F.ending && F.step === 0 && rt.phase === 'brief' && rt.player.u.alive && !SAKA.active(rt)
       && rt.player.u.pos.x < P.spawn.x - 2) this.p1(rt);
     if (F.ending || F.step < 1 || !rt.player.u.alive) { rt.unmark('hiei-exit'); return; }
+    // 本人の命中を待つ守り手は、味方から受けた傷の出血でも失わない。
+    // 直接の傷は heroFinishCap で半分までに抑えるが、失血は別に進む。
+    if (!F.courtHand && F.courtGuard?.alive && F.courtGuard.wounds) {
+      F.courtGuard.wounds.bleed = 0;
+    }
     // 筒先の火は〇・四五秒残るが、斉射は〇・一六秒以内に揃った三挺から。
     // 残り時間の差で発砲の間隔を測り、ばらばらの射撃を斉射と呼ばない。
     // 発砲音・弾・命中は実兵に任せ、合図のための空砲や追加の被害は作らない。

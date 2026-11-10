@@ -27,8 +27,19 @@ export function soboStep(NG) {
       rt.say('組頭', '坊舎の塀の陰から撃ってくる！　撃った所へすぐ寄れ、次の所へ移る前に斬れ！', 4);
       rt.after(6, () => rt.say('羽柴秀次', '路地は狭い。槍を短く持て。塀の角に気を付けい', 3.5));
     },
-    tick(rt, C, m, ctx, el) {
+    tick(rt, C, m, ctx, el, dt) {
       const F = rt.flags;
+      const u = rt.player.u, at = P(0, 22);
+      const present = u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
+        && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 36;
+      C.pressT = (C.pressT || 0) + (present ? dt : 0);
+      // 斬って出た後も建物の裏に残る者は、路地を攻めた本人の前から退く。
+      // 後方で待つだけでは進めず、増援三組と斬り合う時間を残す。
+      if (!C.withdraw && el > 300 && C.wave === 3 && C.pressT >= 30 && present) {
+        C.withdraw = true;
+        for (const g of C.groups) flee(g);
+        rt.say('組頭', '路地の守りが退くぞ！　参道へ集まれ！', 3);
+      }
       // 鉄砲衆が持ち場を替える（撃っては移る）
       // 四分を過ぎても残る鉄砲衆・行人方は持ち場を捨てて斬りかかる（届かない縁に残って段が十分止まった。豊臣A 11/9 三巡）
       if (el > 240 && !C.charge) {
@@ -62,7 +73,7 @@ export function soboStep(NG) {
         if (C.wave === 2) { rt.say('使番', '大伝法堂の裏にも根来の衆が集まっております！', 3.5); const g = guns(rt, '奥から来た鉄砲衆', SPOTS[5]); g._spot = 5; C.gunG.push(g); C.groups.push(g); }
       }
       const gunsLeft = heads(C.gunG), foes = heads(C.groups);
-      const cleared = C.wave === W.length && gunsLeft <= 2 && foes <= 6;
+      const cleared = C.wave === W.length && (C.withdraw || gunsLeft <= 2 && foes <= 6);
       const p = rt.player.u.pos;
       let target = null;
       for (const g of C.gunG) {
@@ -77,8 +88,7 @@ export function soboStep(NG) {
       // 隊の中心は後送中の者にも引かれる。斬れる撃ち手本人へ案内する。
       C.goal = C.at = cleared || !target ? P(0, 22) : target.pos;
       rt.objProgress('dp', '');
-      // 後方で待つだけでは路地の討ち取りを果たさない。長引いても敵の数の条件を飛ばさない。
-      const u = rt.player.u, at = P(0, 22);
+      // 本人が路地の合流場所へ戻ってから済ませる。
       return el > 140 && cleared && u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
         && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 18;
     },
