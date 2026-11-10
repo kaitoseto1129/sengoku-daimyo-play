@@ -577,9 +577,9 @@ const k13_domyoji = {
     const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
       !u.rearWound && !u.downed && !u.noTarget;
     // 鉄砲兵が倒れた後まで射撃待ちを続けると、残った槍兵も伏せたままになる。
-    // 迎える伊達勢が尽きた時も、架空の一斉射撃で押し戻さず通常の戦いへ戻す。
+    // 迎える伊達勢が尽きた時や退く下知が出た時も、架空の一斉射撃で押し戻さず通常の戦いへ戻す。
     if (!sanada.units.some((u) => active(u) && u.weapon === 'gun') ||
-        !g || !g.count || !g.units.some(active)) {
+        !g || !g.count || g.routed || g.order === 'retreat' || g.order === 'flee' || !g.units.some(active)) {
       sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
       sanada.anchor = { x: HONDA.x, z: HONDA.z };
       for (const u of sanada.units) u._crouch = false;
@@ -602,7 +602,7 @@ const k13_domyoji = {
     for (const u of sanada.units) u._crouch = false;
     rt.army.play('volley', gunner.pos, 1.6);
     g.order = 'move'; g.dest = { x: HONDA.x + 22, z: HONDA.z - 6 }; F.pushedUntil = rt.t + 12;
-    rt.after(12, () => { if (g.count && !F.ending) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
+    rt.after(12, () => { if (g.count && !g.routed && g.order !== 'retreat' && g.order !== 'flee' && !F.ending && !rt.over && F.dp?.i === 5) { g.order = 'attack'; g.seekRange = 40; g.anchor = { x: HONDA.x + 4, z: HONDA.z - 4 }; rt.say('片倉重綱', '退くな！　列を立て直して撃ち返せ！', 3); } });
   },
   // ⑤：誉田の村の民家に火（夕暮れ）
   burnVillage(rt) {

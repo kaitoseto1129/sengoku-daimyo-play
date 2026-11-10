@@ -537,7 +537,7 @@ const k04_kuisegawa = {
       }
       // 退き口へ入っただけでは傷を回復させない。
       // 背の葦と川べりから西軍の鉄砲が撃ちかける（煙と音。川を渡り切るまで）
-      if (PL.x < 52 && (F.backFireT = (F.backFireT ?? 3) - 0.25) <= 0) { F.backFireT = 5 + Math.random() * 3; const q = T(Math.min(PL.x, 30) - 16, PL.z + (Math.random() - 0.5) * 14); rt.army.play('volley', q, 1.1); }
+      if (PL.x <= 60 && (F.backFireT = (F.backFireT ?? 3) - 0.25) <= 0) { F.backFireT = 5 + Math.random() * 3; const q = T(Math.min(PL.x, 30) - 16, PL.z + (Math.random() - 0.5) * 14); rt.army.play('volley', q, 1.1); }
     }
   },
 

@@ -609,12 +609,12 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
   }
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
   // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
-  // 柵の口に木造の旗本が立ち塞ぐと、柵の線越しと見なして斬らず、体で塞がれて十五分止まった（11/9 徳川A bot）。
-  //   十秒ほとんど動かない時は、口の前の四歩内の敵（木造本人は除く）を柵越しでも斬る
+  // 十秒ほとんど動かない時は、口の前の四歩内で実際に斬れる敵へ向く。
+  // 柵越しの敵を選ぶと近接攻撃は壁で止まり、口へ進む処理にも戻れなくなる。
   const sp = F._k02sp || (F._k02sp = { x: u.pos.x, z: u.pos.z, t: b.t });
   if (Math.hypot(u.pos.x - sp.x, u.pos.z - sp.z) > 2) { sp.x = u.pos.x; sp.z = u.pos.z; sp.t = b.t; }
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z - 4 && b.t - sp.t > 10) {
-    const e = b.army.nearestEnemy(u, 4, (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut);
+    const e = b.army.nearestEnemy(u, 4, (o) => reachableFoe(b, u, o));
     if (e) { p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z); inp.leftPressed = true; if (Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) > 2) goTo(p, inp, e.pos.x, e.pos.z, 1.8); return; }
   }
   if (F.dp && F.dp.on && F.dp.i === 2 && u.pos.z >= GATE.z && !b.army.nearestEnemy(u, 5, (o) => reachableFoe(b, u, o))) {
