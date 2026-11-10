@@ -178,6 +178,13 @@ const k10_shigino = {
   noYaguraTask: true,      // 三の柵の井楼は目標にしない（右上は史実の流れの五つだけ・十1）
   stageGoalsOnly: true,    // 目標は五つの段だけ（「敵を何人討つ」で埋めない）
   goalsAllRows: true,      // 共通の目標札でも最初から五つ全部を並べる
+  keepTaskLabel: true,
+  keepTaskPanel: true,
+  missionAlways: true,
+  goalSignOnly: true,      // 地面と端の矢印を重ねず、行き先の▼一つを使う
+  goalSignTriangle: true,
+  goalSignUnitNoLabel: true,
+  goalSignTarget(rt) { return this.missionPin(rt); },
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
   missionPin(rt) {
     const F = rt.flags;
@@ -196,6 +203,9 @@ const k10_shigino = {
     }
     PIN.unit = F.step === 2 ? F.inoU : null;
     PIN.enemy = F.step === 2;
+    PIN.label = F.step === 1 ? (live(F.g1) ? '一の柵' : '二の柵')
+      : F.step === 2 ? '井上頼次' : F.step === 3 ? '水原親憲の鉄砲'
+      : F.step === 5 && F.riverAid ? '大和川南岸' : '二の柵の跡';
     PIN.r = F.step === 3 ? 6 : 8;
     return PIN;
   },
@@ -218,6 +228,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.shigino-goals :is(
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode {
+ display:block !important;
  left:auto !important; right:calc(12px + env(safe-area-inset-right, 0px)) !important; transform:none !important;
  width:auto !important; min-width:0 !important; max-width:min(390px, 44vw) !important; box-sizing:border-box;
  padding:8px 12px 9px 10px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important; }
@@ -226,10 +237,12 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li 
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
-html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }`;
+html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 b { display:none !important; }
+html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > span { display:none !important; }`;
     document.head.appendChild(st);
     const hudProgress = hud.progress;
     hud.progress = function (battle) {
+      if (battle === rt) hud.root.classList.toggle('shigino-combat', rt.flags.step !== 3 && !rt.flags.riverAid);
       const out = hudProgress.call(this, battle);
       if (battle === rt && this.prog && !rt.over) goalsTick(this.prog, rt);
       return out;
@@ -238,7 +251,7 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     rt.dispose = function () {
       hud.progress = hudProgress;
       if (hud.prog) hud.prog.classList.remove('goal-mode');
-      hud.root.classList.remove('shigino-goals'); st.remove();
+      hud.root.classList.remove('shigino-goals', 'shigino-combat'); st.remove();
       return dispose.call(this);
     };
   },

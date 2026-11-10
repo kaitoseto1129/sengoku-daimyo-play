@@ -3332,6 +3332,8 @@ const honnoji = {
   },
   travelGuideLabel(rt, keepDestination = false) {
     const F = rt.flags;
+    // 閉門後に門から離れても、済んだ閉門を命じ直さず守る場所と行いを示す。
+    const gateTask = F.gMain ? '表門の内へ戻り、門の口で明智勢を防ぐ' : '表門へ走り、門を閉めて明智勢を入れない';
     if (F.step >= 5) return this.escapeGuideLabel(rt);
     if (F.step >= 3) return '御所の西の門へ';
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵を討て';
@@ -3344,9 +3346,9 @@ const honnoji = {
       return door?.id === 'naka_tobira' && door.label !== '戸を開ける' ? '東の戸を通る' : '東の戸を開ける';
     }
     if (F.routeSign?.door && this.routeGuidePriority(rt)) return this.doorGuideLabel(rt);
-    if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return '表門へ走り、門を閉めて明智勢を入れない';
+    if ((F.hp === 2 || F.hp === 3) && F.gateApproach?.alive) return gateTask;
     if (gateDefending(rt)) return '表門の内で上様を守れ';
-    if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return '表門へ走り、門を閉めて明智勢を入れない';
+    if ((F.hp === 2 || F.hp === 3) && F.routeSign && !F.routeSign.indoor) return gateTask;
     if (F.routeSign?.corridor && this.routeGuidePriority(rt)) {
       return F.hp === 4 || F.hp === 5 ? '廊下の先から 本堂へ' : '廊下の先から 表門へ';
     }
@@ -3379,8 +3381,8 @@ const honnoji = {
     if (F.hp === 2 || F.hp === 3) {
       const sign = F.routeSign;
       if (sign?.door) return this.doorGuideLabel(rt);
-      if (sign && !sign.door && !sign.indoor) return '表門へ走り、門を閉めて明智勢を入れない';
-      if (!(F.patrolDistance > 10 && sign?.indoor)) return '表門へ走り、門を閉めて明智勢を入れない';
+      if (sign && !sign.door && !sign.indoor) return gateTask;
+      if (!(F.patrolDistance > 10 && sign?.indoor)) return gateTask;
       // 敵の増減で札を切り替えず、いま通る戸口の動作を短く保つ。
       return '次の印へ進む';
     }

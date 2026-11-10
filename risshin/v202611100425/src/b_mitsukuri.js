@@ -4896,8 +4896,12 @@ const mitsukuri = {
         F.commanderSaid = true;
         sayNear(rt, F.commander, 'ここが最後の守りぞ。槍をそろえ、押し返せ！', 3);
       }
-      for (const b of F.defenders) {
-        const g = b.real;
+      // 備の守兵だけでなく、別組の旗本・柵の控え・東の守りも攻め手を見張る。
+      // 組の一覧は毎回作らず、持ち場や攻撃の下知は変えない。
+      for (let i = 0; i < F.defenders.length + 3; i++) {
+        const g = i < F.defenders.length ? F.defenders[i].real
+          : i === F.defenders.length ? F.commandGuard
+            : i === F.defenders.length + 1 ? F.sanReserve : F.asaiFoe?.real;
         if (!g || g.routed || g.order !== 'hold') continue;
         // 坂の下から寄せる仲間も見張る。本人だけ・同じ高さだけに限ると、
         // 四十五ｍ先の段の守兵が攻め手を見ずに休んだままになる。
