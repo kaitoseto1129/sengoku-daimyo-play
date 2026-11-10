@@ -132,7 +132,7 @@ export function tick(rt, dt) {
   if (!z.test(P.x, P.z) && rt.player.u.alive) {
     if (!S.stuck || Math.hypot(P.x - S.stuck.x, P.z - S.stuck.z) > 6) S.stuck = { x: P.x, z: P.z, t: rt.t };
     let foe = false;
-    for (const u of rt.army.units) if (u.alive && u.team !== rt.player.u.team && !u.fleeing && !u.isStruct && Math.abs(u.pos.y - P.y) < 2 && Math.abs(u.pos.x - P.x) < 4 && Math.abs(u.pos.z - P.z) < 4) { foe = true; break; }
+    for (const u of rt.army.units) if (fighter(u) && u.team !== rt.player.u.team && Math.abs(u.pos.y - P.y) < 2 && Math.abs(u.pos.x - P.x) < 4 && Math.abs(u.pos.z - P.z) < 4 && !rt.army.wallBetween(P, -1, u.pos, false)) { foe = true; break; }
     if (foe) S.stuck.t = rt.t;
     const gaps = KINOME_PLAN.kuruwa.find((k) => k.id === id)?.gapAt;
     if (rt.t - S.stuck.t > 45 && gaps?.length) {
@@ -178,7 +178,10 @@ export function tick(rt, dt) {
       rt.say('一揆の衆徒', 'この郭はもう持たぬ！　奥へ退け！', 3);
       return;
     }
-  } else S.idle = 0;
+  } else {
+    // 郭を離れて休んだ時間を、守兵と戦い続けた六十秒に足さない。
+    S.idle = 0; S.cntV = null; S.cntT = null;
+  }
   // どの郭も本人が守兵へ当てて戦う。副郭・主郭も味方と時計だけでは退かせない。
   if (!F['breachHit_' + id] || !z.test(P.x, P.z)) { S.t = null; return; }
   if (!z.friends || !z.enemies) return;

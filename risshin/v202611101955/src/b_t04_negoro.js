@@ -357,7 +357,8 @@ const t04_negoro = {
     const T = F._ngTg || (F._ngTg = {});
     if (T.s !== s) {
       const at = s === 1 ? YOSE : s === 2 ? (F.posts.win ? centerOf(F.posts.win) : MONZEN) : s === 3 ? P(0, -3) : s === 4 ? P(0, 18) : s === 7 ? NG.OKU : TOWER_FRONT;
-      Object.assign(T, { s, x: at.x, z: at.z, unit: null, boss: false,
+      // 持ち場に着いても守備・制圧は続く。近づいただけで行き先を消さない（関所3）。
+      Object.assign(T, { s, x: at.x, z: at.z, unit: null, boss: false, hideDistance: 0,
         action: ['', '竹束について寄せよ', '鉄砲衆を討て', '大門を破れ', '鉄砲衆を討て', '大塔の前へ', '大塔を守れ', '奥の院を潰せ'][s], label: ['', '竹束の陰', '坊舎の鉄砲衆', '大門', '僧坊の路地', '大塔の前', '大塔の前', '奥の院'][s] });
     }
     // 丸太の護衛は担ぎ手の脇へ案内する。門を直接指すと、組を追い越して射撃の前へ出てしまう。
@@ -1026,8 +1027,13 @@ const t04_negoro = {
           }
           if (wp) wp.holdFire = !wp.focus;
         }
-        // 上限（全戦共通の決まり10）：三分を過ぎても門扉が残る時は、本人が丸太の脇にいなくても味方が打ち続けて破る（bot が塀の外の斜面へ出て、門の段が五分止まった。関所 11/10）
-        if (s.alive && el > 180) { C.autoT = (C.autoT || 0) + dt; if (C.autoT > 1.5) { C.autoT = 0; rt.army.damage(s, 24, null, { kind: 'ram' }); } }
+        // 長引いた時の補助も、門前で実際に丸太を担げる二人が必要。
+        // 全滅・後送・遠くで止まった組の代わりに、時間だけで扉を壊さない。
+        const workingRam = s.alive && el > 180 && F.ram.mesh.visible && !F.ram.stopped && !F.ramG.routed
+          && F.ramG.units.reduce((n, u) => n + (fighting(u) && remaining(u) && !u.rearWound
+            && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 8 ? 1 : 0), 0) >= 2;
+        if (workingRam) { C.autoT = (C.autoT || 0) + dt; if (C.autoT > 1.5) { C.autoT = 0; rt.army.damage(s, 24, null, { kind: 'ram' }); } }
+        else C.autoT = 0;
         if (!s.alive && C.openT == null) C.openT = el;
         // 自分は丸太の脇について押す（丸太の組の真横）
         const mm = F.ram.mesh;

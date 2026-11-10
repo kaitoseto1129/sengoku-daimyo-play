@@ -41,7 +41,8 @@ export function pin(rt) {
   if (I.s === 0) return I.POST;
   if (I.s === 1) return I.OUT;
   if (I.s === 2) return null;            // 物見と槍を合わせる間は、頭上の赤い▼だけ
-  if (I.s === 3) return I.BACK;
+  // 帰陣後の斉射を見届ける間も、柵外へ誘い直さず内側の持ち場を指す。
+  if (I.s === 3 || I.s === 4) return I.BACK;
   return null;
 }
 
@@ -102,7 +103,7 @@ export function tick(rt, dt) {
       I.s = 4; I.at = rt.t;
       c.nfGuns(rt, c.MOUTHS[0].z);
       I.gunsReady = c.guns().some((q) => !q.routed && q.units.some((u) =>
-        u.type === 'gun' && u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+        u.type === 'gun' && !u.sidearm && u.gunAmmo !== 0 && u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
         Math.hypot(u.pos.x - I.BACK.x, u.pos.z - I.BACK.z) < 80));
       if (I.gunsReady) rt.say('野々村正成', '放てっ！', 1.8);
       // 下知だけを出し、射手の生死・装填・射線と命中は通常の鉄砲に任せる。

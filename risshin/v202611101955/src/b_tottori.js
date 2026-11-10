@@ -203,7 +203,7 @@ function holdTottoriSallies(rt) {
     if (!g.ttOut || g.ttRetreat || g.routed || (g.order !== 'attack' && g.order !== 'path')) continue;
     if (g.focus && !atTottoriPost(g.focus.pos)) g.focus = null;
     for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
+      if (!u.alive || u.hp <= 0 || u.dying || u.downed || u.gone || u.fleeing || u.woundOut || u.rearWound || u.noTarget) continue;
       const foe = u.atk?.target || u.swing?.target || u.target;
       if (g.order === 'path' ? !foe || atTottoriPost(foe.pos)
         : atTottoriPost(u.pos) && (!foe || atTottoriPost(foe.pos))) continue;

@@ -17,6 +17,15 @@ export function fortWay(u, goal) {
   const p = u.pos;
   const gates = TSUTSUMI_PLAN.koguchi;
   const south = goal.z < p.z;
+  // 南の木戸から戻る時、北の木戸や砦の持ち場へ直行すると番所の角を横切る。
+  // 西の通路を北へ抜けてから曲がり、案内の印も同じ道へ置く。
+  if (!south && p.z >= gates[gates.length - 1].at[1] + 1.5 && p.z < -56 && goal.z >= -56 &&
+      p.x >= -60 && p.x <= -40 && goal.x >= -60 && goal.x <= -40) {
+    const q = u._ngFortWay || (u._ngFortWay = { x: 0, z: 0, botRadius: .35 });
+    q.x = -54;
+    q.z = Math.abs(p.x + 54) > .6 ? p.z : -56;
+    return q;
+  }
   for (let i = 0; i < gates.length; i++) {
     const gate = gates[south ? i : gates.length - 1 - i];
     const [x, z] = gate.at;

@@ -1414,7 +1414,8 @@ const miki = {
   missionDetail: () => '', missionStatus: () => '',
   goalSignNoLabel: true,     // 11/4 jin（三1・五1）：▼の上に字を出さない
   goalSignOnly: true, // 11/3 p100_miki（AV15・⑧）：持ち場の旗・輪・枠を重ねず、頭上の金の▼一つだけ
-  goalSignBare: true, keepTaskLabel: true, // 木戸の守備を「門へ進め」「ここを攻める」に読み替えない。
+  // 画面外でも▼を回転させない。共通の印が読む指定で形をそろえる。
+  goalSignTriangle: true, keepTaskLabel: true, // 木戸の守備を「門へ進め」「ここを攻める」に読み替えない。
   // 下知と討死の知らせは、音を切っていても字幕で読める。
   battleDialogue: true,
   // 三太夫だけの討死で「三太夫の勢」を済みにせず、残兵と合流は戦の判定に任せる。
