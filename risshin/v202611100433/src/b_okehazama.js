@@ -2674,12 +2674,12 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     H.defMult = 1;
     for (const g of E) { g.guard = true; g.guardSight = 32; g.guardLeash = 12; g.fire = false; }
     E.push(H);
-    // 本陣前・右・左の備えから十八人を道へ分ける遊びの補完。増援を湧かせない。
+    // 本陣前・右・左の備えから道へ分ける遊びの補完。
     // 最初の六人は谷の出口手前の見張り。行軍中の小競り合いも遊びの補完。
     // 本陣への攻めは空が晴れてから信長の合図を待つ。
     // 出陣位置から三十五メートルほど離し、下知を読む前の斬り合いを避ける。
     // 同じ六人が行軍後に歩いて寄せる。合図や本陣の守りは変えない。
-    // 二の組は見張りの脇の林に置く（開戦25秒に見張りと続いて寄せる。10/30 夜）
+    // 二の組は坂道に残し、雨上がりの下知の後に戦う。
     // 11/4 布陣図：坂道の三組は高根山に出た松井宗信の先手（本陣と織田の間）。三の組は松井本人が馬上で、侍と槍に守られる。
     rt.flags.road = [[-12, -60], [-1, -64], [16, -94]].map(([x, z], i) => {
       const g = enemyGroup(rt, { fixed: true, noGuard: true, faction: 'imagawa',
@@ -2688,7 +2688,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
         morale: i === 2 ? 90 : 70, aggro: 0, fleeDir: fieldVector(0, -1), noRout: i === 2 },
         i === 2
           ? [{ type: 'busho', n: 1, o: { name: '松井宗信', horse: true } }, { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }]
-          : [{ type: 'ashigaru', n: 6 }, { type: 'ashigaru', n: 2, o: { weapon: 'sword', reach: 1.75 } }]);
+          : [{ type: 'ashigaru', n: i === 0 ? 4 : 6 }, { type: 'ashigaru', n: 2, o: { weapon: 'sword', reach: 1.75 } }]);
       E.push(g);
       return g;
     });
