@@ -2517,7 +2517,9 @@ const iga = {
           g.faction = 'iga';
           for (const u of g.units) if (u.type === 'samurai' || u.type === 'busho') u.nanori = '伊賀の地侍なり！';
         }
-        if (F.step >= 3 && g.team === 1) continue;
+        // 実兵へ替わった直後でも、先に届いた退去の下知を守備で上書きしない。
+        // 包囲の夜（段二・五）から城兵は北へ歩いて退いている。
+        if (g.retreatOnly || F.step >= 3 && g.team === 1) continue;
         g.noAI = true; g.order = 'hold'; g.guard = true;
         g.guardLeash = 6; g.guardSight = 12; g.seekRange = 8;
       }
