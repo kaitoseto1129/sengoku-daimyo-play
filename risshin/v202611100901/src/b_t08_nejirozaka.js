@@ -122,8 +122,15 @@ const STEP_TEXT = ['土橋の塀で、堀を越える島津勢を突き落とす
 
 // 守備は持ち場で守った刻で果たす。敵の全滅を待って止まったり、
 // 持ち場から離れたまま時間切れだけで済んだりしない。残兵は end の下知で退く。
+function clearMarch(g) {
+  // 共通処理は退却中も以前の移動先と到着の命令を使う。寄せる下知を残さない。
+  g.dest = null; g.path = null; g.onArrive = null;
+  g.focus = null; g.assault = null; g.marching = false; g.keepMoveOrder = false;
+}
+
 function withdrawWave(C) {
-  for (const g of C.groups) if (g.count && !g.routed && g.order !== 'retreat') {
+  for (const g of C.groups) if (g.count && !g.routed) {
+    clearMarch(g);
     g.noRout = false;
     g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
     g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
@@ -389,6 +396,7 @@ function reliefArrive(rt) {
 function retreatAll(rt) {
   rt.flags.retreating = true;
   for (const g of rt.army.groups) {
+    clearMarch(g);
     if (g.team === 0) { g.order = 'hold'; g.noPursue = true; g.historicalOrders = true; g.aggro = 0; g.seekRange = 0; }
     else {
       // 坂の下の大将も床几を離れて退く。着座したまま滑って逃げない。
@@ -635,6 +643,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       F.tadaHandDone = true;
       // 組頭が生きている組は士気を下げるだけでは退かない。下知で坂の下へ退かせる。
       for (const g of C.groups) if (g !== F.tada && g.count) {
+        clearMarch(g);
         g.noRout = false; g.morale = 0;
         g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
         g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;

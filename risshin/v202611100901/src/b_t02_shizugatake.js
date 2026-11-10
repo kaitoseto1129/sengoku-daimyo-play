@@ -632,6 +632,8 @@ const t02_shizugatake = {
         q.order = 'move'; q.dest = { x: x + (q === F.mori ? -6 : 0), z: z + (q === F.mori ? 6 : 0) }; q.onArrive = step;
       };
       g.speed = 4.6; g.aggro = 0; g.seekRange = 0; g.focus = null; g.march = true;
+      // 行軍中は攻撃対象から外すが、兵の到着は数える。除くと最初の曲がり角で止まる。
+      g.arriveNoncombat = true;
       for (const u of g.units) u.noTarget = true;   // 行軍の間は遠くを通るだけ（主人公の行き先の坂で斬り合いにしない）
       step(g);
     }
@@ -929,7 +931,7 @@ const t02_shizugatake = {
   onKill(rt, v) {
     const F = rt.flags;
     if (v && v.team === 0 && !v.isPlayer && !v.isStruct && !v.civ) F.allyLost = (F.allyLost || 0) + 1;
-        if (v && v.team === 1) F.kills++;
+    if (v && v.team === 1 && !v.isStruct && !v.civ) F.kills++;
     if (v && v === F.kmU && !F.kmBanner) { F.kmBanner = true; rt.banner('毛受勝照、討ち取ったり', ''); }
   },
 
