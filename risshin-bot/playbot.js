@@ -221,8 +221,13 @@ function survive(b, inp) {
       const choose = !!attacker || !!pursuer || !(b._botEscapeAt > b.t) ||
         Math.hypot(u.pos.x - b._botEscapeFromX, u.pos.z - b._botEscapeFromZ) >= 0.35 ||
         Math.cos(walk - b._botEscapeWalk) < 0.95;
-      for (let i = 0; choose && moving && i < 8; i++) {
-        const turn = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4;
+      // 八方向が全部塞がった時だけ、その間の八方向も探す。
+      // 志賀の斜めの戸口や三方ヶ原の細い退路を、通れないと取り違えない。
+      for (let i = 0; choose && moving && i < 16; i++) {
+        if (i === 8 && best > -Infinity) break;
+        const turn = i < 8
+          ? i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 ? 1 : -1) * Math.PI / 4
+          : (2 * Math.floor((i - 8) / 2) + 1) * (i % 2 ? -1 : 1) * Math.PI / 8;
         const sx = Math.sin(walk + turn), sz = Math.cos(walk + turn);
         // 終点だけ平らでも、途中の切岸や戦ごとの退路の外へ踏み込まない。
         let clear = true;
