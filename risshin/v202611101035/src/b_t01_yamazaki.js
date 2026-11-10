@@ -217,7 +217,7 @@ const t01_yamazaki = {
   introSides: { a: '羽柴 四万', b: '明智 一万六千' },
   introPeople: [],
   // 右上は今の目標を番号付きで（「味方の旗へ」「見えぬ敵の陣を物見する」に替えない。kaito 三1・十1）
-  missionHeading: (rt) => { const F = rt.flags; if (!F.stage && F.pro) return Ogaeshi.TEXT[F.pro]; const n = Math.min(LAST, Math.max(1, F.stage || 1)); return NUM[n - 1] + TEXT[n]; },
+  missionHeading: (rt) => { const F = rt.flags; if (!F.stage && F.pro) return NUM[F.pro - 1] + Ogaeshi.TEXT[F.pro]; const n = Math.min(LAST, Math.max(1, F.stage || 1)); return NUM[n - 1] + TEXT[n]; },
   // 倒れた札に案内の字（「味方のそばで戦おう」）を添えない（kaito 五1）
   retryAdvice: () => ' ',
   // 途中の共通の見出し（「一騎打ち」「敵将が倒れた」「敵の隊が崩れた」）は説明の字なので出さない（五1。11/6 の流しで一つの戦に四つ出た）
@@ -312,6 +312,8 @@ const t01_yamazaki = {
   setup(rt) {
     const F = rt.flags;
     F.stage = 0; F.ek = 0; F.ak = 0; F.ending = false; F.holdPlayer = true;
+    // 序の予約を待つ間も本戦の①を出さない（通し確認：向きを変える間に目標の文が替わった）。
+    F.pro = 1; F.oStep = 0;
     // 両軍の本陣（陣幕・馬印）と、中の旗本（本物の兵。前に出ない）
     KIT.honjin(rt, HIDE.x, HIDE.z, { mon: HA, people: false, fire: false });
     KIT.honjin(rt, HONJIN_A.x, HONJIN_A.z, { mon: 'akechi', people: false, fire: false });

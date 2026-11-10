@@ -402,7 +402,7 @@ const k04_kuisegawa = {
       rt.say('有馬豊氏', '中村の者を通せ！　鉄砲、川へ向けて構えよ', 3);
       this.go(B.arima, T(62, -8), 1.8);
       if (live(F.arimaG)) { F.arimaG.order = 'move'; F.arimaG.dest = T(64, -12); }
-      rt.after(3, () => rt.army.play('volley', T(40, -6), 1.2));
+      // 鉄砲の音は有馬の鉄砲衆が実際に撃った時に鳴らす。
     }
   },
 
@@ -463,7 +463,7 @@ const k04_kuisegawa = {
     F.follow.push([F.akashiG, B.akashi, 0, 0], [F.shimaG, B.shima, 0, 0]);
     if (B.saki) B.saki.morale = Math.min(B.saki.morale, 48);
     rt.army.play('toki', AKASHI_HIDE, 1.5); rt.after(0.4, () => rt.army.play('toki', SHIMA_HIDE, 1.5));
-    rt.after(0.8, () => rt.army.play('volley', T(-22, 16), 1.3));
+    // 伏兵の銃声は上で置いた鉄砲衆の発砲に任せる。
     sfx('taiko', 1);
     rt.say('野一色頼母', '葦の中に鉄砲じゃ！　伏せておったか', 3);
     rt.after(4, () => rt.say('島左近', '釣れたわ。返せ、一人も川へ戻すな', 3));
@@ -680,7 +680,8 @@ const k04_kuisegawa = {
 k04_kuisegawa.history = '慶長五年（1600）九月十四日、美濃の赤坂に着いた徳川家康の東軍の前に、大垣城の石田三成の西軍が出た。島左近と蒲生備中のおよそ五百が杭瀬川を渡り、東軍の目の前で刈田をして挑発し、追われると退くふりをした。中村一栄の隊が川を渡って追うと、葦の中に伏せていた宇喜多秀家の家臣・明石全登の隊と、引き返した左近の兵が打ち掛かり、中村の家老・野一色頼母は深田にはまって討たれた。有馬豊氏の隊が受けて東軍は退いた。兵は西軍 千三百・東軍 六千ともいう（数には諸説がある）。この小さな勝ちで西軍の士気は上がったが、翌十五日、決戦は関ヶ原で行われる。\n戦場の細かな位置は、川筋が変わったため定かでない。';
 k04_kuisegawa.bushou = [{ name: '島左近', g: /島左近/ }, { name: '明石全登', g: /明石全登/ }];
 
-setStages('k04_kuisegawa', [['刈田の島の兵を追い立てる', 0], ['退く島の兵を追って川を東へ渡る', 2], ['葦の伏兵を食い止める', 3], ['川を西へ渡って退く', 4], ['有馬豊氏の陣へ逃げ込む', 5]]);
+// 右上の五段も同じ言葉にし、頼母の旗・杭瀬川・手勢の同行を省かない。
+setStages('k04_kuisegawa', STEP_TEXT.map((text, i) => [text, i ? i + 1 : 0]));
 // 倒す数（kaito 11/2 O・AV16）：一段目は刈田の兵（史実の二百）のうち、退くふりを始めさせるまでの数（二割）
 KILLS.k04_kuisegawa = (rt) => {
   const F = rt.flags, b = F.blk?.bait;

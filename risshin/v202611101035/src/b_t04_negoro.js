@@ -624,7 +624,12 @@ const t04_negoro = {
       const e = camBox(q.x, q.z, 6.5 * 1.9 + 3.6, 5 * 1.9 + 3.6, r + ROT, 9); e.y0 += 4.4; boxes.push(e);
     }
     // 境内の子院の坊舎と、門前の囲いの築地塀（塀の内へカメラが抜けて、網目で透けた壁越しに後ろを向いた）
-    for (let i = 0; i < SITES.length - 1; i++) { const s = SITES[i], b = camBox(s.x, s.z, 6.5 + 1.7, 5 + 1.7, 0, 6); b.y0 = siteY(i) - 0.3; b.y1 = siteY(i) + 6; boxes.push(b); }
+    for (let i = 0; i < SITES.length; i++) {
+      // 最後の奥の院も戦う場所。坊舎より大きい堂の軒までカメラを入れない。
+      const s = SITES[i], oku = i === SITES.length - 1;
+      const b = camBox(s.x, s.z, oku ? 7.5 + 4.8 : 6.5 + 1.7, oku ? 6 + 4.8 : 5 + 1.7, 0, oku ? 9.5 : 6);
+      b.y0 = siteY(i) - 0.3; b.y1 = siteY(i) + (oku ? 9.5 : 6); boxes.push(b);
+    }
     for (const s of [-1, 1]) for (const line of [[[13.3, -90.2], [13.3, -96], [42, -96], [42, -28], [15.3, -28], [15.3, -33.8]], [[13.3, -77.8], [13.3, -72.2]], [[15.3, -59.8], [15.3, -46.2]]]) {
       for (let i = 0; i < line.length - 1; i++) {
         const [ax, az] = line[i], [bx, bz] = line[i + 1], c = P(s * (ax + bx) / 2, (az + bz) / 2);

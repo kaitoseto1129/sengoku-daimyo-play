@@ -919,10 +919,8 @@ const t10_oshi = {
     if (F.step === 4) return { x: WEIR.x, z: WEIR.z, r: 4, label: '堤の西の堰' };
     if (F.step === 6) return { x: MARU.x, z: MARU.z, r: 14, label: '丸墓山' };
     if (F.step === 7) {
-      // 切れ口へ寄せた城兵がいればそこ、いなければ切れ口の前
-      const g = (F.mendWaves || []).find(fighting);
-      const u = g && g.units.find((o) => o.alive && !o.gone && !o.fleeing && near(o.pos, MEND_AT, 30));
-      return u ? { x: u.pos.x, z: u.pos.z, r: 5, label: '堤の切れ口' } : { x: MEND_AT.x, z: MEND_AT.z, r: 6, label: '堤の切れ口' };
+      // 守る場所は人足の普請する切れ口。城兵が動いても行き先を移さない。
+      return { x: MEND_AT.x, z: MEND_AT.z, r: 6, label: '堤の切れ口' };
     }
     return { x: FRONT.x, z: FRONT.z, r: 6, label: '佐間口の門前' };
   },

@@ -4378,7 +4378,9 @@ function tedoCleared(C) {
     if (g.tedoBow) continue;
     pursuers = true;
     if (!g.routed) for (const u of g.units)
-      if (u.alive && !u.gone && !u.fleeing && !u.woundOut) return false;
+      // 倒れかけ・後送・救助中の者は追撃できない。生存だけで待ち続けない。
+      if (u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
+          !u.rearWound && !u.downed && !u.dragging && !u.noTarget) return false;
   }
   return pursuers;
 }
