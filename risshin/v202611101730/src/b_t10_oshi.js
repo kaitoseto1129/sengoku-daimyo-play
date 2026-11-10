@@ -1056,7 +1056,10 @@ const t10_oshi = {
           const men = g.units.filter((u) => !u.invuln);
           const down = men.filter((u) => !u.alive || u.gone || u.fleeing).length;
           if (!men.length || down < Math.ceil(men.length * 0.5) || !fighting(g)) continue;
-          for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) rt.army.despawn(u);
+          // 土手の向こうも見える。距離だけで姿を消さず、来た浅瀬を退かせる。
+          for (const u of g.units) if (u.alive && !u.gone && !near(u.pos, RAIDAT, 20)) {
+            u.fleeing = true; u.target = null; u.watch = null; u.atk = null;
+          }
         }
       }
     } else if (F.step === 4) {

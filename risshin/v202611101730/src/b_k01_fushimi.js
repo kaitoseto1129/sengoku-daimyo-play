@@ -357,7 +357,10 @@ const k01_fushimi = {
     // 開戦前の案内まで到着扱いで消さない（全戦通しの開始時の指摘）。
     // 後退・脱出の到着判定は八〜九歩。十二歩で消すと未到着の
     // 十歩手前で行き先を失うため、移動中は八歩内まで残す。
-    if (C && (!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < (moving ? 8 : 12)) return null;
+    // 最後の守備も十歩内への到着が必要。守備の輪が狭い時は、
+    // その内へ入るまで案内を消さない。
+    const arrivedRadius = moving ? 8 : holding ? Math.min(12, C.botRadius || 14) : 12;
+    if (C && (!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < arrivedRadius) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
     T.label = moving && D.i === 11 && at !== C.at ? '本丸の裏口' : (fighting || moving || holding) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;

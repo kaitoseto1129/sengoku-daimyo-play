@@ -2824,13 +2824,21 @@ const moribeFoeReady = (u, p) => u?.alive && u.hp > 0 && !u.gone && !u.dying && 
 // 体だけ見えていても、笠の上の▼が画面外や任務の裏ならピンを残す。
 // 投影用の点は使い回し、頭上印と同じ高さで調べる。
 const moribeSignPoint = new THREE.Vector3();
-function moribeTargetVisible(rt, enemy) {
-  if (!inouSignVisible(rt, enemy) || !sightScreenUnit(rt, enemy)) return false;
-  const p = rt.player.u.pos;
-  if ((enemy.pos.x - p.x) ** 2 + (enemy.pos.z - p.z) ** 2 > 40 * 40) return false;
-  moribeSignPoint.set(enemy.pos.x, enemy.pos.y + inouSignHeight(enemy), enemy.pos.z).project(rt.camera);
+function moribeSignInsideScreen(rt, enemy) {
+  // 討ち取り直後も、共通の頭上印が使う最後の位置で調べる。
+  const defeated = enemy.moribeDefeatUntil > rt.t && enemy._moribeSignY != null;
+  if (defeated) moribeSignPoint.set(enemy._moribeSignX, enemy._moribeSignY, enemy._moribeSignZ);
+  else moribeSignPoint.set(enemy.pos.x, enemy.pos.y + inouSignHeight(enemy), enemy.pos.z);
+  moribeSignPoint.project(rt.camera);
   const x = (moribeSignPoint.x + 1) * VIEW.w / 2, y = (1 - moribeSignPoint.y) * VIEW.h / 2;
   if (moribeSignPoint.z < -1 || moribeSignPoint.z > 1 || x < 24 || x > VIEW.w - 24 || y < 32 || y > VIEW.h - 24) return false;
+  return true;
+}
+function moribeTargetVisible(rt, enemy) {
+  if (!inouSignVisible(rt, enemy) || !sightScreenUnit(rt, enemy) || !moribeSignInsideScreen(rt, enemy)) return false;
+  const p = rt.player.u.pos;
+  if ((enemy.pos.x - p.x) ** 2 + (enemy.pos.z - p.z) ** 2 > 40 * 40) return false;
+  const x = (moribeSignPoint.x + 1) * VIEW.w / 2, y = (1 - moribeSignPoint.y) * VIEW.h / 2;
   const rects = rt.hud?.hudRects?.();
   if (rects) for (const r of rects)
     if (x + 20 >= r.left && x - 20 <= r.right && y >= r.top && y - 32 <= r.bottom) return false;
@@ -2916,7 +2924,7 @@ const moribe = {
   // 頭上だけ見える霧の向こうや、描いていない兵に所属印を浮かべない。
   // 人物名と同じ胴・足場の見通しを使い、近くの敵も人数では間引かない。
   enemySignVisible(rt, u) {
-    return u.moribeDefeatUntil > rt.t && u._moribeSignY != null || inouSignVisible(rt, u);
+    return (u.moribeDefeatUntil > rt.t && u._moribeSignY != null || inouSignVisible(rt, u)) && moribeSignInsideScreen(rt, u);
   },
   // 遠い霧の中の将へ名前だけを残さず、胴を見分けられる頭上印とそろえる。
   hideNameTag(u, rt) {

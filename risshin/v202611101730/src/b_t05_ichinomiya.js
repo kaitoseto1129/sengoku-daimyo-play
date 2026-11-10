@@ -539,7 +539,8 @@ function destOf(rt) {
   // ⑤押し戻しの段は、山道の今の持ち場（下がる・また上る）
   if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道', hideDistance: 0 }; }
   const u = rt.player.u.pos;
-  if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸', hideDistance: 2 };
+  // 入城しても守兵が残れば段は続く。曲輪の中心に着いただけで案内を消さない。
+  if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸', hideDistance: 0 };
   // 門の正面まで来たら、守兵が残っていても曲輪の中を示す。
   // 敷居を目当てにし続けると、二m手前で▼が消え、入城前の案内が途切れる。
   if ((F.dp?.cur?.inSaid && Math.abs(u.x - HON_GATE.x) <= 4) ||

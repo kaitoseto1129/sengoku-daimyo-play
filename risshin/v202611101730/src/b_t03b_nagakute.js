@@ -564,22 +564,26 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       F.menT = 0.5;
       const c = live(F.men) && F.men.center();
       if (c) {
-        const d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z), far = d > (run ? 5 : 8);
+        const d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
+        let farthest = d;
         F.men.ai = false;
         // 走る段で離れた兵は、目の前の斬り合いを捨てて駆け出す（掴み合ったまま白山林に残らない）
         //   駆けて追いつく間（主人公から 14m より外）は、追いすがる敵に討たれ尽くさない（追いつけば元どおり打ち合う）
         for (const u of F.men.units) if (u.alive && !u.gone) {
-          const away = run && dist(u.pos, P.pos) > 14;
-          if (dist(u.pos, P.pos) > 14) { u.target = null; u.watch = null; }
+          const distance = dist(u.pos, P.pos), away = run && distance > 14;
+          farthest = Math.max(farthest, distance);
+          if (distance > 14) { u.target = null; u.watch = null; }
           if (away !== !!u._runSafe) { u._runSafe = away; u.invuln = away; }
         }
         // 後れた組も先行した組も主人公のそばへ。任務地点へ直行させると、途中で止まった主人公を置き去りにする。
         // 行き先を半秒ごとに替えると、
         //   替わるたびに隊の合図の待ち（army_signals.js）が入り足が止まるので、6m より大きく離れた時だけ替える
         // 主人公を追い越した組はそばへ戻す。行き先だけを追うと、立ち止まった主人公を置いて先へ走り続ける。
+        // 前後に分かれた兵の平均だけが近くても、離れた兵が戻るまでは集合を続ける。
+        const far = d > (run ? 5 : 8) || farthest > 14;
         const want = { x: P.pos.x + 2, z: P.pos.z + 2 };
         if (far && (F.men.order !== 'move' || !F.men.dest || dist(F.men.dest, want) > 6)) F.men.dest = { x: want.x, z: want.z };
-        if (far) { F.men.order = 'move'; F.men.speed = run || d > 16 ? 5.4 : 4.4; F.men.march = run || d > 16; F.men.aggro = run || d > 16 ? 2 : 10; }
+        if (far) { F.men.order = 'move'; F.men.speed = run || farthest > 16 ? 5.4 : 4.4; F.men.march = run || farthest > 16; F.men.aggro = run || farthest > 16 ? 2 : 10; }
         else {
           // 戻った直後に自由な攻撃へ替えると、また敵を追って主人公の周りが空になる。
           F.men.order = 'hold'; F.men.anchor.x = want.x; F.men.anchor.z = want.z;
