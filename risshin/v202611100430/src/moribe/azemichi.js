@@ -6,7 +6,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
 
 export function start(rt, def, C) {
   const F = rt.flags, v = F.m15;

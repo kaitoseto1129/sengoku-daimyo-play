@@ -4865,7 +4865,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
             // 倒れる途中・深手で退いた味方との接触では、殿の踏みとどまる時間を始めない。
             if (g.units.some((u) => moribeRemainFoe(u) && u.target?.alive && u.target.hp > 0 &&
                 !u.target.dying && !u.target.downed && !u.target.gone && !u.target.woundOut &&
-                !u.target.rearWound && !u.target.fleeing && u.target.team === 0 &&
+                !u.target.rearWound && !u.target.fleeing && !u.target.noTarget &&
+                !u.target.isStruct && !u.target.civ && u.target.team === 0 &&
                 Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6)) {
               F.pursuit.contactAt = rt.t;
               break;

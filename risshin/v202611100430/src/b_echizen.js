@@ -2263,8 +2263,15 @@ function gatePress(rt) {
       if (!u.alive || u.fleeing || u.mounted || u.woundOut || u.downed || u.gone || u.atk || u.swing || u.hit
         || u.type === 'gun' || u.type === 'bow' || u.dragging) continue;
       if (Math.abs(u.pos.x - P.pos.x) > 32 || Math.abs(u.pos.z - P.pos.z) > 32) continue;
+      if (u.moveTo === u._pressPt) u.moveTo = null;
+      if (u.pressBack?._pressBy === u) u.pressBack._pressBy = null;
+      u.pressBack = null;
       const tg = u.target;
-      const foe = tg?.alive && !tg.isStruct && !tg.fleeing ? tg : A.nearestEnemy(u, 12, (o) => !o.fleeing && !o.isStruct && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 2);
+      // 共通の壁よけを、この押し合いの補助で上書きしない。
+      // 塀の向こうや戦えない負傷兵へ寄せると、木戸前の列が壁に張り付く。
+      const canPress = o => passFighter(o) && o.team !== u.team &&
+        Math.abs(o.pos.y - u.pos.y) < 2 && !A.wallBetween(u.pos, -1, o.pos, false);
+      const foe = canPress(tg) ? tg : A.nearestEnemy(u, 12, canPress);
       if (!foe) continue;
       const fx = foe.pos.x - u.pos.x, fz = foe.pos.z - u.pos.z, d = Math.hypot(fx, fz) || 1;
       const reach = u.reach || 2;
@@ -2292,6 +2299,11 @@ function gatePress(rt) {
         const side = u.id % 2 ? 1 : -1, r = reach * 0.85;
         pt.x = foe.pos.x - fx / d * r + (-fz / d) * side * 0.9; pt.z = foe.pos.z - fz / d * r + (fx / d) * side * 0.9;
         u.pressBack = null;
+      }
+      if (A.wallBetween(u.pos, -1, pt, false) || !rt.world.walkable(pt.x, pt.z)) {
+        if (fr && fr._pressBy === u) fr._pressBy = null;
+        u.pressBack = null;
+        continue;
       }
       u.moveTo = pt;
     }

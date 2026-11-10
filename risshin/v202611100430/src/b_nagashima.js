@@ -81,7 +81,7 @@ const WORK_SPOTS = SPOTS.map(s => ({ x: s.x, z: s.z + 2 }));
 const BUILD_HOLD = 8;                      // 人足と並行して補修する
 const WATCH_HOLD = 8;                      // 近い岸で水路を見張る
 const HELP_HOLD = 4;                       // 人足と手分けし、本人は横木の縄を締める
-const SALLY_HOLD = 240;                    // 後続舟まで四分守る。静かな岸だけを長く待たせない。
+const SALLY_HOLD = 45;                     // 三つの守備とは別の斬り込み。全舟を受け、残敵と岸の静まりも確かめる。
 const SHORE_DELAY = 25;
 const END_SEC = 32;                        // 11/6 fixc1721：火を見届ける間。十八秒では対岸の火が燃え広がる前に勝ちの札になった                    // 最初の十人に続き、同じ舟の残る門徒も上陸する
 const SHORE_WATCH_HOLD = 8;                // 全ての舟を受けた後、静まった岸を見張る
@@ -1358,11 +1358,12 @@ function bankTeppoPatrol(rt) {
   const F = rt.flags, g = F.teppo;
   if (!g || F.step >= 2 || F.ending || rt.t < (F.teppoPatrolAt || 0)) return;
   F.teppoPatrolAt = rt.t + 1;
-  // 退城の下知までは岸の持ち場を見回る。射撃・装填中は列を動かさない。
-  if (g.units.some(u => bankFighterReady(u) && (u.atk || u.reload || u.target?.alive))) return;
+  // 射撃禁止中に覚えている対岸の敵だけでは、見回りを止めない。
+  // 実際の射撃・装填と、射撃を許された相手への構えは妨げない。
+  if (g.units.some(u => bankFighterReady(u) && (u.atk || u.reload || g.fire && u.target?.alive))) return;
   F.teppoPatrolSide = -(F.teppoPatrolSide || -1);
   g.anchor.x = 34 + F.teppoPatrolSide * 4;
-  F.teppoPatrolAt = rt.t + 6;
+  F.teppoPatrolAt = rt.t + 4;
 }
 // 描画済みの川面と同じ水深に舟を浮かべる。毎コマの計算で物を作らない。
 function waterHeight(W, x, z) {
@@ -3721,7 +3722,8 @@ const nagashima = {
     // 降伏の報せで岸の応酬を止める。退城舟への射撃と、その後の反撃を混ぜない。
     for (const g of F.bankBows) {
       g.fire = false;
-      for (const u of g.units) { u.target = null; u.atk = null; u.noTarget = true; u.pinT = Infinity; }
+      // 行動を止めると装填の時計も止まる。装填を残すと、後の見回りが永久に待つ。
+      for (const u of g.units) { u.target = null; u.atk = null; u.reload = null; u.noTarget = true; u.pinT = Infinity; }
     }
     rt.setPhase('boats'); rt.unmark('workWatch'); rt.unmark('watch'); rt.unmark('watchFacing');
     F.shiba.fire = false; F.teppo.fire = false;

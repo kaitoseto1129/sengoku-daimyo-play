@@ -136,7 +136,8 @@ function requiredStage(s) {
     // 持ち場に戻らず反撃だけが終わった場合も、守った時間を満たしてから済みにする。
     return done && (s.kind !== 'hold' || (C.inT >= 45 && fighting &&
       Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius)) &&
-      (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged));
+      // 一度交戦していても、本人が倒れた後に味方だけで殿を崩して勝ちにはしない。
+      (s.kind !== 'fight' || rt.flags.step !== 4 || (el >= 30 && C.engaged && fighting));
   };
   return s;
 }
