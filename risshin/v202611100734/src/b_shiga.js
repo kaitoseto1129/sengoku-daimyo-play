@@ -4214,7 +4214,7 @@ const shiga = {
         c.x = u.pos.x; c.z = u.pos.z;
         g.order = 'path'; g.path = [[g.center().x, g.center().z], [u.pos.x, u.pos.z]]; g.pathIdx = 0;
       }
-      const foe = u.alive ? rt.army.nearestEnemy(u, 4, (q) => !q.fleeing && !q.woundOut && !q.isStruct &&
+      const foe = u.alive ? rt.army.nearestEnemy(u, 4, (q) => !q.fleeing && !q.woundOut && !q.downed && !q.rearWound && !q.isStruct &&
         Math.abs(q.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, u.team, q.pos, false) &&
         sightPoint(rt, q.pos, 40)) : null;
       // 三将の最期は、槍の届く敵と将の姿を見届けられる時だけ進める。

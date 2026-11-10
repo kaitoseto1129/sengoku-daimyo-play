@@ -95,7 +95,7 @@ function requiredStage(s) {
     // 味方が先に殿を討ち尽くした場合も、西の堤へ本人が進めば締められる。後方に立ったままでは済みにしない。
     // 共通の済み判定は残り二人も含む。まだ踏みとどまる殿がいる時は、到着だけを交戦の代わりにしない。
     if (done && s.kind === 'fight' && rt.flags.step === 4 && !C.engaged && C.at &&
-      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.fleeing && !u.dying && !u.woundOut))) {
+      !C.groups.some((g) => !gone(g) && g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed))) {
       const u = rt.player.u;
       C.engaged = fighting && Math.abs(u.pos.z) < BANK && Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 12;
     }

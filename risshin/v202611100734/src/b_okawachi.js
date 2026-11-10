@@ -4383,19 +4383,23 @@ function okChaseTick(rt) {
   for (const g of F.chasers) {
     if (sortieBroken(g) || g._okReturning || (g.order !== 'path' && g.order !== 'attack')) continue;
     const c = g.center();
+    c.y = rt.world.heightAt(c.x, c.z);
     let foe = null;
     rt.army.forNear(c.x, c.z, 12, (u) => {
-      // 倒れかけ・退走・脱落した味方で追跡を止めず、戦える相手へ槍を向ける。
+      // 倒れかけ・退走・脱落や、折り返し道の上の味方で追跡を止めない。
       if (!foe && u.team === 0 && u.alive && !u.dying && !u.gone && !u.isStruct &&
         !u.fleeing && !u.woundOut && !u.dropped && !u.noTarget &&
-        !rt.army.wallBetween(c, 1, u.pos)) foe = u;
+        Math.abs(u.pos.y - c.y) <= 3 &&
+        !rt.army.wallBetween(c, -1, u.pos)) foe = u;
     });
     if (!foe) {
       // 槍を返した後も、その場に残らず陣へ追う。道の角は既存の道順を使う。
       // 退く本人の現在地へ四秒ごとに道を引き直す。北へ六メートルずらすと、九十九折りでは切岸を狙ってしまう。
       const me = rt.player.u.pos;
-      // 壁で相手が見えない時も、道沿いに間合いまで追う。近いだけで陣へ向かわせない。
-      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) && Math.hypot(c.x - me.x, c.z - me.z) > 3) {
+      // 折り返し道の上下や壁越しでは、平面で近くても接敵していない。道沿いに追い直す。
+      if (F.step === 3 && rt.t >= (g._okChaseAimAt || 0) &&
+          (Math.hypot(c.x - me.x, c.z - me.z) > 3 || Math.abs(c.y - me.y) > 3 ||
+            rt.army.wallBetween(c, -1, me))) {
         g._okChaseAimAt = rt.t + 4;
         g.order = 'path'; g.march = true; g.formation = 'column'; g.colW = 2; g.speed = 3.6;
         g.path = downRoad(g, [me.x, me.z]); g.pathIdx = 0;
