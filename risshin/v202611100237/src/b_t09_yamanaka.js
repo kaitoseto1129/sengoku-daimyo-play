@@ -697,15 +697,9 @@ const t09_yamanaka = {
         F.dai.formation = 'column'; F.dai.colW = 3;
         rt.say('間宮康俊', '氏勝殿も直元も落とした。白髪首を渡すは恥ぞ、墨で染めたわ。者ども、続け！', 5);
       }
-      // 時切れの討ち死には主人公が近く（40m）にいる時だけ（知らない所で死なない）。
-      const muClose = mu && Math.hypot(mu.pos.x - p.x, mu.pos.z - p.z) < 40;
-      // 突き入り前に本人が討った場合も最期を記録する。死んだ間宮の突き入りを待たない。
-      if (!F.mamiyaDead && (mu && !mu.alive || F.mamiya && rt.t - F.mamiyaT > 40 && muClose)) {
-        F.mamiyaDead = true; // 手勢を討ち取る目標なので、残兵を敗走だけで討ち取り扱いにしない。
-        // 突き入って四十秒のうちに討たれなければ、寄せ手の槍に囲まれて討ち死に（史実の最期を必ず見せる）
-        //   （討ち取りの大きな字が出る時は重ねない。見出しは時切れの討ち死にの時だけ）
-        if (mu && mu.alive) { mu.invuln = false; mu.hp = 0; rt.army.kill(mu, F.naka.units.find((u) => u.alive && u.type !== 'busho') || null); rt.banner('間宮康俊、討ち死に'); }
-      }
+      // 最期は実際の攻撃で決める。柵の向こうで待つだけで四十秒後に命を尽かせない。
+      // 突き入り前に本人が討った場合も記録し、残兵は敗走だけで討ち取り扱いにしない。
+      if (!F.mamiyaDead && mu && !mu.alive) F.mamiyaDead = true;
       // 味方だけが出丸を抜いても、主人公が寄るまでは次の目標を達成扱いにしない。
       // 残兵を探し回らせず、間宮を失った手勢が近くの寄せ手へ突き入る。
       // 時間だけで敗走・柵の破壊・討ち取りの達成を起こさない。

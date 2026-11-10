@@ -34,6 +34,9 @@ export function start(rt, ctx) {
 
 // 昼に加わる手も初期数と残数へ一緒に入れ、倒れた分を上の兵数へ反映する。
 function countForce(rt, g, ally = false) {
+  // 昼の兵糧入れと出撃も、夜の手と同じく決めた道と下知で動かす。
+  // 共通の前線補充で護りを麓から抜いたり、次の寄せを陣の奥へ送らせない。
+  g.noFrontline = true;
   const F = rt.flags, groups = ally ? F.fieldAllies : F.rearGroups;
   if (!groups || groups.includes(g)) return;
   groups.push(g);

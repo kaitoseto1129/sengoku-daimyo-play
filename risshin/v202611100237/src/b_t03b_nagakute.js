@@ -383,8 +383,15 @@ const t03b_nagakute = {
         const m = F.moriU, P = rt.player.u.pos;
         if (m && m.alive && dist(m.pos, P) > 35) { rt.after(1, moriEnd); return; }
         this.fall(rt, F.moriG, '森長可', '森武蔵守様、眉間を撃たれお討死！', true);
-        rt.after(14, () => { if (F.stage === 5) this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！'); });
-        rt.after(19, () => { if (F.stage === 5) this.stage(rt, 5.5); });
+        // 元助も主人公の見える所で最期を迎える。森の討死からの時刻だけで消さず、見届けてから救援へ進む。
+        const motosukeEnd = () => {
+          if (F.stage !== 5) return;
+          const u = F.ikeSaki?.units.find((q) => q.name === '池田元助' && q.alive);
+          if (u && dist(u.pos, rt.player.u.pos) > 35) { rt.after(1, motosukeEnd); return; }
+          this.fall(rt, F.ikeSaki, '池田元助', '之助様、安藤直次に討たれましてござる！');
+          rt.after(5, () => { if (F.stage === 5) this.stage(rt, 5.5); });
+        };
+        rt.after(14, motosukeEnd);
       };
       //   森長可の強引な反撃：四十秒で鶴丸の旗本が赤備えへ突きかかる（激戦）。榊原の旗も見える。撃たれるのは百四十秒から
       rt.after(40, () => {

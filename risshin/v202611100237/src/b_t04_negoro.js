@@ -226,6 +226,8 @@ const gateTarget = (u) => fighting(u) && !u.name && !u.noTarget && !u.woundOut &
 // 深手で退く者は生存数には残るが、討つべき敵と行き先には数えない。
 // 一時的に倒れている者は起き上がるため、残兵の数には残す。
 const remaining = (u) => u && u.alive && !u.fleeing && !u.dying && !u.woundOut;
+// 後送された押し手は生存数に残る。起き上がる者は待つが、後送だけの束は寄せの案内に使わない。
+const hasPushers = (t) => t.g.count > 0 && !t.g.routed && t.g.units.some((u) => remaining(u) && !u.rearWound);
 const alive = (g) => !!g && g.count > 0 && !g.routed && g.units.some(remaining);
 const heads = (list) => list.reduce((a, g) => a + (alive(g) ? g.units.reduce((n, u) => n + (remaining(u) ? 1 : 0), 0) : 0), 0);
 function nearestFighter(g, p, current) {
@@ -804,7 +806,7 @@ const t04_negoro = {
   // 生きている竹束の、谷の道の向きの位置の平らし（押す者がいない束は数えない）
   tabaFront(F) {
     let s = 0, k = 0;
-    for (const t of F.tabaSet) if (t.g.count) { s += toL(t.tb.x, t.tb.z).z; k++; }
+    for (const t of F.tabaSet) if (hasPushers(t)) { s += toL(t.tb.x, t.tb.z).z; k++; }
     // 押す者が全滅しても大門（零）へ案内しない。残る寄せ手との合流は門前の寄せ場で行う。
     return k ? s / k : -99;
   },
@@ -838,7 +840,7 @@ const t04_negoro = {
         // 寄せ手だけで進んでも、本人が門前へ着くまでは達成にしない。
         const p = rt.player.u.pos;
         // 15分の戦（11/8）：寄せる間は使番の知らせと遠くの大軍で埋め、二分足らずで門前へ着かせない
-        return fighting(rt.player.u) && !rt.retryOpen && el > 100 && (z >= -101 || !F.tabaSet.some((t) => t.g.count)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
+        return fighting(rt.player.u) && !rt.retryOpen && el > 100 && (z >= -101 || !F.tabaSet.some(hasPushers)) && Math.hypot(p.x - YOSE.x, p.z - YOSE.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
@@ -962,13 +964,13 @@ const t04_negoro = {
             self.sendRam(rt);
             rt.say('組頭', '新しい丸太を運べ！　門は目の前じゃ！', 3);
           }
-          // 自分が丸太のそばにいれば、皆で声を合わせて押す（打つ力が増す）
+          // 戦える本人が丸太のそばにいる間だけ、皆で声を合わせて押す。
           const mm = F.ram.mesh;
-          if (mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5 && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < 8) {
+          if (fighting(pu) && !rt.retryOpen && mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5 && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < 8) {
             C.pushT = (C.pushT || 0) + dt;
             if (!C.pushSaid) { C.pushSaid = true; rt.say('足軽', 'お頭も手を貸してくだされ！　一、二の、三！', 3); }
             if (C.pushT > 1.1) { C.pushT = 0; rt.army.damage(s, 24, pu, { kind: 'ram' }); }
-          }
+          } else C.pushT = 0;
           // 時間と接近だけでは開けない。丸太か本人の攻撃で門扉を破ってから進む。
           // 塀の上の鉄砲衆は、塀の際に寄った先手の足軽を撃ち下ろす（11/6：塀の上の十二挺が皆、丸太の脇の自分を撃ち、門の前で討たれた。
           //   担ぎ手を狙わせると丸太が三度止まって門が破れなかったので、塀の際の寄せ手を狙う）

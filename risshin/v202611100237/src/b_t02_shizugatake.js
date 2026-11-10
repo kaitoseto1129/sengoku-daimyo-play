@@ -335,6 +335,7 @@ const t02_shizugatake = {
   nameRange: 60,
   missionPinCaption: '',
   goalSignOnly: true,         // 11/4 jin：行き先は頭上の金の▼一つだけ（持ち場の旗・輪・地面の矢印を重ねない。AP12・BH6）
+  goalSignTriangle: true,     // 画面の内外とも矢印に替えず、行き先の▼一つに揃える。
   goalSignNoLabel: true,      // ▼の上に字を出さない（kaito 10/23）
   noGoalCount: true,          // 討つ相手への画面の端の赤い矢印も出さない（BH6・印は真上の▼一つ）
   stageGoalsOnly: true,       // 目標は段の四つだけ（「敵を何人討つ」「深手を負わずに勝つ」を足さない。AW3）
