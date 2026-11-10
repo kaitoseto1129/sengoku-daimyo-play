@@ -523,6 +523,10 @@ const ino = {
         return [name, !u?.alive || u.hp <= 0 ? '討死' : name === '新六' && F.shinHurtT ? '負傷' : '生存'];
       });
       F.squad.push(['隊長', F.capU?.alive && F.capU.hp > 0 ? '生存' : '討死']);
+      // 戦の跡を歩く任務も締める。共通の待機は予備なので、余韻が済んだ今は解除する。
+      rt.objDone('main');
+      rt._closing = null;
+      rt._closingDone = true;
       rt.finish({ scriptedEnd: true }, 4);
     });
   },
