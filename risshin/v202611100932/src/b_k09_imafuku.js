@@ -635,7 +635,8 @@ const k09_imafuku = {
     if (F.boatBack && F.boats && F.boats.length && F.boats[0].mesh.position.x > FORT.x - 110) {
       for (const b of F.boats) {
         b.mesh.position.x -= dt * 2.6;
-        for (const u of b.us) if (u.alive && u.perch) { u.perch.x -= dt * 2.6; u.pos.x = u.perch.x; u.mesh.position.x = u.pos.x; }
+        // 舟上で討たれた者も舟と一緒に退く。生存者だけを動かすと、屍が川の上に取り残される。
+        for (const u of b.us) if (u.perch) { u.perch.x -= dt * 2.6; u.pos.x = u.perch.x; u.mesh.position.x = u.pos.x; }
       }
     }
     // 舟の上の鉄砲は共通の頭では的を選ばず、一発も撃たなかった（一3）。舟から堤の佐竹勢を一人ずつ狙って撃つ（七〜十一秒に一発）

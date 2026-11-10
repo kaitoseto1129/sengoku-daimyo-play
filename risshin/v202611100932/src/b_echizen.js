@@ -260,7 +260,7 @@ function passRoadEngage(rt) {
     const p = rt.player.u.pos, a = F.ake?.pos, c = b.pos;
     const near = Math.hypot(c.x - p.x, c.z - p.z) < 45 && !rt.army.wallBetween(c, -1, p, false) ||
       a && Math.hypot(c.x - a.x, c.z - a.z) < 35 && !rt.army.wallBetween(c, -1, a, false) ||
-      rt.army.units.some(u => u.team === rt.player.u.team && passFighter(u) &&
+      rt.army.units.some(u => u.team === rt.player.u.team && EC_FUCHU.pursuer(u) &&
         Math.hypot(c.x - u.pos.x, c.z - u.pos.z) < 35 &&
         !rt.army.wallBetween(c, -1, u.pos, false));
     if (!near) continue;
@@ -465,6 +465,11 @@ echizen.force = (rt) => {
   const retreatT = F.echRetreatT ?? (F.echAdv ? F.echAdvT : null);
   const fled = retreatT == null ? 0 : Math.min(9000, Math.max(0, rt.t - retreatT) * 60);
   return { a: Math.max(0, 30000 - (F.ak || 0) * 8), a0: 30000, b: Math.max(0, 20000 - (F.ek || 0) * 15 - fled), b0: 20000 };
+};
+// 木戸・柵・民は兵の討死ではない。共通の討取り通知には建物の破壊も届く。
+echizen.onKill = function (rt, victim) {
+  if (victim.isStruct || victim.civ || victim.type === 'dummy' || victim.type === 'porter') return;
+  return kinome.onKill.call(this, rt, victim);
 };
 // ④で北口を出た本人を「前に出すぎ」と叱らない（目標の行き先どおりに進んでいる。kaito 一5・九4）
 echizen.noLeaderFollow = (rt) => !!rt.flags.echAdv || !!(rt.flags.gateKannon && !rt.flags.gateKannon.struct.alive);   // 木戸が開いた後（郭へ入れ・北口を出よ）も
@@ -2864,7 +2869,9 @@ function echizenAdvanceTick(rt) {
     // 味方の追手にも応戦する。本人の到着と下知の達成は別に判定する。
     const tail = F.echTail;
     if (tail?.count && !tail.routed && tail.order === 'hold' &&
-        (near(u.pos, 28) || rt.army.units.some(q => q.team === u.team && passFighter(q) && near(q.pos, 28)))) {
+        (near(u.pos, 28) && !rt.army.wallBetween(u.pos, -1, TAIL_AT, false) ||
+         rt.army.units.some(q => q.team === u.team && EC_FUCHU.pursuer(q) && near(q.pos, 28) &&
+           !rt.army.wallBetween(q.pos, -1, TAIL_AT, false)))) {
       tail.seekRange = 40; tail.aggro = 40; tail.stay = false; tail.order = 'attack';
     }
     if (near(u.pos, 28) && !inKannon(u.pos)) {
