@@ -22,6 +22,8 @@ export default {
       { id: 'ato', layer: 'yobi', wing: 'center', men: 1500, taisho: '', hold: true, show: false, at: { x: -210, z: 0 } },
     ] },
   byMen: true,   // 軽い兵を史実の兵数の比で配る（11/9 徳川C。docs/fujin/k09_imafuku.md）
-  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
+  // 共通の後列は幅が最低十、兵数によって九十まで広がり、水深も中心だけで判じる。
+  // 幅十四の堤では両端の兵が川に立つため足さない。二の備・後備は本物の隊が進む。
+  bindTail: false,
   honjinView: { A: false, B: false },
 };

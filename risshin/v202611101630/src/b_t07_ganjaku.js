@@ -751,10 +751,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         for (const u of F.sally.units) {
           if (!u.alive || u.fleeing || u.woundOut) continue;
           const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
-          if (target) {
+          // 門の内や虎口で先手に触れただけでは、坂への出撃を打ち切らない。
+          // 迎撃地点まで出た兵が組み合ってから、撃退までの時を数える。
+          if (target && Math.hypot(u.pos.x - F.meet.x, u.pos.z - F.meet.z) < 12) {
             F.fightT = rt.t;
             // 敵と組み合った後まで行軍の後列待ちを続けない。
-            // 門を抜ける途中でも、接触した持ち場で隊を開いて迎撃に応じる。
+            // 坂に出た持ち場で隊を開いて迎撃に応じる。
             if (F.sw && !F.sw.done) {
               F.sw.done = true;
               this.to(F.sally, this.centerOf(F.sally) || F.sally.anchor);
