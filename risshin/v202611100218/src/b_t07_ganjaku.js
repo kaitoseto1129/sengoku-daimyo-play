@@ -644,7 +644,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 坂の木戸を抜かれたら、木戸の守りと弓は二の丸へ逃げ込む（抜かれた出曲輪に残って、登る寄せ手を背から射ない）
       const kk = this.along(KIDO.x, KIDO.z);
       // 持ち場の指示（F.lead）は時間でも進む。実際に登った先手の位置で木戸を抜いたか確かめる。
-      const gc = this.centerOf(F.gamo);
+      // 先手が討ち尽くされても、後続の二番手が着けば攻めを進める。
+      const gc = this.centerOf(F.gamo) || this.centerOf(F.gamo2);
       if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || (gc && this.along(gc.x, gc.z) > kk + 22))) {
         F.kidoFell = true;
         for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
@@ -706,7 +707,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         F.allies.forEach((g, i) => this.march(rt, g, i ? [MOUTH, FRONT, INSIDE] : [MOUTH, FRONT, INSIDE, INNER], 14));
       }
       // 自分が門を抜ければすぐ二の丸へ。閉まった門を時間だけで通過扱いにしない。
-      const gc = this.centerOf(F.gamo);
+      const gc = this.centerOf(F.gamo) || this.centerOf(F.gamo2);
       const passable = st && (!st.alive || st.opened);
       if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && !st.alive))) this.go(rt, 4);
     } else if (F.stage === 4) {

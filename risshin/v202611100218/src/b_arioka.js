@@ -2847,7 +2847,7 @@ const arioka = {
       if (guide) {
         let friend = 0, enemy = 0;
         for (const u of rt.army.units) {
-          if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ
+          if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ
             || Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 12
             || Math.abs(u.pos.y - post.y) > 3 || rt.army.wallBetween(u.pos, -1, post)) continue;
           if (u.team === 0) friend++; else enemy++;
@@ -3119,12 +3119,12 @@ function ariStage(o, defending) {
       if (rt.t >= C.scanAt) {
         C.scanAt = rt.t + 0.25; C.enemy = 0; C.friend = 0; C.rangedEnemy = 0;
         for (const u of rt.army.units) {
-          if (!u.alive || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ) continue;
+          if (!u.alive || u.gone || u.dying || u.fleeing || u.woundOut || u.rearWound || u.noTarget || u.isStruct || u.group?.civ) continue;
           // 遠間から実際に口の味方を狙う射手も、寄せが届いた組として扱う。
           const target = u.atk?.target || u.target;
           // 狙いの記憶だけでは射撃中にしない。射程外や射線を塞がれた射手は辻の確保を止めない。
           const firing = u.team === 1 && !u.group.routed && u.group.fire !== false && (u.type === 'gun' || u.type === 'bow') && !u.sidearm
-            && target?.alive && !target.noTarget && !target.woundOut && !target.rearWound && target.team === 0
+            && target?.alive && !target.gone && !target.dying && !target.noTarget && !target.woundOut && !target.rearWound && target.team === 0
             && Math.hypot(target.pos.x - C.at.x, target.pos.z - C.at.z) <= (o.r || 16)
             && Math.hypot(target.pos.x - u.pos.x, target.pos.z - u.pos.z) <= u.range
             && !rt.army.shotBlocked(u, target.pos) && !rt.army.hiddenBehind(u, target);
@@ -3417,6 +3417,9 @@ function ariA() {
         { t: 36, say: ['滝川の組頭', '侍町から新手じゃ！　辻を渡すでない！'], foes: (rt, m) => [{ name: '侍町から出る新手', from: { x: TOWN_X + 10, z: -66 }, list: [uS(2), uA(5)], morale: m.fire ? 45 : 95 }] },
       ],
       max: 210, reward: '城下の辻を押し通った',
+      // 通しの段3で残兵待ちのまま打ち切らない。本人と組が辻へ寄せた後に残兵が退き、十二秒の確保で進む。
+      // 何もしない時の達成は認めず、戦全体の攻めの期限は残す。
+      lenient: true, limit: 210, passOnLimit: true,
       onEnd: (rt, m, won) => { if (!won) arioka.lose(rt, m.ariFailure || '辻の敵が崩れぬ'); } }),
   ];
 }
