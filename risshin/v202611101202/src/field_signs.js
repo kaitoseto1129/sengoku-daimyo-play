@@ -479,7 +479,8 @@ export function fieldSignsTick(rt, root) {
     // 森部は見える敵全員へ同じ▼を付ける。控えや対岸の兵も所属を変えない。
     // 見通しの上限と揃え、武将だけ印が残る距離の違いをなくす。
     // 桶狭間も見える敵全員に付ける。目当て以外の兵だけ印が消える境を作らない。
-    if (foe && !defeated && u !== focusEnemy && behindPlayer(cam, me, u)) continue;
+    // 注目する相手でも、主人公の体の奥へ重なる所属印は伏せる。
+    if (foe && !defeated && behindPlayer(cam, me, u)) continue;
     const signRadius = rt.def.dojo ? (u._fsOn ? FOE_OUT : FOE_R) : farR;
     u._fsOn = near || lesson || d2 < signRadius * signRadius;
     if ((foe && u.noTarget && !ford && !raid && !rt.def.foeMarkVisible?.(rt, u)) || !u._fsOn || (special ? s.signCandidates.length : foe ? n : a) >= CAP) continue;

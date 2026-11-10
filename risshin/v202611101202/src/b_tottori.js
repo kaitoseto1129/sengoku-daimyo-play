@@ -2631,7 +2631,7 @@ const tottori = {
     }, '舟へ回る岸の道', { guideAlways: true });
     // 敵の現在地でなく、番兵と出会う岸の持ち場へ案内する。
     rt.marker('bank-fight', { x: -48, z: -16 }, '味方と舟の番を退けよ', { guideAlways: true });
-    const task = rt.obj('main', '川岸の番兵を味方と退け、舟二艘に火をかける', 'main', true);
+    const task = rt.obj('main', '千代川の兵糧舟二艘に火をかけよ', 'main', true);
     tottoriSignal(rt, task, 'sig_kakari', '法螺貝と早打ち：舟の番へ', F.hide.center());
     // 夜の見通しを待たず、既存の番兵を川岸の組へ寄せる。
     F.guard.fire = true;
@@ -2685,9 +2685,9 @@ const tottori = {
     battleEvent(rt, EVENT_FIRE_START, b, null, 1, false, '毛利の兵糧舟が燃え始めた');
     const label = b.name + 'を焼いた';
     rt.award((t) => t.side.push(label), label);
-    if (F.burnt >= 2) rt.obj('main', '岸を守れ。退き太鼓を待て', 'main', true);
+    if (F.burnt >= 2) rt.obj('main', '千代川の兵糧舟二艘に火をかけよ', 'main', true);
     else {
-      rt.obj('main', '味方と岸を進み、残る舟に火をかける', 'main', true);
+      rt.obj('main', '千代川の兵糧舟二艘に火をかけよ', 'main', true);
       // 最初の舟の前で味方を止めない。残る舟の東の岸道を、既存の組で歩いて進む。
       // 番兵の列を横切らず、最後は舟から十歩以内の支えの位置へ着ける。
       const next = F.boats.find((boat) => !boat.burnt), g = F.hide;
@@ -2714,7 +2714,7 @@ const tottori = {
     const p = rt.player.u.pos;
     F.returnIndex = p.x >= 4 && p.z >= 4 ? 3 : p.x >= -32 ? 2 : p.z >= -8 ? 1 : 0;
     rt.unmark('guard'); rt.unmark('guard2'); rt.unmark('bank-road'); rt.unmark('bank-fight'); rt.unmark('bank-approach');
-    const task = rt.obj('main', '舟は燃えた。退き太鼓で退く', 'main', true);
+    const task = rt.obj('main', '千代川の兵糧舟二艘に火をかけよ', 'main', true);
     tottoriSignal(rt, task, 'sig_nobiki', '退き太鼓：追わず退け', F.hide.center());
     F.hide.focus = null; F.hide.noRout = false;
     rt.say('組頭', '退き太鼓じゃ。舟は止めた。追わずに退け', 4);
@@ -2742,7 +2742,7 @@ const tottori = {
     for (const leaf of F.gateDoor.userData.leaves) leaf.rotation.y = 0;
     for (let i = 1; i <= 3; i++) rt.unmark('s' + i);
     rt.award((t) => t.side.push('柵の口を守った'), '柵の口を守った');
-    rt.obj('main', '柵の口を守れ。城へ退く者は追うな', 'main', true);
+    rt.obj('main', '柵の口で打って出た城兵を止めよ', 'main', true);
     rt.objProgress('main', '城兵は退いた。追わず、柵の口に立て');
     rt.banner('城兵が退いた', '追わずに柵の口を守れ');
     rt.after(4, () => { if (F.step === 2.5 && !F.ending && !rt.over) this.envoy(rt); });
@@ -2768,7 +2768,7 @@ const tottori = {
     });
     rt.unmark('guard'); rt.unmark('guard2'); rt.unmark('bank-road'); rt.unmark('bank-fight'); rt.unmark('bank-approach');
     for (const q of [F.guard, F.guard2]) if (q && !gone(q)) q.morale = Math.min(q.morale, 15);
-    const task = rt.obj('main', HI(rt) ? '一手を率い、柵で城兵を止めよ' : '柵の口で城兵を止めよ', 'main', true);
+    const task = rt.obj('main', '柵の口で打って出た城兵を止めよ', 'main', true);
     tottoriSignal(rt, task, 'horagai', '法螺貝：柵の口を守れ', { x: GATE.x, z: FENCE_Z + 8 }, 0.6);
     rt.say('組頭', '柵の法螺貝じゃ。持ち場を固め、夜討ちを防げ。城へ退く者は追うな', 4);
     F.sallies.forEach((g, i) => {
@@ -2928,7 +2928,7 @@ const tottori = {
       ? '槍を収め、秀吉方の使いと木戸へ' : 'ひと月の後。槍を収め、秀吉方の使いと木戸へ');
     rt.after(10, () => { if (F.step === 3 && !F.ending && !rt.over)
       rt.say('使いの侍', '殿は式部少輔殿の願いを容れられた。城を受け取りに参る。わしのそばを離れるな', 5); });
-    rt.obj('main', '使いの後ろを歩き、木戸へ', 'main', true);
+    rt.obj('main', '開城の使いを城の木戸まで守れ', 'main', true);
     rt.objProgress('main', F.hungerDone ? '開城の朝。城を受け取りに向かう' : 'ひと月の後の朝。城を受け取りに向かう');
     battleEvent(rt, EVENT_MESSENGER, GATE, null, 0, true, '秀吉方の使いが城を受け取りに向かう');
     const g = F.env;
@@ -3057,10 +3057,10 @@ const tottori = {
         // 疲れだけでは退かせない（放火の札も疲れでは止めない・fireWorkAllowed）。
         const retreat = tottoriWoundRetreatNeeded(rt) || rt.player.u.mobbed ||
           rt.t < (rt.retreatUntil || 0) || F.retreatMarked;
-        // 岸を外れた時は見出しでも戻す。舟の数は補足に残す。
+        // 目標は場所と行いで固定し、岸への帰還と舟の残数は補足に出す。
         const main = rt.objectives.find((o) => o.id === 'main');
         if (main) {
-          main.text = outside ? '岸の道へ戻れ' : F.burnt === 0 ? '味方と舟二艘を焼け' : F.burnt < 2 ? '味方と残る舟を焼け' : '岸を守れ。退き太鼓を待て';
+          main.text = '千代川の兵糧舟二艘に火をかけよ';
           // 放火の案内と「番へ懸かれ」の古い合図を重ねない。
           if (retreat || outside || boat || F.burnt >= 2) main.cue = '';
         }
@@ -3094,7 +3094,7 @@ const tottori = {
         }
         const main = rt.objectives.find((o) => o.id === 'main');
         if (main) {
-          main.text = !advancing ? '追わず、柵の口を守れ' : HI(rt) ? '一手を率い、柵で城兵を止めよ' : '柵の口で城兵を止めよ';
+          main.text = '柵の口で打って出た城兵を止めよ';
           if (!advancing) main.cue = '';
         }
         // 守った刻を数える範囲と同じ中心で案内する。

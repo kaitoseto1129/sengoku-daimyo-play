@@ -204,12 +204,13 @@ function shojiRibs(rt) {
     const wT = S.rib * 0.9, wB = S.rib + 1.5, G = S.gap;
     for (let u = S.cx + Math.ceil((u0 + 0.8 - S.cx) / S.cell) * S.cell; u < u1 - 0.8; u += S.cell) {
       if (G && u > G[0] - 2.5 && u < G[1] + 2.5) continue;
-      rib(...P(u, v0 + 0.8), ...P(u, v1 - 0.8), wT, wB, tone++, S.depth);
+      // 外縁に近い畝は裾も堀の内へ収める。背だけ収めると裾が曲輪へ突き出す。
+      rib(...P(u, v0 + 0.8), ...P(u, v1 - 0.8), wT, Math.min(wB, u - u0, u1 - u), tone++, S.depth);
     }
     if (S.une) continue;
     const vm = (v0 + v1) / 2;
     for (let v = vm + Math.ceil((v0 + 0.8 - vm) / S.cell) * S.cell; v < v1 - 0.8; v += S.cell)
-      rib(...P(u0 + 0.8, v), ...P(u1 - 0.8, v), wT, wB, tone++, S.depth);
+      rib(...P(u0 + 0.8, v), ...P(u1 - 0.8, v), wT, Math.min(wB, v - v0, v1 - v), tone++, S.depth);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));

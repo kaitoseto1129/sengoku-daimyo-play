@@ -1462,14 +1462,13 @@ takato.force = (rt) => {
   const F = rt.flags, K = F._tkForce || (F._tkForce = { seenA: new Set(), seenB: new Set(), a: 30000, b: 3000 });
   let aliveA = 0, aliveB = 0;
   for (const u of rt.army.units) {
-    if (u.isStruct || u.civ) continue;
+    if (u.isStruct || u.civ || u.group?.civ || u.type === 'porter') continue;
     if (u.team === 1) { K.seenB.add(u); if (u.alive && !u.gone) aliveB++; }
     else if (u.team === 0) { K.seenA.add(u); if (u.alive && !u.gone) aliveA++; }
   }
   const nB = Math.max(1, K.seenB.size);
   K.b = Math.min(K.b, Math.round(3000 * aliveB / nB));
   K.a = Math.min(K.a, Math.round(30000 - Math.max(0, K.seenA.size - aliveA) * 3000 / nB));
-  if (rt.tracker?.main === true) K.b = 0;   // 城兵は降らずに最後まで戦い、その日のうちに落城した（信長公記）
   return { a: K.a, a0: 30000, b: K.b, b0: 3000 };
 };
 
