@@ -8,7 +8,7 @@
 import { sfx } from '../audio.js';
 import { KISHI_ROAD } from '../castles/sunomata.js';
 
-const ready = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+const ready = (u) => !!u && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 
 export function start(rt, def, C, then) {
   const F = rt.flags, v = F.s15;

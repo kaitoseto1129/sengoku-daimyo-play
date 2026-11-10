@@ -11,7 +11,7 @@ export function sunomataNorthStopped(F) {
 
 export function sunomataPincerDone(F) {
   return F.wave === 3 && !!F.reinforceArrived && !!F.W3b &&
-    F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut).length <= 4;
+    F.W3b.units.filter((u) => u !== F.yoseBoss && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget).length <= 4;
 }
 
 export function sunomataBossKilled(F) {
