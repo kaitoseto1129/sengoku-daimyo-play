@@ -60,6 +60,7 @@ const STEP_T = [0, 190, 200, 220, 200, 300];   // 目標ごとの刻限（AP8：
 // 目標の言い方は場所と行いだけ（kaito_standard 三1：「崩す」「攻める」「討つ（将でない隊）」は使わない）。地図で分かる場所の名で（十1）
 const STEP_TEXT = ['', '京街道の土手で、渡辺勘兵衛の先手を北へ退かせる', '土手の東の畑で、井伊の赤備えを食い止める', '馬防柵の向こうで、徳川の鉄砲衆へ斬り込む', '金扇の前で、本多正純の旗本を斬り抜ける', '陣幕の口から入り、床几の家康を討つ'];
 // ⑤は「徳川家康」と書かない：共通の victory_flow.js が討った将の名を含む目標を即座に済ませ、goalsDoneTick が二秒半で結果へ締めて、締めの場面（倒れる金扇・勝鬨・出世の道）を切った
+const STEP_PLACE = ['', '京街道の土手', '土手の東の畑', '馬防柵の向こう', '金扇の前'];
 const STEP_AT = [null, SAKITE, YOKO, TEPPO, HONDA_AT, MOUTH];
 const FENCE_Z = [TEPPO.z + 7, HONDA_AT.z + 9];   // 馬防柵の並び（口は京街道の上 |x|<4 だけ）
 // 柵の向こう（北）の行き先へは、柵の手前で京街道の口へ寄ってから抜ける（bot。柵の端を大回りしない）
@@ -308,12 +309,12 @@ const k16_secret = {
   playerTaken: 0.5,
   playerRegen: 0.025,
   closeCombatAssist: true,
-  // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
+  // 行き先のピン：段ごとに一つ。場所名を明示し、終幕でも前の目標の名を引き継がない。
   missionPin(rt) {
     const F = rt.flags;
     if (F.endPhase === 'hide' && F.hidetada) {
       const p = hideRoute(rt.player.u.pos, F.hidetada.pos);
-      PIN.x = p.x; PIN.z = p.z; return PIN;
+      PIN.x = p.x; PIN.z = p.z; PIN.label = '秀忠の陣'; return PIN;
     }
     if (!F.step || F.ending) return null;
     const g = F.stepG, P = rt.player.u;
@@ -325,6 +326,7 @@ const k16_secret = {
     // 柵越しの敵へ直進させず、実際に抜けられる京街道の口を指す。
     p = viaGap(P.pos, p) || p;
     PIN.x = p.x; PIN.z = p.z;
+    PIN.label = F.step === 5 ? (inCamp(P.pos) ? '床几の家康' : '陣幕の口') : STEP_PLACE[F.step];
     return PIN;
   },
   world: {

@@ -97,7 +97,8 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.nodaTeppo;
   if (!S || S.done) return false;
   const u = p.u;
-  if (S.k === 1 && S.g && !S.g.routed) {
+  // 先に持ち場へ加わる。遠くの槍を追い続けると、参加の判定が付かず夜へ進めない。
+  if (S.joined && S.k === 1 && S.g && !S.g.routed) {
     let e = null, best = Infinity;
     for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
     if (e && best < 40) {

@@ -358,7 +358,7 @@ const t03_komaki = {
       countFallen(rt);
       F.gunDead0 = F.fallen[1];
       rt.say('日根野弘就', '堀の前に鉄砲を並べおった。打って出て追い払え', 2.8);
-      F.guns = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の鉄砲組', anchor: { ...FIELD }, facing: Math.PI, width: 10, formation: 'line', morale: 90, dmgMult: 0.35,
+      F.guns = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の鉄砲組', anchor: { ...FIELD }, facing: Math.PI, fleeDir: { x: 0, z: 1 }, width: 10, formation: 'line', morale: 90, dmgMult: 0.35,
         order: 'hold', seekRange: 30, aggro: 10, noRout: false },
       dressT([{ type: 'gun', n: 10 }, { type: 'ashigaru', n: 6, o: { flagScale: 1 } }, { type: 'samurai', n: 2 }]));
       F.gunsN = aliveN(F.guns);
@@ -405,8 +405,9 @@ const t03_komaki = {
     countFallen(rt);
     // 小牧山へ退く組は南の境で去る。壁へ押し戻すと、退却先へ届かず田に残り続ける
     for (const g of F.waves) {
-      if (g.order !== 'retreat' || !g.dest) continue;
-      for (const u of g.units) if (u.alive && !u.gone && (u.pos.z >= ZS - 2 || (u.pos.x < -XW + 4 && g.dest.x < -60))) rt.army.despawn(u);
+      // 組頭を失って崩れた組は、共通処理が退却の下知を「敗走」に替える。敗走も南の境で去らせる。
+      if (g.order !== 'retreat' && g.order !== 'flee') continue;
+      for (const u of g.units) if (u.alive && !u.gone && (u.pos.z >= ZS - 2 || (u.pos.x < -XW + 4 && g.dest?.x < -60))) rt.army.despawn(u);
     }
     if (F.ending || !F.stage || F.transitioning) return;
     const P = rt.player.u;
@@ -461,7 +462,7 @@ const t03_komaki = {
       }
       //   二十五秒で田の奥から鉄砲の二の列が出て、前の列の退きを助ける（撃ち合いの山）
       if (!F.guns2 && el > 25) {
-        F.guns2 = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の鉄砲の二の列', anchor: { x: FIELD.x + 14, z: FIELD.z + 22 }, facing: Math.PI, width: 8, formation: 'line', morale: 85, dmgMult: 0.32, order: 'hold', seekRange: 28, aggro: 10 },
+        F.guns2 = enemyGroup(rt, { faction: 'tokugawa', name: '徳川の鉄砲の二の列', anchor: { x: FIELD.x + 14, z: FIELD.z + 22 }, facing: Math.PI, fleeDir: { x: 0, z: 1 }, width: 8, formation: 'line', morale: 85, dmgMult: 0.32, order: 'hold', seekRange: 28, aggro: 10 },
           dressT([{ type: 'gun', n: 7 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }]));
         F.waves.push(F.guns2);
         F.guns2N = aliveN(F.guns2);

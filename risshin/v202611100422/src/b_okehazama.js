@@ -187,7 +187,7 @@ function okeFoeSigns(rt) {
   // 両軍の名将を欠かさず出す。名札の置き場は使い回し、重なる時だけ上下へ分ける。
   const namePlaces = new Float32Array(names.length * 3);
   // 通し確認：釦・目標・人数・命の札にも名札を重ねない。範囲は候補更新時だけ測る。
-  const controlIds = ['side-ctl', 'tc-sound', 'tc-set', 'tc-pause', 'tc-view', 'armybar', 'h-prog', 'jk-vit', 'mission-goal'];
+  const controlIds = ['side-ctl', 'tc-sound', 'tc-set', 'tc-pause', 'tc-view', 'armybar', 'h-prog', 'jk-vit', 'mission-goal', 'objectives', 'target', 'boss', 'subtitle'];
   const controlPlaces = new Float32Array(controlIds.length * 4);
   let controlCount = 0;
   // 十六画素の行高に縁取りと影も含める。二十四画素では隣の名札の縁が接する。
@@ -224,7 +224,9 @@ function okeFoeSigns(rt) {
           if (!u.alive || u.dying) continue;
           v.set(u.pos.x, u.pos.y + (u.mounted ? 3.25 : 2.3), u.pos.z).project(rt.camera);
           if (v.z < -1 || v.z > 1 || Math.abs(v.x) > .95 || v.y > .8 || v.y < -1) continue;
-          const half = u.name.length * 8 + 4;
+          // 専用の名札も永禄三年の通称で出し、長くなる分を重なり除けに含める。
+          const name = u.name === '前田利家' ? '前田又左衛門' : u.name;
+          const half = name.length * 8 + 4;
           const baseX = Math.max(half + 4, Math.min(innerWidth - half - 4, (v.x + 1) * innerWidth / 2));
           const baseY = (1 - v.y) * innerHeight / 2 - 22;
           // 端で座標を丸めると同じ候補を何度も試し、最後に重なる名を置いていた。
@@ -258,7 +260,7 @@ function okeFoeSigns(rt) {
           if (!placed) continue;
           namePlaces[k * 3] = x; namePlaces[k * 3 + 1] = y; namePlaces[k * 3 + 2] = half;
           const e = names[k++];
-          if (e.textContent !== u.name) e.textContent = u.name;
+          if (e.textContent !== name) e.textContent = name;
           e.hidden = false;
           e.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`;
         }
