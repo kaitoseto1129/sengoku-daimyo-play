@@ -59,7 +59,7 @@ function follow(rt, g) {
 export function start(rt, ctx, cine = true) {
   const F = rt.flags;
   F.pro = 1; F.oStep = 0; F.proT0 = rt.t; F.holdPlayer = cine;
-  rt.world.setTime('night');
+  rt.world.dayClock = null; rt.world.setTime('night', true);
   if (rt.world.setRainTarget) { rt.world.setRainTarget(0.15); rt.world.rainLevel = 0.15; }
   warp(rt, SCENE[1].at, [F.ikeda]);
   // 本陣の人々（秀吉・秀長・官兵衛・蜂須賀・宮部と使番）。動かず、討てない
@@ -102,7 +102,7 @@ function scene(rt, ctx, n) {
   F.pro = n; F.oStep = 1; F.proT0 = rt.t;
   rt.obj('main', TEXT[n], 'main');
   if (n === 2) {
-    rt.world.setTime('morning');
+    rt.world.dayClock = null; rt.world.setTime('morning', true);
     if (rt.world.setRainTarget) { rt.world.setRainTarget(0); rt.world.rainLevel = 0; }
     warp(rt, SCENE[2].at, [F.ikeda, F.tired]);
     rt.banner('姫路', '備中から駆け通して、城下で一息つく間もない');
@@ -111,7 +111,7 @@ function scene(rt, ctx, n) {
     rt.after(3, () => rt.say('足軽', '足が……もう棒のようじゃ', 2.8));
     rt.after(8, () => report(rt, '城の蔵の米と銀、皆に配れとの仰せにござる！'));
   } else if (n === 3) {
-    rt.world.setTime('night');
+    rt.world.dayClock = null; rt.world.setTime('night', true);
     if (rt.world.setRainTarget) { rt.world.setRainTarget(0.7); rt.world.rainLevel = 0.7; }
     if (rt.world.wetness !== undefined) rt.world.wetness = 1;
     warp(rt, SCENE[3].at, [F.ikeda, F.tired, F.newG]);

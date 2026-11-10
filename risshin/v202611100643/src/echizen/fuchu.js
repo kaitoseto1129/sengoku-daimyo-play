@@ -47,11 +47,13 @@ export function tick(rt) {
     return;
   }
   const left = g.units.filter(fighter).length;
-  // 戦える兵が一人でも残る間は、札にある追撃を終えない。
-  // 負傷して戦えない兵は、標的と同じ判定で除く。
-  if (left > 0) return;
+  // 主力の四分の三を失い、追手が陣を押さえたら残兵は崩れる。
+  // 全滅待ちで斜面や木の陰の一人を探し続けさせない。
+  // 時間だけ・主人公が遠くにいる間には追撃を果たした事にしない。
+  if (left > 0 && (left > P.n0 * .25 || Math.hypot(p.x - P.pos.x, p.z - P.pos.z) >= 26)) return;
   P.s = 2;
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee';
+  g.focus = null; g.fleeDir = { x: 0, z: 1 };
   for (const u of g.units) if (u.alive) { u.fleeing = true; u.target = null; u.aiT = 0; }
   rt.objDone('chase');
   yoin(rt);

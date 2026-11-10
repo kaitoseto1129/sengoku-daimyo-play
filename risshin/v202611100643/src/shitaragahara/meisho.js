@@ -10,7 +10,7 @@ import { sfx } from '../audio.js';
 const NAMED = {
   '山県昌景': { hq: 'shitara_yamagata', cry: '山県様！', r: 110 },
   '真田信綱': { hq: 'shitara_sanada', cry: '源太左衛門様が討たれた！', r: 80, pair: '真田昌輝' },
-  '真田昌輝': { hq: 'shitara_sanada_masateru', cry: '兵部様まで！', r: 80, pair: '真田信綱' },
+  '真田昌輝': { hq: 'shitara_sanada_masateru', cry: '兵部様が討たれた！', r: 80, pair: '真田信綱' },
   '内藤昌豊': { hq: 'shitara_naito', cry: '内藤様！', r: 100 },
   '原昌胤': { hq: 'shitara_hara', cry: '原様が倒れた！', r: 80 },
   '土屋昌次': { hq: 'shitara_tsuchiya', cry: '土屋様！', r: 80 },
@@ -29,7 +29,13 @@ export function onKill(rt, v, ctx) {
   // その将の大旗が倒れる（陣立ての備の名入りの旗）
   const h = F.jinkeiBound?.[N.hq];
   if (h?.namedFlag) { try { ctx.groundFlag(rt, h.namedFlag); } catch (e) { /* 旗が無くても進む */ } }
-  if (h && !h.army?.rout) { try { h.retreat(160, 50); } catch (e) { /* なし */ } }
+  // 真田の備は、もう一人が戦っている間は退かない。双方の討死で二つの備を退かせる。
+  const pairDown = N.pair && fallen.has(N.pair);
+  if (!N.pair || pairDown) {
+    if (h && !h.army?.rout) { try { h.retreat(160, 50); } catch (e) { /* なし */ } }
+    const other = pairDown && F.jinkeiBound?.[NAMED[N.pair].hq];
+    if (other && !other.army?.rout) { try { other.retreat(160, 50); } catch (e) { /* なし */ } }
+  }
   // 近くの隊の気が落ち、一部が逃げ出す
   const p = v.pos;
   for (const g of rt.army.groups) {

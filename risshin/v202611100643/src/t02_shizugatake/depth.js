@@ -26,7 +26,7 @@ export const T02_DEPTH = {
   B: { name: '柴田', facing: 0, honjin: { x: -90, z: -380 }, mpu: 8, formation: '長蛇', terrain: 'mountain', flag: 'kari', armor: 0x2a2420, uma: 'kasa', openAt: 9999, attrition: 0.001,
     sonae: [
       { id: 'sakuma', layer: 'sakite', wing: 'center', men: 8000, taisho: '佐久間盛政', flag: 'sakuma', bind: F('saku') },
-      { id: 'katsumasa', layer: 'ichi', wing: 'left', men: 3000, taisho: '柴田勝政', bind: F('kmG') },
+      { id: 'katsumasa', layer: 'ichi', wing: 'left', men: 3000, taisho: '毛受勝照', bind: F('kmG') },
       { id: 'maeda', layer: 'ichi', wing: 'right', men: 2000, taisho: '前田利家', flag: 'maeda', bind: F('maedaG') },
       { id: 'toshinaga', layer: 'ni', wing: 'right', men: 1000, taisho: '前田利長', flag: 'maeda', hold: true, at: { x: -216, z: -334 } },
       { id: 'fuwa', layer: 'ni', wing: 'center', men: 1500, taisho: '不破勝光', flag: 'sakuma', hold: true, at: { x: -306, z: -285 } },

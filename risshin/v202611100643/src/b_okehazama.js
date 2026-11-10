@@ -3832,6 +3832,11 @@ okehazama.botBrain = (b, inp, ctx) => {
   inp.runHeld = false;
   // 手綱を取る間は止まる。組への追従で走り抜けると、手綱取りが取り消される。
   if (p.catching || p.mountT > 0) return;
+  // 首を持って戻る先は固定の旗。同行の組が全滅・離脱しても帰路を止めない。
+  if (F.victory && F.returnPin) {
+    goTo(p, inp, F.returnPin.x, F.returnPin.z, 4);
+    return;
+  }
   // 後から定義するこの処理でも、林・麓・井伊・弓組の段を引き受ける。
   if (O15.bot(b, inp, ctx)) return;
   if (b.phase === 'brief' && !F.briefed && !b.G.lord) {
