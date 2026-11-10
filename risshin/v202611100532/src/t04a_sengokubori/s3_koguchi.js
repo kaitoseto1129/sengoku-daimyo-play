@@ -22,7 +22,7 @@ export default {
     move(F.ramG, { x: 0, z: -35 });
     F.ram = makeRam(rt, { group: F.ramG, gate: { struct: F.gate, get breached() { return !F.gate.alive; } }, kind: '丸太' });
     move(F.friends, { x: 0, z: -40 }, true);
-    F.fallT = 0; F.ramWork = 0;
+    F.fallT = 0; F.ramWork = 0; F.gateT = null;
     reports(rt, [
       [6, '羽柴秀次', '押せ！　止まるな！　門の前で止まれば撃ち殺されるぞ！'],
       [40, '組頭', '前の者がまた倒れた！　屍を越えて進め！'],
@@ -40,6 +40,9 @@ export default {
     F.ramWork += dt * (n >= 3 ? 1 : n > 0 ? 0.6 : 0.3);
     if (F.gate.alive && t > 140 && (F.ramWork > 110 || t > 175)) {
       breakStruct(rt, F.gate);
+    }
+    // 丸太などが先に門を破っても、開門後の進行を一度だけ始める。
+    if (!F.gate.alive && F.gateT === null) {
       F.gateT = t;
       F.niGuard.stay = false; move(F.niGuard, { x: 0, z: -36 }, true); F.niGuard.aggro = 16;
       rt.say('羽柴秀次', '虎口が開いた！　二の丸へ斬り込め！', 3);

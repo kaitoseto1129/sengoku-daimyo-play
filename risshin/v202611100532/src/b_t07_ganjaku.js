@@ -621,12 +621,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   update(rt, dt) {
     const F = rt.flags;
     // 行軍・退却・本陣の待機では考え直しを待たず、討たれた相手への狙いを外す（全戦の通しで三秒以上残った）。
-    for (const u of rt.army.units) if (u.alive && u.target && !u.target.alive && !u.target.isStruct) {
-      const fallen = u.target;
-      u.target = null;
-      if (u.atk?.target === fallen) u.atk = null;
-      if (u.watch === fallen) u.watch = null;
-      u.aiT = 0;
+    for (const u of rt.army.units) if (u.alive) {
+      // 討死の知らせで target が先に消えても、別に残った攻撃・注視を拾う。
+      if (u.target && !u.target.alive && !u.target.isStruct) { u.target = null; u.aiT = 0; }
+      if (u.atk?.target && !u.atk.target.alive && !u.atk.target.isStruct) { u.atk = null; u.aiT = 0; }
+      if (u.watch && !u.watch.alive && !u.watch.isStruct) { u.watch = null; u.aiT = 0; }
     }
     if (F.ending) return;
     if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
@@ -800,7 +799,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 門や塀、町の者を総勢の討死に数えない（残人数の分母と揃える）。
     if (!v.isStruct && !v.civ) { if (v.team === 1) F.ek++; else if (v.team === 0) F.ak++; }
     // 討たれた相手を見続けず、次の思考で生きた敵か持ち場へ向き直る。
-    for (const u of rt.army.units) if (u.alive && u.target === v) { u.target = null; u.aiT = 0; }
+    for (const u of rt.army.units) if (u.alive) {
+      if (u.target === v) { u.target = null; u.aiT = 0; }
+      if (u.atk?.target === v) { u.atk = null; u.aiT = 0; }
+      if (u.watch === v) { u.watch = null; u.aiT = 0; }
+    }
     // 主人公の固定した狙いは兵の target とは別。残すと次の敵にも死者の方を向く。
     const p = rt.player;
     if (p.lock === v) { p.lock = null; p.wheelAcc = 0; }

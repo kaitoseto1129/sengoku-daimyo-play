@@ -1048,7 +1048,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 竹束を持つ者だけが倒れた時も補う。槍の者が残っているだけでは、竹束の陰へ寄れなくなる。
       const left = F.rams.reduce((a, g) => a + g.count, 0);
       const covered = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut));
-      if ((left < 4 || !covered) && F.rams.length < 7 && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 12 <= 250) {
+      // 累計の組数で補充を止めない。全滅した組が七つ残ると、以後は竹束が来なくなる。
+      if ((left < 4 || !covered) && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 12 <= 250) {
         rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3);
         const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: { x: 10, z: C.z + FENCE_R + 30 }, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
           dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));
@@ -1059,6 +1060,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   },
 
   onKill(rt, v) {
+    // 柵の破壊は兵の討死ではない。兵数の棒と亡骸には加えない。
+    if (v.isStruct) return;
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
     KIT.carrion(rt, v);

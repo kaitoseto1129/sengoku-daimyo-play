@@ -85,7 +85,11 @@ export function makeKinomeZones(rt, o) {
         const zoneSpan = z.scanT; z.scanT = 0;
         let friends = 0, enemies = 0;
         for (const u of rt.army.units) {
-          if (!u.alive || u.isStruct || u.fleeing || u.woundOut || !z.test(u.pos.x, u.pos.z)) continue;
+          // 印も攻撃対象も付かない兵を残敵にすると、空の郭がいつまでも落ちない。
+          // 味方も戦える者だけを数え、倒れた兵で押さえの人数を満たさない。
+          if (!u.alive || u.isStruct || u.gone || u.dying || u.downed || u.noTarget || u.civ ||
+              u.fleeing || u.woundOut || u.rearWound || u.group?.routed || u.group?.order === 'flee' ||
+              !z.test(u.pos.x, u.pos.z)) continue;
           if (u.team === 0) friends++; else if (u.team === 1) enemies++;
         }
         for (const b of o.defenders) {

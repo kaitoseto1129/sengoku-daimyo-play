@@ -362,7 +362,7 @@ Object.assign(echizen, {
         pos = F.echizenCourtPoint(); q.route = true; q.r = q.hide = .5;
       }
     } else if (enemy) {
-      if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
+      // 刃の届く間も行き先を消さず、同じ守兵を指し続ける。
       pos = enemy.pos;
       q.unit = enemy; q.enemy = true; q.approach = true; q.r = q.hide = .2;
     } else if (gate?.alive) {
