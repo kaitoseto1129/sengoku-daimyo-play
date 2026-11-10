@@ -6,6 +6,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -21,7 +22,7 @@ export function install(rt, ctx) {
     rt.say('足軽', '上から石じゃ！　丸太も落として来よる！', 3.5);
     rt.after(4, () => { if (!F.ending && !rt.over && rt.player.u.alive) rt.say('組頭', '上の切岸の石落としを払え！　あれを黙らせねば木戸へ寄れぬ！', 4); });
     rt.obj('otoshi', '尾根道の上の、石落としの組を払え', 'order');
-    rt.marker('otoshiG', () => (G.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? G.center() : null), '石落としの組', { red: true, group: G });
+    rt.marker('otoshiG', () => (G.units.some(siegeFighter) ? G.center() : null), '石落としの組', { red: true, group: G });
   });
   return {
     update(dt) {
@@ -31,7 +32,7 @@ export function install(rt, ctx) {
       const el = rt.t - t0;
       if (!G) return;
       let n = 0;
-      for (const u of G.units) if (u.alive && !u.fleeing && !u.woundOut) n++;
+      for (const u of G.units) if (siegeFighter(u)) n++;
       rt.objProgress('otoshi', n ? `石落としの組 ${n}人` : '');
       if ((!n && el > 65) || el > 120) {
         done = true; F.otoshiDone = true;

@@ -63,9 +63,9 @@ export function epilogue(rt, ctx) {
 
 // 夜の段「東の肩の道で秀吉の先手を迎える」：松明の道の上の口（JOIN）へ下り、上って来る先手を迎える。
 //   着くと、居座った盛政の夜討ちの小勢が北の藪から先手の列へ斬りかかる。払えば本陣で秀吉を迎える段へ。
-// 敗走した夜討ちの兵を、まだ道を塞いでいる人数に含めない。
+// 敗走・退却・負傷離脱した兵を、まだ道を塞いでいる人数に含めない。
 export function nightRaidLeft(g) {
-  return !g || g.routed ? 0 : g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0);
+  return !g || g.routed || g.order === 'retreat' ? 0 : g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0);
 }
 
 export function tickMeet(rt, ctx) {

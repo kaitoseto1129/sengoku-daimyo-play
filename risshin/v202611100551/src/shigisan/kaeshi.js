@@ -6,6 +6,7 @@
 // ======================================================================
 import { enemyGroup, allyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -35,7 +36,7 @@ export function install(rt, ctx) {
     rt.banner('松永勢の逆寄せ', '火を背に、侍衆が打って出る');
     rt.say('松永の侍', '筒井の小倅どもを追い落とせ！　ここは大和の松永の城ぞ！', 4);
     rt.obj('kaeshi', '曲輪へ打って出た松永の侍衆を押し返せ', 'order');
-    rt.marker('kaeshiK', () => (K.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? K.center() : null), '松永の侍衆', { red: true, group: K });
+    rt.marker('kaeshiK', () => (K.units.some(siegeFighter) ? K.center() : null), '松永の侍衆', { red: true, group: K });
   });
   // ③ 筒井の後続が麓から駆け上がる（約五十秒後）
   rt.after(55, () => {
@@ -58,7 +59,7 @@ export function install(rt, ctx) {
       const el = rt.t - t0;
       if (!K) return;
       let n = 0;
-      for (const u of K.units) if (u.alive && !u.fleeing && !u.woundOut) n++;
+      for (const u of K.units) if (siegeFighter(u)) n++;
       rt.objProgress('kaeshi', n ? `松永の侍衆 ${n}人` : '');
       if ((!n && el > 110) || el > 180) {
         done = true; F.kaeshiDone = true;

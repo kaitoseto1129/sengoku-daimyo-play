@@ -272,6 +272,8 @@ function goalBoard(rt) {
   };
   const dispose = rt.dispose;
   rt.dispose = function () {
+    // 締めの途中でホームや再開へ移った時も、天下人の表示を次の画面へ残さない。
+    if (rt.flags.endEl) { rt.flags.endEl.remove(); rt.flags.endEl = null; }
     hud.foeMarks = foeMarks; box.remove();
     hud.progress = progress;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
