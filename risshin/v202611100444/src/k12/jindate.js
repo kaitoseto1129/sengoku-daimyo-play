@@ -34,7 +34,7 @@ export function tick(rt, dt) {
   kerai.tick(rt, dt, {
     guards: () => [F.mine],
     // 本陣の旗本・池の堤の伏せ鉄砲（③まで）は持ち場で構えたまま
-    keepHold: (g) => g === F.honjin || ((g === F.pondGuns || g === F.kame) && (F.step || 0) < 3),
+    keepHold: (g) => g === F.honjin || ((g === F.pondGuns || g === F.kame || g === F.ueda || g === F.tomo) && (F.step || 0) < 3),
     guns: () => ((F.step || 0) <= 2 ? [F.kame, F.pondGuns] : [F.ueda, F.tomo, F.kame]),
   });
   const M = st.M;

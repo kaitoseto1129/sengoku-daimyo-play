@@ -2722,7 +2722,12 @@ const arioka = {
         rt.after(5, () => rt.objDone('main'), true);
         rt.after(8, () => AR_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 4)), true);   // 三十秒の余韻（arioka/yoin.js）の後に締める
       // 待ち時間だけでは迎えた事にしない。遠くへ離れた本人にも印を残す。
-      }, { limit: Infinity });
+      }, { limit: Infinity, canReach: (b, p) => {
+        // 屋根の上や町屋の壁越しでは、官兵衛と対面した事にしない。
+        const u = b.player.u;
+        return u.alive && kanbe?.alive && !!p && Math.abs(u.pos.y - p.y) <= 3
+          && !b.army.wallBetween(u.pos, -1, p);
+      } });
     });
   },
 
