@@ -85,9 +85,10 @@ export function start(rt, ctx) {
         S.k = 2; S.okT = rt.t;
         rt.unmark('nodaTabaFoe');
         withdraw();
-        if (!S.timedOut || S.contestedAt != null || left <= 3 || S.g.routed)
+        const defended = !S.timedOut || S.contestedAt != null || left <= 3 || S.g.routed;
+        if (defended)
           rt.award((t) => t.side.push('竹束の鉄砲衆を野田砦の槍から守った'), '鉄砲衆を守った', POST);
-        rt.say('雑賀の鉄砲衆', '助かった！　これで心置きなく撃てる！', 3);
+        rt.say('雑賀の鉄砲衆', defended ? '助かった！　これで心置きなく撃てる！' : '野田砦の槍は退いた。竹束の列で撃ち合いを続けるぞ！', 3);
       }
     }
     // 本人が持ち場へ加わり、槍が実際に竹束へ寄せた後だけ、撃ちすくめて退く。

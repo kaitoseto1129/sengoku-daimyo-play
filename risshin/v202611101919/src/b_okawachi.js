@@ -2889,7 +2889,8 @@ function okYardRing(rt, bushSrc, tuftSrc) {
   let nt = 0, nc = 0, nb = 0, nf = 0;
   // 秋の雑木（楢・櫟・山桜・漆）の葉色：褐色・黄・朱を主に、常緑のくすんだ緑を少し。
   // 鮮やかにしすぎず、くすんだ褐色・黄ばみ・赤茶に寄せる。
-  const fall = [[0.82, 0.5, 0.26], [0.86, 0.64, 0.32], [0.74, 0.42, 0.24], [0.6, 0.46, 0.28], [0.4, 0.44, 0.28]];
+  // 通し確認で橙の塊に見えた葉は、外周の林と同じ褐色の範囲へ揃える。
+  const fall = [[0.5, 0.34, 0.18], [0.56, 0.44, 0.22], [0.44, 0.3, 0.17], [0.38, 0.26, 0.15], [0.24, 0.31, 0.19]];
   const putCrown = (m, i, x, y, z, sx, sy, tint) => {
     D.position.set(x, y, z); D.rotation.set((R() - 0.5) * 0.3, R() * 6.28, (R() - 0.5) * 0.3); D.scale.set(sx, sy, sx); D.updateMatrix();
     m.setMatrixAt(i, D.matrix); m.setColorAt(i, col.setRGB(tint[0] * (0.85 + R() * 0.3), tint[1] * (0.85 + R() * 0.3), tint[2] * (0.85 + R() * 0.3)));
@@ -4863,7 +4864,9 @@ function okHold(o) {
         if (held) { C.joinedLine = true; C.inT += dt; }
         C.holdLeft = Math.max(0, Math.ceil(C.duration - C.inT));
         rt.objProgress('dp', !near ? '南の鹿垣の旗へ進め' :
-          line < 3 ? '南の鹿垣で番の組と槍を揃えよ' : '南の鹿垣で囲みを保ち、兵糧を断つ');
+          line < 3 ? `南の鹿垣で番の組と槍を揃えよ。槍の仲間${line}人／三人` :
+          friends < foes ? '南の鹿垣の敵を押し返し、番の組と槍を揃えよ' :
+          `南の鹿垣で囲みを保ち、兵糧を断つ。あと${C.holdLeft}秒`);
         return held && C.inT >= C.duration;
       }
       const angle = closeFoe ? Math.atan2(closeFoe.pos.x - p.x, closeFoe.pos.z - p.z) - rt.player.yaw - (rt.player.camYawOff || 0) : 0;

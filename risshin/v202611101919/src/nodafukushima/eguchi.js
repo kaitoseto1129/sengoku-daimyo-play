@@ -94,7 +94,9 @@ export function bot(b, goTo, p, inp, strike) {
   if (S.g && !S.cleared) {
     let e = null, best = Infinity;
     for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
-    if (e && best < 30) {
+    // 渡しへ退く任務の範囲で戦う。追い回して遭遇判定の外へ離れない。
+    if (e && best < 30 && Math.hypot(u.pos.x - S.at.x, u.pos.z - S.at.z) < 50 &&
+        Math.hypot(e.pos.x - S.at.x, e.pos.z - S.at.z) < 40) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
       return true;

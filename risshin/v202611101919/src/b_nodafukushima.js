@@ -2624,6 +2624,7 @@ const nodafukushima = {
   hideMissionDots: true,
   hideGuideSteps: true,
   enemyTriangleSigns: true,
+  forceBarAlways: true, // 両軍の三万対八千を、行き先の案内中も人数の棒で示す。
   ladderWorkVisible: true, // 井楼の登降は必須操作。携帯の長押し釦を隠さない。
   // 11/7：前田利家・佐々成政・岩成友通の名が、十八m の内へ寄らないと出ず、遊んだ間に一度も見えなかった（critic60・九3・五2）。
   nameRange: 60,

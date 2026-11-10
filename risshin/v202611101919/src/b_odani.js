@@ -5791,7 +5791,7 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       if (F.captureT === 0) F.kyoCaptureCalled = false;
       if (F.captureT > 0 && !F.kyoCaptureCalled && !F.retreatOn) {
         F.kyoCaptureCalled = true;
-        rt.say('先手組頭', '敵は退いた！　京極丸を取ったぞ', 4);
+        rt.say('先手組頭', '敵は退いた！　京極丸の広場を押さえよ', 4);
       }
       if (updateHud && F.onoDone && breached) {
         const order = retShown(rt) ? '来た道の角へ戻れ'
