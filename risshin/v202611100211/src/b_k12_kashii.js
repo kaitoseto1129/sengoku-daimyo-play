@@ -195,6 +195,7 @@ const k12_kashii = {
   noFrontFill: true,       // 見せかけの軍勢（奥の軽い乱戦・自動の大軍）を重ねない（AA・AF・AP9・AQ6）。見える兵は全部本物
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ（AL：黄色と青を同時に出さない）
+  noTravelArrow: true,     // 移動案内の足元・画面端の矢印も出さず、行き先の▼に揃える（五3・BH6）
   compactIntro: true,
   introText: () => '安松の八丁畷で殿を務め、塙団右衛門の先手を樫井の村まで引き寄せて討て。',
   hideGuideSteps: true,
@@ -572,9 +573,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const awa = F.awaU;
     if (awa?.alive) {
       // 村へ斬り込む前に、北の口で味方の槍に討たれたり手傷で退いたりさせない。
-      awa.noTarget = false; awa.mustLive = true; awa.invuln = true;
+      awa.noTarget = true; awa.mustLive = true; awa.invuln = true;
       awa.onWound = () => {};
-      if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.seekRange = 40; F.awaG.aggro = 16; F.awaG.speed = 4.6; }
+      // 北の口で敵を追うと、討てないまま村へ入れず終戦も止まる。まず辻へ斬り込む。
+      if (live(F.awaG)) { F.awaG.order = 'move'; F.awaG.dest = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.onArrive = null; F.awaG.keepMoveOrder = true; F.awaG.seekRange = 0; F.awaG.aggro = 0; F.awaG.speed = 4.6; }
       rt.after(0.4, () => { if (awa.alive) rt.say('淡輪重政', '団右衛門殿が果てたか。六郎兵衛も続くぞ！', 2); });
     } else rt.after(1.2, () => rt.say('浅野の侍', '団右衛門、討ち取ったり！', 2.6));
   },
@@ -645,6 +647,10 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const awa = F.awaU;
       // 北の口から辻までは三十歩余り。斬り込む前に倒さず、敵と接した後に永田の槍で討たせる。
       if (awa?.alive) {
+        if (awa.noTarget && dist(awa.pos, VILLAGE) < 20) {
+          awa.noTarget = false;
+          if (live(F.awaG)) { F.awaG.order = 'attack'; F.awaG.anchor = { x: VILLAGE.x, z: VILLAGE.z - 6 }; F.awaG.keepMoveOrder = false; F.awaG.seekRange = 40; F.awaG.aggro = 16; }
+        }
         if (F.awaContactT == null && dist(awa.pos, VILLAGE) < 20 &&
             rt.army.nearestEnemy(awa, 6, (u) => !u.gone && !u.fleeing && !u.noTarget)) {
           F.awaContactT = rt.t;
@@ -739,6 +745,8 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       patientStrike(p, inp, e, d, true);
       return;
     }
+    // 退く時や、討てない控えの将を外した時は、前の相手への注視も解いて行き先へ向く。
+    if (p.lock) inp.e.add('KeyQ');
     inp.guardHold = false;
     let t = this.missionPin(b) || LINE;
     // 安松の家並みの間に入ったら、まず西の街道へ出てから行き先へ（家の壁に押し付けて詰まった。11/7 遊んで）

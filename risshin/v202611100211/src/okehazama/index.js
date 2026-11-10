@@ -30,10 +30,11 @@ export function muster15(rt, def) { return muster.start(rt, def, S(rt).C); }
 export function heading(rt) {
   const v = S(rt);
   if (rt.flags.victory || rt.flags.ending) return undefined;
-  if (v.ph === 'zenei') return GOALS15.zenei;
-  if (v.ph === 'nida') return GOALS15.nida;
-  if (v.ph === 'ii') return GOALS15.ii;
-  if (v.ph === 'saka') return GOALS15.saka;
+  // 追加した四段も、目標一覧の十件と同じ番号で下知する。
+  if (v.ph === 'zenei') return '②' + GOALS15.zenei;
+  if (v.ph === 'nida') return '⑤' + GOALS15.nida;
+  if (v.ph === 'ii') return '⑥' + GOALS15.ii;
+  if (v.ph === 'saka') return '⑦' + GOALS15.saka;
   return undefined;
 }
 export function pin(rt) {

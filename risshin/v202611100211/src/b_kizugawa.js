@@ -4227,7 +4227,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       h.fromX = source?.x ?? DECK.x0 - 6; h.fromZ = source?.z ?? q.z;
       const fire = { ...q, f: null };
       rt.after(1.2, () => {
-        if (!fire.doused && !F.ending && !rt.over) {
+        // 途中からの再開で段を作り直した時も、古い消火の段から火を出さない。
+        if (F.step === 2 && F.fl[i] === fire && !fire.doused && !F.ending && !rt.over) {
           rt.army.play('houroku', fire, 0.8);
           // 海底の格子の補間値によらず、実際の甲板の上へ置く。
           fire.f = rt.world.addFire(q.x, q.z, { h: DECK.y + 0.3 - rt.world.heightAt(q.x, q.z), size: 2.4 });

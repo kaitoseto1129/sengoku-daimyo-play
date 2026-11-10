@@ -2428,7 +2428,11 @@ takato_siege.botBrain = (b, inp, { goTo, patientStrike }) => {
         Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 8) ||
       ((F.sallyOut || F.sallyUntil) && o.group === F.reserveDef.real && o.pos.x >= OTE.x && Math.abs(o.pos.z - OTE.z) < 4) ||
       (here && mateDistance < 6 && here.test(o.pos.x, o.pos.z) &&
-        Math.hypot(o.pos.x - mate.pos.x, o.pos.z - mate.pos.z) < 6)));
+        Math.hypot(o.pos.x - mate.pos.x, o.pos.z - mate.pos.z) < 6)) &&
+    // 主殿の柱や調度越しに見える守兵へ直進できなくても、戸口への道は歩き続ける。
+    // 刃が届く相手と、実際にこちらを打つ相手への応戦は残す。
+    (!F.honFell || Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) <= (p.weapon === 'sword' ? 1.6 : 2.5) ||
+      clearFoot(b, o.pos) && localClear(b.army, u.pos, o.pos, true)));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     if (p.lock && p.lock !== e) inp.e.add('KeyQ');

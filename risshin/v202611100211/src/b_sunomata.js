@@ -3366,7 +3366,7 @@ const sunomata = {
   compactGuardGuide: true, compactDodgeGuide: true,
   // 短い長押しの説明を二行まで収め、命の札とは既存の八画素を空ける。
   dodgeActionHalfWidth: 116, dodgeActionHeight: 72,
-  distanceUnit: 'steps',
+  distanceUnit: 'metres',
   // 救援・運搬先も地面へ投影し、近くの兵の胴に大きな輪を重ねない。
   groundCombatMarkers: true,
   // 地面24点の通行・遮蔽を毎回調べず、既存の上限付きの足元の輪を使う。
@@ -6117,7 +6117,7 @@ sunomata.date = (rt) => `永禄九年九月　${sky(rt)}`;
 // take で軽い姿を隠した同じ一人は実兵側だけに数え、戻した兵と討死を重ねない。
 sunomata.force = (rt) => {
   let a = 0, b = 0;
-  for (const u of rt.army.units) if (u.alive && !u.gone && u.type !== 'dummy' && u.type !== 'porter' && !u.civ && !u.isStruct) {
+  for (const u of rt.army.units) if (u.alive && !(u.hp <= 0) && !u.dying && !u.woundOut && !u.gone && u.type !== 'dummy' && u.type !== 'porter' && !u.civ && !u.isStruct) {
     // 退いた寄せ手（崩れて逃げる兵）は敵の数から外す。寄せを退けた手応えを数に出す（11/8 mb1108 ①）。
     if (u.team === 0) a++; else if (u.team === 1 && !u.fleeing && !u.group?.routed) b++;
   }

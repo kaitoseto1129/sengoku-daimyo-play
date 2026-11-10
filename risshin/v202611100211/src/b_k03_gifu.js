@@ -573,9 +573,10 @@ const k03_gifu = {
       g.fire = false; g.peaceful = true;
       for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
     }
-    // 降伏を見届ける寄せ手は追撃を止める。進軍先と到着後の攻撃命令も残さない。
-    for (const g of [F.naga, F.asano, F.mine, F.fuku]) if (live(g)) {
+    // 本人の直属の組も降伏を見届ける。振りかけの刀と追撃命令を残さない。
+    for (const g of [F.naga, F.asano, F.mine, F.fuku, ...(rt.squadGroups || [])]) if (live(g)) {
       g._gfTo = null; g._gfGo = false; g.onArrive = null;
+      g.focus = null;
       g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false;
       g.noAI = true; g.peaceful = true; g.keepMoveOrder = true;
       for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; }
