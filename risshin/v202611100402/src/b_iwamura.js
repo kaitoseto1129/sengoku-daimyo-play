@@ -2767,16 +2767,20 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         for (const u of S.units) if (chaseReady(u)) fighting++;
         const leaderDown = S.units.filter((u) => u.type === 'samurai').every((u) => !chaseReady(u));
         if (rt.t - F.footSallyOut > 18 && (fighting <= S.iwInitial * 0.4 || leaderDown && fighting <= S.iwInitial * 0.6)) {
-          S.noRout = false; S.iwWithdraw = true; S.order = 'path'; S.formation = 'column'; S.path = IWA_ROAD.slice(0, 9); S.pathIdx = 1;
+          // 出撃に使った木戸を逆に通る。登城道の先へ直進させると木戸を横切ってしまう。
+          S.noRout = false; S.iwWithdraw = true; S.order = 'path'; S.formation = 'column'; S.path = F.footSallyPath.slice().reverse(); S.pathIdx = 1;
           S.speed = 2.6; S.aggro = 0; S.seekRange = 1.8; S.retreatOnly = true; S.noAI = true; S.focus = null;
           for (const u of S.units) { u.target = null; u.watch = null; }
-          S.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; };
+          S.onArrive = (q) => {
+            q.order = 'hold'; q.retreatOnly = false; q.iwReturned = true;
+            if (!F.ending && !rt.over) rt.say('河尻秀隆', '城兵は木戸の内へ逃げ込んだ。登り口を固めよ', 3.5);
+          };
           signal('nobiki', rt.distTo(S.anchor), 0.6);
-          rt.say('河尻秀隆', '城兵は木戸の内へ逃げ込んだ。登り口を固めよ', 3.5);
+          rt.say('河尻秀隆', '城兵が木戸へ退くぞ。登り口を守れ。坂へは追うな', 3.5);
         }
       }
       // 木戸の城兵を実際に退けた時だけ固め終える。時間切れを達成として扱わない。
-      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwWithdraw);
+      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwReturned);
       rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。

@@ -739,7 +739,8 @@ KILLS[ID] = (rt) => {
   if (F.ending) return null;
   if (F.step === 1) return cut(F.w1S, sumN(F.g1, F.g2), F.w1S - Math.round(F.w1S * 0.6));
   if (F.step === 4 && !F.back4) return cut(F.w4N, sumN(F.wata, F.kimu), F.w4N - Math.round(F.w4N * 0.6));
-  if (F.step === 5) return cut(F.w5N, aliveN(F.take), F.w5N - Math.round(F.w5N * 0.6));
+  // 今福救援へ移った後は、済んだ竹田隊の討伐数を目標に重ねない。
+  if (F.step === 5 && !F.riverAid) return cut(F.w5N, aliveN(F.take), F.w5N - Math.round(F.w5N * 0.6));
   return null;
 };
 

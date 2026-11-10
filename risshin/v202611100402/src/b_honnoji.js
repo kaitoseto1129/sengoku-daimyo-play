@@ -3450,6 +3450,7 @@ const honnoji = {
   // ---- 稲生の水準（10/25）。信長で遊ぶ時は今まで通り ----
   missionSingleLine: true,
   goalsAllRows: true, // 本能寺の五つの目標と達成印を、共通の札でも最初から並べる。
+  nameTagLimit: 5, // 五つの目標の札が出ても、上様と小姓衆の名を出す枠を残す。
   goalVisibleRows: 5,
   hideMissionDots: true,
   // 二条御所が落ちた後は一人で京を落ちる。御所に残って討死した村井貞勝らを組頭として呼び戻さない（kumi_lead.js）

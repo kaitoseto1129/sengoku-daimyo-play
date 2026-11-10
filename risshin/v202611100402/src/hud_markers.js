@@ -392,7 +392,8 @@ export class HudMarkers {
       const label = detour ? '屋形の前を回る' : m === main && /旗|組の列/.test(name) ? 'この はたへ' : fieldLabel(m === main ? rt.missionGuide.label : name).replace(/・(意気盛ん|平常|動揺)$/, '');
       // 名は墨の下地の上に、距離は薄い字で分ける（霧や明るい空でも読める）。すぐそばでは距離を出さず、遠い時は言葉で
       const shownDistance = m === main ? rt.missionGuide.distance : typeof m.routeDistance === 'function' ? m.routeDistance() : d;
-      const combatDistanceHidden = rt.def.hideCombatDistance && (m.red || m.person || m.guidePerson || m === main && rt.flags.step !== 3 && !rt.flags.riverAid);
+      // 川岸へ移る間だけ距離を出し、鉄砲を指図できる所へ着いたら隠す。
+      const combatDistanceHidden = rt.def.hideCombatDistance && (m.red || m.person || m.guidePerson || m === main && rt.flags.step !== 3 && (!rt.flags.riverAid || d <= 14));
       const dist = combatDistanceHidden ? '' : m.alwaysDistance || m === main ? destinationDistance(rt, shownDistance, true) : d < 12 ? '' : d > 150 ? '遠い' : destinationDistance(rt, d);
       // 最小のスマホ横：名は出たばかりの時・真ん中あたりに見ている時・敵の武将の隊（赤）だけ。距離は出さない（◆だけで行き先は分かる）
       const lean = leanHud(), look = !off && Math.abs(sx - W / 2) < W * 0.18 && Math.abs(sy - H / 2) < H * 0.3;
