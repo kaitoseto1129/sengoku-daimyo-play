@@ -1784,7 +1784,9 @@ function anegawaNotices(rt) {
     const won = F.step === 2 || F.ending || rt.over;
     // 11/6 fixc（二2）：浅井が崩れる前に「敵が逃げる。深追いするな」を言わせない（崩れの前後を入れ替えない）。
     // 11/6 fixc0454：崩れた後も「深追いするな」は言わせない。信長は小谷の麓まで追わせた（信長公記）。渡河の下知と同じ時に逆を言っていた。
-    if (typeof line === 'string' && /敵が逃げる|深追い|追うな/.test(line)) return;
+    // 終幕の追撃停止と集合は正式な下知。追撃中の逆の声と一緒に消さない。
+    const endOrder = F.ending && F.aneSenEnd && (who === '使番' || who === '組頭');
+    if (typeof line === 'string' && /敵が逃げる|深追い|追うな/.test(line) && !endOrder) return;
     // 11/6 fixc0454：信長は姉川で手傷を負っていない。本陣の大将が退く時の共通の「手傷じゃ」は言わせない。
     if (who === '織田信長' && typeof line === 'string' && /手傷|ちと退く|息を入れて/.test(line)) line = '者ども、ここを支えよ！';
     if (won && typeof line === 'string' && (/数が違いすぎる|皆、討たれまする|もう持ちませぬ|死にとうない|我らだけでは|次は、わしか|槍が持てぬ|母に、なんと/.test(line) ||

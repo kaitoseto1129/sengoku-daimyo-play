@@ -6,9 +6,18 @@
 // ======================================================================
 export const MOUTH_N = { x: 20, z: -18 };   // 北の岸の浅瀬の口
 
-export function start(rt, K) {
+export function start(rt) {
   const F = rt.flags;
   F.s4 = { t0: rt.t, tickT: rt.t, go: false };
+  // 11/9 夜 kaito：十河存保は信親と別の死。逃げる味方の後ろで十河の隊が向き直り、殿に残る（本人は一度ここで加勢する）
+  const g = F.sogo;
+  if (g?.count) {
+    F.follow = (F.follow || []).filter(([q]) => q !== g);
+    const at = { x: MOUTH_N.x + 8, z: MOUTH_N.z - 16 };
+    g.order = 'hold'; g.dest = null; g.onArrive = null; g.anchor = at; g.facing = Math.PI; g.aggro = 14; g.seekRange = 14; g.speed = 3.6;
+    for (const u of g.units) if (u.alive && !u.gone && u.type !== 'busho') u.invuln = false;
+    rt.after(1, () => { if (F.step === 4) rt.say('十河存保', '四国の衆、先へ行け！　十河がここで止める！', 3); });
+  }
   rt.after(2, () => { if (F.step === 4) rt.say('手勢の侍', '浅瀬の口で殿じゃ！　皆が渡り切るまで、ここを通すな！', 3); });
   rt.after(18, () => { if (F.step === 4 && !F.s4.go) rt.say('長宗我部の足軽', '押すな！　浅瀬は狭い、一列で渡れ！', 2.8); });
   rt.after(32, () => { if (F.step === 4 && !F.s4.go) rt.say('手勢の侍', 'もう少しじゃ！　島津の槍を止めよ！', 2.6); });
@@ -19,6 +28,9 @@ function release(rt, remaining) {
   if (S.go) return;
   S.go = true;
   rt.say('手勢の侍', remaining ? '残る者も退け！　殿、これ以上は持ちませぬ。川へ！' : '皆渡った！　殿、今じゃ。川へ！', 2.8);
+  F.mText = '川を渡れ'; rt.obj('main', F.mText, 'main', true);
+  rt.after(3, () => rt.say('十河存保', '行け！　振り返るな！', 2.4));
+  rt.after(9, () => rt.def.sogoFall?.(rt));
 }
 
 export function crossNow(rt) { return !!rt.flags.s4?.go; }
@@ -41,7 +53,7 @@ export function update(rt) {
   // 浅瀬の口で殿を務めてから渡る。先に逃げても時間だけでは果たさない。
   const F = rt.flags;
   // 戦列を離れた負傷兵は隊の到着判定と同じく除き、動けない者で進行を止めない。
-  const remaining = [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])].some((g) =>
+  const remaining = [F.nobu, F.tsune, F.moto, ...(F.allyBands || [])].some((g) =>
     g?.units.some((u) => u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && u.pos.z <= 26));
   // 殿を務めた後でも、味方を残して先に渡った時は口へ戻るまで下知を出さない。
   // 一人が足止めされても無期限の防戦にしない。残兵がいる時は渡り切ったと知らせない。
