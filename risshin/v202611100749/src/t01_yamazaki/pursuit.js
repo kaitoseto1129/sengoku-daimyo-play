@@ -76,7 +76,8 @@ export function tick(rt, dt, ctx) {
       g.onArrive = (q) => { q.order = 'attack'; q.aggro = 26; q.seekRange = 34; };
     }
   }
-  if (F.sortie && near(P, GATE, 18) && ctx.aliveN(F.rearGs) <= 2) {
+  // 主力の八割を破れば残兵は退く。遠い三人を探し続けて門前の務めが止まらないようにする。
+  if (F.sortie && near(P, GATE, 18) && ctx.aliveN(F.rearGs) <= Math.max(2, ctx.allN(F.rearGs) * 0.2)) {
     F.pStep = 1;
     finale(rt, ctx);
   }

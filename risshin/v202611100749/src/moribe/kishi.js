@@ -19,7 +19,7 @@ export function start(rt, def, C) {
   rt.after(1.3, () => { const V = F.V; if (V) { V.order = 'move'; V.dest = { x: 40, z: 56 }; V.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: 40, z: 56 }; }; } });
   v.cross = CROSS;
   const say = (t, who, s, d = 3.4) => rt.after(t, () => { if (live()) rt.say(who, s, d); });
-  say(2, '組頭 源八（げんぱち）', '柳の陰に組を集めよ。殿の下知があるまで、川には入るな', 3.6);
+  say(2, '組頭 源八（げんぱち）', '楡俣川の南岸の柳の陰に集まれ。殿の下知があるまで、川には入るな', 3.6);
   say(6, '前田又左衛門', '勘当の身なれど、この又左、首を取って御赦免をいただく！', 3.4);
   say(10, '使番', '殿の御諚！　「天の与ふる所ぞ」、楡俣川を越えよとの事！', 3.8);
   rt.after(14, () => { if (live()) { sfx('horagai', 0.9); finish(rt, C); } });

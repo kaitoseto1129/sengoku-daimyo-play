@@ -2049,6 +2049,7 @@ const nagashima = {
   stageGoalsOnly: true,   // 11/6 fixc1721：勝ちの札に「敵を八人討つ」が出ていた（三1）。目標は段だけ
   // 11/6 fixc1844：勝ちの札は五つまでで、六つ目（火）が落ちていた。見張りの二段（見張り場・退く舟）を一つにまとめ五つに（critic60 三2・見張りばかり）。
   missions: ADV_MISSIONS,
+  dpNoMark: true, // 行き先の印と敵全員の頭上の▼だけを使い、敵の隊の別札を重ねない。
   oldMissions: ['堤の上へ上がり、輪中と門徒の砦を見よ', '岸の横木に縄をかけよ', '西の舟入りで、兵糧を取り返しに来た門徒を止めよ', '東の岸の柵で、砦から逃げ出した門徒を止めよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', '岸の真ん中の柵で、最後に寄せる門徒を止めよ', AFTERMATH_ORDER],
   taskLines: ['岸の横木に縄をかけよ', '岸の柵で槍を構え、寄る舟に備えよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', AFTERMATH_ORDER],
   // 味方が減った時の共通の声は「任務の札」と遊びの言葉を使う。岸の組頭の言葉に替える。
@@ -3743,7 +3744,7 @@ const nagashima = {
     rt.after(2, () => rt.say('使番', '上様の御下知。在所と砦に火をかけよ', 3.4));
     rt.after(8, () => rt.army.play('bell', { x: -44, z: -82 }, .45));
     F.advWalk = { x: ADV_POINTS.walk.x, z: ADV_POINTS.walk.z };
-    rt.after(6, () => { rt.marker('advWalk', F.advWalk, '', { h: 1.2, guideAlways: true }); });
+    rt.marker('advWalk', F.advWalk, '南の堤', { h: 1.2, guideAlways: true });
     // 堤の上に、小さな暮らしの品（椀と草鞋）
     { const x = (ADV_POINTS.exit.x + F.advWalk.x) / 2, z = (ADV_POINTS.exit.z + F.advWalk.z) / 2;
       const bowl = new THREE.Mesh(new THREE.CylinderGeometry(.09, .06, .06, 10), new THREE.MeshLambertMaterial({ color: 0x5a3020 }));
@@ -3764,7 +3765,7 @@ const nagashima = {
       rt.after(9.2, () => rt.say('古参の足軽', '命令だ。', 2.6));
       F.advDoneAt = rt.t + 14;
     }
-    if (F.advDoneAt && rt.t >= F.advDoneAt && !F.advFinished) {
+    if (F.advDoneAt && rt.t >= F.advDoneAt && el >= END_SEC && !F.advFinished) {
       F.advFinished = true;
       rt.objDone('main');
       rt.award((t) => { t.main = true; t.side.push('一揆勢 壊滅', '主要拠点 制圧', '水路 封鎖完了'); t.special = { label: '長島 制圧', pts: 20 }; }, '長島 制圧');

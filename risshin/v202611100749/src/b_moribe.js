@@ -3267,7 +3267,7 @@ const moribe = {
     const F = rt.flags;
     if (!F.signal) return rt.objectives.find((o) => o.id === 'point' && !o.state)?.text || '川を渡った所で、合図を待て';
     if (F.squadGuide || F.stage === 'assemble' && F.gatherUnit) return '仲間のそばへ';
-    if (F.stage === 'assemble') return Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12 ? '仲間とここで川への道を守れ' : '川への道で仲間と集まれ';
+    if (F.stage === 'assemble') return Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12 ? '森部の野で仲間と槍をそろえよ' : '森部の野で仲間と集まれ';
     if (F.stage === 'hold') return F.lineReady ? '前備の列で長井・日比野の槍列を受け止めよ' : '前備の列で仲間と槍をそろえよ';
     return '味方と並び、敵へ進め';
   },
@@ -3390,7 +3390,7 @@ const moribe = {
     const F = rt.flags;
     if (!F.signal) return rt.def.waitOrderLabel(rt);
     if (F.squadGuide || F.stage === 'assemble' && F.gatherUnit) return '仲間のそばへ';
-    if (F.stage === 'assemble') return Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12 ? '仲間とここで川への道を守れ' : '川への道で仲間と集まれ';
+    if (F.stage === 'assemble') return Math.hypot(rt.player.u.pos.x - F.asm.x, rt.player.u.pos.z - F.asm.z) < 12 ? '森部の野で仲間と槍をそろえよ' : '森部の野で仲間と集まれ';
     if (F.stage === 'press') return F.pursuit ? '墨俣への道で殿を追え' : F.marked ? '味方と両将の旗本へ進め' : '前備の列で槍をそろえよ';
     if (F.stage === 'contact' && F.vBroken) return '前備の列で仲間と槍をそろえよ';
     return F.stage === 'hold' ? F.lineReady ? '前備の列で長井・日比野の槍列を受け止めよ' : '前備の列で仲間と槍をそろえよ' : '北岸の畦で斎藤の先手を押し返せ';
@@ -4291,7 +4291,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         // ▼の中で今回削った分だけを残し、続く一撃でも減りを見届けられるようにする。
         t.moribeHitHp = hp;
         // 次の一振りまでに削れた面を閉じ、連打でも残る赤の減りを見せる。
-        t.moribeDamageUntil = rt.t + 1.2;
+        t.moribeDamageUntil = rt.t + .8;
         // 命中の形を保ってから戻す。空振りや受け止めでは伸ばさない。
         if (!blocked) { t.moribeHitUntil = rt.t + 1; t.moribeBlockUntil = 0; }
         if (!t.alive || t.dying || t.downed || t.woundOut || t.rearWound) t.moribeDefeatUntil = rt.t + 1.4;
