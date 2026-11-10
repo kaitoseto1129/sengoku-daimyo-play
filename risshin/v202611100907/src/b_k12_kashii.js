@@ -522,7 +522,11 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (F.okaBack) return;
     F.okaBack = true;
-    if (live(F.oka)) { F.oka.order = 'retreat'; F.oka.dest = { x: FROM_E.x, z: EXIT_N.z }; F.oka.speed = 4.3; F.oka.aggro = 0; }
+    for (const g of [F.oka, F.okaKiba]) if (live(g)) {
+      // 横を突く騎馬にも退く下知を伝え、古い攻撃・移動の命令を残さない。
+      g.onArrive = null; g.focus = null; g.keepMoveOrder = false;
+      g.order = 'retreat'; g.dest = { x: FROM_E.x, z: EXIT_N.z }; g.speed = 4.3; g.aggro = 0;
+    }
     if (F.okaU?.alive) F.okaU.invuln = true;
     rt.after(1.2, () => rt.say('岡部則綱', '横からも破れぬか……。引け、引け！', 2.8));
     rt.after(4, () => this.toStep(rt, 5));

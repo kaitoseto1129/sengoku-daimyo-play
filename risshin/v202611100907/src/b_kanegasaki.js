@@ -2330,11 +2330,19 @@ function kgReinforceTick(rt) {
   F.reinfAt = rt.t + 0.5;
   for (const r of F.reinf) {
     if (r.joined || !r.g.count) continue;
-    // 先頭だけが道で遅れても、砦へ届いた手の兵を合流に数える。後送中の兵は数えない。
-    let d = Infinity;
-    for (const u of r.g.units) if (kgActive(u)) d = Math.min(d, Math.hypot(u.pos.x - r.to.x, u.pos.z - r.to.z));
+    // 一人だけ先に届いても援軍全体の合流にしない。後送中の兵を除き、
+    // 将本人と残兵六割が砦へ着いてから、共に守る手に加える。
+    let d = Infinity, active = 0, near = 0;
+    const arrived = (u) => Math.hypot(u.pos.x - r.to.x, u.pos.z - r.to.z) <= 16 &&
+      (r.key !== 'ikeda' || u.pos.z >= 22);
+    for (const u of r.g.units) if (kgActive(u)) {
+      active++;
+      d = Math.min(d, Math.hypot(u.pos.x - r.to.x, u.pos.z - r.to.z));
+      if (arrived(u)) near++;
+    }
     if (!r.called && d < 60 && r.key !== 'ieyasu') { r.called = true; if (!F.ending) rt.say(r.R.who, r.R.say, 3.5); }
-    if (d > 16) continue;
+    const leader = r.g.units[0];
+    if (!active || near < Math.ceil(active * 0.6) || !kgActive(leader) || !arrived(leader)) continue;
     r.joined = true;
     if (r.R.join && !F.tono.includes(r.g)) F.tono.push(r.g);
     if (!F.ending && !F.fleeing) rt.after(2, () => {

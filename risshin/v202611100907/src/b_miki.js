@@ -1422,13 +1422,17 @@ const miki = {
     // 吉親など翌年まで城に残る将は、この坂で討つ目標に含めない。
     return !u.name || u.name === '別所三太夫' || u.name === '別所甚太夫';
   },
+  omuraDefeated(u) {
+    // 後送・退場した無名の兵を探させない。二将は討死まで達成に数えない。
+    return !u.alive || (!u.name && (u.noTarget || u.woundOut || u.rearWound || u.gone || u.dying || u.hp <= 0));
+  },
   missionOf(rt) {
     const F = rt.flags;
     if (!F.step || (F.step === 1 && !F.dropped)) return 0;
     if (F.step === 1) return 1;
     if (!F.omuraGo) return 2;
     // ④の達成条件とそろえる。名のある将は対象から外れただけでは討ち取りにならない。
-    if (!F.reserve.units.every(u => !this.omuraFoe(u) || u.name === '別所甚太夫' || !u.alive || (!u.name && u.noTarget))) return 3;
+    if (!F.reserve.units.every(u => !this.omuraFoe(u) || u.name === '別所甚太夫' || this.omuraDefeated(u))) return 3;
     return 4;
   },
   missionHeading(rt) {
@@ -2984,7 +2988,7 @@ const miki = {
     const F = rt.flags;
     // 坂へ着いただけでは合流にならない。懸かりの合図と本人の討ち取りまで待つ。
     return F.step === 2 && !!F.omuraGo && !!F.jintTaken &&
-      F.reserve.units.every(u => !this.omuraFoe(u) || !u.alive || (!u.name && u.noTarget));
+      F.reserve.units.every(u => !this.omuraFoe(u) || this.omuraDefeated(u));
   },
   end(rt, won, reason) {
     // 荷の到着・両持ち場の崩れ・退く下知は決着。近くの敵との打ち合いで先延ばしにしない。

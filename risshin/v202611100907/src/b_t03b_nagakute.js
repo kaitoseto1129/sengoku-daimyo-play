@@ -381,13 +381,16 @@ const t03b_nagakute = {
         rt.say('物見', '北東の御旗山から金扇の旗本が！　挟まれまする！', 2.8);
       });
       // 水野の鉄砲組が東の畑の際から撃ちかける（森長可を撃った杉山孫六は水野家の鉄砲足軽・battle_learn 六）
-      rt.after(30, () => {
-        if (F.stage !== 5 || aliveReal(rt) + 8 > REAL_CAP) return;
+      const mizunoUp = () => {
+        if (F.ending || F.stage !== 5 || F.mizunoGun) return;
+        // 出現の瞬間だけ枠が埋まっていても、鉄砲組そのものを省かない。
+        if (aliveReal(rt) + 8 > REAL_CAP) { rt.after(2, mizunoUp); return; }
         F.mizunoGun = enemyGroup(rt, { faction: 'tokugawa', name: '水野忠重の鉄砲組', anchor: { x: HOTOKE.x + 34, z: HOTOKE.z - 22 }, facing: W, width: 6, formation: 'line', morale: 90, dmgMult: 0.4,
           order: 'hold', seekRange: 10, aggro: 4, speed: 3.4, noRout: true }, dressT([{ type: 'gun', n: 6 }, { type: 'ashigaru', n: 2, o: { flagScale: 1 } }], { ...TOKU, flag: 'mizuno' }));
         F.waves.push(F.mizunoGun);
         rt.say('物見', '東の畑の際に水野の鉄砲！　武蔵守様を狙うておりまする！', 2.8);
-      });
+      };
+      rt.after(30, mizunoUp);
       // 百四十秒から、主人公が武蔵守の 35m 内に戻るまで待つ。離れたまま時だけで討死させない。
       const moriEnd = () => {
         if (F.ending || F.stage !== 5) return;

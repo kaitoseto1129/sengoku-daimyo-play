@@ -63,7 +63,9 @@ export function tick(rt, dt) {
       [{ type: 'cavalry', n: n(5, 6), o: { flag: 'asano' } }]);
     if (C) { C.anchor = { x: 38, z: -38 }; F.asaKiba = C; }
     later(4, () => {
+      if (F.okaBack) return;  // 本隊が退いた後から騎馬だけを攻め込ませない。
       const E = st.def.foe(rt, '岡部の騎馬', { x: 150, z: -96 }, [{ type: 'cavalry', n: n(3, 4) }], { aim: { x: 36, z: -42 }, rout: 20 });
+      F.okaKiba = E;
       E.speed = 6; E.seekRange = 50;
     });
     later(5, () => rt.say('浅野の侍', '騎馬は東の口へ！　岡部の横腹を突け！', 2.8));
