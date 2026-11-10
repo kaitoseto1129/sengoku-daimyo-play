@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
 import { enemyGroup, allyGroup, ringWall, gauss } from './bhelp.js';
-import { nobori, kagaribi, village, yagura } from './props.js';
+import { nobori, kagaribi, village, yagura, carryTorches } from './props.js';
 import { placeGroup, placePlayer } from './b_opening.js';
 import { distToPolyline } from './world.js';
 import { rippleWater } from './world_water.js';
@@ -119,6 +119,11 @@ const OI_HQ = { x: OI.x + 1, z: OI.z };                   // 中川の本陣（�
 const OI_BACK = { x: OI.x - 8, z: OI.z + 50 };            // 退く先（振り返ると大岩山が見える）
 const SAKU_LINE = { x: OI.x - 8, z: OI.z - 40 };          // 大岩山の北で盛政が備を立て直す所
 const SHIBA_FRONT = { x: 58, z: 22 };                     // 柴田の先手と当たる所（岩崎山の南）
+const MAEDA_LOOK = { x: -160, z: -30 }; // 茂山の北東の肩。前田隊の陣払いを間近で見る
+// 余呉湖を横切らず、北の岸を往復する。
+const NORTH_SHORE = [[100, -100], [-90, -100], [MAEDA_LOOK.x, MAEDA_LOOK.z]];
+const NORTH_BACK = [[-90, -100], [100, -100], [SHIBA_FRONT.x, SHIBA_FRONT.z]];
+const NORTH_OUT = [[SAKU_LINE.x, SAKU_LINE.z], ...NORTH_SHORE];
 const KATSUIE = { x: 96, z: -118 };                       // 遠くに見える勝家の旗本（北国街道）
 const SAKU_START = { x: -114, z: 162 };                   // 盛政の勢が山を下りて来た所（余呉湖の西の岸）
 // 盛政は湖の西の岸を南へ下り、賤ヶ岳の真下で東へ折れて大岩山へ（初めはどの砦を狙うか分からない）
@@ -198,11 +203,11 @@ const DAWN_AT = { x: -82, z: 256 };                      // 夜明けに主人�
 // 目標（goals5.js が並べる。段の一行は場所と行い。四つの段だけ。「敵を何人討つ」で埋めない・stageGoalsOnly。携帯の横で一行に収まる長さ）
 // 11/5 check60：844 の横で九字ほどで二行に折れた（写真）。九字までに縮める
 // 11/6 critic60（十1・三1）：だれを討つ・だれを追うかを書く。夜の美濃大返しも段にする（本陣で秀吉を迎える）
-// 11/10 改訂（docs/shizugatake_spec_1109.md）：砦を守る側から、奪い返す側へ。十二の段（携帯の横で一行に収まる長さ）
+// 11/10 改訂（docs/shizugatake_spec_1109.md）：砦を守る側から、奪い返す側へ。十三の段（携帯の横で一行に収まる長さ）
 const STAGE_TEXT = ['東の物見で砦の並びを見る', '佐久間勢の行き先を見る', '大岩山の中川殿へ加勢に走る', '南の柵を守る', '西の斜面へ兵を回す', '中川殿の本陣へ合わさる',
-  '中川隊と退く', '賤ヶ岳の砦まで下がる', '戻った秀吉を迎える', '大岩山を取り返す', '佐久間の備を押し返す', '柴田の先手を押す'];
-const STAGE_PLACE = ['東の物見', '東の物見', '大岩山の小門', '南の柵', '西の斜面', '中川の本陣', '大岩山の南の坂', '砦の東の口', '東の肩の道', '大岩山', '大岩山の北', '岩崎山の南'];
-const STAGE_AT = [0.5, 0.8, 1, 1.3, 1.6, 1.8, 2, 2.3, 2.6, 3, 3.5, 4];
+  '中川隊と退く', '賤ヶ岳の砦まで下がる', '戻った秀吉を迎える', '大岩山を取り返す', '佐久間の備を押し返す', '茂山で前田勢の退きを見る', '柴田の先手を押す'];
+const STAGE_PLACE = ['東の物見', '東の物見', '大岩山の小門', '南の柵', '西の斜面', '中川の本陣', '大岩山の南の坂', '砦の東の口', '東の肩の道', '大岩山', '大岩山の北', '茂山の北東の肩', '岩崎山の南'];
+const STAGE_AT = [0.5, 0.8, 1, 1.3, 1.6, 1.8, 2, 2.3, 2.6, 3, 3.5, 3.7, 4];
 const ST = (p) => STAGE_TEXT[STAGE_AT.indexOf(p)];
 const stageIx = (p) => { let i = 0; for (let k = 0; k < STAGE_AT.length; k++) if ((p || 0) >= STAGE_AT[k]) i = k; return i; };
 const HONJIN = { x: FORT.x + 6, z: FORT.z + 2 };          // 夜に張る秀吉の本陣の前（砦の中）
@@ -242,7 +247,7 @@ html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode {
  padding:7px 11px 8px 9px !important; background:rgba(14,12,10,.7) !important; border:none !important; border-radius:6px !important;
 }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li { display:flex !important; white-space:normal !important; color:#e6dfd2 !important; font-size:14px !important; }
-${Array.from({ length: 8 }, (_, k) => `html:root body #hud#hud#hud.shizu-goals[data-shizu-window="${k}"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(n+${k + 6})${k ? `, html:root body #hud#hud#hud.shizu-goals[data-shizu-window="${k}"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(-n+${k})` : ''} { display:none !important; }`).join('\n')}
+${Array.from({ length: STAGE_TEXT.length - 4 }, (_, k) => `html:root body #hud#hud#hud.shizu-goals[data-shizu-window="${k}"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(n+${k + 6})${k ? `, html:root body #hud#hud#hud.shizu-goals[data-shizu-window="${k}"] #h-prog#h-prog.goal-mode .pg-goals li:nth-child(-n+${k})` : ''} { display:none !important; }`).join('\n')}
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li span { color:inherit !important; background:none !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.now { color:#fff !important; }
 html:root body #hud#hud#hud.shizu-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
@@ -351,12 +356,12 @@ function fortWay(u, q, C, R, ga) {
 }
 
 const t02_shizugatake = {
-  // 十二の段を、実際の入口から順に作り直す（続きから始める時。前の段は声と時の約束を出さずに流す）
+  // 十三の段を、実際の入口から順に作り直す（続きから始める時。前の段は声と時の約束を出さずに流す）
   checkpointStep: (rt) => rt.flags.phase,
   resumeSteps: [
     [0.5, function (rt) { rt.flags.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); }],
     [0.8, 'march'], [1, 'relief'], [1.3, 'south'], [1.6, 'west'], [1.8, 'hq'], [2, 'fall'], [2.3, 'backline'],
-    [2.6, 'returnHide'], [3, 'retake'], [3.5, 'pushSaku'], [4, 'pushShibata'],
+    [2.6, 'returnHide'], [3, 'retake'], [3.5, 'pushSaku'], [3.7, 'watchMaeda'], [4, 'pushShibata'],
   ],
   noCouriers: true,
   // 11/6 六度目（時代考証）：共通の使番の「加藤清正殿の備え、前方にて陣を移す」を出さない（天正十一年の小姓は備を持たない。段の知らせは台詞で足りる）
@@ -374,7 +379,7 @@ const t02_shizugatake = {
   missionSingleLine: true,
   goalsAllRows: true,
   // 11/5 check60（三3）：右上の一行に段の番号（①〜④）を付けて戦の間ずっと出す。始めの台詞の間も①を出す（「味方の旗へ」に替わらない）
-  missionHeading: (rt) => { const i = stageIx(rt.flags.phase); return '①②③④⑤⑥⑦⑧⑨⑩⑪⑫'[i] + STAGE_TEXT[i]; },
+  missionHeading: (rt) => { const i = stageIx(rt.flags.phase); return '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬'[i] + STAGE_TEXT[i]; },
   hidePlayerSign: true,       // 足元の白い輪は出さない（意味の分からない印・標準 五2。本人は縁の光で分かる）
   hideMissionDots: true, hideGuideSteps: true,
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない・kaito AL）。敵は頭上の▼
@@ -432,10 +437,11 @@ const t02_shizugatake = {
     namedKacchu: SHIZU_KACCHU,   // 先懸けの衆は天正十一年の小姓の姿（上の SHIZU_KACCHU）
     height,
     armyFlagKinds: { oda: HASHIBA },
-    paths: [{ pts: KAIDO, w: 3.5 }, { pts: CUT, w: 2.5 }, { pts: UPHILL, w: 2.5 }, { pts: SHORE_W, w: 2.5 }, { pts: OIWA_WAY, w: 2.5 }],
+    paths: [{ pts: KAIDO, w: 3.5 }, { pts: CUT, w: 2.5 }, { pts: UPHILL, w: 2.5 }, { pts: SHORE_W, w: 2.5 }, { pts: OIWA_WAY, w: 2.5 }, { pts: NORTH_OUT, w: 2.5 }, { pts: NORTH_BACK, w: 2.5 }],
     clear: (x, z) => Math.hypot(x - FORT.x, z - FORT.z) < FORT.r + 6 || distToPolyline(x, z, KAIDO) < 6 || distToPolyline(x, z, CUT) < 4
       || distToPolyline(x, z, SHORE_W) < 5 || distToPolyline(x, z, UPHILL) < 4 || dist({ x, z }, KINOMOTO) < 22 || distToPolyline(x, z, [[FORT.x, FORT.z], [LOOK.x, LOOK.z], [26, 218]]) < 9
       || distToPolyline(x, z, [[FORT.x, FORT.z], [DAWN_AT.x, DAWN_AT.z], [KATSUMASA.x, KATSUMASA.z]]) < 8
+      || distToPolyline(x, z, NORTH_OUT) < 6 || distToPolyline(x, z, NORTH_BACK) < 6
       || Math.hypot(x - OI.x, z - OI.z) < OI.r + 12 || distToPolyline(x, z, OIWA_WAY) < 6 || distToPolyline(x, z, [[OI.x, OI.z], [SAKU_LINE.x, SAKU_LINE.z], [SHIBA_FRONT.x, SHIBA_FRONT.z]]) < 7
       // 11/6 九度目：物見の目の前の杉で、燃える大岩山が隠れた。物見から大岩山へ七十歩の目通しを空ける
       || distToPolyline(x, z, [[LOOK.x, LOOK.z], [LOOK.x + (OIWA.x - LOOK.x) * 0.4, LOOK.z + (OIWA.z - LOOK.z) * 0.4]]) < 10,
@@ -455,7 +461,7 @@ const t02_shizugatake = {
     if (!rt.player.u.alive || F.ending) return null;
     // 開始の下知を待つ間も、次に歩く場所の印を途切れさせない。
     const phase = F.phase || 0.5;
-    const P = { 0.5: LOOK, 0.8: LOOK, 1: OI_GATE, 1.3: OI_SOUTH, 1.6: OI_WEST, 1.8: OI_HQ, 2: OI_BACK, 2.3: MOUTH, 2.6: JOIN, 3: OI, 3.5: SAKU_LINE, 4: SHIBA_FRONT }[phase];
+    const P = { 0.5: LOOK, 0.8: LOOK, 1: OI_GATE, 1.3: OI_SOUTH, 1.6: OI_WEST, 1.8: OI_HQ, 2: OI_BACK, 2.3: MOUTH, 2.6: JOIN, 3: OI, 3.5: SAKU_LINE, 3.7: MAEDA_LOOK, 4: SHIBA_FRONT }[phase];
     if (!P) return null;
     q.x = P.x; q.z = P.z;
     q.label = STAGE_PLACE[stageIx(phase)];
@@ -482,10 +488,11 @@ const t02_shizugatake = {
     // ---- 対陣図の砦の並び：幟で示す（羽柴方は桐・柴田方は雁金・前田は梅鉢）。大岩山と岩崎山は陥落時に佐久間の旗へ替える ----
     const flags = [[TAGAMI, HASHIBA], [HIGASHINO, 'hori'], [DOGI, HASHIBA], [SHINMEI, HASHIBA], [OIWA, HASHIBA], [IWASAKI, HASHIBA],
       [SHIGE, 'maeda'], [GYOICHI, SAKUMA.flag], [BESSHO, 'maeda']];
-    F.fallenFortFlags = [];
+    F.fallenFortFlags = []; F.maedaCampFlags = [];
     for (const [p, k] of flags) for (const [dx, dz] of [[0, 0], [-5, 3], [5, 3]]) {
       const guard = nobori(W, p.x + dx, p.z + dz, k, 7);
       rt.scene.add(guard);
+      if (p === SHIGE) F.maedaCampFlags.push(guard);
       if (p === OIWA || p === IWASAKI) {
         // 陥落前は羽柴方、陥落後は占領した佐久間の幟（岩崎山は捨てるだけで旗を残さない）。奪い返すと羽柴へ戻す
         const sakuma = p === OIWA ? nobori(W, p.x + dx, p.z + dz + 6, SAKUMA.flag, 7) : null;
@@ -782,14 +789,29 @@ const t02_shizugatake = {
     F.hide = allyGroup(rt, { name: '羽柴秀吉の旗本', fullStrength: true, anchor: { x: UPHILL[0][0], z: UPHILL[0][1] }, facing: -1.6, width: 5, aggro: 4, seekRange: 6, order: 'move', dest: { x: JOIN.x + 10, z: JOIN.z + 6 }, speed: 4.4, noRout: true, noAI: true, keepMoveOrder: true },
       [{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: true } }, { type: 'samurai', n: 8, o: { keep: true } }, { type: 'gun', n: 2, o: { keep: true } }]);
     F.hide.honjin = true;
+    F.hide.arriveNoncombat = true; // 攻撃対象から外した旗本も、実際の到着人数に数える。
     for (const u of F.hide.units) { u.invuln = true; u.noTarget = true; }
     F.hideU = F.hide.units.find((u) => u.type === 'busho');
-    F.hide.onArrive = (q) => { q.order = 'hold'; };
+    F.hide.onArrive = (q) => {
+      q.anchor = { ...q.dest }; q.order = 'hold'; q.fixed = true; q.aggro = 0; q.seekRange = 0; q.onArrive = null;
+      // 大返しの騎馬を降り、本陣で旗本に守られる。反攻の先頭へは出さない。
+      const u = F.hideU;
+      if (u) {
+        rt.army.setMounted(u, false);
+        u._crouch = true; u._nest = true;
+        KIT.honjin(rt, u.pos.x, u.pos.z, { mon: HASHIBA, people: false, fire: true, noUma: true, yoroi: false });
+      }
+      F.hideArrived = true;
+    };
     F.yari = allyGroup(rt, { name: '秀吉の小姓衆', fullStrength: true, anchor: { x: UPHILL[1][0], z: UPHILL[1][1] + 4 }, facing: -1.6, width: 4, aggro: 6, speed: 4.6, order: 'move', dest: { x: JOIN.x - 2, z: JOIN.z - 8 }, noRout: true },
       [...KOSHO.map((name) => ({ type: 'samurai', n: 1, o: { name, invuln: true, horse: true, flag: HASHIBA } })), { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }]);
     F.uma = allyGroup(rt, { name: '羽柴の先手', fullStrength: true, anchor: { x: UPHILL[0][0] + 6, z: UPHILL[0][1] + 6 }, facing: -1.6, width: 5, aggro: 6, speed: 4.4, order: 'move', dest: { x: JOIN.x + 14, z: JOIN.z - 12 }, noRout: true },
       [{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 18 }, { type: 'gun', n: 5 }, { type: 'bow', n: 2 }]);
     for (const g of [F.yari, F.uma]) { g.noAI = true; g.keepMoveOrder = true; g.onArrive = (q) => { q.order = 'hold'; }; }
+    // 松明は旗本と先手の六人だけ。共通の追従処理を使い、夜明けに消す。
+    const fireAt = W.fires.length;
+    F.returnTorches = carryTorches(W, [...F.hide.units.slice(1, 4), ...F.uma.units.slice(0, 3)], { size: 0.5 });
+    F.returnTorchFires = W.fires.slice(fireAt);
     rt.after(0.6, () => rt.say('使番', '秀吉様、お戻りです！　大垣より十三里、北国街道に旗が続いておりまする！', 3.4));
     rt.after(4.6, () => rt.say('桑山重晴', '皆、振り返れ。筑前様の旗じゃ！', 2.8));
     rt.after(8.4, () => rt.say('中川の足軽', '……殿の弔い合戦じゃ', 2.6));
@@ -803,6 +825,11 @@ const t02_shizugatake = {
     this.enter(rt, 3);
     if (!F.oiFell) { F.oiFell = true; this.breakOiwa(rt, -0.7, 0.35, 2); this.breakOiwa(rt, -1.5, 0.3, 2); this.breakOiwa(rt, 0.35, 0.25, 2); this.breakOiwa(rt, -0.35, 0.3, 2); this.oiFlags(rt, 'sakuma'); }
     W.setTime('morning');
+    if (F.returnTorches) {
+      for (const f of F.returnTorchFires || []) if (W.fires.includes(f)) W.removeFire(f);
+      F.returnTorches = null;
+      F.returnTorchFires = null;
+    }
     rt.banner('四月二十一日　夜明け', '大岩山を取り返せ');
     // 佐久間は急ごしらえで砦を使う：旗だけ替わり、柵は破れたまま。砦の内の守り
     const inFort = [F.wA, F.wB, F.wC].reduce((n, g) => n + nLive(g), 0);
@@ -814,7 +841,6 @@ const t02_shizugatake = {
       g.order = 'move'; g.speed = 3.4; g.dest = { x: OI_GATE.x + dx, z: OI_GATE.z + dz }; g.path = null;
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
     }
-    if (live(F.hide)) { F.hide.order = 'move'; F.hide.dest = { x: OI_BACK.x - 6, z: OI_BACK.z + 10 }; F.hide.onArrive = (q) => { q.order = 'hold'; }; }
     rt.after(2, () => rt.say('羽柴秀吉', '中川の弔い合戦じゃ。大岩山を取り返せ！', 3));
     rt.after(6, () => rt.say('中川の足軽', '南の柵は昨日破れたままじゃ。あそこから入れる！', 3));
     rt.army.play('toki', { ...OI_BACK }, 1.2);
@@ -840,21 +866,42 @@ const t02_shizugatake = {
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 26; q.aggro = 14; };
     }
   },
+  // 盛政を押し返した備と、湖の北の陸道から茂山へ。主人公が来るまで前田を消さない。
+  watchMaeda(rt) {
+    this.enter(rt, 3.7);
+    rt.say('使番', '茂山の梅鉢が揺れておりまする。湖の北の岸から、前田勢の動きを見届けよ', 3.4);
+    this.northMarch(rt, NORTH_SHORE, false);
+  },
+  northMarch(rt, path, attack) {
+    const F = rt.flags;
+    F.northPath = path; F.northIx = 0;
+    for (const g of [F.yari, F.uma]) if (live(g)) {
+      g.focus = null; g.order = 'path'; g.path = path; g.pathIdx = 0; g.speed = 4;
+      g.aggro = 3; g.seekRange = 4;
+      g.onArrive = (q) => { q.order = attack ? 'attack' : 'hold'; q.aggro = attack ? 14 : 3; q.seekRange = attack ? 28 : 4; };
+    }
+  },
   // 前田利家の離脱：昔から知る前田の梅鉢の旗が戦の場を離れる
   maedaLeave(rt) {
     const F = rt.flags;
     if (F.maedaGo) return;
-    F.maedaGo = rt.t;
+    this.withdrawMaeda(rt);
     rt.say('使番', '茂山の前田勢、陣を払うて退きまする！', 3);
     rt.after(3.4, () => rt.say('羽柴秀吉', '又左が退いたか……。柴田と前田まで分かれたな', 3));
     rt.after(7, () => rt.say('佐久間盛政', '前田殿が退いたじゃと……。退け、退け', 3));
-    if (live(F.maedaG)) { F.maedaG.order = 'retreat'; F.maedaG.dest = { x: GONGEN.x, z: GONGEN.z - 60 }; F.maedaG.speed = 1.6; }
     rt.after(9, () => this.pushShibata(rt));
   },
-  // ⑫ 柴田軍の崩れ：前田が退き、佐久間が孤立。柴田の先手と当たる。遠くに勝家
+  withdrawMaeda(rt) {
+    const F = rt.flags;
+    F.maedaGo = rt.t;
+    for (const f of F.maedaCampFlags || []) f.visible = false;
+    if (live(F.maedaG)) { F.maedaG.order = 'retreat'; F.maedaG.dest = { x: GONGEN.x, z: GONGEN.z - 60 }; F.maedaG.speed = 1.6; }
+  },
+  // ⑬ 柴田軍の崩れ：前田が退き、佐久間が孤立。柴田の先手と当たる。遠くに勝家
   pushShibata(rt) {
     const F = rt.flags;
     if (F.phase >= 4) return;
+    if (!F.maedaGo) this.withdrawMaeda(rt); // 続きから再開する時も、前田隊を茂山へ戻さない。
     this.enter(rt, 4);
     rt.award((t) => { t.special = { label: '大岩山の北で佐久間の備を押し返した', pts: 15 }; }, '佐久間の備を押し返した');
     for (const g of [F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.dest = { x: 20, z: -300 }; g.speed = g === F.mori ? 4 : 2.8; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
@@ -870,6 +917,7 @@ const t02_shizugatake = {
       g.order = 'move'; g.speed = 3.6; g.dest = { x: SHIBA_FRONT.x + dx, z: SHIBA_FRONT.z + dz }; g.path = null;
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 28; q.aggro = 14; };
     }
+    this.northMarch(rt, NORTH_BACK, true);
     rt.army.play('horagai', { ...KATSUIE }, 0.9);
     rt.say('使番', '柴田の先手、北国街道より下って参りまする。後ろに修理亮の旗！', 3.2);
     rt.after(4, () => rt.say('羽柴秀吉', '柴田の備を押せ。大軍が崩れるのは今ぞ', 3));
@@ -888,6 +936,7 @@ const t02_shizugatake = {
     const F = rt.flags;
     if (F.ending || !F.phase) return;
     const P = rt.player.u;
+    F.returnTorches?.update();
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     const st = rt.t - F.pt, pp = P.pos;
@@ -925,19 +974,23 @@ const t02_shizugatake = {
       // 東の口：二度の追手を退け（口で揉み合うか追手を減らす）、口にいれば帰還へ
       case 2.3:
         if (!F.mouthFight && near(MOUTH, 22) && nearCount(rt, 1, MOUTH, 30) > 0) F.mouthFight = true;
-        if (F.mouthFight && F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() <= 4 || st > 110)) this.returnHide(rt);
+        // 口の外で味方が追手を全て退けた時も、到着した主人公を待たせ続けない。
+        if (F.waves >= 2 && near(MOUTH, 22) && st > 50 && (raidLeft() === 0 || F.mouthFight && (raidLeft() <= 4 || st > 110))) this.returnHide(rt);
         return;
       case 2.6: {
-        const came = !live(F.yari) || dist(F.yari.center(), JOIN) < 30 || st > 50;
-        if (near(JOIN, 14) && came && st > 10) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); rt.after(3.4, () => this.retake(rt)); } }
+        const came = F.hideArrived;
+        // 夜の光へ移る四十五秒と、秀吉本人の到着を待って迎える。
+        if (near(JOIN, 14) && came && st > 45) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); rt.after(3.4, () => this.retake(rt)); } }
         return;
       }
       case 3:
         if (near(OI, OI.r + 4) && this.inFortFoes(rt) <= 3 && st > 15) this.pushSaku(rt);
         return;
       case 3.5:
-        if (!F.maedaGo && near(SAKU_LINE, 30) && (nLive(F.saku) <= 14 || st > 100)) this.maedaLeave(rt);
-        else if (!F.maedaGo && st > 150) this.maedaLeave(rt);
+        if (!F.maedaGo && near(SAKU_LINE, 30) && (nLive(F.saku) <= 14 || st > 100)) this.watchMaeda(rt);
+        return;
+      case 3.7:
+        if (!F.maedaGo && near(MAEDA_LOOK, 18)) this.maedaLeave(rt);
         return;
       case 4:
         if (F.katOut) { if (rt.t - F.katOut > 6) this.win(rt); return; }
@@ -982,8 +1035,8 @@ const t02_shizugatake = {
     if (F.holdPlayer || F.ending || !u.alive) return;
     const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 4;
     const prev = p.botStrikeFoe;
-    const e = prev?.alive && ok(prev) && p.botStrikeUntil > p.time && dist(prev.pos, u.pos) < 2.8 ? prev
-      : F.phase === 2 ? null : b.army.nearestEnemy(u, 9, ok);
+    const e = F.phase === 2 || F.phase === 3.7 ? null
+      : prev?.alive && ok(prev) && p.botStrikeUntil > p.time && dist(prev.pos, u.pos) < 2.8 ? prev : b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = dist(e.pos, u.pos);
       if (p.lock && p.lock !== e) inp.e.add('KeyQ');
@@ -993,6 +1046,14 @@ const t02_shizugatake = {
       return;
     }
     inp.guardHold = false;
+    // 湖の北の道は隊と同じ順に通る。水面へ一直線に走らせない。
+    if ((F.phase === 3.7 || F.phase === 4) && F.northPath) {
+      while (F.northIx < F.northPath.length) {
+        const [x, z] = F.northPath[F.northIx];
+        if (Math.hypot(u.pos.x - x, u.pos.z - z) < 7) { F.northIx++; continue; }
+        goTo(p, inp, x, z, 2); return;
+      }
+    }
     const q = b.def.missionPin(b);
     if (!q) return;
     for (const [C, R, ga] of [[FORT, FORT.r, Math.PI / 2], [OI, OI.r, OI_GA]]) {

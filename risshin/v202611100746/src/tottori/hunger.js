@@ -168,12 +168,19 @@ function start(rt, K, done) {
         if (stop() || rt.over || !F.ttBreachFight) return;
         const left = k15Live(run), me = rt.player.u.pos, c = run.center();
         const near = Math.hypot(me.x - c.x, me.z - c.z) < 30;
-        if (left <= 1 || near && rt.t - t0 > 45 || rt.t - t0 > 100) {
+        const sealed = near && repelled(rt, 0, 0, c) && (left <= 1 || rt.t - t0 > 45);
+        if (sealed || rt.t - t0 > 100) {
           F.ttBreachFight = false; F.k15fight = false; run.onArrive = null;
           k15Rout(rt, run, K.CASTLE); rt.unmark('k15foe');
-          F.ttSiege = Math.min(100, F.ttSiege + 10);
-          rt.award((t) => t.side.push('包囲の穴をふさいだ'), '包囲の穴をふさいだ');
-          rt.say('組頭', '穴はふさいだ。柵を立て直せ。城の者は山へ逃げ戻った', 4);
+          if (sealed) {
+            F.ttSiege = Math.min(100, F.ttSiege + 10);
+            rt.award((t) => t.side.push('包囲の穴をふさいだ'), '包囲の穴をふさいだ');
+            rt.say('組頭', '穴はふさいだ。柵を立て直せ。城の者は山へ逃げ戻った', 4);
+          } else {
+            // 上限で段を終えても、離れた本人の守備成功にはしない。
+            F.ttLeak = (F.ttLeak || 0) + 1; F.ttSiege -= 30;
+            rt.say('組頭', '囲みの穴を守り切れなんだ。外から米が入れば、城は長う持つ', 4);
+          }
           rt.after(5, quiet, true);
           return;
         }
@@ -294,13 +301,16 @@ function start(rt, K, done) {
         const thievesDone = thieves.units.every((u) => !alive(u) || u.fleeing);
         // 斬り尽くすまで待たない。半ばが倒れて一分余り、本人が兵糧の所を守っていれば、残りは城へ引く。
         // 詰まらない決まり：三分近く経てば、本人が生きている限り城兵は力尽きて引く（倒しきるのを条件にしない）
-        if (guarding && (thievesDone || el > 100) && (left <= 2 || el > 75 && left <= Math.ceil(N0 / 2) || held >= 90) || el > 170) {
+        const defended = guarding && thievesDone &&
+          (left <= 2 || el > 75 && left <= Math.ceil(N0 / 2) || held >= 90);
+        if (defended || el > 170) {
           F.k15at = null;
           k15Rout(rt, g, K.CASTLE); k15Rout(rt, thieves, K.CASTLE);
           for (const u of thieves.units) dropBale(u);
           rt.unmark('k15foe'); rt.unmark('k15foe2'); rt.unmark('k15'); F.k15fight = false;
           starve(rt, walls, 4); lowerFlags(0.1);
-          rt.award((t) => t.side.push(stolen ? '兵糧庫を守った（幾俵か奪われた）' : '兵糧を一俵も渡さなかった'), '兵糧を守った');
+          // 城兵が力尽きる時間上限は、本人が守り抜いた証にはしない。
+          if (defended) rt.award((t) => t.side.push(stolen ? '兵糧庫を守った（幾俵か奪われた）' : '兵糧を一俵も渡さなかった'), '兵糧を守った');
           rt.say('組頭', '……もう城に、打って出る力は残っておらぬ', 4);
           rt.after(4.5, dawn, true);
           return;

@@ -541,8 +541,9 @@ const k05_ueda = {
         if (!live(nb) || F.step !== 6) return;
         F.nbOut = rt.t;
         nb.stay = false; nb.noAI = false;
-        // 本丸から岸へ直進すると東の土塀に当たる。門の内側・門の外・岸の順に通る。
-        const route = [{ x: GATE.x - 8, z: GATE.z }, { x: GATE.x + 7, z: GATE.z }, { x: FORD_W.x - 10, z: FORD_W.z - 2 }];
+        // 門内の土塀（x=10）の南の開口を、隊列の幅も空けて回る。
+        // 門の外でも岸へ直進せず、町屋の北を通って荷駄の道へ出る。
+        const route = [{ x: GATE.x - 6, z: GATE.z + 10 }, { x: GATE.x - 6, z: GATE.z }, { x: GATE.x + 7, z: GATE.z }, FRONT, { x: 72, z: -14 }, { x: FORD_W.x - 10, z: FORD_W.z - 2 }];
         let leg = 0;
         nb.order = 'move'; nb.dest = { ...route[0] }; nb.anchor = { ...nb.dest }; nb.speed = 4.4; nb.seekRange = 0; nb.aggro = 0;
         nb.onArrive = (q) => {
