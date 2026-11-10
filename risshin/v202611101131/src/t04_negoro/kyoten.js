@@ -19,7 +19,16 @@ export function kyotenStep(NG) {
       rt.after(60, () => { if (!C.over) rt.say('組頭', '奥の院の縁の下からも撃ってくる！　回り込め！', 3); });
       rt.after(30, () => { if (!C.over) { C.groups.push(enemyGroup(rt, { faction: 'saika', fixed: true, name: '奥の谷から戻った行人方', anchor: P(20, 128), facing: Math.PI + ROT, order: 'attack', seekRange: 40, aggro: 14, width: 5, morale: 80, fleeDir: dirL(0, 1), dmgMult: 0.3 }, dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 7 }], NEGORO))); rt.say('足軽', '谷から戻って来たぞ！', 2.5); } });
     },
-    tick(rt, C, m, ctx, el) {
+    tick(rt, C, m, ctx, el, dt) {
+      const u = rt.player.u;
+      const present = u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
+        && Math.hypot(u.pos.x - OKU.x, u.pos.z - OKU.z) < 30;
+      C.pressT = (C.pressT || 0) + (present ? dt : 0);
+      if (!C.withdraw && el > 180 && C.pressT >= 30 && present) {
+        C.withdraw = true;
+        for (const g of C.groups) flee(g);
+        rt.say('組頭', '奥の院の守りが退くぞ！　奥の院を押さえよ！', 3);
+      }
       const n = heads(C.groups);
       let target = null;
       for (const g of C.groups) {
@@ -27,12 +36,11 @@ export function kyotenStep(NG) {
         if (target) break;
       }
       // 守りを崩した後は、達成に必要な奥の院へ案内する。遠い残兵を追わせない。
-      C.goal = n <= 5 || !target ? OKU : target.pos;
-      const u = rt.player.u;
+      C.goal = C.withdraw || n <= 5 || !target ? OKU : target.pos;
       const arrived = u.alive && !u.downed && !u.dying && !u.fleeing && !rt.retryOpen
         && Math.hypot(u.pos.x - OKU.x, u.pos.z - OKU.z) < 18;
       // 奥の院まで攻め入り、守りを崩してから退却の知らせを出す。時刻だけでは勝ちにしない。
-      if (!C.over && el > 95 && n <= 5 && arrived) {
+      if (!C.over && el > 95 && (C.withdraw || n <= 5) && arrived) {
         C.over = el;
         for (const g of C.groups) flee(g);
         rt.say('足軽', '根来の衆が逃げる！　奥の谷へ散っていくぞ！', 3);

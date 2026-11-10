@@ -722,7 +722,12 @@ const k05_ueda = {
         }
       } else {
         const k = F.w4N - aliveN(F.yari);
-        if (!F.ikeru && F.reAt > 30 && k >= Math.round(F.w4N * 0.3)) { F.ikeru = true; rt.say('徳川の足軽', '門の槍が引いた！　いけるぞ！', 2.6); this.back(F.yari); }
+        if (!F.ikeru && F.reAt > 30 && k >= Math.round(F.w4N * 0.3)) {
+          F.ikeru = true;
+          const survivors = F.yari.units.some((u) => u.alive && !u.gone);
+          rt.say('徳川の足軽', survivors ? '門の槍が引いた！　いけるぞ！' : '門の槍を討ち果たした！　いけるぞ！', 2.6);
+          this.back(F.yari);
+        }
         if (F.reAt > 55 && (F.ikeru || F.reAt > 80)) this.toStep(rt, 5);
       }
       if (over) this.toStep(rt, 5);

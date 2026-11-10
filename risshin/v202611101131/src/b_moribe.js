@@ -4805,7 +4805,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         F.hatamotoAimAt = rt.t + 3;
         const sq = rt.squadGroups.find((g) => !gone(g)), aim = sq ? fightingCenter(sq) : rt.player.u.pos;
         for (const g of [F.HM, F.HN]) if (!gone(g)) {
-          const busy = g.units.some((u) => u.alive && u.target?.alive && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6);
+          const busy = g.units.some((u) => moribeRemainFoe(u) && moribeRemainFoe(u.target) &&
+            u.target.team !== u.team && Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 6);
           const c = fightingCenter(g);
           if (busy || Math.hypot(c.x - aim.x, c.z - aim.z) < 10) continue;
           const d = g._moribeHatDest || (g._moribeHatDest = { x: 0, z: 0 });
@@ -4994,9 +4995,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       Math.hypot(cFlag.x - p.x, cFlag.z - p.z) <= 24 ? p : cFlag;
     for (const g of F.opposition) {
       if (gone(g) || g.hatamoto || (g === F.reserves[0] && !F.wave1) || (g === F.reserves[1] && !F.wave2)) continue;
-      if (g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
-          u.type !== 'bow' && u.type !== 'gun' && u.target?.alive && !u.target.gone &&
-          !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
+      // 倒れる途中・深手で退いた者を交戦中と数え、備を古い畦へ止めない。
+      if (g.units.some((u) => moribeRemainFoe(u) &&
+          u.type !== 'bow' && u.type !== 'gun' && moribeRemainFoe(u.target) && u.target.team !== u.team &&
           Math.hypot(u.pos.x - u.target.pos.x, u.pos.z - u.target.pos.z) < 8)) continue;
       const c = fightingCenter(g);
       if (Math.hypot(c.x - aim.x, c.z - aim.z) <= 3) {
@@ -5020,8 +5021,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     for (const g of F.friends) {
       // 別の段で出した下知を、通常の押し上げで毎秒書き戻さない。
       if ((F.m15?.ph === 'aze' && g === F.A) || (F.m15?.ph === 'yumi' && g === F.Y)) continue;
-      if (gone(g) || (g.order !== 'attack' && g.order !== 'move') || g.units.some((u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget &&
-          u.target?.alive && !u.target.fleeing && !u.target.woundOut && !u.target.noTarget &&
+      if (gone(g) || (g.order !== 'attack' && g.order !== 'move') || g.units.some((u) => moribeRemainFoe(u) &&
+          moribeRemainFoe(u.target) && u.target.team !== u.team &&
           Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 8)) continue;
       const c = fightingCenter(g);
       // 守る段は、近い備を守る印の左右へ寄せる（稲生と同じく、味方が集まる絵で持ち場を示す）。
@@ -5030,7 +5031,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const lx = F.linePoint.x, lz = F.linePoint.z;
         if (Math.hypot(c.x - lx, c.z - lz) < 60) {
           // 印のそばで敵へ向かっている備は引き戻さない（綱引きにしない）。
-          if (g.order === 'attack' && g.units.some((u) => u.alive && u.target?.alive && !u.target.fleeing)) continue;
+          if (g.order === 'attack' && g.units.some((u) => moribeRemainFoe(u) &&
+              moribeRemainFoe(u.target) && u.target.team !== u.team)) continue;
           const side = c.x < lx ? -1 : 1, off = Math.max(7, Math.min(16, Math.abs(c.x - lx)));
           const dest = g._moribeHoldDest || (g._moribeHoldDest = { x: 0, z: 0 });
           dest.x = lx + side * off; dest.z = lz - 4;
