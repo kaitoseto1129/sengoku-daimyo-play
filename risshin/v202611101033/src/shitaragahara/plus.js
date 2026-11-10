@@ -11,6 +11,8 @@ import { sfx } from '../audio.js';
 
 export const TOBI = { x: 880, z: 620 };
 const PT = { x: 0, z: 0 };
+export const shooters = (q) => q.routed ? 0 : q.units.reduce((n, u) => n +
+  (u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget ? 1 : 0), 0);
 
 // 鳶ヶ巣山の別の戦場。t0 は夜明けの寄せの始まり（本体の N.t0）
 export function tobiTick(rt, t0) {
@@ -58,14 +60,28 @@ export function tobiTick(rt, t0) {
 // 大斉射（四〜六回の見せ場）。teppo_wall.js の近い口の番から呼ぶ。
 // gs：その口で撃てる鉄砲組、z：口の z、power：鉄砲兵の残り（0〜1）、hit(z, power)：当たり
 export function bigVolley(rt, W, gs, z, SB, power, hit) {
+  const n0 = gs.reduce((n, q) => n + shooters(q), 0);
+  if (!n0 || !W.on || rt.over || rt.flags.ending) return;
   W.big = (W.big || 0) + 1; W.bigT = rt.t;
   for (const q of gs) { q.fire = false; q.holdFire = true; }
   rt.say('鉄砲頭', '構え！　引き付けよ……', 1.6);
-  rt.after(1.7, () => { if (!rt.flags.ending) rt.say('鉄砲頭', 'まだだ！　まだ撃つな！', 1.4); });
+  rt.after(1.7, () => { if (W.on && !rt.over && !rt.flags.ending) rt.say('鉄砲頭', 'まだだ！　まだ撃つな！', 1.4); });
   rt.after(3.4, () => {
-    if (rt.flags.ending) return;
+    if (!W.on || rt.over || rt.flags.ending) return;
+    const remaining = gs.reduce((n, q) => n + shooters(q), 0);
+    let inside = 0;
+    for (const u of rt.army.units) {
+      if (u.team === 1 && u.alive && !u.fleeing && !u.gone && !u.noTarget && !u.woundOut && !u.rearWound &&
+          u.pos.x < SB.x0 - SB.gap - 1 && u.pos.x > SB.x0 - 40 && Math.abs(u.pos.z - z) < 32) inside++;
+    }
+    // 構えている間の損耗と突破を反映し、撃てない組の煙や当たりを出さない。
+    if (!remaining || inside >= 3) {
+      for (const q of gs) { q.fire = false; q.holdFire = true; }
+      return;
+    }
+    power *= Math.min(1, remaining / n0);
     rt.say('鉄砲頭', '放てぇっ！', 1.4);
-    for (const q of gs) { q.fire = q.count > 0 && !q.routed; q.holdFire = false; }
+    for (const q of gs) { q.fire = shooters(q) > 0; q.holdFire = !q.fire; }
     PT.x = SB.x0 + 2; PT.z = z;
     try { rt.army.play('volley', PT, 1.6); } catch (e) { /* なし */ }
     const rows = Math.max(1, Math.round(3 * power));

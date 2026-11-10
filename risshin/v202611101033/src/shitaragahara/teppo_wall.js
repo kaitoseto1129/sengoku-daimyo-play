@@ -12,12 +12,12 @@
 // 兵は増やさない（本物の鉄砲組の番を回すだけ）。毎コマ new しない（点の入れ物を使い回す）。
 // ======================================================================
 
-import { bigVolley } from './plus.js';
+import { bigVolley, shooters } from './plus.js';
 // 追加改善（docs/shitaragahara_plus_1109.md）：鉄砲兵が討たれると、その口の斉射の当たり・白煙が本当に減る。
 //   柵の内へ武田が入った口は射撃をやめ（鉄砲は下がり槍組が前へ）、寄せの近い口で大斉射を十五分に六回まで（plus.js）。
 
 const PT = { x: 0, z: 0 };
-const alive = (q) => q.units.reduce((n, u) => n + (u.alive && !u.woundOut ? 1 : 0), 0);
+const alive = shooters;
 
 // ctx：{ SB, MOUTHS, ZONES }
 export function install(rt, ctx) {
@@ -96,7 +96,7 @@ export function tick(rt, dt) {
       continue;
     }
     W.near[i] = 2.4 + Math.random() * 0.6;
-    const gs = W.mouthGuns[i].filter((q) => q.count && !q.routed);
+    const gs = W.mouthGuns[i].filter((q) => alive(q) > 0);
     if (!gs.length) continue;
     // 柵の内へ入られた口は撃たない。鉄砲は下がり、槍組と本人が守る
     if (insideAt(rt, m.z, SB) >= 3) {

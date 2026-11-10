@@ -611,7 +611,7 @@ const t09_yamanaka = {
     F.sub = 'sally';
     rt.unmark('ote');
     rt.marker('uma', centerOf(F.uma), '馬出しの北条の隊', { red: true, group: F.uma });
-    rt.say(F.ichiShot ? '一柳直盛' : '一柳直末', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);   // 直末が撃たれた時だけ、弟が隊を率いる。
+    rt.say(F.ichiShot || F.ichiLost ? '一柳直盛' : '一柳直末', '横から来たぞ！　槍を揃えて受け止めよ！', 3.5);
     // 馬出しへ寄る下知を打ち切る。到着処理が残ると、迎撃中も行軍用の持ち場補正が働く。
     for (const g of F.toyo) if (!gone(g)) { g.onArrive = null; g.order = 'attack'; g.seekRange = 34; }
   },
@@ -705,7 +705,7 @@ const t09_yamanaka = {
     sfx('kane', 0.5);
     rt.banner('山中城、落つ', '北条の西の守りは、半日で崩れた');
     // 戦の後の会話
-    rt.say('豊臣秀次', F.ichiShot ? '一柳伊豆を失うたは痛い。されど山中は落ちた' : '山中は落ちた。先手の者ども、よく攻めた', 4.5);
+    rt.say('豊臣秀次', F.ichiShot || F.ichiLost ? '一柳伊豆を失うたは痛い。されど山中は落ちた' : '山中は落ちた。先手の者ども、よく攻めた', 4.5);
     rt.after(5, () => rt.say('使番', '松田康長、討ち死に。一番乗りは渡辺勘兵衛！', 3.4));
     rt.after(13.4, () => rt.say(nm(rt), '北条の西の門は、開きました', 4));
     rt.after(9, () => rt.say('豊臣秀次', '箱根を越えるぞ。小田原はもう目の前じゃ', 4));
@@ -731,6 +731,11 @@ const t09_yamanaka = {
     if (F.ending) return;
     // 討死・やり直しの札の裏で、味方の討ち取りや経過時間だけで目標を果たさない。
     if (!rt.player.u.alive || rt.retryOpen) return;
+    // 固定の鉄砲の場面より先に通常の戦闘で討たれた時も、死者に話させず弟が隊を継ぐ。
+    // 生きた直末を待ち続けて間宮の突き入りが止まることも防ぐ。
+    if (!F.ichiShot && !F.ichiLost && F.ichi?.units.some((u) => u.type === 'busho' && !u.alive)) {
+      F.ichiLost = true; F.ichi.name = '一柳直盛の隊';
+    }
     if (F.K && F.step) F.K.tick(dt);   // 出陣の段は出丸の鉄砲を撃たせない
     if (F.rimFire) F.rimFire.tick(dt);
     if (F.okuFire) F.okuFire.tick(dt);
@@ -767,7 +772,7 @@ const t09_yamanaka = {
       const muNear = mu && Math.hypot(mu.pos.x - p.x, mu.pos.z - p.z) < 60;
       // 鉄砲が残る間は一柳の討死を先に見せる。鉄砲を全て討った時だけ、二分半で突き入りへ進む。
       // 時間だけで突き入らせると、後から近づいた一柳が間宮の最期の後に撃たれてしまう。
-      if ((F.ichiShot || T > 150 && !ichiShooter) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
+      if ((F.ichiShot || F.ichiLost || T > 150 && !ichiShooter) && !F.mamiya && mu && mu.alive && F.dai.count > 0 && muNear && (F.dai.count < F.daiN * 0.6 || T > 25)) {
         F.mamiya = true; F.mamiyaT = rt.t;
         F.dai.noRout = true; F.dai.morale = 100; F.dai.order = 'attack'; F.dai.seekRange = 60; F.dai.aggro = 40; F.dai.fixed = false;
         // 横陣の後列は敵が三〜六mへ来るまで持ち場を守る。突き入りの下知では後列も前へ出す。
