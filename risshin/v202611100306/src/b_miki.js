@@ -26,7 +26,7 @@ import { S as SETTINGS } from './settings.js';
 import { gauss, enemyGroup, allyGroup, nm, ringWall, wallLine } from './bhelp.js';
 import { dress, gone as groupGone } from './b_inabayama.js';
 import { goalsTick } from './hud_goals.js';
-import { sightUnit } from './battle_sight.js';
+import { sightScreenUnit } from './battle_sight.js';
 // 15分の段（kaito 11/8 夜・docs/oda15_plan_1108.md の 26）：段の中身は miki/ に一段一ファイル
 import * as MK_OPEN from './miki/kaimaku.js';
 import * as MK_YOIN from './miki/yoin.js';
@@ -1339,7 +1339,7 @@ function mikiGoalBoard(rt) {
     }
     return out;
   };
-  // 印は使い回し、見通しは兵ごとに三分の一秒おき
+  // 印は使い回し、見通しの保存は共通の処理を使う。
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
   box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
@@ -1352,9 +1352,9 @@ function mikiGoalBoard(rt) {
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
-      if (!u._mkSeen) continue;
+          u.mesh?.visible === false || u.camHidden) continue;
+      // 四十歩より遠くても、画面に姿が見える敵には印を残す。壁・霧と見通しの短期保存は共通へ任せる。
+      if (!sightScreenUnit(rt, u)) continue;
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
       let el = tris[n];
