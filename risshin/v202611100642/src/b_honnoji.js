@@ -3616,6 +3616,8 @@ const honnoji = {
   guardLabel: () => '信長を守ろう',
   guardName: () => '織田信長',   // 11/8 critic60：守る相手の名を他の名札と同じ書き方に
   keraiSpearOnly: true,   // 11/8 critic60 七1：寝間着の家臣に鉄砲を持たせない
+  // 寺の供も共通の兵種配分で鉄砲・弓へ替えない。二条の鉄砲組と明智の射手は各配置で指定する。
+  keepMix: true,
   guardTarget(rt) {
     const F = rt.flags;
     if (F.k15on || F.ending || rt.over || !rt.player.u.alive) return null;

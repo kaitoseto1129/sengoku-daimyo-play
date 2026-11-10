@@ -959,8 +959,19 @@ const t10_oshi = {
           cur.units.some((u) => u.alive && !u.gone && !u.fleeing && near(u.pos, RAIDAT, 8))) {
         cur.order = 'attack'; cur.seekRange = 12; cur.aggro = 12; cur.onArrive = null;
       }
-      // 道沿いの下知で二十五秒止まった手は、浅瀬の口へまっすぐ向かわせる（bot 11/10：城の口の近くで二十秒立ち尽くした）
-      for (const g of F.raids) if (g.order === 'path' && fighting(g) && rt.t - (g._pathT ??= rt.t) > 25) { g.order = 'move'; g.dest = { x: RAIDAT.x, z: RAIDAT.z }; }
+      // 整列待ちを解く時も次の道の点へ進む。口へ直行させると浅瀬を外れて沼を横切る。
+      for (const g of F.raids) if (g.order === 'path' && fighting(g) && rt.t - (g._pathT ??= rt.t) > 25) {
+        const at = g.path[g.pathIdx], arrive = g.onArrive;
+        if (!at) continue;
+        g.order = 'move'; g.dest = { x: at[0], z: at[1] };
+        g.onArrive = (q) => {
+          q.pathIdx++;
+          q.onArrive = arrive;
+          q._pathT = rt.t;
+          if (q.pathIdx < q.path.length) q.order = 'path';
+          else if (arrive) arrive(q);
+        };
+      }
       // 区の足軽は浅瀬の口から離れて追わない（前は夜討ちの残り一人を城の口まで追い、次の夜討ちとそこで斬り合って、主人公の前に敵が来なかった）
       for (const u of F.guard.units) if (u.alive && !u.gone && !near(u.pos, F.guard.anchor, 14)) { u.target = null; u.watch = null; }
       // 夜討ちが一人二人になったら城へ引き揚げ、次の夜討ちが来る（残り一人を待って一分止まらない）
@@ -987,7 +998,7 @@ const t10_oshi = {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 20)) this.weirRaid(rt);
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
         // 三巡（11/9 bot）：堰へ寄せた城兵の残りが堤の陰で立ち尽くし、段が十分止まった。四十五秒過ぎ、本人が堰の近くにいれば残兵を退かせる
-        const raidDown = F.weirRaid ? F.weirRaid.units.filter((u) => !u.alive || u.fleeing).length : 0;
+        const raidDown = F.weirRaid ? F.weirRaid.units.filter((u) => !u.alive || u.gone || u.fleeing).length : 0;
         // 待つだけで七人全員が消えると、戦わず堰を切れてしまう。半数を退けた後だけ、遠くで止まった残兵を退かせる。
         if (F.weirRaid && raidDown >= Math.ceil(F.weirRaid.units.length * 0.5) && fighting(F.weirRaid) && rt.t - F.weirRaidT > 45 && P.alive && near(P.pos, WEIR, 25)) for (const u of F.weirRaid.units) if (u.alive && !u.gone && !near(u.pos, P.pos, 6)) rt.army.despawn(u);
         const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1;
@@ -1064,7 +1075,7 @@ const t10_oshi = {
       F.mend = Math.min(1, F.mend + 0.5 * (press ? 0.5 : 1) / 80);
       if (F.mendPile) F.mendPile.scale.y = 0.01 + 3.2 * F.mend;
       for (const [i, b] of (F.mendBoats || []).entries()) { const a = (rt.t * 0.05 + i * 1.7) % (Math.PI * 2); b.position.set(BASIN.x + Math.cos(a) * 34, F.lakeY + 0.05, BASIN.z + Math.sin(a) * 34); b.rotation.y = -a; }
-      if (!F.mendDone && F.mend >= 1 && F.mendWave >= 3 && !cur.some(fighting) && (P.alive && near(P.pos, MEND_AT, 30) || t > 160)) {
+      if (!F.mendDone && F.mend >= 1 && F.mendWave >= 3 && !cur.some(fighting) && P.alive && near(P.pos, MEND_AT, 30)) {
         F.mendDone = true;
         rt.award((tr) => { tr.side.push('堤の切れ口を塞ぐ普請を守った'); }, '堤の切れ口を塞いだ');
         rt.say('長束正家', '切れ口は塞がった。囲みは続く', 2.8);
