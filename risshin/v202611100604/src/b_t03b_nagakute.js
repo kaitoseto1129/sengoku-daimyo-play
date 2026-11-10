@@ -342,6 +342,11 @@ const t03b_nagakute = {
       F.moriG = allyGroup(rt, { ...o, name: '森長可の旗本', anchor: { x: HOTOKE.x + 4, z: HOTOKE.z - 6 } },
         fl([{ type: 'busho', n: 1, o: { name: '森長可', horse: true } }, { type: 'samurai', n: 7 }, { type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'gun', n: 4 }], 'tsuru'));
       F.moriU = F.moriG.units.find((u) => u.name === '森長可');
+      // 兵の反撃と将の持ち場を分ける。将まで敵を追い続けると、固定の行き先から
+      // 三十五歩以内で最期を見届けられず、森・元助・恒興の段が進まなくなる。
+      F.hotokeLords = [F.moriG, F.ikeSaki, F.ikeG].map((g) => ({
+        u: g.units.find((q) => q.type === 'busho'), x: g.anchor.x, z: g.anchor.z,
+      }));
       // 森の旗本の後ろに鶴丸の大きな幟（④の目標の「森長可様の旗」がどれか、遠くから分かるように）
       if (rt.scene && rt.world && !F.moriNobori) {
         F.moriNobori = true;
@@ -555,6 +560,16 @@ const t03b_nagakute = {
       if (D && last && Math.hypot(H.pos.x - last.x, H.pos.z - last.z) < 0.6 && dist(H.pos, D) > 10) {
         const dx = D.x - H.pos.x, dz = D.z - H.pos.z, l = Math.hypot(dx, dz) || 1;
         H.pos.x += dx / l * 2.2; H.pos.z += dz / l * 2.2; H.target = null;
+      }
+    }
+    // 仏ヶ根の将は反撃中も旗のそばで戦い、主人公の行き先から姿を消さない。
+    if (F.stage >= 4 && F.stage <= 5.5 && F.hotokeLords) for (const h of F.hotokeLords) {
+      const u = h.u;
+      if (!u || !u.alive || u.gone) continue;
+      const dx = u.pos.x - h.x, dz = u.pos.z - h.z, d = Math.hypot(dx, dz);
+      if (d > 8) {
+        u.pos.x = h.x + dx * 8 / d; u.pos.z = h.z + dz * 8 / d;
+        u.target = null; u.watch = null;
       }
     }
     // 御旗山の本陣の旗本と床几の大将は持ち場（陣幕の前）から離れない
