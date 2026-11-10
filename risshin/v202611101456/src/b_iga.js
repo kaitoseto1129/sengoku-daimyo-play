@@ -3516,12 +3516,15 @@ function igaBeginCastleRetreat(rt) {
 
 function igaCastleCleared(rt) {
   const F = rt.flags;
-  // 戦えない負傷者や敗走兵を、城を守り続ける敵として待たない。
+  // 戦えない負傷者は待たず、歩いて退く列は北の出口まで見届ける。
   for (const u of F.wallBow.units) if (igaReady(u) && u.pos.z > KITA.z - 22) return false;
   for (const u of rt.army.units) {
-    if (u.team !== 1 || !igaReady(u) || u.isStruct || u.group?.civ || u.group?.ambush) continue;
+    if (u.team !== 1 || !u.alive || u.gone || u.isStruct || u.group?.civ || u.group?.ambush) continue;
     // 曲輪の間や北の奥段を歩く列も、城外の出口へ届くまで空城にしない。
-    if (u.group?.igaCastleExitZ != null && u.pos.z > u.group.igaCastleExitZ) return false;
+    // 攻撃対象外の頭や敗走中の兵も同じ列にいる。戦えるかを調べる前に退去を待つ。
+    if (!u.woundOut && !u.rearWound && !u.dropped &&
+        u.group?.igaCastleExitZ != null && u.pos.z > u.group.igaCastleExitZ) return false;
+    if (!igaReady(u)) continue;
     for (const at of F.castleChecks) {
       // 平面で重なる下段の兵は、上の曲輪を塞いでいない。
       if (Math.abs(u.pos.y - at.y) < 3 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < at.r) return false;
