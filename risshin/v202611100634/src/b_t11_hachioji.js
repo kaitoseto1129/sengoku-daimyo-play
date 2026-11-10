@@ -59,6 +59,8 @@ const HON = { x: -81, z: -136 };          // 本丸（深沢山の頂）
 const KARAMETE = { x: -70, z: -60 };      // 搦手から上杉勢が出てくる所
 // 搦手の間道：北の水の手から尾根の北の脇を登り、小宮曲輪の裏（北西）へ出る。大手の道（ROUTE）とは交わらない
 const KARAMETE_PATH = [[-70, -60], [-66, -78], [-56, -96], [-46, -112], [-44, -110]];
+// 横地監物は西の脱出口から詰城へ落ちる。柵の開口と退く道の始点をそろえる。
+const YOKOCHI_PATH = [[-96, -144], [-100, -148], [-114, -156], [-124, -166], [-128, -182]];
 
 // 大手の道：谷を西へ、曳橋で川を北へ渡り、石段を御主殿の虎口へ。そこから尾根の曲輪を一つずつ本丸へ
 const ROUTE = [
@@ -137,7 +139,7 @@ const PLAN = {
     { id: 'kaneko', name: '金子丸', level: 30, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(60, 84, -58, -34), gapAt: [[72, -34], [66, -58]], gapW: 5 },
     { id: 'taka', name: '高丸', level: 42, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(12, 38, -92, -68), gapAt: [[38, -76], [18, -92]], gapW: 5 },
     { id: 'matsuki', name: '小宮曲輪', level: 54, wall: 'saku', kind: 'koshi', floor: false, dense: false, poly: rectPoly(-38, -12, -117, -93), gapAt: [[-12, -104], [-38, -110]], gapW: 5 },
-    { id: 'hon', name: '本丸', level: 66, wall: 'saku', dorui: 1.8, kind: 'hon', floor: false, dense: false, poly: rectPoly(-96, -66, -150, -122), gapAt: [[-66, -134]], gapW: 5 },
+    { id: 'hon', name: '本丸', level: 66, wall: 'saku', dorui: 1.8, kind: 'hon', floor: false, dense: false, poly: rectPoly(-96, -66, -150, -122), gapAt: [[-66, -134], YOKOCHI_PATH[0]], gapW: 5 },
   ],
   koguchi: [
     // 道探しの木戸も柵の開口と同じ位置・幅にする。古い位置だと曲輪の外を入口として扱っていた。
@@ -151,6 +153,7 @@ const PLAN = {
     { id: 'matsuki_e', name: '小宮曲輪の口', from: 'out', to: 'matsuki', kind: 'hira', at: [-12, -104], rot: Math.PI / 2, w: 5.6 },
     { id: 'matsuki_w', name: '小宮曲輪の奥の口', from: 'matsuki', to: 'out', kind: 'hira', at: [-38, -110], rot: -Math.PI / 2, w: 5.6 },
     { id: 'hon', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [-66, -134], rot: Math.PI / 2, w: 5.6 },
+    { id: 'hon_w', name: '本丸の西の脱出口', from: 'hon', to: 'out', kind: 'hira', at: YOKOCHI_PATH[0], rot: -Math.PI / 2, w: 5 },
   ],
   paths: [{ id: 'ote', kind: 'ote', pts: ROUTE.slice(1) }],
 };
@@ -180,8 +183,8 @@ function hachiojiWay(army, u, want) {
     q.z = Math.max(k.poly[0][1] + 1.5, Math.min(k.poly[2][1] - 1.5, want.z));
     return q;
   }
-  // 搦手の兵は北の間道を使う。大手の道への補正で、別の攻め口へ引き戻さない。
-  if (u.group?.t11Karamete) return want;
+  // 搦手の兵と西へ落ちる横地の供は専用の道を使い、大手へ引き戻さない。
+  if (u.group?.t11Karamete || u.group?.t11Escape) return want;
   const q = u._t11Way || (u._t11Way = { x: 0, z: 0, t: -1, active: false, botRadius: 2 });
   if (q.t > army.time && q.active && Math.hypot(q.x - u.pos.x, q.z - u.pos.z) > 1.2) return q;
   if (q.t > army.time && !q.active) return want;
@@ -825,8 +828,9 @@ const t11_hachioji = {
     // 本丸の段：城代の横地監物は供の侍と西の詰の城の方へ落ちる（大石信濃守が城から出した）。討てない・追わない
     if (D && D.on && D.i === IX.hon && !F.yokochi) {
       F.yokochi = enemyGroup(rt, { fixed: true, faction: 'hojo', name: '横地監物の供', anchor: { x: HON.x - 6, z: HON.z - 8 }, facing: -Math.PI * 0.7, width: 3, aggro: 0, morale: 100, noRout: true,
-        order: 'path', path: [[-100, -148], [-114, -156], [-124, -166], [-128, -182]], pathIdx: 0, speed: 3.2 },
+        order: 'path', path: YOKOCHI_PATH, pathIdx: 0, speed: 3.2 },
       dress([{ type: 'busho', n: 1, o: { name: '横地監物', hat: 'kabuto_m', invuln: true, horse: false } }, { type: 'samurai', n: 3, o: { invuln: true } }], HOJO));
+      F.yokochi.t11Escape = true;
       F.yokochi.onArrive = (q) => {
         q.order = 'hold'; q.path = null; F.yokochiArrived = true;
       };

@@ -93,7 +93,7 @@ export function retreat(rt, C) {
   K.ammoWas = [];
   for (const g of rt.army.groups) if (g.team !== me) for (const u of g.units) if (u.alive && (u.type === 'bow' || u.type === 'gun')) { K.ammoWas.push([u, u.arrowAmmo, u.gunAmmo]); u.arrowAmmo = 0; u.gunAmmo = 0; }
   if (C.live(K.ally)) { K.ally.order = 'move'; K.ally.dest = { x: C.CAMP.x - 4, z: C.CAMP.z - 8 }; K.ally.speed = 3.4; K.ally.aggro = 0; K.ally.onArrive = (q) => { q.onArrive = null; q.order = 'hold'; }; for (const u of K.ally.units) u.target = null; }
-  rt.say('使番', '退け！　三成様の御下知じゃ。力攻めはならぬ、丸墓山の本陣へ戻れ！', 3.6);
+  rt.say('使番', '前衛を引け！　三成様の御下知じゃ。力攻めはならぬ、丸墓山の本陣へ戻れ！', 3.6);
   rt.after(4.2, () => rt.say(nm(rt), '土手一本では、寄せても寄せても上から撃たれる……', 3.2));
   rt.after(16, () => { if (F.step === 2) rt.say('石田勢の足軽', '深田に足を取られて、半分も戻れぬわ', 3); });
   rt.after(30, () => { if (F.step === 2) rt.say('使番', '北の長野口、下忍口の寄せも退いた。どの口も土手一本じゃ', 3.4); });
@@ -109,10 +109,13 @@ function council(rt, C) {
   const me = nm(rt);
   rt.say('石田三成', '深田と沼で、寄せる道が土手一本しか無い。力では落ちぬ', 3.4);
   rt.after(3.8, () => rt.say('使番', '小田原より。山中城は半日で落ち、殿下は小田原を囲まれた。韮山はなお抵抗との事', 3.8));
-  rt.after(8, () => rt.say('大谷吉継', '殿下の御下知は水攻めじゃ。城のまわりに堤を築き、川の水で囲む', 3.6));
-  rt.after(12, () => rt.say(me, 'あの長い沼を、堤で囲むのでござるか', 3));
-  rt.after(15.4, () => rt.say('石田三成', '人夫を集めよ。今夜から堤じゃ。城は夜討ちで邪魔をしよう。人夫を守れ', 3.6));
-  rt.after(19.4, () => {
+  // 絵図を見て、短く決める（docs/oshi_spec_1109.md：三成を無能にしない。地形を見て戦場を作り変える人）
+  rt.after(8, () => rt.say('石田三成', '……水を入れる。', 2.6));
+  rt.after(11, () => rt.say('大谷吉継', '川の水か。城のまわりの低地を、堤で囲めばよい。自然の堤と微高地を繋げば、早い', 3.8));
+  rt.after(15.2, () => rt.say('長束正家', '人足は近在から米と銭で集めまする。土と俵と材木も', 3.2));
+  rt.after(18.6, () => rt.say(me, 'あの沼を、堤で囲むのでござるか……', 2.8));
+  rt.after(21.6, () => rt.say('石田三成', '今夜から普請じゃ。城は夜討ちで邪魔をしよう。人足を守れ', 3.4));
+  rt.after(25.4, () => {
     if (F.step !== 2) return;
     // 時が飛ぶ（その夜）。柵の段の兵は片付け、主人公と組は区の堤の上へ
     for (const g of [K.foe, K.foe2, ...(K.shot || []), K.ally]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
@@ -121,7 +124,7 @@ function council(rt, C) {
     for (const g of K.fireWas || []) g.fire = true;
     for (const [u, a, b] of K.ammoWas || []) { u.arrowAmmo = a; u.gunAmmo = b; }
     C.warp(rt, C.START.x, C.START.z, Math.atan2(-1, -1));
-    rt.banner('その夜　堤の普請', '浅瀬の口で、夜討ちを防げ');
+    rt.banner('その夜　石田堤の普請', '浅瀬の口で、堤を築く人足を守れ');
     C.def.night(rt);
   });
 }
@@ -177,8 +180,7 @@ export function pin(rt, C) {
   const F = rt.flags, K = F.chi;
   if (!K) return undefined;
   if (F.step === 1) return { x: K.saku.x, z: K.saku.z, r: 6, label: '城の外の柵' };
-  // 本陣で軍議を聞いている間も、その夜の段へ替わるまで印を保つ。
-  if (F.step === 2) return { x: C.MARU.x, z: C.MARU.z, r: 16, label: '丸墓山' };
+  if (F.step === 2) return { x: C.MARU.x, z: C.MARU.z, r: 16, label: '丸墓山' };   // 軍議の間も行き先を切らさない（関所 3）
   return undefined;
 }
 

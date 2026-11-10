@@ -51,6 +51,7 @@ const TAIKO = { x: -32, z: -6 };   // 位置を示す確かな図は無い。松
 
 const ROUTE = [[0, 160], [0, 130], [0, 100], [0, 84], [OTE.x, OTE.z], [0, 60], [0, 46], [SAN.x, SAN.z], [0, 20], [0, 4], [NI.x, NI.z], [0, -20], [0, -34], [HON.x, HON.z]];
 
+// 名のある将の侍の護衛は keep で人数と兵種を守る（共通の減員・騎馬や足軽への割り振りの対象外）。
 const TORII = { flag: 'tokugawa' };
 const WEST = { armor: 0x2c2a26, lace: 0x6a5a3a, flag: 'ukita' };
 // 雑賀の鈴木家の八咫烏の旗（b_saika.js の雑賀衆と同じ絵。どちらが先に描いても同じ布になる）
@@ -213,7 +214,7 @@ const keep = (name, from, flag, list, o = {}) => ({ name, from: { x: from.x, z: 
 const camp = (rt, name, at, flag, lead, list, facing, seat = false) => {
   const banner = lead === '小早川秀秋' ? 'sashi:kobayakawa:#ece6d6:#16140f' : flag;
   const g = enemyGroup(rt, { fixed: true, faction: flag, name, anchor: at, facing, order: 'hold', aggro: 3, width: 10, morale: 100, noRout: true },
-    dress([{ type: 'busho', n: 1, o: { name: lead, invuln: true, horse: !seat } }, ...list], { ...WEST, flag: banner }));
+    dress([{ type: 'busho', n: 1, o: { name: lead, invuln: true, horse: !seat } }, ...list.map((e) => e.type === 'samurai' ? { ...e, o: { ...e.o, keep: true } } : e)], { ...WEST, flag: banner }));
   // 日付の札と使番で着陣を知った将は、遠い本陣でも既知の相手にする。
   // 頭上の名とは別に、案内の相手選びに残っていた未発見の判定をそろえる。
   revealName(rt, lead);
@@ -333,17 +334,17 @@ const k01_fushimi = {
     // 寄せ手は段々に増える（七月二十二日 宇喜多・二十三日 小早川と島津）。陣は update で日付の段に着く
     // ---- 城方：千八百。鳥居元忠は本丸の天守の前の本陣で旗本に囲まれる。主人公は元忠の手勢として三の丸の虎口を受け持つ ----
     F.motochika = allyGroup(rt, { faction: 'tokugawa', name: '鳥居元忠の本陣', anchor: { x: -2, z: -48 }, facing: 0, width: 6, aggro: 3, order: 'hold', fixed: true, noRout: true, fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '鳥居元忠', invuln: true, horse: false } }, { type: 'samurai', n: 14 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '鳥居元忠', invuln: true, horse: false } }, { type: 'samurai', n: 14, o: { keep: true } }], TORII));
     F.toriiU = F.motochika.units.find((u) => u.name === '鳥居元忠');
     F.motochika.stay = true;   // 本陣は本丸から出ない（共通の頭が八月一日に二の丸の敵へ出して、床几の元忠ごと本丸を空けた）
     if (F.toriiU) F.toriiU._crouch = true;   // 本丸の床几に腰を下ろす（最後の段で立って前に出る）
     F.mine = allyGroup(rt, { faction: 'tokugawa', name: '手勢', anchor: { x: -4, z: 76 }, facing: 0, width: 10, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }], TORII));
     F.ie = allyGroup(rt, { faction: 'tokugawa', name: '松平家忠の手', anchor: { x: 9, z: 76 }, facing: 0, width: 10, aggro: 10, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '松平家忠', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '松平家忠', invuln: true, horse: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], TORII));
     // 家長の持ち場は始めから西の丸（籠城の持ち場の伝え）。前は三の丸の虎口に並び、夕の段で西の丸へ戻っていた（11/6 布陣の照らし合わせ）
     F.nai = allyGroup(rt, { faction: 'tokugawa', name: '内藤家長の手', anchor: { x: -40, z: -50 }, facing: Math.PI / 2, width: 10, aggro: 6, order: 'hold', fixed: true, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '内藤元長', invuln: true, horse: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 4 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '内藤元長', invuln: true, horse: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 4 }], TORII));
     F.naiWest = true;
     F.nai.stay = true; F.nai.noAI = true;
     // 西の丸は家長と子の元長の父子が守った（『落穂集』・城史の伝え）。父子とも西の丸で果てる（naitoFall）
@@ -528,7 +529,7 @@ const k01_fushimi = {
     const F = rt.flags;
     if (F.magoG) return;
     F.magoG = enemyGroup(rt, { fixed: true, faction: 'yatagarasu', name: '雑賀孫一の旗本', anchor: { x: 13, z: -16 }, facing: Math.PI, order: 'hold', aggro: 2, width: 6, morale: 100, noRout: true },
-      dress([{ type: 'busho', n: 1, o: { name: '雑賀孫一', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 4 }, { type: 'gun', n: 2 }], { ...WEST, flag: 'yatagarasu' }));
+      dress([{ type: 'busho', n: 1, o: { name: '雑賀孫一', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'gun', n: 2 }], { ...WEST, flag: 'yatagarasu' }));
     F.magoG.noAI = true; F.magoG.stay = true;
   },
 

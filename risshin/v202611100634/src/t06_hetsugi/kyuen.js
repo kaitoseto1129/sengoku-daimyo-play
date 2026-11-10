@@ -6,6 +6,7 @@
 // 呼び方：install(rt, K)（本体の ambush の始め）・update(rt, K, el)・pin(rt)・sogoFall(rt, K)。
 // ======================================================================
 const live = (g) => g && g.count > 0;
+const fighting = (u) => u?.alive && !u.gone && !u.dying && !u.woundOut && !u.rearWound && !u.noTarget;
 const landed = (a, b) => a?.swing?.target === b && (a.swing.res === 'hit' || a.swing.res === 'armor' || a.swing.res === 'block');
 const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる所（西の林の縁）
 const DEFEND_SPOT = { x: 22, z: -94 };   // 追撃の先と同じ河原で防ぐ。救援の知らせまでは信親を追わせない。
@@ -20,7 +21,7 @@ export function contact(rt) {
     (landed(F.nobuU, F.suzukiU) || landed(F.suzukiU, F.nobuU))) S.bladesMet = true;
   // 最期の乱戦は二人の一騎打ちだけに頼らない。本人のそばで信親の隊が戦った記録を残す。
   const n = F.nobuU;
-  if (!S.ls || !n?.alive || Math.hypot(n.pos.x - p.pos.x, n.pos.z - p.pos.z) >= 14) return;
+  if (!S.ls || !fighting(n) || Math.hypot(n.pos.x - p.pos.x, n.pos.z - p.pos.z) >= 14) return;
   if (target && target.team !== p.team && landed(p, target) && Math.hypot(target.pos.x - n.pos.x, target.pos.z - n.pos.z) < 18) S.standFought = true;
   if (n.swing?.target?.team === 1 && landed(n, n.swing.target)) S.standFought = true;
   if (!S.standFought) for (const g of F.foes) for (const u of g.units) {
@@ -30,8 +31,7 @@ export function contact(rt) {
 
 function crossed(rt) {
   const F = rt.flags, n = F.nobuU, s = F.suzukiU;
-  return F.s3?.ls && n?.alive && !n.gone && !n.dying && !n.woundOut && !n.rearWound && !n.noTarget &&
-    s?.alive && !s.gone && !s.dying && !s.woundOut && !s.rearWound && !s.noTarget &&
+  return F.s3?.ls && fighting(n) && fighting(s) &&
     Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
     !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
 }
@@ -102,7 +102,8 @@ export function update(rt, K, el) {
   }
   if (S.st < 1) return;
   const bEl = rt.t - S.tB;
-  const near = F.nobuU?.alive && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14;
+  // 乱戦で包囲に呑まれる経路も、一騎打ちと同じく戦える信親を本人が見届けた時だけ進める。
+  const near = fighting(F.nobuU) && Math.hypot(F.nobuU.pos.x - P.x, F.nobuU.pos.z - P.z) < 14;
   if (near) S.near += dt;
   // 本人が信親の側へ救援に来てから斬り込む。離れたまま最期を済ませない。
   if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
