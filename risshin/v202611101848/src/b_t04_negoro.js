@@ -1102,8 +1102,8 @@ const t04_negoro = {
         C.goal = p.z < 6 ? P(0, 8) : p.z < 34 ? P(0, 36) : TOWER_FRONT;
         rt.objProgress('dp', `大塔の前まで あと ${Math.max(0, Math.round(Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z)))}m`);
         // 火が燃え移る間（二分半）は、橋の手前で退く根来衆を追う。それから大塔の前へ
-        // 上限：四分半たっても大塔の前へ着かない時も先へ（味方は先に着いて待つ。本人の位置だけで段を止めない。関所 11/10）
-        return fighting(pu) && !rt.retryOpen && el > 150 && (Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14 || el > 270);
+        // 守り手の退却と本人の到着は別。門の外で待った時間を大塔への到着に替えない。
+        return fighting(pu) && !rt.retryOpen && el > 150 && Math.hypot(pu.pos.x - TOWER_FRONT.x, pu.pos.z - TOWER_FRONT.z) < 14;
       },
       end(rt, C) {
         const F = rt.flags;
