@@ -110,7 +110,8 @@ const k04_kuisegawa = {
   compactIntro: true,
   keepMix: false,
   missions: STEP_TEXT,
-  missionOf(rt) { return STEP_TEXT[Math.max(0, (rt.flags.step || 1) - 1)]; },
+  // 共通の任務表示は文章でなく、零から始まる段番号を受け取る。
+  missionOf(rt) { return Math.max(0, Math.min(STEP_TEXT.length - 1, (rt.flags.step || 1) - 1)); },
   introText: () => '関ヶ原の前の日。陣の目の前で刈田をする島左近の兵を追い、杭瀬川を越える。葦の原の伏兵から生きて岸へ戻れ。',
   minutes: 9,
   // 布陣図（docs/fujin/k04_kuisegawa.md）：西軍は大垣の側（西）、東軍は赤坂・岡山の側（東）。陣立ての表（docs/army_depth_howto.md）

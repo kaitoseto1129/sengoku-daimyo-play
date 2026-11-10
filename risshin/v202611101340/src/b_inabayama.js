@@ -6181,8 +6181,6 @@ const inabayama = {
     // 崩れた城兵は山肌へ散らず、七曲りの道を木戸へ逃げ上る（付け入りで背に付く相手。散って斜面に残り、登る途中で何度も斬り合いになった・11/4）
     for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noFrontline = true; q.noRout = true; q.morale = 40; march(q, [...NANA, [OTE_IN.x, OTE_IN.z]], 'hold'); q.speed = 3.8; q.aggro = 0; q.holdFire = true; q.followColumnRoad = true; }
     rt.award((t) => t.side.push('大手の打って出を退けた'), '大手の斎藤勢を退けた');
-    // 11/10 指示書：木下隊が先導。迷っても前に木下隊の旗
-    rt.after(6, () => { if (!rt.over && !F.ending && F.step === 3) rt.say('使番', '木下隊が先へ入った！ 続け！', 3); });
     // 追う組の前の鹿垣を引き倒して口を広げる（柵の内に並んだ仲間が、切れ目を探して詰まらないように）
     for (const st of rt.army.structs) if (st.alive && st.name === '鹿垣' && st.seg) {
       const mx = (st.seg[0] + st.seg[2]) / 2;
@@ -6288,7 +6286,16 @@ const inabayama = {
         // 自分を待って止まらない（自分が登らないと列も段も進まず、藤吉郎の手が五百秒立ち尽くした・11/5 check60 二5）。隊の行き先が兵より先へ行き過ぎた時だけ兵を待つ
         // 11/6 fix61：待つ歩みを 0 にすると、列の兵も歩みを止め、隊の行き先と兵が互いを待って木戸の前で止まった。待つ時もゆっくり進める
         g.speed = g.pathIdx > k + 2 ? sp * 0.35 : k < F.nanaNext - 1 ? sp * 1.3 : sp;
-        if (g === F.kino) F.kinoAt = k;
+        if (g === F.kino) {
+          F.kinoAt = k;
+          // 時計や隊の行き先だけで「先へ入った」と知らせない。兵本人の前進を確かめる。
+          if (!F.kinoEntered && u?.alive && u.hp > 0 && !u.dying && !u.downed && !u.woundOut
+            && !u.rearWound && !u.evacuatedWound && !u.gone && !u.fleeing && k >= 2
+            && !rt.over && !F.ending) {
+            F.kinoEntered = true;
+            rt.say('使番', '木下隊が先へ入った！ 続け！', 3);
+          }
+        }
       }
       if (!(F.unstickAt > rt.t)) { F.unstickAt = rt.t + 1; for (const g of [F.kino, F.shiba]) inabaUnstick(rt, g, NANA); }
       // 登った折れの数（七つ）を目標の下に出す

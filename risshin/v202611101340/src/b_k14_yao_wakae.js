@@ -246,6 +246,7 @@ const k14_yao_wakae = {
     mood: 'morning',          // 夜明けから朝の戦（井伊と木村は午前七時ごろ。低い朝日。二2）
     mist: 0.15,               // 河内の朝靄
     muddy: 0.5,               // 深田（足を取られる田）
+    bloodInRiver: true,       // 水田も水中の判定になる。斬った跡を省かず、水面に赤い濁りを残す（critic60 四6）。
     groundHalf: 260,
     moveLim: 248,
     mountainScale: 0.2, mountainHaze: 0.85,   // 河内の平らな田：四方を高い山で囲まない。生駒は遠く霞む（八1・四5）

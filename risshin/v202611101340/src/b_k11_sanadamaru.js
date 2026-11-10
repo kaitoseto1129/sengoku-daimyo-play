@@ -697,8 +697,18 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
 
   // 退きの下知：撃たれながら篠山の北の麓まで退いて、組を立て直す
   back(rt, who, text, o = {}) {
-    return DP.move({ to: RALLY, label: '篠山の北の麓', r: 9, max: 160, obj: o.obj || '篠山の北の麓まで退け', say: [[who, text]],
-      onEnd: (rt2) => { const F = rt2.flags; for (const g of F.rams) if (!gone(g)) withdraw(g, { x: RALLY.x + 6, z: RALLY.z + 10 }); if (o.onEnd) o.onEnd(rt2); } });
+    const st = DP.move({ to: RALLY, label: '篠山の北の麓', r: 9, max: 160, obj: o.obj || '篠山の北の麓まで退け', say: [[who, text]],
+      onEnd: o.onEnd });
+    const start = st.start;
+    st.start = (rt2, C, m, ctx) => {
+      start(rt2, C, m, ctx);
+      // 退き始めに狙いを解く。本人の帰着を待つと、援護の組が柵前に残り続ける。
+      for (const [i, g] of [rt2.flags.yam, rt2.flags.second].entries()) if (!gone(g)) {
+        withdraw(g, { x: RALLY.x + (i ? 8 : -8), z: RALLY.z + 6 });
+      }
+      for (const g of rt2.flags.rams) if (!gone(g)) withdraw(g, { x: RALLY.x + 6, z: RALLY.z + 10 });
+    };
+    return st;
   },
 
   begin(rt) {
@@ -1098,12 +1108,16 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.after(2.4, () => {
       if (F.ending) return;
       // 二の構え：空堀の上の段で伏せていた鉄砲衆（外からは見えなかった。「まだこんなにいたのか」）
-      const n = Math.max(6, Math.min(16, LIVE_MAX - liveN(rt) - 2));
-      const q = polar(0, STEP1.r0 + 1.2);
-      const g = enemyGroup(rt, { faction: 'toyotomi', name: '二の構えの鉄砲衆', anchor: q, fixed: true, facing: 0, width: 14, spacing: 1.2, aggro: 0, noRout: true }, dress([uS(1), uG(n - 1)], SANADA));
-      g.fire = true; g.dmgMult = 0.4;
-      for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
-      F.inner = g; F.fireGroups.push(g);
+      const n = Math.max(0, Math.min(16, LIVE_MAX - liveN(rt)));
+      // 空きが一人なら鉄砲を一人。空きが無くても塀の鉄砲で斉射し、打って出まで進める。
+      if (n) {
+        const q = polar(0, STEP1.r0 + 1.2);
+        const list = n > 1 ? [uS(1), uG(n - 1)] : [uG(1)];
+        const g = enemyGroup(rt, { faction: 'toyotomi', name: '二の構えの鉄砲衆', anchor: q, fixed: true, facing: 0, width: 14, spacing: 1.2, aggro: 0, noRout: true }, dress(list, SANADA));
+        g.fire = true; g.dmgMult = 0.4;
+        for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.4;
+        F.inner = g; F.fireGroups.push(g);
+      }
       rt.say('塀の上の声', '二の構え、立て！　放てっ！', 2.4);
       this.volley(rt, true);
       F.volT = rt.t + 6;
@@ -1294,10 +1308,15 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       const rp = rOf(PU.pos.x, PU.pos.z), ap = Math.abs(angOf(PU.pos.x, PU.pos.z));
       if (rp < 64 && ap < SPAN + 0.1 && PU.hp > PU.maxHp * 0.22) {   // 深手（二割余り）の者は狙い撃たず、退いて手当てする間を残す
         F.snipeT = ((rp < 55 ? 0.85 : 1.4) + Math.random() * 0.5) * (PU.hp < PU.maxHp * 0.35 ? 2.2 : 1) * (F.step === 3 && !gone(F.flankG) || F.step === 5 && !F.trapped ? 2 : 1);   // 柵を打つ間も（11/10 bot act：⑤で塀と櫓の玉に倒れた）   // 横の鉄砲衆と斬り合う間は、櫓の狙いを間遠に   // 深手の時は間を空け、退く間を残す（十一1）
-        const ready = F.towerU.filter((u) => canShoot(u) && rt.t - (u.snipeAt ?? -9) > 2.6 && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 75);
+        // 通常射撃と狙撃で同じ筒の込め直しを共有する。別々に撃つと装填中にも玉が出る。
+        const ready = F.towerU.filter((u) => canShoot(u) && u.cd <= 0 && !u.reload && !u.atk && !(u.stagger > 0) && Math.hypot(u.pos.x - PU.pos.x, u.pos.z - PU.pos.z) < 75);
         ready.sort((a, b) => Math.hypot(a.pos.x - PU.pos.x, a.pos.z - PU.pos.z) - Math.hypot(b.pos.x - PU.pos.x, b.pos.z - PU.pos.z));
         const u = ready[Math.floor(Math.random() * Math.min(8, ready.length))];
-        if (u) { u.snipeAt = rt.t; u.heading = Math.atan2(PU.pos.x - u.pos.x, PU.pos.z - u.pos.z); rt.army.fireGun(u, PU); }
+        if (u) {
+          u.heading = Math.atan2(PU.pos.x - u.pos.x, PU.pos.z - u.pos.z);
+          rt.army.fireGun(u, PU);
+          rt.army.startReload(u);
+        }
       } else F.snipeT = 0.8;
     }
     // 塀の内の鉄砲・弓は玉薬と矢を運び込まれて、撃ち止まない（BV「鉄砲・弓が止まず」）

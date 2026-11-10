@@ -292,6 +292,8 @@ const k01_fushimi = {
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ
   goalSignOnly: true,      // 地面の矢印・持ち場の輪を出さない（BH6）
+  goalSignTriangle: true,  // 画面の端でも行き先は下向きの▼を保つ（五3）
+  keepBattleSigns: true,   // 行き先の印を出している間も、武将名と両軍の数を残す（九3）
   noMiniMap: true,         // 11/8 critic60（N・五2）：右上の小さな地図が出たり消えたりした。地図は出さない
   goalsVisibleRows: 5,     // 今の目標を含む五件を順に並べる。共通の既定の一件表示では後の持ち場が分からない。
   // 11/8 critic60（三2）：持ち場に立っているのに▼が遠くの「100m」を指したまま。▼は今の段の持ち場（dp の印）だけを指し、着いたら消す

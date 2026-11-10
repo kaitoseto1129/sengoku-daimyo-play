@@ -2316,10 +2316,12 @@ const shiga = {
     const post = F.backed ? F.C.kuruwa.hon : F.backedNi ?
       (F.C.kuruwa.hon.test(me.pos.x, me.pos.z) ? F.C.kuruwa.hon : F.C.kuruwa.ni) : null;
     const previous = F.shigaEnemy;
+    const town = F.step === 1 || F.step === 1.5;
     // 複数の印が同じ相手を使う。討死・潰走は待たずに拾い、見通しの検査だけ五分の一秒ごと。
     if (F.shigaEnemyPost === post && F.shigaEnemyStep === F.step && rt.t < F.shigaEnemyAt && (!previous ||
         previous.alive && !previous.gone && !previous.dying && !previous.downed && !previous.woundOut && !previous.rearWound &&
         !previous.fleeing && !previous.noTarget && !previous.group?.routed &&
+        (!town || Math.hypot(previous.pos.x - TOWN_POST.x, previous.pos.z - TOWN_POST.z) <= 12) &&
         (!post || post.test(previous.pos.x, previous.pos.z)))) return previous;
     let target = null, distance = 28 * 28;
     for (const u of rt.army.units) {
@@ -2327,6 +2329,8 @@ const shiga = {
           u.noTarget || u.invuln || u.isStruct || u.farSim || u.group?.routed || u.group?.civ ||
           F.step === 1 && u.group !== F.w1 && u.group !== F.w1b || Math.abs(u.pos.y - me.pos.y) > 3.5) continue;
       if (post && !post.test(u.pos.x, u.pos.z)) continue;
+      // 町口を守る下知のまま、外の敵を追う印で槍の列から引き離さない。
+      if (town && Math.hypot(u.pos.x - TOWN_POST.x, u.pos.z - TOWN_POST.z) > 12) continue;
       const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       if (d >= distance || rt.army.wallBetween(me.pos, me.team, u.pos, false)) continue;
       target = u; distance = d;
