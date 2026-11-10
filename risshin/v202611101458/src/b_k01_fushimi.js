@@ -23,6 +23,7 @@ import { sfx } from './audio.js';
 import { allyGroup, enemyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { heightOf, buildCastlePlan, rectPoly } from './castle_plan.js';
+import { interiorBase } from './yagura_inside.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
 import { routeTools } from './b_k_route.js';
@@ -192,6 +193,42 @@ const PLAN = {
 };
 let HEIGHT_FN = null;
 function height(x, z) { if (!HEIGHT_FN) HEIGHT_FN = heightOf(PLAN, base, 3); return HEIGHT_FN(x, z); }
+
+// 門下は通し、梁・渡櫓・屋根へ視点だけが入り込むのを防ぐ。
+// 部品の隙間や描画の間引きに依存せず、伏見の三つの櫓門を囲う。
+function fushimiGateCamera(W) {
+  const previous = W.cameraBlockFraction;
+  const boxes = PLAN.koguchi.filter(g => g.gate === 'yagura').flatMap(g => {
+    const [x, z] = g.at, rot = g.rot || 0, w = g.w || 5;
+    const y = interiorBase(W, x, z, w + 5.6, 4.2, rot);
+    const gate = { x, z, y, c: Math.cos(rot), s: Math.sin(rot) };
+    return [{ ...gate, hw: (w + 5.6) / 2, hz: 2.1, low: 3.325, high: 6 },
+      { ...gate, hw: (w + 7.2) / 2, hz: 2.8, low: 6, high: 7.9 }];
+  });
+  W.cameraBlockFraction = function (from, to) {
+    let hit = previous?.call(this, from, to) ?? null;
+    for (const g of boxes) {
+      let enter = 0, exit = 1;
+      const ax = from.x - g.x, az = from.z - g.z;
+      const dx = to.x - from.x, dz = to.z - from.z;
+      for (let axis = 0; axis < 3; axis++) {
+        const a = axis === 0 ? ax * g.c - az * g.s : axis === 1 ? from.y - g.y : ax * g.s + az * g.c;
+        const d = axis === 0 ? dx * g.c - dz * g.s : axis === 1 ? to.y - from.y : dx * g.s + dz * g.c;
+        const low = axis === 0 ? -g.hw : axis === 1 ? g.low : -g.hz;
+        const high = axis === 0 ? g.hw : axis === 1 ? g.high : g.hz;
+        if (Math.abs(d) < 1e-8) { if (a < low || a > high) { exit = -1; break; } }
+        else {
+          const t0 = (low - a) / d, t1 = (high - a) / d;
+          enter = Math.max(enter, Math.min(t0, t1));
+          exit = Math.min(exit, Math.max(t0, t1));
+        }
+        if (enter > exit) break;
+      }
+      if (enter <= exit && (hit === null || enter < hit)) hit = enter;
+    }
+    return hit;
+  };
+}
 
 const { way: routeWay } = routeTools(ROUTE, 'k01');
 // 道の曲がり角は 1.5 歩まで寄らないと次へ移らないのに、着いたと見なす輪が 2 歩だった。
@@ -364,6 +401,7 @@ const k01_fushimi = {
     const W = rt.world, F = rt.flags;
     F.ek = 0; F.ak = 0; F.ending = false; F.begun = false;
     F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 0, perchLook: TORII, interiorGuards: false, buildGates: true, buildTowers: true });
+    fushimiGateCamera(W);
     // 門は開けた形（味方が退き、寄せ手が攻め入る道を塞がない）
     for (const g of Object.values(F.C.gateObjs || {})) { g.open(); Object.assign(g.struct, { solidR: 0, passable: true, opened: true, noTarget: true, fireProof: true }); }
     F.tkFlags = [];

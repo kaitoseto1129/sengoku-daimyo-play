@@ -18,7 +18,9 @@ const SCREAM_RATE = [0.8, 0.88, 0.96];
 
 export function loadWarSpeech() {
   if (lord || loading) return loading || Promise.resolve();
-  loading = Promise.all([import('./asset_lord.js'), import('./asset_sfx.js'), import('./asset_voice.js')]).then(([l, x, v]) => {
+  // 将の声と兵の声は使い捨ての作業場所で解き、元の文（base64）を頁に残さない（WebKit は元の文と文字列を二重に持つ。約 10MB。11/10 支度中の落ち）
+  const clips = (name) => import('./asset_reader.js').then(({ readAsset }) => readAsset(name, 'voice'));
+  loading = Promise.all([clips('lord'), import('./asset_sfx.js'), clips('voice')]).then(([l, x, v]) => {
     lord = l; sfx = x; vv = v;
     for (const [text, clip] of l.LINES) lordExact.set(norm(text), clip);
     // 台詞（種類 0・1）だけ。名乗りと群声の録音は使わない
@@ -61,9 +63,11 @@ function audio() {
 // 声は鳴らす時に解く。解いた物は二十四まで覚えて、古い物から捨てる
 function buffer(i) {
   if (buffers.has(i)) { const p = buffers.get(i); buffers.delete(i); buffers.set(i, p); return p; }
-  const b64 = i >= VV_BASE ? vv.CLIPS[i - VV_BASE] : i >= TOKI_BASE ? sfx.SFX.eiei[i - TOKI_BASE] : lord.CLIPS[i];
-  const bin = atob(b64), bytes = new Uint8Array(bin.length);
-  for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+  const clip = i >= VV_BASE ? vv.CLIPS[i - VV_BASE] : i >= TOKI_BASE ? sfx.SFX.eiei[i - TOKI_BASE] : lord.CLIPS[i];
+  let bytes;
+  // 解いた bytes は decodeAudioData が手放すので、写しを渡す
+  if (clip instanceof Uint8Array) bytes = clip.slice();
+  else { const bin = atob(clip); bytes = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k); }
   const p = new Promise((ok) => {
     try { const r = ctx.decodeAudioData(bytes.buffer, ok, () => ok(null)); if (r && r.catch) r.catch(() => ok(null)); } catch (_) { ok(null); }
   });
