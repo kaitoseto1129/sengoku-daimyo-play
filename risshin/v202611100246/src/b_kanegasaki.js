@@ -2329,12 +2329,18 @@ function kgReinforceTick(rt) {
   F.reinfAt = rt.t + 0.5;
   for (const r of F.reinf) {
     if (r.joined || !r.g.count) continue;
-    const lead = r.g.units[0], d = Math.hypot(lead.pos.x - r.to.x, lead.pos.z - r.to.z);
+    // 先頭だけが道で遅れても、砦へ届いた手の兵を合流に数える。後送中の兵は数えない。
+    let d = Infinity;
+    for (const u of r.g.units) if (kgActive(u)) d = Math.min(d, Math.hypot(u.pos.x - r.to.x, u.pos.z - r.to.z));
     if (!r.called && d < 60 && r.key !== 'ieyasu') { r.called = true; if (!F.ending) rt.say(r.R.who, r.R.say, 3.5); }
     if (d > 16) continue;
     r.joined = true;
     if (r.R.join && !F.tono.includes(r.g)) F.tono.push(r.g);
-    if (!F.ending && !F.fleeing) rt.after(2, () => rt.say('木下藤吉郎', r.key === 'ikeda' ? '池田殿、かたじけない！　砦の柵で追手を受けるぞ！' : r.key === 'akechi' ? '明智殿の鉄砲じゃ！　柵の内へ寄せよ、撃たせよ！' : '徳川殿か！　皆、徳川勢の後ろを抜けて退け！', 3));
+    if (!F.ending && !F.fleeing) rt.after(2, () => {
+      // 合流直後に退けの下知が出た場合、古い「砦で受けるぞ」を重ねない。
+      if (rt.over || F.ending || F.fleeing) return;
+      rt.say('木下藤吉郎', r.key === 'ikeda' ? '池田殿、かたじけない！　砦の柵で追手を受けるぞ！' : r.key === 'akechi' ? '明智殿の鉄砲じゃ！　柵の内へ寄せよ、撃たせよ！' : '徳川殿か！　皆、徳川勢の後ろを抜けて退け！', 3);
+    });
   }
 }
 // 備に追手が届いたか（目標の敵は必ず来て当たる。九2）と、両軍の今の兵の数の減り（九3）
