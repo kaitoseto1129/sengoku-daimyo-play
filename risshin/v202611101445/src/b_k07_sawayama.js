@@ -908,7 +908,8 @@ k07_sawayama.goals5 = (rt) => {
   return list.map((g, k) => Object.defineProperty({ kind: 'stage', k, ...g }, 'sec', { get: () => (rt._g5?.goals?.length ? 0 : 1), enumerable: true }));
 };
 k07_sawayama.missionHeading = (rt) => {
-  const F = rt.flags, i = F.ending ? 8 : F.dp?.i ?? 0;
+  // 日暮れで途中の段を終えても、未到達の本丸へ目標を替えない。
+  const i = rt.flags.dp?.i ?? 0;
   const k = i <= 0 ? 0 : i <= 3 ? 1 : i <= 5 ? 2 : i === 6 ? 3 : 4;
   return '①②③④⑤'[k] + GOALS[k];
 };

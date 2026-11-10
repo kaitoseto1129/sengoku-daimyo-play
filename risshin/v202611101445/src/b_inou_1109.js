@@ -34,6 +34,9 @@ const COMRADES = ['弥助', '源太', '新六'];
 // この戦の台詞だけを通す（共通の褒め言葉・「でかした」などを出さない。初めて討っても祝わない）
 function say(rt, who, text, d) { const F = rt.flags; F._mine = true; try { rt.say(who, text, d); } finally { F._mine = false; } }
 
+const REGROUP_TARGET = { pos: NAZUKA_PT, label: '名塚砦' };
+function regroupTarget(F, L) { return L ? { pos: L.pos, label: L === F.sakumaU ? '組頭' : '隊長', unit: L } : REGROUP_TARGET; }
+
 // 行き先のピン：始めから終わりまで切らさない（関所 3）。遠くは金の▼に距離、近くは地面のピン
 function pinTo(rt, pos, label, unit = null) {
   const F = rt.flags;
@@ -116,18 +119,18 @@ const ino = {
   pinTarget(rt) {
     const F = rt.flags, L = F.lead?.alive && !F.lead.gone ? F.lead : F.sakumaU?.alive && !F.sakumaU.gone ? F.sakumaU : null;
     switch (F.ph) {
-      case 'march': case 'van': return L ? { pos: L.pos, label: '隊長', unit: L } : null;
+      case 'march': case 'van': return regroupTarget(F, L);
       case 'scout': case 'hayashi': case 'shibata': case 'push': {
         // 三十m 外でも同じ任務の敵へ進む。敵が残っているのに組頭へ戻さない。
         const e = this.missionSignTarget(rt, Infinity);
         if (e) return { pos: e.pos, label: F.ph === 'scout' ? '林の物見' : F.ph === 'hayashi' ? '林勢' : '柴田勢', enemy: e };
-        return L ? { pos: L.pos, label: L === F.sakumaU ? '組頭' : '隊長', unit: L } : null;
+        return regroupTarget(F, L);
       }
-      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU.gone ? null : F.sakumaU } : null;
+      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU.gone ? null : F.sakumaU } : regroupTarget(F, L);
       case 'retreat': return { pos: NAZUKA_PT, label: '名塚砦' };
       case 'rally': return F.nobuU?.alive && !F.nobuU.gone ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
-      case 'after': return F.shinrokuU?.alive && !F.shinrokuU.gone && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : L ? { pos: L.pos, label: '組頭', unit: L } : null;
-      default: return L ? { pos: L.pos, label: '隊長', unit: L } : null;
+      case 'after': return F.shinrokuU?.alive && !F.shinrokuU.gone && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : regroupTarget(F, L);
+      default: return regroupTarget(F, L);
     }
   },
 
@@ -310,8 +313,8 @@ const ino = {
       F.shinHurtT = rt.t;
       say(rt, '新六', 'ぐっ……！', 1.6);
       S.hp = Math.max(1, S.maxHp * 0.2); S.noTarget = true; S.invuln = true; S.target = null;
-      F.shinG.noAI = true; F.shinG.aggro = 0;
-      this.moveG(F.shinG, { x: S.pos.x + 4, z: S.pos.z + 22 }, 1.0);
+      // 負傷後は敵探しと射撃も止め、手負いのまま後ろへ離脱する。
+      this.retireG(F.shinG, { x: S.pos.x + 4, z: S.pos.z + 22 }, 1.0);
       rt.after(1.6, () => say(rt, '弥助', '新六が斬られた！', 2));
     });
     // 6:30 隊長が敵の槍を受けて倒れる

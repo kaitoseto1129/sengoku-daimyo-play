@@ -363,7 +363,8 @@ const k02_kawada = {
       if (dk < 48) { c.setRGB(c.r * 0.7 + 0.12, c.g * 0.7 + 0.1, c.b * 0.6 + 0.06); return; }
       c.setRGB(c.r * 0.7 + 0.2, c.g * 0.7 + 0.18, c.b * 0.5 + 0.05);   // 刈り入れ前の田
     },
-    clear: (x, z) => distToPolyline(x, z, ROUTE) < 8 || Math.hypot(x - YONENO.x, z - YONENO.z) < 30 || Math.hypot(x - SHINKANO.x, z - SHINKANO.z) < 24 || Math.hypot(x - HONJIN.x, z - HONJIN.z) < 14,
+    clear: (x, z) => distToPolyline(x, z, ROUTE) < 8 || Math.hypot(x - YONENO.x, z - YONENO.z) < 30 || Math.hypot(x - SHINKANO.x, z - SHINKANO.z) < 34 ||   // 11/10 クラウド：砦の柵の外を回る道（柵から五歩）に松が立ち、西の柵の外で十六分止まった
+       Math.hypot(x - HONJIN.x, z - HONJIN.z) < 14,
     trees: 120,
     // 11/8 critic60 八1・九5：霧の中の松が平たい切り絵、島の松の幹が赤い棒を組んだように見えた。太い幹・ふぞろいの葉房に
     raggedPineCrowns: true, unevenCrowns: true, thickTrees: true,
