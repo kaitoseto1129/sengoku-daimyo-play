@@ -4379,6 +4379,8 @@ const shiga = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 壊れた木戸や的、遠景の兵は実兵の戦死者に重ねて数えない。
+    if (v.isStruct || v.type === 'dummy' || v.farSim || (v.team !== 0 && v.team !== 1)) return;
     if (F.step === 1 && v.team === 1 && k === rt.player.u) F.s1Own = (F.s1Own || 0) + 1;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
     // 町口で本人や組が先手を討った時だけ、その隊の押す力が弱まる。

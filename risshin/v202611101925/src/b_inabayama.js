@@ -7492,7 +7492,8 @@ inabayama.lordSpawn = { x: ZUI.x, z: ZUI.z + 14, heading: Math.atan2(28 - ZUI.x,
 const nearIt = (b, pre) => {
   const u = b.player.u;
   let it = null, bd = Infinity;
-  for (const x of b.interacts) if (x.id.startsWith(pre)) { const d = Math.hypot(x.pos.x - u.pos.x, x.pos.z - u.pos.z); if (d < bd) { bd = d; it = x; } }
+  // 11/10 関所：合図の火の口は pos が関数（inabaSignalWorkPoint）。そのまま読むと NaN で見つからず、bot が火口に立ったまま刻限まで止まった
+  for (const x of b.interacts) if (x.id.startsWith(pre)) { const q = typeof x.pos === 'function' ? x.pos() : x.pos; if (!q) continue; const d = Math.hypot(q.x - u.pos.x, q.z - u.pos.z); if (d < bd) { bd = d; it = x; } }
   return it ? { it, d: bd } : null;
 };
 // 山の上の隊へ直進すると切岸で止まる。折れと木戸の口を順に通る。

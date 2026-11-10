@@ -1076,6 +1076,12 @@ function mikataPlainTokugawa(rt) {
 //   務めずに段が過ぎた物は✕で沈める。①は持ち場に着いた時、⑤は城の口に着いた時。
 // 15分の構成（11/8 夜）：①物見 ②持ち場へ ③先手と後詰（鶴翼の端の崩れも） ④赤備え ⑤平手の最期 ⑥坂の殿 ⑦城へ退く
 const MK_GOAL_HOLD = [0, 0, 20, 8, 15, 0, 0, 12, 0];
+function mikataGroupContact(g, u, r) {
+  if (!g || g.routed) return false;
+  for (const q of g.units) if (mikataFoeOk(q, u.team) &&
+    Math.hypot(q.pos.x - u.pos.x, q.pos.z - u.pos.z) < r) return true;
+  return false;
+}
 function mikataGoals(rt, dt) {
   const F = rt.flags, G = F.mkG || (F.mkG = { i: 0, st: [0, 0, 0, 0, 0, 0, 0, 0, 0], tin: 0, hit: false });
   // 共通の途中保存は flags の数・真偽・短い字だけを残す。配列のままでは
@@ -1107,8 +1113,9 @@ function mikataGoals(rt, dt) {
     const holdContact = () => F.dp?.cur?.s?.kind === 'hold' && (F.dp.cur.metEnemy || !!F.dp.cur.groups?.some((g) => !g.routed && g.units.some((q) => mikataFoeOk(q, u.team) &&
       Math.hypot(q.pos.x - post.x, q.pos.z - post.z) < F.dp.cur.botRadius + 8 && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 22)));
     // 後詰の段では、その段の寄せ手だけを見る。前の先手や別の備の残兵で務めを果たした事にしない。
-    const foe = G.i === 2 && !holdPost ? mikataNearestFoe(rt) : null;
-    const contact = G.i === 2 ? holdPost ? holdContact() : !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
+    // 最寄りの敵全体では、別の備の残兵だけでも先手を防いだ印が付く。
+    // 先手と物見の騎馬を直接調べ、別の敵が近くても対象の寄せを取りこぼさない。
+    const contact = G.i === 2 ? holdPost ? holdContact() : (mikataGroupContact(F.w1, u, 22) || mikataGroupContact(F.scout, u, 22)) : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
     // 森の持ち場は案内と同じ五歩。平手の持ち場から赤備えに触れただけでは務めにしない。
     const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? mikataPostRadius(rt) : 28);

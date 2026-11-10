@@ -486,6 +486,9 @@ const t08_nejirozaka = {
   goalSignTarget(rt) {
     const t = this.goalTargetOverride(rt);
     if (!t || t.unit) return t;
+    // 見回りと段の間は、敵でなく次の持ち場へ案内する。
+    const i = rt.flags.dp?.i;
+    if (i !== 4 && i !== 6 && i !== 7 && i !== 9 && i !== 11) return t;
     const foe = foeNear(rt, t);
     if (!foe) return t;
     const s = rt.flags.nejiroSign || (rt.flags.nejiroSign = {});
@@ -820,17 +823,21 @@ const curG = (k) => (rt) => (rt.flags.dp?.on && rt.flags.dp.i === k ? rt.flags.d
 //   着いたら、今の段で寄せる島津の手（無ければ六十歩内の近い敵八人）の真ん中を指す。もう斬り合う所まで来ていれば一番近い敵の頭上、
 //   寄せが来る前の待ちは持ち場の前の空堀（島津が越えてくる所）を指す
 // 退く下知が出てから走り始めるまでの兵や、手傷で離脱した者へ誘導しない。
-const signFoe = (o, me) => o.alive && !o.gone && o.team !== me && o.team <= 1 && !o.civ && !o.isStruct
-  && !o.fleeing && !o.downed && !o.woundOut && !o.noTarget && !o.group?.routed && o.group?.order !== 'retreat';
+const signFoe = (o, me, at, radius) => o.alive && !o.gone && o.team !== me && o.team <= 1 && !o.civ && !o.isStruct
+  && !o.fleeing && !o.downed && !o.woundOut && !o.noTarget && !o.group?.routed && !o.group?.noAI && o.group?.order !== 'retreat'
+  && Math.hypot(o.pos.x - at.x, o.pos.z - at.z) < radius;
 function foeNear(rt, at) {
   const P = rt.player?.u?.pos;
   if (!P || Math.hypot(P.x - at.x, P.z - at.z) >= 10) return null;
   const me = rt.player.u.team;
+  // 坂下で出たばかりの寄せ手へ印を移すと、守る範囲の外へ誘ってしまう。
+  // 持ち場へ届いた敵だけを指し、接近中は越えて来る空堀を示す。
+  const radius = rt.flags.dp?.cur?.botRadius || 14;
   let sx = 0, sz = 0, n = 0, best = null, bd = 60;
-  for (const gr of rt.flags.dp?.on ? rt.flags.dp.cur?.groups || [] : []) for (const o of gr?.units || []) if (signFoe(o, me)) { sx += o.pos.x; sz += o.pos.z; n++; }
+  for (const gr of rt.flags.dp?.on ? rt.flags.dp.cur?.groups || [] : []) for (const o of gr?.units || []) if (signFoe(o, me, at, radius)) { sx += o.pos.x; sz += o.pos.z; n++; }
   const near = [];
   for (const o of rt.army?.units || []) {
-    if (!signFoe(o, me)) continue;
+    if (!signFoe(o, me, at, radius)) continue;
     const d = Math.hypot(o.pos.x - P.x, o.pos.z - P.z);
     if (d < bd) { bd = d; best = o; }
     if (d < 60) near.push([d, o]);

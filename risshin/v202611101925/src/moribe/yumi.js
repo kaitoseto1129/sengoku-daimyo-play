@@ -7,8 +7,8 @@
 import { sfx } from '../audio.js';
 
 const ready = (u) => !!u && u.alive && u.hp > 0 && !u.dying && !u.downed && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
-// 隊の敗走印だけで済みにしない。まだ射る兵がいれば、実際に討つか退かせる。
-const live = (g) => g && g.units.some(ready);
+// 転倒・一時の標的除外では済みにしない。深手で退避が確定するか、実際に討たれる・退くまで残す。
+const live = (g) => g && g.units.some((u) => u?.alive && u.hp > 0 && !u.dying && !u.gone && !u.fleeing && !(u.woundOut && u.invuln));
 
 export function prepare(rt, C) {
   const v = rt.flags.m15;

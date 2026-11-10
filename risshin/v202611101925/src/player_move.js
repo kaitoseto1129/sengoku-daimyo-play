@@ -325,6 +325,10 @@ export class PlayerMove {
         if (Math.hypot(u.pos.x - x, u.pos.z - z) > 0.01) { u.pos.set(px, py, pz); break; }
       }
     }
+    // 11/10 稲葉山の関所：当たりの「前の位置」（army.collide の _cpx）を、解き終えた今の足場に揃える。
+    //   段差で一歩を戻した時や、戦の救いで本人を角へ寄せた（瞬間移動）後に、前の位置が塀の向こうに残ると、
+    //   毎コマ「塀を越えた」と見なして足が戻され、平らな所で四方とも一歩も動けなくなった（木戸の上 4,-44 で二分半）。
+    u._cpx = u.pos.x; u._cpz = u.pos.z;
     // 動き・足音・歩いた距離は入力ではなく実際の移動に合わせる。
     u.vel.x = (u.pos.x - x0) / dt; u.vel.z = (u.pos.z - z0) / dt;
     if (Math.hypot(u.vel.x, u.vel.z) < 0.05) { u.vel.x = 0; u.vel.z = 0; }

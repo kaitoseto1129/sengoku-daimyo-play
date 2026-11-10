@@ -138,7 +138,13 @@ function shoryujiFront(rt) {
 // 11/6 fixc0328（kaito 九1・九3・十1・十二1）：右上は①〜⑤を最初から全部並べ、済んだ物に印（hud_goals の札）。両軍の今の兵の数の棒も上に常に出す。
 //   見える敵は一人残らず頭上に大きな赤い▼（共通の印は近い四人まで）。有岡・越前と同じ作り。時の字は出さない。
 const YAM_BOARD_CSS = `
+/* 大返しでは明智との決戦の人数を重ねない。山崎では一覧の中に数と棒を収める。 */
+html:root body #hud#hud#hud#hud.yam-prelude #armybar#armybar#armybar:not([hidden]) { display:none !important; }
+html:root body #hud#hud#hud.yam-prelude #h-prog#h-prog .pg-dots { display:none !important; }
 html:root body #hud#hud#hud.yam-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
+html:root body #hud#hud#hud.yam-goals #h-prog#h-prog #armybar#armybar .gauge.one {
+ display:block !important; grid-column:1 / -1; width:100%;
+}
 html:root body #hud#hud#hud.yam-goals #armybar .clock { visibility:hidden !important; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.yam-goals #armybar { visibility:hidden !important; }
 html:root body #hud#hud#hud.yam-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
@@ -166,6 +172,7 @@ function yamGoalBoard(rt) {
     // 序（備中の本陣と大返し）の間は山崎の目標の並びと両軍の数を出さない（その幕の一行だけ）
     const pre = battle === rt && !rt.flags.stage;
     hud.root.classList.toggle('yam-goals', !pre);
+    hud.root.classList.toggle('yam-prelude', pre);
     if (pre && this.prog) this.prog.classList.remove('goal-mode');
     if (battle === rt) {
       rt.def.goalsAllRows = !pre;
@@ -187,7 +194,7 @@ function yamGoalBoard(rt) {
     rt.def.goalsList = goalsList;
     rt.def.goalsAllRows = true;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
-    hud.root.classList.remove('yam-goals'); style.remove();
+    hud.root.classList.remove('yam-goals', 'yam-prelude'); style.remove();
     return dispose.call(this);
   };
 }
