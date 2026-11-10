@@ -4642,7 +4642,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     rt.after(5, () => {
       if (F.step !== 2 || F.ending || F.onoDone || F.retreatOn) return;
       rt.say('先手組頭', F.reliefOn && gone(F.ono) && !gone(F.relief)
-        ? '庭は取った！　南木戸から道へ戻り、小隊を退けよ'
+        ? F.onoEntered ? '庭の守りは退いた！　南木戸から道へ戻り、小隊を退けよ'
+          : '南木戸から庭へ入れ。道の小隊にも備えよ'
         : F.onoInGarden ? '庭の敵を味方と退けよ。塀の外へ追うな'
           : '谷道を登れ。屋敷の南木戸から入るぞ', 3);
     });
