@@ -4,7 +4,7 @@ export const HIST_OUTCOME = {
   k01_fushimi: { battle: '伏見城 落城', mission: '城で時を稼ぐ' },
   k04_kuisegawa: { battle: '東軍の敗北', mission: '味方を救って退く' },
   k05_ueda: { battle: '上田城攻略 失敗・真田軍 健在', mission: '撤収 成功・西上 開始' },
-  k11_sanadamaru: { battle: '真田丸 攻め落とせず', mission: '兵を退かせる' },
+  k11_sanadamaru: { battle: '真田丸 攻略失敗・徳川軍 撤収', mission: '味方部隊撤収' },
   sanadamaru: { battle: '真田丸 攻め落とせず', mission: '兵を退かせる' },
   mikatagahara: { battle: '会戦 敗北', mission: '家康を生きて帰す' },
   t06_hetsugi: { battle: '会戦 敗北', mission: '生きて退く' },
