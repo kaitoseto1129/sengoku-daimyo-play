@@ -164,7 +164,8 @@ export class Auditor {
       if (!u.alive) { this.last.delete(u); continue; }
       const p = this.last.get(u);
       if (!Number.isFinite(u.pos.x) || !Number.isFinite(u.pos.z)) { this.add('数と文', 'posNaN:' + u.type, '兵の位置が数でない', who(u), '動きの計算で 0 で割っていないか見る', who(u)); continue; }
-      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !u.isPlayer) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
+      // 暗転の場面替え（k15Fade：scene を隠す間に兵を置き直す）は飛びに数えない（11/10 木ノ芽峠の尾根道）
+      if (p && p.appearance === u.appearance && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) > 6 && !u.isPlayer && b.scene?.visible !== false) this.add('辻褄', 'jump:' + u.type, '兵が一息で飛んだ（6m 超）', `${who(u)}：(${Math.round(p.x)},${Math.round(p.z)}) → (${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '位置を直接書き換えている所を探す（出し直し・押し出し）', who(u));
       const lim = b.world.def.moveLim || 176;
       if (Math.abs(u.pos.x) > lim + 0.5 || Math.abs(u.pos.z) > lim + 0.5) this.add('辻褄', 'out:' + u.type, '兵が戦場の外に出た', `${who(u)}：(${Math.round(u.pos.x)},${Math.round(u.pos.z)})`, '行き先を戦場の内側に収める', who(u));
       if (p) { p.x = u.pos.x; p.z = u.pos.z; p.appearance = u.appearance; }

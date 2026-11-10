@@ -1778,6 +1778,19 @@ echizen.setup = function (rt) {
     courtTarget = null;
     // 副郭・主郭を攻略する間も、済んだ木戸内へ引き返さない。
     if (!c) {
+      // 11/10 クラウドの流し（携帯の bot）：副郭から主郭の真ん中へ真っすぐ向けると、副郭の西の塀際で四百秒止まった。
+      //   その郭の口（副郭は南の口・主郭は副郭の北の口）の三歩内側を先に指す
+      const gaps = KINOME_PLAN.kuruwa.find(k => k.id === zone.id)?.gapAt;
+      if (gaps?.length) {
+        let best = Infinity, gx = 0, gz = 0;
+        for (const [x, z] of gaps) { const d = Math.hypot(u.pos.x - x, u.pos.z - z); if (d < best) { best = d; gx = x; gz = z; } }
+        if (best > 4) {
+          courtMouth.x = gx; courtMouth.z = gz + (gz < zone.pos.z ? 3 : -3);
+          const next = rt.world.def.runnerWay(rt.army, u, courtMouth);
+          courtPoint.x = next.x; courtPoint.z = next.z;
+          return courtPoint;
+        }
+      }
       const next = rt.world.def.runnerWay(rt.army, u, zone.pos);
       courtPoint.x = next.x; courtPoint.z = next.z;
       return courtPoint;
@@ -2413,6 +2426,7 @@ echizen.update = function (rt, dt) {
   if (rt.flags.step && !rt.flags.kannonFell && !rt.flags.echGoryu && rt.t - (rt.flags.stepT ?? rt.t) > 70) EC_GORYU.start(rt, echGoryuCtx(rt));
   EC_GORYU.tick(rt, dt);
   EC_KURUWA.tick(rt, dt);   // 届かない守兵が残って郭が落ちない時（echizen/kuruwa.js）
+  EC_KURUWA.roadCut(rt, { below: KZ(-62), at: { x: KX(0), z: KZ(-44) }, ahead: KZ(-41) });   // 観音丸の後の九十九折りを場面替え（echizen/kuruwa.js）
   EC_SEIEI.tick(rt);        // 副郭へ打って出る一揆の精鋭（echizen/seiei.js）
   echizenAdvanceTick(rt);
   const F = rt.flags, u = rt.player.u;
@@ -2955,7 +2969,9 @@ function echizenAdvanceTick(rt) {
   rt.objDone('tail');
   // すぐ結果へ行かず、峠道を追って最後に踏みとどまる一揆勢を崩し、余韻の後で勝ち（echizen/fuchu.js）
   rt.banner(F.echLordDown ? '西光寺真敬、討ち取ったり' : '峠道の殿を破った', '一揆勢は府中へ崩れる');
-  EC_FUCHU.start(rt, { at: { x: KX(0), z: KZ(-60) }, look: IKKO_KOSODE, win: echizenWin });
+  // 11/10 クラウド：九十九折りの上（峠道の分かれ道）に置くと、殿を崩した後に折れ道を六百歩登り直し、刻限の間際（1058秒）だった。
+  //   殿と同じ真っすぐな登りの先（折れ目の手前）で踏みとどまらせる
+  EC_FUCHU.start(rt, { at: { x: EXIT_KANNON[0] + (TAIL_FROM[0] - EXIT_KANNON[0]) * .9, z: EXIT_KANNON[1] + (TAIL_FROM[1] - EXIT_KANNON[1]) * .9 }, back: { x: EXIT_KANNON[0] + (TAIL_FROM[0] - EXIT_KANNON[0]) * .78, z: EXIT_KANNON[1] + (TAIL_FROM[1] - EXIT_KANNON[1]) * .78 }, look: IKKO_KOSODE, win: echizenWin });
 }
 function echizenWin(rt) {
   const F = rt.flags;

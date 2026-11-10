@@ -29,6 +29,8 @@ export function steps(K) {
     K.rest({ dur: 9, heal: 0, fn: (rt) => {
       const F = rt.flags;
       rt._bannerT = rt.t; rt.hud.banner('義景、逃げ延びる', '供わずかに、一乗谷へ');
+      // 右上の一行が済んだ「旗本の返し」のまま残らないよう、次の目当てに替える。
+      F.toneHead = '道に捨てられた朝倉の荷駄を押さえよ';
       if (F.yoshikage?.count) F.yoshikage.speed = 2.6;
     }, say: [['柴田勝家', '……逃したか。だが朝倉の荷駄が道に捨ててある。押さえよ！']] }),
     // 朝倉軍の壊滅：捨てられた荷駄と、守りに残った兵（三千余りが討たれ、荷駄も旗も道に残った）

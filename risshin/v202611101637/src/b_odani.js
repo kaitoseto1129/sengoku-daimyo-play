@@ -2829,6 +2829,12 @@ export function odaniGoalNow(rt) {
 function odaniClimbCleared(rt, distance, guardsGone) {
   const F = rt.flags;
   if (distance < 16) F.belowEntered = true;
+  // 11/10 クラウド：番兵の組が登り口の外で残り続け、谷登りの段が九分止まった（act bot 8→541秒）。
+  //   詰まらない決まり（全滅を条件にしない）：段の始めから二百四十秒、登り口へ来ていれば残る番兵は退き、攻め上る。
+  if (!guardsGone && (F.belowEntered && rt.t - (F.stepT || 0) > 240 || rt.t - (F.stepT || 0) > 360)) {
+    for (const id of AMBUSH_IDS) { const g = F[id]; if (g && g.units) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.focus = null; } }
+    return true;
+  }
   if (!guardsGone) { F.guardsClearT = null; return false; }
   if (F.guardsClearT == null) F.guardsClearT = rt.t;
   return !!F.belowEntered && (distance < 16 || rt.t - F.guardsClearT >= 8);

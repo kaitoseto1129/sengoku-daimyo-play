@@ -2958,8 +2958,12 @@ const tonezaka = {
           // 共通の横並びは曲がった峠道の山腹へ広がる。各組を街道上の縦列に戻し、
           // 本人の到着点を兵の体で塞がないよう、後ろから順に支える。
           const end = along(C.at.x, C.at.z);
+          // 11/10 クラウド：本人がまだ手前にいる時に列を目当ての手前へ並べると、峠の先の細い道で
+          //   本人が味方の縦列に挟まれ、荷駄へ一歩も進めず十三分止まった（act bot・局所 z -158）。列は本人より後ろに置く。
+          const pz = rt2.player?.u ? along(rt2.player.u.pos.x, rt2.player.u.pos.z) : end;
+          const base = Math.max(end + 12, pz + 8);
           ctx.friends(rt2).forEach((g, i) => {
-            const z = end + 12 + i * 16;
+            const z = base + i * 16;
             g.path = null; g.onArrive = null;
             g.formation = 'column'; g.colW = 2; g.width = 5;
             g.facing = Math.PI + TURN;
@@ -2988,7 +2992,14 @@ const tonezaka = {
             const cleared = tick(rt2, C, m, ctx, el, dt);
             // 共通の守備処理が書く残り秒数を、追加した追撃の段にも残さない。
             rt2.objProgress('dp', '');
-            return cleared && near(rt2.player.u.pos, C.at, C.botRadius);
+            if (cleared && near(rt2.player.u.pos, C.at, C.botRadius)) return true;
+            // 11/10 クラウド：狭い坂道の段で本人が目当ての二十歩手前から進めず、十六分止まった（act bot・取り込み後）。
+            //   詰まらない決まり（波に最大の時間）：決めた長さより二分過ぎて本人が三十歩内にいれば、残る組は退き、次の段へ。
+            if (el >= retreatAt + 90 && near(rt2.player.u.pos, C.at, 30)) {
+              for (const g of C.groups) if (!g.routed && fighting(g)) retreat(g);
+              return true;
+            }
+            return false;
           };
         } else {
           const tick = st.tick;

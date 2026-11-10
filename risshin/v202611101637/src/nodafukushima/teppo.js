@@ -98,6 +98,14 @@ export function start(rt, ctx) {
       rt.award((t) => t.side.push('竹束の鉄砲衆を野田砦の槍から守った'), '鉄砲衆を守った', POST);
       rt.say('雑賀の鉄砲衆', '撃ちすくめた！　野田砦の槍が退くぞ！', 3);
     }
+    // 11/10 クラウド：槍が持ち場の外（西の水際）で止まり、追った本人も持ち場を離れて十一分止まった（act bot）。
+    //   詰まらない決まり（波に最大の時間）：段の始めから百六十秒で、槍は砦へ退き、日暮れへ進む。
+    if (S.k === 1 && S.g && rt.t - S.t0 > 160) {
+      S.k = 2; S.okT = rt.t;
+      rt.unmark('nodaTabaFoe');
+      withdraw();
+      rt.say('雑賀の鉄砲衆', '撃ちすくめた！　野田砦の槍が退くぞ！', 3);
+    }
     if (S.k === 2 && rt.t - S.okT > 14 && rt.t - S.t0 > MIN_T) finish();
   };
   function finish() {

@@ -11,7 +11,7 @@ import { dobeiLine, yaguraGate, monomi } from '../castle_parts.js';
 
 function say(rt, who, s, t, sec = 3) {
   const stage = rt.flags.stage;
-  rt.after(t, () => { if (!rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
+  rt.after(t, () => { if (!rt.over && rt.player?.u?.alive !== false && !rt.flags.ending && !rt.flags.transitioning && rt.flags.stage === stage) rt.say(who, s, sec); });
 }
 
 // 床几の将も名前のある本人にする。旗本とは別の一人の組で、幕の内から動かさない。
@@ -120,7 +120,7 @@ export function tickCamp(rt, K) {
     say(rt, '稲葉一鉄', '徳川殿は動かぬ。こちらも動かぬ。根比べよ', 4, 3);
     // 次は鉄砲二列への出撃ではなく、夜討ちの先手から木戸を守る段。
     say(rt, '物見', '小牧山の篝火が動いた。徳川の先手が田へ出て来るぞ！', 8, 3);
-    rt.after(10.5, () => { if (!F.ending && !F.transitioning && F.stage === 1) K.next(); });
+    rt.after(10.5, () => { if (!rt.over && rt.player?.u?.alive !== false && !F.ending && !F.transitioning && F.stage === 1) K.next(); });
   }
 }
 export function towerAt(rt, K) { return rt.flags.fortTower?.foot || { x: K.FORT.x + 22, z: K.GATE.z - 14 }; }
