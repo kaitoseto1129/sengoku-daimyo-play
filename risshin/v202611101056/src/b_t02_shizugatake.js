@@ -598,7 +598,8 @@ const t02_shizugatake = {
   oiFlags(rt, side) {
     for (const f of rt.flags.fallenFortFlags || []) {
       if (f.oiwa) { f.guard.visible = side === 'hashiba'; if (f.sakuma) f.sakuma.visible = side === 'sakuma'; }
-      else if (side !== 'hashiba' || rt.flags.phase >= 3.5) f.guard.visible = side === 'hashiba';
+      // 岩崎山は高山隊が放棄した砦。大岩山だけの奪還で旗を戻さない。
+      else if (side !== 'hashiba') f.guard.visible = false;
     }
     for (const f of rt.flags.sakuForest || []) f.visible = side === 'sakuma';
   },
@@ -1024,7 +1025,13 @@ const t02_shizugatake = {
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '大岩山を取り返し、柴田軍を崩した', pts: 20 }; }, '柴田軍を崩した');
     rt.player.u.invuln = true;
-    for (const g of F.groups) if (live(g) && g.units[0]?.team === 1) { g.order = 'retreat'; g.dest = { x: g.center().x, z: -300 }; g.speed = 3.4; }
+    for (const g of F.groups) if (live(g) && g.units[0]?.team === 1) {
+      // 勝鬨の間も戦場は動く。古い到着処理で攻撃へ戻さず、既に退く隊の道は保つ。
+      if (g.order !== 'retreat' || !g.dest) g.dest = { x: g.center().x, z: -300 };
+      g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null;
+      g.aggro = 0; g.seekRange = 0; g.speed = 3.4;
+      for (const u of g.units) u.noTarget = true;
+    }
     victoryMoment(rt, '勝');
     // 勝鬨の間も操作した向きを保ち、大岩山は自分で振り返って見られる。
     const sec = epilogue(rt, this.ctx(rt));

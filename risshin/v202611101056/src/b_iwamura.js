@@ -1286,7 +1286,7 @@ const iwamura = {
     if (rt.flags.step < 3) return reached ? '柵の内で槍を構えよ' : '柵の内の味方へ下がれ';
     if (reached && !rt.flags.roadFight) {
       if (rt.flags.chaseOffRoad) return '山道へ戻れ';
-      return atFoot(rt.flags, rt.player.u.pos) ? 'ここで麓を守れ' :
+      return atFoot(rt.flags, rt.player.u.pos) ? '搦手道の登り口を守れ' :
         rt.flags.joinOrder ? '道から麓へ戻れ' : '山道から麓へ進め';
     }
     return reached ? '道の上で槍を構えよ' : '道の味方の後ろへ下がれ';
@@ -1294,10 +1294,10 @@ const iwamura = {
   dodgeAvoidNotices: true, // 画面端の回避札も任務や小地図を避ける。
   keepDodgeGuideLabel: true, // 画面外でも、何をよけるかを歩数だけに置き換えない。
   // 槍の構えで矢は防げない。よけた後も、矢をやり過ごす下知を残す。
-  rainDodgeGuideLabel: (_rt, reached) => reached ? 'ここで矢をやり過ごせ' : '矢の外へよけよ',
+  rainDodgeGuideLabel: (_rt, reached) => reached ? '矢をやり過ごせ' : '矢の外へよけよ',
   dodgeGuideLabel: (_rt, reached, rain) => rain
-    ? reached ? 'ここで矢をやり過ごせ' : '矢の外へよけよ'
-    : reached ? 'ここで構えよ' : '道へよけよ',
+    ? reached ? '矢をやり過ごせ' : '矢の外へよけよ'
+    : reached ? '道の上で構えよ' : '道へよけよ',
   // 指の動かし方だけで行き先を消さず、柵・道・矢を避ける先を一緒に示す。
   dodgeMoveLabel: (rt, side, rain) => `${rain ? '矢の外へ' : rt.flags.step < 3 ? '柵の内へ' : '道へ'} ${side}になぞる`,
   dodgeTurnLabel: (_rt, right, touch) => touch ? 'なぞって振り向く' : `${right ? '右' : '左'}へ動かして振り向く`,
@@ -2699,8 +2699,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       let joined = 0, available = 0, recovering = 0, nextAllyDistance = Infinity, nextAlly = null;
       let joinFighting = false;
       for (const g of F.joinGroups) if (!gone(g)) for (const u of g.units) {
-        // 後送中の深手の兵には、麓で並び直す役目を負わせない。
-        if (u.alive && !u.isPlayer && !u.noTarget && !u.fleeing && !u.woundOut && !u.rearWound) {
+        // 後送中や戦場を離れた兵には、麓で並び直す役目を負わせない。
+        if (u.alive && !u.gone && !u.isPlayer && !u.noTarget && !u.fleeing && !u.woundOut && !u.rearWound) {
           // 倒れた兵は起きる余地がある。後送された兵の到着は待たない。
           if (u.downed) { recovering++; continue; }
           available++;
@@ -3517,11 +3517,11 @@ iwamura.history = '天正三年、織田信忠は秋山虎繁らの守る岩村�
 // 左右の柵は端へ向けて南へ傾く。内側に一歩残して槍を届かせる。
 function fencePostZ(x) { return FENCE_Z + Math.max(0, Math.min(52, Math.abs(x) - 8)) * 4 / 52 + 1; }
 function chaseReady(u) {
-  return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget;
+  return u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget;
 }
 // 行軍できるかと、押し返されたかは別。一時的な転倒で城兵の損失を水増ししない。
 function sallyStanding(u) {
-  return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
+  return u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
 }
 // 出発後に先頭が倒れた時も、次の兵が列の先へ歩ける持ち場にする。
 // 空いた先頭を残すと、後列待ちを助ける五メートル内に誰も来なくなる。
@@ -3654,7 +3654,7 @@ function guideRaidMouth(rt) {
 function roadEnemy(u, atFoot = false, footY = u.pos.y) {
   // 後送中の深手や倒れて討死の動きに入った兵へ、追い討ちを命じない。
   // 一時的に転んだ兵は起きて戦えるため、引き続き任務に数える。
-  return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget && !u.group?.iwWithdraw &&
+  return u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget && !u.group?.iwWithdraw &&
     // 到着後は城側から麓へ迫る兵も受ける。坂の上や柵の残兵は追わない。
     (atFoot ? Math.hypot(u.pos.x - FOOT.x, u.pos.z - FOOT.z) < 16 && Math.abs(u.pos.y - footY) < 3
       : u.pos.z > FOOT.z - 4 && Math.abs(u.pos.x) < 30);

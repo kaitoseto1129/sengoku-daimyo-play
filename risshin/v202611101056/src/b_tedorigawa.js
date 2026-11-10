@@ -2225,6 +2225,8 @@ const tedorigawa = {
   timeslip: {
     // poolDim：雨夜の草地で水たまりが白い雪の染みに見えないよう映りを落とす。
     wet: 1, pools: 2.2, poolDim: 0.42, dust: 0, trample: 0.35, debris: 1, arrows: 0.7, reeds: 1,
+    // 川辺は riverBanks・riverRear の細い茎を使う。共通の幅広い板草を重ねない。
+    noGrass: (x, z) => distToPolyline(x, z, RIVER) < 36 || distToPolyline(x, z, CHANNEL) < 14,
     grass: 0x8c8656, grassTints: [0xffffff, 0xe0d4a8, 0xc8bc8c], grassH: 1.05, tallGrass: 0.8,
     flagColors: [0xe2ded2, 0x24221e, 0x2e3a5a],
     fights: () => [[RG.x, RG.z, 30], [PUSH.x, PUSH.z, 30], [FORD.x, FORD.z, 22], [SOUTH.x, SOUTH.z, 24]],
@@ -3263,11 +3265,14 @@ const tedorigawa = {
       for (const u of rt.army.units) {
         if (!u.alive || u.gone || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.group?.routed) continue;
         // 出発前の控えに近づいても、追手が迫った知らせや退く下知を先走らせない。
-        if (!this.enemySignVisible(rt, u)) continue;
+        if (u.group?.tedoFrom && !u.group.tedoActive) continue;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
-        if (d < 60) { if (u.team === 0) allies++; else if (u.team === 1) foes++; }
-        if (u.team === 1 && d < 25) F.nearThreat = true;
-        if (u.team === 1 && d < 12) openingThreat = true;
+        // 見える戦力の知らせだけ画面の見通しに従う。背後の声と蹄まで消さない。
+        if (this.enemySignVisible(rt, u)) {
+          if (d < 60) { if (u.team === 0) allies++; else if (u.team === 1) foes++; }
+          if (u.team === 1 && d < 25) F.nearThreat = true;
+          if (u.team === 1 && d < 12) openingThreat = true;
+        }
         // 戦力の数え方は保ち、倒れた兵だけは声と馬の音の発信元から外す。
         if (u.downed || u.rearWound) continue;
         // 持ち場へ着く前と渡河中にも、近づいた追手の声は背後から届く。
