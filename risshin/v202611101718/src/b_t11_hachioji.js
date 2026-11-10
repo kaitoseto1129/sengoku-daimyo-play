@@ -578,6 +578,7 @@ const t11_hachioji = {
   keepBattleSigns: true,   // 行き先の印が出ている間も、両軍の人数の棒と武将の名札を隠さない。
   enemySignMinPixels: 28,   // 普通の敵も大きな赤い▼。共通の最後の縮小で小さな所属印へ戻さない。
   ownEnding: true,   // 終幕の段で落城を見せるため、共通の落城場面を重ねない。
+  namedKillCompletesObjectives: false,   // 将の討取りだけで札を済ませず、曲輪への到着・守備の撃退・最後の返答を各段で確かめる。
   goalVisibleRows: 5, goalRowsAhead: true,   // 始めから今の五件を並べ、後半も現在の目標と続きの場所・行いを残す
   waitForPortrait: true,   // 顔を撮れるまで影の顔を出さず、本人の顔だけを一度表示する（critic60 五6）。
   clampCamera(rt, camera) {
