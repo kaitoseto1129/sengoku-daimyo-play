@@ -515,7 +515,8 @@ const k09_imafuku = {
     //   （先手は砦の段で討ち減らされ、反撃の段は本人がほとんど一人で受けていた。九4）
     const ni = allyGroup(rt, { faction: 'tokugawa', name: '佐竹の二の備', anchor: { x: KEEP.x + 60, z: 0 }, facing: WESTWARD, width: 7, aggro: 10, speed: 3.4, morale: 90, noRout: true, formation: 'column' },
       dress([uS(4), uA(24), uG(6)], SATAKE).map(kasa));
-    ni.mon = 'satake'; ni.defMult = 1.8; ni.order = 'move'; ni.dest = { x: KEEP.x + 6, z: 0 }; ni.anchor = { x: KEEP.x + 6, z: 0 };
+    // 隊の要も東の出発点から進める。先に到着点へ移すと、列が追いつく前に砦へ集まった扱いになる。
+    ni.mon = 'satake'; ni.defMult = 1.8; ni.order = 'move'; ni.dest = { x: KEEP.x + 6, z: 0 };
     F.reinf = [ni];
   },
 

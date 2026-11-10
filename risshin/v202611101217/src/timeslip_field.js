@@ -525,7 +525,8 @@ export function timeslipField(rt) {
         if (!ts.laySpear || ts.laySpear(W, sx, sz, rot, m)) { put(P.spear, m); blot(sx, sz, rot, 5.2, 0.4, 2.45, 0.3); }
       }
       if (r(21) < 0.2 * db * (ts.arrows ?? 1)) { const ax = (i + r(22)) * CELL, az = (j + r(23)) * CELL; put(P.arrow, lay(ax, az, r(24) * 6.28, 1, 1, 1, -0.05)); }
-      if (r(25) < 0.04 * db) {
+      // 笠を落とさない戦では、飾りの笠も地面へ戻さない（杭瀬川の首に見える物）。
+      if (W.def.hatDropRate !== 0 && r(25) < 0.04 * db) {
         const kx = (i + r(26)) * CELL, kz = (j + r(27)) * CELL, kr = r(28) * 6.28;
         put(P.kasa, lay(kx, kz, kr, 1, 1, 1, -0.02, 0.35, 0.35)); blot(kx, kz, kr, 1.0, 1.0, 0.35, 0.35);
       }
