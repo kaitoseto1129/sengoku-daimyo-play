@@ -8,10 +8,10 @@ import { allyGroup } from '../bhelp.js';
 export function start(rt, K) {
   const F = rt.flags, P = rt.player.u.pos;
   // 池田の落ち武者（傷を負い、指物を捨てて逃げる）。主人公の少し西から細ヶ根へ
-  F.ochi = allyGroup(rt, { name: '池田勢の落ち武者', fullStrength: true, anchor: { x: P.x - 8, z: P.z - 4 }, facing: -Math.PI / 2, width: 4, formation: 'column', aggro: 2, seekRange: 4, speed: 2.6, order: 'move', noRout: true, dmgMult: 0.5 },
+  F.ochi = allyGroup(rt, { name: '池田勢の落ち武者', fullStrength: true, anchor: { x: P.x - 8, z: P.z - 4 }, facing: -Math.PI / 2, width: 4, formation: 'column', aggro: 2, seekRange: 4, speed: 2.6, order: 'move', march: true, noAI: true, noRout: true, dmgMult: 0.5 },
     K.fl([{ type: 'samurai', n: 2, o: { flag: null } }, { type: 'ashigaru', n: 8, o: { flag: null } }], 'ageha'));
   F.ochi.dest = { x: K.EXIT.x + 6, z: K.EXIT.z };
-  F.ochi.onArrive = (q) => { q.order = 'hold'; };
+  F.ochi.onArrive = (q) => { q.march = false; q.order = 'hold'; };
   for (const u of F.ochi.units) { u.hp = Math.min(u.hp, u.maxHp * 0.6); u.invuln = false; }
   F.ochiN0 = F.ochi.units.length;
   rt.after(4, () => rt.say('池田の足軽', 'お助けを……！　足が、もう……', 2.8));
@@ -21,6 +21,17 @@ export function start(rt, K) {
 // 退き切ったか（主人公が細ヶ根に着き、落ち武者も着くか散るか、時が経った）
 export function done(rt, K, atGoal, el) {
   const F = rt.flags;
+  // 追撃は百五十秒まで。遠方の追手や兵数の枠待ちで、細ヶ根に着いた主人公を刻限まで待たせない。
+  // 時間だけで達成にせず、追手が実際に退く下知と、主人公の到着をそろえる。
+  if (el >= 150 && !F.pursuitClosed) {
+    F.pursuitClosed = true;
+    for (const g of F.waves) if (K.live(g)) {
+      g.noAI = true; g.focus = null; g.order = 'retreat';
+      g.dest = { x: 170, z: 60 }; g.aggro = 0; g.seekRange = 0;
+      for (const u of g.units) { u.target = null; u.watch = null; }
+    }
+    rt.say('使番', '赤備えが追撃をやめ、御旗山の方へ退いておりまする！', 3);
+  }
   // 出しただけの追手が遠方に残っていても「追われて退いた」事にはしない。
   // 途中で迫った事は覚え、振り切った後に敵へ戻る必要は無くす。
   if (!F.pursuitMet) for (const g of F.pursuit || []) {
@@ -30,7 +41,9 @@ export function done(rt, K, atGoal, el) {
     }
   }
   // 兵の枠が埋まり追手を出せなかった回は、次の出現を待つ。追われずに達成させない。
-  if (!atGoal || el < 110 || !F.pursuit?.length) return false;
+  if (!atGoal || el < 110) return false;
+  if (F.pursuitClosed) return true;
+  if (!F.pursuit?.length) return false;
   // 堀の殿などが追手を全て討ち取った場合も退き切れる。
   if (!F.pursuitMet && F.pursuit.some((g) => K.live(g))) return false;
   const c = K.live(F.ochi) ? F.ochi.center() : null;

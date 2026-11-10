@@ -2610,8 +2610,7 @@ const tennoji = {
     // 11/8 critic60 tennoji（一2）：籠城の組の一人は砦の中で馬に乗らない。信長として遊ぶ時（後詰の大将）だけ馬上で出る
     if (!rt.G.lord) {
       const P = rt.player;
-      // 11/8 関所：二キロ余りの追撃（段5）では馬へ戻す（徒歩では十五分で城戸口に着かない）。それまで馬は預けておく
-      rt.flags.keptRide = { horse: P.mounted ? P.horse : null, can: P.canRide, may: P.mayRide };
+      // 城戸口までの道は徒歩で追える長さ。追撃でも籠城兵のまま進み、馬上へ自動で替えない。
       if (P.mounted) { rt.army.setMounted(P.u, false); P.mounted = false; P.horse = null; P.loose = null; P.hspd = 0; P.u.pos.y = W.heightAt(P.u.pos.x, P.u.pos.z); }
       P.canRide = P.mayRide = P.u.mayRide = false;
     }
@@ -3586,13 +3585,6 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     if (F.step >= 4) return;
     F.step = 4; F.stepT = rt.t; F.secured = 0;
     rt.setPhase('chase');
-    // 11/8 関所：砦を出た追撃では、預けた馬へ戻す（籠城の間だけ徒）
-    const K = F.keptRide, P = rt.player;
-    if (K && P.u.alive) {
-      P.canRide = K.can; P.mayRide = P.u.mayRide = K.may;
-      if (K.horse && !P.mounted) { P.horse = K.horse; P.horse.visible = true; rt.army.setMounted(P.u, true, P.horse); P.mounted = true; P.mountT = 0.5; P.hspd = 0; }
-      F.keptRide = null;
-    }
     rt.unmark('sortieWay');
     for (let i = 0; i < F.last.length; i++) rt.unmark('sortieEnemy' + i);
     for (let i = 1; i <= 3; i++) rt.unmark('l' + i);

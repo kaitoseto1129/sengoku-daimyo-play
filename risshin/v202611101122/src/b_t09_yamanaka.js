@@ -132,6 +132,20 @@ function shojiH(x, z, S = SHOJI) {
   return -Math.max(0, dig);
 }
 const inShoji = (x, z, pad = 0, S = SHOJI) => x > S.x0 - pad && x < S.x1 + pad && z > S.z0 - pad && z < S.z1 + pad;
+// 土橋へ向かう途中で対岸の敵を見つけても、畝堀を斜めに横切って追わない。
+// 攻撃の間合いに入った敵は迎え撃てるよう、移動が要る時だけ使う。
+function crossesDaiMoat(a, b) {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  for (const S of SHOJI_DAI) {
+    let lo = 0, hi = 1;
+    if (dx === 0) { if (a.x <= S.x0 || a.x >= S.x1) continue; }
+    else { const t0 = (S.x0 - a.x) / dx, t1 = (S.x1 - a.x) / dx; lo = Math.max(lo, Math.min(t0, t1)); hi = Math.min(hi, Math.max(t0, t1)); }
+    if (dz === 0) { if (a.z <= S.z0 || a.z >= S.z1) continue; }
+    else { const t0 = (S.z0 - a.z) / dz, t1 = (S.z1 - a.z) / dz; lo = Math.max(lo, Math.min(t0, t1)); hi = Math.min(hi, Math.max(t0, t1)); }
+    if (lo < hi) return true;
+  }
+  return false;
+}
 function height0(x, z) {
   let h = kuruwaH(x, z, NAT(x, z)) + SP_H(x, z);
   for (const S of ALL_HORI) h += shojiH(x, z, S);
@@ -941,6 +955,7 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 切岸の上や柵の向こうへ斬り掛からず、味方と同じ虎口・土橋を通る。
   const inUne = (q) => q.x > -28 && q.x < -11 && q.z > 138 && q.z < 212 && (q.z < 170 || q.z > 182);   // 出丸の脇の畝堀の中
   const e = b.army.nearestEnemy(u, F.step === 2 ? 3.5 : 12, (o) => !o.fleeing && !o.isStruct && !(F.step === 1 && inUne(o.pos)) &&
+    !(F.step === 1 && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) > 2.4 && crossesDaiMoat(u.pos, o.pos)) &&
     Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos, p.weapon === 'spear'));
   if (F.step === 2 && !e) {
     inp.guardHold = false;
