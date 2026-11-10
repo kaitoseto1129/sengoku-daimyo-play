@@ -973,7 +973,9 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
           rt.objProgress('dp', '真田丸の柵前で退路を確かめよ');
           return el > 70 && Math.hypot(p.x - C.at.x, p.z - C.at.z) < 7;
         }
-        rt.objProgress('dp', `整理した組 ${C.n}/${F.jam.length}`);
+        // 全滅・敗走した組は整理の対象に残さず、今の達成条件と同じ残り数を示す。
+        const remaining = left.filter((g) => !g.tidied).length;
+        rt.objProgress('dp', `整理した組 ${C.n}/${C.n + remaining}`);
         return el > 70 && left.every((g) => g.tidied);
       },
       end(rt) { rt.unmark('dp'); rt.objDone('dp'); },
