@@ -3012,6 +3012,7 @@ const hiei_mtn = {
     hazeColor: 0x99958b,
     noArrowRain: true,     // 三人の弓から数十本を追加しない。実際に射る矢の攻撃と遮蔽は残す。
     noHorse: true,         // 軍勢の自動乗馬も止める。狭い本坂は供・新手とも徒歩で登る。
+    playerHorse: true,     // kaito 11/9：組頭以上には自分の馬。軍勢の徒歩とは分ける。
     autumn: true,          // 旧暦九月
     wind: [-0.86, -0.4],   // 当日の風向は不明。復元の湖から山へ吹き上げる風（火は西・北西へ広がる）
     muddy: 0.15,
@@ -3087,6 +3088,12 @@ const hiei_mtn = {
   },
 
   setup(rt) {
+    // 麓では自分の馬を傍らに置き、本坂へはこれまで通り徒歩で出る。
+    if (rt.player.mounted) {
+      rt.player.toggleMount(true);
+      // 支度の直後に馬の横へ立っていても、自動では乗り直さない。
+      if (!rt.player.mounted) rt.player.autoMountAt = Infinity;
+    }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world;
     const F = rt.flags;
