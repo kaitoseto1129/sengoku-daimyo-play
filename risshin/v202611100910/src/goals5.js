@@ -197,14 +197,15 @@ const OWN = {
     //   右上の一行（b_miki の GOAL_LINES）と同じ字。全部果たすまで勝ちにしない
     const F = (rt) => rt.flags, at = (k) => (rt) => rt.def.mikiAt?.[k] || null, L = rt0 => rt0.def.missions;
     const foeOf = (rt) => (F(rt).reserve?.units || []).filter((u) => u.name !== '別所甚太夫' && (!rt.def.omuraFoe || rt.def.omuraFoe(u)));
+    const defeated = (rt, u) => rt.def.omuraDefeated(u);
     return [
       { kind: 'stage', k: 0, text: '大村道で、毛利の荷駄の護衛を討つ', textOf: (rt) => L(rt)[0], noun: '荷駄の護衛', place: at('escort'), check: (rt) => won(rt) || !!F(rt).dropped || (F(rt).step || 0) >= 2,
         groups: (rt) => [F(rt).escort].filter(Boolean) },
       { kind: 'stage', k: 1, text: '平田の木戸で、城から出た別所勢を止める', textOf: (rt) => L(rt)[1], noun: '平田の木戸', place: at('gate'), check: (rt) => won(rt) || (F(rt).step || 0) >= 2,
         groups: (rt) => F(rt).sallies || [] },
       { kind: 'stage', k: 2, text: '大村坂の下で、駆けつけた秀吉の手と並ぶ', textOf: (rt) => L(rt)[2], noun: '大村坂の下', place: at('foot'), check: (rt) => won(rt) || !!F(rt).omuraGo },
-      { kind: 'stage', k: 2, text: '大村坂で、別所三太夫の勢を討つ', textOf: (rt) => L(rt)[3], noun: '別所三太夫の勢', place: at('omura'), check: (rt) => won(rt) || (!!F(rt).omuraGo && foeOf(rt).every((u) => !u.alive || (!u.name && u.noTarget))),
-        count: (rt) => { const us = foeOf(rt); return us.length ? [us.filter((u) => !u.alive || (!u.name && u.noTarget)).length, us.length] : null; } },
+      { kind: 'stage', k: 2, text: '大村坂で、別所三太夫の勢を討つ', textOf: (rt) => L(rt)[3], noun: '別所三太夫の勢', place: at('omura'), check: (rt) => won(rt) || (!!F(rt).omuraGo && foeOf(rt).every((u) => defeated(rt, u))),
+        count: (rt) => { const us = foeOf(rt); return us.length ? [us.filter((u) => defeated(rt, u)).length, us.length] : null; } },
       { ...bossGoal('別所甚太夫'), k: 2, textOf: (rt) => L(rt)[4], place: at('omura'), check: (rt) => !!F(rt).jintTaken },
     ];
   },

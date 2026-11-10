@@ -21,7 +21,7 @@ import { plumeTuftGeo, plumeTuftMat } from './world_grass.js';
 import { goten } from './castle_parts.js';
 import { tabaGeo } from './taketaba.js';
 import { timeslipField } from './timeslip_field.js';
-import { sightUnit } from './battle_sight.js';
+import { sightUnit, sightPoint } from './battle_sight.js';
 import { leafTex } from './nature.js';
 import { rockShape, rockTuftShape } from './rock_shape.js';
 import { flagTexture, drawMon, sharedFlagResources } from './textures.js';
@@ -79,6 +79,13 @@ const TOKU = { flag: 'tokugawa' };
 // 遠景の背旗は三人に一人ほど。全員の背を幟で埋めず、列と兵の間を見せる。
 // 史料上の携行率ではなく見通しの調整。隊の大旗・本物の兵・人数は保つ。
 const MIKATA_FLAG_RATE = 0.32;
+// 台地や陣幕の向こうへ印だけを浮かせない。見通しは主人公でなく実際のカメラから胴へ取る。
+function mikataEnemySignVisible(rt, u) {
+  if (!u?.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget ||
+      u.isStruct || u.civ || u.team === rt.player.u.team || u.team > 1 || !u.mesh || u.camHidden) return false;
+  for (let part = u.mesh; part; part = part.parent) if (!part.visible) return false;
+  return sightPoint(rt, u.pos, 170, true, u.mounted ? 2 : 1.2);
+}
 // 落ちた槍の握りは中央ではない。実際の石突と穂先から坂の傾きを取る。
 function fallenSpear(army, u) {
   const w = u.dropped;
@@ -1198,6 +1205,7 @@ function mikataBoard(rt) {
       // 遠くても映っている実兵には印を付ける。画面外を先に除き、見通しの計算は増やさない。
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      if (!mikataEnemySignVisible(rt, u)) continue;
       if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
       if (!u._mkSeen) continue;
       let el = tris[n];
@@ -1229,6 +1237,8 @@ const mikatagahara = {
   missionSingleLine: true,
   hideMissionDots: true,
   enemyTriangleSigns: true,
+  enemySignVisible: mikataEnemySignVisible,
+  sightFromCamera: true,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   noPlayerFoot: true,

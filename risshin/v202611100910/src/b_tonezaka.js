@@ -114,6 +114,19 @@ function toneAdvanceCue(rt, kind, source) {
 // 足軽大将ほどの身分：馬廻の足軽の一手を預かり、信長の脇を固めて追う
 const hi = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
 
+// 戦えない負傷者と討死を取り違えない。片付け後も保管した本人の状態で知らせる。
+function toneRearReport(F) {
+  const dead = (F.rearChiefs || []).filter((u) => u.alive === false && u.hp <= 0);
+  return dead.length ? {
+    title: dead.length === 2 ? '朝倉の重臣、次々討死' : '朝倉の重臣、討死',
+    detail: dead.map((u) => u.name).join('・') + 'が坂に倒れる',
+    voice: '朝倉の殿を突き破った。名のある者も討たれた。義景を逃がすな！',
+  } : {
+    title: '朝倉の殿を突き破る', detail: '山崎吉家・斎藤龍興の手は戦えぬ',
+    voice: '朝倉の殿を突き破った。道をたどれ。義景を逃がすな！',
+  };
+}
+
 // 構えを切り替える設定と、押し続ける設定で、札と急ぎの台詞をそろえる。
 function toneGuardAction() {
   return isTouch ? '「構える」を押せ'
@@ -2674,6 +2687,7 @@ const tonezaka = {
       // 11/3 b100：龍興は朝倉の客将として朝倉の陣にいた。旗はこの戦の家（織田・朝倉）だけにする。
       dress([A(16), S(2)], ASA));
     F.r3c = lastStand('斎藤龍興', at(6, -96));
+    F.rearChiefs = [F.r2c, F.r3c].map((g) => g.units.find((u) => u.type === 'busho')).filter(Boolean);
     // 11/6 fix61（Z8）：詫美越後守は刀根坂を生き延び、疋壇城から朝倉景健らと逃れた。討てる将にせず、殿が崩れれば退く。
     F.r4 = foe('詫美越後守の殿', at(-4, -142), [A(18), S(3), chief('詫美越後守', true, true), S(3)]);
     F.roadG = enemyGroup(rt, { fixed: true, noAI: true, faction: 'asakura', name: '街道で向き直る朝倉勢', anchor: { ...STREET }, facing: -Math.PI / 2 + TURN,
@@ -3057,8 +3071,8 @@ const tonezaka = {
     if (!F.fallTold) {
       F.fallTold = true;
       // 11/6 fix61（Z1）：共通の見届けの取り次ぎに回ると、坂にいる本人にも重臣の討死が届かなかった。目の前の事なのでその場で大きく出す。
-      rt.after(2, () => { if (!F.ending && !rt.over) { rt._bannerT = rt.t; rt.hud.banner('朝倉の重臣、次々討死', '山崎吉家・斎藤龍興が坂に倒れる'); } });
-      rt.after(6, () => { if (!F.ending) rt.say('柴田勝家', '朝倉の列は崩れた。名のある者が次々討たれておる。義景を逃がすな！', 4); });
+      rt.after(2, () => { if (!F.ending && !rt.over) { const report = toneRearReport(F); rt._bannerT = rt.t; rt.hud.banner(report.title, report.detail); } });
+      rt.after(6, () => { if (!F.ending && !rt.over) rt.say('柴田勝家', toneRearReport(F).voice, 4); });
       rt.after(13, () => { if (!F.ending) rt.say('滝川一益', '義景の旗が峠を越えた。一乗谷へ逃げる気じゃ', 3.5); });
     }
   },
