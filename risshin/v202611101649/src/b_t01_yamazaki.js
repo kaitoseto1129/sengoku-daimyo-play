@@ -728,6 +728,13 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   const F = b.flags, p = b.player, u = p.u;
   if (!u.alive || F.ending || F.holdPlayer) return;
   if (!F.stage && !F.pro) return;
+  // 八割を破れば門前への到着で果たせる。散った残兵を追い続けて門から離れない。
+  if (F.stage === 7 && (F.pStep || aliveN(F.rearGs) <= Math.max(2, allN(F.rearGs) * 0.2))) {
+    inp.guardHold = false;
+    if (F.pStep) inp.k.delete('KeyW');
+    else goTo(p, inp, Pursuit.GATE.x, Pursuit.GATE.z, 2.5);
+    return;
+  }
   const ok = (o) => !o.fleeing && !o.noTarget && !o.invuln && !o.group?.routed && Math.abs(o.pos.y - u.pos.y) < 3;
   // ①は高山の陣の右の持ち場で受ける（逃げる斎藤勢を追って川の北へ一人で深入りしない。遊ぶ人も行き先の▼の所で戦う）
   //   ④の立て直しも中央の岸で受ける（寄せる旗本を追って岸を離れると、食い止めた時が数えられない）

@@ -4249,7 +4249,8 @@ function kgPartDrawn(part, mesh) {
 // 頭上だけが斜面や柵を越えても印を浮かせない。体の見通しを地面と壁で確かめる。
 function kgSignSeen(rt, u) {
   const a = rt.camera.position, W = rt.world, by = u.pos.y + (u.mounted ? 2.2 : 1.2);
-  const d = Math.hypot(u.pos.x - a.x, u.pos.z - a.z), steps = Math.max(2, Math.min(24, Math.ceil(d / 5)));
+  // 五ｍ間隔では細い尾根の両側だけを調べ、陰の兵に印が浮いていた。
+  const d = Math.hypot(u.pos.x - a.x, u.pos.z - a.z), steps = Math.max(2, Math.min(128, Math.ceil(d)));
   for (let i = 1; i < steps; i++) {
     const t = i / steps;
     if (W.heightAt(a.x + (u.pos.x - a.x) * t, a.z + (u.pos.z - a.z) * t) > a.y + (by - a.y) * t - 0.2) return false;
@@ -4282,18 +4283,24 @@ function kgFoeSigns(rt) {
     cam.updateMatrixWorld();
     // 視点が岩や坂の陰へ動いた時は、前の見通しの一覧を使わない。
     // 静止中は従来どおり五分の一秒ごと。座標だけを控え、毎コマの配列は増やさない。
-    const a = cam.position;
+    const a = cam.position, q = cam.quaternion;
     const moved = F.foeSignX === undefined ||
       (a.x - F.foeSignX) ** 2 + (a.y - F.foeSignY) ** 2 + (a.z - F.foeSignZ) ** 2 > .25;
-    if (moved || rt.t >= F.foeSignAt || rt.t < F.foeSignAt - .25) {
+    const turned = F.foeSignQw === undefined || Math.abs(q.x * F.foeSignQx + q.y * F.foeSignQy +
+      q.z * F.foeSignQz + q.w * F.foeSignQw) < Math.cos(Math.PI / 180);
+    if (moved || turned || rt.t >= F.foeSignAt || rt.t < F.foeSignAt - .25) {
       F.foeSignAt = rt.t + .2;
       F.foeSignX = a.x; F.foeSignY = a.y; F.foeSignZ = a.z;
+      F.foeSignQx = q.x; F.foeSignQy = q.y; F.foeSignQz = q.z; F.foeSignQw = q.w;
       const list = F.foeSignList; list.length = 0;
       for (const u of rt.army.units) {
         if (u.team === me.team || u.team > 1 || !u.alive || u.dying || u.gone || u.downed || u.woundOut || u.isStruct || u.civ ||
           u.type === 'dummy' || u.type === 'porter' || !kgSignDrawn(u)) continue;
         const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
-        if (d2 > KG_FOE_SIGN_R * KG_FOE_SIGN_R || !kgSignSeen(rt, u)) continue;
+        if (d2 > KG_FOE_SIGN_R * KG_FOE_SIGN_R) continue;
+        // 画面外の兵には細かな地形照合を行わず、携帯の負担を抑える。
+        kgSignV.set(u.pos.x, u.pos.y + (u.mounted ? 3.3 : 2.35), u.pos.z).project(cam);
+        if (kgSignV.z < -1 || kgSignV.z > 1 || Math.abs(kgSignV.x) > 1 || Math.abs(kgSignV.y) > 1 || !kgSignSeen(rt, u)) continue;
         u._kgSignD = Math.sqrt(d2); list.push(u);
       }
       list.sort((a, b) => a._kgSignD - b._kgSignD);
