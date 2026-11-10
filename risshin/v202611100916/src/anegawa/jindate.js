@@ -59,7 +59,12 @@ export function install(rt, ctx) {
     rt.marker('aneScout', () => { if (g.routed || !g.units.some((u) => u.alive && !u.gone && !u.fleeing)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '浅井の物見', { red: true, group: g });
     rt.army.play('eshout', { x, z }, 1.2);
     rt.say('足軽', '浅井の物見が瀬を渡って来るぞ！　鉄砲を持っておる！', 3);
-    rt.after(3.5, () => live() && rt.say('森可成', '岸へ上げるな。槍で追い返せ！', 3));
+    rt.after(3.5, () => {
+      // 先に追い返した物見や、入れ替わった前の隊への下知を遅れて出さない。
+      if (!live() || S.k !== 2 || S.g !== g || g.routed || g.order === 'retreat' || g.order === 'flee' ||
+          !g.units.some(scoutActive)) return;
+      rt.say('森可成', '岸へ上げるな。槍で追い返せ！', 3);
+    });
   }
 
   // 毎コマ（b_anegawa.js の update から）

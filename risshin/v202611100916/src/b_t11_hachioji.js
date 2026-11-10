@@ -234,6 +234,8 @@ function hachiojiWay(army, u, want) {
 // 味方の組を、谷の道と尾根の道の曲がり角を順にたどって段の場所へ（11/4：攻める号令のままでは山下曲輪の柵に掛かって寄せ口に残った）。
 //   細い道は二列の縦隊で歩き、着いたら槍の備に組み直して段の敵へかかる
 const RG = { d: 0, s: 0, x: 0, z: 0 };
+// 退場済み・敗走中・重傷の兵は、そばで戦える味方にも呼び戻す兵にも数えない。
+const canRejoin = (u) => u.alive && !u.isPlayer && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.downed;
 const REJOIN_SPHERE = new THREE.Sphere(new THREE.Vector3(), 5);
 function unseenRejoin(rt, x, z) {
   if (!rt.frustum || Math.hypot(x - rt.player.u.pos.x, z - rt.player.u.pos.z) < 28) return false;
@@ -788,7 +790,7 @@ const t11_hachioji = {
       F.unstuckT = rt.t + 2;
       const P = rt.player.u.pos;
       for (const g of [F.saki, F.mine, F.ni]) if (g && g.count && !g.routed) for (const u of g.units) {
-        if (!u.alive || u.fleeing || u.isPlayer) continue;
+        if (!canRejoin(u)) continue;
         const k = u._t11Stay || (u._t11Stay = { x: u.pos.x, z: u.pos.z, t: rt.t });
         if (Math.hypot(u.pos.x - k.x, u.pos.z - k.z) > 1.5) { k.x = u.pos.x; k.z = u.pos.z; k.t = rt.t; continue; }
         if (rt.t - k.t < 12 || u.target) continue;
@@ -805,7 +807,7 @@ const t11_hachioji = {
       F.catchT = rt.t + 3;
       const P = rt.player.u.pos;
       let near = 0;
-      for (const g of [F.saki, F.mine, F.ni]) if (g) for (const u of g.units) if (u.alive && !u.isPlayer && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 25) near++;
+      for (const g of [F.saki, F.mine, F.ni]) if (g && !g.routed) for (const u of g.units) if (canRejoin(u) && Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 25) near++;
       if (near < 4) {
         routeAt(P.x, P.z, RG);
         let bx = RG.x, bz = RG.z, back = 35;
@@ -816,8 +818,8 @@ const t11_hachioji = {
           bx += dx / len * step; bz += dz / len * step; back -= step;
         }
         let moved = 0;
-        for (const g of [F.saki, F.mine, F.ni]) if (g && g.count) for (const u of g.units) {
-          if (moved >= 8 || !u.alive || u.fleeing || u.isPlayer || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50 || !unseenRejoin(rt, u.pos.x, u.pos.z)) continue;
+        for (const g of [F.saki, F.mine, F.ni]) if (g && g.count && !g.routed) for (const u of g.units) {
+          if (moved >= 8 || !canRejoin(u) || u.target || Math.hypot(u.pos.x - P.x, u.pos.z - P.z) < 50 || !unseenRejoin(rt, u.pos.x, u.pos.z)) continue;
           // 散らす前の中心だけでなく、実際に戻す場所が見えないことを確かめる。
           const x = bx + (Math.random() - 0.5) * 4, z = bz + (Math.random() - 0.5) * 4;
           if (!unseenRejoin(rt, x, z)) continue;

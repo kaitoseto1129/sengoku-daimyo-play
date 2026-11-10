@@ -483,11 +483,11 @@ const t03_komaki = {
       retreatGunLine(F.guns, F.gunsN);
       retreatGunLine(F.guns2, F.guns2N);
       // 田へ出て両列と交戦した後は、小競り合いを際限なく続けない。
-      // 四分の一を崩し、田の周りで四十五秒押した時だけ、残る列も援護しつつ退く。
+      // それぞれの列を四分の一崩し、田の周りで四十五秒押した時だけ、残る列も援護しつつ退く。
       // 木戸の内で待つだけ、または健在な両列を放置しただけでは進まない。
       if (dist(P.pos, FIELD) < 36) F.fieldPress = (F.fieldPress || 0) + dt;
       if (F.guns2 && el > 180 && F.fieldPress >= 45 &&
-          resistingN(F.guns) + resistingN(F.guns2) <= (F.gunsN + F.guns2N) * 0.75) {
+          resistingN(F.guns) <= F.gunsN * 0.75 && resistingN(F.guns2) <= F.guns2N * 0.75) {
         for (const g of [F.guns, F.guns2]) if (live(g) && g.order !== 'retreat' && g.order !== 'flee') {
           g.order = 'retreat'; g.dest = { x: g.center().x, z: ZS + 20 };
           g.aggro = 0; g.seekRange = 0;

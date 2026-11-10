@@ -517,7 +517,8 @@ const k14_yao_wakae = {
     // 手勢は主人公の近くで戦う（離れたら寄る）。④で南へ駆ける間は、先手と安藤の手も主人公の脇を同じ向きへ駆ける（一5・九4）
     if ((F.menT = (F.menT || 0) - dt) <= 0) {
       F.menT = 0.5;
-      const c = live(F.mine) && F.mine.center();
+      // 護衛の追従でも、退く下知と敗走を攻撃へ戻さない。
+      const c = live(F.mine) && !F.mine.routed && F.mine.order !== 'retreat' && F.mine.order !== 'flee' && F.mine.center();
       if (c) {
         // 行き先は主人公から 10m 外れた時だけ出し直す（出し直すたびに隊は合図を待つので、毎回替えると動かない）
         if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) > 12) { if (F.mine.order !== 'move' || !F.mine.dest || dist(F.mine.dest, P.pos) > 10) { F.mine.order = 'move'; F.mine.dest = { x: P.pos.x + 2, z: P.pos.z + 3 }; } F.mine.speed = 4.6; }
