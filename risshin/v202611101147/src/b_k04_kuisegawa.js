@@ -511,8 +511,14 @@ const k04_kuisegawa = {
         else if (dist(c, P.pos) > 7 || F.step >= 4) {
           // 岸の向きは回してある。地図の正方向へずらすと手勢だけ川へ戻ってしまう。
           // 移動の下知では十m先の敵へ戻る。退却なら手の届く追手だけ払い、岸へ進む。
-          g.order = F.step >= 4 ? 'retreat' : 'move';
-          g.dest = T(PL.x + (F.step >= 4 ? 3 : -2), PL.z + 2); g.speed = 4.2;
+          const order = F.step >= 4 ? 'retreat' : 'move';
+          // 六割秒ごとの再下知は、走る主人公が三m進むたびに合図の待ちを
+          // 延ばしてしまう。十二mずれるまでは同じ行き先へ走らせる。
+          const x = PL.x + (F.step >= 4 ? 3 : -2), z = PL.z + 2;
+          const a = x - O_L.x, b = z - O_L.z;
+          const tx = ROT_C * a - ROT_S * b, tz = ROT_S * a + ROT_C * b;
+          if (g.order !== order || !g.dest || Math.hypot(g.dest.x - tx, g.dest.z - tz) > 12) g.dest = { x: tx, z: tz };
+          g.order = order; g.speed = 4.2;
           if (F.step >= 4) g.focus = null;
         }
         else { g.order = 'attack'; g.seekRange = 12; }
