@@ -285,7 +285,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     if (n === 0.5) { March.start(rt, this.ctx(rt)); return; }
     if (n === 5.5) { Ikeda.start(rt, this.ctx(rt)); return; }
     if (n === 1) {
-      F.hideHome = { x: F.hideU.pos.x, z: F.hideU.pos.z };
+      // 行軍中の馬上の采配で離れていても、守る場所は白山林の馬印から替えない。
+      F.hideHome = { ...CAMP };
       // 奇襲の声で朝飯をやめて立つ。描画を省く流しでも、休む姿勢を戦いへ持ち越さない。
       for (const g of [F.camp, F.men, F.hideG]) for (const u of g.units) if (u.alive) u._crouch = false;
       // 布陣図どおり：大須賀の手が後ろ（東・行軍の来た道の林）から、十八秒後に榊原の手が横（北）から（挟まれる）。水野・丹羽は②で後ろから続く
@@ -660,7 +661,7 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       const H = F.hideU, home = F.hideHome || CAMP;
       F.hideOff = dist(H.pos, home) > 6;
       if (F.hideOff) { H.pos.x = home.x; H.pos.z = home.z; }
-      H.target = null; H.watch = null;
+      H.target = null; H.watch = null; H.moveTo = null;
       F.hideG.order = 'hold'; F.hideG.fixed = true;
       const left = F.w1.reduce((s, g) => s + aliveN(g), 0);
       if (atGoal && ((F.defended && ((el > 95 && left <= F.w1N() * 0.45) || el > 125)) || F.guardTime >= 125)) {

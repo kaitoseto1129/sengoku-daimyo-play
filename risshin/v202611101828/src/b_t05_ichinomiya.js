@@ -24,7 +24,7 @@ import { nobori, hut, yagura, jinmaku, palisade, takataba } from './props.js';
 import { allyGroup, enemyGroup, nm } from './bhelp.js';
 import { TOYO_HACHISUKA_KACCHU } from './kacchu_data.js';
 import { heightOf, buildCastlePlan, rectPoly, inPoly } from './castle_plan.js';
-import { castleBoardFence, ishigaki, solidRect } from './props.js';
+import { castleBoardFence, ishigaki, solidSeg } from './props.js';
 import { RANKS } from './state.js';
 import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, depthBot, rest, fight, hold, move } from './b_depth.js';
@@ -106,8 +106,7 @@ function cutAt(x, z) {
   }
   return dip;
 }
-// 水の手の湧き水（石で囲った四角い溜め。底は 1.3m 下がる。ここから城の貯水池へ水が通う）
-const POOL = { x0: WATER.x - 5, x1: WATER.x + 5, z0: WATER.z - 3.5, z1: WATER.z + 3.5 };
+// 水の手の湧き水（石で囲った丸い溜め。底は 1.3m 下がる。ここから城の貯水池へ水が通う）
 let HOLLOW = null;
 // 坑道の口の土手：口の後ろの山肌を 2.4m 盛り上げ、前に掘り込んだ切り面を作る（地形そのものなので草と土の色が続く）
 const ADIT_FACE = Math.atan2(WATER.x - ADIT.x, WATER.z - ADIT.z);
@@ -203,7 +202,7 @@ function buildStage(rt) {
   rt.flags.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 1, buildGates: true, buildTowers: true, interiorGuards: false });
   // 水の手：城へ水を引く湧き水を石で囲った溜めと、番小屋
   // 谷の窪みに湧いた水：丸い水面を、大小の自然の石がぐるりと縁取る（前は四角い石積みで、コンクリートの水槽に見えた。11/6 critic60）
-  const P = POOL, ring = [];
+  const ring = [];
   for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; ring.push([WATER.x + Math.sin(a) * 5.1, WATER.z + Math.cos(a) * 3.6]); }
   const rimY = Math.min(...ring.map(([x, z]) => W.heightAt(x, z))) - 0.35;
   {
@@ -221,7 +220,12 @@ function buildStage(rt) {
   pond.scale.set(4.9, 3.4, 1);
   pond.rotation.x = -Math.PI / 2; pond.position.set(WATER.x, rimY, WATER.z);
   S.add(pond, hut(W, WATER.x - 12, WATER.z + 8, 5, 4, 0.3, { h: 2.4 }));
-  solidRect(WATER.x, WATER.z, P.x1 - P.x0, P.z1 - P.z0);   // 坂の下では水面が地面より上にある。人と馬は溜めへ入らない
+  // 丸い溜めに四角い当たりを残すと、水の無い四隅でも見えない壁に当たる。
+  // 石の縁に沿って閉じ、人と馬が水面へ入るのを防ぐ。
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i], b = ring[(i + 1) % ring.length];
+    solidSeg(a[0], a[1], b[0], b[1], 0.18);
+  }
   // 金掘り衆の坑道の口：山肌へ掘り込んだ暗い穴を、丸太の枠（二本の柱と冠木）で支える。掘り出した土の山を脇に
   {
     const y = W.heightAt(ADIT.x, ADIT.z), face = Math.atan2(WATER.x - ADIT.x, WATER.z - ADIT.z);

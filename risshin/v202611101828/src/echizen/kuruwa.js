@@ -35,14 +35,13 @@ function rout(rt, z) {
 //   別手の城を味方の手が押さえきれず、本人が峠の主郭で待ち続けて終わらなかった（11/9 の流し：五百八秒から先へ進まず）。
 function side(rt) {
   const F = rt.flags, hon = F.SZ.byId.kinome_hon;
-  // 11/10 クラウドの流し：別手の城の一揆勢は退いたが、遠い尾根の砦へ入る者がおらず、本陣で三百秒待って刻限が切れた。
-  //   退いて三十秒、守兵の残らない別手の城は、峠へ上がった別手の味方が押さえた事にする（使番の知らせだけ。印は増やさない）
-  if (F.echSideGone && !F.echSideTaken && rt.t - F.echSideGone >= 30) {
-    const left = SIDE.map((id) => F.SZ.byId[id]).filter((z) => z && z.owner !== 'friend');
-    for (const z of left) if (!z.enemies) { z.owner = 'friend'; z.fallen = true; }
-    if (left.every((z) => z.owner === 'friend')) {
+  // 退却後も空城の時計だけで制圧にしない。通常の郭判定が実兵の入城・保持を
+  // 確かめ、前郭の落城から本郭への下知を渡した後に、使番が知らせる。
+  if (F.echSideGone && !F.echSideTaken) {
+    const left = SIDE.map((id) => F.SZ.byId[id]);
+    if (left.every((z) => z?.owner === 'friend' && !z.enemies)) {
       F.echSideTaken = true;
-      if (left.length) rt.say('使番', '別手の味方が、捨てられた西光寺丸と鉢伏の砦を押さえました！', 3.6);
+      rt.say('使番', '別手の味方が、捨てられた西光寺丸と鉢伏の砦を押さえました！', 3.6);
     } else if (rt.t - F.echSideGone >= 60) { for (const z of left) if (z.enemies) rout(rt, z); }
   }
   if (hon.owner !== 'friend' || hon.enemies > 0 || F.echSideGone) return;

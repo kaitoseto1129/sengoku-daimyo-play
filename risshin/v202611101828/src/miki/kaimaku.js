@@ -44,8 +44,8 @@ function sawRoad(rt, ctx, byPlayer) {
   rt.army.playFar('taiko', { x: 70, z: 30 }, 0.6);
   rt.say('物見', byPlayer ? '見えるか。西の大村道に松明の列……毛利の荷駄じゃ。城の門も開きかけておる' : '西の大村道に松明の列！　毛利の荷駄じゃ', 4.5);
   if (byPlayer) rt.award((t) => { if (!t.side.includes('井楼から荷駄の松明を見つけた')) t.side.push('井楼から荷駄の松明を見つけた'); }, '荷駄の松明を見つけた');
-  rt.obj('main', '西の槍組の旗へ行け', 'main');
-  rt.objProgress('main', '西の印で槍組に加われ');
+  rt.obj('main', '大村道の西の槍組に加われ', 'main');
+  rt.objProgress('main', '');
   ctx.spearMark(rt);
 }
 
