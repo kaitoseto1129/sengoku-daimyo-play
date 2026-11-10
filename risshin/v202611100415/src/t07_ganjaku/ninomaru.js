@@ -48,8 +48,9 @@ export function update(rt, K) {
     if (F.n4.fightT != null) break;
   }
   // 討ち減らされた時も、長引いた時も、残兵は本丸へ退く。少数だけ曲輪で戦い続けない
-  // 新手が来て全員を討ったら、最低秒数のためだけに空の曲輪で待たせない。
-  if ((F.nino2 && left === 0) || (el > 150 && left <= 3) || (F.n4.fightT != null && rt.t - F.n4.fightT > 185)) {
+  // 全員を討ったら、新手の到着や最低秒数のためだけに空の曲輪で待たせない。
+  // 段が進めば、start の予約も新手を出さない。
+  if (left === 0 || (el > 150 && left <= 3) || (F.n4.fightT != null && rt.t - F.n4.fightT > 185)) {
     for (const g of [F.nino, F.nino2]) if (g && !g.routed) { g.fire = false; g.noRout = false; g.order = 'retreat'; g.morale = 0; g.fleeSet = true; g.fleeDir = { x: 0.7, z: -0.7 }; }
     return true;
   }
