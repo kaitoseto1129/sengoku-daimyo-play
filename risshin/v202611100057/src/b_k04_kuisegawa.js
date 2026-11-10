@@ -94,6 +94,7 @@ const k04_kuisegawa = {
   nearbyAllySignLimit: 0,
   foeMarks: true,
   enemyTriangleSigns: true,
+  lightEnemyTriangleSigns: true,   // 軽い兵も近くでは一人ずつ所属を示す
   nobiki: true,              // 負け戦の退き口
   wakeRoom: 200,
   playerAtkMax: 3,
@@ -209,7 +210,7 @@ const k04_kuisegawa = {
     this.fields(rt);
     this.reeds(rt);
     this.camps(rt);
-    installHaisen(rt, F.k04s = {}, { T, Y });
+    installHaisen(rt, F.k04s = {});
     const B = F.blk;
     // 東軍の塊：中村一栄の先手が川を渡り、中村の本手と有馬の隊は赤坂の側の岸に残る
     B.saki = this.block(rt, { key: 'saki', name: '中村一栄の先手', team: 0, flag: NAKA, at: T(80, -2), facing: Y(-Math.PI / 2), w: 30, d: 10 });
@@ -564,7 +565,7 @@ const k04_kuisegawa = {
     rt.after(1.2, () => rt.say(A[0][0], A[0][1], 3.2));
     rt.after(4.6, () => rt.say(A[1][0], A[1][1], 3.6));
     rt.after(8.6, () => rt.say('使番', '内府様の仰せ。小競り合いに兵を損ずるな、陣を固めよ', 3.4));
-    F.k04s?.ending?.();   // 左近が追うのを止め、西軍の勝鬨 →「杭瀬川　東軍敗北」→「明朝、関ヶ原にて決戦」（k04_kuisegawa/haisen.js）
+    F.k04s?.ending?.();   // 左近が追うのを止め、西軍の勝鬨 →「杭瀬川　東軍敗北」→ その夜の陣固め（k04_kuisegawa/haisen.js）
     rt.finish({ scriptedEnd: true }, 26);
   },
 

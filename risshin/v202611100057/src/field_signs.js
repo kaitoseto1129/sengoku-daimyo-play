@@ -19,6 +19,36 @@ const BAR_FOE = new THREE.Color(0xe8452c), BAR_ALLY = new THREE.Color(0xe8c25a),
 const STATE = new WeakMap();
 const dummy = new THREE.Object3D(), v = new THREE.Vector3(), headPos = new THREE.Vector3();
 const signAt = new THREE.Vector3();
+// 近い軽い兵の所属印。人の形や実兵の人数を増やさず、既存の印の束を使う。
+function drawLightEnemySigns(rt, s, A, n, cam, q) {
+  const body = A.body, me = rt.player.u;
+  if (!body?.visible || body.userData.lod?.allHidden) return n;
+  const matrices = body.instanceMatrix.array;
+  const count = Math.min(A.n, body.count);
+  const seenAt = A._signSeenAt || (A._signSeenAt = new Float64Array(A.n));
+  const seen = A._signSeen || (A._signSeen = new Uint8Array(A.n));
+  for (let i = 0; i < count && n < CAP; i++) {
+    if (A.taken?.[i] || A.hid?.[i] > 0) continue;
+    const j = i * 16;
+    if (Math.abs(matrices[j]) + Math.abs(matrices[j + 1]) + Math.abs(matrices[j + 2]) < 0.001) continue;
+    signAt.set(matrices[j + 12] + A.off.x, matrices[j + 13] + A.off.y, matrices[j + 14] + A.off.z).applyMatrix4(A.mesh.matrixWorld);
+    if ((signAt.x - me.pos.x) ** 2 + (signAt.z - me.pos.z) ** 2 > 60 * 60) continue;
+    signAt.y = rt.world.heightAt(signAt.x, signAt.z) + (A.kinds?.[i] === 5 ? 3.2 : 2.25);
+    v.copy(signAt).applyMatrix4(cam.matrixWorldInverse);
+    if (v.z >= 0) continue;
+    if (!(seenAt[i] > rt.t - .34 && seenAt[i] <= rt.t)) {
+      seenAt[i] = rt.t;
+      seen[i] = cameraWallBlocked(rt, cam.position, signAt, cam.position.y, signAt.y) ? 0 : 1;
+    }
+    if (!seen[i]) continue;
+    const size = 22 * -v.z * 2 / (innerHeight * cam.projectionMatrix.elements[5] * .34);
+    dummy.position.copy(signAt); dummy.quaternion.copy(q); dummy.scale.setScalar(size); dummy.updateMatrix();
+    s.marks.setMatrixAt(n, dummy.matrix);
+    if (s.marks.geometry.attributes.signFocus) s.marks.geometry.attributes.signFocus.setX(n, 0);
+    n++;
+  }
+  return n;
+}
 const meCam = new THREE.Vector3(), foeCam = new THREE.Vector3();
 // 本人の体の後ろ（カメラから見て本人より奥）にいる敵の▼は、本人の背中や兜の上に重なって自分が敵に見える（critic60 山中 32）。
 //   カメラの向きで本人の体の幅（横 0.6m・頭の上 0.5m〜足元）に入る奥の敵は印を描かない
@@ -779,7 +809,7 @@ export function fieldSignsTick(rt, root) {
   }
   // 遠くの大軍（addDistantArmy の軽い作り）にも敵なら赤い▼を数個（critic60 姉川 8「対岸の浅井の何百に一つも無い。どれが敵か分からない」）。
   //   隊の幅に沿って三つまで、隊の上に。退いた隊・見えない隊・味方の隊には付けない
-  if (!special && !rt.def.dojo && !photo && me.alive) {
+  if (!special && !rt.def.dojo && !hide && me.alive) {
     const sides = rt.def.sides;
     for (const A of rt.world?.armies || []) {
       if (n >= CAP - 3) break;
@@ -788,6 +818,10 @@ export function fieldSignsTick(rt, root) {
       if (team < 0 || team === me.team) continue;
       const cx = A.mesh.position.x + A.cx + A.off.x, cz = A.mesh.position.z + A.cz + A.off.z;
       const dd = Math.hypot(cx - me.pos.x, cz - me.pos.z);
+      if (rt.def.lightEnemyTriangleSigns && dd < 60 + (A.hw0 || 10) + (A.hd0 || 5)) {
+        n = drawLightEnemySigns(rt, s, A, n, cam, q);
+        continue;
+      }
       if (dd < 25 || dd > farR) continue;
       const hw = Math.min(A.hw0 || 10, 30), fx = Math.cos(A.facing || 0), fz = -Math.sin(A.facing || 0);
       const k = Math.max(1, Math.min(3, Math.round(hw / 8)));
