@@ -497,9 +497,14 @@ const k05_ueda = {
     g.order = 'retreat'; g.dest = { x: GATE.x - 12, z: GATE.z }; g.speed = 4.3; g.aggro = 0; g.noRout = false;
     // 北の林や田から本丸へ直進すると北の土塀に当たる。城外の隊は、出撃時と同じ門の口を通って戻る。
     if (g.center().x >= GATE.x) {
-      g.dest = { x: GATE.x + 7, z: GATE.z };
-      g.onArrive = (q) => {
+      // 岸から門へ直進すると町屋（72,-8）を横切る。信繁も出撃時の東の道を戻る。
+      const c = g.center();
+      const route = c.x > 68 && c.z > -40 ? [TOWN_EXIT, FRONT, GATE_EXIT] : [GATE_EXIT];
+      let leg = 0;
+      g.dest = { ...route[0] };
+      g.onArrive = function advance(q) {
         if (q.order !== 'retreat') return;
+        if (++leg < route.length) { q.dest = { ...route[leg] }; q.onArrive = advance; return; }
         q.dest = { x: GATE.x - 12, z: GATE.z };
         q.onArrive = null;
       };
