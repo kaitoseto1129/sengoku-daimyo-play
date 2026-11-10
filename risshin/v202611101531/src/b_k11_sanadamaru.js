@@ -370,7 +370,11 @@ const k11_sanadamaru = {
     // 段の縁の赤茶の板塀（左右の口で切る）
     const G0 = GATE - GATE_W, G1 = GATE + GATE_W;
     // 後ろ（北）も塀で閉じる：丸は堀と塀で四方を囲んだ独立の城（『諸国古城之図』。11/6 BV「後ろから入れてしまう」）
-    for (const [a0, a1, n] of [[-SPAN, -G1, 22], [-G0, G0, 30], [G1, SPAN, 22], [SPAN, Math.PI * 2 - SPAN, 24]]) wallLine(rt, arc(WALL_R, a0, a1, n), { team: 1, hp: 1e9, name: '塀', mesh: itabei, segLen: 5, sama: 1.6, h: 2.3 });
+    // 11/10 重さ：壊れない塀の区画（九十余り）を一つずつ描かず、一つの形にまとめて描く（区画の当たりはそのまま。和議で沈める時も一つで沈む）
+    { const wallGeos = [];
+      const itabeiOne = (world, seg, o) => { const m = itabei(world, seg, o); if (m.isMesh) wallGeos.push(m.geometry); const e = new THREE.Object3D(); e.isBatchedPart = true; return e; };
+      for (const [a0, a1, n] of [[-SPAN, -G1, 22], [-G0, G0, 30], [G1, SPAN, 22], [SPAN, Math.PI * 2 - SPAN, 24]]) wallLine(rt, arc(WALL_R, a0, a1, n), { team: 1, hp: 1e9, name: '塀', mesh: itabeiOne, segLen: 5, sama: 1.6, h: 2.3 });
+      if (wallGeos.length) { rt.scene.add(mesh(wallGeos, true)); for (const g of wallGeos) g.dispose(); } }
     // 左右の口：冠木門に閉じた扉を描く（前は開いた扉の絵で、通ろうとすると見えない塊で止められた。11/6 BV・十四8）。東の口は石垣を積んだ虎口（模型）
     for (const sd of [-1, 1]) {
       const p = polar(sd * G0, WALL_R), q = polar(sd * G1, WALL_R), m = polar(sd * GATE, WALL_R);

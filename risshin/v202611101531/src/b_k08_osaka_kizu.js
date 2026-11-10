@@ -778,6 +778,7 @@ const k08_osaka_kizu = {
 
 // bot の頭：近い敵を突き、段の行き先へ。門の段は門を打つ
 k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
+  b.botRest = false;
   inp.quickCmd = null;
   const F = b.flags, p = b.player, u = p.u;
   if (!u.alive || F.ending) return;
@@ -787,6 +788,9 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   const gc = F.saki.center();
   // 手負いは門の前の竹束の陰まで下がり、傷が癒えてから戻る（門の前と砦の内で矢玉に討たれた。11/6 fix4 の通しで四度）
   if (u.hp < u.maxHp * 0.45) F.botRest = true; else if (u.hp > u.maxHp * 0.85) F.botRest = false;
+  if (u.hp < u.maxHp * 0.6 && F.step === 2) F.botRest = true;
+  // 共通の自動操作にも休息を伝え、性格による突進や射撃への持ち替えで退避を上書きさせない。
+  b.botRest = !!F.botRest && F.step >= 2 && F.step <= 4;
   //   竹束の列（GATE.z+15）は真ん中の通り道から抜ける（斜めに下がると竹束に詰まって門の前に立ち続けた）
   //   ③④は砦の内で、門の外まで下がる間に追ってきた侍に背から討たれた（11/6 fixc0823 の描いた通しで二度）。先手の列の八歩後ろで癒える
   if (F.botRest && F.step >= 3 && F.step <= 4) {
@@ -796,7 +800,6 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   //   ②は通り道の真ん中に立つと門の内の鉄砲に撃ち抜かれた（同じ通しで 111 秒に討たれた）。通り道を抜けたら西の竹束の真後ろに隠れる
-  if (u.hp < u.maxHp * 0.6 && F.step === 2) F.botRest = true;
   if (F.botRest && F.step === 2) {
     if (u.pos.z < GATE.z + 16.2) { goTo(p, inp, 0, GATE.z + 17.5, 1); return; }
     goTo(p, inp, -8.2, GATE.z + 16.9, 0.6); return;
