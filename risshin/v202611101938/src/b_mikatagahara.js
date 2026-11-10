@@ -581,6 +581,9 @@ function livingVoice(rt, speaker) {
 // 共通の危機の声も、今の下知と同じ持ち場へ案内する。
 function mikataOrderText(rt, speaker, text) {
   const F = rt.flags, withdrawing = F.step === 3 || F.dpOn && F.dpB;
+  // 討たれた将の名乗りや身代わりの宣言は、次の上役へ引き継がない。
+  // 待ち列の途中で夏目が討たれても、佐久間が家康を名乗る事のないようにする。
+  if (/我こそ|某が支え/.test(text) && livingVoice(rt, speaker) !== speaker) return '';
   // 11/7 critic60（二2）：先に下がったのは武田の物見の騎馬。先手の本隊が退いたと言わせない。
   if (/^武田の先手が一度引いたぞ/.test(text)) return '武田の物見が下がった。次は先手の本隊が来るぞ！';
   // 11/7 critic60（二2）：鶴翼が破れて崩れるのは味方の方。共通の「横槍が入ったぞ！敵が崩れる！」「大将首じゃ」などは言わせない（空の字は捨てる）
@@ -2023,7 +2026,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     const say = rt.say;
     rt.say = function (speaker, text, dur) { const t2 = mikataOrderText(this, speaker, text); return t2 === '' && text ? false : say.call(this, livingVoice(this, speaker), t2, dur); };
     const hudSay = rt.hud.say;
-    rt.hud.say = function (speaker, text, ...args) { return hudSay.call(this, livingVoice(rt, speaker), mikataOrderText(rt, speaker, text), ...args); };
+    rt.hud.say = function (speaker, text, ...args) { const t2 = mikataOrderText(rt, speaker, text); return t2 === '' && text ? false : hudSay.call(this, livingVoice(rt, speaker), t2, ...args); };
     // 帰着の余韻も本人の視点と操作を保つ。城門の固定視点へ切り替えない。
     rt.army.mikataFront = []; rt.army.mikataCap = 4;
     rt._rfN = 3; // 敗走中に共通の救済援兵を湧かせない

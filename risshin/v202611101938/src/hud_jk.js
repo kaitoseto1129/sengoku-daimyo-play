@@ -389,15 +389,21 @@ function drawMap(s, rt, goal, stg) {
 const _headV = new THREE.Vector3();
 // 空や霧だけの単色画像を、本人の顔として保存・再利用しない。
 function hasPortraitBody(pixels) {
-  let body = 0, low = 255, high = 0;
+  let body = 0, low = 255, high = 0, detail = 0;
   for (let i = 0; i < pixels.length; i += 16) {
     const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
     if (pixels[i + 3] < 128 || (r > 245 && g < 10 && b > 245)) continue;
     body++;
     const light = (r + g + b) / 3;
     low = Math.min(low, light); high = Math.max(high, light);
+    // 空や霧にも全体の明暗差はある。隣り合う所に顔・具足の細部があるかも見る。
+    // 保存済みの空色の顔絵にも同じ判定を通し、誤った絵を固定しない。
+    const j = i + 16;
+    if ((i / 4) % FACE < FACE - 4 && pixels[j + 3] >= 128 &&
+        !(pixels[j] > 245 && pixels[j + 1] < 10 && pixels[j + 2] > 245) &&
+        Math.max(Math.abs(r - pixels[j]), Math.abs(g - pixels[j + 1]), Math.abs(b - pixels[j + 2])) >= 32) detail++;
   }
-  return body >= pixels.length / 54 && high - low >= 24;
+  return body >= pixels.length / 54 && high - low >= 24 && detail >= 12;
 }
 function capturePortrait(s, rt) {
   const R = window.__renderer, p = rt.player, u = p?.u;

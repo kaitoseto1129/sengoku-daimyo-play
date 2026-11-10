@@ -2319,7 +2319,8 @@ const okawachi = {
       // 先に退いた竹束と退路守りの組も数える。全員の帰陣を待つ条件にはしない。
       for (const g of F.oda) {
         for (const u of g.units) {
-          if (!u.alive || u.dying || u.gone || u.woundOut || u.noTarget) continue;
+          // 倒れた兵・敗走中の兵・脱落した兵を、帰陣して槍を揃えた仲間に数えない。
+          if (!sortieFighter(u) || u.noTarget) continue;
           if (Math.hypot(u.pos.x - CAMP_LINE.x, u.pos.z - CAMP_LINE.z) <= 24) u._okReturned = true;
           if (u._okReturned) arrived++;
         }

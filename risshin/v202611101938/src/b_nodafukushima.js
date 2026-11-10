@@ -4078,14 +4078,23 @@ const nodafukushima = {
     //   追手は本人と殿の後ろ（浅瀬の側）から堤を越えて来る。四十秒は崩れずに追い、退く列と斬り合う。
     const sendChase = () => {
       if (F.ending || !F.retreating || F.nodaEguchi || rt.over || F.chase) return;
-      // 枠が足りない時に空の組を作らず、追手を出せるまで待つ。
-      if (makeRoom(rt, 14) < 14) { rt.after(2, sendChase); return; }
-      const g = enemyGroup(rt, { faction: 'honganji', name: '追い討つ門徒', anchor: { x: 34, z: 2 }, facing: -Math.PI * 0.6, aggro: 18, seekRange: 70, width: 8, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
+      // 兵の枠が埋まっていれば、堤へ寄せていた門徒がそのまま追う。
+      // 敗走・退却中の隊を呼び戻さず、時間だけで遭遇済みにもしない。
+      let g;
+      const room = makeRoom(rt, 14);
+      if (room < 14) {
+        g = F.waves.find(q => q && !q.routed && (q.order === 'attack' || q.order === 'move') && q.units.some(canJoin));
+        if (!g && room <= 0) { rt.after(2, sendChase); return; }
+      }
+      // 控えが少なくても、空いた人数だけ出す（cappedList が上限を守る）。
+      if (!g) g = enemyGroup(rt, { faction: 'honganji', name: '追い討つ門徒', anchor: { x: 34, z: 2 }, facing: -Math.PI * 0.6, aggro: 18, seekRange: 70, width: 8, morale: 100, noRout: true, fleeDir: { x: 0, z: -1 }, formation: 'yari' },
         dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 2 }], IKKO));
-      g.ikko = true; g.order = 'attack'; g.speed = 2.6; g.seekRange = 18;
+      if (!g?.units.some(canJoin)) { rt.after(2, sendChase); return; }
+      g.onArrive = null; g.dest = null;
+      g.ikko = true; g.order = 'attack'; g.noRout = true; g.speed = 2.6; g.seekRange = 70; g.aggro = 18;
       g.focus = rear.units.find(canJoin) || null;
       F.chase = g;
-      rt.army.play('eshout', { x: 34, z: 2 }, 1.8);
+      rt.army.play('eshout', g.center(), 1.8);
       rt.say('一揆の門徒', '退くぞ、追え！　仏敵を一人も帰すな！', 3.5);
       rt.after(2.5, () => rt.say('前田利家', '追手じゃ！　振り返って一太刀浴びせ、また退け！', 3.5));
       rt.after(40, () => { if (!gone(g)) g.noRout = false; });
@@ -4212,8 +4221,6 @@ const nodafukushima = {
       // 追手が本人か殿の十二m内へ来るか、実際に出た追手が崩れるまで待つ。
       // 壁越しの接近や、三十秒たっただけでは遭遇済みにしない。
       if (!F.chaseMet && chaseEncountered(rt)) F.chaseMet = true;
-      // 11/10 クラウド：兵の枠が空かず追手が出ないと遭遇の印が付かず、詰め陣で六分止まった（act bot）。六十秒で遭遇済みにする。
-      if (!F.chaseMet && rt.t - F.retreatT > 60) F.chaseMet = true;
       let joined = campJoinAvailable(rt);
       const rear = F.namedGuards[1];
       const c = retreatPoint(rt);

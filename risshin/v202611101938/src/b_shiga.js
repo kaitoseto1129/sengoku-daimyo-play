@@ -968,7 +968,7 @@ function innerGateDefended(rt, p) {
   const gate = atHon ? GATE_HON : GATE_NI;
   if (Math.hypot(p.x - gate.x, p.z - gate.z) > 12) return false;
   for (const u of rt.army.units) {
-    if (!siegeFighter(u) || u.farSim || u.rearWound || u.team !== 1) continue;
+    if (!siegeFighter(u) || u.farSim || u.rearWound || u.group?.hidden || u.team !== 1) continue;
     if (Math.hypot(u.pos.x - gate.x, u.pos.z - gate.z) <= 18 &&
         Math.abs(u.pos.y - rt.player.u.pos.y) <= 6) return true;
   }
@@ -3537,7 +3537,7 @@ const shiga = {
         { id: 'hon', name: '本丸', start: ZONE_STATE.FRIEND, test: F.C.kuruwa.hon.test, pos: F.C.kuruwa.hon.centroid, need: 6, hold: 14 },
       ],
       friendTeam: 0, enemyTeam: 1,
-      unitFilter: (u) => !u.farSim && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget,
+      unitFilter: (u) => !u.farSim && !u.fleeing && !u.woundOut && !u.rearWound && !u.gone && !u.noTarget && !u.group?.hidden,
       noReinforce: () => !F.aidArrived,
       quietRange: [0, 0],
       msg: { zoneFallFriend: (name) => `${name}を取り返した`, zoneFallEnemy: (name) => `${name}へ敵が入った` },
@@ -3905,8 +3905,8 @@ const shiga = {
     }
     if (F.SZ && (F.step === 3 || F.step === 3.5)) {
       let guards = 0, intruders = 0;
-      // 深手で後方へ退く兵は、守備にも攻め込みにも数えない。
-      for (const u of rt.army.units) if (siegeFighter(u) && !u.farSim && !u.rearWound && F.C.kuruwa.hon.test(u.pos.x, u.pos.z)) {
+      // 深手で後方へ退く兵や非表示の隊は、守備にも攻め込みにも数えない。
+      for (const u of rt.army.units) if (siegeFighter(u) && !u.farSim && !u.rearWound && !u.group?.hidden && F.C.kuruwa.hon.test(u.pos.x, u.pos.z)) {
         if (u.team === 0) guards++;
         else if (u.team === 1) intruders++;
       }
