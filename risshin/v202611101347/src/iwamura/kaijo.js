@@ -13,7 +13,35 @@ export const LEN = 46;
 const HONJIN = { x: 0, z: 34 };
 
 export function active(rt) { const K = rt.flags.iwKaijo; return !!K && !K.ok; }
-export function pin(rt) { const K = rt.flags.iwKaijo; return K && !K.ok && K.g ? K.g.center() : null; }
+export function pin(rt) {
+  const K = rt.flags.iwKaijo, e = envoy(rt);
+  if (!K || !e) return null;
+  const path = K.g.path, p = rt.player.u.pos;
+  if (!path || path.length < 2 || K.ok) return e.pos;
+  // 使者から離れた時も、切岸を横切らず同じ山道の折れを通って戻る。
+  const q = K.guide || (K.guide = { x: 0, z: 0 });
+  const from = roadPosition(path, p, q), to = roadPosition(path, e.pos);
+  if (Math.hypot(p.x - q.x, p.z - q.z) > 3) return q;
+  const direction = to > from ? 1 : -1;
+  for (let i = direction > 0 ? Math.floor(from) + 1 : Math.ceil(from) - 1;
+    i >= 0 && i < path.length && (direction > 0 ? i < to : i > to); i += direction) {
+    q.x = path[i][0]; q.z = path[i][1];
+    if (Math.hypot(p.x - q.x, p.z - q.z) > 2) return q;
+  }
+  return e.pos;
+}
+function roadPosition(path, p, out) {
+  let best = Infinity, at = 0;
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((p.x - a[0]) * dx + (p.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+    const x = a[0] + dx * t, z = a[1] + dz * t, d = Math.hypot(p.x - x, p.z - z);
+    if (d >= best) continue;
+    best = d; at = i - 1 + t;
+    if (out) { out.x = x; out.z = z; }
+  }
+  return at;
+}
 export function envoy(rt) { const K = rt.flags.iwKaijo; return K?.g?.units.find((u) => u.alive) || null; }
 
 function quiet(g) {
@@ -167,5 +195,6 @@ export function bot(b, inp, { goTo }) {
   if (!e) return;
   if (p.lock) inp.e.add('KeyQ');
   inp.runHeld = Math.hypot(e.pos.x - p.u.pos.x, e.pos.z - p.u.pos.z) > 10;
-  goTo(p, inp, e.pos.x, e.pos.z, 2);
+  const q = pin(b) || e.pos;
+  goTo(p, inp, q.x, q.z, q === e.pos ? 2 : 1);
 }

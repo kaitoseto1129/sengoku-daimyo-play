@@ -3868,7 +3868,7 @@ const shiga = {
       if (F.step === 1 || F.step === 1.5 || F.step === 3 || F.step === 3.5) {
         const post = F.step === 1 ? TOWN_POST : u.pos;
         for (const foe of rt.army.units) {
-          if (!foe.alive || foe.team !== 1 || foe.isStruct || foe.fleeing || foe.woundOut || foe.gone || foe.noTarget) continue;
+          if (!siegeFighter(foe) || foe.rearWound || foe.farSim || foe.team !== 1) continue;
           if (F.step === 1 && foe.group !== F.w1 && foe.group !== F.w1b) continue;
           if (Math.hypot(foe.pos.x - post.x, foe.pos.z - post.z) >= 14 || rt.army.wallBetween(post, u.team, foe.pos, false)) continue;
           if (F.step === 1 && F.townContactT == null) F.townContactT = rt.t;
