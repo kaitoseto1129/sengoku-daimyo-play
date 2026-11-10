@@ -35,21 +35,22 @@ const COMRADES = ['弥助', '源太', '新六'];
 function say(rt, who, text, d) { const F = rt.flags; F._mine = true; try { rt.say(who, text, d); } finally { F._mine = false; } }
 
 // 行き先のピン：始めから終わりまで切らさない（関所 3）。遠くは金の▼に距離、近くは地面のピン
-function pinTo(rt, pos, label, enemyUnit = null) {
+function pinTo(rt, pos, label, unit = null) {
   const F = rt.flags;
   F.beginnerPinTarget = null;
   if (!pos) { F.farPin = null; return null; }
   const P = rt.player.u.pos;
   if (near(pos, P) > 30) {
     const far = F.farPinObj || (F.farPinObj = { x: 0, z: 0, r: 0, label: '' });
-    far.x = pos.x; far.z = pos.z; far.r = 28; far.label = label; far.unit = null; far.enemy = false;
+    far.x = pos.x; far.z = pos.z; far.r = 28; far.label = label; far.unit = unit; far.enemy = !!unit && unit.team !== rt.player.u.team;
     F.farPin = far;
     return null;
   }
   F.farPin = null;
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = 3; pin.label = label;
-  pin.unit = enemyUnit; pin.enemy = !!enemyUnit; pin.flagDestination = !enemyUnit;
+  // 隊長のそばに並んでも案内を消さず、移動する本人の頭上を追う。
+  pin.unit = unit; pin.enemy = !!unit && unit.team !== rt.player.u.team; pin.flagDestination = !unit;
   F.beginnerPinTarget = pin;
   return pin;
 }
@@ -96,25 +97,24 @@ const ino = {
   },
   // ピンは段ごとに一つ：ついて行く人・行く所・押し合う所
   missionPin(rt) {
-    const F = rt.flags;
     const t = this.pinTarget(rt);
     if (!t) return pinTo(rt, null);
-    return pinTo(rt, t.pos, t.label, t.enemy || null);
+    return pinTo(rt, t.pos, t.label, t.enemy || t.unit || null);
   },
   pinTarget(rt) {
-    const F = rt.flags, L = F.lead?.alive ? F.lead : null;
+    const F = rt.flags, L = F.lead?.alive && !F.lead.gone ? F.lead : F.sakumaU?.alive && !F.sakumaU.gone ? F.sakumaU : null;
     switch (F.ph) {
-      case 'march': case 'van': return L ? { pos: L.pos, label: '隊長' } : null;
+      case 'march': case 'van': return L ? { pos: L.pos, label: '隊長', unit: L } : null;
       case 'scout': case 'hayashi': case 'shibata': case 'push': {
         const e = this.missionSignTarget(rt);
         if (e) return { pos: e.pos, label: '敵', enemy: e };
-        return L ? { pos: L.pos, label: F.joined ? '組頭' : '隊長' } : null;
+        return L ? { pos: L.pos, label: L === F.sakumaU ? '組頭' : '隊長', unit: L } : null;
       }
-      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊' } : null;
+      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU } : null;
       case 'retreat': return { pos: NAZUKA_PT, label: '名塚砦' };
-      case 'rally': return F.nobuU?.alive ? { pos: F.nobuU.pos, label: '殿' } : { pos: NAZUKA_PT, label: '名塚砦' };
-      case 'after': return F.shinrokuU?.alive && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六' } : L ? { pos: L.pos, label: '組頭' } : null;
-      default: return L ? { pos: L.pos, label: '隊長' } : null;
+      case 'rally': return F.nobuU?.alive ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
+      case 'after': return F.shinrokuU?.alive && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : L ? { pos: L.pos, label: '組頭', unit: L } : null;
+      default: return L ? { pos: L.pos, label: '隊長', unit: L } : null;
     }
   },
 
