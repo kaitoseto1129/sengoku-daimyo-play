@@ -7,7 +7,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const ready = (u) => !!u && u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
+const ready = (u) => !!u && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 // 砦は四角い。中心からの距離では、柵の内の四隅まで柵外と判定してしまう。
 const outside = (u, fort) => Math.max(Math.abs(u.pos.x), Math.abs(u.pos.z)) > fort + 4;
 

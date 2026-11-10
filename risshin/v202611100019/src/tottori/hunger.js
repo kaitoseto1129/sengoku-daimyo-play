@@ -52,12 +52,34 @@ function starve(rt, gs, n) {
   }
 }
 
+// 月が変わる暗転で夜討ちの帰還を終える。柵で詰まった古い寄せを見回りへ持ち越さない。
+export function settleSallies(rt, K) {
+  for (const [i, g] of (rt.flags.sallies || []).entries()) {
+    g.onArrive = null; g.path = null; g.pathIdx = 0; g.focus = null;
+    g.noAI = true; g.order = 'hold'; g.fire = false;
+    g.aggro = 0; g.seekRange = 0; g.retreatOnly = false;
+    g.ttRetreat = false; g.ttReturned = true;
+    g.formation = 'line'; g.width = 4;
+    g.anchor.x = K.GATE.x + (i - 1) * 8; g.anchor.z = K.GATE.z - 18;
+    g._face = g.facing = 0; g._slotFit = null; g._routeCols = 0;
+    for (const u of g.units) {
+      u.target = null; u.atk = null; u.swing = null; u.watch = null;
+      u.noTarget = true;
+      if (!u.alive || u.dying || u.downed || u.hp <= 0 || u.gone || u.woundOut || u.rearWound) continue;
+      const at = g.slotPos(u.slot, g.initial);
+      u.fleeing = false; u.moveTo = null; u.heading = 0;
+      u.pos.x = at.x; u.pos.z = at.z; u.pos.y = rt.world.heightAt(at.x, at.z);
+    }
+  }
+}
+
 function start(rt, K, done) {
   const F = rt.flags, G = K.GATE, FZ = K.FENCE_Z;
   F.k15stage = 'hunger'; F.k15on = true; F.k15fight = false;
   const stop = () => F.k15stage !== 'hunger';
   let walls = null;
   k15Fade(rt, () => {
+    settleSallies(rt, K);
     applyLook(rt, { ...DAWN, time: 'dusk', sun: 0xd8a070, sunI: 0.9, glow: 0.18 });
     rt.world.lookDark = false;
     if (F.farFires) F.farFires.visible = true;
