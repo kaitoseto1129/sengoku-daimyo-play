@@ -163,6 +163,7 @@ const TEXT = ['大手の坂を登り、二の丸の門の前へ出る', '門か�
 STAGES.t07_ganjaku = TEXT.map((t, k) => (k ? [t, (rt) => (rt.flags.stage || 0) >= k + 1] : [t]));
 const START = { x: -204, z: 150 };   // 麓の大軍の中から坂の下へ歩く（蒲生の本陣の陣幕を横切らない筋。11/8 bot が幕に詰まった）
 const ARRIVAL = { ...SPAWN, label: '大手の坂の下', r: 14 };
+const GATE_PINS = [MOUTH, FRONT, INSIDE, INNER].map((p) => ({ ...p, label: '二の丸の門', r: 1.5, hideDistance: 0.5 }));
 const LOOK_START = { ...SPAWN, up: 3 }, LOOK_GATE = { ...GATE, up: 3 };
 
 const t07_ganjaku = {
@@ -173,7 +174,18 @@ const t07_ganjaku = {
   spawn: { x: START.x, z: START.z, heading: Math.atan2(GATE.x - START.x, GATE.z - START.z) },
   camLookAt: (rt, u) => ((rt.flags.stage || 0) <= 1 ? rt.flags.stage ? LOOK_GATE : LOOK_START : null),   // 着陣では合流する先手、坂では上の門と塀を見る
   // 着陣中にはまだ任務が無く、共通の案内が行き先を選べない。合流先を初めから示す。
-  missionPin: (rt) => rt.flags.stage ? undefined : ARRIVAL,
+  missionPin(rt) {
+    if (rt.flags.ending) return null;
+    if (!rt.flags.stage) return ARRIVAL;
+    if (rt.flags.stage !== 3) return undefined;
+    // 門の内だけを指すと、塀の外から角を横切ろうとして止まる。
+    // 寄せ手と同じ喰違の筋を示し、角の手前で印を消さない。
+    const p = rt.player.u.pos, zone = gateZone(p.x, p.z);
+    if (zone === 'in') return GATE_PINS[3];
+    if (zone === 'rec' || zone === 'lane') return GATE_PINS[2];
+    const a = gl(p.x, p.z)[0];
+    return zone === 'out' && a > 3.8 && a < 15 ? GATE_PINS[1] : GATE_PINS[0];
+  },
   missionPinFallback: true,
   noReserve: true, noWake: true, noTaishoRaid: true, noDespair: true,
   noCavalryMix: true,   // 坂と狭い虎口を登る隊は定義どおり徒歩。名のある将の馬上指定は残す

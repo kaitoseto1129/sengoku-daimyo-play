@@ -41,11 +41,9 @@ export function tick(rt) {
   if (!['kinome_fuku', 'kinome_hon'].some(id => F.SZ.byId[id]?.test(p.x, p.z))) return;
   const lord = g.units.find((u) => u.type === 'busho');
   const left = g.units.filter((u) => u.alive && !u.fleeing).length;
-  // 11/10 クラウドの流し：本人の一撃が精鋭に当たった時だけ時計を始めていたので、斬り合いの間合いにいても当たりが出ないと
-  //   五百秒止まった（残り七人のまま刻限切れ）。精鋭が八歩の内へ来た時から数え、打って出て百八十秒でも崩れる
-  if (E.foughtAt == null && g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 8)) E.foughtAt = rt.t;
-  if (left && E.foughtAt == null && rt.t - E.at < 180) return;
-  E.foughtAt ??= E.at;
+  // 近くで立つだけ・出撃からの経過だけでは、本人が戦った事にしない。
+  // foughtAt は本体の命中処理で記録する。味方が討ち切った時は空の郭で待たせない。
+  if (left && E.foughtAt == null) return;
   if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.foughtAt < 120) return;
   E.done = true;
   // 崩れた精鋭を主郭へ逃がすと、逃げる兵が主郭の口をふさいで本人が入れなかった（11/9 の流し）。

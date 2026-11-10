@@ -533,6 +533,8 @@ const k03_gifu = {
     g.fire = false; g.peaceful = true;
     for (const u of g.units) {
       u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null;
+      // 負傷者を守る割り込みは退却より先に働くため、退いた後の斬り返しも解く。
+      u.cover = null;
       u.aiT = 0;
     }
   },
@@ -637,7 +639,7 @@ const k03_gifu = {
     for (const g of F.foes) {
       if (g !== F.hide) this.fall(rt, g);
       g.fire = false; g.peaceful = true;
-      for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+      for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.cover = null; }
     }
     // 本人の直属の組も降伏を見届ける。振りかけの刀と追撃命令を残さない。
     for (const g of [F.naga, F.asano, F.mine, F.fuku, ...(rt.squadGroups || [])]) if (live(g)) {
@@ -645,10 +647,14 @@ const k03_gifu = {
       g.focus = null;
       g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false;
       g.noAI = true; g.peaceful = true; g.keepMoveOrder = true;
-      for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+      for (const u of g.units) { u.target = null; u.atk = null; u.swing = null; u.bind = null; u.cover = null; }
     }
     // 無敵だけでは双方が斬り合い続け、門前へ歩み出られない。降る者は狙いから外し、振りかけの刀も止める。
-    if (F.hide) for (const u of F.hide.units) { u.invuln = true; u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; }
+    if (F.hide) for (const u of F.hide.units) {
+      u.invuln = true; u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null;
+      // 近習は負傷者の後送先や護衛先でなく、秀信と門前へ進んで降る。
+      u.cover = null; u.escort = null; u.rearWound = null;
+    }
     if (live(F.hide)) { F.hide.order = 'hold'; F.hide.aggro = 0; F.hide.seekRange = 0; F.hide.fire = false; F.hide.peaceful = true; F.hide.keepMoveOrder = true; F.hide.arriveNoncombat = true; }
     sfx('horagai', 0.9);
     F.k03s?.ending?.();   // 刀を置いた後、本丸の木瓜の旗が下りる（k03_gifu/kaijo.js）

@@ -30,6 +30,7 @@ import { sfx } from './audio.js';
 import { KILLS, cut } from './stages.js';
 import { timeslipField } from './timeslip_field.js';
 import { setStages } from './b_k_help.js';
+import { sightScreenUnit } from './battle_sight.js';
 import * as jindate from './k06/jindate.js';   // 台本の動き（第一線の激突・小早川の下山・段ごとの下知）
 import { DEPTH } from './k06/depth_plan.js';   // 陣立て表（共通の army_depth.js が描く）
 import * as yoin from './k06/yoin.js';         // 勝った後の余韻（倒れた旗・逃げる兵・首実検の支度）
@@ -98,16 +99,16 @@ const FALL_MAX = 110;   // ⑧ 小早川が動いてから大谷隊が崩れる�
 // 右上の目標（goals5・obj・setStages で同じ文）。行き先は地図で分かる名で（BU「ここ」は使わない）
 //   討てる将（明石全登・島津豊久）の名は目標の文に入れない（victory_flow の namedKill が名を含む札を済みにし、段の途中で勝ちに締まる）
 const G = [
-  '井伊の赤備えに続き、宇喜多の先手前へ出る',
-  '宇喜多の先手前で、井伊の鉄砲衆を守る',
-  '井伊と春日神社前の福島隊の後ろへ退く',
-  '福島隊に続き、宇喜多の先手と槍を合わせる',
-  '福島隊のそばで、宇喜多勢の押し返しに耐える',
-  '中央右翼を救援せよ。藤堂・京極の隊へ回る',
-  '藤堂・京極の陣の前で、大谷隊の前進を止めろ',
-  '藤堂・京極の陣の前で、大谷隊を押し崩す',
-  '天満山の麓で、西軍中央を突破せよ',
-  '陣場野の本陣の前で、島津の突入を食い止めろ',
+  '井伊の赤備えに続き宇喜多の先手前へ出る',
+  '宇喜多の先手前で井伊の鉄砲衆を守る',
+  '井伊と春日神社前の福島隊後方へ退く',
+  '福島隊に続き宇喜多の先手と槍を合わす',
+  '福島隊のそばで宇喜多の押し返しに耐える',
+  '中央右翼の藤堂・京極隊を救援する',
+  '藤堂・京極の陣前で大谷隊の前進を止める',
+  '藤堂・京極の陣前で大谷隊を押し崩す',
+  '天満山の麓で西軍中央を突破する',
+  '陣場野の本陣前で島津の突入を受ける',
 ];
 const NOUN = ['宇喜多の先手', '井伊の鉄砲衆', '春日神社', '宇喜多の先手', '宇喜多勢', '藤堂・京極の隊', '大谷隊', '大谷隊', '宇喜多・小西の殿', '島津の隊'];
 
@@ -253,8 +254,8 @@ const k06_sekigahara = {
   // 生前の吉継の名と、ほかの将の討取りはそのまま出す。
   hideNameTag: (u, rt) => !!rt?.flags.otaniDown && u === rt.flags.otaniU && !u.alive,
   foeMarks: true,
-  // 通し確認で敵印だけが浮いた。近い敵でも、姿を隠した本人には印を残さない。
-  enemySignVisible: (rt, u) => !u.camHidden && u.mesh?.visible === true,
+  // 描画の有無だけでは山や陣幕の向こうにも印が出る。名前と▼に同じ見通しを使う。
+  enemySignVisible: (rt, u) => u.mesh?.visible === true && sightScreenUnit(rt, u),
   foeMarkRange: 30,
   missionPinCaption: '',
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の関数を順に流して段の始まりを作り直す（前の段の声・見出しは出さない）。
