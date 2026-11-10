@@ -6329,7 +6329,7 @@ const inabayama = {
       // 11/10 指示書「小さな成功を何度も」・CP：七曲りを登り切った所で味方が追い付き、息を整える（命を六割まで戻す）
       { const u = rt.player.u; if (u.alive && u.maxHp) u.hp = Math.max(u.hp, u.maxHp * 0.6); }
       for (const g of [F.oteGate, F.nigeru, ...F.nanaGuards]) if (g && !gone(g) && (g === F.oteGate || g === F.nigeru || g.tsukeBack && g.order !== 'path')) { g.order = 'attack'; g.aggro = 8; g.seekRange = 12; g.holdFire = false; }   // 11/10：14・22 では木戸の守りが坂の下まで打って出た。木戸の口で迎えさせる
-      rt.say(officer(rt), '開いたぞ！　閉まる前に入るのじゃ！', 3.5);
+      rt.say(officer(rt), '大手の木戸じゃ！　仲間と守りを追い払え！', 3.5);
       this.nextObj(rt, '大手の木戸の守りを、仲間と追い払う');
     }
     // 木戸の守りと十二秒斬り合えば、背を取られた守りは本丸へ退く（11/6 fix61：二十五秒→十二秒。一つの戦を七分に収める）
@@ -6532,9 +6532,8 @@ const inabayama = {
     rt.setPhase('honmaru');
     // 11/10 城攻め共通「区画を取ったら残りは退く」：中枢曲輪・入口曲輪・木戸の守りの残りが本丸の段でも斬り続け、act が本丸の手前で倒れた（傷 94）
     if (F.tsuke) for (const g of rt.army.groups) if (g.team !== rt.player.u.team && !gone(g) && (LOWER_KURUWA.test(g.name || '') || OTE_REAR.test(g.name || '') || g === F.kguard || g === F.oteGate || g === F.nigeru || (F.nanaGuards || []).includes(g))) inabaRetreat(g);
-    // 11/10 指示書：自分だけで城を落とす感じにしない（主人公は一つの攻め口の担当）。龍興は討たせず退かせる
-    rt.after(8, () => { if (!rt.over && !F.ending && F.step === 4) rt.say('使番', '柴田勢、北側を突破！', 3); });
-    rt.after(40, () => { if (!rt.over && !F.ending && F.step === 4) rt.say('使番', '龍興、退きます！ 追うな、本丸を取れ！', 3.5); });
+    // 別方面の寄せは k15Hon.install の実際の登りで知らせる。
+    // 龍興の退去は合図後の開城で知らせ、秒数だけで突破・退去を先取りしない。
     rt.unmark('kguard'); rt.unmark('kido');
     rt.unmark('karaGuide'); F.karaGuideMarked = false;
     // 裏道の働きは済んだ。本丸へ移った後に物見や伏兵へ呼び戻さない。
