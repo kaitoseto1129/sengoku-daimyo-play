@@ -2069,7 +2069,7 @@ const shiga = {
   playerSignMinScale: .4, // 共通の下限に戻さず、この戦の小さい本人印を使う。
   woundEffectMin: 0.05, // 浅い打撲で守りの下知を退避札に替えない。出血・深手の案内は残す。
   introText() {
-    return '東は琵琶湖、西は比叡山。敵は北から坂本へ来る。まず町口の森可成の槍の列へ。退きの鉦が鳴ったら、坂道を上って南の宇佐山城へ。';
+    return '東は琵琶湖、西は比叡山。敵は北から坂本へ来る。まず北の湖の道の辻で敵の旗を見よ。朝倉の物見を追い払ったら、坂本の町口の森可成の槍の列へ。退きの鉦が鳴ったら、坂道を上って南の宇佐山城へ。';
   },
   guardButtonText: '押して構える',
   waitGuardButtonText: '押し続けて防ぐ',
@@ -2077,7 +2077,7 @@ const shiga = {
   distanceText(rt, distance) {
     const F = rt.flags;
     const M = F.shigaMonomi;
-    const place = M && !M.done && !F.step ? M.k === 0 ? '湖の道の辻' : M.k === 2 ? '朝倉の物見' : '坂本の町口' : F.step === 2 ?
+    const place = M && !M.done && !F.step ? M.k <= 1 ? '湖の道の辻' : M.k === 2 ? '朝倉の物見' : '坂本の町口' : F.step === 2 ?
       !F.retreatIdx ? '坂道の入口' : F.retreatIdx < F.retreatPath.length - 3 ? '次の曲がり角' : '大手木戸' :
       F.step < 2 ? '坂本の町口' : F.backed ? '本丸の木戸' : F.backedNi ? '二の丸の木戸' : '大手木戸';
     return `${place} ${Math.ceil(Math.max(0, distance))}m`;
@@ -2353,7 +2353,7 @@ const shiga = {
     if (M && !M.done && !F.step) {
       const u = M.k === 2 && M.g?.units.find((v) => v.alive);
       if (u) { pin.unit = u; pin.enemy = true; pin.x = u.pos.x; pin.z = u.pos.z; return pin; }
-      const at = M.k === 0 ? M.at : TOWN_POST;
+      const at = M.k <= 1 ? M.at : TOWN_POST;
       pin.x = at.x; pin.z = at.z; return pin;
     }
     const enemy = this.missionSignTarget(rt);
