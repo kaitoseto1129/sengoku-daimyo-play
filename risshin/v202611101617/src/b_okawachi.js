@@ -743,8 +743,8 @@ const okawachi = {
   nameRange: 60,
   // 頭上の▼の添え字も、行く場所と行いを一つに（「印へ進め」にしない）。
   goalSignAction: (rt) => {
-    const s = rt.flags.step;
-    return s >= 4 ? '南の鹿垣を守れ' : s >= 3 ? '南の陣へ退け' : s >= 2 ? '坂の旗を守れ' : s === 1 && rt.flags.assaultMoving ? '搦手の木戸へ寄せよ' : '搦手の竹束へ';
+    const s = okawachi.missionOf(rt);
+    return s >= 4 ? '南の鹿垣を守れ' : s >= 3 ? '南の陣へ退け' : s >= 2 ? '坂の旗を守れ' : s === 1 ? '搦手の木戸へ寄せよ' : '搦手の竹束へ';
   },
   missionDetail: () => '',
   missionStatus: () => '',
@@ -757,6 +757,10 @@ const okawachi = {
   missions: ['搦手の坂下の竹束に付け', '竹束と搦手の木戸へ寄せよ', '坂の旗で、打って出た城兵を止めよ', '追っ手を防ぎ、南の陣へ退け', '南の鹿垣で囲みを保ち、兵糧を断つ'],   // 11/8：翌朝は城兵が寄せない回もある（城兵を止めよと書くと来ない敵を待つ）
   missionOf(rt) {
     const F = rt.flags;
+    // 城兵が先に打って出ても、行き先の印と同じ未到着の持ち場を案内する。
+    // 竹束や木戸へ寄せる前に「城兵を止めよ」へ替えると、戻る場所が分からなくなる。
+    if (F.step < 3 && !F.coverReached) return 0;
+    if (F.step >= 2 && F.step < 3 && !F.gateReached) return 1;
     return F.step === 4 ? 4 : F.step === 3 ? 3 : F.step >= 2 ? 2 : F.step === 1 && F.assaultMoving ? 1 : 0;
   },
   // 共通の目標の札（goals5.js）へ渡す五つ。時切れの ✕ と残りの時計は付けない（どの段も史実の合図と城兵の動きで進む）ので、
@@ -983,8 +987,7 @@ const okawachi = {
     skip: (x, z) => { const W = OK_TS.world; if (!W) return false; const h = W.heightAt(x, z); return Math.abs(W.heightAt(x + 1.5, z) - h) > 1 || Math.abs(W.heightAt(x, z + 1.5) - h) > 1; },
   },
   // 搦手の前の持ち場（25秒の画面）は、目が地面へ向いて本丸の木戸・櫓・板塀が画面の上の縁より上や左の外に外れていた（10/31 採点：奥の城）。
-  // 本丸の方へ七十度より近く向いている時だけ、本人を軸に目を本丸の方へ二十度まで回し、少し下げて見上げる。
-  // 本丸への線は木の無い坂（木戸・櫓・塀）。木が前をふさぐ二ノ丸・御納戸へは回さない。本人の向き・操作・形・材質は変えない。
+  // 本丸の方を向いた時だけ、少し下げて見上げる。横の向きは遊ぶ人の操作を保つ。
   frameCamera(rt, pos, look) {
     const P = rt.player, u = P.u, F = rt.flags;
     const near = !F.ending && !P.lock && !P.cine && F.step < 3 && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 48;
@@ -993,11 +996,6 @@ const okawachi = {
     const face = Math.max(0, Math.min(1, (1.25 - Math.abs(da)) / .35));
     P.okCastleK = (P.okCastleK || 0) + ((near ? face : 0) - (P.okCastleK || 0)) * .12;
     const k = P.okCastleK; if (k < .01) return;
-    // 本人を軸に回す（本人は画面の同じ所に残る）
-    const t = Math.max(-.35, Math.min(.35, da)) * k, c = Math.cos(t), s = Math.sin(t);
-    const ox = pos.x - u.pos.x, oz = pos.z - u.pos.z, lx = look.x - u.pos.x, lz = look.z - u.pos.z;
-    pos.x = u.pos.x + ox * c + oz * s; pos.z = u.pos.z + oz * c - ox * s;
-    look.x = u.pos.x + lx * c + lz * s; look.z = u.pos.z + lz * c - lx * s;
     const y = Math.max(rt.world.heightAt(pos.x, pos.z) + 1.2, u.pos.y + 1.6);
     if (pos.y > y) pos.y += (y - pos.y) * k * .7;
     // 本丸の平場から四歩上（屋根の軒）が画面の真ん中より少し上に来る見上げ。十度より多く起こさない。

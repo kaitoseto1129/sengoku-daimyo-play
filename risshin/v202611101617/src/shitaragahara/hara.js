@@ -78,7 +78,7 @@ export function tick(rt, dt) {
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: gz }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
-  rt.banner('原昌胤、討死', '柳田前へ寄せた原隊が退く');
+  if (!lord?.shPlayerKill) rt.banner('原昌胤、討死', '柳田前へ寄せた原隊が退く');
   rt.say('使番', F.shBreach?.done
     ? '真田兄弟、山県、原……武田の名のある将が次々に倒れておる！'
     : '原昌胤、討死！　柳田前の武田勢が退いております！', 3.8);
