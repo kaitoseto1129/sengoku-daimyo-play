@@ -168,7 +168,9 @@ function pondWater(W) {
 }
 
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
-const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
+// 生存していても深手で戦列を離れた者は、目標の残存戦力に数えない。
+// 控えの将を動かす live とは分け、表示と段を進める数を同じにする。
+const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed ? 1 : 0), 0) : 0);
 const sumN = (...gs) => gs.reduce((n, g) => n + aliveN(g), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 浅野勢：黒い具足に浅野の旗（丸に違い鷹の羽）。豊臣方の浪人衆：くすんだ黒の具足に豊臣の桐

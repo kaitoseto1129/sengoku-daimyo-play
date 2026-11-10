@@ -662,6 +662,7 @@ const k09_imafuku = {
       // fireGun は生死だけを確かめるため、ここで戦える状態を確かめる。
       u.k09Shot = (u.k09Shot ?? 2 + Math.random() * 6) - dt;
       if (!u.alive || u.gone || u.dying || u.woundOut || u.downed || u.rearWound || u.fleeing ||
+        u.group?.routed || u.stagger > 0 || u.pinT > rt.army.time ||
         u.reload || u.atk ||
         u.k09Shot > 0) continue;
       u.k09Shot = 7 + Math.random() * 4;
