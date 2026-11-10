@@ -265,7 +265,21 @@ const t09_yamanaka = {
     let x, z, label;
     if (F.step === 1) { x = KURUWA.dai.x; z = KURUWA.dai.z; label = '岱崎出丸'; }
     else if (F.step === 2) { x = CROSS_X; z = SHOJI.z0 - 5; label = '障子堀'; }
-    else if (F.step === 3) { const a = F.gateOpen ? SP.at.plaza : F.sub === 'back' ? SP.at.gate : SP.at.mouths[1].far; x = a.x; z = a.z; label = F.gateOpen ? '三の丸' : F.sub === 'back' ? '大手門' : '馬出し'; }
+    else if (F.step === 3) {
+      const A = SP.at, M = A.mouths[1];
+      let a = M.far;
+      if (F.sub === 'back' || F.gateOpen) {
+        // 門を指すだけでは馬出しの正面の柵へ突き当たる。口・土橋・門の順に案内する。
+        const route = F.oteRoute;
+        let i = F.oteSign || 0;
+        if (F.oteEntered) i = route.length - 1;
+        while (i < route.length - 1 && Math.hypot(p.x - route[i][0], p.z - route[i][1]) < 3) i++;
+        // 開いていない門より奥を指さない。
+        if (!F.gateOpen) i = Math.min(i, route.length - 2);
+        F.oteSign = i; [x, z] = route[i];
+        label = i < 4 ? '馬出しの口' : i < route.length - 1 ? '大手門' : '三の丸';
+      } else { x = a.x; z = a.z; label = '馬出し'; }
+    }
     else {
       // 初表示・途中再開・印から離れて登った時も、通過済みの虎口へ戻さない。
       let i = F.signRoute ?? 2;
@@ -319,7 +333,7 @@ const t09_yamanaka = {
 
   setup(rt) {
     const W = rt.world, F = rt.flags;
-    F.step = 0; F.ek = 0; F.ak = 0;
+    F.step = 0; F.ek = 0; F.ak = 0; F.daiEk = 0;
     const D = KURUWA.dai, HN = KURUWA.hon, NS = KURUWA.nishi;
     // ---- 岱崎出丸の柵（南と東へ向く。柵の内から間宮の鉄砲が撃つ。煙と弾は下の城攻めの部品が出す） ----
     F.daiWall = wallLine(rt, [[D.x - 16, D.z + 14], [D.x + 4, D.z + 18], [D.x + 18, D.z + 6], [D.x + 18, D.z - 10]], { team: 1, hp: 300, name: '出丸の柵', segLen: 8 });
@@ -437,7 +451,7 @@ const t09_yamanaka = {
     F.step = 1; F.stepT = rt.t;
     rt.setPhase('dai');
     sfx('horagai', 0.8);
-    rt.obj('main', '出丸の柵を破り、間宮康俊の手勢二百を討ち取る', 'main');
+    rt.obj('main', '出丸の柵を破り、間宮康俊を討って手勢二百の隊を崩す', 'main');
     const D = KURUWA.dai;
     rt.marker('dai', centerOf(F.dai), '間宮康俊', { red: true, group: F.dai });
     // 先手は柵の前へ寄り、柵を打ち破って出丸へ斬り込む（柵の向こうの敵を追って立ち往生しない）
@@ -466,6 +480,8 @@ const t09_yamanaka = {
     // 全員の整列を待つと、柵に阻まれた後列が着けず攻撃へ移れない。先頭から柵を攻める。
     const go = (g, x, z) => { g.formation = 'column'; g.colW = 3; g.order = 'assault'; g.assault = fence; g.anchor = { x, z }; g.speed = 3; g.onArrive = null; };
     go(F.ichi, D.x + 26, D.z + 4); go(F.naka, D.x + 34, D.z - 4);  // 出丸の東の土橋の口へ
+    // 破れ口が開いたら二陣も同じ土橋から援護する。新しい兵は増やさない。
+    F.daiSupport = () => go(F.yama, D.x + 26, D.z + 4);
     // 二陣まで柵に押し込まず、出丸を抜いた後に障子堀へ続く兵を残す。
     const reserve = (g, x, z) => { g.order = 'move'; g.dest = { x, z }; g.speed = 3; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x, z }; }; };
     reserve(F.yama, 12, 194);
@@ -593,13 +609,18 @@ const t09_yamanaka = {
     rt.say('中村一氏', gone(F.uma) ? '馬出しの敵は崩れた！　大手門へ掛かれ！' : '退くぞ！　門を閉めさせるな。続いて入れ！', 3.5);
     // 寄せ手は退く兵の後ろについて、馬出しの口から土橋・門へ
     const A = SP.at, M = A.mouths[1];
-    const pts = [[M.lane.x, M.lane.z], [M.outer.x, M.outer.z], [M.inner.x, M.inner.z], [A.uma.x, A.uma.z], [A.bridgeOut.x, A.bridgeOut.z], [A.gateOut.x, A.gateOut.z]];
+    const pts = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut].map((p) => [p.x, p.z]);
+    F.oteRoute = [...pts, [A.gate.x, A.gate.z], [A.plaza.x, A.plaza.z]]; F.oteSign = 0;
     for (const g of F.toyo) if (!gone(g)) { g.order = 'path'; g.path = pts.map((p) => p.slice()); g.pathIdx = 0; g.speed = 2.8; g.onArrive = (q) => { q.order = 'assault'; q.assault = () => { const s = F.K.gate && F.K.gate.struct; return s && s.alive && !s.opened ? s : A.plaza; }; }; }
   },
   openGate(rt, tsuke) {
     const F = rt.flags;
     if (F.gateOpen) return;
+    // 門を直接破った時も、迎撃の下知を終えて土橋から入る。
+    if (F.sub !== 'back') this.sallyBack(rt);
     F.gateOpen = true; F.gateOpenT = rt.t;
+    // 付け入り以外の開門を、戻った馬出しの隊に閉じ直させない。
+    F.K.stayOpen = true;
     for (const G of [F.K.gate, F.K.masu && F.K.masu.inner]) if (G && G.struct && G.struct.alive !== false) { G.struct.opened = true; G.open && G.open(); }
     for (const id of ['gate', 'ote', 'uma']) rt.unmark(id);
     sfx('kane', 0.4);
@@ -608,7 +629,10 @@ const t09_yamanaka = {
     F.hostUp(18, 30);
     // 開門だけでは「門から入る」を果たさない。寄せ手も枡形の中へ続く。
     for (const g of F.toyo) if (!gone(g)) {
-      if (g.order !== 'path') { g.path = [[SP.at.gateOut.x, SP.at.gateOut.z]]; g.pathIdx = 0; }
+      if (g.order !== 'path') {
+        const A = SP.at, M = A.mouths[1];
+        g.path = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut].map((p) => [p.x, p.z]); g.pathIdx = 0;
+      }
       g.path = [...g.path, [SP.at.plaza.x, SP.at.plaza.z]]; g.order = 'path';
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; };
     }
@@ -693,7 +717,7 @@ const t09_yamanaka = {
     if (F.K && F.step) F.K.tick(dt);   // 出陣の段は出丸の鉄砲を撃たせない
     if (F.rimFire) F.rimFire.tick(dt);
     if (F.okuFire) F.okuFire.tick(dt);
-    for (const m of rt.markers.slice()) if (m.group && gone(m.group)) rt.unmark(m.id);
+    for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
     if (!F.ending && !F.step) { if (shutsujin.update(rt, {})) this.dai(rt); return; }
     if (F.ending || !F.step) return;
     const p = rt.player.u.pos, T = rt.t - F.stepT;
@@ -747,15 +771,22 @@ const t09_yamanaka = {
         F.dai.formation = 'column'; F.dai.colW = 3;
       }
       // 柵に誰も傷をつけられないまま本人が柵の前で戦い続ける時は、先手が柵を引き倒す（11/9 bot：出丸の前で13分止まり倒れた）
-      if (!F.daiPulled && T > 120 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
+      if (!F.daiPulled && T > 45 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 45 && F.toyo.some((g) => !gone(g) && Math.hypot(g.center().x - KURUWA.dai.x, g.center().z - KURUWA.dai.z) < 45) && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
         F.daiPulled = true;
         const c = F.naka.count ? F.naka.center() : p;
         let best = null, bd = Infinity;
         for (const s of F.daiWall) { const d = Math.hypot((s.seg[0] + s.seg[2]) / 2 - c.x, (s.seg[1] + s.seg[3]) / 2 - c.z); if (d < bd) { bd = d; best = s; } }
         if (best && best.alive) { rt.army.damage(best, best.hp + 1, null); sfx('gateBreakWood', 0.8); rt.say('中村一氏', '縄を掛けよ！　柵を引き倒せ！', 3); }
       }
-      // 「手勢二百を討ち取る」は残兵の退去や経過時間では果たさない。
-      if (F.dai.units.every((u) => !cnt(u)) && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 40 && F.daiWall.some((s) => s.alive === false || s.hp <= 0)) this.shoji(rt);
+      const breached = F.daiWall.some((s) => s.alive === false || s.hp <= 0);
+      if (breached && F.daiSupport && !gone(F.yama)) {
+        F.daiSupport(); F.daiSupport = null;
+        rt.say('山内一豊', '柵が破れた！　二陣も土橋から続け！', 3);
+      }
+      // 間宮の討死・四分の三の損耗・出丸への到達で制圧。堀に残った一兵を探させない。
+      // 討った人数は水増しせず、残りは崩れて退く。
+      const remaining = F.dai.units.reduce((n, u) => n + (cnt(u) ? 1 : 0), 0);
+      if (F.mamiyaDead && remaining <= F.daiN * 0.25 && Math.hypot(p.x - KURUWA.dai.x, p.z - KURUWA.dai.z) < 30 && breached) this.shoji(rt);
     }
     if (F.step === 2) {
       const d = Math.hypot(p.x - F.cross.x, p.z - F.cross.z);
@@ -821,7 +852,10 @@ const t09_yamanaka = {
 
   onKill(rt, v) {
     const F = rt.flags;
-    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (v.team === 1) {
+      F.ek = (F.ek || 0) + 1;
+      if (F.dai?.units.includes(v)) F.daiEk = (F.daiEk || 0) + 1;
+    } else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {
     if (g.team !== 1 || g.routSaid) return;   // 同じ隊の退きは一度だけ言う
@@ -833,7 +867,10 @@ const t09_yamanaka = {
 // 両軍の総勢（豊臣秀次の寄せ手およそ七万、山中城の北条勢およそ四千。数には諸説ある）
 t09_yamanaka.force = (rt) => {
   const F = rt.flags;
-  return { a: Math.round(70000 - (F.ak || 0) * 40), a0: 70000, b: Math.max(0, 4000 - (F.ek || 0) * 25), b0: 4000 };
+  // 出丸の手勢は任務と同じ二百人換算。全員を一律二十五人で減らすと、
+  // 出丸を抜いただけで千人以上を失った人数になってしまう。
+  const losses = daiLoss(rt) + Math.max(0, (F.ek || 0) - (F.daiEk || 0)) * 25;
+  return { a: Math.max(0, Math.round(70000 - (F.ak || 0) * 40)), a0: 70000, b: Math.max(0, 4000 - losses), b0: 4000 };
 };
 t09_yamanaka.sides = { a: { name: '豊臣軍（豊臣秀次）', mon: 'toyotomi' }, b: { name: '北条軍（松田康長）', mon: 'hojo' } };
 t09_yamanaka.date = () => '天正十八年三月二十九日　春・朝';
@@ -952,12 +989,16 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 const cnt = (u) => u.alive && !u.dying && !u.evacuatedWound;   // 敗走しただけの兵は討ち取りに含めない。
+const daiLoss = (rt) => {
+  const units = rt.flags.dai?.units, n = units?.length || 0;
+  if (!n) return 0;
+  const down = n - units.reduce((sum, u) => sum + (cnt(u) ? 1 : 0), 0);
+  return Math.min(200, Math.floor(down * 200 / n));
+};
 KILLS.t09_yamanaka = (rt) => {
   const F = rt.flags;
   if (F.ending || F.step !== 1) return null;
-  const units = F.dai?.units || [], n = units.length;
-  const down = n - units.reduce((sum, u) => sum + (cnt(u) ? 1 : 0), 0);
-  return n ? [Math.min(200, Math.floor(down * 200 / n)), 200] : [0, 200];
+  return [daiLoss(rt), 200];
 };
 withGuard(t09_yamanaka);
 

@@ -7,6 +7,7 @@
 // ======================================================================
 import { enemyGroup, nm } from '../bhelp.js';
 import { addTaba } from '../taketaba.js';
+import { retreat } from './retreat.js';
 
 export function step(H) {
   // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
@@ -58,7 +59,7 @@ export function step(H) {
       return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || el > 220);
     },
     end(rt, C) {
-      for (const g of [C.spear, C.spear2]) if (g) { g.noRout = false; g.morale = 0; }
+      for (const g of [C.spear, C.spear2]) retreat(g);
       // 上の段の弓は金子丸の守りへ退く
       if (C.bow) {
         C.bow.order = 'path'; C.bow.path = [[H.SLOPE_TOP.x, H.SLOPE_TOP.z - 10]]; C.bow.pathIdx = 0;

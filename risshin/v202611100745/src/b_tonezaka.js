@@ -2950,12 +2950,20 @@ const tonezaka = {
       // 狭い坂道・旗本・荷駄は、本人が目当てへ着き、敵を退けてから進む。
       // 共通の放置・時間切れによる段送りで、未達成の目標を飛ばさない。
       if (st.kind === 'hold' || st.kind === 'move') {
+        const retreatAt = st.max;
         st.idleAdvance = false; st.max = st.limit = Infinity;
         // 共通の四分・七分の打ち切りでも、未到着・敵が残る追撃を達成扱いにしない。
         st.noHardCap = true;
         if (st.kind === 'hold') {
           const tick = st.tick;
           st.tick = (rt2, C, m, ctx, el, dt) => {
+            // 共通の段は生存数で数えるため、戦えない負傷者だけでも止まる。
+            // 寄せの上限後は損害を受けた組も退くが、無傷の組は時計で消さない。
+            for (const g of C.groups) {
+              if (g.routed) continue;
+              const n = fighters(g);
+              if (!n || n <= g.initial * 0.2 || el >= retreatAt && n < g.initial) retreat(g);
+            }
             const cleared = tick(rt2, C, m, ctx, el, dt);
             // 共通の守備処理が書く残り秒数を、追加した追撃の段にも残さない。
             rt2.objProgress('dp', '');
@@ -2971,7 +2979,8 @@ const tonezaka = {
   },
   kit() {
     const A = (n) => ({ type: 'ashigaru', n }), S = (n) => ({ type: 'samurai', n });
-    return { at, rest: dpRest, hold: dpHold, move: dpMove, A, S };
+    // 書いた後備えと旗本を退けた後、共通の撃破数稼ぎの新手を繰り返さない。
+    return { at, rest: dpRest, hold: (o) => dpHold({ ...o, noRefill: true }), move: dpMove, A, S };
   },
   chase(rt) {
     const F = rt.flags;

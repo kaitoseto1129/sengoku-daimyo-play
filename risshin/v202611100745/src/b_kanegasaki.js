@@ -2537,7 +2537,7 @@ const kanegasaki = {
       { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で、朝倉の先手を止める', noun: '一の備', action: '一の備で先手を止めよ', place: at(LINES[0]), check: () => (F.line || 0) >= 1 && hit(0) },
       { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => (F.step || 0) >= 3 || (F.line || 0) >= 2 },
       { kind: 'stage', k: 1, text: '川の砦で、池田勢と騎馬の追手を受ける', noun: '川の砦', action: '砦の柵で騎馬の追手を受けよ', place: at(LINES[1]), check: () => (F.line || 0) >= 2 && hit(1) },
-      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && hit(2) },
+      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && !!F.exitReady && hit(2) },
       { kind: 'stage', k: 2, text: '若狭への道の退き口へ、木下・池田・明智と退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won },
     // 11/6：目標は時間切れで✕にしない（備ごとの長さは台本の下知で決まる）。残りの秒も出さない。
     ];
@@ -2557,8 +2557,8 @@ const kanegasaki = {
     A: { name: '織田', facing: Math.PI, honjin: { x: -50, z: 170 }, mpu: 4, formation: '長蛇', terrain: 'valley', flag: 'oda', armor: 0x24221f, uma: 'kasa', openAt: 200, attrition: 0.003,
       sonae: [
         { id: 'kino', layer: 'sakite', wing: 'center', men: 1000, taisho: '木下藤吉郎', bind: (rt) => rt.flags.kino },
-        { id: 'ikeda', layer: 'ichi', wing: 'left', men: 3000, taisho: '池田勝正', bind: (rt) => rt.flags.ikeda },
-        { id: 'akechi', layer: 'ichi', wing: 'right', men: 1000, taisho: '明智光秀', bind: (rt) => rt.flags.akechi },
+        { id: 'ikeda', layer: 'ichi', wing: 'left', men: 1500, taisho: '池田勝正', bind: (rt) => rt.flags.ikeda },
+        { id: 'akechi', layer: 'ichi', wing: 'right', men: 500, taisho: '明智光秀', bind: (rt) => rt.flags.akechi },
         { id: 'ieyasu', layer: 'ni', wing: 'center', men: 5000, taisho: '徳川家康', flag: 'tokugawa', bind: (rt) => rt.flags.ieyasu },
         { id: 'nobunaga', layer: 'hatamoto', wing: 'center', men: 3000, taisho: '織田信長', hold: true, at: { x: -50, z: 172 } },
         { id: 'konida', layer: 'konida', wing: 'center', men: 800, hold: true, at: { x: -34, z: 140 } },
@@ -4195,9 +4195,9 @@ kanegasaki.sides = { a: { name: '織田・徳川の軍', mon: 'oda' }, b: { name
 // 11/7 kaito 九3：敵の兵には一人残らず頭上に赤い▼。共通の印（近い四人まで）は止め、この戦では見える敵全員に付ける。
 //   印は使い回しの DOM 一揃い。見通しは五分の一秒ごと、位置は毎コマ。遠いほど小さく。
 const KG_FOE_SIGN_R = 120, KG_FOE_SIGN_N = 250, kgSignV = new THREE.Vector3();
-// 印の見通しはカメラから頭上まで。地面と壁だけで隠す（硝煙や霞では敵の印を消さない。乱戦で▼が数人にしか付かなかった）。
+// 頭上だけが斜面や柵を越えても印を浮かせない。体の見通しを地面と壁で確かめる。
 function kgSignSeen(rt, u) {
-  const a = rt.camera.position, W = rt.world, by = u.pos.y + (u.mounted ? 3 : 2.1);
+  const a = rt.camera.position, W = rt.world, by = u.pos.y + (u.mounted ? 2.2 : 1.2);
   const d = Math.hypot(u.pos.x - a.x, u.pos.z - a.z), steps = Math.max(2, Math.min(24, Math.ceil(d / 5)));
   for (let i = 1; i < steps; i++) {
     const t = i / steps;

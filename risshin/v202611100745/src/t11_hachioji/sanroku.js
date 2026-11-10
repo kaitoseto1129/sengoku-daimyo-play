@@ -9,6 +9,7 @@
 // ======================================================================
 import { enemyGroup, nm } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { retreat } from './retreat.js';
 
 export function step(H) {
   // 敗走した組と、倒れる途中・重傷で離脱した兵は残兵に数えない。
@@ -46,7 +47,7 @@ export function step(H) {
       }
       if (C.ambush && !C.ambushDone && (live(C.ambush) <= 2 || el - 26 > 75)) {
         C.ambushDone = el;
-        C.ambush.noRout = false; C.ambush.morale = 0;
+        retreat(C.ambush);
         rt.say('前田の侍', '伏兵が霧の中へ退いた！　木戸はこの先じゃ', 3);
         rt.after(3.6, () => rt.say('使番', '小田原より！　忍城は石田殿が水攻めの最中、韮山はなお抵抗。小田原は殿下の大軍が囲んでおる', 4));
         rt.after(8.2, () => rt.say('前田利家', 'この城が落ちれば、小田原に籠もる者の心が折れる。今日のうちに落とせ', 3.8));
@@ -62,8 +63,7 @@ export function step(H) {
     end(rt, C) {
       // 目の前の生き残りを消さず、城の方へ敗走させる。
       if (C.ambush) {
-        C.ambush.noRout = false; C.ambush.morale = 0;
-        C.ambush.fleeDir = { x: -1, z: 0 }; C.ambush.fleeSet = true;
+        retreat(C.ambush);
       }
       rt.objDone('dp');
     },

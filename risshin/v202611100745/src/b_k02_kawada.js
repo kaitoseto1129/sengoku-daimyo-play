@@ -140,12 +140,13 @@ function moveHonjin(rt) {
 // 大塚権太夫は首を持って堤を登る所で飯沼長資に討たれた（笠松町無動寺に塚）。台詞だけでなく本当に倒れる
 // 11/6 専門家の目：前は飯沼が村の奥に出た途端、離れた所の大塚がひとりでに倒れた。今は飯沼の手が大塚の手前に打って出て、二人が寄って一騎打ちで討つ。
 //   一騎打ちが済むまで飯沼は討たれない（済む前に倒れると話が逆になる）。時間で省かず、二人が寄るまで待つ
+const waitForDuel = () => {};   // 共通の手傷退却で一騎打ちの相手を失わない
 function otsukaTick(rt, C) {
   const F = rt.flags, H = F.hitotsu;
   const u = H && H.units.find((q) => q.name === '大塚権太夫');
   // 大塚は一柳の手の内で戦う（馬で逃げる敵を北の端まで追って、手から百五十歩も離れていた。11/6 流し）
   // 一騎打ちの前に大塚が雑兵に討たれて一騎打ちの無い回があった（11/6 夜の流し）。済むまで大塚は倒れない
-  if (u && u.alive && !F.otsukaDone) u.invuln = true;
+  if (u && u.alive && !F.otsukaDone) { u.invuln = true; u.onWound = waitForDuel; }
   if (u && u.alive && !F.otsukaDone && H.count) {
     const c = H.center();
     if (Math.hypot(u.pos.x - c.x, u.pos.z - c.z) > 35 || (u.target && u.target.fleeing)) { u.target = null; u.moveTo = { x: c.x, z: c.z }; }
@@ -153,9 +154,9 @@ function otsukaTick(rt, C) {
   if (!F.iinumaOut || F.otsukaDone) return;
   const ig = C.groups.find((q) => q.name === '飯沼長資の手');
   const iu = ig && ig.units.find((q) => q.alive && q.name === '飯沼長資');
-  const end = () => { F.otsukaDone = true; if (iu) iu.invuln = false; for (const g of [ig, H]) if (g && g.order === 'move') g.order = 'attack'; };
+  const end = () => { F.otsukaDone = true; if (u) u.onWound = null; if (iu) { iu.invuln = false; iu.onWound = null; } for (const g of [ig, H]) if (g && g.order === 'move') g.order = 'attack'; };
   if (!u || !u.alive || !iu) { end(); return; }
-  iu.invuln = true;
+  iu.invuln = true; iu.onWound = waitForDuel;
   const gap = Math.hypot(u.pos.x - iu.pos.x, u.pos.z - iu.pos.z), wait = rt.t - F.iinumaOut;
   if (gap <= 6) {
     end();
@@ -376,6 +377,7 @@ const k02_kawada = {
     // 一柳直盛の手：道案内で先に渡り、家来の大塚権太夫が一番に北岸へ上がった（井伊直政の報告・笠松の史跡の案内）
     F.hitotsu = allyGroup(rt, { faction: 'oda', name: '一柳直盛の手', anchor: { x: START.x - 4, z: START.z - 22 }, facing: Math.PI, width: 8, aggro: 10, noRout: true, formation: 'yari' },
       dress([{ type: 'busho', n: 1, o: { name: '一柳直盛', invuln: true, horse: true, mon: 'kuginuki' } }, { type: 'samurai', n: 1, o: { name: '大塚権太夫', invuln: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 5 }], HITOTSU));
+    F.hitotsu.units.find((u) => u.name === '大塚権太夫').onWound = waitForDuel;
     for (const g of [F.mine, F.nagayoshi, F.asano, F.hitotsu]) { g.defMult = 1.5; g.dmgMult = 1.1; g.aggro = 24; }
     // 始まりから全員が南の筋の堤まで押し出す（始めの二十五秒、皆が背を向けて突っ立っていた。11/6 kaito の目）
     [F.mine, F.nagayoshi, F.asano, F.hitotsu].forEach((g, k) => { g.order = 'hold'; g.anchor = { x: -60 + (k - 1.5) * 6, z: 52 + (k % 2) * 5 }; g.facing = Math.PI; });
@@ -394,6 +396,8 @@ const k02_kawada = {
       dress([{ type: 'busho', n: 1, o: { name: '木造長政', hat: 'kabuto_m', horse: true, invuln: true } }, { type: 'samurai', n: 12 }, { type: 'gun', n: 3 }], WEST));
     // 11/8 critic60 二3・二7：渡る間ずっと北岸から撃たれ、浅瀬で味方も本人も倒れる（前は 0.3 で、渡りきるまで命が一度も減らなかった）。
     //   鉄砲組は南の筋を渡る所から届く（aggro 70）。段の弱め（paceFriends）からは外す（_k02fire）
+    // invuln だけでは主人公の一撃で討たれる。翌日の岐阜城へ退く将は生存を明示する。
+    F.northGuard.units.find((u) => u.name === '木造長政').mustLive = true;
     F.northGun.dmgMult = 0.7; F.northGun.aggro = 70; F.northGun._k02fire = true; F.northGuard.dmgMult = 0.3;
     const n = RANKS[rt.G.rank].squad;
     if (n) rt.makeSquad({ x: START.x + 4, z: START.z - 2 }, Math.PI, [{ kind: 'spear', n: Math.min(n, 16) }]);
@@ -504,6 +508,8 @@ const k02_kawada = {
     if (C && F.dp.i === 4) {
       // 百々の旗本は村の前で東を向いて構え、百々が討たれるまで崩れない
       const g = holdGuard(C, '百々綱家の旗本', YONENO, Math.PI / 2);
+      const dodo = g && g.units.find((u) => u.name === '百々綱家');
+      if (dodo) dodo.mustLive = true;
       // 米野の鉄砲組は村の前で東を向いて撃つ（一人で来た本人へ村から打って出ない）
       holdGuard(C, '米野の鉄砲組', { x: YONENO.x + 14, z: YONENO.z + 6 }, Math.PI / 2);
       // 飯沼長資が出て大塚権太夫との一騎打ちが済むまで、百々の旗本は退かない（先に米野が崩れて一騎打ちが無くなっていた。11/6 流し）
