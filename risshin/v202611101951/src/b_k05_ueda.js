@@ -464,7 +464,7 @@ const k05_ueda = {
     T.forEach(([who, s], i) => rt.after(0.6 + i * 2.6, () => rt.say(who, s, 2.4)));
     // 油断の間：秀忠の本陣は整然と余裕。少し間を置いてから城の門が開く
     rt.after(0.6 + T.length * 2.6, () => rt.say('秀忠の使番', '中納言様の仰せ。「今日のうちに片付けて西へ上る」', 2.4));
-    rt.after(0.6 + T.length * 2.6 + 1, () => { F.holdPlayer = false; this.toStep(rt, 1); });
+    rt.after(0.6 + T.length * 2.6 + 2.8, () => { F.holdPlayer = false; this.toStep(rt, 1); });
   },
 
   // 真田の隊を出す（見える所に湧かせない。城の門の内か、北の林から）
@@ -607,8 +607,9 @@ const k05_ueda = {
       rt.after(4.4, () => rt.say('徳川秀忠', '……ここまで来て、退くのか。……いや。攻めを止めよ。西へ急ぐ', 3.6));
       rt.after(9, () => rt.say('本多忠政', '負うた者を担げ。鉄砲と荷駄を先に、神川の岸へまとまれ！', 3.4));
       rt.after(15, () => rt.say('真田昌幸', '追うな。時は奪うた。それでよい', 3));
-      for (const [g, p] of [[F.okubo, { x: FORD_W.x + 14, z: -14 }], [F.saka, { x: FORD_W.x + 18, z: 14 }], [F.makino, { x: FORD_W.x + 10, z: 22 }], [F.honda, { x: FORD_W.x - 2, z: FORD_W.z - 6 }], [F.nobu, { x: FORD_W.x + 4, z: FORD_W.z + 8 }]]) go(g, p, g === F.honda ? 'attack' : 'hold', 3.7);
-      if (live(F.nida)) go(F.nida, { x: FORD_W.x + 20, z: 4 }, 'hold', 3.2);
+      // 集合先は全隊とも西岸。東へ足すと神川（半幅十二歩）の水中に並んでしまう。
+      for (const [g, p] of [[F.okubo, { x: FORD_W.x - 8, z: -14 }], [F.saka, { x: FORD_W.x - 4, z: 14 }], [F.makino, { x: FORD_W.x - 12, z: 22 }], [F.honda, { x: FORD_W.x - 2, z: FORD_W.z - 6 }], [F.nobu, { x: FORD_W.x - 8, z: FORD_W.z + 8 }]]) go(g, p, g === F.honda ? 'attack' : 'hold', 3.7);
+      if (live(F.nida)) go(F.nida, { x: FORD_W.x - 4, z: 4 }, 'hold', 3.2);
       F.rallyAt = 0;
       // 信繁の手が一度だけ後衛へ出て、一撃してすぐ退く（一騎打ちにしない）
       rt.after(22, () => {

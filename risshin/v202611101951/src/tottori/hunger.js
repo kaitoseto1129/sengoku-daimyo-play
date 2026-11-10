@@ -162,7 +162,7 @@ function start(rt, K, done) {
         run.onArrive = null;
         if (stop() || F.k15at?.id !== 'hg-breach' && !F.ttBreachFight) return;
         // 抜けられた：一度のしくじりで負けにはしない。その分、城が長く持つ
-        for (const u of run.units) if (u.alive) rt.army.despawn(u);
+        for (const u of run.units) if (alive(u)) rt.army.despawn(u);
         F.ttLeak = (F.ttLeak || 0) + 1; F.ttSiege -= 30;
         if (F.k15at?.id === 'hg-breach') { F.k15at = null; rt.unmark('k15'); }
         rt.unmark('k15foe'); F.k15fight = false; F.ttBreachFight = false;
