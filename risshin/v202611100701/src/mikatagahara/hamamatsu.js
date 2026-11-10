@@ -32,6 +32,7 @@ export function install(rt, ctx) {
     if (F.pursuit) { try { F.pursuit.visible = true; F.pursuit.moveTo(8, 60, 30); } catch (e) { /* 遠景が無くても進む */ } }
     rt.say('足軽', '武田が門の前で止まった……開いた門と篝火を怪しんどるがや', 3.4);
   });
+  rt.after(20, () => { if (alive()) rt.say('足軽', '……生きて、戻れたがや', 2.4); });
   rt.after(22.5, () => { if (alive()) rt.say('徳川家康', '……この負け、生涯忘れまいぞ', 3.2); });
   rt.after(27, () => { if (alive()) rt.say('語り', '三方ヶ原は武田の大勝に終わった。平手汎秀は討ち死にし、家康は浜松城へ逃げ帰った', 5); });
   rt.after(DUR, () => {

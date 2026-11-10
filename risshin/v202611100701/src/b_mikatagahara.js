@@ -2239,7 +2239,10 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.marker('w1', centerOf(F.w1), '武田の先手', { red: true, group: F.w1 });
 
     // 小山田を先に、東の山県と後続の備を厚く置く。各備の位置は推定。
+    // docs/mikatagahara_spec_1109.md：始めは押せる（「いける」）→倒した先手の後ろから整然と次の備（「層が違う」）
+    rt.after(26, () => { if (F.step === 1 && !F.ending) rt.say('足軽', '押しとるぞ！　いけるがや！', 2.6); });
     rt.after(32, () => { if (F.step === 1 && !F.ending) rt.say('物見', '小山田信茂の先手じゃ！　その後ろにも武田の旗！', 3.5); });
+    rt.after(37, () => { if (F.step === 1 && !F.ending) rt.say('組頭', '……この軍、層が違う', 2.6); });
     // 勝ち筋：勝てぬ戦。台地の南の坂を下れば浜松城。生きて退く道をはじめに示す
     rt.after(16, () => { if (F.step === 1 && !F.ending) rt.say('組頭', '退けの下知が出たら、背後の南の坂へ。浜松城へ戻るぞ！', 3.5); });
     // 退く下知の時に、南の道を順に示す。
@@ -2328,6 +2331,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     rt.setPhase('crash');
     rt.unmark('w1'); rt.unmark('hira');
     rt.banner('赤備え', '山県の赤備え、横合いから寄せる');
+    rt.after(0.8, () => { if (!F.ending) rt.say('使番', '武田の二の陣、前へ出まする！', 2.8); });
     rt.obj('main', HI(rt) ? '一手を右へ向け、赤備えを支えよ' : '右から来る赤備えを支えよ', 'main', true);
     takedaMove(rt, 'crash');
     fadeMikataLook(rt, TWILIGHT);   // 夕刻→薄暮→（退き口で）夜

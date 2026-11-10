@@ -6,6 +6,7 @@
 // ======================================================================
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
+import { siegeFighter } from '../siege_zones.js';
 
 export function install(rt, ctx) {
   const F = rt.flags;
@@ -26,7 +27,7 @@ export function install(rt, ctx) {
     R = enemyGroup(rt, { faction: 'matsunaga', name: '火から逃げ出た松永の兵', anchor: { x: TOP.x + 4, z: TOP.z + TOP.r - 4 }, facing: 0, width: 4, order: 'attack', aggro: 20, seekRange: 22, morale: 40, fleeDir: { x: 0.6, z: 1 } },
       dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 3 }], MATSU));
     rt.say('組頭', '火の中から逃げ出て来た！　死に物狂いじゃ、気を付けよ！', 3.5);
-    rt.marker('enjouR', () => (R.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? R.center() : null), '逃げ出た松永の兵', { red: true, group: R });
+    rt.marker('enjouR', () => (R.units.some(siegeFighter) ? R.center() : null), '逃げ出た松永の兵', { red: true, group: R });
   });
   rt.after(30, () => { if (!stopped()) rt.say('筒井順慶', '久秀は天主に籠もったか……。火が天主へ移るぞ', 4); });
   return {

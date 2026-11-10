@@ -1577,7 +1577,7 @@ function hieiTreatmentProgress(rt) {
 // 使番は隊の要へ直進せず、坂本の通りと本坂の折れを通って下知を届ける。
 // 道と投影用の入れ物は使い回し、歩けるかの調べも三分の一秒ごとにする。
 const RUNNER_ROAD = [...pts('sakamoto'), ...pts('honzaka', 1), ...pts('todo', 1, 3),
-  [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1), ...pts('yokawa', 1)];
+  [-24, -5], [-21.5, -5.5], [-21.5, -11], ...pts('todo_n', 1), ...pts('saito', 1), ...pts('yokawa', 1)];
 const RUNNER_SHRINE_E = [...pts('hiyoshi').reverse(), [158, 5], [170, 7], [184, 7]];
 const RUNNER_SHRINE_W = [...pts('hiyoshi').reverse(), [146, 4], ...RUNNER_ROAD.slice(4)];
 // 里坊の北へ押し出された兵は、家の裏を通って参道か東の通りへ戻る。
@@ -2691,7 +2691,7 @@ const hiei_mtn = {
   nearAllyWholeOcclusion: true,
   bodyHeightGuides: true, // 徒歩の頭の高さに印を寄せ、石段の上下で宙に離さない。
   compactDodgeGuide: true, // 狭い参道の回避先を小さな印にし、前列の兵を覆わない。
-  introText: '坂本の町に火が放たれた。明智の先手と日吉社の鳥居を抜け、本坂を登って根本中堂へ攻め上る。谷へ逃げる者は後の手に任せる。',
+  introText: '坂本の町へ攻め入る。明智の先手と日吉社の鳥居を抜け、本坂を登って根本中堂へ攻め上る。谷へ逃げる者は後の手に任せる。',
   openingMoveLabel: '上になぞり 鳥居へ',
   meleeApproachText: '刀の印へなぞって進め',
   // 11/4 jin（BH6・Simple）：敵を指す矢印と「構え」の案内は出さない。敵は頭上の▼で分かる。
@@ -3662,8 +3662,12 @@ const hiei_mtn = {
     rt.setPhase('climb');
     rt.unmark('ake');
     // 11/6 fixc1721（kaito 四6・二4）：坂本への放火が攻めの合図（信長公記）。開戦の時に町の家と里坊から火と黒煙を上げる。
-    for (const id of ['minka_4', 'satobo_2', 'minka_2']) F.fire.ignite(id, '坂本への火');
-    F.fire.tick(0.5);
+    // 11/10（hiei_spec 11/9「最初の火は主人公がつけない。遠くの一軒→別の方角→煙が増える→使番」）：
+    //   開戦の一コマで三軒を焼かず、間を置いて一軒ずつ。大火災にはしない。
+    for (const [s, id] of [[4, 'minka_2'], [14, 'satobo_2'], [24, 'minka_4']]) {
+      rt.after(s, () => { if (!F.ending && F.fire.ignite(id, '坂本への火')) F.fire.tick(0.5); });
+    }
+    rt.after(28, () => { if (!F.ending && F.step <= 2) rt.say('使番', '火が入りました！', 3); });
     hieiOrder(rt, 'susume', 'main', '日吉社の鳥居へ進み、守りの僧兵を退けよ',
       '合図：法螺貝と陣太鼓＝前へ進め', '法螺貝と陣太鼓を聞け。先手と鳥居へ進み、道を開け');
     rt.marker('hiyoshi', { x: 148, z: -4 }, () => shrineGuideLabel(rt),
@@ -3835,7 +3839,7 @@ const hiei_mtn = {
     walk(F.akechi, pts('todo', 0, 3), 2.5, (q) => attackFrom(q, 30));
     walk(F.teppo, pts('honzaka', 18, 22), 2.4, (q) => { q.order = 'hold'; q.anchor = { x: -18, z: -8 }; });
     // 煙で道を見失った味方。救い出しの任務にはしない
-    walk(F.akechi2, [...pts('todo', 0, 1), [-17, -6], [-18, -11], ...pts('todo_n', 1, 2)], 2.3);
+    walk(F.akechi2, [...pts('todo', 0, 1), [-21.5, -5.5], [-21.5, -11], ...pts('todo_n', 1, 2)], 2.3);
     F.lostT = rt.t + 8; F.lostN = 0;
     rt.after(8, () => { if (!F.ending) F.fireJobs[2].ready = true; });
     // 11/6 fix4：後ろの隊の行き先を選ぶ札はやめた（選ぶ画面は足さない。台詞の「本人の組」も遊びの言葉だった）。
@@ -3860,8 +3864,8 @@ const hiei_mtn = {
     const F = rt.flags;
     if (F.bell2) return;
     F.bell2 = true; F.westT = rt.t;
-    walk(F.akechi, [[-30, -5], [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.3);
-    walk(F.teppo, [[-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+    walk(F.akechi, [[-30, -5], [-24, -5], [-21.5, -5.5], [-21.5, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.3);
+    walk(F.teppo, [[-17, -6], [-21.5, -5.5], [-21.5, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
     rt.banner('西塔の加勢が来る', '西の山道から加勢が来る');
     rt.unmark('court');
     rt.obj('main', '燃える東塔を抜け、西塔へ続く山道の僧兵を明智の先手と崩す', 'main');
@@ -4222,7 +4226,7 @@ const hiei_mtn = {
           // 15分の構成：根本中堂の後も締めず、西塔の鐘・西塔・横川へ続ける（もとの P5〜P7。docs/oda15_plan_1108.md の 12）
           if (rt.G.lord) this.win(rt, '根本中堂の前の守りを退け、燃える東塔を押さえた');
           else {
-            if (F.hieiBack) walk(F.hieiBack, [[-30, -5], [-24, -5], [-17, -6], [-18, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
+            if (F.hieiBack) walk(F.hieiBack, [[-30, -5], [-24, -5], [-21.5, -5.5], [-21.5, -11], ...pts('todo_n', 1), ...pts('saito', 1, 4)], 2.2);
             rt.say('明智光秀', '中堂は押さえた。後続と西塔へ続くぞ', 3);
             this.bellSaito(rt);
           }
@@ -4286,7 +4290,7 @@ const hiei_mtn = {
     // 深手の間は前進の下知より退避を先に見せる。回復したら元の任務へ戻す。
     if (u.hp <= u.maxHp * .4 && F.dangerAt === undefined && !F.woundTask) {
       F.woundTask = true;
-      rt.obj('hiei-wound', '深手。味方の後ろで身を守れ', 'main', true);
+      rt.obj('hiei-wound', '傷が重い。味方の後ろで身を守れ', 'main', true);
     } else if ((u.hp > u.maxHp * .4 || F.dangerAt !== undefined) && F.woundTask) {
       F.woundTask = false; rt.objRemove('hiei-wound');
     }
@@ -4340,7 +4344,7 @@ const hiei_mtn = {
         if (!task) return;
         hieiOrder(rt, 'atsumare', 'main', task.text,
           '合図：長い法螺二声＝味方の列で組を揃えよ',
-          '長い法螺二声は集まれの合図じゃ。組は立ち直った。味方の列で揃えよ。深手の者は後ろで手当てせよ');
+          '長い法螺二声は集まれの合図じゃ。組は立ち直った。味方の列で揃えよ。傷の重い者は後ろで手当てせよ');
       });
     }
   },
@@ -4404,7 +4408,7 @@ const ROUTE = {
   3: () => [...pathById('honzaka').pts.slice(17), [-20, -6]],
   // 中堂に着いただけでは西へ案内しない。守りを退けた鐘の合図を待つ。
   4: (F) => (!F.bell2 ? [[-8, -6], [-12, -6], [-17, -6], [-22, -5.5], [-26, -5], [-30, -5], [-38, -5]]
-    : [[-30, -5], [-24, -5], [-17, -6], [-18, -11], [-21, -18], [-28, -25], [-38, -29], [-50, -24], [-60, -22], [-70, -20], [-76, -21]]),
+    : [[-30, -5], [-24, -5], [-21.5, -5.5], [-21.5, -11], [-21, -18], [-28, -25], [-38, -29], [-50, -24], [-60, -22], [-70, -20], [-76, -21]]),
   5: () => [...pts('saito', 4)],
   6: () => [...pts('yokawa')],
 };

@@ -4696,6 +4696,12 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     F.roof.fire = false; rt.after(30, () => { if (!F.ending && !rt.over && F.step === 4) { F.roof.fire = true; rt.bark('西隣の近衛屋敷の屋根から鉄砲じゃ！　門の脇の塀へ寄れ', true); } });
     rt.marker('ng', { x: NIJO_GATE.x + 3, z: NIJO_GATE.z }, '二条御所の西の門', { h: 2.5 });
     F.nHold = 0; F.nEngaged = false; rt.zone('ng', NIJO_GATE.x, NIJO_GATE.z, 18);
+    // 11/9 kaito 仕様：はじめは押し返す→外にさらに明智勢→信忠が大将として下知する（「東を捨てろ！」→使番が走る）。
+    const nSay = (sec, who, text, d = 3) => rt.after(sec, () => { if (F.step === 4 && !F.ending && !rt.over) honnoSay(rt, who, text, d); });
+    nSay(17, '斎藤利治', '押し返したぞ！　門の口は持つ！', 3);
+    nSay(24, '使番', '東の築地の外にも桔梗の旗！　北にも寄せて来る！', 3.2);
+    nSay(29, '織田信忠', '東を捨てろ！　門を閉じよ！　ここで止める！', 3.2);
+    nSay(42, '使番', '東の門が破られた！　庭へ入られた！', 3);
     F.nWaves = [4, 13, 22, 31, 40]; // 四〜七分に収める（兵の数は同じ五波・五十人。間を詰める）
     // 信忠の三度の出撃。門番は持ち場を守り、信忠と既存の馬廻だけが門外へ出て戻る。
     // 新しい兵は足さず、通れる西の門を往復する。退く段に入った後は動かさない。
@@ -4740,12 +4746,13 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     // 紙：信忠も明智勢と戦い、御所の奥で腹を切る。最期の下知を聞いてから北の口へ。
     rt.banner('もはやこれまで', '御所に火が回る。信忠の最期の下知を聞き、北の口へ退け');
     rt.praiseT = 1e9;   // 上役の信忠・村井は御所で死ぬ。一人で落ちる間に、上役の褒めの声を出さない（battle.js）
-    honnoSay(rt, '織田信忠', '腹を切る。屍は縁の下へ隠せ。……そなたは落ちよ、見た事を伝えよ', 4.5);
+    honnoSay(rt, '織田信忠', '腹を切る。介錯は要らぬ。……そなたはここを出ろ。羽柴へ伝えよ。上様とわしは討たれ、光秀が謀反、京は明智の手に落ちた、と', 5.5);
     rt.after(5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '斎藤利治', '殿のお供をいたす。最後の一人まで門を支えるぞ！', 3.5); });
     if (F.tadaU && F.tadaU.alive) { F.tadaU.noTarget = true; F.tada.order = 'hold'; F.tada.anchor = { x: NIJO.x + 2, z: NIJO.z - 2 }; }
     // 11/6 fixc0939：落ちる本人の後ろを信忠が付いて来て、使者の家に名札が映った。信忠は最期の下知の後、御所の奥へ入る（見せない）
     rt.after(4.8, () => { const u = F.tadaU; if (u?.alive) { u.invuln = false; rt.army.despawn(u); } });
     rt.after(8.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '門は持たぬ。残る者が口を支える。北へ退け！', 3.5); });
+    rt.after(16.5, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '御所の組頭', '長益様は北の口から落ちられた。そなたも続け！', 3.2); });
     rt.after(12, () => { if (F.step === 5 && !F.ending && !rt.over) honnoSay(rt, '', '――信忠は御所の奥で自害した。二十六の若さであった', 4); });
 
     rt.obj('main', '明智の兵を抜け、京の外れの木戸まで逃げよ', 'main', true);
