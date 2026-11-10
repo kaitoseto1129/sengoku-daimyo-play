@@ -1144,7 +1144,7 @@ const iwamura = {
     }
     // 声の順番を待つ間や字幕の表示中にも、札の行き先は変わる。
     // 戻り終えた口や、すでに離れた持ち場へ古い下知で呼び戻さない。
-    if (/口の印(を通り、|から)柵の内へ/.test(text) && (F.step >= 3 || !F.raidReturning)) return false;
+    if (/口(?:の印)?(?:を通り、|から)柵の内へ/.test(text) && (F.step >= 3 || !F.raidReturning)) return false;
     if (/連絡道(の印)?を回れ|柵の内の連絡道を回れ|柵の内を回れ。/.test(text) &&
         (F.step >= 3 || !F.raidCrossing)) return false;
     if (/陣の奥に敵じゃ|陣の奥の印の敵|陣の奥の敵を/.test(text) && (F.step >= 3 || !F.breached)) return false;
@@ -1164,10 +1164,10 @@ const iwamura = {
     // 麓で待つ理由が消えたら、その字幕も外す。迎撃中の下知は残す。
     if (F.step === 3) {
       // 先の折れへ進む声と、道へ戻る声を、現在の札に合わせる。
-      if (/追い討ちじゃ。山道の印|山道の印をたどり、味方と麓へ進め/.test(text) &&
+      if (/追い討ちじゃ。山道(?:の印)?|山道(?:の印)?をたどり、味方と麓へ進め/.test(text) &&
           (F.chaseArrived || F.chaseOffRoad || F.roadFight || F.joinOrder)) return false;
       if (/道を外れたぞ|道の印へ戻れ。崖を横切るな/.test(text) && !F.chaseOffRoad) return false;
-      if (/麓を離れるな。道の印|道の印をたどり、麓へ戻れ/.test(text) &&
+      if (/麓を離れるな。道(?:の印)?|道(?:の印)?をたど(?:り|って)、麓へ戻れ/.test(text) &&
           (F.chaseArrived || F.chaseOffRoad || !F.joinOrder)) return false;
       if (/道に敵じゃ/.test(text) && (!F.roadFight || F.chaseArrived || F.chaseOffRoad)) return false;
       if (/味方と麓を守れ|坂へは?追うな/.test(text) && !F.chaseArrived) return false;
@@ -2383,7 +2383,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           }
         }
         let canReach = false;
-        for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) {
+        for (const u of g.units) if (sallyStanding(u)) {
           const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
           distance = Math.min(distance, d);
           if (g.iwMouthPath && d < waveDistance) { waveDistance = d; nearWave = g; }
@@ -2400,7 +2400,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
             // 少し先の敵で道標を消さず、槍を合わせる近さで迎撃へ替える。
             if (d <= 6 && sameLevel) F.localContact = true;
           }
-          if (clear) canReach = true;
+          if (clear && d < Math.min(30, g.seekRange ?? 30) &&
+              !(F.step === 2 && rt.player.u.pos.z > FENCE_Z + 16)) canReach = true;
         }
         if (g.order === 'attack') g.focus = canReach ? rt.player.u : null;
       }
@@ -2486,7 +2487,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     let inside = 0, deep = 0, guards = 0;
     let breachEnemy = null, breachDistance = Infinity, keepBreachEnemy = false;
     for (const g of F.waves) for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut) continue;
+      if (!sallyStanding(u)) continue;
       if (u.pos.z > -30) F.raidContact = true;
       if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) {
         inside++;
@@ -2587,12 +2588,13 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         F.localContact ? '柵の内で受けよ。味方の列を離れるな' :
         F.atRaidMouth ? `${cue}。柵の内で槍をそろえよ` :
         F.raidCrossing ? '連絡道へ。柵の内を回れ' : '口へ。柵の内の道を通れ');
+      // 後送・深手の離脱も損害に含める。転倒は起きて戦えるため残す。
       // 損害で退く。時間を過ぎただけの無傷の寄せは退かせない。
       if (F.iwFought && F.raidContact && inside === 0 && !F.front.every(gone)) {
         for (const g of F.waves) if (g.iwSent && !g.iwWithdraw && !gone(g)) {
           let fighting = 0, breached = false;
-          for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) { fighting++; if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) breached = true; }
-          const leaderLost = g.leader && (!g.leader.alive || g.leader.woundOut);
+          for (const u of g.units) if (sallyStanding(u)) { fighting++; if (Math.abs(u.pos.x) < 26 && u.pos.z > 26 && u.pos.z < 58) breached = true; }
+          const leaderLost = g.leader && !sallyStanding(g.leader);
           // 自分か配下が二人を倒した列は、損害条件を満たせば早く退く。
           // 無傷の敵の自動退却にはせず、本人の押し返しを追撃につなぐ。
           const hold = (g.iwOwnKills || 0) >= 2 ? 20 : 30;
@@ -3852,10 +3854,10 @@ KILLS.iwamura = { 3: (rt) => {
   if (F.step !== 2 || !F.waves?.length || !F.siege) return null;
   let down = 0, need = 0;
   for (const g of F.waves) {
-    const n0 = g.iwInitial || g.units.length, leaderLost = g.leader && (!g.leader.alive || g.leader.woundOut);
+    const n0 = g.iwInitial || g.units.length, leaderLost = g.leader && !sallyStanding(g.leader);
     const k = Math.max(1, n0 - Math.floor(n0 * siegeRetreatRatio(F.siege, leaderLost)));
     let fighting = 0;
-    for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) fighting++;
+    for (const u of g.units) if (sallyStanding(u)) fighting++;
     need += k; down += gone(g) || g.iwWithdraw ? k : Math.min(k, Math.max(0, n0 - fighting));
   }
   return [down, need];

@@ -349,7 +349,7 @@ const ino = {
     F.flagFalling = rt.t;
     rt.army.play('toki', { x: 16, z: -6 }, 1.3);
     this.moveG(F.nobuG, { x: -66, z: 120 }, 5);
-    rt.after(4.6, () => rt.banner('林美作、討ち取った！', ''));
+    rt.after(4.6, () => rt.banner('織田信長、林美作守を討ち取る', ''));
     rt.after(7, () => say(rt, '足軽', '林勢、崩れます！', 2.4));
     rt.after(7.5, () => {
       for (const g of F.haya) if (live(g)) {

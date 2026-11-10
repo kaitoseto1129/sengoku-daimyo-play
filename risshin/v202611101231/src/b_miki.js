@@ -1262,7 +1262,7 @@ function mikiGuidePointAllowed(rt, point) {
 }
 function mikiFighting(u) {
   return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.fleeing &&
-    !u.woundOut && !u.rearWound && !u.noTarget && !u.isStruct && !u.civ;
+    !u.woundOut && !u.evacuatedWound && !u.rearWound && !u.noTarget && !u.isStruct && !u.civ;
 }
 // 今の段に出ている実兵だけ。城内の長治や、まだ川を渡らない控えへは走らせない。
 function mikiNearestFoe(rt) {
@@ -1702,11 +1702,14 @@ const miki = {
   },
   // 西の組が退いた時は、平田から退く同じ兵が大村の先手を務める。
   omuraGuard(rt) {
-    return !gone(rt.flags.guard) ? rt.flags.guard : !gone(rt.flags.hirata) ? rt.flags.hirata : null;
+    const F = rt.flags;
+    return !gone(F.guard) && this.spearAt(F.guard) ? F.guard
+      : !gone(F.hirata) && this.spearAt(F.hirata) ? F.hirata : null;
   },
   omuraSupport(rt) {
     const F = rt.flags;
-    return this.omuraGuard(rt) || (!gone(F.hgun) ? F.hgun : !gone(F.hide) && !F.hideRetired ? F.hide : null);
+    return this.omuraGuard(rt) || (!gone(F.hgun) && this.spearAt(F.hgun) ? F.hgun
+      : !gone(F.hide) && !F.hideRetired && this.spearAt(F.hide) ? F.hide : null);
   },
   // 生き残った列の中央に最も近い兵を指す。空いた整列位置へ印を残さない。
   mkCtx(rt) {
@@ -1731,16 +1734,17 @@ const miki = {
     });
   },
   spearAt(g) {
+    // 倒れた直後や後送中の兵を、合流できる戦列の代わりにしない。
     let x = 0, z = 0, n = 0;
     for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+      if (!mikiFighting(u)) continue;
       x += u.pos.x; z += u.pos.z; n++;
     }
     if (!n) return null;
     x /= n; z /= n;
     let soldier = null, best = Infinity;
     for (const u of g.units) {
-      if (!u.alive || u.fleeing || u.woundOut || u.noTarget) continue;
+      if (!mikiFighting(u)) continue;
       const d = (u.pos.x - x) ** 2 + (u.pos.z - z) ** 2;
       if (d < best) { soldier = u; best = d; }
     }

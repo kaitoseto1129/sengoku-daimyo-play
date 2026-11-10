@@ -3871,6 +3871,9 @@ function tedoHold(o) {
   s.tedoLastLine = o.line === RETREAT_LINES.length - 1;
   s.tedoOpening = !!o.opening;
   s.tedoMain = !!o.readyMain && !o.waitCross;
+  // 篝火での防戦は静止して守る。共通の放置判定で六十秒過ぎに打ち切ったり、
+  // 味方を勝手に突撃させず、この段の接敵・渡河・刻限の判定で退く。
+  s.idleAdvance = false;
   if (o.skip) s.skip = o.skip;
   s.tedoWaves = o.waves || []; s.max = o.dur + 60;
   s.start = (rt, C, m, ctx) => {
