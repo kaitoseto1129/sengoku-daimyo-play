@@ -4030,6 +4030,9 @@ const shiga = {
       }
       // 後詰の兵と信長が実際に出るまで待つ。同じ二十秒の予約より先に勝つと、登場処理が終戦扱いで取り消される。
       if (F.aidMoving && rt.t - F.aidT >= 20 && F.nobunagaAid && hon.owner === ZONE_STATE.FRIEND && F.honGuarded && F.C.kuruwa.hon.test(p.x, p.z) && (F.innerHeld || 0) >= 10) { F.aidArrived = true; this.win(rt); }
+      // 11/10 クラウド：本丸に立ったまま、木戸の数（innerHeld）が揃わず七分止まった（act bot）。
+      //   詰まらない決まり：後詰が着いて六十秒、本丸を取られず本人が城の内にいれば、寄せ手は後詰を見て退く。
+      else if (F.aidMoving && rt.t - F.aidT >= 80 && F.nobunagaAid && hon.owner !== ZONE_STATE.ENEMY && inCastle) { F.aidArrived = true; this.win(rt); }
     }
     if (F.step === 2) {
       const way = F.retreatPath[F.retreatIdx];
@@ -4241,8 +4244,11 @@ const shiga = {
         sightPoint(rt, q.pos, 40)) : null;
       // 三将の最期は、槍の届く敵と将の姿を見届けられる時だけ進める。
       // 背後や町屋の陰で字だけの討死にせず、見えるまで同じ攻防を続ける。
-      if (u.alive && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }
-      if (u.alive) { u.invuln = false; rt.army.kill(u, foe); }
+      // 11/10 クラウド：将の姿が見えない所で寄せ手が届かず、町口の段が十分止まった（act bot 197→791秒）。
+      //   詰まらない決まり：見届けを四十五秒待っても揃わない時は、近くの寄せ手に討たせて筋を進める。
+      const late = tries > 45 ? (foe || rt.army.nearestEnemy(u, 25, (q) => !q.fleeing && !q.isStruct && !q.noTarget)) : null;
+      if (u.alive && !late && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }
+      if (u.alive) { u.invuln = false; rt.army.kill(u, foe || late); }
       if (u.alive) { rt.after(1, fall); return; }
       this.reportDoom(rt, u, o.key, o.name);
     };

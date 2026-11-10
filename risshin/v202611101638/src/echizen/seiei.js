@@ -36,12 +36,16 @@ export function start(rt, ctx) {
 export function tick(rt) {
   const F = rt.flags, E = F.echElite;
   if (!E || E.done || rt.over || F.ending || !rt.player.u.alive) return;
-  const p = rt.player.u.pos;
+  const p = rt.player.u.pos, g = E.g;
   // 郭の外で待つだけでは、精鋭を討った事にも命の回復にもならない。
   if (!['kinome_fuku', 'kinome_hon'].some(id => F.SZ.byId[id]?.test(p.x, p.z))) return;
-  const g = E.g, lord = g.units.find((u) => u.type === 'busho');
+  const lord = g.units.find((u) => u.type === 'busho');
   const left = g.units.filter((u) => u.alive && !u.fleeing).length;
-  if (left && E.foughtAt == null) return;
+  // 11/10 クラウドの流し：本人の一撃が精鋭に当たった時だけ時計を始めていたので、斬り合いの間合いにいても当たりが出ないと
+  //   五百秒止まった（残り七人のまま刻限切れ）。精鋭が八歩の内へ来た時から数え、打って出て百八十秒でも崩れる
+  if (E.foughtAt == null && g.units.some((u) => u.alive && !u.fleeing && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 8)) E.foughtAt = rt.t;
+  if (left && E.foughtAt == null && rt.t - E.at < 180) return;
+  E.foughtAt ??= E.at;
   if (lord?.alive && left > Math.ceil(E.n0 / 3) && rt.t - E.foughtAt < 120) return;
   E.done = true;
   // 崩れた精鋭を主郭へ逃がすと、逃げる兵が主郭の口をふさいで本人が入れなかった（11/9 の流し）。

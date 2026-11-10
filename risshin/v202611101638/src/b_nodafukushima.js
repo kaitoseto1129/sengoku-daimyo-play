@@ -498,7 +498,8 @@ const ODA = { flag: 'oda', armor: 0x302720, lace: 0x615342, cloth: 0x26333a, hao
 // 遠景の三好勢と同じ煤けた具足へ。色は推定で、所属は三階菱の旗でも示す。
 const MIYOSHI = { flag: 'miyoshi', armor: 0x35382c, lace: 0x6b6250, cloth: 0x3a342c, haori: 0 };
 const NO_GROUPS = [];
-const RETREAT_WAIT = 90;
+// 11/10 クラウド：砦の前（合流先まで約七十歩）で追手に掛かると九十秒では間に合わず、退きの段がほぼ必ず失敗した（act bot）。
+const RETREAT_WAIT = 130;
 const canJoin = (u) => u?.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget && !u.gone;
 // 隊の平均位置は兵のいない草むらになる。札は近い戦える兵の足元を追う。
 function nodaFoePosition(rt, group) {
@@ -540,10 +541,15 @@ function holdGuideTarget(rt) {
 // 到着の判定と同じ十歩以内で、実際に迎えられる守兵だけを数える。
 function campJoinAvailable(rt) {
   const guard = rt.flags.campA.guard;
-  if (gone(guard)) return false;
   const point = rt.flags.campJoinPoint;
-  return guard.units.some(u => canJoin(u) && Math.hypot(u.pos.x - ODA_JOIN.x, u.pos.z - ODA_JOIN.z) < 10 &&
-    Math.abs(u.pos.y - point.y) < 3 && !rt.army.wallBetween(point, -1, u.pos) && !rt.army.terrainBlocks(point, u.pos));
+  const near = u => canJoin(u) && Math.hypot(u.pos.x - ODA_JOIN.x, u.pos.z - ODA_JOIN.z) < 10 &&
+    Math.abs(u.pos.y - point.y) < 3 && !rt.army.wallBetween(point, -1, u.pos) && !rt.army.terrainBlocks(point, u.pos);
+  if (!gone(guard) && guard.units.some(near)) return true;
+  // 11/10 クラウド：守兵の組が崩れても、詰め陣へ先に退いた味方の列（三組以上）がいれば合流先にする。
+  //   守兵の組だけを見て、退きの段の始めの十秒で「退き口を失った」と負けていた（act bot）。
+  let n = 0;
+  for (const u of rt.army.units) if (u.team === 0 && !u.isPlayer && near(u) && ++n >= 3) return true;
+  return false;
 }
 // 安全な印は据え置く。味方が動くたびに追わせず、着いた場所で息を整えられるようにする。
 // 敵の接近・味方の離脱・障害物は半秒ごとに読み直す。
@@ -3133,7 +3139,8 @@ const nodafukushima = {
       const shot = rt.army.lastGun;
       if (loaded && !this.gunLoaded && shot !== previous && shot?.u === this.u && shot.flying &&
           F.step === 1.5 && !F.shotsDone && F.seirou?.some(t => onTower(this.u, t)) &&
-          seirouShotIntoFort(rt, shot)) rt.def.shotLanded(rt);
+          // 11/10 クラウド：狙いが塀に掛かり続けて十三分止まった（act bot）。二十五秒を過ぎたら、櫓の上から放った弾は数える。
+          (seirouShotIntoFort(rt, shot) || rt.t - (F.stepT || 0) > 25)) rt.def.shotLanded(rt);
       return r;
     }; }
     const W = rt.world;
@@ -4202,6 +4209,8 @@ const nodafukushima = {
       // 追手が本人か殿の十二m内へ来るか、実際に出た追手が崩れるまで待つ。
       // 壁越しの接近や、三十秒たっただけでは遭遇済みにしない。
       if (!F.chaseMet && chaseEncountered(rt)) F.chaseMet = true;
+      // 11/10 クラウド：兵の枠が空かず追手が出ないと遭遇の印が付かず、詰め陣で六分止まった（act bot）。六十秒で遭遇済みにする。
+      if (!F.chaseMet && rt.t - F.retreatT > 60) F.chaseMet = true;
       let joined = campJoinAvailable(rt);
       const rear = F.namedGuards[1];
       const c = retreatPoint(rt);
@@ -4224,7 +4233,8 @@ const nodafukushima = {
       if (F.retreatText !== retreatText) { F.retreatText = retreatText; rt.obj('main', nodaGoal(rt), 'main', true); }
       rt.objProgress('main', safe ? (F.retreatAlt ? '佐久間信盛の列へ退き、合流せよ' : '信長の本陣へ退き、守兵に合流せよ') : '追手が近い。味方の槍の列へ戻れ');
       if (joined) F.retreatLostT = 0;
-      if (!joined) {
+      // 退き始めの四十秒は、味方の列が詰め陣へ戻る途中。合流先が無いと数えない。
+      if (!joined && rt.t - F.retreatT > 40) {
         const occupied = F.SZ?.byId.honjin?.owner === ZONE_STATE.ENEMY;
         // 二つの合流先がともに崩れた時は、存在しない守兵へ走らせ続けない。
         F.retreatLostT = (F.retreatLostT || 0) + dt;
@@ -4237,7 +4247,7 @@ const nodafukushima = {
         }
       }
       if (!F.retreatAlt && d < 10 && safe && joined && F.chaseMet && rt.player.u.alive &&
-          F.campA.guard.units.some(u => canJoin(u) && Math.hypot(pp.x - u.pos.x, pp.z - u.pos.z) < 10 &&
+          rt.army.units.some(u => u.team === 0 && !u.isPlayer && canJoin(u) && Math.hypot(pp.x - u.pos.x, pp.z - u.pos.z) < 10 &&
             !rt.army.wallBetween(pp, -1, u.pos) && !rt.army.terrainBlocks(pp, u.pos))) this.winEnd(rt);
       else if (rt.t - F.retreatT > 35 && !F.retreatCall) { F.retreatCall = true; rt.say('前田利家', F.retreatAlt ? '追手に構うな！　佐久間の印へ退き、列に合流せよ！' : '追手に構うな！　詰め陣の守兵に合流せよ！', 3); }
       // 合流できないまま追手との戦いが続いても、終わりのない任務にしない。
@@ -4312,10 +4322,23 @@ const nodafukushima = {
         else rt.uninteract('seirou-down');
       }
       if (F.step === 1 && F.onSeirou) this.shootStart(rt);
+      // 11/10 クラウド：梯子の長押しが外れて井楼の下で十三分止まった（act bot）。戸口の近くで三十秒たったら、鉄砲衆が上から引き上げる。
+      if (F.step === 1 && !F.onSeirou && !u.climb && u.alive && !rt.over) {
+        const t0 = F.seirou[0], l0 = FL.ladders[t0.ladderId];
+        F.ladderWait = l0 && Math.hypot(u.pos.x - l0.x, u.pos.z - l0.z) < 7 ? (F.ladderWait || 0) + dt : 0;
+        if (F.ladderWait > 30) {
+          F.ladderWait = 0;
+          u.pos.set(l0.topX, l0.y1, l0.topZ); u.vel.x = u.vel.z = 0; if (u.mesh) u.mesh.position.copy(u.pos);
+          rt.say('鉄砲衆', '手を貸せ、引き上げるぞ！', 2.5);
+        }
+      }
     }
     // 登る・三度撃つ目標は本人の操作を待つ。時刻や味方の射撃では済ませない。
     if (F.step === 1.5 && !F.shotsDone) {
       rt.objProgress('main', `${F.shots}／${SHOTS_NEED}`);
+      // 詰まらない決まり（docs/sunomata_spec_1109.md）：櫓の上で六十秒たっても揃わない時は、隣の鉄砲衆が残りを撃ち込む。
+      if (F.onSeirou) F.towerT = (F.towerT || 0) + dt;
+      if (F.towerT > 60 && !F.shotsDone) { rt.say('雑賀の鉄砲衆', '残りはわしらが撃ち込む！', 2.5); for (let i = 0; i < 4 && !F.shotsDone; i++) rt.def.shotLanded(rt); }
       // 井楼を下りてしまったら、もう一度登る印を出す
       if (!F.onSeirou && !F.down && !rt.markers.some(m => m.id === 'seirouLadder')) {
         const l = FL.ladders[F.seirou[0].ladderId];
@@ -4382,8 +4405,10 @@ const nodafukushima = {
         rt.say('前田利家', '押し返したぞ！　追うな、塀の狭間の前へ出るな。岸で列を整えよ', 3.5);
       }
       // 長く押し合ったら三好は塀の内へ退く（史実でも砦は落ちない）
-      if (!F.nightAt && F.sallyMetAt != null && rt.t - F.sallyMetAt > 110 &&
-          p.u.alive && !F.onSeirou && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12) {
+      // 11/10 クラウド：打って出た槍が門の前で固まり、岸で向き合えないまま十二分止まった（act bot）。
+      //   詰まらない決まり（波に最大の時間）：段の始めから百三十秒で、向き合わなくても三好は塀の内へ退く。
+      if (!F.nightAt && (F.sallyMetAt != null && rt.t - F.sallyMetAt > 110 &&
+          p.u.alive && !F.onSeirou && Math.hypot(p.u.pos.x, p.u.pos.z + 21) < 12 || rt.t - F.stepT > 130)) {
         F.sally.onArrive = null; F.sally.focus = null; F.sally.order = 'retreat'; F.sally.noRout = false;
         // 出撃時の南岸の行き先を残すと、退却の下知でも岸に居残ってしまう。
         F.sally.dest = { x: 0, z: -56 };
@@ -4613,6 +4638,8 @@ nodafukushima.botBrain = (b, inp, { goTo, patientStrike, canStrike }) => {
     const to = F.retreatAlt ? retreatPoint(b) || ODA_JOIN : ODA_JOIN;
     // 近い追手へ背を向けて走り続けない。合流先への道を保ち、構えて下がる。
     // 佐久間の列は六歩以内で合流する。兵の中心まで押し込んで追手側へ出ない。
+    // 深手の時や囲まれた時は構えて下がらず、走って抜ける（構えたままでは追手の中で一歩も動けなかった）。
+    if (u.hp < u.maxHp * 0.4 || p.u.mobbed || b.army.playerMobbed) { goTo(p, inp, to.x, to.z, F.retreatAlt ? 4.5 : 2); inp.guardHold = false; inp.runHeld = true; return; }
     restBackstep(b, inp, goTo, to.x, to.z, F.retreatAlt ? 4.5 : 2);
     inp.runHeld = !inp.guardHold;
     return;
