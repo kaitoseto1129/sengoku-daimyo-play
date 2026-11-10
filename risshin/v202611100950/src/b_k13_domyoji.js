@@ -239,10 +239,11 @@ function matabeiShot(rt) {
   const v = rt.army.units.find((u) => u.alive && u.name === '後藤又兵衛');
   const k = F.katakura && F.katakura.units.find((u) => u.alive && u.name === '片倉重綱');
   const p = rt.player.u.pos;
-  // 下知を出す将だけでなく、撃てる鉄砲兵が又兵衛の近くにいることを確かめる。
+  // 近くにいるだけでなく、丘や塀に遮られず又兵衛を撃てる鉄砲兵を選ぶ。
   const gunner = () => F.katakura?.units.find((u) => u.alive && u.weapon === 'gun' &&
     !u.gone && !u.woundOut && !u.downed && !u.noTarget && !u.fleeing && !u.rearWound &&
-    Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60);
+    Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 60 &&
+    rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos));
   const ready = () => v?.alive && k?.alive && !F.katakura.routed &&
     F.katakura.order !== 'retreat' && F.katakura.order !== 'flee' && !k.gone && !k.woundOut && !k.downed &&
     !k.noTarget && !k.fleeing && !k.rearWound && rt.player.u.alive &&
@@ -622,9 +623,10 @@ const k13_domyoji = {
         u._crouch = true; u.target = null; u.moveTo = null;
       }
     }
-    // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄るまで伏せて待つ。
+    // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄り、射線が通るまで伏せて待つ。
     const gunner = sanada.units.find((u) => active(u) && u.weapon === 'gun' &&
-      g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42));
+      g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42 &&
+        rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos)));
     if (!gunner) { rt.after(1, () => this.datePushed(rt, sanada)); return; }
     sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
     sanada.anchor = { x: HONDA.x, z: HONDA.z };

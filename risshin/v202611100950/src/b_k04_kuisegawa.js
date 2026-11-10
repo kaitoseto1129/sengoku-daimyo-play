@@ -421,15 +421,19 @@ const k04_kuisegawa = {
   // 伏兵：葦から明石全登、林の陰から左近の本隊。刈田の兵も向き直る
   ambush(rt) {
     const F = rt.flags, B = F.blk;
-    // 渡河の移動下知を残さず、頼母と中村の組もその場で伏兵を迎え撃つ。
+    // 渡河を終えた頼母と中村の組は、その場で伏兵を迎え撃つ。
     // 旗の横で防ぐ間に、古い行き先へ隊の要だけが進み続けないようにする。
     for (const g of [F.noi, F.kazu]) if (live(g)) {
       const c = g.center();
+      // 渡河が遅れた組は川を渡り切るまで進ませる。
+      // 片方の組だけの遅れで先手全体の追撃を止めない。
+      if (L(c).x >= -6) continue;
       g.order = 'hold'; g.anchor = { x: c.x, z: c.z }; g.dest = null; g.seekRange = 14;
       // 将が斬り合う兵の後ろへ下がり続け、目標の旗まで動き続けないようにする。
       g.guardOn = true;
     }
-    const flag = F.noiU?.pos || F.noi.anchor;
+    // 頼母がまだ岸にいる場合も、防戦の場所を川の手前へ戻さない。
+    const flag = F.noiU?.pos && L(F.noiU.pos).x < -6 ? F.noiU.pos : RING;
     F.defenseX = flag.x; F.defenseZ = flag.z;
     // 囮も向き直って戦う。備への隊列合わせで攻撃を待機に戻さない。
     F.follow = F.follow.filter(([g]) => g !== F.gamo);
@@ -532,7 +536,8 @@ const k04_kuisegawa = {
       if (F.baitPlayerHit && el > 65 && (hurt || dist(lightPos(B.bait), P.pos) < 20)) this.feign(rt);   // 少し戦ってから退くふり（史実）
     } else if (F.step === 2) {
       // 退く島の兵を追い、先手と一緒に川を東へ渡ってから伏兵が出る
-      if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && live(F.noi) && dist(F.noi.center(), P.pos) < 18) this.toStep(rt, 3);
+      const joined = [F.noi, F.kazu].some((g) => live(g) && g.units.some((u) => canReturn(u) && !u.downed && L(u.pos).x < -6 && dist(u.pos, P.pos) < 18));
+      if (el > 35 && PL.x < -6 && L(lightPos(B.saki)).x < 10 && joined) this.toStep(rt, 3);
     } else if (F.step === 3) {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && g !== F.guns && !g.interiorHold && !g.units.every((u) => u.type === 'gun')) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
       // 防戦を始める前の待機時間を、後の一撃で達成扱いにしない。

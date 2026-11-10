@@ -4060,7 +4060,7 @@ function buildKaraTrail(rt) {
 // 稲生の水準（10/25）：倒す相手は、残りに数える組の中で一番近い一人。札・ピン・▼で同じ本人を使う。
 // 深手・逃げる兵・建物は数えない。選び直しは一コマに一度だけ。
 const inabaFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing &&
-  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && !u.group?.hidden && !u.group?.noAI && u.mesh?.visible !== false;
+  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && !u.group?.hidden && !u.group?.noAI && !u.group?.routed && u.group?.sent !== false && u.mesh?.visible !== false;
 function honTargetGroup(rt) {
   const F = rt.flags;
   if (F.step !== 4 || F.sig || F.ending) return null;
@@ -4593,14 +4593,14 @@ const inabayama = {
       return marks;
     }
     if (F.step !== 2 || F.ending || F.regroup) { marks.length = 0; return marks; }
-    if (F.holdEnemyScan > rt.t && (!marks.length || inabaFoe(marks[0]) && !marks[0].offscreen)) return marks;
+    if (F.holdEnemyScan > rt.t && (!marks.length || inabaFoe(marks[0]) && !marks[0].offscreen && sightScreenUnit(rt, marks[0]))) return marks;
     F.holdEnemyScan = rt.t + .2;
     const p = rt.player.u.pos;
     // 坂を下りて鹿垣の端へ回る城兵も、近づく先から▼で指す（11/3 kaito Z：迎える相手が分からなかった）
     let best = null, distance = 40;
     for (let i = 0; i < 2; i++) {
       const group = i ? F.ote2 : F.ote;
-      if (!group || group === F.ote2 && !group.sent) continue;
+      if (!group || gone(group) || group === F.ote2 && !group.sent) continue;
       for (const u of group.units) {
         if (!inabaFoe(u) || u.offscreen || !sightScreenUnit(rt, u)) continue;
         const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) - (u === marks[0] ? 2 : 0);

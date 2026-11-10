@@ -69,18 +69,22 @@ export function tick(rt, dt) {
       Math.hypot(u.pos.x - (c.SB.x0 + 5), u.pos.z - gz) < 14)) H.arrive = rt.t;
   const left = c.ready(g), atGate = H.arrive != null ? rt.t - H.arrive : -1;
   // 行軍の長さを柵前の戦いに数えない。先頭が着いた後の上限で波を終える。
-  const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45);
+  // 先頭が坂や柵で止まっても寄せを終えられる。本人の到着と戦功は別に判定する。
+  const cap = rt.t - H.at > 150;
+  const end = cap || H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45);
   if (!end) return true;
   H.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }
   g.noRout = false; g.morale = 0; g.routed = true; g.order = 'retreat'; g.dest = { x: 500, z: gz }; g.fleeDir = { x: 1, z: 0 };
   for (const u of g.units) if (u.alive) u.fleeing = true;
-  rt.banner('原昌胤、討死', '柳田前の柵の前に倒れた');
-  rt.say('使番', '真田兄弟、山県、原……武田の名のある将が次々に倒れておる！', 3.8);
+  rt.banner('原昌胤、討死', '柳田前へ寄せた原隊が退く');
+  rt.say('使番', F.shBreach?.done
+    ? '真田兄弟、山県、原……武田の名のある将が次々に倒れておる！'
+    : '原昌胤、討死！　柳田前の武田勢が退いております！', 3.8);
   rt.after(4.2, () => {
     if (!F.ending && !rt.over && F.nf?.step === 3 && !F.nf.done[1]) rt.say('組頭', '内藤隊が続くぞ！　柵の口を槍で守れ。鉄砲の前へ出るな！', 3.4);
   });
-  rt.award((t) => { t.side.push('柳田前の柵で原昌胤の隊を退けた'); }, '原昌胤の隊を退けた', { x: c.SB.x0 - c.SB.gap - 3, z: gz });
+  if (H.there) rt.award((t) => { t.side.push('柳田前の柵で原昌胤の隊を退けた'); }, '原昌胤の隊を退けた', { x: c.SB.x0 - c.SB.gap - 3, z: gz });
 
   return false;
 }

@@ -121,7 +121,7 @@ const ino = {
         if (e) return { pos: e.pos, label: F.ph === 'scout' ? '林の物見' : F.ph === 'hayashi' ? '林勢' : '柴田勢', enemy: e };
         return L ? { pos: L.pos, label: L === F.sakumaU ? '組頭' : '隊長', unit: L } : null;
       }
-      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU } : null;
+      case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU.gone ? null : F.sakumaU } : null;
       case 'retreat': return { pos: NAZUKA_PT, label: '名塚砦' };
       case 'rally': return F.nobuU?.alive ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
       case 'after': return F.shinrokuU?.alive && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : L ? { pos: L.pos, label: '組頭', unit: L } : null;
@@ -505,7 +505,11 @@ const ino = {
       F.result = { kills, help: F.helped ? 1 : 0, line: kept > 0.6 ? '良' : kept > 0.35 ? '可' : '乱れ', alive: true };
       if (kept > 0.6) rt.award((t) => t.side.push('隊列を崩さずについて行った'), '');
       // 同じ隊の者のその後（戦間で使う）
-      F.squad = [['弥助', '生存'], ['源太', '生存'], ['新六', F.shinrokuU?.alive ? '負傷' : '討死'], ['隊長', '討死']];
+      F.squad = COMRADES.map((name) => {
+        const u = name === '新六' ? F.shinrokuU : F.mates.units.find((v) => v.name === name);
+        return [name, !u?.alive || u.hp <= 0 ? '討死' : name === '新六' && F.shinHurtT ? '負傷' : '生存'];
+      });
+      F.squad.push(['隊長', F.capU?.alive && F.capU.hp > 0 ? '生存' : '討死']);
       rt.finish({ scriptedEnd: true }, 4);
     });
   },
