@@ -1372,6 +1372,8 @@ function bankEdgeZ(W, x) {
 }
 function allyBankGuard(rt, dt) {
   const F = rt.flags, A = rt.army, W = rt.world;
+  // 輪中へ攻め入る段では、堤を進む味方を旧持ち場へ引き戻さない。
+  if (F.adv) return;
   F.bankGuardT = (F.bankGuardT || 0) - dt;
   if (F.bankGuardT > 0) return;
   F.bankGuardT = .4;
@@ -1393,7 +1395,7 @@ function allyBankGuard(rt, dt) {
 // 待機中の鉄砲衆を、川へ出さず同じ岸の持ち場で動かす。
 function bankTeppoPatrol(rt) {
   const F = rt.flags, g = F.teppo;
-  if (!g || F.step >= 2 || F.ending || rt.t < (F.teppoPatrolAt || 0)) return;
+  if (!g || F.step >= 2 && !F.adv || F.ending || F.advEnding || rt.t < (F.teppoPatrolAt || 0)) return;
   F.teppoPatrolAt = rt.t + 1;
   // 射撃禁止中に覚えている対岸の敵だけでは、見回りを止めない。
   // 実際の射撃・装填と、射撃を許された相手への構えは妨げない。
@@ -2670,12 +2672,12 @@ const nagashima = {
     const say = rt.say, speechTimes = new Map();
     rt.say = function (name, text, ...args) {
       // 嘆きを別の文へ言い換える前に止め、降伏前と火の場へ討死の決まり文句を漏らさない。
-      if ((F.step < 3 || F.ending) && name !== '伝令' && name !== '語り' && /無念|朋輩/.test(text)) return;
+      if ((F.step < 3 || F.ending || F.advEnding) && name !== '伝令' && name !== '語り' && /無念|朋輩/.test(text)) return;
       if (/^(?:柴田)?勝家$/.test(name) && text.includes('無念') && F.shibaU?.alive && !F.shibaU.woundOut && !F.shibaU.rearWound) text = '仲間が倒れた。残る者はわしの後ろへ来い！';
       // 11/6 fixc2220（critic60 一2）：手の大将は足軽一人に直に下知しない。足軽への細かな下知は組頭の口から。大将は法螺・槍組の号令だけ。
       if (name === '柴田勝家' && !rt.G.lord && !/法螺|槍組を回す|わしの後ろ/.test(text)) name = '組頭';
       // 11/6 fixc2220（critic60）：降る前の小競り合いや火の場で、共通の「敵が崩れた・逃げ腰・横槍・朋輩が」を言わせない。
-      if ((F.step < 3 || F.ending) && name !== '伝令' && name !== '語り' && /逃げ腰|崩れた|崩した|逃げるぞ|背を見せ|横槍|朋輩|無念|追い散らす|持ち場を離れるな|死に場所|かかれ|突け、突け|ひるむな|槍を揃えよ|押せ|備えを固め/.test(text)) return;
+      if ((F.step < 3 || F.ending || F.advEnding) && name !== '伝令' && name !== '語り' && /逃げ腰|崩れた|崩した|逃げるぞ|背を見せ|横槍|朋輩|無念|追い散らす|持ち場を離れるな|死に場所|かかれ|突け、突け|ひるむな|槍を揃えよ|押せ|備えを固め/.test(text)) return;
       // 字幕を省いて声だけになる経路にも、同じ文の間隔を通す。言い回しだけ違う同じ下知（縄・杭・横木）も一つに数える。
       const key = /杭|縄を確か/.test(text) ? '杭'
         : /横木/.test(text) && name !== '柴田勝家' ? '横木'
@@ -3752,6 +3754,7 @@ const nagashima = {
   },
   advEndTick(rt, dt) {
     const F = rt.flags, p = rt.player.u.pos, el = rt.t - F.advEndAt;
+    if (rt.over || !bankPlayerReady(rt)) return;
     if (F.advItem && !F.advItemSeen && Math.hypot(p.x - F.advItem.x, p.z - F.advItem.z) < 3) F.advItemSeen = true;
     const arrived = F.advWalk && Math.hypot(p.x - F.advWalk.x, p.z - F.advWalk.z) < 3.5;
     if (arrived && !F.advSaid) {
@@ -3761,8 +3764,6 @@ const nagashima = {
       rt.after(9.2, () => rt.say('古参の足軽', '命令だ。', 2.6));
       F.advDoneAt = rt.t + 14;
     }
-    // 歩かなくても、四十五秒で終わる（詰まらない）
-    if (!F.advSaid && el > 45) { F.advSaid = true; rt.unmark('advWalk'); rt.say('配下', '……終わりましたな。', 3.6); F.advDoneAt = rt.t + 6; }
     if (F.advDoneAt && rt.t >= F.advDoneAt && !F.advFinished) {
       F.advFinished = true;
       rt.objDone('main');

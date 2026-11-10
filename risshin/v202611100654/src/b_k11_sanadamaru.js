@@ -307,7 +307,7 @@ const k11_sanadamaru = {
   noWake: true,
   stageGoalsOnly: true,        // 右上の目標は四つの段だけ（「敵を八人討つ」で埋めない。三1）
   goalsAllRows: true,          // 九1・十1：五つの場所と行いを最初から並べ、済んだ物に印を付ける。
-  goalVisibleRows: 5,
+  goalsVisibleRows: 5,
   nearbyAllySignLimit: 0,      // 味方の頭上に白い丸を出さない（意味の分からない印。五2）
   noFlankCry: true,            // 撃ち崩された寄せ手に、共通の側面攻撃の声を重ねない。
   // 見出しの札は終わりと討ち取りだけ（「敵の隊が崩れた」や段の見出しは案内の字。kaito 五1）。流れは台詞と動きで分かる
@@ -676,13 +676,16 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
   },
 
   // 段の短さの下限：着いても el 秒までは済ませない（撤収は一分半ほど続く。11/10 関所の流しで五秒で済んだ）
-  minEl(st, sec, label) {
+  minEl(st, sec, label, radius = 9) {
     const tick = st.tick;
     st.tick = (rt, C, m, ctx, el, dt) => {
       const done = tick(rt, C, m, ctx, el, dt);
       // 着いた後も行き先のピンは切らさない（関所3）
       if (C.arr && !rt.markers.some((q) => q.id === 'dp')) rt.marker('dp', C.at, label, { h: 3 });
-      return done && el >= sec;
+      // 一度着いても、救援へ戻っている間は段を終えない。留守中に終えると、帰陣の判定が一度だけ走って以後進まなくなる。
+      const p = rt.player.u;
+      const present = p.alive && Math.hypot(p.pos.x - C.at.x, p.pos.z - C.at.z) < radius;
+      return done && present && el >= sec;
     };
     return st;
   },
