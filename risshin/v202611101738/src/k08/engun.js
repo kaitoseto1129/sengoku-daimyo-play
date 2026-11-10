@@ -56,16 +56,21 @@ export function start(rt, K) {
     for (const u of F.engun.units) u.noTarget = false;
     if (Array.isArray(F.s4) && !F.s4.includes(F.engun)) F.s4.push(F.engun);   // 印と bot の行き先に入れる
   });
-  // 加勢が北の口へ着く頃：味方が押される（隊を門の内の半ばまで下げる）
-  S(50, () => {
+  // 北の口へ加勢が届いてから味方を下げる。行軍が遅れても時刻だけで押された事にしない。
+  const push = () => {
     // 加勢を先に退けた時は、押されていない味方を時刻だけで下げない。
-    if (!alive(F.engun) || remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3)) return;
+    // 後備が先に押し返した後にも、遅れて退く下知を出さない。
+    if (F.engunPushedBack || !alive(F.engun) || remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3)) return;
+    const arrived = F.engun.units.some(u => u.alive && !u.gone && !u.noTarget && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.evacuatedWound && !u.fleeing &&
+      Math.hypot(u.pos.x - K.NGATE.x, u.pos.z - K.NGATE.z) < 18);
+    if (!arrived) { S(2, push); return; }
     rt.say('蜂須賀の侍', '押される！　門の内まで下がって組を立て直せ！', 3);
     for (const g of [F.saki, F.asano, F.ikeda]) if (alive(g)) {
       const x = g.order === 'path' && g.path?.length ? g.path[g.path.length - 1][0] : g.anchor.x;
       holdAt(g, (x || 0) * 0.6, K.GATE.z - 18);
     }
-  });
+  };
+  S(50, push);
   // 浅野の後備が来て押し返す
   S(68, () => {
     const g = F.asano2;

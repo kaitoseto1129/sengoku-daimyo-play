@@ -1972,6 +1972,18 @@ const takato_siege = {
     if (F.DA) F.DA.tick(dt);
     if (F.step >= 1) { tickRoutes(F.movers); if (F.refresh) this.checkAttrition(rt); }
     tkStuck(rt, this.guideMarker?.(rt));   // 段差や堀へ落ちて抜けられない時（takato/stuck.js）
+    // 11/10 クラウドの正式の流し：二の丸を取った後、本丸門をだれも打たず（寄せ手は土橋の手前・本人は搦手の側）四百秒止まった。
+    //   二の丸が落ちて百五十秒たち、本丸の二つの門が九十秒だれにも打たれなければ、味方の掛矢で破れる（使番の声だけ）
+    if (F.niFell && !F.honFell && !F.ending && rt.t - (F.niT ?? rt.t) > 150) {
+      const gs = [F.gates.honOuter, F.gates.honInner].filter((g) => g && !g.opened);
+      const hp = gs.reduce((n, g) => n + (g.struct?.hp || 0), 0);
+      if (F.tkHonHp !== hp) { F.tkHonHp = hp; F.tkHonHpT = rt.t; }
+      if (gs.length && rt.t - F.tkHonHpT > 90) {
+        for (const g of gs) if (g.struct) g.struct.hp = 0;
+        F.tkHonHpT = rt.t;
+        rt.say('使番', '本丸の門、味方の掛矢で打ち破ったり！　本丸へ懸かれ！', 3.4);
+      }
+    }
 
     // 西の切岸の梯子：着いた兵を一人ずつ登らせ、守りが時おり押し倒す
     if (F.nishiLadder2 && F.nishiLadder2.hp > 0) {
