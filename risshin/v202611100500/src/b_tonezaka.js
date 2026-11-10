@@ -3390,7 +3390,9 @@ const tonezaka = {
         F.regroupAlly = null;
         toneClearWaitSpeech(rt, CHASE_JOIN_LINE);
       }
-      const n = F.step === 1 ? fighters(F.r1) + fighters(F.r1b) : F.step === 2 ? fighters(F.r2) + fighters(F.r3) : fighters(F.r4);
+      // 将と旗本が踏みとどまる間も敵は残る。段送りと同じ全ての組を数える。
+      let n = 0;
+      for (const g of F.stageDefenders[F.step]) n += fighters(g);
       const wait = F.chaseWait, uc = F.uma.center(), lc = F.late.center();
       wait.umaStopped = wait.t > 0 && Math.hypot(uc.x - wait.umaX, uc.z - wait.umaZ) < 0.1;
       wait.lateStopped = wait.t > 0 && Math.hypot(lc.x - wait.lateX, lc.z - wait.lateZ) < 0.1;

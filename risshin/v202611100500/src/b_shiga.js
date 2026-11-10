@@ -3488,7 +3488,8 @@ const shiga = {
       const wait = Math.max(shigaCommandUntil(F), F.supportVoiceUntil || 0, F.stepT + 4) - rt.t;
       if (wait > 0) { rt.after(wait, holdSignal); return; }
       shigaSignal(rt, 'tomare', F.keep.center(), 0.85);
-      F.castleSoundText = '木戸を閉めた。内で槍を揃え、寄せ手を待て';
+      // 閉門は別の処理で行う。合図の時にも開いていたり破られていれば、その状態を案内する。
+      F.castleSoundText = castleWatchText(rt);
       F.castleSoundUntil = rt.t + 8;
       castleProgress(rt, '城兵と槍の列を保て');
       rt.say('武藤五郎右衛門', '弓は塀の内から射よ！　槍は木戸の内に揃えよ！', 4);

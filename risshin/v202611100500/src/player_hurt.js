@@ -129,7 +129,9 @@ export class PlayerHurt {
     }
     if (this.rt.def.attackWarningDelay && src?.pos && !src.isStruct && src.team !== this.u.team) {
       if (src.attackWarnAt == null || this.rt.t - (src.attackWarnLast ?? -99) > 8) {
-        src.attackWarnAt = this.rt.t; src.attackWarnLast = this.rt.t;
+        // 遅い射撃のたびに最初の猶予をやり直すと、矢玉が永久に当たらなくなる。
+        if (src.attackWarnAt == null) src.attackWarnAt = this.rt.t;
+        src.attackWarnLast = this.rt.t;
         this.rt.hud.damageFrom(Math.atan2(src.pos.x - this.u.pos.x, src.pos.z - this.u.pos.z) - this.yaw);
         this.rt.bark(this.u.hitKind === 'arrow' ? '矢が来る！　印の向きの物陰へ退け' : this.u.hitKind === 'gun' ? '鉄砲だ！　印の向きに気をつけよ' : '敵が迫る！　印の向きを向いて構えよ', true);
       }
