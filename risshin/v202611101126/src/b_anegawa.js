@@ -4580,9 +4580,9 @@ const anegawa = {
       }
       // 坂井の段が崩れたら知らせる
       if (F.sakai.routed && !F.sakaiSaid) { F.sakaiSaid = true; F.sakaiSaidT = rt.t; rt.say('森可成', '坂井殿の備が破れた！　池田殿を支えよ！', 3); }
-      // 一の段（坂井）の破れを先に告げ、二の段（池田）はその後に（段の順を入れ替えない）。
-      if (!F.sakaiSaid && (F.ikeda.routed || F.ikeda.count < 4)) { F.sakaiSaid = true; F.sakaiSaidT = rt.t; rt.say('森可成', '坂井殿の備が破れた！　池田殿を支えよ！', 3); }
-      if ((F.ikeda.routed || F.ikeda.count < 4) && !F.ikedaSaid && rt.t - (F.sakaiSaidT ?? -99) >= 6) { F.ikedaSaid = true; rt.say('森可成', '池田殿の備も抜かれた！　踏みとどまれ、ここを破らすな！', 3); }
+      // 池田だけが崩れた時に、健在な坂井の段まで破れたと告げない。
+      // 両方が崩れた時は、坂井の知らせから六秒空けて段の順を保つ。
+      if ((F.ikeda.routed || F.ikeda.count < 4) && !F.ikedaSaid && rt.t - (F.sakaiSaidT ?? -99) >= 6) { F.ikedaSaid = true; rt.say('森可成', F.sakaiSaid ? '池田殿の備も抜かれた！　踏みとどまれ、ここを破らすな！' : '池田殿の備が抜かれた！　踏みとどまれ、ここを破らすな！', 3); }
       const waves = F.waves;
       // 画面の外の残兵も退く。知らせが見えるかどうかで次の段を止めない。
       for (const g of waves) if (g && !g.anePending && !gone(g) && g.count <= 3) {
