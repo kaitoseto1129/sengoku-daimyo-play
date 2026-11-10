@@ -123,8 +123,8 @@ const ino = {
       }
       case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU.gone ? null : F.sakumaU } : null;
       case 'retreat': return { pos: NAZUKA_PT, label: '名塚砦' };
-      case 'rally': return F.nobuU?.alive ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
-      case 'after': return F.shinrokuU?.alive && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : L ? { pos: L.pos, label: '組頭', unit: L } : null;
+      case 'rally': return F.nobuU?.alive && !F.nobuU.gone ? { pos: F.nobuU.pos, label: '殿', unit: F.nobuU } : { pos: NAZUKA_PT, label: '名塚砦' };
+      case 'after': return F.shinrokuU?.alive && !F.shinrokuU.gone && !F.shinMet ? { pos: F.shinrokuU.pos, label: '新六', unit: F.shinrokuU } : L ? { pos: L.pos, label: '組頭', unit: L } : null;
       default: return L ? { pos: L.pos, label: '隊長', unit: L } : null;
     }
   },
@@ -549,7 +549,7 @@ const ino = {
     const F = rt.flags, P = rt.player.u;
     // 戦う者の範囲（退く者は除く）
     if (!rt.timeLimit?.up) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.group?.routing || u.fleeing || u.group?.order === 'retreat') continue;
+      if (!u.alive || u.gone || u.group?.routing || u.fleeing || u.group?.order === 'retreat' || u.group?.inouRetiring) continue;
       if (u.pos.x > XW) u.pos.x = XW; else if (u.pos.x < -XW) u.pos.x = -XW;
       if (u.pos.z > ZS) u.pos.z = ZS; else if (u.pos.z < ZN) u.pos.z = ZN;
     }
