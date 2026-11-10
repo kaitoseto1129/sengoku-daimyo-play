@@ -488,10 +488,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       this.gateOpen(rt);
       // 門の左右の櫓の射手も、打って出た味方の背越しには射ない（狭間と同じ。芥田の手と斬り合う所を櫓から撃ち続けない）
       for (const q of rt.army.groups) if (q.team === 1 && /物見櫓の守り|隅櫓の守り/.test(q.name || '')) q.dmgMult = Math.min(q.dmgMult ?? 1, 0.4);   // 11/9 見回り：櫓の二人ずつの射手が act の傷の半ばを占めた
-      for (const q of rt.army.groups) {
-        const c = q.team === 1 && (q.interiorHold || q.units.some((u) => u.perch)) && this.centerOf(q);
-        if (c && (Math.hypot(c.x - GATE.x, c.z - GATE.z) < 20 || /物見櫓の守り|隅櫓の守り/.test(q.name || '') && (Math.hypot(c.x - GATE.x, c.z - GATE.z) < 40 || Math.hypot(c.x - F.meet.x, c.z - F.meet.z) < 50))) q.fire = false;   // 11/9 見回り：門の脇の物見櫓も門の前で斬り合う所を撃ち続けない（act が二度とも門の前で櫓の矢に倒れた）
-      }
+      this.holdSallyFire(rt);
       const g = F.sally;
       g.aggro = 2; g.noRout = true; g.speed = (g.speed || 2.2) * 1.4;
       g.dmgMult = Math.min(g.dmgMult ?? 1, 0.7);   // 11/9 見回り：act が坂で芥田の手に背から囲まれ二度とも倒れた。打って出た手の打ち込みを少し軽く
@@ -588,6 +585,22 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     const G = rt.siegeKit?.kits?.[0]?.gate;
     if (G && G.struct && G.struct.alive && !G.struct.opened) { G.struct.opened = true; G.open && G.open(); }
   },
+  // 出撃中の坂を射界に収める櫓は味方を巻き込むため撃たない。
+  // 隊の名や負傷者を除いた中心でなく、射手本人の持ち場で判定する。
+  holdSallyFire(rt) {
+    const F = rt.flags;
+    for (const g of rt.army.groups) {
+      if (g.team !== 1) continue;
+      for (const u of g.units) {
+        if (!u.alive || (!u.perch && !g.interiorHold)) continue;
+        if (Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 20 ||
+            u.perch && Math.hypot(u.pos.x - F.meet.x, u.pos.z - F.meet.z) < 70) {
+          g.fire = false;
+          break;
+        }
+      }
+    }
+  },
   // 門の脇の岩肌へ梯子を掛ける（門が閉まった時。見た目の梯子。塀の上の守り手を引き付ける）
   ladders(rt) {
     const F = rt.flags, W = rt.world;
@@ -669,13 +682,25 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
       if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && F.allies.some((g) => { const c = this.centerOf(g); return c && Math.hypot(c.x - MOUTH.x, c.z - MOUTH.z) < 22; }))) this.go(rt, 2);
     } else if (F.stage === 2) {
+      // 後から配置された射手も止める。全兵の点検は一秒に一度だけ。
+      if (!(F.sallyFireAt > rt.t)) { F.sallyFireAt = rt.t + 1; this.holdSallyFire(rt); }
       // 四割を討たれるか、芥田が討たれれば崩れて引く。長引く場合も、寄せ手との接触が必要。
       // 行軍の到着や出撃からの秒数だけでは、戦っていない目標を済みにしない。
       const boss = F.sally.units.find((u) => u.name === '芥田悪六兵衛');
       if (F.fightT == null) for (const u of F.sally.units) {
         if (!u.alive || u.fleeing) continue;
         const target = rt.army.nearestEnemy(u, 6, (v) => !v.noTarget && !v.isStruct && !v.fleeing && Math.abs(v.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, -1, v.pos));
-        if (target) { F.fightT = rt.t; break; }
+        if (target) {
+          F.fightT = rt.t;
+          // 敵と組み合った後まで行軍の後列待ちを続けない。
+          // 門を抜ける途中でも、接触した持ち場で隊を開いて迎撃に応じる。
+          if (F.sw && !F.sw.done) {
+            F.sw.done = true;
+            this.to(F.sally, this.centerOf(F.sally) || F.sally.anchor);
+            F.sally.formation = 'yari'; F.sally.aggro = F.sw.aggro;
+          }
+          break;
+        }
       }
       // 芥田を討つか四割を討ち減らせば撃退。百二十秒の下限で、果たした戦いを続けさせない。
       // 接触しただけの場合は、出撃から百二十秒・接触から二十五秒を経て退く。

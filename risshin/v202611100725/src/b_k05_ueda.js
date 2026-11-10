@@ -80,7 +80,7 @@ const FORD_W = { x: FORD.x - 7, z: 0 };       // 神川の西の岸（追い討�
 //   真田の小隊の動き：HARASS（撃って足を止める）→RETREAT（寄られたら次の所へ）→LURE（追えば追える間合い）→AMBUSH（狭い道の左右から）→DISENGAGE（林・城へ去る）
 //   詰まり対策：真田の全滅を進む条件にしない／着いた所＋時間で次へ／追わなくても話は進む／門は時間＋寄せで進む（落ちない）。
 const NIDA = { x: 88, z: -8 };                 // 城下の東の道に止めた荷駄（本隊の兵糧と玉薬）
-const LURE = [{ x: 63, z: -80 }, { x: 55, z: -92 }, { x: 47, z: -103 }, { x: 46, z: -117 }];   // 誘いの退き道（田の畦→林の間の細い道）
+const LURE = [{ x: 72, z: -70 }, { x: 63, z: -80 }, { x: 55, z: -92 }, { x: 47, z: -103 }, { x: 46, z: -117 }];   // 誘いの退き道（田の畦→林の間の細い道）
 const TRAP = { x: 47, z: -103 };               // 林と林の間で道が狭まる所（左右に伏兵）
 const OUT = { x: 66, z: -72 };                 // 囲みを抜けて戻る田
 const RAID = { x: 74, z: 30 };                 // 荷駄を襲う真田の出る所（尼ヶ淵の岸の藪）
@@ -507,7 +507,7 @@ const k05_ueda = {
       if (F.hideU) F.hideU._crouch = false;   // 本陣の秀忠が床几から立つ
       rt.say('秀忠の使番', '美濃の方より急使！　「先を急がれよ」との事！', 3.4);
       rt.after(3.8, () => rt.say('徳川秀忠', '外へ出て来るなら、もう城を落とす。大手門へかかれ！', 3.4));
-      for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.saka, { x: FRONT.x + 12, z: FRONT.z + 12 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) go(g, p, g === F.makino ? 'hold' : 'attack');
+      for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.saka, { x: FRONT.x + 12, z: FRONT.z + 12 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) { go(g, p, g === F.makino ? 'hold' : 'attack'); if (live(g)) g.seekRange = 14; }   // 塀の内の鉄砲衆へ寄って塀に貼り付かない
       F.reAt = 0;
     } else if (n === 5) {
       // 9:00 また後ろから真田：荷駄が襲われ、城攻めを止められる（「あと少しだったのに」）
@@ -579,7 +579,12 @@ const k05_ueda = {
     const c = g.center();
     if (g.order === 'move') {
       // 引っかかったら（二十秒進まない）次の所へ自動で退く（詰まり止め③）
-      if (rt.t - F.lureMoveT > 20) { for (const u of g.units) if (u.alive && !u.gone) { u.pos.x = g.dest.x + (u.pos.x - c.x) * 0.5; u.pos.z = g.dest.z + (u.pos.z - c.z) * 0.5; } }
+      if (rt.t - F.lureMoveT > 20) {
+        F.lureMoveT = rt.t;
+        // 見えない所なら先へ送る。見える所では、田の真ん中を通る別の道で行き直す（飛んで見えない）
+        if (dist(c, rt.player.u.pos) > 45) { for (const u of g.units) if (u.alive && !u.gone) { u.pos.x = g.dest.x + (u.pos.x - c.x) * 0.5; u.pos.z = g.dest.z + (u.pos.z - c.z) * 0.5; } }
+        else { const d = g.dest; g.dest = { x: KARI.x + 2, z: KARI.z - 4 }; g.onArrive0 = g.onArrive; g.onArrive = (q) => { q.dest = d; q.onArrive = q.onArrive0; }; }
+      }
       return;
     }
     if (F.lureI >= LURE.length) return;
@@ -823,7 +828,7 @@ const k05_ueda = {
     // ②の追撃は畦の道筋に沿う（田の稲架に当たらない）
     if (F.step === 2) { const i = Math.min(LURE.length - 1, Math.max(0, (F.lureI || 0) - 1)); if (dist(u.pos, LURE[i]) > 6 && u.pos.z > LURE[i].z + 4) t = LURE[i]; }
     // ③は来た道を田へ戻る
-    if (F.step === 3 && u.pos.z < LURE[0].z - 4) { const i = u.pos.z < LURE[1].z - 3 ? 1 : 0; t = LURE[i]; }
+    if (F.step === 3 && u.pos.z < LURE[1].z - 4) { const i = u.pos.z < LURE[2].z - 3 ? 2 : 1; t = LURE[i]; }
     // ④：北の田から町屋の小路へは入口から入る（稲架と入口の町屋の間の袋へ入らない）
     if (lane && !F.throughTown) {
       const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
