@@ -602,6 +602,7 @@ const t11_hachioji = {
     mist: true,
     // 行き先以外の大きな輪を重ねず、降る矢と着弾で危険を伝える。
     arrowRainGroundCue: false,
+    arrowRainAreaShadow: false,   // 急坂をまたいで浮く大きな平面の影を出さず、矢ごとの影を残す。
     naturalArrowRain: true,
     groundHalf: 280,
     paths: [ROUTE.slice(0, 9), ROUTE.slice(8)],
@@ -859,7 +860,8 @@ const t11_hachioji = {
       const P = rt.player.u;
       // 本人の傷で城方の射撃まで止めない。近くの寄せ手も同じ矢にさらされる。
       if (P.alive) for (const g of D.cur.groups) {
-        const bow = g && !g.routed && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
+        // 退く下知を受けた組と、重傷で戦列を離れた射手には射させない。
+        const bow = live(g) > 0 && g.units.find((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound && !u.woundOut && !u.rearWound && !u.noTarget && u.type === 'bow' && Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 55);
         if (!bow) continue;
         const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * 5, x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
         rainVolley(rt.army, g, bow, { x, y: rt.world.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));
@@ -961,8 +963,10 @@ const oteCount = (rt) => {
   const C = rt.flags.dp?.on && rt.flags.dp.i === IX.ote && rt.flags.dp.cur;
   if (!C || !C.groups) return null;
   let left = C.later?.length ? OTE_LATER : 0;
-  for (const g of C.groups) if (!(g.count <= 2 || g.routed)) for (const u of g.units) if (u.alive && !u.gone && !u.dying && !u.fleeing && !u.evacuatedWound) left++;
-  return [Math.max(0, OTE_ALL - left), OTE_ALL];
+  // 制圧の判定と同じく、重傷者と退く下知を受けた兵は残兵に含めない。
+  for (const g of C.groups) left += live(g);
+  C.oteBeaten = Math.max(C.oteBeaten || 0, Math.min(OTE_ALL, OTE_ALL - left));
+  return [C.oteBeaten, OTE_ALL];
 };
 STAGES.t11_hachioji = [['霧の谷を進み、山下曲輪の木戸の前へ', null, null, false], ['山下曲輪で近藤出羽守の組を討つ', dpAt(IX.ote), null, oteCount], ['曳橋で打って出た北条勢を迎え撃つ', dpAt(IX.sally), null, false], ['退く敵に続き、冠木門から御主殿へ攻め入る', (rt) => !!rt.flags.sallyBack, null, false],
   ['尾根の急な坂を、金子丸の下まで登る', dpAt(IX.sakamichi), null, false],

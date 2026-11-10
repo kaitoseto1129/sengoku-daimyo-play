@@ -224,6 +224,7 @@ const k05_ueda = {
   introText: () => '小さな上田城の前に、徳川秀忠の三万八千。城から出る真田を退け、関ヶ原へ急げ。',
   stageGoalsOnly: true,    // 右上は五つの段だけ（「敵を何人討つ」で埋めない。三の1）
   goalsVisibleRows: 5,     // 七つの目標のうち今の五つを並べる（物差し十三の1。共通の既定は三つ）
+  forceBarAlways: true,   // 冒頭の会話中も移動中も、三万八千対二千五百の人数の棒を隠さない。
   hideGuideSteps: true,
   noYaguraTask: true,
   // 右上は今の段を番号付きで（始まりの話の間も①。「味方の旗へ」に替えない。三の3・十の1）
@@ -804,7 +805,9 @@ const k05_ueda = {
         // 的は門の前に寄せた兵から散らして選ぶ（一人に弾が集まらない。主人公だけを狙い撃ちにしない）
         // 主人公を狙う一人以外は味方の兵を狙う。無作為の選択で全員が主人公へ撃つ抜け道も防ぐ。
         let t = u === aimU ? P : null;
-        for (let k = 0; k < 4 && !t; k++) { const o = foes[Math.floor(Math.random() * foes.length)]; if (o !== P && Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z) < 50) t = o; }
+        // 抽選が本人や射程外の兵に偏っても、撃てる相手を見落とさない。
+        const first = Math.floor(Math.random() * foes.length);
+        for (let k = 0; k < foes.length && !t; k++) { const o = foes[(first + k) % foes.length]; if (o !== P && dist(o.pos, u.pos) < 50) t = o; }
         if (!t) continue;
         u.heading = Math.atan2(t.pos.x - u.pos.x, t.pos.z - u.pos.z);
         if (u.type === 'gun') A.fireGun(u, t); else { u._wallShotAt = A.time; A.shoot(u, t); }
