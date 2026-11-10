@@ -691,7 +691,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       }
     } else if (F.step === 5) {
       const k = F.w5N - aliveN(F.take);
-      if (k >= Math.round(F.w5N * 0.6) && F.playerFight5 && !F.riverAid) this.riverAid(rt);
+      // 「二の柵の跡で踏みとどまる」は、本人もその持ち場を確保してから果たす。
+      if (k >= Math.round(F.w5N * 0.6) && F.playerFight5 && !F.riverAid && dist(P.pos, HOLD) < 22) this.riverAid(rt);
       // 崩れた瞬間は、まだ佐竹の目の前に寄せ手がいる。北岸を実際に退くまで救援を終えない。
       const riverClear = F.riverAid && !live(F.riverFoe) && !F.riverFoe.units.some((u) =>
         u.alive && !u.gone && u.pos.x > RIVER.x - 40);

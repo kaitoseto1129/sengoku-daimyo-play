@@ -2589,7 +2589,12 @@ const nodafukushima = {
     if (F.ending || rt.over || !rt.player.u.alive) return null;
     // 休息中は既存の「休む所」の印へ任せ、敵や堤への印を重ねない。
     if (!F.retreating && F.recoveryShown && F.recoveryFound) return undefined;
-    if (stage < 3) return undefined;   // 前田・井楼の梯子・井楼の上は、それぞれの印（marker）で示す
+    // 登り切ると梯子の印を消すため、射撃中は塀の内を直接示す。
+    // 途中で下りた時は梯子の印へ戻し、砦へ歩いて渡らせない。
+    if (stage === 2 && F.onSeirou && !F.shotsDone) {
+      return F.seirouFirePin || (F.seirouFirePin = { x: 0, z: FORT_Z - 12, r: 0, hide: 0, waiting: true, arrived: false, always: true });
+    }
+    if (stage < 3) return undefined;   // 前田・井楼の梯子は、それぞれの印（marker）で示す
     const q = F.nodaPin || (F.nodaPin = { x: 0, z: 0 });
     q.unit = null; q.enemy = false; q.approach = false;
     q.waiting = false; q.arrived = false; q.always = false; q.defend = false;
