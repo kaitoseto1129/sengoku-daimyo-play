@@ -62,7 +62,8 @@ export function update(rt, K) {
   // 浅瀬の口で殿を務めてから渡る。先に逃げても時間だけでは果たさない。
   const F = rt.flags;
   // 戦列を離れた負傷兵は隊の到着判定と同じく除き、動けない者で進行を止めない。
-  const remaining = [F.nobu, F.tsune, F.moto, ...(F.allyBands || [])].some((g) =>
+  // 先に退いた仙石の隊も、北岸に残っていれば渡河済みに数えない。
+  const remaining = [F.sen, F.nobu, F.tsune, F.moto, ...(F.allyBands || [])].some((g) =>
     g?.units.some((u) => u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && u.pos.z <= 26));
   // 殿を務めた後でも、味方を残して先に渡った時は口へ戻るまで下知を出さない。
   // 一人が足止めされても無期限の防戦にしない。残兵がいる時は渡り切ったと知らせない。

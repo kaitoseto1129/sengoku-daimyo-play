@@ -55,7 +55,7 @@ const HIST = { sen: 2000, nobu: 2000, sogo: 1000, moto: 1000, ijuin: 2000, niiro
 const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.niiro + HIST.honjo + HIST.ieh + HIST.ura;
 // 11/7 九1・十1：右上に①〜⑤を始めから全部並べる。一行は短く、地図で分かる場所の名と行いだけ。戦の間に言い替えない
 // 五つの目標を並べ、今の下知は段の中でも使番の知らせに合わせて替える（F.mText）。
-const STEP_TEXT = ['戸次川を渡れ', '島津の先手を攻めろ', '包囲を突破せよ', '川まで退け', '川を渡れ'];
+const STEP_TEXT = ['戸次川の浅瀬を渡れ', '中津留の河原で島津の先手を攻めろ', '中津留の河原の包囲を突破せよ', '戸次川の浅瀬まで退け', '戸次川を渡り西の岸へ退け'];
 const STEP_NOUN = ['戸次川の浅瀬', '中津留の河原', '長宗我部信親', '戸次川の浅瀬', '西の岸'];
 const NAMED = new Set(['長宗我部信親', '長宗我部元親', '仙石秀久', '十河存保', '戸次統常', '伊集院久宣', '新納大膳亮', '島津豊久', '島津家久', '鈴木大膳']);
 const KAGAMI = { x: CAMP.x - 16, z: CAMP.z + 50 };
