@@ -835,6 +835,7 @@ const t12_odawara = {
     const F = rt.flags;
     ichiyaView(rt);
     tenka.tick(rt);
+    if (F.settleKaijo) F.settleKaijo();
     if (F.ending) return;
     depthTick(rt, dt);
     riverFeet(rt);

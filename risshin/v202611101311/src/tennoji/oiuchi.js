@@ -46,7 +46,7 @@ export function install(rt, ctx) {
       const u = rt.player.u;
       if (!cut && !F.kidoCut && tail && !F.oiTailHelp && !u.dying && !u.fleeing && !u.woundOut && (u.atk || u.guard || u.swing)) {
         for (const enemy of tail.units) {
-          if (!enemy.alive || enemy.dying || enemy.noTarget || enemy.fleeing || enemy.woundOut ||
+          if (!enemy.alive || enemy.dying || enemy.gone || enemy.noTarget || enemy.fleeing || enemy.woundOut ||
               Math.hypot(enemy.pos.x - u.pos.x, enemy.pos.z - u.pos.z) > 7 ||
               Math.abs((enemy.pos.y || 0) - (u.pos.y || 0)) > 3 ||
               rt.army.wallBetween?.(u.pos, -1, enemy.pos, false)) continue;

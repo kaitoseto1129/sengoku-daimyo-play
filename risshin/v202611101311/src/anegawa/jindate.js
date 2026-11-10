@@ -60,7 +60,7 @@ export function install(rt, ctx) {
       if (!live() || S.k !== 2 || S.g !== q || q.order !== 'move' || q.routed || !q.count) return;
       q.order = 'attack'; q.seekRange = 30;
     };
-    rt.marker('aneScout', () => { if (g.routed || !g.units.some((u) => u.alive && !u.gone && !u.fleeing)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '浅井の物見', { red: true, group: g });
+    rt.marker('aneScout', () => { if (!scoutTarget(g)) return null; const c = g.center(); return { x: c.x, z: c.z }; }, '浅井の物見', { red: true, group: g });
     rt.army.play('eshout', { x, z }, 1.2);
     rt.say('足軽', '浅井の物見が瀬を渡って来るぞ！　鉄砲を持っておる！', 3);
     rt.after(3.5, () => {

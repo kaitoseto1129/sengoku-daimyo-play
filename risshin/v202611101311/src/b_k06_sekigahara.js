@@ -241,6 +241,8 @@ const k06_sekigahara = {
   noReserve: true,
   frontlineDensity: false,
   enemyTactics: false,
+  // 各隊の進軍は段の下知で管理する。共通の呼び寄せで本陣や寝返り前の小早川を動かさない。
+  noGoalFoe: true,
   hideArmyPeek: true,
   missionSingleLine: true,
   battleDialogue: true,   // 抜け駆けの咎め・寝返り・退き口の知らせを、音を消していても読める
@@ -248,6 +250,8 @@ const k06_sekigahara = {
   // 生前の吉継の名と、ほかの将の討取りはそのまま出す。
   hideNameTag: (u, rt) => !!rt?.flags.otaniDown && u === rt.flags.otaniU && !u.alive,
   foeMarks: true,
+  // 通し確認で敵印だけが浮いた。近い敵でも、姿を隠した本人には印を残さない。
+  enemySignVisible: (rt, u) => !u.camHidden && u.mesh?.visible !== false,
   foeMarkRange: 30,
   missionPinCaption: '',
   // 戦の途中の保存（battle_checkpoint.js・kaito 11/8）：段の関数を順に流して段の始まりを作り直す（前の段の声・見出しは出さない）。

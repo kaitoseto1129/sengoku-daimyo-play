@@ -37,6 +37,14 @@ export function start(rt, ctx) {
     rt.say('足軽', '舟が無い！　一揆が舟を隠して待ち伏せしておったぞ！', 3.4);
     rt.after(3.6, () => !S.done && rt.say('前田利家', '道を開けよ！　払って渡しへ抜けるぞ！', 3));
   }
+  function withdraw() {
+    const g = S.g;
+    if (!g || g.routed) return;
+    // 追撃の対象を残すと、渡しへ抜ける主人公を退いた門徒が追い続ける。
+    g.onArrive = null; g.focus = null;
+    g.dest = { x: DEST.x + 20, z: DEST.z - 34 };
+    g.noRout = false; g.morale = 0; g.order = 'retreat';
+  }
   S.tick = () => {
     if (S.done || rt.over || !rt.player.u.alive) return;
     const p = rt.player.u.pos;
@@ -51,22 +59,20 @@ export function start(rt, ctx) {
     }
     // 殿が支える間に残兵を退かせる。少数の残敵を討ち尽くすまで渡しで足止めしない。
     if (!S.cleared && S.g && S.contestedAt != null && rt.t - S.contestedAt > 120) {
-      S.g.onArrive = null; S.g.focus = null;
-      S.g.dest = { x: DEST.x + 20, z: DEST.z - 34 };
-      S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat';
+      withdraw();
       S.cleared = true;
       rt.unmark('nodaAmbush');
       rt.say('柴田勝家', '門徒が退くぞ！　追うな、江口の渡しへ抜けよ！', 3.2);
     }
     const clear = S.cleared || !S.g || S.g.routed || left <= 3;
-    if (S.k && clear && !S.cleared) { S.cleared = true; rt.unmark('nodaAmbush'); if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; } rt.award((t) => t.side.push('江口で待ち伏せの門徒を払った'), '江口の待ち伏せを払った'); }
+    if (S.k && clear && !S.cleared) { S.cleared = true; rt.unmark('nodaAmbush'); withdraw(); rt.award((t) => t.side.push('江口で待ち伏せの門徒を払った'), '江口の待ち伏せを払った'); }
     if (S.k && clear && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) finish();
   };
   function finish() {
     if (S.done) return;
     S.done = true;
     rt.unmark('nodaEguchi'); rt.unmark('nodaAmbush');
-    if (S.g && !S.g.routed) { S.g.noRout = false; S.g.morale = 0; S.g.order = 'retreat'; }
+    withdraw();
     // 余韻：渡しから振り返ると、砦に本願寺の旗。十一年の戦の始まり
     rt.say('足軽', '振り返れば、砦にも堤にも南無阿弥陀仏の旗じゃ……', 3.4);
     rt.after(3.8, () => { if (!rt.over && rt.player.u.alive) rt.say('柴田勝家', '殿は渡り終えた。舟を出せ！', 2.8); });

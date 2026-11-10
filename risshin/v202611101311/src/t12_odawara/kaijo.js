@@ -8,12 +8,40 @@
 import { enemyGroup, nm } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
+// 終幕に入った後も、後列が門を出て槍を置くまで見守る。
+function settle(rt, C, H) {
+  for (const g of C.groups) {
+    if (g.seated) continue;
+    const last = g.path[g.path.length - 1];
+    let outside = 0, living = 0;
+    for (const u of g.units) if (u.alive && !u.gone) {
+      living++;
+      // 持ち場への完全な整列を待たず、実際に門を出た兵から槍を置く。
+      // 門内の後列は歩き続け、時間だけで到着扱いにしない。
+      if (u.pos.z < H.KGATE.z + 6 || Math.hypot(u.pos.x - last[0], u.pos.z - last[1]) > 12) continue;
+      outside++;
+      if (u.wpnKind !== 'none') {
+        rt.army.dropWeapon(u);
+        u.wpn = null; u.wpnKind = 'none';
+      }
+    }
+    // 各列の六割が実際に門外で槍を置けば、開城を見届けたことになる。
+    // 残りの兵は歩き続ける。一人の整列待ちを戦全体の条件にしない。
+    if (living > 0 && outside >= Math.ceil(living * 0.6)) g.surrendered = true;
+    if (living > 0 && outside === living) {
+      g.order = 'hold'; g.seated = true;
+      for (const u of g.units) if (u.alive && !u.gone) u._crouch = true;
+    }
+  }
+}
+
 export function step(H) {
   return {
     kind: 'move', key: 'kaijo',
     start(rt, C) {
       const F = rt.flags;
       C.at = H.WATCH; C.goal = H.WATCH; C.groups = []; C.say = 0;
+      F.settleKaijo = () => settle(rt, C, H);
       F.day = 3; F.keisen = 0;
       rt.banner('七月五日', '北条氏直が降り、小田原城が開く');
       rt.obj('dp', '本丸の門の前で、槍を置いて城を出る北条の兵を見届ける', 'main');
@@ -37,33 +65,11 @@ export function step(H) {
           path: [[H.KGATE.x, H.KGATE.z - 13], [H.KGATE.x, H.KGATE.z + 16], [H.WATCH.x - 8 + k * 5, H.WATCH.z + 18]],
           speed: 1.4, arriveNoncombat: true },
         H.dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], H.HOJO));
-        g.peaceful = true; g.fire = false;
+        g.peaceful = true; g.fire = false; g.kaijoColumn = true;
         for (const u of g.units) { u.noTarget = true; u.invuln = true; }
         C.groups.push(g);
       }
-      for (const g of C.groups) {
-        if (g.seated) continue;
-        const last = g.path[g.path.length - 1];
-        let outside = 0, living = 0;
-        for (const u of g.units) if (u.alive && !u.gone) {
-          living++;
-          // 持ち場への完全な整列を待たず、実際に門を出た兵から槍を置く。
-          // 門内の後列は歩き続け、時間だけで到着扱いにしない。
-          if (u.pos.z < H.KGATE.z + 6 || Math.hypot(u.pos.x - last[0], u.pos.z - last[1]) > 12) continue;
-          outside++;
-          if (u.wpnKind !== 'none') {
-            rt.army.dropWeapon(u);
-            u.wpn = null; u.wpnKind = 'none';
-          }
-        }
-        // 各列の六割が実際に門外で槍を置けば、開城を見届けたことになる。
-        // 残りの兵は歩き続ける。一人の整列待ちを戦全体の条件にしない。
-        if (living > 0 && outside >= Math.ceil(living * 0.6)) g.surrendered = true;
-        if (living > 0 && outside === living) {
-          g.order = 'hold'; g.seated = true;
-          for (const u of g.units) if (u.alive && !u.gone) u._crouch = true;
-        }
-      }
+      settle(rt, C, H);
       line(8, () => rt.say('黒田官兵衛', '城の者には手を出すな。殿下は命を助けると仰せじゃ', 3.6));
       line(14, () => rt.say(nm(rt), '総構えの堀の前では退いたが……今度は刃を交えずに城が開く', 3.6));
       line(21, () => rt.say('北条の兵', '鎧も槍もまだある。……それでも、置くのか', 3));
