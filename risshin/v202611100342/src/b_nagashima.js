@@ -3634,7 +3634,7 @@ const nagashima = {
         const tick = st.tick;
         st.tick = (rt2, C, m, ctx, el, dt) => {
           const held = C.inT;
-          const defended = tick(rt2, C, m, ctx, el, dt);
+          tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
           const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&   // 馬の上でも持ち場（11/9 二巡）
@@ -3646,7 +3646,8 @@ const nagashima = {
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
           rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
-          return defended && !remaining && atPost && C.inT >= st.max - 35;
+          // 致命傷で戦えない者を共通の生存人数に残して、守備を止めない。
+          return !C.waves.length && !remaining && atPost && C.inT >= st.max - 35;
         };
       }
     }
@@ -3676,7 +3677,7 @@ const nagashima = {
         const tick = st.tick;
         st.tick = (rt2, C, m, ctx, el, dt) => {
           const held = C.inT;
-          const defended = tick(rt2, C, m, ctx, el, dt);
+          tick(rt2, C, m, ctx, el, dt);
           // 共通の守備時間は範囲の外三十メートルまで数える。長島は柵の持ち場の内だけ。
           const u = rt2.player.u;
           const atPost = bankFighterReady(u) && !u.downed && u.pos.z >= BANK_Z &&
@@ -3688,7 +3689,8 @@ const nagashima = {
           const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
           rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
-          return defended && !remaining && atPost && C.inT >= st.max - 35;
+          // 致命傷で戦えない者を共通の生存人数に残して、守備を止めない。
+          return !C.waves.length && !remaining && atPost && C.inT >= st.max - 35;
         };
       }
     }
@@ -4033,7 +4035,8 @@ const nagashima = {
       // 歩いた直後の射撃・装填では止まる。歩行量が残ると装填の時計が進まない。
       if (u.atk || u.reload) { u.moving = 0; continue; }
       const post = u.bankPost, at = u.perch;
-      const x = post.x + (F.step < 2 ? Math.sin(rt.t * .65 + u.id) * 1.5 : 0);
+      // 降伏後も奥の舟入で退城を待つ。移った先で立ち尽くさず、岸沿いを見回る。
+      const x = post.x + Math.sin(rt.t * .65 + u.id) * 1.5;
       const z = post.z - (F.step >= 2 ? 6 : 0);
       const dx = x - at.x, dz = z - at.z, d = Math.hypot(dx, dz);
       const move = Math.min(d, Math.max(0, dt) * 1.2);

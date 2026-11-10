@@ -2885,6 +2885,7 @@ const odani = {
     u?.name === '浅井長政' && !rt.flags.honAttack,
   // 稲生と同じ共通の札・ピン・印。道順と兵数、史実の終幕はこの戦のまま。
   missionSingleLine: true,
+  goalsAllRows: true, // 五つを最初から並べる。共通の既定では今の一件しか作られない。
   missionDialogue: true,
   noticeLimit: 2,
   hideMissionDots: true,

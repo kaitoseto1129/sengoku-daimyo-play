@@ -218,7 +218,8 @@ STAGES.t04_negoro = GOALS.map((g, i) => (i ? [g, atStep(i + 1)] : [g]));
 // 段に入った時に step を進める包み
 // 足した段のファイルへ渡す道具（NG）は setup の後で埋める
 const NG = { GOALS };
-const stepped = (n, st) => ({ ...st, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
+// 共通の時間上限で、未到着・残敵ありの段まで済ませない。七段とも本人の達成条件を守る。
+const stepped = (n, st) => ({ ...st, noHardCap: true, start(rt, C, m, ctx) { rt.flags.step = n; rt.flags.stepT = rt.t; st.start(rt, C, m, ctx); } });
 const fighting = (u) => u && u.alive && !u.fleeing && !u.downed && !u.dying;
 // 塀の撃ち手は門前に残る寄せ手だけを狙う。後送中・退却中の兵を狙いに残さない。
 const gateTarget = (u) => fighting(u) && !u.name && !u.noTarget && !u.woundOut && !u.rearWound
