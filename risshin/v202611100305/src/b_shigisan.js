@@ -4137,8 +4137,7 @@ shigisan.force = (rt) => {
   f.b = Math.max(0, f.b0 - (F.ek || 0));
   return f;
 };
-// 命懸けの戦場（lethal.js・11/9 織田G）・この戦の怖さ（燃える山城の狭い曲輪で、上から撃たれる）
-shigisan.lethal = true;
+// 命懸けの強さは定義内の回数・開始時刻・間隔を保つ。真偽値で上書きすると既定の強さへ戻ってしまう。
 shigisan.fearKind = { kind: '炎上', note: '燃える山城の狭い曲輪で、上から撃たれる', w: { iso: 1.3 }, line: '火が回るぞ！' };
 shigisan.sides = { a: { name: '織田軍', mon: 'oda' }, b: { name: '松永軍', mon: 'todo' } };
 // 父子は高櫓の内。架空の名乗り・討取りの段は設けない。
