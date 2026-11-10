@@ -107,6 +107,8 @@ export function tick(rt) {
 // 小早川の寝返り：一万五千が山を下る。はじめは北の野へ（東軍か西軍か分からない）、十二秒ほどで急に西の大谷の陣へ向きを変える
 function flip(rt, st, later, routB) {
   const M = st.M, C = st.C, P = st.P;
+  // 本物の隊と同じ時に東軍へ替える。移動だけでは遠景が西軍扱いのまま残る。
+  for (const g of [M.koba, M.koba2]) if (g?.army) g.army.team = 0;
   M.koba?.moveTo(P.MATSUO.x + 10, P.MATSUO.z - 110, 14, { charge: true });
   M.koba2?.moveTo(P.MATSUO.x - 20, P.MATSUO.z - 90, 16, { charge: true });
   later(12, () => {
@@ -115,6 +117,7 @@ function flip(rt, st, later, routB) {
     C.o?.shake?.('B', 30);
   });
   later(14, () => {
+    for (const g of [M.waki, M.akaza, M.ogawa, M.kutsuki]) if (g?.army) g.army.team = 0;
     M.waki?.moveTo(P.HIRA.x + 30, P.HIRA.z + 20, 20, { charge: true }); C.o?.push?.('A', 0.6);
     M.akaza?.moveTo(P.HIRA.x - 20, P.HIRA.z + 34, 22, { charge: true }); M.ogawa?.moveTo(P.HIRA.x, P.HIRA.z + 30, 21, { charge: true }); M.kutsuki?.moveTo(P.HIRA.x + 46, P.HIRA.z + 26, 23, { charge: true });
   });

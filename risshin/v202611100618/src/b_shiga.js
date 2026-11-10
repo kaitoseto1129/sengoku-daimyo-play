@@ -2022,6 +2022,7 @@ const shiga = {
     nearKinds: ['farmer', 'woman', 'child', 'monk', 'elder', 'townsman', 'merchant'],
   },
   compactIntro: true,
+  waitForPortrait: true, // 左下の顔は本人を撮れるまで隠し、黒い人影を先に出さない。
   introBriefOnly: true, // 始まりの札には両軍と下知だけを残す。
   introStartText: '戦いを始める',
   introSides: { a: '織田軍　三千', b: '浅井・朝倉軍　三万' },
@@ -4213,7 +4214,9 @@ const shiga = {
         c.x = u.pos.x; c.z = u.pos.z;
         g.order = 'path'; g.path = [[g.center().x, g.center().z], [u.pos.x, u.pos.z]]; g.pathIdx = 0;
       }
-      const foe = u.alive ? rt.army.nearestEnemy(u, 4, (q) => !q.fleeing && !q.isStruct && !rt.army.wallBetween(u.pos, u.team, q.pos, false)) : null;
+      const foe = u.alive ? rt.army.nearestEnemy(u, 4, (q) => !q.fleeing && !q.woundOut && !q.isStruct &&
+        Math.abs(q.pos.y - u.pos.y) < 3 && !rt.army.wallBetween(u.pos, u.team, q.pos, false) &&
+        sightPoint(rt, q.pos, 40)) : null;
       // 三将の最期は、槍の届く敵と将の姿を見届けられる時だけ進める。
       // 背後や町屋の陰で字だけの討死にせず、見えるまで同じ攻防を続ける。
       if (u.alive && (!foe || !sightPoint(rt, u.pos, 40))) { rt.after(1, fall); return; }

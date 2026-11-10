@@ -19,7 +19,8 @@ export function install(rt) {
   };
   // 逃げる敵は走る（歩いて去るとさびしい散歩に見える・kaito 11/8）
   for (const u of rt.army.units) if (u.team === 1 && u.alive) { u.fleeing = true; if (u.group) { u.group.speed = Math.max(u.group.speed || 3, 5.6); u.group.routed = true; } }
-  for (const [t, v] of [[7, 0.9], [10.6, 1], [14.2, 1]]) {
+  // 戦が止んで十〜十五秒は負傷者と倒れた旗を見せ、それから勝鬨を広げる。
+  for (const [t, v] of [[12, 0.9], [15.6, 1], [19.2, 1]]) {
     rt.after(t, () => {
       if (rt.over) return;
       try { rt.army.celebrate(rt.player.u.team); } catch (e) { /* なし */ }

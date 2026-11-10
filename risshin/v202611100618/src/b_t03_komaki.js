@@ -507,7 +507,7 @@ const t03_komaki = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.stage || F.ending) return;
-    const ok = (o) => !o.fleeing && o.group?.order !== 'retreat' && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const ok = (o) => !o.fleeing && !o.woundOut && !o.group?.routed && o.group?.order !== 'retreat' && o.group?.order !== 'flee' && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
     const e = [1, 4, 5, 7].includes(F.stage) ? null : b.army.nearestEnemy(u, 10, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
