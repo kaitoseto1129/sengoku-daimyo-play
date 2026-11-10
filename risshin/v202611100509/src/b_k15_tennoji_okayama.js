@@ -42,6 +42,7 @@ import { install as installEchizen } from './k15/echizen.js';
 import { install as installOkayama } from './k15/okayamaguchi.js';   // 岡山口の段
 import * as jindate from './k15/jindate.js';   // 陣立ての厚み（陣ごとの後ろの軽い大軍と、段ごとに崩れる様子）
 import { K15_KACCHU } from './kacchu_data.js';
+import { layout as fujinLayout, draw as fujinDraw } from './k15/fujinzu.js';
 
 BATTLE_ASSETS.k15_tennoji_okayama = Object.freeze([...assetsForBattle('k15_tennoji_okayama'), 'dem_tennoji_okayama']);
 let dem = null;
@@ -196,6 +197,8 @@ function yasuiSha(rt) {
 }
 
 const k15_tennoji_okayama = {
+  introMapLayout: fujinLayout,
+  introMapGround: fujinDraw,
   // 身の回りの合戦の跡（timeslip_field.js）。五月七日（今の六月）の昼。乾いた台地の土埃、最後の野戦の倒れた槍と旗
   timeslip: {
     wet: 0.1, dust: 0.7, trample: 0.45, debris: 1.5, arrows: 1, maxSlope: 0.3,

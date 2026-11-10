@@ -227,7 +227,7 @@ const k05_ueda = {
   // 行き先のピン：段ごとに一つ（字は出さない）。場所は段ごとに決まっている（AW3）
   missionPin(rt) {
     const F = rt.flags;
-    if (!F.step || F.ending) return null;
+    if (F.ending) return null;
     // ①は北の田そのもの（真田が田へ来て戦いになる。critic60：田へ一度も行かずに済んだ）
     let p = KARI;
     if (F.step === 1) p = KARI;
@@ -414,6 +414,15 @@ const k05_ueda = {
     // 往路の到着処理を残すと、城へ着いた後に町屋や川岸へ再出撃してしまう。
     g.onArrive = null;
     g.order = 'retreat'; g.dest = { x: GATE.x - 12, z: GATE.z }; g.speed = 4.3; g.aggro = 0; g.noRout = false;
+    // 北の林や田から本丸へ直進すると北の土塀に当たる。城外の隊は、出撃時と同じ門の口を通って戻る。
+    if (g.center().x >= GATE.x) {
+      g.dest = { x: GATE.x + 7, z: GATE.z };
+      g.onArrive = (q) => {
+        if (q.order !== 'retreat') return;
+        q.dest = { x: GATE.x - 12, z: GATE.z };
+        q.onArrive = null;
+      };
+    }
   },
 
   toStep(rt, n) {

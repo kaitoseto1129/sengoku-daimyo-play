@@ -205,7 +205,7 @@ const t06_hetsugi = {
     let at, r = 8;
     if (F.step === 1) at = shinkou.pin(rt);   // 渡るまでは南の岸の浅瀬の口、渡れの後は北の岸
     else if (F.step === 2) at = tsuigeki.pin(rt, K);
-    else if (F.step === 3) { at = kyuen.pin(rt); r = 6; if (!at) return null; }   // 伏せの始めは▼を出さない（その場で防ぐ）
+    else if (F.step === 3) { at = kyuen.pin(rt); r = 6; }   // 伏せの始めは防戦する河原、救援の知らせの後は信親
     else if (F.step === 4) at = shingari.pin(rt, K);   // 殿の間は北の口、皆が渡ったら南の岸
     else { at = CAMP; r = 8; }
     q.x = at.x; q.z = at.z; q.r = q.hide = r;
@@ -479,7 +479,7 @@ const t06_hetsugi = {
       const first = F.ijBands.find(live);
       if (first) { first.order = 'attack'; first.focus = rt.player.u; first.seekRange = 80; first.aggro = 18; }
     } else if (n === 3) {
-      this.ambush(rt);   // 信親の▼は救援の知らせの時に（kyuen.js）
+      this.ambush(rt);   // まず河原の防戦地点を示し、救援の知らせで信親へ（kyuen.js）
     } else if (n === 4) {
       // 11/8 五3・九1：退く段でカメラが後ろの追手に付き、行き先の▼が画面の下の端に張り付いて後ろを指した。退く段は走る向きを見る
       rt.def.autoTargetCamera = false;

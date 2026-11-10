@@ -1,3 +1,4 @@
+import { retreatRunFromBlade } from './bot_retreat.js';
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
 import { fireGlow } from './fire_glow.js';
@@ -3434,6 +3435,7 @@ miki.history = '天正六年から八年にかけて、別所長治の三木城�
 miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null; inp.k.delete('KeyW'); inp.k.delete('KeyE');
+  inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD'); inp.axis = null;
   inp.leftPressed = false; inp.chargeHold = false; inp.guardHold = false; inp.runHeld = false;
   if (!u.alive || F.ending) return;
   if (!F.step && F.mkOpen && !F.mkOpen.done) { const g = MK_OPEN.pin(b, miki.mkCtx(b)); if (g) { goTo(p, inp, g.x, g.z, 2); return; } }
@@ -3487,21 +3489,19 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       } else if (F.step === 2) goTo(p, inp, F.hide.anchor.x, F.hide.anchor.z + 4, 2);
       else goTo(p, inp, ASSEMBLY_TURNS[0].x, ASSEMBLY_TURNS[0].z, 2);
       if (danger) {
-        // 道の折れをたどりつつ、構えは打ち手へ向ける。敵に背を向けて構えない。
+        // 構えたままでは走れない。退く道の折れを保ち、刃と兵の隙間へ走る。
         const walking = inp.k.delete('KeyW'), retreatYaw = p.yaw, face = attacker || danger;
-        if (p.lock && p.lock !== face) inp.e.add('KeyQ');
+        if (p.lock) inp.e.add('KeyQ');
         p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
-        if (walking) {
-          const fw = Math.cos(retreatYaw - p.yaw), side = -Math.sin(retreatYaw - p.yaw);
-          if (Math.abs(fw) > 0.3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-          if (Math.abs(side) > 0.3) inp.k.add(side > 0 ? 'KeyD' : 'KeyA');
-        }
+        const pursuing = attacker || face.target === u && !face.playerQueue &&
+          Math.hypot(face.pos.x - u.pos.x, face.pos.z - u.pos.z) < (face.reach || 2.8) + 1.4;
+        if (walking || pursuing) inp.guardHold = !retreatRunFromBlade(b, inp, mikiGuidePointAllowed, walking ? retreatYaw : null);
       }
     }
     return;
   }
   // 退く下知は反撃より先。敵に狙いを固定したまま道を歩くと、向きを戻され柵沿いへ逸れる。
-  // 任務と同じ道の印へ進み、打ち手へ構えながら後ずさり・横歩きで列へ戻る。
+  // 任務と同じ道の印へ進み、打ち手へ向いたまま刃の外へ走って列へ戻る。
   if (F.withdrawGuide && danger) {
     const joinAt = miki.guideMarker(b) === 'join' && F.joinGroup ? miki.spearAt(F.joinGroup) : null;
     const at = joinAt || F.routeAt || front;
@@ -3511,11 +3511,7 @@ miki.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
       const walking = inp.k.delete('KeyW'), retreatYaw = p.yaw, face = attacker || danger;
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       inp.guardHold = true;
-      if (walking) {
-        const fw = Math.cos(retreatYaw - p.yaw), side = -Math.sin(retreatYaw - p.yaw);
-        if (Math.abs(fw) > .3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-        if (Math.abs(side) > .3) inp.k.add(side > 0 ? 'KeyD' : 'KeyA');
-      }
+      if (walking) inp.guardHold = !retreatRunFromBlade(b, inp, mikiGuidePointAllowed, retreatYaw);
       return;
     }
   }

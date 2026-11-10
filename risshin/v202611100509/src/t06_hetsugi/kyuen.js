@@ -1,6 +1,6 @@
 // ======================================================================
 // 戸次川　③の段（6〜12分）：釣り野伏せ → 自分の周りを防ぐ → 信親の隊を救いに行く（救えない）
-//   a（伏せの始め・約一分半）：信親は西の新納勢へ斬り込んで離れ、本人の所へは豊久・家久の手が寄せる。行き先の▼は出さない
+//   a（伏せの始め）：信親は西の新納勢へ斬り込んで離れ、本人の所へは豊久・家久の手が寄せる。行き先の▼は防戦する河原
 //   b：十河存保の討死の知らせ → 「信親様の隊が囲まれた」→ ▼は信親。着いて少しすると鈴木大膳が斬り込み（本体の lastStand）
 //   c：信親の討死（本体の closeRing）→ ④へ
 // 呼び方：install(rt, K)（本体の ambush の始め）・update(rt, K, el)・pin(rt)・sogoFall(rt, K)。
@@ -8,6 +8,7 @@
 const live = (g) => g && g.count > 0;
 const landed = (a, b) => a?.swing?.target === b && (a.swing.res === 'hit' || a.swing.res === 'armor' || a.swing.res === 'block');
 const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる所（西の林の縁）
+const DEFEND_SPOT = { x: 22, z: -94 };   // 追撃の先と同じ河原で防ぐ。救援の知らせまでは信親を追わせない。
 
 // 刃の結果は次の見回りまで残るとは限らないため、毎コマ記録する。
 export function contact(rt) {
@@ -75,7 +76,7 @@ function toB(rt, K) {
 
 export function pin(rt) {
   const S = rt.flags.s3, F = rt.flags;
-  if (!S || S.st < 1) return null;
+  if (!S || S.st < 1) return DEFEND_SPOT;
   return F.nobuU?.alive ? F.nobuU.pos : NOBU_SPOT;
 }
 

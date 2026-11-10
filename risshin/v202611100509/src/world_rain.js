@@ -53,6 +53,8 @@ export class WorldRain {
     this.splashPts.frustumCulled = false;
     this.splashPts.visible = false;
     this.scene.add(this.splashPts);
+    // 台本で降らせる雹も、形・配列・描き方を読み込み中にそろえる。
+    if (this.def.hail || this.def.prepareHail) this.prepareHail();
   }
 
 
@@ -85,6 +87,18 @@ export class WorldRain {
     this.rain.geometry.attributes.position.needsUpdate = true;
   }
 
+  prepareHail() {
+    if (this.hail) return;
+    const N = 500;
+    this.hailD = new Float32Array(N * 4);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    this.hail = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xe8ecef, size: 0.05, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false }));
+    this.hail.frustumCulled = false;
+    this.hail.visible = false;
+    this.scene.add(this.hail);
+  }
+
   // 雹：白い小さな粒が速く落ち、地面で一、二度跳ねて止まる
   updateHail(dt, focus, r) {
     this.hailT = Math.max(0, (this.hailT || 0) - dt);
@@ -92,14 +106,13 @@ export class WorldRain {
     setScene({ hail: k });
     if (!this.hail) {
       if (k <= 0) return;
-      const N = 500;
-      this.hailD = new Float32Array(N * 4);   // x, y, z, 縦の速さ
+      this.prepareHail();
+    }
+    // 乱数を使う時刻は従来どおり。支度で戦の判断の乱数を先に消費しない。
+    if (!this.hailSeeded && k > 0) {
+      const N = this.hailD.length / 4;
       for (let i = 0; i < N; i++) { this.hailD[i * 4] = (Math.random() - 0.5) * 50; this.hailD[i * 4 + 1] = Math.random() * 25; this.hailD[i * 4 + 2] = (Math.random() - 0.5) * 50; this.hailD[i * 4 + 3] = -18; }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-      this.hail = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xe8ecef, size: 0.05, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false }));
-      this.hail.frustumCulled = false;
-      this.scene.add(this.hail);
+      this.hailSeeded = true;
     }
     this.hail.visible = k > 0.01;
     if (!this.hail.visible) return;

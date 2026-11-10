@@ -1932,6 +1932,7 @@ const okehazama = {
     streams: [{ pts: [[-70, -150], [-52, -96], [-60, -40], [-80, 20]].map(fieldPathPoint), w: 1.8, depth: 0.9 }, { pts: [[100, 80], [124, 108], [150, 140]].map(fieldPathPoint), w: 1.6, depth: 0.8 }],
     // 谷の田と畦（A036）：道と本陣のまわりを除いて水を張る
     hail: false,
+    prepareHail: true,   // 石氷は台本で降らせる。初回の形・配列・描き方は読み込み中に用意する。
     fieldStage: 'seedling',   // 稲の育ちと水の有無を合わせる（細かな収穫時期は推定）
     paddy(wx, wz) {
       const x = localX(wx, wz), z = localZ(wx, wz);
