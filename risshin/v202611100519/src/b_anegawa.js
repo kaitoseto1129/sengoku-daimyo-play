@@ -2582,29 +2582,33 @@ function anePost(rt) {
   if (F.hqThreat || F.hqDefend) return (F.hqDefend ? F.hqDefensePos : F.hqGuardPos) || HQ;
   return F.holdAt || POST;
 }
+function aneInLine(rt, k, u, post) {
+  // 本人との近さで範囲を広げると、孤立した一人を村まで追い続ける。
+  // 選び直し・直前の相手・半秒の控えも同じ戦線の範囲で判定する。
+  return rt.flags.step === 2 || k !== 1 && k !== 2 || aneStageFoe(rt, k, u) && u.pos.z >= aneNorthBank(u.pos.x) &&
+    (Math.hypot(u.pos.x - post.x, u.pos.z - post.z) <= 45 ||
+     Math.hypot(u.pos.x - HQ.x, u.pos.z - HQ.z) <= 60);
+}
 // 一番近い残りの敵。半秒に一度だけ選び直し、三歩より近い別の兵が出た時だけ替える。
 function aneNearestFoe(rt) {
   const F = rt.flags;
   const k = F.aneStage || 0;
+  const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
+  const own = !pursuit && (k === 1 || k === 2);
   // 任務や追撃へ切り替わった時は、前の相手を半秒の控えや近さの判定で持ち越さない。
   const sameTask = F.aneFoeStage === k && F.aneFoeStep === F.step;
   if (sameTask && rt.t < (F.aneFoeAt || 0) && (F.aneFoe === null || aneFoe(F.aneFoe) &&
-      (k !== 4 || aneStageFoe(rt, k, F.aneFoe)))) return F.aneFoe;
+      aneInLine(rt, k, F.aneFoe, post) && (k !== 4 || aneStageFoe(rt, k, F.aneFoe)))) return F.aneFoe;
   F.aneFoeStage = k; F.aneFoeStep = F.step;
   F.aneFoeAt = rt.t + .5;
-  const me = rt.player.u.pos, post = anePost(rt), pursuit = F.step === 2;
-  // 11/5：磯野の段・横槍の段は、その隊の兵（どこにいても）を指す。持ち場の近くに限ると、段を破って本陣へ向かう磯野勢を指せなかった。
-  const own = !pursuit && (k === 1 || k === 2);
   let best = null, bd = Infinity, hqBest = null, hqD = Infinity;
   for (const u of rt.army.units) {
     if (!aneFoe(u)) continue;
     // 北岸の殿への案内で、南岸の残兵へ引き返させない。
     if (k === 4 && !aneStageFoe(rt, k, u)) continue;
     if (own) {
-      if (!aneStageFoe(rt, k, u) || u.pos.z < aneNorthBank(u.pos.x)) continue;
+      if (!aneInLine(rt, k, u, post)) continue;
       const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
-      // 11/6 fixc0834：隊から離れて遠くへ逃げた一人（西の村の奥など）は指さない。味方の槍列から独りで連れ出さない（一5）。
-      if (d > 45 && Math.hypot(u.pos.x - post.x, u.pos.z - post.z) > 45 && Math.hypot(u.pos.x - HQ.x, u.pos.z - HQ.z) > 60) continue;
       if (d < bd) { bd = d; best = u; }
       // 11/6 fixc（kaito 三1・三2）：③は「信長本陣の前」。本陣へ抜けた浅井勢を先に指し、南の畑の外れの兵へ連れ出さない。
       if (k === 2 && d < hqD && Math.hypot(u.pos.x - HQ.x, u.pos.z - HQ.z) < 75) { hqD = d; hqBest = u; }
@@ -2621,10 +2625,7 @@ function aneNearestFoe(rt) {
   const prev = F.aneFoe;
   if (sameTask && best && prev && best !== prev && aneFoe(prev) &&
       (k !== 4 || aneStageFoe(rt, k, prev)) &&
-      (!own || aneStageFoe(rt, k, prev) && prev.pos.z >= aneNorthBank(prev.pos.x) &&
-        (Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) <= 45 ||
-         Math.hypot(prev.pos.x - post.x, prev.pos.z - post.z) <= 45 ||
-         Math.hypot(prev.pos.x - HQ.x, prev.pos.z - HQ.z) <= 60)) &&
+      aneInLine(rt, k, prev, post) &&
       (own || pursuit || Math.hypot(prev.pos.x - post.x, prev.pos.z - post.z) <= 30 ||
         Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) <= 16) &&
       bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) &&

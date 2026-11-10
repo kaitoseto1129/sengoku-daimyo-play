@@ -404,10 +404,12 @@ const t02_shizugatake = {
   missionPin(rt) {
     const F = rt.flags, q = F.pin || (F.pin = { x: 0, z: 0, r: 6, hide: 6 });
     if (!rt.player.u.alive || F.ending) return null;
-    const P = F.phase === 0.5 ? LOOK : F.phase === 1 ? Open.RELIEF : F.phase === 2 ? MOUTH : F.phase === 2.3 ? JOIN : F.phase === 2.5 ? HONJIN : F.phase === 3 ? KATSUMASA : F.phase === 4 ? SHIGE : null;
+    // 開始の下知を待つ間と夜明けの六秒も、次に歩く場所の印を途切れさせない。
+    const phase = F.phase === 0 ? 0.5 : F.phase === 2.8 ? 3 : F.phase;
+    const P = phase === 0.5 ? LOOK : phase === 1 ? Open.RELIEF : phase === 2 ? MOUTH : phase === 2.3 ? JOIN : phase === 2.5 ? HONJIN : phase === 3 ? KATSUMASA : phase === 4 ? SHIGE : null;
     if (!P) return null;
     q.x = P.x; q.z = P.z;
-    q.label = STAGE_PLACE[stageIx(F.phase)];
+    q.label = STAGE_PLACE[stageIx(phase)];
     return q;
   },
 

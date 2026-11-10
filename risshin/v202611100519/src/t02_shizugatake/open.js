@@ -102,7 +102,7 @@ export function tickRelief(rt, dt, ctx) {
     rt.say('使番', '大岩山、落ちました！　中川清秀殿、お討死！', 3.4);
     rt.after(3.8, () => rt.say('桑山重晴', '……間に合わなんだか。落ちて来る中川の兵を拾え！', 3));
     // 中川の落ち武者が坂を上がって来る
-    F.nakaG = allyGroup(rt, { name: '中川の落ち武者', fullStrength: true, anchor: { x: RELIEF.x + 10, z: RELIEF.z - 8 }, facing: -2.4, width: 3, aggro: 0, order: 'move', dest: { ...ctx.MOUTH }, speed: 2.0, noRout: true },
+    F.nakaG = allyGroup(rt, { name: '中川の落ち武者', fullStrength: true, anchor: { x: RELIEF.x + 10, z: RELIEF.z - 8 }, facing: -2.4, width: 3, aggro: 0, order: 'move', dest: { ...ctx.MOUTH }, speed: 2.0, noAI: true, noRout: true },
       [{ type: 'samurai', n: 1, o: { flag: null } }, { type: 'ashigaru', n: 7, o: { flag: null } }]);
     for (const u of F.nakaG.units) u.hp = Math.min(u.hp, u.maxHp * 0.5);
     // 落ち武者を追う佐久間の追手（坂の途中で主人公と当たる）
