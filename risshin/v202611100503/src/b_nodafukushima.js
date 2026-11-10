@@ -4177,6 +4177,13 @@ const nodafukushima = {
     if (F.seirou) {
       const u = rt.player.u, t = F.seirou.find(q => onTower(u, q));
       F.onSeirou = !!t;
+      // 狙い直しや不発で弾が尽きても、井楼の鉄砲衆から補給して三度の射撃を続けられる。
+      // 補給は射撃任務中の床の上だけ。込め替えと実際に放った弾の判定は省かない。
+      if (t && u.alive && !rt.over && F.step === 1.5 && !F.shotsDone &&
+          !p.gunLoaded && p.gunAmmo === 0) {
+        p.gunAmmo = Math.max(1, SHOTS_NEED - F.shots);
+        rt.hud.flash('鉄砲衆から弾と火薬を受け取った', 'dim');
+      }
       const l = t && FL.ladders[t.ladderId];
       const atTop = !!l && !F.down && !u.climb && Math.hypot(u.pos.x - l.topX, u.pos.z - l.topZ) < 1.3;
       if (atTop !== !!F.downOn) {

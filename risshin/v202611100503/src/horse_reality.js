@@ -179,12 +179,21 @@ export function horseLooseDanger(army, h, now) {
   let danger = H.shock > 0;
   H.shock = 0;
   if (!(H.looseSenseAt > now)) {
-    H.looseSenseAt = now + 0.25; H.looseFire = false;
+    H.looseSenseAt = now + 0.25; H.looseFire = false; H.looseCombat = false;
     for (const f of army.world.fires || []) {
       if (f.lit !== false && Math.abs((f.base || 0) - h.position.y) < 5 && Math.hypot(f.x - h.position.x, f.z - h.position.z) < 2 + (f.size || 1)) { H.looseFire = true; break; }
     }
+    // 空馬は近くの斬り合いからも離れる。味方が並ぶだけでは驚かせない。
+    for (const u of army.units) {
+      const t = u.target;
+      if (!u.alive || u.fleeing || u.woundOut || u.isStruct || !t?.alive || t.isStruct || t.team === u.team) continue;
+      const dx = u.pos.x - h.position.x, dz = u.pos.z - h.position.z;
+      if (dx * dx + dz * dz > 64 || Math.abs(u.pos.y - h.position.y) >= 5) continue;
+      const tx = t.pos.x - u.pos.x, tz = t.pos.z - u.pos.z;
+      if (tx * tx + tz * tz < 16) { H.looseCombat = true; break; }
+    }
   }
-  danger = danger || H.looseFire;
+  danger = danger || H.looseFire || H.looseCombat;
   if (danger) H.spook = 1;
   return danger;
 }

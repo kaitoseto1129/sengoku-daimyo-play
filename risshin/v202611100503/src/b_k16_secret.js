@@ -64,7 +64,17 @@ const STEP_PLACE = ['', '京街道の土手', '土手の東の畑', '馬防柵�
 const STEP_AT = [null, SAKITE, YOKO, TEPPO, HONDA_AT, MOUTH];
 const FENCE_Z = [TEPPO.z + 7, HONDA_AT.z + 9];   // 馬防柵の並び（口は京街道の上 |x|<4 だけ）
 // 柵の向こう（北）の行き先へは、柵の手前で京街道の口へ寄ってから抜ける（bot。柵の端を大回りしない）
-const viaGap = (from, to) => { for (const fz of FENCE_Z) if (from.z > fz + 0.4 && to.z < fz && Math.abs(from.x) > 3) return { x: 0, z: fz + 2.5 }; return null; };
+const viaGap = (from, to) => {
+  for (const fz of FENCE_Z) if (from.z > fz && to.z < fz) {
+    // 出発点が街道の中央でも、斜めの道は柵の口を外れる。柵を横切る位置で確かめる。
+    const x = from.x + (to.x - from.x) * (from.z - fz) / (from.z - to.z);
+    if (Math.abs(x) > 3) {
+      // 口の手前まで来たら向こう側へ抜ける。同じ手前の点を指して止まらせない。
+      return { x: 0, z: fz + (Math.abs(from.x) <= 3 && from.z <= fz + 5 ? -2.5 : 2.5) };
+    }
+  }
+  return null;
+};
 const inCamp = (p) => Math.abs(p.x - HQ.x) < 7 && p.z < HQ.z + 5.5 && p.z > HQ.z - 6;   // 幕の際（角）は外と見る（11/8：角で幕越しに止まった）   // 陣幕の内（16×12 の幕）
 // 幕の横・裏からは外の角を回り、南の口の正面へ寄る。案内と自動操作で同じ道を使う。
 const campRoute = (p, to) => {

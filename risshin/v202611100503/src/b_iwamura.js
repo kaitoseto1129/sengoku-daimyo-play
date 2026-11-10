@@ -1237,7 +1237,7 @@ const iwamura = {
   keepWoundRetreatReason: true, // 傷で下がる時も、柵の内か麓の道かを歩数と一緒に残す。
   woundEffectMin: 0.08, // 浅い打撲の残りだけで追撃中も退避を続けない。出血・深手の退避は残す。
   taskLabel(_rt, text) {
-    return text.replace('組を率い、', '').replace('柵の左右に篝火を焚け', '左右の篝火を焚け')
+    return text.replace('組を率い、', '').replace('柵の左右に篝火を焚け', '柵の南と北の篝火を焚け')
       .replace('目の前の敵を、味方と押し返せ', '味方と敵を押し返せ')
       .replace('道の敵を押し返し、麓へ進め', '敵を押し返し麓へ進め')
       .replace('柵で武田の夜討ちを防げ', '柵で夜討ちを防げ').replace('山道を進み、麓の味方につけ', '山道から麓へ進め')
@@ -2787,8 +2787,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       if (arrived && !roadHeld && joined < need && F.joinWaitState !== joinWaitState && rt.t >= (F.joinCallAt ?? -99) + 8) {
         F.joinWaitState = joinWaitState;
         F.joinCallAt = rt.t;
-        rt.say('組頭', !available ? '味方が倒れておる。ここを守り、起きるのを待て' :
-          joinFighting ? '味方は道で戦っている。ここで麓を守れ' : '味方が続く。麓を守れ。迎えに戻るな', 3);
+        rt.say('組頭', !available ? '味方が倒れておる。麓を守り、起きるのを待て' :
+          joinFighting ? '味方は山道で戦っている。麓を守れ' : '味方が続く。麓を守れ。迎えに戻るな', 3);
       }
       if (available > 0 && available < 6 && !F.joinWarn && rt.t >= (F.joinCallAt ?? -99) + 8) {
         F.joinWarn = true; F.joinCallAt = rt.t;

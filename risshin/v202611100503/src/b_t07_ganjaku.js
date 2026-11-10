@@ -620,6 +620,14 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   update(rt, dt) {
     const F = rt.flags;
+    // 行軍・退却・本陣の待機では考え直しを待たず、討たれた相手への狙いを外す（全戦の通しで三秒以上残った）。
+    for (const u of rt.army.units) if (u.alive && u.target && !u.target.alive && !u.target.isStruct) {
+      const fallen = u.target;
+      u.target = null;
+      if (u.atk?.target === fallen) u.atk = null;
+      if (u.watch === fallen) u.watch = null;
+      u.aiT = 0;
+    }
     if (F.ending) return;
     if (!F.stage) { if (chakujin.update(rt, K)) this.go(rt, 1); return; }
     // 刻限と同じ更新で熊井を討った時も、果たした最後の目標を日没の負けで取り消さない。

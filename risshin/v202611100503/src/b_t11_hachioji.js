@@ -342,7 +342,15 @@ function kuruwaFight(o) {
     }
   };
   s.start = (rt, C, m, ctx) => { start(rt, C, m, ctx); bind(C); };
-  s.tick = (rt, C, m, ctx, el) => { const done = tick(rt, C, m, ctx, el); bind(C); return done; };
+  s.tick = (rt, C, m, ctx, el) => {
+    // 味方だけが守りを崩しても、離れた本人の目標まで済ませない。
+    // 曲輪へ入った事を残し、最後の敵を追って外へ出た時は引き返させない。
+    const p = rt.player.u.pos;
+    if (k && p.x >= k.poly[0][0] && p.x <= k.poly[1][0] && p.z >= k.poly[0][1] && p.z <= k.poly[2][1]) C.entered = true;
+    const done = tick(rt, C, m, ctx, el);
+    bind(C);
+    return done && !!C.entered;
+  };
   return s;
 }
 

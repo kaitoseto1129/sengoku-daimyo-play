@@ -2247,7 +2247,7 @@ const nagashima = {
     if (F.ending) return ['西の岸の柵', '中央の岸の柵', '東の岸の柵'][F.aftermathChecked] || '岸の柵';
     if (F.ngMonomi) return '岸の堤の上';
     if (F.dpOn && F.dp?.cur?.at) return F.dpLast ? '岸の真ん中の柵' : F.dp.i >= 2 ? '東の岸の柵' : '西の舟入り';
-    if (dangerProgress(rt)) return '味方の後ろへ';
+    if (dangerProgress(rt)) return '岸の助けの槍組';
     if (stage === 0) return '岸の横木';
     if (stage === 3) return '岸の門徒';
     if (stage === 4) return CHECK_NAMES[F.finalChecks.indexOf(false)];
@@ -2623,7 +2623,11 @@ const nagashima = {
       // 11/6 fixc2220（critic60）：降る前の小競り合いや火の場で、共通の「敵が崩れた・逃げ腰・横槍・朋輩が」を言わせない。
       if ((F.step < 3 || F.ending) && name !== '伝令' && name !== '語り' && /逃げ腰|崩れた|崩した|逃げるぞ|背を見せ|横槍|朋輩|無念|追い散らす|持ち場を離れるな|死に場所|かかれ|突け、突け|ひるむな|槍を揃えよ|押せ|備えを固め/.test(text)) return;
       // 字幕を省いて声だけになる経路にも、同じ文の間隔を通す。言い回しだけ違う同じ下知（縄・杭・横木）も一つに数える。
-      const key = /杭|縄を確か/.test(text) ? '杭' : /横木/.test(text) && name !== '柴田勝家' ? '横木' : String(text).replace(/[\s、。！!？?「」]/g, '');
+      const key = /杭|縄を確か/.test(text) ? '杭'
+        : /横木/.test(text) && name !== '柴田勝家' ? '横木'
+          : /追うな/.test(text) ? '追撃を止める下知'
+            : /川を向/.test(text) ? '川を向く下知'
+              : String(text).replace(/[\s、。！!？?「」]/g, '');
       if ((speechTimes.get(key) ?? -Infinity) + 15 > this.t) return;
       speechTimes.set(key, this.t);
       return say.call(this, name, text, ...args);

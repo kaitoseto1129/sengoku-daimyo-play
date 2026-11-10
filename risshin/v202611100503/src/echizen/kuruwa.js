@@ -100,8 +100,8 @@ export function tick(rt, dt) {
       for (const q of rt.squadGroups || []) for (const v of q.units) if (!q.routed && v.alive && !v.fleeing && !v.woundOut && !v.rearWound && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 40) { v.pos.x = z.pos.x + (Math.random() - 0.5) * 6; v.pos.z = z.pos.z + (Math.random() - 0.5) * 6; v.pos.y = rt.world.heightAt(v.pos.x, v.pos.z); }
     }
   } else S.out = 0;
-  // 木戸内では本人の一撃を待つ本体の条件を、七十五秒の退きで迂回しない。
-  if (id === 'kinome_sou' && (!F.breachHit_kinome_sou || !z.test(P.x, P.z))) { S.t = null; return; }
+  // どの郭も本人が守兵へ当てて戦う。副郭・主郭も味方と時計だけでは退かせない。
+  if (!F['breachHit_' + id] || !z.test(P.x, P.z)) { S.t = null; return; }
   if (!z.friends || !z.enemies) return;
   if (S.t == null) S.t = rt.t;          // 味方が初めて郭に入った時から数える（数が少しずつ揺れても止まらない）
   if (rt.t - S.t < 75) return;
