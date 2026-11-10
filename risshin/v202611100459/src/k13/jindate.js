@@ -107,6 +107,9 @@ export function tick(rt, dt) {
       const E = enemyGroup(rt, { faction: 'toyotomi', name: '真田の騎馬', fixed: true, anchor: { x: HONDA.x - 60, z: HONDA.z + 10 }, facing: EAST, width: 6, aggro: 16, order: 'attack', seekRange: 50, speed: 6, noRout: true, dmgMult: 0.5, morale: 100 },
         [{ type: 'cavalry', n: n(4, 5), o: { flag: 'sanada', armor: 0x8e1f16 } }]);
       E.anchor = { x: HONDA.x - 4, z: HONDA.z };
+      // 殿の騎馬も⑤で押し返す敵に数える。段の外に置くと、騎馬が戦っていても勝ちになる。
+      D.cur.groups.push(E);
+      D.cur.nTot = (D.cur.nTot || 0) + E.count;
       rt.after(25, () => { E.noRout = false; });
       M.mori?.moveTo(-226, -10, 60);
       rt.after(10, () => { try { M.sana?.moveTo(-220, 44, 60); } catch (e) { /* 無くても進む */ } });
