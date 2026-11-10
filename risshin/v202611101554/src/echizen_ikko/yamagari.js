@@ -8,6 +8,7 @@
 import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 import { siegeFighter } from '../siege_zones.js';
+import { sweepGroup } from './hondo_sweep.js';
 
 const A = { x: -30, z: -150 };   // 左の森の小道の入り口（FOREST_ROAD の初め）
 const B = { x: 24, z: -142 };    // 右の谷筋（VALLEY_ROAD の初めの手前）
@@ -64,6 +65,7 @@ export function tick(rt) {
   const F = rt.flags, Y = F.ikYama;
   if (!Y || Y.done || F.ending) return;
   const p = rt.player.u.pos;
+  if (Y.s === 1 || Y.s === 3) sweepGroup(rt, Y.g);
   // 時間だけで発見・撃退・帰還を済ませない。本人の到着と守りの損耗を待つ。
   // ① 森の小道へ。着くと藪から残党が立つ
   if (Y.s === 0) {

@@ -726,18 +726,18 @@ function tanoHamlet(rt) {
   // 杉の樹冠を四段の枝の層に分け、縁を不ぞろいに崩す。木ごとに暗い緑の濃さと色味を変える。形は一つを使い回す。
   const tiers = [];
   for (let k = 0; k < 4; k++) {
-    // 閉じた九角錐の底面を枝の途中の輪へ回す。三角形の数は同じで、山肌の杉を平たい積み木にしない。
-    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 6, 2, true);
+    // 六角形の中間の輪を葉先へ回し、輪郭を十二方向に刻む。
+    // 一段十八面から十二面へ減らし、山肌の林を重くせず角ばりを細かくする。
+    const r = 1 - k * 0.22, h = 0.4 - k * 0.04, tier = new THREE.ConeGeometry(r, h, 12, 1, true);
     const p = tier.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const y = p.getY(i);
       if (y > h * 0.25) continue;
-      const a = Math.atan2(p.getZ(i), p.getX(i)), middle = y > -h * 0.25;
-      const j = (middle ? 1.55 : 0.84) * (1 + 0.2 * Math.sin(a * 3 + k * 1.9) + 0.12 * Math.sin(a * 5 - k));
-      // 中ほどの枝先を裾と違う向きへ張り出し、幹へ下がる葉房を作る。
-      const turn = middle ? 0.32 : 0, x = p.getX(i), z = p.getZ(i);
-      p.setX(i, (x * Math.cos(turn) - z * Math.sin(turn)) * j);
-      p.setZ(i, (x * Math.sin(turn) + z * Math.cos(turn)) * j);
+      const a = Math.atan2(p.getZ(i), p.getX(i));
+      const j = 0.84 * (1 + 0.2 * Math.sin(a * 3 + k * 1.9) + 0.12 * Math.sin(a * 5 - k));
+      // 葉先ごとに張り出しと垂れを変え、水平な六角形の裾を残さない。
+      p.setX(i, p.getX(i) * j);
+      p.setZ(i, p.getZ(i) * j);
       p.setY(i, y - h * 0.15 * Math.abs(Math.sin(a * 5 + k)));
     }
     // 七角形の七倍の波は各頂点で同じ値になり、段の角も上下に揃っていた。

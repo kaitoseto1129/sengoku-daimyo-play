@@ -14,6 +14,7 @@ const def = {
   spawn: { x: P.spawn.x, z: P.spawn.z, heading: 0 },
   noWake: true, noTaishoRaid: true, noDespair: true, noFrontFill: true,
   keepMix: true, noCavalryMix: true, stageGoalsOnly: true, nearbyAllySignLimit: 0,
+  noPursuit: true,   // 11/10 関所4：木柵の段で「羽柴秀次の先手、追撃」「秀吉の本陣、追撃」と出たが、城攻めで誰も追っていない
   depth, lethal: true,   // 武将の備（depth.js）と命懸けの戦場（lethal.js）
   playerTaken: 0.5,   // 塀・楼・路地の鉄砲が絶えず撃つ。本人が数分で倒れないよう受ける傷を軽く（一宮城と同じ）
   meleeGrace: { rate: 1, burst: 1, interval: 3 }, flagEra: { toyotomi: 'kiri53' },
