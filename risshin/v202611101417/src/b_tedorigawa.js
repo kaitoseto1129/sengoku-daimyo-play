@@ -156,7 +156,7 @@ function pressStep(rt, dt) {
 }
 // 足軽大将候補より上（信長で遊ぶ時は除く）：任務の文を「一手を預かる」者の役目に
 const HI = (rt) => !rt.G.lord && (rt.G.rank || 0) >= 3;
-const ABSENCE_LINES = ['列を離れるな！　かがり火へ戻れ', '追手を追うな！　火へ戻り、退く者を守れ', '殿が薄いぞ！　組と持ち場へ戻れ'];
+const ABSENCE_LINES = ['列を離れるな！　篝火へ戻れ', '追手を追うな！　火へ戻り、退く者を守れ', '殿が薄いぞ！　組と持ち場へ戻れ'];
 const DEEP_LIMIT = 0.65; // 膝の浅瀬まで。足の届かない所へ進ませない。
 const FLOOD_RISE = 0.15; // 渡り道は増水しても膝ほどに保つ。
 const BREACH_LIMIT = 12; // 列を立て直す猶予の後は、包囲される前に渡り口へ退く。
@@ -199,7 +199,7 @@ const FORD = { x: 0, z: -26 };              // 北の岸の渡り口
 const SOUTH = { x: 4, z: 34 };              // 南の岸（退く先）
 // 右上の目標は退き口の旗まで初めから並べ、戦の間は言い替えない。
 const TEDO_GOALS = ['水島の柴田勝家の旗へ集まれ', '北岸の篝火で謙信の追手を止めよ', '二本の旗の間の浅瀬を渡れ', '南岸の篝火で渡る味方を守れ', '南の退き口の旗まで退け'];
-const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の火へ退け'];
+const TEDO_ACTIONS = ['柴田の旗へ進め', '北岸の篝火へ退け', '追手を止めよ', '浅瀬を渡れ', '渡る味方を守れ', '追手を討て', '北岸の篝火へ退け'];
 const BANK_Z = SOUTH.z - 8;                // 南岸の土手の登り（z 26 から乾いた土手。11/4：手前の斜面で守っても数えない食い違いをなくす）
 // 増水で水の回った手取川の古い流れ筋（霞堤の内へ逆流した分流）。持ち場から北を向いた画面の手前に見せる（10/28 点付け：川が画面に無い）。
 // 川床は浅く掘るだけ（膝より下）。水深の当たりや渡河の判定には入れない。道の所は浅瀬の砂の色。
@@ -211,7 +211,7 @@ const ODA = { flag: 'oda' };
 const UESUGI = { flag: 'uesugi', armor: 0x24221f };   // 11/8 critic60 四3：上杉の足軽の貸し具足を赤茶でなく黒の漆に
 let niwaUmaMat;
 
-// 追加の下知が出ている間は、集合済みの柴田の旗や北岸の火へ呼び戻さない。
+// 追加の下知が出ている間は、集合済みの柴田の旗や北岸の篝火へ呼び戻さない。
 function tedoPaceMarker(rt) {
   if (rt.over || rt.flags.ending) return null;
   return rt.markers.find((m) =>
@@ -1198,7 +1198,7 @@ function crossingRoute(rt) {
 function riverRecoveryText(rt) {
   const F = rt.flags;
   if (F.step === 0) return '立ったら、柴田勝家の旗へ';
-  if (F.step === 1) return '立ったら、北岸の火へ退け';
+  if (F.step === 1) return '立ったら、北岸の篝火へ退け';
   if (F.step >= 4) return '立ったら、南岸の味方へ';
   if (F.step !== 3) return '立ったら、味方と列を守れ';
   // 起き上がる間も、渡る時と同じ道順を示す。深みへの直進を促さない。
@@ -1371,7 +1371,7 @@ function waterActions(rt) {
         rt.say('組頭', step === 3 ? 'そこは深い！　幟の間の浅瀬を通れ' :
           step >= 4 ? 'そこは深い！　南岸の篝火へ戻れ' :
             step === 0 ? 'そこは深い！　まだ渡るな。柴田様の旗へ戻れ' :
-              'そこは深い！　まだ渡るな。北岸の火を守れ', 4);
+              'そこは深い！　まだ渡るな。北岸の篝火を守れ', 4);
       }
       return false;
     }
@@ -2965,13 +2965,13 @@ const tedorigawa = {
     rt.unmark('shiba');
     // 本陣からの退きの下知。札の自動合図の待ち時間には任せない。
     // 旗へ早く着くと使番の報せは段替わりで消える。退く理由を下知に継ぐ。
-    const retreatOrder = F.nanaoHeard ? '退き太鼓じゃ！　組頭と北岸の火へ退け！' :
-      '七尾城は落ちた！　組頭と北岸の火へ退け！';
+    const retreatOrder = F.nanaoHeard ? '退き太鼓じゃ！　組頭と北岸の篝火へ退け！' :
+      '七尾城は落ちた！　組頭と北岸の篝火へ退け！';
     F.nanaoHeard = true;
     // 追手に早く出会い、集合の法螺がまだ響く時も、台詞は退き太鼓を待つ。
     tedoSignal(rt, 'nobiki', F.shibaU.pos, 0.8, F.shibaU,
       ['柴田勝家', retreatOrder, 4]);
-    rt.obj('main', 'しんがりとして、組頭に続いて北岸の火のそばまで退く', 'main');
+    rt.obj('main', '殿として、組頭に続いて北岸の篝火まで退け', 'main');
     // 11/10 指示書：上杉が動いた事を、姿より先に音で知らせる（遠い法螺・早鐘・馬蹄・雷）。
     if (!rt.G.lord) {
       const far = (t, fn) => rt.after(t, () => { if (!F.ending && !rt.over && rt.player.u.alive) fn(); });
@@ -2992,7 +2992,7 @@ const tedorigawa = {
     F.shiba.onArrive = (g) => { g.order = 'hold'; g.facing = Math.PI; g.formation = 'yari'; g.width = 10; };
     F.rear.order = 'move'; F.rear.dest = RG; F.rear.onArrive = (g) => { g.order = 'hold'; g.facing = Math.PI; };
     // 雨と川の音で下知が届かず、一手は止まり、一手は横へ走る。
-    messengerNews(rt, rt.player.u, '川音で声が届かぬ！　北岸の火へ集まれ！');
+    messengerNews(rt, rt.player.u, '川音で声が届かぬ！　北岸の篝火へ集まれ！');
     F.others[0].order = 'hold'; F.others[0].morale = 55;
     F.others[1].order = 'move'; F.others[1].dest = { x: 60, z: -44 }; F.others[1].speed = 3.2; F.others[1].morale = 45;
     F.others[1].onArrive = (g) => { g.order = 'hold'; };
@@ -3020,7 +3020,7 @@ const tedorigawa = {
     const pursue = () => {
     rt.after(4, () => {
       if (F.ending || rt.over || F.step < 1 || F.step > 2) return;
-      tedoAside(rt, '組頭', F.step === 1 ? '北から追手じゃ！　北岸の火まで退け！' : '北から追手じゃ！　火のそばで槍をそろえよ！', 3.5);
+      tedoAside(rt, '組頭', F.step === 1 ? '北から追手じゃ！　北岸の篝火まで退け！' : '北から追手じゃ！　火のそばで槍をそろえよ！', 3.5);
       for (const g of F.northSteps[0].tedoWaves[0].groups) advancePursuit(g, RG, true);
     });
     rt.after(12, () => {
@@ -3481,7 +3481,7 @@ const tedorigawa = {
       const d = Math.hypot(p.x - RG.x, p.z - RG.z);
       const left = Math.max(0, Math.ceil(60 - (rt.t - F.stepT)));
       const busy = F.paceKonzatsu && !F.konzatsuDone;   // 増水と混雑の段の間は、その段の札を先にする
-      rt.objProgress('main', busy ? '' : d < 7 ? '槍をそろえ、追手に備えよ' : '北岸の火へ退け。追手が迫るぞ');
+      rt.objProgress('main', busy ? '' : d < 7 ? '槍をそろえ、追手に備えよ' : '北岸の篝火へ退け。追手が迫るぞ');
       // 11/6 BT 十二3：刻限で負けにしない。遅れても殿の段は始まり（物語は進む）、上杉は北から寄せて来る。
       if (d < 7 || rt.t - F.stepT > 60) this.rearguard(rt);
       // 迷った者へ退き先を伝える。合図の説明を聞き終えてから、二十秒おきに呼ぶ。
@@ -3489,8 +3489,8 @@ const tedorigawa = {
           !F.tedoQueuedSignal.kind && rt.t >= (F.tedoSignalUntil || 0) &&
           rt.t >= (F.tedoCallUntil || 0)) {
         F.fordCallAt = rt.t + 20;
-        rt.say('組頭', left <= 30 ? '遅れるな！　北岸の火へ急げ！' :
-          '追手を追うな！　北岸の火へ退け！', 3.5);
+        rt.say('組頭', left <= 30 ? '遅れるな！　北岸の篝火へ急げ！' :
+          '追手を追うな！　北岸の篝火へ退け！', 3.5);
       }
     }
     if (F.step === 3) {

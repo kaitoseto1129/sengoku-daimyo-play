@@ -2087,6 +2087,8 @@ const shigisan = {
     return F.step >= 4 ? 4 : F.step >= 3.5 ? 3 : F.step >= 3.2 ? 2 : F.step >= 2 ? 1 : 0;
   },
   missionHeading(rt) { return SG_GOALS[this.missionOf(rt)]; },
+  // 火を見届ける操作は終幕にも必要。自動確認だけ、天主の印へ向く操作を続ける。
+  botDuringEnding: (rt) => !!rt.flags.ending && rt.markers.some((m) => m.id === 'keep'),
   missionSignTarget: shigisanFoe,
   foeMarkVisible(rt, u) { return u === this.commanderSignTarget(rt); },
   // 久秀は屋内で自害する大将。討取りの対象にせず、地図と戦場の大将印だけを出す。
@@ -4377,7 +4379,21 @@ function sgBot(b, inp, { goTo, patientStrike, strikeTarget }) {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
-  if (!u.alive || F.ending) return;
+  if (!u.alive) return;
+  if (F.ending) {
+    inp.k.clear(); inp.e.clear(); inp.axis = null;
+    inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = false; inp.guardHold = false;
+    const keep = b.markers.find((m) => m.id === 'keep');
+    if (!keep || b.over || b.ended) return;
+    if (p.lock) inp.e.add('KeyQ');
+    const x = KEEP_AT.x, z = KEEP_AT.z, eye = b.camera.position;
+    p.yaw = Math.atan2(x - u.pos.x, z - u.pos.z); p.camYawOff = 0;
+    p.pitch = Math.max(-.5, Math.min(.55, Math.atan2(
+      b.world.heightAt(x, z) + KEEP_AT.up + 2 - eye.y,
+      Math.max(1, Math.hypot(x - eye.x, z - eye.z)))));
+    p.lookIdle = 0;
+    return;
+  }
   // 傷は自然に戻らず、手当ても五％まで。処置を済ませたら任務へ戻る。
   const canTreat = p.treatmentLeft > 0 && !p.bandaged && !p.mounted;
   if (u.hp < u.maxHp * 0.5 && canTreat) b.botRest = true;

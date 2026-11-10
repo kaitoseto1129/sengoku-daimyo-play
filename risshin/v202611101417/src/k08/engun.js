@@ -74,14 +74,16 @@ export function start(rt, K) {
     // 南東の陣から北の口へ直進すると東の塀を横切る。破れた南の塀から砦の内へ。
     g.path = [[12, K.GATE.z + 24], [12, K.GATE.z - 8], [K.NGATE.x + 8, K.NGATE.z + 12]];
     g.pathIdx = 0;
-    g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 40; };
+    g.onArrive = (q) => {
+      if (F.step !== 4 || F.ending) return;
+      q.order = 'attack'; q.aggro = 24; q.seekRange = 40;
+      // 陣から出た十秒後では、後備はまだ南の入り江。北の口へ届いてから押し返す。
+      for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) holdAt(q, K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3), K.NGATE.z + 10);
+      F.engunPushedBack = true;
+    };
     sfx('taiko', 0.6);
     // 長晟は遠い搦手の陣。北の口へは使番が下知を運ぶ。
     rt.say('浅野の使番', '長晟様の下知。後備が参る、北の口へ押し返せ、と', 3);
-    S(10, () => {
-      for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) holdAt(q, K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3), K.NGATE.z + 10);
-      F.engunPushedBack = true;
-    });
   });
 }
 
@@ -100,7 +102,10 @@ export function cleared(rt, secured = false) {
   if (!F.engun) return true;
   // 加勢が早く倒れても、後備の前進と味方の押し返しを飛ばさない。
   // 後備が既に倒れている時は、残る味方だけで押し返せる。
-  if (!F.engunOn || (!F.engunPushedBack && alive(F.asano2))) return false;
+  // 後備が全員負傷しても止めない。合流が詰まった場合も、本人が両軍の守りを
+  // 半数まで崩して北の口を保った時（secured）は、残る先手で押し返せる。
+  const rearReady = alive(F.asano2) && F.asano2.units.some(u => u.alive && !u.gone && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.evacuatedWound && !u.fleeing);
+  if (!F.engunOn || (!F.engunPushedBack && rearReady && !secured)) return false;
   return remaining(rt) <= Math.ceil((F.engunN || 1) * 0.3) || (secured && remaining(rt) <= (F.engunN || 1) * 0.5);
 }
 // ⑤へ移る時：残る加勢も博労淵へ退く

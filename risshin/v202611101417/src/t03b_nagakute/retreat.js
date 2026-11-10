@@ -7,7 +7,7 @@ import { allyGroup } from '../bhelp.js';
 
 // 終戦後は、遅れて予約の撤退命令や助けを求める声を出さない。
 function laterSay(rt, delay, who, line, sec) {
-  rt.after(delay, () => { if (!rt.flags.ending && rt.flags.stage === 6) rt.say(who, line, sec); });
+  rt.after(delay, () => { if (!rt.flags.ending && !rt.over && rt.player?.u?.alive !== false && rt.flags.stage === 6) rt.say(who, line, sec); });
 }
 
 export function start(rt, K) {

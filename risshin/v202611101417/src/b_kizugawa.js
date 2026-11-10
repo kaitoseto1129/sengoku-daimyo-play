@@ -4299,7 +4299,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
   board(rt) {
     const F = rt.flags;
     if (F.step >= 3) return;
-    F.step = 3; F.stepT = rt.t; F.boardRepelledStart = F.deckRepelled;
+    F.step = 3; F.stepT = rt.t; F.boardRepelledStart = F.deckRepelled; F.boardHeld = 0;
     // 消火中は屋形で敗北にしない。その間の危険時間を持ち越し、段替わり直後に負けにしない。
     F.deckLost = 0;
     F.water = false;
@@ -5033,10 +5033,15 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     if (F.step === 3) {
       // 迎撃と消火の間に退けた敵も守りの働きに数える。
       // 早く守り切って新手が尽きても、架空の四人を待たせない。
-      // 決め手は開始二百二十秒以降。崩壊八秒と退き十二秒を含め四分以上。
+      // 討取りを味方に任せ、乗り口を守った者も拾う。屋根や屋形の裏の待機は数えない。
+      const holding = rt.player.u.alive && Math.abs(rt.player.u.pos.y - DECK.y) < 0.5 &&
+        deckRouteDistance(rt.player.u, F.guardPost) <= 4 && !F.roofDanger && !(F.deckLost > 0);
+      if (holding) F.boardHeld = Math.min(60, (F.boardHeld || 0) + dt);
+      // 大将船は十分以降。守備の段を百三十秒、持ち場を計六十秒守ってから進む。
+      const held = elapsed >= 130 && F.boardHeld >= 60 && holding;
       let contested = false;
       for (const u of rt.army.units) if (deckEnemy(u)) { contested = true; break; }
-      if (elapsed >= 105 && rt.t >= 600 && F.deckRepelled >= 4 && (F.deckRepelled - F.boardRepelledStart >= 4 || !contested)) {
+      if (elapsed >= 105 && rt.t >= 600 && (held || F.deckRepelled >= 4 && (F.deckRepelled - F.boardRepelledStart >= 4 || !contested))) {
         rt.award((t) => { if (!t.side.includes('甲板へ乗り込む敵を退けた')) t.side.push('甲板へ乗り込む敵を退けた'); }, '甲板の持ち場を守った');
         this.decisive(rt); return;
       }
