@@ -556,10 +556,13 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
     // 手勢も本人と南岸へ移る。堤へ戻す補正が残ると、泥田で往復して救援に付いて来られない。
     F.mine.riverAid = true;
     for (const g of F.foes) if (live(g)) this.retreat(g, EXIT_W);
-    // 堤の押し返しは済んだ。後詰は二の柵を守り、退く敵を西へ追い続けない。
-    for (const g of [F.suda, F.yasu, F.saka]) if (live(g)) {
+    // 堤の押し返しは済んだ。三隊を前後に分け、同じ守備位置へ重ねない。
+    for (const [g, dx] of [[F.suda, 6], [F.yasu, 24], [F.saka, 42]]) if (live(g)) {
       g.onArrive = null; g.dest = null; g.focus = null;
-      g.order = 'hold'; g.anchor = { x: HOLD.x + 6, z: 0 }; g.seekRange = 16; g.aggro = 10;
+      // 槍衾は七列以内にして、堤の端へ持ち場が押し潰されるのを防ぐ。
+      g.formation = 'yari'; g.yariRanks = Math.max(2, Math.ceil(g.initial / 7));
+      g.facing = -Math.PI / 2;
+      g.order = 'hold'; g.anchor = { x: HOLD.x + dx, z: 0 }; g.seekRange = 16; g.aggro = 10;
     }
     // 個々の逃走は隊の dest を使わない。北へ逃げ続けて救援完了を妨げないよう、北岸を西へ退く道を渡す。
     F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true,

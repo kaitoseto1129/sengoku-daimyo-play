@@ -163,6 +163,13 @@ function gifuWay(army, u, want) {
   // 七曲りの兵を西の百曲りへ吸い寄せず、南から門下まで登らせる。
   if (u.group?._gfSouth && u.pos.z > 10) return want;
   const q = kWay(army, u, want);
+  // 九歩以内では共通の道案内が直進を返す。居館の西壁を挟む時は門の中央を通す。
+  // 池田長吉の列が (-145,-3) から内側の持ち場へ斜めに寄せ、門脇で止まった。
+  if (q === want && u.pos.x < -142 && want.x > -142 && Math.abs(u.pos.z) < 12 && Math.abs(want.z) < 12
+    && army.wallBetween(u.pos, -1, want)) {
+    const gate = u._k03GateWay || (u._k03GateWay = { x: -142, z: 1.2 });
+    return gate;
+  }
   if (q === want || Math.hypot(q.x - u.pos.x, q.z - u.pos.z) >= 2.6) return q;
   const i = ROUTE.findIndex((p) => p[0] === q.x && p[1] === q.z);
   if (i < 0) return q;

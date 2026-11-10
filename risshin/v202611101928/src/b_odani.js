@@ -256,6 +256,7 @@ const ONO_WEST_ENTRY = [...ONO_WEST_APPROACH, CLIMB_UP.at(-1), MASU.face, MASU.o
 const ONO_VIA_APPROACH = densify([[ONOGI.x, ONOGI.z + 4], [ONOGI.x, ONOGI.z + ONOGI.hd + 3], [-49, -77], ...WEST_APPROACH.slice(2)], 2);
 const ONO_VIA_ENTRY = [...ONO_VIA_APPROACH, CLIMB_UP.at(-1), MASU.face, MASU.out];
 const VIA_ROAD = { x: 0, z: 0, s: 0, d: 0 }, WEST_ROAD = { x: 0, z: 0, s: 0, d: 0 };
+const ONO_ROAD_NOW = { x: 0, z: 0, s: 0, d: 0 };
 // 屋敷側の隊も南木戸と分かれ目を通す。本道へ直接寄せると柵と切岸で後続が重なる。
 function westEntryPath(p) {
   roadPoint(ONO_VIA_APPROACH, p, VIA_ROAD, null, null, 1, 3);
@@ -1797,6 +1798,13 @@ function addTrailRails(rt) {
     for (const s of [-1, 1]) rails.push([[a[0] + nx * off * s, a[1] + nz * off * s], [b[0] + nx * off * s, b[1] + nz * off * s], nx * s, nz * s]);
   };
   leg([CLIMB_UP[1][0] + (CLIMB_UP[2][0] - CLIMB_UP[1][0]) * .3, CLIMB_UP[1][1] + (CLIMB_UP[2][1] - CLIMB_UP[1][1]) * .3], [CLIMB_UP[2][0] - 2, CLIMB_UP[2][1] - 3], 3.2);
+  // 11/10 クラウド関所係：九十九折りの上下の段は角から十一度ほどしか開かない。上の段の西の縁（下の段の側）の杭が、
+  //   角から二十七メートルほどの間は下の段の道の上に立ち、角へ登る人と bot を止めていた（act bot が千秒止まった）。下の段の道から三・三メートル離れる所から打つ。
+  { const r = rails[1], [a, b] = r, L0 = CLIMB_UP[0], L1 = CLIMB_UP[1], lx = L1[0] - L0[0], lz = L1[1] - L0[1], ll = Math.hypot(lx, lz);
+    const away = (x, z) => Math.abs((x - L0[0]) * lz - (z - L0[1]) * lx) / ll;
+    let k = 0;
+    while (k < .9 && away(a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k) < 3.3) k += .02;
+    r[0] = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
   // 大野木屋敷への枝道（分かれ目 -49,-77 から南木戸へ）が東の縁を横切る所は空ける。縁が枝道をふさぎ、人も兵も屋敷へ行けなかった。
   { const r = rails.at(-1)[1][0] > rails.at(-2)[1][0] ? rails.length - 1 : rails.length - 2, [a, b, nx, nz] = rails[r];
     const jx = -49, jz = -77, gx = ONOGI.x - jx, gz = ONOGI.z + ONOGI.hd + 3 - jz;
@@ -2716,6 +2724,8 @@ function stoneTick(rt, dt) {
       rt.army.forNear(s.bx, s.bz, 1, (u) => {
         // 尾根と谷道が上下に重なる所で、別の足場の兵を巻き込まない。
         if (!u.alive || u.team !== 0 || u.invuln || u.isStruct || Math.abs(u.pos.y - s.by) > 1.8) return;
+        // 11/10 クラウド関所係：深手の本人には当てない（岩石城の石と同じ）。act bot が石だけで百十余り削られ、登り口と西の口で倒れた。
+        if (u.isPlayer && u.hp < u.maxHp * .35) return;
         // 弾と同じく、落ちる側へ向けた竹束と、そのすぐ後ろを守る。
         const len = Math.hypot(u.pos.x - s.ax, u.pos.z - s.az) || 1;
         const dx = (u.pos.x - s.ax) / len, dz = (u.pos.z - s.az) / len;
@@ -2896,7 +2906,7 @@ function odaniGoalBoard(rt) {
 }
 
 const odani = {
-  lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
+  lethal: { max: 4, firstAt: 90, gap: 60, soft: true },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）。11/10 関所係：act bot が南木戸と西木戸で倒れ続けるので倒れすぎない強さに
   resumeSteps: [[1, 'climb'], [2, 'assault']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 名の無い役の札と、本丸へ向かう前の長政の札を隠す。共通の名札は討てない将も候補にする。
   hideNameTag: (u, rt) => /組頭|使番|物頭/.test(u?.name || '') ||
@@ -3315,6 +3325,7 @@ const odani = {
     naturalWoodDebris: true, // 割れ木の色に茶を二重に掛けず、夜の黒い短冊を減らす。
     groundedWoodDebris: true, // 着地した割れ木だけ坂の向きへ寝かせる。
     noHorse: true, // 清水谷の夜襲と狭い木戸は徒立ち。後から加わる武将にも適用する。
+    playerHorse: true, // 11/10 関所の5：組頭以上は自分の馬に乗れる。軍勢と名のある将は谷道を徒歩のまま（noHorse）。
     distantFootOnly: true, // 遠景の組頭と供も徒歩にそろえ、夜襲の谷道に騎馬を残さない。
     wholeInfantrySilhouette: true, // 少し離れた列も腿と脛を残し、胴だけ浮かせない。
     completeCrowdLegs: true, // 骨入りの兵を軽い形へ替える時も、甲冑の下の袴と脛を残す。
@@ -3478,6 +3489,11 @@ const odani = {
   introTaskFirst: true, // 横持ちでも、人物紹介より先に最初の仕事を読めるようにする。
   introText: '八月二十七日の夜中、羽柴秀吉の手に加わり、清水谷から小谷の尾根へ攻め上る。京極丸を取れば、本丸の長政と小丸の久政は切り離される。',
   setup(rt) {
+    // 関所の5：組頭以上は自分の馬を谷の口に待たせ、夜襲の谷道へは徒歩で出る（馬のまま急な谷道で足が止まった 11/10）。
+    if (rt.player.mounted) {
+      rt.player.toggleMount(true);
+      if (!rt.player.mounted) rt.player.autoMountAt = Infinity;
+    }
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     // 夜襲の闇（11/8 鉄砲の当たりの強化の後、bot が谷の下で撃たれ続けて倒れた）：十歩より遠くからの弾と矢は、闇で狙いが甘く主人公には六割で通す（味方の兵はそのまま倒れる）
     { const P = rt.player, td = P.takeDamage; P.takeDamage = function (a, s) { const r = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const far = s?.pos && Math.hypot(s.pos.x - this.u.pos.x, s.pos.z - this.u.pos.z) > 10; return td.call(this, r && far ? a * 0.6 : a, s); }; }
@@ -4957,12 +4973,27 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   // 待ち時間は敵の出撃と道案内に使う。木戸と占領の判定は飛ばさない。
   reliefTick(rt) {
     const F = rt.flags;
+    // 11/10 クラウド関所係（詰まらない決まり）：南木戸の折れで隠し銃座・横矢の座に本人だけが撃たれ続け、
+    //   act bot が四度とも木戸の外で倒れた。②が七十秒続くか、本人が深手になったら、座の射手は曲輪へ退く。
+    if (F.step === 2 && !F.nestsSilenced && !F.ending && F.nests && (rt.t - (F.stepT || 0) > 70 ||
+        rt.t - (F.stepT || 0) > 15 && rt.player.u.hp < rt.player.u.maxHp * .35)) {
+      F.nestsSilenced = true;
+      for (const { g } of [...F.nests, ...(F.yokoya || [])]) if (!gone(g)) { g.noRout = false; g.morale = 0; g.order = 'retreat'; g.focus = null; }
+      rt.say('先手組頭', '銃座の射手が退いたぞ！　今のうちに木戸へ', 3);
+    }
     if (F.step < 1 || rt.t < (F.pressureAt || 0)) return;
     const stage = F.honAttack ? 5 : F.step === 2 && F.onoDone ? 2.5 : F.step === 3 && F.komaAttack ? 4 : F.step;
     // 谷と屋敷の守りを、四十五秒後に全員「本人を六十メートル追え」へ変えない。
     // 近い攻め手と戦う指定を保つ。味方の道順待ちと、尾根の反撃の助けは続ける。
     // 本丸へ移った後は小丸の残兵を呼び戻さず、南へ進んだ新手も後列待ちの助けに含める。
-    const enemies = stage <= 2 ? NO_VALLEY_PURSUIT : stage === 2.5 ? F.kyoGuards : stage === 3 ? F.counter : stage === 4 ? F.komaGuards : [F.honGuard, F.south, F.kyoAid, F.akao];
+    // 11/10 クラウド関所係：西木戸の外（谷道・屋敷の庭）にいる本人を、京極丸の守りが六十メートル追い下ろさない。
+    //   act bot が三度とも門兵・中丸の控えに谷へ追われ背を突かれて倒れた。守りは木戸と曲輪の内で迎える。
+    const pu = rt.player.u.pos, nearKyo = F.C.kuruwa.kyogoku.test(pu.x, pu.z) || Math.hypot(pu.x - GATE_WEST.x, pu.z - GATE_WEST.z) < 22;
+    if (stage === 2.5 && !nearKyo) for (const g of F.kyoGuards) if (!gone(g) && g.focus === rt.player.u) {
+      g.focus = null; g.order = 'hold'; g.seekRange = 12;
+      if (g === F.kyoAid) g.anchor = { x: KC.x, z: KC.z };
+    }
+    const enemies = stage <= 2 ? NO_VALLEY_PURSUIT : stage === 2.5 ? nearKyo ? F.kyoGuards : NO_VALLEY_PURSUIT : stage === 3 ? F.counter : stage === 4 ? F.komaGuards : [F.honGuard, F.south, F.kyoAid, F.akao];
     const friends = stage === 5 ? [...F.oda, F.gozume, F.umaG] : F.oda;
     pressureTick(rt, stage, enemies, friends, stage === 1 ? '谷道を上り、秀吉の旗へ続け' : stage === 2 ? '屋敷の南の木戸へ。味方と守りを崩せ' : stage === 2.5 ? '西の木戸を破り、京極丸の内の旗へ行け' : stage === 3 ? '京極丸の内へ戻れ。南北の口を守れ' : stage === 4 ? '北の木戸から小丸へ。内の守りを崩し、組で旗を守れ' : '尾根を南へ、本丸の北木戸から旗本を退けよ');
     // 道案内は任務の札で続ける。同じ下知を三十秒ごとに重ねない。
@@ -5689,6 +5720,12 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       const path = viaPath || (F.onoDone ? breached ? ONO_WEST_ENTRY : ONO_WEST_APPROACH : ROUTE_O);
       let idx = viaPath ? F.kyoViaIdx : F.onoDone ? F.kyoTrailIdx : F.onoTrailIdx;
       while (idx < path.length - 1 && Math.hypot(p.x - path[idx][0], p.z - path[idx][1]) < 1.8) idx++;
+      // 11/10 クラウド関所係：九十九折りの角（-68,-108）の一・八メートル内を通らずに上の段へ回ると、印が下の段の道を指したまま、
+      //   道の縁の杭の向こうで千秒止まった（act bot）。高さの合う道の上にいる時は、今の位置より後ろの角へ戻さない。
+      if (!F.onoDone && path === ROUTE_O) {
+        roadPoint(path, p, ONO_ROAD_NOW, rt.army, rt.player.u);
+        if (Number.isFinite(ONO_ROAD_NOW.d) && ONO_ROAD_NOW.d < 2.5) idx = Math.max(idx, Math.min(path.length - 1, Math.ceil(ONO_ROAD_NOW.s)));
+      }
       if (updateHud) {
         // 庭への出入りを先に調べ、任務と道の印を同じ下知へ切り替える。
         const guidedOnogi = !F.onoDone && onogiGuide(rt);
@@ -6147,6 +6184,17 @@ odani.history += '長浜市の保存管理計画は、伝知善院跡の入口�
 
 odani.history += '長浜市の保存管理計画は、番所の西側に弓状の土塁、登城道側に礫を盛った土塁を記録している。番所の北辺に高さ三メートルの石垣があったとする根拠は確認できないため、高画質ではその石垣を低い土の堤へ改める。北辺への配置・幅一・四メートル・高さ九十センチと断面は縮めた地形での推定で、遺構の実測値ではない。中央の道と木戸、兵の持ち場は保つ。';
 
+// 11/10 クラウド関所係：出曲輪の櫓門の弓・鉄砲に狙われ続けると、共通の頭の横への避け足が四百秒やまず、
+//   谷道の東の平場で止まったまま撃たれ続けた（act bot 105→512秒）。四メートル進めないまま四秒避けたら、六秒は避けずに道を進む。
+odani.botCoverBlocked = (b, from) => {
+  const c = b._odaniCover || (b._odaniCover = { x: from.x, z: from.z, t: b.t, off: 0 });
+  if (b.t < c.off) return true;
+  if (Math.hypot(from.x - c.x, from.z - c.z) > 4) { c.x = from.x; c.z = from.z; c.t = b.t; return false; }
+  if (b.t - c.t > 4) { c.off = b.t + 6; c.t = c.off; return true; }
+  return false;
+};
+// 谷の口に待たせた自分の馬に、bot は乗り直さない（馬のまま急な谷道で千秒止まった 11/10）。人は乗れる。
+odani.botMountAllowed = () => false;
 odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
@@ -6159,7 +6207,8 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const canTreat = p.treatmentLeft > 0 && !(p.treatmentNext > b.t) && !p.mounted &&
     (u.hp < u.maxHp * .6 || u.wounds?.bleed > .0001);
   const pressGate = F.step === 2 && !F.C.kuruwa.kyogoku.test(u.pos.x, u.pos.z) && (Math.hypot(u.pos.x - BELOW.x, u.pos.z - BELOW.z) < 18 || Math.hypot(u.pos.x - GATE_WEST.x, u.pos.z - GATE_WEST.z) < 18);
-  if (F.step < 4 && canTreat && !pressGate && !b.botRest && !(b.botRestNext > b.t)) {
+  // 11/10 関所係：木戸の前でも三割を切ったら退いて手当て（二割のまま木戸へ押し続けて倒れた）。
+  if (F.step < 4 && canTreat && (!pressGate || u.hp < u.maxHp * .3) && !b.botRest && !(b.botRestNext > b.t)) {
     b.botRest = true; b.botRestUntil = b.t + 12;
   }
   if (b.botRest && (F.step >= 4 || b.t >= b.botRestUntil || !canTreat)) {
@@ -6314,7 +6363,10 @@ odani.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     // 枡形の塀の角などで五秒動けない時は、歩ける向きへ抜けてから進み直す。
     if (Math.hypot(target.x - u.pos.x, target.z - u.pos.z) > 4 && odaniBotEscape(b, p, inp, u, goTo)) return;
     const q = roadWay(b.army, u, target);
-    goTo(p, inp, q.x, q.z, F.honAttack || F.komaAttack && !inside ? .3 : 3);
+    // 11/10 クラウド関所係：道の中継ぎ（西木戸の口など）が三メートル内にあると着いた扱いで止まり、③の間じゅう木戸の外に立っていた。
+    //   三メートルの幅は行き先そのものに着いた時だけ。
+    const via = Math.hypot(q.x - target.x, q.z - target.z) > .5;
+    goTo(p, inp, q.x, q.z, F.honAttack || F.komaAttack && !inside || via ? .3 : 3);
   }
 };
 
