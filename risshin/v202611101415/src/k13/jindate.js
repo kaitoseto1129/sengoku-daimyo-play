@@ -69,8 +69,19 @@ export function tick(rt, dt) {
     st.dateTried = true;
     M.dateH = st.mk({ x: 70, z: -30, w: 34, d: 12, count: n(120, 200), facing: WEST, armor: 0x24221f, flag: 'date', seed: 13205 });
   }
-  // ④⑤の間、徳川方も大きく損じる（およそ四千）
-  if (i >= 5 && F._loss13 < 4200) F._loss13 = Math.min(4200, F._loss13 + dt * 32);
+  // ④⑤の損害は、戦える両軍が交戦距離に入った時だけ数える。
+  // 到着待ちや豊臣勢が退いた後まで、段の時刻だけで兵数を減らさない。
+  if (i >= 5 && F._loss13 < 4200) {
+    const active = (u) => u.alive && !u.fleeing && !u.gone && !u.woundOut &&
+      !u.rearWound && !u.downed && !u.noTarget && !u.isStruct;
+    const fighting = D.cur.groups.some((g) => !g.routed && g.order !== 'retreat' &&
+      g.order !== 'flee' && g.units.some((u) => active(u) &&
+        rt.army.nearestEnemy(u, 42, (v) => active(v) &&
+          (Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 6 ||
+            ((u.weapon === 'gun' || u.weapon === 'bow') &&
+              rt.army.coverBetween(u.pos, v.pos, u.team) > 0 && !rt.army.shotBlocked(u, v.pos))))));
+    if (fighting) F._loss13 = Math.min(4200, F._loss13 + dt * 32);
+  }
   // ④の鉄砲戦：実際に向かい合う鉄砲兵の所で音と煙を出す。
   // 列がまだ届かない時や兵が倒れた後に、空の野から発砲させない。
   if (i === 5 && (st.vT -= dt) <= 0) {

@@ -4381,9 +4381,11 @@ const hiei_mtn = {
     if (F.ending || F.dangerAt !== undefined || F.woundTask || g.team !== 1 || g.civ || g._routSaid || !g.name || rt.t - (F.routSaidT ?? -99) < 8) return;
     let seen = false;
     for (const u of g.units) if (u.alive && !u.gone && sightPoint(rt, u.pos, 40)) { seen = true; break; }
+    // 見えない遠方の敗走では、近くの戦況を伝える八秒の枠を使わない。
+    if (!seen) return;
     g._routSaid = true; F.routSaidT = rt.t;
     const V = [`${g.name}が崩れた`, `${g.name}の寄せが止まった`, `${g.name}が持ち場を離れた`, `${g.name}が山の奥へ逃げていく`];
-    if (seen) rt.say('足軽', V[(F.routN = (F.routN || 0) + 1) % V.length], 2.5);
+    rt.say('足軽', V[(F.routN = (F.routN || 0) + 1) % V.length], 2.5);
   },
 };
 

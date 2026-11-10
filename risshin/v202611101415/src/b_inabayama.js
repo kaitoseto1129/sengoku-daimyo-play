@@ -1110,15 +1110,8 @@ function farSummit(rt) {
     const peak = [cx, top, cz];
     for (const [p, q] of [[A, B], [B, C], [C, D], [D, A]]) tri(up(p, roof), up(q, roof), peak, 0x3e362e);
   });
-  // 幟：斎藤の白い幟を曲輪の縁へ並べる（遠目に「城がある」と分かる一番の印）
-  for (const k of plan.kuruwa) {
-    if (!k.wall) continue;
-    for (let i = 0; i < k.poly.length; i++) {
-      const p = k.poly[i], y = W.heightAt(p[0], p[1]);
-      quad([p[0], y, p[1]], [p[0] + 0.3, y, p[1]], [p[0] + 0.3, y + 6, p[1]], [p[0], y + 6, p[1]], 0x3a2e22);
-      quad([p[0] + 0.3, y + 2.4, p[1]], [p[0] + 1.5, y + 2.4, p[1] + 0.2], [p[0] + 1.5, y + 5.8, p[1] + 0.2], [p[0] + 0.3, y + 5.8, p[1]], 0xdfe3e6);
-    }
-  }
+  // 幟は紋のある saitoNobori に任せる。遠景の城へ無地の白い板を
+  // 重ねると、通常の幟の布を直しても白い柱が残る（通し確認 11/10）。
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
