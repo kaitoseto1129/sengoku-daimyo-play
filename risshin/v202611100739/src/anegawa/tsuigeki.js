@@ -54,7 +54,7 @@ export function start(rt, ctx) {
   S.tick = () => {
     if (S.done || !live()) return;
     const p = rt.player.u.pos;
-    if (S.k === 0 && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 12) {
+    if (S.k === 0 && Math.hypot(p.x - DEST.x, p.z - DEST.z) < 20) {   // 本陣の陣幕（30×24）の内に入れば着いた（真ん中は陣幕と旗本で塞がり、bot が囲みの中で止まった 11/10）
       rt.award((t) => t.side.push('野村の浅井本陣まで追い討った'), '野村まで追い討った', DEST);
       rt.say('組頭', '本陣はもぬけの殻じゃ。長政は小谷へ逃げたか……', 3.5);
       rt.after(5, () => endo());

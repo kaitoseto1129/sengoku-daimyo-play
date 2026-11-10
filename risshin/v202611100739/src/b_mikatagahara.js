@@ -1194,7 +1194,7 @@ function mikataBoard(rt) {
     const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden) continue;
       // 遠くても映っている実兵には印を付ける。画面外を先に除き、見通しの計算は増やさない。
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
@@ -2679,7 +2679,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       }
       if (F.mkFlank && Math.hypot(p.x - 46, p.z + 44) < 5) F.mkFlankArrived = true;
       if (F.mkFlankArrived && !F.mkFlankFought) {
-        if (rt.player.u.swing?.target?.group === F.aka && rt.player.u.swing.res != null) F.mkFlankFought = true;
+        if (rt.player.u.swing?.target?.group === F.aka && rt.player.u.swing.res && rt.player.u.swing.res !== 'miss') F.mkFlankFought = true;
         for (const q of rt.squad) if (q.alive && !q.fleeing && !q.woundOut && q.atk && q.target?.group === F.aka && Math.hypot(q.pos.x - 46, q.pos.z + 44) < 18) F.mkFlankFought = true;
       }
       if (!F.dpOn) rt.objProgress('main', F.mkFlank ? (F.mkFlankArrived ? '味方と赤備えの横腹へ当たれ' : '森の陰へ進め。味方から離れるな') : '右へ槍を向け、味方と列を保て');

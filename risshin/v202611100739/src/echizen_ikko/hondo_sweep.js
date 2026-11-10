@@ -1,6 +1,6 @@
 // 本堂を押さえる段（十七日の朝）：堂の中・縁の下・切岸の上で動けなくなった衆徒が一人残ると、
 //   「本堂を味方と押さえる」のまま七分止まった（11/9 二巡・織田H の流し）。
-//   本人が本堂の近くにいる間だけ、五秒ごとに堂の区域を見て、交戦せず詰まった者の経路を引き直す。
+//   本人が外堂・本堂の近くにいる間だけ、五秒ごとに堂の区域を見て、交戦せず詰まった者の経路を引き直す。
 import { siegeFighter } from '../siege_zones.js';
 
 export function fighting(rt, u) {
@@ -12,18 +12,20 @@ export function fighting(rt, u) {
 
 // 時間だけで敵を消さない。既存の戸口・石段の案内を使い、近い寄せ手へ歩かせる。
 export function resume(rt, u) {
-  let foe = null, nearest = Infinity;
+  let way = null, nearest = Infinity;
   for (const v of rt.army.units) {
     if (v.team === u.team || !siegeFighter(v)) continue;
     const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z);
-    if (d < nearest) { nearest = d; foe = v; }
+    if (d >= nearest) continue;
+    // 最寄りの兵への道が塞がっていても、ほかの寄せ手へ出られる道を探す。
+    const candidate = rt.def.world.moveWay(rt.army, u, v.pos);
+    if (!candidate || rt.army.wallBetween(u.pos, -1, candidate)) continue;
+    const point = u._ikSweepWay || (u._ikSweepWay = { x: 0, z: 0 });
+    point.x = candidate.x; point.z = candidate.z;
+    way = point; nearest = d;
   }
-  if (!foe) return;
-  const way = rt.def.world.moveWay(rt.army, u, foe.pos);
-  if (!way || rt.army.wallBetween(u.pos, -1, way)) return;
-  const point = u._ikSweepWay || (u._ikSweepWay = { x: 0, z: 0 });
-  point.x = way.x; point.z = way.z;
-  u.target = null; u.watch = null; u.moveTo = point; u.aiT = 2;
+  if (!way) return;
+  u.target = null; u.watch = null; u.moveTo = way; u.aiT = 2;
 }
 
 export function tick(rt, dt, zone, near) {
