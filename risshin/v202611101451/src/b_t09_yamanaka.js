@@ -599,6 +599,10 @@ const t09_yamanaka = {
       g.path = c.x < -11 ? [[Math.min(c.x, -32), 176], [-6, 176]] : [];
       // 対岸の柵（z0−3）の手前まで畝を渡り切る。堀の中で横へ揃え直すと畝から落ちる。
       g.path.push([CROSS_X + dx, SHOJI.z1 + 10], [CROSS_X + dx, SHOJI.z0 - 1]);
+      // 本人が先に渡ると、次の下知は未通過の道へ継ぎ足される。
+      // 岸で口の正面へ揃えて抜ける所まで残し、脇の畝から柵を斜めに横切らせない。
+      if (dx) g.path.push([CROSS_X, SHOJI.z0 - 1]);
+      g.path.push([CROSS_X, SHOJI.z0 - 5]);
       g.pathIdx = 0; g.speed = 3;
       g.onArrive = (q) => { q.order = 'assault'; q.assault = assault; q.seekRange = 30; };
     };

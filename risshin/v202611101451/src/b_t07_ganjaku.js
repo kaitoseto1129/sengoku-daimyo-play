@@ -832,9 +832,22 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       }
     }
     if (F.ending || rt.t < (F.stoneAt || 0)) return;
-    const st = this.gateStruct(rt), dG = Math.hypot(p.x - GATE.x, p.z - GATE.z);
-    const on = st && st.alive && !st.opened && ((F.stage === 1 && dG < 34) || (F.stage === 3 && dG < 30));
-    if (!on) return;
+    const st = this.gateStruct(rt);
+    if (!st || !st.alive || st.opened || (F.stage !== 1 && F.stage !== 3)) return;
+    // 本人が後方にいても、門へ登った寄せ手には石が来る。城の外の兵だけを狙う。
+    const range = F.stage === 1 ? 34 : 30;
+    let aim = null, dG = range;
+    for (const u of rt.army.units) {
+      if (!u.alive || u.team !== 0 || u.isStruct || u.civ || u.invuln || u.fleeing || u.woundOut || wantInside(u.pos)) continue;
+      const d = Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z);
+      if (d < dG) { aim = u.pos; dG = d; }
+    }
+    if (!aim) return;
+    // 本人も射程内なら従来どおり周りの味方と狙いを分ける。
+    const pu = rt.player.u;
+    if (pu.alive && !pu.invuln && !wantInside(p) && Math.hypot(p.x - GATE.x, p.z - GATE.z) < range) {
+      aim = p; dG = Math.hypot(p.x - GATE.x, p.z - GATE.z);
+    }
     F.stoneAt = rt.t + (dG < 20 ? 2.2 : 3.6) + Math.random() * 1.5;
     let stone = stones.find((q) => !q.on);
     if (!stone) {
@@ -843,9 +856,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       stone = { mesh: new THREE.Mesh(STONE_GEO, STONE_MAT) }; stone.mesh.castShadow = true;
       rt.scene.add(stone.mesh); stones.push(stone);
     }
-    // 狙いは本人の周りの味方（三度に一度は本人の足元）。石は門の両脇の塀の上から
-    let tx = p.x, tz = p.z;
-    if (Math.random() > 0.35) rt.army.forNear(p.x, p.z, 8, (u) => { if (u.team === 0 && u.alive && !u.isPlayer && Math.random() < 0.3) { tx = u.pos.x; tz = u.pos.z; } });
+    // 狙いの周りの寄せ手にも振り分ける。城内へ抜けた者へ塀越しに投げない。
+    let tx = aim.x, tz = aim.z;
+    if (Math.random() > 0.35) rt.army.forNear(aim.x, aim.z, 8, (u) => { if (u.team === 0 && u.alive && !u.isPlayer && !u.isStruct && !u.civ && !u.invuln && !u.fleeing && !u.woundOut && !wantInside(u.pos) && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < range && Math.random() < 0.3) { tx = u.pos.x; tz = u.pos.z; } });
     tx += (Math.random() - 0.5) * 2.4; tz += (Math.random() - 0.5) * 2.4;
     const src = pt((Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 9), -0.8);
     const ay = W.heightAt(src.x, src.z) + 3;

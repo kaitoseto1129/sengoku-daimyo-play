@@ -53,7 +53,8 @@ export function start(rt, ctx) {
       if (!live() || S.done || S.k !== 1 || q.order !== 'move' || q.routed || !q.count) return;
       q.order = 'attack'; q.seekRange = 30;
     };
-    rt.marker('aneEndo', () => (S.u?.alive ? { x: S.u.pos.x, z: S.u.pos.z } : null), '遠藤直経', { red: true, group: g });
+    // 行き先と同じ判定で、戦闘不能や退却後に攻撃の印を残さない。
+    rt.marker('aneEndo', () => (endoTarget(S) ? { x: S.u.pos.x, z: S.u.pos.z } : null), '遠藤直経', { red: true, group: g });
     rt.say('竹中久作', 'あれは遠藤喜右衛門！　首を提げて味方に紛れ、殿の本陣を狙う気じゃ！', 4);
     rt.after(4.5, () => {
       // 討死の現場へ向かっている間も段は続くため、段の未達成だけで古い下知を出さない。

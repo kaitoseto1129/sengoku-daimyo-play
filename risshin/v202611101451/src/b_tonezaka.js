@@ -3361,7 +3361,12 @@ const tonezaka = {
       }
       if (!to) continue;
       if (near(c, to, 6)) { if (g.order === 'path') { g.path = null; toneHold(g); } g.aggro = 20; continue; }
-      march(g, [[to.x, to.z]], (q) => { toneHold(q); q.aggro = 20; });
+      // 返す殿も街道の曲がりを通る。追手へ直線で寄せると、坂の山腹や
+      // 城下の家並みに列が掛かり、後ろの足軽だけが止まってしまう。
+      const guide = g._toneChargeGuide || (g._toneChargeGuide = { pos: g.anchor });
+      guide.pos = g.anchor;
+      const way = chaseWay(rt.army, guide, to);
+      march(g, [[way.x, way.z]], (q) => { toneHold(q); q.aggro = 20; });
       g.speed = 2.4;
     }
     for (const b of F.rearCrowds) {

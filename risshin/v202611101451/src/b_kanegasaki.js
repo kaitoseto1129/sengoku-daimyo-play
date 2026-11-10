@@ -3296,7 +3296,7 @@ const kanegasaki = {
       const a = road[i];
       return `kgRoad = min(kgRoad, kgRoadGap(aWF.xz, vec2(${a[0].toFixed(1)}, ${a[1].toFixed(1)}), vec2(${b[0].toFixed(1)}, ${b[1].toFixed(1)})));`;
     }).join('\n')).join('\n');
-    const DA = (x, z, w, d, count, facing, armor, flag, seed) => {
+    const DA = (x, z, w, d, count, facing, armor, flag, seed, roadOnly = true) => {
       // 同じ人数の三列を奥でつなぎ、前の列だけが孤立して見える隙間を埋める。
       // 描く兵だけの並びを替え、実兵へ替える数と寄せ口は保つ。
       const sonae = [0, 1, 2].map(i => ({
@@ -3332,16 +3332,16 @@ const kanegasaki = {
               ? a + (b - a) * t.x + (c - a) * t.y
               : d + (c - d) * (1.0 - t.x) + (b - d) * (1.0 - t.y);`);
           sh.vertexShader = sh.vertexShader.replace('float aG = aTerrain(aWF.xz);', `float aG = aTerrain(aWF.xz);
-            float kgRoad = 10000.0;
+            ${roadOnly ? `float kgRoad = 10000.0;
             ${roadShader}
-            vArmyCover *= step(kgRoad, 64.0);
+            vArmyCover *= step(kgRoad, 64.0);` : ''}
             vec2 kgSlope = vec2(aTerrain(aWF.xz + vec2(0.8, 0.0)) - aG,
               aTerrain(aWF.xz + vec2(0.0, 0.8)) - aG) / 0.8;
             vec2 kgBackSlope = vec2(aG - aTerrain(aWF.xz - vec2(0.8, 0.0)),
               aG - aTerrain(aWF.xz - vec2(0.0, 0.8))) / 0.8;
             vArmyCover *= step(max(length(kgSlope), length(kgBackSlope)), 0.55);`);
         };
-        mat.customProgramCacheKey = () => cacheKey() + '_kg_road_triangle_footing';
+        mat.customProgramCacheKey = () => cacheKey() + (roadOnly ? '_kg_road_triangle_footing' : '_kg_ridge_triangle_footing');
       });
       return { m, x0: x, z0: z, x, z };
     };
@@ -3366,7 +3366,8 @@ const kanegasaki = {
       .map(([x, z, w, f], i) => DA(x, z, w, 28, 300, i === 2 ? HIKIDA_FACING : 0, ASAKURA.armor, f, 1590 + i));
     // 11/10 kanegasaki_spec_1109「背後まで敵」：退く先（南）の尾根に浅井の大軍。狭路へ退く途中で初めて見せる（kanegasaki/hasami.js）。
     //   退き口（若狭への道）からは離した東の尾根に立つだけで、道は塞がない。
-    F.azaiFar = DA(44, 128, 12, 18, 120, Math.PI * 1.15, AZAI_LOOK.armor, 'azai', 1599);
+    // 尾根で構える浅井まで行軍道の幅で切ると、体も旗も全部消える。急斜面を隠す判定は残す。
+    F.azaiFar = DA(44, 128, 12, 18, 120, Math.PI * 1.15, AZAI_LOOK.armor, 'azai', 1599, false);
     if (F.azaiFar?.m) F.azaiFar.m.visible = false;
     F.hostFront = [];
     rt.scene.traverse(mesh => {

@@ -2222,26 +2222,11 @@ function gradeInabayamaRoads(terrain) {
   };
 }
 
-// 急な山肌へ続く手すりは置かない。道の肩の上で両端と途中を支えられる所だけ。
-function inabaRailFooting(ground, x, z, dx, dz, span) {
-  let previous = ground(x, z);
-  if (!Number.isFinite(previous)) return false;
-  for (let i = 0; i <= 4; i++) {
-    const px = x + dx * span * i / 4, pz = z + dz * span * i / 4;
-    const y = ground(px, pz);
-    const across = ground(px - dz * .35, pz + dx * .35) - ground(px + dz * .35, pz - dx * .35);
-    if (!Number.isFinite(y) || !Number.isFinite(across) || Math.abs(across) > .7
-      || i > 0 && Math.abs(y - previous) > span / 4 * .8) return false;
-    previous = y;
-  }
-  return true;
-}
-
 // 搦手の山道：土留め・岩の段・根・草・若木を設営時だけまとめ描画で置く。
 function buildKaraRoadWorks(rt) {
   const W = rt.world;
   const ground = (x, z) => drawGroundAt(W, x, z);
-  const logs = [], posts = [], rails = [], stones = [], roots = [], grass = [];
+  const logs = [], stones = [], roots = [], grass = [];
   for (let i = 0; i + 1 < KARA_TRAIL.length; i++) {
     const [ax, az] = KARA_TRAIL[i], [bx, bz] = KARA_TRAIL[i + 1], L = Math.hypot(bx - ax, bz - az) || 1;
     const dx = (bx - ax) / L, dz = (bz - az) / L, nx = -dz, nz = dx;
@@ -2279,43 +2264,7 @@ function buildKaraRoadWorks(rt) {
       }
       // 道沿いの若木は置かない。一枚板の葉が絵のように見えた（10/29）。斜面の木は共通の林に任せる。
     }
-    // 平らに均した肩の中を比べても谷側は分からない。肩の外で低い側を拾う。
-    // 折り返しでは谷側も反転する。角の通り口には横木を渡さない。
-    const midX = (ax + bx) / 2, midZ = (az + bz) / 2;
-    const outside = KARA_SHOULDER + 3;
-    const valley = ground(midX + nx * outside, midZ + nz * outside) <= ground(midX - nx * outside, midZ - nz * outside) ? 1 : -1;
-    let railEndX = Infinity, railEndZ = Infinity;
-    for (let d = 3.2; d < L - 3.2; d += 1.9) {
-      for (const sd of [valley]) {
-        // 歩ける肩の内側に杭を並べない。避け足の余白を保って縁を示す。
-        const edge = KARA_SHOULDER - 0.4;
-        const x = ax + dx * d + nx * edge * sd, z = az + dz * d + nz * edge * sd;
-        const span = Math.min(1.9, L - 3.2 - d), parts = Math.ceil(span / 0.65);
-        // ほかの区間の口を横切る横木は置かない。
-        if (KARA_GRADES.some((q, j) => {
-          if (j === i) return false;
-          for (let k = 0; k <= 2; k++) {
-            const px = x + dx * span * k / 2, pz = z + dz * span * k / 2;
-            const t = Math.max(0, Math.min(1, ((px - q.ax) * q.dx + (pz - q.az) * q.dz) / q.l2));
-            if (Math.hypot(px - q.ax - q.dx * t, pz - q.az - q.dz * t) < KARA_SHOULDER + 0.3) return true;
-          }
-          return false;
-        })) continue;
-        if (!inabaRailFooting(ground, x, z, dx, dz, span)) continue;
-        if (Math.hypot(x - railEndX, z - railEndZ) > .01)
-          posts.push({ x, z, y: ground(x, z), h: 0.8 + ((i + Math.round(d)) % 3) * 0.12 });
-        // 途切れる所も横木の先を杭で受ける。隣の区間が省かれても宙へ出さない。
-        posts.push({ x: x + dx * span, z: z + dz * span, y: ground(x + dx * span, z + dz * span), h: .8 });
-        railEndX = x + dx * span; railEndZ = z + dz * span;
-        // 描く地面の折れにも沿わせ、手すりだけが谷の上へ浮かないようにする。
-        for (let j = 0; j < parts; j++) {
-          const x1 = x + dx * span * j / parts, z1 = z + dz * span * j / parts;
-          const x2 = x + dx * span * (j + 1) / parts, z2 = z + dz * span * (j + 1) / parts;
-          const ya = ground(x1, z1) + 0.55, yb = ground(x2, z2) + 0.55;
-          rails.push({ x: (x1 + x2) / 2, z: (z1 + z2) / 2, y: (ya + yb) / 2, rot: Math.atan2(dx, dz), pitch: -Math.atan2(yb - ya, span / parts), len: Math.hypot(span / parts, yb - ya) });
-        }
-      }
-    }
+
   }
   // 七曲り・東の尾根道も、急な土の坂にだけ岩の段を混ぜる。裏道と同じ形を共用する。
   for (const path of [ROAD, HYAKU]) for (let i = 1; i < path.length; i++) {
@@ -2358,12 +2307,7 @@ function buildKaraRoadWorks(rt) {
     mesh.receiveShadow = true; rt.scene.add(mesh);
     for (const g of logParts) g.dispose();
   }
-  const postG = new THREE.CylinderGeometry(0.05, 0.07, 1, 5); postG.translate(0, 0.5, 0);
-  // 杭と横木の手すりは今の登山道の柵に見える（critic60 八1）。戦国の山道には置かない。
-  posts.length = 0; rails.length = 0;
-  mkI(postG, 0x6a5640, posts, (o, q) => { o.position.set(q.x, q.y - 0.1, q.z); o.rotation.set(0, 0, 0); o.scale.set(1, q.h + 0.1, 1); });
-  const railG = new THREE.BoxGeometry(0.07, 0.07, 1);
-  mkI(railG, 0x76603f, rails, (o, q) => { o.position.set(q.x, q.y, q.z); o.rotation.set(q.pitch, q.rot, 0, 'YXZ'); o.scale.set(1, 1, q.len); });
+  // 道沿いの手すりは置かず、表示しない杭と横木の計算・形の生成も行わない。
   // 薄い石を水平に置くと、坂の下側へ黒い板が突き出す。
   // 共用の割れた岩を坂へ向け、下縁を描く地面へ埋める。設営時だけ測る。
   const rockG = rockShape(1, false, 1), rockP = rockG.attributes.position;
@@ -4062,7 +4006,7 @@ function buildKaraTrail(rt) {
 // 稲生の水準（10/25）：倒す相手は、残りに数える組の中で一番近い一人。札・ピン・▼で同じ本人を使う。
 // 深手・逃げる兵・建物は数えない。選び直しは一コマに一度だけ。
 const inabaFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing &&
-  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && !u.group?.hidden && !u.group?.noAI && !u.group?.routed && u.group?.sent !== false && u.mesh?.visible !== false;
+  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && !!u.mesh && !u.camHidden && !u.group?.hidden && !u.group?.noAI && !u.group?.routed && u.group?.sent !== false && u.mesh?.visible !== false;
 function honTargetGroup(rt) {
   const F = rt.flags;
   if (F.step !== 4 || F.sig || F.ending) return null;
@@ -6329,7 +6273,9 @@ const inabayama = {
     if (!F.nigeruIn && F.nigeru && (gone(F.nigeru) || F.nigeru.order !== 'path')) {
       F.nigeruIn = true;
       if (!gone(F.nigeru)) { F.nigeru.order = 'hold'; F.nigeru.anchor = { x: OTE_IN.x - 4, z: OTE_IN.z - 3 }; F.nigeru.aggro = F.tsukeGate ? 10 : 2.5; F.nigeru.holdFire = !F.tsukeGate; }
-      rt.say('斎藤の兵', '木戸を閉めよ！　織田が付いて来るぞ！', 3);
+      // 全員倒れた組から声を出さず、木戸へ退き着いた戦える兵がいる時だけ知らせる。
+      if (!gone(F.nigeru) && F.nigeru.units.some(inabaFoe))
+        rt.say('斎藤の兵', '木戸を閉めよ！　織田が付いて来るぞ！', 3);
     }
     // 木戸の前に着いたら斬り合い。印は木戸の守りへ
     const dGate = Math.hypot(p.x - OTE.x, p.z - OTE.z);
