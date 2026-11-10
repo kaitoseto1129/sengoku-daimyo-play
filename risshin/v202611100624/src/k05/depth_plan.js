@@ -4,7 +4,7 @@
 //   出したい＝本多忠政・酒井家次・奥平家昌・菅沼忠政・本多康重・牧野康成・戸田一西。真田 必須＝昌幸・信繁。
 //   本物の兵の隊（本多の先手・大久保・牧野・榊原・秀忠の本陣、真田の旗本・信繁の手）は bind で結ぶ（描かない）。
 //   ほかは神川の東の染屋台（本陣から百歩より奥）に hold で並ぶ（三万八千が城の小ささに足止めされる。城へは寄せない）。
-//   信幸は戸石城を受け取りに出ている（北東の奥に六文銭の備。父と弟の城を遠くから見ている）。
+//   信之は主人公の脇に本物の兵で置く（docs/ueda2_spec_1109.md：父と弟の旗を見ながら何もできない）。
 //   向き：北が -z、東が +x。徳川は西（城）を向く。ゲームの 1 は実の 4m。
 // ======================================================================
 const F = (k) => (rt) => rt.flags[k];
@@ -24,7 +24,6 @@ export const DEPTH = {
       { id: 'sakai', layer: 'yobi', wing: 'left', men: 2000, taisho: '酒井家次', flag: 'katabami', hold: true, at: { x: 206, z: -62 } },
       { id: 'suganuma', layer: 'yobi', wing: 'right', men: 1000, taisho: '菅沼忠政', flag: 'maru', hold: true, at: { x: 208, z: 62 } },
       { id: 'toda', layer: 'gozume', wing: 'center', men: 1200, taisho: '戸田一西', flag: 'maru', hold: true, at: { x: 232, z: 104 } },
-      { id: 'nobuyuki', layer: 'gozume', wing: 'left', men: 800, taisho: '真田信幸', flag: 'sanada', hold: true, at: { x: 196, z: -214 } },
       { id: 'konida', layer: 'konida', wing: 'center', men: 1000, hold: true, at: { x: 238, z: 8 } },
     ] },
   B: { name: '真田', facing: Math.PI / 2, honjin: { x: -10, z: -30 }, mpu: 4, formation: '方円', terrain: 'castle', flag: 'sanada', armor: 0x1c1816, openAt: 9999, attrition: 0,

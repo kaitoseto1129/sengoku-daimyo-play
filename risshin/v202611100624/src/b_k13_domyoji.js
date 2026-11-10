@@ -334,10 +334,13 @@ function goalBoard(rt) {
     const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
     let n = 0;
     if (on) for (const u of rt.army.units) {
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
+      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 ||
           u.mesh?.visible === false || u.camHidden) continue;
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       if (d2 > 3600) continue;
+      // 共通の近距離印は十二 m まで。離れた兵にも古い印の状態が残るので、
+      // その外では道明寺の▼を省かない（二十五 m 内の敵の印が消えていた）。
+      if (d2 <= 144 && u._nearSignOn) continue;
       // 二十五 m の内は霧でも必ず付ける（斜面の斬り合いで、目の前の後藤勢に▼が無かった。九3「一人残らず」）
       if (d2 > 625) {
         if (!(u._dmSeenAt > rt.t - .34 && u._dmSeenAt <= rt.t)) { u._dmSeen = sightUnit(rt, u); u._dmSeenAt = rt.t; }

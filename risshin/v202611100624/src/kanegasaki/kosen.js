@@ -19,7 +19,7 @@ export function start(rt, ctx, done) {
   const A2 = { x: LINE0.x - 4, z: LINE0.z - 30 };   // 峠道の手前の柵
   const stages = [
     DP.fight({
-      at: A1, title: '峠道の朝倉勢', sub: '城を捨てた兵が峠から押し返して来る', obj: '坂を下りて来る朝倉勢を押し返せ', max: 110, limit: 240, noRefill: true,
+      at: A1, title: '峠道の朝倉勢', sub: '城を捨てた兵が峠から押し返して来る', obj: '坂を下りて来る朝倉勢を押し返せ', max: 90, limit: 100, noRefill: true,   // 11/10 kanegasaki_spec_1109：異変は二分ほどで（四分の攻めは長かった）
       say: [['木下藤吉郎', '城は開いた。残りの朝倉を峠へ押し戻せ！　勢いはこちらにあるぞ', 3.6]],
       foes: () => [{ name: '峠から下りた朝倉勢', from: { x: A1.x + 2, z: A1.z - 26 }, list: [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 2 }], mass: 140 }],
       later: [{ t: 30, say: ['足軽', '東の疋田の道からも来るぞ！'], foes: () => [{ name: '疋田の朝倉勢', from: { x: A1.x + 26, z: A1.z - 8 }, list: [{ type: 'ashigaru', n: 6 }, { type: 'gun', n: 1 }], mass: 60 }] }],
@@ -36,7 +36,7 @@ export function start(rt, ctx, done) {
       },
     }),
     DP.move({
-      to: A2, r: 7, label: '峠道の柵', obj: '前へ。峠道の手前の柵へ進め', max: 80,
+      to: A2, r: 7, label: '峠道の柵', obj: '前へ。峠道の手前の柵へ進め', max: 45,
       say: [['木下藤吉郎', '押せ押せ！　柵を取れば一乗谷まで一息じゃ', 3.2]],
       ambush: { d: 12, say: ['足軽', '柵の陰に残っておるぞ！'], foes: () => [{ name: '柵の守り', from: { x: A2.x - 6, z: A2.z - 14 }, list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 6 }], mass: 0 }] },
     }),

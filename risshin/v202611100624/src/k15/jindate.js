@@ -65,7 +65,7 @@ export function tick(rt, P) {
   const M = st.M, step = F.step || 0;
   crisis(rt, st, P);
   if (step === st.step) return;
-  st.step = step; st.t0 = rt.t; st.sd = 999;   // 段ごとに、真田の遠さを知らせ直す
+  st.step = step; st.t0 = rt.t;
   const later = (s, fn) => rt.after(s, () => { if (!rt.over && F.step === step) { try { fn(); } catch (e) { /* 軽い大軍が無くても戦は進む */ } } });
   try {
     if (step === 1) {
@@ -129,9 +129,10 @@ function crisis(rt, st, P) {
     // 真田隊から家康までの遠さを、使番が近づくたびに知らせる（遊びの縮尺で、実の遠さに直して二百四十から六十まで）
     const g = step === 2 ? F.sanada : F.sanada2, I = F.ieyasu;
     if (alive(g) && I && I.alive) {
+      if (st.sdG !== g) { st.sdG = g; st.sd = 999; }   // 知らせ直すのは隊が替わった時だけ（段の行き来で毎コマ「二百四十！」が五十回出た・11/10 関所）
       const c = centerOf(g)(), d = Math.hypot(c.x - I.pos.x, c.z - I.pos.z);
       const marks = [[120, '真田隊、本陣まで二百四十！'], [95, '真田隊、百九十！　止まりませぬ！'], [70, '真田隊、百四十！　中央を抜けました！'], [45, '真田隊、九十！　本陣へ来るぞ！'], [30, '真田隊、六十！　上様、ここは危のうございます！']];
-      for (const [r, text] of marks) if (d < r && st.sd >= r) { st.sd = r; rt.say('使番', text, 3); if (r <= 45) M.waki?.retreat(10, 6); break; }
+      for (const [r, text] of marks) if (d < r && st.sd > r) { st.sd = r; rt.say('使番', text, 3); if (r <= 45) M.waki?.retreat(10, 6); break; }
     }
     // 本陣の葵の幟が一本ずつ倒れる（十五秒に一本。四本は残す）
     if (rt.t - st.flagT > 15 && F.honNobori && F.honNobori.length > 4) {

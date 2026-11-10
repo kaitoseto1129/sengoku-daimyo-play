@@ -12,7 +12,7 @@ export const T01_DEPTH = {
     sonae: [
       { id: 'takayama', layer: 'sakite', wing: 'center', men: 2000, taisho: '高山右近', bind: F('taka') },
       { id: 'nakagawa', layer: 'ichi', wing: 'left', men: 2500, taisho: '中川清秀', bind: F('naka') },
-      { id: 'ikeda', layer: 'ichi', wing: 'right', men: 4000, taisho: '池田恒興', flag: 'ageha', bind: F('ikeda') },
+      { id: 'ikeda', layer: 'ichi', wing: 'right', men: 4000, taisho: '池田恒興', flag: 'ageha', bind: F('ikedaR') },
       { id: 'hidenaga', layer: 'ichi', wing: 'left', men: 4000, taisho: '羽柴秀長', bind: F('tenno') },
       { id: 'hori', layer: 'ni', wing: 'center', men: 3000, taisho: '堀秀政', flag: 'hori', bind: F('hori') },
       { id: 'kato', layer: 'ni', wing: 'right', men: 1000, taisho: '加藤光泰', bind: F('kato') },
