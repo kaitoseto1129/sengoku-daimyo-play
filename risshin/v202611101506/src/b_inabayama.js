@@ -1220,7 +1220,7 @@ function nearGuard(rt, group, visibleOnly = false) {
     if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
       || u.evacuatedWound || u.rearWound || u.downed || u.isStruct || u.civ || u.mesh?.visible === false) continue;
     // 任務の組は保ち、敵印だけは壁の裏・画面外の兵へ出さない。
-    if (visibleOnly && (u.offscreen || !sightScreenUnit(rt, u))) continue;
+    if (visibleOnly && (!u.mesh || u.camHidden || u.offscreen || !sightScreenUnit(rt, u))) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
     if (d < nearest) { target = u; nearest = d; }
   }
@@ -4130,7 +4130,7 @@ const inabayama = {
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
   inouFeel: true, // 当たりは音・よろけ・血で返し、空振りは鳴らさない（player.js）。
-  missions: ['藤吉郎と話す', '井口の町の家に火を放つ', '麓の鹿垣で城兵を迎え撃つ', '七曲りを登り、大手の木戸へ', '本丸の守りを仲間と退ける', '本丸の小屋に合図の火を放つ'],
+  missions: ['木下藤吉郎と話す', '井口の町の家に火を放つ', '麓の鹿垣で城兵を迎え撃つ', '七曲りを登り、大手の木戸へ', '本丸の守りを仲間と退ける', '本丸の小屋に合図の火を放つ'],
   // 右上の目標の下の数（kaito 11/2 W：何軒中何軒に火を付けたか）
   goalNowCount(rt) { const F = rt.flags; return F.step === 1 && !rt.G.lord && F.lit < NEED ? `家 ${F.lit || 0}／${NEED}` : ''; },
   missionHeading(rt) {
@@ -4442,7 +4442,7 @@ const inabayama = {
     if (F.ending) return '任務は達成。仲間と持ち場を守ろう';
     // 曲輪の任務中は、済んだ町や木戸の下知で今の目標を覆わない。
     if (F.dp?.on || F.retreatMarked || F.regroup && F.step !== 3) return text;
-    if (F.step === 0) return it?.id === 'talk' ? '「話す」を押そう' : '近づいて話す';
+    if (F.step === 0) return '木下藤吉郎に近づいて話す';
     // 全ての守兵が退いた後は、新手待ちや交戦の案内で出口への下知を隠さない。
     if (F.step === 1 && F.townSoundWait) return '町の出口で仲間と並ぼう。合図の後、翌日の囲みへ';
     // 新手を待つ間は、敵のいない印や竹束を置く操作へ呼ばない。
@@ -5509,7 +5509,7 @@ const inabayama = {
     // 出兵して瑞龍寺山へ登った後の放火。時刻は不明なので夜襲にはせず、日のある場面にする。
     W.lookDark = false;
     rt.setPhase('brief');
-    rt.obj('main', '藤吉郎と話す', 'main', true);
+    rt.obj('main', '木下藤吉郎と話す', 'main', true);
     // 背景は戦の前の説明へ残し、冒頭は今の行動を短く伝える。
     rt.say('', '木下藤吉郎に近づいて話す', 3);
     rt.after(4, () => {

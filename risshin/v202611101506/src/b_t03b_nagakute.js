@@ -470,8 +470,9 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     const F = rt.flags;
     if (aliveReal(rt) + n > REAL_CAP) return null;
     const g = enemyGroup(rt, { faction: 'tokugawa', name, anchor: at, facing: W, fleeDir: { x: 1, z: 0 }, width: 4, formation: 'line', morale: 85, dmgMult: 0.42,
-      order: 'attack', seekRange: 50, aggro: 14, speed: 3.6, noRout: true, ...(focus ? { focus } : {}) }, foeKnot(n, kit));
-    if (to) g.dest = { x: to.x, z: to.z };
+      order: to ? 'move' : 'attack', seekRange: 50, aggro: 14, speed: 3.6, noRout: true, noAI: true, ...(focus ? { focus } : {}) }, foeKnot(n, kit));
+    // 寄せる場所は段の下知どおり。自由な立て直しで坂の下に止まらず、届く敵とは進みながら戦う。
+    if (to) { g.dest = { x: to.x, z: to.z }; g.onArrive = (q) => { if (q.order === 'move') q.order = 'attack'; }; }
     F.waves.push(g);
     return g;
   },
@@ -480,9 +481,9 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     const F = rt.flags;
     if (aliveReal(rt) + 12 > REAL_CAP) return null;
     const g = enemyGroup(rt, { faction: 'tokugawa', name: '井伊の赤備え', anchor: at, facing: W, fleeDir: { x: 1, z: 0 }, width: 4, formation: 'line', morale: 90, dmgMult: F.stage === 5 ? 0.26 : 0.36,   // 仏ヶ根の長い押し合い（15分の段）で騎馬の打ち込みが重なり過ぎない
-      order: 'attack', seekRange: 60, aggro: 16, speed: 4.2, noRout: true },
+      order: to ? 'move' : 'attack', seekRange: 60, aggro: 16, speed: 4.2, noRout: true, noAI: true },
     dressT([{ type: 'cavalry', n: 3 }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 4, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], AKA));
-    if (to) g.dest = { x: to.x, z: to.z };
+    if (to) { g.dest = { x: to.x, z: to.z }; g.onArrive = (q) => { if (q.order === 'move') q.order = 'attack'; }; }
     F.waves.push(g);
     return g;
   },

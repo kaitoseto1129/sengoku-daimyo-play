@@ -26,6 +26,7 @@ import { revealName } from './battle_intel.js';
 // 15分の構成（kaito 11/8 夜・docs/toyo15_plan_1108.md の 11）：段の中身は t08_nejirozaka/ に一段一ファイル
 import * as jinchi from './t08_nejirozaka/jinchi.js';       // 始まり：夕暮れの砦の見回り・北の高城の囲みの遠景
 import * as shuryoku from './t08_nejirozaka/shuryoku.js';
+import { T08_DEPTH } from './t08_nejirozaka/depth.js';   // 軍勢の厚み（布陣図の兵数の比）
 import * as honjin from './t08_nejirozaka/honjin.js';       // 二巡：秀長と尾藤知宣・島津義久と家久の本陣   // 後半：右の堀（家久）→ 土橋へ戻る（義珍）→ 援け
 
 const WALL_Z = 0;                 // 板塀の線
@@ -474,6 +475,7 @@ const t08_nejirozaka = {
   // 猿渡の討死は名のある知らせで伝え、共通の隊崩れの札を重ねない。
   bannerAllowed: (rt, text) => !/隊が崩れた|敵の組頭が討たれた/.test(text),
   // 布陣図の地名（docs/fujin/t08_nejirozaka.md）
+  depth: T08_DEPTH,   // 軍勢の厚み・陣立て（t08_nejirozaka/depth.js）
   introMapPlaces: [{ x: 0, z: -14, name: '根白坂の砦' }, { x: 14, z: -96, name: '羽柴秀長の本陣' }, { x: 4, z: 172, name: '島津の陣' }],
   spawn: { x: -4, z: -30, heading: 0 },
   world: {
