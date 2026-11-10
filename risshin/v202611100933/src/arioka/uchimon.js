@@ -22,6 +22,8 @@ export function stages(H) {
         { t: 26, say: ['足軽', '本丸の櫓から鉄砲じゃ！　遠いぞ、気にするな！'], foes: () => [gunLine('本丸の通りの鉄砲', { x: TOWN_X + 44, z: GATE.z + 6 }, 2, {})] },
       ],
       max: 120, minEl: 60, reward: '侍町の奥の木戸を押さえた',
-      lenient: true, onEnd: () => {} }),
+      // 遠い射手の残留だけで官兵衛を迎える段が永久に止まらないようにする。
+      // 本人と組の到着・残兵の退却・十二秒の確保は省かない。
+      lenient: true, limit: 120, passOnLimit: true, onEnd: () => {} }),
   ];
 }

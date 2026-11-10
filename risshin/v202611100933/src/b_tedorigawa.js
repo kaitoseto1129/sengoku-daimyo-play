@@ -29,7 +29,7 @@ import { dress, gone } from './b_inabayama.js';
 import { KIT } from './b_nagashinojo.js';
 import { depthStart, depthTick, hold, depthBot } from './b_depth.js';
 import { uS, uA, uC, round, gunLine, camp } from './b_mid.js';
-import { sightUnit } from './battle_sight.js';
+import { sightUnit, sightScreenUnit } from './battle_sight.js';
 import { goalTarget } from './goals5.js';
 import { goalsTick } from './hud_goals.js';
 import { timeslipField } from './timeslip_field.js';
@@ -549,14 +549,16 @@ function riverBanks(rt) {
     m.receiveShadow = true; m.renderOrder = 1;
     rt.scene.add(m);
   }
+  // 川辺の茎と穂は厚みのある細い形。尖った円錐の面を並べない（全戦通しの手取川の指摘）。
   // ② 水際の枯れ葦：細い葉の束に、垂れた穂。渡り口（x≈2）と人の通り道は空ける。
   const parts = [];
   for (let b = 0; b < 9; b++) {
-    const h = 1.7 + (b % 4) * 0.28, geo = new THREE.ConeGeometry(0.03, h, 3);
+    const h = 1.7 + (b % 4) * 0.28, geo = new THREE.CylinderGeometry(0.008, 0.022, h, 3, 2);
     geo.translate(0, h / 2, 0); geo.rotateZ((b - 4) * 0.08); geo.rotateY(b * 0.8);
     geo.translate(Math.cos(b * 2.3) * 0.22, 0, Math.sin(b * 2.3) * 0.22); parts.push(geo);
     if (b % 2) continue;
-    const plume = new THREE.ConeGeometry(0.07, 0.42, 4);
+    const plume = new THREE.SphereGeometry(0.035, 4, 3);
+    plume.scale(1, 6, 1);
     plume.rotateZ(Math.PI * 0.8); plume.translate(0.12, h + 0.02, 0);
     plume.rotateZ((b - 4) * 0.08); plume.rotateY(b * 0.8);
     plume.translate(Math.cos(b * 2.3) * 0.22, 0, Math.sin(b * 2.3) * 0.22); parts.push(plume);
@@ -664,7 +666,7 @@ function floodChannel(rt, mat) {
   // 岸の葦：細い葉を束ねた株。道の渡り（x≈2）と陣の前は空ける。
   const blades = [];
   for (let b = 0; b < 7; b++) {
-    const h = 1.3 + (b % 3) * 0.35, geo = new THREE.ConeGeometry(0.035, h, 3);
+    const h = 1.3 + (b % 3) * 0.35, geo = new THREE.CylinderGeometry(0.008, 0.022, h, 3, 2);
     geo.translate(0, h / 2, 0); geo.rotateZ((b - 3) * 0.09); geo.rotateY(b * 0.9);
     geo.translate(Math.cos(b * 2.1) * 0.18, 0, Math.sin(b * 2.1) * 0.18); blades.push(geo);
   }
@@ -1753,41 +1755,9 @@ html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li.now
 html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals li.done { color:#cfc9bc !important; }
 html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3 b, li em) { display:none !important; }`;
   document.head.appendChild(style); hud.root.classList.add('tedo-goals');
-  const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
-  box.setAttribute('aria-hidden', 'true');
-  hud.root.appendChild(box);
-  hud.foeMarks = function (battle) {
-    const out = foeMarks.call(this, battle);
-    if (battle !== rt) return out;
-    const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.flags.ending && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
-    let n = 0;
-    if (on) for (const u of rt.army.units) {
-      if (n >= 80) break;
-      if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u._nearSignOn ||
-          u.camHidden || (u.group?.tedoFrom && !u.group.tedoActive) || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;   // 11/6 critic60：闇で出番を待つ追手に▼を付けない（開幕に柴田の旗の周りへ赤い▼が並んだ）
-      if (!(u._skSeenAt > rt.t - .34 && u._skSeenAt <= rt.t)) { u._skSeen = sightUnit(rt, u); u._skSeenAt = rt.t; }
-      if (!u._skSeen) continue;
-      v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
-      if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
-      let el = tris[n];
-      if (!el) {
-        el = tris[n] = document.createElement('span');
-        el.textContent = '\u25bc';
-        el.style.cssText = 'position:absolute;left:0;top:0;color:#d24a30;font-size:18px;line-height:1;-webkit-text-stroke:1px #2a0d06;text-shadow:0 1px 2px #000;pointer-events:none';
-        box.appendChild(el);
-      }
-      n++;
-      el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
-    }
-    for (let i = n; i < tris.length; i++) tris[i].hidden = true;
-    return out;
-  };
   rt.dispose = function () {
-    hud.progress = hudProgress; hud.foeMarks = foeMarks;
-    style.remove(); box.remove(); hud.root.classList.remove('tedo-goals');
+    hud.progress = hudProgress;
+    style.remove(); hud.root.classList.remove('tedo-goals');
     this.dispose = dispose; return dispose.call(this);
   };
 }
@@ -1801,8 +1771,9 @@ const tedorigawa = {
   hideMissionDots: true,
   hideGuideSteps: true,
   enemyTriangleSigns: true,
-  // 待機中の追手は、専用の補助印だけでなく共通の頭上の印からも外す。
-  enemySignVisible: (_rt, u) => !u.group?.tedoFrom || !!u.group.tedoActive,
+  // 印は共通の赤い▼一本。専用の補助印を重ねず、体の見通しをカメラから確かめる。
+  keepBattleSigns: true,
+  enemySignVisible: (rt, u) => !rt.flags.ending && (!u.group?.tedoFrom || !!u.group.tedoActive) && sightScreenUnit(rt, u),
   nearbyAllySignLimit: 0,
   noLeaderFollow: true, // 11/4：印は一つだけ（AL・BH6）。行き先のピンに青い▼を重ねない
   noDodgeCard: true,

@@ -10,9 +10,11 @@ import { sfx } from '../audio.js';
 export const LEN = 34;
 
 // 狙える兵と残敵の数え方をそろえ、既に戦えない負傷兵を追わせない。
-export const fighter = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut &&
-  !u.rearWound && !u.invuln && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ &&
+// 史実で生存する味方武将も追手に数える。狙える敵の判定とは無敵の扱いを分ける。
+export const pursuer = u => !!u?.alive && !u.gone && !u.dying && !u.downed && !u.woundOut &&
+  !u.rearWound && !u.fleeing && !u.noTarget && !u.isStruct && !u.civ &&
   !u.group?.routed && u.group?.order !== 'flee';
+export const fighter = u => pursuer(u) && !u.invuln;
 
 // ctx：{ at（踏みとどまる所）, look, win（本体の勝ち） }
 export function start(rt, ctx) {
@@ -40,7 +42,7 @@ export function tick(rt) {
     F.echExitAt = P.pos;   // 金の▼と bot の行き先（本体の echExitAt）
     // 先に追いついた味方にも応戦する。本人が遠い間は下知を達成にしない。
     if (g.order === 'hold' && rt.army.units.some(u =>
-        u.team === rt.player.u.team && fighter(u) &&
+        u.team === rt.player.u.team && pursuer(u) &&
         Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 26 &&
         !rt.army.wallBetween(u.pos, -1, P.pos, false))) {
       g.order = 'attack'; g.stay = false; g.aggro = 40; g.seekRange = 40;
