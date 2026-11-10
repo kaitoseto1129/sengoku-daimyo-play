@@ -1793,6 +1793,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       F.footSally = enemyGroup(rt, {
         fixed: true, faction: 'takeda', name: '搦手の木戸から出た城兵', anchor: { x: bx, z: bz }, facing: Math.atan2(ax - bx, az - bz),
         order: 'hold', formation: 'yari', width: 6, aggro: 4, seekRange: 6, noAI: true, guardOn: true,
+        roadColumn: true, followColumnRoad: true, colW: 2,
         morale: F.siege.morale, fleeDir: { x: 0, z: -1 },
       }, battleLook(rt, [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }], TAKEDA));
       F.footSally.iwInitial = F.footSally.count;
@@ -2764,8 +2765,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
           S.units.some((u) => chaseReady(u) && Math.hypot(u.pos.x - FOOT.x, u.pos.z - FOOT.z) < 10)) { const deploy = S.onArrive; S.onArrive = null; deploy(S); }
       if (F.footSallyOut && !S.iwWithdraw && !gone(S)) {
         let fighting = 0;
-        for (const u of S.units) if (chaseReady(u)) fighting++;
-        const leaderDown = S.units.filter((u) => u.type === 'samurai').every((u) => !chaseReady(u));
+        for (const u of S.units) if (sallyStanding(u)) fighting++;
+        const leaderDown = S.units.filter((u) => u.type === 'samurai').every((u) => !sallyStanding(u));
         if (rt.t - F.footSallyOut > 18 && (fighting <= S.iwInitial * 0.4 || leaderDown && fighting <= S.iwInitial * 0.6)) {
           // 出撃に使った木戸を逆に通る。登城道の先へ直進させると木戸を横切ってしまう。
           S.noRout = false; S.iwWithdraw = true; S.order = 'path'; S.formation = 'column'; S.path = F.footSallyPath.slice().reverse(); S.pathIdx = 1;
@@ -2780,7 +2781,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         }
       }
       // 木戸の城兵を実際に退けた時だけ固め終える。時間切れを達成として扱わない。
-      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwReturned);
+      // 深手で全員離脱した時は歩けない兵の帰還を待たない。転倒だけなら起きるまで戦力に残す。
+      const sallyDone = !!F.footSallyOut && (gone(S) || S.iwReturned || !S.units.some(sallyStanding));
       rt.obj('main', F.iwKaijo ? IW_KAIJO.GOAL : !F.footReached ? '山道を退く武田勢を城の麓まで追え' : '城の麓の搦手道の登り口を固めよ', 'main', true);
       // 到着の下知に待機と損耗の声を重ねない。待つ理由は任務札ですぐに示す。
       // 後続の戦いが終わった時や倒れた味方が起きた時も、変わった理由だけを知らせる。
@@ -3496,6 +3498,10 @@ iwamura.history = '天正三年、織田信忠は秋山虎繁らの守る岩村�
 function fencePostZ(x) { return FENCE_Z + Math.max(0, Math.min(52, Math.abs(x) - 8)) * 4 / 52 + 1; }
 function chaseReady(u) {
   return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.noTarget;
+}
+// 行軍できるかと、押し返されたかは別。一時的な転倒で城兵の損失を水増ししない。
+function sallyStanding(u) {
+  return u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget;
 }
 // 出発後に先頭が倒れた時も、次の兵が列の先へ歩ける持ち場にする。
 // 空いた先頭を残すと、後列待ちを助ける五メートル内に誰も来なくなる。

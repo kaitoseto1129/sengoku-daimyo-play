@@ -3275,7 +3275,6 @@ const hiei_mtn = {
     //   戦の札（battle-order）は目標の並びを外すので、この戦の間だけ毎コマ並びを書く（森部と同じ作り）。
     const hud = rt.hud, hudProgress = hud.progress;
     // 近接の候補判定ではなく、傷が通った時に数える。弓・鉄砲も本人の働きに含める。
-    const meritHit = rt.army.hooks.onMeritHit;
     const finishCap = rt.army.heroFinishCap;
     // 本人が戦う前に味方だけで守りを消し、命中の条件を果たせなくしない。
     // 中堂の先頭の一人にだけ余力を残す。本人の一撃が通った後は通常へ戻す。
@@ -3283,12 +3282,12 @@ const hiei_mtn = {
       if (!F.courtHand && target === F.courtGuard && !source?.isPlayer) {
         return Math.max(0, Math.min(amount, target.hp - target.maxHp * .5));
       }
-      return finishCap.call(this, target, amount, source);
-    };
-    rt.army.hooks.onMeritHit = function (target, source, kind, amount) {
-      if (meritHit) meritHit.call(this, target, source, kind, amount);
+      amount = finishCap.call(this, target, amount, source);
+      // 受け止められた一撃も傷が通る。通常命中の通知だけに頼ると、
+      // 受け続けた守りを倒しても本人の働きが数えられず進めなくなる。
       if (F.courtDone && source?.isPlayer && amount > 0 && target?.group &&
           [F.chudoG, F.courtBow, F.kodoG].includes(target.group)) F.courtHand = true;
+      return amount;
     };
     hud.root.classList.add('hiei-goals');
     hud.progress = function (battle) {
@@ -3322,7 +3321,6 @@ const hiei_mtn = {
     rt.dispose = () => {
       rt.player.canStep = canStep;
       hud.progress = hudProgress;
-      rt.army.hooks.onMeritHit = meritHit;
       rt.army.heroFinishCap = finishCap;
       hud.root.classList.remove('hiei-goals');
       F.foeSigns?.remove();

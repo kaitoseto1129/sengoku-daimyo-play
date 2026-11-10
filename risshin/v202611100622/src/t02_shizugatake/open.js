@@ -113,5 +113,9 @@ export function tickRelief(rt, dt, ctx) {
     rt.after(16, () => { if (ctx.live(F.mori)) rt.say('佐久間盛政', '鬼玄蕃はこれにあり。追い崩して賤ヶ岳も揉み潰せ', 3.2); });
     return;
   }
-  if (F.reachedRelief && F.oiwaFell && rt.t - F.pt > 115 && ctx.nLive(F.chaseG) <= 3) ctx.next();
+  // 夜討ち・岸の殿と同じく、負傷離脱や敗走を討ち残しに数えない。
+  // 生存者だけを数えると、戦えない追手が四人残った救援で先へ進めなかった。
+  const g = F.chaseG;
+  const left = !g || g.routed || g.order === 'retreat' ? 0 : g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0);
+  if (F.reachedRelief && F.oiwaFell && st > 115 && left <= 3) ctx.next();
 }

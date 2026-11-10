@@ -9,24 +9,14 @@ const s = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 const ph = (...names) => (rt) => names.includes(rt.phase);
 const dp = (...names) => (rt) => names.includes(rt.flags.dp?.cur?.s?.phase);
 const f = (k) => (rt) => !!rt.flags[k];
+const INO_ORDER = ['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'];
+const inoPast = (rt, k) => { const F = rt.flags; return (F.inoSeen ||= new Set()).add(F.ph) && [...F.inoSeen].some((p) => INO_ORDER.indexOf(p) >= INO_ORDER.indexOf(k)); };
 
 export const STAGES = {
   // 稲生（kaito 11/1 B 節）：練習 → 先手を崩す → 二の備を退ける → 林美作守を討つ。三つ目の欄は右上の「目標」の札に並べる目標（[字, 済んだか]）
   inou: [
-    // 11/3 kaito の稲生の流れ（docs/battle_refs/inou_story.md）：柴田勢との乱戦を耐える → 信長の大音声で柴田勢が崩れる → 列を整えて林勢へ → 旗本を崩す → 美作守を討つ
-    // 11/6 時代考証：「崩す」「土手」は使わない（kaito 三-1・史料に土手は無い）。右上の一行（missionHeading）と同じ言い方に
-    // 11/6 crit_inou：字は b_inou_goals.js（地図の名と人の名）。済みは主人公が自分で働いた時だけ（goals5.js と同じ）
-    // 11/8 十五分の構成（prototype/src/inou/）：行軍 → 物見 → 林の前衛 → 横槍 → 柴田勢（勝家）→ 林勢 → 旗本 → 美作守
-    [IG.GOALS15.march, null, [[IG.GOALS15.march, (rt) => !!rt.flags.v15?.marchDone]]],
-    ['練習', (rt) => !!rt.flags.v15?.marchDone, [[IG.GOALS[0], (rt) => (rt.flags.pk || 0) >= 3]]],
-    [IG.GOALS15.van, (rt) => !!rt.flags.v15?.vanT, [[IG.GOALS15.van, (rt) => !!rt.flags.v15?.vanDone]]],
-    [IG.GOALS15.flank, (rt) => (rt.flags.stage || 0) >= 1, [[IG.GOALS15.flank, (rt) => !!rt.flags.v15?.flankDone]]],
-    [IG.GOALS[1], (rt) => !!rt.flags.v15?.flankDone || (rt.flags.stage || 0) >= 2, [[IG.GOALS[1], (rt) => !!rt.flags.line1Broken && IG.inouDid(rt, 1, 1), (rt) => downTo(rt.flags.l1, rt.flags.l1N * 0.5, rt.flags.l1N)]]],
-    // 11/6 fixc1455：段二の初め（列を整える前）は右上がまだ②なので、番号も②のまま
-    [IG.GOALS15.raid, (rt) => !!rt.flags.v15?.raidT, [[IG.GOALS15.raid, (rt) => !!rt.flags.v15?.raidDone]]],
-    [IG.GOALS[2], (rt) => (rt.flags.stage || 0) >= 3 || (rt.flags.stage || 0) >= 2 && !!rt.flags.regrouped, [[IG.GOALS[2], (rt) => !!rt.flags.line2Broken && IG.inouDid(rt, 2, 1), (rt) => downTo(rt.flags.l2, rt.flags.l2N * 0.35, rt.flags.l2N)]]],
-    [IG.GOALS[3], (rt) => (rt.flags.stage || 0) >= 3, [[IG.GOALS[3], (rt) => !!rt.flags.guardDown && IG.inouDid(rt, 3, 1)]]],
-    [IG.GOALS[4], (rt) => (rt.flags.stage || 0) >= 4, [[IG.GOALS[4], (rt) => !!rt.flags.ending && !!rt.flags.bossNear]], false],
+    // 11/10 docs/ino_spec_1109.md：名を呼ばれない足軽。段は右上の一行と同じ字（b_inou_goals.js の INO_GOALS）
+    ...['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'].map((k, i) => [IG.INO_GOALS[k], i ? (rt) => inoPast(rt, k) : null]),
   ],
   // kaito 11/2 T：義元を探せ → 本陣に迫れ → 義元を討て の三段（幕と大きな旗印は本陣の一か所だけ）
   // 11/3：段の名は場所と行いで言う（AQ1・AR1）。中島砦の先の谷 → 桶狭間山の坂道 → 今川本陣の幕

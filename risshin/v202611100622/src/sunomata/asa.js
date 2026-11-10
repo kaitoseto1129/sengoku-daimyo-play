@@ -51,10 +51,14 @@ export function tick(rt) {
   }
   if (!F.finishAt) return;
   const late = rt.t - F.finishAt;
+  // 北だけが接敵しても、西の最後の攻撃を済ませない。控えで止まった隊は下の経路で柵へ寄せ直す。
+  if (!v.westAtFence && F.W3b?.units.some((u) => ready(u) &&
+      Math.abs(u.pos.x + C.FORT) < 10 && Math.abs(u.pos.z) < C.FORT + 10)) v.westAtFence = true;
   // 最新の指示書：波には上限を設け、特定の大将の討死だけで止めない。
   // 北の接敵・伏兵の実着を飛ばさず、主人公が守った後に敵へ退却を命じる。
   // 勝利は本体が砦の安全・柵の修理・点検を確かめてから決める。
-  if (late >= 120 && F.foughtWave === 3 && (F.northAtFence || sunomataNorthStopped(F)) && F.reinforceArrived && !v.lastRetreat) {
+  if (late >= 120 && F.foughtWave === 3 && (F.northAtFence || sunomataNorthStopped(F)) &&
+      v.westAtFence && F.reinforceArrived && !v.lastRetreat) {
     v.lastRetreat = true;
     const groups = [F.W3a, F.W3b, F.W3d, F.lastPush, ...(F.boatWaves || []),
       ...(F.duskWaves || []).map((q) => q.group)];

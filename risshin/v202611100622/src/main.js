@@ -113,10 +113,10 @@ function okehazamaLoad() {
 let inouDefinition = null, inouPromise = null;
 function inouLoad() {
   // 10/29 kaito の仕様の稲生（b_inou_spec.js）。前の稲生は battles.js の inou_old に残す
-  if (!inouPromise) inouPromise = Promise.all([import('./b_inou_spec.js'), import('./army_jindate.js')]).then(([m, J]) => {
-    m.inou_spec.key = 'inou';
-    J.installJindate({ inou: m.inou_spec });   // 野戦の陣立て（battles.js を読まずに始まる戦も）
-    inouDefinition = m.inou_spec;
+  if (!inouPromise) inouPromise = Promise.all([import('./b_inou_1109.js'), import('./army_jindate.js')]).then(([m, J]) => {
+    m.inou_1109.key = 'inou';   // 11/10 docs/ino_spec_1109.md の作り直し（前の b_inou_spec.js は battles.js の inou_spec に残す）
+    J.installJindate({ inou: m.inou_1109 });   // 野戦の陣立て（battles.js を読まずに始まる戦も）
+    inouDefinition = m.inou_1109;
   }).catch((error) => { inouPromise = null; throw error; });
   return inouPromise;
 }
@@ -1807,7 +1807,7 @@ STORY_BY.oda = {
     "信長公記は雨中の楡俣川渡河と長い槍戦、長井・日比野らの討死を伝える。細かな布陣や浅瀬は遊びの補い。",
   ], button: "森部へ出陣する" }),
   sunomata: () => ({ battleId: 'sunomata', compact: true, year: "永禄九年（1566）九月の伝承　美濃・墨俣", title: "墨俣築城防衛", text: [
-    "岸の舟着きで材木を受ける人足を守り、南門を通って砦まで戻れ。続いて北と西の柵を守り、川からの上陸にも備える。三の手を退け、伏兵と西の寄せ手を挟み、斎藤方の寄せ大将を討ち取れ。",
+    "岸の舟着きで材木を受ける人足を守り、南門を通って砦まで戻れ。続いて北と西の柵を守り、川からの上陸にも備える。三の手を退け、伏兵と西の柵の外で寄せ大将の最後の攻撃を退けよ。",
     "斎藤方は北と西から三度寄せ、舟でも川から上がって来る。人足が柵を仕上げる間、砦を守れ。寄せ手を退ければ、藤吉郎の砦は美濃攻めの足場になる。",
   ], button: "砦の守りにつく" }),
   inabayama: () => ({ battleId: 'inabayama', compact: true, year: "永禄十年（1567）　美濃・稲葉山城", title: "稲葉山城", text: [
@@ -1928,7 +1928,7 @@ STORY_BY.oda = {
 };
 TIPS_BATTLE_BY.oda = {
   inou: '信長の旗を離れず、槍をそろえて柴田の寄せを受けよ。南から林の手が来たら向き直れ。追わずに旗へ戻る',
-  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '楡俣川の浅瀬を渡り、北岸の畦で斎藤の先手を押し返す。長井・日比野の旗本へ攻め入り、墨俣へ退く殿を討ち破る', sunomata: '岸の舟着きから南門まで材木の人足を守る。北と西の柵で三度の寄せを止め、伏兵と西の寄せ手を挟み、寄せ大将を討つ。材木を人足へ渡し、柵の修理と点検を守り抜く',
+  okehazama: TIPS_BATTLE_BY.okehazama[0], moribe: '楡俣川の浅瀬を渡り、北岸の畦で斎藤の先手を押し返す。長井・日比野の旗本へ攻め入り、墨俣へ退く殿を討ち破る', sunomata: '岸の舟着きから南門まで材木の人足を守る。北と西の柵で三度の寄せを止め、伏兵と西の柵の外で寄せ大将の最後の攻撃を退ける。材木を人足へ渡し、柵の修理と点検を守り抜く',
   kanegasaki: TIPS_BATTLE_BY.nobunaga_hoi[0], anegawa: TIPS_BATTLE_BY.nobunaga_hoi[1], hieizan: '日吉社の鳥居の前の僧兵を退け、本坂を登って文殊楼の門を破り、燃える根本中堂の前の僧兵を退けよ。逃げる僧や里の者は追うな',
   inabayama: '井口の町の家三軒に火を放て。手向かわぬ町の者は討つな。打って出た斎藤勢を退けたら、逃げる城兵に続いて七曲りを登れ',
   mitsukuri: '柵の口から三の郭へ攻め上る。日暮れに松明へ火を移し、二の丸の木戸を打つ。打って出た城兵を討って二の丸へ入り、夜半に本丸へ旗を立てる',

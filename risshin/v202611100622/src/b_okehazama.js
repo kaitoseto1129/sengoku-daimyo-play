@@ -1216,7 +1216,7 @@ const okehazama = {
   },
   missionPin(rt) {
     const F = rt.flags;
-    if (F.ending || rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
+    if (rt.hud.retreatGuide?.active && rt.hud.retreatGuide.valid) return null;
     { const o = O15.pin(rt); if (o !== undefined) return o; }
     const timedWait = rt.phase === 'wait' || rt.phase === 'brief' && F.briefed;
     // 集合後も同じピンを保ち、穴が満ちる円の満ち具合だけで待ち終わりを示す。
@@ -1262,7 +1262,18 @@ const okehazama = {
       const entrance = !F.entered && F.roadStep >= F.road.length ||
         F.guardOpened && !F.mouthReached && !F.koshiLeft;
       const enemy = this.missionSignTarget(rt) || this.commanderTarget(rt);
-      if (enemy) return null;
+      // 遠い相手の頭上の▼だけでは、雨や幕の陰で進む先が消える（通し確認の関所3）。
+      // 近い斬り合いは頭上の▼に任せ、離れた時は幕を回る道の一点へ案内する。
+      const destination = enemy?.pos || (!entrance && !F.yoshiDown && this.passageTaskDestination(rt));
+      if (destination) {
+        const me = rt.player.u;
+        const pos = honjinWay(rt.army, me, destination);
+        if (pos === destination && Math.hypot(me.pos.x - pos.x, me.pos.z - pos.z) <= 14 &&
+            Math.abs(me.pos.y - pos.y) < 3) return null;
+        pin.x = pos.x; pin.z = pos.z; pin.r = 1; pin.hide = 0;
+        pin.always = true; pin.area = true; pin.key = 'assault-route';
+        return pin;
+      }
       if (!entrance) return null;
       const pos = F.honjinPin || (F.honjinPin = fieldPoint(18, -100));
       pin.x = pos.x; pin.z = pos.z; pin.r = 0; pin.hide = 0;

@@ -2438,8 +2438,10 @@ const echizen_ikko = {
     const zone = F.SZ?.byId[F.mode === 'defend' ? 'hondo' : TEMPLE_HALL_IDS[F.step - 1]];
     const gate = F.step === 1 ? F.gateSomon : F.step === 2 ? F.gateSanmon : null;
     const defend = F.mode === 'defend' || F.step === 5 || !!zone && !gate?.struct.alive && !enemy && zone.test(p.x, p.z);
+    const hunt = IK_YAMA.active(rt);
     let goal;
-    if (F.mode === 'defend') goal = zone?.pos || INNER_POS;
+    if (hunt) goal = IK_YAMA.pin(rt);
+    else if (F.mode === 'defend') goal = zone?.pos || INNER_POS;
     else if (F.step >= 4) goal = OKUYAMA;
     else if (enemy) goal = enemy.pos;
     else if (gate?.struct.alive) goal = templeTaskPoint(rt);
@@ -2458,7 +2460,8 @@ const echizen_ikko = {
     pin.defend = false;
     pin.arrived = pin.waiting && Math.hypot(p.x - goal.x, p.z - goal.z) < pin.r;
     pin.silent = true;
-    pin.destinationName = F.mode === 'defend' ? '本堂' : F.step >= 4 ? '奥山道'
+    pin.destinationName = hunt ? F.ikYama.s <= 1 ? '森の小道' : F.ikYama.s <= 3 ? '谷筋' : '麓の参道'
+      : F.mode === 'defend' ? '本堂' : F.step >= 4 ? '奥山道'
       : gate?.struct.alive ? F.step === 1 ? '惣門' : '山門'
         : TEMPLE_HALL_NAMES[TEMPLE_HALL_IDS[F.step - 1]];
     pin.destinationDistance = Math.round(Math.hypot(goal.x - p.x, goal.z - p.z));
@@ -2533,11 +2536,12 @@ const echizen_ikko = {
     if (!zone.test(rt.player.u.pos.x, rt.player.u.pos.z)) return F.hallEntry
       ? F.hallEntry.returning ? '敵を追わず、参道の印へ戻ろう'
         : '参道の印をたどり、味方と堂へ進もう' : progress;
-    if (zone.enemies > 0) return `残る敵 ${zone.enemies}人。味方と進もう`;
-    if (zone.owner === ZONE_STATE.FRIEND) return 'ここは取った。次の印へ進もう';
+    const place = TEMPLE_HALL_NAMES[zone.id] || TEMPLE_HALL_NAMES[TEMPLE_HALL_IDS[F.step - 1]];
+    if (zone.enemies > 0) return `${place}の残る敵 ${zone.enemies}人。味方と進もう`;
+    if (zone.owner === ZONE_STATE.FRIEND) return `${place}を押さえた。次の印へ進もう`;
     if (zone.friends < zone.need) return `あと${zone.need - zone.friends}人で守れる。印のそばで味方を待とう`;
-    if (rt.t < zone.quietUntil) return `敵が立て直している。ここで反撃に備えよう。あと${Math.ceil(zone.quietUntil - rt.t)}秒`;
-    return `ここで味方と守ろう。あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒`;
+    if (rt.t < zone.quietUntil) return `${place}で反撃に備えよう。あと${Math.ceil(zone.quietUntil - rt.t)}秒`;
+    return `${place}を味方と守ろう。あと${Math.max(0, Math.ceil(zone.hold - zone.holdT))}秒`;
   },
   immediateTaskChanges: true, // 戸口・堂の脇・残り人数を、古い下知からすぐ切り替える。
   introSides: { a: '滝川一益の手', b: '大滝寺の守り' },

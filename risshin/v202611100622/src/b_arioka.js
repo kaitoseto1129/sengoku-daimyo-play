@@ -1544,7 +1544,13 @@ const arioka = {
     pin.route = way !== post; pin.unit = null; pin.enemy = false;
     pin.waiting = !pin.route && (stage === 0 || stage === 3);
     pin.r = pin.hide = pin.route ? .5 : stage === 3 ? C?.botRadius || 16 : 3;
-    pin.arrived = pin.waiting && Math.hypot(rt.player.u.pos.x - pin.x, rt.player.u.pos.z - pin.z) <= pin.r;
+    // 任務と同じ高さ・遮りで到着を決める。屋根や壁の裏で待機の表示にしない。
+    const p = rt.player.u.pos;
+    pin.arrived = pin.waiting && Math.hypot(p.x - pin.x, p.z - pin.z) <= pin.r;
+    if (pin.arrived) {
+      post.y = C?.post?.y ?? rt.world.heightAt(post.x, post.z);
+      pin.arrived = Math.abs(p.y - post.y) <= 3 && !rt.army.wallBetween(p, -1, post);
+    }
     return pin;
   },
   waitForIntro: true,

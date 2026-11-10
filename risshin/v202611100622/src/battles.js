@@ -63,6 +63,7 @@ import { moribe } from './b_moribe.js';
 import { installJindate } from './army_jindate.js';
 import { inou } from './b_inou.js';
 import { inou_spec } from './b_inou_spec.js';
+import { inou_1109 } from './b_inou_1109.js';
 import { sunomata } from './b_sunomata.js';
 import { shitaragahara } from './b_shitaragahara.js';
 import { addOdaHistory } from './oda_history.js';
@@ -75,7 +76,7 @@ export { dojo } from './b_dojo.js';
 
 
 // 筋書きごとの戦。BATTLE_DEFS は、いま遊んでいる筋書きの中身に入れ替わる（state.js の BATTLES と同じ並び）
-const DEF_BY_ID = { inou: inou_spec, inou_old: inou, okehazama, moribe, sunomata, shitaragahara };
+const DEF_BY_ID = { inou: inou_1109, inou_spec, inou_old: inou, okehazama, moribe, sunomata, shitaragahara };
 for (const [id, d] of Object.entries({ inabayama, mitsukuri, nodafukushima, odani, nagashima, takato, honnoji, shiga, tonezaka, tennoji, shigisan, arioka, miki, tedorigawa, iga, echizen, kizugawa, saika, tano, mikatagahara, tottori, iwamura, okawachi })) if (d) DEF_BY_ID[id] = d;
 for (const [id, d] of Object.entries({ nagashinojo, tobinosu, suwahara, anegawa, sekigahara, sanadamaru, sune, kanegasaki, domyoji, hieizan })) if (d) DEF_BY_ID[id] = d;
 for (const [id, d] of Object.entries({ kinome, hiei_mtn, takato_siege, echizen_ikko })) if (d) DEF_BY_ID[id] = d;

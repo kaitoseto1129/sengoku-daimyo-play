@@ -73,6 +73,8 @@ function hurtGoal() {
 const SEC = {};
 const withSec = (g) => (SEC[g.kind] && !g.sec ? { ...g, sec: SEC[g.kind] } : g);
 const flag = (k) => (rt) => !!rt.flags?.[k];
+const INO_SEQ = ['march', 'scout', 'van', 'hayashi', 'join', 'shibata', 'retreat', 'rally', 'push', 'after'];
+const inoDone = (rt, k) => { const F = rt.flags || {}; return !!F.ending || INO_SEQ.indexOf(F.ph) > INO_SEQ.indexOf(k) && !(k === 'hayashi' && F.ph === 'join'); };
 
 // 稲生（B 節）：先手 → 弓組 → 二の備 → 美作守 → 時のうち。崩す備は倒した数を出す
 const OWN = {
@@ -80,18 +82,8 @@ const OWN = {
   // 見えない時間制限だけで目標に失敗の印を付けない。
   anegawa: () => (STAGES.anegawa || []).map((s, k) => stageGoal(k, s[0])),
   inou: () => [
-    // 11/3 p100_inou（kaito AQ1・AR1）：どの目標も「誰を・どこで・どうする」が字と地図と頭上の▼で分かる言い方に。敵を何人討つは練習の一つだけ
-    // 11/6 crit_inou（kaito 九2・十二3）：主人公が自分の槍で働いた時だけ済み（立っているだけで味方が果たして印が付いた）。字は b_inou_goals.js
-    { kind: 'stage', k: 0, text: IG.GOALS15.march, check: (rt) => !!rt.flags.v15?.marchDone },   // 11/8 十五分の構成（prototype/src/inou/）
-    { kind: 'stage', k: 0, text: IG.GOALS[0], count: (rt) => [Math.min(3, rt.flags.pk || 0), 3], check: (rt) => (rt.flags.pk || 0) >= 3, groups: (rt) => (rt.flags.practice ? [rt.flags.practice] : []) },
-    { kind: 'stage', k: 0, text: IG.GOALS15.van, check: (rt) => !!rt.flags.v15?.vanDone },
-    { kind: 'stage', k: 1, text: IG.GOALS15.flank, check: (rt) => !!rt.flags.v15?.flankDone },
-    { kind: 'stage', k: 1, text: IG.GOALS[1], check: (rt) => !!rt.flags.line1Broken && IG.inouDid(rt, 1, 1), groups: (rt) => rt.flags.l1, total: (rt) => rt.flags.l1N },
-    { kind: 'stage', k: 1, text: IG.GOALS15.raid, check: (rt) => !!rt.flags.v15?.raidDone },
-    { kind: 'stage', k: 2, text: IG.GOALS[2], check: (rt) => !!rt.flags.line2Broken && IG.inouDid(rt, 2, 1), groups: (rt) => [...(rt.flags.l2 || []), ...(rt.flags.bows || [])], total: (rt) => (rt.flags.l2N || 0) + (rt.flags.bowN || 0) },
-    { kind: 'stage', k: 3, text: IG.GOALS[3], check: (rt) => !!rt.flags.guardDown && IG.inouDid(rt, 3, 1), groups: (rt) => [...(rt.flags.bankG || []), ...(rt.flags.guardG ? [rt.flags.guardG] : [])] },
-    // 美作守の止めは信長。主人公が美作守と刃を合わせて追い詰めた時に済み（bossNear）
-    { ...bossGoal('林美作守'), k: 4, text: IG.GOALS[4], check: (rt) => !!rt.flags.ending && !!rt.flags.bossNear },
+    // 11/10 docs/ino_spec_1109.md：右上は今の段の一行だけ。済みは段が進んだ時
+    ...['march', 'scout', 'van', 'hayashi', 'shibata', 'retreat', 'push'].map((k, i) => ({ kind: 'stage', k: i, text: IG.INO_GOALS[k], check: (rt) => inoDone(rt, k) })),
   ].map((g) => ({ ...g, sec: 1e6 })),
   // 森部（11/3 p100_moribe・docs/battle_refs/moribe.md）：楡俣川を渡る → 北岸で先手 → 森部の野で両将の槍列 → 両将の一人を自分で討つ → 墨俣への道で殿。
   //   どれも場所と行い。敵を何人討つ・「崩す」は使わない（標準 三-1・11/4 moribe）

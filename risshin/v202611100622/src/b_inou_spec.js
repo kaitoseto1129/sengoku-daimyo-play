@@ -1178,4 +1178,4 @@ inou_spec.date = () => OLD.date().replace('晴', '曇');
 // 11/6 fix4 時代考証：前日の大雨で川が増え、田はぬかるむ（組頭の第一声）のに、身の回りは乾いた土と土埃（dust 0.85）だった。湿った土にし、土埃を抑える
 inou_spec.timeslip = { ...OLD.timeslip, wet: 0.4, dust: 0.15 };
 
-export { inou_spec };
+export { inou_spec, reeds, hasaField, farmHouses, paddyRice, nazukaFort, strayArrows };
