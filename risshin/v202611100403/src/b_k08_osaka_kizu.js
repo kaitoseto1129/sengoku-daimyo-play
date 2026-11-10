@@ -634,7 +634,8 @@ const k08_osaka_kizu = {
     const P = rt.player.u.pos;
     // 味方が先に敵を払っても、本人が目標の場所へ進むまでは達成にしない。
     // 一度加わった後は、傷の手当てで下がっても参加を取り消さない。
-    if (F.step === 1 && near(P, SHORE, 24)) F.shoreJoined = true;
+    // 入り江は z=50 の両側八歩。距離だけでは水中（z=54 近く）でも達成したため、北岸へ上がった事も確かめる。
+    if (F.step === 1 && P.z <= SHORE.z + 10 && near(P, SHORE, 24)) F.shoreJoined = true;
     if (F.step === 2 && near(P, GATE, 24)) F.gateJoined = true;
     if (F.step === 3 && P.z < GATE.z && Math.abs(P.x) < WALL_X && near(P, INSIDE, 24)) F.insideJoined = true;
     if (F.step === 4 && near(P, NGATE, 24)) F.northJoined = true;

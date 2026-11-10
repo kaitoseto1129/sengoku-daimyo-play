@@ -4126,7 +4126,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       const post = c.post;
       rt.marker('g' + i, post, () => cannonLabel(rt, c), { h: 2, guideNearest: true, guidePriority: () => cannonPriority(rt, c), hideNear: 2.6, hideOnArrival: true,
         routeDistance: () => deckRouteDistance(rt.player.u, post) });
-      rt.addInteract('g' + i, { x: c.x + 1.6, z: c.z }, '大筒を撃つ', () => this.fire(rt, i), { r: cannonReady(rt, c) ? 2.6 : 0, hold: 1.2 });
+      rt.addInteract('g' + i, { x: c.x + 1.6, z: c.z }, '大筒を撃つ', () => this.fire(rt, i), { r: 2.6, hold: 1.2 });
       c.interact = rt.interacts[rt.interacts.length - 1];
     }
     // 10/31 小早を一艘ずつ順に寄せず、空いた乗り口へ一斉に寄せる（船団で押し寄せる）。
@@ -4157,7 +4157,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const word = aimWord(best, c);
     if (noticeReady(rt, word, 45)) rt.say('大筒の者', word, 2.5);   // 11/6 fixc0504：①の間に同じ「船首が近いぞ」が五回出た
     c.cd = rt.t + 30;
-    if (c.interact) c.interact.r = 0;
+    // 玉込め中も操作札を保ち、押した時に待つ理由を伝える。
     if (rt.missionGuide) rt.missionGuide.scan = 0;
     rt.army.play('volley', { x: c.x, z: c.z }, 1.6);
     rt.army.smoke(c.x - 2, DECK.y + 1.2, c.z, -1, 0, 2.5);
@@ -4328,7 +4328,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     const post = c.post;
     rt.marker('g1', post, () => cannonLabel(rt, c), { h: 2, guidePriority: 150, guideAlways: true, hideNear: 2.6, hideOnArrival: true,
       routeDistance: () => deckRouteDistance(rt.player.u, post) });
-    rt.addInteract('g1', { x: c.x + 1.6, z: c.z }, '大筒を撃つ', () => this.fire(rt, 1), { r: cannonReady(rt, c) ? 2.6 : 0, hold: 1.2 });
+    rt.addInteract('g1', { x: c.x + 1.6, z: c.z }, '大筒を撃つ', () => this.fire(rt, 1), { r: 2.6, hold: 1.2 });
     c.interact = rt.interacts[rt.interacts.length - 1];
   },
   breakFlagship(rt, playerShot) {
@@ -4875,7 +4875,7 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
         }
         rt.objProgress('main', closeThreat ? F.kukiDanger ? '敵が振った後に槍で突け。退けたら九鬼嘉隆の守りへ' : '敵が振った後に槍で突け。離れたら大筒へ' : F.kukiDanger ? F.roofDanger ? '屋形の脇から前へ回れ。残る敵を押し返せ' : '屋形の脇を通って戻れ。九鬼嘉隆のそばで敵を防げ' : guarding ? '敵が振った後に槍で突け。離れたら大筒へ' : rt.t < c.cd ? `玉込めあと${Math.ceil(c.cd - rt.t)}秒。西の船べりを見張れ` : b ?
           deckRouteDistance(u, c.post) > 2.6 ? '甲板の印をたどり、大筒の持ち場へ' :
-          `敵船まで約${Math.round(Math.hypot(b.x - c.x, b.z - c.z))}歩。${aimWord(b, c)}` : '敵船を待て。乗り込む敵を防げ');
+          `敵船まで約${Math.round(Math.hypot(b.x - c.x, b.z - c.z))}歩。${aimWord(b, c)}` : F.step === 1 ? '寄る小早を待て。西の船べりを見張れ' : F.step === 6 ? '俵を積んだ兵糧船を待て' : '大船の横腹を待て。西の船べりを見張れ');
       }
       if (F.step === 3) {
         // 乗り口の段も、大将の危険と目の前の戦いを任務の一行へ反映する。

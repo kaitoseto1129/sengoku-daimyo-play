@@ -1075,10 +1075,12 @@ function mikataGoals(rt, dt) {
       : holdContact();
     // ⑥は坂の上の殿の輪（半径十四）の前へ出て追手と打ち合う間も数える。④は森の際から平手の列までの間（四十 m）で
     const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
-    // 赤備えを持ち場で受けた記録は、最後の寄せ手を退けても失わない。
+    // 先手と赤備えを持ち場で受けた記録は、最後の寄せ手を退けても失わない。
     // 本人が来る前に味方が退けた場合や、まだ遠くに敵が残る間は足さない。
-    if (G.i === 3 && inPost && contact) G.contact = true;
-    const repelled = G.i === 3 && G.contact && F.aka?.units?.every((q) => !mikataFoeOk(q, u.team));
+    if ((G.i === 2 && !holdPost || G.i === 3) && inPost && contact) G.contact = true;
+    const repelled = G.contact && (G.i === 2 && !holdPost
+      ? [F.w1, F.scout].every((g) => g?.units?.every((q) => !mikataFoeOk(q, u.team)))
+      : G.i === 3 && F.aka?.units?.every((q) => !mikataFoeOk(q, u.team)));
     if (inPost && (contact || repelled)) G.tin += dt;
     if (G.tin >= MK_GOAL_HOLD[G.i] || G.hit && G.tin >= 2) G.ok = true;
   }
@@ -2723,6 +2725,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.say('足軽', '平手の殿が討たれたがや！　退く道を塞がせるな！', 3);
     }
     if (F.mkFlankArrived && v.group === F.aka && k && (k.isPlayer || rt.squad.includes(k))) F.mkFlankFought = true;
+    // 先手の最後の一人が更新の合間に倒れた時も、持ち場で受けた記録を残す。
+    if (F.mkG?.i === 2 && F.step === 1 && !F.dpOn && v.team === 1 &&
+        (v.group === F.w1 || v.group === F.scout) && k?.team === 0 && rt.player.u.alive) {
+      const p = rt.player.u.pos;
+      if (Math.hypot(p.x - HIRATE_POST.x, p.z - HIRATE_POST.z) < 18 &&
+          Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 22) F.mkG.contact = true;
+    }
     // 最後の赤備えが更新の合間に倒れても、持ち場で受けた事実を残す。
     // 討ち取り後の兵は敵探しから外れるため、生きた兵の走査だけでは取りこぼす。
     if (F.mkG?.i === 3 && F.step === 2 && !F.dpOn && v.team === 1 && v.group === F.aka &&
