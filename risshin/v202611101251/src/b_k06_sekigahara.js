@@ -853,7 +853,13 @@ const k06_sekigahara = {
       if (F.shiMet && !F.toyoSaid) { F.toyoSaid = true; rt.say('島津豊久', '叔父上を落とせ！　ここは豊久が引き受け申す！', 3.5); }
       if ((F.shiHeld || 0) > HOLD_S * 0.6 && !F.iiHurt) {
         F.iiHurt = true;
-        rt.say('使番', '井伊さま、島津の鉄砲に撃たれ手負い！', 3);
+        const naomasa = F.ii?.units.find((u) => u.name === '井伊直政' && u.alive && !u.gone);
+        if (naomasa) {
+          // 知らせだけで済ませず、本人も共通の手傷の動きで戦列から退く。
+          naomasa.hp = Math.min(naomasa.hp, naomasa.maxHp * 0.28);
+          rt.army.generalWounded(naomasa, F.shima.leader);
+          rt.say('使番', '井伊さま、島津の鉄砲に撃たれ手負い！', 3);
+        }
         if (alive(F.ii)) goTo(F.ii, { x: HOLD5.x + 20, z: HOLD5.z - 30 });
       }
       // 陣場野への移動中に島津を受け終えても、家康・幕・馬印が着く前に首実検へ進めない。

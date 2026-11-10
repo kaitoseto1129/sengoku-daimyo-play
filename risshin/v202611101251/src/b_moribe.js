@@ -2892,7 +2892,10 @@ const moribe = {
     const intro = typeof document !== 'undefined' && document.getElementById('intro');
     if (intro && !intro.hidden && intro.querySelector('.card')) return null;
     const q = this.missionPin(rt);
-    if (!q || q.enemy || q.unit) return null;
+    // 見える敵の頭上印との重複は missionPin で省いている。
+    // 画面外や雨の向こうの本人まで捨てると、共通の見通し判定でも
+    // 人物の案内が外れた時に、行き先が一本も残らない。
+    if (!q) return null;
     return q;
   },
   noMiniMap: true,
@@ -3190,7 +3193,7 @@ const moribe = {
       return q;
     }
     if (!F.signal) {
-      if (F.pointDone) return null;
+      // 渡河済みでも、開戦の合図までは同じ北岸の待機先を保つ。
       pos = POINT2; r = FORD_R; hide = 0;
       q.label = '楡俣川の北岸の畦';
       q.gatherArea = true; // ピンの根元に、到着できる範囲を描く。

@@ -308,7 +308,9 @@ const k01_fushimi = {
     const at = moving ? fushimiWay(rt.army, rt.player.u, C.at) : fighting ? C.at : rest || (m && !m.red ? m.pos?.() : null);
     if (!at) return null;
     const p = rt.player.u.pos;
-    if ((!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
+    // 別れの間は段がまだ無い。初期位置が持ち場の十二歩内でも、
+    // 開戦前の案内まで到着扱いで消さない（全戦通しの開始時の指摘）。
+    if (C && (!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
     T.label = moving && D.i === 11 && at !== C.at ? '本丸の裏口' : (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;

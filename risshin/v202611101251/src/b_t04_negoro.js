@@ -1074,6 +1074,13 @@ const t04_negoro = {
       tick(rt, C, m, ctx, el, dt) {
         const F = rt.flags, pu = rt.player.u, p = toL(pu.pos.x, pu.pos.z);
         fireTick(rt, dt || 0, el, NG);
+        // 火の回る橋から守り手が実際に退く時に知らせる。台詞だけ先に退却させない。
+        if (!C.retreat && el >= 45) {
+          C.retreat = true;
+          const retreating = C.groups.some(alive);
+          for (const g of C.groups) flee(g);
+          if (retreating) rt.say('使番', '根来の衆、奥の谷へ退き始めました！　大塔へ火を渡させぬよう、お進みください', 4);
+        }
         // 門の内の守りが崩れたら、味方は橋を渡って大塔の前へ
         if (!C.over && (!alive(F.innerG) || F.innerG.count <= 4 || el > 40)) {
           C.over = true;

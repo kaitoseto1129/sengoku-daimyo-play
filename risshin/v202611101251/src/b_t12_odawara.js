@@ -284,7 +284,12 @@ function sogamaeWall(rt) {
   // 篠曲輪の中には櫓を建てない（狭い出丸で、木戸のそばの櫓の床がカメラの上をふさいだ）
   for (const [x, z] of [[SHINO.x1 - 2, SHINO.z1 - 2], [SHINO.x0 + 3, SHINO.z0 + 2], [88, -54]]) rt.scene.add(nobori(W, x, z, 'hojo', 6));
   // 総構えの内の東の町（板葺の町家。官兵衛の通る道は空ける）
-  for (const [x, z, r] of [[80, -50, 0.1], [70, -66, -0.2], [84, -84, 0.3], [56, -78, 0.05], [50, -95, -0.25], [72, -104, 0.2]]) rt.scene.add(hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 }));
+  for (const [x, z, r] of [[80, -50, 0.1], [70, -66, -0.2], [84, -84, 0.3], [56, -78, 0.05], [50, -95, -0.25], [72, -104, 0.2]]) {
+    const house = hut(W, x, z, 7, 5, r, { roof: 0x6a5c44 });
+    // 屋根だけでなく板壁もカメラを遮る。本丸前から横を向いても家の中へ入れない。
+    house.traverse((o) => { if (o.isMesh) o.userData.camBlock = true; });
+    rt.scene.add(house);
+  }
   for (const [list, mat] of [[parts, castleMat('shitami')], [wood, new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x8a7a64 })]]) {
     const geo = mergeGeometries(list.map((g) => g.toNonIndexed())); for (const g of list) g.dispose();
     const m = new THREE.Mesh(geo, mat);
@@ -306,6 +311,21 @@ function sogamaeWall(rt) {
     rt.scene.add(kuruwaBldg(W, 'kura', CASTLE.x + 11, CASTLE.z + 6, 0, { ita: true, boardRoof: true }));
     for (const [x, z] of [[HON.x0 + 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z0 + 2.5], [HON.x1 - 2.5, HON.z1 - 2.5]]) rt.scene.add(sumiyagura(W, x, z, { w: 4.2, d: 3.6, base: 0.3, inside: false }));
     rt.scene.add(yaguramon(W, HON.x0 + 6, HON.z1 - 1.4, 5, 0, { doors: false, inside: false, earth: true }));
+    // 門の中央と脇で土塁の高さが違う。渡櫓の床まで板囲いの台を延ばし、下を空洞にしない。
+    const gateX = HON.x0 + 6, gateZ = HON.z1 - 1.4;
+    const floorY = W.heightAt(gateX, gateZ) + 3.85;
+    const supportGeo = new THREE.BoxGeometry(2.6, 1, 4);
+    const supportMat = new THREE.MeshLambertMaterial({ color: 0x786a55 });
+    for (const side of [-1, 1]) {
+      const x = gateX + side * 3.9;
+      let bottom = W.heightAt(x, gateZ) - 0.4;
+      for (const dx of [-1.3, 1.3]) for (const dz of [-2, 2]) bottom = Math.min(bottom, W.heightAt(x + dx, gateZ + dz) - 0.4);
+      const support = new THREE.Mesh(supportGeo, supportMat);
+      support.scale.y = Math.max(0.1, floorY - bottom);
+      support.position.set(x, bottom + support.scale.y / 2, gateZ);
+      support.castShadow = true; support.receiveShadow = true; support.userData.camBlock = true;
+      rt.scene.add(support);
+    }
   } catch (e) { console.warn(e); }
   rt.scene.add(yagura(W, HACHIMAN.x, HACHIMAN.z));
   for (const [x, z] of [[HON.x0 + 3, HON.z1 - 4], [HON.x0 + 9, HON.z1 - 4], [HACHIMAN.x + 3, HACHIMAN.z + 2]]) rt.scene.add(nobori(W, x, z, 'hojo', 7));
