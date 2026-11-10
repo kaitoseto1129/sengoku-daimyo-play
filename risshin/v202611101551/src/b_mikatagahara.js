@@ -87,8 +87,13 @@ function mikataEnemySignVisible(rt, u) {
   for (let part = u.mesh; part; part = part.parent) if (!part.visible) return false;
   // 旗の親が見えていても、胴の準備中・切替中には敵印を先に出さない。
   const human = u.human?.root;
-  if (!(human?.visible && human.parent) && !u.vatOn && !u.efuda && !u.imp &&
-      !(u.body?.visible && u.body.parent)) return false;
+  // 胴自身の表示だけでなく、その親が隠されている切替中も調べる。
+  // 旗と胴は別の枝にあるため、旗の親だけの確認では印が残る。
+  let humanVisible = !!(human?.visible && human.parent);
+  for (let part = human?.parent; humanVisible && part; part = part.parent) if (part.visible === false) humanVisible = false;
+  let bodyVisible = !!(u.body?.visible && u.body.parent);
+  for (let part = u.body?.parent; bodyVisible && part; part = part.parent) if (part.visible === false) bodyVisible = false;
+  if (!humanVisible && !u.vatOn && !u.efuda && !u.imp && !bodyVisible) return false;
   return sightPoint(rt, u.pos, 170, true, u.mounted ? 2 : 1.2);
 }
 // 落ちた槍の握りは中央ではない。実際の石突と穂先から坂の傾きを取る。
