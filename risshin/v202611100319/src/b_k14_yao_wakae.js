@@ -514,7 +514,10 @@ const k14_yao_wakae = {
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
     // その戦場へ寄ってから達成を判定する。後方で待つだけでは目標に印を付けない。
-    if (dist(P.pos, STEP_AT[F.step]) < 34) F.stepNear = true;
+    // 押し合いで隊が動いた時も、実際に案内した印へ着けば到着とする。
+    // 元の布陣位置だけを見ると、印の所で敵を退けても段が止まる。
+    const pin = this.missionPin(rt);
+    if (dist(P.pos, STEP_AT[F.step]) < 34 || (pin && dist(P.pos, pin) < pin.r)) F.stepNear = true;
     const left = STEP_T[F.step] - (rt.t - F.stepT);
     if (F.step >= 2 && !F.kawate && (rt.t - F.stepT > 40 || F.step >= 3)) {
       // 井伊の先手の川手良列が深入りして討たれる（史実）。堤の鉄砲に撃たれ、右の先鋒の庵原朝昌が代わる

@@ -530,7 +530,8 @@ const t02_shizugatake = {
       [{ type: 'busho', n: 1, o: { name: '丹羽長秀', invuln: true, horse: true, flag: NIWA } }, { type: 'samurai', n: 3, o: { flag: NIWA } }, { type: 'ashigaru', n: 9, o: { flag: NIWA, flagScale: 1 } }, { type: 'gun', n: 3, o: { flag: NIWA } }]);
     F.niwaG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; };
     // 物見の組も東の口へ戻って並ぶ
-    if (live(F.scoutG)) { F.scoutG.order = 'move'; F.scoutG.dest = { x: MOUTH.x - 2, z: MOUTH.z - 6 }; F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; }; }
+    // 名のない物見の組は共通の判断で七十歩先へ打って出る。段の下知を優先し、口を空けない。
+    if (live(F.scoutG)) { F.scoutG.noAI = true; F.scoutG.order = 'move'; F.scoutG.dest = { x: MOUTH.x - 2, z: MOUTH.z - 6 }; F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; }; }
     // 寄せ手は東の口へ向かって登る（北と北東から。三度）
     const wave = (x, z, n) => {
       const g = enemyGroup(rt, { ...SAKUMA, name: '佐久間の手', anchor: { x, z }, facing: Math.atan2(MOUTH.x - x, MOUTH.z - z), fleeDir: { x: 0, z: -1 }, width: 5, morale: 90, noRout: true, dmgMult: 0.45,   // 11/6 九2：士気 75 では柵の鉄砲で口の 40 手前で崩れ、口へ来なかった

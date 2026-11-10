@@ -410,7 +410,9 @@ html:root body #hud#hud#hud.shigino-goals #h-prog#h-prog.goal-mode .pg-goals h3 
       F.wata = this.foe(rt, '渡辺糺の隊', { x: -200, z: -1 }, [{ type: 'busho', n: 1, o: { name: '渡辺糺', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '穴澤盛秀', horse: true } }, uS(7), uA(26), uG(10)], { wait: { x: -52, z: -1 }, column: true, width: 5 });
       F.kimu = this.foe(rt, '木村宗明の隊', { x: -216, z: 1 }, [{ type: 'busho', n: 1, o: { name: '木村宗明', invuln: true, horse: true } }, uS(6), uA(22), uG(8)], { wait: { x: -66, z: 1 }, column: true, width: 5 });
       rt.say('須田長義', '残るは三の柵じゃ。指図する井上を討てば、鉄砲は止む！', 3.2);
-      rt.after(4, () => rt.say('井上頼次', '引き付けて放て。堤の上の者を一人も通すな！', 3));
+      rt.after(4, () => {
+        if (F.step === 2 && !F.ending && F.inoU?.alive) rt.say('井上頼次', '引き付けて放て。堤の上の者を一人も通すな！', 3);
+      });
       rt.after(24, () => { if (F.step === 2) rt.say('足軽', '西の堤に桐の旗の列！　城から助けが来るぞ。急げ！', 3); });
     } else if (n === 3) {
       fenceDown(rt, F.fence3); this.takeFlags(rt, 3);

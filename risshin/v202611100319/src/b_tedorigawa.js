@@ -1905,6 +1905,9 @@ const tedorigawa = {
     return u && rt.player.inRange && rt.player.rangeCueTarget === u ? null : q;
   },
   introTaskFirst: true,
+  // 布陣図でも北岸の織田勢と南の退き口を隔てる川を示す。戦場と同じ流路を使う。
+  introMapLines: [{ kind: 'river', pts: RIVER }],
+  introMapPlaces: [{ x: -45, z: -3, name: '手取川' }],
   introBriefOnly: true, // 出陣の札は年月日・戦名・両軍の数・短い下知だけにする。
   introPeopleFolded: true, // 退き方を先に読み、人物の説明は開いて最後まで読めるようにする。
   // 11/8 critic60 五4：人物の欄に帰ってしまう秀吉が載り、大将の柴田が載らなかった。この戦の二人だけに
@@ -3204,8 +3207,10 @@ const tedorigawa = {
         F.downOrdersCleared = true; F.ending = true;
         if (F.dp) F.dp.on = false;
         rt.tracker.main = false;
-        rt.objRemove('main'); rt.objRemove('dp');
-        for (const id of ['shiba', 'ford', 'dp', 'south', 'shallow', 'crossing']) { rt.unmark(id); rt.unzone(id); }
+        for (const id of ['main', 'dp', 'konzatsu', 'konzatsu2', 'konzatsu3']) rt.objRemove(id);
+        // 物見・救援・最後の退却で追加した印も、倒れた後の下知として残さない。
+        for (const id of ['shiba', 'ford', 'dp', 'south', 'shallow', 'crossing',
+          'nanaoLook', 'nanaoCargo', 'konzatsuW', 'konzatsuR', 'konzatsuC', 'furikiru', 'furikiruC']) { rt.unmark(id); rt.unzone(id); }
         for (let i = 0; i < RETREAT_LINES.length; i++) rt.unmark('line' + i);
         F.postFlag.visible = false;
         // 倒れた処理は一度だけ。共通側が先に知らせた重傷を呼び直さない。
