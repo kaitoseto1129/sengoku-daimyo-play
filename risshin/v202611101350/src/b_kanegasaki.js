@@ -2984,7 +2984,14 @@ const kanegasaki = {
   },
 
   setup(rt) {
-    { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; const d = td.call(this, a, s); return s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（この戦だけ）
+    {
+      const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor;
+      P.takeDamage = function (a, s) {
+        const missile = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow';
+        // 命を減らす前に軽減する。返り値だけを変えても傷と気力には反映されない。
+        return td.call(this, s && !s.isStruct && !missile ? a * k : a, s);
+      };
+    }
     const W = rt.world;
     const F = rt.flags;
     timeslipField(rt);   // 身の回りの若葉・捨てた槍と笠・矢（def.timeslip）
