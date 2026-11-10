@@ -3562,7 +3562,7 @@ const shigisan = {
     //   天主に火が回り、順慶の言葉と語りが出てから締める。
     // 11/6 fixc0814（描いて遊んだ終わり・二度）：カメラは勝手に回らない（kaito 11/2 V）ので、西から口へ来た本人は
     //   東を向いたまま、北の天主の火を一度も見ずに勝ちの札になっていた（四6・二4）。▼「天主の上の階」を残し、本人が天主の方を向いて
-    //   二秒見るまで締めを待つ（二十秒で締める）。
+    //   二秒見るまで締めを待つ。時間だけでは、火を見たことにしない。
     F.keepSeen = 0;
     // 左右が合っていても、空や足元を見ている間は火を見たことにしない。
     const keepView = new THREE.Vector3();
@@ -3571,7 +3571,7 @@ const shigisan = {
       const pl = rt.player, P = pl?.u?.pos;
       // 終幕の待ち時間中に倒れた本人へ、南口を守り切った印を付けない。
       if (!P || !pl.u.alive || pl.u.hp <= 0) return;
-      if (rt.t - F.castleFireAt < 27) {
+      {
         rt.camera.updateMatrixWorld();
         keepView.set(KEEP_AT.x, W.heightAt(KEEP_AT.x, KEEP_AT.z) + KEEP_AT.up + 2, KEEP_AT.z).project(rt.camera);
         const visible = Math.abs(keepView.x) < 0.9 && Math.abs(keepView.y) < 0.9 && keepView.z > -1 && keepView.z < 1;

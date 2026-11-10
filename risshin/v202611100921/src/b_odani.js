@@ -2923,11 +2923,13 @@ const odani = {
     return F.C.kuruwa.koma.test(p.x, p.z) ? 8 : 7;
   },
   missionHeading(rt) {
-    if (!rt.over && !rt.flags.ending && rt.flags.step >= 1) return '①②③④⑤'[odaniGoalNow(rt)] + ODANI_GOALS[odaniGoalNow(rt)];
     const F = rt.flags, text = this.missionOrder(rt);
     // 一行表示では補足が隠れる。撤退の期限も今の下知と同じ札へ収める。
-    return !F.ending && !rt.over && !F.fallen && !(F.komaDown && !F.honAttack) && F.collapseAt !== undefined
-      ? `退くまで${Math.max(0, Math.ceil(F.collapseAt - rt.t))}秒 ${text}` : text;
+    if (!F.ending && !rt.over && !F.fallen && !(F.komaDown && !F.honAttack) && F.collapseAt !== undefined)
+      return `退くまで${Math.max(0, Math.ceil(F.collapseAt - rt.t))}秒 ${text}`;
+    if (!rt.over && !F.ending && F.step === 3 && !F.komaAttack && F.awayT > 0) return text;
+    if (!rt.over && !F.ending && F.step >= 1) return '①②③④⑤'[odaniGoalNow(rt)] + ODANI_GOALS[odaniGoalNow(rt)];
+    return text;
   },
   missionOrder(rt) {
     const F = rt.flags;
@@ -5829,7 +5831,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
             trailAhead(rt, ONO_WEST_ENTRY, idx);
           }
         }
-        F.awayT = enemies > 0 && friends === 0 ? F.awayT + dt : 0;
+        // 本人が内で守る間は、味方が倒れても持ち場を放棄した扱いにしない。
+        F.awayT = !inside && enemies > 0 && friends === 0 ? F.awayT + dt : 0;
         const southRepelled = counterRepelled(rt, F.south, KYO.z1);
         const northRepelled = counterRepelled(rt, F.north, KYO.z0);
         const repelled = southRepelled && northRepelled;

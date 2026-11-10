@@ -53,7 +53,7 @@ export function step(H) {
         rt.after(12.8, () => rt.say('徳川家康', '……六年前は、わしも殿下と小牧で睨み合うた。それが今は、この囲みの一手よ', 4));
       }
       // 下知は本陣へ着いて聞き終えるまで済ませない。
-      if (C.arrived) return el - C.arrived > 17.5;
+      if (C.arrived) return Math.hypot(P.x - H.IE_FRONT.x, P.z - H.IE_FRONT.z) < 14 && el - C.arrived > 17.5;
       return false;
     },
     end(rt) {

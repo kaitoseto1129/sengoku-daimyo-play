@@ -511,6 +511,15 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
 
   // 下知による実射だけは取り置きの弾を使う。
   commandShot(rt, u, target) {
+    // 不発でも弾は減る。最後の一発を使い切る前に後続の弾薬を受け取り、
+    // 脇差へ持ち替えて川越しの救援が止まるのを防ぐ。発砲の成否は実射で判定する。
+    if (u.gunAmmo <= 1) {
+      u.gunAmmo = 6;
+      if (!rt.flags.ammoSupplied) {
+        rt.flags.ammoSupplied = true;
+        rt.say('水原親憲', '後続の弾薬を受け取れ。筒を捨てるな、装填を続けよ！', 3);
+      }
+    }
     rt.flags.commandedShot = true;
     try { return rt.army.fireGun(u, target); }
     finally { rt.flags.commandedShot = false; }
