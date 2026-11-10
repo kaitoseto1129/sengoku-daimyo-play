@@ -409,6 +409,9 @@ function goalBoard(rt) {
     const on = me.alive && rt.t > 0.5 && !rt.over && !rt.choice && !this.introWaiting &&
       !(intro && !intro.hidden && intro.firstElementChild) &&
       !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    // 共通の印が札を避けても、戦固有の▼で目標や人数を覆ってしまわないようにする。
+    // 札の範囲は共通の記録を使い、毎コマ測り直さない。
+    const rects = on && this.hudRects ? this.hudRects() : null;
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 ||
@@ -416,7 +419,7 @@ function goalBoard(rt) {
       const d2 = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
       if (d2 > 3600) continue;
       // _nearSignOn は共通の表示候補で、実際に描いた印ではない。
-      // 札や別の印との重なりで共通の印が省かれても、この戦の▼は残す。
+      // 別の印との重なりで共通の印が省かれても、この戦の▼は残す。画面の札の上だけは避ける。
       // 二十五 m の内は霧でも必ず付ける（斜面の斬り合いで、目の前の後藤勢に▼が無かった。九3「一人残らず」）
       if (d2 > 625) {
         if (!(u._dmSeenAt > rt.t - .34 && u._dmSeenAt <= rt.t)) { u._dmSeen = sightUnit(rt, u); u._dmSeenAt = rt.t; }
@@ -424,6 +427,12 @@ function goalBoard(rt) {
       }
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      const x = (v.x + 1) * innerWidth / 2, y = (1 - v.y) * innerHeight / 2;
+      let covered = false;
+      if (rects) for (const r of rects) {
+        if (x + 15 > r.left && x - 15 < r.right && y > r.top && y - 28 < r.bottom) { covered = true; break; }
+      }
+      if (covered) continue;
       let el = tris[n];
       if (!el) {
         el = tris[n] = document.createElement('span');
@@ -433,7 +442,7 @@ function goalBoard(rt) {
       }
       n++;
       el.hidden = false;
-      el.style.transform = `translate(${((v.x + 1) * innerWidth / 2).toFixed(1)}px,${((1 - v.y) * innerHeight / 2).toFixed(1)}px) translate(-50%,-100%)`;
+      el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`;
     }
     for (let i = n; i < tris.length; i++) tris[i].hidden = true;
     return out;

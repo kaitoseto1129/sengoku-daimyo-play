@@ -101,7 +101,8 @@ export function horseThreatTick(army, u, dt, player = null) {
   for (const f of army.world.fires || []) {
     if (f.lit === false || f.carrierUnit === u || Math.abs((f.base || 0) - u.pos.y) > 5) continue;
     const x = f.x - u.pos.x, z = f.z - u.pos.z, d = Math.hypot(x, z);
-    if (d < 1.8 + (f.size || 1) && (d < 2 || x * fx + z * fz > 0)) { danger = true; H.refuseReason = '火'; strength = 0.8; break; }
+    // 11/10 関所2（根白坂）：真上の篝火（陣幕の口の夜の灯）で四方とも拒み、馬上の本人が動けなくなった。背を向ければ離れられるよう、前にある火だけ拒む
+    if (d < 1.8 + (f.size || 1) && x * fx + z * fz > 0) { danger = true; H.refuseReason = '火'; strength = 0.8; break; }
   }
   H.refuseUntil = danger ? now + 0.3 : 0;
   if (danger) horseStartle(army, u, strength, player);

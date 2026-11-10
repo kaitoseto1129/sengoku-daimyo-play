@@ -3911,9 +3911,9 @@ const mitsukuri = {
     solidCircle(50, -99, 0.95);
     finalizeKitBatch(rt, stoneBatch);
     // 三の郭の柵と二の丸・本丸の塀も即時の視点判定へ入れる。
-    // 城の定義と同じ正式名で選び、二の丸が「二の丸（木戸構え）」のため漏れる事を防ぐ。
+    // 城の定義の名と、この戦で短くした「二の丸」の両方を拾う。
     // 口は既存の壁の線に無いので塞がない。壊れた壁は上の判定から外す。
-    for (const wall of C.walls) if (wall.seg && ['本丸', '二の丸（木戸構え）', '三の郭（坂の上）'].includes(wall.name)) {
+    for (const wall of C.walls) if (wall.seg && ['本丸', '二の丸', '二の丸（木戸構え）', '三の郭（坂の上）'].includes(wall.name)) {
       const [ax, az, bx, bz] = wall.seg, dx = bx - ax, dz = bz - az, length = Math.hypot(dx, dz);
       if (length < 0.01) continue;
       let bottom = Infinity, top = -Infinity;

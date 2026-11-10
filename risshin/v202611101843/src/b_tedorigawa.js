@@ -1773,7 +1773,11 @@ html:root body #hud#hud#hud.tedo-goals #h-prog#h-prog.goal-mode .pg-goals :is(h3
 
 // 雨夜の遠い頭上に▼だけ並べない。兵の胴が見え、姿を読める大きさの時に出す。
 function tedoEnemySignVisible(rt, u) {
-  if (rt.flags.ending || u.group?.tedoFrom && !u.group.tedoActive || !sightScreenUnit(rt, u)) return false;
+  return !rt.flags.ending && tedoPersonVisible(rt, u);
+}
+// 武将名も胴の見通しへ合わせる。余韻で退く将の名は、姿が見える間は残す。
+function tedoPersonVisible(rt, u) {
+  if (u.group?.tedoFrom && !u.group.tedoActive || !sightScreenUnit(rt, u)) return false;
   const camera = rt.camera, p = u.pos, e = camera.matrixWorldInverse.elements;
   const depth = -(e[2] * p.x + e[6] * (p.y + 0.9) + e[10] * p.z + e[14]);
   if (depth <= 0 || (u.bodyHeight || 1.72) * VIEW.h * camera.projectionMatrix.elements[5] / (2 * depth) < 16) return false;
@@ -1792,6 +1796,7 @@ const tedorigawa = {
   // 印は共通の赤い▼一本。専用の補助印を重ねず、体の見通しをカメラから確かめる。
   keepBattleSigns: true,
   enemySignVisible: tedoEnemySignVisible,
+  nameTagVisible: tedoPersonVisible,
   nearbyAllySignLimit: 0,
   noLeaderFollow: true, // 11/4：印は一つだけ（AL・BH6）。行き先のピンに青い▼を重ねない
   noDodgeCard: true,

@@ -4416,8 +4416,12 @@ const hiei_mtn = {
     // 見えない遠方の敗走では、近くの戦況を伝える八秒の枠を使わない。
     if (!seen) return;
     g._routSaid = true; F.routSaidT = rt.t;
-    const V = [`${g.name}が崩れた`, `${g.name}の寄せが止まった`, `${g.name}が持ち場を離れた`, `${g.name}が山の奥へ逃げていく`];
-    rt.say('足軽', V[(F.routN = (F.routN || 0) + 1) % V.length], 2.5);
+    // 通し記録 A095：同じ「崩れた」を順送りせず、退いた隊と道の変化を伝える。
+    const line = g === F.monjuBow ? '文殊楼脇の弓の衆が門の持ち場を離れた'
+      : g === F.courtBow ? '廻廊の弓の衆が中堂前から退いていく'
+        : g.units.every((u) => u.type === 'bow') ? `${g.name}が弓を収めて退いていく`
+          : `${g.name}が持ち場を離れた。深追いするな`;
+    rt.say('足軽', line, 2.5);
   },
 };
 
