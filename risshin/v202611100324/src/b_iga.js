@@ -2972,7 +2972,7 @@ function igaWallVolley(rt, dt) {
   // 石は土塁から三十五歩まで、弓は六十五歩まで届く。
   const climbers = F.igaClimbers, inBow = F.igaInBow, near = F.igaNearClimbers;
   climbers.length = inBow.length = near.length = 0;
-  for (const u of A.units) if (u.alive && u.team === 0 && !u.isStruct && !u.fleeing && u.pos.z > rimZ + 3 && Math.abs(u.pos.x) < 30) {
+  for (const u of A.units) if (u.alive && u.team === 0 && !u.isStruct && !u.fleeing && !u.woundOut && !u.noTarget && !u.gone && u.pos.z > rimZ + 3 && Math.abs(u.pos.x) < 30) {
     if (u.pos.z < rimZ + 36) {
       climbers.push(u);
       if (Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z) < 14) near.push(u);
@@ -2999,8 +2999,8 @@ function igaWallVolley(rt, dt) {
   if ((F.igaVolleyT -= dt) <= 0) {
     F.igaVolleyT = 4 + Math.random() * 2;
     const bow = F.wallBow?.units.find((q) => igaReady(q) && q.type === 'bow');
-    // 本人が届く内なら本人の周り、そうでなければ坂を登る味方の固まりへ。
-    const at = Math.hypot(P.pos.x, P.pos.z - rimZ) < 66 ? P : inBow[Math.floor(Math.random() * inBow.length)];
+    // 本人も坂の射程内にいる時だけ優先する。城側や道の外へ下がった本人へ矢をそらさない。
+    const at = inBow.includes(P) ? P : inBow[Math.floor(Math.random() * inBow.length)];
     if (bow && at) {
       const a = Math.random() * Math.PI * 2, r = Math.random() * 2, x = at.pos.x + Math.cos(a) * r, z = at.pos.z + Math.sin(a) * r;
       rainVolley(A, F.wallBow, bow, { x, y: W.heightAt(x, z), z }, Math.hypot(x - bow.pos.x, z - bow.pos.z));

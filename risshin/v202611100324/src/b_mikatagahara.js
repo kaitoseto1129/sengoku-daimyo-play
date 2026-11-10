@@ -2723,6 +2723,13 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       rt.say('足軽', '平手の殿が討たれたがや！　退く道を塞がせるな！', 3);
     }
     if (F.mkFlankArrived && v.group === F.aka && k && (k.isPlayer || rt.squad.includes(k))) F.mkFlankFought = true;
+    // 最後の赤備えが更新の合間に倒れても、持ち場で受けた事実を残す。
+    // 討ち取り後の兵は敵探しから外れるため、生きた兵の走査だけでは取りこぼす。
+    if (F.mkG?.i === 3 && F.step === 2 && !F.dpOn && v.team === 1 && v.group === F.aka &&
+        k?.team === 0 && rt.player.u.alive) {
+      const p = rt.player.u.pos, post = F.mkFlank ? FLANK_POST : PIKE_POST;
+      if (Math.hypot(p.x - post.x, p.z - post.z) < 40 && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 14) F.mkG.contact = true;
+    }
     if (v.team === 1 && k === rt.player.u) {
       F.foughtStep = F.step;
       if (F.mkG) F.mkG.hit = true;

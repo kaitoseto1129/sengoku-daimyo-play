@@ -4180,7 +4180,14 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const pursue = e && F.step !== 1 && (e === guardEnemy || e === bankEnemy || F.step === 5 && e.pos.x > -14);
   const awayFromWork = work && Math.hypot(u.pos.x - work.workAt.x, u.pos.z - work.workAt.z) >= 8;
   // 作業場を離れたら追撃を止める。届く初撃だけ受け、旗への道へ戻る。
-  if (e && (attacker && (!awayFromWork || d < reach) || !awayFromWork && (d < reach || pursue))) {
+  // 近い打ち手がいても敵へ踏み込まない。斬り合いで十六歩の作業範囲を離れ、四分で失敗していた。
+  if (awayFromWork) {
+    if (p.lock) inp.e.add('KeyQ');
+    goTo(p, inp, work.workAt.x, work.workAt.z, 2);
+    inp.guardHold = !!attacker && attackDist < reach;
+    return;
+  }
+  if (e && (attacker || d < reach || pursue)) {
     if (p.lock && p.lock !== e) inp.e.add('KeyQ');
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     // 敵の槍だけが届く所で受け続けず、反撃の間合いへ詰める。
