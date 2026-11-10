@@ -1507,7 +1507,7 @@ function withdrawStage(rt) {
     }
     // 将が生きている間は時刻で退かせない。討死後は残る旗本にも崩れを伝える。
     // 河合だけを解くと、山崎・龍興の旗本は将を失っても最後の一人まで退けない。
-    if (g.lastStand && !g.units.some((u) => u.type === 'busho' && u.alive)) {
+    if (g.lastStand && !g.units.some((u) => u.type === 'busho' && fighter(u))) {
       g.lastStand = false; g.noRout = false;
       if (fighting(g)) { retreat(g); tonezaka.onRout(rt, g); }
       continue;
