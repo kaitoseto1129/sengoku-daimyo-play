@@ -29,7 +29,15 @@ export function farSight(objs, { cap = 0.35, from = 45, to = 90, ground = null, 
   const one = (src) => {
     if (!src || !src.fog) return src;
     let m = made.get(src);
-    if (!m) { m = src.clone(); patch(m, tag, line); made.set(src, m); }
+    if (!m) {
+      m = src.clone();
+      // 材質の複製では描画の関数が引き継がれない。
+      // 木肌を明るく保つ処理も残してから、遠景の霧だけを足す。
+      m.onBeforeCompile = src.onBeforeCompile;
+      m.customProgramCacheKey = src.customProgramCacheKey;
+      patch(m, tag, line);
+      made.set(src, m);
+    }
     return m;
   };
   for (const g of [].concat(objs)) g?.traverse?.((o) => {

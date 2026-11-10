@@ -568,12 +568,11 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
           if (away && u.target) { u.target = null; u.watch = null; }
           if (away !== !!u._runSafe) { u._runSafe = away; u.invuln = away; }
         }
-        // 走る段で後れた組は段の行き先へ、先行した組と守る段の組は自分のそばへ。行き先を半秒ごとに替えると、
+        // 後れた組も先行した組も主人公のそばへ。任務地点へ直行させると、途中で止まった主人公を置き去りにする。
+        // 行き先を半秒ごとに替えると、
         //   替わるたびに隊の合図の待ち（army_signals.js）が入り足が止まるので、6m より大きく離れた時だけ替える
         // 主人公を追い越した組はそばへ戻す。行き先だけを追うと、立ち止まった主人公を置いて先へ走り続ける。
-        const goal = run ? goalOf(F.stage) : null;
-        const behind = goal && dist(c, goal) > dist(P.pos, goal);
-        const want = behind ? goal : { x: P.pos.x + 2, z: P.pos.z + 2 };
+        const want = { x: P.pos.x + 2, z: P.pos.z + 2 };
         if (far && (F.men.order !== 'move' || !F.men.dest || dist(F.men.dest, want) > 6)) F.men.dest = { x: want.x, z: want.z };
         if (far) { F.men.order = 'move'; F.men.speed = run || d > 16 ? 5.4 : 4.4; F.men.march = run || d > 16; F.men.aggro = run || d > 16 ? 2 : 10; }
         else { F.men.order = 'attack'; F.men.march = false; F.men.aggro = 10; F.men.seekRange = F.stage === 6 ? 6 : 14; }

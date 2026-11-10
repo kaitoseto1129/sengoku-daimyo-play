@@ -14,7 +14,7 @@ export function tick(rt, ctx, elapsed) {
     rt.say('物見', '村上の小早が南へ回るぞ！　鉄砲船も寄せて来る！', 3.5);
     rt.army.playFar('sig_kakari_taiko', { x: -40, z: 70 }, 0.8);
     ctx.surge(rt);
-    for (const b of F.boats) if (b.ranged && b.alive) rt.army.play('volley', { x: b.x, z: b.z }, 1);
+    // 鉄砲の音は舟上の射手が実際に撃った時に鳴らす。退く船や沈み始めた船から空の銃声を出さない。
   }
   if (!S.b && elapsed >= 140) {
     S.b = true;

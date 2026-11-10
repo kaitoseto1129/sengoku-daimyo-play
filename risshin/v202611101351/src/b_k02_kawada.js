@@ -465,7 +465,7 @@ const k02_kawada = {
     rt.setPhase('siege');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true, botBackAllowed: kawadaBackAllowed, withdrawWay: kawadaWithdrawWay }, [
+    depthStart(rt, { faction: 'oda', flag: 'oda', armor: WEST.armor, friends: () => [F.mine, F.nagayoshi, F.asano, F.hitotsu], look: (list) => dress(list, WEST), scale: 1, backing: false, fixedSpawn: true, dmg: 0.3, botSeek: 40, routeFight: true, botFoeAllowed: fightingFoe, botBackAllowed: kawadaBackAllowed, withdrawWay: kawadaWithdrawWay }, [
       // ① 明け方、南の筋を渡って中洲の小屋場島へ。北岸の鉄砲が浅瀬を撃つ
       island(DP.move({ to: ISLE, obj: '南の筋の浅瀬を渡り、中洲の小屋場島へ行け', label: '小屋場島', r: 9, max: 120,
         say: [['一柳直盛', '浅瀬はここじゃ。島まで止まるな']],
@@ -651,7 +651,8 @@ k02_kawada.travelGuideLabel = (rt) => {
 };
 
 // 戦線を離れた負傷兵や狙えない兵を、柵の口で戦う相手に数えない。
-const reachableFoe = (b, u, o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut && !b.army.wallBetween(u.pos, u.team, o.pos, false);
+const fightingFoe = (o) => !o.fleeing && !o.invuln && !o.noTarget && !o.woundOut && !o.rearWound && !o.downed && !o.dying;
+const reachableFoe = (b, u, o) => fightingFoe(o) && !b.army.wallBetween(u.pos, u.team, o.pos, false);
 k02_kawada.botBrain = (b, inp, { goTo }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
