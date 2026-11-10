@@ -1843,6 +1843,8 @@ const tedorigawa = {
   },
   // 11/4：頭上の札は「篝火」の火の字で「印へ進め」にならないよう、段ごとの行いで書く（AR1）。
   goalTargetOverride(rt) {
+    // 退き口への到着後、終幕を待つ間に南岸の持ち場へ呼び戻さない。
+    if (rt.flags.furikiruDone) return null;
     const marker = tedoPaceMarker(rt);
     if (marker) {
       const at = marker.pos();
@@ -1945,6 +1947,7 @@ const tedorigawa = {
   hideEdgeGoalDistance: true, // 火の中心への直線歩数を、持ち場へ着いた後の下知に重ねない。
   guidanceDistanceFirst: true,
   distanceText(rt, distance) {
+    if (rt.flags.furikiruDone) return '';
     const marker = rt.missionGuide?.marker;
     if (!marker) return '';
     const pace = tedoPaceMarker(rt);
@@ -1972,7 +1975,7 @@ const tedorigawa = {
   },
   guideMarker(rt) {
     const F = rt.flags;
-    if (!rt.player.u.alive || F.ending) return null;
+    if (!rt.player.u.alive || F.ending || F.furikiruDone) return null;
     const pace = tedoPaceMarker(rt);
     if (pace) return pace.id;
     if (F.shallowMarked) return 'shallow';

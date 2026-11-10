@@ -2487,11 +2487,17 @@ async function playPersona(game, spec, aud, c) {
 async function runPersona(game, key) {
   const per = PERSONAS[key] || PERSONAS.chu;
   window.__persona = per.key;
-  // 速回し：描画は写真を撮る時だけ（それ以外は描かない＝速い）
-  const caf = window.cancelAnimationFrame.bind(window);
-  window.requestAnimationFrame = (f) => setTimeout(() => f(performance.now()), 500);
-  window.cancelAnimationFrame = (id) => { clearTimeout(id); caf(id); };
-  if (game.renderer) { game.renderer.__r0 = game.renderer.render.bind(game.renderer); game.renderer.render = () => {}; }
+  // 速回しは写真の時だけ描く。描いて確かめる指定では、通常の描画と更新間隔を保つ。
+  const fast = Q.get('fast') !== '0';
+  if (fast) {
+    const caf = window.cancelAnimationFrame.bind(window);
+    window.requestAnimationFrame = (f) => setTimeout(() => f(performance.now()), 500);
+    window.cancelAnimationFrame = (id) => { clearTimeout(id); caf(id); };
+  }
+  if ((fast || Q.has('norender') || window.__norender) && game.renderer) {
+    game.renderer.__r0 = game.renderer.render.bind(game.renderer);
+    game.renderer.render = () => {};
+  }
   game.noLock = true;
   const aud = new Auditor();
   window.__aud = aud;
