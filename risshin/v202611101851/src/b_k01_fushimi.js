@@ -832,7 +832,9 @@ const allyN = (rt) => { let n = 0; for (const u of rt.army?.units || []) if (u.a
 k01_fushimi.force = (rt) => {
   const F = rt.flags;
   // 籠城で援軍は来ないので、出した数より増やさない（新手の足軽が追いつくと 1,562 → 1,608 と増えていた。critic60）
-  const a = F.a0n ? Math.min(F.aShown ?? 1800, Math.max(10, Math.round(1800 * Math.min(1, allyN(rt) / F.a0n)))) : 1800;
+  const remaining = allyN(rt);
+  // 本丸で戦う生存者がいる間だけ下限を保つ。全滅後に架空の十人を残さない。
+  const a = F.a0n ? Math.min(F.aShown ?? 1800, remaining ? Math.max(10, Math.round(1800 * Math.min(1, remaining / F.a0n))) : 0) : 1800;
   F.aShown = a;
   return { a, a0: 1800, b: Math.max(0, 40000 - (F.ek || 0) * 40), b0: 40000 };
 };

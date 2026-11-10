@@ -771,7 +771,12 @@ export const t05_ichinomiya = {
     rt.after(6.2, () => rt.say('谷忠澄', '白地の城へ戻り、殿に降るよう説きまする', 2.6));
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '水の手を断ち、一宮城を開かせた', pts: 15 }; }, '一宮城を開かせた');
-    rt.after(9, () => { envoy.fixed = false; envoy.order = 'move'; envoy.dest = { x: -16, z: 105 }; });
+    rt.after(9, () => {
+      // 小倉丸の奥（z105）で止めず、開いた本丸の口を通って帰す。
+      // 塀際から奥へ直進すると北面の塀に当たるため、門の正面を経由する。
+      envoy.fixed = false; envoy.order = 'path'; envoy.dest = null;
+      envoy.path = [[-16, 104], [-16, 110], [-16, 114]]; envoy.pathIdx = 0;
+    });
     // 城主を討って終わらせない：防衛線が崩れ、元親が継戦を諦めて降る（七月）。四国平定
     // 戸次川の伏線（docs/hetsugigawa_spec_1109.md）：十河存保（讃岐。秀長の手に付いて四国を攻めた）と、元親の嫡男 信親の名を先に聞かせる
     // 十河本人はこの曲輪にいない。姿の無い将を話し手にせず、使番が言葉を取り次ぐ。
