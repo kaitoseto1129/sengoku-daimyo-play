@@ -588,8 +588,8 @@ const t01_yamazaki = {
         if (!F.ikFord) { F.ikFord = true; F.ikeda.order = 'move'; F.ikeda.dest = { x: FORD_S.x - 2, z: FORD_S.z + 2 }; F.ikeda.speed = 5;
           F.ikeda.onArrive = (g) => { g.order = 'move'; g.dest = { x: FORD_N.x - 4, z: FORD_N.z + 2 }; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 10; q.seekRange = 12; }; }; }
         for (const u of F.ikeda.units) u.run = Math.max(u._run0, 5);
-      } else if ((F.stage === 4 || F.stage === 7) && F.ikeda.order === 'move' && F.ikeda.onArrive) {
-        // 反撃では北岸へ戻り、追撃では御坊塚の陣幕を避ける。着く前に主人公への追従で下知を消さない。
+      } else if ((F.stage === 3 || F.stage === 4 || F.stage === 7) && F.ikeda.order === 'move' && F.ikeda.onArrive) {
+        // 主人公の渡河が済んでも池田勢は北岸まで渡る。反撃の北岸への移動・追撃の陣幕の迂回も、着く前に追従で下知を消さない。
       } else if (c && far > 9) { if (F.ikeda.order !== 'move' || !F.ikeda.dest || dist(F.ikeda.dest, P) > 6) { F.ikeda.order = 'move'; F.ikeda.dest = { x: P.x, z: P.z + 3 }; } F.ikeda.onArrive = null; }
       else if (F.ikeda.order === 'move' && !F.ikeda.onArrive) { F.ikeda.order = 'attack'; F.ikeda.aggro = 24; F.ikeda.seekRange = 30; }
     }

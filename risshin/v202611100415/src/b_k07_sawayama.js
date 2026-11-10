@@ -253,6 +253,7 @@ const k07_sawayama = {
   },
   spawn: { x: START.x - 4, z: START.z, heading: -Math.PI / 2 },
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を八人討つ」で埋めない・三の1）
+  goalsAllRows: true,     // 共通の既定は今の一行だけ。始めから五つとも並べる。
   // 始まりの話の間（段の前）は、印を①の大手門へ（前は戦の大目標の言葉から「山の頂の本丸 35m」と出て、指す所と名が違った）
   goalSignTarget: (rt) => {
     const F = rt.flags, D = F.dp;
@@ -282,6 +283,20 @@ const k07_sawayama = {
   // 11/8 五3：敵を指す印が▼でなく黄色い角の丸い枠になる時があった。行き先と相手の印は頭上の▼だけ
   goalSignOnly: true,
   goalSignTriangle: true,   // 行き先が画面の外でも、回る矢印へ替えず▼を保つ（五3）
+  // 討てない石田一族や、前の曲輪から退く兵へ目標の印を向けない。
+  // 今の隊へ近づくまでは、曲輪の行き先を示す。
+  actionGuideTarget(rt) {
+    const C = rt.flags.dp?.cur, me = rt.player.u;
+    if (rt.flags.ending || C?.s.kind !== 'fight') return null;
+    let target = null, best = 30 * 30;
+    for (const g of C.groups || []) for (const u of g.units) {
+      if (!u.alive || u.team === me.team || u.invuln || u.noTarget || u.isStruct || u.perch || u.fleeing || u.dying || u.downed || u.woundOut || u.gone) continue;
+      const d = (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2;
+      if (d >= best || Math.abs(u.pos.y - me.pos.y) >= 4 || rt.army.wallBetween(me.pos, me.team, u.pos, false)) continue;
+      target = u; best = d;
+    }
+    return target;
+  },
   keepCombatTaskHeading: true,
   // 11/8 九7：カメラが門の梁・土塁・枡形の壁・塀の面にめり込んだ。肩越しの目を体へ寄せる
   camPull: -1.2,
@@ -324,6 +339,17 @@ const k07_sawayama = {
   },
 
   setup(rt) {
+    // 通し確認で出た瀕死の幕と札の重なり：幕は札より奥、戦場の中央は空ける。
+    if (!document.getElementById('sawayama-hud-css')) {
+      const st = document.createElement('style'); st.id = 'sawayama-hud-css';
+      st.textContent = `
+html body #hud:has(#h-prog[data-battle="k07_sawayama"]) #brinkfx { z-index:0; background:radial-gradient(ellipse at center, transparent 65%, rgba(40,0,0,.72) 100%); }
+html body #hud:has(#h-prog[data-battle="k07_sawayama"]) :is(#h-prog,#jk-vit) { z-index:2; }
+/* 共通の相手の印が刀の絵へ替わっても、この戦は赤い▼を保つ。 */
+html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal-sign .gs-sword { display:none !important; }
+html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal-sign .gs-tag i { display:block !important; background:#ff4a2e !important; }`;
+      document.head.appendChild(st);
+    }
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; return td.call(this, s && !s.isStruct && !m ? a * k : a, s); }; }   // 体力を引く前に刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     const W = rt.world, F = rt.flags;

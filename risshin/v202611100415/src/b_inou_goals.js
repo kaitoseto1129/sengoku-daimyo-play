@@ -12,6 +12,10 @@ export const GOALS = [
 export const inouDid = (rt, stage, n) => ((rt.flags.ks || [])[stage] || 0) >= n;
 // 案内は、今も刃を合わせられる敵本人にだけ付ける。
 export const inouEnemyAlive = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.rearWound && !u.fleeing && !u.group?.routing && !u.group?.routed && !u.invuln && !u.noTarget;
+// 討たれる本人以外に、今も手柄の相手にできる兵がいるか。
+// 退却中・手負いの生存者で最後の戦える一人の保護を外さない。
+export const inouLastFighter = (groups, target) => !(groups || []).some((g) =>
+  g.units.some((u) => u !== target && inouEnemyAlive(u)));
 // 11/8 十五分の構成（docs/oda15_plan_1108.md の 1・prototype/src/inou/）：行軍・林の前衛・横槍の三つ
 export const GOALS15 = {
   march: '稲生村の街道で組頭について進め',

@@ -45,15 +45,26 @@ function countForce(rt, g, ally = false) {
 }
 
 function sally(rt, H, n) {
+  // 夜の追撃と同じ九十九折りを逆に登る。麓から口への直線は切岸を横切る。
+  const path = H.ctx.road.slice().reverse();
+  // 柵の内まで登らず、口の前で列を開く。最後の折れの途中も道から外さない。
+  const endZ = MOUTH.z - 4;
+  const end = path.findIndex((q) => q[1] > endZ);
+  if (end > 0) {
+    const a = path[end - 1], b = path[end], t = (endZ - a[1]) / (b[1] - a[1]);
+    path.splice(end, path.length - end, [a[0] + (b[0] - a[0]) * t, endZ]);
+  }
+  const [x, z] = path[0];
   const g = enemyGroup(rt, { faction: 'takeda', flag: 'takeda', name: n === 1 ? '城方の出撃' : n === 2 ? '城方の二の手' : '大島杢之助の手', fixed: true, noGuard: true,
-    anchor: { x: MOUTH.x + (n === 1 ? -6 : 8), z: -64 }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 30, seekRange: 40, width: 10, formation: 'line', morale: 100, noRout: true, speed: 3.4 },
+    anchor: { x, z }, facing: 0, fleeDir: { x: 0, z: -1 }, aggro: 4, seekRange: 8, width: 2, formation: 'column', morale: 100, noRout: true, speed: 3.4 },
   n === 1 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 9, o: { flag: 'takeda' } }]
     : n === 2 ? [{ type: 'samurai', n: 2, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }, { type: 'gun', n: 2, o: { flag: 'takeda' } }]
     // 三の手は城の侍大将・大島杢之助が率いる（後に開城の礼に出て磔にされる三将の一人。ここでは討たれずに退く）
       : [{ type: 'busho', n: 1, o: { name: '大島杢之助', flag: 'takeda' } }, { type: 'samurai', n: 3, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 7, o: { flag: 'takeda' } }]);
   countForce(rt, g);
-  g.order = 'path'; g.pathIdx = 0; g.dest = null; g.path = [[MOUTH.x + (n === 1 ? -3 : 4), MOUTH.z - 4]];
-  g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 40; q.aggro = 40; };
+  g.roadColumn = true; g.followColumnRoad = true; g.colW = 2;
+  g.order = 'path'; g.pathIdx = 1; g.dest = null; g.path = path;
+  g.onArrive = (q) => { q.order = 'attack'; q.formation = 'line'; q.width = 10; q.seekRange = 40; q.aggro = 40; };
   // 11/9 二巡（織田H）：杢之助を invuln にすると、斬りかかっても傷がつかず「不死身」に見えた。
   //   傷は付くが、深手（命の四割）になると討たれる前に城へ退く（開城の礼に出る三将の一人なので、ここでは死なせない）。
   if (n === 3) {

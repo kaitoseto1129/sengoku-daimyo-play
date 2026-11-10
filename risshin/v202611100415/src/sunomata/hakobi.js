@@ -37,7 +37,10 @@ export function dest(rt) {
   // 荷下ろし中は舟着きを離れず、帰りは砦に着くまで実際の人足に付く。
   if (!v.backT) return v.dock;
   const p = v.homeGuide || (v.homeGuide = { x: 0, z: 0 });
-  const c = !v.wkHome && rt.flags.wk?.units.some(ready) ? rt.flags.wk.center() : null;
+  // 隊の中心が砦へ入っても、門外に残る荷を置き去りに案内しない。
+  const outside = !v.wkHome && rt.flags.wk?.units.find((u) => ready(u) &&
+    (Math.abs(u.pos.x) >= v.C.FORT - 2 || Math.abs(u.pos.z) >= v.C.FORT - 2));
+  const c = outside ? outside.pos : !v.wkHome && rt.flags.wk?.units.some(ready) ? rt.flags.wk.center() : null;
   p.x = c ? c.x : 0; p.z = c ? c.z : 0;
   return p;
 }
@@ -51,7 +54,8 @@ function back(rt) {
   if (F.wk) {
     F.wk.order = 'path'; F.wk.pathIdx = 0; F.wk.speed = 1.6;
     F.wk.path = [...KISHI_ROAD.slice(0, -1).reverse(), [0, C.FORT - 5], [-6, -10]];
-    F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; v.wkHome = rt.t; };
+    // 隊の到着通知は後列の帰還を保証しない。全員の位置は tick で確かめる。
+    F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; };
   }
   // 帰り道の脇の葦から、斎藤の物見が荷を狙って寄せる
   rt.after(6, () => {
