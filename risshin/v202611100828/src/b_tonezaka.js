@@ -1562,7 +1562,7 @@ const tonezaka = {
   noDodgeCard: true,
   enemyTriangleSigns: true,
   // 11/8 critic60（一2・十三4）：義景は峠の奥の本隊の内。十数メートル先の道に名札を出さない
-  hideNameTag: (u, rt) => u.name === '朝倉義景' || u.name === '河合吉統' && rt.flags.step >= 2,
+  hideNameTag: (u, rt) => u.name === '朝倉義景' || u.name === '河合吉統' && (rt?.flags?.step ?? 0) >= 2,
   nearbyAllySignLimit: 0,
   missionPinCaption: '',
   missionDetail: () => '',

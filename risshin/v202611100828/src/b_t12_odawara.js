@@ -521,7 +521,13 @@ function seats(rt) {
   F.hojo = enemyGroup(rt, { faction: 'hojo', name: '北条の本丸', anchor: { ...CASTLE }, facing: Math.PI / 2, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold' },
     dress([...['北条氏直', '北条氏政', '北条氏照'].map((name) => ({ type: 'busho', n: 1, o: { name, hat: 'kabuto_m', invuln: true, horse: false } })), { type: 'samurai', n: 18 }, { type: 'ashigaru', n: 22 }, { type: 'gun', n: 6 }], HOJO));
   // 本丸の奥の当主は堀の向こうで討てない。遠くから名札と命の棒を出さない（kaito AS：討てない総大将を討てる所に見せない）
-  for (const u of F.hojo.units) { u.invuln = true; if (u.name) u.isSub = true; }
+  for (const u of F.hojo.units) {
+    u.invuln = true;
+    if (u.name) u.isSub = true;
+    // 氏直らは討ち取る相手ではなく、開城を決める当主。名札だけを
+    // 隠すと近寄った兵が斬り続けるため、康定と同じく狙いから外す。
+    if (u.type === 'busho') u.noTarget = true;
+  }
   for (const u of F.hojo.units) if (u.type === 'busho') sit(u);
 }
 
