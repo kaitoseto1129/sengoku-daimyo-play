@@ -48,10 +48,7 @@ export function step(H) {
         { at: H.UESUGI_JIN, label: '上杉の陣', lines: [['上杉景勝', '越後から関東まで来たのは、謙信公以来よ'], ['直江兼続', '先代の謙信公は小田原を囲んで落とせなんだ。今度は囲むだけで落ちましょう'], ['上杉景勝', '今は殿下の一手じゃ。……世は変わった']] },
         { at: H.BEACH, label: '浜の船陣', lines: [['長宗我部元親', '四国で殿下と戦うた者が、今は殿下の船で城の海を塞いでおる'], [nm(rt), '敵だった方々が、皆ここに']] },
       ];
-      // 時が飛ぶ段。前の段（城から逃げる兵を迎える）で山王口の先まで追って行っても、七月の初めは井伊の陣から始める
-      //   （11/9 見回り：act・chu とも城の門の前 (46〜50,-96〜-103) に残り、東の前田の陣へ十分向かわず切り上げになった）
-      const P0 = rt.player.u.pos;
-      if (Math.hypot(P0.x - H.II_JIN.x, P0.z - H.II_JIN.z) > 40) H.warp(rt, H.II_JIN.x - 2, H.II_JIN.z + 6, rt.player.yaw);
+      // 七月も現在地から歩いて陣を訪ねる。前の段は山王川の岸で達成するので、井伊の陣へ移し直さない。
       rt.banner('七月の初め', '前田・上杉の北国勢が着いた');
       rt.obj('dp', '包囲の前田の陣・北条氏規・上杉の陣・浜の船陣を順に訪ね、直政の言葉を伝える', 'main');
       rt.say('井伊直政', `${nm(rt)}殿、着いたばかりの北国勢と、浜の船陣を回って参れ。囲みを緩めるな、と伝えよ`, 4.4);
@@ -62,12 +59,13 @@ export function step(H) {
       rt.objProgress('dp', `伝え終えた先 ${C.i}／${C.stops.length}か所`);
       if (!S) return el - C.t > 6;
       // 各陣へ着いて将の言葉を聞いてから次へ進む。
-      if (!C.talk && Math.hypot(P.x - S.at.x, P.z - S.at.z) < 10) {
+      const near = Math.hypot(P.x - S.at.x, P.z - S.at.z) < 10;
+      if (!C.talk && near) {
         C.talk = true; C.tt = el;
         sfx('obj', 0.6);
         S.lines.forEach(([who, text], k) => rt.after(k * 4.2, () => rt.say(who, text, 4)));
       }
-      if (C.talk && el - C.tt > S.lines.length * 4.2 + 1) { C.talk = false; C.i++; C.t = el; mark(rt, C); }
+      if (C.talk && near && el - C.tt > S.lines.length * 4.2 + 1) { C.talk = false; C.i++; C.t = el; mark(rt, C); }
       return false;
     },
     end(rt) {
