@@ -3474,14 +3474,18 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     g.roadColumn = true; g.followColumnRoad = true;
     // 寄せた道を戻る。東の端の兵を柵の中へ斜めに引き戻さない。
     let nearest = Infinity;
-    for (let i = 0; i < g.path.length; i++) {
-      const d = Math.hypot(g.anchor.x - g.path[i][0], g.anchor.z - g.path[i][1]);
-      if (d < nearest) { nearest = d; g.pathIdx = i; }
+    for (let i = 1; i < g.path.length; i++) {
+      const a = g.path[i - 1], b = g.path[i], dx = b[0] - a[0], dz = b[1] - a[1];
+      const t = Math.max(0, Math.min(1, ((g.anchor.x - a[0]) * dx + (g.anchor.z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
+      const d = Math.hypot(g.anchor.x - a[0] - dx * t, g.anchor.z - a[1] - dz * t);
+      // 最寄りの点ではなく、今いる道の次の折れへ退く。隣の折れが近くても切岸を横切らない。
+      if (d <= nearest) { nearest = d; g.pathIdx = i; }
     }
     g.speed = 2.2; g.aggro = 0; g.seekRange = 1.8; g.retreatOnly = true; g.noAI = true;
     g.focus = null;
     for (const u of g.units) { u.target = null; u.watch = null; }
-    g.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; q.noAI = false; q.aggro = 6; };
+    // 城側へ退いた手を共通の攻めへ戻すと、追撃の道へ再び出て来る。退却済みのまま留める。
+    g.onArrive = (q) => { q.order = 'hold'; q.retreatOnly = false; q.noAI = true; q.aggro = 0; };
   },
 
   onKill(rt, v, k) {

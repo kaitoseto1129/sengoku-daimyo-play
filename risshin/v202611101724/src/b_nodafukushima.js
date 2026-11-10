@@ -4596,7 +4596,9 @@ function restBackstep(b, inp, goTo, x, z, r) {
   const p = b.player, u = p.u;
   goTo(p, inp, x, z, r);
   const foe = b.army.nearestEnemy(u, 5, o => canJoin(o) && !o.isStruct && !o.farSim &&
-    Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos));
+    Math.abs(o.pos.y - u.pos.y) < 3 && !b.army.wallBetween(u.pos, -1, o.pos) &&
+    (!b.flags.retreating || o.swing && !b.army.terrainBlocks(u.pos, o.pos)));
+  // 撤退中は追手が振る時だけ受ける。近いだけで構えると二歩の速さに落ち、追手を離せない。
   if (!foe) return; // 間合いの外で構えを解き、気力を戻す。
   inp.guardHold = true;
   const moving = inp.k.has('KeyW'), way = p.yaw;
