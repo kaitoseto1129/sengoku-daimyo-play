@@ -62,20 +62,22 @@ export function install(rt, ctx) {
         let live = 0;
         // 遠ざかっただけの敵は払ったことにしない。一分半後に残兵へ退く下知を出す。
         for (const u of raid.units) if (ready(u)) live++;
-        if (live && rt.t - raidT > 90) {
+        const withdrawing = live > 0 && rt.t - raidT > 90;
+        if (withdrawing) {
           // 寄せた浅瀬へ引く。直線で西岸へ向かうと、まだ抜いていない杭に詰まる。
           raid.focus = null; raid.retreatOnly = true; raid.order = 'path';
           raid.formation = 'column'; raid.colW = 2; raid.holdFire = true; raid.fire = false;
           raid.path = [[-8, -76], [-28, -76], [-40, -60]]; raid.pathIdx = 0;
           raid.onArrive = (q) => { q.order = 'hold'; };
-          live = 0;
         }
-        rt.objProgress('main', `渡って来た雑賀衆 ${raid.units.length}人中 残り${live}人`);
-        if (!live) {
+        rt.objProgress('main', withdrawing ? `川上の浅瀬へ雑賀衆${live}人が退く` :
+          `渡って来た雑賀衆 ${raid.units.length}人中 残り${live}人`);
+        if (!live || withdrawing) {
           done = true;
           rt.unmark('monoRaid');
           if (!live) rt.award((t) => t.side.push('川上から渡った雑賀の小組を払った'), '渡った雑賀の小組を払った');
-          rt.say('堀秀政', 'よし。今のうちに川底の杭を抜くぞ！', 3.5);
+          rt.say('堀秀政', withdrawing ? '雑賀衆が退いた。今のうちに川底の杭を抜くぞ！' :
+            'よし。今のうちに川底の杭を抜くぞ！', 3.5);
           rt.after(3, () => { if (!F.ending && !rt.over) next(); });
         }
       }
