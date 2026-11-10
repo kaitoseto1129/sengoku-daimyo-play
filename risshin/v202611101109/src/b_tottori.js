@@ -1718,7 +1718,7 @@ const tottori = {
   lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
   resumeSteps: [[1, 'boats'], [2, 'sortie'], [3, 'envoy']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の共通表示へそろえる。道順・放火・開城の判定と兵数はこの戦のものを使う。
-  missionSingleLine: true, goalsAllRows: true, goalVisibleRows: 5, hideMissionDots: true, hideGuideSteps: true,
+  missionSingleLine: true, goalsAllRows: true, goalsVisibleRows: 5, hideMissionDots: true, hideGuideSteps: true,
   enemyTriangleSigns: true, nearbyAllySignLimit: 0, noDodgeCard: true, noSiegeCards: true,
   noPlayerFoot: true, quietMiss: true,
   missionPinCaption: '', missionDetail: () => '', missionStatus: () => '',

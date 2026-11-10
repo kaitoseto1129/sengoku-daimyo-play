@@ -27,12 +27,18 @@ function drawLightEnemySigns(rt, s, A, n, cam, q) {
   const count = Math.min(A.n, body.count);
   const seenAt = A._signSeenAt || (A._signSeenAt = new Float64Array(A.n));
   const seen = A._signSeen || (A._signSeen = new Uint8Array(A.n));
+  const range = rt.def.lightEnemySignRange ?? 60;
   for (let i = 0; i < count && n < CAP; i++) {
     if (A.taken?.[i] || A.hid?.[i] > 0) continue;
     const j = i * 16;
     if (Math.abs(matrices[j]) + Math.abs(matrices[j + 1]) + Math.abs(matrices[j + 2]) < 0.001) continue;
     signAt.set(matrices[j + 12] + A.off.x, matrices[j + 13] + A.off.y, matrices[j + 14] + A.off.z).applyMatrix4(A.mesh.matrixWorld);
-    if ((signAt.x - me.pos.x) ** 2 + (signAt.z - me.pos.z) ** 2 > 60 * 60) continue;
+    if ((signAt.x - me.pos.x) ** 2 + (signAt.z - me.pos.z) ** 2 > range * range) continue;
+    // 山城では頭上だけでなく、実際の兵の足場から胴への見通しを確かめる。
+    if (rt.def.lightEnemySignVisible && !(seenAt[i] > rt.t - .34 && seenAt[i] <= rt.t)) {
+      seenAt[i] = rt.t;
+      seen[i] = rt.def.lightEnemySignVisible(rt, signAt) ? 1 : 0;
+    }
     signAt.y = rt.world.heightAt(signAt.x, signAt.z) + (A.kinds?.[i] === 5 ? 3.2 : 2.25);
     v.copy(signAt).applyMatrix4(cam.matrixWorldInverse);
     if (v.z >= 0) continue;
@@ -828,7 +834,7 @@ export function fieldSignsTick(rt, root) {
       if (team < 0 || team === me.team) continue;
       const cx = A.mesh.position.x + A.cx + A.off.x, cz = A.mesh.position.z + A.cz + A.off.z;
       const dd = Math.hypot(cx - me.pos.x, cz - me.pos.z);
-      if (rt.def.lightEnemyTriangleSigns && dd < 60 + (A.hw0 || 10) + (A.hd0 || 5)) {
+      if (rt.def.lightEnemyTriangleSigns && (rt.def.lightEnemySignVisible || dd < (rt.def.lightEnemySignRange ?? 60) + (A.hw0 || 10) + (A.hd0 || 5))) {
         n = drawLightEnemySigns(rt, s, A, n, cam, q);
         continue;
       }
