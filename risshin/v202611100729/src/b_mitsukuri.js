@@ -5353,7 +5353,10 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (nearIt(b, 'callFriends') && !(F._botCallT > b.t)) { F._botCallT = b.t + 4; inp.k.add('KeyE'); }
   const zone = F.SZ.byId[!F.sanFell ? 'san' : !F.niFell ? 'ni' : 'hon'];
   const enemy = zone._guideEnemy;
-  const tgt = enemy && zoneGroundFighter(b, enemy) && zone.test(enemy.pos.x, enemy.pos.z) ? enemy.pos : zone.pos;
+  // 郭内の地上にいても、柵や切岸の向こうには直接歩けない。
+  // 届かない守兵を行き先にし続けず、石段を通って郭の旗へ進む。
+  const tgt = enemy && zoneGroundFighter(b, enemy) && zone.test(enemy.pos.x, enemy.pos.z) &&
+    sanGroundPassage(b.army, u.pos, enemy.pos) ? enemy.pos : zone.pos;
   move(p, inp, tgt.x, tgt.z, 2);
 };
 

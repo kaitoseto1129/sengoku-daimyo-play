@@ -2038,6 +2038,7 @@ const shigisan = {
   goalSignOnly: true, // 11/4：行き先は頭上の金の▼一つだけ（持ち場のピンの上向きの矢印を重ねない。AV15・BH6）
   singleDestinationArrow: true, // 行き先の印一つに、足元からの道の矢印を重ねない（⑧・AJ）。
   enemyTriangleSigns: true,
+  keepBattleSigns: true, // 行き先の案内中も、将の名札と敵全員の赤い▼を残す。
   forceBarAlways: true, // 両軍の人数の棒を、行き先の案内中も表示する。
   nearbyAllySignLimit: 0,
   noDodgeCard: true,

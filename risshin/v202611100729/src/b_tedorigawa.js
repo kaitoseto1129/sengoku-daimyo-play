@@ -1,3 +1,4 @@
+import { retreatRunFromBlade } from './bot_retreat.js';
 import { bodyGeometry } from './units_model.js';
 import { lodSwap, muddyFlag, umaGeometry } from './units_flags.js';
 import { rockShape } from './rock_shape.js';
@@ -4477,22 +4478,23 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
   inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
   if (!u.alive || F.ending) return;
   const pace = tedoPaceMarker(b);
-  // 退き口の案内中も、下の退却処理で本人への打ち込みを受ける。
-  // 案内だけを追う分岐では構えを解除し続け、追手に背をさらしてしまう。
-  if (pace && pace.id !== 'furikiru') {
+  // 荷駄を壊す赤い的だけは攻撃を保ち、道の案内は下の退却処理へ渡す。
+  if (pace?.red) {
     const at = pace.pos();
     b.botRest = false; inp.guardHold = false;
-    inp.runHeld = !pace.red; inp.leftPressed = false; inp.chargeHold = false;
-    goTo(p, inp, at.x, at.z, pace.red ? 2 : 3);
-    if (pace.red && Math.hypot(at.x - u.pos.x, at.z - u.pos.z) < 3.2) inp.leftPressed = true;
+    inp.runHeld = false; inp.leftPressed = false; inp.chargeHold = false;
+    goTo(p, inp, at.x, at.z, 2);
+    if (Math.hypot(at.x - u.pos.x, at.z - u.pos.z) < 3.2) inp.leftPressed = true;
     return;
   }
-  if (tedorigawa.botEvacuating(b)) {
+  if (pace || tedorigawa.botEvacuating(b)) {
     b.botRest = false; F.dpBack = false;
-    const q = F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
-    const z = F.step === 1 ? FORD.z - 10 : q.z;
+    const q = pace ? pace.pos() : F.paceFurikiru ? F.paceFurikiru.target : F.step === 1 ? FORD : F.step === 3 ? crossingTarget(b) : F.dp.cur.at;
+    const z = !pace && F.step === 1 ? FORD.z - 10 : q.z;
     const stopRadius = F.step === 3 ? 0.75 : 2;
+    inp.axis = null;
     goTo(p, inp, q.x, z, stopRadius);
+    const walking = inp.k.has('KeyW'), retreatYaw = p.yaw;
     inp.leftPressed = false; inp.chargeHold = false;
     const e = b.army.nearestEnemy(u, 4, (o) => !o.fleeing && !o.woundOut && !o.noTarget &&
       o.type !== 'gun' && o.type !== 'bow' && !b.army.wallBetween(u.pos, -1, o.pos));
@@ -4508,19 +4510,14 @@ tedorigawa.botBrain = (b, inp, { goTo }) => {
       const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
       if (d < 4 && d < nearest) { face = o; nearest = d; }
     }
-    if (!face && e?.target === u && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) < 2.6) face = e;
-    inp.guardHold = !!face; inp.runHeld = !face;
+    if (!face && e?.target === u && !e.playerQueue && Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z) < (e.reach || 2.8) + 1.4) face = e;
+    inp.guardHold = !!face; inp.runHeld = !face && walking;
     if (face) {
       if (p.lock) inp.e.add('KeyQ');
       p.yaw = Math.atan2(face.pos.x - u.pos.x, face.pos.z - u.pos.z);
       inp.k.delete('KeyW'); inp.k.delete('KeyS'); inp.k.delete('KeyA'); inp.k.delete('KeyD');
-      if (Math.hypot(q.x - u.pos.x, z - u.pos.z) > stopRadius) {
-        const dx = q.x - u.pos.x, dz = z - u.pos.z;
-        const fw = dx * Math.sin(p.yaw) + dz * Math.cos(p.yaw);
-        const side = -dx * Math.cos(p.yaw) + dz * Math.sin(p.yaw);
-        if (Math.abs(fw) > 0.3) inp.k.add(fw > 0 ? 'KeyW' : 'KeyS');
-        if (Math.abs(side) > 0.3) inp.k.add(side > 0 ? 'KeyD' : 'KeyA');
-      }
+      // 構えた歩みで追手の刃に居残らず、道の曲がりと浅瀬を守って隙間へ退く。
+      inp.guardHold = !retreatRunFromBlade(b, inp, tedorigawa.dodgePointAllowed, walking ? retreatYaw : null);
     }
     return;
   }

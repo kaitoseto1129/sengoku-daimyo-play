@@ -684,8 +684,8 @@ const k16_secret = {
       for (const g of [F.hon, F.camp.guard, F.takatora, F.hide]) if (g && g.order !== 'retreat') for (const u of g.units) if (u.alive && u.target && dist(u.pos, g.anchor) > 30) u.target = null;
     }
     if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
-    // 陣幕の内の近習は、幕の外の主人公も味方兵も布越しに斬らない。
-    if (live(F.hon)) for (const u of F.hon.units) if (u.alive) {
+    // 内の近習だけでなく、外の味方も幕越しに狙わない。双方の攻撃と鍔迫り合いを消す。
+    for (const u of rt.army.units) if (u.alive) {
       const inside = inCamp(u.pos);
       // 構え・振り始めた刃は target と別に相手を覚えている。狙いだけ消しても攻撃が残る。
       if (u.target && inside !== inCamp(u.target.pos)) u.target = null;
@@ -699,7 +699,8 @@ const k16_secret = {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
       const ie = F.ieyasu;
       // 家康を HP の大将にしない（docs/finale_spec_1109.md）：陣幕の内で家康のもとへ届いた事が勝ち。言葉を交わし終えると家康が刀を置く
-      if (F.talk && ie && ie.alive && rt.t - F.talk >= 9.6) { this.win(rt); return; }
+      // 最後の「……そうか」（8.6秒後から1.8秒）を聞き終えてから降伏へ進む。
+      if (F.talk && ie && ie.alive && rt.t - F.talk >= 10.4) { this.win(rt); return; }
       if (!F.talk && ie && ie.alive && inCamp(P.pos) && dist(ie.pos, P.pos) < 13) {
         F.talk = rt.t; F.engagedT = rt.t; ie._crouch = false;
         // 会話の間は本陣が狙い直さない。一度刃を消すだけでは次の思考で斬り始める。
