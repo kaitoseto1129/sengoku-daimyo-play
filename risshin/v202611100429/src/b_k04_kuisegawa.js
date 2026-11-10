@@ -481,7 +481,8 @@ const k04_kuisegawa = {
         const c = g.center();
         // 敵に組みつかれている間は歩き続けず斬り返す（主人公を追って歩くまま討たれ、手勢が全滅していた。三巡 11/9 豊臣A）
         const lead = g.units.find((u) => u.alive && !u.gone);
-        const engaged = lead && dist(c, P.pos) < 24 && rt.army.nearestEnemy(lead, 5, (q) => !q.isStruct && !q.civ);
+        // 退却の下知の後は追手との斬り合いで足を止めず、主人公と岸へ退く。
+        const engaged = F.step < 4 && lead && dist(c, P.pos) < 24 && rt.army.nearestEnemy(lead, 5, (q) => !q.isStruct && !q.civ);
         if (engaged) { g.order = 'attack'; g.seekRange = 8; }
         else if (dist(c, P.pos) > 7 || F.step >= 4) { g.order = 'move'; g.dest = { x: P.pos.x + (F.step >= 4 ? 3 : -2), z: P.pos.z + 2 }; g.speed = 4.2; }
         else { g.order = 'attack'; g.seekRange = 12; }

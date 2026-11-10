@@ -632,10 +632,11 @@ const k05_ueda = {
     // 誘われて門内へ入った本人も射程内なら狙う。門から十二歩より奥が安全地帯にならないようにする。
     if (P.alive && !P.invuln && P.pos.x > C.x - 30 && P.pos.x < GATE.x + 46 && Math.abs(P.pos.z - GATE.z) < 34 && !foes.includes(P)) foes.push(P);
     if (!foes.length) return;
-    // 本人を狙う一人は、門の正面の組（無ければ次の組）の一人だけ（11/9 見回り 徳川D：四つの組が一人ずつ狙い、⑤の門の前で三十秒で倒れた）
+    // 本人を狙う射手は、門の正面の組（無ければ次の組）の一人だけ。鉄砲が倒れても弓が引き継ぐ。
+    // 四つの組から一人ずつ狙わせない（11/9 見回り 徳川D：⑤の門の前で三十秒で倒れた）。
     let aimU = null;
     if (foes.includes(P)) for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) {
-      aimU = g?.units.find((v) => v.alive && !v.gone && v.type === 'gun' && dist(v.pos, P.pos) < 50);
+      aimU = g?.units.find((v) => v.alive && !v.gone && (v.type === 'gun' || v.type === 'bow') && dist(v.pos, P.pos) < 50);
       if (aimU) break;
     }
     for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) {

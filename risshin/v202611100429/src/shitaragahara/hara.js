@@ -68,7 +68,7 @@ export function tick(rt, dt) {
       u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
       Math.hypot(u.pos.x - (c.SB.x0 + 5), u.pos.z - gz) < 14)) H.arrive = rt.t;
   const left = c.ready(g), atGate = H.arrive != null ? rt.t - H.arrive : -1;
-  const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45 || rt.t - H.at > 160);
+  const end = H.there && (!lord?.alive || left <= Math.ceil(H.n0 * 0.4) || atGate > 45);
   if (!end) return true;
   H.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }

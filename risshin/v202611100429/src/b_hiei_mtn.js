@@ -2277,7 +2277,7 @@ function hieiFoeSigns(rt) {
     },
   };
 }
-function hieiNearest(rt) {
+function hieiNearest(rt, radius = Infinity) {
   const F = rt.flags, me = rt.player.u.pos, post = hieiPost(rt);
   let best = null, distance = Infinity;
   for (const g of F.foes || []) {
@@ -2286,7 +2286,12 @@ function hieiNearest(rt) {
       if (!hieiReady(u) || u.downed || u.rearWound || nakaRoomAt(u.pos.x, u.pos.z, u.pos.y)) continue;
       const d = (u.pos.x - me.x) ** 2 + (u.pos.z - me.z) ** 2;
       // 奥の別の区域へ飛ばさず、今の道の敵と持ち場をふさぐ残敵から選ぶ。
-      if (d > 18 * 18 && Math.hypot(u.pos.x - post.x, u.pos.z - post.z) >= 10) continue;
+      if (d >= distance || d > radius * radius
+        || d > 18 * 18 && Math.hypot(u.pos.x - post.x, u.pos.z - post.z) >= 10) continue;
+      // 最寄りを選ぶ前に通行を調べる。壁の向こうの一人で、道上の別の敵への案内を隠さない。
+      if (Math.abs(u.pos.y - me.y) >= 2
+        || !rt.world.onRoad(u.pos.x, u.pos.z)
+        || !roadClear(rt.army, rt.player.u, me, u.pos)) continue;
       if (d < distance) { distance = d; best = u; }
     }
   }
@@ -3641,7 +3646,9 @@ const hiei_mtn = {
     const lead = g.units.find((u) => u.type === 'samurai');
     if (lead) {
       g._hieiLead = lead;
-      lead.name = o.name.replace(/(?:の神人と僧兵|の前の僧兵|の僧兵|の衆)$/, '') + 'の僧兵頭';
+      lead.name = /僧兵$/.test(o.name)
+        ? o.name.replace(/(?:神人と)?僧兵$/, '僧兵頭')
+        : o.name.replace(/の衆$/, '') + 'の僧兵頭';
     }
     return g;
   },
@@ -4480,7 +4487,7 @@ hiei_mtn.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
     if (d < ad) { attacker = o; ad = d; }
   }
-  const candidate = b.t < (F._ignoreT || 0) ? null : strikeTarget(b, 11);
+  const candidate = b.t < (F._ignoreT || 0) ? null : hieiNearest(b, 11) || strikeTarget(b, 11);
   // 本道の掃討では、僧坊の中へ逃れた敵を追って登る列を離れない。
   // 外から届く攻撃はこれまで通り受ける。室内へ入った本人には出口を先に案内する。
   const cd = candidate ? Math.hypot(candidate.pos.x - u.pos.x, candidate.pos.z - u.pos.z) : Infinity;

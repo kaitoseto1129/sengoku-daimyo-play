@@ -4191,11 +4191,12 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     inp.guardHold = !!attacker && attackDist < reach;
     return;
   }
-  if (e && (attacker || d < reach || pursue)) {
+  if (e && (attacker && !work || d < reach || pursue)) {
     if (p.lock && p.lock !== e) inp.e.add('KeyQ');
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    // 敵の槍だけが届く所で受け続けず、反撃の間合いへ詰める。
-    if (d > reach * 0.85) goTo(p, inp, e.pos.x, e.pos.z, reach * 0.85);
+    // 杭抜きでは届く敵だけ払い、遠い打ち手を追って小旗との往復を続けない。
+    // ほかの段では敵の槍だけが届く所で止まらず、反撃の間合いへ詰める。
+    if (!work && d > reach * 0.85) goTo(p, inp, e.pos.x, e.pos.z, reach * 0.85);
     patientStrike(p, inp, e, d);
     return;
   }
