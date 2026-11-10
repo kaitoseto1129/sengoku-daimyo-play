@@ -792,8 +792,8 @@ echizen.retreatGuideLabel = (rt, reached) => {
 echizen.guideMarker = rt => {
   const F = rt.flags;
   if (!F.step) return 'ake';
-  const gate = F.kannonFell ? F.gateKinome : F.gateKannon;
-  if (F.souFell || !gate || gate.struct.alive) return 'road';
+  const gate = passGate(rt);
+  if (F.echAdv || gate?.struct.alive) return 'road';
   return 'echizen-court';
 };
 
@@ -1746,14 +1746,14 @@ echizen.setup = function (rt) {
   rt.flags.echizenCourtPoint = () => {
     // 制圧済みの観音丸へ残敵が戻った時も、札と同じ郭の口へ案内する。
     const pending = passZone(rt);
-    const c = courts.find(c => rt.flags.SZ.byId[c.id] === pending) || courts[rt.flags.kannonFell ? 1 : 0], u = rt.player.u;
-    const zone = rt.flags.SZ.byId[c.id];
+    const c = courts.find(c => rt.flags.SZ.byId[c.id] === pending), u = rt.player.u;
+    const zone = pending;
     if (zone.test(u.pos.x, u.pos.z)) {
       // 中に入った後も「口へ」の札で遠い中心を指さない。
       // 見通せる守兵へ向き、守兵がいなければ中で味方を待つ。
       const enemy = courtTarget = rt.army.nearestEnemy(u, 180, courtEnemy);
       // 柵際で止まると、組の兵が郭外に残り続ける。守兵がいなければ中へ寄る。
-      const center = rt.flags.C.kuruwa[c.id].centroid;
+      const center = zone.pos;
       // 守る人数がそろったら本人の場所で待つ。郭の中心まで走らせると
       // 「守れ、あと三秒」の最中にも遠い印へ誘導し、制圧が途切れる。
       const gather = !enemy && zone.friends < zone.need &&
@@ -1763,6 +1763,12 @@ echizen.setup = function (rt) {
       return courtPoint;
     }
     courtTarget = null;
+    // 副郭・主郭を攻略する間も、済んだ木戸内へ引き返さない。
+    if (!c) {
+      const next = rt.world.def.runnerWay(rt.army, u, zone.pos);
+      courtPoint.x = next.x; courtPoint.z = next.z;
+      return courtPoint;
+    }
     let nearest = Infinity;
     for (const [x, z] of c.mouths) {
       const d = Math.hypot(u.pos.x - x, u.pos.z - z);
@@ -1777,13 +1783,13 @@ echizen.setup = function (rt) {
   };
   rt.marker('echizen-court', rt.flags.echizenCourtPoint,
     () => {
-      const zone = rt.flags.SZ.byId[rt.flags.kannonFell ? 'kinome_sou' : 'kannon'];
+      const zone = passZone(rt);
       if (zone.test(rt.player.u.pos.x, rt.player.u.pos.z)) {
-        if (courtTarget) return '木戸内の守兵へ';
-        if (zone.enemies) return '味方と木戸内を探せ';
-        return zone.friends < zone.need ? '木戸の中で味方を集めよ' : '味方と木戸内を守れ';
+        if (courtTarget) return `${zone.name}の守兵へ`;
+        if (zone.enemies) return `${zone.name}の守兵を探せ`;
+        return zone.friends < zone.need ? `${zone.name}に味方を集めよ` : `味方と${zone.name}を守れ`;
       }
-      return rt.flags.kannonFell ? '口を通って木戸内へ' : '口を通って観音丸へ';
+      return `${zone.name}へ進め`;
     }, { h: 1, groundGuide: true, guideAlways: true, hideNear: 2, hideOnArrival: true });
   const roadMarker = rt.markers.find(m => m.id === 'road');
   if (roadMarker) { roadMarker.groundGuide = true; roadMarker.guideAlways = true; }
@@ -2624,10 +2630,10 @@ echizen.botBrain = function (rt, inp, helpers) {
       return;
     }
   }
-  const gate = F.kannonFell ? F.gateKinome : F.gateKannon;
-  const zone = !F.souFell && gate && !gate.struct.alive
-    ? F.SZ.byId[F.kannonFell ? 'kinome_sou' : 'kannon'] : null;
-  const followingRoad = F.kannonFell && !F.souFell && gate?.struct.alive;
+  // 札・ピンと同じ未制圧の郭へ向かう。副郭以降も遠い本道を追い越さない。
+  const gate = passGate(rt);
+  const zone = !gate?.struct.alive ? passZone(rt) : null;
+  const followingRoad = F.kannonFell && gate?.struct.alive;
   if (!zone && !followingRoad) return kinome.botBrain(rt, inp, helpers);
   // 道脇から打ちかける兵も、退いた後までは追わない。
   // 共通の頭は十メートル以内の攻撃者へ寄るため、次の木戸へ移る間だけ

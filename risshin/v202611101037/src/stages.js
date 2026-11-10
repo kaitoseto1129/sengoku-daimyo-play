@@ -21,8 +21,19 @@ export const STAGES = {
   ],
   // kaito 11/2 T：義元を探せ → 本陣に迫れ → 義元を討て の三段（幕と大きな旗印は本陣の一か所だけ）
   // 11/3：段の名は場所と行いで言う（AQ1・AR1）。中島砦の先の谷 → 桶狭間山の坂道 → 今川本陣の幕
-  // 11/8 十五分の構成（prototype/src/okehazama/）：雨宿りの鉄砲衆・麓の陣・井伊の備えを足す
-  okehazama: [['谷の出口で組の旗に集まる'], [OG15.zenei, (rt) => !!rt.flags.o15?.zeneiT], ['坂道で松井宗信の先手を破る', ph('assault')], [OG15.nida, (rt) => !!rt.flags.o15?.nidaT], [OG15.ii, (rt) => !!rt.flags.o15?.iiT], [OG15.saka, (rt) => !!rt.flags.o15?.sakaT], ['今川義元を討つ', f('entered')]],
+  // 任務一覧と同じ十段。雨待ち・旗本突破・帰還を別の段として記録し、討取りだけで最終段にしない。
+  okehazama: [
+    ['中島砦の下で組に合流し、雨の谷を下り谷の出口へ'],
+    [OG15.zenei, (rt) => !!rt.flags.o15?.zeneiT],
+    ['谷の出口の豪雨の中で、かかれの下知を待つ', (rt) => !!rt.flags.o15?.zeneiDone],
+    ['坂道で松井宗信の備えを破る', ph('assault')],
+    [OG15.nida, (rt) => !!rt.flags.o15?.nidaT],
+    [OG15.ii, (rt) => !!rt.flags.o15?.iiT],
+    [OG15.saka, (rt) => !!rt.flags.o15?.sakaT],
+    ['桶狭間山の幕の前で旗本を破る', f('entered')],
+    ['幕の口から今川義元を討つ', f('guardOpened')],
+    ['首を持ち、谷の出口の組の旗へ引き揚げる', f('victory')],
+  ],
   moribe: [['楡俣川の浅瀬を渡り、北岸へ'], ['北岸の畦で斎藤の先手を押し返す', ph('contact', 'hold')], ['長井・日比野の旗本へ進み、旗本の侍を自分で討つ', ph('press')]],
   // 11/3 AR：場所と行いで書く（一の手は北の口・二の手は西の林の口・三の手は北と西と川の舟。docs/battle_refs/sunomata.md）
   sunomata: [['北の柵の口へ行き、人足を守る'], ['北の柵の口で斎藤の先手を止める', ph('w1')], ['西の柵で斎藤の二の手を止める', ph('w2')], ['北と西の柵を守り、寄せ大将を討つ', ph('w3')]],
