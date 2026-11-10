@@ -1481,8 +1481,9 @@ const arioka = {
   keepBattleSigns: true, // 行き先の印を出す間も、名のある将の名札を残す。
   goalSignOnly: true, // 曲がり角・持ち場・官兵衛を、任務と同じ一点の印で案内する。
   goalSignTriangle: true, // 画面の外でも矢印に替えず、行き先の▼を保つ。
-  // 敵全員の赤い▼は共通の頭上印に任せ、字の▼を重ねない。
-  enemyTriangleSigns: false,
+  // 通しの記録（gate4_1110）：敵の印が出ない。共通の赤い▼を使う。
+  // field_signs はこの印が付いた兵を除くので、同じ頭上に二つ重ねない。
+  enemyTriangleSigns: true,
   nearbyAllySignLimit: 0,
   hideNameTag: (u) => u.name === '滝川の組頭',   // 名の伝わらない役に名札を出さない（AY7。頭上に「滝川のかしら」と出ていた）
   // 11/6 描いて遊ぶ：命・小地図・目標の三枚で共通の「札は三つまで」が埋まり、名札が一度も出なかった（五2・九3）。

@@ -477,9 +477,13 @@ const k05_ueda = {
       F.lureI = 0; F.lureT = rt.t;
       const g = F.sortie;
       if (live(g)) { g.noRout = true; g.morale = 100; this.lureNext(rt); }
-      rt.say('徳川の足軽', '逃げるぞ！　逃すな！', 2.6);
-      rt.after(3.5, () => rt.say('大久保忠隣', '追え、追え！　小勢じゃ、揉み潰せ！', 3));
-      rt.after(10, () => rt.say('徳川の足軽', 'ははっ、真田も口ほどにもない！', 2.8));
+      if (live(g)) {
+        rt.say('徳川の足軽', '逃げるぞ！　逃すな！', 2.6);
+        rt.after(3.5, () => rt.say('大久保忠隣', '追え、追え！　小勢じゃ、揉み潰せ！', 3));
+        rt.after(10, () => rt.say('徳川の足軽', 'ははっ、真田も口ほどにもない！', 2.8));
+      } else {
+        rt.say('本多忠政', '田は押さえた！　北の林を確かめよ！', 3);
+      }
       // 本多・大久保の手も追う。追ううちに隊列が田の畦に細く伸びる
       for (const [g2, dx] of [[F.honda, 4], [F.okubo, 10]]) if (live(g2)) { g2.order = 'attack'; g2.seekRange = 18; g2.anchor = { x: LURE[1].x + dx, z: LURE[1].z + 6 }; }
     } else if (n === 3) {
@@ -727,12 +731,15 @@ const k05_ueda = {
       const k = F.w5N - aliveN(F.raid);
       if (!F.raidGone && ((F.nidaAt > 20 && (k >= Math.round(F.w5N * 0.4) || F.nidaAt > 45)) || el > 170)) {
         F.raidGone = rt.t;
+        F.raidWithdrew = live(F.raid);
         this.away(rt, F.raid, { x: 86, z: 58 });
-        rt.say('徳川の足軽', '真田がまた逃げるぞ！', 2.4);
-        rt.after(2.6, () => rt.say('本多忠政', '追うな！　荷駄を守れ。二度は釣られぬ', 3));
+        if (F.raidWithdrew) {
+          rt.say('徳川の足軽', '真田がまた逃げるぞ！', 2.4);
+          rt.after(2.6, () => rt.say('本多忠政', '追うな！　荷駄を守れ。二度は釣られぬ', 3));
+        } else rt.say('本多忠政', '荷駄の敵は討ち果たした。兵糧と玉薬を守れ！', 3);
       }
       // 二度目の学び：追えば林の鉄砲に撃たれて、また時を失う。追わなければ損は少ない
-      if (F.raidGone && !F.trap2 && P.pos.z > 24 && rt.t - F.raidGone < 30) {
+      if (F.raidGone && F.raidWithdrew && !F.trap2 && P.pos.z > 24 && rt.t - F.raidGone < 30) {
         F.trap2 = true; F.delay += 10;
         sfx('volley', 0.9);
         F.grove = this.foe(rt, '藪の鉄砲', { x: 84, z: 44 }, [uG(5)], { hold: true, width: 5, dmg: 0.4, facing: Math.PI });
