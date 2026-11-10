@@ -131,19 +131,27 @@ const alive = (g) => !!g && !g.routed && g.count > 0;
 const near = (a, b, r) => Math.hypot(a.x - b.x, a.z - b.z) < r;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 討てない大将だけを追わず、今の段で押し返す残兵へ案内する。
-const front = (P, at, g0, g1, g2, g3, g4) => {
+const front = (P, at, radius, g0, g1, g2, g3, g4) => {
   let target = at, best = Infinity;
   for (let k = 0; k < 5; k++) {
     const g = k === 0 ? g0 : k === 1 ? g1 : k === 2 ? g2 : k === 3 ? g3 : g4;
     if (alive(g)) for (const u of g.units) {
-      if (!u.alive || u.gone || u.fleeing || u.invuln || u.noTarget || u.campProtected) continue;
+      if (!u.alive || u.gone || u.fleeing || u.invuln || u.noTarget || u.campProtected || !near(u.pos, at, radius)) continue;
       const d = dist(P, u.pos);
       if (d < best) { best = d; target = u.pos; }
     }
   }
   return target;
 };
-const rout = (g) => { if (alive(g)) { g.routed = true; g.order = 'flee'; } KIT.markRecyclable(g); };
+const rout = (g) => {
+  if (!g) return;
+  g.routed = true; g.order = 'flee'; g.onArrive = null; g.dest = null; g.focus = null;
+  // 下知したコマから攻撃を解く。移動の到着予約で戦い直させない。
+  for (const u of g.units) if (u.alive && !u.isPlayer) {
+    u.target = null; u.atk = null; u.swing = null; u.bind = null; u.charging = false; u.aiT = 0;
+  }
+  KIT.markRecyclable(g);
+};
 const nOf = (...gs) => gs.reduce((n, g) => n + (alive(g) ? g.count : 0), 0);
 // 笹尾山の旗本のうち、山（本陣）から七十歩の内で踏みとどまる兵だけ（遠くへ散った兵を追い回させない・11/8 流しで西の山奥まで追った）
 const nAt = (at, ...gs) => gs.reduce((n, g) => n + (alive(g) ? g.units.filter((u) => u.alive && !u.gone && !u.fleeing && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) < 70).length : 0), 0);
@@ -161,11 +169,11 @@ const room = (rt, n) => {
   if (over > 0) KIT.freeRoom(rt, over);
 };
 const goAttack = (g, dest, aggro = 40, seek = 60) => {
-  if (!g) return;
-  g.order = 'move'; g.dest = { ...dest };
-  g.onArrive = (q) => { q.order = 'attack'; q.aggro = aggro; q.seekRange = seek; q.onArrive = null; };
+  if (!alive(g)) return;
+  g.order = 'move'; g.dest = { ...dest }; g.arriveRadius = 6;
+  g.onArrive = (q) => { if (!alive(q)) return; q.order = 'attack'; q.aggro = aggro; q.seekRange = seek; q.onArrive = null; };
 };
-const goTo = (g, dest) => { if (!g) return; g.order = 'move'; g.dest = { ...dest }; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...dest }; q.onArrive = null; }; };
+const goTo = (g, dest) => { if (!alive(g)) return; g.order = 'move'; g.dest = { ...dest }; g.onArrive = (q) => { if (!alive(q)) return; q.order = 'hold'; q.anchor = { ...dest }; q.onArrive = null; }; };
 const foe = (rt, name, at, list, lk, o = {}) => enemyGroup(rt, { name, faction: 'toyotomi', anchor: { ...at }, facing: Math.PI / 2, order: 'attack', aggro: 36, seekRange: 60, width: 10, ...o }, dress(list, lk));
 const ally = (rt, name, at, list, lk, o = {}) => allyGroup(rt, { name, faction: 'tokugawa', anchor: { ...at }, facing: -Math.PI / 2, width: 10, aggro: 14, morale: 92, noRout: true, ...o }, dress(list, lk));
 // 総大将は本陣で床几に座る（update が座り直させる）。幕の内から出ない（aggro 0・その場に留まる）
@@ -322,12 +330,12 @@ const k06_sekigahara = {
     const lead = (g, at) => (g?.leader?.alive && !g.leader.gone ? g.leader.pos : alive(g) ? g.center() : at);
     const s = F.step || 1, P = rt.player.u.pos;
     // 討てない大将を追わず、今の段で押し合う相手の手前へ案内する（遠い残兵は追わせない）
-    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s === 4 ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2)
-      : s === 5 ? (near(P, UKITA_F, 50) ? front(P, UKITA_F, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : UKITA_F)
+    const T = s === 1 || s === 2 ? NUKE : s === 3 ? BACK : s === 4 ? front(P, UKITA_F, 45, F.akashi, F.akaGun, F.ukita2)
+      : s === 5 ? (near(P, UKITA_F, 50) ? front(P, UKITA_F, 45, F.akashi, F.akaGun, F.ukita2, F.ukita3, F.ukita4) : UKITA_F)
       : s === 6 ? lead(F.todo, TODO_P)
-      : s === 7 ? (near(P, RLINE, 34) ? front(P, RLINE, F.otani, F.otaW1, F.otaW2) : RLINE)
-      : s === 8 ? (near(P, RLINE, 80) ? front(P, RLINE, F.otani, F.otaW1, F.otaW2) : RLINE)
-      : s === 9 ? (near(P, CENTER9, 60) ? front(P, CENTER9, F.shingari, F.koniR) : CENTER9) : HOLD5;
+      : s === 7 ? (near(P, RLINE, 34) ? front(P, RLINE, 30, F.otani, F.otaW1, F.otaW2) : RLINE)
+      : s === 8 ? (near(P, RLINE, 80) ? front(P, RLINE, 30, F.otani, F.otaW1, F.otaW2) : RLINE)
+      : s === 9 ? (near(P, CENTER9, 60) ? front(P, CENTER9, 50, F.shingari, F.koniR) : CENTER9) : HOLD5;
     q.x = T.x; q.z = T.z;
     return q;
   },
@@ -380,7 +388,7 @@ const k06_sekigahara = {
     F.akashi = foe(rt, '明石全登の隊', UKITA_F, [{ type: 'busho', n: 1, o: { name: '明石全登', horse: true, invuln: true, mustLive: true, onWound: () => {} } }, { type: 'samurai', n: 6 }, { type: 'bow', n: 4 }, { type: 'ashigaru', n: 16 }], UKITA, { morale: 90, width: 22, noRout: true, order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
     F.akaGun = foe(rt, '宇喜多の先手の鉄砲', { x: UKITA_F.x + 6, z: UKITA_F.z - 4 }, [{ type: 'gun', n: 6 }], UKITA, { order: 'hold', aggro: 16, seekRange: 20, width: 14 });
     F.akashiU = F.akashi.leader;
-    F.konishi = foe(rt, '小西行長の隊', KONISHI, [{ type: 'busho', n: 1, o: { name: '小西行長', invuln: true, horse: true } }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 6 }], KONI, { order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
+    F.konishi = foe(rt, '小西行長の隊', KONISHI, [{ type: 'busho', n: 1, o: { name: '小西行長', mustLive: true, horse: true } }, { type: 'gun', n: 3 }, { type: 'ashigaru', n: 6 }], KONI, { order: 'hold', aggro: 10, seekRange: 14, formation: 'yari' });
     F.mitsu = foe(rt, '石田三成の本陣', seatM, [{ type: 'busho', n: 1, o: { name: '石田三成', invuln: true, horse: false } }, { type: 'samurai', n: 4 }], ISHIDA, { order: 'hold', aggro: 0, seekRange: 0, width: 5, noRout: true, facing: Math.PI / 2 });
     F.mitsuU = SEAT(F.mitsu, '石田三成');
     // 大谷吉継：病の吉継は四方輿に乗る（馬に乗らない）。藤川台の本陣で輿の床に座り、前で平塚為広・戸田勝成が藤堂・京極と押し合う
@@ -455,7 +463,7 @@ const k06_sekigahara = {
   stage4(rt) {
     const F = rt.flags;
     if (F.step >= 4) return;
-    F.step = 4; F.s4t = rt.t; F.joined4 = false;
+    F.step = 4; F.s4t = rt.t; F.joined4 = false; F.fought4 = 0;
     rt.objDone('main');
     rt.obj('main', G[3], 'main');
     room(rt, 18);
@@ -544,23 +552,29 @@ const k06_sekigahara = {
     rt.after(7, () => this.flip(rt));
     // 小早川が動くと本陣全体が動く：家康は桃配山から陣場野へ歩いて進み、着いたら幕を張る（遠い道を島津の前に歩き終える）
     rt.after(10, () => rt.say('使番', '殿が本陣を陣場野へ進められる！', 3));
-    F.ieyasu.order = 'move'; F.ieyasu.dest = { ...IEYASU1 };
-    F.ieyasu.onArrive = (g) => {
-      g.order = 'hold'; g.anchor = { ...IEYASU1 }; g.onArrive = null;
-      // 隊の到着位置を座る所にすると、家康だけ幕の外でしゃがむ。移した本陣にも床几を置き、その前へ着ける。
-      if (F.ieyasuU?.alive && !F.ieyasuU.gone) {
-        const u = F.ieyasuU;
-        u.pos.x = IEYASU1.x; u.pos.z = IEYASU1.z - 5.4; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z);
-        u._k06Seat = { ...u.pos };
-        u._k06Stand = false;
-        sit(u);
+    this.advanceHonjin(rt);
+  },
+  advanceHonjin(rt) {
+    const F = rt.flags, g = F.ieyasu;
+    if (!alive(g) || F.jinba || F.honjinMoving) return;
+    F.honjinMoving = true;
+    // 歩く時間を確保し、旗本が遠い敵へ寄り道しない。家康も隊列の中心を歩く。
+    g.order = 'move'; g.dest = { x: IEYASU1.x, z: IEYASU1.z - 5.4 };
+    g.formation = 'ring'; g.speed = 4.6; g.aggro = 0; g.seekRange = 0;
+    g.keepMoveOrder = true; g.arriveNoncombat = true; g.arriveRadius = 5;
+    const arrive = (q) => {
+      const u = F.ieyasuU;
+      // 旗本だけ先着しても家康を飛ばさない。床几のそばまで歩いてから座る。
+      if (u?.alive && !u.gone && !near(u.pos, q.dest, 5)) { q.onArrive = arrive; return; }
+      q.order = 'hold'; q.onArrive = null; q.aggro = 6; q.seekRange = 10;
+      if (u?.alive && !u.gone) {
+        u._k06Seat = { ...u.pos }; u._k06Stand = false; sit(u);
       }
-      if (!F.jinba) {
-        F.jinba = true;
-        rt.scene.add(jinCamp(rt.world, IEYASU1.x, IEYASU1.z - 2, { mon: 'tokugawa', people: false, fire: false, noUma: true }));
-        rt.scene.add(nobori(rt.world, IEYASU1.x - 10, IEYASU1.z - 10, 'onri', 7));
-      }
+      F.jinba = true;
+      rt.scene.add(jinCamp(rt.world, IEYASU1.x, IEYASU1.z - 2, { mon: 'tokugawa', people: false, fire: false, noUma: true }));
+      rt.scene.add(nobori(rt.world, IEYASU1.x - 10, IEYASU1.z - 10, 'onri', 7));
     };
+    g.onArrive = arrive;
   },
   flip(rt) {
     const F = rt.flags;
@@ -653,12 +667,8 @@ const k06_sekigahara = {
     rt.objDone('main'); rt.unmark('foe');
     rt.award((t) => t.side.push('西軍の中央を押し破った'), '西軍の中央を押し破った');
     rt.obj('main', G[9], 'main');   // 目標はすぐ出す（空く間があると全部済んだ扱いで閉じる）
-    // 11/8 critic60（十1・五2「陣場野に本陣の幕も旗も家康も見えない」）：家康がまだ歩いている時も、ここで陣場野に着けて幕を張る
-    if (!F.jinba && F.ieyasu) {
-      const c = F.ieyasu.center(), cx = c.x, cz = c.z;
-      for (const u of F.ieyasu.units) if (u.alive && !u.gone) { u.pos.x = IEYASU1.x + (u.pos.x - cx) * 0.5; u.pos.z = IEYASU1.z + (u.pos.z - cz) * 0.5; u.pos.y = rt.world.heightAt(u.pos.x, u.pos.z); }
-      F.ieyasu.onArrive?.(F.ieyasu);
-    }
+    // 途中再開でも本陣は歩いて進める。未着の隊をその場で移さない。
+    this.advanceHonjin(rt);
     for (const g of [F.kanamori, F.otani, F.otaniH, F.otaW1, F.kobaG, F.wakiG, F.akashi, F.ukita2, F.ukita3, F.ukita4, F.mitsu, F.todo, F.hide, F.hideG, F.konishi, F.shingari, F.koniR, F.fuku]) KIT.markRecyclable(g);
     // 本陣の前で待ち受ける（遠くへ追って出ない）
     goAttack(F.ii, { x: HOLD5.x + 8, z: HOLD5.z - 26 }, 10, 12);
@@ -743,7 +753,10 @@ const k06_sekigahara = {
         rt.after(8.2, () => rt.say('井伊直政', '忠吉さまは初陣ゆえ、戦の始まりようを見聞させたいのでござる。通られよ', 3.6));
       }
       // 主人公・赤備え・鉄砲衆が揃ってから撃ちかける。時刻だけでは一人の抜け駆けを済みにしない。
-      if (near(P, NUKE, 18) && !F.kaniWait && rt.t >= (F.kaniDoneT || 0) && alive(F.iiGun) && near(F.iiGun.center(), NUKE, 16) && alive(F.ii) && near(F.ii.center(), NUKE, 24)) this.stage2(rt);
+      F.joined1 = near(P, NUKE, 18) ? (F.joined1 || 0) + dt : 0;
+      const assembled = alive(F.iiGun) && near(F.iiGun.center(), NUKE, 16) && alive(F.ii) && near(F.ii.center(), NUKE, 24);
+      // 道中で隊の一部が詰まっても、本人が先手前で待っていれば口火を切る。
+      if (near(P, NUKE, 18) && !F.kaniWait && rt.t >= (F.kaniDoneT || 0) && (assembled || F.joined1 >= 40)) this.stage2(rt);
     } else if (F.step === 2) {
       // 三度撃ちかけ終えて、主人公が鉄砲衆の脇にいれば退く
       if (F.vol >= 3 && rt.t - F.s2t > 16 && near(P, NUKE, 36)) this.stage3(rt);
@@ -753,8 +766,9 @@ const k06_sekigahara = {
       const left = nOf(F.akashi, F.akaGun, F.ukita2);
       F.ek = (F.akaN || 0) - left;
       // 春日神社に残ったまま味方が敵を減らしても、藤下へ続いた目標は済ませない。
-      if (near(P, UKITA_F, 55)) F.joined4 = true;
-      if (F.joined4 && left <= Math.round(F.akaN * 0.85)) this.stage5(rt);
+      if (near(P, UKITA_F, 55)) { F.joined4 = true; F.fought4 += dt; }
+      // 散った残兵だけで止めない。前線で槍を合わせ続ければ宇喜多の反撃へ移る。
+      if (F.joined4 && (left <= Math.round(F.akaN * 0.85) || F.fought4 >= 120)) this.stage5(rt);
     } else if (F.step === 5) {
       // 宇喜多は崩れない。福島隊のそばで押し返しを受けた時間だけを数える（討ち減らしの数でなく持ちこたえ）
       if (near(P, UKITA_F, 55)) F.held5 += dt;

@@ -2766,18 +2766,13 @@ iga.botBrain = (b, inp, { goTo, patientStrike }) => {
         igaFightBot(b, inp, goTo, patientStrike, u.pos, 6)) return;   // 退く段は目の前の敵だけ受け、追い続けて城門の前に残らない（10/28：八分の時間切れ）
     // 山上から陣の入口へ直進せず、山道と小屋を回る同じ折れ目をたどる。
     // 退く道は印（C.goal＝道の折れ目）をたどる。陣へ真っすぐ向かうと、土橋の上の崖で止まった（11/8：十分の時間切れ）
-    if (C?.s.kind === 'move' && !C.arr && !needsTreatment && C.goal && C.goal !== C.at) {
-      inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false; inp.runHeld = p.sta > p.maxSta * 0.3;
-      // 折れ目は踏むまで寄る（案内は八十センチ内で次の折れ目へ移る）。六秒動けなければ四秒だけ行き先へ直に向かう（11/8 陣の口で十分止まった）
-      const st = b._igaWalk || (b._igaWalk = { x: u.pos.x, z: u.pos.z, t: b.t, direct: -1 });
-      if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 1) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
-      else if (b.t - st.t > 6) { st.direct = b.t + 5; st.t = b.t; st.n = (st.n || 0) + 1; }
-      // 詰まった時は、一度目は近い山道（同じ高さの段）へ戻り、二度目は行き先へ直に向かう。
-      //   道を外れた尾根の上（23,-33）から陣へ直に向かうと切岸に当たり続けた（11/9 bot）
-      const road = st.road || (st.road = { x: 0, z: 0, d: 0, s: 0 });
-      if (b.t < st.direct && st.n % 2) roadPoint(u.pos, road);
-      const tg = b.t < st.direct ? st.n % 2 ? road : C.at : C.goal;
-      goTo(p, inp, tg.x, tg.z, tg === C.at ? 4 : 0.4, true);
+    if (C?.s.kind === 'move' && !C.arr && C.goal) {
+      inp.guardHold = false; inp.leftPressed = false; inp.chargeHold = false;
+      inp.runHeld = !needsTreatment && p.sta > p.maxSta * 0.3;
+      // 傷がある時も、長く止まった時も、画面と同じ道の折れ目へ進む。
+      // 陣への直進や近い道への戻しは、上下に重なる切岸を横切り帰陣を止めていた。
+      // 行き先と折れ目の更新は igaMove に一本化する。
+      goTo(p, inp, C.goal.x, C.goal.z, C.goal === C.at ? 4 : 0.4, true);
       return;
     }
     if (C?.s.kind === 'hold' && !F.dpBack && !needsTreatment && p.sta >= p.maxSta * 0.22) {
@@ -3497,7 +3492,8 @@ function igaCastleCleared(rt) {
 function igaCtx(rt) {
   const F = rt.flags;
   // 波は準備時に置いた隊を使う。遠景の控えを追加せず、総勢を重ねて見せない。
-  return { faction: 'iga', flag: 'maru', armor: IGA.armor, dmg: 1, scale: 1, backing: false, look: (l) => dress(l, IGA), friends: () => F.oda };
+  return { faction: 'iga', flag: 'maru', armor: IGA.armor, dmg: 1, scale: 1, backing: false, look: (l) => dress(l, IGA), friends: () => F.oda,
+    withdrawWay: igaWay }; // 手当てのために下がる時も、小屋と切岸を避けて同じ道を使う。
 }
 function igaA(rt) {
   return [

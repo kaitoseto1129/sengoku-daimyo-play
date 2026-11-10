@@ -225,6 +225,7 @@ const k08_osaka_kizu = {
   touchBattleControls: true,   // 拾った鉄砲へ指でも持ち替える（通し確認で武器の丸が出なかった）
   // 敵の兵には一人残らず頭上に赤い▼（九3。11/5 crit：門の内の斬り合いでどれが明石の兵か分からなかった）。④は討てない全延にも付ける
   enemyTriangleSigns: true,
+  keepBattleSigns: true,   // 行き先の案内中も武将名・人数の棒・目標一覧と敵の赤い▼を残す（九1・九3）
   siegeNoStones: true,   // 土の砦では落石を作らず、門の上からは矢だけを落とす
   enemyTriangleGroup: (rt) => (rt.flags.step === 4 ? rt.flags.zen : null),
   noTravelArrow: true,    // 行き先は真上の▼一つ（足元・端の矢印を描かない。五3）

@@ -585,12 +585,17 @@ const k13_domyoji = {
     for (const [x, z] of [[HONDA.x + 12, HONDA.z - 16], [HONDA.x + 38, HONDA.z - 10]]) rt.scene.add(nobori(rt.world, x, z, 'date', 6));
   },
   // 真田の待ち伏せの一斉射撃で、片倉の隊が十数歩押し戻され、少しして持ち直す
-  datePushed(rt) {
+  datePushed(rt, waiting = null) {
     const F = rt.flags, g = F.katakura;
-    // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
-    if (F.ending || rt.over || F.dp?.i !== 5) return;
-    const sanada = F.dp.cur.groups.find((q) => q.name === '真田信繁の手');
+    const sanada = waiting || F.dp?.cur?.groups.find((q) => q.name === '真田信繁の手');
     if (!sanada) return;
+    // 待ち伏せの予約後に終戦した場合、追撃停止を移動の下知で上書きしない。
+    // 次の段では元の組を探せないため、再試行へ待機中の組を引き継いで伏せを解く。
+    if (F.ending || rt.over || F.dp?.i !== 5) {
+      sanada.ambush = false;
+      for (const u of sanada.units) u._crouch = false;
+      return;
+    }
     // 射撃を待つ間に退く下知が出た組を、予約の再試行で攻撃へ戻さない。
     // 伏せた姿勢も解き、大坂へ退く動きを妨げない。
     if (sanada.routed || sanada.order === 'retreat' || sanada.order === 'flee') {
@@ -620,7 +625,7 @@ const k13_domyoji = {
     // 台詞から一定時間で押し戻さず、生きた鉄砲兵へ伊達勢が寄るまで伏せて待つ。
     const gunner = sanada.units.find((u) => active(u) && u.weapon === 'gun' &&
       g.units.some((v) => active(v) && Math.hypot(u.pos.x - v.pos.x, u.pos.z - v.pos.z) <= 42));
-    if (!gunner) { rt.after(1, () => this.datePushed(rt)); return; }
+    if (!gunner) { rt.after(1, () => this.datePushed(rt, sanada)); return; }
     sanada.ambush = false; sanada.order = 'attack'; sanada.seekRange = 55;
     sanada.anchor = { x: HONDA.x, z: HONDA.z };
     for (const u of sanada.units) u._crouch = false;
