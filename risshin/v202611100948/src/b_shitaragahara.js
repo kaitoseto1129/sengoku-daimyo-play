@@ -49,15 +49,12 @@ let DEM = null;
 useTerrain('dem_shitaragahara', (data) => { DEM = data; });
 import { tagZones, gapSize, inArc, assignBands, ceaseBands, kamaeBands, volleyBands, rollBands, losTick, reserveTick } from './yasen_jinchi.js';
 
-// kaito 10/31：寄せる敵は、ほかの者より本人を多く狙う。本人から三十歩内で打ちかかる組を本人へ向ける
-//   （三歩半内の別の敵には先に応じる）。本人が深手の時と、定義が門・櫓へ向けた組は外す。共通の兵の考えは触らない。
-function huntPlayer(rt, dt) {
+// 討たれた相手への攻撃を外す。寄せ手の狙いは柵・鉄砲組・護衛も含む通常の判断へ任せる。
+// 主人公の近くへ来ただけで一隊全員の狙いを主人公へ固定しない（11/9 仕様37）。
+function clearFallenTargets(rt, dt) {
   const F = rt.flags;
   if ((F._huntT = (F._huntT || 0) - dt) > 0) return;
   F._huntT = 0.5;
-  const P = rt.player.u;
-  if (!P?.alive) return;
-  const weak = P.hp < P.maxHp * 0.4;
   for (const g of rt.army.groups) {
     if (g.focus && !g.focus.alive) g.focus = null;
     for (const u of g.units) {
@@ -66,13 +63,6 @@ function huntPlayer(rt, dt) {
       if (u.atk?.target && !u.atk.target.alive) u.atk = null;
       if (u.swing?.target && !u.swing.target.alive) u.swing = null;
     }
-    if (g.team !== 1 || !g.count || g.noHunt) continue;
-    const mine = g.focus === P;
-    if (g.focus && !mine) continue;
-    if (g.routed || weak || g.order !== 'attack' || g.isPlayerSquad) { if (mine) g.focus = null; continue; }
-    const c = g.center(), d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z);
-    if (!mine && d < 30) g.focus = P;
-    else if (mine && d > 45) g.focus = null;
   }
 }
 
@@ -1476,6 +1466,8 @@ function nfTick(rt, dt) {
     return;
   }
   // ― 2：柵の奥の道を歩いて柳田前へ。内藤隊は段丘の縁から寄せ始める ―
+  // 原の隊は山県と同時に寄せる。本人が破れ目にいる間も柳田前の戦況を進める。
+  if (N.step === 2 && ST_HARA.active(rt)) ST_HARA.tick(rt, dt);
   if (N.step === 2) {
     if (ST_BREACH.active(rt)) { ST_BREACH.tick(rt, dt); if (ST_BREACH.active(rt)) return; }
     if (!N.breachDone) {
@@ -1501,12 +1493,14 @@ function nfTick(rt, dt) {
     }
     if (N.sent && (d < 9 || T > 75)) {
       N.step = 3; N.at = rt.t;
-      rt.say('組頭', '原昌胤の隊じゃ！　柵の口を槍で守れ。鉄砲の前へ出るな！', 3.5);
+      rt.say('組頭', F.shHara?.done
+        ? '原隊は退いたが、内藤隊が続くぞ！　柳田前の柵の口を槍で守れ！'
+        : '原昌胤の隊じゃ！　柵の口を槍で守れ。鉄砲の前へ出るな！', 3.5);
     }
     return;
   }
   // ― 3 の前半：原昌胤の寄せ。崩れたら内藤を寄せる ―
-  if (N.step === 3 && ST_HARA.active(rt)) {
+  if (N.step === 3 && !N.naitoSent) {
     const sendNaito = () => {
       nfSend(rt, F.waveGroups[1], SB.gates[1]); nfGuns(rt, MOUTHS[1].z);
       F.jinkeiBound.shitara_naito?.advance(52, 24);
@@ -3479,6 +3473,9 @@ const shitaragahara = {
     F.nf = { step: 0, at: rt.t, done: [false, false, false, false] }; F.prepDone = true;
     rt.obj('pursue', NF_TEXT[0], 'main', true);
     ST_INTRO.start(rt, stCtx(rt));   // 導入の段（shitaragahara/intro.js）
+    // 導入で本人が三の柵の後ろへ移った分、同じ槍組も本人の前へそろえる。
+    // 一の柵側へ置き去りにすると、始まりの視界には柵だけが並んで見える。
+    placeGroup(rt, F.spears[0], rt.player.u.pos.x + 5, rt.player.u.pos.z - 5);
     shHud(rt);
     // 11/6 fixc0504（一5・九6）：柵の内の槍の組頭は馬を下りて徒歩で組と並ぶ（柵の内に馬の通る幅は無い）。
     //   馬の背の本人だけが柵の間の道と追い討ちを駆け抜け、組を百メートル後ろに置いて一人で殿に当たっていた
@@ -3530,7 +3527,7 @@ const shitaragahara = {
   },
 
   update(rt, dt) {
-    huntPlayer(rt, dt);
+    clearFallenTargets(rt, dt);
     // 寄せの道筋は nfSend に任せる。画面の正面へ固定すると、柵で止まり寄せの下知も失われる。
     const F = rt.flags;
     if (F.ending || !rt.player.u.alive) return;
