@@ -221,6 +221,20 @@ const t03b_nagakute = {
   },
 
   setup(rt) {
+    // 任務は右上の五件で伝える。中央へ同じ文を重ねず、横向きの携帯でも戦場を空ける。
+    if (typeof document !== 'undefined' && !document.getElementById('nagakute-hud')) {
+      const st = document.createElement('style'); st.id = 'nagakute-hud';
+      st.textContent = `
+html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc.blue { display:none !important; }
+html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call { left:34vw; right:auto; top:calc(48px + env(safe-area-inset-top,0px)); width:28vw; }
+html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc { max-width:100%; box-sizing:border-box; padding:4px 6px; font-size:16px; line-height:1.35; letter-spacing:0; }
+@media(max-height:500px) {
+ html:root body #hud#hud#hud.battle-order #h-prog#h-prog[data-battle="t03b_nagakute"].goal-mode { padding:4px 6px !important; }
+ html:root body #hud#hud#hud.battle-order #h-prog#h-prog[data-battle="t03b_nagakute"].goal-mode .pg-goals li { font-size:max(12px,calc(12px * var(--text-scale,1))) !important; }
+ html:root body #hud#hud#hud.battle-order #h-prog#h-prog[data-battle="t03b_nagakute"].goal-mode .pg-goals li.now { font-size:max(16px,calc(16px * var(--text-scale,1))) !important; }
+}`;
+      document.head.appendChild(st);
+    }
     const F = rt.flags;
     F.stage = 0; F.holdPlayer = true; F.waves = []; F.pursuit = [];
     const me = rt.G?.name || '自分';
@@ -419,7 +433,8 @@ const t03b_nagakute = {
         // 檜ヶ根の榊原隊は④で去っている。知らせだけにせず、御旗山の麓へ旗本を置く。
         const g = this.general(rt, '榊原康政', { x: HOTOKE.x + 26, z: HOTOKE.z - 30 }, SAKA);
         if (!g) return;
-        g.order = 'attack'; g.dest = { x: HOTOKE.x - 8, z: HOTOKE.z + 18 }; g.seekRange = 30;
+        g.order = 'move'; g.dest = { x: HOTOKE.x - 8, z: HOTOKE.z + 18 }; g.seekRange = 30;
+        g.onArrive = (q) => { q.order = 'attack'; };
         rt.say('物見', '御旗山の麓にも榊原の「無」の旗！　池田様の横へ回っておりまする！', 3.2);
       });
       rt.after(76, () => { if (F.stage === 5) rt.say('森長可', 'まだじゃ……まだ鬼武蔵は倒れぬぞ！', 2.8); });
@@ -486,7 +501,7 @@ const t03b_nagakute = {
   general(rt, name, at, kit, facing = W) {
     if (aliveReal(rt) + 13 > REAL_CAP) return null;
     const g = enemyGroup(rt, { faction: 'tokugawa', name: name + 'の旗本', anchor: { ...at }, facing, width: 5, formation: 'line', morale: 95, dmgMult: 0.4,
-      order: 'hold', seekRange: 10, aggro: 6, speed: 3.4, noRout: true },
+      order: 'hold', seekRange: 10, aggro: 6, speed: 3.4, noRout: true, noAI: true },   // 持ち場と回り込みは段の下知に従い、自由な後退判断を残さない
     dressT([{ type: 'busho', n: 1, o: { name, invuln: true, horse: true } }, { type: 'samurai', n: 5, o: { keep: true } },
       { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], kit || undefined));
     g.general = true;
@@ -521,6 +536,9 @@ const t03b_nagakute = {
     if (!g) return;
     g.speed = 4.9; g.seekRange = 70; g.dmgMult = 0.24;   // 追いすがる手は数で押す（騎馬の一撃で十秒に倒さない・十二3）
     if (!k) g.focus = rt.player.u;   // 主人公を名指しで追うのは最初の一手だけ（ほかは退く兵の誰にでも掛かる。主人公一人を囲まない）
+    // 後続は細ヶ根への退路を進む。自由な回り込み・後退で出現地点に留まらせない。
+    g.noAI = true;
+    if (k) { g.order = 'move'; g.dest = { x: EXIT.x + 12, z: EXIT.z }; }
     F.pursuit.push(g);
     rt.army.play('toki', g.anchor, 1.2);
     if (k === 0) rt.say('物見', '赤備えが追うて来る！　後ろと南から！', 2.6);
@@ -656,7 +674,7 @@ const t03b_nagakute = {
       F.menN0r = Math.max(F.menN0r || 0, aliveN(F.men));
     } else if (F.stage === 6) {
       // 細ヶ根へ先回りして最初の追手が遠くに残っても、接近するまでは後続が回り込む。
-      if ((!atGoal || !F.pursuitMet) && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
+      if (!F.pursuitClosed && el < 150 && (!atGoal || !F.pursuitMet) && rt.t > F.nextPursuit && F.pursuit.length < 5) { F.nextPursuit = rt.t + 14; this.pursue(rt); }
       if (Retreat.done(rt, this.ctx(rt), atGoal, el)) this.win(rt);
     }
   },

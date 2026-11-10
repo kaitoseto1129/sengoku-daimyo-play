@@ -525,9 +525,12 @@ const t08_nejirozaka = {
     // ---- 味方：宮部継潤の手と、塀の内の鉄砲 ----
     // 守将の宮部継潤は砦の奥の本陣で床几に座り、旗本に囲まれて下知する（塀へは出ない。kaito AR3・AV7）
     F.miyaHon = allyGroup(rt, { name: '宮部継潤の本陣', anchor: { x: -4, z: -48 }, facing: 0, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', fullStrength: true },
-      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto' } }, uS(10), uA(6)], MIYABE));
+      dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, mustLive: true, horse: false, hat: 'kabuto' } }, uS(10), uA(6)], MIYABE));
     F.miyaU = F.miyaHon.units.find((u) => u.name === '宮部継潤');
     if (F.miyaU) {
+      // 秀長・義久と同じく、本陣で下知する将を手傷で前線から退かせない。
+      // 狙いから外す指定は名札も消すため、手傷の後の処理だけを受け持つ。
+      F.miyaU.onWound = () => { F.miyaU.hp = Math.max(1, F.miyaU.hp); };
       F.miyaU._crouch = true;
       rt.scene.add(shogi(W, F.miyaU.pos.x, F.miyaU.pos.z, 0));
     }

@@ -70,9 +70,12 @@ function fighters(C) {
 function take(o) {
   const st = fight({ ...o, noRefill: true });
   const tick = st.tick;
+  // 全滅ではなく拠点の制圧。残兵の中心へ案内すると、必要な持ち場から外れてしまう。
+  st.killAll = false;
   st.idleAdvance = false; st.noHardCap = true; st.limit = Infinity;
   st.tick = (rt, C, m, ctx, el, dt) => {
     const cleared = tick(rt, C, m, ctx, el, dt);
+    C.goal = C.at;
     const u = rt.player.u;
     const present = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing &&
       Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 14;

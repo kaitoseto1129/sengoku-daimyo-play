@@ -523,8 +523,10 @@ const k13_domyoji = {
     // 奥田忠次の討死（史実。後藤勢の最初の押しで）
     rt.after(16, () => {
       const o = F.matsukura && F.matsukura.units.find((v) => v.alive && v.name === '奥田忠次');
-      if (o) rt.army.kill(o, null);
-      rt.say('松倉の足軽', '奥田殿が討たれた！　後藤の槍が下りて来る！', 3.4);
+      if (o) {
+        rt.army.kill(o, null);
+        rt.say('松倉の足軽', '奥田殿が討たれた！　後藤の槍が下りて来る！', 3.4);
+      }
     });
     const look = (list) => dress(list, TOYO);
     // fixedSpawn：段の敵は書いた所（頂・道明寺の野・誉田）から出る。見えない所を探して出すと、頂の又兵衛の組が石川の向こうに湧き、
@@ -544,8 +546,8 @@ const k13_domyoji = {
         foes: () => [keep('後藤又兵衛の旗本', TOP, [{ type: 'busho', n: 1, o: { name: '後藤又兵衛', horse: true, hat: 'kabuto' } }, uS(10), uA(8), uG(5)], { dx: -6, morale: 100, noRout: 120, dmg: 0.6 })],   // 0.8 では十秒で命が四割まで減った（11/7 の遊び。十二3）
         later: [
           // 又兵衛は頂で待たず、隊を率いて東の斜面へ駆け下りる（何度も押し返した）
-          { t: 14, say: ['後藤又兵衛', '下りて突き崩す！　我に続け！'], foes: () => { matabeiCharge(rt); return []; } },
-          { t: 30, say: ['後藤の侍', '殿をお守りせよ！　一歩も退くな！'], foes: () => [keep('後藤勢の新手', TOP, [uS(3), uA(9), uG(3)], { dx: -10, dz: 10, dmg: 0.6 })] },   // 頂の西の縁から（西の斜面の下に出すと、追った本人が石川の岸で一人になった）
+          { t: 14, if: () => !F.matabei, say: ['後藤又兵衛', '下りて突き崩す！　我に続け！'], foes: () => { matabeiCharge(rt); return []; } },
+          { t: 30, if: () => !F.matabei, say: ['後藤の侍', '殿をお守りせよ！　一歩も退くな！'], foes: () => [keep('後藤勢の新手', TOP, [uS(3), uA(9), uG(3)], { dx: -10, dz: 10, dmg: 0.6 })] },   // 頂の西の縁から（西の斜面の下に出すと、追った本人が石川の岸で一人になった）
           { t: 40, say: ['水野勝成', '伊達の鉄砲が着いた。撃ち込め！'], foes: () => { datearrive(rt); return []; } },
           { t: 52, foes: () => { matabeiCharge(rt); return []; } },
           // 史実：又兵衛は伊達の鉄砲に撃たれて果てた。本人が討てなくても、時が来れば物語は進む（二5）
