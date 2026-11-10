@@ -3618,7 +3618,11 @@ const shigisan = {
     if (!rt.G.lord && F.kousanDone && F.reachedShu && !F.paceEnjou) {
       F.paceEnjou = installEnjou(rt, { dress, MATSU, TOP, betrayal: () => this.betrayal(rt) });
     }
-    if (F.reachedWinAt && rt.t >= F.reachedWinAt) { this.win(rt, true); return; }
+    if (F.reachedWinAt && rt.t >= F.reachedWinAt) {
+      this.win(rt, true);
+      // 降伏拒否・炎上の段を待つ間も、道案内と止まった先手の復帰を続ける。
+      if (F.ending || F.endPending) return;
+    }
     // 別口による落城を、戦後に初めて知らされないよう一度だけ伝える。
     if (rt.t >= 390 && !F.otherFrontSaid) {
       F.otherFrontSaid = true;

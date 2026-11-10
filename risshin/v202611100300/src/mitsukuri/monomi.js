@@ -42,8 +42,9 @@ export function start(rt, ctx, done) {
     // 移動は到着、迎撃は敵の撤退を確かめる。休息の短い待ちは残す。
     if (s.kind === 'move' || s.kind === 'fight') {
       s.idleAdvance = false;
-      // 物見の戦は二分で切る（残りが四人以下なら勝ち扱い）。後詰の鉄砲が坂の上へ退くと届かず、十八分止まった（11/9 見回り bot）
-      s.limit = s.kind === 'fight' ? 120 : Infinity;
+      // 共通の四分・七分の打ち切りも外す。未到着や迎撃中を時間だけで済ませない。
+      s.noHardCap = true;
+      s.limit = Infinity;
     }
     return s;
   }), () => { F.k15Monomi = 'done'; done(); });
