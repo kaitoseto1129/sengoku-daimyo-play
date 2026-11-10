@@ -4986,9 +4986,8 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     }
     if (F.step === 6 && !F.kzYoin && KZ_HYORO.tick(rt, dt, F.kzCtx || (F.kzCtx = this.kzCtx(rt)))) { KZ_YOIN.start(rt, F.kzCtx); return; }
     if (F.kzYoin && KZ_YOIN.tick(rt)) { this.win(rt); return; }   // 余韻の三十秒の後に締める（kizugawa/yoin.js）
-    // 大将船を崩した後は、各段の上限で退き・兵糧船・余韻まで終える。
-    // 砲撃が刻限間際に決まった者を、達成後の見送り中に負けにしない。
-    if (!F.ending && !rt.over && (!F.bigSunk || F.doused < 3 || F.cannonHits < 1) && rt.t >= 1080) { this.lose(rt, '船の守りを立て直せ。船を離せ！'); return; }
+    // 目標を果たす前も、経過時間だけでは持ち場を失った事にしない。
+    // 消火の援護・大筒の援護・残兵の帰船を各段で進め、未達成の目標は続けられるようにする。
     if (F.step === 1) {
       // 大筒へ来て待った者も、持ち場を守る行動として拾う。
       if (!F.cannonAttended) for (const c of F.guns) {

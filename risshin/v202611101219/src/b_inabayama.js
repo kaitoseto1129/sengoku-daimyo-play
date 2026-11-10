@@ -6618,7 +6618,7 @@ const inabayama = {
     // 裏から破られた本丸の守りは浮き足立つ（三人衆の寝返りの後で、もともと士気が低い）
     for (const g of [...F.hata, F.tatsu]) if (!gone(g)) { g.order = 'hold'; g.aggro = 10; g.morale = Math.min(g.morale, 60); }
     this.guideHon(rt);
-    k15Hon.install(rt, { HON, dress, officer });   // 15分の構成：三方からの登りと龍興の近習衆・龍興の退去
+    k15Hon.install(rt, { HON, dress, officer, retreat: inabaRetreat });   // 15分の構成：三方からの登りと龍興の近習衆・龍興の退去
   },
   // 次に退ける守りを一組だけ指す。主殿の奥へ城主を追わせない。
   guideHon(rt) {

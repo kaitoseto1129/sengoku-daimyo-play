@@ -33,6 +33,8 @@ export function start(rt, C) {
   rt.setPhase('kobune');
   rt.obj('main', C.MISSIONS[4], 'main');
   // 時が飛ぶ（水を入れて数日）。沼はもう一段満ち、田の小屋や木が沈み、城は島のように浮く
+  // 前日の堰の寄せは城へ戻っている。新しい岸の任務へ古い敵や標的を持ち越さない。
+  if (F.weirRaid) for (const u of F.weirRaid.units) if (u.alive && !u.gone) rt.army.despawn(u);
   F.lakeY = Math.max(F.lakeY ?? C.LAKE_MID, C.LAKE_MID); F.lakeTo = C.LAKE_HI; if (F.lake) F.lake.position.y = F.lakeY;
   W.setTime('dusk'); W.setRainTarget?.(0.25);
   C.warp(rt, C.KU.x + 2, C.KU.z + 4, Math.atan2(C.BASIN.x - C.KU.x, C.BASIN.z - C.KU.z));
@@ -43,7 +45,21 @@ export function start(rt, C) {
   K.wounds = C.dikeWounds(rt, K.spots.map((S) => [S.land.x - S.ux * 2.5, S.land.z - S.uz * 2.5]));
   K.spots.forEach((S, i) => { S.wound = K.wounds[i]; });
   // 区の足軽は堤の上に戻り、岸を固める。堤の上に石田の鉄砲を並べ、舟を撃つ
-  if (C.live(F.guard)) { F.guard.order = 'hold'; F.guard.anchor = { x: C.KU.x - 2, z: C.KU.z - 2 }; F.guard.aggro = 12; F.guard.seekRange = 14; F.guard.ai = false; F.guard.onArrive = null; }
+  if (C.live(F.guard)) {
+    const g = F.guard;
+    g.order = 'hold'; g.anchor = { x: C.KU.x - 2, z: C.KU.z - 2 }; g.aggro = 12; g.seekRange = 14; g.ai = false; g.onArrive = null;
+    // 要だけ移すと足軽は西の堰に残り、最初の舟を本人一人で受ける。日が替わる時に兵も堤の筋へ戻す。
+    let i = 0;
+    for (const u of g.units) if (u.alive && !u.gone) {
+      const along = ((i >> 1) - 2) * 1.4, side = i++ % 2 ? 0.7 : -0.7;
+      const x = g.anchor.x + along * 0.832 + side * 0.555, z = g.anchor.z - along * 0.555 + side * 0.832;
+      u.target = null; u.watch = null; u.atk = null;
+      u.pos.set(x, W.heightAt(x, z), z);
+      if (u.vel) u.vel.x = u.vel.y = u.vel.z = 0;
+      if (u.push) u.push.x = u.push.z = 0;
+      if (u.mesh) u.mesh.position.copy(u.pos);
+    }
+  }
   K.guns = allyGroup(rt, { faction: 'ishida', name: '堤の鉄砲', fullStrength: true, anchor: { x: C.KU.x + 6, z: C.KU.z - 3 }, facing: Math.atan2(C.BASIN.x, C.BASIN.z), width: 6, aggro: 30, order: 'hold', fixed: true, noRout: true, dmgMult: 0.5 },
     C.dress([{ type: 'gun', n: 5 }, { type: 'samurai', n: 1 }], C.ISHI));
   const me = nm(rt);
