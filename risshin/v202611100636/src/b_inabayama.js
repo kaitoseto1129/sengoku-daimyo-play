@@ -1213,11 +1213,12 @@ function saitoNobori(W, x, z, h) {
 }
 
 function nearGuard(rt, group) {
+  if (group.hidden || group.noAI || group.routed) return null;
   const p = rt.player.u.pos;
   let target = null, nearest = Infinity;
   for (const u of group.units) {
     if (!u.alive || u.hp <= 0 || u.dying || u.gone || u.fleeing || u.noTarget || u.woundOut
-      || u.evacuatedWound || u.rearWound || u.downed) continue;
+      || u.evacuatedWound || u.rearWound || u.downed || u.mesh?.visible === false) continue;
     const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z) + Math.abs(u.pos.y - p.y) * 4;
     if (d < nearest) { target = u; nearest = d; }
   }
@@ -4041,12 +4042,22 @@ function buildKaraTrail(rt) {
 // 稲生の水準（10/25）：倒す相手は、残りに数える組の中で一番近い一人。札・ピン・▼で同じ本人を使う。
 // 深手・逃げる兵・建物は数えない。選び直しは一コマに一度だけ。
 const inabaFoe = (u) => !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.woundOut && !u.fleeing &&
-  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && u.mesh?.visible !== false;
+  !u.rearWound && !u.evacuatedWound && !u.noTarget && !u.isStruct && !u.civ && !u.group?.hidden && !u.group?.noAI && u.mesh?.visible !== false;
 function honTargetGroup(rt) {
   const F = rt.flags;
   if (F.step !== 4 || F.sig || F.ending) return null;
-  for (const g of F.honGuards || []) if (!gone(g) && g.units.some(inabaFoe)) return g;
-  return null;
+  // 任務の札と足元の印で同じ組を指す。配列の先頭へ戻すと、近い守りを
+  // 選んだ札と食い違い、別の段の馬廻へ向かわせてしまう。
+  if (F.honTarget && !gone(F.honTarget) && nearGuard(rt, F.honTarget)) return F.honTarget;
+  let best = null, distance = Infinity;
+  const p = rt.player.u.pos;
+  for (const g of F.honGuards || []) if (!gone(g)) {
+    const q = nearGuard(rt, g);
+    if (!q) continue;
+    const d = Math.hypot(q.x - p.x, q.z - p.z) + Math.abs(q.y - p.y) * 4;
+    if (d < distance) { best = g; distance = d; }
+  }
+  return best;
 }
 function nearestFoeOf(rt, group) {
   const F = rt.flags;
@@ -4059,16 +4070,16 @@ function nearestFoeOf(rt, group) {
   if (inabaFoe(reach) && has(reach)) return (F.foePick = reach);
   let best = null, bd = Infinity;
   for (const g of list) {
-    if (gone(g) || g.sent === false) continue;
+    if (gone(g) || g.hidden || g.noAI || g.sent === false) continue;
     for (const u of g.units) {
       if (!inabaFoe(u)) continue;
-      const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z);
+      const d = Math.hypot(u.pos.x - me.x, u.pos.z - me.z) + Math.abs(u.pos.y - me.y) * 4;
       if (d < bd) { bd = d; best = u; }
     }
   }
   // 少しの前後では替えず、別の兵が三歩以上近い時だけ渡す。
   const prev = F.foePrev;
-  if (best && best !== prev && inabaFoe(prev) && has(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z)) best = prev;
+  if (best && best !== prev && inabaFoe(prev) && has(prev) && bd + 3 >= Math.hypot(prev.pos.x - me.x, prev.pos.z - me.z) + Math.abs(prev.pos.y - me.y) * 4) best = prev;
   F.foePrev = best;
   return (F.foePick = best);
 }
@@ -4898,7 +4909,7 @@ const inabayama = {
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
     // 城攻めの進み具合（docs/inabayama_spec_1109.md・kaito 11/9 夜）：右上の札の下に 城下／麓の鹿垣／七曲り／大手の木戸／本丸
-    siegeProgress(rt, ['城下', '麓の鹿垣', '七曲り', '大手の木戸', '本丸'], (r) => { const F = r.flags; return r.tracker.main === true ? 5 : F.step >= 4 ? 4 : F.step === 3 ? (F.guardOn ? 3 : 2) : F.step === 2 ? 1 : 0; });
+    siegeProgress(rt, ['城下', '麓の鹿垣', '七曲り', '大手の木戸', '本丸'], (r) => { const F = r.flags; return r.tracker.main === true ? 5 : F.step >= 4 ? 4 : F.step === 3 ? (F.tsukeGate || F.guardOn ? 3 : 2) : F.step === 2 ? 1 : 0; });
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (m && s && INABA_TSUKE.on && !INABA_TSUKE.gate && s.pos && s.pos.y - this.u.pos.y > 6) a *= 0.05; const d = td.call(this, a, s); /* 11/9 二巡（織田E）：登り（③）は上の段から矢玉と槍が続き、act が七曲り・細道の斬り合いで倒れた。登りの間は矢玉を半分、刃を八割に */ const up = rt.flags.step === 3 && d > 0 && s && !s.isStruct; return up ? (m ? d * 0.5 : d * k * 0.8) : s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     // 11/9 二巡（織田C）：付け入りの登りの間、馬出しの兵の狭間の矢が六歩より上から本人へ降り続け、七曲りの上の折れで倒れた（act・素の bot とも）。木戸の斬り合いまでは上からの矢玉を五分に（二割でも数で倒れた。矢は飛び、音と怖さは残る）。
     const W = rt.world;

@@ -74,9 +74,10 @@ export function crossing(rt) { return (rt.flags.s1?.st || 0) >= 2; }
 // 本人の渡河は必須。後続一組の足止めだけでは北岸で待ち続けさせない。
 export function ready(rt, K) {
   const F = rt.flags, S = F.s1, P = rt.player.u.pos;
-  if (!crossing(rt) || P.z >= -14) return false;
+  // 対岸ならどこでもよいとはしない。指定した浅瀬の出口まで本人が渡る。
+  if (!crossing(rt) || P.z >= -14 || Math.hypot(P.x - K.FORD.x, P.z + 22) >= 26) return false;
   const arrived = K.lightPos(F.blk.nobu).z < -20 && (!live(F.nobu) || F.nobu.center().z < -16);
-  return arrived || (S.crossLeg === 3 && rt.t - S.legT > 90 && Math.hypot(P.x - 20, P.z + 22) < 26);
+  return arrived || (S.crossLeg === 3 && rt.t - S.legT > 90);
 }
 
 export function update(rt, K) {

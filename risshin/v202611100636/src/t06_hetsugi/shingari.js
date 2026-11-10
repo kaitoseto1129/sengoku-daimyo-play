@@ -23,6 +23,11 @@ function release(rt, remaining) {
 
 export function crossNow(rt) { return !!rt.flags.s4?.go; }
 
+export function crossed(rt, K) {
+  const P = rt.player.u.pos;
+  return crossNow(rt) && P.z > 26 && Math.hypot(P.x - K.FORD.x, P.z - 34) < 26;
+}
+
 export function pin(rt, K) { return crossNow(rt) ? { x: K.FORD.x, z: 34 } : MOUTH_N; }
 
 export function update(rt) {

@@ -32,6 +32,7 @@ import { depthStart, depthTick, depthBot, rest as dpRest, hold as dpHold } from 
 import { install as ngMonomi } from './nagashima/monomi.js';   // 0〜3分：堤から見る輪中と砦
 import { steps as fusaSteps, lastSteps } from './nagashima/fusa.js';      // 6〜11分：川の封鎖・砦から逃げ出す門徒
 import { STAGES } from './stages.js';
+import { advanceSteps, ADV_MISSIONS, ADV_CP, ADV_POINTS } from './nagashima/advance.js';   // 11/10 作り直し：堤→砦→水路→在所→囲み→突破
 import { depthPlan as nagashimaDepth } from './nagashima/fujin.js';   // 布陣図の陣立て（docs/fujin/nagashima.md）
 import { KIT } from './b_nagashinojo.js';
 import { camp } from './b_mid.js';
@@ -303,8 +304,30 @@ function rimDistance(poly, x, z) {
   }
   return best;
 }
+// 11/10 長島の作り直し（docs/nagashima_spec_1109.md）：岸から堤の砦へ渡る細い堤。左右は水、一列でしか進めない。
+// 川筋の掘り下げを見込んで盛り、水面より膝ほど高い天端を残す。寸法は遊びの復元。
+const DIKE = { x: -46, z0: -6, z1: -48, half: 1.4, slope: 2.2, top: .3 };
+const DIKE_FLANKS = [{ pts: [[-50.8, -4], [-51, -47]], w: 2, depth: .9 }, { pts: [[-41.2, -4], [-41, -47]], w: 2, depth: .9 }];
+const CH_STREAM = { pts: [[-240, -28], [-100, -32], [0, -32], [100, -34], [240, -26]], w: 16, depth: 1.1 };
+const WEST_STREAM = { pts: [[-58, -32], [-66, -74], [-60, -132]], w: 9, depth: 1.8 };
+function dikeCarve(x, z) {
+  let c = 0;
+  for (const st of [CH_STREAM, WEST_STREAM, ...DIKE_FLANKS]) {
+    const d = Math.sqrt(segDist2(x, z, st.pts));
+    if (d < st.w * 2) c += st.depth * Math.pow(1 - d / (st.w * 2), 1.5);
+  }
+  return c;
+}
+function dikeProfile(x, z) {
+  const dx = Math.abs(x - DIKE.x);
+  if (dx >= DIKE.half + DIKE.slope || z > DIKE.z0 + 3 || z < DIKE.z1 - 3) return 0;
+  const across = dx <= DIKE.half ? 1 : 1 - (dx - DIKE.half) / DIKE.slope;
+  const along = Math.min(1, (DIKE.z0 + 3 - z) / 3, (z - DIKE.z1 + 3) / 3);
+  return Math.max(0, across * along);
+}
 function fortHeight(x, z) {
   let h = baseHeight(x, z);
+  { const k = dikeProfile(x, z); if (k > 0) h += Math.max(0, DIKE.top + dikeCarve(x, z) - h) * k; }
   for (const k of NAGASHIMA_ALL_PLAN.kuruwa) {
     const inside = inPoly(k.poly, x, z), d = rimDistance(k.poly, x, z);
     if (!inside && d >= 3) continue;
@@ -1973,14 +1996,14 @@ function surroundForts(rt, close = true) {
 
 // 川筋は使い回し、画質を切り替えても前の戦の水路を持ち越さない。
 const RIVER_STREAMS = [
-  { pts: [[-240, CH_Z + 4], [-100, CH_Z], [0, CH_Z], [100, CH_Z - 2], [240, CH_Z + 6]], w: 16, depth: 1.1 },
+  CH_STREAM,
   // 中央の泥道と柵の持ち場は空け、脇だけ浅い水路と水たまりにする。
   { pts: [[-14, 24], [-12, 8], [-14, -2]], w: 1.4, depth: .3 },
   { pts: [[14, 24], [12, 8], [14, -2]], w: 1.4, depth: .3 },
   { pts: [[-20, 3], [-24, 4]], w: 2, depth: .3 },
   { pts: [[19, 12], [24, 14]], w: 2, depth: .3 },
   { pts: [[-240, -136], [-60, -132], [60, -134], [240, -130]], w: 10, depth: 1.8 },
-  { pts: [[-58, CH_Z], [-66, -74], [-60, -132]], w: 9, depth: 1.8 },
+  WEST_STREAM,
   // 屋長島と中江の間は揖斐川筋。中江の城・道・包囲柵を西へ四十八歩移し、水面を三十二歩幅に広げる。
   // 掘り際は x=73〜137。屋長島の外柵（x=73）と中江の外柵（x=137.5）の間に収める。実測復元ではない。
   { pts: [[105, CH_Z - 2], [105, -74], [105, -134]], w: 16, depth: 1.8 },
@@ -1998,11 +2021,14 @@ const TOWN_STREAMS = [...RIVER_STREAMS,
   MOAT_E,
   { pts: [[-62, -112], [-52, -112]], w: 1.2, depth: .8 },
   { pts: [[-45, -112], [-37, -112]], w: 1.2, depth: .8 },
+  ...DIKE_FLANKS,
 ];
 
 const nagashima = {
   lethal: { max: 4, firstAt: 90, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md。先取りの列 豊臣A 11/9）
-  resumeSteps: [[1, 'build'], [2, 'boats'], [3, 'lastSally']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
+  // 11/10 作り直し：CP1 堤／CP2 第一砦／CP3 水路／CP4 在所／CP5 包囲／CP6 最後の突破の前（advance.js の ADV_CP）
+  resumeSteps: [11, 12, 13, 14, 15, 16].map((k) => [k, function (rt) { this.advance(rt, ADV_CP[k - 10]); }]),
+  checkpointStep: (rt) => (rt.flags.adv && rt.flags.advCP && !rt.flags.advEnding ? 10 + rt.flags.advCP : null),   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生と同じ共通表示へ。段の丸・補足・空振り音・自分の足元の輪を省く。
   missionSingleLine: true,
   // 11/5：織田の三口（賀鳥・早尾・市江）は島の北。野の奥（-z）は南なので、小地図の北は下（右が西・左が東）。
@@ -2016,11 +2042,12 @@ const nagashima = {
   missionPinCaption: '',
   missionDetail: () => '',
   missionStatus: () => '',
-  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || /討ち取|討死|勝|崩れ|降伏|火/.test(text),
+  bannerAllowed: (rt, text) => rt.over || !!rt.flags.ending || !!rt.flags.adv || /討ち取|討死|勝|崩れ|降伏|火/.test(text),
   // 公記巻七・九月二十九日条の順：柵を結う → 舟を見張る → 退城の舟 → 裸の斬り込み → 中江・屋長島の柵 → 火。
   stageGoalsOnly: true,   // 11/6 fixc1721：勝ちの札に「敵を八人討つ」が出ていた（三1）。目標は段だけ
   // 11/6 fixc1844：勝ちの札は五つまでで、六つ目（火）が落ちていた。見張りの二段（見張り場・退く舟）を一つにまとめ五つに（critic60 三2・見張りばかり）。
-  missions: ['堤の上へ上がり、輪中と門徒の砦を見よ', '岸の横木に縄をかけよ', '西の舟入りで、兵糧を取り返しに来た門徒を止めよ', '東の岸の柵で、砦から逃げ出した門徒を止めよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', '岸の真ん中の柵で、最後に寄せる門徒を止めよ', AFTERMATH_ORDER],
+  missions: ADV_MISSIONS,
+  oldMissions: ['堤の上へ上がり、輪中と門徒の砦を見よ', '岸の横木に縄をかけよ', '西の舟入りで、兵糧を取り返しに来た門徒を止めよ', '東の岸の柵で、砦から逃げ出した門徒を止めよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', '岸の真ん中の柵で、最後に寄せる門徒を止めよ', AFTERMATH_ORDER],
   taskLines: ['岸の横木に縄をかけよ', '岸の柵で槍を構え、寄る舟に備えよ', '岸の柵に槍を並べ、鉄砲衆を守れ', '岸の柵で斬り込む門徒を受け止めよ', '西の柵の縄を三か所締め直せ', AFTERMATH_ORDER],
   // 味方が減った時の共通の声は「任務の札」と遊びの言葉を使う。岸の組頭の言葉に替える。
   missionDangerSpeech: (rt) => rt.flags.step >= 3.5 ? '西の柵の槍が減った！　柵の内へ寄り、列を詰めよ' : '岸の槍が減った！　柵の内へ寄り、列を詰めよ',
@@ -2030,12 +2057,15 @@ const nagashima = {
   // 右上の番号は時の順に進むだけで戻らない（kaito 三2・三3）。中の下知の選び分けは taskOf。
   missionOf(rt) {
     const F = rt.flags;
+    if (F.adv) return F.advK || 1;
+    if (!F.adv) return 0;
     const base = F.ending ? 8 : F.dpLast ? 7 : F.step >= 3.5 ? 6 : F.step >= 3 ? 5 : F.step >= 2 ? 4 : F.dp?.i >= 2 && F.step === 1.5 || F.dpDone ? 3 : F.step === 1.5 ? 2 : F.step >= 1 ? 1 : 0;
     F.missionMax = Math.max(F.missionMax || 0, base);
     return F.missionMax;
   },
   taskOf(rt) {
     const F = rt.flags;
+    if (F.adv) return 1;
     if (F.ending) return 5;
     if (F.step <= 1) return !rt.G.lord && !F.participated && bankWorkSpot(rt) ? 0 : 1;
     if (F.step < 3) return F.step === 2 ? 2 : 1;
@@ -2145,7 +2175,8 @@ const nagashima = {
       q.arrived = p.z >= BANK_Z && Math.hypot(p.x - at.x, p.z - at.z) < 3;
       return q;
     }
-    { const at = F.ngMonomi || (F.dpOn && F.dp?.cur?.at); if (at) { q.x = at.x; q.z = at.z; q.r = q.hide = 4; q.label = this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 4; return q; } }
+    if (F.advEnding) { const at = !F.advSaid && F.advWalk; if (!at) return null; q.x = at.x; q.z = at.z; q.r = q.hide = 3.5; q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 3.5; return q; }
+    { const at = F.ngMonomi || (F.dpOn && (F.dp?.cur?.at || F.dp?.cur?.s?.pin)) || (F.adv && F.advLastAt); if (F.adv && at && at !== F.ngMonomi) F.advLastAt = at; if (at) { q.x = at.x; q.z = at.z; q.r = q.hide = 4; q.label = this.travelGuideLabel(rt); q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < 4; return q; } }
     const stage = this.taskOf(rt);
     let spot = null;
     if (dangerProgress(rt)) { q.x = 24; q.z = BANK_Z + 16; q.r = q.hide = 3; return q; }
@@ -2174,9 +2205,7 @@ const nagashima = {
   introKeepControls: true, // 四秒長押しの説明を、開戦前の言い換えで落とさない。
   // 11/8 critic60（五4）：始まりの札は戦の名・年・両軍の数・二行と「出陣する」だけ。「人物と戦場の説明を読む」を出さない
   introPeople: [],
-  introText: (rt) => rt.G.lord
-    ? '岸で川を向き、舟を見張る。柵は味方が結う。'
-    : '岸の横木に縄をかけ、舟を見張る。川は渡らない。',
+  introText: () => '細い堤を進み、砦と舟着場を取る。長島の囲みを閉じる。',
   // 描画専用の民。兵の名簿・当たり・戦功には入れない。退避後も輪中内に残る。
   civilianCrowd: { bounds: { minX: -124, maxX: -34, minZ: -124, maxZ: -48 }, bands: PEOPLE_BANDS },
   noticeOnce: false, // 再び持ち場を離れた時も案内する。同文の間引きは共通の仕組みに任せる。
@@ -2258,6 +2287,7 @@ const nagashima = {
   // 作業場と見張り場を、同じ「ここへ」の札にしない。
   travelGuideLabel(rt) {
     const F = rt.flags, stage = this.taskOf(rt);
+    if (F.adv) return ['', '堤の先', '堤の砦', '舟着場', '在所の入口', '南の舟入り', '南の舟入り', '堤の上'][F.advK || 1];
     if (F.ending) return ['西の岸の柵', '中央の岸の柵', '東の岸の柵'][F.aftermathChecked] || '岸の柵';
     if (F.ngMonomi) return '岸の堤の上';
     if (F.dpOn && F.dp?.cur?.at) return F.dpLast ? '岸の真ん中の柵' : F.dp.i >= 2 ? '東の岸の柵' : '西の舟入り';
@@ -2517,6 +2547,16 @@ const nagashima = {
     rockDrawGround: true, // 岩と根草は、描く地面の面へ据える。
     rocks: 0, // 輪中の持ち場に散布岩とその根草を並べない。川石・泥・岸にまとめた葦は残す。
     riverCross: true,
+    waterFireReflections: true,   // 11/10 終わりの火を川面に映す（長島だけの絵。共通の三枠の反射）
+    // 堤を渡る川筋の水面は、盛った堤の高さで持ち上げない。堤の両脇の水面を真っ直ぐつなぐ。
+    prepareTerrain(W) {
+      const lv = (x, z) => Math.min(W.heightAt(x, z) + CH_STREAM.depth - .15, W.heightAt(x, z + CH_STREAM.w) - .15, W.heightAt(x, z - CH_STREAM.w) - .15);
+      CH_STREAM.levelAt = (x, z) => {
+        if (Math.abs(x - DIKE.x) >= 10) return lv(x, z);
+        const a = lv(DIKE.x - 10, z), b = lv(DIKE.x + 10, z);
+        return a + (b - a) * (x - DIKE.x + 10) / 20;
+      };
+    },
     waterSlow: true,   // 川・水路が本当に足を遅くする（terrain_tags.js の 'water' タグ。「敵の強さは水」）
     paths: [[[0, 150], [0, 40], [0, BANK_Z + 2]], ...FORT_ROADS, ...PEOPLE_PATHS, [[-44, -71], [-44, -76]], [[-44, -88], [-38, -88]], [[-44, -71], [-38, -71]]],
     height,
@@ -3512,14 +3552,226 @@ const nagashima = {
       if (F.ending || F.step > 1 || !rt.player.u.alive) return;
       // 堤から輪中と砦を見る段（nagashima/monomi.js）の後に横木の仕事
       ngMonomi(rt, { at: { x: -12, z: BANK_Z + 12 }, bell: { x: 0, z: -80 }, ready: bankPlayerReady, next: () => {
-        if (F.ending || F.step >= 1 || !rt.player.u.alive) return;
-        this.build(rt); sfx('eshout', .6);
-      rt.bark(rt.G.lord ? '対岸から矢！　岸の柵で舟を見張れ' : '対岸から矢！　柵の内で横木を直せ', true);
+        if (F.ending || F.step >= 1 || F.adv || !rt.player.u.alive) return;
+        this.advance(rt, 0); sfx('eshout', .6);
       } });
     });
   },
 
-  // ① 柵を結う
+  // ===== 11/10 作り直しの流れ（nagashima/advance.js）=====
+  // from：始める段の番号（チェックポイントから続ける時）。続きの流し直しで何度呼ばれても、最後の一回だけ始める
+  advance(rt, from = 0) {
+    const F = rt.flags;
+    F.advFrom = from;
+    if (F.advPending) return;
+    F.advPending = true;
+    rt.after(0, () => { F.advPending = false; this.advStart(rt, F.advFrom); });
+  },
+  advStart(rt, from) {
+    const F = rt.flags, W = rt.world;
+    if (F.adv && F.dp?.on) for (const g of F.dp.cur?.groups || []) { g.noRout = false; g.morale = 0; }
+    F.adv = true; F.step = 10; F.dpOn = true; F.advK = Math.max(F.advK || 0, 1);
+    F.ngMonomi = null; rt.unmark('ngMonomi');
+    // 岸の守りの仕組み（柵・見張り・退城の舟）は使わない。対岸の不死身の射手は撃たせない
+    for (const g of F.bankBows || []) { g.fire = false; g.aggro = 0; }
+    if (F.relief) { F.relief.noAI = false; for (const u of F.relief.units) u.noTarget = false; }
+    // 先手（長蛇の列）：槍足軽 → 侍 → 主人公の組 → 鉄砲 → 後続
+    if (!F.advFront) {
+      const ODA_LOOK = { flag: 'oda', armor: 0x28231f, hatColor: 0x1c1916, lace: 0x645545, cloth: 0x293b45, haori: 0 };
+      F.advFront = allyGroup(rt, { name: '先手の槍組', fixed: true, anchor: { x: -46, z: 4 }, facing: Math.PI, formation: 'column', colW: 2, width: 3, aggro: 10, morale: 85, noRout: true },
+        dress([{ type: 'ashigaru', n: 10 }, { type: 'samurai', n: 3 }], ODA_LOOK));
+      F.advGuns = allyGroup(rt, { name: '先手の鉄砲', fixed: true, anchor: { x: -46, z: 14 }, facing: Math.PI, formation: 'column', colW: 2, width: 3, aggro: 30, morale: 80, noRout: true },
+        dress([{ type: 'busho', n: 1, o: { name: '先手の組頭', invuln: true, horse: false } }, { type: 'gun', n: 6 }], ODA_LOOK));
+      rt.after(60, () => { if (F.advFront) F.advFront.noRout = false; if (F.advGuns) F.advGuns.noRout = false; });
+    }
+    if (F.shiba) { F.shiba.historicalOrders = false; }
+    const monto = (n, s2, lead) => [
+      ...(lead ? [{ type: 'samurai', n: 1, o: { name: lead, kosode: 1, hat: 'hachimaki', flag: 'namu', flagScale: 1.6, horse: false, sode: false, kote: 0, menpo: 0 } }] : []),
+      { type: 'samurai', n: s2, o: { kosode: 1, hat: 'hachimaki', flag: 'namu', horse: false, sode: false, kote: 0, menpo: 0 } },
+      { type: 'ashigaru', n, o: { kosode: 1, hat: 'hachimaki', weapon: n % 2 ? 'spear' : 'sword' } }];
+    const K = {
+      monto,
+      desperate: (n, s2) => [{ type: 'samurai', n: s2, o: { kosode: 1, hat: 'none', flag: 'namu', horse: false, sode: false, kote: 0, menpo: 0, face: { ...HUNGRY_FACE, t: 2 } } },
+        { type: 'ashigaru', n, o: { kosode: 1, hat: 'hachimaki', weapon: 'spear' } }],
+      guns: (n) => [{ type: 'gun', n, o: { kosode: 1, hat: 'hachimaki' } }],
+      bows: (n) => [{ type: 'bow', n, o: { kosode: 1, hat: 'hachimaki' } }],
+      events: this.advEvents(rt),
+    };
+    const steps = advanceSteps(K);
+    const k0 = Math.max(0, Math.min(steps.length - 1, from | 0));
+    if (k0 > 0) {
+      // 途中から：その段の前の場面の絵（旗・舟・火の手前）だけを整え、本人を段の手前へ
+      const E = K.events;
+      if (k0 >= 1) E.column(rt, true);
+      if (k0 >= 4) E.fortTaken(rt, true);
+      if (k0 >= 6) E.fleetIn(rt, true);
+      if (k0 >= 8) E.flagLanding(rt, true);
+    }
+    depthStart(rt, { faction: 'ikko', flag: 'namu', armor: IKKO.armor, fixedSpawn: true, backing: false, scale: 1.15, dmg: 0.7, calmRest: false,
+      look: (l) => dress(l, IKKO), friends: (r) => [F.advFront, F.advGuns, ...(r.squadGroups || [])].filter((g) => g && g.count && !g.routed) }, steps.slice(k0), () => this.advEnd(rt));
+    // 段の番号は始めた段から数える（ADV_CP は全体の番号）
+    F.advBase = k0;
+  },
+  // 場面の絵と声（段の始まりから呼ぶ）
+  advEvents(rt) {
+    const F = rt.flags, W = rt.world, self = this;
+    const boatAt = (x, z, rot, big) => {
+      const m = big ? ataka(true) : kobune(x, waterHeight(W, x, z) - .2, z, rot, 7);
+      if (big) { m.position.set(x, waterHeight(W, x, z) - .45, z); m.rotation.y = rot; }
+      rt.scene.add(m);
+      return m;
+    };
+    const slide = (m, to, dur) => { (F.advSlides ||= []).push({ m, x0: m.position.x, z0: m.position.z, x1: to.x, z1: to.z, t: 0, dur }); };
+    const flagAt = (x, z, flag) => { const n = nobori(W, x, z, flag, 5); rt.scene.add(n); return n; };
+    return {
+      column(r, quiet) {
+        if (F.advColumnSet) return; F.advColumnSet = true;
+        // 先手の列を堤へ乗せる。前の組から順に、堤の上を一列で進む（追い越しの道は堤の脇の浅い水）
+        for (const g of [F.advFront, F.advGuns]) if (g) { g.order = 'path'; g.pathIdx = 0; g.path = [[-46, -6], [-46, -30]]; g.onArrive = (q) => { q.order = 'hold'; q.facing = Math.PI; }; }
+        if (!quiet) sfx('horagai', .6);
+      },
+      fortWarn(r) { r.army.play('bell', ADV_POINTS.fort, .6); },
+      fortTaken(r, quiet) {
+        if (F.advFortFlag) return;
+        F.advFortFlag = flagAt(-47, -53, 'oda');
+        if (!quiet) { r.banner('堤の砦、制圧', '残る門徒は奥の寺と在所へ退く'); r.say('足軽', '退いた……奥へ逃げていく', 3); }
+      },
+      fleetIn(r, quiet) {
+        if (F.advKuki) return;
+        // 九鬼の船が分流へ入り、門徒の小舟は奥へ下がる（舟一隻の到着に段を頼らない。絵だけ）
+        F.advKuki = boatAt(-62, -40, Math.PI * .02, true);
+        F.advKukiFlag = flagAt(-62, -40, 'kuki');
+        slide(F.advKuki, { x: -65, z: -62 }, quiet ? .1 : 40);
+        F.advIkkoBoats = [[-66, -80, .1], [-64, -90, -.1], [-67, -98, .05]].map(([x, z, rot]) => boatAt(x, z, rot));
+        if (!quiet) { sfx('horagai', .7); r.army.play('gun', { x: -62, z: -44 }, .6); r.army.smoke(-60, waterHeight(W, -62, -44) + 3, -44, -1, 0, 1.2); }
+      },
+      flagLanding(r, quiet) {
+        if (F.advLandFlag) return;
+        F.advLandFlag = flagAt(ADV_POINTS.landing.x + 1.5, ADV_POINTS.landing.z, 'oda');
+        if (F.advKuki) slide(F.advKuki, { x: -65.5, z: -84 }, quiet ? .1 : 30);
+        (F.advIkkoBoats || []).forEach((m, i) => slide(m, { x: m.position.x + (i % 2 ? 1 : -1), z: -112 - i * 3 }, quiet ? .1 : 25));
+        if (!quiet) { r.banner('舟着場に織田の旗', '九鬼の船が進み、門徒の舟は奥へ下がる'); r.award((t) => { t.side.push('水路 確保'); }, '水路を確保した'); }
+      },
+      village(r) {
+        // 在所の民は戦の近くから自分で逃げる（war_people）。寺の鐘で奥へ走らせる
+        r.army.play('bell', { x: -44, z: -82 }, .8);
+        r.banner('寺内の在所', '家・寺・畑。戦場なのに、人が暮らしている');
+      },
+      closing(r) {
+        const said = [['使番', '北側、封鎖！'], ['使番', '舟着場も押さえました！'], ['使番', '西の堤、滝川勢が確保！']];
+        said.forEach(([w, t], i) => r.after(i * 3.6, () => { if (!F.ending) { r.say(w, t, 3.2); sfx('horagai', .35); } }));
+        r.after(11, () => r.banner('逃げ道が、一つずつ消えていく', '残るは南の舟入りだけ'));
+      },
+      lastClosed(r) {
+        if (!F.advSouthShip) {
+          F.advSouthShip = boatAt(-60, -134, Math.PI / 2, true);
+          F.advSouthFlag = flagAt(-60, -134, 'kuki');
+          slide(F.advSouthShip, { x: -36, z: -134 }, 6);
+        }
+        r.say('使番', '最後の水路、塞がりました！', 3.4);
+        r.after(3.6, () => { r.banner('逃げ道を閉じた', '向こうには、武器を持つ者だけでなく、家族と負傷者'); r.army.play('himei', { x: -48, z: -114 }, .5); });
+        r.after(6.4, () => r.say('足軽', '……女子供が、荷を抱えて立っとる', 3));
+        r.award((t) => { t.side.push('包囲 完成'); }, '包囲を完成させた');
+      },
+      desperate(r) { r.army.play('eshout', { x: -48, z: -110 }, 1.4); r.army.play('bell', { x: -44, z: -82 }, .5); },
+      breakFailed(r) { r.say('組頭', '……止まった。', 3); },
+    };
+  },
+  advUpdate(rt, dt) {
+    const F = rt.flags;
+    for (const s of F.advSlides || []) {
+      if (s.t >= s.dur) continue;
+      s.t = Math.min(s.dur, s.t + dt);
+      const k = s.t / s.dur, e = k * k * (3 - 2 * k);
+      s.m.position.x = s.x0 + (s.x1 - s.x0) * e; s.m.position.z = s.z0 + (s.z1 - s.z0) * e;
+      if (s.m === F.advKuki && F.advKukiFlag) { F.advKukiFlag.position.x = s.m.position.x; F.advKukiFlag.position.z = s.m.position.z; }
+      if (s.m === F.advSouthShip && F.advSouthFlag) { F.advSouthFlag.position.x = s.m.position.x; F.advSouthFlag.position.z = s.m.position.z; }
+    }
+    // 堤の上で詰まった味方は、脇の浅い水へ一歩外して追い越させる（立ち止まった列で本人が塞がれない）
+    if (rt.t >= (F.advJamT || 0)) {
+      F.advJamT = rt.t + 1;
+      const p = rt.player.u.pos, W = rt.world, at = F.dp?.on && F.dp.cur?.at;
+      // 堤の段（①②）は、味方の組の持ち場を堤の上に縦に並べる（横へずらすと分流の深みへ入る）
+      if (at && (F.advK || 1) <= 1) [F.advFront, F.advGuns].forEach((g, i) => { if (g && g.order !== 'path') g.anchor = { x: -46, z: at.z + 3 + i * 8 }; });
+      // 深い水に入って足の止まった味方は、近い堤・岸へ上げる（特定の兵が水に落ちても段は止めない）
+      for (const g of [F.advFront, F.advGuns, ...(rt.squadGroups || [])]) if (g) for (const u of g.units) {
+        if (!u.alive || u.fleeing || u.atk || W.waterFootDepthAt(u.pos.x, u.pos.z) < .6) continue;
+        u._wetT = (u._wetT || 0) + 1;
+        if (u._wetT >= 4) { u._wetT = 0; const x = Math.abs(u.pos.z) < 48 && u.pos.z < -6 ? -46 : u.pos.x > -60 ? u.pos.x + 4 : u.pos.x - 4; u.cover = { x, z: u.pos.z, t: rt.army.time + 4 }; }
+      }
+      if (Math.abs(p.x - (-46)) < 4 && p.z < -4 && p.z > -50) for (const g of [F.advFront, F.advGuns]) if (g) for (const u of g.units) {
+        if (!u.alive || u.target || u.atk) continue;
+        const d = Math.hypot(u.pos.x - p.x, u.pos.z - p.z);
+        if (d < 2.2 && !u.moving) u.cover = { x: u.pos.x + (u.pos.x >= -46 ? 2.4 : -2.4), z: u.pos.z, t: rt.army.time + 2 };
+      }
+    }
+    if (F.advEnding) this.advEndTick(rt, dt);
+  },
+  // 14:00〜15:00 戦の終わり：火・水面の火・遠くの鐘・堤を歩く・「……終わりましたな。」
+  advEnd(rt) {
+    const F = rt.flags, W = rt.world;
+    if (F.advEnding || F.ending) return;
+    F.advEnding = true; F.advK = 7; F.dpOn = false; F.step = 17; F.advEndAt = rt.t;
+    rt.setPhase('end');
+    rt.world.setTime('dusk');
+    rt.obj('main', ADV_MISSIONS[7], 'main');
+    for (const g of [F.advFront, F.advGuns]) if (g) { g.order = 'hold'; g.aggro = 0; }
+    // 突破に失敗した残りの門徒は、武器を捨てて奥へ散る（戦の終わりに攻めの号令で立ち尽くさない）
+    for (const g of rt.army.groups || []) if (g.team === 1 && !g.routed && g.units?.length && !g.units[0]?.isStruct) {
+      // 崩す（追撃の知らせが出る）のでなく、手を止めて家族の集まる所へ下がる
+      g.noRout = true; g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.fire = false; g.anchor = { x: -48, z: -113 };
+      for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.noTarget = true; }
+    }
+    // 火は軍の下知で広がる（本人が一軒ずつ燃やさない）。近くは本物の火、川面に映す
+    const fires = [[-44, -84, 3.2], [-52, -104, 2.6], [-40, -108, 2.4], [-56, -92, 2.2], [-50, -60, 2.6], [-34, -114, 2]];
+    fires.forEach(([x, z, size], i) => rt.after(1 + i * 1.6, () => {
+      W.addFire(x, z, { size, smoke: true, blackSmoke: true, lightRadius: 26, lightColor: 0xff7a2a, lightStrength: 2.6, lightDecay: 0, waterReflection: true, h: .4 });
+      W.addScorch(x, z, 4, 3);
+      if (i % 2 === 0) W.addSmokeColumn(x, W.heightAt(x, z) + 3, z, { size: 2.2 });
+    }));
+    // 南の舟入りに残った門徒の舟も燃える。川面に炎が映る（長島だけの絵）
+    rt.after(4, () => {
+      for (const [x, z, rot] of [[-42, -131, .3], [-30, -132, -.2]]) {
+        const y = waterHeight(W, x, z);
+        rt.scene.add(kobune(x, y - .2, z, rot, 7));
+        W.addFire(x, z, { size: 2.4, smoke: true, blackSmoke: true, lightRadius: 24, lightColor: 0xff7a2a, lightStrength: 2.4, lightDecay: 0, waterReflection: true, h: y - W.heightAt(x, z) + .5 });
+      }
+    });
+    if (F.ganshoStruct?.alive) { F.ganshoStruct.fireProof = false; F.ganshoStruct.burn = 3; rt.army.igniteStruct(F.ganshoStruct, F.ganshoStruct); }
+    rt.after(2, () => rt.say('使番', '上様の御下知。在所と砦に火をかけよ', 3.4));
+    rt.after(8, () => rt.army.play('bell', { x: -44, z: -82 }, .45));
+    F.advWalk = { x: ADV_POINTS.walk.x, z: ADV_POINTS.walk.z };
+    rt.after(6, () => { rt.marker('advWalk', F.advWalk, '', { h: 1.2, guideAlways: true }); });
+    // 堤の上に、小さな暮らしの品（椀と草鞋）
+    { const x = (ADV_POINTS.exit.x + F.advWalk.x) / 2, z = (ADV_POINTS.exit.z + F.advWalk.z) / 2;
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(.09, .06, .06, 10), new THREE.MeshLambertMaterial({ color: 0x5a3020 }));
+      bowl.position.set(x, W.heightAt(x, z) + .03, z); bowl.rotation.z = .5; rt.scene.add(bowl);
+      const zori = new THREE.Mesh(new THREE.BoxGeometry(.11, .02, .26), new THREE.MeshLambertMaterial({ color: 0x9a8a60 }));
+      zori.position.set(x + .4, W.heightAt(x + .4, z) + .01, z + .2); zori.rotation.y = .7; rt.scene.add(zori);
+      F.advItem = { x, z }; }
+  },
+  advEndTick(rt, dt) {
+    const F = rt.flags, p = rt.player.u.pos, el = rt.t - F.advEndAt;
+    if (F.advItem && !F.advItemSeen && Math.hypot(p.x - F.advItem.x, p.z - F.advItem.z) < 3) F.advItemSeen = true;
+    const arrived = F.advWalk && Math.hypot(p.x - F.advWalk.x, p.z - F.advWalk.z) < 3.5;
+    if (arrived && !F.advSaid) {
+      F.advSaid = true; rt.unmark('advWalk');
+      rt.after(1.5, () => rt.say('配下', '……終わりましたな。', 3.6));
+      rt.after(5.6, () => rt.say('若い足軽', '……これも戦なんですか。', 3.2));
+      rt.after(9.2, () => rt.say('古参の足軽', '命令だ。', 2.6));
+      F.advDoneAt = rt.t + 14;
+    }
+    // 歩かなくても、四十五秒で終わる（詰まらない）
+    if (!F.advSaid && el > 45) { F.advSaid = true; rt.unmark('advWalk'); rt.say('配下', '……終わりましたな。', 3.6); F.advDoneAt = rt.t + 6; }
+    if (F.advDoneAt && rt.t >= F.advDoneAt && !F.advFinished) {
+      F.advFinished = true;
+      rt.objDone('main');
+      rt.award((t) => { t.main = true; t.side.push('一揆勢 壊滅', '主要拠点 制圧', '水路 封鎖完了'); t.special = { label: '長島 制圧', pts: 20 }; }, '長島 制圧');
+      rt.finish({ scriptedEnd: true }, 0.2);
+    }
+  },
+
+  // ① 柵を結う（11/10 から使わない。岸の守りの古い流れ）
   build(rt) {
     const F = rt.flags;
     if (F.step >= 1) return;
@@ -4042,6 +4294,30 @@ const nagashima = {
     }
   },
 
+  shipsTick(rt, dt) {
+    const F = rt.flags;
+    // 九鬼の船団：川口を行き来し（海の封鎖）、ときどき遠くの射撃を見せる（F.ending の間も動かす）
+    for (const sh of F.ships || []) {
+      const r = (sh.x1 - sh.x0) / 2, mid = (sh.x0 + sh.x1) / 2;
+      if (sh.phase == null) { sh.phase = Math.asin((sh.x - mid) / r); sh.baseZ = sh.z; }
+      sh.phase += sh.speed * dt / r;
+      sh.x = mid + r * Math.sin(sh.phase); sh.z = sh.baseZ + 1.5 * (1 - Math.cos(sh.phase));
+      const yaw = Math.atan2(r * Math.cos(sh.phase), 1.5 * Math.sin(sh.phase));
+      const turn = Math.atan2(Math.sin(yaw - sh.m.rotation.y), Math.cos(yaw - sh.m.rotation.y));
+      sh.m.rotation.y += Math.max(-0.45 * dt, Math.min(0.45 * dt, turn));
+      sh.m.position.set(sh.x, waterHeight(rt.world, sh.x, sh.z) - 0.45, sh.z);
+      // 幟には五メートルの竿が含まれる。竿の根元を甲板へ据える。
+      sh.flag.position.set(sh.x, sh.m.position.y + .8, sh.z);
+      sh.flag.rotation.y = sh.m.rotation.y;
+      if ((F.step < 2 || F.step >= 3) && !F.ending && !F.advEnding && (sh.t -= dt) <= 0) {
+        sh.t = 12 + Math.random() * 6;
+        sh.soundPos.x = sh.x; sh.soundPos.z = sh.z;
+        rt.army.play('gun', sh.soundPos, 0.6);
+        rt.army.smoke(sh.x - 3, sh.m.position.y + 4, sh.z, -1, 0, 1.2);
+      }
+    }
+  },
+
   update(rt, dt) {
     const F = rt.flags;
     if (F.dpOn) depthTick(rt, dt);
@@ -4101,6 +4377,14 @@ const nagashima = {
       if (holder) { F.backGear.position.set(0, 0, 0); F.backGear.rotation.set(0, 0, 0); }
       else { F.backGear.position.copy(u.body.position); F.backGear.quaternion.copy(u.body.quaternion); }
     }
+    if (F.adv) {
+      fleetTick(rt, dt);
+      this.shipsTick(rt, dt);
+      if (F.FS) F.FS.tick(dt);
+      for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
+      this.advUpdate(rt, dt);
+      return;
+    }
     bankFootTick(rt);
     boatTick(rt, dt);
     fleetTick(rt, dt);
@@ -4122,26 +4406,7 @@ const nagashima = {
     }
     // 崩れた隊の印は消す（古い印が「あちらじゃ」の行き先にならないように）
     for (let i = rt.markers.length - 1; i >= 0; i--) { const m = rt.markers[i]; if (m.group && gone(m.group)) rt.unmark(m.id); }
-    // 九鬼の船団：川口を行き来し（海の封鎖）、ときどき遠くの射撃を見せる（F.ending の間も動かす）
-    for (const sh of F.ships || []) {
-      const r = (sh.x1 - sh.x0) / 2, mid = (sh.x0 + sh.x1) / 2;
-      if (sh.phase == null) { sh.phase = Math.asin((sh.x - mid) / r); sh.baseZ = sh.z; }
-      sh.phase += sh.speed * dt / r;
-      sh.x = mid + r * Math.sin(sh.phase); sh.z = sh.baseZ + 1.5 * (1 - Math.cos(sh.phase));
-      const yaw = Math.atan2(r * Math.cos(sh.phase), 1.5 * Math.sin(sh.phase));
-      const turn = Math.atan2(Math.sin(yaw - sh.m.rotation.y), Math.cos(yaw - sh.m.rotation.y));
-      sh.m.rotation.y += Math.max(-0.45 * dt, Math.min(0.45 * dt, turn));
-      sh.m.position.set(sh.x, waterHeight(rt.world, sh.x, sh.z) - 0.45, sh.z);
-      // 幟には五メートルの竿が含まれる。竿の根元を甲板へ据える。
-      sh.flag.position.set(sh.x, sh.m.position.y + .8, sh.z);
-      sh.flag.rotation.y = sh.m.rotation.y;
-      if ((F.step < 2 || F.step >= 3) && !F.ending && (sh.t -= dt) <= 0) {
-        sh.t = 12 + Math.random() * 6;
-        sh.soundPos.x = sh.x; sh.soundPos.z = sh.z;
-        rt.army.play('gun', sh.soundPos, 0.6);
-        rt.army.smoke(sh.x - 3, sh.m.position.y + 4, sh.z, -1, 0, 1.2);
-      }
-    }
+    this.shipsTick(rt, dt);
     if (F.ending) {
       F.hurtEdge.style.display = 'none';
       this.aftermathTick(rt, dt);
@@ -4503,7 +4768,7 @@ const nagashima = {
     rt.volleyKillN = 0;
   },
   onRout(rt, g) {
-    if (g.team !== 1 || rt.flags.routSaid || !nearTroops(rt, g)) return;
+    if (g.team !== 1 || rt.flags.routSaid || rt.flags.adv || !nearTroops(rt, g)) return;
     rt.flags.routSaid = true; // 三隊が順に散っても、同じ声は戦を通して一度だけ。
     rt.say('足軽', '門徒が散るぞ。追うな、岸に残れ！', 2.5);
   },
@@ -4587,6 +4852,8 @@ nagashima.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   if (!u.alive) return;
   // 足した段：堤の物見・段の中は共通の段の頭
   if (F.ngMonomi) { goTo(p, inp, F.ngMonomi.x, F.ngMonomi.z, 2); return; }
+  if (F.advEnding) { inp.guardHold = false; if (F.advWalk && !F.advSaid) goTo(p, inp, F.advWalk.x, F.advWalk.z, 2); return; }
+  if (F.adv && !(F.dp && F.dp.on)) return;
   if (F.dpOn && F.dp?.on) { depthBot(b, inp, goTo); return; }
   if (F.ending) {
     inp.guardHold = false; inp.runHeld = false;

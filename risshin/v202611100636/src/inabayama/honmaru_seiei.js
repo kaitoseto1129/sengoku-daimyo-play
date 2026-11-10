@@ -51,7 +51,7 @@ export function install(rt, ctx) {
     rt.banner('斎藤の精鋭', '龍興の近習が本丸から打って出る');
     rt.say('斎藤の侍', '織田の雑兵ども、ここから先は通さぬ！', 3.2);
     rt.after(3.6, () => { if (!rt.over && !F.ending) rt.say(officer(rt), '近習衆じゃ、手強いぞ。囲んで突け！', 3); });
-    rt.marker('k15elite', () => (gone(g) ? null : g.center()), '龍興の近習衆', { red: true, group: g });
+    // 本丸共通の案内が生きた守兵を指す。隊の中心へ別の印を重ねない。
   });
 
   // 本丸の守りが崩れる。城主の退去と開城は、合図後の幕まで先取りしない。

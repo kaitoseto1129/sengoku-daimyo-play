@@ -2907,7 +2907,10 @@ const miki = {
     if (!u || F.taniDead) return;
     if (!u.alive) {
       F.taniDead = true;
-      rt.say('組頭', '谷大膳様、討死！　木戸を渡すな、大膳様の仇を討て！', 4);
+      // 大村へ移った後の討死で、済んだ木戸の守備へ呼び戻さない。
+      rt.say('組頭', F.step === 1
+        ? '谷大膳様、討死！　木戸を渡すな、大膳様の仇を討て！'
+        : '谷大膳様、討死！　大村坂の味方と列を保て！', 4);
       for (const g of [F.guard, F.hirata]) if (!gone(g)) g.morale = Math.max(0, g.morale - 6);
       return;
     }
