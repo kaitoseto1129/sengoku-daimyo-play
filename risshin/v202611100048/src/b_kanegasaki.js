@@ -1320,6 +1320,11 @@ function retreatNotices(rt) {
     rt.hud.say = say; rt.hud.bark = hudBark; rt.hud.banner = banner; rt.hud.update = update;
     rt.hud.notices.push = pushNotice;
     hooks.onGunAtPlayer = gunAtPlayer; hooks.onFoeVolleyCall = volleyCall;
+    // 共通の画面は次の戦でも使う。専用の目標と敵印を残さない。
+    F.goalEl?.remove(); F.foeSignBox?.remove();
+    F.goalEl = F.foeSignBox = null;
+    F.foeSignEls = F.foeSignList = null; F.foeSignShown = 0;
+    root.style.removeProperty('--kg-ab-h');
     root.classList.remove('kg-retreat', 'kg-withdrawing', 'kg-at-exit', 'kg-at-line', 'kg-holding', 'kg-repeat-order', 'kg-repeat-route-order', 'kg-treating'); layout.remove();
   };
   // 共通の台詞も、この戦では実際の討死に結び付ける。遅れて届く声にも猶予を残す。
@@ -3848,6 +3853,8 @@ const kanegasaki = {
         g.edgeHeld = true; g.noAI = true; g.kgPause = null; g.path = null;
         g.order = 'hold'; g.dest = null; g.onArrive = null; g.focus = null;
         g.anchor = { x: Math.max(-70, Math.min(70, c.x)), z: 146 }; g.facing = Math.PI;
+        // 追撃の縦隊を北へ向けたままだと後列が南の場外へ伸びる。短い槍列で道を守る。
+        g.formation = 'yari'; g.roadColumn = false; g._routeCols = 0; g._slotFit = null;
         // 共通の回り込みで下知を替えず、守る兵も近くの相手だけに応戦する。
         g.aggro = Math.min(g.aggro || 0, 12); g.seekRange = Math.min(g.seekRange || 12, 12);
       }
