@@ -4062,8 +4062,10 @@ function fieldHeight(x, z) {
     const a = CHASE_PATH[i - 1], b = CHASE_PATH[i], dx = b[0] - a[0], dz = b[1] - a[1];
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1)));
     const d = Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
-    if (d >= 24) continue;
-    const fade = Math.max(0, (d - 8) / 16), k = 1 - fade * fade * (3 - 2 * fade);
+    // 後列が道脇へ広がる所を急な切岸へ戻さず、山肌まで広くすり付ける。
+    // 幅十六メートルの戻しでは、追撃路の横に勾配二倍以上の壁が残っていた。
+    if (d >= 56) continue;
+    const fade = Math.max(0, (d - 12) / 44), k = 1 - fade * fade * (3 - 2 * fade);
     chaseBlend = Math.max(chaseBlend, k);
   }
   // 最後の折れから麓の集合場所までを一つの平場へつなぐ。

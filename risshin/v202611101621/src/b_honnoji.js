@@ -2497,9 +2497,11 @@ function teleport(rt, x, z) {
 function honnoReturnLabel(rt) {
   switch (rt.flags.hp) {
     case 3: return '門の内で上様と合流';
+    case 4:
     case 5: return '本堂の口で上様と合流';
+    case 6:
     case 7: return '御殿で上様と合流';
-    default: return '道の印で上様と合流';
+    default: return '表門の内で上様と合流';
   }
 }
 
@@ -3559,7 +3561,7 @@ const honnoji = {
     if (F.hp === 7 && F.heatZone) {
       const p = rt.player.u.pos, Z = F.heatZone;
       return p.x > Z.x0 && p.x < Z.x1 && p.z > Z.z0 && p.z < Z.z1
-        ? '火から離れ、印へ退け' : '上様を守れ';
+        ? '火から離れ、控えの間へ退け' : '上様を守れ';
     }
     if ((F.hp === 2 || F.hp === 3) && gateFight(rt)) return '敵を討て';
     if (F.hp >= 2 && this.routeGuidePriority(rt)) return this.travelGuideLabel(rt, true);
@@ -3576,12 +3578,12 @@ const honnoji = {
     // 傷で倒れた時は共通の手当ての助言を残す。護衛失敗では実際の役目を示す。
     if (info.down || rt.G.lord) return '';
     const F = rt.flags;
-    if (F.step === 5) return '辻の敵と斬り合わず、印の木戸へ走ろう';
-    if (F.step >= 6) return '印の家へ行こう';
+    if (F.step === 5) return '辻の敵と斬り合わず、京の外れの木戸へ走ろう';
+    if (F.step >= 6) return '使者の家へ知らせを届けよう';
     if (F.step >= 3) return '御所の西の門の内で、信忠様を守ろう';
-    if (F.hp === 6) return '戸口の印を追い、上様と奥へ退こう';
-    if (F.hp === 8) return '道の印を追い、裏門から逃げよう';
-    return '戸口の印を追い、白い着物の上様へ戻ろう';
+    if (F.hp === 6) return '渡り廊下を通り、上様と御殿へ退こう';
+    if (F.hp === 8) return '御殿の西の口を抜け、裏門から逃げよう';
+    return `${honnoReturnLabel(rt)}しよう`;
   },
   escortGuideTarget(rt) {
     const F = rt.flags;
@@ -4532,7 +4534,7 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     }
     honnoSay(rt, '森蘭丸', `${M.name.replace(/を.*$/, '')}じゃ！　${nm(rt)}、先に立って道を開け！`, 3);
     rt.obj('main', '上様と奥へ退く', 'main', true);
-    rt.objProgress('main', key === 'urate' ? '本堂の南の口を出て、西の裏手へ。火の中で止まるな' : '本堂を出て、道の印へ。火の中で止まるな');
+    rt.objProgress('main', key === 'urate' ? '本堂の南の口を出て、西の裏手へ。火の中で止まるな' : '本堂を出て、渡り廊下から御殿へ。火の中で止まるな');
     F.mvGuide = { x: M.pts[0][0], z: M.pts[0][1] };
     F.mvReturnPts = new Array(M.pts.length + 1); F.mvReturnPoint = [0, 0];
     F.moveDistance = pathGuide(rt, M.pts, M.pts.length - 1, F.mvGuide);
@@ -5415,7 +5417,7 @@ function honnoTick(def, rt, dt) {
     }
 
     rt.objProgress('main', (F.gateHold || 0) < 8 ? '表門の内で、上様と共に門の口を支えよ'
-      : F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
+      : F.patrolDistance > 10 ? '廊下の出口から回廊を通り、表門の内へ進め'
       : g && g.alive ? (g.hp < g.maxHp * 0.3 ? '門がきしむ。上様の前で構え、退く下知を待て' : '門の内で構え、本堂へ退く下知を待て') : '門の口から離れ、味方の後ろで構えよ');
     if (t >= 38 && ((g && !g.alive) || t >= 50 && (F.gateHold || 0) >= 8 || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
   } else if (F.hp === 4) {
@@ -5434,15 +5436,15 @@ function honnoTick(def, rt, dt) {
     const left = Math.max(0, Math.ceil(180 - t));
     rt.objProgress('main', dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6
       ? '本堂の東の口で上様を待て'
-      : '印を追い、東の戸へ');
-    if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　印へ退け。間に合わねば護衛失敗じゃ', true); }
+      : '本堂の東の戸へ退け');
+    if (left <= 20 && !F.hondoLateSaid) { F.hondoLateSaid = true; rt.bark('本堂への合流が遅れておる！　本堂の東の口へ退け。間に合わねば護衛失敗じゃ', true); }
     if (dNb < 10 && Math.hypot(p.x - HONDO_IN.x, p.z - HONDO_IN.z) < 6 && Math.hypot(NB.pos.x - HONDO_IN.x, NB.pos.z - HONDO_IN.z) < 5) def.p5(rt);
     else if (t > 60 && honPlayed(rt)) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める。11/1 京の町と使者の家を足したので百十秒→六十秒）
   } else if (F.hp === 5) {
     // 時間や延焼だけで②を済ませない。壁越し・別の階を除き、上様のそばで守った時間を数える。
     if (F.hondoDirect && dNb < 12 && Math.abs(p.y - NB.pos.y) < 3)
       F.hondoHold = (F.hondoHold || 0) + dt;
-    rt.objProgress('main', !F.hondoDirect ? '道の印で本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
+    rt.objProgress('main', !F.hondoDirect ? '本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
       ? '侍を斬った。残る寄せ手を払い、奥へ退く支度を守れ'
       : '堂の口の侍を斬り払えば、上様が早く奥へ退ける');
     // 堂の口でも、目の前に十人ほどの敵がいる厚さを保つ（減れば表門から次の寄せ手が入る）
@@ -5469,7 +5471,7 @@ function honnoTick(def, rt, dt) {
         F.moveGuideAt = rt.t + 0.5;
         moveGuide(rt);
         const left = Math.max(0, Math.ceil(150 - (rt.t - F.pT)));
-        const action = F.escortShown ? '道の印で上様と合流し、奥へ退け' : F.mv === 'urate' && p.z < 53 && p.x > -64 ? '本堂の南の口から、西の裏手へ退け' : '戸口の敵だけを払い、印へ退け。追うな';
+        const action = F.escortShown ? '戸口を通って上様と合流し、御殿の奥へ退け' : F.mv === 'urate' && p.z < 53 && p.x > -64 ? '本堂の南の口から、西の裏手へ退け' : '戸口の敵だけを払い、渡り廊下から御殿へ退け。追うな';
         rt.objProgress('main', `${action}。火が回るまであと${left}秒`);
       }
       if (dNb > 20 && !F.waitSaid) { F.waitSaid = true; honnoSay(rt, '森蘭丸', '上様がお待ちじゃ！　先に立って道を開け！', 3); }
@@ -5483,10 +5485,10 @@ function honnoTick(def, rt, dt) {
     if (F.guardDistance < 12 && Math.abs(p.y - NB.pos.y) < 3) F.lastHold = (F.lastHold || 0) + dt;
     rt.objProgress('main', F.heatZone
       ? p.x > F.heatZone.x0 && p.x < F.heatZone.x1 && p.z > F.heatZone.z0 && p.z < F.heatZone.z1
-        ? '広間は火の中じゃ。道の印で控えの間へ退け'
+        ? '広間は火の中じゃ。控えの間へ退け'
         : '控えの間で構え、近い敵だけを払え。広間へ戻るな'
       : t > 42 && dNb >= 12
-      ? '道の印で上様へ戻れ。退く下知が出ておる'
+      ? '御殿の控えの間の上様へ戻れ。退く下知が出ておる'
       : F.standMerit?.[3] ? '侍を払った。上様の前で、奥へ退く支度を守れ'
       : '廊下の侍を斬り払え。上様が奥へ退く間を作れ');
     if (F.lastHold >= 10 && dNb < 12 && ((F.standMerit?.[3] && gone(F.stand) && t > 22) || (t > 24 && (gone(F.stand) || t > 32 && honPlayed(rt))))) def.p8(rt);
@@ -5508,14 +5510,14 @@ function honnoTick(def, rt, dt) {
     const d = Math.hypot(p.x - PT.uraOut.x, p.z - PT.uraOut.z);
     if (!(F.escapeScanAt > rt.t)) { F.escapeScanAt = rt.t + 0.5; escapeGuide(rt); }
     rt.objProgress('main', p.x > -75.5
-      ? '印を追い、西の戸口へ'
+      ? '御殿の西の戸口へ退け'
       : `土橋を渡り、裏門の外へ。あと${Math.max(0, Math.ceil(F.escapeDistance))}歩`);
     if (d < 6 && t > 12 && P.alive) def.fallen(rt);
     // 時間だけで裏門の手前から二条へ飛ばさない。試し遊びも同じ退路を歩く。
   }
   if (!F.ending && F.escortShown && F.hp !== 4) rt.objProgress('main', F.farT > 0
-    ? `道の印で上様へ戻れ。あと${Math.max(0, Math.ceil(60 - F.farT))}秒`
-    : '上様の印へ戻り、共に進め');
+    ? `${honnoReturnLabel(rt)}。あと${Math.max(0, Math.ceil(60 - F.farT))}秒`
+    : `${honnoReturnLabel(rt)}し、共に進め`);
 }
 const hallNear = (T, x, z) => T.halls.some((h) => x > h.x0 - 1 && x < h.x1 + 1 && z > h.z0 - 1 && z < h.z1 + 1);
 
