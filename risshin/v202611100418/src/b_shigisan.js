@@ -1975,6 +1975,7 @@ function shigisanFoe(rt) {
 // 10/31：時計だけで段を進めない。本人が歩いたか敵を討った後に限る（立っているだけで段が進まないように）
 // 右上の①〜⑤（stages.js の shigisan と同じ字）
 const SG_GOALS = ['尾根道の伏兵を討ち、大手の木戸へ登る', '大手の木戸を掛矢で打つ', '土橋で、打って出た松永勢を討つ', '北尾根の下の曲輪を取り、松永屋敷との道を断つ', '本丸の南口へ攻め入り、館の前を固める'];
+const SG_START_GUIDES = ['fumotoT', 'fumotoS', 'tsu'];
 // 持ち場で構える間（門脇の守り・木戸の前でそろう・曲輪と南口で構える）。行き先の印を持ち場のピンにする
 function sgHolding(rt) {
   const F = rt.flags;
@@ -2367,6 +2368,15 @@ const shigisan = {
     const F = rt.flags;
     if (rt.over) return null;
     if (F.ending) return rt.markers.some((m) => m.id === 'keep') ? 'keep' : null;
+    // 麓の段にも行き先を出す。倒れた物見の印は飛ばし、下知後は先手の旗を優先する。
+    if (F.step < 1) {
+      for (const id of SG_START_GUIDES) {
+        const marker = rt.markers.find((m) => m.id === id);
+        const pos = marker && (typeof marker.pos === 'function' ? marker.pos() : marker.pos);
+        if (pos) return id;
+      }
+      return null;
+    }
     // 炎上中は館の前から南口の外へ退く。古い道の終点で待たせない。
     if (F.paceEnjou && !F.enjouDone) return 'enjou';
     if (F.castleGuideBlocked) return null;

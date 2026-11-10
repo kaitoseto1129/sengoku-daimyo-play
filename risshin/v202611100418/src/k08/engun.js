@@ -61,8 +61,7 @@ export function start(rt, K) {
     sfx('taiko', 0.6);
     // 長晟は遠い搦手の陣。北の口へは使番が下知を運ぶ。
     rt.say('浅野の使番', '長晟様の下知。後備が参る、北の口へ押し返せ、と', 3);
-    rt.after(10, () => {
-      if (F.step !== 4) return;
+    S(10, () => {
       for (const q of [F.saki, F.asano, F.ikeda]) if (alive(q)) { q.anchor.x = K.NGATE.x + (q === F.ikeda ? -10 : q === F.asano ? 12 : 3); q.anchor.z = K.NGATE.z + 10; }
       F.engunPushedBack = true;
     });

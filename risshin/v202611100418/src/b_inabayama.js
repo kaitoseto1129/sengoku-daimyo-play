@@ -3014,6 +3014,15 @@ function buildInabaMountain(rt) {
   W.viewCull([stumps], 0); rt.scene.add(stumps);
 }
 
+// 共通の操作は平面の距離で選ぶため、別の段や柵越しの火付けはこの戦で除く。
+function inabaSignalWorkPoint(rt, point) {
+  const p = rt.player.u.pos;
+  point.y = rt.world.heightAt(point.x, point.z);
+  if (Math.abs(p.y - point.y) >= 3 || rt.army.wallBetween(p, -1, point)
+    || rt.army.terrainBlocks(p, point)) return null;
+  return point;
+}
+
 // 小屋へ直進すると西の長屋や東の遠侍に入る。外の通り道を人と試験の遊び手で共有する。
 function inabaSignalApproach(rt) {
   const F = rt.flags, p = rt.player.u.pos;
@@ -6588,7 +6597,7 @@ const inabayama = {
       : inabaSignalDetour(rt) ? '建物の外の道を回れ。小屋に火を付けるぞ'
       : '小屋の手前へ寄れ。火を付けて本陣へ知らせよ', 3);
     rt.marker('sig', approach, () => inabaSignalDetour(rt) ? '建物の外の道' : '小屋の火付け口', { h: 1.8, entrance: true, guideAlways: true, guideSymbol: 'fire', guideAnchor: { x: S.x, y: rt.world.heightAt(S.x, S.z) + 6, z: S.z }, guideDestination: () => inabaSignalApproach(rt) });
-    rt.addInteract('sig', approach, '小屋に火をつける', () => this.win(rt), { r: 4, hold: 1.6, prio: 2 });
+    rt.addInteract('sig', () => inabaSignalWorkPoint(rt, approach), '小屋に火をつける', () => this.win(rt), { r: 4, hold: 1.6, prio: 2 });
   },
 
   // 軍議の作戦（七曲り・東の尾根道・西の裏道）で、外の部隊を動かす。自分の筋（藤吉郎の手と搦手）はそのまま
@@ -7201,7 +7210,7 @@ const inabayama = {
           const approach = { x: S.x, z: S.z };
           rt.uninteract('sig'); rt.unmark('sig');
           rt.marker('sig', approach, '合図の火', { h: 1.8, entrance: true, guideAlways: true, guideSymbol: 'fire' });
-          rt.addInteract('sig', approach, '合図の火をつける', () => this.win(rt), { r: 4, hold: 1.6, prio: 2 });
+          rt.addInteract('sig', () => inabaSignalWorkPoint(rt, approach), '合図の火をつける', () => this.win(rt), { r: 4, hold: 1.6, prio: 2 });
           rt.say(officer(rt), 'そこでよい。柴を積んで、その場で合図の火を上げよ', 3);
         }
       }
