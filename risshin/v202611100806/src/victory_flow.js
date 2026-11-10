@@ -36,7 +36,7 @@ export function namedKill(rt, v) {
   }
   // 戦の定義が名を伏せる役の侍は、討取りでも実名の将として呼ばわらない。
   // 任務と討取りの記録は上で済ませ、ほかの戦の表示は指定がない限り保つ。
-  if (rt.def.hideNameTag?.(v)) return;
+  if (rt.def.hideNameTag?.(v, rt)) return;
   rt.flags.killWordUntil = rt.t + 2.1;
   rt.flags.killWordRealUntil = performance.now() + 2300;   // 勝利の札（victory_card.js）はこの字が消えてから出す
   brushWord(rt, `${v.name} 討ち取ったり`, { hold: 1.5 });

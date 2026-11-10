@@ -1552,6 +1552,8 @@ const tonezaka = {
   missionSingleLine: true,
   goalsAllRows: true, // 場所と行いの順を保ち、果たした目標に印を付ける。
   goalsVisibleRows: 5, // 七段の構成でも、今の目標を含む五件までを表示する。
+  forceBarAlways: true, // 行き先を案内している間も、両軍の残り人数を表示する。
+  namedKillCompletesObjectives: false, // 将を討っただけで道の制圧を済みにせず、殿の撃退と持ち場への到着を待つ。
   battleDialogue: true, // 刀根坂は短い下知も使う。八秒の間引きと三枠の上限は共通処理に任せる。
   hideMissionDots: true,
   hideGuideSteps: true,
