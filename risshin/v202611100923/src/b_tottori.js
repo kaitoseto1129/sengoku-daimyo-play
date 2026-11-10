@@ -1787,11 +1787,8 @@ const tottori = {
       }
     } else if (F.step === 0) at = F.hide.anchor;
     else if (F.step === 1 && bankNeedsReturn(rt)) at = bankEntry(rt);
-    // 舟焼きの行き先は番兵が近くても替えない。敵は各兵の頭上の印で示す。
-    else if (F.step === 2 && this.missionOf(rt) === 2 && (q.unit = tottoriNearestFoe(rt))) {
-      at = q.unit.pos; q.enemy = q.approach = true; q.r = q.hide = .2;
-      if (rt.player.inRange && rt.player.rangeCueTarget === q.unit) return null;
-    } else if (F.step === 1) {
+    // 舟焼きも柵の守りも、敵が近くても行き先を替えない。敵は各兵の頭上の印で示す。
+    else if (F.step === 1) {
       const boat = nextBankBoat(rt);
       // 11/5 描いて遊んで：脇道の角（山裾 x -36）を指すと▼が崖・木の中・空に立ち、舟を指さなかった。▼は焼く舟の船べりに固定する。
       at = boat || F.bankPost;

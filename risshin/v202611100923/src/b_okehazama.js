@@ -1152,7 +1152,7 @@ const okehazama = {
   // 11/5 専門家の見直し：右上は戦の間ずっと番号付きの一行（kaito 三1・三3）。
   // 11/6 kaito 十1：一つの目標の間は言い替えない（前は物見・入口・深手で「⑥幕の口へ進む」などに替わっていた）。
   //   集まるのは出発の数秒だけだったので、①を谷の下りとまとめ、終わりの札（goals5.js）と同じ五つにした。
-  missions: ['①中島砦の下で組に合流し、雨の谷を下り谷の出口へ', '③谷の出口で雨の上がるのを待つ',
+  missions: ['①中島砦の下で組に合流し、雨の谷を下り谷の出口へ', '③谷の出口の豪雨の中で、かかれの下知を待つ',
     // 11/6 夜：共通の目標札が「先手」を「敵」に替え、「松井宗信の敵を破る」（松井の敵＝味方）と読めた。備えと書く。
     '④坂道で松井宗信の備えを破る', '⑧桶狭間山の幕の前で旗本を破る', '⑨幕の口から今川義元を討つ',
     '⑩首を持ち、谷の出口の組の旗へ引き揚げる'],
@@ -1479,7 +1479,7 @@ const okehazama = {
     }
     if (F.kakare) return '坂道で松井宗信の先手を破れ';
     if (!reached) return '組の旗のそばへ戻れ';
-    return '谷の出口で雨がやむまで待て';
+    return '谷の出口で、かかれの下知を待て';
   },
   // どの札に出ても右上と同じ番号の目標だけ（説明・人数・操作の字を足さない）。
   taskLabel(rt) {
@@ -2718,7 +2718,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       rt.flags.nobSeen = true;
       rt.setPhase('brief');
       // 公記：中島砦を出る時はまだ降らず、山際へ寄せた所で急な雨。出る時は雨雲の下の曇り。
-      rt.world.setTime('storm'); rt.world.setRainTarget(0);
+      rt.world.setTime('after'); rt.world.setRainTarget(0);   // kaito 11/9 夜：曇り→風→雨→強い雨。降り出すまでは遠くの今川の大軍が見える曇り（嵐の空は sugoi.js が雨と共に）
       rt.obj('honjin0', '馬廻の旗に続け。谷を下り、今川の前へ寄せる', 'main');
       localSay(rt, rt.player.u, '織田信長', '分捕りはするな。打ち捨てにせよ。ただ励め', 4); // 公記「分捕をなすべからず、打捨てになすべし…只励むべし」。雨はまだ知らぬ
       rt.after(4, () => this.brief(rt));
@@ -2727,7 +2727,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     rt.obj('talk', '組の旗のそばへ行け', 'main');
     rt.marker('genpachi', () => this.squadFlagPosition(rt), '組の旗', { guideFlag: true, group: rt.hostGroup, guideRadius: JOIN_RADIUS });
     rt.setPhase('brief');
-    rt.world.setTime('storm'); rt.world.setRainTarget(0);
+    rt.world.setTime('after'); rt.world.setRainTarget(0);   // kaito 11/9 夜：曇り→風→雨→強い雨。降り出すまでは遠くの今川の大軍が見える曇り（嵐の空は sugoi.js が雨と共に）
     localSay(rt, rt.flags.yashichi, '弥七', `おう、${nm(rt)}。組頭のそばへ寄れ。じきに出るぞ`, 4);
     }
     // 紙（battle_events_1101）：丸根・鷲津が攻められた事と、そこにいた人を台詞で知らせる。元康は今川方のまま。
@@ -2846,7 +2846,6 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 谷と雨で遠くの列に気づきにくい。至近の敵には普段どおり応戦する。
     for (const g of rt.flags.enemies) g.guardSight = 16;
     // 雨は谷を下る途中（山際へ寄せた所）から降らせる（march）。
-    rt.world.setTime('storm');
     rt.banner('谷を下る', '谷の出口の組の旗へ進め');
     this.march(rt);
   },
@@ -3161,7 +3160,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     if (atGoal) {
       if (F.marchSpeed !== undefined) host.speed = F.marchSpeed;
       rt.setPhase('wait'); rt.objRemove('col');
-      rt.obj('wait', '谷の出口で雨がやむまで待て', 'main');
+      rt.obj('wait', '谷の出口で、かかれの下知を待て', 'main');
       // 下知を待つ場所だけを固定して示す。隊や兵の動きには触れない。
       F.waitPos = F.marchPinPos || F.marchGoal;
       F.waitBegan = rt.t;
@@ -3170,7 +3169,7 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
       F.waitReadyAt = rt.t + RAIN_WAIT;
       rt.marker('wait', F.waitPos, '組の旗', { guideArea: 'wait', guideFlag: true, group: host, guideRadius: JOIN_RADIUS, guidePriority: 200,
         waitUntil: () => rt.phase === 'wait' ? F.waitReadyAt : null, waitDuration: RAIN_WAIT });
-      localSay(rt, rt.hostGroup, '組頭', '雨が上がるまで伏せて待て。かかれの下知で出るぞ', 3);
+      localSay(rt, rt.hostGroup, '組頭', '伏せて待て。かかれの下知で、雨に紛れて出るぞ', 3);
     }
   },
   // 行軍が短く終わっても、見張りの寄せを取りこぼさない。
@@ -3227,7 +3226,8 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     // 待ち始めから雨脚を弱め、満ちるピンと雨上がりを同じ進みにする。
     // 11/6：待つ間の六割は石氷の豪雨のまま。残りで急に弱まり、晴れ間で「かかれ」。
     const waitK = this.missionWaitProgress(rt);
-    const rainLeft = waitK < 0.6 ? 1 : 1 - (waitK - 0.6) / 0.4;
+    // kaito 11/9 夜（docs/okehazama_spec_1109.md）：「かかれ」は豪雨の中。雨は麓の陣を破ってから弱める（okehazama/sugoi.js）。
+    const rainLeft = waitK < 0.6 ? 1 : 1 - (waitK - 0.6) / 0.4 * 0.15;
     if (!F.clear) {
       rt.world.setRainTarget(rainLeft);
       // 行軍中の二十二秒だけで雹が尽きないよう、雨待ちの豪雨にも石氷を保つ。
@@ -3236,10 +3236,10 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
     }
     // 円が満ちた時に雨を止め、同じ時刻に仲間が攻め始める。
     if (rt.t >= F.waitReadyAt && !F.clear) {
-      F.clear = true; rt.world.setRainTarget(0); rt.world.setTime('after');
+      F.clear = true; rt.world.setRainTarget(0.85);
       rt.world.addPuddles(30);
       for (const g of F.enemies) g.guardSight = 32;
-      rt.banner('雨が上がった', '坂道の松井勢を破り、桶狭間山の本陣へ攻め上れ');
+      rt.banner('かかれ', '豪雨に紛れて松井勢を破り、桶狭間山の本陣へ攻め上れ');
       // 視点を奪わず、目の前の仲間が一斉に動き出す様子を合図にする。
     }
     if (rt.t >= F.waitReadyAt && !F.kakare) {

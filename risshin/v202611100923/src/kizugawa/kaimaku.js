@@ -13,9 +13,10 @@ export const KAIMAKU_END = 160;  // ①（大筒）へ移る秒
 export function install(rt, ctx) {
   const F = rt.flags;
   const S = (F.kzOpen = { t0: rt.t, atGun: false, atBow: false, bowAsked: false, done: false });
-  const alive = () => F.step === 0 && !F.ending && !rt.over;
+  const alive = () => F.step === 0 && F.kzOpen === S && !S.done && !F.ending && !rt.over;
   // 味方の大船の試し撃ち（届かない水柱）。遠い事を絵で見せる。
   const ranging = (k) => {
+    if (!alive()) return;
     const e = F.escorts?.[k % (F.escorts.length || 1)];
     if (!e) return;
     rt.army.play('volley', { x: e.x, z: e.z }, 1.3);
