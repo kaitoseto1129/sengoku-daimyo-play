@@ -899,6 +899,7 @@ const t02_shizugatake = {
   pushSaku(rt) {
     const F = rt.flags;
     this.enter(rt, 3.5);
+    F.sakuFight = null;
     this.withdrawOiwa(rt);
     this.oiFlags(rt, 'hashiba');
     rt.award((t) => t.side.push('大岩山を取り返した'), '大岩山を取り返した');
@@ -1069,9 +1070,14 @@ const t02_shizugatake = {
           }
         }
         return;
-      case 3.5:
-        if (!F.maedaGo && near(SAKU_LINE, 30) && (nLive(F.saku) <= 14 || st > 100)) this.watchMaeda(rt);
+      case 3.5: {
+        // 小門を回って来る備を待つ。主人公の先着と経過時間だけでは「押し返した」にしない。
+        const joined = nearCount(rt, 0, SAKU_LINE, 35) >= 4;
+        if (joined && near(SAKU_LINE, 30) && nearCount(rt, 1, SAKU_LINE, 30) > 0 && F.sakuFight == null) F.sakuFight = rt.t;
+        // 敵が一人取り残されても、備と対陣した時から百秒で次へ進める。
+        if (!F.maedaGo && joined && near(SAKU_LINE, 30) && (nLive(F.saku) <= 14 || F.sakuFight != null && rt.t - F.sakuFight > 100)) this.watchMaeda(rt);
         return;
+      }
       case 3.7:
         if (!F.maedaGo && near(MAEDA_LOOK, 18)) this.maedaLeave(rt);
         return;

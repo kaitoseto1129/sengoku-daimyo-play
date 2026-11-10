@@ -1579,7 +1579,8 @@ function retreatBoats(rt) {
       const x = frontX + (j - (nBoat - 1) / 2) * (k === 2 ? 3 : 3.2), z = k === 3 ? -36 : -42; // 四手目は東の深い筋に浮かべる（z=-42 の東は干上がった洲）
       const m = riverBoat(x, waterHeight(rt.world, x, z), z, 0, true);
       const pole = new THREE.Mesh(POLE_GEO, WOOD); pole.position.set(.55, 1.3, -2); m.add(pole);
-      const shadow = new THREE.Mesh(BOAT_SHADOW_GEO, BOAT_SHADOW_MAT); shadow.scale.set(1.1, 1, 3.4); rt.scene.add(shadow);
+      // 11/10 重さ：舟の影は一枚ずつ描かず、全部の舟で一つの束（F.boatShadows）に写す。ここは位置と見える見えないの入れ物
+      const shadow = new THREE.Object3D(); shadow.scale.set(1.1, 1, 3.4);
       const bt = { m, pole, shadow, x, z, group: g, second: k >= 2, third: k === 3, landed: false, passengers: [], hull: [], holes: 0, flood: 0, breath: 0 };
       // 舷の線だけ矢玉を止める。船内を箱でふさいで乗員を守らない。
       for (const side of [-1, 1]) {
@@ -1593,9 +1594,13 @@ function retreatBoats(rt) {
         const q = { u, at, dx: at.x - x, dz: at.z - z, seatZ: at.z - z, aboard: true, escape: false, shore: { x, z: BANK_Z - 3 }, returnDir: { x: 0, z: 1 } };
         u.retreatBoat = bt; u.boatSeat = q; bt.passengers.push(q);
       }
-      rt.scene.add(m); F.boats.push(bt);
+      rt.scene.add(m); bt.si = F.boats.length; F.boats.push(bt);
     }
   }
+  const sh = F.boatShadows = new THREE.InstancedMesh(BOAT_SHADOW_GEO, BOAT_SHADOW_MAT, F.boats.length);
+  sh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); sh.frustumCulled = false; sh.userData.noFreeze = sh.userData.noMerge = true;
+  for (const bt of F.boats) { bt.shadow.position.set(bt.x, -999, bt.z); bt.shadow.updateMatrix(); sh.setMatrixAt(bt.si, bt.shadow.matrix); }
+  rt.scene.add(sh);
 }
 // critic60「同じ文を五〜七秒おきに三回」：同じ下知は十五秒に一度まで（ui-guidelines は八秒）。
 function sayGap(rt, who, text, dur, gap = 15) {
@@ -1661,6 +1666,7 @@ function boatTick(rt, dt) {
     bt.m.position.set(bt.x, bt.landed ? Math.max(water - .15, Math.min(bed, water + .2)) : Math.max(bed, water - bt.flood - .15), bt.z); // 船底を水に沈め、揺れても浮いて見せない
     if (F.step < 2) bt.m.position.x += Math.sin(rt.t * .22 + bt.x) * .7;
     bt.shadow.position.set(bt.m.position.x, water + .025, bt.z); bt.shadow.visible = !bt.landed && bt.flood < .8;
+    if (F.boatShadows) { bt.shadow.position.y = bt.shadow.visible ? water + .025 : -999; bt.shadow.updateMatrix(); F.boatShadows.setMatrixAt(bt.si, bt.shadow.matrix); F.boatShadows.instanceMatrix.needsUpdate = true; }
     bt.m.rotation.z = bt.landed ? 0 : Math.min(.3, bt.flood * .2) + Math.sin(rt.t * 1.7 + bt.x) * .025;
     bt.pole.visible = !!pilot && bt.flood < .4 && !bt.landed;
     bt.pole.rotation.x = .35 + Math.sin(rt.t * 2.4) * .4;

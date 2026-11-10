@@ -6,7 +6,7 @@ export const TOKUGAWA_LINE = [
   // 開戦の札で題が三行に折れて「い」が一字落ちた（11/6 kaito の目）。題は短く、場所は place に
   { id: 'k02_kawada', name: '河田・米野の戦い', year: 1600, place: '尾張の河田の渡し', file: './b_k02_kawada.js' },
   { id: 'k03_gifu', name: '岐阜城の戦い', year: 1600, file: './b_k03_gifu.js' },
-  { id: 'k04_kuisegawa', name: '杭瀬川の戦い', year: 1600, file: './b_k04_kuisegawa.js' },
+  { id: 'k04_kuisegawa', name: '杭瀬川の戦い', year: 1600, winWord: '東軍、退却', victoryCaption: '西軍の勝利　有馬の陣へ生還', file: './b_k04_kuisegawa.js' },
   { id: 'k05_ueda', name: '第二次上田合戦', year: 1600, file: './b_k05_ueda.js' },
   { id: 'k06_sekigahara', name: '関ヶ原の戦い', year: 1600, file: './b_k06_sekigahara.js' },
   { id: 'k07_sawayama', name: '佐和山城の戦い', year: 1600, place: '近江の佐和山城', winWord: '佐和山城、落城', victoryCaption: '正継・正澄・朝成、天守に果つ', file: './b_k07_sawayama.js' },
