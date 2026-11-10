@@ -6,6 +6,7 @@ import { arrowGeometry, MAT } from './units_model.js';
 import { projectileCover, projectileGroundHeight } from './projectile_cover.js';
 import { localClear } from './army_local_way.js';
 import { lethalNearMiss } from './lethal.js';
+import { missileNear, missileShielded } from './missile.js';
 
 const FLY_MAX = 240, STUCK_MAX = 200, G = 9.8;   // 11/8 critic60 姉川 39：地に突き立った矢が何十本も黒い線になって残った。残す数を減らす
 const Z = new THREE.Vector3(0, 0, 1), _d = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
@@ -253,7 +254,7 @@ function rainHit(army, a) {
     if (hit || !o.alive || o.gone || o.isStruct || o.isPlayer || o === V.owner) return;
     if (o.team === V.team && !army.world.def.friendlyProjectiles) return;
     const rr = o.mounted ? 0.55 : o.bodyRadius || 0.3;
-    if (Math.hypot(o.pos.x - a.x, o.pos.z - a.z) < rr && a.y > o.pos.y && a.y < o.pos.y + (o.mounted ? 2.6 : 1.7)) hit = o;
+    if (Math.hypot(o.pos.x - a.x, o.pos.z - a.z) < rr && a.y > o.pos.y && a.y < o.pos.y + (o.mounted ? 2.6 : 1.7) && !missileShielded(army, o)) hit = o;   // 柵・森・竹束の陰（missile.js）
   });
   return hit;
 }
@@ -293,6 +294,7 @@ export function updateRain(army, dt) {
       army.play('arrowRain', V, 1.2);
       army.forNear(V.x, V.z, V.r + 2, (o) => { if (o.alive && o.team !== V.team && !o.isPlayer && !o.mounted && !o.atk && !o.swing) o.duckT = army.time + 1 + Math.random() * 0.8; });
       if (army.lethal) lethalNearMiss(army, V.x, V.z, V.team, 'volley', V.r + 2);
+      if (army.missile) missileNear(army, V.x, V.z, V.team, 'volley', V.r + 2, V.owner);
     }
     if (V.t > V.T + 1.2) { V.shadow.visible = false; R.shadowPool.push(V.shadow); R.volleys.splice(i, 1); }
   }

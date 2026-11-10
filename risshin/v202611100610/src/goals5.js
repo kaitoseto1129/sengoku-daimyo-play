@@ -12,7 +12,7 @@ import * as IG from './b_inou_goals.js';
 import { GOALS15 as OG15 } from './okehazama/goals.js';
 import { GOALS15 as MG15 } from './moribe/goals.js';
 import { GOALS15 as SG15 } from './sunomata/goals.js';
-import { sunomataNorthStopped, sunomataPincerDone, sunomataBossKilled } from './sunomata_goals.js';
+import { sunomataNorthStopped, sunomataPincerDone, sunomataBossStopped } from './sunomata_goals.js';
 
 const KILL_N = 8;          // 「敵を何人討つ」の数
 const NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十'];
@@ -133,7 +133,7 @@ const OWN = {
   // 桶狭間（11/4 jin）：史実の順（中島砦を出て谷の出口へ → 雨の後に坂道の守り → 幕の前の旗本 → 幕の入口 → 退く義元を毛利が討つ）。
   //   首を取ったのは毛利新介なので「自分で討つ」は置かない。敵を何人討つは使わない（AW3）
   // 墨俣（11/4 jin・docs/battle_refs/sunomata.md）：伝承の順（北の口の先手 → 西の柵の二の手 → 三の手の北の旗印 →
-  //   伏兵が西の外へ出て挟む → 寄せ大将を討つ）。行き先は戦の印（持ち場の柵・寄せた敵）と同じ。敵を何人討つは置かない
+  //   伏兵が西の外へ出て最後の寄せを挟み、退ける）。運搬の護衛を含め五つ。敵を何人討つは置かない
   sunomata: () => {
     const F = (rt) => rt.flags;
     return [
@@ -141,8 +141,7 @@ const OWN = {
       { kind: 'stage', k: 0, text: '北の柵の口で斎藤の先手を止める', noun: '北の柵の口', check: (rt) => won(rt) || (F(rt).wave || 0) >= 2 },
       { kind: 'stage', k: 1, text: '西の柵で斎藤の二の手を止める', noun: '西の柵', check: (rt) => won(rt) || (F(rt).wave || 0) >= 3 },
       { kind: 'stage', k: 2, text: '北の柵で三の手の旗印を止める', noun: '三の手の旗印', check: (rt) => sunomataNorthStopped(F(rt)) },
-      { kind: 'stage', k: 3, text: '伏兵と西の柵の外の寄せ手を挟む', noun: '西の柵の外', check: (rt) => sunomataPincerDone(F(rt)) },
-      { kind: 'stage', k: 3, text: '斎藤方の寄せ大将を討ち取る', noun: '寄せ大将', check: (rt) => sunomataBossKilled(F(rt)) },
+      { kind: 'stage', k: 3, text: '伏兵と西の柵の外で寄せ大将の最後の攻撃を退ける', noun: '西の柵の外', check: (rt) => sunomataPincerDone(F(rt)) && sunomataBossStopped(F(rt)) },
     ];   // 目標に期限はない。寄せ手を実際に止めるまで進行を待つ。
   },
   // 11/6 kaito 十1：右上の①〜⑤（b_okehazama.js の missions）と同じ言葉・同じ順にそろえた。

@@ -8,6 +8,7 @@ import { IDLE } from './units_flags.js';
 import { sm } from './units_model.js';
 import { terrainFx, uphillAt } from './terrain_tags.js';
 import { startWallClimb } from './siege_ladder.js';
+import { missileSlow } from './missile.js';
 import { INTERIOR_WALLS, interiorBlocked, interiorFollow } from './shironaka.js';
 import { bodiesWorkerPush } from './army_bodies_worker.js';
 const BW_OUT = { x: 0, z: 0 };
@@ -432,6 +433,8 @@ export const ArmyMove = {
       u._terrainTire = tf.tire;
       if (u.tire > 0) speed *= 1 - Math.min(0.4, u.tire * 0.15);
     }
+    // 弓・鉄砲に押された組は足が鈍り、撃ち止んだ直後は一気に寄せる（missile.js）
+    if (this.missile && g && !u.isPlayer && g.mp !== undefined) speed *= missileSlow(this, u);
     // 逆茂木の帯：歩兵0.6・騎馬0.25（騎馬は帯の中で突撃を切る。army_think.js が u._bandCut を見る。束22）
     u._bandCut = false;
     if (this.structs && this.structs.length) {

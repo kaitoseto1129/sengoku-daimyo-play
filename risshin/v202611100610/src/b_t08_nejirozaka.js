@@ -122,6 +122,14 @@ const STEP_TEXT = ['土橋の塀で、堀を越える島津勢を突き落とす
 
 // 守備は持ち場で守った刻で果たす。敵の全滅を待って止まったり、
 // 持ち場から離れたまま時間切れだけで済んだりしない。残兵は end の下知で退く。
+function withdrawWave(C) {
+  for (const g of C.groups) if (g.count && !g.routed && g.order !== 'retreat') {
+    g.noRout = false;
+    g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
+    g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
+  }
+}
+
 function defendHold(o) {
   const s = hold(o), tick = s.tick, end = s.end, dur = o.dur || 90;
   s.limit = Infinity;
@@ -129,20 +137,25 @@ function defendHold(o) {
   s.noHardCap = true;   // 共通の打ち切りでも、持ち場を離れたまま守備を済ませない。
   s.tick = (rt, C, m, ctx, el, dt) => {
     const inT = C.inT;
-    tick(rt, C, m, ctx, el, dt);
+    // 手当てなどで守備の刻が不足しても、寄せ自体は刻限で終える。
+    // 退却後に共通の呼び寄せを回すと、八秒ごとに攻撃へ戻ってしまう。
+    if (!C.recalled) {
+      tick(rt, C, m, ctx, el, dt);
+      if (el >= (o.limit || dur + 35) && !C.waves.length) {
+        C.recalled = true;
+        withdrawWave(C);
+      }
+    }
     const p = rt.player.u.pos;
     C.inT = inT + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14) ? dt : 0);
     // 寄せが尽きても持ち場で守った刻が足りなければ、敵零人の表示で止めない。
-    if (el >= dur && C.inT < dur * 0.45) rt.objProgress('dp', `${o.label}で守る あと${Math.ceil(dur * 0.45 - C.inT)}秒`);
+    rt.objProgress('dp', `${o.label}で守る あと${Math.max(0, Math.ceil(Math.max(dur - el, dur * 0.45 - C.inT)))}秒`);
     return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
   };
   s.end = (rt, C, ...args) => {
     // 組頭が生きている寄せ手も、退く下知で坂の下へ戻す。
     // 士気を零にするだけでは退かず、次の寄せと砦に積み重なる。
-    for (const g of C.groups) if (g.count && !g.routed) {
-      g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
-      g.anchor = { x: g.anchor.x, z: 150 }; g.aggro = 0; g.seekRange = 0;
-    }
+    withdrawWave(C);
     end(rt, C, ...args);
   };
   return s;
@@ -150,14 +163,14 @@ function defendHold(o) {
 
 // 段の終わりの退却指示より先に、猿渡の討死を確定する。
 function saruStep(s) {
-  const start = s.start, end = s.end;
+  const start = s.start, tick = s.tick, end = s.end;
   s.start = (rt, ...args) => {
     // 見回りは夕暮れ、最初の寄せから夜討ち。守備が済むまで夕暮れを残さない。
     rt.world.setTime('night');
     if (rt.world.fade) rt.world.fade.dur = 12;
     start(rt, ...args);
   };
-  s.end = (rt, ...args) => {
+  const saruFalls = (rt) => {
     const sa = rt.army.units.find((u) => u.alive && u.name === '猿渡信光');
     if (sa) {
       const gun = rt.flags.guns?.units.find((u) => u.alive);
@@ -168,6 +181,15 @@ function saruStep(s) {
       rt.after(0.8, () => rt.say('鉄砲頭', '猿渡信光、鉄砲に倒れたり！', 3));
     }
     rt.flags.saruDone = true;
+  };
+  s.tick = (rt, C, ...args) => {
+    const done = tick(rt, C, ...args);
+    // 主人公が持ち場へ戻るのを待つ間も、猿渡を生かして退かせない。
+    if (C.recalled && !rt.flags.saruDone) saruFalls(rt);
+    return done;
+  };
+  s.end = (rt, ...args) => {
+    if (!rt.flags.saruDone) saruFalls(rt);
     end(rt, ...args);
   };
   return s;
@@ -573,7 +595,11 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 11/8 二2：秀長の陣は追い討ちをしていない。打って出るのは土橋の前の坂まで。黒田・小早川は東の尾根で島津の横に止まり、坂を下って追わない
       // 坂へ出ても持ち場を保つ。攻撃命令のままでは、生き残った寄せ手を坂下まで追ってしまう。
       // 次の守備では索敵の広さも戻し、忠隣の段の二十二歩を引き継がない。
-      if (go) for (const g of [F.miyabe, F.todo, F.togawa]) if (g && g.count && !g.routed) { g.anchor = { ...go }; g.order = 'hold'; g.seekRange = di === 7 ? 22 : 12; }
+      if (go) for (const [i, g] of [F.miyabe, F.todo, F.togawa].entries()) if (g && g.count && !g.routed) {
+        // 三つの備を同じ中心へ詰めず、土橋の左右と後ろに守りを重ねる。
+        g.anchor = { x: go.x + (i === 1 ? -12 : i === 2 ? 12 : 0), z: go.z - (i ? 8 : 0) };
+        g.order = 'hold'; g.seekRange = di === 7 ? 22 : 12;
+      }
       if (di >= 12) for (const g of [F.relief, F.koba]) if (g && g.count && !g.routed) { g.order = 'hold'; g.seekRange = 18; }
     }
     const C = F.dp && F.dp.on && F.dp.cur;
@@ -601,7 +627,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     if (F.scan <= 0) {
       F.scan = 0.5;
       let k = 0;
-      for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && inFort(u.pos)) k++;
+      for (const u of rt.army.units) if (u.alive && u.team === 1 && !u.fleeing && !u.woundOut && u.group?.order !== 'retreat' && inFort(u.pos)) k++;
       F.inside = k;
     }
     // 四十人以上の侵入が十五秒続いた時だけ守りの破れとする。途切れた侵入を足し合わせない。

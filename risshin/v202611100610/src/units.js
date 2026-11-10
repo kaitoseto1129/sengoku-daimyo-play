@@ -1,6 +1,7 @@
 import { prepareQuality, qualityThink } from './army_quality.js';
 import { woundTick } from './wounds.js';
 import { lethalTick } from './lethal.js';
+import { missileTick } from './missile.js';
 import { gunWeather, rangedSupply } from './weapon_reality.js';
 import { nanbanLook } from './nanban.js';
 import { NAMED_GEAR } from './named_gear.js';
@@ -2061,6 +2062,7 @@ export class Army {
     this.updateBullets(dt);
     this.updateArrows(dt);
     if (this.lethal) lethalTick(this, dt);   // 命懸けの戦場（lethal.js）
+    if (this.missile) missileTick(this, dt);   // 弓・鉄砲の怖さ（missile.js）
     this.updateSmoke(dt);
     this.updateParticles(dt);
     this.updateStains(dt);

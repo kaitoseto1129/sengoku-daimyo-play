@@ -2429,6 +2429,7 @@ async function playPersona(game, spec, aud, c) {
   if (performance.now() >= BUDGET_END.t && !b.over) { rep.cut = true; rep.note = '戦の任務とは別に、試験全体の持ち時間が尽きた'; rep.battle += '（試験の持ち時間で打ち切り）'; }
   rep.named = aud.endCheck(b, rep.timeout && cap >= 1260);
   rep.gunStats = window.__gunStats ? JSON.parse(JSON.stringify(window.__gunStats)) : null; rep.playerTeam = P.team; window.__gunStats = null;
+  rep.missile = b.army?.missile ? Object.assign({ allyN: b.army.missile.allyN }, b.army.missile.stats) : null;   // 弓・鉄砲の怖さの数（missile.js）
   rep.time = rep.decisionTime ?? Math.round(b.t);
   rep.afterDecision = Math.max(0, Math.round(b.t) - rep.time);
   rep.merit = b.tracker.total();

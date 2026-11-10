@@ -14,6 +14,7 @@ import { EffectLayers } from './effect_layers.js';
 import { S as SET } from './settings.js';
 import { projectileCover, projectileGroundHeight } from './projectile_cover.js';
 import { lethalBulletPath, lethalNearMiss, lethalAimShake } from './lethal.js';
+import { missileNear } from './missile.js';
 
 // 順番を保って一枠を戻す。取り除いた物だけの配列は作らない。
 function removeAt(list, at) {
@@ -291,7 +292,7 @@ export const ArmyRanged = {
       let remaining = dt;
       while (remaining > 0 && b.live) {
         const step = Math.min(remaining, 0.05, (100 - b.distance) / 160);
-        if (step <= 0) { b.live = false; if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x, b.z, b.u.team, null); if (b.u.onGunResult) { const r = b.result; r.u = b.u; r.victim = null; r.res = null; r.blocked = false; b.u.onGunResult(r); } break; }
+        if (step <= 0) { b.live = false; if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x, b.z, b.u.team, null); if (this.missile) missileNear(this, b.x, b.z, b.u.team, 'gun', 3, b.u); if (b.u.onGunResult) { const r = b.result; r.u = b.u; r.victim = null; r.res = null; r.blocked = false; b.u.onGunResult(r); } break; }
         remaining -= step;
         const dx = b.vx * step, dz = b.vz * step, dy = b.vy * step - 4.9 * step * step;
         const cover = projectileCover(this, b.x, b.y, b.z, b.x + dx, b.y + dy, b.z + dz, b.u);
@@ -332,6 +333,7 @@ export const ArmyRanged = {
         if (victim || cover.q <= 1) {
           b.live = false;
           if (this.lethal) lethalBulletPath(this, b.ox, b.oz, b.x + dx * first, b.z + dz * first, b.u.team, victim);
+          if (this.missile) missileNear(this, b.x + dx * first, b.z + dz * first, b.u.team, 'gun', 3, b.u);
           const r = b.result; r.u = b.u; r.t = b.t; r.victim = victim; r.res = null; r.armor = false; r.blocked = !victim;
           const horse = b.u.isPlayer && victim?.team === b.u.team && victim.mounted && victim.horse && !victim.isPlayer && !victim.invuln && hitY < victim.pos.y + RIDE.y;
           if (victim && (victim.team !== b.u.team || horse || this.world.def.friendlyProjectiles)) {
@@ -956,6 +958,7 @@ export const ArmyRanged = {
         a.ducked = true;
         this.forNear(a.pos.x, a.pos.z, 4, (o) => { if (o.alive && o.team !== a.team && !o.isPlayer && !o.mounted && !o.atk && !o.swing) o.duckT = this.time + 1 + Math.random() * 0.8; });
         if (this.lethal) lethalNearMiss(this, a.pos.x, a.pos.z, a.team, 'arrow', 3);
+        if (this.missile) missileNear(this, a.pos.x, a.pos.z, a.team, 'arrow', 3, a.owner);
       }
 
     }
