@@ -29,10 +29,11 @@ export function main(rt, H) {
         { t: 2, say: ['足軽', '島津の本手じゃ！　坂の下から新手が来る！'], foes: () => [{ name: '島津義珍の旗本', from: from(-6), list: [uS(4), uA(12)], noRout: 30 }] },
         { t: 30, foes: () => { H.todoArrive(rt); return [{ name: '島津の新手', from: from(20), off: { x: 10, z: 0 }, list: [uS(2), uA(10), uG(3)] }]; } },
         { t: 62, say: ['足軽', '西の塀にも島津が回った！'], foes: () => [{ name: '西から回った島津勢', from: { x: -78, z: -10 }, off: { x: -30, z: -10 }, list: [uS(2), uA(10)] }] },
-        { t: 84, foes: () => { H.reliefArrive(rt); return []; } },
+        // 東の尾根から土橋の東脇へ歩いて着く時間を確保する。
+        { t: 70, foes: () => { H.reliefArrive(rt); return []; } },
       ],
       noRefill: true, reward: '援けが来るまで土橋を守り抜いた' }),
     rest({ dur: 6, heal: 0.3, say: [['小早川隆景', '島津の横腹を突いたぞ！　崩れる！'], ['物見', '島津の松明が、坂の下へ下がっていきます']],
-      fn: () => sfx('horagai', 0.8) }),
+      fn: () => { H.retreatAll(rt); sfx('horagai', 0.8); } }),
   ];
 }

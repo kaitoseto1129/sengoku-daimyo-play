@@ -16,7 +16,7 @@ export default {
     F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 10);
     move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
     move(F.friends, { x: P.breach.x - 6, z: P.breach.z - 4 }, true);
-    F.fix = 0;
+    F.fix = 0; F.fixed = 0; F.fixerReliefs = 0; F.fixerReliefAt = 0;
     rt.say('人夫頭', '堤が崩れた！　水が出ていく！　土俵を持って東へ走れ！', 3.5);
     rt.after(4, () => rt.say('羽柴秀長', '崩れた所を守れ！　雑賀は必ずそこを突いてくる！', 3.5));
     const wave = (name, from, list) => () => { const g = troops(rt, false, name, from, list, SAIKA, { free: true, aggro: 18 }); move(g, P.breach, true); F.foesB.push(g); };
@@ -30,16 +30,21 @@ export default {
   tick(rt, dt, t) {
     const F = rt.flags;
     const n = living(F.fixers);
-    if (n < 3 && t < 150) { F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 8); move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 }); }
+    if (n < 3 && F.fixerReliefs < 2 && t >= F.fixerReliefAt) {
+      move(F.fixers, P.pile);
+      F.fixers = porters(rt, '堤を塞ぐ人夫', { x: 40, z: -70 }, 8);
+      move(F.fixers, { x: P.breach.x - 3, z: P.breach.z - 6 });
+      F.fixerReliefs++; F.fixerReliefAt = t + 30;
+    }
     F.fix += dt * (n >= 4 ? 1 : 0.5);
     const quiet = F.foesB.length >= 3 && F.foesB.every((g) => broken(g, 0.35));
-    if (!F.fixed && t > 150 && F.fix > 120 && (quiet || t > 190)) {
+    if (!F.fixed && t > 150 && F.fix >= 120 && (quiet || t > 190)) {
       F.fixed = t; F.waterTo = 0.45;
       rt.say('人夫頭', '塞いだぞ！　また水が溜まる！', 3);
     }
     return !!F.fixed && t - F.fixed > 6;
   },
-  leave(rt, F) { for (const g of F.foesB) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: 0 }); } },
+  leave(rt, F) { for (const g of F.foesB) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: 0 }); g.order = 'retreat'; } },
   foes: (rt) => rt.flags.foesB,
-  max: 260,
+  max: Infinity,
 };

@@ -3131,11 +3131,12 @@ function ariStage(o, defending) {
       // 遠くで足止めされた一組を待つためだけに、無人の辻で時間切れにしない。
       const ready = !C.orders.length && (C.groups.every((g) => ariSpent(g) || g.ariEngaged)
         || (defending ? el >= o.dur : el - C.lastOrderT >= 30));
-      // 攻めの辻は、敵の倍の味方で押さえる。敵が三人残るだけで大勢の味方を無効にしない。
+      // 攻めも守りも、敵の倍の味方で押さえれば確保できる。
+      // 守りで敵が三人残るだけで、大勢の味方と十二秒の踏みとどまりを無効にしない。
       // 外から撃つ射手も敵の兵力に含むが、一人だけで大勢の味方の確保を永久に止めない。
       // 射撃と傷の強さは保ち、持ち場の人数と本人の十二秒の踏みとどまりで決める。
       const opposition = enemy + C.rangedEnemy;
-      const advantage = defending ? friend > opposition && enemy <= 2 : friend >= opposition * 2;
+      const advantage = friend >= opposition * 2 || defending && friend > opposition && enemy <= 2;
       const secure = ready && present && friend > 1 && advantage;
       const lastRepelled = !C.orders.length && C.groups.every(ariSpent);
       C.inT = secure ? C.inT + dt : Math.max(0, C.inT - dt);

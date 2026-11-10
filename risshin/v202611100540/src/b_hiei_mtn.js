@@ -1496,9 +1496,13 @@ const guardedRoad = (rt, p) => {
   for (const g of rt.flags.foes) if (!gone(g)) for (const u of g.units) {
     // 本道の掃討で、僧坊に入った敵まで全滅させる条件にしない。
     // 試し役も室内の敵は追わない。外へ出てきた守りは従来どおり数える。
-    if (u.alive && !u.dying && !u.downed && !u.rearWound && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget
+    if (hieiReady(u)
       && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 10
-      && !nakaRoomAt(u.pos.x, u.pos.z, u.pos.y)) return false;
+      && !nakaRoomAt(u.pos.x, u.pos.z, u.pos.y)
+      // 案内も試し役も追わない法面・壁の向こうの兵で、本坂の進軍を止めない。
+      // 道へ出た兵と、本人から射線の通る道上の守りは引き続き退ける。
+      && rt.world.onRoad(u.pos.x, u.pos.z)
+      && !rt.army.wallBetween(rt.player.u.pos, rt.player.u.team, u.pos, false)) return false;
   }
   return true;
 };
@@ -1988,11 +1992,11 @@ function stairsGuideLabel(rt) {
   if (F._gHold) return '来た道の味方の旗へ戻れ';
   if (F.guideReturn.active) return '本坂の道へ戻る';
   if (near(rt.player.u, P.stairsFoot, 9)) {
-    if (!guardedRoad(rt, P.stairsFoot)) return '石段の下の敵を退けよ';
-    if (!F.stairsReady) return columnTask(F.akechi, '石段の下');
-    return '先手と石段を登れ';
+    if (!guardedRoad(rt, P.stairsFoot)) return '本坂の石段の下の敵を退けよ';
+    if (!F.stairsReady) return columnTask(F.akechi, '本坂の石段の下');
+    return '先手と本坂の石段を登れ';
   }
-  return '石段まで・道なり';
+  return '本坂の石段まで・道なり';
 }
 function hillRoad(from, to) {
   const north = from.x > 156 && from.z < -3 ? from : to.x > 156 && to.z < -3 ? to : null;
