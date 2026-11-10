@@ -607,6 +607,14 @@ k02_kawada.botBrain = (b, inp, { goTo }) => {
     return;
   }
   // 北岸の敵が先に退いても、段の中心（柵の手前）で止まらず柵の口を抜ける
+  // 口から横へ外れた所で道へ戻すと、柵の内の折れ角へ斜めに進んで止まる。
+  // 先に南へ離れ、柵の南側で口の正面へ回る。道への引き戻しは使わない。
+  if (F.dp?.on && F.dp.i === 2 && u.pos.z >= GATE.z && u.pos.z < NORTH.z + 12 && Math.abs(u.pos.x - GATE.x) > 6) {
+    inp.leftPressed = !!b.army.nearestEnemy(u, 4, (o) => reachableFoe(b, u, o)); inp.runHeld = true;
+    if (u.pos.z < NORTH.z + 2) goTo(p, inp, u.pos.x, NORTH.z + 3, 0.5, true);
+    else goTo(p, inp, GATE.x, u.pos.z, 1, true);
+    return;
+  }
   // 柵越しの敵で足を止めず、口を通ってから斬り合う（通しで砦にも出た柵際の停止を避ける）。
   // 十秒ほとんど動かない時は、口の前の四歩内で実際に斬れる敵へ向く。
   // 柵越しの敵を選ぶと近接攻撃は壁で止まり、口へ進む処理にも戻れなくなる。
