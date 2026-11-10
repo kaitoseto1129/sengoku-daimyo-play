@@ -1687,8 +1687,6 @@ const tano = {
       }
       normalEscape.call(this, vx, vz);
     };
-    const lastLook = new THREE.Vector3(135, W.heightAt(135, -3) + 1.4, -3);
-    const lastEye = new THREE.Vector3(114, W.heightAt(114, -12) + 3, -12);
     const levelLook = new THREE.Vector3();
     player.updateCamera = function (dt, camera) {
       if (!this.overHold && !this.aiming && !this.fpWanted() && this.lookIdle > 0.7) {
@@ -1705,8 +1703,7 @@ const tano = {
           levelLook.add(eye); camera.lookAt(levelLook);
         }
       }
-      // 終幕は屋敷の脇から父子を見る。上へ引く共通の勝利視点を重ねない。
-      if (F.lastView) { camera.position.copy(lastEye); camera.lookAt(lastLook); }
+      // 最期も本人の視点と見回す操作を保つ。屋敷の脇へカメラを強制移動しない。
     };
     // 初鹿野側の遠い谷に後続を置く。近くの実兵と交替せず、総勢にも重ねて加えない。
     // 列の位置・人数は推定。道の幅に収め、川と山腹へ広げない。

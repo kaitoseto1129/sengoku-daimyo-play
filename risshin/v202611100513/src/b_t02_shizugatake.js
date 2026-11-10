@@ -98,6 +98,11 @@ const CUT_WALL = [[-106, 233], [-114, 254], [-120, 267], [-128, 278], [-150, 282
 const KAIDO = [[226, 400], [228, 330], [222, 236], [205, 150], [175, 60], [150, -20], [110, -100], [60, -160], [35, -250], [10, -330], [-10, -400]];   // 北国街道
 const UPHILL = [[115, 252], [80, 262], [50, 266], [20, 266]];   // 木ノ本の西の黒田から賤ヶ岳の東の肩へ上がる道
 const SHORE_W = [[-95, 205], [-112, 170], [-122, 130], [-135, 95], [-150, 55], [-165, 25]];   // 余呉湖の西の岸を北へ（盛政の退く道）
+// 追撃の道は隊ごとに一度だけ組み、見回りのたびに配列を作らない。
+const CHASE_WAYS = [0, 1, 2].map((i) => {
+  const foot = [SHIGE.x + [8, 16, 2][i], SHIGE.z + [18, 26, 30][i]];
+  return [...SHORE_W.filter(([, z]) => z > foot[1] + 6), foot];
+});
 // 岸の道の x（その z で。道より東＝湖の側かを見る）
 const distX = (z) => { for (let i = 0; i + 1 < SHORE_W.length; i++) { const [ax, az] = SHORE_W[i], [bx, bz] = SHORE_W[i + 1]; if (z <= az && z >= bz) return ax + (bx - ax) * (az - z) / (az - bz); } return z > SHORE_W[0][1] ? SHORE_W[0][0] : SHORE_W[SHORE_W.length - 1][0]; };
 const JOIN = { x: 20, z: 266 };                         // 秀吉の本隊と落ち合う所
@@ -165,6 +170,8 @@ const foeList = (n, o = {}) => {
 };
 const live = (g) => !!g && g.units.some((u) => u.alive && !u.gone);
 const nLive = (g) => (g ? g.units.filter((u) => u.alive && !u.gone).length : 0);
+// 逃げた兵・戦えなくなった兵を、まだ道を塞ぐ殿として数えない。
+const shoreLeft = (groups) => (groups || []).reduce((n, g) => n + (g.routed || g.order === 'retreat' ? 0 : g.units.reduce((s, u) => s + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0)), 0);
 const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && u.team === team && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r ? 1 : 0), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const MOUTH = { x: FORT.x + FORT.r + 4, z: FORT.z };     // 賤ヶ岳の砦の東の口（柵の切れ目）
@@ -536,7 +543,7 @@ const t02_shizugatake = {
     if (live(F.scoutG)) { F.scoutG.noAI = true; F.scoutG.order = 'move'; F.scoutG.dest = { x: MOUTH.x - 2, z: MOUTH.z - 6 }; F.scoutG.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 7; }; }
     // 寄せ手は東の口へ向かって登る（北と北東から。三度）
     const wave = (x, z, n) => {
-      const g = enemyGroup(rt, { ...SAKUMA, name: '佐久間の手', anchor: { x, z }, facing: Math.atan2(MOUTH.x - x, MOUTH.z - z), fleeDir: { x: 0, z: -1 }, width: 5, morale: 90, noRout: true, dmgMult: 0.45,   // 11/6 九2：士気 75 では柵の鉄砲で口の 40 手前で崩れ、口へ来なかった
+      const g = enemyGroup(rt, { ...SAKUMA, name: '佐久間の手', anchor: { x, z }, facing: Math.atan2(MOUTH.x - x, MOUTH.z - z), fleeDir: { x: 0, z: -1 }, width: 5, morale: 90, noRout: true, noAI: true, keepMoveOrder: true, dmgMult: 0.45,   // 11/6 九2：士気 75 では柵の鉄砲で口の 40 手前で崩れ、口へ来なかった
        
         order: 'move', dest: { x: (LOOK.x + MOUTH.x) / 2 + 2, z: (LOOK.z + MOUTH.z) / 2 }, seekRange: 5, aggro: 4, speed: 3.6 }, foeList(n, { flag: SAKUMA.flag }));
       //   11/6 九2：口の真北の急な法を真っすぐ登らせると、口の 40 手前で登れずに止まった。物見の肩の尾根（主人公が下りた道）を登って東の口へ
@@ -590,7 +597,11 @@ const t02_shizugatake = {
       [...KOSHO.map((name) => ({ type: 'samurai', n: 1, o: { name, invuln: true, horse: true, flag: HASHIBA } })), { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }]);   // 名のある者は馬上（AY7）
     F.uma = allyGroup(rt, { name: '羽柴の先手', fullStrength: true, anchor: { x: UPHILL[2][0], z: UPHILL[2][1] }, facing: -1.6, width: 5, aggro: 6, speed: 4.4, order: 'move', dest: { x: DAWN_AT.x + 22, z: DAWN_AT.z + 18 }, noRout: true },
       [{ type: 'samurai', n: 5 }, { type: 'ashigaru', n: 20 }, { type: 'gun', n: 6 }, { type: 'bow', n: 2 }]);   // 秀吉の本隊は一万五千ほど。殿の勝政より厚く（AQ10）
-    for (const g of [F.yari, F.uma]) g.onArrive = (q) => { q.order = 'hold'; };
+    for (const g of [F.yari, F.uma]) {
+      // 帰還・反攻の持ち場は段が指揮する。共通の回り込みで道の途中に留めない。
+      g.noAI = true; g.keepMoveOrder = true;
+      g.onArrive = (q) => { q.order = 'hold'; };
+    }
     rt.after(1.2, () => rt.say('使番', '筑前様、大垣より十三里を駆け戻られた。木ノ本の道に松明が続いておる', 3.2));
     rt.after(5.2, () => rt.say('桑山重晴', '東の肩の道へ下り、上って来る筑前様の先手を迎えよ', 2.8));
     nightTurn(rt, this.ctx(rt));   // 羽柴の大軍の列・盛政が退けの命に従わない（t02_shizugatake/turn.js）
@@ -607,7 +618,7 @@ const t02_shizugatake = {
     rt.banner('四月二十一日　夜明け', '切通しの口の柴田勝政を討て');
     // 殿：柴田勝政（三千ほど。切通しの口で踏みとどまる）
     F.kmG = enemyGroup(rt, { ...SHIBATA, name: '柴田勝政の殿', anchor: { ...KATSUMASA }, facing: 0.7, fleeDir: { x: -0.3, z: -1 }, width: 6, morale: 95, dmgMult: 0.5,
-      noRout: true, formation: 'line', order: 'hold', aggro: 14, fixed: true },
+      noRout: true, noAI: true, formation: 'line', order: 'hold', aggro: 14, fixed: true },
     [{ type: 'busho', n: 1, o: { name: '柴田勝政', hat: 'kabuto_m', horse: true, flag: SHIBATA.flag } }, { type: 'samurai', n: 3 }, ...foeList(20)]);
     F.kmG.kind4 = 'km'; F.groups.push(F.kmG);
     F.kmU = F.kmG.units.find((u) => u.type === 'busho');
@@ -643,6 +654,7 @@ const t02_shizugatake = {
     // 11/6 critic60（一2）：丹羽長秀は二千を率いる大将。切通しの斬り合いには入らず、隊は砦の西の肩に二線として控える
     if (live(F.niwaG)) { F.niwaG.order = 'move'; F.niwaG.dest = { x: DAWN_AT.x + 4, z: DAWN_AT.z + 14 }; F.niwaG.speed = 3; F.niwaG.aggro = 2; F.niwaG.seekRange = 4; F.niwaG.onArrive = (q) => { q.order = 'hold'; q.aggro = 2; q.seekRange = 4; }; }   // 11/8：控えの二線は寄って来た敵だけを受け、口の斬り合いへ出て行かない
     for (const [g, sp, dx, dz] of [[F.yari, 3.4, 4, 8], [F.uma, 3.2, 10, 12], [F.scoutG, 3.0, 12, 4]]) if (live(g)) {
+      g.noAI = true; g.keepMoveOrder = true;
       g.order = 'move'; g.speed = sp; g.dest = { x: KATSUMASA.x + dx, z: KATSUMASA.z + dz }; g.path = null;
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 34; };
     }
@@ -657,6 +669,7 @@ const t02_shizugatake = {
     rt.objDone('s3');
     rt.award((t) => { t.special = { label: '切通しの口で柴田勝政の殿を破った', pts: 15 }; }, '柴田勝政の殿を破った');
     F.phase = 4; F.pt = rt.t; F.k0 = F.kills;
+    F.footFightT = 0;
     rt.obj('s4', ST(4), 'main');
     for (const g of [F.kmG, F.mmG, F.saku, F.mori]) if (live(g)) { g.order = 'retreat'; g.dest = { ...GONGEN }; g.onArrive = null; g.speed = g === F.mori ? 3.6 : 2.2; g.kind4 = 'flee'; }   // 盛政は馬で先に落ちる
     // 殿の残りは切通しから権現坂へ落ちる（持ち場に縛らず、振り向いて主人公に絡まない。味方の本隊が残りに足を取られて岸の道へ出遅れた・11/5 の流し）
@@ -665,7 +678,7 @@ const t02_shizugatake = {
     // 岸の道で振り向いて踏みとどまる二つの塊。湖の西の岸を退くのは盛政の手と勝政の残り（家ごとの旗。勝家の旗本は狐塚で岸にはいない）
     F.chase5 = [[-128, 112, 12, SAKUMA, '佐久間の手'], [-158, 36, 12, SHIBATA, '柴田勢']].map(([x, z, n, house, name]) => {
       // 11/6 九2：士気 60 では主人公が寄る前に崩れて逃げ、岸で一度も当たらなかった。岸の道を塞いで踏みとどまる殿にする
-      const g = enemyGroup(rt, { ...house, name, anchor: { x, z }, facing: 2.8, fleeDir: { x: -0.3, z: -1 }, width: 5, morale: 85, dmgMult: 0.36, noRout: true,
+      const g = enemyGroup(rt, { ...house, name, anchor: { x, z }, facing: 2.8, fleeDir: { x: -0.3, z: -1 }, width: 5, morale: 85, dmgMult: 0.36, noRout: true, noAI: true, keepMoveOrder: true,
         order: 'hold', seekRange: 18, aggro: 10, speed: 2.6 }, foeList(n, { flag: house.flag }));
       g.kind4 = 'way'; F.groups.push(g);
       return g;
@@ -762,7 +775,11 @@ const t02_shizugatake = {
           const c = g.center();
           // 11/6 critic60（一5・九4）：主人公から二十五より離れた隊は、斬り合いも道もやめて主人公の脇へ駆け寄る（麓で主人公一人にしない）
           //   11/6 九度目（描いて遊んだ）：二十五で寄せると、岸と麓で主人公のそばの味方が一、二人の十秒が続いた。十四より離れたら寄せ、行き先は主人公の脇の少し先（茂山の向き）
-          if (dist(c, P.pos) > 14) {
+          const gap = dist(c, P.pos);
+          if (gap > 18) g.shizuFollowing = true;
+          else if (gap < 10) g.shizuFollowing = false;
+          // 近づいた瞬間に行軍へ戻すと、次の見回りでまた「待て」になり合図待ちを繰り返す。
+          if (g.shizuFollowing) {
             const tx = P.pos.x + [-4, 4, 0][i] + fx / fd * 6, tz = P.pos.z + [-2, 0, 2][i] + fz / fd * 6;
             //   隊の要（anchor）を move で歩かせると要の速さ（3.9 まで）で主人公に追い着かない。要を主人公の脇へ置き直し、兵が各自駆けて持ち場へ寄る（自分の組の付き従いと同じ）
             g.order = 'hold'; g.march = false; g.path = null; g.focus = null; g.dest = null; g.onArrive = null; g.fixed = false;
@@ -771,8 +788,7 @@ const t02_shizugatake = {
           }
           const foe = F.chase5.find((h) => live(h) && dist(h.center(), c) < 22 && dist(h.center(), P.pos) < 25);
           if (foe) { if (g.order !== 'attack') { g.order = 'attack'; g.march = false; g.seekRange = 30; g.aggro = 14; g.onArrive = null; } return; }          //   道（order 'path'）は列の尻を待って要が三割の速さに落ちる（33 人の縦隊では常に）。行き先を岸の道の折れ目ごとに替えて move で進む
-          const foot = [SHIGE.x + [8, 16, 2, 12][i], SHIGE.z + [18, 26, 30, 36][i]];
-          const way = [...SHORE_W.filter(([, z]) => z > foot[1] + 6), foot];
+          const way = CHASE_WAYS[i];
           let k = way.findIndex(([, z]) => z < g.anchor.z - 6);
           if (k < 0) k = way.length - 1;
           if (g.order !== 'move' || !g.dest || g.dest.x !== way[k][0] || g.dest.z !== way[k][1]) {
@@ -805,15 +821,21 @@ const t02_shizugatake = {
       //   11/6 六度目：打ちかかるのは味方の隊が主人公の 25 の内に追い着いてから（一人で先へ出た主人公を麓でまとめて囲まない・一5）
       if (live(footG) && dist(footG.center(), P.pos) < 16 && [F.yari, F.uma, F.niwaG].some((q) => live(q) && dist(q.center(), P.pos) < 25)) { footG.aggro = 10; footG.seekRange = 16; }
       // 勝ち：岸の道の柴田勢を崩して茂山の麓まで追う
-      const left = F.chase5.reduce((s, g) => s + nLive(g), 0);
+      const left = shoreLeft(F.chase5);
       // 11/4 jin：一戦を七分ほどに収める。11/5 check60（標準 三3）：目標の「茂山の麓」へ着かずに勝ちにしない（時が経つだけで勝たない）
       //   11/6 九4：主人公一人が麓へ着いただけで勝たない。味方の隊（小姓衆か先手）が麓の 45 の内へ追い着いて締める
       // 11/9 三巡（織田C）：小姓衆の隊の中心が麓の手前の四十六〜四十九で止まり、殿を崩し切っても勝ちにならず刻限が切れた。麓の広さを六十に。
-      const atFoot = dist(P.pos, SHIGE) < 40, mainIn = [F.yari, F.uma].some((q) => live(q) && dist(q.center(), SHIGE) < 60);
+      const atFoot = dist(P.pos, SHIGE) < 40;
+      // 隊の中心だけが坂に残っても、実際に追いついた兵がいれば合流とする。
+      const mainIn = [F.yari, F.uma, F.scoutG].some((q) => q && q.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound && dist(u.pos, SHIGE) < 60 ? 1 : 0), 0) >= 3);
+      F.footFightT = atFoot && mainIn ? F.footFightT + 0.25 : 0;
       // 11/6 critic60（二1・十二2）：麓に敵が残るのに勝たない。殿を崩し（残り二人まで）、残りが北へ逃げ出すのを見せてから勝ち
       // 討ち取りの表示と同じ残り四人まで崩し、前田の退きを見届けてから締める。時間だけで殿を退かせない。
       // 麓で待つだけでは殿を崩したことにしない。味方の到着と殿の損耗をともに確かめる。
-      if (atFoot && mainIn && F.maedaGo && left <= 4 && !F.routAt) {
+      // 麓で味方と一分押し続け、殿の半数以上を崩した長い追撃では残りも退く。
+      // 遠い岸や斜面の残兵を一人ずつ追わされて刻限切れにしない。到着・戦闘なしでは進まない。
+      const broken = left <= 4 || st >= 180 && F.footFightT >= 60 && left <= 12;
+      if (atFoot && mainIn && F.maedaGo && broken && !F.routAt) {
         F.routAt = rt.t;
         for (const g of F.groups) if (live(g) && g.units[0]?.team === 1 && g !== F.maedaG) { g.order = 'retreat'; g.fixed = false; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: g.center().x - 10, z: -220 }; g.speed = 3.6; g.aggro = 0; g.seekRange = 0; g.kind4 = 'gone'; }
         rt.say('福島正則', '柴田勢が崩れたぞ。追え、追え', 2.6);
@@ -927,7 +949,7 @@ STAGES.t02_shizugatake = STAGE_TEXT.map((t, i) => (i ? [t, st(STAGE_AT[i])] : [t
 // 倒す数（kaito 11/2 O）：右上の任務の一行に「（倒した数／倒す数）」。段が進む判定と同じ数え方（stages.js）
 KILLS.t02_shizugatake = (rt) => {
   const F = rt.flags;
-  return F.ending ? null : F.phase === 1 ? downTo([F.chaseG], 3) : F.phase === 2.3 ? cut(F.yochiG?.units.length, nightRaidLeft(F.yochiG), 2) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? downTo(F.chase5, 4) : null;
+  return F.ending ? null : F.phase === 1 ? downTo([F.chaseG], 3) : F.phase === 2.3 ? cut(F.yochiG?.units.length, nightRaidLeft(F.yochiG), 2) : F.phase === 3 ? [F.kmU && !F.kmU.alive ? 1 : 0, 1] : F.phase === 4 ? cut(F.chase5?.reduce((n, g) => n + g.units.length, 0), shoreLeft(F.chase5), 4) : null;
 };
 withGuard(t02_shizugatake);
 
