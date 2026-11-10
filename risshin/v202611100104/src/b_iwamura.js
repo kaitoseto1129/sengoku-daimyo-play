@@ -1847,11 +1847,8 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
     F.roadDefenders = [...F.waves, ...F.roadGuards, F.footSally];
     for (let i = 0; i < F.waves.length; i++) {
       const g = F.waves[i];
-      // 元の山道から口へ着き、必要な時だけ柵の内の連絡道へ回る。
-      g.iwMouthPaths = [
-        [...RAID_PATHS[i], [0, 14]],
-        [...RAID_PATHS[i], ...MOUTH_LINK.slice(1)],
-      ];
+      // 寄せ直しも柵の正面の口まで。陣の奥や北の連絡道へは追い込まない。
+      g.iwMouthPath = RAID_PATHS[i];
     }
     for (let i = 0; i < F.waves.length; i++) { F.waves[i].iwReturn = RETURN_PATHS[i].map((q) => q.slice()); F.waves[i].iwInitial = F.waves[i].count; }
     // 忍び寄り：起点まで、はうような歩みで登る（着いたら伏せて待つ。夜討ちの下知の send で口へ駆け上がる）。
@@ -2354,8 +2351,11 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         }
         // 曲がり角に先頭と隊の要が着けば次へ進む。後列待ちで夜討ちを止めない。
         if (g.order === 'path' && g.path?.length && g.onArrive) {
+          // 先頭が倒れた後も、生きて歩ける兵を前へ詰める。
+          // 空いた持ち場を残すと、列が折れ点へ届かず山道で止まる。
+          packChaseFront(g);
           const q = g.path[Math.min(g.pathIdx, g.path.length - 1)];
-          const front = g.units.some((u) => u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - q[0], u.pos.z - q[1]) < 5);
+          const front = g.units.some((u) => chaseReady(u) && Math.hypot(u.pos.x - q[0], u.pos.z - q[1]) < 5);
           if (front && Math.hypot(g.anchor.x - q[0], g.anchor.z - q[1]) < 1.5) {
             if (g.pathIdx < g.path.length - 1) g.pathIdx++;
             else { const deploy = g.onArrive; g.onArrive = null; deploy(g); }
@@ -2365,7 +2365,7 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
         for (const u of g.units) if (u.alive && !u.fleeing && !u.woundOut) {
           const d = Math.hypot(u.pos.x - rt.player.u.pos.x, u.pos.z - rt.player.u.pos.z);
           distance = Math.min(distance, d);
-          if (g.iwMouthPaths && d < waveDistance) { waveDistance = d; nearWave = g; }
+          if (g.iwMouthPath && d < waveDistance) { waveDistance = d; nearWave = g; }
           const clear = d < 45 && !rt.army.wallBetween(u.pos, -1, rt.player.u.pos) &&
             !rt.army.terrainBlocks(u.pos, rt.player.u.pos);
           const sameLevel = Math.abs(u.pos.y - rt.player.u.pos.y) < 2;
@@ -2386,14 +2386,13 @@ html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.iwamura-army #army
       // 柵越し・切岸の下の兵や弓だけを、斬り合える敵として数えない。
       // 近くに見えても届かない間は、既存の連絡道を通る寄せ直しを止めない。
       if (reachableDistance <= 25 || F.step !== 2) F.quietSince = rt.t;
-      // 四秒静かなら本人側の口へ回す。連絡道の移動も含め、三十秒以内に近づける余裕を取る。
+      // 四秒静かなら正面の口へ寄せ直す。山道の折れは省かない。
       // 半秒ごとの既存の調べを使い、兵の追加や瞬間移動はしない。
       if (F.step === 2 && reachableDistance > 25 &&
           (rt.t - F.quietSince >= 4 || rt.t >= 150) && rt.t >= (F.mouthHelpAt || 0)) {
         const g = nearWave;
-        if (g?.iwMouthPaths && !g.iwWithdraw && !gone(g)) {
-          const side = rt.player.u.pos.x > 40 ? 1 : 0;
-          const route = g.iwMouthPaths[side];
+        if (g?.iwMouthPath && !g.iwWithdraw && !gone(g)) {
+          const route = g.iwMouthPath;
           const i = F.waves.indexOf(g);
           const next = g.order === 'path' && (g.path === RAID_PATHS[i] || g.path === route) ? g.pathIdx : RAID_PATHS[i].length - 1;
           g.path = route; g.pathIdx = next; g.order = 'path'; g.fixed = false;
