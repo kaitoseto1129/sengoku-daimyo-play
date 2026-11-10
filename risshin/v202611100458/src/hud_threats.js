@@ -544,7 +544,8 @@ export class HudThreats {
     for (let n = 0; n < sources.length && n < room; n++) {
       const u = sources[n], ranged = !u.sidearm && (u.type === 'bow' || u.type === 'gun') && (u.atk?.bow || u.atk?.ranged || Math.hypot(u.pos.x - p.pos.x, u.pos.z - p.pos.z) > 4);
       const el = this.threatEls[n];
-      if (u.attackWarnAt == null || rt.t - (u.attackWarnLast ?? -99) > 8) u.attackWarnAt = rt.t;
+      // 一度予告した敵の猶予を、印の再表示でやり直さない。
+      if (u.attackWarnAt == null) u.attackWarnAt = rt.t;
       u.attackWarnLast = rt.t;
       const a = Math.atan2(u.pos.x - p.pos.x, u.pos.z - p.pos.z) - viewYaw;
       const direction = Math.cos(a) > 0.5 ? '前' : Math.cos(a) < -0.5 ? '後ろ' : Math.sin(a) > 0 ? '左' : '右';

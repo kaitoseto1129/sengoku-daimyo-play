@@ -4636,15 +4636,16 @@ const anegawa = {
         // 野村への追撃と遠藤の段を終えるまでは、戦全体の達成にはしない。
         rt.award((t) => { t.special = { label: '追い討ち', pts: 25 }; }, '浅井の殿を崩した');
         if (rt.G.lord) this.ending(rt); else TSUI.start(rt, aneCtx(rt, this));
-      } else if ((F.aneStage >= 5 || rt.canFailMission()) && (!crossers || (!R.anePending && rt.t - Math.max(F.rearAt ?? F.stepT, F.stepT) > 210) || (R.anePending && rt.t - F.stepT > 240))) {
+      } else if (F.aneStage >= 5 && !crossers) {
+        // 総崩れ後は、渡河の遅れや殿の出現待ちだけで負けにしない。
+        // 殿と斬り結ぶまでは追撃を続け、果たした後だけ次の段へ渡す。
         // 殿と斬り結んだ後に追い手が尽きても、追加の二目標を飛ばして勝ちにしない。
         if (F.aneStage >= 5 && !rt.G.lord) {
           rt.objDone('pursue'); rt.unmark('rear');
           TSUI.start(rt, aneCtx(rt, this));
         } else {
           rt.objFail('pursue');
-          if (F.aneStage >= 5) this.ending(rt, true);
-          else this.lose(rt, '北岸の殿と斬り結ばず、追い討ちを果たせなかった');
+          this.ending(rt, true);
         }
       }
     }

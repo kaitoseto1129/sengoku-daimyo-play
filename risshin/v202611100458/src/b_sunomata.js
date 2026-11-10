@@ -51,6 +51,8 @@ import { FORT, ROAD3, ROAD3N, KISHI_ROAD, YOSE, SIDE_WORD, HORI, SUNOMATA_PLAN, 
 // （具足はどちらも黒く、旗の色だけでは乱戦で取り違えた。名のある武将の兜はそのまま）
 const ODA_AIJI = { hatColor: 0x9c7c34 };
 const SAITO_AIJI = { hatColor: 0x6a3222, flagScale: 1.25 };
+// 材木の配置を描画と視点の当たりで共用する。
+const LUMBER_STACKS = [[10.5, -12.8, .2], [10, 4, -.1], [-9, 7, 1.4], [-13, -18, .6], [14, -19, -.4], [-19, 12, 1.2]];
 const aiji = (list, look) => list.map((e) => ({ ...e, o: { ...look, ...(e.o || {}) } }));
 const allyGroupA = (rt, o, list) => allyGroup(rt, o, aiji(list, ODA_AIJI));
 const MOAT = HORI.map((h) => horiboriHeight(h.pts, { depth: h.deep, width: h.w }));
@@ -921,9 +923,15 @@ function sunoChoiceLayout(rt) {
 // 外から建物へ入る視線は軒・柱の手前で止める。室内からの視線は既存の壁判定へ任せる。
 function fortView(rt) {
   const W = rt.world, boxes = [];
-  const put = (x, z, rot, w, d, low, top, roof, struct = null, closed = false) => {
-    boxes.push({ x, z, c: Math.cos(rot), s: Math.sin(rot), hw: w / 2, hd: d / 2, low, top, roof, struct, closed });
+  const put = (x, z, rot, w, d, low, top, roof, struct = null, closed = false, cameraOnly = false) => {
+    boxes.push({ x, z, c: Math.cos(rot), s: Math.sin(rot), hw: w / 2, hd: d / 2, low, top, roof, struct, closed, cameraOnly });
   };
+  // 材木は高さ約九十センチ。視点の線を調べる回数が尽きても山の中へ入れない。
+  // 足場や歩行の扱いは既存の判定を使い、視点だけを止める。
+  for (const [x, z, rot] of LUMBER_STACKS) {
+    const y = W.heightAt(x, z);
+    put(x, z, rot, 4.1, 1.4, y, y + .9, y + .9, null, true, true);
+  }
   for (const p of [MAIN_SHED, ...SHEDS]) {
     const y = W.heightAt(p.x, p.z) + .14;
     put(p.x, p.z, p.rot, p.w + .7, p.d + .6, y, y + 2.15 + (p.w / 2 + .35) * .25 + .25, y + 1.95, p === MAIN_SHED ? rt.flags.hut : null, true);
@@ -942,6 +950,7 @@ function fortView(rt) {
   }
   W.nonWalkSurface = (x, z, y) => {
     for (const b of boxes) {
+      if (b.cameraOnly) continue;
       if (b.struct && !b.struct.alive) continue;
       const dx = x - b.x, dz = z - b.z;
       if (y >= b.roof && Math.abs(dx * b.c - dz * b.s) <= b.hw && Math.abs(dx * b.s + dz * b.c) <= b.hd) return true;
@@ -4254,13 +4263,11 @@ const sunomata = {
       }
       if (k !== -1) sakamogi.e.push(sunoSakamogi(W, FORT + 5.5, k * 7, Math.PI / 2, 5));   // -7 は水を引いた溝の切れ目
     }
-    rt.scene.add(sunoNearFrame(lumber(W, 10.5, -12.8, 0.2)));   // 水を引いた溝の手前を塞がない所へ（10/30）
-    rt.scene.add(sunoNearFrame(lumber(W, 10, 4, -0.1)));
-    rt.scene.add(sunoNearFrame(lumber(W, -9, 7, 1.4)));
+    for (const [x, z, rot] of LUMBER_STACKS) rt.scene.add(sunoNearFrame(lumber(W, x, z, rot)));
     // 完成した西の守り場には足場を残さず、敵の顔と槍先を見通せるようにする。
     // 開いた北の口の両脇には足場を重ねない。北東の普請用の足場は残す。
     // 未完成の柵ぎわの資材：丸太の山・足場・俵（普請の途中の跡。A049）
-    rt.scene.add(sunoNearFrame(lumber(W, -13, -18, 0.6)), sunoNearFrame(lumber(W, 14, -19, -0.4)), sunoNearFrame(lumber(W, -19, 12, 1.2)), tawara(W, 17, 8, 0.3, 4));
+    rt.scene.add(tawara(W, 17, 8, 0.3, 4));
     // 普請の途中：北東の隅は櫓の足場だけ、縄を張った杭で次に結う柵の線を示す
     F.scaf = sunoNearFrame(scaffold(W, 13, -13, 0.1));
     rt.scene.add(F.scaf);
