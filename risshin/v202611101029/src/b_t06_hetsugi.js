@@ -553,6 +553,8 @@ const t06_hetsugi = {
     for (const g of rt.army.groups) {
       if (g.team !== 1 || !g.count || g.bankHold || g === F.ieh || g === F.iehS) continue;
       g.bankHold = true;
+      // 整列後に共通の頭が近い味方を見て攻撃を再開しない。移動は続け、着いた水辺を守る。
+      g.fixed = true; g.stay = true;
       const c = g.center(), x = Math.max(FORD.x - 36, Math.min(FORD.x + 36, c.x + (i++ % 2 ? 6 : -6)));
       const z = -22 - (i % 3) * 5;
       g.focus = null; g.aggro = 0; g.seekRange = 0; g.order = 'move'; g.dest = { x, z }; g.speed = 3.2; g.feint = false;

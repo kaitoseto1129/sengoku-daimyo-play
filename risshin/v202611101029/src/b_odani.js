@@ -2973,7 +2973,8 @@ const odani = {
     const F = rt.flags, p = rt.player.u.pos;
     // 小丸陥落後の下知待ちと、落城後の勝ち鬨にも本丸の印を残す。
     if (F.ending || rt.over || !rt.player.u.alive) return null;
-    const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true });
+    // 道の角は共通の印へ直接渡る。別の札を作る経路だけで指定すると、六メートル手前で消える。
+    const pin = F.odaniPin || (F.odaniPin = { always: true, silent: true, hideDistance: 0 });
     pin.unit = null; pin.enemy = pin.defend = pin.waiting = pin.arrived = pin.follow = pin.gate = pin.route = false;
     pin.marker = null; pin.footRing = false; pin.r = .5; pin.hide = 0; pin.gateName = '';
     if (F.odaMonomi) { pin.x = F.odaMonomi.x; pin.z = F.odaMonomi.z; pin.r = 3; pin.arrived = Math.hypot(p.x - pin.x, p.z - pin.z) < 3; return pin; }
@@ -3007,6 +3008,10 @@ const odani = {
     pin.waiting = hold; pin.r = pin.route ? .3 : hold ? 5 : 2;
     pin.arrived = Math.hypot(p.x - pos.x, p.z - pos.z) <= pin.r;
     pin.key = F.retreatOn ? 'retreat' : hold ? 'defend' : 'trail';
+    pin.label = F.retreatOn ? '退き口' : F.step === 0 ? '羽柴秀吉'
+      : pin.gate ? pin.gateName || '西木戸' : F.step <= 1 ? '清水谷'
+        : F.step === 2 ? F.onoDone ? '京極丸' : '大野木屋敷'
+          : F.komaDown || F.honAttack ? '本丸' : F.komaAttack ? '小丸' : '京極丸';
     return pin;
   },
   // 小谷の常設井楼だけ、通し柱を垂直にして横木の木口を交互に出す。
@@ -6022,7 +6027,10 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
 
   onKill(rt, v) {
     const F = rt.flags;
-    if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+    if (!v.isStruct && !v.civ) {
+      if (v.team === 1) F.ek = (F.ek || 0) + 1;
+      else if (v.team === 0) F.ak = (F.ak || 0) + 1;
+    }
     F.foeScanAt = -1; F.objectiveAt = 0;
     if (F.foeRoute) F.foeRoute.at = -1;
     if (!F.ending && F.step === 2 && !F.onoDone && gone(F.ono) && gone(F.relief)) this.onoFall(rt);
@@ -6043,7 +6051,8 @@ odani.force = (rt) => {
     let a = 0, b = 0;
     for (const u of A.units) if (u.alive && !u.gone && !u.isStruct && !u.civ) { if (u.team === 0) a++; else if (u.team === 1) b++; }
     F.force0 ||= { a: Math.max(1, a), b: Math.max(1, b) };
-    const lostA = Math.max(0, F.ak || 0), lostB = Math.max(0, 1 - b / F.force0.b);
+    // 後から現れた守り手で討死分を相殺しない。退いた兵と、記録済みの討死の多い方を使う。
+    const lostA = Math.max(0, F.ak || 0), lostB = Math.min(1, Math.max(0, 1 - b / F.force0.b, (F.ek || 0) / F.force0.b));
     force.a = Math.max(0, Math.round(30000 - lostA * 25));
     // 11/6 fixc1844（critic60「浅井が4,781から5,000へ戻る」）：曲輪の兵が後から出ても、数は減るだけで増やさない
     const nb = Math.round(5000 * (1 - lostB) * (F.fallen ? .2 : F.komaDown ? .55 : F.step >= 3 ? .8 : 1));
