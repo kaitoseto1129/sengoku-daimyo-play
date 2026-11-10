@@ -23,7 +23,7 @@ import { liteMat } from './world_vegetation_materials.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { withGuard } from './toyo_bot.js';
-import { KILLS, STAGES, downTo, cut } from './stages.js';
+import { KILLS, STAGES, cut } from './stages.js';
 import { KIT } from './b_nagashinojo.js';
 import { KACCHU } from './kacchu_data.js';
 import { goalsTick } from './hud_goals.js';
@@ -1135,7 +1135,10 @@ STAGES.t02_shizugatake = STAGE_TEXT.map((t, i) => (i ? [t, st(STAGE_AT[i])] : [t
 KILLS.t02_shizugatake = (rt) => {
   const F = rt.flags, P = F.phase;
   if (F.ending) return null;
-  return P === 1.3 ? downTo([F.wA], 4) : P === 1.6 ? downTo([F.wB], 3) : P === 1.8 ? downTo([F.wC], 3) : P === 3.5 ? downTo([F.saku], 14) : P === 4 ? downTo([F.kmG], 4) : null;
+  const g = P === 1.3 ? F.wA : P === 1.6 ? F.wB : P === 1.8 ? F.wC : P === 3.5 ? F.saku : P === 4 ? F.kmG : null;
+  if (!g) return null;
+  // 負傷離脱・敗走も進行判定と同じ数え方にし、未達の人数表示のまま次へ進ませない。
+  return cut(g.units.length, nLive(g), P === 1.6 || P === 1.8 ? 3 : P === 3.5 ? 14 : 4);
 };
 withGuard(t02_shizugatake);
 

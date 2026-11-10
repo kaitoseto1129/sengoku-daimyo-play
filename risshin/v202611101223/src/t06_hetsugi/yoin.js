@@ -18,7 +18,7 @@ export function play(rt, K) {
   const A = K.talk.after;
   rt.after(10, () => rt.say(nm(rt), A[0][1], 3.2));
   rt.after(13.6, () => rt.say(A[1][0], A[1][1], 3.6));
-  rt.after(17.6, () => rt.say('使番', '仙石殿は豊前の小倉へ落ちられた由', 3));
+  rt.after(17.6, () => rt.say('使番', '仙石殿は讃岐へ落ちられた由', 3));
   rt.after(21, () => rt.say('使番', '殿下が来春、二十万の兵で九州へお渡りになる', 3.2));
   return 25;
 }
