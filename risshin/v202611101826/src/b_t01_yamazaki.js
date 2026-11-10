@@ -635,6 +635,8 @@ const t01_yamazaki = {
       F.escT = 0.5;
       const c = F.ikeda.center();
       const far = c ? Math.hypot(c.x - P.x, c.z - P.z) : 0;
+      // 兵だけ速めても隊の要は行軍時の速度のまま。渡河・迂回の下知を保ったまま隊ごと追いつかせる。
+      if (F.stage >= 2) F.ikeda.speed = far > 12 ? 5 : 4.3;
       // 遠く遅れた時は道々の小競り合いに足を止めず、主人公の所まで駆け寄る（kaito 一5：味方の隊も同じ速さで目標へ）
       //   主人公の駆け足（約5m/秒・player.js）に足軽の駆け足（4.3）は追いつけないので、離れた間だけ主人公と同じ速さにする
       for (const u of F.ikeda.units) { if (u._run0 == null) u._run0 = u.run; u.run = far > 12 ? Math.max(u._run0, 5) : u._run0; }

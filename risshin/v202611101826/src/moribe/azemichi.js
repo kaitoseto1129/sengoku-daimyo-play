@@ -66,8 +66,14 @@ export function tick(rt) {
   if (v.azeUp && defeated && t > 20) {
     v.azeDone = true; v.ph = null;
     rt.unmark('aze');
-    for (const g of v.azeGs) { g.noRout = false; g.morale = 0; g.leader = null; g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 }; }
-    rt.say('組頭 源八（げんぱち）', fallen ? '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく' : '物頭は戦列を離れた！　残る伏兵を押し返せ！', 3.2);
+    // 士気の崩れ判定を待たず、残る伏兵の攻め先と射撃を取り消す。
+    // 畦の任務を済みにする下知と同時に、両組へ墨俣への退却を伝える。
+    for (const g of v.azeGs) {
+      g.noRout = false; g.morale = 0; g.leader = null;
+      g.order = 'retreat'; g.dest = null; g.onArrive = null; g.fire = false;
+      g.fleeSet = true; g.fleeDir = { x: -0.2, z: -1 };
+    }
+    rt.say('組頭 源八（げんぱち）', fallen ? '物頭を討ったぞ！　頭を失うた伏兵が逃げてゆく' : '物頭は戦列を離れた！　伏兵も退くぞ、前備の列へ戻れ！', 3.2);
     const merit = fallen ? '田の畦で斎藤の物頭を討った' : '田の畦で斎藤の物頭を退けた';
     if (t <= 90) rt.award((tr) => tr.side.push(merit), merit);
   }

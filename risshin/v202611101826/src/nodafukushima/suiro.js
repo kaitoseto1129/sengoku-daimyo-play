@@ -112,10 +112,11 @@ export function bot(b, goTo, p, inp, strike) {
   // 物見の直後は五秒後の伏兵を岸で待つ。出る前に堤へ帰らない。
   if (S.k <= 1) { goTo(p, inp, S.at.x, S.at.z, 3); return true; }
   const u = p.u;
-  if (S.k === 2 && S.g) {
-    let e = null, best = Infinity;
-    for (const v of S.g.units) if (fighting(v)) { const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
-    if (e) {
+  // 撃退の条件を満たしたら岸へ戻る。残兵を追い続けると、岸での完了判定に入れない。
+  if (S.k === 2 && S.g && !S.timedOut && !S.g.routed) {
+    let e = null, best = Infinity, left = 0;
+    for (const v of S.g.units) if (fighting(v)) { left++; const d = Math.hypot(v.pos.x - u.pos.x, v.pos.z - u.pos.z); if (d < best) { best = d; e = v; } }
+    if (e && left > 2) {
       p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       if (best > 2.2) goTo(p, inp, e.pos.x, e.pos.z, 2); else strike(p, inp, e, best);
       return true;

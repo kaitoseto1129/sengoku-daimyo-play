@@ -318,6 +318,8 @@ echizen.noMiniMap = true;
 Object.assign(echizen, {
   goalSignOnly: true,   // 11/4 p100_echizen（AL・AV15・⑧）：行き先の印は頭上の金の▼一つだけ（白い大きな矢印を重ねない）
   missionSingleLine: true, goalsAllRows: true, hideMissionDots: true, hideGuideSteps: true,
+  // 城内の守りが残る間に共通の軍勢が追撃を始めない。四城制圧後はこの戦の殿・府中への下知で追う。
+  noPursuit: true,
   noPlayerFoot: true, quietMiss: true, noSiegeCards: true, noDodgeCard: true,
   nearbyAllySignLimit: 0, enemyTriangleSigns: true, mapMissionEnemy: true,
   nameRange: 240,   // 峠の二陣・本陣と殿の将の名を、近づく前から共通の名札に出す。

@@ -1518,7 +1518,7 @@ const hieiRoadName = (F) => (F.step || 0) <= 1 ? '日吉社の参道'
 // 到着を待つ間も、目前の守りと道への復帰を先に知らせる。突破の条件は変えない。
 function roadProgress(rt, place) {
   const F = rt.flags;
-  if (F._gHold) return '来た道の味方の旗へ戻れ';
+  if (F._gHold) return `${hieiRoadName(F)}の味方の旗へ戻れ`;
   if (F.guideReturn.active) return `印をたどり、${hieiRoadName(F)}へ戻れ`;
   return Number.isFinite(F.guideRemaining)
     ? `${place} ${F.guideRemaining}m`
@@ -2622,8 +2622,8 @@ const hiei_mtn = {
     const F = rt.flags;
     const pre = SAKA.heading(rt);
     if (pre) return pre;
-    if (F.dangerAt !== undefined) return '来た本坂を下り、坂本へ退く';
-    if (F.woundTask) return '本坂の味方の後ろで身を守る';
+    if (F.dangerAt !== undefined) return `${hieiRoadName(F)}を戻り、坂本へ退く`;
+    if (F.woundTask) return `${hieiRoadName(F)}の味方の後ろで身を守る`;
     if (F.step <= 1) return HIEI_GOALS[F.hiyoDone ? 1 : 0];
     if (F.step === 2) return HIEI_GOALS[1];
     if (F.step === 3) return HIEI_GOALS[2];
@@ -2894,8 +2894,8 @@ const hiei_mtn = {
     if (!cue?.valid) return '構えて、道なりに味方の後ろへ';
     if (Math.hypot(cue.x - p.u.pos.x, cue.z - p.u.pos.z) >= cue.radius)
       return '十字の印へ下がって手当て';
-    if (p.treatmentNext > rt.t) return `ここで待て。手当てまであと${Math.ceil(p.treatmentNext - rt.t)}秒`;
-    return 'ここで止まれ。敵が離れたら手当て';
+    if (p.treatmentNext > rt.t) return `十字の印で待て。手当てまであと${Math.ceil(p.treatmentNext - rt.t)}秒`;
+    return '十字の印で止まれ。敵が離れたら手当て';
   },
   // 試し役も画面と同じ、安全と道筋を検査した場所へ向かう。
   botTreatmentPoint(rt) {
@@ -3472,10 +3472,10 @@ const hiei_mtn = {
             const o = rt.objectives.find((q) => q.id === 'main' && !q.state);
             if (o) {
               const previous = rt.t - (o.cueT ?? -Infinity) < 30 ? o.cue : '';
-              const warning = `物音：${r.name}の梁が落ちた。軒下を離れ、本道の味方へ`;
+              const warning = `物音：${r.name}の梁が落ちた。軒下を離れ、${hieiRoadName(F)}の味方へ`;
               o.cue = previous ? `${previous}／${warning}` : warning; o.cueT = rt.t;
             }
-            rt.bark(`足軽「${r.name}の梁が落ちたぞ！　軒下を離れ、本道の味方へ！」`, true);
+            rt.bark(`足軽「${r.name}の梁が落ちたぞ！　軒下を離れ、${hieiRoadName(F)}の味方へ！」`, true);
           }
         }
         if (r.kind === 'shoro') rt.bark(`${r.name}が焼け落ちた`);
@@ -4301,7 +4301,7 @@ const hiei_mtn = {
       F.valleyCry = true;
       hieiEnemyCue(rt, '敵の合図：無動寺谷の鬨の声＝谷に伏兵');
       rt.bark(F.dangerAt === undefined
-        ? '無動寺谷から敵の鬨じゃ！　谷へ踏み込むな。来た道を戻り、本道の味方へ'
+        ? `無動寺谷から敵の鬨じゃ！　谷へ踏み込むな。来た道を戻り、${hieiRoadName(F)}の味方へ`
         : '無動寺谷から敵の鬨じゃ！　退き太鼓に従え。谷を避け、来た道の味方へ戻れ', true);
     }
     // 煙で道を見失う味方。移動先は使い回し、下知を出す時だけ更新する。
@@ -4321,7 +4321,7 @@ const hiei_mtn = {
     // 深手の間は前進の下知より退避を先に見せる。回復したら元の任務へ戻す。
     if (u.hp <= u.maxHp * .4 && F.dangerAt === undefined && !F.woundTask) {
       F.woundTask = true;
-      rt.obj('hiei-wound', '傷が重い。味方の後ろで身を守れ', 'main', true);
+      rt.obj('hiei-wound', `傷が重い。${hieiRoadName(F)}の味方の後ろで身を守れ`, 'main', true);
     } else if ((u.hp > u.maxHp * .4 || F.dangerAt !== undefined) && F.woundTask) {
       F.woundTask = false; rt.objRemove('hiei-wound');
     }

@@ -1367,6 +1367,9 @@ const okawachi = {
     if (F.keep.lord) { F.keep.lord.noTarget = true; F.keep.lord.invuln = true; }
     F.tomofusa = enemyGroup(rt, { fixed: true, faction: 'kitabatake', name: '北畠具房の居所', anchor: { x: F.keep.spot.x + 2, z: F.keep.spot.z }, facing: 0, width: 1, aggro: 0, noRout: true },
       KB([{ type: 'busho', n: 1, o: { name: '北畠具房', horse: false, invuln: true } }]));
+    // 具房も館に留める。共通の攻撃判断で閉じた本丸の木戸へ寄せない。
+    F.tomofusa.stay = true;
+    F.tomofusa.noAI = true;
     for (const u of F.tomofusa.units) { u.pos.y = F.keep.spot.y; u.keep = true; u.noTarget = true; }
     F.tomofusa.calm = true;
     F.commander = { alive: true, get real() { return F.keep && F.keep.lord && F.keep.lord.alive ? F.keep.lord : null; } };

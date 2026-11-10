@@ -4676,8 +4676,9 @@ const anegawa = {
       if (F.inabaT && rt.t - F.inabaT >= 15 &&
           (F.westBroken || F.aneStage >= 3 || F.inabaBroke) && spent &&
           rt.t - F.stepT >= 125) { this.counter(rt); return; }
-      // 長引いた押し合いで突然退き太鼓にしない。残る一分の前に、理由と下知を知らせる。
-      if (!F.longFightWarned && rt.t - F.stepT > 270 + (F.aneExtra || 0)) {
+      // 長引いても、枠待ちや退いた残兵を「寄せが止まらぬ」と告げない。
+      if (!F.longFightWarned && rt.t - F.stepT > 270 + (F.aneExtra || 0) &&
+          waves.some((g) => g && !g.anePending && !gone(g) && g.units.some(aneFoe))) {
         F.longFightWarned = true;
         rt.hud.say('組頭', '浅井の寄せが止まらぬ。このままでは支え切れぬぞ！ 味方の旗を離れず、敵を押し返せ！', 6, true);
       }

@@ -632,8 +632,7 @@ const k03_gifu = {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true;
-    rt.objDone('s5');
-    rt.tracker.main = true;
+    F.quiet = true;
     rt.player.u.invuln = true;
     // 退く城方も攻撃対象から外す。近習だけを外すと、供回りが残兵を追って降伏の場で斬り合い続ける。
     for (const g of F.foes) {
@@ -677,12 +676,18 @@ const k03_gifu = {
       }
     });
     rt.after(18.5, () => {
-      rt.award((t) => { t.main = true; t.special = { label: '本丸の門の旗本を破り、岐阜城を開かせた', pts: 30 }; }, '岐阜城が開いた');
+      rt.award((t) => { t.special = { label: '本丸の門の旗本を破り、岐阜城を開かせた', pts: 30 }; }, '岐阜城が開いた');
       rt.banner('岐阜城、開城', '織田秀信、降る');
     });
     rt.after(23, () => rt.say(nm(rt), '稲葉山が、またひとつ主を変えました。次は大垣の治部少輔にございますな', 4));
     rt.after(19, () => rt.army.celebrate(0));
-    rt.finish({ scriptedEnd: true }, 28);
+    // finish は呼んだ瞬間に勝利の札と戦功の確定を行う。
+    // 降伏を二十八秒見届けてから⑤と勝ちを確定し、共通の目標完了による早仕舞いも防ぐ。
+    rt.after(28, () => {
+      rt.objDone('s5');
+      rt.tracker.main = true;
+      rt.finish({ scriptedEnd: true }, 4.5);
+    });
   },
 
   lose(rt, title, why) {

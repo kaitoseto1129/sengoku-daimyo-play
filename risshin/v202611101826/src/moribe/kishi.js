@@ -22,7 +22,7 @@ export function start(rt, def, C) {
   say(2, '組頭 源八（げんぱち）', '楡俣川の南岸の柳の陰に集まれ。殿の下知があるまで、川には入るな', 3.6);
   say(6, '前田又左衛門', '勘当の身なれど、この又左、首を取って御赦免をいただく！', 3.4);
   say(10, '使番', '殿の御諚！　「天の与ふる所ぞ」、楡俣川を越えよとの事！', 3.8);
-  rt.after(14, () => { if (live()) { sfx('horagai', 0.9); finish(rt, C); } });
+  rt.after(14, () => { if (live()) tick(rt); });
   // 早く渡った時の一声
   v.kishiWarn = false;
 }
@@ -31,6 +31,7 @@ function finish(rt, C) {
   const F = rt.flags, v = F.m15;
   if (v.kishiDone) return;
   v.kishiDone = true; v.ph = null;
+  sfx('horagai', 0.9);
   rt.unmark('kishi');
   // 前備が浅瀬を渡り、斎藤の先手が北岸の畦へ寄せる（本体の初めの動き）
   for (const [k, x, z] of v.cross || []) { const g = F[k]; if (g) { g.order = 'move'; g.dest = { x, z }; g.speed = 2; g.onArrive = (q) => { q.order = 'hold'; }; } }
@@ -43,5 +44,12 @@ function finish(rt, C) {
 export function tick(rt) {
   const F = rt.flags, v = F.m15;
   if (v.kishiDone || rt.over) return;
+  // 南岸へ一度も集まらないまま、時計だけで本人の目標を済みにしない。
+  // 下知の後に戻った時も、その場で渡河へ進める。
+  const at = v.C.KISHI, p = rt.player.u.pos;
+  if (!F.ending && rt.t - v.kishiT >= 14 && Math.hypot(p.x - at.x, p.z - at.z) <= 5) {
+    finish(rt, v.C);
+    return;
+  }
   if (!v.kishiWarn && F.pointInside) { v.kishiWarn = true; rt.say('組頭 源八（げんぱち）', 'まだ渡るな！　下知を待て。一人で向こう岸に立てば狙い撃ちぞ', 3.4); }
 }

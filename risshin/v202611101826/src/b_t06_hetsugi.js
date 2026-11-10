@@ -530,6 +530,12 @@ const t06_hetsugi = {
       // 包みの島津は河原まで追う
       for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) this.go(b, { x: FORD.x + (b === B.honjo ? 30 : b === B.niiro ? -20 : 0), z: -18 }, 2.2, { charge: true });
     } else if (n === 5) {
+      // ⑤からの途中再開では④の見回りを通らず、十河の討死が予約されない。
+      // 通常の渡河で予約済みなら重ねず、再開時にも最期の知らせを経て締める。
+      if (!F.sogoDead && !F.s4?.fallQueued) {
+        if (F.s4) F.s4.fallQueued = true;
+        rt.after(9, () => this.sogoFall(rt));
+      }
       rt.marker('camp', SAFE, '西の岸');
       rt.say(F.mine.leader?.name || '手勢の侍', '渡れ！　振り返るな、岸へ上がれ！', 3);
       // 島津は川を全軍で渡っては来ない。水辺に並んで止まる（もう勝っていて、無理をしない）
