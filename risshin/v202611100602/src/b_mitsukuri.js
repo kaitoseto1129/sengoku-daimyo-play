@@ -2660,7 +2660,8 @@ const mitsukuri = {
       return !!F.gatePass || !!(gate && gate.hp < gate.maxHp);
     };
     const done = [() => (F.step ?? 0) >= 2.5, () => (F.step ?? 0) >= 2.8, gateStruck, () => (F.step ?? 0) >= 4, () => !!F.ending && rt.tracker?.main === true];
-    return MK_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: MK_GOAL_NOUN[k], action: text, check: () => won() || done[k](), sec: 900, count: () => null }));
+    // 下知に無い期限で失敗を付けない。郭の制圧・火入れ・木戸の打撃で達成を判定する。
+    return MK_GOALS.map((text, k) => ({ kind: 'stage', k, text, noun: MK_GOAL_NOUN[k], action: text, check: () => won() || done[k](), count: () => null }));
   },
   // 11/5 kaito 九3・十二1：両軍の今の兵の数の棒を常に出す。攻め手一万二千・城兵三千（後の書き物）。
   //   織田方は死傷が多かった（千五百の伝え）。城兵は守備隊の損耗割合で減らす。

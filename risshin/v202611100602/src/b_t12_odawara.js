@@ -406,7 +406,7 @@ function ceasefire(rt) {
     g.anchor.x = at.x; g.anchor.z = at.z;
   }
   for (const u of rt.army.units) if (u.alive) {
-    u.target = null; u.atk = null; u.swing = null;
+    u.target = null; u.atk = null; u.swing = null; u.bind = null;
     u.noTarget = true; u.invuln = true;
     if (u.group) { u.group.peaceful = true; u.group.fire = false; }
   }
@@ -522,14 +522,6 @@ function seats(rt) {
 function clearFoes(rt) {
   const keep = new Set(rt.flags.hojo ? rt.flags.hojo.units : []);
   for (const u of rt.army.units.slice()) if (u.team === 1 && !u.gone && !keep.has(u)) rt.army.despawn(u);
-}
-
-// 開城の使いが通る間は、敵味方とも相手を狙わない。途中で増えた出迎えにも掛ける。
-function envoyPeace(rt) {
-  for (const u of rt.army.units) if (u.alive) {
-    u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null;
-    if (u.group) { u.group.peaceful = true; u.group.fire = false; }
-  }
 }
 
 // 川を渡る足の水しぶき。共通の粒の固定枠を使い、兵ごとの歩幅だけを覚える。
@@ -811,6 +803,7 @@ const t12_odawara = {
     tenka.tick(rt);
     if (F.ending) return;
     depthTick(rt, dt);
+    riverFeet(rt);
     // 使いの道から開城の見届けまで停戦と城外の待機を保つ。
     if (F.envoy) ceasefire(rt);
     // 本陣の将と旗本は持ち場を離れない（共通の寄せ・助けの下知が掛かっても、毎コマ本丸・本陣へ戻す。kaito AR3）

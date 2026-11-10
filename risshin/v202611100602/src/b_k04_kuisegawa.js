@@ -482,7 +482,10 @@ const k04_kuisegawa = {
         // 退却の下知の後は追手との斬り合いで足を止めず、主人公と岸へ退く。
         const engaged = F.step < 4 && lead && dist(c, P.pos) < 24 && rt.army.nearestEnemy(lead, 5, (q) => !q.isStruct && !q.civ);
         if (engaged) { g.order = 'attack'; g.seekRange = 8; }
-        else if (dist(c, P.pos) > 7 || F.step >= 4) { g.order = 'move'; g.dest = { x: P.pos.x + (F.step >= 4 ? 3 : -2), z: P.pos.z + 2 }; g.speed = 4.2; }
+        else if (dist(c, P.pos) > 7 || F.step >= 4) {
+          // 岸の向きは回してある。地図の正方向へずらすと手勢だけ川へ戻ってしまう。
+          g.order = 'move'; g.dest = T(PL.x + (F.step >= 4 ? 3 : -2), PL.z + 2); g.speed = 4.2;
+        }
         else { g.order = 'attack'; g.seekRange = 12; }
       }
       for (const [g, b, dx, dz] of F.follow) {
@@ -622,9 +625,10 @@ const k04_kuisegawa = {
 
   // 頭上の▼と右上の一行を段の場所と行いにそろえる（「印へ進め」では何の印か分からない。AR1・AQ1）
   goalTargetOverride(rt) {
-    const F = rt.flags, s = F.step || 0;
-    if (F.ending || s < 1) return null;
-    const q = s === 1 ? lightPos(F.blk.bait) : s === 2 ? RING : s === 3 ? (F.noiU?.alive ? F.noiU.pos : RING) : s === 4 ? T(64, 4) : ARIMA;
+    const F = rt.flags, s = F.step || 1;
+    if (F.ending) return null;
+    // 始めの会話中も、すでに置いた刈田の行き先を隠さない。
+    const q = s === 1 ? (F.blk?.bait ? lightPos(F.blk.bait) : BAIT) : s === 2 ? RING : s === 3 ? (F.noiU?.alive ? F.noiU.pos : RING) : s === 4 ? T(64, 4) : ARIMA;
     const G = F._kTg || (F._kTg = { unit: null, boss: false });
     G.x = q.x; G.z = q.z;
     G.action = ['', '刈田の兵を追え', '川を東へ渡れ', '頼母の横で防げ', '川を西へ渡れ', '有馬の陣へ急げ'][s];

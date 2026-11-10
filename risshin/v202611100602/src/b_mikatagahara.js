@@ -1313,6 +1313,8 @@ const mikatagahara = {
   namedGuideMarkers: true,
   travelGuideLabel(rt) {
     const F = rt.flags;
+    if (F.mkStage === -1) return '平手の列の後ろへ';
+    if (F.mkStage === 0) return '根洗の松へ';
     if (this.distanceText(rt, rt.missionGuide?.distance || 0) === '持ち場で構えよ') return 'この持ち場で構えよ';
     return F.step === 3 ? RETREAT_LABELS[F.retreatIdx] :
       F.dpOn ? rt.missionGuide?.label || '南の坂の持ち場へ' :
@@ -1512,7 +1514,7 @@ const mikatagahara = {
   softOpen: 70, // 先手を受ける序盤だけ本人の傷を半分にし、構えと退き方を覚える間を残す。
   // 今の持ち場を一つだけ、画面の端の矢印にも渡す。
   guideMarker: (rt) => rt.flags.ending ? null : rt.flags.dpOn ? (rt.flags.dpB ? 'retreat-way' : 'dp') :
-    rt.flags.step === 3 ? 'hama' : rt.flags.step === 2 ? 'pike' : 'hira',
+    rt.flags.step === 3 ? 'hama' : rt.flags.step === 2 ? 'pike' : rt.flags.mkStage <= 0 ? 'mkScout' : 'hira',
   noAllyReports: true, // 近くの武将の声だけ聞く。遠い名乗りを使番に運ばせない。
   // 負け戦では、局地の働きを全軍の勝ちや追撃の下知にしない。
   battleVoices: { lines: { ally: {
@@ -2720,27 +2722,36 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
         (v.group === F.w1 || v.group === F.scout) && k?.team === 0 && rt.player.u.alive) {
       const p = rt.player.u.pos;
       if (Math.hypot(p.x - HIRATE_POST.x, p.z - HIRATE_POST.z) < 18 &&
-          Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 22) F.mkG.contact = true;
+          Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 22) {
+        F.mkG.contact = true;
+        if (k === rt.player.u) F.mkG.hit = true;
+      }
     }
     // 最後の赤備えが更新の合間に倒れても、持ち場で受けた事実を残す。
     // 討ち取り後の兵は敵探しから外れるため、生きた兵の走査だけでは取りこぼす。
     if (F.mkG?.i === 3 && F.step === 2 && !F.dpOn && v.team === 1 && v.group === F.aka &&
         k?.team === 0 && rt.player.u.alive) {
       const p = rt.player.u.pos, post = F.mkFlank ? FLANK_POST : PIKE_POST;
-      if (Math.hypot(p.x - post.x, p.z - post.z) < 40 && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 14) F.mkG.contact = true;
+      if (Math.hypot(p.x - post.x, p.z - post.z) < 40 && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 14) {
+        F.mkG.contact = true;
+        if (k === rt.player.u) F.mkG.hit = true;
+      }
     }
     if (v.team === 1 && k === rt.player.u) {
       F.foughtStep = F.step;
-      if (F.mkG) F.mkG.hit = true;
-      // 持ち場へ届く前に本人が寄せ手を討ち切っても、接敵の記録を失わない。
-      // 生きた敵だけを後で探すと、空になった持ち場で守りの時間が永久に増えない。
+      // 戦全体の接敵と、持ち場で対象の隊を討った手柄は分ける。
+      // 遠くの別の敵を討って戻るだけでは、守りを二秒で果たした事にしない。
     }
     // 持ち場の味方が最後の寄せ手を討った場合も、守りの接敵を失わない。
     // 遠くへ追い出した味方の討ち取りでは、持ち場を守った事にしない。
     const C = F.dpOn && F.dp?.cur;
-    if (v.team === 1 && k?.team === 0 && C?.s.kind === 'hold' && C.groups.includes(v.group) &&
+    if (v.team === 1 && k?.team === 0 && C?.s?.kind === 'hold' && C.groups.includes(v.group) &&
         C.at && Math.hypot(rt.player.u.pos.x - C.at.x, rt.player.u.pos.z - C.at.z) < C.botRadius &&
-        (k === rt.player.u || C.at && Math.hypot(k.pos.x - C.at.x, k.pos.z - C.at.z) < C.botRadius + 8)) C.metEnemy = true;
+        Math.hypot(v.pos.x - rt.player.u.pos.x, v.pos.z - rt.player.u.pos.z) < 22 &&
+        (k === rt.player.u || C.at && Math.hypot(k.pos.x - C.at.x, k.pos.z - C.at.z) < C.botRadius + 8)) {
+      C.metEnemy = true;
+      if (F.mkG && k === rt.player.u) F.mkG.hit = true;
+    }
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {

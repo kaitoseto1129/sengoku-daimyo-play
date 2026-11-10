@@ -30,7 +30,7 @@ export class HudMarkers {
     this.workPromptRect = null;
     this.guideOrderRect = null; this.guardButtonRect = null;
     let squadRect = null;
-    for (const sel of ['#side-ctl', '.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#fieldmap', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#battle-order', '#jk-prog', '#jk-chap', '#jk-map', '#jk-vit', '#tugbar', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
+    for (const sel of ['#side-ctl', '.hold-cover', '#wait-guard', '#wait-guard span', '#wait-guard small', '#sonae-cards', '#battle-notices', '#battle-log-entry', '#objectives', '#mk-goals', '#fieldmap', '#minimap', '#maphint', '.bl', '.tl .plaque', '.tl .next', '#h-prog', '#battle-order', '#jk-prog', '#jk-chap', '#jk-map', '#jk-vit', '#tugbar', '#toasts', '#armybar', '#compass', '#h-bottom', '#h-squad', '#tutorial', '#h-units', '#skiphint', '#boss', '#target', '#subtitle', '#bark', '#choice', '#banner.show', '#prompt']) {
       // 11/9 iPhone 874×402：左上の音・止める・設定（#side-ctl）は body の下にあり、行き先の札が釦に重なった。body から探す
       const el = sel === '#sonae-cards' || sel === '#side-ctl' ? document.getElementById(sel.slice(1)) : this.root.querySelector(sel);
       // 位置を固定した札（右の目標の並びなど）は offsetParent が無くても見えている。箱の有無で見る（将の名札が目標に重なった。11/6）
