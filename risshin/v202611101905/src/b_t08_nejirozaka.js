@@ -819,15 +819,18 @@ const curG = (k) => (rt) => (rt.flags.dp?.on && rt.flags.dp.i === k ? rt.flags.d
 // 11/10 関所3：持ち場（土橋・破れ口・右の堀）に着くと行き先のピンが消えた（六歩内は隠す共通の決まり）。
 //   着いたら、今の段で寄せる島津の手（無ければ六十歩内の近い敵八人）の真ん中を指す。もう斬り合う所まで来ていれば一番近い敵の頭上、
 //   寄せが来る前の待ちは持ち場の前の空堀（島津が越えてくる所）を指す
+// 退く下知が出てから走り始めるまでの兵や、手傷で離脱した者へ誘導しない。
+const signFoe = (o, me) => o.alive && !o.gone && o.team !== me && o.team <= 1 && !o.civ && !o.isStruct
+  && !o.fleeing && !o.downed && !o.woundOut && !o.noTarget && !o.group?.routed && o.group?.order !== 'retreat';
 function foeNear(rt, at) {
   const P = rt.player?.u?.pos;
   if (!P || Math.hypot(P.x - at.x, P.z - at.z) >= 10) return null;
   const me = rt.player.u.team;
   let sx = 0, sz = 0, n = 0, best = null, bd = 60;
-  for (const gr of rt.flags.dp?.on ? rt.flags.dp.cur?.groups || [] : []) for (const o of gr?.units || []) if (o.alive && !o.gone && !o.fleeing) { sx += o.pos.x; sz += o.pos.z; n++; }
+  for (const gr of rt.flags.dp?.on ? rt.flags.dp.cur?.groups || [] : []) for (const o of gr?.units || []) if (signFoe(o, me)) { sx += o.pos.x; sz += o.pos.z; n++; }
   const near = [];
   for (const o of rt.army?.units || []) {
-    if (!o.alive || o.gone || o.team === me || o.team > 1 || o.civ || o.isStruct || o.fleeing || o.downed) continue;
+    if (!signFoe(o, me)) continue;
     const d = Math.hypot(o.pos.x - P.x, o.pos.z - P.z);
     if (d < bd) { bd = d; best = o; }
     if (d < 60) near.push([d, o]);

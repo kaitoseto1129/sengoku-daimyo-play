@@ -1980,7 +1980,6 @@ void main(){ vec4 t = texture2D(map, vUv);
 // 囲まれた砦の門の内と外（持ち場から西の柵ぞいを見た画面に入る所）。門の内は柵に立て掛けた梯子と竹束、
 // 柵の外は本願寺方の竹束の陰の鉄砲の寄せ手と、その硝煙。作るのは一度だけ。門の通り道（x ±5）は空ける。
 // 門の口の東（x 6〜12）にも寄せ手の一組を置き、門の内から開いた扉越しに竹束と硝煙が見えるようにする（10/29：25秒の画面に煙と寄せ手が無かった）。
-const SIEGE_SMOKE = [[-13.5, -35.2], [7.6, -33.8], [-4.5, -33.5], [10.4, -31.6], [-17.6, -37.6], [-8.5, -39.4], [5.5, -31.5], [8.8, -36.4], [-21.5, -40.6], [-15.8, -41.2], [11.6, -34.8], [.5, -27.5], [-10.2, -33.6]];
 function fortSiegeView(rt) {
   const W = rt.world, h = (x, z) => W.heightAt(x, z);
   // 竹束の裏へ視点が回っても、板状の背面で主人公を隠さない。
@@ -2023,7 +2022,7 @@ function fortSiegeView(rt) {
       detailMiddle: SETTINGS.quality === 'high' ? 76 : undefined });
     if (h.army?.body) { h.army.noWake = true; h.army.U.uRealNear = { value: 20 }; }
   }
-  rt.flags.siegeSmokeT = 0; rt.flags.siegeSmokeI = 0; rt.flags.gunSmoke = makeGunSmoke(rt, 96, 2.3, 0xa8a8a2, [-.25, -1.1]);   // 南の風で柵越しに砦の中へ流れ込む（10/30）。柵の上の空を背にするので、白でなく灰の煙に。門の内の小屋の屋根より上まで昇らせ、内から見える（10/29）
+  rt.flags.gunSmoke = makeGunSmoke(rt, 96, 2.3, 0xa8a8a2, [-.25, -1.1]);   // 実際の筒先から出た灰色の硝煙が、南の風で柵越しに流れる。
 }
 
 // 砦へ寄せる一手を、門へ続く道へ歩かせる（一手ずつの寄せと、三方の一斉の寄せで使う）。
@@ -3708,15 +3707,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
     const F = rt.flags;
     // 15分の段（prototype/src/tennoji/*.js）
     F.paceHarada?.update(dt); F.paceYabure?.update(dt); F.paceFushou?.update(dt); F.paceHangeki?.update(dt); F.paceOiuchi?.update(dt); F.paceYoin?.update(dt);
-    // 柵の外の寄せ手の鉄砲の煙。竹束の陰から順に、砦へ向けて撃った硝煙を吹かせる。
-    F.siegeSmokeT = (F.siegeSmokeT ?? 9) - dt;
-    // 本願寺勢が崩れて追撃に移った後は、無人の竹束から砦へ撃ち続けない。
-    if (F.siegeSmokeT <= 0 && F.step < 4 && !rt.over && !F.ending) {
-      F.siegeSmokeT = .7;
-      const [x, z] = SIEGE_SMOKE[F.siegeSmokeI = ((F.siegeSmokeI || 0) + 1) % SIEGE_SMOKE.length];
-      const dx = FORT.x - x, dz = FORT.z - z, l = Math.hypot(dx, dz) || 1;
-      F.gunSmoke?.emit(x, rt.world.heightAt(x, z) + 2.2, z, dx / l, dz / l, 4);   // 柵と土塁の上へ煙の頭が出る高さ
-    }
+    // 発砲時の硝煙だけを流す。固定地点から重ねると、無人の竹束も撃ち続け、兵が煙に埋まる。
     F.gunSmoke?.update(dt);
     if (F.gateMob?.noRout && rt.t > 40) {
       F.gateMob.noRout = false;

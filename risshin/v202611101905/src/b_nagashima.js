@@ -4393,7 +4393,8 @@ const nagashima = {
     }
     // 対岸の守りは降伏後も舟入の内を見回る。川へ出ず、五秒以上立ち尽くさない。
     { const gd = F.ikkoCamp?.guard;
-      if (gd && !F.advEnding && rt.t >= (F.gdPatrolT ?? 2)) {
+      // 撤退・敗走の下知を、定期の見回りで待機へ戻さない。
+      if (gd && !gd.routed && gd.order !== 'retreat' && !F.advEnding && rt.t >= (F.gdPatrolT ?? 2)) {
         F.gdBase ||= { x: gd.anchor?.x ?? 0, z: gd.anchor?.z ?? -60 };
         F.gdSide = -(F.gdSide || 1); F.gdPatrolT = rt.t + 4;
         gd.noAI = false; gd.aggro = 0; gd.seekRange = 0; gd.order = 'hold';

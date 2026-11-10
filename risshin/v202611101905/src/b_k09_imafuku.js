@@ -413,7 +413,8 @@ const k09_imafuku = {
     [F.satake, F.shibue, F.tomura].forEach((g, i) => {
       if (!g || !g.count) return;
       g.calm = false; g.order = 'move';
-      g.dest = g.anchor = { x: FORT.x + 60 + i * 14, z: g === F.shibue ? 4.5 : 0 };
+      // 隊の中心は出発点に残し、兵と一緒に進める。行き先へ飛ばすと列が八十歩以上も離れる。
+      g.dest = { x: FORT.x + 60 + i * 14, z: g === F.shibue ? 4.5 : 0 };
     });
     rt.after(11.5, () => this.begin(rt));
   },
