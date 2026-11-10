@@ -505,6 +505,8 @@ const k11_sanadamaru = {
     F.sasa.fire = false;
     rt.scene.add(nobori(W, SASA.x + 3, SASA.z - 5, 'sanada', 4.5));
     for (const u of [...F.wallG.units, ...F.towerU, ...F.perch.flatMap((g) => g.units), ...F.sasa.units]) { u.group.dmgMult = 0.4; if (u.type === 'gun') u.dmg *= 0.4; }
+    // 持ち口は増減しないので、射撃・狙い・補給に同じ一覧を使う。
+    F.fireGroups = [F.wallG, ...F.perch, ...new Set(F.towerU.map((u) => u.group))];
     F.wallG.fire = false;
     for (const u of F.towerU) u.group.fire = false;
 
@@ -767,7 +769,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     const F = rt.flags;
     if (F.fireOn) return;
     F.fireOn = true; F.volT = rt.t + 5;
-    for (const g of [F.wallG, ...F.perch, ...new Set(F.towerU.map((u) => u.group))]) g.fire = true;
+    for (const g of F.fireGroups) g.fire = true;
     // 信繁は丸の真ん中の本陣（柵から百間余り）。寄せ手に聞こえるのは塀の上の組頭の声だけ（専門家の目 11/6）
     rt.say('塀の上の声', '引きつけよ。まだ撃つな……', 3);
   },
@@ -945,7 +947,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       F.aimT = 1.5;
       const pool = [...(F.surge || []), ...F.rams, ...(F.waves || []), F.second, F.yam].filter((g) => g && g.count);
       const P = rt.player.u;
-      for (const sg of [F.wallG, ...F.perch, ...new Set(F.towerU.map((u) => u.group))]) {
+      for (const sg of F.fireGroups) {
         if (!sg || !sg.count) continue;
         const c = sg.center();
         let best = null, bd = 58;
@@ -975,7 +977,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.ammoT = (F.ammoT || 0) - dt;
     if (F.ammoT <= 0) {
       F.ammoT = 4;
-      for (const g of [F.wallG, ...F.perch, ...new Set(F.towerU.map((u) => u.group))]) if (g) for (const u of g.units) if (u.alive) { if (u.gunAmmo !== undefined) u.gunAmmo = 20; if (u.arrowAmmo !== undefined) u.arrowAmmo = 24; }
+      for (const g of F.fireGroups) if (g) for (const u of g.units) if (u.alive) { if (u.gunAmmo !== undefined) u.gunAmmo = 20; if (u.arrowAmmo !== undefined) u.arrowAmmo = 24; }
     }
     // 塀の上の筒音と矢の音：一斉射撃の間も、狭間から撃つ音が絶えない（BV「鉄砲の音・弓のヒュンという音をもっと」）
     if (F.fireOn && F.step >= 2 && F.step <= 5) {
@@ -1006,8 +1008,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.step >= 3 && F.step <= 4 && !F.retreatOrder) {
       F.waveT = (F.waveT ?? 4) - dt;
       // 本物の兵は両軍で二百五十ほどまで。追加する二十七人も数えてから寄せる。
-      const live = rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
-      if (F.waveT <= 0 && live + 27 <= 250) {
+      if (F.waveT <= 0 && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 27 <= 250) {
         F.waveT = 16;
         F.waves = (F.waves || []).filter((g) => g.count);
         const k = F.waveN = (F.waveN || 0) + 1, x0 = [-34, 26, -8, 40, -22][k % 5];
@@ -1023,7 +1024,13 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
         if (!g.count || g.order !== 'move' || !g.dest) continue;
         const c = g.center();
         if (Math.hypot(c.x - g.dest.x, c.z - g.dest.z) > 7) continue;
-        const seg = F.fence.filter((f) => f.alive).sort((p, q) => Math.hypot((p.seg[0] + p.seg[2]) / 2 - c.x, (p.seg[1] + p.seg[3]) / 2 - c.z) - Math.hypot((q.seg[0] + q.seg[2]) / 2 - c.x, (q.seg[1] + q.seg[3]) / 2 - c.z))[0];
+        // 一番近い柵だけを探す。各隊ごとの配列作りと全柵の並べ替えをしない。
+        let seg = null, nearest = Infinity;
+        for (const f of F.fence) {
+          if (!f.alive) continue;
+          const d = Math.hypot((f.seg[0] + f.seg[2]) / 2 - c.x, (f.seg[1] + f.seg[3]) / 2 - c.z);
+          if (d < nearest) { nearest = d; seg = f; }
+        }
         if (seg) { g.order = 'assault'; g.assault = () => (seg.alive ? seg : F.target.alive ? F.target : null); for (const u of g.units) u.aiT = 0; }
       }
     }
@@ -1038,8 +1045,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 竹束を持つ者だけが倒れた時も補う。槍の者が残っているだけでは、竹束の陰へ寄れなくなる。
       const left = F.rams.reduce((a, g) => a + g.count, 0);
       const covered = F.rams.some((g) => g.units.some((u) => u.alive && u.tatake && !u.fleeing && !u.woundOut));
-      const live = rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0);
-      if ((left < 4 || !covered) && F.rams.length < 7 && live + 12 <= 250) {
+      if ((left < 4 || !covered) && F.rams.length < 7 && rt.army.units.reduce((n, u) => n + (u.alive && !u.isStruct && !u.isPlayer ? 1 : 0), 0) + 12 <= 250) {
         rt.say('山崎長徳', '柵の者が討たれた！　次の者、行けっ！', 3);
         const g = allyGroup(rt, { faction: 'tokugawa', name: '柵を破る組', anchor: { x: 10, z: C.z + FENCE_R + 30 }, facing: Math.PI, width: 5, aggro: 2, noRout: true, order: 'assault' },
           dress([{ type: 'ashigaru', n: 4, o: { hat: 'jingasa_n', tatake: true } }, { type: 'ashigaru', n: 8, o: { hat: 'jingasa_n' } }], MAEDA));

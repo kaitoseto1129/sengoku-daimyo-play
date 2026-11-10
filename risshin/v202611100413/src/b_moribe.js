@@ -4428,7 +4428,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
     };
     // 公記：勘当の身の前田利家が、許しなく森部に加わり首を挙げた。
     // 公記：「信長、天の与ふる所の由、御諚候て」。殿の言葉は使番が組へ運ぶ（永禄四年の信長は上総介を名乗る）。
-    rt.after(8, () => { if (!rt.flags.ending && !rt.over) rt.say('使番', '上総介様の御諚じゃ。「この雨こそ天の与うる所」。川を越えて懸かれ！', 4); });
+    // 南岸の下知を待つ間は、同じ御諚を先に重ねない。渡河の知らせと法螺は南岸の段が出す。
+    rt.after(8, () => { if (rt.flags.m15?.ph !== 'kishi' && !rt.flags.ending && !rt.over) rt.say('使番', '上総介様の御諚じゃ。「この雨こそ天の与うる所」。川を越えて懸かれ！', 4); });
     rt.after(17, () => { if (!rt.flags.ending && !rt.over) rt.bark('仲間「勘当の前田又左衛門殿まで、槍を持って駆けつけたぞ」'); });
     rt.flags.point = POINT2;
     rt.flags.friends = [rt.flags.A, rt.flags.B, rt.flags.Y, rt.flags.R3];
