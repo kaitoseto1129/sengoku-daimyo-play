@@ -644,15 +644,15 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 坂の木戸を抜かれたら、木戸の守りと弓は二の丸へ逃げ込む（抜かれた出曲輪に残って、登る寄せ手を背から射ない）
       const kk = this.along(KIDO.x, KIDO.z);
       // 持ち場の指示（F.lead）は時間でも進む。実際に登った先手の位置で木戸を抜いたか確かめる。
-      // 先手が討ち尽くされても、後続の二番手が着けば攻めを進める。
-      const gc = this.centerOf(F.gamo) || this.centerOf(F.gamo2);
-      if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || (gc && this.along(gc.x, gc.z) > kk + 22))) {
+      // 先手が坂に残っていても、実際に先へ登った二番手の到着を拾う。
+      const advanced = F.allies.some((g) => { const c = this.centerOf(g); return c && this.along(c.x, c.z) > kk + 22; });
+      if (!F.kidoFell && (this.along(p.x, p.z) > kk + 14 || advanced)) {
         F.kidoFell = true;
         for (const q of F.slope) if (!q.routed) { const c = this.centerOf(q) || KIDO, dx = INNER.x - c.x, dz = INNER.z - c.z, dl = Math.hypot(dx, dz) || 1; q.fire = false; q.noRout = false; q.order = 'retreat'; q.fleeSet = true; q.fleeDir = { x: dx / dl, z: dz / dl }; q.morale = 0; }
       }
       // 自分が遅れても、先手が門の前まで登り詰めれば城方は門を開いて打って出る（物語は進む。kaito 二5）
       // 15分の構成：坂は六十秒は登る（早く門の前に着いても、木戸を抜いた味方が上がるまで芥田は打って出ない）
-      if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && gc && Math.hypot(gc.x - MOUTH.x, gc.z - MOUTH.z) < 22)) this.go(rt, 2);
+      if (rt.t - F.stageT > 60 && Math.hypot(p.x - MOUTH.x, p.z - MOUTH.z) < 20 || (rt.t - F.stageT > 120 && F.allies.some((g) => { const c = this.centerOf(g); return c && Math.hypot(c.x - MOUTH.x, c.z - MOUTH.z) < 22; }))) this.go(rt, 2);
     } else if (F.stage === 2) {
       // 四割を討たれるか、芥田が討たれれば崩れて引く。長引く場合も、寄せ手との接触が必要。
       // 行軍の到着や出撃からの秒数だけでは、戦っていない目標を済みにしない。
@@ -707,9 +707,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
         F.allies.forEach((g, i) => this.march(rt, g, i ? [MOUTH, FRONT, INSIDE] : [MOUTH, FRONT, INSIDE, INNER], 14));
       }
       // 自分が門を抜ければすぐ二の丸へ。閉まった門を時間だけで通過扱いにしない。
-      const gc = this.centerOf(F.gamo) || this.centerOf(F.gamo2);
+      const entered = F.allies.some((g) => { const c = this.centerOf(g); return c && Math.hypot(c.x - INNER.x, c.z - INNER.z) < 12; });
       const passable = st && (!st.alive || st.opened);
-      if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && gc && Math.hypot(gc.x - INNER.x, gc.z - INNER.z) < 12) || (rt.t - F.stageT > 110 && !st.alive))) this.go(rt, 4);
+      if (passable && (Math.hypot(p.x - INNER.x, p.z - INNER.z) < 10 || Math.hypot(p.x - INSIDE.x, p.z - INSIDE.z) < 4 || (rt.t - F.stageT > 60 && entered) || (rt.t - F.stageT > 110 && !st.alive))) this.go(rt, 4);
     } else if (F.stage === 4) {
       if (ninomaru.update(rt, K)) this.go(rt, 5);
     } else if (F.stage === 5) {
