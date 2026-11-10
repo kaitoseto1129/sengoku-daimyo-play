@@ -52,7 +52,9 @@ const TSUKIYAMA = { x: 22, z: 126 };
 // 太鼓の丸（上林竹庵の持ち場）：二の丸の東
 const TAIKO = { x: -32, z: -6 };   // 位置を示す確かな図は無い。松の丸を北東へ移したので、二の丸の西に置く
 
-const ROUTE = [[0, 160], [0, 130], [0, 100], [0, 84], [OTE.x, OTE.z], [0, 60], [0, 46], [SAN.x, SAN.z], [0, 20], [0, 4], [NI.x, NI.z], [0, -20], [0, -34], [HON.x, HON.z]];
+// 裏口の外まで道を通す。中央で終えると脱出先が道から四十歩離れ、
+// 案内の対象外になって天守や北の石垣へ直進し続けていた。
+const ROUTE = [[0, 160], [0, 130], [0, 100], [0, 84], [OTE.x, OTE.z], [0, 60], [0, 46], [SAN.x, SAN.z], [0, 20], [0, 4], [NI.x, NI.z], [0, -20], [0, -34], [HON.x, HON.z], [0, -62], [ESC.x, ESC.z]];
 
 const TORII = { flag: 'tokugawa' };
 const WEST = { armor: 0x2c2a26, lace: 0x6a5a3a, flag: 'ukita' };
@@ -160,6 +162,9 @@ const PLAN = {
     { id: 'ni_s', name: '二の丸の口', from: 'out', to: 'ni', kind: 'hira', at: [0, 4], rot: 0, w: 4.4, gate: 'yagura' },
     { id: 'ni_n', name: '二の丸の奥の口', from: 'ni', to: 'out', kind: 'hira', at: [0, -20], rot: 0, w: 4.4 },
     { id: 'hon_s', name: '本丸の口', from: 'out', to: 'hon', kind: 'hira', at: [0, -34], rot: 0, w: 4.4, gate: 'yagura' },
+    // 隙間だけでは切岸が急なまま残る。門を建てず、崩れた石垣の
+    // 通り道にも他の口と同じ坂を作って城外へつなぐ。
+    { id: 'hon_n', name: '本丸の裏口', from: 'hon', to: 'out', kind: 'hira', at: [0, -62], rot: 0, w: 5 },
   ],
   // 門へ寄る敵を横から撃つ二重の隅櫓（三の丸の表・本丸の表の角）
   yagura: [
@@ -284,19 +289,22 @@ const k01_fushimi = {
     // 二の丸へ一度着くと共通の移動段が印を外す。その後に追い手と
     // 戦って離れても、達成には持ち場へ戻る必要があるので案内を残す。
     const rest = C?.s.kind === 'rest' ? rt.flags.restNext : null;
-    const at = fighting || moving ? C.at : rest || (m && !m.red ? m.pos?.() : null);
+    const at = moving ? fushimiWay(rt.army, rt.player.u, C.at) : fighting ? C.at : rest || (m && !m.red ? m.pos?.() : null);
     if (!at) return null;
     const p = rt.player.u.pos;
-    if (Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
+    if ((!moving || at === C.at) && Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
-    T.label = (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;
+    T.label = moving && D.i === 11 && at !== C.at ? '本丸の裏口' : (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? rest.label : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）
   noHatamotoMass: true,    // 将の後ろの軽い作りの備を置かない（AF）
   noYaguraTask: true,
   noReinforcements: true,
+  // 落城は任務失敗ではない。共通の十八分の打ち切りで、脱出の
+  // 途中を失敗にせず、本人の生還まで城固有の段で判定する。
+  pacingWait: () => true,
   // 命懸けの戦場（docs/lethal_howto.md）。籠城の怖さは本丸へ迫る寄せ手と、討ち減らされる城方
   // lethal は入れない（11/8 bot：入れると三の丸の虎口の段で止まり、十八分で任務失敗になった。入れずに流すと九分半で達成）
   lethal: { max: 2, firstAt: 200, gap: 120 },   // 11/9 二巡（徳川D）：弱めて入れる（突然の討死は二つまで・三分過ぎから）
@@ -514,7 +522,7 @@ const k01_fushimi = {
     const LBL = { 1: '東の隅櫓', 2: '三の丸の門', 3: '二の丸の口', 7: '本丸の口', 11: '城の外' };
     stages.forEach((s, i) => { s.lbl = LBL[i] || ''; });
     depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => [F.mine, ...(F.ieAway ? [] : [F.ie]), ...(F.sanGuard ? [] : [F.chika])], scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
-      routeFight: true,
+      routeFight: true, withdrawWay: fushimiWay,
       botFoeAllowed: (u) => !!F.dp?.cur?.groups.includes(u.group),
       idleWait: (r, C) => !!C.at && C.s.kind === 'hold' && Math.hypot(r.player.u.pos.x - C.at.x, r.player.u.pos.z - C.at.z) < (C.botRadius || 14) + 8 },
     stages.map((s, i) => {

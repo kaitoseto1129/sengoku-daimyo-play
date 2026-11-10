@@ -51,14 +51,17 @@ const RING = { x: 22, z: -100 };             // 包みが閉じる所（中津�
 const SEAT = { x: 10, z: -158 };             // 島津家久の本陣（床几に座って動かない）
 const SC = MEM_TIGHT ? 20 : 12;              // 塊の一人が史実の何人か
 // 史実の兵数（調べ：豊臣方は六千ほどが渡った、島津は一万〜一万三千・新納大膳 五千・長宗我部 三千）
-const HIST = { sen: 2000, nobu: 2000, sogo: 1000, moto: 1000, ijuin: 2000, niiro: 5000, honjo: 2000, ieh: 3000 };
-const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.niiro + HIST.honjo + HIST.ieh;
+const HIST = { sen: 2000, nobu: 2000, sogo: 1000, moto: 1000, ijuin: 2000, niiro: 5000, honjo: 2000, ieh: 2200, ura: 800 };
+const A0 = HIST.sen + HIST.nobu + HIST.sogo + HIST.moto, B0 = HIST.ijuin + HIST.niiro + HIST.honjo + HIST.ieh + HIST.ura;
 // 11/7 九1・十1：右上に①〜⑤を始めから全部並べる。一行は短く、地図で分かる場所の名と行いだけ。戦の間に言い替えない
-const STEP_TEXT = ['戸次川の浅瀬を皆と渡れ', '伊集院を突き、中津留の河原へ追え',
-  '中津留の河原、信親様の横で島津を防げ', '浅瀬の口で殿をし、皆の後に西岸へ退け', '川沿いの道で鏡城の陣へ退け'];
-const STEP_NOUN = ['戸次川の浅瀬', '中津留の河原', '長宗我部信親', '戸次川の浅瀬', '鏡城'];
+// 11/9 夜 kaito（docs/hetsugigawa_spec_1109.md）：先の段を始めから見せると罠が分かってしまう。右上は今の一行だけで、
+//   段の中でも「追え」→「包囲を突破せよ」→「信親隊を救援せよ」→「元親を退かせろ」と一瞬で替わる（F.mText）
+const STEP_TEXT = ['戸次川を渡れ', '島津の先手を攻めろ', '包囲を突破せよ', '川まで退け', '川を渡れ'];
+const STEP_NOUN = ['戸次川の浅瀬', '中津留の河原', '長宗我部信親', '戸次川の浅瀬', '西の岸'];
 const NAMED = new Set(['長宗我部信親', '長宗我部元親', '仙石秀久', '十河存保', '戸次統常', '伊集院久宣', '新納大膳亮', '島津豊久', '島津家久', '鈴木大膳']);
-const KAGAMI = { x: CAMP.x - 16, z: CAMP.z + 50 };   // 鏡城の丘（陣の後ろ＝実の西。鏡城は川の西の丘城）
+const KAGAMI = { x: CAMP.x - 16, z: CAMP.z + 50 };
+// 11/9 夜 kaito：最後は川を渡り切った西の岸の土手。振り返ると、島津は水辺で整然と止まって追って来ない
+const SAFE = { x: -10, z: 46 };   // 鏡城の丘（陣の後ろ＝実の西。鏡城は川の西の丘城）
 
 // ---- 地形：南の岸は低い河原と田、北の岸は段丘から鶴賀城の尾根へ。国土地理院の起伏は北の岸に ----
 let dem = null;
@@ -129,7 +132,7 @@ const t06_hetsugi = {
   // 11/7 九1：一行の札（missionSingleLine）をやめ、①〜⑤を右上に始めから並べる（goals5）。行き先は頭上の▼一つ（missionPin）
   lethal: { max: 4, firstAt: 140, gap: 60 },   // 命懸けの戦場（docs/lethal_howto.md）。名のある四国の衆は invuln・史実の死は筋書きのまま
   hideMissionDots: true,
-  goalsAllRows: true,       // 五つを最初から並べる。共通の目標欄はこの指定が無いと今の一件だけになる。
+  goalsAllRows: false,      // 11/9 夜：先の段（伏せ・討死・退き）を始めから並べない。今の一件だけ
   kumiLead: false,           // 意味の分からない青い小旗の印を出さない（五2）
   noHatamotoMass: true,      // 将の周りに見せかけの兵を足さない（九5）
   goalSignOnly: true,
@@ -181,14 +184,14 @@ const t06_hetsugi = {
   // 自動の敵注視を切った退き口でも、共通の近敵カメラへ戻さない。
   noAutoFoeCam: (rt) => rt.flags.step >= 4,
   noWinCrane: true,
-  victoryTitle: '戸次川　豊臣方敗北',
-  victoryCaption: '鏡城へ生還',
+  victoryTitle: '戸次川の戦い　大友・四国連合軍 大敗',
+  victoryCaption: '長宗我部信親 討死　十河存保 討死　長宗我部元親 生還　仙石秀久 生還',
   compactIntro: true,
   introDateNoWrap: true,
   keepMix: false,
   missions: STEP_TEXT,
   missionOf(rt) { return Math.max(0, Math.min(4, (rt.flags.step || 1) - 1)); },
-  missionHeading(rt) { const k = this.missionOf(rt); return '①②③④⑤'[k] + STEP_TEXT[k]; },
+  missionHeading(rt) { const k = this.missionOf(rt); return rt.flags.mText || STEP_TEXT[k]; },
   // 戦の後の札も右上と同じ五つ（「敵を何人討つ」で埋めない。三1）。果たすのは段を進めた時
   goals5(rt) {
     const F = rt.flags, won = () => rt.tracker?.main === true;
@@ -207,12 +210,12 @@ const t06_hetsugi = {
     else if (F.step === 2) at = tsuigeki.pin(rt, K);
     else if (F.step === 3) { at = kyuen.pin(rt); r = 6; }   // 伏せの始めは防戦する河原、救援の知らせの後は信親
     else if (F.step === 4) at = shingari.pin(rt, K);   // 殿の間は北の口、皆が渡ったら南の岸
-    else { at = CAMP; r = 8; }
+    else { at = SAFE; r = 9; }   // ⑤：渡り切った西の岸の土手
     q.x = at.x; q.z = at.z; q.r = q.hide = r;
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;
     return q;
   },
-  introText: () => '島津に囲まれた鶴賀城を救いに、四国の衆と戸次川を渡れ。退く下知が出たら、生きて鏡城の陣へ戻れ。',
+  introText: () => '島津に囲まれた鶴賀城を救いに、戸次川を渡る。',
   minutes: 15,
   expectMin: 15,
   sides: { a: { name: '豊臣勢（四国の衆）', mon: 'chosokabe' }, b: { name: '島津勢', mon: 'shimazu' } },
@@ -223,7 +226,7 @@ const t06_hetsugi = {
     // 塊の人数を丸めた差で、開戦時の六千・一万二千を超えないようにする。
     const n = (b, h) => (b ? Math.round(h * b.aliveNominal() / Math.round(h / SC)) : h);
     const B = F.blk;
-    return { a: n(B.sen, HIST.sen) + n(B.nobu, HIST.nobu) + n(B.sogo, HIST.sogo) + n(B.moto, HIST.moto), b: n(B.ijuin, HIST.ijuin) + n(B.niiro, HIST.niiro) + n(B.honjo, HIST.honjo) + n(B.ieh, HIST.ieh), a0: A0, b0: B0 };
+    return { a: n(B.sen, HIST.sen) + n(B.nobu, HIST.nobu) + n(B.sogo, HIST.sogo) + n(B.moto, HIST.moto), b: n(B.ijuin, HIST.ijuin) + n(B.niiro, HIST.niiro) + n(B.honjo, HIST.honjo) + n(B.ieh, HIST.ieh) + n(B.ura, HIST.ura), a0: A0, b0: B0 };
   },
   date: () => '天正十四年十二月十二日　夕刻',   // 五4：一行に収める（「夕／刻」で割れた）
   talk: {
@@ -301,6 +304,7 @@ const t06_hetsugi = {
     F.sogoU = F.sogo.units.find((u) => u.type === 'busho');
     F.sen = ally({ name: '仙石秀久の旗本', anchor: { x: -64, z: 50 } }, [{ type: 'busho', n: 1, o: { name: '仙石秀久', invuln: true, horse: true } }, { type: 'samurai', n: 6 }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }], 'toyotomi');
     F.moto = ally({ name: '長宗我部元親の旗本', anchor: { x: -142, z: 104 }, aggro: 6, seekRange: 10 }, [{ type: 'busho', n: 1, o: { name: '長宗我部元親', invuln: true, horse: true } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }], 'chosokabe');
+    F.motoU = F.moto.units.find((u) => u.type === 'busho');
     F.mine = ally({ name: '手勢', anchor: { x: START.x + 3, z: START.z + 5 }, width: 4, speed: 3.8, dmgMult: 0.9 }, [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 13 }], 'chosokabe');
     // 戸次統常（大友方。父の汚名を雪ぐと志願し、一族郎党と討死）。十河の備の脇に付く
     F.tsune = ally({ name: '戸次統常の手', anchor: { x: -78, z: 84 } }, [{ type: 'busho', n: 1, o: { name: '戸次統常', invuln: true, horse: true } }, { type: 'samurai', n: 4 }], 'otomo');
@@ -456,7 +460,8 @@ const t06_hetsugi = {
     const F = rt.flags, B = F.blk;
     if (F.step >= n) return;
     F.step = n; F.stepT = rt.t;
-    for (const k of ['go', 'nobu', 'ford', 'camp']) rt.unmark(k);
+    for (const k of ['go', 'nobu', 'ford', 'camp', 'moto']) rt.unmark(k);
+    F.mText = null;
     // 右上の一行は使番を待たずにすぐ替える（始めから、どこへ・何をするかを出す。AQ の 1）
     rt.obj('main', STEP_TEXT[n - 1], 'main', true);
     if (n === 1) {
@@ -490,7 +495,6 @@ const t06_hetsugi = {
       // 11/8 一5・九2：夜の土手で本人だけが下の瀬の島津に囲まれた。先に崩れて落ちた仙石・長宗我部の者が土手で息をつき、本人が渡り終えると鏡城へ落ちていく
       //   （本人が北の岸の百 m 余り先にいる間に置く。目の前に急に出さない）。鶴賀城の城兵は二百 m の奥で見えないので去らせて枠を空ける
       for (const g of rt.army.groups) if (g.name === '鶴賀城の城兵') for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
-      if (!F.chase2) { F.chase2 = true; this.spawnChase(rt, { x: FORD2.x, z: -26 }, true); }   // 下の瀬の北の岸から渡り始める（本人は百 m 余り先）
       //   落ち武者は下の瀬の口から七十 m 余り川下の土手に置く（近いと、本人が来る前に川原へ下りて下の瀬の島津と斬り合いを始めた）
       F.strays = [[{ x: -92, z: 62 }, 'chosokabe'], [{ x: -112, z: 68 }, 'toyotomi']].map(([p, flag]) => {
         const g = allyGroup(rt, { name: flag === 'toyotomi' ? '仙石の落ち武者' : '長宗我部の落ち武者', anchor: p, facing: -Math.PI / 2, width: 4, aggro: 8, seekRange: 9, speed: 3.0, order: 'hold', noRout: true, dmgMult: 0.7 },
@@ -504,16 +508,11 @@ const t06_hetsugi = {
       // 包みの島津は河原まで追う
       for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) this.go(b, { x: FORD.x + (b === B.honjo ? 30 : b === B.niiro ? -20 : 0), z: -18 }, 2.2, { charge: true });
     } else if (n === 5) {
-      rt.marker('camp', { x: CAMP.x, z: CAMP.z }, '鏡城');
-      rt.say(F.mine.leader?.name || '手勢の侍', '川沿いの道を鏡城へ退け。灯りの見える陣が味方じゃ', 3);
-      // 河原の奥に残った島津（本人から九十 m の外）は去らせ、追手の兵の枠を空ける（二百五十人の内）
-      const P = rt.player.u.pos;
-      for (const g of F.foes) if (!g.cut && !g.stay) for (const u of g.units) if (u.alive && !u.gone && !u.invuln && dist(u.pos, P) > 90) rt.army.despawn(u);
-      this.spawnChase(rt);
-      // 11/7 九2：「下の瀬から」の追手は、渡りを終えた時に下の瀬を渡り始め、土手の先で行く手を塞ぐ（来ない敵を言わない）
-      this.cutCharge(rt);   // 渡り途中の組は浅瀬の道順を保ち、渡り終えた組は追い続ける
-      // 11/8 一4・一5：落ちる四国の衆の残りも土手の道を鏡城へ。追手は本人だけでなくこの者たちにも打ち掛かる
-      // 陣外で止めず、東の口をまっすぐ通って陣内へ入る。狭い口には行き先の散らばりを付けない。
+      rt.marker('camp', SAFE, '西の岸');
+      rt.say(F.mine.leader?.name || '手勢の侍', '渡れ！　振り返るな、岸へ上がれ！', 3);
+      // 島津は川を全軍で渡っては来ない。水辺に並んで止まる（もう勝っていて、無理をしない）
+      this.bankHold(rt);
+      // 落ちる四国の衆の残りも土手の道を鏡城へ。陣外で止めず、東の口をまっすぐ通って陣内へ入る。
       const road = [{ x: -60, z: 52 }, { x: -120, z: 70 }, { x: CAMP.x + 17, z: CAMP.z }, { x: CAMP.x + 5, z: CAMP.z }];
       const walk = (g, k) => {
         if (!live(g)) return;
@@ -522,8 +521,35 @@ const t06_hetsugi = {
         g.order = 'move'; g.dest = { x: p.x + (k < 2 ? (Math.random() - 0.5) * 6 : 0), z: p.z + (k < 2 ? (Math.random() - 0.5) * 4 : 0) };
         g.speed = g.walkSpeed || 3.8; g.aggro = 8; g.seekRange = 8; g.onArrive = () => walk(g, k + 1);
       };
-      for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) walk(g, 0);
-      for (const g of F.strays || []) walk(g, 1);    }
+      for (const g of [F.nobu, F.tsune, ...(F.allyBands || [])]) walk(g, 0);
+      for (const g of F.strays || []) walk(g, 1);
+    }
+  },
+
+  // 十河存保は殿に残り、本人が川を渡る間に討死の知らせ（信親と別の死。姿は見せない。shingari.js の release から）
+  sogoFall(rt) {
+    const F = rt.flags, B = F.blk;
+    if (F.sogoDead || F.ending) return;
+    F.sogoDead = true;
+    if (F.sogoU?.alive) { F.sogoU.invuln = false; rt.army.kill(F.sogoU, null); }
+    for (const u of F.sogo?.units || []) if (u.alive && !u.gone) rt.army.despawn(u);
+    if (B.sogo && !B.sogo.routedL) routButai(B.sogo, 30);
+    rt.say('使番', '十河存保殿、討死！', 2.8);
+  },
+
+  // 島津の兵は北の岸の水辺へ戻って並び、南を向いて止まる（追って来ない）
+  bankHold(rt) {
+    const F = rt.flags, B = F.blk;
+    for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin, B.ura]) if (b && !b.routedL) { const p = lightPos(b); this.go(b, { x: Math.max(FORD.x - 70, Math.min(FORD.x + 70, p.x)), z: -40 }, 2.0); }
+    let i = 0;
+    for (const g of rt.army.groups) {
+      if (g.team !== 1 || !g.count || g.bankHold || g === F.ieh || g === F.iehS) continue;
+      g.bankHold = true;
+      const c = g.center(), x = Math.max(FORD.x - 36, Math.min(FORD.x + 36, c.x + (i++ % 2 ? 6 : -6)));
+      const z = -22 - (i % 3) * 5;
+      g.focus = null; g.aggro = 0; g.seekRange = 0; g.order = 'move'; g.dest = { x, z }; g.speed = 3.2; g.feint = false;
+      g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x, z }; q.dest = null; q.facing = 0; q.onArrive = null; };
+    }
   },
 
   // 先手が退くふり：伊集院の備が尾根の西の陰へ退き、四国の衆が追う
@@ -536,21 +562,33 @@ const t06_hetsugi = {
     for (const [i, g] of (F.ijBands || []).entries()) if (live(g)) { g.order = 'move'; g.dest = { x: 8 + i * 22, z: -128 }; g.speed = 3.0; g.feint = true; g.focus = null; }
   },
 
-  // 島津が止まる（docs/hetsugigawa_spec_1109.md 8:00）：退いていた先手が止まり、一人ずつこちらを向く。曲を沈め、風と鎧の音だけ。四秒半の後に法螺と太鼓で伏せ
-  ambush(rt) {
-    const F = rt.flags;
-    if (F.halted) return;
-    F.halted = true;
-    for (const g of F.ijBands || []) if (live(g)) { g.order = 'hold'; g.dest = null; g.anchor = g.center ? g.center() : g.anchor; g.feint = false; g.aggro = 0; for (const u of g.units) { u.target = null; u.heading = Math.atan2(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z); } }
-    hush(7);
-    rt.say('長宗我部の足軽', '……止まった？', 2.2);
-    rt.after(2.2, () => rt.say('手勢の侍', '島津が……一人ずつ、こちらを向く', 2.4));
-    rt.after(4.5, () => this.ambushGo(rt));
-  },
-  // 釣り野伏せ：西の林から新納大膳、東の林から本庄、尾根の陰から家久の本隊。伊集院も向き直る
-  ambushGo(rt) {
+  // 8:00 島津が止まる（11/9 夜 kaito の一番の場面）：退いていた先手が止まり、曲が消えて風と鎧の音だけになる。
+  //   一人、二人、そして先手の全部がこちらへ向き直る。字幕で「釣り野伏せ」とは教えない。六秒半の後に法螺と太鼓（ambush）
+  halt(rt) {
     const F = rt.flags, B = F.blk;
-    if (F.step !== 3) return;
+    if (F.haltT) return;
+    F.haltT = rt.t;
+    try { hush(9); } catch (e) { /* 音は飾り */ }
+    // 塊はその場で止まる（四国の衆も一瞬止まる）
+    for (const b of [B.ijuin, B.sen, B.nobu, B.sogo]) if (b && !b.routedL) this.go(b, lightPos(b), 1);
+    const bands = [...F.followFoe.map(([g]) => g), ...(F.ijBands || [])].filter(live);
+    for (const g of bands) {
+      const c = g.center();
+      g.order = 'hold'; g.dest = null; g.focus = null; g.aggro = 0; g.seekRange = 0; g.anchor = { x: c.x, z: c.z }; g.facing = Math.PI;
+    }
+    rt.after(0.8, () => rt.say('手勢の侍', '……止まった？', 2.4));
+    // 一人ずつ振り返る（組の頭から、間を置いて）
+    let k = 0;
+    for (const g of bands) for (const u of g.units) {
+      if (!u.alive || u.gone) continue;
+      const t = 2 + Math.min(3.2, k++ * 0.14 + (k < 3 ? k * 0.6 : 1.2));
+      rt.after(t, () => { if (u.alive && !u.gone) { u.heading = 0; g.facing = 0; } });
+    }
+    rt.after(5.2, () => rt.say('土佐の足軽', 'こっちを、向いた……', 2.2));
+  },
+
+  ambush(rt) {
+    const F = rt.flags, B = F.blk;
     rt.unmark('go');
     kyuen.install(rt, K);
     B.niiro = this.block(rt, { key: 'niiro', name: '新納大膳の備', team: 1, flag: 'shimazu', at: WOODS[0], facing: Math.PI / 2, w: 44, d: 14 });
@@ -600,13 +638,18 @@ const t06_hetsugi = {
     }
     // 四国の衆は不意を突かれて士気が落ちる
     for (const b of [B.sen, B.nobu, B.sogo]) if (b) b.morale = Math.min(b.morale, 48);
+    // 後ろにも別の島津（鶴賀城の尾根の陰から、渡ってきた浅瀬への道の脇へ）。字の知らせより先に旗で分からせる
+    B.ura = this.block(rt, { key: 'ura', name: '島津の後詰め', team: 1, flag: 'shimazu', at: { x: CASTLE.x + 30, z: -40 }, facing: -Math.PI / 2, w: 26, d: 8 });
+    this.go(B.ura, { x: 72, z: -44 }, 2.2, { charge: true });
+    sfx('horagai', 1);
+    F.mText = '包囲を突破せよ'; rt.obj('main', F.mText, 'main', true);
     rt.army.play('toki', WOODS[0], 1.5); rt.after(0.4, () => rt.army.play('toki', WOODS[1], 1.5));
     for (const [i, w] of WOODS.entries()) rt.after(0.8 + i * 0.5, () => rt.army.play('volley', { x: (w.x + RING.x) / 2, z: (w.z + RING.z) / 2 }, 1.2));
-    sfx('horagai', 1); sfx('taiko', 1);
-    rt.say('長宗我部元親', '伏せじゃ！　両の林から島津が出たぞ', 3);
-    // 島津を人外にしない。静かで統制された軍の怖さ（家久の声で罠を明かさない）
-    rt.after(6, () => rt.say('土佐の足軽', '……こいつら、何なんだ', 2.4));
-    rt.after(8.6, () => rt.say('手勢の侍', '島津だ', 2));
+    sfx('taiko', 1);
+    rt.say('長宗我部の侍', '伏兵！　両の林から島津じゃ！', 3);
+    rt.after(4, () => rt.say('物見', '後ろにも島津の旗！', 2.6));
+    rt.after(9, () => rt.say('土佐の足軽', '……こいつら、何なんだ。', 2.4));
+    rt.after(12, () => rt.say('長宗我部の侍', '島津だ。', 2));
     rt.after(14, () => { if (F.tsuneU?.alive) rt.say('戸次統常', '父の汚名、ここで雪ぐ。戸次の者、退くな！', 3); });
     // 仙石の隊が先に崩れる（史実：仙石は讃岐まで逃げた）
     rt.after(32, () => {
@@ -636,32 +679,29 @@ const t06_hetsugi = {
       rt.army.kill(u, by || null);
       rt.banner(`${who}、討死`, '');
     };
-    kyuen.sogoFall(rt, K);   // 十河は救援の知らせの時に先に討たれている
     rt.after(1.4, () => fall(F.tsuneU, '戸次統常'));
     rt.after(2.6, () => {
       const duel = F.s3?.bladesMet && F.suzukiU?.alive;
       fall(F.nobuU, '長宗我部信親', duel ? F.suzukiU : null);
       routButai(B.nobu, 30);
-      if (duel) rt.say('鈴木大膳', '長宗我部信親、討ち取ったり！', 2.4);
-      else rt.say('手勢の侍', '信親様の旗が……！　島津に呑まれた！', 2.4);
+      rt.say('使番', '信親様、討死！', 2.4);
+      if (duel) rt.after(1.2, () => rt.say('鈴木大膳', '長宗我部信親、討ち取ったり！', 2.2));
     });
     // 夜へ移ろう（包みの段の六十秒から。まだなら今から。四6）
     if (!F.nightGo) { F.nightGo = true; rt.world.setTime?.('night'); }
     rt.after(3.8, () => rt.say(F.mine.leader?.name || '手勢の侍', `${nm(rt)}殿、信親様が……！　ここは退くほかござらぬ`, 3.2));
     F.follow = [];
     // 西の林から南岸へ直進すると浅瀬を外れる。北の口へ集まり、浅瀬をまっすぐ戻る。
-    for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) if (live(g)) {
-      // 十河の残兵は先に渡り始めている。浅瀬に入った隊を北の口へ呼び戻さない。
+    for (const g of [F.nobu, F.tsune, ...(F.allyBands || [])]) if (live(g)) {   // 十河は④で殿に残る（別の死。shingari.js）
+      // 浅瀬に入った隊を北の口へ呼び戻さない。
       const crossing = g.center().z > -24;
       g.order = 'move'; g.focus = null; g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
       g.onArrive = crossing ? null : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
     }
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
     this.go(B.moto, { x: CAMP.x + 30, z: CAMP.z + 24 }, 1.8, { back: true });
-    if (live(F.moto)) { F.moto.order = 'move'; F.moto.dest = { x: CAMP.x + 20, z: CAMP.z + 30 }; F.moto.speed = 3.8; }
-    // 元親は息子のもとへ行こうとするが、家臣が止める（平然と逃げるようには描かない）
-    rt.after(6.4, () => rt.say('長宗我部の家臣', '殿、なりませぬ！　殿まで討たれては、長宗我部が絶えまする', 3.2));
-    rt.after(9.8, () => rt.say('長宗我部元親', '弥三郎が……。……退け、退くのじゃ', 3));
+    // 元親の旗本は kyuen.js の retreatMoto で浅瀬を通って退いている（ここで斜めに川へ入れない）
+    rt.after(6.4, () => rt.say('長宗我部元親', '弥三郎が……。退け、退くのじゃ', 3));
     rt.after(5, () => this.toStep(rt, 4));
   },
 
@@ -686,44 +726,6 @@ const t06_hetsugi = {
     rt.after(6, () => rt.say(F.mine.leader?.name || '手勢の侍', '尾根の陰から新手じゃ！　信親様の馬印へ寄れ！', 3));
   },
 
-  // 夜の追手：浅瀬を渡って追ってくる本物の組。cut は下の瀬から行く手を塞ぐ組（足を緩めない）
-  spawnChase(rt, at = { x: FORD.x, z: -14 }, cut = false) {
-    const F = rt.flags;
-    let n = aliveReal(rt);
-    const size = cut ? 6 : 8;
-    for (let i = 0; i < 2 && n + size <= 250; i++) {
-      const g = enemyGroup(rt, { faction: 'shimazu', name: cut ? '下の瀬の島津' : '島津の追手', anchor: { x: at.x + (i ? 1 : -1) * (cut ? 4 : 14), z: at.z }, facing: Math.PI, width: 4, noRout: true, formation: 'line',
-        morale: 90, dmgMult: 0.7, order: 'attack', seekRange: cut ? 120 : 70, aggro: 14, speed: 4.4 },
-      [{ type: 'ashigaru', n: cut ? 5 : 7 }, { type: 'samurai', n: 1 }]);
-      g.kind = 'chase'; g.cut = cut; F.foes.push(g); n += size;
-      if (!cut) g.focus = rt.player.u;
-      // 11/8：下の瀬の組が土手の道の上に並んで道を塞ぎ、馬が押し通れずに囲まれて討たれた（十二3）。また後から出すと、着く前に本人が抜けて一度も当たらなかった（九2）。
-      //   本人が北の岸にいる退く段の始めに下の瀬を渡り、渡り終えたら止まらず追う。
-      if (cut) { g.order = 'move'; g.dest = { x: -74 + i * 8, z: 24 }; g.speed = 4.4; g.cutI = i; g.onArrive = (q) => { q.order = 'attack'; q.dest = null; this.cutCharge(rt); }; }
-    }
-  },
-  // ⑤：渡り終えた追手は主人公と落ち武者を追う。
-  cutCharge(rt) {
-    const F = rt.flags;
-    let stray = null;
-    for (const s of F.strays || []) {
-      stray = s.units.find((u) => u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound);
-      if (stray) break;
-    }
-    for (const g of F.foes) if (g.cut && live(g)) {
-      // 下の瀬を渡る途中なら渡り切るまで道順を保つ。対岸で待ち伏せしない。
-      if (g.order === 'move') continue;
-      g.order = 'attack'; g.dest = null; g.onArrive = null; g.speed = 4.4; g.aggro = 14;
-      // 二つ目は川下の土手を落ちていく落ち武者を追う（北の岸へ戻って別の的を探さない）
-      // 本人が北岸で殿をしている間に、渡り終えた追手を川へ呼び戻さない。
-      // 南岸では先に落ちた者を追い、本人も渡ったら追撃を分ける。
-      if (F.step < 5 && rt.player.u.pos.z <= 22) {
-        g.focus = stray; g.seekRange = stray ? 60 : 0;
-        if (!stray) { g.order = 'hold'; g.aggro = 0; }
-      } else if (g.cutI === 0 || !stray) { g.focus = rt.player.u; g.seekRange = 120; } else { g.focus = stray; g.seekRange = 60; }
-    }
-  },
-
   update(rt, dt) {
     const F = rt.flags, B = F.blk;
     if (F.ending || !F.step) return;
@@ -739,6 +741,9 @@ const t06_hetsugi = {
       if (F.s3?.ls && live(F.nobu) && F.suzukiU?.alive && !F.suzukiU.noTarget) F.nobu.focus = F.suzukiU;
     }
     butaiTick(rt, dt);
+    // 11/10 関所4：包まれてから退く間に、共通の軍の頭（armyhead・gunsei）が退く味方の組へ「〇〇、追撃」を出していた。③から味方の追撃の判断を止める
+    const gun0 = rt._head?.gun?.[0];
+    if (F.step >= 3 && gun0 && !gun0.noPursuitT06) { gun0.noPursuitT06 = true; gun0._pursuit = () => {}; gun0._pursuing?.clear?.(); }
     // 塊どうしの押し合い（伊集院に当たる段から）
     if (F.step >= 2) fieldTick(rt, dt, { list: F.blocks, reach: 40, k: F.step === 2 ? 0.25 : F.step === 3 ? 0.55 : 0.4 });
     // 手勢は本人の脇に付く
@@ -786,9 +791,11 @@ const t06_hetsugi = {
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.feignSoft) { g.feignSoft = true; g.feignDmg = g.dmgMult ?? 1; g.dmgMult = Math.min(g.feignDmg, 0.45); }
       // 替わった先手の兵は待たずに四国の衆と本人へ槍を入れる（退くふりの前は本当に当たる。九2）
       if (!F.feigned) for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 26; g.aggro = 12; }
-      if (!F.feigned && tsuigeki.pressed(rt, K) && el > 60) this.feign(rt);   // 本人の交戦か、崩れた先手の持ち場の確保を経て退く。
+      // 本人が先手と当たるか先手の持ち場を押さえてから退く。先手の本物が味方に討ち尽くされた時と、二分押した時も退く（11/10：本人が槍を入れる相手がいないまま②で止まった）
+      if (!F.feigned && el > 60 && (tsuigeki.pressed(rt, K) || !(F.ijBands || []).some(live) || el > 120)) this.feign(rt);
       if (F.feigned) tsuigeki.update(rt, K);
-      if (F.feigned && tsuigeki.ready(rt, K)) this.toStep(rt, 3);
+      if (F.feigned && !F.haltT && tsuigeki.ready(rt, K)) this.halt(rt);
+      if (F.haltT && rt.t - F.haltT > 6.5) this.toStep(rt, 3);
     } else if (F.step === 3) {
       // 包む島津の兵（塊から替わった本物）は、待たずに四国の衆と本人へ打ち掛かる
       for (const g of rt.army.groups) if (g.team === 1 && g.count && g.order === 'hold' && g !== F.ieh && g !== F.iehS && !g.interiorHold && g.kind !== 'main' && !g.gunLine) { g.order = 'attack'; g.seekRange = 30; g.aggro = 14; g.noRout = true; }
@@ -797,26 +804,18 @@ const t06_hetsugi = {
       kyuen.update(rt, K, el);   // 伏せ→その場で防ぐ→信親の救援→鈴木大膳→信親の討死（夜へ移ろう。t06_hetsugi/kyuen.js）
     } else if (F.step === 4) { shingari.update(rt); if (shingari.crossed(rt, K)) this.toStep(rt, 5); }
     // 柵（半径十一 m）の外で生還にせず、東の口を抜けて陣内へ戻るまで遊ばせる。
-    else if (F.step === 5 && dist(P.pos, CAMP) < 8) this.win(rt);
-    // 下の瀬の島津が土手へ上がって見えた所で知らせる（史実：追い討ちで多くが討たれた）
-    if (F.step === 5 && !F.chase2Said && P.pos.x < -30 && F.foes.some((g) => g.cut && g.units.some((u) =>
-      u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && u.pos.z > 22 && dist(u.pos, P.pos) < 60))) {
-      F.chase2Said = true;
-      // 島津の本隊は川向こうで整然と止まる。渡って来るのは追手の一手だけ（docs/hetsugigawa_spec_1109.md の終わり）
-      rt.say(F.mine.leader?.name || '手勢の侍', '島津の一手が川を渡って来る。鏡城へ走れ！', 2.6);
-      rt.after(4, () => { if (!F.ending) rt.say(nm(rt), '……本隊は川向こうで止まっておる。隊列が、少しも崩れておらぬ', 3.2); });
-    }
-    // 本隊の行き先は④で定めた北岸のまま。川を渡る追手だけが追撃を続ける。
+    else if (F.step === 5) { this.bankHold(rt); if (dist(P.pos, SAFE) < 9) this.win(rt); }
+    // 退く段（④）は島津が勢いを保って水辺まで追う。止まれば囲まれる。⑤は水辺で止まる（bankHold）
     if (F.step >= 4) {
       if ((F.chaseT = (F.chaseT || 0) - 0.25) <= 0) {
         F.chaseT = 2;
-        // 渡り終えた時と、落ち武者が討たれた後も追う相手を更新する。
-        this.cutCharge(rt);
+        const to = { x: P.pos.x, z: Math.min(P.pos.z, -16) };
+        if (F.step === 4) for (const b of [B.niiro, B.honjo, B.ieh, B.ijuin]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.chaseSoft && g !== F.ieh && g !== F.iehS) {
+      for (const g of rt.army.groups) if (F.step === 4 && g.team === 1 && g.count && !g.chaseSoft && g !== F.ieh && g !== F.iehS) {
         g.chaseSoft = true; g.dmgMult = Math.min(g.dmgMult || 1, 0.7);
-        if (!g.cut) g.speed = 4.4;
-        if (g.order === 'hold' && g.kind !== 'main' && !g.cut) { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
+        g.speed = 4.4;
+        if (g.order === 'hold' && g.kind !== 'main') { g.order = 'attack'; g.seekRange = 40; g.aggro = 12; }
       }
       if (!F.breath) { F.breath = true; P.hp = Math.max(P.hp, P.maxHp * 0.7); }
       // 浅瀬を外れた者は、川の真ん中（腰より深い所）で冬の速い流れに足を取られて沈む（四人まで。浅瀬の内では沈まない）
@@ -830,7 +829,7 @@ const t06_hetsugi = {
       }
     }
     // 遠く離れた追撃兵は去らせる。本陣の旗本と史実で生き残る将は保つ。
-    if (F.step === 5) for (const g of F.foes) if (!g.cut && !g.stay) for (const u of g.units) if (u.alive && !u.gone && !u.invuln && dist(u.pos, P.pos) > 110) rt.army.despawn(u);
+    if (F.step === 5) for (const g of F.foes) if (!g.stay) for (const u of g.units) if (u.alive && !u.gone && !u.invuln && dist(u.pos, P.pos) > 130) rt.army.despawn(u);
   },
 
   win(rt) {
@@ -887,7 +886,7 @@ const t06_hetsugi = {
     else if (F.step === 4 && u.pos.z < -30) q = { x: FORD.x, z: -14 };   // 河原の奥からは浅瀬の口へまっすぐ
     else if (F.step === 4) q = Math.abs(u.pos.x - FORD.x) > 8 && u.pos.z < 22 ? { x: FORD.x, z: Math.min(u.pos.z, -14) } : u.pos.z < -12 ? { x: FORD.x, z: -10 } : { x: FORD.x, z: 34 };
     // 陣の柵（半径十一 m）は東に口がある。外からは東の口の前へ回ってから中へ（柵の西の外で止まった。11/9 bot）
-    else q = dist(u.pos, CAMP) > 9 && (Math.abs(u.pos.z - CAMP.z) > 3 || u.pos.x < CAMP.x) ? { x: CAMP.x + 17, z: CAMP.z } : CAMP;
+    else q = u.pos.z < 30 && Math.abs(u.pos.x - FORD.x) > 8 ? { x: FORD.x, z: Math.max(u.pos.z, -10) } : u.pos.z < 30 ? { x: FORD.x, z: 34 } : SAFE;
     goTo(p, inp, q.x, q.z, 2);
   },
 };
@@ -903,6 +902,7 @@ const K = {
   lightPos, routButai,
   lastStand: (rt) => t06_hetsugi.lastStand(rt),
   closeRing: (rt) => t06_hetsugi.closeRing(rt),
+  sogoFall: (rt) => t06_hetsugi.sogoFall(rt),
 };
 
 export { t06_hetsugi };
