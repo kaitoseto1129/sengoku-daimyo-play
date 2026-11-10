@@ -26,7 +26,7 @@ export function start(rt, ctx) {
   S.guns = guns;
   if (guns) { guns.order = 'hold'; guns.anchor = { x: POST.x, z: POST.z + 3 }; }
   for (const g of [F.fortGun, ...(F.fortTowerGuns || [])]) if (g && g.count) { g.seekRange = 95; g.aggro = 90; g.holdFire = false; }
-  rt.marker('nodaTaba', POST, '竹束の列');
+  rt.marker('nodaTaba', POST, '竹束の列', { guideAlways: true, alwaysDistance: true });
   try { sfx('sig_kakari', 0.6); } catch (e) { /* 音が無くても進む */ }
   rt.say('前田利家', '根来・雑賀の鉄砲衆が竹束へ着いた。砦と撃ち合うぞ。西の竹束の列へ寄れ！', 4);
   // 天地も響く撃ち合い：砦と竹束の間で数秒おきに銃声と硝煙

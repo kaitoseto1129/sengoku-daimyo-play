@@ -9,6 +9,10 @@ import { uS, uC } from '../b_mid.js';
 import { sfx } from '../audio.js';
 import { nobori } from '../props.js';
 
+// 戦えなくなった兵や隊の空いた中心へ、追手の印を残さない。
+const pursuing = (u) => u.alive && !u.dying && !u.gone && !u.fleeing && !u.woundOut &&
+  !u.rearWound && !u.downed && !u.noTarget && !u.group?.routed;
+
 export function install(rt, ctx) {
   const F = rt.flags;
   const { dress, UESUGI, SOUTH, FORD, next } = ctx;
@@ -34,7 +38,7 @@ export function install(rt, ctx) {
       dress([uS(1, { horse: true }), uC(3)], UESUGI));
     sfx('hooves', 1);
     rt.say('足軽', '馬が川を渡って来よる！　追いつかれるぞ！', 3.5);
-    rt.marker('furikiruC', () => (C.units.some((u) => u.alive && !u.fleeing && !u.woundOut) ? C.center() : null), '追いすがる騎馬', { red: true, group: C });
+    rt.marker('furikiruC', () => C?.units.find(pursuing)?.pos || null, '追いすがる騎馬', { red: true, group: C });
   });
   return {
     target: FLAG,

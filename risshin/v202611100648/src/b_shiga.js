@@ -971,7 +971,7 @@ function castleWatchText(rt) {
   for (const g of F.waves || []) {
     if (gone(g) || g.order !== 'assault' || !g._shigaGate?.alive || g._shigaGate.opened) continue;
     if (F.gates.indexOf(g._shigaGate) < F.gates.indexOf(gate?.struct))
-      return '敵は下の木戸を攻めている。ここで後詰を待て';
+      return '敵は下の木戸を攻めている。木戸の内で後詰を待て';
   }
   for (const g of F.waves || []) if (!gone(g) && g.order === 'path')
     return '敵が坂道を上ってくる。木戸を閉じて待て';
@@ -2143,13 +2143,13 @@ const shiga = {
   // これは近くの攻撃をかわす印。町口や木戸から退く下知と区別する。
   dodgeGuideLabel(rt, reached, rain) {
     if (rain) return reached ? '矢に備え、動きを止めるな' : '矢の降る場所から離れよう';
-    return reached ? '敵を向いて構えよう' : 'ここへよけて構えよう';
+    return reached ? '敵を向いて構えよう' : '敵の打ち込みをよけて構えよう';
   },
   // 矢の回避札は別の呼び口。隊旗へ退く下知と混同させない。
-  rainDodgeGuideLabel: (_rt, reached) => reached ? 'ここで矢をよけよう' : '矢をよけ、足元の印へ',
+  rainDodgeGuideLabel: (_rt, reached) => reached ? '矢に備え、動きを止めるな' : '矢をよけ、足元の印へ',
   escapePlaceLabel: (_rt, rain) => rain ? '矢をよけ、足元の印へ' : '印へよけ、構えよう',
   compactDodgeGuide: true,
-  dodgeActionText: '長おしで進む', // 狭い札でも語尾を一字だけ次の行へ送らない。
+  dodgeActionText: '長押しで進む', // 狭い札でも語尾を一字だけ次の行へ送らない。
   singleRetreatArrow: true, // 乱戦を横切る点線を短い矢印一本にし、行き先の旗は残す。
   dodgeAvoidNotices: true,
   dodgeTurnLabel: (_rt, right, touch) => touch

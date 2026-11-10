@@ -55,9 +55,9 @@ export function sogoFall(rt, K) {
   const F = rt.flags, B = F.blk;
   if (F.sogoDead) return;
   F.sogoDead = true;
-  if (F.sogoU?.alive) { F.sogoU.invuln = false; rt.army.kill(F.sogoU, null); }
-  rt.banner('十河存保、討死', '');
-  rt.say('物見', '十河様、お討死！　右の備が崩れまする', 2.6);
+  // 十河は信親と同じ死に方にしない：殿として残り、見えない所で討たれる（後で使番の知らせ）
+  rt.say('十河存保', '先へ行け！　ここは十河が引き受ける', 2.8);
+  rt.after(9, () => { if (F.sogoU?.alive) { F.sogoU.invuln = false; F.sogoU.mustLive = false; rt.army.kill(F.sogoU, null); } rt.say('使番', '十河存保殿、討死！　右の備が崩れまする', 2.8); });
   K.routButai(B.sogo, 30);
   // 塊だけでなく本物の旗本も崩れる。備への追従を切り、浅瀬を通って退く。
   F.follow = F.follow.filter(([g]) => g !== F.sogo);

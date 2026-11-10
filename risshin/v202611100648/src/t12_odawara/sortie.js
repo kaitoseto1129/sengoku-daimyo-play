@@ -75,7 +75,12 @@ export function step(H) {
       for (const g of [C.foe, C.foe2, C.foe3]) if (g) for (const u of g.units) if (u.alive && !u.gone && u.fleeing && u.pos.x < H.SANNO_IN.x + 6 && Math.abs(u.pos.z - H.SANNO_IN.z) < 8) rt.army.despawn(u);
       for (const g of ctx.friends(rt)) for (const u of g.units) if (u.alive && u.target?.fleeing) u.target = null;
       // 陣で待つだけでは岸を守ったことにしない。退く敵を追わず、指定した岸へ本人が着いてから済ませる。
-      if (C.back) return el - C.back > 13 && all.every((g) => !g.units.some((u) => u.alive && !u.gone)) && P.x > H.RIVER_X && Math.hypot(P.x - H.BANK.x, P.z - H.BANK.z) < 18;
+      if (C.back) {
+        const returned = all.every((g) => !g.units.some((u) => u.alive && !u.gone));
+        // 退却済みの残兵一人が木戸に詰まっても、帰城待ちを無限に続けない。
+        // 押し返す前・本人が岸へ戻る前は済ませず、残兵は次の暗転で引き揚げる。
+        return el - C.back > 13 && (returned || el - C.back >= 45) && P.x > H.RIVER_X && Math.hypot(P.x - H.BANK.x, P.z - H.BANK.z) < 18;
+      }
       return false;
     },
     end(rt, C) {

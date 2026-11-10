@@ -88,9 +88,9 @@ const MOUND = { x: 18, z: -164 };         // 御坊塚の古墳の真ん中
 // 11/10 指示書（docs/yamazaki_spec_1109.md）の十五分：①布陣 ②前衛 ③天王山の圧力と斎藤隊 ④明智の反撃 ⑤両翼の崩れ ⑥追え ⑦追撃
 const TEXT = ['',
   '先陣の高山右近の陣へ駆けつける',
-  '前線を押し上げ、斎藤勢を押し返す',
+  '高山右近の陣の右で斎藤勢を押し返す',
   '川を渡り、斎藤利三の隊を崩す',
-  '押し返された中央を立て直す',
+  '円明寺川の南岸で中央を立て直す',
   '川の北で阿閉貞征の隊を押し破る',
   '明智軍を追い、御坊塚の前の殿を破る',
   '退く明智軍を勝竜寺城の門まで追う'];
@@ -531,11 +531,7 @@ const t01_yamazaki = {
         F.ikedaR.onArrive = (g) => { g.order = 'move'; g.dest = { x: 72, z: -50 }; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 30; }; };
       }
       rt.after(3, () => rt.say('堀秀政', '右も左も押しておる。中を割れ！', 3));
-      rt.after(28, () => {
-        report(rt, '右手、池田様が淀川沿いを渡り、津田の隊を突き崩しました！');
-        if (live(F.tsuda)) { F.tsuda.routed = true; F.tsuda.order = 'flee'; }
-        dropFlags(rt, F.akFlagsR, 2.5);
-      });
+      F.tsudaN = allN(F.tsuda); F.tsudaBroken = false;
       // 左（天王山）：秀長の旗が山を下りて進む
       rt.after(46, () => {
         report(rt, '左手、秀長様の旗が天王山を下り、松田勢を押しまする！');
@@ -674,6 +670,13 @@ const t01_yamazaki = {
       if (F.fieldAt === 3 && aliveN(F.saiGs) <= F.saiN * 0.25 && rt.t - F.st0 > 95) this.stage(rt, 4);
     } else if (F.stage === 4) Counter.tick(rt, dt, this.ctx(rt));
     else if (F.stage === 5) {
+      // 池田勢が浅瀬へ向かうだけで津田勢を破った事にしない。実際の損耗を待って旗と知らせをそろえる。
+      if (!F.tsudaBroken && F.tsudaN > 0 && aliveN(F.tsuda) <= F.tsudaN * 0.3) {
+        F.tsudaBroken = true;
+        if (live(F.tsuda)) { F.tsuda.routed = true; F.tsuda.order = 'flee'; }
+        dropFlags(rt, F.akFlagsR, 2.5);
+        report(rt, '右手、津田の隊が崩れまする！');
+      }
       if (F.fieldAt === 5 && aliveN(F.atsGs) <= F.atsN * 0.25 && rt.t - F.st0 > 80) this.stage(rt, 6);
     } else if (F.stage === 6) {
       // 殿が散って残りが行き先から離れた時も、主人公の方へ突きかからせる（勝ちまで行き詰まらない）

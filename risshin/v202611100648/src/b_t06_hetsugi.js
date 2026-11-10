@@ -20,7 +20,7 @@ import { enemyGroup, allyGroup, nm, guardRecover } from './bhelp.js';
 import { naginata } from './humans.js';
 import { nobori, palisade, dorui, yagura, hut, jinmaku, shogi, kabukimon, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { KIT } from './b_nagashinojo.js';
-import { sfx } from './audio.js';
+import { sfx, hush } from './audio.js';
 import { MEM_TIGHT } from './settings.js';
 import { withGuard } from './toyo_bot.js';
 import { fieldButai, fieldTick, routButai, lightPos } from './b_yasen.js';
@@ -536,9 +536,21 @@ const t06_hetsugi = {
     for (const [i, g] of (F.ijBands || []).entries()) if (live(g)) { g.order = 'move'; g.dest = { x: 8 + i * 22, z: -128 }; g.speed = 3.0; g.feint = true; g.focus = null; }
   },
 
-  // 釣り野伏せ：西の林から新納大膳、東の林から本庄、尾根の陰から家久の本隊。伊集院も向き直る
+  // 島津が止まる（docs/hetsugigawa_spec_1109.md 8:00）：退いていた先手が止まり、一人ずつこちらを向く。曲を沈め、風と鎧の音だけ。四秒半の後に法螺と太鼓で伏せ
   ambush(rt) {
+    const F = rt.flags;
+    if (F.halted) return;
+    F.halted = true;
+    for (const g of F.ijBands || []) if (live(g)) { g.order = 'hold'; g.dest = null; g.anchor = g.center ? g.center() : g.anchor; g.feint = false; g.aggro = 0; for (const u of g.units) { u.target = null; u.heading = Math.atan2(rt.player.u.pos.x - u.pos.x, rt.player.u.pos.z - u.pos.z); } }
+    hush(7);
+    rt.say('長宗我部の足軽', '……止まった？', 2.2);
+    rt.after(2.2, () => rt.say('手勢の侍', '島津が……一人ずつ、こちらを向く', 2.4));
+    rt.after(4.5, () => this.ambushGo(rt));
+  },
+  // 釣り野伏せ：西の林から新納大膳、東の林から本庄、尾根の陰から家久の本隊。伊集院も向き直る
+  ambushGo(rt) {
     const F = rt.flags, B = F.blk;
+    if (F.step !== 3) return;
     rt.unmark('go');
     kyuen.install(rt, K);
     B.niiro = this.block(rt, { key: 'niiro', name: '新納大膳の備', team: 1, flag: 'shimazu', at: WOODS[0], facing: Math.PI / 2, w: 44, d: 14 });
@@ -590,9 +602,11 @@ const t06_hetsugi = {
     for (const b of [B.sen, B.nobu, B.sogo]) if (b) b.morale = Math.min(b.morale, 48);
     rt.army.play('toki', WOODS[0], 1.5); rt.after(0.4, () => rt.army.play('toki', WOODS[1], 1.5));
     for (const [i, w] of WOODS.entries()) rt.after(0.8 + i * 0.5, () => rt.army.play('volley', { x: (w.x + RING.x) / 2, z: (w.z + RING.z) / 2 }, 1.2));
-    sfx('taiko', 1);
+    sfx('horagai', 1); sfx('taiko', 1);
     rt.say('長宗我部元親', '伏せじゃ！　両の林から島津が出たぞ', 3);
-    rt.after(5, () => rt.say('島津家久', '釣り出したぞ。三方から包め。一人も川へ戻すな', 3));
+    // 島津を人外にしない。静かで統制された軍の怖さ（家久の声で罠を明かさない）
+    rt.after(6, () => rt.say('土佐の足軽', '……こいつら、何なんだ', 2.4));
+    rt.after(8.6, () => rt.say('手勢の侍', '島津だ', 2));
     rt.after(14, () => { if (F.tsuneU?.alive) rt.say('戸次統常', '父の汚名、ここで雪ぐ。戸次の者、退くな！', 3); });
     // 仙石の隊が先に崩れる（史実：仙石は讃岐まで逃げた）
     rt.after(32, () => {
@@ -645,7 +659,9 @@ const t06_hetsugi = {
     // 元親も渡りの手前から落ちていく（史実：伊予の日振島へ逃れた）
     this.go(B.moto, { x: CAMP.x + 30, z: CAMP.z + 24 }, 1.8, { back: true });
     if (live(F.moto)) { F.moto.order = 'move'; F.moto.dest = { x: CAMP.x + 20, z: CAMP.z + 30 }; F.moto.speed = 3.8; }
-    rt.after(6.4, () => rt.say('長宗我部元親', '弥三郎が……。退け、退くのじゃ', 3));
+    // 元親は息子のもとへ行こうとするが、家臣が止める（平然と逃げるようには描かない）
+    rt.after(6.4, () => rt.say('長宗我部の家臣', '殿、なりませぬ！　殿まで討たれては、長宗我部が絶えまする', 3.2));
+    rt.after(9.8, () => rt.say('長宗我部元親', '弥三郎が……。……退け、退くのじゃ', 3));
     rt.after(5, () => this.toStep(rt, 4));
   },
 
@@ -786,7 +802,9 @@ const t06_hetsugi = {
     if (F.step === 5 && !F.chase2Said && P.pos.x < -30 && F.foes.some((g) => g.cut && g.units.some((u) =>
       u.alive && !u.gone && !u.dying && !u.noTarget && !u.woundOut && !u.rearWound && u.pos.z > 22 && dist(u.pos, P.pos) < 60))) {
       F.chase2Said = true;
-      rt.say(F.mine.leader?.name || '手勢の侍', '島津が川を渡って追って来たぞ。鏡城へ走れ！', 2.6);
+      // 島津の本隊は川向こうで整然と止まる。渡って来るのは追手の一手だけ（docs/hetsugigawa_spec_1109.md の終わり）
+      rt.say(F.mine.leader?.name || '手勢の侍', '島津の一手が川を渡って来る。鏡城へ走れ！', 2.6);
+      rt.after(4, () => { if (!F.ending) rt.say(nm(rt), '……本隊は川向こうで止まっておる。隊列が、少しも崩れておらぬ', 3.2); });
     }
     // 退く段も島津は勢いを保ち、川を渡って追う。止まれば囲まれる。
     if (F.step >= 4) {
