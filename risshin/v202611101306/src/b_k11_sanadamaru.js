@@ -1402,6 +1402,13 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     // 新手の組に大助・伊木はいない（名のある将は二人に増やさない）。「新手の真田大助の隊」と、もう一人の大助がいるように言わない
     else if (g.team === 1 && g.name && g !== F.sasa) rt.say('足軽', g.name.startsWith('新手の') ? '真田の新手も丸へ引いていく！' : `${g.name}が丸へ引いていく！`, 2.5);
   },
+  onStructHit(rt, s) {
+    // 西の柵は倒しかけた所で予備に押し返される。毎コマの補正では、
+    // 一撃で命が尽きた時の破壊判定に間に合わないので、打たれた直後に止める。
+    if (s !== rt.flags.target2 || s.hp > s.maxHp * 0.3) return;
+    s.hp = s.maxHp * 0.3;
+    s.invuln = true;
+  },
   onStructDestroyed(rt, s) {
     const F = rt.flags;
     if (s !== F.target) return;

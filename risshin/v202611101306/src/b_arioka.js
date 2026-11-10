@@ -2488,9 +2488,9 @@ const arioka = {
     // 月夜のまま、土と草の違い・軒の灯りを読める明るさにする。
     // 低い月の向きでは櫓の影が高さの約五・六倍まで伸びる。高くして約〇・六倍に収める。
     // 月の直射を弱め、影にも届く空の光を少し増やして、地面を黒く覆わないようにする。
-    // 共通の独自色の処理は夕暮れ扱いになるため、夜へ戻してから色を渡す。
+    // 色を複製しても夕暮れ扱いに戻らないよう、時間帯も明示する。
     W.setTime('night');
-    applyLook(rt, { ...NIGHT, sky: 0x161d2e, fog: 0x1a2232, top: 0x060a14, hI: .85, mount: 0x0c0f16 }, false);
+    applyLook(rt, { ...NIGHT, time: 'night', sky: 0x161d2e, fog: 0x1a2232, top: 0x060a14, hI: .85, mount: 0x0c0f16 }, false);
     W.sunOffset.set(.4, .8, -.2).normalize().multiplyScalar(120);
     W.skyMat.uniforms.sunDir.value.copy(W.sunOffset).normalize();
     W.sun.intensity = .48; W.hemi.intensity = W.baseHemi = .85;
@@ -3035,8 +3035,8 @@ function ariStage(o, defending) {
       }
       // 辻も十二秒守る持ち場。木戸と同じ地形に沿う印で、集まる範囲を示す。
       rt.zone('dp', o.at.x, o.at.z, o.r || 16);
-      // 辻で守る時は、味方を木戸へ戻さず辻の持ち場のまま（町筋を逆にたどらない）。
-      sendAriFriends(rt, o.at, defending && o.at.x < GATE.x);
+      // 辻でも三段の守備配置を使う。通りの経路は現在地と行き先から選ぶ。
+      sendAriFriends(rt, o.at, defending);
       for (const [who, words, dur] of o.say || []) rt.say(who, words, dur || 4);
     },
     tick(rt, C, m, ctx, el, dt) {
