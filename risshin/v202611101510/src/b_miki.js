@@ -967,6 +967,8 @@ function mikiFarFort(rt, q) {
   }
   // 11/6 fixc1901_miki（四5・十一2）：井楼は土の櫓台の上の低い物（人の五倍ほど）。十五倍の格子の塔を二本立てない
   const tower = yagura(W, q.x + 2, q.z - 1, { logFrame: true, kind: 'ro', height: q.tall ? 8.5 : 7.5, boarded: true });
+  // 接近できる遠景の井楼にも、視点を塞ぐ木組みの透かしを適用する。
+  mikiSolidWood(W, tower, false, true);
   rt.scene.add(tower, jinmaku(W, q.x - 4, q.z - 7, 5, 4, 3, { mon: 'oda' }));
   for (const [x, z] of [[q.x + 11, q.z - 6], [q.x + 11, q.z + 6], [q.x - 8, q.z + 10], ...(q.big ? [[q.x + 4, q.z + 13], [q.x - 12, q.z - 4]] : [])]) rt.scene.add(nobori(W, x, z, 'oda', q.big ? 7.5 : 6));
   // 夜でも奥の付城が黒い影だけにならないよう、持ち場に向く東の口と井楼の上に篝火（光源は足さない）。
@@ -2279,6 +2281,21 @@ const miki = {
       }
       return finishCap.call(this, target, amount, source);
     };
+    // 騎馬の衝突や失血は通常の傷の上限を通らない。とどめの直前でも本人を待つ。
+    const kill = rt.army.kill;
+    rt.army.kill = function (target, source) {
+      if (target === F.jint && target.alive && source !== rt.player.u && rt.player.u.alive && !F.ending) {
+        target.hp = Math.max(1, target.hp);
+        return;
+      }
+      return kill.call(this, target, source);
+    };
+    const disposeFinish = rt.dispose;
+    rt.dispose = function () {
+      rt.army.heroFinishCap = finishCap;
+      rt.army.kill = kill;
+      return disposeFinish.call(this);
+    };
     F.carts = enemyGroup(rt, { fixed: true, faction: 'bessho', name: '兵糧を担ぐ者', anchor: { x: -142, z: -74 }, facing: Math.PI / 2, formation: 'column', colW: 2, speed: 1.2, aggro: 0, civ: true, noRout: true, arriveNoncombat: true, fleeDir: { x: -1, z: 0 } }, [{ type: 'porter', n: 6, o: { flag: null } }]);
     for (const u of F.carts.units) { u.noTarget = true; u.dmg = 0; }
     F.cartArrived = new Uint8Array(F.carts.units.length); F.delivered = 0;
@@ -3048,10 +3065,6 @@ const miki = {
   // 士気だけを変え、死者・傷・弾・兵糧を戻さない。手柄がなくても任務は進む。
   onKill(rt, v, k) {
     const F = rt.flags;
-    // 詰まらない決まり1：甚太夫が味方や流れ弾に討たれても⑤を果たせなくしない（11/10 bot：285秒に味方が討ち、622秒まで止まって負けた）。
-    if (v === F.jint && !F.jintTaken && !F.ending && !rt.over && rt.player.u.alive && k !== rt.player.u) {
-      F.jintTaken = true; rt.say('使番', '別所甚太夫、討死！　残る別所勢を押し返せ', 4);
-    }
     if (F.ending || rt.over || !rt.player.u.alive || k !== rt.player.u || v.civ || v.isStruct) return;
     if (v === F.jint) F.jintTaken = true;
     const stage = F.step - 1;
@@ -3408,7 +3421,6 @@ const miki = {
     // ⑤は onKill で本人の討ち取りを確かめる。味方のとどめは heroFinishCap で残す。
     // 三太夫・甚太夫の両名を討ってから崩れる。甚太夫だけで士気を落とすと、
     // 生きている三太夫まで逃げ、④も勝利条件も果たせなくなる。
-    if (F.step === 2 && F.jint && !F.jint.alive && !F.jintTaken) F.jintTaken = true;   // 討った者が分からない死も⑤の済みに（詰まらない決まり1）
     const omuraHeadsTaken = F.jintTaken && F.reserve.units.every(u => !u.name || !this.omuraFoe(u) || !u.alive);
     //   逃げて本人から二十五歩より離れた者は、城へ帰った者として数えない（11/9 bot：侍六人が残り、期限まで勝ちにならなかった）
     if (F.step === 2 && omuraHeadsTaken) {

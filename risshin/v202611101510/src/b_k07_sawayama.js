@@ -260,6 +260,7 @@ const k07_sawayama = {
   stageGoalsOnly: true,   // 目標は五つの段だけ（「敵を八人討つ」で埋めない・三の1）
   goalsAllRows: true,     // 共通の既定は今の一行だけ。始めから五つとも並べる。
   keepBattleSigns: true,  // 行き先の▼を出している間も、朝成らの名札と両軍の数を隠さない。
+  forceBarAlways: true,   // 人数を渡すだけでは共通の棒は隠れる。寄せ口から落城まで両軍の残りを示す。
   // 始まりの話の間（段の前）は、印を①の大手門へ（前は戦の大目標の言葉から「山の頂の本丸 35m」と出て、指す所と名が違った）
   goalSignTarget: (rt) => {
     const F = rt.flags, D = F.dp;
@@ -313,6 +314,8 @@ const k07_sawayama = {
   world: {
     seed: 1600921,
     time: 'morning',   // 十七日の払暁から攻めた
+    // 11/10 クラウド（関所の写真）：夜の三の丸で兵の面に月の補光が強く掛かり、具足が白く光る骨のような兵に見えた。今福・鳥取と同じく弱める
+    unitNightScale: 0.4,
     groundHalf: 280,
     muddyCastleFloor: 0.8,   // 曲輪の平場を真っ白な砂利にせず、踏み固めた乾いた土に（侍屋敷が白い砂の広場に見えた・八1）
     paths: [ROUTE.slice(0, 10), ROUTE.slice(9)],
