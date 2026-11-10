@@ -126,9 +126,6 @@ function council(rt, C) {
     // 時が飛ぶ（その夜）。柵の段の兵は片付け、主人公と組は区の堤の上へ
     for (const g of [K.foe, K.foe2, ...(K.shot || []), K.ally]) if (g) for (const u of g.units) if (u.alive && !u.gone) rt.army.despawn(u);
     if (K.clash?.mesh) K.clash.mesh.visible = false;   // 長野口の乱戦はこの段だけ
-    if (rt.world?.def) rt.world.def.strictFireOrders = K.strictWas;
-    for (const g of K.fireWas || []) g.fire = true;
-    for (const [u, a, b] of K.ammoWas || []) { u.arrowAmmo = a; u.gunAmmo = b; }
     C.warp(rt, C.START.x, C.START.z, Math.atan2(-1, -1));
     rt.banner('その夜　石田堤の普請', '浅瀬の口で、堤を築く人足を守れ');
     C.def.night(rt);
