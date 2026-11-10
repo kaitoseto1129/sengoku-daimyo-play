@@ -700,7 +700,10 @@ export const tobinosu = {
   noCouriers: true,   // 夜の忍び寄りに伝令の騎馬は走らない
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: Math.PI },
   depth: tobiDepth,   // 尾根の砦の裏の武田の備と酒井の本隊（docs/fujin/tobinosu.md）
+  // 11/10 クラウド：足軽・侍の一太刀で命の三割から四割が一度に減り、bot（act・歴史好き）が一〜二分で倒れた。一太刀は命の四分の一まで、その後は一秒に五分ずつ戻る
+  meleeGrace: { rate: 0.05, burst: 0.25, interval: 2.5 },
   world: {
+    playerAtkMax: 3,   // 11/10 クラウド：act の bot が一〜二分で足軽の槍を四方から浴びて倒れた。同時に打ち込むのを三人まで（共通は四人）
     seed: 75,
     muddy: 0.3,
     time: 'dusk',
