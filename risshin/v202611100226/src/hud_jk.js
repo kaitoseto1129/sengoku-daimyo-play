@@ -196,7 +196,7 @@ function build(root) {
   }
   const vit = document.createElement('div');
   vit.id = 'jk-vit';
-  vit.innerHTML = `<canvas width="${FACE}" height="${FACE}" aria-hidden="true"></canvas><div class="jk-bars"><div class="jk-name"></div><div class="jk-row jk-hp" role="img"><span>体力 100</span><i><b></b></i></div><div class="jk-row jk-sta" role="img"><span>元気 100</span><i><s><b></b></s><s><b></b></s><s><b></b></s><s><b></b></s></i></div></div>`;
+  vit.innerHTML = `<canvas width="${FACE}" height="${FACE}" aria-hidden="true"></canvas><div class="jk-bars"><div class="jk-name"></div><div class="jk-row jk-hp" role="img"><span>体力</span><i><b></b></i></div><div class="jk-row jk-sta" role="img"><span>疲れ</span><i><s><b></b></s><s><b></b></s><s><b></b></s><s><b></b></s></i></div></div>`;
   for (const el of [chap, prog, map, vit]) root.appendChild(el);
   return {
     root, chap, prog, map, vit, style,
@@ -569,7 +569,7 @@ export function jkTick(rt, root, dt) {
       s.hpB.style.width = v + '%';
       s.hp.classList.toggle('low', v <= 50 && v > 25); s.hp.classList.toggle('crit', v <= 25);
       const remaining = u.alive && u.hp > 0 ? Math.max(1, Math.floor(v)) : 0;
-      s.hp.querySelector('span').textContent = `体力 ${remaining}`;
+      s.hp.querySelector('span').textContent = '体力';
       s.hp.setAttribute('aria-label', `体力 残り${remaining}パーセント`);
     });
     const sta = Math.max(0, Math.min(1, (p.sta ?? 100) / (p.maxSta || 100)));
@@ -577,7 +577,7 @@ export function jkTick(rt, root, dt) {
     put(s, 'sta', staP, (v) => {
       for (let k = 0; k < 4; k++) s.staB[k].style.width = Math.max(0, Math.min(1, v / 25 - k)) * 100 + '%';
       s.sta.classList.toggle('out', v <= 2);
-      s.sta.querySelector('span').textContent = `疲れ ${v}`;
+      s.sta.querySelector('span').textContent = '疲れ';
       s.sta.setAttribute('aria-label', `疲れの棒 残り${v}パーセント`);
     });
     // 戻っている間は棒が光る。弱っていて敵から離れている時、案内の字は出さない

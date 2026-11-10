@@ -516,8 +516,8 @@ export class Hud {
       this.hpRemaining.className = 'hp-remaining';
       hpEl.appendChild(this.hpRemaining);
     }
-    // 名前と数字を残し、色や棒だけに頼らず残量を伝える。
-    setText(this.hpRemaining, `体力 ${hpShown}`);
+    // 残量は棒で伝え、画面には数字を出さない。
+    setText(this.hpRemaining, '体力');
     setHidden(this.hpRemaining, false);
     setAttr(this.hpRemaining, 'aria-label', `命 あと${hpShown}％`);
     const hpTrack = hpEl.querySelector('i');
@@ -533,7 +533,7 @@ export class Hud {
       this.hpFill = hpTrack.lastElementChild;
       this.hpChip = hpPct / 100; this.hpChipWait = 0;
     }
-    // 数字と塗りは同じ残量。枠内の塗りは、親の配置や高さの割合に依存させない。
+    // 塗りは実際の残量。枠内の塗りは、親の配置や高さの割合に依存させない。
     setCssVar(hpTrack, '--hp-ratio', hpPct / 100);
     // 世の中の多くのゲームの見せ方：受けた傷の分は明るい色で少し残り、遅れて縮む（減った量が目で分かる）。
     {
