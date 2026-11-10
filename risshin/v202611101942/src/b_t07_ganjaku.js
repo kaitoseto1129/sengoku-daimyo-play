@@ -536,7 +536,9 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       const g = F.sally;
       g.aggro = 2; g.noRout = true; g.speed = (g.speed || 2.2) * 1.4;
       g.dmgMult = Math.min(g.dmgMult ?? 1, 0.7);   // 11/9 見回り：act が坂で芥田の手に背から囲まれ二度とも倒れた。打って出た手の打ち込みを少し軽く
-      F.sw = { route: [INSIDE, FRONT, MOUTH, F.meet], i: 0, aggro: 30 };   // 11/8 critic60 t07（目標の敵は必ず来る）：坂で受ける寄せ手と主人公へ三十 m から懸かる
+      // 後列も虎口の折れに沿わせる。一直線の持ち場では塀の裏へ入り、門の内で重なる。
+      g.roadColumn = true; g.followColumnRoad = true;
+      F.sw = { route: [INNER, INSIDE, FRONT, MOUTH, F.meet], i: 0, aggro: 30 };   // 坂で受ける寄せ手と主人公へ三十 m から懸かる
       this.walk(g, F.sw, rt.t);
       rt.marker('t07', F.meet, '大手の坂', { h: 3, red: true, group: F.sally });   // 行き先は地名と距離。芥田の名は頭上の名札一つだけにする。
       rt.say('蒲生郷成', '門が開いた！　打って出て来るぞ。坂で受け止めよ', 3.2);
@@ -593,10 +595,10 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   // 道筋に沿って列で進ませる（隊の道筋 order 'path'。狭い喰違の筋では列の幅を詰め、遅れを待つ。塀を突き抜けない）
   walk(g, w, t) {
     if (!g || g.routed) return;
-    g.order = 'path'; g.path = w.route.slice(w.i).map((q) => [q.x, q.z]); g.pathIdx = 0; g.dest = null; g.focus = null;
+    g.order = 'path'; g.path = (g.roadColumn ? w.route : w.route.slice(w.i)).map((q) => [q.x, q.z]); g.pathIdx = g.roadColumn ? w.i : 0; g.dest = null; g.focus = null;
     g.formation = 'column'; w.t0 = t; g.aggro = Math.min(g.aggro ?? 5, 5);   // 道筋の間は脇の櫓の上の射手に構わず進む
     const c = this.centerOf(g) || g.anchor;
-    w.lastX = c.x; w.lastZ = c.z; w.lastPathIdx = 0;
+    w.lastX = c.x; w.lastZ = c.z; w.lastPathIdx = g.pathIdx;
     g.onArrive = () => { w.done = true; this.to(g, g.anchor); g.formation = 'yari'; g.aggro = w.aggro; };   // 行軍を終え、出た先では斬りかかる
   },
   stepWalk(g, w, t) {
@@ -611,7 +613,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       }
       // 虎口で後列が詰まっても、その場を終点にしない。未通過の角を残し、
       // 一列で行軍をやり直す。出撃隊も寄せ手も門の向こうの目標へ進ませる。
-      w.route = g.path.slice(i).map(([x, z]) => ({ x, z })); w.i = 0;
+      // 道に沿う後列には通過済みの折れも必要。先頭の進みだけを戻し、道を切り詰めない。
+      w.route = (g.roadColumn ? g.path : g.path.slice(i)).map(([x, z]) => ({ x, z })); w.i = g.roadColumn ? i : 0;
       g.colW = 1;
       this.walk(g, w, t);
       return;

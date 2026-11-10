@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { useTerrain } from './asset_manifest.js';
 import { demSample } from './dem.js';
 import { enemyGroup, allyGroup, ringWall, gauss } from './bhelp.js';
-import { nobori, kagaribi, village, yagura, carryTorches } from './props.js';
+import { nobori, kagaribi, village, yagura, carryTorches, stumps } from './props.js';
 import { placeGroup, placePlayer } from './b_opening.js';
 import { distToPolyline } from './world.js';
 import { rippleWater } from './world_water.js';
@@ -427,6 +427,8 @@ const t02_shizugatake = {
   autoTargetCamera: true,
   steadyMeleeCamera: true,   // 斬り合いで敵を選び直しても、視点を勝手に回さない。
   compactIntro: true,
+  // 顔を覚えていない時も、黒い人影を出さず、撮れた本人の顔だけを一度出す。
+  waitForPortrait: true,
   // 11/6 九度目（critic60 五4）：共通の溜め（十五秒）で、始まってから十六秒も台詞が出ず霧の野を見るだけだった。煙と桑山の声が開戦の溜め
   prelude: false,
   introText: () => '柴田勝家と羽柴秀吉が、余呉湖のまわりの山に砦を築いて睨み合う。秀吉は美濃の大垣にいる。前の砦を守るのは中川清秀・高山右近・桑山重晴。賤ヶ岳の東の物見から、砦の並びを見届けよ。',
@@ -628,6 +630,18 @@ const t02_shizugatake = {
       else if (side !== 'hashiba') f.guard.visible = false;
     }
     for (const f of rt.flags.sakuForest || []) f.visible = side === 'sakuma';
+  },
+  // 山腹で一枚の柵を回したまま残すと、斜面の下側へ宙に突き出す。
+  // 倒れる動きの後は、各杭・丸太を地面の高さに合わせた破れ跡へ替える。
+  settleWalls(rt, walls) {
+    for (const s of walls || []) {
+      if (s.alive || !s.mesh || s.stumps) continue;
+      if (s.shizuFellAt == null) s.shizuFellAt = rt.t;
+      if (rt.t - s.shizuFellAt < 0.9) continue;
+      s.mesh.visible = false;
+      s.stumps = stumps(rt.world, s.seg, { rails: true });
+      rt.scene.add(s.stumps);
+    }
   },
   // 寄せ手の一組（槍・鉄砲）。出所から行き先へ登り、着けば近くを攻める
   wave(rt, name, from, to, list, o = {}) {
@@ -1009,6 +1023,8 @@ const t02_shizugatake = {
     F.returnTorches?.update();
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
+    this.settleWalls(rt, F.oiWall);
+    this.settleWalls(rt, F.fortWall);
     const st = rt.t - F.pt, pp = P.pos;
     // 退き切った兵は遠い所でだけ去らせる
     for (const g of F.groups) {

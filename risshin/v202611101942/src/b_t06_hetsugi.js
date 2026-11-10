@@ -228,7 +228,7 @@ const t06_hetsugi = {
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;
     return q;
   },
-  introText: () => '島津に囲まれた鶴賀城を救いに、戸次川を渡る。',
+  introText: () => '島津に囲まれた鶴賀城を救いに、戸次川を渡る。長宗我部元親を守り、西の岸へ生還せよ。',
   minutes: 15,
   expectMin: 15,
   sides: { a: { name: '豊臣勢（四国の衆）', mon: 'chosokabe' }, b: { name: '島津勢', mon: 'shimazu' } },

@@ -2291,9 +2291,12 @@ function sanGroundPassage(army, from, goal) {
   for (let i = 1; i <= n; i++) {
     const x = from.x + (goal.x - from.x) * i / n, z = from.z + (goal.z - from.z) * i / n;
     const h = groundAt(W, x, z, y);
+    // 石段は地面の傾きでなく、実際に踏める床で調べる。
+    // 主人公が通れる石段を道案内だけが拒むと、本丸の坂で同じ点へ戻り続ける。
+    const ramp = rampAt(x, z, y), onRamp = ramp != null && Math.abs(ramp - h) < 0.25;
     // 主人公が歩けない道外の急斜面を、敵への近道や道への復帰先に選ばない。
     // 高低差だけでは、切岸を横切る案内が通り、石段の下で追い続けてしまう。
-    if (!W.walkable(x, z, y) || !mitsukuriGroundAllowed(W, x, z, y) || Math.abs(h - y) > rise) return false;
+    if ((!W.walkable(x, z, y) && !onRamp) || !mitsukuriGroundAllowed(W, x, z, y) || Math.abs(h - y) > rise) return false;
     y = h;
   }
   return true;
@@ -2642,14 +2645,19 @@ const MITSUKURI_JIN = [
 // 視線の中央が通っていても、直前の塀や軒が画面の半分を覆うことがある。
 // 視点の四隅まで調べる。遠い塀には反応せず、計算用の点も使い回す。
 function mkCameraEdgeBlocked(W, pos, look, probe) {
-  const dx = look.x - pos.x, dz = look.z - pos.z;
-  const length = Math.hypot(dx, dz);
+  const dx = look.x - pos.x, dy = look.y - pos.y, dz = look.z - pos.z;
+  const length = Math.hypot(dx, dy, dz), horizontal = Math.hypot(dx, dz);
   if (length < .01) return false;
-  const x = dx / length, z = dz / length;
+  const x = dx / length, y = dy / length, z = dz / length;
+  const rightX = horizontal > .001 ? dz / horizontal : 1;
+  const rightZ = horizontal > .001 ? -dx / horizontal : 0;
+  // 見上げ・見下ろしでも、実際の画面の上下に沿って軒と塀を調べる。
+  const upX = -y * rightZ, upY = z * rightX - x * rightZ, upZ = y * rightX;
   for (let i = 0; i < 4; i++) {
     const side = i % 2 ? 1 : -1, up = i < 2 ? -.35 : .35;
-    probe.set(pos.x + x * .35 + z * .45 * side, pos.y + up,
-      pos.z + z * .35 - x * .45 * side);
+    probe.set(pos.x + x * .35 + rightX * .45 * side + upX * up,
+      pos.y + y * .35 + upY * up,
+      pos.z + z * .35 + rightZ * .45 * side + upZ * up);
     if (W.cameraBlockFraction(pos, probe) !== null) return true;
   }
   return false;

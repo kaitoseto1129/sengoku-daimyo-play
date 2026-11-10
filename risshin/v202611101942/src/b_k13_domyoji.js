@@ -519,6 +519,8 @@ const k13_domyoji = {
     // 濃い霧（後続が遅れた原因）：見通しは五十歩ほど。④の前に晴れる（update で fogFar・mistFar を戻す）
     fogFar: 20, mistFar: 40,
     groundHalf: 300,
+    // 忠輝の本陣（東178）と大坂への退路（西240）を歩ける範囲に収め、端で旗本の列が潰れないようにする。
+    moveLim: 260,
     mountainScale: 0.6,
     // 通し確認で白い丸丘に見えた山肌へ、既存の林床と土・下草の斑を使う。
     slopeForest: 0.65, patchyGround: true, stableSlopeGrain: true,

@@ -1199,6 +1199,28 @@ function inabaSallyPlayerReady(rt) {
   return u.alive && u.hp > 0 && !u.dying && !u.downed && !rt.retryOpen;
 }
 
+// 味方だけで先発を崩しても、本人の迎撃を済みにしない。
+// 誰も残らない時は城内の少人数が同じ道を下り、目標の相手を失わないようにする。
+function inabaSallyReserve(rt, groups) {
+  const F = rt.flags;
+  if (F.oteContactT != null || F.otePlayerFought || F.oteReservePending || !groups.every(gone)) return;
+  F.oteReservePending = true;
+  rt.say('足軽', '城兵の後続が坂を下りるぞ。鹿垣の内で迎えよ！', 3);
+  rt.after(5, () => {
+    F.oteReservePending = false;
+    if (rt.flags !== F || F.step !== 2 || rt.over || F.ending || !inabaSallyPlayerReady(rt)
+      || F.oteContactT != null || F.otePlayerFought) return;
+    if (![F.ote, F.ote2, F.oteReserve].every(gone)) return;
+    const at = SALLY_WAY[1];
+    // 先発が全員退いた時だけ四人。同時に戦う兵を積み増さない。
+    const g = F.oteReserve = enemyGroup(rt, { fixed: true, faction: 'saito', name: '大手の後続',
+      anchor: { x: at[0], z: at[1] }, facing: 0, order: 'hold', aggro: 0, width: 3,
+      morale: 72, fleeDir: { x: 0, z: -1 }, historicalOrders: true }, [{ type: 'ashigaru', n: 4 }]);
+    march(g, SALLY_WAY.slice(1), 'attack', 3.4);
+    rt.marker('oteReserve', () => nearGuard(rt, g, true), '大手の後続', { red: true, group: g });
+  });
+}
+
 // 敵の出発を待つ間も、持ち場と待つ長さを同じ札で伝える。
 function inabaSallyWait(rt, showSeconds = false) {
   const F = rt.flags;
@@ -4601,8 +4623,8 @@ const inabayama = {
     const p = rt.player.u.pos;
     // 坂を下りて鹿垣の端へ回る城兵も、近づく先から▼で指す（11/3 kaito Z：迎える相手が分からなかった）
     let best = null, distance = 40;
-    for (let i = 0; i < 2; i++) {
-      const group = i ? F.ote2 : F.ote;
+    for (let i = 0; i < 3; i++) {
+      const group = i === 2 ? F.oteReserve : i ? F.ote2 : F.ote;
       if (!group || gone(group) || group === F.ote2 && !group.sent) continue;
       for (const u of group.units) {
         if (!inabaFoe(u) || u.offscreen || !sightScreenUnit(rt, u)) continue;
@@ -5833,7 +5855,7 @@ const inabayama = {
   // （信長公記：町を焼いた翌日、四方に鹿垣を結い廻して取り籠めた。鹿垣は麓に結う。山の中腹には置かない）
   sally(rt) {
     const F = rt.flags;
-    if (F.step >= 2) return;
+    if (F.step >= 2 || rt.over || F.ending || !inabaSallyPlayerReady(rt)) return;
     F.step = 2; F.stepT = rt.t;
     // 鹿垣では弾を込めたまま待ち、鉄砲頭の「放て」で初めて撃つ。
     F.nGun.holdFire = true;
@@ -6098,7 +6120,7 @@ const inabayama = {
     rt.unmark('holdFlag');
     rt.setPhase('karamete');
     rt.unmark('ote'); rt.unmark('ote2'); rt.unmark('kino');
-    for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
+    for (const q of [F.ote, F.ote2, F.oteReserve]) if (q && !gone(q)) { q.noRout = false; q.morale = Math.min(q.morale, 15); }
     rt.award((t) => t.side.push('大手の打って出を退けた'), '大手の斎藤勢を退けた');
     rt.say(officer(rt), '大手は仲間に任せる。わしらは山の裏へ回るぞ', 3.5);
     const K = F.kino;
@@ -6171,12 +6193,12 @@ const inabayama = {
   // 道の中ほどの守りが坂の上から突き下ろし、木戸では馬出しの兵と木戸の守りが待つ（城の中の多さは残す）。
   tsukeiri(rt) {
     const F = rt.flags;
-    if (F.step >= 3) return;
+    if (F.step >= 3 || rt.over || F.ending || !inabaSallyPlayerReady(rt)) return;
     F.step = 3; F.stepT = rt.t; F.tsuke = true; F.nanaNext = 1; INABA_TSUKE.on = true; INABA_TSUKE.gate = false;
-    rt.unmark('holdFlag'); rt.unmark('ote'); rt.unmark('ote2'); rt.unmark('kino');
+    rt.unmark('holdFlag'); rt.unmark('ote'); rt.unmark('ote2'); rt.unmark('oteReserve'); rt.unmark('kino');
     rt.setPhase('karamete');
     // 崩れた城兵は山肌へ散らず、七曲りの道を木戸へ逃げ上る（付け入りで背に付く相手。散って斜面に残り、登る途中で何度も斬り合いになった・11/4）
-    for (const q of [F.ote, F.ote2]) if (q && !gone(q)) { q.noFrontline = true; q.noRout = true; q.morale = 40; march(q, [...NANA, [OTE_IN.x, OTE_IN.z]], 'hold'); q.speed = 3.8; q.aggro = 0; q.holdFire = true; q.followColumnRoad = true; }
+    for (const q of [F.ote, F.ote2, F.oteReserve]) if (q && !gone(q)) { q.noFrontline = true; q.noRout = true; q.morale = 40; march(q, [...NANA, [OTE_IN.x, OTE_IN.z]], 'hold'); q.speed = 3.8; q.aggro = 0; q.holdFire = true; q.followColumnRoad = true; }
     rt.award((t) => t.side.push('大手の打って出を退けた'), '大手の斎藤勢を退けた');
     // 追う組の前の鹿垣を引き倒して口を広げる（柵の内に並んだ仲間が、切れ目を探して詰まらないように）
     for (const st of rt.army.structs) if (st.alive && st.name === '鹿垣' && st.seg) {
@@ -6454,7 +6476,7 @@ const inabayama = {
         inabaAlarm(rt, [F.ambush], 1.2, () => {
           F.ambushShoutT = rt.t;
           rt.say('足軽', '岩陰に伏兵じゃ！　列で退けよ！', 3.5);
-          if (!F.guardOn) rt.objProgress('main', '岩陰の叫びは敵の伏兵。太鼓と法螺は控え、列の仲間と退けよ');
+          if (!F.guardOn) rt.objProgress('main', '岩陰の伏兵を列の仲間と退けよ');
         });
         rt.marker('ambush', centerOf(F.ambush), '岩陰の伏兵', { red: true, group: F.ambush });
       });
@@ -6506,7 +6528,7 @@ const inabayama = {
   // 搦手の守りとぶつかる
   guardFight(rt) {
     const F = rt.flags;
-    if (F.guardOn) return;
+    if (F.guardOn || rt.over || F.ending || !inabaSallyPlayerReady(rt)) return;
     F.guardOn = true; F.guardT = rt.t;
     rt.unmark('kido');
     // 先頭だけが着いた時は、後列の任務を木戸への直進に替えない。
@@ -6529,7 +6551,8 @@ const inabayama = {
   // ④ 本丸の脇に火を放つ
   signal(rt) {
     const F = rt.flags;
-    if (F.step >= 4) return;
+    // 段を渡す呼び出しでも、倒れ込み中や再開の札の裏で木戸を達成しない。
+    if (F.step >= 4 || rt.over || F.ending || !inabaSallyPlayerReady(rt)) return;
     // 11/6 fix61：木戸の守りを破ったら、寄せ手が木戸の扉を打ち破る。開いた扉の端に列が当たり、藤吉郎の手が喰違いの間を行き来して上がれなかった
     const kit = rt.siegeKit?.kits?.[0], kd = kit?.gate?.struct;
     if (F.tsuke && kd && kd.alive) { kd.alive = false; kd.hp = 0; kd.hitFrom = { x: OTE.x + 6, z: OTE.z + 4 }; rt.army.structFall(kd); }
@@ -6790,7 +6813,7 @@ const inabayama = {
     if (signalWait > 0) {
       rt.objProgress('signalHold', '先の合図と声が収まるまで、仲間と持ち場を守れ');
       rt.banner('合図の火が上がる', '本陣への知らせ。仲間と持ち場を守れ');
-      rt.say('組頭', '火は本陣への知らせじゃ。先の合図と声が収まるまで、仲間と持ち場を守れ！', 4);
+      rt.say('組頭', '火が上がったぞ！　仲間と持ち場を守れ！', 4);
     }
     const gather = () => {
       // 終幕は finish が勝敗を確定した後も続く。
@@ -6968,7 +6991,8 @@ const inabayama = {
           rt.say(officer(rt), 'ここで仲間と並べ。敵は坂へ追うな', 3);
         }
       }
-      const qs = [F.ote, F.ote2].filter(Boolean);
+      const qs = [F.ote, F.ote2, F.oteReserve].filter(Boolean);
+      if (F.ote2.sent && inabaSallyPlayerReady(rt)) inabaSallyReserve(rt, qs);
       // 先の勢が崩れた時は、札の待ち時間も実際の出発に合わせる。
       if (gone(F.ote) && !F.ote2.sent && !F.ote2Q) {
         F.ote2Q = true; F.ote2Due = Math.min(F.ote2Due, rt.t + 5);
@@ -7062,7 +7086,8 @@ const inabayama = {
       // 城兵が目前へ来る前に呼ぶと、迎え撃たずに②を果たしてしまう。
       if (F.sannin && F.ote2.sent && inabaSallyPlayerReady(rt)
         && (inabaInsideHoldLine(rt) || rt.G.lord || nearHold)
-        && (qs.every(gone) || F.oteContactT != null && sectionTaken(rt, qs, { retreat: inabaRetreat }))) {
+        && (F.oteContactT != null || F.otePlayerFought)
+        && (qs.every(gone) || sectionTaken(rt, qs, { retreat: inabaRetreat }))) {
         // 坂の城兵が崩れ、麓の左右の城兵も山へ逃げ上る
         if (!F.karaWaiting) {
           F.karaWaiting = true;
@@ -7364,6 +7389,9 @@ const inabayama = {
 
   onKill(rt, v, k) {
     const F = rt.flags;
+    // 弓・鉄砲で先に退けた本人も迎撃に数える。近接するまで待たせない。
+    if (F.step === 2 && k === rt.player.u && v.team !== k.team
+      && (v.group === F.ote || v.group === F.ote2 || v.group === F.oteReserve)) F.otePlayerFought = true;
     if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
   },
   onRout(rt, g) {

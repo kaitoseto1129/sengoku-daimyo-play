@@ -4022,9 +4022,12 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
     // 毛利の先手は③の乗り込みで登場する。①の砲撃・②の消火より先に甲板へ置かない。
     // 持ち場を艫に固め、屋形の前（大将の所）へは攻め上らない。人数は推定。本物の兵の総数は二百人以内のまま。
     F.openingBoardSpawn = () => {
-      const posts = [{ x: -4.9, z: 9.0 }, { x: -3.9, z: 9.6 }, { x: -4.8, z: 10.4 }, { x: -3.6, z: 11.0 }, { x: -4.9, z: 11.6 },
-        { x: -3.8, z: 12.2 }, { x: -5.0, z: 12.7 }, { x: -2.9, z: 12.8 }, { x: -4.4, z: 9.8 }, { x: -3.0, z: 11.8 },
-        { x: -4.3, z: 12.6 }, { x: -3.4, z: 12.9 }, { x: -5.0, z: 10.9 }, { x: -4.2, z: 11.4 }];
+      // 船尾の限界より奥の持ち場は、経路補正で同じ一点へ潰れる。
+      // 西の通路に間隔を取り、大筒の横は内側の一列だけにする。
+      const posts = [{ x: -4.5, z: 9.3 }, { x: -3.4, z: 9.3 }, { x: -4.5, z: 10.5 }, { x: -3.4, z: 10.5 },
+        { x: -4.5, z: 11.7 }, { x: -3.4, z: 11.7 }, { x: -3.4, z: 7.9 },
+        { x: -4.5, z: 6.6 }, { x: -3.4, z: 6.6 }, { x: -4.5, z: 5.3 }, { x: -3.4, z: 5.3 },
+        { x: -4.5, z: 4.0 }, { x: -3.4, z: 4.0 }, { x: -2.3, z: 4.0 }];
       const g = enemyGroup(rt, { name: '舷を越えた毛利勢', faction: 'mori', fixed: true, fullStrength: true, noGuard: true,
         anchor: { x: -4, z: 11 }, order: 'hold', facing: Math.PI, width: 2, spacing: 0.8, seekRange: 4, aggro: 4, morale: 80 },
         dress([{ type: 'samurai', n: 1, o: { hat: 'kabuto_m' } }, { type: 'ashigaru', n: 13, o: { spear: 'su' } }], MORI));

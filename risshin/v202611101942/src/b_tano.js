@@ -1198,8 +1198,8 @@ const tano = {
   // 11/4 jin（AW3・BK4・BH6）：行き先は段ごとの固定の所に真上の▼一つ。敵や曲がり角へ動かさない。
   missionPin(rt) {
     const F = rt.flags, C = F.dp?.cur, p = rt.player.u.pos;
-    // ⑤は最期を見届ける所まで。終幕に入っただけでは平屋敷の行き先を消さない。
-    if (F.ending && (!F.lastView || F.principalsDead) || rt.over || rt.hud?.introWaiting || !rt.player.u.alive) return null;
+    // ⑤は最期と語りを見届ける所まで。三人が倒れただけでは平屋敷の行き先を消さない。
+    if (F.ending && !F.lastView || rt.over || rt.hud?.introWaiting || !rt.player.u.alive) return null;
     const q = F.tanoPin || (F.tanoPin = { x: 0, z: 0 });
     // 鉄砲が鳴るまでは射手の後ろの既存の待ち場へ。寄せ口を指して射線をふさがせない。
     const waiting = !!C?.waiting;
@@ -1910,8 +1910,8 @@ const tano = {
     rt.banner('谷の奥に、武田の最後の旗', '勝頼父子は田野の屋敷にいる');
     rt.say('滝川の組頭', '殿（滝川一益）の下知じゃ。前の旗へ続け。川へ下りず、谷道の敵を押せ', 4);
     // 紙：勝頼は新府城を焼いて逃れ、頼った小山田信茂に拒まれ、天目山を目指して田野へ。小山田は織田へ降り、後ろに控える。
-    rt.after(2, () => { if (!F.ending && !rt.over) rt.say('使番', '勝頼は新府の城に火をかけて逃げた。頼った小山田にも笹子で拒まれたそうじゃ', 4.5); });
-    rt.after(8, () => { if (!F.ending && !rt.over) rt.say('使番', '勝頼は天目山を目指して田野へ。信忠様の下知じゃ、逃すな', 4); });
+    rt.after(2, () => { if (!F.briefSkipped && !F.ending && !rt.over) rt.say('使番', '勝頼は新府の城に火をかけて逃げた。頼った小山田にも笹子で拒まれたそうじゃ', 4.5); });
+    rt.after(8, () => { if (!F.briefSkipped && !F.ending && !rt.over) rt.say('使番', '勝頼は天目山を目指して田野へ。信忠様の下知じゃ、逃すな', 4); });
     evPerson(rt, 0, '小山田信茂', { x: -96, z: 6 }, Math.PI / 2, { calm: true, guard: 3, g: { faction: 'takeda' } });
     rt.after(5, () => this.valley(rt));
   },
@@ -2323,6 +2323,7 @@ tano.date = () => '天正十年三月十一日　春・午前';
 tano.canSkip = (rt) => rt.phase === 'brief' && rt.t > 3 ? '下知まで待つ' : '';
 tano.skip = (rt) => {
   if (rt.phase !== 'brief' || rt.over || rt.flags.ending) return;
+  rt.flags.briefSkipped = true;
   tano.valley(rt);
 };
 // 人数には史料の異同がある。父子を含む四十一人という配分はこの戦の復元。

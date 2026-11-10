@@ -455,7 +455,8 @@ const k16_secret = {
     // 呼びかけに応じた大名の備（docs/if_final_genna.md 味方陣営）。隊旗はその家の紋（faction の既定の織田の木瓜の大幟を立てない。一6）
     const ally = (name, at, list, o = {}) => {
       const flag = o.flag || OWN.flag;
-      const g = allyGroup(rt, { faction: 'oda', flag, name, anchor: at, facing: S, width: 12, aggro: 12, seekRange: 18, speed: 3.8, order: 'hold', fixed: true, noRout: true, fullStrength: true, formation: 'yari', ...o }, dress(list, { ...OWN, flag }));
+      // 味方も段ごとの下知を保つ。共通の隊判断が前の戦線へ行き先を戻し、後詰が止まるのを防ぐ。
+      const g = allyGroup(rt, { faction: 'oda', flag, name, anchor: at, facing: S, width: 12, aggro: 12, seekRange: 18, speed: 3.8, order: 'hold', fixed: true, noAI: true, noRout: true, fullStrength: true, formation: 'yari', ...o }, dress(list, { ...OWN, flag }));
       g.defMult = 1.6; g.dmgMult = 0.85;
       g.mon = flag;
       return g;

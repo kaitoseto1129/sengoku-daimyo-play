@@ -478,7 +478,8 @@ const suwahara = {
       for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.38;
     }
     // 本曲輪：城将・今福浄閑と城兵（門が破れるまでは奥に控え、塀越しの矢の届かない所にいる）
-    F.hon = enemyGroup(rt, { faction: 'takeda', name: '本曲輪の城兵', anchor: { x: 2, z: -70 }, facing: 0, width: 9, aggro: 3, fleeDir: { x: 0.3, z: -1 } },
+    // 門が閉じている間は共通の出撃判断に任せず、塀際への追撃・密集を防ぐ。
+    F.hon = enemyGroup(rt, { faction: 'takeda', name: '本曲輪の城兵', anchor: { x: 2, z: -70 }, facing: 0, width: 9, aggro: 3, stay: true, noAI: true, interiorHold: true, fleeDir: { x: 0.3, z: -1 } },
       [{ type: 'busho', n: 1, o: { name: '今福浄閑' } }, { type: 'samurai', n: 5 }, { type: 'ashigaru', n: 22 }]);
     F.jokan = F.hon.units[0];
     // 名乗りと討ち取りは門が破れてから（塀越しに討たれないように）
@@ -633,8 +634,10 @@ const suwahara = {
       g.assault = (u) => route(rt, u.pos.x, u.pos.z, target());
       for (const u of g.units) u.aiT = 0;
     }
-    F.hon.aggro = 18;
+    F.hon.stay = false; F.hon.noAI = false; F.hon.interiorHold = false;
+    F.hon.order = 'attack'; F.hon.seekRange = 30; F.hon.aggro = 18;
     F.hon.anchor = { x: 0, z: -52 };
+    for (const u of F.hon.units) u.aiT = 0;
     F.jokan.announced = false; F.jokan.invuln = false;
     rt.marker('jokan', unitPos(F.jokan), '城将・今福浄閑', { red: true });
   },

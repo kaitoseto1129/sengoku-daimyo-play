@@ -10,7 +10,7 @@
 import { wallLine } from './bhelp.js';
 import { setCastleMask } from './castle_mask.js';
 import { denseCastle } from './castle_bldg.js';
-import { castleBoardFence, palisade, dobei, ishigaki, sakamogi, dorui, makeSimpleBatch, finalizeSimpleBatch, makeKitBatch, finalizeKitBatch, kuruwaBldg, nobori, SOLIDS } from './props.js';
+import { castleBoardFence, palisade, dobei, ishigaki, sakamogi, dorui, makeSimpleBatch, finalizeSimpleBatch, makeKitBatch, finalizeKitBatch, kuruwaBldg, nobori, SOLIDS, solidSeg } from './props.js';
 import { addDeck, groundAt } from './floors.js';
 import { makePerchGuards } from './perch.js';
 import { placeFromSpots, patchGunCover } from './taketaba.js';
@@ -215,6 +215,17 @@ function buildKuruwaWall(rt, k, batch, plan, share, lvl = null) {
     let pts = [...poly.slice(start), ...poly.slice(0, start), poly[start]];
     // 口のある辺は、口の前後 6m を空ける（張り出した石垣が門の前を塞がないように。口の所は切岸の坂が上り口）
     if (gapPts.length) pts = cutRing(poly, gapPts[0], 6) || pts;
+    // plan.stoneAllGaps：口が二つ以上ある曲輪は、全部の口で石垣と塀を切る（前は一つ目の口だけ切り、二つ目の口の上に塀が続いて、兵がその塀を抜けて通った。伏見城の関所 2）
+    const pieces = plan.stoneAllGaps && gapPts.length > 1 ? cutRingAll(poly, gapPts, 6) : null;
+    if (pieces && pieces.length) return pieces.flatMap((q) => stoneRing(rt, k, plan, poly, q, batch));
+    return stoneRing(rt, k, plan, poly, pts, batch);
+  }
+  return otherWall(rt, k, batch, plan, share, lvl, poly, gapPts, earth, board, mesh);
+}
+
+// 石垣の一続き（開いた並び pts）と、その上の土塀。plan.stoneSolid なら塀の線に当たりを置く（石垣の上の塀を抜けて歩けた。伏見城の関所 2）
+function stoneRing(rt, k, plan, poly, pts, batch) {
+  {
     // 石の面を外へ向ける：ishigaki() は進む向きの左手を外とするので、多角形の巻きの向きに合わせて out を選ぶ
     // （前は高遠の本丸のような巻きで石の面が内を向き、外からは石の背の平たい段しか見えなかった）
     const c = polyCenter(poly);
@@ -236,9 +247,13 @@ function buildKuruwaWall(rt, k, batch, plan, share, lvl = null) {
       // 石垣の天端の外の縁から 0.7m 内に土塀を建てる（塀の足もとは天端の石敷きの上）
       const ix = (bz - az) / len * out * 0.7, iz = -(bx - ax) / len * out * 0.7;
       dobei(rt.world, [ax + ix, az + iz, bx + ix, bz + iz], { hikae: -out, batch, baseY: lvlTop - 0.05, shikkui: true });
+      if (plan.stoneSolid) Object.assign(solidSeg(ax + ix, az + iz, bx + ix, bz + iz, 0.35), { yTop: lvlTop + 2.2, playerOnly: plan.stoneSolid === 'player' });
     }
     return [m];
   }
+}
+
+function otherWall(rt, k, batch, plan, share, lvl, poly, gapPts, earth, board, mesh) {
   // segLen: 999 で「多角形の一辺＝一つの壁」に（ringWall と同じやり方）。口は門の幅だけを切った短い辺にする
   const sp = splitGaps(plan, k, poly, gapPts);
   if (!k.stone && !plan.terrainBanks) {
@@ -508,6 +523,36 @@ function autoSakamogi(rt, plan, k, batch) {
 
 // 閉じた多角形の輪から、点 g の半径 r の内を切り取った一本の開いた点の並びを返す（g の直後から回って直前まで）。
 // 輪が円に触れなければ null
+// cutRing の全部の口版：輪を口ごとに切り、残る並び（開いた折れ線）を全部返す。口の円の外の部分だけを残す
+function cutRingAll(poly, gaps, r) {
+  const n = poly.length, cum = [0];
+  for (let i = 0; i < n; i++) { const a = poly[i], b = poly[(i + 1) % n]; cum.push(cum[i] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+  const tot = cum[n], cuts = [];
+  for (const g of gaps) for (let i = 0; i < n; i++) {
+    const a = poly[i], b = poly[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], L2 = dx * dx + dz * dz || 1e-9, L = Math.sqrt(L2);
+    const fx = a[0] - g[0], fz = a[1] - g[1], B = 2 * (fx * dx + fz * dz), Cc = fx * fx + fz * fz - r * r, D = B * B - 4 * L2 * Cc;
+    if (D <= 0) continue;
+    const sq = Math.sqrt(D), t0 = Math.max(0, (-B - sq) / (2 * L2)), t1 = Math.min(1, (-B + sq) / (2 * L2));
+    if (t1 > 0 && t0 < 1 && t1 > t0) cuts.push([cum[i] + t0 * L, cum[i] + t1 * L]);
+  }
+  if (!cuts.length) return null;
+  cuts.sort((p, q) => p[0] - q[0]);
+  const m = [];
+  for (const c of cuts) { const l = m[m.length - 1]; if (l && c[0] <= l[1] + 1e-6) l[1] = Math.max(l[1], c[1]); else m.push([...c]); }
+  if (m.length > 1 && m[m.length - 1][1] >= tot - 1e-6 && m[0][0] <= 1e-6) { m[0][0] = m[m.length - 1][0] - tot; m.pop(); }
+  const at = (s) => { s = ((s % tot) + tot) % tot; let i = 0; while (i < n - 1 && cum[i + 1] < s) i++; const a = poly[i], b = poly[(i + 1) % n], t = (s - cum[i]) / ((cum[i + 1] - cum[i]) || 1); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+  const out = [];
+  for (let k = 0; k < m.length; k++) {
+    const s0 = m[k][1], s1 = k + 1 < m.length ? m[k + 1][0] : m[0][0] + tot;
+    if (s1 - s0 < 0.5) continue;
+    const pts = [at(s0)];
+    for (let j = 0; j <= 2 * n; j++) { const s = cum[j % n] + (j >= n ? tot : 0); if (s > s0 + 1e-6 && s < s1 - 1e-6) pts.push(poly[j % n]); }
+    pts.push(at(s1));
+    out.push(pts);
+  }
+  return out;
+}
+
 function cutRing(poly, g, r) {
   const n = poly.length, out = [];
   let first = -1;
