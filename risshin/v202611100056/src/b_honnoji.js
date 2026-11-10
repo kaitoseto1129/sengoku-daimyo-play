@@ -5491,8 +5491,11 @@ Object.assign(honnoji, {
     F.ran = F.kosho.units[0]; F.bo = F.kosho.units[1]; F.riki = F.kosho.units[2];
     // 供のわずかな者（槍と弓。自分の組として付いて来る）
     rt.makeSquad({ x: L_START.x - 2, z: L_START.z + 4 }, Math.PI / 2, [{ kind: 'spear', n: 12 }, { kind: 'bow', n: 8 }]);
-    F.ehon = camp(rt, { x: -195, z: 140, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', general: { name: '明智光秀', haori: 0 }, guard: 15, reserve: 0 });
+    F.ehon = camp(rt, { x: -195, z: 140, facing: Math.PI * 0.75, team: 1, faction: 'akechi', mon: 'akechi', general: { name: '明智光秀', haori: 0 }, guard: 15, reserve: 0, runTo: { x: -215, z: 150 } });
     if (F.ehon?.general?.mounted) rt.army.setMounted(F.ehon.general, false);
+    // 信長で遊ぶ時も、光秀と旗本は寺へ斬り込まず後方の本陣に留まる。
+    if (F.ehon.general) F.ehon.general._crouch = true;
+    for (const g of [F.ehon.general?.group, F.ehon.guard]) if (g) { g.noAI = true; g.order = 'hold'; g.aggro = 3; g.seekRange = 4; g.noPursue = true; }
     applyLook(rt, HONNO_DAWN); honnoPreDawn(rt);
     W.timeKey = 'morning'; // 明け方の薄明を保ち、共通の夕暮れ・夜の遠景制限に入れない。
     // 寝入っていたところを急襲された信長：具足を着ける間が無い。小袖（肌着）のまま、兜も羽織も無しで戦い出す
