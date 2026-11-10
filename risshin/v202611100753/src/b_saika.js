@@ -1972,7 +1972,7 @@ const JIN = [
 for (const plan of JIN) plan.numbers = 'この川岸の持ち場ごとの目安。史料の総兵数ではない';
 // 東岸に寄せている残敵だけを案内する。西岸の射手や待機中の控えは追わせない。
 const saikaFoe = (u) => !!u?.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut &&
-  !u.noTarget && !u.isStruct && !u.civ && !u.downed && !u.rearWound && !u.group?.routed;
+  !u.noTarget && !u.isStruct && !u.civ && !u.downed && !u.rearWound && !u.group?.routed && !u.group?.retreatOnly;
 function saikaNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
   if (F.ending || F.step !== 5 || F.paceTsutsumi) return null;
@@ -4284,6 +4284,12 @@ Object.defineProperty(saika, 'botDefendsFort', { configurable: true, get() {
   const rt = saikaLive, u = rt?.player?.u;
   if (!rt || rt.over || !u || rt.def?.botBrain !== saika.botBrain) return false;
   const F = rt.flags;
+  // 杭抜きの小旗を離れた時は、共通の物陰探しより先に持ち場へ戻す。
+  // 戻る判断は戦の頭にあるが、避け足に上書きされると作業範囲へ帰れなかった。
+  if (F.step === 1 && u.hp > u.maxHp * 0.3) {
+    const work = F.stakes.find((a) => !a.pulled);
+    if (work && Math.hypot(u.pos.x - work.workAt.x, u.pos.z - work.workAt.z) >= 8) return true;
+  }
   // 11/6 fix61：③の退きで、鉄砲の避け足（cover）が高岸の裾へ寄り続け、口へ戻れず時切れになった（6回に2回）。
   //   東岸の旗へ戻るまで、命が三割を超えれば戦の頭（構えたまま口へ歩く）に任せる（bot だけ）。
   if (F.step === 3 && u.hp > u.maxHp * 0.3) return true;
