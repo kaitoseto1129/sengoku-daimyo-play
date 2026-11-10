@@ -333,7 +333,12 @@ const k14_yao_wakae = {
     const L = [['使番', '朝靄の向こう、若江にも八尾にも大坂方の旗！', 0.5], ['井伊直孝', '若江の堤に木村長門守（重成）。八尾には長宗我部盛親', 2.9],
       ['使番', '八尾の藤堂殿、長宗我部の伏兵に押されておりまする', 5.5], ['井伊直孝', 'そなたは手勢と騎馬を連れて南へ駆け、長宗我部の横を突け', 8.1],
       [me, '承知。若江は', 10.4], ['井伊直孝', '若江はわしが受ける。呼んだら、すぐ戻れ', 12.3]];
-    for (const [who, s, t] of L) rt.after(t, () => rt.say(who, s, 2.5));
+    // 次の声と開戦の下知で、まだ読んでいる声を切らない。
+    for (let i = 0; i < L.length; i++) {
+      const [who, s, t] = L[i];
+      const duration = Math.min(2.5, (L[i + 1]?.[2] ?? 14.6) - t);
+      rt.after(t, () => rt.say(who, s, duration));
+    }
     rt.after(14.6, () => this.begin(rt));
     jin14.install(rt, this);
   },

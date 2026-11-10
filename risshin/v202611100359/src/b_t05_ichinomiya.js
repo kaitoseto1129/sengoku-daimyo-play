@@ -499,12 +499,13 @@ function destOf(rt) {
   // ⑤押し戻しの段は、山道の今の持ち場（下がる・また上る）
   if (k === 4) { const g = F.dp?.cur?.goal || NG.MID; return { x: g.x, z: g.z, label: '搦手の山道' }; }
   const u = rt.player.u.pos;
-  if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸' };
+  if (inOgura(u.x, u.z)) return { ...OGURA_IN, label: '小倉丸', hideDistance: 2 };
   // 守兵を崩した後は、門の外で止まらず入城する場所を示す。
-  if (F.dp?.cur?.inSaid && Math.abs(u.x - HON_GATE.x) <= 4) return { ...OGURA_IN, label: '小倉丸', r: 2 };
+  if (F.dp?.cur?.inSaid && Math.abs(u.x - HON_GATE.x) <= 4) return { ...OGURA_IN, label: '小倉丸', r: 2, hideDistance: 2 };
   // 門の正面（北の坂）から入る。脇から寄ると塀の外の細い段へ入り、狭間の下で囲まれた（11/6 描いた通し）。脇にいる間は▼を門の正面の坂に立てる
-  if (Math.abs(u.x - HON_GATE.x) > 4 && u.z > HON_GATE.z - 14) return { x: HON_GATE.x, z: HON_GATE.z - 9, label: '搦手の門', r: 3 };
-  return { ...HON_GATE, label: '搦手の門', r: 2 };
+  if (Math.abs(u.x - HON_GATE.x) > 4 && u.z > HON_GATE.z - 14) return { x: HON_GATE.x, z: HON_GATE.z - 9, label: '搦手の門', r: 3, hideDistance: 3 };
+  // 共通の六mで消すと、門をくぐる前に案内が途切れる。敷居まで▼を残す。
+  return { ...HON_GATE, label: '搦手の門', r: 2, hideDistance: 2 };
 }
 
 // 湧き水を守る段（step 3）：

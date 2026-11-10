@@ -62,8 +62,10 @@ export function step(H) {
       // 時間だけで全軍を退かせない。三の手まで押し返してから退く下知を出す。
       if (!C.back && C.foe3 && all.reduce((n, g) => n + live(g), 0) <= n0 * 0.35) {
         C.back = el;
-        for (const g of all) { g.noRout = true; g.order = 'path'; g.path = [[H.KIDO_F.x, H.KIDO_F.z], [H.SANNO_IN.x, H.SANNO_IN.z]]; g.pathIdx = 0; g.speed = 4; g.aggro = 0; g.focus = null;
-          for (const u of g.units) if (u.alive) { u.target = null; u.fleeing = true; } }
+        for (const g of all) { g.noRout = true; g.order = 'path'; g.path = [[H.KIDO_F.x, H.KIDO_F.z], [H.KIDO_F.x - 12, H.KIDO_F.z], [100, H.SANNO_IN.z], [H.SANNO_IN.x, H.SANNO_IN.z]]; g.pathIdx = 0; g.speed = 4; g.aggro = 0; g.focus = null;
+          // 背を向けた兵は隊の path ではなく fleePath を読む。木戸と西の口を通って自分の城へ退かせる。
+          g.fleePath = g.path;
+          for (const u of g.units) if (u.alive) { u.target = null; u.atk = null; u.swing = null; u.fleePathIdx = 0; u.fleeing = true; } }
         rt.say('北条の侍', '引け！　城へ引け！', 2.6);
         rt.after(2, () => rt.say('使番', '深追いするな！　殿下の下知じゃ。城は攻めぬ。岸で止まれ！', 3.6));
         rt.after(6.2, () => rt.say(nm(rt), '……追えば城の口まで行けるのに', 3));

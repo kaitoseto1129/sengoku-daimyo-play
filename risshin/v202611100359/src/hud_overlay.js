@@ -875,7 +875,7 @@ export class HudOverlay {
       const blocked = (this.rectsAll || []).some((r) => s.x > r.left - 20 && s.x < r.right + 20 && s.y > r.top - 16 && s.y < r.bottom + 4);
       if (blocked && !named && !selected) continue;
       // 盾と本人の上には敵の印や名を重ねない。敵の人数や動きには触れない。
-      if (!selected && guardFrame && s.x > guardFrame.left - 38 && s.x < guardFrame.right + 38 &&
+      if (!selected && u !== protectedAlly && guardFrame && s.x > guardFrame.left - 38 && s.x < guardFrame.right + 38 &&
           s.y > guardFrame.top - 100 && s.y < guardFrame.bottom + 16) continue;
       // 相手の形は札の枚数や頭上の空きに左右されず示す。言葉は任務の札一枚へまとめる。
       if (teamSign && (selected || !blocked && s.x >= 20 && s.x <= W - 20 && s.y >= 44 && s.y <= H - 24 &&

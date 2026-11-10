@@ -479,7 +479,8 @@ const t09_yamanaka = {
     const mz = (SHOJI.z0 + SHOJI.z1) / 2;
     F.pit = enemyGroup(rt, { faction: 'hojo', name: '堀の底の槍', anchor: { x: CROSS_X + 9, z: mz + 4 }, facing: 0, order: 'hold', aggro: 7, width: 10, morale: 80, ambush: true, fleeDir: { x: 0, z: -1 }, dmgMult: 0.35 },
       dress([{ type: 'ashigaru', n: 8 + more(rt, 0.3) }], HOJO));
-    F.rim = enemyGroup(rt, { faction: 'hojo', name: '堀の縁の鉄砲', anchor: { x: CROSS_X + 4, z: SHOJI.z0 - 6 }, facing: 0, order: 'hold', aggro: 10, width: 16, morale: 85, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
+    // 対岸を守る下知を共通の打って出る処理で変えず、鉄砲と柵の射撃を残す。
+    F.rim = enemyGroup(rt, { faction: 'hojo', name: '堀の縁の鉄砲', fixed: true, historicalOrders: true, anchor: { x: CROSS_X + 4, z: SHOJI.z0 - 6 }, facing: 0, order: 'hold', aggro: 10, width: 16, morale: 85, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.55 },
       dress([{ type: 'gun', n: 10 }, { type: 'ashigaru', n: 8 }], HOJO));
     for (const u of F.rim.units) if (u.type === 'gun') u.dmg *= 0.45;
     F.cross = { x: CROSS_X, z: SHOJI.z0 - 5 };
@@ -606,7 +607,8 @@ const t09_yamanaka = {
     F.hon = enemyGroup(rt, { faction: 'hojo', name: '松田康長の旗本', anchor: { x: H.x, z: H.z + 4 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 12, morale: 100, noRout: true, formation: 'yari', fleeDir: { x: 0, z: -1 }, dmgMult: 0.5, defMult: 1.15 },
       dress([{ type: 'busho', n: 1, o: { name: '松田康長', hat: 'kabuto_m', haori: 0x5a2a1c, horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
     // 松田康郷（康長の弟・「松田の赤鬼」）は本丸の奥にいて、兄の旗本が崩れかけると落ち延びる（史実：脱出して生き延びた）
-    F.kogo = enemyGroup(rt, { faction: 'hojo', name: '松田康郷の手', anchor: { x: H.x + 6, z: H.z - 10 }, facing: 0, order: 'hold', fixed: true, aggro: 6, width: 6, morale: 100, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.55 },
+    // 脱出の下知より先に共通の寄せ直し・敗走で持ち場と退路を変えない。
+    F.kogo = enemyGroup(rt, { faction: 'hojo', name: '松田康郷の手', anchor: { x: H.x + 6, z: H.z - 10 }, facing: 0, order: 'hold', fixed: true, historicalOrders: true, noRout: true, aggro: 6, width: 6, morale: 100, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.55 },
       dress([{ type: 'busho', n: 1, o: { name: '松田康郷', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }], HOJO));
     F.hon.historicalOrders = true;   // 城将の旗本は本丸を離れない（共通の寄せの下知で前へ出さない。kaito AR 3）
     for (const g of [F.ni, F.hon]) for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.5;   // 城の中の鉄砲も出丸・堀の縁と同じ強さ（枡形で一発で倒れない）

@@ -131,7 +131,7 @@ export function goalSignTick(rt, root) {
     if (arrived.has(key)) return hide();
   }
   // 11/8 critic60 関ヶ原（五2）：行き先に立っている間は、自分の頭の真上に金の▼（輪に見えた）を出さない
-  if (!t.unit && !rt.def.goalSignGroundPin && d < 6) return hide();
+  if (!t.unit && !rt.def.goalSignGroundPin && d < (t.hideDistance ?? 6)) return hide();
   // 矢印は画面へ重ね、地形や兵に隠れないようにする。
   let path = '';
   // 頭上の▼と呼び名

@@ -1016,9 +1016,10 @@ const inou_spec = {
     if ((F.foeT = (F.foeT || 0) - 0.25) <= 0 && !F.holdPlayer) {
       F.foeT = 5;
       const list = F.stage === 1 ? F.l1 : F.stage === 2 && F.regrouped ? F.l2 : F.stage === 3 ? [...(F.bankG || []), ...(F.guardG ? [F.guardG] : [])] : null;
-      if (list && !rt.army.nearestEnemy(P, 9, (o) => !o.fleeing)) {
+      if (list && !rt.army.nearestEnemy(P, 9, guideEnemyAlive)) {
         const near = [];
-        for (const g of list) if (live(g) && !g.routing) for (const u of g.units) if (u.alive && !u.gone && !u.fleeing && !u.mounted && u.type !== 'bow') near.push([Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z), u]);
+        // 手負い・倒れ際の兵で二人の枠を埋めず、戦える兵だけを呼ぶ。
+        for (const g of list) if (live(g) && !g.routing) for (const u of g.units) if (guideEnemyAlive(u) && !u.mounted && u.type !== 'bow') near.push([Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z), u]);
         near.sort((x, y) => x[0] - y[0]);
         for (const [d, u] of near.slice(0, 2)) if (d < 70) { u.target = P; u.watch = null; u.moveTo = null; }
       }

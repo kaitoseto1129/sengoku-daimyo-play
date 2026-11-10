@@ -532,7 +532,8 @@ const KUMIGASHIRA = { flagScale: 1.25 }; // 大きな指物で川岸と柵の組
 const BANK_SAMURAI = { hat: 'kabuto_f', menpo: 0, skin: 0xaa805e,
   face: { w: 0.97, jaw: 1.1, chin: 1.0, cheek: 1.3, gaunt: 0.8, brow: 1.35, nose: 1.2, nw: 1.0, eye: 1.1, t: 3 } };
 const KIKKAWA = { flag: 'mori', armor: 0x49332b, hatColor: 0x63372c, lace: 0x756651, cloth: 0x343d3d, kasaDrape: false };
-const HUNGRY = { flag: 'mori', armor: 0x4a463c, hatColor: 0x553b30, lace: 0x5a5444, cloth: 0x8a806a, kasaDrape: false };   // 飢えた城兵：色の褪せた、ぼろの具足（B098）           // 吉川は毛利の一門（毛利の紋で）
+// 飢えた足軽は指物を捨てている。追加の飢餓の段にも同じ設定を渡し、組頭だけ個別に小さな毛利の指物を残す。
+const HUNGRY = { flag: null, armor: 0x4a463c, hatColor: 0x553b30, lace: 0x5a5444, cloth: 0x8a806a, kasaDrape: false };
 // 飢えは傷と分ける。背丈と槍の長さを保ち、既存の体を細くして歩幅を抑える。
 function hungryLook(g) {
   for (const u of g.units) {
@@ -2469,7 +2470,7 @@ const tottori = {
     F.sallies = [0, 1, 2].map((i) => enemyGroup(rt, { fixed: true, noAI: true, faction: 'mori', name: i ? '木戸の控え' : '木戸の城兵',
       anchor: { ...SALLY_SEATS[i] }, facing: 0, width: 3, colW: 2, formation: 'column', roadColumn: true, followColumnRoad: true, aggro: 5, morale: 55, dmgMult: 0.8, fleeDir: { x: 0, z: -1 } },
       // 11/6 kaito の目：三か月飢えた城兵が、白い大きな指物をそろえた元気な隊に見えた。足軽は指物を捨て、陣笠も無く鉢巻か素の頭（組頭の侍だけ指物）。
-      dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6, flagScale: 0.6 } },
+      dress([{ type: 'samurai', n: 1, o: { ...BANK_SAMURAI, cdBase: 2, windup: 0.6, flag: 'mori', flagScale: 0.6 } },
         { type: 'ashigaru', n: 3, o: { cdBase: 2.4, windup: 0.65, flag: null, hat: 'hachimaki' } },
         { type: 'ashigaru', n: 3, o: { cdBase: 2.4, windup: 0.65, flag: null, hat: 'none' } }], HUNGRY)));
     for (const g of F.sallies) hungryLook(g);
