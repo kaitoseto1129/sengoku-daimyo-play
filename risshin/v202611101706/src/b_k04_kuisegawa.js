@@ -27,8 +27,7 @@ import { fieldButai, fieldTick, routButai, lightPos } from './b_yasen.js';
 import { butaiTick } from './butai.js';
 import { addSite } from './map_sites.js';
 import { farSight } from './far_sight.js';
-import { setStages } from './b_k_help.js';
-import { KILLS, cut } from './stages.js';
+import { STAGES, KILLS } from './stages.js';
 import { timeslipField } from './timeslip_field.js';
 import { install as installHaisen } from './k04_kuisegawa/haisen.js';   // 両軍の備の層・左近が追うのを止める・東軍敗北の札とその夜（toku15 の 4）
 
@@ -726,13 +725,10 @@ k04_kuisegawa.history = '慶長五年（1600）九月十四日、美濃の赤坂
 k04_kuisegawa.bushou = [{ name: '島左近', g: /島左近/ }, { name: '明石全登', g: /明石全登/ }];
 
 // 右上の五段も同じ言葉にし、頼母の旗・杭瀬川・手勢の同行を省かない。
-setStages('k04_kuisegawa', STEP_TEXT.map((text, i) => [text, i ? i + 1 : 0]));
-// 倒す数（kaito 11/2 O・AV16）：一段目は刈田の兵（史実の二百）のうち、退くふりを始めさせるまでの数（二割）
-KILLS.k04_kuisegawa = (rt) => {
-  const F = rt.flags, b = F.blk?.bait;
-  if (F.ending || F.step !== 1 || F.feigned || !b || !F.baitN0) return null;
-  return cut(Math.round(F.baitN0 * SC), Math.round(b.aliveNominal() * SC), Math.round(F.baitN0 * SC * 0.8));
-};
+// 討ち取り数は達成条件ではない。数だけで先に✔を付けず、槍を入れる・
+// 味方との渡河・防戦・兵を連れた帰還という実際の段の進行にそろえる。
+STAGES.k04_kuisegawa = STEP_TEXT.map((text, i) => [text, i ? (rt) => (rt.flags.step || 0) >= i + 1 : null, undefined, false]);
+KILLS.k04_kuisegawa = false;
 
 // bot は打ち込みを見て構えてから、この戦の頭へ（toyo_bot.js）
 withGuard(k04_kuisegawa);

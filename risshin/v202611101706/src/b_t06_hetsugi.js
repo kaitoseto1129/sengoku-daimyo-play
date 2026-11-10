@@ -849,7 +849,7 @@ const t06_hetsugi = {
       // 囮の手加減を解いてから包む。元から弱い旗本の攻撃力は保つ。
       for (const g of rt.army.groups) if (g.team === 1 && g.count && !g.ringSoft && g !== F.ieh && g !== F.iehS) { g.ringSoft = true; g.dmgMult = Math.min(g.feignDmg ?? g.dmgMult ?? 1, 0.8); }
       kyuen.update(rt, K, el);   // 伏せ→その場で防ぐ→信親の救援→鈴木大膳→信親の討死（夜へ移ろう。t06_hetsugi/kyuen.js）
-    } else if (F.step === 4) { shingari.update(rt); if (shingari.crossed(rt, K)) this.toStep(rt, 5); }
+    } else if (F.step === 4) { shingari.update(rt, K); if (shingari.crossed(rt, K)) this.toStep(rt, 5); }
     // 柵（半径十一 m）の外で生還にせず、東の口を抜けて陣内へ戻るまで遊ばせる。
     else if (F.step === 5) { this.bankHold(rt); if (dist(P.pos, SAFE) < 9) this.win(rt); }
     // 退く段（④）は島津が勢いを保って水辺まで追う。止まれば囲まれる。⑤は水辺で止まる（bankHold）
