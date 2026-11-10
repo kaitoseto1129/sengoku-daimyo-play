@@ -3669,7 +3669,10 @@ function fordTick(rt) {
   for (const u of rt.army.units) {
     if (!u.alive || u.gone || u.woundOut || u.isStruct) continue;
     if (u.team === 1) {
-      if (!u.fleeing && u.pos.z > -58 && u.pos.z < -24 && Math.abs(u.pos.x) < 24) f.pressure++;
+      // 後送中・転倒中・出発前の追手は、渡り口を押す戦力に数えない。
+      if (!u.fleeing && !u.rearWound && !u.downed && !u.noTarget && !u.group?.routed &&
+          (!u.group?.tedoFrom || u.group.tedoActive) &&
+          u.pos.z > -58 && u.pos.z < -24 && Math.abs(u.pos.x) < 24) f.pressure++;
       continue;
     }
     if (!u.tedoWait) u.tedoWait = { x: 0, z: 0 };
@@ -3999,7 +4002,9 @@ function tedoHold(o) {
       C.closeFoes = 0; C.closeAllies = 0; C.closeFoeSectors = 0;
       C.lineCaller = null; C.lineCallerD = o.r || 14;
       C.faceYaw = null; C.faceDistance = 25;
-      for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && !u.downed && !u.gone && !u.group?.routed &&
+      // 後送兵を列の支えや包囲に数えず、控えの追手も出発までは接敵と扱わない。
+      for (const u of rt.army.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.gone && !u.group?.routed &&
+        (!u.group?.tedoFrom || u.group.tedoActive) &&
         (u.pos.z > 24) === (C.at.z > 0)) {
         const d = Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z);
         // 下がった先の火に実際の味方が着いてから、そこを鉦の発信元にする。

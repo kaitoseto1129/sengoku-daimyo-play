@@ -6,8 +6,26 @@
 // 呼び方：install(rt, K)（本体の ambush の始め）・update(rt, K, el)・pin(rt)・sogoFall(rt, K)。
 // ======================================================================
 const live = (g) => g && g.count > 0;
-const landed = (a, b) => a?.swing?.target === b && a.swing.res && a.swing.res !== 'miss';
+const landed = (a, b) => a?.swing?.target === b && (a.swing.res === 'hit' || a.swing.res === 'armor' || a.swing.res === 'block');
 const NOBU_SPOT = { x: -24, z: -104 };   // 信親が斬り込んで囲まれる所（西の林の縁）
+
+// 刃の結果は次の見回りまで残るとは限らないため、毎コマ記録する。
+export function contact(rt) {
+  const F = rt.flags, S = F.s3;
+  if (!S || F.ringClosed) return;
+  const p = rt.player.u, target = p.swing?.target;
+  if (target && target.team !== p.team && landed(p, target)) S.fought = true;
+  if (crossed(rt) && Math.hypot(F.nobuU.pos.x - p.pos.x, F.nobuU.pos.z - p.pos.z) < 14 &&
+    (landed(F.nobuU, F.suzukiU) || landed(F.suzukiU, F.nobuU))) S.bladesMet = true;
+}
+
+function crossed(rt) {
+  const F = rt.flags, n = F.nobuU, s = F.suzukiU;
+  return F.s3?.ls && n?.alive && !n.gone && !n.dying && !n.woundOut && !n.rearWound && !n.noTarget &&
+    s?.alive && !s.gone && !s.dying && !s.woundOut && !s.rearWound && !s.noTarget &&
+    Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
+    !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
+}
 
 export function install(rt, K) {
   const F = rt.flags, B = F.blk;
@@ -70,7 +88,7 @@ export function update(rt, K, el) {
   if (S.st === 0) {
     // 河原を離れて待つだけでは防戦を果たさない。包みの内で二分持ちこたえ、本人も敵と当たってから救援へ進む。
     if (Math.hypot(P.x - K.RING.x, P.z - K.RING.z) < 60) S.held = (S.held || 0) + dt;
-    const fought = rt.stats.kills > S.kills0 || rt.stats.taken > S.taken0;
+    const fought = S.fought || rt.stats.kills > S.kills0 || rt.stats.taken > S.taken0;
     if (el > 145 && S.held >= 120 && fought) toB(rt, K);
   }
   if (S.st < 1) return;
@@ -80,16 +98,12 @@ export function update(rt, K, el) {
   // 本人が信親の側へ救援に来てから斬り込む。離れたまま最期を済ませない。
   if (!S.ls && near && S.near > 20 && bEl > 90) { S.ls = rt.t; K.lastStand(rt); }
   // 鈴木大膳が旗本に阻まれている間は、遠くから信親を討った事にしない。
-  const n = F.nobuU, s = F.suzukiU;
   // 深手で戦列を離れている信親のそばに敵が来ても、斬り結んだ事にはしない。
-  const crossed = S.ls && n?.alive && !n.gone && !n.dying && !n.woundOut && !n.rearWound && !n.noTarget &&
-    s?.alive && !s.gone && !s.dying && !s.woundOut && !s.rearWound && !s.noTarget &&
-    Math.hypot(n.pos.x - s.pos.x, n.pos.z - s.pos.z) < 6 && Math.abs(n.pos.y - s.pos.y) < 3 &&
-    !rt.army.wallBetween(n.pos, n.team, s.pos) && !rt.army.terrainBlocks(n.pos, s.pos);
-  if (crossed && near) S.clash = (S.clash || 0) + dt;
+  const meeting = crossed(rt);
+  if (meeting && near) S.clash = (S.clash || 0) + dt;
   // 六 m 内にいるだけでは、刀も長刀も届かないまま最期が進んでしまう。
   // 本人の見ている所で、二人のどちらかの刃が相手へ届いた事を確かめる（受け・甲冑で止まる時も含む）。
-  if (crossed && near && (landed(n, s) || landed(s, n))) S.bladesMet = true;
+  contact(rt);
   // 本人の見届ける所で刃を合わせてから討死へ進む。
-  if (crossed && near && S.bladesMet && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
+  if (meeting && near && S.bladesMet && S.clash >= 4 && S.near > 50 && rt.t - S.ls > 55) K.closeRing(rt);
 }
