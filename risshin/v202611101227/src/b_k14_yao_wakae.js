@@ -355,7 +355,8 @@ const k14_yao_wakae = {
     F.fuseG = enemyGroup(rt, { ...choO, name: '長宗我部の伏せ槍', facing: Math.PI / 2, anchor: { ...FUSE }, width: 12, aggro: 4, seekRange: 6, order: 'hold', ambush: true, fixed: true },
       dress([{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12, o: { flagScale: 1 } }], CHOSO));
     F.choSide = enemyGroup(rt, { ...choO, name: '長宗我部の横の備', facing: Math.PI, anchor: { ...FLANK }, width: 10, aggro: 10, seekRange: 18, order: 'hold', morale: 90, dmgMult: 0.55 },
-      dress([{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 13, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], CHOSO));
+      // 布陣表だけの名にせず、横の備を率いる増田盛次を実際の侍一人に割り当てる（兵数は十八人のまま）。
+      dress([named('増田盛次'), { type: 'samurai', n: 2 }, { type: 'ashigaru', n: 13, o: { flagScale: 1 } }, { type: 'gun', n: 2 }], CHOSO));
     F.choG = enemyGroup(rt, { ...choO, name: '長宗我部盛親の旗本', fixed: true, anchor: { ...YAO }, width: 7, aggro: 5, seekRange: 8, order: 'hold' },
       dress([named('長宗我部盛親', 'busho', { invuln: true, horse: false }), { type: 'samurai', n: 11 }, { type: 'gun', n: 2 }], CHOSO));
     F.choU = F.choG.units.find((u) => u.name === '長宗我部盛親');
