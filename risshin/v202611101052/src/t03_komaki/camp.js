@@ -46,7 +46,8 @@ export function campSetup(rt, K) {
   // 楽田城：陣幕の本陣を土塀で囲み、南の大手に櫓門、北西の隅に櫓
   const rw = dobeiLine(rt, [[RAKUDA.x - 4, RK.z1], [RK.x0, RK.z1], [RK.x0, RK.z0], [RK.x1, RK.z0], [RK.x1, RK.z1], [RAKUDA.x + 4, RK.z1]], { team: 0, name: '楽田城の塀', hp: 99999 });
   for (const w of rw.structs) { w.noTarget = true; w.wall = true; }
-  F.rkGate = yaguraGate(rt, RAKUDA.x, RK.z1, 5, 0, { team: 0, hp: 99999, name: '楽田城の大手門', inside: false });
+  // 土塁の陣城に合わせ、板壁と格子窓のある土の門を使う。白壁の部品を重ねた無地の箱にしない。
+  F.rkGate = yaguraGate(rt, RAKUDA.x, RK.z1, 5, 0, { team: 0, hp: 99999, name: '楽田城の大手門', inside: false, earth: true });
   if (F.rkGate?.struct) F.rkGate.struct.noTarget = true;
   monomi(rt, RK.x0 + 6, RK.z0 + 6, { team: 0, name: '楽田城の櫓', mon: 'toyotomi' });
   // 二重堀の砦の物見櫓（①の行き先）

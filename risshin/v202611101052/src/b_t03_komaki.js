@@ -273,7 +273,9 @@ const t03_komaki = {
     nightLift: 1.5,
     nightMoonMin: 0.16,
     nightMoonFloor: 0.16,   // 共通の下限 0.5 で月明かりを戻さず、下の夜の指定を保つ。
-    nightFill: 0.62,
+    // 月と別に足される補助光も抑える。共通の下限 0.4 のままでは、月を弱めても夜の陰が灰白に浮く。
+    nightFill: 0.36,
+    nightFillMin: 0.2,
     noShafts: true,      // 11/8 八1：空に縦の白い筋（光の筋）が走った
     hatDropRate: 0.25,   // 11/8 八1：転がる陣笠が倒れた兵より目立った。落とすのは四人に一人
     nightLight: { sunI: 0.16, hemiI: 0.2, sky: 0x182033, fog: 0x1c2333, top: 0x060a14 },
