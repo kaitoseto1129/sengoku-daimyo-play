@@ -771,7 +771,8 @@ export const t05_ichinomiya = {
     rt.after(6.2, () => rt.say('谷忠澄', '白地の城へ戻り、殿に降るよう説きまする', 2.6));
     rt.tracker.main = true;
     rt.award((t) => { t.main = true; t.special = { label: '水の手を断ち、一宮城を開かせた', pts: 15 }; }, '一宮城を開かせた');
-    rt.after(9, () => {
+    rt.after(12, () => {
+      // 会話を聞き、使者の姿と名を確かめる十二秒間は曲輪内で待つ。
       // 小倉丸の奥（z105）で止めず、開いた本丸の口を通って帰す。
       // 塀際から奥へ直進すると北面の塀に当たるため、門の正面を経由する。
       envoy.fixed = false; envoy.order = 'path'; envoy.dest = null;

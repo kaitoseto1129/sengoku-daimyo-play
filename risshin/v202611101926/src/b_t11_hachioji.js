@@ -1012,6 +1012,13 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
     p.yaw = Math.atan2(n.pos.x - u.pos.x, n.pos.z - u.pos.z);
     if (d > 2.4) goTo(p, inp, n.pos.x, n.pos.z, 2.2);
     patientStrike(p, inp, n, d);
+    // 11/10 クラウドわ：中山は本人を狙ったまま、供の侍が打ち手の枠を埋めて打ち込まず、隙（cd）も出ないので、
+    //   bot は受けの待ちのまま一太刀も振らず刻限まで止まった（足跡 |Ns- が十分あまり続き、中山の命 60 のまま）。
+    //   振りかぶりも振りも無いまま一・二秒たったら、こちらから斬り込む
+    const busy = (n.atk && n.atk.target === u && !n.atk.bow) || (n.swing && !n.swing.done);
+    const w = b.t11Wait ||= { t: b.t };
+    if (busy || d > 1.8) w.t = b.t;
+    else if (b.t - w.t > 1.2 && !inp.leftPressed && (p.cd || 0) <= 0 && !p.pending && p.sta > p.maxSta * 0.3) { inp.leftPressed = true; w.t = b.t; }
     return;
   }
   if (F.dp && F.dp.on) { depthBot(b, inp, goTo); return; }
