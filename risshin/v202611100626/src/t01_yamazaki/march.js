@@ -23,11 +23,13 @@ export function start(rt, ctx) {
   const Y = F.yfar || {};
   // 後ろ備えは北へ歩き出す（街道を上る大軍の列）
   try { Y.nobutaka?.moveTo(30, 120, 160); Y.niwa?.moveTo(-74, 128, 170); } catch (e) { /* 動かなくても進む */ }
-  rt.after(1, () => rt.say('羽柴秀吉', '備中から駆け通して来たぞ。上様の仇、日向を討つは今ぞ', 3.6));
-  rt.after(5, () => rt.say('黒田官兵衛', '毛利とは和を結んで参った。背は案じるに及ばず。前だけを見られよ', 3.6));
-  rt.after(10, () => rt.say('池田恒興', '高山殿の陣へ急ぐぞ。足を止めるな', 3));
-  rt.after(18, () => rt.say('足軽', '二百里を駆け通しじゃ……足が棒のようじゃ', 3));
-  rt.after(26, () => report(rt, '本能寺は焼け落ち、上様のお姿は見つかりませぬ！'));
+  // 山崎の手前（大返しの終わり）：諸将の旗が増え、走っていた軍が戦うための軍勢になる（11/10 指示書）
+  rt.after(1, () => rt.say('足軽', '……本当に、戻ってきたんじゃな', 3));
+  rt.after(4.5, () => report(rt, '中川清秀様・高山右近様・池田恒興様、ご着到！'));
+  rt.after(9, () => rt.say('羽柴秀吉', '上様の仇、日向を討つは今ぞ。槍を立てよ、火縄を確かめよ！', 3.6));
+  rt.after(14, () => report(rt, '丹羽様・信孝様の備えも、街道を上って参られまする！'));
+  rt.after(19, () => rt.say('堀秀政', '高山殿の陣へ急ぐぞ。ここからは戦じゃ', 3));
+  rt.after(26, () => rt.say('黒田官兵衛', '明智の旗、本能寺で見た旗じゃ。今度はこちらが攻める番', 3.4));
   rt.after(40, () => report(rt, '明智日向、山崎に布陣！　御坊塚に桔梗の大旗！'));
   rt.after(54, () => rt.say('中川清秀', '天王山を先に取った方が勝ちじゃ。秀長殿の手が登っておる', 3.2));
   // 物見の斬り込み（最初の接触）：主人公が道の半ばまで来たら、川の岸の葦から明智の物見が道へ
@@ -49,7 +51,7 @@ export function tick(rt, dt, ctx) {
       ctx.ak([{ type: 'samurai', n: 2, o: { horse: true } }, { type: 'ashigaru', n: 5, o: { flagScale: 1 } }, { type: 'gun', n: 2 }]));
     F.scouts.dest = { x: P.x, z: P.z };
     rt.army.play('toki', { x: 26, z: 52 }, 0.8);
-    rt.say('池田恒興', '葦の中に桔梗の旗！　物見じゃ、討ち取れ！', 3);
+    rt.say('堀秀政', '葦の中に桔梗の旗！　物見じゃ、討ち取れ！', 3);
     F.mScT = rt.t;
   }
   if (F.mStep === 1 && F.scouts) {
@@ -59,7 +61,7 @@ export function tick(rt, dt, ctx) {
       F.mStep = 2;
       for (const u of F.scouts.units) if (u.alive) { F.scouts.routed = true; F.scouts.order = 'flee'; break; }
       rt.award((t) => t.side.push('街道で明智の物見を追い払った'), '明智の物見を追い払った');
-      rt.say('池田恒興', 'ようやった。日向は、もう目の前じゃ', 2.8);
+      rt.say('堀秀政', 'ようやった。日向は、もう目の前じゃ', 2.8);
       // 川のこちらの岸に出た明智の鉄砲の小組（前衛との二度目の接触。先陣の陣の手前）
       F.skirm = enemyGroup(rt, { name: '明智の鉄砲の小組', faction: 'akechi', anchor: { x: 2, z: 22 }, facing: Math.PI, width: 8, formation: 'line', order: 'hold', aggro: 22, seekRange: 30, morale: 70, dmgMult: 0.35 },
         ctx.ak([{ type: 'gun', n: 4 }, { type: 'ashigaru', n: 3, o: { flagScale: 1 } }, { type: 'samurai', n: 1 }]));
@@ -75,10 +77,10 @@ export function tick(rt, dt, ctx) {
     F.mStep = 3;
     if (F.skirm && skLeft) { F.skirm.routed = true; F.skirm.order = 'flee'; }
     // 着いた：川向こうで明智の備が岸へ出て並ぶ（桔梗の旗の列）。鉄砲が川越しに鳴り、斎藤勢が川へ下りる
-    rt.say('高山右近', '池田殿、よう来られた！　見よ、川向こうに桔梗の旗が並ぶ', 3.2);
+    rt.say('高山右近', 'よう来られた！　見よ、川向こうに桔梗の旗が並ぶ', 3.2);
     rt.army.play('volley', { x: -10, z: -26 }, 1.0);
     try { const Y = F.yfar || {}; Y.akRes?.moveTo?.(-20, -150, 30); } catch (e) { /* 遠景 */ }
-    rt.after(4, () => rt.say('池田恒興', '斎藤内蔵助の手じゃ。槍を揃えて待て', 3));
+    rt.after(4, () => rt.say('堀秀政', '斎藤内蔵助の手じゃ。槍を揃えて待て', 3));
     rt.after(9, () => rt.army.play('volley', { x: 4, z: -24 }, 1.2));
     rt.after(12, () => rt.say('高山右近', '来るぞ……川へ下りた！', 2.6));
     F.mJoinWait = 0;

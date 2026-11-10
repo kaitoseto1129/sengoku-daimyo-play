@@ -1758,7 +1758,11 @@ const takato_siege = {
       rt.say('はな（諏訪勝右衛門の妻）', 'ここは通さぬ。わらわも刀を取る！', 4);
     }
     if (!F.honFell || !F.hanaReleased || siegeFighter(F.hana) || F.metLord == null || rt.t - F.metLord < 4.5) return;
-    for (const u of F.lastGuards) if (siegeFighter(u)) return;
+    // 近習の主力を退ければ最期へ進む。柱や戸口に残った一人の全滅待ちにしない。
+    // 対面とはなとの戦いは上で確かめ、残る城兵は最期の後も戦い続ける。
+    let guards = 0;
+    for (const u of F.lastGuards) if (siegeFighter(u)) guards++;
+    if (guards > Math.floor(F.lastGuards.length * .2)) return;
     // 奥の間まで攻め入った時だけ最期へ進む。盛信の最期は討ち取りの数・戦功へ渡さない。
     F.lordDying = true; F.lordState = 'last';
     rt.say('仁科盛信', '城はここまでか。降りはせぬ。さらばじゃ', 4);

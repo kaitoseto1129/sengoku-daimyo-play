@@ -490,7 +490,8 @@ const k04_kuisegawa = {
       }
       for (const [g, b, dx, dz] of F.follow) {
         if (!live(g) || !b || b.routedL || g.chaseStopped) continue;
-        const p = lightPos(b), to = { x: p.x + dx, z: p.z + dz };
+        // 備の前後左右は布陣と同じ向きへ回す。地図の軸へ足すと頼母が先手の反対側へ付く。
+        const p = lightPos(b), to = { x: p.x + ROT_C * dx - ROT_S * dz, z: p.z + ROT_S * dx + ROT_C * dz };
         if (dist(g.center(), to) > 6) { g.order = 'move'; g.dest = to; g.speed = g.team ? 2.6 : 3.4; }
         else { g.order = g.team ? 'hold' : 'attack'; g.anchor = to; g.seekRange = g.team ? 10 : 14; }
       }

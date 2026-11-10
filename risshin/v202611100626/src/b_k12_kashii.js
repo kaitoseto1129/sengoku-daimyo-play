@@ -230,7 +230,10 @@ const k12_kashii = {
       const gx = pu.pos.x - b.x, gz = pu.pos.z - b.z, q0 = gx * b.c - gz * b.s, q1 = gx * b.s + gz * b.c;
       if (Math.abs(q0) >= b.hw && (Math.abs(q1) < b.hd || Math.abs(q0) - b.hw > Math.abs(q1) - b.hd)) p0 = Math.sign(q0) * (b.hw + 0.15);
       else if (Math.abs(q1) >= b.hd) p1 = Math.sign(q1) * (b.hd + 0.15);
-      else continue;
+      // 軒の余白に本人がいる時も、カメラを壁の内側に残さない。
+      // 本人は家の外でも、余白を含む箱の内側になるため、近い側の面へ出す。
+      else if (Math.abs(q0) / b.hw >= Math.abs(q1) / b.hd) p0 = (Math.sign(q0) || 1) * (b.hw + 0.15);
+      else p1 = (Math.sign(q1) || 1) * (b.hd + 0.15);
       pos.x = b.x + p0 * b.c + p1 * b.s; pos.z = b.z - p0 * b.s + p1 * b.c;
     }
   },

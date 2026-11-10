@@ -573,7 +573,7 @@ const k16_secret = {
     // 主人公が全軍に終戦を命じる：敵も味方も手を止め、徳川方は膝をつく
     rt.after(6.8, () => { rt.say(nm(rt), '全軍、槍を下ろせ', 2.4); sfx('horagai', 0.8); this.ceasefire(rt, 0.5); });
     rt.after(9.4, () => { this.ceasefire(rt, 1); rt.say('使番', '戦闘停止！　戦闘停止！', 2.4); });
-    rt.after(12.2, () => rt.say('島津の使番', '左手、伊達勢も槍を伏せました！　戦闘停止！', 2.8));
+    rt.after(12.2, () => rt.say('島津の使番', '島津勢も槍を伏せました！　戦闘停止！', 2.8));
     rt.after(15.2, () => rt.say(ADV, '秀忠公の陣も動きませぬ。……井伊も、藤堂も', 2.8));
     // 静けさ：しばらく風と旗の音だけ
     rt.after(18.4, () => { try { setScene({ wind: 1 }); } catch (e) { /* 音が無くても締めは続ける */ } sfx('bell', 0.3); });
@@ -679,7 +679,13 @@ const k16_secret = {
     }
     if (left > 0) rt.objProgress('s' + F.step, `あと${mmss(left)}`);
     // 陣幕の内の近習は、幕の外の主人公も味方兵も布越しに斬らない。
-    if (live(F.hon)) for (const u of F.hon.units) if (u.alive && u.target && inCamp(u.pos) !== inCamp(u.target.pos)) u.target = null;
+    if (live(F.hon)) for (const u of F.hon.units) if (u.alive) {
+      const inside = inCamp(u.pos);
+      // 構え・振り始めた刃は target と別に相手を覚えている。狙いだけ消しても攻撃が残る。
+      if (u.target && inside !== inCamp(u.target.pos)) u.target = null;
+      if (u.atk?.target && inside !== inCamp(u.atk.target.pos)) u.atk = null;
+      if (u.swing?.target && inside !== inCamp(u.swing.target.pos)) u.swing = null;
+    }
     // 家康の段：家康が倒れれば勝ち（旗本が減っても家康は床几から逃げない）
     if (F.step === 5) {
       // 陣幕の内で家康が床几から立ち、太刀を抜いて言葉を交わす。言い終えるまで数合は討てない（docs/if_final_genna.md 最後の会話）
@@ -719,7 +725,8 @@ const k16_secret = {
       F.farT = 0;
       F.next = true;
       this.fall(rt, g);
-      rt.say(ADV, F.step === 1 ? '藤堂の先手が崩れた！　勘兵衛が退いていく！' : `${g.name}が崩れた！`, 2.6);
+      const kanbei = F.step === 1 && g.units.find((u) => u.name === '渡辺勘兵衛');
+      rt.say(ADV, F.step === 1 ? (kanbei && standing(kanbei) ? '藤堂の先手が崩れた！　勘兵衛が退いていく！' : '藤堂の先手が崩れた！') : `${g.name}が崩れた！`, 2.6);
       rt.after(3, () => { F.next = false; this.toStep(rt, F.step + 1); });
     } else if (!F.next && left <= 0) {
       // 一つでも果たせなければ勝ちには進めない。失敗した隊を自動で退かせない

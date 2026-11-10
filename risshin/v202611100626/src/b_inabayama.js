@@ -1,5 +1,6 @@
 import { useTerrain } from './asset_manifest.js';
 import { siegeStages } from './siege_stages.js';
+import { siegeProgress } from './siege_progress.js';
 // 15分の構成（docs/oda15_plan_1108.md 5）：段の中身は inabayama/ に一段一ファイル
 import { depthTick, depthBot } from './b_depth.js';
 import * as k15Machi from './inabayama/machi_deguchi.js';
@@ -4896,6 +4897,8 @@ const inabayama = {
 
   prelude: false, // この戦の使番と下知で開戦を伝え、共通の待ちを重ねない。
   setup(rt) {
+    // 城攻めの進み具合（docs/inabayama_spec_1109.md・kaito 11/9 夜）：右上の札の下に 城下／麓の鹿垣／七曲り／大手の木戸／本丸
+    siegeProgress(rt, ['城下', '麓の鹿垣', '七曲り', '大手の木戸', '本丸'], (r) => { const F = r.flags; return r.tracker.main === true ? 5 : F.step >= 4 ? 4 : F.step === 3 ? (F.guardOn ? 3 : 2) : F.step === 2 ? 1 : 0; });
     { const P = rt.player, td = P.takeDamage, k = rt.def.cutFloor; P.takeDamage = function (a, s) { const m = this.u.hitKind === 'gun' || this.u.hitKind === 'arrow'; if (m && s && INABA_TSUKE.on && !INABA_TSUKE.gate && s.pos && s.pos.y - this.u.pos.y > 6) a *= 0.05; const d = td.call(this, a, s); /* 11/9 二巡（織田E）：登り（③）は上の段から矢玉と槍が続き、act が七曲り・細道の斬り合いで倒れた。登りの間は矢玉を半分、刃を八割に */ const up = rt.flags.step === 3 && d > 0 && s && !s.isStruct; return up ? (m ? d * 0.5 : d * k * 0.8) : s && !s.isStruct && !m && d > 0 ? d * k : d; }; }   // 11/1：刃の一太刀を def.cutFloor 倍に（共通の一太刀五割・六割は変えず、この戦だけ）
     // 11/9 二巡（織田C）：付け入りの登りの間、馬出しの兵の狭間の矢が六歩より上から本人へ降り続け、七曲りの上の折れで倒れた（act・素の bot とも）。木戸の斬り合いまでは上からの矢玉を五分に（二割でも数で倒れた。矢は飛び、音と怖さは残る）。
     const W = rt.world;
@@ -7213,6 +7216,12 @@ const inabayama = {
           if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) > 25 || Math.abs(u.pos.y - pp.y) > 6) rt.army.despawn(u);
         }
       }
+      // 近い守兵は遠方の片付けから外れる。士気だけを下げても門や建物で
+      // 崩れず残るため、二分の退却の知らせに合わせて実際に主殿へ退かせる。
+      // 火付けは引き続き本人の操作で行い、時計だけでは勝ちにしない。
+      if (!F.sig && rt.t - F.stepT > 120) {
+        for (const g of F.honGuards) if (g && !gone(g)) inabaRetreat(g);
+      }
       if (!F.sig && F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard)) this.lightSig(rt);
       // 合図は本人が実際に火を付けるまで待つ。
       // 11/8 critic60：三十秒たっても小屋へ近づけない（崖の上・柵の向こう）時は、合図の火を本人の近くの平らな所へ移す。
@@ -7416,6 +7425,8 @@ function botRoad(b, inp, goTo, path, end) {
   }
   return false;
 }
+// bot の跡に七曲りの様子を足す（試し役の report だけ。遊びには出ない）
+inabayama.botDbg = (b) => { const F = b.flags; if (F.step !== 3) return ''; return `t${F.tsuke ? 1 : 0}k${F.karaNext ?? ''}n${F.nanaNext ?? ''}r${b.botRoadIndex ?? ''}${b.botRoadPath === BOT_KARA ? 'K' : b.botRoadPath === BOT_NANA ? 'N' : b.botRoadPath ? 'O' : ''}${F.karaGuide?.returning ? 'R' : ''}${F.dp?.on ? 'D' : ''}${F.guardOn ? 'G' : ''}${F.sigMoved ? 'S' : ''}`; };
 inabayama.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;

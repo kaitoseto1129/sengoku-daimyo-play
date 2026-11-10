@@ -43,7 +43,7 @@ export function start(rt, ctx) {
     g.order = 'move'; g.dest = d; g.speed = 3.6; g.onArrive = (q) => { q.order = 'attack'; q.aggro = 24; q.seekRange = 30; };
   }
   rt.after(1, () => report(rt, '敵右翼崩れました！　天王山の手も松田勢が退きまする！'));
-  rt.after(5, () => rt.say('池田恒興', '光秀、退きます！　勝竜寺へ追え、逃がすな！', 3));
+  rt.after(5, () => rt.say('堀秀政', '明智勢、勝竜寺へ退く！　追え、追え！', 3));
   rt.after(16, () => rt.say('足軽', '日が暮れる……桔梗の旗が城へ入っていくぞ', 3));
   rt.after(30, () => report(rt, '津田・斎藤の兵、淀川を渡って散りまする！'));
 }
@@ -87,7 +87,7 @@ function finale(rt, ctx) {
   const F = rt.flags;
   for (const g of [F.rear, F.gateG]) if (ctx.live(g)) { g.routed = true; g.order = 'flee'; }
   rt.army.play('toki', { x: 62, z: -150 }, 1.4);
-  rt.say('池田恒興', '門を閉ざしたか。囲め！　城は小さい、今宵のうちに落ちるわ', 3.4);
+  rt.say('堀秀政', '門を閉ざしたか。囲め！　城は小さい、今宵のうちに落ちるわ', 3.4);
   // 光秀は近習と北の裏から抜ける（討たせない。見えるのは松明の小勢だけ）
   F.finaleT = 0;
   F.finaleIndex = 0;
@@ -105,10 +105,11 @@ function finaleTick(rt, ctx) {
         rt.banner('明智光秀、山崎より敗走', '');
         break;
       case 1: rt.say('黒田官兵衛', '日向は夜のうちに城を抜け、坂本へ落ちましょう。道々の郷人が黙ってはおりますまい', 4.4); break;
-      case 2: report(rt, '後の知らせ：光秀、小栗栖の竹藪にて討たれたとの由！', 3.8); break;
-      case 3: rt.say('羽柴秀吉', '……上様の仇は、討った', 3.6); break;
+      // 秀吉の本陣へ勝報→勝鬨。秀吉は本能寺の方（北東の京）を一度見る。すぐ天下人の顔はしない（11/10 指示書）
+      case 2: report(rt, '秀吉様の本陣へ勝報！　明智勢、勝竜寺へ逃げ込みました！', 3.8); rt.army.play('toki', { x: -34, z: 100 }, 1.6); break;
+      case 3: rt.say('羽柴秀吉', '……上様。日向は退けましたぞ', 3.6); break;
       case 4: report(rt, '柴田勝家様、北国にあり。清須へ向かわれるとの由', 3.6); break;
-      case 5: rt.say('黒田官兵衛', 'さて、上様の跡目を巡って、柴田殿とはいずれ……', 3.6); break;
+      case 5: rt.say('羽柴秀吉', 'まだ山崎に勝っただけじゃ。気を緩めるな', 3.6); break;
       case 6: ctx.done(); break;
     }
   }

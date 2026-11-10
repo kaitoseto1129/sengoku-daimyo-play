@@ -153,7 +153,7 @@ float gN(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   };
   return (GRANITE = m);
 }
-let STONES = [], STONE_GEO = null, STONE_MAT = null;   // 塀の上から投げ落とす石（三つを使い回す）
+let STONE_GEO = null, STONE_MAT = null;   // 塀の上から投げ落とす石の形と材質を使い回す
 const T_LIMIT = 1100;   // 日が沈むまで（15分の構成で十八分ほど。坂に懸かってから数える）
 const KIRI = 0x2a2420, AKI = 0x2e2a26;
 
@@ -228,7 +228,7 @@ const t07_ganjaku = {
 
   setup(rt) {
     const F = rt.flags;
-    CALM = true; STONES = [];
+    CALM = true; F.stones = [];   // 投石の経過も段の再開時に巻き戻す
     F.stage = 0; F.ending = false; F.ek = 0; F.ak = 0; F.t0 = rt.t; F.stageT = rt.t; F.honT = 0;
     if (rt.player.canRide && rt.player.mounted) rt.player.toggleMount();
     const W = rt.world, faceUp = Math.atan2(GATE.x - SPAWN.x, GATE.z - SPAWN.z);
@@ -447,7 +447,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   go(rt, s) {
     const F = rt.flags;
     if (F.ending || F.stage >= s) return;
-    F.stage = s; F.stageT = rt.t; CALM = s < 2;
+    F.stage = s; F.stageT = rt.t; CALM = s < 4;
     // 段の変わり目で息を整える（一つの段の傷を次の段へ持ち越しすぎない）
     const pu = rt.player.u; if (pu.alive && s > 1) pu.hp = Math.max(pu.hp, pu.maxHp * 0.7);
     // 果たした段を済みにする（目標ごとに別の札。「少し前からやり直す」は最後に果たした段の所から始まる。kaito 五5）
@@ -620,6 +620,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
 
   update(rt, dt) {
     const F = rt.flags;
+    // 再開で段が戻った時も、坂・迎撃・門の前に筋書き外の乱戦兵を足さない。
+    CALM = (F.stage || 0) < 4;
     // 行軍・退却・本陣の待機では考え直しを待たず、討たれた相手への狙いを外す（全戦の通しで三秒以上残った）。
     for (const u of rt.army.units) if (u.alive) {
       // 討死の知らせで target が先に消えても、別に残った攻撃・注視を拾う。
@@ -739,7 +741,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   //   字は出さず、弧を描いて落ちる石・音・当たった味方の崩れで分からせる。石は三つを使い回す
   stones(rt, dt) {
     const F = rt.flags, p = rt.player.u.pos, W = rt.world;
-    for (const s of STONES) {
+    const stones = F.stones;
+    for (const s of stones) {
       if (!s.on) continue;
       s.t += dt;
       const k = Math.min(1, s.t / s.dur);
@@ -757,12 +760,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     const on = st && st.alive && !st.opened && ((F.stage === 1 && dG < 34) || (F.stage === 3 && dG < 30));
     if (!on) return;
     F.stoneAt = rt.t + (dG < 20 ? 2.2 : 3.6) + Math.random() * 1.5;
-    let stone = STONES.find((q) => !q.on);
+    let stone = stones.find((q) => !q.on);
     if (!stone) {
-      if (STONES.length >= 3) return;
+      if (stones.length >= 3) return;
       if (!STONE_GEO) { STONE_GEO = rockShape(0.42); STONE_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x8c8579, roughness: 1, flatShading: true }); }   // 11/8 critic60 t07（八1）：白い小さな玉でなく、角のある灰褐色の割り石の大きさに
       stone = { mesh: new THREE.Mesh(STONE_GEO, STONE_MAT) }; stone.mesh.castShadow = true;
-      rt.scene.add(stone.mesh); STONES.push(stone);
+      rt.scene.add(stone.mesh); stones.push(stone);
     }
     // 狙いは本人の周りの味方（三度に一度は本人の足元）。石は門の両脇の塀の上から
     let tx = p.x, tz = p.z;
@@ -817,7 +820,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   win(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
     // 終了後は石を更新しないため、投石を宙に残さない。
-    for (const s of STONES) { s.on = false; s.mesh.visible = false; }
+    for (const s of F.stones) { s.on = false; s.mesh.visible = false; }
     rt.unmark('t07');
     rt.award((t) => { t.main = true; t.special = { label: '岩石城を一日で落とした', pts: 20 }; }, '熊井越中守を討ち、本丸を取った');
     rt.objDone('s5'); rt.setPhase('end');
@@ -840,7 +843,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
   },
   lose(rt) {
     const F = rt.flags; if (F.ending) return; F.ending = true;
-    for (const s of STONES) { s.on = false; s.mesh.visible = false; }
+    for (const s of F.stones) { s.on = false; s.mesh.visible = false; }
     rt.unmark('t07');
     rt.objFail('s' + Math.max(1, F.stage || 1)); rt.tracker.main = false; rt.setPhase('end');
     rt.banner('日が沈んだ', '岩石城は落ちなかった');

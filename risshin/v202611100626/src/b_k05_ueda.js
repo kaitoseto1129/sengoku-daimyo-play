@@ -6,9 +6,9 @@
 // 秀忠は染屋台に本陣を置き、牧野康成に城下の稲を刈らせて真田を誘った。城から真田の兵が打って出て刈田の衆を襲い、
 // 本多忠政・大久保忠隣の手が押し返して大手門まで追った。門の上の鉄砲と、門から打って出た槍、虚空蔵山の方から横を突く信繁の手に、
 // 追い込んだ先手は討たれ、秀忠の命で引き揚げた。城は落ちず、家康の急使を受けた秀忠は西へ急ぎ、関ヶ原（九月十五日）に間に合わなかった。
-// 主人公は本多忠政の先手の侍大将。目標は七つ（STAGES）：
-//   ①北の田で刈田を襲う真田の兵を討つ ②町屋の小路を抜け大手門の前へ ③門から打って出た槍を討つ ④横から来る信繁の手を押し返す
-//   ⑤榊原の手と共にもう一度大手門へ寄せる（落ちない。家康の急使） ⑥神川の岸で追い討ちの真田を食い止める ⑦神川を渡り秀忠の本陣の前へ退く
+// 主人公は本多忠政の先手の侍大将（秀忠の本隊と前衛の間）。11/10 docs/ueda2_spec_1109.md で作り直した。目標は七つ（STAGES）：
+//   ①城から出た真田勢を退ける ②退く真田を追う（誘い） ③伏兵の囲みを抜ける ④大手門へ寄せる（落ちない）
+//   ⑤後方の荷駄を救う（二度目は追わない学び） ⑥関ヶ原からの急使で攻めを止め、神川の岸に兵をまとめる（信繁の一撃） ⑦中山道を西へ急ぐ（振り返ると無傷の上田城）
 // 刻限の札は出さない（critic60：話を聞く間も減る・主人公のせいでない負け）。時が経てば味方の働きで話は進む（二の5）。負けは本人が討たれた時だけ（十二の3）。
 // 11/3 kaito AP〜AT：見せかけの軍勢（farHost・clash・backOf）は置かず、見える兵は全部本物。旗は徳川・本多・大久保・榊原・真田だけ。
 //   総大将の秀忠は神川の東の本陣で旗本に囲まれ、昌幸は城の内から出ない（AT3）。名のある将は全員馬上。
@@ -75,19 +75,27 @@ const MOAT_S = [[GATE.x + 7, -22.5], [GATE.x + 7, 4], [-24, 4]];
 // 城下の町屋の小路（北の田から大手門の前へ斜めに抜ける一本の道。両側に軒を連ねた町屋。critic60：草の原に家が二三軒だけ）
 const LANE_A = { x: 68, z: -60 }, LANE_B = { x: 46, z: -34 };
 const FORD_W = { x: FORD.x - 7, z: 0 };       // 神川の西の岸（追い討ちを食い止める所）
-// 小路で遅れた時の知らせの目安（秒）。時間だけでは目標を達成しない。
-const STEP_T = [0, 170, 120, 170, 170, 150, 130, 1e9];
-// 目標の言葉は右上の六つ（STAGES）と同じ字。途中で言い替えない（十の1）
+// 11/10 作り直し（docs/ueda2_spec_1109.md・kaito 11/9 夜「秀忠の大軍が真田に足止めされる」）
+//   面白さは「大軍なのに少数の真田に時間だけを奪われ続ける」。真田は正面から付き合わず、出る・逃げる・誘う・伏せる・退く。
+//   真田の小隊の動き：HARASS（撃って足を止める）→RETREAT（寄られたら次の所へ）→LURE（追えば追える間合い）→AMBUSH（狭い道の左右から）→DISENGAGE（林・城へ去る）
+//   詰まり対策：真田の全滅を進む条件にしない／着いた所＋時間で次へ／追わなくても話は進む／門は時間＋寄せで進む（落ちない）。
+const NIDA = { x: 88, z: -8 };                 // 城下の東の道に止めた荷駄（本隊の兵糧と玉薬）
+const LURE = [{ x: 63, z: -80 }, { x: 55, z: -92 }, { x: 47, z: -103 }, { x: 46, z: -117 }];   // 誘いの退き道（田の畦→林の間の細い道）
+const TRAP = { x: 47, z: -103 };               // 林と林の間で道が狭まる所（左右に伏兵）
+const OUT = { x: 66, z: -72 };                 // 囲みを抜けて戻る田
+const RAID = { x: 74, z: 30 };                 // 荷駄を襲う真田の出る所（尼ヶ淵の岸の藪）
+const MARCH = { x: 150, z: 92 };               // 中山道（木曽路）へ向かう道の先
 const STEP_TEXT = ['',
-  '北の田で刈田を襲う真田の兵を討つ',
-  '町屋の小路を抜け、大手門の前まで追う',
-  '大手門の前で、門から出た真田の槍を討つ',
-  '北の林から来た真田信繁の手を押し返す',
-  // 11/8 kaito（toku15_plan 5「再び城を攻めるが落ちない。使番『家康公より急使！』『西へ急げ！』」）
-  '榊原の手と共に、もう一度大手門へ寄せる',
-  '神川の岸で、追い討ちの真田を食い止める',
-  '神川を渡り、秀忠の本陣の前まで退く'];
+  '城から出た真田勢を退けろ',
+  '退く真田勢を追撃せよ',
+  '伏兵の囲みを抜け、田まで戻れ',
+  '上田城の大手門へ寄せよ',
+  '後方の荷駄を救え',
+  '上田攻めを止め、神川の岸に兵をまとめよ',
+  '神川を渡り、中山道を西へ急げ'];
 const LAST = STEP_TEXT.length - 1;
+// 段ごとの刻限（秒）：これを過ぎたら、遊び手が何をしていても出来事で次へ進む（bot・人の詰まり止め。札には出さない）
+const STEP_MAX = [0, 150, 130, 140, 260, 220, 200, 1e9];
 
 const XY = 4, DEM0 = demSample(DEM, C.x * XY, C.z * XY);
 function height(x, z) {
@@ -115,6 +123,15 @@ const riceAt = (x, z) => z < -73 && paddy(x, z) > 0.6;
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 誘いの退き道（田→林の間の細い道）からの距離。道の上には木を立てない
+function lureRoad(x, z) {
+  let m = 1e9, a = KARI;
+  for (const b of LURE) {
+    const vx = b.x - a.x, vz = b.z - a.z, L2 = vx * vx + vz * vz, t = Math.max(0, Math.min(1, ((x - a.x) * vx + (z - a.z) * vz) / L2));
+    m = Math.min(m, Math.hypot(x - a.x - vx * t, z - a.z - vz * t)); a = b;
+  }
+  return m;
+}
 // 真田の兵も黒い具足（赤備えは大坂の陣の時。AV1）。徳川の諸隊はそれぞれの家の旗
 //   旗の鍵 'sanada' は赤備えの家（armor_uniform の RED_HOUSE）として胴と陣笠を朱にするので、この戦は別の鍵で持ち、
 //   描く時だけ六文銭へ替える（def.flagEra。critic60：門の前の真田の足軽が真っ赤な胴と陣笠）
@@ -204,7 +221,7 @@ const k05_ueda = {
   noDistantBattle: true,
   noLeaderFollow: true,    // 行き先の印は段ごとの一つだけ
   compactIntro: true,
-  introText: () => '上田城下の田で、牧野康成の手が稲を刈る。城から打って出る真田を討ち、大手門まで追え。',
+  introText: () => '小さな上田城の前に、徳川秀忠の三万八千。城から出る真田を退け、関ヶ原へ急げ。',
   stageGoalsOnly: true,    // 右上は五つの段だけ（「敵を何人討つ」で埋めない。三の1）
   hideGuideSteps: true,
   noYaguraTask: true,
@@ -228,25 +245,25 @@ const k05_ueda = {
   missionPin(rt) {
     const F = rt.flags;
     if (F.ending) return null;
-    // ①は北の田そのもの（真田が田へ来て戦いになる。critic60：田へ一度も行かずに済んだ）
     let p = KARI;
     if (F.step === 1) p = KARI;
-    else if (F.step === 2) p = F.throughTown ? FRONT : LANE_B;
-    else if (F.step === 3) p = FRONT;
-    else if (F.step === 4) p = { x: FRONT.x + 10, z: FRONT.z - 20 };
-    else if (F.step === 5) p = FRONT;
+    else if (F.step === 2) { const c = live(F.sortie) && F.sortie.center(); p = c ? { x: c.x, z: c.z } : LURE[Math.min(LURE.length - 1, F.lureI || 0)]; }
+    else if (F.step === 3) p = OUT;
+    else if (F.step === 4) p = F.atFront ? FRONT : F.throughTown ? FRONT : LANE_B;
+    else if (F.step === 5) p = NIDA;
     else if (F.step === 6) p = FORD_W;
-    else if (F.step === 7) p = RET;
-    PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 || F.step >= 5 ? 9 : 8;
+    else if (F.step === 7) p = MARCH;
+    PIN.x = p.x; PIN.z = p.z; PIN.r = F.step === 2 ? 10 : 9;
     return PIN;
   },
   talk: {
-    before: [['本多忠政', '上田の城は小さいが、真田安房守は戦上手じゃ。中納言様は牧野殿に城下の稲を刈らせ、真田を誘い出す'],
-      ['牧野康成', '刈れ、刈れ。真田の米を一粒も城へ入れるな'],
-      ['本多忠政', '城から兵が出れば、我らが叩く。門へは深追いするな'],
-      // 11/8 kaito：父・弟と兄が敵味方に分かれた事を（信之の妻は忠政の姉の小松姫）
-      ['本多忠政', '姉婿の真田伊豆守殿は、父と弟を敵に回して徳川に付かれた。戸石の城を受け取りに出ておられる']],
-    after: [['真田昌幸', '徳川の大軍を、この小城で足止めしてやったわ'], ['徳川秀忠', '……美濃の戦に、間に合うか。木曽路を急げ']],
+    // 0:00〜：画面いっぱいの徳川の先に、小さな上田城（油断）
+    before: [['本多忠政', 'あれが上田の城か。……思うたより小さいな'],
+      ['徳川の足軽', 'これだけおれば、一日で落ちるだろ'],
+      ['大久保忠隣', '牧野殿に刈田をさせて誘う。出て来た所を叩いて、すぐ西へ上る'],
+      ['真田信之', '……あの城に、父と弟がいる'],
+      ['本多忠政', '伊豆守殿。……いや、何も申すまい']],
+    after: [['真田昌幸', '……行ったか。三万八千、ここで足を止めてやったわ'], ['徳川秀忠', '……美濃の戦に、間に合うか。木曽路を急げ']],
   },
   world: {
     seed: 1600906, time: 'day',
@@ -261,12 +278,12 @@ const k05_ueda = {
     treeMix: { sugi: 0.5, matsu: 0.56 },
     noBamboo: true,
     sugiAt: () => 0.05,   // 林の中に竹を混ぜない（groves の竹は杉林の印があると置かれない）
-    paths: [[[HONJIN.x + 30, 8], [HONJIN.x, 6], [FORD.x + 6, 2], [TOWN.x + 10, TOWN.z + 6], [FRONT.x, FRONT.z], [GATE.x + 2, GATE.z]], [[KARI.x, KARI.z + 2], [LANE_A.x, LANE_A.z], [LANE_B.x, LANE_B.z], [FRONT.x, FRONT.z]]],
+    paths: [[[HONJIN.x + 30, 8], [HONJIN.x, 6], [FORD.x + 6, 2], [TOWN.x + 10, TOWN.z + 6], [FRONT.x, FRONT.z], [GATE.x + 2, GATE.z]], [[KARI.x, KARI.z + 2], [LANE_A.x, LANE_A.z], [LANE_B.x, LANE_B.z], [FRONT.x, FRONT.z]], [[KARI.x, KARI.z], ...LURE.map((q) => [q.x, q.z])], [[FORD.x + 6, 2], [MARCH.x - 20, MARCH.z - 40], [MARCH.x, MARCH.z], [MARCH.x + 10, MARCH.z + 40]]],
     tint(x, z, h, c) {
       c.setRGB(c.r * 0.52 + 0.24, c.g * 0.5 + 0.2, c.b * 0.4 + 0.08);   // 秋の刈田
       if (Math.hypot(x - C.x, z - C.z) < 40) c.setRGB(c.r * 0.7 + 0.1, c.g * 0.65 + 0.08, c.b * 0.55 + 0.05);
     },
-    clear: (x, z) => (x > -30 && x < 200 && Math.abs(z) < 90) || dist({ x, z }, KOKUZO) < 14,
+    clear: (x, z) => (x > -30 && x < 200 && Math.abs(z) < 90) || dist({ x, z }, KOKUZO) < 14 || lureRoad(x, z) < 5,
     trees: 220,
     tufts: 2600,
     treeDensity: (x, z) => (x < -30 || z < -96 || z > 90 ? 1 : 0.1),
@@ -279,7 +296,7 @@ const k05_ueda = {
   setup(rt) {
     timeslipField(rt);   // 身の回りの踏み荒らした地面・倒れた槍と旗・季節の草（def.timeslip）
     const F = rt.flags, W = rt.world, S = rt.scene;
-    F.step = 0; F.holdPlayer = false; F.foes = []; F.ending = false; F.ek = 0; F.ak = 0;
+    F.step = 0; F.holdPlayer = false; F.foes = []; F.ending = false; F.ek = 0; F.ak = 0; F.delay = 0;   // delay：真田に奪われた時（0〜100。高いほど締めの秀忠の焦りが強い）
     // ---- 上田城：土塀・大手門（櫓門）・櫓。城は落とせない ----
     const castle0 = S.children.length;
     wallLine(rt, [[GATE.x, GATE.z - 30], [GATE.x, GATE.z - 4]], { team: 1, hp: 1e9, name: '城の土塀', mesh: dobei, segLen: 5, h: 2.4 });
@@ -364,9 +381,15 @@ const k05_ueda = {
     if (F.hideU) F.hideU._crouch = true;   // 床几に腰を下ろす
     F.saka = allyGroup(rt, { faction: 'tokugawa', name: '榊原康政の隊', fullStrength: true, fixed: true, anchor: { x: HONJIN.x - 10, z: HONJIN.z - 22 }, facing: -Math.PI / 2, width: 7, aggro: 6, seekRange: 14, order: 'hold', noRout: true, formation: 'yari' },
       skD([bu('榊原康政'), uS(4), uA(10), uG(3)]));
-    // 諸隊の陣の番の兵（本物の兵だけ。幕の口に立って動かない）
-    for (const [x, z, d] of [[205, -34, hoD], [213, 30, dress({ flag: 'katabami' })], [229, -2, hoD]])
-      allyGroup(rt, { faction: 'tokugawa', name: '陣の番', fullStrength: true, fixed: true, anchor: { x, z }, facing: -Math.PI / 2, width: 3, aggro: 3, seekRange: 6, order: 'hold', noRout: true }, d([uS(2), uA(2), uG(1)]));
+    // 真田信之（徳川方。父と弟の城を前に、何もできない。大げさに泣かせない）
+    F.nobu = allyGroup(rt, { faction: 'tokugawa', name: '真田信之の手', fullStrength: true, fixed: true, anchor: { x: START.x + 4, z: START.z + 9 }, facing: -Math.PI * 0.6, width: 4, aggro: 4, seekRange: 8, order: 'hold', noRout: true },
+      dress(SA)([bu('真田信之'), uS(3), uA(4)]));
+    // 城下の東の道に止めた荷駄（米俵・玉薬の箱と人足）。⑤で真田に襲われる
+    for (const [dx, dz] of [[-4, -2], [0, 1], [4, -1], [8, 2]]) S.add(tawara(W, NIDA.x + dx, NIDA.z + dz, 0.3 + dx * 0.05, 3));
+    F.nida = allyGroup(rt, { faction: 'tokugawa', name: '荷駄の人足', fullStrength: true, fixed: true, anchor: { ...NIDA }, facing: -Math.PI / 2, width: 5, aggro: 3, seekRange: 6, order: 'hold', noRout: true, dmgMult: 0.4 },
+      tkD([uA(6)]));
+    // 画面いっぱいの徳川：神川を越えた後詰めの軽い大軍（本物の兵の枠を使わない。締めで木曽路へ動く）
+    try { for (const [x, z, flag, n, sd] of [[124, -64, 'okubo', 150, 56], [126, -22, 'honda', 170, 57], [128, 22, 'kashiwa', 130, 58]]) F.sometai.push(W.addDistantArmy({ x, z, w: 20, d: 10, count: n, facing: -Math.PI / 2, flag, team: 0, seed: sd, farFill: true, host: false })); } catch (e) { console.warn(e); }
     for (const g of [F.honda, F.okubo, F.makino]) g.ai = true;
     // 牧野の足軽は田にかがんで稲を刈る（突っ立たせない。一の3）。真田が来れば立って戦う（army_anim が動きと相手で _crouch を解く）
     for (const u of F.makino.units) if (!u.mounted && u.type !== 'busho') u._crouch = true;
@@ -385,11 +408,13 @@ const k05_ueda = {
     F.wallS = this.foe(rt, '南の隅櫓の鉄砲衆', { x: GATE.x - 4.5, z: GATE.z + 18 }, [uG(6)], { hold: true, width: 6, dmg: 0.9 });
     for (const g of [F.wallG, F.wallG2, F.wallN, F.wallS]) { g.facing = Math.PI / 2; g.seekRange = 48; g.aggro = 0; g.noAI = true; g.stay = true; g.wallShot = true; }
     // 信繁の手は初めから北の林に潜む（伏兵。四の段で林から出る。急に湧かせない AT17・AV10）
-    F.nobushige = this.foe(rt, '真田信繁の手', { x: KOKUZO.x, z: KOKUZO.z }, [bu(NOBU), uS(6), uA(20), uG(4)], { hold: true, width: 8, morale: 100, dmg: 0.6 });
-    F.nobushige.seekRange = 8; F.nobushige.aggro = 6;
+    F.nobushige = this.foe(rt, '真田信繁の手', { x: C.x + 14, z: C.z + 12 }, [bu(NOBU), { type: 'cavalry', n: 4 }, uS(3), uA(8)], { hold: true, width: 6, morale: 100, dmg: 0.5 });
+    F.nobushige.seekRange = 3; F.nobushige.aggro = 3; F.nobushige.noAI = true; F.nobushige.stay = true;   // ⑥まで城の内に控え、一度だけ後衛を突きに出る
     const T = this.talk.before;
-    T.forEach(([who, s], i) => rt.after(0.6 + i * 3.6, () => rt.say(who, s, 3.4)));
-    rt.after(0.6 + T.length * 3.6, () => { F.holdPlayer = false; this.toStep(rt, 1); });
+    T.forEach(([who, s], i) => rt.after(0.6 + i * 3.8, () => rt.say(who, s, 3.4)));
+    // 油断の間：秀忠の本陣は整然と余裕。少し間を置いてから城の門が開く
+    rt.after(0.6 + T.length * 3.8 + 2, () => rt.say('秀忠の使番', '中納言様の仰せ。「今日のうちに片付けて西へ上る」', 3.2));
+    rt.after(0.6 + T.length * 3.8 + 14, () => { F.holdPlayer = false; this.toStep(rt, 1); });
   },
 
   // 真田の隊を出す（見える所に湧かせない。城の門の内か、北の林から）
@@ -403,7 +428,7 @@ const k05_ueda = {
       if (at.x < GATE.x) { g.order = 'move'; g.dest = { x: GATE.x + 7, z: GATE.z }; g.anchor = { ...g.dest }; g.onArrive = (q) => { if (q.order === 'move') go(q); }; } else go(g);
     }
     // 追い討ちは岸の本人と接敵するまで退かない。隊の中心だけが岸へ着いて散ると、殿の相手が来なくなる。
-    if (!o.hold) rt.after(40, () => { if (g !== F.oi || F.oiEngaged || F.step !== 6) g.noRout = false; });
+    if (!o.hold) rt.after(40, () => { if (!g._keep) g.noRout = false; });   // 誘い・荷駄の襲いの小隊は崩れず、自分で退く（_keep）
     g._bornT = rt.t;
     F.foes.push(g);
     return g;
@@ -431,233 +456,273 @@ const k05_ueda = {
     if (F.step) rt.objDone('s' + F.step);
     F.step = n; F.stepT = rt.t;
     rt.obj('s' + n, STEP_TEXT[n], 'main');
-    // 前の段の予約台詞で、退却などの新しい下知を上書きしない。
-    const sayLater = (sec, who, text, duration) => rt.after(sec, () => {
-      if (!rt.over && !F.ending && F.step === n) rt.say(who, text, duration);
-    });
+    const go = (g, p, then = 'hold', sp = 3.8) => {
+      if (!live(g)) return;
+      g.order = 'move'; g.dest = { ...p }; g.anchor = { ...p }; g.speed = sp;
+      g.onArrive = (q) => { q.order = then; q.anchor = { ...p }; q.onArrive = null; };
+    };
     if (n === 1) {
+      // 2:00 真田が出てくる：信繁の手の若い者の小隊が大手門から打って出て、北の田の刈田の衆を襲う
       sfx('horagai', 0.8);
-      // 大手門から真田の兵が打って出て、北の田の刈田の手を襲う
-      F.sortie = this.foe(rt, '打って出た真田の兵', { x: GATE.x - 6, z: GATE.z - 2 }, [uS(4), uA(20), uG(5)], { aim: { x: KARI.x - 4, z: KARI.z + 2 }, width: 7 });
+      F.sortie = this.foe(rt, '打って出た真田の小隊', { x: GATE.x - 6, z: GATE.z - 2 }, [uS(4), uA(14), uG(5)], { aim: { x: KARI.x - 4, z: KARI.z + 2 }, width: 7, morale: 100 });
+      F.sortie.noRout = true; F.sortie._keep = true;
       F.w1N = aliveN(F.sortie);
       F.honda.order = 'attack'; F.honda.seekRange = 50; F.honda.anchor = { x: KARI.x, z: KARI.z + 4 };
-      // 大久保の手も町屋から北の田へ寄せ、刈田の手を襲う真田を挟む（BK1・AP5：自分だけが走らない）
       F.okubo.order = 'attack'; F.okubo.seekRange = 50; F.okubo.anchor = { x: KARI.x + 6, z: KARI.z + 12 };
-      sayLater(3, '牧野康成', '城の門が開いた！　真田が刈田を襲うて来るぞ！', 3);
-      sayLater(7, '本多忠政', '待っておったわ。田へ走れ、刈田の衆を助けよ！', 3);
+      rt.after(3, () => rt.say('牧野康成', '城の門が開いた！　真田が刈田を襲うて来るぞ！', 3));
+      rt.after(7, () => rt.say('本多忠政', '出て来たわ。田へ走れ、真田勢を退けよ！', 3));
     } else if (n === 2) {
-      this.back(F.sortie);
-      rt.say('大久保忠隣', '逃がすな！　門まで追い詰めよ！', 3);
-      sayLater(7, '真田の足軽', '徳川の大軍も追えぬか！　城まで来てみよ！', 3);
-      sayLater(3.5, '本多忠政', '深追いはならぬと言うたが……もう止まらぬ。続け！', 3);
-      for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) {
-        g.order = 'move'; g.dest = p; g.speed = 3.8; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: p.x, z: p.z }; };
-      }
+      // RETREAT→LURE：真田は城と逆の北へ、畦・田・林の間の細い道を、追えば追える間合いでちょこちょこ逃げる
+      F.lureI = 0; F.lureT = rt.t;
+      const g = F.sortie;
+      if (live(g)) { g.noRout = true; g.morale = 100; this.lureNext(rt); }
+      rt.say('徳川の足軽', '逃げるぞ！　逃すな！', 2.6);
+      rt.after(3.5, () => rt.say('大久保忠隣', '追え、追え！　小勢じゃ、揉み潰せ！', 3));
+      rt.after(10, () => rt.say('徳川の足軽', 'ははっ、真田も口ほどにもない！', 2.8));
+      // 本多・大久保の手も追う。追ううちに隊列が田の畦に細く伸びる
+      for (const [g2, dx] of [[F.honda, 4], [F.okubo, 10]]) if (live(g2)) { g2.order = 'attack'; g2.seekRange = 18; g2.anchor = { x: LURE[1].x + dx, z: LURE[1].z + 6 }; }
     } else if (n === 3) {
-      sfx('taiko', 1);
-      sfx('volley', 0.9);
-      for (let i = 0; i < 6; i++) rt.army.smoke(GATE.x - 2, rt.world.heightAt(GATE.x, GATE.z) + 2.6, GATE.z - 8 + i * 3.2, 1, 0);
-      F.yari = this.foe(rt, '門から打って出た真田の槍', { x: GATE.x - 8, z: GATE.z }, [uS(5), uA(20), uG(3)], { aim: { x: FRONT.x + 2, z: FRONT.z }, width: 8, morale: 98 });
-      F.w3N = aliveN(F.yari);
-      sayLater(10, '真田昌幸', '誘いに乗ったな。小路の出口へ回れ、退き口を押さえよ！', 3);
-      for (const g of [F.honda, F.okubo]) { g.order = 'attack'; g.seekRange = 30; g.anchor = { x: FRONT.x + 4, z: g === F.honda ? FRONT.z - 4 : FRONT.z + 4 }; }
-      sayLater(2, '足軽', '門の上から撃ってくる！　前の者がばたばた倒れる！', 3);
-      sayLater(6, '真田昌幸', '引き付けて放て。門の前に寄せた者は、一人も帰すな', 3.2);
+      // AMBUSH：細い道の左右の林から鉄砲、前の真田は向き直る（「追わされた」）
+      F.ambT = rt.t;
+      const inTrap = dist(rt.player.u.pos, TRAP) < 26;
+      F.delay += inTrap ? 18 : 10;
+      sfx('volley', 1);
+      rt.after(0.6, () => sfx('volley', 0.8));
+      F.ambL = this.foe(rt, '林の伏兵', { x: TRAP.x - 13, z: TRAP.z + 2 }, [uS(2), uG(6)], { hold: true, width: 6, dmg: 0.5, facing: Math.PI / 2 });
+      F.ambR = this.foe(rt, '林の伏兵', { x: TRAP.x + 13, z: TRAP.z + 2 }, [uS(2), uG(6)], { hold: true, width: 6, dmg: 0.5, facing: -Math.PI / 2 });
+      for (const g of [F.ambL, F.ambR]) { g.seekRange = 26; g.aggro = 10; }
+      if (live(F.sortie)) { const s = F.sortie; s.onArrive = null; s.order = 'attack'; s.seekRange = 22; s.aggro = 14; s.speed = 3.8; }
+      for (let i = 0; i < 5; i++) rt.army.smoke(TRAP.x - 12, rt.world.heightAt(TRAP.x - 12, TRAP.z) + 1.4, TRAP.z - 6 + i * 3, 1, 0);
+      for (let i = 0; i < 5; i++) rt.army.smoke(TRAP.x + 12, rt.world.heightAt(TRAP.x + 12, TRAP.z) + 1.4, TRAP.z - 6 + i * 3, 1, 0);
+      rt.after(0.8, () => rt.say('徳川の足軽', '左右の林から撃って来た！', 2.6));
+      rt.after(4, () => rt.say('本多忠政', '追わされたか……！　田まで退け、囲みを抜けよ！', 3.2));
+      rt.after(9, () => rt.say(NOBU, '深追いは無用。少し削れば、それでよい', 3));
+      // 55秒で伏兵は林へ去る（殺し尽くさない。時を奪えばよい）
+      rt.after(55, () => { for (const g of [F.ambL, F.ambR, F.sortie]) this.away(rt, g, { x: 46, z: -136 }); });
+      for (const [g2, p] of [[F.honda, { x: OUT.x - 4, z: OUT.z - 2 }], [F.okubo, { x: OUT.x + 8, z: OUT.z + 4 }]]) rt.after(8, () => go(g2, p, 'attack'));
     } else if (n === 4) {
-      // 信繁の手が北の林から出て、門の前の徳川の先手の横を突く
+      // 7:00 城を直接攻める：門と土塀へ短く圧力。一時はかなり近づける
+      for (const g of [F.ambL, F.ambR, F.sortie]) this.away(rt, g, { x: 46, z: -136 });
       sfx('taiko', 1);
-      const nb = F.nobushige, aim = { x: FRONT.x + 6, z: FRONT.z - 6 };
-      nb.anchor = { ...aim }; nb.order = 'move'; nb.dest = { ...aim }; nb.seekRange = 90; nb.aggro = 16;
-      nb.onArrive = (q) => { if (q.order === 'move') q.order = 'attack'; };
-      rt.after(40, () => { nb.noRout = false; });
-      F.w4N = aliveN(nb);
-      for (const g of [F.honda, F.okubo, F.makino]) if (live(g)) { g.morale -= 15; g.order = 'attack'; g.seekRange = 40; }
-      sayLater(3, '大久保忠隣', '横から来たぞ！　槍を北へ向けよ！', 3);
-      sayLater(8, NOBU, '徳川の先手、門の前で足が止まったわ。揉み潰せ！', 3.2);
-      rt.after(16, () => { if (F.step === 4) rt.say(NOBU, '兄上は徳川に付かれた。……真田の家は、どちらが勝っても残る', 3.6); });
+      if (F.hideU) F.hideU._crouch = false;   // 本陣の秀忠が床几から立つ
+      rt.say('秀忠の使番', '関ヶ原の方より急使！　「先を急がれよ」との事！', 3.4);
+      rt.after(3.8, () => rt.say('徳川秀忠', '外へ出て来るなら、もう城を落とす。大手門へかかれ！', 3.4));
+      for (const [g, p] of [[F.honda, { x: FRONT.x + 8, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 8, z: FRONT.z + 6 }], [F.saka, { x: FRONT.x + 12, z: FRONT.z + 12 }], [F.makino, { x: TOWN.x + 6, z: TOWN.z - 14 }]]) go(g, p, g === F.makino ? 'hold' : 'attack');
+      F.reAt = 0;
     } else if (n === 5) {
-      // 「一度引け」の下知に合わせて退く。再攻撃の間も信繁だけ戦い続けないようにする。
-      this.back(F.nobushige);
-      // 11/8：秀忠の下知で、榊原の手と共にもう一度大手門へ寄せる。門の上の鉄砲と、門の内から出る新手に押し返され、城は落ちない
-      sfx('taiko', 1);
-      rt.say('秀忠の使番', '中納言様のお下知！　榊原殿の手と共に、いま一度大手門へかかれ！', 3.6);
-      for (const [g, p] of [[F.saka, { x: FRONT.x + 6, z: FRONT.z + 8 }], [F.honda, { x: FRONT.x + 2, z: FRONT.z - 6 }], [F.okubo, { x: FRONT.x + 4, z: FRONT.z + 4 }]]) {
-        if (!live(g)) continue;
-        g.order = 'move'; g.dest = p; g.speed = 3.8; g.onArrive = (q) => { q.order = 'attack'; q.anchor = { x: p.x, z: p.z }; q.seekRange = 24; };
-      }
-      F.re = this.foe(rt, '大手門の守りの新手', { x: GATE.x - 8, z: GATE.z + 2 }, [uS(4), uA(14), uG(3)], { aim: { x: FRONT.x - 2, z: FRONT.z }, width: 8, morale: 100, dmg: 0.5 });
-      F.w5N = aliveN(F.re); F.reAt = 0;
-      sayLater(6, '榊原康政', '数はこちらが十倍じゃ。塀に取り付け、門を押し破れ！', 3.4);
-      sayLater(16, '真田昌幸', '何度来ても同じこと。門の前へ寄せた者から撃て', 3.2);
-      sayLater(30, '大久保忠隣', '塀の上から撃ちすくめられる……門が固い！', 3);
-    } else if (n === 6) {
-      // 秀忠の引き揚げの下知。大久保と牧野の手は先に川を越え、本多の先手（主人公）が神川の西の岸でしんがりを務める
-      sfx('horagai', 0.9);
-      rt.say('秀忠の使番', '中納言様のお下知！　先手は引け。神川を越えて本陣へ戻れ！', 3.6);
-      sayLater(4.2, '本多忠政', '我らがしんがりじゃ。神川の岸で真田を止めよ！', 3.4);
-      for (const [g, p] of [[F.okubo, { x: RET.x + 6, z: -14 }], [F.makino, { x: RET.x + 10, z: 20 }], [F.saka, { x: RET.x + 8, z: -24 }]]) {
-        if (!live(g)) continue;
-        g.order = 'move'; g.dest = p; g.speed = 3.7; g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: p.x, z: p.z }; };
-      }
-      if (live(F.honda)) { const p = { x: FORD_W.x - 2, z: FORD_W.z - 5 }; F.honda.order = 'move'; F.honda.dest = p; F.honda.speed = 3.8; F.honda.onArrive = (q) => { q.order = 'attack'; q.anchor = { ...p }; q.seekRange = 26; }; }
-      // 退却の下知と同時に追撃を出し、川岸まで追わせる。
-      this.spawnOi(rt);
-      this.back(F.nobushige);   // 信繁の手は「一度引け」で城へ引く（追い討ちは城の新手が受け持つ）
-    } else if (n === 7) {
-      // 追い討ちを止めた。しんがりも神川を渡って本陣の前へ
+      // 9:00 また後ろから真田：荷駄が襲われ、城攻めを止められる（「あと少しだったのに」）
       sfx('horagai', 0.7);
-      this.back(F.oi);
-      if (live(F.nobushige)) this.back(F.nobushige);
-      rt.say('本多忠政', '真田が引いた。今のうちに川を渡れ！', 3);
-      if (live(F.honda)) { const p = { x: RET.x + 2, z: 4 }; F.honda.order = 'move'; F.honda.dest = p; F.honda.speed = 3.7; F.honda.onArrive = (q) => { q.order = 'hold'; q.anchor = { ...p }; }; }
+      for (const g of [F.yari, F.re]) this.back(g);
+      F.delay += 15;
+      F.raid = this.foe(rt, '荷駄を襲う真田の小隊', RAID, [uS(3), uA(10), uG(3)], { aim: { x: NIDA.x - 2, z: NIDA.z + 4 }, width: 6, morale: 100, dmg: 0.5 });
+      F.raid.noRout = true; F.raid._keep = true;
+      F.w5N = aliveN(F.raid); F.nidaAt = 0;
+      rt.say('秀忠の使番', '後方に真田勢！　荷駄が襲われております！', 3.2);
+      rt.after(3.6, () => rt.say('徳川の足軽', 'あと少しだったのに！　……またかよ', 2.8));
+      rt.after(7.5, () => rt.say('本多忠政', '荷駄を失えば西へは上れぬ。戻れ！　深追いはするな', 3.2));
+      rt.after(14, () => rt.say('徳川秀忠', 'またか……！　城一つに、何刻かけておる', 3));
+      go(F.okubo, { x: FRONT.x + 16, z: FRONT.z + 4 });
+      go(F.saka, { x: FRONT.x + 18, z: FRONT.z + 14 });
+      go(F.honda, { x: NIDA.x - 8, z: NIDA.z - 4 }, 'attack');
+    } else if (n === 6) {
+      // 11:00 関ヶ原から急使。攻めを止め、神川の岸に兵をまとめる。真田は無理に追わない
+      sfx('horagai', 0.9);
+      if (live(F.raid)) this.away(rt, F.raid, { x: 86, z: 56 });
+      rt.say('秀忠の使番', '内府様より急使！　「上田にかかずらわず、急ぎ美濃へ上られよ」！', 4);
+      rt.after(4.4, () => rt.say('徳川秀忠', '……ここまで来て、退くのか。……いや。攻めを止めよ。西へ急ぐ', 3.6));
+      rt.after(9, () => rt.say('本多忠政', '負うた者を担げ。鉄砲と荷駄を先に、神川の岸へまとまれ！', 3.4));
+      rt.after(15, () => rt.say('真田昌幸', '追うな。時は奪うた。それでよい', 3));
+      for (const [g, p] of [[F.okubo, { x: FORD_W.x + 14, z: -14 }], [F.saka, { x: FORD_W.x + 18, z: 14 }], [F.makino, { x: FORD_W.x + 10, z: 22 }], [F.honda, { x: FORD_W.x - 2, z: FORD_W.z - 6 }], [F.nobu, { x: FORD_W.x + 4, z: FORD_W.z + 8 }]]) go(g, p, g === F.honda ? 'attack' : 'hold', 3.7);
+      if (live(F.nida)) go(F.nida, { x: FORD_W.x + 20, z: 4 }, 'hold', 3.2);
+      F.rallyAt = 0;
+      // 信繁の手が一度だけ後衛へ出て、一撃してすぐ退く（一騎打ちにしない）
+      rt.after(22, () => {
+        const nb = F.nobushige;
+        if (!live(nb) || F.step !== 6) return;
+        F.nbOut = rt.t;
+        nb.stay = false; nb.noAI = false;
+        nb.order = 'move'; nb.dest = { x: FORD_W.x - 10, z: FORD_W.z - 2 }; nb.anchor = { ...nb.dest }; nb.speed = 4.4; nb.seekRange = 0; nb.aggro = 0;
+        nb.onArrive = (q) => { q.order = 'attack'; q.seekRange = 20; q.aggro = 14; q.onArrive = null; };
+        rt.say('徳川の足軽', '城から騎馬が来る！　六文銭じゃ！', 2.8);
+        rt.after(36, () => { if (!F.nbBack) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(nb); } });
+      });
+    } else if (n === 7) {
+      // 13:00 関ヶ原へ急ぐ：撤退でなく行軍
+      sfx('horagai', 0.7);
+      if (live(F.nobushige) && !F.nbBack) { F.nbBack = true; this.back(F.nobushige); }
+      rt.say('本多忠政', '川を渡れ。中山道を西へ、夜通し駆けるぞ', 3);
+      rt.after(5, () => rt.say('徳川の足軽', '……もう遅れておるのではないか', 2.6));
+      const k = [[F.okubo, -10, -6], [F.saka, 6, -14], [F.makino, -14, 8], [F.honda, 0, 4], [F.nobu, 8, 8], [F.mine, 3, 3], [F.nida, -6, 14], [F.hide, 12, 22]];
+      for (const [g, dx, dz] of k) if (live(g)) { g.stay = false; go(g, { x: MARCH.x + dx, z: MARCH.z + dz + 10 }, 'hold', 3.6); }
     }
+  },
+
+  // 真田の小隊の LURE：寄られたら次の所へ退き、着いたら向き直って撃つ（HARASS）。追えば追える間合いを保つ
+  lureNext(rt) {
+    const F = rt.flags, g = F.sortie;
+    if (!live(g) || F.lureI >= LURE.length) return;
+    const p = LURE[F.lureI];
+    g.order = 'move'; g.dest = { ...p }; g.anchor = { ...p }; g.speed = 3.9; g.aggro = 0; g.seekRange = 0;
+    g.onArrive = (q) => { q.order = 'hold'; q.aggro = 6; q.seekRange = 12; q.onArrive = null; F.lureAt = rt.t; F.lureI++; };
+    F.lureMoveT = rt.t;
+  },
+  lureTick(rt) {
+    const F = rt.flags, g = F.sortie;
+    if (F.step !== 2 || !live(g)) return;
+    const c = g.center();
+    if (g.order === 'move') {
+      // 引っかかったら（二十秒進まない）次の所へ自動で退く（詰まり止め③）
+      if (rt.t - F.lureMoveT > 20) { for (const u of g.units) if (u.alive && !u.gone) { u.pos.x = g.dest.x + (u.pos.x - c.x) * 0.5; u.pos.z = g.dest.z + (u.pos.z - c.z) * 0.5; } }
+      return;
+    }
+    if (F.lureI >= LURE.length) return;
+    let dmin = 1e9;
+    for (const u of rt.army.units) if (u.team === 0 && u.alive && !u.gone && !u.fleeing) { const d = dist(u.pos, c); if (d < dmin) dmin = d; }
+    // 寄られたら退く。誰も来ない時も、十八秒で次の所へ（追わなくても話は進む⑥）
+    if (dmin < 12 || rt.t - (F.lureAt || 0) > 18) {
+      if (F.lureI === 1) rt.say('真田の足軽', '徳川の大軍も、この小勢を追い切れぬか！', 2.8);
+      this.lureNext(rt);
+    }
+  },
+  // DISENGAGE：林・城へ去り、着いたら消える（本物の兵の枠を空ける）
+  away(rt, g, to) {
+    if (!live(g)) return;
+    g.onArrive = null; g.order = 'retreat'; g.dest = { ...to }; g.anchor = { ...to }; g.speed = 4.4; g.aggro = 0; g.seekRange = 0; g.noRout = true; g._away = true;
   },
 
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true;
-    rt.player.u.invuln = true;
-    for (const g of F.foes) if (g !== F.masa && !g.wallShot) this.back(g);
-    sfx('horagai', 0.8);
-    // 勝ち戦ではない（徳川の先手が押し返されて退いた小競り合い）。終わりの札は「務めを果たした」（victory_card.js の DUTY。critic60）
-    // 「先手、本陣へ退く／上田城は落ちなかった」の説明の帯は出さない（五の1・V3。台詞と日付だけで伝える）
-    // 締め：一つずつ読める間を空ける（critic60：急使の言葉を読む間が無い）。家康（慶長五年は内大臣＝内府）の急使が小諸に着いたのは二日後の九月八日（秀忠の書状）
-    // 11/8 kaito（toku15_plan 5）：急使の後、染屋台の諸隊が陣を払って木曽路へ急ぎ、「関ヶ原に間に合わず」で締める（k05/end.js が finish を呼ぶ）
-    //   段の済み・勝ちの印・手柄は締めの直前に（共通の goalsDoneTick が二秒半で締め、急使の場面を切らないように）
-    endScene(rt, { armies: F.sometai, talk: this.talk.after, done: () => {
+    const P = rt.player;
+    P.u.invuln = true;
+    for (const g of F.foes) if (g !== F.masa && !g.wallShot && g !== F.gateRear) this.back(g);
+    // 最後の絵：振り返ると、遠くに無傷の上田城と六文銭の旗、その前に小さく真田の兵
+    P.yaw = Math.atan2(GATE.x - P.u.pos.x, GATE.z - P.u.pos.z);
+    F.gateRear = this.foe(rt, '大手門の前の真田の兵', { x: GATE.x + 8, z: GATE.z }, [uS(2), uA(6)], { hold: true, width: 5 });
+    F.gateRear.noAI = true; F.gateRear.stay = true; F.gateRear.aggro = 0; F.gateRear.seekRange = 0;
+    sfx('horagai', 0.5);
+    const late = (F.delay || 0) >= 45;
+    rt.after(1, () => rt.say('真田信之', '……父上……。', 2.6));
+    const talk = [this.talk.after[0], late ? ['徳川秀忠', '……遅れた。美濃の戦に、間に合うか。木曽路を急げ'] : ['徳川秀忠', '……まだ間に合うやもしれぬ。木曽路を急げ']];
+    // 締め：急使・陣払い・「関ヶ原に間に合わず」（k05/end.js が finish を呼ぶ）。段の済み・手柄は締めの直前に
+    rt.after(4, () => endScene(rt, { armies: F.sometai, talk, done: () => {
       F.won = true;
-      // 城を落とせず西へ向かう締めを終えた。共通の勝鬨・祝勝動作へ戻さない。
-      F.victoryShown = true;
+      F.victoryShown = true;   // 共通の勝鬨と祝勝の動きを重ねない（静かに去る戦）
       rt.objDone('s' + LAST);
       rt.tracker.main = true;
-      rt.award((t) => { t.main = true; t.special = { label: '上田城下でしんがりを務めた', pts: 20 }; }, '上田城下でしんがりを務めた');
-    } });
+      const good = (F.delay || 0) < 45;
+      rt.award((t) => { t.main = true; t.special = { label: good ? '真田に釣られず兵をまとめた' : '上田から兵をまとめて退いた', pts: good ? 25 : 15 }; }, good ? '真田に釣られず兵をまとめた' : '上田から兵をまとめて退いた');
+    } }));
   },
 
   update(rt, dt) {
     const F = rt.flags;
     KIT.backTick?.(rt);
-    // 右上の目標に刻限の時計を付けない（goals5.js は sec の無い段に二百秒を足すので、出来上がった後に外す。critic60）
+    // 右上の目標に刻限の時計を付けない（タイマーは出さない。時は使番・本陣・急使で見せる）
     if (!F.noClock && rt._g5) { for (const g of rt._g5.goals) g.sec = 0; F.noClock = true; }
     this.gateTick(rt, dt);
     if (F.ending || !F.step) return;
     const P = rt.player.u;
-    // 水中の減速は共通の terrainFx が徒歩・騎乗ともに扱う。移動後の座標を戻すと二重に遅くなり、岸や塀の当たり判定も巻き戻してしまう。
-    // 場所へ出向いて戦った段だけを達成する。台詞や待機の時間を戦果にしない。
-    if (F.step === 1 && dist(P.pos, KARI) < 18) F.kariJoined = true;
-    if ((F.step === 3 || F.step === 4) && dist(P.pos, FRONT) < 35) F.frontJoined = F.step;
-    // 11/9 三巡（織田C）：門の北の町屋の陰（21,0）で止まった遊び手は門の前の輪の三十五歩外で、寄せた時が数えられず十三分止まった。門の三十四歩の内も数える。
-    if (F.step === 5 && (dist(P.pos, FRONT) < 32 || dist(P.pos, GATE) < 34)) F.reAt += dt;
-    if (F.step === 6 && F.oiHot && dist(P.pos, FORD_W) < 30) {
-      // 一度接敵した後は岸を守った時間を数える。追手が間合いを離れるたびに止めると、岸に居続けても殿を果たせない。
-      if (F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 16)) F.oiEngaged = true;
-      if (F.oiEngaged) { F.oi.noRout = false; F.oiHeld = (F.oiHeld || 0) + dt; }
-    }
-    // 追手が小路で止まっても殿を終えられるよう、実際に岸を守った時間を別に数える。
-    // 到着・接敵の印は偽らず、百五十秒守った後は残る追手へ撤収の下知を出す。
-    if (F.step === 6 && F.oi && dist(P.pos, FORD_W) < 30) F.oiCoastHeld = (F.oiCoastHeld || 0) + dt;
-    // 手勢は本人の脇に付いて一緒に走る（AP5）
+    if (F.step === 1 && dist(P.pos, KARI) < 20) F.kariJoined = (F.kariJoined || 0) + dt;
+    if (F.step === 4 && F.atFront && (dist(P.pos, FRONT) < 32 || dist(P.pos, GATE) < 34)) F.reAt += dt;
+    if (F.step === 5 && dist(P.pos, NIDA) < 18) F.nidaAt += dt;
+    if (F.step === 6 && dist(P.pos, FORD_W) < 16) F.rallyAt += dt;
+    // 手勢は本人の脇に付いて一緒に走る
     if ((F.mineT = (F.mineT || 0) - dt) <= 0) {
       F.mineT = 0.6;
       const g = F.mine, c = live(g) && g.center();
-      if (c) {
+      if (c && F.step < LAST) {
         if (dist(c, P.pos) > 8) { g.order = 'move'; g.dest = { x: P.pos.x + 2, z: P.pos.z + 2.5 }; g.speed = 3.9; }
         else { g.order = 'attack'; g.seekRange = 14; }
       }
     }
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
     F.scanT = 0.25;
-    const left = STEP_T[F.step] - (rt.t - F.stepT);
-    // 城の内へ退いた真田は去らせる（本物の兵の枠を空ける）
+    const el = rt.t - F.stepT, over = el > STEP_MAX[F.step];
+    // 城の内へ退いた真田・林へ去った真田は消す（本物の兵の枠を空ける）
     if ((F.gcT = (F.gcT || 0) - 0.25) <= 0) {
       F.gcT = 1;
-      for (const g of F.foes) if (g.order === 'retreat') for (const u of g.units) if (u.alive && !u.gone && u.pos.x < GATE.x - 4) rt.army.despawn(u);
+      for (const g of F.foes) {
+        if (g.order === 'retreat' && !g._away) for (const u of g.units) if (u.alive && !u.gone && u.pos.x < GATE.x - 4) rt.army.despawn(u);
+        if (g._away) for (const u of g.units) if (u.alive && !u.gone && (dist(u.pos, g.dest) < 8 || dist(u.pos, P.pos) > 70)) rt.army.despawn(u);
+      }
     }
     if (live(F.masa) && F.masa.order !== 'hold') { F.masa.order = 'hold'; F.masa.anchor = { x: C.x + 2, z: C.z }; }
     this.wallFire(rt);
-    // 刻限で負けにも達成にもしない。小路で遅れた時だけ下知を伝える。
-    const late = left <= 0;
+    this.lureTick(rt);
+    // 本陣の焦り：時が経つほど使番が増え、秀忠の言葉が短くなる（タイマーの代わり）
+    if (!F.mood1 && F.step >= 2 && rt.t > 300) { F.mood1 = true; rt.say('秀忠の使番', '中納言様より。「まだ片付かぬか」との仰せ', 3); }
+    if (!F.mood2 && F.step >= 4 && rt.t > 560) { F.mood2 = true; rt.say('徳川秀忠', '日が傾く……。今日のうちに、ここを抜けねばならぬ', 3.2); }
     if (F.step === 1) {
-      if (F.kariJoined && F.w1N - aliveN(F.sortie) >= Math.round(F.w1N * 0.6)) this.toStep(rt, 2);
+      const k = F.w1N - aliveN(F.sortie);
+      // 最初は簡単に押せる：三割ほど討つか、田で三十秒ぶつかれば、真田は退く（全滅を条件にしない①）
+      if ((F.kariJoined > 6 && (k >= Math.round(F.w1N * 0.3) || F.kariJoined > 30)) || over) this.toStep(rt, 2);
     } else if (F.step === 2) {
-      // 小路の出口から門の口の前までを「大手門の前」とする（退く真田を門の際まで追い詰めても果たす）
-      // 中ほどや家の裏では通過にしない。出口まで小路へ導き、門へ直進して町屋に当たるのを防ぐ。
-      if (dist(P.pos, LANE_B) < 5) F.throughTown = true;
-      if (F.throughTown && (dist(P.pos, FRONT) < 10 || (P.pos.x > GATE.x - 12 && P.pos.x < FRONT.x + 6 && Math.abs(P.pos.z - GATE.z) < 14))) this.toStep(rt, 3);
-      else if (late && !F.late2) { F.late2 = true; rt.say('本多忠政', '何をしておる、町屋の小路を抜けて門の前へ急げ！', 3.2); }
+      // 追った先の細い道で伏兵。追わなかった時も、本多の手が追って伏兵に掛かる（話は止まらない⑥）
+      const nearTrap = dist(P.pos, TRAP) < 22;
+      if ((F.lureI >= LURE.length && (nearTrap || el > 75)) || (nearTrap && (F.lureI >= LURE.length - 1 || !live(F.sortie))) || over) this.toStep(rt, 3);
     } else if (F.step === 3) {
-      if (F.frontJoined === 3 && F.w3N - aliveN(F.yari) >= Math.round(F.w3N * 0.6)) { this.back(F.yari); rt.say('足軽', '門の槍が引いた！　……北の林が騒がしいぞ', 3); this.toStep(rt, 4); }
+      // 囲みを抜けて田へ戻る（伏兵の全滅を待たない）
+      if ((dist(P.pos, OUT) < 12 && el > 25) || over) {
+        rt.say('本多忠政', '……三十ほど討たれた。また時を失うたわ', 3);
+        this.toStep(rt, 4);
+      }
     } else if (F.step === 4) {
-      if (F.frontJoined === 4 && F.w4N - aliveN(F.nobushige) >= Math.round(F.w4N * 0.5)) {
-        rt.say(NOBU, '徳川も粘るわ……一度引け', 2.8);
-        this.toStep(rt, 5);
+      // 小路の出口から門の前へ。着いたら門から真田の槍が出る。門は落ちない（時間＋寄せで進む⑤）
+      if (!F.atFront) {
+        if (dist(P.pos, LANE_B) < 5) F.throughTown = true;
+        if ((F.throughTown && (dist(P.pos, FRONT) < 10 || (P.pos.x > GATE.x - 12 && P.pos.x < FRONT.x + 6 && Math.abs(P.pos.z - GATE.z) < 14))) || el > 150) {
+          F.atFront = true; F.reAt = 0;
+          sfx('taiko', 1); sfx('volley', 0.9);
+          for (let i = 0; i < 6; i++) rt.army.smoke(GATE.x - 2, rt.world.heightAt(GATE.x, GATE.z) + 2.6, GATE.z - 8 + i * 3.2, 1, 0);
+          F.yari = this.foe(rt, '門から打って出た真田の槍', { x: GATE.x - 8, z: GATE.z }, [uS(4), uA(14), uG(2)], { aim: { x: FRONT.x + 2, z: FRONT.z }, width: 8, morale: 98 });
+          F.w4N = aliveN(F.yari);
+          rt.after(2, () => rt.say('徳川の足軽', '門の上から撃ってくる！', 2.6));
+          rt.after(8, () => rt.say('榊原康政', '数はこちらが十倍じゃ。塀に取り付け！', 3));
+          rt.after(18, () => rt.say('真田昌幸', '引き付けて放て。門の前に寄せた者から撃て', 3));
+        }
+      } else {
+        const k = F.w4N - aliveN(F.yari);
+        if (!F.ikeru && F.reAt > 30 && k >= Math.round(F.w4N * 0.3)) { F.ikeru = true; rt.say('徳川の足軽', '門の槍が引いた！　いけるぞ！', 2.6); this.back(F.yari); }
+        if (F.reAt > 55 && (F.ikeru || F.reAt > 80)) this.toStep(rt, 5);
       }
+      if (over) this.toStep(rt, 5);
     } else if (F.step === 5) {
-      // 門の前で寄せ続け（四十五秒）、門から出た新手を四割討つか、九十秒寄せても落ちない所で、家康の急使が来る
-      if (!F.kyushi && F.reAt > 45 && (F.w5N - aliveN(F.re) >= Math.round(F.w5N * 0.4) || F.reAt > 90)) {
-        F.kyushi = true;
-        sfx('horagai', 0.9);
-        // 小競り合いの九月六日から日が過ぎた事を、急使より先に伝える（check60 U4）。
-        rt.banner('九月八日', '');
-        rt.say('使番', '家康公より急使！　「上田にかかずらわず、急ぎ美濃へ上られよ」との仰せ！', 4);
-        rt.after(4.4, () => rt.say('徳川秀忠', '……城は落ちぬか。攻めを止めよ。西へ急げ！', 3.4));
-        rt.after(8, () => { this.back(F.re); this.toStep(rt, 6); });
+      // 荷駄を守る：敵0人を待たない④。守り切ったら真田はまた逃げる
+      const k = F.w5N - aliveN(F.raid);
+      if (!F.raidGone && ((F.nidaAt > 20 && (k >= Math.round(F.w5N * 0.4) || F.nidaAt > 45)) || el > 170)) {
+        F.raidGone = rt.t;
+        this.away(rt, F.raid, { x: 86, z: 58 });
+        rt.say('徳川の足軽', '真田がまた逃げるぞ！', 2.4);
+        rt.after(2.6, () => rt.say('本多忠政', '追うな！　荷駄を守れ。二度は釣られぬ', 3));
       }
+      // 二度目の学び：追えば林の鉄砲に撃たれて、また時を失う。追わなければ損は少ない
+      if (F.raidGone && !F.trap2 && P.pos.z > 24 && rt.t - F.raidGone < 30) {
+        F.trap2 = true; F.delay += 10;
+        sfx('volley', 0.9);
+        F.grove = this.foe(rt, '藪の鉄砲', { x: 84, z: 44 }, [uG(5)], { hold: true, width: 5, dmg: 0.4, facing: Math.PI });
+        F.grove.seekRange = 26;
+        rt.after(1, () => rt.say('本多忠政', 'また誘いじゃ！　戻れ！', 2.6));
+        rt.after(20, () => this.away(rt, F.grove, { x: 86, z: 70 }));
+      }
+      if ((F.raidGone && rt.t - F.raidGone > (F.trap2 ? 22 : 12)) || over) this.toStep(rt, 6);
     } else if (F.step === 6) {
-      if (!F.oi && (dist(P.pos, FORD_W) < 24 || rt.t - F.stepT > 45)) this.spawnOi(rt);
-      const oc = live(F.oi) && F.oi.center();
-      // 追手が町屋の道で詰まって岸へ来ない時（11/9 見回り 徳川D：本人が岸で八百秒待った）は、七十秒で岸の本人へ向かわせる
-      if (F.oi) F.oiT ??= rt.t;
-      if (oc && !F.oiHot && rt.t - F.oiT > 70 && dist(P.pos, FORD_W) < 30) {
-        // 広い索敵で攻め直すと、道中の味方へ引かれて岸まで来ない。岸へ届くまでは移動を優先する。
-        F.oi.onArrive = null;
-        F.oi.order = 'move'; F.oi.dest = { x: FORD_W.x - 4, z: FORD_W.z };
-        F.oi.seekRange = 0; F.oi.aggro = 0;
+      // 兵をまとめる：岸に三十秒いて、信繁の一撃が済む（来なければ刻限で）
+      if (F.nbOut && !F.nbBack && rt.t - F.nbOut > 20 && live(F.nobushige)) {
+        const c = F.nobushige.center();
+        if (dist(c, FORD_W) < 18 && rt.t - F.nbOut > 30) { F.nbBack = true; rt.say(NOBU, '……ここまで。引くぞ', 2.6); this.back(F.nobushige); }
       }
-      // 時間だけで接敵済みにしない。先頭が岸の本人へ届いた時も、隊の中心を待たず交戦に移る。
-      const reached = F.oi?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, FORD_W) < 30 && dist(u.pos, P.pos) < 16);
-      if (oc && !F.oiHot && (dist(oc, FORD_W) < 16 || reached)) { F.oiHot = true; F.oiHotT = rt.t; F.oi.onArrive = null; F.oi.aggro = 16; F.oi.seekRange = 40; F.oi.order = 'attack'; F.oi.anchor = { ...FORD_W }; }
-      // 接敵してから半ばを討つか、主人公が岸で百十秒支えて果たす。
-      if (F.oiHot && F.oiEngaged && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.5) || (F.oiHeld || 0) > 110)) this.toStep(rt, 7);
-      // 岸へ届いた追手を味方が押し返した時も数える。道中で六割倒れただけでは、残る追手を待たずに川を渡らせない。
-      // 全員が討たれた時は、岸へ届く相手が残っていないので退ける。
-      // 潰走した兵は討死ではない。隊の中心が岸へ寄っただけでも接敵済みにはしない。
-      else if (F.oi && (F.oiEngaged || !F.oi.units.some((u) => u.alive && !u.gone)) && dist(P.pos, FORD_W) < 30 && (F.w6N - aliveN(F.oi) >= Math.round(F.w6N * 0.6))) this.toStep(rt, 7);
-      // 通し確認で起きた「岸へ届かない追手を待ち続ける」停止を防ぐ。
-      // 真田は時間稼ぎを終えて城へ戻る。討った人数や接敵済みの印は増やさない。
-      if (F.step === 6 && !F.oiEngaged && (F.oiCoastHeld || 0) >= 150 && dist(P.pos, FORD_W) < 30) {
-        this.back(F.oi);
-        this.toStep(rt, 7);
-      }
+      if ((F.rallyAt > 30 && (F.nbBack || el > 120)) || over) this.toStep(rt, 7);
     } else if (F.step === 7) {
-      if (P.pos.x > RET.x - 6 && dist(P.pos, RET) < 16) this.win(rt);
+      if (dist(P.pos, MARCH) < 14) this.win(rt);
     }
-  },
-
-  // 追い討ちの真田：城から打って出て、町屋の道を神川の岸まで走って来る。岸に着くまでは途中の兵に構わない（着いてから戦う）
-  spawnOi(rt) {
-    const F = rt.flags;
-    F.oi = this.foe(rt, '追い討ちの真田の兵', { x: GATE.x - 6, z: GATE.z + 2 }, [uS(6), uA(16), uG(3)], { aim: { x: FORD_W.x - 4, z: FORD_W.z }, width: 7, morale: 100, dmg: 0.6 });
-    F.oi.speed = 4.4; F.oi.aggro = 0; F.oi.seekRange = 0;
-    // 門前から家並みの南を回り、川岸へ。途中の交戦で足を止めない。
-    F.oi.onArrive = (g) => {
-      g.dest = { x: 82, z: -10 }; g.anchor = { ...g.dest };
-      g.onArrive = (q) => {
-        q.dest = { x: FORD_W.x - 4, z: FORD_W.z }; q.anchor = { ...q.dest };
-        q.onArrive = (r) => { r.order = 'attack'; };
-      };
-    };
-    F.w6N = aliveN(F.oi); F.oiT = rt.t;
-    // 退却の下知（0〜3.6秒）と殿の下知（4.2〜7.6秒）を先に読ませる。
-    rt.after(8, () => { if (!rt.over && !F.ending && F.step === 6) rt.say('足軽', '城から新手が出た！　真田が追って来るぞ！', 3); });
-    rt.after(12, () => { if (!rt.over && !F.ending && F.step === 6) rt.say('本多忠政', '川を背に槍を揃えよ。ここで止めねば皆討たれる！', 3.2); });
   },
 
   // 塀の内の土塁の鉄砲と弓：門へ寄る徳川の兵を、塀越しに次々に撃つ（二の7・十の3。critic60：門の前で味方がほとんど倒れない）
   wallFire(rt) {
     const F = rt.flags, A = rt.army;
-    if (!F.step || F.step < 2 || F.step > 5) return;   // ⑥の退く間は撃たない（背から撃たれて神川へ着く前に倒れた・11/9 流し）
+    if (F.step !== 4 || !F.atFront) return;   // 門へ寄せる段だけ撃つ（⑤の荷駄へ戻る背・⑥の退く間は撃たない）
     const foes = [];
     for (const u of A.units) if (u.team === 0 && u.alive && !u.gone && !u.invuln && u.pos.x > GATE.x + 2 && u.pos.x < GATE.x + 46 && Math.abs(u.pos.z - GATE.z) < 34) foes.push(u);
     const P = rt.player.u;
@@ -727,11 +792,13 @@ const k05_ueda = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step || F.ending) return;
-    // ⑥⑦は神川の岸を守る：城の方へ追って門の上の鉄砲に撃たれに行かない（11/8 流しで門の前まで追い、討たれた）
-    // 寄れない敵（稲架・町屋・味方の列の向こう）を八秒追って近づけない時は、その敵を二十秒は相手にしない（11/9 二巡：段4で十五分立ち往生）
+    // 寄れない敵（稲架・町屋・味方の列の向こう）を八秒追って近づけない時は、その敵を二十秒は相手にしない
     const IG = F._ign || (F._ign = new Map());
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && o.pos.x > (F.step >= 6 ? 72 : GATE.x + 5) && !((IG.get(o) || 0) > b.t);
-    const e = F.step === 2 || F.step === LAST ? null : b.army.nearestEnemy(u, 9, ok);
+    // 段ごとに相手にする所を絞る：③は囲みの中で斬り合わず田へ戻る、⑤は荷駄の周りだけ（追わない）、⑥は岸だけ、⑦は相手にしない
+    const zone = (o) => (F.step === 3 ? dist(o.pos, u.pos) < 3.5 : F.step === 5 ? dist(o.pos, NIDA) < 20 : F.step === 6 ? dist(o.pos, FORD_W) < 20 : F.step === 4 ? o.pos.x > GATE.x + 5 : true);
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 && zone(o) && !((IG.get(o) || 0) > b.t);
+    const lane = F.step === 4 && !F.atFront;
+    const e = lane || F.step === LAST ? null : b.army.nearestEnemy(u, 9, ok);
     if (e) {
       const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
       const C = F._chase;
@@ -745,23 +812,29 @@ const k05_ueda = {
       return;
     }
     inp.guardHold = false;
-    let t = this.missionPin(b) || RET;
-    // ②：北の田から町屋の小路へは入口から入る。稲架（81,-55・84,-64）と入口の町屋の間の袋へ入ると、まっすぐ歩いて当たったまま抜けられない（11/9 関所：段2で900秒止まった）
-    if (F.step === 2 && !F.throughTown) {
+    let t = this.missionPin(b) || MARCH;
+    // ②の追撃は畦の道筋に沿う（田の稲架に当たらない）
+    if (F.step === 2) { const i = Math.min(LURE.length - 1, Math.max(0, (F.lureI || 0) - 1)); if (dist(u.pos, LURE[i]) > 6 && u.pos.z > LURE[i].z + 4) t = LURE[i]; }
+    // ③は来た道を田へ戻る
+    if (F.step === 3 && u.pos.z < LURE[0].z - 4) { const i = u.pos.z < LURE[1].z - 3 ? 1 : 0; t = LURE[i]; }
+    // ④：北の田から町屋の小路へは入口から入る（稲架と入口の町屋の間の袋へ入らない）
+    if (lane && !F.throughTown) {
       const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
       const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = Math.abs((x - LANE_A.x) * uz - (z - LANE_A.z) * ux);
       if (x > 76 && x < 92 && z > -55 && z < -44) t = x < 87.5 ? { x: 90, z: -53 } : { x: 90, z: -59.5 };
       else if (x > 76 && z > -63.6 && z <= -55) t = { x: 71, z: -59.5 };
       else if (x > 78 && z <= -64.4) t = { x: 74, z: -66.5 };
-      else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 2) t = LANE_A;   // 11/9 見回り 徳川D：入口の五歩横（64,-63）で、五歩ちょうどの所で目当てが行き先と入口を行き来して十五分止まった   // 家並みの外（脇）へ出た時も入口へ戻る（11/9 流し：小路の東の家の裏で九分止まった）   // 入口の三歩手前で何かに当たって九分止まった（11/9 流し）。五歩に入れば小路の中へ
+      else if ((s < -1 || side > 4.5) && dist(u.pos, LANE_A) > 2) t = LANE_A;
     }
-    // 11/9 三巡（織田C）：小路の中ほど（57,-47 の十二歩の内）で「抜けた」扱いになると、出口の手前から門の前へ直進して町屋の壁に当たり、十五分止まった（57,-58）。小路の出口までは筋に沿って歩く。
-    if (F.step === 2 && F.throughTown) {
+    // 小路の出口までは筋に沿って歩く（中ほどから門へ直進して町屋に当たらない）
+    if (lane && F.throughTown) {
       const x = u.pos.x, z = u.pos.z, ux = -0.647, uz = 0.765;
       const s = (x - LANE_A.x) * ux + (z - LANE_A.z) * uz, side = (x - LANE_A.x) * uz - (z - LANE_A.z) * ux;
       if (s < dist(LANE_A, LANE_B) - 2) t = Math.abs(side) > 3 ? { x: LANE_A.x + ux * (Math.max(0, s) + 4), z: LANE_A.z + uz * (Math.max(0, s) + 4) } : LANE_B;
     }
-    // 何かに当たって四秒動けない時は、行き先と直角に三秒よける（稲架・町屋の角・味方の列。11/9 流しで段2に九分止まった）
+    // ⑤：門の前から荷駄へは、小路を通らず町屋の間の道（72,-14）を通って東へ
+    if (F.step === 5 && u.pos.x < 68 && dist(u.pos, NIDA) > 20) t = { x: 72, z: -14 };
+    // 何かに当たって四秒動けない時は、行き先と直角に三秒よける
     const B = F._bs || (F._bs = { x: u.pos.x, z: u.pos.z, t: b.t, until: 0, sgn: 1 });
     if (b.t > B.until) {
       if (Math.hypot(u.pos.x - B.x, u.pos.z - B.z) > 1.2) { B.x = u.pos.x; B.z = u.pos.z; B.t = b.t; }
@@ -771,7 +844,7 @@ const k05_ueda = {
       const L = Math.max(1, dist(u.pos, t)), ax = (t.x - u.pos.x) / L, az = (t.z - u.pos.z) / L;
       t = { x: u.pos.x + (-az * B.sgn - ax * 0.4) * 6, z: u.pos.z + (ax * B.sgn - az * 0.4) * 6 };
     }
-    goTo(p, inp, F.step === LAST ? t.x + 4 : t.x, t.z, 2);
+    if (dist(u.pos, t) > 2.5) goTo(p, inp, t.x, t.z, 2); else inp.k.delete('KeyW');
   },
 };
 
@@ -788,19 +861,18 @@ k05_ueda.bushou = [{ name: '真田信繁', g: /信繁/ }];
 
 const st = (n) => (rt) => (rt.flags.step ?? 0) >= n;
 STAGES[ID] = STEP_TEXT.slice(1).map((t, i) => (i ? [t, st(i + 1)] : [t]));
-// 右上の六つ（goals5.js の def.goals5）：刻限の時計を付けない（sec を大きく。critic60：話を聞く間も ① の刻限が減った）
+// 右上の七つ（goals5.js の def.goals5）：刻限の時計を付けない
 k05_ueda.goals5 = () => STEP_TEXT.slice(1).map((text, i) => {
-  const kill = [1, 0, 1, 1, 0, 1, 0][i];
+  const kill = [1, 0, 0, 1, 1, 0, 0][i];
   return { kind: 'stage', k: i, text, sec: 1e6, check: (rt) => (rt.flags.step ?? 0) > i + 1 || !!rt.flags.won, ...(kill ? { count: (rt) => (rt.flags.step === i + 1 ? KILLS[ID](rt) : null) } : {}) };
 });
-// 倒す数（kaito 11/2 O）：段が進む判定と同じ数え方
+// 倒す数：段が進む判定と同じ数え方
 KILLS[ID] = (rt) => {
   const F = rt.flags;
   if (F.ending) return null;
-  if (F.step === 1) return cut(F.w1N, aliveN(F.sortie), F.w1N - Math.round(F.w1N * 0.6));
-  if (F.step === 3) return cut(F.w3N, aliveN(F.yari), F.w3N - Math.round(F.w3N * 0.6));
-  if (F.step === 4) return cut(F.w4N, aliveN(F.nobushige), F.w4N - Math.round(F.w4N * 0.5));
-  if (F.step === 6) return F.oi ? cut(F.w6N, aliveN(F.oi), F.w6N - Math.round(F.w6N * (F.oiEngaged ? 0.5 : 0.6))) : null;
+  if (F.step === 1) return cut(F.w1N, aliveN(F.sortie), F.w1N - Math.round(F.w1N * 0.3));
+  if (F.step === 4) return F.yari ? cut(F.w4N, aliveN(F.yari), F.w4N - Math.round(F.w4N * 0.3)) : null;
+  if (F.step === 5) return F.raid ? cut(F.w5N, aliveN(F.raid), F.w5N - Math.round(F.w5N * 0.4)) : null;
   return null;
 };
 

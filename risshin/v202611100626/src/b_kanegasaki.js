@@ -28,6 +28,7 @@ import { depthStart, depthTick, depthBot } from './b_depth.js';
 import * as k15Kosen from './kanegasaki/kosen.js';
 import * as k15Shingari from './kanegasaki/shingari.js';
 import * as k15Yoin from './kanegasaki/yoin.js';
+import * as k15Hasami from './kanegasaki/hasami.js';
 import { battleEvent, EVENT_RETREAT } from './battle_events.js';
 import { goten, horiboriHeight, monomi } from './castle_parts.js';
 import { fiveGoals } from './goals5.js';
@@ -3282,7 +3283,7 @@ const kanegasaki = {
         w: Math.min(w, 8) * (i === 1 ? 0.95 : 0.75), d: d * 0.95, kind: 'spear',
       }));
       const m = W.addDistantArmy({ x, z, w, d, count, facing, armor, kind: 'spear', mon: flag,
-        team: flag === 'asakura' ? 1 : 0, host: false, sonae,
+        team: flag === 'asakura' || flag === 'azai' ? 1 : 0, host: false, sonae,
         flagRate: 0.25, flagTex: flagTexture(flag), seed });
       // 移動した先でも急斜面へ兵の壁を出さない。実兵へ替える時と同じ勾配。
       // 体・槍・旗は同じ足場で隠す。地形と材質は既存の物を使う。
@@ -3331,7 +3332,7 @@ const kanegasaki = {
     // 主力は殿が次に守る川岸より先へ。戦う兵の持ち場に軽い列を重ねない。
     F.main.forEach((a, i) => {
       a.m.army.kgRetreat = true;
-      const u = 0.2 + i * 0.08;
+      const u = -0.3 + i * 0.08;
       moveDA(rt, a, -70 - 80 * u, 176 + 80 * u);
     });
     // 朝倉の大軍：北の峠道と東の疋田方面。湿地・城山の中に東の列を置かない。
@@ -3341,11 +3342,15 @@ const kanegasaki = {
     // 11/5 kanegasaki_re（九5）：軽い作りの大軍は本人から九十m より遠い所だけ（近くで本物に替えない。近づけば隠す。update）
     F.host = [[2, -128, 18, 'asakura'], [-6, -160, 14, 'asakura'], [90, -15, 14, 'asakura']]
       .map(([x, z, w, f], i) => DA(x, z, w, 28, 300, i === 2 ? HIKIDA_FACING : 0, ASAKURA.armor, f, 1590 + i));
+    // 11/10 kanegasaki_spec_1109「背後まで敵」：退く先（南）の尾根に浅井の大軍。狭路へ退く途中で初めて見せる（kanegasaki/hasami.js）。
+    //   退き口（若狭への道）からは離した東の尾根に立つだけで、道は塞がない。
+    F.azaiFar = DA(44, 128, 12, 18, 120, Math.PI * 1.15, AZAI_LOOK.armor, 'azai', 1599);
+    if (F.azaiFar?.m) F.azaiFar.m.visible = false;
     F.hostFront = [];
     rt.scene.traverse(mesh => {
       const map = mesh.material?.map;
       if (map === flagTexture('oda') || map === flagTexture('eiraku')) retreatFlag(rt, mesh, false);
-      else if (map === flagTexture('asakura')) retreatFlag(rt, mesh, true);
+      else if (map === flagTexture('asakura') || map === flagTexture('azai')) retreatFlag(rt, mesh, true);
     });
     // 東も近づけば同じ遠景から実兵へ替える。別口の兵を重ねない。
     // 浅井の離反は伝令の報。浅井長政・朝倉義景は戦の場から遠い所に旗と名だけ見せる（kgNamedFar）。
@@ -3576,6 +3581,8 @@ const kanegasaki = {
     // 助けに来る味方（BQ）：川の砦へ池田勝正、狭路の砦へ明智光秀が南の道から駆け付ける
     if (k === 1) rt.after(1, () => kgReinforce(rt, 'ikeda'));
     if (k === 2) rt.after(2, () => kgReinforce(rt, 'akechi'));
+    // 11/10 kanegasaki_spec_1109：狭路へ退く途中で「戻れ！浅井がいる！」（挟まれる瞬間）
+    if (k === 2) k15Hasami.azaiNews(rt, { L: LINES[2], allyGroup, dress, ODA, roadX: kgRoadX });
     // 寄せ手の士気は下げない。殿が退いても敵は追う。
     // 自分が着くまで、退く札と印を保つ。信長の退きでは殿だけ先に進める。
     if (rt.G.lord) rt.after(k === 1 ? 4 : 3, () => (k === 1 ? this.wave2(rt) : this.wave3(rt)));
@@ -3632,11 +3639,10 @@ const kanegasaki = {
     });
     rt.after(38, () => {
       if (F.step !== 5 || F.ending) return;
-      const g2 = enemyGroup(rt, { faction: 'asakura', name: '朝倉の新手', anchor: { x: 30, z: 0 }, facing: -0.3, order: 'attack', seekRange: 140, aggro: 12, width: 12, morale: 75, fleeDir: { x: 0.2, z: -1 }, dmgMult: 0.42, speed: 2.8 },
-        dress([{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 9 }], ASAKURA));
+      // 11/10 kanegasaki_spec_1109：横から来るのは朝倉でなく、さっきまで味方だった浅井の小隊（南東の脇道・退く先の側）
+      const g2 = k15Hasami.azaiFlank(rt, { spawnEnemy, dress, LOOK: AZAI_LOOK, L: LINES[2] });
       F.w3.push(g2);
-      rt.say('足軽', '東の畦にも敵がおる！　横へ回られるぞ！', 2.5);
-      rt.marker('w5', centerOf(g2), () => `朝倉の新手・旗が見える`, { red: true, group: g2 });
+      rt.marker('w5', centerOf(g2), () => `浅井の小隊・旗が見える`, { red: true, group: g2 });
     });
     rt.after(20, () => { if (!F.ending) g.noRout = false; });
     rt.marker('w4', centerOf(g), () => `朝倉の後続・旗が見える`, { red: true, group: g });
@@ -3672,9 +3678,13 @@ const kanegasaki = {
     for (const k of ['w4', 'w5', 'line']) rt.unmark(k);
     rt.unzone('line');
     retreatSignal(rt);
-    if (F.exitReady) rt.banner('殿も退け', '残った者を集め、若狭へ向かう道へ退け');
+    // 11/10 kanegasaki_spec_1109：ここで初めて「撤退せよ」。使番「信長公は先へ抜けた！」の後、名もない槍の組が残って止める。
+    if (F.exitReady) rt.banner('撤退せよ', '信長公は先へ抜けた。残った者を集め、若狭への道へ');
     else retreatFailure(rt, '主力が退ききるまで追手を止められなかった');
-    rt.say('木下藤吉郎', F.exitReady ? '法螺貝と退き太鼓じゃ！　味方は抜けた、組をまとめて退け！' : '退き太鼓じゃ！　備が持たぬ……残った者を連れて退け！', 4.5);
+    if (F.exitReady) rt.say('使番', '信長公は先へ抜けた！　殿も退かれよ！', 3);
+    rt.after(F.exitReady ? 3.2 : 0, () => { if (!rt.over && !F.ending) rt.say('木下藤吉郎', F.exitReady ? '聞いたか、もう退いてよい！　組をまとめて走れ！' : '退き太鼓じゃ！　備が持たぬ……残った者を連れて退け！', 4.5); });
+    if (F.exitReady) k15Hasami.lastStand(rt, { L: LINES[F.line], allyGroup, dress, ODA,
+      nobori: (x, z) => { const r = retreatNobori(rt, rt.world, x, z, 'oda', 5); rt.scene.add(r); return r; } });
     rt.objRemove('stay'); rt.objRemove('back'); rt.unmark('holdLine');
     // 元の任務の成否は記録に残し、画面は現在の生還の任務へ切り替える。
     rt.objRemove('main'); rt.objRemove('escape');
@@ -3748,7 +3758,9 @@ const kanegasaki = {
       if (F.exitGap === undefined || gap < F.exitGap - 1) { F.exitGap = gap; F.exitProgressAt = rt.t; }
     }
     rt.objProgress('main', d < KUTSUKI.r ? F.exitWaiting : `若狭への道まで あと${Math.ceil(retreatDistance(rt, KUTSUKI))}m`);
-    if (d < KUTSUKI.r && this.escortReady(rt) && (F.exitReady || rt.t - F.fleeing >= 15)) {
+    // 11/10 kanegasaki_spec_1109「全員は逃げられない」：殿を果たした後は、退き口で三十秒待てば残る者と抜ける（遅れた組は後から退いてくる）。
+    const waitedOut = F.exitReady && F.exitWaitStart !== undefined && rt.t - F.exitWaitStart >= 30;
+    if (d < KUTSUKI.r && (this.escortReady(rt) || waitedOut) && (F.exitReady || rt.t - F.fleeing >= 15)) {
       rt.unmark('kutsuki'); rt.unzone('kutsuki');
       if (F.exitReady) this.win(rt, '残った味方と、若狭へ向かう道へ退いた');
       else {
@@ -3785,7 +3797,7 @@ const kanegasaki = {
       if (F.akeU?.alive) rt.say('明智光秀', '鉄砲で追手の足を止める。遅れた組は今のうちに退き口へ', 3);
     }
     // 合流を時間だけで成功にしない。旗の下で一分待ち、四十五秒進まなければ敗北の決着へ。
-    if (F.exitWaitStart !== undefined && rt.t - F.exitWaitStart >= 60 && rt.t - F.exitProgressAt >= 45) {
+    if (!F.exitReady && F.exitWaitStart !== undefined && rt.t - F.exitWaitStart >= 60 && rt.t - F.exitProgressAt >= 45) {
       this.lose(rt, '残る味方が退き口へ届かず、殿をまとめて退けなかった');
       return;
     }
@@ -3839,11 +3851,13 @@ const kanegasaki = {
     rt.award((t) => { t.main = true; t.special = { label: '金ヶ崎の殿を務めた', pts: 25 }; }, '退き口成る');
     survival(rt, '金ヶ崎の殿を生き延びた');
     sfx('horagai', 0.8);
-    rt.banner('退き口成る', how);
+    // 11/10 kanegasaki_spec_1109：勝ちでなく「生きて帰れた」。結果は信長本隊の脱出と殿の生還の数
+    const hc = k15Hasami.headcount(rt);
+    rt.banner('退き口成る', rt.G.lord ? how : `信長本隊の脱出　成功・殿の組　${hc.n0}人のうち${hc.n1}人生還`);
     rt.say('木下藤吉郎', `${nm(rt)}、よう守った。手負いを支え、皆で帰るぞ`, 3);
     rt.player.u.invuln = true;
     // 15分の構成：脱出の知らせと帰京の一言を三十秒ほど見せてから結果へ（kanegasaki/yoin.js）
-    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, {}, 0));
+    rt.finish({ scriptedEnd: true }, k15Yoin.play(rt, { hc }, 0));
   },
 
   // 史実の帰京と、次の姉川を間をあけた一言で残す。
@@ -3879,6 +3893,7 @@ const kanegasaki = {
     KIT.backTick(rt);
     if (!F.ending) this.tickProg(rt, dt);
     pursuersTick(rt);
+    k15Hasami.tick(rt, dt);
     kgGoalList(rt);
     // 総大将の義景・長政は後方の本陣で座ったまま（前へ寄せない。kaito 一2）
     for (const g of [F.yoshikage, F.nagamasa]) if (g && (g.order !== 'hold' || g.aggro)) {
@@ -3908,7 +3923,8 @@ const kanegasaki = {
       const a = F.main[i];
       const t = Math.min(1, Math.max(0, k * 1.4 - i * 0.05));
       // 11/5 kanegasaki_re：主力はもう若狭への道の先（退き口より先）。助けに戻る味方の出る所と重ねない
-      const u = 0.2 + i * 0.08 + t * 0.5;
+      // 11/10 kanegasaki_spec_1109「取り残される」：初めは道の後ろに大勢、退くほど遠くの旗だけ、最後は殿だけ
+      const u = -0.3 + i * 0.08 + t * 1.0;
       moveDA(rt, a, -70 - 80 * u, 176 + 80 * u);
       if (t >= 1) a.out = true;
       // 11/5 kanegasaki_re（九5）：軽い作りは本人から九十m より遠い時だけ描く（近くで絵を見せない）

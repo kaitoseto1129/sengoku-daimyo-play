@@ -5186,6 +5186,9 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
   },
 
   onKill(rt, v, k) {
+    // 共通の戦功で討ち手が本人へ付け替わっても、知らせと本人の討ち取りは実際のとどめに合わせる。
+    // 討ち手が不明（null）の時も、本人が討ったとは言わせない。
+    if (Object.prototype.hasOwnProperty.call(v, 'moribeKiller')) k = v.moribeKiller;
     if (v.name === '足立六兵衛' && k?.name === '前田利家' && !rt.flags.toshiieReport) {
       rt.flags.toshiieReport = true; rt.flags.toshiieAdachi = true;
       rt.say('足軽', '前田又左衛門殿が、首取り足立を討ち取ったぞ！', 3.5);

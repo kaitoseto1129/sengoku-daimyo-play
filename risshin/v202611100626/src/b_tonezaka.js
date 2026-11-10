@@ -385,8 +385,9 @@ function height(wx, wz) {
   return original + (h - original) * blend;
 }
 
-// 戦える殿を数える。追撃の区切りでは残兵も本隊を追って退く。
-const fighter = (u) => u.alive && !u.dying && !u.evacuatedWound && !u.fleeing && !u.woundOut && !u.gone && !u.noTarget;
+// 戦える殿を数える。倒れた兵・深手で退いた兵は、生存していても道を守れない。
+// 案内から外れた負傷者だけで、峠口や奥の道の任務を止めない。
+const fighter = (u) => u.alive && !u.dying && !u.evacuatedWound && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.gone && !u.noTarget;
 const fighting = (g) => g && !g.routed && g.units.some(fighter);
 function toneFootReset(u) {
   u.toneFootBeat = undefined;
