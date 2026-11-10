@@ -3123,7 +3123,7 @@ const anegawa = {
     if (rt.phase === 'brief') {
       const p = rt.player.u.pos;
       return F.holdAt && Math.hypot(p.x - F.holdAt.x, p.z - F.holdAt.z) < 8
-        ? '川を渡らず、ここで待つ' : anegawaHoldRoute(rt);
+        ? '森の備で、川を渡らず待て' : anegawaHoldRoute(rt);
     }
     if (F.hqThreat || F.hqDefend) return anegawaGuardLabel(rt, !anegawaReturning(rt));
     if (F.step === 2) return text;
@@ -3183,12 +3183,12 @@ const anegawa = {
   dodgeActionText: '長く押して避ける',
   dodgeLabel: (rt, direction, rain) => direction ? direction.replace(/にげる|よける/g, '避ける') : rain ? '矢だ！　印の方へ避けよ' :
     rt.flags.hqThreat || rt.flags.hqDefend ? '本陣が危うい。敵を避けよ' : '味方の旗へ退き、槍を揃えよ',
-  dodgeGuideLabel: (rt, reached, rain) => rain ? reached ? 'ここで敵へ槍を向けよ' : '印へ避けて、矢を防げ' :
-    rt.flags.hqThreat || rt.flags.hqDefend ? '本陣が危うい。敵を避けよ' : reached ? 'ここで敵へ槍を向けよ' : '味方の旗へ退き、槍を揃えよ',
+  dodgeGuideLabel: (rt, reached, rain) => rain ? reached ? '避けた先で敵へ槍を向けよ' : '印へ避けて、矢を防げ' :
+    rt.flags.hqThreat || rt.flags.hqDefend ? '本陣が危うい。敵を避けよ' : reached ? '避けた先で敵へ槍を向けよ' : '味方の旗へ退き、槍を揃えよ',
   escapePlaceLabel: (rt, rain, side) => rain ? anegawaHqReturnPriority(rt) ? `${side}へ矢を避け、本陣へ戻れ` :
     rt.flags.hqThreat || rt.flags.hqDefend ? `${side}へ矢を避け、本陣を守れ` : `${side}へ寄り、矢を避けよ` : `${side}へ避け、槍を構えよ`,
   rainDodgeGuideLabel: (rt, reached) => anegawaHqReturnPriority(rt) ? reached ? anegawaHqReturnText(rt) : '矢を避け、本陣へ戻れ' :
-    rt.flags.hqThreat || rt.flags.hqDefend ? reached ? anegawaHqWatchText(rt) : '矢を避け、本陣を守れ' : reached ? 'ここで敵へ槍を向けよ' : '印へ避けて、矢を防げ',
+    rt.flags.hqThreat || rt.flags.hqDefend ? reached ? anegawaHqWatchText(rt) : '矢を避け、本陣を守れ' : reached ? '避けた先で敵へ槍を向けよ' : '印へ避けて、矢を防げ',
   retreatGuideLabel(rt, reached) {
     if (rt.withdrawal?.losing === 0) return reached ? '旗の傍で待て' : '旗まで進め';
     // 共通の退避案内でも、軽傷なら帰陣先と着いてからの守備を残す。
@@ -3203,7 +3203,7 @@ const anegawa = {
     }
     return rt.flags.retreatGuiding && rt.player.treatmentLeft > 0 && rt.player.treatmentNext <= rt.t
       ? reached ? '止まって手当てせよ' : '手当の場所へ'
-      : reached ? 'ここで構えて息を整えよ' : anegawaHoldRoute(rt);
+      : reached ? '味方の後ろで構えて息を整えよ' : anegawaHoldRoute(rt);
   },
   retreatDestinationLabel: (rt) => rt.withdrawal?.losing === 0 ? '南岸の退き先で組を集めよ' : '南岸の退き先へ下がれ',
   dodgePointAllowed: anegawaGuidePointAllowed,
