@@ -10,6 +10,7 @@ export function depthPlan(ctx) {
   const { honjin, ote, mouth } = ctx;
   return {
     byMen: true,
+    bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
     A: { name: '織田', facing: Math.PI, honjin, mpu: 6, formation: '長蛇', terrain: 'mountain', flag: 'oda', armor: 0x28231f, openAt: 9999, attrition: 0,
       sonae: [
         { id: 'hide', layer: 'sakite', wing: 'left', men: 1000, taisho: '羽柴秀吉', flag: 'oda', bind: Fk('hide') },

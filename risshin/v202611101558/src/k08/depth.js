@@ -17,10 +17,10 @@ export default {
       //   木津川口の近く（砦と城の間・城の西の堀の外）は西の衆（森忠政・石川忠総・鍋島勝茂・松平忠明・山内忠義・稲葉典通）。
       //   真田丸の前の南の衆（前田・井伊・松平忠直・藤堂・伊達）と、茶臼山の家康・岡山の秀忠は、遠くの城（620, −430）の南。兵数は通説の目安
       { id: 'mori', layer: 'gozume', wing: 'right', men: 5000, taisho: '森忠政', flag: 'mori', hold: true, at: { x: 110, z: -120 } },
-      { id: 'ishikawa', layer: 'gozume', wing: 'right', men: 2000, taisho: '石川忠総', flag: 'tokugawa', hold: true, at: { x: 150, z: -70 } },
-      { id: 'nabeshima', layer: 'gozume', wing: 'right', men: 6000, taisho: '鍋島勝茂', flag: 'tokugawa', hold: true, at: { x: 180, z: -160 } },
+      { id: 'ishikawa', layer: 'gozume', wing: 'right', men: 2000, taisho: '石川忠総', flag: 'plain', hold: true, at: { x: 150, z: -70 } },   // 家の旗を未収録の備に、他家の葵を付けない。
+      { id: 'nabeshima', layer: 'gozume', wing: 'right', men: 6000, taisho: '鍋島勝茂', flag: 'plain', hold: true, at: { x: 180, z: -160 } },
       { id: 'tadaaki', layer: 'gozume', wing: 'right', men: 3000, taisho: '松平忠明', flag: 'tokugawa', hold: true, at: { x: 220, z: -110 } },
-      { id: 'yamauchi', layer: 'gozume', wing: 'right', men: 3000, taisho: '山内忠義', flag: 'tokugawa', hold: true, at: { x: 140, z: -210 } },
+      { id: 'yamauchi', layer: 'gozume', wing: 'right', men: 3000, taisho: '山内忠義', flag: 'kashiwa', hold: true, at: { x: 140, z: -210 } },   // 山内家の丸に三つ柏。徳川の葵を他家の備へ流用しない。
       { id: 'inaba', layer: 'gozume', wing: 'right', men: 1500, taisho: '稲葉典通', flag: 'inaba', hold: true, at: { x: 230, z: -200 } },
       { id: 'maeda', layer: 'gozume', wing: 'right', men: 12000, taisho: '前田利常', flag: 'maeda', hold: true, at: { x: 620, z: -250 } },
       { id: 'ii', layer: 'gozume', wing: 'right', men: 4000, taisho: '井伊直孝', flag: 'ii', hold: true, at: { x: 560, z: -260 } },
@@ -43,5 +43,6 @@ export default {
       { id: 'harufusa', layer: 'gozume', wing: 'left', men: 5000, taisho: '大野治房', hold: true, at: { x: 565, z: -375 } },
     ] },
   byMen: true,   // 軽い兵を史実の兵数の比で配る（11/9 徳川C。docs/fujin/k08_osaka_kizu.md）
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   honjinView: { A: false, B: false },
 };

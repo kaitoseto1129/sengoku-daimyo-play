@@ -14,7 +14,7 @@ const CASTLE = { x: 620, z: -430 };
 // 囲む陣：砦の北東、城へ向かう道すじに。[x, z, 家, 篝火を焚くか]
 const CAMPS = [
   [96, -128, 'mori', true],
-  [138, -70, 'tokugawa', true],
+  [138, -70, 'plain', true],   // 石川忠総の備。家の紋が未収録なので徳川の葵で代用しない。
   [70, -168, 'inaba', false],
   [150, -10, 'tokugawa', true],
 ];

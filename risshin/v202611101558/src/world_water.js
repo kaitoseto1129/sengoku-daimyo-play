@@ -7,7 +7,7 @@ import { liteMat } from './world_vegetation_materials.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // 水面のさざ波：流れに沿って動く二枚の濃淡から面の向きを揺らし、空の映り込みを細かく砕く（のっぺりした一枚の板に見えないように）
-export function rippleWater(mat, fx, fz, amt = 3.5, sky = null, localFlow = false, banks = null, fireReflections = null, sediment = false, lake = false) {
+export function rippleWater(mat, fx, fz, amt = 3.5, sky = null, localFlow = false, banks = null, fireReflections = null, sediment = false, lake = false, softBanks = false) {
   // 濁った川は水面で深さを書き、浸かった脚を水の線で隠す。
   mat.transparent = false; mat.opacity = 1; mat.depthWrite = true;
   // 11/03 粗さ 0.22〜0.3 では空の映りがぼけて一色になり、川が灰色の平らな板に見えた（戸次川・長島・田野）。
@@ -15,7 +15,7 @@ export function rippleWater(mat, fx, fz, amt = 3.5, sky = null, localFlow = fals
   if (mat.isMeshStandardMaterial) { mat.roughness = Math.min(mat.roughness, 0.08); mat.envMapIntensity = Math.max(mat.envMapIntensity, 1); amt *= 1.4; }
   const lowWater = false;
   // 流れの向きごとに別の作り（同じ字面の関数だと、先の川の向きが使い回される）
-  mat.customProgramCacheKey = () => `ripple|${fx.toFixed(3)}|${fz.toFixed(3)}|${amt}|${localFlow}|${!!banks}|${lowWater}|${!!fireReflections}|${sediment}|${lake}`;
+  mat.customProgramCacheKey = () => `ripple|${fx.toFixed(3)}|${fz.toFixed(3)}|${amt}|${localFlow}|${!!banks}|${lowWater}|${!!fireReflections}|${sediment}|${lake}|${softBanks}`;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.tMacro = { value: macroTex() };
     sh.uniforms.uTime = { get value() { return SETTINGS.reduceMotion ? 0 : WIND.value; } };
@@ -69,9 +69,22 @@ export function rippleWater(mat, fx, fz, amt = 3.5, sky = null, localFlow = fals
           reflectedLight.indirectDiffuse += vec3(1.0, 0.254, 0.042) * stripe * fire.z * (0.55 + 0.45 * wave * wave);
         }`);
     }
-    if (sediment) {
+    if (sediment || softBanks) {
       sh.vertexShader = 'attribute vec2 waterBed; varying vec2 vWaterBed;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vWaterBed = waterBed;');
+    }
+    if (softBanks) {
+      // 低湿地の浅い岸を直線で切らない。既存の土の模様を使い、水面一枚の中で泥へなじませる。
+      // 時刻に結び付けず、岸が動いたりちらついたりしないようにする。
       sh.fragmentShader = 'varying vec2 vWaterBed;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        float shoreNoise = texture2D(tMacro, vWPw.xz * 0.35).r;
+        float shoreDepth = vWaterBed.x - (0.025 + shoreNoise * 0.075);
+        if (shoreDepth <= 0.0) discard;
+        float shoreMud = 1.0 - smoothstep(0.0, 0.25, shoreDepth);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.19, 0.16, 0.095), shoreMud * 0.65);
+      `);
+    }
+    if (sediment) {
+      sh.fragmentShader = (softBanks ? '' : 'varying vec2 vWaterBed;\n') + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
         // 実際の川床から測った深さで砂の透けと雪解けの濁りを分ける。
         float bedNoise = texture2D(tMacro, vWPw.xz * 0.7).r;
         float bedDepth = max(0.0, vWaterBed.x);
@@ -252,7 +265,7 @@ export class WorldWater {
   buildStream(st) {
     const pts = st.pts;
     const posA = [], flowA = [], colorA = [], bedA = [], idx = [], surface = [], surfaceStarts = [], surfaceSteps = [];
-    const cross = st.sedimentWater ? [-1, -0.92, 0, 0.92, 1] : st.buryBanks ? [1, 0.92, 0, -0.92, -1] : [1, -1];
+    const cross = st.softBanks ? [1, 0.92, 0.7, 0.4, 0, -0.4, -0.7, -0.92, -1] : st.sedimentWater ? [-1, -0.92, 0, 0.92, 1] : st.buryBanks ? [1, 0.92, 0, -0.92, -1] : [1, -1];
     const columns = cross.length;
     const shallowColor = new THREE.Color(0x68796b), deepColor = new THREE.Color(0x283d3b);
     const seg = 4;
@@ -288,7 +301,7 @@ export class WorldWater {
         }
         if (n > 0) for (let j = 0; j < columns - 1; j++) {
           const a = (n - 1) * columns + j, b = a + columns;
-          if (st.sedimentWater) idx.push(a, a + 1, b, a + 1, b + 1, b);
+          if (st.sedimentWater && !st.softBanks) idx.push(a, a + 1, b, a + 1, b + 1, b);
           else idx.push(a, b, a + 1, a + 1, b, b + 1);
         }
         n++;
@@ -297,7 +310,7 @@ export class WorldWater {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(posA, 3));
     g.setAttribute('waterFlow', new THREE.Float32BufferAttribute(flowA, 2));
-    if (st.sedimentWater) g.setAttribute('waterBed', new THREE.Float32BufferAttribute(bedA, 2));
+    if (st.sedimentWater || st.softBanks) g.setAttribute('waterBed', new THREE.Float32BufferAttribute(bedA, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(colorA, 3));
     g.setIndex(idx);
     g.computeVertexNormals();
@@ -305,7 +318,7 @@ export class WorldWater {
     // 小川：濁った流れ。空は映すが、白い帯に見えないよう照り返しを抑える
     // 各頂点の川筋に沿って波が動く（端どうしを結ぶ向きは予備）。
     const f0 = pts[0], f1 = pts[pts.length - 1], fl = Math.hypot(f1[0] - f0[0], f1[1] - f0[1]) || 1;
-    const m = new THREE.Mesh(g, rippleWater(liteMat({ color: 0xffffff, vertexColors: true, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 0.6 }), (f1[0] - f0[0]) / fl, (f1[1] - f0[1]) / fl, 2.2, this.hemi.color, true, null, st.fireReflection ? this.waterFireReflections : null, st.sedimentWater ? st.w : false));
+    const m = new THREE.Mesh(g, rippleWater(liteMat({ color: 0xffffff, vertexColors: true, roughness: 0.3, metalness: 0, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 0.6 }), (f1[0] - f0[0]) / fl, (f1[1] - f0[1]) / fl, 2.2, this.hemi.color, true, null, st.fireReflection ? this.waterFireReflections : null, st.sedimentWater ? st.w : false, false, !!st.softBanks));
     m.receiveShadow = true;
     this.scene.add(m);
     st.surfaceStarts = surfaceStarts; st.surfaceSteps = surfaceSteps;
