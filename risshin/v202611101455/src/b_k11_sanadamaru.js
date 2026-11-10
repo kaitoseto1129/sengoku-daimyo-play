@@ -966,22 +966,21 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     };
   },
 
-  // 信繁を遠くに見せる：塀の上、六文銭の大旗の下で指揮する（降りて来ない。顔は見えなくてよい）
+  // 信繁は丸の本陣に留まり、遠くの六文銭の大旗で所在を知らせる。
   showNobu(rt) {
     const F = rt.flags;
     if (F.nobuShown) return;
-    F.nobuShown = true;
     const u = F.nobu.units.find((q) => q.name === '真田信繁');
     // 先に討たれた将を、後の指揮の場面で立っている者として知らせない。
     if (!u || !u.alive || u.gone || u.woundOut) return;
-    const q = polar(0.14, WALL_R - 1.4), y = rt.world.heightAt(q.x, q.z);
+    F.nobuShown = true;
+    const q = u.anchorPos || u.pos;
     const flag = nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 4.8);
     rt.scene.add(flag);
     // 途中で立てた大旗も、和議後は塀・櫓と一緒に撤去する。
     F.maruObjs.push(flag);
-    if (u && u.alive) { u._crouch = false; u.pos.x = q.x; u.pos.z = q.z; u.pos.y = y; u.mesh.position.set(q.x, y, q.z); u.heading = Math.PI; u.anchorPos = { x: q.x, z: q.z }; }
     revealName(rt, '真田信繁');
-    rt.say('足軽', '塀の上……六文銭の旗の下に一人立っておる。あれが真田左衛門佐か', 3.6);
+    rt.say('足軽', '丸の奥に六文銭の大旗……真田左衛門佐の本陣じゃ', 3.6);
   },
 
   // ⑤ 最大の攻め：鉄砲の援け・槍・柵を破る組・予備を同時に入れる。柵を破ると、中の二の構えと打って出の罠
@@ -1257,7 +1256,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       u.pos.x = u.tower.x; u.pos.z = u.tower.z; u.pos.y = y;
       u.mesh.position.y = y;
     }
-    // 塀の上に立った信繁は動かない
+    // 本陣で指揮する信繁は持ち場から動かない
     if (F.nobuShown) { const u = F.nobu.units.find((q) => q.name === '真田信繁'); if (u && u.alive && u.anchorPos) { u.pos.x = u.anchorPos.x; u.pos.z = u.anchorPos.z; } }
     if (F.ending) return;
     depthTick(rt, dt);

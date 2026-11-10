@@ -98,7 +98,9 @@ function take(o) {
     if (tot && (tot - fighters(C)) / tot >= (o.ratio ?? 0.7)) return true;
     if (o.leader && C.groups.some((g) => g.leader && !g.leader.alive) && (tot - fighters(C)) / tot >= 0.4) return true;
     // 刻限を越えた残兵には撤退の下知を出す。本人不在・後続待ちではここへ来ない。
-    if (el > (o.cap || 170)) { withdraw(C); return false; }
+    // 持ち場を離れて過ごした時間では撤退を起こさない。
+    // 経過時間だけを見ると、長く放置した後に三秒来るだけで砦が落ちていた。
+    if (C.takeT > (o.cap || 170)) { withdraw(C); return false; }
     return false;
   };
   return st;

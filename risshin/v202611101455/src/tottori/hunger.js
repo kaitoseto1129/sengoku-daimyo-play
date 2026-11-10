@@ -54,7 +54,8 @@ function wallMen(rt, K) {
 function starve(rt, gs, n) {
   for (const g of gs) for (const u of g.units) {
     if (n <= 0) return;
-    if (!u.alive || u.gone) continue;
+    // 救助待ちの者も alive は真。すでに倒れた兵を再び選んで人数を減らさない。
+    if (!alive(u)) continue;
     u.invuln = false; u.noTarget = false;
     try { rt.army.kill(u, null); } catch (e) { rt.army.despawn(u); }
     n--;

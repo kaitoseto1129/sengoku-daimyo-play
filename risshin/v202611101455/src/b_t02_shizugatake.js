@@ -117,6 +117,7 @@ const OI_SOUTH = { x: OI.x - 4, z: OI.z + 6 };            // 南の柵の内
 const OI_WEST = { x: OI.x - 6, z: OI.z - 1 };             // 西の斜面の柵の内
 const OI_HQ = { x: OI.x + 1, z: OI.z };                   // 中川の本陣（陣幕）の前
 const OI_BACK = { x: OI.x - 8, z: OI.z + 50 };            // 退く先（振り返ると大岩山が見える）
+const OI_EXIT = [[OI.x, OI.z + 6], [OI.x, OI.z + 19], [OI.x + 28, OI.z + 22], [OI.x + 28, OI.z - 25]]; // 南の小門から東を回る陸道
 const SAKU_LINE = { x: OI.x - 8, z: OI.z - 40 };          // 大岩山の北で盛政が備を立て直す所
 const SHIBA_FRONT = { x: 58, z: 22 };                     // 柴田の先手と当たる所（岩崎山の南）
 const MAEDA_LOOK = { x: -160, z: -30 }; // 茂山の北東の肩。前田隊の陣払いを間近で見る
@@ -293,7 +294,8 @@ function shizuBoard(rt) {
   // 11/6 critic60（五2）：両軍の数は共通の棒の数（.n）一つだけ。ここで棒の脇に二つ目を書かない
   // 敵の兵には頭上に赤い▼（九3）。印は使い回し、見通しは兵ごとに三分の一秒おき
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
-  box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+  // 印だけを置く透明な原点。画面全体を札の領域として扱わせない。
+  box.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   hud.root.appendChild(box);
   hud.foeMarks = function (battle) {
@@ -445,11 +447,11 @@ const t02_shizugatake = {
     namedKacchu: SHIZU_KACCHU,   // 先懸けの衆は天正十一年の小姓の姿（上の SHIZU_KACCHU）
     height,
     armyFlagKinds: { oda: HASHIBA, toyotomi: HASHIBA },
-    paths: [{ pts: KAIDO, w: 3.5 }, { pts: CUT, w: 2.5 }, { pts: UPHILL, w: 2.5 }, { pts: SHORE_W, w: 2.5 }, { pts: OIWA_WAY, w: 2.5 }, { pts: NORTH_OUT, w: 2.5 }, { pts: NORTH_BACK, w: 2.5 }],
+    paths: [{ pts: KAIDO, w: 3.5 }, { pts: CUT, w: 2.5 }, { pts: UPHILL, w: 2.5 }, { pts: SHORE_W, w: 2.5 }, { pts: OIWA_WAY, w: 2.5 }, { pts: OI_EXIT, w: 2.5 }, { pts: NORTH_OUT, w: 2.5 }, { pts: NORTH_BACK, w: 2.5 }],
     clear: (x, z) => Math.hypot(x - FORT.x, z - FORT.z) < FORT.r + 6 || distToPolyline(x, z, KAIDO) < 6 || distToPolyline(x, z, CUT) < 4
       || distToPolyline(x, z, SHORE_W) < 5 || distToPolyline(x, z, UPHILL) < 4 || dist({ x, z }, KINOMOTO) < 22 || distToPolyline(x, z, [[FORT.x, FORT.z], [LOOK.x, LOOK.z], [26, 218]]) < 9
       || distToPolyline(x, z, [[FORT.x, FORT.z], [DAWN_AT.x, DAWN_AT.z], [KATSUMASA.x, KATSUMASA.z]]) < 8
-      || distToPolyline(x, z, NORTH_OUT) < 6 || distToPolyline(x, z, NORTH_BACK) < 6
+      || distToPolyline(x, z, OI_EXIT) < 5 || distToPolyline(x, z, NORTH_OUT) < 6 || distToPolyline(x, z, NORTH_BACK) < 6
       || Math.hypot(x - OI.x, z - OI.z) < OI.r + 12 || distToPolyline(x, z, OIWA_WAY) < 6 || distToPolyline(x, z, [[OI.x, OI.z], [SAKU_LINE.x, SAKU_LINE.z], [SHIBA_FRONT.x, SHIBA_FRONT.z]]) < 7
       // 11/6 九度目：物見の目の前の杉で、燃える大岩山が隠れた。物見から大岩山へ七十歩の目通しを空ける
       || distToPolyline(x, z, [[LOOK.x, LOOK.z], [LOOK.x + (OIWA.x - LOOK.x) * 0.4, LOOK.z + (OIWA.z - LOOK.z) * 0.4]]) < 10,
@@ -473,6 +475,15 @@ const t02_shizugatake = {
     if (!P) return null;
     q.x = P.x; q.z = P.z;
     q.label = STAGE_PLACE[stageIx(phase)];
+    // 湖越しの目的地を直接指さず、主人公にも備と同じ北岸の道を示す。
+    if ((phase === 3.7 || phase === 4) && F.northPath) {
+      const pos = rt.player.u.pos, path = F.northPath;
+      if (dist(pos, P) < 18) F.northPinIx = path.length;
+      while (F.northPinIx < path.length && Math.hypot(pos.x - path[F.northPinIx][0], pos.z - path[F.northPinIx][1]) < 12) F.northPinIx++;
+      if (F.northPinIx < path.length - 1) {
+        q.x = path[F.northPinIx][0]; q.z = path[F.northPinIx][1]; q.label = '余呉湖の北岸';
+      }
+    }
     return q;
   },
 
@@ -892,9 +903,10 @@ const t02_shizugatake = {
     rt.say('福島正則', '大岩山、取り返したり！', 2.6);
     rt.after(3.2, () => rt.say('佐久間盛政', '退くな。備を立て直せ。鬼玄蕃の槍はまだ折れぬ', 3));
     if (live(F.saku)) { F.saku.order = 'hold'; F.saku.anchor = { ...SAKU_LINE }; F.saku.aggro = 12; F.saku.seekRange = 16; F.saku.dmgMult = 0.36; F.saku.kind4 = 'saku'; }
+    // 北の柵は残っている。砦内で戦った備は南の小門でまとまり、東から北へ回る。
     for (const [g, dx, dz] of [[F.yari, -4, 8], [F.uma, 6, 10]]) if (live(g)) {
-      g.order = 'move'; g.speed = 3.4; g.dest = { x: SAKU_LINE.x + dx, z: SAKU_LINE.z + dz }; g.path = null;
-      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 26; q.aggro = 14; };
+      this.allyMarch(g, [...OI_EXIT, [SAKU_LINE.x + dx, SAKU_LINE.z + dz]], true);
+      g.shizuExiting = true;
     }
   },
   // 盛政を押し返した備と、湖の北の陸道から茂山へ。主人公が来るまで前田を消さない。
@@ -905,13 +917,27 @@ const t02_shizugatake = {
   },
   northMarch(rt, path, attack) {
     const F = rt.flags;
-    F.northPath = path; F.northIx = 0;
+    F.northPath = path; F.northIx = 0; F.northPinIx = 0;
     for (const g of [F.yari, F.uma]) if (live(g)) {
-      // 障害物を避ける処理が経路へ点を挿すため、別の隊や主人公の道と共有しない。
-      g.focus = null; g.order = 'path'; g.path = path.map((p) => [...p]); g.pathIdx = 0; g.speed = 4;
-      g.aggro = 3; g.seekRange = 4;
-      g.onArrive = (q) => { q.order = attack ? 'attack' : 'hold'; q.aggro = attack ? 14 : 3; q.seekRange = attack ? 28 : 4; };
+      // 主人公が先に佐久間を崩しても、まだ小門を出ている備の退路を上書きしない。
+      const exit = g.shizuExiting && g.order === 'path' ? g.path : null, at = g.pathIdx;
+      this.allyMarch(g, path, attack);
+      if (exit) { g.path = [...exit, ...path.map((p) => [...p])]; g.pathIdx = at; }
+      g.shizuExiting = false;
     }
+  },
+  allyMarch(g, path, attack) {
+    // 横隊の持ち場が柵や湖へはみ出すと後列待ちを繰り返す。道に沿う二列で進む。
+    // 障害物よけが道へ点を挿すので、道順は隊ごとに一度だけ複製する。
+    g.focus = null; g.dest = null; g.order = 'path';
+    g.path = [[g.anchor.x, g.anchor.z], ...path.map((p) => [...p])]; g.pathIdx = 1;
+    g.formation = 'column'; g.colW = 2; g.roadColumn = true; g.followColumnRoad = true;
+    g.speed = 4; g.aggro = 3; g.seekRange = 4;
+    g.onArrive = (q) => {
+      q.order = attack ? 'attack' : 'hold'; q.formation = 'line';
+      q.roadColumn = false; q.followColumnRoad = false; q.shizuExiting = false;
+      q.aggro = attack ? 14 : 3; q.seekRange = attack ? 28 : 4;
+    };
   },
   // 前田利家の離脱：昔から知る前田の梅鉢の旗が戦の場を離れる
   maedaLeave(rt) {
@@ -950,10 +976,6 @@ const t02_shizugatake = {
       [{ type: 'busho', n: 1, o: { name: '柴田勝家', invuln: true, horse: true, flag: SHIBATA.flag } }, { type: 'samurai', n: 6, o: { flag: SHIBATA.flag } }]);
     for (const u of F.kat.units) { u.invuln = true; u.noTarget = true; }
     F.kat.kind4 = 'kat'; F.groups.push(F.kat);
-    for (const [g, dx, dz] of [[F.yari, -6, 10], [F.uma, 8, 12]]) if (live(g)) {
-      g.order = 'move'; g.speed = 3.6; g.dest = { x: SHIBA_FRONT.x + dx, z: SHIBA_FRONT.z + dz }; g.path = null;
-      g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 28; q.aggro = 14; };
-    }
     this.northMarch(rt, NORTH_BACK, true);
     rt.army.play('horagai', { ...KATSUIE }, 0.9);
     rt.say('使番', '柴田の先手、北国街道より下って参りまする。後ろに修理亮の旗！', 3.2);

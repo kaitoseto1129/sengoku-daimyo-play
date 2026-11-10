@@ -116,9 +116,10 @@ export function fleeAll(rt) {
   // 東西の塀に突き当たらず、開いた北の口から博労淵へ退く。
   g.fleeDir = { x: 0, z: -1 }; g.fleeSet = true;
   const c = g.center();
-  g.fleePath = c.z < -62 ? [[0, -164]] : [[0, -54], [0, -66], [0, -164]];
+  // 北門の直外にいる組も北へ退く。砦内へ引き返させると門脇の塀に当たる。
+  g.fleePath = c.z < -58 ? [[0, -164]] : [[0, -54], [0, -66], [0, -164]];
   // 塀の外へ押し出された加勢は、開いた横塀の切れ目から北門へ戻る。
-  if (Math.abs(c.x) > 24 && c.z >= -62) {
+  if (Math.abs(c.x) > 24 && c.z >= -58) {
     const side = Math.sign(c.x);
     g.fleePath.unshift([side * 28, -30], [side * 20, -30]);
   }

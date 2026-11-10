@@ -2669,18 +2669,18 @@ function seaAmbient(rt, dt) {
   // 大筒・大鉄砲：沖の関船か小早の舷から白煙と閃光。二・三秒おきに、自船から四十〜二百歩の船だけ。
   if (on && rt.t >= A.gunAt) {
     A.gunAt = rt.t + 1.3 + Math.random() * 0.9;
-    // 近い敵船（二十〜九十歩）と沖の船を交互に。近い船の煙ほど大きく写る。
-    // 撃たれて沈む舟や退く舟は、沖の撃ち合いの出所にしない。
-    const near = F.boats.filter((b) => b.alive && !b.damageStage && !b.withdrawing && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) > 20 && Math.hypot(b.x - P.x, b.z - P.z) < 90);
-    const pool = A.k % 2 === 0 && near.length ? near.map((b) => ({ x: b.x, z: b.z }))
-      : F.far.filter((m) => { const d = Math.hypot(m.position.x - P.x, m.position.z - P.z); return d > 40 && d < 200 && !m.userData.departed; }).map((m) => ({ x: m.position.x, z: m.position.z }));
-    const m = pool[(A.k++ * 7) % Math.max(1, pool.length)];
+    // 近い舟は乗員の実射だけで煙と音を出す。飾りを重ねると、射手のいない舟まで撃ち、
+    // 三重の白煙が甲板へ流れて海と敵を隠す（全戦の四方確認）。沖の軽い船だけを順に選ぶ。
+    let m = null;
+    for (let i = 0; i < F.far.length; i++) {
+      const ship = F.far[(A.k + i) % F.far.length], p = ship.position;
+      const d = Math.hypot(p.x - P.x, p.z - P.z);
+      if (!ship.userData.departed && d > 40 && d < 200) { m = p; A.k = (A.k + i + 1) % F.far.length; break; }
+    }
     if (m) {
       const dx = P.x - m.x, dz = P.z - m.z, L = Math.hypot(dx, dz) || 1;
       const x = m.x + dx / L * 3, z = m.z + dz / L * 3;
       rt.army.smoke(x, 2.2, z, dx / L, dz / L, 2);
-      rt.army.smoke(x + dz / L * 2, 2.6, z - dx / L * 2, dx / L, dz / L, 2);
-      rt.army.smoke(x - dz / L * 2, 3.2, z + dx / L * 2, dx / L, dz / L, 2);
       const f = A.flashes[A.k % 3]; f.at = rt.t; f.m.position.set(x, 2.3, z);
       if (L < 120) rt.army.play('volley', { x, y: 2, z }, 0.5);
     }
@@ -2689,7 +2689,7 @@ function seaAmbient(rt, dt) {
   // 焙烙：近い小早から火の玉が弧を描き、自船の西の水面へ落ちて燃える（数秒で消える）。
   if (on && rt.t >= A.potAt) {
     A.potAt = rt.t + 2.8 + Math.random() * 1.4;
-    const src = F.boats.find((b) => b.alive && !b.damageStage && !b.withdrawing && !b.big && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) < 90) || F.far
+    const src = F.boats.find((b) => b.alive && !b.damageStage && !b.withdrawing && !b.group?.routed && b.group?.units.some((u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && u.shipBoat === b && !u.shipTransit?.active) && !b.big && !b.supply && Math.hypot(b.x - P.x, b.z - P.z) < 90) || F.far
       .find((m) => !m.userData.departed && Math.hypot(m.position.x - P.x, m.position.z - P.z) < 120)?.position;
     const h = A.pots.find((q) => rt.t - q.start > 2.4);
     if (src && h) {
