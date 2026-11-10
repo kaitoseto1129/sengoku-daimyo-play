@@ -228,6 +228,34 @@ function stoneRing(rt, k, KB, o = {}) {
   }
 }
 
+// 櫓門の梁と渡櫓は、細い部品の隙間でも視点を通さない。
+// 描く回数を抑えたコマでも働く体積の判定。人が歩く門下は空ける。
+function gifuGateCamera(W) {
+  const previous = W.cameraBlockFraction;
+  const gates = [-70, -12].map(x => ({ x, z: x === -70 ? -2 : 0, y: W.heightAt(x, x === -70 ? -2 : 0) }));
+  W.cameraBlockFraction = function (from, to) {
+    let hit = previous?.call(this, from, to) ?? null;
+    for (const g of gates) {
+      let enter = 0, exit = 1;
+      for (let axis = 0; axis < 3; axis++) {
+        const a = axis === 0 ? from.x - g.x : axis === 1 ? from.y - g.y : from.z - g.z;
+        const d = axis === 0 ? to.x - from.x : axis === 1 ? to.y - from.y : to.z - from.z;
+        const low = axis === 0 ? -2.1 : axis === 1 ? 3.325 : -5.1;
+        const high = axis === 0 ? 2.1 : axis === 1 ? 6 : 5.1;
+        if (Math.abs(d) < 1e-8) { if (a < low || a > high) { exit = -1; break; } }
+        else {
+          const t0 = (low - a) / d, t1 = (high - a) / d;
+          enter = Math.max(enter, Math.min(t0, t1));
+          exit = Math.min(exit, Math.max(t0, t1));
+        }
+        if (enter > exit) break;
+      }
+      if (enter <= exit && (hit === null || enter < hit)) hit = enter;
+    }
+    return hit;
+  };
+}
+
 // 岐阜城の構え（手本：docs/battle_refs/k03_gifu.md）
 function buildGifu(rt, F) {
   const W = rt.world, KB = makeKitBatch(), K = Object.fromEntries(PLAN.kuruwa.map((k) => [k.id, k]));
@@ -313,6 +341,7 @@ const k03_gifu = {
   noReserve: true,
   noTaishoRaid: true,
   foeMarks: true,
+  nameTagsAtHead: true,   // 櫓門の陰へ入った将の名だけが宙に残らない。頭の位置で毎コマ見通しを確かめる。
   playerAtkMax: 3,
   playerTaken: 0.6,    // 城攻めは登る間ずっと怖い（0.5 では命が 90〜100 のまま・critic60 十-3）
   playerRegen: 0.02,
@@ -397,6 +426,7 @@ const k03_gifu = {
     const castle0 = S.children.length;
     F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 1, perch: false, interiorGuards: false, skipWalls: ['ni', 'dai', 'hon'] });
     buildGifu(rt, F);
+    gifuGateCamera(W);
     flags(rt);
     // 金華山の頂の天守（望楼型）。池田輝政が城主の頃に三重に改め、廃城の後は加納城の御三階櫓へ移った（battle_refs）。西の城下から見える目印
     try { S.add(tenshu(W, 7, 1, { floors: 3, b: 8, base: 3, borou: true, old: true, rot: -Math.PI / 2, team: 1, name: '岐阜城の天守', where: '本丸の天守' })); } catch (e) { console.warn(e); }

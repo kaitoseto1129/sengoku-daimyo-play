@@ -2766,7 +2766,7 @@ function finishBuild(rt, order, onDone, reinforce = false) {
     if (retreating) { wk.dest = F.workShelter || WORK_SHELTER; wk.speed = 2.2; }
     // 一人だけ残った時も、その人足が実際に着けば修理を続ける。全滅は別の救援処理へ渡す。
     const needed = Math.min(2, workers);
-    F.workNotice = retreating ? '人足は退避中。破れ目で敵を止めよ' : hands < needed ? '人足が柵へ向かう。道を空けよ' : '人足が柵を結んでいる。材木を渡せば早まる';
+    F.workNotice = retreating ? '人足は退避中。破れ目で敵を止めよ' : hands < needed ? '人足が柵へ向かう。道を空けよ' : '人足が柵を結んでいる。破れ目で敵を止め、修理を守れ';
     sunoProgress(rt, 'gate', F.workNotice);
     if (F.sunoTask === 'rescue') sunoProgress(rt, 'rescue', F.workNotice);
     // 人足が結んでいる間は、掛矢で杭を打つ音が柵ぎわから聞こえる（普請が進んでいる事を画面の字に頼らず伝える）。
@@ -5438,7 +5438,7 @@ const sunomata = {
         }
         if (F.finalChecked && F.woodDelivered && !F.buildBusy && F.segs.every((s) => s.alive) && rt.t - F.safeSince >= 20) { this.holdWin(rt); return; }
         const safeLeft = Math.max(0, Math.ceil(20 - (rt.t - F.safeSince)));
-        sunoProgress(rt, 'defend', (!F.woodDelivered ? '材木を一度、人足へ届けよ' : F.buildBusy ? F.workNotice || '柵を直す人足を守れ。材木を渡せば早まる'
+        sunoProgress(rt, 'defend', (!F.woodDelivered ? '材木を一度、人足へ届けよ' : F.buildBusy ? F.workNotice || '柵を直す人足を守れ'
           : F.segs.some((s) => !s.alive) ? '人足の道を空け、破れた柵を直させよ'
           : !F.finalChecked ? F.finalCheckSent
             ? `点検あと${Math.max(0, Math.ceil(18 - (rt.t - F.finalCheckAt)))}秒。砦の内で人足を守れ`
