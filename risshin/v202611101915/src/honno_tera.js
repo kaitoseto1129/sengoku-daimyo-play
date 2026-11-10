@@ -212,13 +212,20 @@ function teraPlasterMat() {
   const g = cv.getContext('2d'), hg = hv.getContext('2d');
   let seed = 4417; const R = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   g.fillStyle = '#b4ac98'; g.fillRect(0, 0, S, S); hg.fillStyle = '#808080'; hg.fillRect(0, 0, S, S);
-  g.filter = 'blur(3px)';
+  // 11/10 関所7：blur を掛けたまま二千ほどの形を一つずつ描くと、一つごとに全面をぼかして支度が五秒半延びた（iPhone 低の絵の変換で読み出す時）。
+  //   ぼかす形は透明な層へ描き、層ごとに一度だけぼかして重ねる（見た目は同じ）。
+  const lv = document.createElement('canvas'); lv.width = lv.height = S;
+  const blurLayer = (draw) => {
+    const lg = lv.getContext('2d'); lg.clearRect(0, 0, S, S); draw(lg);
+    g.filter = 'blur(3px)'; g.drawImage(lv, 0, 0); g.filter = 'none';
+  };
+  blurLayer((g) => {
   for (let i = 0; i < 340; i++) { const v = 150 + R() * 50; g.fillStyle = `rgba(${v},${v - 4},${v - 22},0.12)`; g.beginPath(); g.ellipse(R() * S, R() * S, 4 + R() * 20, 2 + R() * 7, R() * 3, 0, 7); g.fill(); }
   for (let i = 0; i < 220; i++) { g.fillStyle = `rgba(70,60,46,${0.03 + R() * 0.04})`; g.beginPath(); g.ellipse(R() * S, R() * S, 1 + R() * 4, 1 + R() * 2, R() * 3, 0, 7); g.fill(); }
-  g.filter = 'none';
+  });
   // 鏝の跡（起伏）
   for (let i = 0; i < 200; i++) { hg.fillStyle = `rgba(${R() < 0.5 ? '100,100,100' : '170,170,170'},0.2)`; hg.beginPath(); hg.ellipse(R() * S, R() * S, 18 + R() * 50, 3 + R() * 6, (R() - 0.5) * 0.5, 0, 7); hg.fill(); }
-  g.filter = 'blur(3px)';
+  blurLayer((g) => {
   // 雨だれの筋：長押の下（215）と小壁の下（143）から垂れる
   for (const y0 of [215, 143, 0]) for (let i = 0; i < 16; i++) {
     let x = R() * S; const l = 8 + R() * 24, w = 0.6 + R() * 1, a0 = 0.025 + R() * 0.025;
@@ -245,6 +252,8 @@ function teraPlasterMat() {
     let x = R() * S, y = (R() < 0.5 ? 140 : 215) + R() * 130; g.strokeStyle = 'rgba(90,82,66,0.045)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y);
     for (let k = 0; k < 7; k++) { x += (R() - 0.5) * 22; y += R() * 14; g.lineTo(x, y); } g.stroke();
   }
+  });
+  lv.width = lv.height = 1;
   const mk = (c, srgb) => { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
   TERA_PLASTER = new THREE.MeshStandardMaterial({ vertexColors: true, map: mk(cv, true), bumpMap: mk(hv, false), bumpScale: 0.008, roughness: 0.95, metalness: 0 });
   return TERA_PLASTER;
