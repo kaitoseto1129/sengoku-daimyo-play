@@ -204,7 +204,7 @@ const t06_hetsugi = {
   missionPin(rt) {
     const F = rt.flags, p = rt.player.u.pos;
     if (rt.over || rt.hud?.introWaiting || F.ending || !F.step || F.holdPlayer || !rt.player.u.alive) return null;
-    const q = F.pin || (F.pin = { x: 0, z: 0, r: 6, hide: 6 });
+    const q = F.pin || (F.pin = { x: 0, z: 0, r: 6, hide: -2 });
     q.unit = null; q.enemy = false; q.waiting = false; q.arrived = false; q.progress = 0; q.route = false;
     let at, r = 8;
     if (F.step === 1) at = shinkou.pin(rt);   // 渡るまでは南の岸の浅瀬の口、渡れの後は北の岸
@@ -212,14 +212,15 @@ const t06_hetsugi = {
     else if (F.step === 3) { at = kyuen.pin(rt); r = 6; }   // 伏せの始めは防戦する河原、救援の知らせの後は信親
     else if (F.step === 4) at = shingari.pin(rt, K);   // 殿の間は北の口、皆が渡ったら南の岸
     else { at = SAFE; r = 9; }   // ⑤：渡り切った西の岸の土手
-    q.x = at.x; q.z = at.z; q.r = q.hide = r;
+    q.x = at.x; q.z = at.z; q.r = r;
     // 下知が「追え」「退け」だけでも、印には実際の行き先の名を添える。
     q.label = STEP_NOUN[F.step - 1];
     if (F.step === 2 && !F.feigned) q.label = '伊集院の先手';
     else if (F.step === 2 && F.s2?.leg === 1) q.label = '島津の囲みの陣';
     else if (F.step === 3) q.label = !F.s3?.st ? '中津留の河原' : F.s3.st >= 3 || (F.s3.st === 2 && F.s3.motoOrdered) ? '長宗我部元親' : '長宗我部信親';
-    // 防戦・救援は着いてから続く。共通の六 m 内の省略で目標の▼を消さない。
-    q.hideDistance = 0;
+    // 防戦・救援は着いてから続く。共通が読む hide を指定し、
+    // 到着半径と再表示の一歩半のゆとりの内でも行き先を消さない。
+    q.hide = -2;
     q.arrived = Math.hypot(p.x - at.x, p.z - at.z) < r;
     return q;
   },

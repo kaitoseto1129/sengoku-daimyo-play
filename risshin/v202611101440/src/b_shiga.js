@@ -1144,7 +1144,7 @@ function enemyGunCue(rt) {
   const sound = shots > 1 ? '敵の鉄砲の斉射' : '敵の鉄砲の一発';
   if (retreat) {
     // 発砲音は射手の合成音を使う。退きの鉦の後も、道案内を消さずに危険を伝える。
-    F.retreatGunText = `${sound}。道沿いの物陰を使え`;
+    F.retreatGunText = `${sound}。身を低うして坂を上れ`;
     F.retreatGunUntil = rt.t + 8;
     rt.say('足軽', `${sound}じゃ！　身を低うして坂を上れ、木戸へ退け！`, 3.5);
     return;

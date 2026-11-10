@@ -496,7 +496,9 @@ function lurkTick(rt) {
 function intoOgura(f) {
   const t0 = f.tick;
   f.tick = (rt, C, m, ctx, el) => {
-    const cleared = t0(rt, C, m, ctx, el);
+    // 11/10 クラウド：残兵が城の奥へ退いた後も一人でも生きていると済まず、bot が門の脇の塀で十二分止まった（act 1260秒切り上げ）。
+    //   残兵が退いたか、段が三分半を過ぎたら、門の守りは崩れたとみなして小倉丸へ導く（入城は本人が入るまで待つ）
+    const cleared = t0(rt, C, m, ctx, el) || C.remnantsRetreated || el > 210;
     // 共通の戦闘処理は敵の中心へ目当てを動かす。付け入りでは門を目指し、城外へ守兵を追わない。
     C.goal = C.at;
     if (!cleared) return false;
@@ -804,7 +806,8 @@ t05_ichinomiya.botBrain = (b, inp, { goTo }) => {
   const cur = b.flags.dp?.cur;
   if (b.flags.step === 4 && cur?.at && Math.hypot(u.pos.x - cur.at.x, u.pos.z - cur.at.z) > 16) { inp.leftPressed = false; goTo(b.player, inp, cur.at.x, cur.at.z, 3); return; }
   if (b.flags.step === 5 && !inOgura(u.pos.x, u.pos.z)) {
-    const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
+    // 塀の向こう（小倉丸の内）の敵は斬れない。塀越しに振り続けて門の脇で止まった（11/10）
+    const near = b.army.units.some((o) => o.alive && o.team === 1 && !o.isStruct && !o.fleeing && !inOgura(o.pos.x, o.pos.z) && (o.pos.x - u.pos.x) ** 2 + (o.pos.z - u.pos.z) ** 2 < 5);
     if (!near) {
       const d = destOf(b);
       inp.leftPressed = false;

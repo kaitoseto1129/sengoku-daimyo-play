@@ -24,7 +24,7 @@ import { enemyGroup, allyGroup, nm } from './bhelp.js';
 import { distToPolyline } from './world.js';
 import { KIT } from './b_nagashinojo.js';
 import { timeslipField } from './timeslip_field.js';
-import { KILLS, cut, standing } from './stages.js';
+import { KILLS, cut, standing as fieldStanding } from './stages.js';
 import { setStages } from './b_k_help.js';
 import * as jin14 from './k14/jindate.js';
 import { DEPTH14 } from './k14/depth.js';   // 陣立ての表（army_depth.js）   // 二正面の軽い大軍と遠くの乱戦・家臣の守り・棒立ちなし（11/8）
@@ -83,6 +83,8 @@ const LOOK = {
 const named = (name, type = 'samurai', o = {}) => ({ type, n: 1, o: { name, ...LOOK[name], ...o } });
 
 const sm = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
+// 深手で伏せた者を案内し続けない。残兵・同行・行き先を同じ戦力判定に揃える。
+const standing = (u) => fieldStanding(u) && !u.downed && !u.rearWound && u.hp > 0;
 const stepAlive = (F) => aliveN(F.stepG) + (F.step === 1 ? aliveN(F.fuseG) : 0);   // 八尾では横の備と伏せ槍を合わせて数える
 const live = (g) => g && g.units.some(standing);
 // 深手で戦えない者・後送済みの者は、目標の残兵に数えない（共通の戦力判定と揃える）。
@@ -245,6 +247,9 @@ const k14_yao_wakae = {
     time: 'morning',
     mood: 'morning',          // 夜明けから朝の戦（井伊と木村は午前七時ごろ。低い朝日。二2）
     mist: 0.15,               // 河内の朝靄
+    mistFar: 180,             // 朝靄で二つの戦場の間を白い壁にしない。
+    smokeFogFloor: 80,        // 乱戦の硝煙でも、十歩先の兵を霧だけで消さない。
+    clearAir: true,           // 遠い生駒と地平線を残す。兵の描画距離は増やさない。
     muddy: 0.5,               // 深田（足を取られる田）
     bloodInRiver: true,       // 水田も水中の判定になる。斬った跡を省かず、水面に赤い濁りを残す（critic60 四6）。
     groundHalf: 260,

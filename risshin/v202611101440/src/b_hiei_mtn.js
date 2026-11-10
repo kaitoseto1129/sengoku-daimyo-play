@@ -1498,6 +1498,9 @@ const guardedRoad = (rt, p) => {
     // 試し役も室内の敵は追わない。外へ出てきた守りは従来どおり数える。
     if (hieiReady(u)
       && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < 10
+      // 案内が対象外にする別の段の兵を、本道の未掃討として数えない。
+      // 同じ高さへ下りて来た守りは、従来どおり進軍を止める。
+      && Math.abs(u.pos.y - rt.player.u.pos.y) < 2
       && !nakaRoomAt(u.pos.x, u.pos.z, u.pos.y)
       // 案内も試し役も追わない法面・壁の向こうの兵で、本坂の進軍を止めない。
       // 道へ出た兵と、本人から射線の通る道上の守りは引き続き退ける。

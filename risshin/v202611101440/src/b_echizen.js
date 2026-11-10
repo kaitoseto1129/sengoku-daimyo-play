@@ -2787,9 +2787,10 @@ function echizenAdvance(rt) {
   // 通り道を空けたまま、退く時に捨てた砦の火と分かる位置へそろえる。
   for (const id of ['kinome_fuku', 'saikoji_hon', 'hachibuse_hon']) {
     // 別手が先に退いた城には、既に火と黒煙がある。重ねて増やさない。
-    if (F.echSideGone && id !== 'kinome_fuku') continue;
+    if (F.echBurningCourts?.has(id)) continue;
     const p = F.SZ.byId[id].pos;
     rt.world.addFire(p.x - 6, p.z, { size: 3.2, blackSmoke: true });
+    (F.echBurningCourts ||= new Set()).add(id);
   }
   // 11/6 fixc0917_echizen（二2）：峠の一揆勢が退いたのは府中の龍門寺が焼かれた夜（信長公記）。観音丸を落とす頃に日が暮れ、知らせも夜の出来事の順にする
   rt.world.setTime?.('night');

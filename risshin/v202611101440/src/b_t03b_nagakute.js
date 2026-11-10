@@ -139,7 +139,7 @@ const t03b_nagakute = {
   hideMissionDots: true,
   enemyTriangleSigns: true,
   // 討てない本陣の兵にも敵の所属印を付ける。前へ出さず、攻撃の対象にも戻さない。
-  foeMarkVisible: (rt, u) => !!u.group?.honjin,
+  foeMarkVisible: (rt, u) => !!(u.group?.honjin || u.group?.general),
   goalSignNoLabel: true,   // ▼の上に「印へ進め」などの字を出さない（三の1・五の1）
   singleDestinationArrow: true,
   noCouriers: true,
@@ -251,7 +251,8 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
     // 連れた兵（主人公の組）は中入りの列の主人公のそばから出る。白山林に置くと百歩以上離れて始まる。
     F.men = allyGroup(rt, { ...o, name: '信吉隊の足軽', anchor: { x: rt.player.u.pos.x - 4, z: rt.player.u.pos.z + 4 }, facing: E, width: 5, aggro: 10, speed: 3.9, order: 'hold' },
       fl([{ type: 'ashigaru', n: 10, o: { flagScale: 1 } }, { type: 'ashigaru', n: 3 }, { type: 'samurai', n: 2 }, { type: 'gun', n: 2 }], 'toyotomi'));
-    F.men.ai = true;
+    // 主人公の組は追従と近場の防衛に専念し、共通の判断で別の前線へ向かわせない。
+    F.men.noAI = true;
     F.menN0 = aliveN(F.men);
     // 秀次隊のほかの手（朝飯の最中。林の中で崩れていく）
     F.camp = allyGroup(rt, { ...o, noRout: false, name: '信吉隊', anchor: { x: CAMP.x + 14, z: CAMP.z - 8 }, facing: E, width: 7, aggro: 9, speed: 3.2, order: 'hold', dmgMult: 0.4 },
@@ -562,12 +563,12 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
       const c = live(F.men) && F.men.center();
       if (c) {
         const d = Math.hypot(c.x - P.pos.x, c.z - P.pos.z), far = d > (run ? 5 : 8);
-        F.men.ai = !far;   // 離れた時は大将の頭（ai.js）に「かかれ」へ戻させない
+        F.men.ai = false;
         // 走る段で離れた兵は、目の前の斬り合いを捨てて駆け出す（掴み合ったまま白山林に残らない）
         //   駆けて追いつく間（主人公から 14m より外）は、追いすがる敵に討たれ尽くさない（追いつけば元どおり打ち合う）
         for (const u of F.men.units) if (u.alive && !u.gone) {
           const away = run && dist(u.pos, P.pos) > 14;
-          if (away && u.target) { u.target = null; u.watch = null; }
+          if (dist(u.pos, P.pos) > 14) { u.target = null; u.watch = null; }
           if (away !== !!u._runSafe) { u._runSafe = away; u.invuln = away; }
         }
         // 後れた組も先行した組も主人公のそばへ。任務地点へ直行させると、途中で止まった主人公を置き去りにする。
@@ -577,7 +578,11 @@ html:root body #hud:has(#h-prog[data-battle="t03b_nagakute"]) #center-call .cc {
         const want = { x: P.pos.x + 2, z: P.pos.z + 2 };
         if (far && (F.men.order !== 'move' || !F.men.dest || dist(F.men.dest, want) > 6)) F.men.dest = { x: want.x, z: want.z };
         if (far) { F.men.order = 'move'; F.men.speed = run || d > 16 ? 5.4 : 4.4; F.men.march = run || d > 16; F.men.aggro = run || d > 16 ? 2 : 10; }
-        else { F.men.order = 'attack'; F.men.march = false; F.men.aggro = 10; F.men.seekRange = F.stage === 6 ? 6 : 14; }
+        else {
+          // 戻った直後に自由な攻撃へ替えると、また敵を追って主人公の周りが空になる。
+          F.men.order = 'hold'; F.men.anchor.x = want.x; F.men.anchor.z = want.z;
+          F.men.march = false; F.men.aggro = 6; F.men.seekRange = 8;
+        }
       }
     }
     // 信吉の馬廻は走る間、追いすがる敵との斬り合いに留まらず駆け抜ける（白山林に残ると堀の陣へ着かない）

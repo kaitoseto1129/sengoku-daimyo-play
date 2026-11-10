@@ -47,7 +47,10 @@ function side(rt) {
   rt.world.setTime?.('night');
   for (const id of ['saikoji_hon', 'hachibuse_hon']) {
     const z = F.SZ.byId[id];
-    if (pending.includes(id)) rt.world.addFire(z.pos.x - 6, z.pos.z, { size: 3.2, blackSmoke: true });
+    if (pending.includes(id)) {
+      rt.world.addFire(z.pos.x - 6, z.pos.z, { size: 3.2, blackSmoke: true });
+      (F.echBurningCourts ||= new Set()).add(id);
+    }
   }
   try { sfx('farHorn', 0.7); } catch (e) { /* なし */ }
   const names = [];

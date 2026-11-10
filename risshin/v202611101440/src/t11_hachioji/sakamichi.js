@@ -54,7 +54,9 @@ export function step(H) {
       // 二巡 11/9：坂の槍がほぼ崩れたら、行き先を坂の上（金子丸の下）へ移す（行き先が坂の半ばのままで、上へ登らずに止まった）
       if (C.down && (left <= 4 || el > 150) && C.at !== H.SLOPE_TOP) { C.at = H.SLOPE_TOP; C.goal = H.SLOPE_TOP; }
       // 二巡 11/9：坂の脇の崖へ逃げた数人を討てず、十五分止まった。長引けば残りが少なくなった所で進む（味方が残りを払う）
-      return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || el > 220);
+      // 長引いても時刻だけでは突破にしない。新手まで含む六割以上を崩した時だけ、残兵を退かせる。
+      const total = C.n0 + (C.spear2?.units.length || 0);
+      return !!C.down && top && (left <= 2 || (el > 150 && left <= 5) || (el > 220 && left <= total * 0.4));
     },
     end(rt, C) {
       for (const g of [C.spear, C.spear2]) retreat(g);

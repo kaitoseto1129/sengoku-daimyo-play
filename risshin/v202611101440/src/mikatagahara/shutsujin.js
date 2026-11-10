@@ -47,11 +47,11 @@ export function install(rt, ctx) {
   const joinTick = () => {
     if (F.ending || rt.over || F.mkStage !== -1) return;
     const u = rt.player?.u;
-    if (u && near(u.pos, JOIN, 8) || rt.t - t0 > JOIN_WAIT) { toScout(); return; }
+    if (u?.alive && near(u.pos, JOIN, 8) || rt.t - t0 > JOIN_WAIT) { toScout(); return; }
     rt.after(0.4, joinTick);
   };
   const toPost = () => {
-    if (F.mkStage !== 0) return;
+    if (F.ending || rt.over || F.mkStage !== 0) return;
     F.mkStage = 1; F.mkScout = null; F.tPost = rt.t;
     rt.unmark('mkScout');
     rt.obj('main', '平手の槍の持ち場へ戻り、北へ槍を構えよ', 'main', true);
@@ -59,11 +59,11 @@ export function install(rt, ctx) {
     const tick = () => {
       if (F.ending || rt.over || F.mkStage !== 1) return;
       const u = rt.player?.u;
-      const there = u && near(u.pos, ctx.HIRATE_POST, 8);
+      const there = u?.alive && near(u.pos, ctx.HIRATE_POST, 8);
       if (there || rt.t - F.tPost > POST_WAIT) {
         F.mkStage = 2;
         rt.say('平手汎秀', there ? 'よう戻った。槍を揃えよ。北の野から馬が来るぞ' : '持ち場へ急げ！　北の野から馬が来るぞ', 3);
-        rt.after(3.5, () => { if (!F.ending) ctx.next(); });
+        rt.after(3.5, () => { if (!F.ending && !rt.over) ctx.next(); });
         return;
       }
       rt.after(0.4, tick);
@@ -89,7 +89,8 @@ export function install(rt, ctx) {
   const scoutTick = () => {
     if (F.ending || rt.over || F.mkStage !== 0) return;
     const u = rt.player?.u;
-    if (u && rt.t - F.tScout > 2 && near(u.pos, MI, 7)) { report(); return; }
+    // 討死後に残った位置だけでは、物見した手柄を与えない。
+    if (u?.alive && rt.t - F.tScout > 2 && near(u.pos, MI, 7)) { report(); return; }
     if (rt.t - F.tScout > SCOUT_WAIT) { toPost(); return; }
     rt.after(0.4, scoutTick);
   };
