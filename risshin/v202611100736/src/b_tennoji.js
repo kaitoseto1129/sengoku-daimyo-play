@@ -3938,7 +3938,6 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         rt.player.treatmentLeft > 0 && rt.player.treatmentNext <= rt.t &&
         (u.hp < u.maxHp * .5 || u.wounds?.bleed > .0001);
       const reliefDistance = Math.ceil(Math.hypot(F.nobuU.pos.x - T_GATE.x, F.nobuU.pos.z - T_GATE.z) / 10) * 10;
-      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}歩` : !nobuIn ? reliefDistance > 10 ? `南門内で待て。信長は門まで約${reliefDistance}歩` : '南門内で待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方が揃った。門内で合流せよ' : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
       // 救援が戦えない時も、門で延々と待たせない。勝ちにはせず退く下知を出す。
       if (F.joinWait >= 120) return this.fail(rt, '救援が砦へ入れぬ。列を保って南へ退け');
       // 入城がそろえば合流。列を整える十二秒は次の段で一度だけ待つ。
@@ -3959,9 +3958,17 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 明智の手が崩れて残る者が無い時は、揃うのを待たない（11/9 二巡：全員が逃げたまま十分止まった）。
       const akeWounded = F.ake.units[0]?.alive && F.ake.units[0].woundOut;
       const akeIn = !akeWounded && (akeLive === 0 || akeCommanderIn && akeNear >= Math.min(3, akeLive));
-      if (F.step === 2.75 && !akeIn && elapsed >= 120)
-        return this.fail(rt, '明智の列が揃わぬ。味方と南へ退け');
+      // 戦える列の集合待ちだけで敗北にしない。深手で出撃できない時は退く下知を出す。
+      if (F.step === 2.75 && akeWounded && elapsed >= 120)
+        return this.fail(rt, '明智光秀が深手を負った。味方と南へ退け');
+      // 交戦後に持ち場で止まった列には、同じ門内への集合を命じ直す。
+      if (F.step === 2.75 && !akeIn && !akeWounded && F.ake.order !== 'path' &&
+          rt.t >= (F.akeGatherAt || 0)) {
+        F.akeGatherAt = rt.t + 8;
+        march(F.ake, [[-5, T_GATE.z - 9]], 'hold', 0);
+      }
       const ready = nobuIn && inside >= 6;
+      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}歩` : !nobuIn ? reliefDistance > 10 ? `南門内で待て。信長は門まで約${reliefDistance}歩` : '南門内で待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方が揃った。門内で合流せよ' : akeWounded ? '明智光秀が深手。南門内で味方と構えよ' : !akeIn ? `南門内で明智勢を待て。集合 ${akeNear}／${Math.min(3, akeLive)}人${akeCommanderIn ? '' : '。列の頭を待て'}` : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
       if ((joined || ready && elapsed >= 30) && F.step === 2) this.regroup(rt);
       else if (joined && akeIn && F.step === 2.75 && elapsed >= 12 && !treating) this.sortie(rt);
     } else if (F.step === 3) {
