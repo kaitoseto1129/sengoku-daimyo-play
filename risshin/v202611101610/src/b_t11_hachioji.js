@@ -384,6 +384,12 @@ function kuruwaFight(o) {
     // この組だけ柵の外まで寄せ手を追い、曲輪の内に留まらなかった。
     const bow = rt.flags.slopeBow;
     if (o.title === '金子丸' && bow && !bow.routed) {
+      // 持ち場だけでなく制圧対象にも加える。外すと射手を残して曲輪が落ち、
+      // 段の終わりの退く下知も届かず、落城後まで射ち続けてしまう。
+      if (!C.groups.includes(bow)) {
+        C.groups.push(bow);
+        C.nTot = (C.nTot || 0) + live(bow);
+      }
       bow.t11Kuruwa = k; bow.stay = true; bow.noAI = true;
     }
   };

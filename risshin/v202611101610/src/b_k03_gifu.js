@@ -338,6 +338,7 @@ const k03_gifu = {
   introText: () => '米野で敗れた織田秀信が岐阜城に籠もった。池田勢の先手として城下から金華山を登り、本丸へ迫れ。',
   hideGuideSteps: true,
   stageGoalsOnly: true,   // 目標は五つの段だけ（始めから①〜⑤を並べる・物差し九-1・十-1）
+  goalsVisibleRows: 5,    // 共通の既定は三行。初めから本丸までの五つを並べる。
   noCouriers: true,
   // 浅野・池田長吉の手が前の曲輪へ駆け上る時、共通の使番が「後方にて陣を移す」と言った（寄せる向きと逆の言葉）。寄せ手の動きは段の台詞で言う
   noAllyReports: true,
@@ -471,9 +472,9 @@ const k03_gifu = {
     //   （段ごとに出すと、見える所に湧かせない共通の決まりで奥へずらされ、戻る途中で二の丸の北の竪堀に詰まって中腹の砦にいなかった）
     F.pre = {
       2: this.foe(rt, '百々綱家の手勢', OTE, [uS(7), uA(10), uG(6)], { hold: true, width: 7, dx: 2 }),
-      3: this.foe(rt, '百々綱家の隊', NANA, [busho('百々綱家'), uS(6), uA(9), uG(5), uB(3)], { hold: true, width: 6, morale: 98 }),
+      3: this.foe(rt, '百々綱家の隊', NANA, [busho('百々綱家', { mustLive: true }), uS(6), uA(9), uG(5), uB(3)], { hold: true, width: 6, morale: 98 }),
       // 七曲口を守った木造の父子は、福島勢に押されて二の丸へ退いた（守将の割り当ては battle_refs。二の丸で迎える形は推定）
-      4: this.foe(rt, '木造長政の隊', NI, [busho('木造長政'), uS(7), uA(12), uG(7)], { hold: true, width: 7, morale: 98, dx: -2 }),
+      4: this.foe(rt, '木造長政の隊', NI, [busho('木造長政', { mustLive: true }), uS(7), uA(12), uG(7)], { hold: true, width: 7, morale: 98, dx: -2 }),
       5: this.foe(rt, '織田秀信の旗本', DAI, [uS(10), uA(6), uG(6)], { hold: true, width: 6, morale: 100, dmg: 0.55 }),
     };
     // 登る途中の曲がり角の伏兵（戦いながら登る。AT10）
@@ -481,9 +482,17 @@ const k03_gifu = {
     // 11/10 クラウド：命の満ちた本人が伏兵の侍と足軽の二太刀（36・30）で三秒のうちに倒れた（act 107秒）。伏兵は驚かす役で、一度に命を奪わない
     if (F.amb) F.amb.dmgMult = 0.6;
     // 秀信は本丸の天守の前で、近習に囲まれて座る（総大将は前に出ない）
-    F.hide = this.foe(rt, '織田秀信の近習', SEAT, [busho('織田秀信', { horse: false }), uS(8)], { hold: true, width: 4, morale: 100, seek: 6 });
+    F.hide = this.foe(rt, '織田秀信の近習', SEAT, [busho('織田秀信', { horse: false, mustLive: true }), uS(8)], { hold: true, width: 4, morale: 100, seek: 6 });
     F.hideU = F.hide.units.find((u) => u.name === '織田秀信');
-    if (F.hideU) F.hideU._crouch = true;
+    if (F.hideU) {
+      F.hideU._crouch = true;
+      // 共通の手傷離脱で消えると、門前へ歩み出る降伏が見られない。
+      // 深手なら戦いから外し、開城までは本丸に留める。
+      F.hideU.onWound = () => {
+        const u = F.hideU;
+        u.noTarget = true; u.target = null; u.atk = null; u.swing = null;
+      };
+    }
     manYokoya(rt, F, 0); manYokoya(rt, F, 1);
     // 段の決まり（siege_stages.js・docs/siege_honjin_spec_1107.md 5・11・13章）：今の段の守りだけが打って出て、奥の曲輪の守りは持ち場で構えて待つ。
     //   段が八十秒長引けば使番が知らせ、大将が味方の隊を出す

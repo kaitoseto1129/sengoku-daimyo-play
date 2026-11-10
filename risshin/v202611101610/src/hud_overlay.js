@@ -829,7 +829,7 @@ export class HudOverlay {
       // 守る相手は下で大きな盾だけを示し、ほかの印や名を重ねない。
       // 11/8 critic60 本能寺：守る相手の盾の札が出ていない時は、名のある守る相手の名札を消さない（上様の名が一度も出なかった）
       const guardShown = this.root.classList.contains('guard-guide');
-      if ((retreating || this.root.classList.contains('wait-guard-active')) && u.team === P.u.team || (u === this.guardAlly || u === missionGuard) && (guardShown || !u.name) || u === hiddenEnemy) continue;
+      if ((retreating || this.root.classList.contains('wait-guard-active') && !guardNamed) && u.team === P.u.team || (u === this.guardAlly || u === missionGuard) && (guardShown || !u.name) || u === hiddenEnemy) continue;
       // 普段の戦は選んだ敵一人だけ。組の詳しい表示では味方の印も残す。
       if (u.offscreen || !u.alive || u.isPlayer || u.noTarget || u.civ || u.isStruct || u.type === 'dummy' || u.type === 'porter' || u.invuln && !u.name) continue;
       const d = Math.hypot(u.pos.x - cam.x, u.pos.z - cam.z);
