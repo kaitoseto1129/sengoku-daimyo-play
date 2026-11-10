@@ -236,7 +236,7 @@ const k04_kuisegawa = {
     fl([{ type: 'busho', n: 1, o: { name: '蒲生備中', invuln: true, horse: true } }, { type: 'samurai', n: 2, o: { keep: true } }, { type: 'ashigaru', n: 12, o: { keep: true } }], 'ishida'));
     F.foes.push(F.gamo);
     // 最初の小競り合いに使う備は変わらない。毎コマ配列を作り直さない。
-    F.baitBlocks = F.blocks.filter((b) => b !== B.arima);
+    F.baitBlocks = [B.saki, B.bait];
     // 足軽は屈んで稲を刈っている（突っ立たない。槍を入れられると立ち上がる）
     for (const u of F.gamo.units) if (u.type === 'ashigaru') u._crouch = true;
     F.follow.push([F.gamo, B.bait, 0, 0]);
@@ -631,7 +631,10 @@ const k04_kuisegawa = {
   botBrain(b, inp, { goTo, patientStrike }) {
     const p = b.player, u = p.u, F = b.flags;
     if (F.holdPlayer || !F.step) return;
-    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3;
+    const defense = F.step === 3 ? this.defensePoint(b) : null;
+    // 防戦の旗から離れた敵を追い、近くにいた時間が増えなくなるのを防ぐ。
+    const ok = (o) => !o.fleeing && !o.invuln && !o.noTarget && Math.abs(o.pos.y - u.pos.y) < 3 &&
+      (!defense || dist(o.pos, defense) < 14);
     const r = F.step >= 4 ? 0 : F.step === 3 ? 4 : F.step === 1 ? 7 : 0;
     const e = r ? b.army.nearestEnemy(u, r, ok) : null;
     if (e) {
@@ -645,7 +648,7 @@ const k04_kuisegawa = {
     let q;
     if (F.step === 1) q = lightPos(F.blk.bait);
     else if (F.step === 2) q = RING;
-    else if (F.step === 3) q = F.noiU?.alive ? F.noiU.pos : RING;
+    else if (F.step === 3) q = defense;
     else if (F.step === 4) q = T(64, 4);
     else q = ARIMA;
     goTo(p, inp, q.x, q.z, 2);

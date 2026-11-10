@@ -547,9 +547,10 @@ const k05_ueda = {
         const route = [{ x: GATE.x - 6, z: GATE.z + 10 }, { x: GATE.x - 6, z: GATE.z }, { x: GATE.x + 7, z: GATE.z }, FRONT, { x: 72, z: -14 }, { x: FORD_W.x - 10, z: FORD_W.z - 2 }];
         let leg = 0;
         nb.order = 'move'; nb.dest = { ...route[0] }; nb.anchor = { ...nb.dest }; nb.speed = 4.4; nb.seekRange = 0; nb.aggro = 0;
-        nb.onArrive = (q) => {
+        nb.onArrive = function advance(q) {
           if (F.step !== 6 || F.nbBack || q.order !== 'move') { q.onArrive = null; return; }
-          if (++leg < route.length) { q.dest = { ...route[leg] }; q.anchor = { ...q.dest }; return; }
+          // 共通の到着処理は呼び出す前に onArrive を外す。次の曲がり角でも下知を続ける。
+          if (++leg < route.length) { q.dest = { ...route[leg] }; q.anchor = { ...q.dest }; q.onArrive = advance; return; }
           F.nbAt = rt.t;
           q.order = 'attack'; q.seekRange = 20; q.aggro = 14; q.onArrive = null;
         };
