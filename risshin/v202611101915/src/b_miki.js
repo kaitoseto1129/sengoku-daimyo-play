@@ -1474,6 +1474,8 @@ const miki = {
     if (rt.over || F.ending || !rt.player.u.alive) return null;
     // 接敵中も、到着して下知を聞く間も、持ち場の印を消さない。
     const q = F.mikiPin || (F.mikiPin = { x: 0, z: 0, r: 5, hide: 5, always: true });
+    // 共通の頭上印も到着地点で残す。always だけでは六歩以内で隠れる。
+    q.hideDistance = 0;
     const stage = this.missionOf(rt);
     // 集合先は出発地点でなく、実際に待つ西の槍組。下知と同じ列へ案内する。
     // 11/4 jin（三2・BK4）：討つ段も行き先は固定（大村道の西・大村坂）。敵は頭上の赤い▼で示す

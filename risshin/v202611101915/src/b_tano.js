@@ -115,7 +115,8 @@ function sonaePlan(name, team, honjin, facing, rows) {
 // 谷では大きな陣形を開けない。長蛇は道に沿う復元の呼び名で、史料の陣名ではない。
 const TANO_ATTACK = sonaePlan('長蛇', 0, { x: -188, z: 0 }, Math.PI / 2, [
   ['front', '先手の槍', '滝川一益の配下', 1700, -152, 0, Math.PI / 2, 'takigawa', 'takigawa'],
-  ['kawa', '第二陣', '河尻秀隆', 1500, -208, 0, Math.PI / 2, 'oda', 'none'],
+  // 個人の紋は不明なので所属する織田の旗に揃える。無地の紋を幟へ渡さない。
+  ['kawa', '第二陣', '河尻秀隆', 1500, -208, 0, Math.PI / 2, 'oda', 'oda'],
   ['gun', '先手の鉄砲', '滝川一益の配下', 500, -168, 0, Math.PI / 2, 'takigawa', 'takigawa'],
   ['taki', '指揮所と近習', '滝川一益', 300, -188, 0, Math.PI / 2, 'takigawa', 'takigawa'],
 ]);

@@ -2237,19 +2237,23 @@ function hieiPostRadius(F) {
   if (F.step === 3) return 6;
   return F.step === 2 || F.step === 4 && !F.bell2 ? 9 : 12;
 }
+function hieiResisting(u) {
+  return u?.alive && !u.gone && !u.dying && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
+}
 function hieiReady(u) {
-  return u?.alive && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.woundOut && !u.fleeing && !u.noTarget && !u.group?.routed;
+  return hieiResisting(u) && !u.downed;
 }
 // 隊の人数には深手で戦列を離れた兵も残る。突破は戦える守り手で判じる。
 function hieiDefeated(g) {
   if (!g || g.routed) return true;
   let ready = 0;
-  for (const u of g.units) if (hieiReady(u)) ready++;
+  // 転倒は数秒で立ち直る。倒れた瞬間を討死・敗退として目標を果たさない。
+  for (const u of g.units) if (hieiResisting(u)) ready++;
   if (!ready) return true;
   // 隊長が討死・重傷で戦列を離れ、大半が倒れた守りまで最後の一人を探す条件にしない。
   // 到着や経過時間では崩さず、共通の敗走処理で実際に退いてから突破とする。
   const head = g._hieiLead || g.units[0], initial = g.initial || g.units.length;
-  if (head && !hieiReady(head) && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
+  if (head && !hieiResisting(head) && initial - ready >= 2 && ready <= Math.ceil(initial * .2)) {
     g.noRout = false;
     g.morale = Math.min(g.morale, 21);
   }
@@ -3015,6 +3019,8 @@ const hiei_mtn = {
     // 現在の比叡山でも畳・襖・須弥壇を堂内の光へ揃える。材質は全棟で共有する。
     interiorMaterial: hieiRoomMaterial,
     moveLim: 280,           // この戦だけ：横川六谷の奥（z≈-268）まで。本道の掃討条件は変えない。
+    // 関所（11/10）：横川中堂（z≈-215）が本物の地面（既定の ±180）の外で、遠景ののっぺりした緑の面の上で終わっていた。地面を ±240 へ広げる（頂点数は同じ）。
+    groundHalf: 240,
     time: 'day',
     mist: false,           // 当日の霧は不明。煙は建物の火から生じる。山の上は森と霞に隠れて見えない（P1）
     smokeFogFloor: 60,     // 火の煙は残し、鳥居と目前の石段まで白い壁にしない。
@@ -4280,6 +4286,22 @@ const hiei_mtn = {
           F.saitoBow2.units.every((v) => !hieiReady(v) || Math.hypot(v.pos.x - P.saito.x, v.pos.z - P.saito.z) > 25))) {
         F.saitoBowLeft = true;
         F.saitoBow2.noRout = false; F.saitoBow2.morale = 0; F.saitoBow2.order = 'retreat';
+      }
+      // 関所（11/10）：にない堂（常行堂・法華堂）の基壇の上（地面より三〜四歩高い）に釈迦堂の僧兵・弓が上がり、
+      //   上から本人を斬り続けるのに、本人も味方も寄れず十分止まった。二秒ごとに、基壇に上がった者を脇の地面へ下ろす。
+      if (rt.t >= (F.saitoUnstickT || 0)) {
+        F.saitoUnstickT = rt.t + 2;
+        for (const g of [F.shakadoG, F.saitoBow2, F.ninaidoG]) for (const v of g?.units || []) {
+          if (!hieiReady(v) || v.pos.y - rt.world.heightAt(v.pos.x, v.pos.z) < 1.5) continue;
+          let spot = null;
+          for (let r = 2; r <= 12 && !spot; r += 1.5) for (let k = 0; k < 12; k++) {
+            const a = k * Math.PI / 6, x = v.pos.x + Math.sin(a) * r, z = v.pos.z + Math.cos(a) * r;
+            if (!outdoorBlocked(rt, x, z) && rt.world.onRoad(x, z)) { spot = { x, z }; break; }
+          }
+          if (!spot) continue;
+          v.pos.set(spot.x, rt.world.heightAt(spot.x, spot.z), spot.z);
+          if (v.mesh) v.mesh.position.copy(v.pos);
+        }
       }
       if ([F.shakadoG, F.saitoBow2].every((g) => hieiDefeated(g) || g === F.saitoBow2 && F.saitoBowLeft) && near(u, P.saito, 12) && arrived(F.akechi, P.saito, 12) && guardedRoad(rt, P.saito)) this.p7(rt);
     } else if (advanceStep === 6) {

@@ -38,7 +38,7 @@ const sstep = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t 
 const ROAD = [[34, 340], [24, 270], [14, 200], [10, 140], [10, 64], [10, 30], [14, -40], [24, -100], [30, -170]];
 const SEAT = { x: 44, z: 232 };             // 豊臣秀次の本陣の床几（街道の後ろの陣幕の中）
 const START = { x: 22, z: 220 };           // 地面の格子（groundHalf 240）と動ける所（moveLim 236）の内。前は 292 で、兵がみな z=176 の端に寄せられていた
-const SIGN = { x: 0, z: 0, label: '' };
+const SIGN = { x: 0, z: 0, label: '', hideDistance: 3 };   // 関所の3：行き先の一歩手前（三〜六m）で▼を消さない（土橋・柵の前で印が消えたまま斬り合っていた）
 // 曲輪（中心・半径・削った面の高さの足し）。切岸の縁は 10m で地形へ戻す。手本は docs/battle_refs/t09_yamanaka.md
 //   seg：細長い曲輪（尾根に沿う）。rim：縁の内に盛る土塁の高さ（北条の城は石垣を使わない土の城）。gaps：土塁を切る虎口の点
 const KURUWA = {
@@ -288,7 +288,7 @@ const t09_yamanaka = {
   goalsAllRows: true,         // ①〜⑤を始めから並べる（共通画面の既定では今の一件だけになる）。
   goalSignTriangle: true,
   enemySignMaxPixels: 20,   // 通し確認：密集した近い敵の赤い印が視界を覆わないよう、命中時も同じ上限にする。
-  goalSignNoEdge: true,      // 画面外の行き先を縁へ張り付けたり、方向矢印へ替えたりしない。
+  goalSignNoEdge: false,     // 関所の3（kaito 11/9「ピンが始めから終わりまで切れずに出る」）：画面外の行き先も縁の▼で示す（隠すと流しの七割で印が消えていた。11/11 関所係）
   actionGuideTarget: () => null,
   missionSignTarget: () => null, // 敵の頭上の赤い▼以外の選択印を付けない。
   noLeaderFollow: true,   // 行き先は目標の印一つだけ（ついていく相手の青い印を重ねない。kaito AV 15）
@@ -1073,8 +1073,17 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (!F.step) { goTo(p, inp, shutsujin.LINE.x, shutsujin.LINE.z, 2); return; }
   // 一太刀で命の半分を失うため、半分のまま二太刀目を待たず味方の後ろへ退く。
   // 下がる先は十四m 後ろ。大手門の段では障子堀へ落ちないよう、堀の手前（南の縁）までに留める
-  if (u.hp < u.maxHp * 0.65) { if (!b.botRest) b.botRestAt = { x: u.pos.x, z: F.step === 3 ? Math.min(u.pos.z + 14, SHOJI.z0 - 3) : u.pos.z + 14 }; b.botRest = true; }
-  if (b.botRest && u.hp > u.maxHp * 0.85) b.botRest = false;
+  if (u.hp < u.maxHp * (b.t < (b.botRestNo || 0) ? 0.35 : 0.65)) {
+    if (!b.botRest) {
+      b.botRestAt = { x: u.pos.x, z: F.step === 3 ? Math.min(u.pos.z + 14, SHOJI.z0 - 3) : u.pos.z + 14 }; b.botRestT = b.t;
+      // 11/11 関所係：馬出しの口から土橋へ入った後に真後ろ（北）を休む所にすると、土塁の向こうで届かず、土橋の上を左右に行き来して
+      //   三の丸の矢玉を浴び続けた（門が開いたまま五分止まった）。通って来た道の二つ前の点へ下がる。
+      if (F.step === 3 && F.sub === 'back' && b.botWp > 1) { const A = SP.at, M = A.mouths[1], W = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut, A.plaza], q = W[b.botWp - 2]; b.botRestAt = { x: q.x, z: q.z }; }
+    }
+    b.botRest = true;
+  }
+  // 休んでも矢玉の届く所で四十秒治らない時は、休みを打ち切って先へ進む（門の内へ入れば守りは退く）。
+  if (b.botRest && (u.hp > u.maxHp * 0.85 || (F.step >= 3 && b.t - (b.botRestT ?? b.t) > 40 && u.hp > u.maxHp * 0.35))) { if (u.hp <= u.maxHp * 0.85) b.botRestNo = b.t + 30; b.botRest = false; b.botRestT = null; }
   const c = (F.toyo.find((g) => !gone(g)) || F.ichi).center();
   if (b.botRest && F.step !== 2) {
     inp.guardHold = false;
@@ -1114,9 +1123,10 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
-    const k = b.botChase ||= { e: null, t: 0, t0: 0, hp: 0, x: 0, z: 0 };
-    if (k.e !== e) { k.e = e; k.t = k.t0 = b.t; k.hp = e.hp; k.x = u.pos.x; k.z = u.pos.z; }
-    else if (Math.hypot(u.pos.x - k.x, u.pos.z - k.z) > 1.5) { k.t = b.t; k.x = u.pos.x; k.z = u.pos.z; }
+    const k = b.botChase ||= { e: null, t: 0, t0: 0, hp: 0, x: 0, z: 0, dmin: 0 };
+    // 寄れたかは相手との間合いで見る（自分が動いたかで見ると、堀の手前（20,88）で左右に揺れ続けて七分見限れなかった。11/11 関所係）
+    if (k.e !== e) { k.e = e; k.t = k.t0 = b.t; k.hp = e.hp; k.dmin = d; }
+    else if (d < k.dmin - 1) { k.t = b.t; k.dmin = d; }
     // 寄れない敵（十秒）と、柵越しに突いても傷の付かない敵（十二秒）は三十秒見限る（馬出しの柵越しに七分突き続けた。11/10）
     if (k.e === e && ((d > 2.4 && b.t - k.t > 10) || (b.t - k.t0 > 12 && e.hp >= k.hp - 0.5))) { ign.set(e, b.t + 30); k.e = null; }
     else if (e.hp < k.hp - 0.5) { k.hp = e.hp; k.t0 = b.t; }
@@ -1146,9 +1156,12 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     const W = [M.lane, M.outer, M.inner, A.uma, A.bridgeOut, A.bridgeIn, A.gateOut, A.plaza];
     b.botWp = Math.min(b.botWp || 0, W.length - 1);
     // 角や土塁の縁で行き先の点へ届かず止まったら、次の点へ（11/9 bot：馬出しの前で十分止まった）
-    const st = b.botStk ||= { x: u.pos.x, z: u.pos.z, t: b.t };
-    if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 1.5) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
-    if ((Math.hypot(u.pos.x - W[b.botWp].x, u.pos.z - W[b.botWp].z) < 2.5 || b.t - st.t > 8) && b.botWp < W.length - 1) { b.botWp++; st.t = b.t; }
+    // 詰まりは行き先の点へ近づけたかで見る（左右に揺れて動いているだけの時も次の点へ。11/11 関所係）
+    const st = b.botStk ||= { t: b.t, wp: -1, dmin: Infinity };
+    const dw = Math.hypot(u.pos.x - W[b.botWp].x, u.pos.z - W[b.botWp].z);
+    if (st.wp !== b.botWp) { st.wp = b.botWp; st.dmin = dw; st.t = b.t; }
+    else if (dw < st.dmin - 1) { st.dmin = dw; st.t = b.t; }
+    if ((dw < 2.5 || b.t - st.t > 8) && b.botWp < W.length - 1) { b.botWp++; st.t = b.t; }
     goTo(p, inp, W[b.botWp].x, W[b.botWp].z, 1.2); return;
   }
   // 味方が先に旗本を討ち取っても、本人が本丸へ着くまでは登り切る。

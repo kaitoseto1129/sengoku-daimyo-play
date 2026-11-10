@@ -64,11 +64,14 @@ function start(rt, K, done) {
     function phase2() {
       k15Rout(rt, escort, K.CASTLE); k15Rout(rt, porters, K.CASTLE);
       rt.unmark('k15foe');
-      rt.banner('俵は川へ落ちた', '人足は荷を捨てて山へ逃げた');
       // 手間取れば一部の俵は山へ運ばれる（補給を通す＝戦が長引く。後の段で城が長く持つ）
-      if (rt.t - runT0 > 150) { F.ttLeak = (F.ttLeak || 0) + 1; F.ttSiege = (F.ttSiege ?? 100) - 20; rt.after(3, () => { if (!rt.over) rt.say('組頭', '幾俵かは山へ運ばれた。城がその分、長う持つ', 4); }, true); }
+      const leaked = rt.t - runT0 > 150;
+      rt.banner(leaked ? '残る俵を押さえた' : '俵は川へ落ちた',
+        leaked ? '一部の米は城へ届いた。残る人足は荷を捨てて退く' : '人足は荷を捨てて山へ逃げた');
+      if (leaked) { F.ttLeak = (F.ttLeak || 0) + 1; F.ttSiege = (F.ttSiege ?? 100) - 20; rt.after(3, () => { if (!rt.over) rt.say('組頭', '幾俵かは山へ運ばれた。城がその分、長う持つ', 4); }, true); }
       sfx('wade', 0.6);
-      rt.award((t) => t.side.push('城へ運ぶ俵を止めた'), '城へ運ぶ俵を止めた');
+      const deed = leaked ? '城へ運ぶ俵を一部止めた' : '城へ運ぶ俵を止めた';
+      rt.award((t) => t.side.push(deed), deed);
       // 城から助けの兵が崖道を降りて来る（戦況が変わる）
       const help = enemyGroup(rt, { fixed: true, name: '城の助けの兵', faction: 'mori', anchor: cliff, facing: Math.PI, width: 5, aggro: 18, morale: 60 },
         // 補給の護衛と違い、城から出るのは飢えた籠城兵。大きな指物の列へ戻さない。

@@ -2775,33 +2775,8 @@ const arioka = {
         rt.after(5, () => rt.objDone('main'), true);
         rt.after(8, () => AR_YOIN.start(rt, () => rt.finish({ scriptedEnd: true }, 4)), true);   // 三十秒の余韻（arioka/yoin.js）の後に締める
       // 待ち時間だけでは迎えた事にしない。遠くへ離れた本人にも印を残す。
-      }, { limit: 75, canReach: (b, p) => {
-        // 屋根の上や町屋の壁越しでは、官兵衛と対面した事にしない。
-        const u = b.player.u;
-        if (!u.alive || !kanbe?.alive || !sg.units[0]?.alive || !p) return false;
-        // 七十五秒の救済は達成の代行にせず、二人が安全に並べる対面場所を先に確かめる。
-        // 四方とも壁や段差なら印を残し、本人が通りへ戻るまで迎えた事にしない。
-        if ((b.flags._ev_kanbe?.t || 0) > 75 && !canMeet(b)) {
-          // 視点のある背後へは置かず、正面か左右で迎える。空きが無ければ通りへ戻るのを待つ。
-          for (const a of [0, Math.PI / 2, -Math.PI / 2]) {
-            const h = (b.player.yaw || 0) + a;
-            const places = [0, 1.2].map((side) => {
-              const q = { x: u.pos.x + Math.sin(h) * 2.6 + Math.cos(h) * side,
-                z: u.pos.z + Math.cos(h) * 2.6 - Math.sin(h) * side };
-              q.y = b.world.heightAt(q.x, q.z);
-              return q;
-            });
-            if (places.some((q) => Math.abs(u.pos.y - q.y) > 3 || b.army.wallBetween(u.pos, -1, q))) continue;
-            for (const [i, g] of [kg, sg].entries()) {
-              const q = places[i];
-              for (const v of g.units) { v.pos.x = q.x; v.pos.z = q.z; v.pos.y = q.y; }
-              g.order = 'hold'; g.anchor = g.dest = { x: q.x, z: q.z }; g.onArrive = null;
-            }
-            break;
-          }
-        }
-        return canMeet(b);
-      } });
+      // 二人は通りを歩いて来る。時間だけで本人のそばへ移したり、対面を代行したりしない。
+      }, { canReach: canMeet });
     });
   },
 

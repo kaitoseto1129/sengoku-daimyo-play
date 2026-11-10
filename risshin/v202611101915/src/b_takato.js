@@ -98,7 +98,12 @@ Object.assign(takato, {
   },
   namedGuideTarget(rt) { return this.commanderSignTarget(rt); },
   foeMarkVisible: (rt, u) => u === rt.flags.keep?.lord,
-  missionSignTarget(rt) { return this.missionOf(rt) === 2 ? takatoNearestFoe(rt) : null; },
+  missionSignTarget(rt) {
+    if (this.missionOf(rt) === 2) return takatoNearestFoe(rt);
+    // 11/10 関所の3：斬り合いの間は移動先を消す（guideMarker）。代わりに目の前の相手へ頭上の▼を出し、案内を切らさない。
+    const F = rt.flags, foe = F.closeFoe;
+    return !F.retreatTo && !F.honFell && !rt.over && !F.ending && foe?.alive && takatoFighter(foe) ? foe : null;
+  },
   missionEnemyLabel: () => '城の守兵',
   missionPin(rt) {
     const F = rt.flags, me = rt.player.u;
@@ -112,12 +117,20 @@ Object.assign(takato, {
     // 包囲の段では、城門への道順より物見・竹束の行き先を先に示す。
     if (F.k15stage === 'kakoi' && F.k15on && !F.retreatTo && !roomExit(rt)) {
       const at = F.k15at?.at();
-      if (!at) return null;
+      // 11/10 関所の3：物見・竹束置きに着いた後の話の間（次の行き先が出るまで）も、着いた所にピンを残す。
+      if (!at) {
+        // 夜明けの場面の直後（最初の下知の前）は、これから上がる物見の土手を示す。
+        const last = F.tkKakoiLast || { x: 132, z: 4, label: '物見の土手' };
+        q.x = last.x; q.z = last.z; q.key = 'k15'; q.label = last.label; q.waiting = true; q.r = q.hide = 6;
+        q.arrived = Math.hypot(me.pos.x - q.x, me.pos.z - q.z) < 6;
+        return q;
+      }
       q.x = at.x; q.z = at.z; q.key = 'k15';
       q.marker = rt.markers.find(m => m.id === 'k15') || null;
       // 物見・竹束の地名を印にも渡し、総攻めの大手門と取り違えさせない。
       q.label = (typeof q.marker?.label === 'function' ? q.marker.label() : q.marker?.label) || '';
       q.reach = F.k15at.r;
+      F.tkKakoiLast = { x: at.x, z: at.z, label: q.label };
       return q;
     }
     const stage = this.missionOf(rt);
@@ -982,6 +995,8 @@ takato.world.nearTreeFadeRadius = 5.5;
 // 門の喰違いと土橋は徒歩で攻める。武将の自動の乗馬も準備時から止める。
 takato.world.noHorse = true;
 takato.noHorse = true;
+// 11/10 関所の5：組頭以上は自分の馬に乗れる。軍勢と名のある将は徒歩のまま（田野・比叡山と同じ）。
+takato.world.playerHorse = true;
 // 顔と笠を別々に透かさない。視点が体へ入る一人だけ描く間避ける。
 // 既存の徒歩用処理を使い、隣の兵の具足と顔は濃く残す。
 takato.nearAllySolidBody = true;
@@ -1011,7 +1026,16 @@ takato.world.softEarthCrust = true;
 takato.world.subtleMudRelief = true;
 takato.world.stableSlopeGrain = true;
 
+// 11/10 関所の7（支度の待ち）：地面の色は地形を組む時と、takatoGround（支度の中）で同じ頂点にもう一度求めていた。
+//   一点に高さを八回測る重い式なので、同じ (x, z, h) の答えを支度の間だけ覚えて写す（色は前と同じ）。支度の終わりに捨てる。
+const tintMemo = new Map();
 takato.world.tint = (x, z, h, c) => {
+  const key = x + ',' + z + ',' + h, hit = tintMemo.get(key);
+  if (hit) { c.setRGB(hit[0], hit[1], hit[2]); return; }
+  takatoTint(x, z, h, c);
+  if (tintMemo.size < 60000) tintMemo.set(key, [c.r, c.g, c.b]);
+};
+function takatoTint(x, z, h, c) {
   baseTint(x, z, h, c);
   const shade = .91 + .09 * Math.sin(x * .19 + z * .07) * Math.cos(z * .23)
     + .035 * Math.sin(x * .73 - z * .51);
@@ -1031,7 +1055,7 @@ takato.world.tint = (x, z, h, c) => {
   const rut = Math.max(0, 1 - Math.abs(Math.sin(x * .09 + z * .31 + Math.sin(z * .05) * 1.5)) * 6) * (1 - grass) * .55;
   c.setRGB(c.r + (.07 - c.r) * rut, c.g + (.055 - c.g) * rut, c.b + (.04 - c.b) * rut);
   c.setRGB(c.r + (.46 - c.r) * snow, c.g + (.47 - c.g) * snow, c.b + (.48 - c.b) * snow);
-};
+}
 
 // 堀の内の平場（城の地面）を、泥と残雪の斑にする。共通の式の後ろへ一行足すだけで、材質は一つのまま。
 function takatoCastleMud(rt) {
@@ -1493,6 +1517,7 @@ takato.setup = function (rt) {
     return L;
   };
   baseSetup.call(this, rt);
+  tintMemo.clear();
   takatoCastleMud(rt);
   takatoNinomaruHouses(rt);
   TK_POOL.rt = rt; TK_POOL.s = takatoSmokePool(rt);

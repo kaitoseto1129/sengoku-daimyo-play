@@ -2433,6 +2433,9 @@ const KANEGASAKI_JIN = [
 ];
 
 const kanegasaki = {
+  // 本人の組が崩れた時の立て直しで、殿の組（F.tono と、後から殿に加わる池田・明智）から兵を抜かない。
+  //   11/10 関所：抜かれた二十八人が殿の数から消え、川の砦で段が止まるか「合流が間に合わず」で負けた
+  noRegroupFrom: (rt, g) => !!rt.flags.tono?.includes(g) || g === rt.flags.ikeda || g === rt.flags.akechi,
   // 稲生の型。下知・歩数を重ねず、任務一行とピンで持ち場を示す。
   missionSingleLine: true,
   goalsList: false,   // 目標の並びは戦の側の #kg-goals で出す（共通の並びと二重にしない）
