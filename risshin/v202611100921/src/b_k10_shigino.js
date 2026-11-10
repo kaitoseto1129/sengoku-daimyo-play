@@ -415,21 +415,17 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       F.ino = this.foe(rt, '井上頼次の鉄砲衆', { x: INOUE.x, z: 0 }, [uS(3), uA(6), uG(12)], { hold: true, width: 7, morale: 100 });
       // 井上頼次は鉄砲衆の列の後ろ（隊の段の奥）でなく、三の柵の内の井楼の下に馬を立てて指図する（11/6 遊んで：隊の段の奥へ下がり続け、三の柵から西へ六十も離れた）。
       //   近習二人だけの小さな組にして持ち場（INO_POST）を離れさせない
-      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: true, horse: false } }, uS(2)], { hold: true, width: 3, morale: 100 });
+      F.inoG = this.foe(rt, '井上頼次', INO_POST, [{ type: 'busho', n: 1, o: { name: '井上頼次', invuln: false, horse: false } }, uS(2)], { hold: true, width: 3, morale: 100 });
       F.inoG.seekRange = 7;
       F.inoU = F.inoG.units.find((u) => u.name === '井上頼次');
-      // 「井上を討て」は本人の止めで果たす。共通の四十五秒待ちの後に味方が討つ処理へ任せない。
-      F.inoU.onWound = (src) => {
-        if (!src?.isPlayer || F.step !== 2 || F.ending || !F.inoU.alive) return;
-        F.inoU.invuln = false; F.inoByMe = true;
-        rt.army.kill(F.inoU, src);
-      };
+      // 井上は史実どおり討たれる守将。味方の攻撃も通し、誰が討っても柵の攻略を進める。
       F.suda.anchor = { x: F3 - 6, z: 0 }; F.suda.seekRange = 26;
       F.yasu.order = 'attack'; F.yasu.anchor = { x: F2, z: 0 }; F.yasu.seekRange = 30;
       // 柵が破れたと聞いて、城から来援の先手（渡辺糺・木村宗明）が西の堤を寄せて来て、三の柵の西（須田の手の届かない所）に詰めて待つ。
       //   11/6 遊んで：井上を討った後に遠くで湧き、退く主人公に追い付かず、③で敵を一度も見なかった（九2）。来るのが見え、退く背に食い付く
-      F.wata = this.foe(rt, '渡辺糺の隊', { x: -200, z: -1 }, [{ type: 'busho', n: 1, o: { name: '渡辺糺', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '穴澤盛秀', horse: true } }, uS(7), uA(26), uG(10)], { wait: { x: -52, z: -1 }, column: true, width: 5 });
-      F.kimu = this.foe(rt, '木村宗明の隊', { x: -216, z: 1 }, [{ type: 'busho', n: 1, o: { name: '木村宗明', invuln: true, horse: true } }, uS(6), uA(22), uG(8)], { wait: { x: -66, z: 1 }, column: true, width: 5 });
+      // 二列縦隊の最後尾まで戦場内へ。端での押し戻しによる飛びや渋滞を防ぐ。
+      F.wata = this.foe(rt, '渡辺糺の隊', { x: -178, z: -1 }, [{ type: 'busho', n: 1, o: { name: '渡辺糺', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '穴澤盛秀', horse: true } }, uS(7), uA(26), uG(10)], { wait: { x: -52, z: -1 }, column: true, width: 5 });
+      F.kimu = this.foe(rt, '木村宗明の隊', { x: -194, z: 1 }, [{ type: 'busho', n: 1, o: { name: '木村宗明', invuln: true, horse: true } }, uS(6), uA(22), uG(8)], { wait: { x: -66, z: 1 }, column: true, width: 5 });
       rt.say('須田長義', '残るは三の柵じゃ。指図する井上を討てば、鉄砲は止む！', 3.2);
       rt.after(4, () => {
         if (F.step === 2 && !F.ending && F.inoU?.alive) rt.say('井上頼次', '引き付けて放て。堤の上の者を一人も通すな！', 3);
@@ -537,6 +533,11 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
     // 手勢も本人と南岸へ移る。堤へ戻す補正が残ると、泥田で往復して救援に付いて来られない。
     F.mine.riverAid = true;
     for (const g of F.foes) if (live(g)) this.retreat(g, EXIT_W);
+    // 堤の押し返しは済んだ。後詰は二の柵を守り、退く敵を西へ追い続けない。
+    for (const g of [F.suda, F.yasu, F.saka]) if (live(g)) {
+      g.onArrive = null; g.dest = null; g.focus = null;
+      g.order = 'hold'; g.anchor = { x: HOLD.x + 6, z: 0 }; g.seekRange = 16; g.aggro = 10;
+    }
     // 個々の逃走は隊の dest を使わない。北へ逃げ続けて救援完了を妨げないよう、北岸を西へ退く道を渡す。
     F.riverFoe = enemyGroup(rt, { faction: 'toyotomi', name: '今福の寄せ手', fixed: true, anchor: { x: 48, z: -100 }, width: 10, facing: Math.PI / 2, order: 'hold', noRout: true, fire: true,
       fleeDir: { x: -1, z: 0 }, fleePath: [[-236, -100]] }, toyD([uA(8), uG(4)]));
@@ -669,8 +670,8 @@ html:root body #hud#hud#hud.shigino-goals.shigino-combat #goal-sign .gs-tag > sp
       for (const g of [F.wata, F.kimu]) if (live(g) && g._wait && g.order === 'attack') { g.order = 'hold'; g.anchor = { x: g._wait.x, z: g._wait.z }; g.seekRange = 8; g.aggro = 4; }
       if (live(F.ino) && F.ino.order !== 'hold') { F.ino.order = 'hold'; F.ino.anchor = { x: INOUE.x, z: 0 }; }
       if (live(F.inoG) && (F.inoG.order !== 'hold' || F.inoG.anchor.x !== INO_POST.x)) { F.inoG.order = 'hold'; F.inoG.anchor = { x: INO_POST.x, z: INO_POST.z }; }
-      // 井楼の下の井上には本人の一撃が通る。近くで待った時間だけで代わりに討たない。
-      if (F.inoU && !F.inoU.alive && F.inoByMe && !F.inoDown) {
+      // 実際の討死で進める。味方が先に討っても止めず、本人の手柄とは分ける。
+      if (F.inoU && !F.inoU.alive && !F.inoDown) {
         F.inoDown = true;
         // 指図役を討った知らせどおり、三の柵の鉄砲を止める。残兵は来援と槍で寄せる。
         F.ino.fire = false;

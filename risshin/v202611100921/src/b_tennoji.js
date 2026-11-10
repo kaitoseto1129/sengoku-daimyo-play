@@ -890,6 +890,21 @@ function fortSoldiers(rt) {
     this.camPos.copy(camera.position);
     camera.lookAt(look);
   };
+  // 四方の見回しなど、通常の視点更新を通らない描画でも小屋と門を避ける。
+  const clampDrawCamera = W.clampDrawCamera;
+  W.clampDrawCamera = function (camera) {
+    clampDrawCamera?.call(this, camera);
+    const u = player.u;
+    if (!camera.isPerspectiveCamera || !u.alive || u.naka || player.fpK >= .5) return;
+    target.copy(u.pos); target.y += 1.8;
+    camera.getWorldDirection(look); look.multiplyScalar(12).add(camera.position);
+    const hit = player.camBlockHit(target, camera.position, true, 79);
+    if (hit !== null) camera.position.lerpVectors(target, camera.position, Math.max(0, hit - .04));
+    player.camFrontClear(target, camera.position, look, false);
+    player.camPos.copy(camera.position);
+    camera.lookAt(look);
+    camera.updateMatrixWorld();
+  };
 }
 
 // 写真の粗木・板囲い・縄締めを、付城の備蓄と村の縁へ補う。細部と位置は推定。
@@ -1901,15 +1916,20 @@ export function makeGunSmoke(rt, cap = 64, rise = 1, tint = 0xd6d8d6, wind = [.3
     transparent: true, depthWrite: false, fog: true,
     vertexShader: `attribute vec3 aP; attribute vec3 aS; varying vec2 vUv; varying float vA;
 #include <fog_pars_vertex>
-void main(){ vUv = uv; vA = aS.z;
+void main(){ vUv = uv;
   vec4 mvPosition = modelViewMatrix * vec4(aP, 1.0); float c = cos(aS.y), s = sin(aS.y); vec2 q = position.xy * aS.x;
+  vA = aS.z * smoothstep(0.5, 2.5, -mvPosition.z);
   mvPosition.xy += vec2(c * q.x - s * q.y, s * q.x + c * q.y);
   gl_Position = projectionMatrix * mvPosition;
 #include <fog_vertex>
 }`,
     fragmentShader: `uniform sampler2D map; uniform vec3 col; varying vec2 vUv; varying float vA;
 #include <fog_pars_fragment>
-void main(){ vec4 t = texture2D(map, vUv); gl_FragColor = vec4(col, t.a * vA);
+void main(){ vec4 t = texture2D(map, vUv);
+  // 絵の補間で縁に色が残っても、四角い板の外周は描かない。
+  float edge = 1.0 - smoothstep(0.38, 0.5, length(vUv - 0.5));
+  gl_FragColor = vec4(col, t.a * vA * edge);
+  if (gl_FragColor.a < 0.004) discard;
 #include <tonemapping_fragment>
 #include <colorspace_fragment>
 #include <fog_fragment>

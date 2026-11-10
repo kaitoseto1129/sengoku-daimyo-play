@@ -285,6 +285,7 @@ const k07_sawayama = {
   // 11/8 五3：敵を指す印が▼でなく黄色い角の丸い枠になる時があった。行き先と相手の印は頭上の▼だけ
   goalSignOnly: true,
   goalSignTriangle: true,   // 行き先が画面の外でも、回る矢印へ替えず▼を保つ（五3）
+  goalSignUnitNoLabel: true,   // 相手の印へ切り替わっても「ねらい」の案内を足さない。武将の名は頭上の名札に出す。
   // 討てない石田一族や、前の曲輪から退く兵へ目標の印を向けない。
   // 今の隊へ近づくまでは、曲輪の行き先を示す。
   actionGuideTarget(rt) {
