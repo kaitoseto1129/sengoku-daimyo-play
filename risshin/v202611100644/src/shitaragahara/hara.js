@@ -76,7 +76,9 @@ export function tick(rt, dt) {
   for (const u of g.units) if (u.alive) u.fleeing = true;
   rt.banner('原昌胤、討死', '柳田前の柵の前に倒れた');
   rt.say('使番', '真田兄弟、山県、原……武田の名のある将が次々に倒れておる！', 3.8);
-  rt.after(4.2, () => { if (!F.ending) rt.say('組頭', '内藤隊が続くぞ！　柵の口を槍で守れ。鉄砲の前へ出るな！', 3.4); });
+  rt.after(4.2, () => {
+    if (!F.ending && !rt.over && F.nf?.step === 3 && !F.nf.done[1]) rt.say('組頭', '内藤隊が続くぞ！　柵の口を槍で守れ。鉄砲の前へ出るな！', 3.4);
+  });
   rt.award((t) => { t.side.push('柳田前の柵で原昌胤の隊を退けた'); }, '原昌胤の隊を退けた', { x: c.SB.x0 - c.SB.gap - 3, z: gz });
 
   return false;

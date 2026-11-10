@@ -163,8 +163,13 @@ function yamGoalBoard(rt) {
   document.head.appendChild(style);
   const progress = hud.progress;
   hud.progress = function (battle) {
+    // 序（備中の本陣と大返し）の間は山崎の目標の並びと両軍の数を出さない（その幕の一行だけ）
+    const pre = battle === rt && !rt.flags.stage;
+    hud.root.classList.toggle('yam-goals', !pre);
+    if (pre && this.prog) this.prog.classList.remove('goal-mode');
+    if (battle === rt) rt.def.goalsAllRows = !pre;
     const out = progress.call(this, battle);
-    if (battle === rt && this.prog && !rt.over) {
+    if (battle === rt && this.prog && !rt.over && !pre) {
       const def = rt.def, one = def.missionSingleLine;
       def.missionSingleLine = false;
       try { goalsTick(this.prog, rt); } finally { def.missionSingleLine = one; }
@@ -175,6 +180,7 @@ function yamGoalBoard(rt) {
   const dispose = rt.dispose;
   rt.dispose = function () {
     hud.progress = progress;
+    rt.def.goalsAllRows = true;
     if (hud.prog) hud.prog.classList.remove('goal-mode');
     hud.root.classList.remove('yam-goals'); style.remove();
     return dispose.call(this);
@@ -347,7 +353,7 @@ const t01_yamazaki = {
     const F = rt.flags;
     Ogaeshi.clear(rt);
     this.deploy(rt);
-    try { rt.world.setTime('storm'); } catch (e) { /* 空はそのまま */ }
+    try { rt.world.dayClock = null; rt.world.setTime('storm', true); } catch (e) { /* 空はそのまま */ }
     // 雨の夕方（公家の日記に雨。鉄砲は撃てる小雨）
     if (rt.world.setRainTarget) { rt.world.setRainTarget(0.3); rt.world.rainLevel = 0.3; }
     const P = rt.player.u, W = rt.world;
@@ -701,7 +707,8 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   if (!F.stage && !F.pro) return;
   const ok = (o) => !o.fleeing && !o.noTarget && !o.invuln && !o.group?.routed && Math.abs(o.pos.y - u.pos.y) < 3;
   // ①は高山の陣の右の持ち場で受ける（逃げる斎藤勢を追って川の北へ一人で深入りしない。遊ぶ人も行き先の▼の所で戦う）
-  const inHold = (o) => F.stage !== 2 || dist(o.pos, HOLD) < 30;
+  //   ④の立て直しも中央の岸で受ける（寄せる旗本を追って岸を離れると、食い止めた時が数えられない）
+  const inHold = (o) => F.stage === 2 ? dist(o.pos, HOLD) < 30 : F.stage === 4 ? dist(o.pos, Counter.STAND) < 26 : true;
   const e = b.army.nearestEnemy(u, !F.stage ? 8 : F.stage === 1 && F.mStep !== 1 ? 5 : 12, (o) => ok(o) && inHold(o));
   if (e) {
     const d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
@@ -720,7 +727,7 @@ t01_yamazaki.botBrain = (b, inp, { goTo, patientStrike }) => {
   else if (F.stage === 1) t = (F.mStep < 3 && c(March.foes(F))) || March.JOIN;
   else if (F.stage === 2) { const w = c([F.w1, F.iseW].flat()); t = w && dist(w, HOLD) < 30 ? w : HOLD; }
   else if (F.stage === 3) t = c(F.saiGs) || SAITO;
-  else if (F.stage === 4) t = c(F.cntGs) || Counter.STAND;
+  else if (F.stage === 4) { const w = c(F.cntGs); t = w && dist(w, Counter.STAND) < 24 ? w : Counter.STAND; }
   else if (F.stage === 5) t = c(F.atsGs) || ATSUJI;
   // 殿が先に倒れた時も、⑥の達成を確かめる御坊塚の前へ進む。本陣の前は印から四十四歩離れている。
   else if (F.stage === 6) t = (aliveN(F.gobo) > (F.guardN || 0) * 0.4 && c(F.gobo)) || GOBO_PIN;
