@@ -94,10 +94,10 @@ const stage = {
     for (const g of [O.hon, O.maeda, O.ii, O.onoB]) for (const u of g.units) if (u.type === 'busho' && u.name) u.keep = true;
     revealName(rt, '大野治房');
     O.s = [O.ono, O.onoB]; O.n = sum(O.s);
-    rt.obj('main', '将軍の本陣の脇を固める', 'main');
-    rt.marker('k15', { x: OKA_SIDE.x, z: OKA_SIDE.z }, '将軍の本陣の脇');
+    rt.obj('main', '秀忠本陣の西口で大野治房の兵を押し返す', 'main');
+    rt.marker('k15', { x: OKA_SIDE.x, z: OKA_SIDE.z }, '秀忠本陣の西口');
     rt.banner('岡山口', '大野治房の勢が将軍の本陣へ');
-    rt.say('使番', '岡山口の将軍様の本陣へ、大野治房の手が斬り込んだ！　東へ走り、本陣の脇を固めよ！', 3.8);
+    rt.say('使番', '岡山口の将軍様の本陣へ、大野治房の手が斬り込んだ！　東へ走り、秀忠本陣の西口で治房の兵を押し返せ！', 3.8);
     rt.after(4.2, () => rt.say('大野治房', '前田の備えは割れた。狙うは秀忠の首じゃ！', 3.2));
     // 治房の先手が本陣の脇（西の口）へ走る
     rt.after(6, () => { for (const g of [O.ono, O.onoB]) if (alive(g)) { g.order = 'move'; g.stay = true; g.dest = { x: OKA_SIDE.x, z: OKA_SIDE.z }; g.onArrive = (q) => { q.onArrive = null; q.order = 'attack'; q.aggro = 18; q.seekRange = 30; q.anchor = { x: OKA_SIDE.x, z: OKA_SIDE.z }; }; } });
