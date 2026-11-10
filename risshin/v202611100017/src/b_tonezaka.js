@@ -1484,6 +1484,12 @@ const REAR_VOICE = {
 function withdrawStage(rt) {
   const F = rt.flags, groups = F.stageDefenders[F.step], pp = rt.player.u.pos;
   for (const g of groups) {
+    // 討てない詫美だけが残ったら殿は退く。峠への到着前から行き先と下知も揃える。
+    // 段送りだけを通すと、主人公は詫美を追う印に誘われて峠へ着けない。
+    if (g === F.r4 && fighting(g) && !g.units.some((u) => fighter(u) && !u.invuln)) {
+      retreat(g); tonezaka.onRout(rt, g);
+      continue;
+    }
     if (g === F.r1 && g.lastStand && !g.units.some((u) => u.name === '河合吉統' && u.alive)) {
       g.lastStand = false; g.noRout = false;
     }
@@ -2983,7 +2989,8 @@ const tonezaka = {
     march(F.uma, [[-10, 60], [-6, 48], [-4, 16]].map(([x, z]) => xz(x, z)));
     march(F.late, [[roadX(82), 82], [-10, 60], [-6, 48], [-4, 24]].map(([x, z]) => xz(x, z)));
     // 開戦25秒の乱戦（10/30）：殿の列は追手へ槍を入れて押し返しに出る（坂の途中で両軍が組み合う）
-    rt.after(4, () => { for (const g of [F.r1, F.r1b]) if (F.step === 1 && g && g.count && !g.routed) { g._charge = true; g.seekRange = 30; g.aggro = 14; } });
+    // 物見の待ちの後にさらに四秒待たせず、追撃開始と同時に殿も押し返す。
+    for (const g of [F.r1, F.r1b]) if (g && g.count && !g.routed) { g._charge = true; g.seekRange = 30; g.aggro = 14; }
     for (const b of Object.values(F.bO)) {
       if (b.light) b.light.advance(60, 45);
       const z = along(b.real.anchor.x, b.real.anchor.z);

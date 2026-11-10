@@ -2215,7 +2215,7 @@ const tennoji = {
   missionHeading(rt) {
     const F = rt.flags;
     if (F.ending || rt.over) return rt.tracker.main ? '追撃を止めよ' : '味方へ退け';
-    if (F.shelterShown) return F.shelterArrived ? 'ここで止まり、傷を休めよ' : '味方の後ろへ';
+    if (F.shelterShown) return F.shelterArrived ? '護衛の後ろで止まり、傷を休めよ' : '味方の後ろへ';
     return this.missions[this.missionOf(rt)];
   },
   // 頼廉は城戸口の後方で退く史実の役。討取り対象にせず、大将の印だけを出す。
@@ -3924,7 +3924,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         rt.player.treatmentLeft > 0 && rt.player.treatmentNext <= rt.t &&
         (u.hp < u.maxHp * .5 || u.wounds?.bleed > .0001);
       const reliefDistance = Math.ceil(Math.hypot(F.nobuU.pos.x - T_GATE.x, F.nobuU.pos.z - T_GATE.z) / 10) * 10;
-      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}歩` : !nobuIn ? reliefDistance > 10 ? `ここで待て。信長は門まで約${reliefDistance}歩` : 'ここで待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方がそろった。門内で合流せよ' : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
+      rt.objProgress('main', treating ? '出撃前に奥の護衛へ退き、血を止めよ' : !playerIn ? `${gateDirection(rt, F.gz)} 番所の裏の印へ。あと${Math.ceil(d)}歩` : !nobuIn ? reliefDistance > 10 ? `南門内で待て。信長は門まで約${reliefDistance}歩` : '南門内で待て。門の真ん中を空けよ' : inside < 6 ? `門の内の味方 ${inside}／六人。道を空けよ` : F.step === 2 ? '味方が揃った。門内で合流せよ' : `門内で列を保て。出撃まで${Math.max(0, Math.ceil(12 - elapsed))}秒`);
       // 救援が戦えない時も、門で延々と待たせない。勝ちにはせず退く下知を出す。
       if (F.joinWait >= 120) return this.fail(rt, '救援が砦へ入れぬ。列を保って南へ退け');
       // 入城がそろえば合流。列を整える十二秒は次の段で一度だけ待つ。
@@ -4012,7 +4012,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       F.secured = F.kidoCut && F.kidoHelp && d < 10 && threat === 0 && near >= need ? F.secured + span : 0;
       rt.objProgress('main', !F.kidoCut && F.oiTail && !spent(F.oiTail) ? '北の道を塞ぐ殿を、味方と払え'
         : d > 100 ? `城戸口まで約${Math.ceil(d / 100) * 100}歩。味方と北へ進め` : d >= 10 ? '城戸口の手前の印へ。木戸内へ入るな'
-          : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。ここで構えよ`
+          : threat > 0 ? '城戸口に残る敵を、味方と払え' : near < need ? `集まった味方 ${near}／${need}人。城戸口で構えよ`
             : !F.kidoHelp ? '城戸口の手前で味方と構え、木戸を押さえよ' : `木戸内へ入るな。あと${Math.max(0, Math.ceil(8 - F.secured))}秒守れ`);
       if (F.secured >= 8) this.win(rt);
     }
@@ -4124,7 +4124,7 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
         // 直線では小屋や主郭の柵へ向く。兵も使う門と道の曲がり角を案内する。
         rt.marker('shelter', () => F.shelterArrived ? F.step >= 3 ? F.fieldRest : SHELTER : fortMoveWay(rt.army, u, F.step >= 3 ? F.fieldRest : SHELTER), () => {
           return F.shelterArrived
-            ? 'ここで止まり、傷を休めよ'
+            ? '護衛の後ろで止まり、傷を休めよ'
             : F.step >= 3 ? '味方の列の後ろへ' : '奥の護衛への道';
         },
           { h: 2, guideAlways: true, guidePriority: 600, guideRadius: 6, routeDistance: () => {
@@ -4137,11 +4137,11 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       // 道の曲がり角では回復させず、護衛の後ろへ着いた印だけを休息場所にする。
       const marker = rt.markers.find((m) => m.id === 'shelter');
       if (marker) marker.guideArea = arrived ? 'retreat' : 'move';
-      const text = !arrived ? retreat : 'ここで止まり、傷を休めよ';
+      const text = !arrived ? retreat : '護衛の後ろで止まり、傷を休めよ';
       if (rt.objectives.find((o) => o.id === 'shelter')?.text !== text) rt.obj('shelter', text, 'order');
       rt.objProgress('shelter', !arrived
         ? `${gateDirection(rt, fortMoveWay(rt.army, u, rest))} ${field ? '構えて味方の列の後ろへ' : '構えて退け。門を通って奥へ'}`
-        : '敵を味方に任せ、ここで止まって休め');
+        : '敵を味方に任せ、護衛の後ろで止まって休め');
     } else if (F.shelterShown) {
       rt.objRemove('shelter'); rt.unmark('shelter'); F.shelterShown = false; F.shelterArrived = false;
     }
