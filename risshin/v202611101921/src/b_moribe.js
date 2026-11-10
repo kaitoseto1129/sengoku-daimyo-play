@@ -2848,6 +2848,8 @@ function moribeTargetVisible(rt, enemy) {
 // 前に見える敵が無い時は、残り人数に数える隊の最寄りの一人（稲生の approachUnit と同じ考え）。
 //   向き・見通しで外さず、ピンが画面の端からその方向を示す。選び直しは四分の一秒に一度。
 const moribeRemainFoe = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed && !u.rearWound && !u.fleeing && !u.woundOut && !u.noTarget && !u.isStruct && !u.civ;
+// 狙える相手と、討ち破ったかどうかは別。一時の転倒や標的除外で殿を全滅扱いにしない。
+const moribeUnbrokenFoe = (u) => u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.fleeing && !(u.woundOut && u.invuln) && !u.isStruct && !u.civ;
 const moribeGuideFoe = (F, u) => moribeRemainFoe(u) && (!F.pursuit || F.shingari?.includes(u.group));
 function moribeNearestFoe(rt) {
   const F = rt.flags, p = rt.player.u.pos;
@@ -4929,7 +4931,7 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
         const rearAim = Math.hypot(squadPoint.x - pp.x, squadPoint.z - pp.z) <= 24 ? pp : squadPoint;
         let shN = 0, shNear = 0;
         // 隊が崩れた印だけでは、まだ槍を向けている生き残りを数から外さない。
-        for (const g of F.shingari) for (const u of g.units) if (moribeRemainFoe(u)) {
+        for (const g of F.shingari) for (const u of g.units) if (moribeUnbrokenFoe(u)) {
           shN++;
           if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) < 25 ||
               squad && Math.hypot(u.pos.x - squadPoint.x, u.pos.z - squadPoint.z) < 25) shNear++;
