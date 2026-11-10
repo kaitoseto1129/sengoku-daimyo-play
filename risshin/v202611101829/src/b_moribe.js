@@ -2830,8 +2830,9 @@ function moribeSignInsideScreen(rt, enemy) {
   if (defeated) moribeSignPoint.set(enemy._moribeSignX, enemy._moribeSignY, enemy._moribeSignZ);
   else moribeSignPoint.set(enemy.pos.x, enemy.pos.y + inouSignHeight(enemy), enemy.pos.z);
   moribeSignPoint.project(rt.camera);
-  const x = (moribeSignPoint.x + 1) * VIEW.w / 2, y = (1 - moribeSignPoint.y) * VIEW.h / 2;
-  if (moribeSignPoint.z < -1 || moribeSignPoint.z > 1 || x < 24 || x > VIEW.w - 24 || y < 32 || y > VIEW.h - 24) return false;
+  // 共通の頭上印も端から六十四画素は隠す。その範囲では行き先のピンを残す。
+  if (moribeSignPoint.z < -1 || moribeSignPoint.z > 1 ||
+      Math.abs(moribeSignPoint.x) > 1 - 128 / VIEW.w || Math.abs(moribeSignPoint.y) > 1 - 128 / VIEW.h) return false;
   return true;
 }
 function moribeTargetVisible(rt, enemy) {
@@ -3176,8 +3177,9 @@ const moribe = {
     if (F.m15?.ph === 'kishi') {
       const at = F.m15.C.KISHI;
       q.x = at.x; q.z = at.z; q.y = drawGroundAt(rt.world, q.x, q.z);
-      q.r = 3; q.hide = q.hideDistance = 0;
-      q.arrived = Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) <= 3;
+      // 南岸の下知が進む範囲（moribe/kishi.js）と同じ五メートルで到着を示す。
+      q.r = 5; q.hide = q.hideDistance = 0;
+      q.arrived = Math.hypot(p.u.pos.x - q.x, p.u.pos.z - q.z) <= q.r;
       q.label = '南岸の柳の陰';
       return q;
     }

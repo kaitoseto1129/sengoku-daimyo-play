@@ -185,7 +185,8 @@ export function missileTick(army, dt) {
     // 本人の組が押された時の叫び
     if (P?.alive && g.team === P.team && g.mp > 50 && !rt.over) {
       const c = g.center();
-      if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < 30) say(M, '組頭', g.mpUp ? '伏せろ！' : '盾を上げろ！', 10);
+      // 「伏せろ」と「盾を上げろ」は同じ叫びの言い替え。二つを合わせて十八秒に一度（木津川口の関所：五秒おきに交互に出続けた）
+      if (Math.hypot(c.x - P.pos.x, c.z - P.pos.z) < 30 && now - (M.pinAt ?? -99) > 18) { M.pinAt = now; say(M, '組頭', g.mpUp ? '伏せろ！' : '盾を上げろ！', 10); }
       g.mpUp = !g.mpUp;
     }
   }

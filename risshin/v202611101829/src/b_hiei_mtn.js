@@ -4273,8 +4273,11 @@ const hiei_mtn = {
       }
       // 関所（11/10）：西塔の弓の一人が東の道（-73,-31）に引っ掛かり、釈迦堂の前へ来られず十分止まって刻限負けになった。
       //   呼び出して三十秒たっても堂の前から二十五歩より遠くにしか残っていない弓は、退かせて突破の数から外す。
-      if (F.saitoSortie && !F.saitoBowLeft && !hieiDefeated(F.saitoBow2) && rt.t - F.saitoSortieT > 30 &&
-          F.saitoBow2.units.every((v) => !hieiReady(v) || Math.hypot(v.pos.x - P.saito.x, v.pos.z - P.saito.z) > 25)) {
+      //   堂の基壇の上（三歩高い所）に残った弓も、本人も味方も寄れず十分止まった。釈迦堂の僧兵が崩れて四十五秒たてば同じく退かせる。
+      const bowSince = rt.t - (F.saitoSortieT ?? rt.t);
+      if (F.saitoSortie && !F.saitoBowLeft && !hieiDefeated(F.saitoBow2) && bowSince > 30 &&
+          (hieiDefeated(F.shakadoG) && bowSince > 45 ||
+          F.saitoBow2.units.every((v) => !hieiReady(v) || Math.hypot(v.pos.x - P.saito.x, v.pos.z - P.saito.z) > 25))) {
         F.saitoBowLeft = true;
         F.saitoBow2.noRout = false; F.saitoBow2.morale = 0; F.saitoBow2.order = 'retreat';
       }

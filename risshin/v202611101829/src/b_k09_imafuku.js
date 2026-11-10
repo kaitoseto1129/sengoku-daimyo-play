@@ -320,7 +320,18 @@ const k09_imafuku = {
     // 櫓は木戸の両脇の二つだけ（奥の櫓は堤の真ん中だと裏の柵の口の正面をふさいで木村・後藤の隊が砦の裏で詰まり（九2）、
     //   堤の縁へ寄せると砦の中で戦う本人のカメラを壁でふさいだ（十一2））
     const TOWERS = [[FORT.x + 8, 9], [FORT.x + 8, -9]];
-    for (const [x, z] of TOWERS) rt.scene.add(yagura(W, x, z, { mon: 'toyotomi', rot: Math.PI / 2 }));   // team を渡さない：共通の櫓の守り（素の重さの二人）と脇の目標「物見櫓の中へ入り…」が重なって出ていた（三2・五1）。守りは下の三人
+    F.fortFlags = [];
+    for (const [x, z] of TOWERS) {
+      // 櫓に付く幟も、砦を奪った時に下ろす。建物本体は残す。
+      const tower = yagura(W, x, z, { mon: 'toyotomi', rot: Math.PI / 2 });
+      tower.traverse((m) => {
+        if (m.userData.flag && m.userData.kind === 'toyotomi') {
+          m.userData.noMerge = true;
+          F.fortFlags.push(m);
+        }
+      });
+      rt.scene.add(tower);
+    }   // team を渡さない：共通の櫓の守りと脇の目標を重ねない。守りは下の三人
     // 櫓の上の鉄砲と弓（二の3・二の7：砦へ近づくほど上から撃たれる）。櫓の床に立たせ、砦が落ちたら討たれる
     F.towerU = [];
     for (const [x, z] of TOWERS) {
@@ -332,8 +343,9 @@ const k09_imafuku = {
       });
     }
     for (const [x, z] of [[FORT.x + 16, 6], [FORT.x + 16, -6], [FORT.x, 0]]) { try { rt.scene.add(kagaribi(W, x, z)); } catch (e) { console.warn(e); } }
-    F.fortFlags = [[FORT.x + 2, 8], [FORT.x + 2, -8], [FORT.x - 12, 5]]   // 奥の幟は③の持ち場（砦の西の口）の真ん中を外す
-    .map(([x, z]) => { const m = nobori(W, x, z, 'toyotomi', 7); m.userData.noMerge = true; rt.scene.add(m); return m; });
+    for (const [x, z] of [[FORT.x + 2, 8], [FORT.x + 2, -8], [FORT.x - 12, 5]]) {   // 奥の幟は③の持ち場の真ん中を外す
+      const m = nobori(W, x, z, 'toyotomi', 7); m.userData.noMerge = true; rt.scene.add(m); F.fortFlags.push(m);
+    }
     // 砦の裏（城の側）の柵。堤の上の道だけ口を開け、木村・後藤の隊も守兵もそこを通る（柵を抜けて来ない。一8）
     // 口は堤の上の道の幅いっぱい（狭いと重成の寄せが柵の裏で詰まり、堤の押し合いにならなかった。九2）
     rt.scene.add(palisade(W, [FORT.x - 14, WADE + 2, FORT.x - 14, 5.5], { h: 2.6, solid: true }));

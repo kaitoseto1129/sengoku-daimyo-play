@@ -110,8 +110,8 @@ const STAGE_TEXT = [
 // 主人公の交戦は、全滅・曲輪の制圧とは別に確かめる。
 // 四秒より早く自ら討った時も、城兵を受けた働きとして残す。
 // 11/10 クラウドの流し（携帯の bot）：出撃の兵に当たらないまま開いた門から三の丸へ入り、三十三人討っても②のまま刻限まで進まなかった。
-//   三の丸で八人討てば、出撃を受けきった事にする
-export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill || (F.pushKills?.san || 0) >= 8; }
+//   主人公が三の丸で八人討てば、出撃を受けきった事にする。味方の討ち取りだけでは果たさない。
+export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill || (F.sallyInteriorKills || 0) >= 8; }
 
 // 大手の木戸から出る二組も、控えと同じ迎撃の相手として数える。
 // 門前で実際に斬り合っても、所属の違いで②が残り続けないようにする。
@@ -2229,6 +2229,11 @@ const takato_siege = {
       // 自分と味方の討ち取りを共に数える。別の口・奥の守りの討ち取りは流用しない。
       const id = F.niFell ? 'hon' : F.sanFell ? 'ni' : 'san';
       const local = F.C.kuruwa[id].test(v.pos.x, v.pos.z);
+      if (id === 'san' && local && k === rt.player.u && siegeFighter(k) &&
+          F.C.kuruwa.san.test(k.pos.x, k.pos.z) &&
+          Math.abs(k.pos.y - rt.world.heightAt(k.pos.x, k.pos.z)) < 3 &&
+          Math.abs(v.pos.y - k.pos.y) < 2 && !rt.army.wallBetween(k.pos, -1, v.pos))
+        F.sallyInteriorKills = (F.sallyInteriorKills || 0) + 1;
       const guard = id === 'san' ? v.group === F.sanSpear.real || v.group === F.sanGun.real || v.group === F.reserveDef.real
         : id === 'ni' ? v.group === F.niSpear.real || v.group === F.hodoinSpear.real : v.group === F.honGuard.real;
       if (local || guard) {

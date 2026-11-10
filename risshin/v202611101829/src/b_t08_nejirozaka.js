@@ -185,10 +185,14 @@ function defendHold(o) {
       }
     }
     const p = rt.player.u.pos;
-    C.inT = inT + (Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14) ? dt : 0);
+    const atPost = Math.hypot(p.x - C.at.x, p.z - C.at.z) < (o.r || 14);
+    C.inT = inT + (atPost ? dt : 0);
     // 寄せが尽きても持ち場で守った刻が足りなければ、敵零人の表示で止めない。
-    rt.objProgress('dp', `${o.label}で守る あと${Math.max(0, Math.ceil(Math.max(dur - el, dur * 0.45 - C.inT)))}秒`);
-    return el >= dur && !C.waves.length && C.inT >= dur * 0.45;
+    rt.objProgress('dp', atPost
+      ? `${o.label}で守る あと${Math.max(0, Math.ceil(Math.max(dur - el, dur * 0.45 - C.inT)))}秒`
+      : `${o.label}へ戻り、守りを続けよ`);
+    // 守った刻をためてから離れた時も、持ち場へ戻るまで達成にしない。
+    return atPost && el >= dur && !C.waves.length && C.inT >= dur * 0.45;
   };
   s.end = (rt, C, ...args) => {
     // 組頭が生きている寄せ手も、退く下知で坂の下へ戻す。

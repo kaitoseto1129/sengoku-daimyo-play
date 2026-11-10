@@ -6667,6 +6667,9 @@ const inabayama = {
   // 旗本を退けたら、合図の火
   lightSig(rt) {
     const F = rt.flags;
+    // 倒れ込み中は alive が残る。再開の前に火付けの目標へ進めない。
+    const u = rt.player.u;
+    if (!u.alive || u.hp <= 0 || u.dying || u.downed || rt.retryOpen || rt.over || F.ending) return;
     // 遅れて出る近習衆も退けてから火付けへ進む。先に火付けへ移ると、
     // 新手が目標に出ないまま火だけ押せなくなる。
     if (F.sig || F.step !== 4 || (F.k15Hon && !F.k15Hon.elite)) return;
@@ -7314,7 +7317,8 @@ const inabayama = {
       if (!F.sig && (F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard) || rt.t - F.stepT > 20 && sectionTaken(rt, F.honGuards, { retreat: inabaRetreat }))) this.lightSig(rt);
       // 合図は本人が実際に火を付けるまで待つ。
       // 11/8 critic60：三十秒たっても小屋へ近づけない（崖の上・柵の向こう）時は、合図の火を本人の近くの平らな所へ移す。
-      if (F.sig && !F.carry && !F.sigMoved && rt.player.u.alive && !rt.retryOpen) {
+      if (F.sig && !F.carry && !F.sigMoved && rt.player.u.alive && rt.player.u.hp > 0
+        && !rt.player.u.dying && !rt.player.u.downed && !rt.retryOpen) {
         const p = rt.player.u.pos, x = F.sig.x - 4, z = F.sig.z;
         const d = Math.hypot(p.x - x, p.z - z, p.y - rt.world.heightAt(x, z));
         if (F.sigBest == null || d < F.sigBest - 3) { F.sigBest = d; F.sigBestT = rt.t; }
