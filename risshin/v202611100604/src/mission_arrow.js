@@ -34,7 +34,8 @@ export function drawDestArrow(rt, want, rects) {
   const me = rt.player.u.pos, W = VIEW.w, H = VIEW.h, sa = safeInsets();
   const dist = Math.hypot(want.x - me.x, want.z - me.z);
   if (dist < (want.r ?? 3) + .5) { if (el) el.style.display = 'none'; return false; }
-  const route = !!want.route;
+  // 田野の曲がり角も、足元の矢印へ替えず行き先の真上に▼と距離を置く。
+  const route = !!want.route && !rt.def.routeDestinationPin;
   // 曲がり角へ続く道の上に一本だけ置く。遠い門へ崖を横切らせない。
   const along = route ? Math.min(4, dist) / dist : 1;
   const gx = me.x + (want.x - me.x) * along, gz = me.z + (want.z - me.z) * along;
