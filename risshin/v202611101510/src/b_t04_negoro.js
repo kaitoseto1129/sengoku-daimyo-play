@@ -20,7 +20,7 @@ import { demSample } from './dem.js';
 import { distToPolyline } from './world.js';
 import { enemyGroup, allyGroup, wallLine, nm, centerOf } from './bhelp.js';
 import { dress } from './b_inabayama.js';
-import { nobori, jinmaku, shogi, tsuiji, tawara, romon, ishigaki, solidRect, solidCircle, solidSeg } from './props.js';
+import { nobori, jinmaku, shogi, tsuiji, tawara, romon, ishigaki, solidRect, solidCircle, solidSeg, makeSimpleBatch, finalizeSimpleBatch } from './props.js';
 import { sobo, kura, doja, hondo, shoro, monomidai } from './temple_parts.js';
 import * as DP from './b_depth.js';
 import { depthStart, depthTick, depthBot } from './b_depth.js';
@@ -479,7 +479,9 @@ const t04_negoro = {
     // ---- 寺の形：大門・築地塀・門前の坊舎・子院の雛壇と石垣・大伝法堂・大塔・大師堂・奥の院・大門池・菩提川 ----
     const tera0 = rt.scene.children.length;
     // 大門の左右の築地塀（口を空ける）。左右の塀は谷の奥へ折れ、北山と前山の裾を登る。塀は壊れない（打つのは大門の扉だけ）
-    const WL = (pts) => wallLine(rt, pts.map(([x, z]) => PA(x, z)), { team: 1, hp: 1e9, name: '築地塀', mesh: tsuiji, segLen: 8, h: 2.75 });   // 当たりの高さは見た目の塀（2.6m と笠）にそろえる（共通の 3m のままだと、塀の撃ち手が全身を塀の上に出さないと撃てなかった）
+    // 11/10 重さ：塀の区画（三十）を一つずつ描かず、材質ごとの束に（壊れない塀なので見た目は同じ。描く数 495→）
+    const TB = makeSimpleBatch();
+    const WL = (pts) => wallLine(rt, pts.map(([x, z]) => PA(x, z)), { team: 1, hp: 1e9, name: '築地塀', mesh: tsuiji, segLen: 8, h: 2.75, meshOpt: { batch: TB } });   // 当たりの高さは見た目の塀（2.6m と笠）にそろえる（共通の 3m のままだと、塀の撃ち手が全身を塀の上に出さないと撃てなかった）
     WL([[-WALL_X, 0], [-6.6, 0]]); WL([[6.6, 0], [WALL_X, 0]]);
     WL([[-WALL_X, 0], [-WALL_X, 118]]); WL([[WALL_X, 0], [WALL_X, 118]]);
     // 大門：三間一戸の二重門（今の門は 1850 年の建て直しで高さ 17m・幅 18m）。両脇の間は仁王の格子で塞ぐ
@@ -550,6 +552,7 @@ const t04_negoro = {
       B([[13.3, -77.8], [13.3, -72.2]]);
       B([[15.3, -59.8], [15.3, -46.2]]);
     }
+    finalizeSimpleBatch(rt, TB);
     { const q = P(-34, -56); rt.scene.add(kura(W, q.x, q.z, Math.PI / 2 + ROT)); }
     { const q = P(36, -58); rt.scene.add(kura(W, q.x, q.z, -Math.PI / 2 + ROT)); }
     // 堂：大伝法堂（本堂）・大塔・大師堂は南を向く。焼け残った三つ
