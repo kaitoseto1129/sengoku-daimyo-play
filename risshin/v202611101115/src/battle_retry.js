@@ -405,14 +405,13 @@ export function offerRetry(rt, info, delay) {
   window.speechSynthesis?.cancel();
   // 開戦の札や、自分で開いた一時停止の状態には触れない。
   document.body.appendChild(d); d.setAttribute('open', '');
-  // Web の釦にキーの字（kaito 11/3 AV17）。携帯（指）では出さない
+  // 鍵盤でも選べるが、釦の字は日本語だけにする。
   const keys = { r: '[data-near]', t: '[data-start]', q: '[data-result]' };
   const onKey = (e) => {
     const b = !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && keys[e.key.toLowerCase()];
     if (b) { e.preventDefault(); e.stopPropagation(); d.querySelector(b)?.click(); }
   };
   if (!(typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)) {
-    for (const [k, sel] of Object.entries(keys)) { const b = d.querySelector(sel); if (b) b.textContent += `（${k.toUpperCase()}）`; }
     document.addEventListener('keydown', onKey, true); m.onKey = onKey;
   }
   const close = () => { document.removeEventListener('keydown', onKey, true); d.close(); d.remove(); m.dialog = null; m.accept = null; rt.retryOpen = false; };

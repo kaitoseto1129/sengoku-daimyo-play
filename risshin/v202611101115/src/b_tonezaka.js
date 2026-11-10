@@ -2985,6 +2985,19 @@ const tonezaka = {
             rt2.objProgress('dp', '');
             return cleared && near(rt2.player.u.pos, C.at, C.botRadius);
           };
+        } else {
+          const tick = st.tick;
+          st.tick = (rt2, C, m, ctx, el, dt) => {
+            // 荷駄の待ち伏せも守備と同じ。到着後二十五秒だけで無傷の敵を消さない。
+            for (const g of C.groups) {
+              if (g.routed) continue;
+              const n = fighters(g);
+              if (!n || n <= g.initial * 0.2 || el >= retreatAt && n < g.initial) retreat(g);
+            }
+            const cleared = tick(rt2, C, m, ctx, el, dt);
+            rt2.objProgress('dp', '');
+            return cleared && !C.groups.some(fighting) && near(rt2.player.u.pos, C.at, st.toneRadius);
+          };
         }
       }
     }
@@ -2996,7 +3009,7 @@ const tonezaka = {
   kit() {
     const A = (n) => ({ type: 'ashigaru', n }), S = (n) => ({ type: 'samurai', n });
     // 書いた後備えと旗本を退けた後、共通の撃破数稼ぎの新手を繰り返さない。
-    return { at, rest: dpRest, hold: (o) => dpHold({ ...o, noRefill: true }), move: dpMove, A, S,
+    return { at, rest: dpRest, hold: (o) => dpHold({ ...o, noRefill: true }), move: (o) => ({ ...dpMove(o), toneRadius: o.r || 8 }), A, S,
       rearReport: (rt) => toneRearReport(rt.flags) };
   },
   chase(rt) {
