@@ -4391,10 +4391,10 @@ html body #hud[data-honnoji]:has(#goal-sign:not([hidden])) #mission-goal:not(.fi
     });
     at(58, () => { honnoSay(rt, '門番', '門がきしむ！　内側で支えよ！', 3); });
     // 門を守り切っても延焼で持ち場を移す。敵の全滅待ちで止めない。
-    // 10/31：延焼で持ち場を移すのは、本人が門で一人でも討ってから（立っているだけで段が進まないように）
+    // 討ち取りは任務ではない。門内で八秒支えた働きで退き、撃破を待って止めない。
     const down = () => {
       if (F.gDown || F.ending || rt.over || F.hp !== 3) return;
-      if ((F.pk || 0) >= 1) this.gateDown(rt, true);
+      if ((F.gateHold || 0) >= 8) this.gateDown(rt, true);
       // 守備八秒に届かず退却を保留した時も、守り直した後に延焼の判定を続ける。
       if (!F.gDown) rt.after(4, down);
     };
@@ -5408,7 +5408,7 @@ function honnoTick(def, rt, dt) {
     rt.objProgress('main', (F.gateHold || 0) < 8 ? '表門の内で、上様と共に門の口を支えよ'
       : F.patrolDistance > 10 ? '廊下の出口から回廊へ。道の印を追い、表門の内へ進め'
       : g && g.alive ? (g.hp < g.maxHp * 0.3 ? '門がきしむ。上様の前で構え、退く下知を待て' : '門の内で構え、本堂へ退く下知を待て') : '門の口から離れ、味方の後ろで構えよ');
-    if (t >= 38 && ((g && !g.alive) || t >= 50 && honPlayed(rt) || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
+    if (t >= 38 && ((g && !g.alive) || t >= 50 && (F.gateHold || 0) >= 8 || (!g && F.foes.some((q) => q.units.some((u) => u.alive && u.pos.x < GATES.main.x - 2 && Math.abs(u.pos.z - GATES.main.z) < 6))))) def.gateDown(rt);   // 一分で門は破られる（四〜七分に収める）
   } else if (F.hp === 4) {
     // 門が破られた後は、目の前に常に敵が数人以上いる（数で押される怖さ）。減れば表門から次の寄せ手が入る
     if ((F.topScan = (F.topScan || 0) - dt) <= 0) {
