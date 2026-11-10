@@ -276,6 +276,7 @@ const t09_yamanaka = {
   goalSignOnly: true,         // 行き先は頭上の金の▼一つ（旗の印・輪・枠を重ねない。kaito AL・AV 15）
   goalsAllRows: true,         // ①〜⑤を始めから並べる（共通画面の既定では今の一件だけになる）。
   goalSignTriangle: true,
+  enemySignMaxPixels: 20,   // 通し確認：密集した近い敵の赤い印が視界を覆わないよう、命中時も同じ上限にする。
   goalSignNoEdge: true,      // 画面外の行き先を縁へ張り付けたり、方向矢印へ替えたりしない。
   actionGuideTarget: () => null,
   missionSignTarget: () => null, // 敵の頭上の赤い▼以外の選択印を付けない。
@@ -286,7 +287,17 @@ const t09_yamanaka = {
     if (F.ending) return null;
     if (!F.step) { SIGN.x = shutsujin.LINE.x; SIGN.z = shutsujin.LINE.z; SIGN.label = '先手の列'; return SIGN; }
     let x, z, label;
-    if (F.step === 1) { x = KURUWA.dai.x; z = KURUWA.dai.z; label = '岱崎出丸'; }
+    if (F.step === 1) {
+      // 出丸の中心へ斜めに誘わず、先手が攻める土橋と柵を順に指す。
+      if (p.x > -30 && Math.abs(p.z - 176) > 3) {
+        x = p.x > -19.5 ? -6 : -32; z = 176; label = '出丸の土橋';
+      } else if (p.x > -30) {
+        const s = F.daiBridge;
+        if (s && s.alive !== false && s.hp > 0) {
+          x = (s.seg[0] + s.seg[2]) / 2; z = (s.seg[1] + s.seg[3]) / 2; label = '出丸の柵';
+        } else { x = -32; z = 176; label = '出丸の土橋'; }
+      } else { x = KURUWA.dai.x; z = KURUWA.dai.z; label = '岱崎出丸'; }
+    }
     else if (F.step === 2) {
       // 出丸から対岸を直接指すと、脇の畝堀へ斜めに誘う。寄せ手と同じ土橋から畝へ揃える。
       if (p.z > SHOJI.z1 + 2 && p.x < -11) {
@@ -980,42 +991,18 @@ t09_yamanaka.botBrain = (b, inp, { goTo, patientStrike }) => {
     return;
   }
   inp.guardHold = false;
-  // 柵の向こうへ歩き続けず、兵に届かない間は本人も柵を打ち破る。
-  // 破れ口ができた後は、残る柵へ寄り道せず出丸へ進む。
-  if (F.step === 1 && !F.daiWall.some((s) => s.alive === false || s.hp <= 0)) {
-    let wall = null, wx = 0, wz = 0, wd = Infinity;
-    for (const s of F.daiWall) {
-      const [ax, az, bx, bz] = s.seg, dx = bx - ax, dz = bz - az;
-      const t = clamp(((u.pos.x - ax) * dx + (u.pos.z - az) * dz) / (dx * dx + dz * dz || 1), 0, 1);
-      const x = ax + dx * t, z = az + dz * t, d = Math.hypot(x - u.pos.x, z - u.pos.z);
-      if (d < wd) { wall = s; wx = x; wz = z; wd = d; }
-    }
-    if (wall && wd < 4) {
-      p.yaw = Math.atan2(wx - u.pos.x, wz - u.pos.z);
-      const reach = p.weapon === 'sword' ? 1.9 : 2.8;
-      if (wd > reach * 0.8) goTo(p, inp, wx, wz, reach * 0.75);
-      patientStrike(p, inp, wall, wd);
-      return;
-    }
-  }
-  // 出丸の東の畝堀（x −27〜−12）は、間の土橋（z 170〜182）だけを渡る（堀の中に落ちて槍に囲まれ、三度とも倒れた。11/8 bot）
-  if (F.step === 1 && u.pos.x > -30 && (u.pos.z < 171 || u.pos.z > 181)) { goTo(p, inp, u.pos.x > -10 ? -6 : -32, 176, 1.5); return; }
-  // 柵が一枚破れただけで隊の中心へ直進すると、隣の生きた柵に詰まる。
-  // 先手と同じ破れ口の内側を通り、渡り終えてから間宮の隊へ向かう。
+  // 画面の案内と同じ土橋・柵を通る。別の柵が破れても、畝堀へ回り込まない。
   if (F.step === 1) {
-    let mouth = null, md = Infinity;
-    for (const s of F.daiWall) {
-      if (s.alive !== false && s.hp > 0) continue;
-      const x = (s.seg[0] + s.seg[2]) / 2, z = (s.seg[1] + s.seg[3]) / 2;
-      const dx = KURUWA.dai.x - x, dz = KURUWA.dai.z - z, L = Math.hypot(dx, dz) || 1;
-      const d = Math.hypot(u.pos.x - x, u.pos.z - z);
-      if (d < md) { md = d; mouth = { x: x + dx / L * 3, z: z + dz / L * 3 }; }
-    }
-    if (mouth && b.army.wallBetween(u.pos, -1, KURUWA.dai, false)) { goTo(p, inp, mouth.x, mouth.z, 1); return; }
+    const target = t09_yamanaka.goalSignTarget(b), wall = F.daiBridge;
+    const d = Math.hypot(target.x - u.pos.x, target.z - u.pos.z);
+    if (target.label === '出丸の柵' && wall && wall.alive !== false && wall.hp > 0 && d < 4) {
+      p.yaw = Math.atan2(target.x - u.pos.x, target.z - u.pos.z);
+      const reach = p.weapon === 'sword' ? 1.9 : 2.8;
+      if (d > reach * 0.8) goTo(p, inp, target.x, target.z, reach * 0.75);
+      patientStrike(p, inp, wall, d);
+    } else goTo(p, inp, target.x, target.z, target.label === '岱崎出丸' ? 3 : 1);
+    return;
   }
-  if (F.step === 1 && F.dai && !gone(F.dai)) { const t = F.dai.center(); goTo(p, inp, t.x, t.z, 2); return; }
-  // 出丸の手勢が尽きても、出丸へ寄るまでは次の段にならない。先に障子堀へ向かうと進行が止まる。
-  if (F.step === 1) { goTo(p, inp, KURUWA.dai.x, KURUWA.dai.z, 3); return; }
   if (F.step === 3) {
     // 馬出しの右の口の前で待ち、打って出た隊と戦い、退く兵に続いて口・馬出し・土橋・門へ
     const A = SP.at, M = A.mouths[1];
