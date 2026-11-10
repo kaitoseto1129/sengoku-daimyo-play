@@ -13,10 +13,12 @@
 // ======================================================================
 
 import { bigVolley, shooters } from './plus.js';
+import { scriptedShotBlocked } from '../projectile_cover.js';
 // 追加改善（docs/shitaragahara_plus_1109.md）：鉄砲兵が討たれると、その口の斉射の当たり・白煙が本当に減る。
 //   柵の内へ武田が入った口は射撃をやめ（鉄砲は下がり槍組が前へ）、寄せの近い口で大斉射を十五分に六回まで（plus.js）。
 
 const PT = { x: 0, z: 0 };
+const SHOT = { team: 0, type: 'gun', pos: { x: 0, y: 0, z: 0 } };
 const alive = shooters;
 
 // ctx：{ SB, MOUTHS, ZONES }
@@ -60,11 +62,16 @@ function insideAt(rt, z, SB) {
 function volleyHit(rt, W, z, SB, power = 1) {
   // 予約した着弾が追撃への切替や終戦をまたいでも、柵の斉射を続けない。
   if (!W.on || rt.over || rt.flags.ending) return;
+  // 筋書きの斉射も、通常の玉と同じ竹束・盾・塀で止める。
+  // 自陣の柵際を射点とし、共通の判定で相手の手前の遮蔽物を調べる。
+  SHOT.pos.x = SB.x0 + 1.5; SHOT.pos.z = z;
+  SHOT.pos.y = rt.world.heightAt(SHOT.pos.x, z);
   const cand = [];
   for (const u of rt.army.units) {
     if (u.team !== 1 || !u.alive || u.fleeing || u.gone || u.noTarget || u.woundOut || u.rearWound || u.group?.shWaiting || u.invuln || u.type === 'busho') continue;
     const dx = u.pos.x - SB.x0;
     if (dx < 6 || dx > 70 || Math.abs(u.pos.z - z) > 28) continue;
+    if (scriptedShotBlocked(rt.army, SHOT, u)) continue;
     cand.push(u);
     if (cand.length >= 12) break;
   }

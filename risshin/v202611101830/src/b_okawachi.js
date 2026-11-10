@@ -2293,15 +2293,24 @@ const okawachi = {
         rt.t < (F.sortieVoiceUntil || 0) ? '城兵の声！　坂の旗で槍を揃え、退き口を守れ' :
         d > 18 ? '道の印をたどり、坂の旗へ戻れ' : active ?
         `木戸から城兵が来る。あと${active}組。旗で止め、城内へ追うな` : '城兵は退いた。坂の旗で槍を揃え、退き口を守れ');
-      // 味方が城兵を押し返した時も、坂の旗で守った本人を討ち取り零で足止めしない。
-      // 離れて待つだけでは進まず、城兵が残る間の時間切れは従来どおり本人の働きを要する。
+      // 討ち取りでなく、坂の旗で城兵を受け止めた働きを数える。
+      // 味方が最後の一撃を入れても、本人が槍を揃えて守れば進める。
       const repelled = L.length >= 2 && active === 0;
       const atFlag = okAtPost(rt, FRONT, 18);
       const defended = repelled && atFlag;
+      let contact = false;
+      if (atFlag) for (const g of L) {
+        if (sortieBroken(g) || g._okReturning) continue;
+        // 接触の調べは半秒ごと。一度触れただけで、その後の待機まで働きにしない。
+        if (g._okContactAt <= rt.t || g._okContactAt === undefined)
+          g._okPushContact = okSortieContact(rt, g, FRONT, 18);
+        if (g._okPushContact) contact = true;
+      }
+      const held = defended || atFlag && (F.s2Own > 0 || contact);
       // 段の時間切れと②への到着だけでは、③の働きを果たした印を付けない。
-      if (rt.t - F.stepT >= 12 && atFlag && (defended || F.s2Own > 0)) F.pushHeld = true;
+      if (rt.t - F.stepT >= 12 && held) F.pushHeld = true;
       // 時間だけで次へ送ると、未達成のまま和睦の入口で永久に止まる。
-      if (atFlag && (defended || F.s2Own > 0)) F.pushHoldT = (F.pushHoldT || 0) + dt;
+      if (held) F.pushHoldT = (F.pushHoldT || 0) + dt;
       if (F.coverReached && F.gateReached && F.pushHeld && F.pushHoldT >= PUSH_HOLD) this.midA(rt);
     }
     if (F.step === 3) {

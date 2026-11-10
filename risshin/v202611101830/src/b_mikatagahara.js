@@ -3245,7 +3245,8 @@ const gunLine = (name, from, n, o = {}) => ({ name, from, list: [uS(1), uG(n)], 
 function withstand(o) {
   // 寄せはこの戦の波の表だけで出す。共通の討ち取り数による補充を重ねると、
   // 下の時刻の上限で七分の補充終了にも届かず、予定外の新手が出続ける。
-  const s = hold({ ...o, noRefill: true }), start = s.start, tick = s.tick;
+  // 共通の守備は残り三人の敵を士気十五へ落とす。武田の寄せを人数だけで崩さず、実戦の損害に任せる。
+  const s = hold({ ...o, noRefill: true, realHold: true }), start = s.start, tick = s.tick;
   // 守らずに放置した時も、共通の時間切れで目標を失敗にして飛ばさない。
   // 共通の四分・七分の打ち切りも外す。守りの途中を時間だけで未達成にしない。
   s.idleAdvance = false; s.limit = Infinity; s.noHardCap = true;

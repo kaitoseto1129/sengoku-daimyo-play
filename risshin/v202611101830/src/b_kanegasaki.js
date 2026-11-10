@@ -2660,7 +2660,10 @@ const kanegasaki = {
   guardLabel(rt) {
     const F = rt.flags, L = LINES[F.line || 0];
     if (!F.betrayed && F.k15Kosen === 'on') return kanegasaki.missionHeading(rt);
-    const holding = !rt.G.lord && !F.fleeing && F.step % 2 === 1;
+    // 最後の退きで味方を守る時も、捨てた砦へ呼び戻さない。
+    if (rt.G.lord || F.fleeing) return rt.distTo(KUTSUKI) < KUTSUKI.r
+      ? '退き口で来た道を守れ' : '若狭への道の退き口へ退け';
+    const holding = F.step % 2 === 1;
     const arrived = holding ? kgInHold(L, rt.player.u.pos.x, rt.player.u.pos.z) : rt.distTo(L) < L.r;
     return arrived ? `${L.mark}で追手を止めよ` : `${L.mark}の旗へ戻れ`;
   },

@@ -5990,8 +5990,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
       }
       F.roadOrder = roadOrder;
     }
-    // 後詰と本丸へ向かう新手も攻め手。先手だけの全滅で敗北にしない。
-    if (F.step >= 1 && F.oda.every(gone) && gone(F.gozume) && gone(F.umaG) && rt.canFailMission()) {
+    // 二番手は屋敷攻めまで F.oda に入らない。控え・後詰・新手が残る間も全滅にしない。
+    if (F.step >= 1 && F.oda.every(gone) && gone(F.niban) && gone(F.gozume) && gone(F.umaG) && rt.canFailMission()) {
       if (F.collapseAt === undefined) {
         F.collapseAt = Math.max(rt.t + 30, F.helpUntil || 0);
         if (!F.collapseWarned) {

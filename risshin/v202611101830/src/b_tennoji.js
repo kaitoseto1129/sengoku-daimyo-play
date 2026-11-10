@@ -2266,13 +2266,8 @@ const tennoji = {
     else if (F.step < 3) at = rt.G.lord ? F.step === 1 ? T_GATE : F.nobuU.pos : GATE_REAR;
     else {
       at = !F.kidoCut ? sortieWaypoint(rt) : null;
-      if (!at) {
-        const enemy = tennojiEnemy(rt);
-        if (enemy) {
-          if (rt.player.inRange && rt.player.rangeCueTarget === enemy) return null;
-          at = enemy.pos; pin.unit = enemy; pin.enemy = true; pin.r = pin.hide = .2;
-        } else at = F.step === 4 ? chaseWaypoint(rt) || F.kz : SORTIE_NORTH;
-      }
+      // 討つ相手は赤い▼、行き先は固定の持ち場。敵へ替えると共通処理でピンが消える。
+      if (!at) at = F.step === 4 ? chaseWaypoint(rt) || F.kz : SORTIE_NORTH;
     }
     if (!at) return null;
     const way = fortMoveWay(rt.army, me, at);
