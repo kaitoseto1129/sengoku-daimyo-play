@@ -2719,6 +2719,27 @@ function okHideSpeech(rt) {
 }
 
 // 材質はこの戦の中だけで複製して使い回す。他の戦の旗や木戸へ色を残さない。
+function okReflectFlags(rt, units) {
+  const cache = rt.flags.flagReflectionMats ||= new Map();
+  const flag = (mesh) => {
+    const base = mesh?.material;
+    if (!base?.emissive) return;
+    if (!cache.has(base)) {
+      const m = base.clone();
+      if (camNearMaterials.has(base)) camNearMaterials.add(m);
+      m.onBeforeCompile = base.onBeforeCompile; m.customProgramCacheKey = base.customProgramCacheKey;
+      m.emissive.setHex(0x000000); m.emissiveIntensity = 0; m.emissiveMap = base.map;
+      cache.set(base, m); cache.set(m, m);
+    }
+    mesh.material = cache.get(base);
+  };
+  for (const u of units) {
+    flag(u.flag); flag(u.standardFlag);
+    if (u.flag) u.flagMat = u.flag.material;
+    if (u.standardFlag) u.standardFlagMat = u.standardFlag.material;
+  }
+}
+
 function okReflect(rt) {
   const flagMats = new Map(), gateMats = new Map();
   const reflected = (base, cache, color, intensity) => {
@@ -2735,11 +2756,7 @@ function okReflect(rt) {
   // 雨夜でも旗だけを青白く発光させない。紋と地の濃淡は空と篝火の光で読む。
   const flag = (mesh) => { if (mesh) mesh.material = reflected(mesh.material, flagMats, 0x000000, 0); };
   rt.scene.traverse((obj) => { if (obj.userData.flag?.isMesh) flag(obj.userData.flag); });
-  for (const u of rt.army.units) {
-    flag(u.flag); flag(u.standardFlag);
-    if (u.flag) u.flagMat = u.flag.material;
-    if (u.standardFlag) u.standardFlagMat = u.standardFlag.material;
-  }
+  okReflectFlags(rt, rt.army.units);
   for (const b of rt.flags.nearButai) {
     const mesh = b.light.army.flags;
     if (mesh) flag(mesh);
@@ -3930,6 +3947,9 @@ function nearButaiTick(rt) {
     const made = b.growReal(Math.min(6, 235 - alive)); alive += made;
     if (made && b.real) { b.real.formation = b.kind === 'bow' || b.kind === 'gun' ? 'line' : 'yari'; b.real.width = Math.min(b.lightWidth || 14, 14); }
   }
+  // 開戦時だけでは、近景へ加わる兵や木戸から出る追っ手の幟が発光したまま残る。
+  // 既存の一秒刻みで揃え、同じ材質は再複製しない。人と甲冑の材質は触らない。
+  okReflectFlags(rt, rt.army.units);
 }
 // 押し合いの足滑りと敗走の接地で泥を蹴る。既存の粒を使い、近い二人まで。
 const OK_FOOT_L = new THREE.Vector3(), OK_FOOT_R = new THREE.Vector3(), OK_FOOT_SOUND = new THREE.Vector3();

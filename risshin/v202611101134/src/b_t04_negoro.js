@@ -227,7 +227,7 @@ const gateTarget = (u) => fighting(u) && !u.name && !u.noTarget && !u.woundOut &
   && Math.hypot(u.pos.x - GATE.x, u.pos.z - GATE.z) < 40;
 // 深手で退く者は生存数には残るが、討つべき敵と行き先には数えない。
 // 一時的に倒れている者は起き上がるため、残兵の数には残す。
-const remaining = (u) => u && u.alive && !u.fleeing && !u.dying && !u.woundOut;
+const remaining = (u) => u && u.alive && !u.fleeing && !u.dying && !u.woundOut && !u.rearWound;
 // 後送された押し手は生存数に残る。起き上がる者は待つが、後送だけの束は寄せの案内に使わない。
 const hasPushers = (t) => t.g.count > 0 && !t.g.routed && t.g.units.some((u) => remaining(u) && !u.rearWound);
 const alive = (g) => !!g && g.count > 0 && !g.routed && g.units.some(remaining);
@@ -276,7 +276,13 @@ function gunPost(rt, name, spots, armored = false) {
   return g;
 }
 // 持ち場を捨てて逃げる（床から降りる）
-const flee = (g) => { if (!g) return; g.noRout = false; g.morale = 0; g.focus = null; for (const u of g.units) u.perch = null; };
+const flee = (g) => {
+  if (!g) return;
+  // 組頭が生きていても、退く下知なら隊は崩れる。士気だけでは持ち場を離れない。
+  g.noRout = false; g.morale = 0; g.focus = null; g.order = 'retreat';
+  g.stay = false; g.dest = null; g.onArrive = null;
+  for (const u of g.units) { u.perch = null; u.target = null; }
+};
 
 // ---- 大塔（多宝塔）：基本形を組んだ軽い一棟。材質は一度だけ作る ----
 let TOWER_MAT = null;
@@ -454,7 +460,9 @@ const t04_negoro = {
       const st = document.createElement('style'); st.id = 'negoro-field-signs';
       const scope = 'html body:not(:has(#pause:not([hidden]))) #hud:not(.photo):not(.ending):has(#h-prog[data-battle="t04_negoro"])';
       st.textContent = scope + ' .field-names:not([hidden]){display:block!important}' +
-        scope + ':not(:has(#bigmap:not([hidden]))) #tugbar:not([hidden]){display:flex!important}';
+        scope + ':not(:has(#bigmap:not([hidden]))) #tugbar:not([hidden]){display:flex!important}' +
+        // 下知は既存の五件の目標で伝え、中央の同じ下知を重ねない。
+        scope + ' #center-call .cc.blue{display:none!important}';
       document.head.appendChild(st);
       rt.cleanupTasks?.add(() => st.remove());
     }
@@ -679,7 +687,7 @@ const t04_negoro = {
     F.hidetsuguU = F.hidetsugu.units[0];
     // 紀州攻めの大将たち（battle_events_1101：秀吉・秀長・堀秀政・仙石秀久）。総大将の秀吉は後ろの本陣の床几に座って動かない。
     //   秀長は馬上で、旗本とともに本陣の前を固める。仙石は先手の右
-    F.hideyoshi = allyGroup(rt, { ...H, name: '羽柴秀吉の本陣', anchor: SEAT, facing: ROT, width: 2, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true, fullStrength: true },
+    F.hideyoshi = allyGroup(rt, { ...H, name: '羽柴秀吉の本陣', anchor: SEAT, facing: ROT, width: 2, aggro: 0, seekRange: 0, order: 'hold', fixed: true, noRout: true, fullStrength: true, noRetinue: true },
       dress([{ type: 'busho', n: 1, o: { name: '羽柴秀吉', invuln: true, horse: false, hat: 'kabuto_m', haori: 0x8a6a1c, keep: true } }], HASHIBA));
     F.hideyoshi.stay = true; F.hideyoshi.noAI = true;
     for (const u of F.hideyoshi.units) {
@@ -917,7 +925,7 @@ const t04_negoro = {
         C.goal = target ? target.pos : MONZEN;
         rt.objProgress('dp', `残る鉄砲 ${guns}挺${F.horiHurt ? '・堀は退いた' : ''}`);
         // 縁の撃ち手が減るか長引けば、残る根来衆は坊舎の裏へ逃げ出す（自分が討たなくても筋は進む）
-        if ((guns <= 4 || el > 95) && !C.broke) { C.broke = true; for (const g of [...C.groups, F.posts.win]) if (g) { g.noRout = false; g.morale = Math.min(g.morale, 15); } if (el > 95) flee(F.posts.win); }
+        if ((guns <= 4 || el > 95) && !C.broke) { C.broke = true; for (const g of [...C.groups, F.posts.win]) flee(g); }
         // 鉄砲衆が退いても、後方に居たままで堀の護衛を果たした事にはしない。
         const p = rt.player.u.pos;
         // 縁の撃ち手の前に長く立たせない（15分の戦でも、この段は撃ち手を討てば進む）
@@ -986,7 +994,11 @@ const t04_negoro = {
           }
           // 戦える本人が丸太のそばにいる間だけ、皆で声を合わせて押す。
           const mm = F.ram.mesh;
-          if (fighting(pu) && !rt.retryOpen && mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5 && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < 8) {
+          const helping = mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5;
+          // 三組とも担げなくなっても、本人が門前で打ち続ける別の手段を残す。
+          const lastPush = C.reram >= 3 && !mm.visible;
+          const hittingGate = pu.atk?.target === s || pu.swing?.target === s;
+          if (fighting(pu) && !rt.retryOpen && (helping || lastPush && hittingGate) && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < (lastPush ? 5 : 8)) {
             C.pushT = (C.pushT || 0) + dt;
             if (!C.pushSaid) { C.pushSaid = true; rt.say('足軽', 'お頭も手を貸してくだされ！　一、二の、三！', 3); }
             if (C.pushT > 1.1) { C.pushT = 0; rt.army.damage(s, 24, pu, { kind: 'ram' }); }
@@ -1008,12 +1020,18 @@ const t04_negoro = {
         if (!s.alive && C.openT == null) C.openT = el;
         // 自分は丸太の脇について押す（丸太の組の真横）
         const mm = F.ram.mesh;
-        C.goal = s.alive ? (mm.visible ? { x: mm.position.x + dirL(1, 0).x * 1.6, z: mm.position.z + dirL(1, 0).z * 1.6 } : P(0, -9)) : P(0, 8);
+        C.goal = s.alive ? (mm.visible ? { x: mm.position.x + dirL(1, 0).x * 1.6, z: mm.position.z + dirL(1, 0).z * 1.6 } : P(0, C.reram >= 3 ? -3 : -9)) : P(0, 8);
         rt.objProgress('dp', s.alive ? `門扉 ${Math.round(100 * (1 - s.hp / s.maxHp))}%` : '');
         return fighting(pu) && !rt.retryOpen && C.openT != null && el - C.openT > 2 && Math.hypot(pu.pos.x - GATE.x, pu.pos.z - GATE.z) < 14;
       },
       end(rt, C) {
         for (const g of C.groups) flee(g);
+        // 門を破った後は竹束を左右の持ち場に据え、押し手を前進させ続けない。
+        for (const t of rt.flags.tabaSet) {
+          t.goal = null; t.g.order = 'hold';
+          const q = P(t.g.lane * (t.wide || 1), -9);
+          t.g.anchor.x = q.x; t.g.anchor.z = q.z;
+        }
         if (rt.flags.posts?.wall) rt.flags.posts.wall.holdFire = false;
         rt.unmark('dp');
         rt.objDone('dp');
@@ -1025,6 +1043,8 @@ const t04_negoro = {
   // 丸太の組を門へ（門扉を的にして打つ）
   sendRam(rt) {
     const F = rt.flags;
+    F.ramG.assault = () => F.gate.alive ? F.gate : null;
+    F.ramG.assault.gateOnly = true;
     // 門の前までは歩かせる（着いたら update で門扉を的にする）
     F.ramG.order = 'move'; F.ramG.focus = null; F.ramG.anchor = P(0, -3.2); F.ramG.seekRange = 1;
   },
@@ -1103,7 +1123,7 @@ const t04_negoro = {
         if (C.inT < 45) rt.objProgress('dp', `守る あと${Math.max(0, Math.ceil(45 - C.inT))}秒`);
         // 三方の三十六人を八割以上崩して守り続けたら、長引いた残兵は退く。
         // 岩や建物の裏の最後の一人を探し続ける全滅条件にしない。
-        if (!C.retreat && !C.waves.length && el >= 150 && C.inT >= 45 && defending && heads(C.groups) <= 7) {
+        if (!C.retreat && !C.waves.length && el >= 150 && C.inT >= 45 && defending && (heads(C.groups) <= 7 || el >= 180)) {
           C.retreat = true;
           for (const g of C.groups) flee(g);
           rt.say('組頭', '行人方が崩れた！　大塔の前から退いていくぞ！', 3);
@@ -1181,7 +1201,9 @@ const t04_negoro = {
   carryRam(rt, dt) {
     const F = rt.flags, g = F.ramG, s = F.gate, FRONT = -3.4;
     // 生存していても倒れた担ぎ手を列へ引きずらず、後送の動きも妨げない。
-    const live = g.units.filter((u) => fighting(u) && !u.woundOut && !u.rearWound);
+    const live = g._ngCarriers || (g._ngCarriers = []);
+    live.length = 0;
+    for (const u of g.units) if (fighting(u) && !u.woundOut && !u.rearWound) live.push(u);
     if (!live.length) return;
     if (F.ramZ == null) { let z = 0; for (const u of live) z += toL(u.pos.x, u.pos.z).z; F.ramZ = Math.min(FRONT, z / live.length); }
     let off = 0;
@@ -1206,7 +1228,7 @@ const t04_negoro = {
     if (F.ramZ < FRONT && (!foe || F.ramWait > 8)) F.ramZ = Math.min(FRONT, F.ramZ + (ordered ? 2.4 : 1.2) * dt);
     const at = P(0, F.ramZ);
     if (F.ramZ >= FRONT - 2.5) {
-      if (g.order !== 'attack') { g.order = 'attack'; g.focus = s; g.seekRange = 1; }
+      if (g.order !== 'assault') { g.order = 'assault'; g.focus = s; g.seekRange = 1; }
       g.anchor = at;
       for (const u of live) u.target = s;   // 担ぎ手は皆、門扉を打つ
     }
