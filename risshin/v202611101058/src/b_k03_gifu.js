@@ -103,8 +103,8 @@ const uS = (n) => ({ type: 'samurai', n }), uA = (n) => ({ type: 'ashigaru', n }
 const busho = (name, o = {}) => ({ type: 'busho', n: 1, o: { name, invuln: true, horse: true, ...o } });
 const live = (g) => g && g.units.some((u) => u.alive && !u.gone && !u.fleeing);
 const aliveN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing ? 1 : 0), 0) : 0);
-// 段の守りの残り：持ち場から 30m より離れた兵は追い払ったと数える（①の鉄砲衆の残りが居館の方へ下がり、段が三百秒続いた）
-const holdN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && dist(u.pos, g.anchor) < 30 ? 1 : 0), 0) : 0);
+// 段の守りの残り：倒れた兵・負傷で離脱した兵と、持ち場から 30m より離れた兵は守りに数えない。
+const holdN = (g) => (g ? g.units.reduce((n, u) => n + (u.alive && fighting(u) && dist(u.pos, g.anchor) < 30 ? 1 : 0), 0) : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 // 城方は味方と斬り合う所へは石を落とさない（斬り合いの最中に上から石が続けて当たり、本人が倒れた。11/8 bot）
 const fighting = (u) => !u.fleeing && !u.gone && !u.downed && !u.woundOut && !u.rearWound && !u.noTarget && !u.isStruct;

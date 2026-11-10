@@ -217,6 +217,16 @@ const ino = {
     g.onArrive = (q) => { q.order = then || 'hold'; if (then === 'attack') { q.aggro = 14; q.seekRange = 26; } };
   },
   fight(g, aggro = 14) { if (!live(g)) return; g.noAI = false; g.order = 'attack'; g.aggro = aggro; g.seekRange = 26; g.onArrive = null; },
+  // 整然と退く隊は、通常の移動中の敵探しへ戻さず、旗と同じ退路を進む。
+  retireG(g, dest, speed) {
+    if (!live(g)) return;
+    g.inouRetiring = true; g.retreatOnly = true; g.peaceful = true;
+    g.noAI = true; g.routing = false; g.focus = null; g.aggro = 0; g.fire = false;
+    g.anchor = { ...g.center() }; g.dest = { ...dest };
+    g.path = [[dest.x, dest.z]]; g.pathIdx = 0; g.order = 'path'; g.speed = speed;
+    g.onArrive = (q) => { q.order = 'hold'; q.path = null; q.aggro = 0; };
+    for (const u of g.units) { u.noTarget = true; u.target = null; u.atk = null; u.swing = null; u.bind = null; u.watch = null; u.moveTo = null; u.aiT = 0; }
+  },
 
   // 0:00 行軍：隊長「おい、そこの者。槍を持て。」→ 列の後ろについて北へ。遠くを信長の一団が通る
   march(rt) {
@@ -458,13 +468,10 @@ const ino = {
     rt.after(3, () => {
       const rear = F.shibaLines.filter(live);
       rear.forEach((g, i) => {
-        if (i === 0) { g.order = 'hold'; g.aggro = 10; g.dmgMult = 0.3; rt.after(16, () => { if (live(g)) { g.inouRetiring = true; this.moveG(g, { x: -60, z: -130 }, 2.6); } }); return; }   // 殿
-        g.inouRetiring = true;
-        g.routing = false; g.focus = null; for (const u of g.units) u.target = null;
-        this.moveG(g, { x: -40 + i * 8, z: -130 }, 2.4);
+        if (i === 0) { g.order = 'hold'; g.aggro = 10; g.dmgMult = 0.3; rt.after(16, () => this.retireG(g, { x: -60, z: -130 }, 2.6)); return; }   // 殿
+        this.retireG(g, { x: -40 + i * 8, z: -130 }, 2.4);
       });
-      F.shibaG.inouRetiring = true;
-      this.moveG(F.shibaG, { x: -30, z: -120 }, 2);
+      this.retireG(F.shibaG, { x: -30, z: -120 }, 2);
     });
     rt.after(22, () => this.stopChase(rt));
   },
@@ -479,7 +486,7 @@ const ino = {
     // 退く旗本も攻撃を止める。到着時に古い攻撃命令へ戻さない。
     for (const g of F.shiba) if (live(g)) {
       g.aggro = 0; g.focus = null; g.fire = false;
-      g.onArrive = (q) => { q.order = 'hold'; q.aggro = 0; };
+      g.onArrive = (q) => { q.order = 'hold'; q.path = null; q.aggro = 0; };
       for (const u of g.units) { u.noTarget = true; u.target = null; }
     }
     F.ending = true;
@@ -498,7 +505,7 @@ const ino = {
     if (F.codaT) return;
     F.codaT = rt.t;
     // 柴田は退いた先から戻らず、同じ街道の奥へ去る。
-    if (live(F.shibaG)) { this.moveG(F.shibaG, { x: -50, z: -140 }, 1.4); }
+    if (live(F.shibaG)) { this.retireG(F.shibaG, { x: -50, z: -140 }, 1.4); }
     F.lead = F.sakumaU?.alive ? F.sakumaU : F.lead;
     say(rt, '弥助', '柴田権六……あれで負けたのか。', 3);
     rt.after(3.6, () => say(rt, '源太', '恐ろしい男だ。', 2.4));

@@ -97,11 +97,19 @@ export function stageOf(rt) {
   return S.k >= 1 ? 1 : 0;
 }
 
+// 命が尽きて倒れる途中や深手の者へ、攻撃の印と打ち込みを残さない。
+function endoTarget(S) {
+  const u = S.u, g = S.g;
+  return !!u?.alive && u.hp > 0 && !u.gone && !u.dying && !u.downed &&
+    !u.woundOut && !u.rearWound && !u.noTarget && !u.fleeing &&
+    !g?.routed && g?.order !== 'retreat' && g?.order !== 'flee';
+}
+
 export function pin(rt, q) {
   const S = rt.flags.aneTsui;
   if (!S || S.done) return undefined;
-  if (S.k >= 1 && S.u?.alive) { q.unit = S.u; q.enemy = true; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 2; return q; }
-  if (S.k >= 1 && S.u) { q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 8; return q; }
+  if (S.k >= 1 && endoTarget(S)) { q.unit = S.u; q.enemy = true; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 2; return q; }
+  if (S.k >= 1 && S.u) { q.unit = null; q.enemy = false; q.x = S.u.pos.x; q.z = S.u.pos.z; q.r = q.hide = 8; return q; }
   if (S.k < 1) { q.x = S.at.x; q.z = S.at.z; q.r = 8; q.hide = 8; return q; }
   return undefined;
 }
@@ -111,8 +119,8 @@ export function bot(b, goTo, p, inp, strike) {
   const S = b.flags.aneTsui;
   if (!S || S.done) return !!S;
   const u = p.u;
-  if (S.k >= 1 && S.u && !S.u.alive) { goTo(p, inp, S.u.pos.x, S.u.pos.z, 8); return true; }
-  if (S.k >= 1 && S.u?.alive) {
+  if (S.k >= 1 && S.u && !endoTarget(S)) { goTo(p, inp, S.u.pos.x, S.u.pos.z, 8); return true; }
+  if (S.k >= 1 && endoTarget(S)) {
     const e = S.u, d = Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     p.yaw = Math.atan2(e.pos.x - u.pos.x, e.pos.z - u.pos.z);
     // 刀へ持ち替えても、届かない二メートルで止まらない。
