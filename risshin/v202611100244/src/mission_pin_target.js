@@ -180,7 +180,7 @@ export function updateEnemyTarget(rt, allowed = true) {
     enemyTarget.style.cssText = 'position:absolute;left:0;top:0;width:56px;height:48px;pointer-events:none;z-index:4';
     // 敵の印はどの戦も赤い▼（kaito 11/2 W：刀・十字の印を残さない）。命の残りは同じ▼の赤い面積
     const sword = 'M8 14H48L28 55Z';
-    enemyTarget.innerHTML = `<svg width="56" height="64" viewBox="0 0 56 64" aria-hidden="true" style="position:absolute;left:0;top:-7px"><path d="${sword}" fill="#24120f" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="${sword}" fill="#24120f" stroke="#fff3df" stroke-width="5" stroke-linejoin="round"/><defs><clipPath id="mission-enemy-life"><rect x="0" y="6" width="56" height="49"/></clipPath></defs><path d="${sword}" fill="#a3584a" clip-path="url(#mission-enemy-life)"/></svg><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:16px;top:-28px"><path d="M10 21.6H29V15L41 24L29 33V26.4H10Z" fill="#a3584a" fill-opacity=".9" stroke="#2a231b" stroke-opacity=".7" stroke-width="1.8" stroke-linejoin="round"/></svg><svg width="56" height="48" aria-hidden="true" style="position:absolute;left:0;top:0;overflow:visible"><path fill="none" stroke="#2a231b" stroke-opacity=".3" stroke-width="3"/><path fill="none" stroke="#d8ccb0" stroke-opacity=".4" stroke-width="1.3"/></svg>`;
+    enemyTarget.innerHTML = `<svg width="56" height="64" viewBox="0 0 56 64" aria-hidden="true" style="position:absolute;left:0;top:-7px"><path d="${sword}" fill="#24120f" stroke="#14120f" stroke-width="10" stroke-linejoin="round"/><path d="${sword}" fill="#24120f" stroke="#fff3df" stroke-width="5" stroke-linejoin="round"/><defs><clipPath id="mission-enemy-life"><rect x="0" y="6" width="56" height="49"/></clipPath></defs><path d="${sword}" fill="#e0261a" clip-path="url(#mission-enemy-life)"/></svg><svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true" style="position:absolute;left:16px;top:-28px"><path d="M10 21.6H29V15L41 24L29 33V26.4H10Z" fill="#a3584a" fill-opacity=".9" stroke="#2a231b" stroke-opacity=".7" stroke-width="1.8" stroke-linejoin="round"/></svg><svg width="56" height="48" aria-hidden="true" style="position:absolute;left:0;top:0;overflow:visible"><path fill="none" stroke="#2a231b" stroke-opacity=".3" stroke-width="3"/><path fill="none" stroke="#d8ccb0" stroke-opacity=".4" stroke-width="1.3"/></svg>`;
     enemyTarget._symbol = enemyTarget.children[0];
     enemyTarget._direction = enemyTarget.children[1];
     enemyTarget._ground = enemyTarget.children[2];
@@ -252,17 +252,9 @@ export function updateEnemyTarget(rt, allowed = true) {
       if (!found) return false;
     }
   }
-  enemyTarget._symbol.style.display = 'none'; // 画面外も同じ矢印だけで追う。
-  enemyTarget._direction.style.display = '';
-  enemyTarget._direction.setAttribute('width', '40');
-  enemyTarget._direction.setAttribute('height', '40');
-  enemyTarget._direction.style.left = visible ? '8px' : '40px';
-  enemyTarget._direction.style.top = visible ? '-12px' : '0px';
-  // 頭上の矢印は褪せた朱の細身。遠い敵ほど小さく、先端は頭上の一点に保つ（B5）
-  if (visible) {
-    const k = Math.max(.55, Math.min(1, 1.12 - Math.hypot(u.pos.x - me.pos.x, u.pos.z - me.pos.z) / 60));
-    enemyTarget._direction.style.transform = `translateY(${(13.3 * (1 - k)).toFixed(1)}px) rotate(90deg) scale(${k.toFixed(2)})`;
-  }
+  // 全戦で敵は頭上の赤い▼。近づいた時も矢印へ替えない（11/9 四回目17）。
+  enemyTarget._symbol.style.display = '';
+  enemyTarget._direction.style.display = 'none';
   // 呼び名と歩数は右上の任務札へまとめる。
   enemyTarget.lastChild.hidden = true;
   enemyTarget.style.transform = `translate(${(x - 28).toFixed(1)}px,${(y - 48).toFixed(1)}px)`;
