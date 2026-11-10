@@ -8,6 +8,7 @@ const F = (k) => (rt) => rt.flags[k];
 
 export const T08_DEPTH = {
   byMen: true,
+  bindTail: true,   // 本物の隊に結んだ備の後ろに、兵数の比の軽い列（army_depth_view.js の buildTail。クラウド厚み係 11/10）
   A: { name: '豊臣', facing: 0, honjin: { x: 14, z: -96 }, mpu: 6, formation: '方円', terrain: 'castle', flag: 'toyotomi', armor: 0x2a2622, openAt: 9999, attrition: 0,
     sonae: [
       { id: 'miyabe', layer: 'sakite', wing: 'center', men: 10000, taisho: '宮部継潤', bind: F('miyabe') },

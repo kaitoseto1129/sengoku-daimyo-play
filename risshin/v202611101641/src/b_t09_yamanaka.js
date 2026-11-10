@@ -478,7 +478,14 @@ html:root body #hud:has(#h-prog[data-battle="t09_yamanaka"]) #center-call .cc { 
       DA(310, -80, 45, 100, 600, Math.PI, 15905)];
     for (const g of F.host) if (g && g.army) g.army.noWake = true;
     // 段が進むごとに、遠くの本隊も街道の坂を城へ詰める（標準 十二の2。動ける所の外のまま）
-    F.hostUp = (d, secs) => { for (const g of F.host) if (g && g.advance) g.advance(d, secs); };
+    // 南の二陣は前端が動ける範囲へ入る前に止める。横の尾根は東西とも範囲外。
+    const hostRoom = [340 - 50 - 246, 320 - 40 - 246, Infinity, Infinity, Infinity];
+    F.hostUp = (d, secs) => {
+      for (let i = 0; i < F.host.length; i++) {
+        const g = F.host[i], step = Math.min(d, hostRoom[i]);
+        if (g && g.advance && step > 0) { g.advance(step, secs); hostRoom[i] -= step; }
+      }
+    };
     // ---- 岱崎出丸の間宮康俊の隊（数百。柵の内に鉄砲、後ろに槍と騎馬） ----
     F.dai = enemyGroup(rt, { faction: 'hojo', name: '間宮康俊の隊', anchor: { x: D.x + 6, z: D.z }, facing: 0.8, order: 'hold', aggro: 20, width: 12, morale: 95, formation: 'line', fleeDir: { x: 0, z: -1 }, dmgMult: 0.3 },
       dress([{ type: 'busho', n: 1, o: { name: '間宮康俊', hat: 'kabuto_m', haori: 0x4a3a28 } }, { type: 'gun', n: 16 }, { type: 'ashigaru', n: 28 + more(rt, 0.3) }, { type: 'samurai', n: 5 }, { type: 'cavalry', n: 3 }], HOJO));   // 騎馬は三騎（八騎の当たりで出丸の前で倒れ続けた。11/8 bot）

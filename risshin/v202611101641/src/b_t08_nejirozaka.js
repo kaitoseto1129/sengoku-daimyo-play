@@ -20,7 +20,7 @@ import { KIT } from './b_nagashinojo.js';
 import { addSite } from './map_sites.js';
 import { STAGES } from './stages.js';
 import { depthStart, depthTick, rest, fight, hold, move, depthBot } from './b_depth.js';
-import { depthRout } from './army_depth.js';
+import { depthRout, depthTaishoDown } from './army_depth.js';
 import { withGuard } from './toyo_bot.js';
 import { goalsTick } from './hud_goals.js';
 import { revealName } from './battle_intel.js';
@@ -735,7 +735,17 @@ t08_nejirozaka.force = (rt) => {
   const F = rt.flags;
   return { a: Math.max(0, 10000 - (F.ak || 0) * 20), a0: 10000, b: Math.max(0, 35000 - (F.ek || 0) * 40), b0: 35000 };
 };
-t08_nejirozaka.onKill = (rt, v) => { const F = rt.flags; if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1; };
+t08_nejirozaka.onKill = (rt, v) => {
+  const F = rt.flags;
+  if (v.team === 1) F.ek = (F.ek || 0) + 1; else F.ak = (F.ak || 0) + 1;
+  // 遠景の先手は本物の猿渡の隊と別の備。討死を伝え、大旗と手勢も崩す。
+  // 大将が生きた扱いのままだと、敗走後も坂下で再編してしまう。
+  const B = F.depth?.B;
+  if (v.team === 1 && v.name === '猿渡信光' && B) {
+    depthTaishoDown(B, 'saruwatari');
+    depthRout(B, 'saruwatari');
+  }
+};
 t08_nejirozaka.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '塀に付く' : '');
 // 始まりの札の二三行（kaito 五4）
 t08_nejirozaka.introText = () => '日向の根白坂の砦。今宵、島津勢が空堀を越えて寄せて来る。土橋の塀を守り抜き、斬り込む島津忠隣を討ち取れ。';
