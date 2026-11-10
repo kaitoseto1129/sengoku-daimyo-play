@@ -30,7 +30,6 @@ function release(rt, remaining) {
   rt.say('手勢の侍', remaining ? '残る者も退け！　殿、これ以上は持ちませぬ。川へ！' : '皆渡った！　殿、今じゃ。川へ！', 2.8);
   F.mText = '川を渡れ'; rt.obj('main', F.mText, 'main', true);
   rt.after(3, () => rt.say('十河存保', '行け！　振り返るな！', 2.4));
-  rt.after(9, () => rt.def.sogoFall?.(rt));
 }
 
 export function crossNow(rt) { return !!rt.flags.s4?.go; }
@@ -44,7 +43,15 @@ export function pin(rt, K) { return crossNow(rt) ? { x: K.FORD.x, z: 34 } : MOUT
 
 export function update(rt) {
   const S = rt.flags.s4, P = rt.player.u.pos;
-  if (!S || S.go) return;
+  if (!S) return;
+  if (S.go) {
+    // 下知だけでは退いた事にしない。本人が浅瀬へ入ってから、後ろに残る十河の討死を知らせる。
+    if (!S.fallQueued && P.z > -8 && Math.abs(P.x - MOUTH_N.x) < 22) {
+      S.fallQueued = true;
+      rt.after(9, () => rt.def.sogoFall?.(rt));
+    }
+    return;
+  }
   // 固定の加算では見回りが遅い時に殿の務めまで長くなる。
   const dt = Math.max(0, rt.t - (S.tickT ?? rt.t));
   S.tickT = rt.t;

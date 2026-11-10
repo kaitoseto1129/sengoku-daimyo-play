@@ -127,8 +127,10 @@ function plant(o) {
       const u = rt.player.u, p = u.pos;
       const near = u.alive && u.hp > 0 && !u.downed && !u.dying && !u.gone && !u.woundOut && !u.rearWound && !u.fleeing && Math.hypot(p.x - o.at.x, p.z - o.at.z) < 4.5;
       let calm = near;
+      // 制圧で退却の下知を受けた残兵は、柵に詰まっていても旗立てを妨げない。
       if (calm) for (const q of rt.army.units) if (q.team !== u.team && q.alive && q.hp > 0 && !q.downed && !q.dying && !q.gone &&
         !q.woundOut && !q.rearWound && !q.fleeing && !q.noTarget && !q.isStruct && !q.civ &&
+        !q.group?.routed && q.group?.order !== 'retreat' &&
         (q.pos.x - p.x) ** 2 + (q.pos.z - p.z) ** 2 < 36) { calm = false; break; }
       if (calm) C.t += dt;
       return C.t >= 3;
