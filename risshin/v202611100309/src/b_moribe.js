@@ -2916,6 +2916,7 @@ const moribe = {
   // 右上は目標①〜⑤を最初から全部並べ、済んだ物に印（goals5・標準 九-1・十-1）。
   goalsAllRows: true,
   goalVisibleRows: 5, // 共通の目標欄が読む設定名。今の目標を含む五つを並べる。
+  goalsVisibleRows: 5, // 八件の目標も順番を保ち、今の目標から五件までを表示する。
   goalRowsAhead: true,
   missionAlways: true, // 敵を狙う間も「▼の敵を倒せ」などの一行を残す。
   // 仲間の名札は一人だけ。密集しても五人分の文字を重ねない。
@@ -4260,8 +4261,8 @@ html body #hud.moribe-notices #battle-notices:not(.choosing) #objectives:not(.ex
       const Fd = rt.flags;
       if (t && t.team === 1 && src && !src.isPlayer && src.team === 0 && (t.group === Fd.HM || t.group === Fd.HN)) {
         // 減傷だけでは長い押し合いで全員討たれる。本人の手柄と殿の相手を各備に一人残す。
-        // 大将の討死は妨げず、本人の槍と追い討ちが始まった後の味方の槍はそのまま通す。
-        if (t.type === 'samurai' && (!Fd.ownHatamoto || !Fd.pursuit) &&
+        // 大将の討死は妨げず、本人の槍は通す。殿は追い討ちの下知だけでなく、組と接触してから味方が討てる。
+        if (t.type === 'samurai' && (!Fd.ownHatamoto || Fd.pursuit?.contactAt === undefined) &&
             !t.group.units.some((u) => u !== t && u.type === 'samurai' && moribeRemainFoe(u))) {
           if (rest[0]?.out) rest[0].out.res = 'block';
           return;

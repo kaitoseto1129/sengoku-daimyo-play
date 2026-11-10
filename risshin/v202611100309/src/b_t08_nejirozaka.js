@@ -506,7 +506,12 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
     // 締めが済むまで勝ちを確定しない。確定後は台詞と戦の更新が止まる。
     for (const g of rt.army.groups) {
       if (g.team === 0) { g.order = 'hold'; g.noPursue = true; g.historicalOrders = true; g.aggro = 0; g.seekRange = 0; }
-      else { g.noAI = false; g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true; g.anchor = { x: g.anchor.x, z: 240 }; g.aggro = 0; g.seekRange = 0; }
+      else {
+        // 坂の下の大将も床几を離れて退く。着座したまま滑って逃げない。
+        for (const u of g.units) if (u.alive) u._crouch = false;
+        g.noAI = false; g.order = 'retreat'; g.historicalOrders = true; g.noPursue = true;
+        g.anchor = { x: g.anchor.x, z: 240 }; g.aggro = 0; g.seekRange = 0;
+      }
     }
     sfx('horagai', 0.8);
     // 夜明け。島津は都於郡・佐土原へ退き、秀長の陣は尾藤知宣の言で追わなかった（義久が降るのは五月で、この朝の話ではない）

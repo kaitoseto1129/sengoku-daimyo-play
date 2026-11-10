@@ -222,14 +222,39 @@ function passGroundView(W, target, eye) {
 
 // 任務・ピン・頭上の印は同じ残敵を読む。退いた兵や建物は追わせない。
 const passFighter = EC_FUCHU.fighter;
+const PASS_COURTS = ['kannon', 'kinome_sou', 'kinome_fuku', 'kinome_hon'];
 function passZone(rt) {
   const F = rt.flags;
-  return F.SZ?.byId[!F.kannonFell ? 'kannon' : !F.souFell ? 'kinome_sou'
-    : (F.SZ.byId.kinome_fuku.owner !== 'friend' || EC_SEIEI.active(rt)) ? 'kinome_fuku' : 'kinome_hon'];
+  const zones = F.SZ?.byId;
+  if (!zones) return null;
+  // 勝ちの判定と同じく、制圧済みでも残敵が戻った手前の郭へ案内する。
+  for (const id of PASS_COURTS) {
+    const zone = zones[id];
+    if (zone && (zone.owner !== 'friend' || zone.enemies > 0 ||
+        id === 'kinome_fuku' && EC_SEIEI.active(rt))) return zone;
+  }
+  return zones.kinome_hon;
+}
+
+// 本道の小勢は、塀で隔てられていない寄せ手を開門前でも迎え撃つ。
+function passRoadEngage(rt) {
+  const F = rt.flags;
+  for (const b of F.roadGuards || []) {
+    const g = b.real;
+    if (!g?.count || g.routed || b._roadEngaged) continue;
+    const p = rt.player.u.pos, a = F.ake?.pos, c = b.pos;
+    const near = Math.hypot(c.x - p.x, c.z - p.z) < 45 && !rt.army.wallBetween(c, -1, p, false) ||
+      a && Math.hypot(c.x - a.x, c.z - a.z) < 35 && !rt.army.wallBetween(c, -1, a, false);
+    if (!near) continue;
+    b._roadEngaged = true;
+    g.stay = false;
+    b.order({ id: 'attack' });
+  }
 }
 function passGate(rt) {
-  const F = rt.flags;
-  return !F.kannonFell ? F.gateKannon : !F.souFell ? F.gateKinome : null;
+  const F = rt.flags, zone = passZone(rt);
+  return zone === F.SZ?.byId.kannon ? F.gateKannon
+    : zone === F.SZ?.byId.kinome_sou ? F.gateKinome : null;
 }
 function passNearestFoe(rt) {
   const F = rt.flags, me = rt.player.u, zone = passZone(rt);
@@ -293,7 +318,7 @@ Object.assign(echizen, {
     if (foe?.name) return `${foe.name}を倒せ`;
     const stage = this.missionOf(rt);
     if (rt.flags.echAdv) return this.missions[stage];
-    const place = rt.flags.kannonFell ? '木ノ芽峠城' : '観音丸';
+    const place = passZone(rt) === rt.flags.SZ?.byId.kannon ? '観音丸' : '木ノ芽峠城';
     if (stage === 0 && rt.flags.step) return `${place}の郭を味方と守れ`;
     if (stage === 1) return `${place}の木戸へ味方と進め`;
     return this.missions[stage].replaceAll('観音丸', place);
@@ -1602,6 +1627,7 @@ echizen.setup = function (rt) {
     return after.call(this, seconds, fn);
   };
   try { kinome.setup.call(this, rt); } finally { rt.after = after; }
+  passRoadEngage(rt);
   // 打って出る二十四人は passButai で始まりの札の前から準備し、後から重ねて足さない。
   // 開戦25秒（10/31）：木戸前に打って出た一揆勢は、先手と二十八秒まで崩れず揉み合い、互いの傷も浅い（兵の数は同じ）。後からは常の通り崩れて退く
   { const g = rt.flags.gateSally?.real;
@@ -2318,6 +2344,7 @@ echizen.update = function (rt, dt) {
     }
   }
   kinome.update.call(this, rt, dt);
+  passRoadEngage(rt);
   // 観音丸の寄せが七十秒を過ぎても郭が落ちない時、前田・佐々・不破の手が上がって来る（echizen/goryu.js）
   if (rt.flags.step && !rt.flags.kannonFell && !rt.flags.echGoryu && rt.t - (rt.flags.stepT ?? rt.t) > 70) EC_GORYU.start(rt, echGoryuCtx(rt));
   EC_GORYU.tick(rt, dt);
