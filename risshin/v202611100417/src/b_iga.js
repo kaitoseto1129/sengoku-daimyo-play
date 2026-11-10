@@ -3111,6 +3111,7 @@ function igaAdvance(g, at, guardCamp = false) {
   // 後列も寄せ口まで同じ折れ目をたどる。一直線の隊列で薪や柵へ引っ掛けない。
   g.order = 'path'; g.path = g.igaIngress; g.pathIdx = 0; g.formation = 'column'; g.colW = 2;
   g.roadColumn = true;
+  g.followColumnRoad = true; // 敵の後列にも、柵の口を回る道順を適用する。
   g.onArrive = (q) => {
     q.path = null;
     // 夜討ちは陣口で味方と戦う。傷を負って列の後ろへ下がる一人を陣奥まで追わない。
@@ -3398,6 +3399,7 @@ function retireRaid(rt, groups) {
     if (g.igaRetreat.length > 1) g.igaRetreat.shift();
     g.order = 'path'; g.path = g.igaRetreat; g.pathIdx = 0; g.dest = null;
     g.formation = 'column'; g.colW = 2; g.noAI = true;
+    g.roadColumn = true; g.followColumnRoad = true;
     g.onArrive = (q) => { q.order = 'retreat'; q.path = null; };
     if (home) { g.fleeDir.x = Math.sign(home.x); g.fleeDir.z = home.z > CAMP.z ? 1 : -1; }
   }

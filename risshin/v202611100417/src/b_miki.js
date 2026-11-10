@@ -1298,8 +1298,8 @@ html:root body #hud#hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals li
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode .pg-goals .goals-toggle { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #armybar .clock { visibility:hidden !important; }
 /* 専用の強い表示指定も、中断・地図・語り・結果の札を開く間は隠す。 */
-html:root body:is(:has(#intro:not([hidden]) > .card),:has(#pause:not([hidden])),:has(#screen:not([hidden])),:has(#cine.on)) #hud#hud#hud#hud#hud.miki-goals :is(#armybar#armybar#armybar,#h-prog#h-prog) { visibility:hidden !important; }
-html:root body #hud#hud#hud#hud#hud.miki-goals:is(.photo,.ending,:has(#bigmap:not([hidden]))) :is(#armybar#armybar#armybar,#h-prog#h-prog) { visibility:hidden !important; }
+html:root body:is(:has(#intro:not([hidden]) > .card),:has(#pause:not([hidden])),:has(#screen:not([hidden])),:has(#cine.on)) #hud#hud#hud#hud#hud.miki-goals :is(#armybar#armybar#armybar,#h-prog#h-prog,.miki-foe-marks) { visibility:hidden !important; }
+html:root body #hud#hud#hud#hud#hud.miki-goals:is(.photo,.ending,:has(#bigmap:not([hidden]))) :is(#armybar#armybar#armybar,#h-prog#h-prog,.miki-foe-marks) { visibility:hidden !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode > .pg-goals { display:block !important; }
 html:root body #hud#hud#hud.miki-goals #h-prog#h-prog.goal-mode {
@@ -1341,6 +1341,7 @@ function mikiGoalBoard(rt) {
   };
   // 印は使い回し、見通しの保存は共通の処理を使う。
   const foeMarks = hud.foeMarks, tris = [], box = document.createElement('div'), v = new THREE.Vector3();
+  box.className = 'miki-foe-marks';
   box.style.cssText = 'position:absolute;inset:0;pointer-events:none';
   box.setAttribute('aria-hidden', 'true');
   hud.root.appendChild(box);
@@ -1348,7 +1349,7 @@ function mikiGoalBoard(rt) {
     const out = foeMarks.call(this, battle);
     if (battle !== rt) return out;
     const me = rt.player.u;
-    const on = me.alive && !rt.over && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.classList.contains('photo');
+    const on = me.alive && !rt.over && !rt.flags.ending && !rt.game.paused && !rt.choice && !this.introWaiting && !rt.player.camShot && !this.bigmap && !this.root.hidden && !this.root.classList.contains('photo') && !this.root.classList.contains('ending');
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||

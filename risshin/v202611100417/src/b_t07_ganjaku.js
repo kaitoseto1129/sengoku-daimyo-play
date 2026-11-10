@@ -184,6 +184,8 @@ const t07_ganjaku = {
   camPull: 4.5,   // 11/2 カメラが兵に寄りすぎ：後ろへ引いて、坂の上の城と味方の列を一緒に写す
   // 部将として先頭を駆ける戦。受ける傷を六割に、戦っていない間は少しずつ息が戻る
   playerTaken: 0.33, playerRegen: 0.04,   // 15分の長い攻めなので、受ける傷を軽く（坂と門の矢で倒れ続けた。11/8 bot）
+  // 深手では、迫る一撃だけ受けて味方の陰へ退く。防御を優先し続けて回復のための退き方を止めない。
+  botGuardFlee: (rt) => !!rt.flags.botRest || rt.player.u.hp < rt.player.u.maxHp * 0.35,
   // 乱戦の濃さは控えめに（段の的の隊は寄せに引き抜かない）
   // 坂と門の段は時との勝負なので寄せの小勢を出さない（城の内へ入ってから乱戦）
   get alwaysMelee() { return CALM ? false : undefined; },

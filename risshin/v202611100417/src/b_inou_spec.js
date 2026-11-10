@@ -21,7 +21,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { victoryMoment } from './victory_moment.js';
 import { sfx } from './audio.js';
 import { goalsTick } from './hud_goals.js';
-import { GOALS, inouDid, inouEnemyAlive } from './b_inou_goals.js';
+import { GOALS, inouDid, inouEnemyAlive, inouLastFighter } from './b_inou_goals.js';
 import * as I15 from './inou/index.js';
 import { DEPTH_INOU } from './inou/depth.js';   // 陣立ての表（army_depth.js）   // 11/8 十五分の構成（行軍・林の前衛・横槍・勝家・余韻）
 
@@ -566,14 +566,14 @@ const inou_spec = {
         if (t.group === F.practice) return !from?.isPlayer;
         const v = F.v15;
         if (v && t === v.boss && !v.vanDone) return !from?.isPlayer;
-        if (v?.raidGs?.includes(t.group) && !v.raidPlayer && aliveIn(v.raidGs) <= 1) return !from?.isPlayer;
+        if (v?.raidGs?.includes(t.group) && !v.raidPlayer && inouLastFighter(v.raidGs, t)) return !from?.isPlayer;
         // 後の目標の敵を先に討ち切ると、その段の手柄を得られず進めなくなる。
         // 今の段だけでなく、まだ働いていない各段の最後の一人を残す。
         const stage = F.l1?.includes(t.group) ? 1 : F.l2?.includes(t.group) ? 2 : t.group === F.guardG ? 3 : null;
         if (stage == null || inouDid(rt, stage, 1)) return false;
         if (from?.isPlayer && F.stage === stage) return false;
         const groups = stage === 1 ? F.l1 : stage === 2 ? F.l2 : [F.guardG];
-        return aliveIn(groups) <= 1;
+        return inouLastFighter(groups, t);
       };
       A.damage = function (t, a, ...r) {
         const hp = t?.hp;

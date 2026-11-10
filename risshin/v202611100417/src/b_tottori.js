@@ -2950,7 +2950,8 @@ const tottori = {
       const head = escortRoadPoint(F, start, F.envWay), tx = head.x, tz = head.z;
       rt.scene.visible = false;
       let row = 0;
-      for (const u of g.units) if (u.alive) {
+      // 停戦の noTarget は歩ける供にも付く。討死の途中・転倒・深手だけを除き、倒れた場所へ残す。
+      for (const u of g.units) if (u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound) {
         const at = escortRoadPoint(F, start - row++ * 1.2, F.envWay);
         u.pos.x = at.x; u.pos.z = at.z; u.pos.y = W.heightAt(at.x, at.z); u.moveTo = null;
       }
@@ -2961,7 +2962,7 @@ const tottori = {
       const P = rt.player.u, px = behind.x, pz = behind.z;
       const sx = px - P.pos.x, sz = pz - P.pos.z;
       for (const q of rt.squadGroups || []) {
-        for (const u of q.units) if (u !== P && u.alive && !u.woundOut) { u.pos.x += sx; u.pos.z += sz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; }
+        for (const u of q.units) if (u !== P && u.alive && !u.dying && !u.downed && (u.hp == null || u.hp > 0) && !u.gone && !u.woundOut && !u.rearWound) { u.pos.x += sx; u.pos.z += sz; u.pos.y = W.heightAt(u.pos.x, u.pos.z); u.moveTo = null; }
         if (q.anchor) { q.anchor.x += sx; q.anchor.z += sz; }
       }
       P.pos.x = px; P.pos.z = pz; P.pos.y = W.heightAt(px, pz);
