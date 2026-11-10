@@ -82,6 +82,8 @@ const k04_kuisegawa = {
   victoryTitle: '東軍、退却',
   victoryCaption: '西軍の勝利　有馬の陣へ生還',
   missionSingleLine: true,
+  goalsAllRows: true,        // 一行表示でも五つの目標を最初から並べる。
+  goalsVisibleRows: 5,
   stageGoalsOnly: true,      // 右上は①〜⑤の段だけ（「敵を何人討つ」で埋めない・一段目を落とさない。三1・九1）
   noFrontFill: true,         // 作り物の乱戦を足さない（AP の 9）
   noCouriers: true,
@@ -485,7 +487,7 @@ const k04_kuisegawa = {
         else { g.order = 'attack'; g.seekRange = 12; }
       }
       for (const [g, b, dx, dz] of F.follow) {
-        if (!live(g) || !b || b.routedL) continue;
+        if (!live(g) || !b || b.routedL || g.chaseStopped) continue;
         const p = lightPos(b), to = { x: p.x + dx, z: p.z + dz };
         if (dist(g.center(), to) > 6) { g.order = 'move'; g.dest = to; g.speed = g.team ? 2.6 : 3.4; }
         else { g.order = g.team ? 'hold' : 'attack'; g.anchor = to; g.seekRange = g.team ? 10 : 14; }
@@ -521,7 +523,7 @@ const k04_kuisegawa = {
         const to = T(Math.min(PL.x, 30), PL.z);
         for (const b of [B.shima, B.akashi, B.bait]) if (b && !b.routedL && dist(lightPos(b), P.pos) > 30) this.go(b, to, 2.2, { charge: true });
       }
-      for (const g of rt.army.groups) if (g.team === 1 && g.count && g.kind !== 'main' && g !== F.guns && !g.interiorHold) {
+      for (const g of rt.army.groups) if (g.team === 1 && g.count && g !== F.guns && !g.interiorHold) {
         // 実兵の攻撃先も川の手前で止める。備だけを止めても、実兵は対岸の味方を追い続けていた。
         const c = g.center(), l = L(c);
         if (g.chaseStopped || l.x >= 28) {
@@ -530,6 +532,8 @@ const k04_kuisegawa = {
           else { g.order = 'hold'; g.anchor = c; }
           continue;
         }
+        // 左近・明石の旗本は備に従うが、川岸での停止は他の追手と同じ。
+        if (g.kind === 'main') continue;
         if (g.chaseSoft) continue;
         // 退却だけを理由に打撃を弱めず、追手は人の走りに近い速さで背へ迫る。
         g.chaseSoft = true; g.speed = 3;

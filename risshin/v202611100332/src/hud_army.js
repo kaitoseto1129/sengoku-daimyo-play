@@ -303,9 +303,9 @@ export class HudArmy {
     // 総勢・残数・兵力比は武者の目には分からない。目に入る兵の気配だけ。
     // 残りの人数は数で（kaito 10/23 稲生 21）。戦の定義に force があれば両軍の残り、無ければ目に入る兵の数。
     const f = this.liveForce(rt, rt.def.force?.(rt)) || this.countedForce(rt), fmt = (n) => `${Math.max(0, Math.round(n)).toLocaleString('ja-JP')}人`;
-    // 両軍の人数は数の字でなく、減っていくゲージで（kaito 10/23 稲生 47）。長さは多い方の初めの人数を満ちとする。
-    const full = f ? Math.max(1, f.a0 || f.a, f.b0 || f.b) : 1;
-    const ga = f ? Math.max(0, Math.min(100, f.a / full * 100)) : 0, gb = f ? Math.max(0, Math.min(100, f.b / full * 100)) : 0;
+    // 棒・減った分の帯・減少の知らせは、左右それぞれの初期人数を100%として揃える。
+    const [ra, rb] = f ? forceRatio(rt, f) : [0, 0];
+    const ga = ra * 100, gb = rb * 100;
     setText($('ab-a'), ''); setText($('ab-b'), '');
     // 両軍の今の兵の数を数で（九3・十二1「三万対八千が読めない」11/6 共通の係）。史料に総勢の無い戦は「仮」を頭に
     const num = (n) => (f?.provisional ? '仮' : '') + Math.max(0, Math.round(n)).toLocaleString('ja-JP');
@@ -317,7 +317,7 @@ export class HudArmy {
     $('ab-ga').parentElement.hidden = !f;
     $('ab-gb').parentElement.hidden = !f;
     // 一本の棒を真ん中で区切り、左半分は味方の最初の人数、右半分は敵の最初の人数を100%に。減った分だけその半分がグレー（十八の2・二十一の1）
-    if (f) { const [ra, rb] = forceRatio(rt, f); $('ab-ga').style.width = (ra * 50).toFixed(1) + '%'; $('ab-gb').style.width = (rb * 50).toFixed(1) + '%'; }
+    if (f) { $('ab-ga').style.width = (ra * 50).toFixed(1) + '%'; $('ab-gb').style.width = (rb * 50).toFixed(1) + '%'; }
     this.armyPct = { a: pa, b: pb };
     const lp = this.armyPeekAt || (this.armyPeekAt = { a: pa, b: pb });
     if (Math.abs(lp.a - pa) >= 4 || Math.abs(lp.b - pb) >= 4) { this.armyPeekAt = { a: pa, b: pb }; this.peekArmy(4); }

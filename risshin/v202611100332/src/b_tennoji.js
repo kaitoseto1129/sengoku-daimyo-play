@@ -3967,7 +3967,10 @@ body:has(#hud.tennoji-tasks) #tc .tb[data-b=guard] .name {
       if (!F.kidoCut && Math.hypot(p.x - F.kz.x, p.z - F.kz.z) <= 120) this.toKido(rt);
       let threat = 0, near = 0;
       for (const g of F.foes) for (const u of g.units) {
-        if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18) threat++;
+        // 木戸側へ退去済みの殿は、口の近くにいても迎撃の残敵には戻さない。
+        if (u.alive && !u.fleeing && !u.woundOut &&
+            !(g.kidoRetreat && u.pos.z <= F.kz.z - 12) &&
+            Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 18) threat++;
       }
       for (const g of F.fighters) for (const u of g.units) {
         if (u.alive && !u.fleeing && !u.woundOut && Math.hypot(u.pos.x - F.kz.x, u.pos.z - F.kz.z) < 30) near++;
@@ -4554,6 +4557,7 @@ tennoji.botBrain = (b, inp, { goTo, patientStrike }) => {
   // 構えを解く半秒の間、届く相手を保つ。柵越しや別の高さの兵は追わない。
   const previous = p.botStrikeFoe;
   const e = p.botStrikeUntil > p.time && previous && canFight(previous) && !previous.invuln &&
+    (F.step !== 4 || !F.kidoCut || F.kidoG.includes(previous.group) && !previous.group.kidoRetreat && previous.pos.z > KIDO.z - 12) &&
     Math.hypot(previous.pos.x - u.pos.x, previous.pos.z - u.pos.z) < reach ? previous :
     b.army.nearestEnemy(u, weak ? reach : F.step === 2 ? 5 : siege ? 9 : 12, (o) => canFight(o) && !o.invuln &&
       // 印へ着く前に迎撃する殿も払う。退く下知の出た組と木戸の奥は追わない。
