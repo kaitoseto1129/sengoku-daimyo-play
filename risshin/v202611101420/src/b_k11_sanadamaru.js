@@ -972,6 +972,8 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.nobuShown) return;
     F.nobuShown = true;
     const u = F.nobu.units.find((q) => q.name === '真田信繁');
+    // 先に討たれた将を、後の指揮の場面で立っている者として知らせない。
+    if (!u || !u.alive || u.gone || u.woundOut) return;
     const q = polar(0.14, WALL_R - 1.4), y = rt.world.heightAt(q.x, q.z);
     const flag = nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 4.8);
     rt.scene.add(flag);

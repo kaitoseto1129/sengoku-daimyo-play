@@ -2670,19 +2670,19 @@ const iga = {
       if (rt.t >= F.bridgeGuideAt) { F.bridgeGuideAt = rt.t + 0.35; igaBridgeWay(rt); }
       let friends = 0, foes = 0;
       for (const u of rt.army.units) {
-        if (!u.alive || u.fleeing || u.woundOut || u.noTarget || u.isStruct || u.group?.civ ||
+        if (!igaReady(u) || u.isStruct || u.group?.civ ||
             Math.abs(u.pos.y - bridgeY) >= 3 || Math.hypot(u.pos.x - F.bridge.x, u.pos.z - F.bridge.z) >= 24) continue;
         if (u.team === 0) friends++; else foes++;
       }
       let supported = false;
-      for (const u of F.ram.units) if (u.alive && !u.fleeing && !u.woundOut && !u.noTarget &&
+      for (const u of F.ram.units) if (igaReady(u) &&
           Math.abs(u.pos.y - bridgeY) < 3 && Math.abs(p.y - u.pos.y) < 3 && Math.hypot(u.pos.x - F.bridge.x, u.pos.z - F.bridge.z) < 24 && Math.hypot(p.x - u.pos.x, p.z - u.pos.z) < 12 && !rt.army.wallBetween(p, -1, u.pos)) { supported = true; break; }
       // 平面上で近い下段の道を到着としない。実際に土橋へ着いてから守備を始める。
       if (F.bridgeStarted == null && atBridge) F.bridgeStarted = rt.t;
       const elapsed = F.bridgeStarted == null ? 0 : rt.t - F.bridgeStarted;
       if (F.bridgeStarted != null && elapsed >= 8 && !F.sally.igaSent) {
         igaAdvance(F.sally, F.bridge);
-        F.sally.focus = F.ram.units.find((u) => u.alive && !u.fleeing && !u.woundOut && !u.noTarget) || null;
+        F.sally.focus = F.ram.units.find(igaReady) || null;
         rt.say('足軽', '東の林から出たがね！　土橋の味方が危ねえ！', 3);
       }
       if (F.bridgeStarted != null && elapsed >= 24 && !F.bridgeVolley) {
