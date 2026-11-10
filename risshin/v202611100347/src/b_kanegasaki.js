@@ -2358,7 +2358,11 @@ function kgContactTick(rt, dt) {
       // 前の備の残兵だけで、まだ着いていない目標の追手を受けたことにしない。
       // 川の砦では、騎馬の追手の馬上の兵が橋を渡って届くことも要る。
       // 砦までの距離だけでは橋上の騎馬も入る。味方の合流と同じく、南の取付坂を渡り切ってから数える。
-      if (wave?.includes(u.group) && (line !== 1 || (u.group.kgWaveRoot || u.group) === F.w2?.[0] && u.mounted && u.pos.z >= 22)) targetContact = true;
+      // 一の備と狭路は、この段で歩いて来た補充の後続も追手として数える。
+      // 最初の組が退いた後、後続と戦い続けても未接触のまま期限切れにしない。
+      // 川の砦だけは、目標に書いた騎馬が橋を渡る条件を保つ。
+      const currentWave = wave?.includes(u.group) || line !== 1 && F.dpOn && F.dp?.cur?.groups?.includes(u.group);
+      if (currentWave && (line !== 1 || (u.group.kgWaveRoot || u.group) === F.w2?.[0] && u.mounted && u.pos.z >= 22)) targetContact = true;
     }
     F.engaged = n;
     const ca = F.contactAt || (F.contactAt = [null, null, null]);
