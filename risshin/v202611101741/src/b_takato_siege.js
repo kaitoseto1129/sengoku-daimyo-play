@@ -1846,7 +1846,8 @@ const takato_siege = {
     const occupied = (id, foothold = false) => {
       let n = 0, enemy = 0;
       for (const u of rt.army.units) {
-        if (!siegeFighter(u) || !F.C.kuruwa[id].test(u.pos.x, u.pos.z)) continue;
+        if (!siegeFighter(u) || !F.C.kuruwa[id].test(u.pos.x, u.pos.z) ||
+            Math.abs(u.pos.y - rt.world.heightAt(u.pos.x, u.pos.z)) >= 3) continue;
         if (u.team === 0) n++; else enemy++;
       }
       const zone = F.SZ.byId[id];
@@ -1863,7 +1864,10 @@ const takato_siege = {
     // 味方が要る数だけ曲輪に入って九十秒斬り合っても討ち取りが足りない時も同じ（本人が三の丸で長屋の中の城兵に構えたまま三百秒）
     const footT = F.attrFoot || (F.attrFoot = {});
     const longIn = (id) => {
-      if (rt.player.u.alive && F.C.kuruwa[id].test(pp.x, pp.z)) inside[id] ??= rt.t;
+      // 曲輪から退いた時間や、同じ平面位置の堀底で待った時間は制圧に数えない。
+      if (siegeFighter(rt.player.u) && F.C.kuruwa[id].test(pp.x, pp.z) &&
+          Math.abs(pp.y - rt.world.heightAt(pp.x, pp.z)) < 3) inside[id] ??= rt.t;
+      else inside[id] = null;
       if (occupied(id, true)) footT[id] ??= rt.t; else footT[id] = null;
       return inside[id] != null && rt.t - inside[id] >= 75 || footT[id] != null && rt.t - footT[id] >= 90;
     };
@@ -1968,6 +1972,18 @@ const takato_siege = {
     if (F.DA) F.DA.tick(dt);
     if (F.step >= 1) { tickRoutes(F.movers); if (F.refresh) this.checkAttrition(rt); }
     tkStuck(rt, this.guideMarker?.(rt));   // 段差や堀へ落ちて抜けられない時（takato/stuck.js）
+    // 11/10 クラウドの正式の流し：二の丸を取った後、本丸門をだれも打たず（寄せ手は土橋の手前・本人は搦手の側）四百秒止まった。
+    //   二の丸が落ちて百五十秒たち、本丸の二つの門が九十秒だれにも打たれなければ、味方の掛矢で破れる（使番の声だけ）
+    if (F.niFell && !F.honFell && !F.ending && rt.t - (F.niT ?? rt.t) > 150) {
+      const gs = [F.gates.honOuter, F.gates.honInner].filter((g) => g && !g.opened);
+      const hp = gs.reduce((n, g) => n + (g.struct?.hp || 0), 0);
+      if (F.tkHonHp !== hp) { F.tkHonHp = hp; F.tkHonHpT = rt.t; }
+      if (gs.length && rt.t - F.tkHonHpT > 90) {
+        for (const g of gs) if (g.struct) g.struct.hp = 0;
+        F.tkHonHpT = rt.t;
+        rt.say('使番', '本丸の門、味方の掛矢で打ち破ったり！　本丸へ懸かれ！', 3.4);
+      }
+    }
 
     // 西の切岸の梯子：着いた兵を一人ずつ登らせ、守りが時おり押し倒す
     if (F.nishiLadder2 && F.nishiLadder2.hp > 0) {

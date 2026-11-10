@@ -3923,7 +3923,7 @@ const kanegasaki = {
     // 総大将の義景・長政は後方の本陣で座ったまま（前へ寄せない。kaito 一2）
     for (const g of [F.yoshikage, F.nagamasa]) if (g && (g.order !== 'hold' || g.aggro)) {
       g.order = 'hold'; g.aggro = 0; g.seekRange = 0; g.path = null;
-      g.anchor = g === F.yoshikage ? { x: -8, z: -168 } : { x: 46, z: 172 };
+      g.anchor = g === F.yoshikage ? { x: -8, z: -160 } : { x: 46, z: 172 };
     }
     retreatFieldTick(rt);
     kgStragglers(rt);

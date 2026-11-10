@@ -3814,9 +3814,14 @@ function fordTick(rt) {
   }
   for (const g of F.pursuit || []) {
     if (!g.tedoActive || g.routed) continue;
-    if (g.tedoRole === 'ranged') { g.focus = fordTarget; continue; }
-    if (g.tedoRole === 'second') { g.focus = weak; continue; }
-    if (g.tedoRole === 'horse') g.focus = weakScore < 1.5 ? weak : null;
+    // 渡河の経路や川岸で待つ下知を、毎秒の狙い直しで破らない。
+    // 北岸の手負いを再び狙うと、渡る先手が引き返し、待つ後続も列を離れる。
+    if (g.noHunt || g.retreatOnly || g.order === 'path') { g.focus = null; continue; }
+    if (g.order === 'attack' && !g.tedoRelieved) {
+      if (g.tedoRole === 'ranged') { g.focus = fordTarget; continue; }
+      if (g.tedoRole === 'second') { g.focus = weak; continue; }
+      if (g.tedoRole === 'horse') g.focus = weakScore < 1.5 ? weak : null;
+    } else g.focus = null;
     if (g.tedoRole === 'front' || g.tedoRole === 'horse') {
       if (relief && F.step === 2 && !g.tedoRelieved) {
         g.tedoRelieved = true; g.order = 'hold'; g.aggro = 3;

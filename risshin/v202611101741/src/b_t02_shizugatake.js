@@ -201,6 +201,13 @@ const shoreLeft = (groups) => (groups || []).reduce((n, g) => n + (g.routed || g
 // 柵や倒れた負傷兵を守備兵・寄せ手に数えない。
 const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && !u.isStruct && !u.civ && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound && u.team === team && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r ? 1 : 0), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// 段を離れた後や敗北後に、古い知らせ・柵の破壊・追手の追加を実行しない。
+function phaseAfter(rt, sec, fn) {
+  const phase = rt.flags.phase;
+  rt.after(sec, () => {
+    if (!rt.over && !rt.flags.ending && rt.flags.phase === phase) fn();
+  });
+}
 const MOUTH = { x: FORT.x + FORT.r + 4, z: FORT.z };     // 賤ヶ岳の砦の東の口（柵の切れ目）
 const DAWN_AT = { x: -82, z: 256 };                      // 夜明けに主人公が立つ所（砦の西の肩。切通しの口まで三十五歩ほど）
 // 目標（goals5.js が並べる。段の一行は場所と行い。四つの段だけ。「敵を何人討つ」で埋めない・stageGoalsOnly。携帯の横で一行に収まる長さ）
@@ -567,7 +574,7 @@ const t02_shizugatake = {
     F.maedaG.kind4 = 'maeda'; F.groups.push(F.maedaG);
     for (const u of F.maedaG.units) u.noTarget = true;
     this.buildOiwa(rt);
-    rt.after(1.2, () => { if (!rt.over && !F.ending && F.phase === 0) { F.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); } });
+    phaseAfter(rt, 1.2, () => { if (!rt.over && !F.ending && F.phase === 0) { F.holdPlayer = false; Open.startOpen(rt, this.ctx(rt)); } });
   },
 
   // 段の中身（t02_shizugatake/*.js）へ渡す道具
@@ -637,12 +644,12 @@ const t02_shizugatake = {
     this.enter(rt, 0.8);
     try {
       F.sakuCol = W.addDistantArmy({ x: GYOICHI.x + 40, z: GYOICHI.z + 60, w: 12, d: 30, count: 260, facing: Math.PI * 0.9, armor: 0x2a2420, flagTex: flagTexture(SAKUMA.flag), mon: SAKUMA.flag, seed: 15851, team: 1, kind: 'mixed', host: false, farFill: true });
-      rt.after(1, () => { try { F.sakuCol?.moveTo(SAKU_START.x - 20, SAKU_START.z - 70, 70); } catch (e) { /* 遠景 */ } });
+      phaseAfter(rt, 1, () => { try { F.sakuCol?.moveTo(SAKU_START.x - 20, SAKU_START.z - 70, 70); } catch (e) { /* 遠景 */ } });
     } catch (e) { F.sakuCol = null; }
     rt.army.play('horagai', { x: SAKU_START.x, z: SAKU_START.z - 40 }, 1.0);
-    rt.after(0.4, () => rt.say('物見', '行市山の旗が動いた！　……少ない。いや、後ろから続々と下りて来る', 3.4));
-    rt.after(4.6, () => rt.say('使番', '佐久間盛政勢、山を下ります！', 3));
-    rt.after(8.4, () => rt.say('桑山重晴', 'どの砦を狙うておる。湖の西の岸を見張れ', 3));
+    phaseAfter(rt, 0.4, () => rt.say('物見', '行市山の旗が動いた！　……少ない。いや、後ろから続々と下りて来る', 3.4));
+    phaseAfter(rt, 4.6, () => rt.say('使番', '佐久間盛政勢、山を下ります！', 3));
+    phaseAfter(rt, 8.4, () => rt.say('桑山重晴', 'どの砦を狙うておる。湖の西の岸を見張れ', 3));
     for (const g of [F.saku, F.mori]) if (live(g)) {
       let i = 0;
       const step = (q) => {
@@ -664,8 +671,8 @@ const t02_shizugatake = {
     if (!F.turned && (c && c.x > -30 && c.z < 236 || st > 70)) {
       F.turned = true;
       rt.say('物見', '東へ折れた……大岩山だ！', 3);
-      rt.after(3.2, () => { if (!rt.over && !F.ending && F.phase === 0.8) rt.say('桑山重晴', '中川殿が危ない。加勢に走れ！', 2.8); });
-      rt.after(3.6, () => { if (!rt.over && !F.ending && F.phase === 0.8) this.relief(rt); });
+      phaseAfter(rt, 3.2, () => { if (!rt.over && !F.ending && F.phase === 0.8) rt.say('桑山重晴', '中川殿が危ない。加勢に走れ！', 2.8); });
+      phaseAfter(rt, 3.6, () => { if (!rt.over && !F.ending && F.phase === 0.8) this.relief(rt); });
     }
   },
   // ③ 大岩山へ走る。着く前に戦はもう始まっている（逃げて来る手負い・逆へ走る使番・遠くの鉄砲）
@@ -681,8 +688,8 @@ const t02_shizugatake = {
     F.hurtG = allyGroup(rt, { name: '中川の手負い', fullStrength: true, anchor: { x: 52, z: 168 }, facing: -2.4, width: 3, aggro: 0, seekRange: 0, order: 'move', dest: { ...MOUTH }, speed: 2.2, noAI: true, noRout: true },
       [{ type: 'ashigaru', n: 4, o: { flag: null } }]);
     for (const u of F.hurtG.units) { u.hp = Math.min(u.hp, u.maxHp * 0.4); u.noTarget = true; }
-    rt.after(5, () => rt.say('中川の足軽', '大岩山は持たぬ……南の柵に槍が取り付いた！', 3));
-    rt.after(14, () => { if (F.phase === 1) rt.say('使番', '桑山様へ！　中川様より、加勢を乞うとの由！', 3); });
+    phaseAfter(rt, 5, () => rt.say('中川の足軽', '大岩山は持たぬ……南の柵に槍が取り付いた！', 3));
+    phaseAfter(rt, 14, () => { if (F.phase === 1) rt.say('使番', '桑山様へ！　中川様より、加勢を乞うとの由！', 3); });
   },
   // ④ 南の柵を守る（外の柵が破れ始める）
   south(rt) {
@@ -690,7 +697,7 @@ const t02_shizugatake = {
     this.enter(rt, 1.3);
     for (const g of [F.naka, F.nakaH]) if (live(g)) { g.anchor = { x: OI_SOUTH.x + (g === F.naka ? 3 : 0), z: OI_SOUTH.z - (g === F.naka ? 3 : 0) }; g.aggro = 10; g.seekRange = 9; }
     rt.say('中川清秀', '来たか！　南の柵じゃ。槍を揃えて押し返せ！', 3);
-    rt.after(16, () => { if (F.phase === 1.3 && this.breakOiwa(rt, -0.7, 0.35, 2)) rt.say('中川の家臣', '外の柵が破れた！', 2.4); });
+    phaseAfter(rt, 16, () => { if (F.phase === 1.3 && this.breakOiwa(rt, -0.7, 0.35, 2)) rt.say('中川の家臣', '外の柵が破れた！', 2.4); });
   },
   // ⑤ 西の斜面へ兵を回す（側面の山道から別の手が登る）
   west(rt) {
@@ -699,7 +706,7 @@ const t02_shizugatake = {
     F.wB = this.wave(rt, '佐久間の別手', { x: OI.x - 40, z: OI.z - 6 }, { x: OI.x - 14, z: OI.z - 1 }, foeList(10, { flag: SAKUMA.flag }), { seek: 14 });
     for (const g of [F.naka, F.nakaH]) if (live(g)) g.anchor = { x: OI_WEST.x + (g === F.naka ? 3 : 0), z: OI_WEST.z };
     rt.say('中川清秀', '西の山道からも登って来るぞ！　兵を回せ！', 3);
-    rt.after(14, () => { if (F.phase === 1.6 && this.breakOiwa(rt, -1.5, 0.3, 2)) rt.say('中川の家臣', '南の守りが破られた！　西の柵も揺らいでおる！', 2.8); });
+    phaseAfter(rt, 14, () => { if (F.phase === 1.6 && this.breakOiwa(rt, -1.5, 0.3, 2)) rt.say('中川の家臣', '南の守りが破られた！　西の柵も揺らいでおる！', 2.8); });
   },
   // ⑥ 中川の本陣へ合わさる（後ろ寄りから鉄砲。小門の脇が破れ、土塁の内に敵）
   hq(rt) {
@@ -709,7 +716,7 @@ const t02_shizugatake = {
     F.wC = this.wave(rt, '佐久間の鉄砲', { x: OI.x + 14, z: OI.z - 38 }, { x: OI.x + 6, z: OI.z - 19 }, [{ type: 'gun', n: 6, o: { flag: SAKUMA.flag } }, { type: 'ashigaru', n: 4, o: { flag: SAKUMA.flag } }], { seek: 12 });
     rt.army.play('gun', { x: OI.x + 10, z: OI.z - 30 }, 1.4);
     rt.say('中川清秀', '後ろの尾根に鉄砲じゃ！　本陣へ寄れ、まとまって守れ！', 3);
-    rt.after(10, () => { if (F.phase === 1.8 && this.breakOiwa(rt, 0.35, 0.25, 2)) rt.say('中川の家臣', '小門が破られた！　土塁の内に敵が！', 2.8); });
+    phaseAfter(rt, 10, () => { if (F.phase === 1.8 && this.breakOiwa(rt, 0.35, 0.25, 2)) rt.say('中川の家臣', '小門が破られた！　土塁の内に敵が！', 2.8); });
   },
   // 一瞬「救える」と見せた後、盛政の本隊が入る
   sakuIn(rt) {
@@ -717,8 +724,8 @@ const t02_shizugatake = {
     if (F.sakuIn) return;
     F.sakuIn = rt.t;
     rt.say('中川清秀', '押し返したか……', 2);
-    rt.after(2.4, () => rt.say('中川の家臣', '新手じゃ！　玄蕃の本隊が南の坂を登って参る！', 3));
-    rt.after(6, () => { if (live(F.mori)) rt.say('佐久間盛政', '鬼玄蕃はこれにあり。大岩山を揉み潰せ', 3); });
+    phaseAfter(rt, 2.4, () => rt.say('中川の家臣', '新手じゃ！　玄蕃の本隊が南の坂を登って参る！', 3));
+    phaseAfter(rt, 6, () => { if (live(F.mori)) rt.say('佐久間盛政', '鬼玄蕃はこれにあり。大岩山を揉み潰せ', 3); });
     for (const g of [F.saku, F.mori]) if (live(g)) {
       if (g === F.saku) for (const u of g.units) u.noTarget = false;
       g.march = false; g.onArrive = null; g.order = 'move'; g.speed = 3.6;
@@ -733,7 +740,7 @@ const t02_shizugatake = {
     const F = rt.flags;
     this.enter(rt, 2);
     rt.say('中川清秀', 'これまでじゃ。わしは残る。兵を連れて退け！', 3.2);
-    rt.after(3.6, () => rt.say('中川清秀', '振り向くな。賤ヶ岳で生きて槍を振るえ', 3));
+    phaseAfter(rt, 3.6, () => rt.say('中川清秀', '振り向くな。賤ヶ岳で生きて槍を振るえ', 3));
     // 中川と侍だけが本陣に残り、足軽と鉄砲は主人公と坂を下る
     if (live(F.nakaH)) {
       const g = F.nakaH;
@@ -748,7 +755,7 @@ const t02_shizugatake = {
     if (F.lookedBack) return;
     F.lookedBack = rt.t;
     // 敗北や再開後に、前の戦の討死・旗の交替・次の任務を動かさない。
-    const after = (sec, fn) => rt.after(sec, () => { if (!rt.over && !F.ending && F.phase === 2) fn(); });
+    const after = (sec, fn) => phaseAfter(rt, sec, () => { if (!rt.over && !F.ending && F.phase === 2) fn(); });
     // 旗の交替は操作中に起こす。振り返る向きは主人公に任せる。
     after(1.8, () => {
       // 中川の旗が倒れる（長い死のムービーは出さない）
@@ -782,8 +789,8 @@ const t02_shizugatake = {
     for (const g of [F.wA, F.wB, F.wC, F.saku]) if (live(g)) { g.order = 'hold'; g.focus = null; g.onArrive = null; g.anchor = g === F.saku ? { x: OI.x - 6, z: OI.z + 4 } : { x: OI.x + (g === F.wC ? 5 : -3), z: OI.z + (g === F.wA ? 4 : -2) }; g.aggro = 8; g.seekRange = 9; g.kind4 = 'oiwa'; }
     if (live(F.mori)) { F.mori.order = 'move'; F.mori.dest = { x: OI.x - 4, z: OI.z + 2 }; F.mori.onArrive = (q) => { q.order = 'hold'; }; }
     rt.say('桑山重晴', '賤ヶ岳の東の口まで下がれ。退く者を拾え！', 3);
-    rt.after(8, () => { if (F.phase === 2.3) { rt.say('使番', '岩崎山の高山様、砦を捨てて退かれまする！', 3); this.oiFlags(rt, 'sakuma'); } });
-    rt.after(14, () => { if (F.phase === 2.3) rt.say('桑山重晴', '賤ヶ岳は退かぬ。ここで支えるぞ', 2.8); });
+    phaseAfter(rt, 8, () => { if (F.phase === 2.3) { rt.say('使番', '岩崎山の高山様、砦を捨てて退かれまする！', 3); this.oiFlags(rt, 'sakuma'); } });
+    phaseAfter(rt, 14, () => { if (F.phase === 2.3) rt.say('桑山重晴', '賤ヶ岳は退かぬ。ここで支えるぞ', 2.8); });
     // 追手が坂を上がって来る（二度）
     const w = (x, z, n) => {
       F.waves++;
@@ -800,8 +807,8 @@ const t02_shizugatake = {
     F.niwaG = allyGroup(rt, { name: '丹羽長秀の隊', fullStrength: true, anchor: { x: FORT.x + 5, z: FORT.z + 5 }, facing: Math.PI / 2, width: 4, aggro: 2, seekRange: 4, order: 'hold', noRout: true, noAI: true },
       [{ type: 'busho', n: 1, o: { name: '丹羽長秀', invuln: true, flag: NIWA } }, { type: 'samurai', n: 3, o: { flag: NIWA } }, { type: 'ashigaru', n: 8, o: { flag: NIWA } }, { type: 'gun', n: 4, o: { flag: NIWA } }]);
     rt.say('桑山重晴', '琵琶湖を渡った丹羽殿の加勢じゃ。東の口を支えよ！', 3);
-    rt.after(10, () => { if (F.phase === 2.3) w(18, 236, 9); });
-    rt.after(34, () => { if (F.phase === 2.3) w(4, 250, 9); });
+    phaseAfter(rt, 10, () => { if (F.phase === 2.3) w(18, 236, 9); });
+    phaseAfter(rt, 34, () => { if (F.phase === 2.3) w(4, 250, 9); });
   },
   // ⑨ 秀吉の大返し：遠くに大量の旗と土煙。逃げていた羽柴の兵が振り返る
   returnHide(rt) {
@@ -837,10 +844,10 @@ const t02_shizugatake = {
     const fireAt = W.fires.length;
     F.returnTorches = carryTorches(W, [...F.hide.units.slice(1, 4), ...F.uma.units.slice(0, 3)], { size: 0.5 });
     F.returnTorchFires = W.fires.slice(fireAt);
-    rt.after(0.6, () => rt.say('使番', '秀吉様、お戻りです！　大垣より十三里、北国街道に旗が続いておりまする！', 3.4));
-    rt.after(4.6, () => rt.say('桑山重晴', '皆、振り返れ。筑前様の旗じゃ！', 2.8));
-    rt.after(8.4, () => rt.say('中川の足軽', '……殿の弔い合戦じゃ', 2.6));
-    rt.after(12, () => rt.say('桑山重晴', '東の肩の道へ下り、筑前様を迎えよ', 2.8));
+    phaseAfter(rt, 0.6, () => rt.say('使番', '秀吉様、お戻りです！　大垣より十三里、北国街道に旗が続いておりまする！', 3.4));
+    phaseAfter(rt, 4.6, () => rt.say('桑山重晴', '皆、振り返れ。筑前様の旗じゃ！', 2.8));
+    phaseAfter(rt, 8.4, () => rt.say('中川の足軽', '……殿の弔い合戦じゃ', 2.6));
+    phaseAfter(rt, 12, () => rt.say('桑山重晴', '東の肩の道へ下り、筑前様を迎えよ', 2.8));
     this.withdrawRaid(rt);
   },
   // 打ち切った追手は実際に坂を退く。古い経路や到着処理で東の口へ戻さない。
@@ -873,8 +880,8 @@ const t02_shizugatake = {
       g.order = 'move'; g.speed = 3.4; g.dest = { x: OI_GATE.x + dx, z: OI_GATE.z + dz }; g.path = null;
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 24; q.aggro = 14; };
     }
-    rt.after(2, () => rt.say('羽柴秀吉', '中川の弔い合戦じゃ。大岩山を取り返せ！', 3));
-    rt.after(6, () => rt.say('中川の足軽', '南の柵は昨日破れたままじゃ。あそこから入れる！', 3));
+    phaseAfter(rt, 2, () => rt.say('羽柴秀吉', '中川の弔い合戦じゃ。大岩山を取り返せ！', 3));
+    phaseAfter(rt, 6, () => rt.say('中川の足軽', '南の柵は昨日破れたままじゃ。あそこから入れる！', 3));
     rt.army.play('toki', { ...OI_BACK }, 1.2);
     sfx('taiko', 0.9); sfx('horagai', 0.9);
     sevenSpears(rt, this.ctx(rt), 'oiwa');
@@ -905,7 +912,7 @@ const t02_shizugatake = {
     rt.award((t) => t.side.push('大岩山を取り返した'), '大岩山を取り返した');
     rt.army.play('toki', { ...OI }, 1.3);
     rt.say('福島正則', '大岩山、取り返したり！', 2.6);
-    rt.after(3.2, () => rt.say('佐久間盛政', '退くな。備を立て直せ。鬼玄蕃の槍はまだ折れぬ', 3));
+    phaseAfter(rt, 3.2, () => rt.say('佐久間盛政', '退くな。備を立て直せ。鬼玄蕃の槍はまだ折れぬ', 3));
     if (live(F.saku)) { F.saku.order = 'hold'; F.saku.anchor = { ...SAKU_LINE }; F.saku.aggro = 12; F.saku.seekRange = 16; F.saku.dmgMult = 0.36; F.saku.kind4 = 'saku'; }
     // 北の柵は残っている。砦内で戦った備は南の小門でまとまり、東から北へ回る。
     for (const [g, dx, dz] of [[F.yari, -4, 8], [F.uma, 6, 10]]) if (live(g)) {
@@ -949,9 +956,9 @@ const t02_shizugatake = {
     if (F.maedaGo) return;
     this.withdrawMaeda(rt);
     rt.say('使番', '茂山の前田勢、陣を払うて退きまする！', 3);
-    rt.after(3.4, () => rt.say('羽柴秀吉', '又左が退いたか……。柴田と前田まで分かれたな', 3));
-    rt.after(7, () => rt.say('佐久間盛政', '前田殿が退いたじゃと……。退け、退け', 3));
-    rt.after(9, () => this.pushShibata(rt));
+    phaseAfter(rt, 3.4, () => rt.say('羽柴秀吉', '又左が退いたか……。柴田と前田まで分かれたな', 3));
+    phaseAfter(rt, 7, () => rt.say('佐久間盛政', '前田殿が退いたじゃと……。退け、退け', 3));
+    phaseAfter(rt, 9, () => this.pushShibata(rt));
   },
   withdrawMaeda(rt) {
     const F = rt.flags;
@@ -983,8 +990,8 @@ const t02_shizugatake = {
     this.northMarch(rt, NORTH_BACK, true);
     rt.army.play('horagai', { ...KATSUIE }, 0.9);
     rt.say('使番', '柴田の先手、北国街道より下って参りまする。後ろに修理亮の旗！', 3.2);
-    rt.after(4, () => rt.say('羽柴秀吉', '柴田の備を押せ。大軍が崩れるのは今ぞ', 3));
-    rt.after(10, () => rt.say('古い足軽', '稲生では柴田の槍に押されたもんじゃが……今はこっちが押しておる', 3.4));
+    phaseAfter(rt, 4, () => rt.say('羽柴秀吉', '柴田の備を押せ。大軍が崩れるのは今ぞ', 3));
+    phaseAfter(rt, 10, () => rt.say('古い足軽', '稲生では柴田の槍に押されたもんじゃが……今はこっちが押しておる', 3.4));
     sevenSpears(rt, this.ctx(rt), 'push');
   },
 
@@ -997,7 +1004,7 @@ const t02_shizugatake = {
 
   update(rt, dt) {
     const F = rt.flags;
-    if (F.ending || !F.phase) return;
+    if (rt.over || F.ending || !F.phase) return;
     const P = rt.player.u;
     F.returnTorches?.update();
     if ((F.scanT = (F.scanT || 0) - dt) > 0) return;
@@ -1054,7 +1061,7 @@ const t02_shizugatake = {
       case 2.6: {
         const came = F.hideArrived;
         // 夜の光へ移る四十五秒と、秀吉本人の到着を待って迎える。
-        if (near(JOIN, 14) && came && st > 45) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); rt.after(3.4, () => { if (!rt.over && !F.ending && F.phase === 2.6) this.retake(rt); }); } }
+        if (near(JOIN, 14) && came && st > 45) { if (!F.metHide) { F.metHide = true; rt.say('羽柴秀吉', 'よう生きて戻った。玄蕃め、深入りしおったわ', 3); phaseAfter(rt, 3.4, () => { if (!rt.over && !F.ending && F.phase === 2.6) this.retake(rt); }); } }
         return;
       }
       case 3:
@@ -1088,7 +1095,7 @@ const t02_shizugatake = {
           F.katOut = rt.t;
           this.routShibataDepth(rt);
           rt.say('柴田勝家', '……退け。北ノ庄へ退け', 3);
-          rt.after(3.2, () => rt.say('羽柴秀吉', '深追いはならぬ。勝家は北ノ庄で詰める', 3));
+          phaseAfter(rt, 3.2, () => rt.say('羽柴秀吉', '深追いはならぬ。勝家は北ノ庄で詰める', 3));
           for (const g of [F.kat, F.kmG]) if (live(g)) { g.order = 'retreat'; g.focus = null; g.onArrive = null; g.path = null; g.dest = { x: g.center().x, z: -330 }; g.speed = 2.6; g.kind4 = 'flee'; for (const u of g.units) u.noTarget = true; }
           for (const g of [F.yari, F.uma]) if (live(g)) { g.order = 'hold'; g.anchor = { x: g.center().x, z: g.center().z }; g.focus = null; g.onArrive = null; }
         }
