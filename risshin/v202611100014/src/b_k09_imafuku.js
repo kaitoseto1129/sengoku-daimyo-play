@@ -409,13 +409,14 @@ const k09_imafuku = {
       // 砦で踏みとどまる段（③）は、手当てに退く所も砦の東の口（KEEP から三十歩）まで。堤の東へ八十歩退いて持ち場を離れ、刻限で負けた（11/9 見回り 徳川D）
       botBackAllowed: (rt2, x, z) => Math.abs(z) < BANK && (rt2.flags?.dp?.cur?.s.kind !== 'hold' || Math.hypot(x - KEEP.x, z - KEEP.z) < 30),
       routeFight: true };
-    // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆は隠れた所から
-    const onBank = (l) => { ctx.fixedSpawn = true; return l; }, hidden = (l) => { ctx.fixedSpawn = false; return l; };
+    // 木村・後藤の隊は片原町から堤の上を寄せる（隠れた所から湧かせると堤の外の深みに置かれ、後ろの兵が動けずに砦の裏で詰まった。九2）。川べりの鉄砲衆も指定した湿地の縁から出す。
+    // 共通の隠れた出現位置へ移すと、川の深みに置かれて動けなくなる。
+    const onBank = (l) => { ctx.fixedSpawn = true; return l; };
     depthStart(rt, ctx, [
       // ① 堤を進む。葦の中から鉄砲（鉄砲は川の中に立たせず、堤の下の湿地の縁に伏せる）
       Object.assign(DP.move({ to: { x: FORT.x + 50, z: 0 }, label: '堤', r: 8, max: 240, obj: '堤の上を西へ、砦の前まで進め',
         say: [['渋江政光', '堤から外れるな！　足を取られて動けなくなるぞ！']],
-        ambush: { d: 70, say: ['足軽', '気づかれた！　今福村と葦の中から鉄砲じゃ！　堤の両側に伏せておる！'], foes: () => [gunLine('堤の南の葦の鉄砲', { x: FORT.x + 70, z: 11 }, 4, { dmg: 0.21, mass: 0 }), gunLine('今福村の鉄砲', { x: FORT.x + 70, z: -11 }, 7, { dmg: 0.21, mass: 0 })] },
+        ambush: { d: 70, say: ['足軽', '気づかれた！　今福村と葦の中から鉄砲じゃ！　堤の両側に伏せておる！'], foes: () => onBank([gunLine('堤の南の葦の鉄砲', { x: FORT.x + 70, z: 11 }, 4, { dmg: 0.21, mass: 0 }), gunLine('今福村の鉄砲', { x: FORT.x + 70, z: -11 }, 7, { dmg: 0.21, mass: 0 })]) },
         onEnd: (rt2) => {
           rt2.flags.step = 2;
           sfx('horagai', 0.8);   // 見つかったからには忍ばず、貝を吹いて柵へかかる
@@ -445,7 +446,7 @@ const k09_imafuku = {
           // 二人の隊は上杉の横撃まで崩れない（前は又兵衛の隊が加わって四十秒で、重成の隊も上杉の前に退いていた。史実は上杉の横撃で初めて支えきれず退く。二2）。
           //   上杉の鉄砲は段の終わりの六秒前に中州へ並び（t 94）、段の終わりに共通の hold が本隊の気を挫く。堤に残る殿は④で追い払う
           { t: 6, say: ['足軽', '旗は木村長門守！　若い大将が自ら出てきた！'], foes: () => onBank([{ name: '木村重成の隊', from: { x: FORT.x - 62, z: 0 }, list: [busho('木村重成', { invuln: true, mustLive: true }), uS(6), uA(20), uG(8)], width: 6, mass: 150, noRout: 9999, dmg: 0.25 }]) },
-          { t: 28, say: ['足軽', '堤の両側から鉄砲が並んだ！　横から撃たれる！'], foes: () => hidden([gunLine('大和川べりの鉄砲衆', { x: FORT.x - 20, z: 11 }, 5), gunLine('鯰江川べりの鉄砲衆', { x: FORT.x - 20, z: -11 }, 5)]) },
+          { t: 28, say: ['足軽', '堤の両側から鉄砲が並んだ！　横から撃たれる！'], foes: () => onBank([gunLine('大和川べりの鉄砲衆', { x: FORT.x - 20, z: 11 }, 5), gunLine('鯰江川べりの鉄砲衆', { x: FORT.x - 20, z: -11 }, 5)]) },
           { t: 48, say: ['足軽', '後藤又兵衛じゃ！　川からも舟で鉄砲が寄せてくる！'], foes: () => { this.gotoBoats(rt); rt.world.setTime('afternoon'); return onBank([{ name: '後藤又兵衛の隊', from: { x: FORT.x - 66, z: 2 }, list: [busho('後藤又兵衛', { invuln: true, mustLive: true }), uS(6), uA(22), uG(6)], width: 6, mass: 200, noRout: 9999, dmg: 0.25 }]); } },
           // 史実：渋江の討死は重成の指図した狙い撃ち。撃たれる六秒前に下知の声
           { t: 64, say: ['木村重成', 'あの馬上の指物が佐竹の侍大将じゃ。鉄砲、狙え！'], foes: () => [] },

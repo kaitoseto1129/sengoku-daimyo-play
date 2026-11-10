@@ -2496,6 +2496,9 @@ const nodafukushima = {
   resumeSteps: [[1, 'order'], [2, 'sallyStart'], [3, 'night']],   // 戦の途中の保存（battle_checkpoint.js）：段の始まりを、段の関数を順に流して作り直す
   // 稲生の型。兵数・寄せの五組は変えず、任務と行き先だけを一つにする。
   missionSingleLine: true,
+  // 目標は今の五件を初めから並べ、済んだ分だけ順に送る。
+  goalsAllRows: true,
+  goalsVisibleRows: 5,
   hideMissionDots: true,
   hideGuideSteps: true,
   enemyTriangleSigns: true,
