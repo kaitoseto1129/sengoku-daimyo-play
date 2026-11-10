@@ -668,9 +668,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     if (F.step === 1) {
       const k = F.w1S - sumN(F.hana1, F.oka1), need = Math.round(F.w1N * 0.5);
       rt.objProgress('s1', `塙・岡部の先手 ${Math.min(k, need)}／${need}人`);
-      // 殿に加わって槍を合わせてから退く。立っているだけで味方の戦果や時間によって①を済ませない。
+      // 殿に加わって攻撃してから退く。味方が先手を全て崩した場合も、本人が畷へ出て攻撃すれば進む。
       if ((P.atk || P.swing) && dist(P.pos, YASU) < 28 &&
-          [F.hana1, F.oka1].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6))) F.vanguardJoined = true;
+          ([F.hana1, F.oka1].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6)) || (F.oka1 && !live(F.hana1) && !live(F.oka1)))) F.vanguardJoined = true;
       if (F.vanguardJoined && F.oka1 && k >= need) this.toStep(rt, 2);
       else if (F.vanguardJoined && left <= 0) { rt.say('亀田高綱', 'これ以上は持たぬ。退け！', 2.6); this.toStep(rt, 2); }
     } else if (F.step === 2) {
@@ -690,9 +690,9 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     } else if (F.step === 3) {
       const k = F.w3N - sumN(F.hana, F.awa), need = Math.round(F.w3N * 0.5);
       rt.objProgress('s3', `塙・淡輪の隊 ${Math.min(k, need)}／${need}人`);
-      // 村の辻で実際に敵へ槍を合わせてから達成。立っているだけでは時間や味方の戦果で済ませない。
+      // 村の辻で攻撃してから達成。先に全隊が崩れた場合も、辻へ出て攻撃するまでは済ませない。
       if ((P.atk || P.swing) && dist(P.pos, VILLAGE) < 20 &&
-          [F.hana, F.awa].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6))) F.villageJoined = true;
+          ([F.hana, F.awa].some((g) => g?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6)) || (F.hana && F.awa && !live(F.hana) && !live(F.awa)))) F.villageJoined = true;
       if (F.villageJoined && (k >= need || left <= 0)) this.toStep(rt, 4);
     } else if (F.step === 4) {
       const k = F.w4N - aliveN(F.oka), need = Math.round(F.w4N * 0.5);
@@ -700,7 +700,7 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
       // 東の口か、そこへ寄せる岡部の隊へ出て迎える。村に残ったまま時間だけで横を守った事にしない。
       const oc = live(F.oka) && F.oka.center();
       if ((P.atk || P.swing) && (dist(P.pos, EAST) < 20 || (oc && dist(oc, EAST) < 70 && dist(P.pos, oc) < 20)) &&
-          F.oka?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6)) F.eastJoined = true;
+          (F.oka?.units.some((u) => u.alive && !u.gone && !u.fleeing && dist(u.pos, P.pos) < 6) || (F.oka && !live(F.oka)))) F.eastJoined = true;
       if (!F.okaBack && F.eastJoined && (k >= need || left <= 0)) this.okabeBack(rt);
     } else if (F.step === 5) {
       // 団右衛門は名乗った相手（主人公）が近ければ主人公に打ち掛かる。他の兵を追って村の外の田まで馬で駆け回らせない（11/7 遊んで五分追い回した）

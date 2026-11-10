@@ -50,8 +50,9 @@ export function install(rt, ctx) {
     [() => di() >= 2, () => { ladders(2); rt.after(6, () => rt.say('鳥居の侍', '梯子じゃ！　石垣の上から突き落とせ', 3)); }],
     // 小早川・島津・毛利が着く：西・東の奥にも旗が並ぶ
     [() => di() >= 3, () => { rt.after(1.5, () => rt.say('使番', '西に小早川、東に島津と毛利の旗！　城の三方が埋まりました', 3.4)); }],
-    // 二の丸へ回る段：三の丸の東の櫓が火矢で焼け落ちる（城の内の火の始まり）
-    [() => di() >= 5, () => {
+    // 八月一日昼の内応から三の丸にも火が回る。
+    // 七月二十九日の移動中に燃やすと、松の丸の内応より先に城内が炎上する。
+    [() => di() >= 6, () => {
       if (W.addFire) for (const [x, z, s, h] of [[24, 42, 2.8, 6], [22, 38, 2.2, 3], [14, 32, 1.6, 2]]) W.addFire(x, z, { size: s, h, blackSmoke: h > 2 });
       if (W.addSmokeColumn) W.addSmokeColumn(24, W.heightAt(24, 42) + 10, 42, { size: 3, black: true });
       sfx('thunder', 0.9);

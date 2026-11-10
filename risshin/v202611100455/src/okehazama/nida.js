@@ -61,7 +61,8 @@ export function tick(rt) {
 function done(rt, C, late) {
   const F = rt.flags, v = F.o15;
   v.nidaDone = true; v.ph = null;
-  for (const g of v.nidaGs) if (live(g)) { g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0.4, -1); }
+  // 組頭が生きている備えにも、知らせどおり退く下知を渡す。
+  for (const g of v.nidaGs) if (live(g)) { g.order = 'retreat'; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0.4, -1); }
   sfx('taiko', 1);
   rt.say('組頭 源八', late ? '麓の陣は崩れて山の奥へ逃げた。幕の前へ進め！' : '麓の陣を破ったぞ！　見よ、旗も槍も捨てて逃げておる。幕の前へ進め！', 3.6);
   if (!late) rt.award((t) => t.side.push('桶狭間山の麓の今川の陣を破った'), '桶狭間山の麓の今川の陣を破った');

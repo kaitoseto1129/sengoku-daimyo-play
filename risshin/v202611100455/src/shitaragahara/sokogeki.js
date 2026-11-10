@@ -49,7 +49,17 @@ export function tick(rt, dt) {
   if (Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.there = true;
   const lord = g.units.find((u) => u.name === '土屋昌次');
   const left = c.ready(g);
-  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || S.arrive != null && rt.t - S.arrive > 60);
+  // 到着後の待ち時間ではなく、本人の近くで実際に斬り合った時間を数える。
+  const fighting = g.units.some((u) => {
+    const target = u.atk?.target || u.swing?.target || u.target;
+    return u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+      target?.alive && target.team !== u.team && !target.fleeing && !target.gone &&
+      !target.woundOut && !target.rearWound && !target.noTarget &&
+      Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
+      !rt.army.wallBetween(u.pos, -1, target.pos);
+  });
+  if (fighting && Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.fight = (S.fight || 0) + dt;
+  const end = S.there && (!lord?.alive || left <= Math.ceil(S.n0 * 0.35) || S.fight > 60);
   if (!end) return;
   S.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }

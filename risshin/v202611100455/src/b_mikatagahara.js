@@ -2864,6 +2864,26 @@ mikatagahara.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   // 殿の持ち場へ着いた後の斬り合いは、元の段の頭で続ける。
   const toCover = F.dpOn && F.dpB && F.dp?.on && F.dp.cur?.s.kind !== 'hold';
   if (F.dpOn && F.dp && F.dp.on && !toCover) {
+    const post = F.dp.cur;
+    const needsTreatment = u.hp < u.maxHp * (F.dp.ctx?.botTreatAt ?? 0.5) && p.treatmentLeft > 0 && !p.bandaged;
+    // 包囲の中で息を整えるだけなら、輪の外へ手当て場所を探しに行かない。
+    // 共通の退避先は敵から十四歩離れた味方で、平手の持ち場から離れたままになり得る。
+    if (post?.s.kind === 'hold' && post.at && !needsTreatment &&
+        (p.sta < p.maxSta * 0.22 || F.mkCatchBreath && p.sta <= p.maxSta * 0.55)) {
+      F.mkCatchBreath = true; F.dpBack = false;
+      inp.axis = null; inp.leftPressed = false; inp.chargeHold = false;
+      inp.runHeld = false; inp.guardHold = false;
+      if (p.lock) inp.e.add('KeyQ');
+      const radius = Math.max(1, post.botRadius - 5);
+      if (Math.hypot(u.pos.x - post.at.x, u.pos.z - post.at.z) > radius) {
+        goTo(p, inp, post.at.x, post.at.z, radius);
+      } else {
+        const foe = b.army.nearestEnemy(u, 6, mikataFoeOk);
+        if (foe) { p.yaw = Math.atan2(foe.pos.x - u.pos.x, foe.pos.z - u.pos.z); inp.guardHold = true; }
+      }
+      return;
+    }
+    if (F.mkCatchBreath) { F.mkCatchBreath = false; F.dpBack = false; }
     depthBot(b, inp, goTo);
     const C = F.dp.cur;
     // 槍の届く距離で持ち場の外に止まると、守った時間が増えず平手の囲みで止まる。

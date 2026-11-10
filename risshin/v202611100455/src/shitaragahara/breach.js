@@ -78,8 +78,18 @@ export function tick(rt, dt) {
   const lord = g.units.find((u) => u.name === '山県昌景');
   if (Math.hypot(p.x - B.IN.x, p.z - B.IN.z) < 32) B.there = true;
   const left = c.ready(g);
+  // 時刻だけで討死させず、破れ目で実際に槍を合わせた時間だけを数える。
+  const fighting = g.units.some((u) => {
+    const target = u.atk?.target || u.swing?.target || u.target;
+    return u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+      target?.alive && target.team !== u.team && !target.fleeing && !target.gone &&
+      !target.woundOut && !target.rearWound && !target.noTarget &&
+      Math.hypot(u.pos.x - target.pos.x, u.pos.z - target.pos.z) < 8 &&
+      !rt.army.wallBetween(u.pos, -1, target.pos);
+  });
+  if (fighting && Math.hypot(p.x - B.IN.x, p.z - B.IN.z) < 32) B.fight = (B.fight || 0) + dt;
   // 将が味方の鉄砲に倒れても、本人が破れ目へ来るまでは任務達成にしない。
-  const end = B.there && ((!lord?.alive) || left <= Math.ceil(B.n0 * 0.35) || rt.t - B.at1 > 110);
+  const end = B.there && ((!lord?.alive) || left <= Math.ceil(B.n0 * 0.35) || B.fight > 110);
   if (!end) return true;
   B.done = true;
   if (lord?.alive) { lord.invuln = false; rt.army.kill(lord, null); }

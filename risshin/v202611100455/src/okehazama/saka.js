@@ -32,7 +32,8 @@ export function tick(rt) {
   const t = rt.t - v.sakaT;
   if (!v.sakaGs.some(live) && t > 20 || t > 75) {
     v.sakaDone = true; v.ph = null;
-    for (const g of v.sakaGs) if (live(g)) { g.fire = false; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0, -1); }
+    // 士気だけでは組頭の生きた隊は退かない。射撃停止と退却をそろえる。
+    for (const g of v.sakaGs) if (live(g)) { g.order = 'retreat'; g.fire = false; g.noRout = false; g.morale = 0; g.fleeSet = true; g.fleeDir = C.fieldVector(0, -1); }
     sfx('taiko', 1);
     rt.say('組頭 源八', t > 75 ? '弓組は幕の内へ退いた。幕の前へ詰めよ！' : '弓組を討ったぞ！　幕の前へ詰めよ。義元はあの内じゃ！', 3.4);
     if (t <= 75) rt.award((tr) => tr.side.push('幕の下の坂で旗本の弓組を討った'), '幕の下の坂で旗本の弓組を討った');

@@ -36,7 +36,8 @@ export function tick(rt) {
   // 既に直盛が討たれている時も、名のない手勢が残る間は備えを破った扱いにしない。
   if (left <= 4 && t > 30 || t > 100) {
     v.iiDone = true; v.ph = null;
-    for (const q of [g, v.iiAdd]) if (q) { q.noRout = false; q.morale = 0; q.fleeSet = true; q.fleeDir = C.fieldVector(-0.6, -1); }
+    // 直盛や手勢の頭が残っていても、破れた備えを攻撃命令のままにしない。
+    for (const q of [g, v.iiAdd]) if (q) { q.order = 'retreat'; q.noRout = false; q.morale = 0; q.fleeSet = true; q.fleeDir = C.fieldVector(-0.6, -1); }
     // 井伊直盛は備えが崩れる中で討たれる（史実の討死。寄せた織田の兵の手で）
     if (ready(lead) && lead.name === '井伊直盛') {
       let k = null, best = 3.5 ** 2;
