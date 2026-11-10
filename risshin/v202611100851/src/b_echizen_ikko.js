@@ -2364,6 +2364,10 @@ const echizen_ikko = {
   missionSingleLine: true,
   // この戦は既存の参道の印と任務一行を使う。共通の「門へ進め」「ここを攻める」を重ねない。
   goalSignOff: () => true,
+  // 参道の途中も同じ▼で案内し、足元の矢印へ替えない。場所名と距離を残す。
+  pinOnlyDestination: true,
+  goalSignTriangle: true,
+  distanceUnit: 'metres',
   hideMissionDots: true,
   hideGuideSteps: true,
   // 11/8 critic60（九3）：字の▼（hud_cards）と頭上の▼（field_signs）が重なり、狙った一人だけに二つ出ていた。共通の頭上の▼一つで全員に付ける
@@ -2456,7 +2460,9 @@ const echizen_ikko = {
     pin.unit = enemy && !route && !defend ? enemy : null;
     pin.flagDestination = !pin.unit;
     pin.enemy = !!pin.unit; pin.route = route;
-    pin.r = pin.hide = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
+    pin.r = route ? .5 : defend ? F.step === 5 ? 18 : 6 : enemy ? 3 : 4;
+    // 到着しても制圧・待機が済むまでは持ち場を示す。到着半径と表示の有無を分ける。
+    pin.hide = 0; pin.always = true;
     pin.waiting = defend && !route;
     // 山の斜面や堂の向こうへ囲みを透かさず、持ち場は一つの印で示す。
     pin.defend = false;

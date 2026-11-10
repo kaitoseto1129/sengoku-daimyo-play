@@ -2831,7 +2831,9 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
       const left = Math.ceil(Math.hypot(p.x - F.retreatPoint.x, p.z - F.retreatPoint.z));
       if (!F.ieFar) rt.objProgress('main', `${RETREAT_LABELS[F.retreatIdx]} ${left}m`);
       // 城へ入ったら退き口は終わる。家康が先に（または同時に）門の内へ入っている事が要る。
-      const chief = F.campA.general, ieIn = !!chief?.alive && chief.pos.z > HAMA.z - 10;
+      // 南へ回り込んだだけでは生還にしない。土塁の内側の広場へ入った姿を確かめる。
+      const chief = F.campA.general, ieIn = !!chief?.alive && Math.abs(chief.pos.x - HAMA.x) < 22 &&
+        chief.pos.z > HAMA.z - 10 && chief.pos.z < HAMA.z + 22;
       // 門で待つ。道で詰まった時は現在地から退路を引き直し、姿が門を通るまで生還扱いにしない。
       if (d < 8 && p.z > HAMA.z - 8 && !ieIn) { rt.objProgress('main', '門で上様を待て'); F.gateWait = (F.gateWait || 0) + dt; } else F.gateWait = 0;
       if (F.gateWait > 45 && chief?.alive) { F.gateWait = 0; F.ieRoadSet = false; }

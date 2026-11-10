@@ -51,6 +51,8 @@ function pinTo(rt, pos, label, unit = null) {
   F.farPin = null;
   const pin = F.beginnerPin || (F.beginnerPin = { x: 0, z: 0, r: 0 });
   pin.x = pos.x; pin.z = pos.z; pin.r = 3; pin.label = label;
+  // 名塚への到着後も、向き直る下知までは同じ場所を示す。
+  pin.hideDistance = 0; pin.hide = 0; pin.always = true;
   // 隊長のそばに並んでも案内を消さず、移動する本人の頭上を追う。
   pin.unit = unit; pin.enemy = !!unit && unit.team !== rt.player.u.team; pin.flagDestination = !unit;
   F.beginnerPinTarget = pin;
@@ -75,7 +77,7 @@ const ino = {
   speechAllowed: (rt) => !!rt.flags?._mine,
   force(rt) {
     const F = rt?.flags;
-    if (!F?.allAlly) return FORCE;
+    if (!F?.allAlly) { FORCE.a = 700; FORCE.b = 1700; return FORCE; }
     const a = aliveIn(F.allAlly), a0 = F.allAllyN || 1;
     const h = aliveIn(F.haya), h0 = F.hayaN || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
     // 後詰も七百の内訳。初めに決めた全軍の人数で損耗を量り、合流で討死を戻さない。
@@ -85,13 +87,16 @@ const ino = {
     return FORCE;
   },
   missionHeading(rt) { return INO_GOALS[rt.flags.ph || 'march'] || INO_GOALS.march; },
-  missionSignTarget(rt) {
+  missionSignTarget(rt, range = 30) {
     const F = rt.flags;
     if (!['scout', 'hayashi', 'shibata', 'push'].includes(F.ph)) return null;
     const P = rt.player.u.pos;
-    let best = null, bd = 30 * 30;
+    let best = null, bd = range * range;
     for (const u of rt.army.units) {
       if (u.team === rt.player.u.team || !inouEnemyAlive(u) || u.invuln) continue;
+      // 物見・林勢・柴田勢の下知に、別の備の兵を混ぜない。
+      if (F.ph === 'scout' ? u.group !== F.scoutG :
+          !(F.ph === 'hayashi' ? F.haya : F.shibaLines)?.includes(u.group)) continue;
       const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2;
       if (d < bd) { bd = d; best = u; }
     }
@@ -108,8 +113,9 @@ const ino = {
     switch (F.ph) {
       case 'march': case 'van': return L ? { pos: L.pos, label: '隊長', unit: L } : null;
       case 'scout': case 'hayashi': case 'shibata': case 'push': {
-        const e = this.missionSignTarget(rt);
-        if (e) return { pos: e.pos, label: '敵', enemy: e };
+        // 三十m 外でも同じ任務の敵へ進む。敵が残っているのに組頭へ戻さない。
+        const e = this.missionSignTarget(rt, Infinity);
+        if (e) return { pos: e.pos, label: F.ph === 'scout' ? '林の物見' : F.ph === 'hayashi' ? '林勢' : '柴田勢', enemy: e };
         return L ? { pos: L.pos, label: L === F.sakumaU ? '組頭' : '隊長', unit: L } : null;
       }
       case 'join': return F.sakumaU?.alive ? { pos: F.sakumaU.pos, label: '佐久間隊', unit: F.sakumaU } : null;
