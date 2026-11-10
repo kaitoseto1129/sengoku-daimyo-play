@@ -962,13 +962,13 @@ const t04_negoro = {
             self.sendRam(rt);
             rt.say('組頭', '新しい丸太を運べ！　門は目の前じゃ！', 3);
           }
-          // 自分が丸太のそばにいれば、皆で声を合わせて押す（打つ力が増す）
+          // 戦える本人が丸太のそばにいる間だけ、皆で声を合わせて押す。
           const mm = F.ram.mesh;
-          if (mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5 && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < 8) {
+          if (fighting(pu) && !rt.retryOpen && mm.visible && Math.hypot(mm.position.x - pu.pos.x, mm.position.z - pu.pos.z) < 5 && Math.hypot(s.seg[0] / 2 + s.seg[2] / 2 - pu.pos.x, s.seg[1] / 2 + s.seg[3] / 2 - pu.pos.z) < 8) {
             C.pushT = (C.pushT || 0) + dt;
             if (!C.pushSaid) { C.pushSaid = true; rt.say('足軽', 'お頭も手を貸してくだされ！　一、二の、三！', 3); }
             if (C.pushT > 1.1) { C.pushT = 0; rt.army.damage(s, 24, pu, { kind: 'ram' }); }
-          }
+          } else C.pushT = 0;
           // 時間と接近だけでは開けない。丸太か本人の攻撃で門扉を破ってから進む。
           // 塀の上の鉄砲衆は、塀の際に寄った先手の足軽を撃ち下ろす（11/6：塀の上の十二挺が皆、丸太の脇の自分を撃ち、門の前で討たれた。
           //   担ぎ手を狙わせると丸太が三度止まって門が破れなかったので、塀の際の寄せ手を狙う）

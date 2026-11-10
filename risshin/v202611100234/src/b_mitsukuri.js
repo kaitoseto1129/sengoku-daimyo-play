@@ -4132,7 +4132,7 @@ const mitsukuri = {
     F.campHorseSoundAt = rt.t + 6;
     F.campHorseNeighAt = rt.t + 6;
     F.ramNext = allyGroup(rt, { fixed: true, name: '木戸破りの控え', anchor: { x: 14, z: 96 },
-      facing: Math.PI, width: 5, formation: 'column', aggro: 2 }, dress([{ type: 'ashigaru', n: 10 }], ODA));
+      facing: Math.PI, width: 5, formation: 'column', aggro: 2, noRout: true }, dress([{ type: 'ashigaru', n: 10 }], ODA));
     // 控えや鉄砲組が近くで戦っていれば、その生きた兵からも合図を出す。
     F.signalGroups = [...F.oda, F.gunK, F.ramNext];
     rt.scene.add(tawara(W, CAMP.x - 14, CAMP.z + 16, 0.3, 6));

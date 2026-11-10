@@ -148,7 +148,13 @@ function defendHold(o) {
 
 // 段の終わりの退却指示より先に、猿渡の討死を確定する。
 function saruStep(s) {
-  const end = s.end;
+  const start = s.start, end = s.end;
+  s.start = (rt, ...args) => {
+    // 見回りは夕暮れ、最初の寄せから夜討ち。守備が済むまで夕暮れを残さない。
+    rt.world.setTime('night');
+    if (rt.world.fade) rt.world.fade.dur = 12;
+    start(rt, ...args);
+  };
   s.end = (rt, ...args) => {
     const sa = rt.army.units.find((u) => u.alive && u.name === '猿渡信光');
     if (sa) {
@@ -593,7 +599,7 @@ t08_nejirozaka.canSkip = (rt) => (rt.phase === 'brief' && rt.t > 3 ? '塀に付�
 t08_nejirozaka.introText = () => '日向の根白坂の砦。今宵、島津勢が空堀を越えて寄せて来る。土橋の塀を守り抜き、斬り込む島津忠隣を討ち取れ。';
 t08_nejirozaka.skip = (rt) => { for (const tm of rt.timers) tm.t = Math.min(tm.t, 0.2); };
 t08_nejirozaka.sides = { a: { name: '豊臣方 宮部継潤', mon: 'toyotomi' }, b: { name: '島津勢', mon: 'shimazu' } };
-t08_nejirozaka.date = (rt) => `天正十五年四月十七日　初夏・${rt.flags.dawn ? '夜明け' : (rt.flags.dp?.i ?? -1) <= 4 ? '夕暮れ' : '夜'}`;
+t08_nejirozaka.date = (rt) => `天正十五年四月十七日　初夏・${rt.flags.dawn ? '夜明け' : (rt.flags.dp?.i ?? -1) < 4 ? '夕暮れ' : '夜'}`;
 t08_nejirozaka.history = '天正十五年（1587）、豊臣秀長の大軍は日向の高城を囲んだ。宮部継潤らおよそ一万は、高城の南の根白坂に空堀と板塀の砦を築き、島津の後詰を待ち受けた。四月十七日の夜、島津義久・義珍（のちの義弘）らのおよそ三万五千が砦へ総がかりで攻めたが、宮部勢は空堀と板塀と鉄砲で持ちこたえた。秀長の本隊は尾藤知宣の進言で救援を止めたが、藤堂高虎・戸川達安の手勢が助けに入り、黒田官兵衛（孝高）・小早川隆景が島津勢の横を突いた。島津忠隣・猿渡信光らが討死し、島津勢は退いた。五月に義久は頭を丸めて秀吉に降った。両軍の数には諸説がある。';
 
 // 素直な遊び手：段の間は段の的へ。始まる前は受け持ちの塀へ

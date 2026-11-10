@@ -112,7 +112,8 @@ const PIN = { x: 0, z: 0, r: 8, hide: 6, always: true, silent: true, enemy: fals
 const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const KEEP = 0.4;
 // 刻限後半の緩和も、目標札と段の達成判定で同じ人数を使う。
-const stepNeed = (F, t) => Math.round(F.stepN * (F.stepSeen && F.engagedT != null && t - F.engagedT > STEP_T[F.step] * 0.6 ? 0.4 : 1 - KEEP));
+// 残兵が一人でも必要人数を零に丸めない。待つだけで達成させない。
+const stepNeed = (F, t) => Math.max(1, Math.round(F.stepN * (F.stepSeen && F.engagedT != null && t - F.engagedT > STEP_T[F.step] * 0.6 ? 0.4 : 1 - KEEP)));
 const ROAD = [[0, 190], [2, 80], [0, 0], [0, -146]];
 // 旧暦五月（今の六月）の淀の野は田植えの済んだ水田（若江・八尾の深田と同じ）。京街道の土手道と畦の外は水の張った田で、降りれば足を取られる
 //   本陣の微高地・藤堂の本陣・東の林と赤備えの駆ける道・自分の陣の持ち場は乾いた畑と野に残す

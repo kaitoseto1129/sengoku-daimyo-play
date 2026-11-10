@@ -513,8 +513,15 @@ const t06_hetsugi = {
       // 11/7 九2：「下の瀬から」の追手は、渡りを終えた時に下の瀬を渡り始め、土手の先で行く手を塞ぐ（来ない敵を言わない）
       this.cutCharge(rt);   // 渡り途中の組は浅瀬の道順を保ち、渡り終えた組は追い続ける
       // 11/8 一4・一5：落ちる四国の衆の残りも土手の道を鏡城へ。追手は本人だけでなくこの者たちにも打ち掛かる
-      const road = [{ x: -60, z: 52 }, { x: -120, z: 70 }, { x: CAMP.x + 14, z: CAMP.z - 2 }];
-      const walk = (g, k) => { if (!live(g) || k >= road.length) return; g.order = 'move'; g.dest = { x: road[k].x + (Math.random() - 0.5) * 6, z: road[k].z + (Math.random() - 0.5) * 4 }; g.speed = g.walkSpeed || 3.8; g.aggro = 8; g.seekRange = 8; g.onArrive = () => walk(g, k + 1); };
+      // 陣外で止めず、東の口をまっすぐ通って陣内へ入る。狭い口には行き先の散らばりを付けない。
+      const road = [{ x: -60, z: 52 }, { x: -120, z: 70 }, { x: CAMP.x + 17, z: CAMP.z }, { x: CAMP.x + 5, z: CAMP.z }];
+      const walk = (g, k) => {
+        if (!live(g)) return;
+        if (k >= road.length) { g.order = 'hold'; g.anchor = { ...road[road.length - 1] }; g.dest = null; g.onArrive = null; return; }
+        const p = road[k];
+        g.order = 'move'; g.dest = { x: p.x + (k < 2 ? (Math.random() - 0.5) * 6 : 0), z: p.z + (k < 2 ? (Math.random() - 0.5) * 4 : 0) };
+        g.speed = g.walkSpeed || 3.8; g.aggro = 8; g.seekRange = 8; g.onArrive = () => walk(g, k + 1);
+      };
       for (const g of [F.nobu, F.sogo, F.tsune, ...(F.allyBands || [])]) walk(g, 0);
       for (const g of F.strays || []) walk(g, 1);    }
   },
