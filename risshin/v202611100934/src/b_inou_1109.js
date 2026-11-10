@@ -79,7 +79,10 @@ const ino = {
     const F = rt?.flags;
     if (!F?.allAlly) { FORCE.a = 700; FORCE.b = 1700; return FORCE; }
     const a = aliveIn(F.allAlly), a0 = F.allAllyN || 1;
-    const h = aliveIn(F.haya), h0 = F.hayaN || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
+    // 物見も林勢七百の内。出現前は控えとして数え、出現時に人数を回復させない。
+    const scouts = F.scoutN || 0;
+    const h = aliveIn(F.haya) + (F.scoutG ? aliveIn([F.scoutG]) : scouts);
+    const h0 = (F.hayaN || 0) + scouts || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
     // 後詰も七百の内訳。初めに決めた全軍の人数で損耗を量り、合流で討死を戻さない。
     const total = F.allAlly.reduce((n, g) => n + (g?.units.length || 0), 0);
     FORCE.a = round10(Math.max(0, 700 * (1 - (total - a) / a0)));
@@ -171,6 +174,7 @@ const ino = {
     F.hayaBossU = F.hayaBoss.units.find((u) => u.name === '林美作守');
     F.haya.push(F.hayaBoss);
     F.hayaN = aliveIn(F.haya);
+    F.scoutN = 6;
     // 林の大旗（倒れる旗）
     F.hayaFlag = nobori(W, 16 + 2, -14, 'nobukatsu', 7.5); rt.scene.add(F.hayaFlag);
     // 柴田勢（横の奥・東）：初めは百m 余り奥。林勢が崩れた後に鬨とともに寄せる。林勢より多く、列が厚い
@@ -238,7 +242,7 @@ const ino = {
     const F = rt.flags, P = rt.player.u;
     this.go(rt, 'scout');
     F.scoutG = enemyGroup(rt, { faction: 'nobukatsu', name: '林の物見', anchor: { x: 12, z: 60 }, facing: 0, fleeDir: { x: 0, z: -1 }, width: 4, noRout: true, noAI: true, order: 'move', dest: { x: 12, z: 78 }, aggro: 0, speed: 2.8, dmgMult: 0.25, morale: 60, fixed: true },
-      HAYA([{ type: 'ashigaru', n: 6 }]));
+      HAYA([{ type: 'ashigaru', n: F.scoutN }]));
     for (const u of F.scoutG.units) { u.hp = u.maxHp = Math.max(22, P.dmg * 2); u.cdBase *= 1.6; }
     F.scoutG.onArrive = (q) => this.fight(q, 16);
     F.groups.push(F.scoutG);

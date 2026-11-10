@@ -258,7 +258,7 @@ function strayArrows(rt, dt) {
   F.arrowT = 2.4 + Math.random() * 3.6;
   let src = null, best = 0;
   for (const u of rt.army.units) {
-    if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.noTarget || u.type !== 'bow' || u.team !== 1 || u.civ || u.isStruct || u.fleeing || u.group?.routing || u.group?.routed || u.group?.order === 'retreat' || u.group?.fire === false) continue;
+    if (!u.alive || u.hp <= 0 || u.gone || u.dying || u.downed || u.woundOut || u.rearWound || u.noTarget || u.type !== 'bow' || u.team !== 1 || u.civ || u.isStruct || u.fleeing || u.group?.routing || u.group?.routed || u.group?.inouRetiring || u.group?.order === 'retreat' || u.group?.fire === false) continue;
     const d = Math.hypot(u.pos.x - P.pos.x, u.pos.z - P.pos.z);
     if (d < 25 || d > 75) continue;
     const s = Math.random();

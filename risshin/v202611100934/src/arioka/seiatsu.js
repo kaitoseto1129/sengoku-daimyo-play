@@ -22,6 +22,8 @@ export function stages(H) {
           foes: () => [{ name: '本丸へ落ちそこねた荒木勢', from: { x: TOWN_X - 4, z: -130 }, list: [uS(1), uA(5)], morale: 40 }] },
       ],
       max: 210, minEl: 80, reward: '侍町の焼け跡を改めた',
-      lenient: true, onEnd: () => {} }),
+      // 残った射手一人を探し続けず、本人と組が着いた後に残兵を退かせる。
+      // 達成は退却後に持ち場を十二秒確保してから。
+      lenient: true, limit: 210, passOnLimit: true, onEnd: () => {} }),
   ];
 }

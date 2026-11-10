@@ -38,7 +38,8 @@ export function dest(rt) {
   const v = rt.flags.s15;
   if (v.raid && v.raid.units.some(ready)) { const P = rt.player.u.pos; let best = null, bd = 1e9; for (const u of v.raid.units) if (ready(u)) { const d = (u.pos.x - P.x) ** 2 + (u.pos.z - P.z) ** 2; if (d < bd) { bd = d; best = u; } } return best?.pos; }
   // 荷下ろし中は舟着きを離れず、帰りは砦に着くまで実際の人足に付く。
-  if (!v.backT) return v.dock;
+  // 人足が全員倒れても、本人の出迎えは省かない。出迎え後は南門へ案内し、帰還後の停滞救済につなぐ。
+  if (!v.backT && (!v.atDock || rt.flags.wk?.units.some(ready))) return v.dock;
   const p = v.homeGuide || (v.homeGuide = { x: 0, z: 0 });
   // 隊の中心が砦へ入っても、門外に残る荷を置き去りに案内しない。
   const outside = !v.wkHome && rt.flags.wk?.units.find((u) => ready(u) &&
@@ -82,8 +83,11 @@ function done(rt) {
   rt.unmark('s15dock'); rt.unmark('s15raid');
   if (v.raid) { v.raid.noRout = false; v.raid.morale = 0; }
   if (F.wk) { F.wk.order = 'move'; F.wk.dest = { x: -6, z: -10 }; F.wk.onArrive = (g) => { g.order = 'hold'; g.anchor = { x: -6, z: -10 }; }; }
-  rt.say('人足', '材木は砦へ入ったぞ。さあ、柵を結ぶ！', 3);
-  rt.award((t) => t.side.push('材木を運ぶ人足を守った'), '材木を運ぶ人足を守った');
+  const lost = !F.wk?.units.some(ready);
+  rt.say(lost ? '前野長康' : '人足', lost
+    ? '人足を失った。柵の兵も普請を手伝え。砦を守るぞ！'
+    : '材木は砦へ入ったぞ。さあ、柵を結ぶ！', 3);
+  if (!lost) rt.award((t) => t.side.push('材木を運ぶ人足を守った'), '材木を運ぶ人足を守った');
   rt.after(3, () => v.then?.());
 }
 

@@ -3209,6 +3209,7 @@ const sunomata = {
   missionSingleLine: true,
   hideMissionDots: true,
   enemyTriangleSigns: true,
+  keepBattleSigns: true, // 行き先を案内している間も、敵全員の赤い▼と武将名を残す。
   nearbyAllySignLimit: 0,
   // 11/3 AS・⑧：印は一つだけ。柵を守る戦で、ついていく相手の青い矢印を敵の印と並べて出さない（持ち場は右上の一行と柵の印）。
   noLeaderFollow: true,
