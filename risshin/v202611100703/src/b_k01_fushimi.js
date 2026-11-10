@@ -38,6 +38,8 @@ const NI = { x: 0, z: -8 };           // 二の丸
 const MATSU = { x: 34, z: -20 };      // 松の丸（内応の火の手が上がる）。本丸の北東（battle_learn。前は西に置いていた）
 const HON = { x: 0, z: -46 };         // 本丸
 const SOUTH = { x: 0, z: 150 };       // 西軍の寄せ口
+// 脱出の行き先：本丸の裏（北）の崩れた石垣から城の外へ（正門からは出ない）
+const ESC = { x: 0, z: -86 };
 // 城を囲む西軍の陣（宇喜多＝南の外・小早川＝西・島津＝南東・石田＝南西。石田は七月二十九日に着く）
 // 毛利秀元（と吉川広家）＝東。寄せ手に加わった事は確か（ja.wikipedia・日本史ウィキコーパス）だが、取り付いた方角を示す史料は無く推定（11/6 布陣の照らし合わせで、毛利の陣が無かった）
 const CAMPS = [{ x: 0, z: 178 }, { x: -96, z: 30 }, { x: 92, z: 104 }, { x: -70, z: 150 }, { x: 104, z: 22 }];
@@ -51,7 +53,6 @@ const TAIKO = { x: -32, z: -6 };   // 位置を示す確かな図は無い。松
 
 const ROUTE = [[0, 160], [0, 130], [0, 100], [0, 84], [OTE.x, OTE.z], [0, 60], [0, 46], [SAN.x, SAN.z], [0, 20], [0, 4], [NI.x, NI.z], [0, -20], [0, -34], [HON.x, HON.z]];
 
-// 名のある将の侍の護衛は keep で人数と兵種を守る（共通の減員・騎馬や足軽への割り振りの対象外）。
 const TORII = { flag: 'tokugawa' };
 const WEST = { armor: 0x2c2a26, lace: 0x6a5a3a, flag: 'ukita' };
 // 雑賀の鈴木家の八咫烏の旗（b_saika.js の雑賀衆と同じ絵。どちらが先に描いても同じ布になる）
@@ -139,7 +140,7 @@ const PLAN = {
     // 二の丸の東の口は松の丸と向かい合う（八月一日、寝返った甲賀衆がここを開けて二の丸へ入る。前は口が無く、甲賀衆が石垣の外に溜まって二の丸の西へ来なかった）
     { id: 'ni', name: '二の丸', level: lv(0, -8, 4.5), wall: 'ishigaki', kind: 'ni', poly: rectPoly(-24, 24, -20, 4), gapAt: [[0, 4], [0, -20], [24, -12], [-24, -12]], gapW: 5, floor: false },
     { id: 'matsu', name: '松の丸', level: lv(34, -20, 4.5), wall: 'ishigaki', kind: 'koshi', poly: rectPoly(26, 48, -32, -10), gapAt: [[26, -13]], gapW: 5, floor: false },
-    { id: 'hon', name: '本丸', level: lv(0, -46, 6.5), wall: 'ishigaki', kind: 'hon', poly: rectPoly(-20, 20, -62, -34), gapAt: [[0, -34]], gapW: 5 },
+    { id: 'hon', name: '本丸', level: lv(0, -46, 6.5), wall: 'ishigaki', kind: 'hon', poly: rectPoly(-20, 20, -62, -34), gapAt: [[0, -34], [0, -62]], gapW: 5 },   // 北の口＝落城の時に主人公が抜ける、裏の崩れた石垣
     // 西の丸（内藤家長の持ち場）：本丸の西の一段低い曲輪
     { id: 'nishi', name: '西の丸', level: lv(-40, -52, 5.2), wall: 'ishigaki', kind: 'koshi', poly: rectPoly(-56, -26, -64, -40), gapAt: [[-26, -52]], gapW: 5 },
   ],
@@ -278,13 +279,14 @@ const k01_fushimi = {
     const m = rt.markers.find((q) => q.id === 'dp');
     // 二の丸へ一度着くと共通の移動段が印を外す。その後に追い手と
     // 戦って離れても、達成には持ち場へ戻る必要があるので案内を残す。
-    const at = fighting || moving ? C.at : m && !m.red ? m.pos?.() : null;
+    const rest = C?.s.kind === 'rest' ? rt.flags.restNext : null;
+    const at = fighting || moving ? C.at : rest || (m && !m.red ? m.pos?.() : null);
     if (!at) return null;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
-    T.label = fighting ? (D.i === 0 ? '長束と玄以の屋敷' : D.i === 3 ? '大手門' : '本丸') : moving ? '二の丸の口' : typeof m.label === 'function' ? m.label() : m.label;
+    T.label = (fighting || moving) ? (C.s.lbl || (m && typeof m.label === 'string' ? m.label : '') || '持ち場') : rest ? '次の持ち場' : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）
@@ -298,8 +300,8 @@ const k01_fushimi = {
   // 始まりの札：軍の名に兵の数を添え、二三行の筋（「味方 徳川勢 対 敵 西軍」だけで千八百対四万が分からなかった。critic60・五4）
   depth: fushimiDepth,   // 布陣図（docs/fujin/k01_fushimi.md）：寄せ手四万の備を城の三方に（k01_fushimi/yose.js）
   introSides: { a: '徳川勢　千八百', b: '寄せ手　四万' },
-  introText: '家康が会津へ発ち、鳥居元忠が伏見城を預かった。七月、石田三成らが兵を挙げ、宇喜多秀家らの寄せ手が城を囲む。城を出て長束の屋敷を焼き、三の丸・二の丸・本丸の口を順に守って時を稼ぐ。',      // 隅櫓の「中へ入り、守りを追い出せ」の脇の目標を出さない（櫓は城方の持ち場。番号の目標と二つ目の▼になっていた）
-  minutes: 9,
+  introText: '家康が会津へ発ち、鳥居元忠が伏見城を預かった。七月、石田三成らが兵を挙げ、宇喜多秀家らの寄せ手が城を囲む。援軍は来ない。外郭・二の丸・本丸と一つずつ失いながら、元忠とともに時を稼ぐ。',      // 隅櫓の「中へ入り、守りを追い出せ」の脇の目標を出さない（櫓は城方の持ち場。番号の目標と二つ目の▼になっていた）
+  minutes: 13,
   world: {
     seed: 1600719,
     time: 'day',
@@ -330,7 +332,10 @@ const k01_fushimi = {
     F.C = buildCastlePlan(rt, PLAN, { baseHeight: base, edgeW: 3, team: 0, perchLook: TORII, interiorGuards: false, buildGates: true, buildTowers: true });
     // 門は開けた形（味方が退き、寄せ手が攻め入る道を塞がない）
     for (const g of Object.values(F.C.gateObjs || {})) { g.open(); Object.assign(g.struct, { solidR: 0, passable: true, opened: true, noTarget: true, fireProof: true }); }
-    for (const [x, z] of [[-14, 66], [14, 66], [-16, 26], [16, 26], [-14, -14], [14, -14], [-10, -50], [10, -50]]) rt.scene.add(nobori(W, x, z, 'tokugawa', 6));
+    F.tkFlags = [];
+    for (const [x, z] of [[-14, 66], [14, 66], [-16, 26], [16, 26], [-14, -14], [14, -14], [-10, -50], [10, -50]]) { const f = nobori(W, x, z, 'tokugawa', 6); rt.scene.add(f); F.tkFlags.push(f); }
+    // 内藤家長の大旗（西の丸）。家長が果てた後は、旗だけが倒れている
+    F.naiFlag = nobori(W, -36, -46, 'tokugawa', 8); rt.scene.add(F.naiFlag);
     for (const [x, z] of [[-8, 70], [8, 34], [-8, -6], [8, -44]]) rt.scene.add(kagaribi(W, x, z));
     // 大手の外の長束・前田玄以の屋敷（七月十九日に城方が打って出て焼く）
     for (const [x, z, r] of HOUSES) rt.scene.add(hut(W, x, z, 7, 5, r, { wall: 0x7f6b52, groundedHome: true, minka: false }));
@@ -353,7 +358,7 @@ const k01_fushimi = {
       dress([{ type: 'busho', n: 1, o: { name: '松平家忠', invuln: true, horse: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], TORII));
     // 家長の持ち場は始めから西の丸（籠城の持ち場の伝え）。前は三の丸の虎口に並び、夕の段で西の丸へ戻っていた（11/6 布陣の照らし合わせ）
     F.nai = allyGroup(rt, { faction: 'tokugawa', name: '内藤家長の手', anchor: { x: -40, z: -50 }, facing: Math.PI / 2, width: 10, aggro: 6, order: 'hold', fixed: true, noRout: true, formation: 'yari' },
-      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '内藤元長', invuln: true, horse: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'ashigaru', n: 7 }, { type: 'bow', n: 4 }], TORII));
+      dress([{ type: 'busho', n: 1, o: { name: '内藤家長', invuln: true, horse: true } }, { type: 'busho', n: 1, o: { name: '内藤元長', invuln: true, horse: true } }, { type: 'samurai', n: 6, o: { keep: true } }, { type: 'ashigaru', n: 5 }, { type: 'gun', n: 6 }], TORII));   // 家長は鉄砲隊を指揮して射撃の線を保つ（指示書）
     F.naiWest = true;
     F.nai.stay = true; F.nai.noAI = true;
     // 西の丸は家長と子の元長の父子が守った（『落穂集』・城史の伝え）。父子とも西の丸で果てる（naitoFall）
@@ -370,136 +375,176 @@ const k01_fushimi = {
     if (n) rt.makeSquad({ x: 2, z: 69 }, 0, [{ kind: 'spear', n: Math.min(n, 12) }]);
     W.setTime('day');
     rt.setPhase('brief');
-    rt.obj('main', '伏見城の三の丸・二の丸・本丸の口を順に守り、四万の寄せ手を一日でも長く食い止めよ', 'main');
-    // 全戦の通しで、始まりの二十五秒に行き先が無かった。
-    // 別れの話の間から屋敷への行き先を示し、出撃の段へ引き継ぐ。
-    rt.marker('dp', { x: YASHIKI.x + 2, z: YASHIKI.z - 2 }, '長束と玄以の屋敷', { h: 3 });
-    // 戦の前：家康と元忠の別れ → 西軍が集まる前に、城の外の屋敷を焼きに打って出る
-    // 主君は家臣を通称で呼び、三成も官名の「治部」で言う（諱の呼び捨てと今の言い回しを外した）
-    rt.say('徳川家康', '彦右衛門、会津へ発つ。城を預ける。治部が兵を挙げれば、伏見は真っ先に襲われよう', 4.6);
-    rt.after(5.2, () => rt.say('鳥居元忠', '城は千八百で足りまする。兵は一人でも多く、会津へ連れて行かれませ', 4.2));
-    rt.after(9.8, () => rt.say('徳川家康', '……すまぬ、彦右衛門。伏見を頼むぞ', 2.2));
-    // 家康の出立（docs/fushimi_spec_1109.md）：長い説明はせず、去る旗を見送る
-    rt.after(12.1, () => rt.say('鳥居の侍', '……行かれましたな', 1.4));
-    rt.after(13.4, () => rt.say('鳥居元忠', 'ああ', 0.9));
-    // 家康との別れ（六月十八日）から開戦まで一月飛ぶ。日付を真ん中に出す（AT7）
-    // 挙兵（内府ちかひの条々）は七月十七日。十九日の札で「挙兵し」と言うと日がずれる
-    rt.after(14, () => rt.banner('七月十九日', '石田三成らの挙兵から二日。西の軍勢が伏見へ寄せる'));
-    rt.after(14.4, () => rt.say('鳥居元忠', '城を明け渡せとの使いは追い返した。寄せ手が揃う前に打って出て、長束と玄以の屋敷を焼け', 4.2));
-    rt.after(18.8, () => rt.say('松平家忠', '大手の門を出て、南西の屋敷へ！　火を掛けたら城へ戻るぞ', 4));
-    // 出撃の下知を受けたら動き出す。家忠の道案内は進軍中に聞く（始まりの待ちは十五秒まで）。
-    rt.after(14.8, () => this.begin(rt));
+    // 11/10 docs/fushimi_spec_1109.md：守り切る戦でなく「城を失うまでの時間を売る」戦。目標は「伏見城を守れ」とだけ言う（守り切れとは言わない）
+    rt.obj('main', '伏見城を守れ', 'main');
+    // 行き先のピンは始めから切らさない（関所 3）。別れの間も、最初の持ち場（大手の曲輪）を指す
+    rt.marker('dp', { x: 0, z: 64 }, '大手の曲輪', { h: 3 });
+    // ---- 戦の前：家康の出立。長い説明はしない（「頼む」「は。」）。家康は旗本と大手門から出て、門が閉まる（k01_fushimi/yose.js が家康を動かす）
+    rt.say('徳川家康', '彦右衛門。……頼む', 3.2);
+    rt.after(3.6, () => rt.say('鳥居元忠', 'は。', 2.2));
+    rt.after(6.4, () => rt.say(nm(rt), '（この城は、捨て石になる）', 3.4));
+    rt.after(21, () => { this.shut(rt, 'ote_s'); sfx('knock', 0.7); });
+    rt.after(22.4, () => rt.say('鳥居の侍', '行かれましたな。', 2.6));
+    rt.after(25.4, () => rt.say('鳥居元忠', 'ああ。', 2.2));
+    // ---- 包囲されていく（南→西→東と、遠くの旗が増える）
+    rt.after(28, () => { rt.banner('慶長五年七月', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
+    rt.after(31.5, () => { this.camps(rt, 2); rt.say('鳥居の侍', '……多いな。', 2.6); });
+    rt.after(35, () => { this.camps(rt, 3); rt.say('使番', '全周、敵勢！', 2.8); });
+    rt.after(38, () => this.begin(rt));
+  },
+
+  // 門を閉めた絵にする（通り道は塞がない。寄せ手が破って入る時に開ける）
+  shut(rt, id) {
+    const g = rt.flags.C?.gateObjs?.[id], d = g && (g.door || g.mesh);
+    if (d?.userData?.close) d.userData.close();
+  },
+  unshut(rt, id) { const g = rt.flags.C?.gateObjs?.[id]; if (g?.open) g.open(); },
+  // 時間稼ぎの内部の値（DELAY_PROGRESS 0→100）。画面には出さず、使番の知らせと戦後の評価で見せる
+  delay(rt, v) {
+    const F = rt.flags;
+    F.delay = Math.min(100, (F.delay || 0) + v);
+    const lines = [[25, '徳川本隊、さらに東へ。'], [50, '敵軍、ここで足止めされております。'], [75, 'もう少しです。']];
+    for (const [k, t] of lines) if (F.delay >= k && !(F.delaySaid || (F.delaySaid = {}))[k]) { F.delaySaid[k] = true; rt.after(1.5, () => rt.say('使番', t, 3)); break; }
   },
 
   begin(rt) {
     const F = rt.flags;
     if (F.begun) return;
-    F.begun = true; F.t0 = rt.t; F.sortie = true; F.a0n = Math.max(1, allyN(rt));
+    F.begun = true; F.t0 = rt.t; F.a0n = Math.max(1, allyN(rt)); F.delay = 0;
     rt.setPhase('siege');
     sfx('horagai', 0.8);
     rt.after(1.2, () => sfx('taiko', 0.8));
-    // 寄せ手の出所は、屋敷から城へ戻る味方の道（大手の外 z=100 前後）より南。戻る途中で組み合い、虎口へ一人も来なかった
-    // 出所は道（x=0）から三十歩の内に置く。外だと道の曲がり角を辿らずに真っすぐ歩き、大手の曲輪の柵に突っかかって外に溜まった
+    rt.say('鳥居元忠', '持ち場につけ！', 2.6);
     const SW = { x: -22, z: 116 }, S = { x: 0, z: 116 };
-    // 打って出るのは家忠の手と主人公の手勢だけ。家長・近正まで出ると、戻る前に宇喜多勢と大手の外で組み合い、虎口が空になった
-    depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => (F.sortie ? [F.mine, F.ie] : [F.mine, ...(F.sanGuard ? [] : [F.ie, F.chika]), ...(F.naiWest ? [] : [F.nai])]), scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
-      // 別の曲輪や石垣越しの敵を追わず、塀の上で空振りを続けない。
-      routeFight: true,
-      botFoeAllowed: (u) => !!F.dp?.cur?.groups.includes(u.group),
-      // 持ち場で寄せ手を待つ間は「動かない」と見なさない（四十五秒で段が飛び、虎口へ来る宇喜多勢と一度も当たらずに次へ進んでいた）
-      idleWait: (r, C) => !!C.at && C.s.kind === 'hold' && Math.hypot(r.player.u.pos.x - C.at.x, r.player.u.pos.z - C.at.z) < (C.botRadius || 14) + 8 }, [
-      // ⓪ 七月十九日：城方が打って出て、大手の外の長束・前田玄以の屋敷を焼く
-      // 屋敷の番兵を手勢と家忠の手と一緒に追い払い、追い払ったら火を掛ける。前は着いただけで済み、番兵とは一度も当たらなかった。
-      //   さらに前は近づいた時に番兵を出し、馬の主人公一人が二十四人に囲まれて十秒で倒れた（critic60）。番兵は屋敷の前に構えて待つ
-      DP.fight({ at: { x: YASHIKI.x + 2, z: YASHIKI.z - 2 }, obj: '大手の門を出て、長束と玄以の屋敷の番兵を追い払え', max: 120, startSound: false,
-        say: [['松平家忠', '打って出るぞ！　屋敷を敵の陣にさせるな'], ['長束の侍', '城兵が出てきたぞ！　屋敷を守れ']],
-        foes: () => [keep('長束の屋敷の番兵', { x: YASHIKI.x - 4, z: YASHIKI.z + 6 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 5 }, { type: 'bow', n: 2 }], { seek: 30, dmg: 0.26 })],
-        noRefill: true,
-        onEnd: (rt2) => { rt2.flags.sortie = false; this.burnYashiki(rt2); rt2.say('松平家忠', '火を掛けたぞ！　皆、城へ戻れ', 3.5); } }),
-      // 時が飛ぶ：宇喜多が着き、寄せ手が段々に増える
-      DP.rest({ dur: 6, heal: 0.5, banner: ['七月二十二日', '宇喜多秀家が着き、城を囲み始めた。三の丸の虎口へ'],
-        say: [['松平家忠', '南の丘に宇喜多の旗！　寄せ手が日ごとに増えてゆく'], ['鳥居元忠', '三の丸の虎口で受けよ']],
-        fn: (rt2) => this.camps(rt2, 1) }),
-      // ① 七月二十二日：大手から寄せる宇喜多勢を、三の丸の虎口で押し返す
-      // 持ち場は虎口の前（土橋と大手の奥の木戸の間）。虎口そのものだと櫓門の下に立ち、後ろの目が門の中で暗い壁しか映らなかった
-      DP.hold({ at: { x: 0, z: 64 }, r: 14, dur: 50, title: '七月二十二日　大手', sub: '宇喜多勢が大手から寄せる', label: '三の丸の虎口の前', obj: '三の丸の虎口の前で、大手から寄せる宇喜多勢を押し返せ',
-        say: [['鳥居元忠', '一歩も通すな。一日でも長く持ちこたえる事が、殿への土産ぞ']],
+    const stages = [
+      // ⓪ 外郭（2〜5分）：大手の曲輪で宇喜多勢を受ける。まだ「守れている」
+      DP.hold({ at: { x: 0, z: 64 }, r: 14, dur: 46, label: '大手の曲輪', obj: '大手の曲輪を守れ',
+        say: [['鳥居の侍', '来たぞ！']],
         waves: () => [
-          { t: 8, say: ['宇喜多の侍', '城は小勢ぞ。一気に揉み潰せ！'], foes: () => [keep('宇喜多勢の先手', S, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 5 }], { seek: 90 })] },
-          { t: 22, say: ['宇喜多の侍', '二の手、続け！　竹束を押し立てよ'], foes: () => [keep('宇喜多勢の二の手', SW, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], { seek: 90 })] },
-          { t: 34, foes: () => [keep('宇喜多勢の三の手', S, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 4 }], { seek: 90 })] },
+          { t: 6, say: ['宇喜多の侍', '大手門を破れ！　一気に揉み潰せ'], foes: () => { this.unshut(rt, 'ote_s'); sfx('knock', 0.9); return [keep('宇喜多勢の先手', S, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 5 }], { seek: 90 })]; } },
+          { t: 20, foes: () => [keep('宇喜多勢の二の手', SW, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], { seek: 90 })] },
+          { t: 32, foes: () => [keep('宇喜多勢の三の手', S, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 4 }], { seek: 90 })] },
         ],
-        // 新手（AB）は足さない。三つの寄せで十分に長く、足すと刻の後に湧いた新手がすぐ崩れて「崩れた」が二百秒続いた
-        noRefill: true, reward: '三の丸の虎口を守り抜いた' }),
-      // ② 七月二十三日：小早川と島津が着く。島津が南東から大手の曲輪へ入る
-      //   島津が入城を断られたという話は江戸時代の書物の伝えで確証が無い。台詞では事実と言い切らない
-      // 島津勢は大手門の前へ寄せ、門の内外で組み合う。前は南東の島津の出所（大手の外 30 歩）から寄せ、主人公がそこまで
-      //   追って行って三十人に囲まれ倒れた。城の外の野戦に見え、城を守る戦に見えなかった（critic60）。出所を門の前に寄せ、味方は門の内で構える
-      DP.fight({ at: { x: 0, z: 74 }, title: '七月二十三日　島津勢', sub: '小早川と島津も着き、寄せ手は四万になった', obj: '大手門に取り付いた島津勢を討て', max: 110,
-        say: [['島津の侍', '薩摩の鉄砲、撃ちかけよ！　築山の大筒に続け'], ['松平近正', '島津が大手門に取り付いたぞ。門の前で討て！']],
-        foes: () => [keep('島津勢の先手', { x: 6, z: 100 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 3 }], { morale: 97, dmg: 0.3 })],
-        later: [{ t: 30, say: ['島津の侍', '新手じゃ！　退くな、押せ！'], foes: () => [keep('島津勢の二の手', { x: -4, z: 102 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }], { dmg: 0.3 })] }],
-        // 一人ずつの斬りは弱める（三十人あまりに囲まれ、命九十から槍の叩きで一度に倒れた。11/7 描いて遊んで）
-        // 新手（AB）は足さない。足すと島津勢が三度湧き（三十→百十四人）、この段だけで二分近くかかった（11/6 描いて遊んで）
-        noRefill: true, reward: '島津勢を大手門から追い落とした' }),
-      // 時が飛ぶ：画面の真ん中に日付と次の目標を出す（AT7）
-      DP.rest({ dur: 6, heal: 0.6, banner: ['七月二十九日', '石田三成が着き、総攻めが迫る。二の丸の口へ回れ'],
-        say: [['松平家忠', '石田治部が伏見に着いた。明日から総攻めじゃ'], ['鳥居元忠', '三の丸は家忠と近正に任せる。そなたらは二の丸の口を固めよ'], ['松平家忠', 'ここは任せろ']],
-        fn: (rt2) => { this.camps(rt2, 3); this.guardSan(rt2); } }),
-      // ③ 三の丸は家忠・近正が八月一日まで守る（史実）。主人公の手勢は二の丸の口へ回る（後ろから宇喜多勢が付け入る）
-      DP.move({ to: { x: NI.x, z: NI.z + 2 }, obj: '三の丸を家忠に任せ、二の丸の口へ回れ', label: '二の丸の口', r: 9, max: 60,
-        ambush: { d: 26, say: ['宇喜多の侍', '城兵が奥へ下がるぞ！　追え、付け入れ！'], foes: () => [keep('宇喜多勢の追い手', { x: 0, z: 66 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 3 }])] } }),
-      // ④ 八月一日 昼：松の丸の甲賀衆が寝返って火を放ち、四方から一斉に乗り込む（西＝甲賀・長束、南＝小早川、東＝島津が太鼓の丸へ）
-      // 持ち場は二の丸の道の脇（番所・蔵の建たない所）。前は建物の壁に張り付いて、寄せる甲賀衆が見えなかった
-      DP.hold({ at: { x: 5, z: -12 }, r: 14, dur: 45, title: '八月一日　昼', sub: '松の丸に内応の火。寄せ手が四方から乗り込む', label: '二の丸の東', obj: '松の丸から二の丸へ入る、寝返った甲賀衆と長束勢を食い止めよ',
-        // 四方から百人あまりが乗り込むので、一人ずつの斬りは弱め、鉄砲は減らす（四十人の鉄砲に囲まれ、主人公が十秒で倒れた。11/7 描いて遊んで二度）
-        say: [['松平家忠', '松の丸が燃えておる！　甲賀衆が寝返ったぞ'], ['鳥居元忠', '四方から来るぞ。火に怯むな、まだ本丸がある']],
+        noRefill: true, onEnd: (rt2) => this.delay(rt2, 15) }),
+      // ① 東の隅櫓：梯子で石垣を越えた島津勢が三の丸の東へ入る（敵は一方向でない）
+      DP.fight({ at: { x: 16, z: 38 }, obj: '東の隅櫓を救え', max: 90,
+        say: [['使番', '東の隅櫓に梯子！　島津が乗り込みます！']],
+        foes: () => [keep('梯子を越えた島津勢', { x: 20, z: 40 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 7 }, { type: 'gun', n: 2 }], { morale: 97, dmg: 0.26, seek: 30 })],
+        noRefill: true, onEnd: (rt2) => this.delay(rt2, 8) }),
+      // ② 破城隊：掛矢と丸太で三の丸の門を叩く寄せ手
+      DP.fight({ at: { x: 0, z: 52 }, obj: '破城隊を止めろ', max: 90,
+        say: [['鳥居の侍', '門を叩いておるぞ！　破城隊じゃ']],
+        foes: () => { sfx('crash', 0.8); return [keep('三の丸の門を破る破城隊', { x: 0, z: 62 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dmg: 0.26, seek: 30 })]; },
+        noRefill: true, onEnd: (rt2) => { this.delay(rt2, 8); rt2.say('使番', '大手、破られました！', 2.8); rt2.after(3, () => rt2.say('使番', '西側も敵が入りました！', 2.8)); } }),
+      // ③ 最初の後退：二の丸へ。追って来る寄せ手を後ろで止める殿
+      DP.move({ to: { x: NI.x, z: NI.z + 2 }, obj: '二の丸へ退け', label: '二の丸の口', r: 9, max: 70,
+        say: [['鳥居元忠', '二の丸へ！']],
+        ambush: { d: 26, say: ['宇喜多の侍', '城兵が退くぞ！　付け入れ！'], foes: () => [keep('宇喜多勢の追い手', { x: 0, z: 58 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 2 }])] } }),
+      // ④ 門を閉め、数秒の静けさ → 外から門を叩く音「また来る。」
+      DP.rest({ dur: 10, heal: 0.5, next: { x: -14, z: -7 },
+        fn: (rt2) => {
+          this.shut(rt2, 'ni_s'); this.delay(rt2, 10);
+          for (const k of [4, 5.4, 6.8, 8.2]) rt2.after(k, () => sfx('knock', 0.8));
+          rt2.after(5, () => rt2.say(nm(rt2), 'また来る。', 2.4));
+        } }),
+      // ⑤ 二の丸の西：松平家忠の持ち場へ救援。一緒に押し返す（持ち場は z=-7 の空いた帯。z=-12〜-16 には厩と蔵が建つ）
+      DP.hold({ at: { x: -14, z: -7 }, r: 12, dur: 40, label: '二の丸の西', obj: '二の丸の西で家忠殿と押し返せ',
+        say: [['松平家忠', '来てくれたか！　西の口が持たぬ']],
         waves: () => [
-          { t: 2, say: ['長束の侍', '甲賀衆が門を開けたぞ！　二の丸へ雪崩れ込め'], foes: () => [keep('寝返った甲賀衆', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 1 }], { dmg: 0.24 }), keep('長束勢', { x: MATSU.x + 6, z: MATSU.z + 4 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 3 }], { dmg: 0.24 })] },
-          { t: 12, say: ['上林竹庵', '西の太鼓の丸にも小早川が取り付いたぞ！'], foes: () => [keep('太鼓の丸へ寄せる小早川勢', { x: TAIKO.x - 22, z: TAIKO.z + 6 }, 'kobayakawa', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
-          { t: 20, say: ['島津の侍', '島津勢、二の丸の口を破れ！'], foes: () => [keep('二の丸の口へ寄せる島津勢', { x: 0, z: 40 }, 'shimazu', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 11 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
-          { t: 30, foes: () => [keep('長束勢の二の手', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 1 }], { dmg: 0.24 })] },
+          { t: 3, foes: () => { this.unshut(rt, 'ni_s'); return [keep('二の丸の西へ寄せる小早川勢', { x: TAIKO.x - 20, z: TAIKO.z - 4 }, 'kobayakawa', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 9 }, { type: 'gun', n: 1 }], { dmg: 0.24 })]; } },
+          { t: 18, foes: () => [keep('二の丸の口を破った宇喜多勢', { x: 0, z: 14 }, 'ukita', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 9 }], { dmg: 0.24 })] },
         ],
-        noRefill: true, reward: '二の丸の東を守り抜いた' }),
-      // 台詞が次の段へこぼれないよう、間を十秒とる
-      DP.rest({ dur: 14, heal: 0.6, banner: ['八月一日　夕', '本丸だけが残った。本丸の口へ'],
-        // 守将は同じ死に方にしない：家忠は使番の知らせで（戻らない）、家長は西の丸で鉄砲の線を保ち、後で旗だけが倒れる
-        say: [['使番', '松平殿、討死！　近正殿も三の丸で果てられた'], ['内藤家長', 'わしは西の丸で、鉄砲の線を最後まで保つ'], ['若い兵', '援軍は……来ますか？'], ['鳥居元忠', '皆、本丸へ']],
-        // 討死は家長の台詞で知らせた。使番の「討たれた」を遅れて重ねない（civ で大将討死の知らせを飛ばす）
-        fn: (rt2) => { for (const n of ['松平家忠', '松平近正', '上林竹庵']) this.fall(rt2, n); this.fallAll(rt2, [rt2.flags.ie, rt2.flags.chika, rt2.flags.chikuan]); this.naitoWest(rt2); } }),
-      // ⑤ 本丸の口：寄せ手が四方から本丸へ。元忠は足が利かず、刀を杖に旗本の後ろで立つ（伝え）
-      // 持ち場は本丸の口の内（櫓門の下に立つと後ろの目が門の中に入り、門の前に置いた火が画面を覆っていた）
-      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 32, title: '本丸', sub: '鳥居元忠、最後の抵抗', label: '本丸の口の内', obj: '本丸の口の内で元忠殿の旗本と並び、攻め入る寄せ手を食い止めよ',
-        say: [['鳥居の侍', '門を叩いておる……また来る'], ['鳥居元忠', '足は利かぬが、まだ立てる']],
+        noRefill: true, onEnd: (rt2) => { this.delay(rt2, 12); rt2.say('松平家忠', 'ここは任せろ。', 2.6); } }),
+      // ⑥ 別の方向から突破：松の丸の甲賀衆が寝返り、二の丸の東へ。少し後に家忠の討死を使番が知らせる（戻らない）
+      DP.hold({ at: { x: 8, z: -7 }, r: 14, dur: 42, label: '二の丸の東', obj: '二の丸の東を食い止めよ',
+        say: [['鳥居の侍', '松の丸が燃えておる！　甲賀衆が寝返ったぞ']],
         waves: () => [
-          { t: 2, say: ['宇喜多の侍', '本丸ぞ！　火の回らぬうちに乗っ取れ'], foes: () => [keep('本丸へ寄せる宇喜多勢', { x: 0, z: -16 }, 'ukita', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 12 }, { type: 'gun', n: 2 }], { dmg: 0.3 })] },
-          { t: 12, say: ['鳥居の侍', '西の丸が破られ、内藤殿が討死！　東の塀からも来るぞ'], foes: () => { this.naitoFall(rt); return [keep('西の丸から寄せる長束勢', { x: -14, z: -27 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }]), keep('東から寄せる島津勢', { x: 16, z: -27 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }])]; } },
-          { t: 22, foes: () => [keep('本丸へ寄せる小早川勢', { x: 8, z: -18 }, 'kobayakawa', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 12 }, { type: 'bow', n: 4 }], { dmg: 0.3 })] },
+          { t: 2, foes: () => [keep('寝返った甲賀衆', MATSU, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'gun', n: 1 }], { dmg: 0.24 }), keep('長束勢', { x: MATSU.x + 6, z: MATSU.z + 4 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }, { type: 'bow', n: 3 }], { dmg: 0.24 })] },
+          { t: 22, say: ['使番', '松平殿、討死！'], foes: () => { this.ieFall(rt); return [keep('二の丸の西を破った小早川勢', { x: -18, z: -8 }, 'kobayakawa', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 8 }], { dmg: 0.24 })]; } },
         ],
-        // 孫一の斬り込みの前に一息（手当て）。息をつく間なく四十人の鉄砲に当たり、主人公が十秒で倒れた（11/7）
-        noRefill: true, reward: '本丸の口を守った', onEnd: (rt2) => rt2.player.treatWounds(0.8) }),
-      // ⑥ 雑賀孫一の鉄砲衆が本丸に斬り込む
-      DP.fight({ at: HON, title: '雑賀孫一', sub: '鉄砲衆を連れて本丸へ斬り込む', obj: '本丸に斬り込んだ雑賀孫一の鉄砲衆を討て', max: 70,
-        say: [['雑賀孫一', '鳥居殿はいずこ！　雑賀の鈴木孫三郎、見参！'], ['鳥居元忠', '旗本ども、雑賀の鉄砲を防げ！　わしはここで受ける']],
-        // 鉄砲衆は二十人ほど（三十人でも傷が重なって主人公が倒れた。11/6 描いて遊んで）。さらに前の四十人は、崩れて退く本丸の寄せ手と重なって七十人に囲まれ、主人公が十秒で倒れた。11/7）
-        // 出所は本丸の口のすぐ外（前は二の丸の中で、鉄砲衆が間合いを取って二の丸へ下がり、追った主人公が傷で倒れた。11/6 夜 描いて遊んで二度）
-        // 孫一（鈴木重朝）は落城の後も生きた（1623 年没）。討てない将なので、倒す数を数える鉄砲衆とは別の組で本丸の口に立つ
-        foes: () => { this.magoichi(rt); return [keep('雑賀孫一の鉄砲衆', { x: 0, z: -31 }, 'yatagarasu', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }, { type: 'gun', n: 1 }], { morale: 100, seek: 40, dmg: 0.16 })]; },
-        // 新手は足さない（足すと主人公の手柄の数を待って新手の鉄砲衆が湧き続け、落城の札まで四分かかった）
-        noRefill: true, reward: '雑賀孫一の鉄砲衆と戦い抜いた' }),
-      // ⑦ 最後の防戦（toku15 の 1・12〜15分）：旗本は討ち減らされ、元忠の周りは数人。天守の前で最後の寄せを受ける
-      DP.hold({ at: { x: -4, z: -49 }, r: 10, dur: 34, title: '八月一日　夕', sub: '元忠の周りに残るのは数人', label: '天守の前', obj: '天守の前で、元忠殿の最後の盾になれ',
-        say: [['鳥居元忠', 'よう戦うた。あと少し、殿のために時を稼げ']],
+        noRefill: true, onEnd: (rt2) => this.delay(rt2, 12) }),
+      // ⑦ 本丸へ退く
+      DP.move({ to: { x: HON.x, z: HON.z + 4 }, obj: '本丸へ退け', label: '本丸の口', r: 8, max: 70,
+        say: [['鳥居元忠', '本丸へ。門を閉めよ']],
+        ambush: { d: 20, say: ['島津の侍', '残るは本丸ぞ！'], foes: () => [keep('二の丸を乗っ取った島津勢', { x: 0, z: -14 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 7 }])] } }),
+      // ⑧ 本丸だけが残る。援軍は来ない。内藤の大旗が西の丸に倒れている
+      DP.rest({ dur: 14, heal: 0.6, next: { x: HON.x, z: HON.z - 1 },
+        fn: (rt2) => {
+          this.shut(rt2, 'hon_s'); this.burn(rt2); this.naitoFall(rt2);
+          for (const nn of ['松平近正', '上林竹庵']) this.fall(rt2, nn);
+          this.fallAll(rt2, [rt2.flags.chika, rt2.flags.chikuan]);
+          rt2.after(1, () => rt2.say('若い兵', '援軍は来ますか？', 2.6));
+          rt2.after(5.5, () => rt2.say('使番', '援軍は……ございませぬ。', 2.8));
+          rt2.after(8.8, () => rt2.say('鳥居元忠', 'そうか。', 2.2));
+          for (const k of [10, 11.5, 13]) rt2.after(k, () => sfx('knock', 0.9));
+        } }),
+      // ⑨ 本丸：敵が中へ入る。元忠も前に出る。「殿、奥へ！」に退かない
+      DP.hold({ at: { x: HON.x, z: HON.z - 1 }, r: 12, dur: 36, label: '本丸', obj: '最後まで持ちこたえろ',
+        say: [['鳥居の侍', '殿、奥へ！'], ['鳥居元忠', '退かぬ。']],
+        waves: () => [
+          { t: 2, foes: () => { this.unshut(rt, 'hon_s'); sfx('crash', 0.8); return [keep('本丸へ寄せる宇喜多勢', { x: 0, z: -16 }, 'ukita', [{ type: 'samurai', n: 4 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 2 }], { dmg: 0.28 })]; } },
+          { t: 14, foes: () => [keep('西の丸から寄せる長束勢', { x: -14, z: -27 }, 'maru', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }]), keep('東から寄せる島津勢', { x: 16, z: -27 }, 'shimazu', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 2 }])] },
+          { t: 24, foes: () => [keep('本丸へ寄せる小早川勢', { x: 8, z: -18 }, 'kobayakawa', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'bow', n: 3 }], { dmg: 0.28 })] },
+        ],
+        noRefill: true, onEnd: (rt2) => { this.delay(rt2, 13); rt2.player.treatWounds(0.8); } }),
+      // ⑩ 最後の防衛：元忠と並んで戦う。周りの味方が一人ずつ倒れる
+      DP.hold({ at: { x: -4, z: -49 }, r: 10, dur: 30, label: '元忠殿の旗', obj: '最後まで持ちこたえろ',
+        say: [['鳥居の侍', 'ここまでですか。'], ['古参の侍', 'まだだ。殿がおられる。']],
         waves: (rt2) => {
-          const g = rt2.flags.motochika;
-          if (g) { let keepN = 3; for (const u of g.units.slice()) if (u.alive && u.name !== '鳥居元忠') { if (keepN > 0) keepN--; else { u.civ = true; rt2.army.kill(u, null); } } g.anchor = { x: -5, z: -51 }; }
+          this.thin(rt2);
           return [
-            { t: 3, say: ['宇喜多の侍', '天守の前に鳥居の旗！　大将はそこぞ'], foes: () => [keep('天守へ寄せる宇喜多勢', { x: 2, z: -36 }, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 6 }], { dmg: 0.24, seek: 30 })] },
-            { t: 16, foes: () => [keep('天守へ寄せる小早川勢', { x: 12, z: -38 }, 'kobayakawa', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], { dmg: 0.24, seek: 30 })] },
+            { t: 3, foes: () => [keep('天守へ寄せる宇喜多勢', { x: 2, z: -36 }, 'ukita', [{ type: 'samurai', n: 3 }, { type: 'ashigaru', n: 6 }], { dmg: 0.24, seek: 30 })] },
+            { t: 15, foes: () => [keep('天守へ寄せる小早川勢', { x: 12, z: -38 }, 'kobayakawa', [{ type: 'samurai', n: 2 }, { type: 'ashigaru', n: 6 }], { dmg: 0.24, seek: 30 })] },
           ];
         },
-        noRefill: true, reward: '最後まで元忠殿の盾となった' }),
-    ].map((s, i) => requirePresence(s, i === 6 ? ['寝返った甲賀衆', '長束勢'] : null)), (rt2) => this.win(rt2));
+        noRefill: true, onEnd: (rt2) => {
+          this.delay(rt2, 12);
+          rt2.say('鳥居元忠', 'ここでよい。', 2.6);
+          rt2.after(3, () => rt2.say('鳥居元忠', '行け。', 2.2));
+        } }),
+      // ⑪ 脱出：正門でなく本丸の裏の崩れた石垣から、数人で城の外へ。振り返ると元忠の旗の周りに敵が集まる
+      DP.move({ to: ESC, obj: '城を抜けよ', label: '城の外', r: 8, max: 90,
+        say: [['鳥居の侍', 'こちらへ！　裏の石垣が崩れております']],
+        ambush: { t: 4, foes: () => { this.lastStand(rt); return []; } } }),
+    ];
+    const LBL = { 1: '東の隅櫓', 2: '三の丸の門', 3: '二の丸の口', 7: '本丸の口', 11: '城の外' };
+    stages.forEach((s, i) => { s.lbl = LBL[i] || ''; });
+    depthStart(rt, { faction: 'ukita', flag: 'ukita', armor: WEST.armor, friends: () => [F.mine, ...(F.ieAway ? [] : [F.ie]), ...(F.sanGuard ? [] : [F.chika])], scale: 2.2, backing: false, fixedSpawn: true, dmg: 0.38, botSeek: 40,
+      routeFight: true,
+      botFoeAllowed: (u) => !!F.dp?.cur?.groups.includes(u.group),
+      idleWait: (r, C) => !!C.at && C.s.kind === 'hold' && Math.hypot(r.player.u.pos.x - C.at.x, r.player.u.pos.z - C.at.z) < (C.botRadius || 14) + 8 },
+    stages.map((s, i) => {
+      if (s.kind === 'rest' && s.next) { const st = s.start; s.start = (r, C, m, ctx) => { st(r, C, m, ctx); r.flags.restNext = s.next; }; }
+      return requirePresence(s, i === 6 ? ['寝返った甲賀衆', '長束勢'] : null);
+    }), (rt2) => this.win(rt2));
+  },
+
+  // 家忠は二の丸の西で果てる（使番が知らせる。主人公は見ていない）
+  ieFall(rt) {
+    const F = rt.flags;
+    this.fall(rt, '松平家忠');
+    this.fallAll(rt, [F.ie]);
+  },
+  // 最後の防衛：元忠の本陣も手勢も、数人を残して倒れていく（一人ずつ）
+  thin(rt) {
+    const F = rt.flags;
+    const list = [];
+    for (const g of [F.motochika, F.mine]) if (g) { let keepN = g === F.motochika ? 3 : 2; for (const u of g.units) if (u.alive && u.name !== '鳥居元忠') { if (keepN > 0) keepN--; else list.push(u); } }
+    list.forEach((u, k) => rt.after(1 + k * 1.6, () => { if (u.alive && !F.ending) { u.civ = true; rt.army.kill(u, null); } }));
+    if (F.motochika) F.motochika.anchor = { x: -5, z: -51 };
+  },
+  // 脱出の間：元忠の旗の周りに寄せ手が集まる（雑賀の鈴木孫三郎＝重朝が対峙する）
+  lastStand(rt) {
+    const F = rt.flags;
+    if (F.lastG) return;
+    this.magoichi(rt);
+    if (F.magoG) Object.assign(F.magoG, { anchor: { x: 4, z: -44 }, facing: Math.PI });
+    F.lastG = enemyGroup(rt, { fixed: true, faction: 'yatagarasu', name: '元忠の旗に群がる寄せ手', anchor: { x: -3, z: -44 }, facing: Math.PI, order: 'hold', aggro: 2, width: 8, morale: 100, noRout: true },
+      dress([{ type: 'samurai', n: 6 }, { type: 'gun', n: 4 }], { ...WEST, flag: 'yatagarasu' }));
+    F.lastG.noAI = true; F.lastG.stay = true; F.lastG.civ = true;
+    for (const u of F.lastG.units) u.civ = true;
+    let keepN = 2;
+    for (const u of (F.mine?.units || []).slice()) if (u.alive) { if (keepN > 0) { keepN--; continue; } u.civ = true; rt.army.kill(u, null); }
   },
 
   // 段の間で果てる城方の将（使番の「討たれた」は重ねない）
@@ -535,6 +580,7 @@ const k01_fushimi = {
     // 隊にも civ を付ける（付けないと、果てる家長の手が「味方の兵が退き始めた」を八秒おきに四度出した）
     if (F.nai) F.nai.civ = true;
     for (const u of (F.nai?.units || []).slice()) if (u.alive) { u.invuln = false; u.civ = true; rt.army.kill(u, null); }
+    if (F.naiFlag) { F.naiFlag.rotation.z = 1.4; F.naiFlag.position.y += 0.4; }
   },
 
   // 雑賀孫一と旗本：二の丸の北の脇から本丸を向いて鉄砲衆を下知する（馬上・討てない）。土橋の道は塞がない
@@ -601,35 +647,29 @@ const k01_fushimi = {
     if (rt.world.addSmokeColumn) rt.world.addSmokeColumn(-9, rt.world.heightAt(-9, -53) + 20, -53, { size: 4, black: true });
   },
 
-  // 本丸に火が回り、元忠が討死する。城は落ちるが、東軍が美濃へ動くための時は稼げた
+  // 城の外から落ちた伏見城を見る：元忠の旗の周りに敵、元忠討死、徳川の旗が下がり寄せ手の旗が上がる。使番「徳川本隊は無事、東へ。」
+  // 落城の瞬間に負けの札は出さない（任務達成）
   win(rt) {
     const F = rt.flags;
     if (F.ending) return;
     F.ending = true;
     this.burn(rt);
+    this.lastStand(rt);
     rt.setPhase('end');
     rt.objDone('main');
-    rt.award((t) => { t.main = true; t.special = { label: '伏見城を最後まで守った', pts: 40 }; }, '伏見城を最後まで守った');
-    sfx('horagai', 0.9);
-    rt.banner('伏見城、炎上', '慶長五年八月一日　本丸に火が回る');
+    const dl = Math.round(Math.max(F.delay || 0, 60));
+    rt.award((t) => { t.main = true; t.special = { label: `時を稼いだ（${dl}／100）`, pts: 20 + Math.round(dl / 5) }; }, '伏見城で時を稼いだ');
     rt.player.u.invuln = true;
-    // 元忠は足が利かず、刀を杖に腰を下ろす。孫一は敬って腹を召すのを待ったと伝わる（言行録）
-    if (F.toriiU) F.toriiU._crouch = true;
-    // 元忠の最期（docs/fushimi_spec_1109.md）：「ここでよい。」主人公に「行け。」（結果を家康へ伝える役）。救えない・ただの絵にもしない
-    rt.after(2, () => rt.say('鳥居元忠', 'ここでよい', 2.2));
-    rt.after(4.6, () => rt.say('鳥居元忠', `${nm(rt)}、行け。この城の様を、殿に伝えよ`, 3.4));
-    rt.after(8.4, () => rt.say(nm(rt), '……御免', 1.8));
-    rt.after(11.4, () => rt.say('雑賀孫一','鳥居殿、腹を召されるまで、ここでお待ち申す', 4.2));
-    // 札の「自刃」の時に元忠も倒れる（前は札が出た後も床几に座ったままだった）
-    rt.after(15.6, () => this.fall(rt, '鳥居元忠'));
-    // 孫一が腹を召すのを待つ伝えと合わせ、札は「自刃」（前は「討死」で台詞と食い違っていた）
-    rt.after(16, () => rt.banner('鳥居元忠、自刃', '孫一が首を取り、城方の多くが本丸で果てた'));
-    // 城の外で振り返る：敵の旗と火。使番の一言で、落城が意味を持ったと分かる
-    rt.after(21.5, () => rt.say('使番', '徳川本隊は無事、東へ', 2.6));
-    rt.after(25.5, () => rt.say(nm(rt), '落ちる事は分かっていた。……役目は、果たした', 3.2));
-    F.k01s?.ending?.();   // 「伏見城　落城」→「任務達成　徳川軍の時間を稼いだ」（k01_fushimi/yose.js）
-    // 戦固有の締め：落城で城方が勝鬨を上げず、共通の締めの四秒半の上限で「自刃」「血天井」の札が切れないように
-    rt.finish({ scriptedEnd: true }, 35);
+    rt.after(2.5, () => {
+      this.fall(rt, '鳥居元忠');
+      sfx('fall', 0.8);
+      for (const f of F.tkFlags || []) f.visible = false;
+      for (const [x, z] of [[-8, -46], [8, -46], [0, -8], [-12, 28], [12, 28]]) rt.scene.add(nobori(rt.world, x, z, 'ukita', 6));
+    });
+    rt.after(3.5, () => rt.banner('鳥居元忠、討死', '慶長五年八月一日'));
+    rt.after(8.5, () => { sfx('messenger', 0.7); rt.say('使番', '徳川本隊は無事、東へ。', 3.4); });
+    F.k01s?.ending?.();   // 「伏見城　落城」→「任務達成」（k01_fushimi/yose.js）
+    rt.finish({ scriptedEnd: true }, 24);
   },
 
   update(rt, dt) {
@@ -638,49 +678,50 @@ const k01_fushimi = {
     depthTick(rt, dt);
     F.k01s?.tick?.(dt);
     const D = F.dp;
-    // 寄せ手が日付の段で着く（巻き戻しで段が飛んでも陣は揃える）
-    // 本丸の段と孫一の段の寄せ手は元忠を目当てに本丸へ寄せる（「鳥居殿はいずこ」）。共通の頭に任せると、近くの味方の組を追って三の丸の方へ百歩も下った
-    if (D && D.on && D.cur && D.i >= 8 && F.toriiU) for (const g of D.cur.groups) if (!g._k01) { g._k01 = true; g.focus = F.toriiU; }
-    // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた（二の丸の西で二百秒）。残りは崩れて退く
-    if (D && D.on && D.cur && D.cur.s.kind === 'hold' && D.cur.k01Engaged && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
-    if (D && D.i >= 1) this.camps(rt, D.i >= 5 ? 3 : D.i >= 3 ? 2 : 1);
+    const i = D && D.on ? D.i : -1;
+    // 段の替わり目：外郭を退く時、近正は三の丸に残り、家忠は二の丸の西の持ち場へ先に回る
+    if (i !== F.lastI) {
+      F.lastI = i;
+      if (i === 3) this.guardSan(rt);
+      if (i === 3 && F.ie && !F.ieAway) { F.ieAway = true; Object.assign(F.ie, { anchor: { x: -17, z: -7 }, order: 'hold', fixed: true, stay: true, noAI: true, aggro: 10, facing: Math.PI / 2, focus: null }); }
+      if (D?.cur?.s.kind !== 'rest') F.restNext = null;
+    }
+    // 守る段の間、持ち場で戦っていれば時が稼げる（内部の値。画面には出さない）
+    if (D?.cur?.s.kind === 'hold' && D.cur.k01Engaged) this.delay(rt, dt * 0.12);
+    // 本丸の段からの寄せ手は元忠を目当てに本丸へ寄せる
+    if (i >= 9 && D.cur && F.toriiU) for (const g of D.cur.groups) if (!g._k01) { g._k01 = true; g.focus = F.toriiU; }
+    // 守る段の刻を四十秒過ぎても、塀の外で詰まった寄せ手の残りが段を止めていた。残りは崩れて退く
+    if (i >= 0 && D.cur && D.cur.s.kind === 'hold' && D.cur.k01Engaged && rt.t - D.cur.t0 > D.cur.s.max - 35 + 40) for (const g of D.cur.groups) if (g.count && !g.routed) { g.noRout = false; g.morale = 0; }
+    if (F.begun) this.camps(rt, 3);
     for (const g of [F.ukitaCamp, F.kobaCamp, F.shimaCamp, F.ishidaCamp, F.moriCamp, F.natsukaCamp]) if (g && g.count && g.order !== 'hold') { g.order = 'hold'; g.anchor = { ...g._home }; }
-    // 守る段の味方は持ち場（虎口・二の丸の西・本丸の口）に踏み止まる。共通の頭は七十歩の内の敵へ持ち場から出て行かせ、
-    //   宇喜多勢と大手の外で組み合って、主人公の立つ虎口へ寄せ手が一人も来なかった（九2）
-    const holding = D && D.on && D.cur && D.cur.s.kind === 'hold';
-    for (const g of [F.mine, ...(F.sanGuard ? [] : [F.ie, F.chika])]) if (g) g.stay = !!holding;
-    // 島津の段：味方は大手門の内で構えて迎える（打って出て門の外の野で組み合い、城を守る戦に見えなかった。11/7 描いて遊んで見つけた）
-    if (D && D.on && D.i === 3) for (const g of [F.mine, F.ie, F.chika]) if (g && g.count && !g._k01Ote) { g._k01Ote = true; g.order = 'hold'; g.aggro = 14; g.anchor = { x: g === F.ie ? 8 : g === F.chika ? -8 : 0, z: g === F.mine ? 80 : 77 }; }
-    // 八月一日の城方は全員討死の覚悟で退かない。士気が尽きかけると共通の頭が本丸の中で「味方の方へ下がって立て直す」に替え、
-    //   「味方の兵が退き始めた」が八秒おきに四度出ていた（11/6 専門家の目の六回め）
-    //   手勢と元忠の本陣だけ止めても、本丸の隅櫓の上の鉄砲衆が下がって同じ知らせを出したので、城方の隊は全部
-    if (D && D.on && D.i >= 6) for (const g of rt.army.groups) if (g.team === 0 && !g.civ && g.count) g.morale = Math.max(g.morale ?? 100, 70);
-    // 築山の大筒：宇喜多の着陣から落城まで、昼夜に城を撃つ
-    if (D && D.on && D.i >= 2 && rt.t > (F.cannonT || 0)) {
+    const holding = i >= 0 && D.cur && D.cur.s.kind === 'hold';
+    for (const g of [F.mine, ...(F.ieAway ? [] : [F.ie]), ...(F.sanGuard ? [] : [F.chika])]) if (g) g.stay = !!holding;
+    // 城方は退かない（「味方の兵が退き始めた」を出さない）
+    if (i >= 5) for (const g of rt.army.groups) if (g.team === 0 && !g.civ && g.count) g.morale = Math.max(g.morale ?? 100, 70);
+    // 築山の大筒：包囲から落城まで、昼夜に城を撃つ
+    if (F.begun && rt.t > (F.cannonT || 0)) {
       F.cannonT = rt.t + 7 + Math.random() * 5;
       const y = rt.world.heightAt(TSUKIYAMA.x, TSUKIYAMA.z) + 3;
       sfx('thunder', 0.55);
       rt.army.smoke(TSUKIYAMA.x + (Math.random() - 0.5) * 8, y, TSUKIYAMA.z - 2, 0, -1, 1);
     }
-    // 城方の鉄砲：守る段の間、虎口の脇の隅櫓と塀の上から寄せ手へ撃ち下ろす煙（塀・櫓から鉄砲の煙が一度も出なかった。critic60）
+    // 城方の鉄砲：守る段の間、塀と櫓から寄せ手へ撃ち下ろす煙。内藤家長の鉄砲隊は西の丸で最後まで射撃の線を保つ
     if (holding && rt.t > (F.wallGunT || 0)) {
       F.wallGunT = rt.t + 2.5 + Math.random() * 3;
-      const spots = D.i <= 3 ? [[-24, 42], [24, 42], [-12, 46], [12, 46], [-20, 60], [20, 60]] : D.i <= 7 ? [[-20, 4], [20, 4], [24, -12]] : [[-16, -38], [16, -38], [-10, -34], [10, -34]];
+      const spots = i <= 2 ? [[-24, 42], [24, 42], [-12, 46], [12, 46], [-20, 60], [20, 60]] : i <= 6 ? [[-20, 4], [20, 4], [24, -12], [-30, -44], [-36, -42]] : [[-16, -38], [16, -38], [-10, -34], [10, -34]];
       for (let k = 0; k < 2; k++) {
         const [x, z] = spots[Math.floor(Math.random() * spots.length)];
         rt.army.smoke(x, rt.world.heightAt(x, z) + 4.5, z, 0, 1, 1);
       }
       sfx('volley', 0.35);
     }
-    // 孫一は「雑賀の孫一、見参」と名乗って斬り込む。右上の目標で名を伏せない（伏せると「敵のいる方へ進め」に替わっていた）
-    if (D && D.i >= 9 && !F.magoNamed) { F.magoNamed = true; revealName(rt, '雑賀孫一'); }
-    // 八月一日 昼：松の丸の内応の火（④の段）。夕の段で本丸・天守へ火が回り、家長は西の丸へ戻る
-    if (D && D.on && D.i >= 6) { this.turnKoka(rt); this.burnMatsu(rt); }
-    if (D && D.on && D.i >= 7) { this.burn(rt); this.naitoWest(rt); }
-    // 本丸の段：旗本が本丸の口へ出て戦う。元忠は足が利かず、刀を杖に旗本の後ろで立つ
-    if (D && D.on && D.i >= 8 && !F.toriiOut && F.motochika) { F.toriiOut = true; if (F.toriiU) F.toriiU._crouch = false; F.motochika.anchor = { x: HON.x, z: HON.z }; F.motochika.aggro = 8; }
+    if (i >= 11 && !F.magoNamed) { F.magoNamed = true; revealName(rt, '雑賀孫一'); }
+    // 甲賀衆の内応の火（二の丸の東の段）→ 本丸だけが残った時に天守へ火が回る
+    if (i >= 6) { this.turnKoka(rt); this.burnMatsu(rt); }
+    if (i >= 8) this.burn(rt);
+    // 本丸の段：元忠も前へ出て戦う（守られる大将でなく、一緒に最後まで残る）
+    if (i >= 9 && !F.toriiOut && F.motochika) { F.toriiOut = true; if (F.toriiU) F.toriiU._crouch = false; F.motochika.stay = false; F.motochika.anchor = { x: HON.x, z: HON.z }; F.motochika.aggro = 8; }
   },
-
   onKill(rt, v) {
     const F = rt.flags;
     if (v.team === 1) F.ek++; else F.ak++;
@@ -723,7 +764,7 @@ k01_fushimi.botBrain = (b, inp, { goTo }) => {
 };
 
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
-STAGES.k01_fushimi = [['打って出て長束と玄以の屋敷を焼く'], ['三の丸の虎口の前で宇喜多勢を押し返す', dpAt(2)], ['大手門に取り付いた島津勢を討つ', dpAt(3)], ['二の丸の口へ回る', dpAt(5)], ['二の丸の東で寝返った甲賀衆と長束勢を食い止める', dpAt(6)], ['本丸の口の内で最後まで戦う', dpAt(8)], ['本丸で雑賀孫一の鉄砲衆を討つ', dpAt(9)], ['天守の前で元忠殿の最後の盾になる', dpAt(10)]];
+STAGES.k01_fushimi = [['大手の曲輪を守る'], ['東の隅櫓を救う', dpAt(1)], ['破城隊を止める', dpAt(2)], ['二の丸へ退く', dpAt(3)], ['二の丸の西で家忠殿と押し返す', dpAt(5)], ['二の丸の東を食い止める', dpAt(6)], ['本丸へ退く', dpAt(7)], ['本丸で最後まで持ちこたえる', dpAt(9)], ['城を抜ける', dpAt(11)]];
 
 // 目標の札に別の刻限を重ねず、実際の段の達成だけで判定する。
 // 守る段と日付の切り替えでは人数を出さない。字から相手を探す

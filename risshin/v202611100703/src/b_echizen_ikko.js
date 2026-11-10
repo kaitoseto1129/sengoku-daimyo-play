@@ -4090,7 +4090,7 @@ const echizen_ikko = {
       F.roadHoldSeconds = Math.max(ROAD_HOLD, Math.ceil(240 - rt.t));
       // kaito 10/31：山道の守りと後備え二組を三十秒ずつ分けない。一つの群れで一斉に山から攻め返す。
       F.roadWaveNext = 1; F.roadWaveAt = rt.t + 2;
-      rt.obj('main', '味方三人と道を守れ', 'main', true);
+      rt.obj('main', IKKO_GOALS[4], 'main', true);
       rt.objProgress('main', '敵が来たら押し返せ。守った時間は残る');
       rt.marker('path', () => templeWay(rt.army, rt.player.u, OKUYAMA), '奥山道を守る');
       rt.banner('山道の旗を守る', '山から戻る敵を止める');
@@ -4192,6 +4192,8 @@ const echizen_ikko = {
     //   滝川一益の陣所の兵（旗本の輪と後備え）は前へ寄せない。寄せると総大将の備えが惣門の前まで出て、
     //   見張りに触れて「後備えが危うい」と麓へ退いていた（kaito 一-2：総大将は後方の本陣）。
     heroFrontClash(rt, dt, { dir: (r) => r.camera && { x: r.player.u.pos.x - r.camera.position.x, z: r.player.u.pos.z - r.camera.position.z },
+      // 森と谷を捜す間は、寺の見張りと先手を本人の前へ呼び出さない。
+      active: (r) => !IK_YAMA.active(r),
       // 境内で待つ守りを演出の斬り合いへ呼ぶと、閉じた惣門の裏へ押し寄せて重なる。
       skip: (g, foe) => foe ? !!g.stay : g.taishoGuard || g.butai === rt.flags.reserve || g === rt.flags.reserve?.real });
     // 11/4 check60（一-6）：山寺の四方に作り物の乱戦（addClash）を置かない。戦うのは登録した備えだけ。
@@ -4490,7 +4492,7 @@ const echizen_ikko = {
           }
         }
         F.hallsHeld = !F.roadHall;
-        // 止まった理由を任務の見出しに出す。札を増やさず、印も同じ持ち場を指す。
+        // 目標の場所と行いは保ち、止まった理由と残り時間だけを進み具合へ出す。
         if (rt.t >= (F.roadGuideAt || 0)) {
           F.roadGuideAt = rt.t + 1;
           const remaining = Math.max(0, Math.ceil(F.roadHoldSeconds - F.holdT));
@@ -4500,9 +4502,7 @@ const echizen_ikko = {
                 : !F.roadSupported ? `味方を道へ集めよ。あと${3 - friends}人`
                   : remaining > 0 ? `味方三人と道を守れ。あと${remaining}秒`
                     : !F.counterRepelled ? '道を守り、山から来る反撃を退けよ' : '道と堂の守りを保て';
-          rt.obj('main', text, 'main', true);
-          rt.objProgress('main', F.roadHall || F.roadContested || !F.roadSupported
-            ? `守りの残り${remaining}秒。持ち場を整えれば再開` : '堂の守りは別手に任せよ');
+          rt.objProgress('main', `${text}。守りの残り${remaining}秒`);
         }
       }
       if (F.step === 5 && F.hallsHeld && F.roadSupported && !F.roadContested && Math.hypot(P.x - OKUYAMA.x, P.z - OKUYAMA.z) < 18) {
