@@ -962,9 +962,9 @@ export const ArmyRanged = {
       }
 
     }
-    // 残る矢は全部で百八十本まで
+    // 残る矢は新しい百二十本まで（山崎の見直し：梯子のような矢の列を残さない）。
     let n = 0;
-    for (let i = this.arrows.length - 1; i >= 0; i--) if (this.arrows[i].stuck && ++n > 180) { this.releaseArrow(i); }
+    for (let i = this.arrows.length - 1; i >= 0; i--) if (this.arrows[i].stuck && ++n > 120) { this.releaseArrow(i); }
   },
   // 持ち場と配列の順は違うことがある。一コマに隊ごと一度だけ表を詰め、使い回す。
   gunSlots(g) {

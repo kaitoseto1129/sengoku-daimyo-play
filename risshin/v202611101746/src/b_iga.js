@@ -2605,7 +2605,7 @@ const iga = {
         }
         if (i >= 0) {
           const h = F.huts[i]; let buckets = 0;
-          for (const u of crew.units) if (u.alive && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
+          for (const u of crew.units) if (u.alive && !u.gone && !u.dropped && !u.downed && !u.fleeing && !u.woundOut && !u.rearWound && !u.noTarget &&
               !u.atk && !u.swing && !u.target?.alive && Math.hypot(u.pos.x - h.x, u.pos.z - h.z) <= 5.2) buckets++;
           F.bucketAble = buckets;
           F.bucketStallT = buckets > 0 ? 0 : (F.bucketStallT || 0) + dt;
@@ -3004,7 +3004,9 @@ function igaWallVolley(rt, dt) {
   // 土塁の守り手が倒れた後や、撃ち止め・退去の下知の後に無人の投石を続けない。
   // 投げ終えた石は別の更新で着地まで進め、投げた本人を記録しておく。
   if (!F.wallBow || F.wallBow.holdFire || F.wallBow.retreatOnly) return;
-  const thrower = F.wallBow.units.find(igaReady);
+  // 転倒中は起き上がるまで投げない。全滅扱いにはせず、同じ兵の回復を待つ。
+  let thrower = null;
+  for (const u of F.wallBow.units) if (igaReady(u) && !u.gone && !u.downed) { thrower = u; break; }
   if (!thrower) return;
   const rimZ = -55, rimY = W.heightAt(0, rimZ) + 2.6;
   // 寄せ手の固まり：土橋の下の坂（土塁から三十五歩の内）にいる味方。本人を含める。
@@ -3041,7 +3043,7 @@ function igaWallVolley(rt, dt) {
     // 器と配列は使い回し、元の隊の生死や退去の記録は変えない。
     const shooters = F.igaVolleyGroup || (F.igaVolleyGroup = { units: [] });
     shooters.units.length = 0;
-    for (const u of F.wallBow.units) if (igaReady(u) && !u.gone && u.type === 'bow') shooters.units.push(u);
+    for (const u of F.wallBow.units) if (igaReady(u) && !u.gone && !u.downed && u.type === 'bow') shooters.units.push(u);
     const bow = shooters.units[0];
     // 本人も坂の射程内にいる時だけ優先する。城側や道の外へ下がった本人へ矢をそらさない。
     const at = inBow.includes(P) ? P : inBow[Math.floor(Math.random() * inBow.length)];
