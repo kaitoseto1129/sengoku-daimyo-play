@@ -34,7 +34,7 @@ export function waveTick(rt) {
     if (g.team !== 1 || g.routed || !active.includes(g) && !F.abMore?.['w' + F.wave]?.extra?.includes(g)) continue;
     const us = g.units.filter(ready);
     if (!us.length || us.some(fighting)) continue;
-    if (us.every((u) => outside(u, C.FORT)) && us.every((u) => Math.hypot(u.pos.x, u.pos.z) < C.FORT + 40)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeSet = true; g.fleeDir = { x: 0, z: -1 }; n++; }
+    if (us.every((u) => outside(u, C.FORT))) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeSet = true; g.fleeDir = { x: 0, z: -1 }; n++; }
   }
   if (n) rt.say('前野長康', '柵の外の寄せ手が退いてゆく。追うな、柵を直せ！', 3);
 }

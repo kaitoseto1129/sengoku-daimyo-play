@@ -1642,10 +1642,8 @@ function nfCollapse(rt) {
     rt.say('組頭', '進み太鼓じゃ！　組と虎口を出て、連吾川を渡れ！', 3.5);
     // 柵の守り手も組も、同じ虎口を通って東へ出る（自分一人で追わない・一5）
     const gz = SB.gates[1] + 4.5;
-    // 柵の内に控えていた前田・佐々の備の槍組（本物）が、組と同じ虎口から追う。柵の奥から歩いて出る（湧かせて見せない所から）
-    F.chasers = [-10, 10].map((dz, i) => allyGroup(rt, { faction: 'oda', name: i ? '佐々の槍組' : '前田の槍組', fixed: true, fullStrength: true, noGuard: true, anchor: { x: -26, z: gz + dz }, facing: Math.PI / 2, width: 10, aggro: 10, formation: 'column' },
-      [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 11 }]));
-    const out = [...F.chasers, ...F.spears, ...F.guns.filter((q) => q.anchor.z < 200), ...(rt.squadGroups || [])].filter((q, i, a) => q && a.indexOf(q) === i && nfReady(q));
+    // 初めから柵を守っていた槍組・予備・鉄砲組が追う。合図で新しい二十四人を作らず、守備中の死傷も引き継ぐ。
+    const out = [...F.spears, ...F.guns.filter((q) => q.anchor.z < 200), ...(rt.squadGroups || [])].filter((q, i, a) => q && a.indexOf(q) === i && nfReady(q));
     F.chaseOut = out;
     out.forEach((q, i) => {
       q.noRout = true; q.focus = null; q.roadColumn = true; q.formation = 'column'; q.colW = 2; q.speed = Math.max(q.speed || 3, 3.6);

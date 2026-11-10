@@ -240,7 +240,7 @@ function volley(rt, state, dt) {
 }
 
 export function siegeFeelTick(rt, dt) {
-  if (rt.over || rt.def.dojo || rt.def.town || !rt.player.u) return;
+  if (rt.over || rt.def.dojo || rt.def.town || rt.def.noSiegeFeel || !rt.player.u) return;
   const A = rt.army;
   const state = rt._siegeFeel || (rt._siegeFeel = { scanT: 0, gates: [], known: new Set(), falls: null, ladders: [], usedWalls: new Set(), warnT: -99, covers: [], covered: new Set(), seenFires: new Set(rt.world.fires || []), burnt: new Set(), blazes: 0, ramCount: 0 });
   if ((state.scanT -= dt) <= 0) {

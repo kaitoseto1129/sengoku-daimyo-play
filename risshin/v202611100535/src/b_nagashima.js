@@ -178,7 +178,21 @@ function bankDepthWithdraw(C, el, max) {
   for (const g of C.groups) if (!g.routed) {
     // 頭が生きている隊は士気を下げるだけでは崩れない。退く下知も渡す。
     g.order = 'retreat'; g.focus = null; g.noRout = false; g.morale = 0;
+    // 下知だけでは隊の要が持ち場に残る。寄せて来た方の岸へ退却先を決める。
+    if (!g.bankWithdrawn) {
+      g.bankWithdrawn = true;
+      const f = g.fleeDir || { x: 1, z: 0 };
+      g.dest = { x: C.at.x + f.x * 48, z: Math.max(BANK_Z + 2, C.at.z + f.z * 48) };
+      g.path = null; g.onArrive = null;
+    }
   }
+}
+// 退く下知で持ち場を離れた隊を、頭が生きているために全滅まで追わせない。
+// 退却中でも岸の守備範囲に残る者は、押し返す相手に数える。
+function bankDepthRemaining(C) {
+  return C.groups.some(g => !g.routed && g.units.some(u => bankFighterReady(u) &&
+    (!g.bankWithdrawn || g.order !== 'retreat' ||
+      Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < C.botRadius + 8)));
 }
 // 西・東の防衛はその口の手、最後の防衛は中央の手と受ける。
 // 段ごとに一度選び、退避先を探す時も同じ味方を使う。
@@ -3648,7 +3662,7 @@ const nagashima = {
           bankDepthWithdraw(C, el, st.max);
           // 九十秒すべて、本人が持ち場を守る。
           // 共通処理は二人以下の組を崩れた扱いにする。戦える残兵がいれば守備を続ける。
-          const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          const remaining = bankDepthRemaining(C);
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
           rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
           // 致命傷で戦えない者を共通の生存人数に残して、守備を止めない。
@@ -3691,7 +3705,7 @@ const nagashima = {
           bankDepthWithdraw(C, el, st.max);
           // 最後の寄せも七十五秒、本人が岸の持ち場を守る。
           // 最後の寄せも、人数だけで残兵を退けた事にしない。
-          const remaining = C.groups.some(g => !g.routed && g.units.some(bankFighterReady));
+          const remaining = bankDepthRemaining(C);
           // 共通の経過時計で守備済みに見せない。持ち場と残る寄せだけを伝える。
           rt2.objProgress('dp', !atPost ? '岸の柵の持ち場へ戻れ' : remaining ? '残る門徒を味方と押し返せ' : C.waves.length ? '岸の柵で後の寄せに備えよ' : '岸の柵で備えを保て');
           // 致命傷で戦えない者を共通の生存人数に残して、守備を止めない。

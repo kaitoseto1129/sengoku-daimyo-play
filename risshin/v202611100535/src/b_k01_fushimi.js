@@ -263,16 +263,19 @@ const k01_fushimi = {
   goalSignTarget(rt) {
     const D = rt.flags.dp, C = D?.on ? D.cur : null;
     const fighting = C?.s.kind === 'fight';
+    const moving = C?.s.kind === 'move';
     // 討つ段の印は敵の組を追う赤い印。これを除くと屋敷・大手門・
     // 本丸への行き先まで消えるため、段に決めた場所を案内する。
     const m = rt.markers.find((q) => q.id === 'dp');
-    const at = fighting ? C.at : m && !m.red ? m.pos?.() : null;
+    // 二の丸へ一度着くと共通の移動段が印を外す。その後に追い手と
+    // 戦って離れても、達成には持ち場へ戻る必要があるので案内を残す。
+    const at = fighting || moving ? C.at : m && !m.red ? m.pos?.() : null;
     if (!at) return null;
     const p = rt.player.u.pos;
     if (Math.hypot(p.x - at.x, p.z - at.z) < 12) return null;
     const T = rt.flags._gsT || (rt.flags._gsT = { x: 0, z: 0, label: '' });
     T.x = at.x; T.z = at.z;
-    T.label = fighting ? (D.i === 0 ? '長束と玄以の屋敷' : D.i === 3 ? '大手門' : '本丸') : typeof m.label === 'function' ? m.label() : m.label;
+    T.label = fighting ? (D.i === 0 ? '長束と玄以の屋敷' : D.i === 3 ? '大手門' : '本丸') : moving ? '二の丸の口' : typeof m.label === 'function' ? m.label() : m.label;
     return T;
   },
   kumiLead: false,         // 組頭の印も出さない（AV15）
