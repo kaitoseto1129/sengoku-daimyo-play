@@ -5183,6 +5183,16 @@ function heroFrontClash(rt, dt, o = {}) {
 }
 // 時計だけで段を進めない。自分で閉門した働きも数え、門内で守る人を足踏みさせない。
 const honPlayed = (rt) => rt.stats.kills > 0 || rt.stats.dist >= 20 || rt.flags.gateClosedByMe === true;
+// 本堂・御殿も、壁の向こうの兵や到着前の待ち時間だけで守備を果たさない。
+function honnoPostEngaged(rt, post) {
+  for (const u of rt.army.units) {
+    if (!u.alive || u.team === rt.player.u.team || u.isStruct || u.noTarget || u.fleeing || u.woundOut) continue;
+    const dx = u.pos.x - post.x, dz = u.pos.z - post.z;
+    if (dx * dx + dz * dz <= 144 && Math.abs(u.pos.y - post.y) < 3 &&
+        !rt.army.wallBetween(u.pos, -1, post)) return true;
+  }
+  return false;
+}
 function honnoTick(def, rt, dt) {
   const F = rt.flags, P = rt.player.u, p = P.pos, NB = F.nb, T = F.T;
   const t = rt.t - F.pT;
@@ -5444,7 +5454,8 @@ function honnoTick(def, rt, dt) {
     else if (t > 60 && honPlayed(rt)) def.p5(rt);   // 遅れても本堂の守りへ進める（止めない・四〜七分に収める。11/1 京の町と使者の家を足したので百十秒→六十秒）
   } else if (F.hp === 5) {
     // 時間や延焼だけで②を済ませない。壁越し・別の階を除き、上様のそばで守った時間を数える。
-    if (F.hondoDirect && dNb < 12 && Math.abs(p.y - NB.pos.y) < 3)
+    if (!F.hondoEngaged) F.hondoEngaged = honnoPostEngaged(rt, NB.pos);
+    if (F.hondoEngaged && F.hondoDirect && dNb < 12 && Math.abs(p.y - NB.pos.y) < 3)
       F.hondoHold = (F.hondoHold || 0) + dt;
     rt.objProgress('main', !F.hondoDirect ? '本堂の東の口へ。戸を開け、上様のそばへ戻れ' : F.standMerit?.[2]
       ? '侍を斬った。残る寄せ手を払い、奥へ退く支度を守れ'
@@ -5484,7 +5495,8 @@ function honnoTick(def, rt, dt) {
   } else if (F.hp === 7) {
     if (!(F.guardScanAt > rt.t)) { F.guardScanAt = rt.t + 0.5; guardGuide(rt); }
     // 開いた戸口を回って十二歩以内なら守備。閉じた壁越しの近さは数えない。
-    if (F.guardDistance < 12 && Math.abs(p.y - NB.pos.y) < 3) F.lastHold = (F.lastHold || 0) + dt;
+    if (!F.lastEngaged) F.lastEngaged = honnoPostEngaged(rt, NB.pos);
+    if (F.lastEngaged && F.guardDistance < 12 && Math.abs(p.y - NB.pos.y) < 3) F.lastHold = (F.lastHold || 0) + dt;
     rt.objProgress('main', F.heatZone
       ? p.x > F.heatZone.x0 && p.x < F.heatZone.x1 && p.z > F.heatZone.z0 && p.z < F.heatZone.z1
         ? '広間は火の中じゃ。控えの間へ退け'

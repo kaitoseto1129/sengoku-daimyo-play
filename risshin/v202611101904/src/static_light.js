@@ -34,22 +34,6 @@ export class StaticLight {
     if (amb >= min) return;
     h.intensity = Math.min(h.intensity * 2.2 + 0.25, h.intensity + (min - amb) / hl);
   }
-  // 暗い戦（夜・雨・逆光・曇天）で兵が黒く潰れないよう、空からの返りの下限をそろえる。
-  // 戦の側が光を直接変えた後にも毎コマ当てる。光も影も増やさず、半球光の強さだけ上げる。
-  // 空の色（上）と土の色（下）の差は残すので、平たい灰色にはならない。
-  lightFloor() {
-    const w = this.world, h = w.hemi, f = w.nightFill, s = w.sun;
-    if (!h || w.def?.noLightFloor) return;
-    const lum = c => c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
-    const hl = lum(h.color);
-    if (hl <= 0.02) return;
-    const amb = h.intensity * hl + (f ? f.intensity * lum(f.color) : 0);
-    const direct = s ? s.intensity * lum(s.color) : 0;
-    // 日が弱いほど（夜・雨・日の向こう側）空の返りを厚くする
-    const min = 0.62 + Math.max(0, 1 - direct) * 0.22;
-    if (amb >= min) return;
-    h.intensity = Math.min(h.intensity * 2.2 + 0.25, h.intensity + (min - amb) / hl);
-  }
   update(renderer, structs = null) {
     this.releaseInstances();
     const w = this.world;

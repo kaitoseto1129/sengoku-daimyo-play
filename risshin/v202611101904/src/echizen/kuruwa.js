@@ -41,7 +41,8 @@ function side(rt) {
     const left = SIDE.map((id) => F.SZ.byId[id]);
     if (left.every((z) => z?.owner === 'friend' && !z.enemies)) {
       F.echSideTaken = true;
-      rt.say('使番', '別手の味方が、捨てられた西光寺丸と鉢伏の砦を押さえました！', 3.6);
+      if (F.echSideRetreatNames?.length)
+        rt.say('使番', `別手の味方が、捨てられた${F.echSideRetreatNames.join('と')}の砦を押さえました！`, 3.6);
     } else if (rt.t - F.echSideGone >= 60) { for (const z of left) if (z.enemies) rout(rt, z); }
   }
   if (hon.owner !== 'friend' || hon.enemies > 0 || F.echSideGone) return;
@@ -68,6 +69,7 @@ function side(rt) {
   const names = [];
   if (pending.some(id => id.startsWith('saikoji_'))) names.push('西光寺丸');
   if (pending.some(id => id.startsWith('hachibuse_'))) names.push('鉢伏');
+  F.echSideRetreatNames = names;
   F.echSideReported = true;
   rt.say('使番', `杉津口の堀江景忠が寝返り、府中の龍門寺にも火が掛かりました！　${names.join('と')}の一揆勢が、砦を捨てて退きます！`, 4);
   for (const id of pending) {

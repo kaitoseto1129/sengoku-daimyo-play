@@ -556,6 +556,13 @@ function nakayamaStep() {
       const n = rt.flags.naka;
       if (!n) return false;
       if (n.alive) C.goal = n.pos;
+      // 中山と供は本丸に残って果てる。深手で退く本人を小宮曲輪まで七十m 追い、手当ての間も与えず十二分止まった（11/10 act の bot）。
+      //   本丸の持ち場から十四m より離れたら狙いを解いて持ち場へ戻す
+      const home = C.home ||= { x: C.at.x, z: C.at.z };
+      for (const q of rt.flags.nakaG?.units || []) {
+        if (!q.alive || Math.hypot(q.pos.x - home.x, q.pos.z - home.z) <= 14) continue;
+        q.target = null; q.atk = null; q.moveTo = q._t11Home ||= { x: home.x, z: home.z };
+      }
       // 出た後に名のある将の命が一・五倍へ戻る（共通の手直し）ので、斬り合いが始まる時にもう一度六十へ
       if (C.lastWords && !C.capped) { C.capped = true; n.maxHp = Math.min(n.maxHp, 60); n.hp = Math.min(n.hp, n.maxHp); }
       // 自ら討つ目標は時間では済ませない。味方の攻撃も start の傷の判定で防ぐ。
@@ -977,14 +984,25 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
   const p = b.player, u = p.u, F = b.flags;
   inp.quickCmd = null;
   if (!u.alive || F.ending) return;
+  // 深手で馬上のままだと手当て（布）ができず、鉄砲の届く所で退き続けて十二分止まった（11/10 act の bot・体力 4）。敵が八m 内に居ない時は降りる
+  if (p.mounted && u.hp < u.maxHp * 0.5 && p.treatmentLeft > 0 && !(p.treatmentNext > b.t) && !b.army.nearestEnemy(u, 8, (o) => !o.noTarget && !o.fleeing) && !(b.t11Dis > b.t)) {
+    b.t11Dis = b.t + 6; inp.e.add('KeyR'); return;
+  }
   // 11/10 クラウド：前の曲輪の残り（崖の下・柵の向こうの届かない敵）に斬り掛かり続け、段の場から六十〜百m 離れたまま十三分止まった
   //   （金子丸の脇 74,-32 で高丸の段・高丸と小宮曲輪の間 9,-95 で本丸の段・本丸の口 -64,-127 で中山の段）。段の場から十二m より遠くで二十五秒動かなければ、二十秒は段の場へ登る
+  //   11/10 関所：段の場へまっすぐ向かうと金子丸の柵に当たって十五分止まった。大手の道（ROUTE）の点を一つずつたどる
   const C = F.dp && F.dp.on && F.dp.cur, at = C && C.at;
   if (at && Number.isFinite(at.x)) {
     const st = b.t11Stk ||= { x: u.pos.x, z: u.pos.z, t: b.t, until: 0 };
     if (Math.hypot(u.pos.x - st.x, u.pos.z - st.z) > 3) { st.x = u.pos.x; st.z = u.pos.z; st.t = b.t; }
     if (b.t - st.t > 25 && Math.hypot(u.pos.x - at.x, u.pos.z - at.z) > 12) { st.until = b.t + 20; st.t = b.t; }
-    if (b.t < st.until) { inp.leftPressed = false; goTo(p, inp, at.x, at.z, 3); return; }
+    if (b.t < st.until) {
+      const near = (x, z) => { let k = 0, best = Infinity; ROUTE.forEach(([rx, rz], i) => { const d = Math.hypot(rx - x, rz - z); if (d < best) { best = d; k = i; } }); return k; };
+      const ia = near(at.x, at.z), ip = near(u.pos.x, u.pos.z);
+      let q = ia === ip ? [at.x, at.z] : ROUTE[ip];
+      if (ia !== ip && Math.hypot(q[0] - u.pos.x, q[1] - u.pos.z) < 3.5) q = ROUTE[ip + Math.sign(ia - ip)];
+      inp.leftPressed = false; goTo(p, inp, q[0], q[1], 2); return;
+    }
   }
   // 中山の段：共通の頭は迫る相手へ構え続け、中山も構えて打ち合わず、二人とも九分あまり動かなかった（当たり 0。11/10）。
   //   中山へ寄り、振りを受けてから突き返す（山中城の bot と同じ受け方）
@@ -1000,6 +1018,10 @@ t11_hachioji.botBrain = (b, inp, { goTo, patientStrike }) => {
   inp.k.delete('KeyW');
   goTo(p, inp, START.x - 6, START.z, 3);
 };
+
+// 足跡の控え（倒れず止まった時の読み直し）：段・段の場・退避・手当ての残り・近い敵（距離・種・残りの命）
+t11_hachioji.botDbg = (b) => { const F = b.flags, u = b.player.u, C = F.dp?.on && F.dp.cur, e = b.army.nearestEnemy(u, 40, (o) => !o.noTarget);
+  return `i${F.dp?.i ?? ''}${C?.at ? `@${Math.round(C.at.x)},${Math.round(C.at.z)}` : ''}${b.botSurviving ? 'S' : ''}${b.botSurviveUntil > b.t ? 'R' : ''}tr${b.player.treatmentLeft ?? ''}${e ? `e${Math.hypot(e.pos.x - u.pos.x, e.pos.z - u.pos.z).toFixed(0)}${e.type[0]}${Math.round(e.hp)}${b.army.wallBetween(u.pos, -1, e.pos) ? 'W' : ''}` : ''}${F.dp?.i === IX.naka && F.naka ? `|N${b.player.weapon?.[0] || ''}${u.swing?.res || '-'}g${F.naka.guard ? 1 : 0}${F.naka.guarding > 0 ? 'G' : ''}c${(F.naka.cd || 0).toFixed(1)}${F.naka.target === u ? 'T' : ''}${F.naka.atk ? 'A' : ''}${b.player.guard ? 'pg' : ''}${(b.player.cd || 0) > 0 ? 'pc' : ''}${b.player.lock === F.naka ? 'L' : ''}` : ''}`; };
 
 // 段（右上の一行。stages.js の表に、この戦の分を足す）
 const dpAt = (k) => (rt) => (rt.flags.dp?.i ?? -1) >= k || (rt.flags.dp && !rt.flags.dp.on && rt.flags.begun);
