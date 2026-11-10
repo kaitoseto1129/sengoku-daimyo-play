@@ -296,7 +296,7 @@ export class WorldWeather {
     //   月の向いた面と陰の比（日の光と空の光の比）は保ち、陰の側にも空の青い返りを残す。
     // 11/5 雨の夜は雲で月が隠れ、くっきりした月の影は出ない（大河内の雨夜で乾いた月夜に見えた）。月の下限を雨の分だけ下げ、その分を散る光へ回す
     // 11/6 夕 共通の係：月の直射に上限 0.7（有岡 1.1 で霜の夜に日なたのくっきりした長い影が落ち、曇りの昼に見えた。四6）
-    this.sun.intensity = Math.max(this.sun.intensity, Math.min(0.7, Math.max(0.5, this.def.nightMoonMin ?? 0.7)) * k * (1 - rain * 0.55));
+    this.sun.intensity = Math.max(this.sun.intensity, Math.min(0.7, Math.max(this.def.nightMoonFloor ?? 0.5, this.def.nightMoonMin ?? 0.7)) * k * (1 - rain * 0.55));
     // 11/7 曇り・雨の昼は日の直射を弱め、その分を空の散る光へ回す（「曇」「風雨」の日に晴れのくっきりした影が落ちた：稲生・越前・一向一揆。八1・四6）。
     //   戦の側が直に入れた日の強さは元の値として覚え、雲が切れたら戻す。光も影の数も増やさない
     const coverNow = this.skyMat.uniforms.cover.value;

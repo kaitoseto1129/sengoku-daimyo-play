@@ -2284,8 +2284,9 @@ function roadTarget(rt, key, target) {
     if (rt.army.wallBetween && rt.army.wallBetween(p, -1, { x: target.x, y: p.y, z: target.z })) {
       for (let j = i - 1; j >= 1; j--) {
         const q = BOT_ROAD[j];
-        // 今立つ点（門の真ん中など）へは戻さない。着いた扱いで止まり続ける。
-        if (Math.hypot(p.x - q[0], p.z - q[1]) < 3) break;
+        // 今立つ点（門の真ん中など）は飛ばし、さらに手前の通れる角を探す。
+        // ここで探索を止めると、塀の向こうを指したまま動けなくなる。
+        if (Math.hypot(p.x - q[0], p.z - q[1]) < 3) continue;
         if (!rt.army.wallBetween(p, -1, { x: q[0], y: p.y, z: q[1] })) {
           target.x = q[0]; target.z = q[1]; target.gate = null; target.returning = true; break;
         }

@@ -891,11 +891,13 @@ const t10_oshi = {
       if (!F.weirOpen) {
         if (!F.weirRaid && (near(P.pos, WEIR, 30) || rt.t - F.stepT > 20)) this.weirRaid(rt);
         // 堰へ寄せた城兵を退けるまで、堰板は抜けない（主人公が着いて立つだけでは切れない）
-        // 三巡（11/9 bot）：堰へ寄せた城兵の残りが堤の陰で立ち尽くし、段が十分止まった。寄せて二分過ぎ、本人が堰の近くにいれば残りは沼へ退く
-        if (F.weirRaid && fighting(F.weirRaid) && rt.t - F.weirRaidT > 45 && P.alive && near(P.pos, WEIR, 25)) for (const u of F.weirRaid.units) if (u.alive && !u.gone && !near(u.pos, P.pos, 6)) rt.army.despawn(u);
+        // 三巡（11/9 bot）：堰へ寄せた城兵の残りが堤の陰で立ち尽くし、段が十分止まった。四十五秒過ぎ、本人が堰の近くにいれば残兵を退かせる
+        const raidDown = F.weirRaid ? F.weirRaid.units.filter((u) => !u.alive || u.fleeing).length : 0;
+        // 待つだけで七人全員が消えると、戦わず堰を切れてしまう。半数を退けた後だけ、遠くで止まった残兵を退かせる。
+        if (F.weirRaid && raidDown >= Math.ceil(F.weirRaid.units.length * 0.5) && fighting(F.weirRaid) && rt.t - F.weirRaidT > 45 && P.alive && near(P.pos, WEIR, 25)) for (const u of F.weirRaid.units) if (u.alive && !u.gone && !near(u.pos, P.pos, 6)) rt.army.despawn(u);
         const raidOn = F.weirRaid && fighting(F.weirRaid) && F.weirRaid.units.filter((u) => u.alive && !u.gone && !u.fleeing).length > 1;
         if (F.weirRaid && !raidOn && fighting(F.weirRaid)) { F.weirRaid.noRout = false; F.weirRaid.morale = 0; for (const u of F.weirRaid.units) if (u.alive && !u.gone) u.fleeing = true; }
-        F.weirT = P.alive && near(P.pos, WEIR, F.weirRaidT && rt.t - F.weirRaidT > 45 ? 8 : 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
+        F.weirT = P.alive && near(P.pos, WEIR, 4.5) && F.weirRaid && !raidOn ? F.weirT + 0.5 : 0;
         if (F.weirT >= 2) this.openWeir(rt);
       }
     } else if (F.step === 6) {
