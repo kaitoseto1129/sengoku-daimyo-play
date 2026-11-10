@@ -183,7 +183,9 @@ const t07_ganjaku = {
   resumeAt(rt, s) {
     const F = rt.flags;
     // 保存の印は隊を作り直した後に戻る。済んだ木戸の撤退と熊井の出撃も戻す。
-    if (s === 1 && F.kidoFell) this.retreatKido(rt);
+    // 迎撃以降からの再開では、突破済みの木戸の守りを坂へ戻さない。
+    // 段だけ保存され木戸の印が無い場合も、門前へ進んだ事から復元する。
+    if (s >= 2 || F.kidoFell) { F.kidoFell = true; this.retreatKido(rt); }
     if (s === 5 && F.lastStand) F.hon.aggro = 40;
     // 夕暮れの印だけ戻して朝の空を残さない。
     if (rt.flags.dusk) { rt.world.dayClock = null; rt.world.setTime('dusk'); }

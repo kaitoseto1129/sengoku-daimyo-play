@@ -252,7 +252,7 @@ export class WorldWater {
   buildStream(st) {
     const pts = st.pts;
     const posA = [], flowA = [], colorA = [], bedA = [], idx = [], surface = [], surfaceStarts = [], surfaceSteps = [];
-    const cross = st.sedimentWater ? [-1, -0.92, 0, 0.92, 1] : [1, -1];
+    const cross = st.sedimentWater ? [-1, -0.92, 0, 0.92, 1] : st.buryBanks ? [1, 0.92, 0, -0.92, -1] : [1, -1];
     const columns = cross.length;
     const shallowColor = new THREE.Color(0x68796b), deepColor = new THREE.Color(0x283d3b);
     const seg = 4;
@@ -275,8 +275,11 @@ export class WorldWater {
         surface.push(x, z, y);
         for (const off of cross) {
           const px = x + nx * st.w * off, pz = z + nz * st.w * off;
-          posA.push(px, y, pz);
-          const depth = Math.max(0, y - this.heightAt(px, pz));
+          // 低湿地では帯の端が草地から露出し、直線の板に見える。岸の端だけ土へ沈め、主流の水位は保つ。
+          const bed = this.heightAt(px, pz);
+          const py = st.buryBanks && Math.abs(off) === 1 ? Math.min(y, bed - 0.15) : y;
+          posA.push(px, py, pz);
+          const depth = Math.max(0, py - bed);
           const c = (st.sedimentWater ? depth : y - this.heightAt(x, z)) <= 0.5 ? shallowColor : deepColor;
           colorA.push(c.r, c.g, c.b);
           bedA.push(depth, off * st.w);
