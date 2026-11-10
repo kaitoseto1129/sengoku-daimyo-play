@@ -3204,8 +3204,9 @@ const tottori = {
       // 全部の組が退き始めて十秒たてば、去りきらなくても次の場面へ。
       const allBack = L.every((g) => gone(g) || g.routed || g.ttRetreat || g.ttReturned);
       if (allBack) F.allBackT ??= rt.t; else F.allBackT = null;
-      if (F.defended && allBack && rt.t - F.allBackT >= 10 && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 30) this.midB(rt);
-      else if (F.defended && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 24 &&
+      // 一度迎え撃った記録だけでは済ませず、追撃から柵の味方側へ戻るまで待つ。
+      if (F.defended && p.z >= FENCE_Z && allBack && rt.t - F.allBackT >= 10 && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 30) this.midB(rt);
+      else if (F.defended && p.z >= FENCE_Z && Math.hypot(p.x - GATE.x, p.z - FENCE_Z) < 24 &&
           L.every((g) => gone(g) || g.routed || g.ttOut && (g.ttReturned ||
             g.ttRetreat && g.units.every((u) => outOfFight(u) ||
               u.pos.z < FENCE_Z - 16 && Math.hypot(u.pos.x - GATE.x, u.pos.z - FENCE_Z) > 26)))) this.midB(rt);

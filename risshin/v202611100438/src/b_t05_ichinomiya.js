@@ -534,6 +534,9 @@ function waterTick(rt) {
 export const t05_ichinomiya = {
   spawn: { x: SPAWN.x, z: SPAWN.z, heading: 0 },
   noReserve: true, noTaishoRaid: true, stageGoalsOnly: true,
+  // 段の時間送りを止めても、共通の十八分打ち切りで未達のまま負けていた。
+  // 場所への到着・守備・入城を待ち、開城後は使者の会話で締める。
+  pacingWait: () => true,
   // 共通の一覧は既定一行。始まりから五件を並べ、六段目も今の目標と一緒に見せる。
   goalVisibleRows: 5, goalRowsAhead: true,
   goalSignTarget: destOf,

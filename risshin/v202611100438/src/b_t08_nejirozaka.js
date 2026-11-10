@@ -260,18 +260,21 @@ function torchField(rt) {
   const smokeMat = new THREE.PointsMaterial({ map: new THREE.CanvasTexture(smokeCanvas), size: 3.2,
     transparent: true, depthWrite: false, opacity: 0.5, fog: true });
   const smoke = new THREE.Points(smokeGeo, smokeMat); smoke.frustumCulled = false; rt.scene.add(smoke);
-  let t = 0, acc = 0;
+  let t = 0, acc = 0, marchT = 0, retreat = 0;
   const q = { x: 0, z: 0 };
   const T = {
     pts, k: 1,
     update(dt) {
       t += dt; acc += dt;
+      // 夜明けは寄せ道を逆にたどって坂下へ退く。消すだけでは退却の知らせと食い違う。
+      if (rt.flags.dawn) retreat += dt * 4;
+      else marchT += dt;
       smoke.visible = pts.visible; smokeMat.opacity = T.k * 0.5;
       if (acc < 0.08 || !pts.visible) return;
       acc = 0;
       let i = 0;
       TORCH_COLS.forEach(([P, d0, sp], ci) => {
-        const L = lens[ci], lead = Math.min(L[L.length - 1], d0 + t * sp);
+        const L = lens[ci], lead = Math.min(L[L.length - 1], d0 + marchT * sp) - retreat;
         for (let j = 0; j < per; j++, i++) {
           at(P, L, lead - j * GAP, q);
           const x = q.x + Math.sin(q.z * 0.05 + ci) * 2.5 + ((j & 1) ? 1.1 : -1.1), z = q.z;

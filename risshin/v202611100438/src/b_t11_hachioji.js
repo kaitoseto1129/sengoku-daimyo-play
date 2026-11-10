@@ -673,7 +673,8 @@ const t11_hachioji = {
       kuruwaFight({ at: HON, title: '本丸', sub: '深沢山の頂', obj: '本丸で、中山勘解由を討て', max: 90, noRefill: true,
         say: [['大石信濃守', '監物殿は西へ落ちられよ。ここは我らが防ぐ！', 3.6]],
         foes: () => [keep('中山勘解由の旗本', HON, [{ type: 'samurai', n: 6 }, { type: 'ashigaru', n: 14 }, { type: 'gun', n: 5 }, { type: 'bow', n: 3 }], { morale: 100, seek: 30 }),
-          keep('大石信濃守の手', HON, [{ type: 'busho', n: 1, o: { name: '大石信濃守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], { dx: -12, dz: -8, morale: 95, seek: 24 })],
+          // 西の柵際では隊列の後尾が柵外に出る。出現時から全員が本丸の内に収まる位置へ。
+          keep('大石信濃守の手', HON, [{ type: 'busho', n: 1, o: { name: '大石信濃守', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 3 }, { type: 'ashigaru', n: 10 }, { type: 'gun', n: 3 }], { dx: -8, dz: -4, morale: 95, seek: 24 })],
         reward: '本丸の守りを崩した' }),
       nakayamaStep(),
       rakujo.step(H),

@@ -10,6 +10,16 @@ import { sfx } from '../audio.js';
 const ready = (u) => !!u && u.alive && !(u.hp <= 0) && !u.dying && !u.gone && !u.fleeing && !u.woundOut && !u.noTarget;
 // 砦は四角い。中心からの距離では、柵の内の四隅まで柵外と判定してしまう。
 const outside = (u, fort) => Math.max(Math.abs(u.pos.x), Math.abs(u.pos.z)) > fort + 4;
+// 柵には pos が無い。的を持つだけで交戦中にせず、柵の線分への実際の距離を測る。
+function fighting(u) {
+  const t = u.target;
+  if (!t?.alive) return false;
+  if (t.pos) return Math.hypot(t.pos.x - u.pos.x, t.pos.z - u.pos.z) < 4;
+  if (!t.seg) return false;
+  const [ax, az, bx, bz] = t.seg, dx = bx - ax, dz = bz - az;
+  const k = Math.max(0, Math.min(1, ((u.pos.x - ax) * dx + (u.pos.z - az) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(u.pos.x - ax - k * dx, u.pos.z - az - k * dz) < 4;
+}
 
 // 一の手・二の手：寄せて二分たっても柵の外で立ち往生している組（竹束の陰で動かない残り）は退く。次の手を止めない
 export function waveTick(rt) {
@@ -23,7 +33,7 @@ export function waveTick(rt) {
   for (const g of rt.army.groups) {
     if (g.team !== 1 || g.routed || !active.includes(g) && !F.abMore?.['w' + F.wave]?.extra?.includes(g)) continue;
     const us = g.units.filter(ready);
-    if (!us.length || us.some((u) => u.target?.alive && (!u.target.pos || Math.hypot(u.target.pos.x - u.pos.x, u.target.pos.z - u.pos.z) < 4))) continue;
+    if (!us.length || us.some(fighting)) continue;
     if (us.every((u) => outside(u, C.FORT)) && us.every((u) => Math.hypot(u.pos.x, u.pos.z) < C.FORT + 40)) { g.noRout = false; g.morale = 0; g.routed = true; g.order = 'flee'; g.fleeSet = true; g.fleeDir = { x: 0, z: -1 }; n++; }
   }
   if (n) rt.say('前野長康', '柵の外の寄せ手が退いてゆく。追うな、柵を直せ！', 3);

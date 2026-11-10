@@ -2533,7 +2533,7 @@ const kanegasaki = {
       { kind: 'stage', k: 0, text: '金ヶ崎の麓の一の備で、朝倉の先手を止める', noun: '一の備', action: '一の備で先手を止めよ', place: at(LINES[0]), check: () => (F.line || 0) >= 1 && hit(0) },
       { kind: 'stage', k: 1, text: '笙の川を渡り、南岸の川の砦へ退く', noun: '川の砦', action: '川の砦へ退け', place: at(LINES[1]), check: () => (F.step || 0) >= 3 || (F.line || 0) >= 2 },
       { kind: 'stage', k: 1, text: '川の砦で、池田勢と騎馬の追手を受ける', noun: '川の砦', action: '砦の柵で騎馬の追手を受けよ', place: at(LINES[1]), check: () => (F.line || 0) >= 2 && hit(1) },
-      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && !!F.exitReady && hit(2) },
+      { kind: 'stage', k: 2, text: '狭路の砦で、明智の鉄砲と朝倉の後続を止める', noun: '狭路の砦', action: '狭路の砦で後続を止めよ', place: at(LINES[2]), check: () => !!F.fleeing && hit(2) },
       { kind: 'stage', k: 2, text: '若狭への道の退き口へ、木下・池田・明智と退く', noun: '退き口', action: '退き口へ退け', place: at(KUTSUKI), check: won },
     // 11/6：目標は時間切れで✕にしない（備ごとの長さは台本の下知で決まる）。残りの秒も出さない。
     ].map(g => ({ ...g, sec: 3600 }));

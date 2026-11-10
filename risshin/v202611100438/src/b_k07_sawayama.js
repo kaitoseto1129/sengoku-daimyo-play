@@ -703,6 +703,7 @@ html body #hud.enemy-action-guide:has(#h-prog[data-battle="k07_sawayama"]) #goal
       let n = 0;
       for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isStruct && (u.pos.x - s.at[0]) ** 2 + (u.pos.z - s.at[1]) ** 2 < 100) n++;
       if (n >= 4) F.ramT[id] = (F.ramT[id] || 0) + dt;
+      else F.ramT[id] = 0;   // 四人が門前を離れたら詰め直す。離れた前後の時間を足して破らない。
       if ((F.ramT[id] || 0) > 10 || rt.t - F.gateT0[id] > s.wait) {
         this.openGate(rt, id);
         // 破れた後、守りは曲輪の中の持ち場で迎え、門の口へ一度にどっと出ない（門前の主人公が十数本の槍に一度に囲まれて討たれた。助けなしの流し）。

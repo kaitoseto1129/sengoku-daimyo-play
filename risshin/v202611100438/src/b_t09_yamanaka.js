@@ -580,7 +580,6 @@ const t09_yamanaka = {
     for (const id of ['gate', 'ote', 'uma']) rt.unmark(id);
     sfx('kane', 0.4);
     if (tsuke) rt.award((t) => t.side.push('退く敵に続いて大手門へ付け入った'), '大手門へ付け入った');
-    rt.say('渡辺勘兵衛', '中村が内、渡辺勘兵衛、一番乗り！', 3.5);
     rt.after(4, () => rt.say('堀秀政', '東の柵を越えた！　三の丸を挟め！', 3.5));
     F.hostUp(18, 30);
     // 開門だけでは「門から入る」を果たさない。寄せ手も枡形の中へ続く。
@@ -761,7 +760,11 @@ const t09_yamanaka = {
       // 門の内側を実際に通ったことを記録する。曲輪の外の斜面へ回っただけでは果たさない。
       if (F.gateOpen && Math.abs(p.x - SP.at.gate.x) < 5 && p.z < SP.at.gate.z - 1 && p.z > SP.at.gate.z - 12) F.oteEntered = true;
       // 広場が守りで詰まっていても、門を抜けて三の丸へ入れば果たす。
-      if (F.gateOpen && F.oteEntered && (dpz < 10 || (Math.hypot(p.x - KURUWA.san.x, p.z - KURUWA.san.z) < 30 && p.z < SP.at.gate.z - 3))) this.honmaru(rt);
+      if (F.gateOpen && F.oteEntered && (dpz < 10 || (Math.hypot(p.x - KURUWA.san.x, p.z - KURUWA.san.z) < 30 && p.z < SP.at.gate.z - 3))) {
+        // 開門だけでは名乗らず、本人が門を抜けて三の丸へ入った所で一番乗りを見せる。
+        rt.say('渡辺勘兵衛', '中村が内、渡辺勘兵衛、一番乗り！', 3.5);
+        this.honmaru(rt);
+      }
     }
     if (F.step === 4) {
       const g = F.hon;

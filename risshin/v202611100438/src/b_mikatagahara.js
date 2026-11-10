@@ -1093,7 +1093,7 @@ function mikataGoals(rt, dt) {
   }
   return G;
 }
-// 右上の札（①〜⑤を始めから全部）と、両軍の数の棒と、四十 m 内の見える敵の頭上の赤い▼（九3）。
+// 右上の札と両軍の数の棒、画面に見える敵の頭上の赤い▼（九3）。
 //   共通の▼は近い数人までなので、残りにも同じ▼を付ける。印は使い回し、毎コマ作らない。
 const MK_BOARD_CSS = `
 html:root body #hud#hud#hud.mikata-guide #h-prog#h-prog#h-prog { display:none !important; }
@@ -1175,11 +1175,12 @@ function mikataBoard(rt) {
     let n = 0;
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
-          u.mesh?.visible === false || u.camHidden || (u.pos.x - me.pos.x) ** 2 + (u.pos.z - me.pos.z) ** 2 > 1600) continue;
-      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
-      if (!u._mkSeen) continue;
+          u.mesh?.visible === false || u.camHidden) continue;
+      // 遠くても映っている実兵には印を付ける。画面外を先に除き、見通しの計算は増やさない。
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
+      if (!(u._mkSeenAt > rt.t - .34 && u._mkSeenAt <= rt.t)) { u._mkSeen = sightUnit(rt, u); u._mkSeenAt = rt.t; }
+      if (!u._mkSeen) continue;
       let el = tris[n];
       if (!el) {
         el = tris[n] = document.createElement('span');
