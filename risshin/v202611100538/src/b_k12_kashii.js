@@ -594,7 +594,11 @@ html:root body #hud#hud#hud.kashii-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     rt.objDone('s5');
     rt.tracker.main = true;
     rt.player.u.invuln = true;
-    for (const g of F.foes) if (live(g)) { g.order = 'retreat'; g.dest = { x: EXIT_N.x, z: EXIT_N.z }; g.speed = 4.2; g.aggro = 0; }
+    for (const g of F.foes) if (live(g)) {
+      // 村へ戻る途中の侍衆にも退く下知を残す。古い到着処理で再び攻撃へ戻さない。
+      g.onArrive = null; g.focus = null; g.keepMoveOrder = false; g.marching = false;
+      g.order = 'retreat'; g.dest = { x: EXIT_N.x, z: EXIT_N.z }; g.speed = 4.2; g.aggro = 0;
+    }
     sfx('horagai', 0.8);
     // 団右衛門を討った手柄を、締めの小さい手柄で上書きしない。
     rt.award((t) => { t.main = true; if ((t.special?.pts || 0) < 20) t.special = { label: '樫井で塙の先手を破った', pts: 20 }; }, '樫井で塙の先手を破った');

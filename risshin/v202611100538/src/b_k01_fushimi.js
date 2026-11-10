@@ -10,7 +10,7 @@
 // 11/4 AP〜AT：見せかけの軍勢と目の前の乱戦（addDistantArmy・addClash）を外し、城を囲む宇喜多・小早川・島津の陣も本物の兵に。
 //   総大将の宇喜多秀家は南の外の本陣から出ない。旗は徳川・宇喜多・小早川・島津と、紋の確かでない家の丸だけ。兵の比 1800：40000。
 //   手本と出所：docs/battle_refs/k01_fushimi.md
-// 負け方：主人公が討たれる。段ごとの刻限とは別の、二十分の保険。
+// 負け方：主人公が討たれる。持ち場が未達でも、経過時間だけでは落城させない。
 // 向き：北が -z（本丸）、南が +z（大手）。西軍は南から攻め上る。
 // 地形：国土地理院の標高（dem_fushimi.js・tools/dem.mjs の fushimi）。水平は実の 1/4、高さは 0.2 倍。
 // ======================================================================
@@ -38,7 +38,6 @@ const NI = { x: 0, z: -8 };           // 二の丸
 const MATSU = { x: 34, z: -20 };      // 松の丸（内応の火の手が上がる）。本丸の北東（battle_learn。前は西に置いていた）
 const HON = { x: 0, z: -46 };         // 本丸
 const SOUTH = { x: 0, z: 150 };       // 西軍の寄せ口
-const LIMIT = 1200;   // 段ごとの刻限とは別の保険（二十分。出撃の段を足して段が十になった）
 // 城を囲む西軍の陣（宇喜多＝南の外・小早川＝西・島津＝南東・石田＝南西。石田は七月二十九日に着く）
 // 毛利秀元（と吉川広家）＝東。寄せ手に加わった事は確か（ja.wikipedia・日本史ウィキコーパス）だが、取り付いた方角を示す史料は無く推定（11/6 布陣の照らし合わせで、毛利の陣が無かった）
 const CAMPS = [{ x: 0, z: 178 }, { x: -96, z: 30 }, { x: 92, z: 104 }, { x: -70, z: 150 }, { x: 104, z: 22 }];
@@ -614,18 +613,6 @@ const k01_fushimi = {
     rt.finish({ scriptedEnd: true }, 35);
   },
 
-  lose(rt) {
-    const F = rt.flags;
-    if (F.ending || !rt.canFailMission()) return;
-    F.ending = true;
-    rt.setPhase('end');
-    rt.objFail('main');
-    rt.tracker.main = false;
-    rt.banner('時を稼げなかった', '城は早々に落ちた');
-    rt.say('鳥居元忠', '持ちこたえられなんだ……殿、申し訳ございませぬ', 4);
-    rt.finish({ failureReason: '刻限までに持ち場を守り切れなかった' }, 6);
-  },
-
   update(rt, dt) {
     const F = rt.flags;
     if (F.ending) return;
@@ -673,7 +660,6 @@ const k01_fushimi = {
     if (D && D.on && D.i >= 7) { this.burn(rt); this.naitoWest(rt); }
     // 本丸の段：旗本が本丸の口へ出て戦う。元忠は足が利かず、刀を杖に旗本の後ろで立つ
     if (D && D.on && D.i >= 8 && !F.toriiOut && F.motochika) { F.toriiOut = true; if (F.toriiU) F.toriiU._crouch = false; F.motochika.anchor = { x: HON.x, z: HON.z }; F.motochika.aggro = 8; }
-    if (F.begun && rt.t - F.t0 > LIMIT) this.lose(rt);
   },
 
   onKill(rt, v) {

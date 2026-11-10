@@ -70,7 +70,7 @@ export function tick(rt, P) {
   try {
     if (step === 1) {
       // 毛利の手の後ろの大勢が、勝永の先手に付いてまとまって寄せる（中央突破の塊）
-      M.mori?.follow(toward(rt, F.mori, 6), { gap: 6, speed: 4.2 });
+      M.mori?.follow(toward(rt, F.mori, 12), { gap: 12, speed: 3.2 });
       // 先手の東の脇でも本多の手と毛利の手が組み合い、押される（先手が押し込まれていく様子）
       st.cl = clash(rt, { x: P.FRONT.x + 36, z: P.FRONT.z - 8, facing: S, w: 30, gap0: 14, seed: 16209, host: false, noRout: true, noWake: true, killRate: 0.004, maxDrift: 8, corpses: 8, nearHide: 0,
         A: { flag: 'honda', armor: 0x1c1a18, count: isTouch ? 40 : 120, flagRate: 0.2 }, B: { flag: 'toyotomi', armor: 0x221f1c, count: isTouch ? 44 : 140, flagRate: 0.25, guns: true } });
@@ -83,7 +83,7 @@ export function tick(rt, P) {
       // 先手が崩れる。毛利の塊は家康の本陣へ、茶臼山の赤備えと騎馬も真田の突撃に付いて走る
       M.sen?.rout({ hideAfter: 40 });
       st.cl?.rout?.('A', { from: -1, minFight: 2 });
-      M.mori?.follow(toward(rt, F.mori && alive(F.mori) ? F.mori : F.katsu, 6), { gap: 6, speed: 4.2 });
+      M.mori?.follow(toward(rt, F.katsu && alive(F.katsu) ? F.katsu : F.mori, 12), { gap: 12, speed: 3.4 });
       M.sana?.follow(toward(rt, F.sanada, 14), { gap: 14, speed: 3.6 });
       M.sanaK?.follow(toward(rt, F.sanada, 6), { gap: 6, speed: 5.5 });
       later(30, () => M.ni?.retreat(6, 6));   // 二陣が押されて下がる
