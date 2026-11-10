@@ -4768,6 +4768,14 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     this.march(F.south, [[-3, NAKAMARU.cz - 3], [0, GATE_NAKA_KYO.z], [0, KC.z + 7]], Math.PI);
     this.march(F.north, [[3, KOM.cz + 3], [0, GATE_KYO_KOMA.z], [0, KC.z - 7]], 0);
     for (const g of F.oda) if (!gone(g)) {
+      const c = g.center();
+      if (!F.C.kuruwa.kyogoku.test(c.x, c.z)) {
+        // 谷の後続は西木戸を通って合流する。内の持ち場へ直進させない。
+        this.reinforcementMarch(rt, g);
+        g.speed = 4;
+        g.onArrive = (q) => { q.order = 'hold'; q.anchor = { x: KC.x, z: KC.z }; q.formation = 'yari'; q.aggro = 12; };
+        continue;
+      }
       g.order = 'hold'; g.anchor = { x: KC.x, z: KC.z + (g === F.hide ? 4 : -4) };
       g.formation = 'yari'; g.facing = g === F.hide ? 0 : Math.PI; g.aggro = 12;
     }
@@ -4919,6 +4927,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     for (const g of F.oda) {
       g.odaniPlayerPause = false;
       this.march(g, path, Math.PI);
+      const c = g.center();
+      if (!F.C.kuruwa.kyogoku.test(c.x, c.z) && !F.C.kuruwa.koma.test(c.x, c.z)) this.reinforcementMarch(rt, g);
       g.speed = 4;
     }
     const northRoad = ROAD_RIDGE.filter((q) => q[1] <= KOM.cz && q[1] >= SANNO.z1 - 5).reverse();
@@ -5015,6 +5025,8 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
     for (const g of [...F.oda, F.gozume]) if (!gone(g)) {
       const c = g.center();
       this.march(g, [[c.x, c.z], ...F.honPath.slice(1, -1)], 0);
+      // 小丸まで来ていない隊を北へ引き返させず、谷の道から南の本丸へ続ける。
+      if (!F.C.kuruwa.koma.test(c.x, c.z)) this.reinforcementMarch(rt, g);
       g.speed = 4;
       g.onArrive = (q) => { q.order = 'attack'; q.seekRange = 30; q.formation = 'yari'; q.anchor = { x: 0, z: HON.cz }; };
     }

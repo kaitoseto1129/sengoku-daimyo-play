@@ -1192,7 +1192,8 @@ export const gone = (g) => !g || g.count === 0 || g.routed;
 function inabaInsideHoldLine(rt) {
   const p = rt.player.u.pos, point = rt.flags.holdPoint;
   return !!point && Math.abs(p.x - point.x) <= 34
-    && p.z >= SHIKA_Z && p.z <= SHIKA_Z + 14;
+    && p.z >= SHIKA_Z && p.z <= SHIKA_Z + 14
+    && Math.abs(p.y - rt.world.heightAt(point.x, point.z)) < 3;
 }
 
 // 敵の出発を待つ間も、持ち場と待つ長さを同じ札で伝える。
@@ -6676,7 +6677,12 @@ const inabayama = {
     const F = rt.flags;
     // 遅れて出る近習衆も退けてから火付けへ進む。先に火付けへ移ると、
     // 新手が目標に出ないまま火だけ押せなくなる。
-    if (F.sig || F.step !== 4 || (F.k15Hon && !F.k15Hon.elite) || !F.hata.every(gone) || !gone(F.tatsu) || !gone(F.keep.guard)) return;
+    if (F.sig || F.step !== 4 || (F.k15Hon && !F.k15Hon.elite)) return;
+    const cleared = F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard);
+    if (!cleared && !sectionTaken(rt, F.honGuards, { keep: true })) return;
+    // 負傷して戦えない残兵も含めて退く下知を確定する。
+    // 制圧済みでも組の人数だけが残ると、火付けと勝ちの条件が食い違って止まる。
+    for (const g of F.honGuards) if (g && !gone(g)) inabaRetreat(g);
     for (const n2 of ['本丸の旗本', '御殿から出た旗本', '二の丸から上がった斎藤勢']) rt.unmark(n2);
     rt.unmark('honGuard');
     const S = { x: HON.x + 8, y: rt.world.heightAt(HON.x + 8, HON.z + 9), z: HON.z + 9 };
