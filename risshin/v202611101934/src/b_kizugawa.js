@@ -4775,6 +4775,20 @@ html body #hud.kizugawa-deck .bl #h-hp.hp:is(.blood-loss,.deep) em {
       const k = Math.min(1, (rt.t - (F.flagshipHitAt ?? rt.t)) / 12), e = k * (2 - k);
       F.big.m.rotation.z = -0.32 * e; F.big.m.position.y = -0.45 * e;
     }
+    // 漂流・沈下した船から炎と煙を置き去りにしない。退場後は海上の火を消す。
+    if (F.bigFire && F.big?.m) {
+      const f = F.bigFire, b = F.big;
+      if (!b.alive) {
+        rt.world.removeFire(f); F.bigFire = null;
+      } else {
+        f.x = b.m.position.x - 2.2 * Math.sin(b.m.rotation.z); f.z = b.m.position.z;
+        f.base = b.m.position.y + 2.2 * Math.cos(b.m.rotation.z) + f.size * 0.35;
+        if (f.flame) f.flame.position.set(f.x, f.base, f.z);
+        if (f.inner) f.inner.position.set(f.x, f.base - f.size * 0.08, f.z);
+        if (f.glow) { f.glow.position.x = f.x; f.glow.position.z = f.z; }
+        rt.world.moveSmokeColumn?.(f.smoke, f.x, f.base + f.size * 0.5, f.z);
+      }
+    }
     // 毛利の船は、大筒・消火・甲板防衛の間は途切れず寄せてくる
     if (F.step >= 1 && F.step <= 4 && !F.bigSunk && rt.t > (F.nextBoat || 1e9)) {
       // 10/31 一艘ずつの順番待ちにしない。乗り口が空いたら、まとめて一斉に寄せる。
