@@ -180,7 +180,7 @@ const t07_ganjaku = {
   // 行き先は黄色の印一つだけ（ついていく相手の青い印は出さない）。敵は頭上の▼で分かる（kaito AG・AT・AV15）
   noLeaderFollow: true, enemyTriangleSigns: true,
   // 行き先は頭上の金の▼一つ（ピン・旗の輪・矢印を重ねない）。目標は段の四つだけ（「敵を何人討つ」で埋めない。kaito AR1・AW3・BH6）
-  goalSignOnly: true, goalSignOnscreenOnly: true, goalSignNoEdge: true, stageGoalsOnly: true, goalsAllRows: true, goalsVisibleRows: 1,
+  goalSignOnly: true, goalSignOnscreenOnly: true, goalSignNoEdge: true, stageGoalsOnly: true, goalsAllRows: true, goalsVisibleRows: 5,
   retryGoalCount: (rt) => Math.max(0, (rt.flags.stage || 1) - 1),
   // 保存して開き直した時も、着陣からではなく今の段へ戻す。
   checkpointStep: (rt) => rt.flags.stage || 0,

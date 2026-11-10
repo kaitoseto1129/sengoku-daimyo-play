@@ -722,8 +722,9 @@ const t09_yamanaka = {
       dress([{ type: 'busho', n: 1, o: { name: '松田康長', hat: 'kabuto_m', haori: 0x5a2a1c, horse: true } }, { type: 'samurai', n: 8 }, { type: 'ashigaru', n: 16 + more(rt, 0.4) }, { type: 'gun', n: 6 }], HOJO));
     // 松田康郷（康長の弟・「松田の赤鬼」）は本丸の奥にいて、兄の旗本が崩れかけると落ち延びる（史実：脱出して生き延びた）
     // 脱出の下知より先に共通の寄せ直し・敗走で持ち場と退路を変えない。
+    // 史実で生還する康郷は討死させず、攻撃の的からも外す。倒せない相手を追わせない。
     F.kogo = enemyGroup(rt, { faction: 'hojo', name: '松田康郷の手', anchor: { x: H.x + 6, z: H.z - 10 }, facing: 0, order: 'hold', fixed: true, historicalOrders: true, noRout: true, aggro: 6, width: 6, morale: 100, fleeDir: { x: 0.3, z: -1 }, dmgMult: 0.55 },
-      dress([{ type: 'busho', n: 1, o: { name: '松田康郷', hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }], HOJO));
+      dress([{ type: 'busho', n: 1, o: { name: '松田康郷', invuln: true, noTarget: true, hat: 'kabuto_m', horse: false } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 4 }], HOJO));
     F.hon.historicalOrders = true;   // 城将の旗本は本丸を離れない（共通の寄せの下知で前へ出さない。kaito AR 3）
     for (const g of [F.ni, F.hon]) for (const u of g.units) if (u.type === 'gun') u.dmg *= 0.5;   // 城の中の鉄砲も出丸・堀の縁と同じ強さ（枡形で一発で倒れない）
     F.honU = F.hon.units[0];
@@ -907,7 +908,7 @@ const t09_yamanaka = {
         // 本丸の北と東は柵で閉じている。南の虎口から出て、東の尾根を回って落ちる。
         // 士気を零にすると敗走の下知がこの退路を上書きし、北の柵へ突き当たる。
         F.kogo.order = 'path'; F.kogo.path = [[24, -94], [24, -82], [52, -70], [70, -130], [52, -200]]; F.kogo.pathIdx = 0; F.kogo.speed = 2.8;
-        F.kogo.noPursue = true; F.kogo.historicalOrders = true;
+        F.kogo.noPursue = true; F.kogo.historicalOrders = true; F.kogo.arriveNoncombat = true;
         F.kogo.onArrive = (q) => { for (const u of q.units) if (u.alive && !u.gone) rt.army.despawn(u); };
         rt.say('松田康郷', '兄上、御免！　この康郷は落ち延び、松田の家を残す', 4);
       }
