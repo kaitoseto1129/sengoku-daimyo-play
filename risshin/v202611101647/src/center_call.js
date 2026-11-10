@@ -38,7 +38,7 @@ body:has(#center-call .cc) #goal-sign .gs-tag { opacity:0; transition:opacity .2
 
 export function centerCall(rt, text, blue = false) {
   const hud = document.getElementById('hud');
-  if (!hud || !text || !rt || rt.def?.town || rt.def?.dojo || rt.over) return false;
+  if (!hud || !text || !rt || rt.def?.town || rt.def?.dojo || rt.def?.quietCenterCalls || rt.over) return false;
   // 任務の全文は右上の五行にある。切り詰めた同じ任務を中央へ重ねない。
   if (rt.def?.key === 'tano' && (blue || box?.isConnected && box.children.length)) return false;
   const t = rt.t ?? 0, last = SEEN.get(text);

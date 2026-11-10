@@ -82,8 +82,8 @@ export function install(rt) {
         if (q?.m && !q.m.army?.rout) q.m.retreat?.(6, 6);
         F.westBrokenT = rt.t;
       }
-      // 真柄の討死は「朝倉を破りました」の知らせが届いた後（届かぬ時は一分で）
-      if (F.westBroken && !said.magara && (F.westReported ? rt.t - (F.westReportedT ??= rt.t) >= 6 : rt.t - F.westBrokenT >= 60)) {
+      // 隊が崩れただけでは討死にしない。実際の討ち取りを確認した後、戦況の知らせに続ける。
+      if (F.westBroken && F.magaraKilled && !said.magara && (F.westReported ? rt.t - (F.westReportedT ??= rt.t) >= 6 : rt.t - F.westBrokenT >= 60)) {
         tell('magara', '使番', '朝倉の真柄直隆、徳川勢に討たれ申した！', 3.4);
       }
       // 横槍の後：押されていた織田の段が一斉に前へ（全軍の反撃）
