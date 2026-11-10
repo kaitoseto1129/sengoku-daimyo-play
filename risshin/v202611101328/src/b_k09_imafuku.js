@@ -496,6 +496,10 @@ const k09_imafuku = {
   taken(rt) {
     const F = rt.flags;
     F.step = 3;
+    // 柵へ寄せる下知を終え、次の守備で古い行き先へ歩き戻らせない。
+    for (const g of [F.satake, F.shibue, F.tomura]) if (g && !g.routed) {
+      g.keepMoveOrder = false; g.dest = null; g.order = 'hold';
+    }
     rt.banner('砦を奪った', '矢野正倫と飯田家貞の首を挙げた');   // 史料：矢野は仮橋ぎわで討たれ首実検。「討死」の字だと、砦の中にいる本人へ使番が走って運び直していた（五1）
     // 史実：義宣は奪った今福村・蒲生村に三段構えの付城を普請させかけた
     rt.say('佐竹義宣', 'よし、今福を取ったぞ！　今福村に付城を急げ。……西に鉄砲の列が見える、気を許すな', 4);
@@ -722,14 +726,26 @@ const k09_imafuku = {
       // 史実：矢野・飯田が討たれると、守兵は仮橋を外す間もなく片原町へ逃げた。将を失った守兵の組は崩れて西へ退く
       if (F.step === 2) for (const g of rt.army.groups) if (g.team === 1 && /の守兵$/.test(g.name || '') && g.count && !g.routed && !g.units.some((u) => u.alive && u.type === 'busho')) { g.noRout = false; g.morale = 0; }
       // 柵の内に入れば、そこからは「かかれ」で守兵と斬り合う（歩かせたままにすると敵の中を素通りして討たれた）
-      if (F.step === 2) [F.satake, F.shibue, F.tomura].forEach((g, i) => {
+      let nextGate = null;
+      if (F.step === 2) {
+        for (let i = (F.outer?.length || 0) - 1; i >= -1; i--) {
+          const st = i < 0 ? F.gate : F.outer[i];
+          if (st?.alive) { nextGate = st; break; }
+        }
+      }
+      if (F.step === 2) [F.satake, F.shibue, F.tomura].forEach((g) => {
         if (!g || !g.count || g.routed || g.k09In === 2) return;
         const c = g.center();
-        // 外の柵の前まで歩く → 外の柵を越えたら斬りかかる → 砦の木戸が倒れたら砦の中へ踏み込む（柵越しの守兵は「かかれ」の組から見えず、柵の前で立ち尽くした）
-        if (!g.k09In && c.x > FORT.x + 58) { g.order = 'move'; g.dest = { x: FORT.x + 44 + i * 2, z: (i - 1) * 2 }; }
-        else if (F.gate && !F.gate.alive && c.x > FORT.x + 16) { g.k09In = 1; g.order = 'move'; g.dest = { x: FORT.x + 4 - i * 3, z: (i - 1) * 2 }; }
-        else if (F.gate && !F.gate.alive) { g.k09In = 2; g.order = 'attack'; g.seekRange = 45; g.anchor = { x: FORT.x - 6, z: 0 }; }
-        else if (!g.k09In || g.order !== 'attack') { g.k09In = 1; g.order = 'attack'; g.seekRange = 45; g.anchor = { x: FORT.x + 2, z: 0 }; }
+        // 固定の寄せ先は次の柵が倒れても替わらず、袖の前で列が止まっていた。
+        // 東から残る木戸の中央へ順に寄せる。将への追従で列を湿地へ逸らさない。
+        if (nextGate || c.x > FORT.x + 8) {
+          const x = nextGate ? nextGate.seg[0] + 3 : FORT.x - 6;
+          g.k09In = 1; g.order = 'move'; g.keepMoveOrder = true;
+          if (!g.dest || g.dest.x !== x || g.dest.z !== 0) g.dest = { x, z: 0 };
+        } else {
+          g.k09In = 2; g.keepMoveOrder = false; g.order = 'attack'; g.dest = null;
+          g.seekRange = 45; g.anchor = { x: FORT.x - 6, z: 0 };
+        }
       });
       // 豊臣方の退きは堤を西へ、仮橋を渡って片原町（城の方）へ（崩れた木村・後藤の隊が佐竹の陣の東へ逃げ抜けていた。二1・二2）
       for (const g of rt.army.groups) if (g.team === 1 && !g.fleePath && !/舟|櫓/.test(g.name || '')) g.fleePath = [[KARIBASHI, 0], [KARIBASHI - 70, 0]];

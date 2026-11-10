@@ -2250,7 +2250,8 @@ const nagashima = {
         !rt.hud.defendEnemy?.alive || (F.step !== 3 && F.step !== 3.5)) return '';
     return F.step === 3.5 ? '西の柵で味方と守れ' : '柵の手前で味方と守れ';
   },
-  guardLabel: (rt) => rt.flags.step === 3.5 ? '西の柵で味方と守れ' : '柵の手前で味方と守れ',
+  guardLabel: (rt) => rt.flags.adv ? `${nagashima.travelGuideLabel(rt)}で味方と守れ` :
+    rt.flags.step === 3.5 ? '西の柵で味方と守れ' : '柵の手前で味方と守れ',
   guardStartText: '敵を向き、押して防ぐ',
   guardWaitText: '敵を向いて構えを保て',
   waitGuardButtonText: '押し続けて防ぐ',
@@ -2418,9 +2419,10 @@ const nagashima = {
   compactThreats: true, // 携帯では方向と防ぎ方を短い一枚で示す。
   avoidWaymarkThreats: true,
   edgeBehindWaymarks: true, // 背後の退避先は画面端へ寄せ、目の前の兵を隠さない。
-  // 舟の上の味方を退き先に選ばず、そこへ向かう途中も岸の柵の内側に保つ。
-  retreatPointAllowed: (rt, p) => p.z >= BANK_Z + 1,
-  dodgePointAllowed: (rt, p) => p.z >= BANK_Z + 1,
+  // 旧防衛だけ岸の柵の内に保つ。輪中へ進んだ後は堤・砦・在所でも
+  // 退避と回避を探せるようにし、地形・壁・途中の安全は共通の判定に任せる。
+  retreatPointAllowed: (rt, p) => !!rt.flags.adv || p.z >= BANK_Z + 1,
+  dodgePointAllowed: (rt, p) => !!rt.flags.adv || p.z >= BANK_Z + 1,
   compactDodgeGuide: true, // よける先の輪を足元に収め、近い兵の体を囲まない。
   dodgeMoveGesture: false, // 進む向きは既存の矢印で示し、札にはよける理由を残す。
   escapePlaceLabel: (_rt, rain, side) => rain ? `${side}へ下がり、矢をよけよ` : `${side}へよけ、敵から離れよ`,

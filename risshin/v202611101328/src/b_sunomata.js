@@ -6166,7 +6166,8 @@ sunomata.force = (rt) => {
     if (A.team === 0) a += n; else if (A.team === 1) b += n;
   }
   const initial = rt.flags.sunomataForce || (rt.flags.sunomataForce = { a, b });
-  return { a, a0: initial.a, b, b0: initial.b };
+  // 討死・負傷・退却はここで集計済み。共通の画面で逃げる兵を足し戻さない。
+  return { a, a0: initial.a, b, b0: initial.b, casualtiesCounted: true };
 };
 // 史料と地勢の参照先。築城伝承を借りた筋と、当時の記録で確認できる事を分ける。
 // 信長公記・首巻「十四条合戦之事」：https://ja.wikisource.org/wiki/信長公記

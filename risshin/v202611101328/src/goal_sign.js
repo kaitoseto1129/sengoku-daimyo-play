@@ -25,7 +25,7 @@ const CSS = `
 /* 命・今の手順と兵数・目標の矢印の三枚。名前の札は矢印へまとめる。 */
 #hud.action-guide:not(.photo):not(.ending) #h-prog.goal-mode:not([hidden]) { display:block !important; }
 #hud.field-clean:not(.keep-battle-signs) .field-names { display:none !important; }
-#hud:has(#goal-sign:not([hidden])) #armybar:not(#h-prog #armybar) { display:none !important; }
+#hud:not(.keep-battle-signs):has(#goal-sign:not([hidden])) #armybar:not(#h-prog #armybar) { display:none !important; }
 #goal-sign .gs-tag span:empty { display:none; }
 #goal-sign .gs-tag i { width:30px; height:36px; background:#fff3ba; clip-path:polygon(32% 0,68% 0,68% 52%,100% 52%,50% 100%,0 52%,32% 52%); transform-origin:center; filter:drop-shadow(0 0 2px #14120f) drop-shadow(0 0 1px #14120f) drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
 #goal-sign .gs-sword { position:static; width:30px; height:38px; flex:none; }

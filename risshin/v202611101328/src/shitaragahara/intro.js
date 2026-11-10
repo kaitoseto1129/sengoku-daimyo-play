@@ -68,17 +68,27 @@ export function tick(rt, dt) {
       I.s = 2; I.at = rt.t;
       I.g = c.black(() => enemyGroup(rt, { faction: 'takeda', name: '武田の物見', fixed: true, noGuard: true, anchor: { x: I.OUT.x + 40, z: I.OUT.z - 6 }, facing: -Math.PI / 2, fleeDir: { x: 1, z: 0 }, aggro: 22, width: 8, morale: 90, speed: 3.4 },
         [{ type: 'samurai', n: 1, o: { flag: 'takeda' } }, { type: 'ashigaru', n: 9, o: { flag: 'takeda' } }]));
-      I.g.order = 'attack'; I.g.seekRange = 50; I.g.aggro = 30;
+      I.g.order = 'attack'; I.g.seekRange = 50; I.g.aggro = 30; I.g.focus = P;
       I.n0 = c.ready(I.g);
       try { sfx('toki', 0.6); } catch (e) { /* なし */ }
       rt.say('組頭', '来たぞ、武田の物見じゃ！　一当てして退くぞ', 3.2);
     }
     return true;
   }
-  // 物見と槍を合わせる（四人討つか、三十五秒で退き太鼓）
+  // 物見と槍を合わせる。遠くで待っただけの三十五秒を交戦に数えない。
   if (I.s === 2) {
     const down = I.n0 - c.ready(I.g);
-    if (down >= 4 || T > 35) {
+    for (const u of I.g.units) {
+      const target = u.atk?.target || u.swing?.target || u.target;
+      if (u.alive && !u.fleeing && !u.gone && !u.woundOut && !u.rearWound && !u.noTarget &&
+          target?.alive && target.team !== u.team && !target.gone && !target.fleeing &&
+          !target.woundOut && !target.rearWound && !target.noTarget && target.pos &&
+          near(u.pos, target.pos, 8) && !rt.army.wallBetween(u.pos, -1, target.pos)) {
+        I.fight = (I.fight || 0) + dt;
+        break;
+      }
+    }
+    if (down >= 4 || I.fight > 35) {
       I.s = 3; I.at = rt.t;
       try { sfx('sig_nobiki', 1); } catch (e) { /* なし */ }
       rt.say('組頭', '退け！　柵の内へ駆け戻れ！', 2.8);

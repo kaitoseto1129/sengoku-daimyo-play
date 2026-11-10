@@ -3721,7 +3721,10 @@ html:root body #hud#hud#hud.oke-goals :is(#armybar, #h-prog, #jk-vit) { z-index:
   returnStep(rt) {
     const F = rt.flags, p = rt.player.u.pos, q = F.returnPin;
     if (F.ending || !q) return;
-    const arrived = Math.hypot(p.x - q.x, p.z - q.z) <= 7;
+    // 柵越しや谷の斜面から距離だけで帰陣を済ませず、組の旗まで通れる所で合流する。
+    const arrived = Math.hypot(p.x - q.x, p.z - q.z) <= 7 &&
+      Math.abs(p.y - rt.world.heightAt(q.x, q.z)) < 3 &&
+      !rt.army.wallBetween(p, -1, q) && !rt.army.terrainBlocks(p, q);
     // 帰路の残兵は討取りの九秒後に寄せる。先に旗へ着いても、この場面を飛ばして締めない。
     if (!arrived || rt.t - F.returnT < 8 || !F.o15?.kaeriDone) return;
     F.returnDone = arrived; F.ending = true; rt.tracker.main = true;

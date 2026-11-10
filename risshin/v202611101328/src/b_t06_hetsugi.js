@@ -257,6 +257,11 @@ const t06_hetsugi = {
     duskLight: { cover: 0.72, glowK: 0.3, cloud: 0.1 },
     // 11/8 四6・十5：夜の地面が昼のように明るく影がくっきり、具足が銀に光った。月明かりは弱く、影は淡く
     nightLift: 1.5,
+    // 共通の夜の下限（月 0.7・補助光 0.5525）で、下の弱い月明かりを上書きさせない。
+    nightMoonFloor: 0.18,
+    nightMoonMin: 0.18,
+    nightFill: 0.3,
+    nightFillMin: 0.2,
     // 11/8 八1：遠くの山に縦の筋（光の筋）が雨の帯のように走り、霧が板を重ねたように見えた。光の筋は出さず、地の霧は薄く
     noShafts: true,
     groundMistScale: 0.35,

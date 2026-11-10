@@ -69,6 +69,8 @@ const ino = {
   ],
   goalVisibleRows: 1,
   goalRowsAhead: false,
+  keepBattleSigns: true, // 行き先の印を出す間も、両軍の数と武将の名を残す。
+  goalSignTriangle: true, // 画面の外でも矢印へ回さず、縁の▼で示す。
   noFieldMap: true,
   fieldMapRight: false,
   mapMarks: () => null,
@@ -244,7 +246,8 @@ const ino = {
     // 1:20 遠くを信長の一団が通る（会話なし。名前は一瞬だけ）
     rt.after(52, () => { if (live(F.nobuG)) { this.moveG(F.nobuG, { x: -66, z: 120 }, 3.2); sfx('gallop', 0.4); } });
     s(60, '足軽', '……殿だ。殿がお見えだ。', 2.6);
-    rt.after(115, () => { if (F.ph === 'march') this.scout(rt); });
+    // 合流していない本人の「ついていけ」を、待ち時間だけで済ませない。
+    // 遅れて来た場合は update で合流を拾う。
   },
 
   // 2:00 物見との初めての斬り合い（六対六ほど。横でも味方が戦う）
@@ -578,6 +581,7 @@ const ino = {
       if (F.ph === 'march' && d > 16) { F.nagT = 8; say(rt, F.capDead ? '組頭' : '隊長', '遅れるな！', 1.6); }
       else if ((F.ph === 'van' || F.ph === 'scout' && F.scoutBack) && P.pos.z < L.pos.z - 18) { F.nagT = 8; say(rt, '隊長', '戻れ！　列に戻れ！', 1.8); }
     }
+    if (F.ph === 'march' && rt.t >= 115 && L && near(L.pos, P.pos) < 16) this.scout(rt);
     // 物見が二人に減るか七十秒で退く
     if (F.ph === 'scout' && !F.scoutBack && F.scoutG && (aliveIn([F.scoutG]) <= 2 || rt.t - F.phT > 70)) this.scoutBack(rt);
     // 佐久間隊へ合流

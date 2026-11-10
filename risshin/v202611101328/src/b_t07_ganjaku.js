@@ -506,7 +506,7 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       g.dmgMult = Math.min(g.dmgMult ?? 1, 0.7);   // 11/9 見回り：act が坂で芥田の手に背から囲まれ二度とも倒れた。打って出た手の打ち込みを少し軽く
       F.sw = { route: [INSIDE, FRONT, MOUTH, F.meet], i: 0, aggro: 30 };   // 11/8 critic60 t07（目標の敵は必ず来る）：坂で受ける寄せ手と主人公へ三十 m から懸かる
       this.walk(g, F.sw, rt.t);
-      rt.marker('t07', F.meet, '', { h: 3, red: true, group: F.sally });   // 11/8 critic60 t07：名は芥田の頭上の名札一つだけ（白い大きな字と二重に出さない）
+      rt.marker('t07', F.meet, '大手の坂', { h: 3, red: true, group: F.sally });   // 行き先は地名と距離。芥田の名は頭上の名札一つだけにする。
       rt.say('蒲生郷成', '門が開いた！　打って出て来るぞ。坂で受け止めよ', 3.2);
       sfx('wood', 0.8);
     } else if (s === 3) {
