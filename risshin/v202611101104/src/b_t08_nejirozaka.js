@@ -11,7 +11,7 @@
 // ======================================================================
 import * as THREE from 'three';
 import { NEJIROZAKA_MIYABE_KACCHU } from './kacchu_data.js';
-import { nobori, jinmaku, yagura, tawara, kagaribi } from './props.js';
+import { nobori, jinmaku, yagura, tawara, kagaribi, shogi } from './props.js';
 import { MEM_TIGHT } from './settings.js';
 import { RANKS } from './state.js';
 import { sfx } from './audio.js';
@@ -510,7 +510,10 @@ const t08_nejirozaka = {
       dress([{ type: 'busho', n: 1, o: { name: '島津義珍', invuln: true, mustLive: true, horse: false, hat: 'kabuto_w', haori: 0x2a2626 } }, uS(10), uA(8)], SHIMAZU));
     F.shHon.noPursue = true;
     const yU = F.shHon.units.find((u) => u.name === '島津義珍');
-    if (yU) yU._crouch = true;   // 坂の下の本陣で床几に座る
+    if (yU) {
+      yU._crouch = true;
+      rt.scene.add(shogi(W, yU.pos.x, yU.pos.z, Math.PI));
+    }
     // 本陣の後ろに旗本の控え（寄れば本物の兵に替わる）。坂の上の砦からは松明の陰に沈む
     KIT.backOf(rt, F.shHon, { flag: 'shimazu', armor: SHIMAZU.armor, kind: 'mixed', w: 22, depth: 10, count: 240, gap: 2, seed: 1589 });
     for (const [x, z] of [[-6, 146], [14, 146]]) rt.scene.add(nobori(W, x, z, 'shimazu', 7));
@@ -524,7 +527,10 @@ const t08_nejirozaka = {
     F.miyaHon = allyGroup(rt, { name: '宮部継潤の本陣', anchor: { x: -4, z: -48 }, facing: 0, width: 8, aggro: 0, fixed: true, noAI: true, noRout: true, order: 'hold', fullStrength: true },
       dress([{ type: 'busho', n: 1, o: { name: '宮部継潤', invuln: true, horse: false, hat: 'kabuto' } }, uS(10), uA(6)], MIYABE));
     F.miyaU = F.miyaHon.units.find((u) => u.name === '宮部継潤');
-    if (F.miyaU) F.miyaU._crouch = true;   // 床几に腰を下ろす
+    if (F.miyaU) {
+      F.miyaU._crouch = true;
+      rt.scene.add(shogi(W, F.miyaU.pos.x, F.miyaU.pos.z, 0));
+    }
     F.miyabe = allyGroup(rt, { name: '宮部の手', anchor: { x: -14, z: -7 }, facing: 0, width: 14, aggro: 10, noRout: true, order: 'hold' },
       dress([uS(6), uA(18)], MIYABE));
     F.guns = allyGroup(rt, { name: '塀の内の鉄砲', anchor: { x: 12, z: -4 }, facing: 0, width: 12, aggro: 6, noRout: true, order: 'hold', formation: 'line' },

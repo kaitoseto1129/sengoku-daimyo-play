@@ -163,10 +163,20 @@ function checkedStep(step) {
     // 本人と味方の列がそろう前に寄せを消化すると、先に敵が倒れて
     // 受け止めた記録を付けられず止まる。列を離れた時間も守備に含めない。
     if (holdTime) {
-      let friends = 0;
+      let friends = 0, available = 0;
       const line = rt.flags.dp?.i === 5 ? [rt.flags.date, rt.flags.katakura] : ctx.friends?.(rt) || [];
       if (near) for (const g of line) {
         if (!g || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
+        for (const u of g.units) if (u.alive && !u.isPlayer && !u.fleeing && !u.woundOut &&
+          !u.gone && !u.rearWound && !u.downed && !u.noTarget) {
+          available++;
+          if (Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 32) friends++;
+        }
+      }
+      // 伊達勢が三人を割った時は、水野・本多らが持ち場を引き継ぐ。
+      // 伊達勢が遠いだけなら到着を待ち、本人だけでは守備を進めない。
+      if (near && rt.flags.dp?.i === 5 && available < 3) for (const g of ctx.friends?.(rt) || []) {
+        if (!g || line.includes(g) || g.routed || g.order === 'retreat' || g.order === 'flee') continue;
         for (const u of g.units) if (u.alive && !u.isPlayer && !u.fleeing && !u.woundOut &&
           !u.gone && !u.rearWound && !u.downed && !u.noTarget &&
           Math.hypot(u.pos.x - C.at.x, u.pos.z - C.at.z) < 32) friends++;
@@ -667,7 +677,7 @@ const k13_domyoji = {
       }
     }
     rt.player.u.invuln = true;
-    rt.after(2, () => rt.say('水野勝成', '追え！　今なら真田を討てる！', 3.4));
+    rt.after(2, () => rt.say('水野勝成', '真田が退く。列を保ち、深追いするな！', 3.4));
     rt.after(6, () => rt.say('伊達政宗', '兵は朝から戦い通しじゃ。深追いはならぬ', 4));
     rt.after(10.5, () => rt.say(nm(rt), '又兵衛殿は小松山に果てた。明日は大坂の城の前じゃ', 4.4));
     rt.finish({}, 16);

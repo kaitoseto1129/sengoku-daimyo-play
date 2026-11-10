@@ -13,14 +13,16 @@ import { centerOf } from './bhelp.js';
 export function k15Go(rt, id, pos, r, text, label, fn, o = {}) {
   const F = rt.flags;
   const at = typeof pos === 'function' ? pos : () => pos;
-  F.k15at = { id, at, r, t0: rt.t, fight: !!o.fight };
+  // 屋内では曲がり角を案内する。到着は最後の目的地で判定する。
+  const guide = o.guide || at;
+  F.k15at = { id, at: guide, r: o.guide ? 0.6 : r, t0: rt.t, fight: !!o.fight };
   rt.obj('main', text, 'main', true);
   if (o.progress) rt.objProgress('main', o.progress);
-  rt.marker('k15', at, label, { h: o.h || 3, guideAlways: true });
+  rt.marker('k15', guide, label, { h: o.h || 3, guideAlways: true });
   const tick = () => {
     if (rt.over || !F.k15at || F.k15at.id !== id) return;
     const p = at(), me = rt.player.u.pos;
-    if (!p || Math.hypot(me.x - p.x, me.z - p.z) < r || rt.t - F.k15at.t0 > (o.limit || 60)) {
+    if (!p || (Math.hypot(me.x - p.x, me.z - p.z) < r && (!o.canArrive || o.canArrive())) || rt.t - F.k15at.t0 > (o.limit || 60)) {
       F.k15at = null; rt.unmark('k15'); fn(rt); return;
     }
     rt.after(0.5, tick, true);

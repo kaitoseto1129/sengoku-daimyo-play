@@ -22,7 +22,8 @@ export function steps(K) {
         g.order = 'hold'; g.anchor = { x: SECOND.x - i * 9, z: SECOND.z + i }; g.facing = Math.PI; g.formation = 'yari';
       }
     }, say: [['足軽', '左の徳川の備えが崩れたがや！　横ががら空きだわ！'], ['平手汎秀', '二の列まで下がれ！　穴を塞ぐぞ！']] }),
-    K.withstand({ at: SECOND, dur: 92, r: 14, title: '二の列で穴を塞ぐ', sub: '崩れた鶴翼の端へ、武田が雪崩れ込む', label: '平手の二の列', obj: '平手の二の列で、崩れた鶴翼の穴を塞げ',
+    // 二の列を離れた本人を待って、武田の攻勢全体を止めない。
+    K.withstand({ at: SECOND, dur: 92, cap: 135, r: 14, title: '二の列で穴を塞ぐ', sub: '崩れた鶴翼の端へ、武田が雪崩れ込む', label: '平手の二の列', obj: '平手の二の列で、崩れた鶴翼の穴を塞げ',
       waves: [
         { t: 0, foes: () => [
           { name: '小山田信茂の新手', from: { x: SECOND.x - 6, z: K.LINE_Z - 30 }, list: [K.uS(2), K.uA(12)], formation: 'yari', mass: 360 },
