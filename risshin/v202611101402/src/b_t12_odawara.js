@@ -513,7 +513,9 @@ function escort() {
       const left = Math.hypot(k.pos.x - KGATE.x, k.pos.z - KGATE.z);
       C.goal = !near ? k.pos : tgt;
       rt.objProgress('dp', near ? '黒田官兵衛を本丸の門まで送り届けよ' : '黒田官兵衛のそばへ戻れ');
-      return (F.envoyDone = near && C.i >= ENVOY.length - 1 && left < 12);
+      // 一目盛りは約八メートル。十二では門から約百メートル手前でも
+      // 交渉が済んでしまうので、最後は官兵衛本人の門前への到着を待つ。
+      return (F.envoyDone = near && C.i >= ENVOY.length - 1 && left < 4);
     },
     end(rt, C) {
       const F = rt.flags;

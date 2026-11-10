@@ -331,6 +331,8 @@ const t03_komaki = {
 
   stage(rt, n, cutDone = false) {
     const F = rt.flags;
+    // 軍議や下知の予約が残っていても、討死後に次の段を始めない。
+    if (F.ending || rt.over || !rt.player.u.alive) return;
     const cuts = { 2: '四月初め　夜　二重堀の砦', 4: '四月四日　夕　楽田の本陣', 5: '四月六日　夕　中入りの支度', 7: '四月九日　夜明け　五条川の南東' };
     if (!cutDone && cuts[n]) {
       if (F.transitioning) return;
@@ -521,7 +523,7 @@ const t03_komaki = {
 
   win(rt) {
     const F = rt.flags;
-    if (F.ending) return;
+    if (F.ending || rt.over || !rt.player.u.alive) return;
     F.ending = true; F.won = true;
     rt.objDone('main');
     rt.tracker.main = true;

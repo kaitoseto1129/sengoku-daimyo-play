@@ -275,7 +275,8 @@ function siegeRow(world, pts, kind) {
       const lean = -0.12, hs = [1.62, 1.7, 1.66, 1.72, 1.6];
       for (let i = 0; i < 5; i++) {
         const b = new THREE.BoxGeometry(0.27, hs[i], 0.06); b.translate((i - 2) * 0.29, hs[i] / 2, 0); b.rotateX(lean);
-        put(b, [0x6e5a3e, 0x5e4c34, 0x766046, 0x584832, 0x6a563c][(i + Math.round(x)) % 5]);
+        // 西側の負の座標でも五色の範囲に収める。負の余りは未定義の色（白い板）になる。
+        put(b, [0x6e5a3e, 0x5e4c34, 0x766046, 0x584832, 0x6a563c][((i + Math.round(x)) % 5 + 5) % 5]);
       }
       for (const yy of [0.35, 1.3]) { const c = new THREE.BoxGeometry(1.5, 0.1, 0.05); c.translate(0, yy, 0.06); c.rotateX(lean); put(c, 0x3e3022); }
       const k = new THREE.BoxGeometry(0.08, 1.5, 0.08); k.rotateX(0.6); k.translate(0, 0.65, 0.45); put(k, 0x4a3a28);
@@ -972,7 +973,7 @@ html:root body #hud#hud#hud.sanada-goals #h-prog#h-prog.goal-mode .pg-goals :is(
     F.nobuShown = true;
     const u = F.nobu.units.find((q) => q.name === '真田信繁');
     const q = polar(0.14, WALL_R - 1.4), y = rt.world.heightAt(q.x, q.z);
-    const flag = nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 6);
+    const flag = nobori(rt.world, q.x + 0.8, q.z - 0.6, 'sanada', 4.8);
     rt.scene.add(flag);
     // 途中で立てた大旗も、和議後は塀・櫓と一緒に撤去する。
     F.maruObjs.push(flag);

@@ -50,15 +50,25 @@ export function start(rt, ctx, done) {
       // 共通の移動は到着二十五秒で待ち伏せを退かせる。この物見は迎撃も本人の仕事。
       s.tick = (rt2, C, m, context, el, dt) => {
         const finished = tick(rt2, C, m, context, el, dt);
-        if (s.kind === 'move' && !finished) return false;
-        if (s.kind === 'fight' && C.later.length) return false;
+        // 物見の行き先を敵の平均位置へ替えない。柵や石段の向こうの
+        // 平均点を追うと、物見へ着かないまま坂の下で止まってしまう。
+        if (s.kind === 'move') C.goal = SPOT;
         // 一度物見へ来てから離れた場合も、仲間の迎撃だけで合流を済ませない。
         // 組の平均位置は斜面や柵の中に落ちるため、敵が退いた後は物見の場へ戻す。
         const p = rt2.player.u.pos;
         if (!rt2.player.u.alive || Math.hypot(p.x - SPOT.x, p.z - SPOT.z) >= 5) {
           C.goal = SPOT;
+          // 共通の移動は初回の到着で印を消す。迎撃中に離れた時は
+          // 戻る場所の印を復帰させ、到着するまで残す。
+          if ((C.arr || s.kind === 'fight') && !C.mkReturnMark) {
+            rt2.marker('dp', SPOT, '物見の場', { h: 3 });
+            C.mkReturnMark = true;
+          }
           return false;
         }
+        if (C.mkReturnMark) { rt2.unmark('dp'); C.mkReturnMark = false; }
+        if (s.kind === 'move' && !finished) return false;
+        if (s.kind === 'fight' && C.later.length) return false;
         for (const g of C.groups) {
           if (g.routed || g.count <= 2) continue;
           // 重傷・倒れた物見は迎撃済み。生存数だけでは三人以上残ると永久に止まる。

@@ -2228,19 +2228,22 @@ function nodaMoat(rt, q, acc) {
   // 水面の高さは共通の水堀（castle_parts.js の mizubori）と同じ式に、この戦の掘り直しの分（深さの1.2倍）を足す。
   const H = (x, z) => rt.world.heightAt(x, z);
   // 11/7（kaito BS「堀の水が自分の背より高い」・critic60「茶色の平らな箱」）：底＋深さ×1.65 では水面が外の地面より 0.7m 高く、
-  //   岸の帯が地面から立つ茶色の壁になり、堀が水槽に見えた。水面は両岸の低い方の縁より 0.55m 下（底より 0.4m は上）に置く。
+  //   岸の帯が地面から立つ茶色の壁になり、堀が水槽に見えた。水面は両岸の低い方の縁より 0.55m 下に置く。
   const bottom = Math.min(H(ax, az), H(bx, bz), H((ax + bx) / 2, (az + bz) / 2));
   let rim = Infinity;
-  for (let t = 0; t <= 1.001; t += 0.125) for (const side of [-1, 1]) {
+  // 描く岸と同じ間隔で測る。八分割だけでは途中の低い岸を見落とす。
+  const n = Math.max(1, Math.ceil(len / 0.8));
+  for (let i = 0; i <= n; i++) for (const side of [-1, 1]) {
+    const t = i / n;
     const x = ax + (bx - ax) * t + nx * (half + 0.8) * side, z = az + (bz - az) * t + nz * (half + 0.8) * side;
     rim = Math.min(rim, H(x, z));
   }
-  const y = Math.max(bottom + 0.4, Math.min(bottom + (q.deep ?? 2) * 1.65, rim - 0.55));
+  // 底からの最低水深で持ち上げない。低い岸では岸の高さを必ず優先する。
+  const y = Math.min(bottom + (q.deep ?? 2) * 1.65, rim - 0.55);
   // 足が浸かる深さ（installMoatDepth）。水面の帯と同じ幅で、縁の浅い所と真ん中の深い所を地面の高さから出す。
   (rt.flags.moatSegs || (rt.flags.moatSegs = [])).push({ ax, az, bx, bz, half, y,
     x0: Math.min(ax, bx) - half, x1: Math.max(ax, bx) + half, z0: Math.min(az, bz) - half, z1: Math.max(az, bz) + half });
   const base = acc.pos.length / 3, pos = acc.pos, uv = acc.uv, indices = acc.idx, bank = [], bankCol = [], grass = [];
-  const n = Math.ceil(len / 0.8);
   for (let i = 0; i <= n; i++) {
     const t = i / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
     const edge = half - 0.16 + 0.12 * Math.sin(i * 1.7);

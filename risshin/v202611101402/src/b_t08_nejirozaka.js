@@ -544,7 +544,6 @@ const t08_nejirozaka = {
     rt.scene.add(jinmaku(W, 4, 156, 12, 8, 3, { mon: 'shimazu', solid: false }));
     addSite(rt, 'fort', 0, -20, '根白坂の砦');
     F.torches = torchField(rt);
-    jinchi.install(rt, { MIYABE, SHIMAZU });
     honjin.install(rt, { MIYABE, SHIMAZU, dress });
     // ---- 味方：宮部継潤の手と、塀の内の鉄砲 ----
     // 守将の宮部継潤は砦の奥の本陣で床几に座り、旗本に囲まれて下知する（塀へは出ない。kaito AR3・AV7）
