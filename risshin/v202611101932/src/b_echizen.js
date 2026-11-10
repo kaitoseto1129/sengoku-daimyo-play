@@ -336,7 +336,7 @@ Object.assign(echizen, {
       return at && Math.hypot(at.x - me.x, at.z - me.z) < hand.r ? 2 : 1;
     }
     if (!zone?.test(me.x, me.z)) return 3;
-    if (passNearestFoe(rt)) return 4;
+    if (zone.enemies > 0 || passNearestFoe(rt)) return 4;
     return zone.friends < zone.need ? 5 : 0;
   },
   missionHeading(rt) {
@@ -2421,12 +2421,20 @@ echizen.update = function (rt, dt) {
         (kz.enemies === 0 || (FF.kannonIn || 0) >= 30 && !!FF.breachHit_kannon);
       kz.hold = open ? FF.kannonHold0 : 1e9;
       if (!open) kz.holdT = 0;
+      // 観音丸も、塀の上の一人だけを探し続けさせない。木戸を抜けた本人と
+      // 味方が郭を押し、斬れる守兵が二十五秒いない時は、残兵が北へ退く。
+      // 入城前・味方不在・応戦中には進めず、制圧は退却後の通常の判定に任せる。
+      const stranded = pu.alive && !FF.gateKannon?.struct.alive &&
+        kz.test(pu.pos.x, pu.pos.z) && kz.friends > 0 && kz.enemies > 0 &&
+        !FF.echizenCourtTarget();
+      FF.kannonStrandedT = stranded ? (FF.kannonStrandedT || 0) + dt : 0;
       // 11/1：郭の内を味方が三倍で押さえたら、本道から駆け下りた小勢の残りは踏みとどまらず退く（郭が空かず時間切れになった）。
-      if (open && kz.enemies && kz.friends >= 3 * kz.enemies && (FF._kzRoutT = (FF._kzRoutT || 0) - dt) <= 0) {
+      if (((open && kz.enemies && kz.friends >= 3 * kz.enemies) || FF.kannonStrandedT >= 25) &&
+          (FF._kzRoutT = (FF._kzRoutT || 0) - dt) <= 0) {
         FF._kzRoutT = 2;
         for (const g of rt.army.groups) {
           if (g.team !== 1 || g.routed || !g.units.some((q) => q.alive && !q.fleeing && kz.test(q.pos.x, q.pos.z))) continue;
-          g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null;
+          g.routed = true; g.order = 'flee'; g.morale = 0; g.focus = null; g.noRout = false;
           g.fleeDir = { x: 0, z: 1 };
           for (const q of g.units) { q.fleeing = true; q.target = null; q.aiT = 0; }
         }
