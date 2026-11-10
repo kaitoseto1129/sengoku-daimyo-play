@@ -6523,10 +6523,10 @@ const inabayama = {
     let target = null, nearest = Infinity, left = 0;
     // 町と同じく、近い守りから仲間と払う。八歩の余裕で印の行き来を防ぐ。
     for (const g of F.honGuards) if (!gone(g)) {
-      left++;
       // 11/8 critic60 五2：戦える兵の居ない組（逃げる者・奥へ入った者だけ）を「この敵」に指さない（空の枠を指した）
       const c = nearGuard(rt, g);
       if (!c) continue;
+      left++;
       // 尾根の別の段や退却兵を含む中心でなく、印を付ける守兵の足場で比べる。
       const d = Math.hypot(c.x - p.x, c.z - p.z) + Math.abs(c.y - p.y) * 4 - (g === F.honTarget ? 8 : 0);
       if (d < nearest) { target = g; nearest = d; }
@@ -7177,7 +7177,8 @@ const inabayama = {
         // 近い一人が残っても、同じ組の遠い退却兵を待ち続けない。目の前の斬り合いは残す。
         for (const g of F.honGuards) if (g && !gone(g)) for (const u of g.units) {
           if (!u.alive || u.gone || u.atk || u.swing) continue;
-          if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) > 25) rt.army.despawn(u);
+          // 尾根の上下で平面だけ近い守兵も退かせる。別の段に残る兵を待って火付けが止まらないようにする。
+          if (Math.hypot(u.pos.x - pp.x, u.pos.z - pp.z) > 25 || Math.abs(u.pos.y - pp.y) > 6) rt.army.despawn(u);
         }
       }
       if (!F.sig && F.hata.every(gone) && gone(F.tatsu) && gone(F.keep.guard)) this.lightSig(rt);

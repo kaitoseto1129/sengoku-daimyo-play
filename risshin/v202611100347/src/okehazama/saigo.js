@@ -32,6 +32,7 @@ export function tick(rt, dt) {
   // 本体と同じく、主人公が義元を見届けられる間合いまで討取りを待つ。
   const p = rt.player.u.pos;
   if (Math.hypot(p.x - y.pos.x, p.z - y.pos.z) > 12 ||
+      Math.abs(p.y - y.pos.y) >= 3 ||
       rt.army.wallBetween(p, -1, y.pos) || rt.army.terrainBlocks(p, y.pos) ||
       rt.army.wallBetween(k.pos, k.team, y.pos) || rt.army.terrainBlocks(k.pos, y.pos) || Math.abs(k.pos.y - y.pos.y) >= 3) return;
   y.invuln = false; y.officerSaved = true; rt.army.kill(y, k);

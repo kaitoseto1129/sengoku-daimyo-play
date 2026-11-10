@@ -124,7 +124,9 @@ Object.assign(takato, {
         if (!point) point = F.oteSpear?.real?.pos || F.oteSpear?.pos;
       }
       // 守る範囲を白い破線の大きな輪で囲まない（10/29 採点）。ピン一つで示し、着いたかの判定の広さは保つ。
-      q.waiting = true; q.defend = false; q.r = q.hide = 1; q.reach = F.honFell ? 14 : 6;
+      q.waiting = true; q.defend = false; q.r = q.hide = 1;
+      // 城主の最期の後は、勝利判定と同じ十八メートルを到着済みにする。
+      q.reach = F.honFell ? (F.keep.down || F.keepFell || F.lordState === 'dead' ? 18 : 14) : 6;
     } else if (stage === 5) { point = F.keep.guide(); q.label = '主殿の奥の間'; }
     else {
       const id = this.guideMarker(rt), marker = rt.markers.find(m => m.id === id);
