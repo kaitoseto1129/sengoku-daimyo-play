@@ -10,7 +10,7 @@ import { enemyGroup } from '../bhelp.js';
 import { sfx } from '../audio.js';
 
 // 本筋の残兵判定とそろえ、倒れた者・後送された者・敗走した組を追わせない。
-const ready = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+const ready = (u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
 
 export function install(rt, ctx) {
   const F = rt.flags;

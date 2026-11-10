@@ -2453,7 +2453,7 @@ const tottori = {
     F.jinHosts = buildSonae(rt, this.jinkei);
     // 千代川の西岸の浅野長吉の陣（山彦館：西岸に吉川平介・浅野長吉・杉原家次が陣を張り、賀露と丸山の道を断つ）。
     // 11/4：近づくと消える軽い列をやめ、本物の兵で置く。浅野は馬上で旗本に囲まれ、川越しに舟の番へ鉄砲を向ける（kaito AV4・AR4・AV9）。
-    F.asano = allyGroup(rt, { fixed: true, noAI: true, noRout: true, name: '浅野長吉の手', anchor: { x: -100, z: -22 }, facing: Math.PI / 2, width: 8, formation: 'line', order: 'hold', aggro: 0, morale: 95 },
+    F.asano = allyGroup(rt, { fixed: true, noAI: true, noRout: true, mon: 'asano', name: '浅野長吉の手', anchor: { x: -100, z: -22 }, facing: Math.PI / 2, width: 8, formation: 'line', order: 'hold', aggro: 0, morale: 95 },
       dress([{ type: 'busho', n: 1, o: { name: '浅野長吉', invuln: true, horse: true } }, { type: 'samurai', n: 4 }, { type: 'ashigaru', n: 6 }, { type: 'gun', n: 6 }], { ...ODA, flag: 'asano' }));   // 浅野の手の指物は違い鷹の羽
     F.asano.leader = F.asano.units.find((u) => u.name === '浅野長吉');
     if (F.asano.leader) { F.asano.leader.campProtected = true; F.asano.leader.noTarget = true; }

@@ -1434,7 +1434,7 @@ function bankTabaGeo() {
   return geometry;
 }
 // 倒れた者や後送された者は、守りの列に数えない。
-const bankReady = (u) => u.alive && !u.gone && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
+const bankReady = (u) => u.alive && !u.gone && !u.dying && !u.fleeing && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed;
 // 画面外の知らせは後陣で受け、そこから実際に走る使番が本人へ届ける。
 // 使番が討たれても任務の段は待たせない。
 function report(rt, text) {
