@@ -38,6 +38,8 @@ const TOYO = { flag: 'toyotomi', armor: 0x22201d };     // 明石の砦の兵（
 const FORT = { x: 0, z: -34 };                 // 砦の中ほど
 const GATE = { x: 0, z: -10 };                 // 南の大手門
 const NGATE = { x: 0, z: -58 };                // 北の口（博労淵・城の方へ抜ける口。門扉は無い）
+// 外へ追った後も門の内まで戻る。門の線を目指すだけでは、手前で止まり④の参加にならない。
+const NORTH_AT = { x: NGATE.x, z: NGATE.z + 6 };
 const WALL_X = 24, WALL_N = -58;               // 砦の東西の柵・北の柵
 const SPAWN = { x: -4, z: 96 };
 const HONJIN = { x: -4, z: 116 };             // 至鎮の本陣（入り江の南。陣幕）
@@ -575,7 +577,7 @@ const k08_osaka_kizu = {
     for (const g of F.allies) g.dmgMult = 0.3;   // 退き口を守る全延の組は死に物狂い（④が一息で済まない。11/6 描いた通しで 0.45 では三十七秒で済み、戦が三分で終わった）
     holdInside(F.asano, NGATE.x + 12, NGATE.z + 10); F.asano.aggro = 22;
     holdInside(F.ikeda, NGATE.x - 10, NGATE.z + 10); F.ikeda.aggro = 22;
-    rt.marker('k08', () => northTarget(F, rt.player.u.pos)?.pos || NGATE, '明石全延の組', { red: true, group: F.zen });
+    rt.marker('k08', () => northTarget(F, rt.player.u.pos)?.pos || NORTH_AT, '明石全延の組', { red: true, group: F.zen });
     rt.say('明石全延', '北の口を固めよ！　退き口を守れ', 3.2);
     // 午前三時に出て、砦の内を払う頃に夜が白む（十一月十九日は今の十二月。明け六つ）。勝つ時は朝の光
     rt.world.setTime('morning');
@@ -794,7 +796,7 @@ k08_osaka_kizu.botBrain = (b, inp, { goTo, patientStrike }) => {
   }
   if (F.step === 3) { goNorthTo(b, inp, goTo, fightingTarget(F.s3, u.pos)?.pos || INSIDE, 2.2); return; }
   if (F.step === 4) {
-    const target = northTarget(F, u.pos)?.pos || NGATE;
+    const target = northTarget(F, u.pos)?.pos || NORTH_AT;
     // 加勢を迎えて門の外へ出た後も、内の守兵へは開いた北門を通って戻る。
     // 外へ出る時だけ迂回すると、帰りに北の塀へ斜めに寄って止まる。
     goNorthTo(b, inp, goTo, target, 2.2); return;

@@ -4978,7 +4978,9 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
         [lady('お市の方', 0x6a2a3a), lady('茶々', 0x8a4a5a), lady('初', 0x5a5a7a), lady('江', 0x7a6a4a), { type: 'samurai', n: 2, o: { keep: true } }]);
       for (const u of F.ichiG.units) { u.noTarget = true; u.invuln = true; }
       F.ichiG.order = 'path'; F.ichiG.path = [[0, GATE_NAKA_KYO.z], [KC.x, KC.z]]; F.ichiG.pathIdx = 0; F.ichiG.speed = 1.6;
-      rt.after(40, () => { if (F.ichiG) { evRemove(rt, F.ichiG); F.ichiG = null; } });
+      // 門で足が遅れても道中で消さず、一行が織田方へ着いてから退場する。
+      F.ichiG.arriveNoncombat = true; F.ichiG.arriveCount = F.ichiG.units.length;
+      F.ichiG.onArrive = (g) => { evRemove(rt, g); if (F.ichiG === g) F.ichiG = null; };
     });
     rt.after(5, () => { if (!F.ending) rt.say('浅井長政', '浅井の意地を見せよ！　本丸の口、一歩も退くな！', 3.5); });
     const p = rt.player.u.pos;
