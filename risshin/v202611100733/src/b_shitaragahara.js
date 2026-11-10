@@ -1388,7 +1388,7 @@ function nfBroken(rt, g) {
       Math.hypot(u.pos.x - (SB.x0 + 5), u.pos.z - gz) < 14) { g.nfArrive = rt.t; break; }
   }
   const at = g.nfArrive;
-  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, g.nfAt) > 40;
+  return n <= Math.ceil(g.nfN0 * 0.4) || at != null && rt.t - Math.max(at, g.nfAt) > 40 || rt.t - g.nfAt > 150;
 }
 function nfRout(rt, g, dead) {
   for (const q of [g, g.cavalry, g.missiles]) {
@@ -1479,6 +1479,12 @@ function nfTick(rt, dt) {
   if (N.step === 2) {
     if (ST_BREACH.active(rt)) { ST_BREACH.tick(rt, dt); if (ST_BREACH.active(rt)) return; }
     if (!N.breachDone) {
+      // 味方が時間切れで押し返しても、本人が破れ目へ来るまで守備を済みにしない。
+      const B = F.shBreach;
+      if (!B?.there) {
+        if (!B || Math.hypot(p.x - B.IN.x, p.z - B.IN.z) >= 32) return;
+        B.there = true;
+      }
       N.breachDone = true; N.at = rt.t;
       for (const q of rt.squadGroups || []) { q.order = 'follow'; q.focus = null; q.path = null; q.dest = null; q.formation = 'column'; q.colW = 2; }
       F.spears[0].formation = 'column'; F.spears[0].colW = 1; postRoad(rt, F.spears[0], NF_CENTER);
@@ -1517,7 +1523,9 @@ function nfTick(rt, dt) {
     if (Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 30) N.defendedCenter = true;
     if (!N.near && g.center().x < SB.x0 + 40) { N.near = true; sfx('hooves', 0.8); rt.say('内藤昌豊', '柵の口を押せ！　武田の意地を見せよ！', 3); }
     ST_SOKO.tick(rt, dt);
-    if (N.defendedCenter && T > 25 && !ST_SOKO.active(rt) && nfBroken(rt, g)) {
+    const S = F.shSoko;
+    if (S?.done && Math.hypot(p.x - S.IN.x, p.z - S.IN.z) < 32) S.there = true;
+    if (N.defendedCenter && S?.there && T > 25 && !ST_SOKO.active(rt) && nfBroken(rt, g)) {
       nfRout(rt, g, true);
       N.done[1] = true; N.step = 4; N.at = rt.t;
       nfCollapse(rt);
@@ -1730,7 +1738,9 @@ function nfPinPoint(rt) {
   if (!N || rt.flags.ending) return null;
   if (ST_INTRO.active(rt)) return ST_INTRO.pin(rt);
   if (ST_BREACH.active(rt)) return ST_BREACH.pin(rt);
-  if (N.step === 3 && ST_SOKO.active(rt) && rt.flags.shSoko.call && !(rt.flags.shSoko.there)) return ST_SOKO.pin(rt);
+  // 波が退いた後も、未確認の破れ目への案内を消さない。
+  if (N.step === 2 && !N.breachDone && rt.flags.shBreach && !rt.flags.shBreach.there) return rt.flags.shBreach.IN;
+  if (N.step === 3 && rt.flags.shSoko?.call && !rt.flags.shSoko.there) return rt.flags.shSoko.IN;
   if (N.step <= 1) return Math.hypot(p.x - NF_NORTH.x, p.z - NF_NORTH.z) < 7 ? null : NF_NORTH;
   if (N.step <= 3) return Math.hypot(p.x - NF_CENTER.x, p.z - NF_CENTER.z) < 7 ? null : NF_CENTER;
   if (N.step === 4) return N.crossWest ? NF_BANK : NF_CENTER;

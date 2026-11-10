@@ -7,7 +7,7 @@
 // ======================================================================
 import { sfx } from '../audio.js';
 
-const LOOK = { x: 22, z: -80 };     // 北の小さな塚（物見の場）。謙信の馬廻（20,-100）の手前。重ねると寄れない
+const LOOK = { x: 20, z: -64 };     // 北の小さな塚（物見の場）。11/10：闇で待つ上杉の列（z -84 より北）・謙信の馬廻（20,-100）から離し、陣のすぐ北東に
 const CARGO = { x: -14, z: -64 };   // 払いかけの陣の荷駄（俵）
 
 export function install(rt, ctx) {
@@ -24,7 +24,8 @@ export function install(rt, ctx) {
   rt.after(4, () => { if (active() && step === 0) rt.say('柴田勝家', '退く前に、上杉がどこまで来ておるか見て参れ！', 4); });
   rt.after(9.5, () => { if (active() && step === 0) rt.say('足軽', '戦わずに済むか……', 3); });
 
-  const look = () => {
+  // 11/10 詰まり防止（docs/sunomata_spec_1109.md の決まり）：寄れずに止まっても、下知で先へ進む。戦功は着いた時だけ。
+  const look = (auto = false) => {
     step = 1; t1 = rt.t;
     rt.unmark('nanaoLook');
     sfx('horagai', 0.5);
@@ -32,7 +33,7 @@ export function install(rt, ctx) {
     for (const h of F.host2 || []) h.advance?.(18, 40);
     for (const h of F.pursuitBackdrop || []) h.advance?.(14, 40);
     rt.after(1.5, () => { if (active()) rt.say('物見の足軽', '松明が川のように南へ流れて来る……上杉の本隊じゃ！', 4); });
-    rt.award((t) => t.side.push('北の塚で物見をし、上杉の本隊の動きを知らせた'), '上杉の動きを知らせた');
+    if (!auto) rt.award((t) => t.side.push('北の塚で物見をし、上杉の本隊の動きを知らせた'), '上杉の動きを知らせた');
     rt.after(6, () => {
       if (done || !active()) return;
       rt.say('柴田勝家', '荷は焼き捨てよ！　人を先に渡す。急げ！', 4);
@@ -40,12 +41,12 @@ export function install(rt, ctx) {
       rt.marker('nanaoCargo', CARGO, '捨てる荷駄', { h: 3, guideAlways: true, guidePriority: 400 });
     });
   };
-  const burn = () => {
+  const burn = (auto = false) => {
     step = 2;
     rt.unmark('nanaoCargo');
     rt.world.addFire?.(CARGO.x, CARGO.z, { size: 1.8, blackSmoke: true });
     sfx('wood', 0.6);
-    rt.say('組頭', '火が付いた！　荷はくれてやれ。渡り口へ下がるぞ！', 3.5);
+    rt.say('組頭', auto ? '荷はわしが焼いた！　渡り口へ下がるぞ！' : '火が付いた！　荷はくれてやれ。渡り口へ下がるぞ！', 3.5);
     done = true; F.nanaoDone = true;
     rt.after(4, () => { if (active()) next(); });
   };
@@ -56,8 +57,8 @@ export function install(rt, ctx) {
       if ((tick -= dt) > 0) return;
       tick = 0.5;
       const p = rt.player.u.pos, el = rt.t - t1;
-      if (step === 0 && Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 9) look();
-      else if (step === 1 && el > 6 && Math.hypot(p.x - CARGO.x, p.z - CARGO.z) < 6) burn();
+      if (step === 0 && (Math.hypot(p.x - LOOK.x, p.z - LOOK.z) < 9 || el > 50)) look(el > 50);
+      else if (step === 1 && el > 6 && (Math.hypot(p.x - CARGO.x, p.z - CARGO.z) < 6 || el > 45)) burn(el > 45);
     },
   };
 }
