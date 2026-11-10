@@ -4947,11 +4947,13 @@ html:root body #hud[data-odani] #battle-notices:not(.choosing) {
   reliefTick(rt) {
     const F = rt.flags;
     if (F.step < 1 || rt.t < (F.pressureAt || 0)) return;
-    const stage = F.step === 2 && F.onoDone ? 2.5 : F.step === 3 && F.komaAttack ? 4 : F.step;
+    const stage = F.honAttack ? 5 : F.step === 2 && F.onoDone ? 2.5 : F.step === 3 && F.komaAttack ? 4 : F.step;
     // 谷と屋敷の守りを、四十五秒後に全員「本人を六十メートル追え」へ変えない。
     // 近い攻め手と戦う指定を保つ。味方の道順待ちと、尾根の反撃の助けは続ける。
-    const enemies = stage <= 2 ? NO_VALLEY_PURSUIT : stage === 2.5 ? F.kyoGuards : stage === 3 ? F.counter : F.komaGuards;
-    pressureTick(rt, stage, enemies, F.oda, stage === 1 ? '谷道を上り、秀吉の旗へ続け' : stage === 2 ? '屋敷の南の木戸へ。味方と守りを崩せ' : stage === 2.5 ? '西の木戸を破り、京極丸の内の旗へ行け' : stage === 3 ? '京極丸の内へ戻れ。南北の口を守れ' : '北の木戸から小丸へ。内の守りを崩し、組で旗を守れ');
+    // 本丸へ移った後は小丸の残兵を呼び戻さず、南へ進んだ新手も後列待ちの助けに含める。
+    const enemies = stage <= 2 ? NO_VALLEY_PURSUIT : stage === 2.5 ? F.kyoGuards : stage === 3 ? F.counter : stage === 4 ? F.komaGuards : [F.honGuard, F.south, F.kyoAid, F.akao];
+    const friends = stage === 5 ? [...F.oda, F.gozume, F.umaG] : F.oda;
+    pressureTick(rt, stage, enemies, friends, stage === 1 ? '谷道を上り、秀吉の旗へ続け' : stage === 2 ? '屋敷の南の木戸へ。味方と守りを崩せ' : stage === 2.5 ? '西の木戸を破り、京極丸の内の旗へ行け' : stage === 3 ? '京極丸の内へ戻れ。南北の口を守れ' : stage === 4 ? '北の木戸から小丸へ。内の守りを崩し、組で旗を守れ' : '尾根を南へ、本丸の北木戸から旗本を退けよ');
     // 道案内は任務の札で続ける。同じ下知を三十秒ごとに重ねない。
     F.pressureSayAt = Infinity;
   },
