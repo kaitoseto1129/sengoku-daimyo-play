@@ -1,5 +1,5 @@
 // 太田城 ② 3〜6分「築堤の護衛」：城から雑賀衆が何度も打って出て人夫を狙う。人夫を守り切れば堤が積み上がる。
-import { P, SAIKA, porters } from './scene.js';
+import { P, SAIKA, porters, setMound } from './scene.js';
 import { troops, reports, move, living, broken, near } from '../toyo15/kit.js';
 import { workTick } from './s1_hoi.js';
 
@@ -8,7 +8,7 @@ export default {
   pin: { ...P.work, label: '出水の堤' },
   enter(rt, F) {
     F.workGuard = 0; F.waves = []; F.workerReliefs = 0; F.workerReliefAt = 0;
-    move(F.friends, { x: P.work.x + 4, z: P.work.z + 2 }, true);
+    move(F.friends, { x: P.work.x - 6, z: P.work.z - 4 }, true);   // 盛り土（城の側へ寄せた）の上に立たせない
     rt.say('羽柴秀長', '堤ができれば城は終わりじゃ。雑賀もそれを分かっておる。人夫を一人も討たせるな', 4);
     const wave = (name, from, list) => () => { const g = troops(rt, false, name, from, list, SAIKA, { free: true, aggro: 18 }); move(g, P.work, true); F.waves.push(g); };
     reports(rt, [
@@ -32,7 +32,7 @@ export default {
     const quiet = F.waves.length >= 3 && F.waves.every((g) => broken(g, 0.35));
     return t > 160 && F.workGuard >= 5 && F.waves.length >= 3 && (quiet || t > 210);
   },
-  leave(rt, F) { for (const g of F.waves) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: -10 }); g.order = 'retreat'; } F.dug = Math.max(F.dug, 0.9); },
+  leave(rt, F) { for (const g of F.waves) { g.noRout = false; g.morale = 0; move(g, { x: 0, z: -10 }); g.order = 'retreat'; } F.dug = Math.max(F.dug, 0.9); setMound(F, F.dug); },
   foes: (rt) => rt.flags.waves,
   max: Infinity,
 };

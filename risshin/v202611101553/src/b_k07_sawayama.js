@@ -314,8 +314,8 @@ const k07_sawayama = {
     landmarkViewFar: 200,
     seed: 1600921,
     time: 'morning',   // 十七日の払暁から攻めた
-    // 11/10 クラウド（関所の写真）：夜の三の丸で兵の面に月の補光が強く掛かり、具足が白く光る骨のような兵に見えた。今福・鳥取と同じく弱める
-    unitNightScale: 0.4,
+    // 夜の白い兵：小さな正の値でも共通の補光の下限が残る。兵だけの補光を止め、月光と篝火で照らす。
+    unitNightScale: 0,
     groundHalf: 280,
     muddyCastleFloor: 0.8,   // 曲輪の平場を真っ白な砂利にせず、踏み固めた乾いた土に（侍屋敷が白い砂の広場に見えた・八1）
     paths: [ROUTE.slice(0, 10), ROUTE.slice(9)],

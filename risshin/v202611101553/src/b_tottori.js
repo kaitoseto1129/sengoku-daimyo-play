@@ -2773,7 +2773,7 @@ const tottori = {
     rt.marker('return', () => returnWay(rt), '柵の内の守り場', {
       h: 0.3, guideArea: 'guard', guideRadius: 8,
       waitGuide: () => F.sallies.every((g) => gone(g) || g.routed || g.ttRetreat || g.ttReturned)
-        ? '城兵は退いている。追わず、ここで待て' : '坂の方を向き、味方と柵を守れ',
+        ? '城兵は退いている。追わず、柵の口を守れ' : '坂の方を向き、味方と柵を守れ',
     });
     rt.unmark('guard'); rt.unmark('guard2'); rt.unmark('bank-road'); rt.unmark('bank-fight'); rt.unmark('bank-approach');
     for (const q of [F.guard, F.guard2]) if (q && !gone(q)) q.morale = Math.min(q.morale, 15);

@@ -4121,7 +4121,15 @@ saika.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
     const group = marker?.group;
     let foe = attacker;
     let distance = Infinity;
-    for (const o of group?.units || NO_HOSTS) if (saikaFoe(o)) {
+    // 11/10：堤の段で川の中の取り返しの手を追って杭列（x -19、z 22〜70）の西へ出ると、堤へ真っすぐ戻ろうとして杭に突き当たり、刻限まで止まった。
+    //   杭の向こうの敵は追わず、西へ出てしまった時は杭列の北の端（z 70）の外、z 77 を回って戻る（-28,73 からの直進も杭に当たった）。
+    const pastStakes = (q) => q.x < -17.5 && q.z > 20 && q.z < 82;
+    if (b.phase === 'tsutsumi' && pastStakes(u.pos) && (!attacker || attackDist >= reach)) {
+      if (p.lock) inp.e.add('KeyQ');
+      if (u.pos.z < 75) goTo(p, inp, u.pos.x < -22 ? u.pos.x : -22, 78, 1.2); else goTo(p, inp, -6, 77, 1.5);
+      return;
+    }
+    for (const o of group?.units || NO_HOSTS) if (saikaFoe(o) && !(b.phase === 'tsutsumi' && pastStakes(o.pos))) {
       const d = Math.hypot(o.pos.x - u.pos.x, o.pos.z - u.pos.z);
       if (d < distance) { distance = d; foe = o; }
     }
