@@ -5319,7 +5319,9 @@ mitsukuri.botBrain = (b, inp, { goTo, patientStrike, strikeTarget }) => {
   inp.k.delete('KeyW'); inp.k.delete('KeyE');
   if (!u.alive || F.ending) return;
   // 物見だけでなく火入れ・木戸・郭への移動も山道を通す。切岸や柵へ直進させない。
-  const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r) => {
+  const move = F._mkBotMove || (F._mkBotMove = (player, input, x, z, r, roadReady = false) => {
+    // 物見の移動・退避は depthWithdraw が選んだ曲がり角と到着半径を保つ。
+    if (roadReady) { goTo(player, input, x, z, r, true); return; }
     const goal = player._mkBotGoal || (player._mkBotGoal = { x: 0, z: 0 });
     goal.x = x; goal.z = z;
     const q = courtyardWay(b, goal);

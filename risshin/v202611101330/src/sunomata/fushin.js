@@ -201,5 +201,5 @@ export function tick(rt, dt, def, C) {
   (F.fsLog ||= []).push(`${Math.round(rt.t)}s ${what}`);
 }
 
-// 夜明けの勝ちの関所に使う：築城が仕上がったか、見張りで夜明けへ進めたか
-export function built(rt) { return S(rt).p >= 100 || !!rt.flags.fsForce; }
+// 停滞の救済は敵を退かせるだけ。櫓と旗が完成するまで築城を続ける。
+export function built(rt) { return S(rt).p >= 100; }

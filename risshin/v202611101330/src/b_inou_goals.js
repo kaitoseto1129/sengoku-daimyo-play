@@ -36,3 +36,10 @@ export const INO_GOALS = {
   push: '柴田勢を押し返せ',
   after: '戦の跡を歩け',
 };
+// 隊長の討死後、佐久間隊に合流してから林勢との戦いへ戻る。
+// 同じ任務の字でも、合流前と後を別の段として記録する。
+export const INO_STEPS = ['march', 'scout', 'van', 'hayashi', 'join', 'hayashi', 'shibata', 'retreat', 'rally', 'push', 'after'];
+export function inouStep(rt) {
+  const F = rt.flags || {};
+  return F.ph === 'hayashi' && F.joined ? 5 : Math.max(0, INO_STEPS.indexOf(F.ph));
+}
