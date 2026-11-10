@@ -294,6 +294,9 @@ function datearrive(rt) {
 const BOARD_CSS = `
 html:root body #hud#hud#hud.domyoji-goals #armybar:not([hidden]) { display:grid !important; visibility:visible !important; opacity:1 !important; }
 html:root body #hud#hud#hud.domyoji-goals #armybar .clock { visibility:hidden !important; }
+/* 共通の battle-order は棒も隠すため、道明寺では両軍を左右に分けた一本だけ戻す。 */
+html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog #armybar#armybar .gauge.one {
+ display:block !important; grid-column:1 / -1; width:100%; }
 html:root body:has(#intro:not([hidden]) > .card) #hud#hud#hud.domyoji-goals :is(#armybar, #h-prog) { visibility:hidden !important; }
 html:root body:has(#intro:not([hidden]) > .card) .field-names { visibility:hidden !important; }
 html:root body #hud#hud#hud.domyoji-goals #h-prog#h-prog.goal-mode > :not(.pg-goals) { display:none !important; }
@@ -393,6 +396,7 @@ const k13_domyoji = {
   introText: '徳川方 三万四千、豊臣方 一万八千六百。霧の朝、国分の口。小松山に先に出た後藤又兵衛を、水野勝成の先手と攻め上る。昼には誉田で、真田・毛利の寄せを伊達勢と受け止める。',
   goalEdgeArrow: false,  // 目標の人数は数え、討つ相手を指す画面の端の矢印だけ止める（五3・十八2）。
   goalSignTriangle: true, // 共通の行き先の印も、画面の端で矢印へ回さず▼のままにする。
+  keepBattleSigns: true, // 行き先の札を出している間も、名のある将の頭上の名を隠さない。
   nameRange: 50,         // 水野・本多・片倉・又兵衛・薄田・真田の名を、組が見える所から出す（五2・九3）
   waitForPortrait: true, // 顔を覚えていない初戦でも黒い影を出さず、本人の顔が撮れてから表示する。
   noWake: true, noReserve: true, noTaishoRaid: true, noFarFill: true, noAheadFill: true,

@@ -82,6 +82,13 @@ const hold = (g, x, z) => { if (!g || g.routed) return; g.anchor.x = x; g.anchor
 // ④へ進んだ時も、まだ外にいる組の経路を消さない。
 function holdInside(g, x, z) {
   if (!g || g.routed) return;
+  // 合流中は開いた入口までの経路を保ち、最後の持ち場だけ移す。
+  // 隊の中心が既に内側でも、後ろの兵はまだ横塀の外に残る。
+  if (g.order === 'path' && g.path?.length) {
+    const last = g.path[g.path.length - 1];
+    last[0] = x; last[1] = z;
+    return;
+  }
   const c = g.center();
   hold(g, x, z);
   if (Math.abs(c.x) <= WALL_X) return;
@@ -663,7 +670,7 @@ const k08_osaka_kizu = {
     if (F.step === 1 && P.z <= SHORE.z + 10 && near(P, SHORE, 24)) F.shoreJoined = true;
     if (F.step === 2 && near(P, GATE, 24)) F.gateJoined = true;
     if (F.step === 3 && P.z < GATE.z && Math.abs(P.x) < WALL_X && near(P, INSIDE, 24)) F.insideJoined = true;
-    if (F.step === 4 && near(P, NGATE, 24)) F.northJoined = true;
+    if (F.step === 4 && P.z < GATE.z && P.z > WALL_N && Math.abs(P.x) < WALL_X && near(P, NGATE, 24)) F.northJoined = true;
     // 砦の兵は手薄で浮き足立っている（史実）。豊臣方の組は傷を軽めにそろえる（夜襲の一人が数突きで倒れない）
     //   櫓の上の鉄砲と弓は、夜明けまでは闇に撃ち下ろすので当たりが浅い（11/6 fixc0823：描いて遊んだ通しで、丸太と寄せる門の前で南の櫓の二組に二十秒で撃ち倒された）
     if (!(F.lightT > rt.t)) { F.lightT = rt.t + 1; const m = F.step <= 2 ? 0.3 : F.step === 4 ? 0.4 : 0.5;   // ④は北の口の守兵・全延の組・城からの加勢が一度に来る（11/9 二巡で加勢を足した分だけ軽く）

@@ -113,8 +113,8 @@ function requiredStage(s) {
       const F2 = rt.flags; F2.gatesDownT ??= rt.t;
       if (leaderAlive && rt.t - F2.gatesDownT > 75) {
         for (const g of C.groups) for (const u of g.units) if (u.alive && /^(矢野正倫|飯田家貞)$/.test(u.name || '')) {
-          const by = rt.army.units.find((a) => a.alive && a.team === 0 && !a.isPlayer && !a.isStruct &&
-            !a.fleeing && !a.dying && !a.woundOut && !a.downed && !a.perch &&
+          const by = rt.army.units.find((a) => a.alive && !a.gone && a.team === 0 && !a.isPlayer && !a.isStruct &&
+            !a.fleeing && !a.dying && !a.woundOut && !a.rearWound && !a.downed && !a.perch && !a.group?.routed &&
             Math.abs(a.pos.y - u.pos.y) < 3 && Math.hypot(a.pos.x - u.pos.x, a.pos.z - u.pos.z) < 4 &&
             !rt.army.wallBetween(a.pos, a.team, u.pos, false));
           if (!by) continue;
@@ -716,18 +716,18 @@ const k09_imafuku = {
         else if (g.keepMoveOrder) { g.keepMoveOrder = false; g.order = 'attack'; g.seekRange = 30; g.anchor = { x: front, z: 0 }; }
       }
       F.allyAt = null;
-      if ((F.step || 0) >= 2) for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct &&
-        !u.fleeing && !u.dying && !u.woundOut && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+      if ((F.step || 0) >= 2) for (const u of rt.army.units) if (u.alive && !u.gone && u.team === 0 && !u.isPlayer && !u.isStruct &&
+        !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
         (F.allyAt == null || u.pos.x < F.allyAt)) F.allyAt = u.pos.x;
       // 西へ抜けた一人の位置だけでは、遠く離れた木戸まで縄を引いた事にしない。
-      // 木戸ごとに、実際に取り付ける足場にいる戦闘中の味方を数える。
+      // 木戸ごとに、実際に取り付ける足場にいる戦闘中の味方を数える。後送中・離脱済みの兵は縄を引けない。
       for (let i = -1; i < (F.outer?.length || 0); i++) {
         const st = i < 0 ? F.gate : F.outer[i];
         if (!st || !st.alive) continue;
         st.allyPull = false;
         if ((F.step || 0) < 2) continue;
-        for (const u of rt.army.units) if (u.alive && u.team === 0 && !u.isPlayer && !u.isStruct && !u.perch &&
-          !u.fleeing && !u.dying && !u.woundOut && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
+        for (const u of rt.army.units) if (u.alive && !u.gone && u.team === 0 && !u.isPlayer && !u.isStruct && !u.perch &&
+          !u.fleeing && !u.dying && !u.woundOut && !u.rearWound && !u.downed && !u.group?.routed && Math.abs(u.pos.z) < 4 &&
           u.pos.x - st.seg[0] > -6 && u.pos.x - st.seg[0] < 5) { st.allyPull = true; break; }
       }
     }

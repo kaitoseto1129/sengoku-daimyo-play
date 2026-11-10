@@ -12,6 +12,7 @@ import { koshisaku, nobori } from '../props.js';
 import { clash } from '../b_sekigahara.js';
 import { flagTexture } from '../textures.js';
 import { sfx } from '../audio.js';
+import { takatabaRow } from '../castle_parts.js';
 
 const LIMIT = 175;
 // 城の鉄砲は当たれば痛いが、一発では倒れない強さに（b_sekigahara.js の soften と同じ）
@@ -33,6 +34,11 @@ export function start(rt, C) {
   rt.obj('main', C.MISSIONS[0], 'main');
   const { d, p, saku } = geom(C);
   const K = F.chi = { saku, d, p, t0: rt.t };
+  // 力攻めでも竹束で矢玉を避けられるよう、土手の両脇へ置く。中央の通り道は空ける。
+  for (const back of [8, 18]) for (const side of [-1, 1]) {
+    const pts = [2.4, 4.2].map((offset) => [saku.x - d.x * back + p.x * side * offset, saku.z - d.z * back + p.z * side * offset]);
+    takatabaRow(rt, pts, { spacing: 2, side: -side });
+  }
   // 城の外の柵：土手を横切る杭の柵。真ん中に木戸の口を空ける
   for (const s of [-1, 1]) {
     const a = { x: saku.x + p.x * s * 1.5, z: saku.z + p.z * s * 1.5 }, b = { x: saku.x + p.x * s * 7, z: saku.z + p.z * s * 7 };

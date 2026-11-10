@@ -75,7 +75,7 @@ const ino = {
     if (!F?.allAlly) return FORCE;
     const a = aliveIn(F.allAlly), a0 = F.allAllyN || 1;
     const h = aliveIn(F.haya), h0 = F.hayaN || 1, s = aliveIn(F.shiba), s0 = F.shibaN || 1;
-    // 後詰も七百の内訳。合流で分母を増やして、それまでの討死を戻さない。
+    // 後詰も七百の内訳。初めに決めた全軍の人数で損耗を量り、合流で討死を戻さない。
     const total = F.allAlly.reduce((n, g) => n + (g?.units.length || 0), 0);
     FORCE.a = round10(Math.max(0, 700 * (1 - (total - a) / a0)));
     FORCE.b = round10(700 * h / h0 + 1000 * s / s0);
@@ -184,8 +184,9 @@ const ino = {
         { type: 'samurai', n: 1, o: { name: '森可成', invuln: true, keep: true } }, { type: 'cavalry', n: 3, o: { invuln: true } }, { type: 'samurai', n: 6, o: { invuln: true } }]);
     F.nobuU = F.nobuG.units.find((u) => u.name === '織田信長') || null;
     F.nobuFlag = nobori(W, -64, 34, 'oda', 6.5); rt.scene.add(F.nobuFlag);
-    F.allAlly = [F.kumi, F.mates, F.shinG, ...F.van, F.sakuma];
-    F.allAllyN = aliveIn(F.allAlly);
+    F.allAlly = [F.kumi, F.mates, F.shinG, ...F.van, F.sakuma, F.nobuG];
+    // 後から来る森の手も七百の内。合流前後で一人の討死の重みを変えない。
+    F.allAllyN = aliveIn(F.allAlly) + N(9) + 2;
     rt.obj('main', INO_GOALS.march, 'main');
     this.march(rt);
   },
@@ -304,7 +305,9 @@ const ino = {
     say(rt, '組頭', 'よし、わしの後ろにつけ。', 2.4);
     this.go(rt, 'hayashi');
     this.fight(F.sakuma, 12);
-    rt.after(20, () => this.hayashiFall(rt));
+    // 美作守は信長が自ら討つ。旗本を先に進め、近くの足軽へ手柄を渡さない。
+    if (F.hayaBossU?.alive) this.moveG(F.nobuG, { x: F.hayaBossU.pos.x, z: F.hayaBossU.pos.z + 3 }, 5);
+    rt.after(36, () => this.hayashiFall(rt));
   },
   // 7:20 林の大旗が揺れ、遠くで美作守が討たれて大旗が倒れる → 林勢が崩れる
   hayashiFall(rt) {
@@ -314,9 +317,10 @@ const ino = {
     const B = F.hayaBossU;
     say(rt, '足軽', '林の大旗が揺れておる！', 2.4);
     rt.after(3, () => {
-      if (B?.alive) { B.invuln = false; B.inouNoWord = true; B.heroDmg = 0; let k = null; for (const u of rt.army.units) if (u.team === 0 && u.alive && !u.gone && !u.isPlayer && (!k || near(u.pos, B.pos) < near(k.pos, B.pos))) k = u; rt.army.kill(B, k); }
+      if (B?.alive) { B.invuln = false; B.inouNoWord = true; B.heroDmg = 0; rt.army.kill(B, rt.G.lord ? rt.player.u : F.nobuU); }
       F.flagFalling = rt.t;
       rt.army.play('toki', { x: 16, z: -6 }, 1.3);
+      this.moveG(F.nobuG, { x: -66, z: 120 }, 5);
     });
     rt.after(4.6, () => rt.banner('林美作、討ち取った！', ''));
     rt.after(7, () => say(rt, '足軽', '林勢、崩れます！', 2.4));
@@ -432,10 +436,12 @@ const ino = {
     rt.after(3, () => {
       const rear = F.shibaLines.filter(live);
       rear.forEach((g, i) => {
-        if (i === 0) { g.order = 'hold'; g.aggro = 10; g.dmgMult = 0.3; rt.after(16, () => { if (live(g)) this.moveG(g, { x: -60, z: -130 }, 2.6); }); return; }   // 殿
+        if (i === 0) { g.order = 'hold'; g.aggro = 10; g.dmgMult = 0.3; rt.after(16, () => { if (live(g)) { g.inouRetiring = true; this.moveG(g, { x: -60, z: -130 }, 2.6); } }); return; }   // 殿
+        g.inouRetiring = true;
         g.routing = false; g.focus = null; for (const u of g.units) u.target = null;
         this.moveG(g, { x: -40 + i * 8, z: -130 }, 2.4);
       });
+      F.shibaG.inouRetiring = true;
       this.moveG(F.shibaG, { x: -30, z: -120 }, 2);
     });
     rt.after(22, () => this.stopChase(rt));
@@ -558,7 +564,7 @@ const ino = {
     // 名塚砦に着いたら信長が来る
     if (F.ph === 'retreat' && near(P.pos, NAZUKA_PT) < 14 && rt.t - F.retreatT > 6) this.rally(rt);
     // 退いた者は離れたら去る
-    for (const g of F.groups) if (g.routing || g.order === 'retreat') for (const u of g.units) if (u.alive && !u.gone && near(u.pos, P.pos) > 70) rt.army.despawn(u);
+    for (const g of F.groups) if (g.routing || g.order === 'retreat' || g.inouRetiring) for (const u of g.units) if (u.alive && !u.gone && near(u.pos, P.pos) > 70) rt.army.despawn(u);
     // 戦の段だけ流れ矢
     if (['hayashi', 'shibata', 'push'].includes(F.ph)) { const s0 = F.stage; F.stage = 1; strayArrows(rt, 0.25); F.stage = s0; }
     // 立っている主人公の所へ、近い敵が二人まで来る（押し合いの段だけ）

@@ -1054,6 +1054,17 @@ function mikataPlainTokugawa(rt) {
 const MK_GOAL_HOLD = [0, 0, 20, 8, 15, 10];
 function mikataGoals(rt, dt) {
   const F = rt.flags, G = F.mkG || (F.mkG = { i: 0, st: [0, 0, 0, 0, 0, 0, 0], tin: 0, hit: false });
+  // 共通の途中保存は flags の数・真偽・短い字だけを残す。配列のままでは
+  // 済んだ務めが消え、途中から再開しただけで未達成になってしまう。
+  if (rt.resumedFrom !== undefined && !rt._mkGoalsRestored) {
+    rt._mkGoalsRestored = true;
+    if (/^[01-](,[01-]){6}$/.test(F.mkGoalMarks || '') && Number.isInteger(F.mkGoalIndex) && F.mkGoalIndex >= 0 && F.mkGoalIndex <= 6) {
+      G.i = F.mkGoalIndex;
+      G.st = F.mkGoalMarks.split(',').map((s) => s === '-' ? -1 : Number(s));
+      G.tin = F.mkGoalTime || 0;
+      G.hit = !!F.mkGoalHit; G.ok = !!F.mkGoalOk; G.contact = !!F.mkGoalContact;
+    }
+  }
   if (rt.over || !rt.player?.u) return G;
   const u = rt.player.u, p = u.pos, near = (q, r) => Math.hypot(p.x - q.x, p.z - q.z) < r;
   // 段の流れ：0 物見 ／ 1 持ち場へ ／ 2 先手と後詰 ／ 3 赤備え ／ 4 平手の囲み ／ 5 坂の殿 ／ 6 城へ退く ／ 7 帰着
@@ -1091,6 +1102,15 @@ function mikataGoals(rt, dt) {
     if (!G.st[G.i]) G.st[G.i] = G.ok ? 1 : -1;
     G.i++; G.tin = 0; G.hit = false; G.ok = false; G.contact = false;
   }
+  let marksChanged = !F.mkGoalMarks;
+  for (let i = 0; !marksChanged && i < G.st.length; i++) {
+    const saved = F.mkGoalMarks[i * 2];
+    marksChanged = G.st[i] < 0 ? saved !== '-' : G.st[i] === 1 ? saved !== '1' : saved !== '0';
+  }
+  if (marksChanged) F.mkGoalMarks = G.st.map((s) => s < 0 ? '-' : String(s)).join(',');
+  F.mkGoalIndex = G.i;
+  F.mkGoalTime = G.tin;
+  F.mkGoalHit = !!G.hit; F.mkGoalOk = !!G.ok; F.mkGoalContact = !!G.contact;
   return G;
 }
 // 右上の札と両軍の数の棒、画面に見える敵の頭上の赤い▼（九3）。
