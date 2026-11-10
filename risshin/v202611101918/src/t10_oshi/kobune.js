@@ -149,7 +149,12 @@ export function tick(rt, dt, C) {
   for (const g of K.groups) {
     if (!C.fighting(g)) continue;
     const left = g.units.filter((u) => u.alive && !u.gone && !u.fleeing);
-    if (left.length <= 1 || rt.t - g.landT > 50) { g.noRout = false; g.morale = 0; for (const u of left) u.fleeing = true; }
+    if (left.length <= 1 || rt.t - g.landT > 50) {
+      g.noRout = false; g.morale = 0;
+      for (const u of left) { u.fleeing = true; u.target = null; u.watch = null; u.atk = null; }
+      // 退く下知の直後に索敵し直し、舟へ戻る兵が再び斬り合うのを防ぐ。
+      continue;
+    }
     for (const u of left) {
       if (!C.near(u.pos, g.S.land, 20)) { u.target = null; continue; }
       // 揚がった城兵は堤を掘る。そばへ寄った寄せ手（主人公も）とだけ斬り合う

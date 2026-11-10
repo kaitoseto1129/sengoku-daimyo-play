@@ -18,11 +18,17 @@ export function tick(rt, guideId) {
   const m = (rt.markers || []).find((q) => q.id === guideId);
   let q = m && (typeof m.pos === 'function' ? m.pos() : m.pos);
   F.tkStuck = null;
-  // 印のすぐそばで止まった時（11/10 正式の流し：本丸門の脇（-41,16）で四百秒）は、二の丸を取った後なら本丸の中へ
-  if ((!q || Math.hypot(q.x - P.x, q.z - P.z) < 8) && F.niFell && !F.honFell && F.C?.kuruwa?.hon?.centroid) q = F.C.kuruwa.hon.centroid;
+  // 門脇の詰まりを助ける時も、本丸の二つの門を越したことにはしない。
+  // 門が閉じている間は既存の門前の印を使い、寄せ手が実際に破るのを待つ。
+  const hon = F.C?.kuruwa?.hon;
+  const honOpen = () => !!F.gates?.honOuter?.opened && !!F.gates?.honInner?.opened;
+  const crossesHon = (at) => hon?.test(at.x, at.z) && !hon.test(P.x, P.z) && !honOpen();
+  if ((!q || Math.hypot(q.x - P.x, q.z - P.z) < 8) && F.niFell && !F.honFell && hon?.centroid && honOpen()) q = hon.centroid;
   if (!q || Math.hypot(q.x - P.x, q.z - P.z) < 8) return;
+  if (crossesHon(q)) return;
   const ox = P.x, oz = P.z;
   k15Fade(rt, () => {
+    if (F.ending || rt.over || !me.alive || crossesHon(q)) return;
     const put = (u, x, z) => { u.pos.x = x; u.pos.z = z; u.pos.y = rt.world.heightAt(x, z); u.vel && (u.vel.x = u.vel.z = 0); };
     put(me, q.x, q.z);
     for (const g of rt.squadGroups || []) for (const v of g.units) if (v.alive && !v.fleeing && !v.woundOut && Math.hypot(v.pos.x - ox, v.pos.z - oz) < 30) put(v, q.x - 2 + Math.random() * 4, q.z - 2 + Math.random() * 4);
