@@ -124,8 +124,20 @@ function scene(rt, ctx, n) {
 
 export function tick(rt, dt, ctx) {
   const F = rt.flags, P = rt.player.u.pos;
-  if (F.oStep === 0 || F.proWarp) return;
   if (!rt.player.u.alive || rt.retryOpen) return;
+  // 暗転中に討たれても、予約処理で次の地へ移さない。生存中の時間だけ進める。
+  if (F.proWarp) {
+    F.proWarpT -= dt;
+    if (F.proWarpT <= 0) {
+      const n = F.proNext;
+      F.proWarp = false;
+      rt.scene.visible = true;
+      if (n <= 3) scene(rt, ctx, n);
+      else ctx.toYamazaki();
+    }
+    return;
+  }
+  if (F.oStep === 0) return;
   const el = rt.t - F.proT0;
   // 連れた隊は主人公の後ろを歩く（行き先は主人公が動いた時だけ置き直す）
   if ((F.proFT = (F.proFT || 0) - dt) <= 0) {
@@ -176,13 +188,8 @@ export function tick(rt, dt, ctx) {
 function next(rt, ctx, n) {
   const F = rt.flags;
   F.proWarp = true;
+  F.proWarpT = 1.6; F.proNext = n;
   rt.scene.visible = false;
-  rt.after(1.6, () => {
-    F.proWarp = false;
-    rt.scene.visible = true;
-    if (n <= 3) scene(rt, ctx, n);
-    else ctx.toYamazaki();
-  });
 }
 
 // 山崎へ移る時：序の隊を片付ける（自分の備だけ残す）
@@ -196,6 +203,8 @@ export function clear(rt) {
 // 途中から続ける時の幕の始まり（battle_checkpoint の resumeSteps）
 export function resumeScene(rt, ctx, n) {
   const F = rt.flags;
+  F.proWarp = false; F.proWarpT = 0; F.proNext = 0;
+  rt.scene.visible = true;
   if (n === 1) { start(rt, ctx); return; }
   if (!F.proHon) start(rt, ctx, false);
   F.holdPlayer = false;

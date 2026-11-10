@@ -2297,6 +2297,7 @@ function sanDirect(army, u, goal) {
   return Math.hypot(goal.x - u.pos.x, goal.z - u.pos.z) <= 12 && sanGroundPassage(army, u.pos, goal);
 }
 
+// 物見へ移る頭も同じ曲がり角を使う。四ｍ手前で止まると、道の次の点へ進めない。
 function sanKuchiWay(army, u, goal) {
   if (u.team !== 0 && !u.group?._sanCastleRoad) return goal;
   // 近くの歩いて届く相手には直接寄る。斬り合いを次の曲がり角へすり替えない。
@@ -2307,7 +2308,7 @@ function sanKuchiWay(army, u, goal) {
     // 外の切岸から内側の道へ投影すると、入口を飛ばして柵へ直進してしまう。
     // 道を外れた時だけ、遮られない道の点へ戻してから石段をたどる。
     sanRoadPoint(ROAD_HON, u.pos, from, army); sanRoadPoint(ROAD_HON, goal, to);
-    const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+    const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
     if (!Number.isFinite(from.d)) {
       // 柵の長辺の外では道全体が隠れる。まず長辺に沿って東端の外へ回る。
       const dx = u.pos.x - HON_C.x, dz = u.pos.z - HON_C.z;
@@ -2347,19 +2348,19 @@ function sanKuchiWay(army, u, goal) {
     const inward = u.pos.z >= edge && u.pos.z < edge + 20 && goal.z < edge;
     const outward = u.pos.z < edge && u.pos.z > edge - 22 && goal.z >= edge;
     if (!inward && !outward) continue;
-    const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+    const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
     q.x = 0;
     q.z = Math.abs(u.pos.x) > 1.2 ? edge + (inward ? 5 : -6) : edge + (inward ? -6 : 5);
     return q;
   }
   // 松明を取りに戻る組も、外柵の中央の口を抜けてから左右へ回る。
   if (u.pos.z >= -64 && u.pos.z < -44 && goal.z >= -44 && goal.z < -30) {
-    const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+    const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
     q.x = 0; q.z = Math.abs(u.pos.x) > 2.4 ? -49 : -35;
     return q;
   }
   if (u.pos.z > -44 && u.pos.z < -30 && goal.z < -36 && Math.abs(goal.x) < 20 && Math.abs(u.pos.x) > 2.4) {
-    const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+    const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
     if (u.pos.z < -36 && Math.abs(u.pos.x) > 8) { q.x = Math.sign(u.pos.x) * 26; q.z = -35; }
     else { q.x = 0; q.z = -35; }
     return q;
@@ -2371,7 +2372,7 @@ function sanKuchiWay(army, u, goal) {
     const from = u._sanFrom || (u._sanFrom = { x: 0, z: 0, s: 0, d: 0 });
     const to = u._sanTo || (u._sanTo = { x: 0, z: 0, s: 0, d: 0 });
     sanRoadPoint(road, u.pos, from, army); sanRoadPoint(road, goal, to);
-    const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+    const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
     if (!Number.isFinite(from.d)) return u.pos;
     if (from.d > 1.5) { q.x = from.x; q.z = from.z; }
     else {
@@ -2386,7 +2387,7 @@ function sanKuchiWay(army, u, goal) {
     return q;
   }
   if (u.pos.z < -44 || u.pos.z > -30 || goal.z >= -44 || Math.abs(goal.x) >= 20) return goal;
-  const q = u._sanWay || (u._sanWay = { x: 0, z: 0 });
+  const q = u._sanWay || (u._sanWay = { x: 0, z: 0, botRadius: 0.6 });
   // 横から中央へ直進すると z=-39 の逆茂木に当たる。端の外を回って南の帯へ出る。
   const side = Math.abs(u.pos.x);
   if (side > 8 && u.pos.z < -36) { q.x = Math.sign(u.pos.x) * 26; q.z = -35; }
@@ -4242,7 +4243,10 @@ const mitsukuri = {
     // 15分の構成：寄せの前に物見の場で城の構えを見て、六角の物見を払い、丹羽の手と合流してから総懸かり。
     //   先手の列（openingColumn）は柵の前に並べたまま動かさない（段へ呼ぶと三の郭へ寄せる列が崩れた）。物見には藤吉郎の手の足軽が付く
     rt.after(0, () => k15Monomi.start(rt, { faction: 'rokkaku', flag: 'rokkaku', armor: RK.armor, look: (list) => dress(list, RK),
-      fixedSpawn: true, withdrawWay: sanKuchiWay, friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
+      fixedSpawn: true, withdrawWay: sanKuchiWay,
+      // 物見の間も、塀・切岸・上階の向こうの城兵へ張り付かず、歩いて届く相手を払う。
+      botFoeAllowed: (o) => !courtyardHouse(rt, o) && Math.abs(o.pos.y - rt.player.u.pos.y) < 1.6 && sanDirect(rt.army, rt.player.u, o.pos),
+      friends: () => [], aid: { name: '木下の手の足軽', faction: 'oda', flag: 'oda', list: [{ type: 'samurai', n: 1 }, { type: 'ashigaru', n: 5 }] }, aidBacking: false, SPOT: { x: OPEN_PT[0], z: OPEN_PT[1] + 5 },   // 開きの持ち場のすぐ後ろの小高い所（東西は竹束と柵で塞がる）。11/9 見回り：+12 は z −26 の柵の向こうで着けず、物見の段から先へ進めなかった（bot 十八分）
      
       CASTLE: { san: SAN_C, ni: NI_C, hon: HON_C } }, () => this.climb(rt)));
   },

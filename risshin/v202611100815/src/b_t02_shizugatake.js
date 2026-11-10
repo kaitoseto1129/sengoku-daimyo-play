@@ -196,7 +196,8 @@ const live = (g) => !!g && g.units.some((u) => u.alive && !u.gone);
 const nLive = (g) => (!g || g.routed || g.order === 'retreat' ? 0 : g.units.reduce((n, u) => n + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0));
 // 逃げた兵・戦えなくなった兵を、まだ道を塞ぐ殿として数えない。
 const shoreLeft = (groups) => (groups || []).reduce((n, g) => n + (g.routed || g.order === 'retreat' ? 0 : g.units.reduce((s, u) => s + (u.alive && !u.gone && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound ? 1 : 0), 0)), 0);
-const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && u.team === team && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r ? 1 : 0), 0);
+// 柵や倒れた負傷兵を守備兵・寄せ手に数えない。
+const nearCount = (rt, team, p, r) => rt.army.units.reduce((n, u) => n + (u.alive && !u.gone && !u.isStruct && !u.civ && !u.fleeing && !u.noTarget && !u.downed && !u.woundOut && !u.rearWound && u.team === team && Math.hypot(u.pos.x - p.x, u.pos.z - p.z) < r ? 1 : 0), 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const MOUTH = { x: FORT.x + FORT.r + 4, z: FORT.z };     // 賤ヶ岳の砦の東の口（柵の切れ目）
 const DAWN_AT = { x: -82, z: 256 };                      // 夜明けに主人公が立つ所（砦の西の肩。切通しの口まで三十五歩ほど）
@@ -952,6 +953,8 @@ const t02_shizugatake = {
       if (F.fortBad > 12) { this.lose(rt, '賤ヶ岳の砦を奪われた'); return; }
     }
     const near = (q, r) => dist(pp, q) < r;
+    // 同じ砦の中に居続けただけで、西の斜面や本陣まで果たした事にしない。
+    if (F.phase === 1.3 && near(OI_SOUTH, 5) || F.phase === 1.6 && near(OI_WEST, 5) || F.phase === 1.8 && near(OI_HQ, 5)) F.reachedPost = F.phase;
     const raidLeft = () => F.groups.reduce((n, g) => n + (g.kind4 === 'raid' && g.bornT >= F.pt ? nLive(g) : 0), 0);
     switch (F.phase) {
       case 0.5: Open.tickOpen(rt, 0.25, this.ctx(rt)); if (F.sawForts) F.saw = true; return;
@@ -959,12 +962,11 @@ const t02_shizugatake = {
       // 大岩山へ着くまで（時だけでは進まない）
       case 1: if (near(OI_GATE, 16) || near(OI, OI.r + 8)) this.south(rt); return;
       // 南の柵：正面の槍を崩すか、柵で一分揉み合えば西へ
-      case 1.3: if (near(OI, OI.r + 6) && st > 20 && (nLive(F.wA) <= 4 || st > 70)) this.west(rt); return;
-      case 1.6: if (near(OI, OI.r + 6) && st > 18 && (nLive(F.wB) <= 3 || st > 60)) this.hq(rt); return;
+      case 1.3: if (F.reachedPost === F.phase && near(OI, OI.r + 6) && st > 20 && (nLive(F.wA) <= 4 || st > 70)) this.west(rt); return;
+      case 1.6: if (F.reachedPost === F.phase && near(OI, OI.r + 6) && st > 18 && (nLive(F.wB) <= 3 || st > 60)) this.hq(rt); return;
       case 1.8:
         if (!F.sakuIn && (nLive(F.wC) <= 3 || st > 35)) this.sakuIn(rt);
-        if (F.sakuIn && rt.t - F.sakuIn > 22 && near(OI, OI.r + 8)) this.fall(rt);
-        else if (F.sakuIn && rt.t - F.sakuIn > 50) this.fall(rt);
+        if (F.reachedPost === F.phase && F.sakuIn && rt.t - F.sakuIn > 22 && near(OI, OI.r + 8)) this.fall(rt);
         return;
       // 退く：大岩山から三十ほど離れたら振り返る
       case 2:
@@ -994,7 +996,8 @@ const t02_shizugatake = {
         return;
       case 4:
         if (F.katOut) { if (rt.t - F.katOut > 6) this.win(rt); return; }
-        if (near(SHIBA_FRONT, 30) && st > 25 && (nLive(F.kmG) <= 4 || st > 130)) {
+        // 主人公だけが先着した時は、備が追いつくまで総崩れにしない。
+        if (near(SHIBA_FRONT, 30) && nearCount(rt, 0, SHIBA_FRONT, 35) >= 4 && st > 25 && (nLive(F.kmG) <= 4 || st > 130)) {
           F.katOut = rt.t;
           rt.say('柴田勝家', '……退け。北ノ庄へ退け', 3);
           rt.after(3.2, () => rt.say('羽柴秀吉', '深追いはならぬ。勝家は北ノ庄で詰める', 3));
