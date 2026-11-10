@@ -1657,10 +1657,12 @@ function retreatCloth(rt, mesh) {
   const key = `${w}|${h}`;
   let mat = cache.get(key);
   if (!mat) {
-    mat = new THREE.MeshStandardMaterial({ map: base.map, color: base.color,
-      side: THREE.DoubleSide, roughness: 1, metalness: 0, alphaTest: 0.5,
-      transparent: false, opacity: 1, depthWrite: true, envMapIntensity: 0.2 });
-    mat.onBeforeCompile = sh => {
+    // 画質ごとの材質と、手前の幟を竿ごと隠す共通の処理を引き継ぐ。
+    // 布だけ別の材質へ替えると、竿が消えた所へ布の板だけが残る。
+    mat = base.clone();
+    mat.onBeforeRender = base.onBeforeRender;
+    mat.onBeforeCompile = (sh, renderer) => {
+      base.onBeforeCompile.call(base, sh, renderer);
       sh.uniforms.kgTime = F.clothTime; sh.uniforms.kgWind = F.clothWind;
       sh.uniforms.kgMotion = F.clothMotion;
       sh.uniforms.kgSize = { value: new THREE.Vector2(w, h) };
@@ -1686,7 +1688,7 @@ function retreatCloth(rt, mesh) {
           vec2 kgRootV = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
           transformed.z += kgFold(uv, kgRootV);`);
     };
-    mat.customProgramCacheKey = () => 'kg_cloth';
+    mat.customProgramCacheKey = () => base.customProgramCacheKey() + '_kg_cloth';
     cache.set(key, mat); F.flagMatList.push(mat);
   }
   mesh.material = mat; mesh.receiveShadow = true; mesh.userData.kgCloth = true;
@@ -4225,10 +4227,9 @@ function kgSignSeen(rt, u) {
     const t = i / steps;
     if (W.heightAt(a.x + (u.pos.x - a.x) * t, a.z + (u.pos.z - a.z) * t) > a.y + (by - a.y) * t - 0.2) return false;
   }
-  kgSignB.set(u.pos.x, by, u.pos.z);
-  return !cameraWallBlocked(rt, a, kgSignB, a.y, by, false);
+  // 地形の陰に加え、描画と同じ霧・硝煙・土煙で姿が隠れた兵も透視しない。
+  return sightPoint(rt, u.pos, KG_FOE_SIGN_R, true, u.mounted ? 2.2 : 1.2);
 }
-const kgSignB = new THREE.Vector3();
 function kgFoeSigns(rt) {
   const root = rt.hud?.root, F = rt.flags;
   if (!root) return;
@@ -4250,6 +4251,8 @@ function kgFoeSigns(rt) {
   const off = rt.over || F.ending || !me.alive || rt.hud.introWaiting || rt.player.camShot || rt.hud.bigmap || root.classList.contains('photo');
   let n = 0;
   if (!off) {
+    // 見通しの投影にも今のカメラ行列を使う。
+    cam.updateMatrixWorld();
     // 視点が岩や坂の陰へ動いた時は、前の見通しの一覧を使わない。
     // 静止中は従来どおり五分の一秒ごと。座標だけを控え、毎コマの配列は増やさない。
     const a = cam.position;

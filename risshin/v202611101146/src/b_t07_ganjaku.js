@@ -692,7 +692,8 @@ ${P} .pg-goals :is(h3 b, li em) { display:none !important; }`;
       // 味方の先手と二番手は、自分の少し先と後ろを坂に沿って走る（一人で登らせない。止まれば味方も坂の途中で待つ）
       if ((F.leadT = (F.leadT || 0) - dt) <= 0) {
         F.leadT = 1;
-        const k = Math.max(F.lead, this.along(p.x, p.z), (rt.t - F.stageT) * 1.2);
+        // 門前で待つ間も二番手の間隔を残す。道の長さを越えると両隊の行き先が門口の一点になる。
+        const k = Math.min(this.along(MOUTH.x, MOUTH.z), Math.max(F.lead, this.along(p.x, p.z), (rt.t - F.stageT) * 1.2));
         F.lead = k;
         this.to(F.gamo, this.roadAt(k + 8)); this.to(F.gamo2, this.roadAt(k - 6));
       }
