@@ -13,6 +13,7 @@ export function wrap(def) {
   const p1 = def.p1;
   def.p1 = function (r) {
     const F = r.flags;
+    if (F.ending || r.over || !r.player.u.alive) return;
     if (k15Off(r) || F.shizukaDone || F.hp) return p1.call(this, r);
     if (F.k15stage === 'shizuka') return;
     start(r, () => {
@@ -37,7 +38,7 @@ function start(rt, done) {
     P.k15soft = true;
     P.takeDamage = function (a, s) { return td.call(this, a * 0.4, s); };
   }
-  const stop = () => F.k15stage !== 'shizuka';
+  const stop = () => F.k15stage !== 'shizuka' || F.ending || !rt.player.u.alive;
   rt.banner('天正十年六月二日　夜明け前', '京の本能寺。上様の供は、わずか百ほど');
   // 御殿の近臣（docs/generals_oda_1108.md 32：湯浅直宗）。広間の縁に控える
   F.templeCourtiers = [evPerson(rt, 0, '湯浅直宗', { x: PT.hiroma.x + 2, z: PT.hiroma.z - 3 }, Math.PI, { calm: true, mortal: true, u: { kosode: 1, honnoCloth: true, kosodeCol: 0x3e4652, obi: 0x30251c } })];

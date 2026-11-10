@@ -23,7 +23,7 @@ function start(rt, K, done) {
   const F = rt.flags, W = rt.world;
   F.k15stage = 'kairo'; F.k15on = true;
   k15Freeze(rt, 'kairo');   // 前の段の時計を止める
-  const stop = () => F.k15stage !== 'kairo' || F.ending;
+  const stop = () => F.k15stage !== 'kairo' || F.ending || !rt.player.u.alive;
   const niwa = PT.niwa, watari = { x: -66, z: 72 };
   rt.banner('中庭の回廊', '上様が奥へ移られる前に、回廊の口の追手を払え');
   k15Go(rt, 'kr-niwa', niwa, 5, '中庭の回廊の口を守れ', '回廊の口', () => {
