@@ -400,8 +400,10 @@ const k01_fushimi = {
     rt.after(25.4, () => rt.say('鳥居元忠', 'ああ。', 2.2));
     // ---- 包囲されていく（南→西→東と、遠くの旗が増える）
     rt.after(28, () => { rt.banner('七月十九日', '西の軍勢が伏見へ寄せる'); this.camps(rt, 1); });
-    rt.after(31.5, () => { this.camps(rt, 2); rt.say('鳥居の侍', '……多いな。', 2.6); });
-    rt.after(35, () => { this.camps(rt, 2); rt.say('使番', '全周、敵勢！', 2.8); });
+    // 小早川・島津・毛利の本陣は二十三日の段で着く。包囲の
+    // 声だけで先に全陣を出すと、日付に合わせた着陣を壊してしまう。
+    rt.after(31.5, () => rt.say('鳥居の侍', '……多いな。', 2.6));
+    rt.after(35, () => rt.say('使番', '全周、敵勢！', 2.8));
     rt.after(38, () => this.begin(rt));
   },
 
@@ -674,13 +676,14 @@ const k01_fushimi = {
     const dl = Math.round(Math.max(F.delay || 0, 60));
     rt.award((t) => { t.main = true; t.special = { label: `時を稼いだ（${dl}／100）`, pts: 20 + Math.round(dl / 5) }; }, '伏見城で時を稼いだ');
     rt.player.u.invuln = true;
+    rt.after(0.5, () => rt.say('雑賀孫一', '腹を召されるまで、お待ち申す。', 2));
     rt.after(2.5, () => {
       this.fall(rt, '鳥居元忠');
       sfx('fall', 0.8);
       for (const f of F.tkFlags || []) f.visible = false;
       for (const [x, z] of [[-8, -46], [8, -46], [0, -8], [-12, 28], [12, 28]]) rt.scene.add(nobori(rt.world, x, z, 'ukita', 6));
     });
-    rt.after(3.5, () => rt.banner('鳥居元忠、討死', '慶長五年八月一日'));
+    rt.after(3.5, () => rt.banner('鳥居元忠、自刃', '孫一が首を取り、城方の多くが本丸で果てた'));
     rt.after(6.5, () => rt.banner('血天井', '城兵の血に染まった床板は、のちに京の寺々へ伝わる'));
     rt.after(8.5, () => { sfx('messenger', 0.7); rt.say('使番', '徳川本隊は無事、東へ。', 3.4); });
     F.k01s?.ending?.();   // 「伏見城　落城」→「任務達成」（k01_fushimi/yose.js）

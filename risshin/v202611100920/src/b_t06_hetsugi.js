@@ -532,7 +532,14 @@ const t06_hetsugi = {
     if (F.sogoDead || F.ending) return;
     F.sogoDead = true;
     if (F.sogoU?.alive) { F.sogoU.invuln = false; rt.army.kill(F.sogoU, null); }
-    for (const u of F.sogo?.units || []) if (u.alive && !u.gone) rt.army.despawn(u);
+    // 生き残った旗本まで消さず、殿の持ち場から浅瀬を通って退かせる。
+    const g = F.sogo;
+    if (live(g)) {
+      const crossing = g.center().z > -24;
+      g.order = 'move'; g.focus = null;
+      g.dest = { x: FORD.x, z: crossing ? 40 : -24 }; g.speed = 3.6; g.aggro = 6; g.seekRange = 6;
+      g.onArrive = crossing ? null : (q) => { q.order = 'move'; q.dest = { x: FORD.x, z: 40 }; q.onArrive = null; };
+    }
     if (B.sogo && !B.sogo.routedL) routButai(B.sogo, 30);
     rt.say('使番', '十河存保殿、討死！', 2.8);
   },

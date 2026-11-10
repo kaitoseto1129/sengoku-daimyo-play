@@ -68,7 +68,7 @@ function toB(rt, K) {
 export function pin(rt) {
   const S = rt.flags.s3, F = rt.flags;
   if (!S || S.st < 1) return DEFEND_SPOT;
-  if (S.st >= 2) return motoAt(rt);
+  if (S.st >= 3 || (S.st === 2 && S.motoOrdered)) return motoAt(rt);
   return F.nobuU?.alive ? F.nobuU.pos : NOBU_SPOT;
 }
 
@@ -102,7 +102,7 @@ export function update(rt, K, el) {
   if (S.st === 1 && S.ls && ((meeting && near && S.bladesMet && S.clash >= 4 && S.near > 40 && rt.t - S.ls > 30) || (near && S.standFought && rt.t - S.ls > 100))) toMoto(rt, K);
   if (S.st === 2) {
     const m = motoAt(rt);
-    if (rt.t - S.tM >= 10 && Math.hypot(P.x - m.x, P.z - m.z) < 12) { S.st = 3; S.tR = rt.t; retreatMoto(rt, K); }
+    if (S.motoOrdered && Math.hypot(P.x - m.x, P.z - m.z) < 12) { S.st = 3; S.tR = rt.t; retreatMoto(rt, K); }
   }
   // 元親と浅瀬へ退く間に、後ろで信親の旗が倒れる
   if (S.st === 3 && rt.t - S.tR > 12) K.closeRing(rt);
@@ -123,6 +123,7 @@ function toMoto(rt, K) {
   rt.after(9.5, () => rt.say('長宗我部の老臣', '殿まで討たれては、長宗我部が絶えまする！', 3));
   rt.after(10, () => {
     if (F.step !== 3) return;
+    S.motoOrdered = true;
     F.mText = '長宗我部元親を退かせろ'; rt.obj('main', F.mText, 'main', true);
     rt.unmark('nobu');
     rt.marker('moto', () => motoAt(rt), '長宗我部元親');
