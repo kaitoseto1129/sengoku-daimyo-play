@@ -730,6 +730,12 @@ echizen.botRetreatWay = (rt, back) => {
   if (point?.valid && echizen.botRetreatStepAllowed(rt, point)) return point;
   // 印が見つからない時の本道への戻りにも、柵・途中の勾配を調べる。
   // 使番の経路だけでは急坂への直進が残る。通れなければ構えてその場で待つ。
+  // 11/10 クラウドの正式の流し：主郭の段で退き続け、本道の九十九折りを五百歩余り下って観音丸の先まで戻り刻限が切れた。
+  //   一度の退きは退き始めから三十五歩まで。それより先へは下がらず、その場で構えて待つ
+  const me = rt.player.u.pos, R = rt.flags.echBotBack || (rt.flags.echBotBack = { x: me.x, z: me.z, t: rt.t });
+  if (rt.t - R.t > 3) { R.x = me.x; R.z = me.z; }
+  R.t = rt.t;
+  if (Math.hypot(me.x - R.x, me.z - R.z) > 35) return me;
   const way = kinome.world.runnerWay(rt.army, rt.player.u, back);
   return echizen.botRetreatStepAllowed(rt, way) ? way : rt.player.u.pos;
 };

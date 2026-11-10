@@ -28,6 +28,7 @@ import { makeSiegeZones, siegeFighter } from './siege_zones.js';
 import { siegeStages } from './siege_stages.js';
 import { makeGate, updateGates, resetGates } from './siege_gate.js';
 import { makeNawabari } from './nawabari.js';
+import { tick as tkStuck } from './takato/stuck.js';
 import { placeLadder, startClimb, knockDown, updateLadders, resetLadders } from './siege_ladder.js';
 import { makeButai, butaiTick } from './butai.js';
 import { tickTabas, tabaInteractTick, announceAdvance, makeTabaAdvance, addTaba } from './taketaba.js';
@@ -108,7 +109,9 @@ const STAGE_TEXT = [
 ];   // 織田家編の読み口（b_takato.js の TK_STAGE_TEXT）と同じ言い方
 // 主人公の交戦は、全滅・曲輪の制圧とは別に確かめる。
 // 四秒より早く自ら討った時も、城兵を受けた働きとして残す。
-export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill; }
+// 11/10 クラウドの流し（携帯の bot）：出撃の兵に当たらないまま開いた門から三の丸へ入り、三十三人討っても②のまま刻限まで進まなかった。
+//   三の丸で八人討てば、出撃を受けきった事にする
+export function receivedSally(F) { return (F.sallyContact || 0) >= 4 || !!F.sallyPlayerKill || (F.pushKills?.san || 0) >= 8; }
 
 // 大手の木戸から出る二組も、控えと同じ迎撃の相手として数える。
 // 門前で実際に斬り合っても、所属の違いで②が残り続けないようにする。
@@ -1852,6 +1855,21 @@ const takato_siege = {
       if (held[id] == null) held[id] = rt.t;
       return rt.t - held[id] >= zone.hold;
     };
+    // 11/10 クラウドの流し（携帯の bot）：二の丸の門が開いて本人が二の丸に入り、残る城兵と二百秒斬り合っても、
+    //   味方が三人までしか入らず（要るのは四人）討ち取りの数も足りず、刻限まで二の丸が落ちなかった。
+    //   門が開いた曲輪に本人が入って七十五秒たてば、残る城兵は奥の備えへ退き、その曲輪は落ちる
+    const inside = F.attrInside || (F.attrInside = {});
+    const pp = rt.player.u.pos;
+    // 味方が要る数だけ曲輪に入って九十秒斬り合っても討ち取りが足りない時も同じ（本人が三の丸で長屋の中の城兵に構えたまま三百秒）
+    const footT = F.attrFoot || (F.attrFoot = {});
+    const longIn = (id) => {
+      if (rt.player.u.alive && F.C.kuruwa[id].test(pp.x, pp.z)) inside[id] ??= rt.t;
+      if (occupied(id, true)) footT[id] ??= rt.t; else footT[id] = null;
+      return inside[id] != null && rt.t - inside[id] >= 75 || footT[id] != null && rt.t - footT[id] >= 90;
+    };
+    if (!F.sanFell && F.gates.oteInner.opened && longIn('san')) this.onZoneFall(rt, 'san');
+    if (!F.niFell && (F.gates.gateNi.opened || F.gates.karamete.opened) && longIn('ni')) this.onZoneFall(rt, 'ni');
+    if (!F.honFell && F.gates.honInner.opened && longIn('hon')) this.honTaken(rt);
     if (!F.sanFell && F.gates.oteInner.opened && ((F.pushKills.san >= 6 && occupied('san', true)) || (occupied('san') && deadB(F.sanSpear) && deadB(F.sanGun)))) this.onZoneFall(rt, 'san');
     if (!F.niFell && (F.gates.gateNi.opened || F.gates.karamete.opened) && ((F.pushKills.ni >= 5 && occupied('ni', true)) || (occupied('ni') && deadB(F.niSpear)))) this.onZoneFall(rt, 'ni');
     if (!F.honFell && F.gates.honInner.opened && occupied('hon', true) && (F.pushKills.hon >= 5 || deadB(F.honGuard))) this.honTaken(rt);
@@ -1949,6 +1967,7 @@ const takato_siege = {
     if (F.K) F.K.tick(dt);
     if (F.DA) F.DA.tick(dt);
     if (F.step >= 1) { tickRoutes(F.movers); if (F.refresh) this.checkAttrition(rt); }
+    tkStuck(rt, this.guideMarker?.(rt));   // 段差や堀へ落ちて抜けられない時（takato/stuck.js）
 
     // 西の切岸の梯子：着いた兵を一人ずつ登らせ、守りが時おり押し倒す
     if (F.nishiLadder2 && F.nishiLadder2.hp > 0) {

@@ -9,7 +9,7 @@ import { markedEnemy } from './mission_pin.js';
 import { enemyKnown } from './battle_intel.js';
 import { reduceMotion } from './settings.js';
 import { VIEW, safeInsets } from './viewport.js';
-import { ARMY_P, ARMY_REAL_P, ARMY_REAL_R, DIST_FAKE_NEAR } from './world_army_shader.js';
+import { ARMY_NEAR, ARMY_P, ARMY_REAL_P, ARMY_REAL_R, DIST_FAKE_NEAR } from './world_army_shader.js';
 
 const CAP = 360, BARS = 12, NAMES = 12, GLOW = 8, HOT = 16;
 // 武将の名は戦場の名のある武将全員に常に出す（kaito 11/1）。遠くても読める所まで。
@@ -26,8 +26,15 @@ function lightEnemyBodyVisible(A, p, i) {
   const seed = info ? info.getX(i) : 1;
   const cameraD = Math.hypot(p.x - ARMY_P.value.x, p.z - ARMY_P.value.y);
   const nearD = Math.min(cameraD, Math.hypot(p.x - ARMY_REAL_P.value.x, p.z - ARMY_REAL_P.value.y));
-  if (cameraD < (U.uNear?.value || 0) || nearD < (U.uRealNear || ARMY_REAL_R).value - 5 * seed ||
+  if (cameraD < (U.uNear || ARMY_NEAR).value || nearD < (U.uRealNear || ARMY_REAL_R).value - 5 * seed ||
       nearD < (U.uFakeNear || DIST_FAKE_NEAR).value + 30 * seed) return false;
+  // 後詰の出発待ちと縁の間引きも、体を描く時と同じ兵ごとの値で判定する。
+  const host = A.body.geometry.attributes.aHost?.getX(i) || 0;
+  if (host) {
+    const edge = (U.uFakeNear || DIST_FAKE_NEAR).value;
+    const t = edge > 0 ? Math.max(0, Math.min(1, (cameraD - edge) / (edge * .18))) : 1;
+    if (cameraD < edge || seed > t * t * (3 - 2 * t) * (host < 0 ? (U.uHostIn?.value ?? 1) : 1)) return false;
+  }
   return !(U.uUnavailable?.value > .5 && Math.max(Math.abs(p.x), Math.abs(p.z)) < (U.uMoveLim?.value ?? 176) + 40);
 }
 // 近い軽い兵の所属印。人の形や実兵の人数を増やさず、既存の印の束を使う。

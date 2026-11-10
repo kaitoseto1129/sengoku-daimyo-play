@@ -94,7 +94,7 @@ function mikataEnemySignVisible(rt, u) {
   let bodyVisible = !!(u.body?.visible && u.body.parent);
   for (let part = u.body?.parent; bodyVisible && part; part = part.parent) if (part.visible === false) bodyVisible = false;
   if (!humanVisible && !u.vatOn && !u.efuda && !u.imp && !bodyVisible) return false;
-  return sightPoint(rt, u.pos, 170, true, u.mounted ? 2 : 1.2);
+  return sightPoint(rt, u.pos, 40, true, u.mounted ? 2 : 1.2);
 }
 // 落ちた槍の握りは中央ではない。実際の石突と穂先から坂の傾きを取る。
 function fallenSpear(army, u) {
@@ -1110,7 +1110,8 @@ function mikataGoals(rt, dt) {
     const foe = G.i === 2 && !holdPost ? mikataNearestFoe(rt) : null;
     const contact = G.i === 2 ? holdPost ? holdContact() : !!(foe && Math.hypot(foe.pos.x - p.x, foe.pos.z - p.z) < 22) : G.i === 3 ? !!F.aka?.units?.some((q) => mikataFoeOk(q, u.team) && Math.hypot(q.pos.x - p.x, q.pos.z - p.z) < 14)
       : holdContact();
-    const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? 40 : 28);
+    // 森の持ち場は案内と同じ五歩。平手の持ち場から赤備えに触れただけでは務めにしない。
+    const inPost = near(post, holdPost ? holdPost.botRadius : G.i === 2 ? 18 : G.i === 3 ? mikataPostRadius(rt) : 28);
     if ((G.i === 2 && !holdPost || G.i === 3) && inPost && contact) G.contact = true;
     const repelled = G.contact && (G.i === 2 && !holdPost
       ? [F.w1, F.scout].every((g) => g?.units?.every((q) => !mikataFoeOk(q, u.team)))
@@ -1218,7 +1219,7 @@ function mikataBoard(rt) {
     if (on) for (const u of rt.army.units) {
       if (!u.alive || u.gone || u.dying || u.woundOut || u.rearWound || u.downed || u.noTarget || u.isStruct || u.civ || u.team === me.team || u.team > 1 || u._nearSignOn ||
           u.mesh?.visible === false || u.camHidden) continue;
-      // 遠くても映っている実兵には印を付ける。画面外を先に除き、見通しの計算は増やさない。
+      // 四十歩内の実兵に印を付ける。遠景の地平線に印だけを並べない。
       v.set(u.pos.x, u.pos.y + (u.mounted ? 3.2 : 2.25), u.pos.z).project(rt.camera);
       if (v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue;
       if (!mikataEnemySignVisible(rt, u)) continue;
@@ -1256,7 +1257,7 @@ const mikatagahara = {
   enemySignVisible: mikataEnemySignVisible,
   // 備の中心へまとめて浮かぶ印をやめ、実際に描かれる軽い兵の胴へ見通しを取る。
   lightEnemyTriangleSigns: true,
-  lightEnemySignVisible: (rt, p) => sightPoint(rt, p, 170, true, 1.2),
+  lightEnemySignVisible: (rt, p) => sightPoint(rt, p, 40, true, 1.2),
   sightFromCamera: true,
   nearbyAllySignLimit: 0,
   noDodgeCard: true,
@@ -2918,7 +2919,7 @@ html:root body #hud.mikata-guide #battle-notices #objectives.keep-combat-task:no
     if (F.mkG?.i === 3 && F.step === 2 && !F.dpOn && v.team === 1 && v.group === F.aka &&
         k?.team === 0 && rt.player.u.alive) {
       const p = rt.player.u.pos, post = F.mkFlank ? FLANK_POST : PIKE_POST;
-      if (Math.hypot(p.x - post.x, p.z - post.z) < 40 && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 14) {
+      if (Math.hypot(p.x - post.x, p.z - post.z) < mikataPostRadius(rt) && Math.hypot(v.pos.x - p.x, v.pos.z - p.z) < 14) {
         F.mkG.contact = true;
         if (k === rt.player.u) F.mkG.hit = true;
       }
